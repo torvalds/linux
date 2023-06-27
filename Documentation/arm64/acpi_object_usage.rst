@@ -17,16 +17,37 @@ For ACPI on arm64, tables also fall into the following categories:
 
        -  Recommended: BERT, EINJ, ERST, HEST, PCCT, SSDT
 
-       -  Optional: BGRT, CPEP, CSRT, DBG2, DRTM, ECDT, FACS, FPDT, IBFT,
-          IORT, MCHI, MPST, MSCT, NFIT, PMTT, RASF, SBST, SLIT, SPMI, SRAT,
-          STAO, TCPA, TPM2, UEFI, XENV
+       -  Optional: AGDI, BGRT, CEDT, CPEP, CSRT, DBG2, DRTM, ECDT, FACS, FPDT,
+          HMAT, IBFT, IORT, MCHI, MPAM, MPST, MSCT, NFIT, PMTT, PPTT, RASF, SBST,
+          SDEI, SLIT, SPMI, SRAT, STAO, TCPA, TPM2, UEFI, XENV
 
-       -  Not supported: BOOT, DBGP, DMAR, ETDT, HPET, IVRS, LPIT, MSDM, OEMx,
-          PSDT, RSDT, SLIC, WAET, WDAT, WDRT, WPBT
+       -  Not supported: AEST, APMT, BOOT, DBGP, DMAR, ETDT, HPET, IVRS, LPIT,
+          MSDM, OEMx, PDTT, PSDT, RAS2, RSDT, SLIC, WAET, WDAT, WDRT, WPBT
 
 ====== ========================================================================
 Table  Usage for ARMv8 Linux
 ====== ========================================================================
+AEST   Signature Reserved (signature == "AEST")
+
+       **Arm Error Source Table**
+
+       This table informs the OS of any error nodes in the system that are
+       compliant with the Arm RAS architecture.
+
+AGDI   Signature Reserved (signature == "AGDI")
+
+       **Arm Generic diagnostic Dump and Reset Device Interface Table**
+
+       This table describes a non-maskable event, that is used by the platform
+       firmware, to request the OS to generate a diagnostic dump and reset the device.
+
+APMT   Signature Reserved (signature == "APMT")
+
+       **Arm Performance Monitoring Table**
+
+       This table describes the properties of PMU support implmented by
+       components in the system.
+
 BERT   Section 18.3 (signature == "BERT")
 
        **Boot Error Record Table**
@@ -46,6 +67,13 @@ BGRT   Section 5.2.22 (signature == "BGRT")
 
        Optional, not currently supported, with no real use-case for an
        ARM server.
+
+CEDT   Signature Reserved (signature == "CEDT")
+
+       **CXL Early Discovery Table**
+
+       This table allows the OS to discover any CXL Host Bridges and the Host
+       Bridge registers.
 
 CPEP   Section 5.2.18 (signature == "CPEP")
 
@@ -184,6 +212,15 @@ HEST   Section 18.3.2 (signature == "HEST")
        Must be supplied if RAS support is provided by the platform.  It
        is recommended this table be supplied.
 
+HMAT   Section 5.2.28 (signature == "HMAT")
+
+       **Heterogeneous Memory Attribute Table**
+
+       This table describes the memory attributes, such as memory side cache
+       attributes and bandwidth and latency details, related to Memory Proximity
+       Domains. The OS uses this information to optimize the system memory
+       configuration.
+
 HPET   Signature Reserved (signature == "HPET")
 
        **High Precision Event timer Table**
@@ -241,6 +278,13 @@ MCHI   Signature Reserved (signature == "MCHI")
 
        Optional, not currently supported.
 
+MPAM   Signature Reserved (signature == "MPAM")
+
+       **Memory Partitioning And Monitoring table**
+
+       This table allows the OS to discover the MPAM controls implemented by
+       the subsystems.
+
 MPST   Section 5.2.21 (signature == "MPST")
 
        **Memory Power State Table**
@@ -281,17 +325,38 @@ PCCT   Section 14.1 (signature == "PCCT)
        Recommend for use on arm64; use of PCC is recommended when using CPPC
        to control performance and power for platform processors.
 
+PDTT   Section 5.2.29 (signature == "PDTT")
+
+       **Platform Debug Trigger Table**
+
+       This table describes PCC channels used to gather debug logs of
+       non-architectural features.
+
+
 PMTT   Section 5.2.21.12 (signature == "PMTT")
 
        **Platform Memory Topology Table**
 
        Optional, not currently supported.
 
+PPTT   Section 5.2.30 (signature == "PPTT")
+
+       **Processor Properties Topology Table**
+
+       This table provides the processor and cache topology.
+
 PSDT   Section 5.2.11.3 (signature == "PSDT")
 
        **Persistent System Description Table**
 
        Obsolete table, will not be supported.
+
+RAS2   Section 5.2.21 (signature == "RAS2")
+
+       **RAS Features 2 table**
+
+       This table provides interfaces for the RAS capabilities implemented in
+       the platform.
 
 RASF   Section 5.2.20 (signature == "RASF")
 
@@ -317,6 +382,12 @@ SBST   Section 5.2.14 (signature == "SBST")
        **Smart Battery Subsystem Table**
 
        Optional, not currently supported.
+
+SDEI   Signature Reserved (signature == "SDEI")
+
+       **Software Delegated Exception Interface table**
+
+       This table advertises the presence of the SDEI interface.
 
 SLIC   Signature Reserved (signature == "SLIC")
 

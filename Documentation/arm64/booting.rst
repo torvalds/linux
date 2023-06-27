@@ -379,6 +379,38 @@ Before jumping into the kernel, the following conditions must be met:
 
     - SMCR_EL2.EZT0 (bit 30) must be initialised to 0b1.
 
+  For CPUs with Memory Copy and Memory Set instructions (FEAT_MOPS):
+
+  - If the kernel is entered at EL1 and EL2 is present:
+
+    - HCRX_EL2.MSCEn (bit 11) must be initialised to 0b1.
+
+  For CPUs with the Extended Translation Control Register feature (FEAT_TCR2):
+
+  - If EL3 is present:
+
+    - SCR_EL3.TCR2En (bit 43) must be initialised to 0b1.
+
+ - If the kernel is entered at EL1 and EL2 is present:
+
+    - HCRX_EL2.TCR2En (bit 14) must be initialised to 0b1.
+
+  For CPUs with the Stage 1 Permission Indirection Extension feature (FEAT_S1PIE):
+
+  - If EL3 is present:
+
+    - SCR_EL3.PIEn (bit 45) must be initialised to 0b1.
+
+  - If the kernel is entered at EL1 and EL2 is present:
+
+    - HFGRTR_EL2.nPIR_EL1 (bit 58) must be initialised to 0b1.
+
+    - HFGWTR_EL2.nPIR_EL1 (bit 58) must be initialised to 0b1.
+
+    - HFGRTR_EL2.nPIRE0_EL1 (bit 57) must be initialised to 0b1.
+
+    - HFGRWR_EL2.nPIRE0_EL1 (bit 57) must be initialised to 0b1.
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
 enter the kernel in the same exception level.  Where the values documented

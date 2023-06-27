@@ -1,40 +1,41 @@
-=====================
-ACPI on ARMv8 Servers
-=====================
+===================
+ACPI on Arm systems
+===================
 
-ACPI can be used for ARMv8 general purpose servers designed to follow
-the ARM SBSA (Server Base System Architecture) [0] and SBBR (Server
-Base Boot Requirements) [1] specifications.  Please note that the SBBR
-can be retrieved simply by visiting [1], but the SBSA is currently only
-available to those with an ARM login due to ARM IP licensing concerns.
+ACPI can be used for Armv8 and Armv9 systems designed to follow
+the BSA (Arm Base System Architecture) [0] and BBR (Arm
+Base Boot Requirements) [1] specifications.  Both BSA and BBR are publicly
+accessible documents.
+Arm Servers, in addition to being BSA compliant, comply with a set
+of rules defined in SBSA (Server Base System Architecture) [2].
 
-The ARMv8 kernel implements the reduced hardware model of ACPI version
+The Arm kernel implements the reduced hardware model of ACPI version
 5.1 or later.  Links to the specification and all external documents
 it refers to are managed by the UEFI Forum.  The specification is
 available at http://www.uefi.org/specifications and documents referenced
 by the specification can be found via http://www.uefi.org/acpi.
 
-If an ARMv8 system does not meet the requirements of the SBSA and SBBR,
+If an Arm system does not meet the requirements of the BSA and BBR,
 or cannot be described using the mechanisms defined in the required ACPI
 specifications, then ACPI may not be a good fit for the hardware.
 
 While the documents mentioned above set out the requirements for building
-industry-standard ARMv8 servers, they also apply to more than one operating
+industry-standard Arm systems, they also apply to more than one operating
 system.  The purpose of this document is to describe the interaction between
-ACPI and Linux only, on an ARMv8 system -- that is, what Linux expects of
+ACPI and Linux only, on an Arm system -- that is, what Linux expects of
 ACPI and what ACPI can expect of Linux.
 
 
-Why ACPI on ARM?
+Why ACPI on Arm?
 ----------------
 Before examining the details of the interface between ACPI and Linux, it is
 useful to understand why ACPI is being used.  Several technologies already
 exist in Linux for describing non-enumerable hardware, after all.  In this
-section we summarize a blog post [2] from Grant Likely that outlines the
-reasoning behind ACPI on ARMv8 servers.  Actually, we snitch a good portion
+section we summarize a blog post [3] from Grant Likely that outlines the
+reasoning behind ACPI on Arm systems.  Actually, we snitch a good portion
 of the summary text almost directly, to be honest.
 
-The short form of the rationale for ACPI on ARM is:
+The short form of the rationale for ACPI on Arm is:
 
 -  ACPI’s byte code (AML) allows the platform to encode hardware behavior,
    while DT explicitly does not support this.  For hardware vendors, being
@@ -47,7 +48,7 @@ The short form of the rationale for ACPI on ARM is:
 
 -  In the enterprise server environment, ACPI has established bindings (such
    as for RAS) which are currently used in production systems.  DT does not.
-   Such bindings could be defined in DT at some point, but doing so means ARM
+   Such bindings could be defined in DT at some point, but doing so means Arm
    and x86 would end up using completely different code paths in both firmware
    and the kernel.
 
@@ -108,7 +109,7 @@ recent version of the kernel.
 
 Relationship with Device Tree
 -----------------------------
-ACPI support in drivers and subsystems for ARMv8 should never be mutually
+ACPI support in drivers and subsystems for Arm should never be mutually
 exclusive with DT support at compile time.
 
 At boot time the kernel will only use one description method depending on
@@ -121,11 +122,11 @@ time).
 
 Booting using ACPI tables
 -------------------------
-The only defined method for passing ACPI tables to the kernel on ARMv8
+The only defined method for passing ACPI tables to the kernel on Arm
 is via the UEFI system configuration table.  Just so it is explicit, this
 means that ACPI is only supported on platforms that boot via UEFI.
 
-When an ARMv8 system boots, it can either have DT information, ACPI tables,
+When an Arm system boots, it can either have DT information, ACPI tables,
 or in some very unusual cases, both.  If no command line parameters are used,
 the kernel will try to use DT for device enumeration; if there is no DT
 present, the kernel will try to use ACPI tables, but only if they are present.
@@ -169,7 +170,7 @@ hardware reduced mode must be set to zero.
 
 For the ACPI core to operate properly, and in turn provide the information
 the kernel needs to configure devices, it expects to find the following
-tables (all section numbers refer to the ACPI 6.1 specification):
+tables (all section numbers refer to the ACPI 6.5 specification):
 
     -  RSDP (Root System Description Pointer), section 5.2.5
 
@@ -184,20 +185,76 @@ tables (all section numbers refer to the ACPI 6.1 specification):
 
     -  GTDT (Generic Timer Description Table), section 5.2.24
 
+    -  PPTT (Processor Properties Topology Table), section 5.2.30
+
+    -  DBG2 (DeBuG port table 2), section 5.2.6, specifically Table 5-6.
+
+    -  APMT (Arm Performance Monitoring unit Table), section 5.2.6, specifically Table 5-6.
+
+    -  AGDI (Arm Generic diagnostic Dump and Reset Device Interface Table), section 5.2.6, specifically Table 5-6.
+
     -  If PCI is supported, the MCFG (Memory mapped ConFiGuration
-       Table), section 5.2.6, specifically Table 5-31.
+       Table), section 5.2.6, specifically Table 5-6.
 
     -  If booting without a console=<device> kernel parameter is
        supported, the SPCR (Serial Port Console Redirection table),
-       section 5.2.6, specifically Table 5-31.
+       section 5.2.6, specifically Table 5-6.
 
     -  If necessary to describe the I/O topology, SMMUs and GIC ITSs,
        the IORT (Input Output Remapping Table, section 5.2.6, specifically
-       Table 5-31).
+       Table 5-6).
 
-    -  If NUMA is supported, the SRAT (System Resource Affinity Table)
-       and SLIT (System Locality distance Information Table), sections
-       5.2.16 and 5.2.17, respectively.
+    -  If NUMA is supported, the following tables are required:
+
+       - SRAT (System Resource Affinity Table), section 5.2.16
+
+       - SLIT (System Locality distance Information Table), section 5.2.17
+
+    -  If NUMA is supported, and the system contains heterogeneous memory,
+       the HMAT (Heterogeneous Memory Attribute Table), section 5.2.28.
+
+    -  If the ACPI Platform Error Interfaces are required, the following
+       tables are conditionally required:
+
+       - BERT (Boot Error Record Table, section 18.3.1)
+
+       - EINJ (Error INJection table, section 18.6.1)
+
+       - ERST (Error Record Serialization Table, section 18.5)
+
+       - HEST (Hardware Error Source Table, section 18.3.2)
+
+       - SDEI (Software Delegated Exception Interface table, section 5.2.6,
+         specifically Table 5-6)
+
+       - AEST (Arm Error Source Table, section 5.2.6,
+         specifically Table 5-6)
+
+       - RAS2 (ACPI RAS2 feature table, section 5.2.21)
+
+    -  If the system contains controllers using PCC channel, the
+       PCCT (Platform Communications Channel Table), section 14.1
+
+    -  If the system contains a controller to capture board-level system state,
+       and communicates with the host via PCC, the PDTT (Platform Debug Trigger
+       Table), section 5.2.29.
+
+    -  If NVDIMM is supported, the NFIT (NVDIMM Firmware Interface Table), section 5.2.26
+
+    -  If video framebuffer is present, the BGRT (Boot Graphics Resource Table), section 5.2.23
+
+    -  If IPMI is implemented, the SPMI (Server Platform Management Interface),
+       section 5.2.6, specifically Table 5-6.
+
+    -  If the system contains a CXL Host Bridge, the CEDT (CXL Early Discovery
+       Table), section 5.2.6, specifically Table 5-6.
+
+    -  If the system supports MPAM, the MPAM (Memory Partitioning And Monitoring table), section 5.2.6,
+       specifically Table 5-6.
+
+    -  If the system lacks persistent storage, the IBFT (ISCSI Boot Firmware
+       Table), section 5.2.6, specifically Table 5-6.
+
 
 If the above tables are not all present, the kernel may or may not be
 able to boot properly since it may not be able to configure all of the
@@ -269,16 +326,14 @@ Drivers should look for device properties in the _DSD object ONLY; the _DSD
 object is described in the ACPI specification section 6.2.5, but this only
 describes how to define the structure of an object returned via _DSD, and
 how specific data structures are defined by specific UUIDs.  Linux should
-only use the _DSD Device Properties UUID [5]:
+only use the _DSD Device Properties UUID [4]:
 
    - UUID: daffd814-6eba-4d8c-8a91-bc9bbf4aa301
 
-   - https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf
-
-The UEFI Forum provides a mechanism for registering device properties [4]
-so that they may be used across all operating systems supporting ACPI.
-Device properties that have not been registered with the UEFI Forum should
-not be used.
+Common device properties can be registered by creating a pull request to [4] so
+that they may be used across all operating systems supporting ACPI.
+Device properties that have not been registered with the UEFI Forum can be used
+but not as "uefi-" common properties.
 
 Before creating new device properties, check to be sure that they have not
 been defined before and either registered in the Linux kernel documentation
@@ -306,7 +361,7 @@ process.
 
 Once registration and review have been completed, the kernel provides an
 interface for looking up device properties in a manner independent of
-whether DT or ACPI is being used.  This API should be used [6]; it can
+whether DT or ACPI is being used.  This API should be used [5]; it can
 eliminate some duplication of code paths in driver probing functions and
 discourage divergence between DT bindings and ACPI device properties.
 
@@ -448,15 +503,15 @@ ASWG
 ----
 The ACPI specification changes regularly.  During the year 2014, for instance,
 version 5.1 was released and version 6.0 substantially completed, with most of
-the changes being driven by ARM-specific requirements.  Proposed changes are
+the changes being driven by Arm-specific requirements.  Proposed changes are
 presented and discussed in the ASWG (ACPI Specification Working Group) which
 is a part of the UEFI Forum.  The current version of the ACPI specification
-is 6.1 release in January 2016.
+is 6.5 release in August 2022.
 
 Participation in this group is open to all UEFI members.  Please see
 http://www.uefi.org/workinggroup for details on group membership.
 
-It is the intent of the ARMv8 ACPI kernel code to follow the ACPI specification
+It is the intent of the Arm ACPI kernel code to follow the ACPI specification
 as closely as possible, and to only implement functionality that complies with
 the released standards from UEFI ASWG.  As a practical matter, there will be
 vendors that provide bad ACPI tables or violate the standards in some way.
@@ -470,12 +525,12 @@ likely be willing to assist in submitting ECRs.
 
 Linux Code
 ----------
-Individual items specific to Linux on ARM, contained in the Linux
+Individual items specific to Linux on Arm, contained in the Linux
 source code, are in the list that follows:
 
 ACPI_OS_NAME
                        This macro defines the string to be returned when
-                       an ACPI method invokes the _OS method.  On ARM64
+                       an ACPI method invokes the _OS method.  On Arm
                        systems, this macro will be "Linux" by default.
                        The command line parameter acpi_os=<string>
                        can be used to set it to some other value.  The
@@ -490,31 +545,23 @@ Documentation/arm64/acpi_object_usage.rst.
 
 References
 ----------
-[0] http://silver.arm.com
-    document ARM-DEN-0029, or newer:
-    "Server Base System Architecture", version 2.3, dated 27 Mar 2014
+[0] https://developer.arm.com/documentation/den0094/latest
+    document Arm-DEN-0094: "Arm Base System Architecture", version 1.0C, dated 6 Oct 2022
 
-[1] http://infocenter.arm.com/help/topic/com.arm.doc.den0044a/Server_Base_Boot_Requirements.pdf
-    Document ARM-DEN-0044A, or newer: "Server Base Boot Requirements, System
-    Software on ARM Platforms", dated 16 Aug 2014
+[1] https://developer.arm.com/documentation/den0044/latest
+    Document Arm-DEN-0044: "Arm Base Boot Requirements", version 2.0G, dated 15 Apr 2022
 
-[2] http://www.secretlab.ca/archives/151,
+[2] https://developer.arm.com/documentation/den0029/latest
+    Document Arm-DEN-0029: "Arm Server Base System Architecture", version 7.1, dated 06 Oct 2022
+
+[3] http://www.secretlab.ca/archives/151,
     10 Jan 2015, Copyright (c) 2015,
     Linaro Ltd., written by Grant Likely.
 
-[3] AMD ACPI for Seattle platform documentation
-    http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/10/Seattle_ACPI_Guide.pdf
+[4] _DSD (Device Specific Data) Implementation Guide
+    https://github.com/UEFI/DSD-Guide/blob/main/dsd-guide.pdf
 
-
-[4] http://www.uefi.org/acpi
-    please see the link for the "ACPI _DSD Device
-    Property Registry Instructions"
-
-[5] http://www.uefi.org/acpi
-    please see the link for the "_DSD (Device
-    Specific Data) Implementation Guide"
-
-[6] Kernel code for the unified device
+[5] Kernel code for the unified device
     property interface can be found in
     include/linux/property.h and drivers/base/property.c.
 

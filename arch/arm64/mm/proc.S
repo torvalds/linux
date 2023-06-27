@@ -199,7 +199,7 @@ SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 
-#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS)
+#define KPTI_NG_PTE_FLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
 
 	.pushsection ".idmap.text", "a"
 
@@ -290,7 +290,7 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 	isb
 
 	mov	temp_pte, x5
-	mov	pte_flags, #KPTI_NG_PTE_FLAGS
+	mov_q	pte_flags, KPTI_NG_PTE_FLAGS
 
 	/* Everybody is enjoying the idmap, so we can rewrite swapper. */
 	/* PGD */
@@ -454,6 +454,21 @@ SYM_FUNC_START(__cpu_setup)
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	mair_el1, mair
 	msr	tcr_el1, tcr
+
+	mrs_s	x1, SYS_ID_AA64MMFR3_EL1
+	ubfx	x1, x1, #ID_AA64MMFR3_EL1_S1PIE_SHIFT, #4
+	cbz	x1, .Lskip_indirection
+
+	mov_q	x0, PIE_E0
+	msr	REG_PIRE0_EL1, x0
+	mov_q	x0, PIE_E1
+	msr	REG_PIR_EL1, x0
+
+	mov	x0, TCR2_EL1x_PIE
+	msr	REG_TCR2_EL1, x0
+
+.Lskip_indirection:
+
 	/*
 	 * Prepare SCTLR
 	 */

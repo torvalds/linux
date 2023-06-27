@@ -429,6 +429,9 @@
 	arm64.nosme	[ARM64] Unconditionally disable Scalable Matrix
 			Extension support
 
+	arm64.nomops	[ARM64] Unconditionally disable Memory Copy and Memory
+			Set instructions support
+
 	ataflop=	[HW,M68k]
 
 	atarimouse=	[HW,MOUSE] Atari Mouse

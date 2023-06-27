@@ -15,11 +15,13 @@ ARM64 Architecture
     cpu-feature-registers
     elf_hwcaps
     hugetlbpage
+    kdump
     legacy_instructions
     memory
     memory-tagging-extension
     perf
     pointer-authentication
+    ptdump
     silicon-errata
     sme
     sve
