@@ -1107,7 +1107,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
-			         <&rpmcc RPM_SMD_BIMC_A_CLK>;
+				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
 		};
 
 		snoc: interconnect@fc460000 {
@@ -1116,7 +1116,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
-			         <&rpmcc RPM_SMD_SNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_SNOC_A_CLK>;
 		};
 
 		pnoc: interconnect@fc468000 {
@@ -1125,7 +1125,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_PNOC_CLK>,
-			         <&rpmcc RPM_SMD_PNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_PNOC_A_CLK>;
 		};
 
 		ocmemnoc: interconnect@fc470000 {
@@ -1134,7 +1134,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
-			         <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
+				 <&rpmcc RPM_SMD_OCMEMGX_A_CLK>;
 		};
 
 		mmssnoc: interconnect@fc478000 {
@@ -1143,7 +1143,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&mmcc MMSS_S0_AXI_CLK>,
-			         <&mmcc MMSS_S0_AXI_CLK>;
+				 <&mmcc MMSS_S0_AXI_CLK>;
 		};
 
 		cnoc: interconnect@fc480000 {
@@ -1152,7 +1152,7 @@
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_CNOC_CLK>,
-			         <&rpmcc RPM_SMD_CNOC_A_CLK>;
+				 <&rpmcc RPM_SMD_CNOC_A_CLK>;
 		};
 
 		tsens: thermal-sensor@fc4a9000 {
