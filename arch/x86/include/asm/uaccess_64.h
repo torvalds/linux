@@ -12,6 +12,87 @@
 #include <asm/cpufeatures.h>
 #include <asm/page.h>
 
+#ifdef CONFIG_ADDRESS_MASKING
+/*
+ * Mask out tag bits from the address.
+ */
+static inline unsigned long __untagged_addr(unsigned long addr)
+{
+	/*
+	 * Refer tlbstate_untag_mask directly to avoid RIP-relative relocation
+	 * in alternative instructions. The relocation gets wrong when gets
+	 * copied to the target place.
+	 */
+	asm (ALTERNATIVE("",
+			 "and %%gs:tlbstate_untag_mask, %[addr]\n\t", X86_FEATURE_LAM)
+	     : [addr] "+r" (addr) : "m" (tlbstate_untag_mask));
+
+	return addr;
+}
+
+#define untagged_addr(addr)	({					\
+	unsigned long __addr = (__force unsigned long)(addr);		\
+	(__force __typeof__(addr))__untagged_addr(__addr);		\
+})
+
+static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
+						   unsigned long addr)
+{
+	mmap_assert_locked(mm);
+	return addr & (mm)->context.untag_mask;
+}
+
+#define untagged_addr_remote(mm, addr)	({				\
+	unsigned long __addr = (__force unsigned long)(addr);		\
+	(__force __typeof__(addr))__untagged_addr_remote(mm, __addr);	\
+})
+
+#endif
+
+/*
+ * The virtual address space space is logically divided into a kernel
+ * half and a user half.  When cast to a signed type, user pointers
+ * are positive and kernel pointers are negative.
+ */
+#define valid_user_address(x) ((long)(x) >= 0)
+
+/*
+ * User pointers can have tag bits on x86-64.  This scheme tolerates
+ * arbitrary values in those bits rather then masking them off.
+ *
+ * Enforce two rules:
+ * 1. 'ptr' must be in the user half of the address space
+ * 2. 'ptr+size' must not overflow into kernel addresses
+ *
+ * Note that addresses around the sign change are not valid addresses,
+ * and will GP-fault even with LAM enabled if the sign bit is set (see
+ * "CR3.LAM_SUP" that can narrow the canonicality check if we ever
+ * enable it, but not remove it entirely).
+ *
+ * So the "overflow into kernel addresses" does not imply some sudden
+ * exact boundary at the sign bit, and we can allow a lot of slop on the
+ * size check.
+ *
+ * In fact, we could probably remove the size check entirely, since
+ * any kernel accesses will be in increasing address order starting
+ * at 'ptr', and even if the end might be in kernel space, we'll
+ * hit the GP faults for non-canonical accesses before we ever get
+ * there.
+ *
+ * That's a separate optimization, for now just handle the small
+ * constant case.
+ */
+static inline bool __access_ok(const void __user *ptr, unsigned long size)
+{
+	if (__builtin_constant_p(size <= PAGE_SIZE) && size <= PAGE_SIZE) {
+		return valid_user_address(ptr);
+	} else {
+		unsigned long sum = size + (unsigned long)ptr;
+		return valid_user_address(sum) && sum >= (unsigned long)ptr;
+	}
+}
+#define __access_ok __access_ok
+
 /*
  * Copy To/From Userspace
  */
@@ -54,8 +135,6 @@ raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 
 extern long __copy_user_nocache(void *dst, const void __user *src, unsigned size);
 extern long __copy_user_flushcache(void *dst, const void __user *src, unsigned size);
-extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
-			   size_t len);
 
 static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,
@@ -108,7 +187,7 @@ static __always_inline __must_check unsigned long __clear_user(void __user *addr
 
 static __always_inline unsigned long clear_user(void __user *to, unsigned long n)
 {
-	if (access_ok(to, n))
+	if (__access_ok(to, n))
 		return __clear_user(to, n);
 	return n;
 }

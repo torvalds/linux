@@ -1126,7 +1126,7 @@ static int twl4030_bci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id twl_bci_of_match[] = {
+static const struct of_device_id twl_bci_of_match[] __maybe_unused = {
 	{.compatible = "ti,twl4030-bci", },
 	{ }
 };

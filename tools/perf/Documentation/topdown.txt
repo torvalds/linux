@@ -1,46 +1,35 @@
-Using TopDown metrics in user space
------------------------------------
+Using TopDown metrics
+---------------------
 
-Intel CPUs (since Sandy Bridge and Silvermont) support a TopDown
-methodology to break down CPU pipeline execution into 4 bottlenecks:
-frontend bound, backend bound, bad speculation, retiring.
+TopDown metrics break apart performance bottlenecks. Starting at level
+1 it is typical to get metrics on retiring, bad speculation, frontend
+bound, and backend bound. Higher levels provide more detail in to the
+level 1 bottlenecks, such as at level 2: core bound, memory bound,
+heavy operations, light operations, branch mispredicts, machine
+clears, fetch latency and fetch bandwidth. For more details see [1][2][3].
 
-For more details on Topdown see [1][5]
+perf stat --topdown implements this using available metrics that vary
+per architecture.
 
-Traditionally this was implemented by events in generic counters
-and specific formulas to compute the bottlenecks.
+% perf stat -a --topdown -I1000
+#           time      %  tma_retiring %  tma_backend_bound %  tma_frontend_bound %  tma_bad_speculation
+     1.001141351                 11.5                 34.9                  46.9                    6.7
+     2.006141972                 13.4                 28.1                  50.4                    8.1
+     3.010162040                 12.9                 28.1                  51.1                    8.0
+     4.014009311                 12.5                 28.6                  51.8                    7.2
+     5.017838554                 11.8                 33.0                  48.0                    7.2
+     5.704818971                 14.0                 27.5                  51.3                    7.3
+...
 
-perf stat --topdown implements this.
-
-Full Top Down includes more levels that can break down the
-bottlenecks further. This is not directly implemented in perf,
-but available in other tools that can run on top of perf,
-such as toplev[2] or vtune[3]
-
-New Topdown features in Ice Lake
-===============================
+New Topdown features in Intel Ice Lake
+======================================
 
 With Ice Lake CPUs the TopDown metrics are directly available as
 fixed counters and do not require generic counters. This allows
 to collect TopDown always in addition to other events.
 
-% perf stat -a --topdown -I1000
-#           time             retiring      bad speculation       frontend bound        backend bound
-     1.001281330                23.0%                15.3%                29.6%                32.1%
-     2.003009005                 5.0%                 6.8%                46.6%                41.6%
-     3.004646182                 6.7%                 6.7%                46.0%                40.6%
-     4.006326375                 5.0%                 6.4%                47.6%                41.0%
-     5.007991804                 5.1%                 6.3%                46.3%                42.3%
-     6.009626773                 6.2%                 7.1%                47.3%                39.3%
-     7.011296356                 4.7%                 6.7%                46.2%                42.4%
-     8.012951831                 4.7%                 6.7%                47.5%                41.1%
-...
-
-This also enables measuring TopDown per thread/process instead
-of only per core.
-
-Using TopDown through RDPMC in applications on Ice Lake
-======================================================
+Using TopDown through RDPMC in applications on Intel Ice Lake
+=============================================================
 
 For more fine grained measurements it can be useful to
 access the new  directly from user space. This is more complicated,
@@ -301,8 +290,8 @@ This "opens" a new measurement period.
 A program using RDPMC for TopDown should schedule such a reset
 regularly, as in every few seconds.
 
-Limits on Ice Lake
-==================
+Limits on Intel Ice Lake
+========================
 
 Four pseudo TopDown metric events are exposed for the end-users,
 topdown-retiring, topdown-bad-spec, topdown-fe-bound and topdown-be-bound.
@@ -318,8 +307,8 @@ a sampling read group. Since the SLOTS event must be the leader of a TopDown
 group, the second event of the group is the sampling event.
 For example, perf record -e '{slots, $sampling_event, topdown-retiring}:S'
 
-Extension on Sapphire Rapids Server
-===================================
+Extension on Intel Sapphire Rapids Server
+=========================================
 The metrics counter is extended to support TMA method level 2 metrics.
 The lower half of the register is the TMA level 1 metrics (legacy).
 The upper half is also divided into four 8-bit fields for the new level 2
@@ -338,7 +327,6 @@ other four level 2 metrics by subtracting corresponding metrics as below.
 
 
 [1] https://software.intel.com/en-us/top-down-microarchitecture-analysis-method-win
-[2] https://github.com/andikleen/pmu-tools/wiki/toplev-manual
-[3] https://software.intel.com/en-us/intel-vtune-amplifier-xe
+[2] https://sites.google.com/site/analysismethods/yasin-pubs
+[3] https://perf.wiki.kernel.org/index.php/Top-Down_Analysis
 [4] https://github.com/andikleen/pmu-tools/tree/master/jevents
-[5] https://sites.google.com/site/analysismethods/yasin-pubs

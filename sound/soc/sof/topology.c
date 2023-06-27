@@ -586,6 +586,10 @@ static int sof_copy_tuples(struct snd_sof_dev *sdev, struct snd_soc_tplg_vendor_
 				if (*num_copied_tuples == tuples_size)
 					return 0;
 			}
+
+			/* stop when we've found the required token instances */
+			if (found == num_tokens * token_instance_num)
+				return 0;
 		}
 
 		/* next array */
@@ -1261,7 +1265,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 		if (num_sets > 1) {
 			struct snd_sof_tuple *new_tuples;
 
-			num_tuples += token_list[object_token_list[i]].count * num_sets;
+			num_tuples += token_list[object_token_list[i]].count * (num_sets - 1);
 			new_tuples = krealloc(swidget->tuples,
 					      sizeof(*new_tuples) * num_tuples, GFP_KERNEL);
 			if (!new_tuples) {

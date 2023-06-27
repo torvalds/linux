@@ -15,7 +15,6 @@
 #include <linux/zalloc.h>
 #include "util/symbol.h"
 
-#include "perf.h"
 #include "util/debug.h"
 
 #include "util/evlist.h"
@@ -36,6 +35,7 @@
 #include "util/block-range.h"
 #include "util/map_symbol.h"
 #include "util/branch.h"
+#include "util/util.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -205,7 +205,7 @@ static int process_branch_callback(struct evsel *evsel,
 		return 0;
 
 	if (a.map != NULL)
-		a.map->dso->hit = 1;
+		map__dso(a.map)->hit = 1;
 
 	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
 
@@ -235,10 +235,11 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 		 * the DSO?
 		 */
 		if (al->sym != NULL) {
-			rb_erase_cached(&al->sym->rb_node,
-				 &al->map->dso->symbols);
+			struct dso *dso = map__dso(al->map);
+
+			rb_erase_cached(&al->sym->rb_node, &dso->symbols);
 			symbol__delete(al->sym);
-			dso__reset_find_symbol_cache(al->map->dso);
+			dso__reset_find_symbol_cache(dso);
 		}
 		return 0;
 	}
@@ -252,7 +253,7 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 	if (ann->has_br_stack && has_annotation(ann))
 		return process_branch_callback(evsel, sample, al, ann, machine);
 
-	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
+	he = hists__add_entry(hists, al, NULL, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -320,7 +321,7 @@ static void hists__find_annotations(struct hists *hists,
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct annotation *notes;
 
-		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+		if (he->ms.sym == NULL || map__dso(he->ms.map)->annotate_warned)
 			goto find_next;
 
 		if (ann->sym_hist_filter &&
@@ -352,6 +353,7 @@ find_next:
 			int ret;
 			int (*annotate)(struct hist_entry *he,
 					struct evsel *evsel,
+					struct annotation_options *options,
 					struct hist_browser_timer *hbt);
 
 			annotate = dlsym(perf_gtk_handle,
@@ -361,7 +363,7 @@ find_next:
 				return;
 			}
 
-			ret = annotate(he, evsel, NULL);
+			ret = annotate(he, evsel, &ann->opts, NULL);
 			if (!ret || !ann->skip_missing)
 				return;
 
@@ -509,7 +511,6 @@ int cmd_annotate(int argc, const char **argv)
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
-		.opts = annotation__default_options,
 	};
 	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
@@ -517,6 +518,7 @@ int cmd_annotate(int argc, const char **argv)
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = 0,
 	};
+	const char *disassembler_style = NULL, *objdump_path = NULL, *addr2line_path = NULL;
 	struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
@@ -561,14 +563,16 @@ int cmd_annotate(int argc, const char **argv)
 		    "Interleave source code with assembly code (default)"),
 	OPT_BOOLEAN(0, "asm-raw", &annotate.opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &annotate.opts.disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_STRING(0, "prefix", &annotate.opts.prefix, "prefix",
 		    "Add prefix to source file path names in programs (with --prefix-strip)"),
 	OPT_STRING(0, "prefix-strip", &annotate.opts.prefix_strip, "N",
 		    "Strip first N entries of source file path name in programs (with --prefix)"),
-	OPT_STRING(0, "objdump", &annotate.opts.objdump_path, "path",
+	OPT_STRING(0, "objdump", &objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
+	OPT_STRING(0, "addr2line", &addr2line_path, "path",
+		   "addr2line binary to use for line numbers"),
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
@@ -598,6 +602,7 @@ int cmd_annotate(int argc, const char **argv)
 	set_option_flag(options, 0, "show-total-period", PARSE_OPT_EXCLUSIVE);
 	set_option_flag(options, 0, "show-nr-samples", PARSE_OPT_EXCLUSIVE);
 
+	annotation_options__init(&annotate.opts);
 
 	ret = hists__init();
 	if (ret < 0)
@@ -615,6 +620,22 @@ int cmd_annotate(int argc, const char **argv)
 			usage_with_options(annotate_usage, options);
 
 		annotate.sym_hist_filter = argv[0];
+	}
+
+	if (disassembler_style) {
+		annotate.opts.disassembler_style = strdup(disassembler_style);
+		if (!annotate.opts.disassembler_style)
+			return -ENOMEM;
+	}
+	if (objdump_path) {
+		annotate.opts.objdump_path = strdup(objdump_path);
+		if (!annotate.opts.objdump_path)
+			return -ENOMEM;
+	}
+	if (addr2line_path) {
+		symbol_conf.addr2line_path = strdup(addr2line_path);
+		if (!symbol_conf.addr2line_path)
+			return -ENOMEM;
 	}
 
 	if (annotate_check_args(&annotate.opts) < 0)
@@ -692,16 +713,13 @@ int cmd_annotate(int argc, const char **argv)
 
 out_delete:
 	/*
-	 * Speed up the exit process, for large files this can
-	 * take quite a while.
-	 *
-	 * XXX Enable this when using valgrind or if we ever
-	 * librarize this command.
-	 *
-	 * Also experiment with obstacks to see how much speed
-	 * up we'll get here.
-	 *
-	 * perf_session__delete(session);
+	 * Speed up the exit process by only deleting for debug builds. For
+	 * large files this can save time.
 	 */
+#ifndef NDEBUG
+	perf_session__delete(annotate.session);
+#endif
+	annotation_options__exit(&annotate.opts);
+
 	return ret;
 }

@@ -715,7 +715,7 @@ __cmd_probe(int argc, const char **argv)
 			pr_err("  Error: --bootconfig doesn't support uprobes.\n");
 			return -EINVAL;
 		}
-		__fallthrough;
+		fallthrough;
 	case 'a':
 
 		/* Ensure the last given target is used */

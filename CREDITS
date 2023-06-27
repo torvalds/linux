@@ -1706,6 +1706,10 @@ S: Panoramastrasse 18
 S: D-69126 Heidelberg
 S: Germany
 
+N: Neil Horman
+M: nhorman@tuxdriver.com
+D: SCTP protocol maintainer.
+
 N: Simon Horman
 M: horms@verge.net.au
 D: Renesas ARM/ARM64 SoC maintainer
@@ -2510,8 +2514,8 @@ D: XF86_8514
 D: cfdisk (curses based disk partitioning program)
 
 N: Mat Martineau
-E: mat@martineau.name
-D: MPTCP subsystem co-maintainer 2020-2023
+E: martineau@kernel.org
+D: MPTCP subsystem co-maintainer
 D: Keyctl restricted keyring and Diffie-Hellman UAPI
 D: Bluetooth L2CAP ERTM mode and AMP
 S: USA
@@ -3474,6 +3478,11 @@ D: Linux-Support, -Mailbox, -Stammtisch
 D: several improvements to system programs
 S: Oldenburg
 S: Germany
+
+N: Mathieu Poirier
+E: mathieu.poirier@linaro.org
+D: CoreSight kernel subsystem, Maintainer 2014-2022
+D: Perf tool support for CoreSight
 
 N: Robert Schwebel
 E: robert@schwebel.de

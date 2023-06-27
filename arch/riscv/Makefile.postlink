@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0
+# ===========================================================================
+# Post-link riscv pass
+# ===========================================================================
+#
+# Check that vmlinux relocations look sane
+
+PHONY := __archpost
+__archpost:
+
+-include include/config/auto.conf
+include $(srctree)/scripts/Kbuild.include
+
+quiet_cmd_relocs_check = CHKREL  $@
+cmd_relocs_check = 							\
+	$(CONFIG_SHELL) $(srctree)/arch/riscv/tools/relocs_check.sh "$(OBJDUMP)" "$(NM)" "$@"
+
+ifdef CONFIG_RELOCATABLE
+quiet_cmd_cp_vmlinux_relocs = CPREL   vmlinux.relocs
+cmd_cp_vmlinux_relocs = cp vmlinux vmlinux.relocs
+
+quiet_cmd_relocs_strip = STRIPREL $@
+cmd_relocs_strip = $(OBJCOPY)   --remove-section='.rel.*'       \
+                                --remove-section='.rel__*'      \
+                                --remove-section='.rela.*'      \
+                                --remove-section='.rela__*' $@
+endif
+
+# `@true` prevents complaint when there is nothing to be done
+
+vmlinux: FORCE
+	@true
+ifdef CONFIG_RELOCATABLE
+	$(call if_changed,relocs_check)
+	$(call if_changed,cp_vmlinux_relocs)
+	$(call if_changed,relocs_strip)
+endif
+
+%.ko: FORCE
+	@true
+
+clean:
+	@true
+
+PHONY += FORCE clean
+
+FORCE:
+
+.PHONY: $(PHONY)

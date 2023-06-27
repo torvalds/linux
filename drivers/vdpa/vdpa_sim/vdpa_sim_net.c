@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/vringh.h>
 #include <linux/vdpa.h>
@@ -59,6 +58,7 @@ struct vdpasim_net{
 	struct vdpasim_dataq_stats tx_stats;
 	struct vdpasim_dataq_stats rx_stats;
 	struct vdpasim_cq_stats cq_stats;
+	void *buffer;
 };
 
 static struct vdpasim_net *sim_to_net(struct vdpasim *vdpasim)
@@ -88,14 +88,15 @@ static bool receive_filter(struct vdpasim *vdpasim, size_t len)
 	size_t hdr_len = modern ? sizeof(struct virtio_net_hdr_v1) :
 				  sizeof(struct virtio_net_hdr);
 	struct virtio_net_config *vio_config = vdpasim->config;
+	struct vdpasim_net *net = sim_to_net(vdpasim);
 
 	if (len < ETH_ALEN + hdr_len)
 		return false;
 
-	if (is_broadcast_ether_addr(vdpasim->buffer + hdr_len) ||
-	    is_multicast_ether_addr(vdpasim->buffer + hdr_len))
+	if (is_broadcast_ether_addr(net->buffer + hdr_len) ||
+	    is_multicast_ether_addr(net->buffer + hdr_len))
 		return true;
-	if (!strncmp(vdpasim->buffer + hdr_len, vio_config->mac, ETH_ALEN))
+	if (!strncmp(net->buffer + hdr_len, vio_config->mac, ETH_ALEN))
 		return true;
 
 	return false;
@@ -192,9 +193,8 @@ static void vdpasim_handle_cvq(struct vdpasim *vdpasim)
 	u64_stats_update_end(&net->cq_stats.syncp);
 }
 
-static void vdpasim_net_work(struct work_struct *work)
+static void vdpasim_net_work(struct vdpasim *vdpasim)
 {
-	struct vdpasim *vdpasim = container_of(work, struct vdpasim, work);
 	struct vdpasim_virtqueue *txq = &vdpasim->vqs[1];
 	struct vdpasim_virtqueue *rxq = &vdpasim->vqs[0];
 	struct vdpasim_net *net = sim_to_net(vdpasim);
@@ -203,7 +203,7 @@ static void vdpasim_net_work(struct work_struct *work)
 	u64 rx_drops = 0, rx_overruns = 0, rx_errors = 0, tx_errors = 0;
 	int err;
 
-	spin_lock(&vdpasim->lock);
+	mutex_lock(&vdpasim->mutex);
 
 	if (!vdpasim->running)
 		goto out;
@@ -227,8 +227,7 @@ static void vdpasim_net_work(struct work_struct *work)
 
 		++tx_pkts;
 		read = vringh_iov_pull_iotlb(&txq->vring, &txq->out_iov,
-					     vdpasim->buffer,
-					     PAGE_SIZE);
+					     net->buffer, PAGE_SIZE);
 
 		tx_bytes += read;
 
@@ -247,7 +246,7 @@ static void vdpasim_net_work(struct work_struct *work)
 		}
 
 		write = vringh_iov_push_iotlb(&rxq->vring, &rxq->in_iov,
-					      vdpasim->buffer, read);
+					      net->buffer, read);
 		if (write <= 0) {
 			++rx_errors;
 			break;
@@ -260,13 +259,13 @@ static void vdpasim_net_work(struct work_struct *work)
 		vdpasim_net_complete(rxq, write);
 
 		if (tx_pkts > 4) {
-			schedule_work(&vdpasim->work);
+			vdpasim_schedule_work(vdpasim);
 			goto out;
 		}
 	}
 
 out:
-	spin_unlock(&vdpasim->lock);
+	mutex_unlock(&vdpasim->mutex);
 
 	u64_stats_update_begin(&net->tx_stats.syncp);
 	net->tx_stats.pkts += tx_pkts;
@@ -429,6 +428,13 @@ static void vdpasim_net_setup_config(struct vdpasim *vdpasim,
 		vio_config->mtu = cpu_to_vdpasim16(vdpasim, 1500);
 }
 
+static void vdpasim_net_free(struct vdpasim *vdpasim)
+{
+	struct vdpasim_net *net = sim_to_net(vdpasim);
+
+	kvfree(net->buffer);
+}
+
 static void vdpasim_net_mgmtdev_release(struct device *dev)
 {
 }
@@ -458,7 +464,7 @@ static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	dev_attr.get_config = vdpasim_net_get_config;
 	dev_attr.work_fn = vdpasim_net_work;
 	dev_attr.get_stats = vdpasim_net_get_stats;
-	dev_attr.buffer_size = PAGE_SIZE;
+	dev_attr.free = vdpasim_net_free;
 
 	simdev = vdpasim_create(&dev_attr, config);
 	if (IS_ERR(simdev))
@@ -471,6 +477,12 @@ static int vdpasim_net_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	u64_stats_init(&net->tx_stats.syncp);
 	u64_stats_init(&net->rx_stats.syncp);
 	u64_stats_init(&net->cq_stats.syncp);
+
+	net->buffer = kvmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!net->buffer) {
+		ret = -ENOMEM;
+		goto reg_err;
+	}
 
 	/*
 	 * Initialization must be completed before this call, since it can

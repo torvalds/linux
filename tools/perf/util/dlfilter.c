@@ -29,7 +29,7 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 
 	d_al->size = sizeof(*d_al);
 	if (al->map) {
-		struct dso *dso = al->map->dso;
+		struct dso *dso = map__dso(al->map);
 
 		if (symbol_conf.show_kernel_path && dso->long_name)
 			d_al->dso = dso->long_name;
@@ -51,7 +51,7 @@ static void al_to_d_al(struct addr_location *al, struct perf_dlfilter_al *d_al)
 		if (al->addr < sym->end)
 			d_al->symoff = al->addr - sym->start;
 		else
-			d_al->symoff = al->addr - al->map->start - sym->start;
+			d_al->symoff = al->addr - map__start(al->map) - sym->start;
 		d_al->sym_binding = sym->binding;
 	} else {
 		d_al->sym = NULL;
@@ -197,8 +197,12 @@ static const __u8 *dlfilter__insn(void *ctx, __u32 *len)
 		if (!al->thread && machine__resolve(d->machine, al, d->sample) < 0)
 			return NULL;
 
-		if (al->thread->maps && al->thread->maps->machine)
-			script_fetch_insn(d->sample, al->thread, al->thread->maps->machine);
+		if (al->thread->maps) {
+			struct machine *machine = maps__machine(al->thread->maps);
+
+			if (machine)
+				script_fetch_insn(d->sample, al->thread, machine);
+		}
 	}
 
 	if (!d->sample->insn_len)
@@ -216,6 +220,7 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 	unsigned int line = 0;
 	char *srcfile = NULL;
 	struct map *map;
+	struct dso *dso;
 	u64 addr;
 
 	if (!d->ctx_valid || !line_no)
@@ -227,9 +232,10 @@ static const char *dlfilter__srcline(void *ctx, __u32 *line_no)
 
 	map = al->map;
 	addr = al->addr;
+	dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso)
-		srcfile = get_srcline_split(map->dso, map__rip_2objdump(map, addr), &line);
+	if (dso)
+		srcfile = get_srcline_split(dso, map__rip_2objdump(map, addr), &line);
 
 	*line_no = line;
 	return srcfile;
@@ -262,7 +268,7 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 
 	map = al->map;
 
-	if (map && ip >= map->start && ip < map->end &&
+	if (map && ip >= map__start(map) && ip < map__end(map) &&
 	    machine__kernel_ip(d->machine, ip) == machine__kernel_ip(d->machine, d->sample->ip))
 		goto have_map;
 
@@ -272,10 +278,10 @@ static __s32 dlfilter__object_code(void *ctx, __u64 ip, void *buf, __u32 len)
 
 	map = a.map;
 have_map:
-	offset = map->map_ip(map, ip);
-	if (ip + len >= map->end)
-		len = map->end - ip;
-	return dso__data_read_offset(map->dso, d->machine, offset, buf, len);
+	offset = map__map_ip(map, ip);
+	if (ip + len >= map__end(map))
+		len = map__end(map) - ip;
+	return dso__data_read_offset(map__dso(map), d->machine, offset, buf, len);
 }
 
 static const struct perf_dlfilter_fns perf_dlfilter_fns = {

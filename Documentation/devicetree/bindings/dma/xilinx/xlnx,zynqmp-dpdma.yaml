@@ -16,7 +16,7 @@ maintainers:
   - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 allOf:
-  - $ref: "../dma-controller.yaml#"
+  - $ref: ../dma-controller.yaml#
 
 properties:
   "#dma-cells":

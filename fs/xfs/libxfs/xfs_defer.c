@@ -397,6 +397,7 @@ xfs_defer_cancel_list(
 		list_for_each_safe(pwi, n, &dfp->dfp_work) {
 			list_del(pwi);
 			dfp->dfp_count--;
+			trace_xfs_defer_cancel_item(mp, dfp, pwi);
 			ops->cancel_item(pwi);
 		}
 		ASSERT(dfp->dfp_count == 0);
@@ -476,6 +477,7 @@ xfs_defer_finish_one(
 	list_for_each_safe(li, n, &dfp->dfp_work) {
 		list_del(li);
 		dfp->dfp_count--;
+		trace_xfs_defer_finish_item(tp->t_mountp, dfp, li);
 		error = ops->finish_item(tp, dfp->dfp_done, li, &state);
 		if (error == -EAGAIN) {
 			int		ret;
@@ -623,7 +625,7 @@ xfs_defer_add(
 	struct list_head		*li)
 {
 	struct xfs_defer_pending	*dfp = NULL;
-	const struct xfs_defer_op_type	*ops;
+	const struct xfs_defer_op_type	*ops = defer_op_types[type];
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	BUILD_BUG_ON(ARRAY_SIZE(defer_op_types) != XFS_DEFER_OPS_TYPE_MAX);
@@ -636,7 +638,6 @@ xfs_defer_add(
 	if (!list_empty(&tp->t_dfops)) {
 		dfp = list_last_entry(&tp->t_dfops,
 				struct xfs_defer_pending, dfp_list);
-		ops = defer_op_types[dfp->dfp_type];
 		if (dfp->dfp_type != type ||
 		    (ops->max_items && dfp->dfp_count >= ops->max_items))
 			dfp = NULL;
@@ -653,6 +654,7 @@ xfs_defer_add(
 	}
 
 	list_add_tail(li, &dfp->dfp_work);
+	trace_xfs_defer_add_item(tp->t_mountp, dfp, li);
 	dfp->dfp_count++;
 }
 

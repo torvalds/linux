@@ -337,7 +337,7 @@ static struct irdma_puda_buf *irdma_form_ah_cm_frame(struct irdma_cm_node *cm_no
 
 	pktsize = sizeof(*tcph) + opts_len + hdr_len + pd_len;
 
-	memset(buf, 0, pktsize);
+	memset(buf, 0, sizeof(*tcph));
 
 	sqbuf->totallen = pktsize;
 	sqbuf->tcphlen = sizeof(*tcph) + opts_len;

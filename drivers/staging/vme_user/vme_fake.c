@@ -329,7 +329,6 @@ err_aspace:
 err_dwidth:
 err_window:
 	return retval;
-
 }
 
 /*
@@ -638,7 +637,6 @@ static noinline_for_stack void fake_vmewrite8(struct fake_driver *bridge,
 	}
 
 	fake_lm_check(bridge, addr, aspace, cycle);
-
 }
 
 static noinline_for_stack void fake_vmewrite16(struct fake_driver *bridge,
@@ -669,7 +667,6 @@ static noinline_for_stack void fake_vmewrite16(struct fake_driver *bridge,
 	}
 
 	fake_lm_check(bridge, addr, aspace, cycle);
-
 }
 
 static noinline_for_stack void fake_vmewrite32(struct fake_driver *bridge,
@@ -700,7 +697,6 @@ static noinline_for_stack void fake_vmewrite32(struct fake_driver *bridge,
 	}
 
 	fake_lm_check(bridge, addr, aspace, cycle);
-
 }
 
 static ssize_t fake_master_write(struct vme_master_resource *image, void *buf,
@@ -1234,7 +1230,6 @@ err_driver:
 	kfree(fake_bridge);
 err_struct:
 	return retval;
-
 }
 
 static void __exit fake_exit(void)

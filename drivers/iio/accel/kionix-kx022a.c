@@ -162,7 +162,6 @@ struct kx022a_data {
 	int inc_reg;
 	int ien_reg;
 
-	unsigned int g_range;
 	unsigned int state;
 	unsigned int odr_ns;
 
@@ -900,7 +899,7 @@ static irqreturn_t kx022a_irq_thread_handler(int irq, void *private)
 	mutex_lock(&data->mutex);
 
 	if (data->trigger_enabled) {
-		iio_trigger_poll_chained(data->trig);
+		iio_trigger_poll_nested(data->trig);
 		ret = IRQ_HANDLED;
 	}
 
@@ -1049,7 +1048,7 @@ int kx022a_probe_internal(struct device *dev)
 		data->ien_reg = KX022A_REG_INC4;
 	} else {
 		irq = fwnode_irq_get_byname(fwnode, "INT2");
-		if (irq <= 0)
+		if (irq < 0)
 			return dev_err_probe(dev, irq, "No suitable IRQ\n");
 
 		data->inc_reg = KX022A_REG_INC5;

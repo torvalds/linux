@@ -75,13 +75,11 @@ static int cycles_child(void)
 int multi_ebb_procs(void)
 {
 	pid_t pids[NR_CHILDREN];
-	int cpu, rc, i;
+	int rc, i;
 
 	SKIP_IF(!ebb_is_supported());
 
-	cpu = pick_online_cpu();
-	FAIL_IF(cpu < 0);
-	FAIL_IF(bind_to_cpu(cpu));
+	FAIL_IF(bind_to_cpu(BIND_CPU_ANY) < 0);
 
 	for (i = 0; i < NR_CHILDREN; i++) {
 		pids[i] = fork();

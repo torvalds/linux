@@ -15,12 +15,17 @@ ifdef CONFIG_DEBUG_FS
 soundwire-bus-y += debugfs.o
 endif
 
+#AMD driver
+soundwire-amd-y :=	amd_manager.o
+obj-$(CONFIG_SOUNDWIRE_AMD) += soundwire-amd.o
+
 #Cadence Objs
 soundwire-cadence-y := cadence_master.o
 obj-$(CONFIG_SOUNDWIRE_CADENCE) += soundwire-cadence.o
 
 #Intel driver
-soundwire-intel-y :=	intel.o intel_auxdevice.o intel_init.o dmi-quirks.o
+soundwire-intel-y :=	intel.o intel_auxdevice.o intel_init.o dmi-quirks.o \
+			intel_bus_common.o
 obj-$(CONFIG_SOUNDWIRE_INTEL) += soundwire-intel.o
 
 #Qualcomm driver

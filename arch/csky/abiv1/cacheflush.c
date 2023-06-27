@@ -11,6 +11,7 @@
 #include <asm/cache.h>
 #include <asm/cacheflush.h>
 #include <asm/cachectl.h>
+#include <asm/tlbflush.h>
 
 #define PG_dcache_clean		PG_arch_1
 
@@ -39,6 +40,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
 {
 	unsigned long pfn = pte_pfn(*ptep);
 	struct page *page;
+
+	flush_tlb_page(vma, addr);
 
 	if (!pfn_valid(pfn))
 		return;

@@ -159,6 +159,15 @@
         "UMask": "0x20"
     },
     {
+        "BriefDescription": "This event counts the number of mispredicted ret instructions retired. Non PEBS",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.RET",
+        "PEBS": "1",
+        "PublicDescription": "This is a non-precise version (that is, does not use PEBS) of the event that counts mispredicted return instructions retired.",
+        "SampleAfterValue": "50021",
+        "UMask": "0x8"
+    },
+    {
         "BriefDescription": "Cycle counts are evenly distributed between active threads in the Core.",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.DISTRIBUTED",
@@ -382,6 +391,15 @@
         "PublicDescription": "Counts cycles the Backend cluster is recovering after a miss-speculation or a Store Buffer or Load Buffer drain stall.",
         "SampleAfterValue": "2000003",
         "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EventCode": "0x0d",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
+        "SampleAfterValue": "500009",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts cycles after recovery from a branch misprediction or machine clear till the first uop is issued from the resteered path.",

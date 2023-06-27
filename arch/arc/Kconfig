@@ -556,7 +556,7 @@ endmenu	 # "ARC Architecture Configuration"
 
 config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
-	default "12" if ARC_HUGEPAGE_16M
-	default "11"
+	default "11" if ARC_HUGEPAGE_16M
+	default "10"
 
 source "kernel/power/Kconfig"

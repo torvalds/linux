@@ -98,7 +98,7 @@ static const struct crypto_type crypto_akcipher_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_akcipher_show,
 #endif
-#ifdef CONFIG_CRYPTO_USER
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_akcipher_report,
 #endif
 #ifdef CONFIG_CRYPTO_STATS

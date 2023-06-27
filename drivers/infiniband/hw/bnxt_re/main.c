@@ -553,6 +553,7 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 	.query_srq = bnxt_re_query_srq,
 	.reg_user_mr = bnxt_re_reg_user_mr,
 	.req_notify_cq = bnxt_re_req_notify_cq,
+	.resize_cq = bnxt_re_resize_cq,
 	INIT_RDMA_OBJ_SIZE(ib_ah, bnxt_re_ah, ib_ah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, bnxt_re_cq, ib_cq),
 	INIT_RDMA_OBJ_SIZE(ib_pd, bnxt_re_pd, ib_pd),
@@ -584,6 +585,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 		return ret;
 
 	dma_set_max_seg_size(&rdev->en_dev->pdev->dev, UINT_MAX);
+	ibdev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POLL_CQ);
 	return ib_register_device(ibdev, "bnxt_re%d", &rdev->en_dev->pdev->dev);
 }
 
@@ -919,49 +921,6 @@ static void bnxt_re_dispatch_event(struct ib_device *ibdev, struct ib_qp *qp,
 	}
 }
 
-#define HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_IVLAN      0x02
-static int bnxt_re_query_hwrm_pri2cos(struct bnxt_re_dev *rdev, u8 dir,
-				      u64 *cid_map)
-{
-	struct hwrm_queue_pri2cos_qcfg_input req = {0};
-	struct hwrm_queue_pri2cos_qcfg_output resp;
-	struct bnxt_en_dev *en_dev = rdev->en_dev;
-	struct bnxt_fw_msg fw_msg;
-	u32 flags = 0;
-	u8 *qcfgmap, *tmp_map;
-	int rc = 0, i;
-
-	if (!cid_map)
-		return -EINVAL;
-
-	memset(&fw_msg, 0, sizeof(fw_msg));
-	bnxt_re_init_hwrm_hdr(rdev, (void *)&req,
-			      HWRM_QUEUE_PRI2COS_QCFG, -1, -1);
-	flags |= (dir & 0x01);
-	flags |= HWRM_QUEUE_PRI2COS_QCFG_INPUT_FLAGS_IVLAN;
-	req.flags = cpu_to_le32(flags);
-	req.port_id = en_dev->pf_port_id;
-
-	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
-			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
-	rc = bnxt_send_msg(en_dev, &fw_msg);
-	if (rc)
-		return rc;
-
-	if (resp.queue_cfg_info) {
-		ibdev_warn(&rdev->ibdev,
-			   "Asymmetric cos queue configuration detected");
-		ibdev_warn(&rdev->ibdev,
-			   " on device, QoS may not be fully functional\n");
-	}
-	qcfgmap = &resp.pri0_cos_queue_id;
-	tmp_map = (u8 *)cid_map;
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
-		tmp_map[i] = qcfgmap[i];
-
-	return rc;
-}
-
 static bool bnxt_re_is_qp1_or_shadow_qp(struct bnxt_re_dev *rdev,
 					struct bnxt_re_qp *qp)
 {
@@ -1054,26 +1013,9 @@ static u32 bnxt_re_get_priority_mask(struct bnxt_re_dev *rdev)
 	return prio_map;
 }
 
-static void bnxt_re_parse_cid_map(u8 prio_map, u8 *cid_map, u16 *cosq)
-{
-	u16 prio;
-	u8 id;
-
-	for (prio = 0, id = 0; prio < 8; prio++) {
-		if (prio_map & (1 << prio)) {
-			cosq[id] = cid_map[prio];
-			id++;
-			if (id == 2) /* Max 2 tcs supported */
-				break;
-		}
-	}
-}
-
 static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 {
 	u8 prio_map = 0;
-	u64 cid_map;
-	int rc;
 
 	/* Get priority for roce */
 	prio_map = bnxt_re_get_priority_mask(rdev);
@@ -1081,23 +1023,6 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	if (prio_map == rdev->cur_prio_map)
 		return 0;
 	rdev->cur_prio_map = prio_map;
-	/* Get cosq id for this priority */
-	rc = bnxt_re_query_hwrm_pri2cos(rdev, 0, &cid_map);
-	if (rc) {
-		ibdev_warn(&rdev->ibdev, "no cos for p_mask %x\n", prio_map);
-		return rc;
-	}
-	/* Parse CoS IDs for app priority */
-	bnxt_re_parse_cid_map(prio_map, (u8 *)&cid_map, rdev->cosq);
-
-	/* Config BONO. */
-	rc = bnxt_qplib_map_tc2cos(&rdev->qplib_res, rdev->cosq);
-	if (rc) {
-		ibdev_warn(&rdev->ibdev, "no tc for cos{%x, %x}\n",
-			   rdev->cosq[0], rdev->cosq[1]);
-		return rc;
-	}
-
 	/* Actual priorities are not programmed as they are already
 	 * done by L2 driver; just enable or disable priority vlan tagging
 	 */
@@ -1407,6 +1332,31 @@ exit:
 	return rc;
 }
 
+static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
+{
+	struct bnxt_qplib_cc_param cc_param = {};
+
+	/* Do not enable congestion control on VFs */
+	if (rdev->is_virtfn)
+		return;
+
+	/* Currently enabling only for GenP5 adapters */
+	if (!bnxt_qplib_is_chip_gen_p5(rdev->chip_ctx))
+		return;
+
+	if (enable) {
+		cc_param.enable  = 1;
+		cc_param.cc_mode = CMDQ_MODIFY_ROCE_CC_CC_MODE_PROBABILISTIC_CC_MODE;
+	}
+
+	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_CC_MODE |
+			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
+			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
+
+	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
+		ibdev_err(&rdev->ibdev, "Failed to setup CC enable = %d\n", enable);
+}
+
 /*
  * "Notifier chain callback can be invoked for the same chain from
  * different CPUs at the same time".
@@ -1475,7 +1425,7 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 		 */
 		goto skip_remove;
 	}
-
+	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
 	ib_dealloc_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev);
@@ -1507,6 +1457,7 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 		goto err;
 	}
 
+	bnxt_re_setup_cc(rdev, true);
 	mutex_unlock(&bnxt_re_mutex);
 	return 0;
 

@@ -75,9 +75,8 @@ static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 
 	if (ps_status == PS_SNOOZE) {
 		ks_wlan_hw_wakeup_request(priv);
-		time_left = wait_for_completion_interruptible_timeout(
-				&priv->psstatus.wakeup_wait,
-				msecs_to_jiffies(20));
+		time_left = wait_for_completion_interruptible_timeout(&priv->psstatus.wakeup_wait,
+								      msecs_to_jiffies(20));
 		if (time_left <= 0) {
 			netdev_dbg(priv->net_dev, "wake up timeout or interrupted !!!\n");
 			schedule_work(&priv->wakeup_work);

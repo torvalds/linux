@@ -6,5 +6,6 @@ perf-$(CONFIG_DWARF) += dwarf-regs.o
 perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 
 perf-y += machine.o
+perf-y += pmu.o
 
 perf-$(CONFIG_AUXTRACE) += auxtrace.o

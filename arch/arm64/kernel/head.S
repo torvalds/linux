@@ -150,8 +150,8 @@ CPU_BE( tbz	x19, #SCTLR_ELx_EE_SHIFT, 1f	)
 	pre_disable_mmu_workaround
 	msr	sctlr_el2, x19
 	b	3f
-	pre_disable_mmu_workaround
-2:	msr	sctlr_el1, x19
+2:	pre_disable_mmu_workaround
+	msr	sctlr_el1, x19
 3:	isb
 	mov	x19, xzr
 	ret

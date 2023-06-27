@@ -219,7 +219,7 @@ static unsigned int optimal_io_size(struct block_device *bdev,
 }
 
 static unsigned int bitmap_io_size(unsigned int io_size, unsigned int opt_size,
-				   sector_t start, sector_t boundary)
+				   loff_t start, loff_t boundary)
 {
 	if (io_size != opt_size &&
 	    start + opt_size / SECTOR_SIZE <= boundary)
@@ -237,8 +237,8 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 	struct block_device *bdev;
 	struct mddev *mddev = bitmap->mddev;
 	struct bitmap_storage *store = &bitmap->storage;
-	sector_t offset = mddev->bitmap_info.offset;
-	sector_t ps, sboff, doff;
+	loff_t sboff, offset = mddev->bitmap_info.offset;
+	sector_t ps, doff;
 	unsigned int size = PAGE_SIZE;
 	unsigned int opt_size = PAGE_SIZE;
 

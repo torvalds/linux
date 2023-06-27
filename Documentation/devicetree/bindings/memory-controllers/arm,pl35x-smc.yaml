@@ -8,7 +8,6 @@ title: Arm PL35x Series Static Memory Controller (SMC)
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
-  - Naga Sureshkumar Relli <naga.sureshkumar.relli@xilinx.com>
 
 description: |
   The PL35x Static Memory Controller is a bus where you can connect two kinds

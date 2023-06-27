@@ -18,7 +18,6 @@ config INTEL_IOMMU
 	select NEED_DMA_MAP_STATE
 	select DMAR_TABLE
 	select SWIOTLB
-	select IOASID
 	select PCI_ATS
 	select PCI_PRI
 	select PCI_PASID

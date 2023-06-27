@@ -28,7 +28,7 @@ patternProperties:
 
     properties:
       marvell,function:
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         description:
           Indicates the function to select.
         enum: [ dev_init_done, ge, gpio, i2c0, i2c1, int_out, led, nand, pcie, ptp, sdio,
@@ -47,7 +47,7 @@ patternProperties:
                   mpp40, mpp41, mpp42, mpp43, mpp44, mpp45 ]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

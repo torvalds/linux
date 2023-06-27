@@ -237,9 +237,6 @@ out:
  *
  * This function is in charge of creating a cooling device per cpuidle
  * driver and register it to the thermal framework.
- *
- * Return: zero on success, or negative value corresponding to the
- * error detected in the underlying subsystems.
  */
 void cpuidle_cooling_register(struct cpuidle_driver *drv)
 {

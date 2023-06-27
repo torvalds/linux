@@ -771,7 +771,7 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 		target->rel_ip = usdt_rel_ip;
 		target->sema_off = usdt_sema_off;
 
-		/* notes.args references strings from Elf itself, so they can
+		/* notes.args references strings from ELF itself, so they can
 		 * be referenced safely until elf_end() call
 		 */
 		target->spec_str = note.args;

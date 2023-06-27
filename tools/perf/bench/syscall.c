@@ -18,6 +18,10 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#ifndef __NR_fork
+#define __NR_fork -1
+#endif
+
 #define LOOPS_DEFAULT 10000000
 static	int loops = LOOPS_DEFAULT;
 
@@ -30,6 +34,23 @@ static const char * const bench_syscall_usage[] = {
 	"perf bench syscall <options>",
 	NULL
 };
+
+static void test_fork(void)
+{
+	pid_t pid = fork();
+
+	if (pid < 0) {
+		fprintf(stderr, "fork failed\n");
+		exit(1);
+	} else if (pid == 0) {
+		exit(0);
+	} else {
+		if (waitpid(pid, NULL, 0) < 0) {
+			fprintf(stderr, "waitpid failed\n");
+			exit(1);
+		}
+	}
+}
 
 static void test_execve(void)
 {
@@ -71,6 +92,12 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 		case __NR_getpgid:
 			getpgid(0);
 			break;
+		case __NR_fork:
+			test_fork();
+			/* Only loop 10000 times to save time */
+			if (i == 10000)
+				loops = 10000;
+			break;
 		case __NR_execve:
 			test_execve();
 			/* Only loop 10000 times to save time */
@@ -91,6 +118,9 @@ static int bench_syscall_common(int argc, const char **argv, int syscall)
 		break;
 	case __NR_getpgid:
 		name = "getpgid()";
+		break;
+	case __NR_fork:
+		name = "fork()";
 		break;
 	case __NR_execve:
 		name = "execve()";
@@ -141,6 +171,11 @@ int bench_syscall_basic(int argc, const char **argv)
 int bench_syscall_getpgid(int argc, const char **argv)
 {
 	return bench_syscall_common(argc, argv, __NR_getpgid);
+}
+
+int bench_syscall_fork(int argc, const char **argv)
+{
+	return bench_syscall_common(argc, argv, __NR_fork);
 }
 
 int bench_syscall_execve(int argc, const char **argv)

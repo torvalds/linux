@@ -61,17 +61,6 @@ this table marked with no it means default is without **no**.
        directories, fmask applies only to files and dmask only to directories.
    * - fmask=
 
-   * - noacsrules
-     - "No access rules" mount option sets access rights for files/folders to
-       777 and owner/group to root. This mount option absorbs all other
-       permissions.
-
-       - Permissions change for files/folders will be reported as successful,
-	 but they will remain 777.
-
-       - Owner/group change will be reported as successful, butthey will stay
-	 as root.
-
    * - nohidden
      - Files with the Windows-specific HIDDEN (FILE_ATTRIBUTE_HIDDEN) attribute
        will not be shown under Linux.

@@ -35,6 +35,7 @@
 #define HIDEEP_EVENT_ADDR		0x240
 
 /* command list */
+#define HIDEEP_WORK_MODE		0x081e
 #define HIDEEP_RESET_CMD		0x9800
 
 /* event bit */
@@ -271,9 +272,14 @@ static int hideep_pgm_w_reg(struct hideep_ts *ts, u32 addr, u32 val)
 
 #define SW_RESET_IN_PGM(clk)					\
 {								\
+	__be32 data = cpu_to_be32(0x01);			\
 	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CNT, (clk));	\
 	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CON, 0x03);	\
-	hideep_pgm_w_reg(ts, HIDEEP_SYSCON_WDT_CON, 0x01);	\
+	/*							\
+	 * The first write may already cause a reset, use a raw	\
+	 * write for the second write to avoid error logging.	\
+	 */							\
+	hideep_pgm_w_mem(ts, HIDEEP_SYSCON_WDT_CON, &data, 1);	\
 }
 
 #define SET_FLASH_PIO(ce)					\
@@ -467,9 +473,9 @@ static int hideep_program_nvm(struct hideep_ts *ts,
 	u32 addr = 0;
 	int error;
 
-       error = hideep_nvm_unlock(ts);
-       if (error)
-               return error;
+	error = hideep_nvm_unlock(ts);
+	if (error)
+		return error;
 
 	while (ucode_len > 0) {
 		xfer_len = min_t(size_t, ucode_len, HIDEEP_NVM_PAGE_SIZE);
@@ -959,6 +965,21 @@ static const struct attribute_group hideep_ts_attr_group = {
 	.attrs = hideep_ts_sysfs_entries,
 };
 
+static void hideep_set_work_mode(struct hideep_ts *ts)
+{
+	/*
+	 * Reset touch report format to the native HiDeep 20 protocol if requested.
+	 * This is necessary to make touchscreens which come up in I2C-HID mode
+	 * work with this driver.
+	 *
+	 * Note this is a kernel internal device-property set by x86 platform code,
+	 * this MUST not be used in devicetree files without first adding it to
+	 * the DT bindings.
+	 */
+	if (device_property_read_bool(&ts->client->dev, "hideep,force-native-protocol"))
+		regmap_write(ts->reg, HIDEEP_WORK_MODE, 0x00);
+}
+
 static int hideep_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -981,6 +1002,8 @@ static int hideep_resume(struct device *dev)
 		dev_err(&client->dev, "power on failed");
 		return error;
 	}
+
+	hideep_set_work_mode(ts);
 
 	enable_irq(client->irq);
 
@@ -1057,6 +1080,8 @@ static int hideep_probe(struct i2c_client *client)
 		dev_err(&client->dev, "failed to load dwz: %d", error);
 		return error;
 	}
+
+	hideep_set_work_mode(ts);
 
 	error = hideep_init_input(ts);
 	if (error)

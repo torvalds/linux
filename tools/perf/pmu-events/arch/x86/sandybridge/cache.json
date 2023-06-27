@@ -37,7 +37,7 @@
         "UMask": "0x5"
     },
     {
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers unavailability.",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
@@ -45,7 +45,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "L1D miss oustandings duration in cycles.",
+        "BriefDescription": "L1D miss outstanding duration in cycles.",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
         "SampleAfterValue": "2000003",
@@ -493,7 +493,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Cacheable and noncachaeble code read requests.",
+        "BriefDescription": "Cacheable and noncacheable code read requests.",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "SampleAfterValue": "100003",
@@ -898,7 +898,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "COREWB & ANY_RESPONSE",
+        "BriefDescription": "OFFCORE_RESPONSE.COREWB.ANY_RESPONSE",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.COREWB.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",

@@ -14,7 +14,6 @@
 #include <linux/file.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/inet.h>
 #include <linux/list.h>
 #include <linux/pagemap.h>
 #include <linux/utsname.h>
@@ -29,7 +28,6 @@
 #include "fid.h"
 #include "cache.h"
 
-static const struct vm_operations_struct v9fs_file_vm_ops;
 static const struct vm_operations_struct v9fs_mmap_file_vm_ops;
 
 /**
@@ -42,13 +40,11 @@ static const struct vm_operations_struct v9fs_mmap_file_vm_ops;
 int v9fs_file_open(struct inode *inode, struct file *file)
 {
 	int err;
-	struct v9fs_inode *v9inode;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid, *writeback_fid;
+	struct p9_fid *fid;
 	int omode;
 
 	p9_debug(P9_DEBUG_VFS, "inode: %p file: %p\n", inode, file);
-	v9inode = V9FS_I(inode);
 	v9ses = v9fs_inode2v9ses(inode);
 	if (v9fs_proto_dotl(v9ses))
 		omode = v9fs_open_to_dotl_flags(file->f_flags);
@@ -61,7 +57,19 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		if (IS_ERR(fid))
 			return PTR_ERR(fid);
 
-		err = p9_client_open(fid, omode);
+		if ((v9ses->cache & CACHE_WRITEBACK) && (omode & P9_OWRITE)) {
+			int writeback_omode = (omode & ~P9_OWRITE) | P9_ORDWR;
+
+			p9_debug(P9_DEBUG_CACHE, "write-only file with writeback enabled, try opening O_RDWR\n");
+			err = p9_client_open(fid, writeback_omode);
+			if (err < 0) {
+				p9_debug(P9_DEBUG_CACHE, "could not open O_RDWR, disabling caches\n");
+				err = p9_client_open(fid, omode);
+				fid->mode |= P9L_DIRECT;
+			}
+		} else {
+			err = p9_client_open(fid, omode);
+		}
 		if (err < 0) {
 			p9_fid_put(fid);
 			return err;
@@ -73,36 +81,14 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 		file->private_data = fid;
 	}
 
-	mutex_lock(&v9inode->v_mutex);
-	if ((v9ses->cache) && !v9inode->writeback_fid &&
-	    ((file->f_flags & O_ACCMODE) != O_RDONLY)) {
-		/*
-		 * clone a fid and add it to writeback_fid
-		 * we do it during open time instead of
-		 * page dirty time via write_begin/page_mkwrite
-		 * because we want write after unlink usecase
-		 * to work.
-		 */
-		writeback_fid = v9fs_writeback_fid(file_dentry(file));
-		if (IS_ERR(writeback_fid)) {
-			err = PTR_ERR(writeback_fid);
-			mutex_unlock(&v9inode->v_mutex);
-			goto out_error;
-		}
-		v9inode->writeback_fid = (void *) writeback_fid;
-	}
-	mutex_unlock(&v9inode->v_mutex);
 #ifdef CONFIG_9P_FSCACHE
-	if (v9ses->cache == CACHE_FSCACHE)
-		fscache_use_cookie(v9fs_inode_cookie(v9inode),
+	if (v9ses->cache & CACHE_FSCACHE)
+		fscache_use_cookie(v9fs_inode_cookie(V9FS_I(inode)),
 				   file->f_mode & FMODE_WRITE);
 #endif
+	v9fs_fid_add_modes(fid, v9ses->flags, v9ses->cache, file->f_flags);
 	v9fs_open_fid_add(inode, &fid);
 	return 0;
-out_error:
-	p9_fid_put(file->private_data);
-	file->private_data = NULL;
-	return err;
 }
 
 /**
@@ -369,8 +355,13 @@ v9fs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct p9_fid *fid = iocb->ki_filp->private_data;
 	int ret, err = 0;
 
-	p9_debug(P9_DEBUG_VFS, "count %zu offset %lld\n",
-		 iov_iter_count(to), iocb->ki_pos);
+	p9_debug(P9_DEBUG_VFS, "fid %d count %zu offset %lld\n",
+		 fid->fid, iov_iter_count(to), iocb->ki_pos);
+
+	if (!(fid->mode & P9L_DIRECT)) {
+		p9_debug(P9_DEBUG_VFS, "(cached)\n");
+		return generic_file_read_iter(iocb, to);
+	}
 
 	if (iocb->ki_filp->f_flags & O_NONBLOCK)
 		ret = p9_client_read_once(fid, iocb->ki_pos, to, &err);
@@ -393,9 +384,17 @@ static ssize_t
 v9fs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
+	struct p9_fid *fid = file->private_data;
 	ssize_t retval;
 	loff_t origin;
 	int err = 0;
+
+	p9_debug(P9_DEBUG_VFS, "fid %d\n", fid->fid);
+
+	if (!(fid->mode & (P9L_DIRECT | P9L_NOWRITECACHE))) {
+		p9_debug(P9_DEBUG_CACHE, "(cached)\n");
+		return generic_file_write_iter(iocb, from);
+	}
 
 	retval = generic_write_checks(iocb, from);
 	if (retval <= 0)
@@ -478,45 +477,18 @@ static int
 v9fs_file_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	int retval;
+	struct inode *inode = file_inode(filp);
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
 
+	p9_debug(P9_DEBUG_MMAP, "filp :%p\n", filp);
 
-	retval = generic_file_mmap(filp, vma);
-	if (!retval)
-		vma->vm_ops = &v9fs_file_vm_ops;
-
-	return retval;
-}
-
-static int
-v9fs_mmap_file_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-	int retval;
-	struct inode *inode;
-	struct v9fs_inode *v9inode;
-	struct p9_fid *fid;
-
-	inode = file_inode(filp);
-	v9inode = V9FS_I(inode);
-	mutex_lock(&v9inode->v_mutex);
-	if (!v9inode->writeback_fid &&
-	    (vma->vm_flags & VM_SHARED) &&
-	    (vma->vm_flags & VM_WRITE)) {
-		/*
-		 * clone a fid and add it to writeback_fid
-		 * we do it during mmap instead of
-		 * page dirty time via write_begin/page_mkwrite
-		 * because we want write after unlink usecase
-		 * to work.
-		 */
-		fid = v9fs_writeback_fid(file_dentry(filp));
-		if (IS_ERR(fid)) {
-			retval = PTR_ERR(fid);
-			mutex_unlock(&v9inode->v_mutex);
-			return retval;
-		}
-		v9inode->writeback_fid = (void *) fid;
+	if (!(v9ses->cache & CACHE_WRITEBACK)) {
+		p9_debug(P9_DEBUG_CACHE, "(no mmap mode)");
+		if (vma->vm_flags & VM_MAYSHARE)
+			return -ENODEV;
+		invalidate_inode_pages2(filp->f_mapping);
+		return generic_file_readonly_mmap(filp, vma);
 	}
-	mutex_unlock(&v9inode->v_mutex);
 
 	retval = generic_file_mmap(filp, vma);
 	if (!retval)
@@ -528,7 +500,6 @@ v9fs_mmap_file_mmap(struct file *filp, struct vm_area_struct *vma)
 static vm_fault_t
 v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 {
-	struct v9fs_inode *v9inode;
 	struct folio *folio = page_folio(vmf->page);
 	struct file *filp = vmf->vma->vm_file;
 	struct inode *inode = file_inode(filp);
@@ -536,8 +507,6 @@ v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 
 	p9_debug(P9_DEBUG_VFS, "folio %p fid %lx\n",
 		 folio, (unsigned long)filp->private_data);
-
-	v9inode = V9FS_I(inode);
 
 	/* Wait for the page to be written to the cache before we allow it to
 	 * be modified.  We then assume the entire page will need writing back.
@@ -551,7 +520,6 @@ v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 	/* Update file times before taking page lock */
 	file_update_time(filp);
 
-	BUG_ON(!v9inode->writeback_fid);
 	if (folio_lock_killable(folio) < 0)
 		return VM_FAULT_RETRY;
 	if (folio_mapping(folio) != inode->i_mapping)
@@ -562,35 +530,6 @@ v9fs_vm_page_mkwrite(struct vm_fault *vmf)
 out_unlock:
 	folio_unlock(folio);
 	return VM_FAULT_NOPAGE;
-}
-
-/**
- * v9fs_mmap_file_read_iter - read from a file
- * @iocb: The operation parameters
- * @to: The buffer to read into
- *
- */
-static ssize_t
-v9fs_mmap_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
-{
-	/* TODO: Check if there are dirty pages */
-	return v9fs_file_read_iter(iocb, to);
-}
-
-/**
- * v9fs_mmap_file_write_iter - write to a file
- * @iocb: The operation parameters
- * @from: The data to write
- *
- */
-static ssize_t
-v9fs_mmap_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
-{
-	/*
-	 * TODO: invalidate mmaps on filp's inode between
-	 * offset and offset+count
-	 */
-	return v9fs_file_write_iter(iocb, from);
 }
 
 static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
@@ -615,46 +554,11 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
 	filemap_fdatawrite_wbc(inode->i_mapping, &wbc);
 }
 
-
-static const struct vm_operations_struct v9fs_file_vm_ops = {
-	.fault = filemap_fault,
-	.map_pages = filemap_map_pages,
-	.page_mkwrite = v9fs_vm_page_mkwrite,
-};
-
 static const struct vm_operations_struct v9fs_mmap_file_vm_ops = {
 	.close = v9fs_mmap_vm_close,
 	.fault = filemap_fault,
 	.map_pages = filemap_map_pages,
 	.page_mkwrite = v9fs_vm_page_mkwrite,
-};
-
-
-const struct file_operations v9fs_cached_file_operations = {
-	.llseek = generic_file_llseek,
-	.read_iter = generic_file_read_iter,
-	.write_iter = generic_file_write_iter,
-	.open = v9fs_file_open,
-	.release = v9fs_dir_release,
-	.lock = v9fs_file_lock,
-	.mmap = v9fs_file_mmap,
-	.splice_read = generic_file_splice_read,
-	.splice_write = iter_file_splice_write,
-	.fsync = v9fs_file_fsync,
-};
-
-const struct file_operations v9fs_cached_file_operations_dotl = {
-	.llseek = generic_file_llseek,
-	.read_iter = generic_file_read_iter,
-	.write_iter = generic_file_write_iter,
-	.open = v9fs_file_open,
-	.release = v9fs_dir_release,
-	.lock = v9fs_file_lock_dotl,
-	.flock = v9fs_file_flock_dotl,
-	.mmap = v9fs_file_mmap,
-	.splice_read = generic_file_splice_read,
-	.splice_write = iter_file_splice_write,
-	.fsync = v9fs_file_fsync_dotl,
 };
 
 const struct file_operations v9fs_file_operations = {
@@ -678,34 +582,7 @@ const struct file_operations v9fs_file_operations_dotl = {
 	.release = v9fs_dir_release,
 	.lock = v9fs_file_lock_dotl,
 	.flock = v9fs_file_flock_dotl,
-	.mmap = generic_file_readonly_mmap,
-	.splice_read = generic_file_splice_read,
-	.splice_write = iter_file_splice_write,
-	.fsync = v9fs_file_fsync_dotl,
-};
-
-const struct file_operations v9fs_mmap_file_operations = {
-	.llseek = generic_file_llseek,
-	.read_iter = v9fs_mmap_file_read_iter,
-	.write_iter = v9fs_mmap_file_write_iter,
-	.open = v9fs_file_open,
-	.release = v9fs_dir_release,
-	.lock = v9fs_file_lock,
-	.mmap = v9fs_mmap_file_mmap,
-	.splice_read = generic_file_splice_read,
-	.splice_write = iter_file_splice_write,
-	.fsync = v9fs_file_fsync,
-};
-
-const struct file_operations v9fs_mmap_file_operations_dotl = {
-	.llseek = generic_file_llseek,
-	.read_iter = v9fs_mmap_file_read_iter,
-	.write_iter = v9fs_mmap_file_write_iter,
-	.open = v9fs_file_open,
-	.release = v9fs_dir_release,
-	.lock = v9fs_file_lock_dotl,
-	.flock = v9fs_file_flock_dotl,
-	.mmap = v9fs_mmap_file_mmap,
+	.mmap = v9fs_file_mmap,
 	.splice_read = generic_file_splice_read,
 	.splice_write = iter_file_splice_write,
 	.fsync = v9fs_file_fsync_dotl,

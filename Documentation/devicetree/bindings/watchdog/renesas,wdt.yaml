@@ -177,11 +177,11 @@ examples:
     #include <dt-bindings/power/r8a7795-sysc.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     wdt0: watchdog@e6020000 {
-            compatible = "renesas,r8a7795-wdt", "renesas,rcar-gen3-wdt";
-            reg = <0xe6020000 0x0c>;
-            interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&cpg CPG_MOD 402>;
-            power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-            resets = <&cpg 402>;
-            timeout-sec = <60>;
+        compatible = "renesas,r8a7795-wdt", "renesas,rcar-gen3-wdt";
+        reg = <0xe6020000 0x0c>;
+        interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&cpg CPG_MOD 402>;
+        power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+        resets = <&cpg 402>;
+        timeout-sec = <60>;
     };

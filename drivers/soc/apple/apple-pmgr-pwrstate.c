@@ -322,6 +322,5 @@ static struct platform_driver apple_pmgr_ps_driver = {
 
 MODULE_AUTHOR("Hector Martin <marcan@marcan.st>");
 MODULE_DESCRIPTION("PMGR power state driver for Apple SoCs");
-MODULE_LICENSE("GPL v2");
 
 module_platform_driver(apple_pmgr_ps_driver);

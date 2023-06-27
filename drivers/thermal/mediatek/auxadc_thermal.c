@@ -116,6 +116,10 @@
 /* The calibration coefficient of sensor  */
 #define MT8173_CALIBRATION	165
 
+/* Valid temperatures range */
+#define MT8173_TEMP_MIN		-20000
+#define MT8173_TEMP_MAX		150000
+
 /*
  * Layout of the fuses providing the calibration data
  * These macros could be used for MT8183, MT8173, MT2701, and MT2712.
@@ -689,6 +693,11 @@ static const struct mtk_thermal_data mt7986_thermal_data = {
 	.version = MTK_THERMAL_V3,
 };
 
+static bool mtk_thermal_temp_is_valid(int temp)
+{
+	return (temp >= MT8173_TEMP_MIN) && (temp <= MT8173_TEMP_MAX);
+}
+
 /**
  * raw_to_mcelsius_v1 - convert a raw ADC value to mcelsius
  * @mt:	The thermal controller
@@ -815,6 +824,17 @@ static int mtk_thermal_bank_temperature(struct mtk_thermal_bank *bank)
 		temp = mt->raw_to_mcelsius(
 			mt, conf->bank_data[bank->id].sensors[i], raw);
 
+		/*
+		 * Depending on the filt/sen intervals and ADC polling time,
+		 * we may need up to 60 milliseconds after initialization: this
+		 * will result in the first reading containing an out of range
+		 * temperature value.
+		 * Validate the reading to both address the aforementioned issue
+		 * and to eventually avoid bogus readings during runtime in the
+		 * event that the AUXADC gets unstable due to high EMI, etc.
+		 */
+		if (!mtk_thermal_temp_is_valid(temp))
+			temp = THERMAL_TEMP_INVALID;
 
 		if (temp > max)
 			max = temp;
@@ -959,14 +979,12 @@ static void mtk_thermal_init_bank(struct mtk_thermal *mt, int num,
 
 static u64 of_get_phys_base(struct device_node *np)
 {
-	u64 size64;
-	const __be32 *regaddr_p;
+	struct resource res;
 
-	regaddr_p = of_get_address(np, 0, &size64, NULL);
-	if (!regaddr_p)
+	if (of_address_to_resource(np, 0, &res))
 		return OF_BAD_ADDR;
 
-	return of_translate_address(np, regaddr_p);
+	return res.start;
 }
 
 static int mtk_thermal_extract_efuse_v1(struct mtk_thermal *mt, u32 *buf)
@@ -1186,14 +1204,6 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	mt->conf = of_device_get_match_data(&pdev->dev);
 
-	mt->clk_peri_therm = devm_clk_get(&pdev->dev, "therm");
-	if (IS_ERR(mt->clk_peri_therm))
-		return PTR_ERR(mt->clk_peri_therm);
-
-	mt->clk_auxadc = devm_clk_get(&pdev->dev, "auxadc");
-	if (IS_ERR(mt->clk_auxadc))
-		return PTR_ERR(mt->clk_auxadc);
-
 	mt->thermal_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mt->thermal_base))
 		return PTR_ERR(mt->thermal_base);
@@ -1212,7 +1222,12 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	auxadc_base = of_iomap(auxadc, 0);
+	auxadc_base = devm_of_iomap(&pdev->dev, auxadc, 0, NULL);
+	if (IS_ERR(auxadc_base)) {
+		of_node_put(auxadc);
+		return PTR_ERR(auxadc_base);
+	}
+
 	auxadc_phys_base = of_get_phys_base(auxadc);
 
 	of_node_put(auxadc);
@@ -1228,7 +1243,12 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	apmixed_base = of_iomap(apmixedsys, 0);
+	apmixed_base = devm_of_iomap(&pdev->dev, apmixedsys, 0, NULL);
+	if (IS_ERR(apmixed_base)) {
+		of_node_put(apmixedsys);
+		return PTR_ERR(apmixed_base);
+	}
+
 	apmixed_phys_base = of_get_phys_base(apmixedsys);
 
 	of_node_put(apmixedsys);
@@ -1242,16 +1262,18 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(mt->clk_auxadc);
-	if (ret) {
+	mt->clk_auxadc = devm_clk_get_enabled(&pdev->dev, "auxadc");
+	if (IS_ERR(mt->clk_auxadc)) {
+		ret = PTR_ERR(mt->clk_auxadc);
 		dev_err(&pdev->dev, "Can't enable auxadc clk: %d\n", ret);
 		return ret;
 	}
 
-	ret = clk_prepare_enable(mt->clk_peri_therm);
-	if (ret) {
+	mt->clk_peri_therm = devm_clk_get_enabled(&pdev->dev, "therm");
+	if (IS_ERR(mt->clk_peri_therm)) {
+		ret = PTR_ERR(mt->clk_peri_therm);
 		dev_err(&pdev->dev, "Can't enable peri clk: %d\n", ret);
-		goto err_disable_clk_auxadc;
+		return ret;
 	}
 
 	mtk_thermal_turn_on_buffer(mt, apmixed_base);
@@ -1273,43 +1295,20 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mt);
 
-	/* Delay for thermal banks to be ready */
-	msleep(30);
-
 	tzdev = devm_thermal_of_zone_register(&pdev->dev, 0, mt,
 					      &mtk_thermal_ops);
-	if (IS_ERR(tzdev)) {
-		ret = PTR_ERR(tzdev);
-		goto err_disable_clk_peri_therm;
-	}
+	if (IS_ERR(tzdev))
+		return PTR_ERR(tzdev);
 
 	ret = devm_thermal_add_hwmon_sysfs(&pdev->dev, tzdev);
 	if (ret)
 		dev_warn(&pdev->dev, "error in thermal_add_hwmon_sysfs");
 
 	return 0;
-
-err_disable_clk_peri_therm:
-	clk_disable_unprepare(mt->clk_peri_therm);
-err_disable_clk_auxadc:
-	clk_disable_unprepare(mt->clk_auxadc);
-
-	return ret;
-}
-
-static int mtk_thermal_remove(struct platform_device *pdev)
-{
-	struct mtk_thermal *mt = platform_get_drvdata(pdev);
-
-	clk_disable_unprepare(mt->clk_peri_therm);
-	clk_disable_unprepare(mt->clk_auxadc);
-
-	return 0;
 }
 
 static struct platform_driver mtk_thermal_driver = {
 	.probe = mtk_thermal_probe,
-	.remove = mtk_thermal_remove,
 	.driver = {
 		.name = "mtk-thermal",
 		.of_match_table = mtk_thermal_of_match,

@@ -274,7 +274,7 @@ struct led_classdev *__must_check devm_of_led_get(struct device *dev,
  *
  * Note that if software blinking is active, simply calling
  * led_cdev->brightness_set() will not stop the blinking,
- * use led_classdev_brightness_set() instead.
+ * use led_set_brightness() instead.
  */
 void led_blink_set(struct led_classdev *led_cdev, unsigned long *delay_on,
 		   unsigned long *delay_off);

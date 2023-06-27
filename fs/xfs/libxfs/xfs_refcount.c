@@ -120,6 +120,47 @@ xfs_refcount_btrec_to_irec(
 	irec->rc_refcount = be32_to_cpu(rec->refc.rc_refcount);
 }
 
+/* Simple checks for refcount records. */
+xfs_failaddr_t
+xfs_refcount_check_irec(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_refcount_irec	*irec)
+{
+	struct xfs_perag		*pag = cur->bc_ag.pag;
+
+	if (irec->rc_blockcount == 0 || irec->rc_blockcount > MAXREFCEXTLEN)
+		return __this_address;
+
+	if (!xfs_refcount_check_domain(irec))
+		return __this_address;
+
+	/* check for valid extent range, including overflow */
+	if (!xfs_verify_agbext(pag, irec->rc_startblock, irec->rc_blockcount))
+		return __this_address;
+
+	if (irec->rc_refcount == 0 || irec->rc_refcount > MAXREFCOUNT)
+		return __this_address;
+
+	return NULL;
+}
+
+static inline int
+xfs_refcount_complain_bad_rec(
+	struct xfs_btree_cur		*cur,
+	xfs_failaddr_t			fa,
+	const struct xfs_refcount_irec	*irec)
+{
+	struct xfs_mount		*mp = cur->bc_mp;
+
+	xfs_warn(mp,
+ "Refcount BTree record corruption in AG %d detected at %pS!",
+				cur->bc_ag.pag->pag_agno, fa);
+	xfs_warn(mp,
+		"Start block 0x%x, block count 0x%x, references 0x%x",
+		irec->rc_startblock, irec->rc_blockcount, irec->rc_refcount);
+	return -EFSCORRUPTED;
+}
+
 /*
  * Get the data from the pointed-to record.
  */
@@ -129,9 +170,8 @@ xfs_refcount_get_rec(
 	struct xfs_refcount_irec	*irec,
 	int				*stat)
 {
-	struct xfs_mount		*mp = cur->bc_mp;
-	struct xfs_perag		*pag = cur->bc_ag.pag;
 	union xfs_btree_rec		*rec;
+	xfs_failaddr_t			fa;
 	int				error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
@@ -139,30 +179,12 @@ xfs_refcount_get_rec(
 		return error;
 
 	xfs_refcount_btrec_to_irec(rec, irec);
-	if (irec->rc_blockcount == 0 || irec->rc_blockcount > MAXREFCEXTLEN)
-		goto out_bad_rec;
+	fa = xfs_refcount_check_irec(cur, irec);
+	if (fa)
+		return xfs_refcount_complain_bad_rec(cur, fa, irec);
 
-	if (!xfs_refcount_check_domain(irec))
-		goto out_bad_rec;
-
-	/* check for valid extent range, including overflow */
-	if (!xfs_verify_agbext(pag, irec->rc_startblock, irec->rc_blockcount))
-		goto out_bad_rec;
-
-	if (irec->rc_refcount == 0 || irec->rc_refcount > MAXREFCOUNT)
-		goto out_bad_rec;
-
-	trace_xfs_refcount_get(cur->bc_mp, pag->pag_agno, irec);
+	trace_xfs_refcount_get(cur->bc_mp, cur->bc_ag.pag->pag_agno, irec);
 	return 0;
-
-out_bad_rec:
-	xfs_warn(mp,
-		"Refcount BTree record corruption in AG %d detected!",
-		pag->pag_agno);
-	xfs_warn(mp,
-		"Start block 0x%x, block count 0x%x, references 0x%x",
-		irec->rc_startblock, irec->rc_blockcount, irec->rc_refcount);
-	return -EFSCORRUPTED;
 }
 
 /*
@@ -1332,26 +1354,22 @@ xfs_refcount_finish_one(
 	xfs_agblock_t			bno;
 	unsigned long			nr_ops = 0;
 	int				shape_changes = 0;
-	struct xfs_perag		*pag;
 
-	pag = xfs_perag_get(mp, XFS_FSB_TO_AGNO(mp, ri->ri_startblock));
 	bno = XFS_FSB_TO_AGBNO(mp, ri->ri_startblock);
 
 	trace_xfs_refcount_deferred(mp, XFS_FSB_TO_AGNO(mp, ri->ri_startblock),
 			ri->ri_type, XFS_FSB_TO_AGBNO(mp, ri->ri_startblock),
 			ri->ri_blockcount);
 
-	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_REFCOUNT_FINISH_ONE)) {
-		error = -EIO;
-		goto out_drop;
-	}
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_REFCOUNT_FINISH_ONE))
+		return -EIO;
 
 	/*
 	 * If we haven't gotten a cursor or the cursor AG doesn't match
 	 * the startblock, get one now.
 	 */
 	rcur = *pcur;
-	if (rcur != NULL && rcur->bc_ag.pag != pag) {
+	if (rcur != NULL && rcur->bc_ag.pag != ri->ri_pag) {
 		nr_ops = rcur->bc_ag.refc.nr_ops;
 		shape_changes = rcur->bc_ag.refc.shape_changes;
 		xfs_refcount_finish_one_cleanup(tp, rcur, 0);
@@ -1359,12 +1377,12 @@ xfs_refcount_finish_one(
 		*pcur = NULL;
 	}
 	if (rcur == NULL) {
-		error = xfs_alloc_read_agf(pag, tp, XFS_ALLOC_FLAG_FREEING,
-				&agbp);
+		error = xfs_alloc_read_agf(ri->ri_pag, tp,
+				XFS_ALLOC_FLAG_FREEING, &agbp);
 		if (error)
-			goto out_drop;
+			return error;
 
-		rcur = xfs_refcountbt_init_cursor(mp, tp, agbp, pag);
+		rcur = xfs_refcountbt_init_cursor(mp, tp, agbp, ri->ri_pag);
 		rcur->bc_ag.refc.nr_ops = nr_ops;
 		rcur->bc_ag.refc.shape_changes = shape_changes;
 	}
@@ -1375,7 +1393,7 @@ xfs_refcount_finish_one(
 		error = xfs_refcount_adjust(rcur, &bno, &ri->ri_blockcount,
 				XFS_REFCOUNT_ADJUST_INCREASE);
 		if (error)
-			goto out_drop;
+			return error;
 		if (ri->ri_blockcount > 0)
 			error = xfs_refcount_continue_op(rcur, ri, bno);
 		break;
@@ -1383,31 +1401,29 @@ xfs_refcount_finish_one(
 		error = xfs_refcount_adjust(rcur, &bno, &ri->ri_blockcount,
 				XFS_REFCOUNT_ADJUST_DECREASE);
 		if (error)
-			goto out_drop;
+			return error;
 		if (ri->ri_blockcount > 0)
 			error = xfs_refcount_continue_op(rcur, ri, bno);
 		break;
 	case XFS_REFCOUNT_ALLOC_COW:
 		error = __xfs_refcount_cow_alloc(rcur, bno, ri->ri_blockcount);
 		if (error)
-			goto out_drop;
+			return error;
 		ri->ri_blockcount = 0;
 		break;
 	case XFS_REFCOUNT_FREE_COW:
 		error = __xfs_refcount_cow_free(rcur, bno, ri->ri_blockcount);
 		if (error)
-			goto out_drop;
+			return error;
 		ri->ri_blockcount = 0;
 		break;
 	default:
 		ASSERT(0);
-		error = -EFSCORRUPTED;
+		return -EFSCORRUPTED;
 	}
 	if (!error && ri->ri_blockcount > 0)
-		trace_xfs_refcount_finish_one_leftover(mp, pag->pag_agno,
+		trace_xfs_refcount_finish_one_leftover(mp, ri->ri_pag->pag_agno,
 				ri->ri_type, bno, ri->ri_blockcount);
-out_drop:
-	xfs_perag_put(pag);
 	return error;
 }
 
@@ -1435,6 +1451,7 @@ __xfs_refcount_add(
 	ri->ri_startblock = startblock;
 	ri->ri_blockcount = blockcount;
 
+	xfs_refcount_update_get_group(tp->t_mountp, ri);
 	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_REFCOUNT, &ri->ri_list);
 }
 
@@ -1876,7 +1893,8 @@ xfs_refcount_recover_extent(
 	INIT_LIST_HEAD(&rr->rr_list);
 	xfs_refcount_btrec_to_irec(rec, &rr->rr_rrec);
 
-	if (XFS_IS_CORRUPT(cur->bc_mp,
+	if (xfs_refcount_check_irec(cur, &rr->rr_rrec) != NULL ||
+	    XFS_IS_CORRUPT(cur->bc_mp,
 			   rr->rr_rrec.rc_domain != XFS_REFC_DOMAIN_COW)) {
 		kfree(rr);
 		return -EFSCORRUPTED;
@@ -1980,14 +1998,17 @@ out_free:
 	return error;
 }
 
-/* Is there a record covering a given extent? */
+/*
+ * Scan part of the keyspace of the refcount records and tell us if the area
+ * has no records, is fully mapped by records, or is partially filled.
+ */
 int
-xfs_refcount_has_record(
+xfs_refcount_has_records(
 	struct xfs_btree_cur	*cur,
 	enum xfs_refc_domain	domain,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	bool			*exists)
+	enum xbtree_recpacking	*outcome)
 {
 	union xfs_btree_irec	low;
 	union xfs_btree_irec	high;
@@ -1998,7 +2019,7 @@ xfs_refcount_has_record(
 	high.rc.rc_startblock = bno + len - 1;
 	low.rc.rc_domain = high.rc.rc_domain = domain;
 
-	return xfs_btree_has_record(cur, &low, &high, exists);
+	return xfs_btree_has_records(cur, &low, &high, NULL, outcome);
 }
 
 int __init

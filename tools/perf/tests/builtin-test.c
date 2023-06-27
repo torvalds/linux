@@ -256,8 +256,8 @@ static int run_test(struct test_suite *test, int subtest)
 }
 
 #define for_each_test(j, k, t)			\
-	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
-		for (k = 0, t = tests[j][k]; tests[j][k]; k++, t = tests[j][k])
+	for (j = 0, k = 0; j < ARRAY_SIZE(tests); j++, k = 0)	\
+		while ((t = tests[j][k++]) != NULL)
 
 static int test_and_print(struct test_suite *t, int subtest)
 {

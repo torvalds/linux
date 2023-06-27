@@ -1396,6 +1396,7 @@ static const struct qmp_combo_offsets qmp_combo_offsets_v3 = {
 	.usb3_serdes	= 0x1000,
 	.usb3_pcs_misc	= 0x1a00,
 	.usb3_pcs	= 0x1c00,
+	.usb3_pcs_usb	= 0x1f00,
 	.dp_serdes	= 0x2000,
 	.dp_txa		= 0x2200,
 	.dp_txb		= 0x2600,
@@ -1414,22 +1415,6 @@ static const struct qmp_combo_offsets qmp_combo_offsets_v5 = {
 	.usb3_pcs_usb	= 0x1700,
 	.dp_serdes	= 0x2000,
 	.dp_dp_phy	= 0x2200,
-};
-
-static const struct qmp_combo_offsets qmp_combo_offsets_v6 = {
-	.com		= 0x0000,
-	.txa		= 0x1200,
-	.rxa		= 0x1400,
-	.txb		= 0x1600,
-	.rxb		= 0x1800,
-	.usb3_serdes	= 0x1000,
-	.usb3_pcs_misc	= 0x1a00,
-	.usb3_pcs	= 0x1c00,
-	.usb3_pcs_usb	= 0x1f00,
-	.dp_serdes	= 0x2000,
-	.dp_txa		= 0x2200,
-	.dp_txb		= 0x2600,
-	.dp_dp_phy	= 0x2a00,
 };
 
 static const struct qmp_phy_cfg sc7180_usb3dpphy_cfg = {
@@ -1758,7 +1743,7 @@ static const struct qmp_phy_cfg sm8350_usb3dpphy_cfg = {
 };
 
 static const struct qmp_phy_cfg sm8550_usb3dpphy_cfg = {
-	.offsets		= &qmp_combo_offsets_v6,
+	.offsets		= &qmp_combo_offsets_v3,
 
 	.serdes_tbl		= sm8550_usb3_serdes_tbl,
 	.serdes_tbl_num		= ARRAY_SIZE(sm8550_usb3_serdes_tbl),
@@ -2487,7 +2472,7 @@ static int qmp_combo_com_init(struct qmp_combo *qmp)
 	ret = regulator_bulk_enable(cfg->num_vregs, qmp->vregs);
 	if (ret) {
 		dev_err(qmp->dev, "failed to enable regulators, err=%d\n", ret);
-		goto err_unlock;
+		goto err_decrement_count;
 	}
 
 	ret = reset_control_bulk_assert(cfg->num_resets, qmp->resets);
@@ -2537,7 +2522,8 @@ err_assert_reset:
 	reset_control_bulk_assert(cfg->num_resets, qmp->resets);
 err_disable_regulators:
 	regulator_bulk_disable(cfg->num_vregs, qmp->vregs);
-err_unlock:
+err_decrement_count:
+	qmp->init_count--;
 	mutex_unlock(&qmp->phy_mutex);
 
 	return ret;

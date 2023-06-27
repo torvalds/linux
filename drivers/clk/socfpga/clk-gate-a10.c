@@ -40,7 +40,7 @@ static struct clk_ops gateclk_ops = {
 };
 
 static void __init __socfpga_gate_init(struct device_node *node,
-	const struct clk_ops *ops)
+				       const struct clk_ops *ops)
 {
 	u32 clk_gate[2];
 	u32 div_reg[3];
@@ -94,13 +94,25 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	socfpga_clk->hw.hw.init = &init;
 	hw_clk = &socfpga_clk->hw.hw;
 
-	if (clk_hw_register(NULL, hw_clk)) {
-		kfree(socfpga_clk);
-		return;
+	rc = clk_hw_register(NULL, hw_clk);
+	if (rc) {
+		pr_err("Could not register clock:%s\n", clk_name);
+		goto err_clk_hw_register;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, hw_clk);
-	if (WARN_ON(rc))
-		return;
+
+	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw_clk);
+	if (rc) {
+		pr_err("Could not register clock provider for node:%s\n",
+		       clk_name);
+		goto err_of_clk_add_hw_provider;
+	}
+
+	return;
+
+err_of_clk_add_hw_provider:
+	clk_hw_unregister(hw_clk);
+err_clk_hw_register:
+	kfree(socfpga_clk);
 }
 
 void __init socfpga_a10_gate_init(struct device_node *node)

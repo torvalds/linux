@@ -1258,19 +1258,17 @@ static int tusb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tusb_remove(struct platform_device *pdev)
+static void tusb_remove(struct platform_device *pdev)
 {
 	struct tusb6010_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
 	usb_phy_generic_unregister(glue->phy);
-
-	return 0;
 }
 
 static struct platform_driver tusb_driver = {
 	.probe		= tusb_probe,
-	.remove		= tusb_remove,
+	.remove_new	= tusb_remove,
 	.driver		= {
 		.name	= "musb-tusb",
 	},

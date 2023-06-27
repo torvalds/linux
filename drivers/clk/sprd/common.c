@@ -45,7 +45,7 @@ int sprd_clk_regmap_init(struct platform_device *pdev,
 	struct resource *res;
 	struct regmap_config reg_config = sprdclk_regmap_config;
 
-	if (of_find_property(node, "sprd,syscon", NULL)) {
+	if (of_property_present(node, "sprd,syscon")) {
 		regmap = syscon_regmap_lookup_by_phandle(node, "sprd,syscon");
 		if (IS_ERR(regmap)) {
 			pr_err("%s: failed to get syscon regmap\n", __func__);

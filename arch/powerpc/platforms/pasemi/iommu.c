@@ -254,7 +254,7 @@ void __init iommu_init_early_pasemi(void)
 	iommu_off = 1;
 #else
 	iommu_off = of_chosen &&
-			of_get_property(of_chosen, "linux,iommu-off", NULL);
+			of_property_read_bool(of_chosen, "linux,iommu-off");
 #endif
 	if (iommu_off)
 		return;

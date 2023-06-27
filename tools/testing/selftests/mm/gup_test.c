@@ -12,8 +12,7 @@
 #include <assert.h>
 #include <mm/gup_test.h>
 #include "../kselftest.h"
-
-#include "util.h"
+#include "vm_util.h"
 
 #define MB (1UL << 20)
 
@@ -251,7 +250,7 @@ int main(int argc, char **argv)
 	if (touch) {
 		gup.gup_flags |= FOLL_TOUCH;
 	} else {
-		for (; (unsigned long)p < gup.addr + size; p += PAGE_SIZE)
+		for (; (unsigned long)p < gup.addr + size; p += psize())
 			p[0] = 0;
 	}
 

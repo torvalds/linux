@@ -92,15 +92,13 @@ unregister_clk0:
 	return ret;
 };
 
-static int clk_dvp_remove(struct platform_device *pdev)
+static void clk_dvp_remove(struct platform_device *pdev)
 {
 	struct clk_dvp *dvp = platform_get_drvdata(pdev);
 	struct clk_hw_onecell_data *data = dvp->data;
 
 	clk_hw_unregister_gate(data->hws[1]);
 	clk_hw_unregister_gate(data->hws[0]);
-
-	return 0;
 }
 
 static const struct of_device_id clk_dvp_dt_ids[] = {
@@ -111,7 +109,7 @@ MODULE_DEVICE_TABLE(of, clk_dvp_dt_ids);
 
 static struct platform_driver clk_dvp_driver = {
 	.probe	= clk_dvp_probe,
-	.remove	= clk_dvp_remove,
+	.remove_new = clk_dvp_remove,
 	.driver	= {
 		.name		= "brcm2711-dvp",
 		.of_match_table	= clk_dvp_dt_ids,

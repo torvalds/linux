@@ -7,7 +7,9 @@
 #ifndef __API_IO__
 #define __API_IO__
 
+#include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 struct io {
@@ -110,6 +112,49 @@ static inline int io__get_dec(struct io *io, __u64 *dec)
 			return ch;
 		first_read = false;
 	}
+}
+
+/* Read up to and including the first newline following the pattern of getline. */
+static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
+{
+	char buf[128];
+	int buf_pos = 0;
+	char *line = NULL, *temp;
+	size_t line_len = 0;
+	int ch = 0;
+
+	/* TODO: reuse previously allocated memory. */
+	free(*line_out);
+	while (ch != '\n') {
+		ch = io__get_char(io);
+
+		if (ch < 0)
+			break;
+
+		if (buf_pos == sizeof(buf)) {
+			temp = realloc(line, line_len + sizeof(buf));
+			if (!temp)
+				goto err_out;
+			line = temp;
+			memcpy(&line[line_len], buf, sizeof(buf));
+			line_len += sizeof(buf);
+			buf_pos = 0;
+		}
+		buf[buf_pos++] = (char)ch;
+	}
+	temp = realloc(line, line_len + buf_pos + 1);
+	if (!temp)
+		goto err_out;
+	line = temp;
+	memcpy(&line[line_len], buf, buf_pos);
+	line[line_len + buf_pos] = '\0';
+	line_len += buf_pos;
+	*line_out = line;
+	*line_len_out = line_len;
+	return line_len;
+err_out:
+	free(line);
+	return -ENOMEM;
 }
 
 #endif /* __API_IO__ */

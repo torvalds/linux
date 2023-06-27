@@ -85,12 +85,12 @@ SYM_FUNC_START(__tdx_module_call)
 SYM_FUNC_END(__tdx_module_call)
 
 /*
- * __tdx_hypercall() - Make hypercalls to a TDX VMM using TDVMCALL leaf
- * of TDCALL instruction
+ * TDX_HYPERCALL - Make hypercalls to a TDX VMM using TDVMCALL leaf of TDCALL
+ * instruction
  *
  * Transforms values in  function call argument struct tdx_hypercall_args @args
  * into the TDCALL register ABI. After TDCALL operation, VMM output is saved
- * back in @args.
+ * back in @args, if \ret is 1.
  *
  *-------------------------------------------------------------------------
  * TD VMCALL ABI:
@@ -105,26 +105,18 @@ SYM_FUNC_END(__tdx_module_call)
  *                       specification. Non zero value indicates vendor
  *                       specific ABI.
  * R11                 - VMCALL sub function number
- * RBX, RBP, RDI, RSI  - Used to pass VMCALL sub function specific arguments.
+ * RBX, RDX, RDI, RSI  - Used to pass VMCALL sub function specific arguments.
  * R8-R9, R12-R15      - Same as above.
  *
  * Output Registers:
  *
  * RAX                 - TDCALL instruction status (Not related to hypercall
  *                        output).
- * R10                 - Hypercall output error code.
- * R11-R15             - Hypercall sub function specific output values.
+ * RBX, RDX, RDI, RSI  - Hypercall sub function specific output values.
+ * R8-R15              - Same as above.
  *
- *-------------------------------------------------------------------------
- *
- * __tdx_hypercall() function ABI:
- *
- * @args  (RDI)        - struct tdx_hypercall_args for input and output
- * @flags (RSI)        - TDX_HCALL_* flags
- *
- * On successful completion, return the hypercall error code.
  */
-SYM_FUNC_START(__tdx_hypercall)
+.macro TDX_HYPERCALL ret:req
 	FRAME_BEGIN
 
 	/* Save callee-saved GPRs as mandated by the x86_64 ABI */
@@ -134,9 +126,8 @@ SYM_FUNC_START(__tdx_hypercall)
 	push %r12
 	push %rbx
 
-	/* Free RDI and RSI to be used as TDVMCALL arguments */
+	/* Free RDI to be used as TDVMCALL arguments */
 	movq %rdi, %rax
-	push %rsi
 
 	/* Copy hypercall registers from arg struct: */
 	movq TDX_HYPERCALL_r8(%rax),  %r8
@@ -171,14 +162,11 @@ SYM_FUNC_START(__tdx_hypercall)
 	 * and are handled by callers.
 	 */
 	testq %rax, %rax
-	jne .Lpanic
+	jne .Lpanic\@
 
 	pop %rax
 
-	/* Copy hypercall result registers to arg struct if needed */
-	testq $TDX_HCALL_HAS_OUTPUT, (%rsp)
-	jz .Lout
-
+	.if \ret
 	movq %r8,  TDX_HYPERCALL_r8(%rax)
 	movq %r9,  TDX_HYPERCALL_r9(%rax)
 	movq %r10, TDX_HYPERCALL_r10(%rax)
@@ -191,7 +179,8 @@ SYM_FUNC_START(__tdx_hypercall)
 	movq %rsi, TDX_HYPERCALL_rsi(%rax)
 	movq %rbx, TDX_HYPERCALL_rbx(%rax)
 	movq %rdx, TDX_HYPERCALL_rdx(%rax)
-.Lout:
+	.endif
+
 	/* TDVMCALL leaf return code is in R10 */
 	movq %r10, %rax
 
@@ -208,9 +197,6 @@ SYM_FUNC_START(__tdx_hypercall)
 	xor %rdi,  %rdi
 	xor %rdx,  %rdx
 
-	/* Remove TDX_HCALL_* flags from the stack */
-	pop %rsi
-
 	/* Restore callee-saved GPRs as mandated by the x86_64 ABI */
 	pop %rbx
 	pop %r12
@@ -221,9 +207,33 @@ SYM_FUNC_START(__tdx_hypercall)
 	FRAME_END
 
 	RET
-.Lpanic:
+.Lpanic\@:
 	call __tdx_hypercall_failed
 	/* __tdx_hypercall_failed never returns */
 	REACHABLE
-	jmp .Lpanic
+	jmp .Lpanic\@
+.endm
+
+/*
+ *
+ * __tdx_hypercall() function ABI:
+ *
+ * @args  (RDI)        - struct tdx_hypercall_args for input
+ *
+ * On successful completion, return the hypercall error code.
+ */
+SYM_FUNC_START(__tdx_hypercall)
+	TDX_HYPERCALL ret=0
 SYM_FUNC_END(__tdx_hypercall)
+
+/*
+ *
+ * __tdx_hypercall_ret() function ABI:
+ *
+ * @args  (RDI)        - struct tdx_hypercall_args for input and output
+ *
+ * On successful completion, return the hypercall error code.
+ */
+SYM_FUNC_START(__tdx_hypercall_ret)
+	TDX_HYPERCALL ret=1
+SYM_FUNC_END(__tdx_hypercall_ret)

@@ -314,7 +314,7 @@ static int dma_heap_init(void)
 	if (ret)
 		return ret;
 
-	dma_heap_class = class_create(THIS_MODULE, DEVNAME);
+	dma_heap_class = class_create(DEVNAME);
 	if (IS_ERR(dma_heap_class)) {
 		unregister_chrdev_region(dma_heap_devt, NUM_HEAP_MINORS);
 		return PTR_ERR(dma_heap_class);

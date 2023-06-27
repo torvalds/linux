@@ -37,12 +37,6 @@
 
 #include "iscsi_iser.h"
 
-#define ISCSI_ISER_MAX_CONN	8
-#define ISER_MAX_RX_LEN		(ISER_QP_MAX_RECV_DTOS * ISCSI_ISER_MAX_CONN)
-#define ISER_MAX_TX_LEN		(ISER_QP_MAX_REQ_DTOS  * ISCSI_ISER_MAX_CONN)
-#define ISER_MAX_CQ_LEN		(ISER_MAX_RX_LEN + ISER_MAX_TX_LEN + \
-				 ISCSI_ISER_MAX_CONN)
-
 static void iser_qp_event_callback(struct ib_event *cause, void *context)
 {
 	iser_err("qp event %s (%d)\n",

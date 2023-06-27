@@ -1409,7 +1409,7 @@ static int __init vfio_init(void)
 		goto err_virqfd;
 
 	/* /sys/class/vfio-dev/vfioX */
-	vfio.device_class = class_create(THIS_MODULE, "vfio-dev");
+	vfio.device_class = class_create("vfio-dev");
 	if (IS_ERR(vfio.device_class)) {
 		ret = PTR_ERR(vfio.device_class);
 		goto err_dev_class;

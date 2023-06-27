@@ -386,7 +386,7 @@ combinazione con struct_size() e flex_array_size()::
 Ci sono due casi speciali dove è necessario usare la macro DECLARE_FLEX_ARRAY()
 (da notare che la stessa macro è chiamata __DECLARE_FLEX_ARRAY() nei file di
 intestazione UAPI). Uno è quando l'array flessibile è l'unico elemento di una
-struttura, e l'altro è quando è parti un unione. Per motivi non tecnici, entrambi
+struttura, e l'altro quando è parte di un unione. Per motivi non tecnici, entrambi
 i casi d'uso non sono permessi dalla specifica C99. Per esempio, per
 convertire il seguente codice::
 

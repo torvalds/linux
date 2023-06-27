@@ -112,7 +112,7 @@ static int pwm_clk_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pwm_clk_remove(struct platform_device *pdev)
+static void pwm_clk_remove(struct platform_device *pdev)
 {
 	struct pwm_clk_chip *pcchip = platform_get_drvdata(pdev);
 
@@ -122,8 +122,6 @@ static int pwm_clk_remove(struct platform_device *pdev)
 		clk_disable(pcchip->clk);
 
 	clk_unprepare(pcchip->clk);
-
-	return 0;
 }
 
 static const struct of_device_id pwm_clk_dt_ids[] = {
@@ -138,7 +136,7 @@ static struct platform_driver pwm_clk_driver = {
 		.of_match_table = pwm_clk_dt_ids,
 	},
 	.probe = pwm_clk_probe,
-	.remove = pwm_clk_remove,
+	.remove_new = pwm_clk_remove,
 };
 module_platform_driver(pwm_clk_driver);
 

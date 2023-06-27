@@ -29,16 +29,6 @@ config STORCENTER
 	  Select STORCENTER if configuring for the iomega StorCenter
 	  with an 8241 CPU in it.
 
-config MPC7448HPC2
-	bool "Freescale MPC7448HPC2(Taiga)"
-	depends on EMBEDDED6xx
-	select TSI108_BRIDGE
-	select DEFAULT_UIMAGE
-	select PPC_UDBG_16550
-	help
-	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
-	  platform
-
 config PPC_HOLLY
 	bool "PPC750GX/CL with TSI10x bridge (Hickory/Holly)"
 	depends on EMBEDDED6xx

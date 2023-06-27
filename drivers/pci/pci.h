@@ -311,6 +311,16 @@ struct pci_sriov {
 	bool		drivers_autoprobe; /* Auto probing of VFs by driver */
 };
 
+#ifdef CONFIG_PCI_DOE
+void pci_doe_init(struct pci_dev *pdev);
+void pci_doe_destroy(struct pci_dev *pdev);
+void pci_doe_disconnected(struct pci_dev *pdev);
+#else
+static inline void pci_doe_init(struct pci_dev *pdev) { }
+static inline void pci_doe_destroy(struct pci_dev *pdev) { }
+static inline void pci_doe_disconnected(struct pci_dev *pdev) { }
+#endif
+
 /**
  * pci_dev_set_io_state - Set the new error state if possible.
  *
@@ -347,6 +357,7 @@ static inline bool pci_dev_set_io_state(struct pci_dev *dev,
 static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 {
 	pci_dev_set_io_state(dev, pci_channel_io_perm_failure);
+	pci_doe_disconnected(dev);
 
 	return 0;
 }

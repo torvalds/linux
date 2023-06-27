@@ -8,17 +8,135 @@
 
 #include "dialog.h"
 
-static void back_lines(int n);
-static void print_page(WINDOW *win, int height, int width, update_text_fn
-		       update_text, void *data);
-static void print_line(WINDOW *win, int row, int width);
-static char *get_line(void);
-static void print_position(WINDOW * win);
-
 static int hscroll;
 static int begin_reached, end_reached, page_length;
 static char *buf;
 static char *page;
+
+/*
+ * Go back 'n' lines in text. Called by dialog_textbox().
+ * 'page' will be updated to point to the desired line in 'buf'.
+ */
+static void back_lines(int n)
+{
+	int i;
+
+	begin_reached = 0;
+	/* Go back 'n' lines */
+	for (i = 0; i < n; i++) {
+		if (*page == '\0') {
+			if (end_reached) {
+				end_reached = 0;
+				continue;
+			}
+		}
+		if (page == buf) {
+			begin_reached = 1;
+			return;
+		}
+		page--;
+		do {
+			if (page == buf) {
+				begin_reached = 1;
+				return;
+			}
+			page--;
+		} while (*page != '\n');
+		page++;
+	}
+}
+
+/*
+ * Return current line of text. Called by dialog_textbox() and print_line().
+ * 'page' should point to start of current line before calling, and will be
+ * updated to point to start of next line.
+ */
+static char *get_line(void)
+{
+	int i = 0;
+	static char line[MAX_LEN + 1];
+
+	end_reached = 0;
+	while (*page != '\n') {
+		if (*page == '\0') {
+			end_reached = 1;
+			break;
+		} else if (i < MAX_LEN)
+			line[i++] = *(page++);
+		else {
+			/* Truncate lines longer than MAX_LEN characters */
+			if (i == MAX_LEN)
+				line[i++] = '\0';
+			page++;
+		}
+	}
+	if (i <= MAX_LEN)
+		line[i] = '\0';
+	if (!end_reached)
+		page++;		/* move past '\n' */
+
+	return line;
+}
+
+/*
+ * Print a new line of text.
+ */
+static void print_line(WINDOW *win, int row, int width)
+{
+	char *line;
+
+	line = get_line();
+	line += MIN(strlen(line), hscroll);	/* Scroll horizontally */
+	wmove(win, row, 0);	/* move cursor to correct line */
+	waddch(win, ' ');
+	waddnstr(win, line, MIN(strlen(line), width - 2));
+
+	/* Clear 'residue' of previous line */
+	wclrtoeol(win);
+}
+
+/*
+ * Print a new page of text.
+ */
+static void print_page(WINDOW *win, int height, int width, update_text_fn
+		       update_text, void *data)
+{
+	int i, passed_end = 0;
+
+	if (update_text) {
+		char *end;
+
+		for (i = 0; i < height; i++)
+			get_line();
+		end = page;
+		back_lines(height);
+		update_text(buf, page - buf, end - buf, data);
+	}
+
+	page_length = 0;
+	for (i = 0; i < height; i++) {
+		print_line(win, i, width);
+		if (!passed_end)
+			page_length++;
+		if (end_reached && !passed_end)
+			passed_end = 1;
+	}
+	wnoutrefresh(win);
+}
+
+/*
+ * Print current position
+ */
+static void print_position(WINDOW *win)
+{
+	int percent;
+
+	wattrset(win, dlg.position_indicator.atr);
+	wbkgdset(win, dlg.position_indicator.atr & A_COLOR);
+	percent = (page - buf) * 100 / strlen(buf);
+	wmove(win, getmaxy(win) - 3, getmaxx(win) - 9);
+	wprintw(win, "(%3d%%)", percent);
+}
 
 /*
  * refresh window content
@@ -32,7 +150,6 @@ static void refresh_text_box(WINDOW *dialog, WINDOW *box, int boxh, int boxw,
 	wmove(dialog, cur_y, cur_x);	/* Restore cursor position */
 	wrefresh(dialog);
 }
-
 
 /*
  * Display text from a file in a dialog box.
@@ -258,138 +375,4 @@ do_resize:
 	if (_hscroll)
 		*_hscroll = hscroll;
 	return key;
-}
-
-/*
- * Go back 'n' lines in text. Called by dialog_textbox().
- * 'page' will be updated to point to the desired line in 'buf'.
- */
-static void back_lines(int n)
-{
-	int i;
-
-	begin_reached = 0;
-	/* Go back 'n' lines */
-	for (i = 0; i < n; i++) {
-		if (*page == '\0') {
-			if (end_reached) {
-				end_reached = 0;
-				continue;
-			}
-		}
-		if (page == buf) {
-			begin_reached = 1;
-			return;
-		}
-		page--;
-		do {
-			if (page == buf) {
-				begin_reached = 1;
-				return;
-			}
-			page--;
-		} while (*page != '\n');
-		page++;
-	}
-}
-
-/*
- * Print a new page of text.
- */
-static void print_page(WINDOW *win, int height, int width, update_text_fn
-		       update_text, void *data)
-{
-	int i, passed_end = 0;
-
-	if (update_text) {
-		char *end;
-
-		for (i = 0; i < height; i++)
-			get_line();
-		end = page;
-		back_lines(height);
-		update_text(buf, page - buf, end - buf, data);
-	}
-
-	page_length = 0;
-	for (i = 0; i < height; i++) {
-		print_line(win, i, width);
-		if (!passed_end)
-			page_length++;
-		if (end_reached && !passed_end)
-			passed_end = 1;
-	}
-	wnoutrefresh(win);
-}
-
-/*
- * Print a new line of text.
- */
-static void print_line(WINDOW * win, int row, int width)
-{
-	char *line;
-
-	line = get_line();
-	line += MIN(strlen(line), hscroll);	/* Scroll horizontally */
-	wmove(win, row, 0);	/* move cursor to correct line */
-	waddch(win, ' ');
-	waddnstr(win, line, MIN(strlen(line), width - 2));
-
-	/* Clear 'residue' of previous line */
-#if OLD_NCURSES
-	{
-		int x = getcurx(win);
-		int i;
-		for (i = 0; i < width - x; i++)
-			waddch(win, ' ');
-	}
-#else
-	wclrtoeol(win);
-#endif
-}
-
-/*
- * Return current line of text. Called by dialog_textbox() and print_line().
- * 'page' should point to start of current line before calling, and will be
- * updated to point to start of next line.
- */
-static char *get_line(void)
-{
-	int i = 0;
-	static char line[MAX_LEN + 1];
-
-	end_reached = 0;
-	while (*page != '\n') {
-		if (*page == '\0') {
-			end_reached = 1;
-			break;
-		} else if (i < MAX_LEN)
-			line[i++] = *(page++);
-		else {
-			/* Truncate lines longer than MAX_LEN characters */
-			if (i == MAX_LEN)
-				line[i++] = '\0';
-			page++;
-		}
-	}
-	if (i <= MAX_LEN)
-		line[i] = '\0';
-	if (!end_reached)
-		page++;		/* move past '\n' */
-
-	return line;
-}
-
-/*
- * Print current position
- */
-static void print_position(WINDOW * win)
-{
-	int percent;
-
-	wattrset(win, dlg.position_indicator.atr);
-	wbkgdset(win, dlg.position_indicator.atr & A_COLOR);
-	percent = (page - buf) * 100 / strlen(buf);
-	wmove(win, getmaxy(win) - 3, getmaxx(win) - 9);
-	wprintw(win, "(%3d%%)", percent);
 }

@@ -65,6 +65,9 @@ properties:
       - const: rx
       - const: tx
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg

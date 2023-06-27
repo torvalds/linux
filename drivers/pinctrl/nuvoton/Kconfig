@@ -11,6 +11,7 @@ config PINCTRL_WPCM450
 	select GPIOLIB
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
+	select MFD_SYSCON
 	help
 	  Say Y or M here to enable pin controller and GPIO support for
 	  the Nuvoton WPCM450 SoC. This is strongly recommended when

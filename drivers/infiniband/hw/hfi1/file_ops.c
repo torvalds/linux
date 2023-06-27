@@ -975,7 +975,7 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 		ret = -ENOMEM;
 		goto ctxdata_free;
 	}
-	hfi1_cdbg(PROC, "allocated send context %u(%u)\n", uctxt->sc->sw_index,
+	hfi1_cdbg(PROC, "allocated send context %u(%u)", uctxt->sc->sw_index,
 		  uctxt->sc->hw_context);
 	ret = sc_enable(uctxt->sc);
 	if (ret)

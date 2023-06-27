@@ -94,6 +94,22 @@
         "UMask": "0x10"
     },
     {
+        "BriefDescription": "Speculative and retired mispredicted macro conditional branches",
+        "EventCode": "0x89",
+        "EventName": "BR_MISP_EXEC.ALL_BRANCHES",
+        "PublicDescription": "This event counts both taken and not taken speculative and retired mispredicted branch instructions.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xff"
+    },
+    {
+        "BriefDescription": "Speculative mispredicted indirect branches",
+        "EventCode": "0x89",
+        "EventName": "BR_MISP_EXEC.INDIRECT",
+        "PublicDescription": "Counts speculatively miss-predicted indirect branches at execution time. Counts for indirect near CALL or JMP instructions (RET excluded).",
+        "SampleAfterValue": "200003",
+        "UMask": "0xe4"
+    },
+    {
         "BriefDescription": "All mispredicted macro branch instructions retired.",
         "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",

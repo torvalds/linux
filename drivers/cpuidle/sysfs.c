@@ -119,11 +119,18 @@ static struct attribute_group cpuidle_attr_group = {
 
 /**
  * cpuidle_add_interface - add CPU global sysfs attributes
- * @dev: the target device
  */
-int cpuidle_add_interface(struct device *dev)
+int cpuidle_add_interface(void)
 {
-	return sysfs_create_group(&dev->kobj, &cpuidle_attr_group);
+	struct device *dev_root = bus_get_dev_root(&cpu_subsys);
+	int retval;
+
+	if (!dev_root)
+		return -EINVAL;
+
+	retval = sysfs_create_group(&dev_root->kobj, &cpuidle_attr_group);
+	put_device(dev_root);
+	return retval;
 }
 
 /**

@@ -20,7 +20,7 @@ properties:
   reg:
     items:
       - description: LPASS LPI TLMM Control and Status registers
-      - description: LPASS LPI pins SLEW registers
+      - description: LPASS LPI MCC registers
 
   clocks:
     items:

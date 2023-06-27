@@ -245,7 +245,7 @@ static int __init bsg_init(void)
 	dev_t devid;
 	int ret;
 
-	bsg_class = class_create(THIS_MODULE, "bsg");
+	bsg_class = class_create("bsg");
 	if (IS_ERR(bsg_class))
 		return PTR_ERR(bsg_class);
 	bsg_class->devnode = bsg_devnode;

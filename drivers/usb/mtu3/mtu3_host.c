@@ -11,7 +11,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/regmap.h>
 
 #include "mtu3.h"

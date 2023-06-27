@@ -183,4 +183,3 @@ module_platform_driver(stm32_pwr_driver);
 
 MODULE_DESCRIPTION("STM32MP1 PWR voltage regulator driver");
 MODULE_AUTHOR("Pascal Paillet <p.paillet@st.com>");
-MODULE_LICENSE("GPL v2");

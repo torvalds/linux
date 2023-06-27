@@ -1030,7 +1030,7 @@ alle corse critiche, dovreste usare timer_delete_sync()
 (``include/linux/timer.h``) per gestire questo caso.
 
 Prima di rilasciare un temporizzatore dovreste chiamare la funzione
-timer_shutdown() o timer_shutdown_sync() di modo che non venga più ricarmato.
+timer_shutdown() o timer_shutdown_sync() di modo che non venga più riarmato.
 Ogni successivo tentativo di riarmare il temporizzatore verrà silenziosamente
 ignorato.
 

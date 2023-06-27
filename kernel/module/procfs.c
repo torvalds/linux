@@ -62,6 +62,15 @@ static void m_stop(struct seq_file *m, void *p)
 	mutex_unlock(&module_mutex);
 }
 
+static unsigned int module_total_size(struct module *mod)
+{
+	int size = 0;
+
+	for_each_mod_mem_type(type)
+		size += mod->mem[type].size;
+	return size;
+}
+
 static int m_show(struct seq_file *m, void *p)
 {
 	struct module *mod = list_entry(p, struct module, list);
@@ -73,10 +82,7 @@ static int m_show(struct seq_file *m, void *p)
 	if (mod->state == MODULE_STATE_UNFORMED)
 		return 0;
 
-	size = mod->init_layout.size + mod->core_layout.size;
-#ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-	size += mod->data_layout.size;
-#endif
+	size = module_total_size(mod);
 	seq_printf(m, "%s %u", mod->name, size);
 	print_unload_info(m, mod);
 
@@ -86,7 +92,7 @@ static int m_show(struct seq_file *m, void *p)
 		   mod->state == MODULE_STATE_COMING ? "Loading" :
 		   "Live");
 	/* Used by oprofile and other similar tools. */
-	value = m->private ? NULL : mod->core_layout.base;
+	value = m->private ? NULL : mod->mem[MOD_TEXT].base;
 	seq_printf(m, " 0x%px", value);
 
 	/* Taints info */

@@ -112,7 +112,7 @@ void hci_init_sysfs(struct hci_dev *hdev)
 
 int __init bt_sysfs_init(void)
 {
-	bt_class = class_create(THIS_MODULE, "bluetooth");
+	bt_class = class_create("bluetooth");
 
 	return PTR_ERR_OR_ZERO(bt_class);
 }

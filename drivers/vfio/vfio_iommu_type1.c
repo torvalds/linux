@@ -580,7 +580,7 @@ static int vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
 		goto done;
 	}
 
-	vaddr = untagged_addr(vaddr);
+	vaddr = untagged_addr_remote(mm, vaddr);
 
 retry:
 	vma = vma_lookup(mm, vaddr);
@@ -859,6 +859,11 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 					     do_accounting);
 		if (ret)
 			goto pin_unwind;
+
+		if (!pfn_valid(phys_pfn)) {
+			ret = -EINVAL;
+			goto pin_unwind;
+		}
 
 		ret = vfio_add_to_pfn_list(dma, iova, phys_pfn);
 		if (ret) {

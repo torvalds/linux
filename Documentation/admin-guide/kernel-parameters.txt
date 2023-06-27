@@ -912,15 +912,14 @@
 	cs89x0_media=	[HW,NET]
 			Format: { rj45 | aui | bnc }
 
-	csdlock_debug=	[KNL] Enable debug add-ons of cross-CPU function call
-			handling. When switched on, additional debug data is
-			printed to the console in case a hanging CPU is
-			detected, and that CPU is pinged again in order to try
-			to resolve the hang situation.
-			0: disable csdlock debugging (default)
-			1: enable basic csdlock debugging (minor impact)
-			ext: enable extended csdlock debugging (more impact,
-			     but more data)
+	csdlock_debug=	[KNL] Enable or disable debug add-ons of cross-CPU
+			function call handling. When switched on,
+			additional debug data is printed to the console
+			in case a hanging CPU is detected, and that
+			CPU is pinged again in order to try to resolve
+			the hang situation.  The default value of this
+			option depends on the CSD_LOCK_WAIT_DEBUG_DEFAULT
+			Kconfig option.
 
 	dasd=		[HW,NET]
 			See header of drivers/s390/block/dasd_devmap.c.
@@ -1601,6 +1600,20 @@
 			[KNL] Treat all inferred dependencies as mandatory
 			dependencies. This only applies for fw_devlink=on|rpm.
 			Format: <bool>
+
+	fw_devlink.sync_state =
+			[KNL] When all devices that could probe have finished
+			probing, this parameter controls what to do with
+			devices that haven't yet received their sync_state()
+			calls.
+			Format: { strict | timeout }
+			strict -- Default. Continue waiting on consumers to
+				probe successfully.
+			timeout -- Give up waiting on consumers and call
+				sync_state() on any devices that haven't yet
+				received their sync_state() calls after
+				deferred_probe_timeout has expired or by
+				late_initcall() if !CONFIG_MODULES.
 
 	gamecon.map[2|3]=
 			[HW,JOY] Multisystem joystick and NES/SNES/PSX pad
@@ -3349,6 +3362,12 @@
 			specified, <module>.async_probe takes precedence for
 			the specific module.
 
+	module.enable_dups_trace
+			[KNL] When CONFIG_MODULE_DEBUG_AUTOLOAD_DUPS is set,
+			this means that duplicate request_module() calls will
+			trigger a WARN_ON() instead of a pr_warn(). Note that
+			if MODULE_DEBUG_AUTOLOAD_DUPS_TRACE is set, WARN_ON()s
+			will always be issued and this option does nothing.
 	module.sig_enforce
 			[KNL] When CONFIG_MODULE_SIG is set, this means that
 			modules without (valid) signatures will fail to load.
@@ -3593,7 +3612,10 @@
 			emulation library even if a 387 maths coprocessor
 			is present.
 
-	no5lvl		[X86-64] Disable 5-level paging mode. Forces
+	no4lvl		[RISCV] Disable 4-level and 5-level paging modes. Forces
+			kernel to use 3-level paging instead.
+
+	no5lvl		[X86-64,RISCV] Disable 5-level paging mode. Forces
 			kernel to use 4-level paging instead.
 
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
@@ -3992,7 +4014,7 @@
 			[KNL] Minimal page reporting order
 			Format: <integer>
 			Adjust the minimal page reporting order. The page
-			reporting is disabled when it exceeds (MAX_ORDER-1).
+			reporting is disabled when it exceeds MAX_ORDER.
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
@@ -6149,15 +6171,6 @@
 			are reported in the kernel log. Sysctls registered
 			later by a loaded module cannot be set this way.
 			Example: sysctl.vm.swappiness=40
-
-	sysfs.deprecated=0|1 [KNL]
-			Enable/disable old style sysfs layout for old udev
-			on older distributions. When this option is enabled
-			very new udev will not work anymore. When this option
-			is disabled (or CONFIG_SYSFS_DEPRECATED not compiled)
-			in older udev will not work anymore.
-			Default depends on CONFIG_SYSFS_DEPRECATED_V2 set in
-			the kernel configuration.
 
 	sysrq_always_enabled
 			[KNL]

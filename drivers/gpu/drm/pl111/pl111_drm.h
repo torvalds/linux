@@ -114,7 +114,7 @@ struct drm_minor;
  *	extensions to the control register
  * @formats: array of supported pixel formats on this variant
  * @nformats: the length of the array of supported pixel formats
- * @fb_bpp: desired bits per pixel on the default framebuffer
+ * @fb_depth: desired depth per pixel on the default framebuffer
  */
 struct pl111_variant_data {
 	const char *name;
@@ -126,7 +126,7 @@ struct pl111_variant_data {
 	bool st_bitmux_control;
 	const u32 *formats;
 	unsigned int nformats;
-	unsigned int fb_bpp;
+	unsigned int fb_depth;
 };
 
 struct pl111_drm_dev_private {

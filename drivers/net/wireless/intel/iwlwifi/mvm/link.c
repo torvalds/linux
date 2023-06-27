@@ -123,11 +123,13 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				if (mvmvif->link[i]->phy_ctxt)
 					count++;
 
-			/* FIXME: IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM should be
-			 * defined per HW
-			 */
-			if (count >= IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM)
-				return -EINVAL;
+			if (vif->type == NL80211_IFTYPE_AP) {
+				if (count > mvm->fw->ucode_capa.num_beacons)
+					return -EOPNOTSUPP;
+			/* this should be per HW or such */
+			} else if (count >= IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM) {
+				return -EOPNOTSUPP;
+			}
 		}
 
 		/* Catch early if driver tries to activate or deactivate a link

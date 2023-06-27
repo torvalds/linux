@@ -1497,10 +1497,18 @@ static const DEVICE_ATTR_RO(aarch32_el0);
 
 static int __init aarch32_el0_sysfs_init(void)
 {
+	struct device *dev_root;
+	int ret = 0;
+
 	if (!allow_mismatched_32bit_el0)
 		return 0;
 
-	return device_create_file(cpu_subsys.dev_root, &dev_attr_aarch32_el0);
+	dev_root = bus_get_dev_root(&cpu_subsys);
+	if (dev_root) {
+		ret = device_create_file(dev_root, &dev_attr_aarch32_el0);
+		put_device(dev_root);
+	}
+	return ret;
 }
 device_initcall(aarch32_el0_sysfs_init);
 
@@ -2222,6 +2230,17 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.matches = has_cpuid_feature,
 		ARM64_CPUID_FIELDS(ID_AA64MMFR0_EL1, ECV, IMP)
 	},
+	{
+		.desc = "Enhanced Counter Virtualization (CNTPOFF)",
+		.capability = ARM64_HAS_ECV_CNTPOFF,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_cpuid_feature,
+		.sys_reg = SYS_ID_AA64MMFR0_EL1,
+		.field_pos = ID_AA64MMFR0_EL1_ECV_SHIFT,
+		.field_width = 4,
+		.sign = FTR_UNSIGNED,
+		.min_field_value = ID_AA64MMFR0_EL1_ECV_CNTPOFF,
+	},
 #ifdef CONFIG_ARM64_PAN
 	{
 		.desc = "Privileged Access Never",
@@ -2657,26 +2676,26 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 #ifdef CONFIG_ARM64_PTR_AUTH
 static const struct arm64_cpu_capabilities ptr_auth_hwcap_addr_matches[] = {
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, APA, PAuth)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, APA, PAuth)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, APA3, PAuth)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR2_EL1, APA3, PAuth)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, API, PAuth)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, API, PAuth)
 	},
 	{},
 };
 
 static const struct arm64_cpu_capabilities ptr_auth_hwcap_gen_matches[] = {
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, GPA, IMP)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, GPA, IMP)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR2_EL1, GPA3, IMP)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR2_EL1, GPA3, IMP)
 	},
 	{
-		ARM64_CPUID_FIELDS(ID_AA64ISAR1_EL1, GPI, IMP)
+		HWCAP_CPUID_MATCH(ID_AA64ISAR1_EL1, GPI, IMP)
 	},
 	{},
 };

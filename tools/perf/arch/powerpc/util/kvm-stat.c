@@ -14,7 +14,6 @@
 #define NR_TPS 4
 
 const char *vcpu_id_str = "vcpu_id";
-const int decode_str_len = 40;
 const char *kvm_entry_trace = "kvm_hv:kvm_guest_enter";
 const char *kvm_exit_trace = "kvm_hv:kvm_guest_exit";
 
@@ -61,13 +60,13 @@ static bool hcall_event_end(struct evsel *evsel,
 			    struct perf_sample *sample __maybe_unused,
 			    struct event_key *key __maybe_unused)
 {
-	return (!strcmp(evsel->name, kvm_events_tp[3]));
+	return (evsel__name_is(evsel, kvm_events_tp[3]));
 }
 
 static bool hcall_event_begin(struct evsel *evsel,
 			      struct perf_sample *sample, struct event_key *key)
 {
-	if (!strcmp(evsel->name, kvm_events_tp[2])) {
+	if (evsel__name_is(evsel, kvm_events_tp[2])) {
 		hcall_event_get_key(evsel, sample, key);
 		return true;
 	}
@@ -80,7 +79,7 @@ static void hcall_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 {
 	const char *hcall_reason = get_hcall_exit_reason(key->key);
 
-	scnprintf(decode, decode_str_len, "%s", hcall_reason);
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%s", hcall_reason);
 }
 
 static struct kvm_events_ops hcall_events = {

@@ -444,7 +444,7 @@ static struct hte_device *of_node_to_htedevice(struct device_node *np)
 
 	list_for_each_entry(gdev, &hte_devices, list)
 		if (gdev->chip && gdev->chip->dev &&
-		    gdev->chip->dev->of_node == np) {
+		    device_match_of_node(gdev->chip->dev, np)) {
 			spin_unlock(&hte_lock);
 			return gdev;
 		}

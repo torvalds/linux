@@ -971,7 +971,7 @@ static int __init fpga_mgr_class_init(void)
 {
 	pr_info("FPGA manager framework\n");
 
-	fpga_mgr_class = class_create(THIS_MODULE, "fpga_manager");
+	fpga_mgr_class = class_create("fpga_manager");
 	if (IS_ERR(fpga_mgr_class))
 		return PTR_ERR(fpga_mgr_class);
 

@@ -10,7 +10,7 @@ maintainers:
   - Mathias Nyman <mathias.nyman@intel.com>
 
 allOf:
-  - $ref: "usb-xhci.yaml#"
+  - $ref: usb-xhci.yaml#
 
 properties:
   compatible:

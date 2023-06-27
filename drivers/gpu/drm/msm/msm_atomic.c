@@ -155,6 +155,8 @@ static bool can_do_async(struct drm_atomic_state *state,
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		if (drm_atomic_crtc_needs_modeset(crtc_state))
 			return false;
+		if (!crtc_state->active)
+			return false;
 		if (++num_crtcs > 1)
 			return false;
 		*async_crtc = crtc;

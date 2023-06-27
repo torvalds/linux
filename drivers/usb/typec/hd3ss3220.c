@@ -290,7 +290,7 @@ MODULE_DEVICE_TABLE(of, dev_ids);
 static struct i2c_driver hd3ss3220_driver = {
 	.driver = {
 		.name = "hd3ss3220",
-		.of_match_table = of_match_ptr(dev_ids),
+		.of_match_table = dev_ids,
 	},
 	.probe_new = hd3ss3220_probe,
 	.remove =  hd3ss3220_remove,

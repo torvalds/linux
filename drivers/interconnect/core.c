@@ -13,7 +13,6 @@
 #include <linux/interconnect.h>
 #include <linux/interconnect-provider.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -451,7 +450,7 @@ struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 	 * When the consumer DT node do not have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
-	if (!of_find_property(np, "interconnects", NULL))
+	if (!of_property_present(np, "interconnects"))
 		return NULL;
 
 	/*
@@ -544,7 +543,7 @@ struct icc_path *of_icc_get(struct device *dev, const char *name)
 	 * When the consumer DT node do not have "interconnects" property
 	 * return a NULL path to skip setting constraints.
 	 */
-	if (!of_find_property(np, "interconnects", NULL))
+	if (!of_property_present(np, "interconnects"))
 		return NULL;
 
 	/*
@@ -911,52 +910,6 @@ out:
 EXPORT_SYMBOL_GPL(icc_link_create);
 
 /**
- * icc_link_destroy() - destroy a link between two nodes
- * @src: pointer to source node
- * @dst: pointer to destination node
- *
- * Return: 0 on success, or an error code otherwise
- */
-int icc_link_destroy(struct icc_node *src, struct icc_node *dst)
-{
-	struct icc_node **new;
-	size_t slot;
-	int ret = 0;
-
-	if (IS_ERR_OR_NULL(src))
-		return -EINVAL;
-
-	if (IS_ERR_OR_NULL(dst))
-		return -EINVAL;
-
-	mutex_lock(&icc_lock);
-
-	for (slot = 0; slot < src->num_links; slot++)
-		if (src->links[slot] == dst)
-			break;
-
-	if (WARN_ON(slot == src->num_links)) {
-		ret = -ENXIO;
-		goto out;
-	}
-
-	src->links[slot] = src->links[--src->num_links];
-
-	new = krealloc(src->links, src->num_links * sizeof(*src->links),
-		       GFP_KERNEL);
-	if (new)
-		src->links = new;
-	else
-		ret = -ENOMEM;
-
-out:
-	mutex_unlock(&icc_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(icc_link_destroy);
-
-/**
  * icc_node_add() - add interconnect node to interconnect provider
  * @node: pointer to the interconnect node
  * @provider: pointer to the interconnect provider
@@ -981,14 +934,17 @@ void icc_node_add(struct icc_node *node, struct icc_provider *provider)
 	node->avg_bw = node->init_avg;
 	node->peak_bw = node->init_peak;
 
-	if (provider->pre_aggregate)
-		provider->pre_aggregate(node);
+	if (node->avg_bw || node->peak_bw) {
+		if (provider->pre_aggregate)
+			provider->pre_aggregate(node);
 
-	if (provider->aggregate)
-		provider->aggregate(node, 0, node->init_avg, node->init_peak,
-				    &node->avg_bw, &node->peak_bw);
+		if (provider->aggregate)
+			provider->aggregate(node, 0, node->init_avg, node->init_peak,
+					    &node->avg_bw, &node->peak_bw);
+		if (provider->set)
+			provider->set(node, node);
+	}
 
-	provider->set(node, node);
 	node->avg_bw = 0;
 	node->peak_bw = 0;
 
@@ -1081,22 +1037,6 @@ void icc_provider_deregister(struct icc_provider *provider)
 }
 EXPORT_SYMBOL_GPL(icc_provider_deregister);
 
-int icc_provider_add(struct icc_provider *provider)
-{
-	icc_provider_init(provider);
-
-	return icc_provider_register(provider);
-}
-EXPORT_SYMBOL_GPL(icc_provider_add);
-
-void icc_provider_del(struct icc_provider *provider)
-{
-	WARN_ON(!list_empty(&provider->nodes));
-
-	icc_provider_deregister(provider);
-}
-EXPORT_SYMBOL_GPL(icc_provider_del);
-
 static const struct of_device_id __maybe_unused ignore_list[] = {
 	{ .compatible = "qcom,sc7180-ipa-virt" },
 	{ .compatible = "qcom,sc8180x-ipa-virt" },
@@ -1165,7 +1105,3 @@ static int __init icc_init(void)
 }
 
 device_initcall(icc_init);
-
-MODULE_AUTHOR("Georgi Djakov <georgi.djakov@linaro.org>");
-MODULE_DESCRIPTION("Interconnect Driver Core");
-MODULE_LICENSE("GPL v2");

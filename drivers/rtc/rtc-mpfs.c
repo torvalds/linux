@@ -274,11 +274,9 @@ static int mpfs_rtc_probe(struct platform_device *pdev)
 	return devm_rtc_register_device(rtcdev->rtc);
 }
 
-static int mpfs_rtc_remove(struct platform_device *pdev)
+static void mpfs_rtc_remove(struct platform_device *pdev)
 {
 	dev_pm_clear_wake_irq(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id mpfs_rtc_of_match[] = {
@@ -290,7 +288,7 @@ MODULE_DEVICE_TABLE(of, mpfs_rtc_of_match);
 
 static struct platform_driver mpfs_rtc_driver = {
 	.probe = mpfs_rtc_probe,
-	.remove = mpfs_rtc_remove,
+	.remove_new = mpfs_rtc_remove,
 	.driver	= {
 		.name = "mpfs_rtc",
 		.of_match_table = mpfs_rtc_of_match,

@@ -215,7 +215,7 @@ int rnbd_srv_create_sysfs_files(void)
 {
 	int err;
 
-	rnbd_dev_class = class_create(THIS_MODULE, "rnbd-server");
+	rnbd_dev_class = class_create("rnbd-server");
 	if (IS_ERR(rnbd_dev_class))
 		return PTR_ERR(rnbd_dev_class);
 

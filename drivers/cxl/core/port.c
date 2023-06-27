@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
-#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/memregion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
@@ -751,11 +750,10 @@ struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 
 	parent_port = parent_dport ? parent_dport->port : NULL;
 	if (IS_ERR(port)) {
-		dev_dbg(uport, "Failed to add %s%s%s%s: %ld\n",
-			dev_name(&port->dev),
-			parent_port ? " to " : "",
+		dev_dbg(uport, "Failed to add%s%s%s: %ld\n",
+			parent_port ? " port to " : "",
 			parent_port ? dev_name(&parent_port->dev) : "",
-			parent_port ? "" : " (root port)",
+			parent_port ? "" : " root port",
 			PTR_ERR(port));
 	} else {
 		dev_dbg(uport, "%s added%s%s%s\n",
@@ -1903,7 +1901,7 @@ bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd)
 EXPORT_SYMBOL_NS_GPL(schedule_cxl_memdev_detach, CXL);
 
 /* for user tooling to ensure port disable work has completed */
-static ssize_t flush_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t flush_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	if (sysfs_streq(buf, "1")) {
 		flush_workqueue(cxl_bus_wq);

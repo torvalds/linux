@@ -41,7 +41,7 @@ void *alloc_insn_page(void)
 	page = module_alloc(PAGE_SIZE);
 	if (!page)
 		return NULL;
-	__set_memory((unsigned long) page, 1, SET_MEMORY_RO | SET_MEMORY_X);
+	set_memory_rox((unsigned long)page, 1);
 	return page;
 }
 

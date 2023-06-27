@@ -87,6 +87,11 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @for_alloc:  %true if the pool is used for memory allocation
  * @nareas:  The area number in the pool.
  * @area_nslabs: The slot number in the area.
+ * @total_used:	The total number of slots in the pool that are currently used
+ *		across all areas. Used only for calculating used_hiwater in
+ *		debugfs.
+ * @used_hiwater: The high water mark for total_used.  Used only for reporting
+ *		in debugfs.
  */
 struct io_tlb_mem {
 	phys_addr_t start;
@@ -102,6 +107,10 @@ struct io_tlb_mem {
 	unsigned int area_nslabs;
 	struct io_tlb_area *areas;
 	struct io_tlb_slot *slots;
+#ifdef CONFIG_DEBUG_FS
+	atomic_long_t total_used;
+	atomic_long_t used_hiwater;
+#endif
 };
 extern struct io_tlb_mem io_tlb_default_mem;
 
@@ -179,7 +188,5 @@ static inline bool is_swiotlb_for_alloc(struct device *dev)
 	return false;
 }
 #endif /* CONFIG_DMA_RESTRICTED_POOL */
-
-extern phys_addr_t swiotlb_unencrypted_base;
 
 #endif /* __LINUX_SWIOTLB_H */

@@ -60,20 +60,32 @@ static int discover_region(struct device *dev, void *root)
 static int cxl_switch_port_probe(struct cxl_port *port)
 {
 	struct cxl_hdm *cxlhdm;
-	int rc;
+	int rc, nr_dports;
 
-	rc = devm_cxl_port_enumerate_dports(port);
-	if (rc < 0)
-		return rc;
-
-	if (rc == 1)
-		return devm_cxl_add_passthrough_decoder(port);
+	nr_dports = devm_cxl_port_enumerate_dports(port);
+	if (nr_dports < 0)
+		return nr_dports;
 
 	cxlhdm = devm_cxl_setup_hdm(port, NULL);
-	if (IS_ERR(cxlhdm))
-		return PTR_ERR(cxlhdm);
+	rc = devm_cxl_enable_hdm(port, cxlhdm);
+	if (rc)
+		return rc;
 
-	return devm_cxl_enumerate_decoders(cxlhdm, NULL);
+	if (!IS_ERR(cxlhdm))
+		return devm_cxl_enumerate_decoders(cxlhdm, NULL);
+
+	if (PTR_ERR(cxlhdm) != -ENODEV) {
+		dev_err(&port->dev, "Failed to map HDM decoder capability\n");
+		return PTR_ERR(cxlhdm);
+	}
+
+	if (nr_dports == 1) {
+		dev_dbg(&port->dev, "Fallback to passthrough decoder\n");
+		return devm_cxl_add_passthrough_decoder(port);
+	}
+
+	dev_err(&port->dev, "HDM decoder capability not found\n");
+	return -ENXIO;
 }
 
 static int cxl_endpoint_port_probe(struct cxl_port *port)
@@ -104,12 +116,6 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	rc = cxl_hdm_decode_init(cxlds, cxlhdm, &info);
 	if (rc)
 		return rc;
-
-	rc = cxl_await_media_ready(cxlds);
-	if (rc) {
-		dev_err(&port->dev, "Media not active (%d)\n", rc);
-		return rc;
-	}
 
 	rc = devm_cxl_enumerate_decoders(cxlhdm, &info);
 	if (rc)

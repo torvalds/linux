@@ -599,11 +599,9 @@ bool __init xive_native_init(void)
 	}
 
 	/* Do we support single escalation */
-	if (of_get_property(np, "single-escalation-support", NULL) != NULL)
-		xive_has_single_esc = true;
+	xive_has_single_esc = of_property_read_bool(np, "single-escalation-support");
 
-	if (of_get_property(np, "vp-save-restore", NULL))
-		xive_has_save_restore = true;
+	xive_has_save_restore = of_property_read_bool(np, "vp-save-restore");
 
 	/* Configure Thread Management areas for KVM */
 	for_each_possible_cpu(cpu)

@@ -7,10 +7,12 @@
 #define _CXL_EVENTS_H
 
 #include <linux/tracepoint.h>
+#include <linux/pci.h>
 #include <asm-generic/unaligned.h>
 
 #include <cxl.h>
 #include <cxlmem.h>
+#include "core.h"
 
 #define CXL_RAS_UC_CACHE_DATA_PARITY	BIT(0)
 #define CXL_RAS_UC_CACHE_ADDR_PARITY	BIT(1)
@@ -597,6 +599,107 @@ TRACE_EVENT(cxl_memory_module,
 		__entry->life_used, __entry->device_temp,
 		__entry->dirty_shutdown_cnt, __entry->cor_vol_err_cnt,
 		__entry->cor_per_err_cnt
+	)
+);
+
+#define show_poison_trace_type(type)			\
+	__print_symbolic(type,				\
+	{ CXL_POISON_TRACE_LIST,	"List"   },	\
+	{ CXL_POISON_TRACE_INJECT,	"Inject" },	\
+	{ CXL_POISON_TRACE_CLEAR,	"Clear"  })
+
+#define __show_poison_source(source)                          \
+	__print_symbolic(source,                              \
+		{ CXL_POISON_SOURCE_UNKNOWN,   "Unknown"  },  \
+		{ CXL_POISON_SOURCE_EXTERNAL,  "External" },  \
+		{ CXL_POISON_SOURCE_INTERNAL,  "Internal" },  \
+		{ CXL_POISON_SOURCE_INJECTED,  "Injected" },  \
+		{ CXL_POISON_SOURCE_VENDOR,    "Vendor"   })
+
+#define show_poison_source(source)			     \
+	(((source > CXL_POISON_SOURCE_INJECTED) &&	     \
+	 (source != CXL_POISON_SOURCE_VENDOR)) ? "Reserved"  \
+	 : __show_poison_source(source))
+
+#define show_poison_flags(flags)                             \
+	__print_flags(flags, "|",                            \
+		{ CXL_POISON_FLAG_MORE,      "More"     },   \
+		{ CXL_POISON_FLAG_OVERFLOW,  "Overflow"  },  \
+		{ CXL_POISON_FLAG_SCANNING,  "Scanning"  })
+
+#define __cxl_poison_addr(record)					\
+	(le64_to_cpu(record->address))
+#define cxl_poison_record_dpa(record)					\
+	(__cxl_poison_addr(record) & CXL_POISON_START_MASK)
+#define cxl_poison_record_source(record)				\
+	(__cxl_poison_addr(record)  & CXL_POISON_SOURCE_MASK)
+#define cxl_poison_record_dpa_length(record)				\
+	(le32_to_cpu(record->length) * CXL_POISON_LEN_MULT)
+#define cxl_poison_overflow(flags, time)				\
+	(flags & CXL_POISON_FLAG_OVERFLOW ? le64_to_cpu(time) : 0)
+
+u64 cxl_trace_hpa(struct cxl_region *cxlr, struct cxl_memdev *memdev, u64 dpa);
+
+TRACE_EVENT(cxl_poison,
+
+	TP_PROTO(struct cxl_memdev *cxlmd, struct cxl_region *region,
+		 const struct cxl_poison_record *record, u8 flags,
+		 __le64 overflow_ts, enum cxl_poison_trace_type trace_type),
+
+	TP_ARGS(cxlmd, region, record, flags, overflow_ts, trace_type),
+
+	TP_STRUCT__entry(
+		__string(memdev, dev_name(&cxlmd->dev))
+		__string(host, dev_name(cxlmd->dev.parent))
+		__field(u64, serial)
+		__field(u8, trace_type)
+		__string(region, region)
+		__field(u64, overflow_ts)
+		__field(u64, hpa)
+		__field(u64, dpa)
+		__field(u32, dpa_length)
+		__array(char, uuid, 16)
+		__field(u8, source)
+		__field(u8, flags)
+	    ),
+
+	TP_fast_assign(
+		__assign_str(memdev, dev_name(&cxlmd->dev));
+		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__entry->serial = cxlmd->cxlds->serial;
+		__entry->overflow_ts = cxl_poison_overflow(flags, overflow_ts);
+		__entry->dpa = cxl_poison_record_dpa(record);
+		__entry->dpa_length = cxl_poison_record_dpa_length(record);
+		__entry->source = cxl_poison_record_source(record);
+		__entry->trace_type = trace_type;
+		__entry->flags = flags;
+		if (region) {
+			__assign_str(region, dev_name(&region->dev));
+			memcpy(__entry->uuid, &region->params.uuid, 16);
+			__entry->hpa = cxl_trace_hpa(region, cxlmd,
+						     __entry->dpa);
+		} else {
+			__assign_str(region, "");
+			memset(__entry->uuid, 0, 16);
+			__entry->hpa = ULLONG_MAX;
+		}
+	    ),
+
+	TP_printk("memdev=%s host=%s serial=%lld trace_type=%s region=%s "  \
+		"region_uuid=%pU hpa=0x%llx dpa=0x%llx dpa_length=0x%x "    \
+		"source=%s flags=%s overflow_time=%llu",
+		__get_str(memdev),
+		__get_str(host),
+		__entry->serial,
+		show_poison_trace_type(__entry->trace_type),
+		__get_str(region),
+		__entry->uuid,
+		__entry->hpa,
+		__entry->dpa,
+		__entry->dpa_length,
+		show_poison_source(__entry->source),
+		show_poison_flags(__entry->flags),
+		__entry->overflow_ts
 	)
 );
 

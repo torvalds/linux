@@ -100,10 +100,10 @@ static inline void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
 extern int __cpu_disable(void);
 
 extern void __cpu_die(unsigned int cpu);
-extern void cpu_die(void);
-extern void cpu_die_early(void);
+extern void __noreturn cpu_die(void);
+extern void __noreturn cpu_die_early(void);
 
-static inline void cpu_park_loop(void)
+static inline void __noreturn cpu_park_loop(void)
 {
 	for (;;) {
 		wfe();
@@ -123,7 +123,7 @@ static inline void update_cpu_boot_status(int val)
  * which calls for a kernel panic. Update the boot status and park the calling
  * CPU.
  */
-static inline void cpu_panic_kernel(void)
+static inline void __noreturn cpu_panic_kernel(void)
 {
 	update_cpu_boot_status(CPU_PANIC_KERNEL);
 	cpu_park_loop();
@@ -143,7 +143,6 @@ bool cpus_are_stuck_in_kernel(void);
 
 extern void crash_smp_send_stop(void);
 extern bool smp_crash_stop_failed(void);
-extern void panic_smp_self_stop(void);
 
 #endif /* ifndef __ASSEMBLY__ */
 

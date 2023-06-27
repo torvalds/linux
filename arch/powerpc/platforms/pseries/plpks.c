@@ -378,7 +378,7 @@ bool plpks_is_available(void)
 {
 	int rc;
 
-	if (!firmware_has_feature(FW_FEATURE_LPAR))
+	if (!firmware_has_feature(FW_FEATURE_PLPKS))
 		return false;
 
 	rc = _plpks_get_config();
@@ -689,6 +689,9 @@ out:
 static __init int pseries_plpks_init(void)
 {
 	int rc;
+
+	if (!firmware_has_feature(FW_FEATURE_PLPKS))
+		return -ENODEV;
 
 	rc = _plpks_get_config();
 

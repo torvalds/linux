@@ -34,7 +34,7 @@ additionalProperties: false
 examples:
   - |
     watchdog@100 {
-      compatible = "mediatek,mt7621-wdt";
-      reg = <0x100 0x100>;
-      mediatek,sysctl = <&sysc>;
+        compatible = "mediatek,mt7621-wdt";
+        reg = <0x100 0x100>;
+        mediatek,sysctl = <&sysc>;
     };

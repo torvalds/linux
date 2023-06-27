@@ -33,7 +33,7 @@
 #include "bpf-event.h"
 #include "print_binary.h"
 #include "tool.h"
-#include "../perf.h"
+#include "util.h"
 
 static const char *perf_event__names[] = {
 	[0]					= "TOTAL",
@@ -485,13 +485,14 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 	if (machine) {
 		struct addr_location al;
 
-		al.map = maps__find(machine__kernel_maps(machine), tp->addr);
+		al.map = map__get(maps__find(machine__kernel_maps(machine), tp->addr));
 		if (al.map && map__load(al.map) >= 0) {
-			al.addr = al.map->map_ip(al.map, tp->addr);
+			al.addr = map__map_ip(al.map, tp->addr);
 			al.sym = map__find_symbol(al.map, al.addr);
 			if (al.sym)
 				ret += symbol__fprintf_symname_offs(al.sym, &al, fp);
 		}
+		map__put(al.map);
 	}
 	ret += fprintf(fp, " old len %u new len %u\n", tp->old_len, tp->new_len);
 	old = true;
@@ -572,7 +573,7 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
 	struct maps *maps = thread->maps;
-	struct machine *machine = maps->machine;
+	struct machine *machine = maps__machine(maps);
 	bool load_map = false;
 
 	al->maps = maps;
@@ -614,7 +615,7 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 		return NULL;
 	}
 
-	al->map = maps__find(maps, al->addr);
+	al->map = map__get(maps__find(maps, al->addr));
 	if (al->map != NULL) {
 		/*
 		 * Kernel maps might be changed when loading symbols so loading
@@ -622,7 +623,7 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 		 */
 		if (load_map)
 			map__load(al->map);
-		al->addr = al->map->map_ip(al->map, al->addr);
+		al->addr = map__map_ip(al->map, al->addr);
 	}
 
 	return al->map;
@@ -637,7 +638,7 @@ struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
 				struct addr_location *al)
 {
 	struct map *map = thread__find_map(thread, cpumode, addr, al);
-	struct machine *machine = thread->maps->machine;
+	struct machine *machine = maps__machine(thread->maps);
 	u8 addr_cpumode = machine__addr_cpumode(machine, cpumode, addr);
 
 	if (map || addr_cpumode == cpumode)
@@ -685,6 +686,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 		     struct perf_sample *sample)
 {
 	struct thread *thread;
+	struct dso *dso;
 
 	if (symbol_conf.guest_code && !machine__is_host(machine))
 		thread = machine__findnew_guest_code(machine, sample->pid);
@@ -695,9 +697,11 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 	thread__find_map(thread, sample->cpumode, sample->ip, al);
+	dso = al->map ? map__dso(al->map) : NULL;
 	dump_printf(" ...... dso: %s\n",
-		    al->map ? al->map->dso->long_name :
-			al->level == 'H' ? "[hypervisor]" : "<not found>");
+		dso
+		? dso->long_name
+		: (al->level == 'H' ? "[hypervisor]" : "<not found>"));
 
 	if (thread__is_filtered(thread))
 		al->filtered |= (1 << HIST_FILTER__THREAD);
@@ -715,8 +719,6 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	}
 
 	if (al->map) {
-		struct dso *dso = al->map->dso;
-
 		if (symbol_conf.dso_list &&
 		    (!dso || !(strlist__has_entry(symbol_conf.dso_list,
 						  dso->short_name) ||
@@ -742,12 +744,12 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 		}
 		if (!ret && al->sym) {
 			snprintf(al_addr_str, sz, "0x%"PRIx64,
-				al->map->unmap_ip(al->map, al->sym->start));
+				 map__unmap_ip(al->map, al->sym->start));
 			ret = strlist__has_entry(symbol_conf.sym_list,
 						al_addr_str);
 		}
 		if (!ret && symbol_conf.addr_list && al->map) {
-			unsigned long addr = al->map->unmap_ip(al->map, al->addr);
+			unsigned long addr = map__unmap_ip(al->map, al->addr);
 
 			ret = intlist__has_entry(symbol_conf.addr_list, addr);
 			if (!ret && symbol_conf.addr_range) {
@@ -772,6 +774,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
  */
 void addr_location__put(struct addr_location *al)
 {
+	map__zput(al->map);
 	thread__zput(al->thread);
 }
 

@@ -250,16 +250,9 @@ config HUGETLBFS
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
 
-#
-# Select this config option from the architecture Kconfig, if it is preferred
-# to enable the feature of HugeTLB Vmemmap Optimization (HVO).
-#
-config ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
-	bool
-
 config HUGETLB_PAGE_OPTIMIZE_VMEMMAP
 	def_bool HUGETLB_PAGE
-	depends on ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
+	depends on ARCH_WANT_OPTIMIZE_VMEMMAP
 	depends on SPARSEMEM_VMEMMAP
 
 config HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON
@@ -375,14 +368,7 @@ config NFS_V4_2_SSC_HELPER
 source "net/sunrpc/Kconfig"
 source "fs/ceph/Kconfig"
 
-source "fs/cifs/Kconfig"
-source "fs/ksmbd/Kconfig"
-
-config SMBFS_COMMON
-	tristate
-	default y if CIFS=y || SMB_SERVER=y
-	default m if CIFS=m || SMB_SERVER=m
-
+source "fs/smb/Kconfig"
 source "fs/coda/Kconfig"
 source "fs/afs/Kconfig"
 source "fs/9p/Kconfig"

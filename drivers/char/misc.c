@@ -286,7 +286,7 @@ static int __init misc_init(void)
 	struct proc_dir_entry *ret;
 
 	ret = proc_create_seq("misc", 0, NULL, &misc_seq_ops);
-	misc_class = class_create(THIS_MODULE, "misc");
+	misc_class = class_create("misc");
 	err = PTR_ERR(misc_class);
 	if (IS_ERR(misc_class))
 		goto fail_remove;

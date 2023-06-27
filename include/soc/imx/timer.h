@@ -13,11 +13,4 @@ enum imx_gpt_type {
 	GPT_TYPE_IMX6DL,	/* i.MX6DL/SX/SL */
 };
 
-/*
- * This is a stop-gap solution for clock drivers like imx1/imx21 which call
- * mxc_timer_init() to initialize timer for non-DT boot.  It can be removed
- * when these legacy non-DT support is converted or dropped.
- */
-void mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type);
-
 #endif  /* __SOC_IMX_TIMER_H__ */

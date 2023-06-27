@@ -2,9 +2,6 @@
 #ifndef BUILTIN_H
 #define BUILTIN_H
 
-extern const char perf_usage_string[];
-extern const char perf_more_info_string[];
-
 void list_common_cmds_help(void);
 const char *help_unknown_cmd(const char *cmd);
 

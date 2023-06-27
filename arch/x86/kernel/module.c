@@ -362,8 +362,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	}
 	if (locks) {
 		void *lseg = (void *)locks->sh_addr;
-		void *text = me->core_layout.base;
-		void *text_end = text + me->core_layout.text_size;
+		void *text = me->mem[MOD_TEXT].base;
+		void *text_end = text + me->mem[MOD_TEXT].size;
 		alternatives_smp_module_add(me, me->name,
 					    lseg, lseg + locks->sh_size,
 					    text, text_end);

@@ -21,19 +21,11 @@
  *    a. if the trend is THERMAL_TREND_RAISING, use higher cooling
  *       state for this trip point
  *    b. if the trend is THERMAL_TREND_DROPPING, do nothing
- *    c. if the trend is THERMAL_TREND_RAISE_FULL, use upper limit
- *       for this trip point
- *    d. if the trend is THERMAL_TREND_DROP_FULL, use lower limit
- *       for this trip point
  * If the temperature is lower than a trip point,
  *    a. if the trend is THERMAL_TREND_RAISING, do nothing
  *    b. if the trend is THERMAL_TREND_DROPPING, use lower cooling
  *       state for this trip point, if the cooling state already
  *       equals lower limit, deactivate the thermal instance
- *    c. if the trend is THERMAL_TREND_RAISE_FULL, do nothing
- *    d. if the trend is THERMAL_TREND_DROP_FULL, use lower limit,
- *       if the cooling state already equals lower limit,
- *       deactivate the thermal instance
  */
 static unsigned long get_target_state(struct thermal_instance *instance,
 				enum thermal_trend trend, bool throttle)
@@ -61,24 +53,16 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 		return next_target;
 	}
 
-	switch (trend) {
-	case THERMAL_TREND_RAISING:
-		if (throttle) {
+	if (throttle) {
+		if (trend == THERMAL_TREND_RAISING)
 			next_target = clamp((cur_state + 1), instance->lower, instance->upper);
-		}
-		break;
-	case THERMAL_TREND_DROPPING:
-		if (cur_state <= instance->lower) {
-			if (!throttle)
+	} else {
+		if (trend == THERMAL_TREND_DROPPING) {
+			if (cur_state <= instance->lower)
 				next_target = THERMAL_NO_TARGET;
-		} else {
-			if (!throttle) {
+			else
 				next_target = clamp((cur_state - 1), instance->lower, instance->upper);
-			}
 		}
-		break;
-	default:
-		break;
 	}
 
 	return next_target;

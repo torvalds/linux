@@ -188,4 +188,13 @@ struct symbol *find_func_containing(struct section *sec, unsigned long offset);
 #define for_each_sec(file, sec)						\
 	list_for_each_entry(sec, &file->elf->sections, list)
 
+#define sec_for_each_sym(sec, sym)					\
+	list_for_each_entry(sym, &sec->symbol_list, list)
+
+#define for_each_sym(file, sym)						\
+	for (struct section *__sec, *__fake = (struct section *)1;	\
+	     __fake; __fake = NULL)					\
+		for_each_sec(file, __sec)				\
+			sec_for_each_sym(__sec, sym)
+
 #endif /* _OBJTOOL_ELF_H */

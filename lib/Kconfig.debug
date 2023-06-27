@@ -502,7 +502,7 @@ config SECTION_MISMATCH_WARN_ONLY
 
 config DEBUG_FORCE_FUNCTION_ALIGN_64B
 	bool "Force all function address 64B aligned"
-	depends on EXPERT && (X86_64 || ARM64 || PPC32 || PPC64 || ARC)
+	depends on EXPERT && (X86_64 || ARM64 || PPC32 || PPC64 || ARC || S390)
 	select FUNCTION_ALIGNMENT_64B
 	help
 	  There are cases that a commit from one domain changes the function
@@ -788,6 +788,16 @@ config DEBUG_VM
 	help
 	  Enable this to turn on extended checks in the virtual-memory system
 	  that may impact performance.
+
+	  If unsure, say N.
+
+config DEBUG_VM_SHOOT_LAZIES
+	bool "Debug MMU_LAZY_TLB_SHOOTDOWN implementation"
+	depends on DEBUG_VM
+	depends on MMU_LAZY_TLB_SHOOTDOWN
+	help
+	  Enable additional IPIs that ensure lazy tlb mm references are removed
+	  before the mm is freed.
 
 	  If unsure, say N.
 
@@ -1479,6 +1489,15 @@ config CSD_LOCK_WAIT_DEBUG
 	  to the smp_call_function*() IPI wrappers.  These debug prints
 	  include the IPI handler function currently executing (if any)
 	  and relevant stack traces.
+
+config CSD_LOCK_WAIT_DEBUG_DEFAULT
+	bool "Default csd_lock_wait() debugging on at boot time"
+	depends on CSD_LOCK_WAIT_DEBUG
+	depends on 64BIT
+	default n
+	help
+	  This option causes the csdlock_debug= kernel boot parameter to
+	  default to 1 (basic debugging) instead of 0 (no debugging).
 
 endmenu # lock debugging
 

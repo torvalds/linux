@@ -100,7 +100,8 @@ static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
 static mempool_t psd_pool;
 static struct bio_set pkt_bio_set;
 
-static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
+/* /sys/class/pktcdvd */
+static struct class	class_pktcdvd;
 static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
 
 /* forward declaration */
@@ -315,8 +316,8 @@ static const struct attribute_group *pkt_groups[] = {
 
 static void pkt_sysfs_dev_new(struct pktcdvd_device *pd)
 {
-	if (class_pktcdvd) {
-		pd->dev = device_create_with_groups(class_pktcdvd, NULL,
+	if (class_is_registered(&class_pktcdvd)) {
+		pd->dev = device_create_with_groups(&class_pktcdvd, NULL,
 						    MKDEV(0, 0), pd, pkt_groups,
 						    "%s", pd->name);
 		if (IS_ERR(pd->dev))
@@ -326,7 +327,7 @@ static void pkt_sysfs_dev_new(struct pktcdvd_device *pd)
 
 static void pkt_sysfs_dev_remove(struct pktcdvd_device *pd)
 {
-	if (class_pktcdvd)
+	if (class_is_registered(&class_pktcdvd))
 		device_unregister(pd->dev);
 }
 
@@ -338,12 +339,7 @@ static void pkt_sysfs_dev_remove(struct pktcdvd_device *pd)
                      device_map     show mappings
  *******************************************************************/
 
-static void class_pktcdvd_release(struct class *cls)
-{
-	kfree(cls);
-}
-
-static ssize_t device_map_show(struct class *c, struct class_attribute *attr,
+static ssize_t device_map_show(const struct class *c, const struct class_attribute *attr,
 			       char *data)
 {
 	int n = 0;
@@ -364,7 +360,7 @@ static ssize_t device_map_show(struct class *c, struct class_attribute *attr,
 }
 static CLASS_ATTR_RO(device_map);
 
-static ssize_t add_store(struct class *c, struct class_attribute *attr,
+static ssize_t add_store(const struct class *c, const struct class_attribute *attr,
 			 const char *buf, size_t count)
 {
 	unsigned int major, minor;
@@ -385,7 +381,7 @@ static ssize_t add_store(struct class *c, struct class_attribute *attr,
 }
 static CLASS_ATTR_WO(add);
 
-static ssize_t remove_store(struct class *c, struct class_attribute *attr,
+static ssize_t remove_store(const struct class *c, const struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
 	unsigned int major, minor;
@@ -405,36 +401,23 @@ static struct attribute *class_pktcdvd_attrs[] = {
 };
 ATTRIBUTE_GROUPS(class_pktcdvd);
 
+static struct class class_pktcdvd = {
+	.name		= DRIVER_NAME,
+	.class_groups	= class_pktcdvd_groups,
+};
+
 static int pkt_sysfs_init(void)
 {
-	int ret = 0;
-
 	/*
 	 * create control files in sysfs
 	 * /sys/class/pktcdvd/...
 	 */
-	class_pktcdvd = kzalloc(sizeof(*class_pktcdvd), GFP_KERNEL);
-	if (!class_pktcdvd)
-		return -ENOMEM;
-	class_pktcdvd->name = DRIVER_NAME;
-	class_pktcdvd->owner = THIS_MODULE;
-	class_pktcdvd->class_release = class_pktcdvd_release;
-	class_pktcdvd->class_groups = class_pktcdvd_groups;
-	ret = class_register(class_pktcdvd);
-	if (ret) {
-		kfree(class_pktcdvd);
-		class_pktcdvd = NULL;
-		pr_err("failed to create class pktcdvd\n");
-		return ret;
-	}
-	return 0;
+	return class_register(&class_pktcdvd);
 }
 
 static void pkt_sysfs_cleanup(void)
 {
-	if (class_pktcdvd)
-		class_destroy(class_pktcdvd);
-	class_pktcdvd = NULL;
+	class_unregister(&class_pktcdvd);
 }
 
 /********************************************************************

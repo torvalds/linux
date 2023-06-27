@@ -441,7 +441,8 @@ static void ui_browser__init_asm_mode(struct ui_browser *browser)
 static int sym_title(struct symbol *sym, struct map *map, char *title,
 		     size_t sz, int percent_type)
 {
-	return snprintf(title, sz, "%s  %s [Percent: %s]", sym->name, map->dso->long_name,
+	return snprintf(title, sz, "%s  %s [Percent: %s]", sym->name,
+			map__dso(map)->long_name,
 			percent_type_str(percent_type));
 }
 
@@ -964,20 +965,22 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 		},
 		.opts = opts,
 	};
+	struct dso *dso;
 	int ret = -1, err;
 	int not_annotated = list_empty(&notes->src->source);
 
 	if (sym == NULL)
 		return -1;
 
-	if (ms->map->dso->annotate_warned)
+	dso = map__dso(ms->map);
+	if (dso->annotate_warned)
 		return -1;
 
 	if (not_annotated) {
 		err = symbol__annotate2(ms, evsel, opts, &browser.arch);
 		if (err) {
 			char msg[BUFSIZ];
-			ms->map->dso->annotate_warned = true;
+			dso->annotate_warned = true;
 			symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 			ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 			goto out_free_offsets;

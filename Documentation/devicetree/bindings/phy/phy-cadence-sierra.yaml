@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/phy/phy-cadence-sierra.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/phy/phy-cadence-sierra.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Cadence Sierra PHY
 
@@ -60,14 +60,6 @@ properties:
       - const: cmn_refclk1_dig_div
       - const: pll0_refclk
       - const: pll1_refclk
-
-  assigned-clocks:
-    minItems: 1
-    maxItems: 2
-
-  assigned-clock-parents:
-    minItems: 1
-    maxItems: 2
 
   cdns,autoconf:
     type: boolean

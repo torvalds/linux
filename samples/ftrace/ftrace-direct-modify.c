@@ -96,6 +96,40 @@ asm (
 
 #endif /* CONFIG_S390 */
 
+#ifdef CONFIG_LOONGARCH
+
+asm (
+"	.pushsection    .text, \"ax\", @progbits\n"
+"	.type		my_tramp1, @function\n"
+"	.globl		my_tramp1\n"
+"   my_tramp1:\n"
+"	addi.d	$sp, $sp, -16\n"
+"	st.d	$t0, $sp, 0\n"
+"	st.d	$ra, $sp, 8\n"
+"	bl	my_direct_func1\n"
+"	ld.d	$t0, $sp, 0\n"
+"	ld.d	$ra, $sp, 8\n"
+"	addi.d	$sp, $sp, 16\n"
+"	jr	$t0\n"
+"	.size		my_tramp1, .-my_tramp1\n"
+
+"	.type		my_tramp2, @function\n"
+"	.globl		my_tramp2\n"
+"   my_tramp2:\n"
+"	addi.d	$sp, $sp, -16\n"
+"	st.d	$t0, $sp, 0\n"
+"	st.d	$ra, $sp, 8\n"
+"	bl	my_direct_func2\n"
+"	ld.d	$t0, $sp, 0\n"
+"	ld.d	$ra, $sp, 8\n"
+"	addi.d	$sp, $sp, 16\n"
+"	jr	$t0\n"
+"	.size		my_tramp2, .-my_tramp2\n"
+"	.popsection\n"
+);
+
+#endif /* CONFIG_LOONGARCH */
+
 static struct ftrace_ops direct;
 
 static unsigned long my_tramp = (unsigned long)my_tramp1;

@@ -275,14 +275,12 @@ out_clk:
 	return ret;
 }
 
-static int brcmstb_pwm_remove(struct platform_device *pdev)
+static void brcmstb_pwm_remove(struct platform_device *pdev)
 {
 	struct brcmstb_pwm *p = platform_get_drvdata(pdev);
 
 	pwmchip_remove(&p->chip);
 	clk_disable_unprepare(p->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -310,7 +308,7 @@ static SIMPLE_DEV_PM_OPS(brcmstb_pwm_pm_ops, brcmstb_pwm_suspend,
 
 static struct platform_driver brcmstb_pwm_driver = {
 	.probe = brcmstb_pwm_probe,
-	.remove = brcmstb_pwm_remove,
+	.remove_new = brcmstb_pwm_remove,
 	.driver = {
 		.name = "pwm-brcmstb",
 		.of_match_table = brcmstb_pwm_of_match,

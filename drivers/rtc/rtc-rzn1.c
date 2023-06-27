@@ -391,11 +391,9 @@ dis_runtime_pm:
 	return ret;
 }
 
-static int rzn1_rtc_remove(struct platform_device *pdev)
+static void rzn1_rtc_remove(struct platform_device *pdev)
 {
 	pm_runtime_put(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id rzn1_rtc_of_match[] = {
@@ -406,7 +404,7 @@ MODULE_DEVICE_TABLE(of, rzn1_rtc_of_match);
 
 static struct platform_driver rzn1_rtc_driver = {
 	.probe = rzn1_rtc_probe,
-	.remove = rzn1_rtc_remove,
+	.remove_new = rzn1_rtc_remove,
 	.driver = {
 		.name	= "rzn1-rtc",
 		.of_match_table = rzn1_rtc_of_match,

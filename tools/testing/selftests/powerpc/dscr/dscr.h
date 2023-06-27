@@ -86,8 +86,4 @@ void set_default_dscr(unsigned long val)
 	}
 }
 
-double uniform_deviate(int seed)
-{
-	return seed * (1.0 / (RAND_MAX + 1.0));
-}
 #endif	/* _SELFTESTS_POWERPC_DSCR_DSCR_H */

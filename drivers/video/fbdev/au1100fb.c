@@ -520,12 +520,9 @@ failed:
 	return -ENODEV;
 }
 
-int au1100fb_drv_remove(struct platform_device *dev)
+void au1100fb_drv_remove(struct platform_device *dev)
 {
 	struct au1100fb_device *fbdev = NULL;
-
-	if (!dev)
-		return -ENODEV;
 
 	fbdev = platform_get_drvdata(dev);
 
@@ -543,8 +540,6 @@ int au1100fb_drv_remove(struct platform_device *dev)
 		clk_disable_unprepare(fbdev->lcdclk);
 		clk_put(fbdev->lcdclk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -593,9 +588,9 @@ static struct platform_driver au1100fb_driver = {
 		.name		= "au1100-lcd",
 	},
 	.probe		= au1100fb_drv_probe,
-        .remove		= au1100fb_drv_remove,
+	.remove_new	= au1100fb_drv_remove,
 	.suspend	= au1100fb_drv_suspend,
-        .resume		= au1100fb_drv_resume,
+	.resume		= au1100fb_drv_resume,
 };
 module_platform_driver(au1100fb_driver);
 

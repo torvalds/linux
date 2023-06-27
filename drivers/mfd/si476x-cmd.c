@@ -251,7 +251,7 @@ static int si476x_core_parse_and_nag_about_error(struct si476x_core *core)
  * @usecs:    amount of time to wait before reading the response (in
  *            usecs)
  *
- * Function returns 0 on succsess and negative error code on
+ * Function returns 0 on success and negative error code on
  * failure
  */
 static int si476x_core_send_command(struct si476x_core *core,
@@ -398,7 +398,7 @@ static int si476x_cmd_tune_seek_freq(struct si476x_core *core,
  * The command requests the firmware and patch version for currently
  * loaded firmware (dependent on the function of the device FM/AM/WB)
  *
- * Function returns 0 on succsess and negative error code on
+ * Function returns 0 on success and negative error code on
  * failure
  */
 int si476x_core_cmd_func_info(struct si476x_core *core,
@@ -429,7 +429,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_func_info);
  * @property: property address
  * @value:    property value
  *
- * Function returns 0 on succsess and negative error code on
+ * Function returns 0 on success and negative error code on
  * failure
  */
 int si476x_core_cmd_set_property(struct si476x_core *core,
@@ -545,13 +545,13 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_dig_audio_pin_cfg);
  *       SI476X_IQCLK_NOOP     - do not modify the behaviour
  *       SI476X_IQCLK_TRISTATE - put the pin in tristate condition,
  *                               enable 1MOhm pulldown
- *       SI476X_IQCLK_IQ       - set pin to be a part of I/Q interace
+ *       SI476X_IQCLK_IQ       - set pin to be a part of I/Q interface
  *                               in master mode
  * @iqfs: - IQFS pin function configuration:
  *       SI476X_IQFS_NOOP     - do not modify the behaviour
  *       SI476X_IQFS_TRISTATE - put the pin in tristate condition,
  *                              enable 1MOhm pulldown
- *       SI476X_IQFS_IQ       - set pin to be a part of I/Q interace
+ *       SI476X_IQFS_IQ       - set pin to be a part of I/Q interface
  *                              in master mode
  * @iout: - IOUT pin function configuration:
  *       SI476X_IOUT_NOOP     - do not modify the behaviour
@@ -589,7 +589,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_zif_pin_cfg);
 
 /**
  * si476x_core_cmd_ic_link_gpo_ctl_pin_cfg - send
- * 'IC_LINK_GPIO_CTL_PIN_CFG' comand to the device
+ * 'IC_LINK_GPIO_CTL_PIN_CFG' command to the device
  * @core: - device to send the command to
  * @icin: - ICIN pin function configuration:
  *      SI476X_ICIN_NOOP      - do not modify the behaviour
@@ -1014,7 +1014,7 @@ EXPORT_SYMBOL_GPL(si476x_core_cmd_fm_phase_diversity);
  * NOTE caller must hold core lock
  *
  * Function returns the value of the status bit in case of success and
- * negative error code in case of failre.
+ * negative error code in case of failure.
  */
 int si476x_core_cmd_fm_phase_div_status(struct si476x_core *core)
 {

@@ -5291,6 +5291,26 @@ static int scsi_debug_abort(struct scsi_cmnd *SCpnt)
 	return SUCCESS;
 }
 
+static bool scsi_debug_stop_all_queued_iter(struct request *rq, void *data)
+{
+	struct scsi_device *sdp = data;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	if (scmd->device == sdp)
+		scsi_debug_abort_cmnd(scmd);
+
+	return true;
+}
+
+/* Deletes (stops) timers or work queues of all queued commands per sdev */
+static void scsi_debug_stop_all_queued(struct scsi_device *sdp)
+{
+	struct Scsi_Host *shost = sdp->host;
+
+	blk_mq_tagset_busy_iter(&shost->tag_set,
+				scsi_debug_stop_all_queued_iter, sdp);
+}
+
 static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_device *sdp = SCpnt->device;
@@ -5300,6 +5320,8 @@ static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
 
 	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
 		sdev_printk(KERN_INFO, sdp, "%s\n", __func__);
+
+	scsi_debug_stop_all_queued(sdp);
 	if (devip)
 		set_bit(SDEBUG_UA_POR, devip->uas_bm);
 

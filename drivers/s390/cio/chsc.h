@@ -120,7 +120,7 @@ struct chsc_scpd {
 	u32 zeroes1;
 	struct chsc_header response;
 	u32:32;
-	u8 data[0];
+	u8 data[];
 } __packed __aligned(PAGE_SIZE);
 
 struct chsc_sda_area {

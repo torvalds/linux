@@ -265,11 +265,9 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ecap_pwm_remove(struct platform_device *pdev)
+static void ecap_pwm_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -326,7 +324,7 @@ static struct platform_driver ecap_pwm_driver = {
 		.pm = &ecap_pwm_pm_ops,
 	},
 	.probe = ecap_pwm_probe,
-	.remove = ecap_pwm_remove,
+	.remove_new = ecap_pwm_remove,
 };
 module_platform_driver(ecap_pwm_driver);
 

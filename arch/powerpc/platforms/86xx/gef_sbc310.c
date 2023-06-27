@@ -162,33 +162,16 @@ static void gef_sbc310_nec_fixup(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NEC, PCI_DEVICE_ID_NEC_USB,
 	gef_sbc310_nec_fixup);
 
-/*
- * Called very early, device-tree isn't unflattened
- *
- * This function is called to determine whether the BSP is compatible with the
- * supplied device-tree, which is assumed to be the correct one for the actual
- * board. It is expected that, in the future, a kernel may support multiple
- * boards.
- */
-static int __init gef_sbc310_probe(void)
-{
-	if (of_machine_is_compatible("gef,sbc310"))
-		return 1;
-
-	return 0;
-}
-
 machine_arch_initcall(gef_sbc310, mpc86xx_common_publish_devices);
 
 define_machine(gef_sbc310) {
 	.name			= "GE SBC310",
-	.probe			= gef_sbc310_probe,
+	.compatible		= "gef,sbc310",
 	.setup_arch		= gef_sbc310_setup_arch,
 	.init_IRQ		= gef_sbc310_init_irq,
 	.show_cpuinfo		= gef_sbc310_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
 	.time_init		= mpc86xx_time_init,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,

@@ -10,7 +10,7 @@ allOf:
   - $ref: nand-controller.yaml
 
 maintainers:
-  - Naga Sureshkumar Relli <naga.sureshkumar.relli@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 properties:
   compatible:

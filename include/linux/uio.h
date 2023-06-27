@@ -42,6 +42,7 @@ struct iov_iter_state {
 
 struct iov_iter {
 	u8 iter_type;
+	bool copy_mc;
 	bool nofault;
 	bool data_source;
 	bool user_backed;
@@ -195,6 +196,8 @@ static inline size_t copy_folio_to_iter(struct folio *folio, size_t offset,
 {
 	return copy_page_to_iter(&folio->page, offset, bytes, i);
 }
+size_t copy_page_to_iter_nofault(struct page *page, unsigned offset,
+				 size_t bytes, struct iov_iter *i);
 
 static __always_inline __must_check
 size_t copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i)
@@ -254,8 +257,22 @@ size_t _copy_from_iter_flushcache(void *addr, size_t bytes, struct iov_iter *i);
 
 #ifdef CONFIG_ARCH_HAS_COPY_MC
 size_t _copy_mc_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
+static inline void iov_iter_set_copy_mc(struct iov_iter *i)
+{
+	i->copy_mc = true;
+}
+
+static inline bool iov_iter_is_copy_mc(const struct iov_iter *i)
+{
+	return i->copy_mc;
+}
 #else
 #define _copy_mc_to_iter _copy_to_iter
+static inline void iov_iter_set_copy_mc(struct iov_iter *i) { }
+static inline bool iov_iter_is_copy_mc(const struct iov_iter *i)
+{
+	return false;
+}
 #endif
 
 size_t iov_iter_zero(size_t bytes, struct iov_iter *);
@@ -378,6 +395,7 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter) {
 		.iter_type = ITER_UBUF,
+		.copy_mc = false,
 		.user_backed = true,
 		.data_source = direction,
 		.ubuf = buf,

@@ -1207,7 +1207,7 @@ static int __init wwan_init(void)
 	if (err)
 		return err;
 
-	wwan_class = class_create(THIS_MODULE, "wwan");
+	wwan_class = class_create("wwan");
 	if (IS_ERR(wwan_class)) {
 		err = PTR_ERR(wwan_class);
 		goto unregister;

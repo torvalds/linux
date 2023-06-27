@@ -616,6 +616,7 @@ static inline void *cppi5_hdesc_get_swdata(struct cppi5_host_desc_t *desc)
 #define   CPPI5_TR_CSF_SUPR_EVT			BIT(2)
 #define   CPPI5_TR_CSF_EOL_ADV_SHIFT		(4U)
 #define   CPPI5_TR_CSF_EOL_ADV_MASK		GENMASK(6, 4)
+#define   CPPI5_TR_CSF_EOL_ICNT0		BIT(4)
 #define   CPPI5_TR_CSF_EOP			BIT(7)
 
 /**

@@ -11,7 +11,6 @@ define_exit_reasons_table(arm64_trap_exit_reasons, kvm_arm_exception_class);
 
 const char *kvm_trap_exit_reason = "esr_ec";
 const char *vcpu_id_str = "id";
-const int decode_str_len = 20;
 const char *kvm_exit_reason = "ret";
 const char *kvm_entry_trace = "kvm:kvm_entry";
 const char *kvm_exit_trace = "kvm:kvm_exit";
@@ -45,14 +44,14 @@ static bool event_begin(struct evsel *evsel,
 			struct perf_sample *sample __maybe_unused,
 			struct event_key *key __maybe_unused)
 {
-	return !strcmp(evsel->name, kvm_entry_trace);
+	return evsel__name_is(evsel, kvm_entry_trace);
 }
 
 static bool event_end(struct evsel *evsel,
 		      struct perf_sample *sample,
 		      struct event_key *key)
 {
-	if (!strcmp(evsel->name, kvm_exit_trace)) {
+	if (evsel__name_is(evsel, kvm_exit_trace)) {
 		event_get_key(evsel, sample, key);
 		return true;
 	}

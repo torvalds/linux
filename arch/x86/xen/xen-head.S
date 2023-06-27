@@ -45,7 +45,7 @@ SYM_CODE_END(hypercall_page)
 #ifdef CONFIG_XEN_PV
 	__INIT
 SYM_CODE_START(startup_xen)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_END_OF_STACK
 	ANNOTATE_NOENDBR
 	cld
 
@@ -71,7 +71,7 @@ SYM_CODE_END(startup_xen)
 #ifdef CONFIG_XEN_PV_SMP
 .pushsection .text
 SYM_CODE_START(asm_cpu_bringup_and_idle)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_END_OF_STACK
 	ENDBR
 
 	call cpu_bringup_and_idle

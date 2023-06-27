@@ -20,7 +20,7 @@ maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:

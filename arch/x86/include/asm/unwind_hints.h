@@ -7,12 +7,17 @@
 
 #ifdef __ASSEMBLY__
 
-.macro UNWIND_HINT_EMPTY
-	UNWIND_HINT type=UNWIND_HINT_TYPE_CALL end=1
+.macro UNWIND_HINT_END_OF_STACK
+	UNWIND_HINT type=UNWIND_HINT_TYPE_END_OF_STACK
+.endm
+
+.macro UNWIND_HINT_UNDEFINED
+	UNWIND_HINT type=UNWIND_HINT_TYPE_UNDEFINED
 .endm
 
 .macro UNWIND_HINT_ENTRY
-	UNWIND_HINT type=UNWIND_HINT_TYPE_ENTRY end=1
+	VALIDATE_UNRET_BEGIN
+	UNWIND_HINT_END_OF_STACK
 .endm
 
 .macro UNWIND_HINT_REGS base=%rsp offset=0 indirect=0 extra=1 partial=0 signal=1
@@ -52,6 +57,11 @@
 	UNWIND_HINT_REGS base=\base offset=\offset partial=1 signal=\signal
 .endm
 
+.macro UNWIND_HINT_IRET_ENTRY base=%rsp offset=0 signal=1
+	VALIDATE_UNRET_BEGIN
+	UNWIND_HINT_IRET_REGS base=\base offset=\offset signal=\signal
+.endm
+
 .macro UNWIND_HINT_FUNC
 	UNWIND_HINT sp_reg=ORC_REG_SP sp_offset=8 type=UNWIND_HINT_TYPE_FUNC
 .endm
@@ -67,7 +77,7 @@
 #else
 
 #define UNWIND_HINT_FUNC \
-	UNWIND_HINT(ORC_REG_SP, 8, UNWIND_HINT_TYPE_FUNC, 0, 0)
+	UNWIND_HINT(UNWIND_HINT_TYPE_FUNC, ORC_REG_SP, 8, 0)
 
 #endif /* __ASSEMBLY__ */
 

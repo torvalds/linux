@@ -119,9 +119,12 @@ OPTIONS
 	  "perf report" to view group events together.
 
 --filter=<filter>::
-        Event filter. This option should follow an event selector (-e) which
-	selects either tracepoint event(s) or a hardware trace PMU
-	(e.g. Intel PT or CoreSight).
+	Event filter.  This option should follow an event selector (-e).
+	If the event is a tracepoint, the filter string will be parsed by
+	the kernel.  If the event is a hardware trace PMU (e.g. Intel PT
+	or CoreSight), it'll be processed as an address filter.  Otherwise
+	it means a general filter using BPF which can be applied for any
+	kind of event.
 
 	- tracepoint filters
 
@@ -175,6 +178,57 @@ OPTIONS
 	examined to determine if that is a possibility.
 
 	Multiple filters can be separated with space or comma.
+
+	- bpf filters
+
+	A BPF filter can access the sample data and make a decision based on the
+	data.  Users need to set an appropriate sample type to use the BPF
+	filter.  BPF filters need root privilege.
+
+	The sample data field can be specified in lower case letter.  Multiple
+	filters can be separated with comma.  For example,
+
+	  --filter 'period > 1000, cpu == 1'
+	or
+	  --filter 'mem_op == load || mem_op == store, mem_lvl > l1'
+
+	The former filter only accept samples with period greater than 1000 AND
+	CPU number is 1.  The latter one accepts either load and store memory
+	operations but it should have memory level above the L1.  Since the
+	mem_op and mem_lvl fields come from the (memory) data_source, it'd only
+	work with some events which set the data_source field.
+
+	Also user should request to collect that information (with -d option in
+	the above case).  Otherwise, the following message will be shown.
+
+	  $ sudo perf record -e cycles --filter 'mem_op == load'
+	  Error: cycles event does not have PERF_SAMPLE_DATA_SRC
+	   Hint: please add -d option to perf record.
+	  failed to set filter "BPF" on event cycles with 22 (Invalid argument)
+
+	Essentially the BPF filter expression is:
+
+	  <term> <operator> <value> (("," | "||") <term> <operator> <value>)*
+
+	The <term> can be one of:
+	  ip, id, tid, pid, cpu, time, addr, period, txn, weight, phys_addr,
+	  code_pgsz, data_pgsz, weight1, weight2, weight3, ins_lat, retire_lat,
+	  p_stage_cyc, mem_op, mem_lvl, mem_snoop, mem_remote, mem_lock,
+	  mem_dtlb, mem_blk, mem_hops
+
+	The <operator> can be one of:
+	  ==, !=, >, >=, <, <=, &
+
+	The <value> can be one of:
+	  <number> (for any term)
+	  na, load, store, pfetch, exec (for mem_op)
+	  l1, l2, l3, l4, cxl, io, any_cache, lfb, ram, pmem (for mem_lvl)
+	  na, none, hit, miss, hitm, fwd, peer (for mem_snoop)
+	  remote (for mem_remote)
+	  na, locked (for mem_locked)
+	  na, l1_hit, l1_miss, l2_hit, l2_miss, any_hit, any_miss, walk, fault (for mem_dtlb)
+	  na, by_data, by_addr (for mem_blk)
+	  hops0, hops1, hops2, hops3 (for mem_hops)
 
 --exclude-perf::
 	Don't record events issued by perf itself. This option should follow

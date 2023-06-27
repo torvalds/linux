@@ -2,6 +2,7 @@
 
 bindings_generated.rs
 bindings_helpers_generated.rs
+uapi_generated.rs
 exports_*_generated.h
 doc/
 test/

@@ -226,7 +226,7 @@ kernel/relay.c
 
 该API在以下内核代码中:
 
-kernel/kmod.c
+kernel/module/kmod.c
 
 模块接口支持
 ------------

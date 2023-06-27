@@ -107,6 +107,7 @@ static const struct of_device_id of_match_clk_mt8173_pericfg[] = {
 	{ .compatible = "mediatek,mt8173-pericfg", .data = &peri_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_pericfg);
 
 static struct platform_driver clk_mt8173_pericfg_drv = {
 	.driver = {

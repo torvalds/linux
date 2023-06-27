@@ -630,10 +630,8 @@ static int dso__read_build_id(struct dso *dso)
 	if (filename__read_build_id(dso->long_name, &dso->bid) > 0)
 		dso->has_build_id = true;
 	else if (dso->nsinfo) {
-		char *new_name;
+		char *new_name = dso__filename_with_chroot(dso, dso->long_name);
 
-		new_name = filename_with_chroot(dso->nsinfo->pid,
-						dso->long_name);
 		if (new_name && filename__read_build_id(new_name, &dso->bid) > 0)
 			dso->has_build_id = true;
 		free(new_name);
@@ -753,10 +751,12 @@ int perf_event__inject_buildid(struct perf_tool *tool, union perf_event *event,
 	}
 
 	if (thread__find_map(thread, sample->cpumode, sample->ip, &al)) {
-		if (!al.map->dso->hit) {
-			al.map->dso->hit = 1;
-			dso__inject_build_id(al.map->dso, tool, machine,
-					     sample->cpumode, al.map->flags);
+		struct dso *dso = map__dso(al.map);
+
+		if (!dso->hit) {
+			dso->hit = 1;
+			dso__inject_build_id(dso, tool, machine,
+					     sample->cpumode, map__flags(al.map));
 		}
 	}
 
@@ -1309,10 +1309,10 @@ static void guest_session__exit(struct guest_session *gs)
 		if (gs->tmp_fd >= 0)
 			close(gs->tmp_fd);
 		unlink(gs->tmp_file_name);
-		free(gs->tmp_file_name);
+		zfree(&gs->tmp_file_name);
 	}
-	free(gs->vcpu);
-	free(gs->perf_data_file);
+	zfree(&gs->vcpu);
+	zfree(&gs->perf_data_file);
 }
 
 static void get_tsc_conv(struct perf_tsc_conversion *tc, struct perf_record_time_conv *time_conv)

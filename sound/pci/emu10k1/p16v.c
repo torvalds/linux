@@ -254,19 +254,24 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 		   emu->p16v_buffer->bytes);
 #endif /* debug */
 	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, channel);
+	tmp &= ~(A_SPDIF_RATE_MASK | A_EHC_SRC48_MASK);
         switch (runtime->rate) {
 	case 44100:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x8080);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_44100 | A_EHC_SRC48_44);
 	  break;
 	case 96000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x4040);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_96000 | A_EHC_SRC48_96);
 	  break;
 	case 192000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x2020);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_192000 | A_EHC_SRC48_192);
 	  break;
 	case 48000:
 	default:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0xe0e0) | 0x0000);
+	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel,
+				tmp | A_SPDIF_48000 | A_EHC_SRC48_BYPASS);
 	  break;
 	}
 	/* FIXME: Check emu->buffer.size before actually writing to it. */
@@ -282,8 +287,8 @@ static int snd_p16v_pcm_prepare_playback(struct snd_pcm_substream *substream)
 	//snd_emu10k1_ptr20_write(emu, PLAYBACK_PERIOD_SIZE, channel, frames_to_bytes(runtime, runtime->period_size)<<16); // buffer size in bytes
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_PERIOD_SIZE, channel, 0); // buffer size in bytes
 	snd_emu10k1_ptr20_write(emu, PLAYBACK_POINTER, channel, 0);
-	snd_emu10k1_ptr20_write(emu, 0x07, channel, 0x0);
-	snd_emu10k1_ptr20_write(emu, 0x08, channel, 0);
+	snd_emu10k1_ptr20_write(emu, PLAYBACK_FIFO_END_ADDRESS, channel, 0);
+	snd_emu10k1_ptr20_write(emu, PLAYBACK_FIFO_POINTER, channel, 0);
 
 	return 0;
 }
@@ -294,7 +299,6 @@ static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	struct snd_emu10k1 *emu = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int channel = substream->pcm->device - emu->p16v_device_offset;
-	u32 tmp;
 
 	/*
 	dev_dbg(emu->card->dev, "prepare capture:channel_number=%d, rate=%d, "
@@ -304,24 +308,23 @@ static int snd_p16v_pcm_prepare_capture(struct snd_pcm_substream *substream)
 	       runtime->buffer_size, runtime->period_size,
 	       frames_to_bytes(runtime, 1));
 	*/
-	tmp = snd_emu10k1_ptr_read(emu, A_SPDIF_SAMPLERATE, channel);
         switch (runtime->rate) {
 	case 44100:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0800);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_44100);
 	  break;
 	case 96000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0400);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_96000);
 	  break;
 	case 192000:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0200);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_192000);
 	  break;
 	case 48000:
 	default:
-	  snd_emu10k1_ptr_write(emu, A_SPDIF_SAMPLERATE, channel, (tmp & ~0x0e00) | 0x0000);
+	  snd_emu10k1_ptr_write(emu, A_I2S_CAPTURE_RATE, channel, A_I2S_CAPTURE_48000);
 	  break;
 	}
 	/* FIXME: Check emu->buffer.size before actually writing to it. */
-	snd_emu10k1_ptr20_write(emu, 0x13, channel, 0);
+	snd_emu10k1_ptr20_write(emu, CAPTURE_FIFO_POINTER, channel, 0);
 	snd_emu10k1_ptr20_write(emu, CAPTURE_DMA_ADDR, channel, runtime->dma_addr);
 	snd_emu10k1_ptr20_write(emu, CAPTURE_BUFFER_SIZE, channel, frames_to_bytes(runtime, runtime->buffer_size) << 16); // buffer size in bytes
 	snd_emu10k1_ptr20_write(emu, CAPTURE_POINTER, channel, 0);

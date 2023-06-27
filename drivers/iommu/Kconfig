@@ -3,10 +3,6 @@
 config IOMMU_IOVA
 	tristate
 
-# The IOASID library may also be used by non-IOMMU_API users
-config IOASID
-	tristate
-
 # IOMMU_API always gets selected by whoever wants it.
 config IOMMU_API
 	bool
@@ -33,7 +29,7 @@ config IOMMU_IO_PGTABLE_LPAE
 	bool "ARMv7/v8 Long Descriptor Format"
 	select IOMMU_IO_PGTABLE
 	depends on ARM || ARM64 || COMPILE_TEST
-	depends on !GENERIC_ATOMIC64	# for cpmxchg64()
+	depends on !GENERIC_ATOMIC64	# for cmpxchg64()
 	help
 	  Enable support for the ARM long descriptor pagetable format.
 	  This allocator supports 4K/2M/1G, 16K/32M and 64K/512M page
@@ -72,7 +68,7 @@ config IOMMU_IO_PGTABLE_DART
 	bool "Apple DART Formats"
 	select IOMMU_IO_PGTABLE
 	depends on ARM64 || COMPILE_TEST
-	depends on !GENERIC_ATOMIC64	# for cpmxchg64()
+	depends on !GENERIC_ATOMIC64	# for cmpxchg64()
 	help
 	  Enable support for the Apple DART pagetable formats. These include
 	  the t8020 and t6000/t8110 DART formats used in Apple M1/M2 family
@@ -160,7 +156,6 @@ config IOMMU_DMA
 # Shared Virtual Addressing
 config IOMMU_SVA
 	bool
-	select IOASID
 
 config FSL_PAMU
 	bool "Freescale IOMMU support"
@@ -287,6 +282,7 @@ config EXYNOS_IOMMU_DEBUG
 config IPMMU_VMSA
 	bool "Renesas VMSA-compatible IPMMU"
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on ARM || ARM64 || COMPILE_TEST
 	depends on !GENERIC_ATOMIC64	# for IOMMU_IO_PGTABLE_LPAE
 	select IOMMU_API
 	select IOMMU_IO_PGTABLE_LPAE
@@ -421,22 +417,6 @@ config S390_IOMMU
 	select IOMMU_API
 	help
 	  Support for the IOMMU API for s390 PCI devices.
-
-config S390_CCW_IOMMU
-	bool "S390 CCW IOMMU Support"
-	depends on S390 && CCW || COMPILE_TEST
-	select IOMMU_API
-	help
-	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
-
-config S390_AP_IOMMU
-	bool "S390 AP IOMMU Support"
-	depends on S390 && ZCRYPT || COMPILE_TEST
-	select IOMMU_API
-	help
-	  Enables bits of IOMMU API required by VFIO. The iommu_ops
-	  is not implemented as it is not necessary for VFIO.
 
 config MTK_IOMMU
 	tristate "MediaTek IOMMU Support"

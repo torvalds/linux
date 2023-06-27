@@ -696,7 +696,7 @@ static int __init hl_init(void)
 
 	hl_major = MAJOR(dev);
 
-	hl_class = class_create(THIS_MODULE, HL_NAME);
+	hl_class = class_create(HL_NAME);
 	if (IS_ERR(hl_class)) {
 		pr_err("failed to allocate class\n");
 		rc = PTR_ERR(hl_class);

@@ -381,6 +381,15 @@ static int arm_spe_pkt_desc_op_type(const struct arm_spe_pkt *packet,
 		case SPE_OP_PKT_LDST_SUBCLASS_NV_SYSREG:
 			arm_spe_pkt_out_string(&err, &buf, &buf_len, " NV-SYSREG");
 			break;
+		case SPE_OP_PKT_LDST_SUBCLASS_MTE_TAG:
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " MTE-TAG");
+			break;
+		case SPE_OP_PKT_LDST_SUBCLASS_MEMCPY:
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " MEMCPY");
+			break;
+		case SPE_OP_PKT_LDST_SUBCLASS_MEMSET:
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " MEMSET");
+			break;
 		default:
 			break;
 		}

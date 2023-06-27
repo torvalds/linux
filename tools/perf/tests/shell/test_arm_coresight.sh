@@ -150,6 +150,8 @@ arm_cs_etm_system_wide_test() {
 	echo "Recording trace with system wide mode"
 	perf record -o ${perfdata} -e cs_etm// -a -- ls > /dev/null 2>&1
 
+	# System-wide mode should include perf samples so test for that
+	# instead of ls
 	perf_script_branch_samples perf &&
 	perf_report_branch_samples perf &&
 	perf_report_instruction_samples perf
@@ -182,7 +184,29 @@ arm_cs_etm_snapshot_test() {
 	arm_cs_report "CoreSight snapshot testing" $err
 }
 
+arm_cs_etm_basic_test() {
+	echo "Recording trace with '$*'"
+	perf record -o ${perfdata} "$@" -- ls > /dev/null 2>&1
+
+	perf_script_branch_samples ls &&
+	perf_report_branch_samples ls &&
+	perf_report_instruction_samples ls
+
+	err=$?
+	arm_cs_report "CoreSight basic testing with '$*'" $err
+}
+
 arm_cs_etm_traverse_path_test
 arm_cs_etm_system_wide_test
 arm_cs_etm_snapshot_test
+
+# Test all combinations of per-thread, system-wide and normal mode with
+# and without timestamps
+arm_cs_etm_basic_test -e cs_etm/timestamp=0/ --per-thread
+arm_cs_etm_basic_test -e cs_etm/timestamp=1/ --per-thread
+arm_cs_etm_basic_test -e cs_etm/timestamp=0/ -a
+arm_cs_etm_basic_test -e cs_etm/timestamp=1/ -a
+arm_cs_etm_basic_test -e cs_etm/timestamp=0/
+arm_cs_etm_basic_test -e cs_etm/timestamp=1/
+
 exit $glb_err

@@ -21,7 +21,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	unsigned long stack = 0;
 	int ret = -ENOMEM;
 
-	stack = get_zeroed_page(GFP_KERNEL);
+	stack = __get_free_pages(GFP_KERNEL | __GFP_ZERO, ilog2(STUB_DATA_PAGES));
 	if (stack == 0)
 		goto out;
 
@@ -52,7 +52,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 
  out_free:
 	if (to_mm->id.stack != 0)
-		free_page(to_mm->id.stack);
+		free_pages(to_mm->id.stack, ilog2(STUB_DATA_PAGES));
  out:
 	return ret;
 }
@@ -74,6 +74,6 @@ void destroy_context(struct mm_struct *mm)
 	}
 	os_kill_ptraced_process(mmu->id.u.pid, 1);
 
-	free_page(mmu->id.stack);
+	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
 	free_ldt(mmu);
 }

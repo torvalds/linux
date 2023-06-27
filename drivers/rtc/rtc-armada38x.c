@@ -491,7 +491,6 @@ MODULE_DEVICE_TABLE(of, armada38x_rtc_of_match_table);
 
 static __init int armada38x_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct armada38x_rtc *rtc;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(struct armada38x_rtc),
@@ -508,12 +507,10 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&rtc->lock);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rtc");
-	rtc->regs = devm_ioremap_resource(&pdev->dev, res);
+	rtc->regs = devm_platform_ioremap_resource_byname(pdev, "rtc");
 	if (IS_ERR(rtc->regs))
 		return PTR_ERR(rtc->regs);
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rtc-soc");
-	rtc->regs_soc = devm_ioremap_resource(&pdev->dev, res);
+	rtc->regs_soc = devm_platform_ioremap_resource_byname(pdev, "rtc-soc");
 	if (IS_ERR(rtc->regs_soc))
 		return PTR_ERR(rtc->regs_soc);
 

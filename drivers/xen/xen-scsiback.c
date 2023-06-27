@@ -1010,12 +1010,6 @@ out_free:
 	return err;
 }
 
-static void __scsiback_del_translation_entry(struct v2p_entry *entry)
-{
-	list_del(&entry->l);
-	kref_put(&entry->kref, scsiback_free_translation_entry);
-}
-
 /*
   Delete the translation entry specified
 */
@@ -1024,18 +1018,20 @@ static int scsiback_del_translation_entry(struct vscsibk_info *info,
 {
 	struct v2p_entry *entry;
 	unsigned long flags;
-	int ret = 0;
 
 	spin_lock_irqsave(&info->v2p_lock, flags);
 	/* Find out the translation entry specified */
 	entry = scsiback_chk_translation_entry(info, v);
 	if (entry)
-		__scsiback_del_translation_entry(entry);
-	else
-		ret = -ENOENT;
+		list_del(&entry->l);
 
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
-	return ret;
+
+	if (!entry)
+		return -ENOENT;
+
+	kref_put(&entry->kref, scsiback_free_translation_entry);
+	return 0;
 }
 
 static void scsiback_do_add_lun(struct vscsibk_info *info, const char *state,
@@ -1239,14 +1235,19 @@ static void scsiback_release_translation_entry(struct vscsibk_info *info)
 {
 	struct v2p_entry *entry, *tmp;
 	struct list_head *head = &(info->v2p_entry_lists);
+	struct list_head tmp_list;
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->v2p_lock, flags);
 
-	list_for_each_entry_safe(entry, tmp, head, l)
-		__scsiback_del_translation_entry(entry);
+	list_cut_before(&tmp_list, head, head);
 
 	spin_unlock_irqrestore(&info->v2p_lock, flags);
+
+	list_for_each_entry_safe(entry, tmp, &tmp_list, l) {
+		list_del(&entry->l);
+		kref_put(&entry->kref, scsiback_free_translation_entry);
+	}
 }
 
 static void scsiback_remove(struct xenbus_device *dev)

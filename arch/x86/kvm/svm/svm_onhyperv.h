@@ -45,9 +45,8 @@ static inline __init void svm_hv_hardware_setup(void)
 	if (npt_enabled &&
 	    ms_hyperv.nested_features & HV_X64_NESTED_ENLIGHTENED_TLB) {
 		pr_info(KBUILD_MODNAME ": Hyper-V enlightened NPT TLB flush enabled\n");
-		svm_x86_ops.tlb_remote_flush = hv_remote_flush_tlb;
-		svm_x86_ops.tlb_remote_flush_with_range =
-				hv_remote_flush_tlb_with_range;
+		svm_x86_ops.flush_remote_tlbs = hv_flush_remote_tlbs;
+		svm_x86_ops.flush_remote_tlbs_range = hv_flush_remote_tlbs_range;
 	}
 
 	if (ms_hyperv.nested_features & HV_X64_NESTED_DIRECT_FLUSH) {

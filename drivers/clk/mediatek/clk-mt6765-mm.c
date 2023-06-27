@@ -18,14 +18,8 @@ static const struct mtk_gate_regs mm_cg_regs = {
 	.sta_ofs = 0x100,
 };
 
-#define GATE_MM(_id, _name, _parent, _shift) {		\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &mm_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr,	\
-	}
+#define GATE_MM(_id, _name, _parent, _shift)	\
+	GATE_MTK(_id, _name, _parent, &mm_cg_regs, _shift, &mtk_clk_gate_ops_setclr)
 
 static const struct mtk_gate mm_clks[] = {
 	/* MM */
@@ -74,6 +68,7 @@ static const struct of_device_id of_match_clk_mt6765_mm[] = {
 		/* sentinel */
 	}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6765_mm);
 
 static struct platform_driver clk_mt6765_mm_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -83,5 +78,5 @@ static struct platform_driver clk_mt6765_mm_drv = {
 		.of_match_table = of_match_clk_mt6765_mm,
 	},
 };
-
-builtin_platform_driver(clk_mt6765_mm_drv);
+module_platform_driver(clk_mt6765_mm_drv);
+MODULE_LICENSE("GPL");

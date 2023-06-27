@@ -874,32 +874,15 @@ bool zpci_is_device_configured(struct zpci_dev *zdev)
  * @fh: The general function handle supplied by the platform
  *
  * Given a device in the configuration state Configured, enables, scans and
- * adds it to the common code PCI subsystem if possible. If the PCI device is
- * parked because we can not yet create a PCI bus because we have not seen
- * function 0, it is ignored but will be scanned once function 0 appears.
- * If any failure occurs, the zpci_dev is left disabled.
+ * adds it to the common code PCI subsystem if possible. If any failure occurs,
+ * the zpci_dev is left disabled.
  *
  * Return: 0 on success, or an error code otherwise
  */
 int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh)
 {
-	int rc;
-
 	zpci_update_fh(zdev, fh);
-	/* the PCI function will be scanned once function 0 appears */
-	if (!zdev->zbus->bus)
-		return 0;
-
-	/* For function 0 on a multi-function bus scan whole bus as we might
-	 * have to pick up existing functions waiting for it to allow creating
-	 * the PCI bus
-	 */
-	if (zdev->devfn == 0 && zdev->zbus->multifunction)
-		rc = zpci_bus_scan_bus(zdev->zbus);
-	else
-		rc = zpci_bus_scan_device(zdev);
-
-	return rc;
+	return zpci_bus_scan_device(zdev);
 }
 
 /**

@@ -174,7 +174,7 @@ static int __init setup_rstcr(void)
 	};
 
 	for_each_node_by_name(np, "global-utilities") {
-		if ((of_get_property(np, "fsl,has-rstcr", NULL))) {
+		if (of_property_read_bool(np, "fsl,has-rstcr")) {
 			rstcr = of_iomap(np, 0) + 0xb0;
 			if (!rstcr) {
 				printk (KERN_ERR "Error: reset control "

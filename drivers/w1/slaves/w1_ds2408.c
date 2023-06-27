@@ -35,12 +35,12 @@
 
 #define W1_F29_SUCCESS_CONFIRM_BYTE        0xAA
 
-static int _read_reg(struct w1_slave *sl, u8 address, unsigned char* buf)
+static int _read_reg(struct w1_slave *sl, u8 address, unsigned char *buf)
 {
 	u8 wrbuf[3];
-	dev_dbg(&sl->dev,
-			"Reading with slave: %p, reg addr: %0#4x, buff addr: %p",
-			sl, (unsigned int)address, buf);
+
+	dev_dbg(&sl->dev, "Reading with slave: %p, reg addr: %0#4x, buff addr: %p",
+		sl, (unsigned int)address, buf);
 
 	if (!buf)
 		return -EINVAL;
@@ -206,7 +206,7 @@ out:
 }
 
 
-/**
+/*
  * Writing to the activity file resets the activity latches.
  */
 static ssize_t activity_write(struct file *filp, struct kobject *kobj,
@@ -292,7 +292,7 @@ static int w1_f29_disable_test_mode(struct w1_slave *sl)
 {
 	int res;
 	u8 magic[10] = {0x96, };
-	u64 rn = le64_to_cpu(*((u64*)&sl->reg_num));
+	u64 rn = le64_to_cpu(*((u64 *)&sl->reg_num));
 
 	memcpy(&magic[1], &rn, 8);
 	magic[9] = 0x3C;

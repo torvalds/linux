@@ -15,7 +15,7 @@ import gdb
 import os
 import re
 
-from linux import modules, utils
+from linux import modules, utils, constants
 
 
 if hasattr(gdb, 'Breakpoint'):
@@ -109,7 +109,7 @@ lx-symbols command."""
 
     def load_module_symbols(self, module):
         module_name = module['name'].string()
-        module_addr = str(module['core_layout']['base']).split()[0]
+        module_addr = str(module['mem'][constants.LX_MOD_TEXT]['base']).split()[0]
 
         module_file = self._get_module_file(module_name)
         if not module_file and not self.module_files_updated:

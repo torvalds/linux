@@ -15,6 +15,7 @@
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/io.h>
 #include <asm/termbits.h>
 
@@ -114,22 +115,24 @@ static void __init ls_uart_init(void)
 static int __init ls_uarts_init(void)
 {
 	struct device_node *avr;
-	phys_addr_t phys_addr;
-	int len;
+	struct resource res;
+	int len, ret;
 
 	avr = of_find_node_by_path("/soc10x/serial@80004500");
 	if (!avr)
 		return -EINVAL;
 
 	avr_clock = *(u32*)of_get_property(avr, "clock-frequency", &len);
-	phys_addr = ((u32*)of_get_property(avr, "reg", &len))[0];
+	if (!avr_clock)
+		return -EINVAL;
+
+	ret = of_address_to_resource(avr, 0, &res);
+	if (ret)
+		return ret;
 
 	of_node_put(avr);
 
-	if (!avr_clock || !phys_addr)
-		return -EINVAL;
-
-	avr_addr = ioremap(phys_addr, 32);
+	avr_addr = ioremap(res.start, 32);
 	if (!avr_addr)
 		return -EFAULT;
 

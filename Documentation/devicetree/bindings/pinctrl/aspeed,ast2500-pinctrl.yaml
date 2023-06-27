@@ -44,7 +44,7 @@ patternProperties:
     then:
       patternProperties:
         "^function|groups$":
-          $ref: "/schemas/types.yaml#/definitions/string"
+          $ref: /schemas/types.yaml#/definitions/string
           enum: [ ACPI, ADC0, ADC1, ADC10, ADC11, ADC12, ADC13, ADC14, ADC15,
                   ADC2, ADC3, ADC4, ADC5, ADC6, ADC7, ADC8, ADC9, BMCINT, DDCCLK, DDCDAT,
                   ESPI, FWSPICS1, FWSPICS2, GPID0, GPID2, GPID4, GPID6, GPIE0, GPIE2,
@@ -65,7 +65,7 @@ patternProperties:
                   VGAVS, VPI24, VPO, WDTRST1, WDTRST2]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

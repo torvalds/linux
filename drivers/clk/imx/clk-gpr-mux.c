@@ -48,7 +48,8 @@ static u8 imx_clk_gpr_mux_get_parent(struct clk_hw *hw)
 	return ret;
 
 get_parent_err:
-	pr_err("failed to get parent (%pe)\n", ERR_PTR(ret));
+	pr_err("%s: failed to get parent (%pe)\n",
+	       clk_hw_get_name(hw), ERR_PTR(ret));
 
 	/* return some realistic non negative value. Potentially we could
 	 * give index to some dummy error parent.

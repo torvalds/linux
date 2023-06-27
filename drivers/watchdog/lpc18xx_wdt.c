@@ -261,14 +261,12 @@ static int lpc18xx_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, &lpc18xx_wdt->wdt_dev);
 }
 
-static int lpc18xx_wdt_remove(struct platform_device *pdev)
+static void lpc18xx_wdt_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_wdt_dev *lpc18xx_wdt = platform_get_drvdata(pdev);
 
 	dev_warn(&pdev->dev, "I quit now, hardware will probably reboot!\n");
 	del_timer_sync(&lpc18xx_wdt->timer);
-
-	return 0;
 }
 
 static const struct of_device_id lpc18xx_wdt_match[] = {
@@ -283,7 +281,7 @@ static struct platform_driver lpc18xx_wdt_driver = {
 		.of_match_table	= lpc18xx_wdt_match,
 	},
 	.probe = lpc18xx_wdt_probe,
-	.remove = lpc18xx_wdt_remove,
+	.remove_new = lpc18xx_wdt_remove,
 };
 module_platform_driver(lpc18xx_wdt_driver);
 

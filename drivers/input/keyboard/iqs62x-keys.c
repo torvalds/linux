@@ -320,7 +320,7 @@ static int iqs62x_keys_remove(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "Failed to unregister notifier: %d\n", ret);
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver iqs62x_keys_platform_driver = {
