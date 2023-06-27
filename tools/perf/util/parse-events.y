@@ -567,7 +567,7 @@ tracepoint_name opt_event_config
 		error->idx = @1.first_column;
 
 	err = parse_events_add_tracepoint(list, &parse_state->idx, $1.sys, $1.event,
-					error, $2);
+					error, $2, &@1);
 
 	parse_events_terms__delete($2);
 	free($1.sys);
@@ -640,7 +640,7 @@ PE_BPF_OBJECT opt_event_config
 	list = alloc_list();
 	if (!list)
 		YYNOMEM;
-	err = parse_events_load_bpf(parse_state, list, $1, false, $2);
+	err = parse_events_load_bpf(parse_state, list, $1, false, $2, &@1);
 	parse_events_terms__delete($2);
 	free($1);
 	if (err) {
@@ -658,7 +658,7 @@ PE_BPF_SOURCE opt_event_config
 	list = alloc_list();
 	if (!list)
 		YYNOMEM;
-	err = parse_events_load_bpf(_parse_state, list, $1, true, $2);
+	err = parse_events_load_bpf(_parse_state, list, $1, true, $2, &@1);
 	parse_events_terms__delete($2);
 	if (err) {
 		free(list);

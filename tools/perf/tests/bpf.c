@@ -124,7 +124,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	parse_state.error = &parse_error;
 	INIT_LIST_HEAD(&parse_state.list);
 
-	err = parse_events_load_bpf_obj(&parse_state, &parse_state.list, obj, NULL);
+	err = parse_events_load_bpf_obj(&parse_state, &parse_state.list, obj, NULL, NULL);
 	parse_events_error__exit(&parse_error);
 	if (err == -ENODATA) {
 		pr_debug("Failed to add events selected by BPF, debuginfo package not installed\n");
