@@ -3510,12 +3510,14 @@ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
 	if (ret)
 		goto out;
 
+	if (!atomic_read(&F2FS_I(inode)->i_compr_blocks)) {
+		ret = -EPERM;
+		goto out;
+	}
+
 	set_inode_flag(inode, FI_COMPRESS_RELEASED);
 	inode->i_ctime = current_time(inode);
 	f2fs_mark_inode_dirty_sync(inode, true);
-
-	if (!atomic_read(&F2FS_I(inode)->i_compr_blocks))
-		goto out;
 
 	f2fs_down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 	filemap_invalidate_lock(inode->i_mapping);
