@@ -488,8 +488,9 @@ struct bch_csum {
 	x(crc32,		1)		\
 	x(crc64,		2)		\
 	x(crc128,		3)		\
-	x(stripe_ptr,		4)
-#define BCH_EXTENT_ENTRY_MAX	5
+	x(stripe_ptr,		4)		\
+	x(rebalance,		5)
+#define BCH_EXTENT_ENTRY_MAX	6
 
 enum bch_extent_entry_type {
 #define x(f, n) BCH_EXTENT_ENTRY_##f = n,
@@ -621,6 +622,20 @@ struct bch_extent_reservation {
 				replicas:4,
 				unused:22,
 				type:6;
+#endif
+};
+
+struct bch_extent_rebalance {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u64			type:7,
+				unused:33,
+				compression:8,
+				target:16;
+#elif defined (__BIG_ENDIAN_BITFIELD)
+	__u64			target:16,
+				compression:8,
+				unused:33,
+				type:7;
 #endif
 };
 
