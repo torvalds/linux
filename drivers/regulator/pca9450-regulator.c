@@ -65,9 +65,32 @@ static const struct regmap_config pca9450_regmap_config = {
  * 10: 25mV/4usec
  * 11: 25mV/8usec
  */
-static const unsigned int pca9450_dvs_buck_ramp_table[] = {
-	25000, 12500, 6250, 3125
-};
+static int pca9450_dvs_set_ramp_delay(struct regulator_dev *rdev,
+				      int ramp_delay)
+{
+	int id = rdev_get_id(rdev);
+	unsigned int ramp_value;
+
+	switch (ramp_delay) {
+	case 1 ... 3125:
+		ramp_value = BUCK1_RAMP_3P125MV;
+		break;
+	case 3126 ... 6250:
+		ramp_value = BUCK1_RAMP_6P25MV;
+		break;
+	case 6251 ... 12500:
+		ramp_value = BUCK1_RAMP_12P5MV;
+		break;
+	case 12501 ... 25000:
+		ramp_value = BUCK1_RAMP_25MV;
+		break;
+	default:
+		ramp_value = BUCK1_RAMP_25MV;
+	}
+
+	return regmap_update_bits(rdev->regmap, PCA9450_REG_BUCK1CTRL + id * 3,
+				  BUCK1_RAMP_MASK, ramp_value << 6);
+}
 
 static const struct regulator_ops pca9450_dvs_buck_regulator_ops = {
 	.enable = regulator_enable_regmap,
@@ -77,7 +100,7 @@ static const struct regulator_ops pca9450_dvs_buck_regulator_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
-	.set_ramp_delay	= regulator_set_ramp_delay_regmap,
+	.set_ramp_delay = pca9450_dvs_set_ramp_delay,
 };
 
 static const struct regulator_ops pca9450_buck_regulator_ops = {
@@ -228,10 +251,6 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 			.vsel_mask = BUCK1OUT_DVS0_MASK,
 			.enable_reg = PCA9450_REG_BUCK1CTRL,
 			.enable_mask = BUCK1_ENMODE_MASK,
-			.ramp_reg = PCA9450_REG_BUCK1CTRL,
-			.ramp_mask = BUCK1_RAMP_MASK,
-			.ramp_delay_table = pca9450_dvs_buck_ramp_table,
-			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
 		},
@@ -257,10 +276,6 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 			.vsel_mask = BUCK2OUT_DVS0_MASK,
 			.enable_reg = PCA9450_REG_BUCK2CTRL,
 			.enable_mask = BUCK1_ENMODE_MASK,
-			.ramp_reg = PCA9450_REG_BUCK2CTRL,
-			.ramp_mask = BUCK2_RAMP_MASK,
-			.ramp_delay_table = pca9450_dvs_buck_ramp_table,
-			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
 		},
@@ -286,10 +301,6 @@ static const struct pca9450_regulator_desc pca9450a_regulators[] = {
 			.vsel_mask = BUCK3OUT_DVS0_MASK,
 			.enable_reg = PCA9450_REG_BUCK3CTRL,
 			.enable_mask = BUCK3_ENMODE_MASK,
-			.ramp_reg = PCA9450_REG_BUCK3CTRL,
-			.ramp_mask = BUCK3_RAMP_MASK,
-			.ramp_delay_table = pca9450_dvs_buck_ramp_table,
-			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
 		},
@@ -466,10 +477,6 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 			.vsel_mask = BUCK1OUT_DVS0_MASK,
 			.enable_reg = PCA9450_REG_BUCK1CTRL,
 			.enable_mask = BUCK1_ENMODE_MASK,
-			.ramp_reg = PCA9450_REG_BUCK1CTRL,
-			.ramp_mask = BUCK1_RAMP_MASK,
-			.ramp_delay_table = pca9450_dvs_buck_ramp_table,
-			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
 		},
@@ -495,10 +502,6 @@ static const struct pca9450_regulator_desc pca9450bc_regulators[] = {
 			.vsel_mask = BUCK2OUT_DVS0_MASK,
 			.enable_reg = PCA9450_REG_BUCK2CTRL,
 			.enable_mask = BUCK1_ENMODE_MASK,
-			.ramp_reg = PCA9450_REG_BUCK2CTRL,
-			.ramp_mask = BUCK2_RAMP_MASK,
-			.ramp_delay_table = pca9450_dvs_buck_ramp_table,
-			.n_ramp_values = ARRAY_SIZE(pca9450_dvs_buck_ramp_table),
 			.owner = THIS_MODULE,
 			.of_parse_cb = pca9450_set_dvs_levels,
 		},
