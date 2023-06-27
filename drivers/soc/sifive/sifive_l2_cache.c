@@ -145,6 +145,12 @@ void sifive_l2_flush_range(phys_addr_t start, size_t len)
 }
 EXPORT_SYMBOL_GPL(sifive_l2_flush_range);
 
+void sifive_ccache_flush_range(phys_addr_t start, size_t len)
+{
+	sifive_l2_flush_range(start, len);
+}
+EXPORT_SYMBOL_GPL(sifive_ccache_flush_range);
+
 void *sifive_l2_set_uncached(void *addr, size_t size)
 {
 	phys_addr_t phys_addr = __pa(addr) + uncached_offset;

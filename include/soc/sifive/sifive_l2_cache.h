@@ -27,6 +27,7 @@ static inline bool sifive_l2_handle_noncoherent(void)
 #endif
 }
 
+void sifive_ccache_flush_range(phys_addr_t start, size_t len);
 void sifive_l2_flush_range(phys_addr_t start, size_t len);
 void *sifive_l2_set_uncached(void *addr, size_t size);
 static inline void sifive_l2_clear_uncached(void *addr, size_t size)
