@@ -119,7 +119,10 @@ static int clk_composite_determine_rate(struct clk_hw *hw,
 			if (ret)
 				continue;
 
-			rate_diff = abs(req->rate - tmp_req.rate);
+			if (req->rate >= tmp_req.rate)
+				rate_diff = req->rate - tmp_req.rate;
+			else
+				rate_diff = tmp_req.rate - req->rate;
 
 			if (!rate_diff || !req->best_parent_hw
 				       || best_rate_diff > rate_diff) {

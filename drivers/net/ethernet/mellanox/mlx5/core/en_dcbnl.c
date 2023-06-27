@@ -926,9 +926,10 @@ static int mlx5e_dcbnl_getbuffer(struct net_device *dev,
 	if (err)
 		return err;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++)
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++)
 		dcb_buffer->buffer_size[i] = port_buffer.buffer[i].size;
-	dcb_buffer->total_size = port_buffer.port_buffer_size;
+	dcb_buffer->total_size = port_buffer.port_buffer_size -
+				 port_buffer.internal_buffers_size;
 
 	return 0;
 }
@@ -970,7 +971,7 @@ static int mlx5e_dcbnl_setbuffer(struct net_device *dev,
 	if (err)
 		return err;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 		if (port_buffer.buffer[i].size != dcb_buffer->buffer_size[i]) {
 			changed |= MLX5E_PORT_BUFFER_SIZE;
 			buffer_size = dcb_buffer->buffer_size;

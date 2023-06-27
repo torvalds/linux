@@ -480,8 +480,8 @@ static void do_bad_area(unsigned long far, unsigned long esr,
 	}
 }
 
-#define VM_FAULT_BADMAP		0x010000
-#define VM_FAULT_BADACCESS	0x020000
+#define VM_FAULT_BADMAP		((__force vm_fault_t)0x010000)
+#define VM_FAULT_BADACCESS	((__force vm_fault_t)0x020000)
 
 static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
 				  unsigned int mm_flags, unsigned long vm_flags,
@@ -600,8 +600,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		vma_end_read(vma);
 		goto lock_mmap;
 	}
-	fault = handle_mm_fault(vma, addr & PAGE_MASK,
-				mm_flags | FAULT_FLAG_VMA_LOCK, regs);
+	fault = handle_mm_fault(vma, addr, mm_flags | FAULT_FLAG_VMA_LOCK, regs);
 	vma_end_read(vma);
 
 	if (!(fault & VM_FAULT_RETRY)) {

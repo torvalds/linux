@@ -380,7 +380,8 @@ void ast_post_gpu(struct drm_device *dev)
 	ast_set_def_ext_reg(dev);
 
 	if (ast->chip == AST2600) {
-		ast_dp_launch(dev, 1);
+		if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
+			ast_dp_launch(dev);
 	} else if (ast->config_mode == ast_use_p2a) {
 		if (ast->chip == AST2500)
 			ast_post_chip_2500(dev);

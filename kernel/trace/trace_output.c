@@ -847,7 +847,7 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 	int ret;
 	void *pos;
 
-	list_for_each_entry(field, head, link) {
+	list_for_each_entry_reverse(field, head, link) {
 		trace_seq_printf(&iter->seq, " %s=", field->name);
 		if (field->offset + field->size > iter->ent_size) {
 			trace_seq_puts(&iter->seq, "<OVERFLOW>");

@@ -23,6 +23,10 @@ ifdef CONFIG_FTRACE
 CFLAGS_REMOVE_alternative.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_cpufeature.o = $(CC_FLAGS_FTRACE)
 endif
+ifdef CONFIG_RELOCATABLE
+CFLAGS_alternative.o += -fno-pie
+CFLAGS_cpufeature.o += -fno-pie
+endif
 ifdef CONFIG_KASAN
 KASAN_SANITIZE_alternative.o := n
 KASAN_SANITIZE_cpufeature.o := n

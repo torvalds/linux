@@ -227,6 +227,19 @@ struct cs_etm_packet_queue {
 #define INFO_HEADER_SIZE (sizeof(((struct perf_record_auxtrace_info *)0)->type) + \
 			  sizeof(((struct perf_record_auxtrace_info *)0)->reserved__))
 
+/* CoreSight trace ID is currently the bottom 7 bits of the value */
+#define CORESIGHT_TRACE_ID_VAL_MASK	GENMASK(6, 0)
+
+/*
+ * perf record will set the legacy meta data values as unused initially.
+ * This allows perf report to manage the decoders created when dynamic
+ * allocation in operation.
+ */
+#define CORESIGHT_TRACE_ID_UNUSED_FLAG	BIT(31)
+
+/* Value to set for unused trace ID values */
+#define CORESIGHT_TRACE_ID_UNUSED_VAL	0x7F
+
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
 struct perf_event_attr *cs_etm_get_default_config(struct perf_pmu *pmu);

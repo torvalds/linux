@@ -78,9 +78,9 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 	char path[PATH_MAX];
 	int err;
 	u32 val;
-	u64 contextid =
-		evsel->core.attr.config &
-		(perf_pmu__format_bits(&cs_etm_pmu->format, "contextid1") |
+	u64 contextid = evsel->core.attr.config &
+		(perf_pmu__format_bits(&cs_etm_pmu->format, "contextid") |
+		 perf_pmu__format_bits(&cs_etm_pmu->format, "contextid1") |
 		 perf_pmu__format_bits(&cs_etm_pmu->format, "contextid2"));
 
 	if (!contextid)
@@ -114,8 +114,7 @@ static int cs_etm_validate_context_id(struct auxtrace_record *itr,
 		 *  0b00100 Maximum of 32-bit Context ID size.
 		 *  All other values are reserved.
 		 */
-		val = BMVAL(val, 5, 9);
-		if (!val || val != 0x4) {
+		if (BMVAL(val, 5, 9) != 0x4) {
 			pr_err("%s: CONTEXTIDR_EL1 isn't supported, disable with %s/contextid1=0/\n",
 			       CORESIGHT_ETM_PMU_NAME, CORESIGHT_ETM_PMU_NAME);
 			return -EINVAL;

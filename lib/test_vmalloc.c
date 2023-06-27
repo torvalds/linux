@@ -369,7 +369,7 @@ vm_map_ram_test(void)
 	int i;
 
 	map_nr_pages = nr_pages > 0 ? nr_pages:1;
-	pages = kmalloc(map_nr_pages * sizeof(struct page), GFP_KERNEL);
+	pages = kcalloc(map_nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return -1;
 

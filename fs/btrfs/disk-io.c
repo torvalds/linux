@@ -96,7 +96,7 @@ static void csum_tree_block(struct extent_buffer *buf, u8 *result)
 	crypto_shash_update(shash, kaddr + BTRFS_CSUM_SIZE,
 			    first_page_part - BTRFS_CSUM_SIZE);
 
-	for (i = 1; i < num_pages; i++) {
+	for (i = 1; i < num_pages && INLINE_EXTENT_BUFFER_PAGES > 1; i++) {
 		kaddr = page_address(buf->pages[i]);
 		crypto_shash_update(shash, kaddr, PAGE_SIZE);
 	}
@@ -242,7 +242,6 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 				      int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	u64 start = eb->start;
 	int i, num_pages = num_extent_pages(eb);
 	int ret = 0;
 
@@ -251,12 +250,14 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = eb->pages[i];
+		u64 start = max_t(u64, eb->start, page_offset(p));
+		u64 end = min_t(u64, eb->start + eb->len, page_offset(p) + PAGE_SIZE);
+		u32 len = end - start;
 
-		ret = btrfs_repair_io_failure(fs_info, 0, start, PAGE_SIZE,
-				start, p, start - page_offset(p), mirror_num);
+		ret = btrfs_repair_io_failure(fs_info, 0, start, len,
+				start, p, offset_in_page(start), mirror_num);
 		if (ret)
 			break;
-		start += PAGE_SIZE;
 	}
 
 	return ret;
@@ -995,13 +996,18 @@ int btrfs_global_root_insert(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct rb_node *tmp;
+	int ret = 0;
 
 	write_lock(&fs_info->global_root_lock);
 	tmp = rb_find_add(&root->rb_node, &fs_info->global_root_tree, global_root_cmp);
 	write_unlock(&fs_info->global_root_lock);
-	ASSERT(!tmp);
 
-	return tmp ? -EEXIST : 0;
+	if (tmp) {
+		ret = -EEXIST;
+		btrfs_warn(fs_info, "global root %llu %llu already exists",
+				root->root_key.objectid, root->root_key.offset);
+	}
+	return ret;
 }
 
 void btrfs_global_root_delete(struct btrfs_root *root)
@@ -2841,6 +2847,7 @@ static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 			/* We can't trust the free space cache either */
 			btrfs_set_opt(fs_info->mount_opt, CLEAR_CACHE);
 
+			btrfs_warn(fs_info, "try to load backup roots slot %d", i);
 			ret = read_backup_root(fs_info, i);
 			backup_index = ret;
 			if (ret < 0)
@@ -4936,7 +4943,11 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 		 */
 		inode = igrab(&btrfs_inode->vfs_inode);
 		if (inode) {
+			unsigned int nofs_flag;
+
+			nofs_flag = memalloc_nofs_save();
 			invalidate_inode_pages2(inode->i_mapping);
+			memalloc_nofs_restore(nofs_flag);
 			iput(inode);
 		}
 		spin_lock(&root->delalloc_lock);
@@ -5042,7 +5053,12 @@ static void btrfs_cleanup_bg_io(struct btrfs_block_group *cache)
 
 	inode = cache->io_ctl.inode;
 	if (inode) {
+		unsigned int nofs_flag;
+
+		nofs_flag = memalloc_nofs_save();
 		invalidate_inode_pages2(inode->i_mapping);
+		memalloc_nofs_restore(nofs_flag);
+
 		BTRFS_I(inode)->generation = 0;
 		cache->io_ctl.inode = NULL;
 		iput(inode);

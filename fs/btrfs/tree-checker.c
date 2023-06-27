@@ -857,10 +857,10 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 	 *
 	 * Thus it should be a good way to catch obvious bitflips.
 	 */
-	if (unlikely(length >= ((u64)U32_MAX << BTRFS_STRIPE_LEN_SHIFT))) {
+	if (unlikely(length >= btrfs_stripe_nr_to_offset(U32_MAX))) {
 		chunk_err(leaf, chunk, logical,
 			  "chunk length too large: have %llu limit %llu",
-			  length, (u64)U32_MAX << BTRFS_STRIPE_LEN_SHIFT);
+			  length, btrfs_stripe_nr_to_offset(U32_MAX));
 		return -EUCLEAN;
 	}
 	if (unlikely(type & ~(BTRFS_BLOCK_GROUP_TYPE_MASK |

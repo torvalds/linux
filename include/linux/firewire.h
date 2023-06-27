@@ -391,7 +391,7 @@ struct fw_iso_packet {
 	u32 tag:2;		/* tx: Tag in packet header		*/
 	u32 sy:4;		/* tx: Sy in packet header		*/
 	u32 header_length:8;	/* Length of immediate header		*/
-	u32 header[0];		/* tx: Top of 1394 isoch. data_block	*/
+	u32 header[];		/* tx: Top of 1394 isoch. data_block	*/
 };
 
 #define FW_ISO_CONTEXT_TRANSMIT			0

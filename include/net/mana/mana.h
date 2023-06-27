@@ -347,10 +347,8 @@ struct mana_tx_qp {
 struct mana_ethtool_stats {
 	u64 stop_queue;
 	u64 wake_queue;
-	u64 tx_cqes;
 	u64 tx_cqe_err;
 	u64 tx_cqe_unknown_type;
-	u64 rx_cqes;
 	u64 rx_coalesced_err;
 	u64 rx_cqe_unknown_type;
 };

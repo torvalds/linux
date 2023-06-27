@@ -667,15 +667,15 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		ret = iwl_mvm_mld_alloc_sta_links(mvm, vif, sta);
 		if (ret)
 			return ret;
-	}
 
-	spin_lock_init(&mvm_sta->lock);
+		spin_lock_init(&mvm_sta->lock);
 
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		ret = iwl_mvm_alloc_sta_after_restart(mvm, vif, sta);
-	else
 		ret = iwl_mvm_sta_init(mvm, vif, sta, IWL_MVM_INVALID_STA,
 				       STATION_TYPE_PEER);
+	} else {
+		ret = iwl_mvm_alloc_sta_after_restart(mvm, vif, sta);
+	}
+
 	if (ret)
 		goto err;
 
@@ -728,7 +728,7 @@ int iwl_mvm_mld_update_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	struct ieee80211_link_sta *link_sta;
 	unsigned int link_id;
-	int ret = 0;
+	int ret = -EINVAL;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -790,8 +790,6 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
-
-	kfree(mvm_sta->dup_data);
 
 	/* flush its queues here since we are freeing mvm_sta */
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {

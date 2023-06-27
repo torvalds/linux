@@ -44,6 +44,9 @@ int hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink);
 
 int hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num);
 
+int hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
+				   int channel_mask, int stream_id, int dir);
+
 void hda_bus_ml_put_all(struct hdac_bus *bus);
 void hda_bus_ml_reset_losidv(struct hdac_bus *bus);
 int hda_bus_ml_resume(struct hdac_bus *bus);
@@ -51,6 +54,7 @@ int hda_bus_ml_suspend(struct hdac_bus *bus);
 
 struct hdac_ext_link *hdac_bus_eml_ssp_get_hlink(struct hdac_bus *bus);
 struct hdac_ext_link *hdac_bus_eml_dmic_get_hlink(struct hdac_bus *bus);
+struct hdac_ext_link *hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus);
 
 struct mutex *hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid);
 
@@ -144,6 +148,13 @@ hdac_bus_eml_sdw_power_down_unlocked(struct hdac_bus *bus, int sublink) { return
 static inline int
 hdac_bus_eml_sdw_set_lsdiid(struct hdac_bus *bus, int sublink, int dev_num) { return 0; }
 
+static inline int
+hdac_bus_eml_sdw_map_stream_ch(struct hdac_bus *bus, int sublink, int y,
+			       int channel_mask, int stream_id, int dir)
+{
+	return 0;
+}
+
 static inline void hda_bus_ml_put_all(struct hdac_bus *bus) { }
 static inline void hda_bus_ml_reset_losidv(struct hdac_bus *bus) { }
 static inline int hda_bus_ml_resume(struct hdac_bus *bus) { return 0; }
@@ -154,6 +165,9 @@ hdac_bus_eml_ssp_get_hlink(struct hdac_bus *bus) { return NULL; }
 
 static inline struct hdac_ext_link *
 hdac_bus_eml_dmic_get_hlink(struct hdac_bus *bus) { return NULL; }
+
+static inline struct hdac_ext_link *
+hdac_bus_eml_sdw_get_hlink(struct hdac_bus *bus) { return NULL; }
 
 static inline struct mutex *
 hdac_bus_eml_get_mutex(struct hdac_bus *bus, bool alt, int elid) { return NULL; }

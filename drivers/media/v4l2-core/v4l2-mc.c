@@ -314,8 +314,7 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 {
 	struct fwnode_handle *endpoint;
 
-	if (!(sink->flags & MEDIA_PAD_FL_SINK) ||
-	    !is_media_entity_v4l2_subdev(sink->entity))
+	if (!(sink->flags & MEDIA_PAD_FL_SINK))
 		return -EINVAL;
 
 	fwnode_graph_for_each_endpoint(dev_fwnode(src_sd->dev), endpoint) {

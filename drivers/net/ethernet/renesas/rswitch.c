@@ -347,17 +347,6 @@ out:
 	return -ENOMEM;
 }
 
-static int rswitch_gwca_ts_queue_alloc(struct rswitch_private *priv)
-{
-	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
-
-	gq->ring_size = TS_RING_SIZE;
-	gq->ts_ring = dma_alloc_coherent(&priv->pdev->dev,
-					 sizeof(struct rswitch_ts_desc) *
-					 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
-	return !gq->ts_ring ? -ENOMEM : 0;
-}
-
 static void rswitch_desc_set_dptr(struct rswitch_desc *desc, dma_addr_t addr)
 {
 	desc->dptrl = cpu_to_le32(lower_32_bits(addr));
@@ -531,6 +520,28 @@ static void rswitch_gwca_linkfix_free(struct rswitch_private *priv)
 		dma_free_coherent(&priv->pdev->dev, gwca->linkfix_table_size,
 				  gwca->linkfix_table, gwca->linkfix_table_dma);
 	gwca->linkfix_table = NULL;
+}
+
+static int rswitch_gwca_ts_queue_alloc(struct rswitch_private *priv)
+{
+	struct rswitch_gwca_queue *gq = &priv->gwca.ts_queue;
+	struct rswitch_ts_desc *desc;
+
+	gq->ring_size = TS_RING_SIZE;
+	gq->ts_ring = dma_alloc_coherent(&priv->pdev->dev,
+					 sizeof(struct rswitch_ts_desc) *
+					 (gq->ring_size + 1), &gq->ring_dma, GFP_KERNEL);
+
+	if (!gq->ts_ring)
+		return -ENOMEM;
+
+	rswitch_gwca_ts_queue_fill(priv, 0, TS_RING_SIZE);
+	desc = &gq->ts_ring[gq->ring_size];
+	desc->desc.die_dt = DT_LINKFIX;
+	rswitch_desc_set_dptr(&desc->desc, gq->ring_dma);
+	INIT_LIST_HEAD(&priv->gwca.ts_info_list);
+
+	return 0;
 }
 
 static struct rswitch_gwca_queue *rswitch_gwca_get(struct rswitch_private *priv)
@@ -1485,7 +1496,7 @@ static netdev_tx_t rswitch_start_xmit(struct sk_buff *skb, struct net_device *nd
 
 	if (rswitch_get_num_cur_queues(gq) >= gq->ring_size - 1) {
 		netif_stop_subqueue(ndev, 0);
-		return ret;
+		return NETDEV_TX_BUSY;
 	}
 
 	if (skb_put_padto(skb, ETH_ZLEN))
@@ -1779,9 +1790,6 @@ static int rswitch_init(struct rswitch_private *priv)
 	err = rswitch_gwca_ts_queue_alloc(priv);
 	if (err < 0)
 		goto err_ts_queue_alloc;
-
-	rswitch_gwca_ts_queue_fill(priv, 0, TS_RING_SIZE);
-	INIT_LIST_HEAD(&priv->gwca.ts_info_list);
 
 	for (i = 0; i < RSWITCH_NUM_PORTS; i++) {
 		err = rswitch_device_alloc(priv, i);

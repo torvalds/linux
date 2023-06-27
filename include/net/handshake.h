@@ -24,6 +24,7 @@ struct tls_handshake_args {
 	struct socket		*ta_sock;
 	tls_done_func_t		ta_done;
 	void			*ta_data;
+	const char		*ta_peername;
 	unsigned int		ta_timeout_ms;
 	key_serial_t		ta_keyring;
 	key_serial_t		ta_my_cert;

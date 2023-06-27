@@ -373,7 +373,7 @@ static int ov2680_get_fmt(struct v4l2_subdev *sd,
 static int ov2680_detect(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	u32 high, low;
+	u32 high = 0, low = 0;
 	int ret;
 	u16 id;
 	u8 revision;
@@ -383,7 +383,7 @@ static int ov2680_detect(struct i2c_client *client)
 
 	ret = ov_read_reg8(client, OV2680_SC_CMMN_CHIP_ID_H, &high);
 	if (ret) {
-		dev_err(&client->dev, "sensor_id_high = 0x%x\n", high);
+		dev_err(&client->dev, "sensor_id_high read failed (%d)\n", ret);
 		return -ENODEV;
 	}
 	ret = ov_read_reg8(client, OV2680_SC_CMMN_CHIP_ID_L, &low);

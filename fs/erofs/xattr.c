@@ -675,7 +675,7 @@ int erofs_xattr_prefixes_init(struct super_block *sb)
 	if (!pfs)
 		return -ENOMEM;
 
-	if (erofs_sb_has_fragments(sbi))
+	if (sbi->packed_inode)
 		buf.inode = sbi->packed_inode;
 	else
 		erofs_init_metabuf(&buf, sb);

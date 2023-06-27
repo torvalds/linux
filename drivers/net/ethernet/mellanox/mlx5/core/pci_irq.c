@@ -32,6 +32,7 @@ struct mlx5_irq {
 	struct mlx5_irq_pool *pool;
 	int refcount;
 	struct msi_map map;
+	u32 pool_index;
 };
 
 struct mlx5_irq_table {
@@ -125,14 +126,22 @@ out:
 	return ret;
 }
 
-static void irq_release(struct mlx5_irq *irq)
+/* mlx5_system_free_irq - Free an IRQ
+ * @irq: IRQ to free
+ *
+ * Free the IRQ and other resources such as rmap from the system.
+ * BUT doesn't free or remove reference from mlx5.
+ * This function is very important for the shutdown flow, where we need to
+ * cleanup system resoruces but keep mlx5 objects alive,
+ * see mlx5_irq_table_free_irqs().
+ */
+static void mlx5_system_free_irq(struct mlx5_irq *irq)
 {
 	struct mlx5_irq_pool *pool = irq->pool;
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap *rmap;
 #endif
 
-	xa_erase(&pool->irqs, irq->map.index);
 	/* free_irq requires that affinity_hint and rmap will be cleared before
 	 * calling it. To satisfy this requirement, we call
 	 * irq_cpu_rmap_remove() to remove the notifier
@@ -140,14 +149,22 @@ static void irq_release(struct mlx5_irq *irq)
 	irq_update_affinity_hint(irq->map.virq, NULL);
 #ifdef CONFIG_RFS_ACCEL
 	rmap = mlx5_eq_table_get_rmap(pool->dev);
-	if (rmap && irq->map.index)
+	if (rmap)
 		irq_cpu_rmap_remove(rmap, irq->map.virq);
 #endif
 
-	free_cpumask_var(irq->mask);
 	free_irq(irq->map.virq, &irq->nh);
 	if (irq->map.index && pci_msix_can_alloc_dyn(pool->dev->pdev))
 		pci_msix_free_irq(pool->dev->pdev, irq->map);
+}
+
+static void irq_release(struct mlx5_irq *irq)
+{
+	struct mlx5_irq_pool *pool = irq->pool;
+
+	xa_erase(&pool->irqs, irq->pool_index);
+	mlx5_system_free_irq(irq);
+	free_cpumask_var(irq->mask);
 	kfree(irq);
 }
 
@@ -231,12 +248,13 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	if (!irq)
 		return ERR_PTR(-ENOMEM);
 	if (!i || !pci_msix_can_alloc_dyn(dev->pdev)) {
-		/* The vector at index 0 was already allocated.
-		 * Just get the irq number. If dynamic irq is not supported
-		 * vectors have also been allocated.
+		/* The vector at index 0 is always statically allocated. If
+		 * dynamic irq is not supported all vectors are statically
+		 * allocated. In both cases just get the irq number and set
+		 * the index.
 		 */
 		irq->map.virq = pci_irq_vector(dev->pdev, i);
-		irq->map.index = 0;
+		irq->map.index = i;
 	} else {
 		irq->map = pci_msix_alloc_irq_at(dev->pdev, MSI_ANY_INDEX, af_desc);
 		if (!irq->map.virq) {
@@ -276,11 +294,11 @@ struct mlx5_irq *mlx5_irq_alloc(struct mlx5_irq_pool *pool, int i,
 	}
 	irq->pool = pool;
 	irq->refcount = 1;
-	irq->map.index = i;
-	err = xa_err(xa_store(&pool->irqs, irq->map.index, irq, GFP_KERNEL));
+	irq->pool_index = i;
+	err = xa_err(xa_store(&pool->irqs, irq->pool_index, irq, GFP_KERNEL));
 	if (err) {
 		mlx5_core_err(dev, "Failed to alloc xa entry for irq(%u). err = %d\n",
-			      irq->map.index, err);
+			      irq->pool_index, err);
 		goto err_xa;
 	}
 	return irq;
@@ -563,17 +581,23 @@ void mlx5_irqs_release_vectors(struct mlx5_irq **irqs, int nirqs)
 int mlx5_irqs_request_vectors(struct mlx5_core_dev *dev, u16 *cpus, int nirqs,
 			      struct mlx5_irq **irqs, struct cpu_rmap **rmap)
 {
+	struct mlx5_irq_table *table = mlx5_irq_table_get(dev);
+	struct mlx5_irq_pool *pool = table->pcif_pool;
 	struct irq_affinity_desc af_desc;
 	struct mlx5_irq *irq;
+	int offset = 1;
 	int i;
 
-	af_desc.is_managed = 1;
+	if (!pool->xa_num_irqs.max)
+		offset = 0;
+
+	af_desc.is_managed = false;
 	for (i = 0; i < nirqs; i++) {
+		cpumask_clear(&af_desc.mask);
 		cpumask_set_cpu(cpus[i], &af_desc.mask);
-		irq = mlx5_irq_request(dev, i + 1, &af_desc, rmap);
+		irq = mlx5_irq_request(dev, i + offset, &af_desc, rmap);
 		if (IS_ERR(irq))
 			break;
-		cpumask_clear(&af_desc.mask);
 		irqs[i] = irq;
 	}
 
@@ -691,6 +715,25 @@ static void irq_pools_destroy(struct mlx5_irq_table *table)
 	irq_pool_free(table->pcif_pool);
 }
 
+static void mlx5_irq_pool_free_irqs(struct mlx5_irq_pool *pool)
+{
+	struct mlx5_irq *irq;
+	unsigned long index;
+
+	xa_for_each(&pool->irqs, index, irq)
+		mlx5_system_free_irq(irq);
+
+}
+
+static void mlx5_irq_pools_free_irqs(struct mlx5_irq_table *table)
+{
+	if (table->sf_ctrl_pool) {
+		mlx5_irq_pool_free_irqs(table->sf_comp_pool);
+		mlx5_irq_pool_free_irqs(table->sf_ctrl_pool);
+	}
+	mlx5_irq_pool_free_irqs(table->pcif_pool);
+}
+
 /* irq_table API */
 
 int mlx5_irq_table_init(struct mlx5_core_dev *dev)
@@ -771,6 +814,17 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	 * to here. Hence, making sure all the irqs are released.
 	 */
 	irq_pools_destroy(table);
+	pci_free_irq_vectors(dev->pdev);
+}
+
+void mlx5_irq_table_free_irqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_table *table = dev->priv.irq_table;
+
+	if (mlx5_core_is_sf(dev))
+		return;
+
+	mlx5_irq_pools_free_irqs(table);
 	pci_free_irq_vectors(dev->pdev);
 }
 

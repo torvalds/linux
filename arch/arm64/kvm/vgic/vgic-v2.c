@@ -312,12 +312,6 @@ int vgic_v2_map_resources(struct kvm *kvm)
 		return ret;
 	}
 
-	ret = vgic_register_dist_iodev(kvm, dist->vgic_dist_base, VGIC_V2);
-	if (ret) {
-		kvm_err("Unable to register VGIC MMIO regions\n");
-		return ret;
-	}
-
 	if (!static_branch_unlikely(&vgic_v2_cpuif_trap)) {
 		ret = kvm_phys_addr_ioremap(kvm, dist->vgic_cpu_base,
 					    kvm_vgic_global_state.vcpu_base,

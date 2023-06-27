@@ -2070,7 +2070,6 @@ static int collapse_file(struct mm_struct *mm, unsigned long addr,
 					TTU_IGNORE_MLOCK | TTU_BATCH_FLUSH);
 
 		xas_lock_irq(&xas);
-		xas_set(&xas, index);
 
 		VM_BUG_ON_PAGE(page != xas_load(&xas), page);
 

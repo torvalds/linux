@@ -48,7 +48,7 @@ int handshake_genl_notify(struct net *net, const struct handshake_proto *proto,
 				proto->hp_handler_class))
 		return -ESRCH;
 
-	msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, flags);
 	if (!msg)
 		return -ENOMEM;
 
@@ -99,9 +99,6 @@ static int handshake_dup(struct socket *sock)
 	struct file *file;
 	int newfd;
 
-	if (!sock->file)
-		return -EBADF;
-
 	file = get_file(sock->file);
 	newfd = get_unused_fd_flags(O_CLOEXEC);
 	if (newfd < 0) {
@@ -142,15 +139,16 @@ int handshake_nl_accept_doit(struct sk_buff *skb, struct genl_info *info)
 		goto out_complete;
 	}
 	err = req->hr_proto->hp_accept(req, info, fd);
-	if (err)
+	if (err) {
+		fput(sock->file);
 		goto out_complete;
+	}
 
 	trace_handshake_cmd_accept(net, req, req->hr_sk, fd);
 	return 0;
 
 out_complete:
 	handshake_complete(req, -EIO, NULL);
-	fput(sock->file);
 out_status:
 	trace_handshake_cmd_accept_err(net, req, NULL, err);
 	return err;
@@ -159,8 +157,8 @@ out_status:
 int handshake_nl_done_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = sock_net(skb->sk);
+	struct handshake_req *req = NULL;
 	struct socket *sock = NULL;
-	struct handshake_req *req;
 	int fd, status, err;
 
 	if (GENL_REQ_ATTR_CHECK(info, HANDSHAKE_A_DONE_SOCKFD))

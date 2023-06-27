@@ -704,9 +704,6 @@ static int cs35l56_sdw_dai_hw_free(struct snd_pcm_substream *substream,
 static int cs35l56_sdw_dai_set_stream(struct snd_soc_dai *dai,
 				      void *sdw_stream, int direction)
 {
-	if (!sdw_stream)
-		return 0;
-
 	snd_soc_dai_dma_data_set(dai, direction, sdw_stream);
 
 	return 0;
@@ -852,10 +849,11 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	 */
 	if (cs35l56->sdw_peripheral) {
 		cs35l56->sdw_irq_no_unmask = true;
-		cancel_work_sync(&cs35l56->sdw_irq_work);
+		flush_work(&cs35l56->sdw_irq_work);
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1, 0);
 		sdw_read_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1);
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_STAT_1, 0xFF);
+		flush_work(&cs35l56->sdw_irq_work);
 	}
 
 	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_SHUTDOWN);

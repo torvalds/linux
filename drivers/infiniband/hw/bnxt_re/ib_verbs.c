@@ -208,6 +208,7 @@ int bnxt_re_query_port(struct ib_device *ibdev, u32 port_num,
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
+	int rc;
 
 	memset(port_attr, 0, sizeof(*port_attr));
 
@@ -237,10 +238,10 @@ int bnxt_re_query_port(struct ib_device *ibdev, u32 port_num,
 	port_attr->sm_sl = 0;
 	port_attr->subnet_timeout = 0;
 	port_attr->init_type_reply = 0;
-	port_attr->active_speed = rdev->active_speed;
-	port_attr->active_width = rdev->active_width;
+	rc = ib_get_eth_speed(&rdev->ibdev, port_num, &port_attr->active_speed,
+			      &port_attr->active_width);
 
-	return 0;
+	return rc;
 }
 
 int bnxt_re_get_port_immutable(struct ib_device *ibdev, u32 port_num,
@@ -3413,9 +3414,7 @@ static int bnxt_re_process_raw_qp_pkt_rx(struct bnxt_re_qp *gsi_qp,
 	udwr.remote_qkey = gsi_sqp->qplib_qp.qkey;
 
 	/* post data received  in the send queue */
-	rc = bnxt_re_post_send_shadow_qp(rdev, gsi_sqp, swr);
-
-	return 0;
+	return bnxt_re_post_send_shadow_qp(rdev, gsi_sqp, swr);
 }
 
 static void bnxt_re_process_res_rawqp1_wc(struct ib_wc *wc,

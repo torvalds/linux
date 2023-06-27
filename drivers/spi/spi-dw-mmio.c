@@ -264,17 +264,17 @@ static void dw_spi_elba_set_cs(struct spi_device *spi, bool enable)
 	struct regmap *syscon = dwsmmio->priv;
 	u8 cs;
 
-	cs = spi->chip_select;
+	cs = spi_get_chipselect(spi, 0);
 	if (cs < 2)
-		dw_spi_elba_override_cs(syscon, spi->chip_select, enable);
+		dw_spi_elba_override_cs(syscon, spi_get_chipselect(spi, 0), enable);
 
 	/*
 	 * The DW SPI controller needs a native CS bit selected to start
 	 * the serial engine.
 	 */
-	spi->chip_select = 0;
+	spi_set_chipselect(spi, 0, 0);
 	dw_spi_set_cs(spi, enable);
-	spi->chip_select = cs;
+	spi_set_chipselect(spi, 0, cs);
 }
 
 static int dw_spi_elba_init(struct platform_device *pdev,

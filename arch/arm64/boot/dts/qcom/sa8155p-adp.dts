@@ -7,7 +7,7 @@
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "sm8150.dtsi"
+#include "sa8155p.dtsi"
 #include "pmm8155au_1.dtsi"
 #include "pmm8155au_2.dtsi"
 
