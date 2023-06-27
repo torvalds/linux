@@ -1789,7 +1789,7 @@ static int enetc_alloc_tx_resource(struct enetc_bdr_resource *res,
 	res->bd_count = bd_count;
 	res->bd_size = sizeof(union enetc_tx_bd);
 
-	res->tx_swbd = vzalloc(bd_count * sizeof(*res->tx_swbd));
+	res->tx_swbd = vcalloc(bd_count, sizeof(*res->tx_swbd));
 	if (!res->tx_swbd)
 		return -ENOMEM;
 
@@ -1877,7 +1877,7 @@ static int enetc_alloc_rx_resource(struct enetc_bdr_resource *res,
 	if (extended)
 		res->bd_size *= 2;
 
-	res->rx_swbd = vzalloc(bd_count * sizeof(struct enetc_rx_swbd));
+	res->rx_swbd = vcalloc(bd_count, sizeof(struct enetc_rx_swbd));
 	if (!res->rx_swbd)
 		return -ENOMEM;
 
