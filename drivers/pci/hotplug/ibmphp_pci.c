@@ -329,7 +329,7 @@ error:
 static int configure_device(struct pci_func *func)
 {
 	u32 bar[6];
-	u32 address[] = {
+	static const u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
 		PCI_BASE_ADDRESS_2,
@@ -564,7 +564,7 @@ static int configure_bridge(struct pci_func **func_passed, u8 slotno)
 	struct resource_node *pfmem = NULL;
 	struct resource_node *bus_pfmem[2] = {NULL, NULL};
 	struct bus_node *bus;
-	u32 address[] = {
+	static const u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
 		0
@@ -1053,7 +1053,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 	int howmany = 0;	/*this is to see if there are any devices behind the bridge */
 
 	u32 bar[6], class;
-	u32 address[] = {
+	static const u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
 		PCI_BASE_ADDRESS_2,
@@ -1182,7 +1182,7 @@ static struct res_needed *scan_behind_bridge(struct pci_func *func, u8 busno)
 static int unconfigure_boot_device(u8 busno, u8 device, u8 function)
 {
 	u32 start_address;
-	u32 address[] = {
+	static const u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
 		PCI_BASE_ADDRESS_2,
@@ -1310,7 +1310,7 @@ static int unconfigure_boot_bridge(u8 busno, u8 device, u8 function)
 	struct resource_node *mem = NULL;
 	struct resource_node *pfmem = NULL;
 	struct bus_node *bus;
-	u32 address[] = {
+	static const u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,
 		0
