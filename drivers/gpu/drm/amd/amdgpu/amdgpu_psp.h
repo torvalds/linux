@@ -384,6 +384,10 @@ struct psp_context
 
 	uint32_t			boot_cfg_bitmask;
 
+	/* firmware upgrades supported */
+	bool				sup_pd_fw_up;
+	bool				sup_ifwi_up;
+
 	char *vbflash_tmp_buf;
 	size_t vbflash_image_size;
 	bool vbflash_done;

@@ -177,9 +177,11 @@ static int psp_early_init(void *handle)
 		psp->autoload_supported = false;
 		break;
 	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 7):
+		adev->psp.sup_pd_fw_up = !amdgpu_sriov_vf(adev);
+		fallthrough;
 	case IP_VERSION(11, 0, 5):
 	case IP_VERSION(11, 0, 9):
-	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(11, 0, 11):
 	case IP_VERSION(11, 5, 0):
 	case IP_VERSION(11, 0, 12):
@@ -214,6 +216,7 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(13, 0, 10):
 		psp_v13_0_set_psp_funcs(psp);
 		psp->autoload_supported = true;
+		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
 		break;
 	case IP_VERSION(13, 0, 4):
 		psp_v13_0_4_set_psp_funcs(psp);
@@ -3704,9 +3707,13 @@ static ssize_t amdgpu_psp_vbflash_status(struct device *dev,
 }
 static DEVICE_ATTR(psp_vbflash_status, 0440, amdgpu_psp_vbflash_status, NULL);
 
+static struct bin_attribute *bin_flash_attrs[] = {
+	&psp_vbflash_bin_attr,
+	NULL
+};
+
 static struct attribute *flash_attrs[] = {
 	&dev_attr_psp_vbflash_status.attr,
-	&psp_vbflash_bin_attr.attr,
 	&dev_attr_usbc_pd_fw.attr,
 	NULL
 };
@@ -3717,29 +3724,27 @@ static umode_t amdgpu_flash_attr_is_visible(struct kobject *kobj, struct attribu
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	if (amdgpu_sriov_vf(adev))
-		return 0;
+	if (attr == &dev_attr_usbc_pd_fw.attr)
+		return adev->psp.sup_pd_fw_up ? 0660 : 0;
 
-	switch (adev->ip_versions[MP0_HWIP][0]) {
-	case IP_VERSION(11, 0, 0):
-	case IP_VERSION(11, 0, 7):
-		if (attr == &dev_attr_usbc_pd_fw.attr)
-			return 0660;
-		return 0;
-	case IP_VERSION(13, 0, 0):
-	case IP_VERSION(13, 0, 7):
-		if (attr == &dev_attr_usbc_pd_fw.attr)
-			return 0;
-		else if (attr == &psp_vbflash_bin_attr.attr)
-			return 0660;
-		return 0440;
-	default:
-		return 0;
-	}
+	return adev->psp.sup_ifwi_up ? 0440 : 0;
+}
+
+static umode_t amdgpu_bin_flash_attr_is_visible(struct kobject *kobj,
+						struct bin_attribute *attr,
+						int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	return adev->psp.sup_ifwi_up ? 0660 : 0;
 }
 
 const struct attribute_group amdgpu_flash_attr_group = {
 	.attrs = flash_attrs,
+	.bin_attrs = bin_flash_attrs,
+	.is_bin_visible = amdgpu_bin_flash_attr_is_visible,
 	.is_visible = amdgpu_flash_attr_is_visible,
 };
 
