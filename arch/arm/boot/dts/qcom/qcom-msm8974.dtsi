@@ -346,6 +346,12 @@
 			reg = <0xf9011000 0x1000>;
 		};
 
+		saw_l2: power-controller@f9012000 {
+			compatible = "qcom,saw2";
+			reg = <0xf9012000 0x1000>;
+			regulator;
+		};
+
 		timer@f9020000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -405,35 +411,14 @@
 			};
 		};
 
-		saw0: power-controller@f9089000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw1: power-controller@f9099000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw2: power-controller@f90a9000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw3: power-controller@f90b9000 {
-			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
-			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
-		};
-
-		saw_l2: power-controller@f9012000 {
-			compatible = "qcom,saw2";
-			reg = <0xf9012000 0x1000>;
-			regulator;
-		};
-
 		acc0: power-manager@f9088000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf9088000 0x1000>, <0xf9008000 0x1000>;
+		};
+
+		saw0: power-controller@f9089000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
 		};
 
 		acc1: power-manager@f9098000 {
@@ -441,14 +426,29 @@
 			reg = <0xf9098000 0x1000>, <0xf9008000 0x1000>;
 		};
 
+		saw1: power-controller@f9099000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
+		};
+
 		acc2: power-manager@f90a8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90a8000 0x1000>, <0xf9008000 0x1000>;
 		};
 
+		saw2: power-controller@f90a9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
+		};
+
 		acc3: power-manager@f90b8000 {
 			compatible = "qcom,kpss-acc-v2";
 			reg = <0xf90b8000 0x1000>, <0xf9008000 0x1000>;
+		};
+
+		saw3: power-controller@f90b9000 {
+			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
+			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
 		};
 
 		sdhc_1: mmc@f9824900 {
@@ -1063,6 +1063,15 @@
 			};
 		};
 
+		bimc: interconnect@fc380000 {
+			reg = <0xfc380000 0x6a000>;
+			compatible = "qcom,msm8974-bimc";
+			#interconnect-cells = <1>;
+			clock-names = "bus", "bus_a";
+			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
+				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
+		};
+
 		gcc: clock-controller@fc400000 {
 			compatible = "qcom,gcc-msm8974";
 			#clock-cells = <1>;
@@ -1099,15 +1108,6 @@
 			pronto_master_stats: sram@1f50 {
 				reg = <0x1f50 0x14>;
 			};
-		};
-
-		bimc: interconnect@fc380000 {
-			reg = <0xfc380000 0x6a000>;
-			compatible = "qcom,msm8974-bimc";
-			#interconnect-cells = <1>;
-			clock-names = "bus", "bus_a";
-			clocks = <&rpmcc RPM_SMD_BIMC_CLK>,
-				 <&rpmcc RPM_SMD_BIMC_A_CLK>;
 		};
 
 		snoc: interconnect@fc460000 {
