@@ -902,11 +902,6 @@ static int sdma_v4_4_2_inst_start(struct amdgpu_device *adev,
 		WREG32_SDMA(i, regSDMA_CNTL, temp);
 
 		if (!amdgpu_sriov_vf(adev)) {
-			ring = &adev->sdma.instance[i].ring;
-			adev->nbio.funcs->sdma_doorbell_range(adev, i,
-				ring->use_doorbell, ring->doorbell_index,
-				adev->doorbell_index.sdma_doorbell_range);
-
 			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 				/* unhalt engine */
 				temp = RREG32_SDMA(i, regSDMA_F32_CNTL);
