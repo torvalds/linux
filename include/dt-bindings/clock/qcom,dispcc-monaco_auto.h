@@ -73,8 +73,7 @@
 #define DISP_CC_SLEEP_CLK					63
 #define DISP_CC_SLEEP_CLK_SRC					64
 #define DISP_CC_XO_CLK						65
-#define DISP_CC_SM_OBS_CLK					66
-#define DISP_CC_XO_CLK_SRC					67
+#define DISP_CC_XO_CLK_SRC					66
 
 /* DISP_CC power domains */
 #define DISP_CC_MDSS_CORE_GDSC					0
