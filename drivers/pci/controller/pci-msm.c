@@ -6667,13 +6667,14 @@ int msm_pcie_deenumerate(u32 rc_idx)
 }
 EXPORT_SYMBOL_GPL(msm_pcie_deenumerate);
 
-static void msm_pcie_notify_client(struct msm_pcie_dev_t *dev,
+static bool msm_pcie_notify_client(struct msm_pcie_dev_t *dev,
 					enum msm_pcie_event event)
 {
 	struct msm_pcie_register_event *reg_itr, *temp;
 	struct msm_pcie_notify *notify;
 	struct msm_pcie_notify client_notify;
 	unsigned long flags;
+	bool notified = false;
 
 	spin_lock_irqsave(&dev->evt_reg_list_lock, flags);
 	list_for_each_entry_safe(reg_itr, temp, &dev->event_reg_list, node) {
@@ -6696,6 +6697,7 @@ static void msm_pcie_notify_client(struct msm_pcie_dev_t *dev,
 			spin_unlock_irqrestore(&dev->evt_reg_list_lock, flags);
 
 			reg_itr->callback(&client_notify);
+			notified = true;
 
 			spin_lock_irqsave(&dev->evt_reg_list_lock, flags);
 			if ((reg_itr->options & MSM_PCIE_CONFIG_NO_RECOVERY) &&
@@ -6710,6 +6712,8 @@ static void msm_pcie_notify_client(struct msm_pcie_dev_t *dev,
 		}
 	}
 	spin_unlock_irqrestore(&dev->evt_reg_list_lock, flags);
+
+	return notified;
 }
 
 static void handle_sbr_func(struct work_struct *work)
@@ -9818,8 +9822,9 @@ static void msm_pcie_drv_connect_worker(struct work_struct *work)
 		if (!drv_info || drv_info->ep_connected)
 			continue;
 
-		msm_pcie_notify_client(pcie_itr,
-				       MSM_PCIE_EVENT_DRV_CONNECT);
+		if (!msm_pcie_notify_client(pcie_itr,
+					    MSM_PCIE_EVENT_DRV_CONNECT))
+			continue;
 
 		mutex_lock(&pcie_itr->drv_pc_lock);
 		drv_info->ep_connected = true;
