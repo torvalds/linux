@@ -1168,7 +1168,7 @@
 			reset-names = "rst_apb", "rst_core", "rst_timer";
 			frequency = <40000000>;
 			starfive,sys-syscon = <&sys_syscon 0x88 0x12 0x40000>;
-			syscon,can_or_canfd = <1>;
+			syscon,can_or_canfd = <0>;
 			status = "disabled";
 		};
 
