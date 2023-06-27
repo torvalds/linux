@@ -1967,7 +1967,7 @@ struct bp_patching_desc *try_get_desc(void)
 {
 	struct bp_patching_desc *desc = &bp_desc;
 
-	if (!arch_atomic_inc_not_zero(&desc->refs))
+	if (!raw_atomic_inc_not_zero(&desc->refs))
 		return NULL;
 
 	return desc;
@@ -1978,7 +1978,7 @@ static __always_inline void put_desc(void)
 	struct bp_patching_desc *desc = &bp_desc;
 
 	smp_mb__before_atomic();
-	arch_atomic_dec(&desc->refs);
+	raw_atomic_dec(&desc->refs);
 }
 
 static __always_inline void *text_poke_addr(struct text_poke_loc *tp)

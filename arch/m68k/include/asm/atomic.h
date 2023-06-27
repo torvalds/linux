@@ -106,6 +106,11 @@ static inline int arch_atomic_fetch_##op(int i, atomic_t * v)		\
 ATOMIC_OPS(add, +=, add)
 ATOMIC_OPS(sub, -=, sub)
 
+#define arch_atomic_add_return			arch_atomic_add_return
+#define arch_atomic_sub_return			arch_atomic_sub_return
+#define arch_atomic_fetch_add			arch_atomic_fetch_add
+#define arch_atomic_fetch_sub			arch_atomic_fetch_sub
+
 #undef ATOMIC_OPS
 #define ATOMIC_OPS(op, c_op, asm_op)					\
 	ATOMIC_OP(op, c_op, asm_op)					\
@@ -114,6 +119,10 @@ ATOMIC_OPS(sub, -=, sub)
 ATOMIC_OPS(and, &=, and)
 ATOMIC_OPS(or, |=, or)
 ATOMIC_OPS(xor, ^=, eor)
+
+#define arch_atomic_fetch_and			arch_atomic_fetch_and
+#define arch_atomic_fetch_or			arch_atomic_fetch_or
+#define arch_atomic_fetch_xor			arch_atomic_fetch_xor
 
 #undef ATOMIC_OPS
 #undef ATOMIC_FETCH_OP
@@ -158,12 +167,7 @@ static inline int arch_atomic_inc_and_test(atomic_t *v)
 }
 #define arch_atomic_inc_and_test arch_atomic_inc_and_test
 
-#ifdef CONFIG_RMW_INSNS
-
-#define arch_atomic_cmpxchg(v, o, n) ((int)arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
-
-#else /* !CONFIG_RMW_INSNS */
+#ifndef CONFIG_RMW_INSNS
 
 static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
@@ -177,6 +181,7 @@ static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 	local_irq_restore(flags);
 	return prev;
 }
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
 static inline int arch_atomic_xchg(atomic_t *v, int new)
 {
@@ -189,6 +194,7 @@ static inline int arch_atomic_xchg(atomic_t *v, int new)
 	local_irq_restore(flags);
 	return prev;
 }
+#define arch_atomic_xchg arch_atomic_xchg
 
 #endif /* !CONFIG_RMW_INSNS */
 
