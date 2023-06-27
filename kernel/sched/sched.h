@@ -286,12 +286,6 @@ struct rt_bandwidth {
 
 void __dl_clear_params(struct task_struct *p);
 
-struct dl_bandwidth {
-	raw_spinlock_t		dl_runtime_lock;
-	u64			dl_runtime;
-	u64			dl_period;
-};
-
 static inline int dl_bandwidth_enabled(void)
 {
 	return sysctl_sched_rt_runtime >= 0;
@@ -752,6 +746,12 @@ struct dl_rq {
 	 */
 	u64			this_bw;
 	u64			extra_bw;
+
+	/*
+	 * Maximum available bandwidth for reclaiming by SCHED_FLAG_RECLAIM
+	 * tasks of this rq. Used in calculation of reclaimable bandwidth(GRUB).
+	 */
+	u64			max_bw;
 
 	/*
 	 * Inverse of the fraction of CPU utilization that can be reclaimed
@@ -1546,6 +1546,28 @@ static inline void rq_clock_cancel_skipupdate(struct rq *rq)
 	rq->clock_update_flags &= ~RQCF_REQ_SKIP;
 }
 
+/*
+ * During cpu offlining and rq wide unthrottling, we can trigger
+ * an update_rq_clock() for several cfs and rt runqueues (Typically
+ * when using list_for_each_entry_*)
+ * rq_clock_start_loop_update() can be called after updating the clock
+ * once and before iterating over the list to prevent multiple update.
+ * After the iterative traversal, we need to call rq_clock_stop_loop_update()
+ * to clear RQCF_ACT_SKIP of rq->clock_update_flags.
+ */
+static inline void rq_clock_start_loop_update(struct rq *rq)
+{
+	lockdep_assert_rq_held(rq);
+	SCHED_WARN_ON(rq->clock_update_flags & RQCF_ACT_SKIP);
+	rq->clock_update_flags |= RQCF_ACT_SKIP;
+}
+
+static inline void rq_clock_stop_loop_update(struct rq *rq)
+{
+	lockdep_assert_rq_held(rq);
+	rq->clock_update_flags &= ~RQCF_ACT_SKIP;
+}
+
 struct rq_flags {
 	unsigned long flags;
 	struct pin_cookie cookie;
@@ -1772,6 +1794,13 @@ queue_balance_callback(struct rq *rq,
 	for (__sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd); \
 			__sd; __sd = __sd->parent)
 
+/* A mask of all the SD flags that have the SDF_SHARED_CHILD metaflag */
+#define SD_FLAG(name, mflags) (name * !!((mflags) & SDF_SHARED_CHILD)) |
+static const unsigned int SD_SHARED_CHILD_MASK =
+#include <linux/sched/sd_flags.h>
+0;
+#undef SD_FLAG
+
 /**
  * highest_flag_domain - Return highest sched_domain containing flag.
  * @cpu:	The CPU whose highest level of sched domain is to
@@ -1779,16 +1808,25 @@ queue_balance_callback(struct rq *rq,
  * @flag:	The flag to check for the highest sched_domain
  *		for the given CPU.
  *
- * Returns the highest sched_domain of a CPU which contains the given flag.
+ * Returns the highest sched_domain of a CPU which contains @flag. If @flag has
+ * the SDF_SHARED_CHILD metaflag, all the children domains also have @flag.
  */
 static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 {
 	struct sched_domain *sd, *hsd = NULL;
 
 	for_each_domain(cpu, sd) {
-		if (!(sd->flags & flag))
+		if (sd->flags & flag) {
+			hsd = sd;
+			continue;
+		}
+
+		/*
+		 * Stop the search if @flag is known to be shared at lower
+		 * levels. It will not be found further up.
+		 */
+		if (flag & SD_SHARED_CHILD_MASK)
 			break;
-		hsd = sd;
 	}
 
 	return hsd;
@@ -2378,7 +2416,6 @@ extern struct rt_bandwidth def_rt_bandwidth;
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
 extern bool sched_rt_bandwidth_account(struct rt_rq *rt_rq);
 
-extern void init_dl_bandwidth(struct dl_bandwidth *dl_b, u64 period, u64 runtime);
 extern void init_dl_task_timer(struct sched_dl_entity *dl_se);
 extern void init_dl_inactive_task_timer(struct sched_dl_entity *dl_se);
 
@@ -2946,53 +2983,9 @@ static inline unsigned long cpu_util_dl(struct rq *rq)
 	return READ_ONCE(rq->avg_dl.util_avg);
 }
 
-/**
- * cpu_util_cfs() - Estimates the amount of CPU capacity used by CFS tasks.
- * @cpu: the CPU to get the utilization for.
- *
- * The unit of the return value must be the same as the one of CPU capacity
- * so that CPU utilization can be compared with CPU capacity.
- *
- * CPU utilization is the sum of running time of runnable tasks plus the
- * recent utilization of currently non-runnable tasks on that CPU.
- * It represents the amount of CPU capacity currently used by CFS tasks in
- * the range [0..max CPU capacity] with max CPU capacity being the CPU
- * capacity at f_max.
- *
- * The estimated CPU utilization is defined as the maximum between CPU
- * utilization and sum of the estimated utilization of the currently
- * runnable tasks on that CPU. It preserves a utilization "snapshot" of
- * previously-executed tasks, which helps better deduce how busy a CPU will
- * be when a long-sleeping task wakes up. The contribution to CPU utilization
- * of such a task would be significantly decayed at this point of time.
- *
- * CPU utilization can be higher than the current CPU capacity
- * (f_curr/f_max * max CPU capacity) or even the max CPU capacity because
- * of rounding errors as well as task migrations or wakeups of new tasks.
- * CPU utilization has to be capped to fit into the [0..max CPU capacity]
- * range. Otherwise a group of CPUs (CPU0 util = 121% + CPU1 util = 80%)
- * could be seen as over-utilized even though CPU1 has 20% of spare CPU
- * capacity. CPU utilization is allowed to overshoot current CPU capacity
- * though since this is useful for predicting the CPU capacity required
- * after task migrations (scheduler-driven DVFS).
- *
- * Return: (Estimated) utilization for the specified CPU.
- */
-static inline unsigned long cpu_util_cfs(int cpu)
-{
-	struct cfs_rq *cfs_rq;
-	unsigned long util;
 
-	cfs_rq = &cpu_rq(cpu)->cfs;
-	util = READ_ONCE(cfs_rq->avg.util_avg);
-
-	if (sched_feat(UTIL_EST)) {
-		util = max_t(unsigned long, util,
-			     READ_ONCE(cfs_rq->avg.util_est.enqueued));
-	}
-
-	return min(util, capacity_orig_of(cpu));
-}
+extern unsigned long cpu_util_cfs(int cpu);
+extern unsigned long cpu_util_cfs_boost(int cpu);
 
 static inline unsigned long cpu_util_rt(struct rq *rq)
 {

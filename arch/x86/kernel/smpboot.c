@@ -602,7 +602,7 @@ static int x86_core_flags(void)
 #ifdef CONFIG_SCHED_SMT
 static int x86_smt_flags(void)
 {
-	return cpu_smt_flags() | x86_sched_itmt_flags();
+	return cpu_smt_flags();
 }
 #endif
 #ifdef CONFIG_SCHED_CLUSTER
@@ -613,50 +613,57 @@ static int x86_cluster_flags(void)
 #endif
 #endif
 
-static struct sched_domain_topology_level x86_numa_in_package_topology[] = {
-#ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
-#endif
-#ifdef CONFIG_SCHED_CLUSTER
-	{ cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS) },
-#endif
-#ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
-#endif
-	{ NULL, },
-};
-
-static struct sched_domain_topology_level x86_hybrid_topology[] = {
-#ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
-#endif
-#ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
-#endif
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
-	{ NULL, },
-};
-
-static struct sched_domain_topology_level x86_topology[] = {
-#ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
-#endif
-#ifdef CONFIG_SCHED_CLUSTER
-	{ cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS) },
-#endif
-#ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
-#endif
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
-	{ NULL, },
-};
-
 /*
  * Set if a package/die has multiple NUMA nodes inside.
  * AMD Magny-Cours, Intel Cluster-on-Die, and Intel
  * Sub-NUMA Clustering have this.
  */
 static bool x86_has_numa_in_package;
+
+static struct sched_domain_topology_level x86_topology[6];
+
+static void __init build_sched_topology(void)
+{
+	int i = 0;
+
+#ifdef CONFIG_SCHED_SMT
+	x86_topology[i++] = (struct sched_domain_topology_level){
+		cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT)
+	};
+#endif
+#ifdef CONFIG_SCHED_CLUSTER
+	/*
+	 * For now, skip the cluster domain on Hybrid.
+	 */
+	if (!cpu_feature_enabled(X86_FEATURE_HYBRID_CPU)) {
+		x86_topology[i++] = (struct sched_domain_topology_level){
+			cpu_clustergroup_mask, x86_cluster_flags, SD_INIT_NAME(CLS)
+		};
+	}
+#endif
+#ifdef CONFIG_SCHED_MC
+	x86_topology[i++] = (struct sched_domain_topology_level){
+		cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC)
+	};
+#endif
+	/*
+	 * When there is NUMA topology inside the package skip the DIE domain
+	 * since the NUMA domains will auto-magically create the right spanning
+	 * domains based on the SLIT.
+	 */
+	if (!x86_has_numa_in_package) {
+		x86_topology[i++] = (struct sched_domain_topology_level){
+			cpu_cpu_mask, SD_INIT_NAME(DIE)
+		};
+	}
+
+	/*
+	 * There must be one trailing NULL entry left.
+	 */
+	BUG_ON(i >= ARRAY_SIZE(x86_topology)-1);
+
+	set_sched_topology(x86_topology);
+}
 
 void set_cpu_sibling_map(int cpu)
 {
@@ -1264,15 +1271,6 @@ void __init smp_prepare_cpus_common(void)
 		zalloc_cpumask_var(&per_cpu(cpu_l2c_shared_map, i), GFP_KERNEL);
 	}
 
-	/*
-	 * Set 'default' x86 topology, this matches default_topology() in that
-	 * it has NUMA nodes as a topology level. See also
-	 * native_smp_cpus_done().
-	 *
-	 * Must be done before set_cpus_sibling_map() is ran.
-	 */
-	set_sched_topology(x86_topology);
-
 	set_cpu_sibling_map(0);
 }
 
@@ -1393,13 +1391,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	pr_debug("Boot done\n");
 
 	calculate_max_logical_packages();
-
-	/* XXX for now assume numa-in-package and hybrid don't overlap */
-	if (x86_has_numa_in_package)
-		set_sched_topology(x86_numa_in_package_topology);
-	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
-		set_sched_topology(x86_hybrid_topology);
-
+	build_sched_topology();
 	nmi_selftest();
 	impress_friends();
 	cache_aps_init();

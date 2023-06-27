@@ -266,7 +266,7 @@ static __always_inline u64 sched_clock_local(struct sched_clock_data *scd)
 	s64 delta;
 
 again:
-	now = sched_clock();
+	now = sched_clock_noinstr();
 	delta = now - scd->tick_raw;
 	if (unlikely(delta < 0))
 		delta = 0;
@@ -293,21 +293,28 @@ again:
 	return clock;
 }
 
-noinstr u64 local_clock(void)
+noinstr u64 local_clock_noinstr(void)
 {
 	u64 clock;
 
 	if (static_branch_likely(&__sched_clock_stable))
-		return sched_clock() + __sched_clock_offset;
+		return sched_clock_noinstr() + __sched_clock_offset;
 
 	if (!static_branch_likely(&sched_clock_running))
-		return sched_clock();
+		return sched_clock_noinstr();
 
-	preempt_disable_notrace();
 	clock = sched_clock_local(this_scd());
-	preempt_enable_notrace();
 
 	return clock;
+}
+
+u64 local_clock(void)
+{
+	u64 now;
+	preempt_disable_notrace();
+	now = local_clock_noinstr();
+	preempt_enable_notrace();
+	return now;
 }
 EXPORT_SYMBOL_GPL(local_clock);
 

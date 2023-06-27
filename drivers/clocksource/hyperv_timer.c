@@ -365,6 +365,20 @@ void hv_stimer_global_cleanup(void)
 }
 EXPORT_SYMBOL_GPL(hv_stimer_global_cleanup);
 
+static __always_inline u64 read_hv_clock_msr(void)
+{
+	/*
+	 * Read the partition counter to get the current tick count. This count
+	 * is set to 0 when the partition is created and is incremented in 100
+	 * nanosecond units.
+	 *
+	 * Use hv_raw_get_register() because this function is used from
+	 * noinstr. Notable; while HV_REGISTER_TIME_REF_COUNT is a synthetic
+	 * register it doesn't need the GHCB path.
+	 */
+	return hv_raw_get_register(HV_REGISTER_TIME_REF_COUNT);
+}
+
 /*
  * Code and definitions for the Hyper-V clocksources.  Two
  * clocksources are defined: one that reads the Hyper-V defined MSR, and
@@ -393,14 +407,20 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 }
 EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
-static u64 notrace read_hv_clock_tsc(void)
+static __always_inline u64 read_hv_clock_tsc(void)
 {
-	u64 current_tick = hv_read_tsc_page(hv_get_tsc_page());
+	u64 cur_tsc, time;
 
-	if (current_tick == U64_MAX)
-		current_tick = hv_get_register(HV_REGISTER_TIME_REF_COUNT);
+	/*
+	 * The Hyper-V Top-Level Function Spec (TLFS), section Timers,
+	 * subsection Refererence Counter, guarantees that the TSC and MSR
+	 * times are in sync and monotonic. Therefore we can fall back
+	 * to the MSR in case the TSC page indicates unavailability.
+	 */
+	if (!hv_read_tsc_page_tsc(tsc_page, &cur_tsc, &time))
+		time = read_hv_clock_msr();
 
-	return current_tick;
+	return time;
 }
 
 static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
@@ -408,7 +428,7 @@ static u64 notrace read_hv_clock_tsc_cs(struct clocksource *arg)
 	return read_hv_clock_tsc();
 }
 
-static u64 notrace read_hv_sched_clock_tsc(void)
+static u64 noinstr read_hv_sched_clock_tsc(void)
 {
 	return (read_hv_clock_tsc() - hv_sched_clock_offset) *
 		(NSEC_PER_SEC / HV_CLOCK_HZ);
@@ -459,16 +479,6 @@ static struct clocksource hyperv_cs_tsc = {
 	.vdso_clock_mode = VDSO_CLOCKMODE_NONE,
 #endif
 };
-
-static u64 notrace read_hv_clock_msr(void)
-{
-	/*
-	 * Read the partition counter to get the current tick count. This count
-	 * is set to 0 when the partition is created and is incremented in
-	 * 100 nanosecond units.
-	 */
-	return hv_get_register(HV_REGISTER_TIME_REF_COUNT);
-}
 
 static u64 notrace read_hv_clock_msr_cs(struct clocksource *arg)
 {

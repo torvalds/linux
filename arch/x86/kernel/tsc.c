@@ -69,11 +69,9 @@ static int __init tsc_early_khz_setup(char *buf)
 }
 early_param("tsc_early_khz", tsc_early_khz_setup);
 
-__always_inline void cyc2ns_read_begin(struct cyc2ns_data *data)
+__always_inline void __cyc2ns_read(struct cyc2ns_data *data)
 {
 	int seq, idx;
-
-	preempt_disable_notrace();
 
 	do {
 		seq = this_cpu_read(cyc2ns.seq.seqcount.sequence);
@@ -84,6 +82,12 @@ __always_inline void cyc2ns_read_begin(struct cyc2ns_data *data)
 		data->cyc2ns_shift  = this_cpu_read(cyc2ns.data[idx].cyc2ns_shift);
 
 	} while (unlikely(seq != this_cpu_read(cyc2ns.seq.seqcount.sequence)));
+}
+
+__always_inline void cyc2ns_read_begin(struct cyc2ns_data *data)
+{
+	preempt_disable_notrace();
+	__cyc2ns_read(data);
 }
 
 __always_inline void cyc2ns_read_end(void)
@@ -115,18 +119,25 @@ __always_inline void cyc2ns_read_end(void)
  *                      -johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 
-static __always_inline unsigned long long cycles_2_ns(unsigned long long cyc)
+static __always_inline unsigned long long __cycles_2_ns(unsigned long long cyc)
 {
 	struct cyc2ns_data data;
 	unsigned long long ns;
 
-	cyc2ns_read_begin(&data);
+	__cyc2ns_read(&data);
 
 	ns = data.cyc2ns_offset;
 	ns += mul_u64_u32_shr(cyc, data.cyc2ns_mul, data.cyc2ns_shift);
 
-	cyc2ns_read_end();
+	return ns;
+}
 
+static __always_inline unsigned long long cycles_2_ns(unsigned long long cyc)
+{
+	unsigned long long ns;
+	preempt_disable_notrace();
+	ns = __cycles_2_ns(cyc);
+	preempt_enable_notrace();
 	return ns;
 }
 
@@ -223,7 +234,7 @@ noinstr u64 native_sched_clock(void)
 		u64 tsc_now = rdtsc();
 
 		/* return the value in ns */
-		return cycles_2_ns(tsc_now);
+		return __cycles_2_ns(tsc_now);
 	}
 
 	/*
@@ -250,7 +261,7 @@ u64 native_sched_clock_from_tsc(u64 tsc)
 /* We need to define a real function for sched_clock, to override the
    weak default version */
 #ifdef CONFIG_PARAVIRT
-noinstr u64 sched_clock(void)
+noinstr u64 sched_clock_noinstr(void)
 {
 	return paravirt_sched_clock();
 }
@@ -260,10 +271,19 @@ bool using_native_sched_clock(void)
 	return static_call_query(pv_sched_clock) == native_sched_clock;
 }
 #else
-u64 sched_clock(void) __attribute__((alias("native_sched_clock")));
+u64 sched_clock_noinstr(void) __attribute__((alias("native_sched_clock")));
 
 bool using_native_sched_clock(void) { return true; }
 #endif
+
+notrace u64 sched_clock(void)
+{
+	u64 now;
+	preempt_disable_notrace();
+	now = sched_clock_noinstr();
+	preempt_enable_notrace();
+	return now;
+}
 
 int check_tsc_unstable(void)
 {
