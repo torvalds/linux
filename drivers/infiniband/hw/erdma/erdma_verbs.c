@@ -481,8 +481,8 @@ static int init_kernel_qp(struct erdma_dev *dev, struct erdma_qp *qp,
 		dev->func_bar + (ERDMA_SDB_SHARED_PAGE_INDEX << PAGE_SHIFT);
 	kqp->hw_rq_db = dev->func_bar + ERDMA_BAR_RQDB_SPACE_OFFSET;
 
-	kqp->swr_tbl = vmalloc(qp->attrs.sq_size * sizeof(u64));
-	kqp->rwr_tbl = vmalloc(qp->attrs.rq_size * sizeof(u64));
+	kqp->swr_tbl = vmalloc_array(qp->attrs.sq_size, sizeof(u64));
+	kqp->rwr_tbl = vmalloc_array(qp->attrs.rq_size, sizeof(u64));
 	if (!kqp->swr_tbl || !kqp->rwr_tbl)
 		goto err_out;
 
