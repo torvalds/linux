@@ -128,7 +128,7 @@ static struct i2c_driver goodix_i2c_hid_ts_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(goodix_i2c_hid_of_match),
 	},
-	.probe_new	= i2c_hid_of_goodix_probe,
+	.probe		= i2c_hid_of_goodix_probe,
 	.remove		= i2c_hid_core_remove,
 	.shutdown	= i2c_hid_core_shutdown,
 };
