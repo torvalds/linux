@@ -439,7 +439,11 @@ static int ocelot_ipv6_ptp_trap_del(struct ocelot *ocelot, int port)
 static int ocelot_setup_ptp_traps(struct ocelot *ocelot, int port,
 				  bool l2, bool l4)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	int err;
+
+	ocelot_port->trap_proto &= ~(OCELOT_PROTO_PTP_L2 |
+				     OCELOT_PROTO_PTP_L4);
 
 	if (l2)
 		err = ocelot_l2_ptp_trap_add(ocelot, port);
@@ -464,6 +468,11 @@ static int ocelot_setup_ptp_traps(struct ocelot *ocelot, int port,
 	if (err)
 		return err;
 
+	if (l2)
+		ocelot_port->trap_proto |= OCELOT_PROTO_PTP_L2;
+	if (l4)
+		ocelot_port->trap_proto |= OCELOT_PROTO_PTP_L4;
+
 	return 0;
 
 err_ipv6:
@@ -474,10 +483,38 @@ err_ipv4:
 	return err;
 }
 
+static int ocelot_traps_to_ptp_rx_filter(unsigned int proto)
+{
+	if ((proto & OCELOT_PROTO_PTP_L2) && (proto & OCELOT_PROTO_PTP_L4))
+		return HWTSTAMP_FILTER_PTP_V2_EVENT;
+	else if (proto & OCELOT_PROTO_PTP_L2)
+		return HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+	else if (proto & OCELOT_PROTO_PTP_L4)
+		return HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+
+	return HWTSTAMP_FILTER_NONE;
+}
+
 int ocelot_hwstamp_get(struct ocelot *ocelot, int port, struct ifreq *ifr)
 {
-	return copy_to_user(ifr->ifr_data, &ocelot->hwtstamp_config,
-			    sizeof(ocelot->hwtstamp_config)) ? -EFAULT : 0;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct hwtstamp_config cfg = {};
+
+	switch (ocelot_port->ptp_cmd) {
+	case IFH_REW_OP_TWO_STEP_PTP:
+		cfg.tx_type = HWTSTAMP_TX_ON;
+		break;
+	case IFH_REW_OP_ORIGIN_PTP:
+		cfg.tx_type = HWTSTAMP_TX_ONESTEP_SYNC;
+		break;
+	default:
+		cfg.tx_type = HWTSTAMP_TX_OFF;
+		break;
+	}
+
+	cfg.rx_filter = ocelot_traps_to_ptp_rx_filter(ocelot_port->trap_proto);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
 EXPORT_SYMBOL(ocelot_hwstamp_get);
 
@@ -509,8 +546,6 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 		return -ERANGE;
 	}
 
-	mutex_lock(&ocelot->ptp_lock);
-
 	switch (cfg.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		break;
@@ -531,28 +566,14 @@ int ocelot_hwstamp_set(struct ocelot *ocelot, int port, struct ifreq *ifr)
 		l4 = true;
 		break;
 	default:
-		mutex_unlock(&ocelot->ptp_lock);
 		return -ERANGE;
 	}
 
 	err = ocelot_setup_ptp_traps(ocelot, port, l2, l4);
-	if (err) {
-		mutex_unlock(&ocelot->ptp_lock);
+	if (err)
 		return err;
-	}
 
-	if (l2 && l4)
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-	else if (l2)
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
-	else if (l4)
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
-	else
-		cfg.rx_filter = HWTSTAMP_FILTER_NONE;
-
-	/* Commit back the result & save it */
-	memcpy(&ocelot->hwtstamp_config, &cfg, sizeof(cfg));
-	mutex_unlock(&ocelot->ptp_lock);
+	cfg.rx_filter = ocelot_traps_to_ptp_rx_filter(ocelot_port->trap_proto);
 
 	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
 }
