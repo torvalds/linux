@@ -148,7 +148,7 @@ static void *z_erofs_lz4_handle_overlap(struct z_erofs_lz4_decompress_ctx *ctx,
 		*maptype = 0;
 		return inpage;
 	}
-	kunmap_atomic(inpage);
+	kunmap_local(inpage);
 	might_sleep();
 	src = erofs_vm_map_ram(rq->in, ctx->inpages);
 	if (!src)
@@ -162,7 +162,7 @@ docopy:
 	src = erofs_get_pcpubuf(ctx->inpages);
 	if (!src) {
 		DBG_BUGON(1);
-		kunmap_atomic(inpage);
+		kunmap_local(inpage);
 		return ERR_PTR(-EFAULT);
 	}
 
@@ -173,9 +173,9 @@ docopy:
 			min_t(unsigned int, total, PAGE_SIZE - *inputmargin);
 
 		if (!inpage)
-			inpage = kmap_atomic(*in);
+			inpage = kmap_local_page(*in);
 		memcpy(tmp, inpage + *inputmargin, page_copycnt);
-		kunmap_atomic(inpage);
+		kunmap_local(inpage);
 		inpage = NULL;
 		tmp += page_copycnt;
 		total -= page_copycnt;
@@ -214,7 +214,7 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 	int ret, maptype;
 
 	DBG_BUGON(*rq->in == NULL);
-	headpage = kmap_atomic(*rq->in);
+	headpage = kmap_local_page(*rq->in);
 
 	/* LZ4 decompression inplace is only safe if zero_padding is enabled */
 	if (erofs_sb_has_zero_padding(EROFS_SB(rq->sb))) {
@@ -223,7 +223,7 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 				min_t(unsigned int, rq->inputsize,
 				      rq->sb->s_blocksize - rq->pageofs_in));
 		if (ret) {
-			kunmap_atomic(headpage);
+			kunmap_local(headpage);
 			return ret;
 		}
 		may_inplace = !((rq->pageofs_in + rq->inputsize) &
@@ -261,7 +261,7 @@ static int z_erofs_lz4_decompress_mem(struct z_erofs_lz4_decompress_ctx *ctx,
 	}
 
 	if (maptype == 0) {
-		kunmap_atomic(headpage);
+		kunmap_local(headpage);
 	} else if (maptype == 1) {
 		vm_unmap_ram(src, ctx->inpages);
 	} else if (maptype == 2) {
@@ -289,7 +289,7 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 	/* one optimized fast path only for non bigpcluster cases yet */
 	if (ctx.inpages == 1 && ctx.outpages == 1 && !rq->inplace_io) {
 		DBG_BUGON(!*rq->out);
-		dst = kmap_atomic(*rq->out);
+		dst = kmap_local_page(*rq->out);
 		dst_maptype = 0;
 		goto dstmap_out;
 	}
@@ -311,7 +311,7 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq,
 dstmap_out:
 	ret = z_erofs_lz4_decompress_mem(&ctx, dst + rq->pageofs_out);
 	if (!dst_maptype)
-		kunmap_atomic(dst);
+		kunmap_local(dst);
 	else if (dst_maptype == 2)
 		vm_unmap_ram(dst, ctx.outpages);
 	return ret;
