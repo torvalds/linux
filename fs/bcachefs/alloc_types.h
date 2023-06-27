@@ -17,6 +17,7 @@ struct bucket_alloc_state {
 };
 
 #define BCH_WATERMARKS()		\
+	x(reclaim)			\
 	x(btree_copygc)			\
 	x(btree)			\
 	x(copygc)			\

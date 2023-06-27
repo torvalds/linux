@@ -191,11 +191,13 @@ long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
 static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
 {
 	switch (watermark) {
+	case BCH_WATERMARK_reclaim:
+		return 0;
 	case BCH_WATERMARK_btree:
 	case BCH_WATERMARK_btree_copygc:
-		return 0;
-	case BCH_WATERMARK_copygc:
 		return OPEN_BUCKETS_COUNT / 4;
+	case BCH_WATERMARK_copygc:
+		return OPEN_BUCKETS_COUNT / 3;
 	default:
 		return OPEN_BUCKETS_COUNT / 2;
 	}

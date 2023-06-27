@@ -170,6 +170,7 @@ static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_waterma
 		reserved += ca->nr_btree_reserve;
 		fallthrough;
 	case BCH_WATERMARK_btree_copygc:
+	case BCH_WATERMARK_reclaim:
 		break;
 	}
 
