@@ -1600,6 +1600,8 @@ static void clear_dirty_pt_masked(struct kvm *kvm, struct kvm_mmu_page *root,
 						   shadow_dirty_mask;
 	struct tdp_iter iter;
 
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
 	rcu_read_lock();
 
 	tdp_root_for_each_leaf_pte(iter, root, gfn + __ffs(mask),
@@ -1646,7 +1648,6 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 {
 	struct kvm_mmu_page *root;
 
-	lockdep_assert_held_write(&kvm->mmu_lock);
 	for_each_tdp_mmu_root(kvm, root, slot->as_id)
 		clear_dirty_pt_masked(kvm, root, gfn, mask, wrprot);
 }
