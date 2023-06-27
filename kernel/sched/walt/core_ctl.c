@@ -136,8 +136,10 @@ static ssize_t store_min_partial_cpus(struct cluster_data *state,
 	state->min_partial_cpus = min(val, state->num_cpus);
 	sysfs_param_changed(state);
 
-	if (state->min_partial_cpus > 0)
-		cpumask_copy(&part_haltable_cpus, &state->cpu_mask);
+	if (state->min_partial_cpus)
+		cpumask_or(&part_haltable_cpus, &part_haltable_cpus, &state->cpu_mask);
+	else
+		cpumask_andnot(&part_haltable_cpus, &part_haltable_cpus, &state->cpu_mask);
 
 	return count;
 }
