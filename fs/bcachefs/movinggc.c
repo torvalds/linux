@@ -369,6 +369,7 @@ static int bch2_copygc_thread(void *arg)
 	}
 
 	move_buckets_wait(&trans, &ctxt, &move_buckets, true);
+	rhashtable_destroy(&move_buckets.table);
 	bch2_trans_exit(&trans);
 	bch2_moving_ctxt_exit(&ctxt);
 
