@@ -1030,12 +1030,13 @@ again:
 	return k;
 }
 
-static int bch2_check_alloc_key(struct btree_trans *trans,
-				struct bkey_s_c alloc_k,
-				struct btree_iter *alloc_iter,
-				struct btree_iter *discard_iter,
-				struct btree_iter *freespace_iter,
-				struct btree_iter *bucket_gens_iter)
+static noinline_for_stack
+int bch2_check_alloc_key(struct btree_trans *trans,
+			 struct bkey_s_c alloc_k,
+			 struct btree_iter *alloc_iter,
+			 struct btree_iter *discard_iter,
+			 struct btree_iter *freespace_iter,
+			 struct btree_iter *bucket_gens_iter)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca;
@@ -1159,10 +1160,11 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
-				 struct bpos start,
-				 struct bpos *end,
-				 struct btree_iter *freespace_iter)
+static noinline_for_stack
+int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
+				    struct bpos start,
+				    struct bpos *end,
+				    struct btree_iter *freespace_iter)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca;
@@ -1214,10 +1216,11 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
-				 struct bpos start,
-				 struct bpos *end,
-				 struct btree_iter *bucket_gens_iter)
+static noinline_for_stack
+int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
+				      struct bpos start,
+				      struct bpos *end,
+				      struct btree_iter *bucket_gens_iter)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
@@ -1279,7 +1282,7 @@ fsck_err:
 	return ret;
 }
 
-static int __bch2_check_discard_freespace_key(struct btree_trans *trans,
+static noinline_for_stack int __bch2_check_discard_freespace_key(struct btree_trans *trans,
 					      struct btree_iter *iter)
 {
 	struct bch_fs *c = trans->c;
@@ -1359,9 +1362,10 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
  * valid for buckets that exist; this just checks for keys for nonexistent
  * buckets.
  */
-static int bch2_check_bucket_gens_key(struct btree_trans *trans,
-				      struct btree_iter *iter,
-				      struct bkey_s_c k)
+static noinline_for_stack
+int bch2_check_bucket_gens_key(struct btree_trans *trans,
+			       struct btree_iter *iter,
+			       struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_i_bucket_gens g;
