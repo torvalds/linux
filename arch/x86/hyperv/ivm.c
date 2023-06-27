@@ -365,7 +365,7 @@ void __init hv_vtom_init(void)
 	 * Set it here to indicate a vTOM VM.
 	 */
 	sev_status = MSR_AMD64_SNP_VTOM;
-	cc_set_vendor(CC_VENDOR_AMD);
+	cc_vendor = CC_VENDOR_AMD;
 	cc_set_mask(ms_hyperv.shared_gpa_boundary);
 	physical_mask &= ms_hyperv.shared_gpa_boundary - 1;
 
