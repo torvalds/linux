@@ -84,6 +84,21 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 	ret = REG_SET_FIELD(ret, VPEC_CNTL, UMSCH_INT_ENABLE, 0);
 	WREG32(vpe_get_reg_offset(vpe, 0, regVPEC_CNTL), ret);
 
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		uint32_t f32_offset, f32_cntl;
+
+		f32_offset = vpe_get_reg_offset(vpe, 0, regVPEC_F32_CNTL);
+		f32_cntl = RREG32(f32_offset);
+		f32_cntl = REG_SET_FIELD(f32_cntl, VPEC_F32_CNTL, HALT, 0);
+		f32_cntl = REG_SET_FIELD(f32_cntl, VPEC_F32_CNTL, TH1_RESET, 0);
+
+		adev->vpe.cmdbuf_cpu_addr[0] = f32_offset;
+		adev->vpe.cmdbuf_cpu_addr[1] = f32_cntl;
+
+		amdgpu_vpe_psp_update_sram(adev);
+		return 0;
+	}
+
 	vpe_hdr = (const struct vpe_firmware_header_v1_0 *)adev->vpe.fw->data;
 
 	/* Thread 0(command thread) ucode offset/size */

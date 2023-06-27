@@ -295,6 +295,7 @@ enum psp_gfx_fw_type {
 	GFX_FW_TYPE_RS64_MEC_P3_STACK               = 97,   /* RS64 MEC stack P3        SOC21   */
 	GFX_FW_TYPE_VPEC_FW1                        = 100,  /* VPEC FW1 To Save         VPE     */
 	GFX_FW_TYPE_VPEC_FW2                        = 101,  /* VPEC FW2 To Save         VPE     */
+	GFX_FW_TYPE_VPE                             = 102,
 	GFX_FW_TYPE_MAX
 };
 

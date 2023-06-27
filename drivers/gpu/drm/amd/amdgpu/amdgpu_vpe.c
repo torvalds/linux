@@ -37,6 +37,17 @@
 
 static void vpe_set_ring_funcs(struct amdgpu_device *adev);
 
+int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev)
+{
+	struct amdgpu_firmware_info ucode = {
+		.ucode_id = AMDGPU_UCODE_ID_VPE,
+		.mc_addr = adev->vpe.cmdbuf_gpu_addr,
+		.ucode_size = 8,
+	};
+
+	return psp_execute_ip_fw_load(&adev->psp, &ucode);
+}
+
 int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe)
 {
 	struct amdgpu_device *adev = vpe->ring.adev;
@@ -126,11 +137,34 @@ static int vpe_early_init(void *handle)
 	return 0;
 }
 
+
+static int vpe_common_init(struct amdgpu_vpe *vpe)
+{
+	struct amdgpu_device *adev = container_of(vpe, struct amdgpu_device, vpe);
+	int r;
+
+	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_GTT,
+				    &adev->vpe.cmdbuf_obj,
+				    &adev->vpe.cmdbuf_gpu_addr,
+				    (void **)&adev->vpe.cmdbuf_cpu_addr);
+	if (r) {
+		dev_err(adev->dev, "VPE: failed to allocate cmdbuf bo %d\n", r);
+		return r;
+	}
+
+	return 0;
+}
+
 static int vpe_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
+
+	ret = vpe_common_init(vpe);
+	if (ret)
+		goto out;
 
 	ret = vpe_irq_init(vpe);
 	if (ret)
@@ -156,6 +190,10 @@ static int vpe_sw_fini(void *handle)
 	vpe->fw = NULL;
 
 	vpe_ring_fini(vpe);
+
+	amdgpu_bo_free_kernel(&adev->vpe.cmdbuf_obj,
+			      &adev->vpe.cmdbuf_gpu_addr,
+			      (void **)&adev->vpe.cmdbuf_cpu_addr);
 
 	return 0;
 }

@@ -59,8 +59,13 @@ struct amdgpu_vpe {
 	const struct firmware		*fw;
 	uint32_t			fw_version;
 	uint32_t			feature_version;
+
+	struct amdgpu_bo		*cmdbuf_obj;
+	uint64_t			cmdbuf_gpu_addr;
+	uint32_t			*cmdbuf_cpu_addr;
 };
 
+int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev);
 int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_ring_init(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe);
