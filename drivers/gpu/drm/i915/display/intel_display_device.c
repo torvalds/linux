@@ -981,3 +981,24 @@ void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
 display_fused_off:
 	memset(display_runtime, 0, sizeof(*display_runtime));
 }
+
+void intel_display_device_info_print(const struct intel_display_device_info *info,
+				     const struct intel_display_runtime_info *runtime,
+				     struct drm_printer *p)
+{
+	if (runtime->ip.rel)
+		drm_printf(p, "display version: %u.%02u\n",
+			   runtime->ip.ver,
+			   runtime->ip.rel);
+	else
+		drm_printf(p, "display version: %u\n",
+			   runtime->ip.ver);
+
+#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->name))
+	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
+#undef PRINT_FLAG
+
+	drm_printf(p, "has_hdcp: %s\n", str_yes_no(runtime->has_hdcp));
+	drm_printf(p, "has_dmc: %s\n", str_yes_no(runtime->has_dmc));
+	drm_printf(p, "has_dsc: %s\n", str_yes_no(runtime->has_dsc));
+}

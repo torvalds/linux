@@ -93,9 +93,6 @@ void intel_device_info_print(const struct intel_device_info *info,
 			     const struct intel_runtime_info *runtime,
 			     struct drm_printer *p)
 {
-	const struct intel_display_runtime_info *display_runtime =
-		&info->display->__runtime_defaults;
-
 	if (runtime->graphics.ip.rel)
 		drm_printf(p, "graphics version: %u.%02u\n",
 			   runtime->graphics.ip.ver,
@@ -111,14 +108,6 @@ void intel_device_info_print(const struct intel_device_info *info,
 	else
 		drm_printf(p, "media version: %u\n",
 			   runtime->media.ip.ver);
-
-	if (display_runtime->ip.rel)
-		drm_printf(p, "display version: %u.%02u\n",
-			   display_runtime->ip.ver,
-			   display_runtime->ip.rel);
-	else
-		drm_printf(p, "display version: %u\n",
-			   display_runtime->ip.ver);
 
 	drm_printf(p, "graphics stepping: %s\n", intel_step_name(runtime->step.graphics_step));
 	drm_printf(p, "media stepping: %s\n", intel_step_name(runtime->step.media_step));
@@ -138,15 +127,6 @@ void intel_device_info_print(const struct intel_device_info *info,
 #undef PRINT_FLAG
 
 	drm_printf(p, "has_pooled_eu: %s\n", str_yes_no(runtime->has_pooled_eu));
-
-#define PRINT_FLAG(name) drm_printf(p, "%s: %s\n", #name, str_yes_no(info->display->name))
-	DEV_INFO_DISPLAY_FOR_EACH_FLAG(PRINT_FLAG);
-#undef PRINT_FLAG
-
-	drm_printf(p, "has_hdcp: %s\n", str_yes_no(display_runtime->has_hdcp));
-	drm_printf(p, "has_dmc: %s\n", str_yes_no(display_runtime->has_dmc));
-	drm_printf(p, "has_dsc: %s\n", str_yes_no(display_runtime->has_dsc));
-
 	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
