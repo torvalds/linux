@@ -1286,6 +1286,23 @@ static int addend_386_rel(uint32_t *location, Elf_Rela *r)
 #ifndef	R_ARM_THM_JUMP24
 #define	R_ARM_THM_JUMP24	30
 #endif
+
+#ifndef R_ARM_MOVW_ABS_NC
+#define R_ARM_MOVW_ABS_NC	43
+#endif
+
+#ifndef R_ARM_MOVT_ABS
+#define R_ARM_MOVT_ABS		44
+#endif
+
+#ifndef R_ARM_THM_MOVW_ABS_NC
+#define R_ARM_THM_MOVW_ABS_NC	47
+#endif
+
+#ifndef R_ARM_THM_MOVT_ABS
+#define R_ARM_THM_MOVT_ABS	48
+#endif
+
 #ifndef	R_ARM_THM_JUMP19
 #define	R_ARM_THM_JUMP19	51
 #endif
