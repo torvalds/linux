@@ -425,6 +425,7 @@ config VIDEO_OV5675
 
 config VIDEO_OV5693
 	tristate "OmniVision OV5693 sensor support"
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
 	  OV5693 camera.
