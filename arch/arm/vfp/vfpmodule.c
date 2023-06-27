@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/user.h>
 #include <linux/export.h>
+#include <linux/perf_event.h>
 
 #include <asm/cp15.h>
 #include <asm/cputype.h>
@@ -29,11 +30,6 @@
 #include "vfpinstr.h"
 #include "vfp.h"
 
-/*
- * Our undef handlers (in entry.S)
- */
-asmlinkage void vfp_support_entry(u32, void *, u32, u32);
-
 static bool have_vfp __ro_after_init;
 
 /*
@@ -41,7 +37,11 @@ static bool have_vfp __ro_after_init;
  * Used in startup: set to non-zero if VFP checks fail
  * After startup, holds VFP architecture
  */
-static unsigned int __initdata VFP_arch;
+static unsigned int VFP_arch;
+
+#ifdef CONFIG_CPU_FEROCEON
+extern unsigned int VFP_arch_feroceon __alias(VFP_arch);
+#endif
 
 /*
  * The pointer to the vfpstate structure of the thread which currently
@@ -313,13 +313,14 @@ static u32 vfp_emulate_instruction(u32 inst, u32 fpscr, struct pt_regs *regs)
 		 * emulate it.
 		 */
 	}
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->ARM_pc);
 	return exceptions & ~VFP_NAN_FLAG;
 }
 
 /*
  * Package up a bounce condition.
  */
-void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
+static void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 {
 	u32 fpscr, orig_fpscr, fpsid, exceptions;
 
@@ -355,14 +356,12 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	}
 
 	if (fpexc & FPEXC_EX) {
-#ifndef CONFIG_CPU_FEROCEON
 		/*
 		 * Asynchronous exception. The instruction is read from FPINST
 		 * and the interrupted instruction has to be restarted.
 		 */
 		trigger = fmrx(FPINST);
 		regs->ARM_pc -= 4;
-#endif
 	} else if (!(fpexc & FPEXC_DEX)) {
 		/*
 		 * Illegal combination of bits. It can be caused by an
@@ -370,7 +369,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 		 * on VFP subarch 1.
 		 */
 		 vfp_raise_exceptions(VFP_EXCEPTION_ERROR, trigger, fpscr, regs);
-		goto exit;
+		return;
 	}
 
 	/*
@@ -401,7 +400,7 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	 * the FPEXC.FP2V bit is valid only if FPEXC.EX is 1.
 	 */
 	if ((fpexc & (FPEXC_EX | FPEXC_FP2V)) != (FPEXC_EX | FPEXC_FP2V))
-		goto exit;
+		return;
 
 	/*
 	 * The barrier() here prevents fpinst2 being read
@@ -414,8 +413,6 @@ void VFP_bounce(u32 trigger, u32 fpexc, struct pt_regs *regs)
 	exceptions = vfp_emulate_instruction(trigger, orig_fpscr, regs);
 	if (exceptions)
 		vfp_raise_exceptions(exceptions, trigger, orig_fpscr, regs);
- exit:
-	local_bh_enable();
 }
 
 static void vfp_enable(void *unused)
@@ -644,27 +641,6 @@ static int vfp_starting_cpu(unsigned int unused)
 	return 0;
 }
 
-/*
- * Entered with:
- *
- *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
- *  r1  = thread_info pointer
- *  r2  = PC value to resume execution after successful emulation
- *  r3  = normal "successful" return address
- *  lr  = unrecognised instruction return address
- */
-asmlinkage void vfp_entry(u32 trigger, struct thread_info *ti, u32 resume_pc,
-			  u32 resume_return_address)
-{
-	if (unlikely(!have_vfp))
-		return;
-
-	local_bh_disable();
-	vfp_support_entry(trigger, ti, resume_pc, resume_return_address);
-}
-
-#ifdef CONFIG_KERNEL_MODE_NEON
-
 static int vfp_kmode_exception(struct pt_regs *regs, unsigned int instr)
 {
 	/*
@@ -687,47 +663,151 @@ static int vfp_kmode_exception(struct pt_regs *regs, unsigned int instr)
 	return 1;
 }
 
-static struct undef_hook vfp_kmode_exception_hook[] = {{
+/*
+ * vfp_support_entry - Handle VFP exception
+ *
+ * @regs:	pt_regs structure holding the register state at exception entry
+ * @trigger:	The opcode of the instruction that triggered the exception
+ *
+ * Returns 0 if the exception was handled, or an error code otherwise.
+ */
+static int vfp_support_entry(struct pt_regs *regs, u32 trigger)
+{
+	struct thread_info *ti = current_thread_info();
+	u32 fpexc;
+
+	if (unlikely(!have_vfp))
+		return -ENODEV;
+
+	if (!user_mode(regs))
+		return vfp_kmode_exception(regs, trigger);
+
+	local_bh_disable();
+	fpexc = fmrx(FPEXC);
+
+	/*
+	 * If the VFP unit was not enabled yet, we have to check whether the
+	 * VFP state in the CPU's registers is the most recent VFP state
+	 * associated with the process. On UP systems, we don't save the VFP
+	 * state eagerly on a context switch, so we may need to save the
+	 * VFP state to memory first, as it may belong to another process.
+	 */
+	if (!(fpexc & FPEXC_EN)) {
+		/*
+		 * Enable the VFP unit but mask the FP exception flag for the
+		 * time being, so we can access all the registers.
+		 */
+		fpexc |= FPEXC_EN;
+		fmxr(FPEXC, fpexc & ~FPEXC_EX);
+
+		/*
+		 * Check whether or not the VFP state in the CPU's registers is
+		 * the most recent VFP state associated with this task. On SMP,
+		 * migration may result in multiple CPUs holding VFP states
+		 * that belong to the same task, but only the most recent one
+		 * is valid.
+		 */
+		if (!vfp_state_in_hw(ti->cpu, ti)) {
+			if (!IS_ENABLED(CONFIG_SMP) &&
+			    vfp_current_hw_state[ti->cpu] != NULL) {
+				/*
+				 * This CPU is currently holding the most
+				 * recent VFP state associated with another
+				 * task, and we must save that to memory first.
+				 */
+				vfp_save_state(vfp_current_hw_state[ti->cpu],
+					       fpexc);
+			}
+
+			/*
+			 * We can now proceed with loading the task's VFP state
+			 * from memory into the CPU registers.
+			 */
+			fpexc = vfp_load_state(&ti->vfpstate);
+			vfp_current_hw_state[ti->cpu] = &ti->vfpstate;
+#ifdef CONFIG_SMP
+			/*
+			 * Record that this CPU is now the one holding the most
+			 * recent VFP state of the task.
+			 */
+			ti->vfpstate.hard.cpu = ti->cpu;
+#endif
+		}
+
+		if (fpexc & FPEXC_EX)
+			/*
+			 * Might as well handle the pending exception before
+			 * retrying branch out before setting an FPEXC that
+			 * stops us reading stuff.
+			 */
+			goto bounce;
+
+		/*
+		 * No FP exception is pending: just enable the VFP and
+		 * replay the instruction that trapped.
+		 */
+		fmxr(FPEXC, fpexc);
+	} else {
+		/* Check for synchronous or asynchronous exceptions */
+		if (!(fpexc & (FPEXC_EX | FPEXC_DEX))) {
+			u32 fpscr = fmrx(FPSCR);
+
+			/*
+			 * On some implementations of the VFP subarch 1,
+			 * setting FPSCR.IXE causes all the CDP instructions to
+			 * be bounced synchronously without setting the
+			 * FPEXC.EX bit
+			 */
+			if (!(fpscr & FPSCR_IXE)) {
+				if (!(fpscr & FPSCR_LENGTH_MASK)) {
+					pr_debug("not VFP\n");
+					local_bh_enable();
+					return -ENOEXEC;
+				}
+				fpexc |= FPEXC_DEX;
+			}
+		}
+bounce:		regs->ARM_pc += 4;
+		VFP_bounce(trigger, fpexc, regs);
+	}
+
+	local_bh_enable();
+	return 0;
+}
+
+static struct undef_hook neon_support_hook[] = {{
 	.instr_mask	= 0xfe000000,
 	.instr_val	= 0xf2000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
 }, {
 	.instr_mask	= 0xff100000,
 	.instr_val	= 0xf4000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
 }, {
 	.instr_mask	= 0xef000000,
 	.instr_val	= 0xef000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE | PSR_T_BIT,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= PSR_T_BIT,
+	.fn		= vfp_support_entry,
 }, {
 	.instr_mask	= 0xff100000,
 	.instr_val	= 0xf9000000,
-	.cpsr_mask	= MODE_MASK | PSR_T_BIT,
-	.cpsr_val	= SVC_MODE | PSR_T_BIT,
-	.fn		= vfp_kmode_exception,
-}, {
-	.instr_mask	= 0x0c000e00,
-	.instr_val	= 0x0c000a00,
-	.cpsr_mask	= MODE_MASK,
-	.cpsr_val	= SVC_MODE,
-	.fn		= vfp_kmode_exception,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= PSR_T_BIT,
+	.fn		= vfp_support_entry,
 }};
 
-static int __init vfp_kmode_exception_hook_init(void)
-{
-	int i;
+static struct undef_hook vfp_support_hook = {
+	.instr_mask	= 0x0c000e00,
+	.instr_val	= 0x0c000a00,
+	.fn		= vfp_support_entry,
+};
 
-	for (i = 0; i < ARRAY_SIZE(vfp_kmode_exception_hook); i++)
-		register_undef_hook(&vfp_kmode_exception_hook[i]);
-	return 0;
-}
-subsys_initcall(vfp_kmode_exception_hook_init);
+#ifdef CONFIG_KERNEL_MODE_NEON
 
 /*
  * Kernel-side NEON support functions
@@ -832,8 +912,11 @@ static int __init vfp_init(void)
 		 * for NEON if the hardware has the MVFR registers.
 		 */
 		if (IS_ENABLED(CONFIG_NEON) &&
-		   (fmrx(MVFR1) & 0x000fff00) == 0x00011100)
+		    (fmrx(MVFR1) & 0x000fff00) == 0x00011100) {
 			elf_hwcap |= HWCAP_NEON;
+			for (int i = 0; i < ARRAY_SIZE(neon_support_hook); i++)
+				register_undef_hook(&neon_support_hook[i]);
+		}
 
 		if (IS_ENABLED(CONFIG_VFPv3)) {
 			u32 mvfr0 = fmrx(MVFR0);
@@ -902,6 +985,7 @@ static int __init vfp_init(void)
 
 	have_vfp = true;
 
+	register_undef_hook(&vfp_support_hook);
 	thread_register_notifier(&vfp_notifier_block);
 	vfp_pm_init();
 

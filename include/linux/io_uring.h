@@ -36,6 +36,11 @@ struct io_uring_cmd {
 	u8		pdu[32]; /* available inline for free use */
 };
 
+static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
+{
+	return sqe->cmd;
+}
+
 #if defined(CONFIG_IO_URING)
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      struct iov_iter *iter, void *ioucmd);
@@ -65,11 +70,6 @@ static inline void io_uring_free(struct task_struct *tsk)
 {
 	if (tsk->io_uring)
 		__io_uring_free(tsk);
-}
-
-static inline const void *io_uring_sqe_cmd(const struct io_uring_sqe *sqe)
-{
-	return sqe->cmd;
 }
 #else
 static inline int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,

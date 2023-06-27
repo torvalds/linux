@@ -19,7 +19,7 @@ void register_cxl_mock_ops(struct cxl_mock_ops *ops)
 }
 EXPORT_SYMBOL_GPL(register_cxl_mock_ops);
 
-static DEFINE_SRCU(cxl_mock_srcu);
+DEFINE_STATIC_SRCU(cxl_mock_srcu);
 
 void unregister_cxl_mock_ops(struct cxl_mock_ops *ops)
 {

@@ -49,6 +49,7 @@ properties:
 
         properties:
           data-lanes:
+            minItems: 1
             maxItems: 2
 
         required:
