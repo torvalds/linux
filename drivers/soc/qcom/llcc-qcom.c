@@ -159,6 +159,18 @@ static u32 llcc_offsets_v21[] = {
 	0x500000
 };
 
+static u32 llcc_offsets_v31[] = {
+	0x0,
+	0x100000,
+};
+
+static u32 llcc_offsets_monaco_auto[] = {
+	0x0,
+	0x100000,
+	0x200000,
+	0x300000,
+};
+
 static u32 llcc_offsets_v41[] = {
 	0x0,
 	0x200000,
@@ -432,6 +444,14 @@ static const struct llcc_slice_config qdu1000_data_8ch[] =  {
 	{LLCC_WRTCH,   31, 512,  1, 1,   0x3, 0x0, 0, 0, 0, 0, 1, 0, 0 },
 };
 
+/* MonacoAU ADAS 4CH */
+static struct llcc_slice_config monaco_auto_data[] =  {
+	{LLCC_MMUHWT,   13, 512, 1, 1, 0x00F, 0x0, 0, 0, 0, 0, 1, 0, 0},
+	{LLCC_WRTCH,    31, 128, 1, 1, 0x00F, 0x0, 0, 0, 0, 0, 1, 0, 0},
+	{LLCC_ECC,      26, 256, 3, 1, 0x00F, 0x0, 0, 0, 0, 0, 1, 1, 0},
+	{LLCC_SAIL,     25, 256, 1, 1, 0x00F, 0x0, 0, 0, 0, 1, 0, 0, 0},
+};
+
 static const struct qcom_llcc_config sc7180_cfg = {
 	.sct_data	= sc7180_data,
 	.size		= ARRAY_SIZE(sc7180_data),
@@ -499,6 +519,11 @@ static const struct qcom_llcc_config qdu1000_cfg[] = {
 		.sct_data	= qdu1000_data_4ch,
 		.size		= ARRAY_SIZE(qdu1000_data_4ch),
 	},
+};
+
+static const struct qcom_llcc_config monaco_auto_cfg = {
+	.sct_data       = monaco_auto_data,
+	.size           = ARRAY_SIZE(monaco_auto_data),
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
@@ -1105,6 +1130,14 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		llcc_regs = llcc_regs_v21;
 		drv_data->offsets = llcc_offsets_v41;
 	} else if (of_property_match_string(dev->of_node,
+				"compatible", "qcom,llcc-v31") >= 0) {
+		drv_data->llcc_ver = 31;
+		llcc_regs = llcc_regs_v21;
+		drv_data->offsets = llcc_offsets_v31;
+		if (of_property_match_string(dev->of_node,
+				"compatible", "qcom,monaco_auto-llcc") >= 0)
+			drv_data->offsets = llcc_offsets_monaco_auto;
+	} else if (of_property_match_string(dev->of_node,
 				    "compatible", "qcom,llcc-v21") >= 0) {
 		drv_data->llcc_ver = 21;
 		llcc_regs = llcc_regs_v21;
@@ -1222,6 +1255,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,pineapple-llcc", .data = &pineapple_cfg },
 	{ .compatible = "qcom,qdu1000-llcc", .data = &qdu1000_cfg },
 	{ .compatible = "qcom,cliffs-llcc", .data = &cliffs_cfg },
+	{ .compatible = "qcom,monaco_auto-llcc", .data = &monaco_auto_cfg },
 	{ }
 };
 
