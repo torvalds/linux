@@ -1515,6 +1515,7 @@ struct dc_link {
 	enum edp_revision edp_revision;
 	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
+	struct backlight_settings backlight_settings;
 	struct psr_settings psr_settings;
 
 	/* Drive settings read from integrated info table */

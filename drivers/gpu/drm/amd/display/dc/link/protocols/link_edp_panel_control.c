@@ -164,6 +164,7 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 	*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
 	*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
 
+	link->backlight_settings.backlight_millinits = backlight_millinits;
 
 	if (!link->dpcd_caps.panel_luminance_control) {
 		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
@@ -273,6 +274,16 @@ bool set_default_brightness_aux(struct dc_link *link)
 		return edp_set_backlight_level_nits(link, true,
 				default_backlight, 0);
 	}
+	return false;
+}
+
+bool set_cached_brightness_aux(struct dc_link *link)
+{
+	if (link->backlight_settings.backlight_millinits)
+		return edp_set_backlight_level_nits(link, true,
+						    link->backlight_settings.backlight_millinits, 0);
+	else
+		return set_default_brightness_aux(link);
 	return false;
 }
 

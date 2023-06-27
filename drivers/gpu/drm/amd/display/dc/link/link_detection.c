@@ -876,8 +876,7 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 			(link->dpcd_sink_ext_caps.bits.oled == 1)) {
 			dpcd_set_source_specific_data(link);
 			msleep(post_oui_delay);
-			set_default_brightness_aux(link);
-			//TODO: use cached
+			set_cached_brightness_aux(link);
 		}
 
 		return true;
