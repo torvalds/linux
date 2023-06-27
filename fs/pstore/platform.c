@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
 #include <linux/string.h>
@@ -215,7 +216,7 @@ static void allocate_buf_for_compression(void)
 	 * uncompressed record size, since any record that would be expanded by
 	 * compression is just stored uncompressed.
 	 */
-	buf = kmalloc(psinfo->bufsize, GFP_KERNEL);
+	buf = kvzalloc(psinfo->bufsize, GFP_KERNEL);
 	if (!buf) {
 		pr_err("Failed %zu byte compression buffer allocation for: %s\n",
 		       psinfo->bufsize, compress);
@@ -226,7 +227,7 @@ static void allocate_buf_for_compression(void)
 		vmalloc(zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL));
 	if (!compress_workspace) {
 		pr_err("Failed to allocate zlib deflate workspace\n");
-		kfree(buf);
+		kvfree(buf);
 		return;
 	}
 
@@ -243,7 +244,7 @@ static void free_buf_for_compression(void)
 		compress_workspace = NULL;
 	}
 
-	kfree(big_oops_buf);
+	kvfree(big_oops_buf);
 	big_oops_buf = NULL;
 }
 
@@ -421,7 +422,7 @@ static int pstore_write_user_compat(struct pstore_record *record,
 	if (record->buf)
 		return -EINVAL;
 
-	record->buf = memdup_user(buf, record->size);
+	record->buf = vmemdup_user(buf, record->size);
 	if (IS_ERR(record->buf)) {
 		ret = PTR_ERR(record->buf);
 		goto out;
@@ -429,7 +430,7 @@ static int pstore_write_user_compat(struct pstore_record *record,
 
 	ret = record->psi->write(record);
 
-	kfree(record->buf);
+	kvfree(record->buf);
 out:
 	record->buf = NULL;
 
@@ -582,8 +583,8 @@ static void decompress_record(struct pstore_record *record,
 	}
 
 	/* Allocate enough space to hold max decompression and ECC. */
-	workspace = kmalloc(psinfo->bufsize + record->ecc_notice_size,
-			    GFP_KERNEL);
+	workspace = kvzalloc(psinfo->bufsize + record->ecc_notice_size,
+			     GFP_KERNEL);
 	if (!workspace)
 		return;
 
@@ -595,7 +596,7 @@ static void decompress_record(struct pstore_record *record,
 	ret = zlib_inflate(zstream, Z_FINISH);
 	if (ret != Z_STREAM_END) {
 		pr_err("zlib_inflate() failed, ret = %d!\n", ret);
-		kfree(workspace);
+		kvfree(workspace);
 		return;
 	}
 
@@ -606,14 +607,14 @@ static void decompress_record(struct pstore_record *record,
 	       record->ecc_notice_size);
 
 	/* Copy decompressed contents into an minimum-sized allocation. */
-	unzipped = kmemdup(workspace, unzipped_len + record->ecc_notice_size,
-			   GFP_KERNEL);
-	kfree(workspace);
+	unzipped = kvmemdup(workspace, unzipped_len + record->ecc_notice_size,
+			    GFP_KERNEL);
+	kvfree(workspace);
 	if (!unzipped)
 		return;
 
 	/* Swap out compressed contents with decompressed contents. */
-	kfree(record->buf);
+	kvfree(record->buf);
 	record->buf = unzipped;
 	record->size = unzipped_len;
 	record->compressed = false;
@@ -673,7 +674,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 		rc = pstore_mkfile(root, record);
 		if (rc) {
 			/* pstore_mkfile() did not take record, so free it. */
-			kfree(record->buf);
+			kvfree(record->buf);
 			kfree(record->priv);
 			kfree(record);
 			if (rc != -EEXIST || !quiet)
