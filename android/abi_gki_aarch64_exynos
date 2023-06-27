@@ -605,6 +605,7 @@
   of_reserved_mem_lookup
   of_root
   of_thermal_get_ntrips
+  on_each_cpu_cond_mask
   panic
   panic_notifier_list
   param_array_ops
@@ -1452,6 +1453,7 @@
 
 # required by exynos-hypervisor.ko
   __arm_smccc_hvc
+  kimage_vaddr
   __pkvm_load_el2_module
   __pkvm_register_el2_call
 
@@ -1744,7 +1746,6 @@
   bitmap_alloc
   kobj_sysfs_ops
   kstrtou16
-  on_each_cpu_cond_mask
 
 # required by nanohub.ko
   arch_timer_read_counter
@@ -2228,6 +2229,7 @@
   ttm_device_fini
   ttm_device_init
   ttm_eu_backoff_reservation
+  ttm_eu_fence_buffer_objects
   ttm_eu_reserve_buffers
   ttm_glob
   ttm_lru_bulk_move_tail
@@ -2440,3 +2442,60 @@
   cpufreq_quick_get_max
   kthread_bind_mask
   stpcpy
+
+# preserved by --additions-only
+  __alloc_percpu_gfp
+  arc4_crypt
+  arc4_setkey
+  __cpu_present_mask
+  crc32_be
+  crypto_aead_decrypt
+  crypto_aead_encrypt
+  crypto_aead_setauthsize
+  crypto_aead_setkey
+  crypto_alloc_aead
+  crypto_alloc_skcipher
+  __crypto_memneq
+  crypto_shash_finup
+  crypto_shash_setkey
+  crypto_skcipher_decrypt
+  crypto_skcipher_encrypt
+  crypto_skcipher_setkey
+  __crypto_xor
+  dev_fetch_sw_netstats
+  drm_dev_has_vblank
+  eth_mac_addr
+  ethtool_op_get_link
+  get_random_u16
+  __hw_addr_init
+  __hw_addr_sync
+  __hw_addr_unsync
+  kernel_param_lock
+  kernel_param_unlock
+  kfree_skb_list_reason
+  ktime_get_seconds
+  memmove
+  netdev_info
+  netdev_set_default_ethtool_ops
+  netif_receive_skb_list
+  net_ratelimit
+  pskb_expand_head
+  ___pskb_trim
+  rhashtable_free_and_destroy
+  rhashtable_insert_slow
+  rhltable_init
+  __rht_bucket_nested
+  rht_bucket_nested
+  rht_bucket_nested_insert
+  round_jiffies
+  round_jiffies_relative
+  round_jiffies_up
+  sg_init_one
+  skb_checksum_help
+  skb_clone_sk
+  skb_complete_wifi_ack
+  skb_ensure_writable
+  __skb_get_hash
+  __skb_gso_segment
+  tasklet_unlock_wait
+  unregister_netdevice_many
