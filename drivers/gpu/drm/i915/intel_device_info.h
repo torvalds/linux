@@ -29,8 +29,6 @@
 
 #include "intel_step.h"
 
-#include "display/intel_display_device.h"
-
 #include "gt/intel_engine_types.h"
 #include "gt/intel_context_types.h"
 #include "gt/intel_sseu.h"
@@ -239,8 +237,6 @@ struct intel_device_info {
 #define DEFINE_FLAG(name) u8 name:1
 	DEV_INFO_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
-
-	const struct intel_display_device_info *display;
 
 	/*
 	 * Initial runtime info. Do not access outside of i915_driver_create().
