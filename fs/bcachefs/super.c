@@ -1063,19 +1063,64 @@ static int bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
 	return 0;
 }
 
-static int bch2_dev_in_fs(struct bch_sb *fs, struct bch_sb *sb)
+static int bch2_dev_in_fs(struct bch_sb_handle *fs,
+			  struct bch_sb_handle *sb)
 {
-	struct bch_sb *newest =
-		le64_to_cpu(fs->seq) > le64_to_cpu(sb->seq) ? fs : sb;
+	if (fs == sb)
+		return 0;
 
-	if (!uuid_equal(&fs->uuid, &sb->uuid))
+	if (!uuid_equal(&fs->sb->uuid, &sb->sb->uuid))
 		return -BCH_ERR_device_not_a_member_of_filesystem;
 
-	if (!bch2_dev_exists(newest, sb->dev_idx))
+	if (!bch2_dev_exists(fs->sb, sb->sb->dev_idx))
 		return -BCH_ERR_device_has_been_removed;
 
-	if (fs->block_size != sb->block_size)
+	if (fs->sb->block_size != sb->sb->block_size)
 		return -BCH_ERR_mismatched_block_size;
+
+	if (le16_to_cpu(fs->sb->version) < bcachefs_metadata_version_member_seq ||
+	    le16_to_cpu(sb->sb->version) < bcachefs_metadata_version_member_seq)
+		return 0;
+
+	if (fs->sb->seq == sb->sb->seq &&
+	    fs->sb->write_time != sb->sb->write_time) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_printf(&buf, "Split brain detected between %pg and %pg:",
+			   sb->bdev, fs->bdev);
+		prt_newline(&buf);
+		prt_printf(&buf, "seq=%llu but write_time different, got", le64_to_cpu(sb->sb->seq));
+		prt_newline(&buf);
+
+		prt_printf(&buf, "%pg ", fs->bdev);
+		bch2_prt_datetime(&buf, le64_to_cpu(fs->sb->write_time));;
+		prt_newline(&buf);
+
+		prt_printf(&buf, "%pg ", sb->bdev);
+		bch2_prt_datetime(&buf, le64_to_cpu(sb->sb->write_time));;
+		prt_newline(&buf);
+
+		prt_printf(&buf, "Not using older sb");
+
+		pr_err("%s", buf.buf);
+		printbuf_exit(&buf);
+		return -BCH_ERR_device_splitbrain;
+	}
+
+	struct bch_member m = bch2_sb_member_get(fs->sb, sb->sb->dev_idx);
+	u64 seq_from_fs		= le64_to_cpu(m.seq);
+	u64 seq_from_member	= le64_to_cpu(sb->sb->seq);
+
+	if (seq_from_fs && seq_from_fs < seq_from_member) {
+		pr_err("Split brain detected between %pg and %pg:\n"
+		       "%pg believes seq of %pg to be %llu, but %pg has %llu\n"
+		       "Not using %pg",
+		       sb->bdev, fs->bdev,
+		       fs->bdev, sb->bdev, seq_from_fs,
+		       sb->bdev, seq_from_member,
+		       sb->bdev);
+		return -BCH_ERR_device_splitbrain;
+	}
 
 	return 0;
 }
@@ -1770,7 +1815,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	dev_idx = sb.sb->dev_idx;
 
-	ret = bch2_dev_in_fs(c->disk_sb.sb, sb.sb);
+	ret = bch2_dev_in_fs(&c->disk_sb, &sb);
 	bch_err_msg(c, ret, "bringing %s online", path);
 	if (ret)
 		goto err;
@@ -1911,6 +1956,12 @@ struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 
 /* Filesystem open: */
 
+static inline int sb_cmp(struct bch_sb *l, struct bch_sb *r)
+{
+	return  cmp_int(le64_to_cpu(l->seq), le64_to_cpu(r->seq)) ?:
+		cmp_int(le64_to_cpu(l->write_time), le64_to_cpu(r->write_time));
+}
+
 struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 			    struct bch_opts opts)
 {
@@ -1948,19 +1999,21 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 	}
 
 	darray_for_each(sbs, sb)
-		if (!best || le64_to_cpu(sb->sb->seq) > le64_to_cpu(best->sb->seq))
+		if (!best || sb_cmp(sb->sb, best->sb) > 0)
 			best = sb;
 
 	darray_for_each_reverse(sbs, sb) {
-		if (sb != best && !bch2_dev_exists(best->sb, sb->sb->dev_idx)) {
-			pr_info("%pg has been removed, skipping", sb->bdev);
+		ret = bch2_dev_in_fs(best, sb);
+
+		if (ret == -BCH_ERR_device_has_been_removed ||
+		    ret == -BCH_ERR_device_splitbrain) {
 			bch2_free_super(sb);
 			darray_remove_item(&sbs, sb);
 			best -= best > sb;
+			ret = 0;
 			continue;
 		}
 
-		ret = bch2_dev_in_fs(best->sb, sb->sb);
 		if (ret)
 			goto err_print;
 	}
