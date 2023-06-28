@@ -182,7 +182,6 @@ u32 mt7921_reg_map(struct mt792x_dev *dev, u32 addr);
 int __mt7921_start(struct mt792x_phy *phy);
 int mt7921_register_device(struct mt792x_dev *dev);
 void mt7921_unregister_device(struct mt792x_dev *dev);
-int mt7921_dma_init(struct mt792x_dev *dev);
 int mt7921_run_firmware(struct mt792x_dev *dev);
 int mt7921_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			  bool enable);
