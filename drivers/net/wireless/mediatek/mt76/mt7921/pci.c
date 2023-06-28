@@ -245,7 +245,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
-		.update_survey = mt7921_update_channel,
+		.update_survey = mt792x_update_channel,
 	};
 	static const struct mt792x_hif_ops mt7921_pcie_ops = {
 		.init_reset = mt7921e_init_reset,
@@ -450,7 +450,7 @@ restore_suspend:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }
@@ -500,7 +500,7 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }

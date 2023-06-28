@@ -282,7 +282,6 @@ mt7921_skb_add_usb_sdio_hdr(struct mt792x_dev *dev, struct sk_buff *skb,
 
 void mt7921_stop(struct ieee80211_hw *hw);
 int mt7921_mac_init(struct mt792x_dev *dev);
-void mt7921_mac_reset_counters(struct mt792x_phy *phy);
 bool mt7921_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask);
 int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
@@ -291,7 +290,6 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void mt7921_mac_reset_work(struct work_struct *work);
-void mt7921_reset(struct mt76_dev *mdev);
 int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			   enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			   struct ieee80211_sta *sta,
@@ -302,7 +300,6 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 void mt7921_stats_work(struct work_struct *work);
 void mt7921_set_stream_he_caps(struct mt792x_phy *phy);
-void mt7921_update_channel(struct mt76_phy *mphy);
 int mt7921_init_debugfs(struct mt792x_dev *dev);
 
 int mt7921_mcu_set_beacon_filter(struct mt792x_dev *dev,

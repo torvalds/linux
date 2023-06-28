@@ -29,29 +29,6 @@ static u32 mt7921_mac_wtbl_lmac_addr(int idx, u8 offset)
 	return MT_WTBL_LMAC_OFFS(idx, 0) + offset * 4;
 }
 
-static struct mt76_wcid *mt7921_rx_get_wcid(struct mt792x_dev *dev,
-					    u16 idx, bool unicast)
-{
-	struct mt792x_sta *sta;
-	struct mt76_wcid *wcid;
-
-	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
-		return NULL;
-
-	wcid = rcu_dereference(dev->mt76.wcid[idx]);
-	if (unicast || !wcid)
-		return wcid;
-
-	if (!wcid->sta)
-		return NULL;
-
-	sta = container_of(wcid, struct mt792x_sta, wcid);
-	if (!sta->vif)
-		return NULL;
-
-	return &sta->vif->sta.wcid;
-}
-
 static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 {
 	static const u8 ac_to_tid[] = {
@@ -184,52 +161,6 @@ static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 	}
 }
 
-static void
-mt7921_get_status_freq_info(struct mt792x_dev *dev, struct mt76_phy *mphy,
-			    struct mt76_rx_status *status, u8 chfreq)
-{
-	if (chfreq > 180) {
-		status->band = NL80211_BAND_6GHZ;
-		chfreq = (chfreq - 181) * 4 + 1;
-	} else if (chfreq > 14) {
-		status->band = NL80211_BAND_5GHZ;
-	} else {
-		status->band = NL80211_BAND_2GHZ;
-	}
-	status->freq = ieee80211_channel_to_frequency(chfreq, status->band);
-}
-
-static void
-mt7921_mac_rssi_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
-{
-	struct sk_buff *skb = priv;
-	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
-
-	if (status->signal > 0)
-		return;
-
-	if (!ether_addr_equal(vif->addr, hdr->addr1))
-		return;
-
-	ewma_rssi_add(&mvif->rssi, -status->signal);
-}
-
-static void
-mt7921_mac_assoc_rssi(struct mt792x_dev *dev, struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
-
-	if (!ieee80211_is_assoc_resp(hdr->frame_control) &&
-	    !ieee80211_is_auth(hdr->frame_control))
-		return;
-
-	ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
-		IEEE80211_IFACE_ITER_RESUME_ALL,
-		mt7921_mac_rssi_iter, skb);
-}
-
 static int
 mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 {
@@ -276,7 +207,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 	chfreq = FIELD_GET(MT_RXD3_NORMAL_CH_FREQ, rxd3);
 	unicast = FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, rxd3) == MT_RXD3_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD1_NORMAL_WLAN_IDX, rxd1);
-	status->wcid = mt7921_rx_get_wcid(dev, idx, unicast);
+	status->wcid = mt792x_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
 		msta = container_of(status->wcid, struct mt792x_sta, wcid);
@@ -287,7 +218,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 	}
 
-	mt7921_get_status_freq_info(dev, mphy, status, chfreq);
+	mt792x_get_status_freq_info(status, chfreq);
 
 	switch (status->band) {
 	case NL80211_BAND_5GHZ:
@@ -496,7 +427,7 @@ mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 		status->flag |= RX_FLAG_8023;
 	}
 
-	mt7921_mac_assoc_rssi(dev, skb);
+	mt792x_mac_assoc_rssi(dev, skb);
 
 	if (rxv && mode >= MT_PHY_TYPE_HE_SU && !(status->flag & RX_FLAG_8023))
 		mt76_connac2_mac_decode_he_radiotap(&dev->mt76, skb, rxv, mode);
@@ -699,81 +630,6 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 }
 EXPORT_SYMBOL_GPL(mt7921_queue_rx_skb);
 
-void mt7921_mac_reset_counters(struct mt792x_phy *phy)
-{
-	struct mt792x_dev *dev = phy->dev;
-	int i;
-
-	for (i = 0; i < 4; i++) {
-		mt76_rr(dev, MT_TX_AGG_CNT(0, i));
-		mt76_rr(dev, MT_TX_AGG_CNT2(0, i));
-	}
-
-	dev->mt76.phy.survey_time = ktime_get_boottime();
-	memset(phy->mt76->aggr_stats, 0, sizeof(phy->mt76->aggr_stats));
-
-	/* reset airtime counters */
-	mt76_rr(dev, MT_MIB_SDR9(0));
-	mt76_rr(dev, MT_MIB_SDR36(0));
-	mt76_rr(dev, MT_MIB_SDR37(0));
-
-	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
-	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
-}
-
-static u8
-mt7921_phy_get_nf(struct mt792x_phy *phy, int idx)
-{
-	return 0;
-}
-
-static void
-mt7921_phy_update_channel(struct mt76_phy *mphy, int idx)
-{
-	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
-	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
-	struct mt76_channel_state *state;
-	u64 busy_time, tx_time, rx_time, obss_time;
-	int nf;
-
-	busy_time = mt76_get_field(dev, MT_MIB_SDR9(idx),
-				   MT_MIB_SDR9_BUSY_MASK);
-	tx_time = mt76_get_field(dev, MT_MIB_SDR36(idx),
-				 MT_MIB_SDR36_TXTIME_MASK);
-	rx_time = mt76_get_field(dev, MT_MIB_SDR37(idx),
-				 MT_MIB_SDR37_RXTIME_MASK);
-	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_AIRTIME14(idx),
-				   MT_MIB_OBSSTIME_MASK);
-
-	nf = mt7921_phy_get_nf(phy, idx);
-	if (!phy->noise)
-		phy->noise = nf << 4;
-	else if (nf)
-		phy->noise += nf - (phy->noise >> 4);
-
-	state = mphy->chan_state;
-	state->cc_busy += busy_time;
-	state->cc_tx += tx_time;
-	state->cc_rx += rx_time + obss_time;
-	state->cc_bss_rx += rx_time;
-	state->noise = -(phy->noise >> 4);
-}
-
-void mt7921_update_channel(struct mt76_phy *mphy)
-{
-	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
-
-	if (mt76_connac_pm_wake(mphy, &dev->pm))
-		return;
-
-	mt7921_phy_update_channel(mphy, 0);
-	/* reset obss airtime */
-	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
-
-	mt76_connac_power_save_sched(mphy, &dev->pm);
-}
-EXPORT_SYMBOL_GPL(mt7921_update_channel);
-
 static void
 mt7921_vif_connect_iter(void *priv, u8 *mac,
 			struct ieee80211_vif *vif)
@@ -842,24 +698,6 @@ void mt7921_mac_reset_work(struct work_struct *work)
 					    mt7921_vif_connect_iter, NULL);
 	mt76_connac_power_save_sched(&dev->mt76.phy, pm);
 }
-
-void mt7921_reset(struct mt76_dev *mdev)
-{
-	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
-	struct mt76_connac_pm *pm = &dev->pm;
-
-	if (!dev->hw_init_done)
-		return;
-
-	if (dev->hw_full_reset)
-		return;
-
-	if (pm->suspended)
-		return;
-
-	queue_work(dev->mt76.wq, &dev->reset_work);
-}
-EXPORT_SYMBOL_GPL(mt7921_reset);
 
 void mt7921_pm_wake_work(struct work_struct *work)
 {
@@ -975,7 +813,7 @@ void mt7921_coredump_work(struct work_struct *work)
 		dev_coredumpv(dev->mt76.dev, dump, MT76_CONNAC_COREDUMP_SZ,
 			      GFP_KERNEL);
 
-	mt7921_reset(&dev->mt76);
+	mt792x_reset(&dev->mt76);
 }
 
 /* usb_sdio */

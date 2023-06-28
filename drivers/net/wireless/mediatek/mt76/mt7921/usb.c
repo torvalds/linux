@@ -189,7 +189,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
-		.update_survey = mt7921_update_channel,
+		.update_survey = mt792x_update_channel,
 	};
 	static const struct mt792x_hif_ops hif_ops = {
 		.mcu_init = mt7921u_mcu_init,
@@ -322,7 +322,7 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }
@@ -364,7 +364,7 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }

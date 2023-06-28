@@ -155,11 +155,31 @@ mt792x_hw_phy(struct ieee80211_hw *hw)
 	return phy->priv;
 }
 
+static inline void
+mt792x_get_status_freq_info(struct mt76_rx_status *status, u8 chfreq)
+{
+	if (chfreq > 180) {
+		status->band = NL80211_BAND_6GHZ;
+		chfreq = (chfreq - 181) * 4 + 1;
+	} else if (chfreq > 14) {
+		status->band = NL80211_BAND_5GHZ;
+	} else {
+		status->band = NL80211_BAND_2GHZ;
+	}
+	status->freq = ieee80211_channel_to_frequency(chfreq, status->band);
+}
+
 #define mt792x_mutex_acquire(dev)	\
 	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
 #define mt792x_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
+void mt792x_reset(struct mt76_dev *mdev);
+void mt792x_update_channel(struct mt76_phy *mphy);
+void mt792x_mac_reset_counters(struct mt792x_phy *phy);
+void mt792x_mac_assoc_rssi(struct mt792x_dev *dev, struct sk_buff *skb);
+struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
+				     bool unicast);
 void mt792x_mac_update_mib_stats(struct mt792x_phy *phy);
 void mt792x_mac_set_timeing(struct mt792x_phy *phy);
 void mt792x_mac_work(struct work_struct *work);

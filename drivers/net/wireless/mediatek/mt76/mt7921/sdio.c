@@ -102,7 +102,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
-		.update_survey = mt7921_update_channel,
+		.update_survey = mt792x_update_channel,
 	};
 	static const struct mt76_bus_ops mt7921s_ops = {
 		.rr = mt76s_rr,
@@ -269,7 +269,7 @@ restore_suspend:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }
@@ -302,7 +302,7 @@ failed:
 	pm->suspended = false;
 
 	if (err < 0)
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 
 	return err;
 }

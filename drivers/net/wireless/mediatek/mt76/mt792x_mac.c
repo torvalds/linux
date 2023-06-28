@@ -134,3 +134,151 @@ void mt792x_mac_update_mib_stats(struct mt792x_phy *phy)
 	}
 }
 EXPORT_SYMBOL_GPL(mt792x_mac_update_mib_stats);
+
+struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
+				     bool unicast)
+{
+	struct mt792x_sta *sta;
+	struct mt76_wcid *wcid;
+
+	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
+		return NULL;
+
+	wcid = rcu_dereference(dev->mt76.wcid[idx]);
+	if (unicast || !wcid)
+		return wcid;
+
+	if (!wcid->sta)
+		return NULL;
+
+	sta = container_of(wcid, struct mt792x_sta, wcid);
+	if (!sta->vif)
+		return NULL;
+
+	return &sta->vif->sta.wcid;
+}
+EXPORT_SYMBOL_GPL(mt792x_rx_get_wcid);
+
+static void
+mt792x_mac_rssi_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct sk_buff *skb = priv;
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+
+	if (status->signal > 0)
+		return;
+
+	if (!ether_addr_equal(vif->addr, hdr->addr1))
+		return;
+
+	ewma_rssi_add(&mvif->rssi, -status->signal);
+}
+
+void mt792x_mac_assoc_rssi(struct mt792x_dev *dev, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
+
+	if (!ieee80211_is_assoc_resp(hdr->frame_control) &&
+	    !ieee80211_is_auth(hdr->frame_control))
+		return;
+
+	ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
+		IEEE80211_IFACE_ITER_RESUME_ALL,
+		mt792x_mac_rssi_iter, skb);
+}
+EXPORT_SYMBOL_GPL(mt792x_mac_assoc_rssi);
+
+void mt792x_mac_reset_counters(struct mt792x_phy *phy)
+{
+	struct mt792x_dev *dev = phy->dev;
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		mt76_rr(dev, MT_TX_AGG_CNT(0, i));
+		mt76_rr(dev, MT_TX_AGG_CNT2(0, i));
+	}
+
+	dev->mt76.phy.survey_time = ktime_get_boottime();
+	memset(phy->mt76->aggr_stats, 0, sizeof(phy->mt76->aggr_stats));
+
+	/* reset airtime counters */
+	mt76_rr(dev, MT_MIB_SDR9(0));
+	mt76_rr(dev, MT_MIB_SDR36(0));
+	mt76_rr(dev, MT_MIB_SDR37(0));
+
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
+	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
+}
+EXPORT_SYMBOL_GPL(mt792x_mac_reset_counters);
+
+static u8
+mt792x_phy_get_nf(struct mt792x_phy *phy, int idx)
+{
+	return 0;
+}
+
+static void
+mt792x_phy_update_channel(struct mt76_phy *mphy, int idx)
+{
+	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
+	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
+	struct mt76_channel_state *state;
+	u64 busy_time, tx_time, rx_time, obss_time;
+	int nf;
+
+	busy_time = mt76_get_field(dev, MT_MIB_SDR9(idx),
+				   MT_MIB_SDR9_BUSY_MASK);
+	tx_time = mt76_get_field(dev, MT_MIB_SDR36(idx),
+				 MT_MIB_SDR36_TXTIME_MASK);
+	rx_time = mt76_get_field(dev, MT_MIB_SDR37(idx),
+				 MT_MIB_SDR37_RXTIME_MASK);
+	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_AIRTIME14(idx),
+				   MT_MIB_OBSSTIME_MASK);
+
+	nf = mt792x_phy_get_nf(phy, idx);
+	if (!phy->noise)
+		phy->noise = nf << 4;
+	else if (nf)
+		phy->noise += nf - (phy->noise >> 4);
+
+	state = mphy->chan_state;
+	state->cc_busy += busy_time;
+	state->cc_tx += tx_time;
+	state->cc_rx += rx_time + obss_time;
+	state->cc_bss_rx += rx_time;
+	state->noise = -(phy->noise >> 4);
+}
+
+void mt792x_update_channel(struct mt76_phy *mphy)
+{
+	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
+
+	if (mt76_connac_pm_wake(mphy, &dev->pm))
+		return;
+
+	mt792x_phy_update_channel(mphy, 0);
+	/* reset obss airtime */
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
+	mt76_connac_power_save_sched(mphy, &dev->pm);
+}
+EXPORT_SYMBOL_GPL(mt792x_update_channel);
+
+void mt792x_reset(struct mt76_dev *mdev)
+{
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
+	struct mt76_connac_pm *pm = &dev->pm;
+
+	if (!dev->hw_init_done)
+		return;
+
+	if (dev->hw_full_reset)
+		return;
+
+	if (pm->suspended)
+		return;
+
+	queue_work(dev->mt76.wq, &dev->reset_work);
+}
+EXPORT_SYMBOL_GPL(mt792x_reset);

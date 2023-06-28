@@ -240,7 +240,7 @@ int __mt7921_start(struct mt792x_phy *phy)
 	if (err)
 		return err;
 
-	mt7921_mac_reset_counters(phy);
+	mt792x_mac_reset_counters(phy);
 	set_bit(MT76_STATE_RUNNING, &mphy->state);
 
 	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
@@ -454,7 +454,7 @@ static int mt7921_set_channel(struct mt792x_phy *phy)
 
 	mt792x_mac_set_timeing(phy);
 
-	mt7921_mac_reset_counters(phy);
+	mt792x_mac_reset_counters(phy);
 	phy->noise = 0;
 
 out:

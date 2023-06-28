@@ -396,7 +396,7 @@ static int mt7921_chip_reset(void *data, u64 val)
 	switch (val) {
 	case 1:
 		/* Reset wifisys directly. */
-		mt7921_reset(&dev->mt76);
+		mt792x_reset(&dev->mt76);
 		break;
 	default:
 		/* Collect the core dump before reset wifisys. */
