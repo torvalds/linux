@@ -247,6 +247,7 @@
 			cache-sets = <2048>;
 			cache-size = <2097152>;
 			cache-unified;
+			uncached-offset = <0x4 0x00000000>;
 		};
 
 		aon_syscon: aon_syscon@17010000 {
@@ -461,6 +462,7 @@
 			ranges;
 			usbdrd_cdns3: usb@10100000 {
 				compatible = "cdns,usb3";
+				dma-coherent;
 				reg = <0x0 0x10100000 0x0 0x10000>,
 				      <0x0 0x10110000 0x0 0x10000>,
 				      <0x0 0x10120000 0x0 0x10000>;
@@ -621,6 +623,7 @@
 
 		dma: dma-controller@16050000 {
 			compatible = "starfive,jh7110-dma", "snps,axi-dma-1.01a";
+			dma-coherent;
 			reg = <0x0 0x16050000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_DMA1P_CLK_AXI>,
 				 <&clkgen JH7110_DMA1P_CLK_AHB>,
@@ -730,6 +733,7 @@
 
 		sec_dma: sec_dma@16008000 {
 			compatible = "arm,pl080", "arm,primecell";
+			dma-coherent;
 			arm,primecell-periphid = <0x00041080>;
 			reg = <0x0 0x16008000 0x0 0x4000>;
 			reg-names = "sec_dma";
@@ -749,6 +753,7 @@
 
 		crypto: crypto@16000000 {
 			compatible = "starfive,jh7110-sec";
+			dma-coherent;
 			reg = <0x0 0x16000000 0x0 0x4000>,
 			      <0x0 0x16008000 0x0 0x4000>;
 			reg-names = "secreg","secdma";
@@ -861,6 +866,7 @@
 		/* unremovable emmc as mmcblk0 */
 		sdio0: sdio0@16010000 {
 			compatible = "starfive,jh7110-sdio";
+			dma-coherent;
 			reg = <0x0 0x16010000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SDIO0_CLK_AHB>,
 				 <&clkgen JH7110_SDIO0_CLK_SDCARD>;
@@ -877,6 +883,7 @@
 
 		sdio1: sdio1@16020000 {
 			compatible = "starfive,jh7110-sdio";
+			dma-coherent;
 			reg = <0x0 0x16020000 0x0 0x10000>;
 			clocks = <&clkgen JH7110_SDIO1_CLK_AHB>,
 				 <&clkgen JH7110_SDIO1_CLK_SDCARD>;
@@ -1036,6 +1043,7 @@
 
 		gmac0: ethernet@16030000 {
 			compatible = "starfive,dwmac","snps,dwmac-5.10a";
+			dma-coherent;
 			reg = <0x0 0x16030000 0x0 0x10000>;
 			clock-names = "gtx",
 				"tx",
@@ -1079,6 +1087,7 @@
 
 		gmac1: ethernet@16040000 {
 			compatible = "starfive,dwmac","snps,dwmac-5.10a";
+			dma-coherent;
 			reg = <0x0 0x16040000 0x0 0x10000>;
 			clock-names = "gtx",
 				"tx",
@@ -1173,7 +1182,7 @@
 			reset-names = "rst_apb", "rst_core", "rst_timer";
 			frequency = <40000000>;
 			starfive,sys-syscon = <&sys_syscon 0x88 0x12 0x40000>;
-			syscon,can_or_canfd = <1>;
+			syscon,can_or_canfd = <0>;
 			status = "disabled";
 		};
 
@@ -1527,6 +1536,7 @@
 
 		pcie0: pcie@2B000000 {
 			compatible = "starfive,jh7110-pcie","plda,pci-xpressrich3-axi";
+			dma-coherent;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -1567,6 +1577,7 @@
 
 		pcie1: pcie@2C000000 {
 			compatible = "starfive,jh7110-pcie","plda,pci-xpressrich3-axi";
+			dma-coherent;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
@@ -1798,6 +1809,7 @@
 
 		co_process: e24@0 {
 			compatible = "starfive,e24";
+			dma-coherent;
 			reg = <0x0 0xc0110000 0x0 0x00001000>,
 				<0x0 0xc0111000 0x0 0x0001f000>;
 			reg-names = "ecmd", "espace";
@@ -1822,6 +1834,7 @@
 
 		xrp: xrp@0 {
 			compatible = "cdns,xrp";
+			dma-coherent;
 			reg = <0x0  0x10230000 0x0 0x00010000
 				0x0  0x10240000 0x0 0x00010000>;
 			memory-region = <&xrp_reserved>;

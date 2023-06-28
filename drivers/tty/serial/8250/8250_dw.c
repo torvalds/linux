@@ -522,6 +522,9 @@ static int dw8250_probe(struct platform_device *pdev)
 	/* Always ask for fixed clock rate from a property. */
 	device_property_read_u32(dev, "clock-frequency", &p->uartclk);
 
+	if (device_property_read_bool(dev, "auto-flow-control"))
+		up->probe |= UART_PROBE_AFE;
+
 	/* If there is separate baudclk, get the rate from it. */
 	data->clk = devm_clk_get_optional(dev, "baudclk");
 	if (data->clk == NULL)
