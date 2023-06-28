@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/regmap.h>
@@ -459,5 +459,15 @@ const u8 wcd_usbss_reg_access[WCD_USBSS_NUM_REGISTERS] = {
 	[WCD_USBSS_REG(WCD_USBSS_EFUSE_REG_14)]                 = RD_REG,
 	[WCD_USBSS_REG(WCD_USBSS_EFUSE_REG_15)]                 = RD_REG,
 	[WCD_USBSS_REG(WCD_USBSS_EFUSE_PRG_CTL)]                = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_EFUSE_CTL)]                    = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_EFUSE_TEST_CTL_0)]             = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_EFUSE_TEST_CTL_1)]             = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_EFUSE_T_DATA_0)]               = RD_REG,
+	[WCD_USBSS_REG(WCD_USBSS_PAD_INP_DIS_0)]                = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_DRIVE_STRENGTH)]               = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_PULL_SEL)]                     = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_HYST_CTL)]                     = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_PAD_MODE)]                     = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_ANA_CSR_DBG_ADD)]              = RD_WR_REG,
+	[WCD_USBSS_REG(WCD_USBSS_ANA_CSR_DBG_CTL)]              = RD_WR_REG,
 };
-
