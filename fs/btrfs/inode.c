@@ -1004,12 +1004,7 @@ again:
 						     PAGE_UNLOCK |
 						     PAGE_START_WRITEBACK |
 						     PAGE_END_WRITEBACK);
-			for (i = 0; i < nr_pages; i++) {
-				WARN_ON(pages[i]->mapping);
-				put_page(pages[i]);
-			}
-			kfree(pages);
-			return;
+			goto free_pages;
 		}
 	}
 
@@ -1045,21 +1040,6 @@ mark_incompressible:
 	if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) && !inode->prop_compress)
 		inode->flags |= BTRFS_INODE_NOCOMPRESS;
 cleanup_and_bail_uncompressed:
-	if (pages) {
-		/*
-		 * the compression code ran but failed to make things smaller,
-		 * free any pages it allocated and our page pointer array
-		 */
-		for (i = 0; i < nr_pages; i++) {
-			WARN_ON(pages[i]->mapping);
-			put_page(pages[i]);
-		}
-		kfree(pages);
-		pages = NULL;
-		total_compressed = 0;
-		nr_pages = 0;
-	}
-
 	/*
 	 * No compression, but we still need to write the pages in the file
 	 * we've been given so far.  redirty the locked page if it corresponds
@@ -1077,6 +1057,14 @@ cleanup_and_bail_uncompressed:
 		extent_range_redirty_for_io(&inode->vfs_inode, start, end);
 	add_async_extent(async_chunk, start, end - start + 1, 0, NULL, 0,
 			 BTRFS_COMPRESS_NONE);
+free_pages:
+	if (pages) {
+		for (i = 0; i < nr_pages; i++) {
+			WARN_ON(pages[i]->mapping);
+			put_page(pages[i]);
+		}
+		kfree(pages);
+	}
 }
 
 static void free_async_extent_pages(struct async_extent *async_extent)
