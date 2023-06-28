@@ -28,6 +28,16 @@
 #include "errno.h"
 #include "types.h"
 
+/* Syscall return helper, set errno as -ret when ret < 0 */
+static __inline__ __attribute__((unused, always_inline))
+long __sysret(long ret)
+{
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
 
 /* Functions in this file only describe syscalls. They're declared static so
  * that the compiler usually decides to inline them while still being allowed
