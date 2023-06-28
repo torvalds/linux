@@ -157,6 +157,7 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 	case IP_VERSION(4, 0, 0):
 	case IP_VERSION(4, 0, 2):
 	case IP_VERSION(4, 0, 4):
+	case IP_VERSION(4, 0, 5):
 		if (amdgpu_sriov_vf(adev)) {
 			if ((adev->vcn.harvest_config & AMDGPU_VCN_HARVEST_VCN0) ||
 			!amdgpu_sriov_is_av1_support(adev)) {
