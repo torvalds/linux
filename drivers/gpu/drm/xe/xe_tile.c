@@ -10,6 +10,7 @@
 #include "xe_migrate.h"
 #include "xe_sa.h"
 #include "xe_tile.h"
+#include "xe_tile_sysfs.h"
 #include "xe_ttm_vram_mgr.h"
 
 /**
@@ -141,6 +142,8 @@ int xe_tile_init_noalloc(struct xe_tile *tile)
 	tile->mem.kernel_bb_pool = xe_sa_bo_manager_init(tile, SZ_1M, 16);
 	if (IS_ERR(tile->mem.kernel_bb_pool))
 		err = PTR_ERR(tile->mem.kernel_bb_pool);
+
+	xe_tile_sysfs_init(tile);
 
 err_mem_access:
 	xe_device_mem_access_put(tile_to_xe(tile));
