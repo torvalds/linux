@@ -129,7 +129,7 @@ static void mlx5_sf_dev_add(struct mlx5_core_dev *dev, u16 sf_index, u16 fn_id, 
 
 	err = auxiliary_device_add(&sf_dev->adev);
 	if (err) {
-		put_device(&sf_dev->adev.dev);
+		auxiliary_device_uninit(&sf_dev->adev);
 		goto add_err;
 	}
 
