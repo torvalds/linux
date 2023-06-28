@@ -149,6 +149,8 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	/* VSC packet set to 4 for PSR-SU, or 2 for PSR1 */
 	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
 		vsc_packet_revision = vsc_packet_rev4;
+	else if (stream->link->replay_settings.config.replay_supported)
+		vsc_packet_revision = vsc_packet_rev4;
 	else if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_1)
 		vsc_packet_revision = vsc_packet_rev2;
 
@@ -534,6 +536,9 @@ void mod_build_adaptive_sync_infopacket(const struct dc_stream_state *stream,
 			mod_build_adaptive_sync_infopacket_v2(stream, param, info_packet);
 		break;
 	case FREESYNC_TYPE_PCON_IN_WHITELIST:
+		mod_build_adaptive_sync_infopacket_v1(info_packet);
+		break;
+	case ADAPTIVE_SYNC_TYPE_EDP:
 		mod_build_adaptive_sync_infopacket_v1(info_packet);
 		break;
 	case ADAPTIVE_SYNC_TYPE_NONE:
