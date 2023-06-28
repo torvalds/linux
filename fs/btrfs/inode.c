@@ -839,10 +839,11 @@ static void compress_file_range(struct btrfs_work *work)
 	u64 actual_end;
 	u64 i_size;
 	int ret = 0;
-	struct page **pages = NULL;
+	struct page **pages;
 	unsigned long nr_pages;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
+	unsigned int poff;
 	int i;
 	int will_compress;
 	int compress_type = fs_info->compress_type;
@@ -865,6 +866,7 @@ static void compress_file_range(struct btrfs_work *work)
 	actual_end = min_t(u64, i_size, end + 1);
 again:
 	will_compress = 0;
+	pages = NULL;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
 	nr_pages = min_t(unsigned long, nr_pages, BTRFS_MAX_COMPRESSED_PAGES);
 
@@ -908,66 +910,64 @@ again:
 	ret = 0;
 
 	/*
-	 * we do compression for mount -o compress and when the
-	 * inode has not been flagged as nocompress.  This flag can
-	 * change at any time if we discover bad compression ratios.
+	 * We do compression for mount -o compress and when the inode has not
+	 * been flagged as NOCOMPRESS.  This flag can change at any time if we
+	 * discover bad compression ratios.
 	 */
-	if (inode_need_compress(inode, start, end)) {
-		WARN_ON(pages);
-		pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
-		if (!pages) {
-			/* just bail out to the uncompressed code */
-			nr_pages = 0;
-			goto cont;
-		}
+	if (!inode_need_compress(inode, start, end))
+		goto cont;
 
-		if (inode->defrag_compress)
-			compress_type = inode->defrag_compress;
-		else if (inode->prop_compress)
-			compress_type = inode->prop_compress;
-
+	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	if (!pages) {
 		/*
-		 * we need to call clear_page_dirty_for_io on each
-		 * page in the range.  Otherwise applications with the file
-		 * mmap'd can wander in and change the page contents while
-		 * we are compressing them.
-		 *
-		 * If the compression fails for any reason, we set the pages
-		 * dirty again later on.
-		 *
-		 * Note that the remaining part is redirtied, the start pointer
-		 * has moved, the end is the original one.
+		 * Memory allocation failure is not a fatal error, we can fall
+		 * back to uncompressed code.
 		 */
-		if (!redirty) {
-			extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
-			redirty = 1;
-		}
-
-		/* Compression level is applied here and only here */
-		ret = btrfs_compress_pages(
-			compress_type | (fs_info->compress_level << 4),
-					   mapping, start,
-					   pages,
-					   &nr_pages,
-					   &total_in,
-					   &total_compressed);
-
-		if (!ret) {
-			unsigned long offset = offset_in_page(total_compressed);
-			struct page *page = pages[nr_pages - 1];
-
-			/* zero the tail end of the last page, we might be
-			 * sending it down to disk
-			 */
-			if (offset)
-				memzero_page(page, offset, PAGE_SIZE - offset);
-			will_compress = 1;
-		}
+		nr_pages = 0;
+		goto cont;
 	}
+
+	if (inode->defrag_compress)
+		compress_type = inode->defrag_compress;
+	else if (inode->prop_compress)
+		compress_type = inode->prop_compress;
+
+	/*
+	 * We need to call clear_page_dirty_for_io on each page in the range.
+	 * Otherwise applications with the file mmap'd can wander in and change
+	 * the page contents while we are compressing them.
+	 *
+	 * If the compression fails for any reason, we set the pages dirty again
+	 * later on.
+	 *
+	 * Note that the remaining part is redirtied, the start pointer has
+	 * moved, the end is the original one.
+	 */
+	if (!redirty) {
+		extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
+		redirty = 1;
+	}
+
+	/* Compression level is applied here. */
+	ret = btrfs_compress_pages(compress_type | (fs_info->compress_level << 4),
+				   mapping, start, pages, &nr_pages, &total_in,
+				   &total_compressed);
+	if (ret)
+		goto cont;
+
+	/*
+	 * Zero the tail end of the last page, as we might be sending it down
+	 * to disk.
+	 */
+	poff = offset_in_page(total_compressed);
+	if (poff)
+		memzero_page(pages[nr_pages - 1], poff, PAGE_SIZE - poff);
+	will_compress = 1;
+
 cont:
 	/*
 	 * Check cow_file_range() for why we don't even try to create inline
-	 * extent for subpage case.
+	 * extent for the subpage case.
 	 */
 	if (start == 0 && fs_info->sectorsize == PAGE_SIZE) {
 		/* lets try to make an inline extent */
@@ -1026,39 +1026,38 @@ cont:
 		}
 	}
 
-	if (will_compress) {
-		/*
-		 * we aren't doing an inline extent round the compressed size
-		 * up to a block size boundary so the allocator does sane
-		 * things
-		 */
-		total_compressed = ALIGN(total_compressed, blocksize);
+	if (!will_compress)
+		goto cleanup_and_bail_uncompressed;
 
-		/*
-		 * one last check to make sure the compression is really a
-		 * win, compare the page count read with the blocks on disk,
-		 * compression must free at least one sector size
-		 */
-		total_in = round_up(total_in, fs_info->sectorsize);
-		if (total_compressed + blocksize <= total_in) {
-			/*
-			 * The async work queues will take care of doing actual
-			 * allocation on disk for these compressed pages, and
-			 * will submit them to the elevator.
-			 */
-			add_async_extent(async_chunk, start, total_in,
-					total_compressed, pages, nr_pages,
-					compress_type);
+	/*
+	 * We aren't doing an inline extent. Round the compressed size up to a
+	 * block size boundary so the allocator does sane things.
+	 */
+	total_compressed = ALIGN(total_compressed, blocksize);
 
-			if (start + total_in < end) {
-				start += total_in;
-				pages = NULL;
-				cond_resched();
-				goto again;
-			}
-			return;
-		}
+	/*
+	 * One last check to make sure the compression is really a win, compare
+	 * the page count read with the blocks on disk, compression must free at
+	 * least one sector.
+	 */
+	total_in = round_up(total_in, fs_info->sectorsize);
+	if (total_compressed + blocksize > total_in)
+		goto cleanup_and_bail_uncompressed;
+
+	/*
+	 * The async work queues will take care of doing actual allocation on
+	 * disk for these compressed pages, and will submit the bios.
+	 */
+	add_async_extent(async_chunk, start, total_in, total_compressed, pages,
+			 nr_pages, compress_type);
+	if (start + total_in < end) {
+		start += total_in;
+		cond_resched();
+		goto again;
 	}
+	return;
+
+cleanup_and_bail_uncompressed:
 	if (pages) {
 		/*
 		 * the compression code ran but failed to make things smaller,
@@ -1079,7 +1078,7 @@ cont:
 			inode->flags |= BTRFS_INODE_NOCOMPRESS;
 		}
 	}
-cleanup_and_bail_uncompressed:
+
 	/*
 	 * No compression, but we still need to write the pages in the file
 	 * we've been given so far.  redirty the locked page if it corresponds
