@@ -155,7 +155,6 @@ void __init init_rootfs(void);
 
 void init_IRQ(void);
 void time_init(void);
-void mem_encrypt_init(void);
 void poking_init(void);
 void pgtable_cache_init(void);
 
