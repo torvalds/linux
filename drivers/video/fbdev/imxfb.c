@@ -1066,7 +1066,7 @@ static void imxfb_remove(struct platform_device *pdev)
 	framebuffer_release(info);
 }
 
-static int __maybe_unused imxfb_suspend(struct device *dev)
+static int imxfb_suspend(struct device *dev)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct imxfb_info *fbi = info->par;
@@ -1076,7 +1076,7 @@ static int __maybe_unused imxfb_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imxfb_resume(struct device *dev)
+static int imxfb_resume(struct device *dev)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct imxfb_info *fbi = info->par;
@@ -1086,13 +1086,13 @@ static int __maybe_unused imxfb_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(imxfb_pm_ops, imxfb_suspend, imxfb_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(imxfb_pm_ops, imxfb_suspend, imxfb_resume);
 
 static struct platform_driver imxfb_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = imxfb_of_dev_id,
-		.pm	= &imxfb_pm_ops,
+		.pm	= pm_sleep_ptr(&imxfb_pm_ops),
 	},
 	.probe		= imxfb_probe,
 	.remove_new	= imxfb_remove,
