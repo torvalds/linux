@@ -117,6 +117,12 @@ struct btrfs_delayed_ref_head {
 	u64 owning_root;
 
 	/*
+	 * Track reserved bytes when setting must_insert_reserved.  On success
+	 * or cleanup, we will need to free the reservation.
+	 */
+	u64 reserved_bytes;
+
+	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
 	 * until the delayed ref is processed.  must_insert_reserved is
