@@ -1157,6 +1157,71 @@ static noinline void __init check_ranges(struct maple_tree *mt)
 	MT_BUG_ON(mt, !mt_height(mt));
 	mtree_destroy(mt);
 
+	/* Check in-place modifications */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	/* Append to the start of last range */
+	mt_set_non_kernel(50);
+	for (i = 0; i <= 500; i++) {
+		val = i * 5 + 1;
+		val2 = val + 4;
+		check_store_range(mt, val, val2, xa_mk_value(val), 0);
+	}
+
+	/* Append to the last range without touching any boundaries */
+	for (i = 0; i < 10; i++) {
+		val = val2 + 5;
+		val2 = val + 4;
+		check_store_range(mt, val, val2, xa_mk_value(val), 0);
+	}
+
+	/* Append to the end of last range */
+	val = val2;
+	for (i = 0; i < 10; i++) {
+		val += 5;
+		MT_BUG_ON(mt, mtree_test_store_range(mt, val, ULONG_MAX,
+						     xa_mk_value(val)) != 0);
+	}
+
+	/* Overwriting the range and over a part of the next range */
+	for (i = 10; i < 30; i += 2) {
+		val = i * 5 + 1;
+		val2 = val + 5;
+		check_store_range(mt, val, val2, xa_mk_value(val), 0);
+	}
+
+	/* Overwriting a part of the range and over the next range */
+	for (i = 50; i < 70; i += 2) {
+		val2 = i * 5;
+		val = val2 - 5;
+		check_store_range(mt, val, val2, xa_mk_value(val), 0);
+	}
+
+	/*
+	 * Expand the range, only partially overwriting the previous and
+	 * next ranges
+	 */
+	for (i = 100; i < 130; i += 3) {
+		val = i * 5 - 5;
+		val2 = i * 5 + 1;
+		check_store_range(mt, val, val2, xa_mk_value(val), 0);
+	}
+
+	/*
+	 * Expand the range, only partially overwriting the previous and
+	 * next ranges, in RCU mode
+	 */
+	mt_set_in_rcu(mt);
+	for (i = 150; i < 180; i += 3) {
+		val = i * 5 - 5;
+		val2 = i * 5 + 1;
+		check_store_range(mt, val, val2, xa_mk_value(val), 0);
+	}
+
+	MT_BUG_ON(mt, !mt_height(mt));
+	mt_validate(mt);
+	mt_set_non_kernel(0);
+	mtree_destroy(mt);
+
 	/* Test rebalance gaps */
 	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
 	mt_set_non_kernel(50);
