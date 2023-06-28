@@ -222,10 +222,9 @@ struct mt7921_phy {
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
 #ifdef CONFIG_ACPI
-	struct mt7921_acpi_sar *acpisar;
+	void *acpisar;
 #endif
-
-	struct mt7921_clc *clc[MT7921_CLC_MAX_NUM];
+	void *clc[MT7921_CLC_MAX_NUM];
 
 	struct work_struct roc_work;
 	struct timer_list roc_timer;
