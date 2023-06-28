@@ -91,7 +91,7 @@ int mt7921e_mcu_drv_pmctrl(struct mt792x_dev *dev)
 	if (err < 0)
 		goto out;
 
-	mt7921_wpdma_reinit_cond(dev);
+	mt792x_wpdma_reinit_cond(dev);
 	clear_bit(MT76_STATE_PM, &mphy->state);
 
 	pm->stats.last_wake_event = jiffies;

@@ -10,7 +10,6 @@
 #include "mt7921.h"
 #include "../mt76_connac2_mac.h"
 #include "mcu.h"
-#include "../trace.h"
 
 static const struct pci_device_id mt7921_pci_device_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7961),
@@ -28,82 +27,9 @@ static bool mt7921_disable_aspm;
 module_param_named(disable_aspm, mt7921_disable_aspm, bool, 0644);
 MODULE_PARM_DESC(disable_aspm, "disable PCI ASPM support");
 
-static void
-mt7921_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q)
-{
-	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
-	const struct mt792x_irq_map *irq_map = dev->irq_map;
-
-	if (q == MT_RXQ_MAIN)
-		mt76_connac_irq_enable(mdev, irq_map->rx.data_complete_mask);
-	else if (q == MT_RXQ_MCU_WA)
-		mt76_connac_irq_enable(mdev, irq_map->rx.wm2_complete_mask);
-	else
-		mt76_connac_irq_enable(mdev, irq_map->rx.wm_complete_mask);
-}
-
-static irqreturn_t mt7921_irq_handler(int irq, void *dev_instance)
-{
-	struct mt792x_dev *dev = dev_instance;
-
-	mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
-
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return IRQ_NONE;
-
-	tasklet_schedule(&dev->mt76.irq_tasklet);
-
-	return IRQ_HANDLED;
-}
-
-static void mt7921_irq_tasklet(unsigned long data)
-{
-	struct mt792x_dev *dev = (struct mt792x_dev *)data;
-	const struct mt792x_irq_map *irq_map = dev->irq_map;
-	u32 intr, mask = 0;
-
-	mt76_wr(dev, irq_map->host_irq_enable, 0);
-
-	intr = mt76_rr(dev, MT_WFDMA0_HOST_INT_STA);
-	intr &= dev->mt76.mmio.irqmask;
-	mt76_wr(dev, MT_WFDMA0_HOST_INT_STA, intr);
-
-	trace_dev_irq(&dev->mt76, intr, dev->mt76.mmio.irqmask);
-
-	mask |= intr & MT_INT_RX_DONE_ALL;
-	if (intr & irq_map->tx.mcu_complete_mask)
-		mask |= irq_map->tx.mcu_complete_mask;
-
-	if (intr & MT_INT_MCU_CMD) {
-		u32 intr_sw;
-
-		intr_sw = mt76_rr(dev, MT_MCU_CMD);
-		/* ack MCU2HOST_SW_INT_STA */
-		mt76_wr(dev, MT_MCU_CMD, intr_sw);
-		if (intr_sw & MT_MCU_CMD_WAKE_RX_PCIE) {
-			mask |= irq_map->rx.data_complete_mask;
-			intr |= irq_map->rx.data_complete_mask;
-		}
-	}
-
-	mt76_set_irq_mask(&dev->mt76, irq_map->host_irq_enable, mask, 0);
-
-	if (intr & irq_map->tx.all_complete_mask)
-		napi_schedule(&dev->mt76.tx_napi);
-
-	if (intr & irq_map->rx.wm_complete_mask)
-		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU]);
-
-	if (intr & irq_map->rx.wm2_complete_mask)
-		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU_WA]);
-
-	if (intr & irq_map->rx.data_complete_mask)
-		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
-}
-
 static int mt7921e_init_reset(struct mt792x_dev *dev)
 {
-	return mt7921_wpdma_reset(dev, true);
+	return mt792x_wpdma_reset(dev, true);
 }
 
 static void mt7921e_unregister_device(struct mt792x_dev *dev)
@@ -122,7 +48,7 @@ static void mt7921e_unregister_device(struct mt792x_dev *dev)
 	mt76_connac2_tx_token_put(&dev->mt76);
 	__mt7921_mcu_drv_pmctrl(dev);
 	mt792x_dma_cleanup(dev);
-	mt792x_wfsys_reset(dev, MT_WFSYS_SW_RST_B);
+	mt792x_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	tasklet_disable(&dev->mt76.irq_tasklet);
@@ -245,7 +171,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.tx_complete_skb = mt76_connac_tx_complete_skb,
 		.rx_check = mt7921_rx_check,
 		.rx_skb = mt7921_queue_rx_skb,
-		.rx_poll_complete = mt7921_rx_poll_complete,
+		.rx_poll_complete = mt792x_rx_poll_complete,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
@@ -324,7 +250,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	dev->hif_ops = &mt7921_pcie_ops;
 	dev->irq_map = &irq_map;
 	mt76_mmio_init(&dev->mt76, pcim_iomap_table(pdev)[0]);
-	tasklet_init(&mdev->irq_tasklet, mt7921_irq_tasklet, (unsigned long)dev);
+	tasklet_init(&mdev->irq_tasklet, mt792x_irq_tasklet, (unsigned long)dev);
 
 	dev->phy.dev = dev;
 	dev->phy.mt76 = &dev->mt76.phy;
@@ -354,7 +280,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		    (mt7921_l1_rr(dev, MT_HW_REV) & 0xff);
 	dev_info(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
-	ret = mt792x_wfsys_reset(dev, MT_WFSYS_SW_RST_B);
+	ret = mt792x_wfsys_reset(dev);
 	if (ret)
 		goto err_free_dev;
 
@@ -362,7 +288,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
 
-	ret = devm_request_irq(mdev->dev, pdev->irq, mt7921_irq_handler,
+	ret = devm_request_irq(mdev->dev, pdev->irq, mt792x_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
 		goto err_free_dev;
@@ -484,7 +410,7 @@ static int mt7921_pci_resume(struct device *device)
 	if (err < 0)
 		goto failed;
 
-	mt7921_wpdma_reinit_cond(dev);
+	mt792x_wpdma_reinit_cond(dev);
 
 	/* enable interrupt */
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);

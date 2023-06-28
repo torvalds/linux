@@ -256,9 +256,16 @@ void mt792x_sta_statistics(struct ieee80211_hw *hw,
 			   struct station_info *sinfo);
 void mt792x_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class);
 void mt792x_dma_cleanup(struct mt792x_dev *dev);
+int mt792x_dma_enable(struct mt792x_dev *dev);
+int mt792x_wpdma_reset(struct mt792x_dev *dev, bool force);
+int mt792x_wpdma_reinit_cond(struct mt792x_dev *dev);
 int mt792x_dma_disable(struct mt792x_dev *dev, bool force);
+irqreturn_t mt792x_irq_handler(int irq, void *dev_instance);
+void mt792x_rx_poll_complete(struct mt76_dev *mdev, enum mt76_rxq_id q);
+int mt792x_poll_tx(struct napi_struct *napi, int budget);
 int mt792x_poll_rx(struct napi_struct *napi, int budget);
-int mt792x_wfsys_reset(struct mt792x_dev *dev, u32 addr);
+void mt792x_irq_tasklet(unsigned long data);
+int mt792x_wfsys_reset(struct mt792x_dev *dev);
 int mt792x_tx_stats_show(struct seq_file *file, void *data);
 int mt792x_queues_acq(struct seq_file *s, void *data);
 int mt792x_queues_read(struct seq_file *s, void *data);

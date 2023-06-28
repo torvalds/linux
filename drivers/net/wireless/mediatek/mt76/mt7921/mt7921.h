@@ -203,8 +203,6 @@ int __mt7921_start(struct mt792x_phy *phy);
 int mt7921_register_device(struct mt792x_dev *dev);
 void mt7921_unregister_device(struct mt792x_dev *dev);
 int mt7921_dma_init(struct mt792x_dev *dev);
-int mt7921_wpdma_reset(struct mt792x_dev *dev, bool force);
-int mt7921_wpdma_reinit_cond(struct mt792x_dev *dev);
 int mt7921_run_firmware(struct mt792x_dev *dev);
 int mt7921_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			  bool enable);

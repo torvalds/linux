@@ -80,7 +80,7 @@ int mt7921e_mac_reset(struct mt792x_dev *dev)
 	mt76_connac2_tx_token_put(&dev->mt76);
 	idr_init(&dev->mt76.token);
 
-	mt7921_wpdma_reset(dev, true);
+	mt792x_wpdma_reset(dev, true);
 
 	local_bh_disable();
 	mt76_for_each_q_rx(&dev->mt76, i) {
