@@ -3917,18 +3917,6 @@ static struct gdsc vfe1_gdsc = {
 	.pwrsts = PWRSTS_OFF_ON,
 };
 
-static struct gdsc oxili_gx_gdsc = {
-	.gdscr = 0x5901c,
-	.clamp_io_ctrl = 0x5b00c,
-	.cxcs = (unsigned int []){ 0x59000, 0x59024 },
-	.cxc_count = 2,
-	.pd = {
-		.name = "oxili_gx_gdsc",
-	},
-	.pwrsts = PWRSTS_OFF_ON,
-	.flags = CLAMP_IO,
-};
-
 static struct gdsc oxili_cx_gdsc = {
 	.gdscr = 0x5904c,
 	.cxcs = (unsigned int []){ 0x59020 },
@@ -3937,6 +3925,19 @@ static struct gdsc oxili_cx_gdsc = {
 		.name = "oxili_cx_gdsc",
 	},
 	.pwrsts = PWRSTS_OFF_ON,
+};
+
+static struct gdsc oxili_gx_gdsc = {
+	.gdscr = 0x5901c,
+	.parent = &oxili_cx_gdsc.pd,
+	.clamp_io_ctrl = 0x5b00c,
+	.cxcs = (unsigned int []){ 0x59000, 0x59024 },
+	.cxc_count = 2,
+	.pd = {
+		.name = "oxili_gx_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = CLAMP_IO,
 };
 
 static struct gdsc cpp_gdsc = {
