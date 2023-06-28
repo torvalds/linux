@@ -1773,7 +1773,6 @@ static int __cmd_report(bool display_info)
 		return PTR_ERR(session);
 	}
 
-	/* for lock function check */
 	symbol_conf.allow_aliases = true;
 	symbol__init(&session->header.env);
 
@@ -1902,7 +1901,6 @@ static int __cmd_contention(int argc, const char **argv)
 	if (con.aggr_mode == LOCK_AGGR_CALLER)
 		con.save_callstack = true;
 
-	/* for lock function check */
 	symbol_conf.allow_aliases = true;
 	symbol__init(&session->header.env);
 
