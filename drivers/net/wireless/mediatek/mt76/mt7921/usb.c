@@ -212,8 +212,8 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	u8 features;
 	int ret;
 
-	ops = mt7921_get_mac80211_ops(&usb_intf->dev, (void *)id->driver_info,
-				      &features);
+	ops = mt792x_get_mac80211_ops(&usb_intf->dev, &mt7921_ops,
+				      (void *)id->driver_info, &features);
 	if (!ops)
 		return -ENOMEM;
 

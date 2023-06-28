@@ -18,6 +18,9 @@
 #define MT792x_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
 #define MT792x_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
 
+#define MT792x_FW_TAG_FEATURE	4
+#define MT792x_FW_CAP_CNM	BIT(7)
+
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT792x_BASIC_RATES_TBL	11
 
@@ -25,6 +28,18 @@
 
 struct mt792x_vif;
 struct mt792x_sta;
+
+struct mt792x_realease_info {
+	__le16 len;
+	u8 pad_len;
+	u8 tag;
+} __packed;
+
+struct mt792x_fw_features {
+	u8 segment;
+	u8 data;
+	u8 rsv[14];
+} __packed;
 
 enum {
 	MT792x_CLC_POWER,
@@ -183,6 +198,7 @@ static inline bool mt792x_dma_need_reinit(struct mt792x_dev *dev)
 void mt792x_reset(struct mt76_dev *mdev);
 void mt792x_update_channel(struct mt76_phy *mphy);
 void mt792x_mac_reset_counters(struct mt792x_phy *phy);
+void mt792x_mac_init_band(struct mt792x_dev *dev, u8 band);
 void mt792x_mac_assoc_rssi(struct mt792x_dev *dev, struct sk_buff *skb);
 struct mt76_wcid *mt792x_rx_get_wcid(struct mt792x_dev *dev, u16 idx,
 				     bool unicast);
@@ -235,5 +251,11 @@ int mt792x_queues_read(struct seq_file *s, void *data);
 int mt792x_pm_stats(struct seq_file *s, void *data);
 int mt792x_pm_idle_timeout_set(void *data, u64 val);
 int mt792x_pm_idle_timeout_get(void *data, u64 *val);
+int mt792x_init_wiphy(struct ieee80211_hw *hw);
+struct ieee80211_ops *
+mt792x_get_mac80211_ops(struct device *dev,
+			const struct ieee80211_ops *mac80211_ops,
+			void *drv_data, u8 *fw_features);
+int mt792x_init_wcid(struct mt792x_dev *dev);
 
 #endif /* __MT7925_H */

@@ -22,9 +22,6 @@
 #define MT7921_MCU_INIT_RETRY_COUNT	10
 #define MT7921_WFSYS_INIT_RETRY_COUNT	2
 
-#define MT7921_FW_TAG_FEATURE		4
-#define MT7921_FW_CAP_CNM		BIT(7)
-
 #define MT7921_FIRMWARE_WM		"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7921_ROM_PATCH		"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
 
@@ -400,6 +397,4 @@ int mt7921_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 		       enum mt7921_roc_req type, u8 token_id);
 int mt7921_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id);
-struct ieee80211_ops *mt7921_get_mac80211_ops(struct device *dev,
-					      void *drv_data, u8 *fw_features);
 #endif
