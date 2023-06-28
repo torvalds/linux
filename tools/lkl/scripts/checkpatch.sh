@@ -52,7 +52,8 @@ if [ -z "$c" ]; then
     exit 0
 fi
 
-./scripts/checkpatch.pl $Q --summary-file --ignore FILE_PATH_CHANGES $tmp/*.patch
+./scripts/checkpatch.pl $Q --summary-file --ignore FILE_PATH_CHANGES \
+       --ignore PREFER_DEFINED_ATTRIBUTE_MACRO $tmp/*.patch
 rm $tmp/*.patch
 
 # checkpatch.pl does not know how to deal with 3 way diffs which would
