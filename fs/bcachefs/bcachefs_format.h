@@ -1748,6 +1748,11 @@ LE64_BITMASK(BCH_SB_JOURNAL_TRANSACTION_NAMES,struct bch_sb, flags[4], 32, 33);
 LE64_BITMASK(BCH_SB_NOCOW,		struct bch_sb, flags[4], 33, 34);
 LE64_BITMASK(BCH_SB_WRITE_BUFFER_SIZE,	struct bch_sb, flags[4], 34, 54);
 
+/* flags[4] 56-64 unused: */
+
+LE64_BITMASK(BCH_SB_VERSION_UPGRADE_COMPLETE,
+					struct bch_sb, flags[5],  0, 16);
+
 /*
  * Features:
  *

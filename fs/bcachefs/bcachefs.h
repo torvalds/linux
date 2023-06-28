@@ -712,6 +712,7 @@ struct bch_fs {
 
 		u16		version;
 		u16		version_min;
+		u16		version_upgrade_complete;
 
 		u8		nr_devices;
 		u8		clean;
@@ -1132,6 +1133,12 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 {
 	return dev < c->sb.nr_devices && c->devs[dev];
+}
+
+static inline bool bch2_version_upgrading_to(const struct bch_fs *c, unsigned new_version)
+{
+	return c->sb.version_upgrade_complete < new_version &&
+		c->sb.version >= new_version;
 }
 
 #define BKEY_PADDED_ONSTACK(key, pad)				\

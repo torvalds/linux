@@ -1232,8 +1232,7 @@ int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
 	unsigned i, gens_offset, gens_end_offset;
 	int ret;
 
-	if (c->sb.version < bcachefs_metadata_version_bucket_gens &&
-	    !c->opts.version_upgrade)
+	if (c->sb.version < bcachefs_metadata_version_bucket_gens)
 		return 0;
 
 	bch2_btree_iter_set_pos(bucket_gens_iter, alloc_gens_pos(start, &gens_offset));

@@ -1107,6 +1107,31 @@ static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 	return ret;
 }
 
+static void check_version_upgrade(struct bch_fs *c)
+{
+	unsigned version = c->sb.version_upgrade_complete ?: c->sb.version;
+
+	if (version < bcachefs_metadata_required_upgrade_below) {
+		struct printbuf buf = PRINTBUF;
+
+		if (version != c->sb.version)
+			prt_str(&buf, "version upgrade incomplete:\n");
+
+		prt_str(&buf, "version ");
+		bch2_version_to_text(&buf, version);
+		prt_str(&buf, " prior to ");
+		bch2_version_to_text(&buf, bcachefs_metadata_required_upgrade_below);
+		prt_str(&buf, ", upgrade and fsck required");
+
+		bch_info(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+
+		c->opts.version_upgrade	= true;
+		c->opts.fsck		= true;
+		c->opts.fix_errors	= FSCK_OPT_YES;
+	}
+}
+
 int bch2_fs_recovery(struct bch_fs *c)
 {
 	struct bch_sb_field_clean *clean = NULL;
@@ -1146,23 +1171,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!c->opts.nochanges &&
-	    c->sb.version < bcachefs_metadata_required_upgrade_below) {
-		struct printbuf buf = PRINTBUF;
-
-		prt_str(&buf, "version ");
-		bch2_version_to_text(&buf, c->sb.version);
-		prt_str(&buf, " prior to ");
-		bch2_version_to_text(&buf, bcachefs_metadata_required_upgrade_below);
-		prt_str(&buf, ", upgrade and fsck required");
-
-		bch_info(c, "%s", buf.buf);
-		printbuf_exit(&buf);
-
-		c->opts.version_upgrade	= true;
-		c->opts.fsck		= true;
-		c->opts.fix_errors	= FSCK_OPT_YES;
-	}
+	if (!c->opts.nochanges)
+		check_version_upgrade(c);
 
 	if (c->opts.fsck && c->opts.norecovery) {
 		bch_err(c, "cannot select both norecovery and fsck");
@@ -1406,8 +1416,7 @@ use_clean:
 	if (ret)
 		goto err;
 
-	if (c->sb.version < bcachefs_metadata_version_bucket_gens &&
-	    c->opts.version_upgrade) {
+	if (bch2_version_upgrading_to(c, bcachefs_metadata_version_bucket_gens)) {
 		bch_info(c, "initializing bucket_gens");
 		ret = bch2_bucket_gens_init(c);
 		if (ret)
@@ -1415,7 +1424,7 @@ use_clean:
 		bch_verbose(c, "bucket_gens init done");
 	}
 
-	if (c->sb.version < bcachefs_metadata_version_snapshot_2) {
+	if (bch2_version_upgrading_to(c, bcachefs_metadata_version_snapshot_2)) {
 		ret = bch2_fs_upgrade_for_subvolumes(c);
 		if (ret)
 			goto err;
@@ -1443,9 +1452,8 @@ use_clean:
 	}
 
 	mutex_lock(&c->sb_lock);
-	if (c->opts.version_upgrade) {
-		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
-		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) != c->sb.version) {
+		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, c->sb.version);
 		write_sb = true;
 	}
 
