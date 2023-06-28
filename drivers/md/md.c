@@ -643,7 +643,6 @@ void mddev_init(struct mddev *mddev)
 {
 	mutex_init(&mddev->open_mutex);
 	mutex_init(&mddev->reconfig_mutex);
-	mutex_init(&mddev->delete_mutex);
 	mutex_init(&mddev->bitmap_info.mutex);
 	INIT_LIST_HEAD(&mddev->disks);
 	INIT_LIST_HEAD(&mddev->all_mddevs);
@@ -749,26 +748,15 @@ static void mddev_free(struct mddev *mddev)
 
 static const struct attribute_group md_redundancy_group;
 
-static void md_free_rdev(struct mddev *mddev)
+void mddev_unlock(struct mddev *mddev)
 {
 	struct md_rdev *rdev;
 	struct md_rdev *tmp;
+	LIST_HEAD(delete);
 
-	mutex_lock(&mddev->delete_mutex);
-	if (list_empty(&mddev->deleting))
-		goto out;
+	if (!list_empty(&mddev->deleting))
+		list_splice_init(&mddev->deleting, &delete);
 
-	list_for_each_entry_safe(rdev, tmp, &mddev->deleting, same_set) {
-		list_del_init(&rdev->same_set);
-		kobject_del(&rdev->kobj);
-		export_rdev(rdev, mddev);
-	}
-out:
-	mutex_unlock(&mddev->delete_mutex);
-}
-
-void mddev_unlock(struct mddev *mddev)
-{
 	if (mddev->to_remove) {
 		/* These cannot be removed under reconfig_mutex as
 		 * an access to the files will try to take reconfig_mutex
@@ -808,7 +796,11 @@ void mddev_unlock(struct mddev *mddev)
 	} else
 		mutex_unlock(&mddev->reconfig_mutex);
 
-	md_free_rdev(mddev);
+	list_for_each_entry_safe(rdev, tmp, &delete, same_set) {
+		list_del_init(&rdev->same_set);
+		kobject_del(&rdev->kobj);
+		export_rdev(rdev, mddev);
+	}
 
 	md_wakeup_thread(mddev->thread);
 	wake_up(&mddev->sb_wait);
@@ -2458,7 +2450,7 @@ static void export_rdev(struct md_rdev *rdev, struct mddev *mddev)
 	if (test_bit(AutoDetected, &rdev->flags))
 		md_autodetect_dev(rdev->bdev->bd_dev);
 #endif
-	blkdev_put(rdev->bdev, mddev->major_version == -2 ? &claim_rdev : rdev);
+	blkdev_put(rdev->bdev, mddev->external ? &claim_rdev : rdev);
 	rdev->bdev = NULL;
 	kobject_put(&rdev->kobj);
 }
@@ -2488,9 +2480,7 @@ static void md_kick_rdev_from_array(struct md_rdev *rdev)
 	 * reconfig_mutex is held, hence it can't be called under
 	 * reconfig_mutex and it's delayed to mddev_unlock().
 	 */
-	mutex_lock(&mddev->delete_mutex);
 	list_add(&rdev->same_set, &mddev->deleting);
-	mutex_unlock(&mddev->delete_mutex);
 }
 
 static void export_array(struct mddev *mddev)
@@ -6140,7 +6130,7 @@ static void md_clean(struct mddev *mddev)
 	mddev->resync_min = 0;
 	mddev->resync_max = MaxSector;
 	mddev->reshape_position = MaxSector;
-	mddev->external = 0;
+	/* we still need mddev->external in export_rdev, do not clear it yet */
 	mddev->persistent = 0;
 	mddev->level = LEVEL_NONE;
 	mddev->clevel[0] = 0;

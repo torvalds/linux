@@ -531,11 +531,9 @@ struct mddev {
 
 	/*
 	 * Temporarily store rdev that will be finally removed when
-	 * reconfig_mutex is unlocked.
+	 * reconfig_mutex is unlocked, protected by reconfig_mutex.
 	 */
 	struct list_head		deleting;
-	/* Protect the deleting list */
-	struct mutex			delete_mutex;
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;
