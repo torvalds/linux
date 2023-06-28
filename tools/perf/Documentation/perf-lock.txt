@@ -36,6 +36,9 @@ COMMON OPTIONS
 --input=<file>::
         Input file name. (default: perf.data unless stdin is a fifo)
 
+--output=<file>::
+        Output file name for perf lock contention and report.
+
 -v::
 --verbose::
         Be more verbose (show symbol address, etc).

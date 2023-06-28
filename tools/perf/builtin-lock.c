@@ -27,6 +27,7 @@
 #include "util/map.h"
 #include "util/util.h"
 
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/prctl.h>
 #include <semaphore.h>
@@ -65,6 +66,8 @@ static int max_stack_depth = CONTENTION_STACK_DEPTH;
 static int stack_skip = CONTENTION_STACK_SKIP;
 static int print_nr_entries = INT_MAX / 2;
 static LIST_HEAD(callstack_filters);
+static const char *output_name = NULL;
+static FILE *lock_output;
 
 struct callstack_filter {
 	struct list_head list;
@@ -227,7 +230,7 @@ static void lock_stat_key_print_time(unsigned long long nsec, int len)
 
 	/* for CSV output */
 	if (len == 0) {
-		pr_info("%llu", nsec);
+		fprintf(lock_output, "%llu", nsec);
 		return;
 	}
 
@@ -235,18 +238,18 @@ static void lock_stat_key_print_time(unsigned long long nsec, int len)
 		if (nsec < table[i].base)
 			continue;
 
-		pr_info("%*.2f %s", len - 3, nsec / table[i].base, table[i].unit);
+		fprintf(lock_output, "%*.2f %s", len - 3, nsec / table[i].base, table[i].unit);
 		return;
 	}
 
-	pr_info("%*llu %s", len - 3, nsec, "ns");
+	fprintf(lock_output, "%*llu %s", len - 3, nsec, "ns");
 }
 
 #define PRINT_KEY(member)						\
 static void lock_stat_key_print_ ## member(struct lock_key *key,	\
 					   struct lock_stat *ls)	\
 {									\
-	pr_info("%*llu", key->len, (unsigned long long)ls->member);	\
+	fprintf(lock_output, "%*llu", key->len, (unsigned long long)ls->member);\
 }
 
 #define PRINT_TIME(member)						\
@@ -1335,12 +1338,12 @@ static void print_bad_events(int bad, int total)
 	if (quiet || total == 0 || (broken == 0 && verbose <= 0))
 		return;
 
-	pr_info("\n=== output for debug ===\n\n");
-	pr_info("bad: %d, total: %d\n", bad, total);
-	pr_info("bad rate: %.2f %%\n", (double)bad / (double)total * 100);
-	pr_info("histogram of events caused bad sequence\n");
+	fprintf(lock_output, "\n=== output for debug ===\n\n");
+	fprintf(lock_output, "bad: %d, total: %d\n", bad, total);
+	fprintf(lock_output, "bad rate: %.2f %%\n", (double)bad / (double)total * 100);
+	fprintf(lock_output, "histogram of events caused bad sequence\n");
 	for (i = 0; i < BROKEN_MAX; i++)
-		pr_info(" %10s: %d\n", name[i], bad_hist[i]);
+		fprintf(lock_output, " %10s: %d\n", name[i], bad_hist[i]);
 }
 
 /* TODO: various way to print, coloring, nano or milli sec */
@@ -1352,10 +1355,10 @@ static void print_result(void)
 	int bad, total, printed;
 
 	if (!quiet) {
-		pr_info("%20s ", "Name");
+		fprintf(lock_output, "%20s ", "Name");
 		list_for_each_entry(key, &lock_keys, list)
-			pr_info("%*s ", key->len, key->header);
-		pr_info("\n\n");
+			fprintf(lock_output, "%*s ", key->len, key->header);
+		fprintf(lock_output, "\n\n");
 	}
 
 	bad = total = printed = 0;
@@ -1380,7 +1383,7 @@ static void print_result(void)
 				name = thread__comm_str(t);
 			}
 
-			pr_info("%20s ", name);
+			fprintf(lock_output, "%20s ", name);
 		} else {
 			strncpy(cut_name, st->name, 16);
 			cut_name[16] = '.';
@@ -1388,14 +1391,14 @@ static void print_result(void)
 			cut_name[18] = '.';
 			cut_name[19] = '\0';
 			/* cut off name for saving output style */
-			pr_info("%20s ", cut_name);
+			fprintf(lock_output, "%20s ", cut_name);
 		}
 
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
-			pr_info(" ");
+			fprintf(lock_output, " ");
 		}
-		pr_info("\n");
+		fprintf(lock_output, "\n");
 
 		if (++printed >= print_nr_entries)
 			break;
@@ -1412,13 +1415,13 @@ static void dump_threads(void)
 	struct rb_node *node;
 	struct thread *t;
 
-	pr_info("%10s: comm\n", "Thread ID");
+	fprintf(lock_output, "%10s: comm\n", "Thread ID");
 
 	node = rb_first(&thread_stats);
 	while (node) {
 		st = container_of(node, struct thread_stat, rb);
 		t = perf_session__findnew(session, st->tid);
-		pr_info("%10d: %s\n", st->tid, thread__comm_str(t));
+		fprintf(lock_output, "%10d: %s\n", st->tid, thread__comm_str(t));
 		node = rb_next(node);
 		thread__put(t);
 	}
@@ -1444,7 +1447,7 @@ static void dump_map(void)
 	unsigned int i;
 	struct lock_stat *st;
 
-	pr_info("Address of instance: name of class\n");
+	fprintf(lock_output, "Address of instance: name of class\n");
 	for (i = 0; i < LOCKHASH_SIZE; i++) {
 		hlist_for_each_entry(st, &lockhash_table[i], hash_entry) {
 			insert_to_result(st, compare_maps);
@@ -1452,7 +1455,7 @@ static void dump_map(void)
 	}
 
 	while ((st = pop_from_result()))
-		pr_info(" %#llx: %s\n", (unsigned long long)st->addr, st->name);
+		fprintf(lock_output, " %#llx: %s\n", (unsigned long long)st->addr, st->name);
 }
 
 static int dump_info(void)
@@ -1637,18 +1640,18 @@ static void print_header_stdio(void)
 	struct lock_key *key;
 
 	list_for_each_entry(key, &lock_keys, list)
-		pr_info("%*s ", key->len, key->header);
+		fprintf(lock_output, "%*s ", key->len, key->header);
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_TASK:
-		pr_info("  %10s   %s\n\n", "pid",
+		fprintf(lock_output, "  %10s   %s\n\n", "pid",
 			show_lock_owner ? "owner" : "comm");
 		break;
 	case LOCK_AGGR_CALLER:
-		pr_info("  %10s   %s\n\n", "type", "caller");
+		fprintf(lock_output, "  %10s   %s\n\n", "type", "caller");
 		break;
 	case LOCK_AGGR_ADDR:
-		pr_info("  %16s   %s\n\n", "address", "symbol");
+		fprintf(lock_output, "  %16s   %s\n\n", "address", "symbol");
 		break;
 	default:
 		break;
@@ -1659,23 +1662,23 @@ static void print_header_csv(const char *sep)
 {
 	struct lock_key *key;
 
-	pr_info("# output: ");
+	fprintf(lock_output, "# output: ");
 	list_for_each_entry(key, &lock_keys, list)
-		pr_info("%s%s ", key->header, sep);
+		fprintf(lock_output, "%s%s ", key->header, sep);
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_TASK:
-		pr_info("%s%s %s\n", "pid", sep,
+		fprintf(lock_output, "%s%s %s\n", "pid", sep,
 			show_lock_owner ? "owner" : "comm");
 		break;
 	case LOCK_AGGR_CALLER:
-		pr_info("%s%s %s", "type", sep, "caller");
+		fprintf(lock_output, "%s%s %s", "type", sep, "caller");
 		if (verbose > 0)
-			pr_info("%s %s", sep, "stacktrace");
-		pr_info("\n");
+			fprintf(lock_output, "%s %s", sep, "stacktrace");
+		fprintf(lock_output, "\n");
 		break;
 	case LOCK_AGGR_ADDR:
-		pr_info("%s%s %s%s %s\n", "address", sep, "symbol", sep, "type");
+		fprintf(lock_output, "%s%s %s%s %s\n", "address", sep, "symbol", sep, "type");
 		break;
 	default:
 		break;
@@ -1700,21 +1703,21 @@ static void print_lock_stat_stdio(struct lock_contention *con, struct lock_stat 
 
 	list_for_each_entry(key, &lock_keys, list) {
 		key->print(key, st);
-		pr_info(" ");
+		fprintf(lock_output, " ");
 	}
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_CALLER:
-		pr_info("  %10s   %s\n", get_type_str(st->flags), st->name);
+		fprintf(lock_output, "  %10s   %s\n", get_type_str(st->flags), st->name);
 		break;
 	case LOCK_AGGR_TASK:
 		pid = st->addr;
 		t = perf_session__findnew(session, pid);
-		pr_info("  %10d   %s\n",
+		fprintf(lock_output, "  %10d   %s\n",
 			pid, pid == -1 ? "Unknown" : thread__comm_str(t));
 		break;
 	case LOCK_AGGR_ADDR:
-		pr_info("  %016llx   %s (%s)\n", (unsigned long long)st->addr,
+		fprintf(lock_output, "  %016llx   %s (%s)\n", (unsigned long long)st->addr,
 			st->name, get_type_name(st->flags));
 		break;
 	default:
@@ -1734,7 +1737,7 @@ static void print_lock_stat_stdio(struct lock_contention *con, struct lock_stat 
 			ip = st->callstack[i];
 			sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
 			get_symbol_name_offset(kmap, sym, ip, buf, sizeof(buf));
-			pr_info("\t\t\t%#lx  %s\n", (unsigned long)ip, buf);
+			fprintf(lock_output, "\t\t\t%#lx  %s\n", (unsigned long)ip, buf);
 		}
 	}
 }
@@ -1748,22 +1751,23 @@ static void print_lock_stat_csv(struct lock_contention *con, struct lock_stat *s
 
 	list_for_each_entry(key, &lock_keys, list) {
 		key->print(key, st);
-		pr_info("%s ", sep);
+		fprintf(lock_output, "%s ", sep);
 	}
 
 	switch (aggr_mode) {
 	case LOCK_AGGR_CALLER:
-		pr_info("%s%s %s", get_type_str(st->flags), sep, st->name);
+		fprintf(lock_output, "%s%s %s", get_type_str(st->flags), sep, st->name);
 		if (verbose <= 0)
-			pr_info("\n");
+			fprintf(lock_output, "\n");
 		break;
 	case LOCK_AGGR_TASK:
 		pid = st->addr;
 		t = perf_session__findnew(session, pid);
-		pr_info("%d%s %s\n", pid, sep, pid == -1 ? "Unknown" : thread__comm_str(t));
+		fprintf(lock_output, "%d%s %s\n", pid, sep,
+			pid == -1 ? "Unknown" : thread__comm_str(t));
 		break;
 	case LOCK_AGGR_ADDR:
-		pr_info("%llx%s %s%s %s\n", (unsigned long long)st->addr, sep,
+		fprintf(lock_output, "%llx%s %s%s %s\n", (unsigned long long)st->addr, sep,
 			st->name, sep, get_type_name(st->flags));
 		break;
 	default:
@@ -1783,9 +1787,9 @@ static void print_lock_stat_csv(struct lock_contention *con, struct lock_stat *s
 			ip = st->callstack[i];
 			sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
 			get_symbol_name_offset(kmap, sym, ip, buf, sizeof(buf));
-			pr_info("%s %#lx %s", i ? ":" : sep, (unsigned long) ip, buf);
+			fprintf(lock_output, "%s %#lx %s", i ? ":" : sep, (unsigned long) ip, buf);
 		}
-		pr_info("\n");
+		fprintf(lock_output, "\n");
 	}
 }
 
@@ -1809,15 +1813,15 @@ static void print_footer_stdio(int total, int bad, struct lock_contention_fails 
 		return;
 
 	total += broken;
-	pr_info("\n=== output for debug ===\n\n");
-	pr_info("bad: %d, total: %d\n", broken, total);
-	pr_info("bad rate: %.2f %%\n", (double)broken / (double)total * 100);
+	fprintf(lock_output, "\n=== output for debug ===\n\n");
+	fprintf(lock_output, "bad: %d, total: %d\n", broken, total);
+	fprintf(lock_output, "bad rate: %.2f %%\n", 100.0 * broken / total);
 
-	pr_info("histogram of failure reasons\n");
-	pr_info(" %10s: %d\n", "task", fails->task);
-	pr_info(" %10s: %d\n", "stack", fails->stack);
-	pr_info(" %10s: %d\n", "time", fails->time);
-	pr_info(" %10s: %d\n", "data", fails->data);
+	fprintf(lock_output, "histogram of failure reasons\n");
+	fprintf(lock_output, " %10s: %d\n", "task", fails->task);
+	fprintf(lock_output, " %10s: %d\n", "stack", fails->stack);
+	fprintf(lock_output, " %10s: %d\n", "time", fails->time);
+	fprintf(lock_output, " %10s: %d\n", "data", fails->data);
 }
 
 static void print_footer_csv(int total, int bad, struct lock_contention_fails *fails,
@@ -1831,21 +1835,21 @@ static void print_footer_csv(int total, int bad, struct lock_contention_fails *f
 		return;
 
 	total += bad;
-	pr_info("# debug: total=%d%s bad=%d", total, sep, bad);
+	fprintf(lock_output, "# debug: total=%d%s bad=%d", total, sep, bad);
 
 	if (use_bpf) {
-		pr_info("%s bad_%s=%d", sep, "task", fails->task);
-		pr_info("%s bad_%s=%d", sep, "stack", fails->stack);
-		pr_info("%s bad_%s=%d", sep, "time", fails->time);
-		pr_info("%s bad_%s=%d", sep, "data", fails->data);
+		fprintf(lock_output, "%s bad_%s=%d", sep, "task", fails->task);
+		fprintf(lock_output, "%s bad_%s=%d", sep, "stack", fails->stack);
+		fprintf(lock_output, "%s bad_%s=%d", sep, "time", fails->time);
+		fprintf(lock_output, "%s bad_%s=%d", sep, "data", fails->data);
 	} else {
 		int i;
 		const char *name[4] = { "acquire", "acquired", "contended", "release" };
 
 		for (i = 0; i < BROKEN_MAX; i++)
-			pr_info("%s bad_%s=%d", sep, name[i], bad_hist[i]);
+			fprintf(lock_output, "%s bad_%s=%d", sep, name[i], bad_hist[i]);
 	}
-	pr_info("\n");
+	fprintf(lock_output, "\n");
 }
 
 static void print_footer(int total, int bad, struct lock_contention_fails *fails)
@@ -2427,10 +2431,29 @@ static int parse_call_stack(const struct option *opt __maybe_unused, const char 
 	return ret;
 }
 
+static int parse_output(const struct option *opt __maybe_unused, const char *str,
+			int unset __maybe_unused)
+{
+	const char **name = (const char **)opt->value;
+
+	if (str == NULL)
+		return -1;
+
+	lock_output = fopen(str, "w");
+	if (lock_output == NULL) {
+		pr_err("Cannot open %s\n", str);
+		return -1;
+	}
+
+	*name = str;
+	return 0;
+}
+
 int cmd_lock(int argc, const char **argv)
 {
 	const struct option lock_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_CALLBACK(0, "output", &output_name, "file", "output file name", parse_output),
 	OPT_INCR('v', "verbose", &verbose, "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace, "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -2530,6 +2553,7 @@ int cmd_lock(int argc, const char **argv)
 	for (i = 0; i < LOCKHASH_SIZE; i++)
 		INIT_HLIST_HEAD(lockhash_table + i);
 
+	lock_output = stderr;
 	argc = parse_options_subcommand(argc, argv, lock_options, lock_subcommands,
 					lock_usage, PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc)
