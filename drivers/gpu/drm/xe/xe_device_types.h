@@ -124,6 +124,11 @@ struct xe_tile {
 			resource_size_t base;
 			/** @size: size of VRAM. */
 			resource_size_t size;
+			/**
+			 * @actual_physical_size: Actual VRAM size
+			 * including stolen mem for tile
+			 */
+			resource_size_t actual_physical_size;
 			/** @mapping: pointer to VRAM mappable space */
 			void *__iomem mapping;
 		} vram;
