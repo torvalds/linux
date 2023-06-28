@@ -327,7 +327,9 @@ static void walt_find_best_target(struct sched_domain *sd,
 	}
 
 	/* fast path for prev_cpu */
-	if (((prev_wrq->cluster->id == start_wrq->cluster->id) ||
+	if (((cpumask_test_cpu(prev_cpu, &part_haltable_cpus) &&
+				(order_index == 0 && cpu_partial_halted(prev_cpu))) ||
+				(prev_wrq->cluster->id == start_wrq->cluster->id) ||
 				asym_cap_siblings(prev_cpu, start_cpu)) &&
 				cpu_active(prev_cpu) &&
 				available_idle_cpu(prev_cpu) &&
