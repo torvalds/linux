@@ -1190,10 +1190,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	u64 delalloc_start = page_start;
 	u64 delalloc_end = page_end;
 	u64 delalloc_to_write = 0;
-	/* How many pages are started by btrfs_run_delalloc_range() */
-	unsigned long nr_written = 0;
-	int ret;
-	int page_started = 0;
+	int ret = 0;
 
 	while (delalloc_start < page_end) {
 		delalloc_end = page_end;
@@ -1202,9 +1199,10 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			delalloc_start = delalloc_end + 1;
 			continue;
 		}
+
 		ret = btrfs_run_delalloc_range(inode, page, delalloc_start,
-				delalloc_end, &page_started, &nr_written, wbc);
-		if (ret)
+					       delalloc_end, wbc);
+		if (ret < 0)
 			return ret;
 
 		delalloc_start = delalloc_end + 1;
@@ -1216,6 +1214,16 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	 */
 	delalloc_to_write +=
 		DIV_ROUND_UP(delalloc_end + 1 - page_start, PAGE_SIZE);
+
+	/*
+	 * If btrfs_run_dealloc_range() already started I/O and unlocked
+	 * the pages, we just need to account for them here.
+	 */
+	if (ret == 1) {
+		wbc->nr_to_write -= delalloc_to_write;
+		return 1;
+	}
+
 	if (wbc->nr_to_write < delalloc_to_write) {
 		int thresh = 8192;
 
@@ -1223,16 +1231,6 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 			thresh = delalloc_to_write;
 		wbc->nr_to_write = min_t(u64, delalloc_to_write,
 					 thresh);
-	}
-
-	/* Did btrfs_run_dealloc_range() already unlock and start the IO? */
-	if (page_started) {
-		/*
-		 * We've unlocked the page, so we can't update the mapping's
-		 * writeback index, just update nr_to_write.
-		 */
-		wbc->nr_to_write -= nr_written;
-		return 1;
 	}
 
 	return 0;
