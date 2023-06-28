@@ -634,6 +634,7 @@
   perf_trace_run_bpf_submit
   phy_power_off
   phy_power_on
+  phy_set_mode_ext
   pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
   pinctrl_lookup_state
@@ -647,6 +648,7 @@
   platform_driver_unregister
   platform_get_irq
   platform_get_irq_byname
+  platform_get_irq_byname_optional
   platform_get_resource
   platform_get_resource_byname
   __platform_register_drivers
@@ -935,9 +937,11 @@
   up_write
   usb_add_function
   usb_copy_descriptors
+  usb_enable_autosuspend
   usb_ep_autoconfig
   usb_function_register
   usb_function_unregister
+  usb_hcd_is_primary_hcd
   usb_hub_find_child
   usb_interface_id
   usb_put_function_instance
@@ -1151,7 +1155,9 @@
   __tracepoint_workqueue_execute_start
 
 # required by dwc3-exynos-usb.ko
+  device_create_managed_software_node
   platform_device_add
+  platform_device_add_resources
   platform_device_alloc
   platform_device_del
   platform_device_put
@@ -1473,6 +1479,17 @@
 
 # required by exynos-ssld.ko
   driver_register
+
+# required by exynos-usb-audio-offloading.ko
+  snd_ctl_add
+  snd_ctl_new1
+  snd_vendor_set_ops
+  __traceiter_android_rvh_audio_usb_offload_disconnect
+  __traceiter_android_vh_audio_usb_offload_connect
+  __tracepoint_android_rvh_audio_usb_offload_disconnect
+  __tracepoint_android_vh_audio_usb_offload_connect
+  usb_choose_configuration
+  usb_ifnum_to_if
 
 # required by exynos9945_sound.ko
   clk_bulk_disable
@@ -2418,6 +2435,25 @@
   kthread_complete_and_exit
   usb_speed_string
 
+# required by xhci-exynos-audio.ko
+  dma_pool_alloc
+  dma_pool_free
+  __kmalloc_node
+  kmalloc_node_trace
+  xhci_add_endpoint
+  xhci_address_device
+  xhci_check_trb_in_td_math
+  xhci_get_endpoint_index
+  xhci_get_ep_ctx
+  xhci_get_slot_ctx
+  xhci_initialize_ring_info
+  xhci_link_segments
+  xhci_remove_stream_mapping
+  xhci_ring_alloc
+  xhci_segment_free
+  xhci_trb_virt_to_dma
+  xhci_vendor_get_ops
+
 # required by xhci-exynos.ko
   device_property_read_u32_array
   device_set_wakeup_enable
@@ -2428,10 +2464,10 @@
   usb_add_hcd
   __usb_create_hcd
   usb_disabled
-  usb_enable_autosuspend
-  usb_hcd_is_primary_hcd
   usb_put_hcd
   usb_remove_hcd
+  xhci_bus_resume
+  xhci_bus_suspend
   xhci_gen_setup
   xhci_init_driver
   xhci_resume
