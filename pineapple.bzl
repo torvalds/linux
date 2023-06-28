@@ -265,6 +265,7 @@ def define_pineapple():
         "drivers/hwtracing/coresight/coresight-etm4x.ko",
         "drivers/misc/lkdtm/lkdtm.ko",
         "drivers/misc/qseecom_proxy.ko",
+        "drivers/usb/misc/ehset.ko",
         "drivers/usb/misc/lvstest.ko",
         "kernel/locking/locktorture.ko",
         "kernel/rcu/rcutorture.ko",
