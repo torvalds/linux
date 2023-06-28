@@ -91,14 +91,13 @@ int mt792xu_mcu_power_on(struct mt792x_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt792xu_mcu_power_on);
 
-void mt792xu_cleanup(struct mt792x_dev *dev)
+static void mt792xu_cleanup(struct mt792x_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 	mt792xu_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 	mt76u_queues_deinit(&dev->mt76);
 }
-EXPORT_SYMBOL_GPL(mt792xu_cleanup);
 
 static u32 mt792xu_uhw_rr(struct mt76_dev *dev, u32 addr)
 {
@@ -287,6 +286,24 @@ int mt792xu_init_reset(struct mt792x_dev *dev)
 	return mt76u_resume_rx(&dev->mt76);
 }
 EXPORT_SYMBOL_GPL(mt792xu_init_reset);
+
+void mt792xu_disconnect(struct usb_interface *usb_intf)
+{
+	struct mt792x_dev *dev = usb_get_intfdata(usb_intf);
+
+	cancel_work_sync(&dev->init_work);
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
+		return;
+
+	mt76_unregister_device(&dev->mt76);
+	mt792xu_cleanup(dev);
+
+	usb_set_intfdata(usb_intf, NULL);
+	usb_put_dev(interface_to_usbdev(usb_intf));
+
+	mt76_free_device(&dev->mt76);
+}
+EXPORT_SYMBOL_GPL(mt792xu_disconnect);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");

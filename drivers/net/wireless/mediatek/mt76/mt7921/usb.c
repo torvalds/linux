@@ -254,23 +254,6 @@ error:
 	return ret;
 }
 
-static void mt7921u_disconnect(struct usb_interface *usb_intf)
-{
-	struct mt792x_dev *dev = usb_get_intfdata(usb_intf);
-
-	cancel_work_sync(&dev->init_work);
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
-		return;
-
-	mt76_unregister_device(&dev->mt76);
-	mt792xu_cleanup(dev);
-
-	usb_set_intfdata(usb_intf, NULL);
-	usb_put_dev(interface_to_usbdev(usb_intf));
-
-	mt76_free_device(&dev->mt76);
-}
-
 #ifdef CONFIG_PM
 static int mt7921u_suspend(struct usb_interface *intf, pm_message_t state)
 {
@@ -350,7 +333,7 @@ static struct usb_driver mt7921u_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= mt7921u_device_table,
 	.probe		= mt7921u_probe,
-	.disconnect	= mt7921u_disconnect,
+	.disconnect	= mt792xu_disconnect,
 #ifdef CONFIG_PM
 	.suspend	= mt7921u_suspend,
 	.resume		= mt7921u_resume,
