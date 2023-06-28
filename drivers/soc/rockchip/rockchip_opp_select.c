@@ -1925,6 +1925,31 @@ out:
 }
 EXPORT_SYMBOL(rockchip_init_opp_table);
 
+void rockchip_uninit_opp_table(struct device *dev, struct rockchip_opp_info *info)
+{
+	struct opp_table *opp_table;
+
+	if (info) {
+		kfree(info->opp_table);
+		info->opp_table = NULL;
+		devm_kfree(dev, info->clks);
+		info->clks = NULL;
+		devm_kfree(dev, info->volt_rm_tbl);
+		info->volt_rm_tbl = NULL;
+	}
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return;
+	dev_pm_opp_of_remove_table(dev);
+	if (opp_table->prop_name)
+		dev_pm_opp_put_prop_name(opp_table);
+	if (opp_table->supported_hw)
+		dev_pm_opp_put_supported_hw(opp_table);
+	dev_pm_opp_put_opp_table(opp_table);
+}
+EXPORT_SYMBOL(rockchip_uninit_opp_table);
+
 MODULE_DESCRIPTION("ROCKCHIP OPP Select");
 MODULE_AUTHOR("Finley Xiao <finley.xiao@rock-chips.com>, Liang Chen <cl@rock-chips.com>");
 MODULE_LICENSE("GPL");

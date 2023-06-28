@@ -130,6 +130,8 @@ int rockchip_set_intermediate_rate(struct device *dev,
 int rockchip_init_opp_table(struct device *dev,
 			    struct rockchip_opp_info *info,
 			    char *lkg_name, char *reg_name);
+void rockchip_uninit_opp_table(struct device *dev,
+			       struct rockchip_opp_info *info);
 #else
 static inline int rockchip_of_get_leakage(struct device *dev, char *lkg_name,
 					  int *leakage)
@@ -264,6 +266,11 @@ static inline int rockchip_init_opp_table(struct device *dev,
 					  char *lkg_name, char *reg_name)
 {
 	return -EOPNOTSUPP;
+}
+
+static inline void rockchip_uninit_opp_table(struct device *dev,
+					     struct rockchip_opp_info *info)
+{
 }
 
 #endif /* CONFIG_ROCKCHIP_OPP */
