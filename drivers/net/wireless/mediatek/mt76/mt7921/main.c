@@ -342,7 +342,7 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_sta *msta = &mvif->sta;
+	struct mt792x_sta *msta = &mvif->sta;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	int idx = msta->wcid.idx;
@@ -508,7 +508,7 @@ static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_sta *msta = sta ? (struct mt7921_sta *)sta->drv_priv :
+	struct mt792x_sta *msta = sta ? (struct mt792x_sta *)sta->drv_priv :
 				  &mvif->sta;
 	struct mt76_wcid *wcid = &msta->wcid;
 	u8 *wcid_keyidx = &wcid->hw_key_idx;
@@ -756,7 +756,7 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	int ret, idx;
 
@@ -797,7 +797,7 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 	mt7921_mutex_acquire(dev);
@@ -822,7 +822,7 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 
 	mt76_connac_free_pending_tx_skbs(&dev->pm, &msta->wcid);
 	mt76_connac_pm_wake(&dev->mphy, &dev->pm);
@@ -877,9 +877,9 @@ static void mt7921_tx(struct ieee80211_hw *hw,
 	int qid;
 
 	if (control->sta) {
-		struct mt7921_sta *sta;
+		struct mt792x_sta *sta;
 
-		sta = (struct mt7921_sta *)control->sta->drv_priv;
+		sta = (struct mt792x_sta *)control->sta->drv_priv;
 		wcid = &sta->wcid;
 	}
 
@@ -924,7 +924,7 @@ mt7921_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct ieee80211_sta *sta = params->sta;
 	struct ieee80211_txq *txq = sta->txq[params->tid];
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	u16 tid = params->tid;
 	u16 ssn = params->ssn;
 	struct mt76_txq *mtxq;
@@ -1120,7 +1120,7 @@ mt7921_get_et_sset_count(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static void
 mt7921_ethtool_worker(void *wi_data, struct ieee80211_sta *sta)
 {
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt76_ethtool_worker_info *wi = wi_data;
 
 	if (msta->vif->mt76.idx != wi->idx)
@@ -1387,7 +1387,7 @@ static void mt7921_sta_statistics(struct ieee80211_hw *hw,
 				  struct ieee80211_sta *sta,
 				  struct station_info *sinfo)
 {
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct rate_info *txrate = &msta->wcid.rate;
 
 	if (!txrate->legacy && !txrate->flags)
@@ -1500,7 +1500,7 @@ static void mt7921_sta_set_decap_offload(struct ieee80211_hw *hw,
 					 struct ieee80211_sta *sta,
 					 bool enabled)
 {
-	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 
 	mt7921_mutex_acquire(dev);

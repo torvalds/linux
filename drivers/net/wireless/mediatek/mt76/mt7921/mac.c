@@ -23,7 +23,7 @@ static u32 mt7921_mac_wtbl_lmac_addr(int idx, u8 offset)
 static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
 					    u16 idx, bool unicast)
 {
-	struct mt7921_sta *sta;
+	struct mt792x_sta *sta;
 	struct mt76_wcid *wcid;
 
 	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
@@ -36,7 +36,7 @@ static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
 	if (!wcid->sta)
 		return NULL;
 
-	sta = container_of(wcid, struct mt7921_sta, wcid);
+	sta = container_of(wcid, struct mt792x_sta, wcid);
 	if (!sta->vif)
 		return NULL;
 
@@ -61,7 +61,7 @@ static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 		[IEEE80211_AC_VO] = 6
 	};
 	struct ieee80211_sta *sta;
-	struct mt7921_sta *msta;
+	struct mt792x_sta *msta;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
 	LIST_HEAD(sta_poll_list);
 	struct rate_info *rate;
@@ -84,7 +84,7 @@ static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 			break;
 		}
 		msta = list_first_entry(&sta_poll_list,
-					struct mt7921_sta, wcid.poll_list);
+					struct mt792x_sta, wcid.poll_list);
 		list_del_init(&msta->wcid.poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
@@ -248,7 +248,7 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	u32 rxd2 = le32_to_cpu(rxd[2]);
 	u32 rxd3 = le32_to_cpu(rxd[3]);
 	u32 rxd4 = le32_to_cpu(rxd[4]);
-	struct mt7921_sta *msta = NULL;
+	struct mt792x_sta *msta = NULL;
 	u16 seq_ctrl = 0;
 	__le16 fc = 0;
 	u8 mode = 0;
@@ -279,7 +279,7 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	status->wcid = mt7921_rx_get_wcid(dev, idx, unicast);
 
 	if (status->wcid) {
-		msta = container_of(status->wcid, struct mt7921_sta, wcid);
+		msta = container_of(status->wcid, struct mt792x_sta, wcid);
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
 		if (list_empty(&msta->wcid.poll_list))
 			list_add_tail(&msta->wcid.poll_list,
@@ -513,7 +513,7 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 
 void mt7921_mac_add_txs(struct mt7921_dev *dev, void *data)
 {
-	struct mt7921_sta *msta = NULL;
+	struct mt792x_sta *msta = NULL;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
 	u16 wcidx;
@@ -537,7 +537,7 @@ void mt7921_mac_add_txs(struct mt7921_dev *dev, void *data)
 	if (!wcid)
 		goto out;
 
-	msta = container_of(wcid, struct mt7921_sta, wcid);
+	msta = container_of(wcid, struct mt792x_sta, wcid);
 
 	mt76_connac2_mac_add_txs_skb(&dev->mt76, wcid, pid, txs_data);
 	if (!wcid->sta)
@@ -582,7 +582,7 @@ static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 		 * 1'b0: msdu_id with the same 'wcid pair' as above.
 		 */
 		if (info & MT_TX_FREE_PAIR) {
-			struct mt7921_sta *msta;
+			struct mt792x_sta *msta;
 			u16 idx;
 
 			count++;
@@ -592,7 +592,7 @@ static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 			if (!sta)
 				continue;
 
-			msta = container_of(wcid, struct mt7921_sta, wcid);
+			msta = container_of(wcid, struct mt792x_sta, wcid);
 			spin_lock_bh(&mdev->sta_poll_lock);
 			if (list_empty(&msta->wcid.poll_list))
 				list_add_tail(&msta->wcid.poll_list,
@@ -1140,7 +1140,7 @@ int mt7921_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		wcid = &dev->mt76.global_wcid;
 
 	if (sta) {
-		struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
+		struct mt792x_sta *msta = (struct mt792x_sta *)sta->drv_priv;
 
 		if (time_after(jiffies, msta->last_txs + HZ / 4)) {
 			info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;

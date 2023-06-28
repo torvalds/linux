@@ -140,7 +140,7 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 
 	phy->slottime = 9;
 
-	hw->sta_data_size = sizeof(struct mt7921_sta);
+	hw->sta_data_size = sizeof(struct mt792x_sta);
 	hw->vif_data_size = sizeof(struct mt792x_vif);
 
 	if (dev->fw_features & MT7921_FW_CAP_CNM) {

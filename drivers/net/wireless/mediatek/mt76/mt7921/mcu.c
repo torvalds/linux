@@ -343,7 +343,7 @@ int mt7921_mcu_uni_tx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable)
 {
-	struct mt7921_sta *msta = (struct mt7921_sta *)params->sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)params->sta->drv_priv;
 
 	if (enable && !params->amsdu)
 		msta->wcid.amsdu = false;
@@ -357,7 +357,7 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 			 struct ieee80211_ampdu_params *params,
 			 bool enable)
 {
-	struct mt7921_sta *msta = (struct mt7921_sta *)params->sta->drv_priv;
+	struct mt792x_sta *msta = (struct mt792x_sta *)params->sta->drv_priv;
 
 	return mt76_connac_mcu_sta_ba(&dev->mt76, &msta->vif->mt76, params,
 				      MCU_UNI_CMD(STA_REC_UPDATE),
@@ -933,9 +933,9 @@ int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 		.offload_fw = true,
 		.rcpi = to_rcpi(rssi),
 	};
-	struct mt7921_sta *msta;
+	struct mt792x_sta *msta;
 
-	msta = sta ? (struct mt7921_sta *)sta->drv_priv : NULL;
+	msta = sta ? (struct mt792x_sta *)sta->drv_priv : NULL;
 	info.wcid = msta ? &msta->wcid : &mvif->sta.wcid;
 	info.newly = msta ? state != MT76_STA_INFO_STATE_ASSOC : true;
 

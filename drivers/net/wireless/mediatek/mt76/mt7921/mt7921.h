@@ -128,7 +128,7 @@ struct mt7921_sdio_intr {
 #define to_rcpi(rssi)			(2 * (rssi) + 220)
 
 struct mt792x_vif;
-struct mt7921_sta;
+struct mt792x_sta;
 
 enum mt7921_txq_id {
 	MT7921_TXQ_BAND0,
@@ -145,7 +145,7 @@ enum mt7921_rxq_id {
 
 DECLARE_EWMA(avg_signal, 10, 8)
 
-struct mt7921_sta {
+struct mt792x_sta {
 	struct mt76_wcid wcid; /* must be first */
 
 	struct mt792x_vif *vif;
@@ -165,8 +165,8 @@ DECLARE_EWMA(rssi, 10, 8);
 struct mt792x_vif {
 	struct mt76_vif mt76; /* must be first */
 
-	struct mt7921_sta sta;
-	struct mt7921_sta *wep_sta;
+	struct mt792x_sta sta;
+	struct mt792x_sta *wep_sta;
 
 	struct mt7921_phy *phy;
 
