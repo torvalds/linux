@@ -19,11 +19,12 @@ unsigned int xfs_agfl_size(struct xfs_mount *mp);
 /*
  * Flags for xfs_alloc_fix_freelist.
  */
-#define	XFS_ALLOC_FLAG_TRYLOCK	0x00000001  /* use trylock for buffer locking */
-#define	XFS_ALLOC_FLAG_FREEING	0x00000002  /* indicate caller is freeing extents*/
-#define	XFS_ALLOC_FLAG_NORMAP	0x00000004  /* don't modify the rmapbt */
-#define	XFS_ALLOC_FLAG_NOSHRINK	0x00000008  /* don't shrink the freelist */
-#define	XFS_ALLOC_FLAG_CHECK	0x00000010  /* test only, don't modify args */
+#define	XFS_ALLOC_FLAG_TRYLOCK	(1U << 0)  /* use trylock for buffer locking */
+#define	XFS_ALLOC_FLAG_FREEING	(1U << 1)  /* indicate caller is freeing extents*/
+#define	XFS_ALLOC_FLAG_NORMAP	(1U << 2)  /* don't modify the rmapbt */
+#define	XFS_ALLOC_FLAG_NOSHRINK	(1U << 3)  /* don't shrink the freelist */
+#define	XFS_ALLOC_FLAG_CHECK	(1U << 4)  /* test only, don't modify args */
+#define	XFS_ALLOC_FLAG_TRYFLUSH	(1U << 5)  /* don't wait in busy extent flush */
 
 /*
  * Argument structure for xfs_alloc routines.

@@ -1556,6 +1556,8 @@ xfs_alloc_ag_vextent_near(
 	if (args->agbno > args->max_agbno)
 		args->agbno = args->max_agbno;
 
+	/* Retry once quickly if we find busy extents before blocking. */
+	alloc_flags |= XFS_ALLOC_FLAG_TRYFLUSH;
 restart:
 	len = 0;
 
@@ -1611,9 +1613,20 @@ restart:
 	 */
 	if (!acur.len) {
 		if (acur.busy) {
+			/*
+			 * Our only valid extents must have been busy. Flush and
+			 * retry the allocation again. If we get an -EAGAIN
+			 * error, we're being told that a deadlock was avoided
+			 * and the current transaction needs committing before
+			 * the allocation can be retried.
+			 */
 			trace_xfs_alloc_near_busy(args);
-			xfs_extent_busy_flush(args->mp, args->pag,
-					      acur.busy_gen, alloc_flags);
+			error = xfs_extent_busy_flush(args->tp, args->pag,
+					acur.busy_gen, alloc_flags);
+			if (error)
+				goto out;
+
+			alloc_flags &= ~XFS_ALLOC_FLAG_TRYFLUSH;
 			goto restart;
 		}
 		trace_xfs_alloc_size_neither(args);
@@ -1653,6 +1666,8 @@ xfs_alloc_ag_vextent_size(
 	int			error;
 	int			i;
 
+	/* Retry once quickly if we find busy extents before blocking. */
+	alloc_flags |= XFS_ALLOC_FLAG_TRYFLUSH;
 restart:
 	/*
 	 * Allocate and initialize a cursor for the by-size btree.
@@ -1710,19 +1725,25 @@ restart:
 			error = xfs_btree_increment(cnt_cur, 0, &i);
 			if (error)
 				goto error0;
-			if (i == 0) {
-				/*
-				 * Our only valid extents must have been busy.
-				 * Make it unbusy by forcing the log out and
-				 * retrying.
-				 */
-				xfs_btree_del_cursor(cnt_cur,
-						     XFS_BTREE_NOERROR);
-				trace_xfs_alloc_size_busy(args);
-				xfs_extent_busy_flush(args->mp, args->pag,
-						busy_gen, alloc_flags);
-				goto restart;
-			}
+			if (i)
+				continue;
+
+			/*
+			 * Our only valid extents must have been busy. Flush and
+			 * retry the allocation again. If we get an -EAGAIN
+			 * error, we're being told that a deadlock was avoided
+			 * and the current transaction needs committing before
+			 * the allocation can be retried.
+			 */
+			trace_xfs_alloc_size_busy(args);
+			error = xfs_extent_busy_flush(args->tp, args->pag,
+					busy_gen, alloc_flags);
+			if (error)
+				goto error0;
+
+			alloc_flags &= ~XFS_ALLOC_FLAG_TRYFLUSH;
+			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
+			goto restart;
 		}
 	}
 
@@ -1802,10 +1823,21 @@ restart:
 	args->len = rlen;
 	if (rlen < args->minlen) {
 		if (busy) {
-			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
+			/*
+			 * Our only valid extents must have been busy. Flush and
+			 * retry the allocation again. If we get an -EAGAIN
+			 * error, we're being told that a deadlock was avoided
+			 * and the current transaction needs committing before
+			 * the allocation can be retried.
+			 */
 			trace_xfs_alloc_size_busy(args);
-			xfs_extent_busy_flush(args->mp, args->pag, busy_gen,
-					alloc_flags);
+			error = xfs_extent_busy_flush(args->tp, args->pag,
+					busy_gen, alloc_flags);
+			if (error)
+				goto error0;
+
+			alloc_flags &= ~XFS_ALLOC_FLAG_TRYFLUSH;
+			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
 			goto restart;
 		}
 		goto out_nominleft;
