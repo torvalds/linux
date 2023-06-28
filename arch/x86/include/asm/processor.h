@@ -800,9 +800,11 @@ extern u16 get_llc_id(unsigned int cpu);
 #ifdef CONFIG_CPU_SUP_AMD
 extern u32 amd_get_nodes_per_socket(void);
 extern u32 amd_get_highest_perf(void);
+extern bool cpu_has_ibpb_brtype_microcode(void);
 #else
 static inline u32 amd_get_nodes_per_socket(void)	{ return 0; }
 static inline u32 amd_get_highest_perf(void)		{ return 0; }
+static inline bool cpu_has_ibpb_brtype_microcode(void)	{ return false; }
 #endif
 
 #define for_each_possible_hypervisor_cpuid_base(function) \

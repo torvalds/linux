@@ -47,6 +47,7 @@ static void __init mmio_select_mitigation(void);
 static void __init srbds_select_mitigation(void);
 static void __init l1d_flush_select_mitigation(void);
 static void __init gds_select_mitigation(void);
+static void __init srso_select_mitigation(void);
 
 /* The base value of the SPEC_CTRL MSR without task-specific bits set */
 u64 x86_spec_ctrl_base;
@@ -161,6 +162,7 @@ void __init cpu_select_mitigations(void)
 	srbds_select_mitigation();
 	l1d_flush_select_mitigation();
 	gds_select_mitigation();
+	srso_select_mitigation();
 }
 
 /*
@@ -2304,6 +2306,95 @@ static int __init l1tf_cmdline(char *str)
 early_param("l1tf", l1tf_cmdline);
 
 #undef pr_fmt
+#define pr_fmt(fmt)	"Speculative Return Stack Overflow: " fmt
+
+enum srso_mitigation {
+	SRSO_MITIGATION_NONE,
+	SRSO_MITIGATION_MICROCODE,
+	SRSO_MITIGATION_SAFE_RET,
+};
+
+enum srso_mitigation_cmd {
+	SRSO_CMD_OFF,
+	SRSO_CMD_MICROCODE,
+	SRSO_CMD_SAFE_RET,
+};
+
+static const char * const srso_strings[] = {
+	[SRSO_MITIGATION_NONE]           = "Vulnerable",
+	[SRSO_MITIGATION_MICROCODE]      = "Mitigation: microcode",
+	[SRSO_MITIGATION_SAFE_RET]	 = "Mitigation: safe RET",
+};
+
+static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_NONE;
+static enum srso_mitigation_cmd srso_cmd __ro_after_init = SRSO_CMD_SAFE_RET;
+
+static int __init srso_parse_cmdline(char *str)
+{
+	if (!str)
+		return -EINVAL;
+
+	if (!strcmp(str, "off"))
+		srso_cmd = SRSO_CMD_OFF;
+	else if (!strcmp(str, "microcode"))
+		srso_cmd = SRSO_CMD_MICROCODE;
+	else if (!strcmp(str, "safe-ret"))
+		srso_cmd = SRSO_CMD_SAFE_RET;
+	else
+		pr_err("Ignoring unknown SRSO option (%s).", str);
+
+	return 0;
+}
+early_param("spec_rstack_overflow", srso_parse_cmdline);
+
+#define SRSO_NOTICE "WARNING: See https://kernel.org/doc/html/latest/admin-guide/hw-vuln/srso.html for mitigation options."
+
+static void __init srso_select_mitigation(void)
+{
+	bool has_microcode;
+
+	if (!boot_cpu_has_bug(X86_BUG_SRSO) || cpu_mitigations_off())
+		return;
+
+	has_microcode = cpu_has_ibpb_brtype_microcode();
+	if (!has_microcode) {
+		pr_warn("IBPB-extending microcode not applied!\n");
+		pr_warn(SRSO_NOTICE);
+	}
+
+	switch (srso_cmd) {
+	case SRSO_CMD_OFF:
+		return;
+
+	case SRSO_CMD_MICROCODE:
+		if (has_microcode) {
+			srso_mitigation = SRSO_MITIGATION_MICROCODE;
+			pr_warn(SRSO_NOTICE);
+		}
+		break;
+
+	case SRSO_CMD_SAFE_RET:
+		if (IS_ENABLED(CONFIG_CPU_SRSO)) {
+			if (boot_cpu_data.x86 == 0x19)
+				setup_force_cpu_cap(X86_FEATURE_SRSO_ALIAS);
+			else
+				setup_force_cpu_cap(X86_FEATURE_SRSO);
+			srso_mitigation = SRSO_MITIGATION_SAFE_RET;
+		} else {
+			pr_err("WARNING: kernel not compiled with CPU_SRSO.\n");
+			return;
+		}
+		break;
+
+	default:
+		break;
+
+	}
+
+	pr_info("%s%s\n", srso_strings[srso_mitigation], (has_microcode ? "" : ", no microcode"));
+}
+
+#undef pr_fmt
 #define pr_fmt(fmt) fmt
 
 #ifdef CONFIG_SYSFS
@@ -2506,6 +2597,13 @@ static ssize_t gds_show_state(char *buf)
 	return sysfs_emit(buf, "%s\n", gds_strings[gds_mitigation]);
 }
 
+static ssize_t srso_show_state(char *buf)
+{
+	return sysfs_emit(buf, "%s%s\n",
+			  srso_strings[srso_mitigation],
+			  (cpu_has_ibpb_brtype_microcode() ? "" : ", no microcode"));
+}
+
 static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr,
 			       char *buf, unsigned int bug)
 {
@@ -2557,6 +2655,9 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 
 	case X86_BUG_GDS:
 		return gds_show_state(buf);
+
+	case X86_BUG_SRSO:
+		return srso_show_state(buf);
 
 	default:
 		break;
@@ -2626,5 +2727,10 @@ ssize_t cpu_show_retbleed(struct device *dev, struct device_attribute *attr, cha
 ssize_t cpu_show_gds(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return cpu_show_common(dev, attr, buf, X86_BUG_GDS);
+}
+
+ssize_t cpu_show_spec_rstack_overflow(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return cpu_show_common(dev, attr, buf, X86_BUG_SRSO);
 }
 #endif

@@ -20,3 +20,4 @@ are configurable at compile, boot or run time.
    processor_mmio_stale_data.rst
    cross-thread-rsb.rst
    gather_data_sampling.rst
+   srso
