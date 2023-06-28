@@ -802,14 +802,10 @@ int xe_guc_start(struct xe_guc *guc)
 {
 	int ret;
 
-	ret = xe_guc_submit_start(guc);
-	if (ret)
-		return ret;
-
 	ret = xe_guc_pc_start(&guc->pc);
 	XE_WARN_ON(ret);
 
-	return 0;
+	return xe_guc_submit_start(guc);
 }
 
 void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p)
