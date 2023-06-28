@@ -1216,7 +1216,7 @@ static int check_overlapping_extents(struct btree_trans *trans,
 		if (ret)
 			break;
 
-		if (fsck_err(c, buf.buf)) {
+		if (fsck_err(c, "%s", buf.buf)) {
 			struct bkey_i *update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
 			if ((ret = PTR_ERR_OR_ZERO(update)))
 				goto err;
