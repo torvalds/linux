@@ -111,6 +111,12 @@ struct btrfs_delayed_ref_head {
 	int ref_mod;
 
 	/*
+	 * The root that triggered the allocation when must_insert_reserved is
+	 * set to true.
+	 */
+	u64 owning_root;
+
+	/*
 	 * when a new extent is allocated, it is just reserved in memory
 	 * The actual extent isn't inserted into the extent allocation tree
 	 * until the delayed ref is processed.  must_insert_reserved is
@@ -123,6 +129,7 @@ struct btrfs_delayed_ref_head {
 	 * the free has happened.
 	 */
 	bool must_insert_reserved;
+
 	bool is_data;
 	bool is_system;
 	bool processing;
