@@ -191,7 +191,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		.sta_remove = mt7921_mac_sta_remove,
 		.update_survey = mt7921_update_channel,
 	};
-	static const struct mt7921_hif_ops hif_ops = {
+	static const struct mt792x_hif_ops hif_ops = {
 		.mcu_init = mt7921u_mcu_init,
 		.init_reset = mt7921u_init_reset,
 		.reset = mt7921u_mac_reset,

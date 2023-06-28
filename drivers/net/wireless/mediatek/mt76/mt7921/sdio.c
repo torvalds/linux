@@ -114,7 +114,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.rd_rp = mt76s_rd_rp,
 		.type = MT76_BUS_SDIO,
 	};
-	static const struct mt7921_hif_ops mt7921_sdio_ops = {
+	static const struct mt792x_hif_ops mt7921_sdio_ops = {
 		.init_reset = mt7921s_init_reset,
 		.reset = mt7921s_mac_reset,
 		.mcu_init = mt7921s_mcu_init,

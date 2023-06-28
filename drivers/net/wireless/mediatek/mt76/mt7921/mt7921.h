@@ -249,7 +249,7 @@ enum mt7921_eeprom_field {
 #define mt7921_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
 #define __mt7921_mcu_drv_pmctrl(dev)	((dev)->hif_ops->drv_own(dev))
 #define	__mt7921_mcu_fw_pmctrl(dev)	((dev)->hif_ops->fw_own(dev))
-struct mt7921_hif_ops {
+struct mt792x_hif_ops {
 	int (*init_reset)(struct mt792x_dev *dev);
 	int (*reset)(struct mt792x_dev *dev);
 	int (*mcu_init)(struct mt792x_dev *dev);
@@ -278,7 +278,7 @@ struct mt792x_dev {
 
 	struct mt76_connac_pm pm;
 	struct mt76_connac_coredump coredump;
-	const struct mt7921_hif_ops *hif_ops;
+	const struct mt792x_hif_ops *hif_ops;
 
 	struct work_struct ipv6_ns_work;
 	/* IPv6 addresses for WoWLAN */
