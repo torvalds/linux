@@ -405,6 +405,25 @@ static void init_mqd_hiq(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_PQ_CONTROL__KMD_QUEUE__SHIFT;
 }
 
+static int destroy_hiq_mqd(struct mqd_manager *mm, void *mqd,
+			enum kfd_preempt_type type, unsigned int timeout,
+			uint32_t pipe_id, uint32_t queue_id)
+{
+	int err;
+	struct v9_mqd *m;
+	u32 doorbell_off;
+
+	m = get_mqd(mqd);
+
+	doorbell_off = m->cp_hqd_pq_doorbell_control >>
+			CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+	err = amdgpu_amdkfd_unmap_hiq(mm->dev->adev, doorbell_off, 0);
+	if (err)
+		pr_debug("Destroy HIQ MQD failed: %d\n", err);
+
+	return err;
+}
+
 static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 		struct kfd_mem_obj *mqd_mem_obj, uint64_t *gart_addr,
 		struct queue_properties *q)
@@ -548,16 +567,19 @@ static int destroy_hiq_mqd_v9_4_3(struct mqd_manager *mm, void *mqd,
 {
 	uint32_t xcc_mask = mm->dev->xcc_mask;
 	int xcc_id, err, inst = 0;
-	void *xcc_mqd;
 	uint64_t hiq_mqd_size = kfd_hiq_mqd_stride(mm->dev);
+	struct v9_mqd *m;
+	u32 doorbell_off;
 
 	for_each_inst(xcc_id, xcc_mask) {
-		xcc_mqd = mqd + hiq_mqd_size * inst;
-		err = mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, xcc_mqd,
-						    type, timeout, pipe_id,
-						    queue_id, xcc_id);
+		m = get_mqd(mqd + hiq_mqd_size * inst);
+
+		doorbell_off = m->cp_hqd_pq_doorbell_control >>
+				CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_OFFSET__SHIFT;
+
+		err = amdgpu_amdkfd_unmap_hiq(mm->dev->adev, doorbell_off, xcc_id);
 		if (err) {
-			pr_debug("Destroy MQD failed for xcc: %d\n", inst);
+			pr_debug("Destroy HIQ MQD failed for xcc: %d\n", inst);
 			break;
 		}
 		++inst;
@@ -846,7 +868,7 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		} else {
 			mqd->init_mqd = init_mqd_hiq;
 			mqd->load_mqd = kfd_hiq_load_mqd_kiq;
-			mqd->destroy_mqd = kfd_destroy_mqd_cp;
+			mqd->destroy_mqd = destroy_hiq_mqd;
 		}
 		break;
 	case KFD_MQD_TYPE_DIQ:
