@@ -7,9 +7,9 @@
 
 static int mt7921_poll_tx(struct napi_struct *napi, int budget)
 {
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 
-	dev = container_of(napi, struct mt7921_dev, mt76.tx_napi);
+	dev = container_of(napi, struct mt792x_dev, mt76.tx_napi);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		napi_complete(napi);
@@ -27,10 +27,10 @@ static int mt7921_poll_tx(struct napi_struct *napi, int budget)
 
 static int mt7921_poll_rx(struct napi_struct *napi, int budget)
 {
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	int done;
 
-	dev = container_of(napi->dev, struct mt7921_dev, mt76.napi_dev);
+	dev = container_of(napi->dev, struct mt792x_dev, mt76.napi_dev);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		napi_complete(napi);
@@ -43,7 +43,7 @@ static int mt7921_poll_rx(struct napi_struct *napi, int budget)
 	return done;
 }
 
-static void mt7921_dma_prefetch(struct mt7921_dev *dev)
+static void mt7921_dma_prefetch(struct mt792x_dev *dev)
 {
 #define PREFETCH(base, depth)	((base) << 16 | (depth))
 
@@ -64,7 +64,7 @@ static void mt7921_dma_prefetch(struct mt7921_dev *dev)
 	mt76_wr(dev, MT_WFDMA0_TX_RING17_EXT_CTRL, PREFETCH(0x380, 0x4));
 }
 
-static int mt7921_dma_disable(struct mt7921_dev *dev, bool force)
+static int mt7921_dma_disable(struct mt792x_dev *dev, bool force)
 {
 	/* disable WFDMA0 */
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
@@ -98,7 +98,7 @@ static int mt7921_dma_disable(struct mt7921_dev *dev, bool force)
 	return 0;
 }
 
-static int mt7921_dma_enable(struct mt7921_dev *dev)
+static int mt7921_dma_enable(struct mt792x_dev *dev)
 {
 	/* configure perfetch settings */
 	mt7921_dma_prefetch(dev);
@@ -131,7 +131,7 @@ static int mt7921_dma_enable(struct mt7921_dev *dev)
 	return 0;
 }
 
-static int mt7921_dma_reset(struct mt7921_dev *dev, bool force)
+static int mt7921_dma_reset(struct mt792x_dev *dev, bool force)
 {
 	int i, err;
 
@@ -154,7 +154,7 @@ static int mt7921_dma_reset(struct mt7921_dev *dev, bool force)
 	return mt7921_dma_enable(dev);
 }
 
-int mt7921_wfsys_reset(struct mt7921_dev *dev)
+int mt7921_wfsys_reset(struct mt792x_dev *dev)
 {
 	mt76_clear(dev, MT_WFSYS_SW_RST_B, WFSYS_SW_RST_B);
 	msleep(50);
@@ -167,7 +167,7 @@ int mt7921_wfsys_reset(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force)
+int mt7921_wpdma_reset(struct mt792x_dev *dev, bool force)
 {
 	int i, err;
 
@@ -196,7 +196,7 @@ int mt7921_wpdma_reset(struct mt7921_dev *dev, bool force)
 	return 0;
 }
 
-int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev)
+int mt7921_wpdma_reinit_cond(struct mt792x_dev *dev)
 {
 	struct mt76_connac_pm *pm = &dev->pm;
 	int err;
@@ -221,7 +221,7 @@ int mt7921_wpdma_reinit_cond(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921_dma_init(struct mt7921_dev *dev)
+int mt7921_dma_init(struct mt792x_dev *dev)
 {
 	int ret;
 
@@ -286,7 +286,7 @@ int mt7921_dma_init(struct mt7921_dev *dev)
 	return mt7921_dma_enable(dev);
 }
 
-void mt7921_dma_cleanup(struct mt7921_dev *dev)
+void mt7921_dma_cleanup(struct mt792x_dev *dev)
 {
 	/* disable */
 	mt76_clear(dev, MT_WFDMA0_GLO_CFG,

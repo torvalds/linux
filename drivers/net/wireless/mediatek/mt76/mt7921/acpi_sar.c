@@ -5,7 +5,7 @@
 #include "mt7921.h"
 
 static int
-mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
+mt7921_acpi_read(struct mt792x_dev *dev, u8 *method, u8 **tbl, u32 *len)
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *sar_root, *sar_unit;
@@ -65,7 +65,7 @@ free:
 
 /* MTCL : Country List Table for 6G band */
 static int
-mt7921_asar_acpi_read_mtcl(struct mt7921_dev *dev, u8 **table, u8 *version)
+mt7921_asar_acpi_read_mtcl(struct mt792x_dev *dev, u8 **table, u8 *version)
 {
 	*version = (mt7921_acpi_read(dev, MT7921_ACPI_MTCL, table, NULL) < 0)
 		   ? 1 : 2;
@@ -74,7 +74,7 @@ mt7921_asar_acpi_read_mtcl(struct mt7921_dev *dev, u8 **table, u8 *version)
 
 /* MTDS : Dynamic SAR Power Table */
 static int
-mt7921_asar_acpi_read_mtds(struct mt7921_dev *dev, u8 **table, u8 version)
+mt7921_asar_acpi_read_mtds(struct mt792x_dev *dev, u8 **table, u8 version)
 {
 	int len, ret, sarlen, prelen, tblcnt;
 	bool enable;
@@ -109,7 +109,7 @@ mt7921_asar_acpi_read_mtds(struct mt7921_dev *dev, u8 **table, u8 version)
 
 /* MTGS : Geo SAR Power Table */
 static int
-mt7921_asar_acpi_read_mtgs(struct mt7921_dev *dev, u8 **table, u8 version)
+mt7921_asar_acpi_read_mtgs(struct mt792x_dev *dev, u8 **table, u8 version)
 {
 	int len, ret = 0, sarlen, prelen, tblcnt;
 
@@ -140,7 +140,7 @@ mt7921_asar_acpi_read_mtgs(struct mt7921_dev *dev, u8 **table, u8 version)
 
 /* MTFG : Flag Table */
 static int
-mt7921_asar_acpi_read_mtfg(struct mt7921_dev *dev, u8 **table)
+mt7921_asar_acpi_read_mtfg(struct mt792x_dev *dev, u8 **table)
 {
 	int len, ret;
 
@@ -154,7 +154,7 @@ mt7921_asar_acpi_read_mtfg(struct mt7921_dev *dev, u8 **table)
 	return ret;
 }
 
-int mt7921_init_acpi_sar(struct mt7921_dev *dev)
+int mt7921_init_acpi_sar(struct mt792x_dev *dev)
 {
 	struct mt7921_acpi_sar *asar;
 	int ret;

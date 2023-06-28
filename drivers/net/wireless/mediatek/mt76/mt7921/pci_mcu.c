@@ -4,7 +4,7 @@
 #include "mt7921.h"
 #include "mcu.h"
 
-int mt7921e_driver_own(struct mt7921_dev *dev)
+int mt7921e_driver_own(struct mt792x_dev *dev)
 {
 	u32 reg = mt7921_reg_map_l1(dev, MT_TOP_LPCR_HOST_BAND0);
 
@@ -22,7 +22,7 @@ static int
 mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			int cmd, int *seq)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	enum mt76_mcuq_id txq = MT_MCUQ_WM;
 	int ret;
 
@@ -38,7 +38,7 @@ mt7921_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	return mt76_tx_queue_skb_raw(dev, mdev->q_mcu[txq], skb, 0);
 }
 
-int mt7921e_mcu_init(struct mt7921_dev *dev)
+int mt7921e_mcu_init(struct mt792x_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7921_mcu_ops = {
 		.headroom = sizeof(struct mt76_connac2_mcu_txd),
@@ -62,7 +62,7 @@ int mt7921e_mcu_init(struct mt7921_dev *dev)
 	return err;
 }
 
-int __mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
+int __mt7921e_mcu_drv_pmctrl(struct mt792x_dev *dev)
 {
 	int i, err = 0;
 
@@ -81,7 +81,7 @@ int __mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
 	return err;
 }
 
-int mt7921e_mcu_drv_pmctrl(struct mt7921_dev *dev)
+int mt7921e_mcu_drv_pmctrl(struct mt792x_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_connac_pm *pm = &dev->pm;
@@ -101,7 +101,7 @@ out:
 	return err;
 }
 
-int mt7921e_mcu_fw_pmctrl(struct mt7921_dev *dev)
+int mt7921e_mcu_fw_pmctrl(struct mt792x_dev *dev)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_connac_pm *pm = &dev->pm;

@@ -61,7 +61,7 @@ static ssize_t mt7921_thermal_temp_show(struct device *dev,
 	switch (to_sensor_dev_attr(attr)->index) {
 	case 0: {
 		struct mt792x_phy *phy = dev_get_drvdata(dev);
-		struct mt7921_dev *mdev = phy->dev;
+		struct mt792x_dev *mdev = phy->dev;
 		int temperature;
 
 		mt7921_mutex_acquire(mdev);
@@ -110,7 +110,7 @@ mt7921_regd_notifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct mt7921_dev *dev = mt7921_hw_dev(hw);
+	struct mt792x_dev *dev = mt7921_hw_dev(hw);
 
 	memcpy(dev->mt76.alpha2, request->alpha2, sizeof(dev->mt76.alpha2));
 	dev->mt76.region = request->dfs_region;
@@ -127,7 +127,7 @@ static int
 mt7921_init_wiphy(struct ieee80211_hw *hw)
 {
 	struct mt792x_phy *phy = mt7921_hw_phy(hw);
-	struct mt7921_dev *dev = phy->dev;
+	struct mt792x_dev *dev = phy->dev;
 	struct wiphy *wiphy = hw->wiphy;
 
 	hw->queues = 4;
@@ -200,7 +200,7 @@ mt7921_init_wiphy(struct ieee80211_hw *hw)
 }
 
 static void
-mt7921_mac_init_band(struct mt7921_dev *dev, u8 band)
+mt7921_mac_init_band(struct mt792x_dev *dev, u8 band)
 {
 	u32 mask, set;
 
@@ -309,7 +309,7 @@ mt7921_get_mac80211_ops(struct device *dev, void *drv_data, u8 *fw_features)
 }
 EXPORT_SYMBOL_GPL(mt7921_get_mac80211_ops);
 
-int mt7921_mac_init(struct mt7921_dev *dev)
+int mt7921_mac_init(struct mt792x_dev *dev)
 {
 	int i;
 
@@ -329,7 +329,7 @@ int mt7921_mac_init(struct mt7921_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7921_mac_init);
 
-static int __mt7921_init_hardware(struct mt7921_dev *dev)
+static int __mt7921_init_hardware(struct mt792x_dev *dev)
 {
 	int ret;
 
@@ -352,7 +352,7 @@ out:
 	return ret;
 }
 
-static int mt7921_init_hardware(struct mt7921_dev *dev)
+static int mt7921_init_hardware(struct mt792x_dev *dev)
 {
 	int ret, i;
 
@@ -374,7 +374,7 @@ static int mt7921_init_hardware(struct mt7921_dev *dev)
 	return 0;
 }
 
-static int mt7921_init_wcid(struct mt7921_dev *dev)
+static int mt7921_init_wcid(struct mt792x_dev *dev)
 {
 	int idx;
 
@@ -393,7 +393,7 @@ static int mt7921_init_wcid(struct mt7921_dev *dev)
 
 static void mt7921_init_work(struct work_struct *work)
 {
-	struct mt7921_dev *dev = container_of(work, struct mt7921_dev,
+	struct mt792x_dev *dev = container_of(work, struct mt792x_dev,
 					      init_work);
 	int ret;
 
@@ -429,7 +429,7 @@ static void mt7921_init_work(struct work_struct *work)
 	mt76_connac_mcu_set_deep_sleep(&dev->mt76, dev->pm.ds_enable);
 }
 
-int mt7921_register_device(struct mt7921_dev *dev)
+int mt7921_register_device(struct mt792x_dev *dev)
 {
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	int ret;

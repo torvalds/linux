@@ -32,7 +32,7 @@ static void mt7921u_uhw_wr(struct mt76_dev *dev, u32 addr, u32 val)
 	mutex_unlock(&dev->usb.usb_ctrl_mtx);
 }
 
-static void mt7921u_dma_prefetch(struct mt7921_dev *dev)
+static void mt7921u_dma_prefetch(struct mt792x_dev *dev)
 {
 	mt76_rmw(dev, MT_UWFDMA0_TX_RING_EXT_CTRL(0),
 		 MT_WPDMA0_MAX_CNT_MASK, 4);
@@ -70,7 +70,7 @@ static void mt7921u_dma_prefetch(struct mt7921_dev *dev)
 		 MT_WPDMA0_BASE_PTR_MASK,  0x2c0);
 }
 
-static void mt7921u_wfdma_init(struct mt7921_dev *dev)
+static void mt7921u_wfdma_init(struct mt792x_dev *dev)
 {
 	mt7921u_dma_prefetch(dev);
 
@@ -90,7 +90,7 @@ static void mt7921u_wfdma_init(struct mt7921_dev *dev)
 	mt76_set(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
 }
 
-static int mt7921u_dma_rx_evt_ep4(struct mt7921_dev *dev)
+static int mt7921u_dma_rx_evt_ep4(struct mt792x_dev *dev)
 {
 	if (!mt76_poll(dev, MT_UWFDMA0_GLO_CFG,
 		       MT_WFDMA0_GLO_CFG_RX_DMA_BUSY, 0, 1000))
@@ -104,7 +104,7 @@ static int mt7921u_dma_rx_evt_ep4(struct mt7921_dev *dev)
 	return 0;
 }
 
-static void mt7921u_epctl_rst_opt(struct mt7921_dev *dev, bool reset)
+static void mt7921u_epctl_rst_opt(struct mt792x_dev *dev, bool reset)
 {
 	u32 val;
 
@@ -121,7 +121,7 @@ static void mt7921u_epctl_rst_opt(struct mt7921_dev *dev, bool reset)
 	mt7921u_uhw_wr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT, val);
 }
 
-int mt7921u_dma_init(struct mt7921_dev *dev, bool resume)
+int mt7921u_dma_init(struct mt792x_dev *dev, bool resume)
 {
 	int err;
 
@@ -148,7 +148,7 @@ int mt7921u_dma_init(struct mt7921_dev *dev, bool resume)
 	return 0;
 }
 
-int mt7921u_wfsys_reset(struct mt7921_dev *dev)
+int mt7921u_wfsys_reset(struct mt792x_dev *dev)
 {
 	u32 val;
 	int i;
@@ -180,7 +180,7 @@ int mt7921u_wfsys_reset(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921u_init_reset(struct mt7921_dev *dev)
+int mt7921u_init_reset(struct mt792x_dev *dev)
 {
 	set_bit(MT76_RESET, &dev->mphy.state);
 
@@ -197,7 +197,7 @@ int mt7921u_init_reset(struct mt7921_dev *dev)
 	return mt76u_resume_rx(&dev->mt76);
 }
 
-int mt7921u_mac_reset(struct mt7921_dev *dev)
+int mt7921u_mac_reset(struct mt792x_dev *dev)
 {
 	int err;
 

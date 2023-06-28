@@ -21,7 +21,7 @@
 #define LP_STATE_PR_ARG	__entry->lp_state ? "lp ready" : "lp not ready"
 
 TRACE_EVENT(lp_event,
-	TP_PROTO(struct mt7921_dev *dev, u8 lp_state),
+	TP_PROTO(struct mt792x_dev *dev, u8 lp_state),
 
 	TP_ARGS(dev, lp_state),
 

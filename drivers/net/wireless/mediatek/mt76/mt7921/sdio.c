@@ -27,7 +27,7 @@ static void mt7921s_txrx_worker(struct mt76_worker *w)
 	struct mt76_sdio *sdio = container_of(w, struct mt76_sdio,
 					      txrx_worker);
 	struct mt76_dev *mdev = container_of(sdio, struct mt76_dev, sdio);
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 
 	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
 		queue_work(mdev->wq, &dev->pm.wake_work);
@@ -38,7 +38,7 @@ static void mt7921s_txrx_worker(struct mt76_worker *w)
 	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 }
 
-static void mt7921s_unregister_device(struct mt7921_dev *dev)
+static void mt7921s_unregister_device(struct mt792x_dev *dev)
 {
 	struct mt76_connac_pm *pm = &dev->pm;
 
@@ -122,7 +122,7 @@ static int mt7921s_probe(struct sdio_func *func,
 		.fw_own = mt7921s_mcu_fw_pmctrl,
 	};
 	struct ieee80211_ops *ops;
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
 	u8 features;
 	int ret;
@@ -136,7 +136,7 @@ static int mt7921s_probe(struct sdio_func *func,
 	if (!mdev)
 		return -ENOMEM;
 
-	dev = container_of(mdev, struct mt7921_dev, mt76);
+	dev = container_of(mdev, struct mt792x_dev, mt76);
 	dev->fw_features = features;
 	dev->hif_ops = &mt7921_sdio_ops;
 	sdio_set_drvdata(func, dev);
@@ -196,7 +196,7 @@ error:
 
 static void mt7921s_remove(struct sdio_func *func)
 {
-	struct mt7921_dev *dev = sdio_get_drvdata(func);
+	struct mt792x_dev *dev = sdio_get_drvdata(func);
 
 	mt7921s_unregister_device(dev);
 }
@@ -204,7 +204,7 @@ static void mt7921s_remove(struct sdio_func *func)
 static int mt7921s_suspend(struct device *__dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(__dev);
-	struct mt7921_dev *dev = sdio_get_drvdata(func);
+	struct mt792x_dev *dev = sdio_get_drvdata(func);
 	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_dev *mdev = &dev->mt76;
 	int err;
@@ -277,7 +277,7 @@ restore_suspend:
 static int mt7921s_resume(struct device *__dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(__dev);
-	struct mt7921_dev *dev = sdio_get_drvdata(func);
+	struct mt792x_dev *dev = sdio_get_drvdata(func);
 	struct mt76_connac_pm *pm = &dev->pm;
 	struct mt76_dev *mdev = &dev->mt76;
 	int err;

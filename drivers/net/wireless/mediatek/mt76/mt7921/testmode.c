@@ -31,7 +31,7 @@ static const struct nla_policy mt7921_tm_policy[NUM_MT7921_TM_ATTRS] = {
 };
 
 static int
-mt7921_tm_set(struct mt7921_dev *dev, struct mt7921_tm_cmd *req)
+mt7921_tm_set(struct mt792x_dev *dev, struct mt7921_tm_cmd *req)
 {
 	struct mt7921_rftest_cmd cmd = {
 		.action = req->action,
@@ -82,7 +82,7 @@ out:
 }
 
 static int
-mt7921_tm_query(struct mt7921_dev *dev, struct mt7921_tm_cmd *req,
+mt7921_tm_query(struct mt792x_dev *dev, struct mt7921_tm_cmd *req,
 		struct mt7921_tm_evt *evt_resp)
 {
 	struct mt7921_rftest_cmd cmd = {

@@ -20,7 +20,7 @@ static u32 mt7921_mac_wtbl_lmac_addr(int idx, u8 offset)
 	return MT_WTBL_LMAC_OFFS(idx, 0) + offset * 4;
 }
 
-static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
+static struct mt76_wcid *mt7921_rx_get_wcid(struct mt792x_dev *dev,
 					    u16 idx, bool unicast)
 {
 	struct mt792x_sta *sta;
@@ -43,7 +43,7 @@ static struct mt76_wcid *mt7921_rx_get_wcid(struct mt7921_dev *dev,
 	return &sta->vif->sta.wcid;
 }
 
-bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask)
+bool mt7921_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask)
 {
 	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
 		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
@@ -52,7 +52,7 @@ bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask)
 			 0, 5000);
 }
 
-static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
+static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
 {
 	static const u8 ac_to_tid[] = {
 		[IEEE80211_AC_BE] = 0,
@@ -185,7 +185,7 @@ static void mt7921_mac_sta_poll(struct mt7921_dev *dev)
 }
 
 static void
-mt7921_get_status_freq_info(struct mt7921_dev *dev, struct mt76_phy *mphy,
+mt7921_get_status_freq_info(struct mt792x_dev *dev, struct mt76_phy *mphy,
 			    struct mt76_rx_status *status, u8 chfreq)
 {
 	if (chfreq > 180) {
@@ -217,7 +217,7 @@ mt7921_mac_rssi_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 }
 
 static void
-mt7921_mac_assoc_rssi(struct mt7921_dev *dev, struct sk_buff *skb)
+mt7921_mac_assoc_rssi(struct mt792x_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
 
@@ -231,7 +231,7 @@ mt7921_mac_assoc_rssi(struct mt7921_dev *dev, struct sk_buff *skb)
 }
 
 static int
-mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
+mt7921_mac_fill_rx(struct mt792x_dev *dev, struct sk_buff *skb)
 {
 	u32 csum_mask = MT_RXD0_NORMAL_IP_SUM | MT_RXD0_NORMAL_UDP_TCP_SUM;
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -511,7 +511,7 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-void mt7921_mac_add_txs(struct mt7921_dev *dev, void *data)
+void mt7921_mac_add_txs(struct mt792x_dev *dev, void *data)
 {
 	struct mt792x_sta *msta = NULL;
 	struct mt76_wcid *wcid;
@@ -552,7 +552,7 @@ out:
 	rcu_read_unlock();
 }
 
-static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
+static void mt7921_mac_tx_free(struct mt792x_dev *dev, void *data, int len)
 {
 	struct mt76_connac_tx_free *free = data;
 	__le32 *tx_info = (__le32 *)(data + sizeof(*free));
@@ -634,7 +634,7 @@ static void mt7921_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 
 bool mt7921_rx_check(struct mt76_dev *mdev, void *data, int len)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	__le32 *rxd = (__le32 *)data;
 	__le32 *end = (__le32 *)&rxd[len / 4];
 	enum rx_pkt_type type;
@@ -659,7 +659,7 @@ EXPORT_SYMBOL_GPL(mt7921_rx_check);
 void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	__le32 *rxd = (__le32 *)skb->data;
 	__le32 *end = (__le32 *)&skb->data[skb->len];
 	enum rx_pkt_type type;
@@ -701,7 +701,7 @@ EXPORT_SYMBOL_GPL(mt7921_queue_rx_skb);
 
 void mt7921_mac_reset_counters(struct mt792x_phy *phy)
 {
-	struct mt7921_dev *dev = phy->dev;
+	struct mt792x_dev *dev = phy->dev;
 	int i;
 
 	for (i = 0; i < 4; i++) {
@@ -724,7 +724,7 @@ void mt7921_mac_reset_counters(struct mt792x_phy *phy)
 void mt7921_mac_set_timing(struct mt792x_phy *phy)
 {
 	s16 coverage_class = phy->coverage_class;
-	struct mt7921_dev *dev = phy->dev;
+	struct mt792x_dev *dev = phy->dev;
 	u32 val, reg_offset;
 	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
 		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
@@ -771,7 +771,7 @@ mt7921_phy_get_nf(struct mt792x_phy *phy, int idx)
 static void
 mt7921_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
-	struct mt7921_dev *dev = container_of(mphy->dev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
 	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
 	struct mt76_channel_state *state;
 	u64 busy_time, tx_time, rx_time, obss_time;
@@ -802,7 +802,7 @@ mt7921_phy_update_channel(struct mt76_phy *mphy, int idx)
 
 void mt7921_update_channel(struct mt76_phy *mphy)
 {
-	struct mt7921_dev *dev = container_of(mphy->dev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mphy->dev, struct mt792x_dev, mt76);
 
 	if (mt76_connac_pm_wake(mphy, &dev->pm))
 		return;
@@ -820,7 +820,7 @@ mt7921_vif_connect_iter(void *priv, u8 *mac,
 			struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_dev *dev = mvif->phy->dev;
+	struct mt792x_dev *dev = mvif->phy->dev;
 	struct ieee80211_hw *hw = mt76_hw(dev);
 
 	if (vif->type == NL80211_IFTYPE_STATION)
@@ -841,7 +841,7 @@ mt7921_vif_connect_iter(void *priv, u8 *mac,
 /* system error recovery */
 void mt7921_mac_reset_work(struct work_struct *work)
 {
-	struct mt7921_dev *dev = container_of(work, struct mt7921_dev,
+	struct mt792x_dev *dev = container_of(work, struct mt792x_dev,
 					      reset_work);
 	struct ieee80211_hw *hw = mt76_hw(dev);
 	struct mt76_connac_pm *pm = &dev->pm;
@@ -886,7 +886,7 @@ void mt7921_mac_reset_work(struct work_struct *work)
 
 void mt7921_reset(struct mt76_dev *mdev)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	struct mt76_connac_pm *pm = &dev->pm;
 
 	if (!dev->hw_init_done)
@@ -905,7 +905,7 @@ EXPORT_SYMBOL_GPL(mt7921_reset);
 void mt7921_mac_update_mib_stats(struct mt792x_phy *phy)
 {
 	struct mt76_mib_stats *mib = &phy->mib;
-	struct mt7921_dev *dev = phy->dev;
+	struct mt792x_dev *dev = phy->dev;
 	int i, aggr0 = 0, aggr1;
 	u32 val;
 
@@ -989,10 +989,10 @@ void mt7921_mac_work(struct work_struct *work)
 
 void mt7921_pm_wake_work(struct work_struct *work)
 {
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	struct mt76_phy *mphy;
 
-	dev = (struct mt7921_dev *)container_of(work, struct mt7921_dev,
+	dev = (struct mt792x_dev *)container_of(work, struct mt792x_dev,
 						pm.wake_work);
 	mphy = dev->phy.mt76;
 
@@ -1022,11 +1022,11 @@ void mt7921_pm_wake_work(struct work_struct *work)
 
 void mt7921_pm_power_save_work(struct work_struct *work)
 {
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	unsigned long delta;
 	struct mt76_phy *mphy;
 
-	dev = (struct mt7921_dev *)container_of(work, struct mt7921_dev,
+	dev = (struct mt792x_dev *)container_of(work, struct mt792x_dev,
 						pm.ps_work.work);
 	mphy = dev->phy.mt76;
 
@@ -1059,10 +1059,10 @@ out:
 
 void mt7921_coredump_work(struct work_struct *work)
 {
-	struct mt7921_dev *dev;
+	struct mt792x_dev *dev;
 	char *dump, *data;
 
-	dev = (struct mt7921_dev *)container_of(work, struct mt7921_dev,
+	dev = (struct mt792x_dev *)container_of(work, struct mt792x_dev,
 						coredump.work.work);
 
 	if (time_is_after_jiffies(dev->coredump.last_activity +
@@ -1106,7 +1106,7 @@ void mt7921_coredump_work(struct work_struct *work)
 
 /* usb_sdio */
 static void
-mt7921_usb_sdio_write_txwi(struct mt7921_dev *dev, struct mt76_wcid *wcid,
+mt7921_usb_sdio_write_txwi(struct mt792x_dev *dev, struct mt76_wcid *wcid,
 			   enum mt76_txq_id qid, struct ieee80211_sta *sta,
 			   struct ieee80211_key_conf *key, int pid,
 			   struct sk_buff *skb)
@@ -1123,7 +1123,7 @@ int mt7921_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 				   struct ieee80211_sta *sta,
 				   struct mt76_tx_info *tx_info)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct sk_buff *skb = tx_info->skb;
@@ -1189,7 +1189,7 @@ EXPORT_SYMBOL_GPL(mt7921_usb_sdio_tx_complete_skb);
 
 bool mt7921_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
-	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 
 	mt7921_mutex_acquire(dev);
 	mt7921_mac_sta_poll(dev);
@@ -1202,8 +1202,8 @@ EXPORT_SYMBOL_GPL(mt7921_usb_sdio_tx_status_data);
 #if IS_ENABLED(CONFIG_IPV6)
 void mt7921_set_ipv6_ns_work(struct work_struct *work)
 {
-	struct mt7921_dev *dev = container_of(work, struct mt7921_dev,
-						ipv6_ns_work);
+	struct mt792x_dev *dev = container_of(work, struct mt792x_dev,
+					      ipv6_ns_work);
 	struct sk_buff *skb;
 	int ret = 0;
 

@@ -6,7 +6,7 @@
 static int
 mt7921_reg_set(void *data, u64 val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	mt7921_mutex_acquire(dev);
 	mt76_wr(dev, dev->mt76.debugfs_reg, val);
@@ -18,7 +18,7 @@ mt7921_reg_set(void *data, u64 val)
 static int
 mt7921_reg_get(void *data, u64 *val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	mt7921_mutex_acquire(dev);
 	*val = mt76_rr(dev, dev->mt76.debugfs_reg);
@@ -32,7 +32,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_regval, mt7921_reg_get, mt7921_reg_set,
 static int
 mt7921_fw_debug_set(void *data, u64 val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	mt7921_mutex_acquire(dev);
 
@@ -47,7 +47,7 @@ mt7921_fw_debug_set(void *data, u64 val)
 static int
 mt7921_fw_debug_get(void *data, u64 *val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	*val = dev->fw_debug;
 
@@ -61,7 +61,7 @@ static void
 mt7921_ampdu_stat_read_phy(struct mt792x_phy *phy,
 			   struct seq_file *file)
 {
-	struct mt7921_dev *dev = file->private;
+	struct mt792x_dev *dev = file->private;
 	int bound[15], range[4], i;
 
 	if (!phy)
@@ -93,7 +93,7 @@ mt7921_ampdu_stat_read_phy(struct mt792x_phy *phy,
 static int
 mt7921_tx_stats_show(struct seq_file *file, void *data)
 {
-	struct mt7921_dev *dev = file->private;
+	struct mt792x_dev *dev = file->private;
 	struct mt792x_phy *phy = &dev->phy;
 	struct mt76_mib_stats *mib = &phy->mib;
 	int i;
@@ -123,7 +123,7 @@ DEFINE_SHOW_ATTRIBUTE(mt7921_tx_stats);
 static int
 mt7921_queues_acq(struct seq_file *s, void *data)
 {
-	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt792x_dev *dev = dev_get_drvdata(s->private);
 	int i;
 
 	mt7921_mutex_acquire(dev);
@@ -154,7 +154,7 @@ mt7921_queues_acq(struct seq_file *s, void *data)
 static int
 mt7921_queues_read(struct seq_file *s, void *data)
 {
-	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt792x_dev *dev = dev_get_drvdata(s->private);
 	struct {
 		struct mt76_queue *q;
 		char *queue;
@@ -211,7 +211,7 @@ mt7921_seq_puts_array(struct seq_file *file, const char *str,
 static int
 mt7921_txpwr(struct seq_file *s, void *data)
 {
-	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt792x_dev *dev = dev_get_drvdata(s->private);
 	struct mt7921_txpwr txpwr;
 	int ret;
 
@@ -263,7 +263,7 @@ mt7921_txpwr(struct seq_file *s, void *data)
 static int
 mt7921_pm_set(void *data, u64 val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 	struct mt76_connac_pm *pm = &dev->pm;
 
 	if (mt76_is_usb(&dev->mt76))
@@ -296,7 +296,7 @@ out:
 static int
 mt7921_pm_get(void *data, u64 *val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	*val = dev->pm.enable_user;
 
@@ -308,7 +308,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_pm, mt7921_pm_get, mt7921_pm_set, "%lld\n");
 static int
 mt7921_deep_sleep_set(void *data, u64 val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 	struct mt76_connac_pm *pm = &dev->pm;
 	bool monitor = !!(dev->mphy.hw->conf.flags & IEEE80211_CONF_MONITOR);
 	bool enable = !!val;
@@ -332,7 +332,7 @@ out:
 static int
 mt7921_deep_sleep_get(void *data, u64 *val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	*val = dev->pm.ds_enable_user;
 
@@ -345,7 +345,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_ds, mt7921_deep_sleep_get,
 static int
 mt7921_pm_stats(struct seq_file *s, void *data)
 {
-	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt792x_dev *dev = dev_get_drvdata(s->private);
 	struct mt76_connac_pm *pm = &dev->pm;
 
 	unsigned long awake_time = pm->stats.awake_time;
@@ -368,7 +368,7 @@ mt7921_pm_stats(struct seq_file *s, void *data)
 static int
 mt7921_pm_idle_timeout_set(void *data, u64 val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	dev->pm.idle_timeout = msecs_to_jiffies(val);
 
@@ -378,7 +378,7 @@ mt7921_pm_idle_timeout_set(void *data, u64 val)
 static int
 mt7921_pm_idle_timeout_get(void *data, u64 *val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 
 	*val = jiffies_to_msecs(dev->pm.idle_timeout);
 
@@ -390,7 +390,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_pm_idle_timeout, mt7921_pm_idle_timeout_get,
 
 static int mt7921_chip_reset(void *data, u64 val)
 {
-	struct mt7921_dev *dev = data;
+	struct mt792x_dev *dev = data;
 	int ret = 0;
 
 	switch (val) {
@@ -414,7 +414,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_reset, NULL, mt7921_chip_reset, "%lld\n");
 static int
 mt7921s_sched_quota_read(struct seq_file *s, void *data)
 {
-	struct mt7921_dev *dev = dev_get_drvdata(s->private);
+	struct mt792x_dev *dev = dev_get_drvdata(s->private);
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 
 	seq_printf(s, "pse_data_quota\t%d\n", sdio->sched.pse_data_quota);
@@ -425,7 +425,7 @@ mt7921s_sched_quota_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-int mt7921_init_debugfs(struct mt7921_dev *dev)
+int mt7921_init_debugfs(struct mt792x_dev *dev)
 {
 	struct dentry *dir;
 
