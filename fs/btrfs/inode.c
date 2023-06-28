@@ -1206,8 +1206,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	}
 	lock_extent(io_tree, start, end, NULL);
 
-	/* We have fall back to uncompressed write */
-	if (!async_extent->pages) {
+	if (async_extent->compress_type == BTRFS_COMPRESS_NONE) {
 		submit_uncompressed_range(inode, async_extent, locked_page);
 		goto done;
 	}
