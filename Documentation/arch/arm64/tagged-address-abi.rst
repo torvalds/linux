@@ -107,7 +107,7 @@ following behaviours are guaranteed:
 
 
 A definition of the meaning of tagged pointers on AArch64 can be found
-in Documentation/arm64/tagged-pointers.rst.
+in Documentation/arch/arm64/tagged-pointers.rst.
 
 3. AArch64 Tagged Address ABI Exceptions
 -----------------------------------------

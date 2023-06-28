@@ -540,7 +540,7 @@ ACPI_OS_NAME
 ACPI Objects
 ------------
 Detailed expectations for ACPI tables and object are listed in the file
-Documentation/arm64/acpi_object_usage.rst.
+Documentation/arch/arm64/acpi_object_usage.rst.
 
 
 References

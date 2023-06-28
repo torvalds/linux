@@ -1,6 +1,6 @@
 SPDX-License-Identifier: GPL-2.0
 
-Chinese translated version of Documentation/arm64/legacy_instructions.rst
+Chinese translated version of Documentation/arch/arm64/legacy_instructions.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -13,7 +13,7 @@ Maintainer: Punit Agrawal <punit.agrawal@arm.com>
 Chinese maintainer: Fu Wei <wefu@redhat.com>
 Traditional Chinese maintainer: Hu Haowen <src.res@email.cn>
 ---------------------------------------------------------------------
-Documentation/arm64/legacy_instructions.rst 的中文翻譯
+Documentation/arch/arm64/legacy_instructions.rst 的中文翻譯
 
 如果想評論或更新本文的內容，請直接聯繫原文檔的維護者。如果你使用英文
 交流有困難的話，也可以向中文版維護者求助。如果本翻譯更新不及時或者翻

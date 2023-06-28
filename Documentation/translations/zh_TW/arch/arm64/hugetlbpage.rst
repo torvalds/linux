@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. include:: ../disclaimer-zh_TW.rst
+.. include:: ../../disclaimer-zh_TW.rst
 
-:Original: :ref:`Documentation/arm64/hugetlbpage.rst <hugetlbpage_index>`
+:Original: :ref:`Documentation/arch/arm64/hugetlbpage.rst <hugetlbpage_index>`
 
 Translator: Bailu Lin <bailu.lin@vivo.com>
             Hu Haowen <src.res@email.cn>

@@ -465,4 +465,4 @@ References
 [2] arch/arm64/include/uapi/asm/ptrace.h
     AArch64 Linux ptrace ABI definitions
 
-[3] Documentation/arm64/cpu-feature-registers.rst
+[3] Documentation/arch/arm64/cpu-feature-registers.rst

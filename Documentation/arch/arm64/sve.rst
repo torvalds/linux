@@ -606,7 +606,7 @@ References
 [2] arch/arm64/include/uapi/asm/ptrace.h
     AArch64 Linux ptrace ABI definitions
 
-[3] Documentation/arm64/cpu-feature-registers.rst
+[3] Documentation/arch/arm64/cpu-feature-registers.rst
 
 [4] ARM IHI0055C
     http://infocenter.arm.com/help/topic/com.arm.doc.ihi0055c/IHI0055C_beta_aapcs64.pdf

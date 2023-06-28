@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/arm64/memory.rst
+Chinese translated version of Documentation/arch/arm64/memory.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -9,7 +9,7 @@ or if there is a problem with the translation.
 Maintainer: Catalin Marinas <catalin.marinas@arm.com>
 Chinese maintainer: Fu Wei <wefu@redhat.com>
 ---------------------------------------------------------------------
-Documentation/arm64/memory.rst 的中文翻译
+Documentation/arch/arm64/memory.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻

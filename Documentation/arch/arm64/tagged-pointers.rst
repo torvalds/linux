@@ -22,7 +22,7 @@ Passing tagged addresses to the kernel
 All interpretation of userspace memory addresses by the kernel assumes
 an address tag of 0x00, unless the application enables the AArch64
 Tagged Address ABI explicitly
-(Documentation/arm64/tagged-address-abi.rst).
+(Documentation/arch/arm64/tagged-address-abi.rst).
 
 This includes, but is not limited to, addresses found in:
 

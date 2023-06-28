@@ -221,7 +221,7 @@ programs should not retry in case of a non-zero system call return.
 ``NT_ARM_TAGGED_ADDR_CTRL`` allow ``ptrace()`` access to the tagged
 address ABI control and MTE configuration of a process as per the
 ``prctl()`` options described in
-Documentation/arm64/tagged-address-abi.rst and above. The corresponding
+Documentation/arch/arm64/tagged-address-abi.rst and above. The corresponding
 ``regset`` is 1 element of 8 bytes (``sizeof(long))``).
 
 Core dump support
