@@ -1749,6 +1749,110 @@ static void gfx_v12_0_config_gfx_rs64(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL, tmp);
 }
 
+static void gfx_v12_0_set_pfp_ucode_start_addr(struct amdgpu_device *adev)
+{
+	const struct gfx_firmware_header_v2_0 *cp_hdr;
+	unsigned pipe_id, tmp;
+
+	cp_hdr = (const struct gfx_firmware_header_v2_0 *)
+		adev->gfx.pfp_fw->data;
+	mutex_lock(&adev->srbm_mutex);
+	for (pipe_id = 0; pipe_id < adev->gfx.me.num_pipe_per_me; pipe_id++) {
+		soc24_grbm_select(adev, 0, pipe_id, 0, 0);
+		WREG32_SOC15(GC, 0, regCP_PFP_PRGRM_CNTR_START,
+			     (cp_hdr->ucode_start_addr_hi << 30) |
+			     (cp_hdr->ucode_start_addr_lo >> 2));
+		WREG32_SOC15(GC, 0, regCP_PFP_PRGRM_CNTR_START_HI,
+			     cp_hdr->ucode_start_addr_hi>>2);
+
+		/*
+		 * Program CP_ME_CNTL to reset given PIPE to take
+		 * effect of CP_PFP_PRGRM_CNTR_START.
+		 */
+		tmp = RREG32_SOC15(GC, 0, regCP_ME_CNTL);
+		if (pipe_id == 0)
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					PFP_PIPE0_RESET, 1);
+		else
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					PFP_PIPE1_RESET, 1);
+		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
+
+		/* Clear pfp pipe0 reset bit. */
+		if (pipe_id == 0)
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					PFP_PIPE0_RESET, 0);
+		else
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					PFP_PIPE1_RESET, 0);
+		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
+	}
+	soc24_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
+static void gfx_v12_0_set_me_ucode_start_addr(struct amdgpu_device *adev)
+{
+	const struct gfx_firmware_header_v2_0 *cp_hdr;
+	unsigned pipe_id, tmp;
+
+	cp_hdr = (const struct gfx_firmware_header_v2_0 *)
+		adev->gfx.me_fw->data;
+	mutex_lock(&adev->srbm_mutex);
+	for (pipe_id = 0; pipe_id < adev->gfx.me.num_pipe_per_me; pipe_id++) {
+		soc24_grbm_select(adev, 0, pipe_id, 0, 0);
+		WREG32_SOC15(GC, 0, regCP_ME_PRGRM_CNTR_START,
+			     (cp_hdr->ucode_start_addr_hi << 30) |
+			     (cp_hdr->ucode_start_addr_lo >> 2) );
+		WREG32_SOC15(GC, 0, regCP_ME_PRGRM_CNTR_START_HI,
+			     cp_hdr->ucode_start_addr_hi>>2);
+
+		/*
+		 * Program CP_ME_CNTL to reset given PIPE to take
+		 * effect of CP_ME_PRGRM_CNTR_START.
+		 */
+		tmp = RREG32_SOC15(GC, 0, regCP_ME_CNTL);
+		if (pipe_id == 0)
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					ME_PIPE0_RESET, 1);
+		else
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					ME_PIPE1_RESET, 1);
+		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
+
+		/* Clear pfp pipe0 reset bit. */
+		if (pipe_id == 0)
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					ME_PIPE0_RESET, 0);
+		else
+			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
+					ME_PIPE1_RESET, 0);
+		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
+	}
+	soc24_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
+static void gfx_v12_0_set_mec_ucode_start_addr(struct amdgpu_device *adev)
+{
+	const struct gfx_firmware_header_v2_0 *cp_hdr;
+	unsigned pipe_id;
+
+	cp_hdr = (const struct gfx_firmware_header_v2_0 *)
+		adev->gfx.mec_fw->data;
+	mutex_lock(&adev->srbm_mutex);
+	for (pipe_id = 0; pipe_id < adev->gfx.mec.num_pipe_per_mec; pipe_id++) {
+		soc24_grbm_select(adev, 1, pipe_id, 0, 0);
+		WREG32_SOC15(GC, 0, regCP_MEC_RS64_PRGRM_CNTR_START,
+			     cp_hdr->ucode_start_addr_lo >> 2 |
+			     cp_hdr->ucode_start_addr_hi << 30);
+		WREG32_SOC15(GC, 0, regCP_MEC_RS64_PRGRM_CNTR_START_HI,
+			     cp_hdr->ucode_start_addr_hi >> 2);
+	}
+	soc24_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+}
+
 static int gfx_v12_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 {
 	uint32_t cp_status;
@@ -1772,6 +1876,12 @@ static int gfx_v12_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 	if (i >= adev->usec_timeout) {
 		dev_err(adev->dev, "rlc autoload: gc ucode autoload timeout\n");
 		return -ETIMEDOUT;
+	}
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
+		gfx_v12_0_set_pfp_ucode_start_addr(adev);
+		gfx_v12_0_set_me_ucode_start_addr(adev);
+		gfx_v12_0_set_mec_ucode_start_addr(adev);
 	}
 
 	return 0;
@@ -1905,33 +2015,6 @@ static int gfx_v12_0_cp_gfx_load_pfp_microcode_rs64(struct amdgpu_device *adev)
 	mutex_lock(&adev->srbm_mutex);
 	for (pipe_id = 0; pipe_id < adev->gfx.me.num_pipe_per_me; pipe_id++) {
 		soc24_grbm_select(adev, 0, pipe_id, 0, 0);
-		WREG32_SOC15(GC, 0, regCP_PFP_PRGRM_CNTR_START,
-			(pfp_hdr->ucode_start_addr_hi << 30) |
-			(pfp_hdr->ucode_start_addr_lo >> 2));
-		WREG32_SOC15(GC, 0, regCP_PFP_PRGRM_CNTR_START_HI,
-			pfp_hdr->ucode_start_addr_hi>>2);
-
-		/*
-		 * Program CP_ME_CNTL to reset given PIPE to take
-		 * effect of CP_PFP_PRGRM_CNTR_START.
-		 */
-		tmp = RREG32_SOC15(GC, 0, regCP_ME_CNTL);
-		if (pipe_id == 0)
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					PFP_PIPE0_RESET, 1);
-		else
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					PFP_PIPE1_RESET, 1);
-		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
-
-		/* Clear pfp pipe0 reset bit. */
-		if (pipe_id == 0)
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					PFP_PIPE0_RESET, 0);
-		else
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					PFP_PIPE1_RESET, 0);
-		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
 
 		WREG32_SOC15(GC, 0, regCP_GFX_RS64_DC_BASE0_LO,
 			lower_32_bits(adev->gfx.pfp.pfp_fw_data_gpu_addr));
@@ -1963,6 +2046,8 @@ static int gfx_v12_0_cp_gfx_load_pfp_microcode_rs64(struct amdgpu_device *adev)
 		dev_err(adev->dev, "failed to invalidate RS64 data cache\n");
 		return -EINVAL;
 	}
+
+	gfx_v12_0_set_pfp_ucode_start_addr(adev);
 
 	return 0;
 }
@@ -2075,33 +2160,6 @@ static int gfx_v12_0_cp_gfx_load_me_microcode_rs64(struct amdgpu_device *adev)
 	mutex_lock(&adev->srbm_mutex);
 	for (pipe_id = 0; pipe_id < adev->gfx.me.num_pipe_per_me; pipe_id++) {
 		soc24_grbm_select(adev, 0, pipe_id, 0, 0);
-		WREG32_SOC15(GC, 0, regCP_ME_PRGRM_CNTR_START,
-			(me_hdr->ucode_start_addr_hi << 30) |
-			(me_hdr->ucode_start_addr_lo >> 2));
-		WREG32_SOC15(GC, 0, regCP_ME_PRGRM_CNTR_START_HI,
-			me_hdr->ucode_start_addr_hi>>2);
-
-		/*
-		 * Program CP_ME_CNTL to reset given PIPE to take
-		 * effect of CP_PFP_PRGRM_CNTR_START.
-		 */
-		tmp = RREG32_SOC15(GC, 0, regCP_ME_CNTL);
-		if (pipe_id == 0)
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					ME_PIPE0_RESET, 1);
-		else
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					ME_PIPE1_RESET, 1);
-		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
-
-		/* Clear pfp pipe0 reset bit. */
-		if (pipe_id == 0)
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					ME_PIPE0_RESET, 0);
-		else
-			tmp = REG_SET_FIELD(tmp, CP_ME_CNTL,
-					ME_PIPE1_RESET, 0);
-		WREG32_SOC15(GC, 0, regCP_ME_CNTL, tmp);
 
 		WREG32_SOC15(GC, 0, regCP_GFX_RS64_DC_BASE1_LO,
 			lower_32_bits(adev->gfx.me.me_fw_data_gpu_addr));
@@ -2133,6 +2191,8 @@ static int gfx_v12_0_cp_gfx_load_me_microcode_rs64(struct amdgpu_device *adev)
 		dev_err(adev->dev, "failed to invalidate RS64 data cache\n");
 		return -EINVAL;
 	}
+
+	gfx_v12_0_set_me_ucode_start_addr(adev);
 
 	return 0;
 }
@@ -2382,19 +2442,15 @@ static int gfx_v12_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gfx.mec.num_pipe_per_mec; i++) {
 		soc24_grbm_select(adev, 1, i, 0, 0);
 
-		WREG32_SOC15(GC, 0, regCP_MEC_MDBASE_LO, adev->gfx.mec.mec_fw_data_gpu_addr);
+		WREG32_SOC15(GC, 0, regCP_MEC_MDBASE_LO,
+			     lower_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr));
 		WREG32_SOC15(GC, 0, regCP_MEC_MDBASE_HI,
-		     upper_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr));
+			     upper_32_bits(adev->gfx.mec.mec_fw_data_gpu_addr));
 
-		WREG32_SOC15(GC, 0, regCP_MEC_RS64_PRGRM_CNTR_START,
-					mec_hdr->ucode_start_addr_lo >> 2 |
-					mec_hdr->ucode_start_addr_hi << 30);
-		WREG32_SOC15(GC, 0, regCP_MEC_RS64_PRGRM_CNTR_START_HI,
-					mec_hdr->ucode_start_addr_hi >> 2);
-
-		WREG32_SOC15(GC, 0, regCP_CPC_IC_BASE_LO, adev->gfx.mec.mec_fw_gpu_addr);
+		WREG32_SOC15(GC, 0, regCP_CPC_IC_BASE_LO,
+			     lower_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
 		WREG32_SOC15(GC, 0, regCP_CPC_IC_BASE_HI,
-		     upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
+			     upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
 	}
 	mutex_unlock(&adev->srbm_mutex);
 	soc24_grbm_select(adev, 0, 0, 0, 0);
@@ -2436,6 +2492,8 @@ static int gfx_v12_0_cp_compute_load_microcode_rs64(struct amdgpu_device *adev)
 		dev_err(adev->dev, "failed to invalidate instruction cache\n");
 		return -EINVAL;
 	}
+
+	gfx_v12_0_set_mec_ucode_start_addr(adev);
 
 	return 0;
 }
