@@ -342,20 +342,19 @@ static int slot_get(struct gfs2_quota_data *qd)
 	int error = 0;
 
 	spin_lock(&sdp->sd_bitmap_lock);
-	if (qd->qd_slot_count != 0)
-		goto out;
-
-	error = -ENOSPC;
-	bit = find_first_zero_bit(sdp->sd_quota_bitmap, sdp->sd_quota_slots);
-	if (bit < sdp->sd_quota_slots) {
+	if (qd->qd_slot_count == 0) {
+		bit = find_first_zero_bit(sdp->sd_quota_bitmap,
+					  sdp->sd_quota_slots);
+		if (bit >= sdp->sd_quota_slots) {
+			error = -ENOSPC;
+			goto out;
+		}
 		set_bit(bit, sdp->sd_quota_bitmap);
 		qd->qd_slot = bit;
-		error = 0;
-out:
-		qd->qd_slot_count++;
 	}
+	qd->qd_slot_count++;
+out:
 	spin_unlock(&sdp->sd_bitmap_lock);
-
 	return error;
 }
 
