@@ -1111,31 +1111,66 @@ static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 
 static void check_version_upgrade(struct bch_fs *c)
 {
-	unsigned version = c->sb.version_upgrade_complete ?: c->sb.version;
+	unsigned latest_compatible = bch2_version_compatible(c->sb.version);
+	unsigned latest_version	= bcachefs_metadata_version_current;
+	unsigned old_version = c->sb.version_upgrade_complete ?: c->sb.version;
+	unsigned new_version = 0;
 
-	if (version < bcachefs_metadata_required_upgrade_below ||
-	    (version < bcachefs_metadata_version_current &&
-	     c->opts.version_upgrade != BCH_VERSION_UPGRADE_none)) {
+	if (old_version < bcachefs_metadata_required_upgrade_below) {
+		if (c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible ||
+		    latest_compatible < bcachefs_metadata_required_upgrade_below)
+			new_version = latest_version;
+		else
+			new_version = latest_compatible;
+	} else {
+		switch (c->opts.version_upgrade) {
+		case BCH_VERSION_UPGRADE_compatible:
+			new_version = latest_compatible;
+			break;
+		case BCH_VERSION_UPGRADE_incompatible:
+			new_version = latest_version;
+			break;
+		case BCH_VERSION_UPGRADE_none:
+			new_version = old_version;
+			break;
+		}
+	}
+
+	if (new_version > old_version) {
 		struct printbuf buf = PRINTBUF;
 
-		if (version != c->sb.version) {
-			prt_str(&buf, "version upgrade to ");
+		if (old_version < bcachefs_metadata_required_upgrade_below)
+			prt_str(&buf, "Version upgrade required:\n");
+
+		if (old_version != c->sb.version) {
+			prt_str(&buf, "Version upgrade from ");
+			bch2_version_to_text(&buf, c->sb.version_upgrade_complete);
+			prt_str(&buf, " to ");
 			bch2_version_to_text(&buf, c->sb.version);
-			prt_str(&buf, " incomplete:\n");
+			prt_str(&buf, " incomplete\n");
 		}
 
-		prt_str(&buf, "version ");
-		bch2_version_to_text(&buf, version);
-		prt_str(&buf, " prior to ");
-		bch2_version_to_text(&buf, bcachefs_metadata_required_upgrade_below);
-		prt_str(&buf, ", upgrade and fsck required");
+		prt_printf(&buf, "Doing %s version upgrade from ",
+			   BCH_VERSION_MAJOR(old_version) != BCH_VERSION_MAJOR(new_version)
+			   ? "incompatible" : "compatible");
+		bch2_version_to_text(&buf, old_version);
+		prt_str(&buf, " to ");
+		bch2_version_to_text(&buf, new_version);
+		prt_newline(&buf);
+
+		prt_str(&buf, "fsck required");
 
 		bch_info(c, "%s", buf.buf);
-		printbuf_exit(&buf);
 
 		c->opts.fsck		= true;
 		c->opts.fix_errors	= FSCK_OPT_YES;
-		set_bit(BCH_FS_VERSION_UPGRADE, &c->flags);
+
+		mutex_lock(&c->sb_lock);
+		c->disk_sb.sb->version = cpu_to_le16(new_version);
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+		mutex_unlock(&c->sb_lock);
+
+		printbuf_exit(&buf);
 	}
 }
 

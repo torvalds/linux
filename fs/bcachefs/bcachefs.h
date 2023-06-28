@@ -568,7 +568,6 @@ enum {
 	BCH_FS_INITIAL_GC_UNFIXED,	/* kill when we enumerate fsck errors */
 	BCH_FS_NEED_ANOTHER_GC,
 
-	BCH_FS_VERSION_UPGRADE,
 	BCH_FS_HAVE_DELETED_SNAPSHOTS,
 
 	/* errors: */

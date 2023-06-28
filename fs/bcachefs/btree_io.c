@@ -701,7 +701,9 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 
 	btree_err_on(!bch2_version_compatible(version),
 		     BTREE_ERR_INCOMPATIBLE, c, ca, b, i,
-		     "unsupported bset version %u", version);
+		     "unsupported bset version %u.%u",
+		     BCH_VERSION_MAJOR(version),
+		     BCH_VERSION_MINOR(version));
 
 	if (btree_err_on(version < c->sb.version_min,
 			 BTREE_ERR_FIXABLE, c, NULL, b, i,
@@ -713,7 +715,8 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 		mutex_unlock(&c->sb_lock);
 	}
 
-	if (btree_err_on(version > c->sb.version,
+	if (btree_err_on(BCH_VERSION_MAJOR(version) >
+			 BCH_VERSION_MAJOR(c->sb.version),
 			 BTREE_ERR_FIXABLE, c, NULL, b, i,
 			 "bset version %u newer than superblock version %u",
 			 version, c->sb.version)) {

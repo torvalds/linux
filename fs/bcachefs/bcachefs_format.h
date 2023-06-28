@@ -1574,28 +1574,32 @@ struct bch_sb_field_journal_seq_blacklist {
  * One common version number for all on disk data structures - superblock, btree
  * nodes, journal entries
  */
+#define BCH_VERSION_MAJOR(_v)		((__u16) ((_v) >> 10))
+#define BCH_VERSION_MINOR(_v)		((__u16) ((_v) & ~(~0U << 10)))
+#define BCH_VERSION(_major, _minor)	(((_major) << 10)|(_minor) << 0)
 
 #define BCH_METADATA_VERSIONS()				\
-	x(bkey_renumber,		10)		\
-	x(inode_btree_change,		11)		\
-	x(snapshot,			12)		\
-	x(inode_backpointers,		13)		\
-	x(btree_ptr_sectors_written,	14)		\
-	x(snapshot_2,			15)		\
-	x(reflink_p_fix,		16)		\
-	x(subvol_dirent,		17)		\
-	x(inode_v2,			18)		\
-	x(freespace,			19)		\
-	x(alloc_v4,			20)		\
-	x(new_data_types,		21)		\
-	x(backpointers,			22)		\
-	x(inode_v3,			23)		\
-	x(unwritten_extents,		24)		\
-	x(bucket_gens,			25)		\
-	x(lru_v2,			26)		\
-	x(fragmentation_lru,		27)		\
-	x(no_bps_in_alloc_keys,		28)		\
-	x(snapshot_trees,		29)
+	x(bkey_renumber,		BCH_VERSION(0, 10))		\
+	x(inode_btree_change,		BCH_VERSION(0, 11))		\
+	x(snapshot,			BCH_VERSION(0, 12))		\
+	x(inode_backpointers,		BCH_VERSION(0, 13))		\
+	x(btree_ptr_sectors_written,	BCH_VERSION(0, 14))		\
+	x(snapshot_2,			BCH_VERSION(0, 15))		\
+	x(reflink_p_fix,		BCH_VERSION(0, 16))		\
+	x(subvol_dirent,		BCH_VERSION(0, 17))		\
+	x(inode_v2,			BCH_VERSION(0, 18))		\
+	x(freespace,			BCH_VERSION(0, 19))		\
+	x(alloc_v4,			BCH_VERSION(0, 20))		\
+	x(new_data_types,		BCH_VERSION(0, 21))		\
+	x(backpointers,			BCH_VERSION(0, 22))		\
+	x(inode_v3,			BCH_VERSION(0, 23))		\
+	x(unwritten_extents,		BCH_VERSION(0, 24))		\
+	x(bucket_gens,			BCH_VERSION(0, 25))		\
+	x(lru_v2,			BCH_VERSION(0, 26))		\
+	x(fragmentation_lru,		BCH_VERSION(0, 27))		\
+	x(no_bps_in_alloc_keys,		BCH_VERSION(0, 28))		\
+	x(snapshot_trees,		BCH_VERSION(0, 29))		\
+	x(major_minor,			BCH_VERSION(1,  0))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1605,7 +1609,7 @@ enum bcachefs_metadata_version {
 	bcachefs_metadata_version_max
 };
 
-static const unsigned bcachefs_metadata_required_upgrade_below = bcachefs_metadata_version_snapshot_trees;
+static const unsigned bcachefs_metadata_required_upgrade_below = bcachefs_metadata_version_major_minor;
 
 #define bcachefs_metadata_version_current	(bcachefs_metadata_version_max - 1)
 

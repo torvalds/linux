@@ -26,19 +26,42 @@
 static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
 };
 
-static const char * const bch2_metadata_versions[] = {
-#define x(t, n) [n] = #t,
+struct bch2_metadata_version_str {
+	u16		version;
+	const char	*name;
+};
+
+static const struct bch2_metadata_version_str bch2_metadata_versions[] = {
+#define x(n, v) { .version = v, .name = #n },
 	BCH_METADATA_VERSIONS()
 #undef x
 };
 
 void bch2_version_to_text(struct printbuf *out, unsigned v)
 {
-	const char *str = v < ARRAY_SIZE(bch2_metadata_versions)
-		? bch2_metadata_versions[v]
-		: "(unknown version)";
+	const char *str = "(unknown version)";
 
-	prt_printf(out, "%u: %s", v, str);
+	for (unsigned i = 0; i < ARRAY_SIZE(bch2_metadata_versions); i++)
+		if (bch2_metadata_versions[i].version == v) {
+			str = bch2_metadata_versions[i].name;
+			break;
+		}
+
+	prt_printf(out, "%u.%u: %s", BCH_VERSION_MAJOR(v), BCH_VERSION_MINOR(v), str);
+}
+
+unsigned bch2_latest_compatible_version(unsigned v)
+{
+	if (!BCH_VERSION_MAJOR(v))
+		return v;
+
+	for (unsigned i = 0; i < ARRAY_SIZE(bch2_metadata_versions); i++)
+		if (bch2_metadata_versions[i].version > v &&
+		    BCH_VERSION_MAJOR(bch2_metadata_versions[i].version) ==
+		    BCH_VERSION_MAJOR(v))
+			v = bch2_metadata_versions[i].version;
+
+	return v;
 }
 
 const char * const bch2_sb_fields[] = {
@@ -816,10 +839,9 @@ int bch2_write_super(struct bch_fs *c)
 	closure_init_stack(cl);
 	memset(&sb_written, 0, sizeof(sb_written));
 
-	if (test_bit(BCH_FS_VERSION_UPGRADE, &c->flags)) {
-		c->disk_sb.sb->magic = BCHFS_MAGIC;
-		c->disk_sb.sb->layout.magic = BCHFS_MAGIC;
-	}
+	/* Make sure we're using the new magic numbers: */
+	c->disk_sb.sb->magic = BCHFS_MAGIC;
+	c->disk_sb.sb->layout.magic = BCHFS_MAGIC;
 
 	le64_add_cpu(&c->disk_sb.sb->seq, 1);
 
@@ -1194,19 +1216,19 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 
+	/*
+	 * Downgrade, if superblock is at a higher version than currently
+	 * supported:
+	 */
 	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
-
-	if (test_bit(BCH_FS_VERSION_UPGRADE, &c->flags) ||
-	    c->sb.version > bcachefs_metadata_version_current)
+	if (c->sb.version > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
-
-	if (test_bit(BCH_FS_VERSION_UPGRADE, &c->flags))
-		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+	if (c->sb.version_min > bcachefs_metadata_version_current)
+		c->disk_sb.sb->version_min = cpu_to_le16(bcachefs_metadata_version_current);
+	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
 
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALWAYS);
-
-	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
 	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 

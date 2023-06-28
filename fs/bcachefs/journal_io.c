@@ -747,9 +747,11 @@ static int jset_validate(struct bch_fs *c,
 
 	version = le32_to_cpu(jset->version);
 	if (journal_entry_err_on(!bch2_version_compatible(version), c, jset, NULL,
-			"%s sector %llu seq %llu: incompatible journal entry version %u",
+			"%s sector %llu seq %llu: incompatible journal entry version %u.%u",
 			ca ? ca->name : c->name,
-			sector, le64_to_cpu(jset->seq), version)) {
+			sector, le64_to_cpu(jset->seq),
+			BCH_VERSION_MAJOR(version),
+			BCH_VERSION_MINOR(version))) {
 		/* don't try to continue: */
 		return -EINVAL;
 	}
@@ -794,9 +796,11 @@ static int jset_validate_early(struct bch_fs *c,
 
 	version = le32_to_cpu(jset->version);
 	if (journal_entry_err_on(!bch2_version_compatible(version), c, jset, NULL,
-			"%s sector %llu seq %llu: unknown journal entry version %u",
+			"%s sector %llu seq %llu: unknown journal entry version %u.%u",
 			ca ? ca->name : c->name,
-			sector, le64_to_cpu(jset->seq), version)) {
+			sector, le64_to_cpu(jset->seq),
+			BCH_VERSION_MAJOR(version),
+			BCH_VERSION_MINOR(version))) {
 		/* don't try to continue: */
 		return -EINVAL;
 	}
