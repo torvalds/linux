@@ -349,7 +349,7 @@ static int mt7921u_resume(struct usb_interface *intf)
 		msleep(20);
 	}
 
-	if (reinit || mt7921_dma_need_reinit(dev)) {
+	if (reinit || mt792x_dma_need_reinit(dev)) {
 		err = mt7921u_dma_init(dev, true);
 		if (err)
 			goto failed;

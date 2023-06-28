@@ -454,4 +454,7 @@
 #define MT_WF_SW_SER_TRIGGER_SUSPEND	BIT(6)
 #define MT_WF_SW_SER_DONE_SUSPEND	BIT(7)
 
+#define WFSYS_SW_RST_B			BIT(0)
+#define WFSYS_SW_INIT_DONE		BIT(4)
+
 #endif /* __MT792X_REGS_H */

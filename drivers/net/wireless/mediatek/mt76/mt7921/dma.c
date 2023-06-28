@@ -25,24 +25,6 @@ static int mt7921_poll_tx(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static int mt7921_poll_rx(struct napi_struct *napi, int budget)
-{
-	struct mt792x_dev *dev;
-	int done;
-
-	dev = container_of(napi->dev, struct mt792x_dev, mt76.napi_dev);
-
-	if (!mt76_connac_pm_ref(&dev->mphy, &dev->pm)) {
-		napi_complete(napi);
-		queue_work(dev->mt76.wq, &dev->pm.wake_work);
-		return 0;
-	}
-	done = mt76_dma_rx_poll(napi, budget);
-	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
-
-	return done;
-}
-
 static void mt7921_dma_prefetch(struct mt792x_dev *dev)
 {
 #define PREFETCH(base, depth)	((base) << 16 | (depth))
@@ -62,40 +44,6 @@ static void mt7921_dma_prefetch(struct mt792x_dev *dev)
 	mt76_wr(dev, MT_WFDMA0_TX_RING6_EXT_CTRL, PREFETCH(0x2c0, 0x4));
 	mt76_wr(dev, MT_WFDMA0_TX_RING16_EXT_CTRL, PREFETCH(0x340, 0x4));
 	mt76_wr(dev, MT_WFDMA0_TX_RING17_EXT_CTRL, PREFETCH(0x380, 0x4));
-}
-
-static int mt7921_dma_disable(struct mt792x_dev *dev, bool force)
-{
-	/* disable WFDMA0 */
-	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
-		   MT_WFDMA0_GLO_CFG_TX_DMA_EN | MT_WFDMA0_GLO_CFG_RX_DMA_EN |
-		   MT_WFDMA0_GLO_CFG_CSR_DISP_BASE_PTR_CHAIN_EN |
-		   MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-		   MT_WFDMA0_GLO_CFG_OMIT_RX_INFO |
-		   MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
-
-	if (!mt76_poll_msec_tick(dev, MT_WFDMA0_GLO_CFG,
-				 MT_WFDMA0_GLO_CFG_TX_DMA_BUSY |
-				 MT_WFDMA0_GLO_CFG_RX_DMA_BUSY, 0, 100, 1))
-		return -ETIMEDOUT;
-
-	/* disable dmashdl */
-	mt76_clear(dev, MT_WFDMA0_GLO_CFG_EXT0,
-		   MT_WFDMA0_CSR_TX_DMASHDL_ENABLE);
-	mt76_set(dev, MT_DMASHDL_SW_CONTROL, MT_DMASHDL_DMASHDL_BYPASS);
-
-	if (force) {
-		/* reset */
-		mt76_clear(dev, MT_WFDMA0_RST,
-			   MT_WFDMA0_RST_DMASHDL_ALL_RST |
-			   MT_WFDMA0_RST_LOGIC_RST);
-
-		mt76_set(dev, MT_WFDMA0_RST,
-			 MT_WFDMA0_RST_DMASHDL_ALL_RST |
-			 MT_WFDMA0_RST_LOGIC_RST);
-	}
-
-	return 0;
 }
 
 static int mt7921_dma_enable(struct mt792x_dev *dev)
@@ -135,7 +83,7 @@ static int mt7921_dma_reset(struct mt792x_dev *dev, bool force)
 {
 	int i, err;
 
-	err = mt7921_dma_disable(dev, force);
+	err = mt792x_dma_disable(dev, force);
 	if (err)
 		return err;
 
@@ -154,19 +102,6 @@ static int mt7921_dma_reset(struct mt792x_dev *dev, bool force)
 	return mt7921_dma_enable(dev);
 }
 
-int mt7921_wfsys_reset(struct mt792x_dev *dev)
-{
-	mt76_clear(dev, MT_WFSYS_SW_RST_B, WFSYS_SW_RST_B);
-	msleep(50);
-	mt76_set(dev, MT_WFSYS_SW_RST_B, WFSYS_SW_RST_B);
-
-	if (!__mt76_poll_msec(&dev->mt76, MT_WFSYS_SW_RST_B,
-			      WFSYS_SW_INIT_DONE, WFSYS_SW_INIT_DONE, 500))
-		return -ETIMEDOUT;
-
-	return 0;
-}
-
 int mt7921_wpdma_reset(struct mt792x_dev *dev, bool force)
 {
 	int i, err;
@@ -182,7 +117,7 @@ int mt7921_wpdma_reset(struct mt792x_dev *dev, bool force)
 		mt76_queue_rx_cleanup(dev, &dev->mt76.q_rx[i]);
 
 	if (force) {
-		err = mt7921_wfsys_reset(dev);
+		err = mt792x_wfsys_reset(dev, MT_WFSYS_SW_RST_B);
 		if (err)
 			return err;
 	}
@@ -202,7 +137,7 @@ int mt7921_wpdma_reinit_cond(struct mt792x_dev *dev)
 	int err;
 
 	/* check if the wpdma must be reinitialized */
-	if (mt7921_dma_need_reinit(dev)) {
+	if (mt792x_dma_need_reinit(dev)) {
 		/* disable interrutpts */
 		mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
 		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
@@ -227,7 +162,7 @@ int mt7921_dma_init(struct mt792x_dev *dev)
 
 	mt76_dma_attach(&dev->mt76);
 
-	ret = mt7921_dma_disable(dev, true);
+	ret = mt792x_dma_disable(dev, true);
 	if (ret)
 		return ret;
 
@@ -275,7 +210,7 @@ int mt7921_dma_init(struct mt792x_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt76_init_queues(dev, mt7921_poll_rx);
+	ret = mt76_init_queues(dev, mt792x_poll_rx);
 	if (ret < 0)
 		return ret;
 
@@ -284,31 +219,4 @@ int mt7921_dma_init(struct mt792x_dev *dev)
 	napi_enable(&dev->mt76.tx_napi);
 
 	return mt7921_dma_enable(dev);
-}
-
-void mt7921_dma_cleanup(struct mt792x_dev *dev)
-{
-	/* disable */
-	mt76_clear(dev, MT_WFDMA0_GLO_CFG,
-		   MT_WFDMA0_GLO_CFG_TX_DMA_EN |
-		   MT_WFDMA0_GLO_CFG_RX_DMA_EN |
-		   MT_WFDMA0_GLO_CFG_CSR_DISP_BASE_PTR_CHAIN_EN |
-		   MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-		   MT_WFDMA0_GLO_CFG_OMIT_RX_INFO |
-		   MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
-
-	mt76_poll_msec_tick(dev, MT_WFDMA0_GLO_CFG,
-			    MT_WFDMA0_GLO_CFG_TX_DMA_BUSY |
-			    MT_WFDMA0_GLO_CFG_RX_DMA_BUSY, 0, 100, 1);
-
-	/* reset */
-	mt76_clear(dev, MT_WFDMA0_RST,
-		   MT_WFDMA0_RST_DMASHDL_ALL_RST |
-		   MT_WFDMA0_RST_LOGIC_RST);
-
-	mt76_set(dev, MT_WFDMA0_RST,
-		 MT_WFDMA0_RST_DMASHDL_ALL_RST |
-		 MT_WFDMA0_RST_LOGIC_RST);
-
-	mt76_dma_cleanup(&dev->mt76);
 }

@@ -208,7 +208,6 @@ void mt7921_unregister_device(struct mt792x_dev *dev);
 int mt7921_dma_init(struct mt792x_dev *dev);
 int mt7921_wpdma_reset(struct mt792x_dev *dev, bool force);
 int mt7921_wpdma_reinit_cond(struct mt792x_dev *dev);
-void mt7921_dma_cleanup(struct mt792x_dev *dev);
 int mt7921_run_firmware(struct mt792x_dev *dev);
 int mt7921_mcu_set_bss_pm(struct mt792x_dev *dev, struct ieee80211_vif *vif,
 			  bool enable);
@@ -262,11 +261,6 @@ mt7921_l1_rmw(struct mt792x_dev *dev, u32 addr, u32 mask, u32 val)
 #define mt7921_l1_set(dev, addr, val)	mt7921_l1_rmw(dev, addr, 0, val)
 #define mt7921_l1_clear(dev, addr, val)	mt7921_l1_rmw(dev, addr, val, 0)
 
-static inline bool mt7921_dma_need_reinit(struct mt792x_dev *dev)
-{
-	return !mt76_get_field(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
-}
-
 static inline void
 mt7921_skb_add_usb_sdio_hdr(struct mt792x_dev *dev, struct sk_buff *skb,
 			    int type)
@@ -319,7 +313,6 @@ int mt7921_mcu_fw_pmctrl(struct mt792x_dev *dev);
 void mt7921_pm_wake_work(struct work_struct *work);
 void mt7921_pm_power_save_work(struct work_struct *work);
 void mt7921_coredump_work(struct work_struct *work);
-int mt7921_wfsys_reset(struct mt792x_dev *dev);
 int mt7921_get_txpwr_info(struct mt792x_dev *dev, struct mt7921_txpwr *txpwr);
 int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			void *data, int len);

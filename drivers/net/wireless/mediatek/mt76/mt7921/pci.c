@@ -117,8 +117,8 @@ static void mt7921e_unregister_device(struct mt792x_dev *dev)
 
 	mt76_connac2_tx_token_put(&dev->mt76);
 	__mt7921_mcu_drv_pmctrl(dev);
-	mt7921_dma_cleanup(dev);
-	mt7921_wfsys_reset(dev);
+	mt792x_dma_cleanup(dev);
+	mt792x_wfsys_reset(dev, MT_WFSYS_SW_RST_B);
 	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	tasklet_disable(&dev->mt76.irq_tasklet);
@@ -337,7 +337,7 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		    (mt7921_l1_rr(dev, MT_HW_REV) & 0xff);
 	dev_info(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
-	ret = mt7921_wfsys_reset(dev);
+	ret = mt792x_wfsys_reset(dev, MT_WFSYS_SW_RST_B);
 	if (ret)
 		goto err_free_dev;
 

@@ -8,6 +8,7 @@
 #include <linux/ktime.h>
 
 #include "mt76_connac_mcu.h"
+#include "mt792x_regs.h"
 
 #define MT792x_MAX_INTERFACES	4
 #define MT792x_WTBL_SIZE	20
@@ -169,6 +170,11 @@ mt792x_get_status_freq_info(struct mt76_rx_status *status, u8 chfreq)
 	status->freq = ieee80211_channel_to_frequency(chfreq, status->band);
 }
 
+static inline bool mt792x_dma_need_reinit(struct mt792x_dev *dev)
+{
+	return !mt76_get_field(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
+}
+
 #define mt792x_mutex_acquire(dev)	\
 	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
 #define mt792x_mutex_release(dev)	\
@@ -219,5 +225,9 @@ void mt792x_sta_statistics(struct ieee80211_hw *hw,
 			   struct ieee80211_sta *sta,
 			   struct station_info *sinfo);
 void mt792x_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class);
+void mt792x_dma_cleanup(struct mt792x_dev *dev);
+int mt792x_dma_disable(struct mt792x_dev *dev, bool force);
+int mt792x_poll_rx(struct napi_struct *napi, int budget);
+int mt792x_wfsys_reset(struct mt792x_dev *dev, u32 addr);
 
 #endif /* __MT7925_H */
