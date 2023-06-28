@@ -942,50 +942,6 @@ int mt7921_mcu_sta_update(struct mt792x_dev *dev, struct ieee80211_sta *sta,
 	return mt76_connac_mcu_sta_cmd(&dev->mphy, &info);
 }
 
-int mt7921_mcu_drv_pmctrl(struct mt792x_dev *dev)
-{
-	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt76_connac_pm *pm = &dev->pm;
-	int err = 0;
-
-	mutex_lock(&pm->mutex);
-
-	if (!test_bit(MT76_STATE_PM, &mphy->state))
-		goto out;
-
-	err = __mt792x_mcu_drv_pmctrl(dev);
-out:
-	mutex_unlock(&pm->mutex);
-
-	if (err)
-		mt792x_reset(&dev->mt76);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_drv_pmctrl);
-
-int mt7921_mcu_fw_pmctrl(struct mt792x_dev *dev)
-{
-	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt76_connac_pm *pm = &dev->pm;
-	int err = 0;
-
-	mutex_lock(&pm->mutex);
-
-	if (mt76_connac_skip_fw_pmctrl(mphy, pm))
-		goto out;
-
-	err = __mt792x_mcu_fw_pmctrl(dev);
-out:
-	mutex_unlock(&pm->mutex);
-
-	if (err)
-		mt792x_reset(&dev->mt76);
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_fw_pmctrl);
-
 int mt7921_mcu_set_beacon_filter(struct mt792x_dev *dev,
 				 struct ieee80211_vif *vif,
 				 bool enable)

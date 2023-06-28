@@ -337,7 +337,7 @@ static int mt7921_pci_suspend(struct device *device)
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto restore_suspend;
 
@@ -372,7 +372,7 @@ static int mt7921_pci_suspend(struct device *device)
 	synchronize_irq(pdev->irq);
 	tasklet_kill(&mdev->irq_tasklet);
 
-	err = mt7921_mcu_fw_pmctrl(dev);
+	err = mt792x_mcu_fw_pmctrl(dev);
 	if (err)
 		goto restore_napi;
 
@@ -406,7 +406,7 @@ static int mt7921_pci_resume(struct device *device)
 	struct mt76_connac_pm *pm = &dev->pm;
 	int i, err;
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto failed;
 

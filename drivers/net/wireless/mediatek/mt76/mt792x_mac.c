@@ -311,3 +311,75 @@ void mt792x_mac_init_band(struct mt792x_dev *dev, u8 band)
 	mt76_rmw(dev, MT_WTBLOFF_TOP_RSCR(band), mask, set);
 }
 EXPORT_SYMBOL_GPL(mt792x_mac_init_band);
+
+void mt792x_pm_wake_work(struct work_struct *work)
+{
+	struct mt792x_dev *dev;
+	struct mt76_phy *mphy;
+
+	dev = (struct mt792x_dev *)container_of(work, struct mt792x_dev,
+						pm.wake_work);
+	mphy = dev->phy.mt76;
+
+	if (!mt792x_mcu_drv_pmctrl(dev)) {
+		struct mt76_dev *mdev = &dev->mt76;
+		int i;
+
+		if (mt76_is_sdio(mdev)) {
+			mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
+			mt76_worker_schedule(&mdev->sdio.txrx_worker);
+		} else {
+			local_bh_disable();
+			mt76_for_each_q_rx(mdev, i)
+				napi_schedule(&mdev->napi[i]);
+			local_bh_enable();
+			mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
+			mt76_connac_tx_cleanup(mdev);
+		}
+		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
+			ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
+						     MT792x_WATCHDOG_TIME);
+	}
+
+	ieee80211_wake_queues(mphy->hw);
+	wake_up(&dev->pm.wait);
+}
+EXPORT_SYMBOL_GPL(mt792x_pm_wake_work);
+
+void mt792x_pm_power_save_work(struct work_struct *work)
+{
+	struct mt792x_dev *dev;
+	unsigned long delta;
+	struct mt76_phy *mphy;
+
+	dev = (struct mt792x_dev *)container_of(work, struct mt792x_dev,
+						pm.ps_work.work);
+	mphy = dev->phy.mt76;
+
+	delta = dev->pm.idle_timeout;
+	if (test_bit(MT76_HW_SCANNING, &mphy->state) ||
+	    test_bit(MT76_HW_SCHED_SCANNING, &mphy->state) ||
+	    dev->fw_assert)
+		goto out;
+
+	if (mutex_is_locked(&dev->mt76.mutex))
+		/* if mt76 mutex is held we should not put the device
+		 * to sleep since we are currently accessing device
+		 * register map. We need to wait for the next power_save
+		 * trigger.
+		 */
+		goto out;
+
+	if (time_is_after_jiffies(dev->pm.last_activity + delta)) {
+		delta = dev->pm.last_activity + delta - jiffies;
+		goto out;
+	}
+
+	if (!mt792x_mcu_fw_pmctrl(dev)) {
+		cancel_delayed_work_sync(&mphy->mac_work);
+		return;
+	}
+out:
+	queue_delayed_work(dev->mt76.wq, &dev->pm.ps_work, delta);
+}
+EXPORT_SYMBOL_GPL(mt792x_pm_power_save_work);

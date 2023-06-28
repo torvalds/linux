@@ -297,10 +297,6 @@ int mt7921_mcu_uni_rx_ba(struct mt792x_dev *dev,
 void mt7921_scan_work(struct work_struct *work);
 void mt7921_roc_work(struct work_struct *work);
 int mt7921_mcu_uni_bss_ps(struct mt792x_dev *dev, struct ieee80211_vif *vif);
-int mt7921_mcu_drv_pmctrl(struct mt792x_dev *dev);
-int mt7921_mcu_fw_pmctrl(struct mt792x_dev *dev);
-void mt7921_pm_wake_work(struct work_struct *work);
-void mt7921_pm_power_save_work(struct work_struct *work);
 void mt7921_coredump_work(struct work_struct *work);
 int mt7921_get_txpwr_info(struct mt792x_dev *dev, struct mt7921_txpwr *txpwr);
 int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,

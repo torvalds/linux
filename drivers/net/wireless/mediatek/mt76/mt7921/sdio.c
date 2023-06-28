@@ -216,7 +216,7 @@ static int mt7921s_suspend(struct device *__dev)
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto restore_suspend;
 
@@ -244,7 +244,7 @@ static int mt7921s_suspend(struct device *__dev)
 	mt76_worker_disable(&mdev->sdio.txrx_worker);
 	mt76_worker_disable(&mdev->sdio.net_worker);
 
-	err = mt7921_mcu_fw_pmctrl(dev);
+	err = mt792x_mcu_fw_pmctrl(dev);
 	if (err)
 		goto restore_txrx_worker;
 
@@ -284,7 +284,7 @@ static int mt7921s_resume(struct device *__dev)
 
 	clear_bit(MT76_STATE_SUSPEND, &mdev->phy.state);
 
-	err = mt7921_mcu_drv_pmctrl(dev);
+	err = mt792x_mcu_drv_pmctrl(dev);
 	if (err < 0)
 		goto failed;
 

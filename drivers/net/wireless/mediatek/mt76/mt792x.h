@@ -215,6 +215,8 @@ static inline bool mt792x_dma_need_reinit(struct mt792x_dev *dev)
 #define mt792x_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
+void mt792x_pm_wake_work(struct work_struct *work);
+void mt792x_pm_power_save_work(struct work_struct *work);
 void mt792x_reset(struct mt76_dev *mdev);
 void mt792x_update_channel(struct mt76_phy *mphy);
 void mt792x_mac_reset_counters(struct mt792x_phy *phy);
@@ -284,5 +286,7 @@ mt792x_get_mac80211_ops(struct device *dev,
 			const struct ieee80211_ops *mac80211_ops,
 			void *drv_data, u8 *fw_features);
 int mt792x_init_wcid(struct mt792x_dev *dev);
+int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev);
+int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
 
 #endif /* __MT7925_H */

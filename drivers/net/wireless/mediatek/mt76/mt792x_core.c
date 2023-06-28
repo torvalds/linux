@@ -692,5 +692,49 @@ int mt792x_init_wcid(struct mt792x_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt792x_init_wcid);
 
+int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
+	int err = 0;
+
+	mutex_lock(&pm->mutex);
+
+	if (!test_bit(MT76_STATE_PM, &mphy->state))
+		goto out;
+
+	err = __mt792x_mcu_drv_pmctrl(dev);
+out:
+	mutex_unlock(&pm->mutex);
+
+	if (err)
+		mt792x_reset(&dev->mt76);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mt792x_mcu_drv_pmctrl);
+
+int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev)
+{
+	struct mt76_phy *mphy = &dev->mt76.phy;
+	struct mt76_connac_pm *pm = &dev->pm;
+	int err = 0;
+
+	mutex_lock(&pm->mutex);
+
+	if (mt76_connac_skip_fw_pmctrl(mphy, pm))
+		goto out;
+
+	err = __mt792x_mcu_fw_pmctrl(dev);
+out:
+	mutex_unlock(&pm->mutex);
+
+	if (err)
+		mt792x_reset(&dev->mt76);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mt792x_mcu_fw_pmctrl);
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
