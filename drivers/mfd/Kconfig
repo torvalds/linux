@@ -1183,18 +1183,37 @@ config MFD_RC5T583
 	  Additional drivers must be enabled in order to use the
 	  different functionality of the device.
 
-config MFD_RK808
+config MFD_RK8XX
+	bool
+	select MFD_CORE
+
+config MFD_RK8XX_I2C
 	tristate "Rockchip RK805/RK808/RK809/RK817/RK818 Power Management Chip"
 	depends on I2C && OF
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
+	select MFD_RK8XX
 	help
 	  If you say yes here you get support for the RK805, RK808, RK809,
 	  RK817 and RK818 Power Management chips.
 	  This driver provides common support for accessing the device
 	  through I2C interface. The device supports multiple sub-devices
 	  including interrupts, RTC, LDO & DCDC regulators, and onkey.
+
+config MFD_RK8XX_SPI
+	tristate "Rockchip RK806 Power Management Chip"
+	depends on SPI && OF
+	select MFD_CORE
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	select MFD_RK8XX
+	help
+	  If you say yes here you get support for the RK806 Power Management
+	  chip.
+	  This driver provides common support for accessing the device
+	  through an SPI interface. The device supports multiple sub-devices
+	  including interrupts, LDO & DCDC regulators, and power on-key.
 
 config MFD_RN5T618
 	tristate "Ricoh RN5T567/618 PMIC"
@@ -1678,6 +1697,38 @@ config MFD_TPS65912_SPI
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with SPI interface.
+
+config MFD_TPS6594
+	tristate
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+
+config MFD_TPS6594_I2C
+	tristate "TI TPS6594 Power Management chip with I2C"
+	select MFD_TPS6594
+	select REGMAP_I2C
+	select CRC8
+	depends on I2C
+	help
+	  If you say yes here you get support for the TPS6594 series of
+	  PM chips with I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps6594-i2c.
+
+config MFD_TPS6594_SPI
+	tristate "TI TPS6594 Power Management chip with SPI"
+	select MFD_TPS6594
+	select REGMAP_SPI
+	select CRC8
+	depends on SPI_MASTER
+	help
+	  If you say yes here you get support for the TPS6594 series of
+	  PM chips with SPI interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps6594-spi.
 
 config TWL4030_CORE
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 Support"

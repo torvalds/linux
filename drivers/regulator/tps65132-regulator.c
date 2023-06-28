@@ -272,7 +272,7 @@ static struct i2c_driver tps65132_i2c_driver = {
 		.name = "tps65132",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = tps65132_probe,
+	.probe = tps65132_probe,
 	.id_table = tps65132_id,
 };
 

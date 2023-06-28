@@ -682,6 +682,30 @@ EXPORT_SYMBOL(geni_se_clk_freq_match);
 #define GENI_SE_DMA_EOT_EN BIT(1)
 #define GENI_SE_DMA_AHB_ERR_EN BIT(2)
 #define GENI_SE_DMA_EOT_BUF BIT(0)
+
+/**
+ * geni_se_tx_init_dma() - Initiate TX DMA transfer on the serial engine
+ * @se:			Pointer to the concerned serial engine.
+ * @iova:		Mapped DMA address.
+ * @len:		Length of the TX buffer.
+ *
+ * This function is used to initiate DMA TX transfer.
+ */
+void geni_se_tx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len)
+{
+	u32 val;
+
+	val = GENI_SE_DMA_DONE_EN;
+	val |= GENI_SE_DMA_EOT_EN;
+	val |= GENI_SE_DMA_AHB_ERR_EN;
+	writel_relaxed(val, se->base + SE_DMA_TX_IRQ_EN_SET);
+	writel_relaxed(lower_32_bits(iova), se->base + SE_DMA_TX_PTR_L);
+	writel_relaxed(upper_32_bits(iova), se->base + SE_DMA_TX_PTR_H);
+	writel_relaxed(GENI_SE_DMA_EOT_BUF, se->base + SE_DMA_TX_ATTR);
+	writel(len, se->base + SE_DMA_TX_LEN);
+}
+EXPORT_SYMBOL(geni_se_tx_init_dma);
+
 /**
  * geni_se_tx_dma_prep() - Prepare the serial engine for TX DMA transfer
  * @se:			Pointer to the concerned serial engine.
@@ -697,7 +721,6 @@ int geni_se_tx_dma_prep(struct geni_se *se, void *buf, size_t len,
 			dma_addr_t *iova)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
-	u32 val;
 
 	if (!wrapper)
 		return -EINVAL;
@@ -706,17 +729,34 @@ int geni_se_tx_dma_prep(struct geni_se *se, void *buf, size_t len,
 	if (dma_mapping_error(wrapper->dev, *iova))
 		return -EIO;
 
-	val = GENI_SE_DMA_DONE_EN;
-	val |= GENI_SE_DMA_EOT_EN;
-	val |= GENI_SE_DMA_AHB_ERR_EN;
-	writel_relaxed(val, se->base + SE_DMA_TX_IRQ_EN_SET);
-	writel_relaxed(lower_32_bits(*iova), se->base + SE_DMA_TX_PTR_L);
-	writel_relaxed(upper_32_bits(*iova), se->base + SE_DMA_TX_PTR_H);
-	writel_relaxed(GENI_SE_DMA_EOT_BUF, se->base + SE_DMA_TX_ATTR);
-	writel(len, se->base + SE_DMA_TX_LEN);
+	geni_se_tx_init_dma(se, *iova, len);
 	return 0;
 }
 EXPORT_SYMBOL(geni_se_tx_dma_prep);
+
+/**
+ * geni_se_rx_init_dma() - Initiate RX DMA transfer on the serial engine
+ * @se:			Pointer to the concerned serial engine.
+ * @iova:		Mapped DMA address.
+ * @len:		Length of the RX buffer.
+ *
+ * This function is used to initiate DMA RX transfer.
+ */
+void geni_se_rx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len)
+{
+	u32 val;
+
+	val = GENI_SE_DMA_DONE_EN;
+	val |= GENI_SE_DMA_EOT_EN;
+	val |= GENI_SE_DMA_AHB_ERR_EN;
+	writel_relaxed(val, se->base + SE_DMA_RX_IRQ_EN_SET);
+	writel_relaxed(lower_32_bits(iova), se->base + SE_DMA_RX_PTR_L);
+	writel_relaxed(upper_32_bits(iova), se->base + SE_DMA_RX_PTR_H);
+	/* RX does not have EOT buffer type bit. So just reset RX_ATTR */
+	writel_relaxed(0, se->base + SE_DMA_RX_ATTR);
+	writel(len, se->base + SE_DMA_RX_LEN);
+}
+EXPORT_SYMBOL(geni_se_rx_init_dma);
 
 /**
  * geni_se_rx_dma_prep() - Prepare the serial engine for RX DMA transfer
@@ -733,7 +773,6 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 			dma_addr_t *iova)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
-	u32 val;
 
 	if (!wrapper)
 		return -EINVAL;
@@ -742,15 +781,7 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 	if (dma_mapping_error(wrapper->dev, *iova))
 		return -EIO;
 
-	val = GENI_SE_DMA_DONE_EN;
-	val |= GENI_SE_DMA_EOT_EN;
-	val |= GENI_SE_DMA_AHB_ERR_EN;
-	writel_relaxed(val, se->base + SE_DMA_RX_IRQ_EN_SET);
-	writel_relaxed(lower_32_bits(*iova), se->base + SE_DMA_RX_PTR_L);
-	writel_relaxed(upper_32_bits(*iova), se->base + SE_DMA_RX_PTR_H);
-	/* RX does not have EOT buffer type bit. So just reset RX_ATTR */
-	writel_relaxed(0, se->base + SE_DMA_RX_ATTR);
-	writel(len, se->base + SE_DMA_RX_LEN);
+	geni_se_rx_init_dma(se, *iova, len);
 	return 0;
 }
 EXPORT_SYMBOL(geni_se_rx_dma_prep);
