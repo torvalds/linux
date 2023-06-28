@@ -845,7 +845,6 @@ static void compress_file_range(struct btrfs_work *work)
 	unsigned long total_in = 0;
 	unsigned int poff;
 	int i;
-	int will_compress;
 	int compress_type = fs_info->compress_type;
 	int redirty = 0;
 
@@ -865,7 +864,6 @@ static void compress_file_range(struct btrfs_work *work)
 	barrier();
 	actual_end = min_t(u64, i_size, end + 1);
 again:
-	will_compress = 0;
 	pages = NULL;
 	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
 	nr_pages = min_t(unsigned long, nr_pages, BTRFS_MAX_COMPRESSED_PAGES);
@@ -915,7 +913,7 @@ again:
 	 * discover bad compression ratios.
 	 */
 	if (!inode_need_compress(inode, start, end))
-		goto cont;
+		goto cleanup_and_bail_uncompressed;
 
 	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
 	if (!pages) {
@@ -923,8 +921,7 @@ again:
 		 * Memory allocation failure is not a fatal error, we can fall
 		 * back to uncompressed code.
 		 */
-		nr_pages = 0;
-		goto cont;
+		goto cleanup_and_bail_uncompressed;
 	}
 
 	if (inode->defrag_compress)
@@ -953,7 +950,7 @@ again:
 				   mapping, start, pages, &nr_pages, &total_in,
 				   &total_compressed);
 	if (ret)
-		goto cont;
+		goto cleanup_and_bail_uncompressed;
 
 	/*
 	 * Zero the tail end of the last page, as we might be sending it down
@@ -962,24 +959,22 @@ again:
 	poff = offset_in_page(total_compressed);
 	if (poff)
 		memzero_page(pages[nr_pages - 1], poff, PAGE_SIZE - poff);
-	will_compress = 1;
 
-cont:
 	/*
+	 * Try to create an inline extent.
+	 *
+	 * If we didn't compress the entire range, try to create an uncompressed
+	 * inline extent, else a compressed one.
+	 *
 	 * Check cow_file_range() for why we don't even try to create inline
 	 * extent for the subpage case.
 	 */
 	if (start == 0 && fs_info->sectorsize == PAGE_SIZE) {
-		/* lets try to make an inline extent */
-		if (ret || total_in < actual_end) {
-			/* we didn't compress the entire range, try
-			 * to make an uncompressed inline extent.
-			 */
-			ret = cow_file_range_inline(inode, actual_end,
-						    0, BTRFS_COMPRESS_NONE,
-						    NULL, false);
+		if (total_in < actual_end) {
+			ret = cow_file_range_inline(inode, actual_end, 0,
+						    BTRFS_COMPRESS_NONE, NULL,
+						    false);
 		} else {
-			/* try making a compressed inline extent */
 			ret = cow_file_range_inline(inode, actual_end,
 						    total_compressed,
 						    compress_type, pages,
@@ -1009,25 +1004,14 @@ cont:
 						     PAGE_UNLOCK |
 						     PAGE_START_WRITEBACK |
 						     PAGE_END_WRITEBACK);
-
-			/*
-			 * Ensure we only free the compressed pages if we have
-			 * them allocated, as we can still reach here with
-			 * inode_need_compress() == false.
-			 */
-			if (pages) {
-				for (i = 0; i < nr_pages; i++) {
-					WARN_ON(pages[i]->mapping);
-					put_page(pages[i]);
-				}
-				kfree(pages);
+			for (i = 0; i < nr_pages; i++) {
+				WARN_ON(pages[i]->mapping);
+				put_page(pages[i]);
 			}
+			kfree(pages);
 			return;
 		}
 	}
-
-	if (!will_compress)
-		goto cleanup_and_bail_uncompressed;
 
 	/*
 	 * We aren't doing an inline extent. Round the compressed size up to a
