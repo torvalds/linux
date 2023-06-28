@@ -166,7 +166,7 @@ int mt7921u_wfsys_reset(struct mt792x_dev *dev)
 	mt7921u_uhw_wr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST, val);
 
 	mt7921u_uhw_wr(&dev->mt76, MT_UDMA_CONN_INFRA_STATUS_SEL, 0);
-	for (i = 0; i < MT7921_WFSYS_INIT_RETRY_COUNT; i++) {
+	for (i = 0; i < MT792x_WFSYS_INIT_RETRY_COUNT; i++) {
 		val = mt7921u_uhw_rr(&dev->mt76, MT_UDMA_CONN_INFRA_STATUS);
 		if (val & MT_UDMA_CONN_WFSYS_INIT_DONE)
 			break;
@@ -174,7 +174,7 @@ int mt7921u_wfsys_reset(struct mt792x_dev *dev)
 		msleep(100);
 	}
 
-	if (i == MT7921_WFSYS_INIT_RETRY_COUNT)
+	if (i == MT792x_WFSYS_INIT_RETRY_COUNT)
 		return -ETIMEDOUT;
 
 	return 0;

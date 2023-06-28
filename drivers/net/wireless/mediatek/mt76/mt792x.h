@@ -26,6 +26,10 @@
 
 #define MT792x_WATCHDOG_TIME	(HZ / 4)
 
+#define MT792x_DRV_OWN_RETRY_COUNT	10
+#define MT792x_MCU_INIT_RETRY_COUNT	10
+#define MT792x_WFSYS_INIT_RETRY_COUNT	2
+
 struct mt792x_vif;
 struct mt792x_sta;
 
@@ -288,5 +292,9 @@ mt792x_get_mac80211_ops(struct device *dev,
 int mt792x_init_wcid(struct mt792x_dev *dev);
 int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
+
+int __mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev);
+int mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev);
+int mt792xe_mcu_fw_pmctrl(struct mt792x_dev *dev);
 
 #endif /* __MT7925_H */

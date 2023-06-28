@@ -128,7 +128,7 @@ static int mt7921_init_hardware(struct mt792x_dev *dev)
 
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
-	for (i = 0; i < MT7921_MCU_INIT_RETRY_COUNT; i++) {
+	for (i = 0; i < MT792x_MCU_INIT_RETRY_COUNT; i++) {
 		ret = __mt7921_init_hardware(dev);
 		if (!ret)
 			break;
@@ -136,7 +136,7 @@ static int mt7921_init_hardware(struct mt792x_dev *dev)
 		mt792x_init_reset(dev);
 	}
 
-	if (i == MT7921_MCU_INIT_RETRY_COUNT) {
+	if (i == MT792x_MCU_INIT_RETRY_COUNT) {
 		dev_err(dev->mt76.dev, "hardware init failed\n");
 		return ret;
 	}

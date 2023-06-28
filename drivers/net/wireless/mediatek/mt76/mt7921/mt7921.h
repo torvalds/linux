@@ -18,10 +18,6 @@
 #define MT7921_RX_RING_SIZE		1536
 #define MT7921_RX_MCU_RING_SIZE		512
 
-#define MT7921_DRV_OWN_RETRY_COUNT	10
-#define MT7921_MCU_INIT_RETRY_COUNT	10
-#define MT7921_WFSYS_INIT_RETRY_COUNT	2
-
 #define MT7921_FIRMWARE_WM		"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
 #define MT7921_ROM_PATCH		"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
 
@@ -312,9 +308,6 @@ int mt7921e_mcu_init(struct mt792x_dev *dev);
 int mt7921s_wfsys_reset(struct mt792x_dev *dev);
 int mt7921s_mac_reset(struct mt792x_dev *dev);
 int mt7921s_init_reset(struct mt792x_dev *dev);
-int __mt7921e_mcu_drv_pmctrl(struct mt792x_dev *dev);
-int mt7921e_mcu_drv_pmctrl(struct mt792x_dev *dev);
-int mt7921e_mcu_fw_pmctrl(struct mt792x_dev *dev);
 
 int mt7921s_mcu_init(struct mt792x_dev *dev);
 int mt7921s_mcu_drv_pmctrl(struct mt792x_dev *dev);

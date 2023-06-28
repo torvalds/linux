@@ -181,8 +181,8 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 		.init_reset = mt7921e_init_reset,
 		.reset = mt7921e_mac_reset,
 		.mcu_init = mt7921e_mcu_init,
-		.drv_own = mt7921e_mcu_drv_pmctrl,
-		.fw_own = mt7921e_mcu_fw_pmctrl,
+		.drv_own = mt792xe_mcu_drv_pmctrl,
+		.fw_own = mt792xe_mcu_fw_pmctrl,
 	};
 	static const struct mt792x_irq_map irq_map = {
 		.host_irq_enable = MT_WFDMA0_HOST_INT_ENA,
@@ -268,11 +268,11 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	bus_ops->rmw = mt7921_rmw;
 	dev->mt76.bus = bus_ops;
 
-	ret = mt7921e_mcu_fw_pmctrl(dev);
+	ret = mt792xe_mcu_fw_pmctrl(dev);
 	if (ret)
 		goto err_free_dev;
 
-	ret = __mt7921e_mcu_drv_pmctrl(dev);
+	ret = __mt792xe_mcu_drv_pmctrl(dev);
 	if (ret)
 		goto err_free_dev;
 
