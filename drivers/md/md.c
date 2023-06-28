@@ -453,7 +453,6 @@ void mddev_suspend(struct mddev *mddev)
 		mddev->pers->prepare_suspend(mddev);
 
 	wait_event(mddev->sb_wait, percpu_ref_is_zero(&mddev->active_io));
-	mddev->pers->quiesce(mddev, 1);
 	clear_bit_unlock(MD_ALLOW_SB_UPDATE, &mddev->flags);
 	wait_event(mddev->sb_wait, !test_bit(MD_UPDATING_SB, &mddev->flags));
 
@@ -472,7 +471,6 @@ void mddev_resume(struct mddev *mddev)
 		return;
 	percpu_ref_resurrect(&mddev->active_io);
 	wake_up(&mddev->sb_wait);
-	mddev->pers->quiesce(mddev, 0);
 
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
