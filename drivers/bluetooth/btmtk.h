@@ -120,8 +120,11 @@ struct btmtk_hci_wmt_params {
 	u32 *status;
 };
 
+typedef int (*btmtk_reset_sync_func_t)(struct hci_dev *, void *);
+
 struct btmediatek_data {
 	u32 dev_id;
+	btmtk_reset_sync_func_t reset_sync;
 };
 
 typedef int (*wmt_cmd_sync_func_t)(struct hci_dev *,
@@ -136,6 +139,8 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 
 int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 			 wmt_cmd_sync_func_t wmt_cmd_sync);
+
+void btmtk_reset_sync(struct hci_dev *hdev);
 #else
 
 static inline int btmtk_set_bdaddr(struct hci_dev *hdev,
@@ -156,4 +161,7 @@ static int btmtk_setup_firmware(struct hci_dev *hdev, const char *fwname,
 	return -EOPNOTSUPP;
 }
 
+static void btmtk_reset_sync(struct hci_dev *hdev)
+{
+}
 #endif
