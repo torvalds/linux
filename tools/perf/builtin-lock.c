@@ -225,6 +225,12 @@ static void lock_stat_key_print_time(unsigned long long nsec, int len)
 		{ 0, NULL },
 	};
 
+	/* for CSV output */
+	if (len == 0) {
+		pr_info("%llu", nsec);
+		return;
+	}
+
 	for (int i = 0; table[i].unit; i++) {
 		if (nsec < table[i].base)
 			continue;
@@ -1626,10 +1632,178 @@ static void sort_contention_result(void)
 	sort_result();
 }
 
-static void print_bpf_events(int total, struct lock_contention_fails *fails)
+static void print_header_stdio(void)
+{
+	struct lock_key *key;
+
+	list_for_each_entry(key, &lock_keys, list)
+		pr_info("%*s ", key->len, key->header);
+
+	switch (aggr_mode) {
+	case LOCK_AGGR_TASK:
+		pr_info("  %10s   %s\n\n", "pid",
+			show_lock_owner ? "owner" : "comm");
+		break;
+	case LOCK_AGGR_CALLER:
+		pr_info("  %10s   %s\n\n", "type", "caller");
+		break;
+	case LOCK_AGGR_ADDR:
+		pr_info("  %16s   %s\n\n", "address", "symbol");
+		break;
+	default:
+		break;
+	}
+}
+
+static void print_header_csv(const char *sep)
+{
+	struct lock_key *key;
+
+	pr_info("# output: ");
+	list_for_each_entry(key, &lock_keys, list)
+		pr_info("%s%s ", key->header, sep);
+
+	switch (aggr_mode) {
+	case LOCK_AGGR_TASK:
+		pr_info("%s%s %s\n", "pid", sep,
+			show_lock_owner ? "owner" : "comm");
+		break;
+	case LOCK_AGGR_CALLER:
+		pr_info("%s%s %s", "type", sep, "caller");
+		if (verbose > 0)
+			pr_info("%s %s", sep, "stacktrace");
+		pr_info("\n");
+		break;
+	case LOCK_AGGR_ADDR:
+		pr_info("%s%s %s%s %s\n", "address", sep, "symbol", sep, "type");
+		break;
+	default:
+		break;
+	}
+}
+
+static void print_header(void)
+{
+	if (!quiet) {
+		if (symbol_conf.field_sep)
+			print_header_csv(symbol_conf.field_sep);
+		else
+			print_header_stdio();
+	}
+}
+
+static void print_lock_stat_stdio(struct lock_contention *con, struct lock_stat *st)
+{
+	struct lock_key *key;
+	struct thread *t;
+	int pid;
+
+	list_for_each_entry(key, &lock_keys, list) {
+		key->print(key, st);
+		pr_info(" ");
+	}
+
+	switch (aggr_mode) {
+	case LOCK_AGGR_CALLER:
+		pr_info("  %10s   %s\n", get_type_str(st->flags), st->name);
+		break;
+	case LOCK_AGGR_TASK:
+		pid = st->addr;
+		t = perf_session__findnew(session, pid);
+		pr_info("  %10d   %s\n",
+			pid, pid == -1 ? "Unknown" : thread__comm_str(t));
+		break;
+	case LOCK_AGGR_ADDR:
+		pr_info("  %016llx   %s (%s)\n", (unsigned long long)st->addr,
+			st->name, get_type_name(st->flags));
+		break;
+	default:
+		break;
+	}
+
+	if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
+		struct map *kmap;
+		struct symbol *sym;
+		char buf[128];
+		u64 ip;
+
+		for (int i = 0; i < max_stack_depth; i++) {
+			if (!st->callstack || !st->callstack[i])
+				break;
+
+			ip = st->callstack[i];
+			sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
+			get_symbol_name_offset(kmap, sym, ip, buf, sizeof(buf));
+			pr_info("\t\t\t%#lx  %s\n", (unsigned long)ip, buf);
+		}
+	}
+}
+
+static void print_lock_stat_csv(struct lock_contention *con, struct lock_stat *st,
+				const char *sep)
+{
+	struct lock_key *key;
+	struct thread *t;
+	int pid;
+
+	list_for_each_entry(key, &lock_keys, list) {
+		key->print(key, st);
+		pr_info("%s ", sep);
+	}
+
+	switch (aggr_mode) {
+	case LOCK_AGGR_CALLER:
+		pr_info("%s%s %s", get_type_str(st->flags), sep, st->name);
+		if (verbose <= 0)
+			pr_info("\n");
+		break;
+	case LOCK_AGGR_TASK:
+		pid = st->addr;
+		t = perf_session__findnew(session, pid);
+		pr_info("%d%s %s\n", pid, sep, pid == -1 ? "Unknown" : thread__comm_str(t));
+		break;
+	case LOCK_AGGR_ADDR:
+		pr_info("%llx%s %s%s %s\n", (unsigned long long)st->addr, sep,
+			st->name, sep, get_type_name(st->flags));
+		break;
+	default:
+		break;
+	}
+
+	if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
+		struct map *kmap;
+		struct symbol *sym;
+		char buf[128];
+		u64 ip;
+
+		for (int i = 0; i < max_stack_depth; i++) {
+			if (!st->callstack || !st->callstack[i])
+				break;
+
+			ip = st->callstack[i];
+			sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
+			get_symbol_name_offset(kmap, sym, ip, buf, sizeof(buf));
+			pr_info("%s %#lx %s", i ? ":" : sep, (unsigned long) ip, buf);
+		}
+		pr_info("\n");
+	}
+}
+
+static void print_lock_stat(struct lock_contention *con, struct lock_stat *st)
+{
+	if (symbol_conf.field_sep)
+		print_lock_stat_csv(con, st, symbol_conf.field_sep);
+	else
+		print_lock_stat_stdio(con, st);
+}
+
+static void print_footer_stdio(int total, int bad, struct lock_contention_fails *fails)
 {
 	/* Output for debug, this have to be removed */
 	int broken = fails->task + fails->stack + fails->time + fails->data;
+
+	if (!use_bpf)
+		print_bad_events(bad, total);
 
 	if (quiet || total == 0 || (broken == 0 && verbose <= 0))
 		return;
@@ -1646,38 +1820,53 @@ static void print_bpf_events(int total, struct lock_contention_fails *fails)
 	pr_info(" %10s: %d\n", "data", fails->data);
 }
 
+static void print_footer_csv(int total, int bad, struct lock_contention_fails *fails,
+			     const char *sep)
+{
+	/* Output for debug, this have to be removed */
+	if (use_bpf)
+		bad = fails->task + fails->stack + fails->time + fails->data;
+
+	if (quiet || total == 0 || (bad == 0 && verbose <= 0))
+		return;
+
+	total += bad;
+	pr_info("# debug: total=%d%s bad=%d", total, sep, bad);
+
+	if (use_bpf) {
+		pr_info("%s bad_%s=%d", sep, "task", fails->task);
+		pr_info("%s bad_%s=%d", sep, "stack", fails->stack);
+		pr_info("%s bad_%s=%d", sep, "time", fails->time);
+		pr_info("%s bad_%s=%d", sep, "data", fails->data);
+	} else {
+		int i;
+		const char *name[4] = { "acquire", "acquired", "contended", "release" };
+
+		for (i = 0; i < BROKEN_MAX; i++)
+			pr_info("%s bad_%s=%d", sep, name[i], bad_hist[i]);
+	}
+	pr_info("\n");
+}
+
+static void print_footer(int total, int bad, struct lock_contention_fails *fails)
+{
+	if (symbol_conf.field_sep)
+		print_footer_csv(total, bad, fails, symbol_conf.field_sep);
+	else
+		print_footer_stdio(total, bad, fails);
+}
+
 static void print_contention_result(struct lock_contention *con)
 {
 	struct lock_stat *st;
-	struct lock_key *key;
 	int bad, total, printed;
 
-	if (!quiet) {
-		list_for_each_entry(key, &lock_keys, list)
-			pr_info("%*s ", key->len, key->header);
-
-		switch (aggr_mode) {
-		case LOCK_AGGR_TASK:
-			pr_info("  %10s   %s\n\n", "pid",
-				show_lock_owner ? "owner" : "comm");
-			break;
-		case LOCK_AGGR_CALLER:
-			pr_info("  %10s   %s\n\n", "type", "caller");
-			break;
-		case LOCK_AGGR_ADDR:
-			pr_info("  %16s   %s\n\n", "address", "symbol");
-			break;
-		default:
-			break;
-		}
-	}
+	if (!quiet)
+		print_header();
 
 	bad = total = printed = 0;
 
 	while ((st = pop_from_result())) {
-		struct thread *t;
-		int pid;
-
 		total += use_bpf ? st->nr_contended : 1;
 		if (st->broken)
 			bad++;
@@ -1685,45 +1874,7 @@ static void print_contention_result(struct lock_contention *con)
 		if (!st->wait_time_total)
 			continue;
 
-		list_for_each_entry(key, &lock_keys, list) {
-			key->print(key, st);
-			pr_info(" ");
-		}
-
-		switch (aggr_mode) {
-		case LOCK_AGGR_CALLER:
-			pr_info("  %10s   %s\n", get_type_str(st->flags), st->name);
-			break;
-		case LOCK_AGGR_TASK:
-			pid = st->addr;
-			t = perf_session__findnew(session, pid);
-			pr_info("  %10d   %s\n",
-				pid, pid == -1 ? "Unknown" : thread__comm_str(t));
-			break;
-		case LOCK_AGGR_ADDR:
-			pr_info("  %016llx   %s (%s)\n", (unsigned long long)st->addr,
-				st->name, get_type_name(st->flags));
-			break;
-		default:
-			break;
-		}
-
-		if (aggr_mode == LOCK_AGGR_CALLER && verbose > 0) {
-			struct map *kmap;
-			struct symbol *sym;
-			char buf[128];
-			u64 ip;
-
-			for (int i = 0; i < max_stack_depth; i++) {
-				if (!st->callstack || !st->callstack[i])
-					break;
-
-				ip = st->callstack[i];
-				sym = machine__find_kernel_symbol(con->machine, ip, &kmap);
-				get_symbol_name_offset(kmap, sym, ip, buf, sizeof(buf));
-				pr_info("\t\t\t%#lx  %s\n", (unsigned long)ip, buf);
-			}
-		}
+		print_lock_stat(con, st);
 
 		if (++printed >= print_nr_entries)
 			break;
@@ -1740,10 +1891,7 @@ static void print_contention_result(struct lock_contention *con)
 	/* some entries are collected but hidden by the callstack filter */
 	total += con->nr_filtered;
 
-	if (use_bpf)
-		print_bpf_events(total, &con->fails);
-	else
-		print_bad_events(bad, total);
+	print_footer(total, bad, &con->fails);
 }
 
 static bool force;
@@ -1845,6 +1993,16 @@ static int check_lock_contention_options(const struct option *options,
 		parse_options_usage(usage, options, "lock-owner", 0);
 		parse_options_usage(NULL, options, "lock-addr", 0);
 		return -1;
+	}
+
+	if (symbol_conf.field_sep) {
+		if (strstr(symbol_conf.field_sep, ":") || /* part of type flags */
+		    strstr(symbol_conf.field_sep, "+") || /* part of caller offset */
+		    strstr(symbol_conf.field_sep, ".")) { /* can be in a symbol name */
+			pr_err("Cannot use the separator that is already used\n");
+			parse_options_usage(usage, options, "x", 1);
+			return -1;
+		}
 	}
 
 	if (show_lock_owner)
@@ -1961,6 +2119,15 @@ static int __cmd_contention(int argc, const char **argv)
 
 	if (select_key(true))
 		goto out_delete;
+
+	if (symbol_conf.field_sep) {
+		int i;
+		struct lock_key *keys = contention_keys;
+
+		/* do not align output in CSV format */
+		for (i = 0; keys[i].name; i++)
+			keys[i].len = 0;
+	}
 
 	if (use_bpf) {
 		lock_contention_start();
@@ -2330,6 +2497,8 @@ int cmd_lock(int argc, const char **argv)
 	OPT_CALLBACK('S', "callstack-filter", NULL, "NAMES",
 		     "Filter specific function in the callstack", parse_call_stack),
 	OPT_BOOLEAN('o', "lock-owner", &show_lock_owner, "show lock owners instead of waiters"),
+	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep, "separator",
+		   "print result in CSV format with custom separator"),
 	OPT_PARENT(lock_options)
 	};
 

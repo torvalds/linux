@@ -200,6 +200,11 @@ CONTENTION OPTIONS
 	Note that it matches the substring so 'rq' would match both 'raw_spin_rq_lock'
 	and 'irq_enter_rcu'.
 
+-x::
+--field-separator=<SEP>::
+	Show results using a CSV-style output to make it easy to import directly
+	into spreadsheets. Columns are separated by the string specified in SEP.
+
 
 SEE ALSO
 --------
