@@ -18,7 +18,7 @@
 #include <linux/sched/xacct.h>
 #include <linux/crc32c.h>
 
-#include "../internal.h"	/* for vfs_path_lookup */
+#include "../../internal.h"	/* for vfs_path_lookup */
 
 #include "glob.h"
 #include "oplock.h"
