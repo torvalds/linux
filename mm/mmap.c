@@ -2452,7 +2452,8 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 		}
 		vma_start_write(next);
 		mas_set(&mas_detach, count);
-		if (mas_store_gfp(&mas_detach, next, GFP_KERNEL))
+		error = mas_store_gfp(&mas_detach, next, GFP_KERNEL);
+		if (error)
 			goto munmap_gather_failed;
 		vma_mark_detached(next, true);
 		if (next->vm_flags & VM_LOCKED)
