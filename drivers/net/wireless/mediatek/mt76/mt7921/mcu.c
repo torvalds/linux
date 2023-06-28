@@ -482,9 +482,9 @@ static int mt7921_load_firmware(struct mt792x_dev *dev)
 
 	if (mt76_is_sdio(&dev->mt76)) {
 		/* activate again */
-		ret = __mt7921_mcu_fw_pmctrl(dev);
+		ret = __mt792x_mcu_fw_pmctrl(dev);
 		if (!ret)
-			ret = __mt7921_mcu_drv_pmctrl(dev);
+			ret = __mt792x_mcu_drv_pmctrl(dev);
 	}
 
 	ret = mt76_connac2_load_ram(&dev->mt76, mt7921_ram_name(dev), NULL);
@@ -953,7 +953,7 @@ int mt7921_mcu_drv_pmctrl(struct mt792x_dev *dev)
 	if (!test_bit(MT76_STATE_PM, &mphy->state))
 		goto out;
 
-	err = __mt7921_mcu_drv_pmctrl(dev);
+	err = __mt792x_mcu_drv_pmctrl(dev);
 out:
 	mutex_unlock(&pm->mutex);
 
@@ -975,7 +975,7 @@ int mt7921_mcu_fw_pmctrl(struct mt792x_dev *dev)
 	if (mt76_connac_skip_fw_pmctrl(mphy, pm))
 		goto out;
 
-	err = __mt7921_mcu_fw_pmctrl(dev);
+	err = __mt792x_mcu_fw_pmctrl(dev);
 out:
 	mutex_unlock(&pm->mutex);
 

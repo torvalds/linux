@@ -672,7 +672,7 @@ void mt7921_mac_reset_work(struct work_struct *work)
 
 	for (i = 0; i < 10; i++) {
 		mutex_lock(&dev->mt76.mutex);
-		ret = mt7921_dev_reset(dev);
+		ret = mt792x_dev_reset(dev);
 		mutex_unlock(&dev->mt76.mutex);
 
 		if (!ret)

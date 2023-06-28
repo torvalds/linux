@@ -159,12 +159,6 @@ enum mt7921_eeprom_field {
 
 #define MT_EE_HW_TYPE_ENCAP			BIT(0)
 
-#define mt7921_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
-#define mt7921_dev_reset(dev)		((dev)->hif_ops->reset(dev))
-#define mt7921_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
-#define __mt7921_mcu_drv_pmctrl(dev)	((dev)->hif_ops->drv_own(dev))
-#define	__mt7921_mcu_fw_pmctrl(dev)	((dev)->hif_ops->fw_own(dev))
-
 enum {
 	TXPWR_USER,
 	TXPWR_EEPROM,

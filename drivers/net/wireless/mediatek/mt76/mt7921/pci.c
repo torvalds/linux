@@ -46,7 +46,7 @@ static void mt7921e_unregister_device(struct mt792x_dev *dev)
 	cancel_work_sync(&dev->reset_work);
 
 	mt76_connac2_tx_token_put(&dev->mt76);
-	__mt7921_mcu_drv_pmctrl(dev);
+	__mt792x_mcu_drv_pmctrl(dev);
 	mt792x_dma_cleanup(dev);
 	mt792x_wfsys_reset(dev);
 	skb_queue_purge(&dev->mt76.mcu.res_q);

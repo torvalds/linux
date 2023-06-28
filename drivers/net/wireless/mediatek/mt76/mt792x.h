@@ -127,6 +127,12 @@ struct mt792x_irq_map {
 	} rx;
 };
 
+#define mt792x_init_reset(dev)		((dev)->hif_ops->init_reset(dev))
+#define mt792x_dev_reset(dev)		((dev)->hif_ops->reset(dev))
+#define mt792x_mcu_init(dev)		((dev)->hif_ops->mcu_init(dev))
+#define __mt792x_mcu_drv_pmctrl(dev)	((dev)->hif_ops->drv_own(dev))
+#define	__mt792x_mcu_fw_pmctrl(dev)	((dev)->hif_ops->fw_own(dev))
+
 struct mt792x_hif_ops {
 	int (*init_reset)(struct mt792x_dev *dev);
 	int (*reset)(struct mt792x_dev *dev);

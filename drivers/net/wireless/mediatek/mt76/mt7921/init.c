@@ -107,7 +107,7 @@ static int __mt7921_init_hardware(struct mt792x_dev *dev)
 	 * which should be set before firmware download stage.
 	 */
 	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
-	ret = mt7921_mcu_init(dev);
+	ret = mt792x_mcu_init(dev);
 	if (ret)
 		goto out;
 
@@ -133,7 +133,7 @@ static int mt7921_init_hardware(struct mt792x_dev *dev)
 		if (!ret)
 			break;
 
-		mt7921_init_reset(dev);
+		mt792x_init_reset(dev);
 	}
 
 	if (i == MT7921_MCU_INIT_RETRY_COUNT) {
