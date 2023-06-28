@@ -1124,9 +1124,9 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 	async_extent->pages = NULL;
 }
 
-static int submit_uncompressed_range(struct btrfs_inode *inode,
-				     struct async_extent *async_extent,
-				     struct page *locked_page)
+static void submit_uncompressed_range(struct btrfs_inode *inode,
+				      struct async_extent *async_extent,
+				      struct page *locked_page)
 {
 	u64 start = async_extent->start;
 	u64 end = async_extent->start + async_extent->ram_size - 1;
@@ -1151,7 +1151,7 @@ static int submit_uncompressed_range(struct btrfs_inode *inode,
 			     &nr_written, NULL, true, false);
 	/* Inline extent inserted, page gets unlocked and everything is done */
 	if (page_started)
-		return 0;
+		return;
 
 	if (ret < 0) {
 		btrfs_cleanup_ordered_extents(inode, locked_page, start, end - start + 1);
@@ -1169,14 +1169,13 @@ static int submit_uncompressed_range(struct btrfs_inode *inode,
 			mapping_set_error(locked_page->mapping, ret);
 			unlock_page(locked_page);
 		}
-		return ret;
+		return;
 	}
 
 	/* All pages will be unlocked, including @locked_page */
 	wbc_attach_fdatawrite_inode(&wbc, &inode->vfs_inode);
-	ret = extent_write_locked_range(&inode->vfs_inode, start, end, &wbc);
+	extent_write_locked_range(&inode->vfs_inode, start, end, &wbc);
 	wbc_detach_inode(&wbc);
-	return ret;
 }
 
 static void submit_one_async_extent(struct async_chunk *async_chunk,
@@ -1213,7 +1212,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 
 	/* We have fall back to uncompressed write */
 	if (!async_extent->pages) {
-		ret = submit_uncompressed_range(inode, async_extent, locked_page);
+		submit_uncompressed_range(inode, async_extent, locked_page);
 		goto done;
 	}
 
