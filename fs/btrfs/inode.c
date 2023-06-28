@@ -950,7 +950,7 @@ again:
 				   mapping, start, pages, &nr_pages, &total_in,
 				   &total_compressed);
 	if (ret)
-		goto cleanup_and_bail_uncompressed;
+		goto mark_incompressible;
 
 	/*
 	 * Zero the tail end of the last page, as we might be sending it down
@@ -1026,7 +1026,7 @@ again:
 	 */
 	total_in = round_up(total_in, fs_info->sectorsize);
 	if (total_compressed + blocksize > total_in)
-		goto cleanup_and_bail_uncompressed;
+		goto mark_incompressible;
 
 	/*
 	 * The async work queues will take care of doing actual allocation on
@@ -1041,6 +1041,9 @@ again:
 	}
 	return;
 
+mark_incompressible:
+	if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) && !inode->prop_compress)
+		inode->flags |= BTRFS_INODE_NOCOMPRESS;
 cleanup_and_bail_uncompressed:
 	if (pages) {
 		/*
@@ -1055,12 +1058,6 @@ cleanup_and_bail_uncompressed:
 		pages = NULL;
 		total_compressed = 0;
 		nr_pages = 0;
-
-		/* flag the file so we don't compress in the future */
-		if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) &&
-		    !(inode->prop_compress)) {
-			inode->flags |= BTRFS_INODE_NOCOMPRESS;
-		}
 	}
 
 	/*
