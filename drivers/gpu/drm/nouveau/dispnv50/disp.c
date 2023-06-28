@@ -1124,7 +1124,7 @@ nv50_mstc_mode_valid(struct drm_connector *connector,
 	 * MSTB's max possible PBN
 	 */
 
-	return nv50_dp_mode_valid(connector, outp, mode, NULL);
+	return nv50_dp_mode_valid(outp, mode, NULL);
 }
 
 static int

@@ -1082,7 +1082,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 	case DCB_OUTPUT_TV:
 		return get_slave_funcs(encoder)->mode_valid(encoder, mode);
 	case DCB_OUTPUT_DP:
-		return nv50_dp_mode_valid(connector, nv_encoder, mode, NULL);
+		return nv50_dp_mode_valid(nv_encoder, mode, NULL);
 	default:
 		BUG();
 		return MODE_BAD;
