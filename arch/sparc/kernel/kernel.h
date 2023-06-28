@@ -91,7 +91,6 @@ extern int static_irq_count;
 extern spinlock_t irq_action_lock;
 
 void unexpected_irq(int irq, void *dev_id, struct pt_regs * regs);
-void init_IRQ(void);
 
 /* sun4m_irq.c */
 void sun4m_init_IRQ(void);

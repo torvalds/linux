@@ -712,7 +712,6 @@ int acpi_match_platform_list(const struct acpi_platform_list *plat);
 
 extern void acpi_early_init(void);
 extern void acpi_subsystem_init(void);
-extern void arch_post_acpi_subsys_init(void);
 
 extern int acpi_nvs_register(__u64 start, __u64 size);
 
@@ -1083,6 +1082,8 @@ static inline bool acpi_sleep_state_supported(u8 sleep_state)
 }
 
 #endif	/* !CONFIG_ACPI */
+
+extern void arch_post_acpi_subsys_init(void);
 
 #ifdef CONFIG_ACPI_HOTPLUG_IOAPIC
 int acpi_ioapic_add(acpi_handle root);

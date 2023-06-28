@@ -17,9 +17,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
-typedef long intptr_t;
-
-
 /*
  * Constants
  */

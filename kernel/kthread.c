@@ -322,10 +322,10 @@ void __noreturn kthread_exit(long result)
  * @comp: Completion to complete
  * @code: The integer value to return to kthread_stop().
  *
- * If present complete @comp and the reuturn code to kthread_stop().
+ * If present, complete @comp and then return code to kthread_stop().
  *
  * A kernel thread whose module may be removed after the completion of
- * @comp can use this function exit safely.
+ * @comp can use this function to exit safely.
  *
  * Does not return.
  */

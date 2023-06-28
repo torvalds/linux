@@ -192,8 +192,19 @@ retry:
 		printk("VFS: Cannot open root device \"%s\" or %s: error %d\n",
 				pretty_name, b, err);
 		printk("Please append a correct \"root=\" boot option; here are the available partitions:\n");
-
 		printk_all_partitions();
+
+		if (root_fs_names)
+			num_fs = list_bdev_fs_names(fs_names, PAGE_SIZE);
+		if (!num_fs)
+			pr_err("Can't find any bdev filesystem to be used for mount!\n");
+		else {
+			pr_err("List of all bdev filesystems:\n");
+			for (i = 0, p = fs_names; i < num_fs; i++, p += strlen(p)+1)
+				pr_err(" %s", p);
+			pr_err("\n");
+		}
+
 		panic("VFS: Unable to mount root fs on %s", b);
 	}
 	if (!(flags & SB_RDONLY)) {
@@ -255,8 +266,6 @@ static inline void mount_nfs_root(void)
 #endif /* CONFIG_ROOT_NFS */
 
 #ifdef CONFIG_CIFS_ROOT
-
-extern int cifs_root_data(char **dev, char **opts);
 
 #define CIFSROOT_TIMEOUT_MIN	5
 #define CIFSROOT_TIMEOUT_MAX	30

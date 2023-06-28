@@ -113,10 +113,6 @@
 
 static int kernel_init(void *);
 
-extern void init_IRQ(void);
-extern void radix_tree_init(void);
-extern void maple_tree_init(void);
-
 /*
  * Debug helper: via this flag we know that we are in 'early bootup code'
  * where only the boot processor is running with IRQ disabled.  This means
@@ -135,7 +131,6 @@ EXPORT_SYMBOL(system_state);
 #define MAX_INIT_ARGS CONFIG_INIT_ENV_ARG_LIMIT
 #define MAX_INIT_ENVS CONFIG_INIT_ENV_ARG_LIMIT
 
-extern void time_init(void);
 /* Default late time init is NULL. archs can override this later. */
 void (*__initdata late_time_init)(void);
 
@@ -193,8 +188,6 @@ __setup("reset_devices", set_reset_devices);
 static const char *argv_init[MAX_INIT_ARGS+2] = { "init", NULL, };
 const char *envp_init[MAX_INIT_ENVS+2] = { "HOME=/", "TERM=linux", NULL, };
 static const char *panic_later, *panic_param;
-
-extern const struct obs_kernel_param __setup_start[], __setup_end[];
 
 static bool __init obsolete_checksetup(char *line)
 {
@@ -1255,17 +1248,6 @@ int __init_or_module do_one_initcall(initcall_t fn)
 	return ret;
 }
 
-
-extern initcall_entry_t __initcall_start[];
-extern initcall_entry_t __initcall0_start[];
-extern initcall_entry_t __initcall1_start[];
-extern initcall_entry_t __initcall2_start[];
-extern initcall_entry_t __initcall3_start[];
-extern initcall_entry_t __initcall4_start[];
-extern initcall_entry_t __initcall5_start[];
-extern initcall_entry_t __initcall6_start[];
-extern initcall_entry_t __initcall7_start[];
-extern initcall_entry_t __initcall_end[];
 
 static initcall_entry_t *initcall_levels[] __initdata = {
 	__initcall0_start,

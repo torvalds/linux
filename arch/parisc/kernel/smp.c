@@ -271,7 +271,6 @@ void arch_send_call_function_single_ipi(int cpu)
 static void
 smp_cpu_init(int cpunum)
 {
-	extern void init_IRQ(void);    /* arch/parisc/kernel/irq.c */
 	extern void start_cpu_itimer(void); /* arch/parisc/kernel/time.c */
 
 	/* Set modes and Enable floating point coprocessor */

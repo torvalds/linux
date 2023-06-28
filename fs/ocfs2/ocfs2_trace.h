@@ -1315,8 +1315,6 @@ DEFINE_OCFS2_FILE_OPS(ocfs2_sync_file);
 
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_write_iter);
 
-DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_write);
-
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_read_iter);
 
 DEFINE_OCFS2_FILE_OPS(ocfs2_file_splice_read);
