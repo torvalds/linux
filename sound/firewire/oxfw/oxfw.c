@@ -44,7 +44,7 @@ struct compat_info {
 
 static bool detect_loud_models(struct fw_unit *unit)
 {
-	const char *const models[] = {
+	static const char *const models[] = {
 		"Onyxi",
 		"Onyx-i",
 		"Onyx 1640i",
