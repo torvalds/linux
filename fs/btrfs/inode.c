@@ -814,24 +814,22 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 }
 
 /*
- * we create compressed extents in two phases.  The first
- * phase compresses a range of pages that have already been
- * locked (both pages and state bits are locked).
+ * Work queue call back to started compression on a file and pages.
  *
- * This is done inside an ordered work queue, and the compression
- * is spread across many cpus.  The actual IO submission is step
- * two, and the ordered work queue takes care of making sure that
- * happens in the same order things were put onto the queue by
- * writepages and friends.
+ * This is done inside an ordered work queue, and the compression is spread
+ * across many cpus.  The actual IO submission is step two, and the ordered work
+ * queue takes care of making sure that happens in the same order things were
+ * put onto the queue by writepages and friends.
  *
- * If this code finds it can't get good compression, it puts an
- * entry onto the work queue to write the uncompressed bytes.  This
- * makes sure that both compressed inodes and uncompressed inodes
- * are written in the same order that the flusher thread sent them
- * down.
+ * If this code finds it can't get good compression, it puts an entry onto the
+ * work queue to write the uncompressed bytes.  This makes sure that both
+ * compressed inodes and uncompressed inodes are written in the same order that
+ * the flusher thread sent them down.
  */
-static noinline void compress_file_range(struct async_chunk *async_chunk)
+static void compress_file_range(struct btrfs_work *work)
 {
+	struct async_chunk *async_chunk =
+		container_of(work, struct async_chunk, work);
 	struct btrfs_inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
@@ -1644,18 +1642,9 @@ out_unlock:
 }
 
 /*
- * work queue call back to started compression on a file and pages
- */
-static noinline void async_cow_start(struct btrfs_work *work)
-{
-	struct async_chunk *async_chunk;
-
-	async_chunk = container_of(work, struct async_chunk, work);
-	compress_file_range(async_chunk);
-}
-
-/*
- * work queue call back to submit previously compressed pages
+ * Phase two of compressed writeback.  This is the ordered portion of the code,
+ * which only gets called in the order the work was queued.  We walk all the
+ * async extents created by compress_file_range and send them down to the disk.
  */
 static noinline void async_cow_submit(struct btrfs_work *work)
 {
@@ -1773,7 +1762,7 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 			async_chunk[i].blkcg_css = NULL;
 		}
 
-		btrfs_init_work(&async_chunk[i].work, async_cow_start,
+		btrfs_init_work(&async_chunk[i].work, compress_file_range,
 				async_cow_submit, async_cow_free);
 
 		nr_pages = DIV_ROUND_UP(cur_end - start, PAGE_SIZE);
