@@ -2943,8 +2943,6 @@ static void enable_iommus_vapic(void)
 static void enable_iommus(void)
 {
 	early_enable_iommus();
-	enable_iommus_vapic();
-	enable_iommus_v2();
 }
 
 static void disable_iommus(void)
@@ -3208,6 +3206,13 @@ static int amd_iommu_enable_interrupts(void)
 			goto out;
 	}
 
+	/*
+	 * Interrupt handler is ready to process interrupts. Enable
+	 * PPR and GA log interrupt for all IOMMUs.
+	 */
+	enable_iommus_vapic();
+	enable_iommus_v2();
+
 out:
 	return ret;
 }
@@ -3287,8 +3292,6 @@ static int __init state_next(void)
 		register_syscore_ops(&amd_iommu_syscore_ops);
 		ret = amd_iommu_init_pci();
 		init_state = ret ? IOMMU_INIT_ERROR : IOMMU_PCI_INIT;
-		enable_iommus_vapic();
-		enable_iommus_v2();
 		break;
 	case IOMMU_PCI_INIT:
 		ret = amd_iommu_enable_interrupts();
