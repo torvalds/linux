@@ -640,7 +640,7 @@ svc_rqst_alloc(struct svc_serv *serv, struct svc_pool *pool, int node)
 	if (!rqstp)
 		return rqstp;
 
-	pagevec_init(&rqstp->rq_pvec);
+	folio_batch_init(&rqstp->rq_fbatch);
 
 	__set_bit(RQ_BUSY, &rqstp->rq_flags);
 	rqstp->rq_server = serv;
@@ -851,9 +851,9 @@ bool svc_rqst_replace_page(struct svc_rqst *rqstp, struct page *page)
 	}
 
 	if (*rqstp->rq_next_page) {
-		if (!pagevec_space(&rqstp->rq_pvec))
-			__pagevec_release(&rqstp->rq_pvec);
-		pagevec_add(&rqstp->rq_pvec, *rqstp->rq_next_page);
+		if (!folio_batch_add(&rqstp->rq_fbatch,
+				page_folio(*rqstp->rq_next_page)))
+			__folio_batch_release(&rqstp->rq_fbatch);
 	}
 
 	get_page(page);
@@ -887,7 +887,7 @@ void svc_rqst_release_pages(struct svc_rqst *rqstp)
 void
 svc_rqst_free(struct svc_rqst *rqstp)
 {
-	pagevec_release(&rqstp->rq_pvec);
+	folio_batch_release(&rqstp->rq_fbatch);
 	svc_release_buffer(rqstp);
 	if (rqstp->rq_scratch_page)
 		put_page(rqstp->rq_scratch_page);

@@ -14,10 +14,6 @@
 
 struct zpool;
 
-struct zpool_ops {
-	int (*evict)(struct zpool *pool, unsigned long handle);
-};
-
 /*
  * Control how a handle is mapped.  It will be ignored if the
  * implementation does not support it.  Its use is optional.
@@ -39,8 +35,7 @@ enum zpool_mapmode {
 
 bool zpool_has_pool(char *type);
 
-struct zpool *zpool_create_pool(const char *type, const char *name,
-			gfp_t gfp, const struct zpool_ops *ops);
+struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp);
 
 const char *zpool_get_type(struct zpool *pool);
 
@@ -52,9 +47,6 @@ int zpool_malloc(struct zpool *pool, size_t size, gfp_t gfp,
 			unsigned long *handle);
 
 void zpool_free(struct zpool *pool, unsigned long handle);
-
-int zpool_shrink(struct zpool *pool, unsigned int pages,
-			unsigned int *reclaimed);
 
 void *zpool_map_handle(struct zpool *pool, unsigned long handle,
 			enum zpool_mapmode mm);
@@ -72,7 +64,6 @@ u64 zpool_get_total_size(struct zpool *pool);
  * @destroy:	destroy a pool.
  * @malloc:	allocate mem from a pool.
  * @free:	free mem from a pool.
- * @shrink:	shrink the pool.
  * @sleep_mapped: whether zpool driver can sleep during map.
  * @map:	map a handle.
  * @unmap:	unmap a handle.
@@ -87,19 +78,13 @@ struct zpool_driver {
 	atomic_t refcount;
 	struct list_head list;
 
-	void *(*create)(const char *name,
-			gfp_t gfp,
-			const struct zpool_ops *ops,
-			struct zpool *zpool);
+	void *(*create)(const char *name, gfp_t gfp);
 	void (*destroy)(void *pool);
 
 	bool malloc_support_movable;
 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
 				unsigned long *handle);
 	void (*free)(void *pool, unsigned long handle);
-
-	int (*shrink)(void *pool, unsigned int pages,
-				unsigned int *reclaimed);
 
 	bool sleep_mapped;
 	void *(*map)(void *pool, unsigned long handle,
@@ -113,7 +98,6 @@ void zpool_register_driver(struct zpool_driver *driver);
 
 int zpool_unregister_driver(struct zpool_driver *driver);
 
-bool zpool_evictable(struct zpool *pool);
 bool zpool_can_sleep_mapped(struct zpool *pool);
 
 #endif

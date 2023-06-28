@@ -133,7 +133,7 @@ static pte_t move_soft_dirty_pte(pte_t pte)
 	return pte;
 }
 
-static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+static int move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		unsigned long old_addr, unsigned long old_end,
 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
 		unsigned long new_addr, bool need_rmap_locks)
@@ -143,6 +143,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	spinlock_t *old_ptl, *new_ptl;
 	bool force_flush = false;
 	unsigned long len = old_end - old_addr;
+	int err = 0;
 
 	/*
 	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
@@ -170,8 +171,16 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	 * pte locks because exclusive mmap_lock prevents deadlock.
 	 */
 	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
-	new_pte = pte_offset_map(new_pmd, new_addr);
-	new_ptl = pte_lockptr(mm, new_pmd);
+	if (!old_pte) {
+		err = -EAGAIN;
+		goto out;
+	}
+	new_pte = pte_offset_map_nolock(mm, new_pmd, new_addr, &new_ptl);
+	if (!new_pte) {
+		pte_unmap_unlock(old_pte, old_ptl);
+		err = -EAGAIN;
+		goto out;
+	}
 	if (new_ptl != old_ptl)
 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
 	flush_tlb_batched_pending(vma->vm_mm);
@@ -179,7 +188,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 
 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
 				   new_pte++, new_addr += PAGE_SIZE) {
-		if (pte_none(*old_pte))
+		if (pte_none(ptep_get(old_pte)))
 			continue;
 
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
@@ -208,8 +217,10 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		spin_unlock(new_ptl);
 	pte_unmap(new_pte - 1);
 	pte_unmap_unlock(old_pte - 1, old_ptl);
+out:
 	if (need_rmap_locks)
 		drop_rmap_locks(vma);
+	return err;
 }
 
 #ifndef arch_supports_page_table_move
@@ -537,6 +548,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
 		if (!new_pmd)
 			break;
+again:
 		if (is_swap_pmd(*old_pmd) || pmd_trans_huge(*old_pmd) ||
 		    pmd_devmap(*old_pmd)) {
 			if (extent == HPAGE_PMD_SIZE &&
@@ -544,8 +556,6 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 					   old_pmd, new_pmd, need_rmap_locks))
 				continue;
 			split_huge_pmd(vma, old_pmd, old_addr);
-			if (pmd_trans_unstable(old_pmd))
-				continue;
 		} else if (IS_ENABLED(CONFIG_HAVE_MOVE_PMD) &&
 			   extent == PMD_SIZE) {
 			/*
@@ -556,11 +566,13 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 					   old_pmd, new_pmd, true))
 				continue;
 		}
-
+		if (pmd_none(*old_pmd))
+			continue;
 		if (pte_alloc(new_vma->vm_mm, new_pmd))
 			break;
-		move_ptes(vma, old_pmd, old_addr, old_addr + extent, new_vma,
-			  new_pmd, new_addr, need_rmap_locks);
+		if (move_ptes(vma, old_pmd, old_addr, old_addr + extent,
+			      new_vma, new_pmd, new_addr, need_rmap_locks) < 0)
+			goto again;
 	}
 
 	mmu_notifier_invalidate_range_end(&range);
@@ -775,7 +787,7 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 	if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
 		return ERR_PTR(-EFAULT);
 
-	if (mlock_future_check(mm, vma->vm_flags, new_len - old_len))
+	if (!mlock_future_ok(mm, vma->vm_flags, new_len - old_len))
 		return ERR_PTR(-EAGAIN);
 
 	if (!may_expand_vm(mm, vma->vm_flags,

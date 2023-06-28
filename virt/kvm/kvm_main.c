@@ -2495,7 +2495,7 @@ static inline int check_user_page_hwpoison(unsigned long addr)
 {
 	int rc, flags = FOLL_HWPOISON | FOLL_WRITE;
 
-	rc = get_user_pages(addr, 1, flags, NULL, NULL);
+	rc = get_user_pages(addr, 1, flags, NULL);
 	return rc == -EHWPOISON;
 }
 
@@ -2596,6 +2596,7 @@ static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 {
 	kvm_pfn_t pfn;
 	pte_t *ptep;
+	pte_t pte;
 	spinlock_t *ptl;
 	int r;
 
@@ -2619,14 +2620,16 @@ static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 			return r;
 	}
 
-	if (write_fault && !pte_write(*ptep)) {
+	pte = ptep_get(ptep);
+
+	if (write_fault && !pte_write(pte)) {
 		pfn = KVM_PFN_ERR_RO_FAULT;
 		goto out;
 	}
 
 	if (writable)
-		*writable = pte_write(*ptep);
-	pfn = pte_pfn(*ptep);
+		*writable = pte_write(pte);
+	pfn = pte_pfn(pte);
 
 	/*
 	 * Get a reference here because callers of *hva_to_pfn* and
@@ -2644,7 +2647,7 @@ static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 	 * tail pages of non-compound higher order allocations, which
 	 * would then underflow the refcount when the caller does the
 	 * required put_page. Don't allow those pages here.
-	 */ 
+	 */
 	if (!kvm_try_get_pfn(pfn))
 		r = -EFAULT;
 

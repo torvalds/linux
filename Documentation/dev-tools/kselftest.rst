@@ -36,6 +36,7 @@ Running the selftests (hotplug tests are run in limited mode)
 
 To build the tests::
 
+  $ make headers
   $ make -C tools/testing/selftests
 
 To run the tests::

@@ -367,9 +367,6 @@ struct pbe {
 	struct pbe *next;
 };
 
-/* mm/page_alloc.c */
-extern void mark_free_pages(struct zone *zone);
-
 /**
  * struct platform_hibernation_ops - hibernation platform support
  *
@@ -513,6 +510,11 @@ extern void pm_report_max_hw_sleep(u64 t);
 /* drivers/base/power/wakeup.c */
 extern bool events_check_enabled;
 
+static inline bool pm_suspended_storage(void)
+{
+	return !gfp_has_io_fs(gfp_allowed_mask);
+}
+
 extern bool pm_wakeup_pending(void);
 extern void pm_system_wakeup(void);
 extern void pm_system_cancel_wakeup(void);
@@ -546,6 +548,7 @@ static inline void ksys_sync_helper(void) {}
 
 #define pm_notifier(fn, pri)	do { (void)(fn); } while (0)
 
+static inline bool pm_suspended_storage(void) { return false; }
 static inline bool pm_wakeup_pending(void) { return false; }
 static inline void pm_system_wakeup(void) {}
 static inline void pm_wakeup_clear(bool reset) {}

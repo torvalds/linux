@@ -7490,6 +7490,7 @@ static u64 perf_get_pgtable_size(struct mm_struct *mm, unsigned long addr)
 		return pud_leaf_size(pud);
 
 	pmdp = pmd_offset_lockless(pudp, pud, addr);
+again:
 	pmd = pmdp_get_lockless(pmdp);
 	if (!pmd_present(pmd))
 		return 0;
@@ -7498,6 +7499,9 @@ static u64 perf_get_pgtable_size(struct mm_struct *mm, unsigned long addr)
 		return pmd_leaf_size(pmd);
 
 	ptep = pte_offset_map(&pmd, addr);
+	if (!ptep)
+		goto again;
+
 	pte = ptep_get_lockless(ptep);
 	if (pte_present(pte))
 		size = pte_leaf_size(pte);

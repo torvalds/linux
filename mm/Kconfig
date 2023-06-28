@@ -46,6 +46,22 @@ config ZSWAP_DEFAULT_ON
 	  The selection made here can be overridden by using the kernel
 	  command line 'zswap.enabled=' option.
 
+config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
+	bool "Invalidate zswap entries when pages are loaded"
+	depends on ZSWAP
+	help
+	  If selected, exclusive loads for zswap will be enabled at boot,
+	  otherwise it will be disabled.
+
+	  If exclusive loads are enabled, when a page is loaded from zswap,
+	  the zswap entry is invalidated at once, as opposed to leaving it
+	  in zswap until the swap entry is freed.
+
+	  This avoids having two copies of the same page in memory
+	  (compressed and uncompressed) after faulting in a page from zswap.
+	  The cost is that if the page was never dirtied and needs to be
+	  swapped out again, it will be re-compressed.
+
 choice
 	prompt "Default compressor"
 	depends on ZSWAP

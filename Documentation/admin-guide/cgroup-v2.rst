@@ -1580,6 +1580,13 @@ PAGE_SIZE multiple when read back.
 
 	Healthy workloads are not expected to reach this limit.
 
+  memory.swap.peak
+	A read-only single value file which exists on non-root
+	cgroups.
+
+	The max swap usage recorded for the cgroup and its
+	descendants since the creation of the cgroup.
+
   memory.swap.max
 	A read-write single value file which exists on non-root
 	cgroups.  The default is "max".

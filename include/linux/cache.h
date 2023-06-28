@@ -98,4 +98,10 @@ struct cacheline_padding {
 #define CACHELINE_PADDING(name)
 #endif
 
+#ifdef ARCH_DMA_MINALIGN
+#define ARCH_HAS_DMA_MINALIGN
+#else
+#define ARCH_DMA_MINALIGN __alignof__(unsigned long long)
+#endif
+
 #endif /* __LINUX_CACHE_H */
