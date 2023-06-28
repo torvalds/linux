@@ -842,7 +842,7 @@ amd_iommu_set_pci_msi_domain(struct device *dev, struct amd_iommu *iommu) { }
 #endif /* !CONFIG_IRQ_REMAP */
 
 #define AMD_IOMMU_INT_MASK	\
-	(MMIO_STATUS_EVT_OVERFLOW_INT_MASK | \
+	(MMIO_STATUS_EVT_OVERFLOW_MASK | \
 	 MMIO_STATUS_EVT_INT_MASK | \
 	 MMIO_STATUS_PPR_INT_MASK | \
 	 MMIO_STATUS_GALOG_OVERFLOW_MASK | \
@@ -881,7 +881,7 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 		}
 #endif
 
-		if (status & MMIO_STATUS_EVT_OVERFLOW_INT_MASK) {
+		if (status & MMIO_STATUS_EVT_OVERFLOW_MASK) {
 			pr_info_ratelimited("IOMMU event log overflow\n");
 			amd_iommu_restart_event_logging(iommu);
 		}
