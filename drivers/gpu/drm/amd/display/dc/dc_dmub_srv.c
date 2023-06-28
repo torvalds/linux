@@ -897,6 +897,9 @@ static bool dc_dmub_should_update_cursor_data(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
+	if (pipe_ctx->stream->link->replay_settings.config.replay_supported)
+		return true;
+
 	return false;
 }
 

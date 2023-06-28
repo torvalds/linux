@@ -3289,6 +3289,9 @@ static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_s
 			&& stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
+	if (stream->link->replay_settings.config.replay_supported)
+		return true;
+
 	return false;
 }
 
@@ -5171,6 +5174,9 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 
 
 	if (link->psr_settings.psr_feature_enabled)
+		return;
+
+	if (link->replay_settings.replay_feature_enabled)
 		return;
 
 	/*find primary pipe associated with stream*/
