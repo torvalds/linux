@@ -2180,11 +2180,10 @@ retry:
  * already been ran (aka, ordered extent inserted) and all pages are still
  * locked.
  */
-int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
-			      struct writeback_control *wbc)
+void extent_write_locked_range(struct inode *inode, u64 start, u64 end,
+			       struct writeback_control *wbc)
 {
 	bool found_error = false;
-	int first_error = 0;
 	int ret = 0;
 	struct address_space *mapping = inode->i_mapping;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -2234,20 +2233,14 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 			mapping_set_error(page->mapping, ret);
 		}
 		btrfs_page_unlock_writer(fs_info, page, cur, cur_len);
-		if (ret < 0) {
+		if (ret < 0)
 			found_error = true;
-			first_error = ret;
-		}
 next_page:
 		put_page(page);
 		cur = cur_end + 1;
 	}
 
 	submit_write_bio(&bio_ctrl, found_error ? ret : 0);
-
-	if (found_error)
-		return first_error;
-	return ret;
 }
 
 int extent_writepages(struct address_space *mapping,
