@@ -1363,7 +1363,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 			 * compressed extent.
 			 */
 			unlock_page(locked_page);
-			return 1;
+			ret = 1;
+			goto done;
 		} else if (ret < 0) {
 			goto out_unlock;
 		}
@@ -1394,6 +1395,31 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		ret = btrfs_reserve_extent(root, cur_alloc_size, cur_alloc_size,
 					   min_alloc_size, 0, alloc_hint,
 					   &ins, 1, 1);
+		if (ret == -EAGAIN) {
+			/*
+			 * btrfs_reserve_extent only returns -EAGAIN for zoned
+			 * file systems, which is an indication that there are
+			 * no active zones to allocate from at the moment.
+			 *
+			 * If this is the first loop iteration, wait for at
+			 * least one zone to finish before retrying the
+			 * allocation.  Otherwise ask the caller to write out
+			 * the already allocated blocks before coming back to
+			 * us, or return -ENOSPC if it can't handle retries.
+			 */
+			ASSERT(btrfs_is_zoned(fs_info));
+			if (start == orig_start) {
+				wait_on_bit_io(&inode->root->fs_info->flags,
+					       BTRFS_FS_NEED_ZONE_FINISH,
+					       TASK_UNINTERRUPTIBLE);
+				continue;
+			}
+			if (done_offset) {
+				*done_offset = start - 1;
+				return 0;
+			}
+			ret = -ENOSPC;
+		}
 		if (ret < 0)
 			goto out_unlock;
 		cur_alloc_size = ins.offset;
@@ -1477,6 +1503,9 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		if (ret)
 			goto out_unlock;
 	}
+done:
+	if (done_offset)
+		*done_offset = end;
 	return ret;
 
 out_drop_extent_cache:
@@ -1485,21 +1514,6 @@ out_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
 out_unlock:
-	/*
-	 * If done_offset is non-NULL and ret == -EAGAIN, we expect the
-	 * caller to write out the successfully allocated region and retry.
-	 */
-	if (done_offset && ret == -EAGAIN) {
-		if (orig_start < start)
-			*done_offset = start - 1;
-		else
-			*done_offset = start;
-		return ret;
-	} else if (ret == -EAGAIN) {
-		/* Convert to -ENOSPC since the caller cannot retry. */
-		ret = -ENOSPC;
-	}
-
 	/*
 	 * Now, we have three regions to clean up:
 	 *
@@ -1710,18 +1724,8 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 	while (start <= end) {
 		ret = cow_file_range(inode, locked_page, start, end, &done_offset,
 				     true, false);
-		if (ret && ret != -EAGAIN)
+		if (ret)
 			return ret;
-
-		if (ret == 0)
-			done_offset = end;
-
-		if (done_offset == start) {
-			wait_on_bit_io(&inode->root->fs_info->flags,
-				       BTRFS_FS_NEED_ZONE_FINISH,
-				       TASK_UNINTERRUPTIBLE);
-			continue;
-		}
 
 		if (!locked_page_done) {
 			__set_page_dirty_nobuffers(locked_page);
