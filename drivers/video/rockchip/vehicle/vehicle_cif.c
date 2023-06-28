@@ -2266,6 +2266,31 @@ static enum cif_reg_index get_reg_index_of_frm0_y_addr(int channel_id)
 	return index;
 }
 
+static enum cif_reg_index get_reg_index_of_frm_num(int channel_id)
+{
+	enum cif_reg_index index;
+
+	switch (channel_id) {
+	case 0:
+		index = CIF_REG_MIPI_FRAME_NUM_VC0;
+		break;
+	case 1:
+		index = CIF_REG_MIPI_FRAME_NUM_VC1;
+		break;
+	case 2:
+		index = CIF_REG_MIPI_FRAME_NUM_VC2;
+		break;
+	case 3:
+		index = CIF_REG_MIPI_FRAME_NUM_VC3;
+		break;
+	default:
+		index = CIF_REG_MIPI_FRAME_NUM_VC0;
+		break;
+	}
+
+	return index;
+}
+
 static enum cif_reg_index get_reg_index_of_frm1_y_addr(int channel_id)
 {
 	enum cif_reg_index index;
@@ -2758,14 +2783,14 @@ static int vehicle_cif_csi_channel_init(struct vehicle_cif *cif,
 	VEHICLE_DG("%s, LINE=%d, channel->fmt_val = 0x%x", __func__, __LINE__, channel->fmt_val);
 	if (cfg->input_format == CIF_INPUT_FORMAT_PAL ||
 		cfg->input_format == CIF_INPUT_FORMAT_NTSC) {
-		VEHICLE_DG("CVBS IN PAL or NTSC config.");
+		VEHICLE_INFO("CVBS IN PAL or NTSC config.");
 		channel->virtual_width *= 2;
 		cif->interlaced_enable = true;
 		cif->interlaced_offset = channel->width;
 		cif->interlaced_counts = 0;
 		cif->interlaced_buffer = 0;
 		channel->height /= 2;
-		VEHICLE_DG("do denterlaced.\n");
+		VEHICLE_INFO("do denterlaced.\n");
 	}
 
 	channel->data_type = get_data_type(cfg->mbus_code,
@@ -3930,7 +3955,7 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 	static unsigned long temp_y_addr, temp_uv_addr;
 	int commit_buf = 0;
 	struct vehicle_rkcif_dummy_buffer *dummy_buf = &cif->dummy_buf;
-
+	u32 frm_num_reg, frame_id = 0;
 	VEHICLE_DG("@%s, enter, mipi_id(%d)\n", __func__, mipi_id);
 
 	if ((frame_ready > 1) || (cif->cif_cfg.buf_num < 2) ||
@@ -3946,6 +3971,10 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 		frm0_addr_uv = get_reg_index_of_frm0_uv_addr(mipi_id);
 		frm1_addr_y = get_reg_index_of_frm1_y_addr(mipi_id);
 		frm1_addr_uv = get_reg_index_of_frm1_uv_addr(mipi_id);
+		frm_num_reg = get_reg_index_of_frm_num(mipi_id);
+		frame_id = rkcif_read_reg(cif, frm_num_reg);
+		VEHICLE_DG("@%s, frm_num_reg(0x%x), frame_id:0x%x\n", __func__,
+			   frm_num_reg, frame_id);
 	} else {
 		frm0_addr_y = get_dvp_reg_index_of_frm0_y_addr(mipi_id);
 		frm0_addr_uv = get_dvp_reg_index_of_frm0_uv_addr(mipi_id);
@@ -3979,10 +4008,11 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 		uv_addr = temp_uv_addr;
 		commit_buf = 0;
 	} else {
-		if ((cif->interlaced_counts % 2) == 0) {
+		if ((frame_id != 0 && (frame_id & 0xffff) % 2 == 0) ||
+		    (frame_id == 0 && (cif->interlaced_counts % 2 == 0))) {
 			temp_y_addr = vehicle_flinger_request_cif_buffer();
 			if (temp_y_addr == 0) {
-				VEHICLE_INFO("%s,warnning request buffer failed\n", __func__);
+				VEHICLE_DGERR("%s,warnning request buffer failed\n", __func__);
 				spin_unlock(&cif->vbq_lock);
 				return -1;
 			}
@@ -3995,6 +4025,11 @@ static int vehicle_cif_next_buffer(struct vehicle_cif *cif, u32 frame_ready, int
 			//uv_addr = temp_uv_addr;
 			uv_addr = temp_uv_addr + cif->interlaced_offset;
 			commit_buf = 0; //even & odd field add
+			if (temp_y_addr == 0) {
+				VEHICLE_DGERR("%s,warnning temp_y_addr is NULL!\n", __func__);
+				spin_unlock(&cif->vbq_lock);
+				return -1;
+			}
 		}
 		WARN_ON(y_addr == cif->interlaced_offset);
 		WARN_ON(uv_addr == cif->interlaced_offset);
