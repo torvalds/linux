@@ -322,6 +322,7 @@ void bch2_do_pending_node_rewrites(struct bch_fs *);
 void bch2_free_pending_node_rewrites(struct bch_fs *);
 
 void bch2_fs_btree_interior_update_exit(struct bch_fs *);
+void bch2_fs_btree_interior_update_init_early(struct bch_fs *);
 int bch2_fs_btree_interior_update_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_UPDATE_INTERIOR_H */
