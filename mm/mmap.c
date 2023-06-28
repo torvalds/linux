@@ -2404,7 +2404,8 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 			break;
 		}
 		mas_set_range(&mas_detach, next->vm_start, next->vm_end - 1);
-		if (mas_store_gfp(&mas_detach, next, GFP_KERNEL))
+		error = mas_store_gfp(&mas_detach, next, GFP_KERNEL);
+		if (error)
 			goto munmap_gather_failed;
 		if (next->vm_flags & VM_LOCKED)
 			locked_vm += vma_pages(next);
@@ -2456,6 +2457,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 		mas_set_range(mas, start, end - 1);
 	}
 #endif
+	/* Point of no return */
 	mas_store_prealloc(mas, NULL);
 
 	mm->locked_vm -= locked_vm;
