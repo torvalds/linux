@@ -571,7 +571,8 @@ void
 xfs_extent_busy_flush(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
-	unsigned		busy_gen)
+	unsigned		busy_gen,
+	uint32_t		alloc_flags)
 {
 	DEFINE_WAIT		(wait);
 	int			error;
