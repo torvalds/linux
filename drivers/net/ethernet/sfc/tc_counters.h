@@ -32,6 +32,9 @@ struct efx_tc_counter {
 	u64 old_packets, old_bytes; /* Values last time passed to userspace */
 	/* jiffies of the last time we saw packets increase */
 	unsigned long touched;
+	struct work_struct work; /* For notifying encap actions */
+	/* owners of corresponding count actions */
+	struct list_head users;
 };
 
 struct efx_tc_counter_index {

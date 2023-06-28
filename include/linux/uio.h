@@ -413,4 +413,9 @@ static inline bool iov_iter_extract_will_pin(const struct iov_iter *iter)
 	return user_backed_iter(iter);
 }
 
+struct sg_table;
+ssize_t extract_iter_to_sg(struct iov_iter *iter, size_t len,
+			   struct sg_table *sgtable, unsigned int sg_max,
+			   iov_iter_extraction_t extraction_flags);
+
 #endif

@@ -15,6 +15,7 @@
 #include <linux/tcp.h>
 #include <linux/socket.h>
 
+#include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
@@ -1643,6 +1644,136 @@ TEST_F(tls_err, timeo)
 		EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
 		EXPECT_EQ(errno, EAGAIN);
 		exit(0);
+	}
+}
+
+TEST_F(tls_err, poll_partial_rec)
+{
+	struct pollfd pfd = { };
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	/* Write 100B, not the full record ... */
+	EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+	/* ... no full record should mean no POLLIN */
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 0);
+	/* Now write the rest, and it should all pop out of the other end. */
+	EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0), rec_len - 100);
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 1);
+	EXPECT_EQ(recv(self->cfd2, rec, sizeof(rec), 0), sizeof(buf));
+	EXPECT_EQ(memcmp(buf, rec, sizeof(buf)), 0);
+}
+
+TEST_F(tls_err, epoll_partial_rec)
+{
+	struct epoll_event ev, events[10];
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+	int epollfd;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	epollfd = epoll_create1(0);
+	ASSERT_GE(epollfd, 0);
+
+	memset(&ev, 0, sizeof(ev));
+	ev.events = EPOLLIN;
+	ev.data.fd = self->cfd2;
+	ASSERT_GE(epoll_ctl(epollfd, EPOLL_CTL_ADD, self->cfd2, &ev), 0);
+
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	/* Write 100B, not the full record ... */
+	EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+	/* ... no full record should mean no POLLIN */
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 0);
+	/* Now write the rest, and it should all pop out of the other end. */
+	EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0), rec_len - 100);
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 1);
+	EXPECT_EQ(recv(self->cfd2, rec, sizeof(rec), 0), sizeof(buf));
+	EXPECT_EQ(memcmp(buf, rec, sizeof(buf)), 0);
+
+	close(epollfd);
+}
+
+TEST_F(tls_err, poll_partial_rec_async)
+{
+	struct pollfd pfd = { };
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+	char token;
+	int p[2];
+	int ret;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	ASSERT_GE(pipe(p), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	ret = fork();
+	ASSERT_GE(ret, 0);
+
+	if (ret) {
+		int status, pid2;
+
+		close(p[1]);
+		usleep(1000); /* Give child a head start */
+
+		EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+
+		EXPECT_EQ(read(p[0], &token, 1), 1); /* Barrier #1 */
+
+		EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0),
+			  rec_len - 100);
+
+		pid2 = wait(&status);
+		EXPECT_EQ(pid2, ret);
+		EXPECT_EQ(status, 0);
+	} else {
+		close(p[0]);
+
+		/* Child should sleep in poll(), never get a wake */
+		pfd.fd = self->cfd2;
+		pfd.events = POLLIN;
+		EXPECT_EQ(poll(&pfd, 1, 5), 0);
+
+		EXPECT_EQ(write(p[1], &token, 1), 1); /* Barrier #1 */
+
+		pfd.fd = self->cfd2;
+		pfd.events = POLLIN;
+		EXPECT_EQ(poll(&pfd, 1, 5), 1);
+
+		exit(!_metadata->passed);
 	}
 }
 

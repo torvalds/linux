@@ -106,7 +106,7 @@ static void sp_technologic_init(struct sja1000_priv *priv, struct device_node *o
 
 static void sp_rzn1_init(struct sja1000_priv *priv, struct device_node *of)
 {
-	priv->flags = SJA1000_QUIRK_NO_CDR_REG;
+	priv->flags = SJA1000_QUIRK_NO_CDR_REG | SJA1000_QUIRK_RESET_ON_OVERRUN;
 }
 
 static void sp_populate(struct sja1000_priv *priv,
@@ -277,6 +277,9 @@ static int sp_probe(struct platform_device *pdev)
 		priv->irq_flags = IRQF_SHARED;
 	}
 
+	if (priv->flags & SJA1000_QUIRK_RESET_ON_OVERRUN)
+		priv->irq_flags |= IRQF_ONESHOT;
+
 	dev->irq = irq;
 	priv->reg_base = addr;
 
@@ -317,19 +320,17 @@ static int sp_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int sp_remove(struct platform_device *pdev)
+static void sp_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_sja1000dev(dev);
 	free_sja1000dev(dev);
-
-	return 0;
 }
 
 static struct platform_driver sp_driver = {
 	.probe = sp_probe,
-	.remove = sp_remove,
+	.remove_new = sp_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sp_of_table,

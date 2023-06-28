@@ -1942,8 +1942,10 @@ static int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
 	req.cal_done_valid = 1;
 	req.cal_done = ab->qmi.cal_done;
 
-	req.feature_list_valid = 1;
-	req.feature_list = BIT(CNSS_QDSS_CFG_MISS_V01);
+	if (ab->hw_params->qmi_cnss_feature_bitmap) {
+		req.feature_list_valid = 1;
+		req.feature_list = ab->hw_params->qmi_cnss_feature_bitmap;
+	}
 
 	/* BRINGUP: here we are piggybacking a lot of stuff using
 	 * internal_sleep_clock, should it be split?

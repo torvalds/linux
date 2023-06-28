@@ -102,14 +102,14 @@ static inline u8 mwifiex_space_avail_for_new_ba_stream(
 {
 	struct mwifiex_private *priv;
 	u8 i;
-	u32 ba_stream_num = 0, ba_stream_max;
+	size_t ba_stream_num = 0, ba_stream_max;
 
 	ba_stream_max = MWIFIEX_MAX_TX_BASTREAM_SUPPORTED;
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
 		if (priv)
-			ba_stream_num += mwifiex_wmm_list_len(
+			ba_stream_num += list_count_nodes(
 				&priv->tx_ba_stream_tbl_ptr);
 	}
 

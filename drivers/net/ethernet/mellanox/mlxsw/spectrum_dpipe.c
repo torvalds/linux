@@ -221,7 +221,7 @@ start_again:
 	for (; i < rif_count; i++) {
 		struct mlxsw_sp_rif *rif = mlxsw_sp_rif_by_index(mlxsw_sp, i);
 
-		if (!rif || !mlxsw_sp_rif_dev(rif))
+		if (!rif || !mlxsw_sp_rif_has_dev(rif))
 			continue;
 		err = mlxsw_sp_erif_entry_get(mlxsw_sp, &entry, rif,
 					      counters_enabled);

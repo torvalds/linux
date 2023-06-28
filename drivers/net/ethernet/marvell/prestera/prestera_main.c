@@ -300,8 +300,7 @@ static void prestera_pcs_get_state(struct phylink_pcs *pcs,
 	}
 }
 
-static int prestera_pcs_config(struct phylink_pcs *pcs,
-			       unsigned int mode,
+static int prestera_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			       phy_interface_t interface,
 			       const unsigned long *advertising,
 			       bool permit_pause_to_mac)
@@ -316,30 +315,25 @@ static int prestera_pcs_config(struct phylink_pcs *pcs,
 
 	cfg_mac.admin = true;
 	cfg_mac.fec = PRESTERA_PORT_FEC_OFF;
+	cfg_mac.inband = neg_mode == PHYLINK_PCS_NEG_INBAND_ENABLED;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_10GBASER:
 		cfg_mac.speed = SPEED_10000;
-		cfg_mac.inband = 0;
 		cfg_mac.mode = PRESTERA_MAC_MODE_SR_LR;
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
 		cfg_mac.speed = SPEED_2500;
 		cfg_mac.duplex = DUPLEX_FULL;
-		cfg_mac.inband = test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-					  advertising);
 		cfg_mac.mode = PRESTERA_MAC_MODE_SGMII;
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
-		cfg_mac.inband = 1;
 		cfg_mac.mode = PRESTERA_MAC_MODE_SGMII;
 		break;
 	case PHY_INTERFACE_MODE_1000BASEX:
 	default:
 		cfg_mac.speed = SPEED_1000;
 		cfg_mac.duplex = DUPLEX_FULL;
-		cfg_mac.inband = test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-					  advertising);
 		cfg_mac.mode = PRESTERA_MAC_MODE_1000BASE_X;
 		break;
 	}
@@ -401,6 +395,7 @@ static int prestera_port_sfp_bind(struct prestera_port *port)
 			continue;
 
 		port->phylink_pcs.ops = &prestera_pcs_ops;
+		port->phylink_pcs.neg_mode = true;
 
 		port->phy_config.dev = &port->dev->dev;
 		port->phy_config.type = PHYLINK_NETDEV;

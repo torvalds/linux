@@ -9,7 +9,7 @@
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
-#include <linux/fou.h>
+#include <uapi/linux/fou.h>
 
 /* Global operation policy for fou */
 extern const struct nla_policy fou_nl_policy[FOU_ATTR_IFINDEX + 1];

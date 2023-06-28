@@ -1075,6 +1075,45 @@ static const struct regmap_access_table ksz9896_register_set = {
 	.n_yes_ranges = ARRAY_SIZE(ksz9896_valid_regs),
 };
 
+static const struct regmap_range ksz8873_valid_regs[] = {
+	regmap_reg_range(0x00, 0x01),
+	/* global control register */
+	regmap_reg_range(0x02, 0x0f),
+
+	/* port registers */
+	regmap_reg_range(0x10, 0x1d),
+	regmap_reg_range(0x1e, 0x1f),
+	regmap_reg_range(0x20, 0x2d),
+	regmap_reg_range(0x2e, 0x2f),
+	regmap_reg_range(0x30, 0x39),
+	regmap_reg_range(0x3f, 0x3f),
+
+	/* advanced control registers */
+	regmap_reg_range(0x60, 0x6f),
+	regmap_reg_range(0x70, 0x75),
+	regmap_reg_range(0x76, 0x78),
+	regmap_reg_range(0x79, 0x7a),
+	regmap_reg_range(0x7b, 0x83),
+	regmap_reg_range(0x8e, 0x99),
+	regmap_reg_range(0x9a, 0xa5),
+	regmap_reg_range(0xa6, 0xa6),
+	regmap_reg_range(0xa7, 0xaa),
+	regmap_reg_range(0xab, 0xae),
+	regmap_reg_range(0xaf, 0xba),
+	regmap_reg_range(0xbb, 0xbc),
+	regmap_reg_range(0xbd, 0xbd),
+	regmap_reg_range(0xc0, 0xc0),
+	regmap_reg_range(0xc2, 0xc2),
+	regmap_reg_range(0xc3, 0xc3),
+	regmap_reg_range(0xc4, 0xc4),
+	regmap_reg_range(0xc6, 0xc6),
+};
+
+static const struct regmap_access_table ksz8873_register_set = {
+	.yes_ranges = ksz8873_valid_regs,
+	.n_yes_ranges = ARRAY_SIZE(ksz8873_valid_regs),
+};
+
 const struct ksz_chip_data ksz_switch_chips[] = {
 	[KSZ8563] = {
 		.chip_id = KSZ8563_CHIP_ID,
@@ -1214,6 +1253,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
 		.internal_phy = {true, true, false},
+		.wr_table = &ksz8873_register_set,
+		.rd_table = &ksz8873_register_set,
 	},
 
 	[KSZ9477] = {
@@ -1229,7 +1270,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.tc_cbs_supported = true,
 		.tc_ets_supported = true,
 		.ops = &ksz9477_dev_ops,
-		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1262,7 +1302,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 2,
 		.num_tx_queues = 4,
 		.ops = &ksz9477_dev_ops,
-		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1295,7 +1334,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.port_nirqs = 2,
 		.num_tx_queues = 4,
 		.ops = &ksz9477_dev_ops,
-		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -1382,7 +1420,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.tc_cbs_supported = true,
 		.tc_ets_supported = true,
 		.ops = &ksz9477_dev_ops,
-		.phy_errata_9477 = true,
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
@@ -2095,7 +2132,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* set broadcast storm protection 10% rate */
-	regmap_update_bits(dev->regmap[1], regs[S_BROADCAST_CTRL],
+	regmap_update_bits(ksz_regmap_16(dev), regs[S_BROADCAST_CTRL],
 			   BROADCAST_STORM_RATE,
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
@@ -2106,7 +2143,7 @@ static int ksz_setup(struct dsa_switch *ds)
 
 	ds->num_tx_queues = dev->info->num_tx_queues;
 
-	regmap_update_bits(dev->regmap[0], regs[S_MULTICAST_CTRL],
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_MULTICAST_CTRL],
 			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
 
 	ksz_init_mib_timer(dev);
@@ -2156,7 +2193,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* start switch */
-	regmap_update_bits(dev->regmap[0], regs[S_START_CTRL],
+	regmap_update_bits(ksz_regmap_8(dev), regs[S_START_CTRL],
 			   SW_START, SW_START);
 
 	return 0;

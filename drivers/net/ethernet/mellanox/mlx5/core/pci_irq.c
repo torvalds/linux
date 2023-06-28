@@ -41,6 +41,15 @@ struct mlx5_irq_table {
 	struct mlx5_irq_pool *sf_comp_pool;
 };
 
+static int mlx5_core_func_to_vport(const struct mlx5_core_dev *dev,
+				   int func,
+				   bool ec_vf_func)
+{
+	if (!ec_vf_func)
+		return func;
+	return mlx5_core_ec_vf_vport_base(dev) + func - 1;
+}
+
 /**
  * mlx5_get_default_msix_vec_count - Get the default number of MSI-X vectors
  *                                   to be ssigned to each VF.
@@ -79,6 +88,8 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
 	void *hca_cap = NULL, *query_cap = NULL, *cap;
 	int num_vf_msix, min_msix, max_msix;
+	bool ec_vf_function;
+	int vport;
 	int ret;
 
 	num_vf_msix = MLX5_CAP_GEN_MAX(dev, num_total_dynamic_vf_msix);
@@ -104,7 +115,9 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 		goto out;
 	}
 
-	ret = mlx5_vport_get_other_func_general_cap(dev, function_id, query_cap);
+	ec_vf_function = mlx5_core_ec_sriov_enabled(dev);
+	vport = mlx5_core_func_to_vport(dev, function_id, ec_vf_function);
+	ret = mlx5_vport_get_other_func_general_cap(dev, vport, query_cap);
 	if (ret)
 		goto out;
 
@@ -115,6 +128,7 @@ int mlx5_set_msix_vec_count(struct mlx5_core_dev *dev, int function_id,
 
 	MLX5_SET(set_hca_cap_in, hca_cap, opcode, MLX5_CMD_OP_SET_HCA_CAP);
 	MLX5_SET(set_hca_cap_in, hca_cap, other_function, 1);
+	MLX5_SET(set_hca_cap_in, hca_cap, ec_vf_function, ec_vf_function);
 	MLX5_SET(set_hca_cap_in, hca_cap, function_id, function_id);
 
 	MLX5_SET(set_hca_cap_in, hca_cap, op_mod,

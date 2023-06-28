@@ -155,7 +155,7 @@ static int do_try_sendpage(struct socket *sock, struct iov_iter *it)
 			      it->bvec->bv_offset + it->iov_offset);
 
 		/*
-		 * sendpage cannot properly handle pages with
+		 * MSG_SPLICE_PAGES cannot properly handle pages with
 		 * page_count == 0, we need to fall back to sendmsg if
 		 * that's the case.
 		 *
@@ -163,14 +163,13 @@ static int do_try_sendpage(struct socket *sock, struct iov_iter *it)
 		 * coalescing neighboring slab objects into a single frag
 		 * which triggers one of hardened usercopy checks.
 		 */
-		if (sendpage_ok(bv.bv_page)) {
-			ret = sock->ops->sendpage(sock, bv.bv_page,
-						  bv.bv_offset, bv.bv_len,
-						  CEPH_MSG_FLAGS);
-		} else {
-			iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bv, 1, bv.bv_len);
-			ret = sock_sendmsg(sock, &msg);
-		}
+		if (sendpage_ok(bv.bv_page))
+			msg.msg_flags |= MSG_SPLICE_PAGES;
+		else
+			msg.msg_flags &= ~MSG_SPLICE_PAGES;
+
+		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bv, 1, bv.bv_len);
+		ret = sock_sendmsg(sock, &msg);
 		if (ret <= 0) {
 			if (ret == -EAGAIN)
 				ret = 0;
@@ -185,7 +184,7 @@ static int do_try_sendpage(struct socket *sock, struct iov_iter *it)
 
 /*
  * Write as much as possible.  The socket is expected to be corked,
- * so we don't bother with MSG_MORE/MSG_SENDPAGE_NOTLAST here.
+ * so we don't bother with MSG_MORE here.
  *
  * Return:
  *   1 - done, nothing (else) to write
