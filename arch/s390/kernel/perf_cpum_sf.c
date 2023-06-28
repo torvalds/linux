@@ -1865,7 +1865,7 @@ static void cpumsf_pmu_read(struct perf_event *event)
 	/* Nothing to do ... updates are interrupt-driven */
 }
 
-/* Check if the new sampling period/freqeuncy is appropriate.
+/* Check if the new sampling period/frequency is appropriate.
  *
  * Return non-zero on error and zero on passed checks.
  */

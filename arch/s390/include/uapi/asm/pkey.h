@@ -353,7 +353,7 @@ struct pkey_kblob2pkey2 {
  * Is able to find out which type of secure key is given (CCA AES secure
  * key, CCA AES cipher key, CCA ECC private key, EP11 AES key, EP11 ECC private
  * key) and tries to find all matching crypto cards based on the MKVP and maybe
- * other criterias (like CCA AES cipher keys need a CEX5C or higher, EP11 keys
+ * other criteria (like CCA AES cipher keys need a CEX5C or higher, EP11 keys
  * with BLOB_PKEY_EXTRACTABLE need a CEX7 and EP11 api version 4). The list of
  * APQNs is further filtered by the key's mkvp which needs to match to either
  * the current mkvp (CCA and EP11) or the alternate mkvp (old mkvp, CCA adapters
@@ -370,7 +370,7 @@ struct pkey_kblob2pkey2 {
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
  * of apqn targets found and the ioctl returns with 0. If apqn_entries is > 0
  * but the number of apqn targets does not fit into the list, the apqn_targets
- * field is updatedd with the number of reqired entries but there are no apqn
+ * field is updated with the number of required entries but there are no apqn
  * values stored in the list and the ioctl returns with ENOSPC. If no matching
  * APQN is found, the ioctl returns with 0 but the apqn_entries value is 0.
  */
@@ -408,7 +408,7 @@ struct pkey_apqns4key {
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
  * of apqn targets found and the ioctl returns with 0. If apqn_entries is > 0
  * but the number of apqn targets does not fit into the list, the apqn_targets
- * field is updatedd with the number of reqired entries but there are no apqn
+ * field is updated with the number of required entries but there are no apqn
  * values stored in the list and the ioctl returns with ENOSPC. If no matching
  * APQN is found, the ioctl returns with 0 but the apqn_entries value is 0.
  */

@@ -1740,7 +1740,7 @@ EXPORT_SYMBOL_GPL(gmap_shadow);
  * The r2t parameter specifies the address of the source table. The
  * four pages of the source table are made read-only in the parent gmap
  * address space. A write to the source table area @r2t will automatically
- * remove the shadow r2 table and all of its decendents.
+ * remove the shadow r2 table and all of its descendants.
  *
  * Returns 0 if successfully shadowed or already shadowed, -EAGAIN if the
  * shadow table structure is incomplete, -ENOMEM if out of memory and

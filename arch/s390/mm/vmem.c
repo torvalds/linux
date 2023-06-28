@@ -558,7 +558,7 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
  * to any physical address. If missing, allocate segment- and region-
  * table entries along. Meeting a large segment- or region-table entry
  * while traversing is an error, since the function is expected to be
- * called against virtual regions reserverd for 4KB mappings only.
+ * called against virtual regions reserved for 4KB mappings only.
  */
 pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 {

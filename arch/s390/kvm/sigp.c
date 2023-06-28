@@ -469,7 +469,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
  *
  * This interception will occur at the source cpu when a source cpu sends an
  * external call to a target cpu and the target cpu has the WAIT bit set in
- * its cpuflags. Interception will occurr after the interrupt indicator bits at
+ * its cpuflags. Interception will occur after the interrupt indicator bits at
  * the target cpu have been set. All error cases will lead to instruction
  * interception, therefore nothing is to be checked or prepared.
  */

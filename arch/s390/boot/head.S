@@ -67,7 +67,7 @@ ipl_start:
 	jz	.Lagain1		# skip dataset header
 	larl	%r13,.L_eof
 	clc	0(3,%r4),0(%r13)	# if it is EOFx
-	jz	.Lagain1		# skip dateset trailer
+	jz	.Lagain1		# skip data set trailer
 	lgr	%r5,%r2
 	la	%r6,COMMAND_LINE-PARMAREA(%r12)
 	lgr	%r7,%r2

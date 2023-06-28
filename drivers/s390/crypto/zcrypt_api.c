@@ -674,7 +674,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	pref_zq = NULL;
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
-		/* Check for usable accelarator or CCA card */
+		/* Check for usable accelerator or CCA card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x18000000))
 			continue;
@@ -779,7 +779,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	pref_zq = NULL;
 	spin_lock(&zcrypt_list_lock);
 	for_each_zcrypt_card(zc) {
-		/* Check for usable accelarator or CCA card */
+		/* Check for usable accelerator or CCA card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
 		    !(zc->card->functions & 0x18000000))
 			continue;
