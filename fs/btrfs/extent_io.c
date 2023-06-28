@@ -471,17 +471,15 @@ void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 	struct btrfs_inode *inode;
 	const bool uptodate = (err == 0);
 	int ret = 0;
+	u32 len = end + 1 - start;
 
+	ASSERT(end + 1 - start <= U32_MAX);
 	ASSERT(page && page->mapping);
 	inode = BTRFS_I(page->mapping->host);
-	btrfs_writepage_endio_finish_ordered(inode, page, start, end, uptodate);
+	btrfs_mark_ordered_io_finished(inode, page, start, len, uptodate);
 
 	if (!uptodate) {
 		const struct btrfs_fs_info *fs_info = inode->root->fs_info;
-		u32 len;
-
-		ASSERT(end + 1 - start <= U32_MAX);
-		len = end + 1 - start;
 
 		btrfs_page_clear_uptodate(fs_info, page, start, len);
 		ret = err < 0 ? err : -EIO;
@@ -1349,6 +1347,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 
 	bio_ctrl->end_io_func = end_bio_extent_writepage;
 	while (cur <= end) {
+		u32 len = end - cur + 1;
 		u64 disk_bytenr;
 		u64 em_end;
 		u64 dirty_range_start = cur;
@@ -1356,8 +1355,8 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 		u32 iosize;
 
 		if (cur >= i_size) {
-			btrfs_writepage_endio_finish_ordered(inode, page, cur,
-							     end, true);
+			btrfs_mark_ordered_io_finished(inode, page, cur, len,
+						       true);
 			/*
 			 * This range is beyond i_size, thus we don't need to
 			 * bother writing back.
@@ -1366,7 +1365,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 			 * writeback the sectors with subpage dirty bits,
 			 * causing writeback without ordered extent.
 			 */
-			btrfs_page_clear_dirty(fs_info, page, cur, end + 1 - cur);
+			btrfs_page_clear_dirty(fs_info, page, cur, len);
 			break;
 		}
 
@@ -1377,7 +1376,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 			continue;
 		}
 
-		em = btrfs_get_extent(inode, NULL, 0, cur, end - cur + 1);
+		em = btrfs_get_extent(inode, NULL, 0, cur, len);
 		if (IS_ERR(em)) {
 			ret = PTR_ERR_OR_ZERO(em);
 			goto out_error;
