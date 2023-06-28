@@ -1083,7 +1083,8 @@ int gfs2_quota_lock(struct gfs2_inode *ip, kuid_t uid, kgid_t gid)
 	u32 x;
 	int error = 0;
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON)
+	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
+	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
 		return 0;
 
 	error = gfs2_quota_hold(ip, uid, gid);
@@ -1202,10 +1203,11 @@ static int print_message(struct gfs2_quota_data *qd, char *type)
 {
 	struct gfs2_sbd *sdp = qd->qd_sbd;
 
-	fs_info(sdp, "quota %s for %s %u\n",
-		type,
-		(qd->qd_id.type == USRQUOTA) ? "user" : "group",
-		from_kqid(&init_user_ns, qd->qd_id));
+	if (sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET)
+		fs_info(sdp, "quota %s for %s %u\n",
+			type,
+			(qd->qd_id.type == USRQUOTA) ? "user" : "group",
+			from_kqid(&init_user_ns, qd->qd_id));
 
 	return 0;
 }
@@ -1291,7 +1293,8 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	u32 x;
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
-	if (sdp->sd_args.ar_quota != GFS2_QUOTA_ON ||
+	if ((sdp->sd_args.ar_quota != GFS2_QUOTA_ON &&
+	    sdp->sd_args.ar_quota != GFS2_QUOTA_QUIET) ||
 	    gfs2_assert_warn(sdp, change))
 		return;
 	if (ip->i_diskflags & GFS2_DIF_SYSTEM)
@@ -1601,6 +1604,8 @@ static int gfs2_quota_get_state(struct super_block *sb, struct qc_state *state)
 	memset(state, 0, sizeof(*state));
 
 	switch (sdp->sd_args.ar_quota) {
+	case GFS2_QUOTA_QUIET:
+		fallthrough;
 	case GFS2_QUOTA_ON:
 		state->s_state[USRQUOTA].flags |= QCI_LIMITS_ENFORCED;
 		state->s_state[GRPQUOTA].flags |= QCI_LIMITS_ENFORCED;

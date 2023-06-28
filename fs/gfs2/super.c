@@ -1119,6 +1119,9 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 		case GFS2_QUOTA_ON:
 			state = "on";
 			break;
+		case GFS2_QUOTA_QUIET:
+			state = "quiet";
+			break;
 		default:
 			state = "unknown";
 			break;

@@ -537,6 +537,7 @@ struct gfs2_statfs_change_host {
 #define GFS2_QUOTA_OFF		0
 #define GFS2_QUOTA_ACCOUNT	1
 #define GFS2_QUOTA_ON		2
+#define GFS2_QUOTA_QUIET	3 /* on but not complaining */
 
 #define GFS2_DATA_DEFAULT	GFS2_DATA_ORDERED
 #define GFS2_DATA_WRITEBACK	1

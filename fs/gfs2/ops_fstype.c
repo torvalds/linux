@@ -1396,6 +1396,7 @@ static const struct constant_table gfs2_param_quota[] = {
 	{"off",        GFS2_QUOTA_OFF},
 	{"account",    GFS2_QUOTA_ACCOUNT},
 	{"on",         GFS2_QUOTA_ON},
+	{"quiet",      GFS2_QUOTA_QUIET},
 	{}
 };
 
