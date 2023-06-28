@@ -596,13 +596,36 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 	}
 }
 
+static void mes_v12_0_set_ucode_start_addr(struct amdgpu_device *adev)
+{
+	uint64_t ucode_addr;
+	int pipe;
+
+	mes_v12_0_enable(adev, false);
+
+	mutex_lock(&adev->srbm_mutex);
+	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
+		/* me=3, queue=0 */
+		soc21_grbm_select(adev, 3, pipe, 0, 0);
+
+		/* set ucode start address */
+		ucode_addr = adev->mes.uc_start_addr[pipe] >> 2;
+		WREG32_SOC15(GC, 0, regCP_MES_PRGRM_CNTR_START,
+				lower_32_bits(ucode_addr));
+		WREG32_SOC15(GC, 0, regCP_MES_PRGRM_CNTR_START_HI,
+				upper_32_bits(ucode_addr));
+
+		soc21_grbm_select(adev, 0, 0, 0, 0);
+	}
+	mutex_unlock(&adev->srbm_mutex);
+}
+
 /* This function is for backdoor MES firmware */
 static int mes_v12_0_load_microcode(struct amdgpu_device *adev,
 				    enum admgpu_mes_pipe pipe, bool prime_icache)
 {
 	int r;
 	uint32_t data;
-	uint64_t ucode_addr;
 
 	mes_v12_0_enable(adev, false);
 
@@ -624,13 +647,6 @@ static int mes_v12_0_load_microcode(struct amdgpu_device *adev,
 	soc21_grbm_select(adev, 3, pipe, 0, 0);
 
 	WREG32_SOC15(GC, 0, regCP_MES_IC_BASE_CNTL, 0);
-
-	/* set ucode start address */
-	ucode_addr = adev->mes.uc_start_addr[pipe] >> 2;
-	WREG32_SOC15(GC, 0, regCP_MES_PRGRM_CNTR_START,
-		     lower_32_bits(ucode_addr));
-	WREG32_SOC15(GC, 0, regCP_MES_PRGRM_CNTR_START_HI,
-		     upper_32_bits(ucode_addr));
 
 	/* set ucode fimrware address */
 	WREG32_SOC15(GC, 0, regCP_MES_IC_BASE_LO,
@@ -1158,7 +1174,10 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 			return r;
 		}
 
-	}
+		mes_v12_0_set_ucode_start_addr(adev);
+
+	} else if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO)
+		mes_v12_0_set_ucode_start_addr(adev);
 
 	mes_v12_0_enable(adev, true);
 
