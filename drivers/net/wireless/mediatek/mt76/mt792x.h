@@ -229,5 +229,11 @@ void mt792x_dma_cleanup(struct mt792x_dev *dev);
 int mt792x_dma_disable(struct mt792x_dev *dev, bool force);
 int mt792x_poll_rx(struct napi_struct *napi, int budget);
 int mt792x_wfsys_reset(struct mt792x_dev *dev, u32 addr);
+int mt792x_tx_stats_show(struct seq_file *file, void *data);
+int mt792x_queues_acq(struct seq_file *s, void *data);
+int mt792x_queues_read(struct seq_file *s, void *data);
+int mt792x_pm_stats(struct seq_file *s, void *data);
+int mt792x_pm_idle_timeout_set(void *data, u64 val);
+int mt792x_pm_idle_timeout_get(void *data, u64 *val);
 
 #endif /* __MT7925_H */
