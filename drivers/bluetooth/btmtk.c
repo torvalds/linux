@@ -57,6 +57,7 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 			      wmt_cmd_sync_func_t wmt_cmd_sync)
 {
 	struct btmtk_hci_wmt_params wmt_params;
+	struct btmtk_patch_header *hdr;
 	struct btmtk_global_desc *globaldesc = NULL;
 	struct btmtk_section_map *sectionmap;
 	const struct firmware *fw;
@@ -75,8 +76,12 @@ int btmtk_setup_firmware_79xx(struct hci_dev *hdev, const char *fwname,
 
 	fw_ptr = fw->data;
 	fw_bin_ptr = fw_ptr;
+	hdr = (struct btmtk_patch_header *)fw_ptr;
 	globaldesc = (struct btmtk_global_desc *)(fw_ptr + MTK_FW_ROM_PATCH_HEADER_SIZE);
 	section_num = le32_to_cpu(globaldesc->section_num);
+
+	bt_dev_info(hdev, "HW/SW Version: 0x%04x%04x, Build Time: %s",
+		    le16_to_cpu(hdr->hwver), le16_to_cpu(hdr->swver), hdr->datetime);
 
 	for (i = 0; i < section_num; i++) {
 		first_block = 1;
