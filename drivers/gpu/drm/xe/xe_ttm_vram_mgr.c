@@ -360,7 +360,8 @@ int xe_ttm_vram_mgr_init(struct xe_tile *tile, struct xe_ttm_vram_mgr *mgr)
 	mgr->tile = tile;
 
 	return __xe_ttm_vram_mgr_init(xe, mgr, XE_PL_VRAM0 + tile->id,
-				      tile->mem.vram.size, tile->mem.vram.io_size,
+				      tile->mem.vram.usable_size,
+				      tile->mem.vram.io_size,
 				      PAGE_SIZE);
 }
 

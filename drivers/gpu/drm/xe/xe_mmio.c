@@ -289,13 +289,13 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 		tile->mem.vram.base = tile_offset;
 
 		/* small bar can limit the visible size.  size accordingly */
-		tile->mem.vram.size = min_t(u64, vram_size, io_size);
+		tile->mem.vram.usable_size = min_t(u64, vram_size, io_size);
 		tile->mem.vram.mapping = xe->mem.vram.mapping + tile_offset;
 
 		drm_info(&xe->drm, "VRAM[%u, %u]: %pa, %pa\n", id, tile->id,
-			 &tile->mem.vram.io_start, &tile->mem.vram.size);
+			 &tile->mem.vram.io_start, &tile->mem.vram.usable_size);
 
-		if (tile->mem.vram.io_size < tile->mem.vram.size)
+		if (tile->mem.vram.io_size < tile->mem.vram.usable_size)
 			drm_info(&xe->drm, "VRAM[%u, %u]: CPU access limited to %pa\n", id,
 				 tile->id, &tile->mem.vram.io_size);
 

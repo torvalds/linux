@@ -125,7 +125,7 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 {
 	struct xe_tile *tile = mem_type_to_tile(xe, mem_type);
 
-	XE_BUG_ON(!tile->mem.vram.size);
+	XE_BUG_ON(!tile->mem.vram.usable_size);
 
 	places[*c] = (struct ttm_place) {
 		.mem_type = mem_type,
