@@ -1469,9 +1469,8 @@ unsigned long vehicle_flinger_request_cif_buffer(void)
 	int i;
 
 	src_buffer = NULL;
-	found = last_src_index + 1;
 	for (i = 1; i < NUM_SOURCE_BUFFERS; i++) {
-		found = (found + i) % NUM_SOURCE_BUFFERS;
+		found = (last_src_index + i) % NUM_SOURCE_BUFFERS;
 		VEHICLE_DG("%s,flg->source_buffer[%d].state(%d)",
 			__func__, found, flg->source_buffer[found].state);
 		if (flg->source_buffer[found].state == FREE) {
