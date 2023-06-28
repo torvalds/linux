@@ -659,9 +659,13 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 	if (spi_imx->slave_mode && is_imx53_ecspi(spi_imx))
 		ctrl |= (spi_imx->slave_burst * 8 - 1)
 			<< MX51_ECSPI_CTRL_BL_OFFSET;
-	else
-		ctrl |= (spi_imx->bits_per_word - 1)
-			<< MX51_ECSPI_CTRL_BL_OFFSET;
+	else {
+		if (spi_imx->count >= 512)
+			ctrl |= 0xFFF << MX51_ECSPI_CTRL_BL_OFFSET;
+		else
+			ctrl |= (spi_imx->count*8 - 1)
+				<< MX51_ECSPI_CTRL_BL_OFFSET;
+	}
 
 	/* set clock speed */
 	ctrl &= ~(0xf << MX51_ECSPI_CTRL_POSTDIV_OFFSET |
@@ -1258,6 +1262,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		spi_imx->spi_bus_clk = t->speed_hz;
 
 	spi_imx->bits_per_word = t->bits_per_word;
+	spi_imx->count = t->len;
 
 	/*
 	 * Initialize the functions for transfer. To transfer non byte-aligned
