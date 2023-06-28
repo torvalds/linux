@@ -157,7 +157,7 @@ static int mt7921u_mcu_init(struct mt792x_dev *dev)
 
 static void mt7921u_stop(struct ieee80211_hw *hw)
 {
-	struct mt792x_dev *dev = mt7921_hw_dev(hw);
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
 
 	mt76u_stop_tx(&dev->mt76);
 	mt7921_stop(hw);

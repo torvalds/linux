@@ -126,6 +126,14 @@ struct mt792x_dev {
 	u32 backup_l2;
 };
 
+static inline struct mt792x_dev *
+mt792x_hw_dev(struct ieee80211_hw *hw)
+{
+	struct mt76_phy *phy = hw->priv;
+
+	return container_of(phy->dev, struct mt792x_dev, mt76);
+}
+
 #define mt792x_mutex_acquire(dev)	\
 	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
 #define mt792x_mutex_release(dev)	\
