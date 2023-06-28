@@ -1185,8 +1185,10 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		struct page *page, struct writeback_control *wbc)
 {
-	const u64 page_end = page_offset(page) + PAGE_SIZE - 1;
-	u64 delalloc_start = page_offset(page);
+	const u64 page_start = page_offset(page);
+	const u64 page_end = page_start + PAGE_SIZE - 1;
+	u64 delalloc_start = page_start;
+	u64 delalloc_end = page_end;
 	u64 delalloc_to_write = 0;
 	/* How many pages are started by btrfs_run_delalloc_range() */
 	unsigned long nr_written = 0;
@@ -1194,13 +1196,9 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	int page_started = 0;
 
 	while (delalloc_start < page_end) {
-		u64 delalloc_end = page_end;
-		bool found;
-
-		found = find_lock_delalloc_range(&inode->vfs_inode, page,
-					       &delalloc_start,
-					       &delalloc_end);
-		if (!found) {
+		delalloc_end = page_end;
+		if (!find_lock_delalloc_range(&inode->vfs_inode, page,
+					      &delalloc_start, &delalloc_end)) {
 			delalloc_start = delalloc_end + 1;
 			continue;
 		}
@@ -1209,14 +1207,15 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 		if (ret)
 			return ret;
 
-		/*
-		 * delalloc_end is already one less than the total length, so
-		 * we don't subtract one from PAGE_SIZE
-		 */
-		delalloc_to_write += (delalloc_end - delalloc_start +
-				      PAGE_SIZE) >> PAGE_SHIFT;
 		delalloc_start = delalloc_end + 1;
 	}
+
+	/*
+	 * delalloc_end is already one less than the total length, so
+	 * we don't subtract one from PAGE_SIZE
+	 */
+	delalloc_to_write +=
+		DIV_ROUND_UP(delalloc_end + 1 - page_start, PAGE_SIZE);
 	if (wbc->nr_to_write < delalloc_to_write) {
 		int thresh = 8192;
 
