@@ -298,6 +298,9 @@ struct btrfs_root {
 	/* Used only by log trees, when logging csum items */
 	struct extent_io_tree log_csum_range;
 
+	/* Used in simple quotas, track root during relocation. */
+	u64 relocation_src_root;
+
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	u64 alloc_bytenr;
 #endif
