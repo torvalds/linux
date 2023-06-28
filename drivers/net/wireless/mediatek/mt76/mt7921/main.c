@@ -10,7 +10,7 @@
 #include "mcu.h"
 
 static int
-mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
+mt7921_init_he_caps(struct mt792x_phy *phy, enum nl80211_band band,
 		    struct ieee80211_sband_iftype_data *data)
 {
 	int i, idx = 0;
@@ -185,7 +185,7 @@ mt7921_init_he_caps(struct mt7921_phy *phy, enum nl80211_band band,
 	return idx;
 }
 
-void mt7921_set_stream_he_caps(struct mt7921_phy *phy)
+void mt7921_set_stream_he_caps(struct mt792x_phy *phy)
 {
 	struct ieee80211_sband_iftype_data *data;
 	struct ieee80211_supported_band *band;
@@ -219,7 +219,7 @@ void mt7921_set_stream_he_caps(struct mt7921_phy *phy)
 	}
 }
 
-int __mt7921_start(struct mt7921_phy *phy)
+int __mt7921_start(struct mt792x_phy *phy)
 {
 	struct mt76_phy *mphy = phy->mt76;
 	int err;
@@ -252,7 +252,7 @@ EXPORT_SYMBOL_GPL(__mt7921_start);
 
 static int mt7921_start(struct ieee80211_hw *hw)
 {
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	int err;
 
 	mt7921_mutex_acquire(phy->dev);
@@ -265,7 +265,7 @@ static int mt7921_start(struct ieee80211_hw *hw)
 void mt7921_stop(struct ieee80211_hw *hw)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 
 	cancel_delayed_work_sync(&phy->mt76->mac_work);
 
@@ -286,7 +286,7 @@ static int mt7921_add_interface(struct ieee80211_hw *hw,
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt76_txq *mtxq;
 	int idx, ret = 0;
 
@@ -344,7 +344,7 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt792x_sta *msta = &mvif->sta;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	int idx = msta->wcid.idx;
 
 	mt7921_mutex_acquire(dev);
@@ -369,16 +369,16 @@ static void mt7921_roc_iter(void *priv, u8 *mac,
 			    struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_phy *phy = priv;
+	struct mt792x_phy *phy = priv;
 
 	mt7921_mcu_abort_roc(phy, mvif, phy->roc_token_id);
 }
 
 void mt7921_roc_work(struct work_struct *work)
 {
-	struct mt7921_phy *phy;
+	struct mt792x_phy *phy;
 
-	phy = (struct mt7921_phy *)container_of(work, struct mt7921_phy,
+	phy = (struct mt792x_phy *)container_of(work, struct mt792x_phy,
 						roc_work);
 
 	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
@@ -394,12 +394,12 @@ void mt7921_roc_work(struct work_struct *work)
 
 void mt7921_roc_timer(struct timer_list *timer)
 {
-	struct mt7921_phy *phy = from_timer(phy, timer, roc_timer);
+	struct mt792x_phy *phy = from_timer(phy, timer, roc_timer);
 
 	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
 }
 
-static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif)
+static int mt7921_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif)
 {
 	int err = 0;
 
@@ -414,7 +414,7 @@ static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif)
 	return err;
 }
 
-static int mt7921_set_roc(struct mt7921_phy *phy,
+static int mt7921_set_roc(struct mt792x_phy *phy,
 			  struct mt792x_vif *vif,
 			  struct ieee80211_channel *chan,
 			  int duration,
@@ -451,7 +451,7 @@ static int mt7921_remain_on_channel(struct ieee80211_hw *hw,
 				    enum ieee80211_roc_type type)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	int err;
 
 	mt7921_mutex_acquire(phy->dev);
@@ -465,12 +465,12 @@ static int mt7921_cancel_remain_on_channel(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 
 	return mt7921_abort_roc(phy, mvif);
 }
 
-static int mt7921_set_channel(struct mt7921_phy *phy)
+static int mt7921_set_channel(struct mt792x_phy *phy)
 {
 	struct mt7921_dev *dev = phy->dev;
 	int ret;
@@ -631,7 +631,7 @@ void mt7921_set_runtime_pm(struct mt7921_dev *dev)
 static int mt7921_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	int ret = 0;
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
@@ -710,7 +710,7 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_bss_conf *info,
 				    u64 changed)
 {
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 
 	mt7921_mutex_acquire(dev);
@@ -994,7 +994,7 @@ static int
 mt7921_get_stats(struct ieee80211_hw *hw,
 		 struct ieee80211_low_level_stats *stats)
 {
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt76_mib_stats *mib = &phy->mib;
 
 	mt7921_mutex_acquire(phy->dev);
@@ -1135,7 +1135,7 @@ void mt7921_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	int stats_size = ARRAY_SIZE(mt7921_gstrings_stats);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = phy->dev;
 	struct mt76_mib_stats *mib = &phy->mib;
 	struct mt76_ethtool_worker_info wi = {
@@ -1252,7 +1252,7 @@ mt7921_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static void
 mt7921_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = phy->dev;
 
 	mt7921_mutex_acquire(dev);
@@ -1263,9 +1263,9 @@ mt7921_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 
 void mt7921_scan_work(struct work_struct *work)
 {
-	struct mt7921_phy *phy;
+	struct mt792x_phy *phy;
 
-	phy = (struct mt7921_phy *)container_of(work, struct mt7921_phy,
+	phy = (struct mt792x_phy *)container_of(work, struct mt792x_phy,
 						scan_work.work);
 
 	while (true) {
@@ -1360,7 +1360,7 @@ static int
 mt7921_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	int max_nss = hweight8(hw->wiphy->available_antennas_tx);
 
 	if (!tx_ant || tx_ant != rx_ant || ffs(tx_ant) > max_nss)
@@ -1424,7 +1424,7 @@ static int mt7921_suspend(struct ieee80211_hw *hw,
 			  struct cfg80211_wowlan *wowlan)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 
 	cancel_delayed_work_sync(&phy->scan_work);
 	cancel_delayed_work_sync(&phy->mt76->mac_work);
@@ -1448,7 +1448,7 @@ static int mt7921_suspend(struct ieee80211_hw *hw,
 static int mt7921_resume(struct ieee80211_hw *hw)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 
 	mt7921_mutex_acquire(dev);
 
@@ -1631,7 +1631,7 @@ mt7921_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_bss_conf *link_conf)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	int err;
 
@@ -1659,7 +1659,7 @@ mt7921_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       struct ieee80211_bss_conf *link_conf)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	int err;
 
@@ -1709,7 +1709,7 @@ mt7921_change_chanctx(struct ieee80211_hw *hw,
 		      struct ieee80211_chanctx_conf *ctx,
 		      u32 changed)
 {
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 
 	mt7921_mutex_acquire(phy->dev);
 	ieee80211_iterate_active_interfaces(phy->mt76->hw,

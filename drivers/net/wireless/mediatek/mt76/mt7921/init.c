@@ -60,7 +60,7 @@ static ssize_t mt7921_thermal_temp_show(struct device *dev,
 {
 	switch (to_sensor_dev_attr(attr)->index) {
 	case 0: {
-		struct mt7921_phy *phy = dev_get_drvdata(dev);
+		struct mt792x_phy *phy = dev_get_drvdata(dev);
 		struct mt7921_dev *mdev = phy->dev;
 		int temperature;
 
@@ -85,7 +85,7 @@ static struct attribute *mt7921_hwmon_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mt7921_hwmon);
 
-static int mt7921_thermal_init(struct mt7921_phy *phy)
+static int mt7921_thermal_init(struct mt792x_phy *phy)
 {
 	struct wiphy *wiphy = phy->mt76->hw->wiphy;
 	struct device *hwmon;
@@ -126,7 +126,7 @@ mt7921_regd_notifier(struct wiphy *wiphy,
 static int
 mt7921_init_wiphy(struct ieee80211_hw *hw)
 {
-	struct mt7921_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = phy->dev;
 	struct wiphy *wiphy = hw->wiphy;
 

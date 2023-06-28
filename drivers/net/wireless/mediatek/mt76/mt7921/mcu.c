@@ -160,7 +160,7 @@ static void
 mt7921_mcu_scan_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7921_phy *phy = (struct mt7921_phy *)mphy->priv;
+	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
 
 	spin_lock_bh(&dev->mt76.lock);
 	__skb_queue_tail(&phy->scan_event_list, skb);
@@ -394,7 +394,7 @@ static int mt7921_load_clc(struct mt7921_dev *dev, const char *fw_name)
 	const struct mt76_connac2_fw_region *region;
 	const struct mt7921_clc *clc;
 	struct mt76_dev *mdev = &dev->mt76;
-	struct mt7921_phy *phy = &dev->phy;
+	struct mt792x_phy *phy = &dev->phy;
 	const struct firmware *fw;
 	int ret, i, len, offset = 0;
 	u8 *clc_base = NULL, hw_encap = 0;
@@ -635,7 +635,7 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 				 &req_mu, sizeof(req_mu), false);
 }
 
-int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
+int mt7921_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 		       struct ieee80211_channel *chan, int duration,
 		       enum mt7921_roc_req type, u8 token_id)
 {
@@ -702,7 +702,7 @@ int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
 				 &req, sizeof(req), false);
 }
 
-int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
+int mt7921_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id)
 {
 	struct mt7921_dev *dev = phy->dev;
@@ -732,7 +732,7 @@ int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
 				 &req, sizeof(req), false);
 }
 
-int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd)
+int mt7921_mcu_set_chan_info(struct mt792x_phy *phy, int cmd)
 {
 	struct mt7921_dev *dev = phy->dev;
 	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
@@ -1286,7 +1286,7 @@ int __mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 		       enum environment_cap env_cap)
 {
-	struct mt7921_phy *phy = (struct mt7921_phy *)&dev->phy;
+	struct mt792x_phy *phy = (struct mt792x_phy *)&dev->phy;
 	int i, ret;
 
 	/* submit all clc config */
@@ -1305,7 +1305,7 @@ int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 	return 0;
 }
 
-int mt7921_mcu_get_temperature(struct mt7921_phy *phy)
+int mt7921_mcu_get_temperature(struct mt792x_phy *phy)
 {
 	struct mt7921_dev *dev = phy->dev;
 	struct {

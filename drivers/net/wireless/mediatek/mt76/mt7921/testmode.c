@@ -113,7 +113,7 @@ int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct nlattr *tb[NUM_MT76_TM_ATTRS];
 	struct mt76_phy *mphy = hw->priv;
-	struct mt7921_phy *phy = mphy->priv;
+	struct mt792x_phy *phy = mphy->priv;
 	int err;
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state) ||
@@ -150,7 +150,7 @@ int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 {
 	struct nlattr *tb[NUM_MT76_TM_ATTRS];
 	struct mt76_phy *mphy = hw->priv;
-	struct mt7921_phy *phy = mphy->priv;
+	struct mt792x_phy *phy = mphy->priv;
 	int err;
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state) ||

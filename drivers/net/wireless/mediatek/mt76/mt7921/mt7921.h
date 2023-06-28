@@ -168,7 +168,7 @@ struct mt792x_vif {
 	struct mt792x_sta sta;
 	struct mt792x_sta *wep_sta;
 
-	struct mt7921_phy *phy;
+	struct mt792x_phy *phy;
 
 	struct ewma_rssi rssi;
 
@@ -199,7 +199,7 @@ struct mt7921_clc {
 	u8 data[];
 } __packed;
 
-struct mt7921_phy {
+struct mt792x_phy {
 	struct mt76_phy *mt76;
 	struct mt7921_dev *dev;
 
@@ -264,7 +264,7 @@ struct mt7921_dev {
 	};
 
 	const struct mt76_bus_ops *bus_ops;
-	struct mt7921_phy phy;
+	struct mt792x_phy phy;
 
 	struct work_struct reset_work;
 	bool hw_full_reset:1;
@@ -317,7 +317,7 @@ struct mt7921_txpwr {
 	} data[TXPWR_MAX_NUM];
 };
 
-static inline struct mt7921_phy *
+static inline struct mt792x_phy *
 mt7921_hw_phy(struct ieee80211_hw *hw)
 {
 	struct mt76_phy *phy = hw->priv;
@@ -342,7 +342,7 @@ extern const struct ieee80211_ops mt7921_ops;
 
 u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 
-int __mt7921_start(struct mt7921_phy *phy);
+int __mt7921_start(struct mt792x_phy *phy);
 int mt7921_register_device(struct mt7921_dev *dev);
 void mt7921_unregister_device(struct mt7921_dev *dev);
 int mt7921_dma_init(struct mt7921_dev *dev);
@@ -355,10 +355,10 @@ int mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state);
-int mt7921_mcu_set_chan_info(struct mt7921_phy *phy, int cmd);
+int mt7921_mcu_set_chan_info(struct mt792x_phy *phy, int cmd);
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif);
 int mt7921_mcu_set_eeprom(struct mt7921_dev *dev);
-int mt7921_mcu_get_rx_rate(struct mt7921_phy *phy, struct ieee80211_vif *vif,
+int mt7921_mcu_get_rx_rate(struct mt792x_phy *phy, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, struct rate_info *rate);
 int mt7921_mcu_fw_log_2_host(struct mt7921_dev *dev, u8 ctrl);
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb);
@@ -423,8 +423,8 @@ mt7921_skb_add_usb_sdio_hdr(struct mt7921_dev *dev, struct sk_buff *skb,
 void mt7921_stop(struct ieee80211_hw *hw);
 int mt7921_mac_init(struct mt7921_dev *dev);
 bool mt7921_mac_wtbl_update(struct mt7921_dev *dev, int idx, u32 mask);
-void mt7921_mac_reset_counters(struct mt7921_phy *phy);
-void mt7921_mac_set_timing(struct mt7921_phy *phy);
+void mt7921_mac_reset_counters(struct mt792x_phy *phy);
+void mt7921_mac_set_timing(struct mt792x_phy *phy);
 int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
 void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
@@ -433,7 +433,7 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void mt7921_mac_work(struct work_struct *work);
 void mt7921_mac_reset_work(struct work_struct *work);
-void mt7921_mac_update_mib_stats(struct mt7921_phy *phy);
+void mt7921_mac_update_mib_stats(struct mt792x_phy *phy);
 void mt7921_reset(struct mt76_dev *mdev);
 int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			   enum mt76_txq_id qid, struct mt76_wcid *wcid,
@@ -445,7 +445,7 @@ bool mt7921_rx_check(struct mt76_dev *mdev, void *data, int len);
 void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb, u32 *info);
 void mt7921_stats_work(struct work_struct *work);
-void mt7921_set_stream_he_caps(struct mt7921_phy *phy);
+void mt7921_set_stream_he_caps(struct mt792x_phy *phy);
 void mt7921_update_channel(struct mt76_phy *mphy);
 int mt7921_init_debugfs(struct mt7921_dev *dev);
 
@@ -499,7 +499,7 @@ int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 			   bool enable);
 int mt7921_mcu_config_sniffer(struct mt792x_vif *vif,
 			      struct ieee80211_chanctx_conf *ctx);
-int mt7921_mcu_get_temperature(struct mt7921_phy *phy);
+int mt7921_mcu_get_temperature(struct mt792x_phy *phy);
 
 int mt7921_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 				   enum mt76_txq_id qid, struct mt76_wcid *wcid,
@@ -524,8 +524,8 @@ int mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 				      bool enable);
 #ifdef CONFIG_ACPI
 int mt7921_init_acpi_sar(struct mt7921_dev *dev);
-int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default);
-u8 mt7921_acpi_get_flags(struct mt7921_phy *phy);
+int mt7921_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default);
+u8 mt7921_acpi_get_flags(struct mt792x_phy *phy);
 #else
 static inline int
 mt7921_init_acpi_sar(struct mt7921_dev *dev)
@@ -534,13 +534,13 @@ mt7921_init_acpi_sar(struct mt7921_dev *dev)
 }
 
 static inline int
-mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
+mt7921_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default)
 {
 	return 0;
 }
 
 static inline u8
-mt7921_acpi_get_flags(struct mt7921_phy *phy)
+mt7921_acpi_get_flags(struct mt792x_phy *phy)
 {
 	return 0;
 }
@@ -550,10 +550,10 @@ int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
 
 int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 		       enum environment_cap env_cap);
-int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
+int mt7921_mcu_set_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 		       struct ieee80211_channel *chan, int duration,
 		       enum mt7921_roc_req type, u8 token_id);
-int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
+int mt7921_mcu_abort_roc(struct mt792x_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id);
 struct ieee80211_ops *mt7921_get_mac80211_ops(struct device *dev,
 					      void *drv_data, u8 *fw_features);

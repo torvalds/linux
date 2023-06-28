@@ -193,7 +193,7 @@ int mt7921_init_acpi_sar(struct mt7921_dev *dev)
 }
 
 static s8
-mt7921_asar_get_geo_pwr(struct mt7921_phy *phy,
+mt7921_asar_get_geo_pwr(struct mt792x_phy *phy,
 			enum nl80211_band band, s8 dyn_power)
 {
 	struct mt7921_acpi_sar *asar = phy->acpisar;
@@ -248,7 +248,7 @@ mt7921_asar_get_geo_pwr(struct mt7921_phy *phy,
 }
 
 static s8
-mt7921_asar_range_pwr(struct mt7921_phy *phy,
+mt7921_asar_range_pwr(struct mt792x_phy *phy,
 		      const struct cfg80211_sar_freq_ranges *range,
 		      u8 idx)
 {
@@ -280,7 +280,7 @@ mt7921_asar_range_pwr(struct mt7921_phy *phy,
 	return mt7921_asar_get_geo_pwr(phy, band, limit[idx]);
 }
 
-int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
+int mt7921_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default)
 {
 	const struct cfg80211_sar_capa *capa = phy->mt76->hw->wiphy->sar_capa;
 	int i;
@@ -306,7 +306,7 @@ int mt7921_init_acpi_sar_power(struct mt7921_phy *phy, bool set_default)
 	return 0;
 }
 
-u8 mt7921_acpi_get_flags(struct mt7921_phy *phy)
+u8 mt7921_acpi_get_flags(struct mt792x_phy *phy)
 {
 	struct mt7921_acpi_sar *acpisar = phy->acpisar;
 	struct mt7921_asar_fg *fg;

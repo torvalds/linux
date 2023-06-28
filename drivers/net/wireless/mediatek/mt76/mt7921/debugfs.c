@@ -58,7 +58,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_fw_debug, mt7921_fw_debug_get,
 			 mt7921_fw_debug_set, "%lld\n");
 
 static void
-mt7921_ampdu_stat_read_phy(struct mt7921_phy *phy,
+mt7921_ampdu_stat_read_phy(struct mt792x_phy *phy,
 			   struct seq_file *file)
 {
 	struct mt7921_dev *dev = file->private;
@@ -94,7 +94,7 @@ static int
 mt7921_tx_stats_show(struct seq_file *file, void *data)
 {
 	struct mt7921_dev *dev = file->private;
-	struct mt7921_phy *phy = &dev->phy;
+	struct mt792x_phy *phy = &dev->phy;
 	struct mt76_mib_stats *mib = &phy->mib;
 	int i;
 

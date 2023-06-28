@@ -240,7 +240,7 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 	u16 hdr_gap;
 	__le32 *rxv = NULL, *rxd = (__le32 *)skb->data;
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt7921_phy *phy = &dev->phy;
+	struct mt792x_phy *phy = &dev->phy;
 	struct ieee80211_supported_band *sband;
 	u32 csum_status = *(u32 *)skb->cb;
 	u32 rxd0 = le32_to_cpu(rxd[0]);
@@ -699,7 +699,7 @@ void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 }
 EXPORT_SYMBOL_GPL(mt7921_queue_rx_skb);
 
-void mt7921_mac_reset_counters(struct mt7921_phy *phy)
+void mt7921_mac_reset_counters(struct mt792x_phy *phy)
 {
 	struct mt7921_dev *dev = phy->dev;
 	int i;
@@ -721,7 +721,7 @@ void mt7921_mac_reset_counters(struct mt7921_phy *phy)
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
 }
 
-void mt7921_mac_set_timing(struct mt7921_phy *phy)
+void mt7921_mac_set_timing(struct mt792x_phy *phy)
 {
 	s16 coverage_class = phy->coverage_class;
 	struct mt7921_dev *dev = phy->dev;
@@ -763,7 +763,7 @@ void mt7921_mac_set_timing(struct mt7921_phy *phy)
 }
 
 static u8
-mt7921_phy_get_nf(struct mt7921_phy *phy, int idx)
+mt7921_phy_get_nf(struct mt792x_phy *phy, int idx)
 {
 	return 0;
 }
@@ -772,7 +772,7 @@ static void
 mt7921_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
 	struct mt7921_dev *dev = container_of(mphy->dev, struct mt7921_dev, mt76);
-	struct mt7921_phy *phy = (struct mt7921_phy *)mphy->priv;
+	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
 	struct mt76_channel_state *state;
 	u64 busy_time, tx_time, rx_time, obss_time;
 	int nf;
@@ -902,7 +902,7 @@ void mt7921_reset(struct mt76_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mt7921_reset);
 
-void mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
+void mt7921_mac_update_mib_stats(struct mt792x_phy *phy)
 {
 	struct mt76_mib_stats *mib = &phy->mib;
 	struct mt7921_dev *dev = phy->dev;
@@ -964,7 +964,7 @@ void mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 
 void mt7921_mac_work(struct work_struct *work)
 {
-	struct mt7921_phy *phy;
+	struct mt792x_phy *phy;
 	struct mt76_phy *mphy;
 
 	mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
