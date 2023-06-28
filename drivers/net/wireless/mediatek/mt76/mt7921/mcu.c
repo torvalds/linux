@@ -364,30 +364,6 @@ int mt7921_mcu_uni_rx_ba(struct mt792x_dev *dev,
 				      enable, false);
 }
 
-static char *mt7921_patch_name(struct mt792x_dev *dev)
-{
-	char *ret;
-
-	if (is_mt7922(&dev->mt76))
-		ret = MT7922_ROM_PATCH;
-	else
-		ret = MT7921_ROM_PATCH;
-
-	return ret;
-}
-
-static char *mt7921_ram_name(struct mt792x_dev *dev)
-{
-	char *ret;
-
-	if (is_mt7922(&dev->mt76))
-		ret = MT7922_FIRMWARE_WM;
-	else
-		ret = MT7921_FIRMWARE_WM;
-
-	return ret;
-}
-
 static int mt7921_load_clc(struct mt792x_dev *dev, const char *fw_name)
 {
 	const struct mt76_connac2_fw_trailer *hdr;
@@ -472,41 +448,6 @@ out:
 	return ret;
 }
 
-static int mt7921_load_firmware(struct mt792x_dev *dev)
-{
-	int ret;
-
-	ret = mt76_connac2_load_patch(&dev->mt76, mt7921_patch_name(dev));
-	if (ret)
-		return ret;
-
-	if (mt76_is_sdio(&dev->mt76)) {
-		/* activate again */
-		ret = __mt792x_mcu_fw_pmctrl(dev);
-		if (!ret)
-			ret = __mt792x_mcu_drv_pmctrl(dev);
-	}
-
-	ret = mt76_connac2_load_ram(&dev->mt76, mt7921_ram_name(dev), NULL);
-	if (ret)
-		return ret;
-
-	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY,
-			    MT_TOP_MISC2_FW_N9_RDY, 1500)) {
-		dev_err(dev->mt76.dev, "Timeout for initializing firmware\n");
-
-		return -EIO;
-	}
-
-#ifdef CONFIG_PM
-	dev->mt76.hw->wiphy->wowlan = &mt76_connac_wowlan_support;
-#endif /* CONFIG_PM */
-
-	dev_dbg(dev->mt76.dev, "Firmware init done\n");
-
-	return 0;
-}
-
 int mt7921_mcu_fw_log_2_host(struct mt792x_dev *dev, u8 ctrl)
 {
 	struct {
@@ -524,7 +465,7 @@ int mt7921_run_firmware(struct mt792x_dev *dev)
 {
 	int err;
 
-	err = mt7921_load_firmware(dev);
+	err = mt792x_load_firmware(dev);
 	if (err)
 		return err;
 
@@ -533,7 +474,7 @@ int mt7921_run_firmware(struct mt792x_dev *dev)
 		return err;
 
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
-	err = mt7921_load_clc(dev, mt7921_ram_name(dev));
+	err = mt7921_load_clc(dev, mt792x_ram_name(dev));
 	if (err)
 		return err;
 

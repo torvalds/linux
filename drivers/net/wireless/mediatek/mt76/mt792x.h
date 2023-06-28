@@ -31,6 +31,12 @@
 #define MT792x_MCU_INIT_RETRY_COUNT	10
 #define MT792x_WFSYS_INIT_RETRY_COUNT	2
 
+#define MT7921_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7961_1.bin"
+#define MT7922_FIRMWARE_WM	"mediatek/WIFI_RAM_CODE_MT7922_1.bin"
+
+#define MT7921_ROM_PATCH	"mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin"
+#define MT7922_ROM_PATCH	"mediatek/WIFI_MT7922_patch_mcu_1_1_hdr.bin"
+
 struct mt792x_vif;
 struct mt792x_sta;
 
@@ -293,6 +299,28 @@ mt792x_get_mac80211_ops(struct device *dev,
 int mt792x_init_wcid(struct mt792x_dev *dev);
 int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
+
+static inline char *mt792x_ram_name(struct mt792x_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7922:
+		return MT7922_FIRMWARE_WM;
+	default:
+		return MT7921_FIRMWARE_WM;
+	}
+}
+
+static inline char *mt792x_patch_name(struct mt792x_dev *dev)
+{
+	switch (mt76_chip(&dev->mt76)) {
+	case 0x7922:
+		return MT7922_ROM_PATCH;
+	default:
+		return MT7921_ROM_PATCH;
+	}
+}
+
+int mt792x_load_firmware(struct mt792x_dev *dev);
 
 /* usb */
 #define MT_USB_TYPE_VENDOR	(USB_TYPE_VENDOR | 0x1f)
