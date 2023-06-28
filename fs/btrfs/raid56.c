@@ -584,8 +584,7 @@ static int rbio_can_merge(struct btrfs_raid_bio *last,
 	if (last->operation == BTRFS_RBIO_PARITY_SCRUB)
 		return 0;
 
-	if (last->operation == BTRFS_RBIO_REBUILD_MISSING ||
-	    last->operation == BTRFS_RBIO_READ_REBUILD)
+	if (last->operation == BTRFS_RBIO_READ_REBUILD)
 		return 0;
 
 	return 1;
@@ -784,10 +783,7 @@ static noinline void unlock_stripe(struct btrfs_raid_bio *rbio)
 			spin_unlock(&rbio->bio_list_lock);
 			spin_unlock(&h->lock);
 
-			if (next->operation == BTRFS_RBIO_READ_REBUILD)
-				start_async_work(next, recover_rbio_work_locked);
-			else if (next->operation == BTRFS_RBIO_REBUILD_MISSING) {
-				steal_rbio(rbio, next);
+			if (next->operation == BTRFS_RBIO_READ_REBUILD) {
 				start_async_work(next, recover_rbio_work_locked);
 			} else if (next->operation == BTRFS_RBIO_WRITE) {
 				steal_rbio(rbio, next);
@@ -1698,8 +1694,7 @@ static int verify_one_sector(struct btrfs_raid_bio *rbio,
 	 * If we're rebuilding a read, we have to use pages from the
 	 * bio list if possible.
 	 */
-	if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
-	     rbio->operation == BTRFS_RBIO_REBUILD_MISSING)) {
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
 		sector = sector_in_rbio(rbio, stripe_nr, sector_nr, 0);
 	} else {
 		sector = rbio_stripe_sector(rbio, stripe_nr, sector_nr);
@@ -1763,8 +1758,7 @@ static int recover_vertical(struct btrfs_raid_bio *rbio, int sector_nr,
 		 * If we're rebuilding a read, we have to use pages from the
 		 * bio list if possible.
 		 */
-		if ((rbio->operation == BTRFS_RBIO_READ_REBUILD ||
-		     rbio->operation == BTRFS_RBIO_REBUILD_MISSING)) {
+		if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
 			sector = sector_in_rbio(rbio, stripe_nr, sector_nr, 0);
 		} else {
 			sector = rbio_stripe_sector(rbio, stripe_nr, sector_nr);
@@ -1897,8 +1891,7 @@ static int recover_sectors(struct btrfs_raid_bio *rbio)
 		goto out;
 	}
 
-	if (rbio->operation == BTRFS_RBIO_READ_REBUILD ||
-	    rbio->operation == BTRFS_RBIO_REBUILD_MISSING) {
+	if (rbio->operation == BTRFS_RBIO_READ_REBUILD) {
 		spin_lock(&rbio->bio_list_lock);
 		set_bit(RBIO_RMW_LOCKED_BIT, &rbio->flags);
 		spin_unlock(&rbio->bio_list_lock);
