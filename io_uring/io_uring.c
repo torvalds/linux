@@ -1237,17 +1237,31 @@ static inline struct llist_node *io_llist_cmpxchg(struct llist_head *head,
 	return cmpxchg(&head->first, old, new);
 }
 
-static __cold void io_fallback_tw(struct io_uring_task *tctx)
+static __cold void io_fallback_tw(struct io_uring_task *tctx, bool sync)
 {
 	struct llist_node *node = llist_del_all(&tctx->task_list);
+	struct io_ring_ctx *last_ctx = NULL;
 	struct io_kiocb *req;
 
 	while (node) {
 		req = container_of(node, struct io_kiocb, io_task_work.node);
 		node = node->next;
+		if (sync && last_ctx != req->ctx) {
+			if (last_ctx) {
+				flush_delayed_work(&last_ctx->fallback_work);
+				percpu_ref_put(&last_ctx->refs);
+			}
+			last_ctx = req->ctx;
+			percpu_ref_get(&last_ctx->refs);
+		}
 		if (llist_add(&req->io_task_work.node,
 			      &req->ctx->fallback_llist))
 			schedule_delayed_work(&req->ctx->fallback_work, 1);
+	}
+
+	if (last_ctx) {
+		flush_delayed_work(&last_ctx->fallback_work);
+		percpu_ref_put(&last_ctx->refs);
 	}
 }
 
@@ -1263,7 +1277,7 @@ void tctx_task_work(struct callback_head *cb)
 	unsigned int count = 0;
 
 	if (unlikely(current->flags & PF_EXITING)) {
-		io_fallback_tw(tctx);
+		io_fallback_tw(tctx, true);
 		return;
 	}
 
@@ -1358,7 +1372,7 @@ static void io_req_normal_work_add(struct io_kiocb *req)
 	if (likely(!task_work_add(req->task, &tctx->task_work, ctx->notify_method)))
 		return;
 
-	io_fallback_tw(tctx);
+	io_fallback_tw(tctx, false);
 }
 
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
@@ -3107,6 +3121,8 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	 */
 	if (ctx->rings)
 		io_kill_timeouts(ctx, NULL, true);
+
+	flush_delayed_work(&ctx->fallback_work);
 
 	INIT_WORK(&ctx->exit_work, io_ring_exit_work);
 	/*
