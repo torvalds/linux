@@ -1036,6 +1036,7 @@ config REGULATOR_QCOM_USB_VBUS
 config REGULATOR_RAA215300
 	tristate "Renesas RAA215300 driver"
 	select REGMAP_I2C
+	depends on COMMON_CLK
 	depends on I2C
 	help
 	  Support for the Renesas RAA215300 PMIC.
