@@ -12,6 +12,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/firmware.h>
+#include <linux/jh7110-isp.h>
 #include "stf_isp_ioctl.h"
 #include "stf_dmabuf.h"
 
@@ -264,7 +265,7 @@ static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = ctrl_to_sd(ctrl);
 	struct stf_isp_dev *isp_dev = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = 0;
 
 	/*
 	 * If the device is not powered up by the host driver do
@@ -309,6 +310,12 @@ static int isp_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VFLIP:
 		ret = isp_set_ctrl_vflip(isp_dev, ctrl->val);
 		break;
+	case V4L2_CID_USER_JH7110_ISP_WB_SETTING:
+		break;
+	case V4L2_CID_USER_JH7110_ISP_CAR_SETTING:
+		break;
+	case V4L2_CID_USER_JH7110_ISP_CCM_SETTING:
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -322,12 +329,52 @@ static const struct v4l2_ctrl_ops isp_ctrl_ops = {
 	.s_ctrl = isp_s_ctrl,
 };
 
+struct v4l2_ctrl_config isp_ctrl[] = {
+	[0] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "WB Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_WB_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_wb_setting),
+		.flags		= 0,
+	},
+	[1] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "Car Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_CAR_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_car_setting),
+		.flags		= 0,
+	},
+	[2] = {
+		.ops		= &isp_ctrl_ops,
+		.type		= V4L2_CTRL_TYPE_U8,
+		.def		= 0,
+		.min		= 0x00,
+		.max		= 0xff,
+		.step		= 1,
+		.name		= "CCM Setting",
+		.id		= V4L2_CID_USER_JH7110_ISP_CCM_SETTING,
+		.dims[0]	= sizeof(struct jh7110_isp_ccm_setting),
+		.flags		= 0,
+	},
+};
+
 static int isp_init_controls(struct stf_isp_dev *isp_dev)
 {
 	const struct v4l2_ctrl_ops *ops = &isp_ctrl_ops;
 	struct isp_ctrls *ctrls = &isp_dev->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
 	int ret;
+	int i;
 
 	v4l2_ctrl_handler_init(hdl, 32);
 
@@ -377,6 +424,10 @@ static int isp_init_controls(struct stf_isp_dev *isp_dev)
 				       V4L2_CID_POWER_LINE_FREQUENCY,
 				       V4L2_CID_POWER_LINE_FREQUENCY_AUTO, 0,
 				       V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+
+	for (i = 0; i < ARRAY_SIZE(isp_ctrl); i++)
+		v4l2_ctrl_new_custom(hdl, &isp_ctrl[i], NULL);
+
 
 	if (hdl->error) {
 		ret = hdl->error;
