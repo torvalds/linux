@@ -384,6 +384,7 @@ int intel_huc_init(struct intel_huc *huc)
 
 		vma = intel_guc_allocate_vma(&gt->uc.guc, PXP43_HUC_AUTH_INOUT_SIZE * 2);
 		if (IS_ERR(vma)) {
+			err = PTR_ERR(vma);
 			huc_info(huc, "Failed to allocate heci pkt\n");
 			goto out;
 		}
