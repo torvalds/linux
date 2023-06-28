@@ -830,7 +830,7 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
  * are written in the same order that the flusher thread sent them
  * down.
  */
-static noinline int compress_file_range(struct async_chunk *async_chunk)
+static noinline void compress_file_range(struct async_chunk *async_chunk)
 {
 	struct btrfs_inode *inode = async_chunk->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -848,7 +848,6 @@ static noinline int compress_file_range(struct async_chunk *async_chunk)
 	int i;
 	int will_compress;
 	int compress_type = fs_info->compress_type;
-	int compressed_extents = 0;
 	int redirty = 0;
 
 	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
@@ -1025,7 +1024,7 @@ cont:
 				}
 				kfree(pages);
 			}
-			return 0;
+			return;
 		}
 	}
 
@@ -1044,8 +1043,6 @@ cont:
 		 */
 		total_in = round_up(total_in, fs_info->sectorsize);
 		if (total_compressed + blocksize <= total_in) {
-			compressed_extents++;
-
 			/*
 			 * The async work queues will take care of doing actual
 			 * allocation on disk for these compressed pages, and
@@ -1061,7 +1058,7 @@ cont:
 				cond_resched();
 				goto again;
 			}
-			return compressed_extents;
+			return;
 		}
 	}
 	if (pages) {
@@ -1102,9 +1099,6 @@ cleanup_and_bail_uncompressed:
 		extent_range_redirty_for_io(&inode->vfs_inode, start, end);
 	add_async_extent(async_chunk, start, end - start + 1, 0, NULL, 0,
 			 BTRFS_COMPRESS_NONE);
-	compressed_extents++;
-
-	return compressed_extents;
 }
 
 static void free_async_extent_pages(struct async_extent *async_extent)
@@ -1655,15 +1649,9 @@ out_unlock:
 static noinline void async_cow_start(struct btrfs_work *work)
 {
 	struct async_chunk *async_chunk;
-	int compressed_extents;
 
 	async_chunk = container_of(work, struct async_chunk, work);
-
-	compressed_extents = compress_file_range(async_chunk);
-	if (compressed_extents == 0) {
-		btrfs_add_delayed_iput(async_chunk->inode);
-		async_chunk->inode = NULL;
-	}
+	compress_file_range(async_chunk);
 }
 
 /*
@@ -1700,8 +1688,7 @@ static noinline void async_cow_free(struct btrfs_work *work)
 	struct async_cow *async_cow;
 
 	async_chunk = container_of(work, struct async_chunk, work);
-	if (async_chunk->inode)
-		btrfs_add_delayed_iput(async_chunk->inode);
+	btrfs_add_delayed_iput(async_chunk->inode);
 	if (async_chunk->blkcg_css)
 		css_put(async_chunk->blkcg_css);
 
