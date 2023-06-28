@@ -16,6 +16,11 @@ const char * const bch2_error_actions[] = {
 	NULL
 };
 
+const char * const bch2_version_upgrade_opts[] = {
+	BCH_VERSION_UPGRADE_OPTS()
+	NULL
+};
+
 const char * const bch2_sb_features[] = {
 	BCH_SB_FEATURES()
 	NULL

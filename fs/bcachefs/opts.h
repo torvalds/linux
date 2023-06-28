@@ -9,6 +9,7 @@
 #include "bcachefs_format.h"
 
 extern const char * const bch2_error_actions[];
+extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const bch2_btree_ids[];
@@ -388,8 +389,8 @@ enum opt_type {
 	  NULL,		"Reconstruct alloc btree")			\
 	x(version_upgrade,		u8,				\
 	  OPT_FS|OPT_MOUNT,						\
-	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		false,				\
+	  OPT_STR(bch2_version_upgrade_opts),				\
+	  BCH_SB_VERSION_UPGRADE,	BCH_VERSION_UPGRADE_compatible,	\
 	  NULL,		"Set superblock to latest version,\n"		\
 			"allowing any new features to be used")		\
 	x(buckets_nouse,		u8,				\

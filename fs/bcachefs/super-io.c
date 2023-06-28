@@ -816,7 +816,7 @@ int bch2_write_super(struct bch_fs *c)
 	closure_init_stack(cl);
 	memset(&sb_written, 0, sizeof(sb_written));
 
-	if (c->opts.version_upgrade) {
+	if (test_bit(BCH_FS_VERSION_UPGRADE, &c->flags)) {
 		c->disk_sb.sb->magic = BCHFS_MAGIC;
 		c->disk_sb.sb->layout.magic = BCHFS_MAGIC;
 	}
@@ -1197,11 +1197,11 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
 
-	if (c->opts.version_upgrade ||
+	if (test_bit(BCH_FS_VERSION_UPGRADE, &c->flags) ||
 	    c->sb.version > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
 
-	if (c->opts.version_upgrade)
+	if (test_bit(BCH_FS_VERSION_UPGRADE, &c->flags))
 		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALWAYS);

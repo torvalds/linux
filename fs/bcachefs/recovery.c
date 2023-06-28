@@ -1111,11 +1111,16 @@ static void check_version_upgrade(struct bch_fs *c)
 {
 	unsigned version = c->sb.version_upgrade_complete ?: c->sb.version;
 
-	if (version < bcachefs_metadata_required_upgrade_below) {
+	if (version < bcachefs_metadata_required_upgrade_below ||
+	    (version < bcachefs_metadata_version_current &&
+	     c->opts.version_upgrade != BCH_VERSION_UPGRADE_none)) {
 		struct printbuf buf = PRINTBUF;
 
-		if (version != c->sb.version)
-			prt_str(&buf, "version upgrade incomplete:\n");
+		if (version != c->sb.version) {
+			prt_str(&buf, "version upgrade to ");
+			bch2_version_to_text(&buf, c->sb.version);
+			prt_str(&buf, " incomplete:\n");
+		}
 
 		prt_str(&buf, "version ");
 		bch2_version_to_text(&buf, version);
@@ -1126,9 +1131,9 @@ static void check_version_upgrade(struct bch_fs *c)
 		bch_info(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 
-		c->opts.version_upgrade	= true;
 		c->opts.fsck		= true;
 		c->opts.fix_errors	= FSCK_OPT_YES;
+		set_bit(BCH_FS_VERSION_UPGRADE, &c->flags);
 	}
 }
 
@@ -1534,11 +1539,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_bformat_overflow_done);
 
-	if (c->sb.version < bcachefs_metadata_version_inode_v3)
-		c->opts.version_upgrade	= true;
-
-	if (c->opts.version_upgrade) {
+	if (c->opts.version_upgrade != BCH_VERSION_UPGRADE_none) {
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
+		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
 		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		bch2_write_super(c);
 	}
