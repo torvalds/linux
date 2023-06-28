@@ -464,29 +464,6 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
 		btrfs_subpage_end_reader(fs_info, page, start, len);
 }
 
-/* lots and lots of room for performance fixes in the end_bio funcs */
-
-void end_extent_writepage(struct page *page, int err, u64 start, u64 end)
-{
-	struct btrfs_inode *inode;
-	const bool uptodate = (err == 0);
-	int ret = 0;
-	u32 len = end + 1 - start;
-
-	ASSERT(end + 1 - start <= U32_MAX);
-	ASSERT(page && page->mapping);
-	inode = BTRFS_I(page->mapping->host);
-	btrfs_mark_ordered_io_finished(inode, page, start, len, uptodate);
-
-	if (!uptodate) {
-		const struct btrfs_fs_info *fs_info = inode->root->fs_info;
-
-		btrfs_page_clear_uptodate(fs_info, page, start, len);
-		ret = err < 0 ? err : -EIO;
-		mapping_set_error(page->mapping, ret);
-	}
-}
-
 /*
  * after a writepage IO is done, we need to:
  * clear the uptodate bits on error
@@ -1452,7 +1429,6 @@ static int __extent_writepage(struct page *page, struct btrfs_bio_ctrl *bio_ctrl
 	struct folio *folio = page_folio(page);
 	struct inode *inode = page->mapping->host;
 	const u64 page_start = page_offset(page);
-	const u64 page_end = page_start + PAGE_SIZE - 1;
 	int ret;
 	int nr = 0;
 	size_t pg_offset;
@@ -1496,8 +1472,13 @@ done:
 		set_page_writeback(page);
 		end_page_writeback(page);
 	}
-	if (ret)
-		end_extent_writepage(page, ret, page_start, page_end);
+	if (ret) {
+		btrfs_mark_ordered_io_finished(BTRFS_I(inode), page, page_start,
+					       PAGE_SIZE, !ret);
+		btrfs_page_clear_uptodate(btrfs_sb(inode->i_sb), page,
+					  page_start, PAGE_SIZE);
+		mapping_set_error(page->mapping, ret);
+	}
 	unlock_page(page);
 	ASSERT(ret <= 0);
 	return ret;
@@ -2222,6 +2203,7 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 
 	while (cur <= end) {
 		u64 cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
+		u32 cur_len = cur_end + 1 - cur;
 		struct page *page;
 		int nr = 0;
 
@@ -2245,9 +2227,13 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 			set_page_writeback(page);
 			end_page_writeback(page);
 		}
-		if (ret)
-			end_extent_writepage(page, ret, cur, cur_end);
-		btrfs_page_unlock_writer(fs_info, page, cur, cur_end + 1 - cur);
+		if (ret) {
+			btrfs_mark_ordered_io_finished(BTRFS_I(inode), page,
+						       cur, cur_len, !ret);
+			btrfs_page_clear_uptodate(fs_info, page, cur, cur_len);
+			mapping_set_error(page->mapping, ret);
+		}
+		btrfs_page_unlock_writer(fs_info, page, cur, cur_len);
 		if (ret < 0) {
 			found_error = true;
 			first_error = ret;
