@@ -1179,11 +1179,11 @@ static int submit_uncompressed_range(struct btrfs_inode *inode,
 	return ret;
 }
 
-static int submit_one_async_extent(struct btrfs_inode *inode,
-				   struct async_chunk *async_chunk,
-				   struct async_extent *async_extent,
-				   u64 *alloc_hint)
+static void submit_one_async_extent(struct async_chunk *async_chunk,
+				    struct async_extent *async_extent,
+				    u64 *alloc_hint)
 {
+	struct btrfs_inode *inode = async_chunk->inode;
 	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -1276,7 +1276,7 @@ done:
 	if (async_chunk->blkcg_css)
 		kthread_associate_blkcg(NULL);
 	kfree(async_extent);
-	return ret;
+	return;
 
 out_free_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
@@ -1290,7 +1290,13 @@ out_free:
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
 	free_async_extent_pages(async_extent);
-	goto done;
+	if (async_chunk->blkcg_css)
+		kthread_associate_blkcg(NULL);
+	btrfs_debug(fs_info,
+"async extent submission failed root=%lld inode=%llu start=%llu len=%llu ret=%d",
+		    root->root_key.objectid, btrfs_ino(inode), start,
+		    async_extent->ram_size, ret);
+	kfree(async_extent);
 }
 
 /*
@@ -1300,28 +1306,15 @@ out_free:
  */
 static noinline void submit_compressed_extents(struct async_chunk *async_chunk)
 {
-	struct btrfs_inode *inode = async_chunk->inode;
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct async_extent *async_extent;
 	u64 alloc_hint = 0;
-	int ret = 0;
 
 	while (!list_empty(&async_chunk->extents)) {
-		u64 extent_start;
-		u64 ram_size;
-
 		async_extent = list_entry(async_chunk->extents.next,
 					  struct async_extent, list);
 		list_del(&async_extent->list);
-		extent_start = async_extent->start;
-		ram_size = async_extent->ram_size;
 
-		ret = submit_one_async_extent(inode, async_chunk, async_extent,
-					      &alloc_hint);
-		btrfs_debug(fs_info,
-"async extent submission failed root=%lld inode=%llu start=%llu len=%llu ret=%d",
-			    inode->root->root_key.objectid,
-			    btrfs_ino(inode), extent_start, ram_size, ret);
+		submit_one_async_extent(async_chunk, async_extent, &alloc_hint);
 	}
 }
 
