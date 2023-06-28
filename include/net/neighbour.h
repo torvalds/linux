@@ -180,7 +180,7 @@ struct pneigh_entry {
 	struct net_device	*dev;
 	u8			flags;
 	u8			protocol;
-	u32			key[];
+	u8			key[];
 };
 
 /*
