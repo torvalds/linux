@@ -971,8 +971,6 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		set_bit(QDF_REFRESH, &qd->qd_flags);
 	}
 
-	error = 0;
-
 out_end_trans:
 	gfs2_trans_end(sdp);
 out_ipres:
