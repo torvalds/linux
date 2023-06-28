@@ -19,7 +19,8 @@ static int mt7921_poll_tx(struct napi_struct *napi, int budget)
 
 	mt76_connac_tx_cleanup(&dev->mt76);
 	if (napi_complete(napi))
-		mt76_connac_irq_enable(&dev->mt76, MT_INT_TX_DONE_ALL);
+		mt76_connac_irq_enable(&dev->mt76,
+				       dev->irq_map->tx.all_complete_mask);
 	mt76_connac_pm_unref(&dev->mphy, &dev->pm);
 
 	return 0;
@@ -72,8 +73,8 @@ static int mt7921_dma_enable(struct mt792x_dev *dev)
 
 	/* enable interrupts for TX/RX rings */
 	mt76_connac_irq_enable(&dev->mt76,
-			       MT_INT_RX_DONE_ALL | MT_INT_TX_DONE_ALL |
-			       MT_INT_MCU_CMD);
+			       dev->irq_map->tx.all_complete_mask |
+			       MT_INT_RX_DONE_ALL | MT_INT_MCU_CMD);
 	mt76_set(dev, MT_MCU2HOST_SW_INT_ENA, MT_MCU_CMD_WAKE_RX_PCIE);
 
 	return 0;
@@ -139,7 +140,7 @@ int mt7921_wpdma_reinit_cond(struct mt792x_dev *dev)
 	/* check if the wpdma must be reinitialized */
 	if (mt792x_dma_need_reinit(dev)) {
 		/* disable interrutpts */
-		mt76_wr(dev, MT_WFDMA0_HOST_INT_ENA, 0);
+		mt76_wr(dev, dev->irq_map->host_irq_enable, 0);
 		mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0x0);
 
 		err = mt7921_wpdma_reset(dev, false);

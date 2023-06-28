@@ -114,6 +114,19 @@ struct mt792x_phy {
 	bool roc_grant;
 };
 
+struct mt792x_irq_map {
+	u32 host_irq_enable;
+	struct {
+		u32 all_complete_mask;
+		u32 mcu_complete_mask;
+	} tx;
+	struct {
+		u32 data_complete_mask;
+		u32 wm_complete_mask;
+		u32 wm2_complete_mask;
+	} rx;
+};
+
 struct mt792x_hif_ops {
 	int (*init_reset)(struct mt792x_dev *dev);
 	int (*reset)(struct mt792x_dev *dev);
@@ -145,6 +158,7 @@ struct mt792x_dev {
 	struct mt76_connac_pm pm;
 	struct mt76_connac_coredump coredump;
 	const struct mt792x_hif_ops *hif_ops;
+	const struct mt792x_irq_map *irq_map;
 
 	struct work_struct ipv6_ns_work;
 	/* IPv6 addresses for WoWLAN */
