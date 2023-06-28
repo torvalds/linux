@@ -96,7 +96,7 @@ static int
 mt7921_mcu_set_ipv6_ns_filter(struct mt76_dev *dev,
 			      struct ieee80211_vif *vif, bool suspend)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct {
 		struct {
 			u8 bss_idx;
@@ -543,7 +543,7 @@ EXPORT_SYMBOL_GPL(mt7921_run_firmware);
 
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct edca {
 		__le16 cw_min;
 		__le16 cw_max;
@@ -635,7 +635,7 @@ int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 				 &req_mu, sizeof(req_mu), false);
 }
 
-int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
+int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
 		       struct ieee80211_channel *chan, int duration,
 		       enum mt7921_roc_req type, u8 token_id)
 {
@@ -702,7 +702,7 @@ int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
 				 &req, sizeof(req), false);
 }
 
-int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
+int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id)
 {
 	struct mt7921_dev *dev = phy->dev;
@@ -809,7 +809,7 @@ EXPORT_SYMBOL_GPL(mt7921_mcu_set_eeprom);
 
 int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct {
 		struct {
 			u8 bss_idx;
@@ -848,7 +848,7 @@ static int
 mt7921_mcu_uni_bss_bcnft(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 			 bool enable)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct {
 		struct {
 			u8 bss_idx;
@@ -884,7 +884,7 @@ int
 mt7921_mcu_set_bss_pm(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 		      bool enable)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct {
 		u8 bss_idx;
 		u8 dtim_period;
@@ -922,7 +922,7 @@ int mt7921_mcu_sta_update(struct mt7921_dev *dev, struct ieee80211_sta *sta,
 			  struct ieee80211_vif *vif, bool enable,
 			  enum mt76_sta_info_state state)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	int rssi = -ewma_rssi_read(&mvif->rssi);
 	struct mt76_sta_cmd_info info = {
 		.sta = sta,
@@ -1074,7 +1074,7 @@ int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 				 true);
 }
 
-int mt7921_mcu_config_sniffer(struct mt7921_vif *vif,
+int mt7921_mcu_config_sniffer(struct mt792x_vif *vif,
 			      struct ieee80211_chanctx_conf *ctx)
 {
 	struct cfg80211_chan_def *chandef = &ctx->def;
@@ -1148,7 +1148,7 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 				  struct ieee80211_vif *vif,
 				  bool enable)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	struct ieee80211_mutable_offsets offs;
 	struct {

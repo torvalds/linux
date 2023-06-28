@@ -127,7 +127,7 @@ struct mt7921_sdio_intr {
 #define to_rssi(field, rxv)		((FIELD_GET(field, rxv) - 220) / 2)
 #define to_rcpi(rssi)			(2 * (rssi) + 220)
 
-struct mt7921_vif;
+struct mt792x_vif;
 struct mt7921_sta;
 
 enum mt7921_txq_id {
@@ -148,7 +148,7 @@ DECLARE_EWMA(avg_signal, 10, 8)
 struct mt7921_sta {
 	struct mt76_wcid wcid; /* must be first */
 
-	struct mt7921_vif *vif;
+	struct mt792x_vif *vif;
 
 	u32 airtime_ac[8];
 
@@ -162,7 +162,7 @@ struct mt7921_sta {
 
 DECLARE_EWMA(rssi, 10, 8);
 
-struct mt7921_vif {
+struct mt792x_vif {
 	struct mt76_vif mt76; /* must be first */
 
 	struct mt7921_sta sta;
@@ -497,7 +497,7 @@ void mt7921_set_ipv6_ns_work(struct work_struct *work);
 
 int mt7921_mcu_set_sniffer(struct mt7921_dev *dev, struct ieee80211_vif *vif,
 			   bool enable);
-int mt7921_mcu_config_sniffer(struct mt7921_vif *vif,
+int mt7921_mcu_config_sniffer(struct mt792x_vif *vif,
 			      struct ieee80211_chanctx_conf *ctx);
 int mt7921_mcu_get_temperature(struct mt7921_phy *phy);
 
@@ -550,10 +550,10 @@ int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
 
 int mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 		       enum environment_cap env_cap);
-int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
+int mt7921_mcu_set_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
 		       struct ieee80211_channel *chan, int duration,
 		       enum mt7921_roc_req type, u8 token_id);
-int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif,
+int mt7921_mcu_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif,
 			 u8 token_id);
 struct ieee80211_ops *mt7921_get_mac80211_ops(struct device *dev,
 					      void *drv_data, u8 *fw_features);

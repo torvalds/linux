@@ -204,7 +204,7 @@ mt7921_mac_rssi_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct sk_buff *skb = priv;
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct ieee80211_hdr *hdr = mt76_skb_get_hdr(skb);
 
 	if (status->signal > 0)
@@ -819,7 +819,7 @@ static void
 mt7921_vif_connect_iter(void *priv, u8 *mac,
 			struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mvif->phy->dev;
 	struct ieee80211_hw *hw = mt76_hw(dev);
 

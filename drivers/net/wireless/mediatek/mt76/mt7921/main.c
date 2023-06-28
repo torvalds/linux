@@ -284,7 +284,7 @@ EXPORT_SYMBOL_GPL(mt7921_stop);
 static int mt7921_add_interface(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	struct mt76_txq *mtxq;
@@ -341,7 +341,7 @@ out:
 static void mt7921_remove_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_sta *msta = &mvif->sta;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
@@ -368,7 +368,7 @@ static void mt7921_remove_interface(struct ieee80211_hw *hw,
 static void mt7921_roc_iter(void *priv, u8 *mac,
 			    struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_phy *phy = priv;
 
 	mt7921_mcu_abort_roc(phy, mvif, phy->roc_token_id);
@@ -399,7 +399,7 @@ void mt7921_roc_timer(struct timer_list *timer)
 	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
 }
 
-static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif)
+static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt792x_vif *vif)
 {
 	int err = 0;
 
@@ -415,7 +415,7 @@ static int mt7921_abort_roc(struct mt7921_phy *phy, struct mt7921_vif *vif)
 }
 
 static int mt7921_set_roc(struct mt7921_phy *phy,
-			  struct mt7921_vif *vif,
+			  struct mt792x_vif *vif,
 			  struct ieee80211_channel *chan,
 			  int duration,
 			  enum mt7921_roc_req type)
@@ -450,7 +450,7 @@ static int mt7921_remain_on_channel(struct ieee80211_hw *hw,
 				    int duration,
 				    enum ieee80211_roc_type type)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	int err;
 
@@ -464,7 +464,7 @@ static int mt7921_remain_on_channel(struct ieee80211_hw *hw,
 static int mt7921_cancel_remain_on_channel(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 
 	return mt7921_abort_roc(phy, mvif);
@@ -507,7 +507,7 @@ static int mt7921_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_key_conf *key)
 {
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_sta *msta = sta ? (struct mt7921_sta *)sta->drv_priv :
 				  &mvif->sta;
 	struct mt76_wcid *wcid = &msta->wcid;
@@ -667,7 +667,7 @@ mt7921_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
 	queue = mt76_connac_lmac_mapping(queue);
@@ -743,7 +743,7 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ARP_FILTER) {
-		struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 		mt76_connac_mcu_update_arp_filter(&dev->mt76, &mvif->mt76,
 						  info);
@@ -757,7 +757,7 @@ int mt7921_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	int ret, idx;
 
 	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7921_WTBL_STA - 1);
@@ -798,7 +798,7 @@ void mt7921_mac_sta_assoc(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	struct mt7921_sta *msta = (struct mt7921_sta *)sta->drv_priv;
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 	mt7921_mutex_acquire(dev);
 
@@ -832,7 +832,7 @@ void mt7921_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
-		struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+		struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 		mvif->wep_sta = NULL;
 		ewma_rssi_init(&mvif->rssi);
@@ -884,9 +884,9 @@ static void mt7921_tx(struct ieee80211_hw *hw,
 	}
 
 	if (vif && !control->sta) {
-		struct mt7921_vif *mvif;
+		struct mt792x_vif *mvif;
 
-		mvif = (struct mt7921_vif *)vif->drv_priv;
+		mvif = (struct mt792x_vif *)vif->drv_priv;
 		wcid = &mvif->sta.wcid;
 	}
 
@@ -1133,7 +1133,7 @@ static
 void mt7921_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			 struct ethtool_stats *stats, u64 *data)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	int stats_size = ARRAY_SIZE(mt7921_gstrings_stats);
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = phy->dev;
@@ -1203,7 +1203,7 @@ void mt7921_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static u64
 mt7921_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	u8 omac_idx = mvif->mt76.omac_idx;
 	union {
@@ -1229,7 +1229,7 @@ static void
 mt7921_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       u64 timestamp)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	u8 omac_idx = mvif->mt76.omac_idx;
 	union {
@@ -1521,7 +1521,7 @@ static void mt7921_ipv6_addr_change(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct inet6_dev *idev)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mvif->phy->dev;
 	struct inet6_ifaddr *ifa;
 	struct in6_addr ns_addrs[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
@@ -1630,7 +1630,7 @@ static int
 mt7921_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_bss_conf *link_conf)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	int err;
@@ -1658,7 +1658,7 @@ static void
 mt7921_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       struct ieee80211_bss_conf *link_conf)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_phy *phy = mt7921_hw_phy(hw);
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	int err;
@@ -1692,7 +1692,7 @@ mt7921_remove_chanctx(struct ieee80211_hw *hw,
 static void mt7921_ctx_iter(void *priv, u8 *mac,
 			    struct ieee80211_vif *vif)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct ieee80211_chanctx_conf *ctx = priv;
 
 	if (ctx != mvif->ctx)
@@ -1724,7 +1724,7 @@ mt7921_assign_vif_chanctx(struct ieee80211_hw *hw,
 			  struct ieee80211_bss_conf *link_conf,
 			  struct ieee80211_chanctx_conf *ctx)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
@@ -1740,7 +1740,7 @@ mt7921_unassign_vif_chanctx(struct ieee80211_hw *hw,
 			    struct ieee80211_bss_conf *link_conf,
 			    struct ieee80211_chanctx_conf *ctx)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 
 	mutex_lock(&dev->mt76.mutex);
@@ -1752,7 +1752,7 @@ static void mt7921_mgd_prepare_tx(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_prep_tx_info *info)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 	struct mt7921_dev *dev = mt7921_hw_dev(hw);
 	u16 duration = info->duration ? info->duration :
 		       jiffies_to_msecs(HZ);
@@ -1767,7 +1767,7 @@ static void mt7921_mgd_complete_tx(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_prep_tx_info *info)
 {
-	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
 
 	mt7921_abort_roc(mvif->phy, mvif);
 }
