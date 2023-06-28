@@ -1235,3 +1235,17 @@ u32 amd_get_highest_perf(void)
 	return 255;
 }
 EXPORT_SYMBOL_GPL(amd_get_highest_perf);
+
+bool cpu_has_ibpb_brtype_microcode(void)
+{
+	u8 fam = boot_cpu_data.x86;
+
+	if (fam == 0x17) {
+		/* Zen1/2 IBPB flushes branch type predictions too. */
+		return boot_cpu_has(X86_FEATURE_AMD_IBPB);
+	} else if (fam == 0x19) {
+		return false;
+	}
+
+	return false;
+}
