@@ -15,6 +15,15 @@
 
 #define MT_WTBL_AC0_CTT_OFFSET		20
 
+bool mt7921_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask)
+{
+	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
+		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
+
+	return mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY,
+			 0, 5000);
+}
+
 static u32 mt7921_mac_wtbl_lmac_addr(int idx, u8 offset)
 {
 	return MT_WTBL_LMAC_OFFS(idx, 0) + offset * 4;
@@ -41,15 +50,6 @@ static struct mt76_wcid *mt7921_rx_get_wcid(struct mt792x_dev *dev,
 		return NULL;
 
 	return &sta->vif->sta.wcid;
-}
-
-bool mt7921_mac_wtbl_update(struct mt792x_dev *dev, int idx, u32 mask)
-{
-	mt76_rmw(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_WLAN_IDX,
-		 FIELD_PREP(MT_WTBL_UPDATE_WLAN_IDX, idx) | mask);
-
-	return mt76_poll(dev, MT_WTBL_UPDATE, MT_WTBL_UPDATE_BUSY,
-			 0, 5000);
 }
 
 static void mt7921_mac_sta_poll(struct mt792x_dev *dev)
@@ -528,7 +528,7 @@ void mt7921_mac_add_txs(struct mt792x_dev *dev, void *data)
 	if (pid < MT_PACKET_ID_FIRST)
 		return;
 
-	if (wcidx >= MT7921_WTBL_SIZE)
+	if (wcidx >= MT792x_WTBL_SIZE)
 		return;
 
 	rcu_read_lock();
@@ -721,47 +721,6 @@ void mt7921_mac_reset_counters(struct mt792x_phy *phy)
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(0), MT_WF_RMAC_MIB_RXTIME_CLR);
 }
 
-void mt7921_mac_set_timing(struct mt792x_phy *phy)
-{
-	s16 coverage_class = phy->coverage_class;
-	struct mt792x_dev *dev = phy->dev;
-	u32 val, reg_offset;
-	u32 cck = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 231) |
-		  FIELD_PREP(MT_TIMEOUT_VAL_CCA, 48);
-	u32 ofdm = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, 60) |
-		   FIELD_PREP(MT_TIMEOUT_VAL_CCA, 28);
-	bool is_2ghz = phy->mt76->chandef.chan->band == NL80211_BAND_2GHZ;
-	int sifs = is_2ghz ? 10 : 16, offset;
-
-	if (!test_bit(MT76_STATE_RUNNING, &phy->mt76->state))
-		return;
-
-	mt76_set(dev, MT_ARB_SCR(0),
-		 MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
-	udelay(1);
-
-	offset = 3 * coverage_class;
-	reg_offset = FIELD_PREP(MT_TIMEOUT_VAL_PLCP, offset) |
-		     FIELD_PREP(MT_TIMEOUT_VAL_CCA, offset);
-
-	mt76_wr(dev, MT_TMAC_CDTR(0), cck + reg_offset);
-	mt76_wr(dev, MT_TMAC_ODTR(0), ofdm + reg_offset);
-	mt76_wr(dev, MT_TMAC_ICR0(0),
-		FIELD_PREP(MT_IFS_EIFS, 360) |
-		FIELD_PREP(MT_IFS_RIFS, 2) |
-		FIELD_PREP(MT_IFS_SIFS, sifs) |
-		FIELD_PREP(MT_IFS_SLOT, phy->slottime));
-
-	if (phy->slottime < 20 || !is_2ghz)
-		val = MT7921_CFEND_RATE_DEFAULT;
-	else
-		val = MT7921_CFEND_RATE_11B;
-
-	mt76_rmw_field(dev, MT_AGG_ACR0(0), MT_AGG_ACR_CFEND_RATE, val);
-	mt76_clear(dev, MT_ARB_SCR(0),
-		   MT_ARB_SCR_TX_DISABLE | MT_ARB_SCR_RX_DISABLE);
-}
-
 static u8
 mt7921_phy_get_nf(struct mt792x_phy *phy, int idx)
 {
@@ -902,91 +861,6 @@ void mt7921_reset(struct mt76_dev *mdev)
 }
 EXPORT_SYMBOL_GPL(mt7921_reset);
 
-void mt7921_mac_update_mib_stats(struct mt792x_phy *phy)
-{
-	struct mt76_mib_stats *mib = &phy->mib;
-	struct mt792x_dev *dev = phy->dev;
-	int i, aggr0 = 0, aggr1;
-	u32 val;
-
-	mib->fcs_err_cnt += mt76_get_field(dev, MT_MIB_SDR3(0),
-					   MT_MIB_SDR3_FCS_ERR_MASK);
-	mib->ack_fail_cnt += mt76_get_field(dev, MT_MIB_MB_BSDR3(0),
-					    MT_MIB_ACK_FAIL_COUNT_MASK);
-	mib->ba_miss_cnt += mt76_get_field(dev, MT_MIB_MB_BSDR2(0),
-					   MT_MIB_BA_FAIL_COUNT_MASK);
-	mib->rts_cnt += mt76_get_field(dev, MT_MIB_MB_BSDR0(0),
-				       MT_MIB_RTS_COUNT_MASK);
-	mib->rts_retries_cnt += mt76_get_field(dev, MT_MIB_MB_BSDR1(0),
-					       MT_MIB_RTS_FAIL_COUNT_MASK);
-
-	mib->tx_ampdu_cnt += mt76_rr(dev, MT_MIB_SDR12(0));
-	mib->tx_mpdu_attempts_cnt += mt76_rr(dev, MT_MIB_SDR14(0));
-	mib->tx_mpdu_success_cnt += mt76_rr(dev, MT_MIB_SDR15(0));
-
-	val = mt76_rr(dev, MT_MIB_SDR32(0));
-	mib->tx_pkt_ebf_cnt += FIELD_GET(MT_MIB_SDR9_EBF_CNT_MASK, val);
-	mib->tx_pkt_ibf_cnt += FIELD_GET(MT_MIB_SDR9_IBF_CNT_MASK, val);
-
-	val = mt76_rr(dev, MT_ETBF_TX_APP_CNT(0));
-	mib->tx_bf_ibf_ppdu_cnt += FIELD_GET(MT_ETBF_TX_IBF_CNT, val);
-	mib->tx_bf_ebf_ppdu_cnt += FIELD_GET(MT_ETBF_TX_EBF_CNT, val);
-
-	val = mt76_rr(dev, MT_ETBF_RX_FB_CNT(0));
-	mib->tx_bf_rx_fb_all_cnt += FIELD_GET(MT_ETBF_RX_FB_ALL, val);
-	mib->tx_bf_rx_fb_he_cnt += FIELD_GET(MT_ETBF_RX_FB_HE, val);
-	mib->tx_bf_rx_fb_vht_cnt += FIELD_GET(MT_ETBF_RX_FB_VHT, val);
-	mib->tx_bf_rx_fb_ht_cnt += FIELD_GET(MT_ETBF_RX_FB_HT, val);
-
-	mib->rx_mpdu_cnt += mt76_rr(dev, MT_MIB_SDR5(0));
-	mib->rx_ampdu_cnt += mt76_rr(dev, MT_MIB_SDR22(0));
-	mib->rx_ampdu_bytes_cnt += mt76_rr(dev, MT_MIB_SDR23(0));
-	mib->rx_ba_cnt += mt76_rr(dev, MT_MIB_SDR31(0));
-
-	for (i = 0; i < ARRAY_SIZE(mib->tx_amsdu); i++) {
-		val = mt76_rr(dev, MT_PLE_AMSDU_PACK_MSDU_CNT(i));
-		mib->tx_amsdu[i] += val;
-		mib->tx_amsdu_cnt += val;
-	}
-
-	for (i = 0, aggr1 = aggr0 + 8; i < 4; i++) {
-		u32 val2;
-
-		val = mt76_rr(dev, MT_TX_AGG_CNT(0, i));
-		val2 = mt76_rr(dev, MT_TX_AGG_CNT2(0, i));
-
-		phy->mt76->aggr_stats[aggr0++] += val & 0xffff;
-		phy->mt76->aggr_stats[aggr0++] += val >> 16;
-		phy->mt76->aggr_stats[aggr1++] += val2 & 0xffff;
-		phy->mt76->aggr_stats[aggr1++] += val2 >> 16;
-	}
-}
-
-void mt7921_mac_work(struct work_struct *work)
-{
-	struct mt792x_phy *phy;
-	struct mt76_phy *mphy;
-
-	mphy = (struct mt76_phy *)container_of(work, struct mt76_phy,
-					       mac_work.work);
-	phy = mphy->priv;
-
-	mt792x_mutex_acquire(phy->dev);
-
-	mt76_update_survey(mphy);
-	if (++mphy->mac_work_count == 2) {
-		mphy->mac_work_count = 0;
-
-		mt7921_mac_update_mib_stats(phy);
-	}
-
-	mt792x_mutex_release(phy->dev);
-
-	mt76_tx_status_check(mphy->dev, false);
-	ieee80211_queue_delayed_work(phy->mt76->hw, &mphy->mac_work,
-				     MT7921_WATCHDOG_TIME);
-}
-
 void mt7921_pm_wake_work(struct work_struct *work)
 {
 	struct mt792x_dev *dev;
@@ -1013,7 +887,7 @@ void mt7921_pm_wake_work(struct work_struct *work)
 		}
 		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
 			ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
-						     MT7921_WATCHDOG_TIME);
+						     MT792x_WATCHDOG_TIME);
 	}
 
 	ieee80211_wake_queues(mphy->hw);

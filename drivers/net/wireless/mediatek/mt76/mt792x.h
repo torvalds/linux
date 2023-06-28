@@ -9,6 +9,19 @@
 
 #include "mt76_connac_mcu.h"
 
+#define MT792x_MAX_INTERFACES	4
+#define MT792x_WTBL_SIZE	20
+#define MT792x_WTBL_RESERVED	(MT792x_WTBL_SIZE - 1)
+#define MT792x_WTBL_STA		(MT792x_WTBL_RESERVED - MT792x_MAX_INTERFACES)
+
+#define MT792x_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
+#define MT792x_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
+
+/* NOTE: used to map mt76_rates. idx may change if firmware expands table */
+#define MT792x_BASIC_RATES_TBL	11
+
+#define MT792x_WATCHDOG_TIME	(HZ / 4)
+
 struct mt792x_vif;
 struct mt792x_sta;
 
@@ -134,9 +147,57 @@ mt792x_hw_dev(struct ieee80211_hw *hw)
 	return container_of(phy->dev, struct mt792x_dev, mt76);
 }
 
+static inline struct mt792x_phy *
+mt792x_hw_phy(struct ieee80211_hw *hw)
+{
+	struct mt76_phy *phy = hw->priv;
+
+	return phy->priv;
+}
+
 #define mt792x_mutex_acquire(dev)	\
 	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
 #define mt792x_mutex_release(dev)	\
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
+
+void mt792x_mac_update_mib_stats(struct mt792x_phy *phy);
+void mt792x_mac_set_timeing(struct mt792x_phy *phy);
+void mt792x_mac_work(struct work_struct *work);
+void mt792x_remove_interface(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif);
+void mt792x_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
+	       struct sk_buff *skb);
+int mt792x_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   unsigned int link_id, u16 queue,
+		   const struct ieee80211_tx_queue_params *params);
+int mt792x_get_stats(struct ieee80211_hw *hw,
+		     struct ieee80211_low_level_stats *stats);
+u64 mt792x_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+void mt792x_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    u64 timestamp);
+void mt792x_tx_worker(struct mt76_worker *w);
+void mt792x_roc_timer(struct timer_list *timer);
+void mt792x_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		  u32 queues, bool drop);
+int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf,
+			      struct ieee80211_chanctx_conf *ctx);
+void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *link_conf,
+				 struct ieee80211_chanctx_conf *ctx);
+void mt792x_set_wakeup(struct ieee80211_hw *hw, bool enabled);
+void mt792x_get_et_strings(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   u32 sset, u8 *data);
+int mt792x_get_et_sset_count(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			     int sset);
+void mt792x_get_et_stats(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ethtool_stats *stats, u64 *data);
+void mt792x_sta_statistics(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct station_info *sinfo);
+void mt792x_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class);
 
 #endif /* __MT7925_H */

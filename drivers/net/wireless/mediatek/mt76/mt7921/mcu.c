@@ -4,9 +4,9 @@
 #include <linux/fs.h>
 #include <linux/firmware.h>
 #include "mt7921.h"
-#include "mt7921_trace.h"
 #include "mcu.h"
 #include "../mt76_connac2_mac.h"
+#include "../mt792x_trace.h"
 
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)

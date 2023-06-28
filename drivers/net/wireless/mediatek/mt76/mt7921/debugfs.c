@@ -67,7 +67,7 @@ mt7921_ampdu_stat_read_phy(struct mt792x_phy *phy,
 	if (!phy)
 		return;
 
-	mt7921_mac_update_mib_stats(phy);
+	mt792x_mac_update_mib_stats(phy);
 
 	/* Tx ampdu stat */
 	for (i = 0; i < ARRAY_SIZE(range); i++)

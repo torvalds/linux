@@ -23,7 +23,7 @@ mt7921s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	/* We just return in case firmware assertion to avoid blocking the
 	 * common workqueue to run, for example, the coredump work might be
-	 * blocked by mt7921_mac_work that is excuting register access via sdio
+	 * blocked by mt792x_mac_work that is excuting register access via sdio
 	 * bus.
 	 */
 	if (dev->fw_assert)

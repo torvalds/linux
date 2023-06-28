@@ -12,7 +12,7 @@
 
 static const struct ieee80211_iface_limit if_limits[] = {
 	{
-		.max = MT7921_MAX_INTERFACES,
+		.max = MT792x_MAX_INTERFACES,
 		.types = BIT(NL80211_IFTYPE_STATION)
 	},
 	{
@@ -25,7 +25,7 @@ static const struct ieee80211_iface_combination if_comb[] = {
 	{
 		.limits = if_limits,
 		.n_limits = ARRAY_SIZE(if_limits),
-		.max_interfaces = MT7921_MAX_INTERFACES,
+		.max_interfaces = MT792x_MAX_INTERFACES,
 		.num_different_channels = 1,
 		.beacon_int_infra_match = true,
 	},
@@ -126,7 +126,7 @@ mt7921_regd_notifier(struct wiphy *wiphy,
 static int
 mt7921_init_wiphy(struct ieee80211_hw *hw)
 {
-	struct mt792x_phy *phy = mt7921_hw_phy(hw);
+	struct mt792x_phy *phy = mt792x_hw_phy(hw);
 	struct mt792x_dev *dev = phy->dev;
 	struct wiphy *wiphy = hw->wiphy;
 
@@ -319,7 +319,7 @@ int mt7921_mac_init(struct mt792x_dev *dev)
 	/* enable hardware rx header translation */
 	mt76_set(dev, MT_MDP_DCR0, MT_MDP_DCR0_RX_HDR_TRANS_EN);
 
-	for (i = 0; i < MT7921_WTBL_SIZE; i++)
+	for (i = 0; i < MT792x_WTBL_SIZE; i++)
 		mt7921_mac_wtbl_update(dev, i,
 				       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
 	for (i = 0; i < 2; i++)
@@ -379,7 +379,7 @@ static int mt7921_init_wcid(struct mt792x_dev *dev)
 	int idx;
 
 	/* Beacon and mgmt frames should occupy wcid 0 */
-	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7921_WTBL_STA - 1);
+	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT792x_WTBL_STA - 1);
 	if (idx)
 		return -ENOSPC;
 
@@ -437,7 +437,7 @@ int mt7921_register_device(struct mt792x_dev *dev)
 	dev->phy.dev = dev;
 	dev->phy.mt76 = &dev->mt76.phy;
 	dev->mt76.phy.priv = &dev->phy;
-	dev->mt76.tx_worker.fn = mt7921_tx_worker;
+	dev->mt76.tx_worker.fn = mt792x_tx_worker;
 
 	INIT_DELAYED_WORK(&dev->pm.ps_work, mt7921_pm_power_save_work);
 	INIT_WORK(&dev->pm.wake_work, mt7921_pm_wake_work);
@@ -447,7 +447,7 @@ int mt7921_register_device(struct mt792x_dev *dev)
 	if (mt76_is_sdio(&dev->mt76))
 		init_waitqueue_head(&dev->mt76.sdio.wait);
 	spin_lock_init(&dev->pm.txq_lock);
-	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt7921_mac_work);
+	INIT_DELAYED_WORK(&dev->mphy.mac_work, mt792x_mac_work);
 	INIT_DELAYED_WORK(&dev->phy.scan_work, mt7921_scan_work);
 	INIT_DELAYED_WORK(&dev->coredump.work, mt7921_coredump_work);
 #if IS_ENABLED(CONFIG_IPV6)
@@ -461,7 +461,7 @@ int mt7921_register_device(struct mt792x_dev *dev)
 	INIT_WORK(&dev->init_work, mt7921_init_work);
 
 	INIT_WORK(&dev->phy.roc_work, mt7921_roc_work);
-	timer_setup(&dev->phy.roc_timer, mt7921_roc_timer, 0);
+	timer_setup(&dev->phy.roc_timer, mt792x_roc_timer, 0);
 	init_waitqueue_head(&dev->phy.roc_wait);
 
 	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
