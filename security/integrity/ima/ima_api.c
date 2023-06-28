@@ -13,7 +13,6 @@
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
-#include <linux/iversion.h>
 #include <linux/fsverity.h>
 
 #include "ima.h"
@@ -246,10 +245,11 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_path.dentry->d_name.name;
 	struct ima_max_digest_data hash;
+	struct kstat stat;
 	int result = 0;
 	int length;
 	void *tmpbuf;
-	u64 i_version;
+	u64 i_version = 0;
 
 	/*
 	 * Always collect the modsig, because IMA might have already collected
@@ -268,7 +268,10 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	 * to an initial measurement/appraisal/audit, but was modified to
 	 * assume the file changed.
 	 */
-	i_version = inode_query_iversion(inode);
+	result = vfs_getattr_nosec(&file->f_path, &stat, STATX_CHANGE_COOKIE,
+				   AT_STATX_SYNC_AS_STAT);
+	if (!result && (stat.result_mask & STATX_CHANGE_COOKIE))
+		i_version = stat.change_cookie;
 	hash.hdr.algo = algo;
 	hash.hdr.length = hash_digest_size[algo];
 
