@@ -16,6 +16,7 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data);
 void amd_iommu_apply_erratum_63(struct amd_iommu *iommu, u16 devid);
 void amd_iommu_restart_event_logging(struct amd_iommu *iommu);
 void amd_iommu_restart_ga_log(struct amd_iommu *iommu);
+void amd_iommu_restart_ppr_log(struct amd_iommu *iommu);
 int amd_iommu_init_devices(void);
 void amd_iommu_uninit_devices(void);
 void amd_iommu_init_notifier(void);

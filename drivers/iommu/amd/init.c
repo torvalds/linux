@@ -800,6 +800,17 @@ void amd_iommu_restart_ga_log(struct amd_iommu *iommu)
 }
 
 /*
+ * This function restarts ppr logging in case the IOMMU experienced
+ * PPR log overflow.
+ */
+void amd_iommu_restart_ppr_log(struct amd_iommu *iommu)
+{
+	amd_iommu_restart_log(iommu, "PPR", CONTROL_PPRINT_EN,
+			      CONTROL_PPRLOG_EN, MMIO_STATUS_PPR_RUN_MASK,
+			      MMIO_STATUS_PPR_OVERFLOW_MASK);
+}
+
+/*
  * This function resets the command buffer if the IOMMU stopped fetching
  * commands from it.
  */
