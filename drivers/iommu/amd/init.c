@@ -934,6 +934,8 @@ static void iommu_enable_ppr_log(struct amd_iommu *iommu)
 	if (iommu->ppr_log == NULL)
 		return;
 
+	iommu_feature_enable(iommu, CONTROL_PPR_EN);
+
 	entry = iommu_virt_to_phys(iommu->ppr_log) | PPR_LOG_SIZE_512;
 
 	memcpy_toio(iommu->mmio_base + MMIO_PPR_LOG_OFFSET,
@@ -944,7 +946,7 @@ static void iommu_enable_ppr_log(struct amd_iommu *iommu)
 	writel(0x00, iommu->mmio_base + MMIO_PPR_TAIL_OFFSET);
 
 	iommu_feature_enable(iommu, CONTROL_PPRLOG_EN);
-	iommu_feature_enable(iommu, CONTROL_PPR_EN);
+	iommu_feature_enable(iommu, CONTROL_PPRINT_EN);
 }
 
 static void __init free_ppr_log(struct amd_iommu *iommu)
@@ -2526,8 +2528,6 @@ enable_faults:
 
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
 
-	if (iommu->ppr_log != NULL)
-		iommu_feature_enable(iommu, CONTROL_PPRINT_EN);
 	return 0;
 }
 
