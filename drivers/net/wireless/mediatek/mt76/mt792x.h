@@ -126,4 +126,9 @@ struct mt792x_dev {
 	u32 backup_l2;
 };
 
+#define mt792x_mutex_acquire(dev)	\
+	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
+#define mt792x_mutex_release(dev)	\
+	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
+
 #endif /* __MT7925_H */

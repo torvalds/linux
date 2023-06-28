@@ -971,7 +971,7 @@ void mt7921_mac_work(struct work_struct *work)
 					       mac_work.work);
 	phy = mphy->priv;
 
-	mt7921_mutex_acquire(phy->dev);
+	mt792x_mutex_acquire(phy->dev);
 
 	mt76_update_survey(mphy);
 	if (++mphy->mac_work_count == 2) {
@@ -980,7 +980,7 @@ void mt7921_mac_work(struct work_struct *work)
 		mt7921_mac_update_mib_stats(phy);
 	}
 
-	mt7921_mutex_release(phy->dev);
+	mt792x_mutex_release(phy->dev);
 
 	mt76_tx_status_check(mphy->dev, false);
 	ieee80211_queue_delayed_work(phy->mt76->hw, &mphy->mac_work,
@@ -1191,9 +1191,9 @@ bool mt7921_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update)
 {
 	struct mt792x_dev *dev = container_of(mdev, struct mt792x_dev, mt76);
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 	mt7921_mac_sta_poll(dev);
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return false;
 }
@@ -1213,10 +1213,10 @@ void mt7921_set_ipv6_ns_work(struct work_struct *work)
 		if (!skb)
 			break;
 
-		mt7921_mutex_acquire(dev);
+		mt792x_mutex_acquire(dev);
 		ret = mt76_mcu_skb_send_msg(&dev->mt76, skb,
 					    MCU_UNI_CMD(OFFLOAD), true);
-		mt7921_mutex_release(dev);
+		mt792x_mutex_release(dev);
 
 	} while (!ret);
 

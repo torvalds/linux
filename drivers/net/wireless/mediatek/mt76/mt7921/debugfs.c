@@ -8,9 +8,9 @@ mt7921_reg_set(void *data, u64 val)
 {
 	struct mt792x_dev *dev = data;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 	mt76_wr(dev, dev->mt76.debugfs_reg, val);
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return 0;
 }
@@ -20,9 +20,9 @@ mt7921_reg_get(void *data, u64 *val)
 {
 	struct mt792x_dev *dev = data;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 	*val = mt76_rr(dev, dev->mt76.debugfs_reg);
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return 0;
 }
@@ -34,12 +34,12 @@ mt7921_fw_debug_set(void *data, u64 val)
 {
 	struct mt792x_dev *dev = data;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 
 	dev->fw_debug = (u8)val;
 	mt7921_mcu_fw_log_2_host(dev, dev->fw_debug);
 
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return 0;
 }
@@ -98,7 +98,7 @@ mt7921_tx_stats_show(struct seq_file *file, void *data)
 	struct mt76_mib_stats *mib = &phy->mib;
 	int i;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 
 	mt7921_ampdu_stat_read_phy(phy, file);
 
@@ -113,7 +113,7 @@ mt7921_tx_stats_show(struct seq_file *file, void *data)
 			seq_puts(file, "\n");
 	}
 
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return 0;
 }
@@ -126,7 +126,7 @@ mt7921_queues_acq(struct seq_file *s, void *data)
 	struct mt792x_dev *dev = dev_get_drvdata(s->private);
 	int i;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 
 	for (i = 0; i < 4; i++) {
 		u32 ctrl, val, qlen = 0;
@@ -146,7 +146,7 @@ mt7921_queues_acq(struct seq_file *s, void *data)
 		seq_printf(s, "AC%d: queued=%d\n", i, qlen);
 	}
 
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return 0;
 }
@@ -215,9 +215,9 @@ mt7921_txpwr(struct seq_file *s, void *data)
 	struct mt7921_txpwr txpwr;
 	int ret;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 	ret = mt7921_get_txpwr_info(dev, &txpwr);
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	if (ret)
 		return ret;
@@ -316,7 +316,7 @@ mt7921_deep_sleep_set(void *data, u64 val)
 	if (mt76_is_usb(&dev->mt76))
 		return -EOPNOTSUPP;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 	if (pm->ds_enable_user == enable)
 		goto out;
 
@@ -324,7 +324,7 @@ mt7921_deep_sleep_set(void *data, u64 val)
 	pm->ds_enable = enable && !monitor;
 	mt76_connac_mcu_set_deep_sleep(&dev->mt76, pm->ds_enable);
 out:
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 
 	return 0;
 }
@@ -400,9 +400,9 @@ static int mt7921_chip_reset(void *data, u64 val)
 		break;
 	default:
 		/* Collect the core dump before reset wifisys. */
-		mt7921_mutex_acquire(dev);
+		mt792x_mutex_acquire(dev);
 		ret = mt76_connac_mcu_chip_config(&dev->mt76);
-		mt7921_mutex_release(dev);
+		mt792x_mutex_release(dev);
 		break;
 	}
 

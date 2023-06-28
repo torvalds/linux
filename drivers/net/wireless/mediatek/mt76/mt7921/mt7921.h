@@ -224,11 +224,6 @@ mt7921_hw_dev(struct ieee80211_hw *hw)
 	return container_of(phy->dev, struct mt792x_dev, mt76);
 }
 
-#define mt7921_mutex_acquire(dev)	\
-	mt76_connac_mutex_acquire(&(dev)->mt76, &(dev)->pm)
-#define mt7921_mutex_release(dev)	\
-	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
-
 extern const struct ieee80211_ops mt7921_ops;
 
 u32 mt7921_reg_map(struct mt792x_dev *dev, u32 addr);

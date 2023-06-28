@@ -64,9 +64,9 @@ static ssize_t mt7921_thermal_temp_show(struct device *dev,
 		struct mt792x_dev *mdev = phy->dev;
 		int temperature;
 
-		mt7921_mutex_acquire(mdev);
+		mt792x_mutex_acquire(mdev);
 		temperature = mt7921_mcu_get_temperature(phy);
-		mt7921_mutex_release(mdev);
+		mt792x_mutex_release(mdev);
 
 		if (temperature < 0)
 			return temperature;
@@ -116,11 +116,11 @@ mt7921_regd_notifier(struct wiphy *wiphy,
 	dev->mt76.region = request->dfs_region;
 	dev->country_ie_env = request->country_ie_env;
 
-	mt7921_mutex_acquire(dev);
+	mt792x_mutex_acquire(dev);
 	mt7921_mcu_set_clc(dev, request->alpha2, request->country_ie_env);
 	mt76_connac_mcu_set_channel_domain(hw->priv);
 	mt7921_set_tx_sar_pwr(hw, NULL);
-	mt7921_mutex_release(dev);
+	mt792x_mutex_release(dev);
 }
 
 static int
