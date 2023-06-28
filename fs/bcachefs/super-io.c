@@ -564,6 +564,7 @@ static int __copy_super(struct bch_sb_handle *dst_handle, struct bch_sb *src)
 	dst->time_base_lo	= src->time_base_lo;
 	dst->time_base_hi	= src->time_base_hi;
 	dst->time_precision	= src->time_precision;
+	dst->write_time		= src->write_time;
 
 	memcpy(dst->flags,	src->flags,	sizeof(dst->flags));
 	memcpy(dst->features,	src->features,	sizeof(dst->features));
@@ -942,6 +943,11 @@ int bch2_write_super(struct bch_fs *c)
 
 	le64_add_cpu(&c->disk_sb.sb->seq, 1);
 
+	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
+	for_each_online_member(c, ca)
+		__bch2_members_v2_get_mut(mi, ca->dev_idx)->seq = c->disk_sb.sb->seq;
+	c->disk_sb.sb->write_time = cpu_to_le64(ktime_get_real_seconds());
+
 	if (test_bit(BCH_FS_error, &c->flags))
 		SET_BCH_SB_HAS_ERRORS(c->disk_sb.sb, 1);
 	if (test_bit(BCH_FS_topology_error, &c->flags))
@@ -1302,6 +1308,11 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, "Sequence number:");
 	prt_tab(out);
 	prt_printf(out, "%llu", le64_to_cpu(sb->seq));
+	prt_newline(out);
+
+	prt_printf(out, "Time of last write:");
+	prt_tab(out);
+	bch2_prt_datetime(out, le64_to_cpu(sb->write_time));
 	prt_newline(out);
 
 	prt_printf(out, "Superblock size:");

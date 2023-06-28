@@ -235,6 +235,11 @@ static void member_to_text(struct printbuf *out,
 		prt_printf(out, "(never)");
 	prt_newline(out);
 
+	prt_printf(out, "Last superblock write:");
+	prt_tab(out);
+	prt_u64(out, le64_to_cpu(m.seq));
+	prt_newline(out);
+
 	prt_printf(out, "State:");
 	prt_tab(out);
 	prt_printf(out, "%s",
