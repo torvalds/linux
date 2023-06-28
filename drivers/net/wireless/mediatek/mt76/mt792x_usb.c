@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: ISC
-/* Copyright (C) 2022 MediaTek Inc.
+/* Copyright (C) 2023 MediaTek Inc.
  *
  * Author: Lorenzo Bianconi <lorenzo@kernel.org>
  */
@@ -8,11 +8,99 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 
-#include "mt7921.h"
-#include "mcu.h"
-#include "../mt76_connac2_mac.h"
+#include "mt792x.h"
+#include "mt76_connac2_mac.h"
 
-static u32 mt7921u_uhw_rr(struct mt76_dev *dev, u32 addr)
+u32 mt792xu_rr(struct mt76_dev *dev, u32 addr)
+{
+	u32 ret;
+
+	mutex_lock(&dev->usb.usb_ctrl_mtx);
+	ret = ___mt76u_rr(dev, MT_VEND_READ_EXT,
+			  USB_DIR_IN | MT_USB_TYPE_VENDOR, addr);
+	mutex_unlock(&dev->usb.usb_ctrl_mtx);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt792xu_rr);
+
+void mt792xu_wr(struct mt76_dev *dev, u32 addr, u32 val)
+{
+	mutex_lock(&dev->usb.usb_ctrl_mtx);
+	___mt76u_wr(dev, MT_VEND_WRITE_EXT,
+		    USB_DIR_OUT | MT_USB_TYPE_VENDOR, addr, val);
+	mutex_unlock(&dev->usb.usb_ctrl_mtx);
+}
+EXPORT_SYMBOL_GPL(mt792xu_wr);
+
+u32 mt792xu_rmw(struct mt76_dev *dev, u32 addr, u32 mask, u32 val)
+{
+	mutex_lock(&dev->usb.usb_ctrl_mtx);
+	val |= ___mt76u_rr(dev, MT_VEND_READ_EXT,
+			   USB_DIR_IN | MT_USB_TYPE_VENDOR, addr) & ~mask;
+	___mt76u_wr(dev, MT_VEND_WRITE_EXT,
+		    USB_DIR_OUT | MT_USB_TYPE_VENDOR, addr, val);
+	mutex_unlock(&dev->usb.usb_ctrl_mtx);
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(mt792xu_rmw);
+
+void mt792xu_copy(struct mt76_dev *dev, u32 offset, const void *data, int len)
+{
+	struct mt76_usb *usb = &dev->usb;
+	int ret, i = 0, batch_len;
+	const u8 *val = data;
+
+	len = round_up(len, 4);
+
+	mutex_lock(&usb->usb_ctrl_mtx);
+	while (i < len) {
+		batch_len = min_t(int, usb->data_len, len - i);
+		memcpy(usb->data, val + i, batch_len);
+		ret = __mt76u_vendor_request(dev, MT_VEND_WRITE_EXT,
+					     USB_DIR_OUT | MT_USB_TYPE_VENDOR,
+					     (offset + i) >> 16, offset + i,
+					     usb->data, batch_len);
+		if (ret < 0)
+			break;
+
+		i += batch_len;
+	}
+	mutex_unlock(&usb->usb_ctrl_mtx);
+}
+EXPORT_SYMBOL_GPL(mt792xu_copy);
+
+int mt792xu_mcu_power_on(struct mt792x_dev *dev)
+{
+	int ret;
+
+	ret = mt76u_vendor_request(&dev->mt76, MT_VEND_POWER_ON,
+				   USB_DIR_OUT | MT_USB_TYPE_VENDOR,
+				   0x0, 0x1, NULL, 0);
+	if (ret)
+		return ret;
+
+	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_PWR_ON,
+			    MT_TOP_MISC2_FW_PWR_ON, 500)) {
+		dev_err(dev->mt76.dev, "Timeout for power on\n");
+		ret = -EIO;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt792xu_mcu_power_on);
+
+void mt792xu_cleanup(struct mt792x_dev *dev)
+{
+	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
+	mt792xu_wfsys_reset(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
+	mt76u_queues_deinit(&dev->mt76);
+}
+EXPORT_SYMBOL_GPL(mt792xu_cleanup);
+
+static u32 mt792xu_uhw_rr(struct mt76_dev *dev, u32 addr)
 {
 	u32 ret;
 
@@ -24,7 +112,7 @@ static u32 mt7921u_uhw_rr(struct mt76_dev *dev, u32 addr)
 	return ret;
 }
 
-static void mt7921u_uhw_wr(struct mt76_dev *dev, u32 addr, u32 val)
+static void mt792xu_uhw_wr(struct mt76_dev *dev, u32 addr, u32 val)
 {
 	mutex_lock(&dev->usb.usb_ctrl_mtx);
 	___mt76u_wr(dev, MT_VEND_WRITE,
@@ -32,7 +120,7 @@ static void mt7921u_uhw_wr(struct mt76_dev *dev, u32 addr, u32 val)
 	mutex_unlock(&dev->usb.usb_ctrl_mtx);
 }
 
-static void mt7921u_dma_prefetch(struct mt792x_dev *dev)
+static void mt792xu_dma_prefetch(struct mt792x_dev *dev)
 {
 	mt76_rmw(dev, MT_UWFDMA0_TX_RING_EXT_CTRL(0),
 		 MT_WPDMA0_MAX_CNT_MASK, 4);
@@ -70,9 +158,9 @@ static void mt7921u_dma_prefetch(struct mt792x_dev *dev)
 		 MT_WPDMA0_BASE_PTR_MASK,  0x2c0);
 }
 
-static void mt7921u_wfdma_init(struct mt792x_dev *dev)
+static void mt792xu_wfdma_init(struct mt792x_dev *dev)
 {
-	mt7921u_dma_prefetch(dev);
+	mt792xu_dma_prefetch(dev);
 
 	mt76_clear(dev, MT_UWFDMA0_GLO_CFG, MT_WFDMA0_GLO_CFG_OMIT_RX_INFO);
 	mt76_set(dev, MT_UWFDMA0_GLO_CFG,
@@ -90,7 +178,7 @@ static void mt7921u_wfdma_init(struct mt792x_dev *dev)
 	mt76_set(dev, MT_WFDMA_DUMMY_CR, MT_WFDMA_NEED_REINIT);
 }
 
-static int mt7921u_dma_rx_evt_ep4(struct mt792x_dev *dev)
+static int mt792xu_dma_rx_evt_ep4(struct mt792x_dev *dev)
 {
 	if (!mt76_poll(dev, MT_UWFDMA0_GLO_CFG,
 		       MT_WFDMA0_GLO_CFG_RX_DMA_BUSY, 0, 1000))
@@ -104,7 +192,7 @@ static int mt7921u_dma_rx_evt_ep4(struct mt792x_dev *dev)
 	return 0;
 }
 
-static void mt7921u_epctl_rst_opt(struct mt792x_dev *dev, bool reset)
+static void mt792xu_epctl_rst_opt(struct mt792x_dev *dev, bool reset)
 {
 	u32 val;
 
@@ -113,19 +201,19 @@ static void mt7921u_epctl_rst_opt(struct mt792x_dev *dev, bool reset)
 	 * bits[20,21]: in blk ep 4-5
 	 * bits[22]: in int ep 6
 	 */
-	val = mt7921u_uhw_rr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT);
+	val = mt792xu_uhw_rr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT);
 	if (reset)
 		val |= GENMASK(9, 4) | GENMASK(22, 20);
 	else
 		val &= ~(GENMASK(9, 4) | GENMASK(22, 20));
-	mt7921u_uhw_wr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT, val);
+	mt792xu_uhw_wr(&dev->mt76, MT_SSUSB_EPCTL_CSR_EP_RST_OPT, val);
 }
 
-int mt7921u_dma_init(struct mt792x_dev *dev, bool resume)
+int mt792xu_dma_init(struct mt792x_dev *dev, bool resume)
 {
 	int err;
 
-	mt7921u_wfdma_init(dev);
+	mt792xu_wfdma_init(dev);
 
 	mt76_clear(dev, MT_UDMA_WLCFG_0, MT_WL_RX_FLUSH);
 
@@ -139,35 +227,36 @@ int mt7921u_dma_init(struct mt792x_dev *dev, bool resume)
 	if (resume)
 		return 0;
 
-	err = mt7921u_dma_rx_evt_ep4(dev);
+	err = mt792xu_dma_rx_evt_ep4(dev);
 	if (err)
 		return err;
 
-	mt7921u_epctl_rst_opt(dev, false);
+	mt792xu_epctl_rst_opt(dev, false);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt792xu_dma_init);
 
-int mt7921u_wfsys_reset(struct mt792x_dev *dev)
+int mt792xu_wfsys_reset(struct mt792x_dev *dev)
 {
 	u32 val;
 	int i;
 
-	mt7921u_epctl_rst_opt(dev, false);
+	mt792xu_epctl_rst_opt(dev, false);
 
-	val = mt7921u_uhw_rr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST);
+	val = mt792xu_uhw_rr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST);
 	val |= MT_CBTOP_RGU_WF_SUBSYS_RST_WF_WHOLE_PATH;
-	mt7921u_uhw_wr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST, val);
+	mt792xu_uhw_wr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST, val);
 
 	usleep_range(10, 20);
 
-	val = mt7921u_uhw_rr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST);
+	val = mt792xu_uhw_rr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST);
 	val &= ~MT_CBTOP_RGU_WF_SUBSYS_RST_WF_WHOLE_PATH;
-	mt7921u_uhw_wr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST, val);
+	mt792xu_uhw_wr(&dev->mt76, MT_CBTOP_RGU_WF_SUBSYS_RST, val);
 
-	mt7921u_uhw_wr(&dev->mt76, MT_UDMA_CONN_INFRA_STATUS_SEL, 0);
+	mt792xu_uhw_wr(&dev->mt76, MT_UDMA_CONN_INFRA_STATUS_SEL, 0);
 	for (i = 0; i < MT792x_WFSYS_INIT_RETRY_COUNT; i++) {
-		val = mt7921u_uhw_rr(&dev->mt76, MT_UDMA_CONN_INFRA_STATUS);
+		val = mt792xu_uhw_rr(&dev->mt76, MT_UDMA_CONN_INFRA_STATUS);
 		if (val & MT_UDMA_CONN_WFSYS_INIT_DONE)
 			break;
 
@@ -179,8 +268,9 @@ int mt7921u_wfsys_reset(struct mt792x_dev *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt792xu_wfsys_reset);
 
-int mt7921u_init_reset(struct mt792x_dev *dev)
+int mt792xu_init_reset(struct mt792x_dev *dev)
 {
 	set_bit(MT76_RESET, &dev->mphy.state);
 
@@ -190,66 +280,13 @@ int mt7921u_init_reset(struct mt792x_dev *dev)
 	mt76u_stop_rx(&dev->mt76);
 	mt76u_stop_tx(&dev->mt76);
 
-	mt7921u_wfsys_reset(dev);
+	mt792xu_wfsys_reset(dev);
 
 	clear_bit(MT76_RESET, &dev->mphy.state);
 
 	return mt76u_resume_rx(&dev->mt76);
 }
+EXPORT_SYMBOL_GPL(mt792xu_init_reset);
 
-int mt7921u_mac_reset(struct mt792x_dev *dev)
-{
-	int err;
-
-	mt76_txq_schedule_all(&dev->mphy);
-	mt76_worker_disable(&dev->mt76.tx_worker);
-
-	set_bit(MT76_RESET, &dev->mphy.state);
-	set_bit(MT76_MCU_RESET, &dev->mphy.state);
-
-	wake_up(&dev->mt76.mcu.wait);
-	skb_queue_purge(&dev->mt76.mcu.res_q);
-
-	mt76u_stop_rx(&dev->mt76);
-	mt76u_stop_tx(&dev->mt76);
-
-	mt7921u_wfsys_reset(dev);
-
-	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
-	err = mt76u_resume_rx(&dev->mt76);
-	if (err)
-		goto out;
-
-	err = mt7921u_mcu_power_on(dev);
-	if (err)
-		goto out;
-
-	err = mt7921u_dma_init(dev, false);
-	if (err)
-		goto out;
-
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
-	mt76_set(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
-
-	err = mt7921_run_firmware(dev);
-	if (err)
-		goto out;
-
-	mt76_clear(dev, MT_UDMA_TX_QSEL, MT_FW_DL_EN);
-
-	err = mt7921_mcu_set_eeprom(dev);
-	if (err)
-		goto out;
-
-	err = mt7921_mac_init(dev);
-	if (err)
-		goto out;
-
-	err = __mt7921_start(&dev->phy);
-out:
-	clear_bit(MT76_RESET, &dev->mphy.state);
-
-	mt76_worker_enable(&dev->mt76.tx_worker);
-
-	return err;
-}
+MODULE_LICENSE("Dual BSD/GPL");
+MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");

@@ -332,14 +332,6 @@ void mt7921_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 bool mt7921_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
 
 /* usb */
-#define MT_USB_TYPE_VENDOR	(USB_TYPE_VENDOR | 0x1f)
-#define MT_USB_TYPE_UHW_VENDOR	(USB_TYPE_VENDOR | 0x1e)
-
-int mt7921u_mcu_power_on(struct mt792x_dev *dev);
-int mt7921u_wfsys_reset(struct mt792x_dev *dev);
-int mt7921u_dma_init(struct mt792x_dev *dev, bool resume);
-int mt7921u_init_reset(struct mt792x_dev *dev);
-int mt7921u_mac_reset(struct mt792x_dev *dev);
 int mt7921_mcu_uni_add_beacon_offload(struct mt792x_dev *dev,
 				      struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,

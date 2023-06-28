@@ -294,6 +294,19 @@ int mt792x_init_wcid(struct mt792x_dev *dev);
 int mt792x_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
 
+/* usb */
+#define MT_USB_TYPE_VENDOR	(USB_TYPE_VENDOR | 0x1f)
+#define MT_USB_TYPE_UHW_VENDOR	(USB_TYPE_VENDOR | 0x1e)
+int mt792xu_dma_init(struct mt792x_dev *dev, bool resume);
+int mt792xu_mcu_power_on(struct mt792x_dev *dev);
+int mt792xu_wfsys_reset(struct mt792x_dev *dev);
+int mt792xu_init_reset(struct mt792x_dev *dev);
+u32 mt792xu_rr(struct mt76_dev *dev, u32 addr);
+void mt792xu_wr(struct mt76_dev *dev, u32 addr, u32 val);
+u32 mt792xu_rmw(struct mt76_dev *dev, u32 addr, u32 mask, u32 val);
+void mt792xu_copy(struct mt76_dev *dev, u32 offset, const void *data, int len);
+void mt792xu_cleanup(struct mt792x_dev *dev);
+
 int __mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792xe_mcu_fw_pmctrl(struct mt792x_dev *dev);
