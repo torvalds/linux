@@ -1214,13 +1214,6 @@ config COMPAT_32BIT_TIME
 config ARCH_NO_PREEMPT
 	bool
 
-config ARCH_EPHEMERAL_INODES
-	def_bool n
-	help
-	  An arch should select this symbol if it doesn't keep track of inode
-	  instances on its own, but instead relies on something else (e.g. the
-	  host kernel for an UML kernel).
-
 config ARCH_SUPPORTS_RT
 	bool
 
