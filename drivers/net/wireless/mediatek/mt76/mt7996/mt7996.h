@@ -255,20 +255,6 @@ enum {
 };
 
 enum {
-	MT_CTX0,
-	MT_HIF0 = 0x0,
-
-	MT_LMAC_AC00 = 0x0,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0,
-	MT_LMAC_BCN0,
-	MT_LMAC_PSMP0,
-};
-
-enum {
 	MT_RX_SEL0,
 	MT_RX_SEL1,
 	MT_RX_SEL2, /* monitor chain */
