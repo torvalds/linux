@@ -26,6 +26,21 @@
 static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
 };
 
+static const char * const bch2_metadata_versions[] = {
+#define x(t, n) [n] = #t,
+	BCH_METADATA_VERSIONS()
+#undef x
+};
+
+void bch2_version_to_text(struct printbuf *out, unsigned v)
+{
+	const char *str = v < ARRAY_SIZE(bch2_metadata_versions)
+		? bch2_metadata_versions[v]
+		: "(unknown version)";
+
+	prt_printf(out, "%u: %s", v, str);
+}
+
 const char * const bch2_sb_fields[] = {
 #define x(name, nr)	#name,
 	BCH_SB_FIELDS()
@@ -1510,12 +1525,12 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	prt_str(out, "Version:");
 	prt_tab(out);
-	prt_printf(out, "%s", bch2_metadata_versions[le16_to_cpu(sb->version)]);
+	bch2_version_to_text(out, le16_to_cpu(sb->version));
 	prt_newline(out);
 
 	prt_printf(out, "Oldest version on disk:");
 	prt_tab(out);
-	prt_printf(out, "%s", bch2_metadata_versions[le16_to_cpu(sb->version_min)]);
+	bch2_version_to_text(out, le16_to_cpu(sb->version_min));
 	prt_newline(out);
 
 	prt_printf(out, "Created:");

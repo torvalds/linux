@@ -8,7 +8,6 @@
 #include <linux/sysfs.h>
 #include "bcachefs_format.h"
 
-extern const char * const bch2_metadata_versions[];
 extern const char * const bch2_error_actions[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];

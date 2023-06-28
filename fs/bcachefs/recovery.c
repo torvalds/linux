@@ -1146,17 +1146,22 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!c->opts.nochanges) {
-		if (c->sb.version < bcachefs_metadata_required_upgrade_below) {
-			bch_info(c, "version %s (%u) prior to %s (%u), upgrade and fsck required",
-				 bch2_metadata_versions[c->sb.version],
-				 c->sb.version,
-				 bch2_metadata_versions[bcachefs_metadata_required_upgrade_below],
-				 bcachefs_metadata_required_upgrade_below);
-			c->opts.version_upgrade	= true;
-			c->opts.fsck		= true;
-			c->opts.fix_errors	= FSCK_OPT_YES;
-		}
+	if (!c->opts.nochanges &&
+	    c->sb.version < bcachefs_metadata_required_upgrade_below) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "version ");
+		bch2_version_to_text(&buf, c->sb.version);
+		prt_str(&buf, " prior to ");
+		bch2_version_to_text(&buf, bcachefs_metadata_required_upgrade_below);
+		prt_str(&buf, ", upgrade and fsck required");
+
+		bch_info(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+
+		c->opts.version_upgrade	= true;
+		c->opts.fsck		= true;
+		c->opts.fix_errors	= FSCK_OPT_YES;
 	}
 
 	if (c->opts.fsck && c->opts.norecovery) {

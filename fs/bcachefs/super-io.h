@@ -9,6 +9,8 @@
 
 #include <asm/byteorder.h>
 
+void bch2_version_to_text(struct printbuf *, unsigned);
+
 struct bch_sb_field *bch2_sb_field_get(struct bch_sb *, enum bch_sb_field_type);
 struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *,
 					  enum bch_sb_field_type, unsigned);
