@@ -1286,6 +1286,38 @@ out:
 	return ret;
 }
 
+/*
+ * It is possible to have outstanding ordered extents which reserved bytes
+ * before we disabled. We need to fully flush delalloc, ordered extents, and a
+ * commit to ensure that we don't leak such reservations, only to have them
+ * come back if we re-enable.
+ *
+ * - enable simple quotas
+ * - reserve space
+ * - release it, store rsv_bytes in OE
+ * - disable quotas
+ * - enable simple quotas (qgroup rsv are all 0)
+ * - OE finishes
+ * - run delayed refs
+ * - free rsv_bytes, resulting in miscounting or even underflow
+ */
+static int flush_reservations(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	ret = btrfs_start_delalloc_roots(fs_info, LONG_MAX, false);
+	if (ret)
+		return ret;
+	btrfs_wait_ordered_roots(fs_info, U64_MAX, 0, (u64)-1);
+	trans = btrfs_join_transaction(fs_info->tree_root);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+	btrfs_commit_transaction(trans);
+
+	return ret;
+}
+
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *quota_root;
@@ -1329,6 +1361,10 @@ int btrfs_quota_disable(struct btrfs_fs_info *fs_info)
 	 */
 	clear_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 	btrfs_qgroup_wait_for_completion(fs_info, false);
+
+	ret = flush_reservations(fs_info);
+	if (ret)
+		goto out_unlock_cleaner;
 
 	/*
 	 * 1 For the root item
@@ -1391,7 +1427,8 @@ out:
 	if (ret && trans)
 		btrfs_end_transaction(trans);
 	else if (trans)
-		ret = btrfs_end_transaction(trans);
+		ret = btrfs_commit_transaction(trans);
+out_unlock_cleaner:
 	mutex_unlock(&fs_info->cleaner_mutex);
 
 	return ret;
@@ -4010,8 +4047,12 @@ static int __btrfs_qgroup_release_data(struct btrfs_inode *inode,
 	int trace_op = QGROUP_RELEASE;
 	int ret;
 
-	if (btrfs_qgroup_mode(inode->root->fs_info) == BTRFS_QGROUP_MODE_DISABLED)
-		return 0;
+	if (btrfs_qgroup_mode(inode->root->fs_info) == BTRFS_QGROUP_MODE_DISABLED) {
+		extent_changeset_init(&changeset);
+		return clear_record_extent_bits(&inode->io_tree, start,
+						start + len - 1,
+						EXTENT_QGROUP_RESERVED, &changeset);
+	}
 
 	/* In release case, we shouldn't have @reserved */
 	WARN_ON(!free && reserved);
