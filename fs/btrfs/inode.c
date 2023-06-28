@@ -1105,7 +1105,8 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 
 	/* All pages will be unlocked, including @locked_page */
 	wbc_attach_fdatawrite_inode(&wbc, &inode->vfs_inode);
-	extent_write_locked_range(&inode->vfs_inode, start, end, &wbc, false);
+	extent_write_locked_range(&inode->vfs_inode, NULL, start, end, &wbc,
+				  false);
 	wbc_detach_inode(&wbc);
 }
 
@@ -1719,7 +1720,6 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 {
 	u64 done_offset = end;
 	int ret;
-	bool locked_page_done = false;
 
 	while (start <= end) {
 		ret = cow_file_range(inode, locked_page, start, end, &done_offset,
@@ -1727,13 +1727,8 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 		if (ret)
 			return ret;
 
-		if (!locked_page_done) {
-			__set_page_dirty_nobuffers(locked_page);
-			account_page_redirty(locked_page);
-		}
-		locked_page_done = true;
-		extent_write_locked_range(&inode->vfs_inode, start, done_offset,
-					  wbc, true);
+		extent_write_locked_range(&inode->vfs_inode, locked_page, start,
+					  done_offset, wbc, true);
 		start = done_offset + 1;
 	}
 
