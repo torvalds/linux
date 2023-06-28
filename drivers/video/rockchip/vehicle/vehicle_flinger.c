@@ -46,7 +46,6 @@
 static int vehicle_dump_cif;
 static int vehicle_dump_rga;
 static int vehicle_dump_vop;
-static bool nv12_display = true;
 
 enum force_value {
 	FORCE_WIDTH = 1920,
@@ -662,7 +661,10 @@ static int rk_flinger_rga_scaler(struct flinger *flinger,
 	rga_request.rotate_mode = 0;
 	rga_request.sina = 0;
 	rga_request.cosa = 0;
-	rga_request.yuv2rgb_mode = 0x1 << 0; // limit range
+
+	rga_request.yuv2rgb_mode = 0x0 << 0; // yuvtoyuv config 0
+	/* yuv to rgb color space transform if need  */
+	//rga_request.yuv2rgb_mode = 0x1 << 0; // limit range
 	//rga_request.yuv2rgb_mode = 0x2 << 0; // full range
 
 	rga_request.src.act_w = src_buffer->src.w;
@@ -685,7 +687,7 @@ static int rk_flinger_rga_scaler(struct flinger *flinger,
 	rga_request.dst.yrgb_addr = dst_buffer->fd;
 	rga_request.dst.uv_addr = 0;
 	rga_request.dst.v_addr = 0;
-	rga_request.dst.format =  RGA_FORMAT_RGBX_8888;
+	rga_request.dst.format =  RGA_FORMAT_YCrCb_420_SP;
 
 	rga_request.scale_mode = 1;
 
@@ -1294,20 +1296,12 @@ try_again:
 			VEHICLE_DG("it is ypbpr signal\n");
 			iep_buffer = &(flg->target_buffer[NUM_TARGET_BUFFERS - 1]);
 			iep_buffer->state = ACQUIRE;
-			//scaler by rga for rgbx8888/rgb888/rgb565 display
-			if (!nv12_display) {
-				rk_flinger_rga_render(flg, src_buffer, iep_buffer);
-				src_buffer->state = FREE;
-				rk_flinger_rga_scaler(flg, iep_buffer, dst_buffer);
-				iep_buffer->state = FREE;
-				rk_flinger_vop_show(flg, dst_buffer);
-			} else {
-				rk_flinger_rga_render(flg, src_buffer, dst_buffer);
-				src_buffer->state = FREE;
-				rk_flinger_vop_show(flg, dst_buffer);
-				// rk_flinger_vop_show(flg, src_buffer);
-			}
-
+			//scaler by rga to force widthxheight display
+			rk_flinger_rga_render(flg, src_buffer, iep_buffer);
+			src_buffer->state = FREE;
+			rk_flinger_rga_scaler(flg, iep_buffer, dst_buffer);
+			iep_buffer->state = FREE;
+			rk_flinger_vop_show(flg, dst_buffer);
 			for (i = 0; i < NUM_TARGET_BUFFERS; i++) {
 				buffer = &(flinger->target_buffer[i]);
 				if (buffer->state == DISPLAY)
