@@ -1153,19 +1153,16 @@ int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
 			  const struct cfg80211_sar_specs *sar)
 {
 	struct mt76_phy *mphy = hw->priv;
-	int err;
 
 	if (sar) {
-		err = mt76_init_sar_power(hw, sar);
+		int err = mt76_init_sar_power(hw, sar);
+
 		if (err)
 			return err;
 	}
+	mt792x_init_acpi_sar_power(mt792x_hw_phy(hw), !sar);
 
-	mt7921_init_acpi_sar_power(mt792x_hw_phy(hw), !sar);
-
-	err = mt76_connac_mcu_set_rate_txpower(mphy);
-
-	return err;
+	return mt76_connac_mcu_set_rate_txpower(mphy);
 }
 
 static int mt7921_set_sar_specs(struct ieee80211_hw *hw,

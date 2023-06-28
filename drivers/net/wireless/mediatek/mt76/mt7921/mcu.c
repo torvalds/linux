@@ -1197,7 +1197,7 @@ int __mt7921_mcu_set_clc(struct mt792x_dev *dev, u8 *alpha2,
 	} __packed req = {
 		.idx = idx,
 		.env = env_cap,
-		.acpi_conf = mt7921_acpi_get_flags(&dev->phy),
+		.acpi_conf = mt792x_acpi_get_flags(&dev->phy),
 	};
 	int ret, valid_cnt = 0;
 	u8 i, *pos;

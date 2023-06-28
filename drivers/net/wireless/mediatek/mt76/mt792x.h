@@ -9,6 +9,7 @@
 
 #include "mt76_connac_mcu.h"
 #include "mt792x_regs.h"
+#include "mt792x_acpi_sar.h"
 
 #define MT792x_MAX_INTERFACES	4
 #define MT792x_WTBL_SIZE	20
@@ -296,5 +297,27 @@ int mt792x_mcu_fw_pmctrl(struct mt792x_dev *dev);
 int __mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792xe_mcu_drv_pmctrl(struct mt792x_dev *dev);
 int mt792xe_mcu_fw_pmctrl(struct mt792x_dev *dev);
+
+#ifdef CONFIG_ACPI
+int mt792x_init_acpi_sar(struct mt792x_dev *dev);
+int mt792x_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default);
+u8 mt792x_acpi_get_flags(struct mt792x_phy *phy);
+#else
+static inline int mt792x_init_acpi_sar(struct mt792x_dev *dev)
+{
+	return 0;
+}
+
+static inline int mt792x_init_acpi_sar_power(struct mt792x_phy *phy,
+					     bool set_default)
+{
+	return 0;
+}
+
+static inline u8 mt792x_acpi_get_flags(struct mt792x_phy *phy)
+{
+	return 0;
+}
+#endif
 
 #endif /* __MT7925_H */

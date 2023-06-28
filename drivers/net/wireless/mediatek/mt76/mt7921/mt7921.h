@@ -6,7 +6,6 @@
 
 #include "../mt792x.h"
 #include "regs.h"
-#include "acpi_sar.h"
 
 #define MT7921_PM_TIMEOUT		(HZ / 12)
 #define MT7921_HW_SCAN_TIMEOUT		(HZ / 10)
@@ -345,29 +344,6 @@ int mt7921_mcu_uni_add_beacon_offload(struct mt792x_dev *dev,
 				      struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      bool enable);
-#ifdef CONFIG_ACPI
-int mt7921_init_acpi_sar(struct mt792x_dev *dev);
-int mt7921_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default);
-u8 mt7921_acpi_get_flags(struct mt792x_phy *phy);
-#else
-static inline int
-mt7921_init_acpi_sar(struct mt792x_dev *dev)
-{
-	return 0;
-}
-
-static inline int
-mt7921_init_acpi_sar_power(struct mt792x_phy *phy, bool set_default)
-{
-	return 0;
-}
-
-static inline u8
-mt7921_acpi_get_flags(struct mt792x_phy *phy)
-{
-	return 0;
-}
-#endif
 int mt7921_set_tx_sar_pwr(struct ieee80211_hw *hw,
 			  const struct cfg80211_sar_specs *sar);
 
