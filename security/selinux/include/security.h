@@ -65,6 +65,7 @@
 #define SE_SBPROC		0x0200
 #define SE_SBGENFS		0x0400
 #define SE_SBGENFS_XATTR	0x0800
+#define SE_SBNATIVE		0x1000
 
 #define CONTEXT_STR	"context"
 #define FSCONTEXT_STR	"fscontext"
@@ -384,7 +385,6 @@ struct selinux_kernel_status {
 extern void selinux_status_update_setenforce(int enforcing);
 extern void selinux_status_update_policyload(int seqno);
 extern void selinux_complete_init(void);
-extern void exit_sel_fs(void);
 extern struct path selinux_null;
 extern void selnl_notify_setenforce(int val);
 extern void selnl_notify_policyload(u32 seqno);
