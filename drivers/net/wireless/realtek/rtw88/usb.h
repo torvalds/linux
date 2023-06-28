@@ -58,7 +58,6 @@ struct rx_usb_ctrl_block {
 	struct rtw_dev *rtwdev;
 	struct urb *rx_urb;
 	struct sk_buff *rx_skb;
-	int n;
 };
 
 struct rtw_usb_tx_data {
@@ -79,7 +78,6 @@ struct rtw_usb {
 	u8 pipe_in;
 	u8 out_ep[RTW_USB_EP_MAX];
 	int qsel_to_ep[TX_DESC_QSEL_MAX];
-	u8 usb_txagg_num;
 
 	struct workqueue_struct *txwq, *rxwq;
 
