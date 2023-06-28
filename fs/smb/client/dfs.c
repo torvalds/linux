@@ -54,39 +54,6 @@ out:
 	return rc;
 }
 
-/*
- * cifs_build_path_to_root returns full path to root when we do not have an
- * existing connection (tcon)
- */
-static char *build_unc_path_to_root(const struct smb3_fs_context *ctx,
-				    const struct cifs_sb_info *cifs_sb, bool useppath)
-{
-	char *full_path, *pos;
-	unsigned int pplen = useppath && ctx->prepath ? strlen(ctx->prepath) + 1 : 0;
-	unsigned int unc_len = strnlen(ctx->UNC, MAX_TREE_SIZE + 1);
-
-	if (unc_len > MAX_TREE_SIZE)
-		return ERR_PTR(-EINVAL);
-
-	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
-	if (full_path == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(full_path, ctx->UNC, unc_len);
-	pos = full_path + unc_len;
-
-	if (pplen) {
-		*pos = CIFS_DIR_SEP(cifs_sb);
-		memcpy(pos + 1, ctx->prepath, pplen);
-		pos += pplen;
-	}
-
-	*pos = '\0'; /* add trailing null */
-	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
-	cifs_dbg(FYI, "%s: full_path=%s\n", __func__, full_path);
-	return full_path;
-}
-
 static int get_session(struct cifs_mount_ctx *mnt_ctx, const char *full_path)
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
@@ -179,6 +146,7 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	struct TCP_Server_Info *server;
 	struct cifs_tcon *tcon;
 	char *origin_fullpath = NULL;
+	char sep = CIFS_DIR_SEP(cifs_sb);
 	int num_links = 0;
 	int rc;
 
@@ -186,7 +154,7 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	if (IS_ERR(ref_path))
 		return PTR_ERR(ref_path);
 
-	full_path = build_unc_path_to_root(ctx, cifs_sb, true);
+	full_path = smb3_fs_context_fullpath(ctx, sep);
 	if (IS_ERR(full_path)) {
 		rc = PTR_ERR(full_path);
 		full_path = NULL;
@@ -228,7 +196,7 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 				kfree(full_path);
 				ref_path = full_path = NULL;
 
-				full_path = build_unc_path_to_root(ctx, cifs_sb, true);
+				full_path = smb3_fs_context_fullpath(ctx, sep);
 				if (IS_ERR(full_path)) {
 					rc = PTR_ERR(full_path);
 					full_path = NULL;
