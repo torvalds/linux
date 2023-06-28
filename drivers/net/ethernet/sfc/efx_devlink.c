@@ -626,6 +626,9 @@ static struct devlink_port *ef100_set_devlink_port(struct efx_nic *efx, u32 idx)
 	u32 id;
 	int rc;
 
+	if (!efx->mae)
+		return NULL;
+
 	if (efx_mae_lookup_mport(efx, idx, &id)) {
 		/* This should not happen. */
 		if (idx == MAE_MPORT_DESC_VF_IDX_NULL)
