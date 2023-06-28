@@ -120,6 +120,7 @@ void hab_ctx_free(struct kref *ref)
 	struct uhab_context *ctxdel, *ctxtmp;
 	struct hab_open_node *open_node;
 	struct export_desc *exp = NULL, *exp_tmp = NULL;
+	struct export_desc_super *exp_super = NULL;
 
 	/* garbage-collect exp/imp buffers */
 	write_lock_bh(&ctx->exp_lock);
@@ -142,7 +143,8 @@ void hab_ctx_free(struct kref *ref)
 			exp->export_id, exp->vcid_local,
 			ctx->import_total);
 		habmm_imp_hyp_unmap(ctx->import_ctx, exp, ctx->kernel);
-		kfree(exp);
+		exp_super = container_of(exp, struct export_desc_super, exp);
+		kfree(exp_super);
 	}
 	spin_unlock_bh(&ctx->imp_lock);
 

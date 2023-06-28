@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
@@ -356,6 +356,7 @@ int hab_mem_import(struct uhab_context *ctx,
 {
 	int ret = 0, found = 0;
 	struct export_desc *exp = NULL;
+	struct export_desc_super *exp_super = NULL;
 	struct virtual_channel *vchan;
 
 	if (!ctx || !param)
@@ -371,6 +372,25 @@ int hab_mem_import(struct uhab_context *ctx,
 	list_for_each_entry(exp, &ctx->imp_whse, node) {
 		if ((exp->export_id == param->exportid) &&
 			(exp->pchan == vchan->pchan)) {
+			exp_super = container_of(exp, struct export_desc_super, exp);
+
+			/*
+			 * not allowed to import one exp desc more than once
+			 */
+			if (exp_super->import_state == EXP_DESC_IMPORTED
+				|| exp_super->import_state == EXP_DESC_IMPORTING) {
+				pr_err("not allowed to import one exp desc (export id %u) more than once\n",
+						exp->export_id);
+				spin_unlock_bh(&ctx->imp_lock);
+				ret = -EINVAL;
+				goto err_imp;
+			}
+
+			/*
+			 * set the flag to avoid another thread getting the exp desc again
+			 * and must be before unlock, otherwise it is no use.
+			 */
+			exp_super->import_state = EXP_DESC_IMPORTING;
 			found = 1;
 			break;
 		}
@@ -388,6 +408,7 @@ int hab_mem_import(struct uhab_context *ctx,
 		pr_err("input size %d don't match buffer size %d\n",
 			param->sizebytes, exp->payload_count << PAGE_SHIFT);
 		ret = -EINVAL;
+		exp_super->import_state = EXP_DESC_INIT;
 		goto err_imp;
 	}
 
@@ -397,11 +418,14 @@ int hab_mem_import(struct uhab_context *ctx,
 		pr_err("Import fail ret:%d pcnt:%d rem:%d 1st_ref:0x%X\n",
 			ret, exp->payload_count,
 			exp->domid_local, *((uint32_t *)exp->payload));
+		exp_super->import_state = EXP_DESC_INIT;
 		goto err_imp;
 	}
 
 	exp->import_index = param->index;
 	exp->kva = kernel ? (void *)param->kva : NULL;
+
+	exp_super->import_state = EXP_DESC_IMPORTED;
 
 err_imp:
 	if (vchan)
@@ -416,6 +440,7 @@ int hab_mem_unimport(struct uhab_context *ctx,
 {
 	int ret = 0, found = 0;
 	struct export_desc *exp = NULL, *exp_tmp;
+	struct export_desc_super *exp_super = NULL;
 	struct virtual_channel *vchan;
 
 	if (!ctx || !param)
@@ -430,12 +455,23 @@ int hab_mem_unimport(struct uhab_context *ctx,
 
 	spin_lock_bh(&ctx->imp_lock);
 	list_for_each_entry_safe(exp, exp_tmp, &ctx->imp_whse, node) {
+
+		/* same pchan is expected here */
 		if (exp->export_id == param->exportid &&
 			exp->pchan == vchan->pchan) {
-			/* same pchan is expected here */
-			list_del(&exp->node);
-			ctx->import_total--;
-			found = 1;
+			exp_super = container_of(exp, struct export_desc_super, exp);
+
+			/*
+			 * only successfully imported export desc could be found and released
+			 */
+			if (exp_super->import_state == EXP_DESC_IMPORTED) {
+				list_del(&exp->node);
+				ctx->import_total--;
+				found = 1;
+			} else {
+				pr_err("exp desc id:%u status:%d is found, invalid to unimport\n",
+						exp->export_id, exp_super->import_state);
+			}
 			break;
 		}
 	}
@@ -450,7 +486,7 @@ int hab_mem_unimport(struct uhab_context *ctx,
 			exp->export_id, exp->payload_count, exp->vcid_remote);
 		}
 		param->kva = (uint64_t)exp->kva;
-		kfree(exp);
+		kfree(exp_super);
 	}
 
 	if (vchan)
