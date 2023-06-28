@@ -98,12 +98,12 @@ out_unlock:
  */
 int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp)
 {
-	int flags = LM_FLAG_NOEXP | GL_EXACT;
 	int error;
 
-	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED, flags,
+	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_SHARED,
+				   LM_FLAG_NOEXP | GL_EXACT,
 				   &sdp->sd_freeze_gh);
-	if (error && error != GLR_TRYFAILED)
+	if (error)
 		fs_err(sdp, "can't lock the freeze glock: %d\n", error);
 	return error;
 }

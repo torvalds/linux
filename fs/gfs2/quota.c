@@ -75,6 +75,9 @@
 #define GFS2_QD_HASH_SIZE       BIT(GFS2_QD_HASH_SHIFT)
 #define GFS2_QD_HASH_MASK       (GFS2_QD_HASH_SIZE - 1)
 
+#define QC_CHANGE 0
+#define QC_SYNC 1
+
 /* Lock order: qd_lock -> bucket lock -> qd->lockref.lock -> lru lock */
 /*                     -> sd_bitmap_lock                              */
 static DEFINE_SPINLOCK(qd_lock);
@@ -470,7 +473,6 @@ static int qd_fish(struct gfs2_sbd *sdp, struct gfs2_quota_data **qdp)
 	spin_unlock(&qd_lock);
 
 	if (qd) {
-		gfs2_assert_warn(sdp, qd->qd_change_sync);
 		error = bh_get(qd);
 		if (error) {
 			clear_bit(QDF_LOCKED, &qd->qd_flags);
@@ -662,7 +664,7 @@ static int sort_qd(const void *a, const void *b)
 	return 0;
 }
 
-static void do_qc(struct gfs2_quota_data *qd, s64 change)
+static void do_qc(struct gfs2_quota_data *qd, s64 change, int qc_type)
 {
 	struct gfs2_sbd *sdp = qd->qd_gl->gl_name.ln_sbd;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_qc_inode);
@@ -687,16 +689,18 @@ static void do_qc(struct gfs2_quota_data *qd, s64 change)
 	qd->qd_change = x;
 	spin_unlock(&qd_lock);
 
-	if (!x) {
+	if (qc_type == QC_CHANGE) {
+		if (!test_and_set_bit(QDF_CHANGE, &qd->qd_flags)) {
+			qd_hold(qd);
+			slot_hold(qd);
+		}
+	} else {
 		gfs2_assert_warn(sdp, test_bit(QDF_CHANGE, &qd->qd_flags));
 		clear_bit(QDF_CHANGE, &qd->qd_flags);
 		qc->qc_flags = 0;
 		qc->qc_id = 0;
 		slot_put(qd);
 		qd_put(qd);
-	} else if (!test_and_set_bit(QDF_CHANGE, &qd->qd_flags)) {
-		qd_hold(qd);
-		slot_hold(qd);
 	}
 
 	if (change < 0) /* Reset quiet flag if we freed some blocks */
@@ -953,7 +957,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 		if (error)
 			goto out_end_trans;
 
-		do_qc(qd, -qd->qd_change_sync);
+		do_qc(qd, -qd->qd_change_sync, QC_SYNC);
 		set_bit(QDF_REFRESH, &qd->qd_flags);
 	}
 
@@ -1279,7 +1283,7 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 
 		if (qid_eq(qd->qd_id, make_kqid_uid(uid)) ||
 		    qid_eq(qd->qd_id, make_kqid_gid(gid))) {
-			do_qc(qd, change);
+			do_qc(qd, change, QC_CHANGE);
 		}
 	}
 }
