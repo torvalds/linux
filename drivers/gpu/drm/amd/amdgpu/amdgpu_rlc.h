@@ -155,6 +155,33 @@ typedef struct _RLC_TABLE_OF_CONTENT {
 	};
 } RLC_TABLE_OF_CONTENT;
 
+typedef struct _RLC_TABLE_OF_CONTENT_V2 {
+	union {
+		unsigned int    DW0;
+		struct {
+			uint32_t offset         : 25;
+			uint32_t id             : 7;
+		};
+	};
+
+	union {
+		unsigned int    DW1;
+		struct {
+			uint32_t reserved0              : 1;
+			uint32_t reserved1              : 1;
+			uint32_t reserved2              : 1;
+			uint32_t memory_destination     : 2;
+			uint32_t vfflr_image_code       : 4;
+			uint32_t reserved9              : 1;
+			uint32_t reserved10             : 1;
+			uint32_t reserved11             : 1;
+			uint32_t size_x16               : 1;
+			uint32_t reserved13             : 1;
+			uint32_t size                   : 18;
+		};
+	};
+} RLC_TABLE_OF_CONTENT_V2;
+
 #define RLC_TOC_MAX_SIZE		64
 
 struct amdgpu_rlc_funcs {
