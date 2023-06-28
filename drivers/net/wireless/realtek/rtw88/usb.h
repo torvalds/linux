@@ -18,10 +18,6 @@
 
 #define RTW_USB_VENQT_CMD_IDX		0x00
 
-#define RTW_USB_SUPER_SPEED_BULK_SIZE	1024
-#define RTW_USB_HIGH_SPEED_BULK_SIZE	512
-#define RTW_USB_FULL_SPEED_BULK_SIZE	64
-
 #define RTW_USB_TX_SEL_HQ		BIT(0)
 #define RTW_USB_TX_SEL_LQ		BIT(1)
 #define RTW_USB_TX_SEL_NQ		BIT(2)
@@ -73,7 +69,6 @@ struct rtw_usb {
 	__le32 *usb_data;
 	unsigned int usb_data_index;
 
-	u32 bulkout_size;
 	u8 pipe_interrupt;
 	u8 pipe_in;
 	u8 out_ep[RTW_USB_EP_MAX];
