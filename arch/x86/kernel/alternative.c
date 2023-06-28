@@ -678,7 +678,9 @@ static int patch_return(void *addr, struct insn *insn, u8 *bytes)
 {
 	int i = 0;
 
-	if (cpu_feature_enabled(X86_FEATURE_RETHUNK))
+	if (cpu_feature_enabled(X86_FEATURE_RETHUNK) ||
+	    cpu_feature_enabled(X86_FEATURE_SRSO) ||
+	    cpu_feature_enabled(X86_FEATURE_SRSO_ALIAS))
 		return -1;
 
 	bytes[i++] = RET_INSN_OPCODE;

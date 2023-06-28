@@ -112,7 +112,7 @@
  * eventually turn into it's own annotation.
  */
 .macro ANNOTATE_UNRET_END
-#ifdef CONFIG_DEBUG_ENTRY
+#if (defined(CONFIG_CPU_UNRET_ENTRY) || defined(CONFIG_CPU_SRSO))
 	ANNOTATE_RETPOLINE_SAFE
 	nop
 #endif
@@ -179,6 +179,11 @@
 	              CALL_ZEN_UNTRAIN_RET, X86_FEATURE_UNRET,		\
 		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB
 #endif
+
+#ifdef CONFIG_CPU_SRSO
+	ALTERNATIVE_2 "", "call srso_untrain_ret", X86_FEATURE_SRSO, \
+			  "call srso_untrain_ret_alias", X86_FEATURE_SRSO_ALIAS
+#endif
 .endm
 
 #else /* __ASSEMBLY__ */
@@ -191,6 +196,8 @@
 
 extern void __x86_return_thunk(void);
 extern void zen_untrain_ret(void);
+extern void srso_untrain_ret(void);
+extern void srso_untrain_ret_alias(void);
 extern void entry_ibpb(void);
 
 #ifdef CONFIG_RETPOLINE
