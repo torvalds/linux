@@ -846,9 +846,15 @@ static void compress_file_range(struct btrfs_work *work)
 	unsigned int poff;
 	int i;
 	int compress_type = fs_info->compress_type;
-	int redirty = 0;
 
 	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
+
+	/*
+	 * We need to call clear_page_dirty_for_io on each page in the range.
+	 * Otherwise applications with the file mmap'd can wander in and change
+	 * the page contents while we are compressing them.
+	 */
+	extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
 
 	/*
 	 * We need to save i_size before now because it could change in between
@@ -928,22 +934,6 @@ again:
 		compress_type = inode->defrag_compress;
 	else if (inode->prop_compress)
 		compress_type = inode->prop_compress;
-
-	/*
-	 * We need to call clear_page_dirty_for_io on each page in the range.
-	 * Otherwise applications with the file mmap'd can wander in and change
-	 * the page contents while we are compressing them.
-	 *
-	 * If the compression fails for any reason, we set the pages dirty again
-	 * later on.
-	 *
-	 * Note that the remaining part is redirtied, the start pointer has
-	 * moved, the end is the original one.
-	 */
-	if (!redirty) {
-		extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
-		redirty = 1;
-	}
 
 	/* Compression level is applied here. */
 	ret = btrfs_compress_pages(compress_type | (fs_info->compress_level << 4),
@@ -1040,21 +1030,6 @@ mark_incompressible:
 	if (!btrfs_test_opt(fs_info, FORCE_COMPRESS) && !inode->prop_compress)
 		inode->flags |= BTRFS_INODE_NOCOMPRESS;
 cleanup_and_bail_uncompressed:
-	/*
-	 * No compression, but we still need to write the pages in the file
-	 * we've been given so far.  redirty the locked page if it corresponds
-	 * to our extent and set things up for the async work queue to run
-	 * cow_file_range to do the normal delalloc dance.
-	 */
-	if (async_chunk->locked_page &&
-	    (page_offset(async_chunk->locked_page) >= start &&
-	     page_offset(async_chunk->locked_page)) <= end) {
-		__set_page_dirty_nobuffers(async_chunk->locked_page);
-		/* unlocked later on in the async handlers */
-	}
-
-	if (redirty)
-		extent_range_redirty_for_io(&inode->vfs_inode, start, end);
 	add_async_extent(async_chunk, start, end - start + 1, 0, NULL, 0,
 			 BTRFS_COMPRESS_NONE);
 free_pages:
@@ -1130,7 +1105,7 @@ static void submit_uncompressed_range(struct btrfs_inode *inode,
 
 	/* All pages will be unlocked, including @locked_page */
 	wbc_attach_fdatawrite_inode(&wbc, &inode->vfs_inode);
-	extent_write_locked_range(&inode->vfs_inode, start, end, &wbc);
+	extent_write_locked_range(&inode->vfs_inode, start, end, &wbc, false);
 	wbc_detach_inode(&wbc);
 }
 
@@ -1754,7 +1729,7 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 		}
 		locked_page_done = true;
 		extent_write_locked_range(&inode->vfs_inode, start, done_offset,
-					  wbc);
+					  wbc, true);
 		start = done_offset + 1;
 	}
 

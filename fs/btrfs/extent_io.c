@@ -181,22 +181,6 @@ void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
 	}
 }
 
-void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
-{
-	struct address_space *mapping = inode->i_mapping;
-	unsigned long index = start >> PAGE_SHIFT;
-	unsigned long end_index = end >> PAGE_SHIFT;
-	struct folio *folio;
-
-	while (index <= end_index) {
-		folio = filemap_get_folio(mapping, index);
-		filemap_dirty_folio(mapping, folio);
-		folio_account_redirty(folio);
-		index += folio_nr_pages(folio);
-		folio_put(folio);
-	}
-}
-
 static void process_one_page(struct btrfs_fs_info *fs_info,
 			     struct page *page, struct page *locked_page,
 			     unsigned long page_ops, u64 start, u64 end)
@@ -2178,7 +2162,7 @@ retry:
  * locked.
  */
 void extent_write_locked_range(struct inode *inode, u64 start, u64 end,
-			       struct writeback_control *wbc)
+			       struct writeback_control *wbc, bool pages_dirty)
 {
 	bool found_error = false;
 	int ret = 0;
@@ -2204,14 +2188,11 @@ void extent_write_locked_range(struct inode *inode, u64 start, u64 end,
 		int nr = 0;
 
 		page = find_get_page(mapping, cur >> PAGE_SHIFT);
-		/*
-		 * All pages in the range are locked since
-		 * btrfs_run_delalloc_range(), thus there is no way to clear
-		 * the page dirty flag.
-		 */
 		ASSERT(PageLocked(page));
-		ASSERT(PageDirty(page));
-		clear_page_dirty_for_io(page);
+		if (pages_dirty) {
+			ASSERT(PageDirty(page));
+			clear_page_dirty_for_io(page);
+		}
 
 		ret = __extent_writepage_io(BTRFS_I(inode), page, &bio_ctrl,
 					    i_size, &nr);
