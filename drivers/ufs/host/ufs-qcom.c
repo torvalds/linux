@@ -4832,6 +4832,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		goto out;
 	}
 
+	ufs_qcom_msi_lock_descs(hba);
 	msi_for_each_desc(desc, hba->dev, MSI_DESC_ALL) {
 		ret = devm_request_irq(hba->dev, desc->irq,
 				       ufs_qcom_mcq_esi_handler,
@@ -4847,14 +4848,17 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 		if (desc->msi_index)
 			ufs_qcom_set_esi_affinity_hint(hba, desc->irq);
 	}
+	ufs_qcom_msi_unlock_descs(hba);
 
 	if (ret) {
 		/* Rewind */
+		ufs_qcom_msi_lock_descs(hba);
 		msi_for_each_desc(desc, hba->dev, MSI_DESC_ALL) {
 			if (desc == failed_desc)
 				break;
 			devm_free_irq(hba->dev, desc->irq, hba);
 		}
+		ufs_qcom_msi_unlock_descs(hba);
 		platform_msi_domain_free_irqs(hba->dev);
 	} else {
 		if (host->hw_ver.major == 6 && host->hw_ver.minor == 0 &&
