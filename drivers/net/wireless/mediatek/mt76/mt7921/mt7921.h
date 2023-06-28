@@ -7,9 +7,6 @@
 #include "../mt792x.h"
 #include "regs.h"
 
-#define MT7921_PM_TIMEOUT		(HZ / 12)
-#define MT7921_HW_SCAN_TIMEOUT		(HZ / 10)
-
 #define MT7921_TX_RING_SIZE		2048
 #define MT7921_TX_MCU_RING_SIZE		256
 #define MT7921_TX_FWDL_RING_SIZE	128

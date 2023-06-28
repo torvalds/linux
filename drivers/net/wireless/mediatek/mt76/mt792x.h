@@ -11,6 +11,9 @@
 #include "mt792x_regs.h"
 #include "mt792x_acpi_sar.h"
 
+#define MT792x_PM_TIMEOUT	(HZ / 12)
+#define MT792x_HW_SCAN_TIMEOUT	(HZ / 10)
+
 #define MT792x_MAX_INTERFACES	4
 #define MT792x_WTBL_SIZE	20
 #define MT792x_WTBL_RESERVED	(MT792x_WTBL_SIZE - 1)

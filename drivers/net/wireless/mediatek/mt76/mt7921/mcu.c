@@ -167,7 +167,7 @@ mt7921_mcu_scan_event(struct mt792x_dev *dev, struct sk_buff *skb)
 	spin_unlock_bh(&dev->mt76.lock);
 
 	ieee80211_queue_delayed_work(mphy->hw, &phy->scan_work,
-				     MT7921_HW_SCAN_TIMEOUT);
+				     MT792x_HW_SCAN_TIMEOUT);
 }
 
 static void

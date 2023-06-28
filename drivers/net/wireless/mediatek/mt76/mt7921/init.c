@@ -217,7 +217,7 @@ int mt7921_register_device(struct mt792x_dev *dev)
 	timer_setup(&dev->phy.roc_timer, mt792x_roc_timer, 0);
 	init_waitqueue_head(&dev->phy.roc_wait);
 
-	dev->pm.idle_timeout = MT7921_PM_TIMEOUT;
+	dev->pm.idle_timeout = MT792x_PM_TIMEOUT;
 	dev->pm.stats.last_wake_event = jiffies;
 	dev->pm.stats.last_doze_event = jiffies;
 	if (!mt76_is_usb(&dev->mt76)) {
