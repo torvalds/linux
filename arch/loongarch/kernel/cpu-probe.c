@@ -116,6 +116,18 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_FPU;
 		elf_hwcap |= HWCAP_LOONGARCH_FPU;
 	}
+#ifdef CONFIG_CPU_HAS_LSX
+	if (config & CPUCFG2_LSX) {
+		c->options |= LOONGARCH_CPU_LSX;
+		elf_hwcap |= HWCAP_LOONGARCH_LSX;
+	}
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
+	if (config & CPUCFG2_LASX) {
+		c->options |= LOONGARCH_CPU_LASX;
+		elf_hwcap |= HWCAP_LOONGARCH_LASX;
+	}
+#endif
 	if (config & CPUCFG2_COMPLEX) {
 		c->options |= LOONGARCH_CPU_COMPLEX;
 		elf_hwcap |= HWCAP_LOONGARCH_COMPLEX;

@@ -852,12 +852,67 @@ static void init_restore_fp(void)
 	BUG_ON(!is_fp_enabled());
 }
 
+static void init_restore_lsx(void)
+{
+	enable_lsx();
+
+	if (!thread_lsx_context_live()) {
+		/* First time LSX context user */
+		init_restore_fp();
+		init_lsx_upper();
+		set_thread_flag(TIF_LSX_CTX_LIVE);
+	} else {
+		if (!is_simd_owner()) {
+			if (is_fpu_owner()) {
+				restore_lsx_upper(current);
+			} else {
+				__own_fpu();
+				restore_lsx(current);
+			}
+		}
+	}
+
+	set_thread_flag(TIF_USEDSIMD);
+
+	BUG_ON(!is_fp_enabled());
+	BUG_ON(!is_lsx_enabled());
+}
+
+static void init_restore_lasx(void)
+{
+	enable_lasx();
+
+	if (!thread_lasx_context_live()) {
+		/* First time LASX context user */
+		init_restore_lsx();
+		init_lasx_upper();
+		set_thread_flag(TIF_LASX_CTX_LIVE);
+	} else {
+		if (is_fpu_owner() || is_simd_owner()) {
+			init_restore_lsx();
+			restore_lasx_upper(current);
+		} else {
+			__own_fpu();
+			enable_lsx();
+			restore_lasx(current);
+		}
+	}
+
+	set_thread_flag(TIF_USEDSIMD);
+
+	BUG_ON(!is_fp_enabled());
+	BUG_ON(!is_lsx_enabled());
+	BUG_ON(!is_lasx_enabled());
+}
+
 asmlinkage void noinstr do_fpu(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
 	die_if_kernel("do_fpu invoked from kernel context!", regs);
+	BUG_ON(is_lsx_enabled());
+	BUG_ON(is_lasx_enabled());
 
 	preempt_disable();
 	init_restore_fp();
@@ -872,9 +927,20 @@ asmlinkage void noinstr do_lsx(struct pt_regs *regs)
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
-	force_sig(SIGILL);
-	local_irq_disable();
+	if (!cpu_has_lsx) {
+		force_sig(SIGILL);
+		goto out;
+	}
 
+	die_if_kernel("do_lsx invoked from kernel context!", regs);
+	BUG_ON(is_lasx_enabled());
+
+	preempt_disable();
+	init_restore_lsx();
+	preempt_enable();
+
+out:
+	local_irq_disable();
 	irqentry_exit(regs, state);
 }
 
@@ -883,9 +949,19 @@ asmlinkage void noinstr do_lasx(struct pt_regs *regs)
 	irqentry_state_t state = irqentry_enter(regs);
 
 	local_irq_enable();
-	force_sig(SIGILL);
-	local_irq_disable();
+	if (!cpu_has_lasx) {
+		force_sig(SIGILL);
+		goto out;
+	}
 
+	die_if_kernel("do_lasx invoked from kernel context!", regs);
+
+	preempt_disable();
+	init_restore_lasx();
+	preempt_enable();
+
+out:
+	local_irq_disable();
 	irqentry_exit(regs, state);
 }
 
