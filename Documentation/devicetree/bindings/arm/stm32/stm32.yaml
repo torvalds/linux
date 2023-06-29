@@ -161,6 +161,12 @@ properties:
           - const: phytec,phycore-stm32mp157c-som
           - const: st,stm32mp157
 
+      - description: ST STM32MP257 based Boards
+        items:
+          - enum:
+              - st,stm32mp257f-ev1
+          - const: st,stm32mp257
+
 additionalProperties: true
 
 ...
