@@ -184,7 +184,7 @@ tlb_huge_update_load:
 	ertn
 
 nopage_tlb_load:
-	dbar		0
+	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_0
 	jr		t0
@@ -333,7 +333,7 @@ tlb_huge_update_store:
 	ertn
 
 nopage_tlb_store:
-	dbar		0
+	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0
@@ -480,7 +480,7 @@ tlb_huge_update_modify:
 	ertn
 
 nopage_tlb_modify:
-	dbar		0
+	dbar		0x700
 	csrrd		ra, EXCEPTION_KS2
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0

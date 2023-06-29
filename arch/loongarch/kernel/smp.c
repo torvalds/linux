@@ -115,7 +115,7 @@ static u32 ipi_read_clear(int cpu)
 	action = iocsr_read32(LOONGARCH_IOCSR_IPI_STATUS);
 	/* Clear the ipi register to clear the interrupt */
 	iocsr_write32(action, LOONGARCH_IOCSR_IPI_CLEAR);
-	smp_mb();
+	wbflush();
 
 	return action;
 }
