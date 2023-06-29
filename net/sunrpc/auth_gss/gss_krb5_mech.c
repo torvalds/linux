@@ -30,10 +30,6 @@
 
 static struct gss_api_mech gss_kerberos_mech;
 
-#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
-static int gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask);
-static int gss_krb5_import_ctx_v1(struct krb5_ctx *ctx, gfp_t gfp_mask);
-#endif
 #if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
 static int gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask);
 #endif
@@ -413,46 +409,6 @@ out_err_free_mech:
 out_err:
 	return PTR_ERR(p);
 }
-
-#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
-static int
-gss_krb5_import_ctx_des(struct krb5_ctx *ctx, gfp_t gfp_mask)
-{
-	return -EINVAL;
-}
-
-static int
-gss_krb5_import_ctx_v1(struct krb5_ctx *ctx, gfp_t gfp_mask)
-{
-	struct xdr_netobj keyin, keyout;
-
-	keyin.data = ctx->Ksess;
-	keyin.len = ctx->gk5e->keylength;
-
-	ctx->seq = gss_krb5_alloc_cipher_v1(ctx, &keyin);
-	if (ctx->seq == NULL)
-		goto out_err;
-	ctx->enc = gss_krb5_alloc_cipher_v1(ctx, &keyin);
-	if (ctx->enc == NULL)
-		goto out_free_seq;
-
-	/* derive cksum */
-	keyout.data = ctx->cksum;
-	keyout.len = ctx->gk5e->keylength;
-	if (krb5_derive_key(ctx, &keyin, &keyout, KG_USAGE_SIGN,
-			    KEY_USAGE_SEED_CHECKSUM, gfp_mask))
-		goto out_free_enc;
-
-	return 0;
-
-out_free_enc:
-	crypto_free_sync_skcipher(ctx->enc);
-out_free_seq:
-	crypto_free_sync_skcipher(ctx->seq);
-out_err:
-	return -EINVAL;
-}
-#endif
 
 #if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
 
