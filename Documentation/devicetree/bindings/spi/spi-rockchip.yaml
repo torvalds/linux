@@ -94,6 +94,11 @@ properties:
     description: Add this property to set the transmission method as CPU polling.
     type: boolean
 
+  rockchip,cs-inactive-disable:
+    description: Add this property to disable the cs inactive interrupt for spi
+      slave.
+    type: boolean
+
 required:
   - compatible
   - reg
