@@ -203,8 +203,10 @@ struct kvm_arch {
 	/* Mandated version of PSCI */
 	u32 psci_version;
 
+#ifndef __GENKSYMS__
 	/* Protects VM-scoped configuration data */
 	struct mutex config_lock;
+#endif
 
 	/*
 	 * If we encounter a data abort without valid instruction syndrome
@@ -353,7 +355,11 @@ struct kvm_cpu_context {
 
 	u64 sys_regs[NR_SYS_REGS];
 
+#ifdef __GENKSYMS__
 	struct kvm_vcpu *__hyp_running_vcpu;
+#else
+	void *__hyp_running_vcpu;
+#endif
 };
 
 struct kvm_host_data {
@@ -512,7 +518,9 @@ struct kvm_vcpu_arch {
 
 	/* vcpu power state */
 	struct kvm_mp_state mp_state;
+#ifndef __GENKSYMS__
 	spinlock_t mp_state_lock;
+#endif
 
 	union {
 		/* Cache some mmu pages needed inside spinlock regions */
