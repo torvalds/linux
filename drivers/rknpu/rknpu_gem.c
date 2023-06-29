@@ -67,6 +67,7 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 			      rknpu_obj->size);
 		goto free_sgt;
 	}
+	iommu_flush_iotlb_all(iommu_get_domain_for_dev(drm->dev));
 
 	if (rknpu_obj->flags & RKNPU_MEM_KERNEL_MAPPING) {
 		rknpu_obj->cookie = vmap(rknpu_obj->pages, rknpu_obj->num_pages,
@@ -181,7 +182,9 @@ static int rknpu_gem_alloc_buf(struct rknpu_gem_object *rknpu_obj)
 	if (rknpu_obj->flags & RKNPU_MEM_ZEROING)
 		gfp_mask |= __GFP_ZERO;
 
-	if (!(rknpu_obj->flags & RKNPU_MEM_NON_DMA32)) {
+	if (!rknpu_dev->iommu_en ||
+	    rknpu_dev->config->dma_mask <= DMA_BIT_MASK(32) ||
+	    (rknpu_obj->flags & RKNPU_MEM_DMA32)) {
 		gfp_mask &= ~__GFP_HIGHMEM;
 		gfp_mask |= __GFP_DMA32;
 	}
@@ -360,6 +363,7 @@ static const struct drm_gem_object_funcs rknpu_gem_object_funcs = {
 static struct rknpu_gem_object *rknpu_gem_init(struct drm_device *drm,
 					       unsigned long size)
 {
+	struct rknpu_device *rknpu_dev = drm->dev_private;
 	struct rknpu_gem_object *rknpu_obj = NULL;
 	struct drm_gem_object *obj = NULL;
 	gfp_t gfp_mask;
@@ -388,7 +392,9 @@ static struct rknpu_gem_object *rknpu_gem_init(struct drm_device *drm,
 	if (rknpu_obj->flags & RKNPU_MEM_ZEROING)
 		gfp_mask |= __GFP_ZERO;
 
-	if (!(rknpu_obj->flags & RKNPU_MEM_NON_DMA32)) {
+	if (!rknpu_dev->iommu_en ||
+	    rknpu_dev->config->dma_mask <= DMA_BIT_MASK(32) ||
+	    (rknpu_obj->flags & RKNPU_MEM_DMA32)) {
 		gfp_mask &= ~__GFP_HIGHMEM;
 		gfp_mask |= __GFP_DMA32;
 	}

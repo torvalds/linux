@@ -73,8 +73,8 @@ enum e_rknpu_mem_type {
 	RKNPU_MEM_ZEROING = 1 << 5,
 	/* allocate secure buffer */
 	RKNPU_MEM_SECURE = 1 << 6,
-	/* allocate from non-dma32 zone */
-	RKNPU_MEM_NON_DMA32 = 1 << 7,
+	/* allocate from dma32 zone */
+	RKNPU_MEM_DMA32 = 1 << 7,
 	/* request SRAM */
 	RKNPU_MEM_TRY_ALLOC_SRAM = 1 << 8,
 	/* request NBUF */
@@ -82,7 +82,7 @@ enum e_rknpu_mem_type {
 	RKNPU_MEM_MASK = RKNPU_MEM_NON_CONTIGUOUS | RKNPU_MEM_CACHEABLE |
 			 RKNPU_MEM_WRITE_COMBINE | RKNPU_MEM_KERNEL_MAPPING |
 			 RKNPU_MEM_IOMMU | RKNPU_MEM_ZEROING |
-			 RKNPU_MEM_SECURE | RKNPU_MEM_NON_DMA32 |
+			 RKNPU_MEM_SECURE | RKNPU_MEM_DMA32 |
 			 RKNPU_MEM_TRY_ALLOC_SRAM | RKNPU_MEM_TRY_ALLOC_NBUF
 };
 
