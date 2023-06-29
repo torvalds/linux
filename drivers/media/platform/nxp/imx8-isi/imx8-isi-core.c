@@ -289,7 +289,7 @@ static const struct mxc_isi_plat_data mxc_imx8mn_data = {
 	.clks			= mxc_imx8mn_clks,
 	.num_clks		= ARRAY_SIZE(mxc_imx8mn_clks),
 	.buf_active_reverse	= false,
-	.has_gasket		= true,
+	.gasket_ops		= &mxc_imx8_gasket_ops,
 	.has_36bit_dma		= false,
 };
 
@@ -303,7 +303,7 @@ static const struct mxc_isi_plat_data mxc_imx8mp_data = {
 	.clks			= mxc_imx8mn_clks,
 	.num_clks		= ARRAY_SIZE(mxc_imx8mn_clks),
 	.buf_active_reverse	= true,
-	.has_gasket		= true,
+	.gasket_ops		= &mxc_imx8_gasket_ops,
 	.has_36bit_dma		= true,
 };
 
@@ -443,7 +443,7 @@ static int mxc_isi_probe(struct platform_device *pdev)
 		return PTR_ERR(isi->regs);
 	}
 
-	if (isi->pdata->has_gasket) {
+	if (isi->pdata->gasket_ops) {
 		isi->gasket = syscon_regmap_lookup_by_phandle(dev->of_node,
 							      "fsl,blk-ctrl");
 		if (IS_ERR(isi->gasket)) {
