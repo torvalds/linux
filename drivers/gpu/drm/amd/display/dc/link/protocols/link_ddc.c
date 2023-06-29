@@ -427,7 +427,7 @@ bool try_to_configure_aux_timeout(struct ddc_service *ddc,
 
 	if ((ddc->link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			!ddc->link->dc->debug.disable_fixed_vs_aux_timeout_wa &&
-			ASICREV_IS_YELLOW_CARP(ddc->ctx->asic_id.hw_internal_rev)) {
+			ddc->ctx->dce_version == DCN_VERSION_3_1) {
 		/* Fixed VS workaround for AUX timeout */
 		const uint32_t fixed_vs_address = 0xF004F;
 		const uint8_t fixed_vs_data[4] = {0x1, 0x22, 0x63, 0xc};
