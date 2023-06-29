@@ -33,7 +33,6 @@ struct gss_krb5_enctype {
 	const u32		Ke_length;	/* encryption subkey length, in octets */
 	const u32		Ki_length;	/* integrity subkey length, in octets */
 
-	int (*import_ctx)(struct krb5_ctx *ctx, gfp_t gfp_mask);
 	int (*derive_key)(const struct gss_krb5_enctype *gk5e,
 			  const struct xdr_netobj *in,
 			  struct xdr_netobj *out,

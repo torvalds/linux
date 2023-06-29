@@ -29,7 +29,6 @@
 #endif
 
 static struct gss_api_mech gss_kerberos_mech;
-static int gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask);
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 #if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
@@ -43,7 +42,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .encrypt_name = "cts(cbc(aes))",
 	  .aux_cipher = "cbc(aes)",
 	  .cksum_name = "hmac(sha1)",
-	  .import_ctx = gss_krb5_import_ctx_v2,
 	  .derive_key = krb5_derive_key_v2,
 	  .encrypt = gss_krb5_aes_encrypt,
 	  .decrypt = gss_krb5_aes_decrypt,
@@ -73,7 +71,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .encrypt_name = "cts(cbc(aes))",
 	  .aux_cipher = "cbc(aes)",
 	  .cksum_name = "hmac(sha1)",
-	  .import_ctx = gss_krb5_import_ctx_v2,
 	  .derive_key = krb5_derive_key_v2,
 	  .encrypt = gss_krb5_aes_encrypt,
 	  .decrypt = gss_krb5_aes_decrypt,
@@ -113,7 +110,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 		.Ke_length	= BITS2OCTETS(128),
 		.Ki_length	= BITS2OCTETS(128),
 
-		.import_ctx	= gss_krb5_import_ctx_v2,
 		.derive_key	= krb5_kdf_feedback_cmac,
 		.encrypt	= gss_krb5_aes_encrypt,
 		.decrypt	= gss_krb5_aes_decrypt,
@@ -140,7 +136,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 		.Ke_length	= BITS2OCTETS(256),
 		.Ki_length	= BITS2OCTETS(256),
 
-		.import_ctx	= gss_krb5_import_ctx_v2,
 		.derive_key	= krb5_kdf_feedback_cmac,
 		.encrypt	= gss_krb5_aes_encrypt,
 		.decrypt	= gss_krb5_aes_decrypt,
@@ -170,7 +165,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 		.Ke_length	= BITS2OCTETS(128),
 		.Ki_length	= BITS2OCTETS(128),
 
-		.import_ctx	= gss_krb5_import_ctx_v2,
 		.derive_key	= krb5_kdf_hmac_sha2,
 		.encrypt	= krb5_etm_encrypt,
 		.decrypt	= krb5_etm_decrypt,
@@ -197,7 +191,6 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 		.Ke_length	= BITS2OCTETS(256),
 		.Ki_length	= BITS2OCTETS(192),
 
-		.import_ctx	= gss_krb5_import_ctx_v2,
 		.derive_key	= krb5_kdf_hmac_sha2,
 		.encrypt	= krb5_etm_encrypt,
 		.decrypt	= krb5_etm_decrypt,
@@ -431,9 +424,6 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	p = simple_get_bytes(p, end, &ctx->enctype, sizeof(ctx->enctype));
 	if (IS_ERR(p))
 		goto out_err;
-	/* Map ENCTYPE_DES3_CBC_SHA1 to ENCTYPE_DES3_CBC_RAW */
-	if (ctx->enctype == ENCTYPE_DES3_CBC_SHA1)
-		ctx->enctype = ENCTYPE_DES3_CBC_RAW;
 	ctx->gk5e = gss_krb5_lookup_enctype(ctx->enctype);
 	if (ctx->gk5e == NULL) {
 		dprintk("gss_kerberos_mech: unsupported krb5 enctype %u\n",
@@ -460,7 +450,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
 	}
 	ctx->mech_used.len = gss_kerberos_mech.gm_oid.len;
 
-	return ctx->gk5e->import_ctx(ctx, gfp_mask);
+	return gss_krb5_import_ctx_v2(ctx, gfp_mask);
 
 out_err:
 	return PTR_ERR(p);
