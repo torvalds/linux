@@ -104,12 +104,6 @@ u32 gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 
 /* Key Derivation Functions */
 
-int krb5_derive_key_v1(const struct gss_krb5_enctype *gk5e,
-		       const struct xdr_netobj *inkey,
-		       struct xdr_netobj *outkey,
-		       const struct xdr_netobj *label,
-		       gfp_t gfp_mask);
-
 int krb5_derive_key_v2(const struct gss_krb5_enctype *gk5e,
 		       const struct xdr_netobj *inkey,
 		       struct xdr_netobj *outkey,
