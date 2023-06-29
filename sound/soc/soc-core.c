@@ -3278,8 +3278,6 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 	struct snd_soc_component *pos;
 	int ret = -EPROBE_DEFER;
 
-	dlc->of_node = args->np;
-
 	mutex_lock(&client_mutex);
 	for_each_component(pos) {
 		struct device_node *component_of_node = soc_component_to_node(pos);
@@ -3333,6 +3331,10 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 
 		break;
 	}
+
+	if (ret == 0)
+		dlc->of_node = args->np;
+
 	mutex_unlock(&client_mutex);
 	return ret;
 }
