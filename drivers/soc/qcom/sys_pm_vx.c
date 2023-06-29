@@ -222,7 +222,7 @@ static void trigger_dump(struct vx_platform_data *pd)
 
 	mutex_lock(&pd->lock);
 	scnprintf(buf, sizeof(buf),
-			"{class: crash_dump, res: do_crash_dump, tmr: %d}", pd->timer_ms);
+			"{class: misc_debug, res: do_crash_dump, tmr: %d}", pd->timer_ms);
 
 	ret = qmp_send(pd->qmp, buf, sizeof(buf));
 	if (ret)
