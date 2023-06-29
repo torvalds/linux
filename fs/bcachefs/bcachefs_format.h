@@ -1574,8 +1574,6 @@ struct bch_sb_field_journal_seq_blacklist {
  * One common version number for all on disk data structures - superblock, btree
  * nodes, journal entries
  */
-#define BCH_JSET_VERSION_OLD			2
-#define BCH_BSET_VERSION_OLD			3
 
 #define BCH_METADATA_VERSIONS()				\
 	x(bkey_renumber,		10)		\

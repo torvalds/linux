@@ -745,14 +745,10 @@ static int jset_validate(struct bch_fs *c,
 		return JOURNAL_ENTRY_NONE;
 
 	version = le32_to_cpu(jset->version);
-	if (journal_entry_err_on((version != BCH_JSET_VERSION_OLD &&
-				  version < bcachefs_metadata_version_min) ||
-				 version >= bcachefs_metadata_version_max,
-				 c, jset, NULL,
-			"%s sector %llu seq %llu: unknown journal entry version %u",
+	if (journal_entry_err_on(!bch2_version_compatible(version), c, jset, NULL,
+			"%s sector %llu seq %llu: incompatible journal entry version %u",
 			ca ? ca->name : c->name,
-			sector, le64_to_cpu(jset->seq),
-			version)) {
+			sector, le64_to_cpu(jset->seq), version)) {
 		/* don't try to continue: */
 		return -EINVAL;
 	}
@@ -796,14 +792,10 @@ static int jset_validate_early(struct bch_fs *c,
 		return JOURNAL_ENTRY_NONE;
 
 	version = le32_to_cpu(jset->version);
-	if (journal_entry_err_on((version != BCH_JSET_VERSION_OLD &&
-				  version < bcachefs_metadata_version_min) ||
-				 version >= bcachefs_metadata_version_max,
-				 c, jset, NULL,
+	if (journal_entry_err_on(!bch2_version_compatible(version), c, jset, NULL,
 			"%s sector %llu seq %llu: unknown journal entry version %u",
 			ca ? ca->name : c->name,
-			sector, le64_to_cpu(jset->seq),
-			version)) {
+			sector, le64_to_cpu(jset->seq), version)) {
 		/* don't try to continue: */
 		return -EINVAL;
 	}
@@ -1755,9 +1747,7 @@ void bch2_journal_write(struct closure *cl)
 	}
 
 	jset->magic		= cpu_to_le64(jset_magic(c));
-	jset->version		= c->sb.version < bcachefs_metadata_version_bkey_renumber
-		? cpu_to_le32(BCH_JSET_VERSION_OLD)
-		: cpu_to_le32(c->sb.version);
+	jset->version		= cpu_to_le32(c->sb.version);
 
 	SET_JSET_BIG_ENDIAN(jset, CPU_BIG_ENDIAN);
 	SET_JSET_CSUM_TYPE(jset, bch2_meta_checksum_type(c));

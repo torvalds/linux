@@ -269,6 +269,44 @@ static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out
 	return 0;
 }
 
+static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
+{
+	u16 version		= le16_to_cpu(sb->version);
+	u16 version_min		= le16_to_cpu(sb->version_min);
+
+	if (!bch2_version_compatible(version)) {
+		prt_str(out, "Unsupported superblock version ");
+		bch2_version_to_text(out, version);
+		prt_str(out, " (min ");
+		bch2_version_to_text(out, bcachefs_metadata_version_min);
+		prt_str(out, ", max ");
+		bch2_version_to_text(out, bcachefs_metadata_version_current);
+		prt_str(out, ")");
+		return -BCH_ERR_invalid_sb_version;
+	}
+
+	if (!bch2_version_compatible(version_min)) {
+		prt_str(out, "Unsupported superblock version_min ");
+		bch2_version_to_text(out, version_min);
+		prt_str(out, " (min ");
+		bch2_version_to_text(out, bcachefs_metadata_version_min);
+		prt_str(out, ", max ");
+		bch2_version_to_text(out, bcachefs_metadata_version_current);
+		prt_str(out, ")");
+		return -BCH_ERR_invalid_sb_version;
+	}
+
+	if (version_min > version) {
+		prt_str(out, "Bad minimum version ");
+		bch2_version_to_text(out, version_min);
+		prt_str(out, ", greater than version field ");
+		bch2_version_to_text(out, version);
+		return -BCH_ERR_invalid_sb_version;
+	}
+
+	return 0;
+}
+
 static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 			    int rw)
 {
@@ -276,32 +314,12 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	struct bch_sb_field *f;
 	struct bch_sb_field_members *mi;
 	enum bch_opt_id opt_id;
-	u32 version, version_min;
 	u16 block_size;
 	int ret;
 
-	version		= le16_to_cpu(sb->version);
-	version_min	= version >= bcachefs_metadata_version_bkey_renumber
-		? le16_to_cpu(sb->version_min)
-		: version;
-
-	if (version    >= bcachefs_metadata_version_max) {
-		prt_printf(out, "Unsupported superblock version %u (min %u, max %u)",
-		       version, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -BCH_ERR_invalid_sb_version;
-	}
-
-	if (version_min < bcachefs_metadata_version_min) {
-		prt_printf(out, "Unsupported superblock version %u (min %u, max %u)",
-		       version_min, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -BCH_ERR_invalid_sb_version;
-	}
-
-	if (version_min > version) {
-		prt_printf(out, "Bad minimum version %u, greater than version field %u",
-		       version_min, version);
-		return -BCH_ERR_invalid_sb_version;
-	}
+	ret = bch2_sb_compatible(sb, out);
+	if (ret)
+		return ret;
 
 	if (sb->features[1] ||
 	    (le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR))) {
@@ -350,7 +368,7 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 	if (rw == READ) {
 		/*
 		 * Been seeing a bug where these are getting inexplicably
-		 * zeroed, so we'r now validating them, but we have to be
+		 * zeroed, so we're now validating them, but we have to be
 		 * careful not to preven people's filesystems from mounting:
 		 */
 		if (!BCH_SB_JOURNAL_FLUSH_DELAY(sb))
@@ -531,7 +549,6 @@ int bch2_sb_from_fs(struct bch_fs *c, struct bch_dev *ca)
 static int read_one_super(struct bch_sb_handle *sb, u64 offset, struct printbuf *err)
 {
 	struct bch_csum csum;
-	u32 version, version_min;
 	size_t bytes;
 	int ret;
 reread:
@@ -551,22 +568,9 @@ reread:
 		return -BCH_ERR_invalid_sb_magic;
 	}
 
-	version		= le16_to_cpu(sb->sb->version);
-	version_min	= version >= bcachefs_metadata_version_bkey_renumber
-		? le16_to_cpu(sb->sb->version_min)
-		: version;
-
-	if (version    >= bcachefs_metadata_version_max) {
-		prt_printf(err, "Unsupported superblock version %u (min %u, max %u)",
-		       version, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -BCH_ERR_invalid_sb_version;
-	}
-
-	if (version_min < bcachefs_metadata_version_min) {
-		prt_printf(err, "Unsupported superblock version %u (min %u, max %u)",
-		       version_min, bcachefs_metadata_version_min, bcachefs_metadata_version_max);
-		return -BCH_ERR_invalid_sb_version;
-	}
+	ret = bch2_sb_compatible(sb->sb, err);
+	if (ret)
+		return ret;
 
 	bytes = vstruct_bytes(sb->sb);
 

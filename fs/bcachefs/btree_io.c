@@ -699,11 +699,9 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 	struct printbuf buf2 = PRINTBUF;
 	int ret = 0;
 
-	btree_err_on((version != BCH_BSET_VERSION_OLD &&
-		      version < bcachefs_metadata_version_min) ||
-		     version >= bcachefs_metadata_version_max,
+	btree_err_on(!bch2_version_compatible(version),
 		     BTREE_ERR_INCOMPATIBLE, c, ca, b, i,
-		     "unsupported bset version");
+		     "unsupported bset version %u", version);
 
 	if (btree_err_on(version < c->sb.version_min,
 			 BTREE_ERR_FIXABLE, c, NULL, b, i,
@@ -2019,9 +2017,7 @@ do_write:
 	BUG_ON(BSET_BIG_ENDIAN(i) != CPU_BIG_ENDIAN);
 	BUG_ON(i->seq != b->data->keys.seq);
 
-	i->version = c->sb.version < bcachefs_metadata_version_bkey_renumber
-		? cpu_to_le16(BCH_BSET_VERSION_OLD)
-		: cpu_to_le16(c->sb.version);
+	i->version = cpu_to_le16(c->sb.version);
 	SET_BSET_OFFSET(i, b->written);
 	SET_BSET_CSUM_TYPE(i, bch2_meta_checksum_type(c));
 
