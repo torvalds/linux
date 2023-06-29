@@ -12,6 +12,7 @@
 #include <linux/notifier.h>
 #include <linux/fwnode.h>
 #include <linux/gunyah_rsc_mgr.h>
+#include <linux/range.h>
 
 #include "gh_common.h"
 
@@ -55,6 +56,21 @@
 #define GH_RM_MEM_NOTIFY_OWNER_RELEASED		BIT(1)
 #define GH_RM_MEM_NOTIFY_OWNER		GH_RM_MEM_NOTIFY_OWNER_RELEASED
 #define GH_RM_MEM_NOTIFY_OWNER_ACCEPTED		BIT(2)
+
+/* Support may vary across hardware platforms */
+#define GH_RM_IPA_RESERVE_ECC			BIT(0)
+#define GH_RM_IPA_RESERVE_MEMTAG		BIT(1)
+#define GH_RM_IPA_RESERVE_NORMAL		BIT(2)
+#define GH_RM_IPA_RESERVE_IO			BIT(3)
+/* BIT(4) and BIT(5) reserved */
+/* The calling VM's default memory type */
+#define GH_RM_IPA_RESERVE_DEFAULT		BIT(6)
+#define GH_RM_IPA_RESERVE_VALID_FLAGS		(GENMASK(3, 0) | BIT(6))
+
+#define GH_RM_IPA_RESERVE_PLATFORM_ENCRYPTED		BIT(0)
+#define GH_RM_IPA_RESERVE_PLATFORM_AUTHENTICATED	BIT(1)
+#define GH_RM_IPA_RESERVE_PLATFORM_ANTI_ROLLBACK	BIT(2)
+#define GH_RM_IPA_RESERVE_PLATFORM_VALID_FLAGS		GENMASK(2, 0)
 
 #define MAX_EXIT_REASON_SIZE			4
 
@@ -416,6 +432,8 @@ int gh_rm_mem_donate(u8 mem_type, u8 flags, gh_label_t label,
 int gh_rm_mem_notify(gh_memparcel_handle_t handle, u8 flags,
 		     gh_label_t mem_info_tag,
 		     struct gh_notify_vmid_desc *vmid_desc);
+int gh_rm_ipa_reserve(u64 size, u64 align, struct range limits, u32 generic_constraints,
+		      u32 platform_constraints, u64 *ipa);
 
 /* API to set time base */
 int gh_rm_vm_set_time_base(gh_vmid_t vmid);
@@ -739,5 +757,11 @@ static inline int gh_rm_minidump_get_slot_from_name(uint16_t starting_slot,
 	return -EINVAL;
 }
 
+static inline int gh_rm_ipa_reserve(u64 size, u64 align, struct range limits,
+				    u32 generic_constraints, u32 platform_constraints,
+				    u64 *ipa)
+{
+	return -EINVAL;
+}
 #endif
 #endif

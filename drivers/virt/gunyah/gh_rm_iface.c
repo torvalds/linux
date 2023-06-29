@@ -2683,3 +2683,75 @@ err_rm_call:
 	return ret;
 }
 EXPORT_SYMBOL(gh_rm_minidump_get_slot_from_name);
+
+/*
+ * Reserves an ipa region of the given size and alignment from within a
+ * limited range. The IPA range may have additional restrictions on its
+ * memory type or security as described by flags & platform_flags.
+ * No ipa_unreserve API is supported by hypervisor.
+ *
+ * @ipa - Return value.
+ *
+ * Returns zero on success, or negative on failure. May return -EPROBE_DEFER.
+ */
+int gh_rm_ipa_reserve(u64 size, u64 align, struct range limits, u32 generic_constraints,
+			u32 platform_constraints, u64 *ipa)
+{
+	int ret;
+	struct gh_ipa_reserve_payload req = {};
+	struct gh_ipa_reserve_resp_payload *resp;
+	size_t resp_payload_size;
+	u64 len;
+
+	if (!gh_rm_core_initialized)
+		return -EPROBE_DEFER;
+
+	/* Account for overflow */
+	len = limits.end - limits.start + 1;
+	if (!len)
+		len = ALIGN_DOWN(U64_MAX, PAGE_SIZE);
+
+	if (generic_constraints & ~GH_RM_IPA_RESERVE_VALID_FLAGS ||
+	    platform_constraints & ~GH_RM_IPA_RESERVE_PLATFORM_VALID_FLAGS) {
+		pr_debug("%s: Invalid constraints\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!IS_ALIGNED(size, PAGE_SIZE) ||
+	    !IS_ALIGNED(align, PAGE_SIZE) ||
+	    !IS_ALIGNED(limits.start, PAGE_SIZE) ||
+	    !IS_ALIGNED(len, PAGE_SIZE)) {
+		pr_debug("%s: Parameters must be PAGE aligned\n", __func__);
+		return -EINVAL;
+	}
+
+	req.alloc_type = GH_RM_IPA_RESERVE_ALLOC_TYPE;
+	req.generic_constraints = generic_constraints;
+	req.platform_constraints = platform_constraints;
+	req.nr_ranges = 1;
+	req.region_base = limits.start;
+	req.region_size = len;
+	req.size = size;
+	req.align = align;
+
+	ret = gh_rm_call(rm, GH_RM_RPC_MSG_ID_CALL_IPA_RESERVE,
+			  &req, sizeof(req),
+			  (void **)&resp, &resp_payload_size);
+	if (ret) {
+		pr_err("%s failed with error: %d\n", __func__, ret);
+		return ret;
+	}
+
+	if (resp_payload_size != sizeof(*resp)) {
+		pr_err("%s: Invalid size received: %zu\n",
+			__func__, resp_payload_size);
+		if (resp_payload_size)
+			kfree(resp);
+		return -EINVAL;
+	}
+
+	*ipa = resp->ipa;
+	kfree(resp);
+	return 0;
+}
+EXPORT_SYMBOL(gh_rm_ipa_reserve);
