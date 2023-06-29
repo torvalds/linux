@@ -38,8 +38,6 @@
 #define RAA215300_REG_BLOCK_EN_RTC_EN	BIT(6)
 #define RAA215300_RTC_DEFAULT_ADDR	0x6f
 
-const char *clkin_name = "clkin";
-const char *xin_name = "xin";
 static struct clk *clk;
 
 static const struct regmap_config raa215300_regmap_config = {
@@ -71,8 +69,10 @@ static int raa215300_clk_present(struct i2c_client *client, const char *name)
 static int raa215300_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	const char *clk_name = xin_name;
+	const char *clkin_name = "clkin";
 	unsigned int pmic_version, val;
+	const char *xin_name = "xin";
+	const char *clk_name = NULL;
 	struct regmap *regmap;
 	int ret;
 
@@ -114,15 +114,17 @@ static int raa215300_i2c_probe(struct i2c_client *client)
 	ret = raa215300_clk_present(client, xin_name);
 	if (ret < 0) {
 		return ret;
-	} else if (!ret) {
+	} else if (ret) {
+		clk_name = xin_name;
+	} else {
 		ret = raa215300_clk_present(client, clkin_name);
 		if (ret < 0)
 			return ret;
-
-		clk_name = clkin_name;
+		if (ret)
+			clk_name = clkin_name;
 	}
 
-	if (ret) {
+	if (clk_name) {
 		char *name = pmic_version >= 0x12 ? "isl1208" : "raa215300_a0";
 		struct device_node *np = client->dev.of_node;
 		u32 addr = RAA215300_RTC_DEFAULT_ADDR;
