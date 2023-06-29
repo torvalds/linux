@@ -210,6 +210,7 @@ static void __init fdt_smp_setup(void)
 	}
 
 	loongson_sysconf.nr_cpus = num_processors;
+	set_bit(0, &(loongson_sysconf.cores_io_master));
 #endif
 }
 
