@@ -190,6 +190,13 @@ nopage_tlb_load:
 	jr		t0
 SYM_FUNC_END(handle_tlb_load)
 
+SYM_FUNC_START(handle_tlb_load_ptw)
+	csrwr		t0, LOONGARCH_CSR_KS0
+	csrwr		t1, LOONGARCH_CSR_KS1
+	la_abs		t0, tlb_do_page_fault_0
+	jr		t0
+SYM_FUNC_END(handle_tlb_load_ptw)
+
 SYM_FUNC_START(handle_tlb_store)
 	csrwr		t0, EXCEPTION_KS0
 	csrwr		t1, EXCEPTION_KS1
@@ -339,6 +346,13 @@ nopage_tlb_store:
 	jr		t0
 SYM_FUNC_END(handle_tlb_store)
 
+SYM_FUNC_START(handle_tlb_store_ptw)
+	csrwr		t0, LOONGARCH_CSR_KS0
+	csrwr		t1, LOONGARCH_CSR_KS1
+	la_abs		t0, tlb_do_page_fault_1
+	jr		t0
+SYM_FUNC_END(handle_tlb_store_ptw)
+
 SYM_FUNC_START(handle_tlb_modify)
 	csrwr		t0, EXCEPTION_KS0
 	csrwr		t1, EXCEPTION_KS1
@@ -485,6 +499,13 @@ nopage_tlb_modify:
 	la_abs		t0, tlb_do_page_fault_1
 	jr		t0
 SYM_FUNC_END(handle_tlb_modify)
+
+SYM_FUNC_START(handle_tlb_modify_ptw)
+	csrwr		t0, LOONGARCH_CSR_KS0
+	csrwr		t1, LOONGARCH_CSR_KS1
+	la_abs		t0, tlb_do_page_fault_1
+	jr		t0
+SYM_FUNC_END(handle_tlb_modify_ptw)
 
 SYM_FUNC_START(handle_tlb_refill)
 	csrwr		t0, LOONGARCH_CSR_TLBRSAVE

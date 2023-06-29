@@ -136,6 +136,10 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_CRYPTO;
 		elf_hwcap |= HWCAP_LOONGARCH_CRYPTO;
 	}
+	if (config & CPUCFG2_PTW) {
+		c->options |= LOONGARCH_CPU_PTW;
+		elf_hwcap |= HWCAP_LOONGARCH_PTW;
+	}
 	if (config & CPUCFG2_LVZP) {
 		c->options |= LOONGARCH_CPU_LVZ;
 		elf_hwcap |= HWCAP_LOONGARCH_LVZ;

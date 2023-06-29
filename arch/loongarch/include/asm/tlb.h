@@ -158,6 +158,9 @@ extern void handle_tlb_store(void);
 extern void handle_tlb_modify(void);
 extern void handle_tlb_refill(void);
 extern void handle_tlb_protect(void);
+extern void handle_tlb_load_ptw(void);
+extern void handle_tlb_store_ptw(void);
+extern void handle_tlb_modify_ptw(void);
 
 extern void dump_tlb_all(void);
 extern void dump_tlb_regs(void);
