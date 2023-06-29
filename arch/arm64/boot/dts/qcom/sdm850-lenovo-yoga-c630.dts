@@ -34,7 +34,7 @@
 
 	aliases {
 		serial0 = &uart9;
-		hsuart0 = &uart6;
+		serial1 = &uart6;
 	};
 
 	gpio-keys {
