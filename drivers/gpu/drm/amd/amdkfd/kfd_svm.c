@@ -1522,6 +1522,8 @@ static void *kfd_svm_page_owner(struct kfd_process *p, int32_t gpuidx)
 	struct kfd_process_device *pdd;
 
 	pdd = kfd_process_device_from_gpuidx(p, gpuidx);
+	if (!pdd)
+		return NULL;
 
 	return SVM_ADEV_PGMAP_OWNER(pdd->dev->adev);
 }
@@ -1596,12 +1598,12 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	}
 
 	if (bitmap_empty(ctx->bitmap, MAX_GPU_INSTANCE)) {
-		if (!prange->mapped_to_gpu) {
+		bitmap_copy(ctx->bitmap, prange->bitmap_access, MAX_GPU_INSTANCE);
+		if (!prange->mapped_to_gpu ||
+		    bitmap_empty(ctx->bitmap, MAX_GPU_INSTANCE)) {
 			r = 0;
 			goto free_ctx;
 		}
-
-		bitmap_copy(ctx->bitmap, prange->bitmap_access, MAX_GPU_INSTANCE);
 	}
 
 	if (prange->actual_loc && !prange->ttm_res) {
