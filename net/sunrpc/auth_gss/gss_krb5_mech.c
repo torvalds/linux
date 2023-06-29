@@ -39,52 +39,6 @@ static int gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask);
 #endif
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_DES)
-	/*
-	 * DES (All DES enctypes are mapped to the same gss functionality)
-	 */
-	{
-	  .etype = ENCTYPE_DES_CBC_RAW,
-	  .ctype = CKSUMTYPE_RSA_MD5,
-	  .name = "des-cbc-crc",
-	  .encrypt_name = "cbc(des)",
-	  .cksum_name = "md5",
-	  .import_ctx = gss_krb5_import_ctx_des,
-	  .get_mic = gss_krb5_get_mic_v1,
-	  .verify_mic = gss_krb5_verify_mic_v1,
-	  .wrap = gss_krb5_wrap_v1,
-	  .unwrap = gss_krb5_unwrap_v1,
-	  .signalg = SGN_ALG_DES_MAC_MD5,
-	  .sealalg = SEAL_ALG_DES,
-	  .keybytes = 7,
-	  .keylength = 8,
-	  .cksumlength = 8,
-	  .keyed_cksum = 0,
-	},
-	/*
-	 * 3DES
-	 */
-	{
-	  .etype = ENCTYPE_DES3_CBC_RAW,
-	  .ctype = CKSUMTYPE_HMAC_SHA1_DES3,
-	  .name = "des3-hmac-sha1",
-	  .encrypt_name = "cbc(des3_ede)",
-	  .cksum_name = "hmac(sha1)",
-	  .import_ctx = gss_krb5_import_ctx_v1,
-	  .derive_key = krb5_derive_key_v1,
-	  .get_mic = gss_krb5_get_mic_v1,
-	  .verify_mic = gss_krb5_verify_mic_v1,
-	  .wrap = gss_krb5_wrap_v1,
-	  .unwrap = gss_krb5_unwrap_v1,
-	  .signalg = SGN_ALG_HMAC_SHA1_DES3_KD,
-	  .sealalg = SEAL_ALG_DES3KD,
-	  .keybytes = 21,
-	  .keylength = 24,
-	  .cksumlength = 20,
-	  .keyed_cksum = 1,
-	},
-#endif
-
 #if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
 	/*
 	 * AES-128 with SHA-1 (RFC 3962)
@@ -283,12 +237,6 @@ static void gss_krb5_prepare_enctype_priority_list(void)
 #if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
 		ENCTYPE_AES256_CTS_HMAC_SHA1_96,
 		ENCTYPE_AES128_CTS_HMAC_SHA1_96,
-#endif
-#if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_DES)
-		ENCTYPE_DES3_CBC_SHA1,
-		ENCTYPE_DES_CBC_MD5,
-		ENCTYPE_DES_CBC_CRC,
-		ENCTYPE_DES_CBC_MD4,
 #endif
 	};
 	size_t total, i;
