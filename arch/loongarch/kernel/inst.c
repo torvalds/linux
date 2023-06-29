@@ -226,6 +226,11 @@ u32 larch_insn_gen_lu12iw(enum loongarch_gpr rd, int imm)
 {
 	union loongarch_instruction insn;
 
+	if (imm < -SZ_512K || imm >= SZ_512K) {
+		pr_warn("The generated lu12i.w instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
 	emit_lu12iw(&insn, rd, imm);
 
 	return insn.word;
@@ -234,6 +239,11 @@ u32 larch_insn_gen_lu12iw(enum loongarch_gpr rd, int imm)
 u32 larch_insn_gen_lu32id(enum loongarch_gpr rd, int imm)
 {
 	union loongarch_instruction insn;
+
+	if (imm < -SZ_512K || imm >= SZ_512K) {
+		pr_warn("The generated lu32i.d instruction is out of range.\n");
+		return INSN_BREAK;
+	}
 
 	emit_lu32id(&insn, rd, imm);
 
@@ -244,16 +254,26 @@ u32 larch_insn_gen_lu52id(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
 {
 	union loongarch_instruction insn;
 
+	if (imm < -SZ_2K || imm >= SZ_2K) {
+		pr_warn("The generated lu52i.d instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
 	emit_lu52id(&insn, rd, rj, imm);
 
 	return insn.word;
 }
 
-u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, unsigned long pc, unsigned long dest)
+u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm)
 {
 	union loongarch_instruction insn;
 
-	emit_jirl(&insn, rj, rd, (dest - pc) >> 2);
+	if ((imm & 3) || imm < -SZ_128K || imm >= SZ_128K) {
+		pr_warn("The generated jirl instruction is out of range.\n");
+		return INSN_BREAK;
+	}
+
+	emit_jirl(&insn, rj, rd, imm >> 2);
 
 	return insn.word;
 }

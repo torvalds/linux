@@ -5,6 +5,7 @@
 #ifndef _ASM_INST_H
 #define _ASM_INST_H
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <asm/asm.h>
 #include <asm/ptrace.h>
@@ -15,14 +16,22 @@
 #define ADDR_IMMMASK_LU52ID	0xFFF0000000000000
 #define ADDR_IMMMASK_LU32ID	0x000FFFFF00000000
 #define ADDR_IMMMASK_LU12IW	0x00000000FFFFF000
+#define ADDR_IMMMASK_ORI	0x0000000000000FFF
 #define ADDR_IMMMASK_ADDU16ID	0x00000000FFFF0000
 
 #define ADDR_IMMSHIFT_LU52ID	52
+#define ADDR_IMMSBIDX_LU52ID	11
 #define ADDR_IMMSHIFT_LU32ID	32
+#define ADDR_IMMSBIDX_LU32ID	19
 #define ADDR_IMMSHIFT_LU12IW	12
+#define ADDR_IMMSBIDX_LU12IW	19
+#define ADDR_IMMSHIFT_ORI	0
+#define ADDR_IMMSBIDX_ORI	63
 #define ADDR_IMMSHIFT_ADDU16ID	16
+#define ADDR_IMMSBIDX_ADDU16ID	15
 
-#define ADDR_IMM(addr, INSN)	((addr & ADDR_IMMMASK_##INSN) >> ADDR_IMMSHIFT_##INSN)
+#define ADDR_IMM(addr, INSN)	\
+	(sign_extend64(((addr & ADDR_IMMMASK_##INSN) >> ADDR_IMMSHIFT_##INSN), ADDR_IMMSBIDX_##INSN))
 
 enum reg0i15_op {
 	break_op	= 0x54,
@@ -449,7 +458,7 @@ u32 larch_insn_gen_move(enum loongarch_gpr rd, enum loongarch_gpr rj);
 u32 larch_insn_gen_lu12iw(enum loongarch_gpr rd, int imm);
 u32 larch_insn_gen_lu32id(enum loongarch_gpr rd, int imm);
 u32 larch_insn_gen_lu52id(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm);
-u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, unsigned long pc, unsigned long dest);
+u32 larch_insn_gen_jirl(enum loongarch_gpr rd, enum loongarch_gpr rj, int imm);
 
 static inline bool signed_imm_check(long val, unsigned int bit)
 {
