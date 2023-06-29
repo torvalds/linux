@@ -1014,7 +1014,7 @@ static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
 			msg.msg_flags |= MSG_MORE;
 
 		if (!sendpage_ok(page))
-			msg.msg_flags &= ~MSG_SPLICE_PAGES,
+			msg.msg_flags &= ~MSG_SPLICE_PAGES;
 
 		bvec_set_page(&bvec, page, len, offset);
 		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, len);
