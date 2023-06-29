@@ -99,6 +99,10 @@ properties:
       slave.
     type: boolean
 
+  ready-gpios:
+    description: GPIO spec for the spi slave ready signal.
+    maxItems: 1
+
 required:
   - compatible
   - reg
