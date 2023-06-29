@@ -55,6 +55,7 @@
 #define LLCC_CAMEXP4     52
 #define LLCC_DISP_WB     53
 #define LLCC_DISP_1      54
+#define LLCC_SAIL        55
 #define LLCC_VIDVSP      64
 
 /**
