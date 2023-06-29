@@ -489,8 +489,6 @@ struct gh_vm_status *gh_rm_vm_get_status(gh_vmid_t vmid)
 	if (resp_payload_size != sizeof(*resp_payload)) {
 		pr_err("%s: Invalid size received for VM_GET_STATE: %u\n",
 			__func__, resp_payload_size);
-		if (resp_payload_size)
-			kfree(resp_payload);
 		gh_vm_status = ERR_PTR(-EINVAL);
 		goto out;
 	}
@@ -500,7 +498,8 @@ struct gh_vm_status *gh_rm_vm_get_status(gh_vmid_t vmid)
 		gh_vm_status = ERR_PTR(-ENOMEM);
 
 out:
-	kfree(resp_payload);
+	if (resp_payload_size)
+		kfree(resp_payload);
 	return gh_vm_status;
 }
 EXPORT_SYMBOL(gh_rm_vm_get_status);
