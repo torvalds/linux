@@ -290,7 +290,7 @@ static struct i2c_driver nvt_ts_driver = {
 		.name	= "novatek-nvt-ts",
 		.pm	= pm_sleep_ptr(&nvt_ts_pm_ops),
 	},
-	.probe_new = nvt_ts_probe,
+	.probe = nvt_ts_probe,
 	.id_table = nvt_ts_i2c_id,
 };
 

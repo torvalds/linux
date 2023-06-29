@@ -2581,9 +2581,9 @@ F:	arch/arm/boot/dts/qcom-*.dtsi
 F:	arch/arm/configs/qcom_defconfig
 F:	arch/arm/mach-qcom/
 F:	arch/arm64/boot/dts/qcom/
+F:	drivers/*/*/pm8???-*
 F:	drivers/*/*/qcom*
 F:	drivers/*/*/qcom/
-F:	drivers/*/pm8???-*
 F:	drivers/*/qcom*
 F:	drivers/*/qcom/
 F:	drivers/bluetooth/btqcomsmd.c

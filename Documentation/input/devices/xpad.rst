@@ -4,16 +4,16 @@ xpad - Linux USB driver for Xbox compatible controllers
 
 This driver exposes all first-party and third-party Xbox compatible
 controllers. It has a long history and has enjoyed considerable usage
-as Window's xinput library caused most PC games to focus on Xbox
+as Windows' xinput library caused most PC games to focus on Xbox
 controller compatibility.
 
 Due to backwards compatibility all buttons are reported as digital.
-This only effects Original Xbox controllers. All later controller models
+This only affects Original Xbox controllers. All later controller models
 have only digital face buttons.
 
 Rumble is supported on some models of Xbox 360 controllers but not of
 Original Xbox controllers nor on Xbox One controllers. As of writing
-the Xbox One's rumble protocol has not been reverse engineered but in
+the Xbox One's rumble protocol has not been reverse-engineered but in
 the future could be supported.
 
 
@@ -82,7 +82,7 @@ I've tested this with Stepmania, and it works quite well.
 Unknown Controllers
 -------------------
 
-If you have an unknown xbox controller, it should work just fine with
+If you have an unknown Xbox controller, it should work just fine with
 the default settings.
 
 HOWEVER if you have an unknown dance pad not listed below, it will not
@@ -123,7 +123,7 @@ can be found on the net ([1]_, [2]_, [3]_).
 
 Thanks to the trip splitter found on the cable you don't even need to cut the
 original one. You can buy an extension cable and cut that instead. That way,
-you can still use the controller with your X-Box, if you have one ;)
+you can still use the controller with your Xbox, if you have one ;)
 
 
 
