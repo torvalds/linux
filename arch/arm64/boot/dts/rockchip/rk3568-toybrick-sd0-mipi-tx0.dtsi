@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	compatible = "rockchip,rk3568-toybrick-sd0-mipi-tx0", "rockchip,rk3568";
+};
+
+/*
+ * mipi_dphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&backlight {
+	status = "okay";
+	pwms = <&pwm14 0 25000 0>;
+};
+
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp1 {
+	status = "okay";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd0_n>;
+};
+
+&i2c1 {
+	status = "okay";
+	power-supply = <&vcc3v3_lcd0_n>;
+	gt1x: gt1x@14 {
+		compatible = "goodix,gt1x";
+		status = "okay";
+		reg = <0x14>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_pin>;
+		goodix,rst-gpio = <&gpio4 RK_PC3 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio4 RK_PC2 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&pwm14{
+	status = "okay";
+};
+
+&route_dsi0 {
+	status = "okay";
+	connect = <&vp1_out_dsi0>;
+};
+
+&vcc3v3_lcd0_n {
+	gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&pinctrl {
+	touch {
+		touch_pin: touch-pin {
+			rockchip,pins =
+				<4 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>,
+				<4 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};

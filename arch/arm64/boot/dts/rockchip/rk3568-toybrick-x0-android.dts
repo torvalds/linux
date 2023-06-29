@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+#include "rk3568-toybrick-x0.dtsi"
+#include "rk3568-android.dtsi"
+/ {
+	compatible = "rockchip,rk3568-toybrick-x0-android","rockchip,rk3568";
+};
+
