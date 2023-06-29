@@ -3,6 +3,8 @@
  * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
  */
 
+#include <dt-bindings/soc/rockchip-amp.h>
+
 / {
 	rockchip_amp: rockchip-amp {
 		compatible = "rockchip,amp";
@@ -12,6 +14,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart1_xfer>;
 		status = "okay";
+		amp-cpu-aff-maskbits = <0x0 0x1 0x1 0x2 0x2 0x4 0x3 0x8>;
+		amp-irqs = <GIC_AMP_IRQ_CFG_ROUTE(51, 0xd0, CPU_GET_AFFINITY(3, 0))>;
 	};
 
 	reserved-memory {
