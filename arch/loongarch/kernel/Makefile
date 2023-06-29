@@ -56,6 +56,7 @@ obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= hw_breakpoint.o
 
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_RETHOOK)		+= rethook.o rethook_trampoline.o
+obj-$(CONFIG_UPROBES)		+= uprobes.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
