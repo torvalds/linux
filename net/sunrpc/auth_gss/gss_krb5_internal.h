@@ -153,13 +153,6 @@ static inline int krb5_derive_key(struct krb5_ctx *kctx,
 	return gk5e->derive_key(gk5e, inkey, outkey, &label, gfp_mask);
 }
 
-s32 krb5_make_seq_num(struct krb5_ctx *kctx, struct crypto_sync_skcipher *key,
-		      int direction, u32 seqnum, unsigned char *cksum,
-		      unsigned char *buf);
-
-s32 krb5_get_seq_num(struct krb5_ctx *kctx, unsigned char *cksum,
-		     unsigned char *buf, int *direction, u32 *seqnum);
-
 void krb5_make_confounder(u8 *p, int conflen);
 
 u32 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
