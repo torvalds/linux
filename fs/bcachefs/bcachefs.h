@@ -749,7 +749,8 @@ struct bch_fs {
 	struct bio_set		btree_bio;
 	struct workqueue_struct	*io_complete_wq;
 
-	struct btree_root	btree_roots[BTREE_ID_NR];
+	struct btree_root	btree_roots_known[BTREE_ID_NR];
+	DARRAY(struct btree_root) btree_roots_extra;
 	struct mutex		btree_root_lock;
 
 	struct btree_cache	btree_cache;

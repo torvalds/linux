@@ -517,7 +517,7 @@ static void btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "%s level %u/%u\n  ",
 	       bch2_btree_ids[b->c.btree_id],
 	       b->c.level,
-	       c->btree_roots[b->c.btree_id].level);
+	       bch2_btree_id_root(c, b->c.btree_id)->level);
 	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
 }
 

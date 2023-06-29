@@ -702,13 +702,13 @@ static int journal_replay_entry_early(struct bch_fs *c,
 	case BCH_JSET_ENTRY_btree_root: {
 		struct btree_root *r;
 
-		if (entry->btree_id >= BTREE_ID_NR) {
-			bch_err(c, "filesystem has unknown btree type %u",
-				entry->btree_id);
-			return -EINVAL;
+		while (entry->btree_id >= c->btree_roots_extra.nr + BTREE_ID_NR) {
+			ret = darray_push(&c->btree_roots_extra, (struct btree_root) { NULL });
+			if (ret)
+				return ret;
 		}
 
-		r = &c->btree_roots[entry->btree_id];
+		r = bch2_btree_id_root(c, entry->btree_id);
 
 		if (entry->u64s) {
 			r->level = entry->level;
@@ -980,8 +980,8 @@ static int read_btree_roots(struct bch_fs *c)
 	unsigned i;
 	int ret = 0;
 
-	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct btree_root *r = &c->btree_roots[i];
+	for (i = 0; i < btree_id_nr_alive(c); i++) {
+		struct btree_root *r = bch2_btree_id_root(c, i);
 
 		if (!r->alive)
 			continue;
@@ -1014,7 +1014,7 @@ static int read_btree_roots(struct bch_fs *c)
 	}
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
-		struct btree_root *r = &c->btree_roots[i];
+		struct btree_root *r = bch2_btree_id_root(c, i);
 
 		if (!r->b) {
 			r->alive = false;

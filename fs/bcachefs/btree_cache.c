@@ -25,13 +25,15 @@ void bch2_recalc_btree_reserve(struct bch_fs *c)
 {
 	unsigned i, reserve = 16;
 
-	if (!c->btree_roots[0].b)
+	if (!c->btree_roots_known[0].b)
 		reserve += 8;
 
-	for (i = 0; i < BTREE_ID_NR; i++)
-		if (c->btree_roots[i].b)
-			reserve += min_t(unsigned, 1,
-					 c->btree_roots[i].b->c.level) * 8;
+	for (i = 0; i < btree_id_nr_alive(c); i++) {
+		struct btree_root *r = bch2_btree_id_root(c, i);
+
+		if (r->b)
+			reserve += min_t(unsigned, 1, r->b->c.level) * 8;
+	}
 
 	c->btree_cache.reserve = reserve;
 }
@@ -409,9 +411,12 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 
 	kvpfree(c->verify_ondisk, btree_bytes(c));
 
-	for (i = 0; i < BTREE_ID_NR; i++)
-		if (c->btree_roots[i].b)
-			list_add(&c->btree_roots[i].b->list, &bc->live);
+	for (i = 0; i < btree_id_nr_alive(c); i++) {
+		struct btree_root *r = bch2_btree_id_root(c, i);
+
+		if (r->b)
+			list_add(&r->b->list, &bc->live);
+	}
 
 	list_splice(&bc->freeable, &bc->live);
 

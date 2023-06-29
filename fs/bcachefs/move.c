@@ -632,12 +632,15 @@ int bch2_move_data(struct bch_fs *c,
 	bch2_moving_ctxt_init(&ctxt, c, rate, stats, wp, wait_on_copygc);
 
 	for (id = start_btree_id;
-	     id <= min_t(unsigned, end_btree_id, BTREE_ID_NR - 1);
+	     id <= min_t(unsigned, end_btree_id, btree_id_nr_alive(c) - 1);
 	     id++) {
 		stats->btree_id = id;
 
 		if (id != BTREE_ID_extents &&
 		    id != BTREE_ID_reflink)
+			continue;
+
+		if (!bch2_btree_id_root(c, id)->b)
 			continue;
 
 		ret = __bch2_move_data(&ctxt,
@@ -861,9 +864,12 @@ static int bch2_move_btree(struct bch_fs *c,
 	stats->data_type = BCH_DATA_btree;
 
 	for (id = start_btree_id;
-	     id <= min_t(unsigned, end_btree_id, BTREE_ID_NR - 1);
+	     id <= min_t(unsigned, end_btree_id, btree_id_nr_alive(c) - 1);
 	     id++) {
 		stats->btree_id = id;
+
+		if (!bch2_btree_id_root(c, id)->b)
+			continue;
 
 		bch2_trans_node_iter_init(&trans, &iter, id, POS_MIN, 0, 0,
 					  BTREE_ITER_PREFETCH);

@@ -1199,7 +1199,7 @@ static void bch2_btree_set_root_inmem(struct bch_fs *c, struct btree *b)
 	       (b->c.level < btree_node_root(c, b)->c.level ||
 		!btree_node_dying(btree_node_root(c, b))));
 
-	btree_node_root(c, b) = b;
+	bch2_btree_id_root(c, b->c.btree_id)->b = b;
 	mutex_unlock(&c->btree_root_lock);
 
 	bch2_recalc_btree_reserve(c);
@@ -2402,7 +2402,7 @@ bool bch2_btree_interior_updates_flush(struct bch_fs *c)
 
 void bch2_journal_entry_to_btree_root(struct bch_fs *c, struct jset_entry *entry)
 {
-	struct btree_root *r = &c->btree_roots[entry->btree_id];
+	struct btree_root *r = bch2_btree_id_root(c, entry->btree_id);
 
 	mutex_lock(&c->btree_root_lock);
 
@@ -2428,15 +2428,15 @@ bch2_btree_roots_to_journal_entries(struct bch_fs *c,
 
 	mutex_lock(&c->btree_root_lock);
 
-	for (i = 0; i < BTREE_ID_NR; i++)
-		if (c->btree_roots[i].alive && !test_bit(i, &have)) {
-			journal_entry_set(end,
-					  BCH_JSET_ENTRY_btree_root,
-					  i, c->btree_roots[i].level,
-					  &c->btree_roots[i].key,
-					  c->btree_roots[i].key.k.u64s);
+	for (i = 0; i < btree_id_nr_alive(c); i++) {
+		struct btree_root *r = bch2_btree_id_root(c, i);
+
+		if (r->alive && !test_bit(i, &have)) {
+			journal_entry_set(end, BCH_JSET_ENTRY_btree_root,
+					  i, r->level, &r->key, r->key.k.u64s);
 			end = vstruct_next(end);
 		}
+	}
 
 	mutex_unlock(&c->btree_root_lock);
 

@@ -485,6 +485,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 		for_each_possible_cpu(cpu)
 			kfree(per_cpu_ptr(c->btree_paths_bufs, cpu)->path);
 
+	darray_exit(&c->btree_roots_extra);
 	free_percpu(c->btree_paths_bufs);
 	free_percpu(c->pcpu);
 	mempool_exit(&c->large_bkey_pool);

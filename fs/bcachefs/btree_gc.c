@@ -529,8 +529,13 @@ static int bch2_repair_topology(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for (i = 0; i < BTREE_ID_NR && !ret; i++) {
-		b = c->btree_roots[i].b;
+	for (i = 0; i < btree_id_nr_alive(c)&& !ret; i++) {
+		struct btree_root *r = bch2_btree_id_root(c, i);
+
+		if (!r->alive)
+			continue;
+
+		b = r->b;
 		if (btree_node_fake(b))
 			continue;
 
@@ -883,7 +888,7 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
 		return ret;
 
 	mutex_lock(&c->btree_root_lock);
-	b = c->btree_roots[btree_id].b;
+	b = bch2_btree_id_root(c, btree_id)->b;
 	if (!btree_node_fake(b)) {
 		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
 
@@ -1006,7 +1011,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	b = c->btree_roots[btree_id].b;
+	b = bch2_btree_id_root(c, btree_id)->b;
 
 	if (btree_node_fake(b))
 		return 0;
@@ -1071,6 +1076,15 @@ static int bch2_gc_btrees(struct bch_fs *c, bool initial, bool metadata_only)
 		ret = initial
 			? bch2_gc_btree_init(&trans, ids[i], metadata_only)
 			: bch2_gc_btree(&trans, ids[i], initial, metadata_only);
+
+	for (i = BTREE_ID_NR; i < btree_id_nr_alive(c) && !ret; i++) {
+		if (!bch2_btree_id_root(c, i)->alive)
+			continue;
+
+		ret = initial
+			? bch2_gc_btree_init(&trans, i, metadata_only)
+			: bch2_gc_btree(&trans, i, initial, metadata_only);
+	}
 
 	if (ret < 0)
 		bch_err_fn(c, ret);

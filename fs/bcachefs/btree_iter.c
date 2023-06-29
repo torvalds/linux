@@ -238,7 +238,7 @@ static void bch2_btree_path_verify(struct btree_trans *trans,
 	for (i = 0; i < (!path->cached ? BTREE_MAX_DEPTH : 1); i++) {
 		if (!path->l[i].b) {
 			BUG_ON(!path->cached &&
-			       c->btree_roots[path->btree_id].b->c.level > i);
+			       bch2_btree_id_root(c, path->btree_id)->b->c.level > i);
 			break;
 		}
 
@@ -732,7 +732,7 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 				       unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
-	struct btree *b, **rootp = &c->btree_roots[path->btree_id].b;
+	struct btree *b, **rootp = &bch2_btree_id_root(c, path->btree_id)->b;
 	enum six_lock_type lock_type;
 	unsigned i;
 	int ret;
