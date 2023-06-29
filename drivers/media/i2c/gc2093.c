@@ -606,8 +606,7 @@ static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 				       (vts >> 8) & 0x3f);
 		ret |= gc2093_write_reg(gc2093, GC2093_REG_VTS_L,
 					vts & 0xff);
-		if (gc2093->cur_vts != gc2093->cur_mode->vts_def)
-			gc2093_modify_fps_info(gc2093);
+		gc2093_modify_fps_info(gc2093);
 		dev_dbg(gc2093->dev, " set blank value 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:

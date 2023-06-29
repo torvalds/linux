@@ -1716,8 +1716,7 @@ static int sc530ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 vts & 0xff);
 		if (!ret)
 			sc530ai->cur_vts = vts;
-		if (sc530ai->cur_vts != sc530ai->cur_mode->vts_def)
-			sc530ai_modify_fps_info(sc530ai);
+		sc530ai_modify_fps_info(sc530ai);
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:

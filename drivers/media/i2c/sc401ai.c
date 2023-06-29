@@ -1331,8 +1331,7 @@ static int sc401ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 & 0xff);
 		if (!ret)
 			sc401ai->cur_vts = ctrl->val + sc401ai->cur_mode->height;
-		if (sc401ai->cur_vts != sc401ai->cur_mode->vts_def)
-			sc401ai_modify_fps_info(sc401ai);
+		sc401ai_modify_fps_info(sc401ai);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc401ai_enable_test_pattern(sc401ai, ctrl->val);

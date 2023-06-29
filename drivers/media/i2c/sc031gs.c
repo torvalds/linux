@@ -1040,8 +1040,7 @@ static int sc031gs_set_ctrl(struct v4l2_ctrl *ctrl)
 				       ctrl->val + sc031gs->cur_mode->height);
 		if (!ret)
 			sc031gs->cur_vts = ctrl->val + sc031gs->cur_mode->height;
-		if (sc031gs->cur_vts != sc031gs->cur_mode->vts_def)
-			sc031gs_modify_fps_info(sc031gs);
+		sc031gs_modify_fps_info(sc031gs);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc031gs_enable_test_pattern(sc031gs, ctrl->val);

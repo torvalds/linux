@@ -1382,8 +1382,7 @@ static int sc3336_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc3336->cur_mode->height)
 					 & 0xff);
 		sc3336->cur_vts = ctrl->val + sc3336->cur_mode->height;
-		if (sc3336->cur_vts != sc3336->cur_mode->vts_def)
-			sc3336_modify_fps_info(sc3336);
+		sc3336_modify_fps_info(sc3336);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc3336_enable_test_pattern(sc3336, ctrl->val);

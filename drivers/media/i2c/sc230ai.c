@@ -1469,8 +1469,7 @@ static int sc230ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc230ai->cur_mode->height)
 					 & 0xff);
 		sc230ai->cur_vts = ctrl->val + sc230ai->cur_mode->height;
-		if (sc230ai->cur_vts != sc230ai->cur_mode->vts_def)
-			sc230ai_modify_fps_info(sc230ai);
+		sc230ai_modify_fps_info(sc230ai);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc230ai_enable_test_pattern(sc230ai, ctrl->val);

@@ -1489,8 +1489,7 @@ static int sc500ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 vts & 0xff);
 		if (!ret)
 			sc500ai->cur_vts = vts;
-		if (sc500ai->cur_vts != sc500ai->cur_mode->vts_def)
-			sc500ai_modify_fps_info(sc500ai);
+		sc500ai_modify_fps_info(sc500ai);
 		break;
 	case V4L2_CID_HFLIP:
 		ret = sc500ai_read_reg(sc500ai->client, SC500AI_FLIP_MIRROR_REG,

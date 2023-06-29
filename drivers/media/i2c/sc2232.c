@@ -1219,8 +1219,7 @@ static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 					ctrl->val + sc2232->cur_mode->height);
 		if (!ret)
 			sc2232->cur_vts = ctrl->val + sc2232->cur_mode->height;
-		if (sc2232->cur_vts != sc2232->cur_mode->vts_def)
-			sc2232_modify_fps_info(sc2232);
+		sc2232_modify_fps_info(sc2232);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

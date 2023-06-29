@@ -1044,8 +1044,7 @@ static int sc501ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC501AI_REG_VALUE_08BIT,
 					 vts & 0xff);
 		sc501ai->cur_vts = vts;
-		if (sc501ai->cur_vts != sc501ai->cur_mode->vts_def)
-			sc501ai_modify_fps_info(sc501ai);
+		sc501ai_modify_fps_info(sc501ai);
 		break;
 	case V4L2_CID_HFLIP:
 		ret = sc501ai_read_reg(sc501ai->client, SC501AI_FLIP_MIRROR_REG,

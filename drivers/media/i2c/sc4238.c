@@ -2484,8 +2484,7 @@ static int sc4238_set_ctrl(struct v4l2_ctrl *ctrl)
 					ctrl->val + sc4238->cur_mode->height);
 		if (ret == 0)
 			sc4238->cur_vts = ctrl->val + sc4238->cur_mode->height;
-		if (sc4238->cur_vts != sc4238->cur_mode->vts_def)
-			sc4238_modify_fps_info(sc4238);
+		sc4238_modify_fps_info(sc4238);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

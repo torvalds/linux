@@ -1951,8 +1951,7 @@ static int SC301IOT_set_ctrl(struct v4l2_ctrl *ctrl)
 					 & 0xff);
 		if (!ret)
 			SC301IOT->cur_vts = ctrl->val + SC301IOT->cur_mode->height;
-		if (SC301IOT->cur_vts != SC301IOT->cur_mode->vts_def)
-			SC301IOT_modify_fps_info(SC301IOT);
+		SC301IOT_modify_fps_info(SC301IOT);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = SC301IOT_enable_test_pattern(SC301IOT, ctrl->val);

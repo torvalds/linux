@@ -1744,8 +1744,7 @@ static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 					 & 0xff);
 		if (!ret)
 			sc200ai->cur_vts = ctrl->val + sc200ai->cur_mode->height;
-		if (sc200ai->cur_vts != sc200ai->cur_mode->vts_def)
-			sc200ai_modify_fps_info(sc200ai);
+		sc200ai_modify_fps_info(sc200ai);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc200ai_enable_test_pattern(sc200ai, ctrl->val);

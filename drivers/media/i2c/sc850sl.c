@@ -1412,8 +1412,7 @@ static int sc850sl_set_ctrl(struct v4l2_ctrl *ctrl)
 					ctrl->val + sc850sl->cur_mode->height);
 		if (!ret)
 			sc850sl->cur_vts = ctrl->val + sc850sl->cur_mode->height;
-		if (sc850sl->cur_vts != sc850sl->cur_mode->vts_def)
-			sc850sl_modify_fps_info(sc850sl);
+		sc850sl_modify_fps_info(sc850sl);
 		dev_dbg(&client->dev, "set vblank 0x%x\n",
 			ctrl->val);
 		break;

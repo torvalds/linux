@@ -1202,8 +1202,7 @@ static int sc3338_set_ctrl(struct v4l2_ctrl *ctrl)
 					 (ctrl->val + sc3338->cur_mode->height)
 					 & 0xff);
 		sc3338->cur_vts = ctrl->val + sc3338->cur_mode->height;
-		if (sc3338->cur_vts != sc3338->cur_mode->vts_def)
-			sc3338_modify_fps_info(sc3338);
+		sc3338_modify_fps_info(sc3338);
 		break;
 	case V4L2_CID_TEST_PATTERN:
 		ret = sc3338_enable_test_pattern(sc3338, ctrl->val);

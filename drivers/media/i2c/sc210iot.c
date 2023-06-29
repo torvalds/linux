@@ -408,8 +408,7 @@ static int sc210iot_set_ctrl(struct v4l2_ctrl *ctrl)
 					(ctrl->val + sc210iot->cur_mode->height) & 0xff);
 		if (!ret)
 			sc210iot->cur_vts = ctrl->val + sc210iot->cur_mode->height;
-		if (sc210iot->cur_vts != sc210iot->cur_mode->vts_def)
-			sc210iot_modify_fps_info(sc210iot);
+		sc210iot_modify_fps_info(sc210iot);
 		break;
 	case V4L2_CID_HFLIP:
 		regmap_update_bits(sc210iot->regmap, SC210IOT_REG_MIRROR_FLIP,

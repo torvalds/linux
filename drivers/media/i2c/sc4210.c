@@ -2408,8 +2408,7 @@ static int sc4210_set_ctrl(struct v4l2_ctrl *ctrl)
 					 SC4210_REG_VALUE_08BIT,
 					 vts & 0xff);
 		sc4210->cur_vts = ctrl->val + sc4210->cur_mode->height;
-		if (sc4210->cur_vts != sc4210->cur_mode->vts_def)
-			sc4210_modify_fps_info(sc4210);
+		sc4210_modify_fps_info(sc4210);
 		dev_dbg(&client->dev, "set vblank 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
