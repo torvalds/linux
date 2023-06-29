@@ -1844,25 +1844,9 @@ static void __init of_unittest_overlay_gpio(void)
 	unittest(overlay_data_apply("overlay_gpio_02b", NULL),
 		 "Adding overlay 'overlay_gpio_02b' failed\n");
 
-	/*
-	 * messages are the result of the probes, after the
-	 * driver is registered
-	 */
-
-	EXPECT_BEGIN(KERN_INFO,
-		     "gpio-<<int>> (line-B-input): hogged as input\n");
-
-	EXPECT_BEGIN(KERN_INFO,
-		     "gpio-<<int>> (line-A-input): hogged as input\n");
-
 	ret = platform_driver_register(&unittest_gpio_driver);
 	if (unittest(ret == 0, "could not register unittest gpio driver\n"))
 		return;
-
-	EXPECT_END(KERN_INFO,
-		   "gpio-<<int>> (line-A-input): hogged as input\n");
-	EXPECT_END(KERN_INFO,
-		   "gpio-<<int>> (line-B-input): hogged as input\n");
 
 	unittest(probe_pass_count + 2 == unittest_gpio_probe_pass_count,
 		 "unittest_gpio_probe() failed or not called\n");
@@ -1888,16 +1872,10 @@ static void __init of_unittest_overlay_gpio(void)
 	probe_pass_count = unittest_gpio_probe_pass_count;
 	chip_request_count = unittest_gpio_chip_request_count;
 
-	EXPECT_BEGIN(KERN_INFO,
-		     "gpio-<<int>> (line-D-input): hogged as input\n");
-
 	/* overlay_gpio_03 contains gpio node and child gpio hog node */
 
 	unittest(overlay_data_apply("overlay_gpio_03", NULL),
 		 "Adding overlay 'overlay_gpio_03' failed\n");
-
-	EXPECT_END(KERN_INFO,
-		   "gpio-<<int>> (line-D-input): hogged as input\n");
 
 	unittest(probe_pass_count + 1 == unittest_gpio_probe_pass_count,
 		 "unittest_gpio_probe() failed or not called\n");
@@ -1935,16 +1913,10 @@ static void __init of_unittest_overlay_gpio(void)
 	 *   - processing gpio for overlay_gpio_04b
 	 */
 
-	EXPECT_BEGIN(KERN_INFO,
-		     "gpio-<<int>> (line-C-input): hogged as input\n");
-
 	/* overlay_gpio_04b contains child gpio hog node */
 
 	unittest(overlay_data_apply("overlay_gpio_04b", NULL),
 		 "Adding overlay 'overlay_gpio_04b' failed\n");
-
-	EXPECT_END(KERN_INFO,
-		   "gpio-<<int>> (line-C-input): hogged as input\n");
 
 	unittest(chip_request_count + 1 == unittest_gpio_chip_request_count,
 		 "unittest_gpio_chip_request() called %d times (expected 1 time)\n",

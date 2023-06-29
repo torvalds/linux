@@ -465,6 +465,12 @@ static unsigned long *gpiochip_allocate_mask(struct gpio_chip *gc)
 	return p;
 }
 
+static void gpiochip_free_mask(unsigned long **p)
+{
+	bitmap_free(*p);
+	*p = NULL;
+}
+
 static unsigned int gpiochip_count_reserved_ranges(struct gpio_chip *gc)
 {
 	struct device *dev = &gc->gpiodev->dev;
@@ -474,18 +480,6 @@ static unsigned int gpiochip_count_reserved_ranges(struct gpio_chip *gc)
 	size = device_property_count_u32(dev, "gpio-reserved-ranges");
 	if (size > 0 && size % 2 == 0)
 		return size;
-
-	return 0;
-}
-
-static int gpiochip_alloc_valid_mask(struct gpio_chip *gc)
-{
-	if (!(gpiochip_count_reserved_ranges(gc) || gc->init_valid_mask))
-		return 0;
-
-	gc->valid_mask = gpiochip_allocate_mask(gc);
-	if (!gc->valid_mask)
-		return -ENOMEM;
 
 	return 0;
 }
@@ -530,6 +524,13 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 {
 	int ret;
 
+	if (!(gpiochip_count_reserved_ranges(gc) || gc->init_valid_mask))
+		return 0;
+
+	gc->valid_mask = gpiochip_allocate_mask(gc);
+	if (!gc->valid_mask)
+		return -ENOMEM;
+
 	ret = gpiochip_apply_reserved_ranges(gc);
 	if (ret)
 		return ret;
@@ -544,8 +545,7 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 
 static void gpiochip_free_valid_mask(struct gpio_chip *gc)
 {
-	bitmap_free(gc->valid_mask);
-	gc->valid_mask = NULL;
+	gpiochip_free_mask(&gc->valid_mask);
 }
 
 static int gpiochip_add_pin_ranges(struct gpio_chip *gc)
@@ -857,17 +857,13 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_remove_from_list;
 
-	ret = gpiochip_alloc_valid_mask(gc);
+	ret = gpiochip_init_valid_mask(gc);
 	if (ret)
 		goto err_remove_from_list;
 
 	ret = of_gpiochip_add(gc);
 	if (ret)
 		goto err_free_gpiochip_mask;
-
-	ret = gpiochip_init_valid_mask(gc);
-	if (ret)
-		goto err_remove_of_chip;
 
 	for (i = 0; i < gc->ngpio; i++) {
 		struct gpio_desc *desc = &gdev->descs[i];
@@ -1089,8 +1085,7 @@ static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gc)
 
 static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gc)
 {
-	bitmap_free(gc->irq.valid_mask);
-	gc->irq.valid_mask = NULL;
+	gpiochip_free_mask(&gc->irq.valid_mask);
 }
 
 bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
@@ -1676,11 +1671,10 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 		if (ret)
 			return ret;
 	} else {
-		/* Some drivers provide custom irqdomain ops */
 		gc->irq.domain = irq_domain_create_simple(fwnode,
 			gc->ngpio,
 			gc->irq.first,
-			gc->irq.domain_ops ?: &gpiochip_domain_ops,
+			&gpiochip_domain_ops,
 			gc);
 		if (!gc->irq.domain)
 			return -EINVAL;
@@ -2132,8 +2126,6 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 	struct gpio_chip	*gc;
 
 	might_sleep();
-
-	gpiod_unexport(desc);
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
@@ -4252,7 +4244,7 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 	/* Mark GPIO as hogged so it can be identified and removed later */
 	set_bit(FLAG_IS_HOGGED, &desc->flags);
 
-	gpiod_info(desc, "hogged as %s%s\n",
+	gpiod_dbg(desc, "hogged as %s%s\n",
 		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ? "output" : "input",
 		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ?
 		  (dflags & GPIOD_FLAGS_BIT_DIR_VAL) ? "/high" : "/low" : "");
