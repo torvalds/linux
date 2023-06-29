@@ -1658,9 +1658,9 @@ F:	Documentation/devicetree/bindings/clock/arm,syscon-icst.yaml
 F:	Documentation/devicetree/bindings/i2c/arm,i2c-versatile.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/arm,versatile-fpga-irq.txt
 F:	Documentation/devicetree/bindings/mtd/mtd-physmap.yaml
-F:	arch/arm/boot/dts/arm-realview-*
-F:	arch/arm/boot/dts/integrator*
-F:	arch/arm/boot/dts/versatile*
+F:	arch/arm/boot/dts/arm/arm-realview-*
+F:	arch/arm/boot/dts/arm/integrator*
+F:	arch/arm/boot/dts/arm/versatile*
 F:	arch/arm/mach-versatile/
 F:	drivers/bus/arm-integrator-lm.c
 F:	drivers/clk/versatile/
@@ -1831,7 +1831,7 @@ F:	Documentation/devicetree/bindings/net/actions,owl-emac.yaml
 F:	Documentation/devicetree/bindings/pinctrl/actions,*
 F:	Documentation/devicetree/bindings/power/actions,owl-sps.txt
 F:	Documentation/devicetree/bindings/timer/actions,owl-timer.txt
-F:	arch/arm/boot/dts/owl-*
+F:	arch/arm/boot/dts/actions/
 F:	arch/arm/mach-actions/
 F:	arch/arm64/boot/dts/actions/
 F:	drivers/clk/actions/
@@ -1905,7 +1905,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-amlogic@lists.infradead.org
 S:	Maintained
 W:	http://linux-meson.com/
-F:	arch/arm/boot/dts/meson*
+F:	arch/arm/boot/dts/amlogic/
 F:	arch/arm/mach-meson/
 F:	arch/arm64/boot/dts/amlogic/
 F:	drivers/mmc/host/meson*
@@ -1919,7 +1919,7 @@ M:	Tsahee Zidenberg <tsahee@annapurnalabs.com>
 M:	Antoine Tenart <atenart@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/alpine*
+F:	arch/arm/boot/dts/amazon/
 F:	arch/arm/mach-alpine/
 F:	arch/arm64/boot/dts/amazon/
 F:	drivers/*/*alpine*
@@ -1990,7 +1990,7 @@ M:	Lars Persson <lars.persson@axis.com>
 L:	linux-arm-kernel@axis.com
 S:	Maintained
 F:	Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
-F:	arch/arm/boot/dts/artpec6*
+F:	arch/arm/boot/dts/axis/
 F:	arch/arm/mach-artpec
 F:	drivers/clk/axis
 F:	drivers/crypto/axis
@@ -2018,7 +2018,7 @@ S:	Supported
 Q:	https://patchwork.ozlabs.org/project/linux-aspeed/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed.git
 F:	Documentation/devicetree/bindings/arm/aspeed/
-F:	arch/arm/boot/dts/aspeed-*
+F:	arch/arm/boot/dts/aspeed/
 F:	arch/arm/mach-aspeed/
 N:	aspeed
 
@@ -2037,8 +2037,7 @@ ARM/CALXEDA HIGHBANK ARCHITECTURE
 M:	Andre Przywara <andre.przywara@arm.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/ecx-*.dts*
-F:	arch/arm/boot/dts/highbank.dts
+F:	arch/arm/boot/dts/calxeda/
 F:	arch/arm/mach-highbank/
 
 ARM/CAVIUM THUNDER NETWORK DRIVER
@@ -2086,7 +2085,7 @@ ARM/CONEXANT DIGICOLOR MACHINE SUPPORT
 M:	Baruch Siach <baruch@tkos.co.il>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/cx92755*
+F:	arch/arm/boot/dts/cnxt/
 N:	digicolor
 
 ARM/CORESIGHT FRAMEWORK AND DRIVERS
@@ -2125,7 +2124,7 @@ F:	Documentation/devicetree/bindings/arm/gemini.yaml
 F:	Documentation/devicetree/bindings/net/cortina,gemini-ethernet.yaml
 F:	Documentation/devicetree/bindings/pinctrl/cortina,gemini-pinctrl.txt
 F:	Documentation/devicetree/bindings/rtc/faraday,ftrtc010.yaml
-F:	arch/arm/boot/dts/gemini*
+F:	arch/arm/boot/dts/gemini/
 F:	arch/arm/mach-gemini/
 F:	drivers/crypto/gemini/
 F:	drivers/net/ethernet/cortina/
@@ -2178,7 +2177,8 @@ R:	NXP Linux Team <linux-imx@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
-F:	arch/arm64/boot/dts/freescale/
+F:	arch/arm/boot/dts/nxp/imx/
+F:	arch/arm/boot/dts/nxp/mxs/
 X:	arch/arm64/boot/dts/freescale/fsl-*
 X:	arch/arm64/boot/dts/freescale/qoriq-*
 X:	drivers/media/i2c/
@@ -2191,7 +2191,7 @@ M:	Li Yang <leoyang.li@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
-F:	arch/arm/boot/dts/ls1021a*
+F:	arch/arm/boot/dts/nxp/ls/
 F:	arch/arm64/boot/dts/freescale/fsl-*
 F:	arch/arm64/boot/dts/freescale/qoriq-*
 
@@ -2203,7 +2203,7 @@ R:	Stefan Agner <stefan@agner.ch>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
-F:	arch/arm/boot/dts/vf*
+F:	arch/arm/boot/dts/nxp/vf/
 F:	arch/arm/mach-imx/*vf610*
 
 ARM/GUMSTIX MACHINE SUPPORT
@@ -2217,9 +2217,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 W:	http://www.hisilicon.com
 T:	git https://github.com/hisilicon/linux-hisi.git
-F:	arch/arm/boot/dts/hi3*
-F:	arch/arm/boot/dts/hip*
-F:	arch/arm/boot/dts/hisi*
+F:	arch/arm/boot/dts/hisilicon/
 F:	arch/arm/mach-hisi/
 F:	arch/arm64/boot/dts/hisilicon/
 
@@ -2241,8 +2239,7 @@ F:	Documentation/devicetree/bindings/i2c/hpe,gxp-i2c.yaml
 F:	Documentation/devicetree/bindings/spi/hpe,gxp-spifi.yaml
 F:	Documentation/devicetree/bindings/timer/hpe,gxp-timer.yaml
 F:	Documentation/hwmon/gxp-fan-ctrl.rst
-F:	arch/arm/boot/dts/hpe-bmc*
-F:	arch/arm/boot/dts/hpe-gxp*
+F:	arch/arm/boot/dts/hpe/
 F:	arch/arm/mach-hpe/
 F:	drivers/clocksource/timer-gxp.c
 F:	drivers/hwmon/gxp-fan-ctrl.c
@@ -2256,7 +2253,7 @@ M:	Javier Martinez Canillas <javier@dowhile0.org>
 L:	linux-omap@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/omap3-igep*
+F:	arch/arm/boot/dts/ti/omap/omap3-igep*
 
 ARM/INTEL IXP4XX ARM ARCHITECTURE
 M:	Linus Walleij <linusw@kernel.org>
@@ -2269,7 +2266,7 @@ F:	Documentation/devicetree/bindings/gpio/intel,ixp4xx-gpio.txt
 F:	Documentation/devicetree/bindings/interrupt-controller/intel,ixp4xx-interrupt.yaml
 F:	Documentation/devicetree/bindings/memory-controllers/intel,ixp4xx-expansion*
 F:	Documentation/devicetree/bindings/timer/intel,ixp4xx-timer.yaml
-F:	arch/arm/boot/dts/intel-ixp*
+F:	arch/arm/boot/dts/intel/ixp/
 F:	arch/arm/mach-ixp4xx/
 F:	drivers/bus/intel-ixp4xx-eb.c
 F:	drivers/clocksource/timer-ixp4xx.c
@@ -2301,7 +2298,7 @@ M:	Vladimir Zapolskiy <vz@mleia.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/i2c/i2c-lpc2k.txt
-F:	arch/arm/boot/dts/lpc43*
+F:	arch/arm/boot/dts/nxp/lpc/lpc43*
 F:	drivers/i2c/busses/i2c-lpc2k.c
 F:	drivers/memory/pl172.c
 F:	drivers/mtd/spi-nor/controllers/nxp-spifi.c
@@ -2314,7 +2311,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://github.com/vzapolskiy/linux-lpc32xx.git
 F:	Documentation/devicetree/bindings/i2c/i2c-pnx.txt
-F:	arch/arm/boot/dts/lpc32*
+F:	arch/arm/boot/dts/nxp/lpc/lpc32*
 F:	arch/arm/mach-lpc32xx/
 F:	drivers/i2c/busses/i2c-pnx.c
 F:	drivers/net/ethernet/nxp/lpc_eth.c
@@ -2332,8 +2329,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu.git
 F:	Documentation/devicetree/bindings/arm/marvell/marvell,dove.txt
 F:	Documentation/devicetree/bindings/arm/marvell/marvell,orion5x.txt
 F:	Documentation/devicetree/bindings/soc/dove/
-F:	arch/arm/boot/dts/dove*
-F:	arch/arm/boot/dts/orion5x*
+F:	arch/arm/boot/dts/marvell/dove*
+F:	arch/arm/boot/dts/marvell/orion5x*
 F:	arch/arm/mach-dove/
 F:	arch/arm/mach-mv78xx0/
 F:	arch/arm/mach-orion5x/
@@ -2348,8 +2345,8 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gclement/mvebu.git
 F:	Documentation/devicetree/bindings/arm/marvell/
-F:	arch/arm/boot/dts/armada*
-F:	arch/arm/boot/dts/kirkwood*
+F:	arch/arm/boot/dts/marvell/armada*
+F:	arch/arm/boot/dts/marvell/kirkwood*
 F:	arch/arm/configs/mvebu_*_defconfig
 F:	arch/arm/mach-mvebu/
 F:	arch/arm64/boot/dts/marvell/armada*
@@ -2384,10 +2381,7 @@ L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	https://mtk.wiki.kernel.org/
 C:	irc://irc.libera.chat/linux-mediatek
-F:	arch/arm/boot/dts/mt2*
-F:	arch/arm/boot/dts/mt6*
-F:	arch/arm/boot/dts/mt7*
-F:	arch/arm/boot/dts/mt8*
+F:	arch/arm/boot/dts/mediatek/
 F:	arch/arm/mach-mediatek/
 F:	arch/arm64/boot/dts/mediatek/
 F:	drivers/soc/mediatek/
@@ -2411,10 +2405,8 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 W:	http://www.linux4sam.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/at91/linux.git
-F:	arch/arm/boot/dts/at91*.dts
-F:	arch/arm/boot/dts/at91*.dtsi
-F:	arch/arm/boot/dts/sama*.dts
-F:	arch/arm/boot/dts/sama*.dtsi
+F:	arch/arm/boot/dts/microchip/at91*
+F:	arch/arm/boot/dts/microchip/sama*
 F:	arch/arm/include/debug/at91.S
 F:	arch/arm/mach-at91/
 F:	drivers/memory/atmel*
@@ -2451,7 +2443,7 @@ M:	Taichi Sugaya <sugaya.taichi@socionext.com>
 M:	Takao Orito <orito.takao@socionext.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/milbeaut*
+F:	arch/arm/boot/dts/socionext/milbeaut*
 F:	arch/arm/mach-milbeaut/
 N:	milbeaut
 
@@ -2465,7 +2457,7 @@ T:	git git://github.com/linux-chenxing/linux.git
 F:	Documentation/devicetree/bindings/arm/mstar/*
 F:	Documentation/devicetree/bindings/clock/mstar,msc313-mpll.yaml
 F:	Documentation/devicetree/bindings/gpio/mstar,msc313-gpio.yaml
-F:	arch/arm/boot/dts/mstar-*
+F:	arch/arm/boot/dts/sigmastar/
 F:	arch/arm/mach-mstar/
 F:	drivers/clk/mstar/
 F:	drivers/clocksource/timer-msc313e.c
@@ -2484,7 +2476,7 @@ F:	Documentation/devicetree/bindings/arm/ste-*
 F:	Documentation/devicetree/bindings/arm/ux500.yaml
 F:	Documentation/devicetree/bindings/arm/ux500/
 F:	Documentation/devicetree/bindings/i2c/st,nomadik-i2c.yaml
-F:	arch/arm/boot/dts/ste-*
+F:	arch/arm/boot/dts/st/ste-*
 F:	arch/arm/mach-nomadik/
 F:	arch/arm/mach-ux500/
 F:	drivers/clk/clk-nomadik.c
@@ -2514,7 +2506,7 @@ F:	Documentation/devicetree/bindings/*/*/*npcm*
 F:	Documentation/devicetree/bindings/*/*npcm*
 F:	Documentation/devicetree/bindings/arm/npcm/*
 F:	Documentation/devicetree/bindings/rtc/nuvoton,nct3018y.yaml
-F:	arch/arm/boot/dts/nuvoton-npcm*
+F:	arch/arm/boot/dts/nuvoton/nuvoton-npcm*
 F:	arch/arm/mach-npcm/
 F:	arch/arm64/boot/dts/nuvoton/
 F:	drivers/*/*/*npcm*
@@ -2529,7 +2521,7 @@ L:	openbmc@lists.ozlabs.org (moderated for non-subscribers)
 S:	Maintained
 W:	https://github.com/neuschaefer/wpcm450/wiki
 F:	Documentation/devicetree/bindings/*/*wpcm*
-F:	arch/arm/boot/dts/nuvoton-wpcm450*
+F:	arch/arm/boot/dts/nuvoton/nuvoton-wpcm450*
 F:	arch/arm/configs/wpcm450_defconfig
 F:	arch/arm/mach-npcm/wpcm450.c
 F:	drivers/*/*/*wpcm*
@@ -2576,8 +2568,7 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux.git
 F:	Documentation/devicetree/bindings/*/qcom*
 F:	Documentation/devicetree/bindings/soc/qcom/
-F:	arch/arm/boot/dts/qcom-*.dts
-F:	arch/arm/boot/dts/qcom-*.dtsi
+F:	arch/arm/boot/dts/qcom/
 F:	arch/arm/configs/qcom_defconfig
 F:	arch/arm/mach-qcom/
 F:	arch/arm64/boot/dts/qcom/
@@ -2620,7 +2611,7 @@ F:	Documentation/devicetree/bindings/gpio/gpio-rda.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/rda,8810pl-intc.yaml
 F:	Documentation/devicetree/bindings/serial/rda,8810pl-uart.yaml
 F:	Documentation/devicetree/bindings/timer/rda,8810pl-timer.yaml
-F:	arch/arm/boot/dts/rda8810pl-*
+F:	arch/arm/boot/dts/unisoc/
 F:	drivers/clocksource/timer-rda.c
 F:	drivers/gpio/gpio-rda.c
 F:	drivers/irqchip/irq-rda-intc.c
@@ -2632,7 +2623,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-realtek-soc@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/arm/realtek.yaml
-F:	arch/arm/boot/dts/rtd*
+F:	arch/arm/boot/dts/realtek/
 F:	arch/arm/mach-realtek/
 F:	arch/arm64/boot/dts/realtek/
 
@@ -2646,13 +2637,7 @@ C:	irc://irc.libera.chat/renesas-soc
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-devel.git next
 F:	Documentation/devicetree/bindings/hwinfo/renesas,prr.yaml
 F:	Documentation/devicetree/bindings/soc/renesas/
-F:	arch/arm/boot/dts/emev2*
-F:	arch/arm/boot/dts/gr-peach*
-F:	arch/arm/boot/dts/iwg20d-q7*
-F:	arch/arm/boot/dts/r7s*
-F:	arch/arm/boot/dts/r8a*
-F:	arch/arm/boot/dts/r9a*
-F:	arch/arm/boot/dts/sh*
+F:	arch/arm/boot/dts/renesas/
 F:	arch/arm/configs/shmobile_defconfig
 F:	arch/arm/include/debug/renesas-scif.S
 F:	arch/arm/mach-shmobile/
@@ -2685,8 +2670,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mmind/linux-rockchip.git
 F:	Documentation/devicetree/bindings/i2c/i2c-rk3x.yaml
 F:	Documentation/devicetree/bindings/mmc/rockchip-dw-mshc.yaml
 F:	Documentation/devicetree/bindings/spi/spi-rockchip.yaml
-F:	arch/arm/boot/dts/rk3*
-F:	arch/arm/boot/dts/rv11*
+F:	arch/arm/boot/dts/rockchip/
 F:	arch/arm/mach-rockchip/
 F:	drivers/*/*/*rockchip*
 F:	drivers/*/*rockchip*
@@ -2710,9 +2694,7 @@ F:	Documentation/devicetree/bindings/arm/samsung/
 F:	Documentation/devicetree/bindings/hwinfo/samsung,*
 F:	Documentation/devicetree/bindings/power/pd-samsung.yaml
 F:	Documentation/devicetree/bindings/soc/samsung/
-F:	arch/arm/boot/dts/exynos*
-F:	arch/arm/boot/dts/s3c*
-F:	arch/arm/boot/dts/s5p*
+F:	arch/arm/boot/dts/samsung/
 F:	arch/arm/mach-exynos*/
 F:	arch/arm/mach-s3c/
 F:	arch/arm/mach-s5p*/
@@ -2772,7 +2754,7 @@ M:	Dinh Nguyen <dinguyen@kernel.org>
 S:	Maintained
 W:	http://www.rocketboards.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dinguyen/linux.git
-F:	arch/arm/boot/dts/socfpga*
+F:	arch/arm/boot/dts/intel/socfpga/
 F:	arch/arm/configs/socfpga_defconfig
 F:	arch/arm/mach-socfpga/
 F:	arch/arm64/boot/dts/altera/
@@ -2805,7 +2787,7 @@ S:	Maintained
 W:	http://www.stlinux.com
 F:	Documentation/devicetree/bindings/i2c/st,sti-i2c.yaml
 F:	Documentation/devicetree/bindings/spi/st,ssc-spi.yaml
-F:	arch/arm/boot/dts/sti*
+F:	arch/arm/boot/dts/st/sti*
 F:	arch/arm/mach-sti/
 F:	drivers/ata/ahci_st.c
 F:	drivers/char/hw_random/st-rng.c
@@ -2838,7 +2820,7 @@ L:	linux-stm32@st-md-mailman.stormreply.com (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32.git stm32-next
-F:	arch/arm/boot/dts/stm32*
+F:	arch/arm/boot/dts/st/stm32*
 F:	arch/arm/mach-stm32/
 F:	drivers/clocksource/armv7m_systick.c
 N:	stm32
@@ -2853,7 +2835,7 @@ F:	Documentation/devicetree/bindings/arm/sunplus,sp7021.yaml
 F:	Documentation/devicetree/bindings/clock/sunplus,sp7021-clkc.yaml
 F:	Documentation/devicetree/bindings/interrupt-controller/sunplus,sp7021-intc.yaml
 F:	Documentation/devicetree/bindings/reset/sunplus,reset.yaml
-F:	arch/arm/boot/dts/sunplus-sp7021*.dts*
+F:	arch/arm/boot/dts/sunplus/
 F:	arch/arm/configs/sp7021_*defconfig
 F:	arch/arm/mach-sunplus/
 F:	drivers/clk/clk-sp7021.c
@@ -2867,7 +2849,7 @@ M:	Jisheng Zhang <jszhang@kernel.org>
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/berlin*
+F:	arch/arm/boot/dts/synaptics/
 F:	arch/arm/mach-berlin/
 F:	arch/arm64/boot/dts/synaptics/
 
@@ -2909,7 +2891,7 @@ M:	Santosh Shilimkar <ssantosh@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ti/linux.git
-F:	arch/arm/boot/dts/keystone-*
+F:	arch/arm/boot/dts/ti/keystone/
 F:	arch/arm/mach-keystone/
 
 ARM/TEXAS INSTRUMENT KEYSTONE CLOCK FRAMEWORK
@@ -2974,7 +2956,7 @@ F:	Documentation/devicetree/bindings/arm/socionext/uniphier.yaml
 F:	Documentation/devicetree/bindings/gpio/socionext,uniphier-gpio.yaml
 F:	Documentation/devicetree/bindings/pinctrl/socionext,uniphier-pinctrl.yaml
 F:	Documentation/devicetree/bindings/soc/socionext/socionext,uniphier*.yaml
-F:	arch/arm/boot/dts/uniphier*
+F:	arch/arm/boot/dts/socionext/uniphier*
 F:	arch/arm/include/asm/hardware/cache-uniphier.h
 F:	arch/arm/mach-uniphier/
 F:	arch/arm/mm/cache-uniphier.c
@@ -2999,7 +2981,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	*/*/*/vexpress*
 F:	*/*/vexpress*
-F:	arch/arm/boot/dts/vexpress*
+F:	arch/arm/boot/dts/arm/vexpress*
 F:	arch/arm/mach-versatile/
 F:	arch/arm64/boot/dts/arm/
 F:	drivers/clk/versatile/clk-vexpress-osc.c
@@ -3406,10 +3388,10 @@ AXENTIA ARM DEVICES
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/at91-linea.dtsi
-F:	arch/arm/boot/dts/at91-natte.dtsi
-F:	arch/arm/boot/dts/at91-nattis-2-natte-2.dts
-F:	arch/arm/boot/dts/at91-tse850-3.dts
+F:	arch/arm/boot/dts/microchip/at91-linea.dtsi
+F:	arch/arm/boot/dts/microchip/at91-natte.dtsi
+F:	arch/arm/boot/dts/microchip/at91-nattis-2-natte-2.dts
+F:	arch/arm/boot/dts/microchip/at91-tse850-3.dts
 
 AXENTIA ASOC DRIVERS
 M:	Peter Rosin <peda@axentia.se>
@@ -3966,9 +3948,10 @@ M:	Rafał Miłecki <zajec5@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/bcm470*
-F:	arch/arm/boot/dts/bcm5301*
-F:	arch/arm/boot/dts/bcm953012*
+F:	arch/arm/boot/dts/broadcom/bcm-ns.dtsi
+F:	arch/arm/boot/dts/broadcom/bcm470*
+F:	arch/arm/boot/dts/broadcom/bcm5301*
+F:	arch/arm/boot/dts/broadcom/bcm953012*
 F:	arch/arm/mach-bcm/bcm_5301x.c
 
 BROADCOM BCM53573 ARM ARCHITECTURE
@@ -3977,8 +3960,8 @@ M:	Rafał Miłecki <rafal@milecki.pl>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	arch/arm/boot/dts/bcm47189*
-F:	arch/arm/boot/dts/bcm53573*
+F:	arch/arm/boot/dts/broadcom/bcm47189*
+F:	arch/arm/boot/dts/broadcom/bcm53573*
 
 BROADCOM BCM63XX/BCM33XX UDC DRIVER
 M:	Kevin Cernekee <cernekee@gmail.com>
@@ -3993,7 +3976,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git https://github.com/broadcom/stblinux.git
 F:	Documentation/devicetree/bindings/pci/brcm,stb-pcie.yaml
-F:	arch/arm/boot/dts/bcm7*.dts*
+F:	arch/arm/boot/dts/broadcom/bcm7*.dts*
 F:	arch/arm/include/asm/hardware/cache-b15-rac.h
 F:	arch/arm/mach-bcm/*brcmstb*
 F:	arch/arm/mm/cache-b15-rac.c
@@ -6021,15 +6004,15 @@ DH ELECTRONICS IMX6 DHCOM/DHCOR BOARD SUPPORT
 M:	Christoph Niedermaier <cniedermaier@dh-electronics.com>
 L:	kernel@dh-electronics.com
 S:	Maintained
-F:	arch/arm/boot/dts/imx6*-dhcom-*
-F:	arch/arm/boot/dts/imx6*-dhcor-*
+F:	arch/arm/boot/dts/nxp/imx/imx6*-dhcom-*
+F:	arch/arm/boot/dts/nxp/imx/imx6*-dhcor-*
 
 DH ELECTRONICS STM32MP1 DHCOM/DHCOR BOARD SUPPORT
 M:	Marek Vasut <marex@denx.de>
 L:	kernel@dh-electronics.com
 S:	Maintained
-F:	arch/arm/boot/dts/stm32mp1*-dhcom-*
-F:	arch/arm/boot/dts/stm32mp1*-dhcor-*
+F:	arch/arm/boot/dts/st/stm32mp1*-dhcom-*
+F:	arch/arm/boot/dts/st/stm32mp1*-dhcor-*
 
 DIALOG SEMICONDUCTOR DRIVERS
 M:	Support Opensource <support.opensource@diasemi.com>
@@ -11813,7 +11796,7 @@ LEGO MINDSTORMS EV3
 R:	David Lechner <david@lechnology.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/power/supply/lego,ev3-battery.yaml
-F:	arch/arm/boot/dts/da850-lego-ev3.dts
+F:	arch/arm/boot/dts/ti/davinci/da850-lego-ev3.dts
 F:	drivers/power/supply/lego_ev3_battery.c
 
 LEGO USB Tower driver
@@ -14140,12 +14123,12 @@ MIKROTIK CRS3XX 98DX3236 BOARD SUPPORT
 M:	Luka Kovacic <luka.kovacic@sartura.hr>
 M:	Luka Perkov <luka.perkov@sartura.hr>
 S:	Maintained
-F:	arch/arm/boot/dts/armada-xp-crs305-1g-4s-bit.dts
-F:	arch/arm/boot/dts/armada-xp-crs305-1g-4s.dts
-F:	arch/arm/boot/dts/armada-xp-crs326-24g-2s-bit.dts
-F:	arch/arm/boot/dts/armada-xp-crs326-24g-2s.dts
-F:	arch/arm/boot/dts/armada-xp-crs328-4c-20s-4s-bit.dts
-F:	arch/arm/boot/dts/armada-xp-crs328-4c-20s-4s.dts
+F:	arch/arm/boot/dts/marvell/armada-xp-crs305-1g-4s-bit.dts
+F:	arch/arm/boot/dts/marvell/armada-xp-crs305-1g-4s.dts
+F:	arch/arm/boot/dts/marvell/armada-xp-crs326-24g-2s-bit.dts
+F:	arch/arm/boot/dts/marvell/armada-xp-crs326-24g-2s.dts
+F:	arch/arm/boot/dts/marvell/armada-xp-crs328-4c-20s-4s-bit.dts
+F:	arch/arm/boot/dts/marvell/armada-xp-crs328-4c-20s-4s.dts
 
 MIPI CCS, SMIA AND SMIA++ IMAGE SENSOR DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
@@ -14248,7 +14231,7 @@ R:	Lubomir Rintel <lkundrak@v3.sk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Odd Fixes
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lkundrak/linux-mmp.git
-F:	arch/arm/boot/dts/mmp*
+F:	arch/arm/boot/dts/marvell/mmp*
 F:	arch/arm/mach-mmp/
 F:	include/linux/soc/mmp/
 
@@ -15381,13 +15364,7 @@ M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
 L:	devicetree@vger.kernel.org
 S:	Maintained
-F:	arch/arm/boot/dts/*am3*
-F:	arch/arm/boot/dts/*am4*
-F:	arch/arm/boot/dts/*am5*
-F:	arch/arm/boot/dts/*dra7*
-F:	arch/arm/boot/dts/*omap*
-F:	arch/arm/boot/dts/logicpd-som-lv*
-F:	arch/arm/boot/dts/logicpd-torpedo*
+F:	arch/arm/boot/dts/ti/omap/
 
 OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
 L:	linux-omap@vger.kernel.org
@@ -15495,7 +15472,7 @@ OMAP/NEWFLOW NANOBONE MACHINE SUPPORT
 M:	Mark Jackson <mpfj@newflow.co.uk>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
-F:	arch/arm/boot/dts/am335x-nano.dts
+F:	arch/arm/boot/dts/ti/omap/am335x-nano.dts
 
 OMAP1 SUPPORT
 M:	Aaro Koskinen <aaro.koskinen@iki.fi>
@@ -17244,7 +17221,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://github.com/rjarzmik/linux.git
-F:	arch/arm/boot/dts/pxa*
+F:	arch/arm/boot/dts/intel/pxa/
 F:	arch/arm/mach-pxa/
 F:	drivers/dma/pxa*
 F:	drivers/pcmcia/pxa2xx*
@@ -18283,6 +18260,8 @@ Q:	https://patchwork.kernel.org/project/linux-riscv/list/
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	Documentation/devicetree/bindings/riscv/
 F:	arch/riscv/boot/dts/
+X:	arch/riscv/boot/dts/allwinner/
+X:	arch/riscv/boot/dts/renesas/
 
 RISC-V PMU DRIVERS
 M:	Atish Patra <atishp@atishpatra.org>
@@ -18292,6 +18271,14 @@ S:	Supported
 F:	drivers/perf/riscv_pmu.c
 F:	drivers/perf/riscv_pmu_legacy.c
 F:	drivers/perf/riscv_pmu_sbi.c
+
+RISC-V THEAD SoC SUPPORT
+M:	Jisheng Zhang <jszhang@kernel.org>
+M:	Guo Ren <guoren@kernel.org>
+M:	Fu Wei <wefu@redhat.com>
+L:	linux-riscv@lists.infradead.org
+S:	Maintained
+F:	arch/riscv/boot/dts/thead/
 
 RNBD BLOCK DRIVERS
 M:	Md. Haris Iqbal <haris.iqbal@ionos.com>
@@ -18876,7 +18863,7 @@ SANCLOUD BEAGLEBONE ENHANCED DEVICE TREE
 M:	Paul Barker <paul.barker@sancloud.com>
 R:	Marc Murphy <marc.murphy@sancloud.com>
 S:	Supported
-F:	arch/arm/boot/dts/am335x-sancloud*
+F:	arch/arm/boot/dts/ti/omap/am335x-sancloud*
 
 SC1200 WDT DRIVER
 M:	Zwane Mwaikambo <zwanem@gmail.com>
@@ -19705,15 +19692,15 @@ F:	include/uapi/linux/raid/
 SOLIDRUN CLEARFOG SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
-F:	arch/arm/boot/dts/armada-388-clearfog*
-F:	arch/arm/boot/dts/armada-38x-solidrun-*
+F:	arch/arm/boot/dts/marvell/armada-388-clearfog*
+F:	arch/arm/boot/dts/marvell/armada-38x-solidrun-*
 
 SOLIDRUN CUBOX-I/HUMMINGBOARD SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
 S:	Maintained
-F:	arch/arm/boot/dts/imx6*-cubox-i*
-F:	arch/arm/boot/dts/imx6*-hummingboard*
-F:	arch/arm/boot/dts/imx6*-sr-*
+F:	arch/arm/boot/dts/nxp/imx/imx6*-cubox-i*
+F:	arch/arm/boot/dts/nxp/imx/imx6*-hummingboard*
+F:	arch/arm/boot/dts/nxp/imx/imx6*-sr-*
 
 SONIC NETWORK DRIVER
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
@@ -19998,7 +19985,7 @@ M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 W:	http://www.st.com/spear
-F:	arch/arm/boot/dts/spear*
+F:	arch/arm/boot/dts/st/spear*
 F:	arch/arm/mach-spear/
 F:	drivers/clk/spear/
 F:	drivers/pinctrl/spear/
@@ -21212,7 +21199,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brgl/linux.git
 F:	Documentation/devicetree/bindings/i2c/i2c-davinci.txt
-F:	arch/arm/boot/dts/da850*
+F:	arch/arm/boot/dts/ti/davinci/
 F:	arch/arm/mach-davinci/
 F:	drivers/i2c/busses/i2c-davinci.c
 

@@ -33,6 +33,12 @@
 		};
 	};
 
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm3 0 45334>;
+		#cooling-cells = <2>;
+	};
+
 	vdd_1v8_sys: regulator-vdd-1v8-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_1V8_SYS";

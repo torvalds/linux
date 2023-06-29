@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/input/gpio-keys.h>
+#include "tegra234-p3701-0008.dtsi"
+#include "tegra234-p3740-0002.dtsi"
+
+/ {
+	model = "NVIDIA IGX Orin Development Kit";
+	compatible = "nvidia,p3740-0002+p3701-0008", "nvidia,p3701-0008", "nvidia,tegra234";
+
+	aliases {
+		serial0 = &tcu;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	bus@0 {
+		host1x@13e00000 {
+			nvdec@15480000 {
+				status = "okay";
+			};
+		};
+
+		pcie@140e0000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			phys = <&p2u_gbe_4>, <&p2u_gbe_5>;
+			phy-names = "p2u-0", "p2u-1";
+		};
+
+		pcie@14100000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+			phys = <&p2u_hsio_3>;
+			phy-names = "p2u-0";
+		};
+
+		pcie@14160000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ao>;
+			phys = <&p2u_hsio_7>, <&p2u_hsio_6>, <&p2u_hsio_5>,
+			       <&p2u_hsio_4>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3";
+		};
+
+		pcie@141a0000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			phys = <&p2u_nvhs_0>, <&p2u_nvhs_1>, <&p2u_nvhs_2>,
+				<&p2u_nvhs_3>, <&p2u_nvhs_4>, <&p2u_nvhs_5>,
+				<&p2u_nvhs_6>, <&p2u_nvhs_7>;
+			phy-names = "p2u-0", "p2u-1", "p2u-2", "p2u-3", "p2u-4",
+				    "p2u-5", "p2u-6", "p2u-7";
+		};
+
+		pcie@141e0000 {
+			status = "okay";
+			vddio-pex-ctl-supply = <&vdd_1v8_ls>;
+			phys = <&p2u_gbe_0>, <&p2u_gbe_1>;
+			phy-names = "p2u-0", "p2u-1";
+		};
+
+		aconnect@2900000 {
+			status = "okay";
+		};
+
+		serial@3100000 {
+			compatible = "nvidia,tegra194-hsuart";
+			status = "okay";
+		};
+
+		i2c@3160000 {
+			status = "okay";
+		};
+
+		i2c@3180000 {
+			status = "okay";
+		};
+
+		i2c@3190000 {
+			status = "okay";
+		};
+
+		i2c@31b0000 {
+			status = "okay";
+		};
+
+		i2c@31c0000 {
+			status = "okay";
+
+		};
+
+		i2c@31e0000 {
+			status = "okay";
+		};
+
+		spi@3270000 {
+			status = "okay";
+		};
+
+		hda@3510000 {
+			nvidia,model = "NVIDIA IGX HDA";
+			status = "okay";
+		};
+
+		fuse@3810000 {
+			status = "okay";
+		};
+
+		i2c@c240000 {
+			status = "okay";
+		};
+
+		i2c@c250000 {
+			status = "okay";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		status = "okay";
+
+		key-force-recovery {
+			label = "Force Recovery";
+			gpios = <&gpio TEGRA234_MAIN_GPIO(G, 0) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <BTN_1>;
+		};
+
+		key-power {
+			label = "Power";
+			gpios = <&gpio_aon TEGRA234_AON_GPIO(EE, 4) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_POWER>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-suspend {
+			label = "Suspend";
+			gpios = <&gpio TEGRA234_MAIN_GPIO(G, 2) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_SLEEP>;
+		};
+	};
+
+	serial {
+		status = "okay";
+	};
+};

@@ -88,11 +88,15 @@
 		l2: l2-cache {
 			compatible = "cache";
 			next-level-cache = <&l3>;
+			cache-level = <2>;
+			cache-unified;
 
 		};
 
 		l3: l3-cache {
 			compatible = "cache";
+			cache-level = <3>;
+			cache-unified;
 		};
 	};
 
