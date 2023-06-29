@@ -1040,7 +1040,7 @@ static bool subvp_subvp_admissable(struct dc *dc,
 	uint32_t i;
 	uint8_t subvp_count = 0;
 	uint32_t min_refresh = subvp_high_refresh_list.min_refresh, max_refresh = 0;
-	uint32_t refresh_rate = 0;
+	uint64_t refresh_rate = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1050,19 +1050,21 @@ static bool subvp_subvp_admissable(struct dc *dc,
 
 		if (pipe->plane_state && !pipe->top_pipe &&
 				pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
-			refresh_rate = (pipe->stream->timing.pix_clk_100hz * 100 +
-					pipe->stream->timing.v_total * pipe->stream->timing.h_total - 1)
-					/ (double)(pipe->stream->timing.v_total * pipe->stream->timing.h_total);
-			if (refresh_rate < min_refresh)
-				min_refresh = refresh_rate;
-			if (refresh_rate > max_refresh)
-				max_refresh = refresh_rate;
+			refresh_rate = (pipe->stream->timing.pix_clk_100hz * (uint64_t)100 +
+				pipe->stream->timing.v_total * pipe->stream->timing.h_total - (uint64_t)1);
+			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
+			refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
+
+			if ((uint32_t)refresh_rate < min_refresh)
+				min_refresh = (uint32_t)refresh_rate;
+			if ((uint32_t)refresh_rate > max_refresh)
+				max_refresh = (uint32_t)refresh_rate;
 			subvp_count++;
 		}
 	}
 
 	if (subvp_count == 2 && ((min_refresh < 120 && max_refresh < 120) ||
-			(min_refresh >= 120 && max_refresh >= 120)))
+		(min_refresh >= 120 && max_refresh <= 165)))
 		result = true;
 
 	return result;
