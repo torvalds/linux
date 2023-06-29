@@ -167,7 +167,7 @@ static int hitfb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-int hitfb_blank(int blank_mode, struct fb_info *info)
+static int hitfb_blank(int blank_mode, struct fb_info *info)
 {
 	unsigned short v;
 
@@ -392,7 +392,7 @@ static int hitfb_probe(struct platform_device *dev)
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN |
 		FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_COPYAREA;
 
-	info->screen_base = (void *)hitfb_fix.smem_start;
+	info->screen_base = (char __iomem *)(uintptr_t)hitfb_fix.smem_start;
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (unlikely(ret < 0))
@@ -428,7 +428,7 @@ static int hitfb_suspend(struct device *dev)
 {
 	u16 v;
 
-	hitfb_blank(1,0);
+	hitfb_blank(1, NULL);
 	v = fb_readw(HD64461_STBCR);
 	v |= HD64461_STBCR_SLCKE_IST;
 	fb_writew(v, HD64461_STBCR);
@@ -446,7 +446,7 @@ static int hitfb_resume(struct device *dev)
 	v = fb_readw(HD64461_STBCR);
 	v &= ~HD64461_STBCR_SLCKE_IST;
 	fb_writew(v, HD64461_STBCR);
-	hitfb_blank(0,0);
+	hitfb_blank(0, NULL);
 
 	return 0;
 }

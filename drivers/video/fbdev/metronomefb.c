@@ -778,3 +778,5 @@ MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
 MODULE_DESCRIPTION("fbdev driver for Metronome controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("metronome.wbf");
