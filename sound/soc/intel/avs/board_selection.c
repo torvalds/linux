@@ -136,6 +136,14 @@ static struct snd_soc_acpi_mach avs_kbl_i2s_machines[] = {
 		.tplg_filename = "max98927-tplg.bin",
 	},
 	{
+		.id = "10EC5663",
+		.drv_name = "avs_rt5663",
+		.mach_params = {
+			.i2s_link_mask = AVS_SSP(1),
+		},
+		.tplg_filename = "rt5663-tplg.bin",
+	},
+	{
 		.id = "MX98373",
 		.drv_name = "avs_max98373",
 		.mach_params = {
