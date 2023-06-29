@@ -22,6 +22,16 @@ config SND_SOC_INTEL_AVS_MACH_DMIC
 	  Say Y or m if you have such a device. This is a recommended option.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_AVS_MACH_ES8336
+	tristate "es8336 I2S board"
+	depends on X86 && I2C
+	depends on MFD_INTEL_LPSS || COMPILE_TEST
+	select SND_SOC_ES8316
+	help
+	  This adds support for AVS with ES8336 I2S codec configuration.
+	  Say Y or m if you have such a device. This is a recommended option.
+	  If unsure select "N".
+
 config SND_SOC_INTEL_AVS_MACH_HDAUDIO
 	tristate "HD-Audio generic board"
 	select SND_SOC_HDA
