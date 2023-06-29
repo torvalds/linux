@@ -3893,7 +3893,7 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/b44.*
 
 BROADCOM B53/SF2 ETHERNET SWITCH DRIVER
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 L:	netdev@vger.kernel.org
 L:	openwrt-devel@lists.openwrt.org (subscribers-only)
 S:	Supported
@@ -3904,7 +3904,7 @@ F:	include/linux/dsa/brcm.h
 F:	include/linux/platform_data/b53.h
 
 BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-rpi-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3918,7 +3918,7 @@ N:	bcm283*
 N:	raspberrypi
 
 BROADCOM BCM281XX/BCM11XXX/BCM216XX ARM ARCHITECTURE
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 M:	Ray Jui <rjui@broadcom.com>
 M:	Scott Branden <sbranden@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
@@ -3957,7 +3957,7 @@ F:	Documentation/devicetree/bindings/pinctrl/brcm,bcm4908-pinctrl.yaml
 F:	drivers/pinctrl/bcm/pinctrl-bcm4908.c
 
 BROADCOM BCM5301X ARM ARCHITECTURE
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 M:	Rafał Miłecki <zajec5@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
@@ -3970,7 +3970,7 @@ F:	arch/arm/boot/dts/broadcom/bcm953012*
 F:	arch/arm/mach-bcm/bcm_5301x.c
 
 BROADCOM BCM53573 ARM ARCHITECTURE
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 M:	Rafał Miłecki <rafal@milecki.pl>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -3985,7 +3985,7 @@ S:	Maintained
 F:	drivers/usb/gadget/udc/bcm63xx_udc.*
 
 BROADCOM BCM7XXX ARM ARCHITECTURE
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -4005,7 +4005,7 @@ BROADCOM BCMBCA ARM ARCHITECTURE
 M:	William Zhang <william.zhang@broadcom.com>
 M:	Anand Gore <anand.gore@broadcom.com>
 M:	Kursad Oney <kursad.oney@broadcom.com>
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 M:	Rafał Miłecki <rafal@milecki.pl>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -4030,7 +4030,7 @@ N:	bcm[9]?6858
 N:	bcm[9]?6878
 
 BROADCOM BDC DRIVER
-M:	Justin Chen <justinpopo6@gmail.com>
+M:	Justin Chen <justin.chen@broadcom.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-usb@vger.kernel.org
@@ -4046,7 +4046,7 @@ S:	Maintained
 F:	drivers/cpufreq/bmips-cpufreq.c
 
 BROADCOM BMIPS MIPS ARCHITECTURE
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-mips@vger.kernel.org
 S:	Maintained
@@ -4114,14 +4114,14 @@ F:	drivers/net/wireless/broadcom/brcm80211/
 
 BROADCOM BRCMSTB GPIO DRIVER
 M:	Doug Berger <opendmb@gmail.com>
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/gpio/brcm,brcmstb-gpio.yaml
 F:	drivers/gpio/gpio-brcmstb.c
 
 BROADCOM BRCMSTB I2C DRIVER
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-i2c@vger.kernel.org
 S:	Supported
@@ -4137,7 +4137,7 @@ F:	Documentation/devicetree/bindings/serial/brcm,bcm7271-uart.yaml
 F:	drivers/tty/serial/8250/8250_bcm7271.c
 
 BROADCOM BRCMSTB USB EHCI DRIVER
-M:	Justin Chen <justinpopo6@gmail.com>
+M:	Justin Chen <justin.chen@broadcom.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-usb@vger.kernel.org
@@ -4154,7 +4154,7 @@ F:	Documentation/devicetree/bindings/usb/brcm,usb-pinmap.yaml
 F:	drivers/usb/misc/brcmstb-usb-pinmap.c
 
 BROADCOM BRCMSTB USB2 and USB3 PHY DRIVER
-M:	Justin Chen <justinpopo6@gmail.com>
+M:	Justin Chen <justin.chen@broadcom.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-kernel@vger.kernel.org
@@ -4173,7 +4173,7 @@ F:	drivers/spi/spi-bcm63xx-hsspi.c
 F:	drivers/spi/spi-bcmbca-hsspi.c
 
 BROADCOM ETHERNET PHY DRIVERS
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -4184,7 +4184,7 @@ F:	include/linux/brcmphy.h
 
 BROADCOM GENET ETHERNET DRIVER
 M:	Doug Berger <opendmb@gmail.com>
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -4268,7 +4268,7 @@ F:	drivers/firmware/broadcom/*
 
 BROADCOM PMB (POWER MANAGEMENT BUS) DRIVER
 M:	Rafał Miłecki <rafal@milecki.pl>
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
@@ -4284,7 +4284,7 @@ F:	drivers/bcma/
 F:	include/linux/bcma/
 
 BROADCOM SPI DRIVER
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/spi/brcm,spi-bcm-qspi.yaml
@@ -4318,7 +4318,7 @@ F:	drivers/memory/brcmstb_dpfe.c
 
 BROADCOM STB NAND FLASH DRIVER
 M:	Brian Norris <computersforpeace@gmail.com>
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
@@ -4328,7 +4328,7 @@ F:	include/linux/platform_data/brcmnand.h
 BROADCOM STB PCIE DRIVER
 M:	Jim Quinlan <jim2101024@gmail.com>
 M:	Nicolas Saenz Julienne <nsaenz@kernel.org>
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
@@ -4336,7 +4336,7 @@ F:	Documentation/devicetree/bindings/pci/brcm,stb-pcie.yaml
 F:	drivers/pci/controller/pcie-brcmstb.c
 
 BROADCOM SYSTEMPORT ETHERNET DRIVER
-M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Florian Fainelli <florian.fainelli@broadcom.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -19032,7 +19032,7 @@ K:	\bsecure_computing
 K:	\bTIF_SECCOMP\b
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) Broadcom BRCMSTB DRIVER
-M:	Kamal Dasu <kdasu.kdev@gmail.com>
+M:	Kamal Dasu <kamal.dasu@broadcom.com>
 M:	Al Cooper <alcooperx@gmail.com>
 R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-mmc@vger.kernel.org

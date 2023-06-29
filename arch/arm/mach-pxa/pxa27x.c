@@ -24,6 +24,7 @@
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/soc/pxa/cpu.h>
+#include <linux/soc/pxa/smemc.h>
 
 #include <asm/mach/map.h>
 #include <asm/irq.h>
@@ -31,7 +32,9 @@
 #include "irqs.h"
 #include "pxa27x.h"
 #include "reset.h"
+#include <linux/platform_data/pxa2xx_udc.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include "pm.h"
 #include "addr-map.h"
 #include "smemc.h"
