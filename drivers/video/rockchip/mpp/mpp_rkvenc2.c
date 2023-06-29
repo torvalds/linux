@@ -302,6 +302,7 @@ struct rkvenc_dev {
 #ifdef CONFIG_PM_DEVFREQ
 	struct rockchip_opp_info opp_info;
 	struct monitor_dev_info *mdev_info;
+	struct opp_table *opp_table;
 #endif
 };
 
@@ -1803,16 +1804,19 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 		if (IS_ERR(reg_table))
 			return PTR_ERR(reg_table);
 	}
+	enc->opp_table = reg_table;
 
 	clk_table = dev_pm_opp_set_clkname(dev, "clk_core");
-	if (IS_ERR(clk_table))
-		return PTR_ERR(clk_table);
+	if (IS_ERR(clk_table)) {
+		ret = PTR_ERR(clk_table);
+		goto put_opp_reg;
+	}
 
 	rockchip_get_opp_data(rockchip_rkvenc_of_match, &enc->opp_info);
 	ret = rockchip_init_opp_table(dev, &enc->opp_info, "leakage", "venc");
 	if (ret) {
 		dev_err(dev, "failed to init_opp_table\n");
-		return ret;
+		goto put_opp_clk;
 	}
 
 	enc->mdev_info = rockchip_system_monitor_register(dev, &venc_mdevp);
@@ -1821,6 +1825,14 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 		enc->mdev_info = NULL;
 	}
 
+	return 0;
+
+put_opp_clk:
+	dev_pm_opp_put_clkname(enc->opp_table);
+put_opp_reg:
+	dev_pm_opp_put_regulators(enc->opp_table);
+	enc->opp_table = NULL;
+
 	return ret;
 }
 
@@ -1828,8 +1840,16 @@ static int rkvenc_devfreq_remove(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
-	if (enc->mdev_info)
+	if (enc->mdev_info) {
 		rockchip_system_monitor_unregister(enc->mdev_info);
+		enc->mdev_info = NULL;
+	}
+	if (enc->opp_table) {
+		rockchip_uninit_opp_table(mpp->dev, &enc->opp_info);
+		dev_pm_opp_put_clkname(enc->opp_table);
+		dev_pm_opp_put_regulators(enc->opp_table);
+		enc->opp_table = NULL;
+	}
 
 	return 0;
 }
