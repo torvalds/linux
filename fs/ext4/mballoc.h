@@ -49,7 +49,7 @@
 #define MB_DEFAULT_MIN_TO_SCAN		10
 
 /*
- * with 'ext4_mb_stats' allocator will collect stats that will be
+ * with 's_mb_stats' allocator will collect stats that will be
  * shown at umount. The collecting costs though!
  */
 #define MB_DEFAULT_STATS		0
@@ -84,6 +84,13 @@
  * group scanning optimizations.
  */
 #define MB_DEFAULT_LINEAR_SCAN_THRESHOLD	16
+
+/*
+ * The maximum order upto which CR_BEST_AVAIL_LEN can trim a particular
+ * allocation request. Example, if we have an order 7 request and max trim order
+ * of 3, we can trim this request upto order 4.
+ */
+#define MB_DEFAULT_BEST_AVAIL_TRIM_ORDER	3
 
 /*
  * Number of valid buddy orders
@@ -179,11 +186,18 @@ struct ext4_allocation_context {
 	/* copy of the best found extent taken before preallocation efforts */
 	struct ext4_free_extent ac_f_ex;
 
+	/*
+	 * goal len can change in CR1.5, so save the original len. This is
+	 * used while adjusting the PA window and for accounting.
+	 */
+	ext4_grpblk_t	ac_orig_goal_len;
+
 	__u32 ac_groups_considered;
 	__u32 ac_flags;		/* allocation hints */
 	__u16 ac_groups_scanned;
 	__u16 ac_groups_linear_remaining;
 	__u16 ac_found;
+	__u16 ac_cX_found[EXT4_MB_NUM_CRS];
 	__u16 ac_tail;
 	__u16 ac_buddy;
 	__u8 ac_status;

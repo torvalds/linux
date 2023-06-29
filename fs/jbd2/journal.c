@@ -1557,8 +1557,21 @@ static int journal_reset(journal_t *journal)
 	journal->j_first = first;
 	journal->j_last = last;
 
-	journal->j_head = journal->j_first;
-	journal->j_tail = journal->j_first;
+	if (journal->j_head != 0 && journal->j_flags & JBD2_CYCLE_RECORD) {
+		/*
+		 * Disable the cycled recording mode if the journal head block
+		 * number is not correct.
+		 */
+		if (journal->j_head < first || journal->j_head >= last) {
+			printk(KERN_WARNING "JBD2: Incorrect Journal head block %lu, "
+			       "disable journal_cycle_record\n",
+			       journal->j_head);
+			journal->j_head = journal->j_first;
+		}
+	} else {
+		journal->j_head = journal->j_first;
+	}
+	journal->j_tail = journal->j_head;
 	journal->j_free = journal->j_last - journal->j_first;
 
 	journal->j_tail_sequence = journal->j_transaction_sequence;
@@ -1730,6 +1743,7 @@ static void jbd2_mark_journal_empty(journal_t *journal, blk_opf_t write_flags)
 
 	sb->s_sequence = cpu_to_be32(journal->j_tail_sequence);
 	sb->s_start    = cpu_to_be32(0);
+	sb->s_head     = cpu_to_be32(journal->j_head);
 	if (jbd2_has_feature_fast_commit(journal)) {
 		/*
 		 * When journal is clean, no need to commit fast commit flag and
@@ -1903,15 +1917,15 @@ static int journal_get_superblock(journal_t *journal)
 	bh = journal->j_sb_buffer;
 
 	J_ASSERT(bh != NULL);
+	if (buffer_verified(bh))
+		return 0;
+
 	err = bh_read(bh, 0);
 	if (err < 0) {
 		printk(KERN_ERR
 			"JBD2: IO error reading journal superblock\n");
 		goto out;
 	}
-
-	if (buffer_verified(bh))
-		return 0;
 
 	sb = journal->j_superblock;
 
@@ -1923,21 +1937,13 @@ static int journal_get_superblock(journal_t *journal)
 		goto out;
 	}
 
-	switch(be32_to_cpu(sb->s_header.h_blocktype)) {
-	case JBD2_SUPERBLOCK_V1:
-		journal->j_format_version = 1;
-		break;
-	case JBD2_SUPERBLOCK_V2:
-		journal->j_format_version = 2;
-		break;
-	default:
+	if (be32_to_cpu(sb->s_header.h_blocktype) != JBD2_SUPERBLOCK_V1 &&
+	    be32_to_cpu(sb->s_header.h_blocktype) != JBD2_SUPERBLOCK_V2) {
 		printk(KERN_WARNING "JBD2: unrecognised superblock format ID\n");
 		goto out;
 	}
 
-	if (be32_to_cpu(sb->s_maxlen) < journal->j_total_len)
-		journal->j_total_len = be32_to_cpu(sb->s_maxlen);
-	else if (be32_to_cpu(sb->s_maxlen) > journal->j_total_len) {
+	if (be32_to_cpu(sb->s_maxlen) > journal->j_total_len) {
 		printk(KERN_WARNING "JBD2: journal file too short\n");
 		goto out;
 	}
@@ -1980,25 +1986,14 @@ static int journal_get_superblock(journal_t *journal)
 			journal->j_chksum_driver = NULL;
 			goto out;
 		}
-	}
-
-	if (jbd2_journal_has_csum_v2or3(journal)) {
 		/* Check superblock checksum */
 		if (sb->s_checksum != jbd2_superblock_csum(journal, sb)) {
 			printk(KERN_ERR "JBD2: journal checksum error\n");
 			err = -EFSBADCRC;
 			goto out;
 		}
-
-		/* Precompute checksum seed for all metadata */
-		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
-						   sizeof(sb->s_uuid));
 	}
-
-	journal->j_revoke_records_per_block =
-				journal_revoke_records_per_block(journal);
 	set_buffer_verified(bh);
-
 	return 0;
 
 out:
@@ -2028,6 +2023,15 @@ static int load_superblock(journal_t *journal)
 	journal->j_first = be32_to_cpu(sb->s_first);
 	journal->j_errno = be32_to_cpu(sb->s_errno);
 	journal->j_last = be32_to_cpu(sb->s_maxlen);
+
+	if (be32_to_cpu(sb->s_maxlen) < journal->j_total_len)
+		journal->j_total_len = be32_to_cpu(sb->s_maxlen);
+	/* Precompute checksum seed for all metadata */
+	if (jbd2_journal_has_csum_v2or3(journal))
+		journal->j_csum_seed = jbd2_chksum(journal, ~0, sb->s_uuid,
+						   sizeof(sb->s_uuid));
+	journal->j_revoke_records_per_block =
+				journal_revoke_records_per_block(journal);
 
 	if (jbd2_has_feature_fast_commit(journal)) {
 		journal->j_fc_last = be32_to_cpu(sb->s_maxlen);
@@ -2060,10 +2064,12 @@ int jbd2_journal_load(journal_t *journal)
 		return err;
 
 	sb = journal->j_superblock;
-	/* If this is a V2 superblock, then we have to check the
-	 * features flags on it. */
 
-	if (journal->j_format_version >= 2) {
+	/*
+	 * If this is a V2 superblock, then we have to check the
+	 * features flags on it.
+	 */
+	if (jbd2_format_support_feature(journal)) {
 		if ((sb->s_feature_ro_compat &
 		     ~cpu_to_be32(JBD2_KNOWN_ROCOMPAT_FEATURES)) ||
 		    (sb->s_feature_incompat &
@@ -2221,11 +2227,9 @@ int jbd2_journal_check_used_features(journal_t *journal, unsigned long compat,
 
 	if (!compat && !ro && !incompat)
 		return 1;
-	/* Load journal superblock if it is not loaded yet. */
-	if (journal->j_format_version == 0 &&
-	    journal_get_superblock(journal) != 0)
+	if (journal_get_superblock(journal))
 		return 0;
-	if (journal->j_format_version == 1)
+	if (!jbd2_format_support_feature(journal))
 		return 0;
 
 	sb = journal->j_superblock;
@@ -2255,11 +2259,7 @@ int jbd2_journal_check_available_features(journal_t *journal, unsigned long comp
 	if (!compat && !ro && !incompat)
 		return 1;
 
-	/* We can support any known requested features iff the
-	 * superblock is in version 2.  Otherwise we fail to support any
-	 * extended sb features. */
-
-	if (journal->j_format_version != 2)
+	if (!jbd2_format_support_feature(journal))
 		return 0;
 
 	if ((compat   & JBD2_KNOWN_COMPAT_FEATURES) == compat &&

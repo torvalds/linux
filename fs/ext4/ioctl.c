@@ -796,6 +796,7 @@ static int ext4_ioctl_setproject(struct inode *inode, __u32 projid)
 int ext4_force_shutdown(struct super_block *sb, u32 flags)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	int ret;
 
 	if (flags > EXT4_GOING_FLAGS_NOLOGFLUSH)
 		return -EINVAL;
@@ -808,7 +809,9 @@ int ext4_force_shutdown(struct super_block *sb, u32 flags)
 
 	switch (flags) {
 	case EXT4_GOING_FLAGS_DEFAULT:
-		freeze_bdev(sb->s_bdev);
+		ret = freeze_bdev(sb->s_bdev);
+		if (ret)
+			return ret;
 		set_bit(EXT4_FLAGS_SHUTDOWN, &sbi->s_ext4_flags);
 		thaw_bdev(sb->s_bdev);
 		break;
