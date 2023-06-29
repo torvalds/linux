@@ -13,6 +13,7 @@ extern int acpi_strict;
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
 extern int acpi_noirq;
+extern int pptt_enabled;
 
 #define acpi_os_ioremap acpi_os_ioremap
 void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size);
@@ -30,6 +31,14 @@ static inline bool acpi_has_cpu_in_madt(void)
 }
 
 extern struct list_head acpi_wakeup_device_list;
+extern struct acpi_madt_core_pic acpi_core_pic[NR_CPUS];
+
+extern int __init parse_acpi_topology(void);
+
+static inline u32 get_acpi_id_for_cpu(unsigned int cpu)
+{
+	return acpi_core_pic[cpu_logical_map(cpu)].processor_id;
+}
 
 #endif /* !CONFIG_ACPI */
 
