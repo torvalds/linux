@@ -5694,6 +5694,10 @@ int __access_remote_vm(struct mm_struct *mm, unsigned long addr, void *buf,
 	if (mmap_read_lock_killable(mm))
 		return 0;
 
+	/* Avoid triggering the temporary warning in __get_user_pages */
+	if (!vma_lookup(mm, addr) && !expand_stack(mm, addr))
+		return 0;
+
 	/* ignore errors, just check how much was successfully transferred */
 	while (len) {
 		int bytes, offset;
