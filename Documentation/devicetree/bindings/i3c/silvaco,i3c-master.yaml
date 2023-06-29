@@ -10,7 +10,7 @@ maintainers:
   - Conor Culhane <conor.culhane@silvaco.com>
 
 allOf:
-  - $ref: "i3c.yaml#"
+  - $ref: i3c.yaml#
 
 properties:
   compatible:
