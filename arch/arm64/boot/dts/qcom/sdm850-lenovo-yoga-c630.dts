@@ -33,6 +33,7 @@
 	chassis-type = "convertible";
 
 	aliases {
+		serial0 = &uart9;
 		hsuart0 = &uart6;
 	};
 
@@ -704,6 +705,10 @@
 		vddch1-supply = <&vreg_l23a_3p3>;
 		max-speed = <3200000>;
 	};
+};
+
+&uart9 {
+	status = "okay";
 };
 
 &ufs_mem_hc {
