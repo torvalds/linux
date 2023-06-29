@@ -666,7 +666,7 @@ static int cxl_memdev_release_file(struct inode *inode, struct file *file)
 
 /**
  * cxl_mem_get_fw_info - Get Firmware info
- * @cxlds: The device data for the operation
+ * @mds: The device data for the operation
  *
  * Retrieve firmware info for the device specified.
  *
