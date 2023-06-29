@@ -57,6 +57,9 @@ EXPORT_SYMBOL_GPL(x86_spec_ctrl_base);
 DEFINE_PER_CPU(u64, x86_spec_ctrl_current);
 EXPORT_SYMBOL_GPL(x86_spec_ctrl_current);
 
+u64 x86_pred_cmd __ro_after_init = PRED_CMD_IBPB;
+EXPORT_SYMBOL_GPL(x86_pred_cmd);
+
 static DEFINE_MUTEX(spec_ctrl_mutex);
 
 /* Update SPEC_CTRL MSR and its cached copy unconditionally */
@@ -2354,7 +2357,7 @@ static void __init srso_select_mitigation(void)
 	bool has_microcode;
 
 	if (!boot_cpu_has_bug(X86_BUG_SRSO) || cpu_mitigations_off())
-		return;
+		goto pred_cmd;
 
 	/*
 	 * The first check is for the kernel running as a guest in order
@@ -2367,9 +2370,18 @@ static void __init srso_select_mitigation(void)
 	} else {
 		/*
 		 * Enable the synthetic (even if in a real CPUID leaf)
-		 * flag for guests.
+		 * flags for guests.
 		 */
 		setup_force_cpu_cap(X86_FEATURE_IBPB_BRTYPE);
+		setup_force_cpu_cap(X86_FEATURE_SBPB);
+
+		/*
+		 * Zen1/2 with SMT off aren't vulnerable after the right
+		 * IBPB microcode has been applied.
+		 */
+		if ((boot_cpu_data.x86 < 0x19) &&
+		    (cpu_smt_control == CPU_SMT_DISABLED))
+			setup_force_cpu_cap(X86_FEATURE_SRSO_NO);
 	}
 
 	switch (srso_cmd) {
@@ -2392,16 +2404,20 @@ static void __init srso_select_mitigation(void)
 			srso_mitigation = SRSO_MITIGATION_SAFE_RET;
 		} else {
 			pr_err("WARNING: kernel not compiled with CPU_SRSO.\n");
-			return;
+			goto pred_cmd;
 		}
 		break;
 
 	default:
 		break;
-
 	}
 
 	pr_info("%s%s\n", srso_strings[srso_mitigation], (has_microcode ? "" : ", no microcode"));
+
+pred_cmd:
+	if (boot_cpu_has(X86_FEATURE_SRSO_NO) ||
+	    srso_cmd == SRSO_CMD_OFF)
+		x86_pred_cmd = PRED_CMD_SBPB;
 }
 
 #undef pr_fmt
