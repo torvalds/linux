@@ -273,4 +273,7 @@ extern struct kmem_cache	*xfs_extfree_item_cache;
 int __init xfs_extfree_intent_init_cache(void);
 void xfs_extfree_intent_destroy_cache(void);
 
+xfs_failaddr_t xfs_validate_ag_length(struct xfs_buf *bp, uint32_t seqno,
+		uint32_t length);
+
 #endif	/* __XFS_ALLOC_H__ */

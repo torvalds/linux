@@ -2957,6 +2957,47 @@ xfs_alloc_put_freelist(
 }
 
 /*
+ * Check that this AGF/AGI header's sequence number and length matches the AG
+ * number and size in fsblocks.
+ */
+xfs_failaddr_t
+xfs_validate_ag_length(
+	struct xfs_buf		*bp,
+	uint32_t		seqno,
+	uint32_t		length)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+	/*
+	 * During growfs operations, the perag is not fully initialised,
+	 * so we can't use it for any useful checking. growfs ensures we can't
+	 * use it by using uncached buffers that don't have the perag attached
+	 * so we can detect and avoid this problem.
+	 */
+	if (bp->b_pag && seqno != bp->b_pag->pag_agno)
+		return __this_address;
+
+	/*
+	 * Only the last AG in the filesystem is allowed to be shorter
+	 * than the AG size recorded in the superblock.
+	 */
+	if (length != mp->m_sb.sb_agblocks) {
+		/*
+		 * During growfs, the new last AG can get here before we
+		 * have updated the superblock. Give it a pass on the seqno
+		 * check.
+		 */
+		if (bp->b_pag && seqno != mp->m_sb.sb_agcount - 1)
+			return __this_address;
+		if (length < XFS_MIN_AG_BLOCKS)
+			return __this_address;
+		if (length > mp->m_sb.sb_agblocks)
+			return __this_address;
+	}
+
+	return NULL;
+}
+
+/*
  * Verify the AGF is consistent.
  *
  * We do not verify the AGFL indexes in the AGF are fully consistent here
@@ -2975,6 +3016,8 @@ xfs_agf_verify(
 {
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_agf		*agf = bp->b_addr;
+	xfs_failaddr_t		fa;
+	uint32_t		agf_seqno = be32_to_cpu(agf->agf_seqno);
 	uint32_t		agf_length = be32_to_cpu(agf->agf_length);
 
 	if (xfs_has_crc(mp)) {
@@ -2993,33 +3036,10 @@ xfs_agf_verify(
 	/*
 	 * Both agf_seqno and agf_length need to validated before anything else
 	 * block number related in the AGF or AGFL can be checked.
-	 *
-	 * During growfs operations, the perag is not fully initialised,
-	 * so we can't use it for any useful checking. growfs ensures we can't
-	 * use it by using uncached buffers that don't have the perag attached
-	 * so we can detect and avoid this problem.
 	 */
-	if (bp->b_pag && be32_to_cpu(agf->agf_seqno) != bp->b_pag->pag_agno)
-		return __this_address;
-
-	/*
-	 * Only the last AGF in the filesytsem is allowed to be shorter
-	 * than the AG size recorded in the superblock.
-	 */
-	if (agf_length != mp->m_sb.sb_agblocks) {
-		/*
-		 * During growfs, the new last AGF can get here before we
-		 * have updated the superblock. Give it a pass on the seqno
-		 * check.
-		 */
-		if (bp->b_pag &&
-		    be32_to_cpu(agf->agf_seqno) != mp->m_sb.sb_agcount - 1)
-			return __this_address;
-		if (agf_length < XFS_MIN_AG_BLOCKS)
-			return __this_address;
-		if (agf_length > mp->m_sb.sb_agblocks)
-			return __this_address;
-	}
+	fa = xfs_validate_ag_length(bp, agf_seqno, agf_length);
+	if (fa)
+		return fa;
 
 	if (be32_to_cpu(agf->agf_flfirst) >= xfs_agfl_size(mp))
 		return __this_address;
