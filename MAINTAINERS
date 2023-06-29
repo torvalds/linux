@@ -20335,10 +20335,12 @@ S:	Supported
 F:	Documentation/devicetree/bindings/watchdog/starfive*
 F:	drivers/watchdog/starfive-wdt.c
 
-STARFIVE JH71X0 USB PHY DRIVER
+STARFIVE JH71X0 PCIE AND USB PHY DRIVER
 M:	Minda Chen <minda.chen@starfivetech.com>
 S:	Supported
+F:	Documentation/devicetree/bindings/phy/starfive,jh7110-pcie-phy.yaml
 F:	Documentation/devicetree/bindings/phy/starfive,jh7110-usb-phy.yaml
+F:	drivers/phy/starfive/phy-jh7110-pcie.c
 F:	drivers/phy/starfive/phy-jh7110-usb.c
 
 STATIC BRANCH/CALL
