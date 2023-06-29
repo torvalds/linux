@@ -2515,8 +2515,7 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 
 	reg = readl(master->regs + DEVICE_CTRL);
 	reg &= ~DEV_CTRL_SLAVE_MDB;
-	reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, data[0]) |
-	       FIELD_PREP(DEV_CTRL_SLAVE_PEC_EN, 1);
+	reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, data[0]);
 	writel(reg, master->regs + DEVICE_CTRL);
 
 	aspeed_i3c_master_wr_tx_fifo(master, data, payload->len);
@@ -2536,10 +2535,6 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 			       RESET_CTRL_RESP_QUEUE | RESET_CTRL_CMD_QUEUE,
 		       master->regs + RESET_CTRL);
 	}
-
-	reg = readl(master->regs + DEVICE_CTRL);
-	reg &= ~DEV_CTRL_SLAVE_PEC_EN;
-	writel(reg, master->regs + DEVICE_CTRL);
 
 	intr_req = readl(master->regs + SLV_INTR_REQ);
 	if (SLV_INTR_REQ_IBI_STS(intr_req) != SLV_IBI_STS_OK) {
@@ -2584,8 +2579,7 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 
 		reg = readl(master->regs + DEVICE_CTRL);
 		reg &= ~DEV_CTRL_SLAVE_MDB;
-		reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, buf[0]) |
-		       FIELD_PREP(DEV_CTRL_SLAVE_PEC_EN, 1);
+		reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, buf[0]);
 		writel(reg, master->regs + DEVICE_CTRL);
 
 		aspeed_i3c_master_wr_tx_fifo(master, buf, ibi_notify->len);
@@ -2615,10 +2609,6 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 			dev_err(master->dev, "send sir timeout\n");
 			writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
 		}
-
-		reg = readl(master->regs + DEVICE_CTRL);
-		reg &= ~DEV_CTRL_SLAVE_PEC_EN;
-		writel(reg, master->regs + DEVICE_CTRL);
 	}
 
 	/* Wait data to be read */
