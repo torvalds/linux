@@ -118,7 +118,7 @@ static struct i2c_driver i2c_hid_acpi_driver = {
 		.acpi_match_table = i2c_hid_acpi_match,
 	},
 
-	.probe_new	= i2c_hid_acpi_probe,
+	.probe		= i2c_hid_acpi_probe,
 	.remove		= i2c_hid_core_remove,
 	.shutdown	= i2c_hid_core_shutdown,
 };
