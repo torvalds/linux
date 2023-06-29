@@ -145,39 +145,36 @@ avs_rt5682_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_para
 {
 	struct snd_soc_pcm_runtime *runtime = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(runtime, 0);
-	int clk_id, clk_freq;
-	int pll_out, ret;
+	int pll_source, freq_in, freq_out;
+	int ret;
 
 	if (avs_rt5682_quirk & AVS_RT5682_MCLK_EN) {
-		clk_id = RT5682_PLL1_S_MCLK;
+		pll_source = RT5682_PLL1_S_MCLK;
 		if (avs_rt5682_quirk & AVS_RT5682_MCLK_24MHZ)
-			clk_freq = 24000000;
+			freq_in = 24000000;
 		else
-			clk_freq = 19200000;
+			freq_in = 19200000;
 	} else {
-		clk_id = RT5682_PLL1_S_BCLK1;
-		clk_freq = params_rate(params) * 50;
+		pll_source = RT5682_PLL1_S_BCLK1;
+		freq_in = params_rate(params) * 50;
 	}
 
-	pll_out = params_rate(params) * 512;
+	freq_out = params_rate(params) * 512;
 
-	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, pll_out);
+	ret = snd_soc_dai_set_pll(codec_dai, RT5682_PLL1, pll_source, freq_in, freq_out);
 	if (ret < 0)
-		dev_err(runtime->dev, "snd_soc_dai_set_pll err = %d\n", ret);
+		dev_err(runtime->dev, "Set PLL failed: %d\n", ret);
 
-	/* Configure sysclk for codec */
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1, pll_out, SND_SOC_CLOCK_IN);
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5682_SCLK_S_PLL1, freq_out, SND_SOC_CLOCK_IN);
 	if (ret < 0)
-		dev_err(runtime->dev, "snd_soc_dai_set_sysclk err = %d\n", ret);
+		dev_err(runtime->dev, "Set sysclk failed: %d\n", ret);
 
-	/* slot_width should equal or large than data length, set them be the same */
+	/* slot_width should be equal or larger than data length. */
 	ret = snd_soc_dai_set_tdm_slot(codec_dai, 0x0, 0x0, 2, params_width(params));
-	if (ret < 0) {
-		dev_err(runtime->dev, "set TDM slot err:%d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		dev_err(runtime->dev, "Set TDM slot failed: %d\n", ret);
 
-	return 0;
+	return ret;
 }
 
 static const struct snd_soc_ops avs_rt5682_ops = {
