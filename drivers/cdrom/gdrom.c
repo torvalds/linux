@@ -481,7 +481,7 @@ static int gdrom_bdops_open(struct gendisk *disk, blk_mode_t mode)
 	disk_check_media_change(disk);
 
 	mutex_lock(&gdrom_mutex);
-	ret = cdrom_open(gd.cd_info);
+	ret = cdrom_open(gd.cd_info, mode);
 	mutex_unlock(&gdrom_mutex);
 	return ret;
 }
@@ -489,7 +489,7 @@ static int gdrom_bdops_open(struct gendisk *disk, blk_mode_t mode)
 static void gdrom_bdops_release(struct gendisk *disk)
 {
 	mutex_lock(&gdrom_mutex);
-	cdrom_release(gd.cd_info, mode);
+	cdrom_release(gd.cd_info);
 	mutex_unlock(&gdrom_mutex);
 }
 
