@@ -25,24 +25,13 @@
 #include <asm/time.h>
 #include <asm/uasm.h>
 
-static bool threads_disabled;
 static DECLARE_BITMAP(core_power, NR_CPUS);
 
 struct core_boot_config *mips_cps_core_bootcfg;
 
-static int __init setup_nothreads(char *s)
+static unsigned __init core_vpe_count(unsigned int cluster, unsigned core)
 {
-	threads_disabled = true;
-	return 0;
-}
-early_param("nothreads", setup_nothreads);
-
-static unsigned core_vpe_count(unsigned int cluster, unsigned core)
-{
-	if (threads_disabled)
-		return 1;
-
-	return mips_cps_numvps(cluster, core);
+	return min(smp_max_threads, mips_cps_numvps(cluster, core));
 }
 
 static void __init cps_smp_setup(void)

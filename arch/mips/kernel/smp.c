@@ -73,6 +73,24 @@ static cpumask_t cpu_core_setup_map;
 
 cpumask_t cpu_coherent_mask;
 
+unsigned int smp_max_threads __initdata = UINT_MAX;
+
+static int __init early_nosmt(char *s)
+{
+	smp_max_threads = 1;
+	return 0;
+}
+early_param("nosmt", early_nosmt);
+
+static int __init early_smt(char *s)
+{
+	get_option(&s, &smp_max_threads);
+	/* Ensure at least one thread is available */
+	smp_max_threads = clamp_val(smp_max_threads, 1U, UINT_MAX);
+	return 0;
+}
+early_param("smt", early_smt);
+
 #ifdef CONFIG_GENERIC_IRQ_IPI
 static struct irq_desc *call_desc;
 static struct irq_desc *sched_desc;

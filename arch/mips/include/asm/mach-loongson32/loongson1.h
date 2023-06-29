@@ -48,6 +48,5 @@
 #include <regs-clk.h>
 #include <regs-mux.h>
 #include <regs-rtc.h>
-#include <regs-wdt.h>
 
 #endif /* __ASM_MACH_LOONGSON32_LOONGSON1_H */

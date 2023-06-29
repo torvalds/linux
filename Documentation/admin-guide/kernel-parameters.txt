@@ -3716,8 +3716,8 @@
 
 	nohibernate	[HIBERNATION] Disable hibernation and resume.
 
-	nohlt		[ARM,ARM64,MICROBLAZE,SH] Forces the kernel to busy wait
-			in do_idle() and not use the arch_cpu_idle()
+	nohlt		[ARM,ARM64,MICROBLAZE,MIPS,SH] Forces the kernel to
+			busy wait in do_idle() and not use the arch_cpu_idle()
 			implementation; requires CONFIG_GENERIC_IDLE_POLL_SETUP
 			to be effective. This is useful on platforms where the
 			sleep(SH) or wfi(ARM,ARM64) instructions do not work
@@ -3852,7 +3852,7 @@
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
 			and disable the IO APIC.  legacy for "maxcpus=0".
 
-	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
+	nosmt		[KNL,MIPS,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
 			[KNL,X86] Disable symmetric multithreading (SMT).
@@ -5770,7 +5770,7 @@
 				1: Fast pin select (default)
 				2: ATC IRMode
 
-	smt=		[KNL,S390] Set the maximum number of threads (logical
+	smt=		[KNL,MIPS,S390] Set the maximum number of threads (logical
 			CPUs) to use per physical CPU on systems capable of
 			symmetric multithreading (SMT). Will be capped to the
 			actual hardware limit.
