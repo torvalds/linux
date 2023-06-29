@@ -10,6 +10,10 @@
 
 #include "irq-gic-common.h"
 
+#ifdef CONFIG_ROCKCHIP_AMP
+#include <soc/rockchip/rockchip_amp.h>
+#endif
+
 static DEFINE_RAW_SPINLOCK(irq_controller_lock);
 
 static const struct gic_kvm_info *gic_kvm_info;
@@ -112,8 +116,25 @@ void gic_dist_config(void __iomem *base, int gic_irqs,
 	/*
 	 * Set priority on all global interrupts.
 	 */
+#ifdef CONFIG_ROCKCHIP_AMP
+	for (i = 32; i < gic_irqs; i += 4) {
+		u32 amp_pri, j;
+
+		amp_pri = 0;
+		for (j = 0; j < 4; j++) {
+			if (rockchip_amp_check_amp_irq(i + j)) {
+				amp_pri |= rockchip_amp_get_irq_prio(i + j) <<
+					   (j * 8);
+			} else {
+				amp_pri |= GICD_INT_DEF_PRI << (j * 8);
+			}
+		}
+		writel_relaxed(amp_pri, base + GIC_DIST_PRI + i);
+	}
+#else
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(GICD_INT_DEF_PRI_X4, base + GIC_DIST_PRI + i);
+#endif
 
 	/*
 	 * Deactivate and disable all SPIs. Leave the PPI and SGIs
