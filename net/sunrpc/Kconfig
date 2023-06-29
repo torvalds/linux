@@ -34,10 +34,6 @@ config RPCSEC_GSS_KRB5
 
 	  If unsure, say Y.
 
-config RPCSEC_GSS_KRB5_CRYPTOSYSTEM
-	bool
-	depends on RPCSEC_GSS_KRB5
-
 config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1
 	bool "Enable Kerberos enctypes based on AES and SHA-1"
 	depends on RPCSEC_GSS_KRB5
@@ -45,7 +41,6 @@ config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1
 	depends on CRYPTO_HMAC && CRYPTO_SHA1
 	depends on CRYPTO_AES
 	default y
-	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
 	help
 	  Choose Y to enable the use of Kerberos 5 encryption types
 	  that utilize Advanced Encryption Standard (AES) ciphers and
@@ -58,7 +53,6 @@ config RPCSEC_GSS_KRB5_ENCTYPES_CAMELLIA
 	depends on CRYPTO_CBC && CRYPTO_CTS && CRYPTO_CAMELLIA
 	depends on CRYPTO_CMAC
 	default n
-	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
 	help
 	  Choose Y to enable the use of Kerberos 5 encryption types
 	  that utilize Camellia ciphers (RFC 3713) and CMAC digests
@@ -72,7 +66,6 @@ config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA2
 	depends on CRYPTO_HMAC && CRYPTO_SHA256 && CRYPTO_SHA512
 	depends on CRYPTO_AES
 	default n
-	select RPCSEC_GSS_KRB5_CRYPTOSYSTEM
 	help
 	  Choose Y to enable the use of Kerberos 5 encryption types
 	  that utilize Advanced Encryption Standard (AES) ciphers and

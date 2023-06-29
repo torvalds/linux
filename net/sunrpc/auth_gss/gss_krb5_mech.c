@@ -29,10 +29,7 @@
 #endif
 
 static struct gss_api_mech gss_kerberos_mech;
-
-#if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
 static int gss_krb5_import_ctx_v2(struct krb5_ctx *ctx, gfp_t gfp_mask);
-#endif
 
 static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 #if defined(CONFIG_RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1)
@@ -273,8 +270,6 @@ const struct gss_krb5_enctype *gss_krb5_lookup_enctype(u32 etype)
 }
 EXPORT_SYMBOL_IF_KUNIT(gss_krb5_lookup_enctype);
 
-#if defined(CONFIG_RPCSEC_GSS_KRB5_CRYPTOSYSTEM)
-
 static struct crypto_sync_skcipher *
 gss_krb5_alloc_cipher_v2(const char *cname, const struct xdr_netobj *key)
 {
@@ -402,8 +397,6 @@ out_free:
 	crypto_free_sync_skcipher(ctx->initiator_enc);
 	goto out;
 }
-
-#endif
 
 static int
 gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
