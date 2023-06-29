@@ -97,7 +97,6 @@ config SOC_AT91SAM9
 	depends on ARCH_MULTI_V5
 	select ATMEL_AIC_IRQ
 	select ATMEL_PM if PM
-	select ATMEL_SDRAMC
 	select CPU_ARM926T
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
@@ -131,7 +130,6 @@ config SOC_SAM9X60
 	depends on ARCH_MULTI_V5
 	select ATMEL_AIC5_IRQ
 	select ATMEL_PM if PM
-	select ATMEL_SDRAMC
 	select CPU_ARM926T
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_GENERATED_CLK
@@ -213,7 +211,6 @@ config SOC_SAMA5
 	bool
 	select ATMEL_AIC5_IRQ
 	select ATMEL_PM if PM
-	select ATMEL_SDRAMC
 	select MEMORY
 	select SOC_SAM_V7
 	select SRAM if PM
@@ -234,7 +231,6 @@ config SOC_SAMA7
 	bool
 	select ARM_GIC
 	select ATMEL_PM if PM
-	select ATMEL_SDRAMC
 	select MEMORY
 	select SOC_SAM_V7
 	select SRAM if PM

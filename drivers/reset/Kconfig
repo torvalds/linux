@@ -150,9 +150,6 @@ config RESET_NUVOTON_MA35D1
 	help
 	  This enables the reset controller driver for Nuvoton MA35D1 SoC.
 
-config RESET_OXNAS
-	bool
-
 config RESET_PISTACHIO
 	bool "Pistachio Reset Driver"
 	depends on MIPS || COMPILE_TEST
@@ -161,7 +158,8 @@ config RESET_PISTACHIO
 
 config RESET_POLARFIRE_SOC
 	bool "Microchip PolarFire SoC (MPFS) Reset Driver"
-	depends on AUXILIARY_BUS && MCHP_CLK_MPFS
+	depends on MCHP_CLK_MPFS
+	select AUXILIARY_BUS
 	default MCHP_CLK_MPFS
 	help
 	  This driver supports peripheral reset for the Microchip PolarFire SoC

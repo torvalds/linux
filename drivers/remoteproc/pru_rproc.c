@@ -82,21 +82,6 @@ enum pru_iomem {
 };
 
 /**
- * enum pru_type - PRU core type identifier
- *
- * @PRU_TYPE_PRU: Programmable Real-time Unit
- * @PRU_TYPE_RTU: Auxiliary Programmable Real-Time Unit
- * @PRU_TYPE_TX_PRU: Transmit Programmable Real-Time Unit
- * @PRU_TYPE_MAX: just keep this one at the end
- */
-enum pru_type {
-	PRU_TYPE_PRU = 0,
-	PRU_TYPE_RTU,
-	PRU_TYPE_TX_PRU,
-	PRU_TYPE_MAX,
-};
-
-/**
  * struct pru_private_data - device data for a PRU core
  * @type: type of the PRU core (PRU, RTU, Tx_PRU)
  * @is_k3: flag used to identify the need for special load handling

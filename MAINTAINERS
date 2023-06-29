@@ -1906,10 +1906,12 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-amlogic@lists.infradead.org
 S:	Maintained
 W:	http://linux-meson.com/
+F:	Documentation/devicetree/bindings/phy/amlogic*
 F:	arch/arm/boot/dts/amlogic/
 F:	arch/arm/mach-meson/
 F:	arch/arm64/boot/dts/amlogic/
 F:	drivers/mmc/host/meson*
+F:	drivers/phy/amlogic/
 F:	drivers/pinctrl/meson/
 F:	drivers/rtc/rtc-meson*
 F:	drivers/soc/amlogic/
@@ -2574,7 +2576,7 @@ F:	arch/arm64/boot/dts/qcom/sdm845-cheza*
 ARM/QUALCOMM SUPPORT
 M:	Andy Gross <agross@kernel.org>
 M:	Bjorn Andersson <andersson@kernel.org>
-R:	Konrad Dybcio <konrad.dybcio@linaro.org>
+M:	Konrad Dybcio <konrad.dybcio@linaro.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux.git
@@ -7107,7 +7109,6 @@ F:	Documentation/gpu/xen-front.rst
 F:	drivers/gpu/drm/xen/
 
 DRM DRIVERS FOR XILINX
-M:	Hyun Kwon <hyun.kwon@xilinx.com>
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
@@ -23267,7 +23268,7 @@ F:	Documentation/devicetree/bindings/iio/adc/xlnx,zynqmp-ams.yaml
 F:	drivers/iio/adc/xilinx-ams.c
 
 XILINX AXI ETHERNET DRIVER
-M:	Radhey Shyam Pandey <radhey.shyam.pandey@xilinx.com>
+M:	Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/xlnx,axi-ethernet.yaml
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
@@ -23287,8 +23288,8 @@ F:	drivers/soc/xilinx/xlnx_event_manager.c
 F:	include/linux/firmware/xlnx-event-manager.h
 
 XILINX GPIO DRIVER
-M:	Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
-R:	Srinivas Neeli <srinivas.neeli@xilinx.com>
+M:	Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
+R:	Srinivas Neeli <srinivas.neeli@amd.com>
 R:	Michal Simek <michal.simek@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/gpio/gpio-zynq.yaml
@@ -23303,8 +23304,8 @@ F:	drivers/pwm/pwm-xilinx.c
 F:	include/clocksource/timer-xilinx.h
 
 XILINX SD-FEC IP CORES
-M:	Derek Kiernan <derek.kiernan@xilinx.com>
-M:	Dragan Cvetic <dragan.cvetic@xilinx.com>
+M:	Derek Kiernan <derek.kiernan@amd.com>
+M:	Dragan Cvetic <dragan.cvetic@amd.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/misc/xlnx,sd-fec.txt
 F:	Documentation/misc-devices/xilinx_sdfec.rst
@@ -23320,7 +23321,6 @@ S:	Maintained
 F:	drivers/tty/serial/uartlite.c
 
 XILINX VIDEO IP CORES
-M:	Hyun Kwon <hyun.kwon@xilinx.com>
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
@@ -23349,7 +23349,6 @@ F:	include/linux/dma/amd_xdma.h
 F:	include/linux/platform_data/amd_xdma.h
 
 XILINX ZYNQMP DPDMA DRIVER
-M:	Hyun Kwon <hyun.kwon@xilinx.com>
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	dmaengine@vger.kernel.org
 S:	Supported
@@ -23365,7 +23364,6 @@ F:	Documentation/devicetree/bindings/memory-controllers/xlnx,zynqmp-ocmc-1.0.yam
 F:	drivers/edac/zynqmp_edac.c
 
 XILINX ZYNQMP PSGTR PHY DRIVER
-M:	Anurag Kumar Vulisha <anurag.kumar.vulisha@xilinx.com>
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -23374,7 +23372,7 @@ F:	Documentation/devicetree/bindings/phy/xlnx,zynqmp-psgtr.yaml
 F:	drivers/phy/xilinx/phy-zynqmp.c
 
 XILINX ZYNQMP SHA3 DRIVER
-M:	Harsha <harsha.harsha@xilinx.com>
+M:	Harsha <harsha.harsha@amd.com>
 S:	Maintained
 F:	drivers/crypto/xilinx/zynqmp-sha.c
 

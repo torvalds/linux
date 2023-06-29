@@ -129,7 +129,7 @@ patternProperties:
       The child device node represents the device connected to the GPMC
       bus. The device can be a NAND chip, SRAM device, NOR device
       or an ASIC.
-    $ref: "ti,gpmc-child.yaml"
+    $ref: ti,gpmc-child.yaml
 
 
 required:
