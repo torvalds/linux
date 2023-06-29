@@ -34,37 +34,9 @@ config RPCSEC_GSS_KRB5
 
 	  If unsure, say Y.
 
-config RPCSEC_GSS_KRB5_SIMPLIFIED
-	bool
-	depends on RPCSEC_GSS_KRB5
-
 config RPCSEC_GSS_KRB5_CRYPTOSYSTEM
 	bool
 	depends on RPCSEC_GSS_KRB5
-
-config RPCSEC_GSS_KRB5_ENCTYPES_DES
-	bool "Enable Kerberos enctypes based on DES (deprecated)"
-	depends on RPCSEC_GSS_KRB5
-	depends on CRYPTO_CBC && CRYPTO_CTS && CRYPTO_ECB
-	depends on CRYPTO_HMAC && CRYPTO_MD5 && CRYPTO_SHA1
-	depends on CRYPTO_DES
-	default n
-	select RPCSEC_GSS_KRB5_SIMPLIFIED
-	help
-	  Choose Y to enable the use of deprecated Kerberos 5
-	  encryption types that utilize Data Encryption Standard
-	  (DES) based ciphers. These include des-cbc-md5,
-	  des-cbc-crc, and des-cbc-md4, which were deprecated by
-	  RFC 6649, and des3-cbc-sha1, which was deprecated by RFC
-	  8429.
-
-	  These encryption types are known to be insecure, therefore
-	  the default setting of this option is N. Support for these
-	  encryption types is available only for compatibility with
-	  legacy NFS client and server implementations.
-
-	  Removal of support is planned for a subsequent kernel
-	  release.
 
 config RPCSEC_GSS_KRB5_ENCTYPES_AES_SHA1
 	bool "Enable Kerberos enctypes based on AES and SHA-1"
