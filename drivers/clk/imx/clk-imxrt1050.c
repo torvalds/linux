@@ -42,7 +42,7 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 	struct device_node *anp;
 	int ret;
 
-	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
+	clk_hw_data = devm_kzalloc(dev, struct_size(clk_hw_data, hws,
 					  IMXRT1050_CLK_END), GFP_KERNEL);
 	if (WARN_ON(!clk_hw_data))
 		return -ENOMEM;
@@ -53,10 +53,12 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 	hws[IMXRT1050_CLK_OSC] = imx_get_clk_hw_by_name(np, "osc");
 
 	anp = of_find_compatible_node(NULL, NULL, "fsl,imxrt-anatop");
-	pll_base = of_iomap(anp, 0);
+	pll_base = devm_of_iomap(dev, anp, 0, NULL);
 	of_node_put(anp);
-	if (WARN_ON(!pll_base))
-		return -ENOMEM;
+	if (WARN_ON(IS_ERR(pll_base))) {
+		ret = PTR_ERR(pll_base);
+		goto unregister_hws;
+	}
 
 	/* Anatop clocks */
 	hws[IMXRT1050_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0UL);
@@ -104,8 +106,10 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 
 	/* CCM clocks */
 	ccm_base = devm_platform_ioremap_resource(pdev, 0);
-	if (WARN_ON(IS_ERR(ccm_base)))
-		return PTR_ERR(ccm_base);
+	if (WARN_ON(IS_ERR(ccm_base))) {
+		ret = PTR_ERR(ccm_base);
+		goto unregister_hws;
+	}
 
 	hws[IMXRT1050_CLK_ARM_PODF] = imx_clk_hw_divider("arm_podf", "pll1_arm", ccm_base + 0x10, 0, 3);
 	hws[IMXRT1050_CLK_PRE_PERIPH_SEL] = imx_clk_hw_mux("pre_periph_sel", ccm_base + 0x18, 18, 2,
@@ -149,8 +153,12 @@ static int imxrt1050_clocks_probe(struct platform_device *pdev)
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_hw_data);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register clks for i.MXRT1050.\n");
-		imx_unregister_hw_clocks(hws, IMXRT1050_CLK_END);
+		goto unregister_hws;
 	}
+	return 0;
+
+unregister_hws:
+	imx_unregister_hw_clocks(hws, IMXRT1050_CLK_END);
 	return ret;
 }
 static const struct of_device_id imxrt1050_clk_of_match[] = {
