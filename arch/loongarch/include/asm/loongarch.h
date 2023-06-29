@@ -56,10 +56,7 @@ __asm__(".macro	parse_r var r\n\t"
 #undef _IFC_REG
 
 /* CPUCFG */
-static inline u32 read_cpucfg(u32 reg)
-{
-	return __cpucfg(reg);
-}
+#define read_cpucfg(reg) __cpucfg(reg)
 
 #endif /* !__ASSEMBLY__ */
 
@@ -206,56 +203,18 @@ static inline u32 read_cpucfg(u32 reg)
 #ifndef __ASSEMBLY__
 
 /* CSR */
-static __always_inline u32 csr_read32(u32 reg)
-{
-	return __csrrd_w(reg);
-}
-
-static __always_inline u64 csr_read64(u32 reg)
-{
-	return __csrrd_d(reg);
-}
-
-static __always_inline void csr_write32(u32 val, u32 reg)
-{
-	__csrwr_w(val, reg);
-}
-
-static __always_inline void csr_write64(u64 val, u32 reg)
-{
-	__csrwr_d(val, reg);
-}
-
-static __always_inline u32 csr_xchg32(u32 val, u32 mask, u32 reg)
-{
-	return __csrxchg_w(val, mask, reg);
-}
-
-static __always_inline u64 csr_xchg64(u64 val, u64 mask, u32 reg)
-{
-	return __csrxchg_d(val, mask, reg);
-}
+#define csr_read32(reg) __csrrd_w(reg)
+#define csr_read64(reg) __csrrd_d(reg)
+#define csr_write32(val, reg) __csrwr_w(val, reg)
+#define csr_write64(val, reg) __csrwr_d(val, reg)
+#define csr_xchg32(val, mask, reg) __csrxchg_w(val, mask, reg)
+#define csr_xchg64(val, mask, reg) __csrxchg_d(val, mask, reg)
 
 /* IOCSR */
-static __always_inline u32 iocsr_read32(u32 reg)
-{
-	return __iocsrrd_w(reg);
-}
-
-static __always_inline u64 iocsr_read64(u32 reg)
-{
-	return __iocsrrd_d(reg);
-}
-
-static __always_inline void iocsr_write32(u32 val, u32 reg)
-{
-	__iocsrwr_w(val, reg);
-}
-
-static __always_inline void iocsr_write64(u64 val, u32 reg)
-{
-	__iocsrwr_d(val, reg);
-}
+#define iocsr_read32(reg) __iocsrrd_w(reg)
+#define iocsr_read64(reg) __iocsrrd_d(reg)
+#define iocsr_write32(val, reg) __iocsrwr_w(val, reg)
+#define iocsr_write64(val, reg) __iocsrwr_d(val, reg)
 
 #endif /* !__ASSEMBLY__ */
 

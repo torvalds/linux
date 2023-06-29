@@ -924,7 +924,7 @@ asmlinkage void cache_parity_error(void)
 	/* For the moment, report the problem and hang. */
 	pr_err("Cache error exception:\n");
 	pr_err("csr_merrctl == %08x\n", csr_read32(LOONGARCH_CSR_MERRCTL));
-	pr_err("csr_merrera == %016llx\n", csr_read64(LOONGARCH_CSR_MERRERA));
+	pr_err("csr_merrera == %016lx\n", csr_read64(LOONGARCH_CSR_MERRERA));
 	panic("Can't handle the cache error!");
 }
 
