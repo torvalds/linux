@@ -1160,9 +1160,10 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	int err = 0;
 	bool usm = !eng && xe->info.supports_usm;
 	bool first_munmap_rebind = vma && vma->first_munmap_rebind;
+	struct xe_engine *eng_override = !eng ? m->eng : eng;
 
 	/* Use the CPU if no in syncs and engine is idle */
-	if (no_in_syncs(syncs, num_syncs) && (!eng || xe_engine_is_idle(eng))) {
+	if (no_in_syncs(syncs, num_syncs) && xe_engine_is_idle(eng_override)) {
 		fence =  xe_migrate_update_pgtables_cpu(m, vm, bo, updates,
 							num_updates,
 							first_munmap_rebind,
