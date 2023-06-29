@@ -1441,11 +1441,18 @@ __BUILD_CSR_OP(tlbidx)
 #define EXCCODE_INT_START	64
 #define EXCCODE_INT_END		(EXCCODE_INT_START + EXCCODE_INT_NUM - 1)
 
-/* FPU register names */
+/* FPU Status Register Names */
+#ifndef CONFIG_AS_HAS_FCSR_CLASS
 #define LOONGARCH_FCSR0	$r0
 #define LOONGARCH_FCSR1	$r1
 #define LOONGARCH_FCSR2	$r2
 #define LOONGARCH_FCSR3	$r3
+#else
+#define LOONGARCH_FCSR0	$fcsr0
+#define LOONGARCH_FCSR1	$fcsr1
+#define LOONGARCH_FCSR2	$fcsr2
+#define LOONGARCH_FCSR3	$fcsr3
+#endif
 
 /* FPU Status Register Values */
 #define FPU_CSR_RSVD	0xe0e0fce0

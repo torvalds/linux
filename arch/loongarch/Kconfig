@@ -241,6 +241,9 @@ config SCHED_OMIT_FRAME_POINTER
 config AS_HAS_EXPLICIT_RELOCS
 	def_bool $(as-instr,x:pcalau12i \$t0$(comma)%pc_hi20(x))
 
+config AS_HAS_FCSR_CLASS
+	def_bool $(as-instr,movfcsr2gr \$t0$(comma)\$fcsr0)
+
 menu "Kernel type and options"
 
 source "kernel/Kconfig.hz"
