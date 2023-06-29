@@ -17,6 +17,7 @@
  *         support for GMSL1 Link.
  * V1.5.00 only check max96712 chipid when probe.
  *         enable stream out if not all link are locked.
+ * V1.6.00 serdes read /write api depend on i2c id index.
  *
  */
 
@@ -45,7 +46,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(1, 0x05, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(1, 0x06, 0x00)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -63,48 +64,48 @@
 #define MAX96717_CHIP_ID		0xBF
 #define MAX96717_REG_CHIP_ID		0x0D
 
-#define MAX96712_REMOTE_CTRL		0x0003
-#define MAX96712_REMOTE_DISABLE		0xFF
-
 /* max96712->link mask: link type = bit[7:4], link mask = bit[3:0] */
-#define MAX96712_GMSL_TYPE_LINK_A	BIT(4)
-#define MAX96712_GMSL_TYPE_LINK_B	BIT(5)
-#define MAX96712_GMSL_TYPE_LINK_C	BIT(6)
-#define MAX96712_GMSL_TYPE_LINK_D	BIT(7)
-#define MAX96712_GMSL_TYPE_MASK		0xF0 /* bit[7:4], GMSL link type: 0 = GMSL1, 1 = GMSL2 */
+#define MAXIM_GMSL_TYPE_LINK_A		BIT(4)
+#define MAXIM_GMSL_TYPE_LINK_B		BIT(5)
+#define MAXIM_GMSL_TYPE_LINK_C		BIT(6)
+#define MAXIM_GMSL_TYPE_LINK_D		BIT(7)
+#define MAXIM_GMSL_TYPE_MASK		0xF0 /* bit[7:4], GMSL link type: 0 = GMSL1, 1 = GMSL2 */
 
-#define MAX96712_LOCK_STATE_LINK_A	BIT(0)
-#define MAX96712_LOCK_STATE_LINK_B	BIT(1)
-#define MAX96712_LOCK_STATE_LINK_C	BIT(2)
-#define MAX96712_LOCK_STATE_LINK_D	BIT(3)
-#define MAX96712_LOCK_STATE_MASK	0x0F /* bit[3:0], GMSL link mask: 1 = disable, 1 = enable */
+#define MAXIM_GMSL_LOCK_LINK_A		BIT(0)
+#define MAXIM_GMSL_LOCK_LINK_B		BIT(1)
+#define MAXIM_GMSL_LOCK_LINK_C		BIT(2)
+#define MAXIM_GMSL_LOCK_LINK_D		BIT(3)
+#define MAXIM_GMSL_LOCK_MASK		0x0F /* bit[3:0], GMSL link mask: 1 = disable, 1 = enable */
 
-#define MAX96712_FORCE_ALL_CLOCK_EN	1 /* 1: enable, 0: disable */
-
-#define REG_NULL			0xFFFF
+#define MAXIM_FORCE_ALL_CLOCK_EN	1 /* 1: enable, 0: disable */
 
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define MAX96712_NAME			"max96712"
 
+#define REG_NULL			0xFFFF
+
 /* register length: 8bit or 16bit */
-#define MAX96712_REG_LENGTH_08BIT	1
-#define MAX96712_REG_LENGTH_16BIT	2
+#define DEV_REG_LENGTH_08BITS		1
+#define DEV_REG_LENGTH_16BITS		2
 
 /* register value: 8bit or 16bit or 24bit */
-#define MAX96712_REG_VALUE_08BIT	1
-#define MAX96712_REG_VALUE_16BIT	2
-#define MAX96712_REG_VALUE_24BIT	3
+#define DEV_REG_VALUE_08BITS		1
+#define DEV_REG_VALUE_16BITS		2
+#define DEV_REG_VALUE_24BITS		3
 
-#define MAX96712_I2C_ADDR		(0x29)
-#define MAX96715_I2C_ADDR		(0x40)
-#define MAX96717_I2C_ADDR		(0x40)
-#define CAMERA_I2C_ADDR			(0x30)
+/* i2c device default address */
+#define SER_I2C_ADDR			(0x40)
+#define CAM_I2C_ADDR			(0x30)
 
-#define MAX96712_GET_BIT(x, bit)	((x & (1 << bit)) >> bit)
-#define MAX96712_GET_BIT_M_TO_N(x, m, n)	\
-		((unsigned int)(x << (31 - (n))) >> ((31 - (n)) + (m)))
+/* Maxim Serdes I2C Device ID */
+enum {
+	I2C_DEV_DES = 0,
+	I2C_DEV_SER,
+	I2C_DEV_CAM,
+	I2C_DEV_MAX
+};
 
 enum max96712_rx_rate {
 	MAX96712_RX_RATE_3GBPS = 0,
@@ -120,7 +121,7 @@ static const char *const max96712_supply_names[] = {
 #define MAX96712_NUM_SUPPLIES		ARRAY_SIZE(max96712_supply_names)
 
 struct regval {
-	u16 i2c_addr;
+	u16 i2c_id;
 	u16 reg_len;
 	u16 reg;
 	u8 val;
@@ -144,6 +145,7 @@ struct max96712_mode {
 
 struct max96712 {
 	struct i2c_client *client;
+	u16 i2c_addr[I2C_DEV_MAX];
 	struct clk *xvclk;
 	struct gpio_desc *power_gpio;
 	struct gpio_desc *reset_gpio;
@@ -206,91 +208,93 @@ static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.reserved = {0},
 };
 
+/* max96717 */
 static const struct regval max96712_mipi_4lane_1920x1440_30fps[] = {
 	// Link A/B/C/D all use GMSL2, and disabled
-	{ 0x29, 2, 0x0006, 0xf0, 0x00, 0x00 }, // Link A/B/C/D: select GMSL2, Disabled
+	{ I2C_DEV_DES, 2, 0x0006, 0xf0, 0x00, 0x00 }, // Link A/B/C/D: select GMSL2, Disabled
 	// Disable MIPI CSI output
-	{ 0x29, 2, 0x040B, 0x00, 0x00, 0x00 }, // CSI_OUT_EN=0, CSI output disabled
+	{ I2C_DEV_DES, 2, 0x040B, 0x00, 0x00, 0x00 }, // CSI_OUT_EN=0, CSI output disabled
 	// Increase CMU voltage
-	{ 0x29, 2, 0x06C2, 0x10, 0x00, 0x0a }, // Increase CMU voltage to for wide temperature range
+	{ I2C_DEV_DES, 2, 0x06C2, 0x10, 0x00, 0x0a }, // Increase CMU voltage to for wide temperature range
 	// VGAHiGain
-	{ 0x29, 2, 0x14D1, 0x03, 0x00, 0x00 }, // VGAHiGain
-	{ 0x29, 2, 0x15D1, 0x03, 0x00, 0x00 }, // VGAHiGain
-	{ 0x29, 2, 0x16D1, 0x03, 0x00, 0x00 }, // VGAHiGain
-	{ 0x29, 2, 0x17D1, 0x03, 0x00, 0x0a }, // VGAHiGain
+	{ I2C_DEV_DES, 2, 0x14D1, 0x03, 0x00, 0x00 }, // VGAHiGain
+	{ I2C_DEV_DES, 2, 0x15D1, 0x03, 0x00, 0x00 }, // VGAHiGain
+	{ I2C_DEV_DES, 2, 0x16D1, 0x03, 0x00, 0x00 }, // VGAHiGain
+	{ I2C_DEV_DES, 2, 0x17D1, 0x03, 0x00, 0x0a }, // VGAHiGain
 	// SSC Configuration
-	{ 0x29, 2, 0x1445, 0x00, 0x00, 0x00 }, // Disable SSC
-	{ 0x29, 2, 0x1545, 0x00, 0x00, 0x00 }, // Disable SSC
-	{ 0x29, 2, 0x1645, 0x00, 0x00, 0x00 }, // Disable SSC
-	{ 0x29, 2, 0x1745, 0x00, 0x00, 0x0a }, // Disable SSC
+	{ I2C_DEV_DES, 2, 0x1445, 0x00, 0x00, 0x00 }, // Disable SSC
+	{ I2C_DEV_DES, 2, 0x1545, 0x00, 0x00, 0x00 }, // Disable SSC
+	{ I2C_DEV_DES, 2, 0x1645, 0x00, 0x00, 0x00 }, // Disable SSC
+	{ I2C_DEV_DES, 2, 0x1745, 0x00, 0x00, 0x0a }, // Disable SSC
 	// GMSL2 Link Video Pipe Selection
-	{ 0x29, 2, 0x00F0, 0x62, 0x00, 0x00 }, // Phy A -> Pipe Z -> Pipe 0; Phy B -> Pipe Z -> Pipe 1
-	{ 0x29, 2, 0x00F1, 0xea, 0x00, 0x00 }, // Phy C -> Pipe Z -> Pipe 2; Phy D -> Pipe Z -> Pipe 3
-	{ 0x29, 2, 0x00F4, 0x0f, 0x00, 0x00 }, // Enable all 4 Pipes
+	{ I2C_DEV_DES, 2, 0x00F0, 0x62, 0x00, 0x00 }, // Phy A -> Pipe Z -> Pipe 0; Phy B -> Pipe Z -> Pipe 1
+	{ I2C_DEV_DES, 2, 0x00F1, 0xea, 0x00, 0x00 }, // Phy C -> Pipe Z -> Pipe 2; Phy D -> Pipe Z -> Pipe 3
+	{ I2C_DEV_DES, 2, 0x00F4, 0x0f, 0x00, 0x00 }, // Enable all 4 Pipes
 	// Send YUV422, FS, and FE from Video Pipe 0 to Controller 1
-	{ 0x29, 2, 0x090B, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
-	{ 0x29, 2, 0x092D, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
+	{ I2C_DEV_DES, 2, 0x090B, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
+	{ I2C_DEV_DES, 2, 0x092D, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
 	// For the following MSB 2 bits = VC, LSB 6 bits = DT
-	{ 0x29, 2, 0x090D, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
-	{ 0x29, 2, 0x090E, 0x1e, 0x00, 0x00 }, // DST0 VC = 0, DT = YUV422 8bit
-	{ 0x29, 2, 0x090F, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
-	{ 0x29, 2, 0x0910, 0x00, 0x00, 0x00 }, // DST1 VC = 0, DT = Frame Start
-	{ 0x29, 2, 0x0911, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
-	{ 0x29, 2, 0x0912, 0x01, 0x00, 0x00 }, // DST2 VC = 0, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x090D, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x090E, 0x1e, 0x00, 0x00 }, // DST0 VC = 0, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x090F, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x0910, 0x00, 0x00, 0x00 }, // DST1 VC = 0, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x0911, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x0912, 0x01, 0x00, 0x00 }, // DST2 VC = 0, DT = Frame End
 	// Send YUV422, FS, and FE from Video Pipe 1 to Controller 1
-	{ 0x29, 2, 0x094B, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
-	{ 0x29, 2, 0x096D, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
+	{ I2C_DEV_DES, 2, 0x094B, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
+	{ I2C_DEV_DES, 2, 0x096D, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
 	// For the following MSB 2 bits = VC, LSB 6 bits = DT
-	{ 0x29, 2, 0x094D, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
-	{ 0x29, 2, 0x094E, 0x5e, 0x00, 0x00 }, // DST0 VC = 1, DT = YUV422 8bit
-	{ 0x29, 2, 0x094F, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
-	{ 0x29, 2, 0x0950, 0x40, 0x00, 0x00 }, // DST1 VC = 1, DT = Frame Start
-	{ 0x29, 2, 0x0951, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
-	{ 0x29, 2, 0x0952, 0x41, 0x00, 0x00 }, // DST2 VC = 1, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x094D, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x094E, 0x5e, 0x00, 0x00 }, // DST0 VC = 1, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x094F, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x0950, 0x40, 0x00, 0x00 }, // DST1 VC = 1, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x0951, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x0952, 0x41, 0x00, 0x00 }, // DST2 VC = 1, DT = Frame End
 	// Send YUV422, FS, and FE from Video Pipe 2 to Controller 1
-	{ 0x29, 2, 0x098B, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
-	{ 0x29, 2, 0x09AD, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
+	{ I2C_DEV_DES, 2, 0x098B, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
+	{ I2C_DEV_DES, 2, 0x09AD, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
 	// For the following MSB 2 bits = VC, LSB 6 bits = DT
-	{ 0x29, 2, 0x098D, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
-	{ 0x29, 2, 0x098E, 0x9e, 0x00, 0x00 }, // DST0 VC = 2, DT = YUV422 8bit
-	{ 0x29, 2, 0x098F, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
-	{ 0x29, 2, 0x0990, 0x80, 0x00, 0x00 }, // DST1 VC = 2, DT = Frame Start
-	{ 0x29, 2, 0x0991, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
-	{ 0x29, 2, 0x0992, 0x81, 0x00, 0x00 }, // DST2 VC = 2, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x098D, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x098E, 0x9e, 0x00, 0x00 }, // DST0 VC = 2, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x098F, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x0990, 0x80, 0x00, 0x00 }, // DST1 VC = 2, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x0991, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x0992, 0x81, 0x00, 0x00 }, // DST2 VC = 2, DT = Frame End
 	// Send YUV422, FS, and FE from Video Pipe 3 to Controller 1
-	{ 0x29, 2, 0x09CB, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
-	{ 0x29, 2, 0x09ED, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
+	{ I2C_DEV_DES, 2, 0x09CB, 0x07, 0x00, 0x00 }, // Enable 0/1/2 SRC/DST Mappings
+	{ I2C_DEV_DES, 2, 0x09ED, 0x15, 0x00, 0x00 }, // SRC/DST 0/1/2 -> CSI2 Controller 1;
 	// For the following MSB 2 bits = VC, LSB 6 bits = DT
-	{ 0x29, 2, 0x09CD, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
-	{ 0x29, 2, 0x09CE, 0xde, 0x00, 0x00 }, // DST0 VC = 3, DT = YUV422 8bit
-	{ 0x29, 2, 0x09CF, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
-	{ 0x29, 2, 0x09D0, 0xc0, 0x00, 0x00 }, // DST1 VC = 3, DT = Frame Start
-	{ 0x29, 2, 0x09D1, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
-	{ 0x29, 2, 0x09D2, 0xc1, 0x00, 0x00 }, // DST2 VC = 3, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x09CD, 0x1e, 0x00, 0x00 }, // SRC0 VC = 0, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x09CE, 0xde, 0x00, 0x00 }, // DST0 VC = 3, DT = YUV422 8bit
+	{ I2C_DEV_DES, 2, 0x09CF, 0x00, 0x00, 0x00 }, // SRC1 VC = 0, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x09D0, 0xc0, 0x00, 0x00 }, // DST1 VC = 3, DT = Frame Start
+	{ I2C_DEV_DES, 2, 0x09D1, 0x01, 0x00, 0x00 }, // SRC2 VC = 0, DT = Frame End
+	{ I2C_DEV_DES, 2, 0x09D2, 0xc1, 0x00, 0x00 }, // DST2 VC = 3, DT = Frame End
 	// MIPI PHY Setting
-	{ 0x29, 2, 0x08A0, 0x24, 0x00, 0x00 }, // DPHY0 enabled as clock, MIPI PHY Mode: 2x4 mode
+	{ I2C_DEV_DES, 2, 0x08A0, 0x24, 0x00, 0x00 }, // DPHY0 enabled as clock, MIPI PHY Mode: 2x4 mode
 	// Set Lane Mapping for 4-lane port A
-	{ 0x29, 2, 0x08A3, 0xe4, 0x00, 0x00 }, // PHY1 D1->D3, D0->D2; PHY0 D1->D1, D0->D0
+	{ I2C_DEV_DES, 2, 0x08A3, 0xe4, 0x00, 0x00 }, // PHY1 D1->D3, D0->D2; PHY0 D1->D1, D0->D0
 	// Set 4 lane D-PHY, 2bit VC
-	{ 0x29, 2, 0x090A, 0xc0, 0x00, 0x00 }, // MIPI PHY 0: 4 lanes, DPHY, 2bit VC
-	{ 0x29, 2, 0x094A, 0xc0, 0x00, 0x00 }, // MIPI PHY 1: 4 lanes, DPHY, 2bit VC
+	{ I2C_DEV_DES, 2, 0x090A, 0xc0, 0x00, 0x00 }, // MIPI PHY 0: 4 lanes, DPHY, 2bit VC
+	{ I2C_DEV_DES, 2, 0x094A, 0xc0, 0x00, 0x00 }, // MIPI PHY 1: 4 lanes, DPHY, 2bit VC
 	// Turn on MIPI PHYs
-	{ 0x29, 2, 0x08A2, 0x34, 0x00, 0x00 }, // Enable MIPI PHY 0/1, t_lpx = 106.7ns
+	{ I2C_DEV_DES, 2, 0x08A2, 0x34, 0x00, 0x00 }, // Enable MIPI PHY 0/1, t_lpx = 106.7ns
 	// YUV422 8bit software override for all pipes since connected GMSL1 is under parallel mode
-	{ 0x29, 2, 0x040B, 0x80, 0x00, 0x00 }, // pipe 0 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
-	{ 0x29, 2, 0x040E, 0x5e, 0x00, 0x00 }, // pipe 0 DT=0x1E: YUV422 8-bit
-	{ 0x29, 2, 0x040F, 0x7e, 0x00, 0x00 }, // pipe 1 DT=0x1E: YUV422 8-bit
-	{ 0x29, 2, 0x0410, 0x7a, 0x00, 0x00 }, // pipe 2 DT=0x1E, pipe 3 DT=0x1E: YUV422 8-bit
-	{ 0x29, 2, 0x0411, 0x90, 0x00, 0x00 }, // pipe 1 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
-	{ 0x29, 2, 0x0412, 0x40, 0x00, 0x00 }, // pipe 2 bpp=0x10, pipe 3 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
+	{ I2C_DEV_DES, 2, 0x040B, 0x80, 0x00, 0x00 }, // pipe 0 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
+	{ I2C_DEV_DES, 2, 0x040E, 0x5e, 0x00, 0x00 }, // pipe 0 DT=0x1E: YUV422 8-bit
+	{ I2C_DEV_DES, 2, 0x040F, 0x7e, 0x00, 0x00 }, // pipe 1 DT=0x1E: YUV422 8-bit
+	{ I2C_DEV_DES, 2, 0x0410, 0x7a, 0x00, 0x00 }, // pipe 2 DT=0x1E, pipe 3 DT=0x1E: YUV422 8-bit
+	{ I2C_DEV_DES, 2, 0x0411, 0x90, 0x00, 0x00 }, // pipe 1 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
+	{ I2C_DEV_DES, 2, 0x0412, 0x40, 0x00, 0x00 }, // pipe 2 bpp=0x10, pipe 3 bpp=0x10: Datatypes = 0x22, 0x1E, 0x2E
 	// Enable all links and pipes
-	{ 0x29, 2, 0x0003, 0xaa, 0x00, 0x00 }, // Enable Remote Control Channel Link A/B/C/D for Port 0
-	{ 0x29, 2, 0x0006, 0xff, 0x00, 0x64 }, // Enable all links and pipes
+	{ I2C_DEV_DES, 2, 0x0003, 0xaa, 0x00, 0x00 }, // Enable Remote Control Channel Link A/B/C/D for Port 0
+	{ I2C_DEV_DES, 2, 0x0006, 0xff, 0x00, 0x64 }, // Enable all links and pipes
 	// Serializer Setting
-	{ 0x40, 2, 0x0302, 0x10, 0x00, 0x00 }, // improve CMU voltage performance to improve link robustness
-	{ 0x40, 2, 0x1417, 0x00, 0x00, 0x00 }, // Errata
-	{ 0x40, 2, 0x1432, 0x7f, 0x00, 0x00 },
-	{ 0x29, 2, REG_NULL, 0x00, 0x00, 0x00 },
+	{ I2C_DEV_SER, 2, 0x0302, 0x10, 0x00, 0x00 }, // improve CMU voltage performance to improve link robustness
+	{ I2C_DEV_SER, 2, 0x1417, 0x00, 0x00, 0x00 }, // Errata
+	{ I2C_DEV_SER, 2, 0x1432, 0x7f, 0x00, 0x00 },
+	// End register setting
+	{ I2C_DEV_DES, 2, REG_NULL, 0x00, 0x00, 0x00 },
 };
 
 static const struct max96712_mode supported_modes_4lane[] = {
@@ -342,15 +346,17 @@ static const s64 link_freq_items[] = {
 	MAX96712_LINK_FREQ_MHZ(1250),
 };
 
-static int max96712_write_reg(struct i2c_client *client,
-			u16 client_addr, u16 reg, u16 reg_len, u16 val_len, u32 val)
+static int max96712_write_reg(struct max96712 *max96712, u8 i2c_id,
+			u16 reg, u16 reg_len, u16 val_len, u32 val)
 {
+	struct i2c_client *client = max96712->client;
+	u16 client_addr = max96712->i2c_addr[i2c_id];
 	u32 buf_i, val_i;
 	u8 buf[6];
 	u8 *val_p;
 	__be32 val_be;
 
-	dev_info(&client->dev, "addr(0x%02x) write reg(0x%04x, %d, 0x%02x)\n", \
+	dev_info(&client->dev, "addr(0x%02x) write reg(0x%04x, %d, 0x%02x)\n",
 		client_addr, reg, reg_len, val);
 
 	if (val_len > 4)
@@ -386,9 +392,11 @@ static int max96712_write_reg(struct i2c_client *client,
 	return 0;
 }
 
-static int max96712_read_reg(struct i2c_client *client,
-			u16 client_addr, u16 reg, u16 reg_len, u16 val_len, u8 *val)
+static int max96712_read_reg(struct max96712 *max96712, u8 i2c_id,
+			u16 reg, u16 reg_len, u16 val_len, u8 *val)
 {
+	struct i2c_client *client = max96712->client;
+	u16 client_addr = max96712->i2c_addr[i2c_id];
 	struct i2c_msg msgs[2];
 	u8 *data_be_p;
 	__be32 data_be = 0;
@@ -426,34 +434,34 @@ static int max96712_read_reg(struct i2c_client *client,
 	*val = be32_to_cpu(data_be);
 
 #if 0
-	dev_info(&client->dev, "addr(0x%02x) read reg(0x%04x, %d, 0x%02x)\n", \
+	dev_info(&client->dev, "addr(0x%02x) read reg(0x%04x, %d, 0x%02x)\n",
 		client_addr, reg, reg_len, *val);
 #endif
 
 	return 0;
 }
 
-static int max96712_update_reg_bits(struct i2c_client *client,
-			u16 client_addr, u16 reg, u16 reg_len, u8 mask, u8 val)
+static int max96712_update_reg_bits(struct max96712 *max96712, u8 i2c_id,
+				u16 reg, u16 reg_len, u8 mask, u8 val)
 {
 	u8 value;
-	u32 val_len = MAX96712_REG_VALUE_08BIT;
+	u32 val_len = DEV_REG_VALUE_08BITS;
 	int ret;
 
-	ret = max96712_read_reg(client, client_addr, reg, reg_len, val_len, &value);
+	ret = max96712_read_reg(max96712, i2c_id, reg, reg_len, val_len, &value);
 	if (ret)
 		return ret;
 
 	value &= ~mask;
 	value |= (val & mask);
-	ret = max96712_write_reg(client, client_addr, reg, reg_len, val_len, value);
+	ret = max96712_write_reg(max96712, i2c_id, reg, reg_len, val_len, value);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int max96712_write_array(struct i2c_client *client,
+static int max96712_write_array(struct max96712 *max96712,
 				const struct regval *regs)
 {
 	u32 i;
@@ -461,13 +469,13 @@ static int max96712_write_array(struct i2c_client *client,
 
 	for (i = 0; ret == 0 && regs[i].reg != REG_NULL; i++) {
 		if (regs[i].mask != 0)
-			ret = max96712_update_reg_bits(client, regs[i].i2c_addr,
+			ret = max96712_update_reg_bits(max96712, regs[i].i2c_id,
 					regs[i].reg, regs[i].reg_len,
 					regs[i].mask, regs[i].val);
 		else
-			ret = max96712_write_reg(client, regs[i].i2c_addr,
+			ret = max96712_write_reg(max96712, regs[i].i2c_id,
 						regs[i].reg, regs[i].reg_len,
-						MAX96712_REG_VALUE_08BIT, regs[i].val);
+						DEV_REG_VALUE_08BITS, regs[i].val);
 
 		if (regs[i].delay != 0)
 			msleep(regs[i].delay);
@@ -478,14 +486,13 @@ static int max96712_write_array(struct i2c_client *client,
 
 static int max96712_check_local_chipid(struct max96712 *max96712)
 {
-	struct i2c_client *client = max96712->client;
 	struct device *dev = &max96712->client->dev;
 	int ret;
 	u8 id = 0;
 
-	ret = max96712_read_reg(client, MAX96712_I2C_ADDR,
-				MAX96712_REG_CHIP_ID, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, &id);
+	ret = max96712_read_reg(max96712, I2C_DEV_DES,
+			MAX96712_REG_CHIP_ID, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, &id);
 	if ((ret != 0) || (id != MAX96712_CHIP_ID)) {
 		dev_err(dev, "Unexpected MAX96712 chip id(%02x), ret(%d)\n", id, ret);
 		return -ENODEV;
@@ -507,9 +514,9 @@ static int __maybe_unused max96712_check_remote_chipid(struct max96712 *max96712
 	id = 0;
 #if 0
 	// max96717
-	ret = max96712_read_reg(max96712->client, MAX96717_I2C_ADDR,
-				MAX96717_REG_CHIP_ID, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, &id);
+	ret = max96712_read_reg(max96712, I2C_DEV_SER,
+			MAX96717_REG_CHIP_ID, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, &id);
 	if ((ret != 0) || (id != MAX96717_CHIP_ID)) {
 		dev_err(dev, "Unexpected MAX96717 chip id(%02x), ret(%d)\n", id, ret);
 		return -ENODEV;
@@ -519,9 +526,9 @@ static int __maybe_unused max96712_check_remote_chipid(struct max96712 *max96712
 
 #if 0
 	// max96715
-	ret = max96712_read_reg(max96712->client, MAX96715_I2C_ADDR,
-				MAX96715_REG_CHIP_ID, MAX96712_REG_LENGTH_08BIT,
-				MAX96712_REG_VALUE_08BIT, &id);
+	ret = max96712_read_reg(max96712, I2C_DEV_SER,
+			MAX96715_REG_CHIP_ID, DEV_REG_LENGTH_08BITS,
+			DEV_REG_VALUE_08BITS, &id);
 	if ((ret != 0) || (id != MAX96715_CHIP_ID)) {
 		dev_err(dev, "Unexpected MAX96715 chip id(%02x), ret(%d)\n", id, ret);
 		return -ENODEV;
@@ -534,96 +541,95 @@ static int __maybe_unused max96712_check_remote_chipid(struct max96712 *max96712
 
 static u8 max96712_get_link_lock_state(struct max96712 *max96712, u8 link_mask)
 {
-	struct i2c_client *client = max96712->client;
 	struct device *dev = &max96712->client->dev;
 	u8 lock = 0, lock_state = 0;
 	u8 link_type = 0;
 
-	link_type = max96712->link_mask & MAX96712_GMSL_TYPE_MASK;
+	link_type = max96712->link_mask & MAXIM_GMSL_TYPE_MASK;
 
-	if (link_mask & MAX96712_LOCK_STATE_LINK_A) {
-		if (link_type & MAX96712_GMSL_TYPE_LINK_A) {
+	if (link_mask & MAXIM_GMSL_LOCK_LINK_A) {
+		if (link_type & MAXIM_GMSL_TYPE_LINK_A) {
 			// GMSL2 LinkA
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x001a, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x001a, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(3)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_A;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_A;
 				dev_info(dev, "GMSL2 LinkA locked\n");
 			}
 		} else {
 			// GMSL1 LinkA
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x0bcb, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x0bcb, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(0)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_A;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_A;
 				dev_info(dev, "GMSL1 LinkA locked\n");
 			}
 		}
 	}
 
-	if (link_mask & MAX96712_LOCK_STATE_LINK_B) {
-		if (link_type & MAX96712_GMSL_TYPE_LINK_B) {
+	if (link_mask & MAXIM_GMSL_LOCK_LINK_B) {
+		if (link_type & MAXIM_GMSL_TYPE_LINK_B) {
 			// GMSL2 LinkB
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x000a, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x000a, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(3)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_B;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_B;
 				dev_info(dev, "GMSL2 LinkB locked\n");
 			}
 		} else {
 			// GMSL1 LinkB
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x0ccb, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x0ccb, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(0)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_B;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_B;
 				dev_info(dev, "GMSL1 LinkB locked\n");
 			}
 		}
 	}
 
-	if (link_mask & MAX96712_LOCK_STATE_LINK_C) {
-		if (link_type & MAX96712_GMSL_TYPE_LINK_C) {
+	if (link_mask & MAXIM_GMSL_LOCK_LINK_C) {
+		if (link_type & MAXIM_GMSL_TYPE_LINK_C) {
 			// GMSL2 LinkC
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x000b, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x000b, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(3)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_C;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_C;
 				dev_info(dev, "GMSL2 LinkC locked\n");
 			}
 		} else {
 			// GMSL1 LinkC
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x0dcb, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x0dcb, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(0)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_C;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_C;
 				dev_info(dev, "GMSL1 LinkC locked\n");
 			}
 		}
 	}
 
-	if (link_mask & MAX96712_LOCK_STATE_LINK_D) {
-		if (link_type & MAX96712_GMSL_TYPE_LINK_D) {
+	if (link_mask & MAXIM_GMSL_LOCK_LINK_D) {
+		if (link_type & MAXIM_GMSL_TYPE_LINK_D) {
 			// GMSL2 LinkD
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x000c, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x000c, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(3)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_D;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_D;
 				dev_info(dev, "GMSL2 LinkD locked\n");
 			}
 		} else {
 			// GMSL1 LinkD
-			max96712_read_reg(client, MAX96712_I2C_ADDR,
-					0x0ecb, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, &lock);
+			max96712_read_reg(max96712, I2C_DEV_DES,
+				0x0ecb, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &lock);
 			if (lock & BIT(0)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_D;
+				lock_state |= MAXIM_GMSL_LOCK_LINK_D;
 				dev_info(dev, "GMSL1 LinkD locked\n");
 			}
 		}
@@ -634,7 +640,6 @@ static u8 max96712_get_link_lock_state(struct max96712 *max96712, u8 link_mask)
 
 static int max96712_check_link_lock_state(struct max96712 *max96712)
 {
-	struct i2c_client *client = max96712->client;
 	struct device *dev = &max96712->client->dev;
 	u8 lock_state = 0, link_mask = 0, link_type = 0;
 	int ret, i, time_ms;
@@ -647,99 +652,99 @@ static int max96712_check_link_lock_state(struct max96712 *max96712)
 	 *	CTRL0: Enable REG_ENABLE
 	 *	CTRL2: Enable REG_MNL
 	 */
-	max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
-				0x0017, MAX96712_REG_LENGTH_16BIT, BIT(2), BIT(2));
-	max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
-				0x0019, MAX96712_REG_LENGTH_16BIT, BIT(4), BIT(4));
+	max96712_update_reg_bits(max96712, I2C_DEV_DES,
+			0x0017, DEV_REG_LENGTH_16BITS, BIT(2), BIT(2));
+	max96712_update_reg_bits(max96712, I2C_DEV_DES,
+			0x0019, DEV_REG_LENGTH_16BITS, BIT(4), BIT(4));
 
 	// CSI output disabled
-	max96712_write_reg(client, MAX96712_I2C_ADDR,
-				0x040B, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, 0x00);
+	max96712_write_reg(max96712, I2C_DEV_DES,
+			0x040B, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x00);
 
 	// All links select mode by link_type and disable at beginning.
-	link_type = max96712->link_mask & MAX96712_GMSL_TYPE_MASK;
-	max96712_write_reg(client, MAX96712_I2C_ADDR,
-				0x0006, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, link_type);
+	link_type = max96712->link_mask & MAXIM_GMSL_TYPE_MASK;
+	max96712_write_reg(max96712, I2C_DEV_DES,
+			0x0006, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, link_type);
 
 	// Link Rate
 	if (max96712->rx_rate == MAX96712_RX_RATE_3GBPS) {
 		// Link A ~ Link D Transmitter Rate: 187.5Mbps, Receiver Rate: 3Gbps
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0010, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0x11);
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0011, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0x11);
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0010, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x11);
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0011, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x11);
 	} else {
 		// Link A ~ Link D Transmitter Rate: 187.5Mbps, Receiver Rate: 6Gbps
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0010, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0x22);
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0011, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0x22);
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0010, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x22);
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0011, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x22);
 	}
 
 	// GMSL1: Enable HIM on deserializer on Link A/B/C/D
-	if ((link_type & MAX96712_GMSL_TYPE_LINK_A) == 0) {
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0B06, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0xEF);
+	if ((link_type & MAXIM_GMSL_TYPE_LINK_A) == 0) {
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0B06, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xEF);
 	}
-	if ((link_type & MAX96712_GMSL_TYPE_LINK_B) == 0) {
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0C06, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0xEF);
+	if ((link_type & MAXIM_GMSL_TYPE_LINK_B) == 0) {
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0C06, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xEF);
 	}
-	if ((link_type & MAX96712_GMSL_TYPE_LINK_C) == 0) {
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0D06, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0xEF);
+	if ((link_type & MAXIM_GMSL_TYPE_LINK_C) == 0) {
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0D06, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xEF);
 	}
-	if ((link_type & MAX96712_GMSL_TYPE_LINK_D) == 0) {
-		max96712_write_reg(client, MAX96712_I2C_ADDR,
-					0x0E06, MAX96712_REG_LENGTH_16BIT,
-					MAX96712_REG_VALUE_08BIT, 0xEF);
+	if ((link_type & MAXIM_GMSL_TYPE_LINK_D) == 0) {
+		max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0E06, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xEF);
 	}
 
 	// Link A ~ Link D One-Shot Reset depend on link_mask
-	link_mask = max96712->link_mask & MAX96712_LOCK_STATE_MASK;
-	max96712_write_reg(client, MAX96712_I2C_ADDR,
-				0x0018, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, link_mask);
+	link_mask = max96712->link_mask & MAXIM_GMSL_LOCK_MASK;
+	max96712_write_reg(max96712, I2C_DEV_DES,
+			0x0018, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, link_mask);
 
 	// Link A ~ Link D enable depend on link_type and link_mask
-	max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x0006, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, link_type | link_mask);
+	max96712_write_reg(max96712, I2C_DEV_DES,
+			0x0006, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, link_type | link_mask);
 
 	time_ms = 50;
 	msleep(time_ms);
 
 	for (i = 0; i < 20; i++) {
-		if ((lock_state & MAX96712_LOCK_STATE_LINK_A) == 0)
-			if (max96712_get_link_lock_state(max96712, MAX96712_LOCK_STATE_LINK_A)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_A;
+		if ((lock_state & MAXIM_GMSL_LOCK_LINK_A) == 0)
+			if (max96712_get_link_lock_state(max96712, MAXIM_GMSL_LOCK_LINK_A)) {
+				lock_state |= MAXIM_GMSL_LOCK_LINK_A;
 				dev_info(dev, "LinkA locked time: %d ms\n", time_ms);
 			}
 
-		if ((lock_state & MAX96712_LOCK_STATE_LINK_B) == 0)
-			if (max96712_get_link_lock_state(max96712, MAX96712_LOCK_STATE_LINK_B)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_B;
+		if ((lock_state & MAXIM_GMSL_LOCK_LINK_B) == 0)
+			if (max96712_get_link_lock_state(max96712, MAXIM_GMSL_LOCK_LINK_B)) {
+				lock_state |= MAXIM_GMSL_LOCK_LINK_B;
 				dev_info(dev, "LinkB locked time: %d ms\n", time_ms);
 			}
 
-		if ((lock_state & MAX96712_LOCK_STATE_LINK_C) == 0)
-			if (max96712_get_link_lock_state(max96712, MAX96712_LOCK_STATE_LINK_C)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_C;
+		if ((lock_state & MAXIM_GMSL_LOCK_LINK_C) == 0)
+			if (max96712_get_link_lock_state(max96712, MAXIM_GMSL_LOCK_LINK_C)) {
+				lock_state |= MAXIM_GMSL_LOCK_LINK_C;
 				dev_info(dev, "LinkC locked time: %d ms\n", time_ms);
 			}
 
-		if ((lock_state & MAX96712_LOCK_STATE_LINK_D) == 0)
-			if (max96712_get_link_lock_state(max96712, MAX96712_LOCK_STATE_LINK_D)) {
-				lock_state |= MAX96712_LOCK_STATE_LINK_D;
+		if ((lock_state & MAXIM_GMSL_LOCK_LINK_D) == 0)
+			if (max96712_get_link_lock_state(max96712, MAXIM_GMSL_LOCK_LINK_D)) {
+				lock_state |= MAXIM_GMSL_LOCK_LINK_D;
 				dev_info(dev, "LinkD locked time: %d ms\n", time_ms);
 			}
 
@@ -770,7 +775,7 @@ static irqreturn_t max96712_hot_plug_detect_irq_handler(int irq, void *dev_id)
 	struct device *dev = &max96712->client->dev;
 	u8 lock_state = 0, link_mask = 0;
 
-	link_mask = max96712->link_mask & MAX96712_LOCK_STATE_MASK;
+	link_mask = max96712->link_mask & MAXIM_GMSL_LOCK_MASK;
 	if (max96712->streaming) {
 		lock_state = max96712_get_link_lock_state(max96712, link_mask);
 		if (lock_state == link_mask) {
@@ -783,21 +788,21 @@ static irqreturn_t max96712_hot_plug_detect_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __maybe_unused max96712_dphy_dpll_predef_set(struct i2c_client *client,
-				u32 link_freq_mhz)
+static int max96712_dphy_dpll_predef_set(struct max96712 *max96712, u32 link_freq_mhz)
 {
+	struct device *dev = &max96712->client->dev;
 	int ret = 0;
 	u8 dpll_val = 0, dpll_lock = 0;
 	u8 mipi_tx_phy_enable = 0;
 
-	ret = max96712_read_reg(client, MAX96712_I2C_ADDR,
-			0x08A2, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, &mipi_tx_phy_enable);
+	ret = max96712_read_reg(max96712, I2C_DEV_DES,
+			0x08A2, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, &mipi_tx_phy_enable);
 	if (ret)
 		return ret;
 	mipi_tx_phy_enable = (mipi_tx_phy_enable & 0xF0) >> 4;
 
-	dev_info(&client->dev, "DPLL predef set: mipi_tx_phy_enable = 0x%02x, link_freq_mhz = %d\n",
+	dev_info(dev, "DPLL predef set: mipi_tx_phy_enable = 0x%02x, link_freq_mhz = %d\n",
 			mipi_tx_phy_enable, link_freq_mhz);
 
 	// dphy max data rate is 2500MHz
@@ -811,116 +816,117 @@ static int __maybe_unused max96712_dphy_dpll_predef_set(struct i2c_client *clien
 	// MIPI PHY0
 	if (mipi_tx_phy_enable & BIT(0)) {
 		// Hold DPLL in reset (config_soft_rst_n = 0) before changing the rate
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1C00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT,
-			0xf4);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1C00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf4);
 		// Set data rate and enable software override
-		ret |= max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
-			0x0415, MAX96712_REG_LENGTH_16BIT, 0x3F, dpll_val);
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x0415, DEV_REG_LENGTH_16BITS, 0x3F, dpll_val);
 		// Release reset to DPLL (config_soft_rst_n = 1)
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1C00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf5);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1C00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf5);
 	}
 
 	// MIPI PHY1
 	if (mipi_tx_phy_enable & BIT(1)) {
 		// Hold DPLL in reset (config_soft_rst_n = 0) before changing the rate
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1D00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf4);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1D00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf4);
 		// Set data rate and enable software override
-		ret |= max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
-			0x0418, MAX96712_REG_LENGTH_16BIT, 0x3F, dpll_val);
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x0418, DEV_REG_LENGTH_16BITS, 0x3F, dpll_val);
 		// Release reset to DPLL (config_soft_rst_n = 1)
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1D00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf5);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1D00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf5);
 	}
 
 	// MIPI PHY2
 	if (mipi_tx_phy_enable & BIT(2)) {
 		// Hold DPLL in reset (config_soft_rst_n = 0) before changing the rate
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1E00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf4);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1E00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf4);
 		// Set data rate and enable software override
-		ret |= max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
-			0x041B, MAX96712_REG_LENGTH_16BIT, 0x3F, dpll_val);
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x041B, DEV_REG_LENGTH_16BITS, 0x3F, dpll_val);
 		// Release reset to DPLL (config_soft_rst_n = 1)
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1E00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf5);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1E00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf5);
 	}
 
 	// MIPI PHY3
 	if (mipi_tx_phy_enable & BIT(3)) {
 		// Hold DPLL in reset (config_soft_rst_n = 0) before changing the rate
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1F00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf4);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1F00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf4);
 		// Set data rate and enable software override
-		ret |= max96712_update_reg_bits(client, MAX96712_I2C_ADDR,
-			0x041E, MAX96712_REG_LENGTH_16BIT, 0x3F, dpll_val);
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x041E, DEV_REG_LENGTH_16BITS, 0x3F, dpll_val);
 		// Release reset to DPLL (config_soft_rst_n = 1)
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x1F00, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0xf5);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x1F00, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0xf5);
 	}
 
 	if (ret) {
-		dev_err(&client->dev, "DPLL predef set error!\n");
+		dev_err(dev, "DPLL predef set error!\n");
 		return ret;
 	}
 
 	ret = read_poll_timeout(max96712_read_reg, ret,
 				!(ret < 0) && (dpll_lock & 0xF0),
 				1000, 10000, false,
-				client, MAX96712_I2C_ADDR,
-				0x0400, MAX96712_REG_LENGTH_16BIT,
-				MAX96712_REG_VALUE_08BIT, &dpll_lock);
+				max96712, I2C_DEV_DES,
+				0x0400, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, &dpll_lock);
 	if (ret < 0) {
-		dev_err(&client->dev, "DPLL is not locked, dpll_lock = 0x%02x\n", dpll_lock);
+		dev_err(dev, "DPLL is not locked, dpll_lock = 0x%02x\n", dpll_lock);
 		return ret;
 	} else {
-		dev_err(&client->dev, "DPLL is locked, dpll_lock = 0x%02x\n", dpll_lock);
+		dev_err(dev, "DPLL is locked, dpll_lock = 0x%02x\n", dpll_lock);
 		return 0;
 	}
 }
 
-static int max96712_auto_init_deskew(struct i2c_client *client, u32 deskew_mask)
+static int max96712_auto_init_deskew(struct max96712 *max96712, u32 deskew_mask)
 {
+	struct device *dev = &max96712->client->dev;
 	int ret = 0;
 
-	dev_info(&client->dev, "Auto initial deskew: deskew_mask = 0x%02x\n", deskew_mask);
+	dev_info(dev, "Auto initial deskew: deskew_mask = 0x%02x\n", deskew_mask);
 
 	// D-PHY Deskew Initial Calibration Control
 	if (deskew_mask & BIT(0)) // MIPI PHY0
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x0903, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0x80);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0903, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x80);
 
 	if (deskew_mask & BIT(1)) // MIPI PHY1
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x0943, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0x80);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0943, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x80);
 
 	if (deskew_mask & BIT(2)) // MIPI PHY2
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x0983, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0x80);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x0983, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x80);
 
 	if (deskew_mask & BIT(3)) // MIPI PHY3
-		ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-			0x09C3, MAX96712_REG_LENGTH_16BIT,
-			MAX96712_REG_VALUE_08BIT, 0x80);
+		ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+				0x09C3, DEV_REG_LENGTH_16BITS,
+				DEV_REG_VALUE_08BITS, 0x80);
 
 	return ret;
 }
 
-static int max96712_frame_sync_period(struct i2c_client *client, u32 period)
+static int max96712_frame_sync_period(struct max96712 *max96712, u32 period)
 {
+	struct device *dev = &max96712->client->dev;
 	u32 pclk, fsync_peroid;
 	u8 fsync_peroid_h, fsync_peroid_m, fsync_peroid_l;
 	int ret = 0;
@@ -928,30 +934,30 @@ static int max96712_frame_sync_period(struct i2c_client *client, u32 period)
 	if (period == 0)
 		return 0;
 
-	dev_info(&client->dev, "Frame sync period = %d\n", period);
+	dev_info(dev, "Frame sync period = %d\n", period);
 
-#if 1 // TODO: Sensor
+#if 1 // TODO: Sensor slave mode
 	// SC320AT slave mode enable
-	ret |= max96712_write_reg(client, 0x30,
-		0x3222, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x01);
+	ret |= max96712_write_reg(max96712, I2C_DEV_CAM,
+			0x3222, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x01);
 	// Increase the allowable error range of the trigger signal
-	ret |= max96712_write_reg(client, 0x30,
-		0x32e2, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x19);
+	ret |= max96712_write_reg(max96712, I2C_DEV_CAM,
+			0x32e2, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x19);
 #endif
 
 	// Master link Video 0 for frame sync generation
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04A2, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x00);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04A2, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x00);
 	// Disable Vsync-Fsync overlap window
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04AA, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x00);
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04AB, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x00);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04AA, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x00);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04AB, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x00);
 
 	// Set FSYNC period to 25M/30 clock cycles. PCLK = 25MHz. Sync freq = 30Hz
 	pclk = 25 * 1000 * 1000;
@@ -959,72 +965,70 @@ static int max96712_frame_sync_period(struct i2c_client *client, u32 period)
 	fsync_peroid_l = (fsync_peroid >> 0) & 0xFF;
 	fsync_peroid_m = (fsync_peroid >> 8) & 0xFF;
 	fsync_peroid_h = (fsync_peroid >> 16) & 0xFF;
-	dev_info(&client->dev, "Frame sync period: H = 0x%02x, M = 0x%02x, L = 0x%02x\n",
+	dev_info(dev, "Frame sync period: H = 0x%02x, M = 0x%02x, L = 0x%02x\n",
 			fsync_peroid_h, fsync_peroid_m, fsync_peroid_l);
 	// FSYNC_PERIOD_H
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04A7, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, fsync_peroid_h);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04A7, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, fsync_peroid_h);
 	// FSYNC_PERIOD_M
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04A6, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, fsync_peroid_m);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04A6, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, fsync_peroid_m);
 	// FSYNC_PERIOD_L
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04A5, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, fsync_peroid_l);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04A5, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, fsync_peroid_l);
 
 	// FSYNC is GMSL2 type, use osc for fsync, include all links/pipes in fsync gen
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04AF, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0xcf);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04AF, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0xcf);
 
+#if 1 // TODO: Desrializer MFP
 	// FSYNC_TX_ID: set 4 to match MFP4 on serializer side
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04B1, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x20);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04B1, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x20);
+#endif
 
-#if 1 // TODO: Serializer
+#if 1 // TODO: Serializer MFP
 	// Enable GPIO_RX_EN on serializer MFP4
-	ret |= max96712_write_reg(client, 0x40,
-		0x02CA, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x84);
+	ret |= max96712_write_reg(max96712, I2C_DEV_SER,
+			0x02CA, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x84);
 #endif
 
 	// MFP2, VS not gen internally, GPIO not used to gen fsync, manual mode
-	ret |= max96712_write_reg(client, MAX96712_I2C_ADDR,
-		0x04A0, MAX96712_REG_LENGTH_16BIT,
-		MAX96712_REG_VALUE_08BIT, 0x04);
+	ret |= max96712_write_reg(max96712, I2C_DEV_DES,
+			0x04A0, DEV_REG_LENGTH_16BITS,
+			DEV_REG_VALUE_08BITS, 0x04);
 
 	return ret;
 }
 
-static int max96712_mipi_enable(struct i2c_client *client, bool enable)
+static int max96712_mipi_enable(struct max96712 *max96712, bool enable)
 {
 	int ret = 0;
 
 	if (enable) {
-#if MAX96712_FORCE_ALL_CLOCK_EN
+#if MAXIM_FORCE_ALL_CLOCK_EN
 		// Force all MIPI clocks running
-		ret |= max96712_update_reg_bits(client,
-				MAX96712_I2C_ADDR,
-				0x08A0, MAX96712_REG_LENGTH_16BIT, BIT(7), BIT(7));
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x08A0, DEV_REG_LENGTH_16BITS, BIT(7), BIT(7));
 #endif
 		// CSI output enabled
-		ret |= max96712_update_reg_bits(client,
-				MAX96712_I2C_ADDR,
-				0x040B, MAX96712_REG_LENGTH_16BIT, BIT(1), BIT(1));
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x040B, DEV_REG_LENGTH_16BITS, BIT(1), BIT(1));
 	} else {
-#if MAX96712_FORCE_ALL_CLOCK_EN
+#if MAXIM_FORCE_ALL_CLOCK_EN
 		// Normal mode
-		ret |= max96712_update_reg_bits(client,
-				MAX96712_I2C_ADDR,
-				0x08A0, MAX96712_REG_LENGTH_16BIT, BIT(7), 0x00);
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x08A0, DEV_REG_LENGTH_16BITS, BIT(7), 0x00);
 #endif
 		// CSI output disabled
-		ret |= max96712_update_reg_bits(client,
-				MAX96712_I2C_ADDR,
-				0x040B, MAX96712_REG_LENGTH_16BIT, BIT(1), 0x00);
+		ret |= max96712_update_reg_bits(max96712, I2C_DEV_DES,
+				0x040B, DEV_REG_LENGTH_16BITS, BIT(1), 0x00);
 	}
 
 	return ret;
@@ -1229,9 +1233,9 @@ static long max96712_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		stream = *((u32 *)arg);
 
 		if (stream)
-			ret = max96712_mipi_enable(max96712->client, true);
+			ret = max96712_mipi_enable(max96712, true);
 		else
-			ret = max96712_mipi_enable(max96712->client, false);
+			ret = max96712_mipi_enable(max96712, false);
 		break;
 	case RKMODULE_GET_VICAP_RST_INFO:
 		max96712_get_vicap_rst_inf(
@@ -1408,26 +1412,26 @@ static int __max96712_start_stream(struct max96712 *max96712)
 	if (max96712->hot_plug_irq > 0)
 		enable_irq(max96712->hot_plug_irq);
 
-	ret = max96712_write_array(max96712->client,
+	ret = max96712_write_array(max96712,
 				   max96712->cur_mode->reg_list);
 	if (ret)
 		return ret;
 
 	link_freq_idx = max96712->cur_mode->link_freq_idx;
 	link_freq_mhz = (u32)div_s64(link_freq_items[link_freq_idx], 1000000L);
-	ret = max96712_dphy_dpll_predef_set(max96712->client, link_freq_mhz);
+	ret = max96712_dphy_dpll_predef_set(max96712, link_freq_mhz);
 	if (ret)
 		return ret;
 
 	if (max96712->auto_init_deskew_mask != 0) {
-		ret = max96712_auto_init_deskew(max96712->client,
+		ret = max96712_auto_init_deskew(max96712,
 					max96712->auto_init_deskew_mask);
 		if (ret)
 			return ret;
 	}
 
 	if (max96712->frame_sync_period != 0) {
-		ret = max96712_frame_sync_period(max96712->client,
+		ret = max96712_frame_sync_period(max96712,
 					max96712->frame_sync_period);
 		if (ret)
 			return ret;
@@ -1440,7 +1444,7 @@ static int __max96712_start_stream(struct max96712 *max96712)
 	if (ret)
 		return ret;
 
-	return max96712_mipi_enable(max96712->client, true);
+	return max96712_mipi_enable(max96712, true);
 
 }
 
@@ -1449,7 +1453,7 @@ static int __max96712_stop_stream(struct max96712 *max96712)
 	if (max96712->hot_plug_irq > 0)
 		disable_irq(max96712->hot_plug_irq);
 
-	return max96712_mipi_enable(max96712->client, false);
+	return max96712_mipi_enable(max96712, false);
 }
 
 static int max96712_s_stream(struct v4l2_subdev *sd, int on)
@@ -1823,7 +1827,18 @@ static int max96712_parse_dt(struct max96712 *max96712)
 	struct device *dev = &max96712->client->dev;
 	struct device_node *node = dev->of_node;
 	u8 mipi_data_lanes = max96712->bus_cfg.bus.mipi_csi2.num_data_lanes;
+	u32 value = 0;
 	int ret = 0;
+
+	/* serializer i2c address */
+	ret = of_property_read_u32(node, "ser-i2c-addr", &value);
+	if (ret) {
+		max96712->i2c_addr[I2C_DEV_SER] = SER_I2C_ADDR;
+	} else {
+		dev_info(dev, "ser-i2c-addr property: %d\n", value);
+		max96712->i2c_addr[I2C_DEV_SER] = value;
+	}
+	dev_info(dev, "serializer i2c address: 0x%02x\n", max96712->i2c_addr[I2C_DEV_SER]);
 
 	/* max96712 link Receiver Rate: 3G or 6G */
 	ret = of_property_read_u32(node, "link-rx-rate",
@@ -1855,14 +1870,14 @@ static int max96712_parse_dt(struct max96712 *max96712)
 
 	/* auto initial deskew mask */
 	ret = of_property_read_u32(node, "auto-init-deskew-mask",
-			   &max96712->auto_init_deskew_mask);
+				&max96712->auto_init_deskew_mask);
 	if (ret)
 		max96712->auto_init_deskew_mask = 0x0F; // 0x0F: default enable all
 	dev_info(dev, "auto init deskew mask: 0x%02x\n", max96712->auto_init_deskew_mask);
 
 	/* FSYNC period config */
 	ret = of_property_read_u32(node, "frame-sync-period",
-			   &max96712->frame_sync_period);
+				&max96712->frame_sync_period);
 	if (ret)
 		max96712->frame_sync_period = 0; // 0: disable (default)
 	dev_info(dev, "frame sync period: %d\n", max96712->frame_sync_period);
@@ -1910,6 +1925,11 @@ static int max96712_probe(struct i2c_client *client,
 
 	max96712->client = client;
 	i2c_set_clientdata(client, max96712);
+
+	/* i2c default address init */
+	max96712->i2c_addr[I2C_DEV_DES] = client->addr;
+	max96712->i2c_addr[I2C_DEV_SER] = SER_I2C_ADDR;
+	max96712->i2c_addr[I2C_DEV_CAM] = CAM_I2C_ADDR;
 
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint) {
@@ -2023,19 +2043,23 @@ static int max96712_probe(struct i2c_client *client,
 
 	if (!IS_ERR(max96712->lock_gpio)) {
 		max96712->hot_plug_irq = gpiod_to_irq(max96712->lock_gpio);
-		if (max96712->hot_plug_irq < 0)
+		if (max96712->hot_plug_irq < 0) {
 			dev_err(dev, "failed to get hot plug irq\n");
-
-		ret = devm_request_threaded_irq(dev,
-				max96712->hot_plug_irq,
-				NULL,
-				max96712_hot_plug_detect_irq_handler,
-				IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				"max96712_hot_plug",
-				max96712);
-		if (ret)
-			dev_err(dev, "failed to request hot plug irq (%d)\n", ret);
-		disable_irq(max96712->hot_plug_irq);
+		} else {
+			ret = devm_request_threaded_irq(dev,
+					max96712->hot_plug_irq,
+					NULL,
+					max96712_hot_plug_detect_irq_handler,
+					IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					"max96712_hot_plug",
+					max96712);
+			if (ret) {
+				dev_err(dev, "failed to request hot plug irq (%d)\n", ret);
+				max96712->hot_plug_irq = -1;
+			} else {
+				disable_irq(max96712->hot_plug_irq);
+			}
+		}
 	}
 
 	pm_runtime_set_active(dev);
