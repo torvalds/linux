@@ -824,7 +824,7 @@ static void broadsheet_init_display(struct broadsheetfb_par *par)
 
 	broadsheet_burst_write(par, (panel_table[par->panel_index].w *
 					panel_table[par->panel_index].h)/2,
-					(u16 *) par->info->screen_base);
+					(u16 *)par->info->screen_buffer);
 
 	broadsheet_send_command(par, BS_CMD_LD_IMG_END);
 
@@ -865,7 +865,7 @@ static void broadsheetfb_dpy_update_pages(struct broadsheetfb_par *par,
 						u16 y1, u16 y2)
 {
 	u16 args[5];
-	unsigned char *buf = (unsigned char *)par->info->screen_base;
+	unsigned char *buf = par->info->screen_buffer;
 
 	mutex_lock(&(par->io_lock));
 	/* y1 must be a multiple of 4 so drop the lower bits */
@@ -913,7 +913,7 @@ static void broadsheetfb_dpy_update(struct broadsheetfb_par *par)
 	broadsheet_send_cmdargs(par, BS_CMD_WR_REG, 1, args);
 	broadsheet_burst_write(par, (panel_table[par->panel_index].w *
 					panel_table[par->panel_index].h)/2,
-					(u16 *) par->info->screen_base);
+					(u16 *)par->info->screen_buffer);
 
 	broadsheet_send_command(par, BS_CMD_LD_IMG_END);
 
@@ -1013,8 +1013,8 @@ static ssize_t broadsheetfb_write(struct fb_info *info, const char __user *buf,
 	int err = 0;
 	unsigned long total_size;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!info->screen_buffer)
+		return -ENODEV;
 
 	total_size = info->fix.smem_len;
 
@@ -1033,7 +1033,7 @@ static ssize_t broadsheetfb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = (void *)(info->screen_base + p);
+	dst = info->screen_buffer + p;
 
 	if (copy_from_user(dst, buf, count))
 		err = -EFAULT;
@@ -1109,7 +1109,7 @@ static int broadsheetfb_probe(struct platform_device *dev)
 	if (!videomemory)
 		goto err_fb_rel;
 
-	info->screen_base = (char *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &broadsheetfb_ops;
 
 	broadsheetfb_var.xres = dpyw;
@@ -1205,7 +1205,7 @@ static void broadsheetfb_remove(struct platform_device *dev)
 		fb_deferred_io_cleanup(info);
 		par->board->cleanup(par);
 		fb_dealloc_cmap(&info->cmap);
-		vfree((void *)info->screen_base);
+		vfree(info->screen_buffer);
 		module_put(par->board->owner);
 		framebuffer_release(info);
 	}

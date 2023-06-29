@@ -233,6 +233,7 @@ struct clk_bw_params {
 	struct clk_limit_table clk_table;
 	struct wm_table wm_table;
 	struct dummy_pstate_entry dummy_pstate_table[4];
+	struct clk_limit_table_entry dc_mode_limit;
 };
 /* Public interfaces */
 

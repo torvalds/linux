@@ -50,7 +50,7 @@
 
 #include <asm/io.h>
 
-#include "../fbdev/sticore.h"
+#include <video/sticore.h>
 
 /* switching to graphics mode */
 #define BLANK 0
@@ -282,7 +282,7 @@ static void sticon_init(struct vc_data *c, int init)
     vc_cols = sti_onscreen_x(sti) / sti->font->width;
     vc_rows = sti_onscreen_y(sti) / sti->font->height;
     c->vc_can_do_color = 1;
-    
+
     if (init) {
 	c->vc_cols = vc_cols;
 	c->vc_rows = vc_rows;
@@ -374,7 +374,7 @@ static const struct consw sti_con = {
 	.con_font_set		= sticon_font_set,
 	.con_font_default	= sticon_font_default,
 	.con_build_attr		= sticon_build_attr,
-	.con_invert_region	= sticon_invert_region, 
+	.con_invert_region	= sticon_invert_region,
 };
 
 

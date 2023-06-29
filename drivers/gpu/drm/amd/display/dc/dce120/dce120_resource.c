@@ -526,6 +526,7 @@ static const struct dc_plane_cap plane_cap = {
 
 static const struct dc_debug_options debug_defaults = {
 		.disable_clock_gate = true,
+		.enable_legacy_fast_update = true,
 };
 
 static struct clock_source *dce120_clock_source_create(

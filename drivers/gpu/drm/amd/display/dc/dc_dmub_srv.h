@@ -26,7 +26,7 @@
 #ifndef _DMUB_DC_SRV_H_
 #define _DMUB_DC_SRV_H_
 
-#include "os_types.h"
+#include "dm_services_types.h"
 #include "dmub/dmub_srv.h"
 
 struct dmub_srv;
@@ -52,16 +52,13 @@ struct dc_dmub_srv {
 	void *dm;
 };
 
-void dc_dmub_srv_cmd_queue(struct dc_dmub_srv *dc_dmub_srv,
-			   union dmub_rb_cmd *cmd);
-
-void dc_dmub_srv_cmd_execute(struct dc_dmub_srv *dc_dmub_srv);
-
 void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv);
 
-void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv);
+bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv);
 
-bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd);
+bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
+
+bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int count, union dmub_rb_cmd *cmd_list, enum dm_dmub_wait_type wait_type);
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
 				    unsigned int stream_mask);
@@ -77,7 +74,7 @@ void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal
 void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst);
 bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool enable_pstate, struct dc_state *context);
 
-void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub);
+void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv);
 void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dmub_srv);
 void dc_dmub_srv_wait_for_inbox0_ack(struct dc_dmub_srv *dmub_srv);

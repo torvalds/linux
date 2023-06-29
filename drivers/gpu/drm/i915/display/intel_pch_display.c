@@ -43,11 +43,12 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 
 	state = g4x_dp_port_enabled(dev_priv, dp_reg, port, &port_pipe);
 
-	I915_STATE_WARN(state && port_pipe == pipe,
+	I915_STATE_WARN(dev_priv, state && port_pipe == pipe,
 			"PCH DP %c enabled on transcoder %c, should be disabled\n",
 			port_name(port), pipe_name(pipe));
 
-	I915_STATE_WARN(HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+	I915_STATE_WARN(dev_priv,
+			HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
 			"IBX PCH DP %c still using transcoder B\n",
 			port_name(port));
 }
@@ -61,11 +62,12 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 
 	state = intel_sdvo_port_enabled(dev_priv, hdmi_reg, &port_pipe);
 
-	I915_STATE_WARN(state && port_pipe == pipe,
+	I915_STATE_WARN(dev_priv, state && port_pipe == pipe,
 			"PCH HDMI %c enabled on transcoder %c, should be disabled\n",
 			port_name(port), pipe_name(pipe));
 
-	I915_STATE_WARN(HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+	I915_STATE_WARN(dev_priv,
+			HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
 			"IBX PCH HDMI %c still using transcoder B\n",
 			port_name(port));
 }
@@ -79,13 +81,13 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_C, PCH_DP_C);
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_D, PCH_DP_D);
 
-	I915_STATE_WARN(intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) &&
-			port_pipe == pipe,
+	I915_STATE_WARN(dev_priv,
+			intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) && port_pipe == pipe,
 			"PCH VGA enabled on transcoder %c, should be disabled\n",
 			pipe_name(pipe));
 
-	I915_STATE_WARN(intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) &&
-			port_pipe == pipe,
+	I915_STATE_WARN(dev_priv,
+			intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) && port_pipe == pipe,
 			"PCH LVDS enabled on transcoder %c, should be disabled\n",
 			pipe_name(pipe));
 
@@ -103,7 +105,7 @@ static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 
 	val = intel_de_read(dev_priv, PCH_TRANSCONF(pipe));
 	enabled = !!(val & TRANS_ENABLE);
-	I915_STATE_WARN(enabled,
+	I915_STATE_WARN(dev_priv, enabled,
 			"transcoder assertion failed, should be off on pipe %c but is still active\n",
 			pipe_name(pipe));
 }

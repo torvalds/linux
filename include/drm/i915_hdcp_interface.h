@@ -168,12 +168,12 @@ struct i915_hdcp_ops {
 };
 
 /**
- * struct i915_hdcp_master - Used for communication between i915
+ * struct i915_hdcp_arbiter - Used for communication between i915
  * and hdcp drivers for the HDCP2.2 services
  * @hdcp_dev: device that provide the HDCP2.2 service from MEI Bus.
  * @hdcp_ops: Ops implemented by hdcp driver or intel_hdcp_gsc , used by i915 driver.
  */
-struct i915_hdcp_master {
+struct i915_hdcp_arbiter {
 	struct device *hdcp_dev;
 	const struct i915_hdcp_ops *ops;
 

@@ -429,7 +429,7 @@ static int xenfb_probe(struct xenbus_device *dev,
 	fb_info->pseudo_palette = fb_info->par;
 	fb_info->par = info;
 
-	fb_info->screen_base = info->fb;
+	fb_info->screen_buffer = info->fb;
 
 	fb_info->fbops = &xenfb_fb_ops;
 	fb_info->var.xres_virtual = fb_info->var.xres = video[KPARAM_WIDTH];
