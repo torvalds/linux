@@ -394,7 +394,7 @@ static struct i2c_driver max31785_driver = {
 		.name = "max31785",
 		.of_match_table = max31785_of_match,
 	},
-	.probe_new = max31785_probe,
+	.probe = max31785_probe,
 	.id_table = max31785_id,
 };
 

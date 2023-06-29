@@ -223,7 +223,7 @@ static struct i2c_driver asb100_driver = {
 	.driver = {
 		.name	= "asb100",
 	},
-	.probe_new	= asb100_probe,
+	.probe		= asb100_probe,
 	.remove		= asb100_remove,
 	.id_table	= asb100_id,
 	.detect		= asb100_detect,

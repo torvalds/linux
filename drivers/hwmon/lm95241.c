@@ -468,7 +468,7 @@ static struct i2c_driver lm95241_driver = {
 	.driver = {
 		.name	= DEVNAME,
 	},
-	.probe_new	= lm95241_probe,
+	.probe		= lm95241_probe,
 	.id_table	= lm95241_id,
 	.detect		= lm95241_detect,
 	.address_list	= normal_i2c,

@@ -633,7 +633,7 @@ static struct i2c_driver ina238_driver = {
 		.name	= "ina238",
 		.of_match_table = of_match_ptr(ina238_of_match),
 	},
-	.probe_new	= ina238_probe,
+	.probe		= ina238_probe,
 	.id_table	= ina238_id,
 };
 
