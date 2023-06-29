@@ -80,6 +80,31 @@ static const struct mtd_ooblayout_ops fm25s01_ooblayout = {
 	.free = fm25s01_ooblayout_free,
 };
 
+/*
+ * ecc bits: 0xC0[4,6]
+ * [0b000], No bit errors were detected;
+ * [0b001] and [0b011], 1~6 Bit errors were detected and corrected. Not
+ *	reach Flipping Bits;
+ * [0b101], Bit error count equals the bit flip
+ *	detection threshold
+ * [0b010], Multiple bit errors were detected and
+ *	not corrected.
+ * others, Reserved.
+ */
+static int fm25s01bi3_ecc_ecc_get_status(struct spinand_device *spinand,
+					u8 status)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+	u8 eccsr = (status & GENMASK(6, 4)) >> 4;
+
+	if (eccsr <= 1 || eccsr == 3)
+		return eccsr;
+	else if (eccsr == 5)
+		return nanddev_get_ecc_requirements(nand)->strength;
+	else
+		return -EBADMSG;
+}
+
 static const struct spinand_info fmsh_spinand_table[] = {
 	SPINAND_INFO("FM25S01A",
 		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xE4),
@@ -117,6 +142,15 @@ static const struct spinand_info fmsh_spinand_table[] = {
 					      &update_cache_variants),
 		     0,
 		     SPINAND_ECCINFO(&fm25s01_ooblayout, NULL)),
+	SPINAND_INFO("FM25S01BI3",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0xD4),
+		     NAND_MEMORG(1, 2048, 128, 64, 1024, 20, 1, 1, 1),
+		     NAND_ECCREQ(8, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&fm25s01_ooblayout, fm25s01bi3_ecc_ecc_get_status)),
 };
 
 static const struct spinand_manufacturer_ops fmsh_spinand_manuf_ops = {
