@@ -8,6 +8,8 @@
 #ifndef _ASM_LOONGARCH_ACPI_H
 #define _ASM_LOONGARCH_ACPI_H
 
+#include <asm/suspend.h>
+
 #ifdef CONFIG_ACPI
 extern int acpi_strict;
 extern int acpi_disabled;
@@ -46,12 +48,10 @@ static inline u32 get_acpi_id_for_cpu(unsigned int cpu)
 
 extern int loongarch_acpi_suspend(void);
 extern int (*acpi_suspend_lowlevel)(void);
-extern void loongarch_suspend_enter(void);
 
 static inline unsigned long acpi_get_wakeup_address(void)
 {
 #ifdef CONFIG_SUSPEND
-	extern void loongarch_wakeup_start(void);
 	return (unsigned long)loongarch_wakeup_start;
 #endif
 	return 0UL;
