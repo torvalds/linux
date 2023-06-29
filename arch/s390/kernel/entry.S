@@ -488,7 +488,6 @@ SYM_FUNC_END(psw_idle)
  * Machine check handler routines
  */
 SYM_CODE_START(mcck_int_handler)
-	stckf	__LC_MCCK_CLOCK
 	BPOFF
 	la	%r1,4095		# validate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
