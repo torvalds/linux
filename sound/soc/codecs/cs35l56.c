@@ -822,25 +822,23 @@ static void cs35l56_system_reset(struct cs35l56_private *cs35l56)
 	regcache_cache_only(cs35l56->regmap, false);
 }
 
-static void cs35l56_dsp_work(struct work_struct *work)
+static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
 {
-	struct cs35l56_private *cs35l56 = container_of(work,
-						       struct cs35l56_private,
-						       dsp_work);
+	int ret;
+
+	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
+	ret = wm_adsp_power_up(&cs35l56->dsp);
+	if (ret)
+		dev_dbg(cs35l56->dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
+	else
+		cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_REINIT);
+}
+
+static void cs35l56_patch(struct cs35l56_private *cs35l56)
+{
 	unsigned int reg;
 	unsigned int val;
-	int ret = 0;
-
-	if (!cs35l56->init_done)
-		return;
-
-	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
-					   cs35l56->secured ? "s" : "", cs35l56->rev);
-
-	if (!cs35l56->dsp.part)
-		return;
-
-	pm_runtime_get_sync(cs35l56->dev);
+	int ret;
 
 	/*
 	 * Disable SoundWire interrupts to prevent race with IRQ work.
@@ -907,15 +905,38 @@ static void cs35l56_dsp_work(struct work_struct *work)
 err_unlock:
 	mutex_unlock(&cs35l56->irq_lock);
 err:
-	pm_runtime_mark_last_busy(cs35l56->dev);
-	pm_runtime_put_autosuspend(cs35l56->dev);
-
 	/* Re-enable SoundWire interrupts */
 	if (cs35l56->sdw_peripheral) {
 		cs35l56->sdw_irq_no_unmask = false;
 		sdw_write_no_pm(cs35l56->sdw_peripheral, CS35L56_SDW_GEN_INT_MASK_1,
 				CS35L56_SDW_INT_MASK_CODEC_IRQ);
 	}
+}
+
+static void cs35l56_dsp_work(struct work_struct *work)
+{
+	struct cs35l56_private *cs35l56 = container_of(work,
+						       struct cs35l56_private,
+						       dsp_work);
+
+	if (!cs35l56->init_done)
+		return;
+
+	pm_runtime_get_sync(cs35l56->dev);
+
+	/*
+	 * When the device is running in secure mode the firmware files can
+	 * only contain insecure tunings and therefore we do not need to
+	 * shutdown the firmware to apply them and can use the lower cost
+	 * reinit sequence instead.
+	 */
+	if (cs35l56->secured)
+		cs35l56_secure_patch(cs35l56);
+	else
+		cs35l56_patch(cs35l56);
+
+	pm_runtime_mark_last_busy(cs35l56->dev);
+	pm_runtime_put_autosuspend(cs35l56->dev);
 }
 
 static int cs35l56_component_probe(struct snd_soc_component *component)
@@ -1504,6 +1525,12 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 
 	dev_info(cs35l56->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d\n",
 		 cs35l56->secured ? "s" : "", cs35l56->rev, otpid);
+
+	/* Populate the DSP information with the revision and security state */
+	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
+					   cs35l56->secured ? "s" : "", cs35l56->rev);
+	if (!cs35l56->dsp.part)
+		return -ENOMEM;
 
 	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
 	regmap_write(cs35l56->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);

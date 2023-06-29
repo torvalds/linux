@@ -737,7 +737,7 @@ static int __init snd_ctl_led_init(void)
 	unsigned int group;
 
 	device_initialize(&snd_ctl_led_dev);
-	snd_ctl_led_dev.class = sound_class;
+	snd_ctl_led_dev.class = &sound_class;
 	snd_ctl_led_dev.release = snd_ctl_led_dev_release;
 	dev_set_name(&snd_ctl_led_dev, "ctl-led");
 	if (device_add(&snd_ctl_led_dev)) {

@@ -39,13 +39,17 @@ static int tgl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 static int tgl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
+	int ret;
+
+	if (pm_ops->set_core_state) {
+		ret = pm_ops->set_core_state(sdev, core, false);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* power down primary core and return */
 	if (core == SOF_DSP_PRIMARY_CORE)
 		return hda_dsp_core_reset_power_down(sdev, BIT(core));
-
-	if (pm_ops->set_core_state)
-		return pm_ops->set_core_state(sdev, core, false);
 
 	return 0;
 }

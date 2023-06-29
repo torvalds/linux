@@ -70,7 +70,7 @@ static struct i2c_driver cs42xx8_i2c_driver = {
 		.pm = &cs42xx8_pm,
 		.of_match_table = cs42xx8_of_match,
 	},
-	.probe_new = cs42xx8_i2c_probe,
+	.probe = cs42xx8_i2c_probe,
 	.remove = cs42xx8_i2c_remove,
 	.id_table = cs42xx8_i2c_id,
 };

@@ -3946,7 +3946,7 @@ static struct i2c_driver wm8962_i2c_driver = {
 		.of_match_table = wm8962_of_match,
 		.pm = &wm8962_pm,
 	},
-	.probe_new = wm8962_i2c_probe,
+	.probe =    wm8962_i2c_probe,
 	.remove =   wm8962_i2c_remove,
 	.id_table = wm8962_i2c_id,
 };

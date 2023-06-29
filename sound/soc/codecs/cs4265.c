@@ -649,7 +649,7 @@ static struct i2c_driver cs4265_i2c_driver = {
 		.of_match_table = cs4265_of_match,
 	},
 	.id_table = cs4265_id,
-	.probe_new = cs4265_i2c_probe,
+	.probe =    cs4265_i2c_probe,
 	.remove =   cs4265_i2c_remove,
 };
 

@@ -60,4 +60,18 @@ config SND_SEQ_MIDI_EMUL
 config SND_SEQ_VIRMIDI
 	tristate
 
+config SND_SEQ_UMP
+	bool "Support for UMP events"
+	default y if SND_SEQ_UMP_CLIENT
+	help
+	  Say Y here to enable the support for handling UMP (Universal MIDI
+	  Packet) events via ALSA sequencer infrastructure, which is an
+	  essential feature for enabling MIDI 2.0 support.
+	  It includes the automatic conversion of ALSA sequencer events
+	  among legacy and UMP clients.
+
+config SND_SEQ_UMP_CLIENT
+	tristate
+	def_tristate SND_UMP
+
 endif # SND_SEQUENCER

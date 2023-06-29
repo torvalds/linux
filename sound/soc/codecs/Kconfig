@@ -57,6 +57,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_AW88395
 	imply SND_SOC_BT_SCO
 	imply SND_SOC_BD28623
+	imply SND_SOC_CHV3_CODEC
 	imply SND_SOC_CQ0093VC
 	imply SND_SOC_CROS_EC_CODEC
 	imply SND_SOC_CS35L32
@@ -136,6 +137,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98363
 	imply SND_SOC_MAX98373_I2C
 	imply SND_SOC_MAX98373_SDW
+	imply SND_SOC_MAX98388
 	imply SND_SOC_MAX98390
 	imply SND_SOC_MAX98396
 	imply SND_SOC_MAX9850
@@ -207,6 +209,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT712_SDCA_DMIC_SDW
 	imply SND_SOC_RT715_SDW
 	imply SND_SOC_RT715_SDCA_SDW
+	imply SND_SOC_RT722_SDCA_SDW
 	imply SND_SOC_RT1308_SDW
 	imply SND_SOC_RT1316_SDW
 	imply SND_SOC_RT1318_SDW
@@ -234,6 +237,9 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2764
 	imply SND_SOC_TAS2770
 	imply SND_SOC_TAS2780
+	imply SND_SOC_TAS2781_COMLIB
+	imply SND_SOC_TAS2781_FMWLIB
+	imply SND_SOC_TAS2781_I2C
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
 	imply SND_SOC_TAS5720
@@ -324,6 +330,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WM9713
 	imply SND_SOC_WSA881X
 	imply SND_SOC_WSA883X
+	imply SND_SOC_WSA884X
 	imply SND_SOC_ZL38060
 	help
 	  Normally ASoC codec drivers are only built if a machine driver which
@@ -642,6 +649,13 @@ config SND_SOC_BD28623
 
 config SND_SOC_BT_SCO
 	tristate "Dummy BT SCO codec driver"
+
+config SND_SOC_CHV3_CODEC
+	tristate "Google Chameleon v3 codec driver"
+	help
+	  Enable support for the Google Chameleon v3 audio codec.
+	  This codec does not have a control interface, it always outputs
+	  8 channel S32_LE audio.
 
 config SND_SOC_CPCAP
 	tristate "Motorola CPCAP codec"
@@ -1166,6 +1180,15 @@ config SND_SOC_MAX98373_SDW
 	  interface for control data. Select this if MAX98373 is
 	  connected via soundwire.
 
+config SND_SOC_MAX98388
+	tristate "Analog Devices MAX98388 Speaker Amplifier"
+	depends on I2C
+	help
+	  Enable support for Analog Devices MAX98388 audio
+	  amplifier. The device provides a PCM interface for
+	  audio data and a standard I2C interface for control
+	  data communication.
+
 config SND_SOC_MAX98390
 	tristate "Maxim Integrated MAX98390 Speaker Amplifier"
 	depends on I2C
@@ -1539,6 +1562,12 @@ config SND_SOC_RT712_SDCA_DMIC_SDW
 	select REGMAP_SOUNDWIRE
 	select REGMAP_SOUNDWIRE_MBQ
 
+config SND_SOC_RT722_SDCA_SDW
+	tristate "Realtek RT722 SDCA Codec - SDW"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	select REGMAP_SOUNDWIRE_MBQ
+
 config SND_SOC_RT715
 	tristate
 
@@ -1652,6 +1681,12 @@ config SND_SOC_SSM2602_I2C
 	select SND_SOC_SSM2602
 	select REGMAP_I2C
 
+config SND_SOC_SSM3515
+	tristate "Analog Devices SSM3515 amplifier driver"
+	select REGMAP_I2C
+	depends on I2C
+	depends on OF
+
 config SND_SOC_SSM4567
 	tristate "Analog Devices ssm4567 amplifier driver support"
 	depends on I2C
@@ -1698,6 +1733,29 @@ config SND_SOC_TAS2780
 	help
 	  Enable support for Texas Instruments TAS2780 high-efficiency
 	  digital input mono Class-D audio power amplifiers.
+
+config SND_SOC_TAS2781_COMLIB
+	depends on I2C
+	select CRC8
+	select REGMAP_I2C
+	tristate
+
+config SND_SOC_TAS2781_FMWLIB
+	depends on SND_SOC_TAS2781_COMLIB
+	tristate
+	default n
+
+config SND_SOC_TAS2781_I2C
+	tristate "Texas Instruments TAS2781 speaker amplifier based on I2C"
+	depends on I2C
+	select SND_SOC_TAS2781_COMLIB
+	select SND_SOC_TAS2781_FMWLIB
+	help
+	  Enable support for Texas Instruments TAS2781 Smart Amplifier
+	  Digital input mono Class-D and DSP-inside audio power amplifiers.
+	  Note the TAS2781 driver implements a flexible and configurable
+	  algo coefficient setting, for one, two or even multiple TAS2781
+	  chips.
 
 config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"
@@ -2160,6 +2218,15 @@ config SND_SOC_WSA883X
 	tristate
 	help
 	  This enables support for Qualcomm WSA8830/WSA8835 Class-D
+	  Smart Speaker Amplifier.
+
+config SND_SOC_WSA884X
+	tristate "WSA884X Codec"
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	tristate
+	help
+	  This enables support for Qualcomm WSA8840/WSA8845/WSA8845H Class-D
 	  Smart Speaker Amplifier.
 
 config SND_SOC_ZL38060

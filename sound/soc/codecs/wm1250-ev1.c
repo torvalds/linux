@@ -243,7 +243,7 @@ static struct i2c_driver wm1250_ev1_i2c_driver = {
 	.driver = {
 		.name = "wm1250-ev1",
 	},
-	.probe_new = wm1250_ev1_probe,
+	.probe =    wm1250_ev1_probe,
 	.remove =   wm1250_ev1_remove,
 	.id_table = wm1250_ev1_i2c_id,
 };

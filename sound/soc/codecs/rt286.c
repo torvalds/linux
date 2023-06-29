@@ -1263,7 +1263,7 @@ static struct i2c_driver rt286_i2c_driver = {
 		   .name = "rt286",
 		   .acpi_match_table = ACPI_PTR(rt286_acpi_match),
 		   },
-	.probe_new = rt286_i2c_probe,
+	.probe = rt286_i2c_probe,
 	.remove = rt286_i2c_remove,
 	.id_table = rt286_i2c_id,
 };

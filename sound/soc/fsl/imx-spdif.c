@@ -26,7 +26,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	}
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	comp = devm_kzalloc(&pdev->dev, 2 * sizeof(*comp), GFP_KERNEL);
+	comp = devm_kzalloc(&pdev->dev, sizeof(*comp), GFP_KERNEL);
 	if (!data || !comp) {
 		ret = -ENOMEM;
 		goto end;
@@ -37,8 +37,8 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	 * platform is using soc-generic-dmaengine-pcm
 	 */
 	data->dai.cpus		=
-	data->dai.platforms	= &comp[0];
-	data->dai.codecs	= &comp[1];
+	data->dai.platforms	= comp;
+	data->dai.codecs	= &asoc_dummy_dlc;
 
 	data->dai.num_cpus	= 1;
 	data->dai.num_codecs	= 1;
@@ -46,8 +46,6 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 
 	data->dai.name = "S/PDIF PCM";
 	data->dai.stream_name = "S/PDIF PCM";
-	data->dai.codecs->dai_name = "snd-soc-dummy-dai";
-	data->dai.codecs->name = "snd-soc-dummy";
 	data->dai.cpus->of_node = spdif_np;
 	data->dai.playback_only = true;
 	data->dai.capture_only = true;

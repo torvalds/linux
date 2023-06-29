@@ -1049,7 +1049,7 @@ static struct i2c_driver wm8580_i2c_driver = {
 		.name = "wm8580",
 		.of_match_table = wm8580_of_match,
 	},
-	.probe_new = wm8580_i2c_probe,
+	.probe = wm8580_i2c_probe,
 	.id_table = wm8580_i2c_id,
 };
 

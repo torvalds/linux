@@ -11,7 +11,7 @@
 
 MODULE_DESCRIPTION("MOTU FireWire driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 const unsigned int snd_motu_clock_rates[SND_MOTU_CLOCK_RATE_COUNT] = {
 	/* mode 0 */
