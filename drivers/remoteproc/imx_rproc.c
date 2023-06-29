@@ -725,13 +725,22 @@ static int imx_rproc_addr_init(struct imx_rproc *priv,
 	return 0;
 }
 
+static int imx_rproc_notified_idr_cb(int id, void *ptr, void *data)
+{
+	struct rproc *rproc = data;
+
+	rproc_vq_interrupt(rproc, id);
+
+	return 0;
+}
+
 static void imx_rproc_vq_work(struct work_struct *work)
 {
 	struct imx_rproc *priv = container_of(work, struct imx_rproc,
 					      rproc_work);
+	struct rproc *rproc = priv->rproc;
 
-	rproc_vq_interrupt(priv->rproc, 0);
-	rproc_vq_interrupt(priv->rproc, 1);
+	idr_for_each(&rproc->notifyids, imx_rproc_notified_idr_cb, rproc);
 }
 
 static void imx_rproc_rx_callback(struct mbox_client *cl, void *msg)
