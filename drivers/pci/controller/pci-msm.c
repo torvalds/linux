@@ -941,6 +941,17 @@ enum msm_pcie_cesta_perf_idx {
 	MAX_PERF_LVL,
 };
 
+/* CESTA curr perf ol to strings */
+static const char * const msm_pcie_cesta_curr_perf_lvl[] = {
+	"D3 cold state",
+	"L1ss sleep state",
+	"Gen1 speed",
+	"Gen2 speed",
+	"Gen3 speed",
+	"Gen4 speed",
+	"Invalid state",
+};
+
 /* CESTA usage scenarios */
 enum msm_pcie_cesta_map_idx {
 	D3COLD_STATE,	// Move to D3 Cold state
@@ -1681,6 +1692,17 @@ static void pcie_sm_dump(struct msm_pcie_dev_t *dev)
 			readl_relaxed(dev->pcie_sm + dev->sm_info->reg_dump[i]));
 	}
 }
+
+static void pcie_crm_dump(struct msm_pcie_dev_t *dev)
+{
+	int ret;
+
+	ret = crm_dump_regs("pcie_crm");
+	if (ret)
+		PCIE_DUMP(dev, "PCIe: RC%d Error dumping crm regs %d\n",
+							dev->rc_idx, ret);
+}
+
 static void pcie_dm_core_dump(struct msm_pcie_dev_t *dev)
 {
 	int i, size;
@@ -3735,6 +3757,25 @@ static void msm_pcie_cesta_disable_l1ss_to(struct msm_pcie_dev_t *dev)
 	msm_pcie_write_reg(dev->parf, PCIE20_PARF_L1SUB_AHB_CLK_MAX_TIMER, 0);
 }
 
+/* Read the curr perf ol value from the cesta register */
+static const char *const msm_pcie_cesta_curr_perf_ol(struct msm_pcie_dev_t *dev)
+{
+	u32 ret;
+	int res;
+
+	res = crm_read_curr_perf_ol("pcie_crm", dev->rc_idx, &ret);
+	if (res) {
+		PCIE_ERR(dev, "PCIE: RC:%d Error getting curr_perf_ol %d\n",
+				dev->rc_idx, res);
+		ret = MAX_PERF_LVL;
+	}
+
+	if (ret > MAX_PERF_LVL)
+		ret = MAX_PERF_LVL;
+
+	return msm_pcie_cesta_curr_perf_lvl[ret];
+}
+
 /*
  * This function is used for configuring the CESTA power state
  * to the perf level mapping based on the Gen speed provided in
@@ -3763,6 +3804,9 @@ static int msm_pcie_cesta_map_apply(struct msm_pcie_dev_t *dev, u32 cesta_st)
 	if (!dev->pcie_sm)
 		return 0;
 
+	PCIE_DBG(dev, "Current perf ol is %s\n",
+				msm_pcie_cesta_curr_perf_ol(dev));
+
 	PCIE_DBG(dev, "Setting the scenario to %s and perf_idx %d\n",
 			msm_pcie_cesta_states[cesta_st],
 			msm_pcie_cesta_map[cesta_st][POWER_STATE_1]);
@@ -3788,6 +3832,8 @@ static int msm_pcie_cesta_map_apply(struct msm_pcie_dev_t *dev, u32 cesta_st)
 		return ret;
 	}
 
+	PCIE_DBG(dev, "New perf ol is %s\n",
+				msm_pcie_cesta_curr_perf_ol(dev));
 	return 0;
 }
 
@@ -6480,6 +6526,7 @@ static void msm_handle_error_source(struct pci_dev *dev,
 		pcie_dm_core_dump(rdev);
 		pcie_phy_dump(rdev);
 		pcie_sm_dump(rdev);
+		pcie_crm_dump(rdev);
 
 skip:
 		if (rdev->panic_on_aer)
@@ -6727,6 +6774,7 @@ static irqreturn_t handle_wake_irq(int irq, void *data)
 			pcie_parf_dump(dev);
 			pcie_dm_core_dump(dev);
 			pcie_sm_dump(dev);
+			pcie_crm_dump(dev);
 		}
 
 		msm_pcie_notify_client(dev, MSM_PCIE_EVENT_WAKEUP);
@@ -6803,6 +6851,7 @@ static void msm_pcie_handle_linkdown(struct msm_pcie_dev_t *dev)
 		pcie_parf_dump(dev);
 		pcie_dm_core_dump(dev);
 		pcie_sm_dump(dev);
+		pcie_crm_dump(dev);
 	}
 
 	/* Attempt link-down recovery instead of PERST if supported */
@@ -8288,6 +8337,7 @@ int msm_pcie_prevent_l1(struct pci_dev *pci_dev)
 			pcie_dm_core_dump(pcie_dev);
 			pcie_phy_dump(pcie_dev);
 			pcie_sm_dump(pcie_dev);
+			pcie_crm_dump(pcie_dev);
 			ret = -EIO;
 			goto err;
 		}
