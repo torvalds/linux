@@ -382,7 +382,6 @@ enum mlx5_res_type {
 	MLX5_RES_SRQ	= 3,
 	MLX5_RES_XSRQ	= 4,
 	MLX5_RES_XRQ	= 5,
-	MLX5_RES_DCT	= MLX5_EVENT_QUEUE_TYPE_DCT,
 };
 
 struct mlx5_core_rsc_common {
@@ -441,15 +440,6 @@ struct mlx5_core_health {
 	struct devlink_health_reporter *fw_fatal_reporter;
 	struct devlink_health_reporter *vnic_reporter;
 	struct delayed_work		update_fw_log_ts_work;
-};
-
-struct mlx5_qp_table {
-	struct notifier_block   nb;
-
-	/* protect radix tree
-	 */
-	spinlock_t		lock;
-	struct radix_tree_root	tree;
 };
 
 enum {

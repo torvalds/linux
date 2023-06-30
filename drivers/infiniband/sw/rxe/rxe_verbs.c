@@ -1182,9 +1182,7 @@ static int rxe_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&cq->cq_lock, irq_flags);
-	if (cq->notify != IB_CQ_NEXT_COMP)
-		cq->notify = flags & IB_CQ_SOLICITED_MASK;
-
+	cq->notify |= flags & IB_CQ_SOLICITED_MASK;
 	empty = queue_empty(cq->queue, QUEUE_TYPE_TO_ULP);
 
 	if ((flags & IB_CQ_REPORT_MISSED_EVENTS) && !empty)
@@ -1261,6 +1259,12 @@ static struct ib_mr *rxe_reg_user_mr(struct ib_pd *ibpd, u64 start,
 	struct rxe_mr *mr;
 	int err, cleanup_err;
 
+	if (access & ~RXE_ACCESS_SUPPORTED_MR) {
+		rxe_err_pd(pd, "access = %#x not supported (%#x)", access,
+				RXE_ACCESS_SUPPORTED_MR);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
@@ -1292,6 +1296,40 @@ err_free:
 	kfree(mr);
 	rxe_err_pd(pd, "returned err = %d", err);
 	return ERR_PTR(err);
+}
+
+static struct ib_mr *rxe_rereg_user_mr(struct ib_mr *ibmr, int flags,
+				       u64 start, u64 length, u64 iova,
+				       int access, struct ib_pd *ibpd,
+				       struct ib_udata *udata)
+{
+	struct rxe_mr *mr = to_rmr(ibmr);
+	struct rxe_pd *old_pd = to_rpd(ibmr->pd);
+	struct rxe_pd *pd = to_rpd(ibpd);
+
+	/* for now only support the two easy cases:
+	 * rereg_pd and rereg_access
+	 */
+	if (flags & ~RXE_MR_REREG_SUPPORTED) {
+		rxe_err_mr(mr, "flags = %#x not supported", flags);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
+	if (flags & IB_MR_REREG_PD) {
+		rxe_put(old_pd);
+		rxe_get(pd);
+		mr->ibmr.pd = ibpd;
+	}
+
+	if (flags & IB_MR_REREG_ACCESS) {
+		if (access & ~RXE_ACCESS_SUPPORTED_MR) {
+			rxe_err_mr(mr, "access = %#x not supported", access);
+			return ERR_PTR(-EOPNOTSUPP);
+		}
+		mr->access = access;
+	}
+
+	return NULL;
 }
 
 static struct ib_mr *rxe_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
@@ -1446,6 +1484,7 @@ static const struct ib_device_ops rxe_dev_ops = {
 	.query_srq = rxe_query_srq,
 	.reg_user_mr = rxe_reg_user_mr,
 	.req_notify_cq = rxe_req_notify_cq,
+	.rereg_user_mr = rxe_rereg_user_mr,
 	.resize_cq = rxe_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, rxe_ah, ibah),

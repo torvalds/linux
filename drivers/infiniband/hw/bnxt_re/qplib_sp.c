@@ -170,6 +170,9 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 		attr->tqm_alloc_reqs[i * 4 + 3] = *(++tqm_alloc);
 	}
 
+	if (rcfw->res->cctx->hwrm_intf_ver >= HWRM_VERSION_DEV_ATTR_MAX_DPI)
+		attr->max_dpi = le32_to_cpu(sb->max_dpi);
+
 	attr->is_atomic = bnxt_qplib_is_atomic_cap(rcfw);
 bail:
 	bnxt_qplib_rcfw_free_sbuf(rcfw, sbuf);
@@ -233,10 +236,6 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	int index;
 
-	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
-		return -EINVAL;
-	}
 	/* Do we need a sgid_lock here? */
 	if (!sgid_tbl->active) {
 		dev_err(&res->pdev->dev, "SGID table has no active entries\n");
@@ -297,10 +296,6 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	int i, free_idx;
 
-	if (!sgid_tbl) {
-		dev_err(&res->pdev->dev, "SGID table not allocated\n");
-		return -EINVAL;
-	}
 	/* Do we need a sgid_lock here? */
 	if (sgid_tbl->active == sgid_tbl->max) {
 		dev_err(&res->pdev->dev, "SGID table is full\n");
@@ -468,13 +463,14 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 	return 0;
 }
 
-void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
-			   bool block)
+int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			  bool block)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct creq_destroy_ah_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_destroy_ah req = {};
+	int rc;
 
 	/* Clean up the AH table in the device */
 	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
@@ -485,7 +481,8 @@ void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),
 				sizeof(resp), block);
-	bnxt_qplib_rcfw_send_message(rcfw, &msg);
+	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
+	return rc;
 }
 
 /* MRW */
