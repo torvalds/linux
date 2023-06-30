@@ -698,6 +698,8 @@ void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	if (!dig_port)
 		return;
 
+	dig_port->aux_ch = AUX_CH_NONE;
+
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(dig_port);

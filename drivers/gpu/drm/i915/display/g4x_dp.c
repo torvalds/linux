@@ -1273,6 +1273,8 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	if (!dig_port)
 		return false;
 
+	dig_port->aux_ch = AUX_CH_NONE;
+
 	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
 		goto err_connector_alloc;

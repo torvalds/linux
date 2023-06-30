@@ -4747,6 +4747,8 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	if (!dig_port)
 		return;
 
+	dig_port->aux_ch = AUX_CH_NONE;
+
 	encoder = &dig_port->base;
 	encoder->devdata = devdata;
 
