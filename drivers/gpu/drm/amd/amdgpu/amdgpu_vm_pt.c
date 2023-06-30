@@ -1075,3 +1075,31 @@ int amdgpu_vm_ptes_update(struct amdgpu_vm_update_params *params,
 
 	return 0;
 }
+
+/**
+ * amdgpu_vm_pt_map_tables - have bo of root PD cpu accessible
+ * @adev: amdgpu device structure
+ * @vm: amdgpu vm structure
+ *
+ * make root page directory and everything below it cpu accessible.
+ */
+int amdgpu_vm_pt_map_tables(struct amdgpu_device *adev, struct amdgpu_vm *vm)
+{
+	struct amdgpu_vm_pt_cursor cursor;
+	struct amdgpu_vm_bo_base *entry;
+
+	for_each_amdgpu_vm_pt_dfs_safe(adev, vm, NULL, cursor, entry) {
+
+		struct amdgpu_bo_vm *bo;
+		int r;
+
+		if (entry->bo) {
+			bo = to_amdgpu_bo_vm(entry->bo);
+			r = vm->update_funcs->map_table(bo);
+			if (r)
+				return r;
+		}
+	}
+
+	return 0;
+}
