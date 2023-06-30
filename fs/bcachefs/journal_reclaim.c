@@ -837,8 +837,20 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 	mutex_lock(&c->replicas_gc_lock);
 	bch2_replicas_gc_start(c, 1 << BCH_DATA_journal);
 
-	seq = 0;
+	/*
+	 * Now that we've populated replicas_gc, write to the journal to mark
+	 * active journal devices. This handles the case where the journal might
+	 * be empty. Otherwise we could clear all journal replicas and
+	 * temporarily put the fs into an unrecoverable state. Journal recovery
+	 * expects to find devices marked for journal data on unclean mount.
+	 */
+	ret = bch2_journal_meta(&c->journal);
+	if (ret) {
+		mutex_unlock(&c->replicas_gc_lock);
+		return ret;
+	}
 
+	seq = 0;
 	spin_lock(&j->lock);
 	while (!ret) {
 		struct bch_replicas_padded replicas;
