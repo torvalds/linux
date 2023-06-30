@@ -2230,56 +2230,6 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	return 0;
 }
 
-static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
-{
-	enum port port;
-
-	if (!aux_ch)
-		return PORT_NONE;
-
-	for_each_port(port) {
-		const struct intel_bios_encoder_data *devdata =
-			i915->display.vbt.ports[port];
-
-		if (devdata && aux_ch == devdata->child.aux_channel)
-			return port;
-	}
-
-	return PORT_NONE;
-}
-
-static void sanitize_aux_ch(struct intel_bios_encoder_data *devdata,
-			    enum port port)
-{
-	struct drm_i915_private *i915 = devdata->i915;
-	struct child_device_config *child;
-	enum port p;
-
-	p = get_port_by_aux_ch(i915, devdata->child.aux_channel);
-	if (p == PORT_NONE)
-		return;
-
-	drm_dbg_kms(&i915->drm,
-		    "port %c trying to use the same AUX CH (0x%x) as port %c, "
-		    "disabling port %c DP support\n",
-		    port_name(port), devdata->child.aux_channel,
-		    port_name(p), port_name(p));
-
-	/*
-	 * If we have multiple ports supposedly sharing the aux channel, then DP
-	 * couldn't exist on the shared port. Otherwise they share the same aux
-	 * channel and system couldn't communicate with them separately.
-	 *
-	 * Give inverse child device order the priority, last one wins. Yes,
-	 * there are real machines (eg. Asrock B250M-HDV) where VBT has both
-	 * port A and port E with the same AUX ch and we must pick port E :(
-	 */
-	child = &i915->display.vbt.ports[p]->child;
-
-	child->device_type &= ~DEVICE_TYPE_DISPLAYPORT_OUTPUT;
-	child->aux_channel = 0;
-}
-
 static u8 dvo_port_type(u8 dvo_port)
 {
 	switch (dvo_port) {
@@ -2687,9 +2637,6 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 	}
 
 	sanitize_device_type(devdata, port);
-
-	if (intel_bios_encoder_supports_dp(devdata))
-		sanitize_aux_ch(devdata, port);
 
 	i915->display.vbt.ports[port] = devdata;
 }

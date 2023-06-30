@@ -792,25 +792,60 @@ static enum aux_ch default_aux_ch(struct intel_encoder *encoder)
 	return (enum aux_ch)encoder->port;
 }
 
+static struct intel_encoder *
+get_encoder_by_aux_ch(struct intel_encoder *encoder,
+		      enum aux_ch aux_ch)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_encoder *other;
+
+	for_each_intel_encoder(&i915->drm, other) {
+		if (other == encoder)
+			continue;
+
+		if (!intel_encoder_is_dig_port(other))
+			continue;
+
+		if (enc_to_dig_port(other)->aux_ch == aux_ch)
+			return other;
+	}
+
+	return NULL;
+}
+
 enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_encoder *other;
+	const char *source;
 	enum aux_ch aux_ch;
 
 	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
-	if (aux_ch != AUX_CH_NONE) {
-		drm_dbg_kms(&i915->drm, "[ENCODER:%d:%s] using AUX %c (VBT)\n",
-			    encoder->base.base.id, encoder->base.name,
-			    aux_ch_name(aux_ch));
-		return aux_ch;
+	source = "VBT";
+
+	if (aux_ch == AUX_CH_NONE) {
+		aux_ch = default_aux_ch(encoder);
+		source = "platform default";
 	}
 
-	aux_ch = default_aux_ch(encoder);
+	if (aux_ch == AUX_CH_NONE)
+		return AUX_CH_NONE;
+
+	/* FIXME validate aux_ch against platform caps */
+
+	other = get_encoder_by_aux_ch(encoder, aux_ch);
+	if (other) {
+		drm_dbg_kms(&i915->drm,
+			    "[ENCODER:%d:%s] AUX CH %c already claimed by [ENCODER:%d:%s]\n",
+			    encoder->base.base.id, encoder->base.name, aux_ch_name(aux_ch),
+			    other->base.base.id, other->base.name);
+		return AUX_CH_NONE;
+	}
 
 	drm_dbg_kms(&i915->drm,
-		    "[ENCODER:%d:%s] using AUX %c (platform default)\n",
+		    "[ENCODER:%d:%s] Using AUX CH %c (%s)\n",
 		    encoder->base.base.id, encoder->base.name,
-		    aux_ch_name(aux_ch));
+		    aux_ch_name(aux_ch), source);
 
 	return aux_ch;
 }
