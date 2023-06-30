@@ -1319,13 +1319,15 @@ static bool gmc_v8_0_check_soft_reset(void *handle)
 			srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset,
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}
+
 	if (srbm_soft_reset) {
 		adev->gmc.srbm_soft_reset = srbm_soft_reset;
 		return true;
-	} else {
-		adev->gmc.srbm_soft_reset = 0;
-		return false;
 	}
+
+	adev->gmc.srbm_soft_reset = 0;
+
+	return false;
 }
 
 static int gmc_v8_0_pre_soft_reset(void *handle)
