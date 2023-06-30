@@ -23,6 +23,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/usb/phy.h>
+#include <linux/usb/dwc3-msm.h>
 #include <linux/reset.h>
 
 #define QUSB2PHY_PLL_PWR_CTL		0x18
@@ -711,15 +712,17 @@ static int qusb_phy_set_suspend(struct usb_phy *phy, int suspend)
 
 			if (!qphy->eud_enable_reg ||
 					!readl_relaxed(qphy->eud_enable_reg)) {
-				/* Disable PHY */
-				writel_relaxed(POWER_DOWN |
-					readl_relaxed(qphy->base +
-					QUSB2PHY_PORT_POWERDOWN),
-					qphy->base + QUSB2PHY_PORT_POWERDOWN);
-				/* Make sure that above write is completed */
-				wmb();
+				if (!(qphy->phy.flags & PHY_HOST_MODE)) {
+					/* Disable PHY */
+					writel_relaxed(POWER_DOWN |
+						readl_relaxed(qphy->base +
+						QUSB2PHY_PORT_POWERDOWN),
+						qphy->base + QUSB2PHY_PORT_POWERDOWN);
+					/* Make sure that above write is completed */
+					wmb();
 
-				qusb_phy_update_tcsr_level_shifter(qphy, 0);
+					qusb_phy_update_tcsr_level_shifter(qphy, 0);
+				}
 			}
 
 			qusb_phy_enable_clocks(qphy, false);
