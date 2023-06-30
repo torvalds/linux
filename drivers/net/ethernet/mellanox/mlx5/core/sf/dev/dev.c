@@ -167,7 +167,7 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 	if (!max_functions)
 		return 0;
 
-	base_id = MLX5_CAP_GEN(table->dev, sf_base_id);
+	base_id = mlx5_sf_start_function_id(table->dev);
 	if (event->function_id < base_id || event->function_id >= (base_id + max_functions))
 		return 0;
 
@@ -209,7 +209,7 @@ static int mlx5_sf_dev_vhca_arm_all(struct mlx5_sf_dev_table *table)
 	int i;
 
 	max_functions = mlx5_sf_max_functions(dev);
-	function_id = MLX5_CAP_GEN(dev, sf_base_id);
+	function_id = mlx5_sf_start_function_id(dev);
 	/* Arm the vhca context as the vhca event notifier */
 	for (i = 0; i < max_functions; i++) {
 		err = mlx5_vhca_event_arm(dev, function_id);
@@ -234,7 +234,7 @@ static void mlx5_sf_dev_add_active_work(struct work_struct *work)
 	int i;
 
 	max_functions = mlx5_sf_max_functions(dev);
-	function_id = MLX5_CAP_GEN(dev, sf_base_id);
+	function_id = mlx5_sf_start_function_id(dev);
 	for (i = 0; i < max_functions; i++, function_id++) {
 		if (table->stop_active_wq)
 			return;
