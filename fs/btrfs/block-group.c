@@ -504,10 +504,17 @@ static void fragment_free_space(struct btrfs_block_group *block_group)
 #endif
 
 /*
- * This is only called by btrfs_cache_block_group, since we could have freed
- * extents we need to check the pinned_extents for any extents that can't be
- * used yet since their free space will be released as soon as the transaction
- * commits.
+ * Add a free space range to the in memory free space cache of a block group.
+ * This checks if the range contains super block locations and any such
+ * locations are not added to the free space cache.
+ *
+ * @block_group:      The target block group.
+ * @start:            Start offset of the range.
+ * @end:              End offset of the range (exclusive).
+ * @total_added_ret:  Optional pointer to return the total amount of space
+ *                    added to the block group's free space cache.
+ *
+ * Returns 0 on success or < 0 on error.
  */
 int add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end,
 		       u64 *total_added_ret)
