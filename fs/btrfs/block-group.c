@@ -516,8 +516,8 @@ static void fragment_free_space(struct btrfs_block_group *block_group)
  *
  * Returns 0 on success or < 0 on error.
  */
-int add_new_free_space(struct btrfs_block_group *block_group, u64 start, u64 end,
-		       u64 *total_added_ret)
+int btrfs_add_new_free_space(struct btrfs_block_group *block_group, u64 start,
+			     u64 end, u64 *total_added_ret)
 {
 	struct btrfs_fs_info *info = block_group->fs_info;
 	u64 extent_start, extent_end, size;
@@ -806,8 +806,8 @@ next:
 		    key.type == BTRFS_METADATA_ITEM_KEY) {
 			u64 space_added;
 
-			ret = add_new_free_space(block_group, last, key.objectid,
-						 &space_added);
+			ret = btrfs_add_new_free_space(block_group, last,
+						       key.objectid, &space_added);
 			if (ret)
 				goto out;
 			total_found += space_added;
@@ -828,9 +828,9 @@ next:
 		path->slots[0]++;
 	}
 
-	ret = add_new_free_space(block_group, last,
-				 block_group->start + block_group->length,
-				 NULL);
+	ret = btrfs_add_new_free_space(block_group, last,
+				       block_group->start + block_group->length,
+				       NULL);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -2326,8 +2326,8 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 		btrfs_free_excluded_extents(cache);
 	} else if (cache->used == 0) {
 		cache->cached = BTRFS_CACHE_FINISHED;
-		ret = add_new_free_space(cache, cache->start,
-					 cache->start + cache->length, NULL);
+		ret = btrfs_add_new_free_space(cache, cache->start,
+					       cache->start + cache->length, NULL);
 		btrfs_free_excluded_extents(cache);
 		if (ret)
 			goto error;
@@ -2774,7 +2774,7 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 		return ERR_PTR(ret);
 	}
 
-	ret = add_new_free_space(cache, chunk_offset, chunk_offset + size, NULL);
+	ret = btrfs_add_new_free_space(cache, chunk_offset, chunk_offset + size, NULL);
 	btrfs_free_excluded_extents(cache);
 	if (ret) {
 		btrfs_put_block_group(cache);
