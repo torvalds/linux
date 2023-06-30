@@ -777,9 +777,7 @@ xdr_stream_decode_uint32_array(struct xdr_stream *xdr,
 
 	if (unlikely(xdr_stream_decode_u32(xdr, &len) < 0))
 		return -EBADMSG;
-	if (len > SIZE_MAX / sizeof(*p))
-		return -EBADMSG;
-	p = xdr_inline_decode(xdr, len * sizeof(*p));
+	p = xdr_inline_decode(xdr, size_mul(len, sizeof(*p)));
 	if (unlikely(!p))
 		return -EBADMSG;
 	if (array == NULL)
