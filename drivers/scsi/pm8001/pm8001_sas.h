@@ -71,6 +71,7 @@
 #define PM8001_DEV_LOGGING	0x80 /* development message logging */
 #define PM8001_DEVIO_LOGGING	0x100 /* development io message logging */
 #define PM8001_IOERR_LOGGING	0x200 /* development io err message logging */
+#define PM8001_EVENT_LOGGING	0x400 /* HW event logging */
 
 #define pm8001_info(HBA, fmt, ...)					\
 	pr_info("%s:: %s %d: " fmt,					\

@@ -1375,7 +1375,7 @@ void iscsit_collect_login_stats(
 		if (conn->param_list)
 			intrname = iscsi_find_param_from_key(INITIATORNAME,
 							     conn->param_list);
-		strlcpy(ls->last_intr_fail_name,
+		strscpy(ls->last_intr_fail_name,
 		       (intrname ? intrname->value : "Unknown"),
 		       sizeof(ls->last_intr_fail_name));
 
@@ -1414,7 +1414,7 @@ void iscsit_fill_cxn_timeout_err_stats(struct iscsit_session *sess)
 		return;
 
 	spin_lock_bh(&tiqn->sess_err_stats.lock);
-	strlcpy(tiqn->sess_err_stats.last_sess_fail_rem_name,
+	strscpy(tiqn->sess_err_stats.last_sess_fail_rem_name,
 			sess->sess_ops->InitiatorName,
 			sizeof(tiqn->sess_err_stats.last_sess_fail_rem_name));
 	tiqn->sess_err_stats.last_sess_failure_type =
