@@ -1086,9 +1086,8 @@ static struct parisc_driver dino_driver __refdata = {
  * This is the only routine which is NOT static.
  * Must be called exactly once before pci_init().
  */
-int __init dino_init(void)
+void __init dino_init(void)
 {
 	register_parisc_driver(&dino_driver);
-	return 0;
 }
 
