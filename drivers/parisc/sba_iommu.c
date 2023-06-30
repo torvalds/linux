@@ -1235,8 +1235,6 @@ struct ibase_data_struct {
 
 static int setup_ibase_imask_callback(struct device *dev, void *data)
 {
-	/* lba_set_iregs() is in drivers/parisc/lba_pci.c */
-        extern void lba_set_iregs(struct parisc_device *, u32, u32);
 	struct parisc_device *lba = to_parisc_device(dev);
 	struct ibase_data_struct *ibd = data;
 	int rope_num = (lba->hpa.start >> 13) & 0xf;

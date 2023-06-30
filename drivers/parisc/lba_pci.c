@@ -1164,10 +1164,6 @@ lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 #endif	/* CONFIG_64BIT */
 
 
-extern void sba_distributed_lmmio(struct parisc_device *, struct resource *);
-extern void sba_directed_lmmio(struct parisc_device *, struct resource *);
-
-
 static void
 lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 {

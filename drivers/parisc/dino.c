@@ -924,8 +924,6 @@ static const char cujo_vers[][4] = {
 	"2.0"
 };
 
-void ccio_cujo20_fixup(struct parisc_device *dev, u32 iovp);
-
 /*
 ** Determine if dino should claim this chip (return 0) or not (return 1).
 ** If so, initialize the chip appropriately (card-mode vs bridge mode).

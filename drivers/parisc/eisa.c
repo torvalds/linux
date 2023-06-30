@@ -400,7 +400,7 @@ static struct parisc_driver eisa_driver __refdata = {
 	.probe =	eisa_probe,
 };
 
-void __init eisa_init(void)
+void __init parisc_eisa_init(void)
 {
 	register_parisc_driver(&eisa_driver);
 }
