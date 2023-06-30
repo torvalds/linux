@@ -250,6 +250,7 @@ enum DC_DEBUG_MASK {
 	DC_DISABLE_PSR = 0x10,
 	DC_FORCE_SUBVP_MCLK_SWITCH = 0x20,
 	DC_DISABLE_MPO = 0x40,
+	DC_ENABLE_DPIA_TRACE = 0x80,
 };
 
 enum amd_dpm_forced_level;
