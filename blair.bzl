@@ -7,6 +7,7 @@ target_name = "blair"
 def define_blair():
     _blair_in_tree_modules = [
         # keep sorted
+        "debug_symbol.ko",
         "drivers/char/rdbg.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
@@ -169,6 +170,7 @@ def define_blair():
         "drivers/usb/phy/phy-qcom-emu.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
+        "minidump.ko",
         "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
