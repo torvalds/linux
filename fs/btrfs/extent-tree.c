@@ -69,18 +69,6 @@ static int block_group_bits(struct btrfs_block_group *cache, u64 bits)
 	return (cache->flags & bits) == bits;
 }
 
-void btrfs_free_excluded_extents(struct btrfs_block_group *cache)
-{
-	struct btrfs_fs_info *fs_info = cache->fs_info;
-	u64 start, end;
-
-	start = cache->start;
-	end = start + cache->length - 1;
-
-	clear_extent_bits(&fs_info->excluded_extents, start, end,
-			  EXTENT_UPTODATE);
-}
-
 /* simple helper to search for an existing data extent at a given offset */
 int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
 {

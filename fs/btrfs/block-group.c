@@ -835,6 +835,12 @@ out:
 	return ret;
 }
 
+static inline void btrfs_free_excluded_extents(const struct btrfs_block_group *bg)
+{
+	clear_extent_bits(&bg->fs_info->excluded_extents, bg->start,
+			  bg->start + bg->length - 1, EXTENT_UPTODATE);
+}
+
 static noinline void caching_thread(struct btrfs_work *work)
 {
 	struct btrfs_block_group *block_group;
