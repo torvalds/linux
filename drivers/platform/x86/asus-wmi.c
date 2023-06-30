@@ -645,6 +645,18 @@ static ssize_t dgpu_disable_store(struct device *dev,
 	if (disable > 1)
 		return -EINVAL;
 
+	if (asus->gpu_mux_mode_available) {
+		result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_GPU_MUX);
+		if (result < 0)
+			/* An error here may signal greater failure of GPU handling */
+			return result;
+		if (!result && disable) {
+			err = -ENODEV;
+			pr_warn("Can not disable dGPU when the MUX is in dGPU mode: %d\n", err);
+			return err;
+		}
+	}
+
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_DGPU, disable, &result);
 	if (err) {
 		pr_warn("Failed to set dgpu disable: %d\n", err);
@@ -700,6 +712,18 @@ static ssize_t egpu_enable_store(struct device *dev,
 		err = -ENODEV;
 		pr_warn("Failed to set egpu disable: %d\n", err);
 		return err;
+	}
+
+	if (asus->gpu_mux_mode_available) {
+		result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_GPU_MUX);
+		if (result < 0)
+			/* An error here may signal greater failure of GPU handling */
+			return result;
+		if (!result && enable) {
+			err = -ENODEV;
+			pr_warn("Can not enable eGPU when the MUX is in dGPU mode: %d\n", err);
+			return err;
+		}
 	}
 
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_EGPU, enable, &result);
@@ -763,6 +787,30 @@ static ssize_t gpu_mux_mode_store(struct device *dev,
 
 	if (optimus > 1)
 		return -EINVAL;
+
+	if (asus->dgpu_disable_available) {
+		result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_DGPU);
+		if (result < 0)
+			/* An error here may signal greater failure of GPU handling */
+			return result;
+		if (result && !optimus) {
+			err = -ENODEV;
+			pr_warn("Can not switch MUX to dGPU mode when dGPU is disabled: %d\n", err);
+			return err;
+		}
+	}
+
+	if (asus->egpu_enable_available) {
+		result = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_EGPU);
+		if (result < 0)
+			/* An error here may signal greater failure of GPU handling */
+			return result;
+		if (result && !optimus) {
+			err = -ENODEV;
+			pr_warn("Can not switch MUX to dGPU mode when eGPU is enabled: %d\n", err);
+			return err;
+		}
+	}
 
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_GPU_MUX, optimus, &result);
 	if (err) {
