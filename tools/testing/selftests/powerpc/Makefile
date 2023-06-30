@@ -17,6 +17,7 @@ SUB_DIRS = alignment		\
 	   benchmarks		\
 	   cache_shape		\
 	   copyloops		\
+	   dexcr		\
 	   dscr			\
 	   mm			\
 	   nx-gzip		\

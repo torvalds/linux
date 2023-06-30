@@ -1182,6 +1182,9 @@ static inline void save_sprs(struct thread_struct *t)
 		 */
 		t->tar = mfspr(SPRN_TAR);
 	}
+
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE))
+		t->hashkeyr = mfspr(SPRN_HASHKEYR);
 #endif
 }
 
@@ -1260,6 +1263,10 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	if (cpu_has_feature(CPU_FTR_P9_TIDR) &&
 	    old_thread->tidr != new_thread->tidr)
 		mtspr(SPRN_TIDR, new_thread->tidr);
+
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE) &&
+	    old_thread->hashkeyr != new_thread->hashkeyr)
+		mtspr(SPRN_HASHKEYR, new_thread->hashkeyr);
 #endif
 
 }
@@ -1868,6 +1875,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 	p->thread.tidr = 0;
 #endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE))
+		p->thread.hashkeyr = current->thread.hashkeyr;
+#endif
 	return 0;
 }
 
@@ -1984,6 +1995,12 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfiar = 0;
 	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_DEXCR_NPHIE)) {
+		current->thread.hashkeyr = get_random_long();
+		mtspr(SPRN_HASHKEYR, current->thread.hashkeyr);
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 }
 EXPORT_SYMBOL(start_thread);
 
