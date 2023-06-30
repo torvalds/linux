@@ -3498,6 +3498,8 @@ int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 
 	last = rc->block_group->start + rc->block_group->length;
 	while (1) {
+		bool block_found;
+
 		cond_resched();
 		if (rc->search_start >= last) {
 			ret = 1;
@@ -3548,11 +3550,11 @@ next:
 			goto next;
 		}
 
-		ret = find_first_extent_bit(&rc->processed_blocks,
-					    key.objectid, &start, &end,
-					    EXTENT_DIRTY, NULL);
+		block_found = find_first_extent_bit(&rc->processed_blocks,
+						    key.objectid, &start, &end,
+						    EXTENT_DIRTY, NULL);
 
-		if (ret == 0 && start <= key.objectid) {
+		if (block_found && start <= key.objectid) {
 			btrfs_release_path(path);
 			rc->search_start = end + 1;
 		} else {
