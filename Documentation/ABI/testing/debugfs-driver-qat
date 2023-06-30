@@ -1,0 +1,10 @@
+What:		/sys/kernel/debug/qat_<device>_<BDF>/qat/fw_counters
+Date:		November 2023
+KernelVersion:	6.6
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns the number of requests sent to the FW and the number of responses
+		received from the FW for each Acceleration Engine
+		Reported firmware counters::
+
+			<N>: Number of requests sent from Acceleration Engine N to FW and responses
+			     Acceleration Engine N received from FW
