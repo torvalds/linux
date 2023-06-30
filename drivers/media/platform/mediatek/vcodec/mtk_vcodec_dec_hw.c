@@ -75,8 +75,8 @@ static irqreturn_t mtk_vdec_hw_irq_handler(int irq, void *priv)
 	ctx = mtk_vcodec_get_curr_ctx(dev->main_dev, dev->hw_idx);
 
 	/* check if HW active or not */
-	cg_status = readl(dev->reg_base[VDEC_HW_SYS]);
-	if (cg_status & VDEC_HW_ACTIVE) {
+	cg_status = readl(dev->reg_base[VDEC_HW_SYS] + VDEC_HW_ACTIVE_ADDR);
+	if (cg_status & VDEC_HW_ACTIVE_MASK) {
 		mtk_v4l2_err("vdec active is not 0x0 (0x%08x)",
 			     cg_status);
 		return IRQ_HANDLED;

@@ -12,7 +12,8 @@
 
 #include "mtk_vcodec_drv.h"
 
-#define VDEC_HW_ACTIVE 0x10
+#define VDEC_HW_ACTIVE_ADDR 0x0
+#define VDEC_HW_ACTIVE_MASK BIT(4)
 #define VDEC_IRQ_CFG 0x11
 #define VDEC_IRQ_CLR 0x10
 #define VDEC_IRQ_CFG_REG 0xa4
