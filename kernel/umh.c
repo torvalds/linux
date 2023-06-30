@@ -494,6 +494,7 @@ int call_usermodehelper(const char *path, char **argv, char **envp, int wait)
 }
 EXPORT_SYMBOL(call_usermodehelper);
 
+#if defined(CONFIG_SYSCTL)
 static int proc_cap_handler(struct ctl_table *table, int write,
 			 void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -544,7 +545,6 @@ static int proc_cap_handler(struct ctl_table *table, int write,
 	return 0;
 }
 
-#if defined(CONFIG_SYSCTL)
 static struct ctl_table usermodehelper_table[] = {
 	{
 		.procname	= "bset",
