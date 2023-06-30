@@ -117,6 +117,16 @@ module_param(fnlock_default, bool, 0444);
 /* Mask to determine if setting temperature or percentage */
 #define FAN_CURVE_PWM_MASK		0x04
 
+/* Limits for tunables available on ASUS ROG laptops */
+#define PPT_TOTAL_MIN		5
+#define PPT_TOTAL_MAX		250
+#define PPT_CPU_MIN			5
+#define PPT_CPU_MAX			130
+#define NVIDIA_BOOST_MIN	5
+#define NVIDIA_BOOST_MAX	25
+#define NVIDIA_TEMP_MIN		75
+#define NVIDIA_TEMP_MAX		87
+
 static const char * const ashs_ids[] = { "ATK4001", "ATK4002", NULL };
 
 static int throttle_thermal_policy_write(struct asus_wmi *);
@@ -246,6 +256,15 @@ struct asus_wmi {
 	bool egpu_connect_available;
 	bool dgpu_disable_available;
 	bool gpu_mux_mode_available;
+
+	/* Tunables provided by ASUS for gaming laptops */
+	bool ppt_pl2_sppt_available;
+	bool ppt_pl1_spl_available;
+	bool ppt_apu_sppt_available;
+	bool ppt_plat_sppt_available;
+	bool ppt_fppt_available;
+	bool nv_dyn_boost_available;
+	bool nv_temp_tgt_available;
 
 	bool kbd_rgb_mode_available;
 	bool kbd_rgb_state_available;
@@ -945,6 +964,244 @@ static const struct attribute_group *kbd_rgb_mode_groups[] = {
 	NULL,
 	NULL,
 };
+
+/* Tunable: PPT: Intel=PL1, AMD=SPPT *****************************************/
+static ssize_t ppt_pl2_sppt_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < PPT_TOTAL_MIN || value > PPT_TOTAL_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_PL2_SPPT, value, &result);
+	if (err) {
+		pr_warn("Failed to set ppt_pl2_sppt: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set ppt_pl2_sppt (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "ppt_pl2_sppt");
+
+	return count;
+}
+static DEVICE_ATTR_WO(ppt_pl2_sppt);
+
+/* Tunable: PPT, Intel=PL1, AMD=SPL ******************************************/
+static ssize_t ppt_pl1_spl_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < PPT_TOTAL_MIN || value > PPT_TOTAL_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_PL1_SPL, value, &result);
+	if (err) {
+		pr_warn("Failed to set ppt_pl1_spl: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set ppt_pl1_spl (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "ppt_pl1_spl");
+
+	return count;
+}
+static DEVICE_ATTR_WO(ppt_pl1_spl);
+
+/* Tunable: PPT APU FPPT ******************************************************/
+static ssize_t ppt_fppt_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < PPT_TOTAL_MIN || value > PPT_TOTAL_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_FPPT, value, &result);
+	if (err) {
+		pr_warn("Failed to set ppt_fppt: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set ppt_fppt (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "ppt_fpu_sppt");
+
+	return count;
+}
+static DEVICE_ATTR_WO(ppt_fppt);
+
+/* Tunable: PPT APU SPPT *****************************************************/
+static ssize_t ppt_apu_sppt_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < PPT_CPU_MIN || value > PPT_CPU_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_APU_SPPT, value, &result);
+	if (err) {
+		pr_warn("Failed to set ppt_apu_sppt: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set ppt_apu_sppt (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "ppt_apu_sppt");
+
+	return count;
+}
+static DEVICE_ATTR_WO(ppt_apu_sppt);
+
+/* Tunable: PPT platform SPPT ************************************************/
+static ssize_t ppt_platform_sppt_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < PPT_CPU_MIN || value > PPT_CPU_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_PPT_PLAT_SPPT, value, &result);
+	if (err) {
+		pr_warn("Failed to set ppt_platform_sppt: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set ppt_platform_sppt (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "ppt_platform_sppt");
+
+	return count;
+}
+static DEVICE_ATTR_WO(ppt_platform_sppt);
+
+/* Tunable: NVIDIA dynamic boost *********************************************/
+static ssize_t nv_dynamic_boost_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < NVIDIA_BOOST_MIN || value > NVIDIA_BOOST_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_NV_DYN_BOOST, value, &result);
+	if (err) {
+		pr_warn("Failed to set nv_dynamic_boost: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set nv_dynamic_boost (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "nv_dynamic_boost");
+
+	return count;
+}
+static DEVICE_ATTR_WO(nv_dynamic_boost);
+
+/* Tunable: NVIDIA temperature target ****************************************/
+static ssize_t nv_temp_target_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int result, err;
+	u32 value;
+
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	result = kstrtou32(buf, 10, &value);
+	if (result)
+		return result;
+
+	if (value < NVIDIA_TEMP_MIN || value > NVIDIA_TEMP_MAX)
+		return -EINVAL;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_NV_THERM_TARGET, value, &result);
+	if (err) {
+		pr_warn("Failed to set nv_temp_target: %d\n", err);
+		return err;
+	}
+
+	if (result > 1) {
+		pr_warn("Failed to set nv_temp_target (result): 0x%x\n", result);
+		return -EIO;
+	}
+
+	sysfs_notify(&asus->platform_device->dev.kobj, NULL, "nv_temp_target");
+
+	return count;
+}
+static DEVICE_ATTR_WO(nv_temp_target);
 
 /* Battery ********************************************************************/
 
@@ -3775,6 +4032,13 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_als_enable.attr,
 	&dev_attr_fan_boost_mode.attr,
 	&dev_attr_throttle_thermal_policy.attr,
+	&dev_attr_ppt_pl2_sppt.attr,
+	&dev_attr_ppt_pl1_spl.attr,
+	&dev_attr_ppt_fppt.attr,
+	&dev_attr_ppt_apu_sppt.attr,
+	&dev_attr_ppt_platform_sppt.attr,
+	&dev_attr_nv_dynamic_boost.attr,
+	&dev_attr_nv_temp_target.attr,
 	&dev_attr_panel_od.attr,
 	&dev_attr_mini_led_mode.attr,
 	NULL
@@ -3812,6 +4076,20 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		ok = asus->fan_boost_mode_available;
 	else if (attr == &dev_attr_throttle_thermal_policy.attr)
 		ok = asus->throttle_thermal_policy_available;
+	else if (attr == &dev_attr_ppt_pl2_sppt.attr)
+		ok = asus->ppt_pl2_sppt_available;
+	else if (attr == &dev_attr_ppt_pl1_spl.attr)
+		ok = asus->ppt_pl1_spl_available;
+	else if (attr == &dev_attr_ppt_fppt.attr)
+		ok = asus->ppt_fppt_available;
+	else if (attr == &dev_attr_ppt_apu_sppt.attr)
+		ok = asus->ppt_apu_sppt_available;
+	else if (attr == &dev_attr_ppt_platform_sppt.attr)
+		ok = asus->ppt_plat_sppt_available;
+	else if (attr == &dev_attr_nv_dynamic_boost.attr)
+		ok = asus->nv_dyn_boost_available;
+	else if (attr == &dev_attr_nv_temp_target.attr)
+		ok = asus->nv_temp_tgt_available;
 	else if (attr == &dev_attr_panel_od.attr)
 		ok = asus->panel_overdrive_available;
 	else if (attr == &dev_attr_mini_led_mode.attr)
@@ -4077,6 +4355,13 @@ static int asus_wmi_add(struct platform_device *pdev)
 	asus->gpu_mux_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_GPU_MUX);
 	asus->kbd_rgb_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_TUF_RGB_MODE);
 	asus->kbd_rgb_state_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_TUF_RGB_STATE);
+	asus->ppt_pl2_sppt_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PPT_PL2_SPPT);
+	asus->ppt_pl1_spl_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PPT_PL1_SPL);
+	asus->ppt_fppt_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PPT_FPPT);
+	asus->ppt_apu_sppt_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PPT_APU_SPPT);
+	asus->ppt_plat_sppt_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PPT_PLAT_SPPT);
+	asus->nv_dyn_boost_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_NV_DYN_BOOST);
+	asus->nv_temp_tgt_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_NV_THERM_TARGET);
 	asus->panel_overdrive_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_PANEL_OD);
 	asus->mini_led_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MINI_LED_MODE);
 
