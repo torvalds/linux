@@ -2,7 +2,7 @@
 /*
  *	PCI Class, Vendor and Device IDs
  *
- *	Please keep sorted.
+ *	Please keep sorted by numeric Vendor ID and Device ID.
  *
  *	Do not add new entries to this file unless the definitions
  *	are shared between multiple drivers.
@@ -163,6 +163,8 @@
 
 #define PCI_DEVICE_ID_LOONGSON_HDA      0x7a07
 #define PCI_DEVICE_ID_LOONGSON_HDMI     0x7a37
+
+#define PCI_VENDOR_ID_SOLIDIGM		0x025e
 
 #define PCI_VENDOR_ID_TTTECH		0x0357
 #define PCI_DEVICE_ID_TTTECH_MC322	0x000a
