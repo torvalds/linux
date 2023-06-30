@@ -1144,6 +1144,9 @@ config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
 config IO_MAPPING
 	bool
 
+config MEMFD_CREATE
+	bool "Enable memfd_create() system call" if EXPERT
+
 config SECRETMEM
 	default y
 	bool "Enable memfd_secret() system call" if EXPERT
