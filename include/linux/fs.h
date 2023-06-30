@@ -1770,6 +1770,7 @@ struct dir_context {
 
 struct iov_iter;
 struct io_uring_cmd;
+struct offset_ctx;
 
 struct file_operations {
 	struct module *owner;
@@ -1857,6 +1858,7 @@ struct inode_operations {
 	int (*fileattr_set)(struct mnt_idmap *idmap,
 			    struct dentry *dentry, struct fileattr *fa);
 	int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+	struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 } ____cacheline_aligned;
 
 static inline ssize_t call_read_iter(struct file *file, struct kiocb *kio,
@@ -2970,6 +2972,22 @@ extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
 			loff_t *ppos, const void *from, size_t available);
 extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 		const void __user *from, size_t count);
+
+struct offset_ctx {
+	struct xarray		xa;
+	u32			next_offset;
+};
+
+void simple_offset_init(struct offset_ctx *octx);
+int simple_offset_add(struct offset_ctx *octx, struct dentry *dentry);
+void simple_offset_remove(struct offset_ctx *octx, struct dentry *dentry);
+int simple_offset_rename_exchange(struct inode *old_dir,
+				  struct dentry *old_dentry,
+				  struct inode *new_dir,
+				  struct dentry *new_dentry);
+void simple_offset_destroy(struct offset_ctx *octx);
+
+extern const struct file_operations simple_offset_dir_operations;
 
 extern int __generic_file_fsync(struct file *, loff_t, loff_t, int);
 extern int generic_file_fsync(struct file *, loff_t, loff_t, int);

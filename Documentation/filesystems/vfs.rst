@@ -515,6 +515,7 @@ As of kernel 2.6.22, the following members are defined:
 		int (*fileattr_set)(struct mnt_idmap *idmap,
 				    struct dentry *dentry, struct fileattr *fa);
 		int (*fileattr_get)(struct dentry *dentry, struct fileattr *fa);
+	        struct offset_ctx *(*get_offset_ctx)(struct inode *inode);
 	};
 
 Again, all methods are called without any locks being held, unless
@@ -675,7 +676,10 @@ otherwise noted.
 	called on ioctl(FS_IOC_SETFLAGS) and ioctl(FS_IOC_FSSETXATTR) to
 	change miscellaneous file flags and attributes.  Callers hold
 	i_rwsem exclusive.  If unset, then fall back to f_op->ioctl().
-
+``get_offset_ctx``
+	called to get the offset context for a directory inode. A
+        filesystem must define this operation to use
+        simple_offset_dir_operations.
 
 The Address Space Object
 ========================
