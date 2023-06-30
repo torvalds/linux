@@ -55,19 +55,10 @@ typedef unsigned int __bitwise gfp_t;
 #define ___GFP_SKIP_KASAN_UNPOISON	0
 #define ___GFP_SKIP_KASAN_POISON	0
 #endif
-#ifdef CONFIG_CMA
-#define ___GFP_CMA			0x8000000u
-#else
-#define ___GFP_CMA			0
-#endif
 #ifdef CONFIG_LOCKDEP
-#ifdef CONFIG_CMA
-#define ___GFP_NOLOCKDEP		0x10000000u
+#define ___GFP_NOLOCKDEP	0x8000000u
 #else
-#define ___GFP_NOLOCKDEP		0x8000000u
-#endif
-#else
-#define ___GFP_NOLOCKDEP		0
+#define ___GFP_NOLOCKDEP	0
 #endif
 /* If the above are modified, __GFP_BITS_SHIFT may need updating */
 
@@ -82,7 +73,6 @@ typedef unsigned int __bitwise gfp_t;
 #define __GFP_HIGHMEM	((__force gfp_t)___GFP_HIGHMEM)
 #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
 #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
-#define __GFP_CMA	((__force gfp_t)___GFP_CMA)
 #define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
 
 /**
@@ -266,7 +256,7 @@ typedef unsigned int __bitwise gfp_t;
 #define __GFP_NOLOCKDEP ((__force gfp_t)___GFP_NOLOCKDEP)
 
 /* Room for N __GFP_FOO bits */
-#define __GFP_BITS_SHIFT (27 + IS_ENABLED(CONFIG_LOCKDEP) + IS_ENABLED(CONFIG_CMA))
+#define __GFP_BITS_SHIFT (27 + IS_ENABLED(CONFIG_LOCKDEP))
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
 
 /**
