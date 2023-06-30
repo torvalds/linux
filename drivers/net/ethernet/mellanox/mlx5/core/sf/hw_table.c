@@ -275,15 +275,14 @@ int mlx5_sf_hw_table_init(struct mlx5_core_dev *dev)
 	struct mlx5_sf_hw_table *table;
 	u16 max_ext_fn = 0;
 	u16 ext_base_id = 0;
-	u16 max_fn = 0;
 	u16 base_id;
+	u16 max_fn;
 	int err;
 
 	if (!mlx5_vhca_event_supported(dev))
 		return 0;
 
-	if (mlx5_sf_supported(dev))
-		max_fn = mlx5_sf_max_functions(dev);
+	max_fn = mlx5_sf_max_functions(dev);
 
 	err = mlx5_esw_sf_max_hpf_functions(dev, &max_ext_fn, &ext_base_id);
 	if (err)
