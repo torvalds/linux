@@ -140,14 +140,17 @@ err_resize_state:
 
 /* Must be freed via mem_buf_vmperm_release. */
 struct mem_buf_vmperm *mem_buf_vmperm_alloc_accept(struct sg_table *sgt,
-	gh_memparcel_handle_t memparcel_hdl, int *vmids, int *perms,
-	unsigned int nr_acl_entries)
+	gh_memparcel_handle_t memparcel_hdl)
 {
+	int vmids[1];
+	int perms[1];
 	struct mem_buf_vmperm *vmperm;
 
+	vmids[0] = current_vmid;
+	perms[0] = PERM_READ | PERM_WRITE | PERM_EXEC;
 	vmperm = mem_buf_vmperm_alloc_flags(sgt,
 		MEM_BUF_WRAPPER_FLAG_ACCEPT,
-		vmids, perms, nr_acl_entries);
+		vmids, perms, 1);
 	if (IS_ERR(vmperm))
 		return vmperm;
 

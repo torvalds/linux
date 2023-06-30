@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- *  Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _MEM_BUF_EXPORTER_H
@@ -60,8 +59,8 @@ struct mem_buf_vmperm *mem_buf_vmperm_alloc_staticvm(struct sg_table *sgt, int *
  * A dmabuf in the "MEMACCEPT" state.
  */
 struct mem_buf_vmperm *mem_buf_vmperm_alloc_accept(struct sg_table *sgt,
-	gh_memparcel_handle_t memparcel_hdl, int *vmids, int *perms,
-	unsigned int nr_acl_entries);
+	gh_memparcel_handle_t memparcel_hdl);
+
 
 /*
  * Performs the expected close step based on whether the dmabuf
