@@ -1522,6 +1522,17 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	bch2_dev_free(ca);
 
 	/*
+	 * At this point the device object has been removed in-core, but the
+	 * on-disk journal might still refer to the device index via sb device
+	 * usage entries. Recovery fails if it sees usage information for an
+	 * invalid device. Flush journal pins to push the back of the journal
+	 * past now invalid device index references before we update the
+	 * superblock, but after the device object has been removed so any
+	 * further journal writes elide usage info for the device.
+	 */
+	bch2_journal_flush_all_pins(&c->journal);
+
+	/*
 	 * Free this device's slot in the bch_member array - all pointers to
 	 * this device must be gone:
 	 */
