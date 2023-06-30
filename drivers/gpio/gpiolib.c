@@ -1596,14 +1596,9 @@ static int gpiochip_add_irqchip(struct gpio_chip *gc,
 	}
 
 	if (gc->irq.parent_handler) {
+		void *data = gc->irq.parent_handler_data ?: gc;
+
 		for (i = 0; i < gc->irq.num_parents; i++) {
-			void *data;
-
-			if (gc->irq.per_parent_data)
-				data = gc->irq.parent_handler_data_array[i];
-			else
-				data = gc->irq.parent_handler_data ?: gc;
-
 			/*
 			 * The parent IRQ chip is already using the chip_data
 			 * for this IRQ chip, so our callbacks simply use the
