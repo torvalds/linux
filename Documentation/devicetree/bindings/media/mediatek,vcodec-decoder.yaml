@@ -21,7 +21,22 @@ properties:
       - mediatek,mt8183-vcodec-dec
 
   reg:
-    maxItems: 12
+    minItems: 11
+    maxItems: 11
+
+  reg-names:
+    items:
+      - const: misc
+      - const: ld
+      - const: top
+      - const: cm
+      - const: ad
+      - const: av
+      - const: pp
+      - const: hwd
+      - const: hwq
+      - const: hwb
+      - const: hwg
 
   interrupts:
     maxItems: 1
@@ -60,6 +75,10 @@ properties:
     description:
       Describes point to scp.
 
+  mediatek,vdecsys:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Phandle to the vdecsys syscon node.
+
 required:
   - compatible
   - reg
@@ -67,6 +86,7 @@ required:
   - clocks
   - clock-names
   - iommus
+  - mediatek,vdecsys
 
 allOf:
   - if:
@@ -126,10 +146,9 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/power/mt8173-power.h>
 
-    vcodec_dec: vcodec@16000000 {
+    vcodec_dec: vcodec@16020000 {
       compatible = "mediatek,mt8173-vcodec-dec";
-      reg = <0x16000000 0x100>,   /*VDEC_SYS*/
-          <0x16020000 0x1000>,  /*VDEC_MISC*/
+      reg = <0x16020000 0x1000>,  /*VDEC_MISC*/
           <0x16021000 0x800>,   /*VDEC_LD*/
           <0x16021800 0x800>,   /*VDEC_TOP*/
           <0x16022000 0x1000>,  /*VDEC_CM*/
@@ -150,6 +169,7 @@ examples:
              <&iommu M4U_PORT_HW_VDEC_VLD_EXT>,
              <&iommu M4U_PORT_HW_VDEC_VLD2_EXT>;
       mediatek,vpu = <&vpu>;
+      mediatek,vdecsys = <&vdecsys>;
       power-domains = <&scpsys MT8173_POWER_DOMAIN_VDEC>;
       clocks = <&apmixedsys CLK_APMIXED_VCODECPLL>,
              <&topckgen CLK_TOP_UNIVPLL_D2>,
