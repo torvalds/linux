@@ -241,13 +241,13 @@ static void wa_mcr_add(struct i915_wa_list *wal, i915_mcr_reg_t reg,
 static void
 wa_write_clr_set(struct i915_wa_list *wal, i915_reg_t reg, u32 clear, u32 set)
 {
-	wa_add(wal, reg, clear, set, clear, false);
+	wa_add(wal, reg, clear, set, clear | set, false);
 }
 
 static void
 wa_mcr_write_clr_set(struct i915_wa_list *wal, i915_mcr_reg_t reg, u32 clear, u32 set)
 {
-	wa_mcr_add(wal, reg, clear, set, clear, false);
+	wa_mcr_add(wal, reg, clear, set, clear | set, false);
 }
 
 static void
