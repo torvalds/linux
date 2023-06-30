@@ -386,7 +386,7 @@ Next line
 Tells us that it's the first oops (#1). This is important in the context that
 an oops can lead to other oopses. Usually only the first oops is relevant.
 Furthermore, the oops code (``0002``) provides information about the error type
-(see :file:`arch/x86/include/asm/traps.h`):
+(see :file:`arch/x86/include/asm/trap_pf.h`):
 
 
    * Bit 0 == 0 means no page found, 1 means protection fault
@@ -558,7 +558,7 @@ A more simplistic way to find the code that generated an oops is to use the
    /root/lab-01/modul-oops/oops.c:23
 
 Where ``0x5`` is the value of the program counter (``EIP = c89d4005``) that
-generated the oops, minus the base address of the module (``0xc89c4000``)
+generated the oops, minus the base address of the module (``0xc89d4000``)
 according to :file:`/proc/modules`
 
 minicom
