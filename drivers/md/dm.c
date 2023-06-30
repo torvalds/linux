@@ -487,48 +487,50 @@ u64 dm_start_time_ns_from_clone(struct bio *bio)
 }
 EXPORT_SYMBOL_GPL(dm_start_time_ns_from_clone);
 
-static bool bio_is_flush_with_data(struct bio *bio)
+static inline bool bio_is_flush_with_data(struct bio *bio)
 {
 	return ((bio->bi_opf & REQ_PREFLUSH) && bio->bi_iter.bi_size);
 }
 
-static void dm_io_acct(struct dm_io *io, bool end)
+static inline unsigned int dm_io_sectors(struct dm_io *io, struct bio *bio)
 {
-	struct dm_stats_aux *stats_aux = &io->stats_aux;
-	unsigned long start_time = io->start_time;
-	struct mapped_device *md = io->md;
-	struct bio *bio = io->orig_bio;
-	unsigned int sectors;
-
 	/*
 	 * If REQ_PREFLUSH set, don't account payload, it will be
 	 * submitted (and accounted) after this flush completes.
 	 */
 	if (bio_is_flush_with_data(bio))
-		sectors = 0;
-	else if (likely(!(dm_io_flagged(io, DM_IO_WAS_SPLIT))))
-		sectors = bio_sectors(bio);
-	else
-		sectors = io->sectors;
+		return 0;
+	if (unlikely(dm_io_flagged(io, DM_IO_WAS_SPLIT)))
+		return io->sectors;
+	return bio_sectors(bio);
+}
 
-	if (!end)
-		bdev_start_io_acct(bio->bi_bdev, bio_op(bio), start_time);
-	else
-		bdev_end_io_acct(bio->bi_bdev, bio_op(bio), sectors,
-				 start_time);
+static void dm_io_acct(struct dm_io *io, bool end)
+{
+	struct bio *bio = io->orig_bio;
+
+	if (dm_io_flagged(io, DM_IO_BLK_STAT)) {
+		if (!end)
+			bdev_start_io_acct(bio->bi_bdev, bio_op(bio),
+					   io->start_time);
+		else
+			bdev_end_io_acct(bio->bi_bdev, bio_op(bio),
+					 dm_io_sectors(io, bio),
+					 io->start_time);
+	}
 
 	if (static_branch_unlikely(&stats_enabled) &&
-	    unlikely(dm_stats_used(&md->stats))) {
+	    unlikely(dm_stats_used(&io->md->stats))) {
 		sector_t sector;
 
-		if (likely(!dm_io_flagged(io, DM_IO_WAS_SPLIT)))
-			sector = bio->bi_iter.bi_sector;
-		else
+		if (unlikely(dm_io_flagged(io, DM_IO_WAS_SPLIT)))
 			sector = bio_end_sector(bio) - io->sector_offset;
+		else
+			sector = bio->bi_iter.bi_sector;
 
-		dm_stats_account_io(&md->stats, bio_data_dir(bio),
-				    sector, sectors,
-				    end, start_time, stats_aux);
+		dm_stats_account_io(&io->md->stats, bio_data_dir(bio),
+				    sector, dm_io_sectors(io, bio),
+				    end, io->start_time, &io->stats_aux);
 	}
 }
 
@@ -592,8 +594,11 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
 	io->flags = 0;
+	if (blk_queue_io_stat(md->queue))
+		dm_io_set_flag(io, DM_IO_BLK_STAT);
 
-	if (static_branch_unlikely(&stats_enabled))
+	if (static_branch_unlikely(&stats_enabled) &&
+	    unlikely(dm_stats_used(&md->stats)))
 		dm_stats_record_start(&md->stats, &io->stats_aux);
 
 	return io;
@@ -2348,6 +2353,7 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 		break;
 	case DM_TYPE_BIO_BASED:
 	case DM_TYPE_DAX_BIO_BASED:
+		blk_queue_flag_set(QUEUE_FLAG_IO_STAT, md->queue);
 		break;
 	case DM_TYPE_NONE:
 		WARN_ON_ONCE(true);

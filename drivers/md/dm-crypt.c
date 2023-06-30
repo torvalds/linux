@@ -1661,6 +1661,9 @@ static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone);
  * In order to not degrade performance with excessive locking, we try
  * non-blocking allocations without a mutex first but on failure we fallback
  * to blocking allocations with a mutex.
+ *
+ * In order to reduce allocation overhead, we try to allocate compound pages in
+ * the first pass. If they are not available, we fall back to the mempool.
  */
 static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned int size)
 {
@@ -1668,8 +1671,8 @@ static struct bio *crypt_alloc_buffer(struct dm_crypt_io *io, unsigned int size)
 	struct bio *clone;
 	unsigned int nr_iovecs = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	gfp_t gfp_mask = GFP_NOWAIT | __GFP_HIGHMEM;
-	unsigned int i, len, remaining_size;
-	struct page *page;
+	unsigned int remaining_size;
+	unsigned int order = MAX_ORDER - 1;
 
 retry:
 	if (unlikely(gfp_mask & __GFP_DIRECT_RECLAIM))
@@ -1682,19 +1685,34 @@ retry:
 
 	remaining_size = size;
 
-	for (i = 0; i < nr_iovecs; i++) {
-		page = mempool_alloc(&cc->page_pool, gfp_mask);
-		if (!page) {
+	while (remaining_size) {
+		struct page *pages;
+		unsigned size_to_add;
+		unsigned remaining_order = __fls((remaining_size + PAGE_SIZE - 1) >> PAGE_SHIFT);
+		order = min(order, remaining_order);
+
+		while (order > 0) {
+			pages = alloc_pages(gfp_mask
+				| __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN | __GFP_COMP,
+				order);
+			if (likely(pages != NULL))
+				goto have_pages;
+			order--;
+		}
+
+		pages = mempool_alloc(&cc->page_pool, gfp_mask);
+		if (!pages) {
 			crypt_free_buffer_pages(cc, clone);
 			bio_put(clone);
 			gfp_mask |= __GFP_DIRECT_RECLAIM;
+			order = 0;
 			goto retry;
 		}
 
-		len = (remaining_size > PAGE_SIZE) ? PAGE_SIZE : remaining_size;
-
-		__bio_add_page(clone, page, len, 0);
-		remaining_size -= len;
+have_pages:
+		size_to_add = min((unsigned)PAGE_SIZE << order, remaining_size);
+		__bio_add_page(clone, pages, size_to_add, 0);
+		remaining_size -= size_to_add;
 	}
 
 	/* Allocate space for integrity tags */
@@ -1712,12 +1730,15 @@ retry:
 
 static void crypt_free_buffer_pages(struct crypt_config *cc, struct bio *clone)
 {
-	struct bio_vec *bv;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bv, clone, iter_all) {
-		BUG_ON(!bv->bv_page);
-		mempool_free(bv->bv_page, &cc->page_pool);
+	if (clone->bi_vcnt > 0) { /* bio_for_each_folio_all crashes with an empty bio */
+		bio_for_each_folio_all(fi, clone) {
+			if (folio_test_large(fi.folio))
+				folio_put(fi.folio);
+			else
+				mempool_free(&fi.folio->page, &cc->page_pool);
+		}
 	}
 }
 
@@ -2887,7 +2908,7 @@ static int crypt_ctr_cipher_new(struct dm_target *ti, char *cipher_in, char *key
 		ret = crypt_ctr_auth_cipher(cc, cipher_api);
 		if (ret < 0) {
 			ti->error = "Invalid AEAD cipher spec";
-			return -ENOMEM;
+			return ret;
 		}
 	}
 
