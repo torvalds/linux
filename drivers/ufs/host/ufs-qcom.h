@@ -766,4 +766,15 @@ static inline void ufs_qcom_ice_debug(struct ufs_qcom_host *host)
 #define ufs_qcom_ice_program_key NULL
 #endif /* !CONFIG_SCSI_UFS_CRYPTO */
 
+static inline void ufs_qcom_msi_lock_descs(struct ufs_hba *hba)
+{
+	mutex_lock(&hba->dev->msi.data->mutex);
+}
+
+static inline void ufs_qcom_msi_unlock_descs(struct ufs_hba *hba)
+{
+	hba->dev->msi.data->__iter_idx = MSI_MAX_INDEX;
+	mutex_unlock(&hba->dev->msi.data->mutex);
+}
+
 #endif /* UFS_QCOM_H_ */
