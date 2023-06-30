@@ -72,6 +72,7 @@ module_param(fnlock_default, bool, 0444);
 
 #define ASUS_WMI_FNLOCK_BIOS_DISABLED	BIT(0)
 
+#define ASUS_MID_FAN_DESC		"mid_fan"
 #define ASUS_GPU_FAN_DESC		"gpu_fan"
 #define ASUS_FAN_DESC			"cpu_fan"
 #define ASUS_FAN_MFUN			0x13
@@ -229,8 +230,10 @@ struct asus_wmi {
 
 	enum fan_type fan_type;
 	enum fan_type gpu_fan_type;
+	enum fan_type mid_fan_type;
 	int fan_pwm_mode;
 	int gpu_fan_pwm_mode;
+	int mid_fan_pwm_mode;
 	int agfn_pwm;
 
 	bool fan_boost_mode_available;
@@ -2129,6 +2132,31 @@ static ssize_t fan2_label_show(struct device *dev,
 	return sysfs_emit(buf, "%s\n", ASUS_GPU_FAN_DESC);
 }
 
+/* Middle/Center fan on modern ROG laptops */
+static ssize_t fan3_input_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int value;
+	int ret;
+
+	ret = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_MID_FAN_CTRL, &value);
+	if (ret < 0)
+		return ret;
+
+	value &= 0xffff;
+
+	return sysfs_emit(buf, "%d\n", value * 100);
+}
+
+static ssize_t fan3_label_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	return sysfs_emit(buf, "%s\n", ASUS_MID_FAN_DESC);
+}
+
 static ssize_t pwm2_enable_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -2175,6 +2203,52 @@ static ssize_t pwm2_enable_store(struct device *dev,
 	return count;
 }
 
+static ssize_t pwm3_enable_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%d\n", asus->mid_fan_pwm_mode);
+}
+
+static ssize_t pwm3_enable_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int state;
+	int value;
+	int ret;
+	u32 retval;
+
+	ret = kstrtouint(buf, 10, &state);
+	if (ret)
+		return ret;
+
+	switch (state) { /* standard documented hwmon values */
+	case ASUS_FAN_CTRL_FULLSPEED:
+		value = 1;
+		break;
+	case ASUS_FAN_CTRL_AUTO:
+		value = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = asus_wmi_set_devstate(ASUS_WMI_DEVID_MID_FAN_CTRL,
+				    value, &retval);
+	if (ret)
+		return ret;
+
+	if (retval != 1)
+		return -EIO;
+
+	asus->mid_fan_pwm_mode = state;
+	return count;
+}
+
 /* Fan1 */
 static DEVICE_ATTR_RW(pwm1);
 static DEVICE_ATTR_RW(pwm1_enable);
@@ -2184,6 +2258,10 @@ static DEVICE_ATTR_RO(fan1_label);
 static DEVICE_ATTR_RW(pwm2_enable);
 static DEVICE_ATTR_RO(fan2_input);
 static DEVICE_ATTR_RO(fan2_label);
+/* Fan3 - Middle/center fan */
+static DEVICE_ATTR_RW(pwm3_enable);
+static DEVICE_ATTR_RO(fan3_input);
+static DEVICE_ATTR_RO(fan3_label);
 
 /* Temperature */
 static DEVICE_ATTR(temp1_input, S_IRUGO, asus_hwmon_temp1, NULL);
@@ -2192,10 +2270,13 @@ static struct attribute *hwmon_attributes[] = {
 	&dev_attr_pwm1.attr,
 	&dev_attr_pwm1_enable.attr,
 	&dev_attr_pwm2_enable.attr,
+	&dev_attr_pwm3_enable.attr,
 	&dev_attr_fan1_input.attr,
 	&dev_attr_fan1_label.attr,
 	&dev_attr_fan2_input.attr,
 	&dev_attr_fan2_label.attr,
+	&dev_attr_fan3_input.attr,
+	&dev_attr_fan3_label.attr,
 
 	&dev_attr_temp1_input.attr,
 	NULL
@@ -2220,6 +2301,11 @@ static umode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 	    || attr == &dev_attr_fan2_label.attr
 	    || attr == &dev_attr_pwm2_enable.attr) {
 		if (asus->gpu_fan_type == FAN_TYPE_NONE)
+			return 0;
+	} else if (attr == &dev_attr_fan3_input.attr
+	    || attr == &dev_attr_fan3_label.attr
+	    || attr == &dev_attr_pwm3_enable.attr) {
+		if (asus->mid_fan_type == FAN_TYPE_NONE)
 			return 0;
 	} else if (attr == &dev_attr_temp1_input.attr) {
 		int err = asus_wmi_get_devstate(asus,
@@ -2264,6 +2350,7 @@ static int asus_wmi_hwmon_init(struct asus_wmi *asus)
 static int asus_wmi_fan_init(struct asus_wmi *asus)
 {
 	asus->gpu_fan_type = FAN_TYPE_NONE;
+	asus->mid_fan_type = FAN_TYPE_NONE;
 	asus->fan_type = FAN_TYPE_NONE;
 	asus->agfn_pwm = -1;
 
@@ -2277,6 +2364,10 @@ static int asus_wmi_fan_init(struct asus_wmi *asus)
 	/*  Modern models like G713 also have GPU fan control */
 	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_GPU_FAN_CTRL))
 		asus->gpu_fan_type = FAN_TYPE_SPEC83;
+
+	/* Some models also have a center/middle fan */
+	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MID_FAN_CTRL))
+		asus->mid_fan_type = FAN_TYPE_SPEC83;
 
 	if (asus->fan_type == FAN_TYPE_NONE)
 		return -ENODEV;
