@@ -5,27 +5,56 @@
 #ifndef __ASM_BARRIER_H
 #define __ASM_BARRIER_H
 
-#define __sync()	__asm__ __volatile__("dbar 0" : : : "memory")
+/*
+ * Hint encoding:
+ *
+ * Bit4: ordering or completion (0: completion, 1: ordering)
+ * Bit3: barrier for previous read (0: true, 1: false)
+ * Bit2: barrier for previous write (0: true, 1: false)
+ * Bit1: barrier for succeeding read (0: true, 1: false)
+ * Bit0: barrier for succeeding write (0: true, 1: false)
+ *
+ * Hint 0x700: barrier for "read after read" from the same address
+ */
 
-#define fast_wmb()	__sync()
-#define fast_rmb()	__sync()
-#define fast_mb()	__sync()
-#define fast_iob()	__sync()
-#define wbflush()	__sync()
+#define DBAR(hint) __asm__ __volatile__("dbar %0 " : : "I"(hint) : "memory")
 
-#define wmb()		fast_wmb()
-#define rmb()		fast_rmb()
-#define mb()		fast_mb()
-#define iob()		fast_iob()
+#define crwrw		0b00000
+#define cr_r_		0b00101
+#define c_w_w		0b01010
 
-#define __smp_mb()	__asm__ __volatile__("dbar 0" : : : "memory")
-#define __smp_rmb()	__asm__ __volatile__("dbar 0" : : : "memory")
-#define __smp_wmb()	__asm__ __volatile__("dbar 0" : : : "memory")
+#define orwrw		0b10000
+#define or_r_		0b10101
+#define o_w_w		0b11010
+
+#define orw_w		0b10010
+#define or_rw		0b10100
+
+#define c_sync()	DBAR(crwrw)
+#define c_rsync()	DBAR(cr_r_)
+#define c_wsync()	DBAR(c_w_w)
+
+#define o_sync()	DBAR(orwrw)
+#define o_rsync()	DBAR(or_r_)
+#define o_wsync()	DBAR(o_w_w)
+
+#define ldacq_mb()	DBAR(or_rw)
+#define strel_mb()	DBAR(orw_w)
+
+#define mb()		c_sync()
+#define rmb()		c_rsync()
+#define wmb()		c_wsync()
+#define iob()		c_sync()
+#define wbflush()	c_sync()
+
+#define __smp_mb()	o_sync()
+#define __smp_rmb()	o_rsync()
+#define __smp_wmb()	o_wsync()
 
 #ifdef CONFIG_SMP
-#define __WEAK_LLSC_MB		"	dbar 0  \n"
+#define __WEAK_LLSC_MB		"	dbar 0x700	\n"
 #else
-#define __WEAK_LLSC_MB		"		\n"
+#define __WEAK_LLSC_MB		"			\n"
 #endif
 
 #define __smp_mb__before_atomic()	barrier()
@@ -59,68 +88,19 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 	return mask;
 }
 
-#define __smp_load_acquire(p)							\
-({										\
-	union { typeof(*p) __val; char __c[1]; } __u;				\
-	unsigned long __tmp = 0;							\
-	compiletime_assert_atomic_type(*p);					\
-	switch (sizeof(*p)) {							\
-	case 1:									\
-		*(__u8 *)__u.__c = *(volatile __u8 *)p;				\
-		__smp_mb();							\
-		break;								\
-	case 2:									\
-		*(__u16 *)__u.__c = *(volatile __u16 *)p;			\
-		__smp_mb();							\
-		break;								\
-	case 4:									\
-		__asm__ __volatile__(						\
-		"amor_db.w %[val], %[tmp], %[mem]	\n"				\
-		: [val] "=&r" (*(__u32 *)__u.__c)				\
-		: [mem] "ZB" (*(u32 *) p), [tmp] "r" (__tmp)			\
-		: "memory");							\
-		break;								\
-	case 8:									\
-		__asm__ __volatile__(						\
-		"amor_db.d %[val], %[tmp], %[mem]	\n"				\
-		: [val] "=&r" (*(__u64 *)__u.__c)				\
-		: [mem] "ZB" (*(u64 *) p), [tmp] "r" (__tmp)			\
-		: "memory");							\
-		break;								\
-	}									\
-	(typeof(*p))__u.__val;								\
+#define __smp_load_acquire(p)				\
+({							\
+	typeof(*p) ___p1 = READ_ONCE(*p);		\
+	compiletime_assert_atomic_type(*p);		\
+	ldacq_mb();					\
+	___p1;						\
 })
 
-#define __smp_store_release(p, v)						\
-do {										\
-	union { typeof(*p) __val; char __c[1]; } __u =				\
-		{ .__val = (__force typeof(*p)) (v) };				\
-	unsigned long __tmp;							\
-	compiletime_assert_atomic_type(*p);					\
-	switch (sizeof(*p)) {							\
-	case 1:									\
-		__smp_mb();							\
-		*(volatile __u8 *)p = *(__u8 *)__u.__c;				\
-		break;								\
-	case 2:									\
-		__smp_mb();							\
-		*(volatile __u16 *)p = *(__u16 *)__u.__c;			\
-		break;								\
-	case 4:									\
-		__asm__ __volatile__(						\
-		"amswap_db.w %[tmp], %[val], %[mem]	\n"			\
-		: [mem] "+ZB" (*(u32 *)p), [tmp] "=&r" (__tmp)			\
-		: [val] "r" (*(__u32 *)__u.__c)					\
-		: );								\
-		break;								\
-	case 8:									\
-		__asm__ __volatile__(						\
-		"amswap_db.d %[tmp], %[val], %[mem]	\n"			\
-		: [mem] "+ZB" (*(u64 *)p), [tmp] "=&r" (__tmp)			\
-		: [val] "r" (*(__u64 *)__u.__c)					\
-		: );								\
-		break;								\
-	}									\
+#define __smp_store_release(p, v)			\
+do {							\
+	compiletime_assert_atomic_type(*p);		\
+	strel_mb();					\
+	WRITE_ONCE(*p, v);				\
 } while (0)
 
 #define __smp_store_mb(p, v)							\
