@@ -289,7 +289,7 @@ retry:
 	mmap_read_lock(mm);
 	vma = find_vma_prev(mm, address, &prev_vma);
 	if (!vma || address < vma->vm_start) {
-		if (!prev || !(prev->vm_flags & VM_GROWSUP))
+		if (!prev_vma || !(prev_vma->vm_flags & VM_GROWSUP))
 			goto bad_area;
 		vma = expand_stack(mm, address);
 		if (!vma)
