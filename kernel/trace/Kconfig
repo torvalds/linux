@@ -665,6 +665,32 @@ config BLK_DEV_IO_TRACE
 
 	  If unsure, say N.
 
+config FPROBE_EVENTS
+	depends on FPROBE
+	depends on HAVE_REGS_AND_STACK_ACCESS_API
+	bool "Enable fprobe-based dynamic events"
+	select TRACING
+	select PROBE_EVENTS
+	select DYNAMIC_EVENTS
+	default y
+	help
+	  This allows user to add tracing events on the function entry and
+	  exit via ftrace interface. The syntax is same as the kprobe events
+	  and the kprobe events on function entry and exit will be
+	  transparently converted to this fprobe events.
+
+config PROBE_EVENTS_BTF_ARGS
+	depends on HAVE_FUNCTION_ARG_ACCESS_API
+	depends on FPROBE_EVENTS || KPROBE_EVENTS
+	depends on DEBUG_INFO_BTF && BPF_SYSCALL
+	bool "Support BTF function arguments for probe events"
+	default y
+	help
+	  The user can specify the arguments of the probe event using the names
+	  of the arguments of the probed function, when the probe location is a
+	  kernel function entry or a tracepoint.
+	  This is available only if BTF (BPF Type Format) support is enabled.
+
 config KPROBE_EVENTS
 	depends on KPROBES
 	depends on HAVE_REGS_AND_STACK_ACCESS_API

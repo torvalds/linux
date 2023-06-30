@@ -148,6 +148,17 @@ struct kretprobe_trace_entry_head {
 	unsigned long		ret_ip;
 };
 
+struct fentry_trace_entry_head {
+	struct trace_entry	ent;
+	unsigned long		ip;
+};
+
+struct fexit_trace_entry_head {
+	struct trace_entry	ent;
+	unsigned long		func;
+	unsigned long		ret_ip;
+};
+
 #define TRACE_BUF_SIZE		1024
 
 struct trace_array;
