@@ -2124,10 +2124,11 @@ static int wcd938x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 	return wcd938x_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
 }
 
-static inline void wcd938x_mbhc_get_result_params(struct wcd938x_priv *wcd938x,
+static void wcd938x_mbhc_get_result_params(struct snd_soc_component *component,
 						s16 *d1_a, u16 noff,
 						int32_t *zdet)
 {
+	struct wcd938x_priv *wcd938x = snd_soc_component_get_drvdata(component);
 	int i;
 	int val, val1;
 	s16 c1;
@@ -2154,8 +2155,8 @@ static inline void wcd938x_mbhc_get_result_params(struct wcd938x_priv *wcd938x,
 		usleep_range(5000, 5050);
 
 	if (!c1 || !x1) {
-		pr_err("%s: Impedance detect ramp error, c1=%d, x1=0x%x\n",
-			__func__, c1, x1);
+		dev_err(component->dev, "Impedance detect ramp error, c1=%d, x1=0x%x\n",
+			c1, x1);
 		goto ramp_down;
 	}
 	d1 = d1_a[c1];
@@ -2165,7 +2166,7 @@ static inline void wcd938x_mbhc_get_result_params(struct wcd938x_priv *wcd938x,
 	else if (x1 < minCode_param[noff])
 		*zdet = WCD938X_ZDET_FLOATING_IMPEDANCE;
 
-	pr_err("%s: d1=%d, c1=%d, x1=0x%x, z_val=%d(milliOhm)\n",
+	dev_dbg(component->dev, "%s: d1=%d, c1=%d, x1=0x%x, z_val=%d (milliohm)\n",
 		__func__, d1, c1, x1, *zdet);
 ramp_down:
 	i = 0;
@@ -2210,7 +2211,7 @@ static void wcd938x_mbhc_zdet_ramp(struct snd_soc_component *component,
 			   WCD938X_ANA_MBHC_ZDET, 0x80, 0x80);
 	dev_dbg(component->dev, "%s: ramp for HPH_L, noff = %d\n",
 		__func__, zdet_param->noff);
-	wcd938x_mbhc_get_result_params(wcd938x, d1_a, zdet_param->noff, &zdet);
+	wcd938x_mbhc_get_result_params(component, d1_a, zdet_param->noff, &zdet);
 	regmap_update_bits(wcd938x->regmap,
 			   WCD938X_ANA_MBHC_ZDET, 0x80, 0x00);
 
@@ -2224,15 +2225,15 @@ z_right:
 			   WCD938X_ANA_MBHC_ZDET, 0x40, 0x40);
 	dev_dbg(component->dev, "%s: ramp for HPH_R, noff = %d\n",
 		__func__, zdet_param->noff);
-	wcd938x_mbhc_get_result_params(wcd938x, d1_a, zdet_param->noff, &zdet);
+	wcd938x_mbhc_get_result_params(component, d1_a, zdet_param->noff, &zdet);
 	regmap_update_bits(wcd938x->regmap,
 			   WCD938X_ANA_MBHC_ZDET, 0x40, 0x00);
 
 	*zr = zdet;
 }
 
-static inline void wcd938x_wcd_mbhc_qfuse_cal(struct snd_soc_component *component,
-					      int32_t *z_val, int flag_l_r)
+static void wcd938x_wcd_mbhc_qfuse_cal(struct snd_soc_component *component,
+					int32_t *z_val, int flag_l_r)
 {
 	s16 q1;
 	int q1_cal;

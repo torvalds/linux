@@ -2642,7 +2642,7 @@ static int wcd934x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 	return rc;
 }
 
-static inline void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
+static void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
 						s16 *d1_a, u16 noff,
 						int32_t *zdet)
 {
@@ -2683,7 +2683,7 @@ static inline void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
 	else if (x1 < minCode_param[noff])
 		*zdet = WCD934X_ZDET_FLOATING_IMPEDANCE;
 
-	dev_info(wcd934x->dev, "%s: d1=%d, c1=%d, x1=0x%x, z_val=%d(milliOhm)\n",
+	dev_dbg(wcd934x->dev, "%s: d1=%d, c1=%d, x1=0x%x, z_val=%di (milliohm)\n",
 		__func__, d1, c1, x1, *zdet);
 ramp_down:
 	i = 0;
@@ -2740,8 +2740,8 @@ z_right:
 	*zr = zdet;
 }
 
-static inline void wcd934x_wcd_mbhc_qfuse_cal(struct snd_soc_component *component,
-					      int32_t *z_val, int flag_l_r)
+static void wcd934x_wcd_mbhc_qfuse_cal(struct snd_soc_component *component,
+					int32_t *z_val, int flag_l_r)
 {
 	s16 q1;
 	int q1_cal;
