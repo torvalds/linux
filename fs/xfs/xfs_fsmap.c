@@ -802,6 +802,19 @@ xfs_getfsmap_check_keys(
 	struct xfs_fsmap		*low_key,
 	struct xfs_fsmap		*high_key)
 {
+	if (low_key->fmr_flags & (FMR_OF_SPECIAL_OWNER | FMR_OF_EXTENT_MAP)) {
+		if (low_key->fmr_offset)
+			return false;
+	}
+	if (high_key->fmr_flags != -1U &&
+	    (high_key->fmr_flags & (FMR_OF_SPECIAL_OWNER |
+				    FMR_OF_EXTENT_MAP))) {
+		if (high_key->fmr_offset && high_key->fmr_offset != -1ULL)
+			return false;
+	}
+	if (high_key->fmr_length && high_key->fmr_length != -1ULL)
+		return false;
+
 	if (low_key->fmr_device > high_key->fmr_device)
 		return false;
 	if (low_key->fmr_device < high_key->fmr_device)
@@ -845,15 +858,15 @@ xfs_getfsmap_check_keys(
  * ----------------
  * There are multiple levels of keys and counters at work here:
  * xfs_fsmap_head.fmh_keys	-- low and high fsmap keys passed in;
- * 				   these reflect fs-wide sector addrs.
+ *				   these reflect fs-wide sector addrs.
  * dkeys			-- fmh_keys used to query each device;
- * 				   these are fmh_keys but w/ the low key
- * 				   bumped up by fmr_length.
+ *				   these are fmh_keys but w/ the low key
+ *				   bumped up by fmr_length.
  * xfs_getfsmap_info.next_daddr	-- next disk addr we expect to see; this
  *				   is how we detect gaps in the fsmap
 				   records and report them.
  * xfs_getfsmap_info.low/high	-- per-AG low/high keys computed from
- * 				   dkeys; used to query the metadata.
+ *				   dkeys; used to query the metadata.
  */
 int
 xfs_getfsmap(
@@ -873,6 +886,8 @@ xfs_getfsmap(
 		return -EINVAL;
 	if (!xfs_getfsmap_is_valid_device(mp, &head->fmh_keys[0]) ||
 	    !xfs_getfsmap_is_valid_device(mp, &head->fmh_keys[1]))
+		return -EINVAL;
+	if (!xfs_getfsmap_check_keys(&head->fmh_keys[0], &head->fmh_keys[1]))
 		return -EINVAL;
 
 	use_rmap = xfs_has_rmapbt(mp) &&
@@ -919,14 +934,7 @@ xfs_getfsmap(
 	 * other mapping for the same physical block range.
 	 */
 	dkeys[0] = head->fmh_keys[0];
-	if (dkeys[0].fmr_flags & (FMR_OF_SPECIAL_OWNER | FMR_OF_EXTENT_MAP)) {
-		if (dkeys[0].fmr_offset)
-			return -EINVAL;
-	}
 	memset(&dkeys[1], 0xFF, sizeof(struct xfs_fsmap));
-
-	if (!xfs_getfsmap_check_keys(dkeys, &head->fmh_keys[1]))
-		return -EINVAL;
 
 	info.next_daddr = head->fmh_keys[0].fmr_physical +
 			  head->fmh_keys[0].fmr_length;
