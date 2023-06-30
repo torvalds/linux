@@ -2683,7 +2683,7 @@ static inline void wcd934x_mbhc_get_result_params(struct wcd934x_codec *wcd934x,
 	else if (x1 < minCode_param[noff])
 		*zdet = WCD934X_ZDET_FLOATING_IMPEDANCE;
 
-	dev_info(wcd934x->dev, "%s: d1=%d, c1=%d, x1=0x%x, z_val=%d(milliOhm)\n",
+	dev_dbg(wcd934x->dev, "%s: d1=%d, c1=%d, x1=0x%x, z_val=%di (milliohm)\n",
 		__func__, d1, c1, x1, *zdet);
 ramp_down:
 	i = 0;
