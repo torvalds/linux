@@ -3085,6 +3085,10 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 
 	snd_soc_component_init_regmap(component, wcd938x->regmap);
 
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
+		return ret;
+
 	wcd938x->variant = snd_soc_component_read_field(component,
 						 WCD938X_DIGITAL_EFUSE_REG_0,
 						 WCD938X_ID_MASK);
@@ -3097,6 +3101,8 @@ static int wcd938x_soc_codec_probe(struct snd_soc_component *component)
 		regmap_write(wcd938x->regmap,
 			     (WCD938X_DIGITAL_INTR_LEVEL_0 + i), 0);
 	}
+
+	pm_runtime_put(dev);
 
 	wcd938x->hphr_pdm_wd_int = regmap_irq_get_virq(wcd938x->irq_chip,
 						       WCD938X_IRQ_HPHR_PDM_WD_INT);
