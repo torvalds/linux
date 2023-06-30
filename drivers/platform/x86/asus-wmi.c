@@ -693,6 +693,15 @@ static ssize_t egpu_enable_store(struct device *dev,
 	if (enable > 1)
 		return -EINVAL;
 
+	err = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_EGPU_CONNECTED);
+	if (err < 0)
+		return err;
+	if (err < 1) {
+		err = -ENODEV;
+		pr_warn("Failed to set egpu disable: %d\n", err);
+		return err;
+	}
+
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_EGPU, enable, &result);
 	if (err) {
 		pr_warn("Failed to set egpu disable: %d\n", err);
