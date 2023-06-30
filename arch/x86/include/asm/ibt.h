@@ -29,7 +29,7 @@
 #define ASM_ENDBR	"endbr32\n\t"
 #endif
 
-#define __noendbr	__attribute__((nocf_check))
+#define __noendbr
 
 /*
  * Create a dummy function pointer reference to prevent objtool from marking
