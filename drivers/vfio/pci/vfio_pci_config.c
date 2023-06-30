@@ -1566,8 +1566,8 @@ static int vfio_cap_init(struct vfio_pci_core_device *vdev)
 		}
 
 		if (!len) {
-			pci_info(pdev, "%s: hiding cap %#x@%#x\n", __func__,
-				 cap, pos);
+			pci_dbg(pdev, "%s: hiding cap %#x@%#x\n", __func__,
+				cap, pos);
 			*prev = next;
 			pos = next;
 			continue;
@@ -1643,8 +1643,8 @@ static int vfio_ecap_init(struct vfio_pci_core_device *vdev)
 		}
 
 		if (!len) {
-			pci_info(pdev, "%s: hiding ecap %#x@%#x\n",
-				 __func__, ecap, epos);
+			pci_dbg(pdev, "%s: hiding ecap %#x@%#x\n",
+				__func__, ecap, epos);
 
 			/* If not the first in the chain, we can skip over it */
 			if (prev) {
