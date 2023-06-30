@@ -1122,7 +1122,7 @@ int ata_scsi_dev_config(struct scsi_device *sdev, struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_AN)
 		set_bit(SDEV_EVT_MEDIA_CHANGE, sdev->supported_events);
 
-	if (dev->flags & ATA_DFLAG_NCQ)
+	if (ata_ncq_supported(dev))
 		depth = min(sdev->host->can_queue, ata_id_queue_depth(dev->id));
 	depth = min(ATA_MAX_QUEUE, depth);
 	scsi_change_queue_depth(sdev, depth);

@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
-	backpack.c (c) 2001 Micro Solutions Inc.
-		Released under the terms of the GNU General Public license
-
-	backpack.c is a low-level protocol driver for the Micro Solutions
-		"BACKPACK" parallel port IDE adapter
-		(Works on Series 6 drives)
-
-	Written by: Ken Hahn     (linux-dev@micro-solutions.com)
-	            Clive Turvey (linux-dev@micro-solutions.com)
-
-*/
+ * (c) 2001 Micro Solutions Inc.
+ *
+ * backpack.c is a low-level protocol driver for the Micro Solutions
+ * "BACKPACK" parallel port IDE adapter (works on Series 6 drives).
+ *
+ * Written by: Ken Hahn (linux-dev@micro-solutions.com)
+ *             Clive Turvey (linux-dev@micro-solutions.com)
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -326,11 +324,14 @@ static int bpck6_open(struct pi_adapter *pi)
 	if (j != k)
 		goto fail;
 
-	if (i & 4)	// EPP
+	if (i & 4) {
+		/* EPP */
 		parport_frob_control(pi->pardev->port,
 			PARPORT_CONTROL_SELECT | PARPORT_CONTROL_INIT, 0);
-	else				// PPC/ECP
+	} else {
+		/* PPC/ECP */
 		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT, 0);
+	}
 
 	pi->private = 0;
 
@@ -347,17 +348,20 @@ fail:
 	parport_write_control(pi->pardev->port, pi->saved_r2);
 	parport_write_data(pi->pardev->port, pi->saved_r0);
 
-	return 0; // FAIL
+	return 0;
 }
 
 static void bpck6_deselect(struct pi_adapter *pi)
 {
-	if (mode_map[pi->mode] & 4)	// EPP
+	if (mode_map[pi->mode] & 4) {
+		/* EPP */
 		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_INIT,
-							PARPORT_CONTROL_INIT);
-	else								// PPC/ECP
+				     PARPORT_CONTROL_INIT);
+	} else {
+		/* PPC/ECP */
 		parport_frob_control(pi->pardev->port, PARPORT_CONTROL_SELECT,
-							PARPORT_CONTROL_SELECT);
+				     PARPORT_CONTROL_SELECT);
+	}
 
 	parport_write_data(pi->pardev->port, pi->saved_r0);
 	parport_write_control(pi->pardev->port,
@@ -386,7 +390,8 @@ static void bpck6_disconnect(struct pi_adapter *pi)
 	bpck6_deselect(pi);
 }
 
-static int bpck6_test_port(struct pi_adapter *pi)   /* check for 8-bit port */
+/* check for 8-bit port */
+static int bpck6_test_port(struct pi_adapter *pi)
 {
 	dev_dbg(&pi->dev, "PARPORT indicates modes=%x for lp=0x%lx\n",
 		pi->pardev->port->modes, pi->pardev->port->base);
@@ -413,28 +418,26 @@ static int bpck6_probe_unit(struct pi_adapter *pi)
 
 	dev_dbg(&pi->dev, "ppc_open returned %2x\n", out);
 
-  	if(out)
- 	{
+	if (out) {
 		bpck6_deselect(pi);
 		dev_dbg(&pi->dev, "leaving probe\n");
 		pi->mode = saved_mode;
-               return(1);
+		return 1;
 	}
-  	else
-  	{
-		dev_dbg(&pi->dev, "Failed open\n");
-		pi->mode = saved_mode;
-    		return(0);
-  	}
+
+	dev_dbg(&pi->dev, "Failed open\n");
+	pi->mode = saved_mode;
+
+	return 0;
 }
 
 static void bpck6_log_adapter(struct pi_adapter *pi)
 {
-	char *mode_string[5]=
-		{"4-bit","8-bit","EPP-8","EPP-16","EPP-32"};
+	char *mode_string[5] = { "4-bit", "8-bit", "EPP-8", "EPP-16", "EPP-32" };
 
-	dev_info(&pi->dev, "Micro Solutions BACKPACK Drive unit %d at 0x%x, mode:%d (%s), delay %d\n",
-		pi->unit, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
+	dev_info(&pi->dev,
+		 "Micro Solutions BACKPACK Drive unit %d at 0x%x, mode:%d (%s), delay %d\n",
+		 pi->unit, pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol bpck6 = {

@@ -1144,8 +1144,8 @@ extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 				       int queue_depth);
-extern int ata_change_queue_depth(struct ata_port *ap, struct ata_device *dev,
-				  struct scsi_device *sdev, int queue_depth);
+extern int ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
+				  int queue_depth);
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap);
@@ -1276,7 +1276,7 @@ extern int ata_pci_device_resume(struct pci_dev *pdev);
 
 struct platform_device;
 
-extern int ata_platform_remove_one(struct platform_device *pdev);
+extern void ata_platform_remove_one(struct platform_device *pdev);
 
 /*
  * ACPI - drivers/ata/libata-acpi.c
