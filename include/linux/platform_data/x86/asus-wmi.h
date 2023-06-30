@@ -95,6 +95,9 @@
 /* Keyboard dock */
 #define ASUS_WMI_DEVID_KBD_DOCK		0x00120063
 
+/* Charging mode - 1=Barrel, 2=USB */
+#define ASUS_WMI_DEVID_CHARGE_MODE	0x0012006C
+
 /* dgpu on/off */
 #define ASUS_WMI_DEVID_EGPU		0x00090019
 

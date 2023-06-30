@@ -98,3 +98,13 @@ Description:
 		Enable an LCD response-time boost to reduce or remove ghosting:
 			* 0 - Disable,
 			* 1 - Enable
+
+What:		/sys/devices/platform/<platform>/charge_mode
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Get the current charging mode being used:
+			* 1 - Barrel connected charger,
+			* 2 - USB-C charging
+			* 3 - Both connected, barrel used for charging

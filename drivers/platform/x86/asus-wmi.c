@@ -237,6 +237,7 @@ struct asus_wmi {
 	u8 fan_boost_mode_mask;
 	u8 fan_boost_mode;
 
+	bool charge_mode_available;
 	bool egpu_enable_available;
 	bool dgpu_disable_available;
 	bool gpu_mux_mode_available;
@@ -585,6 +586,22 @@ static void asus_wmi_tablet_mode_get_state(struct asus_wmi *asus)
 	if (result >= 0)
 		asus_wmi_tablet_sw_report(asus, result);
 }
+
+/* Charging mode, 1=Barrel, 2=USB ******************************************/
+static ssize_t charge_mode_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct asus_wmi *asus = dev_get_drvdata(dev);
+	int result, value;
+
+	result = asus_wmi_get_devstate(asus, ASUS_WMI_DEVID_CHARGE_MODE, &value);
+	if (result < 0)
+		return result;
+
+	return sysfs_emit(buf, "%d\n", value & 0xff);
+}
+
+static DEVICE_ATTR_RO(charge_mode);
 
 /* dGPU ********************************************************************/
 static ssize_t dgpu_disable_show(struct device *dev,
@@ -3462,6 +3479,7 @@ static struct attribute *platform_attributes[] = {
 	&dev_attr_camera.attr,
 	&dev_attr_cardr.attr,
 	&dev_attr_touchpad.attr,
+	&dev_attr_charge_mode.attr,
 	&dev_attr_egpu_enable.attr,
 	&dev_attr_dgpu_disable.attr,
 	&dev_attr_gpu_mux_mode.attr,
@@ -3491,6 +3509,8 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 		devid = ASUS_WMI_DEVID_LID_RESUME;
 	else if (attr == &dev_attr_als_enable.attr)
 		devid = ASUS_WMI_DEVID_ALS_ENABLE;
+	else if (attr == &dev_attr_charge_mode.attr)
+		ok = asus->charge_mode_available;
 	else if (attr == &dev_attr_egpu_enable.attr)
 		ok = asus->egpu_enable_available;
 	else if (attr == &dev_attr_dgpu_disable.attr)
@@ -3757,6 +3777,7 @@ static int asus_wmi_add(struct platform_device *pdev)
 	if (err)
 		goto fail_platform;
 
+	asus->charge_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_CHARGE_MODE);
 	asus->egpu_enable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_EGPU);
 	asus->dgpu_disable_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_DGPU);
 	asus->gpu_mux_mode_available = asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_GPU_MUX);
