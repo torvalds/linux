@@ -683,11 +683,8 @@ static void dg2_ctx_gt_tuning_init(struct intel_engine_cs *engine,
 	wa_mcr_masked_en(wal, CHICKEN_RASTER_2, TBIMR_FAST_CLIP);
 	wa_mcr_write_clr_set(wal, XEHP_L3SQCREG5, L3_PWM_TIMER_INIT_VAL_MASK,
 			     REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f));
-	wa_mcr_add(wal,
-		   XEHP_FF_MODE2,
-		   FF_MODE2_TDS_TIMER_MASK,
-		   FF_MODE2_TDS_TIMER_128,
-		   0, false);
+	wa_mcr_write_clr_set(wal, XEHP_FF_MODE2, FF_MODE2_TDS_TIMER_MASK,
+			     FF_MODE2_TDS_TIMER_128);
 }
 
 static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
