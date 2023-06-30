@@ -3037,7 +3037,7 @@ static int toshiba_acpi_hwmon_read(struct device *dev, enum hwmon_sensor_types t
 	return -EOPNOTSUPP;
 }
 
-static const struct hwmon_channel_info *toshiba_acpi_hwmon_info[] = {
+static const struct hwmon_channel_info * const toshiba_acpi_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT),
 	NULL
 };

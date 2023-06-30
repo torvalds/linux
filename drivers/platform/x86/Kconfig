@@ -43,8 +43,8 @@ config WMI_BMOF
 	default ACPI_WMI
 	help
 	  Say Y here if you want to be able to read a firmware-embedded
-	  WMI Binary MOF data. Using this requires userspace tools and may be
-	  rather tedious.
+	  WMI Binary MOF (Managed Object Format) data. Using this requires
+	  userspace tools and may be rather tedious.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called wmi-bmof.
@@ -121,10 +121,11 @@ config GIGABYTE_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called gigabyte-wmi.
 
-config YOGABOOK_WMI
-	tristate "Lenovo Yoga Book tablet WMI key driver"
+config YOGABOOK
+	tristate "Lenovo Yoga Book tablet key driver"
 	depends on ACPI_WMI
 	depends on INPUT
+	depends on I2C
 	select LEDS_CLASS
 	select NEW_LEDS
 	help
@@ -132,7 +133,7 @@ config YOGABOOK_WMI
 	  control on the Lenovo Yoga Book tablets.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called lenovo-yogabook-wmi.
+	  be called lenovo-yogabook.
 
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
