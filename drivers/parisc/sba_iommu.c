@@ -95,8 +95,6 @@
 #define DBG_RES(x...)
 #endif
 
-#define SBA_INLINE	__inline__
-
 #define DEFAULT_DMA_HINT_REG	0
 
 struct sba_device *sba_list;
@@ -332,13 +330,14 @@ static unsigned long ptr_to_pide(struct ioc *ioc, unsigned long *res_ptr,
 /**
  * sba_search_bitmap - find free space in IO PDIR resource bitmap
  * @ioc: IO MMU structure which owns the pdir we are interested in.
+ * @dev: device to query the bitmap for
  * @bits_wanted: number of entries we need.
  *
  * Find consecutive free bits in resource bitmap.
  * Each bit represents one entry in the IO Pdir.
  * Cool perf optimization: search for log2(size) bits at a time.
  */
-static SBA_INLINE unsigned long
+static unsigned long
 sba_search_bitmap(struct ioc *ioc, struct device *dev,
 		  unsigned long bits_wanted)
 {
@@ -431,6 +430,7 @@ sba_search_bitmap(struct ioc *ioc, struct device *dev,
 /**
  * sba_alloc_range - find free bits and mark them in IO PDIR resource bitmap
  * @ioc: IO MMU structure which owns the pdir we are interested in.
+ * @dev: device for which pages should be alloced
  * @size: number of bytes to create a mapping for
  *
  * Given a size, find consecutive unmarked and then mark those bits in the
@@ -490,7 +490,7 @@ sba_alloc_range(struct ioc *ioc, struct device *dev, size_t size)
  *
  * clear bits in the ioc's resource map
  */
-static SBA_INLINE void
+static void
 sba_free_range(struct ioc *ioc, dma_addr_t iova, size_t size)
 {
 	unsigned long iovp = SBA_IOVP(ioc, iova);
@@ -568,7 +568,7 @@ typedef unsigned long space_t;
  * IOMMU uses little endian for the pdir.
  */
 
-static void SBA_INLINE
+static void
 sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 		  unsigned long hint)
 {
@@ -609,7 +609,7 @@ sba_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
  * must be a power of 2. The "Cool perf optimization" in the
  * allocation routine helps keep that true.
  */
-static SBA_INLINE void
+static void
 sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
 {
 	u32 iovp = (u32) SBA_IOVP(ioc,iova);
@@ -793,6 +793,7 @@ sba_map_page(struct device *dev, struct page *page, unsigned long offset,
  * @iova:  IOVA of driver buffer previously mapped.
  * @size:  number of bytes mapped in driver buffer.
  * @direction:  R/W or both.
+ * @attrs: attributes
  *
  * See Documentation/core-api/dma-api-howto.rst
  */
@@ -872,6 +873,8 @@ sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
  * @hwdev: instance of PCI owned by the driver that's asking.
  * @size:  number of bytes mapped in driver buffer.
  * @dma_handle:  IOVA of new buffer.
+ * @gfp: allocation flags
+ * @attrs: attributes
  *
  * See Documentation/core-api/dma-api-howto.rst
  */
@@ -902,7 +905,8 @@ static void *sba_alloc(struct device *hwdev, size_t size, dma_addr_t *dma_handle
  * @hwdev: instance of PCI owned by the driver that's asking.
  * @size:  number of bytes mapped in driver buffer.
  * @vaddr:  virtual address IOVA of "consistent" buffer.
- * @dma_handler:  IO virtual address of "consistent" buffer.
+ * @dma_handle:  IO virtual address of "consistent" buffer.
+ * @attrs: attributes
  *
  * See Documentation/core-api/dma-api-howto.rst
  */
@@ -938,6 +942,7 @@ int dump_run_sg = 0;
  * @sglist:  array of buffer/length pairs
  * @nents:  number of entries in list
  * @direction:  R/W or both.
+ * @attrs: attributes
  *
  * See Documentation/core-api/dma-api-howto.rst
  */
@@ -946,7 +951,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	   enum dma_data_direction direction, unsigned long attrs)
 {
 	struct ioc *ioc;
-	int coalesced, filled = 0;
+	int filled = 0;
 	unsigned long flags;
 
 	DBG_RUN_SG("%s() START %d entries\n", __func__, nents);
@@ -985,7 +990,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	** w/o this association, we wouldn't have coherent DMA!
 	** Access to the virtual address is what forces a two pass algorithm.
 	*/
-	coalesced = iommu_coalesce_chunks(ioc, dev, sglist, nents, sba_alloc_range);
+	iommu_coalesce_chunks(ioc, dev, sglist, nents, sba_alloc_range);
 
 	/*
 	** Program the I/O Pdir
@@ -1022,6 +1027,7 @@ sba_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
  * @sglist:  array of buffer/length pairs
  * @nents:  number of entries in list
  * @direction:  R/W or both.
+ * @attrs: attributes
  *
  * See Documentation/core-api/dma-api-howto.rst
  */
@@ -1992,7 +1998,7 @@ void __init sba_init(void)
 
 /**
  * sba_get_iommu - Assign the iommu pointer for the pci bus controller.
- * @dev: The parisc device.
+ * @pci_hba: The parisc device.
  *
  * Returns the appropriate IOMMU data for the given parisc PCI controller.
  * This is cached and used later for PCI DMA Mapping.
@@ -2012,7 +2018,7 @@ void * sba_get_iommu(struct parisc_device *pci_hba)
 
 /**
  * sba_directed_lmmio - return first directed LMMIO range routed to rope
- * @pa_dev: The parisc device.
+ * @pci_hba: The parisc device.
  * @r: resource PCI host controller wants start/end fields assigned.
  *
  * For the given parisc PCI controller, determine if any direct ranges
@@ -2054,7 +2060,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 
 /**
  * sba_distributed_lmmio - return portion of distributed LMMIO range
- * @pa_dev: The parisc device.
+ * @pci_hba: The parisc device.
  * @r: resource PCI host controller wants start/end fields assigned.
  *
  * For the given parisc PCI controller, return portion of distributed LMMIO
