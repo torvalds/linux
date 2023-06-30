@@ -6571,10 +6571,9 @@ void __init workqueue_init(void)
 	wq_watchdog_init();
 }
 
-/*
- * Despite the naming, this is a no-op function which is here only for avoiding
- * link error. Since compile-time warning may fail to catch, we will need to
- * emit run-time warning from __flush_workqueue().
- */
-void __warn_flushing_systemwide_wq(void) { }
+void __warn_flushing_systemwide_wq(void)
+{
+	pr_warn("WARNING: Flushing system-wide workqueues will be prohibited in near future.\n");
+	dump_stack();
+}
 EXPORT_SYMBOL(__warn_flushing_systemwide_wq);
