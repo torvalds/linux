@@ -2124,7 +2124,7 @@ static int wcd938x_mbhc_micb_ctrl_threshold_mic(struct snd_soc_component *compon
 	return wcd938x_mbhc_micb_adjust_voltage(component, micb_mv, MIC_BIAS_2);
 }
 
-static inline void wcd938x_mbhc_get_result_params(struct wcd938x_priv *wcd938x,
+static void wcd938x_mbhc_get_result_params(struct wcd938x_priv *wcd938x,
 						s16 *d1_a, u16 noff,
 						int32_t *zdet)
 {
@@ -2231,8 +2231,8 @@ z_right:
 	*zr = zdet;
 }
 
-static inline void wcd938x_wcd_mbhc_qfuse_cal(struct snd_soc_component *component,
-					      int32_t *z_val, int flag_l_r)
+static void wcd938x_wcd_mbhc_qfuse_cal(struct snd_soc_component *component,
+					int32_t *z_val, int flag_l_r)
 {
 	s16 q1;
 	int q1_cal;
