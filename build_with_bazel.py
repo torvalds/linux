@@ -241,6 +241,7 @@ class BazelBuilder:
         self.user_opts.extend([
             "--config=stamp",
             "--user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom",
+            "--ignore_missing_projects",
         ])
 
         device_user_opts = self.user_opts + ["--config=android_arm64"]
