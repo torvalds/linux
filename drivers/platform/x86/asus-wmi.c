@@ -113,6 +113,7 @@ module_param(fnlock_default, bool, 0444);
 #define FAN_CURVE_BUF_LEN		32
 #define FAN_CURVE_DEV_CPU		0x00
 #define FAN_CURVE_DEV_GPU		0x01
+#define FAN_CURVE_DEV_MID		0x02
 /* Mask to determine if setting temperature or percentage */
 #define FAN_CURVE_PWM_MASK		0x04
 
@@ -253,7 +254,8 @@ struct asus_wmi {
 
 	bool cpu_fan_curve_available;
 	bool gpu_fan_curve_available;
-	struct fan_curve_data custom_fan_curves[2];
+	bool mid_fan_curve_available;
+	struct fan_curve_data custom_fan_curves[3];
 
 	struct platform_profile_handler platform_profile_handler;
 	bool platform_profile_support;
@@ -2080,6 +2082,8 @@ static ssize_t pwm1_enable_store(struct device *dev,
 		asus->custom_fan_curves[FAN_CURVE_DEV_CPU].enabled = false;
 	if (asus->gpu_fan_curve_available)
 		asus->custom_fan_curves[FAN_CURVE_DEV_GPU].enabled = false;
+	if (asus->mid_fan_curve_available)
+		asus->custom_fan_curves[FAN_CURVE_DEV_MID].enabled = false;
 
 	return count;
 }
@@ -2531,6 +2535,9 @@ static int fan_curve_get_factory_default(struct asus_wmi *asus, u32 fan_dev)
 	if (fan_dev == ASUS_WMI_DEVID_GPU_FAN_CURVE)
 		fan_idx = FAN_CURVE_DEV_GPU;
 
+	if (fan_dev == ASUS_WMI_DEVID_MID_FAN_CURVE)
+		fan_idx = FAN_CURVE_DEV_MID;
+
 	curves = &asus->custom_fan_curves[fan_idx];
 	err = asus_wmi_evaluate_method_buf(asus->dsts_id, fan_dev, mode, buf,
 					   FAN_CURVE_BUF_LEN);
@@ -2819,6 +2826,42 @@ static SENSOR_DEVICE_ATTR_2_RW(pwm2_auto_point7_pwm, fan_curve,
 static SENSOR_DEVICE_ATTR_2_RW(pwm2_auto_point8_pwm, fan_curve,
 			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 7);
 
+/* MID */
+static SENSOR_DEVICE_ATTR_RW(pwm3_enable, fan_curve_enable, FAN_CURVE_DEV_GPU);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point1_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point2_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point3_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point4_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 3);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point5_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 4);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point6_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 5);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point7_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 6);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point8_temp, fan_curve,
+			       FAN_CURVE_DEV_GPU, 7);
+
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point1_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 0);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point2_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 1);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point3_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 2);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point4_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 3);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point5_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 4);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point6_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 5);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point7_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 6);
+static SENSOR_DEVICE_ATTR_2_RW(pwm3_auto_point8_pwm, fan_curve,
+			       FAN_CURVE_DEV_GPU | FAN_CURVE_PWM_MASK, 7);
+
 static struct attribute *asus_fan_curve_attr[] = {
 	/* CPU */
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
@@ -2856,6 +2899,24 @@ static struct attribute *asus_fan_curve_attr[] = {
 	&sensor_dev_attr_pwm2_auto_point6_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point7_pwm.dev_attr.attr,
 	&sensor_dev_attr_pwm2_auto_point8_pwm.dev_attr.attr,
+	/* MID */
+	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point4_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point5_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point6_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point7_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point8_temp.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point3_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point4_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point5_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point6_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point7_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point8_pwm.dev_attr.attr,
 	NULL
 };
 
@@ -2873,6 +2934,9 @@ static umode_t asus_fan_curve_is_visible(struct kobject *kobj,
 		return 0644;
 
 	if (asus->gpu_fan_curve_available && attr->name[3] == '2')
+		return 0644;
+
+	if (asus->mid_fan_curve_available && attr->name[3] == '3')
 		return 0644;
 
 	return 0;
@@ -2904,7 +2968,14 @@ static int asus_wmi_custom_fan_curve_init(struct asus_wmi *asus)
 	if (err)
 		return err;
 
-	if (!asus->cpu_fan_curve_available && !asus->gpu_fan_curve_available)
+	err = fan_curve_check_present(asus, &asus->mid_fan_curve_available,
+				      ASUS_WMI_DEVID_MID_FAN_CURVE);
+	if (err)
+		return err;
+
+	if (!asus->cpu_fan_curve_available
+		&& !asus->gpu_fan_curve_available
+		&& !asus->mid_fan_curve_available)
 		return 0;
 
 	hwmon = devm_hwmon_device_register_with_groups(
@@ -2973,6 +3044,8 @@ static int throttle_thermal_policy_write(struct asus_wmi *asus)
 		asus->custom_fan_curves[FAN_CURVE_DEV_CPU].enabled = false;
 	if (asus->gpu_fan_curve_available)
 		asus->custom_fan_curves[FAN_CURVE_DEV_GPU].enabled = false;
+	if (asus->mid_fan_curve_available)
+		asus->custom_fan_curves[FAN_CURVE_DEV_MID].enabled = false;
 
 	return 0;
 }
