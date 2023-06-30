@@ -193,8 +193,7 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *brkvma, *next = NULL;
 	unsigned long min_brk;
-	bool populate;
-	bool downgraded = false;
+	bool populate = false;
 	LIST_HEAD(uf);
 	struct vma_iterator vmi;
 
@@ -236,13 +235,8 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 		goto success;
 	}
 
-	/*
-	 * Always allow shrinking brk.
-	 * do_vma_munmap() may downgrade mmap_lock to read.
-	 */
+	/* Always allow shrinking brk. */
 	if (brk <= mm->brk) {
-		int ret;
-
 		/* Search one past newbrk */
 		vma_iter_init(&vmi, mm, newbrk);
 		brkvma = vma_find(&vmi, oldbrk);
@@ -250,19 +244,14 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 			goto out; /* mapping intersects with an existing non-brk vma. */
 		/*
 		 * mm->brk must be protected by write mmap_lock.
-		 * do_vma_munmap() may downgrade the lock,  so update it
+		 * do_vma_munmap() will drop the lock on success,  so update it
 		 * before calling do_vma_munmap().
 		 */
 		mm->brk = brk;
-		ret = do_vma_munmap(&vmi, brkvma, newbrk, oldbrk, &uf, true);
-		if (ret == 1)  {
-			downgraded = true;
-			goto success;
-		} else if (!ret)
-			goto success;
+		if (do_vma_munmap(&vmi, brkvma, newbrk, oldbrk, &uf, true))
+			goto out;
 
-		mm->brk = origbrk;
-		goto out;
+		goto success_unlocked;
 	}
 
 	if (check_brk_limits(oldbrk, newbrk - oldbrk))
@@ -283,19 +272,19 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
 		goto out;
 
 	mm->brk = brk;
+	if (mm->def_flags & VM_LOCKED)
+		populate = true;
 
 success:
-	populate = newbrk > oldbrk && (mm->def_flags & VM_LOCKED) != 0;
-	if (downgraded)
-		mmap_read_unlock(mm);
-	else
-		mmap_write_unlock(mm);
+	mmap_write_unlock(mm);
+success_unlocked:
 	userfaultfd_unmap_complete(mm, &uf);
 	if (populate)
 		mm_populate(oldbrk, newbrk - oldbrk);
 	return brk;
 
 out:
+	mm->brk = origbrk;
 	mmap_write_unlock(mm);
 	return origbrk;
 }
@@ -2428,14 +2417,16 @@ int split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
  * @start: The aligned start address to munmap.
  * @end: The aligned end address to munmap.
  * @uf: The userfaultfd list_head
- * @downgrade: Set to true to attempt a write downgrade of the mmap_lock
+ * @unlock: Set to true to drop the mmap_lock.  unlocking only happens on
+ * success.
  *
- * If @downgrade is true, check return code for potential release of the lock.
+ * Return: 0 on success and drops the lock if so directed, error and leaves the
+ * lock held otherwise.
  */
 static int
 do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 		    struct mm_struct *mm, unsigned long start,
-		    unsigned long end, struct list_head *uf, bool downgrade)
+		    unsigned long end, struct list_head *uf, bool unlock)
 {
 	struct vm_area_struct *prev, *next = NULL;
 	struct maple_tree mt_detach;
@@ -2551,22 +2542,24 @@ do_vmi_align_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	/* Point of no return */
 	mm->locked_vm -= locked_vm;
 	mm->map_count -= count;
-	if (downgrade)
+	if (unlock)
 		mmap_write_downgrade(mm);
 
 	/*
 	 * We can free page tables without write-locking mmap_lock because VMAs
 	 * were isolated before we downgraded mmap_lock.
 	 */
-	unmap_region(mm, &mt_detach, vma, prev, next, start, end, !downgrade);
+	unmap_region(mm, &mt_detach, vma, prev, next, start, end, !unlock);
 	/* Statistics and freeing VMAs */
 	mas_set(&mas_detach, start);
 	remove_mt(mm, &mas_detach);
 	__mt_destroy(&mt_detach);
+	if (unlock)
+		mmap_read_unlock(mm);
 
 
 	validate_mm(mm);
-	return downgrade ? 1 : 0;
+	return 0;
 
 clear_tree_failed:
 userfaultfd_error:
@@ -2589,18 +2582,18 @@ map_count_exceeded:
  * @start: The start address to munmap
  * @len: The length of the range to munmap
  * @uf: The userfaultfd list_head
- * @downgrade: set to true if the user wants to attempt to write_downgrade the
- * mmap_lock
+ * @unlock: set to true if the user wants to drop the mmap_lock on success
  *
  * This function takes a @mas that is either pointing to the previous VMA or set
  * to MA_START and sets it up to remove the mapping(s).  The @len will be
  * aligned and any arch_unmap work will be preformed.
  *
- * Returns: -EINVAL on failure, 1 on success and unlock, 0 otherwise.
+ * Return: 0 on success and drops the lock if so directed, error and leaves the
+ * lock held otherwise.
  */
 int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
 		  unsigned long start, size_t len, struct list_head *uf,
-		  bool downgrade)
+		  bool unlock)
 {
 	unsigned long end;
 	struct vm_area_struct *vma;
@@ -2617,10 +2610,13 @@ int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
 
 	/* Find the first overlapping VMA */
 	vma = vma_find(vmi, end);
-	if (!vma)
+	if (!vma) {
+		if (unlock)
+			mmap_write_unlock(mm);
 		return 0;
+	}
 
-	return do_vmi_align_munmap(vmi, vma, mm, start, end, uf, downgrade);
+	return do_vmi_align_munmap(vmi, vma, mm, start, end, uf, unlock);
 }
 
 /* do_munmap() - Wrapper function for non-maple tree aware do_munmap() calls.
@@ -2628,6 +2624,8 @@ int do_vmi_munmap(struct vma_iterator *vmi, struct mm_struct *mm,
  * @start: The start address to munmap
  * @len: The length to be munmapped.
  * @uf: The userfaultfd list_head
+ *
+ * Return: 0 on success, error otherwise.
  */
 int do_munmap(struct mm_struct *mm, unsigned long start, size_t len,
 	      struct list_head *uf)
@@ -2888,7 +2886,7 @@ unacct_error:
 	return error;
 }
 
-static int __vm_munmap(unsigned long start, size_t len, bool downgrade)
+static int __vm_munmap(unsigned long start, size_t len, bool unlock)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
@@ -2898,16 +2896,8 @@ static int __vm_munmap(unsigned long start, size_t len, bool downgrade)
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
-	ret = do_vmi_munmap(&vmi, mm, start, len, &uf, downgrade);
-	/*
-	 * Returning 1 indicates mmap_lock is downgraded.
-	 * But 1 is not legal return value of vm_munmap() and munmap(), reset
-	 * it to 0 before return.
-	 */
-	if (ret == 1) {
-		mmap_read_unlock(mm);
-		ret = 0;
-	} else
+	ret = do_vmi_munmap(&vmi, mm, start, len, &uf, unlock);
+	if (ret || !unlock)
 		mmap_write_unlock(mm);
 
 	userfaultfd_unmap_complete(mm, &uf);
@@ -3017,21 +3007,23 @@ out:
  * @start: the start of the address to unmap
  * @end: The end of the address to unmap
  * @uf: The userfaultfd list_head
- * @downgrade: Attempt to downgrade or not
+ * @unlock: Drop the lock on success
  *
- * Returns: 0 on success and not downgraded, 1 on success and downgraded.
  * unmaps a VMA mapping when the vma iterator is already in position.
  * Does not handle alignment.
+ *
+ * Return: 0 on success drops the lock of so directed, error on failure and will
+ * still hold the lock.
  */
 int do_vma_munmap(struct vma_iterator *vmi, struct vm_area_struct *vma,
-		  unsigned long start, unsigned long end,
-		  struct list_head *uf, bool downgrade)
+		unsigned long start, unsigned long end, struct list_head *uf,
+		bool unlock)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	int ret;
 
 	arch_unmap(mm, start, end);
-	ret = do_vmi_align_munmap(vmi, vma, mm, start, end, uf, downgrade);
+	ret = do_vmi_align_munmap(vmi, vma, mm, start, end, uf, unlock);
 	validate_mm(mm);
 	return ret;
 }
