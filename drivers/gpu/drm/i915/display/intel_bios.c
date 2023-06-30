@@ -2230,72 +2230,6 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	return 0;
 }
 
-static enum port get_port_by_ddc_pin(struct drm_i915_private *i915, u8 ddc_pin)
-{
-	enum port port;
-
-	if (!ddc_pin)
-		return PORT_NONE;
-
-	for_each_port(port) {
-		const struct intel_bios_encoder_data *devdata =
-			i915->display.vbt.ports[port];
-
-		if (devdata && ddc_pin == devdata->child.ddc_pin)
-			return port;
-	}
-
-	return PORT_NONE;
-}
-
-static void sanitize_ddc_pin(struct intel_bios_encoder_data *devdata,
-			     enum port port)
-{
-	struct drm_i915_private *i915 = devdata->i915;
-	struct child_device_config *child;
-	u8 mapped_ddc_pin;
-	enum port p;
-
-	if (!devdata->child.ddc_pin)
-		return;
-
-	mapped_ddc_pin = map_ddc_pin(i915, devdata->child.ddc_pin);
-	if (!intel_gmbus_is_valid_pin(i915, mapped_ddc_pin)) {
-		drm_dbg_kms(&i915->drm,
-			    "Port %c has invalid DDC pin %d, "
-			    "sticking to defaults\n",
-			    port_name(port), mapped_ddc_pin);
-		devdata->child.ddc_pin = 0;
-		return;
-	}
-
-	p = get_port_by_ddc_pin(i915, devdata->child.ddc_pin);
-	if (p == PORT_NONE)
-		return;
-
-	drm_dbg_kms(&i915->drm,
-		    "port %c trying to use the same DDC pin (0x%x) as port %c, "
-		    "disabling port %c DVI/HDMI support\n",
-		    port_name(port), mapped_ddc_pin,
-		    port_name(p), port_name(p));
-
-	/*
-	 * If we have multiple ports supposedly sharing the pin, then dvi/hdmi
-	 * couldn't exist on the shared port. Otherwise they share the same ddc
-	 * pin and system couldn't communicate with them separately.
-	 *
-	 * Give inverse child device order the priority, last one wins. Yes,
-	 * there are real machines (eg. Asrock B250M-HDV) where VBT has both
-	 * port A and port E with the same AUX ch and we must pick port E :(
-	 */
-	child = &i915->display.vbt.ports[p]->child;
-
-	child->device_type &= ~DEVICE_TYPE_TMDS_DVI_SIGNALING;
-	child->device_type |= DEVICE_TYPE_NOT_HDMI_OUTPUT;
-
-	child->ddc_pin = 0;
-}
-
 static enum port get_port_by_aux_ch(struct drm_i915_private *i915, u8 aux_ch)
 {
 	enum port port;
@@ -2753,9 +2687,6 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 	}
 
 	sanitize_device_type(devdata, port);
-
-	if (intel_bios_encoder_supports_dvi(devdata))
-		sanitize_ddc_pin(devdata, port);
 
 	if (intel_bios_encoder_supports_dp(devdata))
 		sanitize_aux_ch(devdata, port);
