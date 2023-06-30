@@ -4717,50 +4717,34 @@ static int rt5677_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int rt5677_update_gpio_bits(struct rt5677_priv *rt5677, unsigned offset, int m, int v)
+{
+	unsigned int bank = offset / 5;
+	unsigned int shift = (offset % 5) * 3;
+	unsigned int reg = bank ? RT5677_GPIO_CTRL3 : RT5677_GPIO_CTRL2;
+
+	return regmap_update_bits(rt5677->regmap, reg, m << shift, v << shift);
+}
+
 #ifdef CONFIG_GPIOLIB
 static void rt5677_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
+	int level = value ? RT5677_GPIOx_OUT_HI : RT5677_GPIOx_OUT_LO;
+	int m = RT5677_GPIOx_OUT_MASK;
 
-	switch (offset) {
-	case RT5677_GPIO1 ... RT5677_GPIO5:
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
-			0x1 << (offset * 3 + 1), !!value << (offset * 3 + 1));
-		break;
-
-	case RT5677_GPIO6:
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL3,
-			RT5677_GPIO6_OUT_MASK, !!value << RT5677_GPIO6_OUT_SFT);
-		break;
-
-	default:
-		break;
-	}
+	rt5677_update_gpio_bits(rt5677, offset, m, level);
 }
 
 static int rt5677_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
 	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
+	int level = value ? RT5677_GPIOx_OUT_HI : RT5677_GPIOx_OUT_LO;
+	int m = RT5677_GPIOx_DIR_MASK | RT5677_GPIOx_OUT_MASK;
+	int v = RT5677_GPIOx_DIR_OUT | level;
 
-	switch (offset) {
-	case RT5677_GPIO1 ... RT5677_GPIO5:
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
-			0x3 << (offset * 3 + 1),
-			(0x2 | !!value) << (offset * 3 + 1));
-		break;
-
-	case RT5677_GPIO6:
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL3,
-			RT5677_GPIO6_DIR_MASK | RT5677_GPIO6_OUT_MASK,
-			RT5677_GPIO6_DIR_OUT | !!value << RT5677_GPIO6_OUT_SFT);
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
+	return rt5677_update_gpio_bits(rt5677, offset, m, v);
 }
 
 static int rt5677_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -4778,26 +4762,14 @@ static int rt5677_gpio_get(struct gpio_chip *chip, unsigned offset)
 static int rt5677_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
 	struct rt5677_priv *rt5677 = gpiochip_get_data(chip);
+	int m = RT5677_GPIOx_DIR_MASK;
+	int v = RT5677_GPIOx_DIR_IN;
 
-	switch (offset) {
-	case RT5677_GPIO1 ... RT5677_GPIO5:
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
-			0x1 << (offset * 3 + 2), 0x0);
-		break;
-
-	case RT5677_GPIO6:
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL3,
-			RT5677_GPIO6_DIR_MASK, RT5677_GPIO6_DIR_IN);
-		break;
-
-	default:
-		break;
-	}
-
-	return 0;
+	return rt5677_update_gpio_bits(rt5677, offset, m, v);
 }
 
-/** Configures the gpio as
+/*
+ * Configures the GPIO as
  *   0 - floating
  *   1 - pull down
  *   2 - pull up
@@ -5673,9 +5645,9 @@ static int rt5677_i2c_probe(struct i2c_client *i2c)
 		regmap_update_bits(rt5677->regmap, RT5677_GEN_CTRL2,
 					RT5677_GPIO5_FUNC_MASK,
 					RT5677_GPIO5_FUNC_DMIC);
-		regmap_update_bits(rt5677->regmap, RT5677_GPIO_CTRL2,
-					RT5677_GPIO5_DIR_MASK,
-					RT5677_GPIO5_DIR_OUT);
+		rt5677_update_gpio_bits(rt5677, RT5677_GPIO5,
+					RT5677_GPIOx_DIR_MASK,
+					RT5677_GPIOx_DIR_OUT);
 	}
 
 	if (rt5677->pdata.micbias1_vdd_3v3)

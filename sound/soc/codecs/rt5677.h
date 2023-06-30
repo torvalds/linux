@@ -1587,81 +1587,19 @@
 #define RT5677_FUNC_MODE_DMIC_GPIO		(0x0 << 13)
 #define RT5677_FUNC_MODE_JTAG			(0x1 << 13)
 
-/* GPIO Control 2 (0xc1) */
-#define RT5677_GPIO5_DIR_MASK			(0x1 << 14)
-#define RT5677_GPIO5_DIR_SFT			14
-#define RT5677_GPIO5_DIR_IN			(0x0 << 14)
-#define RT5677_GPIO5_DIR_OUT			(0x1 << 14)
-#define RT5677_GPIO5_OUT_MASK			(0x1 << 13)
-#define RT5677_GPIO5_OUT_SFT			13
-#define RT5677_GPIO5_OUT_LO			(0x0 << 13)
-#define RT5677_GPIO5_OUT_HI			(0x1 << 13)
-#define RT5677_GPIO5_P_MASK			(0x1 << 12)
-#define RT5677_GPIO5_P_SFT			12
-#define RT5677_GPIO5_P_NOR			(0x0 << 12)
-#define RT5677_GPIO5_P_INV			(0x1 << 12)
-#define RT5677_GPIO4_DIR_MASK			(0x1 << 11)
-#define RT5677_GPIO4_DIR_SFT			11
-#define RT5677_GPIO4_DIR_IN			(0x0 << 11)
-#define RT5677_GPIO4_DIR_OUT			(0x1 << 11)
-#define RT5677_GPIO4_OUT_MASK			(0x1 << 10)
-#define RT5677_GPIO4_OUT_SFT			10
-#define RT5677_GPIO4_OUT_LO			(0x0 << 10)
-#define RT5677_GPIO4_OUT_HI			(0x1 << 10)
-#define RT5677_GPIO4_P_MASK			(0x1 << 9)
-#define RT5677_GPIO4_P_SFT			9
-#define RT5677_GPIO4_P_NOR			(0x0 << 9)
-#define RT5677_GPIO4_P_INV			(0x1 << 9)
-#define RT5677_GPIO3_DIR_MASK			(0x1 << 8)
-#define RT5677_GPIO3_DIR_SFT			8
-#define RT5677_GPIO3_DIR_IN			(0x0 << 8)
-#define RT5677_GPIO3_DIR_OUT			(0x1 << 8)
-#define RT5677_GPIO3_OUT_MASK			(0x1 << 7)
-#define RT5677_GPIO3_OUT_SFT			7
-#define RT5677_GPIO3_OUT_LO			(0x0 << 7)
-#define RT5677_GPIO3_OUT_HI			(0x1 << 7)
-#define RT5677_GPIO3_P_MASK			(0x1 << 6)
-#define RT5677_GPIO3_P_SFT			6
-#define RT5677_GPIO3_P_NOR			(0x0 << 6)
-#define RT5677_GPIO3_P_INV			(0x1 << 6)
-#define RT5677_GPIO2_DIR_MASK			(0x1 << 5)
-#define RT5677_GPIO2_DIR_SFT			5
-#define RT5677_GPIO2_DIR_IN			(0x0 << 5)
-#define RT5677_GPIO2_DIR_OUT			(0x1 << 5)
-#define RT5677_GPIO2_OUT_MASK			(0x1 << 4)
-#define RT5677_GPIO2_OUT_SFT			4
-#define RT5677_GPIO2_OUT_LO			(0x0 << 4)
-#define RT5677_GPIO2_OUT_HI			(0x1 << 4)
-#define RT5677_GPIO2_P_MASK			(0x1 << 3)
-#define RT5677_GPIO2_P_SFT			3
-#define RT5677_GPIO2_P_NOR			(0x0 << 3)
-#define RT5677_GPIO2_P_INV			(0x1 << 3)
-#define RT5677_GPIO1_DIR_MASK			(0x1 << 2)
-#define RT5677_GPIO1_DIR_SFT			2
-#define RT5677_GPIO1_DIR_IN			(0x0 << 2)
-#define RT5677_GPIO1_DIR_OUT			(0x1 << 2)
-#define RT5677_GPIO1_OUT_MASK			(0x1 << 1)
-#define RT5677_GPIO1_OUT_SFT			1
-#define RT5677_GPIO1_OUT_LO			(0x0 << 1)
-#define RT5677_GPIO1_OUT_HI			(0x1 << 1)
-#define RT5677_GPIO1_P_MASK			(0x1 << 0)
-#define RT5677_GPIO1_P_SFT			0
-#define RT5677_GPIO1_P_NOR			(0x0 << 0)
-#define RT5677_GPIO1_P_INV			(0x1 << 0)
-
-/* GPIO Control 3 (0xc2) */
-#define RT5677_GPIO6_DIR_MASK			(0x1 << 2)
-#define RT5677_GPIO6_DIR_SFT			2
-#define RT5677_GPIO6_DIR_IN			(0x0 << 2)
-#define RT5677_GPIO6_DIR_OUT			(0x1 << 2)
-#define RT5677_GPIO6_OUT_MASK			(0x1 << 1)
-#define RT5677_GPIO6_OUT_SFT			1
-#define RT5677_GPIO6_OUT_LO			(0x0 << 1)
-#define RT5677_GPIO6_OUT_HI			(0x1 << 1)
-#define RT5677_GPIO6_P_MASK			(0x1 << 0)
-#define RT5677_GPIO6_P_SFT			0
-#define RT5677_GPIO6_P_NOR			(0x0 << 0)
-#define RT5677_GPIO6_P_INV			(0x1 << 0)
+/* GPIO Control 2 (0xc1) & 3 (0xc2) common bits */
+#define RT5677_GPIOx_DIR_MASK			(0x1 << 2)
+#define RT5677_GPIOx_DIR_SFT			2
+#define RT5677_GPIOx_DIR_IN			(0x0 << 2)
+#define RT5677_GPIOx_DIR_OUT			(0x1 << 2)
+#define RT5677_GPIOx_OUT_MASK			(0x1 << 1)
+#define RT5677_GPIOx_OUT_SFT			1
+#define RT5677_GPIOx_OUT_LO			(0x0 << 1)
+#define RT5677_GPIOx_OUT_HI			(0x1 << 1)
+#define RT5677_GPIOx_P_MASK			(0x1 << 0)
+#define RT5677_GPIOx_P_SFT			0
+#define RT5677_GPIOx_P_NOR			(0x0 << 0)
+#define RT5677_GPIOx_P_INV			(0x1 << 0)
 
 /* General Control (0xfa) */
 #define RT5677_IRQ_DEBOUNCE_SEL_MASK		(0x3 << 3)
