@@ -1446,7 +1446,8 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case BT_ISO_BASE:
-		if (sk->sk_state == BT_CONNECTED) {
+		if (sk->sk_state == BT_CONNECTED &&
+		    !bacmp(&iso_pi(sk)->dst, BDADDR_ANY)) {
 			base_len = iso_pi(sk)->conn->hcon->le_per_adv_data_len;
 			base = iso_pi(sk)->conn->hcon->le_per_adv_data;
 		} else {
@@ -1655,6 +1656,9 @@ static void iso_conn_ready(struct iso_conn *conn)
 
 		bacpy(&iso_pi(sk)->dst, &hcon->dst);
 		iso_pi(sk)->dst_type = hcon->dst_type;
+		iso_pi(sk)->sync_handle = iso_pi(parent)->sync_handle;
+		memcpy(iso_pi(sk)->base, iso_pi(parent)->base, iso_pi(parent)->base_len);
+		iso_pi(sk)->base_len = iso_pi(parent)->base_len;
 
 		hci_conn_hold(hcon);
 		iso_chan_add(conn, sk, parent);
@@ -1692,12 +1696,20 @@ static bool iso_match_sync_handle(struct sock *sk, void *data)
 	return le16_to_cpu(ev->sync_handle) == iso_pi(sk)->sync_handle;
 }
 
+static bool iso_match_sync_handle_pa_report(struct sock *sk, void *data)
+{
+	struct hci_ev_le_per_adv_report *ev = data;
+
+	return le16_to_cpu(ev->sync_handle) == iso_pi(sk)->sync_handle;
+}
+
 /* ----- ISO interface with lower layer (HCI) ----- */
 
 int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 {
 	struct hci_ev_le_pa_sync_established *ev1;
 	struct hci_evt_le_big_info_adv_report *ev2;
+	struct hci_ev_le_per_adv_report *ev3;
 	struct sock *sk;
 	int lm = 0;
 
@@ -1713,6 +1725,9 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	 * 2. HCI_EVT_LE_BIG_INFO_ADV_REPORT: When connect_ind is triggered by a
 	 * a BIG Info it attempts to check if there any listening socket with
 	 * the same sync_handle and if it does then attempt to create a sync.
+	 * 3. HCI_EV_LE_PER_ADV_REPORT: When a PA report is received, it is stored
+	 * in iso_pi(sk)->base so it can be passed up to user, in the case of a
+	 * broadcast sink.
 	 */
 	ev1 = hci_recv_event_data(hdev, HCI_EV_LE_PA_SYNC_ESTABLISHED);
 	if (ev1) {
@@ -1751,6 +1766,17 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 					sk = NULL;
 				}
 			}
+		}
+	}
+
+	ev3 = hci_recv_event_data(hdev, HCI_EV_LE_PER_ADV_REPORT);
+	if (ev3) {
+		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
+					 iso_match_sync_handle_pa_report, ev3);
+
+		if (sk) {
+			memcpy(iso_pi(sk)->base, ev3->data, ev3->length);
+			iso_pi(sk)->base_len = ev3->length;
 		}
 	} else {
 		sk = iso_get_sock_listen(&hdev->bdaddr, BDADDR_ANY, NULL, NULL);

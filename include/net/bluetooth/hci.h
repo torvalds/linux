@@ -2771,6 +2771,17 @@ struct hci_ev_le_enh_conn_complete {
 	__u8      clk_accurancy;
 } __packed;
 
+#define HCI_EV_LE_PER_ADV_REPORT    0x0f
+struct hci_ev_le_per_adv_report {
+	__le16	 sync_handle;
+	__u8	 tx_power;
+	__u8	 rssi;
+	__u8	 cte_type;
+	__u8	 data_status;
+	__u8     length;
+	__u8     data[];
+} __packed;
+
 #define HCI_EV_LE_EXT_ADV_SET_TERM	0x12
 struct hci_evt_le_ext_adv_set_term {
 	__u8	status;
