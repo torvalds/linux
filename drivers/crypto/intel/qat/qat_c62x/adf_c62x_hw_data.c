@@ -8,6 +8,7 @@
 #include <adf_gen2_hw_data.h>
 #include <adf_gen2_pfvf.h>
 #include "adf_c62x_hw_data.h"
+#include "adf_heartbeat.h"
 #include "icp_qat_hw.h"
 
 /* Worker thread to service arbiter mappings */
@@ -155,6 +156,7 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->measure_clock = measure_clock;
 	hw_data->get_hb_clock = get_ts_clock;
 	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
+	hw_data->check_hb_ctrs = adf_heartbeat_check_ctrs;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);

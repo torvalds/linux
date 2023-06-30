@@ -20,6 +20,8 @@
 #include "adf_transport_internal.h"
 #include "icp_qat_fw_init_admin.h"
 
+#define ADF_HB_EMPTY_SIG 0xA5A5A5A5
+
 /* Heartbeat counter pair */
 struct hb_cnt_pair {
 	__u16 resp_heartbeat_cnt;
@@ -41,6 +43,57 @@ static int adf_hb_check_polling_freq(struct adf_accel_dev *accel_dev)
 	accel_dev->heartbeat->last_hb_check_time = curr_time;
 	return 0;
 }
+
+/**
+ * validate_hb_ctrs_cnt() - checks if the number of heartbeat counters should
+ * be updated by one to support the currently loaded firmware.
+ * @accel_dev: Pointer to acceleration device.
+ *
+ * Return:
+ * * true - hb_ctrs must increased by ADF_NUM_PKE_STRAND
+ * * false - no changes needed
+ */
+static bool validate_hb_ctrs_cnt(struct adf_accel_dev *accel_dev)
+{
+	const size_t hb_ctrs = accel_dev->hw_device->num_hb_ctrs;
+	const size_t max_aes = accel_dev->hw_device->num_engines;
+	const size_t hb_struct_size = sizeof(struct hb_cnt_pair);
+	const size_t exp_diff_size = array3_size(ADF_NUM_PKE_STRAND, max_aes,
+						 hb_struct_size);
+	const size_t dev_ctrs = size_mul(max_aes, hb_ctrs);
+	const size_t stats_size = size_mul(dev_ctrs, hb_struct_size);
+	const u32 exp_diff_cnt = exp_diff_size / sizeof(u32);
+	const u32 stats_el_cnt = stats_size / sizeof(u32);
+	struct hb_cnt_pair *hb_stats = accel_dev->heartbeat->dma.virt_addr;
+	const u32 *mem_to_chk = (u32 *)(hb_stats + dev_ctrs);
+	u32 el_diff_cnt = 0;
+	int i;
+
+	/* count how many bytes are different from pattern */
+	for (i = 0; i < stats_el_cnt; i++) {
+		if (mem_to_chk[i] == ADF_HB_EMPTY_SIG)
+			break;
+
+		el_diff_cnt++;
+	}
+
+	return el_diff_cnt && el_diff_cnt == exp_diff_cnt;
+}
+
+void adf_heartbeat_check_ctrs(struct adf_accel_dev *accel_dev)
+{
+	struct hb_cnt_pair *hb_stats = accel_dev->heartbeat->dma.virt_addr;
+	const size_t hb_ctrs = accel_dev->hw_device->num_hb_ctrs;
+	const size_t max_aes = accel_dev->hw_device->num_engines;
+	const size_t dev_ctrs = size_mul(max_aes, hb_ctrs);
+	const size_t stats_size = size_mul(dev_ctrs, sizeof(struct hb_cnt_pair));
+	const size_t mem_items_to_fill = size_mul(stats_size, 2) / sizeof(u32);
+
+	/* fill hb stats memory with pattern */
+	memset32((uint32_t *)hb_stats, ADF_HB_EMPTY_SIG, mem_items_to_fill);
+	accel_dev->heartbeat->ctrs_cnt_checked = false;
+}
+EXPORT_SYMBOL_GPL(adf_heartbeat_check_ctrs);
 
 static int get_timer_ticks(struct adf_accel_dev *accel_dev, unsigned int *value)
 {
@@ -122,6 +175,13 @@ static int adf_hb_get_status(struct adf_accel_dev *accel_dev)
 	size_t ae_offset;
 	size_t ae = 0;
 	int ret = 0;
+
+	if (!accel_dev->heartbeat->ctrs_cnt_checked) {
+		if (validate_hb_ctrs_cnt(accel_dev))
+			hw_device->num_hb_ctrs += ADF_NUM_PKE_STRAND;
+
+		accel_dev->heartbeat->ctrs_cnt_checked = true;
+	}
 
 	live_stats = accel_dev->heartbeat->dma.virt_addr;
 	last_stats = live_stats + dev_ctrs;
@@ -221,6 +281,11 @@ int adf_heartbeat_init(struct adf_accel_dev *accel_dev)
 	if (!hb->dma.virt_addr)
 		goto err_free;
 
+	/*
+	 * Default set this flag as true to avoid unnecessary checks,
+	 * it will be reset on platforms that need such a check
+	 */
+	hb->ctrs_cnt_checked = true;
 	accel_dev->heartbeat = hb;
 
 	return 0;
@@ -240,6 +305,9 @@ int adf_heartbeat_start(struct adf_accel_dev *accel_dev)
 		dev_warn(&GET_DEV(accel_dev), "Heartbeat instance not found!");
 		return -EFAULT;
 	}
+
+	if (accel_dev->hw_device->check_hb_ctrs)
+		accel_dev->hw_device->check_hb_ctrs(accel_dev);
 
 	ret = get_timer_ticks(accel_dev, &timer_ticks);
 	if (ret)

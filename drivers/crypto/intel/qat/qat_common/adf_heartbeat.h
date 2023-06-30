@@ -24,6 +24,7 @@ struct adf_heartbeat {
 	unsigned int hb_failed_counter;
 	unsigned int hb_timer;
 	u64 last_hb_check_time;
+	bool ctrs_cnt_checked;
 	struct hb_dma_addr {
 		dma_addr_t phy_addr;
 		void *virt_addr;
@@ -48,6 +49,7 @@ int adf_heartbeat_save_cfg_param(struct adf_accel_dev *accel_dev,
 				 unsigned int timer_ms);
 void adf_heartbeat_status(struct adf_accel_dev *accel_dev,
 			  enum adf_device_heartbeat_status *hb_status);
+void adf_heartbeat_check_ctrs(struct adf_accel_dev *accel_dev);
 
 #else
 static inline int adf_heartbeat_init(struct adf_accel_dev *accel_dev)
@@ -68,6 +70,10 @@ static inline int adf_heartbeat_save_cfg_param(struct adf_accel_dev *accel_dev,
 					       unsigned int timer_ms)
 {
 	return 0;
+}
+
+static inline void adf_heartbeat_check_ctrs(struct adf_accel_dev *accel_dev)
+{
 }
 #endif
 #endif /* ADF_HEARTBEAT_H_ */
