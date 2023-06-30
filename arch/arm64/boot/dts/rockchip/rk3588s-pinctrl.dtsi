@@ -1133,21 +1133,21 @@
 		i2s0_lrck: i2s0-lrck {
 			rockchip,pins =
 				/* i2s0_lrck */
-				<1 RK_PC5 1 &pcfg_pull_none>;
+				<1 RK_PC5 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s0_mclk: i2s0-mclk {
 			rockchip,pins =
 				/* i2s0_mclk */
-				<1 RK_PC2 1 &pcfg_pull_none>;
+				<1 RK_PC2 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s0_sclk: i2s0-sclk {
 			rockchip,pins =
 				/* i2s0_sclk */
-				<1 RK_PC3 1 &pcfg_pull_none>;
+				<1 RK_PC3 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -1212,21 +1212,21 @@
 		i2s1m0_lrck: i2s1m0-lrck {
 			rockchip,pins =
 				/* i2s1m0_lrck */
-				<4 RK_PA2 3 &pcfg_pull_none>;
+				<4 RK_PA2 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s1m0_mclk: i2s1m0-mclk {
 			rockchip,pins =
 				/* i2s1m0_mclk */
-				<4 RK_PA0 3 &pcfg_pull_none>;
+				<4 RK_PA0 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s1m0_sclk: i2s1m0-sclk {
 			rockchip,pins =
 				/* i2s1m0_sclk */
-				<4 RK_PA1 3 &pcfg_pull_none>;
+				<4 RK_PA1 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -1288,21 +1288,21 @@
 		i2s1m1_lrck: i2s1m1-lrck {
 			rockchip,pins =
 				/* i2s1m1_lrck */
-				<0 RK_PB7 1 &pcfg_pull_none>;
+				<0 RK_PB7 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s1m1_mclk: i2s1m1-mclk {
 			rockchip,pins =
 				/* i2s1m1_mclk */
-				<0 RK_PB5 1 &pcfg_pull_none>;
+				<0 RK_PB5 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s1m1_sclk: i2s1m1-sclk {
 			rockchip,pins =
 				/* i2s1m1_sclk */
-				<0 RK_PB6 1 &pcfg_pull_none>;
+				<0 RK_PB6 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -1367,21 +1367,21 @@
 		i2s2m1_lrck: i2s2m1-lrck {
 			rockchip,pins =
 				/* i2s2m1_lrck */
-				<3 RK_PB6 3 &pcfg_pull_none>;
+				<3 RK_PB6 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s2m1_mclk: i2s2m1-mclk {
 			rockchip,pins =
 				/* i2s2m1_mclk */
-				<3 RK_PB4 3 &pcfg_pull_none>;
+				<3 RK_PB4 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s2m1_sclk: i2s2m1-sclk {
 			rockchip,pins =
 				/* i2s2m1_sclk */
-				<3 RK_PB5 3 &pcfg_pull_none>;
+				<3 RK_PB5 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -1404,21 +1404,21 @@
 		i2s3_lrck: i2s3-lrck {
 			rockchip,pins =
 				/* i2s3_lrck */
-				<3 RK_PA2 3 &pcfg_pull_none>;
+				<3 RK_PA2 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s3_mclk: i2s3-mclk {
 			rockchip,pins =
 				/* i2s3_mclk */
-				<3 RK_PA0 3 &pcfg_pull_none>;
+				<3 RK_PA0 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s3_sclk: i2s3-sclk {
 			rockchip,pins =
 				/* i2s3_sclk */
-				<3 RK_PA1 3 &pcfg_pull_none>;
+				<3 RK_PA1 3 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/

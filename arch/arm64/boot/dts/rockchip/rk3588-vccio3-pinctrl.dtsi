@@ -264,21 +264,21 @@
 		i2s2m0_lrck: i2s2m0-lrck {
 			rockchip,pins =
 				/* i2s2m0_lrck */
-				<2 RK_PC0 2 &pcfg_pull_none>;
+				<2 RK_PC0 2 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s2m0_mclk: i2s2m0-mclk {
 			rockchip,pins =
 				/* i2s2m0_mclk */
-				<2 RK_PB6 2 &pcfg_pull_none>;
+				<2 RK_PB6 2 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s2m0_sclk: i2s2m0-sclk {
 			rockchip,pins =
 				/* i2s2m0_sclk */
-				<2 RK_PB7 2 &pcfg_pull_none>;
+				<2 RK_PB7 2 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
