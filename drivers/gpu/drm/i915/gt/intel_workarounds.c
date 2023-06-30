@@ -666,7 +666,7 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	/* Wa_1604278689:icl,ehl */
 	wa_write(wal, IVB_FBC_RT_BASE, 0xFFFFFFFF & ~ILK_FBC_RT_VALID);
 	wa_write_clr_set(wal, IVB_FBC_RT_BASE_UPPER,
-			 0, /* write-only register; skip validation */
+			 0,
 			 0xFFFFFFFF);
 
 	/* Wa_1406306137:icl,ehl */
