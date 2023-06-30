@@ -292,6 +292,9 @@ extern void __noreturn toc_intr(struct pt_regs *regs);
 extern void toc_handler(void);
 extern unsigned int toc_handler_size;
 extern unsigned int toc_handler_csum;
+extern void do_cpu_irq_mask(struct pt_regs *);
+extern irqreturn_t timer_interrupt(int, void *);
+extern irqreturn_t ipi_interrupt(int, void *);
 
 /* called from assembly code: */
 extern void start_parisc(void);
