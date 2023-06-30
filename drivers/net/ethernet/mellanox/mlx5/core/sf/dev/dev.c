@@ -299,7 +299,7 @@ void mlx5_sf_dev_table_create(struct mlx5_core_dev *dev)
 	unsigned int max_sfs;
 	int err;
 
-	if (!mlx5_sf_dev_supported(dev) || !mlx5_vhca_event_supported(dev))
+	if (!mlx5_sf_dev_supported(dev))
 		return;
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
