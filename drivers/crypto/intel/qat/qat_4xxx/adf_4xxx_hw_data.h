@@ -3,6 +3,7 @@
 #ifndef ADF_4XXX_HW_DATA_H_
 #define ADF_4XXX_HW_DATA_H_
 
+#include <linux/units.h>
 #include <adf_accel_devices.h>
 
 /* PCIe configuration space */
@@ -63,6 +64,9 @@
 #define ADF_402XX_DC_OBJ	"qat_402xx_dc.bin"
 #define ADF_402XX_ASYM_OBJ	"qat_402xx_asym.bin"
 #define ADF_402XX_ADMIN_OBJ	"qat_402xx_admin.bin"
+
+/* Clocks frequency */
+#define ADF_4XXX_KPT_COUNTER_FREQ (100 * HZ_PER_MHZ)
 
 /* qat_4xxx fuse bits are different from old GENs, redefine them */
 enum icp_qat_4xxx_slice_mask {

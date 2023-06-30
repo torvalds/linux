@@ -3,6 +3,7 @@
 #include <linux/iopoll.h>
 #include <adf_accel_devices.h>
 #include <adf_cfg.h>
+#include <adf_clock.h>
 #include <adf_common_drv.h>
 #include <adf_gen4_dc.h>
 #include <adf_gen4_hw_data.h>
@@ -318,6 +319,14 @@ static void get_admin_info(struct admin_info *admin_csrs_info)
 	admin_csrs_info->admin_msg_lr = ADF_4XXX_ADMINMSGLR_OFFSET;
 }
 
+static u32 get_heartbeat_clock(struct adf_hw_device_data *self)
+{
+	/*
+	 * 4XXX uses KPT counter for HB
+	 */
+	return ADF_4XXX_KPT_COUNTER_FREQ;
+}
+
 static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 {
 	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR];
@@ -511,6 +520,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->dev_config = adf_gen4_dev_config;
 	hw_data->start_timer = adf_gen4_timer_start;
 	hw_data->stop_timer = adf_gen4_timer_stop;
+	hw_data->get_hb_clock = get_heartbeat_clock;
 
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen4_init_pf_pfvf_ops(&hw_data->pfvf_ops);

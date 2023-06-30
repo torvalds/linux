@@ -3,6 +3,8 @@
 #ifndef ADF_C62X_HW_DATA_H_
 #define ADF_C62X_HW_DATA_H_
 
+#include <linux/units.h>
+
 /* PCIe configuration space */
 #define ADF_C62X_SRAM_BAR 0
 #define ADF_C62X_PMISC_BAR 1
@@ -18,6 +20,11 @@
 /* AE to function mapping */
 #define ADF_C62X_AE2FUNC_MAP_GRP_A_NUM_REGS 80
 #define ADF_C62X_AE2FUNC_MAP_GRP_B_NUM_REGS 10
+
+/* Clocks frequency */
+#define ADF_C62X_AE_FREQ (685 * HZ_PER_MHZ)
+#define ADF_C62X_MIN_AE_FREQ (533 * HZ_PER_MHZ)
+#define ADF_C62X_MAX_AE_FREQ (800 * HZ_PER_MHZ)
 
 /* Firmware Binary */
 #define ADF_C62X_FW "qat_c62x.bin"

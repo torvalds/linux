@@ -178,6 +178,14 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		return -EFAULT;
 	}
 
+	if (hw_data->measure_clock) {
+		ret = hw_data->measure_clock(accel_dev);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev), "Failed measure device clock\n");
+			return ret;
+		}
+	}
+
 	/* Set ssm watch dog timer */
 	if (hw_data->set_ssm_wdtimer)
 		hw_data->set_ssm_wdtimer(accel_dev);

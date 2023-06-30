@@ -190,6 +190,8 @@ struct adf_hw_device_data {
 	int (*send_admin_init)(struct adf_accel_dev *accel_dev);
 	int (*start_timer)(struct adf_accel_dev *accel_dev);
 	void (*stop_timer)(struct adf_accel_dev *accel_dev);
+	uint32_t (*get_hb_clock)(struct adf_hw_device_data *self);
+	int (*measure_clock)(struct adf_accel_dev *accel_dev);
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	const u32 *(*get_arb_mapping)(struct adf_accel_dev *accel_dev);

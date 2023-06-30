@@ -15,6 +15,7 @@
 #define ADF_CONST_TABLE_SIZE 1024
 #define ADF_ADMIN_POLL_DELAY_US 20
 #define ADF_ADMIN_POLL_TIMEOUT_US (5 * USEC_PER_SEC)
+#define ADF_ONE_AE 1
 
 static const u8 const_tab[1024] __aligned(1024) = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -192,6 +193,22 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	req.init_cfg_ptr = accel_dev->admin->const_tbl_addr;
 
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
+int adf_get_fw_timestamp(struct adf_accel_dev *accel_dev, u64 *timestamp)
+{
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp;
+	unsigned int ae_mask = ADF_ONE_AE;
+	int ret;
+
+	req.cmd_id = ICP_QAT_FW_TIMER_GET;
+	ret = adf_send_admin(accel_dev, &req, &resp, ae_mask);
+	if (ret)
+		return ret;
+
+	*timestamp = resp.timestamp;
+	return 0;
 }
 
 static int adf_get_dc_capabilities(struct adf_accel_dev *accel_dev,
