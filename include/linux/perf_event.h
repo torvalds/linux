@@ -295,6 +295,8 @@ struct perf_event_pmu_context;
 
 struct perf_output_handle;
 
+#define PMU_NULL_DEV	((void *)(~0UL))
+
 /**
  * struct pmu - generic performance monitoring unit
  */
@@ -827,6 +829,14 @@ struct perf_event {
 	void *security;
 #endif
 	struct list_head		sb_list;
+
+	/*
+	 * Certain events gets forwarded to another pmu internally by over-
+	 * writing kernel copy of event->attr.type without user being aware
+	 * of it. event->orig_type contains original 'type' requested by
+	 * user.
+	 */
+	__u32				orig_type;
 #endif /* CONFIG_PERF_EVENTS */
 };
 

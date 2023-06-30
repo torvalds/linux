@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -151,7 +151,7 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 				      struct cfg80211_chan_def *chandef,
 				      u8 chains_static, u8 chains_dynamic)
 {
-	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm->fw,
+	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm,
 						       chandef->chan->band));
 
 	/* Set the channel info data */
@@ -163,15 +163,18 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 					     chains_static, chains_dynamic);
 }
 
-static int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm,
-				struct iwl_mvm_phy_ctxt *ctxt,
-				u8 chains_static, u8 chains_dynamic)
+int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
+			 u8 chains_static, u8 chains_dynamic)
 {
 	struct iwl_rlc_config_cmd cmd = {
 		.phy_id = cpu_to_le32(ctxt->id),
 	};
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) < 2)
+	if (ctxt->rlc_disabled)
+		return 0;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP,
+						   RLC_CONFIG_CMD), 0) < 2)
 		return 0;
 
 	BUILD_BUG_ON(IWL_RLC_CHAIN_INFO_DRIVER_FORCE !=

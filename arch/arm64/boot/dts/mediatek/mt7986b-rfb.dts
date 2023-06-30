@@ -9,6 +9,7 @@
 
 / {
 	model = "MediaTek MT7986b RFB";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt7986b-rfb", "mediatek,mt7986b";
 
 	aliases {

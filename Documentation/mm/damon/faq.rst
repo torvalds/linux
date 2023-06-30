@@ -4,29 +4,6 @@
 Frequently Asked Questions
 ==========================
 
-Why a new subsystem, instead of extending perf or other user space tools?
-=========================================================================
-
-First, because it needs to be lightweight as much as possible so that it can be
-used online, any unnecessary overhead such as kernel - user space context
-switching cost should be avoided.  Second, DAMON aims to be used by other
-programs including the kernel.  Therefore, having a dependency on specific
-tools like perf is not desirable.  These are the two biggest reasons why DAMON
-is implemented in the kernel space.
-
-
-Can 'idle pages tracking' or 'perf mem' substitute DAMON?
-=========================================================
-
-Idle page tracking is a low level primitive for access check of the physical
-address space.  'perf mem' is similar, though it can use sampling to minimize
-the overhead.  On the other hand, DAMON is a higher-level framework for the
-monitoring of various address spaces.  It is focused on memory management
-optimization and provides sophisticated accuracy/overhead handling mechanisms.
-Therefore, 'idle pages tracking' and 'perf mem' could provide a subset of
-DAMON's output, but cannot substitute DAMON.
-
-
 Does DAMON support virtual memory only?
 =======================================
 

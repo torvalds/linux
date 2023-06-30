@@ -861,7 +861,7 @@ static void __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 
 		table = dm_get_inactive_table(md, &srcu_idx);
 		if (table) {
-			if (!(dm_table_get_mode(table) & FMODE_WRITE))
+			if (!(dm_table_get_mode(table) & BLK_OPEN_WRITE))
 				param->flags |= DM_READONLY_FLAG;
 			param->target_count = table->num_targets;
 		}
@@ -1189,7 +1189,7 @@ static int do_resume(struct dm_ioctl *param)
 		if (old_size && new_size && old_size != new_size)
 			need_resize_uevent = true;
 
-		if (dm_table_get_mode(new_map) & FMODE_WRITE)
+		if (dm_table_get_mode(new_map) & BLK_OPEN_WRITE)
 			set_disk_ro(dm_disk(md), 0);
 		else
 			set_disk_ro(dm_disk(md), 1);
@@ -1378,12 +1378,12 @@ static int dev_arm_poll(struct file *filp, struct dm_ioctl *param, size_t param_
 	return 0;
 }
 
-static inline fmode_t get_mode(struct dm_ioctl *param)
+static inline blk_mode_t get_mode(struct dm_ioctl *param)
 {
-	fmode_t mode = FMODE_READ | FMODE_WRITE;
+	blk_mode_t mode = BLK_OPEN_READ | BLK_OPEN_WRITE;
 
 	if (param->flags & DM_READONLY_FLAG)
-		mode = FMODE_READ;
+		mode = BLK_OPEN_READ;
 
 	return mode;
 }

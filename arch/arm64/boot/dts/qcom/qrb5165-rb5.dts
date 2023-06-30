@@ -535,30 +535,6 @@
 	firmware-name = "qcom/sm8250/cdsp.mbn";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vreg_l9a_1p2>;
-
-#if 0
-	qcom,dual-dsi-mode;
-	qcom,master-dsi;
-#endif
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&lt9611_a>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
-&dsi0_phy {
-	status = "okay";
-	vdds-supply = <&vreg_l5a_0p88>;
-};
-
 &gmu {
 	status = "okay";
 };
@@ -604,7 +580,7 @@
 				reg = <0>;
 
 				lt9611_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -613,7 +589,7 @@
 				reg = <1>;
 
 				lt9611_b: endpoint {
-					remote-endpoint = <&dsi1_out>;
+					remote-endpoint = <&mdss_dsi1_out>;
 				};
 			};
 #endif
@@ -639,8 +615,28 @@
 	status = "okay";
 };
 
-&mdss_mdp {
+&mdss_dsi0 {
 	status = "okay";
+	vdda-supply = <&vreg_l9a_1p2>;
+
+#if 0
+	qcom,dual-dsi-mode;
+	qcom,master-dsi;
+#endif
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&lt9611_a>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vreg_l5a_0p88>;
 };
 
 &pm8150_adc {

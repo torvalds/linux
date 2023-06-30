@@ -4,7 +4,7 @@
  *
  * (C) Copyright 2016 - 2020, Xilinx, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 #include "zynqmp-zcu102-rev1.0.dts"

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config DRM_SHMOBILE
+	tristate "DRM Support for SH Mobile"
+	depends on DRM
+	depends on ARCH_RENESAS || ARCH_SHMOBILE || COMPILE_TEST
+	select BACKLIGHT_CLASS_DEVICE
+	select DRM_KMS_HELPER
+	select DRM_GEM_DMA_HELPER
+	help
+	  Choose this option if you have an SH Mobile chipset.
+	  If M is selected the module will be called shmob-drm.
+

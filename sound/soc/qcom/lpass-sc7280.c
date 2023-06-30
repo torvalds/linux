@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <linux/pm_runtime.h>
+#include <linux/pm.h>
 
 #include <dt-bindings/sound/sc7180-lpass.h>
 

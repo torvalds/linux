@@ -50,7 +50,7 @@ struct paiext_map {
 	struct pai_userdata *save;	/* Area to store non-zero counters */
 	enum paievt_mode mode;		/* Type of event */
 	unsigned int active_events;	/* # of PAI Extension users */
-	unsigned int refcnt;
+	refcount_t refcnt;
 	struct perf_event *event;	/* Perf event for sampling */
 	struct paiext_cb *paiext_cb;	/* PAI extension control block area */
 };
@@ -60,14 +60,14 @@ struct paiext_mapptr {
 };
 
 static struct paiext_root {		/* Anchor to per CPU data */
-	int refcnt;			/* Overall active events */
+	refcount_t refcnt;		/* Overall active events */
 	struct paiext_mapptr __percpu *mapptr;
 } paiext_root;
 
 /* Free per CPU data when the last event is removed. */
 static void paiext_root_free(void)
 {
-	if (!--paiext_root.refcnt) {
+	if (refcount_dec_and_test(&paiext_root.refcnt)) {
 		free_percpu(paiext_root.mapptr);
 		paiext_root.mapptr = NULL;
 	}
@@ -80,7 +80,7 @@ static void paiext_root_free(void)
  */
 static int paiext_root_alloc(void)
 {
-	if (++paiext_root.refcnt == 1) {
+	if (!refcount_inc_not_zero(&paiext_root.refcnt)) {
 		/* The memory is already zeroed. */
 		paiext_root.mapptr = alloc_percpu(struct paiext_mapptr);
 		if (!paiext_root.mapptr) {
@@ -91,6 +91,7 @@ static int paiext_root_alloc(void)
 			 */
 			return -ENOMEM;
 		}
+		refcount_set(&paiext_root.refcnt, 1);
 	}
 	return 0;
 }
@@ -122,7 +123,7 @@ static void paiext_event_destroy(struct perf_event *event)
 
 	mutex_lock(&paiext_reserve_mutex);
 	cpump->event = NULL;
-	if (!--cpump->refcnt)		/* Last reference gone */
+	if (refcount_dec_and_test(&cpump->refcnt))	/* Last reference gone */
 		paiext_free(mp);
 	paiext_root_free();
 	mutex_unlock(&paiext_reserve_mutex);
@@ -163,7 +164,7 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 		rc = -ENOMEM;
 		cpump = kzalloc(sizeof(*cpump), GFP_KERNEL);
 		if (!cpump)
-			goto unlock;
+			goto undo;
 
 		/* Allocate memory for counter area and counter extraction.
 		 * These are
@@ -183,8 +184,9 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 					     GFP_KERNEL);
 		if (!cpump->save || !cpump->area || !cpump->paiext_cb) {
 			paiext_free(mp);
-			goto unlock;
+			goto undo;
 		}
+		refcount_set(&cpump->refcnt, 1);
 		cpump->mode = a->sample_period ? PAI_MODE_SAMPLING
 					       : PAI_MODE_COUNTING;
 	} else {
@@ -195,15 +197,15 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 		if (cpump->mode == PAI_MODE_SAMPLING ||
 		    (cpump->mode == PAI_MODE_COUNTING && a->sample_period)) {
 			rc = -EBUSY;
-			goto unlock;
+			goto undo;
 		}
+		refcount_inc(&cpump->refcnt);
 	}
 
 	rc = 0;
 	cpump->event = event;
-	++cpump->refcnt;
 
-unlock:
+undo:
 	if (rc) {
 		/* Error in allocation of event, decrement anchor. Since
 		 * the event in not created, its destroy() function is never
@@ -211,6 +213,7 @@ unlock:
 		 */
 		paiext_root_free();
 	}
+unlock:
 	mutex_unlock(&paiext_reserve_mutex);
 	/* If rc is non-zero, no increment of counter/sampler was done. */
 	return rc;

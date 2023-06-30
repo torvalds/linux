@@ -740,7 +740,7 @@ int vpu_v4l2_open(struct file *file, struct vpu_inst *inst)
 	inst->fh.ctrl_handler = &inst->ctrl_handler;
 	file->private_data = &inst->fh;
 	inst->state = VPU_CODEC_STATE_DEINIT;
-	inst->workqueue = alloc_workqueue("vpu_inst", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	inst->workqueue = alloc_ordered_workqueue("vpu_inst", WQ_MEM_RECLAIM);
 	if (inst->workqueue) {
 		INIT_WORK(&inst->msg_work, vpu_inst_run_work);
 		ret = kfifo_init(&inst->msg_fifo,

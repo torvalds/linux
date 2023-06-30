@@ -48,7 +48,8 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *domain);
 int mlx5dr_domain_sync(struct mlx5dr_domain *domain, u32 flags);
 
 void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
-			    struct mlx5dr_domain *peer_dmn);
+			    struct mlx5dr_domain *peer_dmn,
+			    u8 peer_idx);
 
 struct mlx5dr_table *
 mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags,

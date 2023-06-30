@@ -25,6 +25,8 @@ static void test_setsockopt_set(int cgroup_fd, int sock_fd)
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
 
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
+
 	/* Attach setsockopt that sets EUNATCH, assert that
 	 * we actually get that error when we run setsockopt()
 	 */
@@ -58,6 +60,8 @@ static void test_setsockopt_set_and_get(int cgroup_fd, int sock_fd)
 	obj = cgroup_getset_retval_setsockopt__open_and_load();
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
+
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that sets EUNATCH, and one that gets the
 	 * previously set errno. Assert that we get the same errno back.
@@ -100,6 +104,8 @@ static void test_setsockopt_default_zero(int cgroup_fd, int sock_fd)
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
 
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
+
 	/* Attach setsockopt that gets the previously set errno.
 	 * Assert that, without anything setting one, we get 0.
 	 */
@@ -133,6 +139,8 @@ static void test_setsockopt_default_zero_and_set(int cgroup_fd, int sock_fd)
 	obj = cgroup_getset_retval_setsockopt__open_and_load();
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
+
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that gets the previously set errno, and then
 	 * one that sets the errno to EUNATCH. Assert that the get does not
@@ -176,6 +184,8 @@ static void test_setsockopt_override(int cgroup_fd, int sock_fd)
 	obj = cgroup_getset_retval_setsockopt__open_and_load();
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
+
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that sets EUNATCH, then one that sets EISCONN,
 	 * and then one that gets the exported errno. Assert both the syscall
@@ -224,6 +234,8 @@ static void test_setsockopt_legacy_eperm(int cgroup_fd, int sock_fd)
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
 
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
+
 	/* Attach setsockopt that return a reject without setting errno
 	 * (legacy reject), and one that gets the errno. Assert that for
 	 * backward compatibility the syscall result in EPERM, and this
@@ -267,6 +279,8 @@ static void test_setsockopt_legacy_no_override(int cgroup_fd, int sock_fd)
 	obj = cgroup_getset_retval_setsockopt__open_and_load();
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
+
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach setsockopt that sets EUNATCH, then one that return a reject
 	 * without setting errno, and then one that gets the exported errno.
@@ -319,6 +333,8 @@ static void test_getsockopt_get(int cgroup_fd, int sock_fd)
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
 
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
+
 	/* Attach getsockopt that gets previously set errno. Assert that the
 	 * error from kernel is in both ctx_retval_value and retval_value.
 	 */
@@ -359,6 +375,8 @@ static void test_getsockopt_override(int cgroup_fd, int sock_fd)
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
 
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
+
 	/* Attach getsockopt that sets retval to -EISCONN. Assert that this
 	 * overrides the value from kernel.
 	 */
@@ -395,6 +413,8 @@ static void test_getsockopt_retval_sync(int cgroup_fd, int sock_fd)
 	obj = cgroup_getset_retval_getsockopt__open_and_load();
 	if (!ASSERT_OK_PTR(obj, "skel-load"))
 		return;
+
+	obj->bss->page_size = sysconf(_SC_PAGESIZE);
 
 	/* Attach getsockopt that sets retval to -EISCONN, and one that clears
 	 * ctx retval. Assert that the clearing ctx retval is synced to helper

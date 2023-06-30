@@ -1359,9 +1359,9 @@ __bpf_kfunc int bpf_verify_pkcs7_signature(struct bpf_dynptr_kern *data_ptr,
 	}
 
 	return verify_pkcs7_signature(data_ptr->data,
-				      bpf_dynptr_get_size(data_ptr),
+				      __bpf_dynptr_size(data_ptr),
 				      sig_ptr->data,
-				      bpf_dynptr_get_size(sig_ptr),
+				      __bpf_dynptr_size(sig_ptr),
 				      trusted_keyring->key,
 				      VERIFYING_UNSPECIFIED_SIGNATURE, NULL,
 				      NULL);

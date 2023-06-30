@@ -52,7 +52,7 @@ prom_getbootargs(void)
 		 * V3 PROM cannot supply as with more than 128 bytes
 		 * of an argument. But a smart bootstrap loader can.
 		 */
-		strlcpy(barg_buf, *romvec->pv_v2bootargs.bootargs, sizeof(barg_buf));
+		strscpy(barg_buf, *romvec->pv_v2bootargs.bootargs, sizeof(barg_buf));
 		break;
 	default:
 		break;

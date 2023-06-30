@@ -1591,11 +1591,10 @@ static int fanotify_test_fid(struct dentry *dentry)
 	 * We need to make sure that the file system supports at least
 	 * encoding a file handle so user can use name_to_handle_at() to
 	 * compare fid returned with event to the file handle of watched
-	 * objects. However, name_to_handle_at() requires that the
-	 * filesystem also supports decoding file handles.
+	 * objects. However, even the relaxed AT_HANDLE_FID flag requires
+	 * at least empty export_operations for ecoding unique file ids.
 	 */
-	if (!dentry->d_sb->s_export_op ||
-	    !dentry->d_sb->s_export_op->fh_to_dentry)
+	if (!dentry->d_sb->s_export_op)
 		return -EOPNOTSUPP;
 
 	return 0;

@@ -780,14 +780,15 @@ restore_fte:
 }
 
 static int mlx5_cmd_dr_set_peer(struct mlx5_flow_root_namespace *ns,
-				struct mlx5_flow_root_namespace *peer_ns)
+				struct mlx5_flow_root_namespace *peer_ns,
+				u8 peer_idx)
 {
 	struct mlx5dr_domain *peer_domain = NULL;
 
 	if (peer_ns)
 		peer_domain = peer_ns->fs_dr_domain.dr_domain;
 	mlx5dr_domain_set_peer(ns->fs_dr_domain.dr_domain,
-			       peer_domain);
+			       peer_domain, peer_idx);
 	return 0;
 }
 

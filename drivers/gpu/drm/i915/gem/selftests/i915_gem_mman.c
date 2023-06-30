@@ -1222,7 +1222,7 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 	}
 
 	err = intel_context_migrate_clear(to_gt(i915)->migrate.context, NULL,
-					  obj->mm.pages->sgl, obj->cache_level,
+					  obj->mm.pages->sgl, obj->pat_index,
 					  i915_gem_object_is_lmem(obj),
 					  expand32(POISON_INUSE), &rq);
 	i915_gem_object_unpin_pages(obj);
@@ -1681,7 +1681,9 @@ static int igt_mmap_gpu(void *arg)
 
 static int check_present_pte(pte_t *pte, unsigned long addr, void *data)
 {
-	if (!pte_present(*pte) || pte_none(*pte)) {
+	pte_t ptent = ptep_get(pte);
+
+	if (!pte_present(ptent) || pte_none(ptent)) {
 		pr_err("missing PTE:%lx\n",
 		       (addr - (unsigned long)data) >> PAGE_SHIFT);
 		return -EINVAL;
@@ -1692,7 +1694,9 @@ static int check_present_pte(pte_t *pte, unsigned long addr, void *data)
 
 static int check_absent_pte(pte_t *pte, unsigned long addr, void *data)
 {
-	if (pte_present(*pte) && !pte_none(*pte)) {
+	pte_t ptent = ptep_get(pte);
+
+	if (pte_present(ptent) && !pte_none(ptent)) {
 		pr_err("present PTE:%lx; expected to be revoked\n",
 		       (addr - (unsigned long)data) >> PAGE_SHIFT);
 		return -EINVAL;

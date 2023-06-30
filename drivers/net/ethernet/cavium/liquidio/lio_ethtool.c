@@ -3180,3 +3180,4 @@ void liquidio_set_ethtool_ops(struct net_device *netdev)
 	else
 		netdev->ethtool_ops = &lio_ethtool_ops;
 }
+EXPORT_SYMBOL_GPL(liquidio_set_ethtool_ops);

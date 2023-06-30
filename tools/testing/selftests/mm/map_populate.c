@@ -17,9 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef MMAP_SZ
 #define MMAP_SZ		4096
-#endif
 
 #define BUG_ON(condition, description)					\
 	do {								\

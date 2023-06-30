@@ -18,6 +18,17 @@ static ssize_t clock_name_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(clock_name);
 
+static ssize_t max_phase_adjustment_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *page)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+
+	return snprintf(page, PAGE_SIZE - 1, "%d\n",
+			ptp->info->getmaxphase(ptp->info));
+}
+static DEVICE_ATTR_RO(max_phase_adjustment);
+
 #define PTP_SHOW_INT(name, var)						\
 static ssize_t var##_show(struct device *dev,				\
 			   struct device_attribute *attr, char *page)	\
@@ -309,6 +320,7 @@ static struct attribute *ptp_attrs[] = {
 	&dev_attr_clock_name.attr,
 
 	&dev_attr_max_adjustment.attr,
+	&dev_attr_max_phase_adjustment.attr,
 	&dev_attr_n_alarms.attr,
 	&dev_attr_n_external_timestamps.attr,
 	&dev_attr_n_periodic_outputs.attr,

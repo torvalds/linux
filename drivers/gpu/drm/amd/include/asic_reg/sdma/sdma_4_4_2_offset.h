@@ -211,6 +211,10 @@
 #define regSDMA_RAS_STATUS_BASE_IDX                                                                     0
 #define regSDMA_CLK_STATUS                                                                              0x0068
 #define regSDMA_CLK_STATUS_BASE_IDX                                                                     0
+#define regSDMA_UE_ERR_STATUS_LO                                                                        0x0069
+#define regSDMA_UE_ERR_STATUS_LO_BASE_IDX                                                               0
+#define regSDMA_UE_ERR_STATUS_HI                                                                        0x006a
+#define regSDMA_UE_ERR_STATUS_HI_BASE_IDX                                                               0
 #define regSDMA_POWER_CNTL                                                                              0x006b
 #define regSDMA_POWER_CNTL_BASE_IDX                                                                     0
 #define regSDMA_CLK_CTRL                                                                                0x006c

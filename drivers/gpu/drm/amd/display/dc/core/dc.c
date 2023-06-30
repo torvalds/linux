@@ -515,8 +515,7 @@ dc_stream_forward_dmub_crc_window(struct dc_dmub_srv *dmub_srv,
 		cmd.secure_display.roi_info.y_end = rect->y + rect->height;
 	}
 
-	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dmub_srv);
+	dm_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 }
 
 static inline void
@@ -858,7 +857,6 @@ static bool dc_construct_ctx(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
 	struct dc_context *dc_ctx;
-	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 
 	dc_ctx = kzalloc(sizeof(*dc_ctx), GFP_KERNEL);
 	if (!dc_ctx)
@@ -876,8 +874,7 @@ static bool dc_construct_ctx(struct dc *dc,
 
 	/* Create logger */
 
-	dc_version = resource_parse_asic_id(init_params->asic_id);
-	dc_ctx->dce_version = dc_version;
+	dc_ctx->dce_version = resource_parse_asic_id(init_params->asic_id);
 
 	dc_ctx->perf_trace = dc_perf_trace_create();
 	if (!dc_ctx->perf_trace) {
@@ -1120,6 +1117,33 @@ static void phantom_pipe_blank(
 		hws->funcs.wait_for_blank_complete(opp);
 }
 
+static void dc_update_viusal_confirm_color(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx)
+{
+	if (dc->ctx->dce_version >= DCN_VERSION_1_0) {
+		memset(&pipe_ctx->visual_confirm_color, 0, sizeof(struct tg_color));
+
+		if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
+			get_hdr_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
+			get_surface_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
+			get_surface_tile_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else {
+			if (dc->ctx->dce_version < DCN_VERSION_2_0)
+				color_space_to_black_color(
+					dc, pipe_ctx->stream->output_color_space, &(pipe_ctx->visual_confirm_color));
+		}
+		if (dc->ctx->dce_version >= DCN_VERSION_2_0) {
+			if (dc->debug.visual_confirm == VISUAL_CONFIRM_MPCTREE)
+				get_mpctree_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP)
+				get_subvp_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+			else if (dc->debug.visual_confirm == VISUAL_CONFIRM_MCLK_SWITCH)
+				get_mclk_switch_visual_confirm_color(dc, context, pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		}
+	}
+}
+
 static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 {
 	int i, j;
@@ -1189,6 +1213,9 @@ static void disable_dangling_plane(struct dc *dc, struct dc_state *context)
 			}
 			dc_rem_all_planes_for_stream(dc, old_stream, dangling_context);
 			disable_all_writeback_pipes_for_stream(dc, old_stream, dangling_context);
+
+			if (pipe->stream && pipe->plane_state)
+				dc_update_viusal_confirm_color(dc, context, pipe);
 
 			if (dc->hwss.apply_ctx_for_surface) {
 				apply_ctx_interdependent_lock(dc, dc->current_state, old_stream, true);
@@ -2504,9 +2531,6 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 	union surface_update_flags *update_flags = &u->surface->update_flags;
 
-	if (u->flip_addr)
-		update_flags->bits.addr_update = 1;
-
 	if (!is_surface_in_context(context, u->surface) || u->surface->force_full_update) {
 		update_flags->raw = 0xFFFFFFFF;
 		return UPDATE_TYPE_FULL;
@@ -2565,15 +2589,19 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 		elevate_update_type(&overall_type, type);
 	}
 
-	if (update_flags->bits.input_csc_change
-			|| update_flags->bits.coeff_reduction_change
-			|| update_flags->bits.lut_3d
-			|| update_flags->bits.gamma_change
-			|| update_flags->bits.gamut_remap_change) {
+	if (update_flags->bits.lut_3d) {
 		type = UPDATE_TYPE_FULL;
 		elevate_update_type(&overall_type, type);
 	}
 
+	if (dc->debug.enable_legacy_fast_update &&
+			(update_flags->bits.gamma_change ||
+			update_flags->bits.gamut_remap_change ||
+			update_flags->bits.input_csc_change ||
+			update_flags->bits.coeff_reduction_change)) {
+		type = UPDATE_TYPE_FULL;
+		elevate_update_type(&overall_type, type);
+	}
 	return overall_type;
 }
 
@@ -2606,7 +2634,7 @@ static enum surface_update_type check_update_surfaces_for_stream(
 			stream_update->integer_scaling_update)
 			su_flags->bits.scaling = 1;
 
-		if (stream_update->out_transfer_func)
+		if (dc->debug.enable_legacy_fast_update && stream_update->out_transfer_func)
 			su_flags->bits.out_tf = 1;
 
 		if (stream_update->abm_level)
@@ -2626,14 +2654,23 @@ static enum surface_update_type check_update_surfaces_for_stream(
 
 		if (stream_update->mst_bw_update)
 			su_flags->bits.mst_bw = 1;
-		if (stream_update->crtc_timing_adjust && dc_extended_blank_supported(dc))
-			su_flags->bits.crtc_timing_adjust = 1;
+
+		if (stream_update->stream && stream_update->stream->freesync_on_desktop &&
+			(stream_update->vrr_infopacket || stream_update->allow_freesync ||
+				stream_update->vrr_active_variable || stream_update->vrr_active_fixed))
+			su_flags->bits.fams_changed = 1;
 
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
 
 		if (stream_update->output_csc_transform || stream_update->output_color_space)
 			su_flags->bits.out_csc = 1;
+
+		/* Output transfer function changes do not require bandwidth recalculation,
+		 * so don't trigger a full update
+		 */
+		if (!dc->debug.enable_legacy_fast_update && stream_update->out_transfer_func)
+			su_flags->bits.out_tf = 1;
 	}
 
 	for (i = 0 ; i < surface_count; i++) {
@@ -2986,6 +3023,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->vrr_active_variable)
 		stream->vrr_active_variable = *update->vrr_active_variable;
 
+	if (update->vrr_active_fixed)
+		stream->vrr_active_fixed = *update->vrr_active_fixed;
+
 	if (update->crtc_timing_adjust)
 		stream->adjust = *update->crtc_timing_adjust;
 
@@ -3290,6 +3330,13 @@ static void commit_planes_do_stream_update(struct dc *dc,
 						dc->hwss.prepare_bandwidth(dc, dc->current_state);
 					dc->link_srv->set_dpms_on(dc->current_state, pipe_ctx);
 				}
+			} else if (pipe_ctx->stream->link->wa_flags.blank_stream_on_ocs_change && stream_update->output_color_space
+					&& !stream->dpms_off && dc_is_dp_signal(pipe_ctx->stream->signal)) {
+				/*
+				 * Workaround for firmware issue in some receivers where they don't pick up
+				 * correct output color space unless DP link is disabled/re-enabled
+				 */
+				dc->link_srv->set_dpms_on(dc->current_state, pipe_ctx);
 			}
 
 			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
@@ -3330,7 +3377,6 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 			       struct dc_state *context)
 {
 	union dmub_rb_cmd cmd;
-	struct dc_context *dc_ctx = dc->ctx;
 	struct dmub_cmd_update_dirty_rect_data *update_dirty_rect;
 	unsigned int i, j;
 	unsigned int panel_inst = 0;
@@ -3371,10 +3417,166 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 
 			update_dirty_rect->panel_inst = panel_inst;
 			update_dirty_rect->pipe_idx = j;
-			dc_dmub_srv_cmd_queue(dc_ctx->dmub_srv, &cmd);
-			dc_dmub_srv_cmd_execute(dc_ctx->dmub_srv);
+			dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
 		}
 	}
+}
+
+static void build_dmub_update_dirty_rect(
+		struct dc *dc,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_surface_update *srf_updates,
+		struct dc_state *context,
+		struct dc_dmub_cmd dc_dmub_cmd[],
+		unsigned int *dmub_cmd_count)
+{
+	union dmub_rb_cmd cmd;
+	struct dmub_cmd_update_dirty_rect_data *update_dirty_rect;
+	unsigned int i, j;
+	unsigned int panel_inst = 0;
+
+	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
+		return;
+
+	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+		return;
+
+	memset(&cmd, 0x0, sizeof(cmd));
+	cmd.update_dirty_rect.header.type = DMUB_CMD__UPDATE_DIRTY_RECT;
+	cmd.update_dirty_rect.header.sub_type = 0;
+	cmd.update_dirty_rect.header.payload_bytes =
+		sizeof(cmd.update_dirty_rect) -
+		sizeof(cmd.update_dirty_rect.header);
+	update_dirty_rect = &cmd.update_dirty_rect.update_dirty_rect_data;
+	for (i = 0; i < surface_count; i++) {
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
+		const struct dc_flip_addrs *flip_addr = srf_updates[i].flip_addr;
+
+		if (!srf_updates[i].surface || !flip_addr)
+			continue;
+		/* Do not send in immediate flip mode */
+		if (srf_updates[i].surface->flip_immediate)
+			continue;
+		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
+		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
+		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
+				sizeof(flip_addr->dirty_rects));
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (pipe_ctx->stream != stream)
+				continue;
+			if (pipe_ctx->plane_state != plane_state)
+				continue;
+			update_dirty_rect->panel_inst = panel_inst;
+			update_dirty_rect->pipe_idx = j;
+			dc_dmub_cmd[*dmub_cmd_count].dmub_cmd = cmd;
+			dc_dmub_cmd[*dmub_cmd_count].wait_type = DM_DMUB_WAIT_TYPE_NO_WAIT;
+			(*dmub_cmd_count)++;
+		}
+	}
+}
+
+
+/**
+ * build_dmub_cmd_list() - Build an array of DMCUB commands to be sent to DMCUB
+ *
+ * @dc: Current DC state
+ * @srf_updates: Array of surface updates
+ * @surface_count: Number of surfaces that have an updated
+ * @stream: Corresponding stream to be updated in the current flip
+ * @context: New DC state to be programmed
+ *
+ * @dc_dmub_cmd: Array of DMCUB commands to be sent to DMCUB
+ * @dmub_cmd_count: Count indicating the number of DMCUB commands in dc_dmub_cmd array
+ *
+ * This function builds an array of DMCUB commands to be sent to DMCUB. This function is required
+ * to build an array of commands and have them sent while the OTG lock is acquired.
+ *
+ * Return: void
+ */
+static void build_dmub_cmd_list(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_state *context,
+		struct dc_dmub_cmd dc_dmub_cmd[],
+		unsigned int *dmub_cmd_count)
+{
+	// Initialize cmd count to 0
+	*dmub_cmd_count = 0;
+	build_dmub_update_dirty_rect(dc, surface_count, stream, srf_updates, context, dc_dmub_cmd, dmub_cmd_count);
+}
+
+static void commit_planes_for_stream_fast(struct dc *dc,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_state *stream,
+		struct dc_stream_update *stream_update,
+		enum surface_update_type update_type,
+		struct dc_state *context)
+{
+	int i, j;
+	struct pipe_ctx *top_pipe_to_program = NULL;
+	dc_z10_restore(dc);
+
+	for (j = 0; j < dc->res_pool->pipe_count; j++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+		if (!pipe_ctx->top_pipe &&
+			!pipe_ctx->prev_odm_pipe &&
+			pipe_ctx->stream &&
+			pipe_ctx->stream == stream) {
+			top_pipe_to_program = pipe_ctx;
+		}
+	}
+
+	if (dc->debug.visual_confirm) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe->stream && pipe->plane_state)
+				dc_update_viusal_confirm_color(dc, context, pipe);
+		}
+	}
+
+	for (i = 0; i < surface_count; i++) {
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
+		/*set logical flag for lock/unlock use*/
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (!pipe_ctx->plane_state)
+				continue;
+			if (should_update_pipe_for_plane(context, pipe_ctx, plane_state))
+				continue;
+			pipe_ctx->plane_state->triplebuffer_flips = false;
+			if (update_type == UPDATE_TYPE_FAST &&
+			    dc->hwss.program_triplebuffer &&
+			    !pipe_ctx->plane_state->flip_immediate && dc->debug.enable_tri_buf) {
+				/*triple buffer for VUpdate  only*/
+				pipe_ctx->plane_state->triplebuffer_flips = true;
+			}
+		}
+	}
+
+	build_dmub_cmd_list(dc,
+			srf_updates,
+			surface_count,
+			stream,
+			context,
+			context->dc_dmub_cmd,
+			&(context->dmub_cmd_count));
+	hwss_build_fast_sequence(dc,
+			context->dc_dmub_cmd,
+			context->dmub_cmd_count,
+			context->block_sequence,
+			&(context->block_sequence_steps),
+			top_pipe_to_program);
+	hwss_execute_sequence(dc,
+			context->block_sequence,
+			context->block_sequence_steps);
 }
 
 static void commit_planes_for_stream(struct dc *dc,
@@ -3411,21 +3613,6 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			if (pipe_ctx->stream_res.tg->funcs->wait_drr_doublebuffer_pending_clear)
 				pipe_ctx->stream_res.tg->funcs->wait_drr_doublebuffer_pending_clear(pipe_ctx->stream_res.tg);
-		}
-	}
-
-	if (get_seamless_boot_stream_count(context) > 0 && surface_count > 0) {
-		/* Optimize seamless boot flag keeps clocks and watermarks high until
-		 * first flip. After first flip, optimization is required to lower
-		 * bandwidth. Important to note that it is expected UEFI will
-		 * only light up a single display on POST, therefore we only expect
-		 * one stream with seamless boot flag set.
-		 */
-		if (stream->apply_seamless_boot_optimization) {
-			stream->apply_seamless_boot_optimization = false;
-
-			if (get_seamless_boot_stream_count(context) == 0)
-				dc->optimized_required = true;
 		}
 	}
 
@@ -3469,6 +3656,14 @@ static void commit_planes_for_stream(struct dc *dc,
 			break;
 		}
 	}
+
+	if (dc->debug.visual_confirm)
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+			if (pipe->stream && pipe->plane_state)
+				dc_update_viusal_confirm_color(dc, context, pipe);
+		}
 
 	if (stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE) {
 		struct pipe_ctx *mpcc_pipe;
@@ -3553,42 +3748,39 @@ static void commit_planes_for_stream(struct dc *dc,
 		for (j = 0; j < dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP &&
+			if ((dc->debug.visual_confirm == VISUAL_CONFIRM_SUBVP ||
+				dc->debug.visual_confirm == VISUAL_CONFIRM_MCLK_SWITCH) &&
 				pipe_ctx->stream && pipe_ctx->plane_state) {
-				/* Only update visual confirm for SUBVP here.
+				/* Only update visual confirm for SUBVP and Mclk switching here.
 				 * The bar appears on all pipes, so we need to update the bar on all displays,
 				 * so the information doesn't get stale.
 				 */
-				struct mpcc_blnd_cfg blnd_cfg = { 0 };
-
-				dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color,
+				dc->hwss.update_visual_confirm_color(dc, pipe_ctx,
 						pipe_ctx->plane_res.hubp->inst);
 			}
 		}
 	}
 
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		for (i = 0; i < surface_count; i++) {
-			struct dc_plane_state *plane_state = srf_updates[i].surface;
-			/*set logical flag for lock/unlock use*/
-			for (j = 0; j < dc->res_pool->pipe_count; j++) {
-				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
-				if (!pipe_ctx->plane_state)
-					continue;
-				if (should_update_pipe_for_plane(context, pipe_ctx, plane_state))
-					continue;
-				pipe_ctx->plane_state->triplebuffer_flips = false;
-				if (update_type == UPDATE_TYPE_FAST &&
-					dc->hwss.program_triplebuffer != NULL &&
-					!pipe_ctx->plane_state->flip_immediate && dc->debug.enable_tri_buf) {
-						/*triple buffer for VUpdate  only*/
-						pipe_ctx->plane_state->triplebuffer_flips = true;
-				}
+	for (i = 0; i < surface_count; i++) {
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
+		/*set logical flag for lock/unlock use*/
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+			if (!pipe_ctx->plane_state)
+				continue;
+			if (should_update_pipe_for_plane(context, pipe_ctx, plane_state))
+				continue;
+			pipe_ctx->plane_state->triplebuffer_flips = false;
+			if (update_type == UPDATE_TYPE_FAST &&
+				dc->hwss.program_triplebuffer != NULL &&
+				!pipe_ctx->plane_state->flip_immediate && dc->debug.enable_tri_buf) {
+					/*triple buffer for VUpdate  only*/
+					pipe_ctx->plane_state->triplebuffer_flips = true;
 			}
-			if (update_type == UPDATE_TYPE_FULL) {
-				/* force vsync flip when reconfiguring pipes to prevent underflow */
-				plane_state->flip_immediate = false;
-			}
+		}
+		if (update_type == UPDATE_TYPE_FULL) {
+			/* force vsync flip when reconfiguring pipes to prevent underflow */
+			plane_state->flip_immediate = false;
 		}
 	}
 
@@ -4006,6 +4198,41 @@ static bool commit_minimal_transition_state(struct dc *dc,
 	return true;
 }
 
+/**
+ * update_seamless_boot_flags() - Helper function for updating seamless boot flags
+ *
+ * @dc: Current DC state
+ * @context: New DC state to be programmed
+ * @surface_count: Number of surfaces that have an updated
+ * @stream: Corresponding stream to be updated in the current flip
+ *
+ * Updating seamless boot flags do not need to be part of the commit sequence. This
+ * helper function will update the seamless boot flags on each flip (if required)
+ * outside of the HW commit sequence (fast or slow).
+ *
+ * Return: void
+ */
+static void update_seamless_boot_flags(struct dc *dc,
+		struct dc_state *context,
+		int surface_count,
+		struct dc_stream_state *stream)
+{
+	if (get_seamless_boot_stream_count(context) > 0 && surface_count > 0) {
+		/* Optimize seamless boot flag keeps clocks and watermarks high until
+		 * first flip. After first flip, optimization is required to lower
+		 * bandwidth. Important to note that it is expected UEFI will
+		 * only light up a single display on POST, therefore we only expect
+		 * one stream with seamless boot flag set.
+		 */
+		if (stream->apply_seamless_boot_optimization) {
+			stream->apply_seamless_boot_optimization = false;
+
+			if (get_seamless_boot_stream_count(context) == 0)
+				dc->optimized_required = true;
+		}
+	}
+}
+
 bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -4072,14 +4299,25 @@ bool dc_update_planes_and_stream(struct dc *dc,
 		update_type = UPDATE_TYPE_FULL;
 	}
 
-	commit_planes_for_stream(
-			dc,
-			srf_updates,
-			surface_count,
-			stream,
-			stream_update,
-			update_type,
-			context);
+	update_seamless_boot_flags(dc, context, surface_count, stream);
+	if (!dc->debug.enable_legacy_fast_update && update_type == UPDATE_TYPE_FAST) {
+		commit_planes_for_stream_fast(dc,
+				srf_updates,
+				surface_count,
+				stream,
+				stream_update,
+				update_type,
+				context);
+	} else {
+		commit_planes_for_stream(
+				dc,
+				srf_updates,
+				surface_count,
+				stream,
+				stream_update,
+				update_type,
+				context);
+	}
 
 	if (dc->current_state != context) {
 
@@ -4204,7 +4442,17 @@ void dc_commit_updates_for_stream(struct dc *dc,
 
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
-	commit_planes_for_stream(
+	update_seamless_boot_flags(dc, context, surface_count, stream);
+	if (!dc->debug.enable_legacy_fast_update && update_type == UPDATE_TYPE_FAST) {
+		commit_planes_for_stream_fast(dc,
+				srf_updates,
+				surface_count,
+				stream,
+				stream_update,
+				update_type,
+				context);
+	} else {
+		commit_planes_for_stream(
 				dc,
 				srf_updates,
 				surface_count,
@@ -4212,6 +4460,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 				stream_update,
 				update_type,
 				context);
+	}
 	/*update current_State*/
 	if (dc->current_state != context) {
 
@@ -4297,9 +4546,6 @@ void dc_set_power_state(
 		dc_resource_state_construct(dc, dc->current_state);
 
 		dc_z10_restore(dc);
-
-		if (dc->ctx->dmub_srv)
-			dc_dmub_srv_wait_phy_init(dc->ctx->dmub_srv);
 
 		dc->hwss.init_hw(dc);
 
@@ -4640,7 +4886,6 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 {
 	uint8_t action;
 	union dmub_rb_cmd cmd = {0};
-	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
 
 	ASSERT(payload->length <= 16);
 
@@ -4688,9 +4933,7 @@ bool dc_process_dmub_aux_transfer_async(struct dc *dc,
 			);
 	}
 
-	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dmub_srv);
-	dc_dmub_srv_wait_idle(dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }
@@ -4734,7 +4977,6 @@ bool dc_process_dmub_set_config_async(struct dc *dc,
 				struct dmub_notification *notify)
 {
 	union dmub_rb_cmd cmd = {0};
-	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
 	bool is_cmd_complete = true;
 
 	/* prepare SET_CONFIG command */
@@ -4745,7 +4987,7 @@ bool dc_process_dmub_set_config_async(struct dc *dc,
 	cmd.set_config_access.set_config_control.cmd_pkt.msg_type = payload->msg_type;
 	cmd.set_config_access.set_config_control.cmd_pkt.msg_data = payload->msg_data;
 
-	if (!dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd)) {
+	if (!dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)) {
 		/* command is not processed by dmub */
 		notify->sc_status = SET_CONFIG_UNKNOWN_ERROR;
 		return is_cmd_complete;
@@ -4780,7 +5022,6 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 				uint8_t *mst_slots_in_use)
 {
 	union dmub_rb_cmd cmd = {0};
-	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
 
 	/* prepare MST_ALLOC_SLOTS command */
 	cmd.set_mst_alloc_slots.header.type = DMUB_CMD__DPIA;
@@ -4789,7 +5030,7 @@ enum dc_status dc_process_dmub_set_mst_slots(const struct dc *dc,
 	cmd.set_mst_alloc_slots.mst_slots_control.instance = dc->links[link_index]->ddc_hw_inst;
 	cmd.set_mst_alloc_slots.mst_slots_control.mst_alloc_slots = mst_alloc_slots;
 
-	if (!dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd))
+	if (!dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 		/* command is not processed by dmub */
 		return DC_ERROR_UNEXPECTED;
 
@@ -4823,16 +5064,25 @@ void dc_process_dmub_dpia_hpd_int_enable(const struct dc *dc,
 				uint32_t hpd_int_enable)
 {
 	union dmub_rb_cmd cmd = {0};
-	struct dc_dmub_srv *dmub_srv = dc->ctx->dmub_srv;
 
 	cmd.dpia_hpd_int_enable.header.type = DMUB_CMD__DPIA_HPD_INT_ENABLE;
 	cmd.dpia_hpd_int_enable.enable = hpd_int_enable;
 
-	dc_dmub_srv_cmd_queue(dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dmub_srv);
-	dc_dmub_srv_wait_idle(dmub_srv);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	DC_LOG_DEBUG("%s: hpd_int_enable(%d)\n", __func__, hpd_int_enable);
+}
+
+/**
+ * dc_print_dmub_diagnostic_data - Print DMUB diagnostic data for debugging
+ *
+ * @dc: [in] dc structure
+ *
+ *
+ */
+void dc_print_dmub_diagnostic_data(const struct dc *dc)
+{
+	dc_dmub_srv_log_diagnostic_data(dc->ctx->dmub_srv);
 }
 
 /**
@@ -4893,22 +5143,4 @@ void dc_notify_vsync_int_state(struct dc *dc, struct dc_stream_state *stream, bo
 
 	if (pipe->stream_res.abm && pipe->stream_res.abm->funcs->set_abm_pause)
 		pipe->stream_res.abm->funcs->set_abm_pause(pipe->stream_res.abm, !enable, i, pipe->stream_res.tg->inst);
-}
-
-/**
- * dc_extended_blank_supported - Decide whether extended blank is supported
- *
- * @dc: [in] Current DC state
- *
- * Extended blank is a freesync optimization feature to be enabled in the
- * future.  During the extra vblank period gained from freesync, we have the
- * ability to enter z9/z10.
- *
- * Return:
- * Indicate whether extended blank is supported (%true or %false)
- */
-bool dc_extended_blank_supported(struct dc *dc)
-{
-	return dc->debug.extended_blank_optimization && !dc->debug.disable_z10
-		&& dc->caps.zstate_support && dc->caps.is_apu;
 }

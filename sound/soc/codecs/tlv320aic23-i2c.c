@@ -47,7 +47,7 @@ static struct i2c_driver tlv320aic23_i2c_driver = {
 		   .name = "tlv320aic23-codec",
 		   .of_match_table = of_match_ptr(tlv320aic23_of_match),
 		   },
-	.probe_new = tlv320aic23_i2c_probe,
+	.probe = tlv320aic23_i2c_probe,
 	.id_table = tlv320aic23_id,
 };
 

@@ -1394,8 +1394,8 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	host->cmd_per_lun = le32_to_cpu(iop_config.max_requests);
 	host->max_cmd_len = 16;
 
-	req_size = struct_size((struct hpt_iop_request_scsi_command *)0,
-			       sg_list, hba->max_sg_descriptors);
+	req_size = struct_size_t(struct hpt_iop_request_scsi_command,
+				 sg_list, hba->max_sg_descriptors);
 	if ((req_size & 0x1f) != 0)
 		req_size = (req_size + 0x1f) & ~0x1f;
 

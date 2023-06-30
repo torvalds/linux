@@ -640,9 +640,15 @@ static inline int use_cpu_reloc(const struct reloc_cache *cache,
 	if (DBG_FORCE_RELOC == FORCE_GTT_RELOC)
 		return false;
 
+	/*
+	 * For objects created by userspace through GEM_CREATE with pat_index
+	 * set by set_pat extension, i915_gem_object_has_cache_level() always
+	 * return true, otherwise the call would fall back to checking whether
+	 * the object is un-cached.
+	 */
 	return (cache->has_llc ||
 		obj->cache_dirty ||
-		obj->cache_level != I915_CACHE_NONE);
+		!i915_gem_object_has_cache_level(obj, I915_CACHE_NONE));
 }
 
 static int eb_reserve_vma(struct i915_execbuffer *eb,
@@ -730,7 +736,6 @@ static int eb_reserve(struct i915_execbuffer *eb)
 	struct eb_vma *ev;
 	unsigned int pass;
 	int err = 0;
-	bool unpinned;
 
 	/*
 	 * We have one more buffers that we couldn't bind, which could be due to
@@ -770,7 +775,7 @@ static int eb_reserve(struct i915_execbuffer *eb)
 			pin_flags |= PIN_NONBLOCK;
 
 		if (pass >= 1)
-			unpinned = eb_unbind(eb, pass >= 2);
+			eb_unbind(eb, pass >= 2);
 
 		if (pass == 2) {
 			err = mutex_lock_interruptible(&eb->context->vm->mutex);
@@ -1324,7 +1329,10 @@ static void *reloc_iomap(struct i915_vma *batch,
 	if (drm_mm_node_allocated(&cache->node)) {
 		ggtt->vm.insert_page(&ggtt->vm,
 				     i915_gem_object_get_dma_address(obj, page),
-				     offset, I915_CACHE_NONE, 0);
+				     offset,
+				     i915_gem_get_pat_index(ggtt->vm.i915,
+							    I915_CACHE_NONE),
+				     0);
 	} else {
 		offset += page << PAGE_SHIFT;
 	}
@@ -1464,7 +1472,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 			reloc_cache_unmap(&eb->reloc_cache);
 			mutex_lock(&vma->vm->mutex);
 			err = i915_vma_bind(target->vma,
-					    target->vma->obj->cache_level,
+					    target->vma->obj->pat_index,
 					    PIN_GLOBAL, NULL, NULL);
 			mutex_unlock(&vma->vm->mutex);
 			reloc_cache_remap(&eb->reloc_cache, ev->vma->obj);

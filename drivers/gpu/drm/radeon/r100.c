@@ -2929,7 +2929,7 @@ static void r100_set_safe_registers(struct radeon_device *rdev)
 #if defined(CONFIG_DEBUG_FS)
 static int r100_debugfs_rbbm_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t reg, value;
 	unsigned i;
 
@@ -2948,7 +2948,7 @@ static int r100_debugfs_rbbm_info_show(struct seq_file *m, void *unused)
 
 static int r100_debugfs_cp_ring_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	uint32_t rdp, wdp;
 	unsigned count, i, j;
@@ -2974,7 +2974,7 @@ static int r100_debugfs_cp_ring_info_show(struct seq_file *m, void *unused)
 
 static int r100_debugfs_cp_csq_fifo_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t csq_stat, csq2_stat, tmp;
 	unsigned r_rptr, r_wptr, ib1_rptr, ib1_wptr, ib2_rptr, ib2_wptr;
 	unsigned i;
@@ -3022,7 +3022,7 @@ static int r100_debugfs_cp_csq_fifo_show(struct seq_file *m, void *unused)
 
 static int r100_debugfs_mc_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32(RADEON_CONFIG_MEMSIZE);

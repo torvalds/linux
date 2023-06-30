@@ -323,7 +323,7 @@ static struct i2c_driver max20086_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(max20086_dt_ids),
 	},
-	.probe_new = max20086_i2c_probe,
+	.probe = max20086_i2c_probe,
 	.id_table = max20086_i2c_id,
 };
 

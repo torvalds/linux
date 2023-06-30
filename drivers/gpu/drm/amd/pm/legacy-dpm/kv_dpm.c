@@ -508,19 +508,19 @@ static int kv_enable_didt(struct amdgpu_device *adev, bool enable)
 	    pi->caps_db_ramping ||
 	    pi->caps_td_ramping ||
 	    pi->caps_tcp_ramping) {
-		amdgpu_gfx_rlc_enter_safe_mode(adev);
+		amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 		if (enable) {
 			ret = kv_program_pt_config_registers(adev, didt_config_kv);
 			if (ret) {
-				amdgpu_gfx_rlc_exit_safe_mode(adev);
+				amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 				return ret;
 			}
 		}
 
 		kv_do_enable_didt(adev, enable);
 
-		amdgpu_gfx_rlc_exit_safe_mode(adev);
+		amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	}
 
 	return 0;

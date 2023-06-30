@@ -2314,7 +2314,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 
 	for (i = 0; i < ds->num_ports; i++) {
 		struct dw_xpcs *xpcs = priv->xpcs[i];
-		unsigned int mode;
+		unsigned int neg_mode;
 
 		rc = sja1105_adjust_port_config(priv, i, speed_mbps[i]);
 		if (rc < 0)
@@ -2324,17 +2324,15 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 			continue;
 
 		if (bmcr[i] & BMCR_ANENABLE)
-			mode = MLO_AN_INBAND;
-		else if (priv->fixed_link[i])
-			mode = MLO_AN_FIXED;
+			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
 		else
-			mode = MLO_AN_PHY;
+			neg_mode = PHYLINK_PCS_NEG_OUTBAND;
 
-		rc = xpcs_do_config(xpcs, priv->phy_mode[i], mode, NULL);
+		rc = xpcs_do_config(xpcs, priv->phy_mode[i], NULL, neg_mode);
 		if (rc < 0)
 			goto out;
 
-		if (!phylink_autoneg_inband(mode)) {
+		if (neg_mode == PHYLINK_PCS_NEG_OUTBAND) {
 			int speed = SPEED_UNKNOWN;
 
 			if (priv->phy_mode[i] == PHY_INTERFACE_MODE_2500BASEX)
@@ -2346,7 +2344,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv,
 			else
 				speed = SPEED_10;
 
-			xpcs_link_up(&xpcs->pcs, mode, priv->phy_mode[i],
+			xpcs_link_up(&xpcs->pcs, neg_mode, priv->phy_mode[i],
 				     speed, DUPLEX_FULL);
 		}
 	}

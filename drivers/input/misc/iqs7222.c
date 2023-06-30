@@ -2593,7 +2593,7 @@ static struct i2c_driver iqs7222_i2c_driver = {
 		.name = "iqs7222",
 		.of_match_table = iqs7222_of_match,
 	},
-	.probe_new = iqs7222_probe,
+	.probe = iqs7222_probe,
 };
 module_i2c_driver(iqs7222_i2c_driver);
 

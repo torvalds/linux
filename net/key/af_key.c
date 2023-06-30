@@ -3761,7 +3761,6 @@ static const struct proto_ops pfkey_ops = {
 	.listen		=	sock_no_listen,
 	.shutdown	=	sock_no_shutdown,
 	.mmap		=	sock_no_mmap,
-	.sendpage	=	sock_no_sendpage,
 
 	/* Now the operations that really occur. */
 	.release	=	pfkey_release,

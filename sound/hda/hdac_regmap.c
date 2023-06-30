@@ -17,7 +17,6 @@
 #include <linux/regmap.h>
 #include <linux/export.h>
 #include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_regmap.h>
@@ -358,7 +357,7 @@ static const struct regmap_config hda_regmap_cfg = {
 	.writeable_reg = hda_writeable_reg,
 	.readable_reg = hda_readable_reg,
 	.volatile_reg = hda_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_read = hda_reg_read,
 	.reg_write = hda_reg_write,
 	.use_single_read = true,

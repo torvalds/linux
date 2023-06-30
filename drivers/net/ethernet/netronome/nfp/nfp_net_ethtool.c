@@ -436,49 +436,41 @@ static void nfp_add_media_link_mode(struct nfp_port *port,
 				    struct nfp_eth_table_port *eth_port,
 				    struct ethtool_link_ksettings *cmd)
 {
-	u64 supported_modes[2], advertised_modes[2];
-	struct nfp_eth_media_buf ethm = {
-		.eth_index = eth_port->eth_index,
-	};
-	struct nfp_cpp *cpp = port->app->cpp;
-
-	if (nfp_eth_read_media(cpp, &ethm)) {
-		bitmap_fill(port->speed_bitmap, NFP_SUP_SPEED_NUMBER);
-		return;
-	}
-
 	bitmap_zero(port->speed_bitmap, NFP_SUP_SPEED_NUMBER);
-
-	for (u32 i = 0; i < 2; i++) {
-		supported_modes[i] = le64_to_cpu(ethm.supported_modes[i]);
-		advertised_modes[i] = le64_to_cpu(ethm.advertised_modes[i]);
-	}
 
 	for (u32 i = 0; i < NFP_MEDIA_LINK_MODES_NUMBER; i++) {
 		if (i < 64) {
-			if (supported_modes[0] & BIT_ULL(i)) {
+			if (eth_port->link_modes_supp[0] & BIT_ULL(i)) {
 				__set_bit(nfp_eth_media_table[i].ethtool_link_mode,
 					  cmd->link_modes.supported);
 				__set_bit(nfp_eth_media_table[i].speed,
 					  port->speed_bitmap);
 			}
 
-			if (advertised_modes[0] & BIT_ULL(i))
+			if (eth_port->link_modes_ad[0] & BIT_ULL(i))
 				__set_bit(nfp_eth_media_table[i].ethtool_link_mode,
 					  cmd->link_modes.advertising);
 		} else {
-			if (supported_modes[1] & BIT_ULL(i - 64)) {
+			if (eth_port->link_modes_supp[1] & BIT_ULL(i - 64)) {
 				__set_bit(nfp_eth_media_table[i].ethtool_link_mode,
 					  cmd->link_modes.supported);
 				__set_bit(nfp_eth_media_table[i].speed,
 					  port->speed_bitmap);
 			}
 
-			if (advertised_modes[1] & BIT_ULL(i - 64))
+			if (eth_port->link_modes_ad[1] & BIT_ULL(i - 64))
 				__set_bit(nfp_eth_media_table[i].ethtool_link_mode,
 					  cmd->link_modes.advertising);
 		}
 	}
+
+	/* We take all speeds as supported when it fails to read
+	 * link modes due to old management firmware that doesn't
+	 * support link modes reading or error occurring, so that
+	 * speed change of this port is allowed.
+	 */
+	if (bitmap_empty(port->speed_bitmap, NFP_SUP_SPEED_NUMBER))
+		bitmap_fill(port->speed_bitmap, NFP_SUP_SPEED_NUMBER);
 }
 
 /**

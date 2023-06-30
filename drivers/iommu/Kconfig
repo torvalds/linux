@@ -152,6 +152,7 @@ config IOMMU_DMA
 	select IOMMU_IOVA
 	select IRQ_MSI_IOMMU
 	select NEED_SG_DMA_LENGTH
+	select NEED_SG_DMA_FLAGS if SWIOTLB
 
 # Shared Virtual Addressing
 config IOMMU_SVA

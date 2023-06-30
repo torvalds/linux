@@ -2593,7 +2593,7 @@ retry_probe:
 	sp_params.drv_minor = QEDI_DRIVER_MINOR_VER;
 	sp_params.drv_rev = QEDI_DRIVER_REV_VER;
 	sp_params.drv_eng = QEDI_DRIVER_ENG_VER;
-	strlcpy(sp_params.name, "qedi iSCSI", QED_DRV_VER_STR_SIZE);
+	strscpy(sp_params.name, "qedi iSCSI", QED_DRV_VER_STR_SIZE);
 	rc = qedi_ops->common->slowpath_start(qedi->cdev, &sp_params);
 	if (rc) {
 		QEDI_ERR(&qedi->dbg_ctx, "Cannot start slowpath\n");

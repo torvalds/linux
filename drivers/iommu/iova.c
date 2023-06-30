@@ -647,7 +647,13 @@ struct iova_rcache {
 
 static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 {
-	return kzalloc(sizeof(struct iova_magazine), flags);
+	struct iova_magazine *mag;
+
+	mag = kmalloc(sizeof(*mag), flags);
+	if (mag)
+		mag->size = 0;
+
+	return mag;
 }
 
 static void iova_magazine_free(struct iova_magazine *mag)

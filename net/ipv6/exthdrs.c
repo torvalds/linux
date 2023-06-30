@@ -126,9 +126,6 @@ static bool ip6_parse_tlv(bool hopbyhop,
 		max_count = -max_count;
 	}
 
-	if (skb_transport_offset(skb) + len > skb_headlen(skb))
-		goto bad;
-
 	off += 2;
 	len -= 2;
 
@@ -402,11 +399,7 @@ looped_back:
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
-
-			if (!pskb_pull(skb, offset)) {
-				kfree_skb(skb);
-				return -1;
-			}
+			skb_pull(skb, offset);
 			skb_postpull_rcsum(skb, skb_transport_header(skb),
 					   offset);
 
@@ -444,9 +437,9 @@ looped_back:
 			kfree_skb(skb);
 			return -1;
 		}
-	}
 
-	hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
+		hdr = (struct ipv6_sr_hdr *)skb_transport_header(skb);
+	}
 
 	hdr->segments_left--;
 	addr = hdr->segments + hdr->segments_left;
@@ -457,8 +450,6 @@ looped_back:
 		seg6_update_csum(skb);
 
 	ipv6_hdr(skb)->daddr = *addr;
-
-	skb_dst_drop(skb);
 
 	ip6_route_input(skb);
 
@@ -519,11 +510,7 @@ looped_back:
 
 			skb_postpull_rcsum(skb, skb_network_header(skb),
 					   skb_network_header_len(skb));
-
-			if (!pskb_pull(skb, offset)) {
-				kfree_skb(skb);
-				return -1;
-			}
+			skb_pull(skb, offset);
 			skb_postpull_rcsum(skb, skb_transport_header(skb),
 					   offset);
 
@@ -545,11 +532,6 @@ looped_back:
 		return 1;
 	}
 
-	if (!pskb_may_pull(skb, sizeof(*hdr))) {
-		kfree_skb(skb);
-		return -1;
-	}
-
 	n = (hdr->hdrlen << 3) - hdr->pad - (16 - hdr->cmpre);
 	r = do_div(n, (16 - hdr->cmpri));
 	/* checks if calculation was without remainder and n fits into
@@ -569,12 +551,6 @@ looped_back:
 		return -1;
 	}
 
-	if (!pskb_may_pull(skb, ipv6_rpl_srh_size(n, hdr->cmpri,
-						  hdr->cmpre))) {
-		kfree_skb(skb);
-		return -1;
-	}
-
 	hdr->segments_left--;
 	i = n - hdr->segments_left;
 
@@ -588,8 +564,7 @@ looped_back:
 	ipv6_rpl_srh_decompress(ohdr, hdr, &ipv6_hdr(skb)->daddr, n);
 	chdr = (struct ipv6_rpl_sr_hdr *)(buf + ((ohdr->hdrlen + 1) << 3));
 
-	if ((ipv6_addr_type(&ipv6_hdr(skb)->daddr) & IPV6_ADDR_MULTICAST) ||
-	    (ipv6_addr_type(&ohdr->rpl_segaddr[i]) & IPV6_ADDR_MULTICAST)) {
+	if (ipv6_addr_is_multicast(&ohdr->rpl_segaddr[i])) {
 		kfree_skb(skb);
 		kfree(buf);
 		return -1;
@@ -827,7 +802,6 @@ looped_back:
 	*addr = ipv6_hdr(skb)->daddr;
 	ipv6_hdr(skb)->daddr = daddr;
 
-	skb_dst_drop(skb);
 	ip6_route_input(skb);
 	if (skb_dst(skb)->error) {
 		skb_push(skb, skb->data - skb_network_header(skb));

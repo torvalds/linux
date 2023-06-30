@@ -302,7 +302,8 @@ void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
 
 int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
-				 struct mlx5_flow_root_namespace *peer_ns);
+				 struct mlx5_flow_root_namespace *peer_ns,
+				 u8 peer_idx);
 
 int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
 				 enum mlx5_flow_steering_mode mode);

@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Veyron (and derivatives) board device tree source
+ * Chromebook specific parts
+ *
+ * Copyright 2015 Google, Inc
+ */
+
+#include <dt-bindings/clock/rockchip,rk808.h>
+#include <dt-bindings/input/input.h>
+#include "rk3288-veyron.dtsi"
+#include "rk3288-veyron-analog-audio.dtsi"
+#include "rk3288-veyron-edp.dtsi"
+#include "rk3288-veyron-sdmmc.dtsi"
+
+/ {
+	aliases {
+		/* Assign 20 so we don't get confused w/ builtin ones */
+		i2c20 = &i2c_tunnel;
+	};
+
+	gpio-charger {
+		compatible = "gpio-charger";
+		charger-type = "mains";
+		gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ac_present_ap>;
+	};
+
+	lid_switch: lid-switch {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ap_lid_int_l>;
+
+		switch-lid {
+			label = "Lid";
+			gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+			linux,code = <SW_LID>;
+			linux,input-type = <EV_SW>;
+			debounce-interval = <1>;
+		};
+	};
+
+	/* A non-regulated voltage from power supply or battery */
+	vccsys: vccsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vccsys";
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc33_sys: vcc33-sys {
+		vin-supply = <&vccsys>;
+	};
+
+	vcc_5v: vcc-5v {
+		vin-supply = <&vccsys>;
+	};
+
+	/* This turns on vbus for host1 (dwc2) */
+	vcc5_host1: vcc5-host1-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host1_pwr_en>;
+		regulator-name = "vcc5_host1";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/* This turns on vbus for otg for host mode (dwc2) */
+	vcc5v_otg: vcc5v-otg-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usbotg_pwren_h>;
+		regulator-name = "vcc5_host2";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+};
+
+&rk808 {
+	vcc11-supply = <&vcc_5v>;
+
+	regulators {
+		vcc33_ccd: LDO_REG8 {
+			regulator-name = "vcc33_ccd";
+			regulator-always-on;
+			regulator-boot-on;
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-state-mem {
+				regulator-off-in-suspend;
+			};
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	cros_ec: ec@0 {
+		compatible = "google,cros-ec-spi";
+		reg = <0>;
+		google,cros-ec-spi-pre-delay = <30>;
+		interrupt-parent = <&gpio7>;
+		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ec_int>;
+		spi-max-frequency = <3000000>;
+
+		i2c_tunnel: i2c-tunnel {
+			compatible = "google,cros-ec-i2c-tunnel";
+			google,remote-bus = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+};
+
+&i2c4 {
+	trackpad@15 {
+		compatible = "elan,ekth3000";
+		reg = <0x15>;
+		interrupt-parent = <&gpio7>;
+		interrupts = <RK_PA3 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_int>;
+		vcc-supply = <&vcc33_io>;
+		wakeup-source;
+	};
+};
+
+&pinctrl {
+	buttons {
+		ap_lid_int_l: ap-lid-int-l {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	charger {
+		ac_present_ap: ac-present-ap {
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	cros-ec {
+		ec_int: ec-int {
+			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	suspend {
+		suspend_l_wake: suspend-l-wake {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_output_low>;
+		};
+
+		suspend_l_sleep: suspend-l-sleep {
+			rockchip,pins = <0 RK_PC1 RK_FUNC_GPIO &pcfg_output_high>;
+		};
+	};
+
+	trackpad {
+		trackpad_int: trackpad-int {
+			rockchip,pins = <7 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	usb-host {
+		host1_pwr_en: host1-pwr-en {
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		usbotg_pwren_h: usbotg-pwren-h {
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+#include "../cros-ec-keyboard.dtsi"

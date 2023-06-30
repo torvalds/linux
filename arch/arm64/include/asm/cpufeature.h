@@ -107,7 +107,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  * CPU capabilities:
  *
  * We use arm64_cpu_capabilities to represent system features, errata work
- * arounds (both used internally by kernel and tracked in cpu_hwcaps) and
+ * arounds (both used internally by kernel and tracked in system_cpucaps) and
  * ELF HWCAPs (which are exposed to user).
  *
  * To support systems with heterogeneous CPUs, we need to make sure that we
@@ -419,12 +419,12 @@ static __always_inline bool is_hyp_code(void)
 	return is_vhe_hyp_code() || is_nvhe_hyp_code();
 }
 
-extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
+extern DECLARE_BITMAP(system_cpucaps, ARM64_NCAPS);
 
-extern DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
+extern DECLARE_BITMAP(boot_cpucaps, ARM64_NCAPS);
 
 #define for_each_available_cap(cap)		\
-	for_each_set_bit(cap, cpu_hwcaps, ARM64_NCAPS)
+	for_each_set_bit(cap, system_cpucaps, ARM64_NCAPS)
 
 bool this_cpu_has_cap(unsigned int cap);
 void cpu_set_feature(unsigned int num);
@@ -437,7 +437,7 @@ unsigned long cpu_get_elf_hwcap2(void);
 
 static __always_inline bool system_capabilities_finalized(void)
 {
-	return alternative_has_feature_likely(ARM64_ALWAYS_SYSTEM);
+	return alternative_has_cap_likely(ARM64_ALWAYS_SYSTEM);
 }
 
 /*
@@ -449,7 +449,7 @@ static __always_inline bool cpus_have_cap(unsigned int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return arch_test_bit(num, cpu_hwcaps);
+	return arch_test_bit(num, system_cpucaps);
 }
 
 /*
@@ -464,7 +464,7 @@ static __always_inline bool __cpus_have_const_cap(int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	return alternative_has_feature_unlikely(num);
+	return alternative_has_cap_unlikely(num);
 }
 
 /*
@@ -502,16 +502,6 @@ static __always_inline bool cpus_have_const_cap(int num)
 		return __cpus_have_const_cap(num);
 	else
 		return cpus_have_cap(num);
-}
-
-static inline void cpus_set_cap(unsigned int num)
-{
-	if (num >= ARM64_NCAPS) {
-		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
-			num, ARM64_NCAPS);
-	} else {
-		__set_bit(num, cpu_hwcaps);
-	}
 }
 
 static inline int __attribute_const__

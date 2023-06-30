@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include "rs.h"
 #include "fw-api.h"
@@ -63,12 +63,11 @@ static u8 rs_fw_sgi_cw_support(struct ieee80211_link_sta *link_sta)
 static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif,
 				  struct ieee80211_link_sta *link_sta,
-				  struct ieee80211_supported_band *sband)
+				  const struct ieee80211_sta_he_cap *sband_he_cap)
 {
 	struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
 	struct ieee80211_sta_he_cap *he_cap = &link_sta->he_cap;
-	const struct ieee80211_sta_he_cap *sband_he_cap;
 	bool vht_ena = vht_cap->vht_supported;
 	u16 flags = 0;
 
@@ -94,8 +93,6 @@ static u16 rs_fw_get_config_flags(struct iwl_mvm *mvm,
 	    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
 		flags |= IWL_TLC_MNG_CFG_FLAGS_LDPC_MSK;
 
-	sband_he_cap = ieee80211_get_he_iftype_cap(sband,
-						   ieee80211_vif_type_p2p(vif));
 	if (sband_he_cap &&
 	    !(sband_he_cap->he_cap_elem.phy_cap_info[1] &
 			IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD))
@@ -197,16 +194,14 @@ static u16 rs_fw_he_ieee80211_mcs_to_rs_mcs(u16 mcs)
 
 static void
 rs_fw_he_set_enabled_rates(const struct ieee80211_link_sta *link_sta,
-			   struct ieee80211_supported_band *sband,
+			   const struct ieee80211_sta_he_cap *sband_he_cap,
 			   struct iwl_tlc_config_cmd_v4 *cmd)
 {
 	const struct ieee80211_sta_he_cap *he_cap = &link_sta->he_cap;
 	u16 mcs_160 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_160);
 	u16 mcs_80 = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_80);
-	u16 tx_mcs_80 =
-		le16_to_cpu(sband->iftype_data->he_cap.he_mcs_nss_supp.tx_mcs_80);
-	u16 tx_mcs_160 =
-		le16_to_cpu(sband->iftype_data->he_cap.he_mcs_nss_supp.tx_mcs_160);
+	u16 tx_mcs_80 = le16_to_cpu(sband_he_cap->he_mcs_nss_supp.tx_mcs_80);
+	u16 tx_mcs_160 = le16_to_cpu(sband_he_cap->he_mcs_nss_supp.tx_mcs_160);
 	int i;
 	u8 nss = link_sta->rx_nss;
 
@@ -289,7 +284,8 @@ rs_fw_rs_mcs2eht_mcs(enum IWL_TLC_MCS_PER_BW bw,
 static void
 rs_fw_eht_set_enabled_rates(struct ieee80211_vif *vif,
 			    const struct ieee80211_link_sta *link_sta,
-			    struct ieee80211_supported_band *sband,
+			    const struct ieee80211_sta_he_cap *sband_he_cap,
+			    const struct ieee80211_sta_eht_cap *sband_eht_cap,
 			    struct iwl_tlc_config_cmd_v4 *cmd)
 {
 	/* peer RX mcs capa */
@@ -297,7 +293,7 @@ rs_fw_eht_set_enabled_rates(struct ieee80211_vif *vif,
 		&link_sta->eht_cap.eht_mcs_nss_supp;
 	/* our TX mcs capa */
 	const struct ieee80211_eht_mcs_nss_supp *eht_tx_mcs =
-		&sband->iftype_data->eht_cap.eht_mcs_nss_supp;
+		&sband_eht_cap->eht_mcs_nss_supp;
 
 	enum IWL_TLC_MCS_PER_BW bw;
 	struct ieee80211_eht_mcs_nss_supp_20mhz_only mcs_rx_20;
@@ -316,7 +312,7 @@ rs_fw_eht_set_enabled_rates(struct ieee80211_vif *vif,
 	}
 
 	/* nic is 20Mhz only */
-	if (!(sband->iftype_data->he_cap.he_cap_elem.phy_cap_info[0] &
+	if (!(sband_he_cap->he_cap_elem.phy_cap_info[0] &
 	      IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_MASK_ALL)) {
 		mcs_tx_20 = eht_tx_mcs->only_20mhz;
 	} else {
@@ -370,6 +366,8 @@ rs_fw_eht_set_enabled_rates(struct ieee80211_vif *vif,
 static void rs_fw_set_supp_rates(struct ieee80211_vif *vif,
 				 struct ieee80211_link_sta *link_sta,
 				 struct ieee80211_supported_band *sband,
+				 const struct ieee80211_sta_he_cap *sband_he_cap,
+				 const struct ieee80211_sta_eht_cap *sband_eht_cap,
 				 struct iwl_tlc_config_cmd_v4 *cmd)
 {
 	int i;
@@ -388,12 +386,13 @@ static void rs_fw_set_supp_rates(struct ieee80211_vif *vif,
 	cmd->mode = IWL_TLC_MNG_MODE_NON_HT;
 
 	/* HT/VHT rates */
-	if (link_sta->eht_cap.has_eht) {
+	if (link_sta->eht_cap.has_eht && sband_he_cap && sband_eht_cap) {
 		cmd->mode = IWL_TLC_MNG_MODE_EHT;
-		rs_fw_eht_set_enabled_rates(vif, link_sta, sband, cmd);
-	} else if (he_cap->has_he) {
+		rs_fw_eht_set_enabled_rates(vif, link_sta, sband_he_cap,
+					    sband_eht_cap, cmd);
+	} else if (he_cap->has_he && sband_he_cap) {
 		cmd->mode = IWL_TLC_MNG_MODE_HE;
-		rs_fw_he_set_enabled_rates(link_sta, sband, cmd);
+		rs_fw_he_set_enabled_rates(link_sta, sband_he_cap, cmd);
 	} else if (vht_cap->vht_supported) {
 		cmd->mode = IWL_TLC_MNG_MODE_VHT;
 		rs_fw_vht_set_enabled_rates(link_sta, vht_cap, cmd);
@@ -479,7 +478,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 		IWL_DEBUG_RATE(mvm, "new rate: %s\n", pretty_rate);
 	}
 
-	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvmsta->orig_amsdu_len) {
+	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvm_link_sta->orig_amsdu_len) {
 		u16 size = le32_to_cpu(notif->amsdu_size);
 		int i;
 
@@ -489,7 +488,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			 * so also check with orig_amsdu_len which holds the
 			 * original data before debugfs changed the value
 			 */
-			WARN_ON(mvmsta->orig_amsdu_len < size);
+			WARN_ON(mvm_link_sta->orig_amsdu_len < size);
 			goto out;
 		}
 
@@ -524,6 +523,7 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 {
 	const struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
 	const struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
+	const struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
 
 	if (WARN_ON_ONCE(!link_conf->chandef.chan))
 		return IEEE80211_MAX_MPDU_LEN_VHT_3895;
@@ -538,8 +538,18 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 		default:
 			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
 		}
-	} else
-	if (vht_cap->vht_supported) {
+	} else if (link_conf->chandef.chan->band == NL80211_BAND_2GHZ &&
+		   eht_cap->has_eht) {
+		switch (u8_get_bits(eht_cap->eht_cap_elem.mac_cap_info[0],
+				    IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK)) {
+		case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454:
+			return IEEE80211_MAX_MPDU_LEN_VHT_11454;
+		case IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991:
+			return IEEE80211_MAX_MPDU_LEN_VHT_7991;
+		default:
+			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
+		}
+	} else if (vht_cap->vht_supported) {
 		switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
 			return IEEE80211_MAX_MPDU_LEN_VHT_11454;
@@ -576,13 +586,17 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	u32 cmd_id = WIDE_ID(DATA_PATH_GROUP, TLC_MNG_CONFIG_CMD);
 	struct ieee80211_supported_band *sband = hw->wiphy->bands[band];
 	u16 max_amsdu_len = rs_fw_get_max_amsdu_len(sta, link_conf, link_sta);
+	const struct ieee80211_sta_he_cap *sband_he_cap =
+		ieee80211_get_he_iftype_cap_vif(sband, vif);
+	const struct ieee80211_sta_eht_cap *sband_eht_cap =
+		ieee80211_get_eht_iftype_cap_vif(sband, vif);
 	struct iwl_mvm_link_sta *mvm_link_sta;
 	struct iwl_lq_sta_rs_fw *lq_sta;
 	struct iwl_tlc_config_cmd_v4 cfg_cmd = {
 		.max_ch_width = mvmsta->authorized ?
 			rs_fw_bw_from_sta_bw(link_sta) : IWL_TLC_MNG_CH_WIDTH_20MHZ,
 		.flags = cpu_to_le16(rs_fw_get_config_flags(mvm, vif, link_sta,
-							    sband)),
+							    sband_he_cap)),
 		.chains = rs_fw_set_active_chains(iwl_mvm_get_valid_tx_ant(mvm)),
 		.sgi_ch_width_supp = rs_fw_sgi_cw_support(link_sta),
 		.max_mpdu_len = iwl_mvm_is_csum_supported(mvm) ?
@@ -591,6 +605,21 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 	unsigned int link_id = link_conf->link_id;
 	int cmd_ver;
 	int ret;
+
+	/* Enable external EHT LTF only for GL device and if there's
+	 * mutual support by AP and client
+	 */
+	if (CSR_HW_REV_TYPE(mvm->trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	    sband_eht_cap &&
+	    sband_eht_cap->eht_cap_elem.phy_cap_info[5] &
+		IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF &&
+	    link_sta->eht_cap.has_eht &&
+	    link_sta->eht_cap.eht_cap_elem.phy_cap_info[5] &
+	    IEEE80211_EHT_PHY_CAP5_SUPP_EXTRA_EHT_LTF) {
+		IWL_DEBUG_RATE(mvm, "Set support for Extra EHT LTF\n");
+		cfg_cmd.flags |=
+			cpu_to_le16(IWL_TLC_MNG_CFG_FLAGS_EHT_EXTRA_LTF_MSK);
+	}
 
 	rcu_read_lock();
 	mvm_link_sta = rcu_dereference(mvmsta->link[link_id]);
@@ -609,7 +638,9 @@ void iwl_mvm_rs_fw_rate_init(struct iwl_mvm *mvm,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_mvm_reset_frame_stats(mvm);
 #endif
-	rs_fw_set_supp_rates(vif, link_sta, sband, &cfg_cmd);
+	rs_fw_set_supp_rates(vif, link_sta, sband,
+			     sband_he_cap, sband_eht_cap,
+			     &cfg_cmd);
 
 	/*
 	 * since TLC offload works with one mode we can assume

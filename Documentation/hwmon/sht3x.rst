@@ -28,15 +28,8 @@ The device communicates with the I2C protocol. Sensors can have the I2C
 addresses 0x44 or 0x45, depending on the wiring. See
 Documentation/i2c/instantiating-devices.rst for methods to instantiate the device.
 
-There are two options configurable by means of sht3x_platform_data:
-
-1. blocking (pull the I2C clock line down while performing the measurement) or
-   non-blocking mode. Blocking mode will guarantee the fastest result but
-   the I2C bus will be busy during that time. By default, non-blocking mode
-   is used. Make sure clock-stretching works properly on your device if you
-   want to use blocking mode.
-2. high or low accuracy. High accuracy is used by default and using it is
-   strongly recommended.
+Even if sht3x sensor supports clock-strech(blocking mode) and non-strench
+(non-blocking mode) in single-shot mode, this driver only supports the latter.
 
 The sht3x sensor supports a single shot mode as well as 5 periodic measure
 modes, which can be controlled with the update_interval sysfs interface.
@@ -85,4 +78,11 @@ heater_enable:      heater enable, heating element removes excess humidity from
 update_interval:    update interval, 0 for single shot, interval in msec
 		    for periodic measurement. If the interval is not supported
 		    by the sensor, the next faster interval is chosen
+repeatability:      write or read repeatability, higher repeatability means
+                    longer measurement duration, lower noise level and
+                    larger energy consumption:
+
+                        - 0: low repeatability
+                        - 1: medium repeatability
+                        - 2: high repeatability
 =================== ============================================================

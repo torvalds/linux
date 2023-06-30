@@ -555,7 +555,7 @@ static struct i2c_driver da9211_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(da9211_dt_ids),
 	},
-	.probe_new = da9211_i2c_probe,
+	.probe = da9211_i2c_probe,
 	.id_table = da9211_i2c_id,
 };
 

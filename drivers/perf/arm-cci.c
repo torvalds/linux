@@ -645,7 +645,7 @@ static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 	struct cci_pmu_hw_events *cci_hw = &cci_pmu->hw_events;
 	DECLARE_BITMAP(mask, HW_CNTRS_MAX);
 
-	bitmap_zero(mask, cci_pmu->num_cntrs);
+	bitmap_zero(mask, HW_CNTRS_MAX);
 	for_each_set_bit(i, cci_pmu->hw_events.used_mask, cci_pmu->num_cntrs) {
 		struct perf_event *event = cci_hw->events[i];
 
@@ -656,7 +656,7 @@ static void cci_pmu_sync_counters(struct cci_pmu *cci_pmu)
 		if (event->hw.state & PERF_HES_STOPPED)
 			continue;
 		if (event->hw.state & PERF_HES_ARCH) {
-			set_bit(i, mask);
+			__set_bit(i, mask);
 			event->hw.state &= ~PERF_HES_ARCH;
 		}
 	}

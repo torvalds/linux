@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
 /* New Hydra driver using generic 8390 core */
 /* Based on old hydra driver by Topi Kanerva (topi@susanna.oulu.fi) */
-
-/* This file is subject to the terms and conditions of the GNU General      */
-/* Public License.  See the file COPYING in the main directory of the       */
-/* Linux distribution for more details.                                     */
 
 /* Peter De Schrijver (p2@mind.be) */
 /* Oldenburg 2000 */

@@ -41,20 +41,24 @@ properties:
       - const: config
 
   clocks:
+    minItems: 5
     items:
       - description: AHB clock for PCIe master
       - description: AHB clock for PCIe slave
       - description: AHB clock for PCIe dbi
       - description: APB clock for PCIe
       - description: Auxiliary clock for PCIe
+      - description: PIPE clock
 
   clock-names:
+    minItems: 5
     items:
       - const: aclk_mst
       - const: aclk_slv
       - const: aclk_dbi
       - const: pclk
       - const: aux
+      - const: pipe
 
   msi-map: true
 
@@ -70,13 +74,19 @@ properties:
     maxItems: 1
 
   ranges:
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
 
   resets:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   reset-names:
-    const: pipe
+    oneOf:
+      - const: pipe
+      - items:
+          - const: pwr
+          - const: pipe
 
   vpcie3v3-supply: true
 

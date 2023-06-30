@@ -32,7 +32,7 @@
 #define AMDGPU_VCN_FIRMWARE_OFFSET	256
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
-#define AMDGPU_MAX_VCN_INSTANCES	2
+#define AMDGPU_MAX_VCN_INSTANCES	4
 #define AMDGPU_MAX_VCN_ENC_RINGS  AMDGPU_VCN_MAX_ENC_RINGS * AMDGPU_MAX_VCN_INSTANCES
 
 #define AMDGPU_VCN_HARVEST_VCN0 (1 << 0)
@@ -141,18 +141,23 @@
 		RREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
-#define WREG32_SOC15_DPG_MODE(inst_idx, offset, value, mask_en, indirect)			\
-	do {											\
-		if (!indirect) {								\
-			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA, value);			\
-			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 				\
-				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |			\
-				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |			\
-				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));		\
-		} else {									\
-			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = offset;		\
-			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = value;			\
-		}										\
+#define WREG32_SOC15_DPG_MODE(inst_idx, offset, value, mask_en, indirect)             \
+	do {                                                                          \
+		if (!indirect) {                                                      \
+			WREG32_SOC15(VCN, GET_INST(VCN, inst_idx),                    \
+				     mmUVD_DPG_LMA_DATA, value);                      \
+			WREG32_SOC15(                                                 \
+				VCN, GET_INST(VCN, inst_idx),                         \
+				mmUVD_DPG_LMA_CTL,                                    \
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |          \
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |         \
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); \
+		} else {                                                              \
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =              \
+				offset;                                               \
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =              \
+				value;                                                \
+		}                                                                     \
 	} while (0)
 
 #define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
@@ -243,6 +248,7 @@ struct amdgpu_vcn_inst {
 	uint32_t		*dpg_sram_curr_addr;
 	atomic_t		dpg_enc_submission_cnt;
 	struct amdgpu_vcn_fw_shared fw_shared;
+	uint8_t			aid_id;
 };
 
 struct amdgpu_vcn_ras {
@@ -272,6 +278,9 @@ struct amdgpu_vcn {
 
 	struct ras_common_if    *ras_if;
 	struct amdgpu_vcn_ras   *ras;
+
+	uint16_t inst_mask;
+	uint8_t	num_inst_per_aid;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {

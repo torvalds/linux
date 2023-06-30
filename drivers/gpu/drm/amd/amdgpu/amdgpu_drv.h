@@ -42,6 +42,8 @@
 #define DRIVER_DESC		"AMD GPU"
 #define DRIVER_DATE		"20150101"
 
+extern const struct drm_driver amdgpu_partition_driver;
+
 long amdgpu_drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg);
 

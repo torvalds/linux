@@ -511,7 +511,7 @@ static struct i2c_driver pem_driver = {
 	.driver = {
 		   .name = "lineage_pem",
 		   },
-	.probe_new = pem_probe,
+	.probe = pem_probe,
 	.id_table = pem_id,
 };
 

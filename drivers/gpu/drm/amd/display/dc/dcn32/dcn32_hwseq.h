@@ -71,9 +71,11 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context);
 
 void dcn32_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *pipe_ctx);
 
-unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div);
+void dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div);
 
 void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx);
+
+void dcn32_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context);
 
 void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		struct dc_state *context,
@@ -81,6 +83,8 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		bool should_lock_all_pipes,
 		struct pipe_ctx *top_pipe_to_program,
 		bool subvp_prev_use);
+
+void dcn32_subvp_pipe_control_lock_fast(union block_sequence_params *params);
 
 void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings);

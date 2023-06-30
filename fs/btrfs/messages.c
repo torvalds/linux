@@ -252,14 +252,6 @@ void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, 
 }
 #endif
 
-#ifdef CONFIG_BTRFS_ASSERT
-void __cold __noreturn btrfs_assertfail(const char *expr, const char *file, int line)
-{
-	pr_err("assertion failed: %s, in %s:%d\n", expr, file, line);
-	BUG();
-}
-#endif
-
 void __cold btrfs_print_v0_err(struct btrfs_fs_info *fs_info)
 {
 	btrfs_err(fs_info,

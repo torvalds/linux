@@ -2983,6 +2983,11 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		size_t chunk_count, chunk_bytes;
 		size_t chunk_regs = val_count;
 
+		if (!map->cache_bypass && map->cache_only) {
+			ret = -EBUSY;
+			goto out;
+		}
+
 		if (!map->read) {
 			ret = -ENOTSUPP;
 			goto out;
@@ -3078,18 +3083,19 @@ int regmap_noinc_read(struct regmap *map, unsigned int reg,
 		goto out_unlock;
 	}
 
+	/*
+	 * We have not defined the FIFO semantics for cache, as the
+	 * cache is just one value deep. Should we return the last
+	 * written value? Just avoid this by always reading the FIFO
+	 * even when using cache. Cache only will not work.
+	 */
+	if (!map->cache_bypass && map->cache_only) {
+		ret = -EBUSY;
+		goto out_unlock;
+	}
+
 	/* Use the accelerated operation if we can */
 	if (map->bus->reg_noinc_read) {
-		/*
-		 * We have not defined the FIFO semantics for cache, as the
-		 * cache is just one value deep. Should we return the last
-		 * written value? Just avoid this by always reading the FIFO
-		 * even when using cache. Cache only will not work.
-		 */
-		if (map->cache_only) {
-			ret = -EBUSY;
-			goto out_unlock;
-		}
 		ret = regmap_noinc_readwrite(map, reg, val, val_len, false);
 		goto out_unlock;
 	}
@@ -3273,7 +3279,7 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 		tmp = orig & ~mask;
 		tmp |= val & mask;
 
-		if (force_write || (tmp != orig)) {
+		if (force_write || (tmp != orig) || map->force_write_field) {
 			ret = _regmap_write(map, reg, tmp);
 			if (ret == 0 && change)
 				*change = true;

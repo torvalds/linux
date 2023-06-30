@@ -5,20 +5,32 @@
  * This file contains network checksum routines that are better done
  * in an architecture-specific manner due to speed.
  */
- 
+
 #include <linux/compiler.h>
 #include <linux/export.h>
 #include <asm/checksum.h>
 #include <asm/word-at-a-time.h>
 
-static inline unsigned short from32to16(unsigned a) 
+static inline unsigned short from32to16(unsigned a)
 {
-	unsigned short b = a >> 16; 
+	unsigned short b = a >> 16;
 	asm("addw %w2,%w0\n\t"
-	    "adcw $0,%w0\n" 
+	    "adcw $0,%w0\n"
 	    : "=r" (b)
 	    : "0" (b), "r" (a));
 	return b;
+}
+
+static inline __wsum csum_tail(u64 temp64, int odd)
+{
+	unsigned int result;
+
+	result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
+	if (unlikely(odd)) {
+		result = from32to16(result);
+		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
+	}
+	return (__force __wsum)result;
 }
 
 /*
@@ -35,7 +47,7 @@ static inline unsigned short from32to16(unsigned a)
 __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (__force u64)sum;
-	unsigned odd, result;
+	unsigned odd;
 
 	odd = 1 & (unsigned long) buff;
 	if (unlikely(odd)) {
@@ -47,21 +59,52 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 		buff++;
 	}
 
-	while (unlikely(len >= 64)) {
+	/*
+	 * len == 40 is the hot case due to IPv6 headers, but annotating it likely()
+	 * has noticeable negative affect on codegen for all other cases with
+	 * minimal performance benefit here.
+	 */
+	if (len == 40) {
 		asm("addq 0*8(%[src]),%[res]\n\t"
 		    "adcq 1*8(%[src]),%[res]\n\t"
 		    "adcq 2*8(%[src]),%[res]\n\t"
 		    "adcq 3*8(%[src]),%[res]\n\t"
 		    "adcq 4*8(%[src]),%[res]\n\t"
-		    "adcq 5*8(%[src]),%[res]\n\t"
-		    "adcq 6*8(%[src]),%[res]\n\t"
-		    "adcq 7*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-		    : [res] "+r" (temp64)
-		    : [src] "r" (buff)
-		    : "memory");
-		buff += 64;
-		len -= 64;
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[40])buff));
+		return csum_tail(temp64, odd);
+	}
+	if (unlikely(len >= 64)) {
+		/*
+		 * Extra accumulators for better ILP in the loop.
+		 */
+		u64 tmp_accum, tmp_carries;
+
+		asm("xorl %k[tmp_accum],%k[tmp_accum]\n\t"
+		    "xorl %k[tmp_carries],%k[tmp_carries]\n\t"
+		    "subl $64, %[len]\n\t"
+		    "1:\n\t"
+		    "addq 0*8(%[src]),%[res]\n\t"
+		    "adcq 1*8(%[src]),%[res]\n\t"
+		    "adcq 2*8(%[src]),%[res]\n\t"
+		    "adcq 3*8(%[src]),%[res]\n\t"
+		    "adcl $0,%k[tmp_carries]\n\t"
+		    "addq 4*8(%[src]),%[tmp_accum]\n\t"
+		    "adcq 5*8(%[src]),%[tmp_accum]\n\t"
+		    "adcq 6*8(%[src]),%[tmp_accum]\n\t"
+		    "adcq 7*8(%[src]),%[tmp_accum]\n\t"
+		    "adcl $0,%k[tmp_carries]\n\t"
+		    "addq $64, %[src]\n\t"
+		    "subl $64, %[len]\n\t"
+		    "jge 1b\n\t"
+		    "addq %[tmp_accum],%[res]\n\t"
+		    "adcq %[tmp_carries],%[res]\n\t"
+		    "adcq $0,%[res]"
+		    : [tmp_accum] "=&r"(tmp_accum),
+		      [tmp_carries] "=&r"(tmp_carries), [res] "+r"(temp64),
+		      [len] "+r"(len), [src] "+r"(buff)
+		    : "m"(*(const char *)buff));
 	}
 
 	if (len & 32) {
@@ -70,45 +113,37 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 		    "adcq 2*8(%[src]),%[res]\n\t"
 		    "adcq 3*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [src] "r" (buff)
-			: "memory");
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[32])buff));
 		buff += 32;
 	}
 	if (len & 16) {
 		asm("addq 0*8(%[src]),%[res]\n\t"
 		    "adcq 1*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [src] "r" (buff)
-			: "memory");
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[16])buff));
 		buff += 16;
 	}
 	if (len & 8) {
 		asm("addq 0*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [src] "r" (buff)
-			: "memory");
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[8])buff));
 		buff += 8;
 	}
 	if (len & 7) {
-		unsigned int shift = (8 - (len & 7)) * 8;
+		unsigned int shift = (-len << 3) & 63;
 		unsigned long trail;
 
 		trail = (load_unaligned_zeropad(buff) << shift) >> shift;
 
 		asm("addq %[trail],%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [trail] "r" (trail));
+		    : [res] "+r"(temp64)
+		    : [trail] "r"(trail));
 	}
-	result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
-	if (unlikely(odd)) {
-		result = from32to16(result);
-		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
-	}
-	return (__force __wsum)result;
+	return csum_tail(temp64, odd);
 }
 EXPORT_SYMBOL(csum_partial);
 
@@ -118,6 +153,6 @@ EXPORT_SYMBOL(csum_partial);
  */
 __sum16 ip_compute_csum(const void *buff, int len)
 {
-	return csum_fold(csum_partial(buff,len,0));
+	return csum_fold(csum_partial(buff, len, 0));
 }
 EXPORT_SYMBOL(ip_compute_csum);

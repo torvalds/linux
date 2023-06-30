@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -24,11 +24,11 @@
 #define EEPROM_5050_TX_POWER_VERSION	(4)
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
-#define IWL5000_FW_PRE "iwlwifi-5000-"
-#define IWL5000_MODULE_FIRMWARE(api) IWL5000_FW_PRE __stringify(api) ".ucode"
+#define IWL5000_FW_PRE "iwlwifi-5000"
+#define IWL5000_MODULE_FIRMWARE(api) IWL5000_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL5150_FW_PRE "iwlwifi-5150-"
-#define IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE __stringify(api) ".ucode"
+#define IWL5150_FW_PRE "iwlwifi-5150"
+#define IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl5000_base_params = {
 	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,

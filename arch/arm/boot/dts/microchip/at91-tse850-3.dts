@@ -1,0 +1,362 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * at91-tse850-3.dts - Device Tree file for the Axentia TSE-850 3.0 board
+ *
+ * Copyright (C) 2017 Axentia Technologies AB
+ *
+ * Author: Peter Rosin <peda@axentia.se>
+ */
+/dts-v1/;
+#include <dt-bindings/pwm/pwm.h>
+#include "at91-linea.dtsi"
+
+/ {
+	model = "Axentia TSE-850 3.0";
+	compatible = "axentia,tse850v3", "axentia,linea",
+		     "atmel,sama5d31", "atmel,sama5d3", "atmel,sama5";
+
+	sck: oscillator {
+		compatible = "fixed-clock";
+
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+		clock-output-names = "sck";
+	};
+
+	reg_3v3: regulator {
+		compatible = "regulator-fixed";
+
+		regulator-name = "3v3-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	ana: reg-ana {
+		compatible = "pwm-regulator";
+
+		regulator-name = "ANA";
+
+		pwms = <&pwm0 2 1000 PWM_POLARITY_INVERTED>;
+		pwm-dutycycle-unit = <1000>;
+		pwm-dutycycle-range = <100 1000>;
+
+		regulator-min-microvolt = <2000000>;
+		regulator-max-microvolt = <20000000>;
+		regulator-ramp-delay = <1000>;
+	};
+
+	sound {
+		compatible = "axentia,tse850-pcm5142";
+
+		axentia,cpu-dai = <&ssc0>;
+		axentia,audio-codec = <&pcm5142>;
+
+		axentia,add-gpios = <&pioA 8 GPIO_ACTIVE_LOW>;
+		axentia,loop1-gpios = <&pioA 10 GPIO_ACTIVE_LOW>;
+		axentia,loop2-gpios = <&pioA 11 GPIO_ACTIVE_LOW>;
+
+		axentia,ana-supply = <&ana>;
+	};
+
+	dac: dpot-dac {
+		compatible = "dpot-dac";
+		vref-supply = <&reg_3v3>;
+		io-channels = <&dpot 0>;
+		io-channel-names = "dpot";
+		#io-channel-cells = <1>;
+	};
+
+	env_det: envelope-detector {
+		compatible = "axentia,tse850-envelope-detector";
+		io-channels = <&dac 0>;
+		io-channel-names = "dac";
+		#io-channel-cells = <1>;
+
+		interrupt-parent = <&pioA>;
+		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "comp";
+	};
+
+	mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&pioA 0 GPIO_ACTIVE_HIGH>,
+			    <&pioA 1 GPIO_ACTIVE_HIGH>,
+			    <&pioA 2 GPIO_ACTIVE_HIGH>;
+		idle-state = <0>;
+	};
+
+	envelope-detector-mux {
+		compatible = "io-channel-mux";
+		io-channels = <&env_det 0>;
+		io-channel-names = "parent";
+
+		mux-controls = <&mux>;
+
+		channels = "", "",
+			 "sync-1",
+			 "in",
+			 "out",
+			 "sync-2",
+			 "sys-reg",
+			 "ana-reg";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-ch1-red {
+			label = "ch-1:red";
+			gpios = <&pioA 23 GPIO_ACTIVE_LOW>;
+		};
+		led-ch1-green {
+			label = "ch-1:green";
+			gpios = <&pioA 22 GPIO_ACTIVE_LOW>;
+		};
+		led-ch2-red {
+			label = "ch-2:red";
+			gpios = <&pioA 21 GPIO_ACTIVE_LOW>;
+		};
+		led-ch2-green {
+			label = "ch-2:green";
+			gpios = <&pioA 20 GPIO_ACTIVE_LOW>;
+		};
+		led-data-red {
+			label = "data:red";
+			gpios = <&pioA 19 GPIO_ACTIVE_LOW>;
+		};
+		led-data-green {
+			label = "data:green";
+			gpios = <&pioA 18 GPIO_ACTIVE_LOW>;
+		};
+		led-alarm-red {
+			label = "alarm:red";
+			gpios = <&pioA 17 GPIO_ACTIVE_LOW>;
+		};
+		led-alarm-green {
+			label = "alarm:green";
+			gpios = <&pioA 16 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&nand {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		at91bootstrap@0 {
+			label = "at91bootstrap";
+			reg = <0x0 0x40000>;
+		};
+
+		barebox@40000 {
+			label = "bootloader";
+			reg = <0x40000 0x60000>;
+		};
+
+		bareboxenv@c0000 {
+			label = "bareboxenv";
+			reg = <0xc0000 0x40000>;
+		};
+
+		bareboxenv2@100000 {
+			label = "bareboxenv2";
+			reg = <0x100000 0x40000>;
+		};
+
+		oftree@180000 {
+			label = "oftree";
+			reg = <0x180000 0x20000>;
+		};
+
+		kernel@200000 {
+			label = "kernel";
+			reg = <0x200000 0x500000>;
+		};
+
+		rootfs@800000 {
+			label = "rootfs";
+			reg = <0x800000 0x0f800000>;
+		};
+
+		ovlfs@10000000 {
+			label = "ovlfs";
+			reg = <0x10000000 0x10000000>;
+		};
+	};
+};
+
+&ssc0 {
+	#sound-dai-cells = <0>;
+
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	jc42@18 {
+		compatible = "nxp,se97b", "jedec,jc-42.4-temp";
+		reg = <0x18>;
+		smbus-timeout-disable;
+	};
+
+	dpot: mcp4651-104@28 {
+		compatible = "microchip,mcp4651-104";
+		reg = <0x28>;
+		#io-channel-cells = <1>;
+	};
+
+	pcm5142: pcm5142@4c {
+		compatible = "ti,pcm5142";
+
+		reg = <0x4c>;
+		#sound-dai-cells = <0>;
+
+		AVDD-supply = <&reg_3v3>;
+		DVDD-supply = <&reg_3v3>;
+		CPVDD-supply = <&reg_3v3>;
+
+		clocks = <&sck>;
+
+		pll-in = <3>;
+		pll-out = <6>;
+	};
+
+	eeprom@50 {
+		compatible = "nxp,se97b", "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
+&pinctrl {
+	tse850 {
+		pinctrl_usba_vbus: usba-vbus {
+			atmel,pins = <AT91_PIOC 31 AT91_PERIPH_GPIO
+				      AT91_PINCTRL_DEGLITCH>;
+		};
+	};
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&usart0 {
+	status = "okay";
+
+	atmel,use-dma-rx;
+};
+
+&pwm0 {
+	status = "okay";
+
+	pinctrl-0 = <&pinctrl_pwm0_pwml2_1>;
+	pinctrl-names = "default";
+};
+
+&macb1 {
+	status = "okay";
+
+	phy-mode = "rmii";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	phy0: ethernet-phy@3 {
+		reg = <3>;
+
+		interrupt-parent = <&pioE>;
+		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&usb0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usba_vbus>;
+	atmel,vbus-gpio = <&pioC 31 GPIO_ACTIVE_HIGH>;
+};
+
+&usb1 {
+	status = "okay";
+
+	num-ports = <1>;
+	atmel,vbus-gpio = <&pioD 29 GPIO_ACTIVE_HIGH>;
+	atmel,oc-gpio = <&pioC 15 GPIO_ACTIVE_LOW>;
+};
+
+&usb2 {
+	status = "okay";
+};
+
+&dbgu {
+	status = "okay";
+
+	dmas = <0>, <0>;	/*  Do not use DMA for dbgu */
+};
+
+&pioA {
+	gpio-line-names =
+	/*  0 */	"SUP-A", "SUP-B", "SUP-C", "SIG<LEV",
+	/*  4 */	"", "/RFRST", "", "",
+	/*  8 */	"/ADD", "", "/LOOP1", "/LOOP2",
+	/* 12 */	"", "", "", "",
+	/* 16 */	"LED1GREEN", "LED1RED", "LED2GREEN", "LED2RED",
+	/* 20 */	"LED3GREEN", "LED3RED", "LED4GREEN", "LED4RED",
+	/* 24 */	"", "", "", "",
+	/* 28 */	"", "", "SDA", "SCL";
+};
+
+&pioB {
+	gpio-line-names =
+	/*  0 */	"", "", "", "",
+	/*  4 */	"", "", "", "",
+	/*  8 */	"", "", "", "",
+	/* 12 */	"", "", "", "",
+	/* 16 */	"", "", "", "",
+	/* 20 */	"", "", "", "",
+	/* 24 */	"", "", "SIG<LIN", "SIG>LIN",
+	/* 28 */	"RXD", "TXD", "BRX", "BTX";
+};
+
+&pioC {
+	gpio-line-names =
+	/*  0 */	"ETX0", "ETX1", "ERX0", "ERX1",
+	/*  4 */	"ETXEN", "ECRSDV", "ERXER", "EREFCK",
+	/*  8 */	"EMDC", "EMDIO", "", "",
+	/* 12 */	"", "", "", "/ILIM",
+	/* 16 */	"BCK", "LRCK", "DIN", "",
+	/* 20 */	"", "", "", "",
+	/* 24 */	"", "", "", "",
+	/* 28 */	"", "", "", "VBUS";
+};
+
+&pioD {
+	gpio-line-names =
+	/*  0 */	"I1", "I2", "O1", "EXTVEN",
+	/*  4 */	"", "456KHZ", "VCTRL", "SYNCSEL",
+	/*  8 */	"STEREO", "", "", "",
+	/* 12 */	"", "", "", "",
+	/* 16 */	"", ">LIN", "LIN>", "",
+	/* 20 */	"VREFEN", "", "", "",
+	/* 24 */	"", "", "VINOK", "",
+	/* 28 */	"POEOK", "USBON", "POELOAD", "";
+};
+
+&pioE {
+	gpio-line-names =
+	/*  0 */	"", "", "", "",
+	/*  4 */	"", "", "", "",
+	/*  8 */	"", "", "", "",
+	/* 12 */	"", "", "", "",
+	/* 16 */	"", "", "", "",
+	/* 20 */	"", "ALE", "CLE", "",
+	/* 24 */	"", "", "", "",
+	/* 28 */	"", "", "", "/ETHINT";
+};

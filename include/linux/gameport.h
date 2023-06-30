@@ -5,7 +5,6 @@
 #ifndef _GAMEPORT_H
 #define _GAMEPORT_H
 
-#include <asm/io.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
@@ -165,18 +164,12 @@ void gameport_unregister_driver(struct gameport_driver *drv);
 
 static inline void gameport_trigger(struct gameport *gameport)
 {
-	if (gameport->trigger)
-		gameport->trigger(gameport);
-	else
-		outb(0xff, gameport->io);
+	gameport->trigger(gameport);
 }
 
 static inline unsigned char gameport_read(struct gameport *gameport)
 {
-	if (gameport->read)
-		return gameport->read(gameport);
-	else
-		return inb(gameport->io);
+	return gameport->read(gameport);
 }
 
 static inline int gameport_cooked_read(struct gameport *gameport, int *axes, int *buttons)

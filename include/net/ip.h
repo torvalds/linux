@@ -222,8 +222,6 @@ int ip_append_data(struct sock *sk, struct flowi4 *fl4,
 		   unsigned int flags);
 int ip_generic_getfrag(void *from, char *to, int offset, int len, int odd,
 		       struct sk_buff *skb);
-ssize_t ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
-		       int offset, size_t size, int flags);
 struct sk_buff *__ip_make_skb(struct sock *sk, struct flowi4 *fl4,
 			      struct sk_buff_head *queue,
 			      struct inet_cork *cork);
@@ -244,14 +242,22 @@ static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 	return __ip_make_skb(sk, fl4, &sk->sk_write_queue, &inet_sk(sk)->cork.base);
 }
 
+/* Get the route scope that should be used when sending a packet. */
+static inline u8 ip_sendmsg_scope(const struct inet_sock *inet,
+				  const struct ipcm_cookie *ipc,
+				  const struct msghdr *msg)
+{
+	if (sock_flag(&inet->sk, SOCK_LOCALROUTE) ||
+	    msg->msg_flags & MSG_DONTROUTE ||
+	    (ipc->opt && ipc->opt->opt.is_strictroute))
+		return RT_SCOPE_LINK;
+
+	return RT_SCOPE_UNIVERSE;
+}
+
 static inline __u8 get_rttos(struct ipcm_cookie* ipc, struct inet_sock *inet)
 {
 	return (ipc->tos != -1) ? RT_TOS(ipc->tos) : RT_TOS(inet->tos);
-}
-
-static inline __u8 get_rtconn_flags(struct ipcm_cookie* ipc, struct sock* sk)
-{
-	return (ipc->tos != -1) ? RT_CONN_FLAGS_TOS(sk, ipc->tos) : RT_CONN_FLAGS(sk);
 }
 
 /* datagram.c */
@@ -282,7 +288,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 			   const struct ip_options *sopt,
 			   __be32 daddr, __be32 saddr,
 			   const struct ip_reply_arg *arg,
-			   unsigned int len, u64 transmit_time);
+			   unsigned int len, u64 transmit_time, u32 txhash);
 
 #define IP_INC_STATS(net, field)	SNMP_INC_STATS64((net)->mib.ip_statistics, field)
 #define __IP_INC_STATS(net, field)	__SNMP_INC_STATS64((net)->mib.ip_statistics, field)

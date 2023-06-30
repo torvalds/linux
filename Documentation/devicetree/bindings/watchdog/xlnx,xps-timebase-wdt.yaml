@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx AXI/PLB softcore and window Watchdog Timer
 
 maintainers:
-  - Shubhrajyoti Datta <shubhrajyoti.datta@xilinx.com>
-  - Srinivas Neeli <srinivas.neeli@xilinx.com>
+  - Shubhrajyoti Datta <shubhrajyoti.datta@amd.com>
+  - Srinivas Neeli <srinivas.neeli@amd.com>
 
 description:
   The Timebase watchdog timer(WDT) is a free-running 32 bit counter.

@@ -848,7 +848,7 @@ void __weak acpi_s2idle_setup(void)
 	s2idle_set_ops(&acpi_s2idle_ops);
 }
 
-static void acpi_sleep_suspend_setup(void)
+static void __init acpi_sleep_suspend_setup(void)
 {
 	bool suspend_ops_needed = false;
 	int i;

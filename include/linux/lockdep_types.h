@@ -85,6 +85,11 @@ struct lock_trace;
 
 #define LOCKSTAT_POINTS		4
 
+struct lockdep_map;
+typedef int (*lock_cmp_fn)(const struct lockdep_map *a,
+			   const struct lockdep_map *b);
+typedef void (*lock_print_fn)(const struct lockdep_map *map);
+
 /*
  * The lock-class itself. The order of the structure members matters.
  * reinit_class() zeroes the key member and all subsequent members.
@@ -110,6 +115,9 @@ struct lock_class {
 	struct list_head		locks_after, locks_before;
 
 	const struct lockdep_subclass_key *key;
+	lock_cmp_fn			cmp_fn;
+	lock_print_fn			print_fn;
+
 	unsigned int			subclass;
 	unsigned int			dep_gen_id;
 

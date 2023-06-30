@@ -2863,7 +2863,7 @@ static const struct regmap_config rt5670_regmap = {
 					       RT5670_PR_SPACING),
 	.volatile_reg = rt5670_volatile_register,
 	.readable_reg = rt5670_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5670_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5670_reg),
 	.ranges = rt5670_ranges,
@@ -3328,7 +3328,7 @@ static struct i2c_driver rt5670_i2c_driver = {
 		.name = "rt5670",
 		.acpi_match_table = ACPI_PTR(rt5670_acpi_match),
 	},
-	.probe_new = rt5670_i2c_probe,
+	.probe    = rt5670_i2c_probe,
 	.remove   = rt5670_i2c_remove,
 	.id_table = rt5670_i2c_id,
 };

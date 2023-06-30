@@ -21,35 +21,60 @@ static DEFINE_MUTEX(nvmf_hosts_mutex);
 
 static struct nvmf_host *nvmf_default_host;
 
-static struct nvmf_host *__nvmf_host_find(const char *hostnqn)
+static struct nvmf_host *nvmf_host_alloc(const char *hostnqn, uuid_t *id)
 {
 	struct nvmf_host *host;
 
-	list_for_each_entry(host, &nvmf_hosts, list) {
-		if (!strcmp(host->nqn, hostnqn))
-			return host;
-	}
+	host = kmalloc(sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return NULL;
 
-	return NULL;
+	kref_init(&host->ref);
+	uuid_copy(&host->id, id);
+	strscpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
+
+	return host;
 }
 
-static struct nvmf_host *nvmf_host_add(const char *hostnqn)
+static struct nvmf_host *nvmf_host_add(const char *hostnqn, uuid_t *id)
 {
 	struct nvmf_host *host;
 
 	mutex_lock(&nvmf_hosts_mutex);
-	host = __nvmf_host_find(hostnqn);
-	if (host) {
-		kref_get(&host->ref);
-		goto out_unlock;
+
+	/*
+	 * We have defined a host as how it is perceived by the target.
+	 * Therefore, we don't allow different Host NQNs with the same Host ID.
+	 * Similarly, we do not allow the usage of the same Host NQN with
+	 * different Host IDs. This'll maintain unambiguous host identification.
+	 */
+	list_for_each_entry(host, &nvmf_hosts, list) {
+		bool same_hostnqn = !strcmp(host->nqn, hostnqn);
+		bool same_hostid = uuid_equal(&host->id, id);
+
+		if (same_hostnqn && same_hostid) {
+			kref_get(&host->ref);
+			goto out_unlock;
+		}
+		if (same_hostnqn) {
+			pr_err("found same hostnqn %s but different hostid %pUb\n",
+			       hostnqn, id);
+			host = ERR_PTR(-EINVAL);
+			goto out_unlock;
+		}
+		if (same_hostid) {
+			pr_err("found same hostid %pUb but different hostnqn %s\n",
+			       id, hostnqn);
+			host = ERR_PTR(-EINVAL);
+			goto out_unlock;
+		}
 	}
 
-	host = kmalloc(sizeof(*host), GFP_KERNEL);
-	if (!host)
+	host = nvmf_host_alloc(hostnqn, id);
+	if (!host) {
+		host = ERR_PTR(-ENOMEM);
 		goto out_unlock;
-
-	kref_init(&host->ref);
-	strscpy(host->nqn, hostnqn, NVMF_NQN_SIZE);
+	}
 
 	list_add_tail(&host->list, &nvmf_hosts);
 out_unlock:
@@ -60,15 +85,16 @@ out_unlock:
 static struct nvmf_host *nvmf_host_default(void)
 {
 	struct nvmf_host *host;
+	char nqn[NVMF_NQN_SIZE];
+	uuid_t id;
 
-	host = kmalloc(sizeof(*host), GFP_KERNEL);
+	uuid_gen(&id);
+	snprintf(nqn, NVMF_NQN_SIZE,
+		"nqn.2014-08.org.nvmexpress:uuid:%pUb", &id);
+
+	host = nvmf_host_alloc(nqn, &id);
 	if (!host)
 		return NULL;
-
-	kref_init(&host->ref);
-	uuid_gen(&host->id);
-	snprintf(host->nqn, NVMF_NQN_SIZE,
-		"nqn.2014-08.org.nvmexpress:uuid:%pUb", &host->id);
 
 	mutex_lock(&nvmf_hosts_mutex);
 	list_add_tail(&host->list, &nvmf_hosts);
@@ -349,6 +375,45 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 	}
 }
 
+static struct nvmf_connect_data *nvmf_connect_data_prep(struct nvme_ctrl *ctrl,
+		u16 cntlid)
+{
+	struct nvmf_connect_data *data;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return NULL;
+
+	uuid_copy(&data->hostid, &ctrl->opts->host->id);
+	data->cntlid = cpu_to_le16(cntlid);
+	strncpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
+	strncpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
+
+	return data;
+}
+
+static void nvmf_connect_cmd_prep(struct nvme_ctrl *ctrl, u16 qid,
+		struct nvme_command *cmd)
+{
+	cmd->connect.opcode = nvme_fabrics_command;
+	cmd->connect.fctype = nvme_fabrics_type_connect;
+	cmd->connect.qid = cpu_to_le16(qid);
+
+	if (qid) {
+		cmd->connect.sqsize = cpu_to_le16(ctrl->sqsize);
+	} else {
+		cmd->connect.sqsize = cpu_to_le16(NVME_AQ_DEPTH - 1);
+
+		/*
+		 * set keep-alive timeout in seconds granularity (ms * 1000)
+		 */
+		cmd->connect.kato = cpu_to_le32(ctrl->kato * 1000);
+	}
+
+	if (ctrl->opts->disable_sqflow)
+		cmd->connect.cattr |= NVME_CONNECT_DISABLE_SQFLOW;
+}
+
 /**
  * nvmf_connect_admin_queue() - NVMe Fabrics Admin Queue "Connect"
  *				API function.
@@ -377,27 +442,11 @@ int nvmf_connect_admin_queue(struct nvme_ctrl *ctrl)
 	int ret;
 	u32 result;
 
-	cmd.connect.opcode = nvme_fabrics_command;
-	cmd.connect.fctype = nvme_fabrics_type_connect;
-	cmd.connect.qid = 0;
-	cmd.connect.sqsize = cpu_to_le16(NVME_AQ_DEPTH - 1);
+	nvmf_connect_cmd_prep(ctrl, 0, &cmd);
 
-	/*
-	 * Set keep-alive timeout in seconds granularity (ms * 1000)
-	 */
-	cmd.connect.kato = cpu_to_le32(ctrl->kato * 1000);
-
-	if (ctrl->opts->disable_sqflow)
-		cmd.connect.cattr |= NVME_CONNECT_DISABLE_SQFLOW;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = nvmf_connect_data_prep(ctrl, 0xffff);
 	if (!data)
 		return -ENOMEM;
-
-	uuid_copy(&data->hostid, &ctrl->opts->host->id);
-	data->cntlid = cpu_to_le16(0xffff);
-	strncpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
-	strncpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
 
 	ret = __nvme_submit_sync_cmd(ctrl->fabrics_q, &cmd, &res,
 			data, sizeof(*data), NVME_QID_ANY, 1,
@@ -468,22 +517,11 @@ int nvmf_connect_io_queue(struct nvme_ctrl *ctrl, u16 qid)
 	int ret;
 	u32 result;
 
-	cmd.connect.opcode = nvme_fabrics_command;
-	cmd.connect.fctype = nvme_fabrics_type_connect;
-	cmd.connect.qid = cpu_to_le16(qid);
-	cmd.connect.sqsize = cpu_to_le16(ctrl->sqsize);
+	nvmf_connect_cmd_prep(ctrl, qid, &cmd);
 
-	if (ctrl->opts->disable_sqflow)
-		cmd.connect.cattr |= NVME_CONNECT_DISABLE_SQFLOW;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = nvmf_connect_data_prep(ctrl, ctrl->cntlid);
 	if (!data)
 		return -ENOMEM;
-
-	uuid_copy(&data->hostid, &ctrl->opts->host->id);
-	data->cntlid = cpu_to_le16(ctrl->cntlid);
-	strncpy(data->subsysnqn, ctrl->opts->subsysnqn, NVMF_NQN_SIZE);
-	strncpy(data->hostnqn, ctrl->opts->host->nqn, NVMF_NQN_SIZE);
 
 	ret = __nvme_submit_sync_cmd(ctrl->connect_q, &cmd, &res,
 			data, sizeof(*data), qid, 1,
@@ -621,6 +659,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	size_t nqnlen  = 0;
 	int ctrl_loss_tmo = NVMF_DEF_CTRL_LOSS_TMO;
 	uuid_t hostid;
+	char hostnqn[NVMF_NQN_SIZE];
 
 	/* Set defaults */
 	opts->queue_size = NVMF_DEF_QUEUE_SIZE;
@@ -637,7 +676,9 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 	if (!options)
 		return -ENOMEM;
 
-	uuid_gen(&hostid);
+	/* use default host if not given by user space */
+	uuid_copy(&hostid, &nvmf_default_host->id);
+	strscpy(hostnqn, nvmf_default_host->nqn, NVMF_NQN_SIZE);
 
 	while ((p = strsep(&o, ",\n")) != NULL) {
 		if (!*p)
@@ -783,12 +824,8 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				ret = -EINVAL;
 				goto out;
 			}
-			opts->host = nvmf_host_add(p);
+			strscpy(hostnqn, p, NVMF_NQN_SIZE);
 			kfree(p);
-			if (!opts->host) {
-				ret = -ENOMEM;
-				goto out;
-			}
 			break;
 		case NVMF_OPT_RECONNECT_DELAY:
 			if (match_int(args, &token)) {
@@ -945,17 +982,93 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 				opts->fast_io_fail_tmo, ctrl_loss_tmo);
 	}
 
-	if (!opts->host) {
-		kref_get(&nvmf_default_host->ref);
-		opts->host = nvmf_default_host;
+	opts->host = nvmf_host_add(hostnqn, &hostid);
+	if (IS_ERR(opts->host)) {
+		ret = PTR_ERR(opts->host);
+		opts->host = NULL;
+		goto out;
 	}
-
-	uuid_copy(&opts->host->id, &hostid);
 
 out:
 	kfree(options);
 	return ret;
 }
+
+void nvmf_set_io_queues(struct nvmf_ctrl_options *opts, u32 nr_io_queues,
+			u32 io_queues[HCTX_MAX_TYPES])
+{
+	if (opts->nr_write_queues && opts->nr_io_queues < nr_io_queues) {
+		/*
+		 * separate read/write queues
+		 * hand out dedicated default queues only after we have
+		 * sufficient read queues.
+		 */
+		io_queues[HCTX_TYPE_READ] = opts->nr_io_queues;
+		nr_io_queues -= io_queues[HCTX_TYPE_READ];
+		io_queues[HCTX_TYPE_DEFAULT] =
+			min(opts->nr_write_queues, nr_io_queues);
+		nr_io_queues -= io_queues[HCTX_TYPE_DEFAULT];
+	} else {
+		/*
+		 * shared read/write queues
+		 * either no write queues were requested, or we don't have
+		 * sufficient queue count to have dedicated default queues.
+		 */
+		io_queues[HCTX_TYPE_DEFAULT] =
+			min(opts->nr_io_queues, nr_io_queues);
+		nr_io_queues -= io_queues[HCTX_TYPE_DEFAULT];
+	}
+
+	if (opts->nr_poll_queues && nr_io_queues) {
+		/* map dedicated poll queues only if we have queues left */
+		io_queues[HCTX_TYPE_POLL] =
+			min(opts->nr_poll_queues, nr_io_queues);
+	}
+}
+EXPORT_SYMBOL_GPL(nvmf_set_io_queues);
+
+void nvmf_map_queues(struct blk_mq_tag_set *set, struct nvme_ctrl *ctrl,
+		     u32 io_queues[HCTX_MAX_TYPES])
+{
+	struct nvmf_ctrl_options *opts = ctrl->opts;
+
+	if (opts->nr_write_queues && io_queues[HCTX_TYPE_READ]) {
+		/* separate read/write queues */
+		set->map[HCTX_TYPE_DEFAULT].nr_queues =
+			io_queues[HCTX_TYPE_DEFAULT];
+		set->map[HCTX_TYPE_DEFAULT].queue_offset = 0;
+		set->map[HCTX_TYPE_READ].nr_queues =
+			io_queues[HCTX_TYPE_READ];
+		set->map[HCTX_TYPE_READ].queue_offset =
+			io_queues[HCTX_TYPE_DEFAULT];
+	} else {
+		/* shared read/write queues */
+		set->map[HCTX_TYPE_DEFAULT].nr_queues =
+			io_queues[HCTX_TYPE_DEFAULT];
+		set->map[HCTX_TYPE_DEFAULT].queue_offset = 0;
+		set->map[HCTX_TYPE_READ].nr_queues =
+			io_queues[HCTX_TYPE_DEFAULT];
+		set->map[HCTX_TYPE_READ].queue_offset = 0;
+	}
+
+	blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
+	blk_mq_map_queues(&set->map[HCTX_TYPE_READ]);
+	if (opts->nr_poll_queues && io_queues[HCTX_TYPE_POLL]) {
+		/* map dedicated poll queues only if we have queues left */
+		set->map[HCTX_TYPE_POLL].nr_queues = io_queues[HCTX_TYPE_POLL];
+		set->map[HCTX_TYPE_POLL].queue_offset =
+			io_queues[HCTX_TYPE_DEFAULT] +
+			io_queues[HCTX_TYPE_READ];
+		blk_mq_map_queues(&set->map[HCTX_TYPE_POLL]);
+	}
+
+	dev_info(ctrl->device,
+		"mapped %d/%d/%d default/read/poll queues.\n",
+		io_queues[HCTX_TYPE_DEFAULT],
+		io_queues[HCTX_TYPE_READ],
+		io_queues[HCTX_TYPE_POLL]);
+}
+EXPORT_SYMBOL_GPL(nvmf_map_queues);
 
 static int nvmf_check_required_opts(struct nvmf_ctrl_options *opts,
 		unsigned int required_opts)

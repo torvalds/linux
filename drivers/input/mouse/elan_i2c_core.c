@@ -1424,7 +1424,7 @@ static struct i2c_driver elan_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.dev_groups = elan_sysfs_groups,
 	},
-	.probe_new	= elan_probe,
+	.probe		= elan_probe,
 	.id_table	= elan_id,
 };
 

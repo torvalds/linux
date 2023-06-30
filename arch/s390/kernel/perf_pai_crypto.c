@@ -36,7 +36,7 @@ struct paicrypt_map {
 	unsigned long *page;		/* Page for CPU to store counters */
 	struct pai_userdata *save;	/* Page to store no-zero counters */
 	unsigned int active_events;	/* # of PAI crypto users */
-	unsigned int refcnt;		/* Reference count mapped buffers */
+	refcount_t refcnt;		/* Reference count mapped buffers */
 	enum paievt_mode mode;		/* Type of event */
 	struct perf_event *event;	/* Perf event for sampling */
 };
@@ -57,10 +57,11 @@ static void paicrypt_event_destroy(struct perf_event *event)
 	static_branch_dec(&pai_key);
 	mutex_lock(&pai_reserve_mutex);
 	debug_sprintf_event(cfm_dbg, 5, "%s event %#llx cpu %d users %d"
-			    " mode %d refcnt %d\n", __func__,
+			    " mode %d refcnt %u\n", __func__,
 			    event->attr.config, event->cpu,
-			    cpump->active_events, cpump->mode, cpump->refcnt);
-	if (!--cpump->refcnt) {
+			    cpump->active_events, cpump->mode,
+			    refcount_read(&cpump->refcnt));
+	if (refcount_dec_and_test(&cpump->refcnt)) {
 		debug_sprintf_event(cfm_dbg, 4, "%s page %#lx save %p\n",
 				    __func__, (unsigned long)cpump->page,
 				    cpump->save);
@@ -149,8 +150,10 @@ static int paicrypt_busy(struct perf_event_attr *a, struct paicrypt_map *cpump)
 	/* Allocate memory for counter page and counter extraction.
 	 * Only the first counting event has to allocate a page.
 	 */
-	if (cpump->page)
+	if (cpump->page) {
+		refcount_inc(&cpump->refcnt);
 		goto unlock;
+	}
 
 	rc = -ENOMEM;
 	cpump->page = (unsigned long *)get_zeroed_page(GFP_KERNEL);
@@ -164,18 +167,18 @@ static int paicrypt_busy(struct perf_event_attr *a, struct paicrypt_map *cpump)
 		goto unlock;
 	}
 	rc = 0;
+	refcount_set(&cpump->refcnt, 1);
 
 unlock:
 	/* If rc is non-zero, do not set mode and reference count */
 	if (!rc) {
-		cpump->refcnt++;
 		cpump->mode = a->sample_period ? PAI_MODE_SAMPLING
 					       : PAI_MODE_COUNTING;
 	}
 	debug_sprintf_event(cfm_dbg, 5, "%s sample_period %#llx users %d"
-			    " mode %d refcnt %d page %#lx save %p rc %d\n",
+			    " mode %d refcnt %u page %#lx save %p rc %d\n",
 			    __func__, a->sample_period, cpump->active_events,
-			    cpump->mode, cpump->refcnt,
+			    cpump->mode, refcount_read(&cpump->refcnt),
 			    (unsigned long)cpump->page, cpump->save, rc);
 	mutex_unlock(&pai_reserve_mutex);
 	return rc;

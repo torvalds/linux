@@ -775,7 +775,7 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(fan53555_dt_ids),
 	},
-	.probe_new = fan53555_regulator_probe,
+	.probe = fan53555_regulator_probe,
 	.id_table = fan53555_id,
 };
 

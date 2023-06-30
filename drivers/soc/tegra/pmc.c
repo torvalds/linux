@@ -396,7 +396,6 @@ struct tegra_pmc_soc {
  * @clk: pointer to pclk clock
  * @soc: pointer to SoC data structure
  * @tz_only: flag specifying if the PMC can only be accessed via TrustZone
- * @debugfs: pointer to debugfs entry
  * @rate: currently configured rate of pclk
  * @suspend_mode: lowest suspend mode available
  * @cpu_good_time: CPU power good time (in microseconds)
@@ -431,7 +430,6 @@ struct tegra_pmc {
 	void __iomem *aotag;
 	void __iomem *scratch;
 	struct clk *clk;
-	struct dentry *debugfs;
 
 	const struct tegra_pmc_soc *soc;
 	bool tz_only;
@@ -1189,16 +1187,6 @@ static int powergate_show(struct seq_file *s, void *data)
 }
 
 DEFINE_SHOW_ATTRIBUTE(powergate);
-
-static int tegra_powergate_debugfs_init(void)
-{
-	pmc->debugfs = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-					   &powergate_fops);
-	if (!pmc->debugfs)
-		return -ENOMEM;
-
-	return 0;
-}
 
 static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
 				       struct device_node *np)
@@ -3004,7 +2992,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	 */
 	if (pmc->clk) {
 		pmc->clk_nb.notifier_call = tegra_pmc_clk_notify_cb;
-		err = clk_notifier_register(pmc->clk, &pmc->clk_nb);
+		err = devm_clk_notifier_register(&pdev->dev, pmc->clk,
+						 &pmc->clk_nb);
 		if (err) {
 			dev_err(&pdev->dev,
 				"failed to register clk notifier\n");
@@ -3026,19 +3015,13 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	tegra_pmc_reset_sysfs_init(pmc);
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_powergate_debugfs_init();
-		if (err < 0)
-			goto cleanup_sysfs;
-	}
-
 	err = tegra_pmc_pinctrl_init(pmc);
 	if (err)
-		goto cleanup_debugfs;
+		goto cleanup_sysfs;
 
 	err = tegra_pmc_regmap_init(pmc);
 	if (err < 0)
-		goto cleanup_debugfs;
+		goto cleanup_sysfs;
 
 	err = tegra_powergate_init(pmc, pdev->dev.of_node);
 	if (err < 0)
@@ -3061,16 +3044,15 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (pmc->soc->set_wake_filters)
 		pmc->soc->set_wake_filters(pmc);
 
+	debugfs_create_file("powergate", 0444, NULL, NULL, &powergate_fops);
+
 	return 0;
 
 cleanup_powergates:
 	tegra_powergate_remove_all(pdev->dev.of_node);
-cleanup_debugfs:
-	debugfs_remove(pmc->debugfs);
 cleanup_sysfs:
 	device_remove_file(&pdev->dev, &dev_attr_reset_reason);
 	device_remove_file(&pdev->dev, &dev_attr_reset_level);
-	clk_notifier_unregister(pmc->clk, &pmc->clk_nb);
 
 	return err;
 }
@@ -4250,6 +4232,7 @@ static const struct tegra_wake_event tegra234_wake_events[] = {
 	TEGRA_WAKE_GPIO("power", 29, 1, TEGRA234_AON_GPIO(EE, 4)),
 	TEGRA_WAKE_GPIO("mgbe", 56, 0, TEGRA234_MAIN_GPIO(Y, 3)),
 	TEGRA_WAKE_IRQ("rtc", 73, 10),
+	TEGRA_WAKE_IRQ("sw-wake", SW_WAKE_ID, 179),
 };
 
 static const struct tegra_pmc_soc tegra234_pmc_soc = {

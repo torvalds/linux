@@ -1104,6 +1104,30 @@
 				};
 			};
 
+			isi: isi@32e20000 {
+				compatible = "fsl,imx8mn-isi";
+				reg = <0x32e20000 0x8000>;
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clk IMX8MN_CLK_DISP_AXI_ROOT>,
+					 <&clk IMX8MN_CLK_DISP_APB_ROOT>;
+				clock-names = "axi", "apb";
+				fsl,blk-ctrl = <&disp_blk_ctrl>;
+				power-domains = <&disp_blk_ctrl IMX8MN_DISPBLK_PD_ISI>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						isi_in: endpoint {
+							remote-endpoint = <&mipi_csi_out>;
+						};
+					};
+				};
+			};
+
 			disp_blk_ctrl: blk-ctrl@32e28000 {
 				compatible = "fsl,imx8mn-disp-blk-ctrl", "syscon";
 				reg = <0x32e28000 0x100>;
@@ -1145,6 +1169,42 @@
 						       <500000000>,
 						       <200000000>;
 				#power-domain-cells = <1>;
+			};
+
+			mipi_csi: mipi-csi@32e30000 {
+				compatible = "fsl,imx8mm-mipi-csi2";
+				reg = <0x32e30000 0x1000>;
+				interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+				assigned-clocks = <&clk IMX8MN_CLK_CAMERA_PIXEL>,
+						  <&clk IMX8MN_CLK_CSI1_PHY_REF>;
+				assigned-clock-parents = <&clk IMX8MN_SYS_PLL2_1000M>,
+							  <&clk IMX8MN_SYS_PLL2_1000M>;
+				assigned-clock-rates = <333000000>;
+				clock-frequency = <333000000>;
+				clocks = <&clk IMX8MN_CLK_DISP_APB_ROOT>,
+					 <&clk IMX8MN_CLK_CAMERA_PIXEL>,
+					 <&clk IMX8MN_CLK_CSI1_PHY_REF>,
+					 <&clk IMX8MN_CLK_DISP_AXI_ROOT>;
+				clock-names = "pclk", "wrap", "phy", "axi";
+				power-domains = <&disp_blk_ctrl IMX8MN_DISPBLK_PD_MIPI_CSI>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+					};
+
+					port@1 {
+						reg = <1>;
+
+						mipi_csi_out: endpoint {
+							remote-endpoint = <&isi_in>;
+						};
+					};
+				};
 			};
 
 			usbotg1: usb@32e40000 {

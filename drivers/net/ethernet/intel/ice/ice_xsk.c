@@ -90,7 +90,6 @@ ice_qvec_dis_irq(struct ice_vsi *vsi, struct ice_rx_ring *rx_ring,
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int base = vsi->base_vector;
 	u16 reg;
 	u32 val;
 
@@ -103,11 +102,9 @@ ice_qvec_dis_irq(struct ice_vsi *vsi, struct ice_rx_ring *rx_ring,
 	wr32(hw, QINT_RQCTL(reg), val);
 
 	if (q_vector) {
-		u16 v_idx = q_vector->v_idx;
-
 		wr32(hw, GLINT_DYN_CTL(q_vector->reg_idx), 0);
 		ice_flush(hw);
-		synchronize_irq(pf->msix_entries[v_idx + base].vector);
+		synchronize_irq(q_vector->irq.virq);
 	}
 }
 

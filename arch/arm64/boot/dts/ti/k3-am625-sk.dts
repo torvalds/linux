@@ -101,7 +101,7 @@
 };
 
 &main_pmx0 {
-	main_rgmii2_pins_default: main-rgmii2-pins-default {
+	main_rgmii2_pins_default: main-rgmii2-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x184, PIN_INPUT, 0) /* (AE23) RGMII2_RD0 */
 			AM62X_IOPAD(0x188, PIN_INPUT, 0) /* (AB20) RGMII2_RD1 */
@@ -118,7 +118,7 @@
 		>;
 	};
 
-	ospi0_pins_default: ospi0-pins-default {
+	ospi0_pins_default: ospi0-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x000, PIN_OUTPUT, 0) /* (H24) OSPI0_CLK */
 			AM62X_IOPAD(0x02c, PIN_OUTPUT, 0) /* (F23) OSPI0_CSn0 */
@@ -134,13 +134,13 @@
 		>;
 	};
 
-	vdd_sd_dv_pins_default: vdd-sd-dv-pins-default {
+	vdd_sd_dv_pins_default: vdd-sd-dv-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x07c, PIN_OUTPUT, 7) /* (P25) GPMC0_CLK.GPIO0_31 */
 		>;
 	};
 
-	main_gpio1_ioexp_intr_pins_default: main-gpio1-ioexp-intr-pins-default {
+	main_gpio1_ioexp_intr_pins_default: main-gpio1-ioexp-intr-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01d4, PIN_INPUT, 7) /* (B15) UART0_RTSn.GPIO1_23 */
 		>;
@@ -161,7 +161,7 @@
 				   "UART1_FET_BUF_EN", "WL_LT_EN",
 				   "GPIO_HDMI_RSTn", "CSI_GPIO1",
 				   "CSI_GPIO2", "PRU_3V3_EN",
-				   "HDMI_INTn", "TEST_GPIO2",
+				   "HDMI_INTn", "PD_I2C_IRQ",
 				   "MCASP1_FET_EN", "MCASP1_BUF_BT_EN",
 				   "MCASP1_FET_SEL", "UART1_FET_SEL",
 				   "TSINT#", "IO_EXP_TEST_LED";
@@ -183,8 +183,7 @@
 
 &cpsw3g {
 	pinctrl-names = "default";
-	pinctrl-0 = <&main_rgmii1_pins_default
-		     &main_rgmii2_pins_default>;
+	pinctrl-0 = <&main_rgmii1_pins_default>, <&main_rgmii2_pins_default>;
 };
 
 &cpsw_port2 {

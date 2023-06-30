@@ -1465,6 +1465,7 @@ void security_sctp_sk_clone(struct sctp_association *asoc, struct sock *sk,
 			    struct sock *newsk);
 int security_sctp_assoc_established(struct sctp_association *asoc,
 				    struct sk_buff *skb);
+int security_mptcp_add_subflow(struct sock *sk, struct sock *ssk);
 
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct sock *sock,
@@ -1689,6 +1690,11 @@ static inline void security_sctp_sk_clone(struct sctp_association *asoc,
 
 static inline int security_sctp_assoc_established(struct sctp_association *asoc,
 						  struct sk_buff *skb)
+{
+	return 0;
+}
+
+static inline int security_mptcp_add_subflow(struct sock *sk, struct sock *ssk)
 {
 	return 0;
 }

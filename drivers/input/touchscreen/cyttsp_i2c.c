@@ -66,7 +66,7 @@ static struct i2c_driver cyttsp_i2c_driver = {
 		.pm	= pm_sleep_ptr(&cyttsp_pm_ops),
 		.of_match_table = cyttsp_of_i2c_match,
 	},
-	.probe_new	= cyttsp_i2c_probe,
+	.probe		= cyttsp_i2c_probe,
 	.id_table	= cyttsp_i2c_id,
 };
 

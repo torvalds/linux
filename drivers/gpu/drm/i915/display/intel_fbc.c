@@ -44,6 +44,7 @@
 #include <drm/drm_fourcc.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_cdclk.h"
@@ -55,7 +56,7 @@
 
 #define for_each_fbc_id(__dev_priv, __fbc_id) \
 	for ((__fbc_id) = INTEL_FBC_A; (__fbc_id) < I915_MAX_FBCS; (__fbc_id)++) \
-		for_each_if(RUNTIME_INFO(__dev_priv)->fbc_mask & BIT(__fbc_id))
+		for_each_if(DISPLAY_RUNTIME_INFO(__dev_priv)->fbc_mask & BIT(__fbc_id))
 
 #define for_each_intel_fbc(__dev_priv, __fbc, __fbc_id) \
 	for_each_fbc_id((__dev_priv), (__fbc_id)) \
@@ -1253,7 +1254,7 @@ static bool __intel_fbc_pre_update(struct intel_atomic_state *state,
 bool intel_fbc_pre_update(struct intel_atomic_state *state,
 			  struct intel_crtc *crtc)
 {
-	const struct intel_plane_state *plane_state;
+	const struct intel_plane_state __maybe_unused *plane_state;
 	bool need_vblank_wait = false;
 	struct intel_plane *plane;
 	int i;
@@ -1308,7 +1309,7 @@ static void __intel_fbc_post_update(struct intel_fbc *fbc)
 void intel_fbc_post_update(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc)
 {
-	const struct intel_plane_state *plane_state;
+	const struct intel_plane_state __maybe_unused *plane_state;
 	struct intel_plane *plane;
 	int i;
 
@@ -1407,7 +1408,7 @@ void intel_fbc_flush(struct drm_i915_private *i915,
 
 int intel_fbc_atomic_check(struct intel_atomic_state *state)
 {
-	struct intel_plane_state *plane_state;
+	struct intel_plane_state __maybe_unused *plane_state;
 	struct intel_plane *plane;
 	int i;
 
@@ -1599,7 +1600,7 @@ static void __intel_fbc_handle_fifo_underrun_irq(struct intel_fbc *fbc)
 	if (READ_ONCE(fbc->underrun_detected))
 		return;
 
-	schedule_work(&fbc->underrun_work);
+	queue_work(fbc->i915->unordered_wq, &fbc->underrun_work);
 }
 
 /**
@@ -1707,10 +1708,10 @@ void intel_fbc_init(struct drm_i915_private *i915)
 	enum intel_fbc_id fbc_id;
 
 	if (!drm_mm_initialized(&i915->mm.stolen))
-		RUNTIME_INFO(i915)->fbc_mask = 0;
+		DISPLAY_RUNTIME_INFO(i915)->fbc_mask = 0;
 
 	if (need_fbc_vtd_wa(i915))
-		RUNTIME_INFO(i915)->fbc_mask = 0;
+		DISPLAY_RUNTIME_INFO(i915)->fbc_mask = 0;
 
 	i915->params.enable_fbc = intel_sanitize_fbc_option(i915);
 	drm_dbg_kms(&i915->drm, "Sanitized enable_fbc value: %d\n",

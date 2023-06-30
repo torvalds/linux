@@ -1505,7 +1505,7 @@ static struct i2c_driver adau1373_i2c_driver = {
 	.driver = {
 		.name = "adau1373",
 	},
-	.probe_new = adau1373_i2c_probe,
+	.probe = adau1373_i2c_probe,
 	.id_table = adau1373_i2c_id,
 };
 

@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for J784S4 SoC Family
  *
- * TRM (SPRUJ43 JULY 2022) : http://www.ti.com/lit/zip/spruj52
+ * TRM (SPRUJ43 JULY 2022): https://www.ti.com/lit/zip/spruj52
  *
  * Copyright (C) 2022 Texas Instruments Incorporated - https://www.ti.com/
  *
@@ -280,6 +280,10 @@
 				 <0x05 0x00000000 0x05 0x00000000 0x01 0x00000000>, /* FSS OSPI0 data region 3 */
 				 <0x07 0x00000000 0x07 0x00000000 0x01 0x00000000>; /* FSS OSPI1 data region 3*/
 		};
+	};
+
+	thermal_zones: thermal-zones {
+		#include "k3-j784s4-thermal.dtsi"
 	};
 };
 

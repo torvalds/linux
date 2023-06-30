@@ -609,8 +609,7 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	INIT_LIST_HEAD(&priv->bank_list);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg_base = devm_ioremap_resource(dev, res);
+	reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 

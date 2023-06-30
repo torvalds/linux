@@ -695,7 +695,7 @@ static u32 sa1111_dma_mask[] = {
 /*
  * Configure the SA1111 shared memory controller.
  */
-void
+static void
 sa1111_configure_smc(struct sa1111 *sachip, int sdram, unsigned int drac,
 		     unsigned int cas_latency)
 {

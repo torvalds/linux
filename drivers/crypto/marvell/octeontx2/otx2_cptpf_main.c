@@ -357,9 +357,9 @@ static int cptpf_vfpf_mbox_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 	u64 vfpf_mbox_base;
 	int err, i;
 
-	cptpf->vfpf_mbox_wq = alloc_workqueue("cpt_vfpf_mailbox",
-					      WQ_UNBOUND | WQ_HIGHPRI |
-					      WQ_MEM_RECLAIM, 1);
+	cptpf->vfpf_mbox_wq =
+		alloc_ordered_workqueue("cpt_vfpf_mailbox",
+					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptpf->vfpf_mbox_wq)
 		return -ENOMEM;
 
@@ -453,9 +453,9 @@ static int cptpf_afpf_mbox_init(struct otx2_cptpf_dev *cptpf)
 	resource_size_t offset;
 	int err;
 
-	cptpf->afpf_mbox_wq = alloc_workqueue("cpt_afpf_mailbox",
-					      WQ_UNBOUND | WQ_HIGHPRI |
-					      WQ_MEM_RECLAIM, 1);
+	cptpf->afpf_mbox_wq =
+		alloc_ordered_workqueue("cpt_afpf_mailbox",
+					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptpf->afpf_mbox_wq)
 		return -ENOMEM;
 

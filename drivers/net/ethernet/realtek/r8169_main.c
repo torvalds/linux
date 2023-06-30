@@ -5164,6 +5164,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int jumbo_max, region, rc;
 	enum mac_version chipset;
 	struct net_device *dev;
+	u32 txconfig;
 	u16 xid;
 
 	dev = devm_alloc_etherdev(&pdev->dev, sizeof (*tp));
@@ -5195,38 +5196,35 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* enable device (incl. PCI PM wakeup and hotplug setup) */
 	rc = pcim_enable_device(pdev);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "enable failure\n");
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "enable failure\n");
 
 	if (pcim_set_mwi(pdev) < 0)
 		dev_info(&pdev->dev, "Mem-Wr-Inval unavailable\n");
 
 	/* use first MMIO region */
 	region = ffs(pci_select_bars(pdev, IORESOURCE_MEM)) - 1;
-	if (region < 0) {
-		dev_err(&pdev->dev, "no MMIO resource found\n");
-		return -ENODEV;
-	}
+	if (region < 0)
+		return dev_err_probe(&pdev->dev, -ENODEV, "no MMIO resource found\n");
 
 	rc = pcim_iomap_regions(pdev, BIT(region), KBUILD_MODNAME);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "cannot remap MMIO, aborting\n");
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "cannot remap MMIO, aborting\n");
 
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
-	xid = (RTL_R32(tp, TxConfig) >> 20) & 0xfcf;
+	txconfig = RTL_R32(tp, TxConfig);
+	if (txconfig == ~0U)
+		return dev_err_probe(&pdev->dev, -EIO, "PCI read failed\n");
+
+	xid = (txconfig >> 20) & 0xfcf;
 
 	/* Identify chip attached to board */
 	chipset = rtl8169_get_mac_version(xid, tp->supports_gmii);
-	if (chipset == RTL_GIGA_MAC_NONE) {
-		dev_err(&pdev->dev, "unknown chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n", xid);
-		return -ENODEV;
-	}
-
+	if (chipset == RTL_GIGA_MAC_NONE)
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "unknown chip XID %03x, contact r8169 maintainers (see MAINTAINERS file)\n",
+				     xid);
 	tp->mac_version = chipset;
 
 	tp->dash_type = rtl_check_dash(tp);
@@ -5246,10 +5244,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rtl_hw_reset(tp);
 
 	rc = rtl_alloc_irq(tp);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "Can't allocate interrupt\n");
-		return rc;
-	}
+	if (rc < 0)
+		return dev_err_probe(&pdev->dev, rc, "Can't allocate interrupt\n");
+
 	tp->irq = pci_irq_vector(pdev, 0);
 
 	INIT_WORK(&tp->wk.work, rtl_task);

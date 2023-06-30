@@ -12,7 +12,7 @@ description:
   PS_MODE). Every pin can be configured as input/output.
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@xilinx.com>
+  - Piyush Mehta <piyush.mehta@amd.com>
 
 properties:
   compatible:

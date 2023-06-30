@@ -31,6 +31,7 @@
 
 // Minimum amount of time between queue kicks in msec (10 seconds)
 #define MIN_TX_TIMEOUT_GAP (1000 * 10)
+#define DQO_TX_MAX	0x3FFFF
 
 const char gve_version_str[] = GVE_VERSION;
 static const char gve_version_prefix[] = GVE_VERSION_PREFIX;
@@ -2046,6 +2047,10 @@ static int gve_init_priv(struct gve_priv *priv, bool skip_describe_device)
 		err = -EINVAL;
 		goto err;
 	}
+
+	/* Big TCP is only supported on DQ*/
+	if (!gve_is_gqi(priv))
+		netif_set_tso_max_size(priv->dev, DQO_TX_MAX);
 
 	priv->num_registered_pages = 0;
 	priv->rx_copybreak = GVE_DEFAULT_RX_COPYBREAK;

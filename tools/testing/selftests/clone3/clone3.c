@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	uid_t uid = getuid();
 
 	ksft_print_header();
-	ksft_set_plan(18);
+	ksft_set_plan(19);
 	test_clone3_supported();
 
 	/* Just a simple clone3() should return 0.*/
@@ -197,6 +197,9 @@ int main(int argc, char *argv[])
 
 	/* Do a clone3() in a new time namespace */
 	test_clone3(CLONE_NEWTIME, 0, 0, CLONE3_ARGS_NO_TEST);
+
+	/* Do a clone3() with exit signal (SIGCHLD) in flags */
+	test_clone3(SIGCHLD, 0, -EINVAL, CLONE3_ARGS_NO_TEST);
 
 	ksft_finished();
 }

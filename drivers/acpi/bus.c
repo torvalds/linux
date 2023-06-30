@@ -26,9 +26,6 @@
 #include <asm/mpspec.h>
 #include <linux/dmi.h>
 #endif
-#include <linux/acpi_agdi.h>
-#include <linux/acpi_apmt.h>
-#include <linux/acpi_iort.h>
 #include <linux/acpi_viot.h>
 #include <linux/pci.h>
 #include <acpi/apei.h>
@@ -530,65 +527,30 @@ static void acpi_notify_device(acpi_handle handle, u32 event, void *data)
 	acpi_drv->ops.notify(device, event);
 }
 
-static void acpi_notify_device_fixed(void *data)
-{
-	struct acpi_device *device = data;
-
-	/* Fixed hardware devices have no handles */
-	acpi_notify_device(NULL, ACPI_FIXED_HARDWARE_EVENT, device);
-}
-
-static u32 acpi_device_fixed_event(void *data)
-{
-	acpi_os_execute(OSL_NOTIFY_HANDLER, acpi_notify_device_fixed, data);
-	return ACPI_INTERRUPT_HANDLED;
-}
-
 static int acpi_device_install_notify_handler(struct acpi_device *device,
 					      struct acpi_driver *acpi_drv)
 {
+	u32 type = acpi_drv->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS ?
+				ACPI_ALL_NOTIFY : ACPI_DEVICE_NOTIFY;
 	acpi_status status;
 
-	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON) {
-		status =
-		    acpi_install_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
-						     acpi_device_fixed_event,
-						     device);
-	} else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON) {
-		status =
-		    acpi_install_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
-						     acpi_device_fixed_event,
-						     device);
-	} else {
-		u32 type = acpi_drv->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS ?
-				ACPI_ALL_NOTIFY : ACPI_DEVICE_NOTIFY;
-
-		status = acpi_install_notify_handler(device->handle, type,
-						     acpi_notify_device,
-						     device);
-	}
-
+	status = acpi_install_notify_handler(device->handle, type,
+					     acpi_notify_device, device);
 	if (ACPI_FAILURE(status))
 		return -EINVAL;
+
 	return 0;
 }
 
 static void acpi_device_remove_notify_handler(struct acpi_device *device,
 					      struct acpi_driver *acpi_drv)
 {
-	if (device->device_type == ACPI_BUS_TYPE_POWER_BUTTON) {
-		acpi_remove_fixed_event_handler(ACPI_EVENT_POWER_BUTTON,
-						acpi_device_fixed_event);
-	} else if (device->device_type == ACPI_BUS_TYPE_SLEEP_BUTTON) {
-		acpi_remove_fixed_event_handler(ACPI_EVENT_SLEEP_BUTTON,
-						acpi_device_fixed_event);
-	} else {
-		u32 type = acpi_drv->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS ?
+	u32 type = acpi_drv->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS ?
 				ACPI_ALL_NOTIFY : ACPI_DEVICE_NOTIFY;
 
-		acpi_remove_notify_handler(device->handle, type,
-					   acpi_notify_device);
-	}
+	acpi_remove_notify_handler(device->handle, type,
+				   acpi_notify_device);
+
 	acpi_os_wait_events_complete();
 }
 
@@ -1408,7 +1370,7 @@ static int __init acpi_init(void)
 	acpi_init_ffh();
 
 	pci_mmcfg_late_init();
-	acpi_iort_init();
+	acpi_arm_init();
 	acpi_viot_early_init();
 	acpi_hest_init();
 	acpi_ghes_init();
@@ -1420,8 +1382,6 @@ static int __init acpi_init(void)
 	acpi_debugger_init();
 	acpi_setup_sb_notify_handler();
 	acpi_viot_init();
-	acpi_agdi_init();
-	acpi_apmt_init();
 	return 0;
 }
 

@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/pm_runtime.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -2848,14 +2847,9 @@ static int rt5682s_dai_probe_clks(struct snd_soc_component *component)
 	int ret;
 
 	/* Check if MCLK provided */
-	rt5682s->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(rt5682s->mclk)) {
-		if (PTR_ERR(rt5682s->mclk) != -ENOENT) {
-			ret = PTR_ERR(rt5682s->mclk);
-			return ret;
-		}
-		rt5682s->mclk = NULL;
-	}
+	rt5682s->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(rt5682s->mclk))
+		return PTR_ERR(rt5682s->mclk);
 
 	/* Register CCF DAI clock control */
 	ret = rt5682s_register_dai_clks(component);
@@ -3046,7 +3040,7 @@ static const struct regmap_config rt5682s_regmap = {
 	.max_register = RT5682S_MAX_REG,
 	.volatile_reg = rt5682s_volatile_register,
 	.readable_reg = rt5682s_readable_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = rt5682s_reg,
 	.num_reg_defaults = ARRAY_SIZE(rt5682s_reg),
 	.use_single_read = true,
@@ -3316,7 +3310,7 @@ static struct i2c_driver rt5682s_i2c_driver = {
 		.acpi_match_table = rt5682s_acpi_match,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = rt5682s_i2c_probe,
+	.probe = rt5682s_i2c_probe,
 	.remove = rt5682s_i2c_remove,
 	.shutdown = rt5682s_i2c_shutdown,
 	.id_table = rt5682s_i2c_id,

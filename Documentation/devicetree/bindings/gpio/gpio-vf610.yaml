@@ -61,6 +61,13 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+patternProperties:
+  "^.+-hog(-[0-9]+)?$":
+    type: object
+
+    required:
+      - gpio-hog
+
 required:
   - compatible
   - reg
