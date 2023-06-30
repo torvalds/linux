@@ -247,6 +247,7 @@ void adf_init_hw_data_dh895xcc(struct adf_hw_device_data *hw_data)
 	hw_data->dev_config = adf_gen2_dev_config;
 	hw_data->clock_frequency = ADF_DH895X_AE_FREQ;
 	hw_data->get_hb_clock = get_ts_clock;
+	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	hw_data->pfvf_ops.enable_vf2pf_interrupts = enable_vf2pf_interrupts;

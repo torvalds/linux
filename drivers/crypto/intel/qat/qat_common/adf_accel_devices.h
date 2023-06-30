@@ -233,6 +233,7 @@ struct adf_hw_device_data {
 	u8 num_accel;
 	u8 num_logical_accel;
 	u8 num_engines;
+	u32 num_hb_ctrs;
 };
 
 /* CSR write macro */
@@ -245,6 +246,11 @@ struct adf_hw_device_data {
 #define ADF_CFG_NUM_SERVICES	4
 #define ADF_SRV_TYPE_BIT_LEN	3
 #define ADF_SRV_TYPE_MASK	0x7
+#define ADF_AE_ADMIN_THREAD	7
+#define ADF_NUM_THREADS_PER_AE	8
+#define ADF_NUM_PKE_STRAND	2
+#define ADF_AE_STRAND0_THREAD	8
+#define ADF_AE_STRAND1_THREAD	9
 
 #define GET_DEV(accel_dev) ((accel_dev)->accel_pci_dev.pci_dev->dev)
 #define GET_BARS(accel_dev) ((accel_dev)->accel_pci_dev.pci_bars)
@@ -301,6 +307,7 @@ struct adf_accel_dev {
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;
 	struct adf_timer *timer;
+	struct adf_heartbeat *heartbeat;
 	union {
 		struct {
 			/* protects VF2PF interrupts access */

@@ -8,6 +8,7 @@
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 #include "adf_dbgfs.h"
+#include "adf_heartbeat.h"
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
@@ -129,6 +130,8 @@ static int adf_dev_init(struct adf_accel_dev *accel_dev)
 			return -EFAULT;
 	}
 
+	adf_heartbeat_init(accel_dev);
+
 	/*
 	 * Subservice initialisation is divided into two stages: init and start.
 	 * This is to facilitate any ordering dependencies between services
@@ -203,6 +206,8 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 			return ret;
 		}
 	}
+
+	adf_heartbeat_start(accel_dev);
 
 	list_for_each(list_itr, &service_table) {
 		service = list_entry(list_itr, struct service_hndl, list);
@@ -346,6 +351,8 @@ static void adf_dev_shutdown(struct adf_accel_dev *accel_dev)
 		else
 			clear_bit(accel_dev->accel_id, service->init_status);
 	}
+
+	adf_heartbeat_shutdown(accel_dev);
 
 	hw_data->disable_iov(accel_dev);
 

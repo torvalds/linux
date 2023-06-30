@@ -154,6 +154,7 @@ void adf_init_hw_data_c62x(struct adf_hw_device_data *hw_data)
 	hw_data->dev_config = adf_gen2_dev_config;
 	hw_data->measure_clock = measure_clock;
 	hw_data->get_hb_clock = get_ts_clock;
+	hw_data->num_hb_ctrs = ADF_NUM_HB_CNT_PER_AE;
 
 	adf_gen2_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen2_init_hw_csr_ops(&hw_data->csr_ops);

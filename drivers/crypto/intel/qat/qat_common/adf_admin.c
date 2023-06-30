@@ -8,6 +8,7 @@
 #include <linux/dma-mapping.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
+#include "adf_heartbeat.h"
 #include "icp_qat_fw_init_admin.h"
 
 #define ADF_ADMIN_MAILBOX_STRIDE 0x1000
@@ -266,6 +267,19 @@ int adf_send_admin_tim_sync(struct adf_accel_dev *accel_dev, u32 cnt)
 
 	req.cmd_id = ICP_QAT_FW_SYNC;
 	req.int_timer_ticks = cnt;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
+int adf_send_admin_hb_timer(struct adf_accel_dev *accel_dev, uint32_t ticks)
+{
+	u32 ae_mask = accel_dev->hw_device->ae_mask;
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp;
+
+	req.cmd_id = ICP_QAT_FW_HEARTBEAT_TIMER_SET;
+	req.init_cfg_ptr = accel_dev->heartbeat->dma.phy_addr;
+	req.heartbeat_ticks = ticks;
 
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
