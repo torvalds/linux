@@ -2049,8 +2049,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
 		if (gc_ver < IP_VERSION(9, 0, 0) ||
-		    gc_ver == IP_VERSION(9, 4, 1) ||
-		    gc_ver == IP_VERSION(9, 4, 2))
+		    !amdgpu_device_has_display_hardware(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
 		if (mp1_ver < IP_VERSION(10, 0, 0))
