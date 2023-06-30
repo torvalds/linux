@@ -512,22 +512,21 @@ xfs_getfsmap_rtdev_rtbitmap_helper(
 	return xfs_getfsmap_helper(tp, info, &irec, rec_daddr, len_daddr);
 }
 
-/* Execute a getfsmap query against the realtime device. */
+/* Execute a getfsmap query against the realtime device rtbitmap. */
 STATIC int
-__xfs_getfsmap_rtdev(
+xfs_getfsmap_rtdev_rtbitmap(
 	struct xfs_trans		*tp,
 	const struct xfs_fsmap		*keys,
-	int				(*query_fn)(struct xfs_trans *,
-						    struct xfs_getfsmap_info *,
-						    xfs_rtblock_t start_rtb,
-						    xfs_rtblock_t end_rtb),
 	struct xfs_getfsmap_info	*info)
 {
+
+	struct xfs_rtalloc_rec		alow = { 0 };
+	struct xfs_rtalloc_rec		ahigh = { 0 };
 	struct xfs_mount		*mp = tp->t_mountp;
 	xfs_rtblock_t			start_rtb;
 	xfs_rtblock_t			end_rtb;
 	uint64_t			eofs;
-	int				error = 0;
+	int				error;
 
 	eofs = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rextents * mp->m_sb.sb_rextsize);
 	if (keys[0].fmr_physical >= eofs)
@@ -536,14 +535,7 @@ __xfs_getfsmap_rtdev(
 				keys[0].fmr_physical + keys[0].fmr_length);
 	end_rtb = XFS_BB_TO_FSB(mp, min(eofs - 1, keys[1].fmr_physical));
 
-	/* Set up search keys */
-	info->low.rm_startblock = start_rtb;
-	error = xfs_fsmap_owner_to_rmap(&info->low, &keys[0]);
-	if (error)
-		return error;
-	info->low.rm_offset = XFS_BB_TO_FSBT(mp, keys[0].fmr_offset);
-	info->low.rm_blockcount = 0;
-	xfs_getfsmap_set_irec_flags(&info->low, &keys[0]);
+	info->missing_owner = XFS_FMR_OWN_UNKNOWN;
 
 	/* Adjust the low key if we are continuing from where we left off. */
 	if (keys[0].fmr_length > 0) {
@@ -552,32 +544,8 @@ __xfs_getfsmap_rtdev(
 			return 0;
 	}
 
-	info->high.rm_startblock = end_rtb;
-	error = xfs_fsmap_owner_to_rmap(&info->high, &keys[1]);
-	if (error)
-		return error;
-	info->high.rm_offset = XFS_BB_TO_FSBT(mp, keys[1].fmr_offset);
-	info->high.rm_blockcount = 0;
-	xfs_getfsmap_set_irec_flags(&info->high, &keys[1]);
-
-	trace_xfs_fsmap_low_key(mp, info->dev, NULLAGNUMBER, &info->low);
-	trace_xfs_fsmap_high_key(mp, info->dev, NULLAGNUMBER, &info->high);
-
-	return query_fn(tp, info, start_rtb, end_rtb);
-}
-
-/* Actually query the realtime bitmap. */
-STATIC int
-xfs_getfsmap_rtdev_rtbitmap_query(
-	struct xfs_trans		*tp,
-	struct xfs_getfsmap_info	*info,
-	xfs_rtblock_t			start_rtb,
-	xfs_rtblock_t			end_rtb)
-{
-	struct xfs_rtalloc_rec		alow = { 0 };
-	struct xfs_rtalloc_rec		ahigh = { 0 };
-	struct xfs_mount		*mp = tp->t_mountp;
-	int				error;
+	trace_xfs_fsmap_low_key_linear(mp, info->dev, start_rtb);
+	trace_xfs_fsmap_high_key_linear(mp, info->dev, end_rtb);
 
 	xfs_ilock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 
@@ -608,18 +576,6 @@ xfs_getfsmap_rtdev_rtbitmap_query(
 err:
 	xfs_iunlock(mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 	return error;
-}
-
-/* Execute a getfsmap query against the realtime device rtbitmap. */
-STATIC int
-xfs_getfsmap_rtdev_rtbitmap(
-	struct xfs_trans		*tp,
-	const struct xfs_fsmap		*keys,
-	struct xfs_getfsmap_info	*info)
-{
-	info->missing_owner = XFS_FMR_OWN_UNKNOWN;
-	return __xfs_getfsmap_rtdev(tp, keys, xfs_getfsmap_rtdev_rtbitmap_query,
-			info);
 }
 #endif /* CONFIG_XFS_RT */
 
