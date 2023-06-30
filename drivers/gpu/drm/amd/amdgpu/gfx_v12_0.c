@@ -1076,7 +1076,7 @@ static int gfx_v12_0_rlc_backdoor_autoload_enable(struct amdgpu_device *adev)
 
 	WREG32_SOC15(GC, 0, regGFX_IMU_RLC_BOOTLOADER_SIZE, rlc_g_size);
 
-	if (adev->gfx.imu.funcs) {
+	if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
 		/* RLC autoload sequence 3: load IMU fw */
 		if (adev->gfx.imu.funcs->load_microcode)
 			adev->gfx.imu.funcs->load_microcode(adev);
@@ -1149,7 +1149,7 @@ static int gfx_v12_0_sw_init(void *handle)
 
 	adev->gfx.gfx_current_status = AMDGPU_GFX_NORMAL_MODE;
 
-	if (adev->gfx.imu.funcs) {
+	if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
 		if (adev->gfx.imu.funcs->init_microcode) {
 			r = adev->gfx.imu.funcs->init_microcode(adev);
 			if (r)
@@ -3215,7 +3215,7 @@ static int gfx_v12_0_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
-		if (adev->gfx.imu.funcs) {
+		if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
 			/* RLC autoload sequence 1: Program rlc ram */
 			if (adev->gfx.imu.funcs->program_rlc_ram)
 				adev->gfx.imu.funcs->program_rlc_ram(adev);
