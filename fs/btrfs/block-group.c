@@ -2104,8 +2104,9 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 	if (cache->start < BTRFS_SUPER_INFO_OFFSET) {
 		stripe_len = BTRFS_SUPER_INFO_OFFSET - cache->start;
 		cache->bytes_super += stripe_len;
-		ret = btrfs_add_excluded_extent(fs_info, cache->start,
-						stripe_len);
+		ret = set_extent_bit(&fs_info->excluded_extents, cache->start,
+				     cache->start + stripe_len - 1,
+				     EXTENT_UPTODATE, NULL);
 		if (ret)
 			return ret;
 	}
@@ -2131,8 +2132,9 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 				cache->start + cache->length - logical[nr]);
 
 			cache->bytes_super += len;
-			ret = btrfs_add_excluded_extent(fs_info, logical[nr],
-							len);
+			ret = set_extent_bit(&fs_info->excluded_extents, logical[nr],
+					     logical[nr] + len - 1,
+					     EXTENT_UPTODATE, NULL);
 			if (ret) {
 				kfree(logical);
 				return ret;
