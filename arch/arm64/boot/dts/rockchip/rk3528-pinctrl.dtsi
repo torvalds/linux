@@ -366,21 +366,21 @@
 		i2s0m0_lrck: i2s0m0-lrck {
 			rockchip,pins =
 				/* i2s0_lrck_m0 */
-				<3 RK_PB6 1 &pcfg_pull_none>;
+				<3 RK_PB6 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s0m0_mclk: i2s0m0-mclk {
 			rockchip,pins =
 				/* i2s0_mclk_m0 */
-				<3 RK_PB4 1 &pcfg_pull_none>;
+				<3 RK_PB4 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s0m0_sclk: i2s0m0-sclk {
 			rockchip,pins =
 				/* i2s0_sclk_m0 */
-				<3 RK_PB5 1 &pcfg_pull_none>;
+				<3 RK_PB5 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -400,21 +400,21 @@
 		i2s0m1_lrck: i2s0m1-lrck {
 			rockchip,pins =
 				/* i2s0_lrck_m1 */
-				<1 RK_PB6 1 &pcfg_pull_none>;
+				<1 RK_PB6 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s0m1_mclk: i2s0m1-mclk {
 			rockchip,pins =
 				/* i2s0_mclk_m1 */
-				<1 RK_PB4 1 &pcfg_pull_none>;
+				<1 RK_PB4 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s0m1_sclk: i2s0m1-sclk {
 			rockchip,pins =
 				/* i2s0_sclk_m1 */
-				<1 RK_PB5 1 &pcfg_pull_none>;
+				<1 RK_PB5 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
@@ -436,21 +436,21 @@
 		i2s1_lrck: i2s1-lrck {
 			rockchip,pins =
 				/* i2s1_lrck */
-				<4 RK_PA6 1 &pcfg_pull_none>;
+				<4 RK_PA6 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s1_mclk: i2s1-mclk {
 			rockchip,pins =
 				/* i2s1_mclk */
-				<4 RK_PA4 1 &pcfg_pull_none>;
+				<4 RK_PA4 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
 		i2s1_sclk: i2s1-sclk {
 			rockchip,pins =
 				/* i2s1_sclk */
-				<4 RK_PA5 1 &pcfg_pull_none>;
+				<4 RK_PA5 1 &pcfg_pull_none_smt>;
 		};
 
 		/omit-if-no-ref/
