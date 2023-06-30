@@ -309,7 +309,7 @@ static void force_user_fault(unsigned long address, int write)
 
 	code = SEGV_MAPERR;
 
-	vma = lock_mm_and_find_vma(mm, address, regs);
+	vma = lock_mm_and_find_vma(mm, address, NULL);
 	if (!vma)
 		goto bad_area_nosemaphore;
 	code = SEGV_ACCERR;
