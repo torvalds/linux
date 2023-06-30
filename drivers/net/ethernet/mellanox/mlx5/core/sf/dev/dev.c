@@ -185,7 +185,7 @@ mlx5_sf_dev_state_change_handler(struct notifier_block *nb, unsigned long event_
 			mlx5_sf_dev_del(table->dev, sf_dev, sf_index);
 		else
 			mlx5_core_err(table->dev,
-				      "SF DEV: teardown state for invalid dev index=%d fn_id=0x%x\n",
+				      "SF DEV: teardown state for invalid dev index=%d sfnum=0x%x\n",
 				      sf_index, event->sw_function_id);
 		break;
 	case MLX5_VHCA_STATE_ACTIVE:
