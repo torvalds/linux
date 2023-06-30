@@ -135,9 +135,10 @@ void perf_event__read_stat_config(struct perf_stat_config *config,
 			config->__val = event->data[i].val;	\
 			break;
 
-		CASE(AGGR_MODE, aggr_mode)
-		CASE(SCALE,     scale)
-		CASE(INTERVAL,  interval)
+		CASE(AGGR_MODE,  aggr_mode)
+		CASE(SCALE,      scale)
+		CASE(INTERVAL,   interval)
+		CASE(AGGR_LEVEL, aggr_level)
 #undef CASE
 		default:
 			pr_warning("unknown stat config term %" PRI_lu64 "\n",
@@ -485,6 +486,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 	if (machine) {
 		struct addr_location al;
 
+		addr_location__init(&al);
 		al.map = map__get(maps__find(machine__kernel_maps(machine), tp->addr));
 		if (al.map && map__load(al.map) >= 0) {
 			al.addr = map__map_ip(al.map, tp->addr);
@@ -492,7 +494,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 			if (al.sym)
 				ret += symbol__fprintf_symname_offs(al.sym, &al, fp);
 		}
-		map__put(al.map);
+		addr_location__exit(&al);
 	}
 	ret += fprintf(fp, " old len %u new len %u\n", tp->old_len, tp->new_len);
 	old = true;
@@ -572,12 +574,14 @@ int perf_event__process(struct perf_tool *tool __maybe_unused,
 struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
-	struct maps *maps = thread->maps;
+	struct maps *maps = thread__maps(thread);
 	struct machine *machine = maps__machine(maps);
 	bool load_map = false;
 
-	al->maps = maps;
-	al->thread = thread;
+	maps__zput(al->maps);
+	map__zput(al->map);
+	thread__zput(al->thread);
+
 	al->addr = addr;
 	al->cpumode = cpumode;
 	al->filtered = 0;
@@ -589,13 +593,13 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
-		al->maps = maps = machine__kernel_maps(machine);
+		maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
-		al->maps = maps = machine__kernel_maps(machine);
+		maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest) {
 		al->level = 'u';
@@ -614,7 +618,8 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 		return NULL;
 	}
-
+	al->maps = maps__get(maps);
+	al->thread = thread__get(thread);
 	al->map = map__get(maps__find(maps, al->addr));
 	if (al->map != NULL) {
 		/*
@@ -638,7 +643,7 @@ struct map *thread__find_map_fb(struct thread *thread, u8 cpumode, u64 addr,
 				struct addr_location *al)
 {
 	struct map *map = thread__find_map(thread, cpumode, addr, al);
-	struct machine *machine = maps__machine(thread->maps);
+	struct machine *machine = maps__machine(thread__maps(thread));
 	u8 addr_cpumode = machine__addr_cpumode(machine, cpumode, addr);
 
 	if (map || addr_cpumode == cpumode)
@@ -695,7 +700,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	if (thread == NULL)
 		return -1;
 
-	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
+	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread__tid(thread));
 	thread__find_map(thread, sample->cpumode, sample->ip, al);
 	dso = al->map ? map__dso(al->map) : NULL;
 	dump_printf(" ...... dso: %s\n",
@@ -705,6 +710,9 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 
 	if (thread__is_filtered(thread))
 		al->filtered |= (1 << HIST_FILTER__THREAD);
+
+	thread__put(thread);
+	thread = NULL;
 
 	al->sym = NULL;
 	al->cpu = sample->cpu;
@@ -764,18 +772,6 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	}
 
 	return 0;
-}
-
-/*
- * The preprocess_sample method will return with reference counts for the
- * in it, when done using (and perhaps getting ref counts if needing to
- * keep a pointer to one of those entries) it must be paired with
- * addr_location__put(), so that the refcounts can be decremented.
- */
-void addr_location__put(struct addr_location *al)
-{
-	map__zput(al->map);
-	thread__zput(al->thread);
 }
 
 bool is_bts_event(struct perf_event_attr *attr)

@@ -1074,16 +1074,18 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		/* Function pointer */
 		return strbuf_add(buf, "(function_type)", 15);
 	} else {
-		if (!dwarf_diename(&type))
-			return -ENOENT;
+		const char *name = dwarf_diename(&type);
+
 		if (tag == DW_TAG_union_type)
 			tmp = "union ";
 		else if (tag == DW_TAG_structure_type)
 			tmp = "struct ";
 		else if (tag == DW_TAG_enumeration_type)
 			tmp = "enum ";
+		else if (name == NULL)
+			return -ENOENT;
 		/* Write a base name */
-		return strbuf_addf(buf, "%s%s", tmp, dwarf_diename(&type));
+		return strbuf_addf(buf, "%s%s", tmp, name ?: "");
 	}
 	ret = die_get_typename(&type, buf);
 	return ret ? ret : strbuf_addstr(buf, tmp);
@@ -1103,7 +1105,7 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
 		pr_debug("Failed to get type, make it unknown.\n");
-		ret = strbuf_add(buf, " (unknown_type)", 14);
+		ret = strbuf_add(buf, "(unknown_type)", 14);
 	}
 
 	return ret < 0 ? ret : strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));

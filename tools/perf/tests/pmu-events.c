@@ -2,6 +2,7 @@
 #include "math.h"
 #include "parse-events.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "tests.h"
 #include <errno.h>
 #include <stdio.h>
@@ -708,11 +709,8 @@ static int test__aliases(struct test_suite *test __maybe_unused,
 	struct perf_pmu *pmu = NULL;
 	unsigned long i;
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		int count = 0;
-
-		if (!is_pmu_core(pmu->name))
-			continue;
 
 		if (list_empty(&pmu->format)) {
 			pr_debug2("skipping testing core PMU %s\n", pmu->name);
@@ -776,16 +774,8 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	for (cur = strchr(dup, '@') ; cur; cur = strchr(++cur, '@'))
 		*cur = '/';
 
-	if (fake_pmu) {
-		/*
-		 * Every call to __parse_events will try to initialize the PMU
-		 * state from sysfs and then clean it up at the end. Reset the
-		 * PMU events to the test state so that we don't pick up
-		 * erroneous prefixes and suffixes.
-		 */
-		perf_pmu__test_parse_init();
-	}
-	ret = __parse_events(evlist, dup, error, fake_pmu, /*warn_if_reordered=*/true);
+	ret = __parse_events(evlist, dup, /*pmu_filter=*/NULL, error, fake_pmu,
+			     /*warn_if_reordered=*/true);
 	free(dup);
 
 	evlist__delete(evlist);

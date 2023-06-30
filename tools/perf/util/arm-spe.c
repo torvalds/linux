@@ -254,9 +254,9 @@ static void arm_spe_set_pid_tid_cpu(struct arm_spe *spe,
 	}
 
 	if (speq->thread) {
-		speq->pid = speq->thread->pid_;
+		speq->pid = thread__pid(speq->thread);
 		if (queue->cpu == -1)
-			speq->cpu = speq->thread->cpu;
+			speq->cpu = thread__cpu(speq->thread);
 	}
 }
 

@@ -46,8 +46,9 @@
 #include "memswap.h"
 #include "util.h"
 #include "util/hashmap.h"
-#include "pmu-hybrid.h"
 #include "off_cpu.h"
+#include "pmu.h"
+#include "pmus.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include "util/bpf-filter.h"
@@ -291,6 +292,7 @@ void evsel__init(struct evsel *evsel,
 	evsel->per_pkg_mask  = NULL;
 	evsel->collect_stat  = false;
 	evsel->pmu_name      = NULL;
+	evsel->group_pmu_name = NULL;
 	evsel->skippable     = false;
 }
 
@@ -315,48 +317,6 @@ struct evsel *evsel__new_idx(struct perf_event_attr *attr, int idx)
 	}
 
 	return evsel;
-}
-
-static bool perf_event_can_profile_kernel(void)
-{
-	return perf_event_paranoid_check(1);
-}
-
-struct evsel *evsel__new_cycles(bool precise __maybe_unused, __u32 type, __u64 config)
-{
-	struct perf_event_attr attr = {
-		.type	= type,
-		.config	= config,
-		.exclude_kernel	= !perf_event_can_profile_kernel(),
-	};
-	struct evsel *evsel;
-
-	event_attr_init(&attr);
-
-	/*
-	 * Now let the usual logic to set up the perf_event_attr defaults
-	 * to kick in when we return and before perf_evsel__open() is called.
-	 */
-	evsel = evsel__new(&attr);
-	if (evsel == NULL)
-		goto out;
-
-	arch_evsel__fixup_new_cycles(&evsel->core.attr);
-
-	evsel->precise_max = true;
-
-	/* use asprintf() because free(evsel) assumes name is allocated */
-	if (asprintf(&evsel->name, "cycles%s%s%.*s",
-		     (attr.precise_ip || attr.exclude_kernel) ? ":" : "",
-		     attr.exclude_kernel ? "u" : "",
-		     attr.precise_ip ? attr.precise_ip + 1 : 0, "ppp") < 0)
-		goto error_free;
-out:
-	return evsel;
-error_free:
-	evsel__delete(evsel);
-	evsel = NULL;
-	goto out;
 }
 
 int copy_config_terms(struct list_head *dst, struct list_head *src)
@@ -416,6 +376,7 @@ struct evsel *evsel__clone(struct evsel *orig)
 	evsel->core.nr_members = orig->core.nr_members;
 	evsel->core.system_wide = orig->core.system_wide;
 	evsel->core.requires_cpu = orig->core.requires_cpu;
+	evsel->core.is_pmu_core = orig->core.is_pmu_core;
 
 	if (orig->name) {
 		evsel->name = strdup(orig->name);
@@ -430,6 +391,11 @@ struct evsel *evsel__clone(struct evsel *orig)
 	if (orig->pmu_name) {
 		evsel->pmu_name = strdup(orig->pmu_name);
 		if (evsel->pmu_name == NULL)
+			goto out_err;
+	}
+	if (orig->group_pmu_name) {
+		evsel->group_pmu_name = strdup(orig->group_pmu_name);
+		if (evsel->group_pmu_name == NULL)
 			goto out_err;
 	}
 	if (orig->filter) {
@@ -828,30 +794,6 @@ bool evsel__name_is(struct evsel *evsel, const char *name)
 	return !strcmp(evsel__name(evsel), name);
 }
 
-const char *evsel__group_pmu_name(const struct evsel *evsel)
-{
-	struct evsel *leader = evsel__leader(evsel);
-	struct evsel *pos;
-
-	/*
-	 * Software events may be in a group with other uncore PMU events. Use
-	 * the pmu_name of the first non-software event to avoid breaking the
-	 * software event out of the group.
-	 *
-	 * Aux event leaders, like intel_pt, expect a group with events from
-	 * other PMUs, so substitute the AUX event's PMU in this case.
-	 */
-	if (evsel->core.attr.type == PERF_TYPE_SOFTWARE || evsel__is_aux_event(leader)) {
-		/* Starting with the leader, find the first event with a named PMU. */
-		for_each_group_evsel(pos, leader) {
-			if (pos->pmu_name)
-				return pos->pmu_name;
-		}
-	}
-
-	return evsel->pmu_name ?: "cpu";
-}
-
 const char *evsel__metric_id(const struct evsel *evsel)
 {
 	if (evsel->metric_id)
@@ -1129,10 +1071,6 @@ struct evsel_config_term *__evsel__get_config_term(struct evsel *evsel, enum evs
 void __weak arch_evsel__set_sample_weight(struct evsel *evsel)
 {
 	evsel__set_sample_bit(evsel, WEIGHT);
-}
-
-void __weak arch_evsel__fixup_new_cycles(struct perf_event_attr *attr __maybe_unused)
-{
 }
 
 void __weak arch__post_evsel_config(struct evsel *evsel __maybe_unused,
@@ -1537,6 +1475,7 @@ void evsel__exit(struct evsel *evsel)
 	zfree(&evsel->group_name);
 	zfree(&evsel->name);
 	zfree(&evsel->pmu_name);
+	zfree(&evsel->group_pmu_name);
 	zfree(&evsel->unit);
 	zfree(&evsel->metric_id);
 	evsel__zero_per_pkg(evsel);
@@ -2100,6 +2039,7 @@ static int evsel__open_cpu(struct evsel *evsel, struct perf_cpu_map *cpus,
 fallback_missing_features:
 	evsel__disable_missing_features(evsel);
 
+	pr_debug3("Opening: %s\n", evsel__name(evsel));
 	display_attr(&evsel->core.attr);
 
 	for (idx = start_cpu_map_idx; idx < end_cpu_map_idx; idx++) {
@@ -3178,9 +3118,17 @@ void evsel__zero_per_pkg(struct evsel *evsel)
 	}
 }
 
+/**
+ * evsel__is_hybrid - does the evsel have a known PMU that is hybrid. Note, this
+ *                    will be false on hybrid systems for hardware and legacy
+ *                    cache events.
+ */
 bool evsel__is_hybrid(const struct evsel *evsel)
 {
-	return evsel->pmu_name && perf_pmu__is_hybrid(evsel->pmu_name);
+	if (perf_pmus__num_core_pmus() == 1)
+		return false;
+
+	return evsel->core.is_pmu_core;
 }
 
 struct evsel *evsel__leader(const struct evsel *evsel)

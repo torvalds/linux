@@ -1018,6 +1018,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts bus locks, accounts for cache line split locks and UC locks.",
+        "EventCode": "0x2c",
+        "EventName": "SQ_MISC.BUS_LOCK",
+        "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x10",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Number of PREFETCHNTA instructions executed.",
         "EventCode": "0x40",
         "EventName": "SW_PREFETCH_ACCESS.NTA",

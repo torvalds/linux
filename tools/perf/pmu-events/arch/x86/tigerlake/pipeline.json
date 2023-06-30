@@ -395,6 +395,7 @@
     {
         "BriefDescription": "Clears speculative count",
         "CounterMask": "1",
+        "EdgeDetect": "1",
         "EventCode": "0x0d",
         "EventName": "INT_MISC.CLEARS_COUNT",
         "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
