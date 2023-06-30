@@ -1548,11 +1548,12 @@ load_root:
 	/* Create /proc/fs/ntfs3/.. */
 	if (proc_info_root) {
 		struct proc_dir_entry *e = proc_mkdir(sb->s_id, proc_info_root);
+		static_assert((S_IRUGO | S_IWUSR) == 0644);
 		if (e) {
-			proc_create_data("volinfo", S_IFREG | S_IRUGO, e,
+			proc_create_data("volinfo", S_IRUGO, e,
 					 &ntfs3_volinfo_fops, sb);
-			proc_create_data("label", S_IFREG | S_IRUGO | S_IWUGO,
-					 e, &ntfs3_label_fops, sb);
+			proc_create_data("label", S_IRUGO | S_IWUSR, e,
+					 &ntfs3_label_fops, sb);
 			sbi->procdir = e;
 		}
 	}
