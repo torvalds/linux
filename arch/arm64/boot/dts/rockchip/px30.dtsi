@@ -2636,27 +2636,27 @@
 		i2s0 {
 			i2s0_8ch_mclk: i2s0-8ch-mclk {
 				rockchip,pins =
-					<3 RK_PC1 2 &pcfg_pull_none>;
+					<3 RK_PC1 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s0_8ch_sclktx: i2s0-8ch-sclktx {
 				rockchip,pins =
-					<3 RK_PC3 2 &pcfg_pull_none>;
+					<3 RK_PC3 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s0_8ch_sclkrx: i2s0-8ch-sclkrx {
 				rockchip,pins =
-					<3 RK_PB4 2 &pcfg_pull_none>;
+					<3 RK_PB4 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s0_8ch_lrcktx: i2s0-8ch-lrcktx {
 				rockchip,pins =
-					<3 RK_PC2 2 &pcfg_pull_none>;
+					<3 RK_PC2 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s0_8ch_lrckrx: i2s0-8ch-lrckrx {
 				rockchip,pins =
-					<3 RK_PB5 2 &pcfg_pull_none>;
+					<3 RK_PB5 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s0_8ch_sdo0: i2s0-8ch-sdo0 {
@@ -2703,17 +2703,17 @@
 		i2s1 {
 			i2s1_2ch_mclk: i2s1-2ch-mclk {
 				rockchip,pins =
-					<2 RK_PC3 1 &pcfg_pull_none>;
+					<2 RK_PC3 1 &pcfg_pull_none_smt>;
 			};
 
 			i2s1_2ch_sclk: i2s1-2ch-sclk {
 				rockchip,pins =
-					<2 RK_PC2 1 &pcfg_pull_none>;
+					<2 RK_PC2 1 &pcfg_pull_none_smt>;
 			};
 
 			i2s1_2ch_lrck: i2s1-2ch-lrck {
 				rockchip,pins =
-					<2 RK_PC1 1 &pcfg_pull_none>;
+					<2 RK_PC1 1 &pcfg_pull_none_smt>;
 			};
 
 			i2s1_2ch_sdi: i2s1-2ch-sdi {
@@ -2730,17 +2730,17 @@
 		i2s2 {
 			i2s2_2ch_mclk: i2s2-2ch-mclk {
 				rockchip,pins =
-					<3 RK_PA1 2 &pcfg_pull_none>;
+					<3 RK_PA1 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s2_2ch_sclk: i2s2-2ch-sclk {
 				rockchip,pins =
-					<3 RK_PA2 2 &pcfg_pull_none>;
+					<3 RK_PA2 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s2_2ch_lrck: i2s2-2ch-lrck {
 				rockchip,pins =
-					<3 RK_PA3 2 &pcfg_pull_none>;
+					<3 RK_PA3 2 &pcfg_pull_none_smt>;
 			};
 
 			i2s2_2ch_sdi: i2s2-2ch-sdi {
