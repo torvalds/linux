@@ -783,7 +783,6 @@ CONFIGFS_ATTR(iscsi_tpg_attrib_, name)
 
 DEF_TPG_ATTRIB(authentication);
 DEF_TPG_ATTRIB(login_timeout);
-DEF_TPG_ATTRIB(netif_timeout);
 DEF_TPG_ATTRIB(generate_node_acls);
 DEF_TPG_ATTRIB(default_cmdsn_depth);
 DEF_TPG_ATTRIB(cache_dynamic_acls);
@@ -799,7 +798,6 @@ DEF_TPG_ATTRIB(login_keys_workaround);
 static struct configfs_attribute *lio_target_tpg_attrib_attrs[] = {
 	&iscsi_tpg_attrib_attr_authentication,
 	&iscsi_tpg_attrib_attr_login_timeout,
-	&iscsi_tpg_attrib_attr_netif_timeout,
 	&iscsi_tpg_attrib_attr_generate_node_acls,
 	&iscsi_tpg_attrib_attr_default_cmdsn_depth,
 	&iscsi_tpg_attrib_attr_cache_dynamic_acls,
