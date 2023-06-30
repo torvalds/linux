@@ -149,8 +149,11 @@ themselves. No email should ever be sent to the list with the main purpose
 of communicating with the bot, the bot commands should be seen as metadata.
 
 The use of the bot is restricted to authors of the patches (the ``From:``
-header on patch submission and command must match!), maintainers themselves
-and a handful of senior reviewers. Bot records its activity here:
+header on patch submission and command must match!), maintainers of
+the modified code according to the MAINTAINERS file (again, ``From:``
+must match the MAINTAINERS entry) and a handful of senior reviewers.
+
+Bot records its activity here:
 
   https://patchwork.hopto.org/pw-bot.html
 
