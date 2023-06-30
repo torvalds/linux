@@ -6,7 +6,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-msm.h"
 
@@ -375,27 +374,20 @@ static const unsigned int sdc3_clk_pins[] = { 176 };
 static const unsigned int sdc3_cmd_pins[] = { 177 };
 static const unsigned int sdc3_data_pins[] = { 178 };
 
-#define FUNCTION(fname)					\
-	[MSM_MUX_##fname] = {				\
-		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
-
 #define PINGROUP(id, f1, f2, f3, f4, f5, f6, f7) \
 	{						\
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
-			MSM_MUX_gpio,			\
-			MSM_MUX_##f1,			\
-			MSM_MUX_##f2,			\
-			MSM_MUX_##f3,			\
-			MSM_MUX_##f4,			\
-			MSM_MUX_##f5,			\
-			MSM_MUX_##f6,			\
-			MSM_MUX_##f7,			\
+			msm_mux_gpio,			\
+			msm_mux_##f1,			\
+			msm_mux_##f2,			\
+			msm_mux_##f3,			\
+			msm_mux_##f4,			\
+			msm_mux_##f5,			\
+			msm_mux_##f6,			\
+			msm_mux_##f7,			\
 		},					\
 		.nfuncs = 8,				\
 		.ctl_reg = 0x1000 + 0x10 * id,		\
@@ -422,9 +414,9 @@ static const unsigned int sdc3_data_pins[] = { 178 };
 
 #define SDC_PINGROUP(pg_name, ctl, pull, drv)		\
 	{						\
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = ctl,				\
 		.io_reg = 0,				\
 		.intr_cfg_reg = 0,			\
@@ -447,60 +439,60 @@ static const unsigned int sdc3_data_pins[] = { 178 };
 	}
 
 enum msm8660_functions {
-	MSM_MUX_gpio,
-	MSM_MUX_cam_mclk,
-	MSM_MUX_dsub,
-	MSM_MUX_ext_gps,
-	MSM_MUX_gp_clk_0a,
-	MSM_MUX_gp_clk_0b,
-	MSM_MUX_gp_clk_1a,
-	MSM_MUX_gp_clk_1b,
-	MSM_MUX_gp_clk_2a,
-	MSM_MUX_gp_clk_2b,
-	MSM_MUX_gp_mn,
-	MSM_MUX_gsbi1,
-	MSM_MUX_gsbi1_spi_cs1_n,
-	MSM_MUX_gsbi1_spi_cs2a_n,
-	MSM_MUX_gsbi1_spi_cs2b_n,
-	MSM_MUX_gsbi1_spi_cs3_n,
-	MSM_MUX_gsbi2,
-	MSM_MUX_gsbi2_spi_cs1_n,
-	MSM_MUX_gsbi2_spi_cs2_n,
-	MSM_MUX_gsbi2_spi_cs3_n,
-	MSM_MUX_gsbi3,
-	MSM_MUX_gsbi3_spi_cs1_n,
-	MSM_MUX_gsbi3_spi_cs2_n,
-	MSM_MUX_gsbi3_spi_cs3_n,
-	MSM_MUX_gsbi4,
-	MSM_MUX_gsbi5,
-	MSM_MUX_gsbi6,
-	MSM_MUX_gsbi7,
-	MSM_MUX_gsbi8,
-	MSM_MUX_gsbi9,
-	MSM_MUX_gsbi10,
-	MSM_MUX_gsbi11,
-	MSM_MUX_gsbi12,
-	MSM_MUX_hdmi,
-	MSM_MUX_i2s,
-	MSM_MUX_lcdc,
-	MSM_MUX_mdp_vsync,
-	MSM_MUX_mi2s,
-	MSM_MUX_pcm,
-	MSM_MUX_ps_hold,
-	MSM_MUX_sdc1,
-	MSM_MUX_sdc2,
-	MSM_MUX_sdc5,
-	MSM_MUX_tsif1,
-	MSM_MUX_tsif2,
-	MSM_MUX_usb_fs1,
-	MSM_MUX_usb_fs1_oe_n,
-	MSM_MUX_usb_fs2,
-	MSM_MUX_usb_fs2_oe_n,
-	MSM_MUX_vfe,
-	MSM_MUX_vsens_alarm,
-	MSM_MUX_ebi2cs,
-	MSM_MUX_ebi2,
-	MSM_MUX__,
+	msm_mux_gpio,
+	msm_mux_cam_mclk,
+	msm_mux_dsub,
+	msm_mux_ext_gps,
+	msm_mux_gp_clk_0a,
+	msm_mux_gp_clk_0b,
+	msm_mux_gp_clk_1a,
+	msm_mux_gp_clk_1b,
+	msm_mux_gp_clk_2a,
+	msm_mux_gp_clk_2b,
+	msm_mux_gp_mn,
+	msm_mux_gsbi1,
+	msm_mux_gsbi1_spi_cs1_n,
+	msm_mux_gsbi1_spi_cs2a_n,
+	msm_mux_gsbi1_spi_cs2b_n,
+	msm_mux_gsbi1_spi_cs3_n,
+	msm_mux_gsbi2,
+	msm_mux_gsbi2_spi_cs1_n,
+	msm_mux_gsbi2_spi_cs2_n,
+	msm_mux_gsbi2_spi_cs3_n,
+	msm_mux_gsbi3,
+	msm_mux_gsbi3_spi_cs1_n,
+	msm_mux_gsbi3_spi_cs2_n,
+	msm_mux_gsbi3_spi_cs3_n,
+	msm_mux_gsbi4,
+	msm_mux_gsbi5,
+	msm_mux_gsbi6,
+	msm_mux_gsbi7,
+	msm_mux_gsbi8,
+	msm_mux_gsbi9,
+	msm_mux_gsbi10,
+	msm_mux_gsbi11,
+	msm_mux_gsbi12,
+	msm_mux_hdmi,
+	msm_mux_i2s,
+	msm_mux_lcdc,
+	msm_mux_mdp_vsync,
+	msm_mux_mi2s,
+	msm_mux_pcm,
+	msm_mux_ps_hold,
+	msm_mux_sdc1,
+	msm_mux_sdc2,
+	msm_mux_sdc5,
+	msm_mux_tsif1,
+	msm_mux_tsif2,
+	msm_mux_usb_fs1,
+	msm_mux_usb_fs1_oe_n,
+	msm_mux_usb_fs2,
+	msm_mux_usb_fs2_oe_n,
+	msm_mux_vfe,
+	msm_mux_vsens_alarm,
+	msm_mux_ebi2cs,
+	msm_mux_ebi2,
+	msm_mux__,
 };
 
 static const char * const gpio_groups[] = {
@@ -721,60 +713,60 @@ static const char * const ebi2_groups[] = {
 	"gpio158", /* busy */
 };
 
-static const struct msm_function msm8660_functions[] = {
-	FUNCTION(gpio),
-	FUNCTION(cam_mclk),
-	FUNCTION(dsub),
-	FUNCTION(ext_gps),
-	FUNCTION(gp_clk_0a),
-	FUNCTION(gp_clk_0b),
-	FUNCTION(gp_clk_1a),
-	FUNCTION(gp_clk_1b),
-	FUNCTION(gp_clk_2a),
-	FUNCTION(gp_clk_2b),
-	FUNCTION(gp_mn),
-	FUNCTION(gsbi1),
-	FUNCTION(gsbi1_spi_cs1_n),
-	FUNCTION(gsbi1_spi_cs2a_n),
-	FUNCTION(gsbi1_spi_cs2b_n),
-	FUNCTION(gsbi1_spi_cs3_n),
-	FUNCTION(gsbi2),
-	FUNCTION(gsbi2_spi_cs1_n),
-	FUNCTION(gsbi2_spi_cs2_n),
-	FUNCTION(gsbi2_spi_cs3_n),
-	FUNCTION(gsbi3),
-	FUNCTION(gsbi3_spi_cs1_n),
-	FUNCTION(gsbi3_spi_cs2_n),
-	FUNCTION(gsbi3_spi_cs3_n),
-	FUNCTION(gsbi4),
-	FUNCTION(gsbi5),
-	FUNCTION(gsbi6),
-	FUNCTION(gsbi7),
-	FUNCTION(gsbi8),
-	FUNCTION(gsbi9),
-	FUNCTION(gsbi10),
-	FUNCTION(gsbi11),
-	FUNCTION(gsbi12),
-	FUNCTION(hdmi),
-	FUNCTION(i2s),
-	FUNCTION(lcdc),
-	FUNCTION(mdp_vsync),
-	FUNCTION(mi2s),
-	FUNCTION(pcm),
-	FUNCTION(ps_hold),
-	FUNCTION(sdc1),
-	FUNCTION(sdc2),
-	FUNCTION(sdc5),
-	FUNCTION(tsif1),
-	FUNCTION(tsif2),
-	FUNCTION(usb_fs1),
-	FUNCTION(usb_fs1_oe_n),
-	FUNCTION(usb_fs2),
-	FUNCTION(usb_fs2_oe_n),
-	FUNCTION(vfe),
-	FUNCTION(vsens_alarm),
-	FUNCTION(ebi2cs), /* for EBI2 chip selects */
-	FUNCTION(ebi2), /* for general EBI2 pins */
+static const struct pinfunction msm8660_functions[] = {
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(cam_mclk),
+	MSM_PIN_FUNCTION(dsub),
+	MSM_PIN_FUNCTION(ext_gps),
+	MSM_PIN_FUNCTION(gp_clk_0a),
+	MSM_PIN_FUNCTION(gp_clk_0b),
+	MSM_PIN_FUNCTION(gp_clk_1a),
+	MSM_PIN_FUNCTION(gp_clk_1b),
+	MSM_PIN_FUNCTION(gp_clk_2a),
+	MSM_PIN_FUNCTION(gp_clk_2b),
+	MSM_PIN_FUNCTION(gp_mn),
+	MSM_PIN_FUNCTION(gsbi1),
+	MSM_PIN_FUNCTION(gsbi1_spi_cs1_n),
+	MSM_PIN_FUNCTION(gsbi1_spi_cs2a_n),
+	MSM_PIN_FUNCTION(gsbi1_spi_cs2b_n),
+	MSM_PIN_FUNCTION(gsbi1_spi_cs3_n),
+	MSM_PIN_FUNCTION(gsbi2),
+	MSM_PIN_FUNCTION(gsbi2_spi_cs1_n),
+	MSM_PIN_FUNCTION(gsbi2_spi_cs2_n),
+	MSM_PIN_FUNCTION(gsbi2_spi_cs3_n),
+	MSM_PIN_FUNCTION(gsbi3),
+	MSM_PIN_FUNCTION(gsbi3_spi_cs1_n),
+	MSM_PIN_FUNCTION(gsbi3_spi_cs2_n),
+	MSM_PIN_FUNCTION(gsbi3_spi_cs3_n),
+	MSM_PIN_FUNCTION(gsbi4),
+	MSM_PIN_FUNCTION(gsbi5),
+	MSM_PIN_FUNCTION(gsbi6),
+	MSM_PIN_FUNCTION(gsbi7),
+	MSM_PIN_FUNCTION(gsbi8),
+	MSM_PIN_FUNCTION(gsbi9),
+	MSM_PIN_FUNCTION(gsbi10),
+	MSM_PIN_FUNCTION(gsbi11),
+	MSM_PIN_FUNCTION(gsbi12),
+	MSM_PIN_FUNCTION(hdmi),
+	MSM_PIN_FUNCTION(i2s),
+	MSM_PIN_FUNCTION(lcdc),
+	MSM_PIN_FUNCTION(mdp_vsync),
+	MSM_PIN_FUNCTION(mi2s),
+	MSM_PIN_FUNCTION(pcm),
+	MSM_PIN_FUNCTION(ps_hold),
+	MSM_PIN_FUNCTION(sdc1),
+	MSM_PIN_FUNCTION(sdc2),
+	MSM_PIN_FUNCTION(sdc5),
+	MSM_PIN_FUNCTION(tsif1),
+	MSM_PIN_FUNCTION(tsif2),
+	MSM_PIN_FUNCTION(usb_fs1),
+	MSM_PIN_FUNCTION(usb_fs1_oe_n),
+	MSM_PIN_FUNCTION(usb_fs2),
+	MSM_PIN_FUNCTION(usb_fs2_oe_n),
+	MSM_PIN_FUNCTION(vfe),
+	MSM_PIN_FUNCTION(vsens_alarm),
+	MSM_PIN_FUNCTION(ebi2cs), /* for EBI2 chip selects */
+	MSM_PIN_FUNCTION(ebi2), /* for general EBI2 pins */
 };
 
 static const struct msm_pingroup msm8660_groups[] = {
