@@ -13861,7 +13861,7 @@ T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
 F:	drivers/soc/microchip/
 
 MICROCHIP SPI DRIVER
-M:	Tudor Ambarus <tudor.ambarus@linaro.org>
+M:	Ryan Wanner <ryan.wanner@microchip.com>
 S:	Supported
 F:	drivers/spi/spi-atmel.*
 
