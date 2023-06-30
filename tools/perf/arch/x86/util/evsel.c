@@ -102,3 +102,23 @@ void arch__post_evsel_config(struct evsel *evsel, struct perf_event_attr *attr)
 		}
 	}
 }
+
+int arch_evsel__open_strerror(struct evsel *evsel, char *msg, size_t size)
+{
+	if (!x86__is_amd_cpu())
+		return 0;
+
+	if (!evsel->core.attr.precise_ip &&
+	    !(evsel->pmu_name && !strncmp(evsel->pmu_name, "ibs", 3)))
+		return 0;
+
+	/* More verbose IBS errors. */
+	if (evsel->core.attr.exclude_kernel || evsel->core.attr.exclude_user ||
+	    evsel->core.attr.exclude_hv || evsel->core.attr.exclude_idle ||
+	    evsel->core.attr.exclude_host || evsel->core.attr.exclude_guest) {
+		return scnprintf(msg, size, "AMD IBS doesn't support privilege filtering. Try "
+				 "again without the privilege modifiers (like 'k') at the end.");
+	}
+
+	return 0;
+}
