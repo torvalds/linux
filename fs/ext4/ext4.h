@@ -176,9 +176,6 @@ enum criteria {
 	EXT4_MB_NUM_CRS
 };
 
-/* criteria below which we use fast block scanning and avoid unnecessary IO */
-#define CR_FAST CR_GOAL_LEN_SLOW
-
 /*
  * Flags used in mballoc's allocation_context flags field.
  *
@@ -2924,6 +2921,10 @@ extern int ext4_trim_fs(struct super_block *, struct fstrim_range *);
 extern void ext4_process_freed_data(struct super_block *sb, tid_t commit_tid);
 extern void ext4_mb_mark_bb(struct super_block *sb, ext4_fsblk_t block,
 		       int len, int state);
+static inline bool ext4_mb_cr_expensive(enum criteria cr)
+{
+	return cr >= CR_GOAL_LEN_SLOW;
+}
 
 /* inode.c */
 void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,

@@ -2450,7 +2450,7 @@ void ext4_mb_complex_scan_group(struct ext4_allocation_context *ac,
 			break;
 		}
 
-		if (ac->ac_criteria < CR_FAST) {
+		if (!ext4_mb_cr_expensive(ac->ac_criteria)) {
 			/*
 			 * In CR_GOAL_LEN_FAST and CR_BEST_AVAIL_LEN, we are
 			 * sure that this group will have a large enough
@@ -2634,7 +2634,12 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 	free = grp->bb_free;
 	if (free == 0)
 		goto out;
-	if (cr <= CR_FAST && free < ac->ac_g_ex.fe_len)
+	/*
+	 * In all criterias except CR_ANY_FREE we try to avoid groups that
+	 * can't possibly satisfy the full goal request due to insufficient
+	 * free blocks.
+	 */
+	if (cr < CR_ANY_FREE && free < ac->ac_g_ex.fe_len)
 		goto out;
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
 		goto out;
@@ -2658,7 +2663,7 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 		 * sure we locate metadata blocks in the first block group in
 		 * the flex_bg if possible.
 		 */
-		if (cr < CR_FAST &&
+		if (!ext4_mb_cr_expensive(cr) &&
 		    (!sbi->s_log_groups_per_flex ||
 		     ((group & ((1 << sbi->s_log_groups_per_flex) - 1)) != 0)) &&
 		    !(ext4_has_group_desc_csum(sb) &&
@@ -2852,7 +2857,7 @@ repeat:
 			 * spend a lot of time loading imperfect groups
 			 */
 			if ((prefetch_grp == group) &&
-			    (cr >= CR_FAST ||
+			    (ext4_mb_cr_expensive(cr) ||
 			     prefetch_ios < sbi->s_mb_prefetch_limit)) {
 				nr = sbi->s_mb_prefetch;
 				if (ext4_has_feature_flex_bg(sb)) {
