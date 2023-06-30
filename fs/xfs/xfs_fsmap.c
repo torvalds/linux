@@ -162,7 +162,14 @@ struct xfs_getfsmap_info {
 	xfs_daddr_t		next_daddr;	/* next daddr we expect */
 	u64			missing_owner;	/* owner of holes */
 	u32			dev;		/* device id */
-	struct xfs_rmap_irec	low;		/* low rmap key */
+	/*
+	 * Low rmap key for the query.  If low.rm_blockcount is nonzero, this
+	 * is the second (or later) call to retrieve the recordset in pieces.
+	 * xfs_getfsmap_rec_before_start will compare all records retrieved
+	 * by the rmapbt query to filter out any records that start before
+	 * the last record.
+	 */
+	struct xfs_rmap_irec	low;
 	struct xfs_rmap_irec	high;		/* high rmap key */
 	bool			last;		/* last extent? */
 };
@@ -237,6 +244,17 @@ xfs_getfsmap_format(
 	xfs_fsmap_from_internal(rec, xfm);
 }
 
+static inline bool
+xfs_getfsmap_rec_before_start(
+	struct xfs_getfsmap_info	*info,
+	const struct xfs_rmap_irec	*rec,
+	xfs_daddr_t			rec_daddr)
+{
+	if (info->low.rm_blockcount)
+		return xfs_rmap_compare(rec, &info->low) < 0;
+	return false;
+}
+
 /*
  * Format a reverse mapping for getfsmap, having translated rm_startblock
  * into the appropriate daddr units.
@@ -260,7 +278,7 @@ xfs_getfsmap_helper(
 	 * Filter out records that start before our startpoint, if the
 	 * caller requested that.
 	 */
-	if (xfs_rmap_compare(rec, &info->low) < 0) {
+	if (xfs_getfsmap_rec_before_start(info, rec, rec_daddr)) {
 		rec_daddr += XFS_FSB_TO_BB(mp, rec->rm_blockcount);
 		if (info->next_daddr < rec_daddr)
 			info->next_daddr = rec_daddr;
@@ -606,8 +624,26 @@ __xfs_getfsmap_datadev(
 	error = xfs_fsmap_owner_to_rmap(&info->low, &keys[0]);
 	if (error)
 		return error;
-	info->low.rm_blockcount = 0;
+	info->low.rm_blockcount = XFS_BB_TO_FSBT(mp, keys[0].fmr_length);
 	xfs_getfsmap_set_irec_flags(&info->low, &keys[0]);
+
+	/* Adjust the low key if we are continuing from where we left off. */
+	if (info->low.rm_blockcount == 0) {
+		/* empty */
+	} else if (XFS_RMAP_NON_INODE_OWNER(info->low.rm_owner) ||
+		   (info->low.rm_flags & (XFS_RMAP_ATTR_FORK |
+					  XFS_RMAP_BMBT_BLOCK |
+					  XFS_RMAP_UNWRITTEN))) {
+		info->low.rm_startblock += info->low.rm_blockcount;
+		info->low.rm_owner = 0;
+		info->low.rm_offset = 0;
+
+		start_fsb += info->low.rm_blockcount;
+		if (XFS_FSB_TO_DADDR(mp, start_fsb) >= eofs)
+			return 0;
+	} else {
+		info->low.rm_offset += info->low.rm_blockcount;
+	}
 
 	info->high.rm_startblock = -1U;
 	info->high.rm_owner = ULLONG_MAX;
@@ -659,12 +695,8 @@ __xfs_getfsmap_datadev(
 		 * Set the AG low key to the start of the AG prior to
 		 * moving on to the next AG.
 		 */
-		if (pag->pag_agno == start_ag) {
-			info->low.rm_startblock = 0;
-			info->low.rm_owner = 0;
-			info->low.rm_offset = 0;
-			info->low.rm_flags = 0;
-		}
+		if (pag->pag_agno == start_ag)
+			memset(&info->low, 0, sizeof(info->low));
 
 		/*
 		 * If this is the last AG, report any gap at the end of it
@@ -901,21 +933,17 @@ xfs_getfsmap(
 	 * blocks could be mapped to several other files/offsets.
 	 * According to rmapbt record ordering, the minimal next
 	 * possible record for the block range is the next starting
-	 * offset in the same inode. Therefore, bump the file offset to
-	 * continue the search appropriately.  For all other low key
-	 * mapping types (attr blocks, metadata), bump the physical
-	 * offset as there can be no other mapping for the same physical
-	 * block range.
+	 * offset in the same inode. Therefore, each fsmap backend bumps
+	 * the file offset to continue the search appropriately.  For
+	 * all other low key mapping types (attr blocks, metadata), each
+	 * fsmap backend bumps the physical offset as there can be no
+	 * other mapping for the same physical block range.
 	 */
 	dkeys[0] = head->fmh_keys[0];
 	if (dkeys[0].fmr_flags & (FMR_OF_SPECIAL_OWNER | FMR_OF_EXTENT_MAP)) {
-		dkeys[0].fmr_physical += dkeys[0].fmr_length;
-		dkeys[0].fmr_owner = 0;
 		if (dkeys[0].fmr_offset)
 			return -EINVAL;
-	} else
-		dkeys[0].fmr_offset += dkeys[0].fmr_length;
-	dkeys[0].fmr_length = 0;
+	}
 	memset(&dkeys[1], 0xFF, sizeof(struct xfs_fsmap));
 
 	if (!xfs_getfsmap_check_keys(dkeys, &head->fmh_keys[1]))
@@ -960,6 +988,7 @@ xfs_getfsmap(
 		info.dev = handlers[i].dev;
 		info.last = false;
 		info.pag = NULL;
+		info.low.rm_blockcount = 0;
 		error = handlers[i].fn(tp, dkeys, &info);
 		if (error)
 			break;
