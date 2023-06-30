@@ -117,3 +117,12 @@ Description:
 		Show if the egpu (XG Mobile) is correctly connected:
 			* 0 - False,
 			* 1 - True
+
+What:		/sys/devices/platform/<platform>/mini_led_mode
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Change the mini-LED mode:
+			* 0 - Single-zone,
+			* 1 - Multi-zone
