@@ -2374,6 +2374,19 @@ dsi_dvo_port_to_port(struct drm_i915_private *i915, u8 dvo_port)
 	}
 }
 
+static enum port intel_bios_encoder_port(const struct intel_bios_encoder_data *devdata)
+{
+	struct drm_i915_private *i915 = devdata->i915;
+	const struct child_device_config *child = &devdata->child;
+	enum port port;
+
+	port = dvo_port_to_port(i915, child->dvo_port);
+	if (port == PORT_NONE && DISPLAY_VER(i915) >= 11)
+		port = dsi_dvo_port_to_port(i915, child->dvo_port);
+
+	return port;
+}
+
 static int parse_bdb_230_dp_max_link_rate(const int vbt_max_link_rate)
 {
 	switch (vbt_max_link_rate) {
@@ -2613,12 +2626,9 @@ static void print_ddi_port(const struct intel_bios_encoder_data *devdata,
 static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 {
 	struct drm_i915_private *i915 = devdata->i915;
-	const struct child_device_config *child = &devdata->child;
 	enum port port;
 
-	port = dvo_port_to_port(i915, child->dvo_port);
-	if (port == PORT_NONE && DISPLAY_VER(i915) >= 11)
-		port = dsi_dvo_port_to_port(i915, child->dvo_port);
+	port = intel_bios_encoder_port(devdata);
 	if (port == PORT_NONE)
 		return;
 
