@@ -1651,10 +1651,11 @@ static void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
-		pr_err("RGA3 soft reset timeout. SYS_CTRL[0x%x], RO_SRST[0x%x]\n",
-		       rga_read(RGA3_SYS_CTRL, scheduler), rga_read(RGA3_RO_SRST, scheduler));
+		pr_err("RGA3 core[%d] soft reset timeout. SYS_CTRL[0x%x], RO_SRST[0x%x]\n",
+		       scheduler->core, rga_read(RGA3_SYS_CTRL, scheduler),
+		       rga_read(RGA3_RO_SRST, scheduler));
 	else
-		pr_info("RGA3 soft reset complete.\n");
+		pr_info("RGA3 core[%d] soft reset complete.\n", scheduler->core);
 }
 
 static int rga3_scale_check(const struct rga3_req *req)

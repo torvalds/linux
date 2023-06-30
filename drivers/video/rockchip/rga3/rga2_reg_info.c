@@ -2094,9 +2094,9 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
-		pr_err("RAG2 soft reset timeout.\n");
+		pr_err("RAG2 core[%d] soft reset timeout.\n", scheduler->core);
 	else
-		pr_info("RGA2 soft reset complete.\n");
+		pr_info("RGA2 core[%d] soft reset complete.\n", scheduler->core);
 
 }
 
