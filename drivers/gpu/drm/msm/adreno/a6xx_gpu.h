@@ -39,8 +39,8 @@ struct a6xx_gpu {
 
 /*
  * Given a register and a count, return a value to program into
- * REG_CP_PROTECT_REG(n) - this will block both reads and writes for _len
- * registers starting at _reg.
+ * REG_CP_PROTECT_REG(n) - this will block both reads and writes for
+ * _len + 1 registers starting at _reg.
  */
 #define A6XX_PROTECT_NORDWR(_reg, _len) \
 	((1 << 31) | \
