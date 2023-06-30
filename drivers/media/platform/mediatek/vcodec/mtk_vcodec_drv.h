@@ -441,6 +441,7 @@ struct mtk_vcodec_enc_pdata {
  * @reg_base: Mapped address of MTK Vcodec registers.
  * @vdec_pdata: decoder IC-specific data
  * @venc_pdata: encoder IC-specific data
+ * @vdecsys_regmap: VDEC_SYS register space passed through syscon
  *
  * @fw_handler: used to communicate with the firmware.
  * @id_counter: used to identify current opened instance
@@ -489,6 +490,7 @@ struct mtk_vcodec_dev {
 	void __iomem *reg_base[NUM_MAX_VCODEC_REG_BASE];
 	const struct mtk_vcodec_dec_pdata *vdec_pdata;
 	const struct mtk_vcodec_enc_pdata *venc_pdata;
+	struct regmap *vdecsys_regmap;
 
 	struct mtk_vcodec_fw *fw_handler;
 

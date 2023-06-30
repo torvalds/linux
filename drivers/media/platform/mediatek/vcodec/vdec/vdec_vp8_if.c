@@ -91,7 +91,6 @@ struct vdec_vp8_vsi {
 
 /**
  * struct vdec_vp8_hw_reg_base - HW register base
- * @sys		: base address for sys
  * @misc	: base address for misc
  * @ld		: base address for ld
  * @top		: base address for top
@@ -100,7 +99,6 @@ struct vdec_vp8_vsi {
  * @hwb		: base address for hwb
  */
 struct vdec_vp8_hw_reg_base {
-	void __iomem *sys;
 	void __iomem *misc;
 	void __iomem *ld;
 	void __iomem *top;
@@ -170,7 +168,6 @@ static void get_hw_reg_base(struct vdec_vp8_inst *inst)
 	inst->reg_base.top = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_TOP);
 	inst->reg_base.cm = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_CM);
 	inst->reg_base.hwd = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_HWD);
-	inst->reg_base.sys = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_SYS);
 	inst->reg_base.misc = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_MISC);
 	inst->reg_base.ld = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_LD);
 	inst->reg_base.hwb = mtk_vcodec_get_reg_addr(inst->ctx, VDEC_HWB);
@@ -222,17 +219,16 @@ static void read_hw_segmentation_data(struct vdec_vp8_inst *inst)
 static void enable_hw_rw_function(struct vdec_vp8_inst *inst)
 {
 	u32 val = 0;
-	void __iomem *sys = inst->reg_base.sys;
 	void __iomem *misc = inst->reg_base.misc;
 	void __iomem *ld = inst->reg_base.ld;
 	void __iomem *hwb = inst->reg_base.hwb;
 	void __iomem *hwd = inst->reg_base.hwd;
 
-	writel(0x1, sys + VP8_RW_CKEN_SET);
+	mtk_vcodec_write_vdecsys(inst->ctx, VP8_RW_CKEN_SET, 0x1);
 	writel(0x101, ld + VP8_WO_VLD_SRST);
 	writel(0x101, hwb + VP8_WO_VLD_SRST);
 
-	writel(1, sys);
+	mtk_vcodec_write_vdecsys(inst->ctx, 0, 0x1);
 	val = readl(misc + VP8_RW_MISC_SRST);
 	writel((val & 0xFFFFFFFE), misc + VP8_RW_MISC_SRST);
 
@@ -241,7 +237,7 @@ static void enable_hw_rw_function(struct vdec_vp8_inst *inst)
 	writel(0x71201100, misc + VP8_RW_MISC_FUNC_CON);
 	writel(0x0, ld + VP8_WO_VLD_SRST);
 	writel(0x0, hwb + VP8_WO_VLD_SRST);
-	writel(0x1, sys + VP8_RW_DCM_CON);
+	mtk_vcodec_write_vdecsys(inst->ctx, VP8_RW_DCM_CON, 0x1);
 	writel(0x1, misc + VP8_RW_MISC_DCM_CON);
 	writel(0x1, hwd + VP8_RW_VP8_CTRL);
 }

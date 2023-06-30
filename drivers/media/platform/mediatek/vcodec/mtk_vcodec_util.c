@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/regmap.h>
 
 #include "mtk_vcodec_dec_hw.h"
 #include "mtk_vcodec_drv.h"
@@ -32,6 +33,20 @@ void __iomem *mtk_vcodec_get_reg_addr(struct mtk_vcodec_ctx *data,
 	return ctx->dev->reg_base[reg_idx];
 }
 EXPORT_SYMBOL(mtk_vcodec_get_reg_addr);
+
+int mtk_vcodec_write_vdecsys(struct mtk_vcodec_ctx *ctx, unsigned int reg,
+			     unsigned int val)
+{
+	struct mtk_vcodec_dev *dev = ctx->dev;
+
+	if (dev->vdecsys_regmap)
+		return regmap_write(dev->vdecsys_regmap, reg, val);
+
+	writel(val, dev->reg_base[VDEC_SYS] + reg);
+
+	return 0;
+}
+EXPORT_SYMBOL(mtk_vcodec_write_vdecsys);
 
 int mtk_vcodec_mem_alloc(struct mtk_vcodec_ctx *data,
 			struct mtk_vcodec_mem *mem)
