@@ -6,7 +6,6 @@
  * Author: Oder Chiou <oder_chiou@realtek.com>
  */
 
-#include <linux/acpi.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -18,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/firmware.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -5531,6 +5529,7 @@ static int rt5677_init_irq(struct i2c_client *i2c)
 
 static int rt5677_i2c_probe(struct i2c_client *i2c)
 {
+	struct device *dev = &i2c->dev;
 	struct rt5677_priv *rt5677;
 	int ret;
 	unsigned int val;
@@ -5545,21 +5544,9 @@ static int rt5677_i2c_probe(struct i2c_client *i2c)
 	INIT_DELAYED_WORK(&rt5677->dsp_work, rt5677_dsp_work);
 	i2c_set_clientdata(i2c, rt5677);
 
-	if (i2c->dev.of_node) {
-		const struct of_device_id *match_id;
-
-		match_id = of_match_device(rt5677_of_match, &i2c->dev);
-		if (match_id)
-			rt5677->type = (enum rt5677_type)match_id->data;
-	} else if (ACPI_HANDLE(&i2c->dev)) {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(rt5677_acpi_match, &i2c->dev);
-		if (acpi_id)
-			rt5677->type = (enum rt5677_type)acpi_id->driver_data;
-	} else {
+	rt5677->type = (enum rt5677_type)(uintptr_t)device_get_match_data(dev);
+	if (rt5677->type == 0)
 		return -EINVAL;
-	}
 
 	rt5677_read_device_properties(rt5677, &i2c->dev);
 
@@ -5674,7 +5661,7 @@ static struct i2c_driver rt5677_i2c_driver = {
 	.driver = {
 		.name = RT5677_DRV_NAME,
 		.of_match_table = rt5677_of_match,
-		.acpi_match_table = ACPI_PTR(rt5677_acpi_match),
+		.acpi_match_table = rt5677_acpi_match,
 	},
 	.probe    = rt5677_i2c_probe,
 	.remove   = rt5677_i2c_remove,

@@ -1691,8 +1691,8 @@ enum {
 };
 
 enum rt5677_type {
-	RT5677,
-	RT5676,
+	RT5677 = 1,
+	RT5676 = 2,
 };
 
 /* ASRC clock source selection */
