@@ -495,7 +495,10 @@ static struct symbol *symbols__find_by_name(struct symbol *symbols[],
 					    size_t *found_idx)
 {
 	size_t i, lower = 0, upper = symbols_len;
-	struct symbol *s;
+	struct symbol *s = NULL;
+
+	if (found_idx)
+		*found_idx = SIZE_MAX;
 
 	if (!symbols_len)
 		return NULL;
@@ -504,8 +507,7 @@ static struct symbol *symbols__find_by_name(struct symbol *symbols[],
 		int cmp;
 
 		i = (lower + upper) / 2;
-		s = symbols[i];
-		cmp = symbol__match_symbol_name(s->name, name, includes);
+		cmp = symbol__match_symbol_name(symbols[i]->name, name, includes);
 
 		if (cmp > 0)
 			upper = i;
@@ -514,10 +516,11 @@ static struct symbol *symbols__find_by_name(struct symbol *symbols[],
 		else {
 			if (found_idx)
 				*found_idx = i;
+			s = symbols[i];
 			break;
 		}
 	}
-	if (includes != SYMBOL_TAG_INCLUDE__DEFAULT_ONLY) {
+	if (s && includes != SYMBOL_TAG_INCLUDE__DEFAULT_ONLY) {
 		/* return first symbol that has same name (if any) */
 		for (; i > 0; i--) {
 			struct symbol *tmp = symbols[i - 1];
@@ -525,13 +528,12 @@ static struct symbol *symbols__find_by_name(struct symbol *symbols[],
 			if (!arch__compare_symbol_names(tmp->name, s->name)) {
 				if (found_idx)
 					*found_idx = i - 1;
+				s = tmp;
 			} else
 				break;
-
-			s = tmp;
 		}
 	}
-	assert(!found_idx || s == symbols[*found_idx]);
+	assert(!found_idx || !s || s == symbols[*found_idx]);
 	return s;
 }
 
