@@ -22292,10 +22292,20 @@ F:	drivers/media/v4l2-core/v4l2-fwnode.c
 F:	include/media/v4l2-async.h
 F:	include/media/v4l2-fwnode.h
 
-V4L2 SENSOR AND LENS DRIVERS
+V4L2 LENS DRIVERS
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
+F:	drivers/media/i2c/ak*
+F:	drivers/media/i2c/dw*
+F:	drivers/media/i2c/lm*
+
+V4L2 CAMERA SENSOR DRIVERS
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/driver-api/media/camera-sensor.rst
+F:	Documentation/driver-api/media/tx-rx.rst
 F:	drivers/media/i2c/ar*
 F:	drivers/media/i2c/hi*
 F:	drivers/media/i2c/imx*
@@ -22304,9 +22314,6 @@ F:	drivers/media/i2c/og*
 F:	drivers/media/i2c/ov*
 F:	drivers/media/i2c/s5*
 F:	drivers/media/i2c/st-vgxy61.c
-F:	drivers/media/i2c/dw*
-F:	drivers/media/i2c/ak*
-F:	drivers/media/i2c/lm*
 
 VF610 NAND DRIVER
 M:	Stefan Agner <stefan@agner.ch>
