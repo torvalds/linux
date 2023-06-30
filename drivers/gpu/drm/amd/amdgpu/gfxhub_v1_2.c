@@ -140,7 +140,7 @@ gfxhub_v1_2_xcc_init_system_aperture_regs(struct amdgpu_device *adev,
 				min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 
 			if (adev->apu_flags & AMD_APU_IS_RAVEN2)
-				/*
+			       /*
 				* Raven2 has a HW issue that it is unable to use the
 				* vram which is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR.
 				* So here is the workaround that increase system
@@ -315,7 +315,7 @@ static void gfxhub_v1_2_xcc_setup_vmid_config(struct amdgpu_device *adev,
 					      uint32_t xcc_mask)
 {
 	struct amdgpu_vmhub *hub;
-	unsigned num_level, block_size;
+	unsigned int num_level, block_size;
 	uint32_t tmp;
 	int i, j;
 
