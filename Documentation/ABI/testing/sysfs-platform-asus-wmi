@@ -108,3 +108,12 @@ Description:
 			* 1 - Barrel connected charger,
 			* 2 - USB-C charging
 			* 3 - Both connected, barrel used for charging
+
+What:		/sys/devices/platform/<platform>/egpu_connected
+Date:		Jun 2023
+KernelVersion:	6.5
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Show if the egpu (XG Mobile) is correctly connected:
+			* 0 - False,
+			* 1 - True

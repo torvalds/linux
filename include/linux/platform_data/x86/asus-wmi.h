@@ -100,7 +100,9 @@
 /* Charging mode - 1=Barrel, 2=USB */
 #define ASUS_WMI_DEVID_CHARGE_MODE	0x0012006C
 
-/* dgpu on/off */
+/* epu is connected? 1 == true */
+#define ASUS_WMI_DEVID_EGPU_CONNECTED	0x00090018
+/* egpu on/off */
 #define ASUS_WMI_DEVID_EGPU		0x00090019
 
 /* dgpu on/off */
