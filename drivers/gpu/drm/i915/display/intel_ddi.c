@@ -4676,6 +4676,14 @@ static bool port_strap_detected(struct drm_i915_private *i915, enum port port)
 	}
 }
 
+static bool need_aux_ch(struct intel_encoder *encoder, bool init_dp)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	enum phy phy = intel_port_to_phy(i915, encoder->port);
+
+	return init_dp || intel_phy_is_tc(i915, phy);
+}
+
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *dig_port;
@@ -4929,7 +4937,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 
 	dig_port->dp.output_reg = INVALID_MMIO_REG;
 	dig_port->max_lanes = intel_ddi_max_lanes(dig_port);
-	dig_port->aux_ch = intel_dp_aux_ch(encoder);
+
+	if (need_aux_ch(encoder, init_dp))
+		dig_port->aux_ch = intel_dp_aux_ch(encoder);
 
 	if (intel_phy_is_tc(dev_priv, phy)) {
 		bool is_legacy =
