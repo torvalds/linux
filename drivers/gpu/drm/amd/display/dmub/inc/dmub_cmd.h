@@ -779,6 +779,24 @@ enum dmub_gpint_command {
 	 * DESC: Notifies DMCUB detection is done so detection required can be cleared.
 	 */
 	DMUB_GPINT__NOTIFY_DETECTION_DONE = 12,
+	/**
+	 * DESC: Updates the trace buffer lower 32-bit mask.
+	 * ARGS: The new mask
+	 * RETURN: Lower 32-bit mask.
+	 */
+	DMUB_GPINT__UPDATE_TRACE_BUFFER_MASK = 101,
+	/**
+	 * DESC: Updates the trace buffer lower 32-bit mask.
+	 * ARGS: The new mask
+	 * RETURN: Lower 32-bit mask.
+	 */
+	DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD0 = 102,
+	/**
+	 * DESC: Updates the trace buffer mask bi0~bit15.
+	 * ARGS: The new mask
+	 * RETURN: Lower 32-bit mask.
+	 */
+	DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD1 = 103,
 };
 
 /**
