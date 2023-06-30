@@ -134,7 +134,7 @@ static unsigned long f_extend(unsigned long address)
 
 /**
  * convert_to_wide - Convert the return buffer addresses into kernel addresses.
- * @address: The return buffer from PDC.
+ * @addr: The return buffer from PDC.
  *
  * This function is used to convert the return buffer addresses retrieved from PDC
  * into kernel addresses when the PDC address size and kernel address size are
@@ -160,6 +160,8 @@ void set_firmware_width_unlocked(void)
 
 	ret = mem_pdc_call(PDC_MODEL, PDC_MODEL_CAPABILITIES,
 		__pa(pdc_result), 0);
+	if (ret < 0)
+		return;
 	convert_to_wide(pdc_result);
 	if (pdc_result[0] != NARROW_FIRMWARE)
 		parisc_narrow_firmware = 0;
@@ -255,8 +257,8 @@ int __init pdc_instr(unsigned int *instr)
 
 /**
  * pdc_chassis_info - Return chassis information.
- * @result: The return buffer.
  * @chassis_info: The memory buffer address.
+ * @led_info: The size of the memory buffer address.
  * @len: The size of the memory buffer address.
  *
  * An HVERSION dependent call for returning the chassis information.
@@ -280,7 +282,8 @@ int __init pdc_chassis_info(struct pdc_chassis_info *chassis_info, void *led_inf
 
 /**
  * pdc_pat_chassis_send_log - Sends a PDC PAT CHASSIS log message.
- * @retval: -1 on error, 0 on success. Other value are PDC errors
+ * @state: state of the machine
+ * @data: value for that state
  * 
  * Must be correctly formatted or expect system crash
  */
@@ -303,7 +306,7 @@ int pdc_pat_chassis_send_log(unsigned long state, unsigned long data)
 
 /**
  * pdc_chassis_disp - Updates chassis code
- * @retval: -1 on error, 0 on success
+ * @disp: value to show on display
  */
 int pdc_chassis_disp(unsigned long disp)
 {
@@ -318,8 +321,7 @@ int pdc_chassis_disp(unsigned long disp)
 }
 
 /**
- * pdc_cpu_rendenzvous - Stop currently executing CPU
- * @retval: -1 on error, 0 on success
+ * __pdc_cpu_rendezvous - Stop currently executing CPU and do not return.
  */
 int __pdc_cpu_rendezvous(void)
 {
@@ -347,7 +349,7 @@ void pdc_cpu_rendezvous_unlock(void)
 
 /**
  * pdc_pat_get_PDC_entrypoint - Get PDC entry point for current CPU
- * @retval: -1 on error, 0 on success
+ * @pdc_entry: pointer to where the PDC entry point should be stored
  */
 int pdc_pat_get_PDC_entrypoint(unsigned long *pdc_entry)
 {
@@ -369,7 +371,7 @@ int pdc_pat_get_PDC_entrypoint(unsigned long *pdc_entry)
 }
 /**
  * pdc_chassis_warn - Fetches chassis warnings
- * @retval: -1 on error, 0 on success
+ * @warn: The warning value to be shown
  */
 int pdc_chassis_warn(unsigned long *warn)
 {
@@ -521,6 +523,7 @@ int pdc_model_info(struct pdc_model *model)
 
 /**
  * pdc_model_sysmodel - Get the system model name.
+ * @os_id: The operating system ID asked for (an OS_ID_* value)
  * @name: A char array of at least 81 characters.
  *
  * Get system model name from PDC ROM (e.g. 9000/715 or 9000/778/B160L).
@@ -549,7 +552,7 @@ int pdc_model_sysmodel(unsigned int os_id, char *name)
 
 /**
  * pdc_model_versions - Identify the version number of each processor.
- * @cpu_id: The return buffer.
+ * @versions: The return buffer.
  * @id: The id of the processor to check.
  *
  * Returns the version number for each processor component.
@@ -996,8 +999,8 @@ int pdc_pci_irt(unsigned long num_entries, unsigned long hpa, void *tbl)
 
 /** 
  * pdc_pci_config_read - read PCI config space.
- * @hpa		token from PDC to indicate which PCI device
- * @pci_addr	configuration space address to read from
+ * @hpa: Token from PDC to indicate which PCI device
+ * @cfg_addr: Configuration space address to read from
  *
  * Read PCI Configuration space *before* linux PCI subsystem is running.
  */
@@ -1019,9 +1022,9 @@ unsigned int pdc_pci_config_read(void *hpa, unsigned long cfg_addr)
 
 /** 
  * pdc_pci_config_write - read PCI config space.
- * @hpa		token from PDC to indicate which PCI device
- * @pci_addr	configuration space address to write
- * @val		value we want in the 32-bit register
+ * @hpa: Token from PDC to indicate which PCI device
+ * @cfg_addr: Configuration space address to write
+ * @val: Value we want in the 32-bit register
  *
  * Write PCI Configuration space *before* linux PCI subsystem is running.
  */
@@ -1557,7 +1560,7 @@ int pdc_pat_get_irt(void *r_addr, unsigned long cell_num)
 
 /**
  * pdc_pat_pd_get_addr_map - Retrieve information about memory address ranges.
- * @actlen: The return buffer.
+ * @actual_len: The return buffer.
  * @mem_addr: Pointer to the memory buffer.
  * @count: The number of bytes to read from the buffer.
  * @offset: The offset with respect to the beginning of the buffer.
@@ -1580,7 +1583,7 @@ int pdc_pat_pd_get_addr_map(unsigned long *actual_len, void *mem_addr,
 }
 
 /**
- * pdc_pat_pd_get_PDC_interface_revisions - Retrieve PDC interface revisions.
+ * pdc_pat_pd_get_pdc_revisions - Retrieve PDC interface revisions.
  * @legacy_rev: The legacy revision.
  * @pat_rev: The PAT revision.
  * @pdc_cap: The PDC capabilities.
@@ -1635,7 +1638,7 @@ int pdc_pat_io_pci_cfg_read(unsigned long pci_addr, int pci_size, u32 *mem_addr)
  * pdc_pat_io_pci_cfg_write - Retrieve information about memory address ranges.
  * @pci_addr: PCI configuration space address for which the write  request is being made.
  * @pci_size: Size of write in bytes. Valid values are 1, 2, and 4. 
- * @value: Pointer to 1, 2, or 4 byte value in low order end of argument to be 
+ * @val: Pointer to 1, 2, or 4 byte value in low order end of argument to be
  *         written to PCI Config space.
  *
  */
@@ -1653,7 +1656,7 @@ int pdc_pat_io_pci_cfg_write(unsigned long pci_addr, int pci_size, u32 val)
 }
 
 /**
- * pdc_pat_mem_pdc_info - Retrieve information about page deallocation table
+ * pdc_pat_mem_pdt_info - Retrieve information about page deallocation table
  * @rinfo: memory pdt information
  *
  */
