@@ -20,7 +20,7 @@ void ef100_tx_init(struct efx_tx_queue *tx_queue);
 void ef100_tx_write(struct efx_tx_queue *tx_queue);
 unsigned int ef100_tx_max_skb_descs(struct efx_nic *efx);
 
-void ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event);
+int ef100_ev_tx(struct efx_channel *channel, const efx_qword_t *p_event);
 
 netdev_tx_t ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 int __ef100_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb,

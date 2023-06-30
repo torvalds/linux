@@ -1521,14 +1521,14 @@ static void __layout_sections(struct module *mod, struct load_info *info, bool i
 		MOD_RODATA,
 		MOD_RO_AFTER_INIT,
 		MOD_DATA,
-		MOD_INVALID,	/* This is needed to match the masks array */
+		MOD_DATA,
 	};
 	static const int init_m_to_mem_type[] = {
 		MOD_INIT_TEXT,
 		MOD_INIT_RODATA,
 		MOD_INVALID,
 		MOD_INIT_DATA,
-		MOD_INVALID,	/* This is needed to match the masks array */
+		MOD_INIT_DATA,
 	};
 
 	for (m = 0; m < ARRAY_SIZE(masks); ++m) {

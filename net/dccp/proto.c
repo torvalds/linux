@@ -191,6 +191,9 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
+	pr_warn_once("DCCP is deprecated and scheduled to be removed in 2025, "
+		     "please contact the netdev mailing list\n");
+
 	icsk->icsk_rto		= DCCP_TIMEOUT_INIT;
 	icsk->icsk_syn_retries	= sysctl_dccp_request_retries;
 	sk->sk_state		= DCCP_CLOSED;

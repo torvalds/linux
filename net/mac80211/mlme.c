@@ -1217,6 +1217,7 @@ static void ieee80211_add_non_inheritance_elem(struct sk_buff *skb,
 					       const u16 *inner)
 {
 	unsigned int skb_len = skb->len;
+	bool at_extension = false;
 	bool added = false;
 	int i, j;
 	u8 *len, *list_len = NULL;
@@ -1228,7 +1229,6 @@ static void ieee80211_add_non_inheritance_elem(struct sk_buff *skb,
 	for (i = 0; i < PRESENT_ELEMS_MAX && outer[i]; i++) {
 		u16 elem = outer[i];
 		bool have_inner = false;
-		bool at_extension = false;
 
 		/* should at least be sorted in the sense of normal -> ext */
 		WARN_ON(at_extension && elem < PRESENT_ELEM_EXT_OFFS);
@@ -1257,8 +1257,14 @@ static void ieee80211_add_non_inheritance_elem(struct sk_buff *skb,
 		}
 		*list_len += 1;
 		skb_put_u8(skb, (u8)elem);
+		added = true;
 	}
 
+	/* if we added a list but no extension list, make a zero-len one */
+	if (added && (!at_extension || !list_len))
+		skb_put_u8(skb, 0);
+
+	/* if nothing added remove extension element completely */
 	if (!added)
 		skb_trim(skb, skb_len);
 	else
@@ -1366,10 +1372,11 @@ static void ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 		ieee80211_add_non_inheritance_elem(skb, outer_present_elems,
 						   link_present_elems);
 
-		ieee80211_fragment_element(skb, subelem_len);
+		ieee80211_fragment_element(skb, subelem_len,
+					   IEEE80211_MLE_SUBELEM_FRAGMENT);
 	}
 
-	ieee80211_fragment_element(skb, ml_elem_len);
+	ieee80211_fragment_element(skb, ml_elem_len, WLAN_EID_FRAGMENT);
 }
 
 static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)

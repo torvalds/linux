@@ -526,7 +526,7 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 	 * Perform connection manager handshake between IN and OUT ports
 	 * before capabilities exchange can take place.
 	 */
-	ret = tb_dp_cm_handshake(in, out, 1500);
+	ret = tb_dp_cm_handshake(in, out, 3000);
 	if (ret)
 		return ret;
 

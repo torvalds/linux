@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#include <uapi/linux/ethtool.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -130,12 +131,14 @@ cifs_dump_channel(struct seq_file *m, int i, struct cifs_chan *chan)
 	struct TCP_Server_Info *server = chan->server;
 
 	seq_printf(m, "\n\n\t\tChannel: %d ConnectionId: 0x%llx"
-		   "\n\t\tNumber of credits: %d Dialect 0x%x"
+		   "\n\t\tNumber of credits: %d,%d,%d Dialect 0x%x"
 		   "\n\t\tTCP status: %d Instance: %d"
 		   "\n\t\tLocal Users To Server: %d SecMode: 0x%x Req On Wire: %d"
 		   "\n\t\tIn Send: %d In MaxReq Wait: %d",
 		   i+1, server->conn_id,
 		   server->credits,
+		   server->echo_credits,
+		   server->oplock_credits,
 		   server->dialect,
 		   server->tcpStatus,
 		   server->reconnect_instance,
@@ -146,18 +149,62 @@ cifs_dump_channel(struct seq_file *m, int i, struct cifs_chan *chan)
 		   atomic_read(&server->num_waiters));
 }
 
+static inline const char *smb_speed_to_str(size_t bps)
+{
+	size_t mbps = bps / 1000 / 1000;
+
+	switch (mbps) {
+	case SPEED_10:
+		return "10Mbps";
+	case SPEED_100:
+		return "100Mbps";
+	case SPEED_1000:
+		return "1Gbps";
+	case SPEED_2500:
+		return "2.5Gbps";
+	case SPEED_5000:
+		return "5Gbps";
+	case SPEED_10000:
+		return "10Gbps";
+	case SPEED_14000:
+		return "14Gbps";
+	case SPEED_20000:
+		return "20Gbps";
+	case SPEED_25000:
+		return "25Gbps";
+	case SPEED_40000:
+		return "40Gbps";
+	case SPEED_50000:
+		return "50Gbps";
+	case SPEED_56000:
+		return "56Gbps";
+	case SPEED_100000:
+		return "100Gbps";
+	case SPEED_200000:
+		return "200Gbps";
+	case SPEED_400000:
+		return "400Gbps";
+	case SPEED_800000:
+		return "800Gbps";
+	default:
+		return "Unknown";
+	}
+}
+
 static void
 cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 {
 	struct sockaddr_in *ipv4 = (struct sockaddr_in *)&iface->sockaddr;
 	struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)&iface->sockaddr;
 
-	seq_printf(m, "\tSpeed: %zu bps\n", iface->speed);
+	seq_printf(m, "\tSpeed: %s\n", smb_speed_to_str(iface->speed));
 	seq_puts(m, "\t\tCapabilities: ");
 	if (iface->rdma_capable)
 		seq_puts(m, "rdma ");
 	if (iface->rss_capable)
 		seq_puts(m, "rss ");
+	if (!iface->rdma_capable && !iface->rss_capable)
+		seq_puts(m, "None");
 	seq_putc(m, '\n');
 	if (iface->sockaddr.ss_family == AF_INET)
 		seq_printf(m, "\t\tIPv4: %pI4\n", &ipv4->sin_addr);
@@ -350,8 +397,11 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 			atomic_read(&server->smbd_conn->mr_used_count));
 skip_rdma:
 #endif
-		seq_printf(m, "\nNumber of credits: %d Dialect 0x%x",
-			server->credits,  server->dialect);
+		seq_printf(m, "\nNumber of credits: %d,%d,%d Dialect 0x%x",
+			server->credits,
+			server->echo_credits,
+			server->oplock_credits,
+			server->dialect);
 		if (server->compress_algorithm == SMB3_COMPRESS_LZNT1)
 			seq_printf(m, " COMPRESS_LZNT1");
 		else if (server->compress_algorithm == SMB3_COMPRESS_LZ77)

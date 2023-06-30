@@ -110,7 +110,7 @@ die "can't locate ppc-xlate.pl";
 open STDOUT,"| $^X $xlate $flavour ".shift || die "can't call $xlate: $!";
 
 $FRAME=8*$SIZE_T;
-$prefix="aes_p8";
+$prefix="aes_p10";
 
 $sp="r1";
 $vrsave="r12";

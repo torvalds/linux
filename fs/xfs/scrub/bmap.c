@@ -769,14 +769,14 @@ xchk_are_bmaps_contiguous(
  * mapping or false if there are no more mappings.  Caller must ensure that
  * @info.icur is zeroed before the first call.
  */
-static int
+static bool
 xchk_bmap_iext_iter(
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
 	struct xfs_bmbt_irec	got;
 	struct xfs_ifork	*ifp;
-	xfs_filblks_t		prev_len;
+	unsigned int		nr = 0;
 
 	ifp = xfs_ifork_ptr(info->sc->ip, info->whichfork);
 
@@ -790,12 +790,12 @@ xchk_bmap_iext_iter(
 				irec->br_startoff);
 		return false;
 	}
+	nr++;
 
 	/*
 	 * Iterate subsequent iextent records and merge them with the one
 	 * that we just read, if possible.
 	 */
-	prev_len = irec->br_blockcount;
 	while (xfs_iext_peek_next_extent(ifp, &info->icur, &got)) {
 		if (!xchk_are_bmaps_contiguous(irec, &got))
 			break;
@@ -805,19 +805,20 @@ xchk_bmap_iext_iter(
 					got.br_startoff);
 			return false;
 		}
-
-		/*
-		 * Notify the user of mergeable records in the data or attr
-		 * forks.  CoW forks only exist in memory so we ignore them.
-		 */
-		if (info->whichfork != XFS_COW_FORK &&
-		    prev_len + got.br_blockcount > BMBT_BLOCKCOUNT_MASK)
-			xchk_ino_set_preen(info->sc, info->sc->ip->i_ino);
+		nr++;
 
 		irec->br_blockcount += got.br_blockcount;
-		prev_len = got.br_blockcount;
 		xfs_iext_next(ifp, &info->icur);
 	}
+
+	/*
+	 * If the merged mapping could be expressed with fewer bmbt records
+	 * than we actually found, notify the user that this fork could be
+	 * optimized.  CoW forks only exist in memory so we ignore them.
+	 */
+	if (nr > 1 && info->whichfork != XFS_COW_FORK &&
+	    howmany_64(irec->br_blockcount, XFS_MAX_BMBT_EXTLEN) < nr)
+		xchk_ino_set_preen(info->sc, info->sc->ip->i_ino);
 
 	return true;
 }

@@ -7091,7 +7091,10 @@ static void kvm_recover_nx_huge_pages(struct kvm *kvm)
 		 */
 		slot = NULL;
 		if (atomic_read(&kvm->nr_memslots_dirty_logging)) {
-			slot = gfn_to_memslot(kvm, sp->gfn);
+			struct kvm_memslots *slots;
+
+			slots = kvm_memslots_for_spte_role(kvm, sp->role);
+			slot = __gfn_to_memslot(slots, sp->gfn);
 			WARN_ON_ONCE(!slot);
 		}
 

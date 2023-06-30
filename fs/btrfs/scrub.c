@@ -134,8 +134,14 @@ struct scrub_stripe {
 	 * The errors hit during the initial read of the stripe.
 	 *
 	 * Would be utilized for error reporting and repair.
+	 *
+	 * The remaining init_nr_* records the number of errors hit, only used
+	 * by error reporting.
 	 */
 	unsigned long init_error_bitmap;
+	unsigned int init_nr_io_errors;
+	unsigned int init_nr_csum_errors;
+	unsigned int init_nr_meta_errors;
 
 	/*
 	 * The following error bitmaps are all for the current status.
@@ -1003,12 +1009,9 @@ skip:
 	sctx->stat.data_bytes_scrubbed += nr_data_sectors << fs_info->sectorsize_bits;
 	sctx->stat.tree_bytes_scrubbed += nr_meta_sectors << fs_info->sectorsize_bits;
 	sctx->stat.no_csum += nr_nodatacsum_sectors;
-	sctx->stat.read_errors +=
-		bitmap_weight(&stripe->io_error_bitmap, stripe->nr_sectors);
-	sctx->stat.csum_errors +=
-		bitmap_weight(&stripe->csum_error_bitmap, stripe->nr_sectors);
-	sctx->stat.verify_errors +=
-		bitmap_weight(&stripe->meta_error_bitmap, stripe->nr_sectors);
+	sctx->stat.read_errors += stripe->init_nr_io_errors;
+	sctx->stat.csum_errors += stripe->init_nr_csum_errors;
+	sctx->stat.verify_errors += stripe->init_nr_meta_errors;
 	sctx->stat.uncorrectable_errors +=
 		bitmap_weight(&stripe->error_bitmap, stripe->nr_sectors);
 	sctx->stat.corrected_errors += nr_repaired_sectors;
@@ -1041,6 +1044,12 @@ static void scrub_stripe_read_repair_worker(struct work_struct *work)
 	scrub_verify_one_stripe(stripe, stripe->extent_sector_bitmap);
 	/* Save the initial failed bitmap for later repair and report usage. */
 	stripe->init_error_bitmap = stripe->error_bitmap;
+	stripe->init_nr_io_errors = bitmap_weight(&stripe->io_error_bitmap,
+						  stripe->nr_sectors);
+	stripe->init_nr_csum_errors = bitmap_weight(&stripe->csum_error_bitmap,
+						    stripe->nr_sectors);
+	stripe->init_nr_meta_errors = bitmap_weight(&stripe->meta_error_bitmap,
+						    stripe->nr_sectors);
 
 	if (bitmap_empty(&stripe->init_error_bitmap, stripe->nr_sectors))
 		goto out;
@@ -1137,6 +1146,35 @@ static void scrub_write_endio(struct btrfs_bio *bbio)
 		wake_up(&stripe->io_wait);
 }
 
+static void scrub_submit_write_bio(struct scrub_ctx *sctx,
+				   struct scrub_stripe *stripe,
+				   struct btrfs_bio *bbio, bool dev_replace)
+{
+	struct btrfs_fs_info *fs_info = sctx->fs_info;
+	u32 bio_len = bbio->bio.bi_iter.bi_size;
+	u32 bio_off = (bbio->bio.bi_iter.bi_sector << SECTOR_SHIFT) -
+		      stripe->logical;
+
+	fill_writer_pointer_gap(sctx, stripe->physical + bio_off);
+	atomic_inc(&stripe->pending_io);
+	btrfs_submit_repair_write(bbio, stripe->mirror_num, dev_replace);
+	if (!btrfs_is_zoned(fs_info))
+		return;
+	/*
+	 * For zoned writeback, queue depth must be 1, thus we must wait for
+	 * the write to finish before the next write.
+	 */
+	wait_scrub_stripe_io(stripe);
+
+	/*
+	 * And also need to update the write pointer if write finished
+	 * successfully.
+	 */
+	if (!test_bit(bio_off >> fs_info->sectorsize_bits,
+		      &stripe->write_error_bitmap))
+		sctx->write_pointer += bio_len;
+}
+
 /*
  * Submit the write bio(s) for the sectors specified by @write_bitmap.
  *
@@ -1155,7 +1193,6 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct btrfs_bio *bbio = NULL;
-	const bool zoned = btrfs_is_zoned(fs_info);
 	int sector_nr;
 
 	for_each_set_bit(sector_nr, &write_bitmap, stripe->nr_sectors) {
@@ -1168,13 +1205,7 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 
 		/* Cannot merge with previous sector, submit the current one. */
 		if (bbio && sector_nr && !test_bit(sector_nr - 1, &write_bitmap)) {
-			fill_writer_pointer_gap(sctx, stripe->physical +
-					(sector_nr << fs_info->sectorsize_bits));
-			atomic_inc(&stripe->pending_io);
-			btrfs_submit_repair_write(bbio, stripe->mirror_num, dev_replace);
-			/* For zoned writeback, queue depth must be 1. */
-			if (zoned)
-				wait_scrub_stripe_io(stripe);
+			scrub_submit_write_bio(sctx, stripe, bbio, dev_replace);
 			bbio = NULL;
 		}
 		if (!bbio) {
@@ -1187,14 +1218,8 @@ static void scrub_write_sectors(struct scrub_ctx *sctx, struct scrub_stripe *str
 		ret = bio_add_page(&bbio->bio, page, fs_info->sectorsize, pgoff);
 		ASSERT(ret == fs_info->sectorsize);
 	}
-	if (bbio) {
-		fill_writer_pointer_gap(sctx, bbio->bio.bi_iter.bi_sector <<
-					SECTOR_SHIFT);
-		atomic_inc(&stripe->pending_io);
-		btrfs_submit_repair_write(bbio, stripe->mirror_num, dev_replace);
-		if (zoned)
-			wait_scrub_stripe_io(stripe);
-	}
+	if (bbio)
+		scrub_submit_write_bio(sctx, stripe, bbio, dev_replace);
 }
 
 /*
@@ -1279,7 +1304,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 		u32 stripe_index;
 		u32 rot;
 
-		*offset = last_offset + (i << BTRFS_STRIPE_LEN_SHIFT);
+		*offset = last_offset + btrfs_stripe_nr_to_offset(i);
 
 		stripe_nr = (u32)(*offset >> BTRFS_STRIPE_LEN_SHIFT) / data_stripes;
 
@@ -1294,7 +1319,7 @@ static int get_raid56_logic_offset(u64 physical, int num,
 		if (stripe_index < num)
 			j++;
 	}
-	*offset = last_offset + (j << BTRFS_STRIPE_LEN_SHIFT);
+	*offset = last_offset + btrfs_stripe_nr_to_offset(j);
 	return 1;
 }
 
@@ -1474,6 +1499,9 @@ static void scrub_stripe_reset_bitmaps(struct scrub_stripe *stripe)
 {
 	stripe->extent_sector_bitmap = 0;
 	stripe->init_error_bitmap = 0;
+	stripe->init_nr_io_errors = 0;
+	stripe->init_nr_csum_errors = 0;
+	stripe->init_nr_meta_errors = 0;
 	stripe->error_bitmap = 0;
 	stripe->io_error_bitmap = 0;
 	stripe->csum_error_bitmap = 0;
@@ -1687,7 +1715,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 	ASSERT(test_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &sctx->stripes[0].state));
 
 	scrub_throttle_dev_io(sctx, sctx->stripes[0].dev,
-			      nr_stripes << BTRFS_STRIPE_LEN_SHIFT);
+			      btrfs_stripe_nr_to_offset(nr_stripes));
 	for (int i = 0; i < nr_stripes; i++) {
 		stripe = &sctx->stripes[i];
 		scrub_submit_initial_read(sctx, stripe);
@@ -1714,7 +1742,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 				break;
 			}
 		}
-	} else {
+	} else if (!sctx->readonly) {
 		for (int i = 0; i < nr_stripes; i++) {
 			unsigned long repaired;
 
@@ -1810,7 +1838,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	bool all_empty = true;
 	const int data_stripes = nr_data_stripes(map);
 	unsigned long extent_bitmap = 0;
-	u64 length = data_stripes << BTRFS_STRIPE_LEN_SHIFT;
+	u64 length = btrfs_stripe_nr_to_offset(data_stripes);
 	int ret;
 
 	ASSERT(sctx->raid56_data_stripes);
@@ -1825,13 +1853,13 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 			      data_stripes) >> BTRFS_STRIPE_LEN_SHIFT;
 		stripe_index = (i + rot) % map->num_stripes;
 		physical = map->stripes[stripe_index].physical +
-			   (rot << BTRFS_STRIPE_LEN_SHIFT);
+			   btrfs_stripe_nr_to_offset(rot);
 
 		scrub_reset_stripe(stripe);
 		set_bit(SCRUB_STRIPE_FLAG_NO_REPORT, &stripe->state);
 		ret = scrub_find_fill_first_stripe(bg,
 				map->stripes[stripe_index].dev, physical, 1,
-				full_stripe_start + (i << BTRFS_STRIPE_LEN_SHIFT),
+				full_stripe_start + btrfs_stripe_nr_to_offset(i),
 				BTRFS_STRIPE_LEN, stripe);
 		if (ret < 0)
 			goto out;
@@ -1841,7 +1869,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 		 */
 		if (ret > 0) {
 			stripe->logical = full_stripe_start +
-					  (i << BTRFS_STRIPE_LEN_SHIFT);
+					  btrfs_stripe_nr_to_offset(i);
 			stripe->dev = map->stripes[stripe_index].dev;
 			stripe->mirror_num = 1;
 			set_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state);
@@ -2034,7 +2062,7 @@ static u64 simple_stripe_full_stripe_len(const struct map_lookup *map)
 	ASSERT(map->type & (BTRFS_BLOCK_GROUP_RAID0 |
 			    BTRFS_BLOCK_GROUP_RAID10));
 
-	return (map->num_stripes / map->sub_stripes) << BTRFS_STRIPE_LEN_SHIFT;
+	return btrfs_stripe_nr_to_offset(map->num_stripes / map->sub_stripes);
 }
 
 /* Get the logical bytenr for the stripe */
@@ -2050,7 +2078,7 @@ static u64 simple_stripe_get_logical(struct map_lookup *map,
 	 * (stripe_index / sub_stripes) gives how many data stripes we need to
 	 * skip.
 	 */
-	return ((stripe_index / map->sub_stripes) << BTRFS_STRIPE_LEN_SHIFT) +
+	return btrfs_stripe_nr_to_offset(stripe_index / map->sub_stripes) +
 	       bg->start;
 }
 
@@ -2176,7 +2204,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	}
 	if (profile & (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID10)) {
 		ret = scrub_simple_stripe(sctx, bg, map, scrub_dev, stripe_index);
-		offset = (stripe_index / map->sub_stripes) << BTRFS_STRIPE_LEN_SHIFT;
+		offset = btrfs_stripe_nr_to_offset(stripe_index / map->sub_stripes);
 		goto out;
 	}
 
@@ -2191,7 +2219,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 	/* Initialize @offset in case we need to go to out: label */
 	get_raid56_logic_offset(physical, stripe_index, map, &offset, NULL);
-	increment = nr_data_stripes(map) << BTRFS_STRIPE_LEN_SHIFT;
+	increment = btrfs_stripe_nr_to_offset(nr_data_stripes(map));
 
 	/*
 	 * Due to the rotation, for RAID56 it's better to iterate each stripe
@@ -2238,7 +2266,7 @@ next:
 	}
 out:
 	ret2 = flush_scrub_stripes(sctx);
-	if (!ret2)
+	if (!ret)
 		ret = ret2;
 	if (sctx->raid56_data_stripes) {
 		for (int i = 0; i < nr_data_stripes(map); i++)

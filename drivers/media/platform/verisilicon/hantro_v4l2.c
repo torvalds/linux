@@ -397,10 +397,12 @@ hantro_reset_raw_fmt(struct hantro_ctx *ctx, int bit_depth)
 	if (!raw_vpu_fmt)
 		return -EINVAL;
 
-	if (ctx->is_encoder)
+	if (ctx->is_encoder) {
 		encoded_fmt = &ctx->dst_fmt;
-	else
+		ctx->vpu_src_fmt = raw_vpu_fmt;
+	} else {
 		encoded_fmt = &ctx->src_fmt;
+	}
 
 	hantro_reset_fmt(&raw_fmt, raw_vpu_fmt);
 	raw_fmt.width = encoded_fmt->width;

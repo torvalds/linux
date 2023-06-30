@@ -771,14 +771,6 @@ static int __init ism_init(void)
 
 static void __exit ism_exit(void)
 {
-	struct ism_dev *ism;
-
-	mutex_lock(&ism_dev_list.mutex);
-	list_for_each_entry(ism, &ism_dev_list.list, list) {
-		ism_dev_exit(ism);
-	}
-	mutex_unlock(&ism_dev_list.mutex);
-
 	pci_unregister_driver(&ism_driver);
 	debug_unregister(ism_debug_info);
 }

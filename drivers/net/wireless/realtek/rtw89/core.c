@@ -2531,9 +2531,6 @@ static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwv
 	    rtwvif->tdls_peer)
 		return;
 
-	if (rtwdev->total_sta_assoc > 1)
-		return;
-
 	if (rtwvif->offchan)
 		return;
 

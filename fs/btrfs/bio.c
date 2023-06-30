@@ -330,7 +330,7 @@ static void btrfs_end_bio_work(struct work_struct *work)
 	if (bbio->inode && !(bbio->bio.bi_opf & REQ_META))
 		btrfs_check_read_bio(bbio, bbio->bio.bi_private);
 	else
-		bbio->end_io(bbio);
+		btrfs_orig_bbio_end_io(bbio);
 }
 
 static void btrfs_simple_end_io(struct bio *bio)
@@ -811,10 +811,6 @@ void btrfs_submit_repair_write(struct btrfs_bio *bbio, int mirror_num, bool dev_
 		goto fail;
 
 	if (dev_replace) {
-		if (btrfs_op(&bbio->bio) == BTRFS_MAP_WRITE && btrfs_is_zoned(fs_info)) {
-			bbio->bio.bi_opf &= ~REQ_OP_WRITE;
-			bbio->bio.bi_opf |= REQ_OP_ZONE_APPEND;
-		}
 		ASSERT(smap.dev == fs_info->dev_replace.srcdev);
 		smap.dev = fs_info->dev_replace.tgtdev;
 	}
