@@ -404,7 +404,7 @@ static int elroy_cfg_read(struct pci_bus *bus, unsigned int devfn, int pos, int 
 static void
 lba_wr_cfg(struct lba_device *d, u32 tok, u8 reg, u32 data, u32 size)
 {
-	int error = 0;
+	int error __maybe_unused = 0;
 	u32 arb_mask = 0;
 	u32 error_config = 0;
 	u32 status_control = 0;
@@ -1018,7 +1018,7 @@ static void
 lba_pat_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 {
 	unsigned long bytecnt;
-	long io_count;
+	long io_count __maybe_unused;
 	long status;	/* PDC return status */
 	long pa_count;
 	pdc_pat_cell_mod_maddr_block_t *pa_pdc_cell;	/* PA_VIEW */
