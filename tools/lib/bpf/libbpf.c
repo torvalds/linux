@@ -11815,6 +11815,48 @@ static int attach_iter(const struct bpf_program *prog, long cookie, struct bpf_l
 	return libbpf_get_error(*link);
 }
 
+struct bpf_link *bpf_program__attach_netfilter(const struct bpf_program *prog,
+					       const struct bpf_netfilter_opts *opts)
+{
+	LIBBPF_OPTS(bpf_link_create_opts, lopts);
+	struct bpf_link *link;
+	int prog_fd, link_fd;
+
+	if (!OPTS_VALID(opts, bpf_netfilter_opts))
+		return libbpf_err_ptr(-EINVAL);
+
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warn("prog '%s': can't attach before loaded\n", prog->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
+	link = calloc(1, sizeof(*link));
+	if (!link)
+		return libbpf_err_ptr(-ENOMEM);
+
+	link->detach = &bpf_link__detach_fd;
+
+	lopts.netfilter.pf = OPTS_GET(opts, pf, 0);
+	lopts.netfilter.hooknum = OPTS_GET(opts, hooknum, 0);
+	lopts.netfilter.priority = OPTS_GET(opts, priority, 0);
+	lopts.netfilter.flags = OPTS_GET(opts, flags, 0);
+
+	link_fd = bpf_link_create(prog_fd, 0, BPF_NETFILTER, &lopts);
+	if (link_fd < 0) {
+		char errmsg[STRERR_BUFSIZE];
+
+		link_fd = -errno;
+		free(link);
+		pr_warn("prog '%s': failed to attach to netfilter: %s\n",
+			prog->name, libbpf_strerror_r(link_fd, errmsg, sizeof(errmsg)));
+		return libbpf_err_ptr(link_fd);
+	}
+	link->fd = link_fd;
+
+	return link;
+}
+
 struct bpf_link *bpf_program__attach(const struct bpf_program *prog)
 {
 	struct bpf_link *link = NULL;
