@@ -1933,7 +1933,8 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 						       fixed_mode->vdisplay);
 }
 
-void icl_dsi_init(struct drm_i915_private *dev_priv)
+void icl_dsi_init(struct drm_i915_private *dev_priv,
+		  const struct intel_bios_encoder_data *devdata)
 {
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *encoder;
@@ -1941,7 +1942,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	struct drm_connector *connector;
 	enum port port;
 
-	if (!intel_bios_is_dsi_present(dev_priv, &port))
+	port = intel_bios_encoder_port(devdata);
+	if (port == PORT_NONE)
 		return;
 
 	intel_dsi = kzalloc(sizeof(*intel_dsi), GFP_KERNEL);
@@ -1957,6 +1959,8 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder = &intel_dsi->base;
 	intel_dsi->attached_connector = intel_connector;
 	connector = &intel_connector->base;
+
+	encoder->devdata = devdata;
 
 	/* register DSI encoder with DRM subsystem */
 	drm_encoder_init(&dev_priv->drm, &encoder->base, &gen11_dsi_encoder_funcs,
@@ -1995,7 +1999,6 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	encoder->devdata = intel_bios_encoder_data_lookup(dev_priv, port);
 	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata, NULL);
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
