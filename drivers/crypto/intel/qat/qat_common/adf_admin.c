@@ -241,6 +241,18 @@ int adf_get_ae_fw_counters(struct adf_accel_dev *accel_dev, u16 ae, u64 *reqs, u
 	return 0;
 }
 
+int adf_send_admin_tim_sync(struct adf_accel_dev *accel_dev, u32 cnt)
+{
+	u32 ae_mask = accel_dev->hw_device->ae_mask;
+	struct icp_qat_fw_init_admin_req req = { };
+	struct icp_qat_fw_init_admin_resp resp = { };
+
+	req.cmd_id = ICP_QAT_FW_SYNC;
+	req.int_timer_ticks = cnt;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
 /**
  * adf_send_admin_init() - Function sends init message to FW
  * @accel_dev: Pointer to acceleration device.

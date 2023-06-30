@@ -163,6 +163,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
+	int ret;
 
 	set_bit(ADF_STATUS_STARTING, &accel_dev->status);
 
@@ -185,6 +186,14 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 	if (hw_data->enable_pm && hw_data->enable_pm(accel_dev)) {
 		dev_err(&GET_DEV(accel_dev), "Failed to configure Power Management\n");
 		return -EFAULT;
+	}
+
+	if (hw_data->start_timer) {
+		ret = hw_data->start_timer(accel_dev);
+		if (ret) {
+			dev_err(&GET_DEV(accel_dev), "Failed to start internal sync timer\n");
+			return ret;
+		}
 	}
 
 	list_for_each(list_itr, &service_table) {
@@ -235,6 +244,7 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
  */
 static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 {
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct service_hndl *service;
 	struct list_head *list_itr;
 	bool wait = false;
@@ -269,6 +279,9 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 			clear_bit(accel_dev->accel_id, service->start_status);
 		}
 	}
+
+	if (hw_data->stop_timer)
+		hw_data->stop_timer(accel_dev);
 
 	if (wait)
 		msleep(100);

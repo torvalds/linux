@@ -188,6 +188,8 @@ struct adf_hw_device_data {
 	int (*init_admin_comms)(struct adf_accel_dev *accel_dev);
 	void (*exit_admin_comms)(struct adf_accel_dev *accel_dev);
 	int (*send_admin_init)(struct adf_accel_dev *accel_dev);
+	int (*start_timer)(struct adf_accel_dev *accel_dev);
+	void (*stop_timer)(struct adf_accel_dev *accel_dev);
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	const u32 *(*get_arb_mapping)(struct adf_accel_dev *accel_dev);
@@ -296,6 +298,7 @@ struct adf_accel_dev {
 	struct list_head list;
 	struct module *owner;
 	struct adf_accel_pci accel_pci_dev;
+	struct adf_timer *timer;
 	union {
 		struct {
 			/* protects VF2PF interrupts access */

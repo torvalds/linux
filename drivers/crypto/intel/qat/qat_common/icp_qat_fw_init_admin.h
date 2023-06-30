@@ -37,6 +37,9 @@ struct icp_qat_fw_init_admin_req {
 			__u16 ibuf_size_in_kb;
 			__u16 resrvd3;
 		};
+		struct {
+			__u32 int_timer_ticks;
+		};
 		__u32 idle_filter;
 	};
 
@@ -96,6 +99,8 @@ struct icp_qat_fw_init_admin_resp {
 		};
 	};
 } __packed;
+
+#define ICP_QAT_FW_SYNC ICP_QAT_FW_HEARTBEAT_SYNC
 
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
 #define ICP_QAT_FW_COMN_HEARTBEAT_BLOCKED 1
