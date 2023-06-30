@@ -6,7 +6,7 @@ use crate::init::{self, PinInit};
 use alloc::boxed::Box;
 use core::{
     cell::UnsafeCell,
-    marker::PhantomData,
+    marker::{PhantomData, PhantomPinned},
     mem::MaybeUninit,
     ops::{Deref, DerefMut},
     ptr::NonNull,
@@ -206,17 +206,26 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 ///
 /// This is meant to be used with FFI objects that are never interpreted by Rust code.
 #[repr(transparent)]
-pub struct Opaque<T>(UnsafeCell<MaybeUninit<T>>);
+pub struct Opaque<T> {
+    value: UnsafeCell<MaybeUninit<T>>,
+    _pin: PhantomPinned,
+}
 
 impl<T> Opaque<T> {
     /// Creates a new opaque value.
     pub const fn new(value: T) -> Self {
-        Self(UnsafeCell::new(MaybeUninit::new(value)))
+        Self {
+            value: UnsafeCell::new(MaybeUninit::new(value)),
+            _pin: PhantomPinned,
+        }
     }
 
     /// Creates an uninitialised value.
     pub const fn uninit() -> Self {
-        Self(UnsafeCell::new(MaybeUninit::uninit()))
+        Self {
+            value: UnsafeCell::new(MaybeUninit::uninit()),
+            _pin: PhantomPinned,
+        }
     }
 
     /// Creates a pin-initializer from the given initializer closure.
@@ -240,7 +249,7 @@ impl<T> Opaque<T> {
 
     /// Returns a raw pointer to the opaque data.
     pub fn get(&self) -> *mut T {
-        UnsafeCell::get(&self.0).cast::<T>()
+        UnsafeCell::get(&self.value).cast::<T>()
     }
 
     /// Gets the value behind `this`.
