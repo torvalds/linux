@@ -18,9 +18,12 @@
 #include <linux/numa.h>
 #include <linux/refcount.h>
 #include <linux/rwsem.h>
+#include <linux/scatterlist.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 
+struct akcipher_request;
+struct crypto_akcipher;
 struct crypto_instance;
 struct crypto_template;
 
@@ -30,6 +33,19 @@ struct crypto_larval {
 	struct completion completion;
 	u32 mask;
 	bool test_started;
+};
+
+struct crypto_akcipher_sync_data {
+	struct crypto_akcipher *tfm;
+	const void *src;
+	void *dst;
+	unsigned int slen;
+	unsigned int dlen;
+
+	struct akcipher_request *req;
+	struct crypto_wait cwait;
+	struct scatterlist sg;
+	u8 *buf;
 };
 
 enum {
@@ -102,12 +118,18 @@ void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 			  struct crypto_alg *nalg);
 void crypto_remove_final(struct list_head *list);
 void crypto_shoot_alg(struct crypto_alg *alg);
+struct crypto_tfm *__crypto_alloc_tfmgfp(struct crypto_alg *alg, u32 type,
+					 u32 mask, gfp_t gfp);
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask);
 void *crypto_create_tfm_node(struct crypto_alg *alg,
 			const struct crypto_type *frontend, int node);
 void *crypto_clone_tfm(const struct crypto_type *frontend,
 		       struct crypto_tfm *otfm);
+
+int crypto_akcipher_sync_prep(struct crypto_akcipher_sync_data *data);
+int crypto_akcipher_sync_post(struct crypto_akcipher_sync_data *data, int err);
+int crypto_init_akcipher_ops_sig(struct crypto_tfm *tfm);
 
 static inline void *crypto_create_tfm(struct crypto_alg *alg,
 			const struct crypto_type *frontend)
