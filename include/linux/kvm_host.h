@@ -849,7 +849,7 @@ static inline void kvm_vm_bugged(struct kvm *kvm)
 
 #define KVM_BUG(cond, kvm, fmt...)				\
 ({								\
-	int __ret = (cond);					\
+	bool __ret = !!(cond);					\
 								\
 	if (WARN_ONCE(__ret && !(kvm)->vm_bugged, fmt))		\
 		kvm_vm_bugged(kvm);				\
@@ -858,7 +858,7 @@ static inline void kvm_vm_bugged(struct kvm *kvm)
 
 #define KVM_BUG_ON(cond, kvm)					\
 ({								\
-	int __ret = (cond);					\
+	bool __ret = !!(cond);					\
 								\
 	if (WARN_ON_ONCE(__ret && !(kvm)->vm_bugged))		\
 		kvm_vm_bugged(kvm);				\
