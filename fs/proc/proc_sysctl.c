@@ -29,7 +29,7 @@ static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
 
 /* Support for permanently empty directories */
-struct ctl_table sysctl_mount_point[] = {
+static struct ctl_table sysctl_mount_point[] = {
 	{.type = SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY }
 };
 
