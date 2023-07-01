@@ -752,7 +752,7 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 
 	BUG_ON(offset == MSR_INVALID);
 
-	return !!test_bit(bit_write,  &tmp);
+	return test_bit(bit_write, &tmp);
 }
 
 static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
@@ -2939,9 +2939,10 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 
 		break;
 	case MSR_IA32_CR_PAT:
-		if (!kvm_mtrr_valid(vcpu, MSR_IA32_CR_PAT, data))
-			return 1;
-		vcpu->arch.pat = data;
+		ret = kvm_set_msr_common(vcpu, msr);
+		if (ret)
+			break;
+
 		svm->vmcb01.ptr->save.g_pat = data;
 		if (is_guest_mode(vcpu))
 			nested_vmcb02_compute_g_pat(svm);

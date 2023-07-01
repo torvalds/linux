@@ -17,3 +17,4 @@ Contents:
 
    maintainer-tip
    maintainer-netdev
+   maintainer-kvm-x86

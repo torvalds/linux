@@ -205,7 +205,7 @@ Shadow pages contain the following information:
   role.passthrough:
     The page is not backed by a guest page table, but its first entry
     points to one.  This is set if NPT uses 5-level page tables (host
-    CR4.LA57=1) and is shadowing L1's 4-level NPT (L1 CR4.LA57=1).
+    CR4.LA57=1) and is shadowing L1's 4-level NPT (L1 CR4.LA57=0).
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
