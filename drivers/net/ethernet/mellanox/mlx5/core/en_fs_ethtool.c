@@ -96,10 +96,6 @@ static struct mlx5e_ethtool_table *get_flow_table(struct mlx5e_priv *priv,
 	case UDP_V4_FLOW:
 	case TCP_V6_FLOW:
 	case UDP_V6_FLOW:
-		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
-		prio = MLX5E_ETHTOOL_L3_L4_PRIO + (max_tuples - num_tuples);
-		eth_ft = &ethtool->l3_l4_ft[prio];
-		break;
 	case IP_USER_FLOW:
 	case IPV6_USER_FLOW:
 		max_tuples = ETHTOOL_NUM_L3_L4_FTS;
