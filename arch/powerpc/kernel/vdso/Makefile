@@ -54,7 +54,7 @@ KASAN_SANITIZE := n
 KCSAN_SANITIZE := n
 
 ccflags-y := -fno-common -fno-builtin
-ldflags-y := -Wl,--hash-style=both -nostdlib -shared -z noexecstack
+ldflags-y := -Wl,--hash-style=both -nostdlib -shared -z noexecstack $(CLANG_FLAGS)
 ldflags-$(CONFIG_LD_IS_LLD) += $(call cc-option,--ld-path=$(LD),-fuse-ld=lld)
 ldflags-$(CONFIG_LD_ORPHAN_WARN) += -Wl,--orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
 
