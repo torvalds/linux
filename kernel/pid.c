@@ -657,7 +657,7 @@ void __init pid_idr_init(void)
 	idr_init(&init_pid_ns.idr);
 
 	init_pid_ns.pid_cachep = kmem_cache_create("pid",
-			struct_size((struct pid *)NULL, numbers, 1),
+			struct_size_t(struct pid, numbers, 1),
 			__alignof__(struct pid),
 			SLAB_HWCACHE_ALIGN | SLAB_PANIC | SLAB_ACCOUNT,
 			NULL);
