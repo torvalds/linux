@@ -51,7 +51,6 @@ static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
 	struct cxl_port *parent_port = parent_dport->port;
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_port *endpoint, *iter, *down;
-	resource_size_t component_reg_phys;
 	int rc;
 
 	/*
@@ -66,17 +65,8 @@ static int devm_cxl_add_endpoint(struct device *host, struct cxl_memdev *cxlmd,
 		ep->next = down;
 	}
 
-	/*
-	 * The component registers for an RCD might come from the
-	 * host-bridge RCRB if they are not already mapped via the
-	 * typical register locator mechanism.
-	 */
-	if (parent_dport->rch && cxlds->component_reg_phys == CXL_RESOURCE_NONE)
-		component_reg_phys = cxl_rcrb_to_component(
-			&cxlmd->dev, parent_dport->rcrb, CXL_RCRB_UPSTREAM);
-	else
-		component_reg_phys = cxlds->component_reg_phys;
-	endpoint = devm_cxl_add_port(host, &cxlmd->dev, component_reg_phys,
+	endpoint = devm_cxl_add_port(host, &cxlmd->dev,
+				     cxlds->component_reg_phys,
 				     parent_dport);
 	if (IS_ERR(endpoint))
 		return PTR_ERR(endpoint);
@@ -117,6 +107,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(cxl_poison_clear_fops, NULL,
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct device *endpoint_parent;
 	struct cxl_port *parent_port;
@@ -141,10 +132,10 @@ static int cxl_mem_probe(struct device *dev)
 	dentry = cxl_debugfs_create_dir(dev_name(dev));
 	debugfs_create_devm_seqfile(dev, "dpamem", dentry, cxl_mem_dpa_show);
 
-	if (test_bit(CXL_POISON_ENABLED_INJECT, cxlds->poison.enabled_cmds))
+	if (test_bit(CXL_POISON_ENABLED_INJECT, mds->poison.enabled_cmds))
 		debugfs_create_file("inject_poison", 0200, dentry, cxlmd,
 				    &cxl_poison_inject_fops);
-	if (test_bit(CXL_POISON_ENABLED_CLEAR, cxlds->poison.enabled_cmds))
+	if (test_bit(CXL_POISON_ENABLED_CLEAR, mds->poison.enabled_cmds))
 		debugfs_create_file("clear_poison", 0200, dentry, cxlmd,
 				    &cxl_poison_clear_fops);
 
@@ -163,7 +154,7 @@ static int cxl_mem_probe(struct device *dev)
 	}
 
 	if (dport->rch)
-		endpoint_parent = parent_port->uport;
+		endpoint_parent = parent_port->uport_dev;
 	else
 		endpoint_parent = &parent_port->dev;
 
@@ -227,9 +218,12 @@ static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	if (a == &dev_attr_trigger_poison_list.attr) {
 		struct device *dev = kobj_to_dev(kobj);
+		struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+		struct cxl_memdev_state *mds =
+			to_cxl_memdev_state(cxlmd->cxlds);
 
 		if (!test_bit(CXL_POISON_ENABLED_LIST,
-			      to_cxl_memdev(dev)->cxlds->poison.enabled_cmds))
+			      mds->poison.enabled_cmds))
 			return 0;
 	}
 	return a->mode;
