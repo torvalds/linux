@@ -10449,20 +10449,6 @@ static void vcpu_load_eoi_exitmap(struct kvm_vcpu *vcpu)
 		vcpu, (u64 *)vcpu->arch.ioapic_handled_vectors);
 }
 
-void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
-					    unsigned long start, unsigned long end)
-{
-	unsigned long apic_address;
-
-	/*
-	 * The physical address of apic access page is stored in the VMCS.
-	 * Update it when it becomes invalid.
-	 */
-	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
-	if (start <= apic_address && apic_address < end)
-		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
-}
-
 void kvm_arch_guest_memory_reclaimed(struct kvm *kvm)
 {
 	static_call_cond(kvm_x86_guest_memory_reclaimed)(kvm);
