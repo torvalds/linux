@@ -277,7 +277,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_hi_throughput *ht_info = priv->rtllib->ht_info;
 	struct rate_adaptive *pra = &priv->rate_adaptive;
-	u32 current_ratr, targetRATR = 0;
+	u32 current_ratr, target_ratr = 0;
 	u32 LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool bshort_gi_enabled = false;
 	static u8 ping_rssi_state;
@@ -335,14 +335,14 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 		if (priv->undecorated_smoothed_pwdb >=
 		    (long)HighRSSIThreshForRA) {
 			pra->ratr_state = DM_RATR_STA_HIGH;
-			targetRATR = pra->upper_rssi_threshold_ratr;
+			target_ratr = pra->upper_rssi_threshold_ratr;
 		} else if (priv->undecorated_smoothed_pwdb >=
 			   (long)LowRSSIThreshForRA) {
 			pra->ratr_state = DM_RATR_STA_MIDDLE;
-			targetRATR = pra->middle_rssi_threshold_ratr;
+			target_ratr = pra->middle_rssi_threshold_ratr;
 		} else {
 			pra->ratr_state = DM_RATR_STA_LOW;
-			targetRATR = pra->low_rssi_threshold_ratr;
+			target_ratr = pra->low_rssi_threshold_ratr;
 		}
 
 		if (pra->ping_rssi_enable) {
@@ -352,7 +352,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 				     (long)pra->ping_rssi_thresh_for_ra) ||
 				    ping_rssi_state) {
 					pra->ratr_state = DM_RATR_STA_LOW;
-					targetRATR = pra->ping_rssi_ratr;
+					target_ratr = pra->ping_rssi_ratr;
 					ping_rssi_state = 1;
 				}
 			} else {
@@ -361,18 +361,18 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 		}
 
 		if (priv->rtllib->GetHalfNmodeSupportByAPsHandler(dev))
-			targetRATR &=  0xf00fffff;
+			target_ratr &=  0xf00fffff;
 
 		current_ratr = rtl92e_readl(dev, RATR0);
-		if (targetRATR !=  current_ratr) {
+		if (target_ratr !=  current_ratr) {
 			u32 ratr_value;
 
-			ratr_value = targetRATR;
+			ratr_value = target_ratr;
 			ratr_value &= ~(RATE_ALL_OFDM_2SS);
 			rtl92e_writel(dev, RATR0, ratr_value);
 			rtl92e_writeb(dev, UFWP, 1);
 
-			pra->last_ratr = targetRATR;
+			pra->last_ratr = target_ratr;
 		}
 
 	} else {
