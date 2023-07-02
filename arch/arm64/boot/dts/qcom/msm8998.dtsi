@@ -911,10 +911,10 @@
 
 		pcie0: pci@1c00000 {
 			compatible = "qcom,pcie-msm8998", "qcom,pcie-msm8996";
-			reg =	<0x01c00000 0x2000>,
-				<0x1b000000 0xf1d>,
-				<0x1b000f20 0xa8>,
-				<0x1b100000 0x100000>;
+			reg = <0x01c00000 0x2000>,
+			      <0x1b000000 0xf1d>,
+			      <0x1b000f20 0xa8>,
+			      <0x1b100000 0x100000>;
 			reg-names = "parf", "dbi", "elbi", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;
@@ -2076,11 +2076,11 @@
 
 		spmi_bus: spmi@800f000 {
 			compatible = "qcom,spmi-pmic-arb";
-			reg =	<0x0800f000 0x1000>,
-				<0x08400000 0x1000000>,
-				<0x09400000 0x1000000>,
-				<0x0a400000 0x220000>,
-				<0x0800a000 0x3000>;
+			reg = <0x0800f000 0x1000>,
+			      <0x08400000 0x1000000>,
+			      <0x09400000 0x1000000>,
+			      <0x0a400000 0x220000>,
+			      <0x0800a000 0x3000>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
 			interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>;

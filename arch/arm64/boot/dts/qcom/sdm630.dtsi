@@ -1196,11 +1196,11 @@
 
 		spmi_bus: spmi@800f000 {
 			compatible = "qcom,spmi-pmic-arb";
-			reg =	<0x0800f000 0x1000>,
-				<0x08400000 0x1000000>,
-				<0x09400000 0x1000000>,
-				<0x0a400000 0x220000>,
-				<0x0800a000 0x3000>;
+			reg = <0x0800f000 0x1000>,
+			      <0x08400000 0x1000000>,
+			      <0x09400000 0x1000000>,
+			      <0x0a400000 0x220000>,
+			      <0x0800a000 0x3000>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
 			interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>;

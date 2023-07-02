@@ -484,14 +484,14 @@
 				tx-pins {
 					pins = "gpio12";
 					function = "qup_se1_l2_mira";
-					drive-strength= <2>;
+					drive-strength = <2>;
 					bias-disable;
 				};
 
 				rx-pins {
 					pins = "gpio13";
 					function = "qup_se1_l3_mira";
-					drive-strength= <2>;
+					drive-strength = <2>;
 					bias-disable;
 				};
 			};

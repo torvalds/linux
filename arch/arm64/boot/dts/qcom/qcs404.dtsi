@@ -1459,10 +1459,10 @@
 
 		pcie: pci@10000000 {
 			compatible = "qcom,pcie-qcs404";
-			reg =  <0x10000000 0xf1d>,
-			       <0x10000f20 0xa8>,
-			       <0x07780000 0x2000>,
-			       <0x10001000 0x2000>;
+			reg = <0x10000000 0xf1d>,
+			      <0x10000f20 0xa8>,
+			      <0x07780000 0x2000>,
+			      <0x10001000 0x2000>;
 			reg-names = "dbi", "elbi", "parf", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;
