@@ -139,8 +139,8 @@ For failures, negative values are returned as shown in the example below:
        return -EINVAL;
 
 The exhaustive list of errors and a summary explanation can be found in
-:file:`include/asm-generic/errno-base.h` and in
-:file:`includes/asm-generic/ernno.h`.
+:file:`include/uapi/asm-generic/errno-base.h` and in
+:file:`include/uapi/asm-generic/ernno.h`.
 
 Strings of characters
 ---------------------
