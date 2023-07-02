@@ -561,9 +561,9 @@
 		reg = <0x6a>;
 		vdd-supply = <&reg_3v3_p>;
 		vddio-supply = <&reg_3v3_p>;
-		mount-matrix =  "1",  "0",  "0",
-				"0",  "1",  "0",
-				"0",  "0", "-1";
+		mount-matrix = "1",  "0",  "0",
+			       "0",  "1",  "0",
+			       "0",  "0", "-1";
 	};
 };
 
