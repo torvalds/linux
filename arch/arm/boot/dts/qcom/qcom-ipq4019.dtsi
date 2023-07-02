@@ -416,10 +416,10 @@
 
 		pcie0: pci@40000000 {
 			compatible = "qcom,pcie-ipq4019";
-			reg =  <0x40000000 0xf1d
-				0x40000f20 0xa8
-				0x80000 0x2000
-				0x40100000 0x1000>;
+			reg = <0x40000000 0xf1d>,
+			      <0x40000f20 0xa8>,
+			      <0x80000 0x2000>,
+			      <0x40100000 0x1000>;
 			reg-names = "dbi", "elbi", "parf", "config";
 			device_type = "pci";
 			linux,pci-domain = <0>;
@@ -543,9 +543,9 @@
 				     <GIC_SPI 46 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 47 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names =  "msi0",  "msi1",  "msi2",  "msi3",
-					   "msi4",  "msi5",  "msi6",  "msi7",
-					   "msi8",  "msi9", "msi10", "msi11",
+			interrupt-names = "msi0",  "msi1",  "msi2",  "msi3",
+					  "msi4",  "msi5",  "msi6",  "msi7",
+					  "msi8",  "msi9", "msi10", "msi11",
 					  "msi12", "msi13", "msi14", "msi15",
 					  "legacy";
 			status = "disabled";
@@ -585,9 +585,9 @@
 				     <GIC_SPI 62 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 63 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names =  "msi0",  "msi1",  "msi2",  "msi3",
-					   "msi4",  "msi5",  "msi6",  "msi7",
-					   "msi8",  "msi9", "msi10", "msi11",
+			interrupt-names = "msi0",  "msi1",  "msi2",  "msi3",
+					  "msi4",  "msi5",  "msi6",  "msi7",
+					  "msi8",  "msi9", "msi10", "msi11",
 					  "msi12", "msi13", "msi14", "msi15",
 					  "legacy";
 			status = "disabled";
