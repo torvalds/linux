@@ -19,7 +19,7 @@ static const unsigned int tmu_rates[] = {
 	[TB_SWITCH_TMU_MODE_MEDRES_ENHANCED_UNI] = 16,
 };
 
-const struct {
+static const struct {
 	unsigned int freq_meas_window;
 	unsigned int avg_const;
 	unsigned int delta_avg_const;
