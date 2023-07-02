@@ -109,6 +109,8 @@ enum diag204_sc {
 	DIAG204_SUBC_STIB7 = 7
 };
 
+#define DIAG204_SUBCODE_MASK 0xffff
+
 /* The two available diag 204 data formats */
 enum diag204_format {
 	DIAG204_INFO_SIMPLE = 0,

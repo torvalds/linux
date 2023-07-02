@@ -171,6 +171,8 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 int diag204(unsigned long subcode, unsigned long size, void *addr)
 {
 	diag_stat_inc(DIAG_STAT_X204);
+	if ((subcode & DIAG204_SUBCODE_MASK) == DIAG204_SUBC_STIB4)
+		addr = (void *)__pa(addr);
 	size = __diag204(&subcode, size, addr);
 	if (subcode)
 		return -1;
