@@ -245,7 +245,7 @@ static void unmap_uncached_pages(unsigned long vaddr, unsigned long size)
        PCXL_SEARCH_LOOP(idx, mask, size); \
 }
 
-unsigned long
+static unsigned long
 pcxl_alloc_range(size_t size)
 {
 	int res_idx;

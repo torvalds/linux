@@ -24,12 +24,13 @@
 #include <asm/unwind.h>
 #include <asm/switch_to.h>
 #include <asm/sections.h>
+#include <asm/ftrace.h>
 
 /* #define DEBUG 1 */
 #ifdef DEBUG
 #define dbg(x...) pr_debug(x)
 #else
-#define dbg(x...)
+#define dbg(x...) do { } while (0)
 #endif
 
 #define KERNEL_START (KERNEL_BINARY_TEXT_START)
@@ -179,7 +180,7 @@ void unwind_table_remove(struct unwind_table *table)
 /* Called from setup_arch to import the kernel unwind info */
 int __init unwind_init(void)
 {
-	long start, stop;
+	long start __maybe_unused, stop __maybe_unused;
 	register unsigned long gp __asm__ ("r27");
 
 	start = (long)&__start___unwind[0];
