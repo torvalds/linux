@@ -125,34 +125,8 @@ struct efi_runtime_work efi_rts_work;
  * thread waits for completion.
  */
 #define efi_queue_work(_rts, _args...)					\
-({									\
-	efi_rts_work.efi_rts_id = EFI_ ## _rts;				\
-	efi_rts_work.args = &(union efi_rts_args){ ._rts = { _args }};	\
-	efi_rts_work.status = EFI_ABORTED;				\
-									\
-	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {			\
-		pr_warn_once("EFI Runtime Services are disabled!\n");	\
-		efi_rts_work.status = EFI_DEVICE_ERROR;			\
-		goto exit;						\
-	}								\
-									\
-	init_completion(&efi_rts_work.efi_rts_comp);			\
-	INIT_WORK(&efi_rts_work.work, efi_call_rts);			\
-									\
-	/*								\
-	 * queue_work() returns 0 if work was already on queue,         \
-	 * _ideally_ this should never happen.                          \
-	 */								\
-	if (queue_work(efi_rts_wq, &efi_rts_work.work))			\
-		wait_for_completion(&efi_rts_work.efi_rts_comp);	\
-	else								\
-		pr_err("Failed to queue work to efi_rts_wq.\n");	\
-									\
-	WARN_ON_ONCE(efi_rts_work.status == EFI_ABORTED);		\
-exit:									\
-	efi_rts_work.efi_rts_id = EFI_NONE;				\
-	efi_rts_work.status;						\
-})
+	__efi_queue_work(EFI_ ## _rts,					\
+			 &(union efi_rts_args){ ._rts = { _args }})
 
 #ifndef arch_efi_save_flags
 #define arch_efi_save_flags(state_flags)	local_save_flags(state_flags)
@@ -317,6 +291,37 @@ static void efi_call_rts(struct work_struct *work)
 	}
 	efi_rts_work.status = status;
 	complete(&efi_rts_work.efi_rts_comp);
+}
+
+static efi_status_t __efi_queue_work(enum efi_rts_ids id,
+				     union efi_rts_args *args)
+{
+	efi_rts_work.efi_rts_id = id;
+	efi_rts_work.args = args;
+	efi_rts_work.status = EFI_ABORTED;
+
+	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_warn_once("EFI Runtime Services are disabled!\n");
+		efi_rts_work.status = EFI_DEVICE_ERROR;
+		goto exit;
+	}
+
+	init_completion(&efi_rts_work.efi_rts_comp);
+	INIT_WORK(&efi_rts_work.work, efi_call_rts);
+
+	/*
+	 * queue_work() returns 0 if work was already on queue,
+	 * _ideally_ this should never happen.
+	 */
+	if (queue_work(efi_rts_wq, &efi_rts_work.work))
+		wait_for_completion(&efi_rts_work.efi_rts_comp);
+	else
+		pr_err("Failed to queue work to efi_rts_wq.\n");
+
+	WARN_ON_ONCE(efi_rts_work.status == EFI_ABORTED);
+exit:
+	efi_rts_work.efi_rts_id = EFI_NONE;
+	return efi_rts_work.status;
 }
 
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
