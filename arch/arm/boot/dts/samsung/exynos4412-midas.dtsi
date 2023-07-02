@@ -990,7 +990,7 @@
 
 &pmu_system_controller {
 	assigned-clocks = <&pmu_system_controller 0>;
-	assigned-clock-parents =  <&clock CLK_XUSBXTI>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>;
 };
 
 &pinctrl_0 {
