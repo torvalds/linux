@@ -83,7 +83,7 @@ examples:
         clocks = <&clk26m>;
         clock-output-names = "mipi_tx0_pll";
         drive-strength-microamp = <4000>;
-        nvmem-cells= <&mipi_tx_calibration>;
+        nvmem-cells = <&mipi_tx_calibration>;
         nvmem-cell-names = "calibration-data";
         #clock-cells = <0>;
         #phy-cells = <0>;

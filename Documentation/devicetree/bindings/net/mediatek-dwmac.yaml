@@ -156,7 +156,7 @@ examples:
         reg = <0x1101c000 0x1300>;
         interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_LOW>;
         interrupt-names = "macirq";
-        phy-mode ="rgmii-rxid";
+        phy-mode = "rgmii-rxid";
         mac-address = [00 55 7b b5 7d f7];
         clock-names = "axi",
                       "apb",
