@@ -146,6 +146,7 @@ static u32 __amode31_ref *__ctl_linkage_stack = __ctl_linkage_stack_amode31;
 static u32 __amode31_ref *__ctl_duct = __ctl_duct_amode31;
 
 int __bootdata(noexec_disabled);
+unsigned long __bootdata_preserved(max_mappable);
 unsigned long __bootdata(ident_map_size);
 struct physmem_info __bootdata(physmem_info);
 

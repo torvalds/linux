@@ -27,6 +27,7 @@ struct page *__bootdata_preserved(vmemmap);
 unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
+unsigned long __bootdata_preserved(max_mappable);
 unsigned long __bootdata(ident_map_size);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
@@ -222,6 +223,8 @@ static unsigned long setup_kernel_memory_layout(void)
 	vmemmap_start = round_down(VMALLOC_START - pages * sizeof(struct page), rte_size);
 	/* vmemmap_start is the future VMEM_MAX_PHYS, make sure it is within MAX_PHYSMEM */
 	vmemmap_start = min(vmemmap_start, 1UL << MAX_PHYSMEM_BITS);
+	/* maximum mappable address as seen by arch_get_mappable_range() */
+	max_mappable = vmemmap_start;
 	/* make sure identity map doesn't overlay with vmemmap */
 	ident_map_size = min(ident_map_size, vmemmap_start);
 	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
