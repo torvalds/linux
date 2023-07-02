@@ -278,7 +278,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	struct rt_hi_throughput *ht_info = priv->rtllib->ht_info;
 	struct rate_adaptive *pra = &priv->rate_adaptive;
 	u32 current_ratr, target_ratr = 0;
-	u32 low_rssi_thresh_for_ra = 0, HighRSSIThreshForRA = 0;
+	u32 low_rssi_thresh_for_ra = 0, high_rssi_thresh_for_ra = 0;
 	bool bshort_gi_enabled = false;
 	static u8 ping_rssi_state;
 
@@ -319,21 +319,21 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 				((bshort_gi_enabled) ? BIT31 : 0);
 
 		if (pra->ratr_state == DM_RATR_STA_HIGH) {
-			HighRSSIThreshForRA = pra->high2low_rssi_thresh_for_ra;
+			high_rssi_thresh_for_ra = pra->high2low_rssi_thresh_for_ra;
 			low_rssi_thresh_for_ra = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		} else if (pra->ratr_state == DM_RATR_STA_LOW) {
-			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
+			high_rssi_thresh_for_ra = pra->high_rssi_thresh_for_ra;
 			low_rssi_thresh_for_ra = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low2high_rssi_thresh_for_ra40M) : (pra->low2high_rssi_thresh_for_ra20M);
 		} else {
-			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
+			high_rssi_thresh_for_ra = pra->high_rssi_thresh_for_ra;
 			low_rssi_thresh_for_ra = (priv->current_chnl_bw != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		}
 
 		if (priv->undecorated_smoothed_pwdb >=
-		    (long)HighRSSIThreshForRA) {
+		    (long)high_rssi_thresh_for_ra) {
 			pra->ratr_state = DM_RATR_STA_HIGH;
 			target_ratr = pra->upper_rssi_threshold_ratr;
 		} else if (priv->undecorated_smoothed_pwdb >=
