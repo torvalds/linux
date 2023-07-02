@@ -2717,7 +2717,7 @@ int security_file_lock(struct file *file, unsigned int cmd)
 /**
  * security_file_fcntl() - Check if fcntl() op is allowed
  * @file: file
- * @cmd: fnctl command
+ * @cmd: fcntl command
  * @arg: command argument
  *
  * Check permission before allowing the file operation specified by @cmd from
