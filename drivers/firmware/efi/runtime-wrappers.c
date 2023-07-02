@@ -41,8 +41,6 @@
  */
 #define efi_call_virt(f, args...)   \
 	efi_call_virt_pointer(efi.runtime, f, args)
-#define __efi_call_virt(f, args...) \
-	__efi_call_virt_pointer(efi.runtime, f, args)
 
 union efi_rts_args {
 	struct {
@@ -491,8 +489,13 @@ static void virt_efi_reset_system(int reset_type,
 			"could not get exclusive access to the firmware\n");
 		return;
 	}
+
+	arch_efi_call_virt_setup();
 	efi_rts_work.efi_rts_id = EFI_RESET_SYSTEM;
-	__efi_call_virt(reset_system, reset_type, status, data_size, data);
+	arch_efi_call_virt(efi.runtime, reset_system, reset_type, status,
+			   data_size, data);
+	arch_efi_call_virt_teardown();
+
 	up(&efi_runtime_lock);
 }
 
