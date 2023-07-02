@@ -618,7 +618,7 @@
 		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&k3_pds 140 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 140 1>, <&k3_clks 140 2>;
-		clock-names =  "clk_ahb", "clk_xin";
+		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&k3_clks 140 2>;
 		assigned-clock-parents = <&k3_clks 140 3>;
 		bus-width = <8>;
@@ -646,7 +646,7 @@
 		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 		power-domains = <&k3_pds 141 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 141 3>, <&k3_clks 141 4>;
-		clock-names =  "clk_ahb", "clk_xin";
+		clock-names = "clk_ahb", "clk_xin";
 		assigned-clocks = <&k3_clks 141 4>;
 		assigned-clock-parents = <&k3_clks 141 5>;
 		bus-width = <4>;

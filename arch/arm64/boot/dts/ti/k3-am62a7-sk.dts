@@ -13,7 +13,7 @@
 #include "k3-am62a7.dtsi"
 
 / {
-	compatible =  "ti,am62a7-sk", "ti,am62a7";
+	compatible = "ti,am62a7-sk", "ti,am62a7";
 	model = "Texas Instruments AM62A7 SK";
 
 	aliases {
