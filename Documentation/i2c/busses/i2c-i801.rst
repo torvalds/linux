@@ -46,7 +46,7 @@ Supported adapters:
   * Intel Emmitsburg (PCH)
   * Intel Alder Lake (PCH)
   * Intel Raptor Lake (PCH)
-  * Intel Meteor Lake (SOC)
+  * Intel Meteor Lake (SOC and PCH)
 
    Datasheets: Publicly available at the Intel website
 
