@@ -277,7 +277,7 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_hi_throughput *ht_info = priv->rtllib->ht_info;
 	struct rate_adaptive *pra = &priv->rate_adaptive;
-	u32 currentRATR, targetRATR = 0;
+	u32 current_ratr, targetRATR = 0;
 	u32 LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool bshort_gi_enabled = false;
 	static u8 ping_rssi_state;
@@ -363,8 +363,8 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 		if (priv->rtllib->GetHalfNmodeSupportByAPsHandler(dev))
 			targetRATR &=  0xf00fffff;
 
-		currentRATR = rtl92e_readl(dev, RATR0);
-		if (targetRATR !=  currentRATR) {
+		current_ratr = rtl92e_readl(dev, RATR0);
+		if (targetRATR !=  current_ratr) {
 			u32 ratr_value;
 
 			ratr_value = targetRATR;
