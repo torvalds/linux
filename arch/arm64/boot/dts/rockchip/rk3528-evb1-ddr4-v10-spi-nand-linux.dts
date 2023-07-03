@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3528-evb1-ddr4-v10.dtsi"
+#include "rk3528-linux.dtsi"
+
+/ {
+	chosen: chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff9f0000 console=ttyFIQ0 ubi.mtd=3 root=ubi0:rootfs rootfstype=ubifs rw rootwait";
+	};
+};
+
+&sdmmc {
+	status = "disabled";
+};
+
+&sfc {
+	status = "okay";
+	flash@0 {
+		compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <75000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
+};
