@@ -31,6 +31,7 @@
 #define CP2112_GPIO_CONFIG_LENGTH		5
 #define CP2112_GPIO_GET_LENGTH			2
 #define CP2112_GPIO_SET_LENGTH			3
+#define CP2112_GPIO_MAX_GPIO			8
 
 enum {
 	CP2112_GPIO_CONFIG		= 0x02,
@@ -1108,7 +1109,7 @@ static void cp2112_gpio_poll_callback(struct work_struct *work)
 		goto exit;
 
 	gpio_mask = ret;
-	for_each_set_bit(virq, &dev->irq_mask, 8) {
+	for_each_set_bit(virq, &dev->irq_mask, CP2112_GPIO_MAX_GPIO) {
 		irq = irq_find_mapping(dev->gc.irq.domain, virq);
 		if (!irq)
 			continue;
@@ -1295,7 +1296,7 @@ static int cp2112_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	dev->gc.set			= cp2112_gpio_set;
 	dev->gc.get			= cp2112_gpio_get;
 	dev->gc.base			= -1;
-	dev->gc.ngpio			= 8;
+	dev->gc.ngpio			= CP2112_GPIO_MAX_GPIO;
 	dev->gc.can_sleep		= 1;
 	dev->gc.parent			= &hdev->dev;
 
