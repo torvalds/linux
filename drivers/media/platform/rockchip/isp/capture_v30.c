@@ -789,21 +789,22 @@ static void update_mi(struct rkisp_stream *stream)
 		if (dev->hw_dev->is_unite) {
 			u32 mult = stream->id != RKISP_STREAM_FBC ? 1 :
 				   (stream->out_isp_fmt.write_format ? 32 : 24);
+			u32 div = stream->out_isp_fmt.fourcc == V4L2_PIX_FMT_UYVY ? 1 : 2;
 
 			reg = stream->config->mi.y_base_ad_init;
 			val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
-			val += ((stream->out_fmt.width / 2) & ~0xf);
+			val += ((stream->out_fmt.width / div) & ~0xf);
 			rkisp_next_write(dev, reg, val, false);
 
 			reg = stream->config->mi.cb_base_ad_init;
 			val = stream->next_buf->buff_addr[RKISP_PLANE_CB];
-			val += ((stream->out_fmt.width / 2) & ~0xf) * mult;
+			val += ((stream->out_fmt.width / div) & ~0xf) * mult;
 			rkisp_next_write(dev, reg, val, false);
 
 			if (stream->id != RKISP_STREAM_FBC && stream->id != RKISP_STREAM_BP) {
 				reg = stream->config->mi.cr_base_ad_init;
 				val = stream->next_buf->buff_addr[RKISP_PLANE_CR];
-				val += ((stream->out_fmt.width / 2) & ~0xf);
+				val += ((stream->out_fmt.width / div) & ~0xf);
 				rkisp_next_write(dev, reg, val, false);
 			}
 		}
