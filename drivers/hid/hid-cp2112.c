@@ -24,6 +24,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/nls.h>
+#include <linux/string_choices.h>
 #include <linux/usb/ch9.h>
 #include "hid-ids.h"
 
@@ -532,15 +533,13 @@ static int cp2112_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	hid_dbg(hdev, "I2C %d messages\n", num);
 
 	if (num == 1) {
+		hid_dbg(hdev, "I2C %s %#04x len %d\n",
+			str_read_write(msgs->flags & I2C_M_RD), msgs->addr, msgs->len);
 		if (msgs->flags & I2C_M_RD) {
-			hid_dbg(hdev, "I2C read %#04x len %d\n",
-				msgs->addr, msgs->len);
 			read_length = msgs->len;
 			read_buf = msgs->buf;
 			count = cp2112_read_req(buf, msgs->addr, msgs->len);
 		} else {
-			hid_dbg(hdev, "I2C write %#04x len %d\n",
-				msgs->addr, msgs->len);
 			count = cp2112_i2c_write_req(buf, msgs->addr,
 						     msgs->buf, msgs->len);
 		}
@@ -648,7 +647,7 @@ static int cp2112_xfer(struct i2c_adapter *adap, u16 addr,
 	int ret;
 
 	hid_dbg(hdev, "%s addr 0x%x flags 0x%x cmd 0x%x size %d\n",
-		read_write == I2C_SMBUS_WRITE ? "write" : "read",
+		str_write_read(read_write == I2C_SMBUS_WRITE),
 		addr, flags, command, size);
 
 	switch (size) {
