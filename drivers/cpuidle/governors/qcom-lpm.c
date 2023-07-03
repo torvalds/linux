@@ -461,6 +461,9 @@ static void ipi_raise(void *ignore, const struct cpumask *mask, const char *unus
 
 	for_each_cpu(cpu, mask) {
 		cpu_gov = &(per_cpu(lpm_cpu_data, cpu));
+		if (!cpu_gov->enable)
+			return;
+
 		spin_lock_irqsave(&cpu_gov->lock, flags);
 		cpu_gov->ipi_pending = true;
 		spin_unlock_irqrestore(&cpu_gov->lock, flags);
@@ -479,6 +482,8 @@ static void ipi_entry(void *ignore, const char *unused)
 
 	cpu = raw_smp_processor_id();
 	cpu_gov = &(per_cpu(lpm_cpu_data, cpu));
+	if (!cpu_gov->enable)
+		return;
 
 	spin_lock_irqsave(&cpu_gov->lock, flags);
 	cpu_gov->ipi_pending = false;
@@ -656,6 +661,9 @@ static void lpm_idle_enter(void *unused, int *state, struct cpuidle_device *dev)
 	unsigned long flags;
 
 	if (*state == 0)
+		return;
+
+	if (!cpu_gov->enable)
 		return;
 
 	/* Restrict to WFI state if there is an IPI pending on current CPU */
