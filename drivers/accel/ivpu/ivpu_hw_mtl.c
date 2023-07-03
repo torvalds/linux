@@ -101,6 +101,9 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 	vdev->wa.punit_disabled = ivpu_is_fpga(vdev);
 	vdev->wa.clear_runtime_mem = false;
 	vdev->wa.d3hot_after_power_off = true;
+
+	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_MTL && ivpu_revision(vdev) < 4)
+		vdev->wa.interrupt_clear_with_0 = true;
 }
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
@@ -973,12 +976,15 @@ static u32 ivpu_hw_mtl_irqb_handler(struct ivpu_device *vdev, int irq)
 		schedule_recovery = true;
 	}
 
-	/*
-	 * Clear local interrupt status by writing 0 to all bits.
-	 * This must be done after interrupts are cleared at the source.
-	 * Writing 1 triggers an interrupt, so we can't perform read update write.
-	 */
-	REGB_WR32(MTL_BUTTRESS_INTERRUPT_STAT, 0x0);
+	/* This must be done after interrupts are cleared at the source. */
+	if (IVPU_WA(interrupt_clear_with_0))
+		/*
+		 * Writing 1 triggers an interrupt, so we can't perform read update write.
+		 * Clear local interrupt status by writing 0 to all bits.
+		 */
+		REGB_WR32(MTL_BUTTRESS_INTERRUPT_STAT, 0x0);
+	else
+		REGB_WR32(MTL_BUTTRESS_INTERRUPT_STAT, status);
 
 	/* Re-enable global interrupt */
 	REGB_WR32(MTL_BUTTRESS_GLOBAL_INT_MASK, 0x0);
