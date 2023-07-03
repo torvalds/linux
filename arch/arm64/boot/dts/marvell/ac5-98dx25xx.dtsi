@@ -297,6 +297,16 @@
 			status = "disabled";
 		};
 
+		nand: nand-controller@805b0000 {
+			compatible = "marvell,ac5-nand-controller";
+			reg =  <0x0 0x805b0000 0x0 0x00000054>;
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&nand_clock>;
+			status = "disabled";
+		};
+
 		gic: interrupt-controller@80600000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
@@ -318,6 +328,12 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <200000000>;
+		};
+
+		nand_clock: nand-clock {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <400000000>;
 		};
 	};
 };
