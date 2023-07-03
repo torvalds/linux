@@ -16,6 +16,7 @@
  *   https://www.silabs.com/documents/public/application-notes/an495-cp2112-interface-specification.pdf
  */
 
+#include <linux/bitops.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
@@ -1100,7 +1101,6 @@ static void cp2112_gpio_poll_callback(struct work_struct *work)
 						 gpio_poll_worker.work);
 	struct irq_data *d;
 	u8 gpio_mask;
-	u8 virqs = (u8)dev->irq_mask;
 	u32 irq_type;
 	int irq, virq, ret;
 
@@ -1111,11 +1111,7 @@ static void cp2112_gpio_poll_callback(struct work_struct *work)
 		goto exit;
 
 	gpio_mask = ret;
-
-	while (virqs) {
-		virq = ffs(virqs) - 1;
-		virqs &= ~BIT(virq);
-
+	for_each_set_bit(virq, &dev->irq_mask, 8) {
 		if (!dev->gc.to_irq)
 			break;
 
