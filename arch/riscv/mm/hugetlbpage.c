@@ -73,7 +73,11 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	}
 
 out:
-	WARN_ON_ONCE(pte && pte_present(*pte) && !pte_huge(*pte));
+	if (pte) {
+		pte_t pteval = ptep_get_lockless(pte);
+
+		WARN_ON_ONCE(pte_present(pteval) && !pte_huge(pteval));
+	}
 	return pte;
 }
 
