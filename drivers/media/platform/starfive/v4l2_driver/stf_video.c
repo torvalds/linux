@@ -1280,6 +1280,22 @@ int video_s_selection(struct file *file, void *fh,
 	return ret;
 }
 
+static int stf_video_subscribe_event(struct v4l2_fh *fh,
+				   const struct v4l2_event_subscription *sub)
+{
+	switch (sub->type) {
+	case V4L2_EVENT_FRAME_SYNC:
+		return v4l2_event_subscribe(fh, sub, 2, NULL);
+		//int ret = v4l2_event_subscribe(fh, sub, 2, NULL);
+		//pr_info("subscribe ret: %d\n", ret);
+		//return ret;
+	default:
+		return v4l2_ctrl_subscribe_event(fh, sub);
+		//st_debug(ST_VIN, "unsupport subscribe_event\n");
+		//return -EINVAL;
+	}
+}
+
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_querycap                = video_querycap,
 	.vidioc_enum_fmt_vid_cap        = video_enum_fmt,
@@ -1304,6 +1320,8 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_s_parm                  = video_s_parm,
 	.vidioc_s_selection             = video_s_selection,
 	.vidioc_g_selection             = video_g_selection,
+	.vidioc_subscribe_event 		= stf_video_subscribe_event,
+	.vidioc_unsubscribe_event 		= v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
@@ -1330,6 +1348,8 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
 	.vidioc_s_parm                  = video_s_parm,
 	.vidioc_s_selection             = video_s_selection,
 	.vidioc_g_selection             = video_g_selection,
+	.vidioc_subscribe_event 		= stf_video_subscribe_event,
+	.vidioc_unsubscribe_event 		= v4l2_event_unsubscribe,
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_out = {
@@ -1349,6 +1369,8 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_out = {
 	.vidioc_prepare_buf             = vb2_ioctl_prepare_buf,
 	.vidioc_streamon                = vb2_ioctl_streamon,
 	.vidioc_streamoff               = vb2_ioctl_streamoff,
+	.vidioc_subscribe_event 		= stf_video_subscribe_event,
+	.vidioc_unsubscribe_event 		= v4l2_event_unsubscribe,
 };
 
 static int video_open(struct file *file)

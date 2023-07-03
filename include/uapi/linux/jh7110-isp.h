@@ -15,6 +15,8 @@
 
 #include <linux/v4l2-controls.h>
 
+#define V4L2_CID_USER_JH7110_ISP_BASE				(V4L2_CID_USER_BASE + 0x1170)
+
 #define V4L2_CID_USER_JH7110_ISP_WB_SETTING	\
 				(V4L2_CID_USER_JH7110_ISP_BASE + 0x0001)
 #define V4L2_CID_USER_JH7110_ISP_CAR_SETTING	\
@@ -45,6 +47,8 @@
 				(V4L2_CID_USER_JH7110_ISP_BASE + 0x000e)
 #define V4L2_CID_USER_JH7110_ISP_YCRV_SETTING	\
 				(V4L2_CID_USER_JH7110_ISP_BASE + 0x000f)
+#define V4L2_CID_USER_JH7110_ISP_STAT_SETTING \
+				(V4L2_CID_USER_JH7110_ISP_BASE + 0x0010)
 
 struct jh7110_isp_wb_gain {
 	__u16 gain_r;
@@ -202,13 +206,13 @@ struct jh7110_isp_sat_curve {
 };
 
 struct jh7110_isp_sat_hue_info {
-	__s16 sin;
 	__s16 cos;
+	__s16 sin;
 };
 
 struct jh7110_isp_sat_info {
 	__s16 gain_cmab;
-	__s16 gain_cmad;
+	__s16 gain_cmmd;
 	__s16 threshold_cmb;
 	__s16 threshold_cmd;
 	__s16 offset_u;
@@ -230,7 +234,8 @@ struct jh7110_isp_sharp_weight {
 
 struct jh7110_isp_sharp_strength {
 	__s16 diff[4];
-	__s16 f[4];
+	__s16 f[3];
+	__s32 s[3];
 };
 
 struct jh7110_isp_sharp_setting {
@@ -248,6 +253,43 @@ struct jh7110_isp_ycrv_curve {
 struct jh7110_isp_ycrv_setting {
 	__u32 enabled;
 	struct jh7110_isp_ycrv_curve curve;
+};
+
+struct jh7110_isp_sc_af_config {
+	__u8 es_hor_mode;
+	__u8 es_sum_mode;
+	__u8 hor_en;
+	__u8 ver_en;
+	__u8 es_ver_thr;
+	__u16 es_hor_thr;
+};
+
+struct jh7110_isp_sc_awb_ws {
+	__u8 awb_ws_rl;
+	__u8 awb_ws_ru;
+	__u8 awb_ws_grl;
+	__u8 awb_ws_gru;
+	__u8 awb_ws_gbl;
+	__u8 awb_ws_gbu;
+	__u8 awb_ws_bl;
+	__u8 awb_ws_bu;
+};
+
+struct jh7110_isp_sc_awb_point {
+	__u16 intensity;
+	__u8 weight;
+};
+
+struct jh7110_isp_sc_awb_config {
+	struct jh7110_isp_sc_awb_ws ws_config;
+	__u8 awb_cw[169];
+	struct jh7110_isp_sc_awb_point pts[17];
+};
+
+struct jh7110_isp_sc_setting {
+	__u32 enabled;
+	struct jh7110_isp_sc_af_config af_config;
+	struct jh7110_isp_sc_awb_config awb_config;
 };
 
 #endif

@@ -1145,9 +1145,12 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	spin_lock_irqsave(&line->output_lock, flags);
 
 	while ((ready_buf = vin_buf_get_ready(output))) {
-		if (line->id >= VIN_LINE_ISP && line->id <= VIN_LINE_ISP_SS1) {
+		//if (line->id >= VIN_LINE_ISP && line->id <= VIN_LINE_ISP_SS1) {
+		if (line->id == VIN_LINE_ISP_SCD_Y) {
 			event.u.frame_sync.frame_sequence = output->sequence;
-			v4l2_event_queue(line->subdev.devnode, &event);
+			v4l2_event_queue(&(line->video_out.vdev), &event);
+			//v4l2_event_queue(line->subdev.devnode, &event);
+			//pr_info("----------frame sync-----------\n");
 		}
 
 		ready_buf->vb.vb2_buf.timestamp = ts;
@@ -1346,7 +1349,10 @@ static int stf_vin_subscribe_event(struct v4l2_subdev *sd,
 {
 	switch (sub->type) {
 	case V4L2_EVENT_FRAME_SYNC:
-		return v4l2_event_subscribe(fh, sub, 0, NULL);
+		//return v4l2_event_subscribe(fh, sub, 2, NULL);
+		int ret = v4l2_event_subscribe(fh, sub, 2, NULL);
+		pr_info("subscribe ret: %d\n", ret);
+		return ret;
 	default:
 		st_debug(ST_VIN, "unsupport subscribe_event\n");
 		return -EINVAL;
@@ -1355,8 +1361,8 @@ static int stf_vin_subscribe_event(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_core_ops vin_core_ops = {
 	.s_power = vin_set_power,
-	.subscribe_event = stf_vin_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+	//.subscribe_event = stf_vin_subscribe_event,
+	//.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_video_ops vin_video_ops = {
