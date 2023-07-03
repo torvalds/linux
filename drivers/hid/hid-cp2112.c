@@ -197,7 +197,7 @@ static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 		goto exit;
 	}
 
-	buf[1] &= ~(1 << offset);
+	buf[1] &= ~BIT(offset);
 	buf[2] = gpio_push_pull;
 
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_CONFIG, buf,
@@ -228,7 +228,7 @@ static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	buf[0] = CP2112_GPIO_SET;
 	buf[1] = value ? CP2112_GPIO_ALL_GPIO_MASK : 0;
-	buf[2] = 1 << offset;
+	buf[2] = BIT(offset);
 
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_SET, buf,
 				 CP2112_GPIO_SET_LENGTH, HID_FEATURE_REPORT,
