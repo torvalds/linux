@@ -7039,9 +7039,6 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 				flex_array_size(ev, bis, ev->num_bis)))
 		return;
 
-	if (ev->status)
-		return;
-
 	hci_dev_lock(hdev);
 
 	for (i = 0; i < ev->num_bis; i++) {
@@ -7065,8 +7062,24 @@ static void hci_le_big_sync_established_evt(struct hci_dev *hdev, void *data,
 		bis->iso_qos.bcast.in.latency = le16_to_cpu(ev->interval) * 125 / 100;
 		bis->iso_qos.bcast.in.sdu = le16_to_cpu(ev->max_pdu);
 
-		hci_iso_setup_path(bis);
+		if (!ev->status) {
+			set_bit(HCI_CONN_BIG_SYNC, &bis->flags);
+			hci_iso_setup_path(bis);
+		}
 	}
+
+	/* In case BIG sync failed, notify each failed connection to
+	 * the user after all hci connections have been added
+	 */
+	if (ev->status)
+		for (i = 0; i < ev->num_bis; i++) {
+			u16 handle = le16_to_cpu(ev->bis[i]);
+
+			bis = hci_conn_hash_lookup_handle(hdev, handle);
+
+			set_bit(HCI_CONN_BIG_SYNC_FAILED, &bis->flags);
+			hci_connect_cfm(bis, ev->status);
+		}
 
 	hci_dev_unlock(hdev);
 }

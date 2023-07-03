@@ -735,6 +735,7 @@ struct iso_list_data {
 	int count;
 	struct iso_cig_params pdu;
 	bool big_term;
+	bool big_sync_term;
 };
 
 static void bis_list(struct hci_conn *conn, void *data)
@@ -747,17 +748,6 @@ static void bis_list(struct hci_conn *conn, void *data)
 
 	if (d->big != conn->iso_qos.bcast.big || d->bis == BT_ISO_QOS_BIS_UNSET ||
 	    d->bis != conn->iso_qos.bcast.bis)
-		return;
-
-	d->count++;
-}
-
-static void find_bis(struct hci_conn *conn, void *data)
-{
-	struct iso_list_data *d = data;
-
-	/* Ignore unicast */
-	if (bacmp(&conn->dst, BDADDR_ANY))
 		return;
 
 	d->count++;
@@ -815,31 +805,26 @@ static int big_terminate_sync(struct hci_dev *hdev, void *data)
 	bt_dev_dbg(hdev, "big 0x%2.2x sync_handle 0x%4.4x", d->big,
 		   d->sync_handle);
 
-	/* Check if ISO connection is a BIS and terminate BIG if there are
-	 * no other connections using it.
-	 */
-	hci_conn_hash_list_state(hdev, find_bis, ISO_LINK, BT_CONNECTED, d);
-	if (d->count)
-		return 0;
-
-	hci_le_big_terminate_sync(hdev, d->big);
+	if (d->big_sync_term)
+		hci_le_big_terminate_sync(hdev, d->big);
 
 	return hci_le_pa_terminate_sync(hdev, d->sync_handle);
 }
 
-static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, u16 sync_handle)
+static int hci_le_big_terminate(struct hci_dev *hdev, u8 big, struct hci_conn *conn)
 {
 	struct iso_list_data *d;
 	int ret;
 
-	bt_dev_dbg(hdev, "big 0x%2.2x sync_handle 0x%4.4x", big, sync_handle);
+	bt_dev_dbg(hdev, "big 0x%2.2x sync_handle 0x%4.4x", big, conn->sync_handle);
 
 	d = kzalloc(sizeof(*d), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 
 	d->big = big;
-	d->sync_handle = sync_handle;
+	d->sync_handle = conn->sync_handle;
+	d->big_sync_term = test_and_clear_bit(HCI_CONN_BIG_SYNC, &conn->flags);
 
 	ret = hci_cmd_sync_queue(hdev, big_terminate_sync, d,
 				 terminate_big_destroy);
@@ -875,8 +860,14 @@ static void bis_cleanup(struct hci_conn *conn)
 
 		hci_le_terminate_big(hdev, conn);
 	} else {
+		bis = hci_conn_hash_lookup_big_any_dst(hdev,
+						       conn->iso_qos.bcast.big);
+
+		if (bis)
+			return;
+
 		hci_le_big_terminate(hdev, conn->iso_qos.bcast.big,
-				     conn->sync_handle);
+				     conn);
 	}
 }
 
