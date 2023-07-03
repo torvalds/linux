@@ -7,6 +7,7 @@
 #include <uapi/linux/virtio_net.h>
 #include <uapi/linux/virtio_ids.h>
 #include <uapi/linux/vdpa.h>
+#include <uapi/linux/vhost_types.h>
 #include <linux/virtio_config.h>
 #include <linux/auxiliary_bus.h>
 #include <linux/mlx5/cq.h>
@@ -2559,6 +2560,11 @@ static void unregister_link_notifier(struct mlx5_vdpa_net *ndev)
 		flush_workqueue(ndev->mvdev.wq);
 }
 
+static u64 mlx5_vdpa_get_backend_features(const struct vdpa_device *vdpa)
+{
+	return BIT_ULL(VHOST_BACKEND_F_ENABLE_AFTER_DRIVER_OK);
+}
+
 static int mlx5_vdpa_set_driver_features(struct vdpa_device *vdev, u64 features)
 {
 	struct mlx5_vdpa_dev *mvdev = to_mvdev(vdev);
@@ -3234,6 +3240,7 @@ static const struct vdpa_config_ops mlx5_vdpa_ops = {
 	.get_vq_group = mlx5_vdpa_get_vq_group,
 	.get_vq_desc_group = mlx5_vdpa_get_vq_desc_group, /* Op disabled if not supported. */
 	.get_device_features = mlx5_vdpa_get_device_features,
+	.get_backend_features = mlx5_vdpa_get_backend_features,
 	.set_driver_features = mlx5_vdpa_set_driver_features,
 	.get_driver_features = mlx5_vdpa_get_driver_features,
 	.set_config_cb = mlx5_vdpa_set_config_cb,
