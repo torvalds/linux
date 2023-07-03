@@ -296,6 +296,7 @@ extern void do_cpu_irq_mask(struct pt_regs *);
 extern irqreturn_t timer_interrupt(int, void *);
 extern irqreturn_t ipi_interrupt(int, void *);
 extern void start_cpu_itimer(void);
+extern void handle_interruption(int, struct pt_regs *);
 
 /* called from assembly code: */
 extern void start_parisc(void);
