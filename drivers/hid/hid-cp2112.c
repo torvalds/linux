@@ -1112,10 +1112,9 @@ static void cp2112_gpio_poll_callback(struct work_struct *work)
 
 	gpio_mask = ret;
 	for_each_set_bit(virq, &dev->irq_mask, 8) {
-		if (!dev->gc.to_irq)
-			break;
-
-		irq = dev->gc.to_irq(&dev->gc, virq);
+		irq = irq_find_mapping(dev->gc.irq.domain, virq);
+		if (!irq)
+			continue;
 
 		d = irq_get_irq_data(irq);
 		if (!d)
