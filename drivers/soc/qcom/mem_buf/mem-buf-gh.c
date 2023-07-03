@@ -266,6 +266,49 @@ err_alloc_pages:
 	return ret;
 }
 
+static int mem_buf_rmt_alloc_cma(struct sg_table *sgt, unsigned int count)
+{
+	struct cma *cma;
+	struct page *page;
+	int ret;
+	u32 align;
+
+	/*
+	 * For the common case of 4Mb transfer, we want it to be nicely aligned
+	 * to allow for 2Mb block mappings in S2 pagetable.
+	 */
+	align = min(get_order(count << PAGE_SHIFT), get_order(SZ_2M));
+
+	/*
+	 * Don't use dev_get_cma_area() as we don't want to fall back to
+	 * dma_contiguous_default_area.
+	 */
+	cma = mem_buf_dev->cma_area;
+	if (!cma)
+		return -ENOMEM;
+
+	ret = sg_alloc_table(sgt, 1, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	page = cma_alloc(cma, count, align, false);
+	if (!page) {
+		ret = -ENOMEM;
+		goto err_cma_alloc;
+	}
+
+	sg_set_page(sgt->sgl, page, count << PAGE_SHIFT, 0);
+
+	/* Zero memory before transferring to Guest VM */
+	memset(page_address(page), 0, count << PAGE_SHIFT);
+
+	return 0;
+
+err_cma_alloc:
+	sg_free_table(sgt);
+	return ret;
+}
+
 static int mem_buf_rmt_alloc_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
 {
 	struct sg_table *sgt;
@@ -277,7 +320,10 @@ static int mem_buf_rmt_alloc_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
 	if (!sgt)
 		return -ENOMEM;
 
-	ret = mem_buf_rmt_alloc_pages(sgt, count);
+	if (mem_buf_dev->cma_area)
+		ret = mem_buf_rmt_alloc_cma(sgt, count);
+	else
+		ret = mem_buf_rmt_alloc_pages(sgt, count);
 	if (ret)
 		goto err_alloc_pages;
 
@@ -328,11 +374,17 @@ static void mem_buf_rmt_free_buddy_mem(struct mem_buf_xfer_mem *xfer_mem)
 {
 	struct sg_table *table = xfer_mem->mem_sgt;
 	struct sg_page_iter sgiter;
+	bool is_cma;
 
 	pr_debug("%s: Freeing DMAHEAP-BUDDY memory\n", __func__);
-	for_each_sg_page(table->sgl, &sgiter, table->nents, 0) {
-		__free_page(sg_page_iter_page(&sgiter));
-	}
+
+	/* Returns false when called on !cma memory */
+	is_cma = cma_release(mem_buf_dev->cma_area, sg_page(table->sgl),
+				table->sgl->length >> PAGE_SHIFT);
+	if (!is_cma)
+		for_each_sg_page(table->sgl, &sgiter, table->nents, 0)
+			__free_page(sg_page_iter_page(&sgiter));
+
 	sg_free_table(table);
 	kfree(table);
 	pr_debug("%s: DMAHEAP-BUDDY memory freed\n", __func__);
