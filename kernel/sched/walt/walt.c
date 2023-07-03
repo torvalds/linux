@@ -2370,6 +2370,7 @@ static inline void __sched_fork_init(struct task_struct *p)
 	wts->iowaited		= false;
 	wts->load_boost		= 0;
 	wts->boosted_task_load	= 0;
+	wts->reduce_mask	= CPU_MASK_ALL;
 }
 
 static void init_new_task_load(struct task_struct *p)
