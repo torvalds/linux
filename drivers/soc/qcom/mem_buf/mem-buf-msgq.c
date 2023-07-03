@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/completion.h>
@@ -12,6 +12,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/sched/mm.h>
 
 #include "mem-buf-msgq.h"
 #include "trace-mem-buf.h"
@@ -337,8 +338,10 @@ static void mem_buf_process_alloc_resp(struct mem_buf_msgq_desc *desc, void *buf
 	struct mem_buf_msg_hdr *hdr = buf;
 	struct mem_buf_alloc_resp *alloc_resp = buf;
 	struct mem_buf_txn *txn;
+	unsigned int noreclaim_flag;
 
 	mutex_lock(&desc->idr_mutex);
+	noreclaim_flag = memalloc_noreclaim_save();
 	txn = idr_find(&desc->txn_idr, hdr->txn_id);
 	if (!txn) {
 		pr_err("%s no txn associated with id: %d\n", __func__, hdr->txn_id);
@@ -357,6 +360,7 @@ static void mem_buf_process_alloc_resp(struct mem_buf_msgq_desc *desc, void *buf
 							       txn->resp_buf);
 		complete(&txn->txn_done);
 	}
+	memalloc_noreclaim_restore(noreclaim_flag);
 	mutex_unlock(&desc->idr_mutex);
 }
 
