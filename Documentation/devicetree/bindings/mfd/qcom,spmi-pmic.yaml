@@ -41,6 +41,7 @@ properties:
           - qcom,pm660
           - qcom,pm660l
           - qcom,pm7250b
+          - qcom,pm7550ba
           - qcom,pm7325
           - qcom,pm8004
           - qcom,pm8005
