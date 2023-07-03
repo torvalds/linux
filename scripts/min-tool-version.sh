@@ -17,8 +17,8 @@ binutils)
 	echo 2.25.0
 	;;
 gcc)
-	if [ "$SRCARCH" = parisc ]; then
-		echo 11.0.0
+	if [ "$ARCH" = parisc64 ]; then
+		echo 12.0.0
 	else
 		echo 5.1.0
 	fi
