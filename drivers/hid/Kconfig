@@ -1066,9 +1066,11 @@ config STEAM_FF
 	Deck.
 
 config HID_STEELSERIES
-	tristate "Steelseries SRW-S1 steering wheel support"
+	tristate "Steelseries devices support"
+	depends on USB_HID
 	help
-	Support for Steelseries SRW-S1 steering wheel
+	Support for Steelseries SRW-S1 steering wheel, and the Steelseries
+	Arctis 1 Wireless for XBox headset.
 
 config HID_SUNPLUS
 	tristate "Sunplus wireless desktop"
