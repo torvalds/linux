@@ -885,7 +885,7 @@ static void ivpu_hw_mtl_irq_disable(struct ivpu_device *vdev)
 	REGB_WR32(MTL_BUTTRESS_GLOBAL_INT_MASK, 0x1);
 	REGB_WR32(MTL_BUTTRESS_LOCAL_INT_MASK, BUTTRESS_IRQ_DISABLE_MASK);
 	REGV_WR64(MTL_VPU_HOST_SS_ICB_ENABLE_0, 0x0ull);
-	REGB_WR32(MTL_VPU_HOST_SS_FW_SOC_IRQ_EN, 0x0);
+	REGV_WR32(MTL_VPU_HOST_SS_FW_SOC_IRQ_EN, 0x0);
 }
 
 static void ivpu_hw_mtl_irq_wdt_nce_handler(struct ivpu_device *vdev)
