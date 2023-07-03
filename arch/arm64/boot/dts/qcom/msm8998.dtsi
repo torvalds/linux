@@ -2724,7 +2724,8 @@
 				      "dsi1byte",
 				      "hdmipll",
 				      "dplink",
-				      "dpvco";
+				      "dpvco",
+				      "gpll0_div";
 			clocks = <&rpmcc RPM_SMD_XO_CLK_SRC>,
 				 <&gcc GCC_MMSS_GPLL0_CLK>,
 				 <0>,
@@ -2733,7 +2734,8 @@
 				 <0>,
 				 <0>,
 				 <0>,
-				 <0>;
+				 <0>,
+				 <&gcc GCC_MMSS_GPLL0_DIV_CLK>;
 		};
 
 		mmss_smmu: iommu@cd00000 {
