@@ -325,10 +325,11 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 		if (device_property_read_bool(tmpdev, "xhci-lowmem-pool")) {
 			xhci->quirks |= XHCI_LOCAL_BUFFER;
-			if (device_property_read_u32(tmpdev, "lowmem-pool-size",
-				&xhci->lowmem_pool.size)) {
-				xhci->lowmem_pool.size = 8 << 20;
-			} else
+			ret = device_property_read_u32(tmpdev, "lowmem-pool-size",
+				&xhci->lowmem_pool.size);
+			if (ret || xhci->lowmem_pool.size >= 4)
+				xhci->lowmem_pool.size = 4 << 20;
+			else
 				xhci->lowmem_pool.size <<= 20;
 		}
 		device_property_read_u32(tmpdev, "imod-interval-ns",
