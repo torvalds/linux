@@ -743,7 +743,7 @@ static int msft_cancel_address_filter_sync(struct hci_dev *hdev, void *data)
 	if (IS_ERR_OR_NULL(skb)) {
 		bt_dev_err(hdev, "MSFT: Failed to cancel address (%pMR) filter",
 			   &address_filter->bdaddr);
-		err = EIO;
+		err = -EIO;
 		goto done;
 	}
 	kfree_skb(skb);
