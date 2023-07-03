@@ -457,6 +457,10 @@ int led_classdev_register_ext(struct device *parent,
 			if (fwnode_property_present(init_data->fwnode,
 						    "retain-state-shutdown"))
 				led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
+
+			fwnode_property_read_u32(init_data->fwnode,
+				"max-brightness",
+				&led_cdev->max_brightness);
 		}
 	} else {
 		proposed_name = led_cdev->name;
