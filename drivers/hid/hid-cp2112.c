@@ -32,6 +32,7 @@
 #define CP2112_GPIO_GET_LENGTH			2
 #define CP2112_GPIO_SET_LENGTH			3
 #define CP2112_GPIO_MAX_GPIO			8
+#define CP2112_GPIO_ALL_GPIO_MASK		GENMASK(7, 0)
 
 enum {
 	CP2112_GPIO_CONFIG		= 0x02,
@@ -173,7 +174,7 @@ struct cp2112_device {
 	u8 gpio_prev_state;
 };
 
-static int gpio_push_pull = 0xFF;
+static int gpio_push_pull = CP2112_GPIO_ALL_GPIO_MASK;
 module_param(gpio_push_pull, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(gpio_push_pull, "GPIO push-pull configuration bitmask");
 
@@ -226,7 +227,7 @@ static void cp2112_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	mutex_lock(&dev->lock);
 
 	buf[0] = CP2112_GPIO_SET;
-	buf[1] = value ? 0xff : 0;
+	buf[1] = value ? CP2112_GPIO_ALL_GPIO_MASK : 0;
 	buf[2] = 1 << offset;
 
 	ret = hid_hw_raw_request(hdev, CP2112_GPIO_SET, buf,
