@@ -2676,6 +2676,7 @@ oom:
 	recalc_tags = kvmalloc(recalc_tags_size, GFP_NOIO);
 	if (!recalc_tags) {
 		vfree(recalc_buffer);
+		recalc_buffer = NULL;
 		goto oom;
 	}
 
