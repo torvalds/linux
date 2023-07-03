@@ -944,18 +944,10 @@ CP2112_CONFIG_ATTR(release_version, ({
 
 #undef CP2112_CONFIG_ATTR
 
-struct cp2112_pstring_attribute {
-	struct device_attribute attr;
-	unsigned char report;
-};
-
-static ssize_t pstr_store(struct device *kdev,
-			  struct device_attribute *kattr, const char *buf,
-			  size_t count)
+static ssize_t pstr_store(struct device *kdev, struct device_attribute *kattr,
+			  const char *buf, size_t count, int number)
 {
 	struct hid_device *hdev = to_hid_device(kdev);
-	struct cp2112_pstring_attribute *attr =
-		container_of(kattr, struct cp2112_pstring_attribute, attr);
 	struct cp2112_string_report report;
 	int ret;
 
@@ -963,7 +955,7 @@ static ssize_t pstr_store(struct device *kdev,
 
 	ret = utf8s_to_utf16s(buf, count, UTF16_LITTLE_ENDIAN,
 			      report.string, ARRAY_SIZE(report.string));
-	report.report = attr->report;
+	report.report = number;
 	report.length = ret * sizeof(report.string[0]) + 2;
 	report.type = USB_DT_STRING;
 
@@ -981,17 +973,15 @@ static ssize_t pstr_store(struct device *kdev,
 	return count;
 }
 
-static ssize_t pstr_show(struct device *kdev,
-			 struct device_attribute *kattr, char *buf)
+static ssize_t pstr_show(struct device *kdev, struct device_attribute *kattr,
+			 char *buf, int number)
 {
 	struct hid_device *hdev = to_hid_device(kdev);
-	struct cp2112_pstring_attribute *attr =
-		container_of(kattr, struct cp2112_pstring_attribute, attr);
 	struct cp2112_string_report report;
 	u8 length;
 	int ret;
 
-	ret = cp2112_hid_get(hdev, attr->report, (u8 *)&report.contents,
+	ret = cp2112_hid_get(hdev, number, (u8 *)&report.contents,
 			     sizeof(report.contents), HID_FEATURE_REPORT);
 	if (ret < 3) {
 		hid_err(hdev, "error reading %s string: %d\n", kattr->attr.name,
@@ -1016,10 +1006,16 @@ static ssize_t pstr_show(struct device *kdev,
 }
 
 #define CP2112_PSTR_ATTR(name, _report) \
-static struct cp2112_pstring_attribute dev_attr_##name = { \
-	.attr = __ATTR(name, (S_IWUSR | S_IRUGO), pstr_show, pstr_store), \
-	.report = _report, \
-};
+static ssize_t name##_store(struct device *kdev, struct device_attribute *kattr, \
+			    const char *buf, size_t count) \
+{ \
+	return pstr_store(kdev, kattr, buf, count, _report); \
+} \
+static ssize_t name##_show(struct device *kdev, struct device_attribute *kattr, char *buf) \
+{ \
+	return pstr_show(kdev, kattr, buf, _report); \
+} \
+static DEVICE_ATTR_RW(name);
 
 CP2112_PSTR_ATTR(manufacturer,	CP2112_MANUFACTURER_STRING);
 CP2112_PSTR_ATTR(product,	CP2112_PRODUCT_STRING);
@@ -1034,9 +1030,9 @@ static const struct attribute_group cp2112_attr_group = {
 		&dev_attr_max_power.attr,
 		&dev_attr_power_mode.attr,
 		&dev_attr_release_version.attr,
-		&dev_attr_manufacturer.attr.attr,
-		&dev_attr_product.attr.attr,
-		&dev_attr_serial.attr.attr,
+		&dev_attr_manufacturer.attr,
+		&dev_attr_product.attr,
+		&dev_attr_serial.attr,
 		NULL
 	}
 };
