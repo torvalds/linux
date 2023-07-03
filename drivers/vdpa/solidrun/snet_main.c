@@ -509,6 +509,20 @@ static int snet_suspend(struct vdpa_device *vdev)
 	return ret;
 }
 
+static int snet_resume(struct vdpa_device *vdev)
+{
+	struct snet *snet = vdpa_to_snet(vdev);
+	int ret;
+
+	ret = snet_resume_dev(snet);
+	if (ret)
+		SNET_ERR(snet->pdev, "SNET[%u] resume failed, err: %d\n", snet->sid, ret);
+	else
+		SNET_DBG(snet->pdev, "Resume SNET[%u] device\n", snet->sid);
+
+	return ret;
+}
+
 static const struct vdpa_config_ops snet_config_ops = {
 	.set_vq_address         = snet_set_vq_address,
 	.set_vq_num             = snet_set_vq_num,
@@ -536,6 +550,7 @@ static const struct vdpa_config_ops snet_config_ops = {
 	.get_config             = snet_get_config,
 	.set_config             = snet_set_config,
 	.suspend		= snet_suspend,
+	.resume			= snet_resume,
 };
 
 static int psnet_open_pf_bar(struct pci_dev *pdev, struct psnet *psnet)
