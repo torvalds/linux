@@ -1078,16 +1078,16 @@ int of_gpiochip_add(struct gpio_chip *chip)
 	if (ret)
 		return ret;
 
-	fwnode_handle_get(chip->fwnode);
+	of_node_get(np);
 
 	ret = of_gpiochip_scan_gpios(chip);
 	if (ret)
-		fwnode_handle_put(chip->fwnode);
+		of_node_put(np);
 
 	return ret;
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	fwnode_handle_put(chip->fwnode);
+	of_node_put(dev_of_node(&chip->gpiodev->dev));
 }
