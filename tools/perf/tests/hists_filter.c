@@ -8,6 +8,7 @@
 #include "util/evlist.h"
 #include "util/machine.h"
 #include "util/parse-events.h"
+#include "util/thread.h"
 #include "tests/tests.h"
 #include "tests/hists_common.h"
 #include <linux/kernel.h>
@@ -53,6 +54,7 @@ static int add_hist_entries(struct evlist *evlist,
 	struct perf_sample sample = { .period = 100, };
 	size_t i;
 
+	addr_location__init(&al);
 	/*
 	 * each evsel will have 10 samples but the 4th sample
 	 * (perf [perf] main) will be collapsed to an existing entry
@@ -84,21 +86,22 @@ static int add_hist_entries(struct evlist *evlist,
 			al.socket = fake_samples[i].socket;
 			if (hist_entry_iter__add(&iter, &al,
 						 sysctl_perf_event_max_stack, NULL) < 0) {
-				addr_location__put(&al);
 				goto out;
 			}
 
-			fake_samples[i].thread = al.thread;
+			thread__put(fake_samples[i].thread);
+			fake_samples[i].thread = thread__get(al.thread);
 			map__put(fake_samples[i].map);
-			fake_samples[i].map = al.map;
+			fake_samples[i].map = map__get(al.map);
 			fake_samples[i].sym = al.sym;
 		}
 	}
-
+	addr_location__exit(&al);
 	return 0;
 
 out:
 	pr_debug("Not enough memory for adding a hist entry\n");
+	addr_location__exit(&al);
 	return TEST_FAIL;
 }
 

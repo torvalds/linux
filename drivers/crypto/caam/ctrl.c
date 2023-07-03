@@ -79,6 +79,15 @@ static void build_deinstantiation_desc(u32 *desc, int handle)
 	append_jump(desc, JUMP_CLASS_CLASS1 | JUMP_TYPE_HALT);
 }
 
+static const struct of_device_id imx8m_machine_match[] = {
+	{ .compatible = "fsl,imx8mm", },
+	{ .compatible = "fsl,imx8mn", },
+	{ .compatible = "fsl,imx8mp", },
+	{ .compatible = "fsl,imx8mq", },
+	{ .compatible = "fsl,imx8ulp", },
+	{ }
+};
+
 /*
  * run_descriptor_deco0 - runs a descriptor on DECO0, under direct control of
  *			  the software (no JR/QI used).
@@ -105,10 +114,7 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
 	     * Apparently on i.MX8M{Q,M,N,P} it doesn't matter if virt_en == 1
 	     * and the following steps should be performed regardless
 	     */
-	    of_machine_is_compatible("fsl,imx8mq") ||
-	    of_machine_is_compatible("fsl,imx8mm") ||
-	    of_machine_is_compatible("fsl,imx8mn") ||
-	    of_machine_is_compatible("fsl,imx8mp")) {
+	    of_match_node(imx8m_machine_match, of_root)) {
 		clrsetbits_32(&ctrl->deco_rsr, 0, DECORSR_JR0);
 
 		while (!(rd_reg32(&ctrl->deco_rsr) & DECORSR_VALID) &&
@@ -344,16 +350,15 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 /*
  * kick_trng - sets the various parameters for enabling the initialization
  *	       of the RNG4 block in CAAM
- * @pdev - pointer to the platform device
+ * @dev - pointer to the controller device
  * @ent_delay - Defines the length (in system clocks) of each entropy sample.
  */
-static void kick_trng(struct platform_device *pdev, int ent_delay)
+static void kick_trng(struct device *dev, int ent_delay)
 {
-	struct device *ctrldev = &pdev->dev;
-	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctrldev);
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
 	struct caam_ctrl __iomem *ctrl;
 	struct rng4tst __iomem *r4tst;
-	u32 val;
+	u32 val, rtsdctl;
 
 	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 	r4tst = &ctrl->r4tst[0];
@@ -369,26 +374,38 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 	 * Performance-wise, it does not make sense to
 	 * set the delay to a value that is lower
 	 * than the last one that worked (i.e. the state handles
-	 * were instantiated properly. Thus, instead of wasting
-	 * time trying to set the values controlling the sample
-	 * frequency, the function simply returns.
+	 * were instantiated properly).
 	 */
-	val = (rd_reg32(&r4tst->rtsdctl) & RTSDCTL_ENT_DLY_MASK)
-	      >> RTSDCTL_ENT_DLY_SHIFT;
-	if (ent_delay <= val)
-		goto start_rng;
+	rtsdctl = rd_reg32(&r4tst->rtsdctl);
+	val = (rtsdctl & RTSDCTL_ENT_DLY_MASK) >> RTSDCTL_ENT_DLY_SHIFT;
+	if (ent_delay > val) {
+		val = ent_delay;
+		/* min. freq. count, equal to 1/4 of the entropy sample length */
+		wr_reg32(&r4tst->rtfrqmin, val >> 2);
+		/* max. freq. count, equal to 16 times the entropy sample length */
+		wr_reg32(&r4tst->rtfrqmax, val << 4);
+	}
 
-	val = rd_reg32(&r4tst->rtsdctl);
-	val = (val & ~RTSDCTL_ENT_DLY_MASK) |
-	      (ent_delay << RTSDCTL_ENT_DLY_SHIFT);
-	wr_reg32(&r4tst->rtsdctl, val);
-	/* min. freq. count, equal to 1/4 of the entropy sample length */
-	wr_reg32(&r4tst->rtfrqmin, ent_delay >> 2);
-	/* disable maximum frequency count */
-	wr_reg32(&r4tst->rtfrqmax, RTFRQMAX_DISABLE);
-	/* read the control register */
-	val = rd_reg32(&r4tst->rtmctl);
-start_rng:
+	wr_reg32(&r4tst->rtsdctl, (val << RTSDCTL_ENT_DLY_SHIFT) |
+		 RTSDCTL_SAMP_SIZE_VAL);
+
+	/*
+	 * To avoid reprogramming the self-test parameters over and over again,
+	 * use RTSDCTL[SAMP_SIZE] as an indicator.
+	 */
+	if ((rtsdctl & RTSDCTL_SAMP_SIZE_MASK) != RTSDCTL_SAMP_SIZE_VAL) {
+		wr_reg32(&r4tst->rtscmisc, (2 << 16) | 32);
+		wr_reg32(&r4tst->rtpkrrng, 570);
+		wr_reg32(&r4tst->rtpkrmax, 1600);
+		wr_reg32(&r4tst->rtscml, (122 << 16) | 317);
+		wr_reg32(&r4tst->rtscrl[0], (80 << 16) | 107);
+		wr_reg32(&r4tst->rtscrl[1], (57 << 16) | 62);
+		wr_reg32(&r4tst->rtscrl[2], (39 << 16) | 39);
+		wr_reg32(&r4tst->rtscrl[3], (27 << 16) | 26);
+		wr_reg32(&r4tst->rtscrl[4], (19 << 16) | 18);
+		wr_reg32(&r4tst->rtscrl[5], (18 << 16) | 17);
+	}
+
 	/*
 	 * select raw sampling in both entropy shifter
 	 * and statistical checker; ; put RNG4 into run mode
@@ -618,10 +635,115 @@ static bool needs_entropy_delay_adjustment(void)
 	return false;
 }
 
+static int caam_ctrl_rng_init(struct device *dev)
+{
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(dev);
+	struct caam_ctrl __iomem *ctrl = ctrlpriv->ctrl;
+	int ret, gen_sk, ent_delay = RTSDCTL_ENT_DLY_MIN;
+	u8 rng_vid;
+
+	if (ctrlpriv->era < 10) {
+		struct caam_perfmon __iomem *perfmon;
+
+		perfmon = ctrlpriv->total_jobrs ?
+			  (struct caam_perfmon __iomem *)&ctrlpriv->jr[0]->perfmon :
+			  (struct caam_perfmon __iomem *)&ctrl->perfmon;
+
+		rng_vid = (rd_reg32(&perfmon->cha_id_ls) &
+			   CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT;
+	} else {
+		struct version_regs __iomem *vreg;
+
+		vreg = ctrlpriv->total_jobrs ?
+			(struct version_regs __iomem *)&ctrlpriv->jr[0]->vreg :
+			(struct version_regs __iomem *)&ctrl->vreg;
+
+		rng_vid = (rd_reg32(&vreg->rng) & CHA_VER_VID_MASK) >>
+			  CHA_VER_VID_SHIFT;
+	}
+
+	/*
+	 * If SEC has RNG version >= 4 and RNG state handle has not been
+	 * already instantiated, do RNG instantiation
+	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
+	 */
+	if (!(ctrlpriv->mc_en && ctrlpriv->pr_support) && rng_vid >= 4) {
+		ctrlpriv->rng4_sh_init =
+			rd_reg32(&ctrl->r4tst[0].rdsta);
+		/*
+		 * If the secure keys (TDKEK, JDKEK, TDSK), were already
+		 * generated, signal this to the function that is instantiating
+		 * the state handles. An error would occur if RNG4 attempts
+		 * to regenerate these keys before the next POR.
+		 */
+		gen_sk = ctrlpriv->rng4_sh_init & RDSTA_SKVN ? 0 : 1;
+		ctrlpriv->rng4_sh_init &= RDSTA_MASK;
+		do {
+			int inst_handles =
+				rd_reg32(&ctrl->r4tst[0].rdsta) & RDSTA_MASK;
+			/*
+			 * If either SH were instantiated by somebody else
+			 * (e.g. u-boot) then it is assumed that the entropy
+			 * parameters are properly set and thus the function
+			 * setting these (kick_trng(...)) is skipped.
+			 * Also, if a handle was instantiated, do not change
+			 * the TRNG parameters.
+			 */
+			if (needs_entropy_delay_adjustment())
+				ent_delay = 12000;
+			if (!(ctrlpriv->rng4_sh_init || inst_handles)) {
+				dev_info(dev,
+					 "Entropy delay = %u\n",
+					 ent_delay);
+				kick_trng(dev, ent_delay);
+				ent_delay += 400;
+			}
+			/*
+			 * if instantiate_rng(...) fails, the loop will rerun
+			 * and the kick_trng(...) function will modify the
+			 * upper and lower limits of the entropy sampling
+			 * interval, leading to a successful initialization of
+			 * the RNG.
+			 */
+			ret = instantiate_rng(dev, inst_handles,
+					      gen_sk);
+			/*
+			 * Entropy delay is determined via TRNG characterization.
+			 * TRNG characterization is run across different voltages
+			 * and temperatures.
+			 * If worst case value for ent_dly is identified,
+			 * the loop can be skipped for that platform.
+			 */
+			if (needs_entropy_delay_adjustment())
+				break;
+			if (ret == -EAGAIN)
+				/*
+				 * if here, the loop will rerun,
+				 * so don't hog the CPU
+				 */
+				cpu_relax();
+		} while ((ret == -EAGAIN) && (ent_delay < RTSDCTL_ENT_DLY_MAX));
+		if (ret) {
+			dev_err(dev, "failed to instantiate RNG");
+			return ret;
+		}
+		/*
+		 * Set handles initialized by this module as the complement of
+		 * the already initialized ones
+		 */
+		ctrlpriv->rng4_sh_init = ~ctrlpriv->rng4_sh_init & RDSTA_MASK;
+
+		/* Enable RDB bit so that RNG works faster */
+		clrsetbits_32(&ctrl->scfgr, 0, SCFGR_RDBENABLE);
+	}
+
+	return 0;
+}
+
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
-	int ret, ring, gen_sk, ent_delay = RTSDCTL_ENT_DLY_MIN;
+	int ret, ring;
 	u64 caam_id;
 	const struct soc_device_attribute *imx_soc_match;
 	struct device *dev;
@@ -631,10 +753,8 @@ static int caam_probe(struct platform_device *pdev)
 	struct caam_perfmon __iomem *perfmon;
 	struct dentry *dfs_root;
 	u32 scfgr, comp_params;
-	u8 rng_vid;
 	int pg_size;
 	int BLOCK_OFFSET = 0;
-	bool pr_support = false;
 	bool reg_access = true;
 
 	ctrlpriv = devm_kzalloc(&pdev->dev, sizeof(*ctrlpriv), GFP_KERNEL);
@@ -646,6 +766,9 @@ static int caam_probe(struct platform_device *pdev)
 	nprop = pdev->dev.of_node;
 
 	imx_soc_match = soc_device_match(caam_imx_soc_table);
+	if (!imx_soc_match && of_match_node(imx8m_machine_match, of_root))
+		return -EPROBE_DEFER;
+
 	caam_imx = (bool)imx_soc_match;
 
 	if (imx_soc_match) {
@@ -770,7 +893,8 @@ static int caam_probe(struct platform_device *pdev)
 
 		mc_version = fsl_mc_get_version();
 		if (mc_version)
-			pr_support = check_version(mc_version, 10, 20, 0);
+			ctrlpriv->pr_support = check_version(mc_version, 10, 20,
+							     0);
 		else
 			return -EPROBE_DEFER;
 	}
@@ -861,9 +985,6 @@ set_dma_mask:
 		return -ENOMEM;
 	}
 
-	if (!reg_access)
-		goto report_live;
-
 	comp_params = rd_reg32(&perfmon->comp_parms_ls);
 	ctrlpriv->blob_present = !!(comp_params & CTPR_LS_BLOB);
 
@@ -873,8 +994,6 @@ set_dma_mask:
 	 * check both here.
 	 */
 	if (ctrlpriv->era < 10) {
-		rng_vid = (rd_reg32(&perfmon->cha_id_ls) &
-			   CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT;
 		ctrlpriv->blob_present = ctrlpriv->blob_present &&
 			(rd_reg32(&perfmon->cha_num_ls) & CHA_ID_LS_AES_MASK);
 	} else {
@@ -884,90 +1003,15 @@ set_dma_mask:
 			(struct version_regs __iomem *)&ctrlpriv->jr[0]->vreg :
 			(struct version_regs __iomem *)&ctrl->vreg;
 
-		rng_vid = (rd_reg32(&vreg->rng) & CHA_VER_VID_MASK) >>
-			   CHA_VER_VID_SHIFT;
 		ctrlpriv->blob_present = ctrlpriv->blob_present &&
 			(rd_reg32(&vreg->aesa) & CHA_VER_MISC_AES_NUM_MASK);
 	}
 
-	/*
-	 * If SEC has RNG version >= 4 and RNG state handle has not been
-	 * already instantiated, do RNG instantiation
-	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
-	 */
-	if (!(ctrlpriv->mc_en && pr_support) && rng_vid >= 4) {
-		ctrlpriv->rng4_sh_init =
-			rd_reg32(&ctrl->r4tst[0].rdsta);
-		/*
-		 * If the secure keys (TDKEK, JDKEK, TDSK), were already
-		 * generated, signal this to the function that is instantiating
-		 * the state handles. An error would occur if RNG4 attempts
-		 * to regenerate these keys before the next POR.
-		 */
-		gen_sk = ctrlpriv->rng4_sh_init & RDSTA_SKVN ? 0 : 1;
-		ctrlpriv->rng4_sh_init &= RDSTA_MASK;
-		do {
-			int inst_handles =
-				rd_reg32(&ctrl->r4tst[0].rdsta) &
-								RDSTA_MASK;
-			/*
-			 * If either SH were instantiated by somebody else
-			 * (e.g. u-boot) then it is assumed that the entropy
-			 * parameters are properly set and thus the function
-			 * setting these (kick_trng(...)) is skipped.
-			 * Also, if a handle was instantiated, do not change
-			 * the TRNG parameters.
-			 */
-			if (needs_entropy_delay_adjustment())
-				ent_delay = 12000;
-			if (!(ctrlpriv->rng4_sh_init || inst_handles)) {
-				dev_info(dev,
-					 "Entropy delay = %u\n",
-					 ent_delay);
-				kick_trng(pdev, ent_delay);
-				ent_delay += 400;
-			}
-			/*
-			 * if instantiate_rng(...) fails, the loop will rerun
-			 * and the kick_trng(...) function will modify the
-			 * upper and lower limits of the entropy sampling
-			 * interval, leading to a successful initialization of
-			 * the RNG.
-			 */
-			ret = instantiate_rng(dev, inst_handles,
-					      gen_sk);
-			/*
-			 * Entropy delay is determined via TRNG characterization.
-			 * TRNG characterization is run across different voltages
-			 * and temperatures.
-			 * If worst case value for ent_dly is identified,
-			 * the loop can be skipped for that platform.
-			 */
-			if (needs_entropy_delay_adjustment())
-				break;
-			if (ret == -EAGAIN)
-				/*
-				 * if here, the loop will rerun,
-				 * so don't hog the CPU
-				 */
-				cpu_relax();
-		} while ((ret == -EAGAIN) && (ent_delay < RTSDCTL_ENT_DLY_MAX));
-		if (ret) {
-			dev_err(dev, "failed to instantiate RNG");
+	if (reg_access) {
+		ret = caam_ctrl_rng_init(dev);
+		if (ret)
 			return ret;
-		}
-		/*
-		 * Set handles initialized by this module as the complement of
-		 * the already initialized ones
-		 */
-		ctrlpriv->rng4_sh_init = ~ctrlpriv->rng4_sh_init & RDSTA_MASK;
-
-		/* Enable RDB bit so that RNG works faster */
-		clrsetbits_32(&ctrl->scfgr, 0, SCFGR_RDBENABLE);
 	}
-
-report_live:
-	/* NOTE: RTIC detection ought to go here, around Si time */
 
 	caam_id = (u64)rd_reg32(&perfmon->caam_id_ms) << 32 |
 		  (u64)rd_reg32(&perfmon->caam_id_ls);

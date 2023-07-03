@@ -239,6 +239,7 @@ static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
 	if (!xprt)
 		return 0;
 	if (!(xprt->xprt_class->ident == XPRT_TRANSPORT_TCP ||
+	      xprt->xprt_class->ident == XPRT_TRANSPORT_TCP_TLS ||
 	      xprt->xprt_class->ident == XPRT_TRANSPORT_RDMA)) {
 		xprt_put(xprt);
 		return -EOPNOTSUPP;

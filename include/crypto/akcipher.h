@@ -374,6 +374,42 @@ static inline int crypto_akcipher_decrypt(struct akcipher_request *req)
 }
 
 /**
+ * crypto_akcipher_sync_encrypt() - Invoke public key encrypt operation
+ *
+ * Function invokes the specific public key encrypt operation for a given
+ * public key algorithm
+ *
+ * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
+ * @src:	source buffer
+ * @slen:	source length
+ * @dst:	destinatino obuffer
+ * @dlen:	destination length
+ *
+ * Return: zero on success; error code in case of error
+ */
+int crypto_akcipher_sync_encrypt(struct crypto_akcipher *tfm,
+				 const void *src, unsigned int slen,
+				 void *dst, unsigned int dlen);
+
+/**
+ * crypto_akcipher_sync_decrypt() - Invoke public key decrypt operation
+ *
+ * Function invokes the specific public key decrypt operation for a given
+ * public key algorithm
+ *
+ * @tfm:	AKCIPHER tfm handle allocated with crypto_alloc_akcipher()
+ * @src:	source buffer
+ * @slen:	source length
+ * @dst:	destinatino obuffer
+ * @dlen:	destination length
+ *
+ * Return: Output length on success; error code in case of error
+ */
+int crypto_akcipher_sync_decrypt(struct crypto_akcipher *tfm,
+				 const void *src, unsigned int slen,
+				 void *dst, unsigned int dlen);
+
+/**
  * crypto_akcipher_sign() - Invoke public key sign operation
  *
  * Function invokes the specific public key sign operation for a given

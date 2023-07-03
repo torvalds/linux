@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-========================================
-README for the SCSI media changer driver
-========================================
+=========================
+SCSI media changer driver
+=========================
 
 This is a driver for SCSI Medium Changer devices, which are listed
 with "Type: Medium Changer" in /proc/scsi/scsi.

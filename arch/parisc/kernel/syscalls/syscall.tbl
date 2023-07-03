@@ -400,6 +400,7 @@
 353	common	pkey_free		sys_pkey_free
 354	common	rseq			sys_rseq
 355	common	kexec_file_load		sys_kexec_file_load		sys_kexec_file_load
+356	common	cacheflush		sys_cacheflush
 # up to 402 is unassigned and reserved for arch specific syscalls
 403	32	clock_gettime64			sys_clock_gettime		sys_clock_gettime
 404	32	clock_settime64			sys_clock_settime		sys_clock_settime

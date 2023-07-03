@@ -379,22 +379,24 @@ void dso__reset_find_symbol_cache(struct dso *dso);
 size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);
 size_t dso__fprintf(struct dso *dso, FILE *fp);
 
-static inline bool dso__is_vmlinux(struct dso *dso)
+static inline bool dso__is_vmlinux(const struct dso *dso)
 {
 	return dso->binary_type == DSO_BINARY_TYPE__VMLINUX ||
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
 }
 
-static inline bool dso__is_kcore(struct dso *dso)
+static inline bool dso__is_kcore(const struct dso *dso)
 {
 	return dso->binary_type == DSO_BINARY_TYPE__KCORE ||
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
-static inline bool dso__is_kallsyms(struct dso *dso)
+static inline bool dso__is_kallsyms(const struct dso *dso)
 {
 	return dso->kernel && dso->long_name[0] != '/';
 }
+
+bool dso__is_object_file(const struct dso *dso);
 
 void dso__free_a2l(struct dso *dso);
 

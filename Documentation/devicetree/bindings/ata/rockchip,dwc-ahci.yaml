@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/rockchip,dwc-ahci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DWC AHCI SATA controller for Rockchip devices
+
+maintainers:
+  - Serge Semin <fancer.lancer@gmail.com>
+
+description:
+  This document defines device tree bindings for the Synopsys DWC
+  implementation of the AHCI SATA controller found in Rockchip
+  devices.
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - rockchip,rk3568-dwc-ahci
+          - rockchip,rk3588-dwc-ahci
+  required:
+    - compatible
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - rockchip,rk3568-dwc-ahci
+          - rockchip,rk3588-dwc-ahci
+      - const: snps,dwc-ahci
+
+  ports-implemented:
+    const: 1
+
+  sata-port@0:
+    $ref: /schemas/ata/snps,dwc-ahci-common.yaml#/$defs/dwc-ahci-port
+
+    properties:
+      reg:
+        const: 0
+
+    unevaluatedProperties: false
+
+patternProperties:
+  "^sata-port@[1-9a-e]$": false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - ports-implemented
+
+allOf:
+  - $ref: snps,dwc-ahci-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,rk3588-dwc-ahci
+    then:
+      properties:
+        clocks:
+          maxItems: 5
+        clock-names:
+          items:
+            - const: sata
+            - const: pmalive
+            - const: rxoob
+            - const: ref
+            - const: asic
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - rockchip,rk3568-dwc-ahci
+    then:
+      properties:
+        clocks:
+          maxItems: 3
+        clock-names:
+          items:
+            - const: sata
+            - const: pmalive
+            - const: rxoob
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/rockchip,rk3588-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/ata/ahci.h>
+    #include <dt-bindings/phy/phy.h>
+
+    sata@fe210000 {
+      compatible = "rockchip,rk3588-dwc-ahci", "snps,dwc-ahci";
+      reg = <0xfe210000 0x1000>;
+      clocks = <&cru ACLK_SATA0>, <&cru CLK_PMALIVE0>,
+               <&cru CLK_RXOOB0>, <&cru CLK_PIPEPHY0_REF>,
+               <&cru CLK_PIPEPHY0_PIPE_ASIC_G>;
+      clock-names = "sata", "pmalive", "rxoob", "ref", "asic";
+      interrupts = <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH 0>;
+      ports-implemented = <0x1>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      sata-port@0 {
+        reg = <0>;
+        hba-port-cap = <HBA_PORT_FBSCP>;
+        phys = <&combphy0_ps PHY_TYPE_SATA>;
+        phy-names = "sata-phy";
+        snps,rx-ts-max = <32>;
+        snps,tx-ts-max = <32>;
+      };
+    };
+
+...

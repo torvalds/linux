@@ -166,14 +166,12 @@ err_put_parent:
 	return ret;
 }
 
-static int i2c_mux_pinctrl_remove(struct platform_device *pdev)
+static void i2c_mux_pinctrl_remove(struct platform_device *pdev)
 {
 	struct i2c_mux_core *muxc = platform_get_drvdata(pdev);
 
 	i2c_mux_del_adapters(muxc);
 	i2c_put_adapter(muxc->parent);
-
-	return 0;
 }
 
 static const struct of_device_id i2c_mux_pinctrl_of_match[] = {
@@ -188,7 +186,7 @@ static struct platform_driver i2c_mux_pinctrl_driver = {
 		.of_match_table = i2c_mux_pinctrl_of_match,
 	},
 	.probe	= i2c_mux_pinctrl_probe,
-	.remove	= i2c_mux_pinctrl_remove,
+	.remove_new = i2c_mux_pinctrl_remove,
 };
 module_platform_driver(i2c_mux_pinctrl_driver);
 

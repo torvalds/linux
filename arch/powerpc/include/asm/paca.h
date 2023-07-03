@@ -191,6 +191,7 @@ struct paca_struct {
 #ifdef CONFIG_PPC_POWERNV
 	/* PowerNV idle fields */
 	/* PNV_CORE_IDLE_* bits, all siblings work on thread 0 paca */
+	unsigned long idle_lock; /* A value of 1 means acquired */
 	unsigned long idle_state;
 	union {
 		/* P7/P8 specific fields */

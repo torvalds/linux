@@ -14,6 +14,8 @@
 #include "../../../util/intel-bts.h"
 #include "../../../util/pmu.h"
 #include "../../../util/fncache.h"
+#include "../../../util/pmus.h"
+#include "env.h"
 
 struct pmu_alias {
 	char *name;
@@ -167,4 +169,14 @@ char *pmu_find_alias_name(const char *name)
 	cached_list = true;
 
 	return __pmu_find_alias_name(name);
+}
+
+int perf_pmus__num_mem_pmus(void)
+{
+	/* AMD uses IBS OP pmu and not a core PMU for perf mem/c2c */
+	if (x86__is_amd_cpu())
+		return 1;
+
+	/* Intel uses core pmus for perf mem/c2c */
+	return perf_pmus__num_core_pmus();
 }

@@ -285,14 +285,16 @@ static int process_sample_event(struct perf_tool *tool,
 	if (evswitch__discard(&rep->evswitch, evsel))
 		return 0;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
-		return -1;
+		ret = -1;
+		goto out_put;
 	}
 
 	if (rep->stitch_lbr)
-		al.thread->lbr_stitch_enable = true;
+		thread__set_lbr_stitch_enable(al.thread, true);
 
 	if (symbol_conf.hide_unresolved && al.sym == NULL)
 		goto out_put;
@@ -331,7 +333,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (ret < 0)
 		pr_debug("problem adding hist entry, skipping event\n");
 out_put:
-	addr_location__put(&al);
+	addr_location__exit(&al);
 	return ret;
 }
 
@@ -829,14 +831,15 @@ static struct task *tasks_list(struct task *task, struct machine *machine)
 		return NULL;
 
 	/* Last one in the chain. */
-	if (thread->ppid == -1)
+	if (thread__ppid(thread) == -1)
 		return task;
 
-	parent_thread = machine__find_thread(machine, -1, thread->ppid);
+	parent_thread = machine__find_thread(machine, -1, thread__ppid(thread));
 	if (!parent_thread)
 		return ERR_PTR(-ENOENT);
 
 	parent_task = thread__priv(parent_thread);
+	thread__put(parent_thread);
 	list_add_tail(&task->list, &parent_task->children);
 	return tasks_list(parent_task, machine);
 }
@@ -869,12 +872,12 @@ static void task__print_level(struct task *task, FILE *fp, int level)
 	struct thread *thread = task->thread;
 	struct task *child;
 	int comm_indent = fprintf(fp, "  %8d %8d %8d |%*s",
-				  thread->pid_, thread->tid, thread->ppid,
-				  level, "");
+				  thread__pid(thread), thread__tid(thread),
+				  thread__ppid(thread), level, "");
 
 	fprintf(fp, "%s\n", thread__comm_str(thread));
 
-	maps__fprintf_task(thread->maps, comm_indent, fp);
+	maps__fprintf_task(thread__maps(thread), comm_indent, fp);
 
 	if (!list_empty(&task->children)) {
 		list_for_each_entry(child, &task->children, list)
@@ -911,7 +914,7 @@ static int tasks_print(struct report *rep, FILE *fp)
 		     nd = rb_next(nd)) {
 			task = tasks + itask++;
 
-			task->thread = rb_entry(nd, struct thread, rb_node);
+			task->thread = rb_entry(nd, struct thread_rb_node, rb_node)->thread;
 			INIT_LIST_HEAD(&task->children);
 			INIT_LIST_HEAD(&task->list);
 			thread__set_priv(task->thread, task);

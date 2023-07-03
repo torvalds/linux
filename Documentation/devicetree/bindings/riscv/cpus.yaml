@@ -23,6 +23,9 @@ description: |
   two cores, each of which has two hyperthreads, could be described as
   having four harts.
 
+allOf:
+  - $ref: /schemas/cpu.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -61,7 +64,7 @@ properties:
       hart.  These values originate from the RISC-V Privileged
       Specification document, available from
       https://riscv.org/specifications/
-    $ref: "/schemas/types.yaml#/definitions/string"
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - riscv,sv32
       - riscv,sv39
@@ -89,15 +92,18 @@ properties:
       Due to revisions of the ISA specification, some deviations
       have arisen over time.
       Notably, riscv,isa was defined prior to the creation of the
-      Zicsr and Zifencei extensions and thus "i" implies
-      "zicsr_zifencei".
+      Zicntr, Zicsr, Zifencei and Zihpm extensions and thus "i"
+      implies "zicntr_zicsr_zifencei_zihpm".
 
       While the isa strings in ISA specification are case
       insensitive, letters in the riscv,isa string must be all
-      lowercase to simplify parsing.
-    $ref: "/schemas/types.yaml#/definitions/string"
+      lowercase.
+    $ref: /schemas/types.yaml#/definitions/string
     pattern: ^rv(?:64|32)imaf?d?q?c?b?k?j?p?v?h?(?:[hsxz](?:[a-z])+)?(?:_[hsxz](?:[a-z])+)*$
 
+  # RISC-V has multiple properties for cache op block sizes as the sizes
+  # differ between individual CBO extensions
+  cache-op-block-size: false
   # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
   timebase-frequency: false
 
@@ -120,7 +126,7 @@ properties:
       - interrupt-controller
 
   cpu-idle-states:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
     description: |
@@ -137,7 +143,7 @@ required:
   - riscv,isa
   - interrupt-controller
 
-additionalProperties: true
+unevaluatedProperties: false
 
 examples:
   - |

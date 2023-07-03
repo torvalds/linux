@@ -414,6 +414,8 @@ extern bool acpi_is_pnp_device(struct acpi_device *);
 
 typedef void (*wmi_notify_handler) (u32 value, void *context);
 
+int wmi_instance_count(const char *guid);
+
 extern acpi_status wmi_evaluate_method(const char *guid, u8 instance,
 					u32 method_id,
 					const struct acpi_buffer *in,

@@ -964,11 +964,15 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	np = of_find_matching_node(NULL, tegra186_pmc_of_match);
 	if (np) {
-		irq->parent_domain = irq_find_host(np);
-		of_node_put(np);
+		if (of_device_is_available(np)) {
+			irq->parent_domain = irq_find_host(np);
+			of_node_put(np);
 
-		if (!irq->parent_domain)
-			return -EPROBE_DEFER;
+			if (!irq->parent_domain)
+				return -EPROBE_DEFER;
+		} else {
+			of_node_put(np);
+		}
 	}
 
 	irq->map = devm_kcalloc(&pdev->dev, gpio->gpio.ngpio,

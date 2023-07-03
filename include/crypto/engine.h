@@ -78,7 +78,7 @@ struct crypto_engine {
 
 /*
  * struct crypto_engine_op - crypto hardware engine operations
- * @prepare__request: do some prepare if need before handle the current request
+ * @prepare_request: do some preparation if needed before handling the current request
  * @unprepare_request: undo any work done by prepare_request()
  * @do_one_request: do encryption for current request
  */

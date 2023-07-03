@@ -64,6 +64,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	struct uprobe_task *utask = current->utask;
 
 	WARN_ON_ONCE(current->thread.trap_no != UPROBE_TRAP_NR);
+	current->thread.trap_no = utask->autask.saved_trap_no;
 
 	instruction_pointer_set(regs, utask->vaddr + auprobe->insn_size);
 
@@ -100,6 +101,8 @@ bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
+
+	current->thread.trap_no = utask->autask.saved_trap_no;
 
 	/*
 	 * Task has received a fatal signal, so reset back to probed

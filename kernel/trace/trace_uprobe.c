@@ -686,10 +686,12 @@ static int __trace_uprobe_create(int argc, const char **argv)
 
 	/* parse arguments */
 	for (i = 0; i < argc && i < MAX_TRACE_ARGS; i++) {
+		struct traceprobe_parse_context ctx = {
+			.flags = (is_return ? TPARG_FL_RETURN : 0) | TPARG_FL_USER,
+		};
+
 		trace_probe_log_set_index(i + 2);
-		ret = traceprobe_parse_probe_arg(&tu->tp, i, argv[i],
-					(is_return ? TPARG_FL_RETURN : 0) |
-					TPARG_FL_USER);
+		ret = traceprobe_parse_probe_arg(&tu->tp, i, argv[i], &ctx);
 		if (ret)
 			goto error;
 	}

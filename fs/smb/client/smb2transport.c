@@ -92,7 +92,8 @@ int smb2_get_sign_key(__u64 ses_id, struct TCP_Server_Info *server, u8 *key)
 		if (ses->Suid == ses_id)
 			goto found;
 	}
-	cifs_server_dbg(VFS, "%s: Could not find session 0x%llx\n",
+	trace_smb3_ses_not_found(ses_id);
+	cifs_server_dbg(FYI, "%s: Could not find session 0x%llx\n",
 			__func__, ses_id);
 	rc = -ENOENT;
 	goto out;
@@ -153,7 +154,14 @@ smb2_find_smb_ses_unlocked(struct TCP_Server_Info *server, __u64 ses_id)
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		if (ses->Suid != ses_id)
 			continue;
+
+		spin_lock(&ses->ses_lock);
+		if (ses->ses_status == SES_EXITING) {
+			spin_unlock(&ses->ses_lock);
+			continue;
+		}
 		++ses->ses_count;
+		spin_unlock(&ses->ses_lock);
 		return ses;
 	}
 
@@ -557,7 +565,7 @@ smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server,
 
 	rc = smb2_get_sign_key(le64_to_cpu(shdr->SessionId), server, key);
 	if (unlikely(rc)) {
-		cifs_server_dbg(VFS, "%s: Could not get signing key\n", __func__);
+		cifs_server_dbg(FYI, "%s: Could not get signing key\n", __func__);
 		return rc;
 	}
 

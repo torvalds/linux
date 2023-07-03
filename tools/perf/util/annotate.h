@@ -271,8 +271,7 @@ struct annotated_source {
 	struct sym_hist	   *histograms;
 };
 
-struct annotation {
-	struct mutex lock;
+struct LOCKABLE annotation {
 	u64			max_coverage;
 	u64			start;
 	u64			hit_cycles;
@@ -298,8 +297,14 @@ struct annotation {
 	struct annotated_source *src;
 };
 
-void annotation__init(struct annotation *notes);
+static inline void annotation__init(struct annotation *notes __maybe_unused)
+{
+}
 void annotation__exit(struct annotation *notes);
+
+void annotation__lock(struct annotation *notes) EXCLUSIVE_LOCK_FUNCTION(*notes);
+void annotation__unlock(struct annotation *notes) UNLOCK_FUNCTION(*notes);
+bool annotation__trylock(struct annotation *notes) EXCLUSIVE_TRYLOCK_FUNCTION(true, *notes);
 
 static inline int annotation__cycles_width(struct annotation *notes)
 {

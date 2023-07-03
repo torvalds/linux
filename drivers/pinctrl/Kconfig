@@ -510,7 +510,6 @@ config PINCTRL_MLXBF3
 	select PINMUX
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
-	select GPIO_MLXBF3
 	help
 	  Say Y to select the pinctrl driver for BlueField-3 SoCs.
 	  This pin controller allows selecting the mux function for

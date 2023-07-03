@@ -406,6 +406,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/acpi/arm64
 
+ACPI FOR RISC-V (ACPI/riscv)
+M:	Sunil V L <sunilvl@ventanamicro.com>
+L:	linux-acpi@vger.kernel.org
+L:	linux-riscv@lists.infradead.org
+S:	Maintained
+F:	drivers/acpi/riscv/
+
 ACPI PCC(Platform Communication Channel) MAILBOX DRIVER
 M:	Sudeep Holla <sudeep.holla@arm.com>
 L:	linux-acpi@vger.kernel.org
@@ -449,6 +456,8 @@ F:	include/linux/acpi_viot.h
 ACPI WMI DRIVER
 L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
+F:	Documentation/driver-api/wmi.rst
+F:	Documentation/wmi/
 F:	drivers/platform/x86/wmi.c
 F:	include/uapi/linux/wmi.h
 
@@ -2938,7 +2947,6 @@ F:	Documentation/devicetree/bindings/arm/ti/k3.yaml
 F:	Documentation/devicetree/bindings/hwinfo/ti,k3-socinfo.yaml
 F:	arch/arm64/boot/dts/ti/Makefile
 F:	arch/arm64/boot/dts/ti/k3-*
-F:	include/dt-bindings/pinctrl/k3.h
 
 ARM/TOSHIBA VISCONTI ARCHITECTURE
 M:	Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
@@ -5195,6 +5203,13 @@ S:	Maintained
 F:	drivers/cxl/
 F:	include/uapi/linux/cxl_mem.h
 
+COMPUTE EXPRESS LINK PMU (CPMU)
+M:	Jonathan Cameron <jonathan.cameron@huawei.com>
+L:	linux-cxl@vger.kernel.org
+S:	Maintained
+F:	Documentation/admin-guide/perf/cxl.rst
+F:	drivers/perf/cxl_pmu.c
+
 CONEXANT ACCESSRUNNER USB DRIVER
 L:	accessrunner-general@lists.sourceforge.net
 S:	Orphan
@@ -5725,10 +5740,7 @@ DC395x SCSI driver
 M:	Oliver Neukum <oliver@neukum.org>
 M:	Ali Akcaagac <aliakc@web.de>
 M:	Jamie Lenehan <lenehan@twibble.org>
-L:	dc395x@twibble.org
 S:	Maintained
-W:	http://twibble.org/dist/dc395x/
-W:	http://lists.twibble.org/mailman/listinfo/dc395x/
 F:	Documentation/scsi/dc395x.rst
 F:	drivers/scsi/dc395x.*
 
@@ -5838,6 +5850,7 @@ M:	Armin Wolf <W_Armin@gmx.de>
 S:	Maintained
 F:	Documentation/ABI/testing/debugfs-dell-wmi-ddv
 F:	Documentation/ABI/testing/sysfs-platform-dell-wmi-ddv
+F:	Documentation/wmi/devices/dell-wmi-ddv.rst
 F:	drivers/platform/x86/dell/dell-wmi-ddv.c
 
 DELL WMI DESCRIPTOR DRIVER
@@ -8712,6 +8725,9 @@ F:	drivers/input/touchscreen/resistive-adc-touch.c
 GENERIC STRING LIBRARY
 R:	Andy Shevchenko <andy@kernel.org>
 S:	Maintained
+F:	include/linux/string.h
+F:	include/linux/string_choices.h
+F:	include/linux/string_helpers.h
 F:	lib/string.c
 F:	lib/string_helpers.c
 F:	lib/test-string_helpers.c
@@ -10867,7 +10883,6 @@ S:	Maintained
 F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
 IOMAP FILESYSTEM LIBRARY
-M:	Christoph Hellwig <hch@infradead.org>
 M:	Darrick J. Wong <djwong@kernel.org>
 L:	linux-xfs@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
@@ -11448,7 +11463,13 @@ F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/kvm/
 
 KERNEL VIRTUAL MACHINE FOR POWERPC (KVM/powerpc)
+M:	Michael Ellerman <mpe@ellerman.id.au>
+R:	Nicholas Piggin <npiggin@gmail.com>
 L:	linuxppc-dev@lists.ozlabs.org
+L:	kvm@vger.kernel.org
+S:	Maintained (Book3S 64-bit HV)
+S:	Odd fixes (Book3S 64-bit PR)
+S:	Orphan (Book3E and 32-bit)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/powerpc/linux.git topic/ppc-kvm
 F:	arch/powerpc/include/asm/kvm*
 F:	arch/powerpc/include/uapi/asm/kvm*
@@ -11981,11 +12002,12 @@ F:	lib/linear_ranges.c
 F:	lib/test_linear_ranges.c
 
 LINUX FOR POWER MACINTOSH
-M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Odd Fixes
+S:	Orphan
 F:	arch/powerpc/platforms/powermac/
 F:	drivers/macintosh/
+X:	drivers/macintosh/adb-iop.c
+X:	drivers/macintosh/via-macii.c
 
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Michael Ellerman <mpe@ellerman.id.au>
@@ -13728,6 +13750,7 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mani/mhi.git
 F:	Documentation/ABI/stable/sysfs-bus-mhi
 F:	Documentation/mhi/
 F:	drivers/bus/mhi/
+F:	drivers/pci/endpoint/functions/pci-epf-mhi.c
 F:	include/linux/mhi.h
 
 MICROBLAZE ARCHITECTURE
@@ -16780,7 +16803,7 @@ PIN CONTROLLER - QUALCOMM
 M:	Bjorn Andersson <andersson@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/pinctrl/qcom,*.txt
+F:	Documentation/devicetree/bindings/pinctrl/qcom,*
 F:	drivers/pinctrl/qcom/
 
 PIN CONTROLLER - RENESAS
@@ -18904,6 +18927,16 @@ F:	include/linux/wait.h
 F:	include/uapi/linux/sched.h
 F:	kernel/sched/
 
+SCSI LIBSAS SUBSYSTEM
+R:	John Garry <john.g.garry@oracle.com>
+R:	Jason Yan <yanaijie@huawei.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/libsas/
+F:	include/scsi/libsas.h
+F:	include/scsi/sas_ata.h
+F:	Documentation/scsi/libsas.rst
+
 SCSI RDMA PROTOCOL (SRP) INITIATOR
 M:	Bart Van Assche <bvanassche@acm.org>
 L:	linux-rdma@vger.kernel.org
@@ -20237,6 +20270,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/clock/starfive,jh71*.yaml
 F:	drivers/clk/starfive/clk-starfive-jh71*
 F:	include/dt-bindings/clock/starfive?jh71*.h
+
+STARFIVE CRYPTO DRIVER
+M:	Jia Jie Ho <jiajie.ho@starfivetech.com>
+M:	William Qiu <william.qiu@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/crypto/starfive*
+F:	drivers/crypto/starfive/
 
 STARFIVE JH71X0 PINCTRL DRIVERS
 M:	Emil Renner Berthing <kernel@esmil.dk>
@@ -22227,6 +22267,13 @@ F:	Documentation/filesystems/vfat.rst
 F:	fs/fat/
 F:	tools/testing/selftests/filesystems/fat/
 
+VFIO CDX DRIVER
+M:	Nipun Gupta <nipun.gupta@amd.com>
+M:	Nikhil Agarwal <nikhil.agarwal@amd.com>
+L:	kvm@vger.kernel.org
+S:	Maintained
+F:	drivers/vfio/cdx/*
+
 VFIO DRIVER
 M:	Alex Williamson <alex.williamson@redhat.com>
 L:	kvm@vger.kernel.org
@@ -22888,6 +22935,13 @@ WL3501 WIRELESS PCMCIA CARD DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Odd fixes
 F:	drivers/net/wireless/legacy/wl3501*
+
+WMI BINARY MOF DRIVER
+L:	platform-drivers-x86@vger.kernel.org
+S:	Orphan
+F:	Documentation/ABI/stable/sysfs-platform-wmi-bmof
+F:	Documentation/wmi/devices/wmi-bmof.rst
+F:	drivers/platform/x86/wmi-bmof.c
 
 WOLFSON MICROELECTRONICS DRIVERS
 L:	patches@opensource.cirrus.com

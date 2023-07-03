@@ -44,10 +44,7 @@ int test__amd_ibs_via_core_pmu(struct test_suite *test __maybe_unused,
 	int ret = TEST_OK;
 	int fd, i;
 
-	if (list_empty(&pmus))
-		perf_pmu__scan(NULL);
-
-	ibs_pmu = perf_pmu__find("ibs_op");
+	ibs_pmu = perf_pmus__find("ibs_op");
 	if (!ibs_pmu)
 		return TEST_SKIP;
 

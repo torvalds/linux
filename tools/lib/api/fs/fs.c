@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -10,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <sys/mount.h>
 
@@ -43,7 +45,7 @@
 #define BPF_FS_MAGIC           0xcafe4a11
 #endif
 
-static const char * const sysfs__fs_known_mountpoints[] = {
+static const char * const sysfs__known_mountpoints[] = {
 	"/sys",
 	0,
 };
@@ -86,87 +88,89 @@ static const char * const bpf_fs__known_mountpoints[] = {
 };
 
 struct fs {
-	const char		*name;
-	const char * const	*mounts;
-	char			 path[PATH_MAX];
-	bool			 found;
-	bool			 checked;
-	long			 magic;
-};
-
-enum {
-	FS__SYSFS   = 0,
-	FS__PROCFS  = 1,
-	FS__DEBUGFS = 2,
-	FS__TRACEFS = 3,
-	FS__HUGETLBFS = 4,
-	FS__BPF_FS = 5,
+	const char *		 const name;
+	const char * const *	 const mounts;
+	char			*path;
+	pthread_mutex_t		 mount_mutex;
+	const long		 magic;
 };
 
 #ifndef TRACEFS_MAGIC
 #define TRACEFS_MAGIC 0x74726163
 #endif
 
-static struct fs fs__entries[] = {
-	[FS__SYSFS] = {
-		.name	= "sysfs",
-		.mounts	= sysfs__fs_known_mountpoints,
-		.magic	= SYSFS_MAGIC,
-		.checked = false,
-	},
-	[FS__PROCFS] = {
-		.name	= "proc",
-		.mounts	= procfs__known_mountpoints,
-		.magic	= PROC_SUPER_MAGIC,
-		.checked = false,
-	},
-	[FS__DEBUGFS] = {
-		.name	= "debugfs",
-		.mounts	= debugfs__known_mountpoints,
-		.magic	= DEBUGFS_MAGIC,
-		.checked = false,
-	},
-	[FS__TRACEFS] = {
-		.name	= "tracefs",
-		.mounts	= tracefs__known_mountpoints,
-		.magic	= TRACEFS_MAGIC,
-		.checked = false,
-	},
-	[FS__HUGETLBFS] = {
-		.name	= "hugetlbfs",
-		.mounts = hugetlbfs__known_mountpoints,
-		.magic	= HUGETLBFS_MAGIC,
-		.checked = false,
-	},
-	[FS__BPF_FS] = {
-		.name	= "bpf",
-		.mounts = bpf_fs__known_mountpoints,
-		.magic	= BPF_FS_MAGIC,
-		.checked = false,
-	},
-};
+static void fs__init_once(struct fs *fs);
+static const char *fs__mountpoint(const struct fs *fs);
+static const char *fs__mount(struct fs *fs);
+
+#define FS(lower_name, fs_name, upper_name)		\
+static struct fs fs__##lower_name = {			\
+	.name = #fs_name,				\
+	.mounts = lower_name##__known_mountpoints,	\
+	.magic = upper_name##_MAGIC,			\
+	.mount_mutex = PTHREAD_MUTEX_INITIALIZER,	\
+};							\
+							\
+static void lower_name##_init_once(void)		\
+{							\
+	struct fs *fs = &fs__##lower_name;		\
+							\
+	fs__init_once(fs);				\
+}							\
+							\
+const char *lower_name##__mountpoint(void)		\
+{							\
+	static pthread_once_t init_once = PTHREAD_ONCE_INIT;	\
+	struct fs *fs = &fs__##lower_name;		\
+							\
+	pthread_once(&init_once, lower_name##_init_once);	\
+	return fs__mountpoint(fs);			\
+}							\
+							\
+const char *lower_name##__mount(void)			\
+{							\
+	const char *mountpoint = lower_name##__mountpoint();	\
+	struct fs *fs = &fs__##lower_name;		\
+							\
+	if (mountpoint)					\
+		return mountpoint;			\
+							\
+	return fs__mount(fs);				\
+}							\
+							\
+bool lower_name##__configured(void)			\
+{							\
+	return lower_name##__mountpoint() != NULL;	\
+}
+
+FS(sysfs, sysfs, SYSFS);
+FS(procfs, procfs, PROC_SUPER);
+FS(debugfs, debugfs, DEBUGFS);
+FS(tracefs, tracefs, TRACEFS);
+FS(hugetlbfs, hugetlbfs, HUGETLBFS);
+FS(bpf_fs, bpf, BPF_FS);
 
 static bool fs__read_mounts(struct fs *fs)
 {
-	bool found = false;
 	char type[100];
 	FILE *fp;
+	char path[PATH_MAX + 1];
 
 	fp = fopen("/proc/mounts", "r");
 	if (fp == NULL)
-		return NULL;
+		return false;
 
-	while (!found &&
-	       fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
-		      fs->path, type) == 2) {
+	while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
+		      path, type) == 2) {
 
-		if (strcmp(type, fs->name) == 0)
-			found = true;
+		if (strcmp(type, fs->name) == 0) {
+			fs->path = strdup(path);
+			fclose(fp);
+			return fs->path != NULL;
+		}
 	}
-
 	fclose(fp);
-	fs->checked = true;
-	return fs->found = found;
+	return false;
 }
 
 static int fs__valid_mount(const char *fs, long magic)
@@ -188,8 +192,9 @@ static bool fs__check_mounts(struct fs *fs)
 	ptr = fs->mounts;
 	while (*ptr) {
 		if (fs__valid_mount(*ptr, fs->magic) == 0) {
-			fs->found = true;
-			strcpy(fs->path, *ptr);
+			fs->path = strdup(*ptr);
+			if (!fs->path)
+				return false;
 			return true;
 		}
 		ptr++;
@@ -227,43 +232,26 @@ static bool fs__env_override(struct fs *fs)
 	if (!override_path)
 		return false;
 
-	fs->found = true;
-	fs->checked = true;
-	strncpy(fs->path, override_path, sizeof(fs->path) - 1);
-	fs->path[sizeof(fs->path) - 1] = '\0';
+	fs->path = strdup(override_path);
+	if (!fs->path)
+		return false;
 	return true;
 }
 
-static const char *fs__get_mountpoint(struct fs *fs)
+static void fs__init_once(struct fs *fs)
 {
-	if (fs__env_override(fs))
-		return fs->path;
-
-	if (fs__check_mounts(fs))
-		return fs->path;
-
-	if (fs__read_mounts(fs))
-		return fs->path;
-
-	return NULL;
+	if (!fs__env_override(fs) &&
+	    !fs__check_mounts(fs) &&
+	    !fs__read_mounts(fs)) {
+		assert(!fs->path);
+	} else {
+		assert(fs->path);
+	}
 }
 
-static const char *fs__mountpoint(int idx)
+static const char *fs__mountpoint(const struct fs *fs)
 {
-	struct fs *fs = &fs__entries[idx];
-
-	if (fs->found)
-		return (const char *)fs->path;
-
-	/* the mount point was already checked for the mount point
-	 * but and did not exist, so return NULL to avoid scanning again.
-	 * This makes the found and not found paths cost equivalent
-	 * in case of multiple calls.
-	 */
-	if (fs->checked)
-		return NULL;
-
-	return fs__get_mountpoint(fs);
+	return fs->path;
 }
 
 static const char *mount_overload(struct fs *fs)
@@ -278,44 +266,28 @@ static const char *mount_overload(struct fs *fs)
 	return getenv(upper_name) ?: *fs->mounts;
 }
 
-static const char *fs__mount(int idx)
+static const char *fs__mount(struct fs *fs)
 {
-	struct fs *fs = &fs__entries[idx];
 	const char *mountpoint;
 
-	if (fs__mountpoint(idx))
-		return (const char *)fs->path;
+	pthread_mutex_lock(&fs->mount_mutex);
+
+	/* Check if path found inside the mutex to avoid races with other callers of mount. */
+	mountpoint = fs__mountpoint(fs);
+	if (mountpoint)
+		goto out;
 
 	mountpoint = mount_overload(fs);
 
-	if (mount(NULL, mountpoint, fs->name, 0, NULL) < 0)
-		return NULL;
-
-	return fs__check_mounts(fs) ? fs->path : NULL;
+	if (mount(NULL, mountpoint, fs->name, 0, NULL) == 0 &&
+	    fs__valid_mount(mountpoint, fs->magic) == 0) {
+		fs->path = strdup(mountpoint);
+		mountpoint = fs->path;
+	}
+out:
+	pthread_mutex_unlock(&fs->mount_mutex);
+	return mountpoint;
 }
-
-#define FS(name, idx)				\
-const char *name##__mountpoint(void)		\
-{						\
-	return fs__mountpoint(idx);		\
-}						\
-						\
-const char *name##__mount(void)			\
-{						\
-	return fs__mount(idx);			\
-}						\
-						\
-bool name##__configured(void)			\
-{						\
-	return name##__mountpoint() != NULL;	\
-}
-
-FS(sysfs,   FS__SYSFS);
-FS(procfs,  FS__PROCFS);
-FS(debugfs, FS__DEBUGFS);
-FS(tracefs, FS__TRACEFS);
-FS(hugetlbfs, FS__HUGETLBFS);
-FS(bpf_fs, FS__BPF_FS);
 
 int filename__read_int(const char *filename, int *value)
 {

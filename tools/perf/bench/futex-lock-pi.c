@@ -118,8 +118,7 @@ static void *workerfn(void *arg)
 	return NULL;
 }
 
-static void create_threads(struct worker *w, pthread_attr_t thread_attr,
-			   struct perf_cpu_map *cpu)
+static void create_threads(struct worker *w, struct perf_cpu_map *cpu)
 {
 	cpu_set_t *cpuset;
 	unsigned int i;
@@ -133,6 +132,9 @@ static void create_threads(struct worker *w, pthread_attr_t thread_attr,
 	size = CPU_ALLOC_SIZE(nrcpus);
 
 	for (i = 0; i < params.nthreads; i++) {
+		pthread_attr_t thread_attr;
+
+		pthread_attr_init(&thread_attr);
 		worker[i].tid = i;
 
 		if (params.multi) {
@@ -154,6 +156,7 @@ static void create_threads(struct worker *w, pthread_attr_t thread_attr,
 			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_create");
 		}
+		pthread_attr_destroy(&thread_attr);
 	}
 	CPU_FREE(cpuset);
 }
@@ -163,7 +166,6 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	int ret = 0;
 	unsigned int i;
 	struct sigaction act;
-	pthread_attr_t thread_attr;
 	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_lock_pi_usage, 0);
@@ -203,11 +205,9 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	cond_init(&thread_worker);
 
 	threads_starting = params.nthreads;
-	pthread_attr_init(&thread_attr);
 	gettimeofday(&bench__start, NULL);
 
-	create_threads(worker, thread_attr, cpu);
-	pthread_attr_destroy(&thread_attr);
+	create_threads(worker, cpu);
 
 	mutex_lock(&thread_lock);
 	while (threads_starting)

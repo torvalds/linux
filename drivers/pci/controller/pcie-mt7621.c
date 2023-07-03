@@ -524,15 +524,13 @@ remove_resets:
 	return err;
 }
 
-static int mt7621_pcie_remove(struct platform_device *pdev)
+static void mt7621_pcie_remove(struct platform_device *pdev)
 {
 	struct mt7621_pcie *pcie = platform_get_drvdata(pdev);
 	struct mt7621_pcie_port *port;
 
 	list_for_each_entry(port, &pcie->ports, list)
 		reset_control_put(port->pcie_rst);
-
-	return 0;
 }
 
 static const struct of_device_id mt7621_pcie_ids[] = {
@@ -543,7 +541,7 @@ MODULE_DEVICE_TABLE(of, mt7621_pcie_ids);
 
 static struct platform_driver mt7621_pcie_driver = {
 	.probe = mt7621_pcie_probe,
-	.remove = mt7621_pcie_remove,
+	.remove_new = mt7621_pcie_remove,
 	.driver = {
 		.name = "mt7621-pci",
 		.of_match_table = mt7621_pcie_ids,

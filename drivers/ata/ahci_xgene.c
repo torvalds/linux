@@ -868,7 +868,7 @@ disable_resources:
 
 static struct platform_driver xgene_ahci_driver = {
 	.probe = xgene_ahci_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = xgene_ahci_of_match,

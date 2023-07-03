@@ -368,7 +368,6 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 	struct pci_dev *sdev;
 	u16 reg16, dev_id;
 	int cap, err;
-	u32 reg32;
 
 	err = pci_read_config_word(dev->pdev, PCI_DEVICE_ID, &dev_id);
 	if (err)
@@ -399,11 +398,8 @@ static int mlx5_pci_link_toggle(struct mlx5_core_dev *dev)
 		return err;
 
 	/* Check link */
-	err = pci_read_config_dword(bridge, cap + PCI_EXP_LNKCAP, &reg32);
-	if (err)
-		return err;
-	if (!(reg32 & PCI_EXP_LNKCAP_DLLLARC)) {
-		mlx5_core_warn(dev, "No PCI link reporting capability (0x%08x)\n", reg32);
+	if (!bridge->link_active_reporting) {
+		mlx5_core_warn(dev, "No PCI link reporting capability\n");
 		msleep(1000);
 		goto restore;
 	}

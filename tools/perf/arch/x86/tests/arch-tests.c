@@ -4,7 +4,9 @@
 #include "arch-tests.h"
 
 #ifdef HAVE_AUXTRACE_SUPPORT
+#ifdef HAVE_EXTRA_TESTS
 DEFINE_SUITE("x86 instruction decoder - new instructions", insn_x86);
+#endif
 
 static struct test_case intel_pt_tests[] = {
 	TEST_CASE("Intel PT packet decoder", intel_pt_pkt_decoder),
@@ -23,13 +25,24 @@ DEFINE_SUITE("x86 bp modify", bp_modify);
 #endif
 DEFINE_SUITE("x86 Sample parsing", x86_sample_parsing);
 DEFINE_SUITE("AMD IBS via core pmu", amd_ibs_via_core_pmu);
+static struct test_case hybrid_tests[] = {
+	TEST_CASE_REASON("x86 hybrid event parsing", hybrid, "not hybrid"),
+	{ .name = NULL, }
+};
+
+struct test_suite suite__hybrid = {
+	.desc = "x86 hybrid",
+	.test_cases = hybrid_tests,
+};
 
 struct test_suite *arch_tests[] = {
 #ifdef HAVE_DWARF_UNWIND_SUPPORT
 	&suite__dwarf_unwind,
 #endif
 #ifdef HAVE_AUXTRACE_SUPPORT
+#ifdef HAVE_EXTRA_TESTS
 	&suite__insn_x86,
+#endif
 	&suite__intel_pt,
 #endif
 #if defined(__x86_64__)
@@ -37,5 +50,6 @@ struct test_suite *arch_tests[] = {
 #endif
 	&suite__x86_sample_parsing,
 	&suite__amd_ibs_via_core_pmu,
+	&suite__hybrid,
 	NULL,
 };

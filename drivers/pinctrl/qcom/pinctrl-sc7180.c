@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinctrl.h>
 
 #include "pinctrl-msm.h"
 
@@ -20,18 +19,11 @@ enum {
 	WEST
 };
 
-#define FUNCTION(fname)					\
-	[msm_mux_##fname] = {				\
-		.name = #fname,				\
-		.groups = fname##_groups,		\
-		.ngroups = ARRAY_SIZE(fname##_groups),	\
-	}
-
 #define PINGROUP(id, _tile, f1, f2, f3, f4, f5, f6, f7, f8, f9)	\
 	{						\
-		.name = "gpio" #id,			\
-		.pins = gpio##id##_pins,		\
-		.npins = ARRAY_SIZE(gpio##id##_pins),	\
+		.grp = PINCTRL_PINGROUP("gpio" #id, 	\
+			gpio##id##_pins, 		\
+			ARRAY_SIZE(gpio##id##_pins)),	\
 		.funcs = (int[]){			\
 			msm_mux_gpio, /* gpio mode */	\
 			msm_mux_##f1,			\
@@ -69,9 +61,9 @@ enum {
 
 #define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
 	{						\
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = ctl,				\
 		.io_reg = 0,				\
 		.intr_cfg_reg = 0,			\
@@ -95,9 +87,9 @@ enum {
 
 #define UFS_RESET(pg_name, offset)				\
 	{						\
-		.name = #pg_name,			\
-		.pins = pg_name##_pins,			\
-		.npins = ARRAY_SIZE(pg_name##_pins),	\
+		.grp = PINCTRL_PINGROUP(#pg_name, 	\
+			pg_name##_pins, 		\
+			ARRAY_SIZE(pg_name##_pins)),	\
 		.ctl_reg = offset,			\
 		.io_reg = offset + 0x4,			\
 		.intr_cfg_reg = 0,			\
@@ -868,120 +860,120 @@ static const char * const qup04_uart_groups[] = {
 	"gpio115", "gpio116",
 };
 
-static const struct msm_function sc7180_functions[] = {
-	FUNCTION(adsp_ext),
-	FUNCTION(agera_pll),
-	FUNCTION(aoss_cti),
-	FUNCTION(atest_char),
-	FUNCTION(atest_char0),
-	FUNCTION(atest_char1),
-	FUNCTION(atest_char2),
-	FUNCTION(atest_char3),
-	FUNCTION(atest_tsens),
-	FUNCTION(atest_tsens2),
-	FUNCTION(atest_usb1),
-	FUNCTION(atest_usb2),
-	FUNCTION(atest_usb10),
-	FUNCTION(atest_usb11),
-	FUNCTION(atest_usb12),
-	FUNCTION(atest_usb13),
-	FUNCTION(atest_usb20),
-	FUNCTION(atest_usb21),
-	FUNCTION(atest_usb22),
-	FUNCTION(atest_usb23),
-	FUNCTION(audio_ref),
-	FUNCTION(btfm_slimbus),
-	FUNCTION(cam_mclk),
-	FUNCTION(cci_async),
-	FUNCTION(cci_i2c),
-	FUNCTION(cci_timer0),
-	FUNCTION(cci_timer1),
-	FUNCTION(cci_timer2),
-	FUNCTION(cci_timer3),
-	FUNCTION(cci_timer4),
-	FUNCTION(cri_trng),
-	FUNCTION(dbg_out),
-	FUNCTION(ddr_bist),
-	FUNCTION(ddr_pxi0),
-	FUNCTION(ddr_pxi1),
-	FUNCTION(ddr_pxi2),
-	FUNCTION(ddr_pxi3),
-	FUNCTION(dp_hot),
-	FUNCTION(edp_lcd),
-	FUNCTION(gcc_gp1),
-	FUNCTION(gcc_gp2),
-	FUNCTION(gcc_gp3),
-	FUNCTION(gpio),
-	FUNCTION(gp_pdm0),
-	FUNCTION(gp_pdm1),
-	FUNCTION(gp_pdm2),
-	FUNCTION(gps_tx),
-	FUNCTION(jitter_bist),
-	FUNCTION(ldo_en),
-	FUNCTION(ldo_update),
-	FUNCTION(lpass_ext),
-	FUNCTION(mdp_vsync),
-	FUNCTION(mdp_vsync0),
-	FUNCTION(mdp_vsync1),
-	FUNCTION(mdp_vsync2),
-	FUNCTION(mdp_vsync3),
-	FUNCTION(mi2s_0),
-	FUNCTION(mi2s_1),
-	FUNCTION(mi2s_2),
-	FUNCTION(mss_lte),
-	FUNCTION(m_voc),
-	FUNCTION(pa_indicator),
-	FUNCTION(phase_flag),
-	FUNCTION(PLL_BIST),
-	FUNCTION(pll_bypassnl),
-	FUNCTION(pll_reset),
-	FUNCTION(prng_rosc),
-	FUNCTION(qdss),
-	FUNCTION(qdss_cti),
-	FUNCTION(qlink_enable),
-	FUNCTION(qlink_request),
-	FUNCTION(qspi_clk),
-	FUNCTION(qspi_cs),
-	FUNCTION(qspi_data),
-	FUNCTION(qup00),
-	FUNCTION(qup01),
-	FUNCTION(qup02_i2c),
-	FUNCTION(qup02_uart),
-	FUNCTION(qup03),
-	FUNCTION(qup04_i2c),
-	FUNCTION(qup04_uart),
-	FUNCTION(qup05),
-	FUNCTION(qup10),
-	FUNCTION(qup11_i2c),
-	FUNCTION(qup11_uart),
-	FUNCTION(qup12),
-	FUNCTION(qup13_i2c),
-	FUNCTION(qup13_uart),
-	FUNCTION(qup14),
-	FUNCTION(qup15),
-	FUNCTION(sdc1_tb),
-	FUNCTION(sdc2_tb),
-	FUNCTION(sd_write),
-	FUNCTION(sp_cmu),
-	FUNCTION(tgu_ch0),
-	FUNCTION(tgu_ch1),
-	FUNCTION(tgu_ch2),
-	FUNCTION(tgu_ch3),
-	FUNCTION(tsense_pwm1),
-	FUNCTION(tsense_pwm2),
-	FUNCTION(uim1),
-	FUNCTION(uim2),
-	FUNCTION(uim_batt),
-	FUNCTION(usb_phy),
-	FUNCTION(vfr_1),
-	FUNCTION(_V_GPIO),
-	FUNCTION(_V_PPS_IN),
-	FUNCTION(_V_PPS_OUT),
-	FUNCTION(vsense_trigger),
-	FUNCTION(wlan1_adc0),
-	FUNCTION(wlan1_adc1),
-	FUNCTION(wlan2_adc0),
-	FUNCTION(wlan2_adc1),
+static const struct pinfunction sc7180_functions[] = {
+	MSM_PIN_FUNCTION(adsp_ext),
+	MSM_PIN_FUNCTION(agera_pll),
+	MSM_PIN_FUNCTION(aoss_cti),
+	MSM_PIN_FUNCTION(atest_char),
+	MSM_PIN_FUNCTION(atest_char0),
+	MSM_PIN_FUNCTION(atest_char1),
+	MSM_PIN_FUNCTION(atest_char2),
+	MSM_PIN_FUNCTION(atest_char3),
+	MSM_PIN_FUNCTION(atest_tsens),
+	MSM_PIN_FUNCTION(atest_tsens2),
+	MSM_PIN_FUNCTION(atest_usb1),
+	MSM_PIN_FUNCTION(atest_usb2),
+	MSM_PIN_FUNCTION(atest_usb10),
+	MSM_PIN_FUNCTION(atest_usb11),
+	MSM_PIN_FUNCTION(atest_usb12),
+	MSM_PIN_FUNCTION(atest_usb13),
+	MSM_PIN_FUNCTION(atest_usb20),
+	MSM_PIN_FUNCTION(atest_usb21),
+	MSM_PIN_FUNCTION(atest_usb22),
+	MSM_PIN_FUNCTION(atest_usb23),
+	MSM_PIN_FUNCTION(audio_ref),
+	MSM_PIN_FUNCTION(btfm_slimbus),
+	MSM_PIN_FUNCTION(cam_mclk),
+	MSM_PIN_FUNCTION(cci_async),
+	MSM_PIN_FUNCTION(cci_i2c),
+	MSM_PIN_FUNCTION(cci_timer0),
+	MSM_PIN_FUNCTION(cci_timer1),
+	MSM_PIN_FUNCTION(cci_timer2),
+	MSM_PIN_FUNCTION(cci_timer3),
+	MSM_PIN_FUNCTION(cci_timer4),
+	MSM_PIN_FUNCTION(cri_trng),
+	MSM_PIN_FUNCTION(dbg_out),
+	MSM_PIN_FUNCTION(ddr_bist),
+	MSM_PIN_FUNCTION(ddr_pxi0),
+	MSM_PIN_FUNCTION(ddr_pxi1),
+	MSM_PIN_FUNCTION(ddr_pxi2),
+	MSM_PIN_FUNCTION(ddr_pxi3),
+	MSM_PIN_FUNCTION(dp_hot),
+	MSM_PIN_FUNCTION(edp_lcd),
+	MSM_PIN_FUNCTION(gcc_gp1),
+	MSM_PIN_FUNCTION(gcc_gp2),
+	MSM_PIN_FUNCTION(gcc_gp3),
+	MSM_PIN_FUNCTION(gpio),
+	MSM_PIN_FUNCTION(gp_pdm0),
+	MSM_PIN_FUNCTION(gp_pdm1),
+	MSM_PIN_FUNCTION(gp_pdm2),
+	MSM_PIN_FUNCTION(gps_tx),
+	MSM_PIN_FUNCTION(jitter_bist),
+	MSM_PIN_FUNCTION(ldo_en),
+	MSM_PIN_FUNCTION(ldo_update),
+	MSM_PIN_FUNCTION(lpass_ext),
+	MSM_PIN_FUNCTION(mdp_vsync),
+	MSM_PIN_FUNCTION(mdp_vsync0),
+	MSM_PIN_FUNCTION(mdp_vsync1),
+	MSM_PIN_FUNCTION(mdp_vsync2),
+	MSM_PIN_FUNCTION(mdp_vsync3),
+	MSM_PIN_FUNCTION(mi2s_0),
+	MSM_PIN_FUNCTION(mi2s_1),
+	MSM_PIN_FUNCTION(mi2s_2),
+	MSM_PIN_FUNCTION(mss_lte),
+	MSM_PIN_FUNCTION(m_voc),
+	MSM_PIN_FUNCTION(pa_indicator),
+	MSM_PIN_FUNCTION(phase_flag),
+	MSM_PIN_FUNCTION(PLL_BIST),
+	MSM_PIN_FUNCTION(pll_bypassnl),
+	MSM_PIN_FUNCTION(pll_reset),
+	MSM_PIN_FUNCTION(prng_rosc),
+	MSM_PIN_FUNCTION(qdss),
+	MSM_PIN_FUNCTION(qdss_cti),
+	MSM_PIN_FUNCTION(qlink_enable),
+	MSM_PIN_FUNCTION(qlink_request),
+	MSM_PIN_FUNCTION(qspi_clk),
+	MSM_PIN_FUNCTION(qspi_cs),
+	MSM_PIN_FUNCTION(qspi_data),
+	MSM_PIN_FUNCTION(qup00),
+	MSM_PIN_FUNCTION(qup01),
+	MSM_PIN_FUNCTION(qup02_i2c),
+	MSM_PIN_FUNCTION(qup02_uart),
+	MSM_PIN_FUNCTION(qup03),
+	MSM_PIN_FUNCTION(qup04_i2c),
+	MSM_PIN_FUNCTION(qup04_uart),
+	MSM_PIN_FUNCTION(qup05),
+	MSM_PIN_FUNCTION(qup10),
+	MSM_PIN_FUNCTION(qup11_i2c),
+	MSM_PIN_FUNCTION(qup11_uart),
+	MSM_PIN_FUNCTION(qup12),
+	MSM_PIN_FUNCTION(qup13_i2c),
+	MSM_PIN_FUNCTION(qup13_uart),
+	MSM_PIN_FUNCTION(qup14),
+	MSM_PIN_FUNCTION(qup15),
+	MSM_PIN_FUNCTION(sdc1_tb),
+	MSM_PIN_FUNCTION(sdc2_tb),
+	MSM_PIN_FUNCTION(sd_write),
+	MSM_PIN_FUNCTION(sp_cmu),
+	MSM_PIN_FUNCTION(tgu_ch0),
+	MSM_PIN_FUNCTION(tgu_ch1),
+	MSM_PIN_FUNCTION(tgu_ch2),
+	MSM_PIN_FUNCTION(tgu_ch3),
+	MSM_PIN_FUNCTION(tsense_pwm1),
+	MSM_PIN_FUNCTION(tsense_pwm2),
+	MSM_PIN_FUNCTION(uim1),
+	MSM_PIN_FUNCTION(uim2),
+	MSM_PIN_FUNCTION(uim_batt),
+	MSM_PIN_FUNCTION(usb_phy),
+	MSM_PIN_FUNCTION(vfr_1),
+	MSM_PIN_FUNCTION(_V_GPIO),
+	MSM_PIN_FUNCTION(_V_PPS_IN),
+	MSM_PIN_FUNCTION(_V_PPS_OUT),
+	MSM_PIN_FUNCTION(vsense_trigger),
+	MSM_PIN_FUNCTION(wlan1_adc0),
+	MSM_PIN_FUNCTION(wlan1_adc1),
+	MSM_PIN_FUNCTION(wlan2_adc0),
+	MSM_PIN_FUNCTION(wlan2_adc1),
 };
 
 /* Every pin is maintained as a single group, and missing or non-existing pin

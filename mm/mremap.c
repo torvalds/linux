@@ -715,7 +715,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	}
 
 	vma_iter_init(&vmi, mm, old_addr);
-	if (do_vmi_munmap(&vmi, mm, old_addr, old_len, uf_unmap, false) < 0) {
+	if (!do_vmi_munmap(&vmi, mm, old_addr, old_len, uf_unmap, false)) {
 		/* OOM: unable to split vma, just get accounts right */
 		if (vm_flags & VM_ACCOUNT && !(flags & MREMAP_DONTUNMAP))
 			vm_acct_memory(old_len >> PAGE_SHIFT);
@@ -913,7 +913,6 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
 	bool locked = false;
-	bool downgraded = false;
 	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
 	LIST_HEAD(uf_unmap_early);
 	LIST_HEAD(uf_unmap);
@@ -999,24 +998,23 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	 * Always allow a shrinking remap: that just unmaps
 	 * the unnecessary pages..
 	 * do_vmi_munmap does all the needed commit accounting, and
-	 * downgrades mmap_lock to read if so directed.
+	 * unlocks the mmap_lock if so directed.
 	 */
 	if (old_len >= new_len) {
-		int retval;
 		VMA_ITERATOR(vmi, mm, addr + new_len);
 
-		retval = do_vmi_munmap(&vmi, mm, addr + new_len,
-				       old_len - new_len, &uf_unmap, true);
-		/* Returning 1 indicates mmap_lock is downgraded to read. */
-		if (retval == 1) {
-			downgraded = true;
-		} else if (retval < 0 && old_len != new_len) {
-			ret = retval;
+		if (old_len == new_len) {
+			ret = addr;
 			goto out;
 		}
 
+		ret = do_vmi_munmap(&vmi, mm, addr + new_len, old_len - new_len,
+				    &uf_unmap, true);
+		if (ret)
+			goto out;
+
 		ret = addr;
-		goto out;
+		goto out_unlocked;
 	}
 
 	/*
@@ -1101,12 +1099,10 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 out:
 	if (offset_in_page(ret))
 		locked = false;
-	if (downgraded)
-		mmap_read_unlock(current->mm);
-	else
-		mmap_write_unlock(current->mm);
+	mmap_write_unlock(current->mm);
 	if (locked && new_len > old_len)
 		mm_populate(new_addr + old_len, new_len - old_len);
+out_unlocked:
 	userfaultfd_unmap_complete(mm, &uf_unmap_early);
 	mremap_userfaultfd_complete(&uf, addr, ret, old_len);
 	userfaultfd_unmap_complete(mm, &uf_unmap);
