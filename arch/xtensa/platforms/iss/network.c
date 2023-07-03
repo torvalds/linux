@@ -540,6 +540,7 @@ static void iss_net_configure(int index, char *init)
 		rtnl_unlock();
 		pr_err("%s: error registering net device!\n", dev->name);
 		platform_device_unregister(&lp->pdev);
+		/* dev is freed by the iss_net_pdev_release callback */
 		return;
 	}
 	rtnl_unlock();
