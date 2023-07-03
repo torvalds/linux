@@ -323,7 +323,7 @@ struct cxl_mbox_activate_fw {
 
 /* FW state bits */
 #define CXL_FW_STATE_BITS		32
-#define CXL_FW_CANCEL		BIT(0)
+#define CXL_FW_CANCEL			0
 
 /**
  * struct cxl_fw_state - Firmware upload / activation state
