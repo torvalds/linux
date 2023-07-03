@@ -664,14 +664,14 @@ static inline bool hmp_capable(void)
 	return max_possible_cluster_id != min_possible_cluster_id;
 }
 
-static inline bool is_max_cluster_cpu(int cpu)
+static inline bool is_max_possible_cluster_cpu(int cpu)
 {
 	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->cluster->id == max_possible_cluster_id;
 }
 
-static inline bool is_min_cluster_cpu(int cpu)
+static inline bool is_min_possible_cluster_cpu(int cpu)
 {
 	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
@@ -739,7 +739,7 @@ static inline bool walt_should_kick_upmigrate(struct task_struct *p, int cpu)
 
 	if (is_suh_max() && rtg && rtg->id == DEFAULT_CGROUP_COLOC_ID &&
 			    rtg->skip_min && wts->unfilter)
-		return is_min_cluster_cpu(cpu);
+		return is_min_possible_cluster_cpu(cpu);
 
 	return false;
 }
@@ -797,10 +797,10 @@ static inline bool task_fits_max(struct task_struct *p, int dst_cpu)
 {
 	unsigned long task_boost = per_task_boost(p);
 
-	if (is_max_cluster_cpu(dst_cpu))
+	if (is_max_possible_cluster_cpu(dst_cpu))
 		return true;
 
-	if (is_min_cluster_cpu(dst_cpu)) {
+	if (is_min_possible_cluster_cpu(dst_cpu)) {
 		if (task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
 				task_boost > 0 ||
 				walt_uclamp_boosted(p) ||
@@ -999,7 +999,7 @@ extern struct cpumask __cpu_partial_halt_mask;
 #define cpu_partial_halted(cpu) cpumask_test_cpu((cpu), cpu_partial_halt_mask)
 
 #define ASYMCAP_BOOST(cpu)	(sysctl_sched_asymcap_boost && \
-				!is_min_cluster_cpu(cpu) && \
+				!is_min_possible_cluster_cpu(cpu) && \
 				!cpu_partial_halted(cpu))
 
 static inline bool cluster_partial_halted(void)

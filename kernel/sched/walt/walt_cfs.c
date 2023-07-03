@@ -82,11 +82,12 @@ bias_to_this_cpu(struct task_struct *p, int cpu, int start_cpu)
 
 static inline bool task_demand_fits(struct task_struct *p, int dst_cpu)
 {
-	if (is_max_cluster_cpu(dst_cpu))
+	if (is_max_possible_cluster_cpu(dst_cpu))
 		return true;
 
 	if (!task_in_related_thread_group(p) && p->prio >= 124 &&
-			!is_min_cluster_cpu(dst_cpu) && !is_max_cluster_cpu(dst_cpu)) {
+			!is_min_possible_cluster_cpu(dst_cpu) &&
+			!is_max_possible_cluster_cpu(dst_cpu)) {
 		/* a non topapp low prio task fits on gold */
 		return true;
 	}

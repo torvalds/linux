@@ -391,7 +391,7 @@ static inline unsigned long target_util(struct waltgov_policy *wg_policy,
 
 	util = freq_to_util(wg_policy, freq);
 
-	if (is_min_cluster_cpu(wg_policy->policy->cpu) &&
+	if (is_min_possible_cluster_cpu(wg_policy->policy->cpu) &&
 		util >= wg_policy->tunables->target_load_thresh)
 		util = mult_frac(util, 94, 100);
 	else
@@ -1052,9 +1052,9 @@ static int waltgov_init(struct cpufreq_policy *policy)
 	tunables->target_load_thresh = DEFAULT_TARGET_LOAD_THRESH;
 	tunables->target_load_shift = DEFAULT_TARGET_LOAD_SHIFT;
 
-	if (is_min_cluster_cpu(policy->cpu))
+	if (is_min_possible_cluster_cpu(policy->cpu))
 		tunables->rtg_boost_freq = DEFAULT_SILVER_RTG_BOOST_FREQ;
-	else if (is_max_cluster_cpu(policy->cpu))
+	else if (is_max_possible_cluster_cpu(policy->cpu))
 		tunables->rtg_boost_freq = DEFAULT_PRIME_RTG_BOOST_FREQ;
 	else
 		tunables->rtg_boost_freq = DEFAULT_GOLD_RTG_BOOST_FREQ;
