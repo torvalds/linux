@@ -90,6 +90,60 @@ Description:
 			counter does not freeze at the boundary points, but
 			counts continuously throughout.
 
+		interrupt on terminal count:
+			The output signal is initially low, and will remain low
+			until the counter reaches zero. The output signal then
+			goes high and remains high until a new preset value is
+			set.
+
+		hardware retriggerable one-shot:
+			The output signal is initially high. The output signal
+			will go low by a trigger input signal, and will remain
+			low until the counter reaches zero. The output will then
+			go high and remain high until the next trigger. A
+			trigger results in loading the counter to the preset
+			value and setting the output signal low, thus starting
+			the one-shot pulse.
+
+		rate generator:
+			The output signal is initially high. When the counter
+			has decremented to 1, the output signal goes low for one
+			clock pulse. The output signal then goes high again, the
+			counter is reloaded to the preset value, and the process
+			repeats in a periodic manner as such.
+
+		square wave mode:
+			The output signal is initially high.
+
+			If the initial count is even, the counter is decremented
+			by two on succeeding clock pulses. When the count
+			expires, the output signal changes value and the
+			counter is reloaded to the preset value. The process
+			repeats in periodic manner as such.
+
+			If the initial count is odd, the initial count minus one
+			(an even number) is loaded and then is decremented by
+			two on succeeding clock pulses. One clock pulse after
+			the count expires, the output signal goes low and the
+			counter is reloaded to the preset value minus one.
+			Succeeding clock pulses decrement the count by two. When
+			the count expires, the output goes high again and the
+			counter is reloaded to the preset value minus one. The
+			process repeats in a periodic manner as such.
+
+		software triggered strobe:
+			The output signal is initially high. When the count
+			expires, the output will go low for one clock pulse and
+			then go high again. The counting sequence is "triggered"
+			by setting the preset value.
+
+		hardware triggered strobe:
+			The output signal is initially high. Counting is started
+			by a trigger input signal. When the count expires, the
+			output signal will go low for one clock pulse and then
+			go high again. A trigger results in loading the counter
+			to the preset value.
+
 What:		/sys/bus/counter/devices/counterX/countY/count_mode_available
 What:		/sys/bus/counter/devices/counterX/countY/error_noise_available
 What:		/sys/bus/counter/devices/counterX/countY/function_available

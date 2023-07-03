@@ -342,6 +342,9 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
+	/* Reset input selector to its default input */
+	regmap_write(priv->regmap, TIM_TISEL, 0x0);
+
 	/* Register Counter device */
 	ret = devm_counter_add(dev, counter);
 	if (ret < 0)

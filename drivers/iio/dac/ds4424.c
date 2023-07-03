@@ -312,7 +312,7 @@ static struct i2c_driver ds4424_driver = {
 		.of_match_table = ds4424_of_match,
 		.pm     = pm_sleep_ptr(&ds4424_pm_ops),
 	},
-	.probe_new	= ds4424_probe,
+	.probe		= ds4424_probe,
 	.remove		= ds4424_remove,
 	.id_table	= ds4424_id,
 };

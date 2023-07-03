@@ -833,7 +833,7 @@ static struct i2c_driver at24_driver = {
 		.of_match_table = at24_of_match,
 		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},
-	.probe_new = at24_probe,
+	.probe = at24_probe,
 	.remove = at24_remove,
 	.id_table = at24_ids,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,

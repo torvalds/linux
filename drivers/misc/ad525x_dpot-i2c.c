@@ -106,7 +106,7 @@ static struct i2c_driver ad_dpot_i2c_driver = {
 	.driver = {
 		.name	= "ad_dpot",
 	},
-	.probe_new	= ad_dpot_i2c_probe,
+	.probe		= ad_dpot_i2c_probe,
 	.remove		= ad_dpot_i2c_remove,
 	.id_table	= ad_dpot_id,
 };

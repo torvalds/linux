@@ -67,12 +67,6 @@ properties:
   power-domains:
     maxItems: 1
 
-  # Needed if any child nodes are present.
-  "#address-cells":
-    const: 1
-  "#size-cells":
-    const: 1
-
 required:
   - compatible
   - reg

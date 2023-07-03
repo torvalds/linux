@@ -40,9 +40,6 @@
  * across multiple devices and multiple ports per device.
  */
 struct ports_driver_data {
-	/* Used for registering chardevs */
-	struct class *class;
-
 	/* Used for exporting per-port information to debugfs */
 	struct dentry *debugfs_dir;
 
@@ -54,6 +51,10 @@ struct ports_driver_data {
 };
 
 static struct ports_driver_data pdrvdata;
+
+static const struct class port_class = {
+	.name = "virtio-ports",
+};
 
 static DEFINE_SPINLOCK(pdrvdata_lock);
 static DECLARE_COMPLETION(early_console_added);
@@ -1399,7 +1400,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 			"Error %d adding cdev for port %u\n", err, id);
 		goto free_cdev;
 	}
-	port->dev = device_create(pdrvdata.class, &port->portdev->vdev->dev,
+	port->dev = device_create(&port_class, &port->portdev->vdev->dev,
 				  devt, port, "vport%up%u",
 				  port->portdev->vdev->index, id);
 	if (IS_ERR(port->dev)) {
@@ -1465,7 +1466,7 @@ static int add_port(struct ports_device *portdev, u32 id)
 
 free_inbufs:
 free_device:
-	device_destroy(pdrvdata.class, port->dev->devt);
+	device_destroy(&port_class, port->dev->devt);
 free_cdev:
 	cdev_del(port->cdev);
 free_port:
@@ -1540,7 +1541,7 @@ static void unplug_port(struct port *port)
 	port->portdev = NULL;
 
 	sysfs_remove_group(&port->dev->kobj, &port_attribute_group);
-	device_destroy(pdrvdata.class, port->dev->devt);
+	device_destroy(&port_class, port->dev->devt);
 	cdev_del(port->cdev);
 
 	debugfs_remove(port->debugfs_file);
@@ -2244,12 +2245,9 @@ static int __init virtio_console_init(void)
 {
 	int err;
 
-	pdrvdata.class = class_create("virtio-ports");
-	if (IS_ERR(pdrvdata.class)) {
-		err = PTR_ERR(pdrvdata.class);
-		pr_err("Error %d creating virtio-ports class\n", err);
+	err = class_register(&port_class);
+	if (err)
 		return err;
-	}
 
 	pdrvdata.debugfs_dir = debugfs_create_dir("virtio-ports", NULL);
 	INIT_LIST_HEAD(&pdrvdata.consoles);
@@ -2271,7 +2269,7 @@ unregister:
 	unregister_virtio_driver(&virtio_console);
 free:
 	debugfs_remove_recursive(pdrvdata.debugfs_dir);
-	class_destroy(pdrvdata.class);
+	class_unregister(&port_class);
 	return err;
 }
 
@@ -2282,7 +2280,7 @@ static void __exit virtio_console_fini(void)
 	unregister_virtio_driver(&virtio_console);
 	unregister_virtio_driver(&virtio_rproc_serial);
 
-	class_destroy(pdrvdata.class);
+	class_unregister(&port_class);
 	debugfs_remove_recursive(pdrvdata.debugfs_dir);
 }
 module_init(virtio_console_init);

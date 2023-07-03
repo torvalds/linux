@@ -203,7 +203,7 @@ static struct i2c_driver max517_driver = {
 		.name	= MAX517_DRV_NAME,
 		.pm	= pm_sleep_ptr(&max517_pm_ops),
 	},
-	.probe_new	= max517_probe,
+	.probe		= max517_probe,
 	.id_table	= max517_id,
 };
 module_i2c_driver(max517_driver);

@@ -647,7 +647,7 @@ static struct i2c_driver ad7150_driver = {
 		.name = "ad7150",
 		.of_match_table = ad7150_of_match,
 	},
-	.probe_new = ad7150_probe,
+	.probe = ad7150_probe,
 	.id_table = ad7150_id,
 };
 module_i2c_driver(ad7150_driver);

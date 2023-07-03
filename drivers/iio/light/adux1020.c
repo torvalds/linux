@@ -837,7 +837,7 @@ static struct i2c_driver adux1020_driver = {
 		.name	= ADUX1020_DRV_NAME,
 		.of_match_table = adux1020_of_match,
 	},
-	.probe_new	= adux1020_probe,
+	.probe		= adux1020_probe,
 	.id_table	= adux1020_id,
 };
 module_i2c_driver(adux1020_driver);

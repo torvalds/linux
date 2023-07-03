@@ -48,6 +48,7 @@ config QCOM_CLK_APCS_MSM8916
 config QCOM_CLK_APCC_MSM8996
 	tristate "MSM8996 CPU Clock Controller"
 	select QCOM_KRYO_L2_ACCESSORS
+	select INTERCONNECT_CLK if INTERCONNECT
 	depends on ARM64
 	help
 	  Support for the CPU clock controller on msm8996 devices.

@@ -46,7 +46,7 @@ static struct i2c_driver bno055_driver = {
 		.name = "bno055-i2c",
 		.of_match_table = bno055_i2c_of_match,
 	},
-	.probe_new = bno055_i2c_probe,
+	.probe = bno055_i2c_probe,
 	.id_table = bno055_i2c_id,
 };
 module_i2c_driver(bno055_driver);
