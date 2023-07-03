@@ -87,7 +87,7 @@ static void whiteheat_set_termios(struct tty_struct *tty,
 static int  whiteheat_tiocmget(struct tty_struct *tty);
 static int  whiteheat_tiocmset(struct tty_struct *tty,
 			unsigned int set, unsigned int clear);
-static void whiteheat_break_ctl(struct tty_struct *tty, int break_state);
+static int whiteheat_break_ctl(struct tty_struct *tty, int break_state);
 
 static struct usb_serial_driver whiteheat_fake_device = {
 	.driver = {
@@ -449,10 +449,11 @@ static void whiteheat_set_termios(struct tty_struct *tty,
 	firm_setup_port(tty);
 }
 
-static void whiteheat_break_ctl(struct tty_struct *tty, int break_state)
+static int whiteheat_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	firm_set_break(port, break_state);
+
+	return firm_set_break(port, break_state);
 }
 
 

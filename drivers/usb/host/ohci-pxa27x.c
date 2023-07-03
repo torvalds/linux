@@ -501,7 +501,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int ohci_hcd_pxa27x_remove(struct platform_device *pdev)
+static void ohci_hcd_pxa27x_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct pxa27x_ohci *pxa_ohci = to_pxa27x_ohci(hcd);
@@ -514,7 +514,6 @@ static int ohci_hcd_pxa27x_remove(struct platform_device *pdev)
 		pxa27x_ohci_set_vbus_power(pxa_ohci, i, false);
 
 	usb_put_hcd(hcd);
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -572,7 +571,7 @@ static const struct dev_pm_ops ohci_hcd_pxa27x_pm_ops = {
 
 static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_probe,
-	.remove		= ohci_hcd_pxa27x_remove,
+	.remove_new	= ohci_hcd_pxa27x_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "pxa27x-ohci",

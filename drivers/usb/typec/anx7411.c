@@ -1584,7 +1584,7 @@ static struct i2c_driver anx7411_driver = {
 		.of_match_table = anx_match_table,
 		.pm = &anx7411_pm_ops,
 	},
-	.probe_new = anx7411_i2c_probe,
+	.probe = anx7411_i2c_probe,
 	.remove = anx7411_i2c_remove,
 
 	.id_table = anx7411_id,

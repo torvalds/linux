@@ -463,6 +463,8 @@ config USB_ASPEED_UDC
 
 source "drivers/usb/gadget/udc/aspeed-vhub/Kconfig"
 
+source "drivers/usb/gadget/udc/cdns2/Kconfig"
+
 #
 # LAST -- dummy/emulated controller
 #

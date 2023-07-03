@@ -2445,7 +2445,7 @@ err:
  * pxa_udc_remove - removes the udc device driver
  * @_dev: platform device
  */
-static int pxa_udc_remove(struct platform_device *_dev)
+static void pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 
@@ -2460,8 +2460,6 @@ static int pxa_udc_remove(struct platform_device *_dev)
 	udc->transceiver = NULL;
 	the_controller = NULL;
 	clk_unprepare(udc->clk);
-
-	return 0;
 }
 
 static void pxa_udc_shutdown(struct platform_device *_dev)
@@ -2541,7 +2539,7 @@ static struct platform_driver udc_driver = {
 		.of_match_table = of_match_ptr(udc_pxa_dt_ids),
 	},
 	.probe		= pxa_udc_probe,
-	.remove		= pxa_udc_remove,
+	.remove_new	= pxa_udc_remove,
 	.shutdown	= pxa_udc_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= pxa_udc_suspend,

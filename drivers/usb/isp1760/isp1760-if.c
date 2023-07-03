@@ -246,11 +246,9 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int isp1760_plat_remove(struct platform_device *pdev)
+static void isp1760_plat_remove(struct platform_device *pdev)
 {
 	isp1760_unregister(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -265,7 +263,7 @@ MODULE_DEVICE_TABLE(of, isp1760_of_match);
 
 static struct platform_driver isp1760_plat_driver = {
 	.probe	= isp1760_plat_probe,
-	.remove	= isp1760_plat_remove,
+	.remove_new = isp1760_plat_remove,
 	.driver	= {
 		.name	= "isp1760",
 		.of_match_table = of_match_ptr(isp1760_of_match),

@@ -230,7 +230,7 @@ fail_clk:
 	return err;
 }
 
-static int exynos_ehci_remove(struct platform_device *pdev)
+static void exynos_ehci_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct exynos_ehci_hcd *exynos_ehci = to_exynos_ehci(hcd);
@@ -244,8 +244,6 @@ static int exynos_ehci_remove(struct platform_device *pdev)
 	clk_disable_unprepare(exynos_ehci->clk);
 
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -311,7 +309,7 @@ MODULE_DEVICE_TABLE(of, exynos_ehci_match);
 
 static struct platform_driver exynos_ehci_driver = {
 	.probe		= exynos_ehci_probe,
-	.remove		= exynos_ehci_remove,
+	.remove_new	= exynos_ehci_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name	= "exynos-ehci",

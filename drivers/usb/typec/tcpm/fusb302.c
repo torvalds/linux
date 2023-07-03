@@ -1836,7 +1836,7 @@ static struct i2c_driver fusb302_driver = {
 		   .pm = &fusb302_pm_ops,
 		   .of_match_table = of_match_ptr(fusb302_dt_match),
 		   },
-	.probe_new = fusb302_probe,
+	.probe = fusb302_probe,
 	.remove = fusb302_remove,
 	.id_table = fusb302_i2c_device_id,
 };

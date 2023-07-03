@@ -172,6 +172,20 @@ int tb_register_property_dir(const char *key, struct tb_property_dir *dir);
 void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
 
 /**
+ * enum tb_link_width - Thunderbolt/USB4 link width
+ * @TB_LINK_WIDTH_SINGLE: Single lane link
+ * @TB_LINK_WIDTH_DUAL: Dual lane symmetric link
+ * @TB_LINK_WIDTH_ASYM_TX: Dual lane asymmetric Gen 4 link with 3 trasmitters
+ * @TB_LINK_WIDTH_ASYM_RX: Dual lane asymmetric Gen 4 link with 3 receivers
+ */
+enum tb_link_width {
+	TB_LINK_WIDTH_SINGLE = BIT(0),
+	TB_LINK_WIDTH_DUAL = BIT(1),
+	TB_LINK_WIDTH_ASYM_TX = BIT(2),
+	TB_LINK_WIDTH_ASYM_RX = BIT(3),
+};
+
+/**
  * struct tb_xdomain - Cross-domain (XDomain) connection
  * @dev: XDomain device
  * @tb: Pointer to the domain
@@ -186,7 +200,7 @@ void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir);
  * @vendor_name: Name of the vendor (or %NULL if not known)
  * @device_name: Name of the device (or %NULL if not known)
  * @link_speed: Speed of the link in Gb/s
- * @link_width: Width of the link (1 or 2)
+ * @link_width: Width of the downstream facing link
  * @link_usb4: Downstream link is USB4
  * @is_unplugged: The XDomain is unplugged
  * @needs_uuid: If the XDomain does not have @remote_uuid it will be
@@ -234,7 +248,7 @@ struct tb_xdomain {
 	const char *vendor_name;
 	const char *device_name;
 	unsigned int link_speed;
-	unsigned int link_width;
+	enum tb_link_width link_width;
 	bool link_usb4;
 	bool is_unplugged;
 	bool needs_uuid;

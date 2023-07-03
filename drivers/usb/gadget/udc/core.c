@@ -61,7 +61,7 @@ struct usb_udc {
 	struct mutex			connect_lock;
 };
 
-static struct class *udc_class;
+static const struct class udc_class;
 static LIST_HEAD(udc_list);
 
 /* Protects udc_list, udc->driver, driver->is_bound, and related calls */
@@ -1378,7 +1378,7 @@ int usb_add_gadget(struct usb_gadget *gadget)
 
 	device_initialize(&udc->dev);
 	udc->dev.release = usb_udc_release;
-	udc->dev.class = udc_class;
+	udc->dev.class = &udc_class;
 	udc->dev.groups = usb_udc_attr_groups;
 	udc->dev.parent = gadget->dev.parent;
 	ret = dev_set_name(&udc->dev, "%s",
@@ -1856,6 +1856,11 @@ static int usb_udc_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
+static const struct class udc_class = {
+	.name		= "udc",
+	.dev_uevent	= usb_udc_uevent,
+};
+
 static const struct bus_type gadget_bus_type = {
 	.name = "gadget",
 	.probe = gadget_bind_driver,
@@ -1867,18 +1872,13 @@ static int __init usb_udc_init(void)
 {
 	int rc;
 
-	udc_class = class_create("udc");
-	if (IS_ERR(udc_class)) {
-		pr_err("failed to create udc class --> %ld\n",
-				PTR_ERR(udc_class));
-		return PTR_ERR(udc_class);
-	}
-
-	udc_class->dev_uevent = usb_udc_uevent;
+	rc = class_register(&udc_class);
+	if (rc)
+		return rc;
 
 	rc = bus_register(&gadget_bus_type);
 	if (rc)
-		class_destroy(udc_class);
+		class_unregister(&udc_class);
 	return rc;
 }
 subsys_initcall(usb_udc_init);
@@ -1886,7 +1886,7 @@ subsys_initcall(usb_udc_init);
 static void __exit usb_udc_exit(void)
 {
 	bus_unregister(&gadget_bus_type);
-	class_destroy(udc_class);
+	class_unregister(&udc_class);
 }
 module_exit(usb_udc_exit);
 

@@ -132,7 +132,7 @@ static struct i2c_driver isp1301_driver = {
 		.name = DRV_NAME,
 		.of_match_table = isp1301_of_match,
 	},
-	.probe_new = isp1301_probe,
+	.probe = isp1301_probe,
 	.remove = isp1301_remove,
 	.id_table = isp1301_id,
 };
