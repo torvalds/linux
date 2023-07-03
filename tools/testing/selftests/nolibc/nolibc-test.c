@@ -1051,11 +1051,7 @@ int main(int argc, char **argv, char **envp)
 		 * exit with status code 2N+1 when N is written to 0x501. We
 		 * hard-code the syscall here as it's arch-dependent.
 		 */
-#if defined(_NOLIBC_SYS_H)
-		else if (my_syscall3(__NR_ioperm, 0x501, 1, 1) == 0)
-#else
-		else if (ioperm(0x501, 1, 1) == 0)
-#endif
+		else if (syscall(__NR_ioperm, 0x501, 1, 1) == 0)
 			__asm__ volatile ("outb %%al, %%dx" :: "d"(0x501), "a"(0));
 		/* if it does nothing, fall back to the regular panic */
 #endif
