@@ -23,6 +23,7 @@
 #include <linux/dma-direct.h>
 
 #include "internal.h"
+#include "sleep.h"
 
 #define ACPI_BUS_CLASS			"system_bus"
 #define ACPI_BUS_HID			"LNXSYBUS"
