@@ -581,7 +581,7 @@ static struct i2c_driver rx8025_driver = {
 	.driver = {
 		.name = "rtc-rx8025",
 	},
-	.probe_new	= rx8025_probe,
+	.probe		= rx8025_probe,
 	.id_table	= rx8025_id,
 };
 
