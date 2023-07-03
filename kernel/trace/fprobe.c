@@ -102,12 +102,14 @@ static void fprobe_kprobe_handler(unsigned long ip, unsigned long parent_ip,
 
 	if (unlikely(kprobe_running())) {
 		fp->nmissed++;
-		return;
+		goto recursion_unlock;
 	}
 
 	kprobe_busy_begin();
 	__fprobe_handler(ip, parent_ip, ops, fregs);
 	kprobe_busy_end();
+
+recursion_unlock:
 	ftrace_test_recursion_unlock(bit);
 }
 
