@@ -951,6 +951,7 @@
   drm_gem_object_init
   drm_gem_object_lookup
   drm_gem_object_release
+  drm_gem_prime_export
   drm_gem_prime_fd_to_handle
   drm_gem_prime_handle_to_fd
   drm_gem_private_object_init
@@ -1018,6 +1019,7 @@
   drm_panel_remove
   drm_plane_cleanup
   drm_plane_create_rotation_property
+  drm_plane_from_index
   drm_poll
   drm_prime_gem_destroy
   drm_prime_pages_to_sg
