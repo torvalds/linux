@@ -10,6 +10,7 @@
 #include <linux/clk/rockchip.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/rational.h>
 #include <linux/regmap.h>
@@ -48,6 +49,8 @@ struct rk_pdm_dev {
 	struct regmap *regmap;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct reset_control *reset;
+	struct pinctrl *pinctrl;
+	struct pinctrl_state *clk_state;
 	unsigned int start_delay_ms;
 	unsigned int filter_delay_ms;
 	enum rk_pdm_version version;
@@ -723,6 +726,31 @@ static const struct snd_soc_component_driver rockchip_pdm_component = {
 	.name = "rockchip-pdm",
 };
 
+static int rockchip_pdm_pinctrl_select_clk_state(struct device *dev)
+{
+	struct rk_pdm_dev *pdm = dev_get_drvdata(dev);
+
+	if (IS_ERR_OR_NULL(pdm->pinctrl) || !pdm->clk_state)
+		return 0;
+
+	/*
+	 * A necessary delay to make sure the correct
+	 * frac div has been applied when resume from
+	 * power down.
+	 */
+	udelay(10);
+
+	/*
+	 * Must disable the clk to avoid clk glitch
+	 * when pinctrl switch from gpio to pdm clk.
+	 */
+	clk_disable_unprepare(pdm->clk);
+	pinctrl_select_state(pdm->pinctrl, pdm->clk_state);
+	clk_prepare_enable(pdm->clk);
+
+	return 0;
+}
+
 static int rockchip_pdm_runtime_suspend(struct device *dev)
 {
 	struct rk_pdm_dev *pdm = dev_get_drvdata(dev);
@@ -730,6 +758,8 @@ static int rockchip_pdm_runtime_suspend(struct device *dev)
 	regcache_cache_only(pdm->regmap, true);
 	clk_disable_unprepare(pdm->clk);
 	clk_disable_unprepare(pdm->hclk);
+
+	pinctrl_pm_select_idle_state(dev);
 
 	return 0;
 }
@@ -754,6 +784,8 @@ static int rockchip_pdm_runtime_resume(struct device *dev)
 		goto err_regmap;
 
 	rockchip_pdm_rxctrl(pdm, 0);
+
+	rockchip_pdm_pinctrl_select_clk_state(dev);
 
 	return 0;
 
@@ -935,6 +967,15 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 
 	pdm->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, pdm);
+
+	pdm->pinctrl = devm_pinctrl_get(&pdev->dev);
+	if (!IS_ERR_OR_NULL(pdm->pinctrl)) {
+		pdm->clk_state = pinctrl_lookup_state(pdm->pinctrl, "clk");
+		if (IS_ERR(pdm->clk_state)) {
+			pdm->clk_state = NULL;
+			dev_dbg(pdm->dev, "Have no clk pinctrl state\n");
+		}
+	}
 
 	pdm->start_delay_ms = PDM_START_DELAY_MS_DEFAULT;
 	pdm->filter_delay_ms = PDM_FILTER_DELAY_MS_MIN;
