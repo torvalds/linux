@@ -17,8 +17,6 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/machine.h>
 #include <linux/gpio/driver.h>
 #include <linux/hid.h>
 #include <linux/hidraw.h>
@@ -168,7 +166,6 @@ struct cp2112_device {
 	u8 *in_out_buffer;
 	struct mutex lock;
 
-	struct gpio_desc *desc[8];
 	bool gpio_poll;
 	struct delayed_work gpio_poll_worker;
 	unsigned long irq_mask;
@@ -1181,51 +1178,6 @@ static int cp2112_gpio_irq_type(struct irq_data *d, unsigned int type)
 	return 0;
 }
 
-static int __maybe_unused cp2112_allocate_irq(struct cp2112_device *dev,
-					      int pin)
-{
-	int ret;
-
-	if (dev->desc[pin])
-		return -EINVAL;
-
-	dev->desc[pin] = gpiochip_request_own_desc(&dev->gc, pin,
-						   "HID/I2C:Event",
-						   GPIO_ACTIVE_HIGH,
-						   GPIOD_IN);
-	if (IS_ERR(dev->desc[pin])) {
-		dev_err(dev->gc.parent, "Failed to request GPIO\n");
-		return PTR_ERR(dev->desc[pin]);
-	}
-
-	ret = cp2112_gpio_direction_input(&dev->gc, pin);
-	if (ret < 0) {
-		dev_err(dev->gc.parent, "Failed to set GPIO to input dir\n");
-		goto err_desc;
-	}
-
-	ret = gpiochip_lock_as_irq(&dev->gc, pin);
-	if (ret) {
-		dev_err(dev->gc.parent, "Failed to lock GPIO as interrupt\n");
-		goto err_desc;
-	}
-
-	ret = gpiod_to_irq(dev->desc[pin]);
-	if (ret < 0) {
-		dev_err(dev->gc.parent, "Failed to translate GPIO to IRQ\n");
-		goto err_lock;
-	}
-
-	return ret;
-
-err_lock:
-	gpiochip_unlock_as_irq(&dev->gc, pin);
-err_desc:
-	gpiochip_free_own_desc(dev->desc[pin]);
-	dev->desc[pin] = NULL;
-	return ret;
-}
-
 static const struct irq_chip cp2112_gpio_irqchip = {
 	.name = "cp2112-gpio",
 	.irq_startup = cp2112_gpio_irq_startup,
@@ -1390,7 +1342,6 @@ err_hid_stop:
 static void cp2112_remove(struct hid_device *hdev)
 {
 	struct cp2112_device *dev = hid_get_drvdata(hdev);
-	int i;
 
 	sysfs_remove_group(&hdev->dev.kobj, &cp2112_attr_group);
 	i2c_del_adapter(&dev->adap);
@@ -1398,11 +1349,6 @@ static void cp2112_remove(struct hid_device *hdev)
 	if (dev->gpio_poll) {
 		dev->gpio_poll = false;
 		cancel_delayed_work_sync(&dev->gpio_poll_worker);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(dev->desc); i++) {
-		gpiochip_unlock_as_irq(&dev->gc, i);
-		gpiochip_free_own_desc(dev->desc[i]);
 	}
 
 	gpiochip_remove(&dev->gc);
