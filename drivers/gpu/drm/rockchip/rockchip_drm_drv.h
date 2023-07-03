@@ -107,6 +107,12 @@ enum rockchip_color_bar_mode {
 	ROCKCHIP_COLOR_BAR_VERTICAL = 2,
 };
 
+enum rockchip_drm_split_area {
+	ROCKCHIP_DRM_SPLIT_UNSET = 0,
+	ROCKCHIP_DRM_SPLIT_LEFT_SIDE = 1,
+	ROCKCHIP_DRM_SPLIT_RIGHT_SIDE = 2,
+};
+
 struct rockchip_drm_sub_dev {
 	struct list_head list;
 	struct drm_connector *connector;
@@ -495,6 +501,7 @@ struct rockchip_drm_private {
 
 	/* private connector prop */
 	struct drm_property *connector_id_prop;
+	struct drm_property *split_area_prop;
 
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 
