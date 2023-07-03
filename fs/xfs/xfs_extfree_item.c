@@ -720,7 +720,7 @@ xfs_efi_item_recover(
 				requeue_only = true;
 				continue;
 			}
-		};
+		}
 
 		if (error == -EFSCORRUPTED)
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
