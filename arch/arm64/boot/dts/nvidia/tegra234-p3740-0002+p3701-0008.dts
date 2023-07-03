@@ -12,6 +12,7 @@
 
 	aliases {
 		serial0 = &tcu;
+		serial1 = &uarta;
 	};
 
 	chosen {
