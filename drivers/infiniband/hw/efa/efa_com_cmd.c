@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include "efa_com.h"
@@ -793,6 +793,12 @@ int efa_com_get_stats(struct efa_com_dev *edev,
 		result->rdma_read_stats.read_bytes = resp.u.rdma_read_stats.read_bytes;
 		result->rdma_read_stats.read_wr_err = resp.u.rdma_read_stats.read_wr_err;
 		result->rdma_read_stats.read_resp_bytes = resp.u.rdma_read_stats.read_resp_bytes;
+		break;
+	case EFA_ADMIN_GET_STATS_TYPE_RDMA_WRITE:
+		result->rdma_write_stats.write_wrs = resp.u.rdma_write_stats.write_wrs;
+		result->rdma_write_stats.write_bytes = resp.u.rdma_write_stats.write_bytes;
+		result->rdma_write_stats.write_wr_err = resp.u.rdma_write_stats.write_wr_err;
+		result->rdma_write_stats.write_recv_bytes = resp.u.rdma_write_stats.write_recv_bytes;
 		break;
 	}
 
