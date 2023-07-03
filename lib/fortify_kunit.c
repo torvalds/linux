@@ -25,11 +25,6 @@ static const char array_of_10[] = "this is 10";
 static const char *ptr_of_11 = "this is 11!";
 static char array_unknown[] = "compiler thinks I might change";
 
-/* Handle being built without CONFIG_FORTIFY_SOURCE */
-#ifndef __compiletime_strlen
-# define __compiletime_strlen __builtin_strlen
-#endif
-
 static void known_sizes_test(struct kunit *test)
 {
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen("88888888"), 8);
@@ -312,14 +307,6 @@ DEFINE_ALLOC_SIZE_TEST_PAIR(kvmalloc)
 } while (0)
 DEFINE_ALLOC_SIZE_TEST_PAIR(devm_kmalloc)
 
-static int fortify_test_init(struct kunit *test)
-{
-	if (!IS_ENABLED(CONFIG_FORTIFY_SOURCE))
-		kunit_skip(test, "Not built with CONFIG_FORTIFY_SOURCE=y");
-
-	return 0;
-}
-
 static struct kunit_case fortify_test_cases[] = {
 	KUNIT_CASE(known_sizes_test),
 	KUNIT_CASE(control_flow_split_test),
@@ -336,7 +323,6 @@ static struct kunit_case fortify_test_cases[] = {
 
 static struct kunit_suite fortify_test_suite = {
 	.name = "fortify",
-	.init = fortify_test_init,
 	.test_cases = fortify_test_cases,
 };
 
