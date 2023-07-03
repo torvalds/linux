@@ -17,7 +17,7 @@ static void xe_gt_sysfs_kobj_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type xe_gt_sysfs_kobj_type = {
+static const struct kobj_type xe_gt_sysfs_kobj_type = {
 	.release = xe_gt_sysfs_kobj_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };
