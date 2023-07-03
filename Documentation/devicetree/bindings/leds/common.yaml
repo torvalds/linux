@@ -158,6 +158,18 @@ properties:
       For flash LED controllers with configurable current this property is
       mandatory for the LEDs in the non-flash modes (e.g. torch or indicator).
 
+  max-brightness:
+    description:
+      Normally, the maximum brightness is determined by the hardware, and this
+      property is not required. This property is used to set a software limit.
+      It could happen that an LED is made so bright that it gets damaged or
+      causes damage due to restrictions in a specific system, such as mounting
+      conditions.
+      Note that this flag is mainly used for PWM-LEDs, where it is not possible
+      to map brightness to current. Drivers for other controllers should use
+      led-max-microamp.
+    $ref: /schemas/types.yaml#definitions/uint32
+
   panic-indicator:
     description:
       This property specifies that the LED should be used, if at all possible,
