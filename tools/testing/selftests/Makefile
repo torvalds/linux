@@ -87,6 +87,7 @@ TARGETS += timers
 endif
 TARGETS += tmpfs
 TARGETS += tpm2
+TARGETS += tty
 TARGETS += user
 TARGETS += vDSO
 TARGETS += mm
