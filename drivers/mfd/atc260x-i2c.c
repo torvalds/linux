@@ -53,7 +53,7 @@ static struct i2c_driver atc260x_i2c_driver = {
 		.name = "atc260x",
 		.of_match_table	= atc260x_i2c_of_match,
 	},
-	.probe_new = atc260x_i2c_probe,
+	.probe = atc260x_i2c_probe,
 };
 module_i2c_driver(atc260x_i2c_driver);
 

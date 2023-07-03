@@ -108,7 +108,7 @@ static struct i2c_driver bcm590xx_i2c_driver = {
 		   .name = "bcm590xx",
 		   .of_match_table = bcm590xx_of_match,
 	},
-	.probe_new = bcm590xx_i2c_probe,
+	.probe = bcm590xx_i2c_probe,
 	.id_table = bcm590xx_i2c_id,
 };
 module_i2c_driver(bcm590xx_i2c_driver);

@@ -664,7 +664,7 @@ static struct i2c_driver tps65010_driver = {
 	.driver = {
 		.name	= "tps65010",
 	},
-	.probe_new = tps65010_probe,
+	.probe = tps65010_probe,
 	.remove	= tps65010_remove,
 	.id_table = tps65010_id,
 };

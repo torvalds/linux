@@ -402,7 +402,7 @@ static struct i2c_driver tps65217_driver = {
 		.of_match_table = tps65217_of_match,
 	},
 	.id_table	= tps65217_id_table,
-	.probe_new	= tps65217_probe,
+	.probe		= tps65217_probe,
 	.remove		= tps65217_remove,
 };
 

@@ -266,8 +266,8 @@ config MFD_MADERA_SPI
 	  Support for the Cirrus Logic Madera platform audio SoC
 	  core functionality controlled via SPI.
 
-config MFD_MAX597X
-	tristate "Maxim 597x power switch and monitor"
+config MFD_MAX5970
+	tristate "Maxim 5970/5978 power switch and monitor"
 	depends on (I2C && OF)
 	select MFD_SIMPLE_MFD_I2C
 	help
@@ -783,6 +783,19 @@ config MFD_MAX14577
 	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_MAX77541
+	tristate "Analog Devices MAX77541/77540 PMIC Support"
+	depends on I2C=y
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	help
+	  Say yes here to add support for Analog Devices MAX77541 and
+	  MAX77540 Power Management ICs. This driver provides
+	  common support for accessing the device; additional drivers
+	  must be enabled in order to use the functionality of the device.
+	  There are regulators and adc.
 
 config MFD_MAX77620
 	bool "Maxim Semiconductor MAX77620 and MAX20024 PMIC Support"

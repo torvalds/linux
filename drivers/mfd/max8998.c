@@ -348,7 +348,7 @@ static struct i2c_driver max8998_i2c_driver = {
 		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8998_dt_match),
 	},
-	.probe_new = max8998_i2c_probe,
+	.probe = max8998_i2c_probe,
 	.id_table = max8998_i2c_id,
 };
 

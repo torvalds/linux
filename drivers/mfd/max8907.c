@@ -201,8 +201,6 @@ static int max8907_i2c_probe(struct i2c_client *i2c)
 	}
 
 	max8907->dev = &i2c->dev;
-	dev_set_drvdata(max8907->dev, max8907);
-
 	max8907->i2c_gen = i2c;
 	i2c_set_clientdata(i2c, max8907);
 	max8907->regmap_gen = devm_regmap_init_i2c(i2c,
@@ -313,7 +311,7 @@ static struct i2c_driver max8907_i2c_driver = {
 		.name = "max8907",
 		.of_match_table = of_match_ptr(max8907_of_match),
 	},
-	.probe_new = max8907_i2c_probe,
+	.probe = max8907_i2c_probe,
 	.remove = max8907_i2c_remove,
 	.id_table = max8907_i2c_id,
 };

@@ -222,7 +222,7 @@ static int tps6594_i2c_probe(struct i2c_client *client)
 
 	match = of_match_device(tps6594_i2c_of_match_table, dev);
 	if (!match)
-		return dev_err_probe(dev, PTR_ERR(match), "Failed to find matching chip ID\n");
+		return dev_err_probe(dev, -EINVAL, "Failed to find matching chip ID\n");
 	tps->chip_id = (unsigned long)match->data;
 
 	crc8_populate_msb(tps6594_i2c_crc_table, TPS6594_CRC8_POLYNOMIAL);
@@ -235,7 +235,7 @@ static struct i2c_driver tps6594_i2c_driver = {
 		.name = "tps6594",
 		.of_match_table = tps6594_i2c_of_match_table,
 	},
-	.probe_new = tps6594_i2c_probe,
+	.probe = tps6594_i2c_probe,
 };
 module_i2c_driver(tps6594_i2c_driver);
 
