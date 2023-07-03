@@ -107,8 +107,59 @@ int gzvm_gfn_to_pfn_memslot(struct gzvm_memslot *memslot, u64 gfn,
 	return 0;
 }
 
+static int cmp_ppages(struct rb_node *node, const struct rb_node *parent)
+{
+	struct gzvm_pinned_page *a = container_of(node,
+						  struct gzvm_pinned_page,
+						  node);
+	struct gzvm_pinned_page *b = container_of(parent,
+						  struct gzvm_pinned_page,
+						  node);
+
+	if (a->ipa < b->ipa)
+		return -1;
+	if (a->ipa > b->ipa)
+		return 1;
+	return 0;
+}
+
+static int gzvm_insert_ppage(struct gzvm *vm, struct gzvm_pinned_page *ppage)
+{
+	if (rb_find_add(&ppage->node, &vm->pinned_pages, cmp_ppages))
+		return -EEXIST;
+	return 0;
+}
+
+static int pin_one_page(struct gzvm *vm, unsigned long hva, u64 gpa)
+{
+	unsigned int flags = FOLL_HWPOISON | FOLL_LONGTERM | FOLL_WRITE;
+	struct gzvm_pinned_page *ppage = NULL;
+	struct mm_struct *mm = current->mm;
+	struct page *page = NULL;
+
+	ppage = kmalloc(sizeof(*ppage), GFP_KERNEL_ACCOUNT);
+	if (!ppage)
+		return -ENOMEM;
+
+	mmap_read_lock(mm);
+	pin_user_pages(hva, 1, flags, &page, NULL);
+	mmap_read_unlock(mm);
+
+	if (!page) {
+		kfree(ppage);
+		return -EFAULT;
+	}
+
+	ppage->page = page;
+	ppage->ipa = gpa;
+	gzvm_insert_ppage(vm, ppage);
+
+	return 0;
+}
+
 static int handle_block_demand_page(struct gzvm *vm, int memslot_id, u64 gfn)
 {
+	unsigned long hva;
 	u64 pfn, __gfn;
 	int ret, i;
 
@@ -131,6 +182,11 @@ static int handle_block_demand_page(struct gzvm *vm, int memslot_id, u64 gfn)
 			goto err_unlock;
 		}
 		vm->demand_page_buffer[i] = pfn;
+
+		hva = gzvm_gfn_to_hva_memslot(&vm->memslot[memslot_id], __gfn);
+		ret = pin_one_page(vm, hva, PFN_PHYS(__gfn));
+		if (ret)
+			goto err_unlock;
 	}
 
 	ret = gzvm_arch_map_guest_block(vm->vm_id, memslot_id, start_gfn,
@@ -148,6 +204,7 @@ err_unlock:
 
 static int handle_single_demand_page(struct gzvm *vm, int memslot_id, u64 gfn)
 {
+	unsigned long hva;
 	int ret;
 	u64 pfn;
 
@@ -159,7 +216,8 @@ static int handle_single_demand_page(struct gzvm *vm, int memslot_id, u64 gfn)
 	if (unlikely(ret))
 		return -EFAULT;
 
-	return 0;
+	hva = gzvm_gfn_to_hva_memslot(&vm->memslot[memslot_id], gfn);
+	return pin_one_page(vm, hva, PFN_PHYS(gfn));
 }
 
 /**
