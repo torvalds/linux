@@ -18,3 +18,4 @@ Contents:
    maintainer-netdev
    maintainer-soc
    maintainer-tip
+   maintainer-kvm-x86
