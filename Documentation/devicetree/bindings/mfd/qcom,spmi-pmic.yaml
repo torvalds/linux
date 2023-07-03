@@ -89,6 +89,7 @@ properties:
           - qcom,pms405
           - qcom,pmx55
           - qcom,pmx65
+          - qcom,pmx75
           - qcom,smb2351
       - const: qcom,spmi-pmic
 
