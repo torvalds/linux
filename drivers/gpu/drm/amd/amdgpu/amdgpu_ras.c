@@ -757,16 +757,6 @@ static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_ras_check_feature_allowed(struct amdgpu_device *adev,
-		struct ras_common_if *head)
-{
-	if (amdgpu_ras_is_feature_allowed(adev, head) ||
-		amdgpu_ras_is_poison_mode_supported(adev))
-		return 1;
-	else
-		return 0;
-}
-
 /* wrapper of psp_ras_enable_features */
 int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		struct ras_common_if *head, bool enable)
@@ -778,7 +768,16 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (!con)
 		return -EINVAL;
 
-	if (head->block == AMDGPU_RAS_BLOCK__GFX) {
+	/* Do not enable ras feature if it is not allowed */
+	if (enable &&
+	    head->block != AMDGPU_RAS_BLOCK__GFX &&
+	    !amdgpu_ras_is_feature_allowed(adev, head))
+		goto out;
+
+	/* Only enable gfx ras feature from host side */
+	if (head->block == AMDGPU_RAS_BLOCK__GFX &&
+	    !amdgpu_sriov_vf(adev) &&
+	    !amdgpu_ras_intr_triggered()) {
 		info = kzalloc(sizeof(union ta_ras_cmd_input), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
@@ -794,16 +793,7 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 				.error_type = amdgpu_ras_error_to_ta(head->type),
 			};
 		}
-	}
 
-	/* Do not enable if it is not allowed. */
-	if (enable && !amdgpu_ras_check_feature_allowed(adev, head))
-		goto out;
-
-	/* Only enable ras feature operation handle on host side */
-	if (head->block == AMDGPU_RAS_BLOCK__GFX &&
-		!amdgpu_sriov_vf(adev) &&
-		!amdgpu_ras_intr_triggered()) {
 		ret = psp_ras_enable_features(&adev->psp, info, enable);
 		if (ret) {
 			dev_err(adev->dev, "ras %s %s failed poison:%d ret:%d\n",
