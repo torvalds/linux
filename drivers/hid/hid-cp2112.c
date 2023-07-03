@@ -175,7 +175,7 @@ struct cp2112_device {
 };
 
 static int gpio_push_pull = CP2112_GPIO_ALL_GPIO_MASK;
-module_param(gpio_push_pull, int, S_IRUGO | S_IWUSR);
+module_param(gpio_push_pull, int, 0644);
 MODULE_PARM_DESC(gpio_push_pull, "GPIO push-pull configuration bitmask");
 
 static int cp2112_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
@@ -1057,7 +1057,7 @@ static void chmod_sysfs_attrs(struct hid_device *hdev)
 	}
 
 	for (attr = cp2112_attr_group.attrs; *attr; ++attr) {
-		umode_t mode = (buf[1] & 1) ? S_IWUSR | S_IRUGO : S_IRUGO;
+		umode_t mode = (buf[1] & 1) ? 0644 : 0444;
 		ret = sysfs_chmod_file(&hdev->dev.kobj, *attr, mode);
 		if (ret < 0)
 			hid_err(hdev, "error chmoding sysfs file %s\n",
