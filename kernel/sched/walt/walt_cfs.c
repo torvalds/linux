@@ -273,6 +273,42 @@ static inline bool walt_should_reject_fbt_cpu(struct walt_rq *wrq, struct task_s
 	return false;
 }
 
+bool select_prev_cpu_fastpath(int prev_cpu, int start_cpu, int order_index,
+		struct task_struct *p)
+{
+	struct walt_rq *prev_wrq = &per_cpu(walt_rq, prev_cpu);
+	struct walt_rq *start_wrq = &per_cpu(walt_rq, start_cpu);
+	bool valid_part_haltable_prev_cpu = false, valid_prev_cpu = false;
+
+	if (!cpu_active(prev_cpu))
+		return false;
+
+	if (!available_idle_cpu(prev_cpu))
+		return false;
+
+	if (!cpumask_test_cpu(prev_cpu, p->cpus_ptr))
+		return false;
+
+	if (cpu_halted(prev_cpu))
+		return false;
+
+	if (!(order_index == 0 || !cpu_partial_halted(prev_cpu)))
+		return false;
+
+	if (is_reserved(prev_cpu))
+		return false;
+
+	valid_part_haltable_prev_cpu = (cpumask_test_cpu(prev_cpu, &part_haltable_cpus) &&
+				(order_index == 0 && cpu_partial_halted(prev_cpu)));
+	valid_prev_cpu = ((prev_wrq->cluster->id == start_wrq->cluster->id) ||
+				asym_cap_siblings(prev_cpu, start_cpu));
+
+	if (!(valid_part_haltable_prev_cpu || valid_prev_cpu))
+		return false;
+
+	return true;
+}
+
 #define DIRE_STRAITS_PREV_NR_LIMIT 10
 static void walt_find_best_target(struct sched_domain *sd,
 					cpumask_t *candidates,
@@ -297,12 +333,9 @@ static void walt_find_best_target(struct sched_domain *sd,
 	cpumask_t visit_cpus;
 	struct walt_task_struct *wts = (struct walt_task_struct *) p->android_vendor_data1;
 	int packing_cpu;
-	struct walt_rq *prev_wrq = &per_cpu(walt_rq, prev_cpu);
-	struct walt_rq *start_wrq;
 
 	/* Find start CPU based on boost value */
 	start_cpu = fbt_env->start_cpu;
-	start_wrq = &per_cpu(walt_rq, start_cpu);
 
 	/*
 	 * For higher capacity worth I/O tasks, stop the search
@@ -327,16 +360,7 @@ static void walt_find_best_target(struct sched_domain *sd,
 	}
 
 	/* fast path for prev_cpu */
-	if (((cpumask_test_cpu(prev_cpu, &part_haltable_cpus) &&
-				(order_index == 0 && cpu_partial_halted(prev_cpu))) ||
-				(prev_wrq->cluster->id == start_wrq->cluster->id) ||
-				asym_cap_siblings(prev_cpu, start_cpu)) &&
-				cpu_active(prev_cpu) &&
-				available_idle_cpu(prev_cpu) &&
-				cpumask_test_cpu(prev_cpu, p->cpus_ptr) &&
-				!cpu_halted(prev_cpu) &&
-				(order_index == 0 || !cpu_partial_halted(prev_cpu)) &&
-				!is_reserved(prev_cpu)) {
+	if (select_prev_cpu_fastpath(prev_cpu, start_cpu, order_index, p)) {
 		fbt_env->fastpath = PREV_CPU_FASTPATH;
 		cpumask_set_cpu(prev_cpu, candidates);
 		goto out;
