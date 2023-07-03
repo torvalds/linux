@@ -1,6 +1,5 @@
 /*
- * dvb-math provides some complex fixed-point math
- * operations shared between the dvb related stuff
+ * Provides fixed-point logarithm operations.
  *
  * Copyright (C) 2006 Christoph Pfister (christophpfister@gmail.com)
  *
@@ -15,8 +14,8 @@
  * GNU Lesser General Public License for more details.
  */
 
-#ifndef __DVB_MATH_H
-#define __DVB_MATH_H
+#ifndef __LINUX_INT_LOG_H
+#define __LINUX_INT_LOG_H
 
 #include <linux/types.h>
 

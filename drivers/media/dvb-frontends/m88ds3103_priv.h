@@ -10,7 +10,7 @@
 
 #include <media/dvb_frontend.h>
 #include "m88ds3103.h"
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include <linux/firmware.h>
 #include <linux/i2c-mux.h>
 #include <linux/regmap.h>

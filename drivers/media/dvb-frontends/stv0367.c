@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 
 #include "stv0367.h"
 #include "stv0367_defs.h"

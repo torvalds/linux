@@ -1,6 +1,5 @@
 /*
- * dvb-math provides some complex fixed-point math
- * operations shared between the dvb related stuff
+ * Provides fixed-point logarithm operations.
  *
  * Copyright (C) 2006 Christoph Pfister (christophpfister@gmail.com)
  *
@@ -16,10 +15,12 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/export.h>
+#include <linux/int_log.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/types.h>
+
 #include <asm/bug.h>
-#include <media/dvb_math.h>
 
 static const unsigned short logtable[256] = {
 	0x0000, 0x0171, 0x02e0, 0x044e, 0x05ba, 0x0725, 0x088e, 0x09f7,
@@ -53,7 +54,7 @@ static const unsigned short logtable[256] = {
 	0xe82a, 0xe8ef, 0xe9b3, 0xea77, 0xeb3b, 0xebfe, 0xecc1, 0xed83,
 	0xee45, 0xef06, 0xefc8, 0xf088, 0xf149, 0xf209, 0xf2c8, 0xf387,
 	0xf446, 0xf505, 0xf5c3, 0xf680, 0xf73e, 0xf7fb, 0xf8b7, 0xf973,
-	0xfa2f, 0xfaea, 0xfba5, 0xfc60, 0xfd1a, 0xfdd4, 0xfe8e, 0xff47
+	0xfa2f, 0xfaea, 0xfba5, 0xfc60, 0xfd1a, 0xfdd4, 0xfe8e, 0xff47,
 };
 
 unsigned int intlog2(u32 value)
