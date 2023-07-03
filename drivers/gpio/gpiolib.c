@@ -712,13 +712,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	int ret = 0;
 
 	/*
-	 * If the calling driver did not initialize firmware node, do it here
-	 * using the parent device, if any.
-	 */
-	if (!gc->fwnode && gc->parent)
-		gc->fwnode = dev_fwnode(gc->parent);
-
-	/*
 	 * First: allocate and populate the internal stat container, and
 	 * set up the struct device.
 	 */
@@ -732,7 +725,14 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	gc->gpiodev = gdev;
 	gpiochip_set_data(gc, data);
 
-	device_set_node(&gdev->dev, gc->fwnode);
+	/*
+	 * If the calling driver did not initialize firmware node,
+	 * do it here using the parent device, if any.
+	 */
+	if (gc->fwnode)
+		device_set_node(&gdev->dev, gc->fwnode);
+	else if (gc->parent)
+		device_set_node(&gdev->dev, dev_fwnode(gc->parent));
 
 	gdev->id = ida_alloc(&gpio_ida, GFP_KERNEL);
 	if (gdev->id < 0) {
