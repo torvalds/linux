@@ -462,8 +462,7 @@ static int netdev_trig_notify(struct notifier_block *nb,
 		get_device_state(trigger_data);
 		fallthrough;
 	case NETDEV_REGISTER:
-		if (trigger_data->net_dev)
-			dev_put(trigger_data->net_dev);
+		dev_put(trigger_data->net_dev);
 		dev_hold(dev);
 		trigger_data->net_dev = dev;
 		break;
@@ -594,8 +593,7 @@ static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 
 	cancel_delayed_work_sync(&trigger_data->work);
 
-	if (trigger_data->net_dev)
-		dev_put(trigger_data->net_dev);
+	dev_put(trigger_data->net_dev);
 
 	kfree(trigger_data);
 }

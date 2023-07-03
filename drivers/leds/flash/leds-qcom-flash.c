@@ -18,7 +18,8 @@
 #define FLASH_TYPE_VAL			0x18
 
 #define FLASH_SUBTYPE_REG		0x05
-#define FLASH_SUBTYPE_3CH_VAL		0x04
+#define FLASH_SUBTYPE_3CH_PM8150_VAL	0x04
+#define FLASH_SUBTYPE_3CH_PMI8998_VAL	0x03
 #define FLASH_SUBTYPE_4CH_VAL		0x07
 
 #define FLASH_STS_3CH_OTST1		BIT(0)
@@ -416,6 +417,14 @@ static int qcom_flash_led_brightness_set(struct led_classdev *led_cdev,
 	bool enable = !!brightness;
 	int rc;
 
+	rc = set_flash_strobe(led, SW_STROBE, false);
+	if (rc)
+		return rc;
+
+	rc = set_flash_module_en(led, false);
+	if (rc)
+		return rc;
+
 	rc = set_flash_current(led, current_ma, TORCH_MODE);
 	if (rc)
 		return rc;
@@ -529,9 +538,9 @@ static int qcom_flash_register_led_device(struct device *dev,
 	struct led_init_data init_data;
 	struct led_classdev_flash *flash = &led->flash;
 	struct led_flash_setting *brightness, *timeout;
-	u32 count, current_ua, timeout_us;
+	u32 current_ua, timeout_us;
 	u32 channels[4];
-	int i, rc;
+	int i, rc, count;
 
 	count = fwnode_property_count_u32(node, "led-sources");
 	if (count <= 0) {
@@ -682,7 +691,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	if (val == FLASH_SUBTYPE_3CH_VAL) {
+	if (val == FLASH_SUBTYPE_3CH_PM8150_VAL || val == FLASH_SUBTYPE_3CH_PMI8998_VAL) {
 		flash_data->hw_type = QCOM_MVFLASH_3CH;
 		flash_data->max_channels = 3;
 		regs = mvflash_3ch_regs;

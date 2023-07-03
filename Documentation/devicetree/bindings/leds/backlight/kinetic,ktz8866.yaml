@@ -33,6 +33,7 @@ properties:
 
   current-num-sinks:
     description: number of the LED current sinks' channels.
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 3, 4, 5, 6]
 
   kinetic,current-ramp-delay-ms:
