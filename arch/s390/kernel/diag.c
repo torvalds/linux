@@ -11,6 +11,7 @@
 #include <linux/cpu.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 #include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/trace/diag.h>
@@ -168,11 +169,30 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 	return rp.odd;
 }
 
+/**
+ * diag204() - Issue diagnose 204 call.
+ * @subcode: Subcode of diagnose 204 to be executed.
+ * @size: Size of area in pages which @area points to, if given.
+ * @addr: Vmalloc'ed memory area where the result is written to.
+ *
+ * Execute diagnose 204 with the given subcode and write the result to the
+ * memory area specified with @addr. For subcodes which do not write a
+ * result to memory both @size and @addr must be zero. If @addr is
+ * specified it must be page aligned and must have been allocated with
+ * vmalloc(). Conversion to real / physical addresses will be handled by
+ * this function if required.
+ */
 int diag204(unsigned long subcode, unsigned long size, void *addr)
 {
-	diag_stat_inc(DIAG_STAT_X204);
+	if (addr) {
+		if (WARN_ON_ONCE(!is_vmalloc_addr(addr)))
+			return -1;
+		if (WARN_ON_ONCE(!IS_ALIGNED((unsigned long)addr, PAGE_SIZE)))
+			return -1;
+	}
 	if ((subcode & DIAG204_SUBCODE_MASK) == DIAG204_SUBC_STIB4)
-		addr = (void *)__pa(addr);
+		addr = (void *)pfn_to_phys(vmalloc_to_pfn(addr));
+	diag_stat_inc(DIAG_STAT_X204);
 	size = __diag204(&subcode, size, addr);
 	if (subcode)
 		return -1;

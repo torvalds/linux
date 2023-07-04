@@ -29,7 +29,6 @@ static enum diag204_sc diag204_store_sc;	/* used subcode for store */
 static enum diag204_format diag204_info_type;	/* used diag 204 data format */
 
 static void *diag204_buf;		/* 4K aligned buffer for diag204 data */
-static void *diag204_buf_vmalloc;	/* vmalloc pointer for diag204 data */
 static int diag204_buf_pages;		/* number of pages for diag204 data */
 
 static struct dentry *dbfs_d204_file;
@@ -212,40 +211,13 @@ static inline __u64 phys_cpu__ctidx(enum diag204_format type, void *hdr)
 
 static void diag204_free_buffer(void)
 {
-	if (!diag204_buf)
-		return;
-	if (diag204_buf_vmalloc) {
-		vfree(diag204_buf_vmalloc);
-		diag204_buf_vmalloc = NULL;
-	} else {
-		free_pages((unsigned long) diag204_buf, 0);
-	}
+	vfree(diag204_buf);
 	diag204_buf = NULL;
 }
 
 static void *page_align_ptr(void *ptr)
 {
 	return (void *) PAGE_ALIGN((unsigned long) ptr);
-}
-
-static void *diag204_alloc_vbuf(int pages)
-{
-	/* The buffer has to be page aligned! */
-	diag204_buf_vmalloc = vmalloc(array_size(PAGE_SIZE, (pages + 1)));
-	if (!diag204_buf_vmalloc)
-		return ERR_PTR(-ENOMEM);
-	diag204_buf = page_align_ptr(diag204_buf_vmalloc);
-	diag204_buf_pages = pages;
-	return diag204_buf;
-}
-
-static void *diag204_alloc_rbuf(void)
-{
-	diag204_buf = (void*)__get_free_pages(GFP_KERNEL,0);
-	if (!diag204_buf)
-		return ERR_PTR(-ENOMEM);
-	diag204_buf_pages = 1;
-	return diag204_buf;
 }
 
 static void *diag204_get_buffer(enum diag204_format fmt, int *pages)
@@ -256,15 +228,19 @@ static void *diag204_get_buffer(enum diag204_format fmt, int *pages)
 	}
 	if (fmt == DIAG204_INFO_SIMPLE) {
 		*pages = 1;
-		return diag204_alloc_rbuf();
 	} else {/* DIAG204_INFO_EXT */
 		*pages = diag204((unsigned long)DIAG204_SUBC_RSI |
 				 (unsigned long)DIAG204_INFO_EXT, 0, NULL);
 		if (*pages <= 0)
 			return ERR_PTR(-ENOSYS);
-		else
-			return diag204_alloc_vbuf(*pages);
 	}
+	diag204_buf = __vmalloc_node(array_size(*pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+				     __builtin_return_address(0));
+	if (!diag204_buf)
+		return ERR_PTR(-ENOMEM);
+	diag204_buf_pages = *pages;
+	return diag204_buf;
 }
 
 /*
