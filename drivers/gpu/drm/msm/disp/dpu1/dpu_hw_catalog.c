@@ -328,18 +328,6 @@ static const struct dpu_sspp_sub_blks sdm845_dma_sblk_1 = _DMA_SBLK("9", 2);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_2 = _DMA_SBLK("10", 3);
 static const struct dpu_sspp_sub_blks sdm845_dma_sblk_3 = _DMA_SBLK("11", 4);
 
-#define SSPP_BLK(_name, _id, _base, _len, _features, \
-		_sblk, _xinid, _type, _clkctrl) \
-	{ \
-	.name = _name, .id = _id, \
-	.base = _base, .len = _len, \
-	.features = _features, \
-	.sblk = &_sblk, \
-	.xin_id = _xinid, \
-	.type = _type, \
-	.clk_ctrl = _clkctrl \
-	}
-
 static const struct dpu_sspp_sub_blks sc7180_vig_sblk_0 =
 				_VIG_SBLK("0", 4, DPU_SSPP_SCALER_QSEED4);
 
