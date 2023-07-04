@@ -2162,7 +2162,6 @@ static const struct irq_chip pic32_gpio_irq_chip = {
 static int pic32_pinctrl_probe(struct platform_device *pdev)
 {
 	struct pic32_pinctrl *pctl;
-	struct resource *res;
 	int ret;
 
 	pctl = devm_kzalloc(&pdev->dev, sizeof(*pctl), GFP_KERNEL);
@@ -2171,8 +2170,7 @@ static int pic32_pinctrl_probe(struct platform_device *pdev)
 	pctl->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, pctl);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pctl->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	pctl->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pctl->reg_base))
 		return PTR_ERR(pctl->reg_base);
 
