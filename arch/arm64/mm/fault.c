@@ -536,9 +536,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 	unsigned long vm_flags;
 	unsigned int mm_flags = FAULT_FLAG_DEFAULT;
 	unsigned long addr = untagged_addr(far);
-#ifdef CONFIG_PER_VMA_LOCK
 	struct vm_area_struct *vma;
-#endif
 
 	if (kprobe_page_fault(regs, esr))
 		return 0;
