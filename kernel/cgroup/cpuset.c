@@ -3521,17 +3521,16 @@ hotplug_update_tasks_legacy(struct cpuset *cs,
 	is_empty = cpumask_empty(cs->cpus_allowed) ||
 		   nodes_empty(cs->mems_allowed);
 
-	mutex_unlock(&cpuset_mutex);
-
 	/*
 	 * Move tasks to the nearest ancestor with execution resources,
 	 * This is full cgroup operation which will also call back into
 	 * cpuset. Should be done outside any lock.
 	 */
-	if (is_empty)
+	if (is_empty) {
+		mutex_unlock(&cpuset_mutex);
 		remove_tasks_in_empty_cpuset(cs);
-
-	mutex_lock(&cpuset_mutex);
+		mutex_lock(&cpuset_mutex);
+	}
 }
 
 static void
