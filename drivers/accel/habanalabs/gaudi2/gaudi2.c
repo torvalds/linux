@@ -6264,7 +6264,8 @@ static int gaudi2_execute_soft_reset(struct hl_device *hdev, bool driver_perform
 				WREG32(le32_to_cpu(dyn_regs->cpu_rst_status), CPU_RST_STATUS_NA);
 			else
 				WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
-			WREG32(le32_to_cpu(dyn_regs->gic_host_soft_rst_irq),
+
+			WREG32(mmGIC_HOST_SOFT_RST_IRQ_POLL_REG,
 				gaudi2_irq_map_table[GAUDI2_EVENT_CPU_SOFT_RESET].cpu_id);
 
 			/* wait for f/w response */
