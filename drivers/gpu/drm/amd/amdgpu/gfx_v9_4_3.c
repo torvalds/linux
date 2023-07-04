@@ -195,14 +195,11 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
 		dev_inst = GET_INST(GC, i);
-		if (dev_inst >= 2)
-			WREG32_SOC15(GC, dev_inst, regGRBM_MCM_ADDR, 0x4);
 
+		WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
+			     GOLDEN_GB_ADDR_CONFIG);
 		/* Golden settings applied by driver for ASIC with rev_id 0 */
 		if (adev->rev_id == 0) {
-			WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
-				     GOLDEN_GB_ADDR_CONFIG);
-
 			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
 					      REDUCE_FIFO_DEPTH_BY_2, 2);
 		}
