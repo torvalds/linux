@@ -89,6 +89,8 @@ extern unsigned long __bootdata_preserved(VMALLOC_END);
 extern struct page *__bootdata_preserved(vmemmap);
 extern unsigned long __bootdata_preserved(vmemmap_size);
 
+#define VMEM_MAX_PHYS ((unsigned long) vmemmap)
+
 extern unsigned long __bootdata_preserved(MODULES_VADDR);
 extern unsigned long __bootdata_preserved(MODULES_END);
 #define MODULES_VADDR	MODULES_VADDR

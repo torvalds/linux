@@ -531,7 +531,7 @@ struct range arch_get_mappable_range(void)
 	struct range mhp_range;
 
 	mhp_range.start = 0;
-	mhp_range.end = ident_map_size - 1;
+	mhp_range.end =  VMEM_MAX_PHYS - 1;
 	return mhp_range;
 }
 

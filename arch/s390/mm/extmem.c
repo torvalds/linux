@@ -642,7 +642,7 @@ void segment_warning(int rc, char *seg_name)
 		break;
 	case -ERANGE:
 		pr_err("DCSS %s exceeds the kernel mapping range (%lu) "
-		       "and cannot be loaded\n", seg_name, ident_map_size);
+		       "and cannot be loaded\n", seg_name, VMEM_MAX_PHYS);
 		break;
 	default:
 		break;
