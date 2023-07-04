@@ -38,9 +38,7 @@ static struct notifier_block kona_reset_nb = {
 
 static int kona_reset_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	kona_reset_base = devm_ioremap_resource(&pdev->dev, res);
+	kona_reset_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kona_reset_base))
 		return PTR_ERR(kona_reset_base);
 
