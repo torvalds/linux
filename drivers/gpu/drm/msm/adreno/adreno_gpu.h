@@ -310,7 +310,8 @@ static inline int adreno_is_a680(const struct adreno_gpu *gpu)
 
 static inline int adreno_is_a690(const struct adreno_gpu *gpu)
 {
-	return adreno_is_revn(gpu, 690);
+	/* The order of args is important here to handle ANY_ID correctly */
+	return adreno_cmp_rev(ADRENO_REV(6, 9, 0, ANY_ID), gpu->rev);
 };
 
 /* check for a615, a616, a618, a619 or any derivatives */
