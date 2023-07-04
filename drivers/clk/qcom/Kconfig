@@ -58,6 +58,7 @@ config QCOM_CLK_APCC_MSM8996
 config QCOM_CLK_APCS_SDX55
 	tristate "SDX55 and SDX65 APCS Clock Controller"
 	depends on QCOM_APCS_IPC || COMPILE_TEST
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for the APCS Clock Controller on SDX55, SDX65 platforms. The
 	  APCS is managing the mux and divider which feeds the CPUs.
@@ -101,6 +102,7 @@ config QCOM_CLK_RPMH
 
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on apq8084 devices.
@@ -109,6 +111,7 @@ config APQ_GCC_8084
 
 config APQ_MMCC_8084
 	tristate "APQ8084 Multimedia Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select APQ_GCC_8084
 	select QCOM_GDSC
 	help
@@ -160,6 +163,7 @@ config IPQ_GCC_6018
 
 config IPQ_GCC_806X
 	tristate "IPQ806x Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for the global clock controller on ipq806x devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -167,6 +171,7 @@ config IPQ_GCC_806X
 
 config IPQ_LCC_806X
 	tristate "IPQ806x LPASS Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select IPQ_GCC_806X
 	help
 	  Support for the LPASS clock controller on ipq806x devices.
@@ -192,6 +197,7 @@ config IPQ_GCC_9574
 
 config MSM_GCC_8660
 	tristate "MSM8660 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for the global clock controller on msm8660 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -199,6 +205,7 @@ config MSM_GCC_8660
 
 config MSM_GCC_8909
 	tristate "MSM8909 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on msm8909 devices.
@@ -233,6 +240,7 @@ config MSM_GCC_8939
 
 config MSM_GCC_8960
 	tristate "APQ8064/MSM8960 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for the global clock controller on apq8064/msm8960 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -240,6 +248,7 @@ config MSM_GCC_8960
 
 config MSM_LCC_8960
 	tristate "APQ8064/MSM8960 LPASS Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select MSM_GCC_8960
 	help
 	  Support for the LPASS clock controller on apq8064/msm8960 devices.
@@ -248,6 +257,7 @@ config MSM_LCC_8960
 
 config MDM_GCC_9607
 	tristate "MDM9607 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for the global clock controller on mdm9607 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -255,6 +265,7 @@ config MDM_GCC_9607
 
 config MDM_GCC_9615
 	tristate "MDM9615 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	help
 	  Support for the global clock controller on mdm9615 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -262,6 +273,7 @@ config MDM_GCC_9615
 
 config MDM_LCC_9615
 	tristate "MDM9615 LPASS Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select MDM_GCC_9615
 	help
 	  Support for the LPASS clock controller on mdm9615 devices.
@@ -270,6 +282,7 @@ config MDM_LCC_9615
 
 config MSM_MMCC_8960
 	tristate "MSM8960 Multimedia Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select MSM_GCC_8960
 	help
 	  Support for the multimedia clock controller on msm8960 devices.
@@ -286,6 +299,7 @@ config MSM_GCC_8953
 
 config MSM_GCC_8974
 	tristate "MSM8974 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on msm8974 devices.
@@ -294,6 +308,7 @@ config MSM_GCC_8974
 
 config MSM_MMCC_8974
 	tristate "MSM8974 Multimedia Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select MSM_GCC_8974
 	select QCOM_GDSC
 	help
@@ -394,6 +409,7 @@ config QCS_GCC_404
 
 config SC_CAMCC_7180
 	tristate "SC7180 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
 	  Support for the camera clock controller on Qualcomm Technologies, Inc
@@ -403,6 +419,7 @@ config SC_CAMCC_7180
 
 config SC_CAMCC_7280
 	tristate "SC7280 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
 	  Support for the camera clock controller on Qualcomm Technologies, Inc
@@ -412,6 +429,7 @@ config SC_CAMCC_7280
 
 config SC_DISPCC_7180
 	tristate "SC7180 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -421,6 +439,7 @@ config SC_DISPCC_7180
 
 config SC_DISPCC_7280
 	tristate "SC7280 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc.
@@ -430,6 +449,7 @@ config SC_DISPCC_7280
 
 config SC_DISPCC_8280XP
 	tristate "SC8280XP Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_8280XP
 	help
 	  Support for the two display clock controllers on Qualcomm
@@ -459,6 +479,7 @@ config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
 	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the global clock controller on SC7180 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -468,6 +489,7 @@ config SC_GCC_7280
 	tristate "SC7280 Global Clock Controller"
 	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the global clock controller on SC7280 devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -477,6 +499,7 @@ config SC_GCC_8180X
 	tristate "SC8180X Global Clock Controller"
 	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the global clock controller on SC8180X devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -486,6 +509,7 @@ config SC_GCC_8280XP
 	tristate "SC8280XP Global Clock Controller"
 	select QCOM_GDSC
 	depends on COMMON_CLK_QCOM
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the global clock controller on SC8280XP devices.
 	  Say Y if you want to use peripheral devices such as UART, SPI,
@@ -493,6 +517,7 @@ config SC_GCC_8280XP
 
 config SC_GPUCC_7180
 	tristate "SC7180 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
 	  Support for the graphics clock controller on SC7180 devices.
@@ -501,6 +526,7 @@ config SC_GPUCC_7180
 
 config SC_GPUCC_7280
 	tristate "SC7280 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
 	  Support for the graphics clock controller on SC7280 devices.
@@ -509,6 +535,7 @@ config SC_GPUCC_7280
 
 config SC_GPUCC_8280XP
 	tristate "SC8280XP Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_8280XP
 	help
 	  Support for the graphics clock controller on SC8280XP devices.
@@ -517,14 +544,25 @@ config SC_GPUCC_8280XP
 
 config SC_LPASSCC_7280
 	tristate "SC7280 Low Power Audio Subsystem (LPASS) Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
 	  Support for the LPASS clock controller on SC7280 devices.
 	  Say Y if you want to use the LPASS branch clocks of the LPASS clock
 	  controller to reset the LPASS subsystem.
 
+config SC_LPASSCC_8280XP
+	tristate "SC8280 Low Power Audio Subsystem (LPASS) Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SC_GCC_8280XP
+	help
+	  Support for the LPASS clock controller on SC8280XP devices.
+	  Say Y if you want to use the LPASS branch clocks of the LPASS clock
+	  controller to reset the LPASS subsystem.
+
 config SC_LPASS_CORECC_7180
 	tristate "SC7180 LPASS Core Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
 	  Support for the LPASS(Low Power Audio Subsystem) core clock controller
@@ -534,6 +572,7 @@ config SC_LPASS_CORECC_7180
 
 config SC_LPASS_CORECC_7280
 	tristate "SC7280 LPASS Core & Audio Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	select QCOM_GDSC
 	help
@@ -544,6 +583,7 @@ config SC_LPASS_CORECC_7280
 
 config SC_MSS_7180
 	tristate "SC7180 Modem Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
 	  Support for the Modem Subsystem clock controller on Qualcomm
@@ -553,6 +593,7 @@ config SC_MSS_7180
 
 config SC_VIDEOCC_7180
 	tristate "SC7180 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7180
 	help
 	  Support for the video clock controller on SC7180 devices.
@@ -561,6 +602,7 @@ config SC_VIDEOCC_7180
 
 config SC_VIDEOCC_7280
 	tristate "SC7280 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SC_GCC_7280
 	help
 	  Support for the video clock controller on SC7280 devices.
@@ -569,6 +611,7 @@ config SC_VIDEOCC_7280
 
 config SDM_CAMCC_845
 	tristate "SDM845 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_845
 	help
 	  Support for the camera clock controller on SDM845 devices.
@@ -576,6 +619,7 @@ config SDM_CAMCC_845
 
 config SDM_GCC_660
 	tristate "SDM660 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SDM660 devices.
@@ -584,6 +628,7 @@ config SDM_GCC_660
 
 config SDM_MMCC_660
 	tristate "SDM660 Multimedia Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_660
 	select QCOM_GDSC
 	help
@@ -593,6 +638,7 @@ config SDM_MMCC_660
 
 config SDM_GPUCC_660
 	tristate "SDM660 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_660
 	select QCOM_GDSC
 	help
@@ -624,6 +670,7 @@ config QDU_GCC_1000
 
 config SDM_GCC_845
 	tristate "SDM845/SDM670 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SDM845 and SDM670 devices.
@@ -632,6 +679,7 @@ config SDM_GCC_845
 
 config SDM_GPUCC_845
 	tristate "SDM845 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_845
 	help
 	  Support for the graphics clock controller on SDM845 devices.
@@ -640,6 +688,7 @@ config SDM_GPUCC_845
 
 config SDM_VIDEOCC_845
 	tristate "SDM845 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_845
 	select QCOM_GDSC
 	help
@@ -649,6 +698,7 @@ config SDM_VIDEOCC_845
 
 config SDM_DISPCC_845
 	tristate "SDM845 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_845
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -658,6 +708,7 @@ config SDM_DISPCC_845
 
 config SDM_LPASSCC_845
 	tristate "SDM845 Low Power Audio Subsystem (LPAAS) Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SDM_GCC_845
 	help
 	  Support for the LPASS clock controller on SDM845 devices.
@@ -666,6 +717,7 @@ config SDM_LPASSCC_845
 
 config SDX_GCC_55
 	tristate "SDX55 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SDX55 devices.
@@ -674,14 +726,24 @@ config SDX_GCC_55
 
 config SDX_GCC_65
 	tristate "SDX65 Global Clock Controller"
+	depends on ARM || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SDX65 devices.
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
 
+config SDX_GCC_75
+	tristate "SDX75 Global Clock Controller"
+	select QCOM_GDSC
+	help
+	  Support for the global clock controller on SDX75 devices.
+	  Say Y if you want to use peripheral devices such as UART,
+	  SPI, I2C, USB, SD/eMMC, PCIe etc.
+
 config SM_CAMCC_6350
 	tristate "SM6350 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_6350
 	help
 	  Support for the camera clock controller on SM6350 devices.
@@ -689,6 +751,7 @@ config SM_CAMCC_6350
 
 config SM_CAMCC_8250
 	tristate "SM8250 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8250
 	help
 	  Support for the camera clock controller on SM8250 devices.
@@ -696,6 +759,7 @@ config SM_CAMCC_8250
 
 config SM_CAMCC_8450
 	tristate "SM8450 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8450
 	help
 	  Support for the camera clock controller on SM8450 devices.
@@ -703,6 +767,7 @@ config SM_CAMCC_8450
 
 config SM_DISPCC_6115
 	tristate "SM6115 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6115
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -712,6 +777,7 @@ config SM_DISPCC_6115
 
 config SM_DISPCC_6125
 	tristate "SM6125 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6125
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -721,6 +787,7 @@ config SM_DISPCC_6125
 
 config SM_DISPCC_8250
 	tristate "SM8150/SM8250/SM8350 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_8150 || SM_GCC_8250 || SM_GCC_8350
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -730,6 +797,7 @@ config SM_DISPCC_8250
 
 config SM_DISPCC_6350
 	tristate "SM6350 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6350
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -739,6 +807,7 @@ config SM_DISPCC_6350
 
 config SM_DISPCC_6375
 	tristate "SM6375 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_6375
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -748,6 +817,7 @@ config SM_DISPCC_6375
 
 config SM_DISPCC_8450
 	tristate "SM8450 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_8450
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -757,6 +827,7 @@ config SM_DISPCC_8450
 
 config SM_DISPCC_8550
 	tristate "SM8550 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	depends on SM_GCC_8550
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
@@ -766,6 +837,7 @@ config SM_DISPCC_8550
 
 config SM_GCC_6115
 	tristate "SM6115 and SM4250 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM6115 and SM4250 devices.
@@ -774,6 +846,7 @@ config SM_GCC_6115
 
 config SM_GCC_6125
 	tristate "SM6125 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the global clock controller on SM6125 devices.
 	  Say Y if you want to use peripheral devices such as UART,
@@ -781,6 +854,7 @@ config SM_GCC_6125
 
 config SM_GCC_6350
 	tristate "SM6350 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM6350 devices.
@@ -789,6 +863,7 @@ config SM_GCC_6350
 
 config SM_GCC_6375
 	tristate "SM6375 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM6375 devices.
@@ -805,6 +880,7 @@ config SM_GCC_7150
 
 config SM_GCC_8150
 	tristate "SM8150 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the global clock controller on SM8150 devices.
 	  Say Y if you want to use peripheral devices such as UART,
@@ -812,6 +888,7 @@ config SM_GCC_8150
 
 config SM_GCC_8250
 	tristate "SM8250 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM8250 devices.
@@ -820,6 +897,7 @@ config SM_GCC_8250
 
 config SM_GCC_8350
 	tristate "SM8350 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM8350 devices.
@@ -828,6 +906,7 @@ config SM_GCC_8350
 
 config SM_GCC_8450
 	tristate "SM8450 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM8450 devices.
@@ -836,6 +915,7 @@ config SM_GCC_8450
 
 config SM_GCC_8550
 	tristate "SM8550 Global Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the global clock controller on SM8550 devices.
@@ -871,6 +951,7 @@ config SM_GPUCC_6375
 
 config SM_GPUCC_6350
 	tristate "SM6350 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_6350
 	help
 	  Support for the graphics clock controller on SM6350 devices.
@@ -879,6 +960,7 @@ config SM_GPUCC_6350
 
 config SM_GPUCC_8150
 	tristate "SM8150 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8150
 	help
 	  Support for the graphics clock controller on SM8150 devices.
@@ -887,6 +969,7 @@ config SM_GPUCC_8150
 
 config SM_GPUCC_8250
 	tristate "SM8250 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8250
 	help
 	  Support for the graphics clock controller on SM8250 devices.
@@ -895,14 +978,32 @@ config SM_GPUCC_8250
 
 config SM_GPUCC_8350
 	tristate "SM8350 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8350
 	help
 	  Support for the graphics clock controller on SM8350 devices.
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SM_GPUCC_8450
+	tristate "SM8450 Graphics Clock Controller"
+	select SM_GCC_8450
+	help
+	  Support for the graphics clock controller on SM8450 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
+config SM_GPUCC_8550
+	tristate "SM8550 Graphics Clock Controller"
+	select SM_GCC_8550
+	help
+	  Support for the graphics clock controller on SM8550 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config SM_TCSRCC_8550
 	tristate "SM8550 TCSR Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select QCOM_GDSC
 	help
 	  Support for the TCSR clock controller on SM8550 devices.
@@ -910,6 +1011,7 @@ config SM_TCSRCC_8550
 
 config SM_VIDEOCC_8150
 	tristate "SM8150 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8150
 	select QCOM_GDSC
 	help
@@ -919,12 +1021,32 @@ config SM_VIDEOCC_8150
 
 config SM_VIDEOCC_8250
 	tristate "SM8250 Video Clock Controller"
+	depends on ARM64 || COMPILE_TEST
 	select SM_GCC_8250
 	select QCOM_GDSC
 	help
 	  Support for the video clock controller on SM8250 devices.
 	  Say Y if you want to support video devices and functionality such as
 	  video encode and decode.
+
+config SM_VIDEOCC_8350
+	tristate "SM8350 Video Clock Controller"
+	select SM_GCC_8350
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SM8350 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
+config SM_VIDEOCC_8550
+	tristate "SM8550 Video Clock Controller"
+	select SM_GCC_8550
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  SM8550 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
 
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
@@ -959,8 +1081,18 @@ config KRAITCC
 
 config CLK_GFM_LPASS_SM8250
 	tristate "SM8250 GFM LPASS Clocks"
+	depends on ARM64 || COMPILE_TEST
 	help
 	  Support for the Glitch Free Mux (GFM) Low power audio
           subsystem (LPASS) clocks found on SM8250 SoCs.
 
+config SM_VIDEOCC_8450
+	tristate "SM8450 Video Clock Controller"
+	select SM_GCC_8450
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on Qualcomm Technologies, Inc.
+	  SM8450 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode/decode.
 endif

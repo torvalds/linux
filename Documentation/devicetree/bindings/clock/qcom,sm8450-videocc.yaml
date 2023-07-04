@@ -17,7 +17,9 @@ description: |
 
 properties:
   compatible:
-    const: qcom,sm8450-videocc
+    enum:
+      - qcom,sm8450-videocc
+      - qcom,sm8550-videocc
 
   reg:
     maxItems: 1
