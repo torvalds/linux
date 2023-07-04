@@ -2147,7 +2147,7 @@ static void __init intel_idle_cpuidle_devices_uninit(void)
  * All our short idle states are dominated by vmexit/vmenter latencies,
  * not the underlying hardware latencies so we keep our values for these.
  */
-static void matchup_vm_state_with_baremetal(void)
+static void __init matchup_vm_state_with_baremetal(void)
 {
 	int cstate;
 
