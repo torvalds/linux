@@ -31,6 +31,16 @@ static inline u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 	return readb(tile->mmio.regs + reg.addr);
 }
 
+static inline u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
+{
+	struct xe_tile *tile = gt_to_tile(gt);
+
+	if (reg.addr < gt->mmio.adj_limit)
+		reg.addr += gt->mmio.adj_offset;
+
+	return readw(tile->mmio.regs + reg.addr);
+}
+
 static inline void xe_mmio_write32(struct xe_gt *gt,
 				   struct xe_reg reg, u32 val)
 {
