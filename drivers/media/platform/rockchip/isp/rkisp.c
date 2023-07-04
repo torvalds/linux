@@ -745,6 +745,7 @@ run_next:
 			is_upd = true;
 		} else if (is_try) {
 			rkisp_multi_overflow_hdl(dev, true);
+			rkisp_update_regs(dev, ISP_LDCH_BASE, ISP_LDCH_BASE);
 			is_upd = true;
 		}
 	}
