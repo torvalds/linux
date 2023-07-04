@@ -1566,19 +1566,13 @@ static int pdc_probe(struct platform_device *pdev)
 	if (err)
 		goto cleanup_ring_pool;
 
-	pdc_regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!pdc_regs) {
-		err = -ENODEV;
-		goto cleanup_ring_pool;
-	}
-	dev_dbg(dev, "PDC register region res.start = %pa, res.end = %pa",
-		&pdc_regs->start, &pdc_regs->end);
-
-	pdcs->pdc_reg_vbase = devm_ioremap_resource(&pdev->dev, pdc_regs);
+	pdcs->pdc_reg_vbase = devm_platform_get_and_ioremap_resource(pdev, 0, &pdc_regs);
 	if (IS_ERR(pdcs->pdc_reg_vbase)) {
 		err = PTR_ERR(pdcs->pdc_reg_vbase);
 		goto cleanup_ring_pool;
 	}
+	dev_dbg(dev, "PDC register region res.start = %pa, res.end = %pa",
+		&pdc_regs->start, &pdc_regs->end);
 
 	/* create rx buffer pool after dt read to know how big buffers are */
 	err = pdc_rx_buf_pool_create(pdcs);
