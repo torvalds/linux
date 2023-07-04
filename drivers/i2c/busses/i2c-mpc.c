@@ -307,7 +307,6 @@ static void mpc_i2c_setup_512x(struct device_node *node,
 {
 	struct device_node *node_ctrl;
 	void __iomem *ctrl;
-	const u32 *pval;
 	u32 idx;
 
 	/* Enable I2C interrupts for mpc5121 */
