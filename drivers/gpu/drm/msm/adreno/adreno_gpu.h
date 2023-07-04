@@ -149,7 +149,8 @@ bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2);
 
 static inline bool adreno_is_revn(const struct adreno_gpu *gpu, uint32_t revn)
 {
-	WARN_ON_ONCE(!gpu->revn);
+	/* revn can be zero, but if not is set at same time as info */
+	WARN_ON_ONCE(!gpu->info);
 
 	return gpu->revn == revn;
 }
@@ -161,14 +162,16 @@ static inline bool adreno_has_gmu_wrapper(const struct adreno_gpu *gpu)
 
 static inline bool adreno_is_a2xx(const struct adreno_gpu *gpu)
 {
-	WARN_ON_ONCE(!gpu->revn);
+	/* revn can be zero, but if not is set at same time as info */
+	WARN_ON_ONCE(!gpu->info);
 
 	return (gpu->revn < 300);
 }
 
 static inline bool adreno_is_a20x(const struct adreno_gpu *gpu)
 {
-	WARN_ON_ONCE(!gpu->revn);
+	/* revn can be zero, but if not is set at same time as info */
+	WARN_ON_ONCE(!gpu->info);
 
 	return (gpu->revn < 210);
 }
