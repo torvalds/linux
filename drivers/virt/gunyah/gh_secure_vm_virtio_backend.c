@@ -953,7 +953,6 @@ new_vm(struct device *dev, const char *vm_name, struct device_node *np)
 	} else {
 		vm->com_mem_dev = gh_alloc_memdev(dev, "com_mem", 1);
 		if (!vm->com_mem_dev) {
-			device_unregister(vm->com_mem_dev);
 			return NULL;
 		}
 
