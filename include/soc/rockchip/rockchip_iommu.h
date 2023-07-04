@@ -7,7 +7,7 @@
 
 struct device;
 
-#if IS_ENABLED(CONFIG_ROCKCHIP_IOMMU)
+#if IS_REACHABLE(CONFIG_ROCKCHIP_IOMMU)
 int rockchip_iommu_enable(struct device *dev);
 int rockchip_iommu_disable(struct device *dev);
 int rockchip_pagefault_done(struct device *master_dev);
