@@ -715,6 +715,8 @@ int blk_mq_alloc_sq_tag_set(struct blk_mq_tag_set *set,
 void blk_mq_free_tag_set(struct blk_mq_tag_set *set);
 
 void blk_mq_free_request(struct request *rq);
+int blk_rq_poll(struct request *rq, struct io_comp_batch *iob,
+		unsigned int poll_flags);
 
 bool blk_mq_queue_inflight(struct request_queue *q);
 
@@ -852,7 +854,11 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 				       struct io_comp_batch *iob, int ioerror,
 				       void (*complete)(struct io_comp_batch *))
 {
-	if (!iob || (req->rq_flags & RQF_USE_SCHED) || ioerror ||
+	/*
+	 * blk_mq_end_request_batch() can't end request allocated from
+	 * sched tags
+	 */
+	if (!iob || (req->rq_flags & RQF_SCHED_TAGS) || ioerror ||
 			(req->end_io && !blk_rq_is_passthrough(req)))
 		return false;
 

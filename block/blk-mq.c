@@ -49,17 +49,8 @@ static void blk_mq_request_bypass_insert(struct request *rq,
 		blk_insert_t flags);
 static void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list);
-
-static inline struct blk_mq_hw_ctx *blk_qc_to_hctx(struct request_queue *q,
-		blk_qc_t qc)
-{
-	return xa_load(&q->hctx_table, qc);
-}
-
-static inline blk_qc_t blk_rq_to_qc(struct request *rq)
-{
-	return rq->mq_hctx->queue_num;
-}
+static int blk_hctx_poll(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+			 struct io_comp_batch *iob, unsigned int flags);
 
 /*
  * Check if any of the ctx, dispatch list or elevator
@@ -1248,7 +1239,7 @@ void blk_mq_start_request(struct request *rq)
 		q->integrity.profile->prepare_fn(rq);
 #endif
 	if (rq->bio && rq->bio->bi_opf & REQ_POLLED)
-	        WRITE_ONCE(rq->bio->bi_cookie, blk_rq_to_qc(rq));
+	        WRITE_ONCE(rq->bio->bi_cookie, rq->mq_hctx->queue_num);
 }
 EXPORT_SYMBOL(blk_mq_start_request);
 
@@ -1280,7 +1271,11 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 
 	if (!plug->multiple_queues && last && last->q != rq->q)
 		plug->multiple_queues = true;
-	if (!plug->has_elevator && (rq->rq_flags & RQF_USE_SCHED))
+	/*
+	 * Any request allocated from sched tags can't be issued to
+	 * ->queue_rqs() directly
+	 */
+	if (!plug->has_elevator && (rq->rq_flags & RQF_SCHED_TAGS))
 		plug->has_elevator = true;
 	rq->rq_next = NULL;
 	rq_list_add(&plug->mq_list, rq);
@@ -1350,7 +1345,7 @@ EXPORT_SYMBOL_GPL(blk_rq_is_poll);
 static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
 {
 	do {
-		blk_mq_poll(rq->q, blk_rq_to_qc(rq), NULL, 0);
+		blk_hctx_poll(rq->q, rq->mq_hctx, NULL, 0);
 		cond_resched();
 	} while (!completion_done(wait));
 }
@@ -4745,10 +4740,9 @@ void blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set, int nr_hw_queues)
 }
 EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 
-int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, struct io_comp_batch *iob,
-		unsigned int flags)
+static int blk_hctx_poll(struct request_queue *q, struct blk_mq_hw_ctx *hctx,
+			 struct io_comp_batch *iob, unsigned int flags)
 {
-	struct blk_mq_hw_ctx *hctx = blk_qc_to_hctx(q, cookie);
 	long state = get_current_state();
 	int ret;
 
@@ -4772,6 +4766,32 @@ int blk_mq_poll(struct request_queue *q, blk_qc_t cookie, struct io_comp_batch *
 	__set_current_state(TASK_RUNNING);
 	return 0;
 }
+
+int blk_mq_poll(struct request_queue *q, blk_qc_t cookie,
+		struct io_comp_batch *iob, unsigned int flags)
+{
+	struct blk_mq_hw_ctx *hctx = xa_load(&q->hctx_table, cookie);
+
+	return blk_hctx_poll(q, hctx, iob, flags);
+}
+
+int blk_rq_poll(struct request *rq, struct io_comp_batch *iob,
+		unsigned int poll_flags)
+{
+	struct request_queue *q = rq->q;
+	int ret;
+
+	if (!blk_rq_is_poll(rq))
+		return 0;
+	if (!percpu_ref_tryget(&q->q_usage_counter))
+		return 0;
+
+	ret = blk_hctx_poll(q, rq->mq_hctx, iob, poll_flags);
+	blk_queue_exit(q);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(blk_rq_poll);
 
 unsigned int blk_mq_rq_cpu(struct request *rq)
 {

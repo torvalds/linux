@@ -3301,11 +3301,9 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 		blk_stat_enable_accounting(disk->queue);
 		blk_queue_flag_set(QUEUE_FLAG_RQ_ALLOC_TIME, disk->queue);
 		ioc->enabled = true;
-		wbt_disable_default(disk);
 	} else {
 		blk_queue_flag_clear(QUEUE_FLAG_RQ_ALLOC_TIME, disk->queue);
 		ioc->enabled = false;
-		wbt_enable_default(disk);
 	}
 
 	if (user) {
@@ -3317,6 +3315,11 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 
 	ioc_refresh_params(ioc, true);
 	spin_unlock_irq(&ioc->lock);
+
+	if (enable)
+		wbt_disable_default(disk);
+	else
+		wbt_enable_default(disk);
 
 	blk_mq_unquiesce_queue(disk->queue);
 	blk_mq_unfreeze_queue(disk->queue);
