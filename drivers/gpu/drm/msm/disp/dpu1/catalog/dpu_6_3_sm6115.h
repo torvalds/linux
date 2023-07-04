@@ -34,10 +34,10 @@ static const struct dpu_mdp_cfg sm6115_mdp = {
 
 static const struct dpu_ctl_cfg sm6115_ctl[] = {
 	{
-	.name = "ctl_0", .id = CTL_0,
-	.base = 0x1000, .len = 0x1dc,
-	.features = BIT(DPU_CTL_ACTIVE_CFG),
-	.intr_start = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR2, 9),
+		.name = "ctl_0", .id = CTL_0,
+		.base = 0x1000, .len = 0x1dc,
+		.features = BIT(DPU_CTL_ACTIVE_CFG),
+		.intr_start = DPU_IRQ_IDX(MDP_SSPP_TOP0_INTR2, 9),
 	},
 };
 
