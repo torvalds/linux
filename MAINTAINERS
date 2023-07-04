@@ -4009,7 +4009,7 @@ F:	arch/mips/kernel/*bmips*
 F:	drivers/irqchip/irq-bcm63*
 F:	drivers/irqchip/irq-bcm7*
 F:	drivers/irqchip/irq-brcmstb*
-F:	drivers/soc/bcm/bcm63xx
+F:	drivers/genpd/bcm/bcm63xx-power.c
 F:	include/linux/bcm963xx_nvram.h
 F:	include/linux/bcm963xx_tag.h
 
@@ -4224,7 +4224,7 @@ R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git https://github.com/broadcom/stblinux.git
-F:	drivers/soc/bcm/bcm63xx/bcm-pmb.c
+F:	drivers/genpd/bcm/bcm-pmb.c
 F:	include/dt-bindings/soc/bcm-pmb.h
 
 BROADCOM SPECIFIC AMBA DRIVER (BCMA)
