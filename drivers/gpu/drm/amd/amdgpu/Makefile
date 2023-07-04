@@ -186,7 +186,8 @@ amdgpu-y += \
 amdgpu-y += \
 	amdgpu_mes.o \
 	mes_v10_1.o \
-	mes_v11_0.o
+	mes_v11_0.o \
+	mes_v12_0.o
 
 # add UVD block
 amdgpu-y += \
