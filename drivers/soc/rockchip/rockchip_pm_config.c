@@ -27,6 +27,10 @@
 #define MAX_ON_OFF_REG_PROP_NAME_LEN	60
 #define MAX_CONFIG_PROP_NAME_LEN	60
 
+#define RK_ATAG_MCU_SLP_CORE		0x526b0001
+#define RK_ATAG_MCU_SLP_MAX		0x526b00ff
+#define RK_ATAG_NONE			0x00000000
+
 enum rk_pm_state {
 	RK_PM_MEM = 0,
 	RK_PM_MEM_LITE,
@@ -51,6 +55,31 @@ static struct rk_sleep_config {
 	u32 mode_config;
 	u32 wakeup_config;
 } sleep_config[RK_PM_STATE_MAX];
+
+/* rk_tag related defines */
+#define sleep_tag_next(t)	\
+	((struct rk_sleep_tag *)((__u32 *)(t) + (t)->hdr.size))
+
+struct rk_tag_header {
+	u32 size;
+	u32 tag;
+};
+
+struct rk_sleep_tag {
+	struct rk_tag_header hdr;
+	u32 params[];
+};
+
+struct rk_mcu_sleep_core_tag {
+	struct rk_tag_header hdr;
+	u32 total_size;
+	u32 reserve[13];
+};
+
+struct rk_mcu_sleep_tags {
+	struct rk_mcu_sleep_core_tag core;
+	struct rk_sleep_tag slp_tags;
+};
 
 static const struct of_device_id pm_match_table[] = {
 	{ .compatible = "rockchip,pm-px30",},
@@ -166,6 +195,115 @@ static int parse_on_off_regulator(struct device_node *node, enum rk_pm_state sta
 }
 #endif
 
+static int parse_mcu_sleep_config(struct device_node *node)
+{
+	int ret, cnt;
+	struct arm_smccc_res res;
+	struct device_node *mcu_sleep_node;
+	struct device_node *child;
+	struct rk_mcu_sleep_tags *config;
+	struct rk_sleep_tag *slp_tag;
+	char *end;
+
+	mcu_sleep_node = of_find_node_by_name(node, "rockchip-mcu-sleep-cfg");
+	if (IS_ERR_OR_NULL(mcu_sleep_node)) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	cnt = of_get_child_count(mcu_sleep_node);
+	if (!cnt) {
+		ret = -EINVAL;
+		goto free_mcu_mode;
+	}
+
+	/*
+	 * 4kb for sleep parameters
+	 */
+	res = sip_smc_request_share_mem(1, SHARE_PAGE_TYPE_SLEEP);
+	if (res.a0 != 0) {
+		pr_err("%s: no trust memory for mcu_sleep\n", __func__);
+		ret = -ENOMEM;
+		goto free_mcu_mode;
+	}
+
+	/* Initialize core tag */
+	memset((void *)res.a1, 0, sizeof(struct rk_mcu_sleep_tags));
+	config = (struct rk_mcu_sleep_tags *)res.a1;
+	config->core.hdr.tag = RK_ATAG_MCU_SLP_CORE;
+	config->core.hdr.size = sizeof(struct rk_mcu_sleep_core_tag) / sizeof(u32);
+	config->core.total_size = sizeof(struct rk_mcu_sleep_tags) -
+				  sizeof(struct rk_sleep_tag);
+
+	slp_tag = &config->slp_tags;
+
+	/* End point of sleep data  */
+	end = (char *)config + PAGE_SIZE - sizeof(struct rk_sleep_tag);
+
+	for_each_available_child_of_node(mcu_sleep_node, child) {
+		/* Is overflow? */
+		if ((char *)slp_tag->params >= end)
+			break;
+
+		ret = of_property_read_u32_array(child, "rockchip,tag",
+						 &slp_tag->hdr.tag, 1);
+		if (ret ||
+		    slp_tag->hdr.tag <= RK_ATAG_MCU_SLP_CORE ||
+		    slp_tag->hdr.tag >= RK_ATAG_MCU_SLP_MAX) {
+			pr_info("%s: no or invalid rockchip,tag in %s\n",
+				__func__, child->name);
+
+			continue;
+		}
+
+		cnt = of_property_count_u32_elems(child, "rockchip,params");
+		if (cnt > 0) {
+			/* Is overflow? */
+			if ((char *)(slp_tag->params + cnt) >= end) {
+				pr_warn("%s: no more space for rockchip,tag in %s\n",
+					__func__, child->name);
+				break;
+			}
+
+			ret = of_property_read_u32_array(child, "rockchip,params",
+							 slp_tag->params, cnt);
+			if (ret) {
+				pr_err("%s: rockchip,params error in %s\n",
+				       __func__, child->name);
+				break;
+			}
+
+			slp_tag->hdr.size =
+				cnt + sizeof(struct rk_tag_header) / sizeof(u32);
+		} else if (cnt == 0) {
+			slp_tag->hdr.size = 0;
+		} else {
+			continue;
+		}
+
+		config->core.total_size += slp_tag->hdr.size * sizeof(u32);
+
+		slp_tag = sleep_tag_next(slp_tag);
+	}
+
+	/* Add none tag.
+	 * Compiler will combine the follow code as "str xzr, [x28]", but
+	 * "slp->hdr" may not be 8-byte alignment. So we use memset_io instead:
+	 * slp_tag->hdr.size = 0;
+	 * slp_tag->hdr.tag = RK_ATAG_NONE;
+	 */
+	memset_io(&slp_tag->hdr, 0, sizeof(slp_tag->hdr));
+
+	config->core.total_size += sizeof(struct rk_sleep_tag);
+
+	ret = 0;
+
+free_mcu_mode:
+	of_node_put(mcu_sleep_node);
+out:
+	return ret;
+}
+
 static int pm_config_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match_id;
@@ -269,6 +407,8 @@ static int pm_config_probe(struct platform_device *pdev)
 				 "sleep-pin-config failed (%d), check parameters or update trust\n",
 				 ret);
 	}
+
+	parse_mcu_sleep_config(node);
 
 #ifndef MODULE
 	if (!of_property_read_u32_array(node,
