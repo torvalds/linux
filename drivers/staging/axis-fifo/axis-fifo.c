@@ -839,16 +839,8 @@ static int axis_fifo_probe(struct platform_device *pdev)
 	 * ----------------------------
 	 */
 
-	/* get iospace for the device */
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r_mem) {
-		dev_err(fifo->dt_device, "invalid address\n");
-		rc = -ENODEV;
-		goto err_initial;
-	}
-
-	/* request physical memory */
-	fifo->base_addr = devm_ioremap_resource(fifo->dt_device, r_mem);
+	/* get iospace for the device and request physical memory */
+	fifo->base_addr = devm_platform_get_and_ioremap_resource(pdev, 0, &r_mem);
 	if (IS_ERR(fifo->base_addr)) {
 		rc = PTR_ERR(fifo->base_addr);
 		goto err_initial;
