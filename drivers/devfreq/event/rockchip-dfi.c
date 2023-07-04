@@ -49,7 +49,7 @@ struct dmc_usage {
  */
 struct rockchip_dfi {
 	struct devfreq_event_dev *edev;
-	struct devfreq_event_desc *desc;
+	struct devfreq_event_desc desc;
 	struct dmc_usage ch_usage[RK3399_DMC_NUM_CH];
 	struct device *dev;
 	void __iomem *regs;
@@ -204,14 +204,10 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 
 	data->dev = dev;
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
-
+	desc = &data->desc;
 	desc->ops = &rockchip_dfi_ops;
 	desc->driver_data = data;
 	desc->name = np->name;
-	data->desc = desc;
 
 	data->edev = devm_devfreq_event_add_edev(&pdev->dev, desc);
 	if (IS_ERR(data->edev)) {
