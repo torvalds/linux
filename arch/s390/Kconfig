@@ -877,13 +877,24 @@ config APPLDATA_NET_SUM
 	  This can also be compiled as a module, which will be called
 	  appldata_net_sum.o.
 
-config S390_HYPFS_FS
+config S390_HYPFS
 	def_bool y
+	prompt "s390 hypervisor information"
+	help
+	  This provides several binary files at (debugfs)/s390_hypfs/ to
+	  provide accounting information in an s390 hypervisor environment.
+
+config S390_HYPFS_FS
+	def_bool n
 	prompt "s390 hypervisor file system support"
 	select SYS_HYPERVISOR
+	depends on S390_HYPFS
 	help
 	  This is a virtual file system intended to provide accounting
-	  information in an s390 hypervisor environment.
+	  information in an s390 hypervisor environment. This file system
+	  is deprecated and should not be used.
+
+	  Say N if you are unsure.
 
 source "arch/s390/kvm/Kconfig"
 
