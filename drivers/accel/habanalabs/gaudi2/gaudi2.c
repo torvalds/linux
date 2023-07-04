@@ -6254,16 +6254,12 @@ static int gaudi2_get_soft_rst_done_indication(struct hl_device *hdev, u32 poll_
 static int gaudi2_execute_soft_reset(struct hl_device *hdev, bool driver_performs_reset,
 						u32 poll_timeout_us)
 {
-	struct cpu_dyn_regs *dyn_regs = &hdev->fw_loader.dynamic_loader.comm_desc.cpu_dyn_regs;
-	int rc = 0;
+	int rc;
 
 	if (!driver_performs_reset) {
 		if (hl_is_fw_sw_ver_below(hdev, 1, 10)) {
 			/* set SP to indicate reset request sent to FW */
-			if (dyn_regs->cpu_rst_status)
-				WREG32(le32_to_cpu(dyn_regs->cpu_rst_status), CPU_RST_STATUS_NA);
-			else
-				WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
+			WREG32(mmCPU_RST_STATUS_TO_HOST, CPU_RST_STATUS_NA);
 
 			WREG32(mmGIC_HOST_SOFT_RST_IRQ_POLL_REG,
 				gaudi2_irq_map_table[GAUDI2_EVENT_CPU_SOFT_RESET].cpu_id);
