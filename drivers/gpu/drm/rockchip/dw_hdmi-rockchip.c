@@ -197,7 +197,6 @@ struct rockchip_hdmi {
 	u8 id;
 	bool hpd_stat;
 	bool is_hdmi_qp;
-	bool user_split_mode;
 
 	unsigned long bus_format;
 	unsigned long output_bus_format;
@@ -215,7 +214,6 @@ struct rockchip_hdmi {
 	struct drm_property *next_hdr_sink_data_property;
 	struct drm_property *output_hdmi_dvi;
 	struct drm_property *output_type_capacity;
-	struct drm_property *user_split_mode_prop;
 	struct drm_property *allm_capacity;
 	struct drm_property *allm_enable;
 
@@ -2711,14 +2709,6 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 		drm_object_attach_property(&connector->base, prop, 0);
 	}
 
-	prop = drm_property_create_bool(connector->dev, DRM_MODE_PROP_IMMUTABLE,
-					"USER_SPLIT_MODE");
-	if (prop) {
-		hdmi->user_split_mode_prop = prop;
-		drm_object_attach_property(&connector->base, prop,
-					   hdmi->user_split_mode ? 1 : 0);
-	}
-
 	prop = drm_property_create_bool(connector->dev, 0, "allm_capacity");
 	if (prop) {
 		hdmi->allm_capacity = prop;
@@ -2833,12 +2823,6 @@ dw_hdmi_rockchip_destroy_properties(struct drm_connector *connector,
 		drm_property_destroy(connector->dev,
 				     hdmi->output_type_capacity);
 		hdmi->output_type_capacity = NULL;
-	}
-
-	if (hdmi->user_split_mode_prop) {
-		drm_property_destroy(connector->dev,
-				     hdmi->user_split_mode_prop);
-		hdmi->user_split_mode_prop = NULL;
 	}
 
 	if (hdmi->allm_capacity) {
@@ -2981,9 +2965,6 @@ dw_hdmi_rockchip_get_property(struct drm_connector *connector,
 			*val = dw_hdmi_get_output_type_cap(hdmi->hdmi);
 		else
 			*val = dw_hdmi_qp_get_output_type_cap(hdmi->hdmi_qp);
-		return 0;
-	} else if (property == hdmi->user_split_mode_prop) {
-		*val = hdmi->user_split_mode;
 		return 0;
 	} else if (property == hdmi->allm_capacity) {
 		*val = !!(hdmi->add_func & SUPPORT_HDMI_ALLM);
@@ -3496,12 +3477,6 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 			secondary->plat_data->split_mode = true;
 			if (!secondary->plat_data->first_screen)
 				plat_data->first_screen = true;
-		}
-
-		if (device_property_read_bool(dev, "user-split-mode") ||
-		    device_property_read_bool(secondary->dev, "user-split-mode")) {
-			hdmi->user_split_mode = true;
-			secondary->user_split_mode = true;
 		}
 	}
 
