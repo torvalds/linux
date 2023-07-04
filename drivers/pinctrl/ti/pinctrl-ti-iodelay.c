@@ -849,19 +849,12 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 	iod->reg_data = match->data;
 
 	/* So far We can assume there is only 1 bank of registers */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "Missing MEM resource\n");
-		ret = -ENODEV;
-		goto exit_out;
-	}
-
-	iod->phys_base = res->start;
-	iod->reg_base = devm_ioremap_resource(dev, res);
+	iod->reg_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(iod->reg_base)) {
 		ret = PTR_ERR(iod->reg_base);
 		goto exit_out;
 	}
+	iod->phys_base = res->start;
 
 	iod->regmap = devm_regmap_init_mmio(dev, iod->reg_base,
 					    iod->reg_data->regmap_config);
