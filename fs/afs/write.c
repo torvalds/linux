@@ -413,17 +413,19 @@ static int afs_store_data(struct afs_vnode *vnode, struct iov_iter *iter, loff_t
 	afs_op_set_vnode(op, 0, vnode);
 	op->file[0].dv_delta = 1;
 	op->file[0].modification = true;
-	op->store.write_iter = iter;
 	op->store.pos = pos;
 	op->store.size = size;
-	op->store.i_size = max(pos + size, vnode->netfs.remote_i_size);
 	op->store.laundering = laundering;
-	op->mtime = vnode->netfs.inode.i_mtime;
 	op->flags |= AFS_OPERATION_UNINTR;
 	op->ops = &afs_store_data_operation;
 
 try_next_key:
 	afs_begin_vnode_operation(op);
+
+	op->store.write_iter = iter;
+	op->store.i_size = max(pos + size, vnode->netfs.remote_i_size);
+	op->mtime = vnode->netfs.inode.i_mtime;
+
 	afs_wait_for_operation(op);
 
 	switch (op->error) {
