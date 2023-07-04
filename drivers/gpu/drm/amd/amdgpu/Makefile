@@ -179,7 +179,8 @@ amdgpu-y += \
 	sdma_v4_4_2.o \
 	sdma_v5_0.o \
 	sdma_v5_2.o \
-	sdma_v6_0.o
+	sdma_v6_0.o \
+	sdma_v7_0.o
 
 # add MES block
 amdgpu-y += \

@@ -158,6 +158,7 @@ static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 	const struct common_firmware_header *header = NULL;
 	const struct sdma_firmware_header_v1_0 *hdr;
 	const struct sdma_firmware_header_v2_0 *hdr_v2;
+	const struct sdma_firmware_header_v3_0 *hdr_v3;
 
 	header = (const struct common_firmware_header *)
 		sdma_inst->fw->data;
@@ -173,6 +174,11 @@ static int amdgpu_sdma_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 		hdr_v2 = (const struct sdma_firmware_header_v2_0 *)sdma_inst->fw->data;
 		sdma_inst->fw_version = le32_to_cpu(hdr_v2->header.ucode_version);
 		sdma_inst->feature_version = le32_to_cpu(hdr_v2->ucode_feature_version);
+		break;
+	case 3:
+		hdr_v3 = (const struct sdma_firmware_header_v3_0 *)sdma_inst->fw->data;
+		sdma_inst->fw_version = le32_to_cpu(hdr_v3->header.ucode_version);
+		sdma_inst->feature_version = le32_to_cpu(hdr_v3->ucode_feature_version);
 		break;
 	default:
 		return -EINVAL;
