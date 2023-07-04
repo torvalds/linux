@@ -495,21 +495,6 @@ static const struct dpu_dsc_sub_blks dsc_sblk_1 = {
 	.ctl = {.base = 0xF80, .len = 0x10},
 };
 
-#define DSC_BLK(_name, _id, _base, _features) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0x140, \
-	.features = _features, \
-	}
-
-#define DSC_BLK_1_2(_name, _id, _base, _len, _features, _sblk) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = _len, \
-	.features = BIT(DPU_DSC_HW_REV_1_2) | _features, \
-	.sblk = &_sblk, \
-	}
-
 /*************************************************************
  * INTF sub blocks config
  *************************************************************/
