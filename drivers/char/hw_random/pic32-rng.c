@@ -38,6 +38,15 @@ struct pic32_rng {
  */
 #define RNG_TIMEOUT 500
 
+static int pic32_rng_init(struct hwrng *rng)
+{
+	struct pic32_rng *priv = container_of(rng, struct pic32_rng, rng);
+
+	/* enable TRNG in enhanced mode */
+	writel(TRNGEN | TRNGMOD, priv->base + RNGCON);
+	return 0;
+}
+
 static int pic32_rng_read(struct hwrng *rng, void *buf, size_t max,
 			  bool wait)
 {
@@ -59,12 +68,17 @@ static int pic32_rng_read(struct hwrng *rng, void *buf, size_t max,
 	return -EIO;
 }
 
+static void pic32_rng_cleanup(struct hwrng *rng)
+{
+	struct pic32_rng *priv = container_of(rng, struct pic32_rng, rng);
+
+	writel(0, priv->base + RNGCON);
+}
+
 static int pic32_rng_probe(struct platform_device *pdev)
 {
 	struct pic32_rng *priv;
 	struct clk *clk;
-	u32 v;
-	int ret;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -78,28 +92,12 @@ static int pic32_rng_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	/* enable TRNG in enhanced mode */
-	v = TRNGEN | TRNGMOD;
-	writel(v, priv->base + RNGCON);
-
 	priv->rng.name = pdev->name;
+	priv->rng.init = pic32_rng_init;
 	priv->rng.read = pic32_rng_read;
+	priv->rng.cleanup = pic32_rng_cleanup;
 
-	ret = devm_hwrng_register(&pdev->dev, &priv->rng);
-	if (ret)
-		return ret;
-
-	platform_set_drvdata(pdev, priv);
-
-	return 0;
-}
-
-static int pic32_rng_remove(struct platform_device *pdev)
-{
-	struct pic32_rng *rng = platform_get_drvdata(pdev);
-
-	writel(0, rng->base + RNGCON);
-	return 0;
+	return devm_hwrng_register(&pdev->dev, &priv->rng);
 }
 
 static const struct of_device_id pic32_rng_of_match[] __maybe_unused = {
@@ -110,7 +108,6 @@ MODULE_DEVICE_TABLE(of, pic32_rng_of_match);
 
 static struct platform_driver pic32_rng_driver = {
 	.probe		= pic32_rng_probe,
-	.remove		= pic32_rng_remove,
 	.driver		= {
 		.name	= "pic32-rng",
 		.of_match_table = of_match_ptr(pic32_rng_of_match),
