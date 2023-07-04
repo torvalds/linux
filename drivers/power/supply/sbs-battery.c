@@ -1275,7 +1275,7 @@ static const struct of_device_id sbs_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sbs_dt_ids);
 
 static struct i2c_driver sbs_battery_driver = {
-	.probe_new	= sbs_probe,
+	.probe		= sbs_probe,
 	.alert		= sbs_alert,
 	.id_table	= sbs_id,
 	.driver = {

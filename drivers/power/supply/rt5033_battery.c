@@ -196,7 +196,7 @@ static struct i2c_driver rt5033_battery_driver = {
 		.name = "rt5033-battery",
 		.of_match_table = rt5033_battery_of_match,
 	},
-	.probe_new = rt5033_battery_probe,
+	.probe = rt5033_battery_probe,
 	.remove = rt5033_battery_remove,
 	.id_table = rt5033_battery_id,
 };
