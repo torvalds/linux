@@ -215,11 +215,6 @@ static void diag204_free_buffer(void)
 	diag204_buf = NULL;
 }
 
-static void *page_align_ptr(void *ptr)
-{
-	return (void *) PAGE_ALIGN((unsigned long) ptr);
-}
-
 static void *diag204_get_buffer(enum diag204_format fmt, int *pages)
 {
 	if (diag204_buf) {
@@ -379,7 +374,7 @@ static int dbfs_d204_create(void **data, void **data_free_ptr, size_t *size)
 	base = vzalloc(buf_size);
 	if (!base)
 		return -ENOMEM;
-	d204 = page_align_ptr(base + sizeof(d204->hdr)) - sizeof(d204->hdr);
+	d204 = PTR_ALIGN(base + sizeof(d204->hdr), PAGE_SIZE) - sizeof(d204->hdr);
 	rc = diag204_do_store(d204->buf, diag204_buf_pages);
 	if (rc) {
 		vfree(base);
