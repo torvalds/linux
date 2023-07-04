@@ -133,14 +133,23 @@
 	qcom,cabc;
 };
 
-&q6afedai {
-	dai@127 {
-		reg = <QUINARY_MI2S_RX>;
-		qcom,sd-lines = <0 1>;
-	};
+&rmi4_ts {
+	status = "okay";
 };
 
-&rmi4_ts {
+&sound_card {
+	model = "xiaomi-vince";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cdc_pdm_lines_act
+		&cdc_pdm_lines_2_act
+		&cdc_pdm_comp_lines_act
+		&tlmm_pri_act>;
+	pinctrl-1 = <&cdc_pdm_lines_sus
+		&cdc_pdm_lines_2_sus
+		&cdc_pdm_comp_lines_sus
+		&tlmm_pri_sus>;
+
 	status = "okay";
 };
 
@@ -152,6 +161,20 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	tlmm_pri_act: pri-tlmm-state {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	tlmm_pri_sus: pri-tlmm-state {
+		pins = "gpio88", "gpio91", "gpio93";
+		function = "pri_mi2s";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 };
 
