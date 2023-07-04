@@ -19,19 +19,12 @@
 #include <linux/slab.h>
 
 #define RNGCON		0x04
-#define  TRNGEN		BIT(8)
-#define  PRNGEN		BIT(9)
-#define  PRNGCONT	BIT(10)
-#define  TRNGMOD	BIT(11)
-#define  SEEDLOAD	BIT(12)
-#define RNGPOLY1	0x08
-#define RNGPOLY2	0x0C
-#define RNGNUMGEN1	0x10
-#define RNGNUMGEN2	0x14
+#define TRNGEN		BIT(8)
+#define TRNGMOD		BIT(11)
 #define RNGSEED1	0x18
 #define RNGSEED2	0x1C
 #define RNGRCNT		0x20
-#define  RCNT_MASK	0x7F
+#define RCNT_MASK	0x7F
 
 struct pic32_rng {
 	void __iomem	*base;
