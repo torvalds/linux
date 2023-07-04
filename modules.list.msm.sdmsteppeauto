@@ -5,6 +5,7 @@ llcc-qcom.ko
 mem_buf.ko
 mem_buf_dev.ko
 mem_buf_msgq.ko
+debug_symbol.ko
 minidump.ko
 msm_qmp.ko
 msm_dma_iommu_mapping.ko
