@@ -1318,7 +1318,7 @@ static int ast2500_espi_flash_probe(struct ast2500_espi *espi)
 
 	of_property_read_u32(dev->of_node, "flash-safs-mode", &flash->safs.mode);
 	if (flash->safs.mode == SAFS_MODE_MIX) {
-		rc = of_property_read_u32(dev->of_node, "flash-safs-taddr", &flash->safs.taddr);
+		rc = of_property_read_u32(dev->of_node, "flash-safs-tgt-addr", &flash->safs.taddr);
 		if (rc || !IS_ALIGNED(flash->safs.taddr, FLASH_SAFS_ALIGN)) {
 			dev_err(dev, "cannot get 16MB-aligned SAFS target address\n");
 			return -ENODEV;
