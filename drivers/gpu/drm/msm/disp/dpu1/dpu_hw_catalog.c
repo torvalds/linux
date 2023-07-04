@@ -375,17 +375,6 @@ static const struct dpu_sspp_sub_blks qcm2290_dma_sblk_0 = _DMA_SBLK("8", 1);
  * MIXER sub blocks config
  *************************************************************/
 
-#define LM_BLK(_name, _id, _base, _fmask, _sblk, _pp, _lmpair, _dspp) \
-	{ \
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0x320, \
-	.features = _fmask, \
-	.sblk = _sblk, \
-	.pingpong = _pp, \
-	.lm_pair = _lmpair, \
-	.dspp = _dspp \
-	}
-
 /* MSM8998 */
 
 static const struct dpu_lm_sub_blks msm8998_lm_sblk = {
