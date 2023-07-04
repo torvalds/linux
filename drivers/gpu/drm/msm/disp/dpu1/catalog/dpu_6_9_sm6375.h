@@ -24,14 +24,12 @@ static const struct dpu_ubwc_cfg sm6375_ubwc_cfg = {
 	.highest_bank_bit = 1,
 };
 
-static const struct dpu_mdp_cfg sm6375_mdp[] = {
-	{
+static const struct dpu_mdp_cfg sm6375_mdp = {
 	.name = "top_0", .id = MDP_TOP,
 	.base = 0x0, .len = 0x494,
 	.features = 0,
 	.clk_ctrls[DPU_CLK_CTRL_VIG0] = { .reg_off = 0x2ac, .bit_off = 0 },
 	.clk_ctrls[DPU_CLK_CTRL_DMA0] = { .reg_off = 0x2ac, .bit_off = 8 },
-	},
 };
 
 static const struct dpu_ctl_cfg sm6375_ctl[] = {
@@ -109,8 +107,7 @@ static const struct dpu_perf_cfg sm6375_perf_data = {
 const struct dpu_mdss_cfg dpu_sm6375_cfg = {
 	.caps = &sm6375_dpu_caps,
 	.ubwc = &sm6375_ubwc_cfg,
-	.mdp_count = ARRAY_SIZE(sm6375_mdp),
-	.mdp = sm6375_mdp,
+	.mdp = &sm6375_mdp,
 	.ctl_count = ARRAY_SIZE(sm6375_ctl),
 	.ctl = sm6375_ctl,
 	.sspp_count = ARRAY_SIZE(sm6375_sspp),

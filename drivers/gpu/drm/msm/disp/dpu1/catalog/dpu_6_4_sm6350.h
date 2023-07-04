@@ -25,8 +25,7 @@ static const struct dpu_ubwc_cfg sm6350_ubwc_cfg = {
 	.highest_bank_bit = 1,
 };
 
-static const struct dpu_mdp_cfg sm6350_mdp[] = {
-	{
+static const struct dpu_mdp_cfg sm6350_mdp = {
 	.name = "top_0", .id = MDP_TOP,
 	.base = 0x0, .len = 0x494,
 	.features = 0,
@@ -35,7 +34,6 @@ static const struct dpu_mdp_cfg sm6350_mdp[] = {
 	.clk_ctrls[DPU_CLK_CTRL_DMA1] = { .reg_off = 0x2b4, .bit_off = 8 },
 	.clk_ctrls[DPU_CLK_CTRL_DMA2] = { .reg_off = 0x2c4, .bit_off = 8 },
 	.clk_ctrls[DPU_CLK_CTRL_REG_DMA] = { .reg_off = 0x2bc, .bit_off = 20 },
-	},
 };
 
 static const struct dpu_ctl_cfg sm6350_ctl[] = {
@@ -143,8 +141,7 @@ static const struct dpu_perf_cfg sm6350_perf_data = {
 const struct dpu_mdss_cfg dpu_sm6350_cfg = {
 	.caps = &sm6350_dpu_caps,
 	.ubwc = &sm6350_ubwc_cfg,
-	.mdp_count = ARRAY_SIZE(sm6350_mdp),
-	.mdp = sm6350_mdp,
+	.mdp = &sm6350_mdp,
 	.ctl_count = ARRAY_SIZE(sm6350_ctl),
 	.ctl = sm6350_ctl,
 	.sspp_count = ARRAY_SIZE(sm6350_sspp),
