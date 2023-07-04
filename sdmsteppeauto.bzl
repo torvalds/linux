@@ -72,6 +72,7 @@ def define_sdmsteppeauto():
         "drivers/power/reset/qcom-pon.ko",
         "drivers/power/reset/reboot-mode.ko",
         "drivers/power/reset/silent_boot.ko",
+        "drivers/power/supply/wallpower_charger.ko",
         "drivers/regulator/proxy-consumer.ko",
         "drivers/regulator/qcom-rpmh-regulator.ko",
         "drivers/regulator/rpmh-regulator.ko",
