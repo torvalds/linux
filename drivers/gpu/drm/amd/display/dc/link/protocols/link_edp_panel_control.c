@@ -33,6 +33,7 @@
 #include "link_dp_capability.h"
 #include "dm_helpers.h"
 #include "dal_asic_id.h"
+#include "link_dp_phy.h"
 #include "dce/dmub_psr.h"
 #include "dc/dc_dmub_srv.h"
 #include "dce/dmub_replay.h"
@@ -360,6 +361,34 @@ void edp_panel_backlight_power_on(struct dc_link *link, bool wait_for_hpd)
 		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 	if (link->dc->hwss.edp_backlight_control)
 		link->dc->hwss.edp_backlight_control(link, true);
+}
+
+void edp_set_panel_power(struct dc_link *link, bool powerOn)
+{
+	if (powerOn) {
+		// 1. panel VDD on
+		if (!link->dc->config.edp_no_power_sequencing)
+			link->dc->hwss.edp_power_control(link, true);
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+
+		// 2. panel BL on
+		if (link->dc->hwss.edp_backlight_control)
+			link->dc->hwss.edp_backlight_control(link, true);
+
+		// 3. Rx power on
+		dpcd_write_rx_power_ctrl(link, true);
+	} else {
+		// 3. Rx power off
+		dpcd_write_rx_power_ctrl(link, false);
+
+		// 2. panel BL off
+		if (link->dc->hwss.edp_backlight_control)
+			link->dc->hwss.edp_backlight_control(link, false);
+
+		// 1. panel VDD off
+		if (!link->dc->config.edp_no_power_sequencing)
+			link->dc->hwss.edp_power_control(link, false);
+	}
 }
 
 bool edp_wait_for_t12(struct dc_link *link)

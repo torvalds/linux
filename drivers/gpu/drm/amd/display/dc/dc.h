@@ -1578,6 +1578,7 @@ struct dc_link {
 	struct phy_state phy_state;
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
+	bool skip_implict_edp_power_control;
 };
 
 /* Return an enumerated dc_link.
@@ -1596,6 +1597,9 @@ bool dc_get_edp_link_panel_inst(const struct dc *dc,
 void dc_get_edp_links(const struct dc *dc,
 		struct dc_link **edp_links,
 		int *edp_num);
+
+void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
+				 bool powerOn);
 
 /* The function initiates detection handshake over the given link. It first
  * determines if there are display connections over the link. If so it initiates

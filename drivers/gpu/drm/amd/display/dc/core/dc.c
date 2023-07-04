@@ -5254,3 +5254,24 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 	properties->cursor_size_limit = subvp_in_use ? 64 : dc->caps.max_cursor_size;
 }
 
+/**
+ *****************************************************************************
+ * dc_set_edp_power() - DM controls eDP power to be ON/OFF
+ *
+ * Called when DM wants to power on/off eDP.
+ *     Only work on links with flag skip_implict_edp_power_control is set.
+ *
+ *****************************************************************************
+ */
+void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
+				 bool powerOn)
+{
+	if (edp_link->connector_signal != SIGNAL_TYPE_EDP)
+		return;
+
+	if (edp_link->skip_implict_edp_power_control == false)
+		return;
+
+	edp_link->dc->link_srv->edp_set_panel_power(edp_link, powerOn);
+}
+
