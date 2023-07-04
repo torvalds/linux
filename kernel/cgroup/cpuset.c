@@ -1230,7 +1230,7 @@ static void update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus)
 			/*
 			 * Percpu kthreads in top_cpuset are ignored
 			 */
-			if ((task->flags & PF_KTHREAD) && kthread_is_per_cpu(task))
+			if (kthread_is_per_cpu(task))
 				continue;
 			cpumask_andnot(new_cpus, possible_mask, cs->subparts_cpus);
 		} else {
