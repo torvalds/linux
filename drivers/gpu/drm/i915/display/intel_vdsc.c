@@ -293,6 +293,16 @@ intel_dsc_power_domain(struct intel_crtc *crtc, enum transcoder cpu_transcoder)
 		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 }
 
+int intel_dsc_get_num_vdsc_instances(const struct intel_crtc_state *crtc_state)
+{
+	int num_vdsc_instances = (crtc_state->dsc.dsc_split) ? 2 : 1;
+
+	if (crtc_state->bigjoiner_pipes)
+		num_vdsc_instances *= 2;
+
+	return num_vdsc_instances;
+}
+
 static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -303,11 +313,8 @@ static void intel_dsc_pps_configure(const struct intel_crtc_state *crtc_state)
 	u32 pps_val = 0;
 	u32 rc_buf_thresh_dword[4];
 	u32 rc_range_params_dword[8];
-	u8 num_vdsc_instances = (crtc_state->dsc.dsc_split) ? 2 : 1;
 	int i = 0;
-
-	if (crtc_state->bigjoiner_pipes)
-		num_vdsc_instances *= 2;
+	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
 
 	/* Populate PICTURE_PARAMETER_SET_0 registers */
 	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_minor <<
