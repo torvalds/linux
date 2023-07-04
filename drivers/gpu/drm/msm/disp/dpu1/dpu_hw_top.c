@@ -287,7 +287,6 @@ struct dpu_hw_mdp *dpu_hw_mdptop_init(const struct dpu_mdp_cfg *cfg,
 	/*
 	 * Assign ops
 	 */
-	mdp->idx = cfg->id;
 	mdp->caps = cfg;
 	_setup_mdp_ops(&mdp->ops, mdp->caps->features);
 
