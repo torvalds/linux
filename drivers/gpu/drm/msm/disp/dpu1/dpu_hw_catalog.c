@@ -450,27 +450,6 @@ static const struct dpu_pingpong_sub_blks sc7280_pp_sblk = {
 	.len = 0x20, .version = 0x20000},
 };
 
-#define PP_BLK_DITHER(_name, _id, _base, _merge_3d, _sblk, _done, _rdptr) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0, \
-	.features = BIT(DPU_PINGPONG_DITHER), \
-	.merge_3d = _merge_3d, \
-	.sblk = &_sblk, \
-	.intr_done = _done, \
-	.intr_rdptr = _rdptr, \
-	}
-#define PP_BLK(_name, _id, _base, _features, _merge_3d, _sblk, _done, _rdptr) \
-	{\
-	.name = _name, .id = _id, \
-	.base = _base, .len = 0xd4, \
-	.features = _features, \
-	.merge_3d = _merge_3d, \
-	.sblk = &_sblk, \
-	.intr_done = _done, \
-	.intr_rdptr = _rdptr, \
-	}
-
 /*************************************************************
  * DSC sub blocks config
  *************************************************************/
