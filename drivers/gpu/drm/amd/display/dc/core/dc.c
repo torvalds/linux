@@ -3584,9 +3584,9 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 			context->block_sequence_steps);
 	/* Clear update flags so next flip doesn't have redundant programming
 	 * (if there's no stream update, the update flags are not cleared).
+	 * Surface updates are cleared unconditionally at the beginning of each flip,
+	 * so no need to clear here.
 	 */
-	if (top_pipe_to_program->plane_state)
-		top_pipe_to_program->plane_state->update_flags.raw = 0;
 	if (top_pipe_to_program->stream)
 		top_pipe_to_program->stream->update_flags.raw = 0;
 }
@@ -4286,7 +4286,8 @@ static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_c
 	return false;
 }
 
-static bool full_update_required(struct dc_surface_update *srf_updates,
+static bool full_update_required(struct dc *dc,
+		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_update *stream_update,
 		struct dc_stream_state *stream)
@@ -4294,6 +4295,7 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 
 	int i;
 	struct dc_stream_status *stream_status;
+	const struct dc_state *context = dc->current_state;
 
 	for (i = 0; i < surface_count; i++) {
 		if (srf_updates &&
@@ -4305,7 +4307,10 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 				srf_updates[i].func_shaper ||
 				srf_updates[i].lut3d_func ||
 				srf_updates[i].blend_tf ||
-				srf_updates[i].surface->force_full_update))
+				srf_updates[i].surface->force_full_update ||
+				(srf_updates[i].flip_addr &&
+				srf_updates[i].flip_addr->address.tmz_surface != srf_updates[i].surface->address.tmz_surface) ||
+				!is_surface_in_context(context, srf_updates[i].surface)))
 			return true;
 	}
 
@@ -4343,18 +4348,21 @@ static bool full_update_required(struct dc_surface_update *srf_updates,
 		if (stream_status == NULL || stream_status->plane_count != surface_count)
 			return true;
 	}
+	if (dc->idle_optimizations_allowed)
+		return true;
 
 	return false;
 }
 
-static bool fast_update_only(struct dc_fast_update *fast_update,
+static bool fast_update_only(struct dc *dc,
+		struct dc_fast_update *fast_update,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
 		struct dc_stream_update *stream_update,
 		struct dc_stream_state *stream)
 {
 	return fast_updates_exist(fast_update, surface_count)
-			&& !full_update_required(srf_updates, surface_count, stream_update, stream);
+			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
 }
 
 bool dc_update_planes_and_stream(struct dc *dc,
@@ -4426,7 +4434,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
+	if (fast_update_only(dc, fast_update, srf_updates, surface_count, stream_update, stream) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
@@ -4572,7 +4580,7 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
+	if (fast_update_only(dc, fast_update, srf_updates, surface_count, stream_update, stream) &&
 			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
