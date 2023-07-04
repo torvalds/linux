@@ -2149,7 +2149,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	dma_addr_bits = adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 4, 2) ? 48:44;
 	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(dma_addr_bits));
 	if (r) {
-		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
+		dev_warn(adev->dev, "amdgpu: No suitable DMA available.\n");
 		return r;
 	}
 	adev->need_swiotlb = drm_need_swiotlb(dma_addr_bits);
