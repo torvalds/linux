@@ -214,8 +214,13 @@ static void __init setup_bootmem(void)
 	memblock_reserve(vmlinux_start, vmlinux_end - vmlinux_start);
 
 	phys_ram_end = memblock_end_of_DRAM();
+
+	/*
+	 * Make sure we align the start of the memory on a PMD boundary so that
+	 * at worst, we map the linear mapping with PMD mappings.
+	 */
 	if (!IS_ENABLED(CONFIG_XIP_KERNEL))
-		phys_ram_base = memblock_start_of_DRAM();
+		phys_ram_base = memblock_start_of_DRAM() & PMD_MASK;
 
 	/*
 	 * In 64-bit, any use of __va/__pa before this point is wrong as we
