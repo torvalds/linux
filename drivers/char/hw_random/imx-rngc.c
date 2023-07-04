@@ -239,10 +239,8 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 		return PTR_ERR(rngc->base);
 
 	rngc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
-	if (IS_ERR(rngc->clk)) {
-		dev_err(&pdev->dev, "Can not get rng_clk\n");
-		return PTR_ERR(rngc->clk);
-	}
+	if (IS_ERR(rngc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rngc->clk), "Cannot get rng_clk\n");
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -272,24 +270,18 @@ static int __init imx_rngc_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev,
 			irq, imx_rngc_irq, 0, pdev->name, (void *)rngc);
-	if (ret) {
-		dev_err(rngc->dev, "Can't get interrupt working.\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Can't get interrupt working.\n");
 
 	if (self_test) {
 		ret = imx_rngc_self_test(rngc);
-		if (ret) {
-			dev_err(rngc->dev, "self test failed\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret, "self test failed\n");
 	}
 
 	ret = devm_hwrng_register(&pdev->dev, &rngc->rng);
-	if (ret) {
-		dev_err(&pdev->dev, "hwrng registration failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "hwrng registration failed\n");
 
 	dev_info(&pdev->dev,
 		"Freescale RNG%c registered (HW revision %d.%02d)\n",
