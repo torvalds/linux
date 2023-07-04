@@ -2584,8 +2584,8 @@ void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip)
 
 	gfs2_trans_add_meta(rgd->rd_gl, rgd->rd_bits[0].bi_bh);
 	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
-	rgrp_unlock_local(rgd);
 	be32_add_cpu(&rgd->rd_rgl->rl_unlinked, -1);
+	rgrp_unlock_local(rgd);
 
 	gfs2_statfs_change(sdp, 0, +1, -1);
 	trace_gfs2_block_alloc(ip, rgd, ip->i_no_addr, 1, GFS2_BLKST_FREE);
