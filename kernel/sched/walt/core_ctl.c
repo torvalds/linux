@@ -939,7 +939,7 @@ static int compute_cluster_nr_busy(int index)
 	return nr_busy;
 }
 
-static void update_running_avg(u64 window_start)
+static void update_running_avg(u64 window_start, u32 wakeup_ctr_sum)
 {
 	struct cluster_data *cluster;
 	unsigned int index = 0;
@@ -991,7 +991,7 @@ static void update_running_avg(u64 window_start)
 
 	last_nr_big = big_avg;
 	walt_rotation_checkpoint(big_avg);
-	fmax_uncap_checkpoint(big_avg, window_start);
+	fmax_uncap_checkpoint(big_avg, window_start, wakeup_ctr_sum);
 }
 
 #define MAX_NR_THRESHOLD	4
@@ -1322,7 +1322,7 @@ void sbt_ctl_check(void)
  * window based. Therefore core_ctl_check must only be called from
  * window rollover, or walt_irq_work for not migration.
  */
-void core_ctl_check(u64 window_start)
+void core_ctl_check(u64 window_start, u32 wakeup_ctr_sum)
 {
 	int cpu;
 	struct cpu_data *c;
@@ -1357,7 +1357,7 @@ void core_ctl_check(u64 window_start)
 	}
 	spin_unlock_irqrestore(&state_lock, flags);
 
-	update_running_avg(window_start);
+	update_running_avg(window_start, wakeup_ctr_sum);
 
 	for_each_cluster(cluster, index)
 		wakeup |= eval_need(cluster);

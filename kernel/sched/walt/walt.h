@@ -57,6 +57,14 @@ enum qos_clients {
 	QOS_PARTIAL_HALT,
 	QOS_FMAX_CAP,
 	QOS_HIGH_PERF_CAP,
+
+	/* add new clients above this line */
+	MAX_QOS_CLIENT
+};
+
+enum qos_request_type {
+	MIN_REQUEST,
+	MAX_REQUEST,
 };
 
 /* Note: this need to be in sync with migrate_type_names array */
@@ -178,11 +186,11 @@ extern int cpu_l2_sibling[WALT_NR_CPUS];
 extern void sched_update_nr_prod(int cpu, int enq);
 extern unsigned int walt_big_tasks(int cpu);
 extern void walt_rotation_checkpoint(int nr_big);
-extern void fmax_uncap_checkpoint(int nr_big, u64 window_start);
+extern void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum);
 extern void walt_fill_ta_data(struct core_ctl_notif_data *data);
 extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
 extern unsigned int sched_get_group_id(struct task_struct *p);
-extern void core_ctl_check(u64 wallclock);
+extern void core_ctl_check(u64 wallclock, u32 wakeup_ctr_sum);
 extern int sched_set_boost(int enable);
 extern void walt_boost_init(void);
 extern int sched_pause_cpus(struct cpumask *pause_cpus);
@@ -358,15 +366,6 @@ extern unsigned int sysctl_sched_sbt_delay_windows;
 #define CPUFREQ_REASON_ADAPTIVE_LOW	0x400
 #define CPUFREQ_REASON_ADAPTIVE_HIGH	0x800
 
-#define NO_BOOST 0
-#define FULL_THROTTLE_BOOST 1
-#define CONSERVATIVE_BOOST 2
-#define RESTRAINED_BOOST 3
-#define FULL_THROTTLE_BOOST_DISABLE -1
-#define CONSERVATIVE_BOOST_DISABLE -2
-#define RESTRAINED_BOOST_DISABLE -3
-#define MAX_NUM_BOOST_TYPE (RESTRAINED_BOOST+1)
-
 enum sched_boost_policy {
 	SCHED_BOOST_NONE,
 	SCHED_BOOST_ON_BIG,
@@ -523,6 +522,11 @@ static inline bool rt_boost_on_big(void)
 static inline bool is_full_throttle_boost(void)
 {
 	return sched_boost_type == FULL_THROTTLE_BOOST;
+}
+
+static inline bool is_storage_boost(void)
+{
+	return sched_boost_type == STORAGE_BOOST;
 }
 
 static inline bool task_sched_boost(struct task_struct *p)
@@ -829,8 +833,8 @@ extern int walt_find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 					int sync, int sibling_count_hint);
 extern int walt_find_cluster_packing_cpu(int start_cpu);
 extern bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p);
-extern void add_max_freq_qos_request(struct cpumask max_freq_cpus, s32 max_freq,
-		enum qos_clients client);
+extern void add_freq_qos_request(struct cpumask max_freq_cpus, s32 max_freq,
+		enum qos_clients client, enum qos_request_type type);
 
 static inline unsigned int cpu_max_possible_freq(int cpu)
 {

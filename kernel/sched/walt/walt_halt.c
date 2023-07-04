@@ -278,7 +278,7 @@ void restrict_cpus_and_freq(struct cpumask *cpus)
 			cpumask_or(&restrict_cpus, &restrict_cpus, &(cpu_cluster(cpu)->cpus));
 	}
 
-	add_max_freq_qos_request(restrict_cpus, max_freq_val, QOS_PARTIAL_HALT);
+	add_freq_qos_request(restrict_cpus, max_freq_val, QOS_PARTIAL_HALT, MAX_REQUEST);
 }
 
 struct task_struct *walt_drain_thread;

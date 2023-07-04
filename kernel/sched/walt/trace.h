@@ -1532,31 +1532,76 @@ TRACE_EVENT(update_cpu_capacity,
 			__entry->rq_cpu_capacity_orig)
 );
 
-TRACE_EVENT(sched_qos_max_freq_request,
+TRACE_EVENT(sched_qos_freq_request,
 
-	TP_PROTO(struct cpumask cpus, s32 max_freq, enum qos_clients client, int ret),
+	TP_PROTO(int cpu, s32 max_freq, enum qos_clients client, int ret,
+		enum qos_request_type type),
 
-	TP_ARGS(cpus, max_freq, client, ret),
+	TP_ARGS(cpu, max_freq, client, ret, type),
 
 	TP_STRUCT__entry(
-		__field(int, cpus)
+		__field(int, cpu)
 		__field(s32, max_freq)
 		__field(int, client)
 		__field(int, ret)
+		__field(int, type)
 	),
 
 	TP_fast_assign(
-		__entry->cpus = cpumask_bits(&cpus)[0];
+		__entry->cpu = cpu;
 		__entry->max_freq = max_freq;
 		__entry->client = client;
 		__entry->ret = ret;
+		__entry->type = type;
 	),
 
-	TP_printk("cpus=0x%x max_freq=%d client=%d ret=%d",
-			__entry->cpus, __entry->max_freq,
-			__entry->client, __entry->ret)
+	TP_printk("cpu=%d max_freq=%d client=%d ret=%d type=%d",
+			__entry->cpu, __entry->max_freq,
+			__entry->client, __entry->ret,
+			__entry->type)
 );
 
+TRACE_EVENT(sched_fmax_uncap,
+
+	TP_PROTO(int nr_big, u64 window_start, u32 wakeup_ctr_sum, bool fmax_uncap_load_detected,
+		u64 fmax_uncap_timestamp),
+
+	TP_ARGS(nr_big, window_start, wakeup_ctr_sum, fmax_uncap_load_detected,
+		fmax_uncap_timestamp),
+
+	TP_STRUCT__entry(
+		__field(int, nr_big)
+		__field(u64, ws)
+		__field(u32, wakeup_ctr_sum)
+		__field(bool, load_detected)
+		__field(u64, uncap_ts)
+		__field(unsigned int, fmax_cap_0)
+		__field(unsigned int, fmax_cap_1)
+		__field(unsigned int, fmax_cap_2)
+		__field(unsigned int, fmax_cap_3)
+	),
+
+	TP_fast_assign(
+		__entry->nr_big = nr_big;
+		__entry->ws = window_start;
+		__entry->wakeup_ctr_sum	= wakeup_ctr_sum;
+		__entry->load_detected = fmax_uncap_load_detected;
+		__entry->uncap_ts = fmax_uncap_timestamp;
+		__entry->fmax_cap_0 = sysctl_fmax_cap[0];
+		__entry->fmax_cap_1 = sysctl_fmax_cap[1];
+		__entry->fmax_cap_2 = sysctl_fmax_cap[2];
+		__entry->fmax_cap_3 = sysctl_fmax_cap[3];
+	),
+
+	TP_printk("nr_big=%d ws=%llu wakeup_ctr_sum=%u load_detected=%d uncap_ts=%llu fmax_cap_0=%u fmax_cap_1=%u fmax_cap_2=%u fmax_cap_3=%u",
+			__entry->nr_big, __entry->ws,
+			__entry->wakeup_ctr_sum, __entry->load_detected,
+			__entry->uncap_ts,
+			__entry->fmax_cap_0,
+			__entry->fmax_cap_1,
+			__entry->fmax_cap_2,
+			__entry->fmax_cap_3)
+);
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH
