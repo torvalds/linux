@@ -678,7 +678,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	int err, errirq, i, irq_cnt = 0, irqres = 0, irq_cap = 0;
 	struct sh_dmae_device *shdev;
 	struct dma_device *dma_dev;
-	struct resource *chan, *dmars, *errirq_res, *chanirq_res;
+	struct resource *dmars, *errirq_res, *chanirq_res;
 
 	if (pdev->dev.of_node)
 		pdata = of_device_get_match_data(&pdev->dev);
@@ -689,7 +689,6 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	if (!pdata || !pdata->channel_num)
 		return -ENODEV;
 
-	chan = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	/* DMARS area is optional */
 	dmars = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	/*
@@ -709,7 +708,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 	 *    requested with the IRQF_SHARED flag
 	 */
 	errirq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!chan || !errirq_res)
+	if (!errirq_res)
 		return -ENODEV;
 
 	shdev = devm_kzalloc(&pdev->dev, sizeof(struct sh_dmae_device),
@@ -719,7 +718,7 @@ static int sh_dmae_probe(struct platform_device *pdev)
 
 	dma_dev = &shdev->shdma_dev.dma_dev;
 
-	shdev->chan_reg = devm_ioremap_resource(&pdev->dev, chan);
+	shdev->chan_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(shdev->chan_reg))
 		return PTR_ERR(shdev->chan_reg);
 	if (dmars) {
