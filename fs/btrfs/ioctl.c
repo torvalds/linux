@@ -384,7 +384,7 @@ update_flags:
 	binode->flags = binode_flags;
 	btrfs_sync_inode_flags_to_i_flags(inode);
 	inode_inc_iversion(inode);
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
 
  out_end_trans:

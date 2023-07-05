@@ -30,8 +30,7 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 
 	inode_inc_iversion(inode);
 	if (!no_time_update) {
-		inode->i_mtime = current_time(inode);
-		inode->i_ctime = inode->i_mtime;
+		inode->i_mtime = inode_set_ctime_current(inode);
 	}
 	/*
 	 * We round up to the block size at eof when determining which
