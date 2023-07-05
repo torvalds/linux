@@ -1037,6 +1037,8 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 		goto err_suspend;
 	}
 
+	clk_disable_unprepare(pdm->hclk);
+
 	return 0;
 
 err_suspend:
@@ -1052,14 +1054,9 @@ err_pm_disable:
 
 static int rockchip_pdm_remove(struct platform_device *pdev)
 {
-	struct rk_pdm_dev *pdm = dev_get_drvdata(&pdev->dev);
-
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		rockchip_pdm_runtime_suspend(&pdev->dev);
-
-	clk_disable_unprepare(pdm->clk);
-	clk_disable_unprepare(pdm->hclk);
 
 	return 0;
 }
