@@ -37,10 +37,10 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 		clkval = 1041666;
 	else if (strncmp(mdev->bus->name, "F216", 4) == 0)
 		clkval = 1843200;
-	else if (strncmp(mdev->bus->name, "G215", 4) == 0)
-		clkval = 1843200;
 	else if (strncmp(mdev->bus->name, "F210", 4) == 0)
 		clkval = 115200;
+	else if (strstr(mdev->bus->name, "215"))
+		clkval = 1843200;
 	else
 		dev_info(&mdev->dev,
 			 "board not detected, using default uartclk\n");
