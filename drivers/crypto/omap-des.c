@@ -971,18 +971,12 @@ static int omap_des_probe(struct platform_device *pdev)
 	dd->dev = dev;
 	platform_set_drvdata(pdev, dd);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no MEM resource info\n");
-		goto err_res;
-	}
-
 	err = (dev->of_node) ? omap_des_get_of(dd, pdev) :
 			       omap_des_get_pdev(dd, pdev);
 	if (err)
 		goto err_res;
 
-	dd->io_base = devm_ioremap_resource(dev, res);
+	dd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dd->io_base)) {
 		err = PTR_ERR(dd->io_base);
 		goto err_res;
