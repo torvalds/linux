@@ -97,7 +97,6 @@ struct fsl_lpspi_data {
 	struct clk *clk_ipg;
 	struct clk *clk_per;
 	bool is_slave;
-	u32 num_cs;
 	bool is_only_cs1;
 	bool is_first_byte;
 
@@ -825,6 +824,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	struct spi_controller *controller;
 	struct resource *res;
 	int ret, irq;
+	u32 num_cs;
 	u32 temp;
 	bool is_slave;
 
@@ -847,8 +847,8 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_node,
 						"fsl,spi-only-use-cs1-sel");
 	if (of_property_read_u32((&pdev->dev)->of_node, "num-cs",
-				 &fsl_lpspi->num_cs))
-		fsl_lpspi->num_cs = 1;
+				 &num_cs))
+		num_cs = 1;
 
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
 	controller->transfer_one = fsl_lpspi_transfer_one;
@@ -858,7 +858,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
 	controller->dev.of_node = pdev->dev.of_node;
 	controller->bus_num = pdev->id;
-	controller->num_chipselect = fsl_lpspi->num_cs;
+	controller->num_chipselect = num_cs;
 	controller->slave_abort = fsl_lpspi_slave_abort;
 	if (!fsl_lpspi->is_slave)
 		controller->use_gpio_descriptors = true;
