@@ -1049,8 +1049,8 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	pfn = __pa(page->kernel_address);
 	pfn >>= PAGE_SHIFT;
 
-	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
-		       | VM_DONTDUMP | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
+		       | VM_DONTDUMP | VM_PFNMAP);
 
 	pr_debug("Mapping signal page\n");
 	pr_debug("     start user address  == 0x%08lx\n", vma->vm_start);

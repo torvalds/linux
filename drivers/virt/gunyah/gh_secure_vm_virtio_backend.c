@@ -761,7 +761,7 @@ int gh_virtio_backend_mmap(const char *vm_name,
 	if (mmap_size != vm->shmem_size)
 		return -EINVAL;
 
-	vma->vm_flags = vma->vm_flags | VM_DONTEXPAND | VM_DONTDUMP;
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 
 	if (vm->is_static) {
 		if (io_remap_pfn_range(vma, vma->vm_start,

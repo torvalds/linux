@@ -182,7 +182,7 @@ static int vb2_vmalloc_mmap(void *buf_priv, struct vm_area_struct *vma)
 	/*
 	 * Make sure that vm_areas for 2 buffers won't be merged together
 	 */
-	vma->vm_flags		|= VM_DONTEXPAND;
+	vm_flags_set(vma, VM_DONTEXPAND);
 
 	/*
 	 * Use common vm_area operations to track buffer refcount.

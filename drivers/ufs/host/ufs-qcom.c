@@ -4789,7 +4789,7 @@ static irqreturn_t ufs_qcom_mcq_esi_handler(int irq, void *data)
 	ufs_qcom_log_str(host, "!,%d,%u\n", irq, id);
 	ufshcd_mcq_write_cqis(hba, 0x1, id);
 	atomic_add(1, &host->cqhp_update_pending);
-	ufshcd_mcq_poll_cqe_nolock(hba, hwq);
+	ufshcd_mcq_poll_cqe_lock(hba, hwq);
 	atomic_sub(1, &host->cqhp_update_pending);
 
 	return IRQ_HANDLED;

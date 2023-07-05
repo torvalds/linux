@@ -229,7 +229,7 @@ static int uacce_fops_mmap(struct file *filep, struct vm_area_struct *vma)
 	if (!qfr)
 		return -ENOMEM;
 
-	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_WIPEONFORK;
+	vm_flags_set(vma, VM_DONTCOPY | VM_DONTEXPAND | VM_WIPEONFORK);
 	vma->vm_ops = &uacce_vm_ops;
 	vma->vm_private_data = q;
 	qfr->type = type;

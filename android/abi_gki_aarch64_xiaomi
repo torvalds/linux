@@ -223,8 +223,24 @@
 #required by io_limit.ko
   __traceiter_android_vh_psi_event
   __traceiter_android_vh_psi_group
+  __traceiter_android_rvh_ctl_dirty_rate
   __tracepoint_android_vh_psi_event
   __tracepoint_android_vh_psi_group
+  __tracepoint_android_rvh_ctl_dirty_rate
 
 #required by touch module
   power_supply_is_system_supplied
+
+#required by mi_mempool.ko
+  __traceiter_android_vh_alloc_pages_reclaim_bypass
+  __traceiter_android_vh_alloc_pages_failure_bypass
+  __tracepoint_android_vh_alloc_pages_reclaim_bypass
+  __tracepoint_android_vh_alloc_pages_failure_bypass
+
+#required by mi_mempool.ko
+  __traceiter_android_vh_mmput
+  __tracepoint_android_vh_mmput
+
+#required by mi_mempool.ko
+  __traceiter_android_vh_madvise_cold_pageout_skip
+  __tracepoint_android_vh_madvise_cold_pageout_skip

@@ -64,6 +64,64 @@ struct slabinfo;
 DECLARE_HOOK(android_vh_cache_show,
 	TP_PROTO(struct seq_file *m, struct slabinfo *sinfo, struct kmem_cache *s),
 	TP_ARGS(m, sinfo, s));
+DECLARE_HOOK(android_vh_alloc_pages_reclaim_bypass,
+    TP_PROTO(gfp_t gfp_mask, int order, int alloc_flags,
+	int migratetype, struct page **page),
+	TP_ARGS(gfp_mask, order, alloc_flags, migratetype, page));
+DECLARE_HOOK(android_vh_alloc_pages_failure_bypass,
+	TP_PROTO(gfp_t gfp_mask, int order, int alloc_flags,
+	int migratetype, struct page **page),
+	TP_ARGS(gfp_mask, order, alloc_flags, migratetype, page));
+DECLARE_HOOK(android_vh_madvise_pageout_swap_entry,
+	TP_PROTO(swp_entry_t entry, int swapcount),
+	TP_ARGS(entry, swapcount));
+DECLARE_HOOK(android_vh_madvise_swapin_walk_pmd_entry,
+	TP_PROTO(swp_entry_t entry),
+	TP_ARGS(entry));
+DECLARE_HOOK(android_vh_process_madvise_end,
+	TP_PROTO(int behavior, ssize_t *ret),
+	TP_ARGS(behavior, ret));
+DECLARE_HOOK(android_vh_smaps_pte_entry,
+	TP_PROTO(swp_entry_t entry, unsigned long *writeback,
+		unsigned long *same, unsigned long *huge),
+	TP_ARGS(entry, writeback, same, huge));
+DECLARE_HOOK(android_vh_show_smap,
+	TP_PROTO(struct seq_file *m, unsigned long writeback,
+		unsigned long same, unsigned long huge),
+	TP_ARGS(m, writeback, same, huge));
+DECLARE_HOOK(android_vh_meminfo_cache_adjust,
+	TP_PROTO(unsigned long *cached),
+	TP_ARGS(cached));
+DECLARE_HOOK(android_vh_si_mem_available_adjust,
+	TP_PROTO(unsigned long *available),
+	TP_ARGS(available));
+DECLARE_HOOK(android_vh_si_meminfo_adjust,
+	TP_PROTO(unsigned long *totalram, unsigned long *freeram),
+	TP_ARGS(totalram, freeram));
+DECLARE_RESTRICTED_HOOK(android_rvh_ctl_dirty_rate,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused), 1);
+DECLARE_HOOK(android_vh_madvise_cold_pageout_skip,
+	TP_PROTO(struct vm_area_struct *vma, struct page *page, bool pageout, bool *need_skip),
+	TP_ARGS(vma, page, pageout, need_skip));
+
+struct mem_cgroup;
+DECLARE_HOOK(android_vh_mem_cgroup_alloc,
+	TP_PROTO(struct mem_cgroup *memcg),
+	TP_ARGS(memcg));
+DECLARE_HOOK(android_vh_mem_cgroup_free,
+	TP_PROTO(struct mem_cgroup *memcg),
+	TP_ARGS(memcg));
+DECLARE_HOOK(android_vh_mem_cgroup_id_remove,
+	TP_PROTO(struct mem_cgroup *memcg),
+	TP_ARGS(memcg));
+struct cgroup_subsys_state;
+DECLARE_HOOK(android_vh_mem_cgroup_css_online,
+	TP_PROTO(struct cgroup_subsys_state *css, struct mem_cgroup *memcg),
+	TP_ARGS(css, memcg));
+DECLARE_HOOK(android_vh_mem_cgroup_css_offline,
+	TP_PROTO(struct cgroup_subsys_state *css, struct mem_cgroup *memcg),
+	TP_ARGS(css, memcg));
 
 #endif /* _TRACE_HOOK_MM_H */
 

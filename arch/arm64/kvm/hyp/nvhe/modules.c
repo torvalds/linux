@@ -77,15 +77,6 @@ void __pkvm_close_module_registration(void)
 	 */
 }
 
-int __pkvm_close_late_module_registration(void)
-{
-	__pkvm_close_module_registration();
-
-	return reset_pkvm_priv_hcall_limit();
-
-	/* The fuse is blown! No way back until reset */
-}
-
 const struct pkvm_module_ops module_ops = {
 	.create_private_mapping = __pkvm_create_private_mapping,
 	.alloc_module_va = __pkvm_alloc_module_va,

@@ -2082,7 +2082,7 @@ static int hl_ts_mmap(struct hl_mmap_mem_buf *buf, struct vm_area_struct *vma, v
 {
 	struct hl_ts_buff *ts_buff = buf->private;
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_DONTCOPY | VM_NORESERVE;
+	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP | VM_DONTCOPY | VM_NORESERVE);
 	return remap_vmalloc_range(vma, ts_buff->user_buff_address, 0);
 }
 

@@ -63,17 +63,11 @@ enum __kvm_host_smccc_func {
 	__KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_vmid_ipa,
 	__KVM_HOST_SMCCC_FUNC___kvm_tlb_flush_vmid,
 	__KVM_HOST_SMCCC_FUNC___kvm_flush_cpu_context,
-
-	/*
-	 * __pkvm_alloc_module_va may temporarily serve as the privileged hcall
-	 * limit when module loading is enabled, see early_pkvm_enable_modules().
-	 */
 	__KVM_HOST_SMCCC_FUNC___pkvm_alloc_module_va,
 	__KVM_HOST_SMCCC_FUNC___pkvm_map_module_page,
 	__KVM_HOST_SMCCC_FUNC___pkvm_unmap_module_page,
 	__KVM_HOST_SMCCC_FUNC___pkvm_init_module,
 	__KVM_HOST_SMCCC_FUNC___pkvm_register_hcall,
-	__KVM_HOST_SMCCC_FUNC___pkvm_close_module_registration,
 	__KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize,
 
 	/* Hypercalls available after pKVM finalisation */

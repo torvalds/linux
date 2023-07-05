@@ -4236,8 +4236,8 @@ static int gaudi_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 {
 	int rc;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
-			VM_DONTCOPY | VM_NORESERVE;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
+			VM_DONTCOPY | VM_NORESERVE);
 
 	rc = dma_mmap_coherent(hdev->dev, vma, cpu_addr,
 				(dma_addr - HOST_PHYS_BASE), size);

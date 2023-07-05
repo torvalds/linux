@@ -5599,8 +5599,8 @@ static int gaudi2_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 {
 	int rc;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
-			VM_DONTCOPY | VM_NORESERVE;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
+			VM_DONTCOPY | VM_NORESERVE);
 
 #ifdef _HAS_DMA_MMAP_COHERENT
 
@@ -9894,8 +9894,8 @@ static int gaudi2_block_mmap(struct hl_device *hdev, struct vm_area_struct *vma,
 
 	address = pci_resource_start(hdev->pdev, SRAM_CFG_BAR_ID) + offset_in_bar;
 
-	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
-			VM_DONTCOPY | VM_NORESERVE;
+	vm_flags_set(vma, VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP |
+			VM_DONTCOPY | VM_NORESERVE);
 
 	rc = remap_pfn_range(vma, vma->vm_start, address >> PAGE_SHIFT,
 			block_size, vma->vm_page_prot);

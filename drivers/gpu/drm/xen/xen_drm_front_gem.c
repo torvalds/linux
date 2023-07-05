@@ -70,8 +70,7 @@ static int xen_drm_front_gem_object_mmap(struct drm_gem_object *gem_obj,
 	 * vm_pgoff (used as a fake buffer offset by DRM) to 0 as we want to map
 	 * the whole buffer.
 	 */
-	vma->vm_flags &= ~VM_PFNMAP;
-	vma->vm_flags |= VM_MIXEDMAP | VM_DONTEXPAND;
+	vm_flags_mod(vma, VM_MIXEDMAP | VM_DONTEXPAND, VM_PFNMAP);
 	vma->vm_pgoff = 0;
 
 	/*

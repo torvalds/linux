@@ -669,10 +669,9 @@ static int glink_pkt_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
 		return -EPERM;
-	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
 
 	/* Instruct vm_insert_page() to not mmap_read_lock(mm) */
-	vma->vm_flags |= VM_MIXEDMAP;
+	vm_flags_mod(vma, VM_MIXEDMAP, ~(VM_MAYWRITE | VM_MAYEXEC));
 
 	vma->vm_ops = &glink_pkt_vm_ops;
 	return 0;

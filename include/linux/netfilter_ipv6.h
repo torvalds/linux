@@ -7,6 +7,7 @@
 #ifndef __LINUX_IP6_NETFILTER_H
 #define __LINUX_IP6_NETFILTER_H
 
+#include <linux/android_kabi.h>
 #include <uapi/linux/netfilter_ipv6.h>
 #include <net/tcp.h>
 
@@ -65,6 +66,8 @@ struct nf_ipv6_ops {
 					 const struct nf_bridge_frag_data *data,
 					 struct sk_buff *));
 #endif
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 #ifdef CONFIG_NETFILTER

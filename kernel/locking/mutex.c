@@ -555,12 +555,12 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
  */
 void __sched mutex_unlock(struct mutex *lock)
 {
-	trace_android_vh_record_mutex_lock_starttime(current, 0);
 #ifndef CONFIG_DEBUG_LOCK_ALLOC
 	if (__mutex_unlock_fast(lock))
 		return;
 #endif
 	__mutex_unlock_slowpath(lock, _RET_IP_);
+	trace_android_vh_record_mutex_lock_starttime(current, 0);
 }
 EXPORT_SYMBOL(mutex_unlock);
 

@@ -7,6 +7,7 @@
 #include <linux/mutex.h>
 #include <linux/tty_buffer.h>
 #include <linux/wait.h>
+#include <linux/android_kabi.h>
 
 struct attribute_group;
 struct tty_driver;
@@ -36,6 +37,8 @@ struct tty_port_operations {
 	void (*shutdown)(struct tty_port *port);
 	int (*activate)(struct tty_port *port, struct tty_struct *tty);
 	void (*destruct)(struct tty_port *port);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct tty_port_client_operations {
@@ -120,6 +123,8 @@ struct tty_port {
 	int			drain_delay;
 	struct kref		kref;
 	void			*client_data;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* tty_port::iflags bits -- use atomic bit ops */

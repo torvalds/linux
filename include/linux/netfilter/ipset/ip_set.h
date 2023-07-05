@@ -14,6 +14,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/stringify.h>
 #include <linux/vmalloc.h>
+#include <linux/android_kabi.h>
 #include <net/netlink.h>
 #include <uapi/linux/netfilter/ipset/ip_set.h>
 
@@ -188,6 +189,8 @@ struct ip_set_type_variant {
 	bool (*same_set)(const struct ip_set *a, const struct ip_set *b);
 	/* Region-locking is used */
 	bool region_lock;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct ip_set_region {
@@ -234,6 +237,8 @@ struct ip_set_type {
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* register and unregister set type */
@@ -276,6 +281,8 @@ struct ip_set {
 	size_t offset[IPSET_EXT_ID_MAX];
 	/* The type specific data */
 	void *data;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline void

@@ -269,7 +269,6 @@ EXPORT_SYMBOL_GPL(percpu_down_write);
 
 void percpu_up_write(struct percpu_rw_semaphore *sem)
 {
-	trace_android_vh_record_pcpu_rwsem_starttime(current, 0);
 	rwsem_release(&sem->dep_map, _RET_IP_);
 
 	/*
@@ -295,5 +294,6 @@ void percpu_up_write(struct percpu_rw_semaphore *sem)
 	 * exclusive write lock because its counting.
 	 */
 	rcu_sync_exit(&sem->rss);
+	trace_android_vh_record_pcpu_rwsem_starttime(current, 0);
 }
 EXPORT_SYMBOL_GPL(percpu_up_write);

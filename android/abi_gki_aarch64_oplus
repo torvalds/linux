@@ -8,6 +8,7 @@
   blk_rq_map_user
   blk_rq_map_user_iov
   blk_start_plug
+  cgroup_add_legacy_cftypes
   console_printk
   cpufreq_frequency_table_get_index
   cpufreq_policy_transition_delay_us
@@ -39,6 +40,7 @@
   ktime_get_coarse_real_ts64
   memory_cgrp_subsys
   memory_cgrp_subsys_enabled_key
+  mem_cgroup_from_id
   mipi_dsi_generic_write
   mmc_wait_for_cmd
   nf_ct_attach
@@ -119,11 +121,16 @@
   __traceiter_android_vh_cgroup_set_task
   __traceiter_android_vh_dup_task_struct
   __traceiter_android_vh_exit_signal
+  __traceiter_android_vh_mem_cgroup_id_remove
+  __traceiter_android_vh_mem_cgroup_css_offline
+  __traceiter_android_vh_mem_cgroup_css_online
+  __traceiter_android_vh_mem_cgroup_free
+  __traceiter_android_vh_mem_cgroup_alloc
   __traceiter_android_vh_irqtime_account_process_tick
   __traceiter_android_vh_mutex_can_spin_on_owner
   __traceiter_android_vh_mutex_opt_spin_finish
   __traceiter_android_vh_mutex_opt_spin_start
-  __traceiter_android_vh_cpufreq_acct_update_power  
+  __traceiter_android_vh_cpufreq_acct_update_power
   __traceiter_android_vh_cleanup_old_buffers_bypass
   __traceiter_android_vh_dm_bufio_shrink_scan_bypass
   __traceiter_android_vh_mutex_unlock_slowpath
@@ -134,6 +141,12 @@
   __traceiter_android_vh_sched_stat_runtime_rt
   __traceiter_android_vh_shrink_node_memcgs
   __traceiter_android_vh_sync_txn_recvd
+  __traceiter_block_bio_queue
+  __traceiter_block_getrq
+  __traceiter_block_rq_complete
+  __traceiter_block_rq_issue
+  __traceiter_block_rq_merge
+  __traceiter_block_rq_requeue
   __traceiter_sched_stat_blocked
   __traceiter_sched_stat_iowait
   __traceiter_sched_stat_runtime
@@ -164,6 +177,11 @@
   __tracepoint_android_vh_do_futex
   __tracepoint_android_vh_dup_task_struct
   __tracepoint_android_vh_exit_signal
+  __tracepoint_android_vh_mem_cgroup_id_remove
+  __tracepoint_android_vh_mem_cgroup_css_offline
+  __tracepoint_android_vh_mem_cgroup_css_online
+  __tracepoint_android_vh_mem_cgroup_free
+  __tracepoint_android_vh_mem_cgroup_alloc
   __tracepoint_android_vh_futex_sleep_start
   __tracepoint_android_vh_futex_wait_end
   __tracepoint_android_vh_futex_wait_start
@@ -185,6 +203,12 @@
   __tracepoint_android_vh_sched_stat_runtime_rt
   __tracepoint_android_vh_shrink_node_memcgs
   __tracepoint_android_vh_sync_txn_recvd
+  __tracepoint_block_bio_queue
+  __tracepoint_block_getrq
+  __tracepoint_block_rq_complete
+  __tracepoint_block_rq_issue
+  __tracepoint_block_rq_merge
+  __tracepoint_block_rq_requeue
   __tracepoint_sched_stat_blocked
   __tracepoint_sched_stat_iowait
   __tracepoint_sched_stat_runtime
@@ -192,6 +216,7 @@
   __tracepoint_sched_stat_wait
   __tracepoint_sched_waking
   __tracepoint_task_rename
+  try_to_free_mem_cgroup_pages
   typec_mux_get_drvdata
   unregister_memory_notifier
   unregister_tcf_proto_ops

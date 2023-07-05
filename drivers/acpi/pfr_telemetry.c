@@ -310,7 +310,7 @@ pfrt_log_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EROFS;
 
 	/* changing from read to write with mprotect is not allowed */
-	vma->vm_flags &= ~VM_MAYWRITE;
+	vm_flags_clear(vma, VM_MAYWRITE);
 
 	pfrt_log_dev = to_pfrt_log_dev(file);
 
