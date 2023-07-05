@@ -4454,7 +4454,7 @@
 			      "dclk_src_vp1",
 			      "dclk_src_vp2";
 		assigned-clocks = <&cru ACLK_VOP>;
-		assigned-clock-rates = <500000000>;
+		assigned-clock-rates = <750000000>;
 		resets = <&cru SRST_A_VOP>,
 			 <&cru SRST_H_VOP>,
 			 <&cru SRST_D_VOP0>,
