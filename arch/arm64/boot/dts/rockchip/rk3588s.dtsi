@@ -5615,13 +5615,14 @@
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac0 4>;
 		dma-names = "rx";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pdm0m0_clk
-			     &pdm0m0_clk1
-			     &pdm0m0_sdi0
+		pinctrl-names = "default", "idle", "clk";
+		pinctrl-0 = <&pdm0m0_sdi0
 			     &pdm0m0_sdi1
 			     &pdm0m0_sdi2
 			     &pdm0m0_sdi3>;
+		pinctrl-1 = <&pdm0m0_idle>;
+		pinctrl-2 = <&pdm0m0_clk
+			     &pdm0m0_clk1>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
@@ -5636,13 +5637,14 @@
 		dmas = <&dmac1 4>;
 		dma-names = "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pdm1m0_clk
-			     &pdm1m0_clk1
-			     &pdm1m0_sdi0
+		pinctrl-names = "default", "idle", "clk";
+		pinctrl-0 = <&pdm1m0_sdi0
 			     &pdm1m0_sdi1
 			     &pdm1m0_sdi2
 			     &pdm1m0_sdi3>;
+		pinctrl-1 = <&pdm1m0_idle>;
+		pinctrl-2 = <&pdm1m0_clk
+			     &pdm1m0_clk1>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
