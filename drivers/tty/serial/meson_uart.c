@@ -72,16 +72,22 @@
 
 #define AML_UART_PORT_NUM		12
 #define AML_UART_PORT_OFFSET		6
-#define AML_UART_DEV_NAME		"ttyAML"
 
 #define AML_UART_POLL_USEC		5
 #define AML_UART_TIMEOUT_USEC		10000
 
-static struct uart_driver meson_uart_driver;
+#define MESON_UART_DRIVER(_devname) meson_uart_driver_##_devname
+
+#define MESON_UART_DRIVER_DECLARE(_devname) \
+	static struct uart_driver MESON_UART_DRIVER(_devname)
+
+MESON_UART_DRIVER_DECLARE(ttyAML);
+MESON_UART_DRIVER_DECLARE(ttyS);
 
 static struct uart_port *meson_ports[AML_UART_PORT_NUM];
 
 struct meson_uart_data {
+	struct uart_driver *uart_driver;
 	bool has_xtal_div2;
 };
 
@@ -611,15 +617,21 @@ static int meson_serial_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-static struct console meson_serial_console = {
-	.name		= AML_UART_DEV_NAME,
-	.write		= meson_serial_console_write,
-	.device		= uart_console_device,
-	.setup		= meson_serial_console_setup,
-	.flags		= CON_PRINTBUFFER,
-	.index		= -1,
-	.data		= &meson_uart_driver,
-};
+#define MESON_SERIAL_CONSOLE(_devname) meson_serial_console_##_devname
+
+#define MESON_SERIAL_CONSOLE_DEFINE(_devname)				\
+	static struct console MESON_SERIAL_CONSOLE(_devname) = {	\
+		.name		= __stringify(_devname),		\
+		.write		= meson_serial_console_write,		\
+		.device		= uart_console_device,			\
+		.setup		= meson_serial_console_setup,		\
+		.flags		= CON_PRINTBUFFER,			\
+		.index		= -1,					\
+		.data		= &MESON_UART_DRIVER(_devname),		\
+	}
+
+MESON_SERIAL_CONSOLE_DEFINE(ttyAML);
+MESON_SERIAL_CONSOLE_DEFINE(ttyS);
 
 static void meson_serial_early_console_write(struct console *co,
 					     const char *s,
@@ -644,18 +656,22 @@ meson_serial_early_console_setup(struct earlycon_device *device, const char *opt
 OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 		    meson_serial_early_console_setup);
 
-#define MESON_SERIAL_CONSOLE	(&meson_serial_console)
+#define MESON_SERIAL_CONSOLE_PTR(_devname) (&MESON_SERIAL_CONSOLE(_devname))
 #else
-#define MESON_SERIAL_CONSOLE	NULL
+#define MESON_SERIAL_CONSOLE_PTR(_devname)	(NULL)
 #endif
 
-static struct uart_driver meson_uart_driver = {
-	.owner		= THIS_MODULE,
-	.driver_name	= "meson_uart",
-	.dev_name	= AML_UART_DEV_NAME,
-	.nr		= AML_UART_PORT_NUM,
-	.cons		= MESON_SERIAL_CONSOLE,
-};
+#define MESON_UART_DRIVER_DEFINE(_devname)  \
+	static struct uart_driver MESON_UART_DRIVER(_devname) = {	\
+		.owner		= THIS_MODULE,				\
+		.driver_name	= "meson_uart",				\
+		.dev_name	= __stringify(_devname),		\
+		.nr		= AML_UART_PORT_NUM,			\
+		.cons		= MESON_SERIAL_CONSOLE_PTR(_devname),	\
+	}
+
+MESON_UART_DRIVER_DEFINE(ttyAML);
+MESON_UART_DRIVER_DEFINE(ttyS);
 
 static int meson_uart_probe_clocks(struct platform_device *pdev,
 				   struct uart_port *port)
@@ -681,8 +697,16 @@ static int meson_uart_probe_clocks(struct platform_device *pdev,
 	return 0;
 }
 
+static struct uart_driver *meson_uart_current(const struct meson_uart_data *pd)
+{
+	return (pd && pd->uart_driver) ?
+		pd->uart_driver : &MESON_UART_DRIVER(ttyAML);
+}
+
 static int meson_uart_probe(struct platform_device *pdev)
 {
+	const struct meson_uart_data *priv_data;
+	struct uart_driver *uart_driver;
 	struct resource *res_mem;
 	struct uart_port *port;
 	u32 fifosize = 64; /* Default is 64, 128 for EE UART_0 */
@@ -729,8 +753,12 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (!meson_uart_driver.state) {
-		ret = uart_register_driver(&meson_uart_driver);
+	priv_data = device_get_match_data(&pdev->dev);
+
+	uart_driver = meson_uart_current(priv_data);
+
+	if (!uart_driver->state) {
+		ret = uart_register_driver(uart_driver);
 		if (ret)
 			return dev_err_probe(&pdev->dev, ret,
 					     "can't register uart driver\n");
@@ -748,7 +776,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 	port->x_char = 0;
 	port->ops = &meson_uart_ops;
 	port->fifosize = fifosize;
-	port->private_data = (void *)device_get_match_data(&pdev->dev);
+	port->private_data = (void *)priv_data;
 
 	meson_ports[pdev->id] = port;
 	platform_set_drvdata(pdev, port);
@@ -759,7 +787,7 @@ static int meson_uart_probe(struct platform_device *pdev)
 		meson_uart_release_port(port);
 	}
 
-	ret = uart_add_one_port(&meson_uart_driver, port);
+	ret = uart_add_one_port(uart_driver, port);
 	if (ret)
 		meson_ports[pdev->id] = NULL;
 
@@ -768,10 +796,12 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 static int meson_uart_remove(struct platform_device *pdev)
 {
+	struct uart_driver *uart_driver;
 	struct uart_port *port;
 
 	port = platform_get_drvdata(pdev);
-	uart_remove_one_port(&meson_uart_driver, port);
+	uart_driver = meson_uart_current(port->private_data);
+	uart_remove_one_port(uart_driver, port);
 	meson_ports[pdev->id] = NULL;
 
 	for (int id = 0; id < AML_UART_PORT_NUM; id++)
@@ -779,7 +809,7 @@ static int meson_uart_remove(struct platform_device *pdev)
 			return 0;
 
 	/* No more available uart ports, unregister uart driver */
-	uart_unregister_driver(&meson_uart_driver);
+	uart_unregister_driver(uart_driver);
 
 	return 0;
 }
