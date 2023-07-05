@@ -67,10 +67,13 @@ void ocelot_port_update_active_preemptible_tcs(struct ocelot *ocelot, int port)
 		val = mm->preemptible_tcs;
 
 	/* Cut through switching doesn't work for preemptible priorities,
-	 * so first make sure it is disabled.
+	 * so first make sure it is disabled. Also, changing the preemptible
+	 * TCs affects the oversized frame dropping logic, so that needs to be
+	 * re-triggered. And since tas_guard_bands_update() also implicitly
+	 * calls cut_through_fwd(), we don't need to explicitly call it.
 	 */
 	mm->active_preemptible_tcs = val;
-	ocelot->ops->cut_through_fwd(ocelot);
+	ocelot->ops->tas_guard_bands_update(ocelot, port);
 
 	dev_dbg(ocelot->dev,
 		"port %d %s/%s, MM TX %s, preemptible TCs 0x%x, active 0x%x\n",
