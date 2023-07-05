@@ -412,7 +412,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(inode));
 	str->di_atime = cpu_to_be64(inode->i_atime.tv_sec);
 	str->di_mtime = cpu_to_be64(inode->i_mtime.tv_sec);
-	str->di_ctime = cpu_to_be64(inode->i_ctime.tv_sec);
+	str->di_ctime = cpu_to_be64(inode_get_ctime(inode).tv_sec);
 
 	str->di_goal_meta = cpu_to_be64(ip->i_goal);
 	str->di_goal_data = cpu_to_be64(ip->i_goal);
@@ -429,7 +429,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_eattr = cpu_to_be64(ip->i_eattr);
 	str->di_atime_nsec = cpu_to_be32(inode->i_atime.tv_nsec);
 	str->di_mtime_nsec = cpu_to_be32(inode->i_mtime.tv_nsec);
-	str->di_ctime_nsec = cpu_to_be32(inode->i_ctime.tv_nsec);
+	str->di_ctime_nsec = cpu_to_be32(inode_get_ctime(inode).tv_nsec);
 }
 
 /**
