@@ -2193,7 +2193,6 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 
 	dev->isp_err_cnt = 0;
 	dev->isp_isr_cnt = 0;
-	dev->isp_state = ISP_START | ISP_FRAME_END;
 	dev->irq_ends_mask |= ISP_FRAME_END;
 	dev->irq_ends = 0;
 
@@ -2902,6 +2901,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 	rkisp_config_cif(isp_dev);
 	rkisp_isp_start(isp_dev);
 	rkisp_global_update_mi(isp_dev);
+	isp_dev->isp_state = ISP_START | ISP_FRAME_END;
 	rkisp_rdbk_trigger_event(isp_dev, T_CMD_QUEUE, NULL);
 	return 0;
 }
