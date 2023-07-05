@@ -109,43 +109,29 @@ static struct ctl_table fsverity_sysctl_table[] = {
 	{ }
 };
 
-static int __init fsverity_sysctl_init(void)
+static void __init fsverity_sysctl_init(void)
 {
-	fsverity_sysctl_header = register_sysctl("fs/verity", fsverity_sysctl_table);
-	if (!fsverity_sysctl_header) {
-		pr_err("sysctl registration failed!\n");
-		return -ENOMEM;
-	}
-	return 0;
+	fsverity_sysctl_header = register_sysctl("fs/verity",
+						 fsverity_sysctl_table);
+	if (!fsverity_sysctl_header)
+		panic("fsverity sysctl registration failed");
 }
 #else /* !CONFIG_SYSCTL */
-static inline int __init fsverity_sysctl_init(void)
+static inline void fsverity_sysctl_init(void)
 {
-	return 0;
 }
 #endif /* !CONFIG_SYSCTL */
 
-int __init fsverity_init_signature(void)
+void __init fsverity_init_signature(void)
 {
-	struct key *ring;
-	int err;
-
-	ring = keyring_alloc(".fs-verity", KUIDT_INIT(0), KGIDT_INIT(0),
-			     current_cred(), KEY_POS_SEARCH |
+	fsverity_keyring =
+		keyring_alloc(".fs-verity", KUIDT_INIT(0), KGIDT_INIT(0),
+			      current_cred(), KEY_POS_SEARCH |
 				KEY_USR_VIEW | KEY_USR_READ | KEY_USR_WRITE |
 				KEY_USR_SEARCH | KEY_USR_SETATTR,
-			     KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
-	if (IS_ERR(ring))
-		return PTR_ERR(ring);
+			      KEY_ALLOC_NOT_IN_QUOTA, NULL, NULL);
+	if (IS_ERR(fsverity_keyring))
+		panic("failed to allocate \".fs-verity\" keyring");
 
-	err = fsverity_sysctl_init();
-	if (err)
-		goto err_put_ring;
-
-	fsverity_keyring = ring;
-	return 0;
-
-err_put_ring:
-	key_put(ring);
-	return err;
+	fsverity_sysctl_init();
 }

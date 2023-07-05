@@ -408,18 +408,10 @@ void __fsverity_cleanup_inode(struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(__fsverity_cleanup_inode);
 
-int __init fsverity_init_info_cache(void)
+void __init fsverity_init_info_cache(void)
 {
-	fsverity_info_cachep = KMEM_CACHE_USERCOPY(fsverity_info,
-						   SLAB_RECLAIM_ACCOUNT,
-						   file_digest);
-	if (!fsverity_info_cachep)
-		return -ENOMEM;
-	return 0;
-}
-
-void __init fsverity_exit_info_cache(void)
-{
-	kmem_cache_destroy(fsverity_info_cachep);
-	fsverity_info_cachep = NULL;
+	fsverity_info_cachep = KMEM_CACHE_USERCOPY(
+					fsverity_info,
+					SLAB_RECLAIM_ACCOUNT | SLAB_PANIC,
+					file_digest);
 }
