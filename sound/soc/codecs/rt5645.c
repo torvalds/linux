@@ -3258,6 +3258,22 @@ int rt5645_set_jack_detect(struct snd_soc_component *component,
 }
 EXPORT_SYMBOL_GPL(rt5645_set_jack_detect);
 
+static int rt5645_component_set_jack(struct snd_soc_component *component,
+	struct snd_soc_jack *hs_jack, void *data)
+{
+	struct snd_soc_jack *mic_jack = NULL;
+	struct snd_soc_jack *btn_jack = NULL;
+	int *type = (int *)data;
+
+	if (*type & SND_JACK_MICROPHONE)
+		mic_jack = hs_jack;
+	if (*type & (SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+		SND_JACK_BTN_2 | SND_JACK_BTN_3))
+		btn_jack = hs_jack;
+
+	return rt5645_set_jack_detect(component, hs_jack, mic_jack, btn_jack);
+}
+
 static void rt5645_jack_detect_work(struct work_struct *work)
 {
 	struct rt5645_priv *rt5645 =
@@ -3532,6 +3548,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5645 = {
 	.num_dapm_widgets	= ARRAY_SIZE(rt5645_dapm_widgets),
 	.dapm_routes		= rt5645_dapm_routes,
 	.num_dapm_routes	= ARRAY_SIZE(rt5645_dapm_routes),
+	.set_jack		= rt5645_component_set_jack,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
 };
