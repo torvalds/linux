@@ -279,14 +279,14 @@ aspeed_2600_spi_clk_basic_setting(struct aspeed_spi_controller *ast_ctrl,
 	struct device *dev = ast_ctrl->dev;
 	uint32_t hclk_clk = ast_ctrl->ahb_clk;
 	uint32_t hclk_div = 0x400; /* default value */
-	uint32_t i, j = 0;
+	uint32_t i = 0, j = 0;
 	bool found = false;
 	/* HCLK/1 ..	HCLK/16 */
 	uint32_t hclk_masks[] = { 15, 7, 14, 6, 13, 5, 12, 4,
 				  11, 3, 10, 2, 9,  1, 8,  0 };
 
 	/* FMC/SPIR10[27:24] */
-	for (j = 0; j < 0xf; i++) {
+	for (j = 0; j < 0xf; j++) {
 		/* FMC/SPIR10[11:8] */
 		for (i = 0; i < ARRAY_SIZE(hclk_masks); i++) {
 			if (i == 0 && j == 0)
