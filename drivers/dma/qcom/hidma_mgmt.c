@@ -176,10 +176,9 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	virtaddr = devm_ioremap_resource(&pdev->dev, res);
+	virtaddr = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(virtaddr)) {
-		rc = -ENOMEM;
+		rc = PTR_ERR(virtaddr);
 		goto out;
 	}
 
