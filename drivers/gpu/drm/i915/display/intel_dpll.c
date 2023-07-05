@@ -1182,6 +1182,8 @@ static int ilk_crtc_compute_clock(struct intel_atomic_state *state,
 				refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
 
+	i9xx_calc_dpll_params(refclk, &crtc_state->dpll);
+
 	ilk_compute_dpll(crtc_state, &crtc_state->dpll,
 			 &crtc_state->dpll);
 
@@ -1256,6 +1258,8 @@ static int chv_crtc_compute_clock(struct intel_atomic_state *state,
 				refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
 
+	chv_calc_dpll_params(refclk, &crtc_state->dpll);
+
 	chv_compute_dpll(crtc_state);
 
 	/* FIXME this is a mess */
@@ -1278,9 +1282,10 @@ static int vlv_crtc_compute_clock(struct intel_atomic_state *state,
 
 	if (!crtc_state->clock_set &&
 	    !vlv_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
-				refclk, NULL, &crtc_state->dpll)) {
+				refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
-	}
+
+	vlv_calc_dpll_params(refclk, &crtc_state->dpll);
 
 	vlv_compute_dpll(crtc_state);
 
@@ -1330,6 +1335,8 @@ static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
 				refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
 
+	i9xx_calc_dpll_params(refclk, &crtc_state->dpll);
+
 	i9xx_compute_dpll(crtc_state, &crtc_state->dpll,
 			  &crtc_state->dpll);
 
@@ -1368,6 +1375,8 @@ static int pnv_crtc_compute_clock(struct intel_atomic_state *state,
 				refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
 
+	pnv_calc_dpll_params(refclk, &crtc_state->dpll);
+
 	i9xx_compute_dpll(crtc_state, &crtc_state->dpll,
 			  &crtc_state->dpll);
 
@@ -1403,6 +1412,8 @@ static int i9xx_crtc_compute_clock(struct intel_atomic_state *state,
 	    !i9xx_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
 				 refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
+
+	i9xx_calc_dpll_params(refclk, &crtc_state->dpll);
 
 	i9xx_compute_dpll(crtc_state, &crtc_state->dpll,
 			  &crtc_state->dpll);
@@ -1443,6 +1454,8 @@ static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
 	    !i9xx_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
 				 refclk, NULL, &crtc_state->dpll))
 		return -EINVAL;
+
+	i9xx_calc_dpll_params(refclk, &crtc_state->dpll);
 
 	i8xx_compute_dpll(crtc_state, &crtc_state->dpll,
 			  &crtc_state->dpll);
