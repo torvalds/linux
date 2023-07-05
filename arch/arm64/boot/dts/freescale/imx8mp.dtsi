@@ -306,8 +306,7 @@
 
 		etm0: etm@28440000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28440000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28440000 0x1000>;
 			cpu = <&A53_0>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -323,8 +322,7 @@
 
 		etm1: etm@28540000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28540000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28540000 0x1000>;
 			cpu = <&A53_1>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -340,8 +338,7 @@
 
 		etm2: etm@28640000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28640000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28640000 0x1000>;
 			cpu = <&A53_2>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
@@ -357,8 +354,7 @@
 
 		etm3: etm@28740000 {
 			compatible = "arm,coresight-etm4x", "arm,primecell";
-			reg = <0x28740000 0x10000>;
-			arm,primecell-periphid = <0xbb95d>;
+			reg = <0x28740000 0x1000>;
 			cpu = <&A53_3>;
 			clocks = <&clk IMX8MP_CLK_MAIN_AXI>;
 			clock-names = "apb_pclk";
