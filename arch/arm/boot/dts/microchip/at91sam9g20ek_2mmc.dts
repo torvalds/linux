@@ -12,7 +12,7 @@
 	compatible = "atmel,at91sam9g20ek_2mmc", "atmel,at91sam9g20", "atmel,at91sam9";
 
 	ahb {
-		apb{
+		apb {
 			mmc0: mmc@fffa8000 {
 				/* clk already mux wuth slot0 */
 				pinctrl-0 = <
