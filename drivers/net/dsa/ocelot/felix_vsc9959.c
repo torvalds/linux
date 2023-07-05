@@ -2599,6 +2599,7 @@ static const struct ocelot_ops vsc9959_ops = {
 	.cut_through_fwd	= vsc9959_cut_through_fwd,
 	.tas_clock_adjust	= vsc9959_tas_clock_adjust,
 	.update_stats		= vsc9959_update_stats,
+	.tas_guard_bands_update	= vsc9959_tas_guard_bands_update,
 };
 
 static const struct felix_info felix_info_vsc9959 = {
@@ -2624,7 +2625,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.port_modes		= vsc9959_port_modes,
 	.port_setup_tc		= vsc9959_port_setup_tc,
 	.port_sched_speed_set	= vsc9959_sched_speed_set,
-	.tas_guard_bands_update	= vsc9959_tas_guard_bands_update,
 };
 
 /* The INTB interrupt is shared between for PTP TX timestamp availability
