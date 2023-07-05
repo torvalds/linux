@@ -218,7 +218,7 @@ struct spi_geni_master {
 	bool cmd_done;
 	bool set_miso_sampling;
 	u32 miso_sampling_ctrl_val;
-	bool gpi_reset; /* GPI channel reset*/
+	bool le_gpi_reset_done;
 	bool disable_dma;
 	bool slave_setup;
 	bool slave_state;
@@ -858,14 +858,16 @@ static void spi_geni_unlock_bus(struct spi_master *spi)
 	struct scatterlist *xfer_tx_sg = mas->gsi_lock_unlock->tx_sg;
 	unsigned long flags = DMA_PREP_INTERRUPT | DMA_CTRL_ACK;
 
+	/* if gpi reset happened for levm, no need to do unlock */
+	if (mas->is_le_vm && mas->le_gpi_reset_done) {
+		SPI_LOG_DBG(mas->ipc, false, mas->dev,
+			    "%s:gpi reset happened for levm, no need to do unlock\n", __func__);
+		return;
+	}
+
 	reinit_completion(&mas->tx_cb);
 
 	SPI_LOG_DBG(mas->ipc, false, mas->dev, "%s %d\n", __func__, ret);
-
-	if (mas->gpi_reset) {
-		SPI_LOG_DBG(mas->ipc, false, mas->dev, "GPI Reset required\n");
-		goto err_spi_geni_unlock_bus;
-	}
 
 	unlock_t = setup_unlock_tre(mas);
 	sg_init_table(xfer_tx_sg, 1);
@@ -908,10 +910,8 @@ static void spi_geni_unlock_bus(struct spi_master *spi)
 	}
 
 err_spi_geni_unlock_bus:
-	if (mas->gpi_reset || ret) {
+	if (ret)
 		dmaengine_terminate_all(mas->tx);
-		mas->gpi_reset = false;
-	}
 }
 
 static int setup_gsi_xfer(struct spi_transfer *xfer,
@@ -936,6 +936,18 @@ static int setup_gsi_xfer(struct spi_transfer *xfer,
 	struct spi_geni_qcom_ctrl_data *delay_params = NULL;
 	u32 cs_clk_delay = 0;
 	u32 inter_words_delay = 0;
+
+	if (mas->is_le_vm && mas->le_gpi_reset_done) {
+		SPI_LOG_DBG(mas->ipc, false, mas->dev,
+			    "%s doing gsi lock, due to levm gsi reset\n", __func__);
+		ret = spi_geni_lock_bus(spi);
+		if (ret) {
+			SPI_LOG_DBG(mas->ipc, true, mas->dev,
+				    "%s lock bus failed: %d\n", __func__, ret);
+			return ret;
+		}
+		mas->le_gpi_reset_done = false;
+	}
 
 	if (spi_slv->controller_data) {
 		delay_params =
@@ -1894,17 +1906,9 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 	return ret;
 err_gsi_geni_transfer_one:
 	geni_spi_se_dump_dbg_regs(&mas->spi_rsc, mas->base, mas->ipc);
-	if (!mas->is_le_vm) {
-		dmaengine_terminate_all(mas->tx);
-	} else {
-		/* Stop channel in case of error in LE-VM */
-		ret = dmaengine_pause(mas->tx);
-		if (ret) {
-			mas->gpi_reset = true;
-			SPI_LOG_ERR(mas->ipc, true, mas->dev,
-				"Channel cancel failed\n");
-		}
-	}
+	dmaengine_terminate_all(mas->tx);
+	if (mas->is_le_vm)
+		mas->le_gpi_reset_done = true;
 	return ret;
 err_fifo_geni_transfer_one:
 	handle_fifo_timeout(spi, xfer);
