@@ -170,6 +170,13 @@
 	status = "okay";
 };
 
+&espi0 {
+	status = "okay";
+	perif-dma-mode;
+	oob-dma-mode;
+	flash-dma-mode;
+};
+
 #if 0
 &bmc_dev0 {
 	status = "okay";
