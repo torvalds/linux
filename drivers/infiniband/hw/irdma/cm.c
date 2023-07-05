@@ -3627,7 +3627,6 @@ void irdma_free_lsmm_rsrc(struct irdma_qp *iwqp)
 				  iwqp->ietf_mem.size, iwqp->ietf_mem.va,
 				  iwqp->ietf_mem.pa);
 		iwqp->ietf_mem.va = NULL;
-		iwqp->ietf_mem.va = NULL;
 	}
 }
 
