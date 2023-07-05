@@ -277,10 +277,10 @@ struct dentry *hpfs_lookup(struct inode *dir, struct dentry *dentry, unsigned in
 	 * inode.
 	 */
 
-	if (!result->i_ctime.tv_sec) {
-		if (!(result->i_ctime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(de->creation_date))))
-			result->i_ctime.tv_sec = 1;
-		result->i_ctime.tv_nsec = 0;
+	if (!inode_get_ctime(result).tv_sec) {
+		time64_t csec = local_to_gmt(dir->i_sb, le32_to_cpu(de->creation_date));
+
+		inode_set_ctime(result, csec ? csec : 1, 0);
 		result->i_mtime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(de->write_date));
 		result->i_mtime.tv_nsec = 0;
 		result->i_atime.tv_sec = local_to_gmt(dir->i_sb, le32_to_cpu(de->read_date));
