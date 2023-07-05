@@ -802,7 +802,7 @@ config SENSORS_GXP_FAN_CTRL
 	  If you say yes here you get support for GXP fan control functionality.
 
 	  The GXP controls fan function via the CPLD through the use of PWM
-	  registers. This driver reports status and pwm setting of the fans.
+	  registers. This driver enables pwm setting of the fans.
 
 config SENSORS_HIH6130
 	tristate "Honeywell Humidicon HIH-6130 humidity/temperature sensor"
