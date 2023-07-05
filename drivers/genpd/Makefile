@@ -11,3 +11,4 @@ obj-y					+= samsung/
 obj-y					+= starfive/
 obj-y					+= sunxi/
 obj-y					+= tegra/
+obj-y					+= ti/
