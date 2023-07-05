@@ -71,7 +71,6 @@ struct pwm_state {
  * @hwpwm: per-chip relative index of the PWM device
  * @pwm: global index of the PWM device
  * @chip: PWM chip providing this PWM device
- * @chip_data: chip-private data associated with the PWM device
  * @args: PWM arguments
  * @state: last applied state
  * @last: last implemented state (for PWM_DEBUG)
@@ -82,7 +81,6 @@ struct pwm_device {
 	unsigned int hwpwm;
 	unsigned int pwm;
 	struct pwm_chip *chip;
-	void *chip_data;
 
 	struct pwm_args args;
 	struct pwm_state state;
@@ -383,8 +381,6 @@ static inline void pwm_disable(struct pwm_device *pwm)
 /* PWM provider APIs */
 int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
 		unsigned long timeout);
-int pwm_set_chip_data(struct pwm_device *pwm, void *data);
-void *pwm_get_chip_data(struct pwm_device *pwm);
 
 int __pwmchip_add(struct pwm_chip *chip, struct module *owner);
 #define pwmchip_add(chip) __pwmchip_add(chip, THIS_MODULE)
@@ -445,16 +441,6 @@ static inline int pwm_capture(struct pwm_device *pwm,
 			      unsigned long timeout)
 {
 	return -EINVAL;
-}
-
-static inline int pwm_set_chip_data(struct pwm_device *pwm, void *data)
-{
-	return -EINVAL;
-}
-
-static inline void *pwm_get_chip_data(struct pwm_device *pwm)
-{
-	return NULL;
 }
 
 static inline int pwmchip_add(struct pwm_chip *chip)

@@ -208,36 +208,6 @@ static void of_pwmchip_remove(struct pwm_chip *chip)
 		of_node_put(chip->dev->of_node);
 }
 
-/**
- * pwm_set_chip_data() - set private chip data for a PWM
- * @pwm: PWM device
- * @data: pointer to chip-specific data
- *
- * Returns: 0 on success or a negative error code on failure.
- */
-int pwm_set_chip_data(struct pwm_device *pwm, void *data)
-{
-	if (!pwm)
-		return -EINVAL;
-
-	pwm->chip_data = data;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pwm_set_chip_data);
-
-/**
- * pwm_get_chip_data() - get private chip data for a PWM
- * @pwm: PWM device
- *
- * Returns: A pointer to the chip-private data for the PWM device.
- */
-void *pwm_get_chip_data(struct pwm_device *pwm)
-{
-	return pwm ? pwm->chip_data : NULL;
-}
-EXPORT_SYMBOL_GPL(pwm_get_chip_data);
-
 static bool pwm_ops_check(const struct pwm_chip *chip)
 {
 	const struct pwm_ops *ops = chip->ops;
@@ -980,7 +950,6 @@ void pwm_put(struct pwm_device *pwm)
 	if (pwm->chip->ops->free)
 		pwm->chip->ops->free(pwm->chip, pwm);
 
-	pwm_set_chip_data(pwm, NULL);
 	pwm->label = NULL;
 
 	module_put(pwm->chip->owner);
