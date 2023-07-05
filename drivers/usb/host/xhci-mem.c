@@ -1890,7 +1890,8 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	if (xhci->lowmem_pool.pool) {
 		pool = &xhci->lowmem_pool;
-		dma_free_coherent(dev, pool->size, (void *)pool->cached_base, pool->dma_addr);
+		dma_free_noncoherent(dev, pool->size, (void *)pool->cached_base,
+				     pool->dma_addr, DMA_BIDIRECTIONAL);
 		gen_pool_destroy(pool->pool);
 		pool->pool = NULL;
 	}
@@ -2397,15 +2398,15 @@ int xhci_setup_local_lowmem(struct xhci_hcd *xhci, size_t size)
 	if (!pool->pool) {
 		/* minimal alloc one page */
 		pool->pool = gen_pool_create(PAGE_SHIFT, dev_to_node(hcd->self.sysdev));
-		if (IS_ERR(pool->pool))
-			return PTR_ERR(pool->pool);
+		if (!pool->pool)
+			return -ENOMEM;
 	}
 
-	buffer = dma_alloc_coherent(hcd->self.sysdev, size, &dma_addr,
-			GFP_KERNEL | GFP_DMA32);
+	buffer = dma_alloc_noncoherent(hcd->self.sysdev, size, &dma_addr,
+		DMA_BIDIRECTIONAL, GFP_ATOMIC);
 
-	if (IS_ERR(buffer)) {
-		err = PTR_ERR(buffer);
+	if (!buffer) {
+		err = -ENOMEM;
 		goto destroy_pool;
 	}
 
@@ -2415,11 +2416,11 @@ int xhci_setup_local_lowmem(struct xhci_hcd *xhci, size_t size)
 	 * for it.
 	 */
 	err = gen_pool_add_virt(pool->pool, (unsigned long)buffer,
-				dma_addr, size, dev_to_node(hcd->self.sysdev));
+		dma_addr, size, dev_to_node(hcd->self.sysdev));
 	if (err < 0) {
 		dev_err(hcd->self.sysdev, "gen_pool_add_virt failed with %d\n",
 			err);
-		dma_free_coherent(hcd->self.sysdev, size, buffer, dma_addr);
+		dma_free_noncoherent(hcd->self.sysdev, size, buffer, dma_addr, DMA_BIDIRECTIONAL);
 		goto destroy_pool;
 	}
 
@@ -2609,9 +2610,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;
 
 	if (xhci->quirks & XHCI_LOCAL_BUFFER) {
-		if (xhci_setup_local_lowmem(xhci,
-			xhci->lowmem_pool.size))
-			goto fail;
+		ret = xhci_setup_local_lowmem(xhci, xhci->lowmem_pool.size);
+		if (ret) {
+			xhci->quirks &= ~XHCI_LOCAL_BUFFER;
+			xhci_warn(xhci, "WARN: Can't alloc lowmem pool\n");
+		}
 	}
 
 	/*
