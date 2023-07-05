@@ -81,6 +81,13 @@
 #define   ESPI_CH0_NP_TX_CTRL_TAG	GENMASK(11, 8)
 #define   ESPI_CH0_NP_TX_CTRL_CYC	GENMASK(7, 0)
 #define ESPI_CH0_NP_TX_DATA		0x13c
+#define ESPI_CH0_MCYC0_SADDRL		0x140
+#define ESPI_CH0_MCYC0_SADDRH		0x144
+#define ESPI_CH0_MCYC0_TADDRL		0x148
+#define ESPI_CH0_MCYC0_TADDRH		0x14c
+#define ESPI_CH0_MCYC0_MASKL		0x150
+#define   ESPI_CH0_MCYC0_MASKL_EN	BIT(0)
+#define ESPI_CH0_MCYC0_MASKH		0x154
 #define ESPI_CH0_MCYC1_SADDRL		0x158
 #define ESPI_CH0_MCYC1_SADDRH		0x15c
 #define ESPI_CH0_MCYC1_TADDRL		0x160
@@ -208,7 +215,7 @@
 #define ESPI_CH3_WPROT0			0x4f8
 #define ESPI_CH3_WPROT1			0x4fc
 
-/* edaf filter */
+/* eDAF filter registers */
 #define ESPI_EDAF_FLTR_SADDR0		0x510
 #define ESPI_EDAF_FLTR_EADDR0		0x514
 #define ESPI_EDAF_FLTR_SADDR1		0x518
@@ -243,6 +250,14 @@
 #define ESPI_EDAF_FLTR_EADDR15		0x58c
 #define ESPI_EDAF_WPROT0		0x5f8
 #define ESPI_EDAF_WPROT1		0x5fc
+
+/* MMBI registers */
+#define ESPI_MMBI_CTRL			0x800
+#define   ESPI_MMBI_CTRL_INST_NUM	GENMASK(6, 4)
+#define   ESPI_MMBI_CTRL_EN		BIT(0)
+#define ESPI_MMBI_INT_STS		0x808
+#define ESPI_MMBI_INT_EN		0x80c
+#define ESPI_MMBI_HOST_RWP(x)		(0x810 + ((x) << 3))
 
 enum ast2700_edaf_mode {
 	EDAF_MODE_MIX,
