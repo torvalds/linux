@@ -131,7 +131,8 @@ static char *gmin_cfg_get_dsm(struct acpi_device *adev, const char *key)
 			if (!val)
 				break;
 
-			acpi_handle_info(adev->handle, "Using DSM entry %s=%s\n", key, val);
+			acpi_handle_info(adev->handle, "%s: Using DSM entry %s=%s\n",
+					 dev_name(&adev->dev), key, val);
 			break;
 		}
 	}
@@ -156,7 +157,8 @@ static char *gmin_cfg_get_dmi_override(struct acpi_device *adev, const char *key
 		if (strcmp(key, gv->key))
 			continue;
 
-		acpi_handle_info(adev->handle, "Using DMI entry %s=%s\n", key, gv->val);
+		acpi_handle_info(adev->handle, "%s: Using DMI entry %s=%s\n",
+				 dev_name(&adev->dev), key, gv->val);
 		return kstrdup(gv->val, GFP_KERNEL);
 	}
 
@@ -192,7 +194,8 @@ static int gmin_cfg_get_int(struct acpi_device *adev, const char *key, int defau
 	return int_val;
 
 out_use_default:
-	acpi_handle_info(adev->handle, "Using default %s=%d\n", key, default_val);
+	acpi_handle_info(adev->handle, "%s: Using default %s=%d\n",
+			 dev_name(&adev->dev), key, default_val);
 	return default_val;
 }
 
@@ -235,7 +238,8 @@ static int atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(struct acpi_device *adev)
 	ACPI_FREE(buffer.pointer);
 
 	if (ret < 0)
-		acpi_handle_warn(adev->handle, "Could not find PMC clk in _PR0\n");
+		acpi_handle_warn(adev->handle, "%s: Could not find PMC clk in _PR0\n",
+				 dev_name(&adev->dev));
 
 	return ret;
 }
@@ -254,7 +258,8 @@ static int atomisp_csi2_set_pmc_clk_freq(struct acpi_device *adev, int clock_num
 	clk = clk_get(NULL, name);
 	if (IS_ERR(clk)) {
 		ret = PTR_ERR(clk);
-		acpi_handle_err(adev->handle, "Error getting clk %s:%d\n", name, ret);
+		acpi_handle_err(adev->handle, "%s: Error getting clk %s: %d\n",
+				dev_name(&adev->dev), name, ret);
 		return ret;
 	}
 
@@ -268,7 +273,8 @@ static int atomisp_csi2_set_pmc_clk_freq(struct acpi_device *adev, int clock_num
 	if (!ret)
 		ret = clk_set_rate(clk, PMC_CLK_RATE_19_2MHZ);
 	if (ret)
-		acpi_handle_err(adev->handle, "Error setting clk-rate for %s:%d\n", name, ret);
+		acpi_handle_err(adev->handle, "%s: Error setting clk-rate for %s: %d\n",
+				dev_name(&adev->dev), name, ret);
 
 	clk_put(clk);
 	return ret;
@@ -317,7 +323,8 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
 
 	if (i == data->settings_count) {
 		acpi_handle_warn(data->adev->handle,
-				 "Could not find DSM GPIO settings for pin %u\n", pin);
+				 "%s: Could not find DSM GPIO settings for pin %u\n",
+				 dev_name(&data->adev->dev), pin);
 		return 1;
 	}
 
@@ -329,7 +336,8 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
 		name = "powerdown-gpios";
 		break;
 	default:
-		acpi_handle_warn(data->adev->handle, "Unknown GPIO type 0x%02lx for pin %u\n",
+		acpi_handle_warn(data->adev->handle, "%s: Unknown GPIO type 0x%02lx for pin %u\n",
+				 dev_name(&data->adev->dev),
 				 INTEL_GPIO_DSM_TYPE(settings), pin);
 		return 1;
 	}
@@ -354,7 +362,8 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
 	data->map->mapping[i].size = 1;
 	data->map_count++;
 
-	acpi_handle_info(data->adev->handle, "%s crs %d %s pin %u active-%s\n", name,
+	acpi_handle_info(data->adev->handle, "%s: %s crs %d %s pin %u active-%s\n",
+			 dev_name(&data->adev->dev), name,
 			 data->res_count - 1, agpio->resource_source.string_ptr,
 			 pin, active_low ? "low" : "high");
 
@@ -391,7 +400,8 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 	obj = acpi_evaluate_dsm_typed(adev->handle, &intel_sensor_module_guid,
 				      0x00, 1, NULL, ACPI_TYPE_STRING);
 	if (obj) {
-		acpi_handle_info(adev->handle, "Sensor module id: '%s'\n", obj->string.pointer);
+		acpi_handle_info(adev->handle, "%s: Sensor module id: '%s'\n",
+				 dev_name(&adev->dev), obj->string.pointer);
 		ACPI_FREE(obj);
 	}
 
@@ -405,7 +415,8 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 				      &intel_sensor_gpio_info_guid, 0x00, 1,
 				      NULL, ACPI_TYPE_INTEGER);
 	if (!obj) {
-		acpi_handle_err(adev->handle, "No _DSM entry for GPIO pin count\n");
+		acpi_handle_err(adev->handle, "%s: No _DSM entry for GPIO pin count\n",
+				dev_name(&adev->dev));
 		return -EIO;
 	}
 
@@ -413,7 +424,9 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 	ACPI_FREE(obj);
 
 	if (data.settings_count > CSI2_MAX_ACPI_GPIOS) {
-		acpi_handle_err(adev->handle, "Too many GPIOs %u > %u\n", data.settings_count, CSI2_MAX_ACPI_GPIOS);
+		acpi_handle_err(adev->handle, "%s: Too many GPIOs %u > %u\n",
+				dev_name(&adev->dev), data.settings_count,
+				CSI2_MAX_ACPI_GPIOS);
 		return -EOVERFLOW;
 	}
 
@@ -427,7 +440,8 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 					      0x00, i + 2,
 					      NULL, ACPI_TYPE_INTEGER);
 		if (!obj) {
-			acpi_handle_err(adev->handle, "No _DSM entry for pin %u\n", i);
+			acpi_handle_err(adev->handle, "%s: No _DSM entry for pin %u\n",
+					dev_name(&adev->dev), i);
 			return -EIO;
 		}
 
@@ -442,7 +456,8 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 			    INTEL_GPIO_DSM_PIN(data.settings[j]))
 				continue;
 
-			acpi_handle_err(adev->handle, "Duplicate pin number %lu\n",
+			acpi_handle_err(adev->handle, "%s: Duplicate pin number %lu\n",
+					dev_name(&adev->dev),
 					INTEL_GPIO_DSM_PIN(data.settings[i]));
 			return -EIO;
 		}
@@ -463,12 +478,14 @@ static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 
 	if (data.map_count != data.settings_count ||
 	    data.res_count != data.settings_count)
-		acpi_handle_warn(adev->handle, "ACPI GPIO resources vs DSM GPIO-info count mismatch (dsm: %d res: %d map %d\n",
-				 data.settings_count, data.res_count, data.map_count);
+		acpi_handle_warn(adev->handle, "%s: ACPI GPIO resources vs DSM GPIO-info count mismatch (dsm: %d res: %d map %d\n",
+				 dev_name(&adev->dev), data.settings_count,
+				 data.res_count, data.map_count);
 
 	ret = acpi_dev_add_driver_gpios(adev, data.map->mapping);
 	if (ret)
-		acpi_handle_err(adev->handle, "Error adding driver GPIOs: %d\n", ret);
+		acpi_handle_err(adev->handle, "%s: Error adding driver GPIOs: %d\n",
+				dev_name(&adev->dev), ret);
 
 	return ret;
 }
