@@ -358,6 +358,9 @@ static umode_t ptp_is_attribute_visible(struct kobject *kobj,
 		   attr == &dev_attr_max_vclocks.attr) {
 		if (ptp->is_virtual_clock)
 			mode = 0;
+	} else if (attr == &dev_attr_max_phase_adjustment.attr) {
+		if (!info->adjphase || !info->getmaxphase)
+			mode = 0;
 	}
 
 	return mode;

@@ -10794,8 +10794,8 @@ static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	router->lb_crif = mlxsw_sp_crif_alloc(NULL);
-	if (IS_ERR(router->lb_crif))
-		return PTR_ERR(router->lb_crif);
+	if (!router->lb_crif)
+		return -ENOMEM;
 
 	/* Create a generic loopback RIF associated with the main table
 	 * (default VRF). Any table can be used, but the main table exists
