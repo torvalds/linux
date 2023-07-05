@@ -7,6 +7,7 @@
  * minimal implementation based on egalax_ts.c and egalax_i2c.c
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -454,10 +455,19 @@ static const struct of_device_id exc3000_of_match[] = {
 MODULE_DEVICE_TABLE(of, exc3000_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id exc3000_acpi_match[] = {
+	{ "EGA00001", .driver_data = (kernel_ulong_t)&exc3000_info[EETI_EXC80H60] },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, exc3000_acpi_match);
+#endif
+
 static struct i2c_driver exc3000_driver = {
 	.driver = {
 		.name	= "exc3000",
 		.of_match_table = of_match_ptr(exc3000_of_match),
+		.acpi_match_table = ACPI_PTR(exc3000_acpi_match),
 	},
 	.id_table	= exc3000_id,
 	.probe		= exc3000_probe,
