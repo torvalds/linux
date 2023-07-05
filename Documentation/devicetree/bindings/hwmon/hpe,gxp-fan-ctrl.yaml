@@ -18,21 +18,12 @@ properties:
     const: hpe,gxp-fan-ctrl
 
   reg:
-    items:
-      - description: Fan controller PWM
-      - description: Programmable logic
-      - description: Function 2
-
-  reg-names:
-    items:
-      - const: base
-      - const: pl
-      - const: fn2
+    description: Fan controller PWM
+    maxItems: 1
 
 required:
   - compatible
   - reg
-  - reg-names
 
 additionalProperties: false
 
@@ -40,6 +31,5 @@ examples:
   - |
     fan-controller@1000c00 {
       compatible = "hpe,gxp-fan-ctrl";
-      reg = <0x1000c00 0x200>, <0xd1000000 0xff>, <0x80200000 0x100000>;
-      reg-names = "base", "pl", "fn2";
+      reg = <0x1000c00 0x200>;
     };
