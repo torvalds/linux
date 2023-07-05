@@ -714,7 +714,7 @@ static int system_2p_ev_to_ump_midi1(const struct snd_seq_event *event,
 {
 	data->system.status = status;
 	data->system.parm1 = (event->data.control.value >> 7) & 0x7f;
-	data->system.parm1 = event->data.control.value & 0x7f;
+	data->system.parm2 = event->data.control.value & 0x7f;
 	return 1;
 }
 
