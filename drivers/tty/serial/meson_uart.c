@@ -621,12 +621,6 @@ static struct console meson_serial_console = {
 	.data		= &meson_uart_driver,
 };
 
-static int __init meson_serial_console_init(void)
-{
-	register_console(&meson_serial_console);
-	return 0;
-}
-
 static void meson_serial_early_console_write(struct console *co,
 					     const char *s,
 					     u_int count)
@@ -652,9 +646,6 @@ OF_EARLYCON_DECLARE(meson, "amlogic,meson-ao-uart",
 
 #define MESON_SERIAL_CONSOLE	(&meson_serial_console)
 #else
-static int __init meson_serial_console_init(void) {
-	return 0;
-}
 #define MESON_SERIAL_CONSOLE	NULL
 #endif
 
@@ -738,6 +729,13 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (!meson_uart_driver.state) {
+		ret = uart_register_driver(&meson_uart_driver);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret,
+					     "can't register uart driver\n");
+	}
+
 	port->iotype = UPIO_MEM;
 	port->mapbase = res_mem->start;
 	port->mapsize = resource_size(res_mem);
@@ -776,6 +774,13 @@ static int meson_uart_remove(struct platform_device *pdev)
 	uart_remove_one_port(&meson_uart_driver, port);
 	meson_ports[pdev->id] = NULL;
 
+	for (int id = 0; id < AML_UART_PORT_NUM; id++)
+		if (meson_ports[id])
+			return 0;
+
+	/* No more available uart ports, unregister uart driver */
+	uart_unregister_driver(&meson_uart_driver);
+
 	return 0;
 }
 
@@ -809,33 +814,7 @@ static  struct platform_driver meson_uart_platform_driver = {
 	},
 };
 
-static int __init meson_uart_init(void)
-{
-	int ret;
-
-	ret = meson_serial_console_init();
-	if (ret)
-		return ret;
-	
-	ret = uart_register_driver(&meson_uart_driver);
-	if (ret)
-		return ret;
-
-	ret = platform_driver_register(&meson_uart_platform_driver);
-	if (ret)
-		uart_unregister_driver(&meson_uart_driver);
-
-	return ret;
-}
-
-static void __exit meson_uart_exit(void)
-{
-	platform_driver_unregister(&meson_uart_platform_driver);
-	uart_unregister_driver(&meson_uart_driver);
-}
-
-module_init(meson_uart_init);
-module_exit(meson_uart_exit);
+module_platform_driver(meson_uart_platform_driver);
 
 MODULE_AUTHOR("Carlo Caione <carlo@caione.org>");
 MODULE_DESCRIPTION("Amlogic Meson serial port driver");
