@@ -1272,7 +1272,7 @@ intel_sdvo_get_preferred_input_mode(struct intel_sdvo *intel_sdvo,
 static void i9xx_adjust_sdvo_tv_clock(struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(pipe_config->uapi.crtc->dev);
-	unsigned dotclock = pipe_config->port_clock;
+	unsigned int dotclock = pipe_config->hw.adjusted_mode.crtc_clock;
 	struct dpll *clock = &pipe_config->dpll;
 
 	/*
