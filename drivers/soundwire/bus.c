@@ -69,8 +69,17 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		return -EINVAL;
 	}
 
-	mutex_init(&bus->msg_lock);
-	mutex_init(&bus->bus_lock);
+	/*
+	 * Give each bus_lock and msg_lock a unique key so that lockdep won't
+	 * trigger a deadlock warning when the locks of several buses are
+	 * grabbed during configuration of a multi-bus stream.
+	 */
+	lockdep_register_key(&bus->msg_lock_key);
+	__mutex_init(&bus->msg_lock, "msg_lock", &bus->msg_lock_key);
+
+	lockdep_register_key(&bus->bus_lock_key);
+	__mutex_init(&bus->bus_lock, "bus_lock", &bus->bus_lock_key);
+
 	INIT_LIST_HEAD(&bus->slaves);
 	INIT_LIST_HEAD(&bus->m_rt_list);
 
@@ -181,6 +190,8 @@ void sdw_bus_master_delete(struct sdw_bus *bus)
 	sdw_master_device_del(bus);
 
 	sdw_bus_debugfs_exit(bus);
+	lockdep_unregister_key(&bus->bus_lock_key);
+	lockdep_unregister_key(&bus->msg_lock_key);
 	ida_free(&sdw_bus_ida, bus->id);
 }
 EXPORT_SYMBOL(sdw_bus_master_delete);
@@ -768,6 +779,9 @@ static int sdw_assign_device_num(struct sdw_slave *slave)
 
 	/* After xfer of msg, restore dev_num */
 	slave->dev_num = slave->dev_num_sticky;
+
+	if (bus->ops && bus->ops->new_peripheral_assigned)
+		bus->ops->new_peripheral_assigned(bus, dev_num);
 
 	return 0;
 }
@@ -1588,7 +1602,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 	unsigned long port;
 	bool slave_notify;
 	u8 sdca_cascade = 0;
-	u8 buf, buf2[2], _buf, _buf2[2];
+	u8 buf, buf2[2];
 	bool parity_check;
 	bool parity_quirk;
 
@@ -1745,9 +1759,9 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 				"SDW_SCP_INT1 recheck read failed:%d\n", ret);
 			goto io_err;
 		}
-		_buf = ret;
+		buf = ret;
 
-		ret = sdw_nread_no_pm(slave, SDW_SCP_INTSTAT2, 2, _buf2);
+		ret = sdw_nread_no_pm(slave, SDW_SCP_INTSTAT2, 2, buf2);
 		if (ret < 0) {
 			dev_err(&slave->dev,
 				"SDW_SCP_INT2/3 recheck read failed:%d\n", ret);
@@ -1765,12 +1779,8 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		}
 
 		/*
-		 * Make sure no interrupts are pending, but filter to limit loop
-		 * to interrupts identified in the first status read
+		 * Make sure no interrupts are pending
 		 */
-		buf &= _buf;
-		buf2[0] &= _buf2[0];
-		buf2[1] &= _buf2[1];
 		stat = buf || buf2[0] || buf2[1] || sdca_cascade;
 
 		/*
