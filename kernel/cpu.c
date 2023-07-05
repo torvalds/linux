@@ -621,7 +621,7 @@ void __init cpu_smt_set_num_threads(unsigned int num_threads,
 {
 	WARN_ON(!num_threads || (num_threads > max_threads));
 
-	if (!topology_smt_supported())
+	if (max_threads == 1)
 		cpu_smt_control = CPU_SMT_NOT_SUPPORTED;
 
 	cpu_smt_max_threads = max_threads;
@@ -1801,7 +1801,7 @@ early_param("cpuhp.parallel", parallel_bringup_parse_param);
 
 static inline bool cpuhp_smt_aware(void)
 {
-	return topology_smt_supported();
+	return cpu_smt_max_threads > 1;
 }
 
 static inline const struct cpumask *cpuhp_get_primary_thread_mask(void)
