@@ -124,7 +124,6 @@ struct ipu_sensor {
 	struct ipu_node_names node_names;
 
 	struct ipu_sensor_ssdb ssdb;
-	struct acpi_pld_info *pld;
 
 	struct ipu_property_names prop_names;
 	struct property_entry ep_properties[5];

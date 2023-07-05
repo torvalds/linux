@@ -112,23 +112,39 @@ static u32 ipu_bridge_parse_rotation(struct ipu_sensor *sensor)
 	}
 }
 
-static enum v4l2_fwnode_orientation ipu_bridge_parse_orientation(struct ipu_sensor *sensor)
+static enum v4l2_fwnode_orientation ipu_bridge_parse_orientation(struct acpi_device *adev)
 {
-	switch (sensor->pld->panel) {
+	enum v4l2_fwnode_orientation orientation;
+	struct acpi_pld_info *pld;
+	acpi_status status;
+
+	status = acpi_get_physical_device_location(adev->handle, &pld);
+	if (ACPI_FAILURE(status)) {
+		dev_warn(&adev->dev, "_PLD call failed, using default orientation\n");
+		return V4L2_FWNODE_ORIENTATION_EXTERNAL;
+	}
+
+	switch (pld->panel) {
 	case ACPI_PLD_PANEL_FRONT:
-		return V4L2_FWNODE_ORIENTATION_FRONT;
+		orientation = V4L2_FWNODE_ORIENTATION_FRONT;
+		break;
 	case ACPI_PLD_PANEL_BACK:
-		return V4L2_FWNODE_ORIENTATION_BACK;
+		orientation = V4L2_FWNODE_ORIENTATION_BACK;
+		break;
 	case ACPI_PLD_PANEL_TOP:
 	case ACPI_PLD_PANEL_LEFT:
 	case ACPI_PLD_PANEL_RIGHT:
 	case ACPI_PLD_PANEL_UNKNOWN:
-		return V4L2_FWNODE_ORIENTATION_EXTERNAL;
+		orientation = V4L2_FWNODE_ORIENTATION_EXTERNAL;
+		break;
 	default:
-		dev_warn(&sensor->adev->dev, "Unknown _PLD panel value %d\n",
-			 sensor->pld->panel);
-		return V4L2_FWNODE_ORIENTATION_EXTERNAL;
+		dev_warn(&adev->dev, "Unknown _PLD panel val %d\n", pld->panel);
+		orientation = V4L2_FWNODE_ORIENTATION_EXTERNAL;
+		break;
 	}
+
+	ACPI_FREE(pld);
+	return orientation;
 }
 
 static void ipu_bridge_create_fwnode_properties(
@@ -140,7 +156,7 @@ static void ipu_bridge_create_fwnode_properties(
 	enum v4l2_fwnode_orientation orientation;
 
 	rotation = ipu_bridge_parse_rotation(sensor);
-	orientation = ipu_bridge_parse_orientation(sensor);
+	orientation = ipu_bridge_parse_orientation(sensor->adev);
 
 	sensor->prop_names = prop_names;
 
@@ -279,7 +295,6 @@ static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 	for (i = 0; i < bridge->n_sensors; i++) {
 		sensor = &bridge->sensors[i];
 		software_node_unregister_node_group(sensor->group);
-		ACPI_FREE(sensor->pld);
 		acpi_dev_put(sensor->adev);
 		i2c_unregister_device(sensor->vcm_i2c_client);
 	}
@@ -291,7 +306,6 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 	struct fwnode_handle *fwnode, *primary;
 	struct ipu_sensor *sensor;
 	struct acpi_device *adev;
-	acpi_status status;
 	int ret;
 
 	for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
@@ -326,17 +340,11 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 			sensor->ssdb.vcmtype = 0;
 		}
 
-		status = acpi_get_physical_device_location(adev->handle, &sensor->pld);
-		if (ACPI_FAILURE(status)) {
-			ret = -ENODEV;
-			goto err_put_adev;
-		}
-
 		if (sensor->ssdb.lanes > IPU_MAX_LANES) {
 			dev_err(&adev->dev,
 				"Number of lanes in SSDB is invalid\n");
 			ret = -EINVAL;
-			goto err_free_pld;
+			goto err_put_adev;
 		}
 
 		ipu_bridge_create_fwnode_properties(sensor, bridge, cfg);
@@ -344,7 +352,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		ret = software_node_register_node_group(sensor->group);
 		if (ret)
-			goto err_free_pld;
+			goto err_put_adev;
 
 		fwnode = software_node_fwnode(&sensor->swnodes[
 						      SWNODE_SENSOR_HID]);
@@ -370,8 +378,6 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 err_free_swnodes:
 	software_node_unregister_node_group(sensor->group);
-err_free_pld:
-	ACPI_FREE(sensor->pld);
 err_put_adev:
 	acpi_dev_put(adev);
 	return ret;
