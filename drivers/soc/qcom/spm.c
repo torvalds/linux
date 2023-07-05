@@ -275,15 +275,13 @@ static int spm_dev_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match_id;
 	struct spm_driver_data *drv;
-	struct resource *res;
 	void __iomem *addr;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drv->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	drv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drv->reg_base))
 		return PTR_ERR(drv->reg_base);
 
