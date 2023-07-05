@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2013, 2015-2017, 2019-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -61,6 +62,14 @@ do {									\
 #define CSR_QDSSSPARE		(0x064)
 #define CSR_IPCAT		(0x068)
 #define CSR_BYTECNTVAL		(0x06C)
+#define CSR_TS_HBEAT_VAL0_LO	(0x084)
+#define CSR_TS_HBEAT_VAL0_HI	(0x088)
+#define CSR_TS_HBEAT_VAL1_LO	(0x08c)
+#define CSR_TS_HBEAT_VAL1_HI	(0x090)
+#define CSR_TS_HBEAT_MASK0_LO	(0x094)
+#define CSR_TS_HBEAT_MASK0_HI	(0x098)
+#define CSR_TS_HBEAT_MASK1_LO	(0x09c)
+#define CSR_TS_HBEAT_MASK1_HI	(0x0a0)
 #define CSR_ARADDR_EXT		(0x130)
 #define CSR_AWADDR_EXT		(0x134)
 #define MSR_NUM			((drvdata->msr_end - drvdata->msr_start + 1) \
@@ -104,6 +113,10 @@ struct csr_drvdata {
 	atomic_t		*msr_refcnt;
 	uint32_t		blksize;
 	uint32_t		flushperiod;
+	u64			hbeat_val0;
+	u64			hbeat_val1;
+	u64			hbeat_mask0;
+	u64			hbeat_mask1;
 	struct coresight_csr		csr;
 	struct clk		*clk;
 	spinlock_t		spin_lock;
@@ -624,10 +637,182 @@ out:
 
 static DEVICE_ATTR_RW(flushperiod);
 
+static ssize_t hbeat_val0_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	return scnprintf(buf, PAGE_SIZE, "%lx\n", drvdata->hbeat_val0);
+}
+
+static ssize_t hbeat_val0_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t size)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val, flags;
+	u32 val_lo, val_hi;
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock_irqsave(&drvdata->spin_lock, flags);
+
+	drvdata->hbeat_val0 = val;
+	val_lo = val & 0xFFFFFFFF;
+	val_hi = val >> 32;
+
+	CSR_UNLOCK(drvdata);
+	csr_writel(drvdata, val_lo, CSR_TS_HBEAT_VAL0_LO);
+	csr_writel(drvdata, val_hi, CSR_TS_HBEAT_VAL0_HI);
+	CSR_LOCK(drvdata);
+	spin_unlock_irqrestore(&drvdata->spin_lock, flags);
+	return size;
+}
+static DEVICE_ATTR_RW(hbeat_val0);
+
+static ssize_t hbeat_val1_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	return scnprintf(buf, PAGE_SIZE, "%lx\n", drvdata->hbeat_val1);
+}
+
+static ssize_t hbeat_val1_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t size)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val, flags;
+	u32 val_lo, val_hi;
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock_irqsave(&drvdata->spin_lock, flags);
+
+	drvdata->hbeat_val1 = val;
+	val_lo = val & 0xFFFFFFFF;
+	val_hi = val >> 32;
+
+	CSR_UNLOCK(drvdata);
+	csr_writel(drvdata, val_lo, CSR_TS_HBEAT_VAL1_LO);
+	csr_writel(drvdata, val_hi, CSR_TS_HBEAT_VAL1_HI);
+	CSR_LOCK(drvdata);
+	spin_unlock_irqrestore(&drvdata->spin_lock, flags);
+	return size;
+}
+static DEVICE_ATTR_RW(hbeat_val1);
+
+static ssize_t hbeat_mask0_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	return scnprintf(buf, PAGE_SIZE, "%lx\n", drvdata->hbeat_mask0);
+}
+
+static ssize_t hbeat_mask0_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t size)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val, flags;
+	u32 val_lo, val_hi;
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock_irqsave(&drvdata->spin_lock, flags);
+
+	drvdata->hbeat_mask0 = val;
+	val_lo = val & 0xFFFFFFFF;
+	val_hi = val >> 32;
+
+	CSR_UNLOCK(drvdata);
+	csr_writel(drvdata, val_lo, CSR_TS_HBEAT_MASK0_LO);
+	csr_writel(drvdata, val_hi, CSR_TS_HBEAT_MASK0_HI);
+	CSR_LOCK(drvdata);
+	spin_unlock_irqrestore(&drvdata->spin_lock, flags);
+	return size;
+}
+static DEVICE_ATTR_RW(hbeat_mask0);
+
+static ssize_t hbeat_mask1_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	return scnprintf(buf, PAGE_SIZE, "%lx\n", drvdata->hbeat_mask1);
+}
+
+static ssize_t hbeat_mask1_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t size)
+{
+	struct csr_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val, flags;
+	u32 val_lo, val_hi;
+
+	if (IS_ERR_OR_NULL(drvdata) || !drvdata->timestamp_support)
+		return -EINVAL;
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock_irqsave(&drvdata->spin_lock, flags);
+
+	drvdata->hbeat_mask1 = val;
+	val_lo = val & 0xFFFFFFFF;
+	val_hi = val >> 32;
+
+	CSR_UNLOCK(drvdata);
+	csr_writel(drvdata, val_lo, CSR_TS_HBEAT_MASK1_LO);
+	csr_writel(drvdata, val_hi, CSR_TS_HBEAT_MASK1_HI);
+	CSR_LOCK(drvdata);
+	spin_unlock_irqrestore(&drvdata->spin_lock, flags);
+	return size;
+}
+static DEVICE_ATTR_RW(hbeat_mask1);
+
 static struct attribute *swao_csr_attrs[] = {
 	&dev_attr_timestamp.attr,
 	&dev_attr_msr.attr,
 	&dev_attr_msr_reset.attr,
+	&dev_attr_hbeat_val0.attr,
+	&dev_attr_hbeat_val1.attr,
+	&dev_attr_hbeat_mask0.attr,
+	&dev_attr_hbeat_mask1.attr,
 	NULL,
 };
 
