@@ -308,6 +308,11 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 		}
 
 		sensor = &bridge->sensors[bridge->n_sensors];
+		/*
+		 * Borrow our adev ref to the sensor for now, on success
+		 * acpi_dev_get(adev) is done further below.
+		 */
+		sensor->adev = adev;
 
 		ret = ipu_bridge_read_acpi_buffer(adev, "SSDB",
 						  &sensor->ssdb,
