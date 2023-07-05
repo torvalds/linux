@@ -818,6 +818,11 @@ static struct meson_uart_data meson_g12a_uart_data = {
 	.has_xtal_div2 = true,
 };
 
+static struct meson_uart_data meson_s4_uart_data = {
+	.uart_driver = &MESON_UART_DRIVER(ttyS),
+	.has_xtal_div2 = true,
+};
+
 static const struct of_device_id meson_uart_dt_match[] = {
 	{ .compatible = "amlogic,meson6-uart" },
 	{ .compatible = "amlogic,meson8-uart" },
@@ -829,7 +834,7 @@ static const struct of_device_id meson_uart_dt_match[] = {
 	},
 	{
 		.compatible = "amlogic,meson-s4-uart",
-		.data = (void *)&meson_g12a_uart_data,
+		.data = (void *)&meson_s4_uart_data,
 	},
 	{ /* sentinel */ },
 };
