@@ -429,8 +429,8 @@ static int stm32_rtc_valid_alrm(struct stm32_rtc *rtc, struct rtc_time *tm)
 {
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
 	int cur_day, cur_mon, cur_year, cur_hour, cur_min, cur_sec;
-	unsigned int dr = readl_relaxed(rtc->base + regs->dr);
 	unsigned int tr = readl_relaxed(rtc->base + regs->tr);
+	unsigned int dr = readl_relaxed(rtc->base + regs->dr);
 
 	cur_day = (dr & STM32_RTC_DR_DATE) >> STM32_RTC_DR_DATE_SHIFT;
 	cur_mon = (dr & STM32_RTC_DR_MONTH) >> STM32_RTC_DR_MONTH_SHIFT;
