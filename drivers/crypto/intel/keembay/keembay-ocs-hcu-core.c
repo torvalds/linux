@@ -1170,7 +1170,6 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ocs_hcu_dev *hcu_dev;
-	struct resource *hcu_mem;
 	int rc;
 
 	hcu_dev = devm_kzalloc(dev, sizeof(*hcu_dev), GFP_KERNEL);
@@ -1184,14 +1183,7 @@ static int kmb_ocs_hcu_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	/* Get the memory address and remap. */
-	hcu_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!hcu_mem) {
-		dev_err(dev, "Could not retrieve io mem resource.\n");
-		return -ENODEV;
-	}
-
-	hcu_dev->io_base = devm_ioremap_resource(dev, hcu_mem);
+	hcu_dev->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hcu_dev->io_base))
 		return PTR_ERR(hcu_dev->io_base);
 
