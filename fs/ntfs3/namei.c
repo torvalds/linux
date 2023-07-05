@@ -324,14 +324,11 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 		/* Restore after failed rename failed too. */
 		_ntfs_bad_inode(inode);
 	} else if (!err) {
-		inode->i_ctime = dir->i_ctime = dir->i_mtime =
-			current_time(dir);
+		simple_rename_timestamp(dir, dentry, new_dir, new_dentry);
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);
-		if (dir != new_dir) {
-			new_dir->i_mtime = new_dir->i_ctime = dir->i_ctime;
+		if (dir != new_dir)
 			mark_inode_dirty(new_dir);
-		}
 
 		if (IS_DIRSYNC(dir))
 			ntfs_sync_inode(dir);
