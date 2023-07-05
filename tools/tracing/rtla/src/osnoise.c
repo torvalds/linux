@@ -841,6 +841,67 @@ static void osnoise_put_irq_disable(struct osnoise_context *context)
 	context->orig_opt_irq_disable = OSNOISE_OPTION_INIT_VAL;
 }
 
+static int osnoise_get_workload(struct osnoise_context *context)
+{
+	if (context->opt_workload != OSNOISE_OPTION_INIT_VAL)
+		return context->opt_workload;
+
+	if (context->orig_opt_workload != OSNOISE_OPTION_INIT_VAL)
+		return context->orig_opt_workload;
+
+	context->orig_opt_workload = osnoise_options_get_option("OSNOISE_WORKLOAD");
+
+	return context->orig_opt_workload;
+}
+
+int osnoise_set_workload(struct osnoise_context *context, bool onoff)
+{
+	int opt_workload = osnoise_get_workload(context);
+	int retval;
+
+	if (opt_workload == OSNOISE_OPTION_INIT_VAL)
+		return -1;
+
+	if (opt_workload == onoff)
+		return 0;
+
+	retval = osnoise_options_set_option("OSNOISE_WORKLOAD", onoff);
+	if (retval < 0)
+		return -1;
+
+	context->opt_workload = onoff;
+
+	return 0;
+}
+
+static void osnoise_restore_workload(struct osnoise_context *context)
+{
+	int retval;
+
+	if (context->orig_opt_workload == OSNOISE_OPTION_INIT_VAL)
+		return;
+
+	if (context->orig_opt_workload == context->opt_workload)
+		goto out_done;
+
+	retval = osnoise_options_set_option("OSNOISE_WORKLOAD", context->orig_opt_workload);
+	if (retval < 0)
+		err_msg("Could not restore original OSNOISE_WORKLOAD option\n");
+
+out_done:
+	context->orig_opt_workload = OSNOISE_OPTION_INIT_VAL;
+}
+
+static void osnoise_put_workload(struct osnoise_context *context)
+{
+	osnoise_restore_workload(context);
+
+	if (context->orig_opt_workload == OSNOISE_OPTION_INIT_VAL)
+		return;
+
+	context->orig_opt_workload = OSNOISE_OPTION_INIT_VAL;
+}
+
 /*
  * enable_osnoise - enable osnoise tracer in the trace_instance
  */
@@ -908,6 +969,9 @@ struct osnoise_context *osnoise_context_alloc(void)
 	context->orig_opt_irq_disable	= OSNOISE_OPTION_INIT_VAL;
 	context->opt_irq_disable	= OSNOISE_OPTION_INIT_VAL;
 
+	context->orig_opt_workload	= OSNOISE_OPTION_INIT_VAL;
+	context->opt_workload		= OSNOISE_OPTION_INIT_VAL;
+
 	osnoise_get_context(context);
 
 	return context;
@@ -935,6 +999,7 @@ void osnoise_put_context(struct osnoise_context *context)
 	osnoise_put_print_stack(context);
 	osnoise_put_tracing_thresh(context);
 	osnoise_put_irq_disable(context);
+	osnoise_put_workload(context);
 
 	free(context);
 }
