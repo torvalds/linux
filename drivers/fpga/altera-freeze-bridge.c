@@ -213,14 +213,12 @@ static int altera_freeze_br_probe(struct platform_device *pdev)
 	void __iomem *base_addr;
 	struct altera_freeze_br_data *priv;
 	struct fpga_bridge *br;
-	struct resource *res;
 	u32 status, revision;
 
 	if (!np)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base_addr = devm_ioremap_resource(dev, res);
+	base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base_addr))
 		return PTR_ERR(base_addr);
 
