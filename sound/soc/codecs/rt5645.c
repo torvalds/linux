@@ -4199,11 +4199,44 @@ static void rt5645_i2c_shutdown(struct i2c_client *i2c)
 	regmap_write(rt5645->regmap, RT5645_RESET, 0);
 }
 
+static int __maybe_unused rt5645_sys_suspend(struct device *dev)
+{
+	struct rt5645_priv *rt5645 = dev_get_drvdata(dev);
+
+	del_timer_sync(&rt5645->btn_check_timer);
+	cancel_delayed_work_sync(&rt5645->jack_detect_work);
+	cancel_delayed_work_sync(&rt5645->rcclock_work);
+
+	regcache_cache_only(rt5645->regmap, true);
+	regcache_mark_dirty(rt5645->regmap);
+	return 0;
+}
+
+static int __maybe_unused rt5645_sys_resume(struct device *dev)
+{
+	struct rt5645_priv *rt5645 = dev_get_drvdata(dev);
+
+	regcache_cache_only(rt5645->regmap, false);
+	regcache_sync(rt5645->regmap);
+
+	if (rt5645->hp_jack) {
+		rt5645->jack_type = 0;
+		queue_delayed_work(system_power_efficient_wq,
+			&rt5645->jack_detect_work, msecs_to_jiffies(0));
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops rt5645_pm = {
+	SET_SYSTEM_SLEEP_PM_OPS(rt5645_sys_suspend, rt5645_sys_resume)
+};
+
 static struct i2c_driver rt5645_i2c_driver = {
 	.driver = {
 		.name = "rt5645",
 		.of_match_table = of_match_ptr(rt5645_of_match),
 		.acpi_match_table = ACPI_PTR(rt5645_acpi_match),
+		.pm = &rt5645_pm,
 	},
 	.probe = rt5645_i2c_probe,
 	.remove = rt5645_i2c_remove,
