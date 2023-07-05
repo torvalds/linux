@@ -39,6 +39,8 @@
 #define BERLIN_PWM_TCNT			0xc
 #define  BERLIN_PWM_MAX_TCNT		65535
 
+#define BERLIN_PWM_NUMPWMS		4
+
 struct berlin_pwm_channel {
 	u32 enable;
 	u32 ctrl;
@@ -50,6 +52,7 @@ struct berlin_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
 	void __iomem *base;
+	struct berlin_pwm_channel channel[BERLIN_PWM_NUMPWMS];
 };
 
 static inline struct berlin_pwm_chip *to_berlin_pwm_chip(struct pwm_chip *chip)
@@ -68,24 +71,6 @@ static inline void berlin_pwm_writel(struct berlin_pwm_chip *bpc,
 				     unsigned long offset)
 {
 	writel_relaxed(value, bpc->base + channel * 0x10 + offset);
-}
-
-static int berlin_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct berlin_pwm_channel *channel;
-
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-	if (!channel)
-		return -ENOMEM;
-
-	return pwm_set_chip_data(pwm, channel);
-}
-
-static void berlin_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct berlin_pwm_channel *channel = pwm_get_chip_data(pwm);
-
-	kfree(channel);
 }
 
 static int berlin_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -202,8 +187,6 @@ static int berlin_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static const struct pwm_ops berlin_pwm_ops = {
-	.request = berlin_pwm_request,
-	.free = berlin_pwm_free,
 	.apply = berlin_pwm_apply,
 };
 
@@ -236,7 +219,7 @@ static int berlin_pwm_probe(struct platform_device *pdev)
 
 	bpc->chip.dev = &pdev->dev;
 	bpc->chip.ops = &berlin_pwm_ops;
-	bpc->chip.npwm = 4;
+	bpc->chip.npwm = BERLIN_PWM_NUMPWMS;
 
 	ret = pwmchip_add(&bpc->chip);
 	if (ret < 0) {
@@ -266,11 +249,7 @@ static int berlin_pwm_suspend(struct device *dev)
 	unsigned int i;
 
 	for (i = 0; i < bpc->chip.npwm; i++) {
-		struct berlin_pwm_channel *channel;
-
-		channel = pwm_get_chip_data(&bpc->chip.pwms[i]);
-		if (!channel)
-			continue;
+		struct berlin_pwm_channel *channel = &bpc->channel[i];
 
 		channel->enable = berlin_pwm_readl(bpc, i, BERLIN_PWM_ENABLE);
 		channel->ctrl = berlin_pwm_readl(bpc, i, BERLIN_PWM_CONTROL);
@@ -294,11 +273,7 @@ static int berlin_pwm_resume(struct device *dev)
 		return ret;
 
 	for (i = 0; i < bpc->chip.npwm; i++) {
-		struct berlin_pwm_channel *channel;
-
-		channel = pwm_get_chip_data(&bpc->chip.pwms[i]);
-		if (!channel)
-			continue;
+		struct berlin_pwm_channel *channel = &bpc->channel[i];
 
 		berlin_pwm_writel(bpc, i, channel->ctrl, BERLIN_PWM_CONTROL);
 		berlin_pwm_writel(bpc, i, channel->duty, BERLIN_PWM_DUTY);
