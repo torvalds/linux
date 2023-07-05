@@ -1090,7 +1090,7 @@
 			};
 
 			i2s_out {
-				pinctrl_i2s_8ch_out: i2s_8ch_out{
+				pinctrl_i2s_8ch_out: i2s_8ch_out {
 					st,pins {
 						mclk = <&pio33 5 ALT1 OUT>;
 						lrclk = <&pio33 7 ALT1 OUT>;
@@ -1102,7 +1102,7 @@
 					};
 				};
 
-				pinctrl_i2s_2ch_out: i2s_2ch_out{
+				pinctrl_i2s_2ch_out: i2s_2ch_out {
 					st,pins {
 						mclk = <&pio33 5 ALT1 OUT>;
 						lrclk = <&pio33 7 ALT1 OUT>;
@@ -1113,7 +1113,7 @@
 			};
 
 			i2s_in {
-				pinctrl_i2s_8ch_in: i2s_8ch_in{
+				pinctrl_i2s_8ch_in: i2s_8ch_in {
 					st,pins {
 						mclk = <&pio32 5 ALT1 IN>;
 						lrclk = <&pio32 7 ALT1 IN>;
@@ -1126,7 +1126,7 @@
 					};
 				};
 
-				pinctrl_i2s_2ch_in: i2s_2ch_in{
+				pinctrl_i2s_2ch_in: i2s_2ch_in {
 					st,pins {
 						mclk = <&pio32 5 ALT1 IN>;
 						lrclk = <&pio32 7 ALT1 IN>;
@@ -1137,7 +1137,7 @@
 			};
 
 			spdif_out {
-				pinctrl_spdif_out: spdif_out{
+				pinctrl_spdif_out: spdif_out {
 					st,pins {
 						spdif_out = <&pio34 7 ALT1 OUT>;
 					};
