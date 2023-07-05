@@ -136,6 +136,7 @@ struct ipu_sensor {
 };
 
 struct ipu_bridge {
+	struct device *dev;
 	char ipu_node_name[ACPI_ID_LEN];
 	struct software_node ipu_hid_node;
 	u32 data_lanes[4];

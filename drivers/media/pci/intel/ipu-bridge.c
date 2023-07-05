@@ -286,8 +286,7 @@ static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 }
 
 static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
-				     struct ipu_bridge *bridge,
-				     struct device *dev)
+				     struct ipu_bridge *bridge)
 {
 	struct fwnode_handle *fwnode, *primary;
 	struct ipu_sensor *sensor;
@@ -301,7 +300,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		if (bridge->n_sensors >= IPU_MAX_PORTS) {
 			acpi_dev_put(adev);
-			dev_err(dev, "Exceeded available IPU ports\n");
+			dev_err(bridge->dev, "Exceeded available IPU ports\n");
 			return -EINVAL;
 		}
 
@@ -361,7 +360,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		ipu_bridge_instantiate_vcm_i2c_client(sensor);
 
-		dev_info(dev, "Found supported sensor %s\n",
+		dev_info(bridge->dev, "Found supported sensor %s\n",
 			 acpi_dev_name(adev));
 
 		bridge->n_sensors++;
@@ -378,8 +377,7 @@ err_put_adev:
 	return ret;
 }
 
-static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge,
-				      struct device *dev)
+static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge)
 {
 	unsigned int i;
 	int ret;
@@ -388,7 +386,7 @@ static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge,
 		const struct ipu_sensor_config *cfg =
 			&ipu_supported_sensors[i];
 
-		ret = ipu_bridge_connect_sensor(cfg, bridge, dev);
+		ret = ipu_bridge_connect_sensor(cfg, bridge);
 		if (ret)
 			goto err_unregister_sensors;
 	}
@@ -451,6 +449,7 @@ int ipu_bridge_init(struct device *dev)
 	strscpy(bridge->ipu_node_name, IPU_HID,
 		sizeof(bridge->ipu_node_name));
 	bridge->ipu_hid_node.name = bridge->ipu_node_name;
+	bridge->dev = dev;
 
 	ret = software_node_register(&bridge->ipu_hid_node);
 	if (ret < 0) {
@@ -468,7 +467,7 @@ int ipu_bridge_init(struct device *dev)
 	for (i = 0; i < IPU_MAX_LANES; i++)
 		bridge->data_lanes[i] = i + 1;
 
-	ret = ipu_bridge_connect_sensors(bridge, dev);
+	ret = ipu_bridge_connect_sensors(bridge);
 	if (ret || bridge->n_sensors == 0)
 		goto err_unregister_ipu;
 
