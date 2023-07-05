@@ -733,7 +733,7 @@
 		pinctrl-single,function-mask = <0x000107ff>;
 	};
 
-	usbss0: cdns-usb@f900000{
+	usbss0: cdns-usb@f900000 {
 		compatible = "ti,am64-usb";
 		reg = <0x00 0xf900000 0x00 0x100>;
 		power-domains = <&k3_pds 161 TI_SCI_PD_EXCLUSIVE>;
@@ -744,7 +744,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		usb0: usb@f400000{
+		usb0: usb@f400000 {
 			compatible = "cdns,usb3";
 			reg = <0x00 0xf400000 0x00 0x10000>,
 			      <0x00 0xf410000 0x00 0x10000>,

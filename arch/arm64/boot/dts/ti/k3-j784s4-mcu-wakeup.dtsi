@@ -441,7 +441,7 @@
 		status = "disabled";
 	};
 
-	mcu_navss: bus@28380000{
+	mcu_navss: bus@28380000 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;

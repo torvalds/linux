@@ -660,7 +660,7 @@
 			assigned-clock-parents = <&k3_clks 293 13>;
 		};
 
-		wiz1_cmn_refclk_dig_div: cmn-refclk-dig-div{
+		wiz1_cmn_refclk_dig_div: cmn-refclk-dig-div {
 			clocks = <&wiz1_refclk_dig>;
 			#clock-cells = <0>;
 		};
