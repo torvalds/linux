@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/cdns,wdt-r1p2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Cadence watchdog timer controller
+
+maintainers:
+  - Neeli Srinivas <srinivas.neeli@amd.com>
+
+description:
+  The cadence watchdog timer is used to detect and recover from
+  system malfunctions. This watchdog contains 24 bit counter and
+  a programmable reset period. The timeout period varies from 1 ms
+  to 30 seconds while using a 100Mhz clock.
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    enum:
+      - cdns,wdt-r1p2
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-on-timeout:
+    type: boolean
+    description: |
+      If this property exists, then a reset is done when watchdog
+      times out.
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    watchdog@f8005000 {
+        compatible = "cdns,wdt-r1p2";
+        reg = <0xf8005000 0x1000>;
+        clocks = <&clkc 45>;
+        interrupt-parent = <&intc>;
+        interrupts = <GIC_SPI 9 IRQ_TYPE_EDGE_RISING>;
+        reset-on-timeout;
+        timeout-sec = <10>;
+    };
+...

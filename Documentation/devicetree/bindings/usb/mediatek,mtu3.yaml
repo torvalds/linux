@@ -304,7 +304,7 @@ examples:
   # Dual role switch with type-c
   - |
     usb@11201000 {
-        compatible ="mediatek,mt8183-mtu3", "mediatek,mtu3";
+        compatible = "mediatek,mt8183-mtu3", "mediatek,mtu3";
         reg = <0x11201000 0x2e00>, <0x11203e00 0x0100>;
         reg-names = "mac", "ippc";
         interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
