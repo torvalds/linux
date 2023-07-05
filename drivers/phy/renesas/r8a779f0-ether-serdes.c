@@ -339,14 +339,7 @@ static int r8a779f0_eth_serdes_probe(struct platform_device *pdev)
 {
 	struct r8a779f0_eth_serdes_drv_data *dd;
 	struct phy_provider *provider;
-	struct resource *res;
 	int i;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "invalid resource\n");
-		return -EINVAL;
-	}
 
 	dd = devm_kzalloc(&pdev->dev, sizeof(*dd), GFP_KERNEL);
 	if (!dd)
@@ -354,7 +347,7 @@ static int r8a779f0_eth_serdes_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dd);
 	dd->pdev = pdev;
-	dd->addr = devm_ioremap_resource(&pdev->dev, res);
+	dd->addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dd->addr))
 		return PTR_ERR(dd->addr);
 
