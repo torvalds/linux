@@ -108,10 +108,21 @@ static int test__checkevent_raw(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong number of entries", 0 != evlist->core.nr_entries);
 
 	perf_evlist__for_each_evsel(&evlist->core, evsel) {
-		struct perf_pmu *pmu = NULL;
+		struct perf_pmu *pmu __maybe_unused = NULL;
 		bool type_matched = false;
 
 		TEST_ASSERT_VAL("wrong config", test_perf_config(evsel, 0x1a));
+		TEST_ASSERT_VAL("event not parsed as raw type",
+				evsel->attr.type == PERF_TYPE_RAW);
+#if defined(__aarch64__)
+		/*
+		 * Arm doesn't have a real raw type PMU in sysfs, so raw events
+		 * would never match any PMU. However, RAW events on Arm will
+		 * always successfully open on the first available core PMU
+		 * so no need to test for a matching type here.
+		 */
+		type_matched = raw_type_match = true;
+#else
 		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 			if (pmu->type == evsel->attr.type) {
 				TEST_ASSERT_VAL("PMU type expected once", !type_matched);
@@ -120,6 +131,7 @@ static int test__checkevent_raw(struct evlist *evlist)
 					raw_type_match = true;
 			}
 		}
+#endif
 		TEST_ASSERT_VAL("No PMU found for type", type_matched);
 	}
 	TEST_ASSERT_VAL("Raw PMU not matched", raw_type_match);
