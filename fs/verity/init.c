@@ -9,6 +9,37 @@
 
 #include <linux/ratelimit.h>
 
+#ifdef CONFIG_SYSCTL
+static struct ctl_table_header *fsverity_sysctl_header;
+
+static struct ctl_table fsverity_sysctl_table[] = {
+#ifdef CONFIG_FS_VERITY_BUILTIN_SIGNATURES
+	{
+		.procname       = "require_signatures",
+		.data           = &fsverity_require_signatures,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec_minmax,
+		.extra1         = SYSCTL_ZERO,
+		.extra2         = SYSCTL_ONE,
+	},
+#endif
+	{ }
+};
+
+static void __init fsverity_init_sysctl(void)
+{
+	fsverity_sysctl_header = register_sysctl("fs/verity",
+						 fsverity_sysctl_table);
+	if (!fsverity_sysctl_header)
+		panic("fsverity sysctl registration failed");
+}
+#else /* CONFIG_SYSCTL */
+static inline void fsverity_init_sysctl(void)
+{
+}
+#endif /* !CONFIG_SYSCTL */
+
 void fsverity_msg(const struct inode *inode, const char *level,
 		  const char *fmt, ...)
 {
@@ -36,6 +67,7 @@ static int __init fsverity_init(void)
 	fsverity_check_hash_algs();
 	fsverity_init_info_cache();
 	fsverity_init_workqueue();
+	fsverity_init_sysctl();
 	fsverity_init_signature();
 	return 0;
 }
