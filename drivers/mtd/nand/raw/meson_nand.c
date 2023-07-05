@@ -400,9 +400,10 @@ static void meson_nfc_set_data_oob(struct nand_chip *nand,
 	}
 }
 
-static int meson_nfc_wait_no_rb_pin(struct meson_nfc *nfc, int timeout_ms,
+static int meson_nfc_wait_no_rb_pin(struct nand_chip *nand, int timeout_ms,
 				    bool need_cmd_read0)
 {
+	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	u32 cmd, cfg;
 
 	meson_nfc_cmd_idle(nfc, nfc->timing.twb);
@@ -414,8 +415,7 @@ static int meson_nfc_wait_no_rb_pin(struct meson_nfc *nfc, int timeout_ms,
 	writel(cfg, nfc->reg_base + NFC_REG_CFG);
 
 	reinit_completion(&nfc->completion);
-	cmd = nfc->param.chip_select | NFC_CMD_CLE | NAND_CMD_STATUS;
-	writel(cmd, nfc->reg_base + NFC_REG_CMD);
+	nand_status_op(nand, NULL);
 
 	/* use the max erase time as the maximum clock for waiting R/B */
 	cmd = NFC_CMD_RB | NFC_CMD_RB_INT_NO_PIN | nfc->timing.tbers_max;
@@ -425,12 +425,8 @@ static int meson_nfc_wait_no_rb_pin(struct meson_nfc *nfc, int timeout_ms,
 					 msecs_to_jiffies(timeout_ms)))
 		return -ETIMEDOUT;
 
-	if (need_cmd_read0) {
-		cmd = nfc->param.chip_select | NFC_CMD_CLE | NAND_CMD_READ0;
-		writel(cmd, nfc->reg_base + NFC_REG_CMD);
-		meson_nfc_drain_cmd(nfc);
-		meson_nfc_wait_cmd_finish(nfc, CMD_FIFO_EMPTY_TIMEOUT);
-	}
+	if (need_cmd_read0)
+		nand_exit_status_op(nand);
 
 	return 0;
 }
@@ -463,9 +459,11 @@ static int meson_nfc_wait_rb_pin(struct meson_nfc *nfc, int timeout_ms)
 	return ret;
 }
 
-static int meson_nfc_queue_rb(struct meson_nfc *nfc, int timeout_ms,
+static int meson_nfc_queue_rb(struct nand_chip *nand, int timeout_ms,
 			      bool need_cmd_read0)
 {
+	struct meson_nfc *nfc = nand_get_controller_data(nand);
+
 	if (nfc->no_rb_pin) {
 		/* This mode is used when there is no wired R/B pin.
 		 * It works like 'nand_soft_waitrdy()', but instead of
@@ -477,7 +475,7 @@ static int meson_nfc_queue_rb(struct meson_nfc *nfc, int timeout_ms,
 		 * needed (for all cases except page programming - this
 		 * is reason of 'need_cmd_read0' flag).
 		 */
-		return meson_nfc_wait_no_rb_pin(nfc, timeout_ms,
+		return meson_nfc_wait_no_rb_pin(nand, timeout_ms,
 						need_cmd_read0);
 	} else {
 		return meson_nfc_wait_rb_pin(nfc, timeout_ms);
@@ -687,7 +685,7 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 	if (in) {
 		nfc->cmdfifo.rw.cmd1 = cs | NFC_CMD_CLE | NAND_CMD_READSTART;
 		writel(nfc->cmdfifo.rw.cmd1, nfc->reg_base + NFC_REG_CMD);
-		meson_nfc_queue_rb(nfc, PSEC_TO_MSEC(sdr->tR_max), true);
+		meson_nfc_queue_rb(nand, PSEC_TO_MSEC(sdr->tR_max), true);
 	} else {
 		meson_nfc_cmd_idle(nfc, nfc->timing.tadl);
 	}
@@ -733,7 +731,7 @@ static int meson_nfc_write_page_sub(struct nand_chip *nand,
 
 	cmd = nfc->param.chip_select | NFC_CMD_CLE | NAND_CMD_PAGEPROG;
 	writel(cmd, nfc->reg_base + NFC_REG_CMD);
-	meson_nfc_queue_rb(nfc, PSEC_TO_MSEC(sdr->tPROG_max), false);
+	meson_nfc_queue_rb(nand, PSEC_TO_MSEC(sdr->tPROG_max), false);
 
 	meson_nfc_dma_buffer_release(nand, data_len, info_len, DMA_TO_DEVICE);
 
@@ -1049,7 +1047,7 @@ static int meson_nfc_exec_op(struct nand_chip *nand,
 			break;
 
 		case NAND_OP_WAITRDY_INSTR:
-			meson_nfc_queue_rb(nfc, instr->ctx.waitrdy.timeout_ms,
+			meson_nfc_queue_rb(nand, instr->ctx.waitrdy.timeout_ms,
 					   true);
 			if (instr->delay_ns)
 				meson_nfc_cmd_idle(nfc, delay_idle);
