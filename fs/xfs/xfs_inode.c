@@ -843,10 +843,9 @@ xfs_init_new_inode(
 	ip->i_df.if_nextents = 0;
 	ASSERT(ip->i_nblocks == 0);
 
-	tv = current_time(inode);
+	tv = inode_set_ctime_current(inode);
 	inode->i_mtime = tv;
 	inode->i_atime = tv;
-	inode->i_ctime = tv;
 
 	ip->i_extsize = 0;
 	ip->i_diflags = 0;
