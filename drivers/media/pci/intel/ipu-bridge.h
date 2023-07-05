@@ -140,8 +140,12 @@ struct ipu_sensor {
 	struct software_node_ref_args vcm_ref[1];
 };
 
+typedef int (*ipu_parse_sensor_fwnode_t)(struct acpi_device *adev,
+					 struct ipu_sensor *sensor);
+
 struct ipu_bridge {
 	struct device *dev;
+	ipu_parse_sensor_fwnode_t parse_sensor_fwnode;
 	char ipu_node_name[ACPI_ID_LEN];
 	struct software_node ipu_hid_node;
 	u32 data_lanes[4];
@@ -150,9 +154,12 @@ struct ipu_bridge {
 };
 
 #if IS_ENABLED(CONFIG_IPU_BRIDGE)
-int ipu_bridge_init(struct device *dev);
+int ipu_bridge_init(struct device *dev,
+		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode);
+int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor);
 #else
-static inline int ipu_bridge_init(struct device *dev) { return 0; }
+/* Use a define to avoid the @parse_sensor_fwnode argument getting evaluated */
+#define ipu_bridge_init(dev, parse_sensor_fwnode)	(0)
 #endif
 
 #endif

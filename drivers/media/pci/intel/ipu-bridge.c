@@ -148,8 +148,7 @@ static enum v4l2_fwnode_orientation ipu_bridge_parse_orientation(struct acpi_dev
 	return orientation;
 }
 
-static int ipu_bridge_parse_ssdb(struct acpi_device *adev,
-				 struct ipu_sensor *sensor)
+int ipu_bridge_parse_ssdb(struct acpi_device *adev, struct ipu_sensor *sensor)
 {
 	struct ipu_sensor_ssdb ssdb = {};
 	int ret;
@@ -179,6 +178,7 @@ static int ipu_bridge_parse_ssdb(struct acpi_device *adev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(ipu_bridge_parse_ssdb, INTEL_IPU_BRIDGE);
 
 static void ipu_bridge_create_fwnode_properties(
 	struct ipu_sensor *sensor,
@@ -343,7 +343,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		sensor = &bridge->sensors[bridge->n_sensors];
 
-		ret = ipu_bridge_parse_ssdb(adev, sensor);
+		ret = bridge->parse_sensor_fwnode(adev, sensor);
 		if (ret)
 			goto err_put_adev;
 
@@ -441,7 +441,8 @@ static int ipu_bridge_sensors_are_ready(void)
 	return ready;
 }
 
-int ipu_bridge_init(struct device *dev)
+int ipu_bridge_init(struct device *dev,
+		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode)
 {
 	struct fwnode_handle *fwnode;
 	struct ipu_bridge *bridge;
@@ -459,6 +460,7 @@ int ipu_bridge_init(struct device *dev)
 		sizeof(bridge->ipu_node_name));
 	bridge->ipu_hid_node.name = bridge->ipu_node_name;
 	bridge->dev = dev;
+	bridge->parse_sensor_fwnode = parse_sensor_fwnode;
 
 	ret = software_node_register(&bridge->ipu_hid_node);
 	if (ret < 0) {
