@@ -201,6 +201,12 @@ static void ipu_bridge_init_swnode_names(struct ipu_sensor *sensor)
 	snprintf(sensor->node_names.endpoint,
 		 sizeof(sensor->node_names.endpoint),
 		 SWNODE_GRAPH_ENDPOINT_NAME_FMT, 0); /* And endpoint 0 */
+	if (sensor->ssdb.vcmtype) {
+		/* append ssdb.link to distinguish nodes with same model VCM */
+		snprintf(sensor->node_names.vcm, sizeof(sensor->node_names.vcm),
+			 "%s-%u", ipu_vcm_types[sensor->ssdb.vcmtype - 1],
+			 sensor->ssdb.link);
+	}
 }
 
 static void ipu_bridge_init_swnode_group(struct ipu_sensor *sensor)
@@ -237,13 +243,7 @@ static void ipu_bridge_create_connection_swnodes(struct ipu_bridge *bridge,
 						sensor->node_names.endpoint,
 						&nodes[SWNODE_IPU_PORT],
 						sensor->ipu_properties);
-	if (sensor->ssdb.vcmtype) {
-		/* append ssdb.link to distinguish VCM nodes with same HID */
-		snprintf(sensor->node_names.vcm, sizeof(sensor->node_names.vcm),
-			 "%s-%u", ipu_vcm_types[sensor->ssdb.vcmtype - 1],
-			 sensor->ssdb.link);
-		nodes[SWNODE_VCM] = NODE_VCM(sensor->node_names.vcm);
-	}
+	nodes[SWNODE_VCM] = NODE_VCM(sensor->node_names.vcm);
 
 	ipu_bridge_init_swnode_group(sensor);
 }
