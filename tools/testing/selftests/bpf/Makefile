@@ -12,7 +12,11 @@ BPFDIR := $(LIBDIR)/bpf
 TOOLSINCDIR := $(TOOLSDIR)/include
 BPFTOOLDIR := $(TOOLSDIR)/bpf/bpftool
 APIDIR := $(TOOLSINCDIR)/uapi
+ifneq ($(O),)
+GENDIR := $(O)/include/generated
+else
 GENDIR := $(abspath ../../../../include/generated)
+endif
 GENHDR := $(GENDIR)/autoconf.h
 HOSTPKG_CONFIG := pkg-config
 
