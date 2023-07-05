@@ -221,7 +221,6 @@ static unsigned long setup_kernel_memory_layout(void)
 	pages = SECTION_ALIGN_UP(pages);
 	/* keep vmemmap_start aligned to a top level region table entry */
 	vmemmap_start = round_down(VMALLOC_START - pages * sizeof(struct page), rte_size);
-	/* vmemmap_start is the future VMEM_MAX_PHYS, make sure it is within MAX_PHYSMEM */
 	vmemmap_start = min(vmemmap_start, 1UL << MAX_PHYSMEM_BITS);
 	/* maximum mappable address as seen by arch_get_mappable_range() */
 	max_mappable = vmemmap_start;
