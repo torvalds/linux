@@ -892,7 +892,7 @@ static int xdma_probe(struct platform_device *pdev)
 	}
 
 	reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (!reg_base) {
+	if (IS_ERR(reg_base)) {
 		xdma_err(xdev, "ioremap failed");
 		goto failed;
 	}
