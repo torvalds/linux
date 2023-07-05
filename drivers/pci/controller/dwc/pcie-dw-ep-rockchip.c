@@ -1203,7 +1203,7 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	rockchip_pcie_devmode_update(rockchip, RKEP_MODE_KERNEL, RKEP_SMODE_LNKRDY);
 
 	rockchip->hot_rst_wq = create_singlethread_workqueue("rkep_hot_rst_wq");
-	if (rockchip->hot_rst_wq) {
+	if (!rockchip->hot_rst_wq) {
 		dev_err(dev, "failed to create hot_rst workqueue\n");
 		ret = -ENOMEM;
 		goto deinit_phy;
