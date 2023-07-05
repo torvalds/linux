@@ -313,7 +313,7 @@
 			};
 		};
 
-		pinctrl_aud: pinctrl@19c60000{
+		pinctrl_aud: pinctrl@19c60000 {
 			compatible = "samsung,exynosautov9-pinctrl";
 			reg = <0x19c60000 0x1000>;
 		};
