@@ -47,7 +47,6 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 			       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct atomisp_video_pipe *pipe = container_of(vq, struct atomisp_video_pipe, vb_queue);
-	u16 source_pad = atomisp_subdev_source_pad(&pipe->vdev);
 	int ret;
 
 	mutex_lock(&pipe->asd->isp->mutex); /* for get_css_frame_info() / set_fmt() */
@@ -56,7 +55,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 	 * When VIDIOC_S_FMT has not been called before VIDIOC_REQBUFS, then
 	 * this will fail. Call atomisp_set_fmt() ourselves and try again.
 	 */
-	ret = atomisp_get_css_frame_info(pipe->asd, source_pad, &pipe->frame_info);
+	ret = atomisp_get_css_frame_info(pipe->asd, &pipe->frame_info);
 	if (ret) {
 		struct v4l2_format f = {
 			.fmt.pix.pixelformat = V4L2_PIX_FMT_YUV420,
@@ -68,7 +67,7 @@ static int atomisp_queue_setup(struct vb2_queue *vq,
 		if (ret)
 			goto out;
 
-		ret = atomisp_get_css_frame_info(pipe->asd, source_pad, &pipe->frame_info);
+		ret = atomisp_get_css_frame_info(pipe->asd, &pipe->frame_info);
 		if (ret)
 			goto out;
 	}
@@ -342,119 +341,29 @@ static int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-static int atomisp_get_css_buf_type(struct atomisp_sub_device *asd,
-				    enum ia_css_pipe_id pipe_id,
-				    uint16_t source_pad)
-{
-	if (pipe_id == IA_CSS_PIPE_ID_COPY ||
-	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE ||
-	    source_pad == ATOMISP_SUBDEV_PAD_SOURCE_VIDEO ||
-	    (source_pad == ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW &&
-	     asd->run_mode->val != ATOMISP_RUN_MODE_VIDEO))
-		return IA_CSS_BUFFER_TYPE_OUTPUT_FRAME;
-	else
-		return IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME;
-}
-
 /* queue all available buffers to css */
 int atomisp_qbuffers_to_css(struct atomisp_sub_device *asd)
 {
-	enum ia_css_buffer_type buf_type;
-	enum ia_css_pipe_id css_capture_pipe_id = IA_CSS_PIPE_ID_NUM;
-	enum ia_css_pipe_id css_preview_pipe_id = IA_CSS_PIPE_ID_NUM;
-	enum ia_css_pipe_id css_video_pipe_id = IA_CSS_PIPE_ID_NUM;
-	enum atomisp_input_stream_id input_stream_id;
-	struct atomisp_video_pipe *capture_pipe = NULL;
-	struct atomisp_video_pipe *vf_pipe = NULL;
-	struct atomisp_video_pipe *preview_pipe = NULL;
-	struct atomisp_video_pipe *video_pipe = NULL;
-	bool raw_mode = atomisp_is_mbuscode_raw(
-			    asd->fmt[asd->capture_pad].fmt.code);
+	enum ia_css_pipe_id pipe_id;
 
-	if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
-		video_pipe = &asd->video_out_video_capture;
-		css_video_pipe_id = IA_CSS_PIPE_ID_VIDEO;
+	if (asd->copy_mode) {
+		pipe_id = IA_CSS_PIPE_ID_COPY;
+	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
+		pipe_id = IA_CSS_PIPE_ID_VIDEO;
 	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
-		preview_pipe = &asd->video_out_capture;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
+		pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		video_pipe = &asd->video_out_video_capture;
-		preview_pipe = &asd->video_out_preview;
-		css_video_pipe_id = IA_CSS_PIPE_ID_VIDEO;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_VIDEO;
+		pipe_id = IA_CSS_PIPE_ID_VIDEO;
 	} else if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW) {
-		preview_pipe = &asd->video_out_preview;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_PREVIEW;
+		pipe_id = IA_CSS_PIPE_ID_PREVIEW;
 	} else {
 		/* ATOMISP_RUN_MODE_STILL_CAPTURE */
-		capture_pipe = &asd->video_out_capture;
-		if (!raw_mode)
-			vf_pipe = &asd->video_out_vf;
-		css_capture_pipe_id = IA_CSS_PIPE_ID_CAPTURE;
+		pipe_id = IA_CSS_PIPE_ID_CAPTURE;
 	}
 
-	if (IS_ISP2401 && asd->copy_mode) {
-		css_capture_pipe_id = IA_CSS_PIPE_ID_COPY;
-		css_preview_pipe_id = IA_CSS_PIPE_ID_COPY;
-		css_video_pipe_id = IA_CSS_PIPE_ID_COPY;
-	}
-
-	if (capture_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_capture_pipe_id,
-			       atomisp_subdev_source_pad(&capture_pipe->vdev));
-		input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, capture_pipe,
-					       input_stream_id,
-					       buf_type, css_capture_pipe_id);
-	}
-
-	if (vf_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_capture_pipe_id,
-			       atomisp_subdev_source_pad(&vf_pipe->vdev));
-		if (asd->stream_env[ATOMISP_INPUT_STREAM_POSTVIEW].stream)
-			input_stream_id = ATOMISP_INPUT_STREAM_POSTVIEW;
-		else
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, vf_pipe,
-					       input_stream_id,
-					       buf_type, css_capture_pipe_id);
-	}
-
-	if (preview_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_preview_pipe_id,
-			       atomisp_subdev_source_pad(&preview_pipe->vdev));
-
-		if (css_preview_pipe_id == IA_CSS_PIPE_ID_YUVPP)
-			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
-		else if (asd->stream_env[ATOMISP_INPUT_STREAM_PREVIEW].stream)
-			input_stream_id = ATOMISP_INPUT_STREAM_PREVIEW;
-		else
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, preview_pipe,
-					       input_stream_id,
-					       buf_type, css_preview_pipe_id);
-	}
-
-	if (video_pipe) {
-		buf_type = atomisp_get_css_buf_type(
-			       asd, css_video_pipe_id,
-			       atomisp_subdev_source_pad(&video_pipe->vdev));
-		if (asd->stream_env[ATOMISP_INPUT_STREAM_VIDEO].stream)
-			input_stream_id = ATOMISP_INPUT_STREAM_VIDEO;
-		else
-			input_stream_id = ATOMISP_INPUT_STREAM_GENERAL;
-
-		atomisp_q_video_buffers_to_css(asd, video_pipe,
-					       input_stream_id,
-					       buf_type, css_video_pipe_id);
-	}
-
+	atomisp_q_video_buffers_to_css(asd, &asd->video_out,
+				       ATOMISP_INPUT_STREAM_GENERAL,
+				       IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, pipe_id);
 	return 0;
 }
 
@@ -493,9 +402,8 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	 *     is put to waiting list until previous per-frame parameter buffers
 	 *     get enqueued.
 	 */
-	if (!atomisp_is_vf_pipe(pipe) &&
-	    (pipe->frame_request_config_id[vb->index] ||
-	     !list_empty(&pipe->buffers_waiting_for_param)))
+	if (pipe->frame_request_config_id[vb->index] ||
+	    !list_empty(&pipe->buffers_waiting_for_param))
 		list_add_tail(&frame->queue, &pipe->buffers_waiting_for_param);
 	else
 		list_add_tail(&frame->queue, &pipe->activeq);
@@ -503,7 +411,7 @@ static void atomisp_buf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&pipe->irq_lock, irqflags);
 
 	/* TODO: do this better, not best way to queue to css */
-	if (asd->streaming == ATOMISP_DEVICE_STREAMING_ENABLED) {
+	if (asd->streaming) {
 		if (!list_empty(&pipe->buffers_waiting_for_param))
 			atomisp_handle_parameter_and_buffer(pipe);
 		else
@@ -539,9 +447,7 @@ static void atomisp_dev_init_struct(struct atomisp_device *isp)
 {
 	unsigned int i;
 
-	isp->need_gfx_throttle = true;
 	isp->isp_fatal_error = false;
-	isp->mipi_frame_size = 0;
 
 	for (i = 0; i < isp->input_cnt; i++)
 		isp->inputs[i].asd = NULL;
@@ -568,10 +474,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 	/* s3a grid not enabled for any pipe */
 	asd->params.s3a_enabled_pipe = IA_CSS_PIPE_ID_NUM;
 
-	/* Add for channel */
-	asd->input_curr = 0;
-
-	asd->mipi_frame_size = 0;
 	asd->copy_mode = false;
 
 	asd->stream_prepared = false;
@@ -584,19 +486,6 @@ static void atomisp_subdev_init_struct(struct atomisp_sub_device *asd)
 /*
  * file operation functions
  */
-static unsigned int atomisp_subdev_users(struct atomisp_sub_device *asd)
-{
-	return asd->video_out_preview.users +
-	       asd->video_out_vf.users +
-	       asd->video_out_capture.users +
-	       asd->video_out_video_capture.users;
-}
-
-unsigned int atomisp_dev_users(struct atomisp_device *isp)
-{
-	return atomisp_subdev_users(&isp->asd);
-}
-
 static int atomisp_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -613,8 +502,6 @@ static int atomisp_open(struct file *file)
 
 	mutex_lock(&isp->mutex);
 
-	asd->subdev.devnode = vdev;
-
 	if (!isp->input_cnt) {
 		dev_err(isp->dev, "no camera attached\n");
 		ret = -EINVAL;
@@ -628,11 +515,6 @@ static int atomisp_open(struct file *file)
 		dev_dbg(isp->dev, "video node already opened\n");
 		mutex_unlock(&isp->mutex);
 		return -EBUSY;
-	}
-
-	if (atomisp_dev_users(isp)) {
-		dev_dbg(isp->dev, "skip init isp in open\n");
-		goto init_subdev;
 	}
 
 	/* runtime power management, turn on ISP */
@@ -650,19 +532,12 @@ static int atomisp_open(struct file *file)
 		goto css_error;
 	}
 
-init_subdev:
-	if (atomisp_subdev_users(asd))
-		goto done;
-
 	atomisp_subdev_init_struct(asd);
 	/* Ensure that a mode is set */
-	v4l2_ctrl_s_ctrl(asd->run_mode, pipe->default_run_mode);
+	v4l2_ctrl_s_ctrl(asd->run_mode, ATOMISP_RUN_MODE_PREVIEW);
 
-done:
 	pipe->users++;
 	mutex_unlock(&isp->mutex);
-
-
 	return 0;
 
 css_error:
@@ -681,14 +556,11 @@ static int atomisp_release(struct file *file)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev_fh fh;
 	struct v4l2_rect clear_compose = {0};
-	unsigned long flags;
 	int ret;
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
 	dev_dbg(isp->dev, "release device %s\n", vdev->name);
-
-	asd->subdev.devnode = vdev;
 
 	/* Note file must not be used after this! */
 	vb2_fop_release(file);
@@ -696,8 +568,6 @@ static int atomisp_release(struct file *file)
 	mutex_lock(&isp->mutex);
 
 	pipe->users--;
-	if (pipe->users)
-		goto done;
 
 	/*
 	 * A little trick here:
@@ -714,9 +584,6 @@ static int atomisp_release(struct file *file)
 					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
 	}
 
-	if (atomisp_subdev_users(asd))
-		goto done;
-
 	atomisp_css_free_stat_buffers(asd);
 	atomisp_free_internal_buffers(asd);
 
@@ -730,14 +597,7 @@ static int atomisp_release(struct file *file)
 		isp->inputs[asd->input_curr].asd = NULL;
 	}
 
-	spin_lock_irqsave(&isp->lock, flags);
-	asd->streaming = ATOMISP_DEVICE_STREAMING_DISABLED;
-	spin_unlock_irqrestore(&isp->lock, flags);
-
-	if (atomisp_dev_users(isp))
-		goto done;
-
-	atomisp_destroy_pipes_stream_force(asd);
+	atomisp_destroy_pipes_stream(asd);
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
 	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD)
@@ -746,10 +606,9 @@ static int atomisp_release(struct file *file)
 	if (pm_runtime_put_sync(vdev->v4l2_dev->dev) < 0)
 		dev_err(isp->dev, "Failed to power off device\n");
 
-done:
 	atomisp_subdev_set_selection(&asd->subdev, fh.state,
 				     V4L2_SUBDEV_FORMAT_ACTIVE,
-				     atomisp_subdev_source_pad(vdev),
+				     ATOMISP_SUBDEV_PAD_SOURCE,
 				     V4L2_SEL_TGT_COMPOSE, 0,
 				     &clear_compose);
 	mutex_unlock(&isp->mutex);

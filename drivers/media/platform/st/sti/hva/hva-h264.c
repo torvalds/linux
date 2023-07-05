@@ -591,7 +591,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 {
 	struct hva_dev *hva = ctx_to_hdev(pctx);
 	struct device *dev = ctx_to_dev(pctx);
-	struct hva_h264_ctx *ctx = (struct hva_h264_ctx *)pctx->priv;
+	struct hva_h264_ctx *ctx = pctx->priv;
 	struct hva_buffer *seq_info = ctx->seq_info;
 	struct hva_buffer *fwd_ref_frame = ctx->ref_frame;
 	struct hva_buffer *loc_rec_frame = ctx->rec_frame;
@@ -984,7 +984,7 @@ err:
 
 static int hva_h264_close(struct hva_ctx *pctx)
 {
-	struct hva_h264_ctx *ctx = (struct hva_h264_ctx *)pctx->priv;
+	struct hva_h264_ctx *ctx = pctx->priv;
 	struct device *dev = ctx_to_dev(pctx);
 
 	if (ctx->seq_info)
@@ -1007,8 +1007,8 @@ static int hva_h264_close(struct hva_ctx *pctx)
 static int hva_h264_encode(struct hva_ctx *pctx, struct hva_frame *frame,
 			   struct hva_stream *stream)
 {
-	struct hva_h264_ctx *ctx = (struct hva_h264_ctx *)pctx->priv;
-	struct hva_h264_task *task = (struct hva_h264_task *)ctx->task->vaddr;
+	struct hva_h264_ctx *ctx = pctx->priv;
+	struct hva_h264_task *task = ctx->task->vaddr;
 	u32 stuffing_bytes = 0;
 	int ret = 0;
 

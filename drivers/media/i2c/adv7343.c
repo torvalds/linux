@@ -521,7 +521,7 @@ static struct i2c_driver adv7343_driver = {
 		.of_match_table = of_match_ptr(adv7343_of_match),
 		.name	= "adv7343",
 	},
-	.probe_new	= adv7343_probe,
+	.probe		= adv7343_probe,
 	.remove		= adv7343_remove,
 	.id_table	= adv7343_id,
 };

@@ -387,7 +387,7 @@ static struct i2c_driver adv7170_driver = {
 	.driver = {
 		.name	= "adv7170",
 	},
-	.probe_new	= adv7170_probe,
+	.probe		= adv7170_probe,
 	.remove		= adv7170_remove,
 	.id_table	= adv7170_id,
 };

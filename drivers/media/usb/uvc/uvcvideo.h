@@ -251,7 +251,7 @@ struct uvc_frame {
 	u32 dwMaxVideoFrameBufferSize;
 	u8  bFrameIntervalType;
 	u32 dwDefaultFrameInterval;
-	u32 *dwFrameInterval;
+	const u32 *dwFrameInterval;
 };
 
 struct uvc_format {
@@ -265,7 +265,7 @@ struct uvc_format {
 	u32 flags;
 
 	unsigned int nframes;
-	struct uvc_frame *frame;
+	const struct uvc_frame *frames;
 };
 
 struct uvc_streaming_header {
@@ -438,12 +438,12 @@ struct uvc_streaming {
 	enum v4l2_buf_type type;
 
 	unsigned int nformats;
-	struct uvc_format *format;
+	const struct uvc_format *formats;
 
 	struct uvc_streaming_control ctrl;
-	struct uvc_format *def_format;
-	struct uvc_format *cur_format;
-	struct uvc_frame *cur_frame;
+	const struct uvc_format *def_format;
+	const struct uvc_format *cur_format;
+	const struct uvc_frame *cur_frame;
 
 	/*
 	 * Protect access to ctrl, cur_format, cur_frame and hardware video

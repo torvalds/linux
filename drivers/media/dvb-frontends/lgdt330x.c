@@ -993,7 +993,7 @@ static struct i2c_driver lgdt330x_driver = {
 		.name	= "lgdt330x",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= lgdt330x_probe,
+	.probe		= lgdt330x_probe,
 	.remove		= lgdt330x_remove,
 	.id_table	= lgdt330x_id_table,
 };

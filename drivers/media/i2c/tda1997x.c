@@ -2834,7 +2834,7 @@ static struct i2c_driver tda1997x_i2c_driver = {
 		.name = "tda1997x",
 		.of_match_table = of_match_ptr(tda1997x_of_id),
 	},
-	.probe_new = tda1997x_probe,
+	.probe = tda1997x_probe,
 	.remove = tda1997x_remove,
 	.id_table = tda1997x_i2c_id,
 };

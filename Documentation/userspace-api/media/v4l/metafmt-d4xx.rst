@@ -12,7 +12,7 @@ Intel D4xx UVC Cameras Metadata
 Description
 ===========
 
-Intel D4xx (D435 and other) cameras include per-frame metadata in their UVC
+Intel D4xx (D435, D455 and others) cameras include per-frame metadata in their UVC
 payload headers, following the Microsoft(R) UVC extension proposal [1_]. That
 means, that the private D4XX metadata, following the standard UVC header, is
 organised in blocks. D4XX cameras implement several standard block types,
@@ -25,6 +25,8 @@ V4L2_META_FMT_D4XX buffers follow the metadata buffer layout of
 V4L2_META_FMT_UVC with the only difference, that it also includes proprietary
 payload header data. D4xx cameras use bulk transfers and only send one payload
 per frame, therefore their headers cannot be larger than 255 bytes.
+
+This document implements Intel Configuration version 3 [9_].
 
 Below are proprietary Microsoft style metadata types, used by D4xx cameras,
 where all fields are in little endian order:
@@ -43,10 +45,10 @@ where all fields are in little endian order:
     * - __u32 ID
       - 0x80000000
     * - __u32 Size
-      - Size in bytes (currently 56)
+      - Size in bytes, include ID (all protocol versions: 60)
     * - __u32 Version
-      - Version of this structure. The documentation herein corresponds to
-        version xxx. The version number will be incremented when new fields are
+      - Version of this structure. The documentation herein covers versions 1,
+        2 and 3. The version number will be incremented when new fields are
         added.
     * - __u32 Flags
       - A bitmask of flags: see [2_] below
@@ -72,13 +74,17 @@ where all fields are in little endian order:
       - Bottom border of the AE Region of Interest
     * - __u32 Preset
       - Preset selector value, default: 0, unless changed by the user
-    * - __u32 Laser mode
-      - 0: off, 1: on
+    * - __u8 Emitter mode (v3 only) (__u32 Laser mode for v1) [8_]
+      - 0: off, 1: on, same as __u32 Laser mode for v1
+    * - __u8 RFU byte (v3 only)
+      - Spare byte for future use
+    * - __u16 LED Power (v3 only)
+      - Led power value 0-360 (F416 SKU)
     * - :cspan:`1` *Capture Timing*
     * - __u32 ID
       - 0x80000001
     * - __u32 Size
-      - Size in bytes (currently 40)
+      - Size in bytes, include ID (all protocol versions: 40)
     * - __u32 Version
       - Version of this structure. The documentation herein corresponds to
         version xxx. The version number will be incremented when new fields are
@@ -101,7 +107,7 @@ where all fields are in little endian order:
     * - __u32 ID
       - 0x80000002
     * - __u32 Size
-      - Size in bytes (currently 40)
+      - Size in bytes, include ID (v1:36, v3:40)
     * - __u32 Version
       - Version of this structure. The documentation herein corresponds to
         version xxx. The version number will be incremented when new fields are
@@ -124,6 +130,14 @@ where all fields are in little endian order:
       - Requested frame rate per second
     * - __u16 Trigger
       - Byte 0: bit 0: depth and RGB are synchronised, bit 1: external trigger
+    * - __u16 Calibration count (v3 only)
+      - Calibration counter, see [4_] below
+    * - __u8 GPIO input data (v3 only)
+      - GPIO readout, see [4_] below (Supported from FW 5.12.7.0)
+    * - __u32 Sub-preset info (v3 only)
+      - Sub-preset choice information, see [4_] below
+    * - __u8 reserved (v3 only)
+      - RFU byte.
 
 .. _1:
 
@@ -140,6 +154,8 @@ where all fields are in little endian order:
   0x00000010 Exposure priority
   0x00000020 AE ROI
   0x00000040 Preset
+  0x00000080 Emitter mode
+  0x00000100 LED Power
 
 .. _3:
 
@@ -165,6 +181,8 @@ where all fields are in little endian order:
   0x00000040 Framerate
   0x00000080 Trigger
   0x00000100 Cal count
+  0x00000200 GPIO Input Data
+  0x00000400 Sub-preset Info
 
 .. _5:
 
@@ -211,3 +229,24 @@ Left sensor: ::
 Fish Eye sensor: ::
 
   1 RAW8
+
+.. _8:
+
+[8] The "Laser mode" has been replaced in version 3 by three different fields.
+"Laser" has been renamed to "Emitter" as there are multiple technologies for
+camera projectors. As we have another field for "Laser Power" we introduced
+"LED Power" for extra emitter.
+
+The "Laser mode" __u32 fiels has been split into: ::
+   1 __u8 Emitter mode
+   2 __u8 RFU byte
+   3 __u16 LED Power
+
+This is a change between versions 1 and 3. All versions 1, 2 and 3 are backward
+compatible with the same data format and they are supported. See [2_] for which
+attributes are valid.
+
+.. _9:
+
+[9] LibRealSense SDK metadata source:
+https://github.com/IntelRealSense/librealsense/blob/master/src/metadata.h

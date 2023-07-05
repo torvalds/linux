@@ -1571,7 +1571,7 @@ static struct i2c_driver ov965x_i2c_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ov965x_of_match),
 	},
-	.probe_new	= ov965x_probe,
+	.probe		= ov965x_probe,
 	.remove		= ov965x_remove,
 	.id_table	= ov965x_id,
 };

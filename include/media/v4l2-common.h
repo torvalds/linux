@@ -480,6 +480,7 @@ enum v4l2_pixel_encoding {
  * @mem_planes: Number of memory planes, which includes the alpha plane (1 to 4).
  * @comp_planes: Number of component planes, which includes the alpha plane (1 to 4).
  * @bpp: Array of per-plane bytes per pixel
+ * @bpp_div: Array of per-plane bytes per pixel divisors to support fractional pixel sizes.
  * @hdiv: Horizontal chroma subsampling factor
  * @vdiv: Vertical chroma subsampling factor
  * @block_w: Per-plane macroblock pixel width (optional)
@@ -491,6 +492,7 @@ struct v4l2_format_info {
 	u8 mem_planes;
 	u8 comp_planes;
 	u8 bpp[4];
+	u8 bpp_div[4];
 	u8 hdiv;
 	u8 vdiv;
 	u8 block_w[4];

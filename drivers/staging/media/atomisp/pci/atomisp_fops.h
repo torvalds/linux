@@ -22,9 +22,6 @@
 #define	__ATOMISP_FOPS_H__
 #include "atomisp_subdev.h"
 
-unsigned int atomisp_dev_users(struct atomisp_device *isp);
-unsigned int atomisp_sub_dev_users(struct atomisp_sub_device *asd);
-
 /*
  * Memory help functions for image frame and private parameters
  */

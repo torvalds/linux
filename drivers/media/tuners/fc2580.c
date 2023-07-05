@@ -610,7 +610,7 @@ static struct i2c_driver fc2580_driver = {
 		.name	= "fc2580",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= fc2580_probe,
+	.probe		= fc2580_probe,
 	.remove		= fc2580_remove,
 	.id_table	= fc2580_id_table,
 };

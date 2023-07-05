@@ -132,7 +132,7 @@ static struct i2c_driver tea6420_driver = {
 	.driver = {
 		.name	= "tea6420",
 	},
-	.probe_new	= tea6420_probe,
+	.probe		= tea6420_probe,
 	.remove		= tea6420_remove,
 	.id_table	= tea6420_id,
 };

@@ -1052,25 +1052,19 @@ static void __media_entity_remove_link(struct media_entity *entity,
 	kfree(link);
 }
 
-int media_get_pad_index(struct media_entity *entity, bool is_sink,
+int media_get_pad_index(struct media_entity *entity, u32 pad_type,
 			enum media_pad_signal_type sig_type)
 {
-	int i;
-	bool pad_is_sink;
+	unsigned int i;
 
 	if (!entity)
 		return -EINVAL;
 
 	for (i = 0; i < entity->num_pads; i++) {
-		if (entity->pads[i].flags & MEDIA_PAD_FL_SINK)
-			pad_is_sink = true;
-		else if (entity->pads[i].flags & MEDIA_PAD_FL_SOURCE)
-			pad_is_sink = false;
-		else
-			continue;	/* This is an error! */
-
-		if (pad_is_sink != is_sink)
+		if ((entity->pads[i].flags &
+		     (MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_SOURCE)) != pad_type)
 			continue;
+
 		if (entity->pads[i].sig_type == sig_type)
 			return i;
 	}
@@ -1416,7 +1410,7 @@ struct media_pad *media_pad_remote_pad_unique(const struct media_pad *pad)
 EXPORT_SYMBOL_GPL(media_pad_remote_pad_unique);
 
 int media_entity_get_fwnode_pad(struct media_entity *entity,
-				struct fwnode_handle *fwnode,
+				const struct fwnode_handle *fwnode,
 				unsigned long direction_flags)
 {
 	struct fwnode_endpoint endpoint;

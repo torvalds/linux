@@ -1012,7 +1012,7 @@ static struct i2c_driver tw9910_i2c_driver = {
 	.driver = {
 		.name = "tw9910",
 	},
-	.probe_new = tw9910_probe,
+	.probe    = tw9910_probe,
 	.remove   = tw9910_remove,
 	.id_table = tw9910_id,
 };
