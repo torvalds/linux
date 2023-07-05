@@ -20,6 +20,20 @@
 #define PERF_TP_SAMPLE_TYPE (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME | \
 			     PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD)
 
+static int num_core_entries(void)
+{
+	/*
+	 * If the kernel supports extended type, expect events to be
+	 * opened once for each core PMU type. Otherwise fall back to the legacy
+	 * behavior of opening only one event even though there are multiple
+	 * PMUs
+	 */
+	if (perf_pmus__supports_extended_type())
+		return perf_pmus__num_core_pmus();
+
+	return 1;
+}
+
 static bool test_config(const struct evsel *evsel, __u64 expected_config)
 {
 	__u32 type = evsel->core.attr.type;
@@ -339,7 +353,7 @@ static int test__checkevent_symbolic_name_modifier(struct evlist *evlist)
 	struct perf_evsel *evsel;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == perf_pmus__num_core_pmus());
+			evlist->core.nr_entries == num_core_entries());
 
 	perf_evlist__for_each_entry(&evlist->core, evsel) {
 		TEST_ASSERT_VAL("wrong exclude_user", evsel->attr.exclude_user);
@@ -842,11 +856,11 @@ static int test__group1(struct evlist *evlist)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (perf_pmus__num_core_pmus() * 2));
+			evlist->core.nr_entries == (num_core_entries() * 2));
 	TEST_ASSERT_VAL("wrong number of groups",
-			evlist__nr_groups(evlist) == perf_pmus__num_core_pmus());
+			evlist__nr_groups(evlist) == num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* instructions:k */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -885,7 +899,7 @@ static int test__group2(struct evlist *evlist)
 	struct evsel *evsel, *leader = NULL;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (2 * perf_pmus__num_core_pmus() + 1));
+			evlist->core.nr_entries == (2 * num_core_entries() + 1));
 	/*
 	 * TODO: Currently the software event won't be grouped with the hardware
 	 * event except for 1 PMU.
@@ -1051,11 +1065,11 @@ static int test__group4(struct evlist *evlist __maybe_unused)
 	struct evsel *evsel, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (perf_pmus__num_core_pmus() * 2));
+			evlist->core.nr_entries == (num_core_entries() * 2));
 	TEST_ASSERT_VAL("wrong number of groups",
-			perf_pmus__num_core_pmus() == evlist__nr_groups(evlist));
+			num_core_entries() == evlist__nr_groups(evlist));
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles:u + p */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1096,11 +1110,11 @@ static int test__group5(struct evlist *evlist __maybe_unused)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (5 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (5 * num_core_entries()));
 	TEST_ASSERT_VAL("wrong number of groups",
-			evlist__nr_groups(evlist) == (2 * perf_pmus__num_core_pmus()));
+			evlist__nr_groups(evlist) == (2 * num_core_entries()));
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles + G */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1131,7 +1145,7 @@ static int test__group5(struct evlist *evlist __maybe_unused)
 		TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 1);
 		TEST_ASSERT_VAL("wrong sample_read", !evsel->sample_read);
 	}
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles:G */
 		evsel = leader = evsel__next(evsel);
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1161,7 +1175,7 @@ static int test__group5(struct evlist *evlist __maybe_unused)
 		TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 		TEST_ASSERT_VAL("wrong group_idx", evsel__group_idx(evsel) == 1);
 	}
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles */
 		evsel = evsel__next(evsel);
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1182,11 +1196,11 @@ static int test__group_gh1(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (2 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (2 * num_core_entries()));
 	TEST_ASSERT_VAL("wrong number of groups",
-			evlist__nr_groups(evlist) == perf_pmus__num_core_pmus());
+			evlist__nr_groups(evlist) == num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles + :H group modifier */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1223,11 +1237,11 @@ static int test__group_gh2(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (2 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (2 * num_core_entries()));
 	TEST_ASSERT_VAL("wrong number of groups",
-			evlist__nr_groups(evlist) == perf_pmus__num_core_pmus());
+			evlist__nr_groups(evlist) == num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles + :G group modifier */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1264,11 +1278,11 @@ static int test__group_gh3(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (2 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (2 * num_core_entries()));
 	TEST_ASSERT_VAL("wrong number of groups",
-			evlist__nr_groups(evlist) == perf_pmus__num_core_pmus());
+			evlist__nr_groups(evlist) == num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles:G + :u group modifier */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1305,11 +1319,11 @@ static int test__group_gh4(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (2 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (2 * num_core_entries()));
 	TEST_ASSERT_VAL("wrong number of groups",
-			evlist__nr_groups(evlist) == perf_pmus__num_core_pmus());
+			evlist__nr_groups(evlist) == num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles:G + :uG group modifier */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1346,9 +1360,9 @@ static int test__leader_sample1(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (3 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (3 * num_core_entries()));
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles - sampling group leader */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1398,9 +1412,9 @@ static int test__leader_sample2(struct evlist *evlist __maybe_unused)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (2 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (2 * num_core_entries()));
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* instructions - sampling group leader */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1437,9 +1451,9 @@ static int test__checkevent_pinned_modifier(struct evlist *evlist)
 	struct evsel *evsel = NULL;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == perf_pmus__num_core_pmus());
+			evlist->core.nr_entries == num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		evsel = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
 		TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
@@ -1455,9 +1469,9 @@ static int test__pinned_group(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (3 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == (3 * num_core_entries()));
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles - group leader */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1500,9 +1514,9 @@ static int test__exclusive_group(struct evlist *evlist)
 	struct evsel *evsel = NULL, *leader;
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (3 * perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == 3 * num_core_entries());
 
-	for (int i = 0; i < perf_pmus__num_core_pmus(); i++) {
+	for (int i = 0; i < num_core_entries(); i++) {
 		/* cycles - group leader */
 		evsel = leader = (i == 0 ? evlist__first(evlist) : evsel__next(evsel));
 		TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
@@ -1574,7 +1588,7 @@ static int test__checkevent_precise_max_modifier(struct evlist *evlist)
 	struct evsel *evsel = evlist__first(evlist);
 
 	TEST_ASSERT_VAL("wrong number of entries",
-			evlist->core.nr_entries == (1 + perf_pmus__num_core_pmus()));
+			evlist->core.nr_entries == 1 + num_core_entries());
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_SOFTWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_SW_TASK_CLOCK));
 	return TEST_OK;
