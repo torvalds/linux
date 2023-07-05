@@ -314,43 +314,40 @@ fail:
 
 static void *vepu_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
-	struct mpp_taskqueue *queue = mpp->queue;
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 	struct vepu_ccu *ccu = enc->ccu;
 	unsigned long core_idle;
 	unsigned long flags;
-	u32 core_id_max;
 	s32 core_id;
 	u32 i;
 
 	spin_lock_irqsave(&ccu->lock, flags);
 
-	core_idle = queue->core_idle;
-	core_id_max = queue->core_id_max;
+	core_idle = ccu->core_idle;
 
-	for (i = 0; i <= core_id_max; i++) {
-		struct mpp_dev *mpp = queue->cores[i];
+	for (i = 0; i < ccu->core_num; i++) {
+		struct mpp_dev *mpp = ccu->cores[i];
 
 		if (mpp && mpp->disable)
-			clear_bit(i, &core_idle);
+			clear_bit(mpp->core_id, &core_idle);
 	}
 
-	core_id = find_first_bit(&ccu->core_idle, ccu->core_num);
-	core_id = array_index_nospec(core_id, MPP_MAX_CORE_NUM);
-	if (core_id >= core_id_max + 1 || !queue->cores[core_id]) {
+	core_id = find_first_bit(&core_idle, ccu->core_num);
+	if (core_id >= ARRAY_SIZE(ccu->cores)) {
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, ccu->core_idle);
-	} else {
-		unsigned long core_idle = ccu->core_idle;
-
-		clear_bit(core_id, &ccu->core_idle);
-		mpp_task->mpp = ccu->cores[core_id];
-		mpp_task->core_id = core_id;
-
-		mpp_dbg_core("core cnt %d core %d set idle %lx -> %lx\n",
-			     ccu->core_num, core_id, core_idle, ccu->core_idle);
+		goto done;
 	}
 
+	core_id = array_index_nospec(core_id, MPP_MAX_CORE_NUM);
+	clear_bit(core_id, &ccu->core_idle);
+	mpp_task->mpp = ccu->cores[core_id];
+	mpp_task->core_id = core_id;
+
+	mpp_dbg_core("core cnt %d core %d set idle %lx -> %lx\n",
+		     ccu->core_num, core_id, core_idle, ccu->core_idle);
+
+done:
 	spin_unlock_irqrestore(&ccu->lock, flags);
 
 	return mpp_task;
