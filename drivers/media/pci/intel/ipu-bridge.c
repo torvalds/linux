@@ -36,6 +36,8 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	IPU_SENSOR_CONFIG("INT3537", 1, 437000000),
 	/* Omnivision ov13b10 */
 	IPU_SENSOR_CONFIG("OVTIDB10", 1, 560000000),
+	/* GalaxyCore GC0310 */
+	IPU_SENSOR_CONFIG("INT0310", 0),
 };
 
 static const struct ipu_property_names prop_names = {
