@@ -1325,7 +1325,6 @@ static int reiserfs_rename(struct mnt_idmap *idmap,
 	int jbegin_count;
 	umode_t old_inode_mode;
 	unsigned long savelink = 1;
-	struct timespec64 ctime;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
@@ -1576,14 +1575,11 @@ static int reiserfs_rename(struct mnt_idmap *idmap,
 
 	mark_de_hidden(old_de.de_deh + old_de.de_entry_num);
 	journal_mark_dirty(&th, old_de.de_bh);
-	ctime = current_time(old_dir);
-	old_dir->i_ctime = old_dir->i_mtime = ctime;
-	new_dir->i_ctime = new_dir->i_mtime = ctime;
 	/*
 	 * thanks to Alex Adriaanse <alex_a@caltech.edu> for patch
 	 * which adds ctime update of renamed object
 	 */
-	old_inode->i_ctime = ctime;
+	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
 
 	if (new_dentry_inode) {
 		/* adjust link number of the victim */
@@ -1592,7 +1588,6 @@ static int reiserfs_rename(struct mnt_idmap *idmap,
 		} else {
 			drop_nlink(new_dentry_inode);
 		}
-		new_dentry_inode->i_ctime = ctime;
 		savelink = new_dentry_inode->i_nlink;
 	}
 
