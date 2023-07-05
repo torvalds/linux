@@ -28,7 +28,7 @@ Options:
                    that exist on PAST_REF will be checked for compatibility.
     -j JOBS        Number of checks to run in parallel (default: number of CPU cores).
     -l ERROR_LOG   Write error log to file (default: no error log is generated).
-    -q             Quiet operation (suppress all stdout, still print stderr).
+    -q             Quiet operation (suppress stdout, still print stderr).
     -v             Verbose operation (print more information about each header being checked).
 
 Environmental args:
@@ -88,7 +88,8 @@ add_to_incompat_list() {
 		# shellcheck disable=SC2016
 		printf 'all: ; @echo $(no-header-test)\n'
 		cat usr/include/Makefile
-	} | SRCARCH="$ARCH" make -f - | tr " " "\n" | grep -v "asm-generic" >> "$INCOMPAT_LIST"
+	} | SRCARCH="$ARCH" make --always-make -f - | tr " " "\n" \
+	  | grep -v "asm-generic" >> "$INCOMPAT_LIST"
 
 	# The makefile also skips all asm-generic files, but prints "asm-generic/%"
 	# which won't work for our grep match. Instead, print something grep will match.
@@ -115,40 +116,11 @@ do_compile() {
 		  -
 }
 
-# Save the current git tree state, stashing if needed
-save_tree_state() {
-	printf "Saving current tree state... "
-	current_ref="$(git rev-parse HEAD)"
-	readonly current_ref
-	if tree_is_dirty; then
-		unstash="true"
-		git stash push --quiet
-	fi
-	printf "OK\n"
-}
-
-# Restore the git tree state, unstashing if needed
-restore_tree_state() {
-	if [ -z "$current_ref" ]; then
-		return 0
-	fi
-
-	printf "Restoring current tree state... "
-	git checkout --quiet "$current_ref"
-	if [ "$unstash" = "true" ]; then
-		git stash pop --quiet
-		unstash="false"
-	fi
-	printf "OK\n"
-}
-
-# Handle exit cleanup
-exit_handler() {
-	if [ "$DEVIATED_FROM_CURRENT_TREE" = "true" ]; then
-		restore_tree_state
-	fi
-
-	rm -rf "$TMP_DIR"
+# Run make headers_install
+run_make_headers_install() {
+	local -r install_dir="$1"
+	make -j "$MAX_THREADS" ARCH="$ARCH" INSTALL_HDR_PATH="$install_dir" \
+		headers_install > /dev/null
 }
 
 # Install headers for both git refs
@@ -156,28 +128,22 @@ install_headers() {
 	local -r base_ref="$1"
 	local -r past_ref="$2"
 
-	DEVIATED_FROM_CURRENT_TREE="false"
 	for ref in "$base_ref" "$past_ref"; do
+		printf "Installing user-facing UAPI headers from %s... " "${ref:-dirty tree}"
 		if [ -n "$ref" ]; then
-			if [ "$DEVIATED_FROM_CURRENT_TREE" = "false" ]; then
-				save_tree_state
-				DEVIATED_FROM_CURRENT_TREE="true"
-			fi
-			# This script ($0) is already loaded into memory at this point,
-			# so this operation is safe
-			git checkout --quiet "$(git rev-parse "$ref")"
+			git archive --format=tar --prefix="${ref}-archive/" "$ref" \
+				| (cd "$TMP_DIR" && tar xf -)
+			(
+				cd "${TMP_DIR}/${ref}-archive"
+				run_make_headers_install "${TMP_DIR}/${ref}/usr"
+				add_to_incompat_list "$ref" "$INCOMPAT_LIST"
+			)
+		else
+			run_make_headers_install "${TMP_DIR}/${ref}/usr"
+			add_to_incompat_list "$ref" "$INCOMPAT_LIST"
 		fi
-
-		printf "Installing sanitized UAPI headers from %s... " "${ref:-dirty tree}"
-		make -j "$MAX_THREADS" ARCH="$ARCH" INSTALL_HDR_PATH="${TMP_DIR}/${ref}/usr" headers_install > /dev/null 2>&1
 		printf "OK\n"
-
-		# Add to list of incompatible headers while we have $ref checked out
-		add_to_incompat_list "$ref" "$INCOMPAT_LIST"
 	done
-
-	restore_tree_state
-	DEVIATED_FROM_CURRENT_TREE="false"
 }
 
 # Print the path to the headers_install tree for a given ref
@@ -194,6 +160,7 @@ check_uapi_files() {
 	local passed=0;
 	local failed=0;
 	local -a threads=()
+	set -o errexit
 
 	printf "Checking changes to UAPI headers between %s and %s\n" "$past_ref" "${base_ref:-dirty tree}"
 	# Loop over all UAPI headers that were installed by $past_ref (if they only exist on $base_ref,
@@ -222,7 +189,8 @@ check_uapi_files() {
 
 	total="$((passed + failed))"
 	if [ "$failed" -gt 0 ]; then
-		eprintf "error - %d/%d UAPI headers compatible with %s appear _not_ to be backwards compatible\n" "$failed" "$total" "$ARCH"
+		eprintf "error - %d/%d UAPI headers compatible with %s appear _not_ to be backwards compatible\n" \
+			"$failed" "$total" "$ARCH"
 	else
 		printf "All %d UAPI headers compatible with %s appear to be backwards compatible\n" "$total" "$ARCH"
 	fi
@@ -240,7 +208,9 @@ check_individual_file() {
 	local -r past_header="$(get_header_tree "$past_ref")/${file}"
 
 	if [ ! -f "$base_header" ]; then
-		printf "error - UAPI header %s was incorrectly removed\n" "$file" | tee "${base_header}.error" >&2
+		printf "!!! UAPI header %s was incorrectly removed between %s and %s !!!\n" \
+			"$file" "$past_ref" "${base_ref:-dirty tree}" \
+				| tee "${base_header}.error" >&2
 		return 1
 	fi
 
@@ -270,7 +240,9 @@ compare_abi() {
 		exit "$FAIL_COMPILE"
 	fi
 
-	"$ABIDIFF" --non-reachable-types "${past_header}.bin" "${base_header}.bin" > "$log" && ret="$?" || ret="$?"
+	local ret=0
+	"$ABIDIFF" --non-reachable-types "${past_header}.bin" "${base_header}.bin" \
+		> "$log" || ret="$?"
 	if [ "$ret" -eq 0 ]; then
 		if [ "$VERBOSE" = "true" ]; then
 			printf "No ABI differences detected in %s from %s -> %s\n" "$file" "$past_ref" "${base_ref:-dirty tree}"
@@ -288,6 +260,8 @@ compare_abi() {
 		   grep "Unreachable types summary" "$log" | grep -q "0 changed"; then
 			return 0
 		fi
+
+
 		{
 			printf "!!! ABI differences detected in %s from %s -> %s !!!\n\n" "$file" "$past_ref" "${base_ref:-dirty tree}"
 			sed  -e '/summary:/d' -e '/changed type/d' -e '/^$/d' -e 's/^/  /g' "$log"
@@ -305,6 +279,7 @@ compare_abi() {
 				printf "\n"
 			fi
 		} | tee "${base_header}.error" >&2
+
 		return 1
 	fi
 }
@@ -416,7 +391,7 @@ run() {
 
 	TMP_DIR=$(mktemp -d)
 	readonly TMP_DIR
-	trap 'exit_handler' EXIT
+	trap 'rm -rf "$TMP_DIR"' EXIT
 
 	readonly INCOMPAT_LIST="${TMP_DIR}/incompat_list.txt"
 	touch "$INCOMPAT_LIST"
@@ -446,8 +421,8 @@ run() {
 main() {
 	MAX_THREADS=$(nproc)
 	VERBOSE="false"
+	quiet="false"
 	local base_ref=""
-	local quiet="false"
 	while getopts "hb:p:mj:l:qv" opt; do
 		case $opt in
 		h)
@@ -468,9 +443,11 @@ main() {
 			;;
 		q)
 			quiet="true"
+			VERBOSE="false"
 			;;
 		v)
 			VERBOSE="true"
+			quiet="false"
 			;;
 		*)
 			exit "$FAIL_PREREQ"
@@ -479,10 +456,10 @@ main() {
 
 
 	if [ "$quiet" = "true" ]; then
-		run "$base_ref" "$past_ref" "$abi_error_log" "$@" > /dev/null
-	else
-		run "$base_ref" "$past_ref" "$abi_error_log" "$@"
+		exec > /dev/null 2>&1
 	fi
+
+	run "$base_ref" "$past_ref" "$abi_error_log" "$@"
 }
 
 main "$@"
