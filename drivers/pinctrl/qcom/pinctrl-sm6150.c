@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -239,14 +239,14 @@ static const struct pinctrl_pin_desc sm6150_pins[] = {
 	PINCTRL_PIN(120, "GPIO_120"),
 	PINCTRL_PIN(121, "GPIO_121"),
 	PINCTRL_PIN(122, "GPIO_122"),
-	PINCTRL_PIN(123, "SDC1_RCLK"),
-	PINCTRL_PIN(124, "SDC1_CLK"),
-	PINCTRL_PIN(125, "SDC1_CMD"),
-	PINCTRL_PIN(126, "SDC1_DATA"),
-	PINCTRL_PIN(127, "SDC2_CLK"),
-	PINCTRL_PIN(128, "SDC2_CMD"),
-	PINCTRL_PIN(129, "SDC2_DATA"),
-	PINCTRL_PIN(130, "UFS_RESET"),
+	PINCTRL_PIN(123, "UFS_RESET"),
+	PINCTRL_PIN(124, "SDC1_RCLK"),
+	PINCTRL_PIN(125, "SDC1_CLK"),
+	PINCTRL_PIN(126, "SDC1_CMD"),
+	PINCTRL_PIN(127, "SDC1_DATA"),
+	PINCTRL_PIN(128, "SDC2_CLK"),
+	PINCTRL_PIN(129, "SDC2_CMD"),
+	PINCTRL_PIN(130, "SDC2_DATA"),
 };
 
 #define DECLARE_MSM_GPIO_PINS(pin) \
@@ -375,14 +375,14 @@ DECLARE_MSM_GPIO_PINS(120);
 DECLARE_MSM_GPIO_PINS(121);
 DECLARE_MSM_GPIO_PINS(122);
 
-static const unsigned int sdc1_rclk_pins[] = { 123 };
-static const unsigned int sdc1_clk_pins[] = { 124 };
-static const unsigned int sdc1_cmd_pins[] = { 125 };
-static const unsigned int sdc1_data_pins[] = { 126 };
-static const unsigned int sdc2_clk_pins[] = { 127 };
-static const unsigned int sdc2_cmd_pins[] = { 128 };
-static const unsigned int sdc2_data_pins[] = { 129 };
-static const unsigned int ufs_reset_pins[] = { 130 };
+static const unsigned int sdc1_rclk_pins[] = { 124 };
+static const unsigned int sdc1_clk_pins[] = { 125 };
+static const unsigned int sdc1_cmd_pins[] = { 126 };
+static const unsigned int sdc1_data_pins[] = { 127 };
+static const unsigned int sdc2_clk_pins[] = { 128 };
+static const unsigned int sdc2_cmd_pins[] = { 129 };
+static const unsigned int sdc2_data_pins[] = { 130 };
+static const unsigned int ufs_reset_pins[] = { 123 };
 
 enum sm6150_functions {
 	msm_mux_qup02,
@@ -1556,14 +1556,14 @@ static const struct msm_pingroup sm6150_groups[] = {
 			 NA, NA, NA, NA),
 	[121] = PINGROUP(121, SOUTH, mclk1, NA, NA, NA, NA, NA, NA, NA, NA),
 	[122] = PINGROUP(122, SOUTH, mclk2, NA, NA, NA, NA, NA, NA, NA, NA),
-	[123] = SDC_QDSD_PINGROUP(sdc1_rclk, 0x59a000, 15, 0),
-	[124] = SDC_QDSD_PINGROUP(sdc1_clk, 0x59a000, 13, 6),
-	[125] = SDC_QDSD_PINGROUP(sdc1_cmd, 0x59a000, 11, 3),
-	[126] = SDC_QDSD_PINGROUP(sdc1_data, 0x59a000, 9, 0),
-	[127] = SDC_QDSD_PINGROUP(sdc2_clk, 0xd98000, 14, 6),
-	[128] = SDC_QDSD_PINGROUP(sdc2_cmd, 0xd98000, 11, 3),
-	[129] = SDC_QDSD_PINGROUP(sdc2_data, 0xd98000, 9, 0),
-	[130] = UFS_RESET(ufs_reset, 0x59f000),
+	[123] = UFS_RESET(ufs_reset, 0x59f000),
+	[124] = SDC_QDSD_PINGROUP(sdc1_rclk, 0x59a000, 15, 0),
+	[125] = SDC_QDSD_PINGROUP(sdc1_clk, 0x59a000, 13, 6),
+	[126] = SDC_QDSD_PINGROUP(sdc1_cmd, 0x59a000, 11, 3),
+	[127] = SDC_QDSD_PINGROUP(sdc1_data, 0x59a000, 9, 0),
+	[128] = SDC_QDSD_PINGROUP(sdc2_clk, 0xd98000, 14, 6),
+	[129] = SDC_QDSD_PINGROUP(sdc2_cmd, 0xd98000, 11, 3),
+	[130] = SDC_QDSD_PINGROUP(sdc2_data, 0xd98000, 9, 0),
 };
 
 static struct msm_pinctrl_soc_data sm6150_pinctrl = {
@@ -1573,7 +1573,7 @@ static struct msm_pinctrl_soc_data sm6150_pinctrl = {
 	.nfunctions = ARRAY_SIZE(sm6150_functions),
 	.groups = sm6150_groups,
 	.ngroups = ARRAY_SIZE(sm6150_groups),
-	.ngpios = 123,
+	.ngpios = 124,
 };
 
 static int sm6150_pinctrl_probe(struct platform_device *pdev)
