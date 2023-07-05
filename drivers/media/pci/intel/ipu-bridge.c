@@ -5,9 +5,9 @@
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/property.h>
-#include <media/v4l2-fwnode.h>
 
-#include "ipu-bridge.h"
+#include <media/ipu-bridge.h>
+#include <media/v4l2-fwnode.h>
 
 /*
  * Extend this array with ACPI Hardware IDs of devices known to be working
