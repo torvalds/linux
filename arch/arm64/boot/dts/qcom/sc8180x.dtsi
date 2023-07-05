@@ -3429,7 +3429,7 @@
 			#size-cells = <1>;
 			ranges = <0 0 0 0x20000000>;
 
-			frame@17c21000{
+			frame@17c21000 {
 				reg = <0x17c21000 0x1000>,
 				      <0x17c22000 0x1000>;
 				frame-number = <0>;
