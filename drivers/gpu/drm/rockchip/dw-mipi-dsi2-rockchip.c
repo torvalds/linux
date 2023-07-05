@@ -279,6 +279,7 @@ struct dw_mipi_dsi2 {
 	/* split with other display interface */
 	bool dual_connector_split;
 	bool left_display;
+	u32 split_area;
 };
 
 static inline struct dw_mipi_dsi2 *host_to_dsi2(struct mipi_dsi_host *host)
@@ -1108,6 +1109,32 @@ static void dw_mipi_dsi2_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
+static int
+dw_mipi_dsi2_atomic_connector_get_property(struct drm_connector *connector,
+					   const struct drm_connector_state *state,
+					   struct drm_property *property,
+					   uint64_t *val)
+{
+	struct rockchip_drm_private *private = connector->dev->dev_private;
+	struct dw_mipi_dsi2 *dsi2 = con_to_dsi2(connector);
+
+	if (property == private->split_area_prop) {
+		switch (dsi2->split_area) {
+		case 1:
+			*val = ROCKCHIP_DRM_SPLIT_LEFT_SIDE;
+			break;
+		case 2:
+			*val = ROCKCHIP_DRM_SPLIT_RIGHT_SIDE;
+			break;
+		default:
+			*val = ROCKCHIP_DRM_SPLIT_UNSET;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static const struct drm_connector_funcs dw_mipi_dsi2_atomic_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = dw_mipi_dsi2_connector_detect,
@@ -1115,6 +1142,7 @@ static const struct drm_connector_funcs dw_mipi_dsi2_atomic_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_get_property = dw_mipi_dsi2_atomic_connector_get_property,
 };
 
 static int dw_mipi_dsi2_dual_channel_probe(struct dw_mipi_dsi2 *dsi2)
@@ -1261,7 +1289,15 @@ connector_cleanup:
 static int dw_mipi_dsi2_register_sub_dev(struct dw_mipi_dsi2 *dsi2,
 					 struct drm_connector *connector)
 {
+	struct rockchip_drm_private *private;
 	struct device *dev = dsi2->dev;
+
+	private = connector->dev->dev_private;
+
+	if (dsi2->split_area)
+		drm_object_attach_property(&connector->base,
+					   private->split_area_prop,
+					   dsi2->split_area);
 
 	dsi2->sub_dev.connector = connector;
 	dsi2->sub_dev.of_node = dev->of_node;
@@ -1593,6 +1629,9 @@ static int dw_mipi_dsi2_probe(struct platform_device *pdev)
 		if (device_property_read_bool(dev, "left-display"))
 			dsi2->left_display = true;
 	}
+
+	if (device_property_read_u32(dev, "split-area", &dsi2->split_area))
+		dsi2->split_area = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
