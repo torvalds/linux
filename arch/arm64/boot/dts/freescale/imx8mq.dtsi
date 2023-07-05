@@ -631,7 +631,7 @@
 				compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
 				reg = <0x30370000 0x10000>;
 
-				snvs_rtc: snvs-rtc-lp{
+				snvs_rtc: snvs-rtc-lp {
 					compatible = "fsl,sec-v4.0-mon-rtc-lp";
 					regmap = <&snvs>;
 					offset = <0x34>;
