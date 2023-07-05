@@ -1955,7 +1955,7 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 		      "  device_rev_id: %d\n"
 		      "  sdvo_version_major: %d\n"
 		      "  sdvo_version_minor: %d\n"
-		      "  sdvo_inputs_mask: %d\n"
+		      "  sdvo_num_inputs: %d\n"
 		      "  smooth_scaling: %d\n"
 		      "  sharp_scaling: %d\n"
 		      "  up_scaling: %d\n"
@@ -1967,7 +1967,7 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 		      caps->device_rev_id,
 		      caps->sdvo_version_major,
 		      caps->sdvo_version_minor,
-		      caps->sdvo_inputs_mask,
+		      caps->sdvo_num_inputs,
 		      caps->smooth_scaling,
 		      caps->sharp_scaling,
 		      caps->up_scaling,
@@ -3436,15 +3436,14 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 
 	drm_dbg_kms(&dev_priv->drm, "%s device VID/DID: %02X:%02X.%02X, "
 			"clock range %dMHz - %dMHz, "
-			"input 1: %c, input 2: %c, "
+			"num inputs: %d, "
 			"output 1: %c, output 2: %c\n",
 			SDVO_NAME(intel_sdvo),
 			intel_sdvo->caps.vendor_id, intel_sdvo->caps.device_id,
 			intel_sdvo->caps.device_rev_id,
 			intel_sdvo->pixel_clock_min / 1000,
 			intel_sdvo->pixel_clock_max / 1000,
-			(intel_sdvo->caps.sdvo_inputs_mask & 0x1) ? 'Y' : 'N',
-			(intel_sdvo->caps.sdvo_inputs_mask & 0x2) ? 'Y' : 'N',
+			intel_sdvo->caps.sdvo_num_inputs,
 			/* check currently supported outputs */
 			intel_sdvo->caps.output_flags &
 			(SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_RGB0 |
