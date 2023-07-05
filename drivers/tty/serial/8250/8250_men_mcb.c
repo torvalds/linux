@@ -81,15 +81,28 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 	return clkval;
 }
 
-static int read_uarts_available_from_register(void __iomem *membase,
+static int read_uarts_available_from_register(struct resource *mem_res,
 					      u8 *uarts_available)
 {
 	void __iomem *mem;
 	int reg_value;
 
-	mem = membase + MEN_Z025_REGISTER_OFFSET;
+	if (!request_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+				MEM_UART_REGISTER_SIZE,  KBUILD_MODNAME)) {
+		return -EBUSY;
+	}
 
-	reg_value = MEN_READ_REGISTER(membase);
+	mem = ioremap(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+		      MEM_UART_REGISTER_SIZE);
+	if (IS_ERR(mem))
+		return -ENOMEM;
+
+	reg_value = MEN_READ_REGISTER(mem);
+
+	iounmap(mem);
+
+	release_mem_region(mem_res->start + MEN_Z025_REGISTER_OFFSET,
+			   MEM_UART_REGISTER_SIZE);
 
 	*uarts_available = reg_value >> 4;
 
@@ -97,7 +110,7 @@ static int read_uarts_available_from_register(void __iomem *membase,
 }
 
 static int read_serial_data(struct mcb_device *mdev,
-			    void __iomem *membase,
+			    struct resource *mem_res,
 			    struct serial_8250_men_mcb_data *serial_data)
 {
 	u8 uarts_available;
@@ -106,7 +119,7 @@ static int read_serial_data(struct mcb_device *mdev,
 	int res;
 	int i;
 
-	res = read_uarts_available_from_register(membase, &uarts_available);
+	res = read_uarts_available_from_register(mem_res, &uarts_available);
 	if (res < 0)
 		return res;
 
@@ -146,7 +159,7 @@ static int read_serial_data(struct mcb_device *mdev,
 }
 
 static int init_serial_data(struct mcb_device *mdev,
-			    void __iomem *membase,
+			    struct resource *mem_res,
 			    struct serial_8250_men_mcb_data *serial_data)
 {
 	switch (mdev->id) {
@@ -156,7 +169,7 @@ static int init_serial_data(struct mcb_device *mdev,
 		return 0;
 	case MEN_UART_ID_Z025:
 	case MEN_UART_ID_Z057:
-		return read_serial_data(mdev, membase, serial_data);
+		return read_serial_data(mdev, mem_res, serial_data);
 	default:
 		dev_err(&mdev->dev, "no supported device!\n");
 		return -ENODEV;
@@ -170,15 +183,11 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 	struct serial_8250_men_mcb_data *data;
 	struct resource *mem;
 	int i;
-	void __iomem *membase;
 	int res;
 
 	mem = mcb_get_resource(mdev, IORESOURCE_MEM);
 	if (mem == NULL)
 		return -ENXIO;
-	membase = devm_ioremap_resource(&mdev->dev, mem);
-	if (IS_ERR(membase))
-		return PTR_ERR_OR_ZERO(membase);
 
 	data = devm_kzalloc(&mdev->dev,
 			    sizeof(struct serial_8250_men_mcb_data),
@@ -186,7 +195,7 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 	if (!data)
 		return -ENOMEM;
 
-	res = init_serial_data(mdev, membase, data);
+	res = init_serial_data(mdev, mem, data);
 	if (res < 0)
 		return res;
 
@@ -196,22 +205,18 @@ static int serial_8250_men_mcb_probe(struct mcb_device *mdev,
 	mcb_set_drvdata(mdev, data);
 
 	for (i = 0; i < data->num_ports; i++) {
-		uart.port.dev = mdev->dma_dev;
+		memset(&uart, 0, sizeof(struct uart_8250_port));
 		spin_lock_init(&uart.port.lock);
 
-		uart.port.type = PORT_16550;
 		uart.port.flags = UPF_SKIP_TEST |
 				  UPF_SHARE_IRQ |
-				  UPF_FIXED_TYPE;
+				  UPF_BOOT_AUTOCONF |
+				  UPF_IOREMAP;
 		uart.port.iotype = UPIO_MEM;
 		uart.port.uartclk = men_lookup_uartclk(mdev);
-		uart.port.regshift = 0;
 		uart.port.irq = mcb_get_irq(mdev);
-		uart.port.membase = membase;
-		uart.port.fifosize = 60;
 		uart.port.mapbase = (unsigned long) mem->start
 					    + data->offset[i];
-		uart.port.iobase = uart.port.mapbase;
 
 		/* ok, register the port */
 		data->line[i] = serial8250_register_8250_port(&uart);
