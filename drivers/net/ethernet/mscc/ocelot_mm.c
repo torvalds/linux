@@ -89,17 +89,14 @@ void ocelot_port_change_fp(struct ocelot *ocelot, int port,
 {
 	struct ocelot_mm_state *mm = &ocelot->mm[port];
 
-	mutex_lock(&ocelot->fwd_domain_lock);
+	lockdep_assert_held(&ocelot->fwd_domain_lock);
 
 	if (mm->preemptible_tcs == preemptible_tcs)
-		goto out_unlock;
+		return;
 
 	mm->preemptible_tcs = preemptible_tcs;
 
 	ocelot_port_update_active_preemptible_tcs(ocelot, port);
-
-out_unlock:
-	mutex_unlock(&ocelot->fwd_domain_lock);
 }
 
 static void ocelot_mm_update_port_status(struct ocelot *ocelot, int port)

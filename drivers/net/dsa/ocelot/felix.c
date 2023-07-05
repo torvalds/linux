@@ -1790,12 +1790,12 @@ static int felix_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 
 	ocelot_port_set_maxlen(ocelot, port, new_mtu);
 
-	mutex_lock(&ocelot->tas_lock);
+	mutex_lock(&ocelot->fwd_domain_lock);
 
 	if (ocelot_port->taprio && felix->info->tas_guard_bands_update)
 		felix->info->tas_guard_bands_update(ocelot, port);
 
-	mutex_unlock(&ocelot->tas_lock);
+	mutex_unlock(&ocelot->fwd_domain_lock);
 
 	return 0;
 }

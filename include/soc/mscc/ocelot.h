@@ -863,11 +863,11 @@ struct ocelot {
 	struct mutex			stat_view_lock;
 	/* Lock for serializing access to the MAC table */
 	struct mutex			mact_lock;
-	/* Lock for serializing forwarding domain changes */
+	/* Lock for serializing forwarding domain changes, including the
+	 * configuration of the Time-Aware Shaper, MAC Merge layer and
+	 * cut-through forwarding, on which it depends
+	 */
 	struct mutex			fwd_domain_lock;
-
-	/* Lock for serializing Time-Aware Shaper changes */
-	struct mutex			tas_lock;
 
 	struct workqueue_struct		*owq;
 
