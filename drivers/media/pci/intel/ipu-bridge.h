@@ -144,9 +144,9 @@ struct ipu_bridge {
 };
 
 #if IS_ENABLED(CONFIG_IPU_BRIDGE)
-int ipu_bridge_init(struct pci_dev *ipu);
+int ipu_bridge_init(struct device *dev);
 #else
-static inline int ipu_bridge_init(struct pci_dev *ipu) { return 0; }
+static inline int ipu_bridge_init(struct device *dev) { return 0; }
 #endif
 
 #endif

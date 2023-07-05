@@ -4,7 +4,6 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
-#include <linux/pci.h>
 #include <linux/property.h>
 #include <media/v4l2-fwnode.h>
 
@@ -288,7 +287,7 @@ static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 
 static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 				     struct ipu_bridge *bridge,
-				     struct pci_dev *ipu)
+				     struct device *dev)
 {
 	struct fwnode_handle *fwnode, *primary;
 	struct ipu_sensor *sensor;
@@ -302,7 +301,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		if (bridge->n_sensors >= IPU_MAX_PORTS) {
 			acpi_dev_put(adev);
-			dev_err(&ipu->dev, "Exceeded available IPU ports\n");
+			dev_err(dev, "Exceeded available IPU ports\n");
 			return -EINVAL;
 		}
 
@@ -362,7 +361,7 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 
 		ipu_bridge_instantiate_vcm_i2c_client(sensor);
 
-		dev_info(&ipu->dev, "Found supported sensor %s\n",
+		dev_info(dev, "Found supported sensor %s\n",
 			 acpi_dev_name(adev));
 
 		bridge->n_sensors++;
@@ -380,7 +379,7 @@ err_put_adev:
 }
 
 static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge,
-				      struct pci_dev *ipu)
+				      struct device *dev)
 {
 	unsigned int i;
 	int ret;
@@ -389,7 +388,7 @@ static int ipu_bridge_connect_sensors(struct ipu_bridge *bridge,
 		const struct ipu_sensor_config *cfg =
 			&ipu_supported_sensors[i];
 
-		ret = ipu_bridge_connect_sensor(cfg, bridge, ipu);
+		ret = ipu_bridge_connect_sensor(cfg, bridge, dev);
 		if (ret)
 			goto err_unregister_sensors;
 	}
@@ -435,9 +434,8 @@ static int ipu_bridge_sensors_are_ready(void)
 	return ready;
 }
 
-int ipu_bridge_init(struct pci_dev *ipu)
+int ipu_bridge_init(struct device *dev)
 {
-	struct device *dev = &ipu->dev;
 	struct fwnode_handle *fwnode;
 	struct ipu_bridge *bridge;
 	unsigned int i;
@@ -470,7 +468,7 @@ int ipu_bridge_init(struct pci_dev *ipu)
 	for (i = 0; i < IPU_MAX_LANES; i++)
 		bridge->data_lanes[i] = i + 1;
 
-	ret = ipu_bridge_connect_sensors(bridge, ipu);
+	ret = ipu_bridge_connect_sensors(bridge, dev);
 	if (ret || bridge->n_sensors == 0)
 		goto err_unregister_ipu;
 
