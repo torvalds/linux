@@ -128,8 +128,8 @@ int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
 
 	inode->i_atime = ns_to_timespec64(
 				 info->access_time.ns_relative_to_unix_epoch);
-	inode->i_ctime = ns_to_timespec64(
-				 info->change_time.ns_relative_to_unix_epoch);
+	inode_set_ctime_to_ts(inode,
+			      ns_to_timespec64(info->change_time.ns_relative_to_unix_epoch));
 	inode->i_mtime = ns_to_timespec64(
 			   info->modification_time.ns_relative_to_unix_epoch);
 	return 0;
