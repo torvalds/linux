@@ -1388,9 +1388,14 @@ static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
 	struct cio2_device *cio2 = to_cio2_device(notifier);
 	struct sensor_async_subdev *s_asd = to_sensor_asd(asd);
 	struct cio2_queue *q;
+	int ret;
 
 	if (cio2->queue[s_asd->csi2.port].sensor)
 		return -EBUSY;
+
+	ret = ipu_bridge_instantiate_vcm(sd->dev);
+	if (ret)
+		return ret;
 
 	q = &cio2->queue[s_asd->csi2.port];
 

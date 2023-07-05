@@ -4,7 +4,10 @@
 #include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
 
 #include <media/ipu-bridge.h>
 #include <media/v4l2-fwnode.h>
@@ -289,28 +292,110 @@ static void ipu_bridge_create_connection_swnodes(struct ipu_bridge *bridge,
 	ipu_bridge_init_swnode_group(sensor);
 }
 
-static void ipu_bridge_instantiate_vcm_i2c_client(struct ipu_sensor *sensor)
-{
-	struct i2c_board_info board_info = { };
+/*
+ * The actual instantiation must be done from a workqueue to avoid
+ * a deadlock on taking list_lock from v4l2-async twice.
+ */
+struct ipu_bridge_instantiate_vcm_work_data {
+	struct work_struct work;
+	struct device *sensor;
 	char name[16];
+	struct i2c_board_info board_info;
+};
 
-	if (!sensor->vcm_type)
-		return;
+static void ipu_bridge_instantiate_vcm_work(struct work_struct *work)
+{
+	struct ipu_bridge_instantiate_vcm_work_data *data =
+		container_of(work, struct ipu_bridge_instantiate_vcm_work_data,
+			     work);
+	struct acpi_device *adev = ACPI_COMPANION(data->sensor);
+	struct i2c_client *vcm_client;
+	bool put_fwnode = true;
+	int ret;
 
-	snprintf(name, sizeof(name), "%s-VCM", acpi_dev_name(sensor->adev));
-	board_info.dev_name = name;
-	strscpy(board_info.type, sensor->vcm_type, ARRAY_SIZE(board_info.type));
-	board_info.swnode = &sensor->swnodes[SWNODE_VCM];
-
-	sensor->vcm_i2c_client =
-		i2c_acpi_new_device_by_fwnode(acpi_fwnode_handle(sensor->adev),
-					      1, &board_info);
-	if (IS_ERR(sensor->vcm_i2c_client)) {
-		dev_warn(&sensor->adev->dev, "Error instantiation VCM i2c-client: %ld\n",
-			 PTR_ERR(sensor->vcm_i2c_client));
-		sensor->vcm_i2c_client = NULL;
+	/*
+	 * The client may get probed before the device_link gets added below
+	 * make sure the sensor is powered-up during probe.
+	 */
+	ret = pm_runtime_get_sync(data->sensor);
+	if (ret < 0) {
+		dev_err(data->sensor, "Error %d runtime-resuming sensor, cannot instantiate VCM\n",
+			ret);
+		goto out_pm_put;
 	}
+
+	/*
+	 * Note the client is created only once and then kept around
+	 * even after a rmmod, just like the software-nodes.
+	 */
+	vcm_client = i2c_acpi_new_device_by_fwnode(acpi_fwnode_handle(adev),
+						   1, &data->board_info);
+	if (IS_ERR(vcm_client)) {
+		dev_err(data->sensor, "Error instantiating VCM client: %ld\n",
+			PTR_ERR(vcm_client));
+		goto out_pm_put;
+	}
+
+	device_link_add(&vcm_client->dev, data->sensor, DL_FLAG_PM_RUNTIME);
+
+	dev_info(data->sensor, "Instantiated %s VCM\n", data->board_info.type);
+	put_fwnode = false; /* Ownership has passed to the i2c-client */
+
+out_pm_put:
+	pm_runtime_put(data->sensor);
+	put_device(data->sensor);
+	if (put_fwnode)
+		fwnode_handle_put(data->board_info.fwnode);
+	kfree(data);
 }
+
+int ipu_bridge_instantiate_vcm(struct device *sensor)
+{
+	struct ipu_bridge_instantiate_vcm_work_data *data;
+	struct fwnode_handle *vcm_fwnode;
+	struct i2c_client *vcm_client;
+	struct acpi_device *adev;
+	char *sep;
+
+	adev = ACPI_COMPANION(sensor);
+	if (!adev)
+		return 0;
+
+	vcm_fwnode = fwnode_find_reference(dev_fwnode(sensor), "lens-focus", 0);
+	if (IS_ERR(vcm_fwnode))
+		return 0;
+
+	/* When reloading modules the client will already exist */
+	vcm_client = i2c_find_device_by_fwnode(vcm_fwnode);
+	if (vcm_client) {
+		fwnode_handle_put(vcm_fwnode);
+		put_device(&vcm_client->dev);
+		return 0;
+	}
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data) {
+		fwnode_handle_put(vcm_fwnode);
+		return -ENOMEM;
+	}
+
+	INIT_WORK(&data->work, ipu_bridge_instantiate_vcm_work);
+	data->sensor = get_device(sensor);
+	snprintf(data->name, sizeof(data->name), "%s-VCM",
+		 acpi_dev_name(adev));
+	data->board_info.dev_name = data->name;
+	data->board_info.fwnode = vcm_fwnode;
+	snprintf(data->board_info.type, sizeof(data->board_info.type),
+		 "%pfwP", vcm_fwnode);
+	/* Strip "-<link>" postfix */
+	sep = strchrnul(data->board_info.type, '-');
+	*sep = 0;
+
+	queue_work(system_long_wq, &data->work);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(ipu_bridge_instantiate_vcm, INTEL_IPU_BRIDGE);
 
 static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 {
@@ -321,7 +406,6 @@ static void ipu_bridge_unregister_sensors(struct ipu_bridge *bridge)
 		sensor = &bridge->sensors[i];
 		software_node_unregister_node_group(sensor->group);
 		acpi_dev_put(sensor->adev);
-		i2c_unregister_device(sensor->vcm_i2c_client);
 	}
 }
 
@@ -371,8 +455,6 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 		primary = acpi_fwnode_handle(adev);
 		primary->secondary = fwnode;
 
-		ipu_bridge_instantiate_vcm_i2c_client(sensor);
-
 		dev_info(bridge->dev, "Found supported sensor %s\n",
 			 acpi_dev_name(adev));
 
@@ -409,40 +491,6 @@ err_unregister_sensors:
 	return ret;
 }
 
-/*
- * The VCM cannot be probed until the PMIC is completely setup. We cannot rely
- * on -EPROBE_DEFER for this, since the consumer<->supplier relations between
- * the VCM and regulators/clks are not described in ACPI, instead they are
- * passed as board-data to the PMIC drivers. Since -PROBE_DEFER does not work
- * for the clks/regulators the VCM i2c-clients must not be instantiated until
- * the PMIC is fully setup.
- *
- * The sensor/VCM ACPI device has an ACPI _DEP on the PMIC, check this using the
- * acpi_dev_ready_for_enumeration() helper, like the i2c-core-acpi code does
- * for the sensors.
- */
-static int ipu_bridge_sensors_are_ready(void)
-{
-	struct acpi_device *adev;
-	bool ready = true;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(ipu_supported_sensors); i++) {
-		const struct ipu_sensor_config *cfg =
-			&ipu_supported_sensors[i];
-
-		for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
-			if (!adev->status.enabled)
-				continue;
-
-			if (!acpi_dev_ready_for_enumeration(adev))
-				ready = false;
-		}
-	}
-
-	return ready;
-}
-
 int ipu_bridge_init(struct device *dev,
 		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode)
 {
@@ -450,9 +498,6 @@ int ipu_bridge_init(struct device *dev,
 	struct ipu_bridge *bridge;
 	unsigned int i;
 	int ret;
-
-	if (!ipu_bridge_sensors_are_ready())
-		return -EPROBE_DEFER;
 
 	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
