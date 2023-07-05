@@ -25,12 +25,15 @@
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
 #include <linux/qcom_dma_heap.h>
+#include <linux/types.h>
 
 #include "qcom_dma_heap_secure_utils.h"
 #include "qcom_sg_ops.h"
 #include "qcom_carveout_heap.h"
 
 #define CARVEOUT_ALLOCATE_FAIL -1
+
+static LIST_HEAD(secure_carveout_heaps);
 
 
 /*
@@ -51,11 +54,14 @@ struct carveout_heap {
 	bool is_secure;
 	bool is_nomap;
 	phys_addr_t base;
+	ssize_t size;
 };
 
 struct secure_carveout_heap {
 	u32 token;
 	struct carveout_heap carveout_heap;
+	struct list_head list;
+	atomic_long_t total_allocated;
 };
 
 static void sc_heap_free(struct qcom_sg_buffer *buffer);
@@ -315,6 +321,7 @@ static int carveout_init_heap_memory(struct carveout_heap *co_heap,
 		return -ENOMEM;
 
 	co_heap->base = base;
+	co_heap->size = size;
 	gen_pool_add(co_heap->pool, co_heap->base, size, -1);
 
 	return 0;
@@ -395,10 +402,16 @@ static struct dma_buf *sc_heap_allocate(struct dma_heap *heap,
 					unsigned long heap_flags)
 {
 	struct secure_carveout_heap *sc_heap;
+	struct dma_buf *dbuf;
 
 	sc_heap = dma_heap_get_drvdata(heap);
-	return  __carveout_heap_allocate(&sc_heap->carveout_heap, len,
+	dbuf = __carveout_heap_allocate(&sc_heap->carveout_heap, len,
 					 fd_flags, heap_flags, sc_heap_free);
+	if (IS_ERR(dbuf))
+		return dbuf;
+	atomic_long_add(len, &sc_heap->total_allocated);
+
+	return dbuf;
 }
 
 static void sc_heap_free(struct qcom_sg_buffer *buffer)
@@ -418,7 +431,45 @@ static void sc_heap_free(struct qcom_sg_buffer *buffer)
 	}
 	carveout_free(&sc_heap->carveout_heap, paddr, buffer->len);
 	sg_free_table(table);
+	atomic_long_sub(buffer->len, &sc_heap->total_allocated);
 	kfree(buffer);
+}
+
+int qcom_secure_carveout_heap_freeze(void)
+{
+	long sz;
+	struct secure_carveout_heap *sc_heap;
+
+	/*
+	 * It is expected that the buffers are freed by the clients
+	 * before the freeze. DMABUF framework tracks the unfreed memory
+	 * by the total_allocated struct member.
+	 */
+	list_for_each_entry(sc_heap, &secure_carveout_heaps, list) {
+		sz = atomic_long_read(&sc_heap->total_allocated);
+		if (sz) {
+			pr_err("%s: %s: %lx bytes of allocations not freed. Aborting freeze\n",
+				__func__,
+				dma_heap_get_name(sc_heap->carveout_heap.heap),
+				sz);
+			return -EBUSY;
+		}
+	}
+	return 0;
+}
+
+int qcom_secure_carveout_heap_restore(void)
+{
+	struct secure_carveout_heap *sc_heap;
+	int ret;
+
+	list_for_each_entry(sc_heap, &secure_carveout_heaps, list) {
+		ret = hyp_assign_from_flags(sc_heap->carveout_heap.base,
+				sc_heap->carveout_heap.size,
+				sc_heap->token);
+		BUG_ON(ret);
+	}
+	return 0;
 }
 
 static struct dma_heap_ops sc_heap_ops = {
@@ -460,6 +511,7 @@ int qcom_secure_carveout_heap_create(struct platform_heap *heap_data)
 		goto destroy_heap;
 	}
 
+	list_add(&sc_heap->list, &secure_carveout_heaps);
 	return 0;
 
 destroy_heap:

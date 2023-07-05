@@ -96,6 +96,52 @@ bool qcom_is_dma_buf_file(struct file *file)
 }
 EXPORT_SYMBOL(qcom_is_dma_buf_file);
 
+static int qcom_dma_heaps_freeze(struct device *dev)
+{
+	int ret;
+
+	ret = qcom_secure_carveout_heap_freeze();
+	if (ret) {
+		pr_err("Failed to freeze secure carveout heap: %d\n", ret);
+		return ret;
+	}
+
+	ret = qcom_secure_system_heap_freeze();
+	if (ret) {
+		pr_err("Failed to freeze secure system heap: %d\n", ret);
+		goto err;
+	}
+
+	return 0;
+err:
+	ret = qcom_secure_carveout_heap_restore();
+	if (ret) {
+		pr_err("Failed to restore secure carveout heap: %d\n", ret);
+		return ret;
+	}
+	return -EBUSY;
+}
+
+static int qcom_dma_heaps_restore(struct device *dev)
+{
+	int ret;
+
+	ret = qcom_secure_carveout_heap_restore();
+	if (ret)
+		pr_err("Failed to restore secure carveout heap: %d\n", ret);
+
+	ret = qcom_secure_system_heap_restore();
+	if (ret)
+		pr_err("Failed to restore secure system heap: %d\n", ret);
+
+	return ret;
+}
+
+static const struct dev_pm_ops qcom_dma_heaps_pm_ops = {
+	.freeze_late = qcom_dma_heaps_freeze,
+	.restore_early = qcom_dma_heaps_restore,
+};
+
 static const struct of_device_id qcom_dma_heap_match_table[] = {
 	{.compatible = "qcom,dma-heaps"},
 	{},
@@ -106,6 +152,7 @@ static struct platform_driver qcom_dma_heap_driver = {
 	.driver = {
 		.name = "qcom-dma-heap",
 		.of_match_table = qcom_dma_heap_match_table,
+		.pm = &qcom_dma_heaps_pm_ops,
 	},
 };
 
