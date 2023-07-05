@@ -111,8 +111,3 @@
 &rng {
 	status = "okay";
 };
-
-/* Assign VOP_ACLK to 750MHZ for 8K */
-&vop {
-	assigned-clock-rates = <750000000>;
-};
