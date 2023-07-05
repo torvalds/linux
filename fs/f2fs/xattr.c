@@ -764,7 +764,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 same:
 	if (is_inode_flag_set(inode, FI_ACL_MODE)) {
 		inode->i_mode = F2FS_I(inode)->i_acl_mode;
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		clear_inode_flag(inode, FI_ACL_MODE);
 	}
 
