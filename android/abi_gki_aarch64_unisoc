@@ -1453,6 +1453,9 @@
   power_supply_put
   power_supply_temp2resist_simple
 
+# required by sc27xx_pd.ko
+  devm_extcon_register_notifier_all
+
 # required by sc27xx_typec.ko
   devm_extcon_dev_allocate
   devm_extcon_dev_register
@@ -1551,6 +1554,9 @@
   __kthread_init_worker
   kthread_queue_work
   kthread_worker_fn
+
+# required by sprd-charger-manager.ko
+  orderly_poweroff
 
 # required by sprd-dma.ko
   dma_async_device_register
@@ -1659,6 +1665,18 @@
   devfreq_remove_governor
   dev_pm_opp_add
   update_devfreq
+
+# required by sprd_tcpm.ko
+  typec_altmode_attention
+  typec_altmode_notify
+  typec_altmode_update_active
+  typec_altmode_vdm
+  typec_find_power_role
+  typec_match_altmode
+  typec_partner_register_altmode
+  typec_port_register_altmode
+  typec_set_mode
+  typec_unregister_altmode
 
 # required by sprd_thermal_ctl.ko
   devfreq_cooling_em_register
