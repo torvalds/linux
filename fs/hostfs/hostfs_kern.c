@@ -517,8 +517,7 @@ static int hostfs_inode_update(struct inode *ino, const struct hostfs_stat *st)
 		(struct timespec64){ st->atime.tv_sec, st->atime.tv_nsec };
 	ino->i_mtime =
 		(struct timespec64){ st->mtime.tv_sec, st->mtime.tv_nsec };
-	ino->i_ctime =
-		(struct timespec64){ st->ctime.tv_sec, st->ctime.tv_nsec };
+	inode_set_ctime(ino, st->ctime.tv_sec, st->ctime.tv_nsec);
 	ino->i_size = st->size;
 	ino->i_blocks = st->blocks;
 	return 0;
