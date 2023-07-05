@@ -10,3 +10,4 @@ obj-y					+= rockchip/
 obj-y					+= samsung/
 obj-y					+= starfive/
 obj-y					+= sunxi/
+obj-y					+= tegra/
