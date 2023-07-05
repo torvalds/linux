@@ -88,6 +88,7 @@ struct samsung_pwm_chip {
 	struct clk *base_clk;
 	struct clk *tclk0;
 	struct clk *tclk1;
+	struct samsung_pwm_channel channel[SAMSUNG_PWM_NUM];
 };
 
 #ifndef CONFIG_CLKSRC_SAMSUNG_PWM
@@ -228,7 +229,6 @@ static unsigned long pwm_samsung_calc_tin(struct samsung_pwm_chip *chip,
 static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
-	struct samsung_pwm_channel *our_chan;
 
 	if (!(our_chip->variant.output_mask & BIT(pwm->hwpwm))) {
 		dev_warn(chip->dev,
@@ -237,18 +237,9 @@ static int pwm_samsung_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return -EINVAL;
 	}
 
-	our_chan = kzalloc(sizeof(*our_chan), GFP_KERNEL);
-	if (!our_chan)
-		return -ENOMEM;
-
-	pwm_set_chip_data(pwm, our_chan);
+	memset(&our_chip->channel[pwm->hwpwm], 0, sizeof(our_chip->channel[pwm->hwpwm]));
 
 	return 0;
-}
-
-static void pwm_samsung_free(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	kfree(pwm_get_chip_data(pwm));
 }
 
 static int pwm_samsung_enable(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -318,7 +309,7 @@ static int __pwm_samsung_config(struct pwm_chip *chip, struct pwm_device *pwm,
 				int duty_ns, int period_ns, bool force_period)
 {
 	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
-	struct samsung_pwm_channel *chan = pwm_get_chip_data(pwm);
+	struct samsung_pwm_channel *chan = &our_chip->channel[pwm->hwpwm];
 	u32 tin_ns = chan->tin_ns, tcnt, tcmp, oldtcmp;
 
 	tcnt = readl(our_chip->base + REG_TCNTB(pwm->hwpwm));
@@ -473,7 +464,6 @@ static int pwm_samsung_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops pwm_samsung_ops = {
 	.request	= pwm_samsung_request,
-	.free		= pwm_samsung_free,
 	.apply		= pwm_samsung_apply,
 };
 
@@ -638,9 +628,9 @@ static int pwm_samsung_resume(struct device *dev)
 
 	for (i = 0; i < SAMSUNG_PWM_NUM; i++) {
 		struct pwm_device *pwm = &chip->pwms[i];
-		struct samsung_pwm_channel *chan = pwm_get_chip_data(pwm);
+		struct samsung_pwm_channel *chan = &our_chip->channel[i];
 
-		if (!chan)
+		if (!(pwm->flags & PWMF_REQUESTED))
 			continue;
 
 		if (our_chip->variant.output_mask & BIT(i))
