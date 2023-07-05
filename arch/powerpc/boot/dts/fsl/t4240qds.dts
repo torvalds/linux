@@ -41,7 +41,7 @@
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
 
-	aliases{
+	aliases {
 		phy_rgmii1 = &phyrgmii1;
 		phy_rgmii2 = &phyrgmii2;
 		phy_sgmii3 = &phy3;
