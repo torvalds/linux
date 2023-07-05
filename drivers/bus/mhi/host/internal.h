@@ -310,6 +310,12 @@ static inline void mhi_trigger_resume(struct mhi_controller *mhi_cntrl)
 	mhi_cntrl->runtime_put(mhi_cntrl);
 }
 
+static inline bool is_valid_ring_ptr(struct mhi_ring *ring, dma_addr_t addr)
+{
+	return ((addr >= ring->iommu_base &&
+		addr < ring->iommu_base + ring->len) && (addr % 16 == 0));
+}
+
 /* Register access methods */
 void mhi_db_brstmode(struct mhi_controller *mhi_cntrl, struct db_cfg *db_cfg,
 		     void __iomem *db_addr, dma_addr_t db_val);
