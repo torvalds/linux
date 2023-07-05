@@ -10234,6 +10234,12 @@ static const char *tracefs_available_filter_functions(void)
 			     : TRACEFS"/available_filter_functions";
 }
 
+static const char *tracefs_available_filter_functions_addrs(void)
+{
+	return use_debugfs() ? DEBUGFS"/available_filter_functions_addrs"
+			     : TRACEFS"/available_filter_functions_addrs";
+}
+
 static void gen_kprobe_legacy_event_name(char *buf, size_t buf_sz,
 					 const char *kfunc_name, size_t offset)
 {
@@ -10650,6 +10656,57 @@ cleanup:
 	return err;
 }
 
+static bool has_available_filter_functions_addrs(void)
+{
+	return access(tracefs_available_filter_functions_addrs(), R_OK) != -1;
+}
+
+static int libbpf_available_kprobes_parse(struct kprobe_multi_resolve *res)
+{
+	const char *available_path = tracefs_available_filter_functions_addrs();
+	char sym_name[500];
+	FILE *f;
+	int ret, err = 0;
+	unsigned long long sym_addr;
+
+	f = fopen(available_path, "re");
+	if (!f) {
+		err = -errno;
+		pr_warn("failed to open %s: %d\n", available_path, err);
+		return err;
+	}
+
+	while (true) {
+		ret = fscanf(f, "%llx %499s%*[^\n]\n", &sym_addr, sym_name);
+		if (ret == EOF && feof(f))
+			break;
+
+		if (ret != 2) {
+			pr_warn("failed to parse available_filter_functions_addrs entry: %d\n",
+				ret);
+			err = -EINVAL;
+			goto cleanup;
+		}
+
+		if (!glob_match(sym_name, res->pattern))
+			continue;
+
+		err = libbpf_ensure_mem((void **)&res->addrs, &res->cap,
+					sizeof(*res->addrs), res->cnt + 1);
+		if (err)
+			goto cleanup;
+
+		res->addrs[res->cnt++] = (unsigned long)sym_addr;
+	}
+
+	if (res->cnt == 0)
+		err = -ENOENT;
+
+cleanup:
+	fclose(f);
+	return err;
+}
+
 struct bpf_link *
 bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 				      const char *pattern,
@@ -10686,7 +10743,10 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 		return libbpf_err_ptr(-EINVAL);
 
 	if (pattern) {
-		err = libbpf_available_kallsyms_parse(&res);
+		if (has_available_filter_functions_addrs())
+			err = libbpf_available_kprobes_parse(&res);
+		else
+			err = libbpf_available_kallsyms_parse(&res);
 		if (err)
 			goto error;
 		addrs = res.addrs;
