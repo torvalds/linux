@@ -32,6 +32,7 @@
 
 #include "analogix_dp_core.h"
 #include "analogix_dp_reg.h"
+#include "../../rockchip/rockchip_drm_drv.h"
 
 #define to_dp(nm)	container_of(nm, struct analogix_dp_device, nm)
 
@@ -1445,6 +1446,32 @@ static void analogix_dp_connector_force(struct drm_connector *connector)
 		extcon_set_state_sync(dp->extcon, EXTCON_DISP_DP, false);
 }
 
+static int
+analogix_dp_atomic_connector_get_property(struct drm_connector *connector,
+					  const struct drm_connector_state *state,
+					  struct drm_property *property,
+					  uint64_t *val)
+{
+	struct rockchip_drm_private *private = connector->dev->dev_private;
+	struct analogix_dp_device *dp = to_dp(connector);
+
+	if (property == private->split_area_prop) {
+		switch (dp->split_area) {
+		case 1:
+			*val = ROCKCHIP_DRM_SPLIT_LEFT_SIDE;
+			break;
+		case 2:
+			*val = ROCKCHIP_DRM_SPLIT_RIGHT_SIDE;
+			break;
+		default:
+			*val = ROCKCHIP_DRM_SPLIT_UNSET;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = analogix_dp_connector_detect,
@@ -1453,6 +1480,7 @@ static const struct drm_connector_funcs analogix_dp_connector_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.force = analogix_dp_connector_force,
+	.atomic_get_property = analogix_dp_atomic_connector_get_property,
 };
 
 static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
@@ -1483,6 +1511,7 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 
 	if (!dp->plat_data->skip_connector) {
 		int connector_type = DRM_MODE_CONNECTOR_eDP;
+		struct rockchip_drm_private *private;
 
 		if (dp->plat_data->bridge &&
 		    dp->plat_data->bridge->type != DRM_MODE_CONNECTOR_Unknown)
@@ -1501,6 +1530,13 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge,
 			DRM_ERROR("Failed to initialize connector with drm\n");
 			return ret;
 		}
+
+		private = connector->dev->dev_private;
+
+		if (dp->split_area)
+			drm_object_attach_property(&connector->base,
+						   private->split_area_prop,
+						   dp->split_area);
 
 		drm_connector_helper_add(connector,
 					 &analogix_dp_connector_helper_funcs);
@@ -2077,6 +2113,9 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 		DRM_DEV_ERROR(dp->dev, "failed to read lane data\n");
 		return ret;
 	}
+
+	if (device_property_read_u32(dp->dev, "split-area", &dp->split_area))
+		dp->split_area = 0;
 
 	return 0;
 }
