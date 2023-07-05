@@ -5,3 +5,4 @@ obj-y					+= apple/
 obj-y					+= bcm/
 obj-y					+= mediatek/
 obj-y					+= qcom/
+obj-y					+= renesas/
