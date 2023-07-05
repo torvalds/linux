@@ -454,8 +454,8 @@ static void pack_inode(struct ubifs_info *c, struct ubifs_ino_node *ino,
 	ino->creat_sqnum = cpu_to_le64(ui->creat_sqnum);
 	ino->atime_sec  = cpu_to_le64(inode->i_atime.tv_sec);
 	ino->atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
-	ino->ctime_sec  = cpu_to_le64(inode->i_ctime.tv_sec);
-	ino->ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+	ino->ctime_sec  = cpu_to_le64(inode_get_ctime(inode).tv_sec);
+	ino->ctime_nsec = cpu_to_le32(inode_get_ctime(inode).tv_nsec);
 	ino->mtime_sec  = cpu_to_le64(inode->i_mtime.tv_sec);
 	ino->mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
 	ino->uid   = cpu_to_le32(i_uid_read(inode));
