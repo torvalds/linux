@@ -69,12 +69,13 @@ static const struct mtd_ooblayout_ops tx25g01_ooblayout = {
 static int tx25g01_ecc_get_status(struct spinand_device *spinand,
 				  u8 status)
 {
-	u8 eccsr = (status & GENMASK(6, 4)) >> 2;
+	struct nand_device *nand = spinand_to_nand(spinand);
+	u8 eccsr = (status & GENMASK(6, 4)) >> 4;
 
-	if (eccsr <= 7)
+	if (eccsr < 4)
 		return eccsr;
-	else if (eccsr == 12)
-		return 8;
+	else if (eccsr == 4)
+		return nanddev_get_ecc_requirements(nand)->strength;
 	else
 		return -EBADMSG;
 }
