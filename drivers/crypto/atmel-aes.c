@@ -2566,11 +2566,9 @@ static int atmel_aes_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&aes_dd->queue, ATMEL_AES_QUEUE_LENGTH);
 
-	/* Get the base address */
-	aes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!aes_res) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
+	aes_dd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &aes_res);
+	if (IS_ERR(aes_dd->io_base)) {
+		err = PTR_ERR(aes_dd->io_base);
 		goto err_tasklet_kill;
 	}
 	aes_dd->phys_base = aes_res->start;
@@ -2594,13 +2592,6 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	if (IS_ERR(aes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(aes_dd->iclk);
-		goto err_tasklet_kill;
-	}
-
-	aes_dd->io_base = devm_ioremap_resource(&pdev->dev, aes_res);
-	if (IS_ERR(aes_dd->io_base)) {
-		dev_err(dev, "can't ioremap\n");
-		err = PTR_ERR(aes_dd->io_base);
 		goto err_tasklet_kill;
 	}
 
