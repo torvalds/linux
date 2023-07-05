@@ -943,10 +943,6 @@ static int omap_prm_probe(struct platform_device *pdev)
 	struct omap_prm *prm;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	data = of_device_get_match_data(&pdev->dev);
 	if (!data)
 		return -ENOTSUPP;
@@ -955,6 +951,10 @@ static int omap_prm_probe(struct platform_device *pdev)
 	if (!prm)
 		return -ENOMEM;
 
+	prm->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(prm->base))
+		return PTR_ERR(prm->base);
+
 	while (data->base != res->start) {
 		if (!data->base)
 			return -EINVAL;
@@ -962,10 +962,6 @@ static int omap_prm_probe(struct platform_device *pdev)
 	}
 
 	prm->data = data;
-
-	prm->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(prm->base))
-		return PTR_ERR(prm->base);
 
 	ret = omap_prm_domain_init(&pdev->dev, prm);
 	if (ret)
