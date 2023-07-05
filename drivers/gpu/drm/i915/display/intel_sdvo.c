@@ -2135,6 +2135,10 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	if (!INTEL_DISPLAY_ENABLED(i915))
 		return connector_status_disconnected;
 
+	if (!intel_sdvo_set_target_output(intel_sdvo,
+					  intel_sdvo_connector->output_flag))
+		return connector_status_unknown;
+
 	if (!intel_sdvo_get_value(intel_sdvo,
 				  SDVO_CMD_GET_ATTACHED_DISPLAYS,
 				  &response, 2))
