@@ -96,6 +96,7 @@ def define_blair():
         "drivers/pwm/pwm-qti-lpg.ko",
         "drivers/regulator/debug-regulator.ko",
         "drivers/regulator/proxy-consumer.ko",
+        "drivers/regulator/qcom_pm8008-regulator.ko",
         "drivers/regulator/qpnp-amoled-regulator.ko",
         "drivers/regulator/qpnp-lcdb-regulator.ko",
         "drivers/regulator/qti-fixed-regulator.ko",
