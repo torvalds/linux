@@ -30,13 +30,15 @@ static const char *const apss_cc_debug_mux_parent_names[] = {
 	"measure_only_apcs_gold_post_acd_clk",
 	"measure_only_apcs_goldplus_post_acd_clk",
 	"measure_only_apcs_l3_post_acd_clk",
+	"measure_only_apcs_cl1_silver_post_acd_clk",
 };
 
 static int apss_cc_debug_mux_sels[] = {
 	0x61,		/* measure_only_apcs_cl1_l3_post_acd_clk */
-	0x41,		/* measure_only_apcs_gold_post_acd_clk */
-	0x45,		/* measure_only_apcs_goldplus_post_acd_clk */
+	0x801,		/* measure_only_apcs_gold_post_acd_clk */
+	0x2001,		/* measure_only_apcs_goldplus_post_acd_clk */
 	0x25,		/* measure_only_apcs_l3_post_acd_clk */
+	0x805,		/* measure_only_apcs_cl1_silver_post_acd_clk */
 };
 
 static int apss_cc_debug_mux_pre_divs[] = {
@@ -44,6 +46,7 @@ static int apss_cc_debug_mux_pre_divs[] = {
 	0x8,		/* measure_only_apcs_gold_post_acd_clk */
 	0x8,		/* measure_only_apcs_goldplus_post_acd_clk */
 	0x4,		/* measure_only_apcs_l3_post_acd_clk */
+	0x8,		/* measure_only_apcs_cl1_silver_post_acd_clk */
 };
 
 static struct clk_debug_mux apss_cc_debug_mux = {
@@ -51,7 +54,7 @@ static struct clk_debug_mux apss_cc_debug_mux = {
 	.debug_offset = 0x18,
 	.post_div_offset = 0x18,
 	.cbcr_offset = 0x0,
-	.src_sel_mask = 0x7F0,
+	.src_sel_mask = 0x381f0,
 	.src_sel_shift = 4,
 	.post_div_mask = 0x7800,
 	.post_div_shift = 11,
@@ -745,6 +748,14 @@ static struct clk_dummy measure_only_apcs_l3_post_acd_clk = {
 	},
 };
 
+static struct clk_dummy measure_only_apcs_cl1_silver_post_acd_clk = {
+	.rrate = 1000,
+	.hw.init = &(const struct clk_init_data){
+		.name = "measure_only_apcs_cl1_silver_post_acd_clk",
+		.ops = &clk_dummy_ops,
+	},
+};
+
 static struct clk_dummy measure_only_cam_cc_gdsc_clk = {
 	.rrate = 1000,
 	.hw.init = &(const struct clk_init_data){
@@ -942,6 +953,7 @@ static struct clk_hw *debugcc_monaco_auto_hws[] = {
 	&measure_only_apcs_gold_post_acd_clk.hw,
 	&measure_only_apcs_goldplus_post_acd_clk.hw,
 	&measure_only_apcs_l3_post_acd_clk.hw,
+	&measure_only_apcs_cl1_silver_post_acd_clk.hw,
 	&measure_only_cam_cc_gdsc_clk.hw,
 	&measure_only_cnoc_clk.hw,
 	&measure_only_disp_cc_xo_clk.hw,
