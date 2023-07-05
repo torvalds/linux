@@ -3490,6 +3490,8 @@ static void gfx_v10_3_set_power_brake_sequence(struct amdgpu_device *adev);
 static void gfx_v10_0_ring_invalidate_tlbs(struct amdgpu_ring *ring,
 					   uint16_t pasid, uint32_t flush_type,
 					   bool all_hub, uint8_t dst_sel);
+static void gfx_v10_0_update_spm_vmid_internal(struct amdgpu_device *adev,
+					       unsigned int vmid);
 
 static void gfx10_kiq_set_resources(struct amdgpu_ring *kiq_ring, uint64_t queue_mask)
 {
@@ -4170,11 +4172,6 @@ static int gfx_v10_0_rlc_init(struct amdgpu_device *adev)
 		if (r)
 			return r;
 	}
-
-	/* init spm vmid with 0xf */
-	if (adev->gfx.rlc.funcs->update_spm_vmid)
-		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
-
 
 	return 0;
 }
@@ -5159,6 +5156,8 @@ static int gfx_v10_0_rlc_resume(struct amdgpu_device *adev)
 
 		gfx_v10_0_init_csb(adev);
 
+		gfx_v10_0_update_spm_vmid_internal(adev, 0xf);
+
 		if (!amdgpu_sriov_vf(adev)) /* enable RLC SRM */
 			gfx_v10_0_rlc_enable_srm(adev);
 	} else {
@@ -5189,6 +5188,8 @@ static int gfx_v10_0_rlc_resume(struct amdgpu_device *adev)
 
 		gfx_v10_0_init_csb(adev);
 
+		gfx_v10_0_update_spm_vmid_internal(adev, 0xf);
+
 		adev->gfx.rlc.funcs->start(adev);
 
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
@@ -5197,6 +5198,7 @@ static int gfx_v10_0_rlc_resume(struct amdgpu_device *adev)
 				return r;
 		}
 	}
+
 	return 0;
 }
 
@@ -7892,11 +7894,10 @@ static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void gfx_v10_0_update_spm_vmid(struct amdgpu_device *adev, unsigned int vmid)
+static void gfx_v10_0_update_spm_vmid_internal(struct amdgpu_device *adev,
+					       unsigned int vmid)
 {
 	u32 reg, data;
-
-	amdgpu_gfx_off_ctrl(adev, false);
 
 	/* not for *_SOC15 */
 	reg = SOC15_REG_OFFSET(GC, 0, mmRLC_SPM_MC_CNTL);
@@ -7912,6 +7913,13 @@ static void gfx_v10_0_update_spm_vmid(struct amdgpu_device *adev, unsigned int v
 		WREG32_SOC15_NO_KIQ(GC, 0, mmRLC_SPM_MC_CNTL, data);
 	else
 		WREG32_SOC15(GC, 0, mmRLC_SPM_MC_CNTL, data);
+}
+
+static void gfx_v10_0_update_spm_vmid(struct amdgpu_device *adev, unsigned int vmid)
+{
+	amdgpu_gfx_off_ctrl(adev, false);
+
+	gfx_v10_0_update_spm_vmid_internal(adev, vmid);
 
 	amdgpu_gfx_off_ctrl(adev, true);
 }
