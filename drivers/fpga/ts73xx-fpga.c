@@ -103,7 +103,6 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 	struct device *kdev = &pdev->dev;
 	struct ts73xx_fpga_priv *priv;
 	struct fpga_manager *mgr;
-	struct resource *res;
 
 	priv = devm_kzalloc(kdev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -111,8 +110,7 @@ static int ts73xx_fpga_probe(struct platform_device *pdev)
 
 	priv->dev = kdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->io_base = devm_ioremap_resource(kdev, res);
+	priv->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
 
