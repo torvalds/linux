@@ -6,6 +6,7 @@
 
 #include <linux/bcd.h>
 #include <linux/clk.h>
+#include <linux/errno.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
 #include <linux/mfd/syscon.h>
@@ -759,16 +760,13 @@ static int stm32_rtc_probe(struct platform_device *pdev)
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, NULL);
 	} else {
 		rtc->pclk = devm_clk_get(&pdev->dev, "pclk");
-		if (IS_ERR(rtc->pclk)) {
-			dev_err(&pdev->dev, "no pclk clock");
-			return PTR_ERR(rtc->pclk);
-		}
+		if (IS_ERR(rtc->pclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(rtc->pclk), "no pclk clock");
+
 		rtc->rtc_ck = devm_clk_get(&pdev->dev, "rtc_ck");
 	}
-	if (IS_ERR(rtc->rtc_ck)) {
-		dev_err(&pdev->dev, "no rtc_ck clock");
-		return PTR_ERR(rtc->rtc_ck);
-	}
+	if (IS_ERR(rtc->rtc_ck))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->rtc_ck), "no rtc_ck clock");
 
 	if (rtc->data->has_pclk) {
 		ret = clk_prepare_enable(rtc->pclk);
