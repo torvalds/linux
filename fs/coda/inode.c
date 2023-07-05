@@ -269,7 +269,7 @@ int coda_setattr(struct mnt_idmap *idmap, struct dentry *de,
 
 	memset(&vattr, 0, sizeof(vattr)); 
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	coda_iattr_to_vattr(iattr, &vattr);
 	vattr.va_type = C_VNON; /* cannot set type */
 
