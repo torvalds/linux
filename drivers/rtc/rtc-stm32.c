@@ -628,7 +628,7 @@ static int stm32_rtc_init(struct platform_device *pdev,
 	const struct stm32_rtc_registers *regs = &rtc->data->regs;
 	unsigned int prer, pred_a, pred_s, pred_a_max, pred_s_max, cr;
 	unsigned int rate;
-	int ret = 0;
+	int ret;
 
 	rate = clk_get_rate(rtc->rtc_ck);
 
@@ -656,6 +656,20 @@ static int stm32_rtc_init(struct platform_device *pdev,
 			 "fast" : "slow");
 	}
 
+	cr = readl_relaxed(rtc->base + regs->cr);
+
+	prer = readl_relaxed(rtc->base + regs->prer);
+	prer &= STM32_RTC_PRER_PRED_S | STM32_RTC_PRER_PRED_A;
+
+	pred_s = (pred_s << STM32_RTC_PRER_PRED_S_SHIFT) &
+		 STM32_RTC_PRER_PRED_S;
+	pred_a = (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) &
+		 STM32_RTC_PRER_PRED_A;
+
+	/* quit if there is nothing to initialize */
+	if ((cr & STM32_RTC_CR_FMT) == 0 && prer == (pred_s | pred_a))
+		return 0;
+
 	stm32_rtc_wpr_unlock(rtc);
 
 	ret = stm32_rtc_enter_init_mode(rtc);
@@ -665,13 +679,10 @@ static int stm32_rtc_init(struct platform_device *pdev,
 		goto end;
 	}
 
-	prer = (pred_s << STM32_RTC_PRER_PRED_S_SHIFT) & STM32_RTC_PRER_PRED_S;
-	writel_relaxed(prer, rtc->base + regs->prer);
-	prer |= (pred_a << STM32_RTC_PRER_PRED_A_SHIFT) & STM32_RTC_PRER_PRED_A;
-	writel_relaxed(prer, rtc->base + regs->prer);
+	writel_relaxed(pred_s, rtc->base + regs->prer);
+	writel_relaxed(pred_a | pred_s, rtc->base + regs->prer);
 
 	/* Force 24h time format */
-	cr = readl_relaxed(rtc->base + regs->cr);
 	cr &= ~STM32_RTC_CR_FMT;
 	writel_relaxed(cr, rtc->base + regs->cr);
 
