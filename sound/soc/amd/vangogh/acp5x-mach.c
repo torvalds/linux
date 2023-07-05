@@ -381,7 +381,7 @@ static int acp5x_probe(struct platform_device *pdev)
 
 static struct platform_driver acp5x_mach_driver = {
 	.driver = {
-		.name = "acp5x_mach",
+		.name = DRV_NAME,
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = acp5x_probe,
