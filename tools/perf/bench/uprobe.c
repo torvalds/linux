@@ -34,6 +34,29 @@ static const char * const bench_uprobe_usage[] = {
 	NULL
 };
 
+static int bench_uprobe_format__default_fprintf(const char *name, const char *unit, u64 diff, FILE *fp)
+{
+	static u64 baseline;
+	s64 diff_to_baseline = diff - baseline;
+	int printed = fprintf(fp, "# Executed %'d %s calls\n", loops, name);
+
+	printed += fprintf(fp, " %14s: %'" PRIu64 " %ss", "Total time", diff, unit);
+
+	if (baseline)
+		printed += fprintf(fp, " %s%'" PRId64 " to baseline", diff_to_baseline > 0 ? "+" : "", diff_to_baseline);
+
+	printed += fprintf(fp, "\n\n %'.3f %ss/op", (double)diff / (double)loops, unit);
+
+	if (baseline)
+		printed += fprintf(fp, " %'.3f %ss/op to baseline", (double)diff_to_baseline / (double)loops, unit);
+	else
+		baseline = diff;
+
+	fputc('\n', fp);
+
+	return printed + 1;
+}
+
 static int bench_uprobe(int argc, const char **argv)
 {
 	const char *name = "usleep(1000)", *unit = "usec";
@@ -56,9 +79,7 @@ static int bench_uprobe(int argc, const char **argv)
 
 	switch (bench_format) {
 	case BENCH_FORMAT_DEFAULT:
-		printf("# Executed %'d %s calls\n", loops, name);
-		printf(" %14s: %'" PRIu64 " %ss\n\n", "Total time", diff, unit);
-		printf(" %'.3f %ss/op\n", (double)diff / (double)loops, unit);
+		bench_uprobe_format__default_fprintf(name, unit, diff, stdout);
 		break;
 
 	case BENCH_FORMAT_SIMPLE:
