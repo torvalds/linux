@@ -925,6 +925,7 @@ static int truncate_node(struct dnode_of_data *dn)
 
 static int truncate_dnode(struct dnode_of_data *dn)
 {
+	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct page *page;
 	int err;
 
@@ -932,19 +933,30 @@ static int truncate_dnode(struct dnode_of_data *dn)
 		return 1;
 
 	/* get direct node */
-	page = f2fs_get_node_page(F2FS_I_SB(dn->inode), dn->nid);
+	page = f2fs_get_node_page(sbi, dn->nid);
 	if (PTR_ERR(page) == -ENOENT)
 		return 1;
 	else if (IS_ERR(page))
 		return PTR_ERR(page);
 
+	if (IS_INODE(page) || ino_of_node(page) != dn->inode->i_ino) {
+		f2fs_err(sbi, "incorrect node reference, ino: %lu, nid: %u, ino_of_node: %u",
+				dn->inode->i_ino, dn->nid, ino_of_node(page));
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_handle_error(sbi, ERROR_INVALID_NODE_REFERENCE);
+		f2fs_put_page(page, 1);
+		return -EFSCORRUPTED;
+	}
+
 	/* Make dnode_of_data for parameter */
 	dn->node_page = page;
 	dn->ofs_in_node = 0;
-	f2fs_truncate_data_blocks(dn);
+	f2fs_truncate_data_blocks_range(dn, ADDRS_PER_BLOCK(dn->inode));
 	err = truncate_node(dn);
-	if (err)
+	if (err) {
+		f2fs_put_page(page, 1);
 		return err;
+	}
 
 	return 1;
 }
@@ -1596,6 +1608,9 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	trace_f2fs_writepage(page, NODE);
 
 	if (unlikely(f2fs_cp_error(sbi))) {
+		/* keep node pages in remount-ro mode */
+		if (F2FS_OPTION(sbi).errors == MOUNT_ERRORS_READONLY)
+			goto redirty_out;
 		ClearPageUptodate(page);
 		dec_page_count(sbi, F2FS_DIRTY_NODES);
 		unlock_page(page);
@@ -2063,7 +2078,6 @@ int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
 	struct list_head *head = &sbi->fsync_node_list;
 	unsigned long flags;
 	unsigned int cur_seq_id = 0;
-	int ret2, ret = 0;
 
 	while (seq_id && cur_seq_id < seq_id) {
 		spin_lock_irqsave(&sbi->fsync_node_lock, flags);
@@ -2084,16 +2098,9 @@ int f2fs_wait_on_node_pages_writeback(struct f2fs_sb_info *sbi,
 		f2fs_wait_on_page_writeback(page, NODE, true, false);
 
 		put_page(page);
-
-		if (ret)
-			break;
 	}
 
-	ret2 = filemap_check_errors(NODE_MAPPING(sbi));
-	if (!ret)
-		ret = ret2;
-
-	return ret;
+	return filemap_check_errors(NODE_MAPPING(sbi));
 }
 
 static int f2fs_write_node_pages(struct address_space *mapping,
@@ -3065,7 +3072,7 @@ int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_journal *journal = curseg->journal;
-	struct nat_entry_set *setvec[SETVEC_SIZE];
+	struct nat_entry_set *setvec[NAT_VEC_SIZE];
 	struct nat_entry_set *set, *tmp;
 	unsigned int found;
 	nid_t set_idx = 0;
@@ -3098,7 +3105,7 @@ int f2fs_flush_nat_entries(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		remove_nats_in_journal(sbi);
 
 	while ((found = __gang_lookup_nat_set(nm_i,
-					set_idx, SETVEC_SIZE, setvec))) {
+					set_idx, NAT_VEC_SIZE, setvec))) {
 		unsigned idx;
 
 		set_idx = setvec[found - 1]->set + 1;
@@ -3319,8 +3326,9 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct free_nid *i, *next_i;
-	struct nat_entry *natvec[NATVEC_SIZE];
-	struct nat_entry_set *setvec[SETVEC_SIZE];
+	void *vec[NAT_VEC_SIZE];
+	struct nat_entry **natvec = (struct nat_entry **)vec;
+	struct nat_entry_set **setvec = (struct nat_entry_set **)vec;
 	nid_t nid = 0;
 	unsigned int found;
 
@@ -3343,7 +3351,7 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 	/* destroy nat cache */
 	f2fs_down_write(&nm_i->nat_tree_lock);
 	while ((found = __gang_lookup_nat_cache(nm_i,
-					nid, NATVEC_SIZE, natvec))) {
+					nid, NAT_VEC_SIZE, natvec))) {
 		unsigned idx;
 
 		nid = nat_get_nid(natvec[found - 1]) + 1;
@@ -3359,8 +3367,9 @@ void f2fs_destroy_node_manager(struct f2fs_sb_info *sbi)
 
 	/* destroy nat set cache */
 	nid = 0;
+	memset(vec, 0, sizeof(void *) * NAT_VEC_SIZE);
 	while ((found = __gang_lookup_nat_set(nm_i,
-					nid, SETVEC_SIZE, setvec))) {
+					nid, NAT_VEC_SIZE, setvec))) {
 		unsigned idx;
 
 		nid = setvec[found - 1]->set + 1;
