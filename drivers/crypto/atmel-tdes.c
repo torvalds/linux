@@ -1172,11 +1172,9 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&tdes_dd->queue, ATMEL_TDES_QUEUE_LENGTH);
 
-	/* Get the base address */
-	tdes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!tdes_res) {
-		dev_err(dev, "no MEM resource info\n");
-		err = -ENODEV;
+	tdes_dd->io_base = devm_platform_get_and_ioremap_resource(pdev, 0, &tdes_res);
+	if (IS_ERR(tdes_dd->io_base)) {
+		err = PTR_ERR(tdes_dd->io_base);
 		goto err_tasklet_kill;
 	}
 	tdes_dd->phys_base = tdes_res->start;
@@ -1200,12 +1198,6 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	if (IS_ERR(tdes_dd->iclk)) {
 		dev_err(dev, "clock initialization failed.\n");
 		err = PTR_ERR(tdes_dd->iclk);
-		goto err_tasklet_kill;
-	}
-
-	tdes_dd->io_base = devm_ioremap_resource(&pdev->dev, tdes_res);
-	if (IS_ERR(tdes_dd->io_base)) {
-		err = PTR_ERR(tdes_dd->io_base);
 		goto err_tasklet_kill;
 	}
 
