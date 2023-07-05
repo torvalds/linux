@@ -10,7 +10,6 @@
 D=tools/testing/selftests/rcutorture
 
 # Prerequisite checks
-[ -z "$D" ] && echo >&2 "No argument supplied" && exit 1
 if [ ! -d "$D" ]; then
     echo >&2 "$D does not exist: Malformed kernel source tree?"
     exit 1
