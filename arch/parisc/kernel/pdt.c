@@ -16,6 +16,7 @@
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
+#include <linux/proc_fs.h>
 #include <linux/initrd.h>
 #include <linux/pgtable.h>
 #include <linux/mm.h>
