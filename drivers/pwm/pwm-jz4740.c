@@ -27,6 +27,7 @@ struct soc_info {
 struct jz4740_pwm_chip {
 	struct pwm_chip chip;
 	struct regmap *map;
+	struct clk *clk[];
 };
 
 static inline struct jz4740_pwm_chip *to_jz4740(struct pwm_chip *chip)
@@ -70,14 +71,15 @@ static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return err;
 	}
 
-	pwm_set_chip_data(pwm, clk);
+	jz->clk[pwm->hwpwm] = clk;
 
 	return 0;
 }
 
 static void jz4740_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct clk *clk = pwm_get_chip_data(pwm);
+	struct jz4740_pwm_chip *jz = to_jz4740(chip);
+	struct clk *clk = jz->clk[pwm->hwpwm];
 
 	clk_disable_unprepare(clk);
 	clk_put(clk);
@@ -123,7 +125,7 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct jz4740_pwm_chip *jz = to_jz4740(pwm->chip);
 	unsigned long long tmp = 0xffffull * NSEC_PER_SEC;
-	struct clk *clk = pwm_get_chip_data(pwm);
+	struct clk *clk = jz->clk[pwm->hwpwm];
 	unsigned long period, duty;
 	long rate;
 	int err;
@@ -228,7 +230,8 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	if (!info)
 		return -EINVAL;
 
-	jz = devm_kzalloc(dev, sizeof(*jz), GFP_KERNEL);
+	jz = devm_kzalloc(dev, struct_size(jz, clk, info->num_pwms),
+			      GFP_KERNEL);
 	if (!jz)
 		return -ENOMEM;
 
