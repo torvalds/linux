@@ -22,12 +22,14 @@
  * @ec: Pointer to EC device
  * @chip: PWM controller chip
  * @use_pwm_type: Use PWM types instead of generic channels
+ * @channel: array with per-channel data
  */
 struct cros_ec_pwm_device {
 	struct device *dev;
 	struct cros_ec_device *ec;
 	struct pwm_chip chip;
 	bool use_pwm_type;
+	struct cros_ec_pwm *channel;
 };
 
 /**
@@ -41,26 +43,6 @@ struct cros_ec_pwm {
 static inline struct cros_ec_pwm_device *pwm_to_cros_ec_pwm(struct pwm_chip *chip)
 {
 	return container_of(chip, struct cros_ec_pwm_device, chip);
-}
-
-static int cros_ec_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct cros_ec_pwm *channel;
-
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
-	if (!channel)
-		return -ENOMEM;
-
-	pwm_set_chip_data(pwm, channel);
-
-	return 0;
-}
-
-static void cros_ec_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
-{
-	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
-
-	kfree(channel);
 }
 
 static int cros_ec_dt_type_to_pwm_type(u8 dt_index, u8 *pwm_type)
@@ -158,7 +140,7 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			     const struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
-	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
+	struct cros_ec_pwm *channel = &ec_pwm->channel[pwm->hwpwm];
 	u16 duty_cycle;
 	int ret;
 
@@ -188,7 +170,7 @@ static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				 struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
-	struct cros_ec_pwm *channel = pwm_get_chip_data(pwm);
+	struct cros_ec_pwm *channel = &ec_pwm->channel[pwm->hwpwm];
 	int ret;
 
 	ret = cros_ec_pwm_get_duty(ec_pwm, pwm->hwpwm);
@@ -237,8 +219,6 @@ cros_ec_pwm_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 }
 
 static const struct pwm_ops cros_ec_pwm_ops = {
-	.request = cros_ec_pwm_request,
-	.free = cros_ec_pwm_free,
 	.get_state	= cros_ec_pwm_get_state,
 	.apply		= cros_ec_pwm_apply,
 };
@@ -315,6 +295,11 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 		}
 		chip->npwm = ret;
 	}
+
+	ec_pwm->channel = devm_kcalloc(dev, chip->npwm, sizeof(*ec_pwm->channel),
+					GFP_KERNEL);
+	if (!ec_pwm->channel)
+		return -ENOMEM;
 
 	dev_dbg(dev, "Probed %u PWMs\n", chip->npwm);
 
