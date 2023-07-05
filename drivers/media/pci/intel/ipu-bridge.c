@@ -97,17 +97,18 @@ out_free_buff:
 	return ret;
 }
 
-static u32 ipu_bridge_parse_rotation(struct ipu_sensor *sensor)
+static u32 ipu_bridge_parse_rotation(struct acpi_device *adev,
+				     struct ipu_sensor_ssdb *ssdb)
 {
-	switch (sensor->ssdb.degree) {
+	switch (ssdb->degree) {
 	case IPU_SENSOR_ROTATION_NORMAL:
 		return 0;
 	case IPU_SENSOR_ROTATION_INVERTED:
 		return 180;
 	default:
-		dev_warn(&sensor->adev->dev,
+		dev_warn(&adev->dev,
 			 "Unknown rotation %d. Assume 0 degree rotation\n",
-			 sensor->ssdb.degree);
+			 ssdb->degree);
 		return 0;
 	}
 }
@@ -147,17 +148,43 @@ static enum v4l2_fwnode_orientation ipu_bridge_parse_orientation(struct acpi_dev
 	return orientation;
 }
 
+static int ipu_bridge_parse_ssdb(struct acpi_device *adev,
+				 struct ipu_sensor *sensor)
+{
+	struct ipu_sensor_ssdb ssdb = {};
+	int ret;
+
+	ret = ipu_bridge_read_acpi_buffer(adev, "SSDB", &ssdb, sizeof(ssdb));
+	if (ret)
+		return ret;
+
+	if (ssdb.vcmtype > ARRAY_SIZE(ipu_vcm_types)) {
+		dev_warn(&adev->dev, "Unknown VCM type %d\n", ssdb.vcmtype);
+		ssdb.vcmtype = 0;
+	}
+
+	if (ssdb.lanes > IPU_MAX_LANES) {
+		dev_err(&adev->dev, "Number of lanes in SSDB is invalid\n");
+		return -EINVAL;
+	}
+
+	sensor->link = ssdb.link;
+	sensor->lanes = ssdb.lanes;
+	sensor->mclkspeed = ssdb.mclkspeed;
+	sensor->rotation = ipu_bridge_parse_rotation(adev, &ssdb);
+	sensor->orientation = ipu_bridge_parse_orientation(adev);
+
+	if (ssdb.vcmtype)
+		sensor->vcm_type = ipu_vcm_types[ssdb.vcmtype - 1];
+
+	return 0;
+}
+
 static void ipu_bridge_create_fwnode_properties(
 	struct ipu_sensor *sensor,
 	struct ipu_bridge *bridge,
 	const struct ipu_sensor_config *cfg)
 {
-	u32 rotation;
-	enum v4l2_fwnode_orientation orientation;
-
-	rotation = ipu_bridge_parse_rotation(sensor);
-	orientation = ipu_bridge_parse_orientation(sensor->adev);
-
 	sensor->prop_names = prop_names;
 
 	sensor->local_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_IPU_ENDPOINT]);
@@ -165,14 +192,14 @@ static void ipu_bridge_create_fwnode_properties(
 
 	sensor->dev_properties[0] = PROPERTY_ENTRY_U32(
 					sensor->prop_names.clock_frequency,
-					sensor->ssdb.mclkspeed);
+					sensor->mclkspeed);
 	sensor->dev_properties[1] = PROPERTY_ENTRY_U32(
 					sensor->prop_names.rotation,
-					rotation);
+					sensor->rotation);
 	sensor->dev_properties[2] = PROPERTY_ENTRY_U32(
 					sensor->prop_names.orientation,
-					orientation);
-	if (sensor->ssdb.vcmtype) {
+					sensor->orientation);
+	if (sensor->vcm_type) {
 		sensor->vcm_ref[0] =
 			SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_VCM]);
 		sensor->dev_properties[3] =
@@ -184,8 +211,7 @@ static void ipu_bridge_create_fwnode_properties(
 					V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
 	sensor->ep_properties[1] = PROPERTY_ENTRY_U32_ARRAY_LEN(
 					sensor->prop_names.data_lanes,
-					bridge->data_lanes,
-					sensor->ssdb.lanes);
+					bridge->data_lanes, sensor->lanes);
 	sensor->ep_properties[2] = PROPERTY_ENTRY_REF_ARRAY(
 					sensor->prop_names.remote_endpoint,
 					sensor->local_ref);
@@ -198,8 +224,7 @@ static void ipu_bridge_create_fwnode_properties(
 
 	sensor->ipu_properties[0] = PROPERTY_ENTRY_U32_ARRAY_LEN(
 					sensor->prop_names.data_lanes,
-					bridge->data_lanes,
-					sensor->ssdb.lanes);
+					bridge->data_lanes, sensor->lanes);
 	sensor->ipu_properties[1] = PROPERTY_ENTRY_REF_ARRAY(
 					sensor->prop_names.remote_endpoint,
 					sensor->remote_ref);
@@ -209,18 +234,17 @@ static void ipu_bridge_init_swnode_names(struct ipu_sensor *sensor)
 {
 	snprintf(sensor->node_names.remote_port,
 		 sizeof(sensor->node_names.remote_port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, sensor->ssdb.link);
+		 SWNODE_GRAPH_PORT_NAME_FMT, sensor->link);
 	snprintf(sensor->node_names.port,
 		 sizeof(sensor->node_names.port),
 		 SWNODE_GRAPH_PORT_NAME_FMT, 0); /* Always port 0 */
 	snprintf(sensor->node_names.endpoint,
 		 sizeof(sensor->node_names.endpoint),
 		 SWNODE_GRAPH_ENDPOINT_NAME_FMT, 0); /* And endpoint 0 */
-	if (sensor->ssdb.vcmtype) {
-		/* append ssdb.link to distinguish nodes with same model VCM */
+	if (sensor->vcm_type) {
+		/* append link to distinguish nodes with same model VCM */
 		snprintf(sensor->node_names.vcm, sizeof(sensor->node_names.vcm),
-			 "%s-%u", ipu_vcm_types[sensor->ssdb.vcmtype - 1],
-			 sensor->ssdb.link);
+			 "%s-%u", sensor->vcm_type, sensor->link);
 	}
 }
 
@@ -233,7 +257,7 @@ static void ipu_bridge_init_swnode_group(struct ipu_sensor *sensor)
 	sensor->group[SWNODE_SENSOR_ENDPOINT] = &nodes[SWNODE_SENSOR_ENDPOINT];
 	sensor->group[SWNODE_IPU_PORT] = &nodes[SWNODE_IPU_PORT];
 	sensor->group[SWNODE_IPU_ENDPOINT] = &nodes[SWNODE_IPU_ENDPOINT];
-	if (sensor->ssdb.vcmtype)
+	if (sensor->vcm_type)
 		sensor->group[SWNODE_VCM] =  &nodes[SWNODE_VCM];
 }
 
@@ -268,13 +292,12 @@ static void ipu_bridge_instantiate_vcm_i2c_client(struct ipu_sensor *sensor)
 	struct i2c_board_info board_info = { };
 	char name[16];
 
-	if (!sensor->ssdb.vcmtype)
+	if (!sensor->vcm_type)
 		return;
 
 	snprintf(name, sizeof(name), "%s-VCM", acpi_dev_name(sensor->adev));
 	board_info.dev_name = name;
-	strscpy(board_info.type, ipu_vcm_types[sensor->ssdb.vcmtype - 1],
-		ARRAY_SIZE(board_info.type));
+	strscpy(board_info.type, sensor->vcm_type, ARRAY_SIZE(board_info.type));
 	board_info.swnode = &sensor->swnodes[SWNODE_VCM];
 
 	sensor->vcm_i2c_client =
@@ -325,27 +348,12 @@ static int ipu_bridge_connect_sensor(const struct ipu_sensor_config *cfg,
 		 */
 		sensor->adev = adev;
 
-		ret = ipu_bridge_read_acpi_buffer(adev, "SSDB",
-						  &sensor->ssdb,
-						  sizeof(sensor->ssdb));
+		ret = ipu_bridge_parse_ssdb(adev, sensor);
 		if (ret)
 			goto err_put_adev;
 
 		snprintf(sensor->name, sizeof(sensor->name), "%s-%u",
-			 cfg->hid, sensor->ssdb.link);
-
-		if (sensor->ssdb.vcmtype > ARRAY_SIZE(ipu_vcm_types)) {
-			dev_warn(&adev->dev, "Unknown VCM type %d\n",
-				 sensor->ssdb.vcmtype);
-			sensor->ssdb.vcmtype = 0;
-		}
-
-		if (sensor->ssdb.lanes > IPU_MAX_LANES) {
-			dev_err(&adev->dev,
-				"Number of lanes in SSDB is invalid\n");
-			ret = -EINVAL;
-			goto err_put_adev;
-		}
+			 cfg->hid, sensor->link);
 
 		ipu_bridge_create_fwnode_properties(sensor, bridge, cfg);
 		ipu_bridge_create_connection_swnodes(bridge, sensor);

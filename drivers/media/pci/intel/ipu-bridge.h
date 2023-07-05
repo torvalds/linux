@@ -5,6 +5,7 @@
 
 #include <linux/property.h>
 #include <linux/types.h>
+#include <media/v4l2-fwnode.h>
 
 struct i2c_client;
 
@@ -123,7 +124,12 @@ struct ipu_sensor {
 	struct software_node swnodes[SWNODE_COUNT];
 	struct ipu_node_names node_names;
 
-	struct ipu_sensor_ssdb ssdb;
+	u8 link;
+	u8 lanes;
+	u32 mclkspeed;
+	u32 rotation;
+	enum v4l2_fwnode_orientation orientation;
+	const char *vcm_type;
 
 	struct ipu_property_names prop_names;
 	struct property_entry ep_properties[5];
