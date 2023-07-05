@@ -1312,8 +1312,8 @@ static int exfat_rename(struct mnt_idmap *idmap,
 		goto unlock;
 
 	inode_inc_iversion(new_dir);
-	new_dir->i_ctime = new_dir->i_mtime = new_dir->i_atime =
-		EXFAT_I(new_dir)->i_crtime = current_time(new_dir);
+	simple_rename_timestamp(old_dir, old_dentry, new_dir, new_dentry);
+	EXFAT_I(new_dir)->i_crtime = current_time(new_dir);
 	exfat_truncate_atime(&new_dir->i_atime);
 	if (IS_DIRSYNC(new_dir))
 		exfat_sync_inode(new_dir);
@@ -1336,7 +1336,6 @@ static int exfat_rename(struct mnt_idmap *idmap,
 	}
 
 	inode_inc_iversion(old_dir);
-	old_dir->i_ctime = old_dir->i_mtime = current_time(old_dir);
 	if (IS_DIRSYNC(old_dir))
 		exfat_sync_inode(old_dir);
 	else
