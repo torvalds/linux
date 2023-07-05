@@ -36,23 +36,34 @@ static const char * const bench_uprobe_usage[] = {
 
 static int bench_uprobe_format__default_fprintf(const char *name, const char *unit, u64 diff, FILE *fp)
 {
-	static u64 baseline;
-	s64 diff_to_baseline = diff - baseline;
+	static u64 baseline, previous;
+	s64 diff_to_baseline = diff - baseline,
+	    diff_to_previous = diff - previous;
 	int printed = fprintf(fp, "# Executed %'d %s calls\n", loops, name);
 
 	printed += fprintf(fp, " %14s: %'" PRIu64 " %ss", "Total time", diff, unit);
 
-	if (baseline)
+	if (baseline) {
 		printed += fprintf(fp, " %s%'" PRId64 " to baseline", diff_to_baseline > 0 ? "+" : "", diff_to_baseline);
+
+		if (previous != baseline)
+			fprintf(stdout, " %s%'" PRId64 " to previous", diff_to_previous > 0 ? "+" : "", diff_to_previous);
+	}
 
 	printed += fprintf(fp, "\n\n %'.3f %ss/op", (double)diff / (double)loops, unit);
 
-	if (baseline)
+	if (baseline) {
 		printed += fprintf(fp, " %'.3f %ss/op to baseline", (double)diff_to_baseline / (double)loops, unit);
-	else
+
+		if (previous != baseline)
+			printed += fprintf(fp, " %'.3f %ss/op to previous", (double)diff_to_previous / (double)loops, unit);
+	} else {
 		baseline = diff;
+	}
 
 	fputc('\n', fp);
+
+	previous = diff;
 
 	return printed + 1;
 }
