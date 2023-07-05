@@ -14,30 +14,13 @@
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/property.h>
+
+#include <media/ipu-bridge.h>
 #include <media/v4l2-fwnode.h>
 
 #include "atomisp_cmd.h"
 #include "atomisp_csi2.h"
 #include "atomisp_internal.h"
-
-#define NODE_SENSOR(_HID, _PROPS)		\
-	((const struct software_node) {		\
-		.name = _HID,			\
-		.properties = _PROPS,		\
-	})
-
-#define NODE_PORT(_PORT, _SENSOR_NODE)		\
-	((const struct software_node) {		\
-		.name = _PORT,			\
-		.parent = _SENSOR_NODE,		\
-	})
-
-#define NODE_ENDPOINT(_EP, _PORT, _PROPS)	\
-	((const struct software_node) {		\
-		.name = _EP,			\
-		.parent = _PORT,		\
-		.properties = _PROPS,		\
-	})
 
 #define PMC_CLK_RATE_19_2MHZ			19200000
 
@@ -83,20 +66,17 @@ static const guid_t atomisp_dsm_guid =
 	GUID_INIT(0xdc2f6c4f, 0x045b, 0x4f1d,
 		  0x97, 0xb9, 0x88, 0x2a, 0x68, 0x60, 0xa4, 0xbe);
 
-/*
- * Extend this array with ACPI Hardware IDs of sensors known to be working
- * plus the default number of links + link-frequencies.
- *
- * Do not add an entry for a sensor that is not actually supported,
- * or which have not yet been converted to work without atomisp_gmin
- * power-management and with v4l2-async probing.
- */
-static const struct atomisp_csi2_sensor_config supported_sensors[] = {
-	/* GalaxyCore GC0310 */
-	{ "INT0310", 1 },
-	/* Omnivision OV2680 */
-	{ "OVTI2680", 1 },
+struct atomisp_sensor_config {
+	int lanes;
 };
+
+#define ATOMISP_SENSOR_CONFIG(_HID, _LANES)				\
+{									\
+	.id = _HID,							\
+	.driver_data = (long)&((const struct atomisp_sensor_config) {	\
+		.lanes = _LANES,					\
+	})								\
+}
 
 /*
  * gmin_cfg parsing code. This is a cleaned up version of the gmin_cfg parsing
@@ -400,8 +380,7 @@ static int atomisp_csi2_handle_acpi_gpio_res(struct acpi_resource *ares, void *_
  * the INT3472 discrete.c code and there is some overlap, but there are
  * enough differences that it is difficult to share the code.
  */
-static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
-					  struct acpi_device *adev)
+static int atomisp_csi2_add_gpio_mappings(struct acpi_device *adev)
 {
 	struct atomisp_csi2_acpi_gpio_parsing_data data = { };
 	LIST_HEAD(resource_list);
@@ -469,9 +448,12 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 		}
 	}
 
+	data.map = kzalloc(sizeof(*data.map), GFP_KERNEL);
+	if (!data.map)
+		return -ENOMEM;
+
 	/* Now parse the ACPI resources and build the lookup table */
 	data.adev = adev;
-	data.map = &sensor->gpio_map;
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     atomisp_csi2_handle_acpi_gpio_res, &data);
 	if (ret < 0)
@@ -491,220 +473,68 @@ static int atomisp_csi2_add_gpio_mappings(struct atomisp_csi2_sensor *sensor,
 	return ret;
 }
 
-static const struct atomisp_csi2_property_names prop_names = {
-	.clock_frequency = "clock-frequency",
-	.rotation = "rotation",
-	.bus_type = "bus-type",
-	.data_lanes = "data-lanes",
-	.remote_endpoint = "remote-endpoint",
-	.link_frequencies = "link-frequencies",
+static const struct acpi_device_id atomisp_sensor_configs[] = {
+	ATOMISP_SENSOR_CONFIG("INT33BE", 2),	/* OV5693 */
+	{}
 };
 
-static void atomisp_csi2_create_fwnode_properties(struct atomisp_csi2_sensor *sensor,
-						  struct atomisp_csi2_bridge *bridge,
-						  const struct atomisp_csi2_sensor_config *cfg)
+static int atomisp_csi2_parse_sensor_fwnode(struct acpi_device *adev,
+					    struct ipu_sensor *sensor)
 {
-	sensor->prop_names = prop_names;
-
-	sensor->local_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_CSI2_ENDPOINT]);
-	sensor->remote_ref[0] = SOFTWARE_NODE_REFERENCE(&sensor->swnodes[SWNODE_SENSOR_ENDPOINT]);
-
-	sensor->dev_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.clock_frequency,
-						       PMC_CLK_RATE_19_2MHZ);
-	sensor->dev_properties[1] = PROPERTY_ENTRY_U32(sensor->prop_names.rotation, 0);
-
-	sensor->ep_properties[0] = PROPERTY_ENTRY_U32(sensor->prop_names.bus_type,
-						      V4L2_FWNODE_BUS_TYPE_CSI2_DPHY);
-	sensor->ep_properties[1] = PROPERTY_ENTRY_U32_ARRAY_LEN(sensor->prop_names.data_lanes,
-								bridge->data_lanes,
-								sensor->lanes);
-	sensor->ep_properties[2] = PROPERTY_ENTRY_REF_ARRAY(sensor->prop_names.remote_endpoint,
-							    sensor->local_ref);
-	if (cfg->nr_link_freqs > 0)
-		sensor->ep_properties[3] =
-			PROPERTY_ENTRY_U64_ARRAY_LEN(sensor->prop_names.link_frequencies,
-						     cfg->link_freqs, cfg->nr_link_freqs);
-
-	sensor->csi2_properties[0] = PROPERTY_ENTRY_U32_ARRAY_LEN(sensor->prop_names.data_lanes,
-								  bridge->data_lanes,
-								  sensor->lanes);
-	sensor->csi2_properties[1] = PROPERTY_ENTRY_REF_ARRAY(sensor->prop_names.remote_endpoint,
-							      sensor->remote_ref);
-}
-
-static void atomisp_csi2_init_swnode_names(struct atomisp_csi2_sensor *sensor)
-{
-	snprintf(sensor->node_names.remote_port,
-		 sizeof(sensor->node_names.remote_port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, sensor->port);
-	snprintf(sensor->node_names.port,
-		 sizeof(sensor->node_names.port),
-		 SWNODE_GRAPH_PORT_NAME_FMT, 0); /* Always port 0 */
-	snprintf(sensor->node_names.endpoint,
-		 sizeof(sensor->node_names.endpoint),
-		 SWNODE_GRAPH_ENDPOINT_NAME_FMT, 0); /* And endpoint 0 */
-}
-
-static void atomisp_csi2_init_swnode_group(struct atomisp_csi2_sensor *sensor)
-{
-	struct software_node *nodes = sensor->swnodes;
-
-	sensor->group[SWNODE_SENSOR] = &nodes[SWNODE_SENSOR];
-	sensor->group[SWNODE_SENSOR_PORT] = &nodes[SWNODE_SENSOR_PORT];
-	sensor->group[SWNODE_SENSOR_ENDPOINT] = &nodes[SWNODE_SENSOR_ENDPOINT];
-	sensor->group[SWNODE_CSI2_PORT] = &nodes[SWNODE_CSI2_PORT];
-	sensor->group[SWNODE_CSI2_ENDPOINT] = &nodes[SWNODE_CSI2_ENDPOINT];
-}
-
-static void atomisp_csi2_create_connection_swnodes(struct atomisp_csi2_bridge *bridge,
-						   struct atomisp_csi2_sensor *sensor)
-{
-	struct software_node *nodes = sensor->swnodes;
-
-	atomisp_csi2_init_swnode_names(sensor);
-
-	nodes[SWNODE_SENSOR] = NODE_SENSOR(sensor->name,
-					   sensor->dev_properties);
-	nodes[SWNODE_SENSOR_PORT] = NODE_PORT(sensor->node_names.port,
-					      &nodes[SWNODE_SENSOR]);
-	nodes[SWNODE_SENSOR_ENDPOINT] = NODE_ENDPOINT(sensor->node_names.endpoint,
-						      &nodes[SWNODE_SENSOR_PORT],
-						      sensor->ep_properties);
-	nodes[SWNODE_CSI2_PORT] = NODE_PORT(sensor->node_names.remote_port,
-					    &bridge->csi2_node);
-	nodes[SWNODE_CSI2_ENDPOINT] = NODE_ENDPOINT(sensor->node_names.endpoint,
-						    &nodes[SWNODE_CSI2_PORT],
-						    sensor->csi2_properties);
-
-	atomisp_csi2_init_swnode_group(sensor);
-}
-
-static void atomisp_csi2_unregister_sensors(struct atomisp_csi2_bridge *bridge)
-{
-	struct atomisp_csi2_sensor *sensor;
-	unsigned int i;
-
-	for (i = 0; i < bridge->n_sensors; i++) {
-		sensor = &bridge->sensors[i];
-		software_node_unregister_node_group(sensor->group);
-		acpi_dev_remove_driver_gpios(sensor->adev);
-		acpi_dev_put(sensor->adev);
-	}
-}
-
-static int atomisp_csi2_connect_sensor(const struct atomisp_csi2_sensor_config *cfg,
-				       struct atomisp_csi2_bridge *bridge,
-				       struct atomisp_device *isp)
-{
-	struct fwnode_handle *fwnode, *primary;
-	struct atomisp_csi2_sensor *sensor;
-	struct acpi_device *adev;
+	const struct acpi_device_id *id;
 	int ret, clock_num;
+	int lanes = 1;
 
-	for_each_acpi_dev_match(adev, cfg->hid, NULL, -1) {
-		if (!adev->status.enabled)
-			continue;
+	id = acpi_match_acpi_device(atomisp_sensor_configs, adev);
+	if (id) {
+		struct atomisp_sensor_config *cfg =
+			(struct atomisp_sensor_config *)id->driver_data;
 
-		if (bridge->n_sensors >= ATOMISP_CAMERA_NR_PORTS) {
-			dev_err(isp->dev, "Exceeded available CSI2 ports\n");
-			ret = -EOVERFLOW;
-			goto err_put_adev;
-		}
-
-		sensor = &bridge->sensors[bridge->n_sensors];
-
-		/*
-		 * ACPI takes care of turning the PMC clock on and off, but on BYT
-		 * the clock defaults to 25 MHz instead of the expected 19.2 MHz.
-		 * Get the PMC-clock number from ACPI _PR0 method and set it to 19.2 MHz.
-		 * The PMC-clock number is also used to determine the default CSI port.
-		 */
-		clock_num = atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(adev);
-
-		ret = atomisp_csi2_set_pmc_clk_freq(adev, clock_num);
-		if (ret)
-			goto err_put_adev;
-
-		sensor->port = atomisp_csi2_get_port(adev, clock_num);
-		if (sensor->port >= ATOMISP_CAMERA_NR_PORTS) {
-			acpi_handle_err(adev->handle, "Invalid port: %d\n", sensor->port);
-			ret = -EINVAL;
-			goto err_put_adev;
-		}
-
-		sensor->lanes = gmin_cfg_get_int(adev, "CsiLanes", cfg->lanes);
-		if (sensor->lanes > CSI2_MAX_LANES) {
-			acpi_handle_err(adev->handle, "Invalid number of lanes: %d\n", sensor->lanes);
-			ret = -EINVAL;
-			goto err_put_adev;
-		}
-
-		ret = atomisp_csi2_add_gpio_mappings(sensor, adev);
-		if (ret)
-			goto err_put_adev;
-
-		snprintf(sensor->name, sizeof(sensor->name), "%s-%u",
-			 cfg->hid, sensor->port);
-
-		atomisp_csi2_create_fwnode_properties(sensor, bridge, cfg);
-		atomisp_csi2_create_connection_swnodes(bridge, sensor);
-
-		ret = software_node_register_node_group(sensor->group);
-		if (ret)
-			goto err_remove_mappings;
-
-		fwnode = software_node_fwnode(&sensor->swnodes[SWNODE_SENSOR]);
-		if (!fwnode) {
-			ret = -ENODEV;
-			goto err_free_swnodes;
-		}
-
-		sensor->adev = acpi_dev_get(adev);
-
-		primary = acpi_fwnode_handle(adev);
-		primary->secondary = fwnode;
-
-		bridge->n_sensors++;
+		lanes = cfg->lanes;
 	}
 
-	return 0;
+	/*
+	 * ACPI takes care of turning the PMC clock on and off, but on BYT
+	 * the clock defaults to 25 MHz instead of the expected 19.2 MHz.
+	 * Get the PMC-clock number from ACPI PR0 method and set it to 19.2 MHz.
+	 * The PMC-clock number is also used to determine the default CSI port.
+	 */
+	clock_num = atomisp_csi2_get_pmc_clk_nr_from_acpi_pr0(adev);
 
-err_free_swnodes:
-	software_node_unregister_node_group(sensor->group);
-err_remove_mappings:
-	acpi_dev_remove_driver_gpios(adev);
-err_put_adev:
-	acpi_dev_put(adev);
-	return ret;
-}
+	ret = atomisp_csi2_set_pmc_clk_freq(adev, clock_num);
+	if (ret)
+		return ret;
 
-static int atomisp_csi2_connect_sensors(struct atomisp_csi2_bridge *bridge,
-					struct atomisp_device *isp)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ARRAY_SIZE(supported_sensors); i++) {
-		const struct atomisp_csi2_sensor_config *cfg = &supported_sensors[i];
-
-		ret = atomisp_csi2_connect_sensor(cfg, bridge, isp);
-		if (ret)
-			goto err_unregister_sensors;
+	sensor->link = atomisp_csi2_get_port(adev, clock_num);
+	if (sensor->link >= ATOMISP_CAMERA_NR_PORTS) {
+		acpi_handle_err(adev->handle, "%s: Invalid port: %u\n",
+				dev_name(&adev->dev), sensor->link);
+		return -EINVAL;
 	}
 
-	return 0;
+	sensor->lanes = gmin_cfg_get_int(adev, "CsiLanes", lanes);
+	if (sensor->lanes > IPU_MAX_LANES) {
+		acpi_handle_err(adev->handle, "%s: Invalid lane-count: %d\n",
+				dev_name(&adev->dev), sensor->lanes);
+		return -EINVAL;
+	}
 
-err_unregister_sensors:
-	atomisp_csi2_unregister_sensors(bridge);
-	return ret;
+	ret = atomisp_csi2_add_gpio_mappings(adev);
+	if (ret)
+		return ret;
+
+	sensor->mclkspeed = PMC_CLK_RATE_19_2MHZ;
+	sensor->rotation = 0;
+	sensor->orientation = (sensor->link == 1) ?
+		V4L2_FWNODE_ORIENTATION_BACK : V4L2_FWNODE_ORIENTATION_FRONT;
+
+	return 0;
 }
 
 int atomisp_csi2_bridge_init(struct atomisp_device *isp)
 {
-	struct atomisp_csi2_bridge *bridge;
 	struct device *dev = isp->dev;
 	struct fwnode_handle *fwnode;
-	int i, ret;
 
 	/*
 	 * This function is intended to run only once and then leave
@@ -716,52 +546,7 @@ int atomisp_csi2_bridge_init(struct atomisp_device *isp)
 	if (fwnode && fwnode->secondary)
 		return 0;
 
-	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
-	if (!bridge)
-		return -ENOMEM;
-
-	strscpy(bridge->csi2_node_name, "atomisp-csi2", sizeof(bridge->csi2_node_name));
-	bridge->csi2_node.name = bridge->csi2_node_name;
-
-	ret = software_node_register(&bridge->csi2_node);
-	if (ret < 0) {
-		dev_err(dev, "Failed to register the CSI2 HID node\n");
-		goto err_free_bridge;
-	}
-
-	/*
-	 * Map the lane arrangement, which is fixed for the ISP2 (meaning we
-	 * only need one, rather than one per sensor). We include it as a
-	 * member of the bridge struct rather than a global variable so
-	 * that it survives if the module is unloaded along with the rest of
-	 * the struct.
-	 */
-	for (i = 0; i < CSI2_MAX_LANES; i++)
-		bridge->data_lanes[i] = i + 1;
-
-	ret = atomisp_csi2_connect_sensors(bridge, isp);
-	if (ret || bridge->n_sensors == 0)
-		goto err_unregister_csi2;
-
-	fwnode = software_node_fwnode(&bridge->csi2_node);
-	if (!fwnode) {
-		dev_err(dev, "Error getting fwnode from csi2 software_node\n");
-		ret = -ENODEV;
-		goto err_unregister_sensors;
-	}
-
-	set_secondary_fwnode(dev, fwnode);
-
-	return 0;
-
-err_unregister_sensors:
-	atomisp_csi2_unregister_sensors(bridge);
-err_unregister_csi2:
-	software_node_unregister(&bridge->csi2_node);
-err_free_bridge:
-	kfree(bridge);
-
-	return ret;
+	return ipu_bridge_init(dev, atomisp_csi2_parse_sensor_fwnode);
 }
 
 /******* V4L2 sub-device asynchronous registration callbacks***********/
