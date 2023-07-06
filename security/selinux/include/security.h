@@ -376,7 +376,7 @@ struct selinux_kernel_status {
 } __packed;
 
 extern void selinux_status_update_setenforce(int enforcing);
-extern void selinux_status_update_policyload(int seqno);
+extern void selinux_status_update_policyload(u32 seqno);
 extern void selinux_complete_init(void);
 extern struct path selinux_null;
 extern void selnl_notify_setenforce(int val);

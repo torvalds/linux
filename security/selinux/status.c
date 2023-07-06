@@ -101,7 +101,7 @@ void selinux_status_update_setenforce(int enforcing)
  * It updates status of the times of policy reloaded, and current
  * setting of deny_unknown.
  */
-void selinux_status_update_policyload(int seqno)
+void selinux_status_update_policyload(u32 seqno)
 {
 	struct selinux_kernel_status   *status;
 
