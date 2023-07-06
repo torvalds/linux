@@ -10,15 +10,7 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/export.h>
-
-/*
- * Ioremap often, but not always uses the generic vmalloc area. E.g on
- * Power ARCH, it could have different ioremap space.
- */
-#ifndef IOREMAP_START
-#define IOREMAP_START   VMALLOC_START
-#define IOREMAP_END     VMALLOC_END
-#endif
+#include <linux/ioremap.h>
 
 void __iomem *generic_ioremap_prot(phys_addr_t phys_addr, size_t size,
 				   pgprot_t prot)
