@@ -1717,8 +1717,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		if (vba->ODMCombineEnabled[vba->pipe_plane[pipe_idx]] != dm_odm_combine_mode_disabled
 				&& !dc->config.enable_windowed_mpo_odm
 				&& pipe->plane_state && mpo_pipe
-				&& memcmp(&mpo_pipe->plane_res.scl_data.recout,
-						&pipe->plane_res.scl_data.recout,
+				&& memcmp(&mpo_pipe->plane_state->clip_rect,
+						&pipe->stream->src,
 						sizeof(struct rect)) != 0) {
 			ASSERT(mpo_pipe->plane_state != pipe->plane_state);
 			goto validate_fail;
