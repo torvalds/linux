@@ -895,25 +895,16 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (r == NULL) {
-		ret = -ENOENT;
-		goto free_master;
-	}
-
-	dspi->pbase = r->start;
-
-	dspi->base = devm_ioremap_resource(&pdev->dev, r);
+	dspi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(dspi->base)) {
 		ret = PTR_ERR(dspi->base);
 		goto free_master;
 	}
+	dspi->pbase = r->start;
 
 	init_completion(&dspi->done);
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret == 0)
-		ret = -EINVAL;
 	if (ret < 0)
 		goto free_master;
 	dspi->irq = ret;
