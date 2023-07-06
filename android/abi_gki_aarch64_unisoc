@@ -1679,7 +1679,16 @@
   typec_unregister_altmode
 
 # required by sprd_thermal_ctl.ko
+  cpufreq_quick_get_max
   devfreq_cooling_em_register
+  devfreq_cooling_unregister
+
+# required by sprd_soc_thm.ko
+  thermal_of_zone_unregister
+  thermal_zone_bind_cooling_device
+  thermal_zone_device_register_with_trips
+  thermal_zone_device_update
+  thermal_zone_unbind_cooling_device
 
 # required by sprd_hwspinlock.ko
   devm_hwspin_lock_register
@@ -1826,6 +1835,7 @@
   sk_stop_timer
   sock_recvmsg
   sock_rfree
+  strcasecmp
   strchr
   strrchr
   sysctl_vals
