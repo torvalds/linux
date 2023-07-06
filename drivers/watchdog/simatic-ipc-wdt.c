@@ -155,9 +155,8 @@ static int simatic_ipc_wdt_probe(struct platform_device *pdev)
 
 	switch (plat->devmode) {
 	case SIMATIC_IPC_DEVICE_227E:
-		if (!devm_request_region(dev, gp_status_reg_227e_res.start,
-					 resource_size(&gp_status_reg_227e_res),
-					 KBUILD_MODNAME)) {
+		res = &gp_status_reg_227e_res;
+		if (!request_muxed_region(res->start, resource_size(res), res->name)) {
 			dev_err(dev,
 				"Unable to register IO resource at %pR\n",
 				&gp_status_reg_227e_res);
@@ -209,6 +208,10 @@ static int simatic_ipc_wdt_probe(struct platform_device *pdev)
 	wdd_data.bootstatus = wd_setup(plat->devmode);
 	if (wdd_data.bootstatus)
 		dev_warn(dev, "last reboot caused by watchdog reset\n");
+
+	if (plat->devmode == SIMATIC_IPC_DEVICE_227E)
+		release_region(gp_status_reg_227e_res.start,
+			       resource_size(&gp_status_reg_227e_res));
 
 	watchdog_set_nowayout(&wdd_data, nowayout);
 	watchdog_stop_on_reboot(&wdd_data);
