@@ -115,6 +115,15 @@ static const struct spinand_info foresee_spinand_table[] = {
 					      &update_cache_variants),
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&fsxxndxxg_ooblayout, NULL)),
+	SPINAND_INFO("F35UQA002G-WWT",
+		     SPINAND_ID(SPINAND_READID_METHOD_OPCODE_DUMMY, 0x62),
+		     NAND_MEMORG(1, 2048, 64, 64, 2048, 40, 1, 1, 1),
+		     NAND_ECCREQ(1, 512),
+		     SPINAND_INFO_OP_VARIANTS(&read_cache_variants,
+					      &write_cache_variants,
+					      &update_cache_variants),
+		     SPINAND_HAS_QE_BIT,
+		     SPINAND_ECCINFO(&fsxxndxxg_ooblayout, NULL)),
 };
 
 static const struct spinand_manufacturer_ops foresee_spinand_manuf_ops = {
