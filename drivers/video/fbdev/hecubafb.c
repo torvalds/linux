@@ -120,90 +120,28 @@ static void hecubafb_dpy_deferred_io(struct fb_info *info, struct list_head *pag
 	hecubafb_dpy_update(info->par);
 }
 
-static void hecubafb_fillrect(struct fb_info *info,
-				   const struct fb_fillrect *rect)
+static void hecubafb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
 {
 	struct hecubafb_par *par = info->par;
-
-	sys_fillrect(info, rect);
 
 	hecubafb_dpy_update(par);
 }
 
-static void hecubafb_copyarea(struct fb_info *info,
-				   const struct fb_copyarea *area)
+static void hecubafb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+				       u32 width, u32 height)
 {
 	struct hecubafb_par *par = info->par;
-
-	sys_copyarea(info, area);
 
 	hecubafb_dpy_update(par);
 }
 
-static void hecubafb_imageblit(struct fb_info *info,
-				const struct fb_image *image)
-{
-	struct hecubafb_par *par = info->par;
-
-	sys_imageblit(info, image);
-
-	hecubafb_dpy_update(par);
-}
-
-/*
- * this is the slow path from userspace. they can seek and write to
- * the fb. it's inefficient to do anything less than a full screen draw
- */
-static ssize_t hecubafb_write(struct fb_info *info, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct hecubafb_par *par = info->par;
-	unsigned long p = *ppos;
-	void *dst;
-	int err = 0;
-	unsigned long total_size;
-
-	if (!info->screen_buffer)
-		return -ENODEV;
-
-	total_size = info->fix.smem_len;
-
-	if (p > total_size)
-		return -EFBIG;
-
-	if (count > total_size) {
-		err = -EFBIG;
-		count = total_size;
-	}
-
-	if (count + p > total_size) {
-		if (!err)
-			err = -ENOSPC;
-
-		count = total_size - p;
-	}
-
-	dst = info->screen_buffer + p;
-
-	if (copy_from_user(dst, buf, count))
-		err = -EFAULT;
-
-	if  (!err)
-		*ppos += count;
-
-	hecubafb_dpy_update(par);
-
-	return (err) ? err : count;
-}
+FB_GEN_DEFAULT_DEFERRED_SYS_OPS(hecubafb,
+				hecubafb_defio_damage_range,
+				hecubafb_defio_damage_area)
 
 static const struct fb_ops hecubafb_ops = {
-	.owner		= THIS_MODULE,
-	.fb_read        = fb_sys_read,
-	.fb_write	= hecubafb_write,
-	.fb_fillrect	= hecubafb_fillrect,
-	.fb_copyarea	= hecubafb_copyarea,
-	.fb_imageblit	= hecubafb_imageblit,
-	.fb_mmap	= fb_deferred_io_mmap,
+	.owner	= THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(hecubafb),
 };
 
 static struct fb_deferred_io hecubafb_defio = {
