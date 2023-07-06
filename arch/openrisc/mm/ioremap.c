@@ -22,8 +22,6 @@
 
 extern int mem_init_done;
 
-static unsigned int fixmaps_used __initdata;
-
 /*
  * Remap an arbitrary physical address space into the kernel virtual
  * address space. Needed when the kernel wants to access high addresses
@@ -52,24 +50,14 @@ void __iomem *__ref ioremap(phys_addr_t addr, unsigned long size)
 	p = addr & PAGE_MASK;
 	size = PAGE_ALIGN(last_addr + 1) - p;
 
-	if (likely(mem_init_done)) {
-		area = get_vm_area(size, VM_IOREMAP);
-		if (!area)
-			return NULL;
-		v = (unsigned long)area->addr;
-	} else {
-		if ((fixmaps_used + (size >> PAGE_SHIFT)) > FIX_N_IOREMAPS)
-			return NULL;
-		v = fix_to_virt(FIX_IOREMAP_BEGIN + fixmaps_used);
-		fixmaps_used += (size >> PAGE_SHIFT);
-	}
+	area = get_vm_area(size, VM_IOREMAP);
+	if (!area)
+		return NULL;
+	v = (unsigned long)area->addr;
 
 	if (ioremap_page_range(v, v + size, p,
 			__pgprot(pgprot_val(PAGE_KERNEL) | _PAGE_CI))) {
-		if (likely(mem_init_done))
-			vfree(area->addr);
-		else
-			fixmaps_used -= (size >> PAGE_SHIFT);
+		vfree(area->addr);
 		return NULL;
 	}
 
@@ -79,27 +67,6 @@ EXPORT_SYMBOL(ioremap);
 
 void iounmap(volatile void __iomem *addr)
 {
-	/* If the page is from the fixmap pool then we just clear out
-	 * the fixmap mapping.
-	 */
-	if (unlikely((unsigned long)addr > FIXADDR_START)) {
-		/* This is a bit broken... we don't really know
-		 * how big the area is so it's difficult to know
-		 * how many fixed pages to invalidate...
-		 * just flush tlb and hope for the best...
-		 * consider this a FIXME
-		 *
-		 * Really we should be clearing out one or more page
-		 * table entries for these virtual addresses so that
-		 * future references cause a page fault... for now, we
-		 * rely on two things:
-		 *   i)  this code never gets called on known boards
-		 *   ii) invalid accesses to the freed areas aren't made
-		 */
-		flush_tlb_all();
-		return;
-	}
-
 	return vfree((void *)(PAGE_MASK & (unsigned long)addr));
 }
 EXPORT_SYMBOL(iounmap);
