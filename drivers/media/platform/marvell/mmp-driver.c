@@ -223,8 +223,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	/*
 	 * Get our I/O memory.
 	 */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mcam->regs = devm_ioremap_resource(&pdev->dev, res);
+	mcam->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(mcam->regs))
 		return PTR_ERR(mcam->regs);
 	mcam->regs_size = resource_size(res);
