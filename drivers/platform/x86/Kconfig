@@ -1086,6 +1086,54 @@ config SIEMENS_SIMATIC_IPC
 	  To compile this driver as a module, choose M here: the module
 	  will be called simatic-ipc.
 
+config SIEMENS_SIMATIC_IPC_BATT
+	tristate "CMOS battery driver for Siemens Simatic IPCs"
+	depends on HWMON
+	depends on SIEMENS_SIMATIC_IPC
+	default SIEMENS_SIMATIC_IPC
+	help
+	  This option enables support for monitoring the voltage of the CMOS
+	  batteries of several Industrial PCs from Siemens.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-batt.
+
+config SIEMENS_SIMATIC_IPC_BATT_APOLLOLAKE
+	tristate "CMOS Battery monitoring for Simatic IPCs based on Apollo Lake GPIO"
+	depends on PINCTRL_BROXTON
+	depends on SIEMENS_SIMATIC_IPC_BATT
+	default SIEMENS_SIMATIC_IPC_BATT
+	help
+	  This option enables CMOS battery monitoring for Simatic Industrial PCs
+	  from Siemens based on Apollo Lake GPIO.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-batt-apollolake.
+
+config SIEMENS_SIMATIC_IPC_BATT_ELKHARTLAKE
+	tristate "CMOS Battery monitoring for Simatic IPCs based on Elkhart Lake GPIO"
+	depends on PINCTRL_ELKHARTLAKE
+	depends on SIEMENS_SIMATIC_IPC_BATT
+	default SIEMENS_SIMATIC_IPC_BATT
+	help
+	  This option enables CMOS battery monitoring for Simatic Industrial PCs
+	  from Siemens based on Elkhart Lake GPIO.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-batt-elkhartlake.
+
+config SIEMENS_SIMATIC_IPC_BATT_F7188X
+	tristate "CMOS Battery monitoring for Simatic IPCs based on Nuvoton GPIO"
+	depends on GPIO_F7188X
+	depends on SIEMENS_SIMATIC_IPC_BATT
+	default SIEMENS_SIMATIC_IPC_BATT
+	help
+	  This option enables CMOS battery monitoring for Simatic Industrial PCs
+	  from Siemens based on Nuvoton GPIO.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called simatic-ipc-batt-elkhartlake.
+
 config WINMATE_FM07_KEYS
 	tristate "Winmate FM07/FM07P front-panel keys driver"
 	depends on INPUT
