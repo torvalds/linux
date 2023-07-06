@@ -7,7 +7,7 @@
 #ifndef __ASM_ARM_DELAY_H
 #define __ASM_ARM_DELAY_H
 
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/param.h>	/* HZ */
 
 /*
