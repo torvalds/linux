@@ -201,8 +201,7 @@ static	int ti_tscadc_probe(struct platform_device *pdev)
 	else
 		tscadc->irq = err;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tscadc->tscadc_base = devm_ioremap_resource(&pdev->dev, res);
+	tscadc->tscadc_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(tscadc->tscadc_base))
 		return PTR_ERR(tscadc->tscadc_base);
 
