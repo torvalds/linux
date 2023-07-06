@@ -504,7 +504,7 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	scb_s->mso = new_mso;
 	scb_s->prefix = new_prefix;
 
-	/* We have to definetly flush the tlb if this scb never ran */
+	/* We have to definitely flush the tlb if this scb never ran */
 	if (scb_s->ihcpu != 0xffffU)
 		scb_s->ihcpu = scb_o->ihcpu;
 
@@ -901,7 +901,7 @@ static int inject_fault(struct kvm_vcpu *vcpu, __u16 code, __u64 vaddr,
 			(vaddr & 0xfffffffffffff000UL) |
 			/* 52-53: store / fetch */
 			(((unsigned int) !write_flag) + 1) << 10,
-			/* 62-63: asce id (alway primary == 0) */
+			/* 62-63: asce id (always primary == 0) */
 		.exc_access_id = 0, /* always primary */
 		.op_access_id = 0, /* not MVPG */
 	};

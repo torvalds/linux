@@ -333,7 +333,7 @@ union ap_qact_ap_info {
 };
 
 /**
- * ap_qact(): Query AP combatibility type.
+ * ap_qact(): Query AP compatibility type.
  * @qid: The AP queue number
  * @apinfo: On input the info about the AP queue. On output the
  *	    alternate AP queue info provided by the qact function

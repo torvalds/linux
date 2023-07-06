@@ -13,9 +13,9 @@
 #include <linux/gfp.h>
 #include <linux/cpu.h>
 #include <linux/uio.h>
+#include <linux/io.h>
 #include <asm/asm-extable.h>
 #include <asm/ctl_reg.h>
-#include <asm/io.h>
 #include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
 #include <asm/maccess.h>

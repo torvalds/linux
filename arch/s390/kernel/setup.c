@@ -529,7 +529,7 @@ static void __init setup_resources(void)
 		res->start = start;
 		/*
 		 * In memblock, end points to the first byte after the
-		 * range while in resourses, end points to the last byte in
+		 * range while in resources, end points to the last byte in
 		 * the range.
 		 */
 		res->end = end - 1;

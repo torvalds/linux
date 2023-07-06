@@ -113,7 +113,7 @@ early_param("smt", early_smt);
 
 /*
  * The smp_cpu_state_mutex must be held when changing the state or polarization
- * member of a pcpu data structure within the pcpu_devices arreay.
+ * member of a pcpu data structure within the pcpu_devices array.
  */
 DEFINE_MUTEX(smp_cpu_state_mutex);
 

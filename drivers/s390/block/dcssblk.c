@@ -20,8 +20,8 @@
 #include <linux/pfn_t.h>
 #include <linux/uio.h>
 #include <linux/dax.h>
+#include <linux/io.h>
 #include <asm/extmem.h>
-#include <asm/io.h>
 
 #define DCSSBLK_NAME "dcssblk"
 #define DCSSBLK_MINORS_PER_DISK 1

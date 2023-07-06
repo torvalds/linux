@@ -445,7 +445,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 		q->saved_isc = isc;
 		break;
 	case AP_RESPONSE_OTHERWISE_CHANGED:
-		/* We could not modify IRQ setings: clear new configuration */
+		/* We could not modify IRQ settings: clear new configuration */
 		vfio_unpin_pages(&q->matrix_mdev->vdev, nib, 1);
 		kvm_s390_gisc_unregister(kvm, isc);
 		break;
@@ -524,7 +524,7 @@ static void vfio_ap_le_guid_to_be_uuid(guid_t *guid, unsigned long *uuid)
  * Response.status may be set to following Response Code:
  * - AP_RESPONSE_Q_NOT_AVAIL: if the queue is not available
  * - AP_RESPONSE_DECONFIGURED: if the queue is not configured
- * - AP_RESPONSE_NORMAL (0) : in case of successs
+ * - AP_RESPONSE_NORMAL (0) : in case of success
  *   Check vfio_ap_setirq() and vfio_ap_clrirq() for other possible RC.
  * We take the matrix_dev lock to ensure serialization on queues and
  * mediated device access.

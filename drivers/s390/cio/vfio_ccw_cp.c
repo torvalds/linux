@@ -672,7 +672,7 @@ out_init:
 /*
  * Fetch one ccw.
  * To reduce memory copy, we'll pin the cda page in memory,
- * and to get rid of the cda 2G limitiaion of ccw1, we'll translate
+ * and to get rid of the cda 2G limitation of ccw1, we'll translate
  * direct ccws to idal ccws.
  */
 static int ccwchain_fetch_one(struct ccw1 *ccw,
@@ -787,7 +787,7 @@ void cp_free(struct channel_program *cp)
  * program.
  *
  * These APIs will copy the ccws into kernel-space buffers, and update
- * the guest phsical addresses with their corresponding host physical
+ * the guest physical addresses with their corresponding host physical
  * addresses.  Then channel I/O device drivers could issue the
  * translated channel program to real devices to perform an I/O
  * operation.
