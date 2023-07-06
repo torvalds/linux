@@ -567,8 +567,43 @@ static void drain_mem_cache(struct bpf_mem_cache *c)
 	free_all(llist_del_all(&c->waiting_for_gp), percpu);
 }
 
+static void check_mem_cache(struct bpf_mem_cache *c)
+{
+	WARN_ON_ONCE(!llist_empty(&c->free_by_rcu_ttrace));
+	WARN_ON_ONCE(!llist_empty(&c->waiting_for_gp_ttrace));
+	WARN_ON_ONCE(!llist_empty(&c->free_llist));
+	WARN_ON_ONCE(!llist_empty(&c->free_llist_extra));
+	WARN_ON_ONCE(!llist_empty(&c->free_by_rcu));
+	WARN_ON_ONCE(!llist_empty(&c->free_llist_extra_rcu));
+	WARN_ON_ONCE(!llist_empty(&c->waiting_for_gp));
+}
+
+static void check_leaked_objs(struct bpf_mem_alloc *ma)
+{
+	struct bpf_mem_caches *cc;
+	struct bpf_mem_cache *c;
+	int cpu, i;
+
+	if (ma->cache) {
+		for_each_possible_cpu(cpu) {
+			c = per_cpu_ptr(ma->cache, cpu);
+			check_mem_cache(c);
+		}
+	}
+	if (ma->caches) {
+		for_each_possible_cpu(cpu) {
+			cc = per_cpu_ptr(ma->caches, cpu);
+			for (i = 0; i < NUM_CACHES; i++) {
+				c = &cc->cache[i];
+				check_mem_cache(c);
+			}
+		}
+	}
+}
+
 static void free_mem_alloc_no_barrier(struct bpf_mem_alloc *ma)
 {
+	check_leaked_objs(ma);
 	free_percpu(ma->cache);
 	free_percpu(ma->caches);
 	ma->cache = NULL;
