@@ -38,9 +38,10 @@ EXPORT_SYMBOL_GPL(fpga_region_class_find);
  *
  * Caller should call fpga_region_put() when done with region.
  *
- * Return fpga_region struct if successful.
- * Return -EBUSY if someone already has a reference to the region.
- * Return -ENODEV if @np is not an FPGA Region.
+ * Return:
+ * * fpga_region struct if successful.
+ * * -EBUSY if someone already has a reference to the region.
+ * * -ENODEV if can't take parent driver module refcount.
  */
 static struct fpga_region *fpga_region_get(struct fpga_region *region)
 {
@@ -91,7 +92,7 @@ static void fpga_region_put(struct fpga_region *region)
  * The caller will need to call fpga_bridges_put() before attempting to
  * reprogram the region.
  *
- * Return 0 for success or negative error code.
+ * Return: 0 for success or negative error code.
  */
 int fpga_region_program_fpga(struct fpga_region *region)
 {
@@ -288,8 +289,9 @@ static void fpga_region_dev_release(struct device *dev)
 }
 
 /**
- * fpga_region_init - init function for fpga_region class
- * Creates the fpga_region class and registers a reconfig notifier.
+ * fpga_region_init - creates the fpga_region class.
+ *
+ * Return: 0 on success or ERR_PTR() on error.
  */
 static int __init fpga_region_init(void)
 {
