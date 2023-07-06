@@ -134,28 +134,24 @@ static unsigned long adjust_shstk_size(unsigned long size)
 
 static void unmap_shadow_stack(u64 base, u64 size)
 {
-	while (1) {
-		int r;
+	int r;
 
-		r = vm_munmap(base, size);
+	r = vm_munmap(base, size);
 
-		/*
-		 * vm_munmap() returns -EINTR when mmap_lock is held by
-		 * something else, and that lock should not be held for a
-		 * long time.  Retry it for the case.
-		 */
-		if (r == -EINTR) {
-			cond_resched();
-			continue;
-		}
+	/*
+	 * mmap_write_lock_killable() failed with -EINTR. This means
+	 * the process is about to die and have it's MM cleaned up.
+	 * This task shouldn't ever make it back to userspace. In this
+	 * case it is ok to leak a shadow stack, so just exit out.
+	 */
+	if (r == -EINTR)
+		return;
 
-		/*
-		 * For all other types of vm_munmap() failure, either the
-		 * system is out of memory or there is bug.
-		 */
-		WARN_ON_ONCE(r);
-		break;
-	}
+	/*
+	 * For all other types of vm_munmap() failure, either the
+	 * system is out of memory or there is bug.
+	 */
+	WARN_ON_ONCE(r);
 }
 
 static int shstk_setup(void)
