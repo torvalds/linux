@@ -11,6 +11,7 @@ struct bkey;
 enum btree_node_type;
 
 extern const char * const bch2_bkey_types[];
+extern const struct bkey_ops bch2_bkey_null_ops;
 
 /*
  * key_invalid: checks validity of @k, returns 0 if good or -EINVAL if bad. If
@@ -40,6 +41,13 @@ struct bkey_ops {
 };
 
 extern const struct bkey_ops bch2_bkey_ops[];
+
+static inline const struct bkey_ops *bch2_bkey_type_ops(enum bch_bkey_type type)
+{
+	return likely(type < KEY_TYPE_MAX)
+		? &bch2_bkey_ops[type]
+		: &bch2_bkey_null_ops;
+}
 
 #define BKEY_INVALID_FROM_JOURNAL		(1 << 1)
 
@@ -75,7 +83,7 @@ static inline int bch2_mark_key(struct btree_trans *trans,
 		struct bkey_s_c old, struct bkey_s_c new,
 		unsigned flags)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[old.k->type ?: new.k->type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(old.k->type ?: new.k->type);
 
 	return ops->atomic_trigger
 		? ops->atomic_trigger(trans, btree, level, old, new, flags)
@@ -125,7 +133,7 @@ static inline int bch2_trans_mark_key(struct btree_trans *trans,
 				      struct bkey_s_c old, struct bkey_i *new,
 				      unsigned flags)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[old.k->type ?: new->k.type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(old.k->type ?: new->k.type);
 
 	return ops->trans_trigger
 		? ops->trans_trigger(trans, btree_id, level, old, new, flags)

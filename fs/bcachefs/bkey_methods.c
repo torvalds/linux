@@ -118,23 +118,23 @@ const struct bkey_ops bch2_bkey_ops[] = {
 #undef x
 };
 
+const struct bkey_ops bch2_bkey_null_ops = {
+	.min_val_size = U8_MAX,
+};
+
 int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
 			  unsigned flags, struct printbuf *err)
 {
-	const struct bkey_ops *ops;
-
-	if (k.k->type >= KEY_TYPE_MAX) {
-		prt_printf(err, "invalid type (%u >= %u)", k.k->type, KEY_TYPE_MAX);
-		return -BCH_ERR_invalid_bkey;
-	}
-
-	ops = &bch2_bkey_ops[k.k->type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 
 	if (bkey_val_bytes(k.k) < ops->min_val_size) {
 		prt_printf(err, "bad val size (%zu < %u)",
 			   bkey_val_bytes(k.k), ops->min_val_size);
 		return -BCH_ERR_invalid_bkey;
 	}
+
+	if (!ops->key_invalid)
+		return 0;
 
 	return ops->key_invalid(c, k, flags, err);
 }
@@ -340,14 +340,10 @@ void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 void bch2_val_to_text(struct printbuf *out, struct bch_fs *c,
 		      struct bkey_s_c k)
 {
-	if (k.k->type < KEY_TYPE_MAX) {
-		const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 
-		if (likely(ops->val_to_text))
-			ops->val_to_text(out, c, k);
-	} else {
-		prt_printf(out, "(invalid type %u)", k.k->type);
-	}
+	if (likely(ops->val_to_text))
+		ops->val_to_text(out, c, k);
 }
 
 void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
@@ -363,7 +359,7 @@ void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
 
 void bch2_bkey_swab_val(struct bkey_s k)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 
 	if (ops->swab)
 		ops->swab(k);
@@ -371,7 +367,7 @@ void bch2_bkey_swab_val(struct bkey_s k)
 
 bool bch2_bkey_normalize(struct bch_fs *c, struct bkey_s k)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 
 	return ops->key_normalize
 		? ops->key_normalize(c, k)
@@ -380,11 +376,11 @@ bool bch2_bkey_normalize(struct bch_fs *c, struct bkey_s k)
 
 bool bch2_bkey_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[l.k->type];
+	const struct bkey_ops *ops = bch2_bkey_type_ops(l.k->type);
 
-	return bch2_bkey_maybe_mergable(l.k, r.k) &&
+	return ops->key_merge &&
+		bch2_bkey_maybe_mergable(l.k, r.k) &&
 		(u64) l.k->size + r.k->size <= KEY_SIZE_MAX &&
-		bch2_bkey_ops[l.k->type].key_merge &&
 		!bch2_key_merging_disabled &&
 		ops->key_merge(c, l, r);
 }
@@ -509,7 +505,7 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 		if (big_endian != CPU_BIG_ENDIAN)
 			bch2_bkey_swab_val(u);
 
-		ops = &bch2_bkey_ops[k->type];
+		ops = bch2_bkey_type_ops(k->type);
 
 		if (ops->compat)
 			ops->compat(btree_id, version, big_endian, write, u);
