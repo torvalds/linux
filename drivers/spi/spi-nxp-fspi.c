@@ -1157,12 +1157,10 @@ static int nxp_fspi_probe(struct platform_device *pdev)
 
 	/* find the resources - configuration register address space */
 	if (is_acpi_node(dev_fwnode(f->dev)))
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		f->iobase = devm_platform_ioremap_resource(pdev, 0);
 	else
-		res = platform_get_resource_byname(pdev,
-				IORESOURCE_MEM, "fspi_base");
+		f->iobase = devm_platform_ioremap_resource_byname(pdev, "fspi_base");
 
-	f->iobase = devm_ioremap_resource(dev, res);
 	if (IS_ERR(f->iobase)) {
 		ret = PTR_ERR(f->iobase);
 		goto err_put_ctrl;
