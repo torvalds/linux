@@ -110,6 +110,7 @@ Package: SRCPKGNAME-image-generic
 Build-Profiles: <!stage1>
 Architecture: amd64 armhf arm64 powerpc ppc64el s390x
 Section: kernel
+Provides: wireguard-modules (= 1.0.0)
 Depends:
  ${misc:Depends},
  linux-image-PKGVER-ABINUM-generic (= ${source:Version}),
