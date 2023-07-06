@@ -218,7 +218,7 @@ static const struct drm_client_funcs drm_fbdev_dma_client_funcs = {
  * drm_fbdev_dma_setup() - Setup fbdev emulation for GEM DMA helpers
  * @dev: DRM device
  * @preferred_bpp: Preferred bits per pixel for the device.
- *                 @dev->mode_config.preferred_depth is used if this is zero.
+ *                 32 is used if this is zero.
  *
  * This function sets up fbdev emulation for GEM DMA drivers that support
  * dumb buffers with a virtual address and that can be mmap'ed.
