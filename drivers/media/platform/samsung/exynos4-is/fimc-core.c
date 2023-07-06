@@ -924,7 +924,6 @@ static int fimc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	u32 lclk_freq = 0;
 	struct fimc_dev *fimc;
-	struct resource *res;
 	int ret = 0;
 	int irq;
 
@@ -961,8 +960,7 @@ static int fimc_probe(struct platform_device *pdev)
 			return PTR_ERR(fimc->sysreg);
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	fimc->regs = devm_ioremap_resource(dev, res);
+	fimc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fimc->regs))
 		return PTR_ERR(fimc->regs);
 
