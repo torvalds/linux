@@ -6,6 +6,9 @@
 #ifndef __INTEL_DISPLAY_POWER_H__
 #define __INTEL_DISPLAY_POWER_H__
 
+#include <linux/mutex.h>
+#include <linux/workqueue.h>
+
 #include "intel_wakeref.h"
 
 enum aux_ch;
@@ -16,6 +19,7 @@ enum port;
 struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
+struct seq_file;
 
 /*
  * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
