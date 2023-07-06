@@ -156,8 +156,8 @@ perf_event_try_update(struct perf_event *event, u64 new_raw_count, int width)
 	 * count to the generic event atomically:
 	 */
 	prev_raw_count = local64_read(&hwc->prev_count);
-	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
-					new_raw_count) != prev_raw_count)
+	if (!local64_try_cmpxchg(&hwc->prev_count,
+				 &prev_raw_count, new_raw_count))
 		return 0;
 
 	/*

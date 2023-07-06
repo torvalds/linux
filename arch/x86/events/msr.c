@@ -244,12 +244,10 @@ static void msr_event_update(struct perf_event *event)
 	s64 delta;
 
 	/* Careful, an NMI might modify the previous event value: */
-again:
 	prev = local64_read(&event->hw.prev_count);
-	now = msr_read_counter(event);
-
-	if (local64_cmpxchg(&event->hw.prev_count, prev, now) != prev)
-		goto again;
+	do {
+		now = msr_read_counter(event);
+	} while (!local64_try_cmpxchg(&event->hw.prev_count, &prev, now));
 
 	delta = now - prev;
 	if (unlikely(event->hw.event_base == MSR_SMI_COUNT)) {

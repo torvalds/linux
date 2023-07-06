@@ -365,13 +365,11 @@ static void cstate_pmu_event_update(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	u64 prev_raw_count, new_raw_count;
 
-again:
 	prev_raw_count = local64_read(&hwc->prev_count);
-	new_raw_count = cstate_pmu_read_counter(event);
-
-	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
-			    new_raw_count) != prev_raw_count)
-		goto again;
+	do {
+		new_raw_count = cstate_pmu_read_counter(event);
+	} while (!local64_try_cmpxchg(&hwc->prev_count,
+				      &prev_raw_count, new_raw_count));
 
 	local64_add(new_raw_count - prev_raw_count, &event->count);
 }
