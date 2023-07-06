@@ -343,33 +343,13 @@ extern unsigned int kobjsize(const void *objp);
 
 #ifdef CONFIG_X86_USER_SHADOW_STACK
 /*
- * This flag should not be set with VM_SHARED because of lack of support
- * core mm. It will also get a guard page. This helps userspace protect
- * itself from attacks. The reasoning is as follows:
+ * VM_SHADOW_STACK should not be set with VM_SHARED because of lack of
+ * support core mm.
  *
- * The shadow stack pointer(SSP) is moved by CALL, RET, and INCSSPQ. The
- * INCSSP instruction can increment the shadow stack pointer. It is the
- * shadow stack analog of an instruction like:
- *
- *   addq $0x80, %rsp
- *
- * However, there is one important difference between an ADD on %rsp
- * and INCSSP. In addition to modifying SSP, INCSSP also reads from the
- * memory of the first and last elements that were "popped". It can be
- * thought of as acting like this:
- *
- * READ_ONCE(ssp);       // read+discard top element on stack
- * ssp += nr_to_pop * 8; // move the shadow stack
- * READ_ONCE(ssp-8);     // read+discard last popped stack element
- *
- * The maximum distance INCSSP can move the SSP is 2040 bytes, before
- * it would read the memory. Therefore a single page gap will be enough
- * to prevent any operation from shifting the SSP to an adjacent stack,
- * since it would have to land in the gap at least once, causing a
- * fault.
- *
- * Prevent using INCSSP to move the SSP between shadow stacks by
- * having a PAGE_SIZE guard gap.
+ * These VMAs will get a single end guard page. This helps userspace protect
+ * itself from attacks. A single page is enough for current shadow stack archs
+ * (x86). See the comments near alloc_shstk() in arch/x86/kernel/shstk.c
+ * for more details on the guard size.
  */
 # define VM_SHADOW_STACK	VM_HIGH_ARCH_5
 #else
