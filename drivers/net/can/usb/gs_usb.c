@@ -1471,7 +1471,6 @@ static void gs_usb_disconnect(struct usb_interface *intf)
 		if (parent->canch[i])
 			gs_destroy_candev(parent->canch[i]);
 
-	usb_kill_anchored_urbs(&parent->rx_submitted);
 	kfree(parent);
 }
 
