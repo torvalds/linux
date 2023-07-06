@@ -248,7 +248,7 @@ struct avtab_node *avtab_search_node(struct avtab *h,
 }
 
 struct avtab_node*
-avtab_search_node_next(struct avtab_node *node, int specified)
+avtab_search_node_next(struct avtab_node *node, u16 specified)
 {
 	struct avtab_node *cur;
 

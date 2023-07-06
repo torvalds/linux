@@ -1694,7 +1694,7 @@ static void filename_compute_type(struct policydb *policydb,
 static int security_compute_sid(u32 ssid,
 				u32 tsid,
 				u16 orig_tclass,
-				u32 specified,
+				u16 specified,
 				const char *objname,
 				u32 *out_sid,
 				bool kern)
