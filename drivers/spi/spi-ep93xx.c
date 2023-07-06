@@ -661,13 +661,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -EBUSY;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "unable to get iomem resource\n");
-		return -ENODEV;
-	}
+		return irq;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*espi));
 	if (!master)
@@ -705,13 +699,12 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 	master->max_speed_hz = clk_get_rate(espi->clk) / 2;
 	master->min_speed_hz = clk_get_rate(espi->clk) / (254 * 256);
 
-	espi->sspdr_phys = res->start + SSPDR;
-
-	espi->mmio = devm_ioremap_resource(&pdev->dev, res);
+	espi->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(espi->mmio)) {
 		error = PTR_ERR(espi->mmio);
 		goto fail_release_master;
 	}
+	espi->sspdr_phys = res->start + SSPDR;
 
 	error = devm_request_irq(&pdev->dev, irq, ep93xx_spi_interrupt,
 				0, "ep93xx-spi", master);
