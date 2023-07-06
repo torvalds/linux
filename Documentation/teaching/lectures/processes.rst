@@ -240,7 +240,7 @@ implementation:
 
 Linux uses a different implementation for threads. The basic unit is
 called a task (hence the :c:type:`struct task_struct`) and it is used
-for both tasks and processes. Instead of embedding resources in the
+for both threads and processes. Instead of embedding resources in the
 task structure it has pointers to these resources.
 
 Thus, if two threads are the same process will point to the same
