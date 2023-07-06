@@ -2274,9 +2274,15 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	int irq;
 	int err = 0, i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	/*
+	 * Request the regions.
+	 */
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
 	irq = platform_get_irq(pdev, 0);
-	if (!res || irq < 0)
+	if (irq < 0)
 		return -ENODEV;
 
 	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
@@ -2337,13 +2343,6 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&pcdev->capture);
 	spin_lock_init(&pcdev->lock);
 	mutex_init(&pcdev->mlock);
-
-	/*
-	 * Request the regions.
-	 */
-	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
 
 	pcdev->irq = irq;
 	pcdev->base = base;
