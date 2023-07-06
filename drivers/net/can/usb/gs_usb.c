@@ -1443,8 +1443,8 @@ static int gs_usb_probe(struct usb_interface *intf,
 		dev->canch[i]->parent = dev;
 
 		/* set RX packet size based on FD and if hardware
-                * timestamps are supported.
-		*/
+		 * timestamps are supported.
+		 */
 		if (dev->canch[i]->can.ctrlmode_supported & CAN_CTRLMODE_FD) {
 			if (dev->canch[i]->feature & GS_CAN_FEATURE_HW_TIMESTAMP)
 				hf_size_rx = struct_size(hf, canfd_ts, 1);
