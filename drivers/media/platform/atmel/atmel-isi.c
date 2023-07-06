@@ -1187,7 +1187,6 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	int irq;
 	struct atmel_isi *isi;
 	struct vb2_queue *q;
-	struct resource *regs;
 	int ret, i;
 
 	isi = devm_kzalloc(&pdev->dev, sizeof(struct atmel_isi), GFP_KERNEL);
@@ -1268,8 +1267,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 		list_add(&isi->dma_desc[i].list, &isi->dma_desc_head);
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	isi->regs = devm_ioremap_resource(&pdev->dev, regs);
+	isi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(isi->regs)) {
 		ret = PTR_ERR(isi->regs);
 		goto err_ioremap;
