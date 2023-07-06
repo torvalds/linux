@@ -162,7 +162,7 @@ boot_args="`configfrag_boot_params "$boot_args_in" "$config_template"`"
 boot_args="`per_version_boot_params "$boot_args" $resdir/.config $seconds`"
 if test -n "$TORTURE_BOOT_GDB_ARG"
 then
-	boot_args="$boot_args $TORTURE_BOOT_GDB_ARG"
+	boot_args="$TORTURE_BOOT_GDB_ARG $boot_args"
 fi
 
 # Give bare-metal advice
