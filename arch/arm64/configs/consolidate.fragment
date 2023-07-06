@@ -3,7 +3,7 @@
 # CONFIG_BITFIELD_KUNIT is not set
 # CONFIG_BITS_TEST is not set
 CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC=y
-CONFIG_CMDLINE="console=ttyMSM0,115200n8 kasan.stacktrace=off stack_depot_disable=off page_owner=on no_hash_pointers panic_on_taint=0x20"
+CONFIG_CMDLINE="console=ttyMSM0,115200n8 kasan.stacktrace=off stack_depot_disable=off page_owner=on no_hash_pointers panic_on_taint=0x20 page_pinner=on"
 CONFIG_DEBUG_ATOMIC_SLEEP=y
 CONFIG_DEBUG_IRQFLAGS=y
 CONFIG_DEBUG_KMEMLEAK=y
