@@ -138,7 +138,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 {
 	char *page = NULL;
 	ssize_t length;
-	int old_value, new_value;
+	int scan_value;
+	bool old_value, new_value;
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
@@ -152,10 +153,10 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		return PTR_ERR(page);
 
 	length = -EINVAL;
-	if (sscanf(page, "%d", &new_value) != 1)
+	if (sscanf(page, "%d", &scan_value) != 1)
 		goto out;
 
-	new_value = !!new_value;
+	new_value = !!scan_value;
 
 	old_value = enforcing_enabled();
 	if (new_value != old_value) {

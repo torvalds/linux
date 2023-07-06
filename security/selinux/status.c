@@ -76,7 +76,7 @@ struct page *selinux_kernel_status_page(void)
  *
  * It updates status of the current enforcing/permissive mode.
  */
-void selinux_status_update_setenforce(int enforcing)
+void selinux_status_update_setenforce(bool enforcing)
 {
 	struct selinux_kernel_status   *status;
 
@@ -87,7 +87,7 @@ void selinux_status_update_setenforce(int enforcing)
 		status->sequence++;
 		smp_wmb();
 
-		status->enforcing = enforcing;
+		status->enforcing = enforcing ? 1 : 0;
 
 		smp_wmb();
 		status->sequence++;
