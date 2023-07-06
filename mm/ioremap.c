@@ -33,9 +33,6 @@ void __iomem *generic_ioremap_prot(phys_addr_t phys_addr, size_t size,
 	phys_addr -= offset;
 	size = PAGE_ALIGN(size + offset);
 
-	if (!ioremap_allowed(phys_addr, size, pgprot_val(prot)))
-		return NULL;
-
 	area = __get_vm_area_caller(size, VM_IOREMAP, IOREMAP_START,
 				    IOREMAP_END, __builtin_return_address(0));
 	if (!area)
@@ -63,9 +60,6 @@ EXPORT_SYMBOL(ioremap_prot);
 void generic_iounmap(volatile void __iomem *addr)
 {
 	void *vaddr = (void *)((unsigned long)addr & PAGE_MASK);
-
-	if (!iounmap_allowed(vaddr))
-		return;
 
 	if (is_ioremap_addr(vaddr))
 		vunmap(vaddr);
