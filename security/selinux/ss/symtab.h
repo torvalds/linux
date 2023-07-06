@@ -17,7 +17,7 @@ struct symtab {
 	u32 nprim;		/* number of primary names in table */
 };
 
-int symtab_init(struct symtab *s, unsigned int size);
+int symtab_init(struct symtab *s, u32 size);
 
 int symtab_insert(struct symtab *s, char *name, void *datum);
 void *symtab_search(struct symtab *s, const char *name);

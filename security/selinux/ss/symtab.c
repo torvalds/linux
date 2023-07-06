@@ -37,7 +37,7 @@ static const struct hashtab_key_params symtab_key_params = {
 	.cmp = symcmp,
 };
 
-int symtab_init(struct symtab *s, unsigned int size)
+int symtab_init(struct symtab *s, u32 size)
 {
 	s->nprim = 0;
 	return hashtab_init(&s->table, size);
