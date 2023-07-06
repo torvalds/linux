@@ -12,7 +12,7 @@
 
 	ahb {
 
-		spics: spics@e0700000{
+		spics: spics@e0700000 {
 			compatible = "st,spear-spics-gpio";
 			reg = <0xe0700000 0x1000>;
 			st-spics,peripcfg-reg = <0x42c>;

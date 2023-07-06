@@ -94,7 +94,7 @@
 			drive-push-pull;
 			bias-disable;
 		};
-		pins2{
+		pins2 {
 			pinmux = <STM32_PINMUX('D', 2, AF12)>; /* SDMMC1_CMD */
 			slew-rate = <3>;
 			drive-open-drain;
@@ -122,7 +122,7 @@
 			drive-push-pull;
 			bias-pull-up;
 		};
-		pins2{
+		pins2 {
 			pinmux = <STM32_PINMUX('B', 8, AF7)>; /* SDMMC1_CKIN */
 			bias-pull-up;
 		};
@@ -162,7 +162,7 @@
 			drive-push-pull;
 			bias-disable;
 		};
-		pins2{
+		pins2 {
 			pinmux = <STM32_PINMUX('D', 7, AF11)>; /* SDMMC1_CMD */
 			slew-rate = <3>;
 			drive-open-drain;

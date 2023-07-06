@@ -43,6 +43,7 @@ config ARCH_SUNXI
 
 config ARCH_THEAD
 	bool "T-HEAD RISC-V SoCs"
+	depends on MMU && !XIP_KERNEL
 	select ERRATA_THEAD
 	help
 	  This enables support for the RISC-V based T-HEAD SoCs.
