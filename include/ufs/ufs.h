@@ -23,9 +23,11 @@
 					(sizeof(struct utp_upiu_header)))
 #define UFS_SENSE_SIZE	18
 
-#define UPIU_HEADER_DWORD(byte3, byte2, byte1, byte0)\
-			cpu_to_be32((byte3 << 24) | (byte2 << 16) |\
-			 (byte1 << 8) | (byte0))
+static inline __be32 upiu_header_dword(u8 byte3, u8 byte2, u8 byte1, u8 byte0)
+{
+	return cpu_to_be32(byte3 << 24 | byte2 << 16 | byte1 << 8 | byte0);
+}
+
 /*
  * UFS device may have standard LUs and LUN id could be from 0x00 to
  * 0x7F. Standard LUs use "Peripheral Device Addressing Format".

@@ -2637,10 +2637,10 @@ void ufshcd_prepare_utp_scsi_cmd_upiu(struct ufshcd_lrb *lrbp, u8 upiu_flags)
 	unsigned short cdb_len;
 
 	/* command descriptor fields */
-	ucd_req_ptr->header.dword_0 = UPIU_HEADER_DWORD(
+	ucd_req_ptr->header.dword_0 = upiu_header_dword(
 				UPIU_TRANSACTION_COMMAND, upiu_flags,
 				lrbp->lun, lrbp->task_tag);
-	ucd_req_ptr->header.dword_1 = UPIU_HEADER_DWORD(
+	ucd_req_ptr->header.dword_1 = upiu_header_dword(
 				UPIU_COMMAND_SET_TYPE_SCSI, 0, 0, 0);
 
 	/* Total EHS length and Data segment length will be zero */
@@ -2669,16 +2669,16 @@ static void ufshcd_prepare_utp_query_req_upiu(struct ufs_hba *hba,
 	u16 len = be16_to_cpu(query->request.upiu_req.length);
 
 	/* Query request header */
-	ucd_req_ptr->header.dword_0 = UPIU_HEADER_DWORD(
+	ucd_req_ptr->header.dword_0 = upiu_header_dword(
 			UPIU_TRANSACTION_QUERY_REQ, upiu_flags,
 			lrbp->lun, lrbp->task_tag);
-	ucd_req_ptr->header.dword_1 = UPIU_HEADER_DWORD(
+	ucd_req_ptr->header.dword_1 = upiu_header_dword(
 			0, query->request.query_func, 0, 0);
 
 	/* Data segment length only need for WRITE_DESC */
 	if (query->request.upiu_req.opcode == UPIU_QUERY_OPCODE_WRITE_DESC)
 		ucd_req_ptr->header.dword_2 =
-			UPIU_HEADER_DWORD(0, 0, (len >> 8), (u8)len);
+			upiu_header_dword(0, 0, len >> 8, (u8)len);
 	else
 		ucd_req_ptr->header.dword_2 = 0;
 
@@ -2700,8 +2700,7 @@ static inline void ufshcd_prepare_utp_nop_upiu(struct ufshcd_lrb *lrbp)
 	memset(ucd_req_ptr, 0, sizeof(struct utp_upiu_req));
 
 	/* command descriptor fields */
-	ucd_req_ptr->header.dword_0 =
-		UPIU_HEADER_DWORD(
+	ucd_req_ptr->header.dword_0 = upiu_header_dword(
 			UPIU_TRANSACTION_NOP_OUT, 0, 0, lrbp->task_tag);
 	/* clear rest of the fields of basic header */
 	ucd_req_ptr->header.dword_1 = 0;

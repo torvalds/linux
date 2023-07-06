@@ -121,7 +121,7 @@ static bool ufshpb_is_hpb_rsp_valid(struct ufs_hba *hba,
 {
 	/* Check HPB_UPDATE_ALERT */
 	if (!(lrbp->ucd_rsp_ptr->header.dword_2 &
-	      UPIU_HEADER_DWORD(0, 2, 0, 0)))
+	      upiu_header_dword(0, 2, 0, 0)))
 		return false;
 
 	if (be16_to_cpu(rsp_field->sense_data_len) != DEV_SENSE_SEG_LEN ||
