@@ -107,6 +107,7 @@ struct amlogic_spifc_a1 {
 	struct clk *clk;
 	struct device *dev;
 	void __iomem *base;
+	u32 curr_speed_hz;
 };
 
 static int amlogic_spifc_a1_request(struct amlogic_spifc_a1 *spifc, bool read)
@@ -235,6 +236,21 @@ static int amlogic_spifc_a1_write(struct amlogic_spifc_a1 *spifc,
 	return amlogic_spifc_a1_request(spifc, false);
 }
 
+static int amlogic_spifc_a1_set_freq(struct amlogic_spifc_a1 *spifc, u32 freq)
+{
+	int ret;
+
+	if (freq == spifc->curr_speed_hz)
+		return 0;
+
+	ret = clk_set_rate(spifc->clk, freq);
+	if (ret)
+		return ret;
+
+	spifc->curr_speed_hz = freq;
+	return 0;
+}
+
 static int amlogic_spifc_a1_exec_op(struct spi_mem *mem,
 				    const struct spi_mem_op *op)
 {
@@ -242,6 +258,10 @@ static int amlogic_spifc_a1_exec_op(struct spi_mem *mem,
 		spi_controller_get_devdata(mem->spi->controller);
 	size_t data_size = op->data.nbytes;
 	int ret;
+
+	ret = amlogic_spifc_a1_set_freq(spifc, mem->spi->max_speed_hz);
+	if (ret)
+		return ret;
 
 	amlogic_spifc_a1_user_init(spifc);
 	amlogic_spifc_a1_set_cmd(spifc, SPIFC_A1_USER_CMD(op));
