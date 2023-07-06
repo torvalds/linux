@@ -15,7 +15,6 @@
 #include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/platform_data/x86/simatic-ipc.h>
 #include <linux/platform_device.h>
 

@@ -1076,7 +1076,6 @@ config INTEL_SCU_IPC_UTIL
 
 config SIEMENS_SIMATIC_IPC
 	tristate "Siemens Simatic IPC Class driver"
-	depends on PCI
 	help
 	  This Simatic IPC class driver is the central of several drivers. It
 	  is mainly used for system identification, after which drivers in other
