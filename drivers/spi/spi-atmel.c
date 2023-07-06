@@ -1450,10 +1450,6 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	/* Select default pin state */
 	pinctrl_pm_select_default_state(&pdev->dev);
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs)
-		return -ENXIO;
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -1490,7 +1486,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	spin_lock_init(&as->lock);
 
 	as->pdev = pdev;
-	as->regs = devm_ioremap_resource(&pdev->dev, regs);
+	as->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(as->regs)) {
 		ret = PTR_ERR(as->regs);
 		goto out_unmap_regs;
