@@ -520,8 +520,6 @@ static void gs_usb_set_timestamp(struct gs_can *dev, struct sk_buff *skb,
 		timestamp = le32_to_cpu(hf->classic_can_ts->timestamp_us);
 
 	gs_usb_skb_set_timestamp(dev, skb, timestamp);
-
-	return;
 }
 
 static void gs_usb_receive_bulk_callback(struct urb *urb)
