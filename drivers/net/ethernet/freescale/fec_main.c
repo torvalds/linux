@@ -3836,7 +3836,7 @@ static int fec_enet_txq_xmit_frame(struct fec_enet_private *fep,
 
 	entries_free = fec_enet_get_free_txdesc_num(txq);
 	if (entries_free < MAX_SKB_FRAGS + 1) {
-		netdev_err(fep->netdev, "NOT enough BD for SG!\n");
+		netdev_err_once(fep->netdev, "NOT enough BD for SG!\n");
 		return -EBUSY;
 	}
 
