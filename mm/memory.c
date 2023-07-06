@@ -3283,13 +3283,13 @@ static vm_fault_t wp_pfn_shared(struct vm_fault *vmf)
 	return 0;
 }
 
-static vm_fault_t wp_page_shared(struct vm_fault *vmf)
+static vm_fault_t wp_page_shared(struct vm_fault *vmf, struct folio *folio)
 	__releases(vmf->ptl)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	vm_fault_t ret = 0;
 
-	get_page(vmf->page);
+	folio_get(folio);
 
 	if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
 		vm_fault_t tmp;
@@ -3298,21 +3298,21 @@ static vm_fault_t wp_page_shared(struct vm_fault *vmf)
 		tmp = do_page_mkwrite(vmf);
 		if (unlikely(!tmp || (tmp &
 				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-			put_page(vmf->page);
+			folio_put(folio);
 			return tmp;
 		}
 		tmp = finish_mkwrite_fault(vmf);
 		if (unlikely(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
-			unlock_page(vmf->page);
-			put_page(vmf->page);
+			folio_unlock(folio);
+			folio_put(folio);
 			return tmp;
 		}
 	} else {
 		wp_page_reuse(vmf);
-		lock_page(vmf->page);
+		folio_lock(folio);
 	}
 	ret |= fault_dirty_shared_page(vmf);
-	put_page(vmf->page);
+	folio_put(folio);
 
 	return ret;
 }
@@ -3363,6 +3363,9 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 
 	vmf->page = vm_normal_page(vma, vmf->address, vmf->orig_pte);
 
+	if (vmf->page)
+		folio = page_folio(vmf->page);
+
 	/*
 	 * Shared mapping: we are guaranteed to have VM_WRITE and
 	 * FAULT_FLAG_WRITE set at this point.
@@ -3377,11 +3380,8 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 		 */
 		if (!vmf->page)
 			return wp_pfn_shared(vmf);
-		return wp_page_shared(vmf);
+		return wp_page_shared(vmf, folio);
 	}
-
-	if (vmf->page)
-		folio = page_folio(vmf->page);
 
 	/*
 	 * Private mapping: create an exclusive anonymous page copy if reuse
