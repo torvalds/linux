@@ -142,9 +142,11 @@ def define_sdmsteppeauto():
         "drivers/virt/gunyah/gh_rm_drv.ko",
         "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
+        "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-mhi.ko",
         "net/qrtr/qrtr-smd.ko",
+        "net/wireless/cfg80211.ko",
     ]
 
     _sdmsteppeauto_consolidate_in_tree_modules = _sdmsteppeauto_in_tree_modules + [
