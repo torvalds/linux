@@ -767,7 +767,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	}
 	if (end != vma->vm_end) {
 		if (vma->vm_end > end) {
-			if (!insert || (insert->vm_start != end)) {
+			if ((vma->vm_end + adjust_next != end) &&
+			    (!insert || (insert->vm_start != end))) {
 				vma_mas_szero(&mas, end, vma->vm_end);
 				mas_reset(&mas);
 				VM_WARN_ON(insert &&
