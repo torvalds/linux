@@ -72,7 +72,7 @@
 
 #define SPIFC_A1_USER_DBUF_ADDR_REG	0x248
 
-#define SPIFC_A1_BUFFER_SIZE		512
+#define SPIFC_A1_BUFFER_SIZE		512U
 
 #define SPIFC_A1_MAX_HZ			200000000
 #define SPIFC_A1_MIN_HZ			1000000
@@ -240,59 +240,42 @@ static int amlogic_spifc_a1_exec_op(struct spi_mem *mem,
 {
 	struct amlogic_spifc_a1 *spifc =
 		spi_controller_get_devdata(mem->spi->controller);
-	size_t off, nbytes = op->data.nbytes;
-	u32 cmd_cfg, addr_cfg, dummy_cfg, dmode;
+	size_t data_size = op->data.nbytes;
 	int ret;
 
 	amlogic_spifc_a1_user_init(spifc);
+	amlogic_spifc_a1_set_cmd(spifc, SPIFC_A1_USER_CMD(op));
 
-	cmd_cfg = SPIFC_A1_USER_CMD(op);
-	amlogic_spifc_a1_set_cmd(spifc, cmd_cfg);
+	if (op->addr.nbytes)
+		amlogic_spifc_a1_set_addr(spifc, op->addr.val,
+					  SPIFC_A1_USER_ADDR(op));
 
-	if (op->addr.nbytes) {
-		addr_cfg = SPIFC_A1_USER_ADDR(op);
-		amlogic_spifc_a1_set_addr(spifc, op->addr.val, addr_cfg);
-	}
+	if (op->dummy.nbytes)
+		amlogic_spifc_a1_set_dummy(spifc, SPIFC_A1_USER_DUMMY(op));
 
-	if (op->dummy.nbytes) {
-		dummy_cfg = SPIFC_A1_USER_DUMMY(op);
-		amlogic_spifc_a1_set_dummy(spifc, dummy_cfg);
-	}
-
-	if (!op->data.nbytes)
-		return amlogic_spifc_a1_request(spifc, false);
-
-	dmode = ilog2(op->data.buswidth);
-	off = 0;
-
-	do {
-		size_t block_size = min_t(size_t, nbytes, SPIFC_A1_BUFFER_SIZE);
-
-		amlogic_spifc_a1_set_cmd(spifc, cmd_cfg);
-
-		if (op->addr.nbytes)
-			amlogic_spifc_a1_set_addr(spifc, op->addr.val + off,
-						  addr_cfg);
-
-		if (op->dummy.nbytes)
-			amlogic_spifc_a1_set_dummy(spifc, dummy_cfg);
+	if (data_size) {
+		u32 mode = ilog2(op->data.buswidth);
 
 		writel(0, spifc->base + SPIFC_A1_USER_DBUF_ADDR_REG);
 
 		if (op->data.dir == SPI_MEM_DATA_IN)
-			ret = amlogic_spifc_a1_read(spifc,
-						    op->data.buf.in + off,
-						    block_size, dmode);
+			ret = amlogic_spifc_a1_read(spifc, op->data.buf.in,
+						    data_size, mode);
 		else
-			ret = amlogic_spifc_a1_write(spifc,
-						     op->data.buf.out + off,
-						     block_size, dmode);
-
-		nbytes -= block_size;
-		off += block_size;
-	} while (nbytes != 0 && !ret);
+			ret = amlogic_spifc_a1_write(spifc, op->data.buf.out,
+						     data_size, mode);
+	} else {
+		ret = amlogic_spifc_a1_request(spifc, false);
+	}
 
 	return ret;
+}
+
+static int amlogic_spifc_a1_adjust_op_size(struct spi_mem *mem,
+					   struct spi_mem_op *op)
+{
+	op->data.nbytes = min(op->data.nbytes, SPIFC_A1_BUFFER_SIZE);
+	return 0;
 }
 
 static void amlogic_spifc_a1_hw_init(struct amlogic_spifc_a1 *spifc)
@@ -314,6 +297,7 @@ static void amlogic_spifc_a1_hw_init(struct amlogic_spifc_a1 *spifc)
 
 static const struct spi_controller_mem_ops amlogic_spifc_a1_mem_ops = {
 	.exec_op = amlogic_spifc_a1_exec_op,
+	.adjust_op_size = amlogic_spifc_a1_adjust_op_size,
 };
 
 static int amlogic_spifc_a1_probe(struct platform_device *pdev)
