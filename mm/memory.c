@@ -4536,6 +4536,7 @@ static inline bool should_fault_around(struct vm_fault *vmf)
 static vm_fault_t do_read_fault(struct vm_fault *vmf)
 {
 	vm_fault_t ret = 0;
+	struct folio *folio;
 
 	/*
 	 * Let's call ->map_pages() first and use ->fault() as fallback
@@ -4553,9 +4554,10 @@ static vm_fault_t do_read_fault(struct vm_fault *vmf)
 		return ret;
 
 	ret |= finish_fault(vmf);
-	unlock_page(vmf->page);
+	folio = page_folio(vmf->page);
+	folio_unlock(folio);
 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
-		put_page(vmf->page);
+		folio_put(folio);
 	return ret;
 }
 
