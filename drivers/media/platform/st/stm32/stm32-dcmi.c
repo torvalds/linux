@@ -1932,7 +1932,6 @@ static int dcmi_probe(struct platform_device *pdev)
 	struct dma_chan *chan;
 	struct dma_slave_caps caps;
 	struct clk *mclk;
-	int irq;
 	int ret = 0;
 
 	match = of_match_device(of_match_ptr(stm32_dcmi_of_match), &pdev->dev);
@@ -1981,19 +1980,11 @@ static int dcmi_probe(struct platform_device *pdev)
 	dcmi->bus.data_shift = ep.bus.parallel.data_shift;
 	dcmi->bus_type = ep.bus_type;
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return irq ? irq : -ENXIO;
+	dcmi->irq = platform_get_irq(pdev, 0);
+	if (dcmi->irq < 0)
+		return dcmi->irq;
 
-	dcmi->irq = irq;
-
-	dcmi->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!dcmi->res) {
-		dev_err(&pdev->dev, "Could not get resource\n");
-		return -ENODEV;
-	}
-
-	dcmi->regs = devm_ioremap_resource(&pdev->dev, dcmi->res);
+	dcmi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &dcmi->res);
 	if (IS_ERR(dcmi->regs))
 		return PTR_ERR(dcmi->regs);
 
