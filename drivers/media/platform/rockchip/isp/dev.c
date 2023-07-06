@@ -978,6 +978,8 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	    rkisp_update_sensor_info(isp_dev) >= 0)
 		_set_pipeline_default_fmt(isp_dev, false);
 
+	if (isp_dev->hw_dev->is_assigned_clk)
+		rkisp_clk_dbg = true;
 	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;
 	isp_dev->is_rdbk_auto = rkisp_rdbk_auto;

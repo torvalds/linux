@@ -786,10 +786,12 @@ static int enable_sys_clk(struct rkisp_hw_dev *dev)
 		}
 	}
 
-	rate = dev->clk_rate_tbl[0].clk_rate * 1000000UL;
-	rkisp_set_clk_rate(dev->clks[0], rate);
-	if (dev->is_unite)
-		rkisp_set_clk_rate(dev->clks[5], rate);
+	if (!dev->is_assigned_clk) {
+		rate = dev->clk_rate_tbl[0].clk_rate * 1000000UL;
+		rkisp_set_clk_rate(dev->clks[0], rate);
+		if (dev->is_unite)
+			rkisp_set_clk_rate(dev->clks[5], rate);
+	}
 	rkisp_soft_reset(dev, false);
 	isp_config_clk(dev, true);
 	return 0;
@@ -848,6 +850,7 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret;
 	bool is_mem_reserved = true;
+	u32 clk_rate = 0;
 
 	match = of_match_node(rkisp_hw_of_match, node);
 	if (IS_ERR(match))
@@ -940,6 +943,11 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->num_clks = match_data->num_clks;
 	hw_dev->clk_rate_tbl = match_data->clk_rate_tbl;
 	hw_dev->num_clk_rate_tbl = match_data->num_clk_rate_tbl;
+
+	hw_dev->is_assigned_clk = false;
+	ret = of_property_read_u32(node, "assigned-clock-rates", &clk_rate);
+	if (!ret && clk_rate)
+		hw_dev->is_assigned_clk = true;
 
 	hw_dev->reset = devm_reset_control_array_get(dev, false, false);
 	if (IS_ERR(hw_dev->reset)) {

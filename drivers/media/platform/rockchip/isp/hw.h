@@ -104,6 +104,7 @@ struct rkisp_hw_dev {
 	bool is_runing;
 	bool is_frm_buf;
 	bool is_dvfs;
+	bool is_assigned_clk;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);
