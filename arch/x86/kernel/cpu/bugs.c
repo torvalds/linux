@@ -2315,18 +2315,21 @@ enum srso_mitigation {
 	SRSO_MITIGATION_NONE,
 	SRSO_MITIGATION_MICROCODE,
 	SRSO_MITIGATION_SAFE_RET,
+	SRSO_MITIGATION_IBPB,
 };
 
 enum srso_mitigation_cmd {
 	SRSO_CMD_OFF,
 	SRSO_CMD_MICROCODE,
 	SRSO_CMD_SAFE_RET,
+	SRSO_CMD_IBPB,
 };
 
 static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_NONE]           = "Vulnerable",
 	[SRSO_MITIGATION_MICROCODE]      = "Mitigation: microcode",
 	[SRSO_MITIGATION_SAFE_RET]	 = "Mitigation: safe RET",
+	[SRSO_MITIGATION_IBPB]		 = "Mitigation: IBPB",
 };
 
 static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_NONE;
@@ -2343,6 +2346,8 @@ static int __init srso_parse_cmdline(char *str)
 		srso_cmd = SRSO_CMD_MICROCODE;
 	else if (!strcmp(str, "safe-ret"))
 		srso_cmd = SRSO_CMD_SAFE_RET;
+	else if (!strcmp(str, "ibpb"))
+		srso_cmd = SRSO_CMD_IBPB;
 	else
 		pr_err("Ignoring unknown SRSO option (%s).", str);
 
@@ -2384,6 +2389,14 @@ static void __init srso_select_mitigation(void)
 			setup_force_cpu_cap(X86_FEATURE_SRSO_NO);
 	}
 
+	if (retbleed_mitigation == RETBLEED_MITIGATION_IBPB) {
+		if (has_microcode) {
+			pr_err("Retbleed IBPB mitigation enabled, using same for SRSO\n");
+			srso_mitigation = SRSO_MITIGATION_IBPB;
+			goto pred_cmd;
+		}
+	}
+
 	switch (srso_cmd) {
 	case SRSO_CMD_OFF:
 		return;
@@ -2408,6 +2421,16 @@ static void __init srso_select_mitigation(void)
 		}
 		break;
 
+	case SRSO_CMD_IBPB:
+		if (IS_ENABLED(CONFIG_CPU_IBPB_ENTRY)) {
+			if (has_microcode) {
+				setup_force_cpu_cap(X86_FEATURE_ENTRY_IBPB);
+				srso_mitigation = SRSO_MITIGATION_IBPB;
+			}
+		} else {
+			pr_err("WARNING: kernel not compiled with CPU_IBPB_ENTRY.\n");
+			goto pred_cmd;
+		}
 	default:
 		break;
 	}
