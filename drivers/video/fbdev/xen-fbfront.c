@@ -240,41 +240,6 @@ static int xenfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-static void xenfb_fillrect(struct fb_info *p, const struct fb_fillrect *rect)
-{
-	struct xenfb_info *info = p->par;
-
-	sys_fillrect(p, rect);
-	xenfb_refresh(info, rect->dx, rect->dy, rect->width, rect->height);
-}
-
-static void xenfb_imageblit(struct fb_info *p, const struct fb_image *image)
-{
-	struct xenfb_info *info = p->par;
-
-	sys_imageblit(p, image);
-	xenfb_refresh(info, image->dx, image->dy, image->width, image->height);
-}
-
-static void xenfb_copyarea(struct fb_info *p, const struct fb_copyarea *area)
-{
-	struct xenfb_info *info = p->par;
-
-	sys_copyarea(p, area);
-	xenfb_refresh(info, area->dx, area->dy, area->width, area->height);
-}
-
-static ssize_t xenfb_write(struct fb_info *p, const char __user *buf,
-			size_t count, loff_t *ppos)
-{
-	struct xenfb_info *info = p->par;
-	ssize_t res;
-
-	res = fb_sys_write(p, buf, count, ppos);
-	xenfb_refresh(info, 0, 0, info->page->width, info->page->height);
-	return res;
-}
-
 static int
 xenfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -326,17 +291,31 @@ static int xenfb_set_par(struct fb_info *info)
 	return 0;
 }
 
+static void xenfb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
+{
+	struct xenfb_info *xenfb_info = info->par;
+
+	xenfb_refresh(xenfb_info, 0, 0, xenfb_info->page->width, xenfb_info->page->height);
+}
+
+static void xenfb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+				    u32 width, u32 height)
+{
+	struct xenfb_info *xenfb_info = info->par;
+
+	xenfb_refresh(xenfb_info, x, y, width, height);
+}
+
+FB_GEN_DEFAULT_DEFERRED_SYS_OPS(xenfb,
+				xenfb_defio_damage_range,
+				xenfb_defio_damage_area)
+
 static const struct fb_ops xenfb_fb_ops = {
 	.owner		= THIS_MODULE,
-	.fb_read	= fb_sys_read,
-	.fb_write	= xenfb_write,
+	FB_DEFAULT_DEFERRED_OPS(xenfb),
 	.fb_setcolreg	= xenfb_setcolreg,
-	.fb_fillrect	= xenfb_fillrect,
-	.fb_copyarea	= xenfb_copyarea,
-	.fb_imageblit	= xenfb_imageblit,
 	.fb_check_var	= xenfb_check_var,
 	.fb_set_par     = xenfb_set_par,
-	.fb_mmap	= fb_deferred_io_mmap,
 };
 
 static irqreturn_t xenfb_event_handler(int rq, void *dev_id)
