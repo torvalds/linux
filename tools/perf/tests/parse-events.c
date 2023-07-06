@@ -1631,6 +1631,16 @@ static bool test__pmu_cpu_valid(void)
 	return !!perf_pmus__find("cpu");
 }
 
+static bool test__pmu_cpu_event_valid(void)
+{
+	struct perf_pmu *pmu = perf_pmus__find("cpu");
+
+	if (!pmu)
+		return false;
+
+	return perf_pmu__has_format(pmu, "event");
+}
+
 static bool test__intel_pt_valid(void)
 {
 	return !!perf_pmus__find("intel_pt");
@@ -2179,7 +2189,7 @@ static const struct evlist_test test__events_pmu[] = {
 	},
 	{
 		.name  = "cpu/name='COMPLEX_CYCLES_NAME:orig=cycles,desc=chip-clock-ticks',period=0x1,event=0x2/ukp",
-		.valid = test__pmu_cpu_valid,
+		.valid = test__pmu_cpu_event_valid,
 		.check = test__checkevent_complex_name,
 		/* 3 */
 	},
