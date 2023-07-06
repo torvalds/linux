@@ -3732,12 +3732,18 @@ static int fec_enet_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 		if (fep->quirks & FEC_QUIRK_SWAP_FRAME)
 			return -EOPNOTSUPP;
 
+		if (!bpf->prog)
+			xdp_features_clear_redirect_target(dev);
+
 		if (is_run) {
 			napi_disable(&fep->napi);
 			netif_tx_disable(dev);
 		}
 
 		old_prog = xchg(&fep->xdp_prog, bpf->prog);
+		if (old_prog)
+			bpf_prog_put(old_prog);
+
 		fec_restart(dev);
 
 		if (is_run) {
@@ -3745,8 +3751,8 @@ static int fec_enet_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 			netif_tx_start_all_queues(dev);
 		}
 
-		if (old_prog)
-			bpf_prog_put(old_prog);
+		if (bpf->prog)
+			xdp_features_set_redirect_target(dev, false);
 
 		return 0;
 
@@ -4016,8 +4022,7 @@ static int fec_enet_init(struct net_device *ndev)
 
 	if (!(fep->quirks & FEC_QUIRK_SWAP_FRAME))
 		ndev->xdp_features = NETDEV_XDP_ACT_BASIC |
-				     NETDEV_XDP_ACT_REDIRECT |
-				     NETDEV_XDP_ACT_NDO_XMIT;
+				     NETDEV_XDP_ACT_REDIRECT;
 
 	fec_restart(ndev);
 
