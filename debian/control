@@ -1,0 +1,683 @@
+Source: linux
+Section: devel
+Priority: optional
+Maintainer: Ubuntu Kernel Team <kernel-team@lists.ubuntu.com>
+XSC-Ubuntu-Compatible-Signing: ubuntu/4 pro/3
+Standards-Version: 3.9.4.0
+Build-Depends:
+ gcc-12, gcc-12-aarch64-linux-gnu [arm64] <cross>, gcc-12-arm-linux-gnueabihf [armhf] <cross>, gcc-12-powerpc64le-linux-gnu [ppc64el] <cross>, gcc-12-riscv64-linux-gnu [riscv64] <cross>, gcc-12-s390x-linux-gnu [s390x] <cross>, gcc-12-x86-64-linux-gnu [amd64] <cross>,
+ debhelper-compat (= 10),
+ cpio,
+ kmod <!stage1>,
+ makedumpfile [amd64] <!stage1>,
+ libcap-dev <!stage1>,
+ libelf-dev <!stage1>,
+ libnewt-dev <!stage1>,
+ libiberty-dev <!stage1>,
+ default-jdk-headless <!stage1>,
+ java-common <!stage1>,
+ rsync [!i386] <!stage1>,
+ libdw-dev <!stage1>,
+ libpci-dev <!stage1>,
+ pkg-config <!stage1>,
+ python3 <!stage1>,
+ python3-dev <!stage1>,
+ flex <!stage1>,
+ bison <!stage1>,
+ libunwind8-dev [amd64 arm64 armhf ppc64el] <!stage1>,
+ liblzma-dev <!stage1>,
+ openssl <!stage1>,
+ libssl-dev <!stage1>,
+ libaudit-dev <!stage1>,
+ bc <!stage1>,
+ gawk <!stage1>,
+ libudev-dev <!stage1>,
+ autoconf <!stage1>,
+ automake <!stage1>,
+ libtool <!stage1>,
+ uuid-dev <!stage1>,
+ libnuma-dev [amd64 arm64 ppc64el s390x] <!stage1>,
+ dkms <!stage1>,
+ curl <!stage1>,
+ zstd [amd64 s390x] <!stage1>,
+ pahole [amd64 arm64 armhf ppc64el s390x riscv64] | dwarves (>= 1.21) [amd64 arm64 armhf ppc64el s390x riscv64] <!stage1>,
+ rustc-1.62 [amd64],
+ rust-1.62-src [amd64],
+ rustfmt-1.62 [amd64],
+ bindgen-0.56 [amd64],
+ llvm-15 [amd64],
+ clang-15 [amd64],
+ libstdc++-12-dev,
+Build-Depends-Indep:
+ xmlto <!stage1>,
+ docbook-utils <!stage1>,
+ ghostscript <!stage1>,
+ fig2dev <!stage1>,
+ bzip2 <!stage1>,
+ sharutils <!stage1>,
+ asciidoc <!stage1>,
+ python3-sphinx <!stage1>,
+ python3-sphinx-rtd-theme <!stage1>,
+ fontconfig <!stage1>,
+ python3-docutils <!stage1>,
+ imagemagick <!stage1>,
+ graphviz <!stage1>,
+ dvipng <!stage1>,
+ fonts-noto-cjk <!stage1>,
+ latexmk <!stage1>,
+ librsvg2-bin <!stage1>,
+Vcs-Git: git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/mantic
+XS-Testsuite: autopkgtest
+#XS-Testsuite-Depends: gcc-4.7 binutils
+
+Package: linux-source-6.4.0
+Build-Profiles: <!stage1>
+Architecture: all
+Section: devel
+Priority: optional
+Provides: linux-source
+Depends: ${misc:Depends}, binutils, bzip2, coreutils
+Recommends: libc-dev, gcc, make
+Suggests: libncurses-dev | ncurses-dev, kernel-package, libqt3-dev
+Description: Linux kernel source for version 6.4.0 with Ubuntu patches
+ This package provides the source code for the Linux kernel version
+ 6.4.0.
+ .
+ This package is mainly meant for other packages to use, in order to build
+ custom flavours.
+ .
+ If you wish to use this package to create a custom Linux kernel, then it
+ is suggested that you investigate the package kernel-package, which has
+ been designed to ease the task of creating kernel image packages.
+ .
+ If you are simply trying to build third-party modules for your kernel,
+ you do not want this package. Install the appropriate linux-headers
+ package instead.
+
+Package: linux-headers-6.4.0-76060400
+Build-Profiles: <!stage1>
+Architecture: all
+Multi-Arch: foreign
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, coreutils
+Description: Header files related to Linux kernel version 6.4.0
+ This package provides kernel header files for version 6.4.0, for sites
+ that want the latest kernel headers. Please read
+ /usr/share/doc/linux-headers-6.4.0-76060400/debian.README.gz for details
+
+Package: linux-tools-common
+Build-Profiles: <!stage1>
+Architecture: all
+Multi-Arch: foreign
+Section: kernel
+Priority: optional
+Provides: bpftool
+Depends: ${misc:Depends}, lsb-release
+Description: Linux kernel version specific tools for version 6.4.0
+ This package provides the architecture independent parts for kernel
+ version locked tools (such as perf and x86_energy_perf_policy) for
+ version 6.4.0.
+
+Package: linux-tools-6.4.0-76060400
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}, linux-tools-common
+Description: Linux kernel version specific tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools (such as perf and x86_energy_perf_policy) for
+ version 6.4.0-76060400 on
+ 64 bit x86.
+ You probably want to install linux-tools-6.4.0-76060400-<flavour>.
+
+Package: linux-cloud-tools-common
+Build-Profiles: <!stage1>
+Architecture: all
+Multi-Arch: foreign
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}
+Description: Linux kernel version specific cloud tools for version 6.4.0
+ This package provides the architecture independent parts for kernel
+ version locked tools for cloud tools for version 6.4.0.
+
+Package: linux-cloud-tools-6.4.0-76060400
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}, linux-cloud-tools-common
+Description: Linux kernel version specific cloud tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools for cloud tools for version 6.4.0-76060400 on
+ 64 bit x86.
+ You probably want to install linux-cloud-tools-6.4.0-76060400-<flavour>.
+
+Package: linux-tools-host
+Build-Profiles: <!stage1>
+Architecture: all
+Multi-Arch: foreign
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, python3
+Description: Linux kernel VM host tools
+ This package provides kernel tools useful for VM hosts.
+
+# linux-meta {
+
+Package: linux-headers-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Depends:
+ ${misc:Depends},
+ linux-headers-6.4.0-76060400-generic (= ${source:Version})
+Description: Generic Linux kernel headers
+ This package will always depend on the latest generic kernel headers
+ available.
+
+Package: linux-image-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Provides: wireguard-modules (= 1.0.0)
+Depends:
+ ${misc:Depends},
+ linux-image-6.4.0-76060400-generic (= ${source:Version}),
+ linux-firmware,
+ intel-microcode [amd64],
+ amd64-microcode [amd64]
+Recommends: thermald [amd64]
+Description: Generic Linux kernel image
+ This package will always depend on the latest generic kernel image
+ available.
+
+Package: linux-tools-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Provides: linux-tools
+Depends:
+ ${misc:Depends},
+ linux-tools-6.4.0-76060400-generic (= ${source:Version})
+Description: Generic Linux kernel tools
+ This package will always depend on the latest generic kernel tools
+ available.
+
+Package: linux-cloud-tools-generic
+Build-Profiles: <!stage1>
+Architecture: amd64
+Section: kernel
+Provides: linux-cloud-tools
+Depends:
+ ${misc:Depends},
+ linux-cloud-tools-6.4.0-76060400-generic (= ${source:Version})
+Description: Generic Linux kernel cloud tools
+ This package will always depend on the latest generic kernel cloud tools
+ available.
+
+Package: linux-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Depends:
+ ${misc:Depends},
+ linux-image-generic (= ${binary:Version}),
+ linux-headers-generic (= ${binary:Version})
+Description: Complete Generic Linux kernel and headers
+ This package will always depend on the latest complete generic Linux kernel
+ and headers.
+
+# } linux-meta
+
+# linux-system76 {
+
+Package: linux-system76
+Build-Profiles: <!stage1>
+Architecture: amd64
+Section: kernel
+Depends:
+ ${misc:Depends},
+ linux-generic (= ${binary:Version})
+Description: System76 recommended Linux kernel
+ This package depends upon the recommended kernel for System76 users.
+
+# } linux-system76
+
+
+Package: linux-image-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: kernel
+Priority: optional
+Provides: linux-image, fuse-module, kvm-api-4, redhat-cluster-modules, ivtv-modules, virtualbox-guest-modules [amd64], ${linux:rprovides}
+Depends: ${misc:Depends}, ${shlibs:Depends}, kmod, linux-base (>= 4.5ubuntu1~16.04.1), linux-modules-6.4.0-76060400-generic
+Recommends: kernelstub [amd64] | grub-pc [amd64] | grub-efi-amd64 [amd64] | grub-efi-ia32 [amd64] | grub [amd64] | lilo [amd64] | flash-kernel [armhf arm64] | grub-efi-arm64 [arm64] | grub-efi-arm [armhf] | grub-ieee1275 [ppc64el], initramfs-tools | linux-initramfs-tool
+Breaks: flash-kernel (<< 3.90ubuntu2) [arm64 armhf], s390-tools (<< 2.3.0-0ubuntu3) [s390x]
+Conflicts: linux-image-unsigned-6.4.0-76060400-generic
+Suggests: fdutils, linux-doc | linux-source-6.4.0, linux-tools, linux-headers-6.4.0-76060400-generic, linux-modules-extra-6.4.0-76060400-generic
+Description: Linux kernel image for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel image for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ Supports Generic processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-modules-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel extra modules for version 6.4.0 on 64 bit x86 SMP
+ Contains the corresponding System.map file, the modules built by the
+ packager, and scripts that try to ensure that the system is not left in an
+ unbootable state after an update.
+ .
+ Supports Generic processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-modules-extra-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}, linux-modules-6.4.0-76060400-generic, wireless-regdb
+Description: Linux kernel extra modules for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel extra modules for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ Also includes the corresponding System.map file, the modules built by the
+ packager, and scripts that try to ensure that the system is not left in an
+ unbootable state after an update.
+ .
+ Supports Generic processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-headers-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-headers-6.4.0-76060400, ${shlibs:Depends}
+Provides: linux-headers, linux-headers-3.0
+Description: Linux kernel headers for version 6.4.0 on 64 bit x86 SMP
+ This package provides kernel header files for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ This is for sites that want the latest kernel headers.  Please read
+ /usr/share/doc/linux-headers-6.4.0-76060400/debian.README.gz for details.
+
+Package: linux-lib-rust-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64
+Multi-Arch: foreign
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, coreutils
+Description: Rust library files related to Linux kernel version 6.4.0
+ This package provides kernel library files for version 6.4.0, that allow to
+ compile out-of-tree kernel modules written in Rust.
+
+Package: linux-image-6.4.0-76060400-generic-dbgsym
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}
+Provides: linux-debug
+Description: Linux kernel debug image for version 6.4.0 on 64 bit x86 SMP
+ This package provides the kernel debug image for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ This is for sites that wish to debug the kernel.
+ .
+ The kernel image contained in this package is NOT meant to boot from. It
+ is uncompressed, and unstripped. This package also includes the
+ unstripped modules.
+
+Package: linux-tools-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-tools-6.4.0-76060400
+Description: Linux kernel version specific tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools (such as perf and x86_energy_perf_policy) for
+ version 6.4.0-76060400 on
+ 64 bit x86.
+
+Package: linux-cloud-tools-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-cloud-tools-6.4.0-76060400
+Description: Linux kernel version specific cloud tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools for cloud for version 6.4.0-76060400 on
+ 64 bit x86.
+
+
+Package: linux-buildinfo-6.4.0-76060400-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 ppc64el s390x
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel buildinfo for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel buildinfo for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ You likely do not want to install this package.
+
+
+Package: linux-image-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: kernel
+Priority: optional
+Provides: linux-image, fuse-module, kvm-api-4, redhat-cluster-modules, ivtv-modules, ${linux:rprovides}
+Depends: ${misc:Depends}, ${shlibs:Depends}, kmod, linux-base (>= 4.5ubuntu1~16.04.1), linux-modules-6.4.0-76060400-generic-64k
+Recommends: grub-efi-arm64 [arm64] | flash-kernel [arm64], initramfs-tools | linux-initramfs-tool
+Breaks: flash-kernel (<< 3.90ubuntu2) [arm64 armhf], s390-tools (<< 2.3.0-0ubuntu3) [s390x]
+Conflicts: linux-image-unsigned-6.4.0-76060400-generic-64k
+Suggests: fdutils, linux-doc | linux-source-6.4.0, linux-tools, linux-headers-6.4.0-76060400-generic-64k, linux-modules-extra-6.4.0-76060400-generic-64k
+Description: Linux kernel image for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel image for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ Supports Generic 64K pages processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic-64k meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-modules-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel extra modules for version 6.4.0 on 64 bit x86 SMP
+ Contains the corresponding System.map file, the modules built by the
+ packager, and scripts that try to ensure that the system is not left in an
+ unbootable state after an update.
+ .
+ Supports Generic 64K pages processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic-64k meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-modules-extra-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}, linux-modules-6.4.0-76060400-generic-64k, wireless-regdb
+Description: Linux kernel extra modules for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel extra modules for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ Also includes the corresponding System.map file, the modules built by the
+ packager, and scripts that try to ensure that the system is not left in an
+ unbootable state after an update.
+ .
+ Supports Generic 64K pages processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic-64k meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-headers-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-headers-6.4.0-76060400, ${shlibs:Depends}
+Provides: linux-headers, linux-headers-3.0
+Description: Linux kernel headers for version 6.4.0 on 64 bit x86 SMP
+ This package provides kernel header files for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ This is for sites that want the latest kernel headers.  Please read
+ /usr/share/doc/linux-headers-6.4.0-76060400/debian.README.gz for details.
+
+Package: linux-lib-rust-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: amd64
+Multi-Arch: foreign
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, coreutils
+Description: Rust library files related to Linux kernel version 6.4.0
+ This package provides kernel library files for version 6.4.0, that allow to
+ compile out-of-tree kernel modules written in Rust.
+
+Package: linux-image-6.4.0-76060400-generic-64k-dbgsym
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}
+Provides: linux-debug
+Description: Linux kernel debug image for version 6.4.0 on 64 bit x86 SMP
+ This package provides the kernel debug image for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ This is for sites that wish to debug the kernel.
+ .
+ The kernel image contained in this package is NOT meant to boot from. It
+ is uncompressed, and unstripped. This package also includes the
+ unstripped modules.
+
+Package: linux-tools-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-tools-6.4.0-76060400
+Description: Linux kernel version specific tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools (such as perf and x86_energy_perf_policy) for
+ version 6.4.0-76060400 on
+ 64 bit x86.
+
+Package: linux-cloud-tools-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-cloud-tools-6.4.0-76060400
+Description: Linux kernel version specific cloud tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools for cloud for version 6.4.0-76060400 on
+ 64 bit x86.
+
+
+Package: linux-buildinfo-6.4.0-76060400-generic-64k
+Build-Profiles: <!stage1>
+Architecture: arm64
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel buildinfo for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel buildinfo for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ You likely do not want to install this package.
+
+
+Package: linux-image-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: kernel
+Priority: optional
+Provides: linux-image, fuse-module, kvm-api-4, redhat-cluster-modules, ivtv-modules, ${linux:rprovides}
+Depends: ${misc:Depends}, ${shlibs:Depends}, kmod, linux-base (>= 4.5ubuntu1~16.04.1), linux-modules-6.4.0-76060400-generic-lpae
+Recommends: flash-kernel [armhf] | grub-efi-arm [armhf], initramfs-tools | linux-initramfs-tool
+Breaks: flash-kernel (<< 3.90ubuntu2) [arm64 armhf], s390-tools (<< 2.3.0-0ubuntu3) [s390x]
+Conflicts: linux-image-unsigned-6.4.0-76060400-generic-lpae
+Suggests: fdutils, linux-doc | linux-source-6.4.0, linux-tools, linux-headers-6.4.0-76060400-generic-lpae, linux-modules-extra-6.4.0-76060400-generic-lpae
+Description: Linux kernel image for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel image for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ Supports Generic LPAE processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic-lpae meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-modules-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel extra modules for version 6.4.0 on 64 bit x86 SMP
+ Contains the corresponding System.map file, the modules built by the
+ packager, and scripts that try to ensure that the system is not left in an
+ unbootable state after an update.
+ .
+ Supports Generic LPAE processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic-lpae meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-modules-extra-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}, linux-modules-6.4.0-76060400-generic-lpae, wireless-regdb
+Description: Linux kernel extra modules for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel extra modules for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ Also includes the corresponding System.map file, the modules built by the
+ packager, and scripts that try to ensure that the system is not left in an
+ unbootable state after an update.
+ .
+ Supports Generic LPAE processors.
+ .
+ Geared toward desktop and server systems.
+ .
+ You likely do not want to install this package directly. Instead, install
+ the linux-generic-lpae meta-package, which will ensure that upgrades work
+ correctly, and that supporting packages are also installed.
+
+Package: linux-headers-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-headers-6.4.0-76060400, ${shlibs:Depends}
+Provides: linux-headers, linux-headers-3.0
+Description: Linux kernel headers for version 6.4.0 on 64 bit x86 SMP
+ This package provides kernel header files for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ This is for sites that want the latest kernel headers.  Please read
+ /usr/share/doc/linux-headers-6.4.0-76060400/debian.README.gz for details.
+
+Package: linux-lib-rust-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: amd64
+Multi-Arch: foreign
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, coreutils
+Description: Rust library files related to Linux kernel version 6.4.0
+ This package provides kernel library files for version 6.4.0, that allow to
+ compile out-of-tree kernel modules written in Rust.
+
+Package: linux-image-6.4.0-76060400-generic-lpae-dbgsym
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}
+Provides: linux-debug
+Description: Linux kernel debug image for version 6.4.0 on 64 bit x86 SMP
+ This package provides the kernel debug image for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ This is for sites that wish to debug the kernel.
+ .
+ The kernel image contained in this package is NOT meant to boot from. It
+ is uncompressed, and unstripped. This package also includes the
+ unstripped modules.
+
+Package: linux-tools-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-tools-6.4.0-76060400
+Description: Linux kernel version specific tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools (such as perf and x86_energy_perf_policy) for
+ version 6.4.0-76060400 on
+ 64 bit x86.
+
+Package: linux-cloud-tools-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: devel
+Priority: optional
+Depends: ${misc:Depends}, linux-cloud-tools-6.4.0-76060400
+Description: Linux kernel version specific cloud tools for version 6.4.0-76060400
+ This package provides the architecture dependant parts for kernel
+ version locked tools for cloud for version 6.4.0-76060400 on
+ 64 bit x86.
+
+
+Package: linux-buildinfo-6.4.0-76060400-generic-lpae
+Build-Profiles: <!stage1>
+Architecture: armhf
+Section: kernel
+Priority: optional
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel buildinfo for version 6.4.0 on 64 bit x86 SMP
+ This package contains the Linux kernel buildinfo for version 6.4.0 on
+ 64 bit x86 SMP.
+ .
+ You likely do not want to install this package.
+

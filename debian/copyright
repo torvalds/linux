@@ -1,0 +1,29 @@
+This is the Ubuntu prepackaged version of the Linux kernel.
+Linux was written by Linus Torvalds <Linus.Torvalds@cs.Helsinki.FI>
+and others.
+
+This package was put together by the Ubuntu Kernel Team, from
+sources retrieved from upstream linux git.
+The sources may be found at most Linux ftp sites, including 
+ftp://ftp.kernel.org/pub/linux/kernel/
+
+This package is currently maintained by the
+Ubuntu Kernel Team <ubuntu-kernel@lists.ubuntu.com>
+
+Linux is copyrighted by Linus Torvalds and others.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 dated June, 1991.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+On Ubuntu Linux systems, the complete text of the GNU General
+Public License v2 can be found in `/usr/share/common-licenses/GPL-2'.
