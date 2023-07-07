@@ -777,6 +777,10 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 			ofs->config.index = false;
 			pr_warn("...falling back to index=off.\n");
 		}
+		if (ovl_has_fsid(ofs)) {
+			ofs->config.uuid = OVL_UUID_NULL;
+			pr_warn("...falling back to uuid=null.\n");
+		}
 		/*
 		 * xattr support is required for persistent st_ino.
 		 * Without persistent st_ino, xino=auto falls back to xino=off.
@@ -1427,9 +1431,9 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (!ovl_origin_uuid(ofs) && ofs->numfs > 1) {
 		pr_warn("The uuid=off requires a single fs for lower and upper, falling back to uuid=null.\n");
 		ofs->config.uuid = OVL_UUID_NULL;
-	} else if (ovl_has_fsid(ofs)) {
-		/* Use per instance uuid/fsid */
-		uuid_gen(&sb->s_uuid);
+	} else if (ovl_has_fsid(ofs) && ovl_upper_mnt(ofs)) {
+		/* Use per instance persistent uuid/fsid */
+		ovl_init_uuid_xattr(sb, ofs, &ctx->upper);
 	}
 
 	if (!ovl_force_readonly(ofs) && ofs->config.index) {

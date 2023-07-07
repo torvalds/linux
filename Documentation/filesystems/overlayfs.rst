@@ -671,6 +671,9 @@ controlled by the "uuid" mount option, which supports these values:
     UUID of underlying layers is ignored.
 - "on":
     UUID of overlayfs is generated and used to report a unique fsid.
+    UUID is stored in xattr "trusted.overlay.uuid", making overlayfs fsid
+    unique and persistent.  This option requires an overlayfs with upper
+    filesystem that supports xattrs.
 
 
 Volatile mount

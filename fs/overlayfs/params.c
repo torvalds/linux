@@ -801,6 +801,11 @@ int ovl_fs_params_verify(const struct ovl_fs_context *ctx,
 		config->ovl_volatile = false;
 	}
 
+	if (!config->upperdir && config->uuid == OVL_UUID_ON) {
+		pr_info("option \"uuid=on\" requires an upper fs, falling back to uuid=null.\n");
+		config->uuid = OVL_UUID_NULL;
+	}
+
 	/* Resolve verity -> metacopy dependency */
 	if (config->verity_mode && !config->metacopy) {
 		/* Don't allow explicit specified conflicting combinations */

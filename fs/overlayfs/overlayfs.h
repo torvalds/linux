@@ -37,6 +37,7 @@ enum ovl_xattr {
 	OVL_XATTR_IMPURE,
 	OVL_XATTR_NLINK,
 	OVL_XATTR_UPPER,
+	OVL_XATTR_UUID,
 	OVL_XATTR_METACOPY,
 	OVL_XATTR_PROTATTR,
 };
@@ -465,6 +466,8 @@ bool ovl_already_copied_up(struct dentry *dentry, int flags);
 bool ovl_path_check_dir_xattr(struct ovl_fs *ofs, const struct path *path,
 			      enum ovl_xattr ox);
 bool ovl_path_check_origin_xattr(struct ovl_fs *ofs, const struct path *path);
+bool ovl_init_uuid_xattr(struct super_block *sb, struct ovl_fs *ofs,
+			 const struct path *upperpath);
 
 static inline bool ovl_check_origin_xattr(struct ovl_fs *ofs,
 					  struct dentry *upperdentry)
