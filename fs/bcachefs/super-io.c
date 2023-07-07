@@ -1415,21 +1415,29 @@ static const struct bch_sb_field_ops *bch2_sb_field_ops[] = {
 #undef x
 };
 
+static const struct bch_sb_field_ops bch2_sb_field_null_ops = {
+	NULL
+};
+
+static const struct bch_sb_field_ops *bch2_sb_field_type_ops(unsigned type)
+{
+	return likely(type < ARRAY_SIZE(bch2_sb_field_ops))
+		? bch2_sb_field_ops[type]
+		: &bch2_sb_field_null_ops;
+}
+
 static int bch2_sb_field_validate(struct bch_sb *sb, struct bch_sb_field *f,
 				  struct printbuf *err)
 {
 	unsigned type = le32_to_cpu(f->type);
 	struct printbuf field_err = PRINTBUF;
+	const struct bch_sb_field_ops *ops = bch2_sb_field_type_ops(type);
 	int ret;
 
-	if (type >= BCH_SB_FIELD_NR)
-		return 0;
-
-	ret = bch2_sb_field_ops[type]->validate(sb, f, &field_err);
+	ret = ops->validate ? ops->validate(sb, f, &field_err) : 0;
 	if (ret) {
 		prt_printf(err, "Invalid superblock section %s: %s",
-		       bch2_sb_fields[type],
-		       field_err.buf);
+			   bch2_sb_fields[type], field_err.buf);
 		prt_newline(err);
 		bch2_sb_field_to_text(err, sb, f);
 	}
@@ -1442,13 +1450,12 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 			   struct bch_sb_field *f)
 {
 	unsigned type = le32_to_cpu(f->type);
-	const struct bch_sb_field_ops *ops = type < BCH_SB_FIELD_NR
-		? bch2_sb_field_ops[type] : NULL;
+	const struct bch_sb_field_ops *ops = bch2_sb_field_type_ops(type);
 
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
 
-	if (ops)
+	if (type < BCH_SB_FIELD_NR)
 		prt_printf(out, "%s", bch2_sb_fields[type]);
 	else
 		prt_printf(out, "(unknown field %u)", type);
@@ -1456,9 +1463,9 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, " (size %zu):", vstruct_bytes(f));
 	prt_newline(out);
 
-	if (ops && ops->to_text) {
+	if (ops->to_text) {
 		printbuf_indent_add(out, 2);
-		bch2_sb_field_ops[type]->to_text(out, sb, f);
+		ops->to_text(out, sb, f);
 		printbuf_indent_sub(out, 2);
 	}
 }
