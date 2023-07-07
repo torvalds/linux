@@ -595,6 +595,65 @@ static int test_stat_timestamps(void)
 	return 0;
 }
 
+int test_mmap_munmap(void)
+{
+	int ret, fd, i;
+	void *mem;
+	size_t page_size, file_size, length;
+	off_t offset, pa_offset;
+	struct stat stat_buf;
+	const char * const files[] = {
+		"/dev/zero",
+		"/proc/1/exe", "/proc/self/exe",
+		argv0,
+		NULL
+	};
+
+	page_size = getpagesize();
+	if (page_size < 0)
+		return -1;
+
+	/* find a right file to mmap, existed and accessible */
+	for (i = 0; files[i] != NULL; i++) {
+		ret = fd = open(files[i], O_RDONLY);
+		if (ret == -1)
+			continue;
+		else
+			break;
+	}
+	if (ret == -1)
+		return ret;
+
+	ret = stat(files[i], &stat_buf);
+	if (ret == -1)
+		goto end;
+
+	/* file size of the special /dev/zero is 0, let's assign one manually */
+	if (i == 0)
+		file_size = 3*page_size;
+	else
+		file_size = stat_buf.st_size;
+
+	offset = file_size - 1;
+	if (offset < 0)
+		offset = 0;
+	length = file_size - offset;
+	pa_offset = offset & ~(page_size - 1);
+
+	mem = mmap(NULL, length + offset - pa_offset, PROT_READ, MAP_SHARED, fd, pa_offset);
+	if (mem == MAP_FAILED) {
+		ret = -1;
+		goto end;
+	}
+
+	ret = munmap(mem, length + offset - pa_offset);
+
+end:
+	close(fd);
+	return ret;
+}
+
+
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
  */
@@ -671,6 +730,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(mkdir_root);        EXPECT_SYSER(1, mkdir("/", 0755), -1, EEXIST); break;
 		CASE_TEST(mmap_bad);          EXPECT_PTRER(1, mmap(NULL, 0, PROT_READ, MAP_PRIVATE, 0, 0), MAP_FAILED, EINVAL); break;
 		CASE_TEST(munmap_bad);        EXPECT_SYSER(1, munmap((void *)1, 0), -1, EINVAL); break;
+		CASE_TEST(mmap_munmap_good);  EXPECT_SYSZR(1, test_mmap_munmap()); break;
 		CASE_TEST(open_tty);          EXPECT_SYSNE(1, tmp = open("/dev/null", 0), -1); if (tmp != -1) close(tmp); break;
 		CASE_TEST(open_blah);         EXPECT_SYSER(1, tmp = open("/proc/self/blah", 0), -1, ENOENT); if (tmp != -1) close(tmp); break;
 		CASE_TEST(poll_null);         EXPECT_SYSZR(1, poll(NULL, 0, 0)); break;
