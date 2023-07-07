@@ -1371,19 +1371,19 @@ static inline bool data_type_is_hidden(enum bch_data_type type)
 struct bch_replicas_entry_v0 {
 	__u8			data_type;
 	__u8			nr_devs;
-	__u8			devs[];
+	__u8			devs[0];
 } __packed;
 
 struct bch_sb_field_replicas_v0 {
 	struct bch_sb_field	field;
-	struct bch_replicas_entry_v0 entries[];
+	struct bch_replicas_entry_v0 entries[0];
 } __packed __aligned(8);
 
 struct bch_replicas_entry {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			nr_required;
-	__u8			devs[];
+	__u8			devs[0];
 } __packed;
 
 #define replicas_entry_bytes(_i)					\
@@ -1391,7 +1391,7 @@ struct bch_replicas_entry {
 
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
-	struct bch_replicas_entry entries[];
+	struct bch_replicas_entry entries[0];
 } __packed __aligned(8);
 
 /* BCH_SB_FIELD_quota: */

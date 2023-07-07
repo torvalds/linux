@@ -225,6 +225,7 @@ struct posix_acl *bch2_get_acl(struct mnt_idmap *idmap,
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
+	struct xattr_search_key search = X_SEARCH(acl_to_xattr_type(type), "", 0);
 	struct btree_trans trans;
 	struct btree_iter iter = { NULL };
 	struct bkey_s_c_xattr xattr;
@@ -237,9 +238,7 @@ retry:
 	bch2_trans_begin(&trans);
 
 	ret = bch2_hash_lookup(&trans, &iter, bch2_xattr_hash_desc,
-			&hash, inode_inum(inode),
-			&X_SEARCH(acl_to_xattr_type(type), "", 0),
-			0);
+			&hash, inode_inum(inode), &search, 0);
 	if (ret) {
 		if (!bch2_err_matches(ret, ENOENT))
 			acl = ERR_PTR(ret);
@@ -364,6 +363,7 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 		   struct posix_acl **new_acl)
 {
 	struct bch_hash_info hash_info = bch2_hash_info_init(trans->c, inode);
+	struct xattr_search_key search = X_SEARCH(KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0);
 	struct btree_iter iter;
 	struct bkey_s_c_xattr xattr;
 	struct bkey_i_xattr *new;
@@ -372,9 +372,7 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 	int ret;
 
 	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
-			       &hash_info, inum,
-			&X_SEARCH(KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS, "", 0),
-			BTREE_ITER_INTENT);
+			       &hash_info, inum, &search, BTREE_ITER_INTENT);
 	if (ret)
 		return bch2_err_matches(ret, ENOENT) ? 0 : ret;
 

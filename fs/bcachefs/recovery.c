@@ -308,7 +308,7 @@ static void bch2_journal_iter_advance(struct journal_iter *iter)
 	}
 }
 
-struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
+static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
 	struct journal_key *k = iter->keys->d + iter->idx;
 
@@ -1042,7 +1042,7 @@ static int bch2_fs_initialize_subvolumes(struct bch_fs *c)
 	root_snapshot.k.p.offset = U32_MAX;
 	root_snapshot.v.flags	= 0;
 	root_snapshot.v.parent	= 0;
-	root_snapshot.v.subvol	= BCACHEFS_ROOT_SUBVOL;
+	root_snapshot.v.subvol	= cpu_to_le32(BCACHEFS_ROOT_SUBVOL);
 	root_snapshot.v.tree	= cpu_to_le32(1);
 	SET_BCH_SNAPSHOT_SUBVOL(&root_snapshot.v, true);
 
@@ -1468,7 +1468,7 @@ use_clean:
 
 	if (!(c->sb.compat & (1ULL << BCH_COMPAT_extents_above_btree_updates_done)) ||
 	    !(c->sb.compat & (1ULL << BCH_COMPAT_bformat_overflow_done)) ||
-	    le16_to_cpu(c->sb.version_min) < bcachefs_metadata_version_btree_ptr_sectors_written) {
+	    c->sb.version_min < bcachefs_metadata_version_btree_ptr_sectors_written) {
 		struct bch_move_stats stats;
 
 		bch2_move_stats_init(&stats, "recovery");

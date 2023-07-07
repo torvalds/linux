@@ -201,16 +201,16 @@ int bch2_journal_buckets_to_sb(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_sb_field_delete(&ca->disk_sb, BCH_SB_FIELD_journal);
 
-	j->d[dst].start = le64_to_cpu(buckets[0]);
-	j->d[dst].nr	= le64_to_cpu(1);
+	j->d[dst].start = cpu_to_le64(buckets[0]);
+	j->d[dst].nr	= cpu_to_le64(1);
 
 	for (i = 1; i < nr; i++) {
 		if (buckets[i] == buckets[i - 1] + 1) {
 			le64_add_cpu(&j->d[dst].nr, 1);
 		} else {
 			dst++;
-			j->d[dst].start = le64_to_cpu(buckets[i]);
-			j->d[dst].nr	= le64_to_cpu(1);
+			j->d[dst].start = cpu_to_le64(buckets[i]);
+			j->d[dst].nr	= cpu_to_le64(1);
 		}
 	}
 

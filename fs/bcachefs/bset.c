@@ -599,11 +599,10 @@ static inline unsigned bkey_mantissa(const struct bkey_packed *k,
 	return (u16) v;
 }
 
-__always_inline
-static inline void make_bfloat(struct btree *b, struct bset_tree *t,
-			       unsigned j,
-			       struct bkey_packed *min_key,
-			       struct bkey_packed *max_key)
+static __always_inline void make_bfloat(struct btree *b, struct bset_tree *t,
+					unsigned j,
+					struct bkey_packed *min_key,
+					struct bkey_packed *max_key)
 {
 	struct bkey_float *f = bkey_float(b, t, j);
 	struct bkey_packed *m = tree_to_bkey(b, t, j);

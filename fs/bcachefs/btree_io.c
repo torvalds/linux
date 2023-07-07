@@ -1281,7 +1281,7 @@ struct btree_node_read_all {
 	unsigned		nr;
 	void			*buf[BCH_REPLICAS_MAX];
 	struct bio		*bio[BCH_REPLICAS_MAX];
-	int			err[BCH_REPLICAS_MAX];
+	blk_status_t		err[BCH_REPLICAS_MAX];
 };
 
 static unsigned btree_node_sectors_written(struct bch_fs *c, void *data)
@@ -2230,7 +2230,7 @@ bool bch2_btree_flush_all_writes(struct bch_fs *c)
 	return __bch2_btree_flush_all(c, BTREE_NODE_write_in_flight);
 }
 
-const char * const bch2_btree_write_types[] = {
+static const char * const bch2_btree_write_types[] = {
 #define x(t, n) [n] = #t,
 	BCH_BTREE_WRITE_TYPES()
 	NULL

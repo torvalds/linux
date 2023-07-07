@@ -681,6 +681,11 @@ static inline bool btree_node_type_is_extents(enum btree_node_type type)
 	return (1U << type) & BTREE_ID_IS_EXTENTS;
 }
 
+static inline bool btree_id_is_extents(enum btree_id btree)
+{
+	return btree_node_type_is_extents((enum btree_node_type) btree);
+}
+
 #define BTREE_ID_HAS_SNAPSHOTS				\
 	((1U << BTREE_ID_extents)|			\
 	 (1U << BTREE_ID_inodes)|			\

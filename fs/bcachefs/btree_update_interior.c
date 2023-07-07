@@ -2036,7 +2036,7 @@ out:
 	return ret;
 }
 
-void async_btree_node_rewrite_work(struct work_struct *work)
+static void async_btree_node_rewrite_work(struct work_struct *work)
 {
 	struct async_btree_rewrite *a =
 		container_of(work, struct async_btree_rewrite, work);

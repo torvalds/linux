@@ -929,7 +929,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
  * This synthesizes deleted extents for holes, similar to BTREE_ITER_SLOTS for
  * extents style btrees, but works on non-extents btrees:
  */
-struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos end, struct bkey *hole)
+static struct bkey_s_c bch2_get_key_or_hole(struct btree_iter *iter, struct bpos end, struct bkey *hole)
 {
 	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
 
@@ -1000,7 +1000,7 @@ static bool next_bucket(struct bch_fs *c, struct bpos *bucket)
 	return ca != NULL;
 }
 
-struct bkey_s_c bch2_get_key_or_real_bucket_hole(struct btree_iter *iter, struct bkey *hole)
+static struct bkey_s_c bch2_get_key_or_real_bucket_hole(struct btree_iter *iter, struct bkey *hole)
 {
 	struct bch_fs *c = iter->trans->c;
 	struct bkey_s_c k;

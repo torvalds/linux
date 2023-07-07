@@ -458,7 +458,7 @@ enum bch_folio_sector_state {
 #undef x
 };
 
-const char * const bch2_folio_sector_states[] = {
+static const char * const bch2_folio_sector_states[] = {
 #define x(n)	#n,
 	BCH_FOLIO_SECTOR_STATE()
 #undef x
@@ -997,7 +997,7 @@ vm_fault_t bch2_page_fault(struct vm_fault *vmf)
 	struct address_space *mapping = file->f_mapping;
 	struct address_space *fdm = faults_disabled_mapping();
 	struct bch_inode_info *inode = file_bch_inode(file);
-	int ret;
+	vm_fault_t ret;
 
 	if (fdm == mapping)
 		return VM_FAULT_SIGBUS;
@@ -1039,7 +1039,7 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	struct bch2_folio_reservation res;
 	unsigned len;
 	loff_t isize;
-	int ret;
+	vm_fault_t ret;
 
 	bch2_folio_reservation_init(c, inode, &res);
 

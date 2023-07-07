@@ -480,7 +480,7 @@ void __bch2_bkey_compat(unsigned level, enum btree_id btree_id,
 				u->k.p.snapshot = write
 					? 0 : U32_MAX;
 			} else {
-				u64 min_packed = f->field_offset[BKEY_FIELD_SNAPSHOT];
+				u64 min_packed = le64_to_cpu(f->field_offset[BKEY_FIELD_SNAPSHOT]);
 				u64 max_packed = min_packed +
 					~(~0ULL << f->bits_per_field[BKEY_FIELD_SNAPSHOT]);
 

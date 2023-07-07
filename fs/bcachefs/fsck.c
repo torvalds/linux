@@ -1696,8 +1696,8 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			goto err;
 
 		if (fsck_err_on(ret, c,
-				"dirent points to missing subvolume %llu",
-				le64_to_cpu(d.v->d_child_subvol))) {
+				"dirent points to missing subvolume %u",
+				le32_to_cpu(d.v->d_child_subvol))) {
 			ret = __remove_dirent(trans, d.k->p);
 			goto err;
 		}
@@ -2238,7 +2238,7 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 		 * Backpointer and directory structure checks are sufficient for
 		 * directories, since they can't have hardlinks:
 		 */
-		if (S_ISDIR(le16_to_cpu(u.bi_mode)))
+		if (S_ISDIR(u.bi_mode))
 			continue;
 
 		if (!u.bi_nlink)
@@ -2324,7 +2324,7 @@ static int check_nlinks_update_inode(struct btree_trans *trans, struct btree_ite
 
 	BUG_ON(bch2_inode_unpack(k, &u));
 
-	if (S_ISDIR(le16_to_cpu(u.bi_mode)))
+	if (S_ISDIR(u.bi_mode))
 		return 0;
 
 	if (!u.bi_nlink)

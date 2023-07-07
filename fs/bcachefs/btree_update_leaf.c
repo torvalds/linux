@@ -29,7 +29,7 @@
  * bch2_btree_path_peek_slot() for a cached iterator might return a key in a
  * different snapshot:
  */
-struct bkey_s_c bch2_btree_path_peek_slot_exact(struct btree_path *path, struct bkey *u)
+static struct bkey_s_c bch2_btree_path_peek_slot_exact(struct btree_path *path, struct bkey *u)
 {
 	struct bkey_s_c k = bch2_btree_path_peek_slot(path, u);
 

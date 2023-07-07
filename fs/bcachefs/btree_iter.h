@@ -283,7 +283,7 @@ static inline void bch2_trans_verify_not_in_restart(struct btree_trans *trans)
 }
 
 __always_inline
-static inline int btree_trans_restart_nounlock(struct btree_trans *trans, int err)
+static int btree_trans_restart_nounlock(struct btree_trans *trans, int err)
 {
 	BUG_ON(err <= 0);
 	BUG_ON(!bch2_err_matches(-err, BCH_ERR_transaction_restart));
@@ -294,7 +294,7 @@ static inline int btree_trans_restart_nounlock(struct btree_trans *trans, int er
 }
 
 __always_inline
-static inline int btree_trans_restart(struct btree_trans *trans, int err)
+static int btree_trans_restart(struct btree_trans *trans, int err)
 {
 	btree_trans_restart_nounlock(trans, err);
 	return -err;

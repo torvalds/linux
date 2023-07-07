@@ -598,13 +598,6 @@ int __bch2_btree_path_relock(struct btree_trans *trans,
 	return 0;
 }
 
-__flatten
-bool bch2_btree_path_upgrade_norestart(struct btree_trans *trans,
-			struct btree_path *path, unsigned long trace_ip)
-{
-	return btree_path_get_locks(trans, path, true);
-}
-
 bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *trans,
 			       struct btree_path *path,
 			       unsigned new_locks_want)

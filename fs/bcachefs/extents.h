@@ -154,11 +154,7 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 			common_fields(crc->crc32),
 		};
 
-		*((__le32 *) &ret.csum.lo) = crc->crc32.csum;
-
-		memcpy(&ret.csum.lo, &crc->crc32.csum,
-		       sizeof(crc->crc32.csum));
-
+		*((__le32 *) &ret.csum.lo) = (__le32 __force) crc->crc32.csum;
 		return ret;
 	}
 	case BCH_EXTENT_ENTRY_crc64: {
@@ -168,7 +164,7 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 			.csum.lo		= (__force __le64) crc->crc64.csum_lo,
 		};
 
-		*((__le16 *) &ret.csum.hi) = crc->crc64.csum_hi;
+		*((__le16 *) &ret.csum.hi) = (__le16 __force) crc->crc64.csum_hi;
 
 		return ret;
 	}

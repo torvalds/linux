@@ -374,7 +374,7 @@ static inline int update_replicas(struct bch_fs *c, struct bkey_s_c k,
 			struct bch_replicas_entry *r, s64 sectors,
 			unsigned journal_seq, bool gc)
 {
-	struct bch_fs_usage __percpu *fs_usage;
+	struct bch_fs_usage *fs_usage;
 	int idx, ret = 0;
 	struct printbuf buf = PRINTBUF;
 
@@ -1143,7 +1143,7 @@ int bch2_mark_inode(struct btree_trans *trans,
 		    unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_fs_usage __percpu *fs_usage;
+	struct bch_fs_usage *fs_usage;
 	u64 journal_seq = trans->journal_res.seq;
 
 	if (flags & BTREE_TRIGGER_INSERT) {
@@ -1176,7 +1176,7 @@ int bch2_mark_reservation(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c k = flags & BTREE_TRIGGER_OVERWRITE ? old : new;
-	struct bch_fs_usage __percpu *fs_usage;
+	struct bch_fs_usage *fs_usage;
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 	s64 sectors = (s64) k.k->size;
 

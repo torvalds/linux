@@ -385,7 +385,7 @@ static void ec_block_endio(struct bio *bio)
 }
 
 static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
-			unsigned rw, unsigned idx, struct closure *cl)
+			blk_opf_t opf, unsigned idx, struct closure *cl)
 {
 	struct bch_stripe *v = &buf->key.v;
 	unsigned offset = 0, bytes = buf->size << 9;
@@ -394,6 +394,7 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 	enum bch_data_type data_type = idx < buf->key.v.nr_blocks - buf->key.v.nr_redundant
 		? BCH_DATA_user
 		: BCH_DATA_parity;
+	int rw = op_is_write(opf);
 
 	if (ptr_stale(ca, ptr)) {
 		bch_err_ratelimited(c,
@@ -419,7 +420,7 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 
 		ec_bio = container_of(bio_alloc_bioset(ca->disk_sb.bdev,
 						       nr_iovecs,
-						       rw,
+						       opf,
 						       GFP_KERNEL,
 						       &c->ec_bioset),
 				      struct ec_bio, bio);
@@ -1380,11 +1381,12 @@ void bch2_ec_stripe_head_put(struct bch_fs *c, struct ec_stripe_head *h)
 	mutex_unlock(&h->lock);
 }
 
-struct ec_stripe_head *__bch2_ec_stripe_head_get(struct btree_trans *trans,
-						 unsigned target,
-						 unsigned algo,
-						 unsigned redundancy,
-						 enum bch_watermark watermark)
+static struct ec_stripe_head *
+__bch2_ec_stripe_head_get(struct btree_trans *trans,
+			  unsigned target,
+			  unsigned algo,
+			  unsigned redundancy,
+			  enum bch_watermark watermark)
 {
 	struct bch_fs *c = trans->c;
 	struct ec_stripe_head *h;
@@ -1570,7 +1572,7 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 	}
 
 	BUG_ON(h->s->existing_stripe.size != h->blocksize);
-	BUG_ON(h->s->existing_stripe.size != h->s->existing_stripe.key.v.sectors);
+	BUG_ON(h->s->existing_stripe.size != le16_to_cpu(h->s->existing_stripe.key.v.sectors));
 
 	/*
 	 * Free buckets we initially allocated - they might conflict with

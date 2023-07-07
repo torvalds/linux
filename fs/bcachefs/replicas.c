@@ -36,8 +36,8 @@ static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 	eytzinger0_sort(r->entries, r->nr, r->entry_size, memcmp, NULL);
 }
 
-void bch2_replicas_entry_v0_to_text(struct printbuf *out,
-				    struct bch_replicas_entry_v0 *e)
+static void bch2_replicas_entry_v0_to_text(struct printbuf *out,
+					   struct bch_replicas_entry_v0 *e)
 {
 	unsigned i;
 
@@ -272,7 +272,7 @@ static void __replicas_table_update_pcpu(struct bch_fs_usage __percpu *dst_p,
 {
 	unsigned src_nr = sizeof(struct bch_fs_usage) / sizeof(u64) + src_r->nr;
 	struct bch_fs_usage *dst, *src = (void *)
-		bch2_acc_percpu_u64s((void *) src_p, src_nr);
+		bch2_acc_percpu_u64s((u64 __percpu *) src_p, src_nr);
 
 	preempt_disable();
 	dst = this_cpu_ptr(dst_p);

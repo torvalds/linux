@@ -219,7 +219,7 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 	int ret = 0;
 
 	if (d.v->d_type == DT_SUBVOL &&
-	    d.v->d_parent_subvol != dir.subvol)
+	    le32_to_cpu(d.v->d_parent_subvol) != dir.subvol)
 		return 1;
 
 	if (likely(d.v->d_type != DT_SUBVOL)) {

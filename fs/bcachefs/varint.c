@@ -22,12 +22,13 @@ int bch2_varint_encode(u8 *out, u64 v)
 {
 	unsigned bits = fls64(v|1);
 	unsigned bytes = DIV_ROUND_UP(bits, 7);
+	__le64 v_le;
 
 	if (likely(bytes < 9)) {
 		v <<= bytes;
 		v |= ~(~0 << (bytes - 1));
-		v = cpu_to_le64(v);
-		memcpy(out, &v, bytes);
+		v_le = cpu_to_le64(v);
+		memcpy(out, &v_le, bytes);
 	} else {
 		*out++ = 255;
 		bytes = 9;
@@ -57,9 +58,9 @@ int bch2_varint_decode(const u8 *in, const u8 *end, u64 *out)
 		return -1;
 
 	if (likely(bytes < 9)) {
-		v = 0;
-		memcpy(&v, in, bytes);
-		v = le64_to_cpu(v);
+		__le64 v_le = 0;
+		memcpy(&v_le, in, bytes);
+		v = le64_to_cpu(v_le);
 		v >>= bytes;
 	} else {
 		v = get_unaligned_le64(++in);

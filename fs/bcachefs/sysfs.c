@@ -202,7 +202,7 @@ read_attribute(nocow_lock_table);
 #ifdef BCH_WRITE_REF_DEBUG
 read_attribute(write_refs);
 
-const char * const bch2_write_refs[] = {
+static const char * const bch2_write_refs[] = {
 #define x(n)	#n,
 	BCH_WRITE_REFS()
 #undef x

@@ -1878,7 +1878,7 @@ err:
 		op->end_io(op);
 }
 
-const char * const bch2_write_flags[] = {
+static const char * const bch2_write_flags[] = {
 #define x(f)	#f,
 	BCH_WRITE_FLAGS()
 #undef x

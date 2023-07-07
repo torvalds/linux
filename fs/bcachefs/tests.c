@@ -444,7 +444,7 @@ static int test_peek_end_extents(struct bch_fs *c, u64 nr)
 
 /* extent unit tests */
 
-u64 test_version;
+static u64 test_version;
 
 static int insert_test_extent(struct bch_fs *c,
 			      u64 start, u64 end)

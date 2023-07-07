@@ -135,15 +135,14 @@ static int bch2_xattr_get_trans(struct btree_trans *trans, struct bch_inode_info
 				const char *name, void *buffer, size_t size, int type)
 {
 	struct bch_hash_info hash = bch2_hash_info_init(trans->c, &inode->ei_inode);
+	struct xattr_search_key search = X_SEARCH(type, name, strlen(name));
 	struct btree_iter iter;
 	struct bkey_s_c_xattr xattr;
 	struct bkey_s_c k;
 	int ret;
 
 	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc, &hash,
-			       inode_inum(inode),
-			       &X_SEARCH(type, name, strlen(name)),
-			       0);
+			       inode_inum(inode), &search, 0);
 	if (ret)
 		goto err1;
 

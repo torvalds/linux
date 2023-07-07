@@ -361,7 +361,7 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
-enum journal_pin_type journal_pin_type(journal_pin_flush_fn fn)
+static enum journal_pin_type journal_pin_type(journal_pin_flush_fn fn)
 {
 	if (fn == bch2_btree_node_flush0 ||
 	    fn == bch2_btree_node_flush1)

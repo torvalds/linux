@@ -5,7 +5,7 @@
 
 /* BCH_SB_FIELD_counters */
 
-const char * const bch2_counter_names[] = {
+static const char * const bch2_counter_names[] = {
 #define x(t, n, ...) (#t),
 	BCH_PERSISTENT_COUNTERS()
 #undef x
@@ -27,7 +27,7 @@ static int bch2_sb_counters_validate(struct bch_sb *sb,
 	return 0;
 };
 
-void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
+static void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
 			      struct bch_sb_field *f)
 {
 	struct bch_sb_field_counters *ctrs = field_to_type(f, counters);

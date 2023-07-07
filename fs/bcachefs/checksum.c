@@ -360,7 +360,7 @@ struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
 
 	state.type = type;
 	bch2_checksum_init(&state);
-	state.seed = a.lo;
+	state.seed = (u64 __force) a.lo;
 
 	BUG_ON(!bch2_checksum_mergeable(type));
 
@@ -371,7 +371,7 @@ struct bch_csum bch2_checksum_merge(unsigned type, struct bch_csum a,
 				page_address(ZERO_PAGE(0)), b);
 		b_len -= b;
 	}
-	a.lo = bch2_checksum_final(&state);
+	a.lo = (__le64 __force) bch2_checksum_final(&state);
 	a.lo ^= b.lo;
 	a.hi ^= b.hi;
 	return a;
@@ -597,7 +597,7 @@ int bch2_disable_encryption(struct bch_fs *c)
 	if (ret)
 		goto out;
 
-	crypt->key.magic	= BCH_KEY_MAGIC;
+	crypt->key.magic	= cpu_to_le64(BCH_KEY_MAGIC);
 	crypt->key.key		= key;
 
 	SET_BCH_SB_ENCRYPTION_TYPE(c->disk_sb.sb, 0);
@@ -625,7 +625,7 @@ int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 	if (ret)
 		goto err;
 
-	key.magic = BCH_KEY_MAGIC;
+	key.magic = cpu_to_le64(BCH_KEY_MAGIC);
 	get_random_bytes(&key.key, sizeof(key.key));
 
 	if (keyed) {

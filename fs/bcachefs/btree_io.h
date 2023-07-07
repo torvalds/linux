@@ -178,7 +178,7 @@ static inline void compat_bformat(unsigned level, enum btree_id btree_id,
 
 		f->field_offset[BKEY_FIELD_SNAPSHOT] = write
 			? 0
-			: U32_MAX - max_packed;
+			: cpu_to_le64(U32_MAX - max_packed);
 	}
 }
 
@@ -200,7 +200,7 @@ static inline void compat_btree_node(unsigned level, enum btree_id btree_id,
 				     struct btree_node *bn)
 {
 	if (version < bcachefs_metadata_version_inode_btree_change &&
-	    btree_node_type_is_extents(btree_id) &&
+	    btree_id_is_extents(btree_id) &&
 	    !bpos_eq(bn->min_key, POS_MIN) &&
 	    write)
 		bn->min_key = bpos_nosnap_predecessor(bn->min_key);
@@ -217,7 +217,7 @@ static inline void compat_btree_node(unsigned level, enum btree_id btree_id,
 		bn->max_key.snapshot = U32_MAX;
 
 	if (version < bcachefs_metadata_version_inode_btree_change &&
-	    btree_node_type_is_extents(btree_id) &&
+	    btree_id_is_extents(btree_id) &&
 	    !bpos_eq(bn->min_key, POS_MIN) &&
 	    !write)
 		bn->min_key = bpos_nosnap_successor(bn->min_key);

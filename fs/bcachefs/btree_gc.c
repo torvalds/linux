@@ -1229,7 +1229,7 @@ static int bch2_gc_done(struct bch_fs *c,
 	for_each_member_device(ca, c, dev) {
 		struct bch_dev_usage *dst = ca->usage_base;
 		struct bch_dev_usage *src = (void *)
-			bch2_acc_percpu_u64s((void *) ca->usage_gc,
+			bch2_acc_percpu_u64s((u64 __percpu *) ca->usage_gc,
 					     dev_usage_u64s());
 
 		copy_dev_field(buckets_ec,		"buckets_ec");
@@ -1245,7 +1245,7 @@ static int bch2_gc_done(struct bch_fs *c,
 		unsigned nr = fs_usage_u64s(c);
 		struct bch_fs_usage *dst = c->usage_base;
 		struct bch_fs_usage *src = (void *)
-			bch2_acc_percpu_u64s((void *) c->usage_gc, nr);
+			bch2_acc_percpu_u64s((u64 __percpu *) c->usage_gc, nr);
 
 		copy_fs_field(hidden,		"hidden");
 		copy_fs_field(btree,		"btree");

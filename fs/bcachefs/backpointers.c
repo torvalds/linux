@@ -590,10 +590,10 @@ static size_t btree_nodes_fit_in_ram(struct bch_fs *c)
 	return div_u64(mem_bytes >> 1, btree_bytes(c));
 }
 
-int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
-				 unsigned btree_leaf_mask,
-				 unsigned btree_interior_mask,
-				 struct bbpos start, struct bbpos *end)
+static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
+					unsigned btree_leaf_mask,
+					unsigned btree_interior_mask,
+					struct bbpos start, struct bbpos *end)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -691,8 +691,8 @@ static struct bpos bucket_pos_to_bp_safe(const struct bch_fs *c,
 		: bucket;
 }
 
-int bch2_get_alloc_in_memory_pos(struct btree_trans *trans,
-				 struct bpos start, struct bpos *end)
+static int bch2_get_alloc_in_memory_pos(struct btree_trans *trans,
+					struct bpos start, struct bpos *end)
 {
 	struct btree_iter alloc_iter;
 	struct btree_iter bp_iter;

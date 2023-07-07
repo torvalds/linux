@@ -480,13 +480,13 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k,
 		}
 
 		if (qdq && qdq->d_fieldmask & QC_SPC_TIMER)
-			mq->c[Q_SPC].timer	= cpu_to_le64(qdq->d_spc_timer);
+			mq->c[Q_SPC].timer	= qdq->d_spc_timer;
 		if (qdq && qdq->d_fieldmask & QC_SPC_WARNS)
-			mq->c[Q_SPC].warns	= cpu_to_le64(qdq->d_spc_warns);
+			mq->c[Q_SPC].warns	= qdq->d_spc_warns;
 		if (qdq && qdq->d_fieldmask & QC_INO_TIMER)
-			mq->c[Q_INO].timer	= cpu_to_le64(qdq->d_ino_timer);
+			mq->c[Q_INO].timer	= qdq->d_ino_timer;
 		if (qdq && qdq->d_fieldmask & QC_INO_WARNS)
-			mq->c[Q_INO].warns	= cpu_to_le64(qdq->d_ino_warns);
+			mq->c[Q_INO].warns	= qdq->d_ino_warns;
 
 		mutex_unlock(&q->lock);
 	}
