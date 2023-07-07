@@ -508,8 +508,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 	for (i = 0; i < info->nmaps; i++) {
 		struct resource *res;
 
-		res = platform_get_resource(dev, IORESOURCE_MEM, i);
-		info->maps[i].virt = devm_ioremap_resource(&dev->dev, res);
+		info->maps[i].virt = devm_platform_get_and_ioremap_resource(dev, i, &res);
 		if (IS_ERR(info->maps[i].virt)) {
 			err = PTR_ERR(info->maps[i].virt);
 			goto err_out;
