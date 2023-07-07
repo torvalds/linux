@@ -24,7 +24,7 @@
 static inline size_t unpacked_ea_size(const struct EA_FULL *ea)
 {
 	return ea->size ? le32_to_cpu(ea->size) :
-				ALIGN(struct_size(ea, name,
+			  ALIGN(struct_size(ea, name,
 					    1 + ea->name_len +
 						    le16_to_cpu(ea->elength)),
 				4);
@@ -141,6 +141,7 @@ static int ntfs_read_ea(struct ntfs_inode *ni, struct EA_FULL **ea,
 
 	memset(Add2Ptr(ea_p, size), 0, add_bytes);
 
+	err = -EINVAL;
 	/* Check all attributes for consistency. */
 	for (off = 0; off < size; off += ea_size) {
 		const struct EA_FULL *ef = Add2Ptr(ea_p, off);
@@ -213,6 +214,9 @@ static ssize_t ntfs_list_ea(struct ntfs_inode *ni, char *buffer,
 	for (ret = 0, off = 0; off < size; off += ea_size) {
 		ea = Add2Ptr(ea_all, off);
 		ea_size = unpacked_ea_size(ea);
+
+		if (!ea->name_len)
+			break;
 
 		if (buffer) {
 			if (ret + ea->name_len + 1 > bytes_per_buffer) {
@@ -524,8 +528,8 @@ out:
 /*
  * ntfs_get_acl - inode_operations::get_acl
  */
-struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap,
-			       struct dentry *dentry, int type)
+struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+			       int type)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ntfs_inode *ni = ntfs_i(inode);
@@ -592,8 +596,7 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 	case ACL_TYPE_ACCESS:
 		/* Do not change i_mode if we are in init_acl */
 		if (acl && !init_acl) {
-			err = posix_acl_update_mode(idmap, inode, &mode,
-						    &acl);
+			err = posix_acl_update_mode(idmap, inode, &mode, &acl);
 			if (err)
 				return err;
 		}
@@ -816,10 +819,9 @@ out:
  * ntfs_setxattr - inode_operations::setxattr
  */
 static noinline int ntfs_setxattr(const struct xattr_handler *handler,
-				  struct mnt_idmap *idmap,
-				  struct dentry *de, struct inode *inode,
-				  const char *name, const void *value,
-				  size_t size, int flags)
+				  struct mnt_idmap *idmap, struct dentry *de,
+				  struct inode *inode, const char *name,
+				  const void *value, size_t size, int flags)
 {
 	int err = -EINVAL;
 	struct ntfs_inode *ni = ntfs_i(inode);
