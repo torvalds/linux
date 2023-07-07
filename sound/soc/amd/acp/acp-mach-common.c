@@ -36,6 +36,7 @@ static struct snd_soc_jack vg_headset;
 #define NAU8821_CODEC_DAI	"nau8821-hifi"
 #define NAU8821_BCLK		1536000
 #define NAU8821_FREQ_OUT	12288000
+#define MAX98388_CODEC_DAI	"max98388-aif1"
 
 #define TDM_MODE_ENABLE 1
 
@@ -666,6 +667,97 @@ static const struct snd_soc_ops acp_card_maxim_ops = {
 	.hw_params = acp_card_maxim_hw_params,
 };
 
+SND_SOC_DAILINK_DEF(max98388,
+		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-ADS8388:00", "max98388-aif1"),
+				       COMP_CODEC("i2c-ADS8388:01", "max98388-aif1")));
+
+static const struct snd_soc_dapm_widget max98388_widgets[] = {
+	SND_SOC_DAPM_SPK("SPK", NULL),
+};
+
+static const struct snd_soc_dapm_route max98388_map[] = {
+	{ "SPK", NULL, "Left BE_OUT" },
+	{ "SPK", NULL, "Right BE_OUT" },
+};
+
+static struct snd_soc_codec_conf max98388_conf[] = {
+	{
+		.dlc = COMP_CODEC_CONF("i2c-ADS8388:00"),
+		.name_prefix = "Left",
+	},
+	{
+		.dlc = COMP_CODEC_CONF("i2c-ADS8388:01"),
+		.name_prefix = "Right",
+	},
+};
+
+static const unsigned int max98388_format[] = {16};
+
+static struct snd_pcm_hw_constraint_list constraints_sample_bits_max = {
+	.list = max98388_format,
+	.count = ARRAY_SIZE(max98388_format),
+};
+
+static int acp_card_max98388_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	runtime->hw.channels_max = DUAL_CHANNEL;
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				   &constraints_channels);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				   &constraints_rates);
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
+				   &constraints_sample_bits_max);
+
+	return 0;
+}
+
+static int acp_card_max98388_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	struct acp_card_drvdata *drvdata = card->drvdata;
+	int ret;
+
+	if (drvdata->amp_codec_id != MAX98388)
+		return -EINVAL;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, max98388_widgets,
+					ARRAY_SIZE(max98388_widgets));
+
+	if (ret) {
+		dev_err(rtd->dev, "unable to add widget dapm controls, ret %d\n", ret);
+		/* Don't need to add routes if widget addition failed */
+		return ret;
+	}
+	return snd_soc_dapm_add_routes(&rtd->card->dapm, max98388_map,
+				       ARRAY_SIZE(max98388_map));
+}
+
+static int acp_max98388_hw_params(struct snd_pcm_substream *substream,
+				  struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_dai *codec_dai =
+			snd_soc_card_get_codec_dai(card,
+						   MAX98388_CODEC_DAI);
+	int ret;
+
+	ret = snd_soc_dai_set_fmt(codec_dai,
+				  SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S |
+				  SND_SOC_DAIFMT_NB_NF);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
+static const struct snd_soc_ops acp_max98388_ops = {
+	.startup = acp_card_max98388_startup,
+	.hw_params = acp_max98388_hw_params,
+};
+
 /* Declare nau8825 codec components */
 SND_SOC_DAILINK_DEF(nau8825,
 		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10508825:00", "nau8825-hifi")));
@@ -1173,6 +1265,14 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 			links[i].num_codecs = ARRAY_SIZE(max98360a);
 			links[i].ops = &acp_card_maxim_ops;
 			links[i].init = acp_card_maxim_init;
+		}
+		if (drv_data->amp_codec_id == MAX98388) {
+			links[i].codecs = max98388;
+			links[i].num_codecs = ARRAY_SIZE(max98388);
+			links[i].ops = &acp_max98388_ops;
+			links[i].init = acp_card_max98388_init;
+			card->codec_conf = max98388_conf;
+			card->num_configs = ARRAY_SIZE(max98388_conf);
 		}
 		if (drv_data->amp_codec_id == RT1019) {
 			links[i].codecs = rt1019;
