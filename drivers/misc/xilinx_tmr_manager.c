@@ -170,8 +170,7 @@ static int xtmr_manager_probe(struct platform_device *pdev)
 	if (!xtmr_manager)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xtmr_manager->regs =  devm_ioremap_resource(&pdev->dev, res);
+	xtmr_manager->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(xtmr_manager->regs))
 		return PTR_ERR(xtmr_manager->regs);
 
