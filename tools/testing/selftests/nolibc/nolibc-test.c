@@ -894,11 +894,13 @@ int prepare(void)
 	 */
 	if (stat("/dev/.", &stat_buf) == 0 || mkdir("/dev", 0755) == 0) {
 		if (stat("/dev/console", &stat_buf) != 0 ||
-		    stat("/dev/null", &stat_buf) != 0) {
+		    stat("/dev/null", &stat_buf) != 0 ||
+		    stat("/dev/zero", &stat_buf) != 0) {
 			/* try devtmpfs first, otherwise fall back to manual creation */
 			if (mount("/dev", "/dev", "devtmpfs", 0, 0) != 0) {
 				mknod("/dev/console", 0600 | S_IFCHR, makedev(5, 1));
 				mknod("/dev/null",    0666 | S_IFCHR, makedev(1, 3));
+				mknod("/dev/zero",    0666 | S_IFCHR, makedev(1, 5));
 			}
 		}
 	}
