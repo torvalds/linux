@@ -82,6 +82,11 @@ static struct snd_soc_acpi_codecs amp_max = {
 	.codecs = {"MX98360A"}
 };
 
+static struct snd_soc_acpi_codecs amp_max98388 = {
+	.num_codecs = 1,
+	.codecs = {"ADS8388"}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 	{
 		.id = "10EC5682",
@@ -129,6 +134,20 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_sof_machines[] = {
 	{},
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_sof_machines);
+
+struct snd_soc_acpi_mach snd_soc_acpi_amd_vangogh_sof_machines[] = {
+	{
+		.id = "NVTN2020",
+		.drv_name = "nau8821-max",
+		.pdata = &acp_quirk_data,
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &amp_max98388,
+		.fw_filename = "sof-vangogh.ri",
+		.sof_tplg_filename = "sof-vangogh-nau8821-max.tplg",
+	},
+	{},
+};
+EXPORT_SYMBOL(snd_soc_acpi_amd_vangogh_sof_machines);
 
 struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_sof_machines[] = {
 	{
