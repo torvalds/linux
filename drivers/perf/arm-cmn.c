@@ -791,15 +791,21 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	_CMN_EVENT_HNF(_model, _name##_read, _event, 5, SEL_CBUSY_SNTHROTTLE_SEL), \
 	_CMN_EVENT_HNF(_model, _name##_write, _event, 6, SEL_CBUSY_SNTHROTTLE_SEL)
 
-#define _CMN_EVENT_XP(_name, _event)				\
+#define _CMN_EVENT_XP_MESH(_name, _event)			\
 	__CMN_EVENT_XP(e_##_name, (_event) | (0 << 2)),		\
 	__CMN_EVENT_XP(w_##_name, (_event) | (1 << 2)),		\
 	__CMN_EVENT_XP(n_##_name, (_event) | (2 << 2)),		\
-	__CMN_EVENT_XP(s_##_name, (_event) | (3 << 2)),		\
+	__CMN_EVENT_XP(s_##_name, (_event) | (3 << 2))
+
+#define _CMN_EVENT_XP_PORT(_name, _event)			\
 	__CMN_EVENT_XP(p0_##_name, (_event) | (4 << 2)),	\
 	__CMN_EVENT_XP(p1_##_name, (_event) | (5 << 2)),	\
 	__CMN_EVENT_XP(p2_##_name, (_event) | (6 << 2)),	\
 	__CMN_EVENT_XP(p3_##_name, (_event) | (7 << 2))
+
+#define _CMN_EVENT_XP(_name, _event)				\
+	_CMN_EVENT_XP_MESH(_name, _event),			\
+	_CMN_EVENT_XP_PORT(_name, _event)
 
 /* Good thing there are only 3 fundamental XP events... */
 #define CMN_EVENT_XP(_name, _event)				\
@@ -812,6 +818,10 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 	_CMN_EVENT_XP(dat2_##_name, (_event) | (6 << 5)),	\
 	_CMN_EVENT_XP(snp2_##_name, (_event) | (7 << 5)),	\
 	_CMN_EVENT_XP(req2_##_name, (_event) | (8 << 5))
+
+#define CMN_EVENT_XP_DAT(_name, _event)				\
+	_CMN_EVENT_XP_PORT(dat_##_name, (_event) | (3 << 5)),	\
+	_CMN_EVENT_XP_PORT(dat2_##_name, (_event) | (6 << 5))
 
 
 static struct attribute *arm_cmn_event_attrs[] = {
@@ -943,7 +953,7 @@ static struct attribute *arm_cmn_event_attrs[] = {
 
 	CMN_EVENT_XP(txflit_valid,			0x01),
 	CMN_EVENT_XP(txflit_stall,			0x02),
-	CMN_EVENT_XP(partial_dat_flit,			0x03),
+	CMN_EVENT_XP_DAT(partial_dat_flit,		0x03),
 	/* We treat watchpoints as a special made-up class of XP events */
 	CMN_EVENT_ATTR(CMN_ANY, watchpoint_up, CMN_TYPE_WP, CMN_WP_UP),
 	CMN_EVENT_ATTR(CMN_ANY, watchpoint_down, CMN_TYPE_WP, CMN_WP_DOWN),
