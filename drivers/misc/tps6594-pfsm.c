@@ -281,13 +281,11 @@ static int tps6594_pfsm_probe(struct platform_device *pdev)
 	return misc_register(&pfsm->miscdev);
 }
 
-static int tps6594_pfsm_remove(struct platform_device *pdev)
+static void tps6594_pfsm_remove(struct platform_device *pdev)
 {
 	struct tps6594_pfsm *pfsm = platform_get_drvdata(pdev);
 
 	misc_deregister(&pfsm->miscdev);
-
-	return 0;
 }
 
 static struct platform_driver tps6594_pfsm_driver = {
@@ -295,7 +293,7 @@ static struct platform_driver tps6594_pfsm_driver = {
 		.name = "tps6594-pfsm",
 	},
 	.probe = tps6594_pfsm_probe,
-	.remove = tps6594_pfsm_remove,
+	.remove_new = tps6594_pfsm_remove,
 };
 
 module_platform_driver(tps6594_pfsm_driver);
