@@ -52,7 +52,7 @@ struct sys_stat_struct {
 	register long _num __asm__ ("1") = (num);			\
 	register long _rc __asm__ ("2");				\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "=d"(_rc)						\
 		: "d"(_num)						\
@@ -66,7 +66,7 @@ struct sys_stat_struct {
 	register long _num __asm__ ("1") = (num);			\
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "+d"(_arg1)						\
 		: "d"(_num)						\
@@ -81,7 +81,7 @@ struct sys_stat_struct {
 	register long _arg1 __asm__ ("2") = (long)(arg1);		\
 	register long _arg2 __asm__ ("3") = (long)(arg2);		\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "+d"(_arg1)						\
 		: "d"(_arg2), "d"(_num)					\
@@ -97,7 +97,7 @@ struct sys_stat_struct {
 	register long _arg2 __asm__ ("3") = (long)(arg2);		\
 	register long _arg3 __asm__ ("4") = (long)(arg3);		\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "+d"(_arg1)						\
 		: "d"(_arg2), "d"(_arg3), "d"(_num)			\
@@ -114,7 +114,7 @@ struct sys_stat_struct {
 	register long _arg3 __asm__ ("4") = (long)(arg3);		\
 	register long _arg4 __asm__ ("5") = (long)(arg4);		\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "+d"(_arg1)						\
 		: "d"(_arg2), "d"(_arg3), "d"(_arg4), "d"(_num)		\
@@ -132,7 +132,7 @@ struct sys_stat_struct {
 	register long _arg4 __asm__ ("5") = (long)(arg4);		\
 	register long _arg5 __asm__ ("6") = (long)(arg5);		\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "+d"(_arg1)						\
 		: "d"(_arg2), "d"(_arg3), "d"(_arg4), "d"(_arg5),	\
@@ -152,7 +152,7 @@ struct sys_stat_struct {
 	register long _arg5 __asm__ ("6") = (long)(arg5);		\
 	register long _arg6 __asm__ ("7") = (long)(arg6);		\
 									\
-	__asm__  volatile (						\
+	__asm__ volatile (						\
 		"svc 0\n"						\
 		: "+d"(_arg1)						\
 		: "d"(_arg2), "d"(_arg3), "d"(_arg4), "d"(_arg5),	\

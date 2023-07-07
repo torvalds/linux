@@ -62,7 +62,7 @@ struct sys_stat_struct {
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -80,7 +80,7 @@ struct sys_stat_struct {
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -100,7 +100,7 @@ struct sys_stat_struct {
 	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -121,7 +121,7 @@ struct sys_stat_struct {
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 	register long _arg4 __asm__ ("a3");                                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -142,7 +142,7 @@ struct sys_stat_struct {
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
 		"addiu $sp, $sp, 32\n"                                        \
@@ -164,7 +164,7 @@ struct sys_stat_struct {
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 	register long _arg5 = (long)(arg5);                                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"addiu $sp, $sp, -32\n"                                       \
 		"sw %7, 16($sp)\n"                                            \
 		"syscall\n  "                                                 \

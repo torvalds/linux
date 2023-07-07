@@ -58,7 +58,7 @@ struct sys_stat_struct {
 	long _ret;                                                            \
 	register long _num __asm__ ("eax") = (num);                           \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "0"(_num)                                                   \
@@ -73,7 +73,7 @@ struct sys_stat_struct {
 	register long _num __asm__ ("eax") = (num);                           \
 	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1),                                                 \
@@ -90,7 +90,7 @@ struct sys_stat_struct {
 	register long _arg1 __asm__ ("ebx") = (long)(arg1);                   \
 	register long _arg2 __asm__ ("ecx") = (long)(arg2);                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2),                                     \
@@ -108,7 +108,7 @@ struct sys_stat_struct {
 	register long _arg2 __asm__ ("ecx") = (long)(arg2);                   \
 	register long _arg3 __asm__ ("edx") = (long)(arg3);                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3),                         \
@@ -127,7 +127,7 @@ struct sys_stat_struct {
 	register long _arg3 __asm__ ("edx") = (long)(arg3);                   \
 	register long _arg4 __asm__ ("esi") = (long)(arg4);                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4),             \
@@ -147,7 +147,7 @@ struct sys_stat_struct {
 	register long _arg4 __asm__ ("esi") = (long)(arg4);                   \
 	register long _arg5 __asm__ ("edi") = (long)(arg5);                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"int $0x80\n"                                                 \
 		: "=a" (_ret)                                                 \
 		: "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), \

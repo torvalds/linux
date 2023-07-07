@@ -28,7 +28,7 @@
 	register long _num  __asm__ ("a7") = (num);                           \
 	register long _arg1 __asm__ ("a0");                                   \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "=r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
@@ -43,7 +43,7 @@
 	register long _num  __asm__ ("a7") = (num);                           \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);		      \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
@@ -59,7 +59,7 @@
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
 	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2),                                                 \
@@ -77,7 +77,7 @@
 	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3),                                     \
@@ -96,7 +96,7 @@
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4),                         \
@@ -116,7 +116,7 @@
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 	register long _arg5 __asm__ ("a4") = (long)(arg5);                    \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5),             \
@@ -137,7 +137,7 @@
 	register long _arg5 __asm__ ("a4") = (long)(arg5);                    \
 	register long _arg6 __asm__ ("a5") = (long)(arg6);                    \
 									      \
-	__asm__  volatile (                                                   \
+	__asm__ volatile (                                                    \
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), "r"(_arg6), \
