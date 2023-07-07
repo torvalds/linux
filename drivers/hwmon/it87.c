@@ -2328,6 +2328,12 @@ static umode_t it87_temp_is_visible(struct kobject *kobj,
 	if (!(data->has_temp & BIT(i)))
 		return 0;
 
+	if (a == 3) {
+		if (get_temp_type(data, i) == 0)
+			return 0;
+		return attr->mode;
+	}
+
 	if (a == 5 && !has_temp_offset(data))
 		return 0;
 
