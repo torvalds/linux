@@ -71,6 +71,7 @@ enum {
 enum {
 	OVL_UUID_OFF,
 	OVL_UUID_NULL,
+	OVL_UUID_AUTO,
 	OVL_UUID_ON,
 };
 
@@ -550,7 +551,8 @@ static inline bool ovl_origin_uuid(struct ovl_fs *ofs)
 
 static inline bool ovl_has_fsid(struct ovl_fs *ofs)
 {
-	return ofs->config.uuid == OVL_UUID_ON;
+	return ofs->config.uuid == OVL_UUID_ON ||
+	       ofs->config.uuid == OVL_UUID_AUTO;
 }
 
 /*

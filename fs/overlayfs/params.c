@@ -68,6 +68,7 @@ static const struct constant_table ovl_parameter_bool[] = {
 static const struct constant_table ovl_parameter_uuid[] = {
 	{ "off",	OVL_UUID_OFF  },
 	{ "null",	OVL_UUID_NULL },
+	{ "auto",	OVL_UUID_AUTO },
 	{ "on",		OVL_UUID_ON   },
 	{}
 };
@@ -79,7 +80,7 @@ static const char *ovl_uuid_mode(struct ovl_config *config)
 
 static int ovl_uuid_def(void)
 {
-	return OVL_UUID_NULL;
+	return OVL_UUID_AUTO;
 }
 
 static const struct constant_table ovl_parameter_xino[] = {
