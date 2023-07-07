@@ -85,7 +85,8 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 };
 
 int bch2_dirent_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			unsigned flags, struct printbuf *err)
+			enum bkey_invalid_flags flags,
+			struct printbuf *err)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	unsigned len;

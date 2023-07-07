@@ -13,6 +13,12 @@ enum btree_node_type;
 extern const char * const bch2_bkey_types[];
 extern const struct bkey_ops bch2_bkey_null_ops;
 
+enum bkey_invalid_flags {
+	BKEY_INVALID_WRITE		= (1U << 0),
+	BKEY_INVALID_COMMIT		= (1U << 1),
+	BKEY_INVALID_JOURNAL		= (1U << 2),
+};
+
 /*
  * key_invalid: checks validity of @k, returns 0 if good or -EINVAL if bad. If
  * invalid, entire key will be deleted.
@@ -22,7 +28,7 @@ extern const struct bkey_ops bch2_bkey_null_ops;
  */
 struct bkey_ops {
 	int		(*key_invalid)(const struct bch_fs *c, struct bkey_s_c k,
-				       unsigned flags, struct printbuf *err);
+				       enum bkey_invalid_flags flags, struct printbuf *err);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
@@ -49,13 +55,12 @@ static inline const struct bkey_ops *bch2_bkey_type_ops(enum bch_bkey_type type)
 		: &bch2_bkey_null_ops;
 }
 
-#define BKEY_INVALID_FROM_JOURNAL		(1 << 1)
-
-int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
-int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
-			enum btree_node_type, unsigned, struct printbuf *);
-int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c,
-		      enum btree_node_type, unsigned, struct printbuf *);
+int bch2_bkey_val_invalid(struct bch_fs *, struct bkey_s_c,
+			  enum bkey_invalid_flags, struct printbuf *);
+int __bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
+			enum bkey_invalid_flags, struct printbuf *);
+int bch2_bkey_invalid(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
+		      enum bkey_invalid_flags, struct printbuf *);
 int bch2_bkey_in_btree_node(struct btree *, struct bkey_s_c, struct printbuf *);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);

@@ -5,9 +5,11 @@
 #include "inode.h"
 #include "quota_types.h"
 
+enum bkey_invalid_flags;
 extern const struct bch_sb_field_ops bch_sb_field_ops_quota;
 
-int bch2_quota_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
+int bch2_quota_invalid(const struct bch_fs *, struct bkey_s_c,
+		       enum bkey_invalid_flags, struct printbuf *);
 void bch2_quota_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_quota ((struct bkey_ops) {	\

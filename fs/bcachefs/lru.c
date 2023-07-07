@@ -11,7 +11,8 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_invalid(const struct bch_fs *c, struct bkey_s_c k,
-		     unsigned flags, struct printbuf *err)
+		     enum bkey_invalid_flags flags,
+		     struct printbuf *err)
 {
 	if (!lru_pos_time(k.k->p)) {
 		prt_printf(err, "lru entry at time=0");

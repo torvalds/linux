@@ -340,7 +340,8 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 		int ret = journal_validate_key(c, jset, entry,
 					       entry->level,
 					       entry->btree_id,
-					       k, version, big_endian, write|BKEY_INVALID_FROM_JOURNAL);
+					       k, version, big_endian,
+					       write|BKEY_INVALID_JOURNAL);
 		if (ret == FSCK_DELETED_KEY)
 			continue;
 

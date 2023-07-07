@@ -105,7 +105,8 @@ struct ec_bio {
 /* Stripes btree keys: */
 
 int bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			unsigned flags, struct printbuf *err)
+			enum bkey_invalid_flags flags,
+			struct printbuf *err)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 

@@ -123,7 +123,8 @@ const struct bkey_ops bch2_bkey_null_ops = {
 };
 
 int bch2_bkey_val_invalid(struct bch_fs *c, struct bkey_s_c k,
-			  unsigned flags, struct printbuf *err)
+			  enum bkey_invalid_flags flags,
+			  struct printbuf *err)
 {
 	const struct bkey_ops *ops = bch2_bkey_type_ops(k.k->type);
 
@@ -215,14 +216,16 @@ static unsigned bch2_key_types_allowed[] = {
 
 int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 			enum btree_node_type type,
-			unsigned flags, struct printbuf *err)
+			enum bkey_invalid_flags flags,
+			struct printbuf *err)
 {
 	if (k.k->u64s < BKEY_U64s) {
 		prt_printf(err, "u64s too small (%u < %zu)", k.k->u64s, BKEY_U64s);
 		return -BCH_ERR_invalid_bkey;
 	}
 
-	if (!(bch2_key_types_allowed[type] & (1U << k.k->type))) {
+	if (flags & BKEY_INVALID_COMMIT	 &&
+	    !(bch2_key_types_allowed[type] & (1U << k.k->type))) {
 		prt_printf(err, "invalid key type for btree %s (%s)",
 			   bch2_btree_ids[type], bch2_bkey_types[k.k->type]);
 		return -BCH_ERR_invalid_bkey;
@@ -246,24 +249,23 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		}
 	}
 
-	if (type != BKEY_TYPE_btree &&
-	    !btree_type_has_snapshots(type) &&
-	    k.k->p.snapshot) {
-		prt_printf(err, "nonzero snapshot");
-		return -BCH_ERR_invalid_bkey;
-	}
+	if (type != BKEY_TYPE_btree) {
+		if (!btree_type_has_snapshots((enum btree_id) type) &&
+		    k.k->p.snapshot) {
+			prt_printf(err, "nonzero snapshot");
+			return -BCH_ERR_invalid_bkey;
+		}
 
-	if (type != BKEY_TYPE_btree &&
-	    btree_type_has_snapshots(type) &&
-	    !k.k->p.snapshot) {
-		prt_printf(err, "snapshot == 0");
-		return -BCH_ERR_invalid_bkey;
-	}
+		if (btree_type_has_snapshots((enum btree_id) type) &&
+		    !k.k->p.snapshot) {
+			prt_printf(err, "snapshot == 0");
+			return -BCH_ERR_invalid_bkey;
+		}
 
-	if (type != BKEY_TYPE_btree &&
-	    bkey_eq(k.k->p, POS_MAX)) {
-		prt_printf(err, "key at POS_MAX");
-		return -BCH_ERR_invalid_bkey;
+		if (bkey_eq(k.k->p, POS_MAX)) {
+			prt_printf(err, "key at POS_MAX");
+			return -BCH_ERR_invalid_bkey;
+		}
 	}
 
 	return 0;
@@ -271,7 +273,8 @@ int __bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 
 int bch2_bkey_invalid(struct bch_fs *c, struct bkey_s_c k,
 		      enum btree_node_type type,
-		      unsigned flags, struct printbuf *err)
+		      enum bkey_invalid_flags flags,
+		      struct printbuf *err)
 {
 	return __bch2_bkey_invalid(c, k, type, flags, err) ?:
 		bch2_bkey_val_invalid(c, k, flags, err);

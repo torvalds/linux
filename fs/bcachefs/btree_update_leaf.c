@@ -856,10 +856,13 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans, unsigned flags
 	struct printbuf buf = PRINTBUF;
 
 	trans_for_each_update(trans, i) {
-		int rw = (flags & BTREE_INSERT_JOURNAL_REPLAY) ? READ : WRITE;
+		enum bkey_invalid_flags invalid_flags = 0;
+
+		if (!(flags & BTREE_INSERT_JOURNAL_REPLAY))
+			invalid_flags |= BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT;
 
 		if (unlikely(bch2_bkey_invalid(c, bkey_i_to_s_c(i->k),
-					       i->bkey_type, rw, &buf)))
+					       i->bkey_type, invalid_flags, &buf)))
 			return bch2_trans_commit_bkey_invalid(trans, flags, i, &buf);
 		btree_insert_entry_checks(trans, i);
 	}

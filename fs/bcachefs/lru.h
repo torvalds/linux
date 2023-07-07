@@ -43,7 +43,8 @@ static inline enum bch_lru_type lru_type(struct bkey_s_c l)
 	return BCH_LRU_read;
 }
 
-int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
+int bch2_lru_invalid(const struct bch_fs *, struct bkey_s_c,
+		     enum bkey_invalid_flags, struct printbuf *);
 void bch2_lru_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 void bch2_lru_pos_to_text(struct printbuf *, struct bpos);

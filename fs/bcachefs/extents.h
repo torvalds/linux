@@ -8,6 +8,7 @@
 
 struct bch_fs;
 struct btree_trans;
+enum bkey_invalid_flags;
 
 /* extent entries: */
 
@@ -382,11 +383,13 @@ int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 
 /* KEY_TYPE_btree_ptr: */
 
-int bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
+int bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c,
+			   enum bkey_invalid_flags, struct printbuf *);
 void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 
-int bch2_btree_ptr_v2_invalid(const struct bch_fs *, struct bkey_s_c, unsigned, struct printbuf *);
+int bch2_btree_ptr_v2_invalid(const struct bch_fs *, struct bkey_s_c,
+			      enum bkey_invalid_flags, struct printbuf *);
 void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 			      int, struct bkey_s);
@@ -426,7 +429,7 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 /* KEY_TYPE_reservation: */
 
 int bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c,
-			     unsigned, struct printbuf *);
+			     enum bkey_invalid_flags, struct printbuf *);
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
@@ -685,7 +688,7 @@ bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
 void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 int bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c,
-			   unsigned, struct printbuf *);
+			   enum bkey_invalid_flags, struct printbuf *);
 
 void bch2_ptr_swab(struct bkey_s);
 

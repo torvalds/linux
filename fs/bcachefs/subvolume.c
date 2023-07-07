@@ -23,7 +23,8 @@ void bch2_snapshot_tree_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_tree_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			       unsigned flags, struct printbuf *err)
+			       enum bkey_invalid_flags flags,
+			       struct printbuf *err)
 {
 	if (bkey_gt(k.k->p, POS(0, U32_MAX)) ||
 	    bkey_lt(k.k->p, POS(0, 1))) {
@@ -97,7 +98,8 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 }
 
 int bch2_snapshot_invalid(const struct bch_fs *c, struct bkey_s_c k,
-			  unsigned flags, struct printbuf *err)
+			  enum bkey_invalid_flags flags,
+			  struct printbuf *err)
 {
 	struct bkey_s_c_snapshot s;
 	u32 i, id;

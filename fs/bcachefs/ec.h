@@ -6,8 +6,10 @@
 #include "buckets_types.h"
 #include "extents_types.h"
 
+enum bkey_invalid_flags;
+
 int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
-			unsigned, struct printbuf *);
+			enum bkey_invalid_flags, struct printbuf *);
 void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 			 struct bkey_s_c);
 

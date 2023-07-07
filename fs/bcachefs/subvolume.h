@@ -5,9 +5,11 @@
 #include "darray.h"
 #include "subvolume_types.h"
 
+enum bkey_invalid_flags;
+
 void bch2_snapshot_tree_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_tree_invalid(const struct bch_fs *, struct bkey_s_c,
-			       unsigned, struct printbuf *);
+			       enum bkey_invalid_flags, struct printbuf *);
 
 #define bch2_bkey_ops_snapshot_tree ((struct bkey_ops) {	\
 	.key_invalid	= bch2_snapshot_tree_invalid,		\
@@ -19,7 +21,7 @@ int bch2_snapshot_tree_lookup(struct btree_trans *, u32, struct bch_snapshot_tre
 
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 int bch2_snapshot_invalid(const struct bch_fs *, struct bkey_s_c,
-			  unsigned, struct printbuf *);
+			  enum bkey_invalid_flags, struct printbuf *);
 int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
 		       struct bkey_s_c, struct bkey_s_c, unsigned);
 
