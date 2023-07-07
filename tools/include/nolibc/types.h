@@ -8,6 +8,7 @@
 #define _NOLIBC_TYPES_H
 
 #include "std.h"
+#include <linux/mman.h>
 #include <linux/time.h>
 #include <linux/stat.h>
 
@@ -79,6 +80,11 @@
 
 #ifndef MAXPATHLEN
 #define MAXPATHLEN     (PATH_MAX)
+#endif
+
+/* flags for mmap */
+#ifndef MAP_FAILED
+#define MAP_FAILED ((void *)-1)
 #endif
 
 /* whence values for lseek() */
