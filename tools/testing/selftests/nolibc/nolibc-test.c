@@ -15,7 +15,6 @@
 #include <string.h>
 #ifndef _NOLIBC_STDIO_H
 /* standard libcs need more includes */
-#include <linux/reboot.h>
 #include <sys/io.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -1181,7 +1180,7 @@ int main(int argc, char **argv, char **envp)
 		 */
 		printf("Leaving init with final status: %d\n", !!ret);
 		if (ret == 0)
-			reboot(LINUX_REBOOT_CMD_POWER_OFF);
+			reboot(RB_POWER_OFF);
 #if defined(__x86_64__)
 		/* QEMU started with "-device isa-debug-exit -no-reboot" will
 		 * exit with status code 2N+1 when N is written to 0x501. We
