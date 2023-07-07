@@ -36,7 +36,7 @@ static const struct smcd_ops ism_ops;
 static struct ism_client *clients[MAX_CLIENTS];	/* use an array rather than */
 						/* a list for fast mapping  */
 static u8 max_client;
-static DEFINE_SPINLOCK(clients_lock);
+static DEFINE_MUTEX(clients_lock);
 struct ism_dev_list {
 	struct list_head list;
 	struct mutex mutex; /* protects ism device list */
@@ -59,11 +59,10 @@ static void ism_setup_forwarding(struct ism_client *client, struct ism_dev *ism)
 int ism_register_client(struct ism_client *client)
 {
 	struct ism_dev *ism;
-	unsigned long flags;
 	int i, rc = -ENOSPC;
 
 	mutex_lock(&ism_dev_list.mutex);
-	spin_lock_irqsave(&clients_lock, flags);
+	mutex_lock(&clients_lock);
 	for (i = 0; i < MAX_CLIENTS; ++i) {
 		if (!clients[i]) {
 			clients[i] = client;
@@ -74,7 +73,8 @@ int ism_register_client(struct ism_client *client)
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&clients_lock, flags);
+	mutex_unlock(&clients_lock);
+
 	if (i < MAX_CLIENTS) {
 		/* initialize with all devices that we got so far */
 		list_for_each_entry(ism, &ism_dev_list.list, list) {
@@ -96,11 +96,11 @@ int ism_unregister_client(struct ism_client *client)
 	int rc = 0;
 
 	mutex_lock(&ism_dev_list.mutex);
-	spin_lock_irqsave(&clients_lock, flags);
+	mutex_lock(&clients_lock);
 	clients[client->id] = NULL;
 	if (client->id + 1 == max_client)
 		max_client--;
-	spin_unlock_irqrestore(&clients_lock, flags);
+	mutex_unlock(&clients_lock);
 	list_for_each_entry(ism, &ism_dev_list.list, list) {
 		spin_lock_irqsave(&ism->lock, flags);
 		/* Stop forwarding IRQs and events */
@@ -571,21 +571,9 @@ static u64 ism_get_local_gid(struct ism_dev *ism)
 	return ism->local_gid;
 }
 
-static void ism_dev_add_work_func(struct work_struct *work)
-{
-	struct ism_client *client = container_of(work, struct ism_client,
-						 add_work);
-
-	client->add(client->tgt_ism);
-	ism_setup_forwarding(client, client->tgt_ism);
-	atomic_dec(&client->tgt_ism->add_dev_cnt);
-	wake_up(&client->tgt_ism->waitq);
-}
-
 static int ism_dev_init(struct ism_dev *ism)
 {
 	struct pci_dev *pdev = ism->pdev;
-	unsigned long flags;
 	int i, ret;
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
@@ -618,25 +606,16 @@ static int ism_dev_init(struct ism_dev *ism)
 		/* hardware is V2 capable */
 		ism_create_system_eid();
 
-	init_waitqueue_head(&ism->waitq);
-	atomic_set(&ism->free_clients_cnt, 0);
-	atomic_set(&ism->add_dev_cnt, 0);
-
-	wait_event(ism->waitq, !atomic_read(&ism->add_dev_cnt));
-	spin_lock_irqsave(&clients_lock, flags);
-	for (i = 0; i < max_client; ++i)
-		if (clients[i]) {
-			INIT_WORK(&clients[i]->add_work,
-				  ism_dev_add_work_func);
-			clients[i]->tgt_ism = ism;
-			atomic_inc(&ism->add_dev_cnt);
-			schedule_work(&clients[i]->add_work);
-		}
-	spin_unlock_irqrestore(&clients_lock, flags);
-
-	wait_event(ism->waitq, !atomic_read(&ism->add_dev_cnt));
-
 	mutex_lock(&ism_dev_list.mutex);
+	mutex_lock(&clients_lock);
+	for (i = 0; i < max_client; ++i) {
+		if (clients[i]) {
+			clients[i]->add(ism);
+			ism_setup_forwarding(clients[i], ism);
+		}
+	}
+	mutex_unlock(&clients_lock);
+
 	list_add(&ism->list, &ism_dev_list.list);
 	mutex_unlock(&ism_dev_list.mutex);
 
@@ -711,40 +690,24 @@ err_dev:
 	return ret;
 }
 
-static void ism_dev_remove_work_func(struct work_struct *work)
-{
-	struct ism_client *client = container_of(work, struct ism_client,
-						 remove_work);
-	unsigned long flags;
-
-	spin_lock_irqsave(&client->tgt_ism->lock, flags);
-	client->tgt_ism->subs[client->id] = NULL;
-	spin_unlock_irqrestore(&client->tgt_ism->lock, flags);
-	client->remove(client->tgt_ism);
-	atomic_dec(&client->tgt_ism->free_clients_cnt);
-	wake_up(&client->tgt_ism->waitq);
-}
-
-/* Callers must hold ism_dev_list.mutex */
 static void ism_dev_exit(struct ism_dev *ism)
 {
 	struct pci_dev *pdev = ism->pdev;
 	unsigned long flags;
 	int i;
 
-	wait_event(ism->waitq, !atomic_read(&ism->free_clients_cnt));
-	spin_lock_irqsave(&clients_lock, flags);
+	spin_lock_irqsave(&ism->lock, flags);
 	for (i = 0; i < max_client; ++i)
-		if (clients[i]) {
-			INIT_WORK(&clients[i]->remove_work,
-				  ism_dev_remove_work_func);
-			clients[i]->tgt_ism = ism;
-			atomic_inc(&ism->free_clients_cnt);
-			schedule_work(&clients[i]->remove_work);
-		}
-	spin_unlock_irqrestore(&clients_lock, flags);
+		ism->subs[i] = NULL;
+	spin_unlock_irqrestore(&ism->lock, flags);
 
-	wait_event(ism->waitq, !atomic_read(&ism->free_clients_cnt));
+	mutex_lock(&ism_dev_list.mutex);
+	mutex_lock(&clients_lock);
+	for (i = 0; i < max_client; ++i) {
+		if (clients[i])
+			clients[i]->remove(ism);
+	}
+	mutex_unlock(&clients_lock);
 
 	if (SYSTEM_EID.serial_number[0] != '0' ||
 	    SYSTEM_EID.type[0] != '0')
@@ -755,15 +718,14 @@ static void ism_dev_exit(struct ism_dev *ism)
 	kfree(ism->sba_client_arr);
 	pci_free_irq_vectors(pdev);
 	list_del_init(&ism->list);
+	mutex_unlock(&ism_dev_list.mutex);
 }
 
 static void ism_remove(struct pci_dev *pdev)
 {
 	struct ism_dev *ism = dev_get_drvdata(&pdev->dev);
 
-	mutex_lock(&ism_dev_list.mutex);
 	ism_dev_exit(ism);
-	mutex_unlock(&ism_dev_list.mutex);
 
 	pci_release_mem_regions(pdev);
 	pci_disable_device(pdev);

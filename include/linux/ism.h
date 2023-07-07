@@ -45,9 +45,6 @@ struct ism_dev {
 	int ieq_idx;
 
 	struct ism_client *subs[MAX_CLIENTS];
-	atomic_t free_clients_cnt;
-	atomic_t add_dev_cnt;
-	wait_queue_head_t waitq;
 };
 
 struct ism_event {
@@ -69,9 +66,6 @@ struct ism_client {
 	 */
 	void (*handle_irq)(struct ism_dev *dev, unsigned int bit, u16 dmbemask);
 	/* Private area - don't touch! */
-	struct work_struct remove_work;
-	struct work_struct add_work;
-	struct ism_dev *tgt_ism;
 	u8 id;
 };
 
