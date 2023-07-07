@@ -1347,7 +1347,6 @@ static int xsdfec_probe(struct platform_device *pdev)
 {
 	struct xsdfec_dev *xsdfec;
 	struct device *dev;
-	struct resource *res;
 	int err;
 	bool irq_enabled = true;
 
@@ -1363,8 +1362,7 @@ static int xsdfec_probe(struct platform_device *pdev)
 		return err;
 
 	dev = xsdfec->dev;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	xsdfec->regs = devm_ioremap_resource(dev, res);
+	xsdfec->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(xsdfec->regs)) {
 		err = PTR_ERR(xsdfec->regs);
 		goto err_xsdfec_dev;
