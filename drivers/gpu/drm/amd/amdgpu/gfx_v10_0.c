@@ -6936,10 +6936,8 @@ static bool gfx_v10_0_check_grbm_cam_remapping(struct amdgpu_device *adev)
 		if (RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid) == pattern) {
 			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD , data);
 			return true;
-		} else {
-			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid, data);
-			return false;
 		}
+		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid, data);
 		break;
 	case IP_VERSION(10, 3, 1):
 	case IP_VERSION(10, 3, 3):
@@ -6954,12 +6952,12 @@ static bool gfx_v10_0_check_grbm_cam_remapping(struct amdgpu_device *adev)
 		if (RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE) == pattern) {
 			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD, data);
 			return true;
-		} else {
-			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE, data);
-			return false;
 		}
+		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE, data);
 		break;
 	}
+
+	return false;
 }
 
 static void gfx_v10_0_setup_grbm_cam_remapping(struct amdgpu_device *adev)
