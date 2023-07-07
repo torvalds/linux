@@ -18,17 +18,9 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		cooling-levels = <0 95 145 195 255>;
-		fan-supply = <&vcc5v0_sys>;
-		pwms = <&pwm1 0 50000 0>;
-		#cooling-cells = <2>;
-	};
-
-	sound {
+	analog-sound {
 		compatible = "audio-graph-card";
-		label = "Analog";
+		label = "rk3588-es8316";
 
 		widgets = "Microphone", "Mic Jack",
 			  "Headphone", "Headphones";
@@ -41,6 +33,14 @@
 		hp-det-gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_detect>;
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		cooling-levels = <0 95 145 195 255>;
+		fan-supply = <&vcc5v0_sys>;
+		pwms = <&pwm1 0 50000 0>;
+		#cooling-cells = <2>;
 	};
 
 	vcc5v0_sys: vcc5v0-sys-regulator {
