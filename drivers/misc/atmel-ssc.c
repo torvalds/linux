@@ -212,8 +212,7 @@ static int ssc_probe(struct platform_device *pdev)
 			of_property_read_bool(np, "atmel,clk-from-rk-pin");
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ssc->regs = devm_ioremap_resource(&pdev->dev, regs);
+	ssc->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(ssc->regs))
 		return PTR_ERR(ssc->regs);
 
