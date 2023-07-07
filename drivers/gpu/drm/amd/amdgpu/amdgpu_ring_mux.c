@@ -423,6 +423,9 @@ void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring, enum amdgpu_ring_mu
 	struct amdgpu_ring_mux *mux = &adev->gfx.muxer;
 	unsigned offset;
 
+	if (ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT)
+		return;
+
 	offset = ring->wptr & ring->buf_mask;
 
 	amdgpu_ring_mux_ib_mark_offset(mux, ring, offset, type);

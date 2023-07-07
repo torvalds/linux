@@ -839,6 +839,7 @@ static bool psp_skip_tmr(struct psp_context *psp)
 	case IP_VERSION(11, 0, 9):
 	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 10):
 		return true;
 	default:
@@ -2039,6 +2040,8 @@ static int psp_securedisplay_initialize(struct psp_context *psp)
 		psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
 		dev_err(psp->adev->dev, "SECUREDISPLAY: query securedisplay TA failed. ret 0x%x\n",
 			securedisplay_cmd->securedisplay_out_message.query_ta.query_cmd_ret);
+		/* don't try again */
+		psp->securedisplay_context.context.bin_desc.size_bytes = 0;
 	}
 
 	return 0;
@@ -3703,7 +3706,6 @@ static DEVICE_ATTR(psp_vbflash_status, 0440, amdgpu_psp_vbflash_status, NULL);
 int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
-	struct psp_context *psp = &adev->psp;
 
 	if (amdgpu_sriov_vf(adev))
 		return -EINVAL;
@@ -3712,10 +3714,6 @@ int amdgpu_psp_sysfs_init(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 10):
-		if (!psp->adev) {
-			psp->adev = adev;
-			psp_v13_0_set_psp_funcs(psp);
-		}
 		ret = sysfs_create_bin_file(&adev->dev->kobj, &psp_vbflash_bin_attr);
 		if (ret)
 			dev_err(adev->dev, "Failed to create device file psp_vbflash");

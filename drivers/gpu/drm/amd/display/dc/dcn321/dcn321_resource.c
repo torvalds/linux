@@ -730,6 +730,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_subvp_high_refresh = false,
 	.fpo_vactive_min_active_margin_us = 200,
 	.fpo_vactive_max_blank_us = 1000,
+	.enable_legacy_fast_update = false,
+	.disable_dc_mode_overwrite = true,
 };
 
 static struct dce_aux *dcn321_aux_engine_create(
@@ -1754,6 +1756,7 @@ static bool dcn321_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
 
+	dc->config.dc_mode_clk_limit_support = true;
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {

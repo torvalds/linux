@@ -327,10 +327,13 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 					mem_channel_number = igp_info->v11.umachannelnumber;
 					if (!mem_channel_number)
 						mem_channel_number = 1;
-					/* channel width is 64 */
-					if (vram_width)
-						*vram_width = mem_channel_number * 64;
 					mem_type = igp_info->v11.memorytype;
+					if (mem_type == LpDdr5MemType)
+						mem_channel_width = 32;
+					else
+						mem_channel_width = 64;
+					if (vram_width)
+						*vram_width = mem_channel_number * mem_channel_width;
 					if (vram_type)
 						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
 					break;
@@ -345,10 +348,13 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 					mem_channel_number = igp_info->v21.umachannelnumber;
 					if (!mem_channel_number)
 						mem_channel_number = 1;
-					/* channel width is 64 */
-					if (vram_width)
-						*vram_width = mem_channel_number * 64;
 					mem_type = igp_info->v21.memorytype;
+					if (mem_type == LpDdr5MemType)
+						mem_channel_width = 32;
+					else
+						mem_channel_width = 64;
+					if (vram_width)
+						*vram_width = mem_channel_number * mem_channel_width;
 					if (vram_type)
 						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
 					break;

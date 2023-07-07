@@ -1610,7 +1610,7 @@ static int source_format_to_bpp (enum source_format_class SourcePixelFormat)
 {
 	if (SourcePixelFormat == dm_444_64)
 		return 8;
-	else if (SourcePixelFormat == dm_444_16 || SourcePixelFormat == dm_444_16)
+	else if (SourcePixelFormat == dm_444_16)
 		return 2;
 	else if (SourcePixelFormat == dm_444_8)
 		return 1;
