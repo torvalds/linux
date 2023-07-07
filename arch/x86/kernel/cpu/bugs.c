@@ -2316,6 +2316,7 @@ enum srso_mitigation {
 	SRSO_MITIGATION_MICROCODE,
 	SRSO_MITIGATION_SAFE_RET,
 	SRSO_MITIGATION_IBPB,
+	SRSO_MITIGATION_IBPB_ON_VMEXIT,
 };
 
 enum srso_mitigation_cmd {
@@ -2323,6 +2324,7 @@ enum srso_mitigation_cmd {
 	SRSO_CMD_MICROCODE,
 	SRSO_CMD_SAFE_RET,
 	SRSO_CMD_IBPB,
+	SRSO_CMD_IBPB_ON_VMEXIT,
 };
 
 static const char * const srso_strings[] = {
@@ -2330,6 +2332,7 @@ static const char * const srso_strings[] = {
 	[SRSO_MITIGATION_MICROCODE]      = "Mitigation: microcode",
 	[SRSO_MITIGATION_SAFE_RET]	 = "Mitigation: safe RET",
 	[SRSO_MITIGATION_IBPB]		 = "Mitigation: IBPB",
+	[SRSO_MITIGATION_IBPB_ON_VMEXIT] = "Mitigation: IBPB on VMEXIT only"
 };
 
 static enum srso_mitigation srso_mitigation __ro_after_init = SRSO_MITIGATION_NONE;
@@ -2348,6 +2351,8 @@ static int __init srso_parse_cmdline(char *str)
 		srso_cmd = SRSO_CMD_SAFE_RET;
 	else if (!strcmp(str, "ibpb"))
 		srso_cmd = SRSO_CMD_IBPB;
+	else if (!strcmp(str, "ibpb-vmexit"))
+		srso_cmd = SRSO_CMD_IBPB_ON_VMEXIT;
 	else
 		pr_err("Ignoring unknown SRSO option (%s).", str);
 
@@ -2431,6 +2436,20 @@ static void __init srso_select_mitigation(void)
 			pr_err("WARNING: kernel not compiled with CPU_IBPB_ENTRY.\n");
 			goto pred_cmd;
 		}
+		break;
+
+	case SRSO_CMD_IBPB_ON_VMEXIT:
+		if (IS_ENABLED(CONFIG_CPU_SRSO)) {
+			if (!boot_cpu_has(X86_FEATURE_ENTRY_IBPB) && has_microcode) {
+				setup_force_cpu_cap(X86_FEATURE_IBPB_ON_VMEXIT);
+				srso_mitigation = SRSO_MITIGATION_IBPB_ON_VMEXIT;
+			}
+		} else {
+			pr_err("WARNING: kernel not compiled with CPU_SRSO.\n");
+			goto pred_cmd;
+                }
+		break;
+
 	default:
 		break;
 	}
