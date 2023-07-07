@@ -12,6 +12,8 @@
 
 struct drm_i915_private;
 struct i915_power_well;
+struct i915_power_well_ops;
+struct intel_encoder;
 
 #define for_each_power_well(__dev_priv, __power_well)				\
 	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells;	\

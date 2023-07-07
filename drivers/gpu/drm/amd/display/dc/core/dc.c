@@ -1629,6 +1629,9 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 	}
 
+	if (dc->debug.force_odm_combine)
+		return false;
+
 	/* Check for enabled DIG to identify enabled display */
 	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
 		return false;
@@ -3577,6 +3580,13 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 	hwss_execute_sequence(dc,
 			context->block_sequence,
 			context->block_sequence_steps);
+	/* Clear update flags so next flip doesn't have redundant programming
+	 * (if there's no stream update, the update flags are not cleared).
+	 */
+	if (top_pipe_to_program->plane_state)
+		top_pipe_to_program->plane_state->update_flags.raw = 0;
+	if (top_pipe_to_program->stream)
+		top_pipe_to_program->stream->update_flags.raw = 0;
 }
 
 static void commit_planes_for_stream(struct dc *dc,
@@ -4233,6 +4243,117 @@ static void update_seamless_boot_flags(struct dc *dc,
 	}
 }
 
+static void populate_fast_updates(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update)
+{
+	int i = 0;
+
+	if (stream_update) {
+		fast_update[0].out_transfer_func = stream_update->out_transfer_func;
+		fast_update[0].output_csc_transform = stream_update->output_csc_transform;
+	}
+
+	for (i = 0; i < surface_count; i++) {
+		fast_update[i].flip_addr = srf_updates[i].flip_addr;
+		fast_update[i].gamma = srf_updates[i].gamma;
+		fast_update[i].gamut_remap_matrix = srf_updates[i].gamut_remap_matrix;
+		fast_update[i].input_csc_color_matrix = srf_updates[i].input_csc_color_matrix;
+		fast_update[i].coeff_reduction_factor = srf_updates[i].coeff_reduction_factor;
+	}
+}
+
+static bool fast_updates_exist(struct dc_fast_update *fast_update, int surface_count)
+{
+	int i;
+
+	if (fast_update[0].out_transfer_func ||
+		fast_update[0].output_csc_transform)
+		return true;
+
+	for (i = 0; i < surface_count; i++) {
+		if (fast_update[i].flip_addr ||
+				fast_update[i].gamma ||
+				fast_update[i].gamut_remap_matrix ||
+				fast_update[i].input_csc_color_matrix ||
+				fast_update[i].coeff_reduction_factor)
+			return true;
+	}
+
+	return false;
+}
+
+static bool full_update_required(struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update,
+		struct dc_stream_state *stream)
+{
+
+	int i;
+	struct dc_stream_status *stream_status;
+
+	for (i = 0; i < surface_count; i++) {
+		if (srf_updates &&
+				(srf_updates[i].plane_info ||
+				srf_updates[i].scaling_info ||
+				(srf_updates[i].hdr_mult.value &&
+				srf_updates[i].hdr_mult.value != srf_updates->surface->hdr_mult.value) ||
+				srf_updates[i].in_transfer_func ||
+				srf_updates[i].func_shaper ||
+				srf_updates[i].lut3d_func ||
+				srf_updates[i].blend_tf))
+			return true;
+	}
+
+	if (stream_update &&
+			(((stream_update->src.height != 0 && stream_update->src.width != 0) ||
+			(stream_update->dst.height != 0 && stream_update->dst.width != 0) ||
+			stream_update->integer_scaling_update) ||
+			stream_update->hdr_static_metadata ||
+			stream_update->abm_level ||
+			stream_update->periodic_interrupt ||
+			stream_update->vrr_infopacket ||
+			stream_update->vsc_infopacket ||
+			stream_update->vsp_infopacket ||
+			stream_update->hfvsif_infopacket ||
+			stream_update->vtem_infopacket ||
+			stream_update->adaptive_sync_infopacket ||
+			stream_update->dpms_off ||
+			stream_update->allow_freesync ||
+			stream_update->vrr_active_variable ||
+			stream_update->vrr_active_fixed ||
+			stream_update->gamut_remap ||
+			stream_update->output_color_space ||
+			stream_update->dither_option ||
+			stream_update->wb_update ||
+			stream_update->dsc_config ||
+			stream_update->mst_bw_update ||
+			stream_update->func_shaper ||
+			stream_update->lut3d_func ||
+			stream_update->pending_test_pattern ||
+			stream_update->crtc_timing_adjust))
+		return true;
+
+	if (stream) {
+		stream_status = dc_stream_get_status(stream);
+		if (stream_status == NULL || stream_status->plane_count != surface_count)
+			return true;
+	}
+
+	return false;
+}
+
+static bool fast_update_only(struct dc_fast_update *fast_update,
+		struct dc_surface_update *srf_updates,
+		int surface_count,
+		struct dc_stream_update *stream_update,
+		struct dc_stream_state *stream)
+{
+	return fast_updates_exist(fast_update, surface_count)
+			&& !full_update_required(srf_updates, surface_count, stream_update, stream);
+}
+
 bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -4242,6 +4363,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	enum surface_update_type update_type;
 	int i;
 	struct mall_temp_config mall_temp_config;
+	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
 	/* In cases where MPO and split or ODM are used transitions can
 	 * cause underflow. Apply stream configuration with minimal pipe
@@ -4250,6 +4372,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	bool force_minimal_pipe_splitting;
 	bool is_plane_addition;
 
+	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	force_minimal_pipe_splitting = could_mpcc_tree_change_for_active_pipes(
 			dc,
 			stream,
@@ -4300,7 +4423,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (!dc->debug.enable_legacy_fast_update && update_type == UPDATE_TYPE_FAST) {
+	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
+			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
 				surface_count,
@@ -4357,7 +4481,9 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	struct dc_state *context;
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, j;
+	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
 
+	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	stream_status = dc_stream_get_status(stream);
 	context = dc->current_state;
 
@@ -4443,7 +4569,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	TRACE_DC_PIPE_STATE(pipe_ctx, i, MAX_PIPES);
 
 	update_seamless_boot_flags(dc, context, surface_count, stream);
-	if (!dc->debug.enable_legacy_fast_update && update_type == UPDATE_TYPE_FAST) {
+	if (fast_update_only(fast_update, srf_updates, surface_count, stream_update, stream) &&
+			!dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
 				srf_updates,
 				surface_count,
@@ -4753,15 +4880,17 @@ static void blank_and_force_memclk(struct dc *dc, bool apply, unsigned int memcl
  */
 void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable)
 {
-	uint32_t hw_internal_rev = dc->ctx->asic_id.hw_internal_rev;
-	unsigned int softMax, maxDPM, funcMin;
+	unsigned int softMax = 0, maxDPM = 0, funcMin = 0, i;
 	bool p_state_change_support;
 
-	if (!ASICREV_IS_BEIGE_GOBY_P(hw_internal_rev))
+	if (!dc->config.dc_mode_clk_limit_support)
 		return;
 
 	softMax = dc->clk_mgr->bw_params->dc_mode_softmax_memclk;
-	maxDPM = dc->clk_mgr->bw_params->clk_table.entries[dc->clk_mgr->bw_params->clk_table.num_entries - 1].memclk_mhz;
+	for (i = 0; i < dc->clk_mgr->bw_params->clk_table.num_entries; i++) {
+		if (dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz > maxDPM)
+			maxDPM = dc->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz;
+	}
 	funcMin = (dc->clk_mgr->clks.dramclk_khz + 999) / 1000;
 	p_state_change_support = dc->clk_mgr->clks.p_state_change_support;
 

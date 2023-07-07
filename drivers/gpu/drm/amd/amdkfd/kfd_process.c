@@ -2142,6 +2142,7 @@ void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type)
 int kfd_process_drain_interrupts(struct kfd_process_device *pdd)
 {
 	uint32_t irq_drain_fence[8];
+	uint8_t node_id = 0;
 	int r = 0;
 
 	if (!KFD_IS_SOC15(pdd->dev))
@@ -2153,6 +2154,14 @@ int kfd_process_drain_interrupts(struct kfd_process_device *pdd)
 	irq_drain_fence[0] = (KFD_IRQ_FENCE_SOURCEID << 8) |
 							KFD_IRQ_FENCE_CLIENTID;
 	irq_drain_fence[3] = pdd->process->pasid;
+
+	/*
+	 * For GFX 9.4.3, send the NodeId also in IH cookie DW[3]
+	 */
+	if (KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 3)) {
+		node_id = ffs(pdd->dev->interrupt_bitmap) - 1;
+		irq_drain_fence[3] |= node_id << 16;
+	}
 
 	/* ensure stale irqs scheduled KFD interrupts and send drain fence. */
 	if (amdgpu_amdkfd_send_close_event_drain_irq(pdd->dev->adev,

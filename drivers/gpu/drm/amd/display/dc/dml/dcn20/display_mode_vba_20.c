@@ -4356,12 +4356,16 @@ void dml20_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						locals->PSCL_FACTOR[k] / locals->ReturnBWPerState[i][0],
 						locals->EffectiveLBLatencyHidingSourceLinesLuma),
 						locals->SwathHeightYPerState[i][j][k]);
-
-				locals->EffectiveDETLBLinesChroma = dml_floor(locals->LinesInDETChroma + dml_min(
-						locals->LinesInDETChroma * locals->RequiredDISPCLK[i][j] * locals->BytePerPixelInDETC[k] *
-						locals->PSCL_FACTOR_CHROMA[k] / locals->ReturnBWPerState[i][0],
-						locals->EffectiveLBLatencyHidingSourceLinesChroma),
-						locals->SwathHeightCPerState[i][j][k]);
+				if (locals->LinesInDETChroma) {
+					locals->EffectiveDETLBLinesChroma = dml_floor(locals->LinesInDETChroma +
+						    dml_min(locals->LinesInDETChroma * locals->RequiredDISPCLK[i][j] *
+						    locals->BytePerPixelInDETC[k] *
+							locals->PSCL_FACTOR_CHROMA[k] / locals->ReturnBWPerState[i][0],
+							locals->EffectiveLBLatencyHidingSourceLinesChroma),
+							locals->SwathHeightCPerState[i][j][k]);
+				} else {
+					locals->EffectiveDETLBLinesChroma = 0;
+				}
 
 				if (locals->BytePerPixelInDETC[k] == 0) {
 					locals->UrgentLatencySupportUsPerState[i][j][k] = locals->EffectiveDETLBLinesLuma * (locals->HTotal[k] / locals->PixelClock[k])

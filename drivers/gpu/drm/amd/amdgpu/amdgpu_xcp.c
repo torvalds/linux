@@ -132,6 +132,9 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 	for (i = 0; i < MAX_XCP; ++i)
 		xcp_mgr->xcp[i].valid = false;
 
+	/* This is needed for figuring out memory id of xcp */
+	xcp_mgr->num_xcp_per_mem_partition = num_xcps / xcp_mgr->adev->gmc.num_mem_partitions;
+
 	for (i = 0; i < num_xcps; ++i) {
 		for (j = AMDGPU_XCP_GFXHUB; j < AMDGPU_XCP_MAX_BLOCKS; ++j) {
 			ret = xcp_mgr->funcs->get_ip_details(xcp_mgr, i, j,
@@ -157,7 +160,6 @@ int amdgpu_xcp_init(struct amdgpu_xcp_mgr *xcp_mgr, int num_xcps, int mode)
 	xcp_mgr->num_xcps = num_xcps;
 	amdgpu_xcp_update_partition_sched_list(adev);
 
-	xcp_mgr->num_xcp_per_mem_partition = num_xcps / xcp_mgr->adev->gmc.num_mem_partitions;
 	return 0;
 }
 
@@ -232,7 +234,10 @@ static int amdgpu_xcp_dev_alloc(struct amdgpu_device *adev)
 
 	ddev = adev_to_drm(adev);
 
-	for (i = 0; i < MAX_XCP; i++) {
+	/* xcp #0 shares drm device setting with adev */
+	adev->xcp_mgr->xcp->ddev = ddev;
+
+	for (i = 1; i < MAX_XCP; i++) {
 		ret = amdgpu_xcp_drm_dev_alloc(&p_ddev);
 		if (ret)
 			return ret;
@@ -322,7 +327,7 @@ int amdgpu_xcp_dev_register(struct amdgpu_device *adev,
 	if (!adev->xcp_mgr)
 		return 0;
 
-	for (i = 0; i < MAX_XCP; i++) {
+	for (i = 1; i < MAX_XCP; i++) {
 		ret = drm_dev_register(adev->xcp_mgr->xcp[i].ddev, ent->driver_data);
 		if (ret)
 			return ret;
@@ -339,7 +344,7 @@ void amdgpu_xcp_dev_unplug(struct amdgpu_device *adev)
 	if (!adev->xcp_mgr)
 		return;
 
-	for (i = 0; i < MAX_XCP; i++) {
+	for (i = 1; i < MAX_XCP; i++) {
 		p_ddev = adev->xcp_mgr->xcp[i].ddev;
 		drm_dev_unplug(p_ddev);
 		p_ddev->render->dev = adev->xcp_mgr->xcp[i].rdev;
