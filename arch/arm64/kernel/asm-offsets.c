@@ -213,9 +213,9 @@ int main(void)
   DEFINE(FGRET_REGS_X7,			offsetof(struct fgraph_ret_regs, regs[7]));
   DEFINE(FGRET_REGS_FP,			offsetof(struct fgraph_ret_regs, fp));
   DEFINE(FGRET_REGS_SIZE,		sizeof(struct fgraph_ret_regs));
+#endif
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
   DEFINE(FTRACE_OPS_DIRECT_CALL,	offsetof(struct ftrace_ops, direct_call));
-#endif
 #endif
   return 0;
 }
