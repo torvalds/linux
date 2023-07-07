@@ -43,6 +43,9 @@
 /* will be used by nolibc by getenv() */
 char **environ;
 
+/* will be used by some test cases as readable file, please don't write it */
+static const char *argv0;
+
 /* definition of a series of tests */
 struct test {
 	const char *name;              /* test name */
@@ -948,6 +951,7 @@ int main(int argc, char **argv, char **envp)
 	int idx;
 	char *test;
 
+	argv0 = argv[0];
 	environ = envp;
 
 	/* when called as init, it's possible that no console was opened, for
