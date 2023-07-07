@@ -998,8 +998,7 @@ static void __io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 		io_put_kbuf_comp(req);
 		if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
 			io_clean_op(req);
-		if (!(req->flags & REQ_F_FIXED_FILE))
-			io_put_file(req->file);
+		io_put_file(req);
 
 		rsrc_node = req->rsrc_node;
 		/*
@@ -1533,8 +1532,7 @@ void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
 			if (unlikely(req->flags & IO_REQ_CLEAN_FLAGS))
 				io_clean_op(req);
 		}
-		if (!(req->flags & REQ_F_FIXED_FILE))
-			io_put_file(req->file);
+		io_put_file(req);
 
 		io_req_put_rsrc_locked(req, ctx);
 

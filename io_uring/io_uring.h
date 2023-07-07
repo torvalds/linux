@@ -196,10 +196,10 @@ static inline bool req_has_async_data(struct io_kiocb *req)
 	return req->flags & REQ_F_ASYNC_DATA;
 }
 
-static inline void io_put_file(struct file *file)
+static inline void io_put_file(struct io_kiocb *req)
 {
-	if (file)
-		fput(file);
+	if (!(req->flags & REQ_F_FIXED_FILE) && req->file)
+		fput(req->file);
 }
 
 static inline void io_ring_submit_unlock(struct io_ring_ctx *ctx,
