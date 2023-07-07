@@ -1036,7 +1036,18 @@ static int rockchip_lpmode_enter(unsigned long arg)
 
 	cpu_do_idle();
 
-	pr_err("%s: Failed to suspend\n", __func__);
+#if RV1106_WAKEUP_TO_SYSTEM_RESET
+	/* If reaches here, it means wakeup source cames before cpu enter wfi.
+	 * So we should do system reset if RV1106_WAKEUP_TO_SYSTEM_RESET.
+	 */
+	writel_relaxed(0x000c000c, cru_base + RV1106_CRU_GLB_RST_CON);
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(5));
+	dsb(sy);
+	writel_relaxed(0xfdb9, cru_base + RV1106_CRU_GLB_SRST_FST);
+#endif
+
+	rkpm_printstr("Failed to suspend\n");
 
 	return 1;
 }
