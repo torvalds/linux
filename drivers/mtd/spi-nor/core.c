@@ -1308,7 +1308,7 @@ void spi_nor_unlock_and_unprep(struct spi_nor *nor)
 	mutex_unlock(&nor->lock);
 }
 
-static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
+u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
 {
 	if (!nor->params->convert_addr)
 		return addr;
@@ -3300,6 +3300,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 
 	/* Configure OTP parameters and ops */
 	spi_nor_otp_init(nor);
+
+	if (info->fixups->post_fixups)
+		info->fixups->post_fixups(nor);
 
 	dev_info(dev, "%s (%lld Kbytes)\n", info->name,
 			(long long)mtd->size >> 10);

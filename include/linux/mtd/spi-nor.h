@@ -464,4 +464,6 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
  */
 void spi_nor_restore(struct spi_nor *nor);
 
+u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr);
+
 #endif

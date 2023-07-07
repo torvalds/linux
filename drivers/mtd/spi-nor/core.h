@@ -310,6 +310,7 @@ struct spi_nor_fixups {
 			 const struct sfdp_parameter_header *bfpt_header,
 			 const struct sfdp_bfpt *bfpt);
 	void (*post_sfdp)(struct spi_nor *nor);
+	void (*post_fixups)(struct spi_nor *nor);
 };
 
 struct flash_info {
