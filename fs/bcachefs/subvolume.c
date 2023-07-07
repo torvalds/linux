@@ -408,7 +408,7 @@ fsck_err:
  * And, make sure it points to a subvolume within that snapshot tree, or correct
  * it to point to the oldest subvolume within that snapshot tree.
  */
-int bch2_fs_check_snapshot_trees(struct bch_fs *c)
+int bch2_check_snapshot_trees(struct bch_fs *c)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -612,7 +612,7 @@ fsck_err:
 	return ret;
 }
 
-int bch2_fs_check_snapshots(struct bch_fs *c)
+int bch2_check_snapshots(struct bch_fs *c)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -692,7 +692,7 @@ fsck_err:
 	return ret;
 }
 
-int bch2_fs_check_subvols(struct bch_fs *c)
+int bch2_check_subvols(struct bch_fs *c)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -713,7 +713,7 @@ void bch2_fs_snapshots_exit(struct bch_fs *c)
 	genradix_free(&c->snapshots);
 }
 
-int bch2_fs_snapshots_start(struct bch_fs *c)
+int bch2_snapshots_read(struct bch_fs *c)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -1151,7 +1151,7 @@ static int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
 
 	set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
 
-	if (!test_bit(BCH_FS_FSCK_DONE, &c->flags))
+	if (c->curr_recovery_pass <= BCH_RECOVERY_PASS_delete_dead_snapshots)
 		return 0;
 
 	bch2_delete_dead_snapshots_async(c);

@@ -776,7 +776,7 @@ static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 {
 	struct printbuf buf = PRINTBUF;
 
-	if (!test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
+	if (c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations)
 		return;
 
 	prt_printf(&buf,

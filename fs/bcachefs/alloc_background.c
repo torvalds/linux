@@ -286,7 +286,7 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 
 	if (rw == WRITE &&
 	    !(flags & BKEY_INVALID_JOURNAL) &&
-	    test_bit(BCH_FS_CHECK_BACKPOINTERS_DONE, &c->flags)) {
+	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_btree_backpointers) {
 		unsigned i, bp_len = 0;
 
 		for (i = 0; i < BCH_ALLOC_V4_NR_BACKPOINTERS(a.v); i++)
@@ -336,7 +336,7 @@ int bch2_alloc_v4_invalid(const struct bch_fs *c, struct bkey_s_c k,
 			}
 
 			if (!a.v->io_time[READ] &&
-			    test_bit(BCH_FS_CHECK_ALLOC_TO_LRU_REFS_DONE, &c->flags)) {
+			    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_to_lru_refs) {
 				prt_printf(err, "cached bucket with read_time == 0");
 				return -BCH_ERR_invalid_bkey;
 			}
@@ -777,7 +777,7 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 		return ret;
 
 	if (ca->mi.freespace_initialized &&
-	    test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags) &&
+	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info &&
 	    bch2_trans_inconsistent_on(old.k->type != old_type, trans,
 			"incorrect key when %s %s:%llu:%llu:0 (got %s should be %s)\n"
 			"  for %s",
@@ -1663,7 +1663,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	}
 
 	if (a->v.journal_seq > c->journal.flushed_seq_ondisk) {
-		if (test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
+		if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info) {
 			bch2_trans_inconsistent(trans,
 				"clearing need_discard but journal_seq %llu > flushed_seq %llu\n"
 				"%s",
@@ -1676,7 +1676,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	}
 
 	if (a->v.data_type != BCH_DATA_need_discard) {
-		if (test_bit(BCH_FS_CHECK_ALLOC_DONE, &c->flags)) {
+		if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info) {
 			bch2_trans_inconsistent(trans,
 				"bucket incorrectly set in need_discard btree\n"
 				"%s",
@@ -1844,7 +1844,7 @@ err:
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
 
 	bch_err(c, "%s", buf.buf);
-	if (test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
+	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_lrus) {
 		bch2_inconsistent_error(c);
 		ret = -EINVAL;
 	}

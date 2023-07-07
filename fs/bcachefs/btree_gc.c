@@ -1807,7 +1807,7 @@ again:
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) ||
 	    (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb) &&
-	     !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags) &&
+	     c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations &&
 	     c->opts.fix_errors != FSCK_OPT_NO)) {
 		bch_info(c, "Starting topology repair pass");
 		ret = bch2_repair_topology(c);
@@ -1822,7 +1822,7 @@ again:
 
 	if (ret == -BCH_ERR_need_topology_repair &&
 	    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags) &&
-	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {
+	    c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations) {
 		set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
 		SET_BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb, true);
 		ret = 0;

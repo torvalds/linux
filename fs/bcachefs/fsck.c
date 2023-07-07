@@ -350,7 +350,7 @@ static int lookup_lostfound(struct btree_trans *trans, u32 subvol,
 	}
 
 	/*
-	 * The check_dirents pass has already run, dangling dirents
+	 * The bch2_check_dirents pass has already run, dangling dirents
 	 * shouldn't exist here:
 	 */
 	return __lookup_inode(trans, inum, lostfound, &snapshot);
@@ -1008,8 +1008,9 @@ fsck_err:
 }
 
 noinline_for_stack
-static int check_inodes(struct bch_fs *c, bool full)
+int bch2_check_inodes(struct bch_fs *c)
 {
+	bool full = c->opts.fsck;
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bch_inode_unpacked prev = { 0 };
@@ -1404,8 +1405,7 @@ fsck_err:
  * Walk extents: verify that extents have a corresponding S_ISREG inode, and
  * that i_size an i_sectors are consistent
  */
-noinline_for_stack
-static int check_extents(struct bch_fs *c)
+int bch2_check_extents(struct bch_fs *c)
 {
 	struct inode_walker w = inode_walker_init();
 	struct snapshots_seen s;
@@ -1418,8 +1418,6 @@ static int check_extents(struct bch_fs *c)
 
 	snapshots_seen_init(&s);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	bch_verbose(c, "checking extents");
 
 	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_extents,
 			POS(BCACHEFS_ROOT_INO, 0),
@@ -1772,8 +1770,7 @@ fsck_err:
  * Walk dirents: verify that they all have a corresponding S_ISDIR inode,
  * validate d_type
  */
-noinline_for_stack
-static int check_dirents(struct bch_fs *c)
+int bch2_check_dirents(struct bch_fs *c)
 {
 	struct inode_walker dir = inode_walker_init();
 	struct inode_walker target = inode_walker_init();
@@ -1783,8 +1780,6 @@ static int check_dirents(struct bch_fs *c)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
-
-	bch_verbose(c, "checking dirents");
 
 	snapshots_seen_init(&s);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
@@ -1847,8 +1842,7 @@ fsck_err:
 /*
  * Walk xattrs: verify that they all have a corresponding inode
  */
-noinline_for_stack
-static int check_xattrs(struct bch_fs *c)
+int bch2_check_xattrs(struct bch_fs *c)
 {
 	struct inode_walker inode = inode_walker_init();
 	struct bch_hash_info hash_info;
@@ -1856,8 +1850,6 @@ static int check_xattrs(struct bch_fs *c)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
-
-	bch_verbose(c, "checking xattrs");
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
@@ -1932,12 +1924,9 @@ fsck_err:
 }
 
 /* Get root directory, create if it doesn't exist: */
-noinline_for_stack
-static int check_root(struct bch_fs *c)
+int bch2_check_root(struct bch_fs *c)
 {
 	int ret;
-
-	bch_verbose(c, "checking root directory");
 
 	ret = bch2_trans_do(c, NULL, NULL,
 			     BTREE_INSERT_NOFAIL|
@@ -2089,11 +2078,10 @@ fsck_err:
 
 /*
  * Check for unreachable inodes, as well as loops in the directory structure:
- * After check_dirents(), if an inode backpointer doesn't exist that means it's
+ * After bch2_check_dirents(), if an inode backpointer doesn't exist that means it's
  * unreachable:
  */
-noinline_for_stack
-static int check_directory_structure(struct bch_fs *c)
+int bch2_check_directory_structure(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -2376,14 +2364,11 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 	return 0;
 }
 
-noinline_for_stack
-static int check_nlinks(struct bch_fs *c)
+int bch2_check_nlinks(struct bch_fs *c)
 {
 	struct nlink_table links = { 0 };
 	u64 this_iter_range_start, next_iter_range_start = 0;
 	int ret = 0;
-
-	bch_verbose(c, "checking inode nlinks");
 
 	do {
 		this_iter_range_start = next_iter_range_start;
@@ -2442,8 +2427,7 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
 	return bch2_trans_update(trans, iter, &u->k_i, BTREE_TRIGGER_NORUN);
 }
 
-noinline_for_stack
-static int fix_reflink_p(struct bch_fs *c)
+int bch2_fix_reflink_p(struct bch_fs *c)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -2451,8 +2435,6 @@ static int fix_reflink_p(struct bch_fs *c)
 
 	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix)
 		return 0;
-
-	bch_verbose(c, "fixing reflink_p keys");
 
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(&trans, iter,
@@ -2465,41 +2447,4 @@ static int fix_reflink_p(struct bch_fs *c)
 	if (ret)
 		bch_err_fn(c, ret);
 	return ret;
-}
-
-/*
- * Checks for inconsistencies that shouldn't happen, unless we have a bug.
- * Doesn't fix them yet, mainly because they haven't yet been observed:
- */
-int bch2_fsck_full(struct bch_fs *c)
-{
-	int ret;
-again:
-	ret =   bch2_fs_check_snapshot_trees(c);
-		bch2_fs_check_snapshots(c) ?:
-		bch2_fs_check_subvols(c) ?:
-		bch2_delete_dead_snapshots(c) ?:
-		check_inodes(c, true) ?:
-		check_extents(c) ?:
-		check_dirents(c) ?:
-		check_xattrs(c) ?:
-		check_root(c) ?:
-		check_directory_structure(c) ?:
-		check_nlinks(c) ?:
-		fix_reflink_p(c);
-
-	if (bch2_err_matches(ret, BCH_ERR_need_snapshot_cleanup)) {
-		set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
-		goto again;
-	}
-
-	return ret;
-}
-
-int bch2_fsck_walk_inodes_only(struct bch_fs *c)
-{
-	return  bch2_fs_check_snapshots(c) ?:
-		bch2_fs_check_subvols(c) ?:
-		bch2_delete_dead_snapshots(c) ?:
-		check_inodes(c, false);
 }

@@ -130,12 +130,12 @@ static inline int snapshot_list_add(struct bch_fs *c, snapshot_id_list *s, u32 i
 	return ret;
 }
 
-int bch2_fs_check_snapshot_trees(struct bch_fs *);
-int bch2_fs_check_snapshots(struct bch_fs *);
-int bch2_fs_check_subvols(struct bch_fs *);
+int bch2_check_snapshot_trees(struct bch_fs *);
+int bch2_check_snapshots(struct bch_fs *);
+int bch2_check_subvols(struct bch_fs *);
 
 void bch2_fs_snapshots_exit(struct bch_fs *);
-int bch2_fs_snapshots_start(struct bch_fs *);
+int bch2_snapshots_read(struct bch_fs *);
 
 int bch2_subvolume_invalid(const struct bch_fs *, struct bkey_s_c,
 			   unsigned, struct printbuf *);
