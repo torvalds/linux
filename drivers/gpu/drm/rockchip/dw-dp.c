@@ -239,8 +239,14 @@
 #define DPTX_HDCP22GPIOCHNGSTS			0x362c
 #define DPTX_HDCPREG_DPK_CRC			0x3630
 
+#define HDCP_KEY_SIZE				308
+#define HDCP_KEY_SEED_SIZE			2
+
 #define HDCP_DATA_SIZE				330
 #define DP_HDCP1X_ID				6
+
+#define HDCP_SIG_MAGIC				0x4B534541	/* "AESK" */
+#define HDCP_FLG_AES				1
 
 #define DPTX_MAX_REGISTER			DPTX_HDCPREG_DPK_CRC
 
@@ -407,6 +413,14 @@ struct dw_dp_state {
 	int color_format;
 };
 
+struct hdcp_key_data_t {
+	unsigned int signature;
+	unsigned int length;
+	unsigned int crc;
+	unsigned int flags;
+	unsigned char data[];
+};
+
 enum {
 	DPTX_VM_RGB_6BIT,
 	DPTX_VM_RGB_8BIT,
@@ -499,6 +513,8 @@ static int dw_dp_hdcp_init_keys(struct dw_dp *dp)
 	u8 hdcp_vendor_data[HDCP_DATA_SIZE + 1];
 	void __iomem *base;
 	struct arm_smccc_res res;
+	struct hdcp_key_data_t *key_data;
+	bool aes_encrypt;
 
 	regmap_read(dp->regmap, DPTX_HDCPREG_RMLSTS, &val);
 	if (FIELD_GET(IDPK_DATA_INDEX, val) == 40) {
@@ -507,10 +523,16 @@ static int dw_dp_hdcp_init_keys(struct dw_dp *dp)
 	}
 
 	size = rk_vendor_read(DP_HDCP1X_ID, hdcp_vendor_data, HDCP_DATA_SIZE);
-	if (size < HDCP_DATA_SIZE)  {
-		dev_info(dp->dev, "HDCP: read size %d\n", size);
+	if (size < (HDCP_KEY_SIZE + HDCP_KEY_SEED_SIZE))  {
+		dev_info(dp->dev, "HDCP key read error, size: %d\n", size);
 		return -EINVAL;
 	}
+
+	key_data = (struct hdcp_key_data_t *)hdcp_vendor_data;
+	if ((key_data->signature != HDCP_SIG_MAGIC) || !(key_data->flags & HDCP_FLG_AES))
+		aes_encrypt = false;
+	else
+		aes_encrypt = true;
 
 	base = sip_hdcp_request_share_memory(dp->id ? DP_TX1 : DP_TX0);
 	if (!base)
@@ -518,7 +540,7 @@ static int dw_dp_hdcp_init_keys(struct dw_dp *dp)
 
 	memcpy_toio(base, hdcp_vendor_data, size);
 
-	res = sip_hdcp_config(HDCP_FUNC_KEY_LOAD, dp->id ? DP_TX1 : DP_TX0, 0);
+	res = sip_hdcp_config(HDCP_FUNC_KEY_LOAD, dp->id ? DP_TX1 : DP_TX0, !aes_encrypt);
 	if (IS_SIP_ERROR(res.a0)) {
 		dev_err(dp->dev, "load hdcp key failed\n");
 		return -EBUSY;
