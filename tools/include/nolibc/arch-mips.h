@@ -61,7 +61,7 @@ struct sys_stat_struct {
 ({                                                                            \
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg4 __asm__ ("a3");                                   \
-	                                                                      \
+									      \
 	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
@@ -69,7 +69,7 @@ struct sys_stat_struct {
 		: "=r"(_num), "=r"(_arg4)                                     \
 		: "r"(_num)                                                   \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-	          "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -79,7 +79,7 @@ struct sys_stat_struct {
 	register long _num __asm__ ("v0") = (num);                            \
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
 	register long _arg4 __asm__ ("a3");                                   \
-	                                                                      \
+									      \
 	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
@@ -88,7 +88,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1)                                                  \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-	          "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -99,7 +99,7 @@ struct sys_stat_struct {
 	register long _arg1 __asm__ ("a0") = (long)(arg1);                    \
 	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
 	register long _arg4 __asm__ ("a3");                                   \
-	                                                                      \
+									      \
 	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
@@ -108,7 +108,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2)                                      \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-	          "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -120,7 +120,7 @@ struct sys_stat_struct {
 	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 	register long _arg4 __asm__ ("a3");                                   \
-	                                                                      \
+									      \
 	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
@@ -129,7 +129,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3)                          \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-	          "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -141,7 +141,7 @@ struct sys_stat_struct {
 	register long _arg2 __asm__ ("a1") = (long)(arg2);                    \
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
-	                                                                      \
+									      \
 	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"syscall\n"                                                   \
@@ -150,7 +150,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4)              \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-	          "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
@@ -163,7 +163,7 @@ struct sys_stat_struct {
 	register long _arg3 __asm__ ("a2") = (long)(arg3);                    \
 	register long _arg4 __asm__ ("a3") = (long)(arg4);                    \
 	register long _arg5 = (long)(arg5);                                   \
-	                                                                      \
+									      \
 	__asm__  volatile (                                                   \
 		"addiu $sp, $sp, -32\n"                                       \
 		"sw %7, 16($sp)\n"                                            \
@@ -173,7 +173,7 @@ struct sys_stat_struct {
 		: "0"(_num),                                                  \
 		  "r"(_arg1), "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5)  \
 		: "memory", "cc", "at", "v1", "hi", "lo",                     \
-	          "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
+		  "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8", "t9"  \
 	);                                                                    \
 	_arg4 ? -_num : _num;                                                 \
 })
