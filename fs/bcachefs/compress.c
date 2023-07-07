@@ -542,7 +542,7 @@ void bch2_fs_compress_exit(struct bch_fs *c)
 	mempool_exit(&c->compression_bounce[READ]);
 }
 
-static int _bch2_fs_compress_init(struct bch_fs *c, u64 features)
+static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 {
 	size_t decompress_workspace_size = 0;
 	bool decompress_workspace_needed;
@@ -610,17 +610,6 @@ static int _bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		return -BCH_ERR_ENOMEM_decompression_workspace_init;
 
 	return 0;
-}
-
-static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
-{
-	int ret;
-
-	pr_verbose_init(c->opts, "");
-	ret = _bch2_fs_compress_init(c, features);
-	pr_verbose_init(c->opts, "ret %i", ret);
-
-	return ret;
 }
 
 int bch2_fs_compress_init(struct bch_fs *c)

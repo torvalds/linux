@@ -680,8 +680,6 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 	struct bch_key key;
 	int ret = 0;
 
-	pr_verbose_init(c->opts, "");
-
 	c->sha256 = crypto_alloc_shash("sha256", 0, 0);
 	ret = PTR_ERR_OR_ZERO(c->sha256);
 	if (ret) {
@@ -707,6 +705,5 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 		goto out;
 out:
 	memzero_explicit(&key, sizeof(key));
-	pr_verbose_init(c->opts, "ret %i", ret);
 	return ret;
 }

@@ -1504,8 +1504,6 @@ out:
 
 	if (ret)
 		bch_err_fn(c, ret);
-	else
-		bch_verbose(c, "ret %s", bch2_err_str(ret));
 	return ret;
 err:
 fsck_err:

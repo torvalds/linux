@@ -457,21 +457,17 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	unsigned i;
 	int ret = 0;
 
-	pr_verbose_init(c->opts, "");
-
 	ret = rhashtable_init(&bc->table, &bch_btree_cache_params);
 	if (ret)
-		goto out;
+		goto err;
 
 	bc->table_init_done = true;
 
 	bch2_recalc_btree_reserve(c);
 
 	for (i = 0; i < bc->reserve; i++)
-		if (!__bch2_btree_node_mem_alloc(c)) {
-			ret = -BCH_ERR_ENOMEM_fs_btree_cache_init;
-			goto out;
-		}
+		if (!__bch2_btree_node_mem_alloc(c))
+			goto err;
 
 	list_splice_init(&bc->live, &bc->freeable);
 
@@ -481,9 +477,12 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	bc->shrink.scan_objects		= bch2_btree_cache_scan;
 	bc->shrink.seeks		= 4;
 	ret = register_shrinker(&bc->shrink, "%s/btree_cache", c->name);
-out:
-	pr_verbose_init(c->opts, "ret %i", ret);
-	return ret;
+	if (ret)
+		goto err;
+
+	return 0;
+err:
+	return -BCH_ERR_ENOMEM_fs_btree_cache_init;
 }
 
 void bch2_fs_btree_cache_init_early(struct btree_cache *bc)

@@ -3915,10 +3915,6 @@ void bch2_fs_fsio_exit(struct bch_fs *c)
 
 int bch2_fs_fsio_init(struct bch_fs *c)
 {
-	int ret = 0;
-
-	pr_verbose_init(c->opts, "");
-
 	if (bioset_init(&c->writepage_bioset,
 			4, offsetof(struct bch_writepage_io, op.wbio.bio),
 			BIOSET_NEED_BVECS))
@@ -3938,8 +3934,7 @@ int bch2_fs_fsio_init(struct bch_fs *c)
 			1, offsetof(struct nocow_flush, bio), 0))
 		return -BCH_ERR_ENOMEM_nocow_flush_bioset_init;
 
-	pr_verbose_init(c->opts, "ret %i", ret);
-	return ret;
+	return 0;
 }
 
 #endif /* NO_BCACHEFS_FS */

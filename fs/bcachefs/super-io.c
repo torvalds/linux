@@ -615,8 +615,6 @@ int bch2_read_super(const char *path, struct bch_opts *opts,
 	__le64 *i;
 	int ret;
 
-	pr_verbose_init(*opts, "");
-
 	memset(sb, 0, sizeof(*sb));
 	sb->mode	= BLK_OPEN_READ;
 	sb->have_bio	= true;
@@ -726,7 +724,6 @@ got_super:
 		goto err_no_print;
 	}
 out:
-	pr_verbose_init(*opts, "ret %i", ret);
 	printbuf_exit(&err);
 	return ret;
 err:

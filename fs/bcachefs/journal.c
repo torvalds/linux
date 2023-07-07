@@ -1220,12 +1220,8 @@ void bch2_fs_journal_exit(struct journal *j)
 
 int bch2_fs_journal_init(struct journal *j)
 {
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	static struct lock_class_key res_key;
 	unsigned i;
-	int ret = 0;
-
-	pr_verbose_init(c->opts, "");
 
 	spin_lock_init(&j->lock);
 	spin_lock_init(&j->err_lock);
@@ -1242,24 +1238,18 @@ int bch2_fs_journal_init(struct journal *j)
 		((union journal_res_state)
 		 { .cur_entry_offset = JOURNAL_ENTRY_CLOSED_VAL }).v);
 
-	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL))) {
-		ret = -BCH_ERR_ENOMEM_journal_pin_fifo;
-		goto out;
-	}
+	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)))
+		return -BCH_ERR_ENOMEM_journal_pin_fifo;
 
 	for (i = 0; i < ARRAY_SIZE(j->buf); i++) {
 		j->buf[i].buf_size = JOURNAL_ENTRY_SIZE_MIN;
 		j->buf[i].data = kvpmalloc(j->buf[i].buf_size, GFP_KERNEL);
-		if (!j->buf[i].data) {
-			ret = -BCH_ERR_ENOMEM_journal_buf;
-			goto out;
-		}
+		if (!j->buf[i].data)
+			return -BCH_ERR_ENOMEM_journal_buf;
 	}
 
 	j->pin.front = j->pin.back = 1;
-out:
-	pr_verbose_init(c->opts, "ret %i", ret);
-	return ret;
+	return 0;
 }
 
 /* debug: */
