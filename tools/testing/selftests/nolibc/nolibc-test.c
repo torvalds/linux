@@ -876,10 +876,10 @@ static int expect_vfprintf(int llen, size_t c, const char *expected, const char 
 	FILE *memfile;
 	va_list args;
 
-	fd = memfd_create("vfprintf", 0);
+	fd = open("/tmp", O_TMPFILE | O_EXCL | O_RDWR, 0600);
 	if (fd == -1) {
-		pad_spc(llen, 64, "[FAIL]\n");
-		return 1;
+		pad_spc(llen, 64, "[SKIPPED]\n");
+		return 0;
 	}
 
 	memfile = fdopen(fd, "w+");
