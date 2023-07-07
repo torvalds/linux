@@ -1124,8 +1124,7 @@ static int flctl_probe(struct platform_device *pdev)
 	if (!flctl)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
+	flctl->reg = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(flctl->reg))
 		return PTR_ERR(flctl->reg);
 	flctl->fifo = res->start + 0x24; /* FLDTFIFO */
