@@ -460,6 +460,7 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 	i2c_dev->dma_chan = dma_request_chan(i2c_dev->dev, "tx");
 	if (IS_ERR(i2c_dev->dma_chan)) {
 		err = PTR_ERR(i2c_dev->dma_chan);
+		i2c_dev->dma_chan = NULL;
 		goto err_out;
 	}
 
