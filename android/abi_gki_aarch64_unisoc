@@ -1213,6 +1213,17 @@
   sock_common_recvmsg
   sock_common_setsockopt
 
+# required by ims_bridge.ko
+  icmp6_send
+  inet_select_addr
+  ip6_find_1stfragopt
+  ip6_route_output_flags
+  ipv6_dev_get_saddr
+  ipv6_select_ident
+  nf_ct_get_tuplepr
+  nf_ct_invert_tuple
+  xfrm_state_afinfo_get_rcu
+
 # required by kfifo_buf.ko
   devres_add
   __devres_alloc_node
