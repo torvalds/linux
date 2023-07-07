@@ -36,6 +36,10 @@ patternProperties:
           - const: mux
           - const: gpio
 
+      gpio-line-names:
+        minItems: 62 # A1
+        maxItems: 82 # S4
+
 unevaluatedProperties:
   type: object
   $ref: amlogic,meson-pinctrl-common.yaml#/$defs/meson-pins
