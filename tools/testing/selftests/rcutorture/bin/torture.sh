@@ -582,11 +582,23 @@ then
 fi
 echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
+tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
+find "$tdir" -name 'ConfigFragment.diags' -print > $T/configerrors
+find "$tdir" -name 'Make.out.diags' -print > $T/builderrors
+if test -s "$T/configerrors"
+then
+	echo "  Scenarios with .config errors: `wc -l "$T/configerrors" | awk '{ print $1 }'`"
+	nonkcsanbug="yes"
+fi
+if test -s "$T/builderrors"
+then
+	echo "  Scenarios with build errors: `wc -l "$T/builderrors" | awk '{ print $1 }'`"
+	nonkcsanbug="yes"
+fi
 if test -z "$nonkcsanbug" && test -s "$T/failuresum"
 then
 	echo "  All bugs were KCSAN failures."
 fi
-tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
 if test -n "$tdir" && test $compress_concurrency -gt 0
 then
 	# KASAN vmlinux files can approach 1GB in size, so compress them.
