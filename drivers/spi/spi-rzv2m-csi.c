@@ -635,15 +635,13 @@ static int rzv2m_csi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rzv2m_csi_remove(struct platform_device *pdev)
+static void rzv2m_csi_remove(struct platform_device *pdev)
 {
 	struct rzv2m_csi_priv *csi = platform_get_drvdata(pdev);
 
 	spi_unregister_controller(csi->controller);
 	rzv2m_csi_sw_reset(csi, 1);
 	clk_disable_unprepare(csi->csiclk);
-
-	return 0;
 }
 
 static const struct of_device_id rzv2m_csi_match[] = {
@@ -654,7 +652,7 @@ MODULE_DEVICE_TABLE(of, rzv2m_csi_match);
 
 static struct platform_driver rzv2m_csi_drv = {
 	.probe = rzv2m_csi_probe,
-	.remove = rzv2m_csi_remove,
+	.remove_new = rzv2m_csi_remove,
 	.driver = {
 		.name = "rzv2m_csi",
 		.of_match_table = rzv2m_csi_match,
