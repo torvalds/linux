@@ -26,6 +26,7 @@ properties:
           - qcom,pm6350-gpio
           - qcom,pm7250b-gpio
           - qcom,pm7325-gpio
+          - qcom,pm7550ba-gpio
           - qcom,pm8005-gpio
           - qcom,pm8008-gpio
           - qcom,pm8018-gpio
@@ -172,6 +173,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pm7550ba-gpio
               - qcom,pm8226-gpio
               - qcom,pm8350b-gpio
               - qcom,pm8550ve-gpio
@@ -413,6 +415,7 @@ $defs:
                  - gpio1-gpio9 for pm6350
                  - gpio1-gpio12 for pm7250b
                  - gpio1-gpio10 for pm7325
+                 - gpio1-gpio8 for pm7550ba
                  - gpio1-gpio4 for pm8005
                  - gpio1-gpio2 for pm8008
                  - gpio1-gpio6 for pm8018
