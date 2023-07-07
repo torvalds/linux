@@ -165,7 +165,7 @@ config QCOM_PIL_INFO
 	tristate
 
 config QCOM_RPROC_COMMON
-	tristate
+	tristate "Qualcomm Technologies, Inc. Remote Proc Common Framework"
 
 config QCOM_Q6V5_COMMON
 	tristate
