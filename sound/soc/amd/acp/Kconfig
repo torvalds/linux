@@ -61,6 +61,7 @@ config SND_SOC_AMD_MACH_COMMON
 	select SND_SOC_MAX98357A
 	select SND_SOC_RT5682S
 	select SND_SOC_NAU8825
+	select SND_SOC_NAU8821
 	help
 	  This option enables common Machine driver module for ACP.
 
