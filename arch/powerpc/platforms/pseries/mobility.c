@@ -24,6 +24,7 @@
 #include <linux/stringify.h>
 
 #include <asm/machdep.h>
+#include <asm/nmi.h>
 #include <asm/rtas.h>
 #include "pseries.h"
 #include "vas.h"	/* vas_migration_handler() */
