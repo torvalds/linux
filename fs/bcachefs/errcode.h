@@ -175,6 +175,9 @@
 	x(EROFS,			erofs_no_writes)			\
 	x(EROFS,			erofs_journal_err)			\
 	x(EROFS,			erofs_sb_err)				\
+	x(EROFS,			erofs_unfixed_errors)			\
+	x(EROFS,			erofs_norecovery)			\
+	x(EROFS,			erofs_nochanges)			\
 	x(EROFS,			insufficient_devices)			\
 	x(0,				operation_blocked)			\
 	x(BCH_ERR_operation_blocked,	btree_cache_cannibalize_lock_blocked)	\

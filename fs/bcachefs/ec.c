@@ -1024,7 +1024,7 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 	int ret;
 
 	if (!bch2_dev_get_ioref(ca, WRITE)) {
-		s->err = -EROFS;
+		s->err = -BCH_ERR_erofs_no_writes;
 		return;
 	}
 
@@ -1401,7 +1401,7 @@ __bch2_ec_stripe_head_get(struct btree_trans *trans,
 		return ERR_PTR(ret);
 
 	if (test_bit(BCH_FS_GOING_RO, &c->flags)) {
-		h = ERR_PTR(-EROFS);
+		h = ERR_PTR(-BCH_ERR_erofs_no_writes);
 		goto found;
 	}
 
@@ -1774,7 +1774,7 @@ static void __bch2_ec_stop(struct bch_fs *c, struct bch_dev *ca)
 		}
 		goto unlock;
 found:
-		h->s->err = -EROFS;
+		h->s->err = -BCH_ERR_erofs_no_writes;
 		ec_stripe_set_pending(c, h);
 unlock:
 		mutex_unlock(&h->lock);

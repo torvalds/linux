@@ -494,7 +494,7 @@ unlock:
 	}
 
 	return ret == JOURNAL_ERR_insufficient_devices
-		? -EROFS
+		? -BCH_ERR_erofs_journal_err
 		: -BCH_ERR_journal_res_get_blocked;
 }
 

@@ -361,20 +361,21 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	if (test_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags)) {
 		bch_err(c, "cannot go rw, unfixed btree errors");
-		return -EROFS;
+		return -BCH_ERR_erofs_unfixed_errors;
 	}
 
 	if (test_bit(BCH_FS_RW, &c->flags))
 		return 0;
 
+	if (c->opts.norecovery)
+		return -BCH_ERR_erofs_norecovery;
+
 	/*
 	 * nochanges is used for fsck -n mode - we have to allow going rw
 	 * during recovery for that to work:
 	 */
-	if (c->opts.norecovery ||
-	    (c->opts.nochanges &&
-	     (!early || c->opts.read_only)))
-		return -EROFS;
+	if (c->opts.nochanges && (!early || c->opts.read_only))
+		return -BCH_ERR_erofs_nochanges;
 
 	bch_info(c, "going read-write");
 
