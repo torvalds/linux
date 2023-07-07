@@ -21,7 +21,6 @@
 #include <linux/auxvec.h>
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
-#include <linux/reboot.h> /* for LINUX_REBOOT_* */
 #include <linux/prctl.h>
 
 #include "arch.h"
