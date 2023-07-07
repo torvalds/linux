@@ -506,6 +506,17 @@ static int rockchip_sai_hw_params(struct snd_pcm_substream *substream,
 
 		regmap_update_bits(sai->regmap, SAI_CKR, SAI_CKR_MDIV_MASK,
 				   SAI_CKR_MDIV(div_bclk));
+	}
+
+	return 0;
+}
+
+static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct rk_sai_dev *sai = snd_soc_dai_get_drvdata(dai);
+
+	if (sai->is_master_mode) {
 		/*
 		 * Should wait for one BCLK ready after DIV and then ungate
 		 * output clk to achieve the clean clk.
@@ -628,6 +639,7 @@ static const struct snd_soc_dai_ops rockchip_sai_dai_ops = {
 	.hw_params = rockchip_sai_hw_params,
 	.set_sysclk = rockchip_sai_set_sysclk,
 	.set_fmt = rockchip_sai_set_fmt,
+	.prepare = rockchip_sai_prepare,
 	.trigger = rockchip_sai_trigger,
 	.set_tdm_slot = rockchip_sai_set_tdm_slot,
 };
