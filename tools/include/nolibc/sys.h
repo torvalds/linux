@@ -89,14 +89,13 @@ int brk(void *addr)
 static __attribute__((unused))
 void *sbrk(intptr_t inc)
 {
-	void *ret;
-
 	/* first call to find current end */
-	if ((ret = sys_brk(0)) && (sys_brk(ret + inc) == ret + inc))
+	void *ret = sys_brk(0);
+
+	if (ret && sys_brk(ret + inc) == ret + inc)
 		return ret + inc;
 
-	SET_ERRNO(ENOMEM);
-	return (void *)-1;
+	return (void *)__sysret(-ENOMEM);
 }
 
 
