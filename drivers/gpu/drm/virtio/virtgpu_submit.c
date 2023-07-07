@@ -64,12 +64,8 @@ static int virtio_gpu_fence_event_create(struct drm_device *dev,
 					 struct virtio_gpu_fence *fence,
 					 u32 ring_idx)
 {
-	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
 	struct virtio_gpu_fence_event *e = NULL;
 	int ret;
-
-	if (!(vfpriv->ring_idx_mask & BIT_ULL(ring_idx)))
-		return 0;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
@@ -164,18 +160,30 @@ static int virtio_gpu_init_submit(struct virtio_gpu_submit *submit,
 	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct virtio_gpu_fence *out_fence;
+	bool drm_fence_event;
 	int err;
 
 	memset(submit, 0, sizeof(*submit));
 
-	out_fence = virtio_gpu_fence_alloc(vgdev, fence_ctx, ring_idx);
-	if (!out_fence)
-		return -ENOMEM;
+	if ((exbuf->flags & VIRTGPU_EXECBUF_RING_IDX) &&
+	    (vfpriv->ring_idx_mask & BIT_ULL(ring_idx)))
+		drm_fence_event = true;
+	else
+		drm_fence_event = false;
 
-	err = virtio_gpu_fence_event_create(dev, file, out_fence, ring_idx);
-	if (err) {
-		dma_fence_put(&out_fence->f);
-		return err;
+	if ((exbuf->flags & VIRTGPU_EXECBUF_FENCE_FD_OUT) ||
+	    exbuf->num_bo_handles ||
+	    drm_fence_event)
+		out_fence = virtio_gpu_fence_alloc(vgdev, fence_ctx, ring_idx);
+	else
+		out_fence = NULL;
+
+	if (drm_fence_event) {
+		err = virtio_gpu_fence_event_create(dev, file, out_fence, ring_idx);
+		if (err) {
+			dma_fence_put(&out_fence->f);
+			return err;
+		}
 	}
 
 	submit->out_fence = out_fence;
