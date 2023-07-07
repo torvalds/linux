@@ -159,11 +159,6 @@ static int cec_gpio_read_5v(struct cec_adapter *adap)
 	return gpiod_get_value(cec->v5_gpio);
 }
 
-static void cec_gpio_free(struct cec_adapter *adap)
-{
-	cec_gpio_disable_irq(adap);
-}
-
 static const struct cec_pin_ops cec_gpio_pin_ops = {
 	.read = cec_gpio_read,
 	.low = cec_gpio_low,
@@ -171,7 +166,6 @@ static const struct cec_pin_ops cec_gpio_pin_ops = {
 	.enable_irq = cec_gpio_enable_irq,
 	.disable_irq = cec_gpio_disable_irq,
 	.status = cec_gpio_status,
-	.free = cec_gpio_free,
 	.read_hpd = cec_gpio_read_hpd,
 	.read_5v = cec_gpio_read_5v,
 };
