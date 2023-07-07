@@ -15,6 +15,11 @@ enum bpf_obj_type {
 	BPF_OBJ_BTF,
 };
 
+struct bpf_perf_link___local {
+	struct bpf_link link;
+	struct file *perf_file;
+} __attribute__((preserve_access_index));
+
 struct perf_event___local {
 	u64 bpf_cookie;
 } __attribute__((preserve_access_index));
@@ -45,10 +50,10 @@ static __always_inline __u32 get_obj_id(void *ent, enum bpf_obj_type type)
 /* could be used only with BPF_LINK_TYPE_PERF_EVENT links */
 static __u64 get_bpf_cookie(struct bpf_link *link)
 {
+	struct bpf_perf_link___local *perf_link;
 	struct perf_event___local *event;
-	struct bpf_perf_link *perf_link;
 
-	perf_link = container_of(link, struct bpf_perf_link, link);
+	perf_link = container_of(link, struct bpf_perf_link___local, link);
 	event = BPF_CORE_READ(perf_link, perf_file, private_data);
 	return BPF_CORE_READ(event, bpf_cookie);
 }
