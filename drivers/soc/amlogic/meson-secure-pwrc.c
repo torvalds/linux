@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <dt-bindings/power/meson-a1-power.h>
+#include <dt-bindings/power/amlogic,c3-pwrc.h>
 #include <dt-bindings/power/meson-s4-power.h>
 #include <linux/arm-smccc.h>
 #include <linux/firmware/meson/meson_sm.h>
@@ -120,6 +121,22 @@ static struct meson_secure_pwrc_domain_desc a1_pwrc_domains[] = {
 	SEC_PD(RSA,	0),
 };
 
+static struct meson_secure_pwrc_domain_desc c3_pwrc_domains[] = {
+	SEC_PD(C3_NNA,	0),
+	SEC_PD(C3_AUDIO,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_SDIOA,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_EMMC,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_USB_COMB, GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_SDCARD,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_ETH,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_GE2D,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_CVE,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_GDC_WRAP,	GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_ISP_TOP,		GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_MIPI_ISP_WRAP, GENPD_FLAG_ALWAYS_ON),
+	SEC_PD(C3_VCODEC,	0),
+};
+
 static struct meson_secure_pwrc_domain_desc s4_pwrc_domains[] = {
 	SEC_PD(S4_DOS_HEVC,	0),
 	SEC_PD(S4_DOS_VDEC,	0),
@@ -202,6 +219,11 @@ static struct meson_secure_pwrc_domain_data meson_secure_a1_pwrc_data = {
 	.count = ARRAY_SIZE(a1_pwrc_domains),
 };
 
+static struct meson_secure_pwrc_domain_data amlogic_secure_c3_pwrc_data = {
+	.domains = c3_pwrc_domains,
+	.count = ARRAY_SIZE(c3_pwrc_domains),
+};
+
 static struct meson_secure_pwrc_domain_data meson_secure_s4_pwrc_data = {
 	.domains = s4_pwrc_domains,
 	.count = ARRAY_SIZE(s4_pwrc_domains),
@@ -211,6 +233,10 @@ static const struct of_device_id meson_secure_pwrc_match_table[] = {
 	{
 		.compatible = "amlogic,meson-a1-pwrc",
 		.data = &meson_secure_a1_pwrc_data,
+	},
+	{
+		.compatible = "amlogic,c3-pwrc",
+		.data = &amlogic_secure_c3_pwrc_data,
 	},
 	{
 		.compatible = "amlogic,meson-s4-pwrc",
