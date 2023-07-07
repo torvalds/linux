@@ -611,6 +611,28 @@ int mkdir(const char *path, mode_t mode)
 	return __sysret(sys_mkdir(path, mode));
 }
 
+/*
+ * int rmdir(const char *path);
+ */
+
+static __attribute__((unused))
+int sys_rmdir(const char *path)
+{
+#ifdef __NR_rmdir
+	return my_syscall1(__NR_rmdir, path);
+#elif defined(__NR_unlinkat)
+	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+#else
+	return -ENOSYS;
+#endif
+}
+
+static __attribute__((unused))
+int rmdir(const char *path)
+{
+	return __sysret(sys_rmdir(path));
+}
+
 
 /*
  * int mknod(const char *path, mode_t mode, dev_t dev);
