@@ -4,7 +4,7 @@
 
 :Original: :ref:`Documentation/process/embargoed-hardware-issues.rst <embargoed_hardware_issues>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
-             Hu Haowen <src.res@email.cn>
+             Hu Haowen <src.res.211@gmail.com>
 
 被限制的硬體問題
 ================
