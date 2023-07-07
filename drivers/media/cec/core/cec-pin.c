@@ -982,7 +982,7 @@ static enum hrtimer_restart cec_pin_timer(struct hrtimer *timer)
 		}
 		if (pin->state != CEC_ST_IDLE || pin->ops->enable_irq == NULL ||
 		    pin->enable_irq_failed || adap->is_configuring ||
-		    adap->is_configured || adap->monitor_all_cnt)
+		    adap->is_configured || adap->monitor_all_cnt || !adap->monitor_pin_cnt)
 			break;
 		/* Switch to interrupt mode */
 		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_ENABLE);
@@ -1317,7 +1317,7 @@ void cec_pin_changed(struct cec_adapter *adap, bool value)
 
 	cec_pin_update(pin, value, false);
 	if (!value && (adap->is_configuring || adap->is_configured ||
-		       adap->monitor_all_cnt))
+		       adap->monitor_all_cnt || !adap->monitor_pin_cnt))
 		atomic_set(&pin->work_irq_change, CEC_PIN_IRQ_DISABLE);
 }
 EXPORT_SYMBOL_GPL(cec_pin_changed);
