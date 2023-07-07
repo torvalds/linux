@@ -1052,7 +1052,7 @@ static inline int is_valid_name(struct elf_info *elf, Elf_Sym *sym)
 
 	if (!name || !strlen(name))
 		return 0;
-	return !is_mapping_symbol(name);
+	return !is_mapping_symbol(name, elf->hdr->e_machine == EM_RISCV);
 }
 
 /* Look up the nearest symbol based on the section and the address */
