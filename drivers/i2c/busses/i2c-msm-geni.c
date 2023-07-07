@@ -247,12 +247,20 @@ static struct geni_i2c_clk_fld geni_i2c_clk_map[] = {
 	{KHz(1000), 1, 2,  8, 18},
 };
 
+static struct geni_i2c_clk_fld geni_i2c_hub_clk_map[] = {
+	{KHz(100), 7, 10, 11, 26},
+	{KHz(400), 2,  7, 10, 24},
+	{KHz(1000), 1, 3,  9, 18},
+};
+
 static int geni_i2c_clk_map_idx(struct geni_i2c_dev *gi2c)
 {
 	int i;
 	int ret = 0;
 	bool clk_map_present = false;
-	struct geni_i2c_clk_fld *itr = geni_i2c_clk_map;
+	struct geni_i2c_clk_fld *itr;
+
+	itr = (gi2c->is_i2c_rtl_based) ? geni_i2c_hub_clk_map : geni_i2c_clk_map;
 
 	for (i = 0; i < ARRAY_SIZE(geni_i2c_clk_map); i++, itr++) {
 		if (itr->clk_freq_out == gi2c->clk_freq_out) {
@@ -346,7 +354,12 @@ void geni_i2c_se_dump_dbg_regs(struct geni_se *se, void __iomem *base,
 
 static inline void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c, int dfs)
 {
-	struct geni_i2c_clk_fld *itr = geni_i2c_clk_map + gi2c->clk_fld_idx;
+	struct geni_i2c_clk_fld *itr;
+
+	if (gi2c->is_i2c_rtl_based)
+		itr = geni_i2c_hub_clk_map + gi2c->clk_fld_idx;
+	else
+		itr = geni_i2c_clk_map + gi2c->clk_fld_idx;
 
 	/* do not configure the dfs index for i2c hub master */
 	if (!gi2c->is_i2c_hub)
@@ -365,12 +378,20 @@ static inline void qcom_geni_i2c_conf(struct geni_i2c_dev *gi2c, int dfs)
 static inline void qcom_geni_i2c_calc_timeout(struct geni_i2c_dev *gi2c)
 {
 
-	struct geni_i2c_clk_fld *clk_itr = geni_i2c_clk_map + gi2c->clk_fld_idx;
-	size_t bit_cnt = gi2c->cur->len*9;
-	size_t bit_usec = (bit_cnt*USEC_PER_SEC)/clk_itr->clk_freq_out;
-	size_t xfer_max_usec = (bit_usec*I2C_TIMEOUT_SAFETY_COEFFICIENT) +
-							I2C_TIMEOUT_MIN_USEC;
+	struct geni_i2c_clk_fld *clk_itr;
 
+	size_t bit_cnt = gi2c->cur->len*9;
+	size_t bit_usec = 0;
+	size_t xfer_max_usec = 0;
+
+	if (gi2c->is_i2c_rtl_based)
+		clk_itr = geni_i2c_hub_clk_map + gi2c->clk_fld_idx;
+	else
+		clk_itr = geni_i2c_clk_map + gi2c->clk_fld_idx;
+
+	bit_usec = (bit_cnt * USEC_PER_SEC) / clk_itr->clk_freq_out;
+	xfer_max_usec = (bit_usec * I2C_TIMEOUT_SAFETY_COEFFICIENT) +
+							I2C_TIMEOUT_MIN_USEC;
 	gi2c->xfer_timeout = usecs_to_jiffies(xfer_max_usec);
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 		    "%s: us:%d jiffies:%d\n",
@@ -1042,9 +1063,13 @@ static struct msm_gpi_tre *setup_lock_tre(struct geni_i2c_dev *gi2c)
 
 static struct msm_gpi_tre *setup_cfg0_tre(struct geni_i2c_dev *gi2c)
 {
-	struct geni_i2c_clk_fld *itr = geni_i2c_clk_map +
-							gi2c->clk_fld_idx;
+	struct geni_i2c_clk_fld *itr;
 	struct msm_gpi_tre *cfg0_t = &gi2c->cfg0_t;
+
+	if (gi2c->is_i2c_rtl_based)
+		itr = geni_i2c_hub_clk_map + gi2c->clk_fld_idx;
+	else
+		itr = geni_i2c_clk_map + gi2c->clk_fld_idx;
 
 	/* config0 */
 	cfg0_t->dword[0] = MSM_GPI_I2C_CONFIG0_TRE_DWORD0(I2C_PACK_EN,
