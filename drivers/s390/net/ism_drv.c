@@ -47,6 +47,15 @@ static struct ism_dev_list ism_dev_list = {
 	.mutex = __MUTEX_INITIALIZER(ism_dev_list.mutex),
 };
 
+static void ism_setup_forwarding(struct ism_client *client, struct ism_dev *ism)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ism->lock, flags);
+	ism->subs[client->id] = client;
+	spin_unlock_irqrestore(&ism->lock, flags);
+}
+
 int ism_register_client(struct ism_client *client)
 {
 	struct ism_dev *ism;
@@ -71,6 +80,7 @@ int ism_register_client(struct ism_client *client)
 		list_for_each_entry(ism, &ism_dev_list.list, list) {
 			ism->priv[i] = NULL;
 			client->add(ism);
+			ism_setup_forwarding(client, ism);
 		}
 	}
 	mutex_unlock(&ism_dev_list.mutex);
@@ -92,6 +102,9 @@ int ism_unregister_client(struct ism_client *client)
 		max_client--;
 	spin_unlock_irqrestore(&clients_lock, flags);
 	list_for_each_entry(ism, &ism_dev_list.list, list) {
+		spin_lock_irqsave(&ism->lock, flags);
+		/* Stop forwarding IRQs and events */
+		ism->subs[client->id] = NULL;
 		for (int i = 0; i < ISM_NR_DMBS; ++i) {
 			if (ism->sba_client_arr[i] == client->id) {
 				pr_err("%s: attempt to unregister client '%s'"
@@ -101,6 +114,7 @@ int ism_unregister_client(struct ism_client *client)
 				goto out;
 			}
 		}
+		spin_unlock_irqrestore(&ism->lock, flags);
 	}
 out:
 	mutex_unlock(&ism_dev_list.mutex);
@@ -328,6 +342,7 @@ int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
 		     struct ism_client *client)
 {
 	union ism_reg_dmb cmd;
+	unsigned long flags;
 	int ret;
 
 	ret = ism_alloc_dmb(ism, dmb);
@@ -351,7 +366,9 @@ int ism_register_dmb(struct ism_dev *ism, struct ism_dmb *dmb,
 		goto out;
 	}
 	dmb->dmb_tok = cmd.response.dmb_tok;
+	spin_lock_irqsave(&ism->lock, flags);
 	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = client->id;
+	spin_unlock_irqrestore(&ism->lock, flags);
 out:
 	return ret;
 }
@@ -360,6 +377,7 @@ EXPORT_SYMBOL_GPL(ism_register_dmb);
 int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 {
 	union ism_unreg_dmb cmd;
+	unsigned long flags;
 	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -368,7 +386,9 @@ int ism_unregister_dmb(struct ism_dev *ism, struct ism_dmb *dmb)
 
 	cmd.request.dmb_tok = dmb->dmb_tok;
 
+	spin_lock_irqsave(&ism->lock, flags);
 	ism->sba_client_arr[dmb->sba_idx - ISM_DMB_BIT_OFFSET] = NO_CLIENT;
+	spin_unlock_irqrestore(&ism->lock, flags);
 
 	ret = ism_cmd(ism, &cmd);
 	if (ret && ret != ISM_ERROR)
@@ -491,6 +511,7 @@ static u16 ism_get_chid(struct ism_dev *ism)
 static void ism_handle_event(struct ism_dev *ism)
 {
 	struct ism_event *entry;
+	struct ism_client *clt;
 	int i;
 
 	while ((ism->ieq_idx + 1) != READ_ONCE(ism->ieq->header.idx)) {
@@ -499,21 +520,21 @@ static void ism_handle_event(struct ism_dev *ism)
 
 		entry = &ism->ieq->entry[ism->ieq_idx];
 		debug_event(ism_debug_info, 2, entry, sizeof(*entry));
-		spin_lock(&clients_lock);
-		for (i = 0; i < max_client; ++i)
-			if (clients[i])
-				clients[i]->handle_event(ism, entry);
-		spin_unlock(&clients_lock);
+		for (i = 0; i < max_client; ++i) {
+			clt = ism->subs[i];
+			if (clt)
+				clt->handle_event(ism, entry);
+		}
 	}
 }
 
 static irqreturn_t ism_handle_irq(int irq, void *data)
 {
 	struct ism_dev *ism = data;
-	struct ism_client *clt;
 	unsigned long bit, end;
 	unsigned long *bv;
 	u16 dmbemask;
+	u8 client_id;
 
 	bv = (void *) &ism->sba->dmb_bits[ISM_DMB_WORD_OFFSET];
 	end = sizeof(ism->sba->dmb_bits) * BITS_PER_BYTE - ISM_DMB_BIT_OFFSET;
@@ -530,8 +551,10 @@ static irqreturn_t ism_handle_irq(int irq, void *data)
 		dmbemask = ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET];
 		ism->sba->dmbe_mask[bit + ISM_DMB_BIT_OFFSET] = 0;
 		barrier();
-		clt = clients[ism->sba_client_arr[bit]];
-		clt->handle_irq(ism, bit + ISM_DMB_BIT_OFFSET, dmbemask);
+		client_id = ism->sba_client_arr[bit];
+		if (unlikely(client_id == NO_CLIENT || !ism->subs[client_id]))
+			continue;
+		ism->subs[client_id]->handle_irq(ism, bit + ISM_DMB_BIT_OFFSET, dmbemask);
 	}
 
 	if (ism->sba->e) {
@@ -554,6 +577,7 @@ static void ism_dev_add_work_func(struct work_struct *work)
 						 add_work);
 
 	client->add(client->tgt_ism);
+	ism_setup_forwarding(client, client->tgt_ism);
 	atomic_dec(&client->tgt_ism->add_dev_cnt);
 	wake_up(&client->tgt_ism->waitq);
 }
@@ -691,7 +715,11 @@ static void ism_dev_remove_work_func(struct work_struct *work)
 {
 	struct ism_client *client = container_of(work, struct ism_client,
 						 remove_work);
+	unsigned long flags;
 
+	spin_lock_irqsave(&client->tgt_ism->lock, flags);
+	client->tgt_ism->subs[client->id] = NULL;
+	spin_unlock_irqrestore(&client->tgt_ism->lock, flags);
 	client->remove(client->tgt_ism);
 	atomic_dec(&client->tgt_ism->free_clients_cnt);
 	wake_up(&client->tgt_ism->waitq);

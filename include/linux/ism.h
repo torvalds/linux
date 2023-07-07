@@ -44,6 +44,7 @@ struct ism_dev {
 	u64 local_gid;
 	int ieq_idx;
 
+	struct ism_client *subs[MAX_CLIENTS];
 	atomic_t free_clients_cnt;
 	atomic_t add_dev_cnt;
 	wait_queue_head_t waitq;
