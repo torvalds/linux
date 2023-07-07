@@ -130,3 +130,11 @@ processes in form of sysctl knob:
 
     Modifying the system default enablement status does not affect the enablement
     status of any existing process of thread that do not make an execve() call.
+
+3.  Vector Register State Across System Calls
+---------------------------------------------
+
+As indicated by version 1.0 of the V extension [1], vector registers are
+clobbered by system calls.
+
+1: https://github.com/riscv/riscv-v-spec/blob/master/calling-convention.adoc

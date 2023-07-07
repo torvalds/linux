@@ -33,6 +33,11 @@ static inline void __riscv_v_vstate_clean(struct pt_regs *regs)
 	regs->status = (regs->status & ~SR_VS) | SR_VS_CLEAN;
 }
 
+static inline void __riscv_v_vstate_dirty(struct pt_regs *regs)
+{
+	regs->status = (regs->status & ~SR_VS) | SR_VS_DIRTY;
+}
+
 static inline void riscv_v_vstate_off(struct pt_regs *regs)
 {
 	regs->status = (regs->status & ~SR_VS) | SR_VS_OFF;
@@ -128,6 +133,34 @@ static inline void __riscv_v_vstate_restore(struct __riscv_v_ext_state *restore_
 	riscv_v_disable();
 }
 
+static inline void __riscv_v_vstate_discard(void)
+{
+	unsigned long vl, vtype_inval = 1UL << (BITS_PER_LONG - 1);
+
+	riscv_v_enable();
+	asm volatile (
+		".option push\n\t"
+		".option arch, +v\n\t"
+		"vsetvli	%0, x0, e8, m8, ta, ma\n\t"
+		"vmv.v.i	v0, -1\n\t"
+		"vmv.v.i	v8, -1\n\t"
+		"vmv.v.i	v16, -1\n\t"
+		"vmv.v.i	v24, -1\n\t"
+		"vsetvl		%0, x0, %1\n\t"
+		".option pop\n\t"
+		: "=&r" (vl) : "r" (vtype_inval) : "memory");
+	riscv_v_disable();
+}
+
+static inline void riscv_v_vstate_discard(struct pt_regs *regs)
+{
+	if ((regs->status & SR_VS) == SR_VS_OFF)
+		return;
+
+	__riscv_v_vstate_discard();
+	__riscv_v_vstate_dirty(regs);
+}
+
 static inline void riscv_v_vstate_save(struct task_struct *task,
 				       struct pt_regs *regs)
 {
@@ -173,6 +206,7 @@ static inline bool riscv_v_first_use_handler(struct pt_regs *regs) { return fals
 static inline bool riscv_v_vstate_query(struct pt_regs *regs) { return false; }
 static inline bool riscv_v_vstate_ctrl_user_allowed(void) { return false; }
 #define riscv_v_vsize (0)
+#define riscv_v_vstate_discard(regs)		do {} while (0)
 #define riscv_v_vstate_save(task, regs)		do {} while (0)
 #define riscv_v_vstate_restore(task, regs)	do {} while (0)
 #define __switch_to_vector(__prev, __next)	do {} while (0)
