@@ -1696,7 +1696,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 	struct nand_chip *this;
 	struct mtd_info *mtd;
 	struct mxc_nand_host *host;
-	struct resource *res;
 	int err = 0;
 
 	/* Allocate memory for MTD device structure and private data */
@@ -1740,17 +1739,15 @@ static int mxcnd_probe(struct platform_device *pdev)
 		this->options |= NAND_KEEP_TIMINGS;
 
 	if (host->devtype_data->needs_ip) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		host->regs_ip = devm_ioremap_resource(&pdev->dev, res);
+		host->regs_ip = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(host->regs_ip))
 			return PTR_ERR(host->regs_ip);
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		host->base = devm_platform_ioremap_resource(pdev, 1);
 	} else {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		host->base = devm_platform_ioremap_resource(pdev, 0);
 	}
 
-	host->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(host->base))
 		return PTR_ERR(host->base);
 
