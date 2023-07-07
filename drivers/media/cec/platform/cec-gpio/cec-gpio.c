@@ -215,12 +215,10 @@ static int cec_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(cec->adap);
 
 	ret = devm_request_irq(dev, cec->cec_irq, cec_gpio_irq_handler,
-			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			       IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_NO_AUTOEN,
 			       cec->adap->name, cec);
 	if (ret)
 		goto del_adap;
-
-	cec_gpio_disable_irq(cec->adap);
 
 	if (cec->hpd_gpio) {
 		cec->hpd_irq = gpiod_to_irq(cec->hpd_gpio);
