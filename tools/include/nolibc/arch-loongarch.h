@@ -22,6 +22,8 @@
  * On LoongArch, select() is not implemented so we have to use pselect6().
  */
 #define __ARCH_WANT_SYS_PSELECT6
+#define _NOLIBC_SYSCALL_CLOBBERLIST \
+	"memory", "$t0", "$t1", "$t2", "$t3", "$t4", "$t5", "$t6", "$t7", "$t8"
 
 #define my_syscall0(num)                                                      \
 ({                                                                            \
@@ -32,8 +34,7 @@
 		"syscall 0\n"                                                 \
 		: "=r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -47,8 +48,7 @@
 		"syscall 0\n"                                                 \
 		: "+r"(_arg1)                                                 \
 		: "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -64,8 +64,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2),                                                 \
 		  "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -82,8 +81,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3),                                     \
 		  "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -101,8 +99,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4),                         \
 		  "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -121,8 +118,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5),             \
 		  "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
@@ -142,8 +138,7 @@
 		: "+r"(_arg1)                                                 \
 		: "r"(_arg2), "r"(_arg3), "r"(_arg4), "r"(_arg5), "r"(_arg6), \
 		  "r"(_num)                                                   \
-		: "memory", "$t0", "$t1", "$t2", "$t3",                       \
-		  "$t4", "$t5", "$t6", "$t7", "$t8"                           \
+		: _NOLIBC_SYSCALL_CLOBBERLIST                                 \
 	);                                                                    \
 	_arg1;                                                                \
 })
