@@ -212,7 +212,7 @@ err_probe_defer:
 	return ret;
 }
 
-static int starfive_cryp_remove(struct platform_device *pdev)
+static void starfive_cryp_remove(struct platform_device *pdev)
 {
 	struct starfive_cryp_dev *cryp = platform_get_drvdata(pdev);
 
@@ -233,8 +233,6 @@ static int starfive_cryp_remove(struct platform_device *pdev)
 	clk_disable_unprepare(cryp->hclk);
 	clk_disable_unprepare(cryp->ahb);
 	reset_control_assert(cryp->rst);
-
-	return 0;
 }
 
 static const struct of_device_id starfive_dt_ids[] __maybe_unused = {
@@ -245,7 +243,7 @@ MODULE_DEVICE_TABLE(of, starfive_dt_ids);
 
 static struct platform_driver starfive_cryp_driver = {
 	.probe  = starfive_cryp_probe,
-	.remove = starfive_cryp_remove,
+	.remove_new = starfive_cryp_remove,
 	.driver = {
 		.name           = DRIVER_NAME,
 		.of_match_table = starfive_dt_ids,
