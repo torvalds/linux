@@ -1922,8 +1922,8 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 		if (!(nfc->cs_assigned & BIT(chip_cs)))
 			continue;
 
-		res = platform_get_resource(pdev, IORESOURCE_MEM, mem_region);
-		nfc->data_base[chip_cs] = devm_ioremap_resource(dev, res);
+		nfc->data_base[chip_cs] = devm_platform_get_and_ioremap_resource(pdev,
+						mem_region, &res);
 		if (IS_ERR(nfc->data_base[chip_cs]))
 			return PTR_ERR(nfc->data_base[chip_cs]);
 
