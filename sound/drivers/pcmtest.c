@@ -576,10 +576,9 @@ static int pcmtst_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pdev_remove(struct platform_device *dev)
+static void pdev_remove(struct platform_device *dev)
 {
 	snd_pcmtst_free(pcmtst);
-	return 0;
 }
 
 static struct platform_device pcmtst_pdev = {
@@ -589,7 +588,7 @@ static struct platform_device pcmtst_pdev = {
 
 static struct platform_driver pcmtst_pdrv = {
 	.probe =	pcmtst_probe,
-	.remove =	pdev_remove,
+	.remove_new =	pdev_remove,
 	.driver =	{
 		.name = "pcmtest",
 	},
