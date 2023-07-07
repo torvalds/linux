@@ -73,20 +73,22 @@ static bool map_pte(struct page_vma_mapped_walk *pvmw, spinlock_t **ptlp)
 }
 
 /**
- * check_pte - check if @pvmw->page is mapped at the @pvmw->pte
- * @pvmw: page_vma_mapped_walk struct, includes a pair pte and page for checking
+ * check_pte - check if [pvmw->pfn, @pvmw->pfn + @pvmw->nr_pages) is
+ * mapped at the @pvmw->pte
+ * @pvmw: page_vma_mapped_walk struct, includes a pair pte and pfn range
+ * for checking
  *
- * page_vma_mapped_walk() found a place where @pvmw->page is *potentially*
+ * page_vma_mapped_walk() found a place where pfn range is *potentially*
  * mapped. check_pte() has to validate this.
  *
  * pvmw->pte may point to empty PTE, swap PTE or PTE pointing to
  * arbitrary page.
  *
  * If PVMW_MIGRATION flag is set, returns true if @pvmw->pte contains migration
- * entry that points to @pvmw->page or any subpage in case of THP.
+ * entry that points to [pvmw->pfn, @pvmw->pfn + @pvmw->nr_pages)
  *
  * If PVMW_MIGRATION flag is not set, returns true if pvmw->pte points to
- * pvmw->page or any subpage in case of THP.
+ * [pvmw->pfn, @pvmw->pfn + @pvmw->nr_pages)
  *
  * Otherwise, return false.
  *
