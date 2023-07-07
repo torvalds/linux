@@ -1909,6 +1909,45 @@ static const struct adsp_data sdmshrike_cdsp_resource = {
 	.ssctl_id = 0x17,
 };
 
+static const struct adsp_data monaco_auto_adsp_resource = {
+	.crash_reason_smem = 2,
+	.firmware_name = "adsp.mdt",
+	.pas_id = 1,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.qmp_name = "adsp",
+	.ssctl_id = 0x14,
+};
+
+static const struct adsp_data monaco_auto_cdsp_resource = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp0.mdt",
+	.pas_id = 18,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.qmp_name = "cdsp",
+	.ssctl_id = 0x17,
+};
+
+static const struct adsp_data monaco_auto_gpdsp_resource = {
+	.crash_reason_smem = 640,
+	.firmware_name = "gpdsp0.mdt",
+	.pas_id = 39,
+	.uses_elf64 = true,
+	.has_aggre2_clk = false,
+	.auto_boot = false,
+	.ssr_name = "gpdsp0",
+	.sysmon_name = "gpdsp0",
+	.qmp_name = "gpdsp0",
+	.ssctl_id = 0x21,
+};
+
 static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,msm8226-adsp-pil", .data = &adsp_resource_init},
 	{ .compatible = "qcom,msm8974-adsp-pil", .data = &adsp_resource_init},
@@ -1961,6 +2000,9 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,blair-adsp-pas", .data = &blair_adsp_resource},
 	{ .compatible = "qcom,blair-cdsp-pas", .data = &blair_cdsp_resource},
 	{ .compatible = "qcom,blair-modem-pas", .data = &blair_mpss_resource},
+	{ .compatible = "qcom,monaco_auto-adsp-pas", .data = &monaco_auto_adsp_resource},
+	{ .compatible = "qcom,monaco_auto-cdsp-pas", .data = &monaco_auto_cdsp_resource},
+	{ .compatible = "qcom,monaco_auto-gpdsp-pas", .data = &monaco_auto_gpdsp_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
