@@ -73,7 +73,7 @@ static int cvt_ump_system_to_legacy(u32 data, unsigned char *buf)
 	case UMP_SYSTEM_STATUS_MIDI_TIME_CODE:
 	case UMP_SYSTEM_STATUS_SONG_SELECT:
 		buf[1] = (data >> 8) & 0x7f;
-		return 1;
+		return 2;
 	case UMP_SYSTEM_STATUS_SONG_POSITION:
 		buf[1] = (data >> 8) & 0x7f;
 		buf[2] = data & 0x7f;
