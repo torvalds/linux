@@ -68,7 +68,7 @@ int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 		ret = do_tee(in, out, sp->len, flags);
 
 	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
-		io_put_file(in);
+		fput(in);
 done:
 	if (ret != sp->len)
 		req_set_fail(req);
@@ -112,7 +112,7 @@ int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 		ret = do_splice(in, poff_in, out, poff_out, sp->len, flags);
 
 	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
-		io_put_file(in);
+		fput(in);
 done:
 	if (ret != sp->len)
 		req_set_fail(req);
