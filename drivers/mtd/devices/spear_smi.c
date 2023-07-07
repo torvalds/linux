@@ -937,7 +937,6 @@ static int spear_smi_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct spear_smi_plat_data *pdata = NULL;
 	struct spear_smi *dev;
-	struct resource *smi_base;
 	int irq, ret = 0;
 	int i;
 
@@ -975,9 +974,7 @@ static int spear_smi_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	smi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	dev->io_base = devm_ioremap_resource(&pdev->dev, smi_base);
+	dev->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->io_base)) {
 		ret = PTR_ERR(dev->io_base);
 		goto err;
