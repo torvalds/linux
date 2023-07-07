@@ -75,3 +75,5 @@ minidump.ko
 qcom-dcvs.ko
 qcom-pmu-lib.ko
 qcom_llcc_pmu.ko
+cqhci.ko
+sdhci-msm.ko
