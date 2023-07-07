@@ -179,7 +179,7 @@ static int meson_secure_pwrc_probe(struct platform_device *pdev)
 	for (i = 0 ; i < match->count ; ++i) {
 		struct meson_secure_pwrc_domain *dom = &pwrc->domains[i];
 
-		if (!match->domains[i].index)
+		if (!match->domains[i].name)
 			continue;
 
 		dom->pwrc = pwrc;
