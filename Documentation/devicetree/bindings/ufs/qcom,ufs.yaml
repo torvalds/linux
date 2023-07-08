@@ -194,9 +194,8 @@ allOf:
     # TODO: define clock bindings for qcom,msm8994-ufshc
 
   - if:
-      properties:
-        qcom,ice:
-          maxItems: 1
+      required:
+        - qcom,ice
     then:
       properties:
         reg:
@@ -207,10 +206,10 @@ allOf:
     else:
       properties:
         reg:
-          minItems: 2
+          minItems: 1
           maxItems: 2
         clocks:
-          minItems: 9
+          minItems: 8
           maxItems: 11
 
 unevaluatedProperties: false
