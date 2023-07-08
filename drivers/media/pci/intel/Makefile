@@ -4,3 +4,4 @@
 #
 obj-$(CONFIG_IPU_BRIDGE) += ipu-bridge.o
 obj-y	+= ipu3/
+obj-y	+= ivsc/

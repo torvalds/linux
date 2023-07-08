@@ -8,3 +8,4 @@ config IPU_BRIDGE
 	  dependencies, this is selected by each driver that needs it.
 
 source "drivers/media/pci/intel/ipu3/Kconfig"
+source "drivers/media/pci/intel/ivsc/Kconfig"
