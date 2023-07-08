@@ -223,9 +223,9 @@ struct lt6911uxe_mode {
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
 	.vendor = PHY_VENDOR_SAMSUNG,
 	.lp_vol_ref = 3,
-	.lp_hys_sw = {3, 0, 0, 0},
-	.lp_escclk_pol_sel = {1, 0, 0, 0},
-	.skew_data_cal_clk = {0, 3, 3, 3},
+	.lp_hys_sw = {3, 0, 3, 0},
+	.lp_escclk_pol_sel = {1, 1, 0, 0},
+	.skew_data_cal_clk = {0, 13, 0, 13},
 	.clk_hs_term_sel = 2,
 	.data_hs_term_sel = {2, 2, 2, 2},
 	.reserved = {0},
