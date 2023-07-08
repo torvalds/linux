@@ -466,7 +466,8 @@ int kfd_dbg_trap_set_dev_address_watch(struct kfd_process_device *pdd,
 				watch_address_mask,
 				*watch_id,
 				watch_mode,
-				pdd->dev->vm_info.last_vmid_kfd);
+				pdd->dev->vm_info.last_vmid_kfd,
+				0);
 	amdgpu_gfx_off_ctrl(pdd->dev->adev, true);
 
 	if (!pdd->dev->kfd->shared_resources.enable_mes)

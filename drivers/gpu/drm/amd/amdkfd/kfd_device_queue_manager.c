@@ -1621,7 +1621,8 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 
 	if (dqm->dev->kfd2kgd->get_iq_wait_times)
 		dqm->dev->kfd2kgd->get_iq_wait_times(dqm->dev->adev,
-					&dqm->wait_times);
+					&dqm->wait_times,
+					0);
 	return 0;
 }
 

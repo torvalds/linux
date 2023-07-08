@@ -822,7 +822,8 @@ uint32_t kgd_gfx_v9_set_address_watch(struct amdgpu_device *adev,
 					uint32_t watch_address_mask,
 					uint32_t watch_id,
 					uint32_t watch_mode,
-					uint32_t debug_vmid)
+					uint32_t debug_vmid,
+					uint32_t inst)
 {
 	uint32_t watch_address_high;
 	uint32_t watch_address_low;
@@ -903,10 +904,12 @@ uint32_t kgd_gfx_v9_clear_address_watch(struct amdgpu_device *adev,
  *     deq_retry_wait_time      -- Wait Count for Global Wave Syncs.
  */
 void kgd_gfx_v9_get_iq_wait_times(struct amdgpu_device *adev,
-					uint32_t *wait_times)
+					uint32_t *wait_times,
+					uint32_t inst)
 
 {
-	*wait_times = RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2));
+	*wait_times = RREG32(SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
+			mmCP_IQ_WAIT_TIME2));
 }
 
 void kgd_gfx_v9_set_vm_context_page_table_base(struct amdgpu_device *adev,
@@ -1100,7 +1103,8 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 		uint32_t wait_times,
 		uint32_t grace_period,
 		uint32_t *reg_offset,
-		uint32_t *reg_data)
+		uint32_t *reg_data,
+		uint32_t inst)
 {
 	*reg_data = wait_times;
 
@@ -1116,7 +1120,8 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 			SCH_WAVE,
 			grace_period);
 
-	*reg_offset = SOC15_REG_OFFSET(GC, 0, mmCP_IQ_WAIT_TIME2);
+	*reg_offset = SOC15_REG_OFFSET(GC, GET_INST(GC, inst),
+			mmCP_IQ_WAIT_TIME2);
 }
 
 void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
