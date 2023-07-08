@@ -9,31 +9,35 @@
 #include <linux/etherdevice.h>
 #include "mt76.h"
 
-int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+static int mt76_get_of_eeprom_data(struct mt76_dev *dev, void *eep, int len)
 {
-#if defined(CONFIG_OF) && defined(CONFIG_MTD)
+	struct device_node *np = dev->dev->of_node;
+	const void *data;
+	int size;
+
+	data = of_get_property(np, "mediatek,eeprom-data", &size);
+	if (!data)
+		return -ENOENT;
+
+	if (size > len)
+		return -EINVAL;
+
+	memcpy(eep, data, size);
+
+	return 0;
+}
+
+static int mt76_get_of_epprom_from_mtd(struct mt76_dev *dev, void *eep, int offset, int len)
+{
+#ifdef CONFIG_MTD
 	struct device_node *np = dev->dev->of_node;
 	struct mtd_info *mtd;
 	const __be32 *list;
-	const void *data;
 	const char *part;
 	phandle phandle;
-	int size;
 	size_t retlen;
+	int size;
 	int ret;
-
-	if (!np)
-		return -ENOENT;
-
-	data = of_get_property(np, "mediatek,eeprom-data", &size);
-	if (data) {
-		if (size > len)
-			return -EINVAL;
-
-		memcpy(eep, data, size);
-
-		return 0;
-	}
 
 	list = of_get_property(np, "mediatek,mtd-eeprom", &size);
 	if (!list)
@@ -99,6 +103,21 @@ out_put_node:
 #else
 	return -ENOENT;
 #endif
+}
+
+int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+{
+	struct device_node *np = dev->dev->of_node;
+	int ret;
+
+	if (!np)
+		return -ENOENT;
+
+	ret = mt76_get_of_eeprom_data(dev, eep, len);
+	if (!ret)
+		return 0;
+
+	return mt76_get_of_epprom_from_mtd(dev, eep, offset, len);
 }
 EXPORT_SYMBOL_GPL(mt76_get_of_eeprom);
 
