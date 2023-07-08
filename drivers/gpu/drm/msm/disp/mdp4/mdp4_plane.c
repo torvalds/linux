@@ -20,12 +20,6 @@ struct mdp4_plane {
 	const char *name;
 
 	enum mdp4_pipe pipe;
-
-	uint32_t caps;
-	uint32_t nformats;
-	uint32_t formats[32];
-
-	bool enabled;
 };
 #define to_mdp4_plane(x) container_of(x, struct mdp4_plane, base)
 
@@ -59,15 +53,6 @@ static struct mdp4_kms *get_kms(struct drm_plane *plane)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-static void mdp4_plane_destroy(struct drm_plane *plane)
-{
-	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
-
-	drm_plane_cleanup(plane);
-
-	kfree(mdp4_plane);
-}
-
 /* helper to install properties which are common to planes and crtcs */
 static void mdp4_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
@@ -85,7 +70,6 @@ static int mdp4_plane_set_property(struct drm_plane *plane,
 static const struct drm_plane_funcs mdp4_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
-		.destroy = mdp4_plane_destroy,
 		.set_property = mdp4_plane_set_property,
 		.reset = drm_atomic_helper_plane_reset,
 		.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -419,37 +403,34 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 {
 	struct drm_plane *plane = NULL;
 	struct mdp4_plane *mdp4_plane;
-	int ret;
 	enum drm_plane_type type;
+	uint32_t pipe_caps;
 	const uint32_t *formats;
-	unsigned int nformats;
-
-	mdp4_plane = kzalloc(sizeof(*mdp4_plane), GFP_KERNEL);
-	if (!mdp4_plane) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	plane = &mdp4_plane->base;
-
-	mdp4_plane->pipe = pipe_id;
-	mdp4_plane->name = pipe_names[pipe_id];
-	mdp4_plane->caps = mdp4_pipe_caps(pipe_id);
+	size_t nformats;
 
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 
-	if (pipe_supports_yuv(mdp4_plane->caps)) {
+	pipe_caps = mdp4_pipe_caps(pipe_id);
+	if (pipe_supports_yuv(pipe_caps)) {
 		formats = mdp4_rgb_yuv_formats;
 		nformats = ARRAY_SIZE(mdp4_rgb_yuv_formats);
 	} else {
 		formats = mdp4_rgb_formats;
 		nformats = ARRAY_SIZE(mdp4_rgb_formats);
 	}
-	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
-				 formats, nformats,
-				 supported_format_modifiers, type, NULL);
-	if (ret)
-		goto fail;
+
+	mdp4_plane = drmm_universal_plane_alloc(dev, struct mdp4_plane, base,
+						0xff, &mdp4_plane_funcs,
+						formats, nformats,
+						supported_format_modifiers,
+						type, NULL);
+	if (IS_ERR(mdp4_plane))
+		return ERR_CAST(mdp4_plane);
+
+	plane = &mdp4_plane->base;
+
+	mdp4_plane->pipe = pipe_id;
+	mdp4_plane->name = pipe_names[pipe_id];
 
 	drm_plane_helper_add(plane, &mdp4_plane_helper_funcs);
 
@@ -458,10 +439,4 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
-
-fail:
-	if (plane)
-		mdp4_plane_destroy(plane);
-
-	return ERR_PTR(ret);
 }
