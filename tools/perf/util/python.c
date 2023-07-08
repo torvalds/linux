@@ -124,6 +124,14 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 }
 
 /*
+ * Add this one here not to drag util/trace-event-info.c
+ */
+char *tracepoint_id_to_name(u64 config)
+{
+	return NULL;
+}
+
+/*
  * XXX: All these evsel destructors need some better mechanism, like a linked
  * list of destructors registered when the relevant code indeed is used instead
  * of having more and more calls in perf_evsel__delete(). -- acme

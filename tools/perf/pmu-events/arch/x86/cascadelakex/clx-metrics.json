@@ -1830,28 +1830,28 @@
     },
     {
         "BriefDescription": "Percentage of cycles in aborted transactions.",
-        "MetricExpr": "max(cpu@cycles\\-t@ - cpu@cycles\\-ct@, 0) / cycles",
+        "MetricExpr": "(max(cycles\\-t - cycles\\-ct, 0) / cycles if has_event(cycles\\-t) else 0)",
         "MetricGroup": "transaction",
         "MetricName": "tsx_aborted_cycles",
         "ScaleUnit": "100%"
     },
     {
         "BriefDescription": "Number of cycles within a transaction divided by the number of elisions.",
-        "MetricExpr": "cpu@cycles\\-t@ / cpu@el\\-start@",
+        "MetricExpr": "(cycles\\-t / el\\-start if has_event(cycles\\-t) else 0)",
         "MetricGroup": "transaction",
         "MetricName": "tsx_cycles_per_elision",
         "ScaleUnit": "1cycles / elision"
     },
     {
         "BriefDescription": "Number of cycles within a transaction divided by the number of transactions.",
-        "MetricExpr": "cpu@cycles\\-t@ / cpu@tx\\-start@",
+        "MetricExpr": "(cycles\\-t / tx\\-start if has_event(cycles\\-t) else 0)",
         "MetricGroup": "transaction",
         "MetricName": "tsx_cycles_per_transaction",
         "ScaleUnit": "1cycles / transaction"
     },
     {
         "BriefDescription": "Percentage of cycles within a transaction region.",
-        "MetricExpr": "cpu@cycles\\-t@ / cycles",
+        "MetricExpr": "(cycles\\-t / cycles if has_event(cycles\\-t) else 0)",
         "MetricGroup": "transaction",
         "MetricName": "tsx_transactional_cycles",
         "ScaleUnit": "100%"

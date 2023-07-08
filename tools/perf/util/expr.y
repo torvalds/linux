@@ -37,7 +37,7 @@
 	} ids;
 }
 
-%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT EXPR_ERROR
+%token ID NUMBER MIN MAX IF ELSE LITERAL D_RATIO SOURCE_COUNT HAS_EVENT EXPR_ERROR
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -199,6 +199,12 @@ expr: NUMBER
 }
 | ID				{ $$ = handle_id(ctx, $1, compute_ids, /*source_count=*/false); }
 | SOURCE_COUNT '(' ID ')'	{ $$ = handle_id(ctx, $3, compute_ids, /*source_count=*/true); }
+| HAS_EVENT '(' ID ')'
+{
+	$$.val = expr__has_event(ctx, compute_ids, $3);
+	$$.ids = NULL;
+	free($3);
+}
 | expr '|' expr
 {
 	if (is_const($1.val) && is_const($3.val)) {

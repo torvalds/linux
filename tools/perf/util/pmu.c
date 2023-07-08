@@ -928,6 +928,31 @@ err:
 	return NULL;
 }
 
+/* Creates the PMU when sysfs scanning fails. */
+struct perf_pmu *perf_pmu__create_placeholder_core_pmu(struct list_head *core_pmus)
+{
+	struct perf_pmu *pmu = zalloc(sizeof(*pmu));
+
+	if (!pmu)
+		return NULL;
+
+	pmu->name = strdup("cpu");
+	if (!pmu->name) {
+		free(pmu);
+		return NULL;
+	}
+
+	pmu->is_core = true;
+	pmu->type = PERF_TYPE_RAW;
+	pmu->cpus = cpu_map__online();
+
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+	list_add_tail(&pmu->list, core_pmus);
+	return pmu;
+}
+
 void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu)
 {
 	struct perf_pmu_format *format;
@@ -1427,7 +1452,7 @@ bool perf_pmu__supports_legacy_cache(const struct perf_pmu *pmu)
 
 bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu)
 {
-	return pmu->is_core && perf_pmus__num_core_pmus() == 1;
+	return !pmu->is_core || perf_pmus__num_core_pmus() == 1;
 }
 
 bool perf_pmu__have_event(const struct perf_pmu *pmu, const char *name)
