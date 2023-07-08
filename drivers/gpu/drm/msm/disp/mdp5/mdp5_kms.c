@@ -211,9 +211,6 @@ static void mdp5_kms_destroy(struct msm_kms *kms)
 	struct msm_gem_address_space *aspace = kms->aspace;
 	int i;
 
-	for (i = 0; i < mdp5_kms->num_hwmixers; i++)
-		mdp5_mixer_destroy(mdp5_kms->hwmixers[i]);
-
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++)
 		mdp5_pipe_destroy(mdp5_kms->hwpipes[i]);
 
@@ -720,7 +717,7 @@ static int hwmixer_init(struct mdp5_kms *mdp5_kms)
 	for (i = 0; i < hw_cfg->lm.count; i++) {
 		struct mdp5_hw_mixer *mixer;
 
-		mixer = mdp5_mixer_init(&hw_cfg->lm.instances[i]);
+		mixer = mdp5_mixer_init(dev, &hw_cfg->lm.instances[i]);
 		if (IS_ERR(mixer)) {
 			ret = PTR_ERR(mixer);
 			DRM_DEV_ERROR(dev->dev, "failed to construct LM%d (%d)\n",
