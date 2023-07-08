@@ -1,0 +1,319 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	max96712_osc: max96712-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <25000000>;
+		clock-output-names = "max96712-osc";
+	};
+
+	max96722_osc: max96722-oscillator {
+		compatible = "fixed-clock";
+		#clock-cells = <1>;
+		clock-frequency = <25000000>;
+		clock-output-names = "max96722-osc";
+	};
+};
+
+/**
+ * ============================================================================
+ * Inno DPHY0: full mode
+ * ============================================================================
+ */
+&csi2_dphy0_hw {
+	status = "okay";
+};
+
+&csi2_dphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy0_in_max96712: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96712_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi2_csi2_input>;
+			};
+		};
+	};
+};
+
+&mipi2_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi2_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi2_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds2 {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi2_in: endpoint {
+			remote-endpoint = <&mipi2_csi2_output>;
+		};
+	};
+};
+
+/**
+ * ============================================================================
+ * Inno DPHY1: full mode
+ * ============================================================================
+ */
+&csi2_dphy1_hw {
+	status = "okay";
+};
+
+&csi2_dphy3 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dphy3_in_max96722: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&max96722_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy3_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi4_csi2_input>;
+			};
+		};
+	};
+};
+
+&mipi4_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidphy3_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi4_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi4_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds4 {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi4_in: endpoint {
+			remote-endpoint = <&mipi4_csi2_output>;
+		};
+	};
+};
+
+/**
+ * =============================================================================
+ * Common
+ * =============================================================================
+ */
+&rkcif {
+	status = "okay";
+	rockchip,android-usb-camerahal-enable;
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m4_xfer>;
+	clock-frequency = <400000>;
+
+	// AVM Camera x4
+	max96712: max96712@29 {
+		compatible = "maxim,max96712";
+		status = "okay";
+		reg = <0x29>;
+		clock-names = "xvclk";
+		clocks = <&max96712_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96712_power>, <&max96712_errb>, <&max96712_lock>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		power-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		link-mask = <0x0F>;
+		auto-init-deskew-mask = <0x3>;
+		frame-sync-period = <0>;
+		link-rx-rate = <0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "max96712";
+		rockchip,camera-module-lens-name = "max96712";
+
+		port {
+			max96712_out: endpoint {
+				remote-endpoint = <&mipi_dphy0_in_max96712>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	// DMS Camera x1 + OMS Camera x3
+	max96722: max96722@6b {
+		compatible = "maxim,max96722";
+		status = "okay";
+		reg = <0x6b>;
+		clock-names = "xvclk";
+		clocks = <&max96722_osc 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&max96722_power>, <&max96722_errb>, <&max96722_lock>;
+		power-domains = <&power RK3588_PD_VI>;
+		rockchip,grf = <&sys_grf>;
+		power-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		lock-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		link-mask = <0x33>;
+		auto-init-deskew-mask = <0x3>;
+		frame-sync-period = <0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "max96722";
+		rockchip,camera-module-lens-name = "max96722";
+
+		port {
+			max96722_out: endpoint {
+				remote-endpoint = <&mipi_dphy3_in_max96722>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	maxim-cameras {
+		max96712_power: max96712-power {
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_errb: max96712-errb {
+			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96712_lock: max96712-lock {
+			rockchip,pins = <1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96722_power: max96722-power {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96722_errb: max96722-errb {
+			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		max96722_lock: max96722-lock {
+			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

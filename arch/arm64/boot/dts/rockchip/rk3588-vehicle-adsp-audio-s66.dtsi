@@ -1,0 +1,99 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/ {
+	dummy_codec: dummy-codec {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+		status = "okay";
+	};
+
+	sound0 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,tdm";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,bitclock-master = <&codec_master>;
+		simple-audio-card,frame-master = <&codec_master>;
+		status = "okay";
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s1_8ch>;
+		};
+		codec_master: simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+
+	bt_codec: bt-codec {
+		compatible = "delta,dfbmcs320";
+		#sound-dai-cells = <1>;
+		status = "okay";
+	};
+
+	sound1 {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,bt";
+		simple-audio-card,format = "dsp_a";
+		simple-audio-card,bitclock-inversion = <1>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s3_2ch>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&bt_codec 1>;
+		};
+	};
+};
+
+&i2s1_8ch {
+	pinctrl-0 = <&i2s1m0_lrck
+		     &i2s1m0_sclk
+		     &i2s1m0_sdi0
+		     &i2s1m0_sdi1
+		     &i2s1m0_sdo0
+		     &i2s1m0_sdo1
+		     &i2s1m0_sdo2>;
+	i2s-lrck-gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
+	tdm-fsync-gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
+	rockchip,tdm-multi-lanes;
+	rockchip,tx-lanes = <3>;
+	rockchip,rx-lanes = <2>;
+	rockchip,clk-trcm = <1>;
+	status = "okay";
+};
+
+&i2s3_2ch {
+	assigned-clocks = <&cru CLK_I2S3_2CH>;
+	assigned-clock-parents = <&mclkin_i2s3>;
+	pinctrl-0 = <&i2s3_sdi
+		     &i2s3_sdo
+		     &i2s3_mclk>;
+	status = "okay";
+};
+
+&mclkin_i2s3 {
+	clock-frequency = <12288000>;
+};
+
+&spi3 {
+	status = "okay";
+	assigned-clocks = <&cru CLK_SPI3>;
+	assigned-clock-rates = <200000000>;
+	num-cs = <2>;
+	pinctrl-0 = <&spi3m2_cs0
+		     &spi3m2_cs1
+		     &spi3m2_pins>;
+
+	flash: is25lp032@1 {
+		compatible = "issi,is25lp032", "jedec,spi-nor";
+		reg = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <5000000>;
+		m25p,fast-read;
+	};
+};
