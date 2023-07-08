@@ -2899,11 +2899,11 @@ cannot_expand:
 			goto free_vma;
 	}
 
+	/* Lock the VMA since it is modified after insertion into VMA tree */
+	vma_start_write(vma);
 	if (vma->vm_file)
 		i_mmap_lock_write(vma->vm_file->f_mapping);
 
-	/* Lock the VMA since it is modified after insertion into VMA tree */
-	vma_start_write(vma);
 	mas_store_prealloc(&mas, vma);
 	mm->map_count++;
 	if (vma->vm_file) {
