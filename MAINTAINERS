@@ -6243,6 +6243,13 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/i2c/dongwoon,dw9714.yaml
 F:	drivers/media/i2c/dw9714.c
 
+DONGWOON DW9719 LENS VOICE COIL DRIVER
+M:	Daniel Scally <djrscally@gmail.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/i2c/dw9719.c
+
 DONGWOON DW9768 LENS VOICE COIL DRIVER
 L:	linux-media@vger.kernel.org
 S:	Orphan
