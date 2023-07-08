@@ -334,24 +334,6 @@ static struct regmap *lan966x_init_regmap(struct platform_device *pdev,
 	return devm_regmap_init_mmio(&pdev->dev, base, &regmap_config);
 }
 
-static void lan966x_clk_disable(void *data)
-{
-	struct lan966x_hwmon *hwmon = data;
-
-	clk_disable_unprepare(hwmon->clk);
-}
-
-static int lan966x_clk_enable(struct device *dev, struct lan966x_hwmon *hwmon)
-{
-	int ret;
-
-	ret = clk_prepare_enable(hwmon->clk);
-	if (ret)
-		return ret;
-
-	return devm_add_action_or_reset(dev, lan966x_clk_disable, hwmon);
-}
-
 static int lan966x_hwmon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -363,14 +345,10 @@ static int lan966x_hwmon_probe(struct platform_device *pdev)
 	if (!hwmon)
 		return -ENOMEM;
 
-	hwmon->clk = devm_clk_get(dev, NULL);
+	hwmon->clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(hwmon->clk))
 		return dev_err_probe(dev, PTR_ERR(hwmon->clk),
 				     "failed to get clock\n");
-
-	ret = lan966x_clk_enable(dev, hwmon);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to enable clock\n");
 
 	hwmon->clk_rate = clk_get_rate(hwmon->clk);
 
