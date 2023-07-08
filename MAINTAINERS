@@ -12069,6 +12069,13 @@ F:	Documentation/litmus-tests/
 F:	Documentation/memory-barriers.txt
 F:	tools/memory-model/
 
+LINUX-NEXT TREE
+M:	Stephen Rothwell <sfr@canb.auug.org.au>
+L:	linux-next@vger.kernel.org
+S:	Supported
+B:	mailto:linux-next@vger.kernel.org and the appropriate development tree
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/
+
 LIS3LV02D ACCELEROMETER DRIVER
 M:	Eric Piel <eric.piel@tremplin-utc.net>
 S:	Maintained
@@ -15894,7 +15901,7 @@ ORACLE CLUSTER FILESYSTEM 2 (OCFS2)
 M:	Mark Fasheh <mark@fasheh.com>
 M:	Joel Becker <jlbec@evilplan.org>
 M:	Joseph Qi <joseph.qi@linux.alibaba.com>
-L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
+L:	ocfs2-devel@lists.linux.dev
 S:	Supported
 W:	http://ocfs2.wiki.kernel.org
 F:	Documentation/filesystems/dlmfs.rst
