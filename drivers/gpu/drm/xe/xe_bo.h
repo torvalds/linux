@@ -9,6 +9,15 @@
 #include "xe_bo_types.h"
 #include "xe_macros.h"
 #include "xe_vm_types.h"
+#include "xe_vm.h"
+
+/**
+ * xe_vm_assert_held(vm) - Assert that the vm's reservation object is held.
+ * @vm: The vm
+ */
+#define xe_vm_assert_held(vm) dma_resv_assert_held(xe_vm_resv(vm))
+
+
 
 #define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
 
@@ -149,7 +158,7 @@ void xe_bo_unlock(struct xe_bo *bo, struct ww_acquire_ctx *ww);
 static inline void xe_bo_unlock_vm_held(struct xe_bo *bo)
 {
 	if (bo) {
-		XE_BUG_ON(bo->vm && bo->ttm.base.resv != &bo->vm->resv);
+		XE_BUG_ON(bo->vm && bo->ttm.base.resv != xe_vm_resv(bo->vm));
 		if (bo->vm)
 			xe_vm_assert_held(bo->vm);
 		else

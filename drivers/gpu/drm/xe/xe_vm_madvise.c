@@ -210,19 +210,12 @@ static const madvise_func madvise_funcs[] = {
 	[DRM_XE_VM_MADVISE_PIN] = madvise_pin,
 };
 
-static struct xe_vma *node_to_vma(const struct rb_node *node)
-{
-	BUILD_BUG_ON(offsetof(struct xe_vma, vm_node) != 0);
-	return (struct xe_vma *)node;
-}
-
 static struct xe_vma **
 get_vmas(struct xe_vm *vm, int *num_vmas, u64 addr, u64 range)
 {
-	struct xe_vma **vmas;
-	struct xe_vma *vma, *__vma, lookup;
+	struct xe_vma **vmas, **__vmas;
+	struct drm_gpuva *gpuva;
 	int max_vmas = 8;
-	struct rb_node *node;
 
 	lockdep_assert_held(&vm->lock);
 
@@ -230,62 +223,23 @@ get_vmas(struct xe_vm *vm, int *num_vmas, u64 addr, u64 range)
 	if (!vmas)
 		return NULL;
 
-	lookup.start = addr;
-	lookup.end = addr + range - 1;
+	drm_gpuvm_for_each_va_range(gpuva, &vm->gpuvm, addr, addr + range) {
+		struct xe_vma *vma = gpuva_to_vma(gpuva);
 
-	vma = xe_vm_find_overlapping_vma(vm, &lookup);
-	if (!vma)
-		return vmas;
+		if (xe_vma_is_userptr(vma))
+			continue;
 
-	if (!xe_vma_is_userptr(vma)) {
+		if (*num_vmas == max_vmas) {
+			max_vmas <<= 1;
+			__vmas = krealloc(vmas, max_vmas * sizeof(*vmas),
+					  GFP_KERNEL);
+			if (!__vmas)
+				return NULL;
+			vmas = __vmas;
+		}
+
 		vmas[*num_vmas] = vma;
 		*num_vmas += 1;
-	}
-
-	node = &vma->vm_node;
-	while ((node = rb_next(node))) {
-		if (!xe_vma_cmp_vma_cb(&lookup, node)) {
-			__vma = node_to_vma(node);
-			if (xe_vma_is_userptr(__vma))
-				continue;
-
-			if (*num_vmas == max_vmas) {
-				struct xe_vma **__vmas =
-					krealloc(vmas, max_vmas * sizeof(*vmas),
-						 GFP_KERNEL);
-
-				if (!__vmas)
-					return NULL;
-				vmas = __vmas;
-			}
-			vmas[*num_vmas] = __vma;
-			*num_vmas += 1;
-		} else {
-			break;
-		}
-	}
-
-	node = &vma->vm_node;
-	while ((node = rb_prev(node))) {
-		if (!xe_vma_cmp_vma_cb(&lookup, node)) {
-			__vma = node_to_vma(node);
-			if (xe_vma_is_userptr(__vma))
-				continue;
-
-			if (*num_vmas == max_vmas) {
-				struct xe_vma **__vmas =
-					krealloc(vmas, max_vmas * sizeof(*vmas),
-						 GFP_KERNEL);
-
-				if (!__vmas)
-					return NULL;
-				vmas = __vmas;
-			}
-			vmas[*num_vmas] = __vma;
-			*num_vmas += 1;
-		} else {
-			break;
-		}
 	}
 
 	return vmas;

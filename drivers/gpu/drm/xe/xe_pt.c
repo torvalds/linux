@@ -100,15 +100,15 @@ static dma_addr_t vma_addr(struct xe_vma *vma, u64 offset,
 	}
 }
 
-static u64 __pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
-			u32 pt_level)
+static u64 __pte_encode(u64 pte, enum xe_cache_level cache,
+			struct xe_vma *vma, u32 pt_level)
 {
 	pte |= XE_PAGE_PRESENT | XE_PAGE_RW;
 
-	if (unlikely(flags & XE_PTE_FLAG_READ_ONLY))
+	if (unlikely(vma && xe_vma_read_only(vma)))
 		pte &= ~XE_PAGE_RW;
 
-	if (unlikely(flags & XE_PTE_FLAG_NULL))
+	if (unlikely(vma && xe_vma_is_null(vma)))
 		pte |= XE_PTE_NULL;
 
 	/* FIXME: I don't think the PPAT handling is correct for MTL */
@@ -142,7 +142,6 @@ static u64 __pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
  * @bo: If @vma is NULL, representing the memory to point to.
  * @offset: The offset into @vma or @bo.
  * @cache: The cache level indicating
- * @flags: Currently only supports PTE_READ_ONLY for read-only access.
  * @pt_level: The page-table level of the page-table into which the entry
  * is to be inserted.
  *
@@ -150,7 +149,7 @@ static u64 __pte_encode(u64 pte, enum xe_cache_level cache, u32 flags,
  */
 u64 xe_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
 		  u64 offset, enum xe_cache_level cache,
-		  u32 flags, u32 pt_level)
+		  u32 pt_level)
 {
 	u64 pte;
 	bool is_vram;
@@ -162,11 +161,11 @@ u64 xe_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
 
 	if (is_vram) {
 		pte |= XE_PPGTT_PTE_LM;
-		if (vma && vma->use_atomic_access_pte_bit)
+		if (vma && vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT)
 			pte |= XE_USM_PPGTT_PTE_AE;
 	}
 
-	return __pte_encode(pte, cache, flags, pt_level);
+	return __pte_encode(pte, cache, vma, pt_level);
 }
 
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
@@ -179,7 +178,7 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 
 	if (level == 0) {
 		u64 empty = xe_pte_encode(NULL, vm->scratch_bo[id], 0,
-					  XE_CACHE_WB, 0, 0);
+					  XE_CACHE_WB, 0);
 
 		return empty;
 	} else {
@@ -424,10 +423,9 @@ struct xe_pt_stage_bind_walk {
 	 */
 	bool needs_64K;
 	/**
-	 * @pte_flags: Flags determining PTE setup. These are not flags
-	 * encoded directly in the PTE. See @default_pte for those.
+	 * @vma: VMA being mapped
 	 */
-	u32 pte_flags;
+	struct xe_vma *vma;
 
 	/* Also input, but is updated during the walk*/
 	/** @curs: The DMA address cursor. */
@@ -564,7 +562,7 @@ static bool xe_pt_hugepte_possible(u64 addr, u64 next, unsigned int level,
 		return false;
 
 	/* null VMA's do not have dma addresses */
-	if (xe_walk->pte_flags & XE_PTE_FLAG_NULL)
+	if (xe_vma_is_null(xe_walk->vma))
 		return true;
 
 	/* Is the DMA address huge PTE size aligned? */
@@ -590,7 +588,7 @@ xe_pt_scan_64K(u64 addr, u64 next, struct xe_pt_stage_bind_walk *xe_walk)
 		return false;
 
 	/* null VMA's do not have dma addresses */
-	if (xe_walk->pte_flags & XE_PTE_FLAG_NULL)
+	if (xe_vma_is_null(xe_walk->vma))
 		return true;
 
 	xe_res_next(&curs, addr - xe_walk->va_curs_start);
@@ -643,14 +641,13 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 	/* Is this a leaf entry ?*/
 	if (level == 0 || xe_pt_hugepte_possible(addr, next, level, xe_walk)) {
 		struct xe_res_cursor *curs = xe_walk->curs;
-		bool is_null = xe_walk->pte_flags & XE_PTE_FLAG_NULL;
+		bool is_null = xe_vma_is_null(xe_walk->vma);
 
 		XE_WARN_ON(xe_walk->va_curs_start != addr);
 
 		pte = __pte_encode(is_null ? 0 :
 				   xe_res_dma(curs) + xe_walk->dma_offset,
-				   xe_walk->cache, xe_walk->pte_flags,
-				   level);
+				   xe_walk->cache, xe_walk->vma, level);
 		pte |= xe_walk->default_pte;
 
 		/*
@@ -762,7 +759,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 		.tile = tile,
 		.curs = &curs,
 		.va_curs_start = xe_vma_start(vma),
-		.pte_flags = vma->pte_flags,
+		.vma = vma,
 		.wupd.entries = entries,
 		.needs_64K = (xe_vma_vm(vma)->flags & XE_VM_FLAGS_64K) && is_vram,
 	};
@@ -771,7 +768,7 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 
 	if (is_vram) {
 		xe_walk.default_pte = XE_PPGTT_PTE_LM;
-		if (vma && vma->use_atomic_access_pte_bit)
+		if (vma && vma->gpuva.flags & XE_VMA_ATOMIC_PTE_BIT)
 			xe_walk.default_pte |= XE_USM_PPGTT_PTE_AE;
 		xe_walk.dma_offset = vram_region_gpu_offset(bo->ttm.resource);
 		xe_walk.cache = XE_CACHE_WB;
@@ -990,7 +987,7 @@ static void xe_pt_commit_locks_assert(struct xe_vma *vma)
 	else if (!xe_vma_is_null(vma))
 		dma_resv_assert_held(xe_vma_bo(vma)->ttm.base.resv);
 
-	dma_resv_assert_held(&vm->resv);
+	xe_vm_assert_held(vm);
 }
 
 static void xe_pt_commit_bind(struct xe_vma *vma,
@@ -1343,6 +1340,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 					   syncs, num_syncs,
 					   &bind_pt_update.base);
 	if (!IS_ERR(fence)) {
+		bool last_munmap_rebind = vma->gpuva.flags & XE_VMA_LAST_REBIND;
 		LLIST_HEAD(deferred);
 
 		/* TLB invalidation must be done before signaling rebind */
@@ -1358,8 +1356,8 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 		}
 
 		/* add shared fence now for pagetable delayed destroy */
-		dma_resv_add_fence(&vm->resv, fence, !rebind &&
-				   vma->last_munmap_rebind ?
+		dma_resv_add_fence(xe_vm_resv(vm), fence, !rebind &&
+				   last_munmap_rebind ?
 				   DMA_RESV_USAGE_KERNEL :
 				   DMA_RESV_USAGE_BOOKKEEP);
 
@@ -1377,7 +1375,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e,
 			up_read(&vm->userptr.notifier_lock);
 			xe_bo_put_commit(&deferred);
 		}
-		if (!rebind && vma->last_munmap_rebind &&
+		if (!rebind && last_munmap_rebind &&
 		    xe_vm_in_compute_mode(vm))
 			queue_work(vm->xe->ordered_wq,
 				   &vm->preempt.rebind_work);
@@ -1676,7 +1674,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_engine *e
 		fence = &ifence->base.base;
 
 		/* add shared fence now for pagetable delayed destroy */
-		dma_resv_add_fence(&vm->resv, fence,
+		dma_resv_add_fence(xe_vm_resv(vm), fence,
 				   DMA_RESV_USAGE_BOOKKEEP);
 
 		/* This fence will be installed by caller when doing eviction */

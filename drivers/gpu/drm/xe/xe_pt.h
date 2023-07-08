@@ -50,5 +50,5 @@ u64 xe_pde_encode(struct xe_bo *bo, u64 bo_offset,
 
 u64 xe_pte_encode(struct xe_vma *vma, struct xe_bo *bo,
 		  u64 offset, enum xe_cache_level cache,
-		  u32 flags, u32 pt_level);
+		  u32 pt_level);
 #endif

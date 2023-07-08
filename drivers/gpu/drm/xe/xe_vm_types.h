@@ -6,6 +6,8 @@
 #ifndef _XE_VM_TYPES_H_
 #define _XE_VM_TYPES_H_
 
+#include <drm/drm_gpuvm.h>
+
 #include <linux/dma-resv.h>
 #include <linux/kref.h>
 #include <linux/mmu_notifier.h>
@@ -14,30 +16,23 @@
 #include "xe_device_types.h"
 #include "xe_pt_types.h"
 
+struct async_op_fence;
 struct xe_bo;
+struct xe_sync_entry;
 struct xe_vm;
 
+#define TEST_VM_ASYNC_OPS_ERROR
+#define FORCE_ASYNC_OP_ERROR	BIT(31)
+
+#define XE_VMA_READ_ONLY	DRM_GPUVA_USERBITS
+#define XE_VMA_DESTROYED	(DRM_GPUVA_USERBITS << 1)
+#define XE_VMA_ATOMIC_PTE_BIT	(DRM_GPUVA_USERBITS << 2)
+#define XE_VMA_FIRST_REBIND	(DRM_GPUVA_USERBITS << 3)
+#define XE_VMA_LAST_REBIND	(DRM_GPUVA_USERBITS << 4)
+
 struct xe_vma {
-	struct rb_node vm_node;
-	/** @vm: VM which this VMA belongs to */
-	struct xe_vm *vm;
-
-	/**
-	 * @start: start address of this VMA within its address domain, end -
-	 * start + 1 == VMA size
-	 */
-	u64 start;
-	/** @end: end address of this VMA within its address domain */
-	u64 end;
-	/** @pte_flags: pte flags for this VMA */
-#define XE_PTE_FLAG_READ_ONLY		BIT(0)
-#define XE_PTE_FLAG_NULL		BIT(1)
-	u32 pte_flags;
-
-	/** @bo: BO if not a userptr, must be NULL is userptr */
-	struct xe_bo *bo;
-	/** @bo_offset: offset into BO if not a userptr, unused for userptr */
-	u64 bo_offset;
+	/** @gpuva: Base GPUVA object */
+	struct drm_gpuva gpuva;
 
 	/** @tile_mask: Tile mask of where to create binding for this VMA */
 	u64 tile_mask;
@@ -51,40 +46,8 @@ struct xe_vma {
 	 */
 	u64 tile_present;
 
-	/**
-	 * @destroyed: VMA is destroyed, in the sense that it shouldn't be
-	 * subject to rebind anymore. This field must be written under
-	 * the vm lock in write mode and the userptr.notifier_lock in
-	 * either mode. Read under the vm lock or the userptr.notifier_lock in
-	 * write mode.
-	 */
-	bool destroyed;
-
-	/**
-	 * @first_munmap_rebind: VMA is first in a sequence of ops that triggers
-	 * a rebind (munmap style VM unbinds). This indicates the operation
-	 * using this VMA must wait on all dma-resv slots (wait for pending jobs
-	 * / trigger preempt fences).
-	 */
-	bool first_munmap_rebind;
-
-	/**
-	 * @last_munmap_rebind: VMA is first in a sequence of ops that triggers
-	 * a rebind (munmap style VM unbinds). This indicates the operation
-	 * using this VMA must install itself into kernel dma-resv slot (blocks
-	 * future jobs) and kick the rebind work in compute mode.
-	 */
-	bool last_munmap_rebind;
-
-	/** @use_atomic_access_pte_bit: Set atomic access bit in PTE */
-	bool use_atomic_access_pte_bit;
-
-	union {
-		/** @bo_link: link into BO if not a userptr */
-		struct list_head bo_link;
-		/** @userptr_link: link into VM repin list if userptr */
-		struct list_head userptr_link;
-	};
+	/** @userptr_link: link into VM repin list if userptr */
+	struct list_head userptr_link;
 
 	/**
 	 * @rebind_link: link into VM if this VMA needs rebinding, and
@@ -107,8 +70,6 @@ struct xe_vma {
 
 	/** @userptr: user pointer state */
 	struct {
-		/** @ptr: user pointer */
-		uintptr_t ptr;
 		/** @invalidate_link: Link for the vm::userptr.invalidated list */
 		struct list_head invalidate_link;
 		/**
@@ -153,24 +114,19 @@ struct xe_vma {
 
 struct xe_device;
 
-#define xe_vm_assert_held(vm) dma_resv_assert_held(&(vm)->resv)
-
 struct xe_vm {
-	struct xe_device *xe;
+	/** @gpuvm: base GPUVM used to track VMAs */
+	struct drm_gpuvm gpuvm;
 
-	struct kref refcount;
+	struct xe_device *xe;
 
 	/* engine used for (un)binding vma's */
 	struct xe_engine *eng[XE_MAX_TILES_PER_DEVICE];
-
-	/** Protects @rebind_list and the page-table structures */
-	struct dma_resv resv;
 
 	/** @lru_bulk_move: Bulk LRU move list for this VM's BOs */
 	struct ttm_lru_bulk_move lru_bulk_move;
 
 	u64 size;
-	struct rb_root vmas;
 
 	struct xe_pt *pt_root[XE_MAX_TILES_PER_DEVICE];
 	struct xe_bo *scratch_bo[XE_MAX_TILES_PER_DEVICE];
@@ -351,4 +307,99 @@ struct xe_vm {
 	bool batch_invalidate_tlb;
 };
 
+/** struct xe_vma_op_map - VMA map operation */
+struct xe_vma_op_map {
+	/** @vma: VMA to map */
+	struct xe_vma *vma;
+	/** @immediate: Immediate bind */
+	bool immediate;
+	/** @read_only: Read only */
+	bool read_only;
+	/** @is_null: is NULL binding */
+	bool is_null;
+};
+
+/** struct xe_vma_op_unmap - VMA unmap operation */
+struct xe_vma_op_unmap {
+	/** @start: start of the VMA unmap */
+	u64 start;
+	/** @range: range of the VMA unmap */
+	u64 range;
+};
+
+/** struct xe_vma_op_remap - VMA remap operation */
+struct xe_vma_op_remap {
+	/** @prev: VMA preceding part of a split mapping */
+	struct xe_vma *prev;
+	/** @next: VMA subsequent part of a split mapping */
+	struct xe_vma *next;
+	/** @start: start of the VMA unmap */
+	u64 start;
+	/** @range: range of the VMA unmap */
+	u64 range;
+	/** @unmap_done: unmap operation in done */
+	bool unmap_done;
+};
+
+/** struct xe_vma_op_prefetch - VMA prefetch operation */
+struct xe_vma_op_prefetch {
+	/** @region: memory region to prefetch to */
+	u32 region;
+};
+
+/** enum xe_vma_op_flags - flags for VMA operation */
+enum xe_vma_op_flags {
+	/** @XE_VMA_OP_FIRST: first VMA operation for a set of syncs */
+	XE_VMA_OP_FIRST		= (0x1 << 0),
+	/** @XE_VMA_OP_LAST: last VMA operation for a set of syncs */
+	XE_VMA_OP_LAST		= (0x1 << 1),
+	/** @XE_VMA_OP_COMMITTED: VMA operation committed */
+	XE_VMA_OP_COMMITTED	= (0x1 << 2),
+};
+
+/** struct xe_vma_op - VMA operation */
+struct xe_vma_op {
+	/** @base: GPUVA base operation */
+	struct drm_gpuva_op base;
+	/**
+	 * @ops: GPUVA ops, when set call drm_gpuva_ops_free after this
+	 * operations is processed
+	 */
+	struct drm_gpuva_ops *ops;
+	/** @engine: engine for this operation */
+	struct xe_engine *engine;
+	/**
+	 * @syncs: syncs for this operation, only used on first and last
+	 * operation
+	 */
+	struct xe_sync_entry *syncs;
+	/** @num_syncs: number of syncs */
+	u32 num_syncs;
+	/** @link: async operation link */
+	struct list_head link;
+	/**
+	 * @fence: async operation fence, signaled on last operation complete
+	 */
+	struct async_op_fence *fence;
+	/** @tile_mask: gt mask for this operation */
+	u64 tile_mask;
+	/** @flags: operation flags */
+	enum xe_vma_op_flags flags;
+
+#ifdef TEST_VM_ASYNC_OPS_ERROR
+	/** @inject_error: inject error to test async op error handling */
+	bool inject_error;
+#endif
+
+	union {
+		/** @map: VMA map operation specific data */
+		struct xe_vma_op_map map;
+		/** @unmap: VMA unmap operation specific data */
+		struct xe_vma_op_unmap unmap;
+		/** @remap: VMA remap operation specific data */
+		struct xe_vma_op_remap remap;
+		/** @prefetch: VMA prefetch operation specific data */
+		struct xe_vma_op_prefetch prefetch;
+	};
+};
 #endif

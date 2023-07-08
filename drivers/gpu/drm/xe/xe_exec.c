@@ -350,7 +350,7 @@ retry:
 	/* Wait behind munmap style rebinds */
 	if (!xe_vm_no_dma_fences(vm)) {
 		err = drm_sched_job_add_resv_dependencies(&job->drm,
-							  &vm->resv,
+							  xe_vm_resv(vm),
 							  DMA_RESV_USAGE_KERNEL);
 		if (err)
 			goto err_put_job;
@@ -378,7 +378,7 @@ retry:
 	xe_sched_job_arm(job);
 	if (!xe_vm_no_dma_fences(vm)) {
 		/* Block userptr invalidations / BO eviction */
-		dma_resv_add_fence(&vm->resv,
+		dma_resv_add_fence(xe_vm_resv(vm),
 				   &job->drm.s_fence->finished,
 				   DMA_RESV_USAGE_BOOKKEEP);
 

@@ -21,6 +21,7 @@ config DRM_XE
 	select VMAP_PFN
 	select DRM_TTM
 	select DRM_TTM_HELPER
+	select DRM_GPUVM
 	select DRM_SCHED
 	select MMU_NOTIFIER
 	select WANT_DEV_COREDUMP

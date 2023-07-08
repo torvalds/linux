@@ -197,7 +197,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	/* Map the entire BO in our level 0 pt */
 	for (i = 0, level = 0; i < num_entries; level++) {
 		entry = xe_pte_encode(NULL, bo, i * XE_PAGE_SIZE,
-				      XE_CACHE_WB, 0, 0);
+				      XE_CACHE_WB, 0);
 
 		xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64, entry);
 
@@ -216,7 +216,7 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 		     i += vm->flags & XE_VM_FLAGS_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
 			entry = xe_pte_encode(NULL, batch, i,
-					      XE_CACHE_WB, 0, 0);
+					      XE_CACHE_WB, 0);
 
 			xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64,
 				  entry);
@@ -1068,7 +1068,7 @@ xe_migrate_update_pgtables_cpu(struct xe_migrate *m,
 					  DMA_RESV_USAGE_KERNEL))
 		return ERR_PTR(-ETIME);
 
-	if (wait_vm && !dma_resv_test_signaled(&vm->resv,
+	if (wait_vm && !dma_resv_test_signaled(xe_vm_resv(vm),
 					       DMA_RESV_USAGE_BOOKKEEP))
 		return ERR_PTR(-ETIME);
 
@@ -1159,7 +1159,8 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	u64 addr;
 	int err = 0;
 	bool usm = !eng && xe->info.supports_usm;
-	bool first_munmap_rebind = vma && vma->first_munmap_rebind;
+	bool first_munmap_rebind = vma &&
+		vma->gpuva.flags & XE_VMA_FIRST_REBIND;
 	struct xe_engine *eng_override = !eng ? m->eng : eng;
 
 	/* Use the CPU if no in syncs and engine is idle */
@@ -1232,8 +1233,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 
 			BUG_ON(pt_bo->size != SZ_4K);
 
-			addr = xe_pte_encode(NULL, pt_bo, 0, XE_CACHE_WB,
-					     0, 0);
+			addr = xe_pte_encode(NULL, pt_bo, 0, XE_CACHE_WB, 0);
 			bb->cs[bb->len++] = lower_32_bits(addr);
 			bb->cs[bb->len++] = upper_32_bits(addr);
 		}
@@ -1281,7 +1281,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 	 * trigger preempts before moving forward
 	 */
 	if (first_munmap_rebind) {
-		err = job_add_deps(job, &vm->resv,
+		err = job_add_deps(job, xe_vm_resv(vm),
 				   DMA_RESV_USAGE_BOOKKEEP);
 		if (err)
 			goto err_job;

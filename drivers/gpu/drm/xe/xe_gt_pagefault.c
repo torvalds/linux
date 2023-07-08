@@ -75,10 +75,10 @@ static bool vma_is_valid(struct xe_tile *tile, struct xe_vma *vma)
 		!(BIT(tile->id) & vma->usm.tile_invalidated);
 }
 
-static bool vma_matches(struct xe_vma *vma, struct xe_vma *lookup)
+static bool vma_matches(struct xe_vma *vma, u64 page_addr)
 {
-	if (xe_vma_start(lookup) > xe_vma_end(vma) - 1 ||
-	    xe_vma_end(lookup) - 1 < xe_vma_start(vma))
+	if (page_addr > xe_vma_end(vma) - 1 ||
+	    page_addr + SZ_4K - 1 < xe_vma_start(vma))
 		return false;
 
 	return true;
@@ -91,16 +91,14 @@ static bool only_needs_bo_lock(struct xe_bo *bo)
 
 static struct xe_vma *lookup_vma(struct xe_vm *vm, u64 page_addr)
 {
-	struct xe_vma *vma = NULL, lookup;
+	struct xe_vma *vma = NULL;
 
-	lookup.start = page_addr;
-	lookup.end = lookup.start + SZ_4K - 1;
 	if (vm->usm.last_fault_vma) {   /* Fast lookup */
-		if (vma_matches(vm->usm.last_fault_vma, &lookup))
+		if (vma_matches(vm->usm.last_fault_vma, page_addr))
 			vma = vm->usm.last_fault_vma;
 	}
 	if (!vma)
-		vma = xe_vm_find_overlapping_vma(vm, &lookup);
+		vma = xe_vm_find_overlapping_vma(vm, page_addr, SZ_4K);
 
 	return vma;
 }
@@ -489,12 +487,8 @@ static struct xe_vma *get_acc_vma(struct xe_vm *vm, struct acc *acc)
 {
 	u64 page_va = acc->va_range_base + (ffs(acc->sub_granularity) - 1) *
 		sub_granularity_in_byte(acc->granularity);
-	struct xe_vma lookup;
 
-	lookup.start = page_va;
-	lookup.end = lookup.start + SZ_4K - 1;
-
-	return xe_vm_find_overlapping_vma(vm, &lookup);
+	return xe_vm_find_overlapping_vma(vm, page_va, SZ_4K);
 }
 
 static int handle_acc(struct xe_gt *gt, struct acc *acc)
