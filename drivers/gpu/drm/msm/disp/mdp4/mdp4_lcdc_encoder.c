@@ -30,18 +30,6 @@ static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-static void mdp4_lcdc_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct mdp4_lcdc_encoder *mdp4_lcdc_encoder =
-			to_mdp4_lcdc_encoder(encoder);
-	drm_encoder_cleanup(encoder);
-	kfree(mdp4_lcdc_encoder);
-}
-
-static const struct drm_encoder_funcs mdp4_lcdc_encoder_funcs = {
-	.destroy = mdp4_lcdc_encoder_destroy,
-};
-
 /* this should probably be a helper: */
 static struct drm_connector *get_connector(struct drm_encoder *encoder)
 {
@@ -377,30 +365,26 @@ long mdp4_lcdc_round_pixclk(struct drm_encoder *encoder, unsigned long rate)
 struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 		struct device_node *panel_node)
 {
-	struct drm_encoder *encoder = NULL;
+	struct drm_encoder *encoder;
 	struct mdp4_lcdc_encoder *mdp4_lcdc_encoder;
 	int ret;
 
-	mdp4_lcdc_encoder = kzalloc(sizeof(*mdp4_lcdc_encoder), GFP_KERNEL);
-	if (!mdp4_lcdc_encoder) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	mdp4_lcdc_encoder = drmm_encoder_alloc(dev, struct mdp4_lcdc_encoder, base,
+					       NULL, DRM_MODE_ENCODER_LVDS, NULL);
+	if (IS_ERR(mdp4_lcdc_encoder))
+		return ERR_CAST(mdp4_lcdc_encoder);
 
 	mdp4_lcdc_encoder->panel_node = panel_node;
 
 	encoder = &mdp4_lcdc_encoder->base;
 
-	drm_encoder_init(dev, encoder, &mdp4_lcdc_encoder_funcs,
-			 DRM_MODE_ENCODER_LVDS, NULL);
 	drm_encoder_helper_add(encoder, &mdp4_lcdc_encoder_helper_funcs);
 
 	/* TODO: do we need different pll in other cases? */
 	mdp4_lcdc_encoder->lcdc_clk = mpd4_lvds_pll_init(dev);
 	if (IS_ERR(mdp4_lcdc_encoder->lcdc_clk)) {
 		DRM_DEV_ERROR(dev->dev, "failed to get lvds_clk\n");
-		ret = PTR_ERR(mdp4_lcdc_encoder->lcdc_clk);
-		goto fail;
+		return ERR_CAST(mdp4_lcdc_encoder->lcdc_clk);
 	}
 
 	/* TODO: different regulators in other cases? */
@@ -412,13 +396,7 @@ struct drm_encoder *mdp4_lcdc_encoder_init(struct drm_device *dev,
 				      ARRAY_SIZE(mdp4_lcdc_encoder->regs),
 				      mdp4_lcdc_encoder->regs);
 	if (ret)
-		goto fail;
+		return ERR_PTR(ret);
 
 	return encoder;
-
-fail:
-	if (encoder)
-		mdp4_lcdc_encoder_destroy(encoder);
-
-	return ERR_PTR(ret);
 }
