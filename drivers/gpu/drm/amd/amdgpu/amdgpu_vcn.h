@@ -414,4 +414,7 @@ int amdgpu_vcn_ras_late_init(struct amdgpu_device *adev,
 			struct ras_common_if *ras_block);
 int amdgpu_vcn_ras_sw_init(struct amdgpu_device *adev);
 
+int amdgpu_vcn_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
+			       enum AMDGPU_UCODE_ID ucode_id);
+
 #endif
