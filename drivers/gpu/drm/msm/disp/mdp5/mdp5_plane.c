@@ -35,15 +35,6 @@ static bool plane_enabled(struct drm_plane_state *state)
 	return state->visible;
 }
 
-static void mdp5_plane_destroy(struct drm_plane *plane)
-{
-	struct mdp5_plane *mdp5_plane = to_mdp5_plane(plane);
-
-	drm_plane_cleanup(plane);
-
-	kfree(mdp5_plane);
-}
-
 /* helper to install properties which are common to planes and crtcs */
 static void mdp5_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj)
@@ -135,7 +126,6 @@ static void mdp5_plane_destroy_state(struct drm_plane *plane,
 static const struct drm_plane_funcs mdp5_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
-		.destroy = mdp5_plane_destroy,
 		.reset = mdp5_plane_reset,
 		.atomic_duplicate_state = mdp5_plane_duplicate_state,
 		.atomic_destroy_state = mdp5_plane_destroy_state,
@@ -1037,21 +1027,15 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 {
 	struct drm_plane *plane = NULL;
 	struct mdp5_plane *mdp5_plane;
-	int ret;
 
-	mdp5_plane = kzalloc(sizeof(*mdp5_plane), GFP_KERNEL);
-	if (!mdp5_plane) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	mdp5_plane = drmm_universal_plane_alloc(dev, struct mdp5_plane, base,
+						0xff, &mdp5_plane_funcs,
+						mdp5_plane_formats, ARRAY_SIZE(mdp5_plane_formats),
+						NULL, type, NULL);
+	if (IS_ERR(mdp5_plane))
+		return ERR_CAST(mdp5_plane);
 
 	plane = &mdp5_plane->base;
-
-	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp5_plane_funcs,
-				       mdp5_plane_formats, ARRAY_SIZE(mdp5_plane_formats),
-				       NULL, type, NULL);
-	if (ret)
-		goto fail;
 
 	drm_plane_helper_add(plane, &mdp5_plane_helper_funcs);
 
@@ -1060,10 +1044,4 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 	drm_plane_enable_fb_damage_clips(plane);
 
 	return plane;
-
-fail:
-	if (plane)
-		mdp5_plane_destroy(plane);
-
-	return ERR_PTR(ret);
 }
