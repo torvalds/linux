@@ -780,6 +780,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	ck->valid = true;
 
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
+		EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
 		set_bit(BKEY_CACHED_DIRTY, &ck->flags);
 		atomic_long_inc(&c->btree_key_cache.nr_dirty);
 

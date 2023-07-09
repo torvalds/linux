@@ -272,8 +272,10 @@ inline void bch2_btree_insert_key_leaf(struct btree_trans *trans,
 
 	bch2_btree_add_journal_pin(c, b, journal_seq);
 
-	if (unlikely(!btree_node_dirty(b)))
+	if (unlikely(!btree_node_dirty(b))) {
+		EBUG_ON(test_bit(BCH_FS_CLEAN_SHUTDOWN, &c->flags));
 		set_btree_node_dirty_acct(c, b);
+	}
 
 	live_u64s_added = (int) b->nr.live_u64s - old_live_u64s;
 	u64s_added = (int) bset_u64s(t) - old_u64s;
