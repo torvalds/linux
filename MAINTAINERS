@@ -2334,6 +2334,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/phy/mediatek,*
 F:	drivers/phy/mediatek/
 
+ARM/MICROCHIP (ARM64) SoC support
+M:	Conor Dooley <conor@kernel.org>
+M:	Nicolas Ferre <nicolas.ferre@microchip.com>
+M:	Claudiu Beznea <claudiu.beznea@microchip.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+T:	git https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux.git
+F:	arch/arm64/boot/dts/microchip/
+
 ARM/Microchip (AT91) SoC support
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
@@ -2353,15 +2362,6 @@ X:	drivers/input/touchscreen/atmel_mxt_ts.c
 X:	drivers/net/wireless/atmel/
 N:	at91
 N:	atmel
-
-ARM/MICROCHIP (ARM64) SoC support
-M:	Conor Dooley <conor@kernel.org>
-M:	Nicolas Ferre <nicolas.ferre@microchip.com>
-M:	Claudiu Beznea <claudiu.beznea@microchip.com>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Supported
-T:	git https://git.kernel.org/pub/scm/linux/kernel/git/at91/linux.git
-F:	arch/arm64/boot/dts/microchip/
 
 ARM/Microchip Sparx5 SoC support
 M:	Lars Povlsen <lars.povlsen@microchip.com>
@@ -2770,8 +2770,8 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atorgue/stm32.git stm32-next
 F:	arch/arm/boot/dts/st/stm32*
 F:	arch/arm/mach-stm32/
-F:	drivers/clocksource/armv7m_systick.c
 F:	arch/arm64/boot/dts/st/
+F:	drivers/clocksource/armv7m_systick.c
 N:	stm32
 N:	stm
 
@@ -4462,6 +4462,12 @@ F:	Documentation/devicetree/bindings/usb/cdns,usb3.yaml
 F:	drivers/usb/cdns3/
 X:	drivers/usb/cdns3/cdnsp*
 
+CADENCE USBHS DRIVER
+M:	Pawel Laszczak <pawell@cadence.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/gadget/udc/cdns2
+
 CADENCE USBSSP DRD IP DRIVER
 M:	Pawel Laszczak <pawell@cadence.com>
 L:	linux-usb@vger.kernel.org
@@ -4469,12 +4475,6 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/usb.git
 F:	drivers/usb/cdns3/
 X:	drivers/usb/cdns3/cdns3*
-
-CADENCE USBHS DRIVER
-M:	Pawel Laszczak <pawell@cadence.com>
-L:	linux-usb@vger.kernel.org
-S:	Maintained
-F:	drivers/usb/gadget/udc/cdns2
 
 CADET FM/AM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
@@ -5313,11 +5313,11 @@ M:	Peter Zijlstra <peterz@infradead.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git smp/core
-F:	kernel/cpu.c
-F:	kernel/smpboot.*
 F:	include/linux/cpu.h
 F:	include/linux/cpuhotplug.h
 F:	include/linux/smpboot.h
+F:	kernel/cpu.c
+F:	kernel/smpboot.*
 
 CPU IDLE TIME MANAGEMENT FRAMEWORK
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
@@ -5705,8 +5705,8 @@ M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git core/debugobjects
-F:	lib/debugobjects.c
 F:	include/linux/debugobjects.h
+F:	lib/debugobjects.c
 
 DECSTATION PLATFORM SUPPORT
 M:	"Maciej W. Rozycki" <macro@orcam.me.uk>
@@ -6204,9 +6204,9 @@ X:	Documentation/userspace-api/media/
 
 DOCUMENTATION PROCESS
 M:	Jonathan Corbet <corbet@lwn.net>
+L:	workflows@vger.kernel.org
 S:	Maintained
 F:	Documentation/process/
-L:	workflows@vger.kernel.org
 
 DOCUMENTATION REPORTING ISSUES
 M:	Thorsten Leemhuis <linux@leemhuis.info>
@@ -9164,17 +9164,17 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-logitech-*
 
-HID PHOENIX RC FLIGHT CONTROLLER
-M:	Marcus Folkesson <marcus.folkesson@gmail.com>
-L:	linux-input@vger.kernel.org
-S:	Maintained
-F:	drivers/hid/hid-pxrc.c
-
 HID NVIDIA SHIELD DRIVER
 M:	Rahul Rameshbabu <rrameshbabu@nvidia.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-nvidia-shield.c
+
+HID PHOENIX RC FLIGHT CONTROLLER
+M:	Marcus Folkesson <marcus.folkesson@gmail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/hid-pxrc.c
 
 HID PLAYSTATION DRIVER
 M:	Roderick Colenbrander <roderick.colenbrander@sony.com>
@@ -14668,7 +14668,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net-next.git
 F:	Documentation/devicetree/bindings/net/
 F:	drivers/connector/
 F:	drivers/net/
-X:	drivers/net/wireless/
 F:	include/dt-bindings/net/
 F:	include/linux/etherdevice.h
 F:	include/linux/fcdevice.h
@@ -14679,6 +14678,7 @@ F:	include/linux/inetdevice.h
 F:	include/linux/netdevice.h
 F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdevice.h
+X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
 M:	Kalle Valo <kvalo@kernel.org>
@@ -14733,9 +14733,9 @@ F:	include/uapi/linux/netdevice.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
-X:	net/bluetooth/
 F:	tools/net/
 F:	tools/testing/selftests/net/
+X:	net/bluetooth/
 
 NETWORKING [IPSEC]
 M:	Steffen Klassert <steffen.klassert@secunet.com>
@@ -16554,6 +16554,10 @@ L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	crypto/pcrypt.c
 F:	include/crypto/pcrypt.h
+
+PDS DSC VIRTIO DATA PATH ACCELERATOR
+R:	Shannon Nelson <shannon.nelson@amd.com>
+F:	drivers/vdpa/pds/
 
 PECI HARDWARE MONITORING DRIVERS
 M:	Iwona Winiarska <iwona.winiarska@intel.com>
@@ -18929,10 +18933,10 @@ R:	John Garry <john.g.garry@oracle.com>
 R:	Jason Yan <yanaijie@huawei.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
+F:	Documentation/scsi/libsas.rst
 F:	drivers/scsi/libsas/
 F:	include/scsi/libsas.h
 F:	include/scsi/sas_ata.h
-F:	Documentation/scsi/libsas.rst
 
 SCSI RDMA PROTOCOL (SRP) INITIATOR
 M:	Bart Van Assche <bvanassche@acm.org>
@@ -20242,6 +20246,13 @@ M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/ethernet/adaptec/starfire*
 
+STARFIVE CRYPTO DRIVER
+M:	Jia Jie Ho <jiajie.ho@starfivetech.com>
+M:	William Qiu <william.qiu@starfivetech.com>
+S:	Supported
+F:	Documentation/devicetree/bindings/crypto/starfive*
+F:	drivers/crypto/starfive/
+
 STARFIVE DEVICETREES
 M:	Emil Renner Berthing <kernel@esmil.dk>
 S:	Maintained
@@ -20260,6 +20271,12 @@ S:	Supported
 F:	Documentation/devicetree/bindings/mmc/starfive*
 F:	drivers/mmc/host/dw_mmc-starfive.c
 
+STARFIVE JH7110 TDM DRIVER
+M:	Walker Chen <walker.chen@starfivetech.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/starfive,jh7110-tdm.yaml
+F:	sound/soc/starfive/jh7110_tdm.c
+
 STARFIVE JH71X0 CLOCK DRIVERS
 M:	Emil Renner Berthing <kernel@esmil.dk>
 M:	Hal Feng <hal.feng@starfivetech.com>
@@ -20267,13 +20284,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/clock/starfive,jh71*.yaml
 F:	drivers/clk/starfive/clk-starfive-jh71*
 F:	include/dt-bindings/clock/starfive?jh71*.h
-
-STARFIVE CRYPTO DRIVER
-M:	Jia Jie Ho <jiajie.ho@starfivetech.com>
-M:	William Qiu <william.qiu@starfivetech.com>
-S:	Supported
-F:	Documentation/devicetree/bindings/crypto/starfive*
-F:	drivers/crypto/starfive/
 
 STARFIVE JH71X0 PINCTRL DRIVERS
 M:	Emil Renner Berthing <kernel@esmil.dk>
@@ -20305,12 +20315,6 @@ S:	Supported
 F:	Documentation/devicetree/bindings/power/starfive*
 F:	drivers/soc/starfive/jh71xx_pmu.c
 F:	include/dt-bindings/power/starfive,jh7110-pmu.h
-
-STARFIVE JH7110 TDM DRIVER
-M:	Walker Chen <walker.chen@starfivetech.com>
-S:	Maintained
-F:	Documentation/devicetree/bindings/sound/starfive,jh7110-tdm.yaml
-F:	sound/soc/starfive/jh7110_tdm.c
 
 STARFIVE SOC DRIVERS
 M:	Conor Dooley <conor@kernel.org>
@@ -22486,10 +22490,6 @@ F:	include/linux/virtio*.h
 F:	include/linux/vringh.h
 F:	include/uapi/linux/virtio_*.h
 F:	tools/virtio/
-
-PDS DSC VIRTIO DATA PATH ACCELERATOR
-R:	Shannon Nelson <shannon.nelson@amd.com>
-F:	drivers/vdpa/pds/
 
 VIRTIO CRYPTO DRIVER
 M:	Gonglei <arei.gonglei@huawei.com>
