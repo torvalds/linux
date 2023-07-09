@@ -780,8 +780,8 @@ err:
 }
 
 static int
-vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
-		      struct scatterlist *sg, int sg_count, bool is_prot)
+vhost_scsi_map_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
+			  struct scatterlist *sg, int sg_count, bool is_prot)
 {
 	struct scatterlist *p = sg;
 	size_t revert_bytes;
@@ -829,8 +829,9 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 		pr_debug("%s prot_sg %p prot_sgl_count %u\n", __func__,
 			 cmd->tvc_prot_sgl, cmd->tvc_prot_sgl_count);
 
-		ret = vhost_scsi_iov_to_sgl(cmd, prot_iter, cmd->tvc_prot_sgl,
-					    cmd->tvc_prot_sgl_count, true);
+		ret = vhost_scsi_map_iov_to_sgl(cmd, prot_iter,
+						cmd->tvc_prot_sgl,
+						cmd->tvc_prot_sgl_count, true);
 		if (ret < 0) {
 			cmd->tvc_prot_sgl_count = 0;
 			return ret;
@@ -846,8 +847,8 @@ vhost_scsi_mapal(struct vhost_scsi_cmd *cmd,
 	pr_debug("%s data_sg %p data_sgl_count %u\n", __func__,
 		  cmd->tvc_sgl, cmd->tvc_sgl_count);
 
-	ret = vhost_scsi_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
-				    cmd->tvc_sgl_count, false);
+	ret = vhost_scsi_map_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
+					cmd->tvc_sgl_count, false);
 	if (ret == -EINVAL) {
 		sg_init_table(cmd->tvc_sgl, cmd->tvc_sgl_count);
 		ret = vhost_scsi_copy_iov_to_sgl(cmd, data_iter, cmd->tvc_sgl,
