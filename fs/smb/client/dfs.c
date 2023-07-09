@@ -143,7 +143,6 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	char *ref_path = NULL, *full_path = NULL;
 	struct dfs_cache_tgt_iterator *tit;
-	struct TCP_Server_Info *server;
 	struct cifs_tcon *tcon;
 	char *origin_fullpath = NULL;
 	char sep = CIFS_DIR_SEP(cifs_sb);
@@ -214,7 +213,6 @@ static int __dfs_mount_share(struct cifs_mount_ctx *mnt_ctx)
 	} while (rc == -EREMOTE);
 
 	if (!rc) {
-		server = mnt_ctx->server;
 		tcon = mnt_ctx->tcon;
 
 		spin_lock(&tcon->tc_lock);
