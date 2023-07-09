@@ -63,6 +63,7 @@ static void cpu_bringup(void)
 	cr4_init();
 	cpuhp_ap_sync_alive();
 	cpu_init();
+	fpu__init_cpu();
 	touch_softlockup_watchdog();
 
 	/* PVH runs in ring 0 and allows us to do native syscalls. Yay! */
