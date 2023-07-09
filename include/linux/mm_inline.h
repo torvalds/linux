@@ -523,6 +523,7 @@ static inline bool mm_tlb_flush_nested(struct mm_struct *mm)
 	return atomic_read(&mm->tlb_flush_pending) > 1;
 }
 
+#ifdef CONFIG_MMU
 /*
  * Computes the pte marker to copy from the given source entry into dst_vma.
  * If no marker should be copied, returns 0.
@@ -541,6 +542,7 @@ static inline pte_marker copy_pte_marker(
 
 	return dstm;
 }
+#endif
 
 /*
  * If this pte is wr-protected by uffd-wp in any form, arm the special pte to
