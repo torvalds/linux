@@ -84,11 +84,11 @@ nfsd_hashsize(unsigned int limit)
 	return roundup_pow_of_two(limit / TARGET_BUCKET_SIZE);
 }
 
-static struct svc_cacherep *
+static struct nfsd_cacherep *
 nfsd_cacherep_alloc(struct svc_rqst *rqstp, __wsum csum,
 		    struct nfsd_net *nn)
 {
-	struct svc_cacherep	*rp;
+	struct nfsd_cacherep *rp;
 
 	rp = kmem_cache_alloc(drc_slab, GFP_KERNEL);
 	if (rp) {
@@ -110,7 +110,7 @@ nfsd_cacherep_alloc(struct svc_rqst *rqstp, __wsum csum,
 	return rp;
 }
 
-static void nfsd_cacherep_free(struct svc_cacherep *rp)
+static void nfsd_cacherep_free(struct nfsd_cacherep *rp)
 {
 	if (rp->c_type == RC_REPLBUFF)
 		kfree(rp->c_replvec.iov_base);
@@ -120,11 +120,11 @@ static void nfsd_cacherep_free(struct svc_cacherep *rp)
 static unsigned long
 nfsd_cacherep_dispose(struct list_head *dispose)
 {
-	struct svc_cacherep *rp;
+	struct nfsd_cacherep *rp;
 	unsigned long freed = 0;
 
 	while (!list_empty(dispose)) {
-		rp = list_first_entry(dispose, struct svc_cacherep, c_lru);
+		rp = list_first_entry(dispose, struct nfsd_cacherep, c_lru);
 		list_del(&rp->c_lru);
 		nfsd_cacherep_free(rp);
 		freed++;
@@ -134,7 +134,7 @@ nfsd_cacherep_dispose(struct list_head *dispose)
 
 static void
 nfsd_cacherep_unlink_locked(struct nfsd_net *nn, struct nfsd_drc_bucket *b,
-			    struct svc_cacherep *rp)
+			    struct nfsd_cacherep *rp)
 {
 	if (rp->c_type == RC_REPLBUFF && rp->c_replvec.iov_base)
 		nfsd_stats_drc_mem_usage_sub(nn, rp->c_replvec.iov_len);
@@ -147,7 +147,7 @@ nfsd_cacherep_unlink_locked(struct nfsd_net *nn, struct nfsd_drc_bucket *b,
 }
 
 static void
-nfsd_reply_cache_free_locked(struct nfsd_drc_bucket *b, struct svc_cacherep *rp,
+nfsd_reply_cache_free_locked(struct nfsd_drc_bucket *b, struct nfsd_cacherep *rp,
 				struct nfsd_net *nn)
 {
 	nfsd_cacherep_unlink_locked(nn, b, rp);
@@ -155,7 +155,7 @@ nfsd_reply_cache_free_locked(struct nfsd_drc_bucket *b, struct svc_cacherep *rp,
 }
 
 static void
-nfsd_reply_cache_free(struct nfsd_drc_bucket *b, struct svc_cacherep *rp,
+nfsd_reply_cache_free(struct nfsd_drc_bucket *b, struct nfsd_cacherep *rp,
 			struct nfsd_net *nn)
 {
 	spin_lock(&b->cache_lock);
@@ -167,7 +167,7 @@ nfsd_reply_cache_free(struct nfsd_drc_bucket *b, struct svc_cacherep *rp,
 int nfsd_drc_slab_create(void)
 {
 	drc_slab = kmem_cache_create("nfsd_drc",
-				sizeof(struct svc_cacherep), 0, 0, NULL);
+				sizeof(struct nfsd_cacherep), 0, 0, NULL);
 	return drc_slab ? 0: -ENOMEM;
 }
 
@@ -236,7 +236,7 @@ out_shrinker:
 
 void nfsd_reply_cache_shutdown(struct nfsd_net *nn)
 {
-	struct svc_cacherep	*rp;
+	struct nfsd_cacherep *rp;
 	unsigned int i;
 
 	unregister_shrinker(&nn->nfsd_reply_cache_shrinker);
@@ -244,7 +244,7 @@ void nfsd_reply_cache_shutdown(struct nfsd_net *nn)
 	for (i = 0; i < nn->drc_hashsize; i++) {
 		struct list_head *head = &nn->drc_hashtbl[i].lru_head;
 		while (!list_empty(head)) {
-			rp = list_first_entry(head, struct svc_cacherep, c_lru);
+			rp = list_first_entry(head, struct nfsd_cacherep, c_lru);
 			nfsd_reply_cache_free_locked(&nn->drc_hashtbl[i],
 									rp, nn);
 		}
@@ -261,7 +261,7 @@ void nfsd_reply_cache_shutdown(struct nfsd_net *nn)
  * not already scheduled.
  */
 static void
-lru_put_end(struct nfsd_drc_bucket *b, struct svc_cacherep *rp)
+lru_put_end(struct nfsd_drc_bucket *b, struct nfsd_cacherep *rp)
 {
 	rp->c_timestamp = jiffies;
 	list_move_tail(&rp->c_lru, &b->lru_head);
@@ -284,7 +284,7 @@ nfsd_prune_bucket_locked(struct nfsd_net *nn, struct nfsd_drc_bucket *b,
 			 unsigned int max, struct list_head *dispose)
 {
 	unsigned long expiry = jiffies - RC_EXPIRE;
-	struct svc_cacherep *rp, *tmp;
+	struct nfsd_cacherep *rp, *tmp;
 	unsigned int freed = 0;
 
 	lockdep_assert_held(&b->cache_lock);
@@ -402,8 +402,8 @@ nfsd_cache_csum(struct svc_rqst *rqstp)
 }
 
 static int
-nfsd_cache_key_cmp(const struct svc_cacherep *key,
-			const struct svc_cacherep *rp, struct nfsd_net *nn)
+nfsd_cache_key_cmp(const struct nfsd_cacherep *key,
+		   const struct nfsd_cacherep *rp, struct nfsd_net *nn)
 {
 	if (key->c_key.k_xid == rp->c_key.k_xid &&
 	    key->c_key.k_csum != rp->c_key.k_csum) {
@@ -419,11 +419,11 @@ nfsd_cache_key_cmp(const struct svc_cacherep *key,
  * Must be called with cache_lock held. Returns the found entry or
  * inserts an empty key on failure.
  */
-static struct svc_cacherep *
-nfsd_cache_insert(struct nfsd_drc_bucket *b, struct svc_cacherep *key,
+static struct nfsd_cacherep *
+nfsd_cache_insert(struct nfsd_drc_bucket *b, struct nfsd_cacherep *key,
 			struct nfsd_net *nn)
 {
-	struct svc_cacherep	*rp, *ret = key;
+	struct nfsd_cacherep	*rp, *ret = key;
 	struct rb_node		**p = &b->rb_head.rb_node,
 				*parent = NULL;
 	unsigned int		entries = 0;
@@ -432,7 +432,7 @@ nfsd_cache_insert(struct nfsd_drc_bucket *b, struct svc_cacherep *key,
 	while (*p != NULL) {
 		++entries;
 		parent = *p;
-		rp = rb_entry(parent, struct svc_cacherep, c_node);
+		rp = rb_entry(parent, struct nfsd_cacherep, c_node);
 
 		cmp = nfsd_cache_key_cmp(key, rp, nn);
 		if (cmp < 0)
@@ -478,10 +478,10 @@ out:
  *   %RC_REPLY: Reply from cache
  *   %RC_DROPIT: Do not process the request further
  */
-int nfsd_cache_lookup(struct svc_rqst *rqstp, struct svc_cacherep **cacherep)
+int nfsd_cache_lookup(struct svc_rqst *rqstp, struct nfsd_cacherep **cacherep)
 {
 	struct nfsd_net		*nn;
-	struct svc_cacherep	*rp, *found;
+	struct nfsd_cacherep	*rp, *found;
 	__wsum			csum;
 	struct nfsd_drc_bucket	*b;
 	int type = rqstp->rq_cachetype;
@@ -586,7 +586,7 @@ out:
  * nfsd failed to encode a reply that otherwise would have been cached.
  * In this case, nfsd_cache_update is called with statp == NULL.
  */
-void nfsd_cache_update(struct svc_rqst *rqstp, struct svc_cacherep *rp,
+void nfsd_cache_update(struct svc_rqst *rqstp, struct nfsd_cacherep *rp,
 		       int cachetype, __be32 *statp)
 {
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);

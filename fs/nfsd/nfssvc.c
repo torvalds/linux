@@ -1046,7 +1046,7 @@ int nfsd_dispatch(struct svc_rqst *rqstp)
 {
 	const struct svc_procedure *proc = rqstp->rq_procinfo;
 	__be32 *statp = rqstp->rq_accept_statp;
-	struct svc_cacherep *rp;
+	struct nfsd_cacherep *rp;
 
 	/*
 	 * Give the xdr decoder a chance to change this if it wants
