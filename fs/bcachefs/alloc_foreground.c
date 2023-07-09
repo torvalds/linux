@@ -1193,6 +1193,7 @@ static bool try_decrease_writepoints(struct btree_trans *trans, unsigned old_nr)
 	bch2_trans_mutex_lock_norelock(trans, &wp->lock);
 	open_bucket_for_each(c, &wp->ptrs, ob, i)
 		open_bucket_free_unused(c, ob);
+	wp->ptrs.nr = 0;
 	mutex_unlock(&wp->lock);
 	return true;
 }
