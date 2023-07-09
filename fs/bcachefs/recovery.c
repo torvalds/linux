@@ -624,11 +624,13 @@ static int journal_sort_seq_cmp(const void *_l, const void *_r)
 	return cmp_int(l->journal_seq, r->journal_seq);
 }
 
-static int bch2_journal_replay(struct bch_fs *c, u64 start_seq, u64 end_seq)
+static int bch2_journal_replay(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
 	struct journal_key **keys_sorted, *k;
 	struct journal *j = &c->journal;
+	u64 start_seq	= c->journal_replay_seq_start;
+	u64 end_seq	= c->journal_replay_seq_start;
 	size_t i;
 	int ret;
 
@@ -1256,6 +1258,9 @@ use_clean:
 		blacklist_seq = journal_seq = le64_to_cpu(clean->journal_seq) + 1;
 	}
 
+	c->journal_replay_seq_start	= last_seq;
+	c->journal_replay_seq_end	= blacklist_seq - 1;;
+
 	if (c->opts.reconstruct_alloc) {
 		c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 		drop_alloc_keys(&c->journal_keys);
@@ -1346,7 +1351,7 @@ use_clean:
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
 		bch_info(c, "starting journal replay, %zu keys", c->journal_keys.nr);
-		ret = bch2_journal_replay(c, last_seq, blacklist_seq - 1);
+		ret = bch2_journal_replay(c);
 		if (ret)
 			goto err;
 		if (c->opts.verbose || !c->sb.clean)
@@ -1406,7 +1411,7 @@ use_clean:
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
 		bch_verbose(c, "starting journal replay, %zu keys", c->journal_keys.nr);
-		ret = bch2_journal_replay(c, last_seq, blacklist_seq - 1);
+		ret = bch2_journal_replay(c);
 		if (ret)
 			goto err;
 		if (c->opts.verbose || !c->sb.clean)

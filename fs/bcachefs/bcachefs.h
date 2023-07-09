@@ -993,6 +993,9 @@ struct bch_fs {
 	/* QUOTAS */
 	struct bch_memquota_type quotas[QTYP_NR];
 
+	/* RECOVERY */
+	u64			journal_replay_seq_start;
+	u64			journal_replay_seq_end;
 	/* DEBUG JUNK */
 	struct dentry		*fs_debug_dir;
 	struct dentry		*btree_debug_dir;
