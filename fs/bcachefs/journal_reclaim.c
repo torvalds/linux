@@ -845,10 +845,8 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 	 * expects to find devices marked for journal data on unclean mount.
 	 */
 	ret = bch2_journal_meta(&c->journal);
-	if (ret) {
-		mutex_unlock(&c->replicas_gc_lock);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	seq = 0;
 	spin_lock(&j->lock);
@@ -867,7 +865,7 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 		spin_lock(&j->lock);
 	}
 	spin_unlock(&j->lock);
-
+err:
 	ret = bch2_replicas_gc_end(c, ret);
 	mutex_unlock(&c->replicas_gc_lock);
 

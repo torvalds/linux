@@ -462,6 +462,9 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 {
 	lockdep_assert_held(&c->replicas_gc_lock);
 
+	if (ret)
+		goto err;
+
 	mutex_lock(&c->sb_lock);
 	percpu_down_write(&c->mark_lock);
 
