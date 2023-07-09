@@ -1348,6 +1348,14 @@ bool smp_park_other_cpus_in_init(void)
 	if (apic->wakeup_secondary_cpu_64 || apic->wakeup_secondary_cpu)
 		return false;
 
+	/*
+	 * If this is a crash stop which does not execute on the boot CPU,
+	 * then this cannot use the INIT mechanism because INIT to the boot
+	 * CPU will reset the machine.
+	 */
+	if (this_cpu)
+		return false;
+
 	for_each_present_cpu(cpu) {
 		if (cpu == this_cpu)
 			continue;
