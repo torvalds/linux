@@ -23,6 +23,8 @@
 
 #define NUM_OVERLAY_PLANES 8
 
+#define VKMS_LUT_SIZE 256
+
 struct vkms_frame_info {
 	struct drm_framebuffer *fb;
 	struct drm_rect src, dst;
@@ -64,6 +66,12 @@ struct vkms_plane {
 	struct drm_plane base;
 };
 
+struct vkms_color_lut {
+	struct drm_color_lut *base;
+	size_t lut_length;
+	s64 channel_value2index_ratio;
+};
+
 /**
  * vkms_crtc_state - Driver specific CRTC state
  * @base: base CRTC state
@@ -79,6 +87,7 @@ struct vkms_crtc_state {
 	/* stack of active planes for crc computation, should be in z order */
 	struct vkms_plane_state **active_planes;
 	struct vkms_writeback_job *active_writeback;
+	struct vkms_color_lut gamma_lut;
 
 	/* below four are protected by vkms_output.composer_lock */
 	bool crc_pending;
