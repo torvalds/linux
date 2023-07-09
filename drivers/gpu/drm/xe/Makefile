@@ -95,6 +95,7 @@ xe-y += xe_bb.o \
 	xe_pt.o \
 	xe_pt_walk.o \
 	xe_query.o \
+	xe_range_fence.o \
 	xe_reg_sr.o \
 	xe_reg_whitelist.o \
 	xe_rtp.o \
