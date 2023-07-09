@@ -808,7 +808,7 @@ const struct kernel_param_ops param_ops_dyndbg_classes = {
 };
 EXPORT_SYMBOL(param_ops_dyndbg_classes);
 
-#define PREFIX_SIZE 64
+#define PREFIX_SIZE 128
 
 static int remaining(int wrote)
 {
