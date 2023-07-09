@@ -5,7 +5,7 @@
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
 TEST="memcpy_thread"
-. $(dirname $0)/../lib/coresight.sh
+. "$(dirname $0)"/../lib/coresight.sh
 ARGS="16 10 1"
 DATV="16k_10"
 DATA="$DATD/perf-$TEST-$DATV.data"
