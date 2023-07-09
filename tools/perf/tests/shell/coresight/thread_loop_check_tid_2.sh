@@ -5,7 +5,7 @@
 # Carsten Haitzler <carsten.haitzler@arm.com>, 2021
 
 TEST="thread_loop"
-. $(dirname $0)/../lib/coresight.sh
+. "$(dirname $0)"/../lib/coresight.sh
 ARGS="2 20"
 DATV="check-tid-2th"
 DATA="$DATD/perf-$TEST-$DATV.data"
