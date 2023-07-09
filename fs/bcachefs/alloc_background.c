@@ -551,40 +551,6 @@ err:
 	return ERR_PTR(ret);
 }
 
-int bch2_alloc_read(struct bch_fs *c)
-{
-	struct btree_trans trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bch_alloc_v4 a;
-	struct bch_dev *ca;
-	int ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		/*
-		 * Not a fsck error because this is checked/repaired by
-		 * bch2_check_alloc_key() which runs later:
-		 */
-		if (!bch2_dev_bucket_exists(c, k.k->p))
-			continue;
-
-		ca = bch_dev_bkey_exists(c, k.k->p.inode);
-
-		*bucket_gen(ca, k.k->p.offset) = bch2_alloc_to_v4(k, &a)->gen;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-
-	if (ret)
-		bch_err_fn(c, ret);
-
-	return ret;
-}
-
 static struct bpos alloc_gens_pos(struct bpos pos, unsigned *offset)
 {
 	*offset = pos.offset & KEY_TYPE_BUCKET_GENS_MASK;
@@ -692,45 +658,67 @@ int bch2_bucket_gens_init(struct bch_fs *c)
 	return ret;
 }
 
-int bch2_bucket_gens_read(struct bch_fs *c)
+int bch2_alloc_read(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	const struct bch_bucket_gens *g;
 	struct bch_dev *ca;
-	u64 b;
 	int ret;
 
+	down_read(&c->gc_lock);
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_bucket_gens, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
-		u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
+	if (c->sb.version_upgrade_complete >= bcachefs_metadata_version_bucket_gens) {
+		const struct bch_bucket_gens *g;
+		u64 b;
 
-		if (k.k->type != KEY_TYPE_bucket_gens)
-			continue;
+		for_each_btree_key(&trans, iter, BTREE_ID_bucket_gens, POS_MIN,
+				   BTREE_ITER_PREFETCH, k, ret) {
+			u64 start = bucket_gens_pos_to_alloc(k.k->p, 0).offset;
+			u64 end = bucket_gens_pos_to_alloc(bpos_nosnap_successor(k.k->p), 0).offset;
 
-		g = bkey_s_c_to_bucket_gens(k).v;
+			if (k.k->type != KEY_TYPE_bucket_gens)
+				continue;
 
-		/*
-		 * Not a fsck error because this is checked/repaired by
-		 * bch2_check_alloc_key() which runs later:
-		 */
-		if (!bch2_dev_exists2(c, k.k->p.inode))
-			continue;
+			g = bkey_s_c_to_bucket_gens(k).v;
 
-		ca = bch_dev_bkey_exists(c, k.k->p.inode);
+			/*
+			 * Not a fsck error because this is checked/repaired by
+			 * bch2_check_alloc_key() which runs later:
+			 */
+			if (!bch2_dev_exists2(c, k.k->p.inode))
+				continue;
 
-		for (b = max_t(u64, ca->mi.first_bucket, start);
-		     b < min_t(u64, ca->mi.nbuckets, end);
-		     b++)
-			*bucket_gen(ca, b) = g->gens[b & KEY_TYPE_BUCKET_GENS_MASK];
+			ca = bch_dev_bkey_exists(c, k.k->p.inode);
+
+			for (b = max_t(u64, ca->mi.first_bucket, start);
+			     b < min_t(u64, ca->mi.nbuckets, end);
+			     b++)
+				*bucket_gen(ca, b) = g->gens[b & KEY_TYPE_BUCKET_GENS_MASK];
+		}
+		bch2_trans_iter_exit(&trans, &iter);
+	} else {
+		struct bch_alloc_v4 a;
+
+		for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
+				   BTREE_ITER_PREFETCH, k, ret) {
+			/*
+			 * Not a fsck error because this is checked/repaired by
+			 * bch2_check_alloc_key() which runs later:
+			 */
+			if (!bch2_dev_bucket_exists(c, k.k->p))
+				continue;
+
+			ca = bch_dev_bkey_exists(c, k.k->p.inode);
+
+			*bucket_gen(ca, k.k->p.offset) = bch2_alloc_to_v4(k, &a)->gen;
+		}
+		bch2_trans_iter_exit(&trans, &iter);
 	}
-	bch2_trans_iter_exit(&trans, &iter);
 
 	bch2_trans_exit(&trans);
+	up_read(&c->gc_lock);
 
 	if (ret)
 		bch_err_fn(c, ret);

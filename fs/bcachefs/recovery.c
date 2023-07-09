@@ -1309,11 +1309,7 @@ use_clean:
 		goto err;
 
 	bch_verbose(c, "starting alloc read");
-	down_read(&c->gc_lock);
-	ret = c->sb.version < bcachefs_metadata_version_bucket_gens
-		? bch2_alloc_read(c)
-		: bch2_bucket_gens_read(c);
-	up_read(&c->gc_lock);
+	ret = bch2_alloc_read(c);
 	if (ret)
 		goto err;
 	bch_verbose(c, "alloc read done");

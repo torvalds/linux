@@ -212,7 +212,6 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 }
 
 int bch2_alloc_read(struct bch_fs *);
-int bch2_bucket_gens_read(struct bch_fs *);
 
 int bch2_trans_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, struct bkey_i *, unsigned);
