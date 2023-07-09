@@ -1,6 +1,6 @@
 
 config BCACHEFS_FS
-	tristate "bcachefs filesystem support"
+	tristate "bcachefs filesystem support (EXPERIMENTAL)"
 	depends on BLOCK
 	select EXPORTFS
 	select CLOSURES
