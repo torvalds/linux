@@ -3559,6 +3559,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	struct extent_buffer *exists = NULL;
 	struct page *p;
 	struct address_space *mapping = fs_info->btree_inode->i_mapping;
+	struct btrfs_subpage *prealloc = NULL;
 	u64 lockdep_owner = owner_root;
 	int uptodate = 1;
 	int ret;
@@ -3595,34 +3596,28 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	btrfs_set_buffer_lockdep_class(lockdep_owner, eb, level);
 
 	num_pages = num_extent_pages(eb);
-	for (i = 0; i < num_pages; i++, index++) {
-		struct btrfs_subpage *prealloc = NULL;
 
+	/*
+	 * Preallocate page->private for subpage case, so that we won't
+	 * allocate memory with private_lock nor page lock hold.
+	 *
+	 * The memory will be freed by attach_extent_buffer_page() or freed
+	 * manually if we exit earlier.
+	 */
+	if (fs_info->nodesize < PAGE_SIZE) {
+		prealloc = btrfs_alloc_subpage(fs_info, BTRFS_SUBPAGE_METADATA);
+		if (IS_ERR(prealloc)) {
+			exists = ERR_CAST(prealloc);
+			goto free_eb;
+		}
+	}
+
+	for (i = 0; i < num_pages; i++, index++) {
 		p = find_or_create_page(mapping, index, GFP_NOFS|__GFP_NOFAIL);
 		if (!p) {
 			exists = ERR_PTR(-ENOMEM);
+			btrfs_free_subpage(prealloc);
 			goto free_eb;
-		}
-
-		/*
-		 * Preallocate page->private for subpage case, so that we won't
-		 * allocate memory with private_lock hold.  The memory will be
-		 * freed by attach_extent_buffer_page() or freed manually if
-		 * we exit earlier.
-		 *
-		 * Although we have ensured one subpage eb can only have one
-		 * page, but it may change in the future for 16K page size
-		 * support, so we still preallocate the memory in the loop.
-		 */
-		if (fs_info->nodesize < PAGE_SIZE) {
-			prealloc = btrfs_alloc_subpage(fs_info, BTRFS_SUBPAGE_METADATA);
-			if (IS_ERR(prealloc)) {
-				ret = PTR_ERR(prealloc);
-				unlock_page(p);
-				put_page(p);
-				exists = ERR_PTR(ret);
-				goto free_eb;
-			}
 		}
 
 		spin_lock(&mapping->private_lock);
