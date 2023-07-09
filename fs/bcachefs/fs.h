@@ -196,6 +196,8 @@ int bch2_vfs_init(void);
 
 #else
 
+#define bch2_inode_update_after_write(_trans, _inode, _inode_u, _fields)	do {} while (0)
+
 static inline void bch2_evict_subvolume_inodes(struct bch_fs *c,
 					       snapshot_id_list *s) {}
 static inline void bch2_vfs_exit(void) {}

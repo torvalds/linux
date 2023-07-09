@@ -167,23 +167,22 @@ err1:
 }
 
 int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
+		   struct bch_inode_unpacked *inode_u,
 		   const struct bch_hash_info *hash_info,
 		   const char *name, const void *value, size_t size,
 		   int type, int flags)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter inode_iter = { NULL };
-	struct bch_inode_unpacked inode_u;
 	int ret;
 
-	/*
-	 * We need to do an inode update so that bi_journal_sync gets updated
-	 * and fsync works:
-	 *
-	 * Perhaps we should be updating bi_mtime too?
-	 */
+	ret = bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_INTENT);
+	if (ret)
+		return ret;
 
-	ret   = bch2_inode_peek(trans, &inode_iter, &inode_u, inum, BTREE_ITER_INTENT) ?:
-		bch2_inode_write(trans, &inode_iter, &inode_u);
+	inode_u->bi_ctime = bch2_current_time(c);
+
+	ret = bch2_inode_write(trans, &inode_iter, inode_u);
 	bch2_trans_iter_exit(trans, &inode_iter);
 
 	if (ret)
@@ -373,12 +372,20 @@ static int bch2_xattr_set_handler(const struct xattr_handler *handler,
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_hash_info hash = bch2_hash_info_init(c, &inode->ei_inode);
+	struct bch_inode_unpacked inode_u;
+	struct btree_trans trans;
 	int ret;
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
-			bch2_xattr_set(&trans, inode_inum(inode), &hash,
-				       name, value, size,
+	bch2_trans_init(&trans, c, 0, 0);
+
+	ret = commit_do(&trans, NULL, NULL, 0,
+			bch2_xattr_set(&trans, inode_inum(inode), &inode_u,
+				       &hash, name, value, size,
 				       handler->flags, flags));
+	if (!ret)
+		bch2_inode_update_after_write(&trans, inode, &inode_u, ATTR_CTIME);
+	bch2_trans_exit(&trans);
+
 	return bch2_err_class(ret);
 }
 
