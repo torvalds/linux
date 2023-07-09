@@ -166,13 +166,6 @@ err1:
 	return ret < 0 && bch2_err_matches(ret, ENOENT) ? -ENODATA : ret;
 }
 
-int bch2_xattr_get(struct bch_fs *c, struct bch_inode_info *inode,
-		   const char *name, void *buffer, size_t size, int type)
-{
-	return bch2_trans_do(c, NULL, NULL, 0,
-		bch2_xattr_get_trans(&trans, inode, name, buffer, size, type));
-}
-
 int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 		   const struct bch_hash_info *hash_info,
 		   const char *name, const void *value, size_t size,
@@ -365,9 +358,9 @@ static int bch2_xattr_get_handler(const struct xattr_handler *handler,
 {
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret;
+	int ret = bch2_trans_do(c, NULL, NULL, 0,
+		bch2_xattr_get_trans(&trans, inode, name, buffer, size, handler->flags));
 
-	ret = bch2_xattr_get(c, inode, name, buffer, size, handler->flags);
 	return bch2_err_class(ret);
 }
 
