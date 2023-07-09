@@ -521,16 +521,16 @@ patternProperties:
         minimum: 0
         maximum: 65535
         description:
-          Specifies the speed of movement after which coordinate filtering is
-          no longer applied.
+          Specifies the speed (in coordinates traveled per conversion) after
+          which coordinate filtering is no longer applied.
 
       azoteq,bottom-speed:
         $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 255
         description:
-          Specifies the speed of movement after which coordinate filtering is
-          linearly reduced.
+          Specifies the speed (in coordinates traveled per conversion) after
+          which coordinate filtering is linearly reduced.
 
       azoteq,bottom-beta:
         $ref: /schemas/types.yaml#/definitions/uint32
@@ -595,10 +595,10 @@ patternProperties:
             minimum: 0
             maximum: 4080
             description:
-              Specifies the distance across which a swipe or flick gesture must
-              travel in order to be acknowledged by the device. The number spec-
-              ified for any one swipe or flick gesture applies to all remaining
-              swipe or flick gestures.
+              Specifies the distance (in coordinates) across which a swipe or
+              flick gesture must travel in order to be acknowledged by the
+              device. The number specified for any one swipe or flick gesture
+              applies to all remaining swipe or flick gestures.
 
           azoteq,gpio-select:
             $ref: /schemas/types.yaml#/definitions/uint32-array
