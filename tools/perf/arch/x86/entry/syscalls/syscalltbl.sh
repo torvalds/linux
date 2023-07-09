@@ -24,7 +24,7 @@ sorted_table=$(mktemp /tmp/syscalltbl.XXXXXX)
 grep '^[0-9]' "$in" | sort -n > $sorted_table
 
 max_nr=0
-while read nr abi name entry compat; do
+while read nr _abi name entry _compat; do
     if [ $nr -ge 512 ] ; then # discard compat sycalls
         break
     fi
