@@ -4,10 +4,10 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_net.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
-#include <linux/property.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
@@ -104,7 +104,7 @@ struct qcom_ethqos {
 	struct clk *link_clk;
 	struct phy *serdes_phy;
 	unsigned int speed;
-	int phy_mode;
+	phy_interface_t phy_mode;
 
 	const struct ethqos_emac_por *por;
 	unsigned int num_por;
@@ -720,7 +720,9 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (!ethqos)
 		return -ENOMEM;
 
-	ethqos->phy_mode = device_get_phy_mode(dev);
+	ret = of_get_phy_mode(np, &ethqos->phy_mode);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to get phy mode\n");
 	switch (ethqos->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
@@ -731,8 +733,6 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	case PHY_INTERFACE_MODE_SGMII:
 		ethqos->configure_func = ethqos_configure_sgmii;
 		break;
-	case -ENODEV:
-		return -ENODEV;
 	default:
 		return -EINVAL;
 	}
