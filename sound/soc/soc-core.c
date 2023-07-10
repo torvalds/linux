@@ -3446,6 +3446,24 @@ int snd_soc_of_get_dai_name(struct device_node *of_node,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_get_dai_name);
 
+struct snd_soc_dai *snd_soc_get_dai_via_args(struct of_phandle_args *dai_args)
+{
+	struct snd_soc_dai *dai;
+	struct snd_soc_component *component;
+
+	mutex_lock(&client_mutex);
+	for_each_component(component) {
+		for_each_component_dais(component, dai)
+			if (snd_soc_is_match_dai_args(dai->driver->dai_args, dai_args))
+				goto found;
+	}
+	dai = NULL;
+found:
+	mutex_unlock(&client_mutex);
+	return dai;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_dai_via_args);
+
 static void __snd_soc_of_put_component(struct snd_soc_dai_link_component *component)
 {
 	if (component->of_node) {
