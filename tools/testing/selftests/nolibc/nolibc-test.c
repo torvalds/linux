@@ -44,8 +44,8 @@
 #define SINT_MAX_OF_TYPE(type) (((type)1 << (sizeof(type) * 8 - 2)) - (type)1 + ((type)1 << (sizeof(type) * 8 - 2)))
 #define SINT_MIN_OF_TYPE(type) (-SINT_MAX_OF_TYPE(type) - 1)
 
-/* will be used by nolibc by getenv() */
-char **environ;
+/* will be used to test initialization of environ */
+static char **test_envp;
 
 /* will be used by some test cases as readable file, please don't write it */
 static const char *argv0;
@@ -787,6 +787,7 @@ int run_stdlib(int min, int max)
 		 * test numbers.
 		 */
 		switch (test + __LINE__ + 1) {
+		CASE_TEST(environ);            EXPECT_PTREQ(1, environ, test_envp); break;
 		CASE_TEST(getenv_TERM);        EXPECT_STRNZ(1, getenv("TERM")); break;
 		CASE_TEST(getenv_blah);        EXPECT_STRZR(1, getenv("blah")); break;
 		CASE_TEST(setcmp_blah_blah);   EXPECT_EQ(1, strcmp("blah", "blah"), 0); break;
@@ -1120,7 +1121,7 @@ int main(int argc, char **argv, char **envp)
 	char *test;
 
 	argv0 = argv[0];
-	environ = envp;
+	test_envp = envp;
 
 	/* when called as init, it's possible that no console was opened, for
 	 * example if no /dev file system was provided. We'll check that fd#1
