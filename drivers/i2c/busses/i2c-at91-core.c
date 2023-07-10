@@ -206,18 +206,14 @@ static int at91_twi_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem)
-		return -ENODEV;
+	dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
+	if (IS_ERR(dev->base))
+		return PTR_ERR(dev->base);
 	phy_addr = mem->start;
 
 	dev->pdata = at91_twi_get_driver_data(pdev);
 	if (!dev->pdata)
 		return -ENODEV;
-
-	dev->base = devm_ioremap_resource(&pdev->dev, mem);
-	if (IS_ERR(dev->base))
-		return PTR_ERR(dev->base);
 
 	dev->irq = platform_get_irq(pdev, 0);
 	if (dev->irq < 0)
