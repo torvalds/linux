@@ -391,7 +391,10 @@ static void snd_emu10k1_audio_enable(struct snd_emu10k1 *emu)
 	}
 #endif
 
-	snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE);
+	if (emu->card_capabilities->emu_model)
+		snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE | INTE_A_GPIOENABLE);
+	else
+		snd_emu10k1_intr_enable(emu, INTE_PCIERRORENABLE);
 }
 
 int snd_emu10k1_done(struct snd_emu10k1 *emu)
@@ -745,14 +748,13 @@ static void emu1010_firmware_work(struct work_struct *work)
 	int err;
 
 	emu = container_of(work, struct snd_emu10k1,
-			   emu1010.firmware_work.work);
+			   emu1010.firmware_work);
 	if (emu->card->shutdown)
 		return;
 #ifdef CONFIG_PM_SLEEP
 	if (emu->suspend)
 		return;
 #endif
-	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp); /* IRQ Status */
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg); /* OPTIONS: Which cards are attached to the EMU */
 	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE) {
 		/* Audio Dock attached */
@@ -763,13 +765,8 @@ static void emu1010_firmware_work(struct work_struct *work)
 				       EMU_HANA_FPGA_CONFIG_AUDIODOCK);
 		err = snd_emu1010_load_firmware(emu, 1, &emu->dock_fw);
 		if (err < 0)
-			goto next;
-
+			return;
 		snd_emu1010_fpga_write(emu, EMU_HANA_FPGA_CONFIG, 0);
-		snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &tmp);
-		dev_info(emu->card->dev,
-			 "emu1010: EMU_HANA+DOCK_IRQ_STATUS = 0x%x\n", tmp);
-		/* ID, should read & 0x7f = 0x55 when FPGA programmed. */
 		snd_emu1010_fpga_read(emu, EMU_HANA_ID, &tmp);
 		dev_info(emu->card->dev,
 			 "emu1010: EMU_HANA+DOCK_ID = 0x%x\n", tmp);
@@ -778,7 +775,7 @@ static void emu1010_firmware_work(struct work_struct *work)
 			dev_info(emu->card->dev,
 				 "emu1010: Loading Audio Dock Firmware file failed, reg = 0x%x\n",
 				 tmp);
-			goto next;
+			return;
 		}
 		dev_info(emu->card->dev,
 			 "emu1010: Audio Dock Firmware loaded\n");
@@ -790,18 +787,22 @@ static void emu1010_firmware_work(struct work_struct *work)
 		msleep(10);
 		/* Unmute all. Default is muted after a firmware load */
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-	} else if (!reg && emu->emu1010.last_reg) {
+	}
+}
+
+static void emu1010_interrupt(struct snd_emu10k1 *emu)
+{
+	u32 sts;
+
+	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &sts);
+	if (sts & EMU_HANA_IRQ_DOCK_LOST) {
 		/* Audio Dock removed */
 		dev_info(emu->card->dev, "emu1010: Audio Dock detached\n");
 		/* The hardware auto-mutes all, so we unmute again */
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
+	} else if (sts & EMU_HANA_IRQ_DOCK) {
+		schedule_work(&emu->emu1010.firmware_work);
 	}
-
- next:
-	emu->emu1010.last_reg = reg;
-	if (!emu->card->shutdown)
-		schedule_delayed_work(&emu->emu1010.firmware_work,
-				      msecs_to_jiffies(1000));
 }
 
 /*
@@ -870,6 +871,8 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 
 	snd_emu1010_fpga_read(emu, EMU_HANA_OPTION_CARDS, &reg);
 	dev_info(emu->card->dev, "emu1010: Card options = 0x%x\n", reg);
+	if (reg & EMU_HANA_OPTION_DOCK_OFFLINE)
+		schedule_work(&emu->emu1010.firmware_work);
 	if (emu->card_capabilities->no_adat) {
 		emu->emu1010.optical_in = 0; /* IN_SPDIF */
 		emu->emu1010.optical_out = 0; /* OUT_SPDIF */
@@ -895,10 +898,12 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	/* MIDI routing */
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_IN, EMU_HANA_MIDI_INA_FROM_HAMOA | EMU_HANA_MIDI_INB_FROM_DOCK2);
 	snd_emu1010_fpga_write(emu, EMU_HANA_MIDI_OUT, EMU_HANA_MIDI_OUT_DOCK2 | EMU_HANA_MIDI_OUT_SYNC2);
-	/* IRQ Enable: All on */
-	/* snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x0f); */
-	/* IRQ Enable: All off */
-	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE, 0x00);
+
+	emu->gpio_interrupt = emu1010_interrupt;
+	// Note: The Audigy INTE is set later
+	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE,
+			       EMU_HANA_IRQ_DOCK | EMU_HANA_IRQ_DOCK_LOST);
+	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);  // Clear pending IRQs
 
 	emu->emu1010.clock_source = 1;  /* 48000 */
 	emu->emu1010.clock_fallback = 1;  /* 48000 */
@@ -938,7 +943,7 @@ static void snd_emu10k1_free(struct snd_card *card)
 		/* Disable 48Volt power to Audio Dock */
 		snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
 	}
-	cancel_delayed_work_sync(&emu->emu1010.firmware_work);
+	cancel_work_sync(&emu->emu1010.firmware_work);
 	release_firmware(emu->firmware);
 	release_firmware(emu->dock_fw);
 	snd_util_memhdr_free(emu->memhdr);
@@ -1517,7 +1522,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->irq = -1;
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
-	INIT_DELAYED_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
+	INIT_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
 	/* read revision & serial */
 	emu->revision = pci->revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
