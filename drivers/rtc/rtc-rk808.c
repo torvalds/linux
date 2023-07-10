@@ -28,6 +28,7 @@
 #define BIT_RTC_CTRL_REG_RTC_READSEL_M		BIT(7)
 #define BIT_RTC_INTERRUPTS_REG_IT_ALARM_M	BIT(3)
 #define RTC_STATUS_MASK		0xFE
+#define RTC_ALARM_STATUS			BIT(6)
 
 #define SECONDS_REG_MSK		0x7F
 #define MINUTES_REG_MAK		0x7F
@@ -248,6 +249,12 @@ static int rk808_rtc_stop_alarm(struct rk808_rtc *rk808_rtc)
 	ret = regmap_update_bits(rk808->regmap, rk808_rtc->creg->int_reg,
 				 BIT_RTC_INTERRUPTS_REG_IT_ALARM_M, 0);
 
+	/*
+	 * The rtc alarm status(BIT(6)) must be cleared after alarm 1s or
+	 * after the alarm is disabled.
+	 */
+	ret = regmap_write(rk808->regmap, rk808_rtc->creg->status_reg,
+			   RTC_ALARM_STATUS);
 	return ret;
 }
 
