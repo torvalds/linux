@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/serdev.h>
+#include "tty.h"
 
 static int tty_port_default_receive_buf(struct tty_port *port,
 					const unsigned char *p,
