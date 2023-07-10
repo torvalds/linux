@@ -166,7 +166,7 @@ struct dma_buf *cma_heap_allocate(struct dma_heap *heap,
 	if (IS_ERR(helper_buffer->vmperm))
 		goto free_sgtable;
 
-	if (helper_buffer->uncached) {
+	if (helper_buffer->uncached && !cma_heap->is_nomap) {
 		dma_map_sgtable(dma_heap_get_dev(heap), &helper_buffer->sg_table,
 				DMA_BIDIRECTIONAL, 0);
 		dma_unmap_sgtable(dma_heap_get_dev(heap), &helper_buffer->sg_table,
@@ -238,7 +238,10 @@ static int __add_cma_heap(struct platform_heap *heap_data, void *data)
 					     DMA_BIT_MASK(64));
 
 	cma_heap->is_nomap = dmabuf_cma_is_nomap(heap_data->dev);
-
+#ifdef CONFIG_DMA_DECLARE_COHERENT
+	if (cma_heap->is_nomap && !dma_heap_get_dev(heap)->dma_mem)
+		dma_heap_get_dev(heap)->dma_mem = heap_data->dev->dma_mem;
+#endif
 	return 0;
 }
 
