@@ -23,6 +23,7 @@
 
 #define IOEND_BATCH_SIZE	4096
 
+typedef int (*iomap_punch_t)(struct inode *inode, loff_t offset, loff_t length);
 /*
  * Structure allocated for each folio to track per-block uptodate state
  * and I/O completions.
@@ -901,7 +902,7 @@ EXPORT_SYMBOL_GPL(iomap_file_buffered_write);
  */
 static int iomap_write_delalloc_scan(struct inode *inode,
 		loff_t *punch_start_byte, loff_t start_byte, loff_t end_byte,
-		int (*punch)(struct inode *inode, loff_t offset, loff_t length))
+		iomap_punch_t punch)
 {
 	while (start_byte < end_byte) {
 		struct folio	*folio;
@@ -979,8 +980,7 @@ static int iomap_write_delalloc_scan(struct inode *inode,
  * the code to subtle off-by-one bugs....
  */
 static int iomap_write_delalloc_release(struct inode *inode,
-		loff_t start_byte, loff_t end_byte,
-		int (*punch)(struct inode *inode, loff_t pos, loff_t length))
+		loff_t start_byte, loff_t end_byte, iomap_punch_t punch)
 {
 	loff_t punch_start_byte = start_byte;
 	loff_t scan_end_byte = min(i_size_read(inode), end_byte);
@@ -1073,8 +1073,7 @@ out_unlock:
  */
 int iomap_file_buffered_write_punch_delalloc(struct inode *inode,
 		struct iomap *iomap, loff_t pos, loff_t length,
-		ssize_t written,
-		int (*punch)(struct inode *inode, loff_t pos, loff_t length))
+		ssize_t written, iomap_punch_t punch)
 {
 	loff_t			start_byte;
 	loff_t			end_byte;
