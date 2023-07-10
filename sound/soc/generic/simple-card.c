@@ -52,11 +52,13 @@ static int asoc_simple_parse_platform(struct device_node *node,
 	return 0;
 }
 
-static int asoc_simple_parse_dai(struct device_node *node,
+static int asoc_simple_parse_dai(struct device *dev,
+				 struct device_node *node,
 				 struct snd_soc_dai_link_component *dlc,
 				 int *is_single_link)
 {
 	struct of_phandle_args args;
+	struct snd_soc_dai *dai;
 	int ret;
 
 	if (!node)
@@ -69,6 +71,19 @@ static int asoc_simple_parse_dai(struct device_node *node,
 	ret = of_parse_phandle_with_args(node, DAI, CELL, 0, &args);
 	if (ret)
 		return ret;
+
+	/*
+	 * Try to find from DAI args
+	 */
+	dai = snd_soc_get_dai_via_args(&args);
+	if (dai) {
+		dlc->dai_name = snd_soc_dai_name_get(dai);
+		dlc->dai_args = snd_soc_copy_dai_args(dev, &args);
+		if (!dlc->dai_args)
+			return -ENOMEM;
+
+		goto parse_dai_end;
+	}
 
 	/*
 	 * FIXME
@@ -93,6 +108,7 @@ static int asoc_simple_parse_dai(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
+parse_dai_end:
 	if (is_single_link)
 		*is_single_link = !args.args_count;
 
@@ -156,7 +172,7 @@ static int simple_parse_node(struct asoc_simple_priv *priv,
 
 	simple_parse_mclk_fs(top, np, dai_props, prefix);
 
-	ret = asoc_simple_parse_dai(np, dlc, cpu);
+	ret = asoc_simple_parse_dai(dev, np, dlc, cpu);
 	if (ret)
 		return ret;
 
