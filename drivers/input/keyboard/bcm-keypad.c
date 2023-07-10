@@ -307,7 +307,6 @@ static int bcm_kp_probe(struct platform_device *pdev)
 {
 	struct bcm_kp *kp;
 	struct input_dev *input_dev;
-	struct resource *res;
 	int error;
 
 	kp = devm_kzalloc(&pdev->dev, sizeof(*kp), GFP_KERNEL);
@@ -353,14 +352,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	/* Get the KEYPAD base address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Missing keypad base address resource\n");
-		return -ENODEV;
-	}
-
-	kp->base = devm_ioremap_resource(&pdev->dev, res);
+	kp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(kp->base))
 		return PTR_ERR(kp->base);
 
