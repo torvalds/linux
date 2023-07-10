@@ -35,6 +35,8 @@
 
 #include <trace/events/writeback.h>
 
+static void bch2_clamp_data_hole(struct inode *, u64 *, u64 *, unsigned);
+
 struct folio_vec {
 	struct folio	*fv_folio;
 	size_t		fv_offset;
@@ -3370,6 +3372,8 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		struct quota_res quota_res = { 0 };
 		struct bkey_s_c k;
 		unsigned sectors;
+		bool is_allocation;
+		u64 hole_start, hole_end;
 		u32 snapshot;
 
 		bch2_trans_begin(&trans);
@@ -3385,6 +3389,10 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		if ((ret = bkey_err(k)))
 			goto bkey_err;
 
+		hole_start	= iter.pos.offset;
+		hole_end	= bpos_min(k.k->p, end_pos).offset;
+		is_allocation	= bkey_extent_is_allocation(k.k);
+
 		/* already reserved */
 		if (bkey_extent_is_reservation(k) &&
 		    bch2_bkey_nr_ptrs_fully_allocated(k) >= opts.data_replicas) {
@@ -3398,17 +3406,26 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			continue;
 		}
 
-		/*
-		 * XXX: for nocow mode, we should promote shared extents to
-		 * unshared here
-		 */
+		if (!(mode & FALLOC_FL_ZERO_RANGE)) {
+			ret = drop_locks_do(&trans,
+				(bch2_clamp_data_hole(&inode->v,
+						      &hole_start,
+						      &hole_end,
+						      opts.data_replicas), 0));
+			bch2_btree_iter_set_pos(&iter, POS(iter.pos.inode, hole_start));
 
-		sectors = bpos_min(k.k->p, end_pos).offset - iter.pos.offset;
+			if (ret)
+				goto bkey_err;
 
-		if (!bkey_extent_is_allocation(k.k)) {
+			if (hole_start == hole_end)
+				continue;
+		}
+
+		sectors	= hole_end - hole_start;
+
+		if (!is_allocation) {
 			ret = bch2_quota_reservation_add(c, inode,
-					&quota_res,
-					sectors, true);
+					&quota_res, sectors, true);
 			if (unlikely(ret))
 				goto bkey_err;
 		}
@@ -3420,14 +3437,14 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			goto bkey_err;
 
 		i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
+
+		drop_locks_do(&trans,
+			(mark_pagecache_reserved(inode, hole_start, iter.pos.offset), 0));
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			ret = 0;
 	}
-
-	bch2_trans_unlock(&trans); /* lock ordering, before taking pagecache locks: */
-	mark_pagecache_reserved(inode, start_sector, iter.pos.offset);
 
 	if (bch2_err_matches(ret, ENOSPC) && (mode & FALLOC_FL_ZERO_RANGE)) {
 		struct quota_res quota_res = { 0 };
@@ -3676,14 +3693,16 @@ err:
 
 /* fseek: */
 
-static int folio_data_offset(struct folio *folio, loff_t pos)
+static int folio_data_offset(struct folio *folio, loff_t pos,
+			     unsigned min_replicas)
 {
 	struct bch_folio *s = bch2_folio(folio);
 	unsigned i, sectors = folio_sectors(folio);
 
 	if (s)
 		for (i = folio_pos_to_s(folio, pos); i < sectors; i++)
-			if (s->s[i].state >= SECTOR_dirty)
+			if (s->s[i].state >= SECTOR_dirty &&
+			    s->s[i].nr_replicas + s->s[i].replicas_reserved >= min_replicas)
 				return i << SECTOR_SHIFT;
 
 	return -1;
@@ -3691,7 +3710,8 @@ static int folio_data_offset(struct folio *folio, loff_t pos)
 
 static loff_t bch2_seek_pagecache_data(struct inode *vinode,
 				       loff_t start_offset,
-				       loff_t end_offset)
+				       loff_t end_offset,
+				       unsigned min_replicas)
 {
 	struct folio_batch fbatch;
 	pgoff_t start_index	= start_offset >> PAGE_SHIFT;
@@ -3710,7 +3730,8 @@ static loff_t bch2_seek_pagecache_data(struct inode *vinode,
 
 			folio_lock(folio);
 			offset = folio_data_offset(folio,
-					max(folio_pos(folio), start_offset));
+					max(folio_pos(folio), start_offset),
+					min_replicas);
 			if (offset >= 0) {
 				ret = clamp(folio_pos(folio) + offset,
 					    start_offset, end_offset);
@@ -3772,7 +3793,7 @@ err:
 
 	if (next_data > offset)
 		next_data = bch2_seek_pagecache_data(&inode->v,
-						     offset, next_data);
+						     offset, next_data, 0);
 
 	if (next_data >= isize)
 		return -ENXIO;
@@ -3780,7 +3801,8 @@ err:
 	return vfs_setpos(file, next_data, MAX_LFS_FILESIZE);
 }
 
-static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
+static bool folio_hole_offset(struct address_space *mapping, loff_t *offset,
+			      unsigned min_replicas)
 {
 	struct folio *folio;
 	struct bch_folio *s;
@@ -3797,7 +3819,8 @@ static bool folio_hole_offset(struct address_space *mapping, loff_t *offset)
 
 	sectors = folio_sectors(folio);
 	for (i = folio_pos_to_s(folio, *offset); i < sectors; i++)
-		if (s->s[i].state < SECTOR_dirty) {
+		if (s->s[i].state < SECTOR_dirty ||
+		    s->s[i].nr_replicas + s->s[i].replicas_reserved < min_replicas) {
 			*offset = max(*offset,
 				      folio_pos(folio) + (i << SECTOR_SHIFT));
 			goto unlock;
@@ -3812,16 +3835,32 @@ unlock:
 
 static loff_t bch2_seek_pagecache_hole(struct inode *vinode,
 				       loff_t start_offset,
-				       loff_t end_offset)
+				       loff_t end_offset,
+				       unsigned min_replicas)
 {
 	struct address_space *mapping = vinode->i_mapping;
 	loff_t offset = start_offset;
 
 	while (offset < end_offset &&
-	       !folio_hole_offset(mapping, &offset))
+	       !folio_hole_offset(mapping, &offset, min_replicas))
 		;
 
 	return min(offset, end_offset);
+}
+
+static void bch2_clamp_data_hole(struct inode *inode,
+				 u64 *hole_start,
+				 u64 *hole_end,
+				 unsigned min_replicas)
+{
+	*hole_start = bch2_seek_pagecache_hole(inode,
+		*hole_start << 9, *hole_end << 9, min_replicas) >> 9;
+
+	if (*hole_start == *hole_end)
+		return;
+
+	*hole_end = bch2_seek_pagecache_data(inode,
+		*hole_start << 9, *hole_end << 9, min_replicas) >> 9;
 }
 
 static loff_t bch2_seek_hole(struct file *file, u64 offset)
@@ -3853,12 +3892,12 @@ retry:
 			   BTREE_ITER_SLOTS, k, ret) {
 		if (k.k->p.inode != inode->v.i_ino) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
-					offset, MAX_LFS_FILESIZE);
+					offset, MAX_LFS_FILESIZE, 0);
 			break;
 		} else if (!bkey_extent_is_data(k.k)) {
 			next_hole = bch2_seek_pagecache_hole(&inode->v,
 					max(offset, bkey_start_offset(k.k) << 9),
-					k.k->p.offset << 9);
+					k.k->p.offset << 9, 0);
 
 			if (next_hole < k.k->p.offset << 9)
 				break;
