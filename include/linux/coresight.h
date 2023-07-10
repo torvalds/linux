@@ -386,6 +386,18 @@ static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 	return csa->read(offset, true, false);
 }
 
+#define CORESIGHT_PIDRn(i)	(0xFE0 + ((i) * 4))
+
+static inline u32 coresight_get_pid(struct csdev_access *csa)
+{
+	u32 i, pid = 0;
+
+	for (i = 0; i < 4; i++)
+		pid |= csdev_access_relaxed_read32(csa, CORESIGHT_PIDRn(i)) << (i * 8);
+
+	return pid;
+}
+
 static inline u64 csdev_access_relaxed_read_pair(struct csdev_access *csa,
 						 u32 lo_offset, u32 hi_offset)
 {
