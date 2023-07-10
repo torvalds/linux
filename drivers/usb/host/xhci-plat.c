@@ -453,7 +453,6 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	xhci_vendor_cleanup(xhci);
 
-	usb_put_hcd(shared_hcd);
 	clk_disable_unprepare(clk);
 	clk_disable_unprepare(reg_clk);
 	usb_put_hcd(hcd);
