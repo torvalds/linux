@@ -242,12 +242,6 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	int ret;
 	int irq;
 
-	cmd = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ctl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-
-	if (!cmd || !ctl)
-		return -EINVAL;
-
 	ixpp = devm_kzalloc(dev, sizeof(*ixpp), GFP_KERNEL);
 	if (!ixpp)
 		return -ENOMEM;
@@ -271,10 +265,13 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ixpp->cmd = devm_ioremap_resource(dev, cmd);
-	ixpp->ctl = devm_ioremap_resource(dev, ctl);
-	if (IS_ERR(ixpp->cmd) || IS_ERR(ixpp->ctl))
-		return -ENOMEM;
+	ixpp->cmd = devm_platform_get_and_ioremap_resource(pdev, 0, &cmd);
+	if (IS_ERR(ixpp->cmd))
+		return PTR_ERR(ixpp->cmd);
+
+	ixpp->ctl = devm_platform_get_and_ioremap_resource(pdev, 1, &ctl);
+	if (IS_ERR(ixpp->ctl))
+		return PTR_ERR(ixpp->ctl);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq > 0)
