@@ -1166,8 +1166,7 @@ static void check_version_upgrade(struct bch_fs *c)
 		c->opts.fix_errors	= FSCK_OPT_YES;
 
 		mutex_lock(&c->sb_lock);
-		c->disk_sb.sb->version = cpu_to_le16(new_version);
-		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+		bch2_sb_upgrade(c, new_version);
 		mutex_unlock(&c->sb_lock);
 
 		printbuf_exit(&buf);
@@ -1525,10 +1524,11 @@ int bch2_fs_initialize(struct bch_fs *c)
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_bformat_overflow_done);
 
+	bch2_sb_maybe_downgrade(c);
+
 	if (c->opts.version_upgrade != BCH_VERSION_UPGRADE_none) {
-		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
+		bch2_sb_upgrade(c, bcachefs_metadata_version_current);
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
-		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		bch2_write_super(c);
 	}
 	mutex_unlock(&c->sb_lock);

@@ -1204,17 +1204,10 @@ int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *cle
 	return 0;
 }
 
-int bch2_fs_mark_dirty(struct bch_fs *c)
+/* Downgrade if superblock is at a higher version than currently supported: */
+void bch2_sb_maybe_downgrade(struct bch_fs *c)
 {
-	int ret;
-
-	/*
-	 * Unconditionally write superblock, to verify it hasn't changed before
-	 * we go rw:
-	 */
-
-	mutex_lock(&c->sb_lock);
-	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+	lockdep_assert_held(&c->sb_lock);
 
 	/*
 	 * Downgrade, if superblock is at a higher version than currently
@@ -1227,8 +1220,31 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 	if (c->sb.version_min > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version_min = cpu_to_le16(bcachefs_metadata_version_current);
 	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
+}
 
+void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
+{
+	lockdep_assert_held(&c->sb_lock);
+
+	c->disk_sb.sb->version = cpu_to_le16(new_version);
+	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+}
+
+int bch2_fs_mark_dirty(struct bch_fs *c)
+{
+	int ret;
+
+	/*
+	 * Unconditionally write superblock, to verify it hasn't changed before
+	 * we go rw:
+	 */
+
+	mutex_lock(&c->sb_lock);
+	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
+
+	bch2_sb_maybe_downgrade(c);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALWAYS);
+
 	ret = bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 

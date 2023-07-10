@@ -124,6 +124,9 @@ void bch2_journal_super_entries_add_common(struct bch_fs *,
 
 int bch2_sb_clean_validate_late(struct bch_fs *, struct bch_sb_field_clean *, int);
 
+void bch2_sb_maybe_downgrade(struct bch_fs *);
+void bch2_sb_upgrade(struct bch_fs *, unsigned);
+
 int bch2_fs_mark_dirty(struct bch_fs *);
 void bch2_fs_mark_clean(struct bch_fs *);
 
