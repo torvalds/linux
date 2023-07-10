@@ -45,7 +45,8 @@ On Linux, this integer is a BTF ID.
 Legacy BPF Packet access instructions
 =====================================
 
-As mentioned in the `ISA standard documentation <instruction-set.rst#legacy-bpf-packet-access-instructions>`_,
+As mentioned in the `ISA standard documentation
+<instruction-set.html#legacy-bpf-packet-access-instructions>`_,
 Linux has special eBPF instructions for access to packet data that have been
 carried over from classic BPF to retain the performance of legacy socket
 filters running in the eBPF interpreter.
