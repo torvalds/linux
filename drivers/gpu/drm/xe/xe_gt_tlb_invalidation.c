@@ -257,15 +257,15 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 static bool tlb_invalidation_seqno_past(struct xe_gt *gt, int seqno)
 {
-	if (seqno - gt->tlb_invalidation.seqno_recv <
-	    -(TLB_INVALIDATION_SEQNO_MAX / 2))
+	int seqno_recv = READ_ONCE(gt->tlb_invalidation.seqno_recv);
+
+	if (seqno - seqno_recv < -(TLB_INVALIDATION_SEQNO_MAX / 2))
 		return false;
 
-	if (seqno - gt->tlb_invalidation.seqno_recv >
-	    (TLB_INVALIDATION_SEQNO_MAX / 2))
+	if (seqno - seqno_recv > (TLB_INVALIDATION_SEQNO_MAX / 2))
 		return true;
 
-	return gt->tlb_invalidation.seqno_recv >= seqno;
+	return seqno_recv >= seqno;
 }
 
 /**
@@ -337,7 +337,7 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	 * wake_up_all() and wait_event_timeout() already have the correct
 	 * barriers.
 	 */
-	gt->tlb_invalidation.seqno_recv = msg[0];
+	WRITE_ONCE(gt->tlb_invalidation.seqno_recv, msg[0]);
 	wake_up_all(&guc->ct.wq);
 
 	fence = list_first_entry_or_null(&gt->tlb_invalidation.pending_fences,
