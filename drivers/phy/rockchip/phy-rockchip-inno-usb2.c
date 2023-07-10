@@ -3123,6 +3123,26 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 			}
 		}
 
+		/* Enable bvalid detect irq */
+		if (rport->port_id == USB2PHY_PORT_OTG &&
+		    (rport->mode == USB_DR_MODE_PERIPHERAL ||
+		     rport->mode == USB_DR_MODE_OTG) &&
+		    (rport->bvalid_irq > 0 || rport->otg_mux_irq > 0 || rphy->irq > 0) &&
+		    !rport->vbus_always_on) {
+			ret = rockchip_usb2phy_enable_vbus_irq(rphy, rport,
+							       true);
+			if (ret) {
+				dev_err(rphy->dev,
+					"failed to enable bvalid irq\n");
+				return ret;
+			}
+
+			if (property_enabled(rphy->grf, &rport->port_cfg->utmi_bvalid))
+				schedule_delayed_work(&rport->otg_sm_work,
+						      OTG_SCHEDULE_DELAY);
+
+		}
+
 		if (rport->port_id == USB2PHY_PORT_OTG && wakeup_enable &&
 		    rport->bvalid_irq > 0)
 			disable_irq_wake(rport->bvalid_irq);
