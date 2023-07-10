@@ -809,6 +809,19 @@ static struct device_node
 	return of_node;
 }
 
+struct of_phandle_args *snd_soc_copy_dai_args(struct device *dev, struct of_phandle_args *args)
+{
+	struct of_phandle_args *ret = devm_kzalloc(dev, sizeof(*ret), GFP_KERNEL);
+
+	if (!ret)
+		return NULL;
+
+	*ret = *args;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_copy_dai_args);
+
 static int snd_soc_is_matching_component(
 	const struct snd_soc_dai_link_component *dlc,
 	struct snd_soc_component *component)
