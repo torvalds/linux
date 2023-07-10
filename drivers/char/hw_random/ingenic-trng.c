@@ -111,13 +111,8 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 static int ingenic_trng_remove(struct platform_device *pdev)
 {
 	struct ingenic_trng *trng = platform_get_drvdata(pdev);
-	unsigned int ctrl;
 
 	hwrng_unregister(&trng->rng);
-
-	ctrl = readl(trng->base + TRNG_REG_CFG_OFFSET);
-	ctrl &= ~CFG_GEN_EN;
-	writel(ctrl, trng->base + TRNG_REG_CFG_OFFSET);
 
 	return 0;
 }
