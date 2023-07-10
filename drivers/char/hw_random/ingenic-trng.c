@@ -29,7 +29,6 @@
 
 struct ingenic_trng {
 	void __iomem *base;
-	struct clk *clk;
 	struct hwrng rng;
 };
 
@@ -77,6 +76,7 @@ static int ingenic_trng_read(struct hwrng *rng, void *buf, size_t max, bool wait
 static int ingenic_trng_probe(struct platform_device *pdev)
 {
 	struct ingenic_trng *trng;
+	struct clk *clk;
 	int ret;
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
@@ -89,16 +89,10 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 		return PTR_ERR(trng->base);
 	}
 
-	trng->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(trng->clk)) {
-		pr_crit("%s: Cannot get DTRNG clock\n", __func__);
-		return PTR_ERR(trng->clk);
-	}
-
-	ret = clk_prepare_enable(trng->clk);
-	if (ret) {
-		pr_crit("%s: Unable to enable DTRNG clock\n", __func__);
-		return ret;
+	clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(clk)) {
+		pr_crit("%s: Cannot get and enable DTRNG clock\n", __func__);
+		return PTR_ERR(clk);
 	}
 
 	trng->rng.name = pdev->name;
@@ -109,17 +103,13 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 	ret = hwrng_register(&trng->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register hwrng\n");
-		goto err_unprepare_clk;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, trng);
 
 	dev_info(&pdev->dev, "Ingenic DTRNG driver registered\n");
 	return 0;
-
-err_unprepare_clk:
-	clk_disable_unprepare(trng->clk);
-	return ret;
 }
 
 static int ingenic_trng_remove(struct platform_device *pdev)
@@ -132,8 +122,6 @@ static int ingenic_trng_remove(struct platform_device *pdev)
 	ctrl = readl(trng->base + TRNG_REG_CFG_OFFSET);
 	ctrl &= ~CFG_GEN_EN;
 	writel(ctrl, trng->base + TRNG_REG_CFG_OFFSET);
-
-	clk_disable_unprepare(trng->clk);
 
 	return 0;
 }
