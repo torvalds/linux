@@ -1109,7 +1109,7 @@ void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
 	*reg_data = wait_times;
 
 	/*
-	 * The CP cannont handle a 0 grace period input and will result in
+	 * The CP cannot handle a 0 grace period input and will result in
 	 * an infinite grace period being set so set to 1 to prevent this.
 	 */
 	if (grace_period == 0)

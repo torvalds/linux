@@ -1622,7 +1622,7 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	if (dqm->dev->kfd2kgd->get_iq_wait_times)
 		dqm->dev->kfd2kgd->get_iq_wait_times(dqm->dev->adev,
 					&dqm->wait_times,
-					0);
+					ffs(dqm->dev->xcc_mask) - 1);
 	return 0;
 }
 
@@ -1664,6 +1664,26 @@ static int start_cpsch(struct device_queue_manager *dqm)
 
 	if (!dqm->dev->kfd->shared_resources.enable_mes)
 		execute_queues_cpsch(dqm, KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0, USE_DEFAULT_GRACE_PERIOD);
+
+	/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
+	if (amdgpu_emu_mode == 0 && dqm->dev->adev->gmc.is_app_apu &&
+	    (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 3))) {
+		uint32_t reg_offset = 0;
+		uint32_t grace_period = 1;
+
+		retval = pm_update_grace_period(&dqm->packet_mgr,
+						grace_period);
+		if (retval)
+			pr_err("Setting grace timeout failed\n");
+		else if (dqm->dev->kfd2kgd->build_grace_period_packet_info)
+			/* Update dqm->wait_times maintained in software */
+			dqm->dev->kfd2kgd->build_grace_period_packet_info(
+					dqm->dev->adev,	dqm->wait_times,
+					grace_period, &reg_offset,
+					&dqm->wait_times,
+					ffs(dqm->dev->xcc_mask) - 1);
+	}
+
 	dqm_unlock(dqm);
 
 	return 0;
