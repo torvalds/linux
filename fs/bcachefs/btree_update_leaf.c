@@ -958,6 +958,10 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 			bch2_replicas_delta_list_mark(c, trans->fs_usage_deltas));
 		break;
 	case -BCH_ERR_journal_res_get_blocked:
+		/*
+		 * XXX: this should probably be a separate BTREE_INSERT_NONBLOCK
+		 * flag
+		 */
 		if ((flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
 		    (flags & BCH_WATERMARK_MASK) != BCH_WATERMARK_reclaim) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;

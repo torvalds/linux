@@ -1158,6 +1158,17 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	    bch2_err_matches(ret, ENOMEM)) {
 		struct closure cl;
 
+		/*
+		 * XXX: this should probably be a separate BTREE_INSERT_NONBLOCK
+		 * flag
+		 */
+		if (bch2_err_matches(ret, ENOSPC) &&
+		    (flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
+		    watermark != BCH_WATERMARK_reclaim) {
+			ret = -BCH_ERR_journal_reclaim_would_deadlock;
+			goto err;
+		}
+
 		closure_init_stack(&cl);
 
 		do {
