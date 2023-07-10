@@ -862,17 +862,9 @@ isl1208_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, isl1208);
 
 	/* Determine which chip we have */
-	if (client->dev.of_node) {
-		isl1208->config = of_device_get_match_data(&client->dev);
-		if (!isl1208->config)
-			return -ENODEV;
-	} else {
-		const struct i2c_device_id *id = i2c_match_id(isl1208_id, client);
-
-		if (!id)
-			return -ENODEV;
-		isl1208->config = (struct isl1208_config *)id->driver_data;
-	}
+	isl1208->config = i2c_get_match_data(client);
+	if (!isl1208->config)
+		return -ENODEV;
 
 	rc = isl1208_clk_present(client, "xin");
 	if (rc < 0)
