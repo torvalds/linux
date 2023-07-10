@@ -3516,6 +3516,9 @@ static int dpaa_remove(struct platform_device *pdev)
 	phylink_destroy(priv->mac_dev->phylink);
 
 	err = dpaa_fq_free(dev, &priv->dpaa_fq_list);
+	if (err)
+		dev_err(dev, "Failed to free FQs on remove (%pE)\n",
+			ERR_PTR(err));
 
 	qman_delete_cgr_safe(&priv->ingress_cgr);
 	qman_release_cgrid(priv->ingress_cgr.cgrid);
@@ -3528,7 +3531,7 @@ static int dpaa_remove(struct platform_device *pdev)
 
 	free_netdev(net_dev);
 
-	return err;
+	return 0;
 }
 
 static const struct platform_device_id dpaa_devtype[] = {
