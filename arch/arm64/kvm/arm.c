@@ -360,7 +360,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 #endif
 
 	/* Force users to call KVM_ARM_VCPU_INIT */
-	vcpu->arch.target = -1;
+	vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
 	bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 
 	vcpu->arch.mmu_page_cache.gfp_zero = __GFP_ZERO;
@@ -569,7 +569,7 @@ unsigned long kvm_arch_vcpu_get_ip(struct kvm_vcpu *vcpu)
 
 static int kvm_vcpu_initialized(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.target >= 0;
+	return vcpu_get_flag(vcpu, VCPU_INITIALIZED);
 }
 
 /*
@@ -1051,7 +1051,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 			 * invalid. The VMM can try and fix it by issuing  a
 			 * KVM_ARM_VCPU_INIT if it really wants to.
 			 */
-			vcpu->arch.target = -1;
+			vcpu_clear_flag(vcpu, VCPU_INITIALIZED);
 			ret = ARM_EXCEPTION_IL;
 		}
 
@@ -1228,20 +1228,18 @@ static int __kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	    !bitmap_equal(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES))
 		goto out_unlock;
 
-	vcpu->arch.target = init->target;
 	bitmap_copy(vcpu->arch.features, &features, KVM_VCPU_MAX_FEATURES);
 
 	/* Now we know what it is, we can reset it. */
 	ret = kvm_reset_vcpu(vcpu);
 	if (ret) {
-		vcpu->arch.target = -1;
 		bitmap_zero(vcpu->arch.features, KVM_VCPU_MAX_FEATURES);
 		goto out_unlock;
 	}
 
 	bitmap_copy(kvm->arch.vcpu_features, &features, KVM_VCPU_MAX_FEATURES);
 	set_bit(KVM_ARCH_FLAG_VCPU_FEATURES_CONFIGURED, &kvm->arch.flags);
-
+	vcpu_set_flag(vcpu, VCPU_INITIALIZED);
 out_unlock:
 	mutex_unlock(&kvm->arch.config_lock);
 	return ret;
@@ -1259,7 +1257,7 @@ static int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,
 	if (ret)
 		return ret;
 
-	if (vcpu->arch.target == -1)
+	if (!kvm_vcpu_initialized(vcpu))
 		return __kvm_vcpu_set_target(vcpu, init);
 
 	if (kvm_vcpu_init_changed(vcpu, init))
