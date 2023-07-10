@@ -6,7 +6,7 @@
  *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2001 Patrick Mochel <mochel@osdl.org>
  */
-#include <acpi/pdc_intel.h>
+#include <acpi/proc_cap_intel.h>
 
 #include <asm/numa.h>
 #include <asm/fixmap.h>
@@ -104,19 +104,20 @@ static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
-	*cap |= ACPI_PDC_C_CAPABILITY_SMP;
+	*cap |= ACPI_PROC_CAP_C_CAPABILITY_SMP;
 
 	if (cpu_has(c, X86_FEATURE_EST))
-		*cap |= ACPI_PDC_EST_CAPABILITY_SWSMP;
+		*cap |= ACPI_PROC_CAP_EST_CAPABILITY_SWSMP;
 
 	if (cpu_has(c, X86_FEATURE_ACPI))
-		*cap |= ACPI_PDC_T_FFH;
+		*cap |= ACPI_PROC_CAP_T_FFH;
 
 	/*
 	 * If mwait/monitor is unsupported, C2/C3_FFH will be disabled
 	 */
 	if (!cpu_has(c, X86_FEATURE_MWAIT))
-		*cap &= ~(ACPI_PDC_C_C2C3_FFH);
+		*cap &= ~(ACPI_PROC_CAP_C_C2C3_FFH);
+
 }
 
 static inline bool acpi_has_cpu_in_madt(void)

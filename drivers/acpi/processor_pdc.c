@@ -21,7 +21,7 @@ static void acpi_set_pdc_bits(u32 *buf)
 	buf[1] = 1;
 
 	/* Enable coordination with firmware's _TSD info */
-	buf[2] = ACPI_PDC_SMP_T_SWCOORD;
+	buf[2] = ACPI_PROC_CAP_SMP_T_SWCOORD;
 
 	/* Twiddle arch-specific bits needed for _PDC */
 	arch_acpi_set_proc_cap_bits(&buf[2]);

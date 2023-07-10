@@ -79,7 +79,7 @@
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 #include <asm/acpi.h>
-#include <acpi/pdc_intel.h>
+#include <acpi/proc_cap_intel.h>
 #include <acpi/processor.h>
 #include <xen/interface/platform.h>
 #endif
@@ -288,17 +288,17 @@ static bool __init xen_check_mwait(void)
 
 	native_cpuid(&ax, &bx, &cx, &dx);
 
-	/* Ask the Hypervisor whether to clear ACPI_PDC_C_C2C3_FFH. If so,
+	/* Ask the Hypervisor whether to clear ACPI_PROC_CAP_C_C2C3_FFH. If so,
 	 * don't expose MWAIT_LEAF and let ACPI pick the IOPORT version of C3.
 	 */
 	buf[0] = ACPI_PDC_REVISION_ID;
 	buf[1] = 1;
-	buf[2] = (ACPI_PDC_C_CAPABILITY_SMP | ACPI_PDC_EST_CAPABILITY_SWSMP);
+	buf[2] = (ACPI_PROC_CAP_C_CAPABILITY_SMP | ACPI_PROC_CAP_EST_CAPABILITY_SWSMP);
 
 	set_xen_guest_handle(op.u.set_pminfo.pdc, buf);
 
 	if ((HYPERVISOR_platform_op(&op) == 0) &&
-	    (buf[2] & (ACPI_PDC_C_C1_FFH | ACPI_PDC_C_C2C3_FFH))) {
+	    (buf[2] & (ACPI_PROC_CAP_C_C1_FFH | ACPI_PROC_CAP_C_C2C3_FFH))) {
 		cpuid_leaf5_ecx_val = cx;
 		cpuid_leaf5_edx_val = dx;
 	}

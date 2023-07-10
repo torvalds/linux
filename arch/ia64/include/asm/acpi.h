@@ -11,7 +11,7 @@
 
 #ifdef __KERNEL__
 
-#include <acpi/pdc_intel.h>
+#include <acpi/proc_cap_intel.h>
 
 #include <linux/init.h>
 #include <linux/numa.h>
@@ -71,7 +71,7 @@ extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 static inline bool arch_has_acpi_pdc(void) { return true; }
 static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 {
-	*cap |= ACPI_PDC_EST_CAPABILITY_SMP;
+	*cap |= ACPI_PROC_CAP_EST_CAPABILITY_SMP;
 }
 
 #ifdef CONFIG_ACPI_NUMA
