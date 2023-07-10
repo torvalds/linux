@@ -190,6 +190,16 @@
 	};
 };
 
+&i2c3 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c5m2_xfer>;
+};
+
 &i2c7 {
 	status = "okay";
 
