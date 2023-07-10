@@ -56,6 +56,7 @@
 #define SIP_HDCP_CONFIG			0x82000025
 #define SIP_WDT_CFG			0x82000026
 #define SIP_HDMIRX_CFG			0x82000027
+#define SIP_MCU_CFG			0x82000028
 
 #define TRUSTED_OS_HDCPKEY_INIT		0xB7000003
 
@@ -117,6 +118,28 @@
 #define REMOTECTL_ENABLE		0xf4
 /* wakeup state */
 #define REMOTECTL_PWRKEY_WAKEUP		0xdeadbeaf
+
+/* SIP_MCU_CFG child configs, MCU ID */
+enum {
+	RK_BUS_MCU,
+	RK_PMU_MCU,
+	RK_DDR_MCU,
+	RK_NPU_MCU,
+};
+
+#define RK_SIP_MCU_ID(type, id)		((type) << 8 | id)
+
+#define RK_SIP_CFG_BUSMCU_0_ID		RK_SIP_MCU_ID(RK_BUS_MCU, 0)
+#define RK_SIP_CFG_BUSMCU_1_ID		RK_SIP_MCU_ID(RK_BUS_MCU, 1)
+#define RK_SIP_CFG_PMUMCU_0_ID		RK_SIP_MCU_ID(RK_PMU_MCU, 0)
+#define RK_SIP_CFG_DDRMCU_0_ID		RK_SIP_MCU_ID(RK_DDR_MCU, 0)
+#define RK_SIP_CFG_NPUMCU_0_ID		RK_SIP_MCU_ID(RK_NPU_MCU, 0)
+
+/* SIP_MCU_CFG child configs */
+#define CONFIG_MCU_CODE_START_ADDR	0x01
+#define CONFIG_MCU_EXPERI_START_ADDR	0x02
+#define CONFIG_MCU_SRAM_START_ADDR	0x03
+#define CONFIG_MCU_EXSRAM_START_ADDR	0x04
 
 struct dram_addrmap_info {
 	u64 ch_mask[2];
@@ -251,6 +274,7 @@ int sip_fiq_control(u32 sub_func, u32 irq, unsigned long data);
 int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3);
 int sip_hdmirx_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3);
 int sip_hdcpkey_init(u32 hdcp_id);
+int sip_smc_mcu_config(unsigned long mcu_id, unsigned long func, unsigned long arg2);
 #else
 static inline struct arm_smccc_res sip_smc_get_atf_version(void)
 {
@@ -406,6 +430,13 @@ static inline int sip_hdmirx_config(u32 sub_func,
 static inline int sip_hdcpkey_init(u32 hdcp_id)
 {
 	return 0;
+}
+
+static inline int sip_smc_mcu_config(unsigned long mcu_id,
+				     unsigned long func,
+				     unsigned long arg2)
+{
+	return SIP_RET_NOT_SUPPORTED;
 }
 #endif
 

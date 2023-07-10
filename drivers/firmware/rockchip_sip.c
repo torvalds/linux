@@ -627,6 +627,16 @@ int sip_hdcpkey_init(u32 hdcp_id)
 }
 EXPORT_SYMBOL_GPL(sip_hdcpkey_init);
 
+int sip_smc_mcu_config(unsigned long mcu_id,
+		       unsigned long func,
+		       unsigned long arg2)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_MCU_CFG, mcu_id, func, arg2);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_smc_mcu_config);
 /******************************************************************************/
 #ifdef CONFIG_ARM
 static __init int sip_firmware_init(void)
