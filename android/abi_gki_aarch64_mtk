@@ -98,10 +98,10 @@
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+  bpf_trace_run1
   bpf_trace_run10
   bpf_trace_run11
   bpf_trace_run12
-  bpf_trace_run1
   bpf_trace_run2
   bpf_trace_run3
   bpf_trace_run4
@@ -690,8 +690,11 @@
   drm_atomic_helper_commit_modeset_disables
   drm_atomic_helper_commit_modeset_enables
   drm_atomic_helper_commit_planes
+  __drm_atomic_helper_connector_destroy_state
   drm_atomic_helper_connector_destroy_state
+  __drm_atomic_helper_connector_duplicate_state
   drm_atomic_helper_connector_duplicate_state
+  __drm_atomic_helper_connector_reset
   drm_atomic_helper_connector_reset
   __drm_atomic_helper_crtc_destroy_state
   __drm_atomic_helper_crtc_duplicate_state
@@ -1089,6 +1092,7 @@
   ida_destroy
   ida_free
   idr_alloc
+  idr_alloc_cyclic
   idr_alloc_u32
   idr_destroy
   idr_find
@@ -1180,6 +1184,7 @@
   iommu_report_device_fault
   iommu_unmap
   ioremap_prot
+  io_schedule_timeout
   iounmap
   iov_iter_init
   iov_iter_kvec
@@ -1235,9 +1240,9 @@
   is_vmalloc_addr
   iterate_dir
   iterate_fd
+  jiffies
   jiffies_64_to_clock_t
   jiffies64_to_nsecs
-  jiffies
   jiffies_to_msecs
   jiffies_to_usecs
   kasan_flag_enabled
@@ -1430,8 +1435,8 @@
   memremap
   memscan
   mem_section
-  memset64
   memset
+  memset64
   __memset_io
   memstart_addr
   memunmap
@@ -1563,8 +1568,8 @@
   nla_find
   nla_memcpy
   __nla_parse
-  nla_put_64bit
   nla_put
+  nla_put_64bit
   nla_put_nohdr
   nla_reserve
   nla_strscpy
@@ -1687,6 +1692,8 @@
   out_of_line_wait_on_bit_timeout
   overflowuid
   page_endio
+  page_pinner_inited
+  __page_pinner_put_page
   page_pool_alloc_pages
   page_pool_create
   page_pool_destroy
@@ -1856,6 +1863,7 @@
   pm_runtime_force_suspend
   pm_runtime_get_if_active
   __pm_runtime_idle
+  pm_runtime_irq_safe
   __pm_runtime_resume
   pm_runtime_set_autosuspend_delay
   __pm_runtime_set_status
@@ -2061,6 +2069,7 @@
   remove_proc_subtree
   remove_wait_queue
   request_firmware
+  request_firmware_direct
   request_firmware_nowait
   __request_module
   __request_percpu_irq
@@ -2123,6 +2132,7 @@
   rtnl_unregister
   rtnl_unregister_all
   runqueues
+  sbitmap_weight
   sched_clock
   sched_clock_register
   sched_feat_keys
@@ -2145,11 +2155,13 @@
   scnprintf
   scsi_autopm_get_device
   scsi_autopm_put_device
+  scsi_block_requests
   scsi_device_get
   scsi_device_put
   scsi_execute_cmd
   __scsi_iterate_devices
   scsi_print_sense_hdr
+  scsi_unblock_requests
   sdio_claim_host
   sdio_claim_irq
   sdio_disable_func
@@ -2283,6 +2295,7 @@
   skb_try_coalesce
   skb_tstamp_tx
   skb_unlink
+  sk_capable
   sk_common_release
   sk_error_report
   sk_filter_trim_cap
@@ -2501,6 +2514,7 @@
   tasklist_lock
   __task_pid_nr_ns
   __task_rq_lock
+  task_rq_lock
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
   thermal_pressure
@@ -2576,6 +2590,7 @@
   __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_try_to_wake_up
   __traceiter_android_rvh_try_to_wake_up_success
+  __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_update_cpu_capacity
   __traceiter_android_rvh_wake_up_new_task
   __traceiter_android_vh_alter_futex_plist_add
@@ -2670,6 +2685,7 @@
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_try_to_wake_up
   __tracepoint_android_rvh_try_to_wake_up_success
+  __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_update_cpu_capacity
   __tracepoint_android_rvh_wake_up_new_task
   __tracepoint_android_vh_alter_futex_plist_add
@@ -2801,6 +2817,7 @@
   udp_tunnel6_xmit_skb
   udp_tunnel_sock_release
   udp_tunnel_xmit_skb
+  ufshcd_config_pwr_mode
   ufshcd_delay_us
   ufshcd_dme_configure_adapt
   ufshcd_dme_get_attr
@@ -2810,6 +2827,7 @@
   ufshcd_get_pwr_dev_param
   ufshcd_hba_enable
   ufshcd_hba_stop
+  ufshcd_hold
   ufshcd_init_pwr_dev_param
   ufshcd_link_recovery
   ufshcd_make_hba_operational
@@ -2821,6 +2839,7 @@
   ufshcd_query_descriptor_retry
   ufshcd_query_flag
   ufshcd_read_desc_param
+  ufshcd_release
   ufshcd_remove
   ufshcd_resume_complete
   ufshcd_runtime_resume
