@@ -1487,9 +1487,7 @@ static const struct bch_sb_field_ops *bch2_sb_field_ops[] = {
 #undef x
 };
 
-static const struct bch_sb_field_ops bch2_sb_field_null_ops = {
-	NULL
-};
+static const struct bch_sb_field_ops bch2_sb_field_null_ops;
 
 static const struct bch_sb_field_ops *bch2_sb_field_type_ops(unsigned type)
 {
