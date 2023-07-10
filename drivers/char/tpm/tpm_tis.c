@@ -124,6 +124,14 @@ static const struct dmi_system_id tpm_tis_dmi_table[] = {
 	},
 	{
 		.callback = tpm_tis_disable_irq,
+		.ident = "Framework Laptop (13th Gen Intel Core)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop (13th Gen Intel Core)"),
+		},
+	},
+	{
+		.callback = tpm_tis_disable_irq,
 		.ident = "ThinkPad T490s",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
