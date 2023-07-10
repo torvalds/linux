@@ -1219,6 +1219,7 @@ struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_capture(struct xe_guc_ct *ct,
 
 	if (ct->enabled) {
 		snapshot->ct_enabled = true;
+		snapshot->g2h_outstanding = READ_ONCE(ct->g2h_outstanding);
 		guc_ctb_snapshot_capture(xe, &ct->ctbs.h2g,
 					 &snapshot->h2g, atomic);
 		guc_ctb_snapshot_capture(xe, &ct->ctbs.g2h,
