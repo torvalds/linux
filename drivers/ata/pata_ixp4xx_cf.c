@@ -274,12 +274,9 @@ static int ixp4xx_pata_probe(struct platform_device *pdev)
 		return PTR_ERR(ixpp->ctl);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq > 0)
-		irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
-	else if (irq < 0)
+	if (irq < 0)
 		return irq;
-	else
-		return -EINVAL;
+	irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
 
 	/* Just one port to set up */
 	ixp4xx_setup_port(ixpp->host->ports[0], ixpp, cmd->start, ctl->start);
