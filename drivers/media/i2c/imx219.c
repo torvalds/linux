@@ -597,15 +597,12 @@ static void imx219_set_default_format(struct imx219 *imx219)
 
 	fmt = &imx219->fmt;
 	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
-	fmt->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
-							  fmt->colorspace,
-							  fmt->ycbcr_enc);
-	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
+	fmt->colorspace = V4L2_COLORSPACE_RAW;
+	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 	fmt->width = supported_modes[0].width;
 	fmt->height = supported_modes[0].height;
 	fmt->field = V4L2_FIELD_NONE;
+	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
 static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
@@ -714,12 +711,10 @@ static int imx219_init_cfg(struct v4l2_subdev *sd,
 	format->code = imx219_get_format_code(imx219,
 					      MEDIA_BUS_FMT_SRGGB10_1X10);
 	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_SRGB;
+	format->colorspace = V4L2_COLORSPACE_RAW;
 	format->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(format->colorspace);
-	format->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
-							     format->colorspace,
-							     format->ycbcr_enc);
-	format->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(format->colorspace);
+	format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	format->xfer_func = V4L2_XFER_FUNC_NONE;
 
 	/* Initialize crop rectangle. */
 	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
@@ -775,12 +770,9 @@ static int imx219_enum_frame_size(struct v4l2_subdev *sd,
 
 static void imx219_reset_colorspace(struct v4l2_mbus_framefmt *fmt)
 {
-	fmt->colorspace = V4L2_COLORSPACE_SRGB;
-	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
-	fmt->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
-							  fmt->colorspace,
-							  fmt->ycbcr_enc);
-	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
+	fmt->colorspace = V4L2_COLORSPACE_RAW;
+	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
 }
 
 static void imx219_update_pad_format(struct imx219 *imx219,
