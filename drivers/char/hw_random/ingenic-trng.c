@@ -86,13 +86,11 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 	trng->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(trng->base)) {
 		pr_err("%s: Failed to map DTRNG registers\n", __func__);
-		ret = PTR_ERR(trng->base);
 		return PTR_ERR(trng->base);
 	}
 
 	trng->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(trng->clk)) {
-		ret = PTR_ERR(trng->clk);
 		pr_crit("%s: Cannot get DTRNG clock\n", __func__);
 		return PTR_ERR(trng->clk);
 	}
