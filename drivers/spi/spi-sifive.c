@@ -379,7 +379,7 @@ static int sifive_spi_probe(struct platform_device *pdev)
 	 * we need to "left-align" the bits (unless SPI_LSB_FIRST)
 	 */
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->flags = SPI_CONTROLLER_MUST_TX | SPI_MASTER_GPIO_SS;
+	master->flags = SPI_CONTROLLER_MUST_TX | SPI_CONTROLLER_GPIO_SS;
 	master->prepare_message = sifive_spi_prepare_message;
 	master->set_cs = sifive_spi_set_cs;
 	master->transfer_one = sifive_spi_transfer_one;
