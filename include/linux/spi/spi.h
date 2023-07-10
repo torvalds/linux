@@ -6,18 +6,18 @@
 #ifndef __LINUX_SPI_H
 #define __LINUX_SPI_H
 
+#include <linux/acpi.h>
 #include <linux/bits.h>
-#include <linux/device.h>
-#include <linux/mod_devicetable.h>
-#include <linux/slab.h>
-#include <linux/kthread.h>
 #include <linux/completion.h>
-#include <linux/scatterlist.h>
+#include <linux/device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/kthread.h>
+#include <linux/mod_devicetable.h>
+#include <linux/scatterlist.h>
+#include <linux/slab.h>
+#include <linux/u64_stats_sync.h>
 
 #include <uapi/linux/spi/spi.h>
-#include <linux/acpi.h>
-#include <linux/u64_stats_sync.h>
 
 struct dma_chan;
 struct software_node;
