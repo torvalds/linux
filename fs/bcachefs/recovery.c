@@ -1115,6 +1115,7 @@ static void check_version_upgrade(struct bch_fs *c)
 	unsigned latest_version	= bcachefs_metadata_version_current;
 	unsigned old_version = c->sb.version_upgrade_complete ?: c->sb.version;
 	unsigned new_version = 0;
+	u64 recovery_passes;
 
 	if (old_version < bcachefs_metadata_required_upgrade_below) {
 		if (c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible ||
@@ -1158,12 +1159,15 @@ static void check_version_upgrade(struct bch_fs *c)
 		bch2_version_to_text(&buf, new_version);
 		prt_newline(&buf);
 
-		prt_str(&buf, "fsck required");
+		recovery_passes = bch2_upgrade_recovery_passes(c, old_version, new_version);
+		if (recovery_passes) {
+			prt_str(&buf, "fsck required");
+
+			c->recovery_passes_explicit |= recovery_passes;
+			c->opts.fix_errors = FSCK_OPT_YES;
+		}
 
 		bch_info(c, "%s", buf.buf);
-
-		c->opts.fsck		= true;
-		c->opts.fix_errors	= FSCK_OPT_YES;
 
 		mutex_lock(&c->sb_lock);
 		bch2_sb_upgrade(c, new_version);
@@ -1196,20 +1200,29 @@ static struct recovery_pass_fn recovery_passes[] = {
 #undef x
 };
 
+u64 bch2_fsck_recovery_passes(void)
+{
+	u64 ret = 0;
+
+	for (unsigned i = 0; i < ARRAY_SIZE(recovery_passes); i++)
+		if (recovery_passes[i].when & PASS_FSCK)
+			ret |= BIT_ULL(i);
+	return ret;
+}
+
 static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pass)
 {
 	struct recovery_pass_fn *p = recovery_passes + c->curr_recovery_pass;
 
 	if (c->opts.norecovery && pass > BCH_RECOVERY_PASS_snapshots_read)
 		return false;
+	if (c->recovery_passes_explicit & BIT_ULL(pass))
+		return true;
 	if ((p->when & PASS_FSCK) && c->opts.fsck)
 		return true;
 	if ((p->when & PASS_UNCLEAN) && !c->sb.clean)
 		return true;
 	if (p->when & PASS_ALWAYS)
-		return true;
-	if (p->when >= PASS_UPGRADE(0) &&
-	    bch2_version_upgrading_to(c, p->when >> 4))
 		return true;
 	return false;
 }
@@ -1294,7 +1307,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!c->opts.nochanges)
+	if (c->opts.fsck || !(c->opts.nochanges && c->opts.norecovery))
 		check_version_upgrade(c);
 
 	if (c->opts.fsck && c->opts.norecovery) {

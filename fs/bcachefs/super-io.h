@@ -18,6 +18,10 @@ static inline bool bch2_version_compatible(u16 version)
 void bch2_version_to_text(struct printbuf *, unsigned);
 unsigned bch2_latest_compatible_version(unsigned);
 
+u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
+				 unsigned,
+				 unsigned);
+
 struct bch_sb_field *bch2_sb_field_get(struct bch_sb *, enum bch_sb_field_type);
 struct bch_sb_field *bch2_sb_field_resize(struct bch_sb_handle *,
 					  enum bch_sb_field_type, unsigned);

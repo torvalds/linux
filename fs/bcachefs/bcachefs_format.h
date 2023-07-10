@@ -1578,32 +1578,58 @@ struct bch_sb_field_journal_seq_blacklist {
 #define BCH_VERSION_MINOR(_v)		((__u16) ((_v) & ~(~0U << 10)))
 #define BCH_VERSION(_major, _minor)	(((_major) << 10)|(_minor) << 0)
 
-#define BCH_METADATA_VERSIONS()				\
-	x(bkey_renumber,		BCH_VERSION(0, 10))		\
-	x(inode_btree_change,		BCH_VERSION(0, 11))		\
-	x(snapshot,			BCH_VERSION(0, 12))		\
-	x(inode_backpointers,		BCH_VERSION(0, 13))		\
-	x(btree_ptr_sectors_written,	BCH_VERSION(0, 14))		\
-	x(snapshot_2,			BCH_VERSION(0, 15))		\
-	x(reflink_p_fix,		BCH_VERSION(0, 16))		\
-	x(subvol_dirent,		BCH_VERSION(0, 17))		\
-	x(inode_v2,			BCH_VERSION(0, 18))		\
-	x(freespace,			BCH_VERSION(0, 19))		\
-	x(alloc_v4,			BCH_VERSION(0, 20))		\
-	x(new_data_types,		BCH_VERSION(0, 21))		\
-	x(backpointers,			BCH_VERSION(0, 22))		\
-	x(inode_v3,			BCH_VERSION(0, 23))		\
-	x(unwritten_extents,		BCH_VERSION(0, 24))		\
-	x(bucket_gens,			BCH_VERSION(0, 25))		\
-	x(lru_v2,			BCH_VERSION(0, 26))		\
-	x(fragmentation_lru,		BCH_VERSION(0, 27))		\
-	x(no_bps_in_alloc_keys,		BCH_VERSION(0, 28))		\
-	x(snapshot_trees,		BCH_VERSION(0, 29))		\
-	x(major_minor,			BCH_VERSION(1,  0))
+#define RECOVERY_PASS_ALL_FSCK		(1ULL << 63)
+
+#define BCH_METADATA_VERSIONS()						\
+	x(bkey_renumber,		BCH_VERSION(0, 10),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(inode_btree_change,		BCH_VERSION(0, 11),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(snapshot,			BCH_VERSION(0, 12),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(inode_backpointers,		BCH_VERSION(0, 13),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(btree_ptr_sectors_written,	BCH_VERSION(0, 14),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(snapshot_2,			BCH_VERSION(0, 15),		\
+	  BIT_ULL(BCH_RECOVERY_PASS_fs_upgrade_for_subvolumes)|		\
+	  BIT_ULL(BCH_RECOVERY_PASS_initialize_subvolumes)|		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(reflink_p_fix,		BCH_VERSION(0, 16),		\
+	  BIT_ULL(BCH_RECOVERY_PASS_fix_reflink_p))			\
+	x(subvol_dirent,		BCH_VERSION(0, 17),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(inode_v2,			BCH_VERSION(0, 18),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(freespace,			BCH_VERSION(0, 19),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(alloc_v4,			BCH_VERSION(0, 20),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(new_data_types,		BCH_VERSION(0, 21),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(backpointers,			BCH_VERSION(0, 22),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(inode_v3,			BCH_VERSION(0, 23),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(unwritten_extents,		BCH_VERSION(0, 24),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(bucket_gens,			BCH_VERSION(0, 25),		\
+	  BIT_ULL(BCH_RECOVERY_PASS_bucket_gens_init)|			\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(lru_v2,			BCH_VERSION(0, 26),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(fragmentation_lru,		BCH_VERSION(0, 27),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(no_bps_in_alloc_keys,		BCH_VERSION(0, 28),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(snapshot_trees,		BCH_VERSION(0, 29),		\
+	  RECOVERY_PASS_ALL_FSCK)					\
+	x(major_minor,			BCH_VERSION(1,  0),		\
+	  0)
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
-#define x(t, n)	bcachefs_metadata_version_##t = n,
+#define x(t, n, upgrade_passes)	bcachefs_metadata_version_##t = n,
 	BCH_METADATA_VERSIONS()
 #undef x
 	bcachefs_metadata_version_max

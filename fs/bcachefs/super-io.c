@@ -4,6 +4,7 @@
 #include "btree_update_interior.h"
 #include "buckets.h"
 #include "checksum.h"
+#include "counters.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
@@ -12,13 +13,13 @@
 #include "journal_io.h"
 #include "journal_sb.h"
 #include "journal_seq_blacklist.h"
+#include "recovery.h"
 #include "replicas.h"
 #include "quota.h"
 #include "super-io.h"
 #include "super.h"
 #include "trace.h"
 #include "vstructs.h"
-#include "counters.h"
 
 #include <linux/backing-dev.h>
 #include <linux/sort.h>
@@ -26,13 +27,18 @@
 static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
 };
 
-struct bch2_metadata_version_str {
+struct bch2_metadata_version {
 	u16		version;
 	const char	*name;
+	u64		recovery_passes;
 };
 
-static const struct bch2_metadata_version_str bch2_metadata_versions[] = {
-#define x(n, v) { .version = v, .name = #n },
+static const struct bch2_metadata_version bch2_metadata_versions[] = {
+#define x(n, v, _recovery_passes) {		\
+	.version = v,				\
+	.name = #n,				\
+	.recovery_passes = _recovery_passes,	\
+},
 	BCH_METADATA_VERSIONS()
 #undef x
 };
@@ -62,6 +68,24 @@ unsigned bch2_latest_compatible_version(unsigned v)
 			v = bch2_metadata_versions[i].version;
 
 	return v;
+}
+
+u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
+				 unsigned old_version,
+				 unsigned new_version)
+{
+	u64 ret = 0;
+
+	for (const struct bch2_metadata_version *i = bch2_metadata_versions;
+	     i < bch2_metadata_versions + ARRAY_SIZE(bch2_metadata_versions);
+	     i++)
+		if (i->version > old_version && i->version <= new_version) {
+			if (i->recovery_passes & RECOVERY_PASS_ALL_FSCK)
+				ret |= bch2_fsck_recovery_passes();
+			ret |= i->recovery_passes;
+		}
+
+	return ret &= ~RECOVERY_PASS_ALL_FSCK;
 }
 
 const char * const bch2_sb_fields[] = {
