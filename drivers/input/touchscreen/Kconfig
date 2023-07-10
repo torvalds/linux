@@ -655,10 +655,10 @@ config TOUCHSCREEN_MTOUCH
 	  module will be called mtouch.
 
 config TOUCHSCREEN_NOVATEK_NVT_TS
-	tristate "Novatek NVT-ts touchscreen support"
+	tristate "Novatek NT11205 touchscreen support"
 	depends on I2C
 	help
-	  Say Y here if you have a Novatek NVT-ts touchscreen.
+	  Say Y here if you have a Novatek NT11205 touchscreen.
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
