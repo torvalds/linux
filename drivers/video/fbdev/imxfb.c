@@ -903,7 +903,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	if (!display_np) {
 		dev_err(&pdev->dev, "No display defined in devicetree\n");
 		ret = -EINVAL;
-		goto failed_of_parse;
+		goto failed_init;
 	}
 
 	/*
@@ -917,13 +917,13 @@ static int imxfb_probe(struct platform_device *pdev)
 	if (!fbi->mode) {
 		ret = -ENOMEM;
 		of_node_put(display_np);
-		goto failed_of_parse;
+		goto failed_init;
 	}
 
 	ret = imxfb_of_read_mode(&pdev->dev, display_np, fbi->mode);
 	of_node_put(display_np);
 	if (ret)
-		goto failed_of_parse;
+		goto failed_init;
 
 	/* Calculate maximum bytes used per pixel. In most cases this should
 	 * be the same as m->bpp/8 */
@@ -936,7 +936,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	fbi->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(fbi->clk_ipg)) {
 		ret = PTR_ERR(fbi->clk_ipg);
-		goto failed_getclock;
+		goto failed_init;
 	}
 
 	/*
@@ -951,25 +951,25 @@ static int imxfb_probe(struct platform_device *pdev)
 	 */
 	ret = clk_prepare_enable(fbi->clk_ipg);
 	if (ret)
-		goto failed_getclock;
+		goto failed_init;
 	clk_disable_unprepare(fbi->clk_ipg);
 
 	fbi->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(fbi->clk_ahb)) {
 		ret = PTR_ERR(fbi->clk_ahb);
-		goto failed_getclock;
+		goto failed_init;
 	}
 
 	fbi->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(fbi->clk_per)) {
 		ret = PTR_ERR(fbi->clk_per);
-		goto failed_getclock;
+		goto failed_init;
 	}
 
 	fbi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(fbi->regs)) {
 		ret = PTR_ERR(fbi->regs);
-		goto failed_ioremap;
+		goto failed_init;
 	}
 
 	fbi->map_size = PAGE_ALIGN(info->fix.smem_len);
@@ -978,7 +978,7 @@ static int imxfb_probe(struct platform_device *pdev)
 	if (!info->screen_buffer) {
 		dev_err(&pdev->dev, "Failed to allocate video RAM\n");
 		ret = -ENOMEM;
-		goto failed_map;
+		goto failed_init;
 	}
 
 	info->fix.smem_start = fbi->map_dma;
@@ -1030,16 +1030,11 @@ static int imxfb_probe(struct platform_device *pdev)
 
 failed_lcd:
 	unregister_framebuffer(info);
-
 failed_register:
 	fb_dealloc_cmap(&info->cmap);
 failed_cmap:
 	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_buffer,
 		    fbi->map_dma);
-failed_map:
-failed_ioremap:
-failed_getclock:
-failed_of_parse:
 failed_init:
 	framebuffer_release(info);
 	return ret;
