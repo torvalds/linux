@@ -1253,13 +1253,13 @@ struct xe_vm *xe_vm_create(struct xe_device *xe, u32 flags)
 		vm->batch_invalidate_tlb = true;
 	}
 
-	if (flags & DRM_XE_VM_CREATE_COMPUTE_MODE) {
+	if (flags & XE_VM_FLAG_COMPUTE_MODE) {
 		INIT_WORK(&vm->preempt.rebind_work, preempt_rebind_work_func);
 		vm->flags |= XE_VM_FLAG_COMPUTE_MODE;
 		vm->batch_invalidate_tlb = false;
 	}
 
-	if (flags & DRM_XE_VM_CREATE_ASYNC_BIND_OPS) {
+	if (flags & XE_VM_FLAG_ASYNC_BIND_OPS) {
 		vm->async_ops.fence.context = dma_fence_context_alloc(1);
 		vm->flags |= XE_VM_FLAG_ASYNC_BIND_OPS;
 	}
