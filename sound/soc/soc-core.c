@@ -253,6 +253,47 @@ static inline int snd_soc_dlc_dai_is_empty(struct snd_soc_dai_link_component *dl
 	return !dlc->dai_name;
 }
 
+static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
+				   struct snd_soc_dai *dai)
+{
+	if (!dlc)
+		return 0;
+
+	if (!dlc->dai_name)
+		return 1;
+
+	/* see snd_soc_dai_name_get() */
+
+	if (strcmp(dlc->dai_name, dai->name) == 0)
+		return 1;
+
+	if (dai->driver->name &&
+	    strcmp(dai->driver->name, dlc->dai_name) == 0)
+		return 1;
+
+	if (dai->component->name &&
+	    strcmp(dlc->dai_name, dai->component->name) == 0)
+		return 1;
+
+	return 0;
+}
+
+const char *snd_soc_dai_name_get(struct snd_soc_dai *dai)
+{
+	/* see snd_soc_is_matching_dai() */
+	if (dai->name)
+		return dai->name;
+
+	if (dai->driver->name)
+		return dai->driver->name;
+
+	if (dai->component->name)
+		return dai->component->name;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_name_get);
+
 static int snd_soc_rtd_add_component(struct snd_soc_pcm_runtime *rtd,
 				     struct snd_soc_component *component)
 {
@@ -810,18 +851,11 @@ struct snd_soc_dai *snd_soc_find_dai(
 	lockdep_assert_held(&client_mutex);
 
 	/* Find CPU DAI from registered DAIs */
-	for_each_component(component) {
-		if (!snd_soc_is_matching_component(dlc, component))
-			continue;
-		for_each_component_dais(component, dai) {
-			if (dlc->dai_name && strcmp(dai->name, dlc->dai_name)
-			    && (!dai->driver->name
-				|| strcmp(dai->driver->name, dlc->dai_name)))
-				continue;
-
-			return dai;
-		}
-	}
+	for_each_component(component)
+		if (snd_soc_is_matching_component(dlc, component))
+			for_each_component_dais(component, dai)
+				if (snd_soc_is_matching_dai(dlc, dai))
+					return dai;
 
 	return NULL;
 }
@@ -3316,9 +3350,7 @@ int snd_soc_get_dlc(const struct of_phandle_args *args, struct snd_soc_dai_link_
 				id--;
 			}
 
-			dlc->dai_name	= dai->driver->name;
-			if (!dlc->dai_name)
-				dlc->dai_name = pos->name;
+			dlc->dai_name	= snd_soc_dai_name_get(dai);
 		} else if (ret) {
 			/*
 			 * if another error than ENOTSUPP is returned go on and
