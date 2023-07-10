@@ -106,6 +106,9 @@ static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 
 	*cap |= ACPI_PROC_CAP_C_CAPABILITY_SMP;
 
+	/* Enable coordination with firmware's _TSD info */
+	*cap |= ACPI_PROC_CAP_SMP_T_SWCOORD;
+
 	if (cpu_has(c, X86_FEATURE_EST))
 		*cap |= ACPI_PROC_CAP_EST_CAPABILITY_SWSMP;
 
