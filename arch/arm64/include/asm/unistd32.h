@@ -508,8 +508,8 @@ __SYSCALL(__NR_io_submit, compat_sys_io_submit)
 __SYSCALL(__NR_io_cancel, sys_io_cancel)
 #define __NR_exit_group 248
 __SYSCALL(__NR_exit_group, sys_exit_group)
-#define __NR_lookup_dcookie 249
-__SYSCALL(__NR_lookup_dcookie, compat_sys_lookup_dcookie)
+			/* 249 was lookup_dcookie */
+__SYSCALL(249, sys_ni_syscall)
 #define __NR_epoll_create 250
 __SYSCALL(__NR_epoll_create, sys_epoll_create)
 #define __NR_epoll_ctl 251
