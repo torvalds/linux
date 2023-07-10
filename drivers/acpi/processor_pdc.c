@@ -24,7 +24,7 @@ static void acpi_set_pdc_bits(u32 *buf)
 	buf[2] = ACPI_PDC_SMP_T_SWCOORD;
 
 	/* Twiddle arch-specific bits needed for _PDC */
-	arch_acpi_set_pdc_bits(buf);
+	arch_acpi_set_proc_cap_bits(&buf[2]);
 }
 
 static struct acpi_object_list *acpi_processor_alloc_pdc(void)
