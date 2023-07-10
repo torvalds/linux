@@ -86,13 +86,33 @@ invalidation_fence_signal(struct xe_gt_tlb_invalidation_fence *fence)
  *
  * Signal any pending invalidation fences, should be called during a GT reset
  */
- void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
+void xe_gt_tlb_invalidation_reset(struct xe_gt *gt)
 {
 	struct xe_gt_tlb_invalidation_fence *fence, *next;
+	struct xe_guc *guc = &gt->uc.guc;
+	int pending_seqno;
 
-	cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
+	/*
+	 * CT channel is already disabled at this point. No new TLB requests can
+	 * appear.
+	 */
 
 	mutex_lock(&gt->uc.guc.ct.lock);
+	cancel_delayed_work(&gt->tlb_invalidation.fence_tdr);
+	/*
+	 * We might have various kworkers waiting for TLB flushes to complete
+	 * which are not tracked with an explicit TLB fence, however at this
+	 * stage that will never happen since the CT is already disabled, so
+	 * make sure we signal them here under the assumption that we have
+	 * completed a full GT reset.
+	 */
+	if (gt->tlb_invalidation.seqno == 1)
+		pending_seqno = TLB_INVALIDATION_SEQNO_MAX - 1;
+	else
+		pending_seqno = gt->tlb_invalidation.seqno - 1;
+	WRITE_ONCE(gt->tlb_invalidation.seqno_recv, pending_seqno);
+	wake_up_all(&guc->ct.wq);
+
 	list_for_each_entry_safe(fence, next,
 				 &gt->tlb_invalidation.pending_fences, link)
 		invalidation_fence_signal(fence);
