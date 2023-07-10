@@ -98,22 +98,13 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 	trng->rng.cleanup = ingenic_trng_cleanup;
 	trng->rng.read = ingenic_trng_read;
 
-	ret = hwrng_register(&trng->rng);
+	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to register hwrng\n");
 
 	platform_set_drvdata(pdev, trng);
 
 	dev_info(&pdev->dev, "Ingenic DTRNG driver registered\n");
-	return 0;
-}
-
-static int ingenic_trng_remove(struct platform_device *pdev)
-{
-	struct ingenic_trng *trng = platform_get_drvdata(pdev);
-
-	hwrng_unregister(&trng->rng);
-
 	return 0;
 }
 
@@ -125,7 +116,6 @@ MODULE_DEVICE_TABLE(of, ingenic_trng_of_match);
 
 static struct platform_driver ingenic_trng_driver = {
 	.probe		= ingenic_trng_probe,
-	.remove		= ingenic_trng_remove,
 	.driver		= {
 		.name	= "ingenic-trng",
 		.of_match_table = ingenic_trng_of_match,
