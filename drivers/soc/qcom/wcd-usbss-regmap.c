@@ -461,18 +461,15 @@ static struct reg_default wcd_usbss_defaults[] = {
 	{WCD_USBSS_EFUSE_REG_14,                 0x00},
 	{WCD_USBSS_EFUSE_REG_15,                 0x00},
 	{WCD_USBSS_EFUSE_PRG_CTL,                0x00},
-	{WCD_USBSS_EFUSE_CTL,                    0x2b},
-	{WCD_USBSS_EFUSE_TEST_CTL_0,             0x00},
-	{WCD_USBSS_EFUSE_TEST_CTL_1,             0x00},
-	{WCD_USBSS_EFUSE_T_DATA_0,               0x00},
-	{WCD_USBSS_PAD_INP_DIS_0,                0x00},
-	{WCD_USBSS_DRIVE_STRENGTH,               0x88},
-	{WCD_USBSS_PULL_SEL,                     0x00},
-	{WCD_USBSS_HYST_CTL,                     0x0f},
-	{WCD_USBSS_PAD_MODE,                     0x0f},
-	{WCD_USBSS_ANA_CSR_DBG_ADD,              0x00},
-	{WCD_USBSS_ANA_CSR_DBG_CTL,              0x00},
 };
+
+static bool wcd_usbss_readable_register(struct device *dev, unsigned int reg)
+{
+	if (reg <= (WCD_USBSS_BASE + 1))
+		return false;
+
+	return wcd_usbss_reg_access[WCD_USBSS_REG(reg)] & RD_REG;
+}
 
 static bool wcd_usbss_writeable_register(struct device *dev, unsigned int reg)
 {
@@ -499,6 +496,7 @@ struct regmap_config wcd_usbss_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(wcd_usbss_defaults),
 	.max_register = WCD_USBSS_MAX_REGISTER,
 	.volatile_reg = wcd_usbss_volatile_register,
+	.readable_reg = wcd_usbss_readable_register,
 	.writeable_reg = wcd_usbss_writeable_register,
 	.reg_format_endian = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
