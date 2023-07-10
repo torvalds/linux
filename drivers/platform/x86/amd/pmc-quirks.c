@@ -112,6 +112,15 @@ static const struct dmi_system_id fwbug_list[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "21A1"),
 		}
 	},
+	/* https://gitlab.freedesktop.org/drm/amd/-/issues/2684 */
+	{
+		.ident = "HP Laptop 15s-eq2xxx",
+		.driver_data = &quirk_s2idle_bug,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Laptop 15s-eq2xxx"),
+		}
+	},
 	{}
 };
 
