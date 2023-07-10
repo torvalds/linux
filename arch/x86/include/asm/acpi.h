@@ -113,11 +113,12 @@ static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 		*cap |= ACPI_PROC_CAP_T_FFH;
 
 	/*
-	 * If mwait/monitor is unsupported, C2/C3_FFH will be disabled
+	 * If mwait/monitor is unsupported, C_C1_FFH and
+	 * C2/C3_FFH will be disabled.
 	 */
-	if (!cpu_has(c, X86_FEATURE_MWAIT))
-		*cap &= ~(ACPI_PROC_CAP_C_C2C3_FFH);
-
+	if (!cpu_has(c, X86_FEATURE_MWAIT) ||
+	    boot_option_idle_override == IDLE_NOMWAIT)
+		*cap &= ~(ACPI_PROC_CAP_C_C1_FFH | ACPI_PROC_CAP_C_C2C3_FFH);
 }
 
 static inline bool acpi_has_cpu_in_madt(void)
