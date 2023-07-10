@@ -773,7 +773,7 @@ static int pic32_spi_probe(struct platform_device *pdev)
 	master->max_speed_hz	= clk_get_rate(pic32s->clk);
 	master->setup		= pic32_spi_setup;
 	master->cleanup		= pic32_spi_cleanup;
-	master->flags		= SPI_MASTER_MUST_TX | SPI_MASTER_MUST_RX;
+	master->flags		= SPI_CONTROLLER_MUST_TX | SPI_CONTROLLER_MUST_RX;
 	master->bits_per_word_mask	= SPI_BPW_MASK(8) | SPI_BPW_MASK(16) |
 					  SPI_BPW_MASK(32);
 	master->transfer_one		= pic32_spi_one_transfer;

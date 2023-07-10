@@ -527,7 +527,7 @@ static int at91_usart_spi_probe(struct platform_device *pdev)
 	controller->dev.of_node = pdev->dev.parent->of_node;
 	controller->bits_per_word_mask = SPI_BPW_MASK(8);
 	controller->setup = at91_usart_spi_setup;
-	controller->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
+	controller->flags = SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX;
 	controller->transfer_one = at91_usart_spi_transfer_one;
 	controller->prepare_message = at91_usart_spi_prepare_message;
 	controller->unprepare_message = at91_usart_spi_unprepare_message;
