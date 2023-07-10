@@ -649,7 +649,7 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platfo
 	 *	simple-card.c :: simple_count_noml()
 	 */
 	if (!platforms->of_node)
-		platforms->of_node = cpus->of_node;
+		snd_soc_dlc_use_cpu_as_platform(platforms, cpus);
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
 

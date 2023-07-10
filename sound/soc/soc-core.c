@@ -3005,6 +3005,14 @@ int snd_soc_of_parse_tdm_slot(struct device_node *np,
 }
 EXPORT_SYMBOL_GPL(snd_soc_of_parse_tdm_slot);
 
+void snd_soc_dlc_use_cpu_as_platform(struct snd_soc_dai_link_component *platforms,
+				     struct snd_soc_dai_link_component *cpus)
+{
+	platforms->of_node	= cpus->of_node;
+	platforms->dai_args	= cpus->dai_args;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dlc_use_cpu_as_platform);
+
 void snd_soc_of_parse_node_prefix(struct device_node *np,
 				  struct snd_soc_codec_conf *codec_conf,
 				  struct device_node *of_node,
