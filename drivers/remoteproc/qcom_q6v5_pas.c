@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -533,9 +534,8 @@ static void adsp_pds_detach(struct qcom_adsp *adsp, struct device **pds,
 
 static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 {
+	struct reserved_mem *rmem;
 	struct device_node *node;
-	struct resource r;
-	int ret;
 
 	node = of_parse_phandle(adsp->dev->of_node, "memory-region", 0);
 	if (!node) {
@@ -543,17 +543,19 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
+	rmem = of_reserved_mem_lookup(node);
 	of_node_put(node);
-	if (ret)
-		return ret;
+	if (!rmem) {
+		dev_err(adsp->dev, "unable to resolve memory-region\n");
+		return -EINVAL;
+	}
 
-	adsp->mem_phys = adsp->mem_reloc = r.start;
-	adsp->mem_size = resource_size(&r);
+	adsp->mem_phys = adsp->mem_reloc = rmem->base;
+	adsp->mem_size = rmem->size;
 	adsp->mem_region = devm_ioremap_wc(adsp->dev, adsp->mem_phys, adsp->mem_size);
 	if (!adsp->mem_region) {
 		dev_err(adsp->dev, "unable to map memory region: %pa+%zx\n",
-			&r.start, adsp->mem_size);
+			&rmem->base, adsp->mem_size);
 		return -EBUSY;
 	}
 
@@ -566,16 +568,19 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
-	if (ret)
-		return ret;
+	rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+	if (!rmem) {
+		dev_err(adsp->dev, "unable to resolve dtb memory-region\n");
+		return -EINVAL;
+	}
 
-	adsp->dtb_mem_phys = adsp->dtb_mem_reloc = r.start;
-	adsp->dtb_mem_size = resource_size(&r);
+	adsp->dtb_mem_phys = adsp->dtb_mem_reloc = rmem->base;
+	adsp->dtb_mem_size = rmem->size;
 	adsp->dtb_mem_region = devm_ioremap_wc(adsp->dev, adsp->dtb_mem_phys, adsp->dtb_mem_size);
 	if (!adsp->dtb_mem_region) {
 		dev_err(adsp->dev, "unable to map dtb memory region: %pa+%zx\n",
-			&r.start, adsp->dtb_mem_size);
+			&rmem->base, adsp->dtb_mem_size);
 		return -EBUSY;
 	}
 
@@ -584,29 +589,28 @@ static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 
 static int adsp_assign_memory_region(struct qcom_adsp *adsp)
 {
+	struct reserved_mem *rmem = NULL;
 	struct qcom_scm_vmperm perm;
 	struct device_node *node;
-	struct resource r;
 	int ret;
 
 	if (!adsp->region_assign_idx)
 		return 0;
 
 	node = of_parse_phandle(adsp->dev->of_node, "memory-region", adsp->region_assign_idx);
-	if (!node) {
-		dev_err(adsp->dev, "missing shareable memory-region\n");
+	if (node)
+		rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+	if (!rmem) {
+		dev_err(adsp->dev, "unable to resolve shareable memory-region\n");
 		return -EINVAL;
 	}
-
-	ret = of_address_to_resource(node, 0, &r);
-	if (ret)
-		return ret;
 
 	perm.vmid = QCOM_SCM_VMID_MSS_MSA;
 	perm.perm = QCOM_SCM_PERM_RW;
 
-	adsp->region_assign_phys = r.start;
-	adsp->region_assign_size = resource_size(&r);
+	adsp->region_assign_phys = rmem->base;
+	adsp->region_assign_size = rmem->size;
 	adsp->region_assign_perms = BIT(QCOM_SCM_VMID_HLOS);
 
 	ret = qcom_scm_assign_mem(adsp->region_assign_phys,

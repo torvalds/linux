@@ -16,7 +16,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -1876,8 +1875,6 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 	struct device_node *child;
 	struct reserved_mem *rmem;
 	struct device_node *node;
-	struct resource r;
-	int ret;
 
 	/*
 	 * In the absence of mba/mpss sub-child, extract the mba and mpss
@@ -1892,15 +1889,20 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 		of_node_put(child);
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
-	of_node_put(node);
-	if (ret) {
-		dev_err(qproc->dev, "unable to resolve mba region\n");
-		return ret;
+	if (!node) {
+		dev_err(qproc->dev, "no mba memory-region specified\n");
+		return -EINVAL;
 	}
 
-	qproc->mba_phys = r.start;
-	qproc->mba_size = resource_size(&r);
+	rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+	if (!rmem) {
+		dev_err(qproc->dev, "unable to resolve mba region\n");
+		return -EINVAL;
+	}
+
+	qproc->mba_phys = rmem->base;
+	qproc->mba_size = rmem->size;
 
 	if (!child) {
 		node = of_parse_phandle(qproc->dev->of_node,
@@ -1911,15 +1913,20 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 		of_node_put(child);
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
-	of_node_put(node);
-	if (ret) {
-		dev_err(qproc->dev, "unable to resolve mpss region\n");
-		return ret;
+	if (!node) {
+		dev_err(qproc->dev, "no mpss memory-region specified\n");
+		return -EINVAL;
 	}
 
-	qproc->mpss_phys = qproc->mpss_reloc = r.start;
-	qproc->mpss_size = resource_size(&r);
+	rmem = of_reserved_mem_lookup(node);
+	of_node_put(node);
+	if (!rmem) {
+		dev_err(qproc->dev, "unable to resolve mpss region\n");
+		return -EINVAL;
+	}
+
+	qproc->mpss_phys = qproc->mpss_reloc = rmem->base;
+	qproc->mpss_size = rmem->size;
 
 	if (!child) {
 		node = of_parse_phandle(qproc->dev->of_node, "memory-region", 2);
