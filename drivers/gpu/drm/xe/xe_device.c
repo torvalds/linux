@@ -364,6 +364,11 @@ u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size)
 		DIV_ROUND_UP(size, NUM_BYTES_PER_CCS_BYTE) : 0;
 }
 
+bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe)
+{
+	return atomic_inc_not_zero(&xe->mem_access.ref);
+}
+
 void xe_device_mem_access_get(struct xe_device *xe)
 {
 	bool resumed = xe_pm_runtime_resume_if_suspended(xe);
