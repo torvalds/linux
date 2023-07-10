@@ -1678,8 +1678,7 @@ struct snd_emu1010 {
 	unsigned int clock_fallback;
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
-	struct delayed_work firmware_work;
-	u32 last_reg;
+	struct work_struct firmware_work;
 };
 
 struct snd_emu10k1 {
@@ -1761,6 +1760,7 @@ struct snd_emu10k1 {
 	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
+	void (*gpio_interrupt)(struct snd_emu10k1 *emu);
 	void (*p16v_interrupt)(struct snd_emu10k1 *emu);
 
 	struct snd_pcm_substream *pcm_capture_substream;
