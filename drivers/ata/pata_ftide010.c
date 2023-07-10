@@ -469,11 +469,7 @@ static int pata_ftide010_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
-	ftide->base = devm_ioremap_resource(dev, res);
+	ftide->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(ftide->base))
 		return PTR_ERR(ftide->base);
 
