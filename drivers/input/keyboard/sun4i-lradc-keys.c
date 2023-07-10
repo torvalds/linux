@@ -307,8 +307,7 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 
 	input_set_drvdata(lradc->input, lradc);
 
-	lradc->base = devm_ioremap_resource(dev,
-			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
+	lradc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lradc->base))
 		return PTR_ERR(lradc->base);
 
