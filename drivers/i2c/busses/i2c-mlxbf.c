@@ -1080,13 +1080,7 @@ static int mlxbf_i2c_init_resource(struct platform_device *pdev,
 	if (!tmp_res)
 		return -ENOMEM;
 
-	tmp_res->params = platform_get_resource(pdev, IORESOURCE_MEM, type);
-	if (!tmp_res->params) {
-		devm_kfree(dev, tmp_res);
-		return -EIO;
-	}
-
-	tmp_res->io = devm_ioremap_resource(dev, tmp_res->params);
+	tmp_res->io = devm_platform_get_and_ioremap_resource(pdev, type, &tmp_res->params);
 	if (IS_ERR(tmp_res->io)) {
 		devm_kfree(dev, tmp_res);
 		return PTR_ERR(tmp_res->io);
