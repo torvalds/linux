@@ -22,8 +22,6 @@
 #define TRNG_REG_STATUS_OFFSET		0x08
 
 /* bits within the CFG register */
-#define CFG_RDY_CLR					BIT(12)
-#define CFG_INT_MASK				BIT(11)
 #define CFG_GEN_EN					BIT(0)
 
 /* bits within the STATUS register */
