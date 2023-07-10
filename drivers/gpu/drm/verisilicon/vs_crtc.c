@@ -18,6 +18,8 @@
 #include <drm/drm_vblank.h>
 #endif
 
+#define CONFIG_ENABLE_GAMMA_LUT 0
+
 void vs_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
