@@ -252,10 +252,20 @@ static bool read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millin
 		link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
-	if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
-		(uint8_t *) backlight_millinits,
-		sizeof(uint32_t)))
-		return false;
+	if (!link->dpcd_caps.panel_luminance_control) {
+		if (!core_link_read_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
+			(uint8_t *)backlight_millinits,
+			sizeof(uint32_t)))
+			return false;
+	} else {
+		//setting to 0 as a precaution, since target_luminance_value is 3 bytes
+		memset(backlight_millinits, 0, sizeof(uint32_t));
+
+		if (!core_link_read_dpcd(link, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE,
+			(uint8_t *)backlight_millinits,
+			sizeof(struct target_luminance_value)))
+			return false;
+	}
 
 	return true;
 }
