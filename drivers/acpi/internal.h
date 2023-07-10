@@ -153,6 +153,8 @@ int acpi_wakeup_device_init(void);
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC
 void acpi_early_processor_set_pdc(void);
+
+void acpi_proc_quirk_mwait_check(void);
 #else
 static inline void acpi_early_processor_set_pdc(void) {}
 #endif
