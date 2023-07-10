@@ -1,5 +1,6 @@
 [abi_symbol_list]
 # commonly used symbols
+  access_process_vm
   add_cpu
   add_wait_queue
   add_wait_queue_exclusive
@@ -173,6 +174,7 @@
   dma_unmap_page_attrs
   do_trace_netlink_extack
   double_rq_lock
+  down
   down_read
   down_write
   driver_unregister
@@ -194,7 +196,10 @@
   eth_type_trans
   eth_validate_addr
   extcon_get_state
+  filp_open_block
+  find_get_pid
   _find_next_bit
+  find_task_by_vpid
   finish_wait
   flush_delayed_work
   flush_work
@@ -220,6 +225,7 @@
   get_device
   __get_free_pages
   get_random_bytes
+  get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_disable_irq
   gpiochip_enable_irq
@@ -289,6 +295,10 @@
   kmem_cache_destroy
   kmem_cache_free
   kmemdup
+  kmsg_dump_get_buffer
+  kmsg_dump_register
+  kmsg_dump_rewind
+  kmsg_dump_unregister
   kobject_uevent
   kobject_uevent_env
   ksoftirqd
@@ -313,11 +323,13 @@
   log_post_write_mmio
   log_read_mmio
   log_write_mmio
+  mas_find
   mbox_chan_received_data
   mbox_chan_txdone
   memcpy
   memmove
   memset
+  mem_section
   memstart_addr
   migrate_swap
   misc_deregister
@@ -365,6 +377,7 @@
   nla_put_64bit
   nla_strscpy
   __nlmsg_put
+  node_states
   noop_llseek
   nr_cpu_ids
   ns_capable
@@ -446,6 +459,7 @@
   put_cmsg
   put_device
   __put_net
+  put_pid
   __put_task_struct
   queue_delayed_work_on
   queue_work_on
@@ -520,6 +534,7 @@
   scnprintf
   security_sk_clone
   security_sock_graft
+  send_sig_info
   seq_buf_printf
   seq_lseek
   seq_printf
@@ -828,6 +843,7 @@
   unregister_pernet_device
   unregister_pernet_subsys
   unregister_pm_notifier
+  up
   up_read
   up_write
   update_rq_clock
