@@ -124,10 +124,6 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 		trace_xe_gt_tlb_invalidation_fence_send(fence);
 	}
 	action[1] = seqno;
-	gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
-		TLB_INVALIDATION_SEQNO_MAX;
-	if (!gt->tlb_invalidation.seqno)
-		gt->tlb_invalidation.seqno = 1;
 	ret = xe_guc_ct_send_locked(&guc->ct, action, len,
 				    G2H_LEN_DW_TLB_INVALIDATE, 1);
 	if (!ret && fence) {
@@ -137,8 +133,13 @@ static int send_tlb_invalidation(struct xe_guc *guc,
 					   &gt->tlb_invalidation.fence_tdr,
 					   TLB_TIMEOUT);
 	}
-	if (!ret)
+	if (!ret) {
+		gt->tlb_invalidation.seqno = (gt->tlb_invalidation.seqno + 1) %
+			TLB_INVALIDATION_SEQNO_MAX;
+		if (!gt->tlb_invalidation.seqno)
+			gt->tlb_invalidation.seqno = 1;
 		ret = seqno;
+	}
 	if (ret < 0 && fence)
 		invalidation_fence_signal(fence);
 	mutex_unlock(&guc->ct.lock);
