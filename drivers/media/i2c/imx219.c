@@ -608,34 +608,6 @@ static void imx219_set_default_format(struct imx219 *imx219)
 	fmt->field = V4L2_FIELD_NONE;
 }
 
-static int imx219_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
-{
-	struct imx219 *imx219 = to_imx219(sd);
-	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
-	struct v4l2_rect *try_crop;
-
-	mutex_lock(&imx219->mutex);
-
-	/* Initialize try_fmt */
-	try_fmt->width = supported_modes[0].width;
-	try_fmt->height = supported_modes[0].height;
-	try_fmt->code = imx219_get_format_code(imx219,
-					       MEDIA_BUS_FMT_SRGGB10_1X10);
-	try_fmt->field = V4L2_FIELD_NONE;
-
-	/* Initialize try_crop rectangle. */
-	try_crop = v4l2_subdev_get_try_crop(sd, fh->state, 0);
-	try_crop->top = IMX219_PIXEL_ARRAY_TOP;
-	try_crop->left = IMX219_PIXEL_ARRAY_LEFT;
-	try_crop->width = IMX219_PIXEL_ARRAY_WIDTH;
-	try_crop->height = IMX219_PIXEL_ARRAY_HEIGHT;
-
-	mutex_unlock(&imx219->mutex);
-
-	return 0;
-}
-
 static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx219 *imx219 =
@@ -724,6 +696,36 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 static const struct v4l2_ctrl_ops imx219_ctrl_ops = {
 	.s_ctrl = imx219_set_ctrl,
 };
+
+static int imx219_init_cfg(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *state)
+{
+	struct imx219 *imx219 = to_imx219(sd);
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
+
+	/* imx219_get_format_code() wants mutex locked. */
+	mutex_lock(&imx219->mutex);
+
+	/* Initialize try_fmt */
+	format = v4l2_subdev_get_pad_format(sd, state, 0);
+	format->width = supported_modes[0].width;
+	format->height = supported_modes[0].height;
+	format->code = imx219_get_format_code(imx219,
+					      MEDIA_BUS_FMT_SRGGB10_1X10);
+	format->field = V4L2_FIELD_NONE;
+
+	/* Initialize crop rectangle. */
+	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
+	crop->top = IMX219_PIXEL_ARRAY_TOP;
+	crop->left = IMX219_PIXEL_ARRAY_LEFT;
+	crop->width = IMX219_PIXEL_ARRAY_WIDTH;
+	crop->height = IMX219_PIXEL_ARRAY_HEIGHT;
+
+	mutex_unlock(&imx219->mutex);
+
+	return 0;
+}
 
 static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
@@ -1235,6 +1237,7 @@ static const struct v4l2_subdev_video_ops imx219_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx219_pad_ops = {
+	.init_cfg = imx219_init_cfg,
 	.enum_mbus_code = imx219_enum_mbus_code,
 	.get_fmt = imx219_get_pad_format,
 	.set_fmt = imx219_set_pad_format,
@@ -1248,9 +1251,6 @@ static const struct v4l2_subdev_ops imx219_subdev_ops = {
 	.pad = &imx219_pad_ops,
 };
 
-static const struct v4l2_subdev_internal_ops imx219_internal_ops = {
-	.open = imx219_open,
-};
 
 static unsigned long imx219_get_pixel_rate(struct imx219 *imx219)
 {
@@ -1509,7 +1509,6 @@ static int imx219_probe(struct i2c_client *client)
 		goto error_power_off;
 
 	/* Initialize subdev */
-	imx219->sd.internal_ops = &imx219_internal_ops;
 	imx219->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;
 	imx219->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
