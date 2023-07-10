@@ -862,8 +862,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct sata_rcar_priv *priv;
 	struct resource *mem;
-	int irq;
-	int ret = 0;
+	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
