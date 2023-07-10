@@ -164,8 +164,7 @@ static int pata_imx_probe(struct platform_device *pdev)
 	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
-	io_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->host_regs = devm_ioremap_resource(&pdev->dev, io_res);
+	priv->host_regs = devm_platform_get_and_ioremap_resource(pdev, 0, &io_res);
 	if (IS_ERR(priv->host_regs)) {
 		ret = PTR_ERR(priv->host_regs);
 		goto err;
