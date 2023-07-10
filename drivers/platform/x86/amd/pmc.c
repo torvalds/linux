@@ -28,6 +28,8 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 
+#include "pmc.h"
+
 /* SMU communication registers */
 #define AMD_PMC_REGISTER_MESSAGE	0x538
 #define AMD_PMC_REGISTER_RESPONSE	0x980
@@ -144,29 +146,6 @@ static const struct amd_pmc_bit_map soc15_ip_blk[] = {
 	{"IPU",		BIT(19)},
 	{"UMSCH",	BIT(20)},
 	{}
-};
-
-struct amd_pmc_dev {
-	void __iomem *regbase;
-	void __iomem *smu_virt_addr;
-	void __iomem *stb_virt_addr;
-	void __iomem *fch_virt_addr;
-	bool msg_port;
-	u32 base_addr;
-	u32 cpu_id;
-	u32 active_ips;
-	u32 dram_size;
-	u32 num_ips;
-	u32 s2d_msg_id;
-/* SMU version information */
-	u8 smu_program;
-	u8 major;
-	u8 minor;
-	u8 rev;
-	struct device *dev;
-	struct pci_dev *rdev;
-	struct mutex lock; /* generic mutex lock */
-	struct dentry *dbgfs_dir;
 };
 
 static bool enable_stb;
@@ -891,6 +870,8 @@ static void amd_pmc_s2idle_restore(void)
 
 	/* Notify on failed entry */
 	amd_pmc_validate_deepest(pdev);
+
+	amd_pmc_process_restore_quirks(pdev);
 }
 
 static struct acpi_s2idle_dev_ops amd_pmc_s2idle_dev_ops = {
@@ -1087,6 +1068,8 @@ static int amd_pmc_probe(struct platform_device *pdev)
 		err = acpi_register_lps0_dev(&amd_pmc_s2idle_dev_ops);
 		if (err)
 			dev_warn(dev->dev, "failed to register LPS0 sleep handler, expect increased power consumption\n");
+		if (!disable_workarounds)
+			amd_pmc_quirks_init(dev);
 	}
 
 	amd_pmc_dbgfs_register(dev);
