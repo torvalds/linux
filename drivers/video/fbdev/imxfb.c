@@ -673,7 +673,8 @@ static int imxfb_init_fbinfo(struct platform_device *pdev)
 
 	pr_debug("%s\n",__func__);
 
-	info->pseudo_palette = kmalloc_array(16, sizeof(u32), GFP_KERNEL);
+	info->pseudo_palette = devm_kmalloc_array(&pdev->dev, 16,
+						  sizeof(u32), GFP_KERNEL);
 	if (!info->pseudo_palette)
 		return -ENOMEM;
 
@@ -1044,7 +1045,6 @@ failed_map:
 failed_ioremap:
 failed_getclock:
 failed_of_parse:
-	kfree(info->pseudo_palette);
 failed_init:
 	framebuffer_release(info);
 	return ret;
@@ -1061,7 +1061,6 @@ static void imxfb_remove(struct platform_device *pdev)
 	fb_dealloc_cmap(&info->cmap);
 	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_buffer,
 		    fbi->map_dma);
-	kfree(info->pseudo_palette);
 	framebuffer_release(info);
 }
 
