@@ -15,6 +15,7 @@
 #include "tctx.h"
 #include "poll.h"
 #include "timeout.h"
+#include "waitid.h"
 #include "cancel.h"
 
 struct io_cancel {
@@ -116,6 +117,10 @@ int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 		return 0;
 
 	ret = io_poll_cancel(ctx, cd, issue_flags);
+	if (ret != -ENOENT)
+		return ret;
+
+	ret = io_waitid_cancel(ctx, cd, issue_flags);
 	if (ret != -ENOENT)
 		return ret;
 
