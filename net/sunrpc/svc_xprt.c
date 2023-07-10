@@ -457,7 +457,6 @@ static bool svc_xprt_ready(struct svc_xprt *xprt)
 void svc_xprt_enqueue(struct svc_xprt *xprt)
 {
 	struct svc_pool *pool;
-	struct svc_rqst	*rqstp = NULL;
 
 	if (!svc_xprt_ready(xprt))
 		return;
@@ -477,20 +476,7 @@ void svc_xprt_enqueue(struct svc_xprt *xprt)
 	list_add_tail(&xprt->xpt_ready, &pool->sp_sockets);
 	spin_unlock_bh(&pool->sp_lock);
 
-	/* find a thread for this xprt */
-	rcu_read_lock();
-	list_for_each_entry_rcu(rqstp, &pool->sp_all_threads, rq_all) {
-		if (test_and_set_bit(RQ_BUSY, &rqstp->rq_flags))
-			continue;
-		percpu_counter_inc(&pool->sp_threads_woken);
-		rqstp->rq_qtime = ktime_get();
-		wake_up_process(rqstp->rq_task);
-		goto out_unlock;
-	}
-	set_bit(SP_CONGESTED, &pool->sp_flags);
-	rqstp = NULL;
-out_unlock:
-	rcu_read_unlock();
+	svc_pool_wake_idle_thread(pool);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_enqueue);
 
@@ -581,7 +567,10 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
 	svc_xprt_put(xprt);
 }
 
-/*
+/**
+ * svc_wake_up - Wake up a service thread for non-transport work
+ * @serv: RPC service
+ *
  * Some svc_serv's will have occasional work to do, even when a xprt is not
  * waiting to be serviced. This function is there to "kick" a task in one of
  * those services so that it can wake up and do that work. Note that we only
@@ -590,27 +579,10 @@ static void svc_xprt_release(struct svc_rqst *rqstp)
  */
 void svc_wake_up(struct svc_serv *serv)
 {
-	struct svc_rqst	*rqstp;
-	struct svc_pool *pool;
+	struct svc_pool *pool = &serv->sv_pools[0];
 
-	pool = &serv->sv_pools[0];
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(rqstp, &pool->sp_all_threads, rq_all) {
-		/* skip any that aren't queued */
-		if (test_bit(RQ_BUSY, &rqstp->rq_flags))
-			continue;
-		rcu_read_unlock();
-		wake_up_process(rqstp->rq_task);
-		trace_svc_wake_up(rqstp->rq_task->pid);
-		return;
-	}
-	rcu_read_unlock();
-
-	/* No free entries available */
-	set_bit(SP_TASK_PENDING, &pool->sp_flags);
-	smp_wmb();
-	trace_svc_wake_up(0);
+	if (!svc_pool_wake_idle_thread(pool))
+		set_bit(SP_TASK_PENDING, &pool->sp_flags);
 }
 EXPORT_SYMBOL_GPL(svc_wake_up);
 

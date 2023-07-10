@@ -687,6 +687,40 @@ svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool, int node)
 	return rqstp;
 }
 
+/**
+ * svc_pool_wake_idle_thread - Awaken an idle thread in @pool
+ * @pool: service thread pool
+ *
+ * Can be called from soft IRQ or process context. Finding an idle
+ * service thread and marking it BUSY is atomic with respect to
+ * other calls to svc_pool_wake_idle_thread().
+ *
+ * Return value:
+ *   %true: An idle thread was awoken
+ *   %false: No idle thread was found
+ */
+bool svc_pool_wake_idle_thread(struct svc_pool *pool)
+{
+	struct svc_rqst	*rqstp;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(rqstp, &pool->sp_all_threads, rq_all) {
+		if (test_and_set_bit(RQ_BUSY, &rqstp->rq_flags))
+			continue;
+
+		WRITE_ONCE(rqstp->rq_qtime, ktime_get());
+		wake_up_process(rqstp->rq_task);
+		rcu_read_unlock();
+		percpu_counter_inc(&pool->sp_threads_woken);
+		trace_svc_wake_up(rqstp->rq_task->pid);
+		return true;
+	}
+	rcu_read_unlock();
+
+	set_bit(SP_CONGESTED, &pool->sp_flags);
+	return false;
+}
+
 /*
  * Choose a pool in which to create a new thread, for svc_set_num_threads
  */
