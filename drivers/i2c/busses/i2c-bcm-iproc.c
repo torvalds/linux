@@ -1026,7 +1026,6 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	int irq, ret = 0;
 	struct bcm_iproc_i2c_dev *iproc_i2c;
 	struct i2c_adapter *adap;
-	struct resource *res;
 
 	iproc_i2c = devm_kzalloc(&pdev->dev, sizeof(*iproc_i2c),
 				 GFP_KERNEL);
@@ -1039,15 +1038,12 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 		(enum bcm_iproc_i2c_type)of_device_get_match_data(&pdev->dev);
 	init_completion(&iproc_i2c->done);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	iproc_i2c->base = devm_ioremap_resource(iproc_i2c->device, res);
+	iproc_i2c->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(iproc_i2c->base))
 		return PTR_ERR(iproc_i2c->base);
 
 	if (iproc_i2c->type == IPROC_I2C_NIC) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		iproc_i2c->idm_base = devm_ioremap_resource(iproc_i2c->device,
-							    res);
+		iproc_i2c->idm_base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(iproc_i2c->idm_base))
 			return PTR_ERR(iproc_i2c->idm_base);
 
