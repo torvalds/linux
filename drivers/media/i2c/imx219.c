@@ -750,21 +750,13 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	const struct imx219_mode *mode;
 	int exposure_max, exposure_def, hblank;
 	struct v4l2_mbus_framefmt *format;
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(imx219_mbus_formats); i++)
-		if (imx219_mbus_formats[i] == fmt->format.code)
-			break;
-	if (i >= ARRAY_SIZE(imx219_mbus_formats))
-		i = 0;
 
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
 				      width, height,
 				      fmt->format.width, fmt->format.height);
 
-	imx219_update_pad_format(imx219, mode, &fmt->format,
-				 imx219_mbus_formats[i]);
+	imx219_update_pad_format(imx219, mode, &fmt->format, fmt->format.code);
 	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
 
 	if (imx219->mode == mode && format->code == fmt->format.code)
