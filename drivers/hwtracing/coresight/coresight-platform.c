@@ -667,8 +667,12 @@ static int acpi_coresight_parse_graph(struct device *dev,
 	struct coresight_connection *new_conn;
 
 	graph = acpi_get_coresight_graph(adev);
+	/*
+	 * There are no graph connections, which is fine for some components.
+	 * e.g., ETE
+	 */
 	if (!graph)
-		return -ENOENT;
+		return 0;
 
 	nlinks = graph->package.elements[2].integer.value;
 	if (!nlinks)
