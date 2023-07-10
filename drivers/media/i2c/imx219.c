@@ -670,6 +670,20 @@ static const struct v4l2_ctrl_ops imx219_ctrl_ops = {
 	.s_ctrl = imx219_set_ctrl,
 };
 
+static void imx219_update_pad_format(struct imx219 *imx219,
+				     const struct imx219_mode *mode,
+				     struct v4l2_mbus_framefmt *fmt, u32 code)
+{
+	/* Bayer order varies with flips */
+	fmt->code = imx219_get_format_code(imx219, code);
+	fmt->width = mode->width;
+	fmt->height = mode->height;
+	fmt->field = V4L2_FIELD_NONE;
+	fmt->colorspace = V4L2_COLORSPACE_RAW;
+	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
+}
+
 static int imx219_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *state)
 {
@@ -679,15 +693,8 @@ static int imx219_init_cfg(struct v4l2_subdev *sd,
 
 	/* Initialize try_fmt */
 	format = v4l2_subdev_get_pad_format(sd, state, 0);
-	format->width = supported_modes[0].width;
-	format->height = supported_modes[0].height;
-	format->code = imx219_get_format_code(imx219,
-					      MEDIA_BUS_FMT_SRGGB10_1X10);
-	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_RAW;
-	format->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(format->colorspace);
-	format->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	imx219_update_pad_format(imx219, &supported_modes[0], format,
+				 MEDIA_BUS_FMT_SRGGB10_1X10);
 
 	/* Initialize crop rectangle. */
 	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
@@ -735,23 +742,6 @@ static int imx219_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static void imx219_reset_colorspace(struct v4l2_mbus_framefmt *fmt)
-{
-	fmt->colorspace = V4L2_COLORSPACE_RAW;
-	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
-	fmt->xfer_func = V4L2_XFER_FUNC_NONE;
-}
-
-static void imx219_update_pad_format(struct imx219 *imx219,
-				     const struct imx219_mode *mode,
-				     struct v4l2_subdev_format *fmt)
-{
-	fmt->format.width = mode->width;
-	fmt->format.height = mode->height;
-	fmt->format.field = V4L2_FIELD_NONE;
-	imx219_reset_colorspace(&fmt->format);
-}
-
 static int imx219_set_pad_format(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_subdev_format *fmt)
@@ -768,15 +758,13 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	if (i >= ARRAY_SIZE(imx219_mbus_formats))
 		i = 0;
 
-	/* Bayer order varies with flips */
-	fmt->format.code = imx219_get_format_code(imx219, imx219_mbus_formats[i]);
-
 	mode = v4l2_find_nearest_size(supported_modes,
 				      ARRAY_SIZE(supported_modes),
 				      width, height,
 				      fmt->format.width, fmt->format.height);
 
-	imx219_update_pad_format(imx219, mode, fmt);
+	imx219_update_pad_format(imx219, mode, &fmt->format,
+				 imx219_mbus_formats[i]);
 	format = v4l2_subdev_get_pad_format(sd, sd_state, 0);
 
 	if (imx219->mode == mode && format->code == fmt->format.code)
