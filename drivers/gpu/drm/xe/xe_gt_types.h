@@ -164,6 +164,11 @@ struct xe_gt {
 		 */
 		struct list_head pending_fences;
 		/**
+		 * @pending_lock: protects @pending_fences and updating
+		 * @seqno_recv.
+		 */
+		spinlock_t pending_lock;
+		/**
 		 * @fence_tdr: schedules a delayed call to
 		 * xe_gt_tlb_fence_timeout after the timeut interval is over.
 		 */
