@@ -4198,7 +4198,9 @@ static const struct qcom_reset_map gcc_blair_resets[] = {
 	[GCC_USB_PHY_CFG_AHB2PHY_BCR] = { 0x1d000 },
 	[GCC_VCODEC0_BCR] = { 0x58094 },
 	[GCC_VENUS_BCR] = { 0x58078 },
+	[GCC_VENUS_CTL_AXI_CLK_ARES] = { 0x6e004, 2 },
 	[GCC_VIDEO_INTERFACE_BCR] = { 0x6e000 },
+	[GCC_VIDEO_VENUS_CTL_CLK_ARES] = { 0x5808c, 2 },
 };
 
 
