@@ -76,6 +76,7 @@ int clk_vote_vdd_level(struct clk_vdd_class_data *vdd_class, int level);
 int clk_unvote_vdd_level(struct clk_vdd_class_data *vdd_class, int level);
 int clk_get_vdd_voltage(struct clk_vdd_class_data *vdd_data, int vdd_level);
 int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc);
+void clk_regulator_deinit(const struct qcom_cc_desc *desc);
 int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc);
 int clk_vdd_proxy_unvote(struct device *dev, const struct qcom_cc_desc *desc);
 #endif

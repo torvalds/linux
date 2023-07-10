@@ -258,7 +258,8 @@ int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
 	struct clk_vdd_class *vdd_class;
 	struct regulator *regulator;
 	const char *name;
-	u32 i, cnt;
+	int i, cnt, ret;
+	size_t array_size;
 
 	for (i = 0; i < desc->num_clk_regulators; i++) {
 		vdd_class = desc->clk_regulators[i];
@@ -273,13 +274,37 @@ int clk_regulator_init(struct device *dev, const struct qcom_cc_desc *desc)
 				if (PTR_ERR(regulator) != -EPROBE_DEFER)
 					dev_err(dev, "%s error %s regulator\n",
 						__func__, name);
-				return PTR_ERR(regulator);
+				ret = PTR_ERR(regulator);
+				goto err_regulator_get;
 			}
 			vdd_class->regulator[cnt] = regulator;
 		}
 	}
 
 	return 0;
+
+err_regulator_get:
+	while (i >= 0) {
+		vdd_class = desc->clk_regulators[i];
+		array_size = vdd_class->num_regulators * sizeof(*vdd_class->regulator);
+		memset(vdd_class->regulator, 0, array_size);
+		i--;
+	}
+
+	return ret;
+}
+
+void clk_regulator_deinit(const struct qcom_cc_desc *desc)
+{
+	struct clk_vdd_class *vdd_class;
+	size_t array_size;
+	int i;
+
+	for (i = 0; i < desc->num_clk_regulators; i++) {
+		vdd_class = desc->clk_regulators[i];
+		array_size = vdd_class->num_regulators * sizeof(*vdd_class->regulator);
+		memset(vdd_class->regulator, 0, array_size);
+	}
 }
 
 int clk_vdd_proxy_vote(struct device *dev, const struct qcom_cc_desc *desc)
