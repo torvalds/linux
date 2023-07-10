@@ -52,6 +52,13 @@ do
 				echo QEMU killed
 			fi
 			configcheck.sh $i/.config $i/ConfigFragment > $i/ConfigFragment.diags 2>&1
+			if grep -q '^CONFIG_KCSAN=y$' $i/ConfigFragment.input
+			then
+				# KCSAN forces a number of Kconfig options, so remove
+				# complaints about those Kconfig options in KCSAN runs.
+				mv $i/ConfigFragment.diags $i/ConfigFragment.diags.kcsan
+				grep -v -E 'CONFIG_PROVE_RCU|CONFIG_PREEMPT_COUNT' $i/ConfigFragment.diags.kcsan > $i/ConfigFragment.diags
+			fi
 			if test -s $i/ConfigFragment.diags
 			then
 				cat $i/ConfigFragment.diags
