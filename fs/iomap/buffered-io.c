@@ -36,6 +36,20 @@ struct iomap_folio_state {
 
 static struct bio_set iomap_ioend_bioset;
 
+static inline bool ifs_is_fully_uptodate(struct folio *folio,
+		struct iomap_folio_state *ifs)
+{
+	struct inode *inode = folio->mapping->host;
+
+	return bitmap_full(ifs->state, i_blocks_per_folio(inode, folio));
+}
+
+static inline bool ifs_block_is_uptodate(struct iomap_folio_state *ifs,
+		unsigned int block)
+{
+	return test_bit(block, ifs->state);
+}
+
 static void ifs_set_range_uptodate(struct folio *folio,
 		struct iomap_folio_state *ifs, size_t off, size_t len)
 {
@@ -47,7 +61,7 @@ static void ifs_set_range_uptodate(struct folio *folio,
 
 	spin_lock_irqsave(&ifs->state_lock, flags);
 	bitmap_set(ifs->state, first_blk, nr_blks);
-	if (bitmap_full(ifs->state, i_blocks_per_folio(inode, folio)))
+	if (ifs_is_fully_uptodate(folio, ifs))
 		folio_mark_uptodate(folio);
 	spin_unlock_irqrestore(&ifs->state_lock, flags);
 }
@@ -92,14 +106,12 @@ static struct iomap_folio_state *ifs_alloc(struct inode *inode,
 static void ifs_free(struct folio *folio)
 {
 	struct iomap_folio_state *ifs = folio_detach_private(folio);
-	struct inode *inode = folio->mapping->host;
-	unsigned int nr_blocks = i_blocks_per_folio(inode, folio);
 
 	if (!ifs)
 		return;
 	WARN_ON_ONCE(atomic_read(&ifs->read_bytes_pending));
 	WARN_ON_ONCE(atomic_read(&ifs->write_bytes_pending));
-	WARN_ON_ONCE(bitmap_full(ifs->state, nr_blocks) !=
+	WARN_ON_ONCE(ifs_is_fully_uptodate(folio, ifs) !=
 			folio_test_uptodate(folio));
 	kfree(ifs);
 }
@@ -130,7 +142,7 @@ static void iomap_adjust_read_range(struct inode *inode, struct folio *folio,
 
 		/* move forward for each leading block marked uptodate */
 		for (i = first; i <= last; i++) {
-			if (!test_bit(i, ifs->state))
+			if (!ifs_block_is_uptodate(ifs, i))
 				break;
 			*pos += block_size;
 			poff += block_size;
@@ -140,7 +152,7 @@ static void iomap_adjust_read_range(struct inode *inode, struct folio *folio,
 
 		/* truncate len if we find any trailing uptodate block(s) */
 		for ( ; i <= last; i++) {
-			if (test_bit(i, ifs->state)) {
+			if (ifs_block_is_uptodate(ifs, i)) {
 				plen -= (last - i + 1) * block_size;
 				last = i - 1;
 				break;
@@ -444,7 +456,7 @@ bool iomap_is_partially_uptodate(struct folio *folio, size_t from, size_t count)
 	last = (from + count - 1) >> inode->i_blkbits;
 
 	for (i = first; i <= last; i++)
-		if (!test_bit(i, ifs->state))
+		if (!ifs_block_is_uptodate(ifs, i))
 			return false;
 	return true;
 }
@@ -1621,7 +1633,7 @@ iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	 * invalid, grab a new one.
 	 */
 	for (i = 0; i < nblocks && pos < end_pos; i++, pos += len) {
-		if (ifs && !test_bit(i, ifs->state))
+		if (ifs && !ifs_block_is_uptodate(ifs, i))
 			continue;
 
 		error = wpc->ops->map_blocks(wpc, inode, pos);
