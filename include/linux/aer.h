@@ -41,14 +41,8 @@ struct aer_capability_regs {
 };
 
 #if defined(CONFIG_PCIEAER)
-/* PCIe port driver needs this function to enable AER */
-int pci_enable_pcie_error_reporting(struct pci_dev *dev);
 int pci_aer_clear_nonfatal_status(struct pci_dev *dev);
 #else
-static inline int pci_enable_pcie_error_reporting(struct pci_dev *dev)
-{
-	return -EINVAL;
-}
 static inline int pci_aer_clear_nonfatal_status(struct pci_dev *dev)
 {
 	return -EINVAL;
