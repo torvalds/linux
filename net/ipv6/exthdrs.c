@@ -612,8 +612,6 @@ looped_back:
 
 	kfree(buf);
 
-	skb_dst_drop(skb);
-
 	ip6_route_input(skb);
 
 	if (skb_dst(skb)->error) {
