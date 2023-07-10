@@ -1138,9 +1138,9 @@
 		#reset-cells = <1>;
 
 		assigned-clocks =
-			<&cru PLL_GPLL>, <&cru PLL_CPLL>;
+			<&cru PLL_GPLL>, <&cru PLL_CPLL>, <&cru PLL_HPLL>;
 		assigned-clock-rates =
-			<1188000000>, <1000000000>;
+			<1188000000>, <1000000000>, <983040000>;
 	};
 
 	i2c0: i2c@ff200000 {
@@ -2249,6 +2249,8 @@
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI0>, <&cru HCLK_SAI0>;
 		clock-names = "mclk", "hclk";
+		assigned-clocks = <&cru CLK_SAI0_SRC>;
+		assigned-clock-parents = <&cru PLL_HPLL>;
 		dmas = <&dmac 19>, <&dmac 18>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI0_8CH>, <&cru SRST_H_SAI0_8CH>;
@@ -2271,6 +2273,8 @@
 		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI1>, <&cru HCLK_SAI1>;
 		clock-names = "mclk", "hclk";
+		assigned-clocks = <&cru CLK_SAI1_SRC>;
+		assigned-clock-parents = <&cru PLL_HPLL>;
 		dmas = <&dmac 21>, <&dmac 20>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI1_8CH>, <&cru SRST_H_SAI1_8CH>;
@@ -2296,6 +2300,8 @@
 		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru MCLK_SAI2>, <&cru HCLK_SAI2>;
 		clock-names = "mclk", "hclk";
+		assigned-clocks = <&cru CLK_SAI2_SRC>;
+		assigned-clock-parents = <&cru PLL_HPLL>;
 		dmas = <&dmac 23>, <&dmac 22>;
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_M_SAI2_2CH>, <&cru SRST_H_SAI2_2CH>;
@@ -2314,6 +2320,8 @@
 		reg = <0x0 0xff830000 0x0 0x1000>;
 		clocks = <&cru MCLK_PDM>, <&cru HCLK_PDM>;
 		clock-names = "pdm_clk", "pdm_hclk";
+		assigned-clocks = <&cru MCLK_PDM>;
+		assigned-clock-parents = <&cru PLL_HPLL>;
 		dmas = <&dmac 31>;
 		dma-names = "rx";
 		pinctrl-names = "default";
@@ -2335,6 +2343,8 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF>, <&cru HCLK_SPDIF>;
+		assigned-clocks = <&cru CLK_SPDIF_SRC>;
+		assigned-clock-parents = <&cru PLL_HPLL>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdifm0_pins>;
