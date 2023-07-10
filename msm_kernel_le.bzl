@@ -64,7 +64,7 @@ if [ "$${KERNEL_CMDLINE_CONSOLE_AUTO}" != "0" ]; then
 fi
 EOF
     """ % (
-        " ".join([v.replace("-", "_") for v in le_variants]), # VARIANTS
+        " ".join([v.replace("-", "_") for v in le_variants]),  # VARIANTS
         msm_target.replace("-", "_"),
         variant.replace("-", "_"),
         boot_image_opts.boot_image_header_version,
@@ -147,7 +147,6 @@ def _define_kernel_build(
         kernel_build = ":{}".format(target),
     )
 
-
     merged_kernel_uapi_headers(
         name = "{}_merged_kernel_uapi_headers".format(target),
         kernel_build = ":{}".format(target),
@@ -157,7 +156,6 @@ def _define_kernel_build(
         name = "{}_compile_commands".format(target),
         kernel_build = ":{}".format(target),
     )
-
 
 def _define_kernel_dist(target, msm_target, variant):
     """Creates distribution targets for kernel builds
@@ -171,7 +169,7 @@ def _define_kernel_dist(target, msm_target, variant):
     """
 
     dist_dir = get_out_dir(msm_target, variant) + "/dist"
-    le_target = msm_target.split("-")[0];
+    le_target = msm_target.split("-")[0]
 
     msm_dist_targets = [
         # do not sort
@@ -211,6 +209,8 @@ def _define_kernel_dist(target, msm_target, variant):
         dist_dir = dist_dir,
     )
 
+    gen_allyes_files(le_target, msm_dist_targets)
+
 def define_msm_le(
         msm_target,
         variant,
@@ -236,7 +236,7 @@ def define_msm_le(
     # Enforce format of "//msm-kernel:target-foo_variant-bar" (underscore is the delimeter
     # between target and variant)
     target = msm_target.replace("_", "-") + "_" + variant.replace("_", "-")
-    le_target = msm_target.split("-")[0];
+    le_target = msm_target.split("-")[0]
 
     dtb_list = get_dtb_list(le_target)
     dtbo_list = get_dtbo_list(le_target)
@@ -278,7 +278,5 @@ def define_msm_le(
     define_abl_dist(target, msm_target, variant)
 
     define_dtc_dist(target, msm_target, variant)
-
-    gen_allyes_files(le_target)
 
     define_extras(target)
