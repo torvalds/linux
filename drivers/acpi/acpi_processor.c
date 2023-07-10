@@ -624,16 +624,33 @@ static acpi_status __init acpi_hwp_native_thermal_lvt_osc(acpi_handle handle,
 	return AE_OK;
 }
 
-void __init acpi_early_processor_osc(void)
+static bool __init acpi_early_processor_osc(void)
 {
-	if (boot_cpu_has(X86_FEATURE_HWP)) {
-		acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-				    ACPI_UINT32_MAX,
-				    acpi_hwp_native_thermal_lvt_osc,
-				    NULL, NULL, NULL);
-		acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID,
-				 acpi_hwp_native_thermal_lvt_osc,
-				 NULL, NULL);
+	acpi_status status;
+
+	acpi_proc_quirk_mwait_check();
+
+	status = acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
+				     ACPI_UINT32_MAX, acpi_processor_osc, NULL,
+				     NULL, NULL);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	status = acpi_get_devices(ACPI_PROCESSOR_DEVICE_HID, acpi_processor_osc,
+				  NULL, NULL);
+	if (ACPI_FAILURE(status))
+		return false;
+
+	return true;
+}
+
+void __init acpi_early_processor_control_setup(void)
+{
+	if (acpi_early_processor_osc()) {
+		pr_info("_OSC evaluated successfully\n");
+	} else {
+		pr_info("_OSC evaluation failed, trying _PDC\n");
+		acpi_early_processor_set_pdc();
 	}
 }
 #endif
