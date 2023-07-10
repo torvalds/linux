@@ -126,7 +126,7 @@ static int graph_parse_node(struct asoc_simple_priv *priv,
 
 	graph_parse_mclk_fs(top, ep, dai_props);
 
-	ret = asoc_graph_parse_dai(ep, dlc, cpu);
+	ret = asoc_graph_parse_dai(dev, ep, dlc, cpu);
 	if (ret < 0)
 		return ret;
 
