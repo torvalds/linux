@@ -155,6 +155,7 @@ int acpi_wakeup_device_init(void);
 void acpi_early_processor_set_pdc(void);
 
 void acpi_proc_quirk_mwait_check(void);
+bool processor_physically_present(acpi_handle handle);
 #else
 static inline void acpi_early_processor_set_pdc(void) {}
 #endif
