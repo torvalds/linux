@@ -65,7 +65,7 @@ static int tps6594_esm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tps6594_esm_remove(struct platform_device *pdev)
+static void tps6594_esm_remove(struct platform_device *pdev)
 {
 	struct tps6594 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
@@ -86,8 +86,6 @@ static int tps6594_esm_remove(struct platform_device *pdev)
 out:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-
-	return ret;
 }
 
 static int tps6594_esm_suspend(struct device *dev)
@@ -121,7 +119,7 @@ static struct platform_driver tps6594_esm_driver = {
 		.pm = pm_sleep_ptr(&tps6594_esm_pm_ops),
 	},
 	.probe = tps6594_esm_probe,
-	.remove = tps6594_esm_remove,
+	.remove_new = tps6594_esm_remove,
 };
 
 module_platform_driver(tps6594_esm_driver);
