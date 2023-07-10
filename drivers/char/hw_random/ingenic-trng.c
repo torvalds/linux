@@ -84,16 +84,14 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	trng->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(trng->base)) {
-		pr_err("%s: Failed to map DTRNG registers\n", __func__);
-		return PTR_ERR(trng->base);
-	}
+	if (IS_ERR(trng->base))
+		return dev_err_probe(&pdev->dev, PTR_ERR(trng->base),
+				     "%s: Failed to map DTRNG registers\n", __func__);
 
 	clk = devm_clk_get_enabled(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
-		pr_crit("%s: Cannot get and enable DTRNG clock\n", __func__);
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk),
+				     "%s: Cannot get and enable DTRNG clock\n", __func__);
 
 	trng->rng.name = pdev->name;
 	trng->rng.init = ingenic_trng_init;
@@ -101,10 +99,8 @@ static int ingenic_trng_probe(struct platform_device *pdev)
 	trng->rng.read = ingenic_trng_read;
 
 	ret = hwrng_register(&trng->rng);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register hwrng\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to register hwrng\n");
 
 	platform_set_drvdata(pdev, trng);
 
