@@ -163,6 +163,16 @@
 	};
 };
 
+&i2c2 {
+	status = "okay";
+
+	eeprom: eeprom@50 {
+		compatible = "belling,bl24c16a", "atmel,24c16";
+		reg = <0x50>;
+		pagesize = <16>;
+	};
+};
+
 &i2c7 {
 	status = "okay";
 
