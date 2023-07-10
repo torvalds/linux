@@ -742,6 +742,21 @@ static int vdec_frame_decoded(struct vpu_inst *inst, void *arg)
 		dev_info(inst->dev, "[%d] buf[%d] has been decoded\n", inst->id, info->id);
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_DECODED);
 	vdec->decoded_frame_count++;
+	if (vdec->params.display_delay_enable) {
+		struct vpu_format *cur_fmt;
+
+		cur_fmt = vpu_get_format(inst, inst->cap_format.type);
+		vpu_set_buffer_state(vbuf, VPU_BUF_STATE_READY);
+		for (int i = 0; i < vbuf->vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&vbuf->vb2_buf,
+					      i, vpu_get_fmt_plane_size(cur_fmt, i));
+		vbuf->field = cur_fmt->field;
+		vbuf->sequence = vdec->sequence++;
+		dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
+
+		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
+		vdec->display_frame_count++;
+	}
 exit:
 	vpu_inst_unlock(inst);
 
@@ -769,14 +784,14 @@ static void vdec_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
 	struct vpu_format *cur_fmt;
 	struct vpu_vb2_buffer *vpu_buf;
 	struct vb2_v4l2_buffer *vbuf;
-	u32 sequence;
 	int i;
 
 	if (!frame)
 		return;
 
 	vpu_inst_lock(inst);
-	sequence = vdec->sequence++;
+	if (!vdec->params.display_delay_enable)
+		vdec->sequence++;
 	vpu_buf = vdec_find_buffer(inst, frame->luma);
 	vpu_inst_unlock(inst);
 	if (!vpu_buf) {
@@ -795,13 +810,17 @@ static void vdec_buf_done(struct vpu_inst *inst, struct vpu_frame_info *frame)
 		dev_err(inst->dev, "[%d] buffer id(%d, %d) dismatch\n",
 			inst->id, vbuf->vb2_buf.index, frame->id);
 
+	if (vpu_get_buffer_state(vbuf) == VPU_BUF_STATE_READY && vdec->params.display_delay_enable)
+		return;
+
 	if (vpu_get_buffer_state(vbuf) != VPU_BUF_STATE_DECODED)
 		dev_err(inst->dev, "[%d] buffer(%d) ready without decoded\n", inst->id, frame->id);
+
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_READY);
 	for (i = 0; i < vbuf->vb2_buf.num_planes; i++)
 		vb2_set_plane_payload(&vbuf->vb2_buf, i, vpu_get_fmt_plane_size(cur_fmt, i));
 	vbuf->field = cur_fmt->field;
-	vbuf->sequence = sequence;
+	vbuf->sequence = vdec->sequence;
 	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
 
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
