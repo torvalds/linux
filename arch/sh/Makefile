@@ -116,34 +116,15 @@ export ld-bfd
 
 # Mach groups
 machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
-machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
 machdir-$(CONFIG_SH_DREAMCAST)			+= mach-dreamcast
 machdir-$(CONFIG_SH_SH03)			+= mach-sh03
-machdir-$(CONFIG_SH_RTS7751R2D)			+= mach-r2d
-machdir-$(CONFIG_SH_HIGHLANDER)			+= mach-highlander
 machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
-machdir-$(CONFIG_SH_AP325RXA)			+= mach-ap325rxa
 machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
 machdir-$(CONFIG_SH_ECOVEC)			+= mach-ecovec24
-machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
 machdir-$(CONFIG_SH_SDK7786)			+= mach-sdk7786
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
-machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
-machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
 machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
-machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
-machdir-$(CONFIG_SH_RSK)			+= mach-rsk
-
-ifneq ($(machdir-y),)
-core-y	+= $(addprefix arch/sh/boards/, \
-	     $(filter-out ., $(patsubst %,%/,$(machdir-y))))
-endif
-
-# Common machine type headers. Not part of the arch/sh/boards/ hierarchy.
-machdir-y	+= mach-common
-
-# Companion chips
-core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
+machdir-y					+= mach-common
 
 #
 # CPU header paths
@@ -164,11 +145,8 @@ cpuincdir-y			+= cpu-common	# Must be last
 
 drivers-y			+= arch/sh/drivers/
 
-cflags-y	+= $(foreach d, $(cpuincdir-y), -I $(srctree)/arch/sh/include/$(d)) \
-		   $(foreach d, $(machdir-y), -I $(srctree)/arch/sh/include/$(d))
-
+KBUILD_CPPFLAGS		+= $(addprefix -I $(srctree)/arch/sh/include/, $(cpuincdir-y) $(machdir-y))
 KBUILD_CFLAGS		+= -pipe $(cflags-y)
-KBUILD_CPPFLAGS		+= $(cflags-y)
 KBUILD_AFLAGS		+= $(cflags-y)
 
 ifeq ($(CONFIG_MCOUNT),y)

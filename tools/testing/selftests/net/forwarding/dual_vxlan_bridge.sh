@@ -132,6 +132,7 @@ switch_create()
 	#### BR1 ####
 	ip link add name br1 type bridge vlan_filtering 1 \
 		vlan_protocol 802.1ad vlan_default_pvid 0 mcast_snooping 0
+	ip link set dev br1 addrgenmode none
 	# Make sure the bridge uses the MAC address of the local port and not
 	# that of the VxLAN's device.
 	ip link set dev br1 address $(mac_get $swp1)

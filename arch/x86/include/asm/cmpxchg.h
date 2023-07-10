@@ -239,29 +239,4 @@ extern void __add_wrong_size(void)
 #define __xadd(ptr, inc, lock)	__xchg_op((ptr), (inc), xadd, lock)
 #define xadd(ptr, inc)		__xadd((ptr), (inc), LOCK_PREFIX)
 
-#define __cmpxchg_double(pfx, p1, p2, o1, o2, n1, n2)			\
-({									\
-	bool __ret;							\
-	__typeof__(*(p1)) __old1 = (o1), __new1 = (n1);			\
-	__typeof__(*(p2)) __old2 = (o2), __new2 = (n2);			\
-	BUILD_BUG_ON(sizeof(*(p1)) != sizeof(long));			\
-	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
-	VM_BUG_ON((unsigned long)(p1) % (2 * sizeof(long)));		\
-	VM_BUG_ON((unsigned long)((p1) + 1) != (unsigned long)(p2));	\
-	asm volatile(pfx "cmpxchg%c5b %1"				\
-		     CC_SET(e)						\
-		     : CC_OUT(e) (__ret),				\
-		       "+m" (*(p1)), "+m" (*(p2)),			\
-		       "+a" (__old1), "+d" (__old2)			\
-		     : "i" (2 * sizeof(long)),				\
-		       "b" (__new1), "c" (__new2));			\
-	__ret;								\
-})
-
-#define arch_cmpxchg_double(p1, p2, o1, o2, n1, n2) \
-	__cmpxchg_double(LOCK_PREFIX, p1, p2, o1, o2, n1, n2)
-
-#define arch_cmpxchg_double_local(p1, p2, o1, o2, n1, n2) \
-	__cmpxchg_double(, p1, p2, o1, o2, n1, n2)
-
 #endif	/* ASM_X86_CMPXCHG_H */

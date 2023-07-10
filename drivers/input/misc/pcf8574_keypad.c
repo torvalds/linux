@@ -199,7 +199,7 @@ static struct i2c_driver pcf8574_kp_driver = {
 		.name  = DRV_NAME,
 		.pm = pm_sleep_ptr(&pcf8574_kp_pm_ops),
 	},
-	.probe_new = pcf8574_kp_probe,
+	.probe    = pcf8574_kp_probe,
 	.remove   = pcf8574_kp_remove,
 	.id_table = pcf8574_kp_id,
 };

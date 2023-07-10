@@ -1,0 +1,90 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver max31827
+======================
+
+Supported chips:
+
+  * Maxim MAX31827
+
+    Prefix: 'max31827'
+
+    Addresses scanned: I2C 0x40 - 0x5f
+
+    Datasheet: Publicly available at the Analog Devices website
+
+  * Maxim MAX31828
+
+    Prefix: 'max31828'
+
+    Addresses scanned: I2C 0x40 - 0x5f
+
+    Datasheet: Publicly available at the Analog Devices website
+
+  * Maxim MAX31829
+
+    Prefix: 'max31829'
+
+    Addresses scanned: I2C 0x40 - 0x5f
+
+    Datasheet: Publicly available at the Analog Devices website
+
+
+Authors:
+	- Daniel Matyas <daniel.matyas@analog.com>
+
+Description
+-----------
+
+The chips supported by this driver are quite similar. The only difference
+between them is found in the default power-on behaviour of the chips. While the
+MAX31827's fault queue is set to 1, the other two chip's fault queue is set to
+4. Besides this, the MAX31829's alarm active state is high, while the other two
+chip's alarms are active on low. It is important to note that the chips can be
+configured to operate in the same manner with 1 write operation to the
+configuration register. From here on, we will refer to all these chips as
+MAX31827.
+
+MAX31827 implements a temperature sensor with a 6 WLP packaging scheme. This
+sensor measures the temperature of the chip itself.
+
+MAX31827 has low and over temperature alarms with an effective value and a
+hysteresis value: -40 and -30 degrees for under temperature alarm and +100 and
++90 degrees for over temperature alarm.
+
+The alarm can be configured in comparator and interrupt mode. Currently only
+comparator mode is implemented. In Comparator mode, the OT/UT status bits have a
+value of 1 when the temperature rises above the TH value or falls below TL,
+which is also subject to the Fault Queue selection. OT status returns to 0 when
+the temperature drops below the TH_HYST value or when shutdown mode is entered.
+Similarly, UT status returns to 0 when the temperature rises above TL_HYST value
+or when shutdown mode is entered.
+
+Putting the MAX31827 into shutdown mode also resets the OT/UT status bits. Note
+that if the mode is changed while OT/UT status bits are set, an OT/UT status
+reset may be required before it begins to behave normally. To prevent this,
+it is recommended to perform a read of the configuration/status register to
+clear the status bits before changing the operating mode.
+
+The conversions can be manual with the one-shot functionality and automatic with
+a set frequency. When powered on, the chip measures temperatures with 1 conv/s.
+Enabling the device when it is already enabled has the side effect of setting
+the conversion frequency to 1 conv/s. The conversion time varies depending on
+the resolution. The conversion time doubles with every bit of increased
+resolution. For 10 bit resolution 35ms are needed, while for 12 bit resolution
+(default) 140ms. When chip is in shutdown mode and a read operation is
+requested, one-shot is triggered, the device waits for 140 (conversion time) + 1
+(error) ms, and only after that is the temperature value register read.
+
+The LSB of the temperature values is 0.0625 degrees Celsius, but the values of
+the temperatures are displayed in milli-degrees. This means, that some data is
+lost. The step between 2 consecutive values is 62 or 63. This effect can be seen
+in the writing of alarm values too. For positive numbers the user-input value
+will always be rounded down to the nearest possible value, for negative numbers
+the user-input will always be rounded up to the nearest possible value.
+
+Notes
+-----
+
+Currently fault queue, alarm polarity and resolution cannot be modified.
+PEC is not implemented either.

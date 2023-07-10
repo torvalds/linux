@@ -705,20 +705,6 @@ ap_h1_spi: &spi0 {
 	status = "disabled";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-};
-
-&dsi0_out {
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-};
-
 ap_sar_sensor_i2c: &i2c5 {
 	clock-frequency = <400000>;
 
@@ -788,6 +774,10 @@ hp_i2c: &i2c9 {
 	};
 };
 
+&lpasscc {
+	status = "okay";
+};
+
 &lpass_cpu {
 	status = "okay";
 
@@ -813,7 +803,7 @@ hp_i2c: &i2c9 {
 	};
 };
 
-&mdp {
+&lpass_hm {
 	status = "okay";
 };
 
@@ -830,6 +820,20 @@ hp_i2c: &i2c9 {
 &mdss_dp_out {
 	data-lanes = <0 1>;
 	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
+};
+
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
 };
 
 &pm6150_adc {
@@ -890,6 +894,11 @@ hp_i2c: &i2c9 {
 
 	qcom,halt-regs = <&tcsr_regs_1 0x3000 0x5000 0x4000>;
 	qcom,spare-regs = <&tcsr_regs_2 0xb3e4>;
+};
+
+&scm {
+	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
+	dma-coherent;
 };
 
 &sdhc_1 {

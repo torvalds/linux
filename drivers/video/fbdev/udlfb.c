@@ -1008,7 +1008,7 @@ static void dlfb_ops_destroy(struct fb_info *info)
 		fb_dealloc_cmap(&info->cmap);
 	if (info->monspecs.modedb)
 		fb_destroy_modedb(info->monspecs.modedb);
-	vfree(info->screen_base);
+	vfree(info->screen_buffer);
 
 	fb_destroy_modelist(&info->modelist);
 
@@ -1122,7 +1122,7 @@ static int dlfb_ops_set_par(struct fb_info *info)
 
 		/* paint greenscreen */
 
-		pix_framebuffer = (u16 *) info->screen_base;
+		pix_framebuffer = (u16 *)info->screen_buffer;
 		for (i = 0; i < info->fix.smem_len / 2; i++)
 			pix_framebuffer[i] = 0x37e6;
 	}
@@ -1221,7 +1221,7 @@ static void dlfb_deferred_vfree(struct dlfb_data *dlfb, void *mem)
 static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info, u32 new_len)
 {
 	u32 old_len = info->fix.smem_len;
-	const void *old_fb = (const void __force *)info->screen_base;
+	const void *old_fb = info->screen_buffer;
 	unsigned char *new_fb;
 	unsigned char *new_back = NULL;
 
@@ -1238,12 +1238,12 @@ static int dlfb_realloc_framebuffer(struct dlfb_data *dlfb, struct fb_info *info
 		}
 		memset(new_fb, 0xff, new_len);
 
-		if (info->screen_base) {
+		if (info->screen_buffer) {
 			memcpy(new_fb, old_fb, old_len);
-			dlfb_deferred_vfree(dlfb, (void __force *)info->screen_base);
+			dlfb_deferred_vfree(dlfb, info->screen_buffer);
 		}
 
-		info->screen_base = (char __iomem *)new_fb;
+		info->screen_buffer = new_fb;
 		info->fix.smem_len = new_len;
 		info->fix.smem_start = (unsigned long) new_fb;
 		info->flags = udlfb_info_flags;

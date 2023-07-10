@@ -686,8 +686,10 @@ static int tegra194_cpufreq_probe(struct platform_device *pdev)
 
 	/* Check for optional OPPv2 and interconnect paths on CPU0 to enable ICC scaling */
 	cpu_dev = get_cpu_device(0);
-	if (!cpu_dev)
-		return -EPROBE_DEFER;
+	if (!cpu_dev) {
+		err = -EPROBE_DEFER;
+		goto err_free_res;
+	}
 
 	if (dev_pm_opp_of_get_opp_desc_node(cpu_dev)) {
 		err = dev_pm_opp_of_find_icc_paths(cpu_dev, NULL);

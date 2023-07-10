@@ -1631,7 +1631,7 @@ static void axienet_pcs_an_restart(struct phylink_pcs *pcs)
 	phylink_mii_c22_pcs_an_restart(pcs_phy);
 }
 
-static int axienet_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
+static int axienet_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			      phy_interface_t interface,
 			      const unsigned long *advertising,
 			      bool permit_pause_to_mac)
@@ -1653,7 +1653,8 @@ static int axienet_pcs_config(struct phylink_pcs *pcs, unsigned int mode,
 		}
 	}
 
-	ret = phylink_mii_c22_pcs_config(pcs_phy, mode, interface, advertising);
+	ret = phylink_mii_c22_pcs_config(pcs_phy, interface, advertising,
+					 neg_mode);
 	if (ret < 0)
 		netdev_warn(ndev, "Failed to configure PCS: %d\n", ret);
 
@@ -2042,6 +2043,11 @@ static int axienet_probe(struct platform_device *pdev)
 		goto cleanup_clk;
 	}
 
+	/* Reset core now that clocks are enabled, prior to accessing MDIO */
+	ret = __axienet_device_reset(lp);
+	if (ret)
+		goto cleanup_clk;
+
 	/* Autodetect the need for 64-bit DMA pointers.
 	 * When the IP is configured for a bus width bigger than 32 bits,
 	 * writing the MSB registers is mandatory, even if they are all 0.
@@ -2096,11 +2102,6 @@ static int axienet_probe(struct platform_device *pdev)
 	lp->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 	lp->coalesce_usec_tx = XAXIDMA_DFT_TX_USEC;
 
-	/* Reset core now that clocks are enabled, prior to accessing MDIO */
-	ret = __axienet_device_reset(lp);
-	if (ret)
-		goto cleanup_clk;
-
 	ret = axienet_mdio_setup(lp);
 	if (ret)
 		dev_warn(&pdev->dev,
@@ -2129,6 +2130,7 @@ static int axienet_probe(struct platform_device *pdev)
 		}
 		of_node_put(np);
 		lp->pcs.ops = &axienet_pcs_ops;
+		lp->pcs.neg_mode = true;
 		lp->pcs.poll = true;
 	}
 

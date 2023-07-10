@@ -1338,7 +1338,7 @@ static const struct usb_gadget_ops fusb300_gadget_ops = {
 	.udc_stop	= fusb300_udc_stop,
 };
 
-static int fusb300_remove(struct platform_device *pdev)
+static void fusb300_remove(struct platform_device *pdev)
 {
 	struct fusb300 *fusb300 = platform_get_drvdata(pdev);
 	int i;
@@ -1352,8 +1352,6 @@ static int fusb300_remove(struct platform_device *pdev)
 	for (i = 0; i < FUSB300_MAX_NUM_EP; i++)
 		kfree(fusb300->ep[i]);
 	kfree(fusb300);
-
-	return 0;
 }
 
 static int fusb300_probe(struct platform_device *pdev)
@@ -1508,7 +1506,7 @@ clean_up:
 }
 
 static struct platform_driver fusb300_driver = {
-	.remove =	fusb300_remove,
+	.remove_new =	fusb300_remove,
 	.driver		= {
 		.name =	udc_name,
 	},

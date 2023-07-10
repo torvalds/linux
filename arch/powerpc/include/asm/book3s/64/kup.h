@@ -194,6 +194,7 @@
 #else /* !__ASSEMBLY__ */
 
 #include <linux/jump_label.h>
+#include <linux/sched.h>
 
 DECLARE_STATIC_KEY_FALSE(uaccess_flush_key);
 

@@ -1053,11 +1053,11 @@ core99_reset_cpu(struct device_node *node, long param, long value)
 		return -ENODEV;
 
 	for_each_of_cpu_node(np) {
-		const u32 *num = of_get_property(np, "reg", NULL);
 		const u32 *rst = of_get_property(np, "soft-reset", NULL);
-		if (num == NULL || rst == NULL)
+		if (!rst)
 			continue;
-		if (param == *num) {
+		if (param == of_get_cpu_hwid(np, 0)) {
+			of_node_put(np);
 			reset_io = *rst;
 			break;
 		}
@@ -1499,11 +1499,11 @@ static long g5_reset_cpu(struct device_node *node, long param, long value)
 		return -ENODEV;
 
 	for_each_of_cpu_node(np) {
-		const u32 *num = of_get_property(np, "reg", NULL);
 		const u32 *rst = of_get_property(np, "soft-reset", NULL);
-		if (num == NULL || rst == NULL)
+		if (!rst)
 			continue;
-		if (param == *num) {
+		if (param == of_get_cpu_hwid(np, 0)) {
+			of_node_put(np);
 			reset_io = *rst;
 			break;
 		}

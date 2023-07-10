@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include "imx-media.h"
 
-#define IMX_BUS_FMTS(fmt...) (const u32[]) {fmt, 0}
+#define IMX_BUS_FMTS(fmt...) ((const u32[]) {fmt, 0})
 
 /*
  * List of supported pixel formats for the subdevs.

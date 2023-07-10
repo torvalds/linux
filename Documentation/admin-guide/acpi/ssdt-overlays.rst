@@ -103,7 +103,7 @@ allows a persistent, OS independent way of storing the user defined SSDTs. There
 is also work underway to implement EFI support for loading user defined SSDTs
 and using this method will make it easier to convert to the EFI loading
 mechanism when that will arrive. To enable it, the
-CONFIG_EFI_CUSTOM_SSDT_OVERLAYS shoyld be chosen to y.
+CONFIG_EFI_CUSTOM_SSDT_OVERLAYS should be chosen to y.
 
 In order to load SSDTs from an EFI variable the ``"efivar_ssdt=..."`` kernel
 command line parameter can be used (the name has a limitation of 16 characters).

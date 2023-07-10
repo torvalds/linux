@@ -55,7 +55,8 @@ struct adreno_reglist {
 	u32 value;
 };
 
-extern const struct adreno_reglist a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[], a660_hwcg[];
+extern const struct adreno_reglist a612_hwcg[], a615_hwcg[], a630_hwcg[], a640_hwcg[], a650_hwcg[];
+extern const struct adreno_reglist a660_hwcg[], a690_hwcg[];
 
 struct adreno_info {
 	struct adreno_rev rev;
@@ -115,6 +116,7 @@ struct adreno_gpu {
 	 * code (a3xx_gpu.c) and stored in this common location.
 	 */
 	const unsigned int *reg_offsets;
+	bool gmu_is_wrapper;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
@@ -145,148 +147,194 @@ struct adreno_platform_config {
 
 bool adreno_cmp_rev(struct adreno_rev rev1, struct adreno_rev rev2);
 
-static inline bool adreno_is_a2xx(struct adreno_gpu *gpu)
+static inline bool adreno_is_revn(const struct adreno_gpu *gpu, uint32_t revn)
 {
+	WARN_ON_ONCE(!gpu->revn);
+
+	return gpu->revn == revn;
+}
+
+static inline bool adreno_has_gmu_wrapper(const struct adreno_gpu *gpu)
+{
+	return gpu->gmu_is_wrapper;
+}
+
+static inline bool adreno_is_a2xx(const struct adreno_gpu *gpu)
+{
+	WARN_ON_ONCE(!gpu->revn);
+
 	return (gpu->revn < 300);
 }
 
-static inline bool adreno_is_a20x(struct adreno_gpu *gpu)
+static inline bool adreno_is_a20x(const struct adreno_gpu *gpu)
 {
+	WARN_ON_ONCE(!gpu->revn);
+
 	return (gpu->revn < 210);
 }
 
-static inline bool adreno_is_a225(struct adreno_gpu *gpu)
+static inline bool adreno_is_a225(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 225;
+	return adreno_is_revn(gpu, 225);
 }
 
-static inline bool adreno_is_a305(struct adreno_gpu *gpu)
+static inline bool adreno_is_a305(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 305;
+	return adreno_is_revn(gpu, 305);
 }
 
-static inline bool adreno_is_a306(struct adreno_gpu *gpu)
+static inline bool adreno_is_a306(const struct adreno_gpu *gpu)
 {
 	/* yes, 307, because a305c is 306 */
-	return gpu->revn == 307;
+	return adreno_is_revn(gpu, 307);
 }
 
-static inline bool adreno_is_a320(struct adreno_gpu *gpu)
+static inline bool adreno_is_a320(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 320;
+	return adreno_is_revn(gpu, 320);
 }
 
-static inline bool adreno_is_a330(struct adreno_gpu *gpu)
+static inline bool adreno_is_a330(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 330;
+	return adreno_is_revn(gpu, 330);
 }
 
-static inline bool adreno_is_a330v2(struct adreno_gpu *gpu)
+static inline bool adreno_is_a330v2(const struct adreno_gpu *gpu)
 {
 	return adreno_is_a330(gpu) && (gpu->rev.patchid > 0);
 }
 
-static inline int adreno_is_a405(struct adreno_gpu *gpu)
+static inline int adreno_is_a405(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 405;
+	return adreno_is_revn(gpu, 405);
 }
 
-static inline int adreno_is_a420(struct adreno_gpu *gpu)
+static inline int adreno_is_a420(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 420;
+	return adreno_is_revn(gpu, 420);
 }
 
-static inline int adreno_is_a430(struct adreno_gpu *gpu)
+static inline int adreno_is_a430(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 430;
+	return adreno_is_revn(gpu, 430);
 }
 
-static inline int adreno_is_a506(struct adreno_gpu *gpu)
+static inline int adreno_is_a506(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 506;
+	return adreno_is_revn(gpu, 506);
 }
 
-static inline int adreno_is_a508(struct adreno_gpu *gpu)
+static inline int adreno_is_a508(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 508;
+	return adreno_is_revn(gpu, 508);
 }
 
-static inline int adreno_is_a509(struct adreno_gpu *gpu)
+static inline int adreno_is_a509(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 509;
+	return adreno_is_revn(gpu, 509);
 }
 
-static inline int adreno_is_a510(struct adreno_gpu *gpu)
+static inline int adreno_is_a510(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 510;
+	return adreno_is_revn(gpu, 510);
 }
 
-static inline int adreno_is_a512(struct adreno_gpu *gpu)
+static inline int adreno_is_a512(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 512;
+	return adreno_is_revn(gpu, 512);
 }
 
-static inline int adreno_is_a530(struct adreno_gpu *gpu)
+static inline int adreno_is_a530(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 530;
+	return adreno_is_revn(gpu, 530);
 }
 
-static inline int adreno_is_a540(struct adreno_gpu *gpu)
+static inline int adreno_is_a540(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 540;
+	return adreno_is_revn(gpu, 540);
 }
 
-static inline int adreno_is_a618(struct adreno_gpu *gpu)
+static inline int adreno_is_a610(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 618;
+	return adreno_is_revn(gpu, 610);
 }
 
-static inline int adreno_is_a619(struct adreno_gpu *gpu)
+static inline int adreno_is_a618(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 619;
+	return adreno_is_revn(gpu, 618);
 }
 
-static inline int adreno_is_a630(struct adreno_gpu *gpu)
+static inline int adreno_is_a619(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 630;
+	return adreno_is_revn(gpu, 619);
 }
 
-static inline int adreno_is_a640_family(struct adreno_gpu *gpu)
+static inline int adreno_is_a619_holi(const struct adreno_gpu *gpu)
 {
-	return (gpu->revn == 640) || (gpu->revn == 680);
+	return adreno_is_a619(gpu) && adreno_has_gmu_wrapper(gpu);
 }
 
-static inline int adreno_is_a650(struct adreno_gpu *gpu)
+static inline int adreno_is_a630(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 650;
+	return adreno_is_revn(gpu, 630);
 }
 
-static inline int adreno_is_7c3(struct adreno_gpu *gpu)
+static inline int adreno_is_a640(const struct adreno_gpu *gpu)
+{
+	return adreno_is_revn(gpu, 640);
+}
+
+static inline int adreno_is_a650(const struct adreno_gpu *gpu)
+{
+	return adreno_is_revn(gpu, 650);
+}
+
+static inline int adreno_is_7c3(const struct adreno_gpu *gpu)
 {
 	/* The order of args is important here to handle ANY_ID correctly */
 	return adreno_cmp_rev(ADRENO_REV(6, 3, 5, ANY_ID), gpu->rev);
 }
 
-static inline int adreno_is_a660(struct adreno_gpu *gpu)
+static inline int adreno_is_a660(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 660;
+	return adreno_is_revn(gpu, 660);
 }
+
+static inline int adreno_is_a680(const struct adreno_gpu *gpu)
+{
+	return adreno_is_revn(gpu, 680);
+}
+
+static inline int adreno_is_a690(const struct adreno_gpu *gpu)
+{
+	return adreno_is_revn(gpu, 690);
+};
 
 /* check for a615, a616, a618, a619 or any derivatives */
-static inline int adreno_is_a615_family(struct adreno_gpu *gpu)
+static inline int adreno_is_a615_family(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 615 || gpu->revn == 616 || gpu->revn == 618 || gpu->revn == 619;
+	return adreno_is_revn(gpu, 615) ||
+		adreno_is_revn(gpu, 616) ||
+		adreno_is_revn(gpu, 618) ||
+		adreno_is_revn(gpu, 619);
 }
 
-static inline int adreno_is_a660_family(struct adreno_gpu *gpu)
+static inline int adreno_is_a660_family(const struct adreno_gpu *gpu)
 {
-	return adreno_is_a660(gpu) || adreno_is_7c3(gpu);
+	return adreno_is_a660(gpu) || adreno_is_a690(gpu) || adreno_is_7c3(gpu);
 }
 
 /* check for a650, a660, or any derivatives */
-static inline int adreno_is_a650_family(struct adreno_gpu *gpu)
+static inline int adreno_is_a650_family(const struct adreno_gpu *gpu)
 {
-	return gpu->revn == 650 || gpu->revn == 620 || adreno_is_a660_family(gpu);
+	return adreno_is_revn(gpu, 650) ||
+		adreno_is_revn(gpu, 620) ||
+		adreno_is_a660_family(gpu);
+}
+
+static inline int adreno_is_a640_family(const struct adreno_gpu *gpu)
+{
+	return adreno_is_a640(gpu) || adreno_is_a680(gpu);
 }
 
 u64 adreno_private_address_space_size(struct msm_gpu *gpu);

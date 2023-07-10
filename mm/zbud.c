@@ -83,11 +83,7 @@ struct zbud_pool;
  *		its free region.
  * @buddied:	list tracking the zbud pages that contain two buddies;
  *		these zbud pages are full
- * @lru:	list tracking the zbud pages in LRU order by most recently
- *		added buddy.
  * @pages_nr:	number of zbud pages in the pool.
- * @zpool:	zpool driver
- * @zpool_ops:	zpool operations structure with an evict callback
  *
  * This structure is allocated at pool creation time and maintains metadata
  * pertaining to a particular zbud pool.
@@ -102,26 +98,20 @@ struct zbud_pool {
 		struct list_head buddied;
 		struct list_head unbuddied[NCHUNKS];
 	};
-	struct list_head lru;
 	u64 pages_nr;
-	struct zpool *zpool;
-	const struct zpool_ops *zpool_ops;
 };
 
 /*
  * struct zbud_header - zbud page metadata occupying the first chunk of each
  *			zbud page.
  * @buddy:	links the zbud page into the unbuddied/buddied lists in the pool
- * @lru:	links the zbud page into the lru list in the pool
  * @first_chunks:	the size of the first buddy in chunks, 0 if free
  * @last_chunks:	the size of the last buddy in chunks, 0 if free
  */
 struct zbud_header {
 	struct list_head buddy;
-	struct list_head lru;
 	unsigned int first_chunks;
 	unsigned int last_chunks;
-	bool under_reclaim;
 };
 
 /*****************
@@ -149,8 +139,6 @@ static struct zbud_header *init_zbud_page(struct page *page)
 	zhdr->first_chunks = 0;
 	zhdr->last_chunks = 0;
 	INIT_LIST_HEAD(&zhdr->buddy);
-	INIT_LIST_HEAD(&zhdr->lru);
-	zhdr->under_reclaim = false;
 	return zhdr;
 }
 
@@ -221,7 +209,6 @@ static struct zbud_pool *zbud_create_pool(gfp_t gfp)
 	for_each_unbuddied_list(i, 0)
 		INIT_LIST_HEAD(&pool->unbuddied[i]);
 	INIT_LIST_HEAD(&pool->buddied);
-	INIT_LIST_HEAD(&pool->lru);
 	pool->pages_nr = 0;
 	return pool;
 }
@@ -310,11 +297,6 @@ found:
 		list_add(&zhdr->buddy, &pool->buddied);
 	}
 
-	/* Add/move zbud page to beginning of LRU */
-	if (!list_empty(&zhdr->lru))
-		list_del(&zhdr->lru);
-	list_add(&zhdr->lru, &pool->lru);
-
 	*handle = encode_handle(zhdr, bud);
 	spin_unlock(&pool->lock);
 
@@ -325,11 +307,6 @@ found:
  * zbud_free() - frees the allocation associated with the given handle
  * @pool:	pool in which the allocation resided
  * @handle:	handle associated with the allocation returned by zbud_alloc()
- *
- * In the case that the zbud page in which the allocation resides is under
- * reclaim, as indicated by the PG_reclaim flag being set, this function
- * only sets the first|last_chunks to 0.  The page is actually freed
- * once both buddies are evicted (see zbud_reclaim_page() below).
  */
 static void zbud_free(struct zbud_pool *pool, unsigned long handle)
 {
@@ -345,18 +322,11 @@ static void zbud_free(struct zbud_pool *pool, unsigned long handle)
 	else
 		zhdr->first_chunks = 0;
 
-	if (zhdr->under_reclaim) {
-		/* zbud page is under reclaim, reclaim will free */
-		spin_unlock(&pool->lock);
-		return;
-	}
-
 	/* Remove from existing buddy list */
 	list_del(&zhdr->buddy);
 
 	if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
 		/* zbud page is empty, free */
-		list_del(&zhdr->lru);
 		free_zbud_page(zhdr);
 		pool->pages_nr--;
 	} else {
@@ -366,110 +336,6 @@ static void zbud_free(struct zbud_pool *pool, unsigned long handle)
 	}
 
 	spin_unlock(&pool->lock);
-}
-
-/**
- * zbud_reclaim_page() - evicts allocations from a pool page and frees it
- * @pool:	pool from which a page will attempt to be evicted
- * @retries:	number of pages on the LRU list for which eviction will
- *		be attempted before failing
- *
- * zbud reclaim is different from normal system reclaim in that the reclaim is
- * done from the bottom, up.  This is because only the bottom layer, zbud, has
- * information on how the allocations are organized within each zbud page. This
- * has the potential to create interesting locking situations between zbud and
- * the user, however.
- *
- * To avoid these, this is how zbud_reclaim_page() should be called:
- *
- * The user detects a page should be reclaimed and calls zbud_reclaim_page().
- * zbud_reclaim_page() will remove a zbud page from the pool LRU list and call
- * the user-defined eviction handler with the pool and handle as arguments.
- *
- * If the handle can not be evicted, the eviction handler should return
- * non-zero. zbud_reclaim_page() will add the zbud page back to the
- * appropriate list and try the next zbud page on the LRU up to
- * a user defined number of retries.
- *
- * If the handle is successfully evicted, the eviction handler should
- * return 0 _and_ should have called zbud_free() on the handle. zbud_free()
- * contains logic to delay freeing the page if the page is under reclaim,
- * as indicated by the setting of the PG_reclaim flag on the underlying page.
- *
- * If all buddies in the zbud page are successfully evicted, then the
- * zbud page can be freed.
- *
- * Returns: 0 if page is successfully freed, otherwise -EINVAL if there are
- * no pages to evict or an eviction handler is not registered, -EAGAIN if
- * the retry limit was hit.
- */
-static int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries)
-{
-	int i, ret, freechunks;
-	struct zbud_header *zhdr;
-	unsigned long first_handle = 0, last_handle = 0;
-
-	spin_lock(&pool->lock);
-	if (list_empty(&pool->lru)) {
-		spin_unlock(&pool->lock);
-		return -EINVAL;
-	}
-	for (i = 0; i < retries; i++) {
-		zhdr = list_last_entry(&pool->lru, struct zbud_header, lru);
-		list_del(&zhdr->lru);
-		list_del(&zhdr->buddy);
-		/* Protect zbud page against free */
-		zhdr->under_reclaim = true;
-		/*
-		 * We need encode the handles before unlocking, since we can
-		 * race with free that will set (first|last)_chunks to 0
-		 */
-		first_handle = 0;
-		last_handle = 0;
-		if (zhdr->first_chunks)
-			first_handle = encode_handle(zhdr, FIRST);
-		if (zhdr->last_chunks)
-			last_handle = encode_handle(zhdr, LAST);
-		spin_unlock(&pool->lock);
-
-		/* Issue the eviction callback(s) */
-		if (first_handle) {
-			ret = pool->zpool_ops->evict(pool->zpool, first_handle);
-			if (ret)
-				goto next;
-		}
-		if (last_handle) {
-			ret = pool->zpool_ops->evict(pool->zpool, last_handle);
-			if (ret)
-				goto next;
-		}
-next:
-		spin_lock(&pool->lock);
-		zhdr->under_reclaim = false;
-		if (zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-			/*
-			 * Both buddies are now free, free the zbud page and
-			 * return success.
-			 */
-			free_zbud_page(zhdr);
-			pool->pages_nr--;
-			spin_unlock(&pool->lock);
-			return 0;
-		} else if (zhdr->first_chunks == 0 ||
-				zhdr->last_chunks == 0) {
-			/* add to unbuddied list */
-			freechunks = num_free_chunks(zhdr);
-			list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-		} else {
-			/* add to buddied list */
-			list_add(&zhdr->buddy, &pool->buddied);
-		}
-
-		/* add to beginning of LRU */
-		list_add(&zhdr->lru, &pool->lru);
-	}
-	spin_unlock(&pool->lock);
-	return -EAGAIN;
 }
 
 /**
@@ -514,18 +380,9 @@ static u64 zbud_get_pool_size(struct zbud_pool *pool)
  * zpool
  ****************/
 
-static void *zbud_zpool_create(const char *name, gfp_t gfp,
-			       const struct zpool_ops *zpool_ops,
-			       struct zpool *zpool)
+static void *zbud_zpool_create(const char *name, gfp_t gfp)
 {
-	struct zbud_pool *pool;
-
-	pool = zbud_create_pool(gfp);
-	if (pool) {
-		pool->zpool = zpool;
-		pool->zpool_ops = zpool_ops;
-	}
-	return pool;
+	return zbud_create_pool(gfp);
 }
 
 static void zbud_zpool_destroy(void *pool)
@@ -541,25 +398,6 @@ static int zbud_zpool_malloc(void *pool, size_t size, gfp_t gfp,
 static void zbud_zpool_free(void *pool, unsigned long handle)
 {
 	zbud_free(pool, handle);
-}
-
-static int zbud_zpool_shrink(void *pool, unsigned int pages,
-			unsigned int *reclaimed)
-{
-	unsigned int total = 0;
-	int ret = -EINVAL;
-
-	while (total < pages) {
-		ret = zbud_reclaim_page(pool, 8);
-		if (ret < 0)
-			break;
-		total++;
-	}
-
-	if (reclaimed)
-		*reclaimed = total;
-
-	return ret;
 }
 
 static void *zbud_zpool_map(void *pool, unsigned long handle,
@@ -585,7 +423,6 @@ static struct zpool_driver zbud_zpool_driver = {
 	.destroy =	zbud_zpool_destroy,
 	.malloc =	zbud_zpool_malloc,
 	.free =		zbud_zpool_free,
-	.shrink =	zbud_zpool_shrink,
 	.map =		zbud_zpool_map,
 	.unmap =	zbud_zpool_unmap,
 	.total_size =	zbud_zpool_total_size,

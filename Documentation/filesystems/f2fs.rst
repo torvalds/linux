@@ -351,6 +351,22 @@ age_extent_cache	 Enable an age extent cache based on rb-tree. It records
 			 data block update frequency of the extent per inode, in
 			 order to provide better temperature hints for data block
 			 allocation.
+errors=%s		 Specify f2fs behavior on critical errors. This supports modes:
+			 "panic", "continue" and "remount-ro", respectively, trigger
+			 panic immediately, continue without doing anything, and remount
+			 the partition in read-only mode. By default it uses "continue"
+			 mode.
+			 ====================== =============== =============== ========
+			 mode			continue	remount-ro	panic
+			 ====================== =============== =============== ========
+			 access ops		normal		noraml		N/A
+			 syscall errors		-EIO		-EROFS		N/A
+			 mount option		rw		ro		N/A
+			 pending dir write	keep		keep		N/A
+			 pending non-dir write	drop		keep		N/A
+			 pending node write	drop		keep		N/A
+			 pending meta write	keep		keep		N/A
+			 ====================== =============== =============== ========
 ======================== ============================================================
 
 Debugfs Entries

@@ -5,6 +5,7 @@ config ARM
 	select ARCH_32BIT_OFF_T
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE if HAVE_KRETPROBES && FRAME_POINTER && !ARM_UNWIND
 	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_CPU_FINALIZE_INIT if MMU
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DMA_WRITE_COMBINE if !ARM_DMA_MEM_BUFFERABLE
@@ -124,7 +125,9 @@ config ARM
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
 	select IRQ_FORCED_THREADING
+	select LOCK_MM_AND_FIND_VMA
 	select MODULES_USE_ELF_REL
 	select NEED_DMA_MAP_STATE
 	select OF_EARLY_FLATTREE if OF
@@ -1460,6 +1463,9 @@ config USE_OF
 	help
 	  Include support for flattened device tree machine descriptions.
 
+config ARCH_WANT_FLAT_DTB_INSTALL
+	def_bool y
+
 config ATAGS
 	bool "Support for the traditional ATAGS boot data passing"
 	default y
@@ -1780,7 +1786,7 @@ config VFP
 	  Say Y to include VFP support code in the kernel. This is needed
 	  if your hardware includes a VFP unit.
 
-	  Please see <file:Documentation/arm/vfp/release-notes.rst> for
+	  Please see <file:Documentation/arch/arm/vfp/release-notes.rst> for
 	  release notes and additional status information.
 
 	  Say N if your target does not have VFP hardware.

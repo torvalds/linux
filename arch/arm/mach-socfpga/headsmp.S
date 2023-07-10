@@ -6,7 +6,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/assembler.h>
 
 	.arch	armv7-a

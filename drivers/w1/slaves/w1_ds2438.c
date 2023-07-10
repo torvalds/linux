@@ -66,8 +66,6 @@ static int w1_ds2438_get_page(struct w1_slave *sl, int pageno, u8 *buf)
 	size_t count;
 
 	while (retries--) {
-		crc = 0;
-
 		if (w1_reset_select_slave(sl))
 			continue;
 		w1_buf[0] = W1_DS2438_RECALL_MEMORY;

@@ -155,7 +155,7 @@ static struct i2c_driver si7020_driver = {
 		.name = "si7020",
 		.of_match_table = si7020_dt_ids,
 	},
-	.probe_new	= si7020_probe,
+	.probe		= si7020_probe,
 	.id_table	= si7020_id,
 };
 

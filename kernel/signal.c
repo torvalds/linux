@@ -45,6 +45,7 @@
 #include <linux/posix-timers.h>
 #include <linux/cgroup.h>
 #include <linux/audit.h>
+#include <linux/sysctl.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -1368,7 +1369,9 @@ int zap_other_threads(struct task_struct *p)
 
 	while_each_thread(p, t) {
 		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
-		count++;
+		/* Don't require de_thread to wait for the vhost_worker */
+		if ((t->flags & (PF_IO_WORKER | PF_USER_WORKER)) != PF_USER_WORKER)
+			count++;
 
 		/* Don't bother with already dead threads */
 		if (t->exit_state)
@@ -2861,11 +2864,11 @@ relock:
 		}
 
 		/*
-		 * PF_IO_WORKER threads will catch and exit on fatal signals
+		 * PF_USER_WORKER threads will catch and exit on fatal signals
 		 * themselves. They have cleanup that must be performed, so
 		 * we cannot call do_exit() on their behalf.
 		 */
-		if (current->flags & PF_IO_WORKER)
+		if (current->flags & PF_USER_WORKER)
 			goto out;
 
 		/*
@@ -4770,6 +4773,28 @@ static inline void siginfo_buildtime_checks(void)
 		     sizeof_field(struct siginfo, si_pid));
 #endif
 }
+
+#if defined(CONFIG_SYSCTL)
+static struct ctl_table signal_debug_table[] = {
+#ifdef CONFIG_SYSCTL_EXCEPTION_TRACE
+	{
+		.procname	= "exception-trace",
+		.data		= &show_unhandled_signals,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+#endif
+	{ }
+};
+
+static int __init init_signal_sysctls(void)
+{
+	register_sysctl_init("debug", signal_debug_table);
+	return 0;
+}
+early_initcall(init_signal_sysctls);
+#endif /* CONFIG_SYSCTL */
 
 void __init signals_init(void)
 {

@@ -97,7 +97,7 @@ void intel_context_bind_parent_child(struct intel_context *parent,
 
 /**
  * intel_context_lock_pinned - Stablises the 'pinned' status of the HW context
- * @ce - the context
+ * @ce: the context
  *
  * Acquire a lock on the pinned status of the HW context, such that the context
  * can neither be bound to the GPU or unbound whilst the lock is held, i.e.
@@ -111,7 +111,7 @@ static inline int intel_context_lock_pinned(struct intel_context *ce)
 
 /**
  * intel_context_is_pinned - Reports the 'pinned' status
- * @ce - the context
+ * @ce: the context
  *
  * While in use by the GPU, the context, along with its ring and page
  * tables is pinned into memory and the GTT.
@@ -133,7 +133,7 @@ static inline void intel_context_cancel_request(struct intel_context *ce,
 
 /**
  * intel_context_unlock_pinned - Releases the earlier locking of 'pinned' status
- * @ce - the context
+ * @ce: the context
  *
  * Releases the lock earlier acquired by intel_context_unlock_pinned().
  */
@@ -375,7 +375,7 @@ intel_context_clear_nopreempt(struct intel_context *ce)
 	clear_bit(CONTEXT_NOPREEMPT, &ce->flags);
 }
 
-u64 intel_context_get_total_runtime_ns(const struct intel_context *ce);
+u64 intel_context_get_total_runtime_ns(struct intel_context *ce);
 u64 intel_context_get_avg_runtime_ns(struct intel_context *ce);
 
 static inline u64 intel_context_clock(void)

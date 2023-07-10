@@ -198,6 +198,10 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 		memcpy(common->arp_mac_addr, vif->addr, ETH_ALEN);
 	}
 
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_OFFLOAD_BTM_SUPPORT))
+		enabled |= IWL_D3_PROTO_OFFLOAD_BTM;
+
 	if (!disable_offloading)
 		common->enabled = cpu_to_le32(enabled);
 

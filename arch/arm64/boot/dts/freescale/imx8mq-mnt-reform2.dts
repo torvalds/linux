@@ -26,7 +26,7 @@
 	};
 
 	panel {
-		compatible = "innolux,n125hce-gn1", "simple-panel";
+		compatible = "innolux,n125hce-gn1";
 		power-supply = <&reg_main_3v3>;
 		backlight = <&backlight>;
 		no-hpd;

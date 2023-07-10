@@ -741,7 +741,7 @@ static inline void media_entity_cleanup(struct media_entity *entity) {}
  * media_get_pad_index() - retrieves a pad index from an entity
  *
  * @entity:	entity where the pads belong
- * @is_sink:	true if the pad is a sink, false if it is a source
+ * @pad_type:	the type of the pad, one of MEDIA_PAD_FL_* pad types
  * @sig_type:	type of signal of the pad to be search
  *
  * This helper function finds the first pad index inside an entity that
@@ -752,7 +752,7 @@ static inline void media_entity_cleanup(struct media_entity *entity) {}
  * On success, return the pad number. If the pad was not found or the media
  * entity is a NULL pointer, return -EINVAL.
  */
-int media_get_pad_index(struct media_entity *entity, bool is_sink,
+int media_get_pad_index(struct media_entity *entity, u32 pad_type,
 			enum media_pad_signal_type sig_type);
 
 /**
@@ -1079,7 +1079,7 @@ struct media_pipeline *media_pad_pipeline(struct media_pad *pad);
  * Return: returns the pad number on success or a negative error code.
  */
 int media_entity_get_fwnode_pad(struct media_entity *entity,
-				struct fwnode_handle *fwnode,
+				const struct fwnode_handle *fwnode,
 				unsigned long direction_flags);
 
 /**

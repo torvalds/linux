@@ -5,7 +5,7 @@
 
 #include "mlx5_core.h"
 #include "lib/eq.h"
-#include "lib/mlx5.h"
+#include "lib/events.h"
 
 struct mlx5_event_nb {
 	struct mlx5_nb  nb;

@@ -92,10 +92,12 @@
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
 					compatible = "cache";
 					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -120,6 +122,7 @@
 			L2_100: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -144,6 +147,7 @@
 			L2_200: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -168,6 +172,7 @@
 			L2_300: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -192,6 +197,7 @@
 			L2_400: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -216,6 +222,7 @@
 			L2_500: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -240,6 +247,7 @@
 			L2_600: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -264,6 +272,7 @@
 			L2_700: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -360,7 +369,7 @@
 	};
 
 	firmware {
-		scm {
+		scm: scm {
 			compatible = "qcom,scm-sc7180", "qcom,scm";
 		};
 	};
@@ -2691,6 +2700,7 @@
 		qspi: spi@88dc000 {
 			compatible = "qcom,sc7180-qspi", "qcom,qspi-v1";
 			reg = <0 0x088dc000 0 0x600>;
+			iommus = <&apps_smmu 0x20 0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
@@ -2988,8 +2998,6 @@
 				interrupt-parent = <&mdss>;
 				interrupts = <0>;
 
-				status = "disabled";
-
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -2997,7 +3005,7 @@
 					port@0 {
 						reg = <0>;
 						dpu_intf1_out: endpoint {
-							remote-endpoint = <&dsi0_in>;
+							remote-endpoint = <&mdss_dsi0_in>;
 						};
 					};
 
@@ -3034,7 +3042,7 @@
 				};
 			};
 
-			dsi0: dsi@ae94000 {
+			mdss_dsi0: dsi@ae94000 {
 				compatible = "qcom,sc7180-dsi-ctrl",
 					     "qcom,mdss-dsi-ctrl";
 				reg = <0 0x0ae94000 0 0x400>;
@@ -3057,12 +3065,12 @@
 					      "bus";
 
 				assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>, <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
-				assigned-clock-parents = <&dsi_phy 0>, <&dsi_phy 1>;
+				assigned-clock-parents = <&mdss_dsi0_phy 0>, <&mdss_dsi0_phy 1>;
 
 				operating-points-v2 = <&dsi_opp_table>;
 				power-domains = <&rpmhpd SC7180_CX>;
 
-				phys = <&dsi_phy>;
+				phys = <&mdss_dsi0_phy>;
 
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -3075,14 +3083,14 @@
 
 					port@0 {
 						reg = <0>;
-						dsi0_in: endpoint {
+						mdss_dsi0_in: endpoint {
 							remote-endpoint = <&dpu_intf1_out>;
 						};
 					};
 
 					port@1 {
 						reg = <1>;
-						dsi0_out: endpoint {
+						mdss_dsi0_out: endpoint {
 						};
 					};
 				};
@@ -3107,13 +3115,13 @@
 				};
 			};
 
-			dsi_phy: phy@ae94400 {
+			mdss_dsi0_phy: phy@ae94400 {
 				compatible = "qcom,dsi-phy-10nm";
 				reg = <0 0x0ae94400 0 0x200>,
 				      <0 0x0ae94600 0 0x280>,
 				      <0 0x0ae94a00 0 0x1e0>;
-				reg-names = "dsi_phy",
-					    "dsi_phy_lane",
+				reg-names = "dsi0_phy",
+					    "dsi0_phy_lane",
 					    "dsi_pll";
 
 				#clock-cells = <1>;
@@ -3204,8 +3212,8 @@
 			reg = <0 0x0af00000 0 0x200000>;
 			clocks = <&rpmhcc RPMH_CXO_CLK>,
 				 <&gcc GCC_DISP_GPLL0_CLK_SRC>,
-				 <&dsi_phy 0>,
-				 <&dsi_phy 1>,
+				 <&mdss_dsi0_phy 0>,
+				 <&mdss_dsi0_phy 1>,
 				 <&dp_phy 0>,
 				 <&dp_phy 1>;
 			clock-names = "bi_tcxo",
@@ -3627,6 +3635,8 @@
 			power-domains = <&lpass_hm LPASS_CORE_HM_GDSCR>;
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
+
+			status = "reserved"; /* Controlled by ADSP */
 		};
 
 		lpass_cpu: lpass@62d87000 {
@@ -3675,6 +3685,8 @@
 
 			#clock-cells = <1>;
 			#power-domain-cells = <1>;
+
+			status = "reserved"; /* Controlled by ADSP */
 		};
 	};
 

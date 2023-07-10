@@ -105,10 +105,14 @@
                         flags, magic, bp,		\
                         eax, ebx, ecx, edx, si, di)	\
 ({							\
-        asm volatile ("push %%rbp;"			\
+        asm volatile (					\
+		UNWIND_HINT_SAVE			\
+		"push %%rbp;"				\
+		UNWIND_HINT_UNDEFINED			\
                 "mov %12, %%rbp;"			\
                 VMWARE_HYPERCALL_HB_OUT			\
-                "pop %%rbp;" :				\
+                "pop %%rbp;"				\
+		UNWIND_HINT_RESTORE :			\
                 "=a"(eax),				\
                 "=b"(ebx),				\
                 "=c"(ecx),				\
@@ -130,10 +134,14 @@
                        flags, magic, bp,		\
                        eax, ebx, ecx, edx, si, di)	\
 ({							\
-        asm volatile ("push %%rbp;"			\
+        asm volatile (					\
+		UNWIND_HINT_SAVE			\
+		"push %%rbp;"				\
+		UNWIND_HINT_UNDEFINED			\
                 "mov %12, %%rbp;"			\
                 VMWARE_HYPERCALL_HB_IN			\
-                "pop %%rbp" :				\
+                "pop %%rbp;"				\
+		UNWIND_HINT_RESTORE :			\
                 "=a"(eax),				\
                 "=b"(ebx),				\
                 "=c"(ecx),				\

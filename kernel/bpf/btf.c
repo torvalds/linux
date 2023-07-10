@@ -222,10 +222,17 @@ enum btf_kfunc_hook {
 enum {
 	BTF_KFUNC_SET_MAX_CNT = 256,
 	BTF_DTOR_KFUNC_MAX_CNT = 256,
+	BTF_KFUNC_FILTER_MAX_CNT = 16,
+};
+
+struct btf_kfunc_hook_filter {
+	btf_kfunc_filter_t filters[BTF_KFUNC_FILTER_MAX_CNT];
+	u32 nr_filters;
 };
 
 struct btf_kfunc_set_tab {
 	struct btf_id_set8 *sets[BTF_KFUNC_HOOK_MAX];
+	struct btf_kfunc_hook_filter hook_filters[BTF_KFUNC_HOOK_MAX];
 };
 
 struct btf_id_dtor_kfunc_tab {
@@ -485,17 +492,6 @@ static bool btf_type_is_fwd(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_FWD;
 }
 
-static bool btf_type_nosize(const struct btf_type *t)
-{
-	return btf_type_is_void(t) || btf_type_is_fwd(t) ||
-	       btf_type_is_func(t) || btf_type_is_func_proto(t);
-}
-
-static bool btf_type_nosize_or_null(const struct btf_type *t)
-{
-	return !t || btf_type_nosize(t);
-}
-
 static bool btf_type_is_datasec(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC;
@@ -504,6 +500,18 @@ static bool btf_type_is_datasec(const struct btf_type *t)
 static bool btf_type_is_decl_tag(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_DECL_TAG;
+}
+
+static bool btf_type_nosize(const struct btf_type *t)
+{
+	return btf_type_is_void(t) || btf_type_is_fwd(t) ||
+	       btf_type_is_func(t) || btf_type_is_func_proto(t) ||
+	       btf_type_is_decl_tag(t);
+}
+
+static bool btf_type_nosize_or_null(const struct btf_type *t)
+{
+	return !t || btf_type_nosize(t);
 }
 
 static bool btf_type_is_decl_tag_target(const struct btf_type *t)
@@ -744,13 +752,12 @@ static bool btf_name_offset_valid(const struct btf *btf, u32 offset)
 	return offset < btf->hdr.str_len;
 }
 
-static bool __btf_name_char_ok(char c, bool first, bool dot_ok)
+static bool __btf_name_char_ok(char c, bool first)
 {
 	if ((first ? !isalpha(c) :
 		     !isalnum(c)) &&
 	    c != '_' &&
-	    ((c == '.' && !dot_ok) ||
-	      c != '.'))
+	    c != '.')
 		return false;
 	return true;
 }
@@ -767,20 +774,20 @@ static const char *btf_str_by_offset(const struct btf *btf, u32 offset)
 	return NULL;
 }
 
-static bool __btf_name_valid(const struct btf *btf, u32 offset, bool dot_ok)
+static bool __btf_name_valid(const struct btf *btf, u32 offset)
 {
 	/* offset must be valid */
 	const char *src = btf_str_by_offset(btf, offset);
 	const char *src_limit;
 
-	if (!__btf_name_char_ok(*src, true, dot_ok))
+	if (!__btf_name_char_ok(*src, true))
 		return false;
 
 	/* set a limit on identifier length */
 	src_limit = src + KSYM_NAME_LEN;
 	src++;
 	while (*src && src < src_limit) {
-		if (!__btf_name_char_ok(*src, false, dot_ok))
+		if (!__btf_name_char_ok(*src, false))
 			return false;
 		src++;
 	}
@@ -788,17 +795,14 @@ static bool __btf_name_valid(const struct btf *btf, u32 offset, bool dot_ok)
 	return !*src;
 }
 
-/* Only C-style identifier is permitted. This can be relaxed if
- * necessary.
- */
 static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
 {
-	return __btf_name_valid(btf, offset, false);
+	return __btf_name_valid(btf, offset);
 }
 
 static bool btf_name_valid_section(const struct btf *btf, u32 offset)
 {
-	return __btf_name_valid(btf, offset, true);
+	return __btf_name_valid(btf, offset);
 }
 
 static const char *__btf_name_by_offset(const struct btf *btf, u32 offset)
@@ -4422,7 +4426,7 @@ static s32 btf_var_check_meta(struct btf_verifier_env *env,
 	}
 
 	if (!t->name_off ||
-	    !__btf_name_valid(env->btf, t->name_off, true)) {
+	    !__btf_name_valid(env->btf, t->name_off)) {
 		btf_verifier_log_type(env, t, "Invalid name");
 		return -EINVAL;
 	}
@@ -7669,9 +7673,12 @@ static int btf_check_kfunc_protos(struct btf *btf, u32 func_id, u32 func_flags)
 /* Kernel Function (kfunc) BTF ID set registration API */
 
 static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
-				  struct btf_id_set8 *add_set)
+				  const struct btf_kfunc_id_set *kset)
 {
+	struct btf_kfunc_hook_filter *hook_filter;
+	struct btf_id_set8 *add_set = kset->set;
 	bool vmlinux_set = !btf_is_module(btf);
+	bool add_filter = !!kset->filter;
 	struct btf_kfunc_set_tab *tab;
 	struct btf_id_set8 *set;
 	u32 set_cnt;
@@ -7686,6 +7693,24 @@ static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
 		return 0;
 
 	tab = btf->kfunc_set_tab;
+
+	if (tab && add_filter) {
+		u32 i;
+
+		hook_filter = &tab->hook_filters[hook];
+		for (i = 0; i < hook_filter->nr_filters; i++) {
+			if (hook_filter->filters[i] == kset->filter) {
+				add_filter = false;
+				break;
+			}
+		}
+
+		if (add_filter && hook_filter->nr_filters == BTF_KFUNC_FILTER_MAX_CNT) {
+			ret = -E2BIG;
+			goto end;
+		}
+	}
+
 	if (!tab) {
 		tab = kzalloc(sizeof(*tab), GFP_KERNEL | __GFP_NOWARN);
 		if (!tab)
@@ -7708,7 +7733,7 @@ static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
 	 */
 	if (!vmlinux_set) {
 		tab->sets[hook] = add_set;
-		return 0;
+		goto do_add_filter;
 	}
 
 	/* In case of vmlinux sets, there may be more than one set being
@@ -7750,6 +7775,11 @@ static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
 
 	sort(set->pairs, set->cnt, sizeof(set->pairs[0]), btf_id_cmp_func, NULL);
 
+do_add_filter:
+	if (add_filter) {
+		hook_filter = &tab->hook_filters[hook];
+		hook_filter->filters[hook_filter->nr_filters++] = kset->filter;
+	}
 	return 0;
 end:
 	btf_free_kfunc_set_tab(btf);
@@ -7758,15 +7788,22 @@ end:
 
 static u32 *__btf_kfunc_id_set_contains(const struct btf *btf,
 					enum btf_kfunc_hook hook,
-					u32 kfunc_btf_id)
+					u32 kfunc_btf_id,
+					const struct bpf_prog *prog)
 {
+	struct btf_kfunc_hook_filter *hook_filter;
 	struct btf_id_set8 *set;
-	u32 *id;
+	u32 *id, i;
 
 	if (hook >= BTF_KFUNC_HOOK_MAX)
 		return NULL;
 	if (!btf->kfunc_set_tab)
 		return NULL;
+	hook_filter = &btf->kfunc_set_tab->hook_filters[hook];
+	for (i = 0; i < hook_filter->nr_filters; i++) {
+		if (hook_filter->filters[i](prog, kfunc_btf_id))
+			return NULL;
+	}
 	set = btf->kfunc_set_tab->sets[hook];
 	if (!set)
 		return NULL;
@@ -7821,23 +7858,25 @@ static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
  * protection for looking up a well-formed btf->kfunc_set_tab.
  */
 u32 *btf_kfunc_id_set_contains(const struct btf *btf,
-			       enum bpf_prog_type prog_type,
-			       u32 kfunc_btf_id)
+			       u32 kfunc_btf_id,
+			       const struct bpf_prog *prog)
 {
+	enum bpf_prog_type prog_type = resolve_prog_type(prog);
 	enum btf_kfunc_hook hook;
 	u32 *kfunc_flags;
 
-	kfunc_flags = __btf_kfunc_id_set_contains(btf, BTF_KFUNC_HOOK_COMMON, kfunc_btf_id);
+	kfunc_flags = __btf_kfunc_id_set_contains(btf, BTF_KFUNC_HOOK_COMMON, kfunc_btf_id, prog);
 	if (kfunc_flags)
 		return kfunc_flags;
 
 	hook = bpf_prog_type_to_kfunc_hook(prog_type);
-	return __btf_kfunc_id_set_contains(btf, hook, kfunc_btf_id);
+	return __btf_kfunc_id_set_contains(btf, hook, kfunc_btf_id, prog);
 }
 
-u32 *btf_kfunc_is_modify_return(const struct btf *btf, u32 kfunc_btf_id)
+u32 *btf_kfunc_is_modify_return(const struct btf *btf, u32 kfunc_btf_id,
+				const struct bpf_prog *prog)
 {
-	return __btf_kfunc_id_set_contains(btf, BTF_KFUNC_HOOK_FMODRET, kfunc_btf_id);
+	return __btf_kfunc_id_set_contains(btf, BTF_KFUNC_HOOK_FMODRET, kfunc_btf_id, prog);
 }
 
 static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
@@ -7852,10 +7891,8 @@ static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
 			pr_err("missing vmlinux BTF, cannot register kfuncs\n");
 			return -ENOENT;
 		}
-		if (kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF_MODULES)) {
-			pr_err("missing module BTF, cannot register kfuncs\n");
-			return -ENOENT;
-		}
+		if (kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF_MODULES))
+			pr_warn("missing module BTF, cannot register kfuncs\n");
 		return 0;
 	}
 	if (IS_ERR(btf))
@@ -7868,7 +7905,8 @@ static int __register_btf_kfunc_id_set(enum btf_kfunc_hook hook,
 			goto err_out;
 	}
 
-	ret = btf_populate_kfunc_set(btf, hook, kset->set);
+	ret = btf_populate_kfunc_set(btf, hook, kset);
+
 err_out:
 	btf_put(btf);
 	return ret;

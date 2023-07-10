@@ -65,9 +65,14 @@ properties:
 
             properties:
               data-lanes: true
+              bus-type:
+                enum:
+                  - 1 # MEDIA_BUS_TYPE_CSI2_CPHY
+                  - 4 # MEDIA_BUS_TYPE_CSI2_DPHY
 
             required:
               - data-lanes
+              - bus-type
 
     required:
       - port@4
@@ -82,6 +87,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/media/video-interfaces.h>
 
     i2c@e6508000 {
             #address-cells = <1>;
@@ -101,6 +107,7 @@ examples:
                             port@4 {
                                     reg = <4>;
                                     max96712_out0: endpoint {
+                                            bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
                                             clock-lanes = <0>;
                                             data-lanes = <1 2 3 4>;
                                             remote-endpoint = <&csi40_in>;

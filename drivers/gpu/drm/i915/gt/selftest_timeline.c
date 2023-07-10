@@ -836,7 +836,7 @@ static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt,
 		return PTR_ERR(obj);
 
 	/* keep the same cache settings as timeline */
-	i915_gem_object_set_cache_coherency(obj, tl->hwsp_ggtt->obj->cache_level);
+	i915_gem_object_set_pat_index(obj, tl->hwsp_ggtt->obj->pat_index);
 	w->map = i915_gem_object_pin_map_unlocked(obj,
 						  page_unmask_bits(tl->hwsp_ggtt->obj->mm.mapping));
 	if (IS_ERR(w->map)) {

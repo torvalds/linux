@@ -8,7 +8,8 @@ export logfile=/dev/stdout
 export per_test_logging=
 
 # Defaults for "settings" file fields:
-# "timeout" how many seconds to let each test run before failing.
+# "timeout" how many seconds to let each test run before running
+# over our soft timeout limit.
 export kselftest_default_timeout=45
 
 # There isn't a shell-agnostic way to find the path of a sourced file,
@@ -88,6 +89,14 @@ run_one()
 			value=$(echo "$line" | cut -d= -f2-)
 			eval "kselftest_$field"="$value"
 		done < "$settings"
+	fi
+
+	# Command line timeout overrides the settings file
+	if [ -n "$kselftest_override_timeout" ]; then
+		kselftest_timeout="$kselftest_override_timeout"
+		echo "# overriding timeout to $kselftest_timeout" >> "$logfile"
+	else
+		echo "# timeout set to $kselftest_timeout" >> "$logfile"
 	fi
 
 	TEST_HDR_MSG="selftests: $DIR: $BASENAME_TEST"

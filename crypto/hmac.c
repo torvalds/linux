@@ -177,6 +177,7 @@ static int hmac_clone_tfm(struct crypto_shash *dst, struct crypto_shash *src)
 static void hmac_exit_tfm(struct crypto_shash *parent)
 {
 	struct hmac_ctx *ctx = hmac_ctx(parent);
+
 	crypto_free_shash(ctx->hash);
 }
 

@@ -11,9 +11,6 @@
 #define pr_fmt(fmt) "fs-verity: " fmt
 
 #include <linux/fsverity.h>
-#include <linux/mempool.h>
-
-struct ahash_request;
 
 /*
  * Implementation limit: maximum depth of the Merkle tree.  For now 8 is plenty;
@@ -23,11 +20,10 @@ struct ahash_request;
 
 /* A hash algorithm supported by fs-verity */
 struct fsverity_hash_alg {
-	struct crypto_ahash *tfm; /* hash tfm, allocated on demand */
+	struct crypto_shash *tfm; /* hash tfm, allocated on demand */
 	const char *name;	  /* crypto API name, e.g. sha256 */
 	unsigned int digest_size; /* digest size in bytes, e.g. 32 for SHA-256 */
 	unsigned int block_size;  /* block size in bytes, e.g. 64 for SHA-256 */
-	mempool_t req_pool;	  /* mempool with a preallocated hash request */
 	/*
 	 * The HASH_ALGO_* constant for this algorithm.  This is different from
 	 * FS_VERITY_HASH_ALG_*, which uses a different numbering scheme.
@@ -37,7 +33,7 @@ struct fsverity_hash_alg {
 
 /* Merkle tree parameters: hash algorithm, initial hash state, and topology */
 struct merkle_tree_params {
-	struct fsverity_hash_alg *hash_alg; /* the hash algorithm */
+	const struct fsverity_hash_alg *hash_alg; /* the hash algorithm */
 	const u8 *hashstate;		/* initial hash state or NULL */
 	unsigned int digest_size;	/* same as hash_alg->digest_size */
 	unsigned int block_size;	/* size of data and tree blocks */
@@ -83,18 +79,13 @@ struct fsverity_info {
 
 extern struct fsverity_hash_alg fsverity_hash_algs[];
 
-struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
-						unsigned int num);
-struct ahash_request *fsverity_alloc_hash_request(struct fsverity_hash_alg *alg,
-						  gfp_t gfp_flags);
-void fsverity_free_hash_request(struct fsverity_hash_alg *alg,
-				struct ahash_request *req);
-const u8 *fsverity_prepare_hash_state(struct fsverity_hash_alg *alg,
+const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
+						      unsigned int num);
+const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 				      const u8 *salt, size_t salt_size);
 int fsverity_hash_block(const struct merkle_tree_params *params,
-			const struct inode *inode, struct ahash_request *req,
-			struct page *page, unsigned int offset, u8 *out);
-int fsverity_hash_buffer(struct fsverity_hash_alg *alg,
+			const struct inode *inode, const void *data, u8 *out);
+int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			 const void *data, size_t size, u8 *out);
 void __init fsverity_check_hash_algs(void);
 

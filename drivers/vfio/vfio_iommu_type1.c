@@ -514,6 +514,7 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 			    bool write_fault)
 {
 	pte_t *ptep;
+	pte_t pte;
 	spinlock_t *ptl;
 	int ret;
 
@@ -536,10 +537,12 @@ static int follow_fault_pfn(struct vm_area_struct *vma, struct mm_struct *mm,
 			return ret;
 	}
 
-	if (write_fault && !pte_write(*ptep))
+	pte = ptep_get(ptep);
+
+	if (write_fault && !pte_write(pte))
 		ret = -EFAULT;
 	else
-		*pfn = pte_pfn(*ptep);
+		*pfn = pte_pfn(pte);
 
 	pte_unmap_unlock(ptep, ptl);
 	return ret;
@@ -562,7 +565,7 @@ static int vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
 
 	mmap_read_lock(mm);
 	ret = pin_user_pages_remote(mm, vaddr, npages, flags | FOLL_LONGTERM,
-				    pages, NULL, NULL);
+				    pages, NULL);
 	if (ret > 0) {
 		int i;
 
@@ -859,6 +862,11 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 					     do_accounting);
 		if (ret)
 			goto pin_unwind;
+
+		if (!pfn_valid(phys_pfn)) {
+			ret = -EINVAL;
+			goto pin_unwind;
+		}
 
 		ret = vfio_add_to_pfn_list(dma, iova, phys_pfn);
 		if (ret) {

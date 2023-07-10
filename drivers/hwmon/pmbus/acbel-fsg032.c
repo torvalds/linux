@@ -73,7 +73,7 @@ static struct i2c_driver acbel_fsg032_driver = {
 		.name = "acbel-fsg032",
 		.of_match_table = acbel_fsg032_of_match,
 	},
-	.probe_new = acbel_fsg032_probe,
+	.probe = acbel_fsg032_probe,
 	.id_table = acbel_fsg032_id,
 };
 

@@ -1074,7 +1074,7 @@ free_rproc:
 	return ret;
 }
 
-static int q6v5_wcss_remove(struct platform_device *pdev)
+static void q6v5_wcss_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct q6v5_wcss *wcss = rproc->priv;
@@ -1082,8 +1082,6 @@ static int q6v5_wcss_remove(struct platform_device *pdev)
 	qcom_q6v5_deinit(&wcss->q6v5);
 	rproc_del(rproc);
 	rproc_free(rproc);
-
-	return 0;
 }
 
 static const struct wcss_data wcss_ipq8074_res_init = {
@@ -1117,7 +1115,7 @@ MODULE_DEVICE_TABLE(of, q6v5_wcss_of_match);
 
 static struct platform_driver q6v5_wcss_driver = {
 	.probe = q6v5_wcss_probe,
-	.remove = q6v5_wcss_remove,
+	.remove_new = q6v5_wcss_remove,
 	.driver = {
 		.name = "qcom-q6v5-wcss-pil",
 		.of_match_table = q6v5_wcss_of_match,

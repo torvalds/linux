@@ -19,6 +19,8 @@
 #define mb()		asm volatile("sync" : : : "memory");
 #define barrier()	asm volatile("" : : : "memory");
 
+#define SPRN_HDEXCR_RO 455	/* Userspace readonly view of SPRN_HDEXCR (471) */
+
 #define SPRN_MMCR2     769
 #define SPRN_MMCRA     770
 #define SPRN_MMCR0     779
@@ -46,6 +48,8 @@
 #define SPRN_SIAR      780
 #define SPRN_SDAR      781
 #define SPRN_SIER      768
+
+#define SPRN_DEXCR_RO  812	/* Userspace readonly view of SPRN_DEXCR (828) */
 
 #define SPRN_TEXASR     0x82    /* Transaction Exception and Status Register */
 #define SPRN_TFIAR      0x81    /* Transaction Failure Inst Addr    */

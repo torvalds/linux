@@ -38,6 +38,7 @@ debug logs.
 
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
+
 ENA Source Code Directory Structure
 ===================================
 
@@ -205,6 +206,8 @@ Adaptive coalescing can be switched on/off through `ethtool(8)`'s
 More information about Adaptive Interrupt Moderation (DIM) can be found in
 Documentation/networking/net_dim.rst
 
+.. _`RX copybreak`:
+
 RX copybreak
 ============
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
@@ -315,3 +318,34 @@ Rx
 - The new SKB is updated with the necessary information (protocol,
   checksum hw verify result, etc), and then passed to the network
   stack, using the NAPI interface function :code:`napi_gro_receive()`.
+
+Dynamic RX Buffers (DRB)
+------------------------
+
+Each RX descriptor in the RX ring is a single memory page (which is either 4KB
+or 16KB long depending on system's configurations).
+To reduce the memory allocations required when dealing with a high rate of small
+packets, the driver tries to reuse the remaining RX descriptor's space if more
+than 2KB of this page remain unused.
+
+A simple example of this mechanism is the following sequence of events:
+
+::
+
+        1. Driver allocates page-sized RX buffer and passes it to hardware
+                +----------------------+
+                |4KB RX Buffer         |
+                +----------------------+
+
+        2. A 300Bytes packet is received on this buffer
+
+        3. The driver increases the ref count on this page and returns it back to
+           HW as an RX buffer of size 4KB - 300Bytes = 3796 Bytes
+               +----+--------------------+
+               |****|3796 Bytes RX Buffer|
+               +----+--------------------+
+
+This mechanism isn't used when an XDP program is loaded, or when the
+RX packet is less than rx_copybreak bytes (in which case the packet is
+copied out of the RX buffer into the linear part of a new skb allocated
+for it and the RX buffer remains the same size, see `RX copybreak`_).

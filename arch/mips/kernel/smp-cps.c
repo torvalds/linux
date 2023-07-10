@@ -25,24 +25,13 @@
 #include <asm/time.h>
 #include <asm/uasm.h>
 
-static bool threads_disabled;
 static DECLARE_BITMAP(core_power, NR_CPUS);
 
 struct core_boot_config *mips_cps_core_bootcfg;
 
-static int __init setup_nothreads(char *s)
+static unsigned __init core_vpe_count(unsigned int cluster, unsigned core)
 {
-	threads_disabled = true;
-	return 0;
-}
-early_param("nothreads", setup_nothreads);
-
-static unsigned core_vpe_count(unsigned int cluster, unsigned core)
-{
-	if (threads_disabled)
-		return 1;
-
-	return mips_cps_numvps(cluster, core);
+	return min(smp_max_threads, mips_cps_numvps(cluster, core));
 }
 
 static void __init cps_smp_setup(void)
@@ -503,8 +492,7 @@ void play_dead(void)
 		}
 	}
 
-	/* This CPU has chosen its way out */
-	(void)cpu_report_death();
+	cpuhp_ap_report_dead();
 
 	cps_shutdown_this_cpu(cpu_death);
 
@@ -527,19 +515,15 @@ static void wait_for_sibling_halt(void *ptr_cpu)
 	} while (!(halted & TCHALT_H));
 }
 
-static void cps_cpu_die(unsigned int cpu)
+static void cps_cpu_die(unsigned int cpu) { }
+
+static void cps_cleanup_dead_cpu(unsigned cpu)
 {
 	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	ktime_t fail_time;
 	unsigned stat;
 	int err;
-
-	/* Wait for the cpu to choose its way out */
-	if (!cpu_wait_death(cpu, 5)) {
-		pr_err("CPU%u: didn't offline\n", cpu);
-		return;
-	}
 
 	/*
 	 * Now wait for the CPU to actually offline. Without doing this that
@@ -624,6 +608,7 @@ static const struct plat_smp_ops cps_smp_ops = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= cps_cpu_disable,
 	.cpu_die		= cps_cpu_die,
+	.cleanup_dead_cpu	= cps_cleanup_dead_cpu,
 #endif
 #ifdef CONFIG_KEXEC
 	.kexec_nonboot_cpu	= cps_kexec_nonboot_cpu,

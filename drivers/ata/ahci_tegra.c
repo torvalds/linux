@@ -609,7 +609,7 @@ deinit_controller:
 
 static struct platform_driver tegra_ahci_driver = {
 	.probe = tegra_ahci_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = tegra_ahci_of_match,

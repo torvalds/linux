@@ -1822,7 +1822,7 @@ static struct i2c_driver iqs626_i2c_driver = {
 		.of_match_table = iqs626_of_match,
 		.pm = pm_sleep_ptr(&iqs626_pm),
 	},
-	.probe_new = iqs626_probe,
+	.probe = iqs626_probe,
 };
 module_i2c_driver(iqs626_i2c_driver);
 

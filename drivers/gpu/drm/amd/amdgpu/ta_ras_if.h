@@ -129,6 +129,8 @@ struct ta_ras_trigger_error_input {
 struct ta_ras_init_flags {
 	uint8_t poison_mode_en;
 	uint8_t dgpu_mode;
+	uint16_t xcc_mask;
+	uint8_t channel_dis_num;
 };
 
 struct ta_ras_output_flags {

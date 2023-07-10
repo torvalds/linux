@@ -70,7 +70,7 @@ static struct i2c_driver mp2629_driver = {
 		.name = "mp2629",
 		.of_match_table = mp2629_of_match,
 	},
-	.probe_new	= mp2629_probe,
+	.probe		= mp2629_probe,
 };
 module_i2c_driver(mp2629_driver);
 

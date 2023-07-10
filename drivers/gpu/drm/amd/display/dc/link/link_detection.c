@@ -593,6 +593,10 @@ static bool detect_dp(struct dc_link *link,
 			/* DP SST branch */
 			link->type = dc_connection_sst_branch;
 	} else {
+		if (link->dc->debug.disable_dp_plus_plus_wa &&
+				link->link_enc->features.flags.bits.IS_UHBR20_CAPABLE)
+			return false;
+
 		/* DP passive dongles */
 		sink_caps->signal = dp_passive_dongle_detection(link->ddc,
 								sink_caps,
@@ -980,6 +984,11 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 					(link->dpcd_caps.dongle_type !=
 							DISPLAY_DONGLE_DP_HDMI_CONVERTER))
 				converter_disable_audio = true;
+
+			/* limited link rate to HBR3 for DPIA until we implement USB4 V2 */
+			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+					link->reported_link_cap.link_rate > LINK_RATE_HIGH3)
+				link->reported_link_cap.link_rate = LINK_RATE_HIGH3;
 			break;
 		}
 

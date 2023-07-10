@@ -892,7 +892,7 @@ static struct i2c_driver msp_driver = {
 		.name	= "msp3400",
 		.pm	= &msp3400_pm_ops,
 	},
-	.probe_new	= msp_probe,
+	.probe		= msp_probe,
 	.remove		= msp_remove,
 	.id_table	= msp_id,
 };

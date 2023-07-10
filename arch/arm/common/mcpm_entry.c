@@ -21,7 +21,7 @@
 /*
  * The public API for this code is documented in arch/arm/include/asm/mcpm.h.
  * For a comprehensive description of the main algorithm used here, please
- * see Documentation/arm/cluster-pm-race-avoidance.rst.
+ * see Documentation/arch/arm/cluster-pm-race-avoidance.rst.
  */
 
 struct sync_struct mcpm_sync;

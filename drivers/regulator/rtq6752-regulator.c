@@ -281,7 +281,7 @@ static struct i2c_driver rtq6752_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = rtq6752_device_table,
 	},
-	.probe_new = rtq6752_probe,
+	.probe = rtq6752_probe,
 };
 module_i2c_driver(rtq6752_driver);
 

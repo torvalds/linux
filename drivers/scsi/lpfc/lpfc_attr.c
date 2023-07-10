@@ -5858,8 +5858,8 @@ int lpfc_fabric_cgn_frequency = 100; /* 100 ms default */
 module_param(lpfc_fabric_cgn_frequency, int, 0444);
 MODULE_PARM_DESC(lpfc_fabric_cgn_frequency, "Congestion signaling fabric freq");
 
-int lpfc_acqe_cgn_frequency = 10; /* 10 sec default */
-module_param(lpfc_acqe_cgn_frequency, int, 0444);
+unsigned char lpfc_acqe_cgn_frequency = 10; /* 10 sec default */
+module_param(lpfc_acqe_cgn_frequency, byte, 0444);
 MODULE_PARM_DESC(lpfc_acqe_cgn_frequency, "Congestion signaling ACQE freq");
 
 int lpfc_use_cgn_signal = 1; /* 0 - only use FPINs, 1 - Use signals if avail  */

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #ifndef __iwl_fw_api_location_h__
 #define __iwl_fw_api_location_h__
@@ -35,8 +35,11 @@ enum iwl_location_subcmd_ids {
 	 */
 	TOF_RANGE_REQ_EXT_CMD = 0x3,
 	/**
-	 * @TOF_RESPONDER_CONFIG_CMD: FTM responder configuration,
-	 *	uses &struct iwl_tof_responder_config_cmd
+	 * @TOF_RESPONDER_CONFIG_CMD: FTM responder configuration, one of
+	 *	&struct iwl_tof_responder_config_cmd_v6,
+	 *	&struct iwl_tof_responder_config_cmd_v7,
+	 *	&struct iwl_tof_responder_config_cmd_v8 or
+	 *	&struct iwl_tof_responder_config_cmd_v9
 	 */
 	TOF_RESPONDER_CONFIG_CMD = 0x4,
 	/**
@@ -69,8 +72,11 @@ enum iwl_location_subcmd_ids {
 	 */
 	TOF_MCSI_DEBUG_NOTIF = 0xFE,
 	/**
-	 * @TOF_RANGE_RESPONSE_NOTIF: ranging response, using
-	 *	&struct iwl_tof_range_rsp_ntfy
+	 * @TOF_RANGE_RESPONSE_NOTIF: ranging response, using one of
+	 *	&struct iwl_tof_range_rsp_ntfy_v5,
+	 *	&struct iwl_tof_range_rsp_ntfy_v6,
+	 *	&struct iwl_tof_range_rsp_ntfy_v7 or
+	 *	&struct iwl_tof_range_rsp_ntfy_v8
 	 */
 	TOF_RANGE_RESPONSE_NOTIF = 0xFF,
 };

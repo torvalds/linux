@@ -97,8 +97,8 @@ static int nxp_nci_i2c_fw_read(struct nxp_nci_i2c_phy *phy,
 			       struct sk_buff **skb)
 {
 	struct i2c_client *client = phy->i2c_dev;
-	u16 header;
 	size_t frame_len;
+	__be16 header;
 	int r;
 
 	r = i2c_master_recv(client, (u8 *) &header, NXP_NCI_FW_HDR_LEN);
@@ -348,7 +348,7 @@ static struct i2c_driver nxp_nci_i2c_driver = {
 		   .acpi_match_table = ACPI_PTR(acpi_id),
 		   .of_match_table = of_nxp_nci_i2c_match,
 		  },
-	.probe_new = nxp_nci_i2c_probe,
+	.probe = nxp_nci_i2c_probe,
 	.id_table = nxp_nci_i2c_id_table,
 	.remove = nxp_nci_i2c_remove,
 };

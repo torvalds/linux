@@ -230,7 +230,7 @@ static struct i2c_driver tlc591xx_driver = {
 		.name = "tlc591xx",
 		.of_match_table = of_match_ptr(of_tlc591xx_leds_match),
 	},
-	.probe_new = tlc591xx_probe,
+	.probe = tlc591xx_probe,
 	.id_table = tlc591xx_id,
 };
 

@@ -301,6 +301,12 @@ static struct pci_driver ohci_pci_driver = {
 #endif
 };
 
+#ifdef CONFIG_PM
+static int ohci_pci_resume(struct usb_hcd *hcd, pm_message_t msg)
+{
+	return ohci_resume(hcd, msg.event == PM_EVENT_RESTORE);
+}
+#endif
 static int __init ohci_pci_init(void)
 {
 	if (usb_disabled())
@@ -311,7 +317,7 @@ static int __init ohci_pci_init(void)
 #ifdef	CONFIG_PM
 	/* Entries for the PCI suspend/resume callbacks are special */
 	ohci_pci_hc_driver.pci_suspend = ohci_suspend;
-	ohci_pci_hc_driver.pci_resume = ohci_resume;
+	ohci_pci_hc_driver.pci_resume = ohci_pci_resume;
 #endif
 
 	return pci_register_driver(&ohci_pci_driver);

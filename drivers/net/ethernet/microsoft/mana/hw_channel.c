@@ -627,7 +627,7 @@ static int mana_hwc_establish_channel(struct gdma_context *gc, u16 *q_depth,
 	if (WARN_ON(cq->id >= gc->max_num_cqs))
 		return -EPROTO;
 
-	gc->cq_table = vzalloc(gc->max_num_cqs * sizeof(struct gdma_queue *));
+	gc->cq_table = vcalloc(gc->max_num_cqs, sizeof(struct gdma_queue *));
 	if (!gc->cq_table)
 		return -ENOMEM;
 

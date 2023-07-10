@@ -22,6 +22,7 @@
 #include "util/bpf-filter.h"
 #include "util/env.h"
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include <internal/lib.h>
 #include "util.h"
 
@@ -48,6 +49,14 @@
 #ifndef Py_TYPE
 #define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
 #endif
+
+/*
+ * Avoid bringing in event parsing.
+ */
+int parse_event(struct evlist *evlist __maybe_unused, const char *str __maybe_unused)
+{
+	return 0;
+}
 
 /*
  * Provide these two so that we don't have to link against callchain.c and
@@ -94,6 +103,11 @@ int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
 	return EOF;
 }
 
+int perf_pmus__num_core_pmus(void)
+{
+	return 1;
+}
+
 bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
 {
 	return false;
@@ -107,6 +121,14 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *old_metric_events)
 {
 	return 0;
+}
+
+/*
+ * Add this one here not to drag util/trace-event-info.c
+ */
+char *tracepoint_id_to_name(u64 config)
+{
+	return NULL;
 }
 
 /*
@@ -1478,5 +1500,9 @@ error:
  */
 void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
                      int fd, int group_fd, unsigned long flags)
+{
+}
+
+void evlist__free_stats(struct evlist *evlist)
 {
 }

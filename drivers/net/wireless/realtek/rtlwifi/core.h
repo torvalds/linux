@@ -51,6 +51,8 @@ enum dm_dig_connect_e {
 };
 
 extern const struct ieee80211_ops rtl_ops;
+
+void rtl_init_sw_leds(struct ieee80211_hw *hw);
 void rtl_fw_cb(const struct firmware *firmware, void *context);
 void rtl_wowlan_fw_cb(const struct firmware *firmware, void *context);
 void rtl_addr_delay(u32 addr);

@@ -707,6 +707,48 @@ u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
 	return r;
 }
 
+u32 amdgpu_device_indirect_rreg_ext(struct amdgpu_device *adev,
+				    u64 reg_addr)
+{
+	unsigned long flags, pcie_index, pcie_index_hi, pcie_data;
+	u32 r;
+	void __iomem *pcie_index_offset;
+	void __iomem *pcie_index_hi_offset;
+	void __iomem *pcie_data_offset;
+
+	pcie_index = adev->nbio.funcs->get_pcie_index_offset(adev);
+	pcie_data = adev->nbio.funcs->get_pcie_data_offset(adev);
+	if (adev->nbio.funcs->get_pcie_index_hi_offset)
+		pcie_index_hi = adev->nbio.funcs->get_pcie_index_hi_offset(adev);
+	else
+		pcie_index_hi = 0;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
+	pcie_data_offset = (void __iomem *)adev->rmmio + pcie_data * 4;
+	if (pcie_index_hi != 0)
+		pcie_index_hi_offset = (void __iomem *)adev->rmmio +
+				pcie_index_hi * 4;
+
+	writel(reg_addr, pcie_index_offset);
+	readl(pcie_index_offset);
+	if (pcie_index_hi != 0) {
+		writel((reg_addr >> 32) & 0xff, pcie_index_hi_offset);
+		readl(pcie_index_hi_offset);
+	}
+	r = readl(pcie_data_offset);
+
+	/* clear the high bits */
+	if (pcie_index_hi != 0) {
+		writel(0, pcie_index_hi_offset);
+		readl(pcie_index_hi_offset);
+	}
+
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+
+	return r;
+}
+
 /**
  * amdgpu_device_indirect_rreg64 - read a 64bits indirect register
  *
@@ -747,8 +789,6 @@ u64 amdgpu_device_indirect_rreg64(struct amdgpu_device *adev,
  * amdgpu_device_indirect_wreg - write an indirect register address
  *
  * @adev: amdgpu_device pointer
- * @pcie_index: mmio register offset
- * @pcie_data: mmio register offset
  * @reg_addr: indirect register offset
  * @reg_data: indirect register data
  *
@@ -774,12 +814,50 @@ void amdgpu_device_indirect_wreg(struct amdgpu_device *adev,
 	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
 }
 
+void amdgpu_device_indirect_wreg_ext(struct amdgpu_device *adev,
+				     u64 reg_addr, u32 reg_data)
+{
+	unsigned long flags, pcie_index, pcie_index_hi, pcie_data;
+	void __iomem *pcie_index_offset;
+	void __iomem *pcie_index_hi_offset;
+	void __iomem *pcie_data_offset;
+
+	pcie_index = adev->nbio.funcs->get_pcie_index_offset(adev);
+	pcie_data = adev->nbio.funcs->get_pcie_data_offset(adev);
+	if (adev->nbio.funcs->get_pcie_index_hi_offset)
+		pcie_index_hi = adev->nbio.funcs->get_pcie_index_hi_offset(adev);
+	else
+		pcie_index_hi = 0;
+
+	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
+	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
+	pcie_data_offset = (void __iomem *)adev->rmmio + pcie_data * 4;
+	if (pcie_index_hi != 0)
+		pcie_index_hi_offset = (void __iomem *)adev->rmmio +
+				pcie_index_hi * 4;
+
+	writel(reg_addr, pcie_index_offset);
+	readl(pcie_index_offset);
+	if (pcie_index_hi != 0) {
+		writel((reg_addr >> 32) & 0xff, pcie_index_hi_offset);
+		readl(pcie_index_hi_offset);
+	}
+	writel(reg_data, pcie_data_offset);
+	readl(pcie_data_offset);
+
+	/* clear the high bits */
+	if (pcie_index_hi != 0) {
+		writel(0, pcie_index_hi_offset);
+		readl(pcie_index_hi_offset);
+	}
+
+	spin_unlock_irqrestore(&adev->pcie_idx_lock, flags);
+}
+
 /**
  * amdgpu_device_indirect_wreg64 - write a 64bits indirect register address
  *
  * @adev: amdgpu_device pointer
- * @pcie_index: mmio register offset
- * @pcie_data: mmio register offset
  * @reg_addr: indirect register offset
  * @reg_data: indirect register data
  *
@@ -840,6 +918,13 @@ static uint32_t amdgpu_invalid_rreg(struct amdgpu_device *adev, uint32_t reg)
 	return 0;
 }
 
+static uint32_t amdgpu_invalid_rreg_ext(struct amdgpu_device *adev, uint64_t reg)
+{
+	DRM_ERROR("Invalid callback to read register 0x%llX\n", reg);
+	BUG();
+	return 0;
+}
+
 /**
  * amdgpu_invalid_wreg - dummy reg write function
  *
@@ -853,6 +938,13 @@ static uint32_t amdgpu_invalid_rreg(struct amdgpu_device *adev, uint32_t reg)
 static void amdgpu_invalid_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 {
 	DRM_ERROR("Invalid callback to write register 0x%04X with 0x%08X\n",
+		  reg, v);
+	BUG();
+}
+
+static void amdgpu_invalid_wreg_ext(struct amdgpu_device *adev, uint64_t reg, uint32_t v)
+{
+	DRM_ERROR("Invalid callback to write register 0x%llX with 0x%08X\n",
 		  reg, v);
 	BUG();
 }
@@ -942,7 +1034,8 @@ static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 {
 	amdgpu_asic_pre_asic_init(adev);
 
-	if (adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
+	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 3) ||
+	    adev->ip_versions[GC_HWIP][0] >= IP_VERSION(11, 0, 0))
 		return amdgpu_atomfirmware_asic_init(adev, true);
 	else
 		return amdgpu_atom_asic_init(adev->mode_info.atom_context);
@@ -998,7 +1091,7 @@ void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 	if (array_size % 3)
 		return;
 
-	for (i = 0; i < array_size; i +=3) {
+	for (i = 0; i < array_size; i += 3) {
 		reg = registers[i + 0];
 		and_mask = registers[i + 1];
 		or_mask = registers[i + 2];
@@ -1090,7 +1183,8 @@ static int amdgpu_device_doorbell_init(struct amdgpu_device *adev)
 		 * doorbells are in the first page. So with paging queue enabled,
 		 * the max num_kernel_doorbells should + 1 page (0x400 in dword)
 		 */
-		if (adev->asic_type >= CHIP_VEGA10)
+		if (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(4, 0, 0) &&
+		    adev->ip_versions[SDMA0_HWIP][0] < IP_VERSION(4, 2, 0))
 			adev->doorbell.num_kernel_doorbells += 0x400;
 	}
 
@@ -1291,6 +1385,15 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	return 0;
 }
 
+static bool amdgpu_device_read_bios(struct amdgpu_device *adev)
+{
+	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU)) {
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * GPU helpers function.
  */
@@ -1308,6 +1411,9 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
 	uint32_t reg;
 
 	if (amdgpu_sriov_vf(adev))
+		return false;
+
+	if (!amdgpu_device_read_bios(adev))
 		return false;
 
 	if (amdgpu_passthrough(adev)) {
@@ -1547,7 +1653,7 @@ static int amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "sched jobs (%d) must be at least 4\n",
 			 amdgpu_sched_jobs);
 		amdgpu_sched_jobs = 4;
-	} else if (!is_power_of_2(amdgpu_sched_jobs)){
+	} else if (!is_power_of_2(amdgpu_sched_jobs)) {
 		dev_warn(adev->dev, "sched jobs (%d) must be a power of 2\n",
 			 amdgpu_sched_jobs);
 		amdgpu_sched_jobs = roundup_pow_of_two(amdgpu_sched_jobs);
@@ -2194,7 +2300,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	total = true;
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if ((amdgpu_ip_block_mask & (1 << i)) == 0) {
-			DRM_ERROR("disabled ip block: %d <%s>\n",
+			DRM_WARN("disabled ip block: %d <%s>\n",
 				  i, adev->ip_blocks[i].version->funcs->name);
 			adev->ip_blocks[i].status.valid = false;
 		} else {
@@ -2220,14 +2326,16 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 				return r;
 
 			/* Read BIOS */
-			if (!amdgpu_get_bios(adev))
-				return -EINVAL;
+			if (amdgpu_device_read_bios(adev)) {
+				if (!amdgpu_get_bios(adev))
+					return -EINVAL;
 
-			r = amdgpu_atombios_init(adev);
-			if (r) {
-				dev_err(adev->dev, "amdgpu_atombios_init failed\n");
-				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
-				return r;
+				r = amdgpu_atombios_init(adev);
+				if (r) {
+					dev_err(adev->dev, "amdgpu_atombios_init failed\n");
+					amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_INIT_FAIL, 0, 0);
+					return r;
+				}
 			}
 
 			/*get pf2vf msg info at it's earliest time*/
@@ -2376,6 +2484,8 @@ static int amdgpu_device_init_schedulers(struct amdgpu_device *adev)
 		}
 	}
 
+	amdgpu_xcp_update_partition_sched_list(adev);
+
 	return 0;
 }
 
@@ -2442,7 +2552,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 			adev->ip_blocks[i].status.hw = true;
 
 			/* right after GMC hw init, we create CSA */
-			if (amdgpu_mcbp) {
+			if (adev->gfx.mcbp) {
 				r = amdgpu_allocate_static_csa(adev, &adev->virt.csa_obj,
 							       AMDGPU_GEM_DOMAIN_VRAM |
 							       AMDGPU_GEM_DOMAIN_GTT,
@@ -2533,8 +2643,10 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 		goto init_failed;
 
 	/* Don't init kfd if whole hive need to be reset during init */
-	if (!adev->gmc.xgmi.pending_reset)
+	if (!adev->gmc.xgmi.pending_reset) {
+		kgd2kfd_init_zone_device(adev);
 		amdgpu_amdkfd_device_init(adev);
+	}
 
 	amdgpu_fru_get_product_info(adev);
 
@@ -2759,8 +2871,9 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		DRM_ERROR("enable mgpu fan boost failed (%d).\n", r);
 
 	/* For passthrough configuration on arcturus and aldebaran, enable special handling SBR */
-	if (amdgpu_passthrough(adev) && ((adev->asic_type == CHIP_ARCTURUS && adev->gmc.xgmi.num_physical_nodes > 1)||
-			       adev->asic_type == CHIP_ALDEBARAN ))
+	if (amdgpu_passthrough(adev) &&
+	    ((adev->asic_type == CHIP_ARCTURUS && adev->gmc.xgmi.num_physical_nodes > 1) ||
+	     adev->asic_type == CHIP_ALDEBARAN))
 		amdgpu_dpm_handle_passthrough_sbr(adev, true);
 
 	if (adev->gmc.xgmi.num_physical_nodes > 1) {
@@ -3089,7 +3202,7 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 		}
 		adev->ip_blocks[i].status.hw = false;
 		/* handle putting the SMC in the appropriate state */
-		if(!amdgpu_sriov_vf(adev)){
+		if (!amdgpu_sriov_vf(adev)) {
 			if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
 				r = amdgpu_dpm_set_mp1_state(adev, adev->mp1_state);
 				if (r) {
@@ -3560,6 +3673,23 @@ static const struct attribute *amdgpu_dev_attributes[] = {
 	NULL
 };
 
+static void amdgpu_device_set_mcbp(struct amdgpu_device *adev)
+{
+	if (amdgpu_mcbp == 1)
+		adev->gfx.mcbp = true;
+
+	if ((adev->ip_versions[GC_HWIP][0] >= IP_VERSION(9, 0, 0)) &&
+	    (adev->ip_versions[GC_HWIP][0] < IP_VERSION(10, 0, 0)) &&
+	    adev->gfx.num_gfx_rings)
+		adev->gfx.mcbp = true;
+
+	if (amdgpu_sriov_vf(adev))
+		adev->gfx.mcbp = true;
+
+	if (adev->gfx.mcbp)
+		DRM_INFO("MCBP is enabled\n");
+}
+
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -3608,6 +3738,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->smc_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg = &amdgpu_invalid_rreg;
 	adev->pcie_wreg = &amdgpu_invalid_wreg;
+	adev->pcie_rreg_ext = &amdgpu_invalid_rreg_ext;
+	adev->pcie_wreg_ext = &amdgpu_invalid_wreg_ext;
 	adev->pciep_rreg = &amdgpu_invalid_rreg;
 	adev->pciep_wreg = &amdgpu_invalid_wreg;
 	adev->pcie_rreg64 = &amdgpu_invalid_rreg64;
@@ -3633,6 +3765,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	mutex_init(&adev->srbm_mutex);
 	mutex_init(&adev->gfx.pipe_reserve_mutex);
 	mutex_init(&adev->gfx.gfx_off_mutex);
+	mutex_init(&adev->gfx.partition_mutex);
 	mutex_init(&adev->grbm_idx_mutex);
 	mutex_init(&adev->mn_lock);
 	mutex_init(&adev->virt.vf_errors.lock);
@@ -3708,11 +3841,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	DRM_INFO("register mmio base: 0x%08X\n", (uint32_t)adev->rmmio_base);
 	DRM_INFO("register mmio size: %u\n", (unsigned)adev->rmmio_size);
 
-	amdgpu_device_get_pcie_info(adev);
-
-	if (amdgpu_mcbp)
-		DRM_INFO("MCBP is enabled\n");
-
 	/*
 	 * Reset domain needs to be present early, before XGMI hive discovered
 	 * (if any) and intitialized to use reset sem and in_gpu reset flag
@@ -3725,6 +3853,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* detect hw virtualization here */
 	amdgpu_detect_virtualization(adev);
 
+	amdgpu_device_get_pcie_info(adev);
+
 	r = amdgpu_device_get_job_timeout_settings(adev);
 	if (r) {
 		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
@@ -3735,6 +3865,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	r = amdgpu_device_ip_early_init(adev);
 	if (r)
 		return r;
+
+	amdgpu_device_set_mcbp(adev);
 
 	/* Get rid of things like offb */
 	r = drm_aperture_remove_conflicting_pci_framebuffers(adev->pdev, &amdgpu_kms_driver);
@@ -3753,21 +3885,24 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	}
 
 	/* enable PCIE atomic ops */
-	if (amdgpu_sriov_vf(adev))
-		adev->have_atomics_support = ((struct amd_sriov_msg_pf2vf_info *)
-			adev->virt.fw_reserve.p_pf2vf)->pcie_atomic_ops_support_flags ==
-			(PCI_EXP_DEVCAP2_ATOMIC_COMP32 | PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+	if (amdgpu_sriov_vf(adev)) {
+		if (adev->virt.fw_reserve.p_pf2vf)
+			adev->have_atomics_support = ((struct amd_sriov_msg_pf2vf_info *)
+						      adev->virt.fw_reserve.p_pf2vf)->pcie_atomic_ops_support_flags ==
+				(PCI_EXP_DEVCAP2_ATOMIC_COMP32 | PCI_EXP_DEVCAP2_ATOMIC_COMP64);
 	/* APUs w/ gfx9 onwards doesn't reply on PCIe atomics, rather it is a
 	 * internal path natively support atomics, set have_atomics_support to true.
 	 */
-	else if ((adev->flags & AMD_IS_APU) &&
-		(adev->ip_versions[GC_HWIP][0] > IP_VERSION(9, 0, 0)))
+	} else if ((adev->flags & AMD_IS_APU) &&
+		   (adev->ip_versions[GC_HWIP][0] > IP_VERSION(9, 0, 0))) {
 		adev->have_atomics_support = true;
-	else
+	} else {
 		adev->have_atomics_support =
 			!pci_enable_atomic_ops_to_root(adev->pdev,
 					  PCI_EXP_DEVCAP2_ATOMIC_COMP32 |
 					  PCI_EXP_DEVCAP2_ATOMIC_COMP64);
+	}
+
 	if (!adev->have_atomics_support)
 		dev_info(adev->dev, "PCIE atomic ops is not supported\n");
 
@@ -3783,7 +3918,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	amdgpu_reset_init(adev);
 
 	/* detect if we are with an SRIOV vbios */
-	amdgpu_device_detect_sriov_bios(adev);
+	if (adev->bios)
+		amdgpu_device_detect_sriov_bios(adev);
 
 	/* check if we need to reset the asic
 	 *  E.g., driver was not cleanly unloaded previously, etc.
@@ -3835,25 +3971,27 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		}
 	}
 
-	if (adev->is_atom_fw) {
-		/* Initialize clocks */
-		r = amdgpu_atomfirmware_get_clock_info(adev);
-		if (r) {
-			dev_err(adev->dev, "amdgpu_atomfirmware_get_clock_info failed\n");
-			amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
-			goto failed;
+	if (adev->bios) {
+		if (adev->is_atom_fw) {
+			/* Initialize clocks */
+			r = amdgpu_atomfirmware_get_clock_info(adev);
+			if (r) {
+				dev_err(adev->dev, "amdgpu_atomfirmware_get_clock_info failed\n");
+				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
+				goto failed;
+			}
+		} else {
+			/* Initialize clocks */
+			r = amdgpu_atombios_get_clock_info(adev);
+			if (r) {
+				dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
+				amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
+				goto failed;
+			}
+			/* init i2c buses */
+			if (!amdgpu_device_has_dc_support(adev))
+				amdgpu_atombios_i2c_init(adev);
 		}
-	} else {
-		/* Initialize clocks */
-		r = amdgpu_atombios_get_clock_info(adev);
-		if (r) {
-			dev_err(adev->dev, "amdgpu_atombios_get_clock_info failed\n");
-			amdgpu_vf_error_put(adev, AMDGIM_ERROR_VF_ATOMBIOS_GET_CLOCK_FAIL, 0, 0);
-			goto failed;
-		}
-		/* init i2c buses */
-		if (!amdgpu_device_has_dc_support(adev))
-			amdgpu_atombios_i2c_init(adev);
 	}
 
 fence_driver_init:
@@ -3895,6 +4033,11 @@ fence_driver_init:
 		max_MBps = 8; /* Allow 8 MB/s. */
 	/* Get a log2 for easy divisions. */
 	adev->mm_stats.log2_max_MBps = ilog2(max(1u, max_MBps));
+
+	r = amdgpu_atombios_sysfs_init(adev);
+	if (r)
+		drm_err(&adev->ddev,
+			"registering atombios sysfs failed (%d).\n", r);
 
 	r = amdgpu_pm_sysfs_init(adev);
 	if (r)
@@ -4019,7 +4162,7 @@ static void amdgpu_device_unmap_mmio(struct amdgpu_device *adev)
 	adev->mman.aper_base_kaddr = NULL;
 
 	/* Memory manager related */
-	if (!adev->gmc.xgmi.connected_to_cpu) {
+	if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu) {
 		arch_phys_wc_del(adev->gmc.vram_mtrr);
 		arch_io_free_memtype_wc(adev->gmc.aper_base, adev->gmc.aper_size);
 	}
@@ -4049,7 +4192,7 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 	/* disable all interrupts */
 	amdgpu_irq_disable_all(adev);
-	if (adev->mode_info.mode_config_initialized){
+	if (adev->mode_info.mode_config_initialized) {
 		if (!drm_drv_uses_atomic_modeset(adev_to_drm(adev)))
 			drm_helper_force_disable_all(adev_to_drm(adev));
 		else
@@ -4714,42 +4857,42 @@ disabled:
 
 int amdgpu_device_mode1_reset(struct amdgpu_device *adev)
 {
-        u32 i;
-        int ret = 0;
+	u32 i;
+	int ret = 0;
 
-        amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
 
-        dev_info(adev->dev, "GPU mode1 reset\n");
+	dev_info(adev->dev, "GPU mode1 reset\n");
 
-        /* disable BM */
-        pci_clear_master(adev->pdev);
+	/* disable BM */
+	pci_clear_master(adev->pdev);
 
-        amdgpu_device_cache_pci_state(adev->pdev);
+	amdgpu_device_cache_pci_state(adev->pdev);
 
-        if (amdgpu_dpm_is_mode1_reset_supported(adev)) {
-                dev_info(adev->dev, "GPU smu mode1 reset\n");
-                ret = amdgpu_dpm_mode1_reset(adev);
-        } else {
-                dev_info(adev->dev, "GPU psp mode1 reset\n");
-                ret = psp_gpu_reset(adev);
-        }
+	if (amdgpu_dpm_is_mode1_reset_supported(adev)) {
+		dev_info(adev->dev, "GPU smu mode1 reset\n");
+		ret = amdgpu_dpm_mode1_reset(adev);
+	} else {
+		dev_info(adev->dev, "GPU psp mode1 reset\n");
+		ret = psp_gpu_reset(adev);
+	}
 
-        if (ret)
-                dev_err(adev->dev, "GPU mode1 reset failed\n");
+	if (ret)
+		dev_err(adev->dev, "GPU mode1 reset failed\n");
 
-        amdgpu_device_load_pci_state(adev->pdev);
+	amdgpu_device_load_pci_state(adev->pdev);
 
-        /* wait for asic to come out of reset */
-        for (i = 0; i < adev->usec_timeout; i++) {
-                u32 memsize = adev->nbio.funcs->get_memsize(adev);
+	/* wait for asic to come out of reset */
+	for (i = 0; i < adev->usec_timeout; i++) {
+		u32 memsize = adev->nbio.funcs->get_memsize(adev);
 
-                if (memsize != 0xffffffff)
-                        break;
-                udelay(1);
-        }
+		if (memsize != 0xffffffff)
+			break;
+		udelay(1);
+	}
 
-        amdgpu_atombios_scratch_regs_engine_hung(adev, false);
-        return ret;
+	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+	return ret;
 }
 
 int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
@@ -5478,7 +5621,7 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 		adev->pm.pcie_mlw_mask = amdgpu_pcie_lane_cap;
 
 	/* covers APUs as well */
-	if (pci_is_root_bus(adev->pdev->bus)) {
+	if (pci_is_root_bus(adev->pdev->bus) && !amdgpu_passthrough(adev)) {
 		if (adev->pm.pcie_gen_mask == 0)
 			adev->pm.pcie_gen_mask = AMDGPU_DEFAULT_PCIE_GEN_MASK;
 		if (adev->pm.pcie_mlw_mask == 0)
@@ -5959,6 +6102,7 @@ void amdgpu_device_halt(struct amdgpu_device *adev)
 	struct pci_dev *pdev = adev->pdev;
 	struct drm_device *ddev = adev_to_drm(adev);
 
+	amdgpu_xcp_dev_unplug(adev);
 	drm_dev_unplug(ddev);
 
 	amdgpu_irq_disable_all(adev);
@@ -6078,4 +6222,32 @@ bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev)
 			return false;
 		return true;
 	}
+}
+
+uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev,
+		uint32_t inst, uint32_t reg_addr, char reg_name[],
+		uint32_t expected_value, uint32_t mask)
+{
+	uint32_t ret = 0;
+	uint32_t old_ = 0;
+	uint32_t tmp_ = RREG32(reg_addr);
+	uint32_t loop = adev->usec_timeout;
+
+	while ((tmp_ & (mask)) != (expected_value)) {
+		if (old_ != tmp_) {
+			loop = adev->usec_timeout;
+			old_ = tmp_;
+		} else
+			udelay(1);
+		tmp_ = RREG32(reg_addr);
+		loop--;
+		if (!loop) {
+			DRM_WARN("Register(%d) [%s] failed to reach value 0x%08x != 0x%08xn",
+				  inst, reg_name, (uint32_t)expected_value,
+				  (uint32_t)(tmp_ & (mask)));
+			ret = -ETIMEDOUT;
+			break;
+		}
+	}
+	return ret;
 }

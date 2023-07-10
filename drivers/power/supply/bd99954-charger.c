@@ -1077,7 +1077,7 @@ static struct i2c_driver bd9995x_driver = {
 		.name = "bd9995x-charger",
 		.of_match_table = bd9995x_of_match,
 	},
-	.probe_new = bd9995x_probe,
+	.probe = bd9995x_probe,
 };
 module_i2c_driver(bd9995x_driver);
 

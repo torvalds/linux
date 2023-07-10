@@ -479,6 +479,7 @@ static const u32 gaudi2_pb_dcr0_edma0_unsecured_regs[] = {
 	mmDCORE0_EDMA0_CORE_CTX_TE_NUMROWS,
 	mmDCORE0_EDMA0_CORE_CTX_IDX,
 	mmDCORE0_EDMA0_CORE_CTX_IDX_INC,
+	mmDCORE0_EDMA0_CORE_RD_LBW_RATE_LIM_CFG,
 	mmDCORE0_EDMA0_QM_CQ_CFG0_0,
 	mmDCORE0_EDMA0_QM_CQ_CFG0_1,
 	mmDCORE0_EDMA0_QM_CQ_CFG0_2,
@@ -1533,6 +1534,10 @@ static const u32 gaudi2_pb_dcr0_tpc0_unsecured_regs[] = {
 	mmDCORE0_TPC0_CFG_QM_KERNEL_CONFIG,
 	mmDCORE0_TPC0_CFG_QM_KERNEL_ID,
 	mmDCORE0_TPC0_CFG_QM_POWER_LOOP,
+	mmDCORE0_TPC0_CFG_TSB_CFG_MTRR_2_0,
+	mmDCORE0_TPC0_CFG_TSB_CFG_MTRR_2_1,
+	mmDCORE0_TPC0_CFG_TSB_CFG_MTRR_2_2,
+	mmDCORE0_TPC0_CFG_TSB_CFG_MTRR_2_3,
 	mmDCORE0_TPC0_CFG_LUT_FUNC32_BASE2_ADDR_LO,
 	mmDCORE0_TPC0_CFG_LUT_FUNC32_BASE2_ADDR_HI,
 	mmDCORE0_TPC0_CFG_LUT_FUNC64_BASE2_ADDR_LO,
@@ -1541,6 +1546,7 @@ static const u32 gaudi2_pb_dcr0_tpc0_unsecured_regs[] = {
 	mmDCORE0_TPC0_CFG_LUT_FUNC128_BASE2_ADDR_HI,
 	mmDCORE0_TPC0_CFG_LUT_FUNC256_BASE2_ADDR_LO,
 	mmDCORE0_TPC0_CFG_LUT_FUNC256_BASE2_ADDR_HI,
+	mmDCORE0_TPC0_CFG_FP8_143_BIAS,
 	mmDCORE0_TPC0_CFG_ROUND_CSR,
 	mmDCORE0_TPC0_CFG_CONV_ROUND_CSR,
 	mmDCORE0_TPC0_CFG_SEMAPHORE,
@@ -3441,15 +3447,6 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 				gaudi2_pb_thermal_sensor0,
 				ARRAY_SIZE(gaudi2_pb_thermal_sensor0), NULL, HL_PB_NA);
 	}
-
-	/* HBM */
-	/* Temporarily skip until SW-63348 is solved
-	 * instance_offset = mmHBM1_MC0_BASE - mmHBM0_MC0_BASE;
-	 * rc |= hl_init_pb_with_mask(hdev, HL_PB_SHARED, HL_PB_NA, GAUDI2_HBM_NUM,
-	 *		instance_offset, gaudi2_pb_hbm,
-	 *		ARRAY_SIZE(gaudi2_pb_hbm), NULL, HL_PB_NA,
-	 *		prop->dram_enabled_mask);
-	 */
 
 	/* Scheduler ARCs */
 	instance_offset = mmARC_FARM_ARC1_AUX_BASE - mmARC_FARM_ARC0_AUX_BASE;

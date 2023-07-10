@@ -179,7 +179,11 @@ int do_write(struct feat_fd *fd, const void *buf, size_t size);
 int write_padded(struct feat_fd *fd, const void *bf,
 		 size_t count, size_t count_aligned);
 
+#define MAX_CACHE_LVL 4
+
 int is_cpu_online(unsigned int cpu);
+int build_caches_for_cpu(u32 cpu, struct cpu_cache_level caches[], u32 *cntp);
+
 /*
  * arch specific callback
  */

@@ -4,6 +4,7 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
 #include "intel_display.h"
@@ -3447,9 +3448,10 @@ void ilk_wm_sanitize(struct drm_i915_private *dev_priv)
 
 	drm_modeset_acquire_init(&ctx, 0);
 
-retry:
 	state->acquire_ctx = &ctx;
+	to_intel_atomic_state(state)->internal = true;
 
+retry:
 	/*
 	 * Hardware readout is the only time we don't want to calculate
 	 * intermediate watermarks (since we don't trust the current

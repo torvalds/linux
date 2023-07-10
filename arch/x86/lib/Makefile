@@ -61,8 +61,9 @@ ifeq ($(CONFIG_X86_32),y)
         lib-y += strstr_32.o
         lib-y += string_32.o
         lib-y += memmove_32.o
+        lib-y += cmpxchg8b_emu.o
 ifneq ($(CONFIG_X86_CMPXCHG64),y)
-        lib-y += cmpxchg8b_emu.o atomic64_386_32.o
+        lib-y += atomic64_386_32.o
 endif
 else
         obj-y += iomap_copy_64.o

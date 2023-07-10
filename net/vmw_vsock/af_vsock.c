@@ -1306,7 +1306,6 @@ static const struct proto_ops vsock_dgram_ops = {
 	.sendmsg = vsock_dgram_sendmsg,
 	.recvmsg = vsock_dgram_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 	.read_skb = vsock_read_skb,
 };
 
@@ -2234,7 +2233,6 @@ static const struct proto_ops vsock_stream_ops = {
 	.sendmsg = vsock_connectible_sendmsg,
 	.recvmsg = vsock_connectible_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 	.set_rcvlowat = vsock_set_rcvlowat,
 	.read_skb = vsock_read_skb,
 };
@@ -2257,7 +2255,6 @@ static const struct proto_ops vsock_seqpacket_ops = {
 	.sendmsg = vsock_connectible_sendmsg,
 	.recvmsg = vsock_connectible_recvmsg,
 	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
 	.read_skb = vsock_read_skb,
 };
 

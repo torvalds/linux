@@ -730,6 +730,11 @@ enum macaccess_entry_type {
 	ENTRYTYPE_MACv6,
 };
 
+enum ocelot_proto {
+	OCELOT_PROTO_PTP_L2 = BIT(0),
+	OCELOT_PROTO_PTP_L4 = BIT(1),
+};
+
 #define OCELOT_QUIRK_PCS_PERFORMS_RATE_ADAPTATION	BIT(0)
 #define OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP		BIT(1)
 
@@ -774,6 +779,8 @@ struct ocelot_port {
 
 	unsigned int			ptp_skbs_in_flight;
 	struct sk_buff_head		tx_skbs;
+
+	unsigned int			trap_proto;
 
 	u16				mrp_ring_id;
 
@@ -868,12 +875,9 @@ struct ocelot {
 	u8				mm_supported:1;
 	struct ptp_clock		*ptp_clock;
 	struct ptp_clock_info		ptp_info;
-	struct hwtstamp_config		hwtstamp_config;
 	unsigned int			ptp_skbs_in_flight;
 	/* Protects the 2-step TX timestamp ID logic */
 	spinlock_t			ts_id_lock;
-	/* Protects the PTP interface state */
-	struct mutex			ptp_lock;
 	/* Protects the PTP clock */
 	spinlock_t			ptp_clock_lock;
 	struct ptp_pin_desc		ptp_pins[OCELOT_PTP_PINS_NUM];

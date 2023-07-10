@@ -134,7 +134,7 @@ static struct i2c_driver pli1209bc_driver = {
 		   .name = "pli1209bc",
 		   .of_match_table = of_match_ptr(pli1209bc_of_match),
 		   },
-	.probe_new = pli1209bc_probe,
+	.probe = pli1209bc_probe,
 	.id_table = pli1209bc_id,
 };
 

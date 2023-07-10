@@ -2421,7 +2421,7 @@ static int edge_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static void edge_break(struct tty_struct *tty, int break_state)
+static int edge_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
@@ -2430,10 +2430,15 @@ static void edge_break(struct tty_struct *tty, int break_state)
 
 	if (break_state == -1)
 		bv = 1;	/* On */
+
 	status = ti_do_config(edge_port, UMPC_SET_CLR_BREAK, bv);
-	if (status)
+	if (status) {
 		dev_dbg(&port->dev, "%s - error %d sending break set/clear command.\n",
 			__func__, status);
+		return status;
+	}
+
+	return 0;
 }
 
 static void edge_heartbeat_schedule(struct edgeport_serial *edge_serial)

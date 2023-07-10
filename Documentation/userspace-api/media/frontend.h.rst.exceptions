@@ -142,6 +142,10 @@ ignore symbol FEC_26_45
 ignore symbol FEC_28_45
 ignore symbol FEC_32_45
 ignore symbol FEC_77_90
+ignore symbol FEC_11_45
+ignore symbol FEC_4_15
+ignore symbol FEC_14_45
+ignore symbol FEC_7_15
 
 ignore symbol TRANSMISSION_MODE_AUTO
 ignore symbol TRANSMISSION_MODE_1K

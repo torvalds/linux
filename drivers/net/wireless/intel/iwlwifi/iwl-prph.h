@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -486,6 +486,10 @@ enum {
 #define FSEQ_ALIVE_TOKEN		0xA340F0
 #define FSEQ_CNVI_ID			0xA3408C
 #define FSEQ_CNVR_ID			0xA34090
+#define FSEQ_PREV_CNVIO_INIT_VERSION	0xA34084
+#define FSEQ_WIFI_FSEQ_VERSION		0xA34040
+#define FSEQ_BT_FSEQ_VERSION		0xA34044
+#define FSEQ_CLASS_TP_VERSION		0xA34078
 
 #define IWL_D3_SLEEP_STATUS_SUSPEND	0xD3
 #define IWL_D3_SLEEP_STATUS_RESUME	0xD0

@@ -82,10 +82,3 @@ config CRYPTO_DEV_HISI_TRNG
 	select CRYPTO_RNG
 	help
 	  Support for HiSilicon TRNG Driver.
-
-config CRYPTO_DEV_HISTB_TRNG
-	tristate "Support for HiSTB TRNG Driver"
-	depends on ARCH_HISI || COMPILE_TEST
-	select HW_RANDOM
-	help
-	  Support for HiSTB TRNG Driver.

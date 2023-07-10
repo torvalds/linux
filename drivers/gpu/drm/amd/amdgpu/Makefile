@@ -39,6 +39,26 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
 	-I$(FULL_AMD_PATH)/amdkfd
 
+subdir-ccflags-y := -Wextra
+subdir-ccflags-y += -Wunused
+subdir-ccflags-y += -Wmissing-prototypes
+subdir-ccflags-y += -Wmissing-declarations
+subdir-ccflags-y += -Wmissing-include-dirs
+subdir-ccflags-y += -Wold-style-definition
+subdir-ccflags-y += -Wmissing-format-attribute
+# Need this to avoid recursive variable evaluation issues
+cond-flags := $(call cc-option, -Wunused-but-set-variable) \
+	$(call cc-option, -Wunused-const-variable) \
+	$(call cc-option, -Wstringop-truncation) \
+	$(call cc-option, -Wpacked-not-aligned)
+subdir-ccflags-y += $(cond-flags)
+subdir-ccflags-y += -Wno-unused-parameter
+subdir-ccflags-y += -Wno-type-limits
+subdir-ccflags-y += -Wno-sign-compare
+subdir-ccflags-y += -Wno-missing-field-initializers
+subdir-ccflags-y += -Wno-override-init
+subdir-ccflags-$(CONFIG_DRM_AMDGPU_WERROR) += -Werror
+
 amdgpu-y := amdgpu_drv.o
 
 # add KMS driver
@@ -60,7 +80,7 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	amdgpu_umc.o smu_v11_0_i2c.o amdgpu_fru_eeprom.o amdgpu_rap.o \
 	amdgpu_fw_attestation.o amdgpu_securedisplay.o \
 	amdgpu_eeprom.o amdgpu_mca.o amdgpu_psp_ta.o amdgpu_lsdma.o \
-	amdgpu_ring_mux.o
+	amdgpu_ring_mux.o amdgpu_xcp.o
 
 amdgpu-$(CONFIG_PROC_FS) += amdgpu_fdinfo.o
 
@@ -78,7 +98,7 @@ amdgpu-y += \
 	vega20_reg_init.o nbio_v7_4.o nbio_v2_3.o nv.o arct_reg_init.o mxgpu_nv.o \
 	nbio_v7_2.o hdp_v4_0.o hdp_v5_0.o aldebaran_reg_init.o aldebaran.o soc21.o \
 	sienna_cichlid.o smu_v13_0_10.o nbio_v4_3.o hdp_v6_0.o nbio_v7_7.o hdp_v5_2.o lsdma_v6_0.o \
-	nbio_v7_9.o
+	nbio_v7_9.o aqua_vanjaram_reg_init.o
 
 # add DF block
 amdgpu-y += \
@@ -183,12 +203,14 @@ amdgpu-y += \
 	vcn_v2_5.o \
 	vcn_v3_0.o \
 	vcn_v4_0.o \
+	vcn_v4_0_3.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
 	jpeg_v2_5.o \
 	jpeg_v3_0.o \
-	jpeg_v4_0.o
+	jpeg_v4_0.o \
+	jpeg_v4_0_3.o
 
 # add ATHUB block
 amdgpu-y += \
@@ -203,6 +225,7 @@ amdgpu-y += \
 	smuio_v11_0.o \
 	smuio_v11_0_6.o \
 	smuio_v13_0.o \
+	smuio_v13_0_3.o \
 	smuio_v13_0_6.o
 
 # add reset block
@@ -228,6 +251,7 @@ amdgpu-y += \
 	amdgpu_amdkfd_gfx_v9.o \
 	amdgpu_amdkfd_arcturus.o \
 	amdgpu_amdkfd_aldebaran.o \
+	amdgpu_amdkfd_gc_9_4_3.o \
 	amdgpu_amdkfd_gfx_v10.o \
 	amdgpu_amdkfd_gfx_v10_3.o \
 	amdgpu_amdkfd_gfx_v11.o

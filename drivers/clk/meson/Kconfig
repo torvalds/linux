@@ -99,6 +99,26 @@ config COMMON_CLK_AXG_AUDIO
 	  Support for the audio clock controller on AmLogic A113D devices,
 	  aka axg, Say Y if you want audio subsystem to work.
 
+config COMMON_CLK_A1_PLL
+	tristate "Amlogic A1 SoC PLL controller support"
+	depends on ARM64
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_PLL
+	help
+	  Support for the PLL clock controller on Amlogic A113L based
+	  device, A1 SoC Family. Say Y if you want A1 PLL clock controller
+	  to work.
+
+config COMMON_CLK_A1_PERIPHERALS
+	tristate "Amlogic A1 SoC Peripherals clock controller support"
+	depends on ARM64
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_REGMAP
+	help
+	  Support for the Peripherals clock controller on Amlogic A113L based
+	  device, A1 SoC Family. Say Y if you want A1 Peripherals clock
+	  controller to work.
+
 config COMMON_CLK_G12A
 	tristate "G12 and SM1 SoC clock controllers support"
 	depends on ARM64

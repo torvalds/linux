@@ -1368,7 +1368,7 @@ int ep11_kblob2protkey(u16 card, u16 dom, const u8 *keyblob, size_t keybloblen,
 		goto out;
 	}
 
-	/* copy the tanslated protected key */
+	/* copy the translated protected key */
 	if (wki->pkeysize > *protkeylen) {
 		DEBUG_ERR("%s wk info pkeysize %llu > protkeysize %u\n",
 			  __func__, wki->pkeysize, *protkeylen);

@@ -4,13 +4,17 @@
 #ifndef __SDW_INTEL_LOCAL_H
 #define __SDW_INTEL_LOCAL_H
 
+struct hdac_bus;
+
 /**
  * struct sdw_intel_link_res - Soundwire Intel link resource structure,
  * typically populated by the controller driver.
  * @hw_ops: platform-specific ops
  * @mmio_base: mmio base of SoundWire registers
  * @registers: Link IO registers base
+ * @ip_offset: offset for MCP_IP registers
  * @shim: Audio shim pointer
+ * @shim_vs: Audio vendor-specific shim pointer
  * @alh: ALH (Audio Link Hub) pointer
  * @irq: Interrupt line
  * @ops: Shim callback ops
@@ -21,13 +25,16 @@
  * @link_mask: global mask needed for power-up/down sequences
  * @cdns: Cadence master descriptor
  * @list: used to walk-through all masters exposed by the same controller
+ * @hbus: hdac_bus pointer, needed for power management
  */
 struct sdw_intel_link_res {
 	const struct sdw_intel_hw_ops *hw_ops;
 
 	void __iomem *mmio_base; /* not strictly needed, useful for debug */
 	void __iomem *registers;
+	u32 ip_offset;
 	void __iomem *shim;
+	void __iomem *shim_vs;
 	void __iomem *alh;
 	int irq;
 	const struct sdw_intel_ops *ops;
@@ -38,6 +45,7 @@ struct sdw_intel_link_res {
 	u32 link_mask;
 	struct sdw_cdns *cdns;
 	struct list_head list;
+	struct hdac_bus *hbus;
 };
 
 struct sdw_intel {
@@ -86,6 +94,14 @@ static inline void intel_writew(void __iomem *base, int offset, u16 value)
 #define SDW_INTEL_CHECK_OPS(sdw, cb)	((sdw) && (sdw)->link_res && (sdw)->link_res->hw_ops && \
 					 (sdw)->link_res->hw_ops->cb)
 #define SDW_INTEL_OPS(sdw, cb)		((sdw)->link_res->hw_ops->cb)
+
+#ifdef CONFIG_DEBUG_FS
+void intel_ace2x_debugfs_init(struct sdw_intel *sdw);
+void intel_ace2x_debugfs_exit(struct sdw_intel *sdw);
+#else
+static inline void intel_ace2x_debugfs_init(struct sdw_intel *sdw) {}
+static inline void intel_ace2x_debugfs_exit(struct sdw_intel *sdw) {}
+#endif
 
 static inline void sdw_intel_debugfs_init(struct sdw_intel *sdw)
 {

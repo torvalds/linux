@@ -33,6 +33,12 @@
 	};
 };
 
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ext_io0>, <&pinctrl_hog0>, <&pinctrl_hog1>,
+		    <&pinctrl_lpspi2_cs2>;
+};
+
 /* Colibri SPI */
 &lpspi2 {
 	status = "okay";

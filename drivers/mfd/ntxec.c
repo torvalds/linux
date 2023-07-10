@@ -260,7 +260,7 @@ static struct i2c_driver ntxec_driver = {
 		.name = "ntxec",
 		.of_match_table = of_ntxec_match_table,
 	},
-	.probe_new = ntxec_probe,
+	.probe = ntxec_probe,
 	.remove = ntxec_remove,
 };
 module_i2c_driver(ntxec_driver);

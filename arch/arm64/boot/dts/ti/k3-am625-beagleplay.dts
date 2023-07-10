@@ -216,7 +216,7 @@
 };
 
 &main_pmx0 {
-	gpio0_pins_default: gpio0-pins-default {
+	gpio0_pins_default: gpio0-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0004, PIN_INPUT, 7) /* (G25) OSPI0_LBCLKO.GPIO0_1 */
 			AM62X_IOPAD(0x0008, PIN_INPUT, 7) /* (J24) OSPI0_DQS.GPIO0_2 */
@@ -235,47 +235,47 @@
 		>;
 	};
 
-	vdd_sd_dv_pins_default: vdd-sd-pins-default {
+	vdd_sd_dv_pins_default: vdd-sd-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0244, PIN_OUTPUT, 7) /* (C17) MMC1_SDWP.GPIO1_49 */
 		>;
 	};
 
-	usr_button_pins_default: usr-button-pins-default {
+	usr_button_pins_default: usr-button-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0048, PIN_INPUT, 7) /* (N25) GPMC0_AD3.GPIO0_18 */
 		>;
 	};
 
-	grove_pins_default: grove-pins-default {
+	grove_pins_default: grove-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01e8, PIN_INPUT_PULLUP, 0) /* (B17) I2C1_SCL */
 			AM62X_IOPAD(0x01ec, PIN_INPUT_PULLUP, 0) /* (A17) I2C1_SDA */
 		>;
 	};
 
-	local_i2c_pins_default: local-i2c-pins-default {
+	local_i2c_pins_default: local-i2c-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01e0, PIN_INPUT_PULLUP, 0) /* (B16) I2C0_SCL */
 			AM62X_IOPAD(0x01e4, PIN_INPUT_PULLUP, 0) /* (A16) I2C0_SDA */
 		>;
 	};
 
-	i2c2_1v8_pins_default: i2c2-pins-default {
+	i2c2_1v8_pins_default: i2c2-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x00b0, PIN_INPUT_PULLUP, 1) /* (K22) GPMC0_CSn2.I2C2_SCL */
 			AM62X_IOPAD(0x00b4, PIN_INPUT_PULLUP, 1) /* (K24) GPMC0_CSn3.I2C2_SDA */
 		>;
 	};
 
-	mdio0_pins_default: mdio0-pins-default {
+	mdio0_pins_default: mdio0-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0160, PIN_OUTPUT, 7) /* (AD24) MDIO0_MDC.GPIO0_86 */
 			AM62X_IOPAD(0x015c, PIN_INPUT, 7) /* (AB22) MDIO0_MDIO.GPIO0_85 */
 		>;
 	};
 
-	rgmii1_pins_default: rgmii1-pins-default {
+	rgmii1_pins_default: rgmii1-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x014c, PIN_INPUT, 0) /* (AB17) RGMII1_RD0 */
 			AM62X_IOPAD(0x0150, PIN_INPUT, 0) /* (AC17) RGMII1_RD1 */
@@ -292,7 +292,7 @@
 		>;
 	};
 
-	emmc_pins_default: emmc-pins-default {
+	emmc_pins_default: emmc-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0220, PIN_INPUT, 0) /* (Y3) MMC0_CMD */
 			AM62X_IOPAD(0x0218, PIN_INPUT, 0) /* (AB1) MMC0_CLK */
@@ -307,13 +307,13 @@
 		>;
 	};
 
-	vdd_3v3_sd_pins_default: vdd-3v3-sd-pins-default {
+	vdd_3v3_sd_pins_default: vdd-3v3-sd-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01c4, PIN_INPUT, 7) /* (B14) SPI0_D1_GPIO1_19 */
 		>;
 	};
 
-	sd_pins_default: sd-pins-default {
+	sd_pins_default: sd-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x023c, PIN_INPUT, 0) /* (A21) MMC1_CMD */
 			AM62X_IOPAD(0x0234, PIN_INPUT, 0) /* (B22) MMC1_CLK */
@@ -325,7 +325,7 @@
 		>;
 	};
 
-	wifi_pins_default: wifi-pins-default {
+	wifi_pins_default: wifi-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0120, PIN_INPUT, 0) /* (C24) MMC2_CMD */
 			AM62X_IOPAD(0x0118, PIN_INPUT, 0) /* (D25) MMC2_CLK */
@@ -338,19 +338,19 @@
 		>;
 	};
 
-	wifi_en_pins_default: wifi-en-pins-default {
+	wifi_en_pins_default: wifi-en-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x009c, PIN_OUTPUT, 7) /* (V25) GPMC0_WAIT1.GPIO0_38 */
 		>;
 	};
 
-	wifi_wlirq_pins_default: wifi-wlirq-pins-default {
+	wifi_wlirq_pins_default: wifi-wlirq-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x00a8, PIN_INPUT, 7) /* (M21) GPMC0_CSn0.GPIO0_41 */
 		>;
 	};
 
-	spe_pins_default: spe-pins-default {
+	spe_pins_default: spe-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0168, PIN_INPUT, 1) /* (AE21) RGMII2_TXC.RMII2_CRS_DV */
 			AM62X_IOPAD(0x0180, PIN_INPUT, 1) /* (AD23) RGMII2_RXC.RMII2_REF_CLK */
@@ -366,21 +366,21 @@
 		>;
 	};
 
-	mikrobus_i2c_pins_default: mikrobus-i2c-pins-default {
+	mikrobus_i2c_pins_default: mikrobus-i2c-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01d0, PIN_INPUT_PULLUP, 2) /* (A15) UART0_CTSn.I2C3_SCL */
 			AM62X_IOPAD(0x01d4, PIN_INPUT_PULLUP, 2) /* (B15) UART0_RTSn.I2C3_SDA */
 		>;
 	};
 
-	mikrobus_uart_pins_default: mikrobus-uart-pins-default {
+	mikrobus_uart_pins_default: mikrobus-uart-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01d8, PIN_INPUT, 1) /* (C15) MCAN0_TX.UART5_RXD */
 			AM62X_IOPAD(0x01dc, PIN_OUTPUT, 1) /* (E15) MCAN0_RX.UART5_TXD */
 		>;
 	};
 
-	mikrobus_spi_pins_default: mikrobus-spi-pins-default {
+	mikrobus_spi_pins_default: mikrobus-spi-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01b0, PIN_INPUT, 1) /* (A20) MCASP0_ACLKR.SPI2_CLK */
 			AM62X_IOPAD(0x01ac, PIN_INPUT, 1) /* (E19) MCASP0_AFSR.SPI2_CS0 */
@@ -389,7 +389,7 @@
 		>;
 	};
 
-	mikrobus_gpio_pins_default: mikrobus-gpio-pins-default {
+	mikrobus_gpio_pins_default: mikrobus-gpio-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x019c, PIN_INPUT, 7) /* (B18) MCASP0_AXR1.GPIO1_9 */
 			AM62X_IOPAD(0x01a0, PIN_INPUT, 7) /* (E18) MCASP0_AXR0.GPIO1_10 */
@@ -397,27 +397,27 @@
 		>;
 	};
 
-	console_pins_default: console-pins-default {
+	console_pins_default: console-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01c8, PIN_INPUT, 0) /* (D14) UART0_RXD */
 			AM62X_IOPAD(0x01cc, PIN_OUTPUT, 0) /* (E14) UART0_TXD */
 		>;
 	};
 
-	wifi_debug_uart_pins_default: wifi-debug-uart-pins-default {
+	wifi_debug_uart_pins_default: wifi-debug-uart-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x001c, PIN_INPUT, 3) /* (J23) OSPI0_D4.UART6_RXD */
 			AM62X_IOPAD(0x0020, PIN_OUTPUT, 3) /* (J25) OSPI0_D5.UART6_TXD */
 		>;
 	};
 
-	usb1_pins_default: usb1-pins-default {
+	usb1_pins_default: usb1-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x0258, PIN_INPUT, 0) /* (F18) USB1_DRVVBUS */
 		>;
 	};
 
-	pmic_irq_pins_default: pmic-irq-pins-default {
+	pmic_irq_pins_default: pmic-irq-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01f4, PIN_INPUT_PULLUP, 0) /* (D16) EXTINTn */
 		>;
@@ -425,7 +425,7 @@
 };
 
 &mcu_pmx0 {
-	i2c_qwiic_pins_default: i2c-qwiic-pins-default {
+	i2c_qwiic_pins_default: i2c-qwiic-default-pins {
 		pinctrl-single,pins = <
 			AM62X_MCU_IOPAD(0x0044, PIN_INPUT, 0) /* (A8) MCU_I2C0_SCL */
 			AM62X_MCU_IOPAD(0x0048, PIN_INPUT, 0) /* (D10) MCU_I2C0_SDA */
@@ -438,14 +438,14 @@
 		>;
 	};
 
-	i2c_csi_pins_default: i2c-csi-pins-default {
+	i2c_csi_pins_default: i2c-csi-default-pins {
 		pinctrl-single,pins = <
 			AM62X_MCU_IOPAD(0x004c, PIN_INPUT_PULLUP, 0) /* (B9) WKUP_I2C0_SCL */
 			AM62X_MCU_IOPAD(0x0050, PIN_INPUT_PULLUP, 0) /* (A9) WKUP_I2C0_SDA */
 		>;
 	};
 
-	wifi_32k_clk: mcu-clk-out-pins-default {
+	wifi_32k_clk: mcu-clk-out-default-pins {
 		pinctrl-single,pins = <
 			AM62X_MCU_IOPAD(0x0084, PIN_OUTPUT, 0) /* (A12) WKUP_CLKOUT0 */
 		>;

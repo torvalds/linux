@@ -160,7 +160,7 @@ static struct i2c_driver tc74_driver = {
 	.driver = {
 		.name	= "tc74",
 	},
-	.probe_new = tc74_probe,
+	.probe = tc74_probe,
 	.id_table = tc74_id,
 };
 

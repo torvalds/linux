@@ -660,7 +660,7 @@ static int ism_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto err_disable;
 
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret)
 		goto err_resource;
 
@@ -771,14 +771,6 @@ static int __init ism_init(void)
 
 static void __exit ism_exit(void)
 {
-	struct ism_dev *ism;
-
-	mutex_lock(&ism_dev_list.mutex);
-	list_for_each_entry(ism, &ism_dev_list.list, list) {
-		ism_dev_exit(ism);
-	}
-	mutex_unlock(&ism_dev_list.mutex);
-
 	pci_unregister_driver(&ism_driver);
 	debug_unregister(ism_debug_info);
 }

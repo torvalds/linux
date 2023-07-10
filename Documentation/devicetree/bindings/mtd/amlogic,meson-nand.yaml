@@ -40,6 +40,7 @@ properties:
 patternProperties:
   "^nand@[0-7]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
       reg:
         minimum: 0
@@ -57,6 +58,14 @@ patternProperties:
           The ECC configurations that can be supported are as follows.
             meson-gxl-nfc 8, 16, 24, 30, 40, 50, 60
             meson-axg-nfc 8
+
+      nand-rb:
+        maxItems: 1
+        items:
+          maximum: 0
+
+    unevaluatedProperties: false
+
 
 required:
   - compatible
@@ -87,6 +96,7 @@ examples:
 
       nand@0 {
         reg = <0>;
+        nand-rb = <0>;
       };
     };
 

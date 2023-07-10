@@ -100,7 +100,7 @@ int vpu_notify_source_change(struct vpu_inst *inst)
 	return 0;
 }
 
-int vpu_set_last_buffer_dequeued(struct vpu_inst *inst)
+int vpu_set_last_buffer_dequeued(struct vpu_inst *inst, bool eos)
 {
 	struct vb2_queue *q;
 
@@ -116,7 +116,8 @@ int vpu_set_last_buffer_dequeued(struct vpu_inst *inst)
 	vpu_trace(inst->dev, "last buffer dequeued\n");
 	q->last_buffer_dequeued = true;
 	wake_up(&q->done_wq);
-	vpu_notify_eos(inst);
+	if (eos)
+		vpu_notify_eos(inst);
 	return 0;
 }
 
@@ -740,7 +741,7 @@ int vpu_v4l2_open(struct file *file, struct vpu_inst *inst)
 	inst->fh.ctrl_handler = &inst->ctrl_handler;
 	file->private_data = &inst->fh;
 	inst->state = VPU_CODEC_STATE_DEINIT;
-	inst->workqueue = alloc_workqueue("vpu_inst", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	inst->workqueue = alloc_ordered_workqueue("vpu_inst", WQ_MEM_RECLAIM);
 	if (inst->workqueue) {
 		INIT_WORK(&inst->msg_work, vpu_inst_run_work);
 		ret = kfifo_init(&inst->msg_fifo,

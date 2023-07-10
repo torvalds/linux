@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Edgeble AI Technologies Pvt. Ltd.
+ */
+
+/dts-v1/;
+#include "rk3588j.dtsi"
+#include "rk3588-edgeble-neu6b.dtsi"
+
+/ {
+	model = "Edgeble Neu6B IO Board";
+	compatible = "edgeble,neural-compute-module-6b-io",
+		     "edgeble,neural-compute-module-6b", "rockchip,rk3588";
+
+	aliases {
+		serial2 = &uart2;
+	};
+
+	chosen {
+		stdout-path = "serial2:1500000n8";
+	};
+};
+
+&uart2 {
+	pinctrl-0 = <&uart2m0_xfer>;
+	status = "okay";
+};

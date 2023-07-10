@@ -120,6 +120,7 @@ config ARM64
 	select CRC32
 	select DCACHE_WORD_ACCESS
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
+	select DMA_BOUNCE_UNALIGNED_KMALLOC
 	select DMA_DIRECT_REMAP
 	select EDAC_SUPPORT
 	select FRAME_POINTER
@@ -201,14 +202,19 @@ config ARM64
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_ERROR_INJECTION
+	select HAVE_FUNCTION_GRAPH_RETVAL if HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_GCC_PLUGINS
+	select HAVE_HARDLOCKUP_DETECTOR_PERF if PERF_EVENTS && \
+		HW_PERF_EVENTS && HAVE_PERF_EVENTS_NMI
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KVM
+	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_EVENTS_NMI if ARM64_PSEUDO_NMI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_PREEMPT_DYNAMIC_KEY
@@ -222,9 +228,11 @@ config ARM64
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_GENERIC_VDSO
+	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
 	select IRQ_DOMAIN
 	select IRQ_FORCED_THREADING
 	select KASAN_VMALLOC if KASAN
+	select LOCK_MM_AND_FIND_VMA
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
@@ -406,6 +414,25 @@ menu "Kernel Features"
 
 menu "ARM errata workarounds via the alternatives framework"
 
+config AMPERE_ERRATUM_AC03_CPU_38
+        bool "AmpereOne: AC03_CPU_38: Certain bits in the Virtualization Translation Control Register and Translation Control Registers do not follow RES0 semantics"
+	default y
+	help
+	  This option adds an alternative code sequence to work around Ampere
+	  erratum AC03_CPU_38 on AmpereOne.
+
+	  The affected design reports FEAT_HAFDBS as not implemented in
+	  ID_AA64MMFR1_EL1.HAFDBS, but (V)TCR_ELx.{HA,HD} are not RES0
+	  as required by the architecture. The unadvertised HAFDBS
+	  implementation suffers from an additional erratum where hardware
+	  A/D updates can occur after a PTE has been marked invalid.
+
+	  The workaround forces KVM to explicitly set VTCR_EL2.HA to 0,
+	  which avoids enabling unadvertised hardware Access Flag management
+	  at stage-2.
+
+	  If unsure, say Y.
+
 config ARM64_WORKAROUND_CLEAN_CACHE
 	bool
 
@@ -577,7 +604,6 @@ config ARM64_ERRATUM_845719
 config ARM64_ERRATUM_843419
 	bool "Cortex-A53: 843419: A load or store might access an incorrect address"
 	default y
-	select ARM64_MODULE_PLTS if MODULES
 	help
 	  This option links the kernel with '--fix-cortex-a53-843419' and
 	  enables PLT support to replace certain ADRP instructions, which can
@@ -1516,7 +1542,7 @@ config XEN
 # 16K |       27          |      14      |       13        |         11         |
 # 64K |       29          |      16      |       13        |         13         |
 config ARCH_FORCE_MAX_ORDER
-	int "Order of maximal physically contiguous allocations" if EXPERT && (ARM64_4K_PAGES || ARM64_16K_PAGES)
+	int
 	default "13" if ARM64_64K_PAGES
 	default "11" if ARM64_16K_PAGES
 	default "10"
@@ -1585,7 +1611,7 @@ config ARM64_TAGGED_ADDR_ABI
 	  When this option is enabled, user applications can opt in to a
 	  relaxed ABI via prctl() allowing tagged addresses to be passed
 	  to system calls as pointer arguments. For details, see
-	  Documentation/arm64/tagged-address-abi.rst.
+	  Documentation/arch/arm64/tagged-address-abi.rst.
 
 menuconfig COMPAT
 	bool "Kernel support for 32-bit EL0"
@@ -1619,7 +1645,7 @@ config KUSER_HELPERS
 	  the system. This permits binaries to be run on ARMv4 through
 	  to ARMv8 without modification.
 
-	  See Documentation/arm/kernel_user_helpers.rst for details.
+	  See Documentation/arch/arm/kernel_user_helpers.rst for details.
 
 	  However, the fixed address nature of these helpers can be used
 	  by ROP (return orientated programming) authors when creating
@@ -2047,7 +2073,7 @@ config ARM64_MTE
 	  explicitly opt in. The mechanism for the userspace is
 	  described in:
 
-	  Documentation/arm64/memory-tagging-extension.rst.
+	  Documentation/arch/arm64/memory-tagging-extension.rst.
 
 endmenu # "ARMv8.5 architectural features"
 
@@ -2107,26 +2133,6 @@ config ARM64_SME
 	  register state capable of holding two dimensional matrix tiles to
 	  enable various matrix operations.
 
-config ARM64_MODULE_PLTS
-	bool "Use PLTs to allow module memory to spill over into vmalloc area"
-	depends on MODULES
-	select HAVE_MOD_ARCH_SPECIFIC
-	help
-	  Allocate PLTs when loading modules so that jumps and calls whose
-	  targets are too far away for their relative offsets to be encoded
-	  in the instructions themselves can be bounced via veneers in the
-	  module's PLT. This allows modules to be allocated in the generic
-	  vmalloc area after the dedicated module memory area has been
-	  exhausted.
-
-	  When running with address space randomization (KASLR), the module
-	  region itself may be too far away for ordinary relative jumps and
-	  calls, and so in that case, module PLTs are required and cannot be
-	  disabled.
-
-	  Specific errata workaround(s) might also force module PLTs to be
-	  enabled (ARM64_ERRATUM_843419).
-
 config ARM64_PSEUDO_NMI
 	bool "Support for NMI-like interrupts"
 	select ARM_GIC_V3
@@ -2167,7 +2173,6 @@ config RELOCATABLE
 
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image"
-	select ARM64_MODULE_PLTS if MODULES
 	select RELOCATABLE
 	help
 	  Randomizes the virtual address at which the kernel image is
@@ -2198,9 +2203,8 @@ config RANDOMIZE_MODULE_REGION_FULL
 	  When this option is not set, the module region will be randomized over
 	  a limited range that contains the [_stext, _etext] interval of the
 	  core kernel, so branch relocations are almost always in range unless
-	  ARM64_MODULE_PLTS is enabled and the region is exhausted. In this
-	  particular case of region exhaustion, modules might be able to fall
-	  back to a larger 2GB area.
+	  the region is exhausted. In this particular case of region
+	  exhaustion, modules might be able to fall back to a larger 2GB area.
 
 config CC_HAVE_STACKPROTECTOR_SYSREG
 	def_bool $(cc-option,-mstack-protector-guard=sysreg -mstack-protector-guard-reg=sp_el0 -mstack-protector-guard-offset=0)

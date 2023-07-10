@@ -127,6 +127,14 @@ config FSL_IMX8_DDR_PMU
 	  can give information about memory throughput and other related
 	  events.
 
+config FSL_IMX9_DDR_PMU
+	tristate "Freescale i.MX9 DDR perf monitor"
+	depends on ARCH_MXC
+	 help
+	 Provides support for the DDR performance monitor in i.MX9, which
+	 can give information about memory throughput and other related
+	 events.
+
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
 	depends on ARCH_QCOM && ARM64 && ACPI
@@ -212,5 +220,18 @@ config MARVELL_CN10K_DDR_PMU
 source "drivers/perf/arm_cspmu/Kconfig"
 
 source "drivers/perf/amlogic/Kconfig"
+
+config CXL_PMU
+	tristate "CXL Performance Monitoring Unit"
+	depends on CXL_BUS
+	help
+	  Support performance monitoring as defined in CXL rev 3.0
+	  section 13.2: Performance Monitoring. CXL components may have
+	  one or more CXL Performance Monitoring Units (CPMUs).
+
+	  Say 'y/m' to enable a driver that will attach to performance
+	  monitoring units and provide standard perf based interfaces.
+
+	  If unsure say 'm'.
 
 endmenu

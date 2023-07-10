@@ -53,6 +53,4 @@ struct rx_ts_record {
 	u8 num;
 };
 
-
-
 #endif

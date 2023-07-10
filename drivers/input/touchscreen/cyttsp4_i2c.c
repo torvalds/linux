@@ -60,7 +60,7 @@ static struct i2c_driver cyttsp4_i2c_driver = {
 		.name	= CYTTSP4_I2C_NAME,
 		.pm	= pm_ptr(&cyttsp4_pm_ops),
 	},
-	.probe_new	= cyttsp4_i2c_probe,
+	.probe		= cyttsp4_i2c_probe,
 	.remove		= cyttsp4_i2c_remove,
 	.id_table	= cyttsp4_i2c_id,
 };

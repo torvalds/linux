@@ -387,7 +387,10 @@ static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
 		}
 	}
 
-	return RESPST_CHK_RKEY;
+	if (pkt->mask & RXE_RDMA_OP_MASK)
+		return RESPST_CHK_RKEY;
+	else
+		return RESPST_EXECUTE;
 }
 
 /* if the reth length field is zero we can assume nothing
@@ -434,6 +437,10 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	enum resp_states state;
 	int access = 0;
 
+	/* parse RETH or ATMETH header for first/only packets
+	 * for va, length, rkey, etc. or use current value for
+	 * middle/last packets.
+	 */
 	if (pkt->mask & (RXE_READ_OR_WRITE_MASK | RXE_ATOMIC_WRITE_MASK)) {
 		if (pkt->mask & RXE_RETH_MASK)
 			qp_resp_from_reth(qp, pkt);
@@ -454,7 +461,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		qp_resp_from_atmeth(qp, pkt);
 		access = IB_ACCESS_REMOTE_ATOMIC;
 	} else {
-		return RESPST_EXECUTE;
+		/* shouldn't happen */
+		WARN_ON(1);
 	}
 
 	/* A zero-byte read or write op is not required to
@@ -489,8 +497,9 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		if (mw->access & IB_ZERO_BASED)
 			qp->resp.offset = mw->addr;
 
-		rxe_put(mw);
 		rxe_get(mr);
+		rxe_put(mw);
+		mw = NULL;
 	} else {
 		mr = lookup_mr(qp->pd, access, rkey, RXE_LOOKUP_REMOTE);
 		if (!mr) {
@@ -1047,6 +1056,7 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 	struct ib_uverbs_wc *uwc = &cqe.uibwc;
 	struct rxe_recv_wqe *wqe = qp->resp.wqe;
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
+	unsigned long flags;
 
 	if (!wqe)
 		goto finish;
@@ -1137,12 +1147,12 @@ static enum resp_states do_complete(struct rxe_qp *qp,
 		return RESPST_ERR_CQ_OVERFLOW;
 
 finish:
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (unlikely(qp_state(qp) == IB_QPS_ERR)) {
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		return RESPST_CHK_RESOURCE;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	if (unlikely(!pkt))
 		return RESPST_DONE;
@@ -1447,8 +1457,17 @@ static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 	struct rxe_recv_wqe *wqe;
 	int err;
 
-	if (qp->srq)
+	if (qp->srq) {
+		if (notify && qp->ibqp.event_handler) {
+			struct ib_event ev;
+
+			ev.device = qp->ibqp.device;
+			ev.element.qp = &qp->ibqp;
+			ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+			qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+		}
 		return;
+	}
 
 	while ((wqe = queue_head(q, q->type))) {
 		if (notify) {
@@ -1468,18 +1487,19 @@ int rxe_responder(struct rxe_qp *qp)
 	enum resp_states state;
 	struct rxe_pkt_info *pkt = NULL;
 	int ret;
+	unsigned long flags;
 
-	spin_lock_bh(&qp->state_lock);
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
 			  qp_state(qp) == IB_QPS_RESET) {
 		bool notify = qp->valid && (qp_state(qp) == IB_QPS_ERR);
 
 		drain_req_pkts(qp);
 		flush_recv_queue(qp, notify);
-		spin_unlock_bh(&qp->state_lock);
+		spin_unlock_irqrestore(&qp->state_lock, flags);
 		goto exit;
 	}
-	spin_unlock_bh(&qp->state_lock);
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
@@ -1654,7 +1674,7 @@ int rxe_responder(struct rxe_qp *qp)
 	}
 
 	/* A non-zero return value will cause rxe_do_task to
-	 * exit its loop and end the tasklet. A zero return
+	 * exit its loop and end the work item. A zero return
 	 * will continue looping and return to rxe_responder
 	 */
 done:

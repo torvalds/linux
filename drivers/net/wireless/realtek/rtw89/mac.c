@@ -644,6 +644,39 @@ static void rtw89_mac_dump_err_status(struct rtw89_dev *rtwdev,
 	rtw89_info(rtwdev, "<---\n");
 }
 
+static bool rtw89_mac_suppress_log(struct rtw89_dev *rtwdev, u32 err)
+{
+	struct rtw89_ser *ser = &rtwdev->ser;
+	u32 dmac_err, imr, isr;
+	int ret;
+
+	if (rtwdev->chip->chip_id == RTL8852C) {
+		ret = rtw89_mac_check_mac_en(rtwdev, 0, RTW89_DMAC_SEL);
+		if (ret)
+			return true;
+
+		if (err == MAC_AX_ERR_L1_ERR_DMAC) {
+			dmac_err = rtw89_read32(rtwdev, R_AX_DMAC_ERR_ISR);
+			imr = rtw89_read32(rtwdev, R_AX_TXPKTCTL_B0_ERRFLAG_IMR);
+			isr = rtw89_read32(rtwdev, R_AX_TXPKTCTL_B0_ERRFLAG_ISR);
+
+			if ((dmac_err & B_AX_TXPKTCTRL_ERR_FLAG) &&
+			    ((isr & imr) & B_AX_B0_ISR_ERR_CMDPSR_FRZTO)) {
+				set_bit(RTW89_SER_SUPPRESS_LOG, ser->flags);
+				return true;
+			}
+		} else if (err == MAC_AX_ERR_L1_RESET_DISABLE_DMAC_DONE) {
+			if (test_bit(RTW89_SER_SUPPRESS_LOG, ser->flags))
+				return true;
+		} else if (err == MAC_AX_ERR_L1_RESET_RECOVERY_DONE) {
+			if (test_and_clear_bit(RTW89_SER_SUPPRESS_LOG, ser->flags))
+				return true;
+		}
+	}
+
+	return false;
+}
+
 u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 {
 	u32 err, err_scnr;
@@ -667,6 +700,9 @@ u32 rtw89_mac_get_err_status(struct rtw89_dev *rtwdev)
 	else if (err_scnr == RTW89_RXI300_ERROR)
 		err = MAC_AX_ERR_RXI300;
 
+	if (rtw89_mac_suppress_log(rtwdev, err))
+		return err;
+
 	rtw89_fw_st_dbg_dump(rtwdev);
 	rtw89_mac_dump_err_status(rtwdev, err);
 
@@ -676,6 +712,7 @@ EXPORT_SYMBOL(rtw89_mac_get_err_status);
 
 int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 {
+	struct rtw89_ser *ser = &rtwdev->ser;
 	u32 halt;
 	int ret = 0;
 
@@ -692,6 +729,11 @@ int rtw89_mac_set_err_status(struct rtw89_dev *rtwdev, u32 err)
 	}
 
 	rtw89_write32(rtwdev, R_AX_HALT_H2C, err);
+
+	if (ser->prehandle_l1 &&
+	    (err == MAC_AX_ERR_L1_DISABLE_EN || err == MAC_AX_ERR_L1_RCVY_EN))
+		return 0;
+
 	rtw89_write32(rtwdev, R_AX_HALT_H2C_CTRL, B_AX_HALT_H2C_TRIGGER);
 
 	return 0;
@@ -716,11 +758,8 @@ static int hfc_reset_param(struct rtw89_dev *rtwdev)
 	if (param_ini.pub_cfg)
 		param->pub_cfg = *param_ini.pub_cfg;
 
-	if (param_ini.prec_cfg) {
+	if (param_ini.prec_cfg)
 		param->prec_cfg = *param_ini.prec_cfg;
-		rtwdev->hal.sw_amsdu_max_size =
-				param->prec_cfg.wp_ch07_prec * HFC_PAGE_UNIT;
-	}
 
 	if (param_ini.ch_cfg)
 		param->ch_cfg = param_ini.ch_cfg;
@@ -1479,6 +1518,8 @@ const struct rtw89_mac_size_set rtw89_mac_size = {
 	.ple_qt_52a_wow = {264, 0, 32, 20, 64, 13, 1005, 0, 64, 128, 120,},
 	/* 8852B PCIE WOW */
 	.ple_qt_52b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
+	/* 8851B PCIE WOW */
+	.ple_qt_51b_wow = {147, 0, 16, 20, 157, 13, 133, 0, 172, 14, 24, 0,},
 };
 EXPORT_SYMBOL(rtw89_mac_size);
 
@@ -1497,7 +1538,6 @@ static const struct rtw89_dle_mem *get_dle_mem_cfg(struct rtw89_dev *rtwdev,
 		return NULL;
 	}
 
-	mac->dle_info.wde_pg_size = cfg->wde_size->pge_size;
 	mac->dle_info.ple_pg_size = cfg->ple_size->pge_size;
 	mac->dle_info.qta_mode = mode;
 	mac->dle_info.c0_rx_qta = cfg->ple_min_qt->cma0_dma;
@@ -2602,9 +2642,11 @@ static int rtw89_mac_read_phycap(struct rtw89_dev *rtwdev,
 
 int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 {
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_mac_c2h_info c2h_info = {0};
+	const struct rtw89_c2hreg_phycap *phycap;
 	u8 tx_nss;
 	u8 rx_nss;
 	u8 tx_ant;
@@ -2615,10 +2657,12 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 	if (ret)
 		return ret;
 
-	tx_nss = RTW89_GET_C2H_PHYCAP_TX_NSS(c2h_info.c2hreg);
-	rx_nss = RTW89_GET_C2H_PHYCAP_RX_NSS(c2h_info.c2hreg);
-	tx_ant = RTW89_GET_C2H_PHYCAP_ANT_TX_NUM(c2h_info.c2hreg);
-	rx_ant = RTW89_GET_C2H_PHYCAP_ANT_RX_NUM(c2h_info.c2hreg);
+	phycap = &c2h_info.u.phycap;
+
+	tx_nss = u32_get_bits(phycap->w1, RTW89_C2HREG_PHYCAP_W1_TX_NSS);
+	rx_nss = u32_get_bits(phycap->w0, RTW89_C2HREG_PHYCAP_W0_RX_NSS);
+	tx_ant = u32_get_bits(phycap->w3, RTW89_C2HREG_PHYCAP_W3_ANT_TX_NUM);
+	rx_ant = u32_get_bits(phycap->w3, RTW89_C2HREG_PHYCAP_W3_ANT_RX_NUM);
 
 	hal->tx_nss = tx_nss ? min_t(u8, tx_nss, chip->tx_nss) : chip->tx_nss;
 	hal->rx_nss = rx_nss ? min_t(u8, rx_nss, chip->rx_nss) : chip->rx_nss;
@@ -2633,6 +2677,13 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 		hal->tx_path_diversity = true;
 	}
 
+	if (chip->rf_path_num == 1) {
+		hal->antenna_tx = RF_A;
+		hal->antenna_rx = RF_A;
+		if ((efuse->rfe_type % 3) == 2)
+			hal->ant_diversity = true;
+	}
+
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "phycap hal/phy/chip: tx_nss=0x%x/0x%x/0x%x rx_nss=0x%x/0x%x/0x%x\n",
 		    hal->tx_nss, tx_nss, chip->tx_nss,
@@ -2641,6 +2692,7 @@ int rtw89_mac_setup_phycap(struct rtw89_dev *rtwdev)
 		    "ant num/bitmap: tx=%d/0x%x rx=%d/0x%x\n",
 		    tx_ant, hal->antenna_tx, rx_ant, hal->antenna_rx);
 	rtw89_debug(rtwdev, RTW89_DBG_FW, "TX path diversity=%d\n", hal->tx_path_diversity);
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "Antenna diversity=%d\n", hal->ant_diversity);
 
 	return 0;
 }
@@ -2651,14 +2703,14 @@ static int rtw89_hw_sch_tx_en_h2c(struct rtw89_dev *rtwdev, u8 band,
 	u32 ret;
 	struct rtw89_mac_c2h_info c2h_info = {0};
 	struct rtw89_mac_h2c_info h2c_info = {0};
-	struct rtw89_h2creg_sch_tx_en *h2creg =
-		(struct rtw89_h2creg_sch_tx_en *)h2c_info.h2creg;
+	struct rtw89_h2creg_sch_tx_en *sch_tx_en = &h2c_info.u.sch_tx_en;
 
 	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_SCH_TX_EN;
-	h2c_info.content_len = sizeof(*h2creg) - RTW89_H2CREG_HDR_LEN;
-	h2creg->tx_en = tx_en_u16;
-	h2creg->mask = mask_u16;
-	h2creg->band = band;
+	h2c_info.content_len = sizeof(*sch_tx_en) - RTW89_H2CREG_HDR_LEN;
+
+	u32p_replace_bits(&sch_tx_en->w0, tx_en_u16, RTW89_H2CREG_SCH_TX_EN_W0_EN);
+	u32p_replace_bits(&sch_tx_en->w1, mask_u16, RTW89_H2CREG_SCH_TX_EN_W1_MASK);
+	u32p_replace_bits(&sch_tx_en->w1, band, RTW89_H2CREG_SCH_TX_EN_W1_BAND);
 
 	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
 	if (ret)
@@ -4331,6 +4383,8 @@ rtw89_mac_c2h_bcn_fltr_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 static void
 rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
+	/* N.B. This will run in interrupt context. */
+
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "C2H rev ack recv, cat: %d, class: %d, func: %d, seq : %d\n",
 		    RTW89_GET_MAC_C2H_REV_ACK_CAT(c2h->data),
@@ -4340,15 +4394,44 @@ rtw89_mac_c2h_rec_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 }
 
 static void
-rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 len)
 {
+	/* N.B. This will run in interrupt context. */
+	struct rtw89_wait_info *fw_ofld_wait = &rtwdev->mac.fw_ofld_wait;
+	const struct rtw89_c2h_done_ack *c2h =
+		(const struct rtw89_c2h_done_ack *)skb_c2h->data;
+	u8 h2c_cat = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_CAT);
+	u8 h2c_class = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_CLASS);
+	u8 h2c_func = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_FUNC);
+	u8 h2c_return = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_H2C_RETURN);
+	u8 h2c_seq = le32_get_bits(c2h->w2, RTW89_C2H_DONE_ACK_W2_H2C_SEQ);
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+
 	rtw89_debug(rtwdev, RTW89_DBG_FW,
 		    "C2H done ack recv, cat: %d, class: %d, func: %d, ret: %d, seq : %d\n",
-		    RTW89_GET_MAC_C2H_DONE_ACK_CAT(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_CLASS(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_FUNC(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_H2C_RETURN(c2h->data),
-		    RTW89_GET_MAC_C2H_DONE_ACK_H2C_SEQ(c2h->data));
+		    h2c_cat, h2c_class, h2c_func, h2c_return, h2c_seq);
+
+	if (h2c_cat != H2C_CAT_MAC)
+		return;
+
+	switch (h2c_class) {
+	default:
+		return;
+	case H2C_CL_MAC_FW_OFLD:
+		switch (h2c_func) {
+		default:
+			return;
+		case H2C_FUNC_ADD_SCANOFLD_CH:
+		case H2C_FUNC_SCANOFLD:
+			cond = RTW89_FW_OFLD_WAIT_COND(0, h2c_func);
+			break;
+		}
+
+		data.err = !!h2c_return;
+		rtw89_complete_cond(fw_ofld_wait, cond, &data);
+		return;
+	}
 }
 
 static void
@@ -4364,9 +4447,25 @@ rtw89_mac_c2h_bcn_cnt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 }
 
 static void
-rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+rtw89_mac_c2h_pkt_ofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h,
 			   u32 len)
 {
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	const struct rtw89_c2h_pkt_ofld_rsp *c2h =
+		(const struct rtw89_c2h_pkt_ofld_rsp *)skb_c2h->data;
+	u16 pkt_len = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_LEN);
+	u8 pkt_id = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_ID);
+	u8 pkt_op = le32_get_bits(c2h->w2, RTW89_C2H_PKT_OFLD_RSP_W2_PTK_OP);
+	struct rtw89_completion_data data = {};
+	unsigned int cond;
+
+	rtw89_debug(rtwdev, RTW89_DBG_FW, "pkt ofld rsp: id %d op %d len %d\n",
+		    pkt_id, pkt_op, pkt_len);
+
+	data.err = !pkt_len;
+	cond = RTW89_FW_OFLD_WAIT_COND_PKT_OFLD(pkt_id, pkt_op);
+
+	rtw89_complete_cond(wait, cond, &data);
 }
 
 static void
@@ -4574,6 +4673,21 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
 	switch (class) {
 	default:
 		return false;
+	case RTW89_MAC_C2H_CLASS_INFO:
+		switch (func) {
+		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_REC_ACK:
+		case RTW89_MAC_C2H_FUNC_DONE_ACK:
+			return true;
+		}
+	case RTW89_MAC_C2H_CLASS_OFLD:
+		switch (func) {
+		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_PKT_OFLD_RSP:
+			return true;
+		}
 	case RTW89_MAC_C2H_CLASS_MCC:
 		return true;
 	}

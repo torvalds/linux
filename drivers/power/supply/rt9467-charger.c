@@ -1023,7 +1023,7 @@ static int rt9467_request_interrupt(struct rt9467_chg_data *data)
 	for (i = 0; i < num_chg_irqs; i++) {
 		virq = regmap_irq_get_virq(data->irq_chip_data, chg_irqs[i].hwirq);
 		if (virq <= 0)
-			return dev_err_probe(dev, virq, "Failed to get (%s) irq\n",
+			return dev_err_probe(dev, -EINVAL, "Failed to get (%s) irq\n",
 					     chg_irqs[i].name);
 
 		ret = devm_request_threaded_irq(dev, virq, NULL, chg_irqs[i].handler,
@@ -1192,7 +1192,7 @@ static int rt9467_charger_probe(struct i2c_client *i2c)
 	i2c_set_clientdata(i2c, data);
 
 	/* Default pull charge enable gpio to make 'CHG_EN' by SW control only */
-	ceb_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_LOW);
+	ceb_gpio = devm_gpiod_get_optional(dev, "charge-enable", GPIOD_OUT_HIGH);
 	if (IS_ERR(ceb_gpio))
 		return dev_err_probe(dev, PTR_ERR(ceb_gpio),
 				     "Failed to config charge enable gpio\n");
@@ -1272,7 +1272,7 @@ static struct i2c_driver rt9467_charger_driver = {
 		.name = "rt9467-charger",
 		.of_match_table = rt9467_charger_of_match_table,
 	},
-	.probe_new = rt9467_charger_probe,
+	.probe = rt9467_charger_probe,
 };
 module_i2c_driver(rt9467_charger_driver);
 

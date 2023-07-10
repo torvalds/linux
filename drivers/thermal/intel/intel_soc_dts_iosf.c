@@ -398,7 +398,7 @@ struct intel_soc_dts_sensors *intel_soc_dts_iosf_init(
 	spin_lock_init(&sensors->intr_notify_lock);
 	mutex_init(&sensors->dts_update_lock);
 	sensors->intr_type = intr_type;
-	sensors->tj_max = tj_max;
+	sensors->tj_max = tj_max * 1000;
 	if (intr_type == INTEL_SOC_DTS_INTERRUPT_NONE)
 		notification = false;
 	else

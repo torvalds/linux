@@ -261,6 +261,19 @@ static inline bool dax_mapping(struct address_space *mapping)
 	return mapping->host && IS_DAX(mapping->host);
 }
 
+/*
+ * Due to dax's memory and block duo personalities, hwpoison reporting
+ * takes into consideration which personality is presently visible.
+ * When dax acts like a block device, such as in block IO, an encounter of
+ * dax hwpoison is reported as -EIO.
+ * When dax acts like memory, such as in page fault, a detection of hwpoison
+ * is reported as -EHWPOISON which leads to VM_FAULT_HWPOISON.
+ */
+static inline int dax_mem2blk_err(int err)
+{
+	return (err == -EHWPOISON) ? -EIO : err;
+}
+
 #ifdef CONFIG_DEV_DAX_HMEM_DEVICES
 void hmem_register_resource(int target_nid, struct resource *r);
 #else

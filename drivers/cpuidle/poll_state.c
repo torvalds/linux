@@ -15,7 +15,7 @@ static int __cpuidle poll_idle(struct cpuidle_device *dev,
 {
 	u64 time_start;
 
-	time_start = local_clock();
+	time_start = local_clock_noinstr();
 
 	dev->poll_time_limit = false;
 
@@ -32,7 +32,7 @@ static int __cpuidle poll_idle(struct cpuidle_device *dev,
 				continue;
 
 			loop_count = 0;
-			if (local_clock() - time_start > limit) {
+			if (local_clock_noinstr() - time_start > limit) {
 				dev->poll_time_limit = true;
 				break;
 			}

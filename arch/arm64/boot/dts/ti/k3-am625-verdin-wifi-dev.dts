@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2023 Toradex
+ *
+ * https://www.toradex.com/computer-on-modules/verdin-arm-family/ti-am62
+ * https://www.toradex.com/products/carrier-board/verdin-development-board-kit
+ */
+
+/dts-v1/;
+
+#include "k3-am625.dtsi"
+#include "k3-am62-verdin.dtsi"
+#include "k3-am62-verdin-wifi.dtsi"
+#include "k3-am62-verdin-dev.dtsi"
+
+/ {
+	model = "Toradex Verdin AM62 WB on Verdin Development Board";
+	compatible = "toradex,verdin-am62-wifi-dev",
+		     "toradex,verdin-am62-wifi",
+		     "toradex,verdin-am62",
+		     "ti,am625";
+};

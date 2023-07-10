@@ -2628,7 +2628,7 @@ static int qe_udc_resume(struct platform_device *dev)
 }
 #endif
 
-static int qe_udc_remove(struct platform_device *ofdev)
+static void qe_udc_remove(struct platform_device *ofdev)
 {
 	struct qe_udc *udc = platform_get_drvdata(ofdev);
 	struct qe_ep *ep;
@@ -2679,8 +2679,6 @@ static int qe_udc_remove(struct platform_device *ofdev)
 
 	/* wait for release() of gadget.dev to free udc */
 	wait_for_completion(&done);
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2708,7 +2706,7 @@ static struct platform_driver udc_driver = {
 		.of_match_table = qe_udc_match,
 	},
 	.probe          = qe_udc_probe,
-	.remove         = qe_udc_remove,
+	.remove_new     = qe_udc_remove,
 #ifdef CONFIG_PM
 	.suspend        = qe_udc_suspend,
 	.resume         = qe_udc_resume,

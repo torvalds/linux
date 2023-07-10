@@ -417,7 +417,7 @@ err_remove_config_dt:
 	return ret;
 }
 
-static int stm32_dwmac_remove(struct platform_device *pdev)
+static void stm32_dwmac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -431,8 +431,6 @@ static int stm32_dwmac_remove(struct platform_device *pdev)
 		dev_pm_clear_wake_irq(&pdev->dev);
 		device_init_wakeup(&pdev->dev, false);
 	}
-
-	return 0;
 }
 
 static int stm32mp1_suspend(struct stm32_dwmac *dwmac)
@@ -528,7 +526,7 @@ MODULE_DEVICE_TABLE(of, stm32_dwmac_match);
 
 static struct platform_driver stm32_dwmac_driver = {
 	.probe  = stm32_dwmac_probe,
-	.remove = stm32_dwmac_remove,
+	.remove_new = stm32_dwmac_remove,
 	.driver = {
 		.name           = "stm32-dwmac",
 		.pm		= &stm32_dwmac_pm_ops,

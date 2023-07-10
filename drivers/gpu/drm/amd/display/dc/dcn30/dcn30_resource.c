@@ -725,25 +725,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.dwb_fi_phase = -1, // -1 = disable,
 	.dmub_command_table = true,
 	.use_max_lb = true,
-	.exit_idle_opt_for_cursor_updates = true
-};
-
-static const struct dc_debug_options debug_defaults_diags = {
-	.disable_dmcu = true, //No dmcu on DCN30
-	.force_abm_enable = false,
-	.timing_trace = true,
-	.clock_trace = true,
-	.disable_dpp_power_gate = true,
-	.disable_hubp_power_gate = true,
-	.disable_clock_gate = true,
-	.disable_pplib_clock_request = true,
-	.disable_pplib_wm_range = true,
-	.disable_stutter = false,
-	.scl_reset_length10 = true,
-	.dwb_fi_phase = -1, // -1 = disable
-	.dmub_command_table = true,
-	.enable_tri_buf = true,
-	.use_max_lb = true
+	.exit_idle_opt_for_cursor_updates = true,
+	.enable_legacy_fast_update = false,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
@@ -1073,13 +1056,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.read_dce_straps = read_dce_straps,
 	.create_audio = dcn30_create_audio,
 	.create_stream_encoder = dcn30_stream_encoder_create,
-	.create_hwseq = dcn30_hwseq_create,
-};
-
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
 	.create_hwseq = dcn30_hwseq_create,
 };
 
@@ -2011,11 +1987,10 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(context))
 		return false;
 
-	// check if freesync enabled
 	if (!context->streams[0]->allow_freesync)
 		return false;
 
-	if (context->streams[0]->vrr_active_variable)
+	if (context->streams[0]->vrr_active_variable && dc->debug.disable_fams_gaming)
 		return false;
 
 	context->streams[0]->fpo_in_use = true;
@@ -2353,6 +2328,7 @@ static bool dcn30_resource_construct(
 	dc->caps.color.mpc.ocsc = 1;
 
 	dc->caps.dp_hdmi21_pcon_support = true;
+	dc->caps.max_v_total = (1 << 15) - 1;
 
 	/* read VBIOS LTTPR caps */
 	{
@@ -2376,10 +2352,7 @@ static bool dcn30_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS) {
-		dc->debug = debug_defaults_diags;
-	} else
-		dc->debug = debug_defaults_diags;
+
 	// Init the vm_helper
 	if (dc->vm_helper)
 		vm_helper_init(dc->vm_helper, 16);
@@ -2577,8 +2550,7 @@ static bool dcn30_resource_construct(
 
 	/* Audio, Stream Encoders including DIG and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
-			&res_create_funcs : &res_create_maximus_funcs)))
+			&res_create_funcs))
 		goto create_fail;
 
 	/* HW Sequencer and Plane caps */

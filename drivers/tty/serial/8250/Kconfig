@@ -71,14 +71,16 @@ config SERIAL_8250_16550A_VARIANTS
 	  console, you can say N here.
 
 config SERIAL_8250_FINTEK
-	bool "Support for Fintek F81216A LPC to 4 UART RS485 API"
+	bool "Support for Fintek variants"
 	depends on SERIAL_8250
 	help
-	  Selecting this option will add support for the RS485 capabilities
-	  of the Fintek F81216A LPC to 4 UART.
+	  Selecting this option will add support for the RS232 and RS485
+	  capabilities of the Fintek F81216A LPC to 4 UART as well similar
+	  variants.
 
 	  If this option is not selected the device will be configured as a
-	  standard 16550A serial port.
+	  standard 16550A serial port, however the device may not function
+	  correctly without this option enabled.
 
 	  If unsure, say N.
 
@@ -377,9 +379,9 @@ config SERIAL_8250_BCM2835AUX
 	  If unsure, say N.
 
 config SERIAL_8250_FSL
-	bool "Freescale 16550 UART support" if COMPILE_TEST && !(PPC || ARM || ARM64)
-	depends on SERIAL_8250_CONSOLE
-	default PPC || ARM || ARM64
+	tristate "Freescale 16550 UART support" if COMPILE_TEST && !(PPC || ARM || ARM64)
+	depends on SERIAL_8250
+	default SERIAL_8250 if PPC || ARM || ARM64
 	help
 	  Selecting this option enables a workaround for a break-detection
 	  erratum for Freescale 16550 UARTs in the 8250 driver. It also

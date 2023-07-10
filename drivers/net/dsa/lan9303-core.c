@@ -1188,8 +1188,6 @@ static int lan9303_port_fdb_add(struct dsa_switch *ds, int port,
 	struct lan9303 *chip = ds->priv;
 
 	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, addr, vid);
-	if (vid)
-		return -EOPNOTSUPP;
 
 	return lan9303_alr_add_port(chip, addr, port, false);
 }
@@ -1201,8 +1199,6 @@ static int lan9303_port_fdb_del(struct dsa_switch *ds, int port,
 	struct lan9303 *chip = ds->priv;
 
 	dev_dbg(chip->dev, "%s(%d, %pM, %d)\n", __func__, port, addr, vid);
-	if (vid)
-		return -EOPNOTSUPP;
 	lan9303_alr_del_port(chip, addr, port);
 
 	return 0;
@@ -1462,7 +1458,6 @@ int lan9303_remove(struct lan9303 *chip)
 
 	/* assert reset to the whole device to prevent it from doing anything */
 	gpiod_set_value_cansleep(chip->reset_gpio, 1);
-	gpiod_unexport(chip->reset_gpio);
 
 	return 0;
 }

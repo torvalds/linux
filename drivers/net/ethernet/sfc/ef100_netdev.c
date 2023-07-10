@@ -24,6 +24,7 @@
 #include "rx_common.h"
 #include "ef100_sriov.h"
 #include "tc_bindings.h"
+#include "tc_encap_actions.h"
 #include "efx_devlink.h"
 
 static void ef100_update_name(struct efx_nic *efx)
@@ -40,19 +41,26 @@ static int ef100_alloc_vis(struct efx_nic *efx, unsigned int *allocated_vis)
 	unsigned int tx_vis = efx->n_tx_channels + efx->n_extra_tx_channels;
 	unsigned int rx_vis = efx->n_rx_channels;
 	unsigned int min_vis, max_vis;
+	int rc;
 
 	EFX_WARN_ON_PARANOID(efx->tx_queues_per_channel != 1);
 
 	tx_vis += efx->n_xdp_channels * efx->xdp_tx_per_channel;
 
 	max_vis = max(rx_vis, tx_vis);
-	/* Currently don't handle resource starvation and only accept
-	 * our maximum needs and no less.
-	 */
-	min_vis = max_vis;
+	/* We require at least a single complete TX channel worth of queues. */
+	min_vis = efx->tx_queues_per_channel;
 
-	return efx_mcdi_alloc_vis(efx, min_vis, max_vis,
-				  NULL, allocated_vis);
+	rc = efx_mcdi_alloc_vis(efx, min_vis, max_vis,
+				NULL, allocated_vis);
+
+	/* We retry allocating VIs by reallocating channels when we have not
+	 * been able to allocate the maximum VIs.
+	 */
+	if (!rc && *allocated_vis < max_vis)
+		rc = -EAGAIN;
+
+	return rc;
 }
 
 static int ef100_remap_bar(struct efx_nic *efx, int max_vis)
@@ -133,8 +141,40 @@ static int ef100_net_open(struct net_device *net_dev)
 		goto fail;
 
 	rc = ef100_alloc_vis(efx, &allocated_vis);
-	if (rc)
+	if (rc && rc != -EAGAIN)
 		goto fail;
+
+	/* Try one more time but with the maximum number of channels
+	 * equal to the allocated VIs, which would more likely succeed.
+	 */
+	if (rc == -EAGAIN) {
+		rc = efx_mcdi_free_vis(efx);
+		if (rc)
+			goto fail;
+
+		efx_remove_interrupts(efx);
+		efx->max_channels = allocated_vis;
+
+		rc = efx_probe_interrupts(efx);
+		if (rc)
+			goto fail;
+
+		rc = efx_set_channels(efx);
+		if (rc)
+			goto fail;
+
+		rc = ef100_alloc_vis(efx, &allocated_vis);
+		if (rc && rc != -EAGAIN)
+			goto fail;
+
+		/* It should be very unlikely that we failed here again, but in
+		 * such a case we return ENOSPC.
+		 */
+		if (rc == -EAGAIN) {
+			rc = -ENOSPC;
+			goto fail;
+		}
+	}
 
 	rc = efx_probe_channels(efx);
 	if (rc)
@@ -261,13 +301,37 @@ int ef100_netdev_event(struct notifier_block *this,
 {
 	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_notifier);
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	int err;
 
 	if (efx->net_dev == net_dev &&
 	    (event == NETDEV_CHANGENAME || event == NETDEV_REGISTER))
 		ef100_update_name(efx);
 
+	if (!nic_data->grp_mae)
+		return NOTIFY_DONE;
+	err = efx_tc_netdev_event(efx, event, net_dev);
+	if (err & NOTIFY_STOP_MASK)
+		return err;
+
 	return NOTIFY_DONE;
 }
+
+static int ef100_netevent_event(struct notifier_block *this,
+				unsigned long event, void *ptr)
+{
+	struct efx_nic *efx = container_of(this, struct efx_nic, netevent_notifier);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	int err;
+
+	if (!nic_data->grp_mae)
+		return NOTIFY_DONE;
+	err = efx_tc_netevent_event(efx, event, ptr);
+	if (err & NOTIFY_STOP_MASK)
+		return err;
+
+	return NOTIFY_DONE;
+};
 
 static int ef100_register_netdev(struct efx_nic *efx)
 {
@@ -328,6 +392,7 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	rtnl_unlock();
 
 	unregister_netdevice_notifier(&efx->netdev_notifier);
+	unregister_netevent_notifier(&efx->netevent_notifier);
 #if defined(CONFIG_SFC_SRIOV)
 	if (!efx->type->is_vf)
 		efx_ef100_pci_sriov_disable(efx, true);
@@ -445,6 +510,14 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "Failed to register netdevice notifier, rc=%d\n", rc);
+		goto fail;
+	}
+
+	efx->netevent_notifier.notifier_call = ef100_netevent_event;
+	rc = register_netevent_notifier(&efx->netevent_notifier);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "Failed to register netevent notifier, rc=%d\n", rc);
 		goto fail;
 	}
 

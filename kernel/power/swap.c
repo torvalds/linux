@@ -356,14 +356,14 @@ static int swsusp_swap_check(void)
 		return res;
 	root_swap = res;
 
-	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device, FMODE_WRITE,
-			NULL);
+	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device,
+			BLK_OPEN_WRITE, NULL, NULL);
 	if (IS_ERR(hib_resume_bdev))
 		return PTR_ERR(hib_resume_bdev);
 
 	res = set_blocksize(hib_resume_bdev, PAGE_SIZE);
 	if (res < 0)
-		blkdev_put(hib_resume_bdev, FMODE_WRITE);
+		blkdev_put(hib_resume_bdev, NULL);
 
 	return res;
 }
@@ -443,7 +443,7 @@ static int get_swap_writer(struct swap_map_handle *handle)
 err_rel:
 	release_swap_writer(handle);
 err_close:
-	swsusp_close(FMODE_WRITE);
+	swsusp_close(false);
 	return ret;
 }
 
@@ -508,7 +508,7 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 	if (error)
 		free_all_swap_pages(root_swap);
 	release_swap_writer(handle);
-	swsusp_close(FMODE_WRITE);
+	swsusp_close(false);
 
 	return error;
 }
@@ -1510,21 +1510,19 @@ end:
 	return error;
 }
 
+static void *swsusp_holder;
+
 /**
  *      swsusp_check - Check for swsusp signature in the resume device
  */
 
-int swsusp_check(void)
+int swsusp_check(bool snapshot_test)
 {
+	void *holder = snapshot_test ? &swsusp_holder : NULL;
 	int error;
-	void *holder;
-	fmode_t mode = FMODE_READ;
 
-	if (snapshot_test)
-		mode |= FMODE_EXCL;
-
-	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device,
-					    mode, &holder);
+	hib_resume_bdev = blkdev_get_by_dev(swsusp_resume_device, BLK_OPEN_READ,
+					    holder, NULL);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
 		clear_page(swsusp_header);
@@ -1551,7 +1549,7 @@ int swsusp_check(void)
 
 put:
 		if (error)
-			blkdev_put(hib_resume_bdev, mode);
+			blkdev_put(hib_resume_bdev, holder);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {
@@ -1568,14 +1566,14 @@ put:
  *	swsusp_close - close swap device.
  */
 
-void swsusp_close(fmode_t mode)
+void swsusp_close(bool snapshot_test)
 {
 	if (IS_ERR(hib_resume_bdev)) {
 		pr_debug("Image device not initialised\n");
 		return;
 	}
 
-	blkdev_put(hib_resume_bdev, mode);
+	blkdev_put(hib_resume_bdev, snapshot_test ? &swsusp_holder : NULL);
 }
 
 /**

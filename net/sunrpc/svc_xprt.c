@@ -74,12 +74,17 @@ static LIST_HEAD(svc_xprt_class_list);
  *		  that no other thread will be using the transport or will
  *		  try to set XPT_DEAD.
  */
+
+/**
+ * svc_reg_xprt_class - Register a server-side RPC transport class
+ * @xcl: New transport class to be registered
+ *
+ * Returns zero on success; otherwise a negative errno is returned.
+ */
 int svc_reg_xprt_class(struct svc_xprt_class *xcl)
 {
 	struct svc_xprt_class *cl;
 	int res = -EEXIST;
-
-	dprintk("svc: Adding svc transport class '%s'\n", xcl->xcl_name);
 
 	INIT_LIST_HEAD(&xcl->xcl_list);
 	spin_lock(&svc_xprt_class_lock);
@@ -96,9 +101,13 @@ out:
 }
 EXPORT_SYMBOL_GPL(svc_reg_xprt_class);
 
+/**
+ * svc_unreg_xprt_class - Unregister a server-side RPC transport class
+ * @xcl: Transport class to be unregistered
+ *
+ */
 void svc_unreg_xprt_class(struct svc_xprt_class *xcl)
 {
-	dprintk("svc: Removing svc transport class '%s'\n", xcl->xcl_name);
 	spin_lock(&svc_xprt_class_lock);
 	list_del_init(&xcl->xcl_list);
 	spin_unlock(&svc_xprt_class_lock);
@@ -685,8 +694,9 @@ static int svc_alloc_arg(struct svc_rqst *rqstp)
 	}
 
 	for (filled = 0; filled < pages; filled = ret) {
-		ret = alloc_pages_bulk_array(GFP_KERNEL, pages,
-					     rqstp->rq_pages);
+		ret = alloc_pages_bulk_array_node(GFP_KERNEL,
+						  rqstp->rq_pool->sp_id,
+						  pages, rqstp->rq_pages);
 		if (ret > filled)
 			/* Made progress, don't sleep yet */
 			continue;
@@ -843,15 +853,11 @@ static int svc_handle_xprt(struct svc_rqst *rqstp, struct svc_xprt *xprt)
 		svc_xprt_received(xprt);
 	} else if (svc_xprt_reserve_slot(rqstp, xprt)) {
 		/* XPT_DATA|XPT_DEFERRED case: */
-		dprintk("svc: server %p, pool %u, transport %p, inuse=%d\n",
-			rqstp, rqstp->rq_pool->sp_id, xprt,
-			kref_read(&xprt->xpt_ref));
 		rqstp->rq_deferred = svc_deferred_dequeue(xprt);
 		if (rqstp->rq_deferred)
 			len = svc_deferred_recv(rqstp);
 		else
 			len = xprt->xpt_ops->xpo_recvfrom(rqstp);
-		rqstp->rq_stime = ktime_get();
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &xprt->xpt_reserved);
 	} else
@@ -894,6 +900,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 	err = -EAGAIN;
 	if (len <= 0)
 		goto out_release;
+
 	trace_svc_xdr_recvfrom(&rqstp->rq_arg);
 
 	clear_bit(XPT_OLD, &xprt->xpt_flags);
@@ -902,6 +909,7 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	if (serv->sv_stats)
 		serv->sv_stats->netcnt++;
+	rqstp->rq_stime = ktime_get();
 	return len;
 out_release:
 	rqstp->rq_res.len = 0;

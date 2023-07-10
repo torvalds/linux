@@ -591,7 +591,7 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret) {
 			dev_err(dev, "Cannot set DMA mask\n");
-			goto err_dma_mask;
+			goto err_pci_regions;
 		}
 		dev_warn(&pdev->dev, "Cannot DMA highmem\n");
 	}
@@ -599,14 +599,14 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 	ndev->ctrl_reg = pci_iomap(pdev, ndev->ctrl_reg_bar, 0);
 	if (!ndev->ctrl_reg) {
 		ret = -EIO;
-		goto err_dma_mask;
+		goto err_pci_regions;
 	}
 
 	if (ndev->peer_spad_reg_bar) {
 		ndev->peer_spad_reg = pci_iomap(pdev, ndev->peer_spad_reg_bar, 0);
 		if (!ndev->peer_spad_reg) {
 			ret = -EIO;
-			goto err_dma_mask;
+			goto err_pci_regions;
 		}
 	} else {
 		spad_sz = 4 * readl(ndev->ctrl_reg + NTB_EPF_SPAD_COUNT);
@@ -617,13 +617,10 @@ static int ntb_epf_init_pci(struct ntb_epf_dev *ndev,
 	ndev->db_reg = pci_iomap(pdev, ndev->db_reg_bar, 0);
 	if (!ndev->db_reg) {
 		ret = -EIO;
-		goto err_dma_mask;
+		goto err_pci_regions;
 	}
 
 	return 0;
-
-err_dma_mask:
-	pci_clear_master(pdev);
 
 err_pci_regions:
 	pci_disable_device(pdev);
@@ -642,7 +639,6 @@ static void ntb_epf_deinit_pci(struct ntb_epf_dev *ndev)
 	pci_iounmap(pdev, ndev->peer_spad_reg);
 	pci_iounmap(pdev, ndev->db_reg);
 
-	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);

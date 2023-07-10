@@ -240,26 +240,27 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 	struct irq_domain *domain;
 	struct device_node *np;
 	u32 num_pins;
+	int ret = 0;
+
+	parent = bus_get_dev_root(&platform_bus_type);
+	if (!parent)
+		return -ENODEV;
 
 	for_each_child_of_node(pdev->dev.of_node, np) {
 		if (!of_property_read_bool(np, "interrupt-controller"))
 			continue;
 
-		parent = bus_get_dev_root(&platform_bus_type);
-		if (parent) {
-			child = of_platform_device_create(np, NULL, parent);
-			put_device(parent);
-			if (!child) {
-				of_node_put(np);
-				return -ENOMEM;
-			}
+		child = of_platform_device_create(np, NULL, parent);
+		if (!child) {
+			ret = -ENOMEM;
+			break;
 		}
 
 		if (of_property_read_u32(child->dev.of_node, "num-pins",
 					 &num_pins) < 0) {
 			dev_err(&pdev->dev, "No num-pins property\n");
-			of_node_put(np);
-			return -EINVAL;
+			ret = -EINVAL;
+			break;
 		}
 
 		domain = platform_msi_create_device_domain(&child->dev, num_pins,
@@ -267,12 +268,16 @@ static int mbigen_of_create_domain(struct platform_device *pdev,
 							   &mbigen_domain_ops,
 							   mgn_chip);
 		if (!domain) {
-			of_node_put(np);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			break;
 		}
 	}
 
-	return 0;
+	put_device(parent);
+	if (ret)
+		of_node_put(np);
+
+	return ret;
 }
 
 #ifdef CONFIG_ACPI

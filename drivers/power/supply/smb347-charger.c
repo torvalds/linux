@@ -1629,7 +1629,7 @@ static struct i2c_driver smb347_driver = {
 		.name = "smb347",
 		.of_match_table = smb3xx_of_match,
 	},
-	.probe_new = smb347_probe,
+	.probe = smb347_probe,
 	.remove = smb347_remove,
 	.shutdown = smb347_shutdown,
 	.id_table = smb347_id,

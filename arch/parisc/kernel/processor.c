@@ -58,7 +58,7 @@ DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 */
 
 /**
- * init_cpu_profiler - enable/setup per cpu profiling hooks.
+ * init_percpu_prof - enable/setup per cpu profiling hooks.
  * @cpunum: The processor instance.
  *
  * FIXME: doesn't do much yet...

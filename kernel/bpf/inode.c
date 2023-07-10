@@ -435,7 +435,7 @@ static int bpf_iter_link_pin_kernel(struct dentry *parent,
 	return ret;
 }
 
-static int bpf_obj_do_pin(const char __user *pathname, void *raw,
+static int bpf_obj_do_pin(int path_fd, const char __user *pathname, void *raw,
 			  enum bpf_type type)
 {
 	struct dentry *dentry;
@@ -444,21 +444,20 @@ static int bpf_obj_do_pin(const char __user *pathname, void *raw,
 	umode_t mode;
 	int ret;
 
-	dentry = user_path_create(AT_FDCWD, pathname, &path, 0);
+	dentry = user_path_create(path_fd, pathname, &path, 0);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
-
-	mode = S_IFREG | ((S_IRUSR | S_IWUSR) & ~current_umask());
-
-	ret = security_path_mknod(&path, dentry, mode, 0);
-	if (ret)
-		goto out;
 
 	dir = d_inode(path.dentry);
 	if (dir->i_op != &bpf_dir_iops) {
 		ret = -EPERM;
 		goto out;
 	}
+
+	mode = S_IFREG | ((S_IRUSR | S_IWUSR) & ~current_umask());
+	ret = security_path_mknod(&path, dentry, mode, 0);
+	if (ret)
+		goto out;
 
 	switch (type) {
 	case BPF_TYPE_PROG:
@@ -478,7 +477,7 @@ out:
 	return ret;
 }
 
-int bpf_obj_pin_user(u32 ufd, const char __user *pathname)
+int bpf_obj_pin_user(u32 ufd, int path_fd, const char __user *pathname)
 {
 	enum bpf_type type;
 	void *raw;
@@ -488,14 +487,14 @@ int bpf_obj_pin_user(u32 ufd, const char __user *pathname)
 	if (IS_ERR(raw))
 		return PTR_ERR(raw);
 
-	ret = bpf_obj_do_pin(pathname, raw, type);
+	ret = bpf_obj_do_pin(path_fd, pathname, raw, type);
 	if (ret != 0)
 		bpf_any_put(raw, type);
 
 	return ret;
 }
 
-static void *bpf_obj_do_get(const char __user *pathname,
+static void *bpf_obj_do_get(int path_fd, const char __user *pathname,
 			    enum bpf_type *type, int flags)
 {
 	struct inode *inode;
@@ -503,7 +502,7 @@ static void *bpf_obj_do_get(const char __user *pathname,
 	void *raw;
 	int ret;
 
-	ret = user_path_at(AT_FDCWD, pathname, LOOKUP_FOLLOW, &path);
+	ret = user_path_at(path_fd, pathname, LOOKUP_FOLLOW, &path);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -527,7 +526,7 @@ out:
 	return ERR_PTR(ret);
 }
 
-int bpf_obj_get_user(const char __user *pathname, int flags)
+int bpf_obj_get_user(int path_fd, const char __user *pathname, int flags)
 {
 	enum bpf_type type = BPF_TYPE_UNSPEC;
 	int f_flags;
@@ -538,7 +537,7 @@ int bpf_obj_get_user(const char __user *pathname, int flags)
 	if (f_flags < 0)
 		return f_flags;
 
-	raw = bpf_obj_do_get(pathname, &type, f_flags);
+	raw = bpf_obj_do_get(path_fd, pathname, &type, f_flags);
 	if (IS_ERR(raw))
 		return PTR_ERR(raw);
 

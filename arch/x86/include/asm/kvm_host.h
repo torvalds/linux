@@ -523,7 +523,7 @@ struct kvm_pmu {
 	u64 global_status;
 	u64 counter_bitmask[2];
 	u64 global_ctrl_mask;
-	u64 global_ovf_ctrl_mask;
+	u64 global_status_mask;
 	u64 reserved_bits;
 	u64 raw_event_mask;
 	struct kvm_pmc gp_counters[KVM_INTEL_PMC_MAX_GENERIC];

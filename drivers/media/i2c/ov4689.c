@@ -1008,7 +1008,7 @@ static struct i2c_driver ov4689_i2c_driver = {
 		.pm = &ov4689_pm_ops,
 		.of_match_table = ov4689_of_match,
 	},
-	.probe_new = ov4689_probe,
+	.probe = ov4689_probe,
 	.remove	= ov4689_remove,
 };
 

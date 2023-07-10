@@ -22,7 +22,7 @@
 #include <asm/irq.h>
 #include <asm/debug.h>
 #include <asm/timex.h>
-#include <asm-generic/io.h>
+#include <linux/io.h>
 
 /* Minimum number of sample-data-block-tables:
  * At least one table is required for the sampling buffer structure.
@@ -43,7 +43,7 @@
 #define CPUM_SF_SDBT_TL_OFFSET	(CPUM_SF_SDB_PER_TABLE * 8)
 static inline int require_table_link(const void *sdbt)
 {
-	return ((unsigned long) sdbt & ~PAGE_MASK) == CPUM_SF_SDBT_TL_OFFSET;
+	return ((unsigned long)sdbt & ~PAGE_MASK) == CPUM_SF_SDBT_TL_OFFSET;
 }
 
 /* Minimum and maximum sampling buffer sizes:
@@ -192,7 +192,7 @@ static void free_sampling_buffer(struct sf_buffer *sfb)
 		if (is_link_entry(curr)) {
 			curr = get_next_sdbt(curr);
 			if (sdbt)
-				free_page((unsigned long) sdbt);
+				free_page((unsigned long)sdbt);
 
 			/* If the origin is reached, sampling buffer is freed */
 			if (curr == sfb->sdbt)
@@ -278,7 +278,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 	for (i = 0; i < num_sdb; i++) {
 		/* Allocate a new SDB-table if it is full. */
 		if (require_table_link(tail)) {
-			new = (unsigned long *) get_zeroed_page(gfp_flags);
+			new = (unsigned long *)get_zeroed_page(gfp_flags);
 			if (!new) {
 				rc = -ENOMEM;
 				break;
@@ -304,7 +304,7 @@ static int realloc_sampling_buffer(struct sf_buffer *sfb,
 			 */
 			if (tail_prev) {
 				sfb->num_sdbt--;
-				free_page((unsigned long) new);
+				free_page((unsigned long)new);
 				tail = tail_prev;
 			}
 			break;
@@ -343,7 +343,7 @@ static int alloc_sampling_buffer(struct sf_buffer *sfb, unsigned long num_sdb)
 		return -EINVAL;
 
 	/* Allocate the sample-data-block-table origin */
-	sfb->sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+	sfb->sdbt = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 	if (!sfb->sdbt)
 		return -ENOMEM;
 	sfb->num_sdb = 0;
@@ -594,11 +594,10 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 #define PMC_FAILURE   2
 static void setup_pmc_cpu(void *flags)
 {
-	int err;
 	struct cpu_hw_sf *cpusf = this_cpu_ptr(&cpu_hw_sf);
+	int err = 0;
 
-	err = 0;
-	switch (*((int *) flags)) {
+	switch (*((int *)flags)) {
 	case PMC_INIT:
 		memset(cpusf, 0, sizeof(*cpusf));
 		err = qsi(&cpusf->qsi);
@@ -606,22 +605,18 @@ static void setup_pmc_cpu(void *flags)
 			break;
 		cpusf->flags |= PMU_F_RESERVED;
 		err = sf_disable();
-		if (err)
-			pr_err("Switching off the sampling facility failed "
-			       "with rc %i\n", err);
 		break;
 	case PMC_RELEASE:
 		cpusf->flags &= ~PMU_F_RESERVED;
 		err = sf_disable();
-		if (err) {
-			pr_err("Switching off the sampling facility failed "
-			       "with rc %i\n", err);
-		} else
+		if (!err)
 			deallocate_buffers(cpusf);
 		break;
 	}
-	if (err)
-		*((int *) flags) |= PMC_FAILURE;
+	if (err) {
+		*((int *)flags) |= PMC_FAILURE;
+		pr_err("Switching off the sampling facility failed with rc %i\n", err);
+	}
 }
 
 static void release_pmc_hardware(void)
@@ -963,10 +958,6 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 	}
 
-	/* Check online status of the CPU to which the event is pinned */
-	if (event->cpu >= 0 && !cpu_online(event->cpu))
-		return -ENODEV;
-
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.
 	 */
@@ -1026,8 +1017,7 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	err = lsctl(&cpuhw->lsctl);
 	if (err) {
 		cpuhw->flags &= ~PMU_F_ENABLED;
-		pr_err("Loading sampling controls failed: op %i err %i\n",
-			1, err);
+		pr_err("Loading sampling controls failed: op 1 err %i\n", err);
 		return;
 	}
 
@@ -1061,8 +1051,7 @@ static void cpumsf_pmu_disable(struct pmu *pmu)
 
 	err = lsctl(&inactive);
 	if (err) {
-		pr_err("Loading sampling controls failed: op %i err %i\n",
-			2, err);
+		pr_err("Loading sampling controls failed: op 2 err %i\n", err);
 		return;
 	}
 
@@ -1221,7 +1210,7 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 
 	te = trailer_entry_ptr((unsigned long)sdbt);
 	sample = (struct hws_basic_entry *)sdbt;
-	while ((unsigned long *) sample < (unsigned long *) te) {
+	while ((unsigned long *)sample < (unsigned long *)te) {
 		/* Check for an empty sample */
 		if (!sample->def || sample->LS)
 			break;
@@ -1271,16 +1260,6 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 	}
 }
 
-static inline __uint128_t __cdsg(__uint128_t *ptr, __uint128_t old, __uint128_t new)
-{
-	asm volatile(
-		"	cdsg	%[old],%[new],%[ptr]\n"
-		: [old] "+d" (old), [ptr] "+QS" (*ptr)
-		: [new] "d" (new)
-		: "memory", "cc");
-	return old;
-}
-
 /* hw_perf_event_update() - Process sampling buffer
  * @event:	The perf event
  * @flush_all:	Flag to also flush partially filled sample-data-blocks
@@ -1308,7 +1287,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 	if (SAMPL_DIAG_MODE(&event->hw))
 		return;
 
-	sdbt = (unsigned long *) TEAR_REG(hwc);
+	sdbt = (unsigned long *)TEAR_REG(hwc);
 	done = event_overflow = sampl_overflow = num_sdb = 0;
 	while (!done) {
 		/* Get the trailer entry of the sample-data-block */
@@ -1352,7 +1331,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 			new.f = 0;
 			new.a = 1;
 			new.overflow = 0;
-			prev.val = __cdsg(&te->header.val, old.val, new.val);
+			prev.val = cmpxchg128(&te->header.val, old.val, new.val);
 		} while (prev.val != old.val);
 
 		/* Advance to next sample-data-block */
@@ -1562,7 +1541,7 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 		}
 		new.a = 1;
 		new.overflow = 0;
-		prev.val = __cdsg(&te->header.val, old.val, new.val);
+		prev.val = cmpxchg128(&te->header.val, old.val, new.val);
 	} while (prev.val != old.val);
 	return true;
 }
@@ -1636,7 +1615,7 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 				new.a = 1;
 			else
 				new.a = 0;
-			prev.val = __cdsg(&te->header.val, old.val, new.val);
+			prev.val = cmpxchg128(&te->header.val, old.val, new.val);
 		} while (prev.val != old.val);
 		*overflow += orig_overflow;
 	}
@@ -1680,9 +1659,6 @@ static void hw_collect_aux(struct cpu_hw_sf *cpuhw)
 			pr_err("The AUX buffer with %lu pages for the "
 			       "diagnostic-sampling mode is full\n",
 				num_sdb);
-			debug_sprintf_event(sfdbg, 1,
-					    "%s: AUX buffer used up\n",
-					    __func__);
 			break;
 		}
 		if (WARN_ON_ONCE(!aux))
@@ -1814,7 +1790,7 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 
 	/* Allocate the first SDBT */
 	sfb->num_sdbt = 0;
-	sfb->sdbt = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+	sfb->sdbt = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 	if (!sfb->sdbt)
 		goto no_sdbt;
 	aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)sfb->sdbt;
@@ -1826,7 +1802,7 @@ static void *aux_buffer_setup(struct perf_event *event, void **pages,
 	 */
 	for (i = 0; i < nr_pages; i++, tail++) {
 		if (require_table_link(tail)) {
-			new = (unsigned long *) get_zeroed_page(GFP_KERNEL);
+			new = (unsigned long *)get_zeroed_page(GFP_KERNEL);
 			if (!new)
 				goto no_sdbt;
 			aux->sdbt_index[sfb->num_sdbt++] = (unsigned long)new;
@@ -1875,7 +1851,7 @@ static void cpumsf_pmu_read(struct perf_event *event)
 	/* Nothing to do ... updates are interrupt-driven */
 }
 
-/* Check if the new sampling period/freqeuncy is appropriate.
+/* Check if the new sampling period/frequency is appropriate.
  *
  * Return non-zero on error and zero on passed checks.
  */
@@ -1983,8 +1959,8 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	cpuhw->lsctl.interval = SAMPL_RATE(&event->hw);
 	if (!SAMPL_DIAG_MODE(&event->hw)) {
 		cpuhw->lsctl.tear = virt_to_phys(cpuhw->sfb.sdbt);
-		cpuhw->lsctl.dear = *(unsigned long *) cpuhw->sfb.sdbt;
-		TEAR_REG(&event->hw) = (unsigned long) cpuhw->sfb.sdbt;
+		cpuhw->lsctl.dear = *(unsigned long *)cpuhw->sfb.sdbt;
+		TEAR_REG(&event->hw) = (unsigned long)cpuhw->sfb.sdbt;
 	}
 
 	/* Ensure sampling functions are in the disabled state.  If disabled,

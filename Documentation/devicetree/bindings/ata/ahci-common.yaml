@@ -8,7 +8,7 @@ title: Common Properties for Serial ATA AHCI controllers
 
 maintainers:
   - Hans de Goede <hdegoede@redhat.com>
-  - Damien Le Moal <damien.lemoal@opensource.wdc.com>
+  - Damien Le Moal <dlemoal@kernel.org>
 
 description:
   This document defines device tree properties for a common AHCI SATA

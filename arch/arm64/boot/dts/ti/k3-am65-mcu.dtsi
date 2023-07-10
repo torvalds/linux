@@ -227,7 +227,22 @@
 		};
 	};
 
-	m_can0: mcan@40528000 {
+	secure_proxy_mcu: mailbox@2a480000 {
+		compatible = "ti,am654-secure-proxy";
+		#mbox-cells = <1>;
+		reg-names = "target_data", "rt", "scfg";
+		reg = <0x0 0x2a480000 0x0 0x80000>,
+		      <0x0 0x2a380000 0x0 0x80000>,
+		      <0x0 0x2a400000 0x0 0x80000>;
+		/*
+		 * Marked Disabled:
+		 * Node is incomplete as it is meant for bootloaders and
+		 * firmware on non-MPU processors
+		 */
+		status = "disabled";
+	};
+
+	m_can0: can@40528000 {
 		compatible = "bosch,m_can";
 		reg = <0x0 0x40528000 0x0 0x400>,
 		      <0x0 0x40500000 0x0 0x4400>;
@@ -243,7 +258,7 @@
 		status = "disabled";
 	};
 
-	m_can1: mcan@40568000 {
+	m_can1: can@40568000 {
 		compatible = "bosch,m_can";
 		reg = <0x0 0x40568000 0x0 0x400>,
 		      <0x0 0x40540000 0x0 0x4400>;

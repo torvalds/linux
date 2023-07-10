@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_data/mmc-omap.h>
 
 
@@ -111,6 +112,9 @@ struct mmc_omap_slot {
 	struct mmc_request      *mrq;
 	struct mmc_omap_host    *host;
 	struct mmc_host		*mmc;
+	struct gpio_desc	*vsd;
+	struct gpio_desc	*vio;
+	struct gpio_desc	*cover;
 	struct omap_mmc_slot_data *pdata;
 };
 
@@ -133,6 +137,7 @@ struct mmc_omap_host {
 	int			irq;
 	unsigned char		bus_mode;
 	unsigned int		reg_shift;
+	struct gpio_desc	*slot_switch;
 
 	struct work_struct	cmd_abort_work;
 	unsigned		abort:1;
@@ -216,8 +221,13 @@ no_claim:
 
 	if (host->current_slot != slot) {
 		OMAP_MMC_WRITE(host, CON, slot->saved_con & 0xFC00);
-		if (host->pdata->switch_slot != NULL)
-			host->pdata->switch_slot(mmc_dev(slot->mmc), slot->id);
+		if (host->slot_switch)
+			/*
+			 * With two slots and a simple GPIO switch, setting
+			 * the GPIO to 0 selects slot ID 0, setting it to 1
+			 * selects slot ID 1.
+			 */
+			gpiod_set_value(host->slot_switch, slot->id);
 		host->current_slot = slot;
 	}
 
@@ -297,6 +307,9 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 static inline
 int mmc_omap_cover_is_open(struct mmc_omap_slot *slot)
 {
+	/* If we have a GPIO then use that */
+	if (slot->cover)
+		return gpiod_get_value(slot->cover);
 	if (slot->pdata->get_cover_state)
 		return slot->pdata->get_cover_state(mmc_dev(slot->mmc),
 						    slot->id);
@@ -1106,6 +1119,11 @@ static void mmc_omap_set_power(struct mmc_omap_slot *slot, int power_on,
 
 	host = slot->host;
 
+	if (slot->vsd)
+		gpiod_set_value(slot->vsd, power_on);
+	if (slot->vio)
+		gpiod_set_value(slot->vio, power_on);
+
 	if (slot->pdata->set_power != NULL)
 		slot->pdata->set_power(mmc_dev(slot->mmc), slot->id, power_on,
 					vdd);
@@ -1240,6 +1258,23 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	slot->power_mode = MMC_POWER_UNDEFINED;
 	slot->pdata = &host->pdata->slots[id];
 
+	/* Check for some optional GPIO controls */
+	slot->vsd = gpiod_get_index_optional(host->dev, "vsd",
+					     id, GPIOD_OUT_LOW);
+	if (IS_ERR(slot->vsd))
+		return dev_err_probe(host->dev, PTR_ERR(slot->vsd),
+				     "error looking up VSD GPIO\n");
+	slot->vio = gpiod_get_index_optional(host->dev, "vio",
+					     id, GPIOD_OUT_LOW);
+	if (IS_ERR(slot->vio))
+		return dev_err_probe(host->dev, PTR_ERR(slot->vio),
+				     "error looking up VIO GPIO\n");
+	slot->cover = gpiod_get_index_optional(host->dev, "cover",
+						id, GPIOD_IN);
+	if (IS_ERR(slot->cover))
+		return dev_err_probe(host->dev, PTR_ERR(slot->cover),
+				     "error looking up cover switch GPIO\n");
+
 	host->slots[id] = slot;
 
 	mmc->caps = 0;
@@ -1343,11 +1378,18 @@ static int mmc_omap_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENXIO;
+		return irq;
 
 	host->virt_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(host->virt_base))
 		return PTR_ERR(host->virt_base);
+
+	host->slot_switch = gpiod_get_optional(host->dev, "switch",
+					       GPIOD_OUT_LOW);
+	if (IS_ERR(host->slot_switch))
+		return dev_err_probe(host->dev, PTR_ERR(host->slot_switch),
+				     "error looking up slot switch GPIO\n");
+
 
 	INIT_WORK(&host->slot_release_work, mmc_omap_slot_release_work);
 	INIT_WORK(&host->send_stop_work, mmc_omap_send_stop_work);

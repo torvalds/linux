@@ -1261,6 +1261,23 @@ static inline bool spi_is_bpw_supported(struct spi_device *spi, u32 bpw)
 	return false;
 }
 
+/**
+ * spi_controller_xfer_timeout - Compute a suitable timeout value
+ * @ctlr: SPI device
+ * @xfer: Transfer descriptor
+ *
+ * Compute a relevant timeout value for the given transfer. We derive the time
+ * that it would take on a single data line and take twice this amount of time
+ * with a minimum of 500ms to avoid false positives on loaded systems.
+ *
+ * Returns: Transfer timeout value in milliseconds.
+ */
+static inline unsigned int spi_controller_xfer_timeout(struct spi_controller *ctlr,
+						       struct spi_transfer *xfer)
+{
+	return max(xfer->len * 8 * 2 / (xfer->speed_hz / 1000), 500U);
+}
+
 /*---------------------------------------------------------------------------*/
 
 /* SPI transfer replacement methods which make use of spi_res */

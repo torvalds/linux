@@ -150,6 +150,12 @@ the UTS_MACHINE variable, and on some architectures also the kernel config.
 The value of KBUILD_DEBARCH is assumed (not checked) to be a valid Debian
 architecture.
 
+KDOCFLAGS
+---------
+Specify extra (warning/error) flags for kernel-doc checks during the build,
+see scripts/kernel-doc for which flags are supported. Note that this doesn't
+(currently) apply to documentation builds.
+
 ARCH
 ----
 Set ARCH to the architecture to be built.

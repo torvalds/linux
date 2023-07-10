@@ -6,6 +6,7 @@
 #ifndef __USER_DOT_H__
 #define __USER_DOT_H__
 
+void dlm_purge_lkb_callbacks(struct dlm_lkb *lkb);
 void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		      int status, uint32_t sbflags);
 int dlm_user_init(void);

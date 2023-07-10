@@ -10,7 +10,6 @@
 #define ICE_DFLT_VSI_INVAL 0xff
 #define ICE_FLTR_RX BIT(0)
 #define ICE_FLTR_TX BIT(1)
-#define ICE_FLTR_TX_RX (ICE_FLTR_RX | ICE_FLTR_TX)
 #define ICE_VSI_INVAL_ID 0xffff
 #define ICE_INVAL_Q_HANDLE 0xFFFF
 
@@ -187,12 +186,13 @@ struct ice_adv_rule_flags_info {
 };
 
 struct ice_adv_rule_info {
+	/* Store metadata values in rule info */
 	enum ice_sw_tunnel_type tun_type;
-	struct ice_sw_act_ctrl sw_act;
-	u32 priority;
-	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
-	u16 fltr_rule_id;
 	u16 vlan_type;
+	u16 fltr_rule_id;
+	u32 priority;
+	u16 src_vsi;
+	struct ice_sw_act_ctrl sw_act;
 	struct ice_adv_rule_flags_info flags_info;
 };
 
@@ -342,6 +342,9 @@ ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 		  u16 counter_id);
 
 /* Switch/bridge related commands */
+void ice_rule_add_tunnel_metadata(struct ice_adv_lkup_elem *lkup);
+void ice_rule_add_vlan_metadata(struct ice_adv_lkup_elem *lkup);
+void ice_rule_add_src_vsi_metadata(struct ice_adv_lkup_elem *lkup);
 int
 ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 		 u16 lkups_cnt, struct ice_adv_rule_info *rinfo,

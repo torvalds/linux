@@ -78,6 +78,7 @@ ENTRY(_mcount)
 #error Unsupported Xtensa ABI
 #endif
 ENDPROC(_mcount)
+EXPORT_SYMBOL(_mcount)
 
 ENTRY(ftrace_stub)
 	abi_entry_default

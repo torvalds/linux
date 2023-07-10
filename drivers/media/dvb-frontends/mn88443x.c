@@ -800,7 +800,7 @@ static struct i2c_driver mn88443x_driver = {
 		.name = "mn88443x",
 		.of_match_table = mn88443x_of_match,
 	},
-	.probe_new = mn88443x_probe,
+	.probe    = mn88443x_probe,
 	.remove   = mn88443x_remove,
 	.id_table = mn88443x_i2c_id,
 };

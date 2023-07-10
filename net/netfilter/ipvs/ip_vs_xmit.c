@@ -139,7 +139,7 @@ retry:
 		if (PTR_ERR(rt) == -EINVAL && *saddr &&
 		    rt_mode & IP_VS_RT_MODE_CONNECT && !loop) {
 			*saddr = 0;
-			flowi4_update_output(&fl4, 0, 0, daddr, 0);
+			flowi4_update_output(&fl4, 0, daddr, 0);
 			goto retry;
 		}
 		IP_VS_DBG_RL("ip_route_output error, dest: %pI4\n", &daddr);
@@ -147,7 +147,7 @@ retry:
 	} else if (!*saddr && rt_mode & IP_VS_RT_MODE_CONNECT && fl4.saddr) {
 		ip_rt_put(rt);
 		*saddr = fl4.saddr;
-		flowi4_update_output(&fl4, 0, 0, daddr, fl4.saddr);
+		flowi4_update_output(&fl4, 0, daddr, fl4.saddr);
 		loop = true;
 		goto retry;
 	}
@@ -1207,6 +1207,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	skb->transport_header = skb->network_header;
 
 	skb_set_inner_ipproto(skb, next_protocol);
+	skb_set_inner_mac_header(skb, skb_inner_network_offset(skb));
 
 	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) {
 		bool check = false;
@@ -1349,6 +1350,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	skb->transport_header = skb->network_header;
 
 	skb_set_inner_ipproto(skb, next_protocol);
+	skb_set_inner_mac_header(skb, skb_inner_network_offset(skb));
 
 	if (tun_type == IP_VS_CONN_F_TUNNEL_TYPE_GUE) {
 		bool check = false;

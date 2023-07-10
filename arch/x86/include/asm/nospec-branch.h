@@ -84,12 +84,12 @@
 	movq	$-1, PER_CPU_VAR(pcpu_hot + X86_call_depth);
 
 #define RESET_CALL_DEPTH					\
-	mov	$0x80, %rax;					\
-	shl	$56, %rax;					\
+	xor	%eax, %eax;					\
+	bts	$63, %rax;					\
 	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);
 
 #define RESET_CALL_DEPTH_FROM_CALL				\
-	mov	$0xfc, %rax;					\
+	movb	$0xfc, %al;					\
 	shl	$56, %rax;					\
 	movq	%rax, PER_CPU_VAR(pcpu_hot + X86_call_depth);	\
 	CALL_THUNKS_DEBUG_INC_CALLS

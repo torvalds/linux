@@ -2112,6 +2112,14 @@ DEFINE_POST_CHUNK_EVENT(read);
 DEFINE_POST_CHUNK_EVENT(write);
 DEFINE_POST_CHUNK_EVENT(reply);
 
+DEFINE_EVENT(svcrdma_post_chunk_class, svcrdma_cc_release,
+	TP_PROTO(
+		const struct rpc_rdma_cid *cid,
+		int sqecount
+	),
+	TP_ARGS(cid, sqecount)
+);
+
 TRACE_EVENT(svcrdma_wc_read,
 	TP_PROTO(
 		const struct ib_wc *wc,

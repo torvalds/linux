@@ -2,7 +2,7 @@
  * Broadcom BCM63XX High Speed SPI Controller driver
  *
  * Copyright 2000-2010 Broadcom Corporation
- * Copyright 2012-2013 Jonas Gorski <jogo@openwrt.org>
+ * Copyright 2012-2013 Jonas Gorski <jonas.gorski@gmail.com>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */

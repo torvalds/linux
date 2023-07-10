@@ -98,11 +98,6 @@ static inline int au1300_gpio_is_valid(unsigned int gpio)
 	return ret;
 }
 
-static inline int au1300_gpio_cansleep(unsigned int gpio)
-{
-	return 0;
-}
-
 /* hardware remembers gpio 0-63 levels on powerup */
 static inline int au1300_gpio_getinitlvl(unsigned int gpio)
 {

@@ -3,6 +3,7 @@
  * Copyright (C) 2021 Red Hat Inc, Daniel Bristot de Oliveira <bristot@kernel.org>
  */
 
+#define _GNU_SOURCE
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,14 +12,16 @@
 #include <errno.h>
 #include <stdio.h>
 #include <time.h>
+#include <sched.h>
 
 #include "utils.h"
 #include "osnoise.h"
 
 struct osnoise_hist_params {
 	char			*cpus;
-	char			*monitored_cpus;
+	cpu_set_t		monitored_cpus;
 	char			*trace_output;
+	char			*cgroup_name;
 	unsigned long long	runtime;
 	unsigned long long	period;
 	long long		threshold;
@@ -28,6 +31,9 @@ struct osnoise_hist_params {
 	int			duration;
 	int			set_sched;
 	int			output_divisor;
+	int			cgroup;
+	int			hk_cpus;
+	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
 
@@ -268,7 +274,7 @@ static void osnoise_hist_header(struct osnoise_tool *tool)
 		trace_seq_printf(s, "Index");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-		if (params->cpus && !params->monitored_cpus[cpu])
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 			continue;
 
 		if (!data->hist[cpu].count)
@@ -299,7 +305,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 		trace_seq_printf(trace->seq, "count:");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-		if (params->cpus && !params->monitored_cpus[cpu])
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 			continue;
 
 		if (!data->hist[cpu].count)
@@ -313,7 +319,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 		trace_seq_printf(trace->seq, "min:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-		if (params->cpus && !params->monitored_cpus[cpu])
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 			continue;
 
 		if (!data->hist[cpu].count)
@@ -328,7 +334,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 		trace_seq_printf(trace->seq, "avg:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-		if (params->cpus && !params->monitored_cpus[cpu])
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 			continue;
 
 		if (!data->hist[cpu].count)
@@ -346,7 +352,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
 		trace_seq_printf(trace->seq, "max:  ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-		if (params->cpus && !params->monitored_cpus[cpu])
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 			continue;
 
 		if (!data->hist[cpu].count)
@@ -381,7 +387,7 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 					 bucket * data->bucket_size);
 
 		for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-			if (params->cpus && !params->monitored_cpus[cpu])
+			if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 				continue;
 
 			if (!data->hist[cpu].count)
@@ -405,7 +411,7 @@ osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *too
 		trace_seq_printf(trace->seq, "over: ");
 
 	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
-		if (params->cpus && !params->monitored_cpus[cpu])
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
 			continue;
 
 		if (!data->hist[cpu].count)
@@ -432,8 +438,8 @@ static void osnoise_hist_usage(char *usage)
 		"",
 		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
 		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
-		"	  [-c cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] [--no-index] \\",
-		"	  [--with-zeros]",
+		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] \\",
+		"	  [--no-index] [--with-zeros] [-C[=cgroup_name]]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -443,6 +449,8 @@ static void osnoise_hist_usage(char *usage)
 		"	  -S/--stop-total us: stop trace if the total sample is higher than the argument in us",
 		"	  -T/--threshold us: the minimum delta to be considered a noise",
 		"	  -c/--cpus cpu-list: list of cpus to run osnoise threads",
+		"	  -H/--house-keeping cpus: run rtla control threads only on the given cpus",
+		"	  -C/--cgroup[=cgroup_name]: set cgroup, if no cgroup_name is passed, the rtla's cgroup will be inherited",
 		"	  -d/--duration time[s|m|h|d]: duration of the session",
 		"	  -D/--debug: print debug info",
 		"	  -t/--trace[=file]: save the stopped trace to [file|osnoise_trace.txt]",
@@ -501,8 +509,10 @@ static struct osnoise_hist_params
 			{"bucket-size",		required_argument,	0, 'b'},
 			{"entries",		required_argument,	0, 'E'},
 			{"cpus",		required_argument,	0, 'c'},
+			{"cgroup",		optional_argument,	0, 'C'},
 			{"debug",		no_argument,		0, 'D'},
 			{"duration",		required_argument,	0, 'd'},
+			{"house-keeping",	required_argument,		0, 'H'},
 			{"help",		no_argument,		0, 'h'},
 			{"period",		required_argument,	0, 'p'},
 			{"priority",		required_argument,	0, 'P'},
@@ -524,7 +534,7 @@ static struct osnoise_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:b:d:e:E:Dhp:P:r:s:S:t::T:01234:5:",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:p:P:r:s:S:t::T:01234:5:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -549,10 +559,20 @@ static struct osnoise_hist_params
 				osnoise_hist_usage("Bucket size needs to be > 0 and <= 1000000\n");
 			break;
 		case 'c':
-			retval = parse_cpu_list(optarg, &params->monitored_cpus);
+			retval = parse_cpu_set(optarg, &params->monitored_cpus);
 			if (retval)
 				osnoise_hist_usage("\nInvalid -c cpu list\n");
 			params->cpus = optarg;
+			break;
+		case 'C':
+			params->cgroup = 1;
+			if (!optarg) {
+				/* will inherit this cgroup */
+				params->cgroup_name = NULL;
+			} else if (*optarg == '=') {
+				/* skip the = */
+				params->cgroup_name = ++optarg;
+			}
 			break;
 		case 'D':
 			config_debug = 1;
@@ -582,6 +602,14 @@ static struct osnoise_hist_params
 		case 'h':
 		case '?':
 			osnoise_hist_usage(NULL);
+			break;
+		case 'H':
+			params->hk_cpus = 1;
+			retval = parse_cpu_set(optarg, &params->hk_cpu_set);
+			if (retval) {
+				err_msg("Error parsing house keeping CPUs\n");
+				exit(EXIT_FAILURE);
+			}
 			break;
 		case 'p':
 			params->period = get_llong_from_str(optarg);
@@ -718,6 +746,24 @@ osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params 
 		}
 	}
 
+	if (params->hk_cpus) {
+		retval = sched_setaffinity(getpid(), sizeof(params->hk_cpu_set),
+					   &params->hk_cpu_set);
+		if (retval == -1) {
+			err_msg("Failed to set rtla to the house keeping CPUs\n");
+			goto out_err;
+		}
+	} else if (params->cpus) {
+		/*
+		 * Even if the user do not set a house-keeping CPU, try to
+		 * move rtla to a CPU set different to the one where the user
+		 * set the workload to run.
+		 *
+		 * No need to check results as this is an automatic attempt.
+		 */
+		auto_house_keeping(&params->monitored_cpus);
+	}
+
 	return 0;
 
 out_err:
@@ -816,7 +862,13 @@ int osnoise_hist_main(int argc, char *argv[])
 		}
 	}
 
-	trace_instance_start(trace);
+	if (params->cgroup) {
+		retval = set_comm_cgroup("timerlat/", params->cgroup_name);
+		if (!retval) {
+			err_msg("Failed to move threads to cgroup\n");
+			goto out_free;
+		}
+	}
 
 	if (params->trace_output) {
 		record = osnoise_init_trace_tool("osnoise");
@@ -831,8 +883,18 @@ int osnoise_hist_main(int argc, char *argv[])
 				goto out_hist;
 		}
 
-		trace_instance_start(&record->trace);
 	}
+
+	/*
+	 * Start the tracer here, after having set all instances.
+	 *
+	 * Let the trace instance start first for the case of hitting a stop
+	 * tracing while enabling other instances. The trace instance is the
+	 * one with most valuable information.
+	 */
+	if (params->trace_output)
+		trace_instance_start(&record->trace);
+	trace_instance_start(trace);
 
 	tool->start_time = time(NULL);
 	osnoise_hist_set_signals(params);

@@ -25,7 +25,7 @@ properties:
     const: 3
 
   fsl,pwm-number:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: u32 value representing the number of PWM devices
 
 required:

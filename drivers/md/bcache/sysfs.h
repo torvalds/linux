@@ -3,7 +3,7 @@
 #define _BCACHE_SYSFS_H_
 
 #define KTYPE(type)							\
-struct kobj_type type ## _ktype = {					\
+const struct kobj_type type ## _ktype = {					\
 	.release	= type ## _release,				\
 	.sysfs_ops	= &((const struct sysfs_ops) {			\
 		.show	= type ## _show,				\

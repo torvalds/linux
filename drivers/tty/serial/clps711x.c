@@ -514,7 +514,9 @@ static int uart_clps711x_remove(struct platform_device *pdev)
 {
 	struct clps711x_port *s = platform_get_drvdata(pdev);
 
-	return uart_remove_one_port(&clps711x_uart, &s->port);
+	uart_remove_one_port(&clps711x_uart, &s->port);
+
+	return 0;
 }
 
 static const struct of_device_id __maybe_unused clps711x_uart_dt_ids[] = {

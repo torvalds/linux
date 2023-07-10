@@ -34,14 +34,12 @@ void kernel_stack_overflow(struct pt_regs * regs);
 void handle_signal32(struct ksignal *ksig, sigset_t *oldset,
 		     struct pt_regs *regs);
 
-void __init init_IRQ(void);
 void do_io_irq(struct pt_regs *regs);
 void do_ext_irq(struct pt_regs *regs);
 void do_restart(void *arg);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 int setup_profiling_timer(unsigned int multiplier);
-void __init time_init(void);
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long sp, unsigned long ip);
 
 struct s390_mmap_arg_struct;

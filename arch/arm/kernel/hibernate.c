@@ -19,7 +19,7 @@
 #include <asm/system_misc.h>
 #include <asm/idmap.h>
 #include <asm/suspend.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/sections.h>
 #include "reboot.h"
 

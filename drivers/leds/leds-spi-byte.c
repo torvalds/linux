@@ -98,7 +98,7 @@ static int spi_byte_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	of_property_read_string(child, "label", &name);
-	strlcpy(led->name, name, sizeof(led->name));
+	strscpy(led->name, name, sizeof(led->name));
 	led->spi = spi;
 	mutex_init(&led->mutex);
 	led->cdef = device_get_match_data(dev);

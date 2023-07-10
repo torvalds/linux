@@ -24,8 +24,18 @@
 #ifndef __SOC15_COMMON_H__
 #define __SOC15_COMMON_H__
 
+/* GET_INST returns the physical instance corresponding to a logical instance */
+#define GET_INST(ip, inst) \
+	(adev->ip_map.logical_to_dev_inst ? \
+	adev->ip_map.logical_to_dev_inst(adev, ip##_HWIP, inst) : inst)
+#define GET_MASK(ip, mask) \
+	(adev->ip_map.logical_to_dev_mask ? \
+	adev->ip_map.logical_to_dev_mask(adev, ip##_HWIP, mask) : mask)
+
 /* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
+#define SOC15_REG_OFFSET1(ip, inst, reg, offset) \
+	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)+(offset))
 
 #define __WREG32_SOC15_RLC__(reg, value, flag, hwip) \
 	((amdgpu_sriov_vf(adev) && adev->gfx.rlc.funcs && adev->gfx.rlc.rlcg_reg_access_supported) ? \
@@ -66,7 +76,8 @@
 			 AMDGPU_REGS_NO_KIQ, ip##_HWIP)
 
 #define RREG32_SOC15_OFFSET(ip, inst, reg, offset) \
-	 __RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, 0, ip##_HWIP)
+	 __RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)) + \
+			 (offset), 0, ip##_HWIP)
 
 #define WREG32_SOC15(ip, inst, reg, value) \
 	 __WREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg), \
@@ -86,31 +97,15 @@
 	 __WREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, \
 			  value, 0, ip##_HWIP)
 
-#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask) \
-({	int ret = 0;						\
-	do {							\
-		uint32_t old_ = 0;				\
-		uint32_t tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
-		uint32_t loop = adev->usec_timeout;		\
-		ret = 0;					\
-		while ((tmp_ & (mask)) != (expected_value)) {	\
-			if (old_ != tmp_) {			\
-				loop = adev->usec_timeout;	\
-				old_ = tmp_;			\
-			} else					\
-				udelay(1);			\
-			tmp_ = RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg); \
-			loop--;					\
-			if (!loop) {				\
-				DRM_WARN("Register(%d) [%s] failed to reach value 0x%08x != 0x%08x\n", \
-					  inst, #reg, (unsigned)expected_value, (unsigned)(tmp_ & (mask))); \
-				ret = -ETIMEDOUT;		\
-				break;				\
-			}					\
-		}						\
-	} while (0);						\
-	ret;							\
-})
+#define SOC15_WAIT_ON_RREG(ip, inst, reg, expected_value, mask)      \
+	amdgpu_device_wait_on_rreg(adev, inst,                       \
+	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg)), \
+	#reg, expected_value, mask)
+
+#define SOC15_WAIT_ON_RREG_OFFSET(ip, inst, reg, offset, expected_value, mask)  \
+	amdgpu_device_wait_on_rreg(adev, inst,                                  \
+	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + (reg) + (offset)), \
+	#reg, expected_value, mask)
 
 #define WREG32_RLC(reg, value) \
 	__WREG32_SOC15_RLC__(reg, value, AMDGPU_REGS_RLC, GC_HWIP)
@@ -157,10 +152,10 @@
 	do {							\
 		uint32_t target_reg = adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg;\
 		if (amdgpu_sriov_fullaccess(adev)) {    \
-			uint32_t r2 = adev->reg_offset[GC_HWIP][0][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG2;	\
-			uint32_t r3 = adev->reg_offset[GC_HWIP][0][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG3;	\
-			uint32_t grbm_cntl = adev->reg_offset[GC_HWIP][0][prefix##GRBM_GFX_CNTL_BASE_IDX] + prefix##GRBM_GFX_CNTL;   \
-			uint32_t grbm_idx = adev->reg_offset[GC_HWIP][0][prefix##GRBM_GFX_INDEX_BASE_IDX] + prefix##GRBM_GFX_INDEX;   \
+			uint32_t r2 = adev->reg_offset[GC_HWIP][inst][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG2;	\
+			uint32_t r3 = adev->reg_offset[GC_HWIP][inst][prefix##SCRATCH_REG1_BASE_IDX] + prefix##SCRATCH_REG3;	\
+			uint32_t grbm_cntl = adev->reg_offset[GC_HWIP][inst][prefix##GRBM_GFX_CNTL_BASE_IDX] + prefix##GRBM_GFX_CNTL;   \
+			uint32_t grbm_idx = adev->reg_offset[GC_HWIP][inst][prefix##GRBM_GFX_INDEX_BASE_IDX] + prefix##GRBM_GFX_INDEX;   \
 			if (target_reg == grbm_cntl) \
 				WREG32(r2, value);	\
 			else if (target_reg == grbm_idx) \
@@ -176,13 +171,13 @@
 
 #define WREG32_SOC15_RLC(ip, inst, reg, value) \
 	do {							\
-		uint32_t target_reg = adev->reg_offset[ip##_HWIP][0][reg##_BASE_IDX] + reg;\
+		uint32_t target_reg = adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg;\
 		__WREG32_SOC15_RLC__(target_reg, value, AMDGPU_REGS_RLC, ip##_HWIP); \
 	} while (0)
 
 #define WREG32_SOC15_RLC_EX(prefix, ip, inst, reg, value) \
 	do {							\
-			uint32_t target_reg = adev->reg_offset[GC_HWIP][0][reg##_BASE_IDX] + reg;\
+			uint32_t target_reg = adev->reg_offset[GC_HWIP][inst][reg##_BASE_IDX] + reg;\
 			WREG32_RLC_EX(prefix, target_reg, value); \
 	} while (0)
 
@@ -198,5 +193,15 @@
 
 #define RREG32_SOC15_OFFSET_RLC(ip, inst, reg, offset) \
 	__RREG32_SOC15_RLC__((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset, AMDGPU_REGS_RLC, ip##_HWIP)
+
+/* inst equals to ext for some IPs */
+#define RREG32_SOC15_EXT(ip, inst, reg, ext) \
+	RREG32_PCIE_EXT((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) * 4 \
+			+ adev->asic_funcs->encode_ext_smn_addressing(ext)) \
+
+#define WREG32_SOC15_EXT(ip, inst, reg, ext, value) \
+	WREG32_PCIE_EXT((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) * 4 \
+			+ adev->asic_funcs->encode_ext_smn_addressing(ext), \
+			value) \
 
 #endif

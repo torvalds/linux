@@ -375,6 +375,8 @@ long rbtree_refcounted_node_ref_escapes(void *ctx)
 	bpf_rbtree_add(&aroot, &n->node, less_a);
 	m = bpf_refcount_acquire(n);
 	bpf_spin_unlock(&alock);
+	if (!m)
+		return 2;
 
 	m->key = 2;
 	bpf_obj_drop(m);

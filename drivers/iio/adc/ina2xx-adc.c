@@ -1090,7 +1090,7 @@ static struct i2c_driver ina2xx_driver = {
 		   .name = KBUILD_MODNAME,
 		   .of_match_table = ina2xx_of_match,
 	},
-	.probe_new = ina2xx_probe,
+	.probe = ina2xx_probe,
 	.remove = ina2xx_remove,
 	.id_table = ina2xx_id,
 };

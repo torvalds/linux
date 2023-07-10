@@ -142,24 +142,6 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic_fetch_xor_release		arch_atomic_fetch_xor_release
 #define arch_atomic_fetch_xor			arch_atomic_fetch_xor
 
-#define arch_atomic_xchg_relaxed(v, new) \
-	arch_xchg_relaxed(&((v)->counter), (new))
-#define arch_atomic_xchg_acquire(v, new) \
-	arch_xchg_acquire(&((v)->counter), (new))
-#define arch_atomic_xchg_release(v, new) \
-	arch_xchg_release(&((v)->counter), (new))
-#define arch_atomic_xchg(v, new) \
-	arch_xchg(&((v)->counter), (new))
-
-#define arch_atomic_cmpxchg_relaxed(v, old, new) \
-	arch_cmpxchg_relaxed(&((v)->counter), (old), (new))
-#define arch_atomic_cmpxchg_acquire(v, old, new) \
-	arch_cmpxchg_acquire(&((v)->counter), (old), (new))
-#define arch_atomic_cmpxchg_release(v, old, new) \
-	arch_cmpxchg_release(&((v)->counter), (old), (new))
-#define arch_atomic_cmpxchg(v, old, new) \
-	arch_cmpxchg(&((v)->counter), (old), (new))
-
 #define arch_atomic_andnot			arch_atomic_andnot
 
 /*
@@ -208,16 +190,6 @@ static __always_inline long arch_atomic64_dec_if_positive(atomic64_t *v)
 #define arch_atomic64_fetch_xor_acquire		arch_atomic64_fetch_xor_acquire
 #define arch_atomic64_fetch_xor_release		arch_atomic64_fetch_xor_release
 #define arch_atomic64_fetch_xor			arch_atomic64_fetch_xor
-
-#define arch_atomic64_xchg_relaxed		arch_atomic_xchg_relaxed
-#define arch_atomic64_xchg_acquire		arch_atomic_xchg_acquire
-#define arch_atomic64_xchg_release		arch_atomic_xchg_release
-#define arch_atomic64_xchg			arch_atomic_xchg
-
-#define arch_atomic64_cmpxchg_relaxed		arch_atomic_cmpxchg_relaxed
-#define arch_atomic64_cmpxchg_acquire		arch_atomic_cmpxchg_acquire
-#define arch_atomic64_cmpxchg_release		arch_atomic_cmpxchg_release
-#define arch_atomic64_cmpxchg			arch_atomic_cmpxchg
 
 #define arch_atomic64_andnot			arch_atomic64_andnot
 

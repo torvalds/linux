@@ -15,7 +15,7 @@ void intel_hti_init(struct drm_i915_private *i915)
 	 * If the platform has HTI, we need to find out whether it has reserved
 	 * any display resources before we create our display outputs.
 	 */
-	if (INTEL_INFO(i915)->display.has_hti)
+	if (DISPLAY_INFO(i915)->has_hti)
 		i915->display.hti.state = intel_de_read(i915, HDPORT_STATE);
 }
 

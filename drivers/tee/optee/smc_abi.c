@@ -1004,8 +1004,10 @@ static u32 get_async_notif_value(optee_invoke_fn *invoke_fn, bool *value_valid,
 
 	invoke_fn(OPTEE_SMC_GET_ASYNC_NOTIF_VALUE, 0, 0, 0, 0, 0, 0, 0, &res);
 
-	if (res.a0)
+	if (res.a0) {
+		*value_valid = false;
 		return 0;
+	}
 	*value_valid = (res.a2 & OPTEE_SMC_ASYNC_NOTIF_VALUE_VALID);
 	*value_pending = (res.a2 & OPTEE_SMC_ASYNC_NOTIF_VALUE_PENDING);
 	return res.a1;
@@ -1539,12 +1541,11 @@ static int optee_load_fw(struct platform_device *pdev,
 	 * This uses the GFP_DMA flag to ensure we are allocated memory in the
 	 * 32-bit space since TF-A cannot map memory beyond the 32-bit boundary.
 	 */
-	data_buf = kmalloc(fw->size, GFP_KERNEL | GFP_DMA);
+	data_buf = kmemdup(fw->data, fw->size, GFP_KERNEL | GFP_DMA);
 	if (!data_buf) {
 		rc = -ENOMEM;
 		goto fw_err;
 	}
-	memcpy(data_buf, fw->data, fw->size);
 	data_pa = virt_to_phys(data_buf);
 	reg_pair_from_64(&data_pa_high, &data_pa_low, data_pa);
 	reg_pair_from_64(&data_size_high, &data_size_low, data_size);

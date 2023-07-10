@@ -564,7 +564,7 @@ static struct i2c_driver bd71828_drv = {
 		.name = "rohm-bd71828",
 		.of_match_table = bd71828_of_match,
 	},
-	.probe_new = &bd71828_i2c_probe,
+	.probe = bd71828_i2c_probe,
 };
 module_i2c_driver(bd71828_drv);
 

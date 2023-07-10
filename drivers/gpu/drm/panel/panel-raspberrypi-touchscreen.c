@@ -489,7 +489,7 @@ static struct i2c_driver rpi_touchscreen_driver = {
 		.name = "rpi_touchscreen",
 		.of_match_table = rpi_touchscreen_of_ids,
 	},
-	.probe_new = rpi_touchscreen_probe,
+	.probe = rpi_touchscreen_probe,
 	.remove = rpi_touchscreen_remove,
 };
 

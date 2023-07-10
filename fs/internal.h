@@ -97,8 +97,9 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
 /*
  * file_table.c
  */
-extern struct file *alloc_empty_file(int, const struct cred *);
-extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
+struct file *alloc_empty_file(int flags, const struct cred *cred);
+struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred);
+struct file *alloc_empty_backing_file(int flags, const struct cred *cred);
 
 static inline void put_file_access(struct file *file)
 {
@@ -119,6 +120,47 @@ struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
 int sb_init_dio_done_wq(struct super_block *sb);
+
+/*
+ * Prepare superblock for changing its read-only state (i.e., either remount
+ * read-write superblock read-only or vice versa). After this function returns
+ * mnt_is_readonly() will return true for any mount of the superblock if its
+ * caller is able to observe any changes done by the remount. This holds until
+ * sb_end_ro_state_change() is called.
+ */
+static inline void sb_start_ro_state_change(struct super_block *sb)
+{
+	WRITE_ONCE(sb->s_readonly_remount, 1);
+	/*
+	 * For RO->RW transition, the barrier pairs with the barrier in
+	 * mnt_is_readonly() making sure if mnt_is_readonly() sees SB_RDONLY
+	 * cleared, it will see s_readonly_remount set.
+	 * For RW->RO transition, the barrier pairs with the barrier in
+	 * __mnt_want_write() before the mnt_is_readonly() check. The barrier
+	 * makes sure if __mnt_want_write() sees MNT_WRITE_HOLD already
+	 * cleared, it will see s_readonly_remount set.
+	 */
+	smp_wmb();
+}
+
+/*
+ * Ends section changing read-only state of the superblock. After this function
+ * returns if mnt_is_readonly() returns false, the caller will be able to
+ * observe all the changes remount did to the superblock.
+ */
+static inline void sb_end_ro_state_change(struct super_block *sb)
+{
+	/*
+	 * This barrier provides release semantics that pairs with
+	 * the smp_rmb() acquire semantics in mnt_is_readonly().
+	 * This barrier pair ensure that when mnt_is_readonly() sees
+	 * 0 for sb->s_readonly_remount, it will also see all the
+	 * preceding flag changes that were made during the RO state
+	 * change.
+	 */
+	smp_wmb();
+	WRITE_ONCE(sb->s_readonly_remount, 0);
+}
 
 /*
  * open.c
@@ -152,6 +194,8 @@ extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
 int dentry_needs_remove_privs(struct mnt_idmap *, struct dentry *dentry);
 bool in_group_or_capable(struct mnt_idmap *idmap,
 			 const struct inode *inode, vfsgid_t vfsgid);
+void lock_two_inodes(struct inode *inode1, struct inode *inode2,
+		     unsigned subclass1, unsigned subclass2);
 
 /*
  * fs-writeback.c

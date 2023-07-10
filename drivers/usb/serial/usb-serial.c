@@ -539,9 +539,9 @@ static int serial_break(struct tty_struct *tty, int break_state)
 	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->break_ctl)
-		port->serial->type->break_ctl(tty, break_state);
+		return port->serial->type->break_ctl(tty, break_state);
 
-	return 0;
+	return -ENOTTY;
 }
 
 static int serial_proc_show(struct seq_file *m, void *v)

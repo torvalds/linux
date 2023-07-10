@@ -116,10 +116,6 @@ void dmub_dcn32_reset(struct dmub_srv *dmub)
 				break;
 		}
 
-		/* Clear the GPINT command manually so we don't reset again. */
-		cmd.all = 0;
-		dmub->hw_funcs.set_gpint(dmub, cmd);
-
 		/* Force reset in case we timed out, DMCUB is likely hung. */
 	}
 
@@ -133,6 +129,10 @@ void dmub_dcn32_reset(struct dmub_srv *dmub)
 	REG_WRITE(DMCUB_OUTBOX0_RPTR, 0);
 	REG_WRITE(DMCUB_OUTBOX0_WPTR, 0);
 	REG_WRITE(DMCUB_SCRATCH0, 0);
+
+	/* Clear the GPINT command manually so we don't reset again. */
+	cmd.all = 0;
+	dmub->hw_funcs.set_gpint(dmub, cmd);
 }
 
 void dmub_dcn32_reset_release(struct dmub_srv *dmub)
@@ -264,6 +264,11 @@ void dmub_dcn32_setup_mailbox(struct dmub_srv *dmub,
 {
 	REG_WRITE(DMCUB_INBOX1_BASE_ADDRESS, inbox1->base);
 	REG_WRITE(DMCUB_INBOX1_SIZE, inbox1->top - inbox1->base);
+}
+
+uint32_t dmub_dcn32_get_inbox1_wptr(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_INBOX1_WPTR);
 }
 
 uint32_t dmub_dcn32_get_inbox1_rptr(struct dmub_srv *dmub)
@@ -434,6 +439,7 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	diag_data->scratch[13] = REG_READ(DMCUB_SCRATCH13);
 	diag_data->scratch[14] = REG_READ(DMCUB_SCRATCH14);
 	diag_data->scratch[15] = REG_READ(DMCUB_SCRATCH15);
+	diag_data->scratch[16] = REG_READ(DMCUB_SCRATCH16);
 
 	diag_data->undefined_address_fault_addr = REG_READ(DMCUB_UNDEFINED_ADDRESS_FAULT_ADDR);
 	diag_data->inst_fetch_fault_addr = REG_READ(DMCUB_INST_FETCH_FAULT_ADDR);
@@ -464,6 +470,8 @@ void dmub_dcn32_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;
+
+	diag_data->gpint_datain0 = REG_READ(DMCUB_GPINT_DATAIN0);
 }
 void dmub_dcn32_configure_dmub_in_system_memory(struct dmub_srv *dmub)
 {

@@ -2,6 +2,7 @@
 #include <linux/libfdt_env.h>
 #include <asm/setup.h>
 #include <libfdt.h>
+#include "misc.h"
 
 #if defined(CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND)
 #define do_extend_cmdline 1

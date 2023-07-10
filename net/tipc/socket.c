@@ -3375,7 +3375,6 @@ static const struct proto_ops msg_ops = {
 	.sendmsg	= tipc_sendmsg,
 	.recvmsg	= tipc_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage
 };
 
 static const struct proto_ops packet_ops = {
@@ -3396,7 +3395,6 @@ static const struct proto_ops packet_ops = {
 	.sendmsg	= tipc_send_packet,
 	.recvmsg	= tipc_recvmsg,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage
 };
 
 static const struct proto_ops stream_ops = {
@@ -3417,7 +3415,6 @@ static const struct proto_ops stream_ops = {
 	.sendmsg	= tipc_sendstream,
 	.recvmsg	= tipc_recvstream,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage
 };
 
 static const struct net_proto_family tipc_family_ops = {

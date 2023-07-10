@@ -2148,7 +2148,10 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_FREQINFO_IN_METADATA = 219,
 	WMI_TLV_SERVICE_EXT2_MSG = 220,
 
-	WMI_MAX_EXT_SERVICE
+	WMI_MAX_EXT_SERVICE = 256,
+
+	WMI_TLV_SERVICE_REG_CC_EXT_EVENT_SUPPORT = 281,
+	WMI_MAX_EXT2_SERVICE,
 };
 
 enum {
@@ -2333,6 +2336,7 @@ struct ath12k_wmi_resource_config_arg {
 	u32 sched_params;
 	u32 twt_ap_pdev_count;
 	u32 twt_ap_sta_count;
+	bool is_reg_cc_ext_event_supported;
 };
 
 struct ath12k_wmi_init_cmd_arg {
@@ -2682,7 +2686,7 @@ struct ath12k_wmi_ssid_params {
 	u8 ssid[ATH12K_WMI_SSID_LEN];
 } __packed;
 
-#define ATH12K_VDEV_SETUP_TIMEOUT_HZ (1 * HZ)
+#define ATH12K_VDEV_SETUP_TIMEOUT_HZ (5 * HZ)
 
 struct wmi_vdev_start_request_cmd {
 	__le32 tlv_header;
@@ -4664,7 +4668,7 @@ struct ath12k_wmi_base {
 
 	struct completion service_ready;
 	struct completion unified_ready;
-	DECLARE_BITMAP(svc_map, WMI_MAX_EXT_SERVICE);
+	DECLARE_BITMAP(svc_map, WMI_MAX_EXT2_SERVICE);
 	wait_queue_head_t tx_credits_wq;
 	const struct wmi_peer_flags_map *peer_flags;
 	u32 num_mem_chunks;

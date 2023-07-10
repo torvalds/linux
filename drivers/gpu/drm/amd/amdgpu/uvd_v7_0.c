@@ -444,7 +444,7 @@ static int uvd_v7_0_sw_init(void *handle)
 			continue;
 		if (!amdgpu_sriov_vf(adev)) {
 			ring = &adev->uvd.inst[j].ring;
-			ring->vm_hub = AMDGPU_MMHUB_0;
+			ring->vm_hub = AMDGPU_MMHUB0(0);
 			sprintf(ring->name, "uvd_%d", ring->me);
 			r = amdgpu_ring_init(adev, ring, 512,
 					     &adev->uvd.inst[j].irq, 0,
@@ -455,7 +455,7 @@ static int uvd_v7_0_sw_init(void *handle)
 
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 			ring = &adev->uvd.inst[j].ring_enc[i];
-			ring->vm_hub = AMDGPU_MMHUB_0;
+			ring->vm_hub = AMDGPU_MMHUB0(0);
 			sprintf(ring->name, "uvd_enc_%d.%d", ring->me, i);
 			if (amdgpu_sriov_vf(adev)) {
 				ring->use_doorbell = true;

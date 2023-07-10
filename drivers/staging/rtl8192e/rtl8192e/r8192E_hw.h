@@ -159,7 +159,6 @@ enum _RTL8192PCI_HW {
 	WFCRC2		  = 0x2f8,
 
 	BW_OPMODE		= 0x300,
-#define	BW_OPMODE_5G			BIT1
 #define	BW_OPMODE_20MHZ			BIT2
 	IC_VERRSION		= 0x301,
 	MSR			= 0x303,

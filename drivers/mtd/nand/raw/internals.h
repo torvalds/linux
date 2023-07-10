@@ -73,6 +73,7 @@ extern const struct nand_manufacturer_ops hynix_nand_manuf_ops;
 extern const struct nand_manufacturer_ops macronix_nand_manuf_ops;
 extern const struct nand_manufacturer_ops micron_nand_manuf_ops;
 extern const struct nand_manufacturer_ops samsung_nand_manuf_ops;
+extern const struct nand_manufacturer_ops sandisk_nand_manuf_ops;
 extern const struct nand_manufacturer_ops toshiba_nand_manuf_ops;
 
 /* MLC pairing schemes */

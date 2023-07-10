@@ -93,8 +93,6 @@ PyMODINIT_FUNC PyInit_perf_trace_context(void);
 #define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
-static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
-
 #define N_COMMON_FIELDS	7
 
 static char *cur_field_name;
@@ -419,6 +417,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 					 struct addr_location *al)
 {
 	PyObject *pylist;
+	struct callchain_cursor *cursor;
 
 	pylist = PyList_New(0);
 	if (!pylist)
@@ -427,19 +426,20 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 	if (!symbol_conf.use_callchain || !sample->callchain)
 		goto exit;
 
-	if (thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+	cursor = get_tls_callchain_cursor();
+	if (thread__resolve_callchain(al->thread, cursor, evsel,
 				      sample, NULL, NULL,
 				      scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}
-	callchain_cursor_commit(&callchain_cursor);
+	callchain_cursor_commit(cursor);
 
 
 	while (1) {
 		PyObject *pyelem;
 		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
 
@@ -471,9 +471,11 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 				struct addr_location node_al;
 				unsigned long offset;
 
+				addr_location__init(&node_al);
 				node_al.addr = map__map_ip(map, node->ip);
-				node_al.map  = map;
+				node_al.map  = map__get(map);
 				offset = get_offset(node->ms.sym, &node_al);
+				addr_location__exit(&node_al);
 
 				pydict_set_item_string_decref(
 					pyelem, "sym_off",
@@ -493,7 +495,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 					_PyUnicode_FromString(dsoname));
 		}
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
 		PyList_Append(pylist, pyelem);
 		Py_DECREF(pyelem);
 	}
@@ -541,6 +543,7 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 		pydict_set_item_string_decref(pyelem, "cycles",
 		    PyLong_FromUnsignedLongLong(entries[i].flags.cycles));
 
+		addr_location__init(&al);
 		thread__find_map_fb(thread, sample->cpumode,
 				    entries[i].from, &al);
 		dsoname = get_dsoname(al.map);
@@ -553,6 +556,7 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 		pydict_set_item_string_decref(pyelem, "to_dsoname",
 					      _PyUnicode_FromString(dsoname));
 
+		addr_location__exit(&al);
 		PyList_Append(pylist, pyelem);
 		Py_DECREF(pyelem);
 	}
@@ -596,7 +600,6 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 	PyObject *pylist;
 	u64 i;
 	char bf[512];
-	struct addr_location al;
 
 	pylist = PyList_New(0);
 	if (!pylist)
@@ -607,7 +610,9 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 
 	for (i = 0; i < br->nr; i++) {
 		PyObject *pyelem;
+		struct addr_location al;
 
+		addr_location__init(&al);
 		pyelem = PyDict_New();
 		if (!pyelem)
 			Py_FatalError("couldn't create Python dictionary");
@@ -646,6 +651,7 @@ static PyObject *python_process_brstacksym(struct perf_sample *sample,
 
 		PyList_Append(pylist, pyelem);
 		Py_DECREF(pyelem);
+		addr_location__exit(&al);
 	}
 
 exit:
@@ -733,6 +739,9 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, ch
 
 	bf[0] = 0;
 
+	if (size <= 0)
+		return;
+
 	if (!regs || !regs->regs)
 		return;
 
@@ -760,17 +769,18 @@ static void set_regs_in_dict(PyObject *dict,
 	 * 10 chars is for register name.
 	 */
 	int size = __sw_hweight64(attr->sample_regs_intr) * 28;
-	char bf[size];
+	char *bf = malloc(size);
 
-	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, sizeof(bf));
+	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, size);
 
 	pydict_set_item_string_decref(dict, "iregs",
 			_PyUnicode_FromString(bf));
 
-	regs_map(&sample->user_regs, attr->sample_regs_user, arch, bf, sizeof(bf));
+	regs_map(&sample->user_regs, attr->sample_regs_user, arch, bf, size);
 
 	pydict_set_item_string_decref(dict, "uregs",
 			_PyUnicode_FromString(bf));
+	free(bf);
 }
 
 static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
@@ -934,6 +944,9 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	unsigned long long nsecs = sample->time;
 	const char *comm = thread__comm_str(al->thread);
 	const char *default_handler_name = "trace_unhandled";
+	DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
+
+	bitmap_zero(events_defined, TRACE_EVENT_TYPE_MAX);
 
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),
@@ -1162,11 +1175,11 @@ static int python_export_thread(struct db_export *dbe, struct thread *thread,
 
 	t = tuple_new(5);
 
-	tuple_set_d64(t, 0, thread->db_id);
+	tuple_set_d64(t, 0, thread__db_id(thread));
 	tuple_set_d64(t, 1, machine->db_id);
 	tuple_set_d64(t, 2, main_thread_db_id);
-	tuple_set_s32(t, 3, thread->pid_);
-	tuple_set_s32(t, 4, thread->tid);
+	tuple_set_s32(t, 3, thread__pid(thread));
+	tuple_set_s32(t, 4, thread__tid(thread));
 
 	call_object(tables->thread_handler, t, "thread_table");
 
@@ -1185,7 +1198,7 @@ static int python_export_comm(struct db_export *dbe, struct comm *comm,
 
 	tuple_set_d64(t, 0, comm->db_id);
 	tuple_set_string(t, 1, comm__str(comm));
-	tuple_set_d64(t, 2, thread->db_id);
+	tuple_set_d64(t, 2, thread__db_id(thread));
 	tuple_set_d64(t, 3, comm->start);
 	tuple_set_s32(t, 4, comm->exec);
 
@@ -1206,7 +1219,7 @@ static int python_export_comm_thread(struct db_export *dbe, u64 db_id,
 
 	tuple_set_d64(t, 0, db_id);
 	tuple_set_d64(t, 1, comm->db_id);
-	tuple_set_d64(t, 2, thread->db_id);
+	tuple_set_d64(t, 2, thread__db_id(thread));
 
 	call_object(tables->comm_thread_handler, t, "comm_thread_table");
 
@@ -1291,7 +1304,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
 	tuple_set_d64(t, 2, maps__machine(es->al->maps)->db_id);
-	tuple_set_d64(t, 3, es->al->thread->db_id);
+	tuple_set_d64(t, 3, thread__db_id(es->al->thread));
 	tuple_set_d64(t, 4, es->comm_db_id);
 	tuple_set_d64(t, 5, es->dso_db_id);
 	tuple_set_d64(t, 6, es->sym_db_id);
@@ -1381,7 +1394,7 @@ static int python_export_call_return(struct db_export *dbe,
 	t = tuple_new(14);
 
 	tuple_set_d64(t, 0, cr->db_id);
-	tuple_set_d64(t, 1, cr->thread->db_id);
+	tuple_set_d64(t, 1, thread__db_id(cr->thread));
 	tuple_set_d64(t, 2, comm_db_id);
 	tuple_set_d64(t, 3, cr->cp->db_id);
 	tuple_set_d64(t, 4, cr->call_time);

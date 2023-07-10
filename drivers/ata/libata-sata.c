@@ -11,7 +11,9 @@
 #include <linux/module.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
 #include <linux/libata.h>
+#include <asm/unaligned.h>
 
 #include "libata.h"
 #include "libata-transport.h"
@@ -907,10 +909,17 @@ static ssize_t ata_ncq_prio_enable_store(struct device *device,
 		goto unlock;
 	}
 
-	if (input)
+	if (input) {
+		if (dev->flags & ATA_DFLAG_CDL_ENABLED) {
+			ata_dev_err(dev,
+				"CDL must be disabled to enable NCQ priority\n");
+			rc = -EINVAL;
+			goto unlock;
+		}
 		dev->flags |= ATA_DFLAG_NCQ_PRIO_ENABLED;
-	else
+	} else {
 		dev->flags &= ~ATA_DFLAG_NCQ_PRIO_ENABLED;
+	}
 
 unlock:
 	spin_unlock_irq(ap->lock);
@@ -1023,7 +1032,6 @@ EXPORT_SYMBOL_GPL(dev_attr_sw_activity);
 /**
  *	ata_change_queue_depth - Set a device maximum queue depth
  *	@ap: ATA port of the target device
- *	@dev: target ATA device
  *	@sdev: SCSI device to configure queue depth for
  *	@queue_depth: new queue depth
  *
@@ -1031,33 +1039,47 @@ EXPORT_SYMBOL_GPL(dev_attr_sw_activity);
  *	and libata.
  *
  */
-int ata_change_queue_depth(struct ata_port *ap, struct ata_device *dev,
-			   struct scsi_device *sdev, int queue_depth)
+int ata_change_queue_depth(struct ata_port *ap, struct scsi_device *sdev,
+			   int queue_depth)
 {
+	struct ata_device *dev;
 	unsigned long flags;
+	int max_queue_depth;
 
-	if (!dev || !ata_dev_enabled(dev))
-		return sdev->queue_depth;
-
-	if (queue_depth < 1 || queue_depth == sdev->queue_depth)
-		return sdev->queue_depth;
-
-	/* NCQ enabled? */
 	spin_lock_irqsave(ap->lock, flags);
-	dev->flags &= ~ATA_DFLAG_NCQ_OFF;
-	if (queue_depth == 1 || !ata_ncq_enabled(dev)) {
+
+	dev = ata_scsi_find_dev(ap, sdev);
+	if (!dev || queue_depth < 1 || queue_depth == sdev->queue_depth) {
+		spin_unlock_irqrestore(ap->lock, flags);
+		return sdev->queue_depth;
+	}
+
+	/*
+	 * Make sure that the queue depth requested does not exceed the device
+	 * capabilities.
+	 */
+	max_queue_depth = min(ATA_MAX_QUEUE, sdev->host->can_queue);
+	max_queue_depth = min(max_queue_depth, ata_id_queue_depth(dev->id));
+	if (queue_depth > max_queue_depth) {
+		spin_unlock_irqrestore(ap->lock, flags);
+		return -EINVAL;
+	}
+
+	/*
+	 * If NCQ is not supported by the device or if the target queue depth
+	 * is 1 (to disable drive side command queueing), turn off NCQ.
+	 */
+	if (queue_depth == 1 || !ata_ncq_supported(dev)) {
 		dev->flags |= ATA_DFLAG_NCQ_OFF;
 		queue_depth = 1;
+	} else {
+		dev->flags &= ~ATA_DFLAG_NCQ_OFF;
 	}
+
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	/* limit and apply queue depth */
-	queue_depth = min(queue_depth, sdev->host->can_queue);
-	queue_depth = min(queue_depth, ata_id_queue_depth(dev->id));
-	queue_depth = min(queue_depth, ATA_MAX_QUEUE);
-
-	if (sdev->queue_depth == queue_depth)
-		return -EINVAL;
+	if (queue_depth == sdev->queue_depth)
+		return sdev->queue_depth;
 
 	return scsi_change_queue_depth(sdev, queue_depth);
 }
@@ -1082,8 +1104,7 @@ int ata_scsi_change_queue_depth(struct scsi_device *sdev, int queue_depth)
 {
 	struct ata_port *ap = ata_shost_to_port(sdev->host);
 
-	return ata_change_queue_depth(ap, ata_scsi_find_dev(ap, sdev),
-				      sdev, queue_depth);
+	return ata_change_queue_depth(ap, sdev, queue_depth);
 }
 EXPORT_SYMBOL_GPL(ata_scsi_change_queue_depth);
 
@@ -1402,6 +1423,95 @@ static int ata_eh_read_log_10h(struct ata_device *dev,
 }
 
 /**
+ *	ata_eh_read_sense_success_ncq_log - Read the sense data for successful
+ *					    NCQ commands log
+ *	@link: ATA link to get sense data for
+ *
+ *	Read the sense data for successful NCQ commands log page to obtain
+ *	sense data for all NCQ commands that completed successfully with
+ *	the sense data available bit set.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_eh_read_sense_success_ncq_log(struct ata_link *link)
+{
+	struct ata_device *dev = link->device;
+	struct ata_port *ap = dev->link->ap;
+	u8 *buf = ap->ncq_sense_buf;
+	struct ata_queued_cmd *qc;
+	unsigned int err_mask, tag;
+	u8 *sense, sk = 0, asc = 0, ascq = 0;
+	u64 sense_valid, val;
+	int ret = 0;
+
+	err_mask = ata_read_log_page(dev, ATA_LOG_SENSE_NCQ, 0, buf, 2);
+	if (err_mask) {
+		ata_dev_err(dev,
+			"Failed to read Sense Data for Successful NCQ Commands log\n");
+		return -EIO;
+	}
+
+	/* Check the log header */
+	val = get_unaligned_le64(&buf[0]);
+	if ((val & 0xffff) != 1 || ((val >> 16) & 0xff) != 0x0f) {
+		ata_dev_err(dev,
+			"Invalid Sense Data for Successful NCQ Commands log\n");
+		return -EIO;
+	}
+
+	sense_valid = (u64)buf[8] | ((u64)buf[9] << 8) |
+		((u64)buf[10] << 16) | ((u64)buf[11] << 24);
+
+	ata_qc_for_each_raw(ap, qc, tag) {
+		if (!(qc->flags & ATA_QCFLAG_EH) ||
+		    !(qc->flags & ATA_QCFLAG_EH_SUCCESS_CMD) ||
+		    qc->err_mask ||
+		    ata_dev_phys_link(qc->dev) != link)
+			continue;
+
+		/*
+		 * If the command does not have any sense data, clear ATA_SENSE.
+		 * Keep ATA_QCFLAG_EH_SUCCESS_CMD so that command is finished.
+		 */
+		if (!(sense_valid & (1ULL << tag))) {
+			qc->result_tf.status &= ~ATA_SENSE;
+			continue;
+		}
+
+		sense = &buf[32 + 24 * tag];
+		sk = sense[0];
+		asc = sense[1];
+		ascq = sense[2];
+
+		if (!ata_scsi_sense_is_valid(sk, asc, ascq)) {
+			ret = -EIO;
+			continue;
+		}
+
+		/* Set sense without also setting scsicmd->result */
+		scsi_build_sense_buffer(dev->flags & ATA_DFLAG_D_SENSE,
+					qc->scsicmd->sense_buffer, sk,
+					asc, ascq);
+		qc->flags |= ATA_QCFLAG_SENSE_VALID;
+
+		/*
+		 * If we have sense data, call scsi_check_sense() in order to
+		 * set the correct SCSI ML byte (if any). No point in checking
+		 * the return value, since the command has already completed
+		 * successfully.
+		 */
+		scsi_check_sense(qc->scsicmd);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ata_eh_read_sense_success_ncq_log);
+
+/**
  *	ata_eh_analyze_ncq_error - analyze NCQ error
  *	@link: ATA link to analyze NCQ error for
  *
@@ -1481,6 +1591,7 @@ void ata_eh_analyze_ncq_error(struct ata_link *link)
 
 	ata_qc_for_each_raw(ap, qc, tag) {
 		if (!(qc->flags & ATA_QCFLAG_EH) ||
+		    qc->flags & ATA_QCFLAG_EH_SUCCESS_CMD ||
 		    ata_dev_phys_link(qc->dev) != link)
 			continue;
 

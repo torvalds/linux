@@ -52,6 +52,7 @@ static const char *phy_state_to_str(enum phy_state st)
 	PHY_STATE_STR(NOLINK)
 	PHY_STATE_STR(CABLETEST)
 	PHY_STATE_STR(HALTED)
+	PHY_STATE_STR(ERROR)
 	}
 
 	return NULL;
@@ -1184,7 +1185,7 @@ void phy_stop_machine(struct phy_device *phydev)
 static void phy_process_error(struct phy_device *phydev)
 {
 	mutex_lock(&phydev->lock);
-	phydev->state = PHY_HALTED;
+	phydev->state = PHY_ERROR;
 	mutex_unlock(&phydev->lock);
 
 	phy_trigger_machine(phydev);
@@ -1198,10 +1199,10 @@ static void phy_error_precise(struct phy_device *phydev,
 }
 
 /**
- * phy_error - enter HALTED state for this PHY device
+ * phy_error - enter ERROR state for this PHY device
  * @phydev: target phy_device struct
  *
- * Moves the PHY to the HALTED state in response to a read
+ * Moves the PHY to the ERROR state in response to a read
  * or write error, and tells the controller the link is down.
  * Must not be called from interrupt context, or while the
  * phydev->lock is held.
@@ -1326,7 +1327,8 @@ void phy_stop(struct phy_device *phydev)
 	struct net_device *dev = phydev->attached_dev;
 	enum phy_state old_state;
 
-	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN) {
+	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
+	    phydev->state != PHY_ERROR) {
 		WARN(1, "called from state %s\n",
 		     phy_state_to_str(phydev->state));
 		return;
@@ -1443,6 +1445,7 @@ void phy_state_machine(struct work_struct *work)
 		}
 		break;
 	case PHY_HALTED:
+	case PHY_ERROR:
 		if (phydev->link) {
 			phydev->link = 0;
 			phy_link_down(phydev);

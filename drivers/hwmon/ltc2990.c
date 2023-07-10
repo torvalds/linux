@@ -268,7 +268,7 @@ static struct i2c_driver ltc2990_i2c_driver = {
 	.driver = {
 		.name = "ltc2990",
 	},
-	.probe_new = ltc2990_i2c_probe,
+	.probe = ltc2990_i2c_probe,
 	.id_table = ltc2990_i2c_id,
 };
 
