@@ -68,13 +68,15 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 	struct hash_ctx *ctx = ask->private;
 	ssize_t copied = 0;
 	size_t len, max_pages, npages;
-	bool continuing = ctx->more, need_init = false;
+	bool continuing, need_init = false;
 	int err;
 
 	max_pages = min_t(size_t, ALG_MAX_PAGES,
 			  DIV_ROUND_UP(sk->sk_sndbuf, PAGE_SIZE));
 
 	lock_sock(sk);
+	continuing = ctx->more;
+
 	if (!continuing) {
 		/* Discard a previous request that wasn't marked MSG_MORE. */
 		hash_free_result(sk, ctx);
