@@ -344,6 +344,19 @@ static int bch2_fs_read_write_late(struct bch_fs *c)
 {
 	int ret;
 
+	/*
+	 * Data move operations can't run until after check_snapshots has
+	 * completed, and bch2_snapshot_is_ancestor() is available.
+	 *
+	 * Ideally we'd start copygc/rebalance earlier instead of waiting for
+	 * all of recovery/fsck to complete:
+	 */
+	ret = bch2_copygc_start(c);
+	if (ret) {
+		bch_err(c, "error starting copygc thread");
+		return ret;
+	}
+
 	ret = bch2_rebalance_start(c);
 	if (ret) {
 		bch_err(c, "error starting rebalance thread");
@@ -400,12 +413,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	ret = bch2_gc_thread_start(c);
 	if (ret) {
 		bch_err(c, "error starting gc thread");
-		return ret;
-	}
-
-	ret = bch2_copygc_start(c);
-	if (ret) {
-		bch_err(c, "error starting copygc thread");
 		return ret;
 	}
 
