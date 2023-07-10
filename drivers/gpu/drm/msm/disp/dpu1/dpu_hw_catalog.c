@@ -441,14 +441,6 @@ static const struct dpu_dspp_sub_blks sdm845_dspp_sblk = {
 		.len = 0x90, .version = 0x40000},
 };
 
-#define DSPP_BLK(_name, _id, _base, _mask, _sblk) \
-		{\
-		.name = _name, .id = _id, \
-		.base = _base, .len = 0x1800, \
-		.features = _mask, \
-		.sblk = _sblk \
-		}
-
 /*************************************************************
  * PINGPONG sub blocks config
  *************************************************************/

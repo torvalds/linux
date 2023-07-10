@@ -68,8 +68,12 @@ static const struct dpu_lm_cfg sm6375_lm[] = {
 };
 
 static const struct dpu_dspp_cfg sm6375_dspp[] = {
-	DSPP_BLK("dspp_0", DSPP_0, 0x54000, DSPP_SC7180_MASK,
-		&sdm845_dspp_sblk),
+	{
+		.name = "dspp_0", .id = DSPP_0,
+		.base = 0x54000, .len = 0x1800,
+		.features = DSPP_SC7180_MASK,
+		.sblk = &sdm845_dspp_sblk,
+	},
 };
 
 static const struct dpu_pingpong_cfg sm6375_pp[] = {
