@@ -1320,7 +1320,7 @@ struct tc_action_ops *tc_action_load_ops(struct nlattr *nla, bool police,
 			return ERR_PTR(err);
 		}
 	} else {
-		if (strlcpy(act_name, "police", IFNAMSIZ) >= IFNAMSIZ) {
+		if (strscpy(act_name, "police", IFNAMSIZ) < 0) {
 			NL_SET_ERR_MSG(extack, "TC action name too long");
 			return ERR_PTR(-EINVAL);
 		}
