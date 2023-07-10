@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __SOC_QCOM_RPMH_H__
@@ -54,13 +55,13 @@ static inline int rpmh_write_batch(const struct device *dev,
 				   const struct tcs_cmd *cmd, u32 *n)
 { return -ENODEV; }
 
-static int rpmh_mode_solver_set(const struct device *dev, bool enable)
+static inline int rpmh_mode_solver_set(const struct device *dev, bool enable)
 { return -ENODEV; }
 
-static int rpmh_write_sleep_and_wake(const struct device *dev)
+static inline int rpmh_write_sleep_and_wake(const struct device *dev)
 { return -ENODEV; }
 
-static int rpmh_write_sleep_and_wake_no_child(const struct device *dev)
+static inline int rpmh_write_sleep_and_wake_no_child(const struct device *dev)
 { return -ENODEV; }
 
 static inline void rpmh_invalidate(const struct device *dev)
@@ -76,13 +77,13 @@ static inline int rpmh_update_fast_path(const struct device *dev,
 					u32 update_mask)
 { return -ENODEV; }
 
-int rpmh_drv_start(const struct device *dev)
+static inline int rpmh_drv_start(const struct device *dev)
 { return -ENODEV; }
 
-int rpmh_drv_stop(const struct device *dev)
+static inline int rpmh_drv_stop(const struct device *dev)
 { return -ENODEV; }
 
-static const struct device *rpmh_get_device(char *name, u32 drv_id)
+static inline const struct device *rpmh_get_device(char *name, u32 drv_id)
 { return ERR_PTR(-ENODEV); }
 #endif /* CONFIG_QCOM_RPMH */
 
