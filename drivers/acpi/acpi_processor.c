@@ -559,13 +559,41 @@ bool __init processor_physically_present(acpi_handle handle)
 	return !invalid_logical_cpuid(cpuid);
 }
 
+/* vendor specific UUID indicating an Intel platform */
+static u8 sb_uuid_str[] = "4077A616-290C-47BE-9EBD-D87058713953";
 static bool acpi_hwp_native_thermal_lvt_set;
+
+static acpi_status __init acpi_processor_osc(acpi_handle handle, u32 lvl,
+					     void *context, void **rv)
+{
+	u32 capbuf[2] = {};
+	struct acpi_osc_context osc_context = {
+		.uuid_str = sb_uuid_str,
+		.rev = 1,
+		.cap.length = 8,
+		.cap.pointer = capbuf,
+	};
+	acpi_status status;
+
+	if (!processor_physically_present(handle))
+		return AE_OK;
+
+	arch_acpi_set_proc_cap_bits(&capbuf[OSC_SUPPORT_DWORD]);
+
+	status = acpi_run_osc(handle, &osc_context);
+	if (ACPI_FAILURE(status))
+		return status;
+
+	kfree(osc_context.ret.pointer);
+
+	return AE_OK;
+}
+
 static acpi_status __init acpi_hwp_native_thermal_lvt_osc(acpi_handle handle,
 							  u32 lvl,
 							  void *context,
 							  void **rv)
 {
-	u8 sb_uuid_str[] = "4077A616-290C-47BE-9EBD-D87058713953";
 	u32 capbuf[2];
 	struct acpi_osc_context osc_context = {
 		.uuid_str = sb_uuid_str,

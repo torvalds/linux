@@ -115,6 +115,9 @@ static inline void arch_acpi_set_proc_cap_bits(u32 *cap)
 	if (cpu_has(c, X86_FEATURE_ACPI))
 		*cap |= ACPI_PROC_CAP_T_FFH;
 
+	if (cpu_has(c, X86_FEATURE_HWP))
+		*cap |= ACPI_PROC_CAP_COLLAB_PROC_PERF;
+
 	/*
 	 * If mwait/monitor is unsupported, C_C1_FFH and
 	 * C2/C3_FFH will be disabled.
