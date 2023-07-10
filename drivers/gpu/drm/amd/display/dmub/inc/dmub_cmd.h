@@ -149,39 +149,40 @@
 union abm_flags {
 	struct {
 		/**
-		 * @abm_enabled: indicates if abm is enabled.
+		 * @abm_enabled: Indicates if ABM is enabled.
 		 */
 		unsigned int abm_enabled : 1;
 
 		/**
-		 * @disable_abm_requested: indicates if driver has requested abm to be disabled.
+		 * @disable_abm_requested: Indicates if driver has requested ABM to be disabled.
 		 */
 		unsigned int disable_abm_requested : 1;
 
 		/**
-		 * @disable_abm_immediately: indicates if driver has requested abm to be disabled immediately.
+		 * @disable_abm_immediately: Indicates if driver has requested ABM to be disabled
+		 * immediately.
 		 */
 		unsigned int disable_abm_immediately : 1;
 
 		/**
-		 * @disable_abm_immediate_keep_gain: indicates if driver has requested abm
+		 * @disable_abm_immediate_keep_gain: Indicates if driver has requested ABM
 		 * to be disabled immediately and keep gain.
 		 */
 		unsigned int disable_abm_immediate_keep_gain : 1;
 
 		/**
-		 * @fractional_pwm: indicates if fractional duty cycle for backlight pwm is enabled.
+		 * @fractional_pwm: Indicates if fractional duty cycle for backlight PWM is enabled.
 		 */
 		unsigned int fractional_pwm : 1;
 
 		/**
-		 * @abm_gradual_bl_change: indicates if algorithm has completed gradual adjustment
+		 * @abm_gradual_bl_change: Indicates if algorithm has completed gradual adjustment
 		 * of user backlight level.
 		 */
 		unsigned int abm_gradual_bl_change : 1;
 	} bitfields;
 
-	unsigned int u32all;
+	unsigned int u32All;
 };
 
 struct abm_save_restore {
@@ -192,7 +193,7 @@ struct abm_save_restore {
 
 	/**
 	 * @pause: true:  pause ABM and get state
-	 *         false: un-pause ABM after setting state
+	 *         false: unpause ABM after setting state
 	 */
 	uint32_t pause;
 
@@ -2764,7 +2765,7 @@ enum dmub_cmd_abm_type {
 	DMUB_CMD__ABM_PAUSE	= 6,
 
 	/**
-	 * * Save and Restore ABM state. On save we save parameters, and
+	 * Save and Restore ABM state. On save we save parameters, and
 	 * on restore we update state with passed in data.
 	 */
 	DMUB_CMD__ABM_SAVE_RESTORE	= 7,
@@ -3151,6 +3152,7 @@ struct dmub_cmd_abm_pause_data {
 	 */
 	uint8_t pad[1];
 };
+
 
 /**
  * Definition of a DMUB_CMD__ABM_PAUSE command.
