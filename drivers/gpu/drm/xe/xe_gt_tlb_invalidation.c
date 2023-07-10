@@ -333,8 +333,11 @@ int xe_guc_tlb_invalidation_done_handler(struct xe_guc *guc, u32 *msg, u32 len)
 			expected_seqno, msg[0]);
 	}
 
+	/*
+	 * wake_up_all() and wait_event_timeout() already have the correct
+	 * barriers.
+	 */
 	gt->tlb_invalidation.seqno_recv = msg[0];
-	smp_wmb();
 	wake_up_all(&guc->ct.wq);
 
 	fence = list_first_entry_or_null(&gt->tlb_invalidation.pending_fences,
