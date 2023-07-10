@@ -346,7 +346,10 @@ static bool h2g_has_room(struct xe_guc_ct *ct, u32 cmd_len)
 
 static bool g2h_has_room(struct xe_guc_ct *ct, u32 g2h_len)
 {
-	lockdep_assert_held(&ct->lock);
+	if (!g2h_len)
+		return true;
+
+	lockdep_assert_held(&ct->fast_lock);
 
 	return ct->ctbs.g2h.info.space > g2h_len;
 }
@@ -367,15 +370,15 @@ static void h2g_reserve_space(struct xe_guc_ct *ct, u32 cmd_len)
 	ct->ctbs.h2g.info.space -= cmd_len;
 }
 
-static void g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
+static void __g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
 {
 	XE_BUG_ON(g2h_len > ct->ctbs.g2h.info.space);
 
 	if (g2h_len) {
-		spin_lock_irq(&ct->fast_lock);
+		lockdep_assert_held(&ct->fast_lock);
+
 		ct->ctbs.g2h.info.space -= g2h_len;
 		ct->g2h_outstanding += num_g2h;
-		spin_unlock_irq(&ct->fast_lock);
 	}
 }
 
@@ -505,21 +508,26 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		}
 	}
 
+	if (g2h_len)
+		spin_lock_irq(&ct->fast_lock);
 retry:
 	ret = has_room(ct, len + GUC_CTB_HDR_LEN, g2h_len);
 	if (unlikely(ret))
-		goto out;
+		goto out_unlock;
 
 	ret = h2g_write(ct, action, len, g2h_fence ? g2h_fence->seqno : 0,
 			!!g2h_fence);
 	if (unlikely(ret)) {
 		if (ret == -EAGAIN)
 			goto retry;
-		goto out;
+		goto out_unlock;
 	}
 
-	g2h_reserve_space(ct, g2h_len, num_g2h);
+	__g2h_reserve_space(ct, g2h_len, num_g2h);
 	xe_guc_notify(ct_to_guc(ct));
+out_unlock:
+	if (g2h_len)
+		spin_unlock_irq(&ct->fast_lock);
 out:
 	return ret;
 }
