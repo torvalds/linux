@@ -271,8 +271,7 @@ config HW_RANDOM_INGENIC_RNG
 
 config HW_RANDOM_INGENIC_TRNG
 	tristate "Ingenic True Random Number Generator support"
-	depends on HW_RANDOM
-	depends on MACH_X1830
+	depends on MACH_X1830 || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the True Random Number Generator
