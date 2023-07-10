@@ -871,6 +871,7 @@ void svc_recv(struct svc_rqst *rqstp)
 
 	if (serv->sv_stats)
 		serv->sv_stats->netcnt++;
+	percpu_counter_inc(&rqstp->rq_pool->sp_messages_arrived);
 	rqstp->rq_stime = ktime_get();
 	svc_process(rqstp);
 out:
@@ -1420,7 +1421,7 @@ static int svc_pool_stats_show(struct seq_file *m, void *p)
 
 	seq_printf(m, "%u %llu %llu %llu 0\n",
 		   pool->sp_id,
-		   percpu_counter_sum_positive(&pool->sp_sockets_queued),
+		   percpu_counter_sum_positive(&pool->sp_messages_arrived),
 		   percpu_counter_sum_positive(&pool->sp_sockets_queued),
 		   percpu_counter_sum_positive(&pool->sp_threads_woken));
 
