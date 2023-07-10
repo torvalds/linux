@@ -651,6 +651,7 @@ struct snd_soc_dai_link_component {
 	const char *name;
 	struct device_node *of_node;
 	const char *dai_name;
+	struct of_phandle_args *dai_args;
 };
 
 struct snd_soc_dai_link_codec_ch_map {

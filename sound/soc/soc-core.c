@@ -238,9 +238,25 @@ static inline void snd_soc_debugfs_exit(void) { }
 
 #endif
 
+static int snd_soc_is_match_dai_args(struct of_phandle_args *args1,
+				     struct of_phandle_args *args2)
+{
+	if (!args1 || !args2)
+		return 0;
+
+	if (args1->np != args2->np)
+		return 0;
+
+	for (int i = 0; i < args1->args_count; i++)
+		if (args1->args[i] != args2->args[i])
+			return 0;
+
+	return 1;
+}
+
 static inline int snd_soc_dlc_component_is_empty(struct snd_soc_dai_link_component *dlc)
 {
-	return !(dlc->name || dlc->of_node);
+	return !(dlc->dai_args || dlc->name || dlc->of_node);
 }
 
 static inline int snd_soc_dlc_component_is_invalid(struct snd_soc_dai_link_component *dlc)
@@ -250,7 +266,7 @@ static inline int snd_soc_dlc_component_is_invalid(struct snd_soc_dai_link_compo
 
 static inline int snd_soc_dlc_dai_is_empty(struct snd_soc_dai_link_component *dlc)
 {
-	return !dlc->dai_name;
+	return !(dlc->dai_args || dlc->dai_name);
 }
 
 static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
@@ -258,6 +274,9 @@ static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
 {
 	if (!dlc)
 		return 0;
+
+	if (dlc->dai_args)
+		return snd_soc_is_match_dai_args(dai->driver->dai_args, dlc->dai_args);
 
 	if (!dlc->dai_name)
 		return 1;
@@ -798,6 +817,15 @@ static int snd_soc_is_matching_component(
 
 	if (!dlc)
 		return 0;
+
+	if (dlc->dai_args) {
+		struct snd_soc_dai *dai;
+
+		for_each_component_dais(component, dai)
+			if (snd_soc_is_matching_dai(dlc, dai))
+				return 1;
+		return 0;
+	}
 
 	component_of_node = soc_component_to_node(component);
 
