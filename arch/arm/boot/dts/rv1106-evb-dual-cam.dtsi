@@ -7,6 +7,8 @@
  *          sc4336    0x30    lane2~3(dphy2)
  * v1.1.0   gc2053    0x37    lane0~1(dphy1)
  *          gc2053    0x3f    lane2~3(dphy2)
+ * v1.2.0   sc301iot  0x30    lane0~1(dphy1)
+ *          sc301iot  0x32    lane2~3(dphy2)
  */
 
 &csi2_dphy_hw {
@@ -34,6 +36,12 @@
 			csi_dphy_input2: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&gc2053_out>;
+				data-lanes = <1 2>;
+			};
+
+			csi_dphy_input4: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&sc301iot_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -72,6 +80,12 @@
 			csi_dphy_input3: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&gc2053_1_out>;
+				data-lanes = <1 2>;
+			};
+
+			csi_dphy_input5: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&sc301iot_1_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -139,6 +153,28 @@
 		};
 	};
 
+	sc301iot: sc301iot@30 {
+		compatible = "smartsens,sc301iot";
+		status = "okay";
+		reg = <0x30>;
+		clocks = <&cru MCLK_REF_MIPI0>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2349-PC1";
+		rockchip,camera-module-lens-name = "65IRC-F20";
+		port {
+			sc301iot_out: endpoint {
+				remote-endpoint = <&csi_dphy_input4>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
 	sc4336: sc4336@30 {
 		compatible = "smartsens,sc4336";
 		status = "okay";
@@ -178,6 +214,28 @@
 		port {
 			gc2053_1_out: endpoint {
 				remote-endpoint = <&csi_dphy_input3>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+	sc301iot_1: sc301iot_1@32 {
+		compatible = "smartsens,sc301iot";
+		status = "okay";
+		reg = <0x32>;
+		clocks = <&cru MCLK_REF_MIPI1>;
+		clock-names = "xvclk";
+		reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipi_refclk_out1>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CMK-OT2349-PC1";
+		rockchip,camera-module-lens-name = "65IRC-F20";
+		port {
+			sc301iot_1_out: endpoint {
+				remote-endpoint = <&csi_dphy_input5>;
 				data-lanes = <1 2>;
 			};
 		};
