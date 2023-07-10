@@ -51,7 +51,6 @@ def define_autogvm():
         "drivers/regulator/stub-regulator.ko",
         "drivers/regulator/virtio_regulator.ko",
         "drivers/remoteproc/rproc_qcom_common.ko",
-        "drivers/remoteproc/subsystem_notif_virt.ko",
         "drivers/rtc/rtc-pm8xxx.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/hab/msm_hab.ko",
