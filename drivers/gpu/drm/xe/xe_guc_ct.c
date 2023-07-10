@@ -301,8 +301,10 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 		goto err_out;
 
 	mutex_lock(&ct->lock);
+	spin_lock_irq(&ct->fast_lock);
 	ct->g2h_outstanding = 0;
 	ct->enabled = true;
+	spin_unlock_irq(&ct->fast_lock);
 	mutex_unlock(&ct->lock);
 
 	smp_mb();
@@ -319,8 +321,10 @@ err_out:
 
 void xe_guc_ct_disable(struct xe_guc_ct *ct)
 {
-	mutex_lock(&ct->lock);
-	ct->enabled = false;
+	mutex_lock(&ct->lock); /* Serialise dequeue_one_g2h() */
+	spin_lock_irq(&ct->fast_lock); /* Serialise CT fast-path */
+	ct->enabled = false; /* Finally disable CT communication */
+	spin_unlock_irq(&ct->fast_lock);
 	mutex_unlock(&ct->lock);
 
 	xa_destroy(&ct->fence_lookup);
