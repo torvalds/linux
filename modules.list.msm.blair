@@ -69,7 +69,6 @@ phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
 spmi-pmic-arb.ko
 nvmem_qcom-spmi-sdam.ko
-qcom-reboot-reason.ko
 debug_symbol.ko
 minidump.ko
 qcom-dcvs.ko
