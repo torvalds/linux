@@ -2059,6 +2059,16 @@ config VIDEO_SC2336
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC2336 camera.
 
+config VIDEO_SC2355
+	tristate "SmartSens SC2355 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the SmartSens SC2355 sensor.
+	  To compile this driver as a module, choose M here: the
+	  module will be called sc2355.
+
 config VIDEO_SC301IOT
     tristate "SmartSens SC301IOT sensor support"
 	depends on I2C && VIDEO_V4L2
