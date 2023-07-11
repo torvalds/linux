@@ -167,8 +167,12 @@ static int control_msg_handler(struct t7xx_port *port, struct sk_buff *skb)
 	case CTL_ID_HS2_MSG:
 		skb_pull(skb, sizeof(*ctrl_msg_h));
 
-		if (port_conf->rx_ch == PORT_CH_CONTROL_RX) {
-			ret = t7xx_fsm_append_event(ctl, FSM_EVENT_MD_HS2, skb->data,
+		if (port_conf->rx_ch == PORT_CH_CONTROL_RX ||
+		    port_conf->rx_ch == PORT_CH_AP_CONTROL_RX) {
+			int event = port_conf->rx_ch == PORT_CH_CONTROL_RX ?
+				    FSM_EVENT_MD_HS2 : FSM_EVENT_AP_HS2;
+
+			ret = t7xx_fsm_append_event(ctl, event, skb->data,
 						    le32_to_cpu(ctrl_msg_h->data_length));
 			if (ret)
 				dev_err(port->dev, "Failed to append Handshake 2 event");
