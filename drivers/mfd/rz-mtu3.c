@@ -11,6 +11,7 @@
 #include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/rz-mtu3.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
