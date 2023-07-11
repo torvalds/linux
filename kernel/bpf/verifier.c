@@ -25,6 +25,7 @@
 #include <linux/btf_ids.h>
 #include <linux/poison.h>
 #include <linux/module.h>
+#include <linux/cpumask.h>
 
 #include "disasm.h"
 
@@ -9116,19 +9117,33 @@ static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
 {
 	struct bpf_reg_state *ret_reg = &regs[BPF_REG_0];
 
-	if (ret_type != RET_INTEGER ||
-	    (func_id != BPF_FUNC_get_stack &&
-	     func_id != BPF_FUNC_get_task_stack &&
-	     func_id != BPF_FUNC_probe_read_str &&
-	     func_id != BPF_FUNC_probe_read_kernel_str &&
-	     func_id != BPF_FUNC_probe_read_user_str))
+	if (ret_type != RET_INTEGER)
 		return;
 
-	ret_reg->smax_value = meta->msize_max_value;
-	ret_reg->s32_max_value = meta->msize_max_value;
-	ret_reg->smin_value = -MAX_ERRNO;
-	ret_reg->s32_min_value = -MAX_ERRNO;
-	reg_bounds_sync(ret_reg);
+	switch (func_id) {
+	case BPF_FUNC_get_stack:
+	case BPF_FUNC_get_task_stack:
+	case BPF_FUNC_probe_read_str:
+	case BPF_FUNC_probe_read_kernel_str:
+	case BPF_FUNC_probe_read_user_str:
+		ret_reg->smax_value = meta->msize_max_value;
+		ret_reg->s32_max_value = meta->msize_max_value;
+		ret_reg->smin_value = -MAX_ERRNO;
+		ret_reg->s32_min_value = -MAX_ERRNO;
+		reg_bounds_sync(ret_reg);
+		break;
+	case BPF_FUNC_get_smp_processor_id:
+		ret_reg->umax_value = nr_cpu_ids - 1;
+		ret_reg->u32_max_value = nr_cpu_ids - 1;
+		ret_reg->smax_value = nr_cpu_ids - 1;
+		ret_reg->s32_max_value = nr_cpu_ids - 1;
+		ret_reg->umin_value = 0;
+		ret_reg->u32_min_value = 0;
+		ret_reg->smin_value = 0;
+		ret_reg->s32_min_value = 0;
+		reg_bounds_sync(ret_reg);
+		break;
+	}
 }
 
 static int
