@@ -62,6 +62,7 @@
   _dev_info
   __devm_alloc_percpu
   devm_bitmap_zalloc
+  devm_clk_get_optional_enabled
   devm_gen_pool_create
   devm_gpiod_get_index
   devm_ioremap
@@ -77,6 +78,7 @@
   dma_alloc_attrs
   dma_free_attrs
   down_write
+  dummy_irq_chip
   elevator_alloc
   elv_bio_merge_ok
   elv_rb_add
@@ -129,6 +131,7 @@
   I_BDEV
   iio_channel_get
   iio_channel_release
+  iio_read_channel_raw
   init_task
   init_timer_key
   input_close_device
@@ -140,6 +143,8 @@
   ioremap_prot
   iounmap
   iov_iter_kvec
+  __irq_domain_alloc_fwnode
+  irq_domain_free_fwnode
   jiffies
   kasan_flag_enabled
   kasprintf
@@ -218,12 +223,16 @@
   param_ops_ullong
   param_set_uint
   __per_cpu_offset
+  phy_connect_direct
+  phy_find_first
+  phy_get_pause
   phy_resolve_aneg_linkmode
   phy_start_aneg
   pinctrl_get
   pinctrl_put
   __platform_driver_register
   platform_driver_unregister
+  platform_get_ethdev_address
   preempt_schedule
   print_hex_dump
   _printk
@@ -311,8 +320,10 @@
   __traceiter_android_vh_is_fpsimd_save
   __traceiter_android_vh_madvise_pageout_swap_entry
   __traceiter_android_vh_madvise_swapin_walk_pmd_entry
+  __traceiter_android_vh_meminfo_cache_adjust
   __traceiter_android_vh_mutex_wait_finish
   __traceiter_android_vh_mutex_wait_start
+  __traceiter_android_vh_process_madvise_end
   __traceiter_android_vh_ptype_head
   __traceiter_android_vh_rtmutex_wait_finish
   __traceiter_android_vh_rtmutex_wait_start
@@ -320,16 +331,14 @@
   __traceiter_android_vh_rwsem_read_wait_start
   __traceiter_android_vh_rwsem_write_wait_finish
   __traceiter_android_vh_rwsem_write_wait_start
-  __traceiter_android_vh_process_madvise_end
   __traceiter_android_vh_sched_show_task
   __traceiter_android_vh_show_smap
+  __traceiter_android_vh_si_mem_available_adjust
+  __traceiter_android_vh_si_meminfo_adjust
   __traceiter_android_vh_smaps_pte_entry
   __traceiter_android_vh_try_to_freeze_todo
   __traceiter_android_vh_try_to_freeze_todo_unfrozen
   __traceiter_android_vh_watchdog_timer_softlockup
-  __traceiter_android_vh_meminfo_cache_adjust
-  __traceiter_android_vh_si_mem_available_adjust
-  __traceiter_android_vh_si_meminfo_adjust
   __traceiter_block_rq_insert
   __traceiter_console
   __traceiter_hrtimer_expire_entry
@@ -352,8 +361,10 @@
   __tracepoint_android_vh_is_fpsimd_save
   __tracepoint_android_vh_madvise_pageout_swap_entry
   __tracepoint_android_vh_madvise_swapin_walk_pmd_entry
+  __tracepoint_android_vh_meminfo_cache_adjust
   __tracepoint_android_vh_mutex_wait_finish
   __tracepoint_android_vh_mutex_wait_start
+  __tracepoint_android_vh_process_madvise_end
   __tracepoint_android_vh_ptype_head
   __tracepoint_android_vh_rtmutex_wait_finish
   __tracepoint_android_vh_rtmutex_wait_start
@@ -361,16 +372,14 @@
   __tracepoint_android_vh_rwsem_read_wait_start
   __tracepoint_android_vh_rwsem_write_wait_finish
   __tracepoint_android_vh_rwsem_write_wait_start
-  __tracepoint_android_vh_process_madvise_end
   __tracepoint_android_vh_sched_show_task
   __tracepoint_android_vh_show_smap
+  __tracepoint_android_vh_si_mem_available_adjust
+  __tracepoint_android_vh_si_meminfo_adjust
   __tracepoint_android_vh_smaps_pte_entry
   __tracepoint_android_vh_try_to_freeze_todo
   __tracepoint_android_vh_try_to_freeze_todo_unfrozen
   __tracepoint_android_vh_watchdog_timer_softlockup
-  __tracepoint_android_vh_meminfo_cache_adjust
-  __tracepoint_android_vh_si_mem_available_adjust
-  __tracepoint_android_vh_si_meminfo_adjust
   __tracepoint_block_rq_insert
   __tracepoint_console
   __tracepoint_hrtimer_expire_entry
