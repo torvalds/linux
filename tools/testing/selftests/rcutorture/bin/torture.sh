@@ -56,6 +56,7 @@ do_kcsan=no
 do_clocksourcewd=yes
 do_rt=yes
 do_rcutasksflavors=yes
+do_srcu_lockdep=yes
 
 # doyesno - Helper function for yes/no arguments
 function doyesno () {
@@ -87,6 +88,7 @@ usage () {
 	echo "       --do-refscale / --do-no-refscale / --no-refscale"
 	echo "       --do-rt / --do-no-rt / --no-rt"
 	echo "       --do-scftorture / --do-no-scftorture / --no-scftorture"
+	echo "       --do-srcu-lockdep / --do-no-srcu-lockdep / --no-srcu-lockdep"
 	echo "       --duration [ <minutes> | <hours>h | <days>d ]"
 	echo "       --kcsan-kmake-arg kernel-make-arguments"
 	exit 1
@@ -128,6 +130,7 @@ do
 		do_kasan=yes
 		do_kcsan=yes
 		do_clocksourcewd=yes
+		do_srcu_lockdep=yes
 		;;
 	--do-allmodconfig|--do-no-allmodconfig|--no-allmodconfig)
 		do_allmodconfig=`doyesno "$1" --do-allmodconfig`
@@ -160,6 +163,7 @@ do
 		do_kasan=no
 		do_kcsan=no
 		do_clocksourcewd=no
+		do_srcu_lockdep=no
 		;;
 	--do-rcuscale|--do-no-rcuscale|--no-rcuscale)
 		do_rcuscale=`doyesno "$1" --do-rcuscale`
@@ -178,6 +182,9 @@ do
 		;;
 	--do-scftorture|--do-no-scftorture|--no-scftorture)
 		do_scftorture=`doyesno "$1" --do-scftorture`
+		;;
+	--do-srcu-lockdep|--do-no-srcu-lockdep|--no-srcu-lockdep)
+		do_srcu_lockdep=`doyesno "$1" --do-srcu-lockdep`
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(m\|h\|d\|\)$' '^error'
@@ -430,6 +437,23 @@ then
 	# With all post-boot grace periods forced to expedited.
 	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000 rcupdate.rcu_expedited=1"
 	torture_set "rcurttorture-exp" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE03" --trust-make
+fi
+
+if test "$do_srcu_lockdep" = "yes"
+then
+	echo " --- do-srcu-lockdep:" Start `date` | tee -a $T/log
+	tools/testing/selftests/rcutorture/bin/srcu_lockdep.sh --datestamp "$ds/results-srcu-lockdep" > $T/srcu_lockdep.sh.out 2>&1
+	retcode=$?
+	cp $T/srcu_lockdep.sh.out "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+	if test "$retcode" -eq 0
+	then
+		echo "srcu_lockdep($retcode)" "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep" >> $T/successes
+		echo Success >> "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+	else
+		echo "srcu_lockdep($retcode)" "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep" >> $T/failures
+		echo " --- srcu_lockdep Test Summary:" >> "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+		echo " --- Summary: Exit code $retcode from srcu_lockdep.sh, see ds/results-srcu-lockdep" >> "tools/testing/selftests/rcutorture/res/$ds/results-srcu-lockdep/log"
+	fi
 fi
 
 if test "$do_refscale" = yes
