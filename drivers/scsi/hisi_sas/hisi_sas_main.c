@@ -1065,23 +1065,18 @@ EXPORT_SYMBOL_GPL(hisi_sas_phy_enable);
 
 static void hisi_sas_port_notify_formed(struct asd_sas_phy *sas_phy)
 {
-	struct sas_ha_struct *sas_ha = sas_phy->ha;
-	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
 	struct hisi_sas_phy *phy = sas_phy->lldd_phy;
 	struct asd_sas_port *sas_port = sas_phy->port;
 	struct hisi_sas_port *port;
-	unsigned long flags;
 
 	if (!sas_port)
 		return;
 
 	port = to_hisi_sas_port(sas_port);
-	spin_lock_irqsave(&hisi_hba->lock, flags);
 	port->port_attached = 1;
 	port->id = phy->port_id;
 	phy->port = port;
 	sas_port->lldd_port = port;
-	spin_unlock_irqrestore(&hisi_hba->lock, flags);
 }
 
 static void hisi_sas_do_release_task(struct hisi_hba *hisi_hba, struct sas_task *task,
