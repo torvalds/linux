@@ -161,7 +161,7 @@
 			};
 
 			watchdog: watchdog@90060000 {
-				compatible = "arm,amba-primecell";
+				compatible = "arm,primecell";
 				reg = <0x90060000 0x1000>;
 				interrupts = <3>;
 			};
