@@ -1723,6 +1723,10 @@
   __traceiter_android_rvh_gic_v3_set_affinity
   __tracepoint_android_rvh_gic_v3_set_affinity
 
+# required by irq-gic-vh.ko
+  __traceiter_android_vh_gic_set_affinity
+  __tracepoint_android_vh_gic_set_affinity
+
 # required by is-actuator-ak737x.ko
   v4l2_i2c_subdev_init
 
