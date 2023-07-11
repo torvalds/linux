@@ -2098,7 +2098,8 @@ static int memory_failure_dev_pagemap(unsigned long pfn, int flags,
 out:
 	/* drop pgmap ref acquired in caller */
 	put_dev_pagemap(pgmap);
-	action_result(pfn, MF_MSG_DAX, rc ? MF_FAILED : MF_RECOVERED);
+	if (rc != -EOPNOTSUPP)
+		action_result(pfn, MF_MSG_DAX, rc ? MF_FAILED : MF_RECOVERED);
 	return rc;
 }
 
