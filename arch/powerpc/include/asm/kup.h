@@ -52,15 +52,8 @@ __bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 	return false;
 }
 
-static inline void __kuap_lock(void) { }
-static inline void __kuap_save_and_lock(struct pt_regs *regs) { }
 static inline void kuap_user_restore(struct pt_regs *regs) { }
 static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long amr) { }
-
-static inline unsigned long __kuap_get_and_assert_locked(void)
-{
-	return 0;
-}
 
 /*
  * book3s/64/kup-radix.h defines these functions for the !KUAP case to flush
@@ -85,29 +78,24 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 	return __bad_kuap_fault(regs, address, is_write);
 }
 
-static __always_inline void kuap_assert_locked(void)
-{
-	if (kuap_is_disabled())
-		return;
-
-	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
-		__kuap_get_and_assert_locked();
-}
-
 static __always_inline void kuap_lock(void)
 {
+#ifdef __kuap_lock
 	if (kuap_is_disabled())
 		return;
 
 	__kuap_lock();
+#endif
 }
 
 static __always_inline void kuap_save_and_lock(struct pt_regs *regs)
 {
+#ifdef __kuap_save_and_lock
 	if (kuap_is_disabled())
 		return;
 
 	__kuap_save_and_lock(regs);
+#endif
 }
 
 static __always_inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long amr)
@@ -120,10 +108,17 @@ static __always_inline void kuap_kernel_restore(struct pt_regs *regs, unsigned l
 
 static __always_inline unsigned long kuap_get_and_assert_locked(void)
 {
-	if (kuap_is_disabled())
-		return 0;
+#ifdef __kuap_get_and_assert_locked
+	if (!kuap_is_disabled())
+		return __kuap_get_and_assert_locked();
+#endif
+	return 0;
+}
 
-	return __kuap_get_and_assert_locked();
+static __always_inline void kuap_assert_locked(void)
+{
+	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
+		kuap_get_and_assert_locked();
 }
 
 #ifndef CONFIG_PPC_BOOK3S_64

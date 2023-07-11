@@ -30,6 +30,7 @@ static inline void __kuap_lock(void)
 	mtspr(SPRN_PID, 0);
 	isync();
 }
+#define __kuap_lock __kuap_lock
 
 static inline void __kuap_save_and_lock(struct pt_regs *regs)
 {
@@ -37,6 +38,7 @@ static inline void __kuap_save_and_lock(struct pt_regs *regs)
 	mtspr(SPRN_PID, 0);
 	isync();
 }
+#define __kuap_save_and_lock __kuap_save_and_lock
 
 static inline void kuap_user_restore(struct pt_regs *regs)
 {
@@ -56,13 +58,15 @@ static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long kua
 	/* Context synchronisation is performed by rfi */
 }
 
+#ifdef CONFIG_PPC_KUAP_DEBUG
 static inline unsigned long __kuap_get_and_assert_locked(void)
 {
-	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
-		WARN_ON_ONCE(mfspr(SPRN_PID));
+	WARN_ON_ONCE(mfspr(SPRN_PID));
 
 	return 0;
 }
+#define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
+#endif
 
 static inline void __allow_user_access(void __user *to, const void __user *from,
 				       unsigned long size, unsigned long dir)

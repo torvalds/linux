@@ -77,10 +77,6 @@ static inline void kuap_unlock(unsigned long addr, bool ool)
 		kuap_unlock_all_ool();
 }
 
-static inline void __kuap_lock(void)
-{
-}
-
 static inline void __kuap_save_and_lock(struct pt_regs *regs)
 {
 	unsigned long kuap = current->thread.kuap;
@@ -92,6 +88,7 @@ static inline void __kuap_save_and_lock(struct pt_regs *regs)
 	current->thread.kuap = KUAP_NONE;
 	kuap_lock_addr(kuap, false);
 }
+#define __kuap_save_and_lock __kuap_save_and_lock
 
 static inline void kuap_user_restore(struct pt_regs *regs)
 {
@@ -120,6 +117,7 @@ static inline unsigned long __kuap_get_and_assert_locked(void)
 
 	return kuap;
 }
+#define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
 
 static __always_inline void __allow_user_access(void __user *to, const void __user *from,
 						u32 size, unsigned long dir)
