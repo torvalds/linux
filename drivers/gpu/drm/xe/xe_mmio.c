@@ -173,7 +173,8 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
 	if (!xe->mem.vram.io_size)
 		return -EIO;
 
-	xe->mem.vram.base = 0; /* DPA offset */
+	/* XXX: Need to change when xe link code is ready */
+	xe->mem.vram.dpa_base = 0;
 
 	/* set up a map to the total memory area. */
 	xe->mem.vram.mapping = ioremap_wc(xe->mem.vram.io_start, xe->mem.vram.io_size);
@@ -281,7 +282,7 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 			return -ENODEV;
 		}
 
-		tile->mem.vram.base = tile_offset;
+		tile->mem.vram.dpa_base = xe->mem.vram.dpa_base + tile_offset;
 		tile->mem.vram.usable_size = vram_size;
 		tile->mem.vram.mapping = xe->mem.vram.mapping + tile_offset;
 
@@ -304,10 +305,10 @@ int xe_mmio_probe_vram(struct xe_device *xe)
 		io_size -= min_t(u64, tile_size, io_size);
 	}
 
-	xe->mem.vram.size = total_size;
+	xe->mem.vram.actual_physical_size = total_size;
 
 	drm_info(&xe->drm, "Total VRAM: %pa, %pa\n", &xe->mem.vram.io_start,
-		 &xe->mem.vram.size);
+		 &xe->mem.vram.actual_physical_size);
 	drm_info(&xe->drm, "Available VRAM: %pa, %pa\n", &xe->mem.vram.io_start,
 		 &available_size);
 

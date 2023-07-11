@@ -51,6 +51,44 @@ struct xe_ggtt;
 		 struct xe_tile * : (tile__)->xe)
 
 /**
+ * struct xe_mem_region - memory region structure
+ * This is used to describe a memory region in xe
+ * device, such as HBM memory or CXL extension memory.
+ */
+struct xe_mem_region {
+	/** @io_start: IO start address of this VRAM instance */
+	resource_size_t io_start;
+	/**
+	 * @io_size: IO size of this VRAM instance
+	 *
+	 * This represents how much of this VRAM we can access
+	 * via the CPU through the VRAM BAR. This can be smaller
+	 * than @usable_size, in which case only part of VRAM is CPU
+	 * accessible (typically the first 256M). This
+	 * configuration is known as small-bar.
+	 */
+	resource_size_t io_size;
+	/** @dpa_base: This memory regions's DPA (device physical address) base */
+	resource_size_t dpa_base;
+	/**
+	 * @usable_size: usable size of VRAM
+	 *
+	 * Usable size of VRAM excluding reserved portions
+	 * (e.g stolen mem)
+	 */
+	resource_size_t usable_size;
+	/**
+	 * @actual_physical_size: Actual VRAM size
+	 *
+	 * Actual VRAM size including reserved portions
+	 * (e.g stolen mem)
+	 */
+	resource_size_t actual_physical_size;
+	/** @mapping: pointer to VRAM mappable space */
+	void *__iomem mapping;
+};
+
+/**
  * struct xe_tile - hardware tile structure
  *
  * From a driver perspective, a "tile" is effectively a complete GPU, containing
@@ -107,38 +145,7 @@ struct xe_tile {
 		 * Although VRAM is associated with a specific tile, it can
 		 * still be accessed by all tiles' GTs.
 		 */
-		struct {
-			/** @io_start: IO start address of this VRAM instance */
-			resource_size_t io_start;
-			/**
-			 * @io_size: IO size of this VRAM instance
-			 *
-			 * This represents how much of this VRAM we can access
-			 * via the CPU through the VRAM BAR. This can be smaller
-			 * than @size, in which case only part of VRAM is CPU
-			 * accessible (typically the first 256M). This
-			 * configuration is known as small-bar.
-			 */
-			resource_size_t io_size;
-			/** @base: offset of VRAM starting base */
-			resource_size_t base;
-			/**
-			 * @usable_size: usable size of VRAM
-			 *
-			 * Usable size of VRAM excluding reserved portions
-			 * (e.g stolen mem)
-			 */
-			resource_size_t usable_size;
-			/**
-			 * @actual_physical_size: Actual VRAM size
-			 *
-			 * Actual VRAM size including reserved portions
-			 * (e.g stolen mem)
-			 */
-			resource_size_t actual_physical_size;
-			/** @mapping: pointer to VRAM mappable space */
-			void *__iomem mapping;
-		} vram;
+		struct xe_mem_region vram;
 
 		/** @vram_mgr: VRAM TTM manager */
 		struct xe_ttm_vram_mgr *vram_mgr;
@@ -247,28 +254,7 @@ struct xe_device {
 	/** @mem: memory info for device */
 	struct {
 		/** @vram: VRAM info for device */
-		struct {
-			/** @io_start: IO start address of VRAM */
-			resource_size_t io_start;
-			/**
-			 * @io_size: IO size of VRAM.
-			 *
-			 * This represents how much of VRAM the CPU can access
-			 * via the VRAM BAR.
-			 * On systems that do not support large BAR IO space,
-			 * this can be smaller than the actual memory size, in
-			 * which case only part of VRAM is CPU accessible
-			 * (typically the first 256M).  This configuration is
-			 * known as small-bar.
-			 */
-			resource_size_t io_size;
-			/** @size: Total size of VRAM */
-			resource_size_t size;
-			/** @base: Offset to apply for Device Physical Address control */
-			resource_size_t base;
-			/** @mapping: pointer to VRAM mappable space */
-			void *__iomem mapping;
-		} vram;
+		struct xe_mem_region vram;
 		/** @sys_mgr: system TTM manager */
 		struct ttm_resource_manager sys_mgr;
 	} mem;

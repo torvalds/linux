@@ -1469,7 +1469,7 @@ uint64_t vram_region_gpu_offset(struct ttm_resource *res)
 	if (res->mem_type == XE_PL_STOLEN)
 		return xe_ttm_stolen_gpu_offset(xe);
 
-	return xe->mem.vram.base + tile->mem.vram.base;
+	return tile->mem.vram.dpa_base;
 }
 
 /**
