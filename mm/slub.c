@@ -374,22 +374,14 @@ typedef struct { unsigned long v; } freeptr_t;
 static inline freeptr_t freelist_ptr_encode(const struct kmem_cache *s,
 					    void *ptr, unsigned long ptr_addr)
 {
+	unsigned long encoded;
+
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
-	/*
-	 * When CONFIG_KASAN_SW/HW_TAGS is enabled, ptr_addr might be tagged.
-	 * Normally, this doesn't cause any issues, as both set_freepointer()
-	 * and get_freepointer() are called with a pointer with the same tag.
-	 * However, there are some issues with CONFIG_SLUB_DEBUG code. For
-	 * example, when __free_slub() iterates over objects in a cache, it
-	 * passes untagged pointers to check_object(). check_object() in turns
-	 * calls get_freepointer() with an untagged pointer, which causes the
-	 * freepointer to be restored incorrectly.
-	 */
-	return (freeptr_t){.v = (unsigned long)ptr ^ s->random ^
-			swab((unsigned long)kasan_reset_tag((void *)ptr_addr))};
+	encoded = (unsigned long)ptr ^ s->random ^ swab(ptr_addr);
 #else
-	return (freeptr_t){.v = (unsigned long)ptr};
+	encoded = (unsigned long)ptr;
 #endif
+	return (freeptr_t){.v = encoded};
 }
 
 static inline void *freelist_ptr_decode(const struct kmem_cache *s,
@@ -398,9 +390,7 @@ static inline void *freelist_ptr_decode(const struct kmem_cache *s,
 	void *decoded;
 
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
-	/* See the comment in freelist_ptr_encode */
-	decoded = (void *)(ptr.v ^ s->random ^
-		swab((unsigned long)kasan_reset_tag((void *)ptr_addr)));
+	decoded = (void *)(ptr.v ^ s->random ^ swab(ptr_addr));
 #else
 	decoded = (void *)ptr.v;
 #endif
