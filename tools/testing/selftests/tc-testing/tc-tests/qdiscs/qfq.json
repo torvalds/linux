@@ -261,5 +261,43 @@
         "teardown": [
             "$IP link del dev $DUMMY type dummy"
         ]
+    },
+    {
+        "id": "5993",
+        "name": "QFQ with stab overhead greater than max packet len",
+        "category": [
+            "qdisc",
+            "qfq",
+            "scapy"
+        ],
+        "plugins": {
+            "requires": [
+                "nsPlugin",
+                "scapyPlugin"
+            ]
+        },
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true",
+            "$IP link set dev $DUMMY up || /bin/true",
+            "$TC qdisc add dev $DUMMY handle 1: stab mtu 2048 tsize 512 mpu 0 overhead 999999999 linklayer ethernet root qfq",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 qfq weight 100",
+            "$TC qdisc add dev $DEV1 clsact",
+            "$TC filter add dev $DEV1 ingress protocol ip flower dst_ip 1.3.3.7/32 action mirred egress mirror dev $DUMMY"
+        ],
+        "cmdUnderTest": "$TC filter add dev $DUMMY parent 1: matchall classid 1:1",
+        "scapy": [
+            {
+                "iface": "$DEV0",
+                "count": 22,
+                "packet": "Ether(type=0x800)/IP(src='10.0.0.10',dst='1.3.3.7')/TCP(sport=5000,dport=10)"
+            }
+        ],
+        "expExitCode": "0",
+        "verifyCmd": "$TC -s qdisc ls dev $DUMMY",
+        "matchPattern": "dropped 22",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY handle 1: root qfq"
+        ]
     }
 ]
