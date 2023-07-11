@@ -318,7 +318,10 @@ static unsigned long setup_kernel_memory_layout(void)
 	ident_map_size = min(ident_map_size, vmemmap_start);
 	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
 	/* make sure vmemmap doesn't overlay with vmalloc area */
-	VMALLOC_START = max(vmemmap_start + vmemmap_size, VMALLOC_START);
+	if (vmemmap_start + vmemmap_size > VMALLOC_START) {
+		vmemmap_size = SECTION_ALIGN_DOWN(ident_map_size / PAGE_SIZE) * sizeof(struct page);
+		ident_map_size = vmemmap_size / sizeof(struct page) * PAGE_SIZE;
+	}
 	vmemmap = (struct page *)vmemmap_start;
 	/* maximum address for which linear mapping could be created (DCSS, memory) */
 	BUILD_BUG_ON(MAX_DCSS_ADDR > (1UL << MAX_PHYSMEM_BITS));
