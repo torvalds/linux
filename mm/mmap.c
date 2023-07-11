@@ -2484,7 +2484,7 @@ do_mas_align_munmap(struct ma_state *mas, struct vm_area_struct *vma,
 			error = mas_store_gfp(&mas_detach, split, GFP_KERNEL);
 			if (error)
 				goto munmap_gather_failed;
-			if (next->vm_flags & VM_LOCKED)
+			if (split->vm_flags & VM_LOCKED)
 				locked_vm += vma_pages(split);
 
 			count++;
