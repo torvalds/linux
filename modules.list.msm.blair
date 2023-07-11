@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+qcom_cpu_vendor_hooks.ko
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-blair.ko
