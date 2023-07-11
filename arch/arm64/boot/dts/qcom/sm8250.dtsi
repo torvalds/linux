@@ -3694,6 +3694,128 @@
 			};
 		};
 
+		pmu@9091000 {
+			compatible = "qcom,sm8250-llcc-bwmon", "qcom,sc7280-llcc-bwmon";
+			reg = <0 0x09091000 0 0x1000>;
+
+			interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&mc_virt MASTER_LLCC 3 &mc_virt SLAVE_EBI_CH0 3>;
+
+			operating-points-v2 = <&llcc_bwmon_opp_table>;
+
+			llcc_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-800000 {
+					opp-peak-kBps = <(200 * 4 * 1000)>;
+				};
+
+				opp-1200000 {
+					opp-peak-kBps = <(300 * 4 * 1000)>;
+				};
+
+				opp-1804000 {
+					opp-peak-kBps = <(451 * 4 * 1000)>;
+				};
+
+				opp-2188000 {
+					opp-peak-kBps = <(547 * 4 * 1000)>;
+				};
+
+				opp-2724000 {
+					opp-peak-kBps = <(681 * 4 * 1000)>;
+				};
+
+				opp-3072000 {
+					opp-peak-kBps = <(768 * 4 * 1000)>;
+				};
+
+				opp-4068000 {
+					opp-peak-kBps = <(1017 * 4 * 1000)>;
+				};
+
+				/* 1353 MHz, LPDDR4X */
+
+				opp-6220000 {
+					opp-peak-kBps = <(1555 * 4 * 1000)>;
+				};
+
+				opp-7216000 {
+					opp-peak-kBps = <(1804 * 4 * 1000)>;
+				};
+
+				opp-8368000 {
+					opp-peak-kBps = <(2092 * 4 * 1000)>;
+				};
+
+				/* LPDDR5 */
+				opp-10944000 {
+					opp-peak-kBps = <(2736 * 4 * 1000)>;
+				};
+			};
+		};
+
+		pmu@90b6400 {
+			compatible = "qcom,sm8250-cpu-bwmon", "qcom,sdm845-bwmon";
+			reg = <0 0x090b6400 0 0x600>;
+
+			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&gem_noc MASTER_AMPSS_M0 3 &gem_noc SLAVE_LLCC 3>;
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+
+			cpu_bwmon_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-800000 {
+					opp-peak-kBps = <(200 * 4 * 1000)>;
+				};
+
+				opp-1804000 {
+					opp-peak-kBps = <(451 * 4 * 1000)>;
+				};
+
+				opp-2188000 {
+					opp-peak-kBps = <(547 * 4 * 1000)>;
+				};
+
+				opp-2724000 {
+					opp-peak-kBps = <(681 * 4 * 1000)>;
+				};
+
+				opp-3072000 {
+					opp-peak-kBps = <(768 * 4 * 1000)>;
+				};
+
+				/* 1017MHz, 1353 MHz, LPDDR4X */
+
+				opp-6220000 {
+					opp-peak-kBps = <(1555 * 4 * 1000)>;
+				};
+
+				opp-6832000 {
+					opp-peak-kBps = <(1708 * 4 * 1000)>;
+				};
+
+				opp-8368000 {
+					opp-peak-kBps = <(2092 * 4 * 1000)>;
+				};
+
+				/* 2133MHz, LPDDR4X */
+
+				/* LPDDR5 */
+				opp-10944000 {
+					opp-peak-kBps = <(2736 * 4 * 1000)>;
+				};
+
+				/* LPDDR5 */
+				opp-12784000 {
+					opp-peak-kBps = <(3196 * 4 * 1000)>;
+				};
+			};
+		};
+
 		dc_noc: interconnect@90c0000 {
 			compatible = "qcom,sm8250-dc-noc";
 			reg = <0 0x090c0000 0 0x4200>;
