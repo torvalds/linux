@@ -823,7 +823,7 @@ static const struct venus_resources sm8250_res = {
 	.vmem_size = 0,
 	.vmem_addr = 0,
 	.dma_mask = 0xe0000000 - 1,
-	.fwname = "qcom/vpu-1.0/venus.mdt",
+	.fwname = "qcom/vpu-1.0/venus.mbn",
 };
 
 static const struct freq_tbl sc7280_freq_table[] = {
