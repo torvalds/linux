@@ -160,13 +160,15 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	}
 
 	if (MLX5_CAP_GEN(dev, eth_net_offloads)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ETHERNET_OFFLOADS);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ETHERNET_OFFLOADS,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, ipoib_enhanced_offloads)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_IPOIB_ENHANCED_OFFLOADS);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_IPOIB_ENHANCED_OFFLOADS,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
@@ -191,29 +193,30 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, nic_flow_table) ||
 	    MLX5_CAP_GEN(dev, ipoib_enhanced_offloads)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_FLOW_TABLE);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_FLOW_TABLE, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_ESWITCH_MANAGER(dev)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH_FLOW_TABLE);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ESWITCH_FLOW_TABLE,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ESWITCH, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, qos)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_QOS);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_QOS, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, debug))
-		mlx5_core_get_caps(dev, MLX5_CAP_DEBUG);
+		mlx5_core_get_caps_mode(dev, MLX5_CAP_DEBUG, HCA_CAP_OPMOD_GET_CUR);
 
 	if (MLX5_CAP_GEN(dev, pcam_reg))
 		mlx5_get_pcam_reg(dev);
@@ -227,51 +230,52 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 		mlx5_get_qcam_reg(dev);
 
 	if (MLX5_CAP_GEN(dev, device_memory)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_DEV_MEM);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_DEV_MEM, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, event_cap)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_DEV_EVENT);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_DEV_EVENT, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, tls_tx) || MLX5_CAP_GEN(dev, tls_rx)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_TLS);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_TLS, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN_64(dev, general_obj_types) &
 		MLX5_GENERAL_OBJ_TYPES_CAP_VIRTIO_NET_Q) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_VDPA_EMULATION);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_VDPA_EMULATION, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, ipsec_offload)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_IPSEC);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_IPSEC, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, crypto)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_CRYPTO);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_CRYPTO, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN_64(dev, general_obj_types) &
 	    MLX5_GENERAL_OBJ_TYPES_CAP_MACSEC_OFFLOAD) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_MACSEC);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_MACSEC, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, adv_virtualization)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ADV_VIRTUALIZATION);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ADV_VIRTUALIZATION,
+					      HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}

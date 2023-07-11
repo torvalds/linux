@@ -1275,10 +1275,6 @@ enum mlx5_qcam_feature_groups {
 	MLX5_GET(per_protocol_networking_offload_caps,\
 		 mdev->caps.hca[MLX5_CAP_ETHERNET_OFFLOADS]->cur, cap)
 
-#define MLX5_CAP_ETH_MAX(mdev, cap) \
-	MLX5_GET(per_protocol_networking_offload_caps,\
-		 mdev->caps.hca[MLX5_CAP_ETHERNET_OFFLOADS]->max, cap)
-
 #define MLX5_CAP_IPOIB_ENHANCED(mdev, cap) \
 	MLX5_GET(per_protocol_networking_offload_caps,\
 		 mdev->caps.hca[MLX5_CAP_IPOIB_ENHANCED_OFFLOADS]->cur, cap)
@@ -1301,76 +1297,39 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP64_FLOWTABLE(mdev, cap) \
 	MLX5_GET64(flow_table_nic_cap, (mdev)->caps.hca[MLX5_CAP_FLOW_TABLE]->cur, cap)
 
-#define MLX5_CAP_FLOWTABLE_MAX(mdev, cap) \
-	MLX5_GET(flow_table_nic_cap, mdev->caps.hca[MLX5_CAP_FLOW_TABLE]->max, cap)
-
 #define MLX5_CAP_FLOWTABLE_NIC_RX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive.cap)
-
-#define MLX5_CAP_FLOWTABLE_NIC_RX_MAX(mdev, cap) \
-	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_receive.cap)
 
 #define MLX5_CAP_FLOWTABLE_NIC_TX(mdev, cap) \
 		MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_transmit.cap)
 
-#define MLX5_CAP_FLOWTABLE_NIC_TX_MAX(mdev, cap) \
-	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_transmit.cap)
-
 #define MLX5_CAP_FLOWTABLE_SNIFFER_RX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive_sniffer.cap)
-
-#define MLX5_CAP_FLOWTABLE_SNIFFER_RX_MAX(mdev, cap) \
-	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_receive_sniffer.cap)
 
 #define MLX5_CAP_FLOWTABLE_SNIFFER_TX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_transmit_sniffer.cap)
 
-#define MLX5_CAP_FLOWTABLE_SNIFFER_TX_MAX(mdev, cap) \
-	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_transmit_sniffer.cap)
-
 #define MLX5_CAP_FLOWTABLE_RDMA_RX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_receive_rdma.cap)
 
-#define MLX5_CAP_FLOWTABLE_RDMA_RX_MAX(mdev, cap) \
-	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_receive_rdma.cap)
-
 #define MLX5_CAP_FLOWTABLE_RDMA_TX(mdev, cap) \
 	MLX5_CAP_FLOWTABLE(mdev, flow_table_properties_nic_transmit_rdma.cap)
-
-#define MLX5_CAP_FLOWTABLE_RDMA_TX_MAX(mdev, cap) \
-	MLX5_CAP_FLOWTABLE_MAX(mdev, flow_table_properties_nic_transmit_rdma.cap)
 
 #define MLX5_CAP_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET(flow_table_eswitch_cap, \
 		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->cur, cap)
 
-#define MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, cap) \
-	MLX5_GET(flow_table_eswitch_cap, \
-		 mdev->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->max, cap)
-
 #define MLX5_CAP_ESW_FLOWTABLE_FDB(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_nic_esw_fdb.cap)
-
-#define MLX5_CAP_ESW_FLOWTABLE_FDB_MAX(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_nic_esw_fdb.cap)
 
 #define MLX5_CAP_ESW_EGRESS_ACL(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_egress.cap)
 
-#define MLX5_CAP_ESW_EGRESS_ACL_MAX(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_egress.cap)
-
 #define MLX5_CAP_ESW_INGRESS_ACL(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE(mdev, flow_table_properties_esw_acl_ingress.cap)
 
-#define MLX5_CAP_ESW_INGRESS_ACL_MAX(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, flow_table_properties_esw_acl_ingress.cap)
-
 #define MLX5_CAP_ESW_FT_FIELD_SUPPORT_2(mdev, cap) \
 	MLX5_CAP_ESW_FLOWTABLE(mdev, ft_field_support_2_esw_fdb.cap)
-
-#define MLX5_CAP_ESW_FT_FIELD_SUPPORT_2_MAX(mdev, cap) \
-	MLX5_CAP_ESW_FLOWTABLE_MAX(mdev, ft_field_support_2_esw_fdb.cap)
 
 #define MLX5_CAP_ESW(mdev, cap) \
 	MLX5_GET(e_switch_cap, \
@@ -1379,10 +1338,6 @@ enum mlx5_qcam_feature_groups {
 #define MLX5_CAP64_ESW_FLOWTABLE(mdev, cap) \
 	MLX5_GET64(flow_table_eswitch_cap, \
 		(mdev)->caps.hca[MLX5_CAP_ESWITCH_FLOW_TABLE]->cur, cap)
-
-#define MLX5_CAP_ESW_MAX(mdev, cap) \
-	MLX5_GET(e_switch_cap, \
-		 mdev->caps.hca[MLX5_CAP_ESWITCH]->max, cap)
 
 #define MLX5_CAP_PORT_SELECTION(mdev, cap) \
 	MLX5_GET(port_selection_cap, \
@@ -1396,15 +1351,8 @@ enum mlx5_qcam_feature_groups {
 	MLX5_GET(adv_virtualization_cap, \
 		 mdev->caps.hca[MLX5_CAP_ADV_VIRTUALIZATION]->cur, cap)
 
-#define MLX5_CAP_ADV_VIRTUALIZATION_MAX(mdev, cap) \
-	MLX5_GET(adv_virtualization_cap, \
-		 mdev->caps.hca[MLX5_CAP_ADV_VIRTUALIZATION]->max, cap)
-
 #define MLX5_CAP_FLOWTABLE_PORT_SELECTION(mdev, cap) \
 	MLX5_CAP_PORT_SELECTION(mdev, flow_table_properties_port_selection.cap)
-
-#define MLX5_CAP_FLOWTABLE_PORT_SELECTION_MAX(mdev, cap) \
-	MLX5_CAP_PORT_SELECTION_MAX(mdev, flow_table_properties_port_selection.cap)
 
 #define MLX5_CAP_ODP(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, cap)
