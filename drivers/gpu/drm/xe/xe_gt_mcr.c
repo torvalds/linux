@@ -429,7 +429,8 @@ static void mcr_lock(struct xe_gt *gt)
 	drm_WARN_ON_ONCE(&xe->drm, ret == -ETIMEDOUT);
 }
 
-static void mcr_unlock(struct xe_gt *gt) {
+static void mcr_unlock(struct xe_gt *gt)
+{
 	/* Release hardware semaphore */
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270)
 		xe_mmio_write32(gt, STEER_SEMAPHORE, 0x1);
