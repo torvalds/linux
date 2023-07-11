@@ -1908,6 +1908,8 @@ void folio_clear_hugetlb_hwpoison(struct folio *folio)
 {
 	if (folio_test_hugetlb_raw_hwp_unreliable(folio))
 		return;
+	if (folio_test_hugetlb_vmemmap_optimized(folio))
+		return;
 	folio_clear_hwpoison(folio);
 	folio_free_raw_hwp(folio, true);
 }
