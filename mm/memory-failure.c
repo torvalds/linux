@@ -1187,9 +1187,6 @@ static int me_huge_page(struct page_state *ps, struct page *p)
 	struct address_space *mapping;
 	bool extra_pins = false;
 
-	if (!PageHuge(hpage))
-		return MF_DELAYED;
-
 	mapping = page_mapping(hpage);
 	if (mapping) {
 		res = truncate_error_page(hpage, page_to_pfn(p), mapping);
