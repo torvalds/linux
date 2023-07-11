@@ -167,23 +167,7 @@ static void stats_test(int stats_fd)
 	free(stats_data);
 	free(stats_desc);
 	free(id);
-}
 
-
-static void vm_stats_test(struct kvm_vm *vm)
-{
-	int stats_fd = vm_get_stats_fd(vm);
-
-	stats_test(stats_fd);
-	close(stats_fd);
-	TEST_ASSERT(fcntl(stats_fd, F_GETFD) == -1, "Stats fd not freed");
-}
-
-static void vcpu_stats_test(struct kvm_vcpu *vcpu)
-{
-	int stats_fd = vcpu_get_stats_fd(vcpu);
-
-	stats_test(stats_fd);
 	close(stats_fd);
 	TEST_ASSERT(fcntl(stats_fd, F_GETFD) == -1, "Stats fd not freed");
 }
@@ -241,9 +225,11 @@ int main(int argc, char *argv[])
 
 	/* Check stats read for every VM and VCPU */
 	for (i = 0; i < max_vm; ++i) {
-		vm_stats_test(vms[i]);
+		stats_test(vm_get_stats_fd(vms[i]));
+
 		for (j = 0; j < max_vcpu; ++j)
-			vcpu_stats_test(vcpus[i * max_vcpu + j]);
+			stats_test(vcpu_get_stats_fd(vcpus[i * max_vcpu + j]));
+
 		ksft_test_result_pass("vm%i\n", i);
 	}
 
