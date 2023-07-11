@@ -14,6 +14,7 @@
 #include <linux/regmap.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/spinlock.h>
 
 /* SOC */
 #define BATT_MONOTONIC_SOC		0x009
@@ -222,10 +223,11 @@ static bool qcom_fg_sram_check_access(struct qcom_fg_chip *chip)
  */
 static int qcom_fg_sram_request_access(struct qcom_fg_chip *chip)
 {
+	unsigned long flags;
 	bool sram_accessible;
 	int ret;
 
-	spin_lock(&chip->sram_request_lock);
+	spin_lock_irqsave(&chip->sram_request_lock, flags);
 
 	sram_accessible = qcom_fg_sram_check_access(chip);
 
@@ -246,7 +248,7 @@ static int qcom_fg_sram_request_access(struct qcom_fg_chip *chip)
 
 	chip->sram_requests++;
 
-	spin_unlock(&chip->sram_request_lock);
+	spin_unlock_irqrestore(&chip->sram_request_lock, flags);
 
 	/* Wait to get access to SRAM, and try again if interrupted */
 	do {
@@ -298,12 +300,13 @@ static void qcom_fg_sram_release_access(struct qcom_fg_chip *chip)
 static void qcom_fg_sram_release_access_worker(struct work_struct *work)
 {
 	struct qcom_fg_chip *chip;
+	unsigned long flags;
 	bool wait = false;
 	int ret;
 
 	chip = container_of(work, struct qcom_fg_chip, sram_release_access_work.work);
 
-	spin_lock(&chip->sram_request_lock);
+	spin_lock_irqsave(&chip->sram_request_lock, flags);
 
 	/* Request access release if there are still no access requests */
 	if(chip->sram_requests == 0) {
@@ -311,7 +314,7 @@ static void qcom_fg_sram_release_access_worker(struct work_struct *work)
 		wait = true;
 	}
 
-	spin_unlock(&chip->sram_request_lock);
+	spin_unlock_irqrestore(&chip->sram_request_lock, flags);
 
 	if(!wait)
 		return;
