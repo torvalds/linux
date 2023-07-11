@@ -9,16 +9,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/jump_label.h>
-
 #include <asm/reg.h>
-
-extern struct static_key_false disable_kuap_key;
-
-static __always_inline bool kuap_is_disabled(void)
-{
-	return static_branch_unlikely(&disable_kuap_key);
-}
 
 static inline void __kuap_save_and_lock(struct pt_regs *regs)
 {

@@ -230,11 +230,6 @@ static inline u64 current_thread_iamr(void)
 
 #ifdef CONFIG_PPC_KUAP
 
-static __always_inline bool kuap_is_disabled(void)
-{
-	return !mmu_has_feature(MMU_FTR_KUAP);
-}
-
 static inline void kuap_user_restore(struct pt_regs *regs)
 {
 	bool restore_amr = false, restore_iamr = false;
