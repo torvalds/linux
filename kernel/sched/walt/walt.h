@@ -351,6 +351,7 @@ extern unsigned int sysctl_sched_sbt_delay_windows;
 #define WALT_CPUFREQ_PL			0x8
 #define WALT_CPUFREQ_EARLY_DET		0x10
 #define WALT_CPUFREQ_BOOST_UPDATE	0x20
+#define WALT_CPUFREQ_ASYM_FIXUP		0x40
 
 #define CPUFREQ_REASON_LOAD		0
 #define CPUFREQ_REASON_BTR		0x1

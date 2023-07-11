@@ -3987,6 +3987,7 @@ out:
 /**
  * __walt_irq_work_locked() - common function to process work
  * @is_migration: if true, performing migration work, else rollover
+ * @is_asym_migration: if true, performing migration involving an asym cap sibling
  * @lock_cpus: mask of the cpus involved in the operation.
  *
  * In rq locked context, update the cluster group load and find
@@ -3998,7 +3999,8 @@ out:
  * and for migrations it will include the cpus from the two clusters
  * involved in the migration.
  */
-static inline void __walt_irq_work_locked(bool is_migration, struct cpumask *lock_cpus)
+static inline void __walt_irq_work_locked(bool is_migration, bool is_asym_migration,
+				struct cpumask *lock_cpus)
 {
 	struct walt_sched_cluster *cluster;
 	struct rq *rq;
@@ -4066,9 +4068,10 @@ static inline void __walt_irq_work_locked(bool is_migration, struct cpumask *loc
 			if (is_migration) {
 				if (wrq->notif_pending) {
 					wrq->notif_pending = false;
-
 					wflag |= WALT_CPUFREQ_IC_MIGRATION;
 				}
+				if (is_asym_migration)
+					wflag |= WALT_CPUFREQ_ASYM_FIXUP;
 			} else {
 				wflag |= WALT_CPUFREQ_ROLLOVER;
 			}
@@ -4204,7 +4207,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 	struct walt_rq *wrq;
 	int level = 0;
 	int cpu;
-	bool is_migration = false;
+	bool is_migration = false, is_asym_migration = false;
 	u32 wakeup_ctr_sum = 0;
 
 	if (irq_work == &walt_migration_irq_work)
@@ -4222,6 +4225,12 @@ static void walt_irq_work(struct irq_work *irq_work)
 		 */
 		if (cpumask_empty(&lock_cpus))
 			return;
+
+		if (!cluster_partial_halted() &&
+				cpumask_intersects(&lock_cpus, &asym_cap_sibling_cpus)) {
+			cpumask_or(&lock_cpus, &lock_cpus, &asym_cap_sibling_cpus);
+			is_asym_migration = true;
+		}
 	}
 
 	for_each_cpu(cpu, &lock_cpus) {
@@ -4232,7 +4241,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 		level++;
 	}
 
-	__walt_irq_work_locked(is_migration, &lock_cpus);
+	__walt_irq_work_locked(is_migration, is_asym_migration, &lock_cpus);
 
 	if (!is_migration) {
 		for_each_cpu(cpu, cpu_online_mask) {
@@ -5132,6 +5141,13 @@ cleanup:
 			freq_qos_remove_request(req);
 	}
 }
+
+void walt_get_cpus_in_state1(struct cpumask *cpus)
+{
+	cpumask_or(cpus, cpu_partial_halt_mask, &sched_cluster[0]->cpus);
+	cpumask_andnot(cpus, cpus, cpu_halt_mask);
+}
+EXPORT_SYMBOL(walt_get_cpus_in_state1);
 
 static void register_walt_hooks(void)
 {
