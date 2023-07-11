@@ -6,21 +6,21 @@
  */
 
 &cpu6_opp10 {
-	opp-peak-kBps = <22425600>;
+	opp-peak-kBps = <7216000 22425600>;
 };
 
 &cpu6_opp11 {
-	opp-peak-kBps = <22425600>;
+	opp-peak-kBps = <7216000 22425600>;
 };
 
 &cpu6_opp12 {
-	opp-peak-kBps = <23347200>;
+	opp-peak-kBps = <8532000 23347200>;
 };
 
 &cpu6_opp13 {
-	opp-peak-kBps = <23347200>;
+	opp-peak-kBps = <8532000 23347200>;
 };
 
 &cpu6_opp14 {
-	opp-peak-kBps = <23347200>;
+	opp-peak-kBps = <8532000 23347200>;
 };
