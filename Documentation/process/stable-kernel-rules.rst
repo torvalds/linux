@@ -6,31 +6,29 @@ Everything you ever wanted to know about Linux -stable releases
 Rules on what kind of patches are accepted, and which ones are not, into the
 "-stable" tree:
 
+ - It or an equivalent fix must already exist in Linus' tree (upstream).
  - It must be obviously correct and tested.
  - It cannot be bigger than 100 lines, with context.
- - It must fix only one thing.
- - It must fix a real bug that bothers people (not a, "This could be a
-   problem..." type thing).
- - It must fix a problem that causes a build error (but not for things
-   marked CONFIG_BROKEN), an oops, a hang, data corruption, a real
-   security issue, or some "oh, that's not good" issue.  In short, something
-   critical.
- - Serious issues as reported by a user of a distribution kernel may also
-   be considered if they fix a notable performance or interactivity issue.
-   As these fixes are not as obvious and have a higher risk of a subtle
-   regression they should only be submitted by a distribution kernel
-   maintainer and include an addendum linking to a bugzilla entry if it
-   exists and additional information on the user-visible impact.
- - New device IDs and quirks are also accepted.
- - No "theoretical race condition" issues, unless an explanation of how the
-   race can be exploited is also provided.
- - It cannot contain any "trivial" fixes in it (spelling changes,
-   whitespace cleanups, etc).
  - It must follow the
    :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
    rules.
- - It or an equivalent fix must already exist in Linus' tree (upstream).
+ - It must either fix a real bug that bothers people or just add a device ID.
+   To elaborate on the former:
 
+   - It fixes a problem like an oops, a hang, data corruption, a real security
+     issue, a hardware quirk, a build error (but not for things marked
+     CONFIG_BROKEN), or some "oh, that's not good" issue.
+   - Serious issues as reported by a user of a distribution kernel may also
+     be considered if they fix a notable performance or interactivity issue.
+     As these fixes are not as obvious and have a higher risk of a subtle
+     regression they should only be submitted by a distribution kernel
+     maintainer and include an addendum linking to a bugzilla entry if it
+     exists and additional information on the user-visible impact.
+   - No "This could be a problem..." type of things like a "theoretical race
+     condition", unless an explanation of how the bug can be exploited is also
+     provided.
+   - No "trivial" fixes without benefit for users (spelling changes, whitespace
+     cleanups, etc).
 
 Procedure for submitting patches to the -stable tree
 ----------------------------------------------------
