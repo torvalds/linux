@@ -426,6 +426,14 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_rt_rq_load_avg,
 	TP_PROTO(u64 now, struct rq *rq, struct task_struct *tsk, int running),
 	TP_ARGS(now, rq, tsk, running), 1);
 
+DECLARE_HOOK(android_vh_prio_inheritance,
+	TP_PROTO(struct task_struct *p, int *saved_prio, bool *prio_inherited),
+	TP_ARGS(p, saved_prio, prio_inherited));
+
+DECLARE_HOOK(android_vh_prio_restore,
+	TP_PROTO(int saved_prio),
+	TP_ARGS(saved_prio));
+
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
