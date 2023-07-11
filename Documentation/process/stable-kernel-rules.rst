@@ -55,9 +55,10 @@ To have the patch automatically included in the stable tree, add the tag
 
      Cc: stable@vger.kernel.org
 
-in the sign-off area. Once the patch is merged it will be applied to
-the stable tree without anything else needing to be done by the author
-or subsystem maintainer.
+in the sign-off area. To accompany a note to the stable team, use a shell-style
+inline comment (see below for details). Once the patch is merged it will be
+applied to the stable tree without anything else needing to be done by the
+author or subsystem maintainer.
 
 .. _option_2:
 
@@ -138,6 +139,21 @@ The tag has the meaning of:
      git cherry-pick <this commit>
 
 For each "-stable" tree starting with the specified version.
+
+To delay pick up of patches submitted via :ref:`option_1`, use the following
+format:
+
+.. code-block:: none
+
+     Cc: <stable@vger.kernel.org> # after 4 weeks in mainline
+
+For any other requests related to patches submitted via :ref:`option_1`, just
+add a note to the stable tag. This for example can be used to point out known
+problems:
+
+.. code-block:: none
+
+     Cc: <stable@vger.kernel.org> # see patch description, needs adjustments for >= 6.3
 
 Following the submission:
 
