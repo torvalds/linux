@@ -313,9 +313,8 @@ static unsigned long setup_kernel_memory_layout(void)
 	pages = SECTION_ALIGN_UP(pages);
 	/* keep vmemmap_start aligned to a top level region table entry */
 	vmemmap_start = round_down(VMALLOC_START - pages * sizeof(struct page), rte_size);
-	vmemmap_start = min(vmemmap_start, 1UL << MAX_PHYSMEM_BITS);
-	/* maximum mappable address as seen by arch_get_mappable_range() */
-	max_mappable = vmemmap_start;
+	/* maximum address for which linear mapping could be created (DCSS, memory) */
+	max_mappable = min(vmemmap_start, 1UL << MAX_PHYSMEM_BITS);
 	/* make sure identity map doesn't overlay with vmemmap */
 	ident_map_size = min(ident_map_size, vmemmap_start);
 	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
