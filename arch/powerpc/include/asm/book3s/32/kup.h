@@ -14,7 +14,6 @@
 #include <linux/sched.h>
 
 #define KUAP_NONE	(~0UL)
-#define KUAP_ALL	(~1UL)
 
 static inline void kuap_lock_one(unsigned long addr)
 {
@@ -28,41 +27,6 @@ static inline void kuap_unlock_one(unsigned long addr)
 	isync();	/* Context sync required after mtsr() */
 }
 
-static inline void kuap_lock_all(void)
-{
-	update_user_segments(mfsr(0) | SR_KS);
-	isync();	/* Context sync required after mtsr() */
-}
-
-static inline void kuap_unlock_all(void)
-{
-	update_user_segments(mfsr(0) & ~SR_KS);
-	isync();	/* Context sync required after mtsr() */
-}
-
-void kuap_lock_all_ool(void);
-void kuap_unlock_all_ool(void);
-
-static inline void kuap_lock_addr(unsigned long addr, bool ool)
-{
-	if (likely(addr != KUAP_ALL))
-		kuap_lock_one(addr);
-	else if (!ool)
-		kuap_lock_all();
-	else
-		kuap_lock_all_ool();
-}
-
-static inline void kuap_unlock(unsigned long addr, bool ool)
-{
-	if (likely(addr != KUAP_ALL))
-		kuap_unlock_one(addr);
-	else if (!ool)
-		kuap_unlock_all();
-	else
-		kuap_unlock_all_ool();
-}
-
 static inline void __kuap_save_and_lock(struct pt_regs *regs)
 {
 	unsigned long kuap = current->thread.kuap;
@@ -72,7 +36,7 @@ static inline void __kuap_save_and_lock(struct pt_regs *regs)
 		return;
 
 	current->thread.kuap = KUAP_NONE;
-	kuap_lock_addr(kuap, false);
+	kuap_lock_one(kuap);
 }
 #define __kuap_save_and_lock __kuap_save_and_lock
 
@@ -84,7 +48,7 @@ static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long kua
 {
 	if (unlikely(kuap != KUAP_NONE)) {
 		current->thread.kuap = KUAP_NONE;
-		kuap_lock_addr(kuap, false);
+		kuap_lock_one(kuap);
 	}
 
 	if (likely(regs->kuap == KUAP_NONE))
@@ -92,7 +56,7 @@ static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long kua
 
 	current->thread.kuap = regs->kuap;
 
-	kuap_unlock(regs->kuap, false);
+	kuap_unlock_one(regs->kuap);
 }
 
 static inline unsigned long __kuap_get_and_assert_locked(void)
@@ -127,7 +91,7 @@ static __always_inline void __prevent_user_access(unsigned long dir)
 		return;
 
 	current->thread.kuap = KUAP_NONE;
-	kuap_lock_addr(kuap, true);
+	kuap_lock_one(kuap);
 }
 
 static inline unsigned long __prevent_user_access_return(void)
@@ -136,7 +100,7 @@ static inline unsigned long __prevent_user_access_return(void)
 
 	if (flags != KUAP_NONE) {
 		current->thread.kuap = KUAP_NONE;
-		kuap_lock_addr(flags, true);
+		kuap_lock_one(flags);
 	}
 
 	return flags;
@@ -146,7 +110,7 @@ static inline void __restore_user_access(unsigned long flags)
 {
 	if (flags != KUAP_NONE) {
 		current->thread.kuap = flags;
-		kuap_unlock(flags, true);
+		kuap_unlock_one(flags);
 	}
 }
 
@@ -155,14 +119,23 @@ __bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
 	unsigned long kuap = regs->kuap;
 
-	if (!is_write || kuap == KUAP_ALL)
+	if (!is_write)
 		return false;
 	if (kuap == KUAP_NONE)
 		return true;
 
-	/* If faulting address doesn't match unlocked segment, unlock all */
-	if ((kuap ^ address) & 0xf0000000)
-		regs->kuap = KUAP_ALL;
+	/*
+	 * If faulting address doesn't match unlocked segment, change segment.
+	 * In case of unaligned store crossing two segments, emulate store.
+	 */
+	if ((kuap ^ address) & 0xf0000000) {
+		if (!(kuap & 0x0fffffff) && address > kuap - 4 && fix_alignment(regs)) {
+			regs_add_return_ip(regs, 4);
+			emulate_single_step(regs);
+		} else {
+			regs->kuap = address;
+		}
+	}
 
 	return false;
 }
