@@ -647,10 +647,7 @@ void on_introduction1_activate(GtkMenuItem * menuitem, gpointer user_data)
 	    "Although there is no cross reference yet to help you figure out\n"
 	    "what other options must be enabled to support the option you\n"
 	    "are interested in, you can still view the help of a grayed-out\n"
-	    "option.\n"
-	    "\n"
-	    "Toggling Show Debug Info under the Options menu will show \n"
-	    "the dependencies, which you can then match by examining other options.";
+	    "option.";
 
 	dialog = gtk_message_dialog_new(GTK_WINDOW(main_wnd),
 					GTK_DIALOG_DESTROY_WITH_PARENT,
