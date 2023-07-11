@@ -1158,7 +1158,7 @@ TRACE_EVENT(sched_task_util,
 			((struct walt_task_struct *) p->android_vendor_data1)->iowaited;
 		__entry->load_boost		=
 			((struct walt_task_struct *) p->android_vendor_data1)->load_boost;
-		__entry->sync_state		= !cluster_partial_halted();
+		__entry->sync_state		= !is_state1();
 		__entry->pipeline_cpu		=
 			((struct walt_task_struct *) p->android_vendor_data1)->pipeline_cpu;
 	),

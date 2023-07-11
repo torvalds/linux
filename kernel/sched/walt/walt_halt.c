@@ -270,7 +270,7 @@ void restrict_cpus_and_freq(struct cpumask *cpus)
 
 	if (cpumask_intersects(cpus, cpu_partial_halt_mask) &&
 			!cpumask_intersects(cpus, cpu_halt_mask) &&
-			cluster_partial_halted()) {
+			is_state1()) {
 		max_freq_val = (s32)sysctl_max_freq_partial_halt;
 	} else {
 		max_freq_val = FREQ_QOS_MAX_DEFAULT_VALUE;

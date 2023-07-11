@@ -721,7 +721,7 @@ cpu_util_freq_walt(int cpu, struct walt_cpu_load *walt_load, unsigned int *reaso
 	if (!cpumask_test_cpu(cpu, &asym_cap_sibling_cpus))
 		goto finish;
 
-	if (cluster_partial_halted())
+	if (is_state1())
 		goto finish;
 
 	for_each_cpu(i, &asym_cap_sibling_cpus) {
@@ -4314,7 +4314,7 @@ static void walt_irq_work(struct irq_work *irq_work)
 			cpumask_or(&lock_cpus, &lock_cpus, &shared_rail_sibling_cpus);
 			is_shared_rail_migration = true;
 		}
-		if (!cluster_partial_halted() &&
+		if (!is_state1() &&
 				cpumask_intersects(&lock_cpus, &asym_cap_sibling_cpus)) {
 			cpumask_or(&lock_cpus, &lock_cpus, &asym_cap_sibling_cpus);
 			is_asym_migration = true;
