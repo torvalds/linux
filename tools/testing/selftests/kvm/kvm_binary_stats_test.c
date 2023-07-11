@@ -252,6 +252,14 @@ int main(int argc, char *argv[])
 			stats_test(vcpu_get_stats_fd(vcpus[i * max_vcpu + j]));
 		}
 
+		/*
+		 * Close the VM fd and redo the stats tests.  KVM should gift a
+		 * reference (to the VM) to each stats fd, i.e. stats should
+		 * still be accessible even after userspace has put its last
+		 * _direct_ reference to the VM.
+		 */
+		kvm_vm_free(vms[i]);
+
 		stats_test(vm_stats_fds);
 		for (j = 0; j < max_vcpu; ++j)
 			stats_test(vcpu_stats_fds[j]);
@@ -259,8 +267,6 @@ int main(int argc, char *argv[])
 		ksft_test_result_pass("vm%i\n", i);
 	}
 
-	for (i = 0; i < max_vm; ++i)
-		kvm_vm_free(vms[i]);
 	free(vms);
 	free(vcpus);
 	free(vcpu_stats_fds);
