@@ -5602,12 +5602,6 @@ exit:
 }
 EXPORT_SYMBOL(dwc3_msm_set_dp_mode);
 
-int dwc3_msm_release_ss_lane(struct device *dev)
-{
-	return dwc3_msm_set_dp_mode(dev, true, 4);
-}
-EXPORT_SYMBOL(dwc3_msm_release_ss_lane);
-
 static int qos_rec_irq_read(struct seq_file *s, void *p)
 {
 	struct dwc3_msm *mdwc = s->private;
