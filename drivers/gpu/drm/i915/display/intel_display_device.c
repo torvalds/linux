@@ -16,9 +16,6 @@
 #include "intel_display_reg_defs.h"
 #include "intel_fbc.h"
 
-__diag_push();
-__diag_ignore_all("-Woverride-init", "Allow overriding inherited members");
-
 static const struct intel_display_device_info no_display = {};
 
 #define PIPE_A_OFFSET		0x70000
@@ -726,8 +723,6 @@ static const struct intel_display_device_info xe_lpdp_display = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) |
 		BIT(PORT_TC1) | BIT(PORT_TC2) | BIT(PORT_TC3) | BIT(PORT_TC4),
 };
-
-__diag_pop();
 
 #undef INTEL_VGA_DEVICE
 #undef INTEL_QUANTA_VGA_DEVICE
