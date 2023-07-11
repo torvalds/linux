@@ -424,7 +424,7 @@ allOf:
         vdd-l11-l13-supply: true
       patternProperties:
         "^vdd-l[1347]-supply$": true
-        "^vdd-l1[0245789]-supply$": true
+        "^vdd-l1[024579]-supply$": true
         "^vdd-l2[01]-supply$": true
         "^vdd-s[1-8]-supply$": true
 
