@@ -867,9 +867,13 @@ struct mlxsw_sp_acl_rule_info {
 	   egress_bind_blocker:1,
 	   counter_valid:1,
 	   policer_index_valid:1,
-	   ipv6_valid:1;
+	   ipv6_valid:1,
+	   src_port_range_reg_valid:1,
+	   dst_port_range_reg_valid:1;
 	unsigned int counter_index;
 	u16 policer_index;
+	u8 src_port_range_reg_index;
+	u8 dst_port_range_reg_index;
 	struct {
 		u32 prev_val;
 		enum mlxsw_sp_acl_mangle_field prev_field;

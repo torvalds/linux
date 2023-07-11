@@ -344,6 +344,12 @@ void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	if (rulei->action_created)
 		mlxsw_afa_block_destroy(rulei->act_block);
+	if (rulei->src_port_range_reg_valid)
+		mlxsw_sp_port_range_reg_put(mlxsw_sp,
+					    rulei->src_port_range_reg_index);
+	if (rulei->dst_port_range_reg_valid)
+		mlxsw_sp_port_range_reg_put(mlxsw_sp,
+					    rulei->dst_port_range_reg_index);
 	kfree(rulei);
 }
 
