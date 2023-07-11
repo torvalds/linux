@@ -236,6 +236,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < max_vm; ++i)
 		kvm_vm_free(vms[i]);
 	free(vms);
+	free(vcpus);
 
 	ksft_finished();	/* Print results and exit() accordingly */
 }
