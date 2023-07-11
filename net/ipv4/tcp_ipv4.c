@@ -57,6 +57,7 @@
 #include <linux/init.h>
 #include <linux/times.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 #include <net/net_namespace.h>
 #include <net/icmp.h>
@@ -2445,6 +2446,8 @@ static void *established_get_first(struct seq_file *seq)
 		struct sock *sk;
 		struct hlist_nulls_node *node;
 		spinlock_t *lock = inet_ehash_lockp(hinfo, st->bucket);
+
+		cond_resched();
 
 		/* Lockless fast path for the common case of empty buckets */
 		if (empty_bucket(hinfo, st))
