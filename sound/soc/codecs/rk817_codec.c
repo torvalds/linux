@@ -286,10 +286,10 @@ static struct rk817_reg_val_typ playback_power_up_list[] = {
 	{RK817_CODEC_AREF_RTCFG1, 0x40},
 	{RK817_CODEC_DDAC_POPD_DACST, 0x02},
 	/* APLL */
-	{RK817_CODEC_APLL_CFG0, 0x04},
+	/* {RK817_CODEC_APLL_CFG0, 0x04}, */
 	{RK817_CODEC_APLL_CFG1, 0x58},
 	{RK817_CODEC_APLL_CFG2, 0x2d},
-	{RK817_CODEC_APLL_CFG4, 0xa5},
+	/* {RK817_CODEC_APLL_CFG4, 0xa5}, */
 	{RK817_CODEC_APLL_CFG5, 0x00},
 
 	{RK817_CODEC_DI2S_RXCMD_TSD, 0x00},
@@ -324,10 +324,10 @@ static struct rk817_reg_val_typ capture_power_up_list[] = {
 	{RK817_CODEC_AREF_RTCFG1, 0x40},
 	{RK817_CODEC_DADC_SR_ACL0, 0x02},
 	/* {RK817_CODEC_DTOP_DIGEN_CLKE, 0xff}, */
-	{RK817_CODEC_APLL_CFG0, 0x04},
+	/* {RK817_CODEC_APLL_CFG0, 0x04}, */
 	{RK817_CODEC_APLL_CFG1, 0x58},
 	{RK817_CODEC_APLL_CFG2, 0x2d},
-	{RK817_CODEC_APLL_CFG4, 0xa5},
+	/* {RK817_CODEC_APLL_CFG4, 0xa5}, */
 	{RK817_CODEC_APLL_CFG5, 0x00},
 
 	/*{RK817_CODEC_DI2S_RXCMD_TSD, 0x00},*/
@@ -378,12 +378,16 @@ static int rk817_codec_power_up(struct snd_soc_component *component, int type)
 						playback_power_up_list[i].value);
 		}
 
-		/* Re-configure APLL CFG0/4 if (chip_ver <= 0x4) */
+		/* configure APLL CFG0/4 */
 		if (rk817->chip_ver <= 0x4) {
 			DBG("%s (%d): SMIC TudorAG and previous versions\n",
 			    __func__, __LINE__);
 			snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x0c);
 			snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0x95);
+		} else {
+			DBG("%s: SMIC TudorAG version later\n", __func__);
+			snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x04);
+			snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0xa5);
 		}
 
 		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
@@ -405,12 +409,16 @@ static int rk817_codec_power_up(struct snd_soc_component *component, int type)
 						capture_power_up_list[i].value);
 		}
 
-		/* Re-configure APLL CFG0/4 if (chip_ver <= 0x4) */
+		/* configure APLL CFG0/4 */
 		if (rk817->chip_ver <= 0x4) {
 			DBG("%s (%d): SMIC TudorAG and previous versions\n",
 			    __func__, __LINE__);
 			snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x0c);
 			snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0x95);
+		} else {
+			DBG("%s: SMIC TudorAG version later\n", __func__);
+			snd_soc_component_write(component, RK817_CODEC_APLL_CFG0, 0x04);
+			snd_soc_component_write(component, RK817_CODEC_APLL_CFG4, 0xa5);
 		}
 
 		snd_soc_component_update_bits(component, RK817_CODEC_DTOP_DIGEN_CLKE,
