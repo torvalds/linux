@@ -132,7 +132,7 @@ static inline void xe_device_guc_submission_disable(struct xe_device *xe)
 	for ((id__) = 0; (id__) < (xe__)->info.gt_count; (id__)++) \
 		for_each_if((gt__) = xe_device_get_gt((xe__), (id__)))
 
-static inline struct xe_force_wake * gt_to_fw(struct xe_gt *gt)
+static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 {
 	return &gt->mmio.fw;
 }

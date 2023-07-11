@@ -441,7 +441,7 @@ static const u8 *reg_offsets(struct xe_device *xe, enum xe_engine_class class)
 	}
 }
 
-static void set_context_control(u32 * regs, struct xe_hw_engine *hwe)
+static void set_context_control(u32 *regs, struct xe_hw_engine *hwe)
 {
 	regs[CTX_CONTEXT_CONTROL] = _MASKED_BIT_ENABLE(CTX_CTRL_INHIBIT_SYN_CTX_SWITCH) |
 				    _MASKED_BIT_DISABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT) |
