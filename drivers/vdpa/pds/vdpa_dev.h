@@ -39,6 +39,7 @@ struct pds_vdpa_device {
 	u64 req_features;		/* features requested by vdpa */
 	u8 vdpa_index;			/* rsvd for future subdevice use */
 	u8 num_vqs;			/* num vqs in use */
+	u8 mac[ETH_ALEN];		/* mac selected when the device was added */
 	struct vdpa_callback config_cb;
 	struct notifier_block nb;
 };

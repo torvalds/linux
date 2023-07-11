@@ -409,6 +409,8 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 			pdsv->vqs[i].avail_idx = 0;
 			pdsv->vqs[i].used_idx = 0;
 		}
+
+		pds_vdpa_cmd_set_mac(pdsv, pdsv->mac);
 	}
 
 	if (status & ~old_status & VIRTIO_CONFIG_S_FEATURES_OK) {
@@ -532,7 +534,6 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	struct device *dma_dev;
 	struct pci_dev *pdev;
 	struct device *dev;
-	u8 mac[ETH_ALEN];
 	int err;
 	int i;
 
@@ -617,19 +618,18 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	 * or set a random mac if default is 00:..:00
 	 */
 	if (add_config->mask & BIT_ULL(VDPA_ATTR_DEV_NET_CFG_MACADDR)) {
-		ether_addr_copy(mac, add_config->net.mac);
-		pds_vdpa_cmd_set_mac(pdsv, mac);
+		ether_addr_copy(pdsv->mac, add_config->net.mac);
 	} else {
 		struct virtio_net_config __iomem *vc;
 
 		vc = pdsv->vdpa_aux->vd_mdev.device;
-		memcpy_fromio(mac, vc->mac, sizeof(mac));
-		if (is_zero_ether_addr(mac)) {
-			eth_random_addr(mac);
-			dev_info(dev, "setting random mac %pM\n", mac);
-			pds_vdpa_cmd_set_mac(pdsv, mac);
+		memcpy_fromio(pdsv->mac, vc->mac, sizeof(pdsv->mac));
+		if (is_zero_ether_addr(pdsv->mac)) {
+			eth_random_addr(pdsv->mac);
+			dev_info(dev, "setting random mac %pM\n", pdsv->mac);
 		}
 	}
+	pds_vdpa_cmd_set_mac(pdsv, pdsv->mac);
 
 	for (i = 0; i < pdsv->num_vqs; i++) {
 		pdsv->vqs[i].qid = i;
