@@ -1555,6 +1555,41 @@ static int irdma_del_multiple_qhash(struct irdma_device *iwdev,
 	return ret;
 }
 
+static u8 irdma_iw_get_vlan_prio(u32 *loc_addr, u8 prio, bool ipv4)
+{
+	struct net_device *ndev = NULL;
+
+	rcu_read_lock();
+	if (ipv4) {
+		ndev = ip_dev_find(&init_net, htonl(loc_addr[0]));
+	} else {
+		struct net_device *ip_dev;
+		struct in6_addr laddr6;
+
+		irdma_copy_ip_htonl(laddr6.in6_u.u6_addr32, loc_addr);
+
+		for_each_netdev_rcu (&init_net, ip_dev) {
+			if (ipv6_chk_addr(&init_net, &laddr6, ip_dev, 1)) {
+				ndev = ip_dev;
+				break;
+			}
+		}
+	}
+
+	if (!ndev)
+		goto done;
+	if (is_vlan_dev(ndev))
+		prio = (vlan_dev_get_egress_qos_mask(ndev, prio) & VLAN_PRIO_MASK)
+			>> VLAN_PRIO_SHIFT;
+	if (ipv4)
+		dev_put(ndev);
+
+done:
+	rcu_read_unlock();
+
+	return prio;
+}
+
 /**
  * irdma_netdev_vlan_ipv6 - Gets the netdev and mac
  * @addr: local IPv6 address
@@ -1667,6 +1702,12 @@ static int irdma_add_mqh_6(struct irdma_device *iwdev,
 					    ifp->addr.in6_u.u6_addr32);
 			memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 			       sizeof(cm_info->loc_addr));
+			if (!iwdev->vsi.dscp_mode)
+				cm_info->user_pri =
+				irdma_iw_get_vlan_prio(child_listen_node->loc_addr,
+						       cm_info->user_pri,
+						       false);
+
 			ret = irdma_manage_qhash(iwdev, cm_info,
 						 IRDMA_QHASH_TYPE_TCP_SYN,
 						 IRDMA_QHASH_MANAGE_TYPE_ADD,
@@ -1751,6 +1792,11 @@ static int irdma_add_mqh_4(struct irdma_device *iwdev,
 				ntohl(ifa->ifa_address);
 			memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
 			       sizeof(cm_info->loc_addr));
+			if (!iwdev->vsi.dscp_mode)
+				cm_info->user_pri =
+				irdma_iw_get_vlan_prio(child_listen_node->loc_addr,
+						       cm_info->user_pri,
+						       true);
 			ret = irdma_manage_qhash(iwdev, cm_info,
 						 IRDMA_QHASH_TYPE_TCP_SYN,
 						 IRDMA_QHASH_MANAGE_TYPE_ADD,
@@ -2219,6 +2265,10 @@ irdma_make_cm_node(struct irdma_cm_core *cm_core, struct irdma_device *iwdev,
 		} else {
 			cm_node->tos = max(listener->tos, cm_info->tos);
 			cm_node->user_pri = rt_tos2priority(cm_node->tos);
+			cm_node->user_pri =
+				irdma_iw_get_vlan_prio(cm_info->loc_addr,
+						       cm_node->user_pri,
+						       cm_info->ipv4);
 		}
 		ibdev_dbg(&iwdev->ibdev,
 			  "DCB: listener: TOS:[%d] UP:[%d]\n", cm_node->tos,
@@ -3832,11 +3882,15 @@ int irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	cm_info.cm_id = cm_id;
 	cm_info.qh_qpid = iwdev->vsi.ilq->qp_id;
 	cm_info.tos = cm_id->tos;
-	if (iwdev->vsi.dscp_mode)
+	if (iwdev->vsi.dscp_mode) {
 		cm_info.user_pri =
 			iwqp->sc_qp.vsi->dscp_map[irdma_tos2dscp(cm_info.tos)];
-	else
+	} else {
 		cm_info.user_pri = rt_tos2priority(cm_id->tos);
+		cm_info.user_pri = irdma_iw_get_vlan_prio(cm_info.loc_addr,
+							  cm_info.user_pri,
+							  cm_info.ipv4);
+	}
 
 	if (iwqp->sc_qp.dev->ws_add(iwqp->sc_qp.vsi, cm_info.user_pri))
 		return -ENOMEM;
@@ -3980,7 +4034,7 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 	cm_listen_node->tos = cm_id->tos;
 	if (iwdev->vsi.dscp_mode)
 		cm_listen_node->user_pri =
-			iwdev->vsi.dscp_map[irdma_tos2dscp(cm_id->tos)];
+		iwdev->vsi.dscp_map[irdma_tos2dscp(cm_id->tos)];
 	else
 		cm_listen_node->user_pri = rt_tos2priority(cm_id->tos);
 	cm_info.user_pri = cm_listen_node->user_pri;
@@ -3990,6 +4044,12 @@ int irdma_create_listen(struct iw_cm_id *cm_id, int backlog)
 			if (err)
 				goto error;
 		} else {
+			if (!iwdev->vsi.dscp_mode)
+				cm_listen_node->user_pri =
+				irdma_iw_get_vlan_prio(cm_info.loc_addr,
+						       cm_info.user_pri,
+						       cm_info.ipv4);
+			cm_info.user_pri = cm_listen_node->user_pri;
 			err = irdma_manage_qhash(iwdev, &cm_info,
 						 IRDMA_QHASH_TYPE_TCP_SYN,
 						 IRDMA_QHASH_MANAGE_TYPE_ADD,

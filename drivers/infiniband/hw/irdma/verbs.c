@@ -1098,6 +1098,24 @@ static int irdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index,
 	return 0;
 }
 
+static u8 irdma_roce_get_vlan_prio(const struct ib_gid_attr *attr, u8 prio)
+{
+	struct net_device *ndev;
+
+	rcu_read_lock();
+	ndev = rcu_dereference(attr->ndev);
+	if (!ndev)
+		goto exit;
+	if (is_vlan_dev(ndev)) {
+		u16 vlan_qos = vlan_dev_get_egress_qos_mask(ndev, prio);
+
+		prio = (vlan_qos & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	}
+exit:
+	rcu_read_unlock();
+	return prio;
+}
+
 /**
  * irdma_modify_qp_roce - modify qp request
  * @ibqp: qp's pointer for modify
@@ -1174,7 +1192,8 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_AV) {
 		struct irdma_av *av = &iwqp->roce_ah.av;
-		const struct ib_gid_attr *sgid_attr;
+		const struct ib_gid_attr *sgid_attr =
+				attr->ah_attr.grh.sgid_attr;
 		u16 vlan_id = VLAN_N_VID;
 		u32 local_ip[4];
 
@@ -1189,17 +1208,22 @@ int irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						   roce_info->dest_qp);
 			irdma_qp_rem_qos(&iwqp->sc_qp);
 			dev->ws_remove(iwqp->sc_qp.vsi, ctx_info->user_pri);
-			ctx_info->user_pri = rt_tos2priority(udp_info->tos);
-			iwqp->sc_qp.user_pri = ctx_info->user_pri;
-			if (dev->ws_add(iwqp->sc_qp.vsi, ctx_info->user_pri))
-				return -ENOMEM;
-			irdma_qp_add_qos(&iwqp->sc_qp);
+			if (iwqp->sc_qp.vsi->dscp_mode)
+				ctx_info->user_pri =
+				iwqp->sc_qp.vsi->dscp_map[irdma_tos2dscp(udp_info->tos)];
+			else
+				ctx_info->user_pri = rt_tos2priority(udp_info->tos);
 		}
-		sgid_attr = attr->ah_attr.grh.sgid_attr;
 		ret = rdma_read_gid_l2_fields(sgid_attr, &vlan_id,
 					      ctx_info->roce_info->mac_addr);
 		if (ret)
 			return ret;
+		ctx_info->user_pri = irdma_roce_get_vlan_prio(sgid_attr,
+							      ctx_info->user_pri);
+		if (dev->ws_add(iwqp->sc_qp.vsi, ctx_info->user_pri))
+			return -ENOMEM;
+		iwqp->sc_qp.user_pri = ctx_info->user_pri;
+		irdma_qp_add_qos(&iwqp->sc_qp);
 
 		if (vlan_id >= VLAN_N_VID && iwdev->dcb_vlan_mode)
 			vlan_id = 0;
@@ -4261,9 +4285,12 @@ static int irdma_setup_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *attr)
 		ah_info->vlan_tag = 0;
 
 	if (ah_info->vlan_tag < VLAN_N_VID) {
+		u8 prio = rt_tos2priority(ah_info->tc_tos);
+
+		prio = irdma_roce_get_vlan_prio(sgid_attr, prio);
+
+		ah_info->vlan_tag |= (u16)prio << VLAN_PRIO_SHIFT;
 		ah_info->insert_vlan_tag = true;
-		ah_info->vlan_tag |=
-			rt_tos2priority(ah_info->tc_tos) << VLAN_PRIO_SHIFT;
 	}
 
 	return 0;
