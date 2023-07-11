@@ -185,6 +185,7 @@ static void stats_test(int stats_fd)
 
 int main(int argc, char *argv[])
 {
+	int vm_stats_fds, *vcpu_stats_fds;
 	int i, j;
 	struct kvm_vcpu **vcpus;
 	struct kvm_vm **vms;
@@ -217,18 +218,37 @@ int main(int argc, char *argv[])
 	vcpus = malloc(sizeof(struct kvm_vcpu *) * max_vm * max_vcpu);
 	TEST_ASSERT(vcpus, "Allocate memory for storing vCPU pointers");
 
+	/*
+	 * Not per-VM as the array is populated, used, and invalidated within a
+	 * single for-loop iteration.
+	 */
+	vcpu_stats_fds = calloc(max_vm, sizeof(*vcpu_stats_fds));
+	TEST_ASSERT(vcpu_stats_fds, "Allocate memory for VM stats fds");
+
 	for (i = 0; i < max_vm; ++i) {
 		vms[i] = vm_create_barebones();
 		for (j = 0; j < max_vcpu; ++j)
 			vcpus[i * max_vcpu + j] = __vm_vcpu_add(vms[i], j);
 	}
 
-	/* Check stats read for every VM and VCPU */
+	/*
+	 * Check stats read for every VM and vCPU, with a variety of testcases.
+	 * Note, stats_test() closes the passed in stats fd.
+	 */
 	for (i = 0; i < max_vm; ++i) {
+		vm_stats_fds = vm_get_stats_fd(vms[i]);
+
+		/* Verify userspace can instantiate multiple stats files. */
 		stats_test(vm_get_stats_fd(vms[i]));
 
-		for (j = 0; j < max_vcpu; ++j)
+		for (j = 0; j < max_vcpu; ++j) {
+			vcpu_stats_fds[j] = vcpu_get_stats_fd(vcpus[i * max_vcpu + j]);
 			stats_test(vcpu_get_stats_fd(vcpus[i * max_vcpu + j]));
+		}
+
+		stats_test(vm_stats_fds);
+		for (j = 0; j < max_vcpu; ++j)
+			stats_test(vcpu_stats_fds[j]);
 
 		ksft_test_result_pass("vm%i\n", i);
 	}
@@ -237,6 +257,7 @@ int main(int argc, char *argv[])
 		kvm_vm_free(vms[i]);
 	free(vms);
 	free(vcpus);
+	free(vcpu_stats_fds);
 
 	ksft_finished();	/* Print results and exit() accordingly */
 }
