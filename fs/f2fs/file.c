@@ -4107,6 +4107,12 @@ static int f2fs_ioc_decompress_file(struct file *filp)
 
 		count -= len;
 		page_idx += len;
+
+		cond_resched();
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
 	}
 
 	if (!ret)
@@ -4181,6 +4187,12 @@ static int f2fs_ioc_compress_file(struct file *filp)
 
 		count -= len;
 		page_idx += len;
+
+		cond_resched();
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
 	}
 
 	if (!ret)
