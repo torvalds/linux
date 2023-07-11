@@ -53,6 +53,7 @@ description: |
       For PMR735A, smps1 - smps3, ldo1 - ldo7
       For PMX55, smps1 - smps7, ldo1 - ldo16
       For PMX65, smps1 - smps8, ldo1 - ldo21
+      For PMX75, smps1 - smps10, ldo1 - ldo21
 
 properties:
   compatible:
@@ -84,6 +85,7 @@ properties:
       - qcom,pmr735a-rpmh-regulators
       - qcom,pmx55-rpmh-regulators
       - qcom,pmx65-rpmh-regulators
+      - qcom,pmx75-rpmh-regulators
 
   qcom,pmic-id:
     description: |
@@ -427,6 +429,24 @@ allOf:
         "^vdd-l1[024579]-supply$": true
         "^vdd-l2[01]-supply$": true
         "^vdd-s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmx75-rpmh-regulators
+    then:
+      properties:
+        vdd-l2-l18-supply: true
+        vdd-l4-l16-supply: true
+        vdd-l5-l6-supply: true
+        vdd-l8-l9-supply: true
+        vdd-l11-l13-supply: true
+        vdd-l20-l21-supply: true
+      patternProperties:
+        "^vdd-l[137]-supply$": true
+        "^vdd-l1[024579]-supply$": true
+        "^vdd-s([1-9]|10)-supply$": true
 
 unevaluatedProperties: false
 
