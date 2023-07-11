@@ -13,11 +13,6 @@
 
 extern struct static_key_false disable_kuap_key;
 
-static __always_inline bool kuep_is_disabled(void)
-{
-	return !IS_ENABLED(CONFIG_PPC_KUEP);
-}
-
 #ifdef CONFIG_PPC_KUAP
 
 #include <linux/sched.h>
