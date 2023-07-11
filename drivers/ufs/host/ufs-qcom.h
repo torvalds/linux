@@ -226,7 +226,6 @@ struct ufs_qcom_host {
 
 	u32 hs_gear;
 
-	int esi_base;
 	bool esi_enabled;
 };
 
