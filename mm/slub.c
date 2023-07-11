@@ -397,18 +397,15 @@ static inline void *freelist_ptr_decode(const struct kmem_cache *s,
 	return decoded;
 }
 
-/* Returns the freelist pointer recorded at location ptr_addr. */
-static inline void *freelist_dereference(const struct kmem_cache *s,
-					 void *ptr_addr)
-{
-	return freelist_ptr_decode(s, *(freeptr_t *)(ptr_addr),
-			    (unsigned long)ptr_addr);
-}
-
 static inline void *get_freepointer(struct kmem_cache *s, void *object)
 {
+	unsigned long ptr_addr;
+	freeptr_t p;
+
 	object = kasan_reset_tag(object);
-	return freelist_dereference(s, (freeptr_t *)(object + s->offset));
+	ptr_addr = (unsigned long)object + s->offset;
+	p = *(freeptr_t *)(ptr_addr);
+	return freelist_ptr_decode(s, p, ptr_addr);
 }
 
 #ifndef CONFIG_SLUB_TINY
