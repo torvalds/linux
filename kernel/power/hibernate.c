@@ -1179,6 +1179,7 @@ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
 		unsigned maj, min, offset;
 		char *p, dummy;
 
+		error = 0;
 		if (sscanf(name, "%u:%u%c", &maj, &min, &dummy) == 2 ||
 		    sscanf(name, "%u:%u:%u:%c", &maj, &min, &offset,
 				&dummy) == 3) {
