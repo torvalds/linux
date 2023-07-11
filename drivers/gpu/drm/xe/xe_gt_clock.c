@@ -38,13 +38,13 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 					  rpm_config_reg);
 
 	switch (crystal_clock) {
-	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ :
+	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_24_MHZ:
 		return f24_mhz;
-	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ :
+	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_19_2_MHZ:
 		return f19_2_mhz;
-	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_38_4_MHZ :
+	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_38_4_MHZ:
 		return f38_4_mhz;
-	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ :
+	case RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_25_MHZ:
 		return f25_mhz;
 	default:
 		XE_BUG_ON("NOT_POSSIBLE");

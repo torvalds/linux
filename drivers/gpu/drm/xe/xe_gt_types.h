@@ -75,13 +75,13 @@ enum xe_steering_type {
 
 #define gt_to_tile(gt__)							\
 	_Generic(gt__,								\
-		 const struct xe_gt *: (const struct xe_tile *)((gt__)->tile),	\
-		 struct xe_gt *: (gt__)->tile)
+		 const struct xe_gt * : (const struct xe_tile *)((gt__)->tile),	\
+		 struct xe_gt * : (gt__)->tile)
 
 #define gt_to_xe(gt__)										\
 	_Generic(gt__,										\
-		 const struct xe_gt *: (const struct xe_device *)(gt_to_tile(gt__)->xe),	\
-		 struct xe_gt *: gt_to_tile(gt__)->xe)
+		 const struct xe_gt * : (const struct xe_device *)(gt_to_tile(gt__)->xe),	\
+		 struct xe_gt * : gt_to_tile(gt__)->xe)
 
 /**
  * struct xe_gt - A "Graphics Technology" unit of the GPU

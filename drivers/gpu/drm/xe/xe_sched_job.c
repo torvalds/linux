@@ -35,7 +35,7 @@ int __init xe_sched_job_module_init(void)
 		kmem_cache_create("xe_sched_job_parallel",
 				  sizeof(struct xe_sched_job) +
 				  sizeof(u64) *
-				  XE_HW_ENGINE_MAX_INSTANCE , 0,
+				  XE_HW_ENGINE_MAX_INSTANCE, 0,
 				  SLAB_HWCACHE_ALIGN, NULL);
 	if (!xe_sched_job_parallel_slab) {
 		kmem_cache_destroy(xe_sched_job_slab);

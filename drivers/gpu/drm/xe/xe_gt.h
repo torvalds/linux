@@ -13,7 +13,7 @@
 
 #define for_each_hw_engine(hwe__, gt__, id__) \
 	for ((id__) = 0; (id__) < ARRAY_SIZE((gt__)->hw_engines); (id__)++) \
-	     for_each_if (((hwe__) = (gt__)->hw_engines + (id__)) && \
+	     for_each_if(((hwe__) = (gt__)->hw_engines + (id__)) && \
 			  xe_hw_engine_is_valid((hwe__)))
 
 struct xe_gt *xe_gt_alloc(struct xe_tile *tile);

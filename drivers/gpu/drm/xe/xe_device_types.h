@@ -47,8 +47,8 @@ struct xe_ggtt;
 
 #define tile_to_xe(tile__)								\
 	_Generic(tile__,								\
-		 const struct xe_tile *: (const struct xe_device *)((tile__)->xe),	\
-		 struct xe_tile *: (tile__)->xe)
+		 const struct xe_tile * : (const struct xe_device *)((tile__)->xe),	\
+		 struct xe_tile * : (tile__)->xe)
 
 /**
  * struct xe_tile - hardware tile structure
