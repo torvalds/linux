@@ -57,14 +57,14 @@ static inline void setup_kuap(bool disabled) { }
 
 static __always_inline bool kuap_is_disabled(void) { return true; }
 
-static inline bool
+static __always_inline bool
 __bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 {
 	return false;
 }
 
-static inline void kuap_user_restore(struct pt_regs *regs) { }
-static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long amr) { }
+static __always_inline void kuap_user_restore(struct pt_regs *regs) { }
+static __always_inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long amr) { }
 
 /*
  * book3s/64/kup-radix.h defines these functions for the !KUAP case to flush
@@ -72,11 +72,11 @@ static inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned long amr
  * platforms.
  */
 #ifndef CONFIG_PPC_BOOK3S_64
-static inline void __allow_user_access(void __user *to, const void __user *from,
-				       unsigned long size, unsigned long dir) { }
-static inline void __prevent_user_access(unsigned long dir) { }
-static inline unsigned long __prevent_user_access_return(void) { return 0UL; }
-static inline void __restore_user_access(unsigned long flags) { }
+static __always_inline void __allow_user_access(void __user *to, const void __user *from,
+						unsigned long size, unsigned long dir) { }
+static __always_inline void __prevent_user_access(unsigned long dir) { }
+static __always_inline unsigned long __prevent_user_access_return(void) { return 0UL; }
+static __always_inline void __restore_user_access(unsigned long flags) { }
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #endif /* CONFIG_PPC_KUAP */
 
