@@ -1240,7 +1240,9 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 {
 }
 
+#ifdef CONFIG_X86_KERNEL_IBT
 static void poison_cfi(void *addr) { }
+#endif
 
 #endif
 
