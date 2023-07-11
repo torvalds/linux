@@ -860,7 +860,7 @@ dcssblk_submit_bio(struct bio *bio)
 	struct bio_vec bvec;
 	struct bvec_iter iter;
 	unsigned long index;
-	unsigned long page_addr;
+	void *page_addr;
 	unsigned long source_addr;
 	unsigned long bytes_done;
 
@@ -889,19 +889,16 @@ dcssblk_submit_bio(struct bio *bio)
 
 	index = (bio->bi_iter.bi_sector >> 3);
 	bio_for_each_segment(bvec, bio, iter) {
-		page_addr = (unsigned long)bvec_virt(&bvec);
+		page_addr = bvec_virt(&bvec);
 		source_addr = dev_info->start + (index<<12) + bytes_done;
-		if (unlikely(!IS_ALIGNED(page_addr, PAGE_SIZE) ||
+		if (unlikely(!IS_ALIGNED((unsigned long)page_addr, PAGE_SIZE) ||
 			     !IS_ALIGNED(bvec.bv_len, PAGE_SIZE)))
 			// More paranoia.
 			goto fail;
-		if (bio_data_dir(bio) == READ) {
-			memcpy((void*)page_addr, (void*)source_addr,
-				bvec.bv_len);
-		} else {
-			memcpy((void*)source_addr, (void*)page_addr,
-				bvec.bv_len);
-		}
+		if (bio_data_dir(bio) == READ)
+			memcpy(page_addr, __va(source_addr), bvec.bv_len);
+		else
+			memcpy(__va(source_addr), page_addr, bvec.bv_len);
 		bytes_done += bvec.bv_len;
 	}
 	bio_endio(bio);
