@@ -5,6 +5,7 @@
 #include <linux/netlink.h>
 #include <linux/refcount.h>
 #include <linux/xarray.h>
+#include <net/devlink.h>
 
 #include "spectrum.h"
 
@@ -17,6 +18,7 @@ struct mlxsw_sp_port_range_reg {
 struct mlxsw_sp_port_range_core {
 	struct xarray prr_xa;
 	struct xa_limit prr_ids;
+	atomic_t prr_count;
 };
 
 static int
@@ -71,6 +73,8 @@ mlxsw_sp_port_range_reg_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_reg_configure;
 	}
 
+	atomic_inc(&pr_core->prr_count);
+
 	return prr;
 
 err_reg_configure:
@@ -85,6 +89,7 @@ static void mlxsw_sp_port_range_reg_destroy(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_port_range_core *pr_core = mlxsw_sp->pr_core;
 
+	atomic_dec(&pr_core->prr_count);
 	xa_erase(&pr_core->prr_xa, prr->index);
 	kfree(prr);
 }
@@ -145,6 +150,13 @@ void mlxsw_sp_port_range_reg_put(struct mlxsw_sp *mlxsw_sp, u8 prr_index)
 	mlxsw_sp_port_range_reg_destroy(mlxsw_sp, prr);
 }
 
+static u64 mlxsw_sp_port_range_reg_occ_get(void *priv)
+{
+	struct mlxsw_sp_port_range_core *pr_core = priv;
+
+	return atomic_read(&pr_core->prr_count);
+}
+
 int mlxsw_sp_port_range_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_port_range_core *pr_core;
@@ -168,6 +180,11 @@ int mlxsw_sp_port_range_init(struct mlxsw_sp *mlxsw_sp)
 	pr_core->prr_ids.max = max - 1;
 	xa_init_flags(&pr_core->prr_xa, XA_FLAGS_ALLOC);
 
+	devl_resource_occ_get_register(priv_to_devlink(core),
+				       MLXSW_SP_RESOURCE_PORT_RANGE_REGISTERS,
+				       mlxsw_sp_port_range_reg_occ_get,
+				       pr_core);
+
 	return 0;
 }
 
@@ -175,6 +192,8 @@ void mlxsw_sp_port_range_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_port_range_core *pr_core = mlxsw_sp->pr_core;
 
+	devl_resource_occ_get_unregister(priv_to_devlink(mlxsw_sp->core),
+					 MLXSW_SP_RESOURCE_PORT_RANGE_REGISTERS);
 	WARN_ON(!xa_empty(&pr_core->prr_xa));
 	xa_destroy(&pr_core->prr_xa);
 	kfree(pr_core);
