@@ -49,6 +49,10 @@
 	};
 };
 
+&combphy0_ps {
+	status = "okay";
+};
+
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
 };
@@ -757,6 +761,10 @@
 			};
 		};
 	};
+};
+
+&sata0 {
+	status = "okay";
 };
 
 &uart2 {
