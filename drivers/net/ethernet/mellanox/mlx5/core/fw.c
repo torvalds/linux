@@ -143,18 +143,18 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 {
 	int err;
 
-	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL);
+	err = mlx5_core_get_caps_mode(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_CUR);
 	if (err)
 		return err;
 
 	if (MLX5_CAP_GEN(dev, port_selection_cap)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_PORT_SELECTION);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_PORT_SELECTION, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, hca_cap_2)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL_2);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_GENERAL_2, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
@@ -174,19 +174,19 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	}
 
 	if (MLX5_CAP_GEN(dev, pg)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ODP);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ODP, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, atomic)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ATOMIC, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
 
 	if (MLX5_CAP_GEN(dev, roce)) {
-		err = mlx5_core_get_caps(dev, MLX5_CAP_ROCE);
+		err = mlx5_core_get_caps_mode(dev, MLX5_CAP_ROCE, HCA_CAP_OPMOD_GET_CUR);
 		if (err)
 			return err;
 	}
