@@ -73,6 +73,7 @@ qcom-reboot-reason.ko
 debug_symbol.ko
 minidump.ko
 qcom-dcvs.ko
+qcom-dload-mode.ko
 qcom-pmu-lib.ko
 qcom_llcc_pmu.ko
 cqhci.ko
