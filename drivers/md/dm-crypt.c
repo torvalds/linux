@@ -47,6 +47,8 @@
 
 #define DM_MSG_PREFIX "crypt"
 
+static DEFINE_IDA(workqueue_ida);
+
 /*
  * context holding the current state of a multi-part conversion
  */
@@ -184,6 +186,7 @@ struct crypt_config {
 		struct crypto_aead **tfms_aead;
 	} cipher_tfm;
 	unsigned int tfms_count;
+	int workqueue_id;
 	unsigned long cipher_flags;
 
 	/*
@@ -2771,6 +2774,9 @@ static void crypt_dtr(struct dm_target *ti)
 	if (cc->crypt_queue)
 		destroy_workqueue(cc->crypt_queue);
 
+	if (cc->workqueue_id)
+		ida_free(&workqueue_ida, cc->workqueue_id);
+
 	crypt_free_tfms(cc);
 
 	bioset_exit(&cc->bs);
@@ -3232,7 +3238,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct crypt_config *cc;
 	const char *devname = dm_table_device_name(ti->table);
-	int key_size;
+	int key_size, wq_id;
 	unsigned int align_mask;
 	unsigned int common_wq_flags;
 	unsigned long long tmpll;
@@ -3401,25 +3407,33 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		cc->tag_pool_max_sectors <<= cc->sector_shift;
 	}
 
+	wq_id = ida_alloc_min(&workqueue_ida, 1, GFP_KERNEL);
+	if (wq_id < 0) {
+		ti->error = "Couldn't get workqueue id";
+		ret = wq_id;
+		goto bad;
+	}
+	cc->workqueue_id = wq_id;
+
 	ret = -ENOMEM;
-	common_wq_flags = WQ_MEM_RECLAIM;
+	common_wq_flags = WQ_MEM_RECLAIM | WQ_SYSFS;
 	if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
 		common_wq_flags |= WQ_HIGHPRI;
 
-	cc->io_queue = alloc_workqueue("kcryptd_io/%s", common_wq_flags, 1, devname);
+	cc->io_queue = alloc_workqueue("kcryptd_io-%s-%d", common_wq_flags, 1, devname, wq_id);
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
 		goto bad;
 	}
 
 	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags)) {
-		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
+		cc->crypt_queue = alloc_workqueue("kcryptd-%s-%d",
 						  common_wq_flags | WQ_CPU_INTENSIVE,
-						  1, devname);
+						  1, devname, wq_id);
 	} else {
-		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
+		cc->crypt_queue = alloc_workqueue("kcryptd-%s-%d",
 						  common_wq_flags | WQ_CPU_INTENSIVE | WQ_UNBOUND,
-						  num_online_cpus(), devname);
+						  num_online_cpus(), devname, wq_id);
 	}
 	if (!cc->crypt_queue) {
 		ti->error = "Couldn't create kcryptd queue";
