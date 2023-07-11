@@ -3188,6 +3188,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_nve_init;
 	}
 
+	err = mlxsw_sp_port_range_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize port ranges\n");
+		goto err_port_range_init;
+	}
+
 	err = mlxsw_sp_acl_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize ACL\n");
@@ -3280,6 +3286,8 @@ err_ptp_clock_init:
 err_router_init:
 	mlxsw_sp_acl_fini(mlxsw_sp);
 err_acl_init:
+	mlxsw_sp_port_range_fini(mlxsw_sp);
+err_port_range_init:
 	mlxsw_sp_nve_fini(mlxsw_sp);
 err_nve_init:
 	mlxsw_sp_ipv6_addr_ht_fini(mlxsw_sp);
@@ -3462,6 +3470,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	}
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
+	mlxsw_sp_port_range_fini(mlxsw_sp);
 	mlxsw_sp_nve_fini(mlxsw_sp);
 	mlxsw_sp_ipv6_addr_ht_fini(mlxsw_sp);
 	mlxsw_sp_afa_fini(mlxsw_sp);
