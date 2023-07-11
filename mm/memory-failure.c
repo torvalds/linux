@@ -608,7 +608,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
 
 	pgoff = page_to_pgoff(page);
 	read_lock(&tasklist_lock);
-	for_each_process (tsk) {
+	for_each_process(tsk) {
 		struct anon_vma_chain *vmac;
 		struct task_struct *t = task_early_kill(tsk, force_early);
 
@@ -652,7 +652,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
 			/*
 			 * Send early kill signal to tasks where a vma covers
 			 * the page but the corrupted page is not necessarily
-			 * mapped it in its pte.
+			 * mapped in its pte.
 			 * Assume applications who requested early kill want
 			 * to be informed of all such data corruptions.
 			 */
@@ -2117,7 +2117,7 @@ static DEFINE_MUTEX(mf_mutex);
  * detected by a background scrubber)
  *
  * Must run in process context (e.g. a work queue) with interrupts
- * enabled and no spinlocks hold.
+ * enabled and no spinlocks held.
  *
  * Return: 0 for successfully handled the memory error,
  *         -EOPNOTSUPP for hwpoison_filter() filtered the error event,
@@ -2221,7 +2221,7 @@ try_again:
 		 * otherwise it may race with THP split.
 		 * And the flag can't be set in get_hwpoison_page() since
 		 * it is called by soft offline too and it is just called
-		 * for !MF_COUNT_INCREASE.  So here seems to be the best
+		 * for !MF_COUNT_INCREASED.  So here seems to be the best
 		 * place.
 		 *
 		 * Don't need care about the above error handling paths for
@@ -2578,10 +2578,10 @@ static bool isolate_page(struct page *page, struct list_head *pagelist)
 
 	/*
 	 * If we succeed to isolate the page, we grabbed another refcount on
-	 * the page, so we can safely drop the one we got from get_any_pages().
+	 * the page, so we can safely drop the one we got from get_any_page().
 	 * If we failed to isolate the page, it means that we cannot go further
 	 * and we will return an error, so drop the reference we got from
-	 * get_any_pages() as well.
+	 * get_any_page() as well.
 	 */
 	put_page(page);
 	return isolated;
