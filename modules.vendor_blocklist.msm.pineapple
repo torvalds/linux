@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+# Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
 
 blocklist 8250_of
 blocklist adc-tm
@@ -16,6 +16,7 @@ blocklist fc0011
 blocklist fc0012
 blocklist fc0013
 blocklist fc2580
+blocklist ipclite_test
 blocklist it913x
 blocklist kheaders
 blocklist limits_stat
