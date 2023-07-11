@@ -74,6 +74,8 @@
 #include <asm/unistd.h>
 #include <asm/mmu_context.h>
 
+#include "exit.h"
+
 /*
  * The default value should be high enough to not crash a system that randomly
  * crashes its kernel from time to time, but low enough to at least not permit
@@ -1037,26 +1039,6 @@ SYSCALL_DEFINE1(exit_group, int, error_code)
 	return 0;
 }
 
-struct waitid_info {
-	pid_t pid;
-	uid_t uid;
-	int status;
-	int cause;
-};
-
-struct wait_opts {
-	enum pid_type		wo_type;
-	int			wo_flags;
-	struct pid		*wo_pid;
-
-	struct waitid_info	*wo_info;
-	int			wo_stat;
-	struct rusage		*wo_rusage;
-
-	wait_queue_entry_t		child_wait;
-	int			notask_error;
-};
-
 static int eligible_pid(struct wait_opts *wo, struct task_struct *p)
 {
 	return	wo->wo_type == PIDTYPE_MAX ||
@@ -1520,7 +1502,7 @@ static int ptrace_do_wait(struct wait_opts *wo, struct task_struct *tsk)
 	return 0;
 }
 
-static bool pid_child_should_wake(struct wait_opts *wo, struct task_struct *p)
+bool pid_child_should_wake(struct wait_opts *wo, struct task_struct *p)
 {
 	if (!eligible_pid(wo, p))
 		return false;
@@ -1590,7 +1572,7 @@ static int do_wait_pid(struct wait_opts *wo)
 	return 0;
 }
 
-static long __do_wait(struct wait_opts *wo)
+long __do_wait(struct wait_opts *wo)
 {
 	long retval;
 
@@ -1662,9 +1644,9 @@ static long do_wait(struct wait_opts *wo)
 	return retval;
 }
 
-static int kernel_waitid_prepare(struct wait_opts *wo, int which, pid_t upid,
-				 struct waitid_info *infop, int options,
-				 struct rusage *ru)
+int kernel_waitid_prepare(struct wait_opts *wo, int which, pid_t upid,
+			  struct waitid_info *infop, int options,
+			  struct rusage *ru)
 {
 	unsigned int f_flags = 0;
 	struct pid *pid = NULL;
