@@ -236,6 +236,7 @@
   __tracepoint_android_rvh_set_cpus_allowed_comm
   __tracepoint_android_rvh_dequeue_task
   cpuset_cpus_allowed
+  cpufreq_update_policy
 
 #required by millet.ko
   __traceiter_android_vh_binder_wait_for_work
