@@ -224,8 +224,6 @@ static int config_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "dev_status:           %#x\n", status);
 	print_status_bits(seq, status);
 
-	seq_printf(seq, "req_features:         %#llx\n", pdsv->req_features);
-	print_feature_bits_all(seq, pdsv->req_features);
 	driver_features = vp_modern_get_driver_features(&pdsv->vdpa_aux->vd_mdev);
 	seq_printf(seq, "driver_features:      %#llx\n", driver_features);
 	print_feature_bits_all(seq, driver_features);
