@@ -43,8 +43,10 @@ static void stats_test(int stats_fd)
 	id = malloc(header.name_size);
 	TEST_ASSERT(id, "Allocate memory for id string");
 
-	ret = read(stats_fd, id, header.name_size);
-	TEST_ASSERT(ret == header.name_size, "Read id string");
+	ret = pread(stats_fd, id, header.name_size, sizeof(header));
+	TEST_ASSERT(ret == header.name_size,
+		    "Expected header size '%u', read '%lu' bytes",
+		    header.name_size, ret);
 
 	/* Check id string, that should start with "kvm" */
 	TEST_ASSERT(!strncmp(id, "kvm", 3) && strlen(id) < header.name_size,
