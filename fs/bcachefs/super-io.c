@@ -662,13 +662,20 @@ int bch2_read_super(const char *path, struct bch_opts *opts,
 	struct printbuf err = PRINTBUF;
 	__le64 *i;
 	int ret;
-
+#ifndef __KERNEL__
+retry:
+#endif
 	memset(sb, 0, sizeof(*sb));
 	sb->mode	= BLK_OPEN_READ;
 	sb->have_bio	= true;
 	sb->holder	= kmalloc(1, GFP_KERNEL);
 	if (!sb->holder)
 		return -ENOMEM;
+
+#ifndef __KERNEL__
+	if (opt_get(*opts, direct_io) == false)
+		sb->mode |= FMODE_BUFFERED;
+#endif
 
 	if (!opt_get(*opts, noexcl))
 		sb->mode |= BLK_OPEN_EXCL;
@@ -754,7 +761,13 @@ int bch2_read_super(const char *path, struct bch_opts *opts,
 
 got_super:
 	if (le16_to_cpu(sb->sb->block_size) << 9 <
-	    bdev_logical_block_size(sb->bdev)) {
+	    bdev_logical_block_size(sb->bdev) &&
+	    opt_get(*opts, direct_io)) {
+#ifndef __KERNEL__
+		opt_set(*opts, direct_io, false);
+		bch2_free_super(sb);
+		goto retry;
+#endif
 		prt_printf(&err, "block size (%u) smaller than device block size (%u)",
 		       le16_to_cpu(sb->sb->block_size) << 9,
 		       bdev_logical_block_size(sb->bdev));
