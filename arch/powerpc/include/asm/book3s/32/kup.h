@@ -27,6 +27,34 @@ static __always_inline void kuap_unlock_one(unsigned long addr)
 	isync();	/* Context sync required after mtsr() */
 }
 
+static __always_inline void uaccess_begin_32s(unsigned long addr)
+{
+	unsigned long tmp;
+
+	asm volatile(ASM_MMU_FTR_IFSET(
+		"mfsrin %0, %1;"
+		"rlwinm %0, %0, 0, %2;"
+		"mtsrin %0, %1;"
+		"isync", "", %3)
+		: "=&r"(tmp)
+		: "r"(addr), "i"(~SR_KS), "i"(MMU_FTR_KUAP)
+		: "memory");
+}
+
+static __always_inline void uaccess_end_32s(unsigned long addr)
+{
+	unsigned long tmp;
+
+	asm volatile(ASM_MMU_FTR_IFSET(
+		"mfsrin %0, %1;"
+		"oris %0, %0, %2;"
+		"mtsrin %0, %1;"
+		"isync", "", %3)
+		: "=&r"(tmp)
+		: "r"(addr), "i"(SR_KS >> 16), "i"(MMU_FTR_KUAP)
+		: "memory");
+}
+
 static __always_inline void __kuap_save_and_lock(struct pt_regs *regs)
 {
 	unsigned long kuap = current->thread.kuap;
@@ -69,8 +97,8 @@ static __always_inline unsigned long __kuap_get_and_assert_locked(void)
 }
 #define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
 
-static __always_inline void __allow_user_access(void __user *to, const void __user *from,
-						u32 size, unsigned long dir)
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      u32 size, unsigned long dir)
 {
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
 
@@ -78,10 +106,10 @@ static __always_inline void __allow_user_access(void __user *to, const void __us
 		return;
 
 	current->thread.kuap = (__force u32)to;
-	kuap_unlock_one((__force u32)to);
+	uaccess_begin_32s((__force u32)to);
 }
 
-static __always_inline void __prevent_user_access(unsigned long dir)
+static __always_inline void prevent_user_access(unsigned long dir)
 {
 	u32 kuap = current->thread.kuap;
 
@@ -91,26 +119,26 @@ static __always_inline void __prevent_user_access(unsigned long dir)
 		return;
 
 	current->thread.kuap = KUAP_NONE;
-	kuap_lock_one(kuap);
+	uaccess_end_32s(kuap);
 }
 
-static __always_inline unsigned long __prevent_user_access_return(void)
+static __always_inline unsigned long prevent_user_access_return(void)
 {
 	unsigned long flags = current->thread.kuap;
 
 	if (flags != KUAP_NONE) {
 		current->thread.kuap = KUAP_NONE;
-		kuap_lock_one(flags);
+		uaccess_end_32s(flags);
 	}
 
 	return flags;
 }
 
-static __always_inline void __restore_user_access(unsigned long flags)
+static __always_inline void restore_user_access(unsigned long flags)
 {
 	if (flags != KUAP_NONE) {
 		current->thread.kuap = flags;
-		kuap_unlock_one(flags);
+		uaccess_begin_32s(flags);
 	}
 }
 

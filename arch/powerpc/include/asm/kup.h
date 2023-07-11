@@ -72,11 +72,11 @@ static __always_inline void __kuap_kernel_restore(struct pt_regs *regs, unsigned
  * platforms.
  */
 #ifndef CONFIG_PPC_BOOK3S_64
-static __always_inline void __allow_user_access(void __user *to, const void __user *from,
-						unsigned long size, unsigned long dir) { }
-static __always_inline void __prevent_user_access(unsigned long dir) { }
-static __always_inline unsigned long __prevent_user_access_return(void) { return 0UL; }
-static __always_inline void __restore_user_access(unsigned long flags) { }
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      unsigned long size, unsigned long dir) { }
+static __always_inline void prevent_user_access(unsigned long dir) { }
+static __always_inline unsigned long prevent_user_access_return(void) { return 0UL; }
+static __always_inline void restore_user_access(unsigned long flags) { }
 #endif /* CONFIG_PPC_BOOK3S_64 */
 #endif /* CONFIG_PPC_KUAP */
 
@@ -131,41 +131,6 @@ static __always_inline void kuap_assert_locked(void)
 	if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG))
 		kuap_get_and_assert_locked();
 }
-
-#ifndef CONFIG_PPC_BOOK3S_64
-static __always_inline void allow_user_access(void __user *to, const void __user *from,
-				     unsigned long size, unsigned long dir)
-{
-	if (kuap_is_disabled())
-		return;
-
-	__allow_user_access(to, from, size, dir);
-}
-
-static __always_inline void prevent_user_access(unsigned long dir)
-{
-	if (kuap_is_disabled())
-		return;
-
-	__prevent_user_access(dir);
-}
-
-static __always_inline unsigned long prevent_user_access_return(void)
-{
-	if (kuap_is_disabled())
-		return 0;
-
-	return __prevent_user_access_return();
-}
-
-static __always_inline void restore_user_access(unsigned long flags)
-{
-	if (kuap_is_disabled())
-		return;
-
-	__restore_user_access(flags);
-}
-#endif /* CONFIG_PPC_BOOK3S_64 */
 
 static __always_inline void allow_read_from_user(const void __user *from, unsigned long size)
 {

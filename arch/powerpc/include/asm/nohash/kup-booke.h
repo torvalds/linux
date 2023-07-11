@@ -3,6 +3,7 @@
 #define _ASM_POWERPC_KUP_BOOKE_H_
 
 #include <asm/bug.h>
+#include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_KUAP
 
@@ -60,35 +61,42 @@ static __always_inline unsigned long __kuap_get_and_assert_locked(void)
 #define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
 #endif
 
-static __always_inline void __allow_user_access(void __user *to, const void __user *from,
-						unsigned long size, unsigned long dir)
+static __always_inline void uaccess_begin_booke(unsigned long val)
 {
-	mtspr(SPRN_PID, current->thread.pid);
-	isync();
+	asm(ASM_MMU_FTR_IFSET("mtspr %0, %1; isync", "", %2) : :
+	    "i"(SPRN_PID), "r"(val), "i"(MMU_FTR_KUAP) : "memory");
 }
 
-static __always_inline void __prevent_user_access(unsigned long dir)
+static __always_inline void uaccess_end_booke(void)
 {
-	mtspr(SPRN_PID, 0);
-	isync();
+	asm(ASM_MMU_FTR_IFSET("mtspr %0, %1; isync", "", %2) : :
+	    "i"(SPRN_PID), "r"(0), "i"(MMU_FTR_KUAP) : "memory");
 }
 
-static __always_inline unsigned long __prevent_user_access_return(void)
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      unsigned long size, unsigned long dir)
+{
+	uaccess_begin_booke(current->thread.pid);
+}
+
+static __always_inline void prevent_user_access(unsigned long dir)
+{
+	uaccess_end_booke();
+}
+
+static __always_inline unsigned long prevent_user_access_return(void)
 {
 	unsigned long flags = mfspr(SPRN_PID);
 
-	mtspr(SPRN_PID, 0);
-	isync();
+	uaccess_end_booke();
 
 	return flags;
 }
 
-static __always_inline void __restore_user_access(unsigned long flags)
+static __always_inline void restore_user_access(unsigned long flags)
 {
-	if (flags) {
-		mtspr(SPRN_PID, current->thread.pid);
-		isync();
-	}
+	if (flags)
+		uaccess_begin_booke(current->thread.pid);
 }
 
 static __always_inline bool

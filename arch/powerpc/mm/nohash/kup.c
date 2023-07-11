@@ -24,6 +24,6 @@ void setup_kuap(bool disabled)
 
 	pr_info("Activating Kernel Userspace Access Protection\n");
 
-	__prevent_user_access(KUAP_READ_WRITE);
+	prevent_user_access(KUAP_READ_WRITE);
 }
 #endif

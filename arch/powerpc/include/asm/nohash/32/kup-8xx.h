@@ -37,31 +37,43 @@ static __always_inline unsigned long __kuap_get_and_assert_locked(void)
 #define __kuap_get_and_assert_locked __kuap_get_and_assert_locked
 #endif
 
-static __always_inline void __allow_user_access(void __user *to, const void __user *from,
-						unsigned long size, unsigned long dir)
+static __always_inline void uaccess_begin_8xx(unsigned long val)
 {
-	mtspr(SPRN_MD_AP, MD_APG_INIT);
+	asm(ASM_MMU_FTR_IFSET("mtspr %0, %1", "", %2) : :
+	    "i"(SPRN_MD_AP), "r"(val), "i"(MMU_FTR_KUAP) : "memory");
 }
 
-static __always_inline void __prevent_user_access(unsigned long dir)
+static __always_inline void uaccess_end_8xx(void)
 {
-	mtspr(SPRN_MD_AP, MD_APG_KUAP);
+	asm(ASM_MMU_FTR_IFSET("mtspr %0, %1", "", %2) : :
+	    "i"(SPRN_MD_AP), "r"(MD_APG_KUAP), "i"(MMU_FTR_KUAP) : "memory");
 }
 
-static __always_inline unsigned long __prevent_user_access_return(void)
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      unsigned long size, unsigned long dir)
+{
+	uaccess_begin_8xx(MD_APG_INIT);
+}
+
+static __always_inline void prevent_user_access(unsigned long dir)
+{
+	uaccess_end_8xx();
+}
+
+static __always_inline unsigned long prevent_user_access_return(void)
 {
 	unsigned long flags;
 
 	flags = mfspr(SPRN_MD_AP);
 
-	mtspr(SPRN_MD_AP, MD_APG_KUAP);
+	uaccess_end_8xx();
 
 	return flags;
 }
 
-static __always_inline void __restore_user_access(unsigned long flags)
+static __always_inline void restore_user_access(unsigned long flags)
 {
-	mtspr(SPRN_MD_AP, flags);
+	uaccess_begin_8xx(flags);
 }
 
 static __always_inline bool
