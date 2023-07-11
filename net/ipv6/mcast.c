@@ -1699,11 +1699,9 @@ mld_scount(struct ifmcaddr6 *pmc, int type, int gdeleted, int sdeleted)
 	return scount;
 }
 
-static void ip6_mc_hdr(struct sock *sk, struct sk_buff *skb,
-		       struct net_device *dev,
-		       const struct in6_addr *saddr,
-		       const struct in6_addr *daddr,
-		       int proto, int len)
+static void ip6_mc_hdr(const struct sock *sk, struct sk_buff *skb,
+		       struct net_device *dev, const struct in6_addr *saddr,
+		       const struct in6_addr *daddr, int proto, int len)
 {
 	struct ipv6hdr *hdr;
 
