@@ -3106,21 +3106,25 @@ static const struct hisi_sas_debugfs_reg debugfs_ras_reg = {
 
 static void debugfs_snapshot_prepare_v3_hw(struct hisi_hba *hisi_hba)
 {
-	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+	struct Scsi_Host *shost = hisi_hba->shost;
 
-	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
-
+	scsi_block_requests(shost);
 	wait_cmds_complete_timeout_v3_hw(hisi_hba, 100, 5000);
 
+	set_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
 	hisi_sas_sync_cqs(hisi_hba);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
 }
 
 static void debugfs_snapshot_restore_v3_hw(struct hisi_hba *hisi_hba)
 {
+	struct Scsi_Host *shost = hisi_hba->shost;
+
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE,
 			 (u32)((1ULL << hisi_hba->queue_count) - 1));
 
 	clear_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags);
+	scsi_unblock_requests(shost);
 }
 
 static void read_iost_itct_cache_v3_hw(struct hisi_hba *hisi_hba,
