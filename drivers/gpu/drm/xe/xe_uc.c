@@ -201,14 +201,14 @@ int xe_uc_start(struct xe_uc *uc)
 
 static void uc_reset_wait(struct xe_uc *uc)
 {
-       int ret;
+	int ret;
 
 again:
-       xe_guc_reset_wait(&uc->guc);
+	xe_guc_reset_wait(&uc->guc);
 
-       ret = xe_uc_reset_prepare(uc);
-       if (ret)
-               goto again;
+	ret = xe_uc_reset_prepare(uc);
+	if (ret)
+		goto again;
 }
 
 int xe_uc_suspend(struct xe_uc *uc)

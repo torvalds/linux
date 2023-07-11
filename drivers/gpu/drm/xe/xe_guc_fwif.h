@@ -64,19 +64,19 @@ struct guc_ctxt_registration_info {
 
 /* 32-bit KLV structure as used by policy updates and others */
 struct guc_klv_generic_dw_t {
-        u32 kl;
-        u32 value;
+	u32 kl;
+	u32 value;
 } __packed;
 
 /* Format of the UPDATE_CONTEXT_POLICIES H2G data packet */
 struct guc_update_engine_policy_header {
-        u32 action;
-        u32 guc_id;
+	u32 action;
+	u32 guc_id;
 } __packed;
 
 struct guc_update_engine_policy {
-        struct guc_update_engine_policy_header header;
-        struct guc_klv_generic_dw_t klv[GUC_CONTEXT_POLICIES_KLV_NUM_IDS];
+	struct guc_update_engine_policy_header header;
+	struct guc_klv_generic_dw_t klv[GUC_CONTEXT_POLICIES_KLV_NUM_IDS];
 } __packed;
 
 /* GUC_CTL_* - Parameters for loading the GuC */

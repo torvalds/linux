@@ -353,17 +353,17 @@ static const int xe_engine_prio_to_guc[] = {
 
 static void init_policies(struct xe_guc *guc, struct xe_engine *e)
 {
-        struct engine_policy policy;
+	struct engine_policy policy;
 	enum xe_engine_priority prio = e->priority;
 	u32 timeslice_us = e->sched_props.timeslice_us;
 	u32 preempt_timeout_us = e->sched_props.preempt_timeout_us;
 
 	XE_BUG_ON(!engine_registered(e));
 
-        __guc_engine_policy_start_klv(&policy, e->guc->id);
-        __guc_engine_policy_add_priority(&policy, xe_engine_prio_to_guc[prio]);
-        __guc_engine_policy_add_execution_quantum(&policy, timeslice_us);
-        __guc_engine_policy_add_preemption_timeout(&policy, preempt_timeout_us);
+	__guc_engine_policy_start_klv(&policy, e->guc->id);
+	__guc_engine_policy_add_priority(&policy, xe_engine_prio_to_guc[prio]);
+	__guc_engine_policy_add_execution_quantum(&policy, timeslice_us);
+	__guc_engine_policy_add_preemption_timeout(&policy, preempt_timeout_us);
 
 	xe_guc_ct_send(&guc->ct, (u32 *)&policy.h2g,
 		       __guc_engine_policy_action_size(&policy), 0, 0);
@@ -373,8 +373,8 @@ static void set_min_preemption_timeout(struct xe_guc *guc, struct xe_engine *e)
 {
 	struct engine_policy policy;
 
-        __guc_engine_policy_start_klv(&policy, e->guc->id);
-        __guc_engine_policy_add_preemption_timeout(&policy, 1);
+	__guc_engine_policy_start_klv(&policy, e->guc->id);
+	__guc_engine_policy_add_preemption_timeout(&policy, 1);
 
 	xe_guc_ct_send(&guc->ct, (u32 *)&policy.h2g,
 		       __guc_engine_policy_action_size(&policy), 0, 0);
