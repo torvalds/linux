@@ -2617,7 +2617,7 @@ static int soft_offline_in_use_page(struct page *page)
 	}
 
 	lock_page(page);
-	if (!PageHuge(page))
+	if (!huge)
 		wait_on_page_writeback(page);
 	if (PageHWPoison(page)) {
 		unlock_page(page);
@@ -2626,7 +2626,7 @@ static int soft_offline_in_use_page(struct page *page)
 		return 0;
 	}
 
-	if (!PageHuge(page) && PageLRU(page) && !PageSwapCache(page))
+	if (!huge && PageLRU(page) && !PageSwapCache(page))
 		/*
 		 * Try to invalidate first. This should work for
 		 * non dirty unmapped page cache pages.
