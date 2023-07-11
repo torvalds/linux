@@ -861,6 +861,18 @@ enum dmub_status dmub_srv_get_fw_boot_option(struct dmub_srv *dmub,
 	return DMUB_STATUS_OK;
 }
 
+enum dmub_status dmub_srv_set_skip_panel_power_sequence(struct dmub_srv *dmub,
+					     bool skip)
+{
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_funcs.skip_dmub_panel_power_sequence && !dmub->is_virtual)
+		dmub->hw_funcs.skip_dmub_panel_power_sequence(dmub, skip);
+
+	return DMUB_STATUS_OK;
+}
+
 enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
 					      union dmub_rb_cmd *cmd)
 {
