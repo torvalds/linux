@@ -3,6 +3,7 @@
 #define _ASM_S390_MEM_DETECT_H
 
 #include <linux/types.h>
+#include <asm/page.h>
 
 enum physmem_info_source {
 	MEM_DETECT_NONE = 0,
@@ -133,7 +134,7 @@ static inline const char *get_rr_type_name(enum reserved_range_type t)
 
 #define for_each_physmem_reserved_type_range(t, range, p_start, p_end)				\
 	for (range = &physmem_info.reserved[t], *p_start = range->start, *p_end = range->end;	\
-	     range && range->end; range = range->chain,						\
+	     range && range->end; range = range->chain ? __va(range->chain) : NULL,		\
 	     *p_start = range ? range->start : 0, *p_end = range ? range->end : 0)
 
 static inline struct reserved_range *__physmem_reserved_next(enum reserved_range_type *t,
@@ -145,7 +146,7 @@ static inline struct reserved_range *__physmem_reserved_next(enum reserved_range
 			return range;
 	}
 	if (range->chain)
-		return range->chain;
+		return __va(range->chain);
 	while (++*t < RR_MAX) {
 		range = &physmem_info.reserved[*t];
 		if (range->end)

@@ -26,6 +26,7 @@ snd-sof-of-objs := sof-of-dev.o
 
 snd-sof-ipc-flood-test-objs := sof-client-ipc-flood-test.o
 snd-sof-ipc-msg-injector-objs := sof-client-ipc-msg-injector.o
+snd-sof-ipc-kernel-injector-objs := sof-client-ipc-kernel-injector.o
 snd-sof-probes-objs := sof-client-probes.o
 ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)
 snd-sof-probes-objs += sof-client-probes-ipc3.o
@@ -49,6 +50,7 @@ obj-$(CONFIG_SND_SOC_SOF_PCI_DEV) += snd-sof-pci.o
 
 obj-$(CONFIG_SND_SOC_SOF_DEBUG_IPC_FLOOD_TEST) += snd-sof-ipc-flood-test.o
 obj-$(CONFIG_SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR) += snd-sof-ipc-msg-injector.o
+obj-$(CONFIG_SND_SOC_SOF_DEBUG_IPC_KERNEL_INJECTOR) += snd-sof-ipc-kernel-injector.o
 obj-$(CONFIG_SND_SOC_SOF_DEBUG_PROBES) += snd-sof-probes.o
 
 obj-$(CONFIG_SND_SOC_SOF_INTEL_TOPLEVEL) += intel/

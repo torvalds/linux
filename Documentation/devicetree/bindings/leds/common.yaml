@@ -105,8 +105,6 @@ properties:
           - audio-mute
             # LED indicates bluetooth power state
           - bluetooth-power
-            # LED indicates activity of all CPUs
-          - cpu
             # LED indicates camera flash state
           - flash
             # LED indicated keyboard capslock

@@ -464,7 +464,7 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 
 static int radeon_debugfs_ring_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_ring *ring = (struct radeon_ring *) m->private;
+	struct radeon_ring *ring = m->private;
 	struct radeon_device *rdev = ring->rdev;
 
 	uint32_t rptr, wptr, rptr_next;

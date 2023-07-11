@@ -666,7 +666,7 @@ free_rproc:
 	return ret;
 }
 
-static int wcnss_remove(struct platform_device *pdev)
+static void wcnss_remove(struct platform_device *pdev)
 {
 	struct qcom_wcnss *wcnss = platform_get_drvdata(pdev);
 
@@ -678,8 +678,6 @@ static int wcnss_remove(struct platform_device *pdev)
 	qcom_remove_smd_subdev(wcnss->rproc, &wcnss->smd_subdev);
 	wcnss_release_pds(wcnss);
 	rproc_free(wcnss->rproc);
-
-	return 0;
 }
 
 static const struct of_device_id wcnss_of_match[] = {
@@ -693,7 +691,7 @@ MODULE_DEVICE_TABLE(of, wcnss_of_match);
 
 static struct platform_driver wcnss_driver = {
 	.probe = wcnss_probe,
-	.remove = wcnss_remove,
+	.remove_new = wcnss_remove,
 	.driver = {
 		.name = "qcom-wcnss-pil",
 		.of_match_table = wcnss_of_match,

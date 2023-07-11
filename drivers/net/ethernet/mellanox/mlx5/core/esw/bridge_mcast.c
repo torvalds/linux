@@ -540,16 +540,29 @@ static struct mlx5_flow_handle *
 mlx5_esw_bridge_mcast_filter_flow_peer_create(struct mlx5_esw_bridge_port *port)
 {
 	struct mlx5_devcom *devcom = port->bridge->br_offloads->esw->dev->priv.devcom;
+	struct mlx5_eswitch *tmp, *peer_esw = NULL;
 	static struct mlx5_flow_handle *handle;
-	struct mlx5_eswitch *peer_esw;
+	int i;
 
-	peer_esw = mlx5_devcom_get_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-	if (!peer_esw)
+	if (!mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS))
 		return ERR_PTR(-ENODEV);
+
+	mlx5_devcom_for_each_peer_entry(devcom,
+					MLX5_DEVCOM_ESW_OFFLOADS,
+					tmp, i) {
+		if (mlx5_esw_is_owner(tmp, port->vport_num, port->esw_owner_vhca_id)) {
+			peer_esw = tmp;
+			break;
+		}
+	}
+	if (!peer_esw) {
+		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+		return ERR_PTR(-ENODEV);
+	}
 
 	handle = mlx5_esw_bridge_mcast_flow_with_esw_create(port, peer_esw);
 
-	mlx5_devcom_release_peer_data(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+	mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
 	return handle;
 }
 

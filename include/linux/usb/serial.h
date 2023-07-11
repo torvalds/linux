@@ -278,7 +278,7 @@ struct usb_serial_driver {
 	int  (*set_serial)(struct tty_struct *tty, struct serial_struct *ss);
 	void (*set_termios)(struct tty_struct *tty, struct usb_serial_port *port,
 			    const struct ktermios *old);
-	void (*break_ctl)(struct tty_struct *tty, int break_state);
+	int (*break_ctl)(struct tty_struct *tty, int break_state);
 	unsigned int (*chars_in_buffer)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, long timeout);
 	bool (*tx_empty)(struct usb_serial_port *port);

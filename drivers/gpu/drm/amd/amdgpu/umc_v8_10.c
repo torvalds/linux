@@ -444,6 +444,11 @@ static void umc_v8_10_ecc_info_query_ras_error_address(struct amdgpu_device *ade
 		umc_v8_10_ecc_info_query_error_address, ras_error_status);
 }
 
+static void umc_v8_10_set_eeprom_table_version(struct amdgpu_ras_eeprom_table_header *hdr)
+{
+	hdr->version = RAS_TABLE_VER_V2_1;
+}
+
 const struct amdgpu_ras_block_hw_ops umc_v8_10_ras_hw_ops = {
 	.query_ras_error_count = umc_v8_10_query_ras_error_count,
 	.query_ras_error_address = umc_v8_10_query_ras_error_address,
@@ -457,4 +462,5 @@ struct amdgpu_umc_ras umc_v8_10_ras = {
 	.query_ras_poison_mode = umc_v8_10_query_ras_poison_mode,
 	.ecc_info_query_ras_error_count = umc_v8_10_ecc_info_query_ras_error_count,
 	.ecc_info_query_ras_error_address = umc_v8_10_ecc_info_query_ras_error_address,
+	.set_eeprom_table_version = umc_v8_10_set_eeprom_table_version,
 };

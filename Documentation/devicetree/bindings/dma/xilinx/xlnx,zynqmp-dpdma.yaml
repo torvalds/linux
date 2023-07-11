@@ -41,6 +41,9 @@ properties:
   clock-names:
     const: axi_clk
 
+  power-domains:
+    maxItems: 1
+
 required:
   - "#dma-cells"
   - compatible
@@ -48,12 +51,14 @@ required:
   - interrupts
   - clocks
   - clock-names
+  - power-domains
 
 additionalProperties: false
 
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/xlnx-zynqmp-power.h>
 
     dma: dma-controller@fd4c0000 {
       compatible = "xlnx,zynqmp-dpdma";
@@ -63,6 +68,7 @@ examples:
       clocks = <&dpdma_clk>;
       clock-names = "axi_clk";
       #dma-cells = <1>;
+      power-domains = <&zynqmp_firmware PD_DP>;
     };
 
 ...

@@ -62,7 +62,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.device_id = hdev->asic_funcs->get_pci_id(hdev);
 	hw_ip.sram_base_address = prop->sram_user_base_address;
 	hw_ip.dram_base_address =
-			hdev->mmu_enable && prop->dram_supports_virtual_memory ?
+			prop->dram_supports_virtual_memory ?
 			prop->dmmu.start_addr : prop->dram_user_base_address;
 	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask & 0xFF;
 	hw_ip.tpc_enabled_mask_ext = prop->tpc_enabled_mask;
@@ -71,11 +71,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 
 	dram_available_size = prop->dram_size - dram_kmd_size;
 
-	if (hdev->mmu_enable == MMU_EN_ALL)
-		hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size,
-				prop->dram_page_size) * prop->dram_page_size;
-	else
-		hw_ip.dram_size = dram_available_size;
+	hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size, prop->dram_page_size) *
+				prop->dram_page_size;
 
 	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
@@ -842,15 +839,15 @@ static int hw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	struct hw_err_info *info;
 	int rc;
 
-	if ((!user_buf_size) || (!user_buf))
+	if (!user_buf)
 		return -EINVAL;
-
-	if (user_buf_size < sizeof(struct hl_info_hw_err_event))
-		return -ENOMEM;
 
 	info = &hdev->captured_err_info.hw_err;
 	if (!info->event_info_available)
-		return -ENOENT;
+		return 0;
+
+	if (user_buf_size < sizeof(struct hl_info_hw_err_event))
+		return -ENOMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_hw_err_event));
 	return rc ? -EFAULT : 0;
@@ -864,15 +861,15 @@ static int fw_err_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	struct fw_err_info *info;
 	int rc;
 
-	if ((!user_buf_size) || (!user_buf))
+	if (!user_buf)
 		return -EINVAL;
-
-	if (user_buf_size < sizeof(struct hl_info_fw_err_event))
-		return -ENOMEM;
 
 	info = &hdev->captured_err_info.fw_err;
 	if (!info->event_info_available)
-		return -ENOENT;
+		return 0;
+
+	if (user_buf_size < sizeof(struct hl_info_fw_err_event))
+		return -ENOMEM;
 
 	rc = copy_to_user(user_buf, &info->event, sizeof(struct hl_info_fw_err_event));
 	return rc ? -EFAULT : 0;
@@ -1198,7 +1195,7 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 
 out_err:
 	if (retcode)
-		dev_dbg(dev, "error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
+		dev_dbg_ratelimited(dev, "error in ioctl: pid=%d, cmd=0x%02x, nr=0x%02x\n",
 			  task_pid_nr(current), cmd, nr);
 
 	if (kdata != stack_kdata)
@@ -1222,7 +1219,7 @@ long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	if ((nr >= HL_COMMAND_START) && (nr < HL_COMMAND_END)) {
 		ioctl = &hl_ioctls[nr];
 	} else {
-		dev_err(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
+		dev_dbg_ratelimited(hdev->dev, "invalid ioctl: pid=%d, nr=0x%02x\n",
 			task_pid_nr(current), nr);
 		return -ENOTTY;
 	}
@@ -1245,7 +1242,7 @@ long hl_ioctl_control(struct file *filep, unsigned int cmd, unsigned long arg)
 	if (nr == _IOC_NR(HL_IOCTL_INFO)) {
 		ioctl = &hl_ioctls_control[nr];
 	} else {
-		dev_err(hdev->dev_ctrl, "invalid ioctl: pid=%d, nr=0x%02x\n",
+		dev_dbg_ratelimited(hdev->dev_ctrl, "invalid ioctl: pid=%d, nr=0x%02x\n",
 			task_pid_nr(current), nr);
 		return -ENOTTY;
 	}

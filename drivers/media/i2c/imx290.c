@@ -1716,10 +1716,10 @@ static const struct of_device_id imx290_of_match[] = {
 MODULE_DEVICE_TABLE(of, imx290_of_match);
 
 static struct i2c_driver imx290_i2c_driver = {
-	.probe_new  = imx290_probe,
+	.probe = imx290_probe,
 	.remove = imx290_remove,
 	.driver = {
-		.name  = "imx290",
+		.name = "imx290",
 		.pm = pm_ptr(&imx290_pm_ops),
 		.of_match_table = imx290_of_match,
 	},

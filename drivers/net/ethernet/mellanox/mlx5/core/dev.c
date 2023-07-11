@@ -151,12 +151,6 @@ static bool is_ib_rep_supported(struct mlx5_core_dev *dev)
 	if (!is_eth_rep_supported(dev))
 		return false;
 
-	if (!MLX5_ESWITCH_MANAGER(dev))
-		return false;
-
-	if (!is_mdev_switchdev_mode(dev))
-		return false;
-
 	if (mlx5_core_mp_enabled(dev))
 		return false;
 
@@ -323,6 +317,18 @@ static void del_adev(struct auxiliary_device *adev)
 	auxiliary_device_uninit(adev);
 }
 
+void mlx5_dev_set_lightweight(struct mlx5_core_dev *dev)
+{
+	mutex_lock(&mlx5_intf_mutex);
+	dev->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV;
+	mutex_unlock(&mlx5_intf_mutex);
+}
+
+bool mlx5_dev_is_lightweight(struct mlx5_core_dev *dev)
+{
+	return dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV;
+}
+
 int mlx5_attach_device(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -455,6 +461,10 @@ static int add_drivers(struct mlx5_core_dev *dev)
 		bool is_supported = false;
 
 		if (priv->adev[i])
+			continue;
+
+		if (mlx5_adev_devices[i].is_enabled &&
+		    !(mlx5_adev_devices[i].is_enabled(dev)))
 			continue;
 
 		if (mlx5_adev_devices[i].is_supported)

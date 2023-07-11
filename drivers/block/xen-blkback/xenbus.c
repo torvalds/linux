@@ -473,7 +473,7 @@ static void xenvbd_sysfs_delif(struct xenbus_device *dev)
 static void xen_vbd_free(struct xen_vbd *vbd)
 {
 	if (vbd->bdev)
-		blkdev_put(vbd->bdev, vbd->readonly ? FMODE_READ : FMODE_WRITE);
+		blkdev_put(vbd->bdev, NULL);
 	vbd->bdev = NULL;
 }
 
@@ -492,7 +492,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	vbd->pdevice  = MKDEV(major, minor);
 
 	bdev = blkdev_get_by_dev(vbd->pdevice, vbd->readonly ?
-				 FMODE_READ : FMODE_WRITE, NULL);
+				 BLK_OPEN_READ : BLK_OPEN_WRITE, NULL, NULL);
 
 	if (IS_ERR(bdev)) {
 		pr_warn("xen_vbd_create: device %08x could not be opened\n",

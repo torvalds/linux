@@ -287,7 +287,7 @@ examples:
             arm,trig-in-sigs = <0 1>;
             arm,trig-in-types = <PE_DBGTRIGGER
                                  PE_PMUIRQ>;
-            arm,trig-out-sigs=<0 1 2 >;
+            arm,trig-out-sigs = <0 1 2 >;
             arm,trig-out-types = <PE_EDBGREQ
                                   PE_DBGRESTART
                                   PE_CTIIRQ>;
@@ -309,24 +309,24 @@ examples:
 
       trig-conns@0 {
         reg = <0>;
-        arm,trig-in-sigs=<0>;
-        arm,trig-in-types=<GEN_INTREQ>;
-        arm,trig-out-sigs=<0>;
-        arm,trig-out-types=<GEN_HALTREQ>;
+        arm,trig-in-sigs = <0>;
+        arm,trig-in-types = <GEN_INTREQ>;
+        arm,trig-out-sigs = <0>;
+        arm,trig-out-types = <GEN_HALTREQ>;
         arm,trig-conn-name = "sys_profiler";
       };
 
       trig-conns@1 {
         reg = <1>;
-        arm,trig-out-sigs=<2 3>;
-        arm,trig-out-types=<GEN_HALTREQ GEN_RESTARTREQ>;
+        arm,trig-out-sigs = <2 3>;
+        arm,trig-out-types = <GEN_HALTREQ GEN_RESTARTREQ>;
         arm,trig-conn-name = "watchdog";
       };
 
       trig-conns@2 {
         reg = <2>;
-        arm,trig-in-sigs=<1 6>;
-        arm,trig-in-types=<GEN_HALTREQ GEN_RESTARTREQ>;
+        arm,trig-in-sigs = <1 6>;
+        arm,trig-in-types = <GEN_HALTREQ GEN_RESTARTREQ>;
         arm,trig-conn-name = "g_counter";
       };
     };

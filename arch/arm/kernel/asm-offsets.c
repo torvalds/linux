@@ -17,7 +17,7 @@
 #include <asm/glue-pf.h>
 #include <asm/mach/arch.h>
 #include <asm/thread_info.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/mpu.h>
 #include <asm/procinfo.h>
 #include <asm/suspend.h>

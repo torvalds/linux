@@ -1198,7 +1198,7 @@ static struct i2c_driver ar0521_i2c_driver = {
 		.pm = &ar0521_pm_ops,
 		.of_match_table = ar0521_dt_ids,
 	},
-	.probe_new = ar0521_probe,
+	.probe = ar0521_probe,
 	.remove = ar0521_remove,
 };
 

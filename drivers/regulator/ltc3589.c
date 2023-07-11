@@ -348,7 +348,7 @@ static const struct regmap_config ltc3589_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ltc3589_reg_defaults),
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3589_isr(int irq, void *dev_id)
@@ -477,7 +477,7 @@ static struct i2c_driver ltc3589_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3589_of_match),
 	},
-	.probe_new = ltc3589_probe,
+	.probe = ltc3589_probe,
 	.id_table = ltc3589_i2c_id,
 };
 module_i2c_driver(ltc3589_driver);

@@ -580,7 +580,7 @@ static struct i2c_driver hycon_hy46xx_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.id_table = hycon_hy46xx_id,
-	.probe_new = hycon_hy46xx_probe,
+	.probe = hycon_hy46xx_probe,
 };
 
 module_i2c_driver(hycon_hy46xx_driver);

@@ -97,7 +97,6 @@ struct ocotp_params {
 	unsigned int bank_address_words;
 	void (*set_timing)(struct ocotp_priv *priv);
 	struct ocotp_ctrl_reg ctrl;
-	bool reverse_mac_address;
 };
 
 static int imx_ocotp_wait_for_busy(struct ocotp_priv *priv, u32 flags)
@@ -545,7 +544,6 @@ static const struct ocotp_params imx8mq_params = {
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
 	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
-	.reverse_mac_address = true,
 };
 
 static const struct ocotp_params imx8mm_params = {
@@ -553,7 +551,6 @@ static const struct ocotp_params imx8mm_params = {
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
 	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
-	.reverse_mac_address = true,
 };
 
 static const struct ocotp_params imx8mn_params = {
@@ -561,7 +558,6 @@ static const struct ocotp_params imx8mn_params = {
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
 	.ctrl = IMX_OCOTP_BM_CTRL_DEFAULT,
-	.reverse_mac_address = true,
 };
 
 static const struct ocotp_params imx8mp_params = {
@@ -569,7 +565,6 @@ static const struct ocotp_params imx8mp_params = {
 	.bank_address_words = 0,
 	.set_timing = imx_ocotp_set_imx6_timing,
 	.ctrl = IMX_OCOTP_BM_CTRL_8MP,
-	.reverse_mac_address = true,
 };
 
 static const struct of_device_id imx_ocotp_dt_ids[] = {
@@ -596,7 +591,7 @@ static void imx_ocotp_fixup_cell_info(struct nvmem_device *nvmem,
 	cell->read_post_process = imx_ocotp_cell_pp;
 }
 
-struct nvmem_layout imx_ocotp_layout = {
+static struct nvmem_layout imx_ocotp_layout = {
 	.fixup_cell_info = imx_ocotp_fixup_cell_info,
 };
 
@@ -624,8 +619,7 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	imx_ocotp_nvmem_config.size = 4 * priv->params->nregs;
 	imx_ocotp_nvmem_config.dev = dev;
 	imx_ocotp_nvmem_config.priv = priv;
-	if (priv->params->reverse_mac_address)
-		imx_ocotp_nvmem_config.layout = &imx_ocotp_layout;
+	imx_ocotp_nvmem_config.layout = &imx_ocotp_layout;
 
 	priv->config = &imx_ocotp_nvmem_config;
 

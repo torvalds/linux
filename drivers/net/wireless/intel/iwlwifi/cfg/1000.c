@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -22,11 +22,11 @@
 #define EEPROM_1000_TX_POWER_VERSION	(4)
 #define EEPROM_1000_EEPROM_VERSION	(0x15C)
 
-#define IWL1000_FW_PRE "iwlwifi-1000-"
-#define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE __stringify(api) ".ucode"
+#define IWL1000_FW_PRE "iwlwifi-1000"
+#define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL100_FW_PRE "iwlwifi-100-"
-#define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE __stringify(api) ".ucode"
+#define IWL100_FW_PRE "iwlwifi-100"
+#define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE "-" __stringify(api) ".ucode"
 
 
 static const struct iwl_base_params iwl1000_base_params = {

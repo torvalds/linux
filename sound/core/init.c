@@ -129,7 +129,7 @@ void snd_device_initialize(struct device *dev, struct snd_card *card)
 	device_initialize(dev);
 	if (card)
 		dev->parent = &card->card_dev;
-	dev->class = sound_class;
+	dev->class = &sound_class;
 	dev->release = default_release;
 }
 EXPORT_SYMBOL_GPL(snd_device_initialize);
@@ -331,7 +331,7 @@ static int snd_card_init(struct snd_card *card, struct device *parent,
 
 	device_initialize(&card->card_dev);
 	card->card_dev.parent = parent;
-	card->card_dev.class = sound_class;
+	card->card_dev.class = &sound_class;
 	card->card_dev.release = release_card_device;
 	card->card_dev.groups = card->dev_groups;
 	card->dev_groups[0] = &card_dev_attr_group;

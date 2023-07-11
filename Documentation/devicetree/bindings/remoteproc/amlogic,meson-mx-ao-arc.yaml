@@ -75,7 +75,7 @@ additionalProperties: false
 examples:
   - |
     remoteproc@1c {
-      compatible= "amlogic,meson8-ao-arc", "amlogic,meson-mx-ao-arc";
+      compatible = "amlogic,meson8-ao-arc", "amlogic,meson-mx-ao-arc";
       reg = <0x1c 0x8>, <0x38 0x8>;
       reg-names = "remap", "cpu";
       resets = <&media_cpu_reset>;

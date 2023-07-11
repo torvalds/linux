@@ -306,6 +306,34 @@ xfs_file_read_iter(
 	return ret;
 }
 
+STATIC ssize_t
+xfs_file_splice_read(
+	struct file		*in,
+	loff_t			*ppos,
+	struct pipe_inode_info	*pipe,
+	size_t			len,
+	unsigned int		flags)
+{
+	struct inode		*inode = file_inode(in);
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	ssize_t			ret = 0;
+
+	XFS_STATS_INC(mp, xs_read_calls);
+
+	if (xfs_is_shutdown(mp))
+		return -EIO;
+
+	trace_xfs_file_splice_read(ip, *ppos, len);
+
+	xfs_ilock(ip, XFS_IOLOCK_SHARED);
+	ret = filemap_splice_read(in, ppos, pipe, len, flags);
+	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
+	if (ret > 0)
+		XFS_STATS_ADD(mp, xs_read_bytes, ret);
+	return ret;
+}
+
 /*
  * Common pre-write limit and setup checks.
  *
@@ -717,14 +745,9 @@ write_retry:
 	if (ret)
 		goto out;
 
-	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
-
 	trace_xfs_file_buffered_write(iocb, from);
 	ret = iomap_file_buffered_write(iocb, from,
 			&xfs_buffered_write_iomap_ops);
-	if (likely(ret >= 0))
-		iocb->ki_pos += ret;
 
 	/*
 	 * If we hit a space limit, try to free up some lingering preallocated
@@ -753,7 +776,6 @@ write_retry:
 		goto write_retry;
 	}
 
-	current->backing_dev_info = NULL;
 out:
 	if (iolock)
 		xfs_iunlock(ip, iolock);
@@ -1172,7 +1194,7 @@ xfs_file_open(
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
 	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC |
-			FMODE_DIO_PARALLEL_WRITE;
+			FMODE_DIO_PARALLEL_WRITE | FMODE_CAN_ODIRECT;
 	return generic_file_open(inode, file);
 }
 
@@ -1423,7 +1445,7 @@ const struct file_operations xfs_file_operations = {
 	.llseek		= xfs_file_llseek,
 	.read_iter	= xfs_file_read_iter,
 	.write_iter	= xfs_file_write_iter,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= xfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.iopoll		= iocb_bio_iopoll,
 	.unlocked_ioctl	= xfs_file_ioctl,

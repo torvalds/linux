@@ -203,7 +203,7 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 	ret = sendmsg_copy_msghdr(&iomsg->msg, sr->umsg, sr->msg_flags,
 					&iomsg->free_iov);
 	/* save msg_control as sys_sendmsg() overwrites it */
-	sr->msg_control = iomsg->msg.msg_control;
+	sr->msg_control = iomsg->msg.msg_control_user;
 	return ret;
 }
 
@@ -302,7 +302,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (req_has_async_data(req)) {
 		kmsg = req->async_data;
-		kmsg->msg.msg_control = sr->msg_control;
+		kmsg->msg.msg_control_user = sr->msg_control;
 	} else {
 		ret = io_sendmsg_copy_hdr(req, &iomsg);
 		if (ret)
@@ -326,6 +326,8 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
 			return io_setup_async_msg(req, kmsg, issue_flags);
 		if (ret > 0 && io_net_retry(sock, flags)) {
+			kmsg->msg.msg_controllen = 0;
+			kmsg->msg.msg_control = NULL;
 			sr->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
 			return io_setup_async_msg(req, kmsg, issue_flags);
@@ -395,6 +397,7 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
 
+	flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
 	msg.msg_flags = flags;
 	ret = sock_sendmsg(sock, &msg);
 	if (ret < min_ret) {
@@ -622,9 +625,15 @@ static inline void io_recv_prep_retry(struct io_kiocb *req)
  * again (for multishot).
  */
 static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
-				  unsigned int cflags, bool mshot_finished,
+				  struct msghdr *msg, bool mshot_finished,
 				  unsigned issue_flags)
 {
+	unsigned int cflags;
+
+	cflags = io_put_kbuf(req, issue_flags);
+	if (msg->msg_inq && msg->msg_inq != -1)
+		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
+
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
 		io_req_set_res(req, *ret, cflags);
 		*ret = IOU_OK;
@@ -632,10 +641,18 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 	}
 
 	if (!mshot_finished) {
-		if (io_aux_cqe(req->ctx, issue_flags & IO_URING_F_COMPLETE_DEFER,
-			       req->cqe.user_data, *ret, cflags | IORING_CQE_F_MORE, true)) {
+		if (io_aux_cqe(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
+			       *ret, cflags | IORING_CQE_F_MORE, true)) {
 			io_recv_prep_retry(req);
-			return false;
+			/* Known not-empty or unknown state, retry */
+			if (cflags & IORING_CQE_F_SOCK_NONEMPTY ||
+			    msg->msg_inq == -1)
+				return false;
+			if (issue_flags & IO_URING_F_MULTISHOT)
+				*ret = IOU_ISSUE_SKIP_COMPLETE;
+			else
+				*ret = -EAGAIN;
+			return true;
 		}
 		/* Otherwise stop multishot but use the current result. */
 	}
@@ -738,7 +755,6 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr iomsg, *kmsg;
 	struct socket *sock;
-	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -787,16 +803,20 @@ retry_multishot:
 	flags = sr->msg_flags;
 	if (force_nonblock)
 		flags |= MSG_DONTWAIT;
-	if (flags & MSG_WAITALL)
-		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
 	kmsg->msg.msg_get_inq = 1;
-	if (req->flags & REQ_F_APOLL_MULTISHOT)
+	kmsg->msg.msg_inq = -1;
+	if (req->flags & REQ_F_APOLL_MULTISHOT) {
 		ret = io_recvmsg_multishot(sock, sr, kmsg, flags,
 					   &mshot_finished);
-	else
+	} else {
+		/* disable partial retry for recvmsg with cmsg attached */
+		if (flags & MSG_WAITALL && !kmsg->msg.msg_controllen)
+			min_ret = iov_iter_count(&kmsg->msg.msg_iter);
+
 		ret = __sys_recvmsg_sock(sock, &kmsg->msg, sr->umsg,
 					 kmsg->uaddr, flags);
+	}
 
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock) {
@@ -826,11 +846,7 @@ retry_multishot:
 	else
 		io_kbuf_recycle(req, issue_flags);
 
-	cflags = io_put_kbuf(req, issue_flags);
-	if (kmsg->msg.msg_inq)
-		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
-
-	if (!io_recv_finish(req, &ret, cflags, mshot_finished, issue_flags))
+	if (!io_recv_finish(req, &ret, &kmsg->msg, mshot_finished, issue_flags))
 		goto retry_multishot;
 
 	if (mshot_finished) {
@@ -849,7 +865,6 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct msghdr msg;
 	struct socket *sock;
-	unsigned int cflags;
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -866,6 +881,14 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+	msg.msg_control = NULL;
+	msg.msg_get_inq = 1;
+	msg.msg_controllen = 0;
+	msg.msg_iocb = NULL;
+	msg.msg_ubuf = NULL;
+
 retry_multishot:
 	if (io_do_buffer_select(req)) {
 		void __user *buf;
@@ -880,14 +903,8 @@ retry_multishot:
 	if (unlikely(ret))
 		goto out_free;
 
-	msg.msg_name = NULL;
-	msg.msg_namelen = 0;
-	msg.msg_control = NULL;
-	msg.msg_get_inq = 1;
+	msg.msg_inq = -1;
 	msg.msg_flags = 0;
-	msg.msg_controllen = 0;
-	msg.msg_iocb = NULL;
-	msg.msg_ubuf = NULL;
 
 	flags = sr->msg_flags;
 	if (force_nonblock)
@@ -927,11 +944,7 @@ out_free:
 	else
 		io_kbuf_recycle(req, issue_flags);
 
-	cflags = io_put_kbuf(req, issue_flags);
-	if (msg.msg_inq)
-		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
-
-	if (!io_recv_finish(req, &ret, cflags, ret <= 0, issue_flags))
+	if (!io_recv_finish(req, &ret, &msg, ret <= 0, issue_flags))
 		goto retry_multishot;
 
 	return ret;
@@ -1142,6 +1155,7 @@ int io_send_zc(struct io_kiocb *req, unsigned int issue_flags)
 		msg_flags |= MSG_DONTWAIT;
 	if (msg_flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
+	msg_flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
 
 	msg.msg_flags = msg_flags;
 	msg.msg_ubuf = &io_notif_to_data(zc->notif)->uarg;
@@ -1303,7 +1317,6 @@ int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 int io_accept(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	struct io_accept *accept = io_kiocb_to_cmd(req, struct io_accept);
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 	unsigned int file_flags = force_nonblock ? O_NONBLOCK : 0;
@@ -1353,8 +1366,8 @@ retry:
 
 	if (ret < 0)
 		return ret;
-	if (io_aux_cqe(ctx, issue_flags & IO_URING_F_COMPLETE_DEFER,
-		       req->cqe.user_data, ret, IORING_CQE_F_MORE, true))
+	if (io_aux_cqe(req, issue_flags & IO_URING_F_COMPLETE_DEFER, ret,
+		       IORING_CQE_F_MORE, true))
 		goto retry;
 
 	return -ECANCELED;

@@ -77,8 +77,10 @@ void drm_sched_fence_scheduled(struct drm_sched_fence *fence,
 	dma_fence_signal(&fence->scheduled);
 }
 
-void drm_sched_fence_finished(struct drm_sched_fence *fence)
+void drm_sched_fence_finished(struct drm_sched_fence *fence, int result)
 {
+	if (result)
+		dma_fence_set_error(&fence->finished, result);
 	dma_fence_signal(&fence->finished);
 }
 

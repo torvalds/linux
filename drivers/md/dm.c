@@ -207,7 +207,7 @@ static int __init local_init(void)
 	if (r)
 		return r;
 
-	deferred_remove_workqueue = alloc_workqueue("kdmremove", WQ_UNBOUND, 1);
+	deferred_remove_workqueue = alloc_ordered_workqueue("kdmremove", 0);
 	if (!deferred_remove_workqueue) {
 		r = -ENOMEM;
 		goto out_uevent_exit;
@@ -310,13 +310,13 @@ int dm_deleting_md(struct mapped_device *md)
 	return test_bit(DMF_DELETING, &md->flags);
 }
 
-static int dm_blk_open(struct block_device *bdev, fmode_t mode)
+static int dm_blk_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct mapped_device *md;
 
 	spin_lock(&_minor_lock);
 
-	md = bdev->bd_disk->private_data;
+	md = disk->private_data;
 	if (!md)
 		goto out;
 
@@ -334,7 +334,7 @@ out:
 	return md ? 0 : -ENXIO;
 }
 
-static void dm_blk_close(struct gendisk *disk, fmode_t mode)
+static void dm_blk_close(struct gendisk *disk)
 {
 	struct mapped_device *md;
 
@@ -448,7 +448,7 @@ static void dm_unprepare_ioctl(struct mapped_device *md, int srcu_idx)
 	dm_put_live_table(md, srcu_idx);
 }
 
-static int dm_blk_ioctl(struct block_device *bdev, fmode_t mode,
+static int dm_blk_ioctl(struct block_device *bdev, blk_mode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
@@ -487,48 +487,50 @@ u64 dm_start_time_ns_from_clone(struct bio *bio)
 }
 EXPORT_SYMBOL_GPL(dm_start_time_ns_from_clone);
 
-static bool bio_is_flush_with_data(struct bio *bio)
+static inline bool bio_is_flush_with_data(struct bio *bio)
 {
 	return ((bio->bi_opf & REQ_PREFLUSH) && bio->bi_iter.bi_size);
 }
 
-static void dm_io_acct(struct dm_io *io, bool end)
+static inline unsigned int dm_io_sectors(struct dm_io *io, struct bio *bio)
 {
-	struct dm_stats_aux *stats_aux = &io->stats_aux;
-	unsigned long start_time = io->start_time;
-	struct mapped_device *md = io->md;
-	struct bio *bio = io->orig_bio;
-	unsigned int sectors;
-
 	/*
 	 * If REQ_PREFLUSH set, don't account payload, it will be
 	 * submitted (and accounted) after this flush completes.
 	 */
 	if (bio_is_flush_with_data(bio))
-		sectors = 0;
-	else if (likely(!(dm_io_flagged(io, DM_IO_WAS_SPLIT))))
-		sectors = bio_sectors(bio);
-	else
-		sectors = io->sectors;
+		return 0;
+	if (unlikely(dm_io_flagged(io, DM_IO_WAS_SPLIT)))
+		return io->sectors;
+	return bio_sectors(bio);
+}
 
-	if (!end)
-		bdev_start_io_acct(bio->bi_bdev, bio_op(bio), start_time);
-	else
-		bdev_end_io_acct(bio->bi_bdev, bio_op(bio), sectors,
-				 start_time);
+static void dm_io_acct(struct dm_io *io, bool end)
+{
+	struct bio *bio = io->orig_bio;
+
+	if (dm_io_flagged(io, DM_IO_BLK_STAT)) {
+		if (!end)
+			bdev_start_io_acct(bio->bi_bdev, bio_op(bio),
+					   io->start_time);
+		else
+			bdev_end_io_acct(bio->bi_bdev, bio_op(bio),
+					 dm_io_sectors(io, bio),
+					 io->start_time);
+	}
 
 	if (static_branch_unlikely(&stats_enabled) &&
-	    unlikely(dm_stats_used(&md->stats))) {
+	    unlikely(dm_stats_used(&io->md->stats))) {
 		sector_t sector;
 
-		if (likely(!dm_io_flagged(io, DM_IO_WAS_SPLIT)))
-			sector = bio->bi_iter.bi_sector;
-		else
+		if (unlikely(dm_io_flagged(io, DM_IO_WAS_SPLIT)))
 			sector = bio_end_sector(bio) - io->sector_offset;
+		else
+			sector = bio->bi_iter.bi_sector;
 
-		dm_stats_account_io(&md->stats, bio_data_dir(bio),
-				    sector, sectors,
-				    end, start_time, stats_aux);
+		dm_stats_account_io(&io->md->stats, bio_data_dir(bio),
+				    sector, dm_io_sectors(io, bio),
+				    end, io->start_time, &io->stats_aux);
 	}
 }
 
@@ -592,8 +594,11 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
 	io->flags = 0;
+	if (blk_queue_io_stat(md->queue))
+		dm_io_set_flag(io, DM_IO_BLK_STAT);
 
-	if (static_branch_unlikely(&stats_enabled))
+	if (static_branch_unlikely(&stats_enabled) &&
+	    unlikely(dm_stats_used(&md->stats)))
 		dm_stats_record_start(&md->stats, &io->stats_aux);
 
 	return io;
@@ -734,7 +739,7 @@ static char *_dm_claim_ptr = "I belong to device-mapper";
  * Open a table device so we can use it as a map destination.
  */
 static struct table_device *open_table_device(struct mapped_device *md,
-		dev_t dev, fmode_t mode)
+		dev_t dev, blk_mode_t mode)
 {
 	struct table_device *td;
 	struct block_device *bdev;
@@ -746,7 +751,7 @@ static struct table_device *open_table_device(struct mapped_device *md,
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&td->count, 1);
 
-	bdev = blkdev_get_by_dev(dev, mode | FMODE_EXCL, _dm_claim_ptr);
+	bdev = blkdev_get_by_dev(dev, mode, _dm_claim_ptr, NULL);
 	if (IS_ERR(bdev)) {
 		r = PTR_ERR(bdev);
 		goto out_free_td;
@@ -771,7 +776,7 @@ static struct table_device *open_table_device(struct mapped_device *md,
 	return td;
 
 out_blkdev_put:
-	blkdev_put(bdev, mode | FMODE_EXCL);
+	blkdev_put(bdev, _dm_claim_ptr);
 out_free_td:
 	kfree(td);
 	return ERR_PTR(r);
@@ -784,14 +789,14 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 {
 	if (md->disk->slave_dir)
 		bd_unlink_disk_holder(td->dm_dev.bdev, md->disk);
-	blkdev_put(td->dm_dev.bdev, td->dm_dev.mode | FMODE_EXCL);
+	blkdev_put(td->dm_dev.bdev, _dm_claim_ptr);
 	put_dax(td->dm_dev.dax_dev);
 	list_del(&td->list);
 	kfree(td);
 }
 
 static struct table_device *find_table_device(struct list_head *l, dev_t dev,
-					      fmode_t mode)
+					      blk_mode_t mode)
 {
 	struct table_device *td;
 
@@ -802,7 +807,7 @@ static struct table_device *find_table_device(struct list_head *l, dev_t dev,
 	return NULL;
 }
 
-int dm_get_table_device(struct mapped_device *md, dev_t dev, fmode_t mode,
+int dm_get_table_device(struct mapped_device *md, dev_t dev, blk_mode_t mode,
 			struct dm_dev **result)
 {
 	struct table_device *td;
@@ -2348,6 +2353,7 @@ int dm_setup_md_queue(struct mapped_device *md, struct dm_table *t)
 		break;
 	case DM_TYPE_BIO_BASED:
 	case DM_TYPE_DAX_BIO_BASED:
+		blk_queue_flag_set(QUEUE_FLAG_IO_STAT, md->queue);
 		break;
 	case DM_TYPE_NONE:
 		WARN_ON_ONCE(true);
@@ -3143,6 +3149,8 @@ struct dm_pr {
 	bool	fail_early;
 	int	ret;
 	enum pr_type type;
+	struct pr_keys *read_keys;
+	struct pr_held_reservation *rsv;
 };
 
 static int dm_call_pr(struct block_device *bdev, iterate_devices_callout_fn fn,
@@ -3375,12 +3383,79 @@ out:
 	return r;
 }
 
+static int __dm_pr_read_keys(struct dm_target *ti, struct dm_dev *dev,
+			     sector_t start, sector_t len, void *data)
+{
+	struct dm_pr *pr = data;
+	const struct pr_ops *ops = dev->bdev->bd_disk->fops->pr_ops;
+
+	if (!ops || !ops->pr_read_keys) {
+		pr->ret = -EOPNOTSUPP;
+		return -1;
+	}
+
+	pr->ret = ops->pr_read_keys(dev->bdev, pr->read_keys);
+	if (!pr->ret)
+		return -1;
+
+	return 0;
+}
+
+static int dm_pr_read_keys(struct block_device *bdev, struct pr_keys *keys)
+{
+	struct dm_pr pr = {
+		.read_keys = keys,
+	};
+	int ret;
+
+	ret = dm_call_pr(bdev, __dm_pr_read_keys, &pr);
+	if (ret)
+		return ret;
+
+	return pr.ret;
+}
+
+static int __dm_pr_read_reservation(struct dm_target *ti, struct dm_dev *dev,
+				    sector_t start, sector_t len, void *data)
+{
+	struct dm_pr *pr = data;
+	const struct pr_ops *ops = dev->bdev->bd_disk->fops->pr_ops;
+
+	if (!ops || !ops->pr_read_reservation) {
+		pr->ret = -EOPNOTSUPP;
+		return -1;
+	}
+
+	pr->ret = ops->pr_read_reservation(dev->bdev, pr->rsv);
+	if (!pr->ret)
+		return -1;
+
+	return 0;
+}
+
+static int dm_pr_read_reservation(struct block_device *bdev,
+				  struct pr_held_reservation *rsv)
+{
+	struct dm_pr pr = {
+		.rsv = rsv,
+	};
+	int ret;
+
+	ret = dm_call_pr(bdev, __dm_pr_read_reservation, &pr);
+	if (ret)
+		return ret;
+
+	return pr.ret;
+}
+
 static const struct pr_ops dm_pr_ops = {
 	.pr_register	= dm_pr_register,
 	.pr_reserve	= dm_pr_reserve,
 	.pr_release	= dm_pr_release,
 	.pr_preempt	= dm_pr_preempt,
 	.pr_clear	= dm_pr_clear,
+	.pr_read_keys	= dm_pr_read_keys,
+	.pr_read_reservation = dm_pr_read_reservation,
 };
 
 static const struct block_device_operations dm_blk_dops = {

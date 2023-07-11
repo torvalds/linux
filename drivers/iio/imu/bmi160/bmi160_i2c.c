@@ -60,7 +60,7 @@ static struct i2c_driver bmi160_i2c_driver = {
 		.acpi_match_table	= bmi160_acpi_match,
 		.of_match_table		= bmi160_of_match,
 	},
-	.probe_new	= bmi160_i2c_probe,
+	.probe		= bmi160_i2c_probe,
 	.id_table	= bmi160_i2c_id,
 };
 module_i2c_driver(bmi160_i2c_driver);

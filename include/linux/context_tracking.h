@@ -119,7 +119,7 @@ extern void ct_idle_exit(void);
  */
 static __always_inline bool rcu_dynticks_curr_cpu_in_eqs(void)
 {
-	return !(arch_atomic_read(this_cpu_ptr(&context_tracking.state)) & RCU_DYNTICKS_IDX);
+	return !(raw_atomic_read(this_cpu_ptr(&context_tracking.state)) & RCU_DYNTICKS_IDX);
 }
 
 /*
@@ -128,7 +128,7 @@ static __always_inline bool rcu_dynticks_curr_cpu_in_eqs(void)
  */
 static __always_inline unsigned long ct_state_inc(int incby)
 {
-	return arch_atomic_add_return(incby, this_cpu_ptr(&context_tracking.state));
+	return raw_atomic_add_return(incby, this_cpu_ptr(&context_tracking.state));
 }
 
 static __always_inline bool warn_rcu_enter(void)

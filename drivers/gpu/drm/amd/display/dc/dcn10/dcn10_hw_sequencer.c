@@ -1012,31 +1012,29 @@ static void dcn10_reset_back_end_for_pipe(
 		return;
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		link = pipe_ctx->stream->link;
-		/* DPMS may already disable or */
-		/* dpms_off status is incorrect due to fastboot
-		 * feature. When system resume from S4 with second
-		 * screen only, the dpms_off would be true but
-		 * VBIOS lit up eDP, so check link status too.
-		 */
-		if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
-			dc->link_srv->set_dpms_off(pipe_ctx);
-		else if (pipe_ctx->stream_res.audio)
-			dc->hwss.disable_audio_stream(pipe_ctx);
+	link = pipe_ctx->stream->link;
+	/* DPMS may already disable or */
+	/* dpms_off status is incorrect due to fastboot
+	 * feature. When system resume from S4 with second
+	 * screen only, the dpms_off would be true but
+	 * VBIOS lit up eDP, so check link status too.
+	 */
+	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+		dc->link_srv->set_dpms_off(pipe_ctx);
+	else if (pipe_ctx->stream_res.audio)
+		dc->hwss.disable_audio_stream(pipe_ctx);
 
-		if (pipe_ctx->stream_res.audio) {
-			/*disable az_endpoint*/
-			pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+	if (pipe_ctx->stream_res.audio) {
+		/*disable az_endpoint*/
+		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
 
-			/*free audio*/
-			if (dc->caps.dynamic_audio == true) {
-				/*we have to dynamic arbitrate the audio endpoints*/
-				/*we free the resource, need reset is_audio_acquired*/
-				update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
-						pipe_ctx->stream_res.audio, false);
-				pipe_ctx->stream_res.audio = NULL;
-			}
+		/*free audio*/
+		if (dc->caps.dynamic_audio == true) {
+			/*we have to dynamic arbitrate the audio endpoints*/
+			/*we free the resource, need reset is_audio_acquired*/
+			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.audio, false);
+			pipe_ctx->stream_res.audio = NULL;
 		}
 	}
 
@@ -1499,54 +1497,32 @@ void dcn10_init_hw(struct dc *dc)
 	if (dc->res_pool->dccg && dc->res_pool->dccg->funcs->dccg_init)
 		dc->res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-
-		REG_WRITE(REFCLK_CNTL, 0);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
-		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
-
-		if (!dc->debug.disable_clock_gate) {
-			/* enable all DCN clock gating */
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
-
-			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
-
-			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
-		}
-
-		//Enable ability to power gate / don't force power on permanently
-		if (hws->funcs.enable_power_gating_plane)
-			hws->funcs.enable_power_gating_plane(hws, true);
-
-		return;
-	}
-
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		hws->funcs.disable_vga(dc->hwseq);
 
-	hws->funcs.bios_golden_init(dc);
+	if (!dc_dmub_srv_optimized_init_done(dc->ctx->dmub_srv))
+		hws->funcs.bios_golden_init(dc);
+
 
 	if (dc->ctx->dc_bios->fw_info_valid) {
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
 
-		if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-			if (res_pool->dccg && res_pool->hubbub) {
+		if (res_pool->dccg && res_pool->hubbub) {
 
-				(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
-						dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
-						&res_pool->ref_clocks.dccg_ref_clock_inKhz);
+			(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
+					&res_pool->ref_clocks.dccg_ref_clock_inKhz);
 
-				(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
-						res_pool->ref_clocks.dccg_ref_clock_inKhz,
-						&res_pool->ref_clocks.dchub_ref_clock_inKhz);
-			} else {
-				// Not all ASICs have DCCG sw component
-				res_pool->ref_clocks.dccg_ref_clock_inKhz =
-						res_pool->ref_clocks.xtalin_clock_inKhz;
-				res_pool->ref_clocks.dchub_ref_clock_inKhz =
-						res_pool->ref_clocks.xtalin_clock_inKhz;
-			}
+			(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+					res_pool->ref_clocks.dccg_ref_clock_inKhz,
+					&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+		} else {
+			// Not all ASICs have DCCG sw component
+			res_pool->ref_clocks.dccg_ref_clock_inKhz =
+					res_pool->ref_clocks.xtalin_clock_inKhz;
+			res_pool->ref_clocks.dchub_ref_clock_inKhz =
+					res_pool->ref_clocks.xtalin_clock_inKhz;
 		}
 	} else
 		ASSERT_CRITICAL(false);
@@ -1867,7 +1843,7 @@ bool dcn10_set_output_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 	/* dcn10_translate_regamma_to_hw_format takes 750us, only do it when full
 	 * update.
 	 */
-	else if (cm_helper_translate_curve_to_hw_format(
+	else if (cm_helper_translate_curve_to_hw_format(dc->ctx,
 			stream->out_transfer_func,
 			&dpp->regamma_params, false)) {
 		dpp->funcs->dpp_program_regamma_pwl(
@@ -1923,6 +1899,11 @@ void dcn10_pipe_control_lock(
  *
  * TODO: Optimize cursor programming to be once per frame before VUPDATE
  *       to avoid the need for this workaround.
+ *
+ * @dc: Current DC state
+ * @pipe_ctx: Pipe_ctx pointer for delayed cursor update
+ *
+ * Return: void
  */
 static void delay_cursor_until_vupdate(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
@@ -2600,23 +2581,15 @@ static void dcn10_update_dpp(struct dpp *dpp, struct dc_plane_state *plane_state
 		dpp->funcs->dpp_program_bias_and_scale(dpp, &bns_params);
 }
 
-void dcn10_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx, struct tg_color *color, int mpcc_id)
+void dcn10_update_visual_confirm_color(struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		int mpcc_id)
 {
 	struct mpc *mpc = dc->res_pool->mpc;
 
-	if (dc->debug.visual_confirm == VISUAL_CONFIRM_HDR)
-		get_hdr_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
-		get_surface_visual_confirm_color(pipe_ctx, color);
-	else if (dc->debug.visual_confirm == VISUAL_CONFIRM_SWIZZLE)
-		get_surface_tile_visual_confirm_color(pipe_ctx, color);
-	else
-		color_space_to_black_color(
-				dc, pipe_ctx->stream->output_color_space, color);
-
 	if (mpc->funcs->set_bg_color) {
-		memcpy(&pipe_ctx->plane_state->visual_confirm_color, color, sizeof(struct tg_color));
-		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
+		memcpy(&pipe_ctx->plane_state->visual_confirm_color, &(pipe_ctx->visual_confirm_color), sizeof(struct tg_color));
+		mpc->funcs->set_bg_color(mpc, &(pipe_ctx->visual_confirm_color), mpcc_id);
 	}
 }
 
@@ -2669,7 +2642,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	/* If there is no full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
-		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+		dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 		return;
 	}
 
@@ -2691,7 +2664,7 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 			NULL,
 			hubp->inst,
 			mpcc_id);
-	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, &blnd_cfg.black_color, mpcc_id);
+	dc->hwss.update_visual_confirm_color(dc, pipe_ctx, mpcc_id);
 
 	ASSERT(new_mpcc != NULL);
 	hubp->opp_id = pipe_ctx->stream_res.opp->inst;
@@ -3076,15 +3049,13 @@ void dcn10_prepare_bandwidth(
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		if (context->stream_count == 0)
-			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
+	if (context->stream_count == 0)
+		context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
-		dc->clk_mgr->funcs->update_clocks(
-				dc->clk_mgr,
-				context,
-				false);
-	}
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			context,
+			false);
 
 	dc->wm_optimized_required = hubbub->funcs->program_watermarks(hubbub,
 			&context->bw_ctx.bw.dcn.watermarks,
@@ -3116,15 +3087,13 @@ void dcn10_optimize_bandwidth(
 	if (dc->debug.sanity_checks)
 		hws->funcs.verify_allow_pstate_change_high(dc);
 
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		if (context->stream_count == 0)
-			context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
+	if (context->stream_count == 0)
+		context->bw_ctx.bw.dcn.clk.phyclk_khz = 0;
 
-		dc->clk_mgr->funcs->update_clocks(
-				dc->clk_mgr,
-				context,
-				true);
-	}
+	dc->clk_mgr->funcs->update_clocks(
+			dc->clk_mgr,
+			context,
+			true);
 
 	hubbub->funcs->program_watermarks(hubbub,
 			&context->bw_ctx.bw.dcn.watermarks,

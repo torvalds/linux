@@ -30,8 +30,6 @@ enum {
 	WILC_GET_CFG
 };
 
-#define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
-
 struct rf_info {
 	u8 link_speed;
 	s8 rssi;

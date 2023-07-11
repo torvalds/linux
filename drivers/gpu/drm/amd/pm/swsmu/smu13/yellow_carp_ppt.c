@@ -47,6 +47,14 @@
 #define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK		0x00000006L
 #define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT          0x1L
 
+#define SMU_13_0_8_UMD_PSTATE_GFXCLK                   533
+#define SMU_13_0_8_UMD_PSTATE_SOCCLK                   533
+#define SMU_13_0_8_UMD_PSTATE_FCLK                     800
+
+#define SMU_13_0_1_UMD_PSTATE_GFXCLK					700
+#define SMU_13_0_1_UMD_PSTATE_SOCCLK		              678
+#define SMU_13_0_1_UMD_PSTATE_FCLK			          1800
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 #define SMC_DPM_FEATURE ( \
 	FEATURE_MASK(FEATURE_CCLK_DPM_BIT) | \
@@ -957,6 +965,9 @@ static int yellow_carp_set_soft_freq_limited_range(struct smu_context *smu,
 							uint32_t max)
 {
 	enum smu_message_type msg_set_min, msg_set_max;
+	uint32_t min_clk = min;
+	uint32_t max_clk = max;
+
 	int ret = 0;
 
 	if (!yellow_carp_clk_dpm_is_enabled(smu, clk_type))
@@ -985,16 +996,58 @@ static int yellow_carp_set_soft_freq_limited_range(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_min, min, NULL);
+	if (clk_type == SMU_VCLK) {
+		min_clk = min << SMU_13_VCLK_SHIFT;
+		max_clk = max << SMU_13_VCLK_SHIFT;
+	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_min, min_clk, NULL);
+
 	if (ret)
 		goto out;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_max, max, NULL);
+	ret = smu_cmn_send_smc_msg_with_param(smu, msg_set_max, max_clk, NULL);
 	if (ret)
 		goto out;
 
 out:
 	return ret;
+}
+
+static uint32_t yellow_carp_get_umd_pstate_clk_default(struct smu_context *smu,
+					enum smu_clk_type clk_type)
+{
+	uint32_t clk_limit = 0;
+	struct amdgpu_device *adev = smu->adev;
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 8))
+			clk_limit = SMU_13_0_8_UMD_PSTATE_GFXCLK;
+		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 1) ||
+			(adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 3))
+			clk_limit = SMU_13_0_1_UMD_PSTATE_GFXCLK;
+		break;
+	case SMU_SOCCLK:
+		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 8))
+			clk_limit = SMU_13_0_8_UMD_PSTATE_SOCCLK;
+		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 1) ||
+			(adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 3))
+			clk_limit = SMU_13_0_1_UMD_PSTATE_SOCCLK;
+		break;
+	case SMU_FCLK:
+		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 8))
+			clk_limit = SMU_13_0_8_UMD_PSTATE_FCLK;
+		if ((adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 1) ||
+			(adev->ip_versions[MP1_HWIP][0]) == IP_VERSION(13, 0, 3))
+			clk_limit = SMU_13_0_1_UMD_PSTATE_FCLK;
+		break;
+	default:
+		break;
+	}
+
+	return clk_limit;
 }
 
 static int yellow_carp_print_clk_levels(struct smu_context *smu,
@@ -1003,6 +1056,7 @@ static int yellow_carp_print_clk_levels(struct smu_context *smu,
 	int i, idx, size = 0, ret = 0;
 	uint32_t cur_value = 0, value = 0, count = 0;
 	uint32_t min, max;
+	uint32_t clk_limit = 0;
 
 	smu_cmn_get_sysfs_buf(&buf, &size);
 
@@ -1044,6 +1098,7 @@ static int yellow_carp_print_clk_levels(struct smu_context *smu,
 		break;
 	case SMU_GFXCLK:
 	case SMU_SCLK:
+		clk_limit = yellow_carp_get_umd_pstate_clk_default(smu, clk_type);
 		ret = yellow_carp_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
 			goto print_clk_out;
@@ -1058,7 +1113,7 @@ static int yellow_carp_print_clk_levels(struct smu_context *smu,
 		size += sysfs_emit_at(buf, size, "0: %uMhz %s\n", min,
 				i == 0 ? "*" : "");
 		size += sysfs_emit_at(buf, size, "1: %uMhz %s\n",
-				i == 1 ? cur_value : YELLOW_CARP_UMD_PSTATE_GFXCLK,
+				i == 1 ? cur_value : clk_limit,
 				i == 1 ? "*" : "");
 		size += sysfs_emit_at(buf, size, "2: %uMhz %s\n", max,
 				i == 2 ? "*" : "");
@@ -1107,6 +1162,49 @@ force_level_out:
 	return ret;
 }
 
+static int yellow_carp_get_dpm_profile_freq(struct smu_context *smu,
+					enum amd_dpm_forced_level level,
+					enum smu_clk_type clk_type,
+					uint32_t *min_clk,
+					uint32_t *max_clk)
+{
+	int ret = 0;
+	uint32_t clk_limit = 0;
+
+	clk_limit = yellow_carp_get_umd_pstate_clk_default(smu, clk_type);
+
+	switch (clk_type) {
+	case SMU_GFXCLK:
+	case SMU_SCLK:
+		if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &clk_limit);
+		else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK)
+			yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &clk_limit, NULL);
+		break;
+	case SMU_SOCCLK:
+		if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &clk_limit);
+		break;
+	case SMU_FCLK:
+		if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)
+			yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &clk_limit);
+		else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK)
+			yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, &clk_limit, NULL);
+		break;
+	case SMU_VCLK:
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_VCLK, NULL, &clk_limit);
+		break;
+	case SMU_DCLK:
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_DCLK, NULL, &clk_limit);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	*min_clk = *max_clk = clk_limit;
+	return ret;
+}
+
 static int yellow_carp_set_performance_level(struct smu_context *smu,
 						enum amd_dpm_forced_level level)
 {
@@ -1114,6 +1212,9 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 	uint32_t sclk_min = 0, sclk_max = 0;
 	uint32_t fclk_min = 0, fclk_max = 0;
 	uint32_t socclk_min = 0, socclk_max = 0;
+	uint32_t vclk_min = 0, vclk_max = 0;
+	uint32_t dclk_min = 0, dclk_max = 0;
+
 	int ret = 0;
 
 	switch (level) {
@@ -1121,28 +1222,42 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, NULL, &sclk_max);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, NULL, &fclk_max);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, NULL, &socclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_VCLK, NULL, &vclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_DCLK, NULL, &dclk_max);
 		sclk_min = sclk_max;
 		fclk_min = fclk_max;
 		socclk_min = socclk_max;
+		vclk_min = vclk_max;
+		dclk_min = dclk_max;
 		break;
 	case AMD_DPM_FORCED_LEVEL_LOW:
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, NULL);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, &fclk_min, NULL);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, NULL);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_VCLK, &vclk_min, NULL);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_DCLK, &dclk_min, NULL);
 		sclk_max = sclk_min;
 		fclk_max = fclk_min;
 		socclk_max = socclk_min;
+		vclk_max = vclk_min;
+		dclk_max = dclk_min;
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SCLK, &sclk_min, &sclk_max);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_FCLK, &fclk_min, &fclk_max);
 		yellow_carp_get_dpm_ultimate_freq(smu, SMU_SOCCLK, &socclk_min, &socclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_VCLK, &vclk_min, &vclk_max);
+		yellow_carp_get_dpm_ultimate_freq(smu, SMU_DCLK, &dclk_min, &dclk_max);
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
-		/* Temporarily do nothing since the optimal clocks haven't been provided yet */
+		yellow_carp_get_dpm_profile_freq(smu, level, SMU_SCLK, &sclk_min, &sclk_max);
+		yellow_carp_get_dpm_profile_freq(smu, level, SMU_FCLK, &fclk_min, &fclk_max);
+		yellow_carp_get_dpm_profile_freq(smu, level, SMU_SOCCLK, &socclk_min, &socclk_max);
+		yellow_carp_get_dpm_profile_freq(smu, level, SMU_VCLK, &vclk_min, &vclk_max);
+		yellow_carp_get_dpm_profile_freq(smu, level, SMU_DCLK, &dclk_min, &dclk_max);
 		break;
 	case AMD_DPM_FORCED_LEVEL_MANUAL:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
@@ -1178,6 +1293,24 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 							    SMU_SOCCLK,
 							    socclk_min,
 							    socclk_max);
+		if (ret)
+			return ret;
+	}
+
+	if (vclk_min && vclk_max) {
+		ret = yellow_carp_set_soft_freq_limited_range(smu,
+							      SMU_VCLK,
+							      vclk_min,
+							      vclk_max);
+		if (ret)
+			return ret;
+	}
+
+	if (dclk_min && dclk_max) {
+		ret = yellow_carp_set_soft_freq_limited_range(smu,
+							      SMU_DCLK,
+							      dclk_min,
+							      dclk_max);
 		if (ret)
 			return ret;
 	}
@@ -1235,5 +1368,6 @@ void yellow_carp_set_ppt_funcs(struct smu_context *smu)
 	smu->feature_map = yellow_carp_feature_mask_map;
 	smu->table_map = yellow_carp_table_map;
 	smu->is_apu = true;
+	smu->smc_driver_if_version = SMU13_YELLOW_CARP_DRIVER_IF_VERSION;
 	smu_v13_0_set_smu_mailbox_registers(smu);
 }

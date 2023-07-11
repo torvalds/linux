@@ -1249,9 +1249,6 @@ static int mctp_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 			mtu = nla_get_u32(tbx[RTAX_MTU]);
 	}
 
-	if (rtm->rtm_type != RTN_UNICAST)
-		return -EINVAL;
-
 	rc = mctp_route_add(mdev, daddr_start, rtm->rtm_dst_len, mtu,
 			    rtm->rtm_type);
 	return rc;

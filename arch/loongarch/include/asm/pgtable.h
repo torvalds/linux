@@ -362,7 +362,7 @@ extern pgd_t invalid_pg_dir[];
  */
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
-static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
+static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & (_PAGE_DIRTY | _PAGE_MODIFIED); }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
@@ -506,7 +506,7 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 
 static inline int pmd_dirty(pmd_t pmd)
 {
-	return !!(pmd_val(pmd) & _PAGE_MODIFIED);
+	return !!(pmd_val(pmd) & (_PAGE_DIRTY | _PAGE_MODIFIED));
 }
 
 static inline pmd_t pmd_mkclean(pmd_t pmd)

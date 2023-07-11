@@ -11,12 +11,16 @@
 
 #include <linux/bits.h>
 #include <linux/cpumask.h>
+#include <linux/device.h>
+#include <linux/kfifo.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/perf_event.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 #define DRV_NAME "hisi_ptt"
 
@@ -70,6 +74,11 @@
 #define HISI_PTT_WAIT_TUNE_TIMEOUT_US	1000000UL
 #define HISI_PTT_WAIT_TRACE_TIMEOUT_US	100UL
 #define HISI_PTT_WAIT_POLL_INTERVAL_US	10UL
+
+/* FIFO size for dynamically updating the PTT trace filter list. */
+#define HISI_PTT_FILTER_UPDATE_FIFO_SIZE	16
+/* Delay time for filter updating work */
+#define HISI_PTT_WORK_DELAY_MS			100UL
 
 #define HISI_PCIE_CORE_PORT_ID(devfn)	((PCI_SLOT(devfn) & 0x7) << 1)
 
@@ -131,15 +140,40 @@ struct hisi_ptt_trace_ctrl {
 	u32 type:4;
 };
 
+/*
+ * sysfs attribute group name for root port filters and requester filters:
+ * /sys/devices/hisi_ptt<sicl_id>_<core_id>/root_port_filters
+ * and
+ * /sys/devices/hisi_ptt<sicl_id>_<core_id>/requester_filters
+ */
+#define HISI_PTT_RP_FILTERS_GRP_NAME	"root_port_filters"
+#define HISI_PTT_REQ_FILTERS_GRP_NAME	"requester_filters"
+
 /**
  * struct hisi_ptt_filter_desc - Descriptor of the PTT trace filter
+ * @attr:    sysfs attribute of this filter
  * @list:    entry of this descriptor in the filter list
  * @is_port: the PCI device of the filter is a Root Port or not
+ * @name:    name of this filter, same as the name of the related PCI device
  * @devid:   the PCI device's devid of the filter
  */
 struct hisi_ptt_filter_desc {
+	struct device_attribute attr;
 	struct list_head list;
 	bool is_port;
+	char *name;
+	u16 devid;
+};
+
+/**
+ * struct hisi_ptt_filter_update_info - Information for PTT filter updating
+ * @is_port:    the PCI device to update is a Root Port or not
+ * @is_add:     adding to the filter or not
+ * @devid:      the PCI device's devid of the filter
+ */
+struct hisi_ptt_filter_update_info {
+	bool is_port;
+	bool is_add;
 	u16 devid;
 };
 
@@ -160,26 +194,35 @@ struct hisi_ptt_pmu_buf {
 /**
  * struct hisi_ptt - Per PTT device data
  * @trace_ctrl:   the control information of PTT trace
+ * @hisi_ptt_nb:  dynamic filter update notifier
  * @hotplug_node: node for register cpu hotplug event
  * @hisi_ptt_pmu: the pum device of trace
  * @iobase:       base IO address of the device
  * @pdev:         pci_dev of this PTT device
  * @tune_lock:    lock to serialize the tune process
  * @pmu_lock:     lock to serialize the perf process
+ * @trace_irq:    interrupt number used by trace
  * @upper_bdf:    the upper BDF range of the PCI devices managed by this PTT device
  * @lower_bdf:    the lower BDF range of the PCI devices managed by this PTT device
  * @port_filters: the filter list of root ports
  * @req_filters:  the filter list of requester ID
+ * @filter_lock:  lock to protect the filters
+ * @sysfs_inited: whether the filters' sysfs entries has been initialized
  * @port_mask:    port mask of the managed root ports
+ * @work:         delayed work for filter updating
+ * @filter_update_lock: spinlock to protect the filter update fifo
+ * @filter_update_fifo: fifo of the filters waiting to update the filter list
  */
 struct hisi_ptt {
 	struct hisi_ptt_trace_ctrl trace_ctrl;
+	struct notifier_block hisi_ptt_nb;
 	struct hlist_node hotplug_node;
 	struct pmu hisi_ptt_pmu;
 	void __iomem *iobase;
 	struct pci_dev *pdev;
 	struct mutex tune_lock;
 	spinlock_t pmu_lock;
+	int trace_irq;
 	u32 upper_bdf;
 	u32 lower_bdf;
 
@@ -192,7 +235,20 @@ struct hisi_ptt {
 	 */
 	struct list_head port_filters;
 	struct list_head req_filters;
+	struct mutex filter_lock;
+	bool sysfs_inited;
 	u16 port_mask;
+
+	/*
+	 * We use a delayed work here to avoid indefinitely waiting for
+	 * the hisi_ptt->mutex which protecting the filter list. The
+	 * work will be delayed only if the mutex can not be held,
+	 * otherwise no delay will be applied.
+	 */
+	struct delayed_work work;
+	spinlock_t filter_update_lock;
+	DECLARE_KFIFO(filter_update_kfifo, struct hisi_ptt_filter_update_info,
+		      HISI_PTT_FILTER_UPDATE_FIFO_SIZE);
 };
 
 #define to_hisi_ptt(pmu) container_of(pmu, struct hisi_ptt, hisi_ptt_pmu)

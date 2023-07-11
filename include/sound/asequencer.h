@@ -65,6 +65,10 @@
 #define snd_seq_ev_is_abstime(ev)	(snd_seq_ev_timemode_type(ev) == SNDRV_SEQ_TIME_MODE_ABS)
 #define snd_seq_ev_is_reltime(ev)	(snd_seq_ev_timemode_type(ev) == SNDRV_SEQ_TIME_MODE_REL)
 
+/* check whether the given event is a UMP event */
+#define snd_seq_ev_is_ump(ev) \
+	(IS_ENABLED(CONFIG_SND_SEQ_UMP) && ((ev)->flags & SNDRV_SEQ_EVENT_UMP))
+
 /* queue sync port */
 #define snd_seq_queue_sync_port(q)	((q) + 16)
 

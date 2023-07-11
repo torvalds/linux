@@ -12,7 +12,6 @@ CONFIG_AEABI=y
 CONFIG_CMDLINE="root=/dev/nfs rootfstype=nfs nfsroot=192.168.1.100:/nfsroot/ ip=192.168.1.101:192.168.1.100::255.255.255.0::eth0:on console=ttyS0,115200 mem=64M debug"
 CONFIG_FPE_NWFPE=y
 CONFIG_MODULES=y
-CONFIG_SLAB=y
 CONFIG_NET=y
 CONFIG_PACKET=y
 CONFIG_UNIX=y

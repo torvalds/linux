@@ -115,7 +115,7 @@ static struct i2c_driver ad5686_i2c_driver = {
 		.name = "ad5696",
 		.of_match_table = ad5686_of_match,
 	},
-	.probe_new = ad5686_i2c_probe,
+	.probe = ad5686_i2c_probe,
 	.remove = ad5686_i2c_remove,
 	.id_table = ad5686_i2c_id,
 };

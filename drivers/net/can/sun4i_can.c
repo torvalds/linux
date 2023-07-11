@@ -791,14 +791,12 @@ static const struct of_device_id sun4ican_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, sun4ican_of_match);
 
-static int sun4ican_remove(struct platform_device *pdev)
+static void sun4ican_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
 	free_candev(dev);
-
-	return 0;
 }
 
 static int sun4ican_probe(struct platform_device *pdev)
@@ -901,7 +899,7 @@ static struct platform_driver sun4i_can_driver = {
 		.of_match_table = sun4ican_of_match,
 	},
 	.probe = sun4ican_probe,
-	.remove = sun4ican_remove,
+	.remove_new = sun4ican_remove,
 };
 
 module_platform_driver(sun4i_can_driver);

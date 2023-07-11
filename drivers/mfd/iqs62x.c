@@ -1069,7 +1069,7 @@ static struct i2c_driver iqs62x_i2c_driver = {
 		.of_match_table = iqs62x_of_match,
 		.pm = &iqs62x_pm,
 	},
-	.probe_new = iqs62x_probe,
+	.probe = iqs62x_probe,
 	.remove = iqs62x_remove,
 };
 module_i2c_driver(iqs62x_i2c_driver);

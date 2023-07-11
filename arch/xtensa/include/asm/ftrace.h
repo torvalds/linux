@@ -13,17 +13,8 @@
 #include <asm/processor.h>
 
 #ifndef __ASSEMBLY__
-#define ftrace_return_address0 ({ unsigned long a0, a1; \
-		__asm__ __volatile__ ( \
-			"mov %0, a0\n" \
-			"mov %1, a1\n" \
-			: "=r"(a0), "=r"(a1)); \
-		MAKE_PC_FROM_RA(a0, a1); })
-
-#ifdef CONFIG_FRAME_POINTER
 extern unsigned long return_address(unsigned level);
 #define ftrace_return_address(n) return_address(n)
-#endif
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_FUNCTION_TRACER

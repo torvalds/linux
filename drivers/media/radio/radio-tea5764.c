@@ -511,7 +511,7 @@ static struct i2c_driver tea5764_i2c_driver = {
 	.driver = {
 		.name = "radio-tea5764",
 	},
-	.probe_new = tea5764_i2c_probe,
+	.probe = tea5764_i2c_probe,
 	.remove = tea5764_i2c_remove,
 	.id_table = tea5764_id,
 };

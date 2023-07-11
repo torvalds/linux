@@ -11,7 +11,7 @@ description:
   The RTC controller has separate IRQ lines for seconds and alarm.
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 allOf:
   - $ref: rtc.yaml#

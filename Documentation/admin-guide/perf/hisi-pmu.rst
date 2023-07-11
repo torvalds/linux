@@ -56,14 +56,14 @@ Example usage of perf::
 For HiSilicon uncore PMU v2 whose identifier is 0x30, the topology is the same
 as PMU v1, but some new functions are added to the hardware.
 
-(a) L3C PMU supports filtering by core/thread within the cluster which can be
+1. L3C PMU supports filtering by core/thread within the cluster which can be
 specified as a bitmap::
 
   $# perf stat -a -e hisi_sccl3_l3c0/config=0x02,tt_core=0x3/ sleep 5
 
 This will only count the operations from core/thread 0 and 1 in this cluster.
 
-(b) Tracetag allow the user to chose to count only read, write or atomic
+2. Tracetag allow the user to chose to count only read, write or atomic
 operations via the tt_req parameeter in perf. The default value counts all
 operations. tt_req is 3bits, 3'b100 represents read operations, 3'b101
 represents write operations, 3'b110 represents atomic store operations and
@@ -73,14 +73,16 @@ represents write operations, 3'b110 represents atomic store operations and
 
 This will only count the read operations in this cluster.
 
-(c) Datasrc allows the user to check where the data comes from. It is 5 bits.
+3. Datasrc allows the user to check where the data comes from. It is 5 bits.
 Some important codes are as follows:
-5'b00001: comes from L3C in this die;
-5'b01000: comes from L3C in the cross-die;
-5'b01001: comes from L3C which is in another socket;
-5'b01110: comes from the local DDR;
-5'b01111: comes from the cross-die DDR;
-5'b10000: comes from cross-socket DDR;
+
+- 5'b00001: comes from L3C in this die;
+- 5'b01000: comes from L3C in the cross-die;
+- 5'b01001: comes from L3C which is in another socket;
+- 5'b01110: comes from the local DDR;
+- 5'b01111: comes from the cross-die DDR;
+- 5'b10000: comes from cross-socket DDR;
+
 etc, it is mainly helpful to find that the data source is nearest from the CPU
 cores. If datasrc_cfg is used in the multi-chips, the datasrc_skt shall be
 configured in perf command::
@@ -88,15 +90,25 @@ configured in perf command::
   $# perf stat -a -e hisi_sccl3_l3c0/config=0xb9,datasrc_cfg=0xE/,
   hisi_sccl3_l3c0/config=0xb9,datasrc_cfg=0xF/ sleep 5
 
-(d)Some HiSilicon SoCs encapsulate multiple CPU and IO dies. Each CPU die
+4. Some HiSilicon SoCs encapsulate multiple CPU and IO dies. Each CPU die
 contains several Compute Clusters (CCLs). The I/O dies are called Super I/O
 clusters (SICL) containing multiple I/O clusters (ICLs). Each CCL/ICL in the
 SoC has a unique ID. Each ID is 11bits, include a 6-bit SCCL-ID and 5-bit
 CCL/ICL-ID. For I/O die, the ICL-ID is followed by:
-5'b00000: I/O_MGMT_ICL;
-5'b00001: Network_ICL;
-5'b00011: HAC_ICL;
-5'b10000: PCIe_ICL;
+
+- 5'b00000: I/O_MGMT_ICL;
+- 5'b00001: Network_ICL;
+- 5'b00011: HAC_ICL;
+- 5'b10000: PCIe_ICL;
+
+5. uring_channel: UC PMU events 0x47~0x59 supports filtering by tx request
+uring channel. It is 2 bits. Some important codes are as follows:
+
+- 2'b11: count the events which sent to the uring_ext (MATA) channel;
+- 2'b01: is the same as 2'b11;
+- 2'b10: count the events which sent to the uring (non-MATA) channel;
+- 2'b00: default value, count the events which sent to the both uring and
+  uring_ext channel;
 
 Users could configure IDs to count data come from specific CCL/ICL, by setting
 srcid_cmd & srcid_msk, and data desitined for specific CCL/ICL by setting

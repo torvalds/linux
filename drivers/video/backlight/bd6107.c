@@ -192,7 +192,7 @@ static struct i2c_driver bd6107_driver = {
 	.driver = {
 		.name = "bd6107",
 	},
-	.probe_new = bd6107_probe,
+	.probe = bd6107_probe,
 	.remove = bd6107_remove,
 	.id_table = bd6107_ids,
 };

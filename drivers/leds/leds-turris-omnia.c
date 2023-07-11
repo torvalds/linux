@@ -271,7 +271,7 @@ static const struct i2c_device_id omnia_id[] = {
 MODULE_DEVICE_TABLE(i2c, omnia_id);
 
 static struct i2c_driver omnia_leds_driver = {
-	.probe_new	= omnia_leds_probe,
+	.probe		= omnia_leds_probe,
 	.remove		= omnia_leds_remove,
 	.id_table	= omnia_id,
 	.driver		= {

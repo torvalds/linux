@@ -77,7 +77,7 @@ static int cros_typec_get_switch_handles(struct cros_typec_port *port,
 {
 	int ret = 0;
 
-	port->mux = fwnode_typec_mux_get(fwnode, NULL);
+	port->mux = fwnode_typec_mux_get(fwnode);
 	if (IS_ERR(port->mux)) {
 		ret = PTR_ERR(port->mux);
 		dev_dbg(dev, "Mux handle not found: %d.\n", ret);

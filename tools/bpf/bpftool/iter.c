@@ -76,7 +76,7 @@ static int do_pin(int argc, char **argv)
 		goto close_obj;
 	}
 
-	err = mount_bpffs_for_pin(path);
+	err = mount_bpffs_for_pin(path, false);
 	if (err)
 		goto close_link;
 

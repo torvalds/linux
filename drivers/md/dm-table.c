@@ -126,7 +126,7 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	return 0;
 }
 
-int dm_table_create(struct dm_table **result, fmode_t mode,
+int dm_table_create(struct dm_table **result, blk_mode_t mode,
 		    unsigned int num_targets, struct mapped_device *md)
 {
 	struct dm_table *t = kzalloc(sizeof(*t), GFP_KERNEL);
@@ -304,7 +304,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
  * device and not to touch the existing bdev field in case
  * it is accessed concurrently.
  */
-static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
+static int upgrade_mode(struct dm_dev_internal *dd, blk_mode_t new_mode,
 			struct mapped_device *md)
 {
 	int r;
@@ -324,23 +324,13 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 }
 
 /*
- * Convert the path to a device
- */
-dev_t dm_get_dev_t(const char *path)
-{
-	dev_t dev;
-
-	if (lookup_bdev(path, &dev))
-		dev = name_to_dev_t(path);
-	return dev;
-}
-EXPORT_SYMBOL_GPL(dm_get_dev_t);
-
-/*
  * Add a device to the list, or just increment the usage count if
  * it's already present.
+ *
+ * Note: the __ref annotation is because this function can call the __init
+ * marked early_lookup_bdev when called during early boot code from dm-init.c.
  */
-int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 		  struct dm_dev **result)
 {
 	int r;
@@ -358,9 +348,13 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 		if (MAJOR(dev) != major || MINOR(dev) != minor)
 			return -EOVERFLOW;
 	} else {
-		dev = dm_get_dev_t(path);
-		if (!dev)
-			return -ENODEV;
+		r = lookup_bdev(path, &dev);
+#ifndef MODULE
+		if (r && system_state < SYSTEM_RUNNING)
+			r = early_lookup_bdev(path, &dev);
+#endif
+		if (r)
+			return r;
 	}
 	if (dev == disk_devt(t->md->disk))
 		return -EINVAL;
@@ -668,7 +662,8 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		t->singleton = true;
 	}
 
-	if (dm_target_always_writeable(ti->type) && !(t->mode & FMODE_WRITE)) {
+	if (dm_target_always_writeable(ti->type) &&
+	    !(t->mode & BLK_OPEN_WRITE)) {
 		ti->error = "target type may not be included in a read-only table";
 		goto bad;
 	}
@@ -2039,7 +2034,7 @@ struct list_head *dm_table_get_devices(struct dm_table *t)
 	return &t->devices;
 }
 
-fmode_t dm_table_get_mode(struct dm_table *t)
+blk_mode_t dm_table_get_mode(struct dm_table *t)
 {
 	return t->mode;
 }

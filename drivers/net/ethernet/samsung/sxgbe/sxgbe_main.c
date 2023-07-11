@@ -2203,7 +2203,7 @@ error_free_netdev:
  * Description: this function resets the TX/RX processes, disables the MAC RX/TX
  * changes the link status, releases the DMA descriptor rings.
  */
-int sxgbe_drv_remove(struct net_device *ndev)
+void sxgbe_drv_remove(struct net_device *ndev)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(ndev);
 	u8 queue_num;
@@ -2231,8 +2231,6 @@ int sxgbe_drv_remove(struct net_device *ndev)
 	kfree(priv->hw);
 
 	free_netdev(ndev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

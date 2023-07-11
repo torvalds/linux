@@ -282,7 +282,7 @@ void __msan_poison_alloca(void *address, uintptr_t size, char *descr)
 
 	/* stack_depot_save() may allocate memory. */
 	kmsan_enter_runtime();
-	handle = stack_depot_save(entries, ARRAY_SIZE(entries), GFP_ATOMIC);
+	handle = stack_depot_save(entries, ARRAY_SIZE(entries), __GFP_HIGH);
 	kmsan_leave_runtime();
 
 	kmsan_internal_set_shadow_origin(address, size, -1, handle,

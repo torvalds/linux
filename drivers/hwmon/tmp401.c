@@ -766,7 +766,7 @@ static struct i2c_driver tmp401_driver = {
 		.name	= "tmp401",
 		.of_match_table = of_match_ptr(tmp4xx_of_match),
 	},
-	.probe_new	= tmp401_probe,
+	.probe		= tmp401_probe,
 	.id_table	= tmp401_id,
 	.detect		= tmp401_detect,
 	.address_list	= normal_i2c,

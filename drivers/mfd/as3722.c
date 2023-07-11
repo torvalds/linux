@@ -445,7 +445,7 @@ static struct i2c_driver as3722_i2c_driver = {
 		.of_match_table = as3722_of_match,
 		.pm = &as3722_pm_ops,
 	},
-	.probe_new = as3722_i2c_probe,
+	.probe = as3722_i2c_probe,
 	.id_table = as3722_i2c_id,
 };
 

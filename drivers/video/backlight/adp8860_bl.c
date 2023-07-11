@@ -803,8 +803,8 @@ static struct i2c_driver adp8860_driver = {
 		.name	= KBUILD_MODNAME,
 		.pm	= &adp8860_i2c_pm_ops,
 	},
-	.probe_new = adp8860_probe,
-	.remove   = adp8860_remove,
+	.probe = adp8860_probe,
+	.remove = adp8860_remove,
 	.id_table = adp8860_id,
 };
 

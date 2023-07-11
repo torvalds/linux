@@ -177,7 +177,7 @@
 
 				port@2 {
 					reg = <2>;
-					label = "cpu";
+					phy-mode = "rev-rmii";
 					ethernet = <&fec1>;
 
 					fixed-link {

@@ -340,15 +340,13 @@ static void __intel_pcie_remove(struct intel_pcie *pcie)
 	phy_exit(pcie->phy);
 }
 
-static int intel_pcie_remove(struct platform_device *pdev)
+static void intel_pcie_remove(struct platform_device *pdev)
 {
 	struct intel_pcie *pcie = platform_get_drvdata(pdev);
 	struct dw_pcie_rp *pp = &pcie->pci.pp;
 
 	dw_pcie_host_deinit(pp);
 	__intel_pcie_remove(pcie);
-
-	return 0;
 }
 
 static int intel_pcie_suspend_noirq(struct device *dev)
@@ -443,7 +441,7 @@ static const struct of_device_id of_intel_pcie_match[] = {
 
 static struct platform_driver intel_pcie_driver = {
 	.probe = intel_pcie_probe,
-	.remove = intel_pcie_remove,
+	.remove_new = intel_pcie_remove,
 	.driver = {
 		.name = "intel-gw-pcie",
 		.of_match_table = of_intel_pcie_match,

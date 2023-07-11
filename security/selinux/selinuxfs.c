@@ -951,7 +951,7 @@ static ssize_t sel_write_create(struct file *file, char *buf, size_t size)
 		 * either whitespace or multibyte characters, they shall be
 		 * encoded based on the percentage-encoding rule.
 		 * If not encoded, the sscanf logic picks up only left-half
-		 * of the supplied name; splitted by a whitespace unexpectedly.
+		 * of the supplied name; split by a whitespace unexpectedly.
 		 */
 		char   *r, *w;
 		int     c1, c2;
@@ -1649,7 +1649,7 @@ static int sel_make_ss_files(struct dentry *dir)
 	struct super_block *sb = dir->d_sb;
 	struct selinux_fs_info *fsi = sb->s_fs_info;
 	int i;
-	static struct tree_descr files[] = {
+	static const struct tree_descr files[] = {
 		{ "sidtab_hash_stats", &sel_sidtab_hash_stats_ops, S_IRUGO },
 	};
 

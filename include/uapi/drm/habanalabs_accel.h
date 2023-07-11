@@ -787,18 +787,28 @@ enum hl_server_type {
  *                            The address which accessing it caused the razwi.
  *                            Razwi initiator.
  *                            Razwi cause, was it a page fault or MMU access error.
+ *                            May return 0 even though no new data is available, in that case
+ *                            timestamp will be 0.
  * HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES - Retrieve valid page sizes for device memory allocation
  * HL_INFO_SECURED_ATTESTATION - Retrieve attestation report of the boot.
  * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event notifications.
  * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
  * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
  * HL_INFO_UNDEFINED_OPCODE_EVENT - Retrieve last undefined opcode error information.
+ *                                  May return 0 even though no new data is available, in that case
+ *                                  timestamp will be 0.
  * HL_INFO_ENGINE_STATUS - Retrieve the status of all the h/w engines in the asic.
  * HL_INFO_PAGE_FAULT_EVENT - Retrieve parameters of captured page fault.
+ *                            May return 0 even though no new data is available, in that case
+ *                            timestamp will be 0.
  * HL_INFO_USER_MAPPINGS - Retrieve user mappings, captured after page fault event.
  * HL_INFO_FW_GENERIC_REQ - Send generic request to FW.
  * HL_INFO_HW_ERR_EVENT   - Retrieve information on the reported HW error.
+ *                          May return 0 even though no new data is available, in that case
+ *                          timestamp will be 0.
  * HL_INFO_FW_ERR_EVENT   - Retrieve information on the reported FW error.
+ *                          May return 0 even though no new data is available, in that case
+ *                          timestamp will be 0.
  */
 #define HL_INFO_HW_IP_INFO			0
 #define HL_INFO_HW_EVENTS			1

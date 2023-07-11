@@ -493,7 +493,7 @@ static int __init ntb_netdev_init_module(void)
 
 	return 0;
 }
-module_init(ntb_netdev_init_module);
+late_initcall(ntb_netdev_init_module);
 
 static void __exit ntb_netdev_exit_module(void)
 {

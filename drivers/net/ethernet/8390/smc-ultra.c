@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /* smc-ultra.c: A SMC Ultra ethernet driver for linux. */
 /*
 	This is a driver for the SMC Ultra and SMC EtherEZ ISA ethercards.
@@ -6,9 +7,6 @@
 
 	Copyright 1993 United States Government as represented by the
 	Director, National Security Agency.
-
-	This software may be used and distributed according to the terms
-	of the GNU General Public License, incorporated herein by reference.
 
 	The author may be reached as becker@scyld.com, or C/O
 	Scyld Computing Corporation

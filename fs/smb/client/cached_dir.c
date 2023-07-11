@@ -568,6 +568,53 @@ static void free_cached_dir(struct cached_fid *cfid)
 	kfree(cfid);
 }
 
+static int
+cifs_cfids_laundromat_thread(void *p)
+{
+	struct cached_fids *cfids = p;
+	struct cached_fid *cfid, *q;
+	struct list_head entry;
+
+	while (!kthread_should_stop()) {
+		ssleep(1);
+		INIT_LIST_HEAD(&entry);
+		if (kthread_should_stop())
+			return 0;
+		spin_lock(&cfids->cfid_list_lock);
+		list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {
+			if (time_after(jiffies, cfid->time + HZ * 30)) {
+				list_del(&cfid->entry);
+				list_add(&cfid->entry, &entry);
+				cfids->num_entries--;
+			}
+		}
+		spin_unlock(&cfids->cfid_list_lock);
+
+		list_for_each_entry_safe(cfid, q, &entry, entry) {
+			cfid->on_list = false;
+			list_del(&cfid->entry);
+			/*
+			 * Cancel, and wait for the work to finish in
+			 * case we are racing with it.
+			 */
+			cancel_work_sync(&cfid->lease_break);
+			if (cfid->has_lease) {
+				/*
+				 * We lease has not yet been cancelled from
+				 * the server so we need to drop the reference.
+				 */
+				spin_lock(&cfids->cfid_list_lock);
+				cfid->has_lease = false;
+				spin_unlock(&cfids->cfid_list_lock);
+				kref_put(&cfid->refcount, smb2_close_cached_fid);
+			}
+		}
+	}
+
+	return 0;
+}
+
+
 struct cached_fids *init_cached_dirs(void)
 {
 	struct cached_fids *cfids;
@@ -577,6 +624,20 @@ struct cached_fids *init_cached_dirs(void)
 		return NULL;
 	spin_lock_init(&cfids->cfid_list_lock);
 	INIT_LIST_HEAD(&cfids->entries);
+
+	/*
+	 * since we're in a cifs function already, we know that
+	 * this will succeed. No need for try_module_get().
+	 */
+	__module_get(THIS_MODULE);
+	cfids->laundromat = kthread_run(cifs_cfids_laundromat_thread,
+				  cfids, "cifsd-cfid-laundromat");
+	if (IS_ERR(cfids->laundromat)) {
+		cifs_dbg(VFS, "Failed to start cfids laundromat thread.\n");
+		kfree(cfids);
+		module_put(THIS_MODULE);
+		return NULL;
+	}
 	return cfids;
 }
 
@@ -588,6 +649,12 @@ void free_cached_dirs(struct cached_fids *cfids)
 {
 	struct cached_fid *cfid, *q;
 	LIST_HEAD(entry);
+
+	if (cfids->laundromat) {
+		kthread_stop(cfids->laundromat);
+		cfids->laundromat = NULL;
+		module_put(THIS_MODULE);
+	}
 
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry_safe(cfid, q, &cfids->entries, entry) {

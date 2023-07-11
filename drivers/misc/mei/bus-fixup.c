@@ -108,7 +108,7 @@ struct mkhi_fw_ver {
 static int mei_osver(struct mei_cl_device *cldev)
 {
 	const size_t size = MKHI_OSVER_BUF_LEN;
-	char buf[MKHI_OSVER_BUF_LEN];
+	u8 buf[MKHI_OSVER_BUF_LEN];
 	struct mkhi_msg *req;
 	struct mkhi_fwcaps *fwcaps;
 	struct mei_os_ver *os_ver;
@@ -137,7 +137,7 @@ static int mei_osver(struct mei_cl_device *cldev)
 			       sizeof(struct mkhi_fw_ver_block) * (__num))
 static int mei_fwver(struct mei_cl_device *cldev)
 {
-	char buf[MKHI_FWVER_BUF_LEN];
+	u8 buf[MKHI_FWVER_BUF_LEN];
 	struct mkhi_msg req;
 	struct mkhi_msg *rsp;
 	struct mkhi_fw_ver *fwver;

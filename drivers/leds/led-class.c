@@ -409,7 +409,7 @@ static int led_classdev_next_name(const char *init_name, char *name,
 	int ret = 0;
 	struct device *dev;
 
-	strlcpy(name, init_name, len);
+	strscpy(name, init_name, len);
 
 	while ((ret < len) &&
 	       (dev = class_find_device_by_name(leds_class, name))) {

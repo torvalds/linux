@@ -134,7 +134,7 @@
 				reg = <0>;
 
 				adv7533_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -183,23 +183,23 @@
 	};
 };
 
-&dsi0 {
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	status = "okay";
 	vdda-supply = <&vreg_l1a_1p225>;
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	remote-endpoint = <&adv7533_in>;
 	data-lanes = <0 1 2 3>;
 };
 
-&dsi0_phy {
+&mdss_dsi0_phy {
 	status = "okay";
 	vcca-supply = <&vreg_l1b_0p925>;
-};
-
-&mdss {
-	status = "okay";
 };
 
 &mmss_smmu {

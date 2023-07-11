@@ -19,6 +19,7 @@
  *
  */
 
+#include <errno.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -29,23 +30,7 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
-#define _stringify_1(x)	#x
-#define _stringify(x)	_stringify_1(x)
-
 #define KSYM_NAME_LEN		512
-
-/*
- * A substantially bigger size than the current maximum.
- *
- * It cannot be defined as an expression because it gets stringified
- * for the fscanf() format string. Therefore, a _Static_assert() is
- * used instead to maintain the relationship with KSYM_NAME_LEN.
- */
-#define KSYM_NAME_LEN_BUFFER	2048
-_Static_assert(
-	KSYM_NAME_LEN_BUFFER == KSYM_NAME_LEN * 4,
-	"Please keep KSYM_NAME_LEN_BUFFER in sync with KSYM_NAME_LEN"
-);
 
 struct sym_entry {
 	unsigned long long addr;
@@ -136,24 +121,40 @@ static void check_symbol_range(const char *sym, unsigned long long addr,
 	}
 }
 
-static struct sym_entry *read_symbol(FILE *in)
+static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 {
-	char name[KSYM_NAME_LEN_BUFFER+1], type;
+	char *name, type, *p;
 	unsigned long long addr;
-	unsigned int len;
+	size_t len;
+	ssize_t readlen;
 	struct sym_entry *sym;
-	int rc;
 
-	rc = fscanf(in, "%llx %c %" _stringify(KSYM_NAME_LEN_BUFFER) "s\n", &addr, &type, name);
-	if (rc != 3) {
-		if (rc != EOF && fgets(name, ARRAY_SIZE(name), in) == NULL)
-			fprintf(stderr, "Read error or end of file.\n");
+	readlen = getline(buf, buf_len, in);
+	if (readlen < 0) {
+		if (errno) {
+			perror("read_symbol");
+			exit(EXIT_FAILURE);
+		}
 		return NULL;
 	}
-	if (strlen(name) >= KSYM_NAME_LEN) {
+
+	if ((*buf)[readlen - 1] == '\n')
+		(*buf)[readlen - 1] = 0;
+
+	addr = strtoull(*buf, &p, 16);
+
+	if (*buf == p || *p++ != ' ' || !isascii((type = *p++)) || *p++ != ' ') {
+		fprintf(stderr, "line format error\n");
+		exit(EXIT_FAILURE);
+	}
+
+	name = p;
+	len = strlen(name);
+
+	if (len >= KSYM_NAME_LEN) {
 		fprintf(stderr, "Symbol %s too long for kallsyms (%zu >= %d).\n"
 				"Please increase KSYM_NAME_LEN both in kernel and kallsyms.c\n",
-			name, strlen(name), KSYM_NAME_LEN);
+			name, len, KSYM_NAME_LEN);
 		return NULL;
 	}
 
@@ -169,8 +170,7 @@ static struct sym_entry *read_symbol(FILE *in)
 
 	/* include the type field in the symbol name, so that it gets
 	 * compressed together */
-
-	len = strlen(name) + 1;
+	len++;
 
 	sym = malloc(sizeof(*sym) + len + 1);
 	if (!sym) {
@@ -257,6 +257,8 @@ static void read_map(const char *in)
 {
 	FILE *fp;
 	struct sym_entry *sym;
+	char *buf = NULL;
+	size_t buflen = 0;
 
 	fp = fopen(in, "r");
 	if (!fp) {
@@ -265,7 +267,7 @@ static void read_map(const char *in)
 	}
 
 	while (!feof(fp)) {
-		sym = read_symbol(fp);
+		sym = read_symbol(fp, &buf, &buflen);
 		if (!sym)
 			continue;
 
@@ -284,6 +286,7 @@ static void read_map(const char *in)
 		table[table_cnt++] = sym;
 	}
 
+	free(buf);
 	fclose(fp);
 }
 
@@ -806,7 +809,7 @@ static void record_relative_base(void)
 int main(int argc, char **argv)
 {
 	while (1) {
-		static struct option long_options[] = {
+		static const struct option long_options[] = {
 			{"all-symbols",     no_argument, &all_symbols,     1},
 			{"absolute-percpu", no_argument, &absolute_percpu, 1},
 			{"base-relative",   no_argument, &base_relative,   1},

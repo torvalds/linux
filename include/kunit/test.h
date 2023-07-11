@@ -47,6 +47,7 @@ struct kunit;
  * sub-subtest.  See the "Subtests" section in
  * https://node-tap.org/tap-protocol/
  */
+#define KUNIT_INDENT_LEN		4
 #define KUNIT_SUBTEST_INDENT		"    "
 #define KUNIT_SUBSUBTEST_INDENT		"        "
 
@@ -167,6 +168,9 @@ static inline char *kunit_status_to_ok_not_ok(enum kunit_status status)
  * @init is called before every test case and @exit is called after every
  * test case, similar to the notion of a *test fixture* or a *test class*
  * in other unit testing frameworks like JUnit or Googletest.
+ *
+ * Note that @exit and @suite_exit will run even if @init or @suite_init
+ * fail: make sure they can handle any inconsistent state which may result.
  *
  * Every &struct kunit_case must be associated with a kunit_suite for KUnit
  * to run it.
@@ -321,8 +325,11 @@ enum kunit_status kunit_suite_has_succeeded(struct kunit_suite *suite);
  * @gfp: flags passed to underlying kmalloc().
  *
  * Just like `kmalloc_array(...)`, except the allocation is managed by the test case
- * and is automatically cleaned up after the test case concludes. See &struct
- * kunit_resource for more information.
+ * and is automatically cleaned up after the test case concludes. See kunit_add_action()
+ * for more information.
+ *
+ * Note that some internal context data is also allocated with GFP_KERNEL,
+ * regardless of the gfp passed in.
  */
 void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp);
 
@@ -333,6 +340,9 @@ void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp);
  * @gfp: flags passed to underlying kmalloc().
  *
  * See kmalloc() and kunit_kmalloc_array() for more information.
+ *
+ * Note that some internal context data is also allocated with GFP_KERNEL,
+ * regardless of the gfp passed in.
  */
 static inline void *kunit_kmalloc(struct kunit *test, size_t size, gfp_t gfp)
 {
@@ -472,7 +482,9 @@ void __printf(2, 3) kunit_log_append(char *log, const char *fmt, ...);
  */
 #define KUNIT_SUCCEED(test) do {} while (0)
 
-void kunit_do_failed_assertion(struct kunit *test,
+void __noreturn __kunit_abort(struct kunit *test);
+
+void __kunit_do_failed_assertion(struct kunit *test,
 			       const struct kunit_loc *loc,
 			       enum kunit_assert_type type,
 			       const struct kunit_assert *assert,
@@ -482,13 +494,15 @@ void kunit_do_failed_assertion(struct kunit *test,
 #define _KUNIT_FAILED(test, assert_type, assert_class, assert_format, INITIALIZER, fmt, ...) do { \
 	static const struct kunit_loc __loc = KUNIT_CURRENT_LOC;	       \
 	const struct assert_class __assertion = INITIALIZER;		       \
-	kunit_do_failed_assertion(test,					       \
-				  &__loc,				       \
-				  assert_type,				       \
-				  &__assertion.assert,			       \
-				  assert_format,			       \
-				  fmt,					       \
-				  ##__VA_ARGS__);			       \
+	__kunit_do_failed_assertion(test,				       \
+				    &__loc,				       \
+				    assert_type,			       \
+				    &__assertion.assert,		       \
+				    assert_format,			       \
+				    fmt,				       \
+				    ##__VA_ARGS__);			       \
+	if (assert_type == KUNIT_ASSERTION)				       \
+		__kunit_abort(test);					       \
 } while (0)
 
 

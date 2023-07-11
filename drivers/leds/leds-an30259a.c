@@ -346,7 +346,7 @@ static struct i2c_driver an30259a_driver = {
 		.name = "leds-an30259a",
 		.of_match_table = of_match_ptr(an30259a_match_table),
 	},
-	.probe_new = an30259a_probe,
+	.probe = an30259a_probe,
 	.remove = an30259a_remove,
 	.id_table = an30259a_id,
 };

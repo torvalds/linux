@@ -818,6 +818,7 @@ static int lan966x_probe_port(struct lan966x *lan966x, u32 p,
 	port->phylink_config.type = PHYLINK_NETDEV;
 	port->phylink_pcs.poll = true;
 	port->phylink_pcs.ops = &lan966x_phylink_pcs_ops;
+	port->phylink_pcs.neg_mode = true;
 
 	port->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 		MAC_10 | MAC_100 | MAC_1000FD | MAC_2500FD;
@@ -1222,6 +1223,8 @@ static int lan966x_probe(struct platform_device *pdev)
 	err = lan966x_vcap_init(lan966x);
 	if (err)
 		goto cleanup_fdma;
+
+	lan966x_dcb_init(lan966x);
 
 	return 0;
 

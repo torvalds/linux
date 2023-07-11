@@ -100,7 +100,7 @@ properties:
 
 patternProperties:
   "^power-domain-":
-    $ref: "../power/power-domain.yaml#"
+    $ref: /schemas/power/power-domain.yaml#
 
     type: object
     description: |

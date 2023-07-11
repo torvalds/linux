@@ -549,6 +549,11 @@ int bench_epoll_wait(int argc, const char **argv)
 	print_summary();
 
 	close(epollfd);
+	perf_cpu_map__put(cpu);
+	for (i = 0; i < nthreads; i++)
+		free(worker[i].fdmap);
+
+	free(worker);
 	return ret;
 errmem:
 	err(EXIT_FAILURE, "calloc");

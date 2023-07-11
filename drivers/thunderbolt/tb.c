@@ -131,7 +131,7 @@ tb_attach_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
 static void tb_discover_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
 					struct tb_port *out)
 {
-	if (usb4_dp_port_bw_mode_enabled(in)) {
+	if (usb4_dp_port_bandwidth_mode_enabled(in)) {
 		int index, i;
 
 		index = usb4_dp_port_group_id(in);
@@ -240,6 +240,147 @@ static void tb_discover_dp_resources(struct tb *tb)
 	}
 }
 
+/* Enables CL states up to host router */
+static int tb_enable_clx(struct tb_switch *sw)
+{
+	struct tb_cm *tcm = tb_priv(sw->tb);
+	unsigned int clx = TB_CL0S | TB_CL1;
+	const struct tb_tunnel *tunnel;
+	int ret;
+
+	/*
+	 * Currently only enable CLx for the first link. This is enough
+	 * to allow the CPU to save energy at least on Intel hardware
+	 * and makes it slightly simpler to implement. We may change
+	 * this in the future to cover the whole topology if it turns
+	 * out to be beneficial.
+	 */
+	while (sw && sw->config.depth > 1)
+		sw = tb_switch_parent(sw);
+
+	if (!sw)
+		return 0;
+
+	if (sw->config.depth != 1)
+		return 0;
+
+	/*
+	 * If we are re-enabling then check if there is an active DMA
+	 * tunnel and in that case bail out.
+	 */
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (tb_tunnel_is_dma(tunnel)) {
+			if (tb_tunnel_port_on_path(tunnel, tb_upstream_port(sw)))
+				return 0;
+		}
+	}
+
+	/*
+	 * Initially try with CL2. If that's not supported by the
+	 * topology try with CL0s and CL1 and then give up.
+	 */
+	ret = tb_switch_clx_enable(sw, clx | TB_CL2);
+	if (ret == -EOPNOTSUPP)
+		ret = tb_switch_clx_enable(sw, clx);
+	return ret == -EOPNOTSUPP ? 0 : ret;
+}
+
+/* Disables CL states up to the host router */
+static void tb_disable_clx(struct tb_switch *sw)
+{
+	do {
+		if (tb_switch_clx_disable(sw) < 0)
+			tb_sw_warn(sw, "failed to disable CL states\n");
+		sw = tb_switch_parent(sw);
+	} while (sw);
+}
+
+static int tb_increase_switch_tmu_accuracy(struct device *dev, void *data)
+{
+	struct tb_switch *sw;
+
+	sw = tb_to_switch(dev);
+	if (!sw)
+		return 0;
+
+	if (tb_switch_tmu_is_configured(sw, TB_SWITCH_TMU_MODE_LOWRES)) {
+		enum tb_switch_tmu_mode mode;
+		int ret;
+
+		if (tb_switch_clx_is_enabled(sw, TB_CL1))
+			mode = TB_SWITCH_TMU_MODE_HIFI_UNI;
+		else
+			mode = TB_SWITCH_TMU_MODE_HIFI_BI;
+
+		ret = tb_switch_tmu_configure(sw, mode);
+		if (ret)
+			return ret;
+
+		return tb_switch_tmu_enable(sw);
+	}
+
+	return 0;
+}
+
+static void tb_increase_tmu_accuracy(struct tb_tunnel *tunnel)
+{
+	struct tb_switch *sw;
+
+	if (!tunnel)
+		return;
+
+	/*
+	 * Once first DP tunnel is established we change the TMU
+	 * accuracy of first depth child routers (and the host router)
+	 * to the highest. This is needed for the DP tunneling to work
+	 * but also allows CL0s.
+	 *
+	 * If both routers are v2 then we don't need to do anything as
+	 * they are using enhanced TMU mode that allows all CLx.
+	 */
+	sw = tunnel->tb->root_switch;
+	device_for_each_child(&sw->dev, NULL, tb_increase_switch_tmu_accuracy);
+}
+
+static int tb_enable_tmu(struct tb_switch *sw)
+{
+	int ret;
+
+	/*
+	 * If both routers at the end of the link are v2 we simply
+	 * enable the enhanched uni-directional mode. That covers all
+	 * the CL states. For v1 and before we need to use the normal
+	 * rate to allow CL1 (when supported). Otherwise we keep the TMU
+	 * running at the highest accuracy.
+	 */
+	ret = tb_switch_tmu_configure(sw,
+			TB_SWITCH_TMU_MODE_MEDRES_ENHANCED_UNI);
+	if (ret == -EOPNOTSUPP) {
+		if (tb_switch_clx_is_enabled(sw, TB_CL1))
+			ret = tb_switch_tmu_configure(sw,
+					TB_SWITCH_TMU_MODE_LOWRES);
+		else
+			ret = tb_switch_tmu_configure(sw,
+					TB_SWITCH_TMU_MODE_HIFI_BI);
+	}
+	if (ret)
+		return ret;
+
+	/* If it is already enabled in correct mode, don't touch it */
+	if (tb_switch_tmu_is_enabled(sw))
+		return 0;
+
+	ret = tb_switch_tmu_disable(sw);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_tmu_post_time(sw);
+	if (ret)
+		return ret;
+
+	return tb_switch_tmu_enable(sw);
+}
+
 static void tb_switch_discover_tunnels(struct tb_switch *sw,
 				       struct list_head *list,
 				       bool alloc_hopids)
@@ -253,13 +394,7 @@ static void tb_switch_discover_tunnels(struct tb_switch *sw,
 		switch (port->config.type) {
 		case TB_TYPE_DP_HDMI_IN:
 			tunnel = tb_tunnel_discover_dp(tb, port, alloc_hopids);
-			/*
-			 * In case of DP tunnel exists, change host router's
-			 * 1st children TMU mode to HiFi for CL0s to work.
-			 */
-			if (tunnel)
-				tb_switch_enable_tmu_1st_child(tb->root_switch,
-						TB_SWITCH_TMU_RATE_HIFI);
+			tb_increase_tmu_accuracy(tunnel);
 			break;
 
 		case TB_TYPE_PCIE_DOWN:
@@ -355,25 +490,6 @@ static void tb_scan_xdomain(struct tb_port *port)
 		tb_port_configure_xdomain(port, xd);
 		tb_xdomain_add(xd);
 	}
-}
-
-static int tb_enable_tmu(struct tb_switch *sw)
-{
-	int ret;
-
-	/* If it is already enabled in correct mode, don't touch it */
-	if (tb_switch_tmu_is_enabled(sw, sw->tmu.unidirectional_request))
-		return 0;
-
-	ret = tb_switch_tmu_disable(sw);
-	if (ret)
-		return ret;
-
-	ret = tb_switch_tmu_post_time(sw);
-	if (ret)
-		return ret;
-
-	return tb_switch_tmu_enable(sw);
 }
 
 /**
@@ -480,7 +596,8 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 		usb3_consumed_down = 0;
 	}
 
-	*available_up = *available_down = 40000;
+	/* Maximum possible bandwidth asymmetric Gen 4 link is 120 Gb/s */
+	*available_up = *available_down = 120000;
 
 	/* Find the minimum available bandwidth over all links */
 	tb_for_each_port_on_path(src_port, dst_port, port) {
@@ -491,18 +608,45 @@ static int tb_available_bandwidth(struct tb *tb, struct tb_port *src_port,
 
 		if (tb_is_upstream_port(port)) {
 			link_speed = port->sw->link_speed;
+			/*
+			 * sw->link_width is from upstream perspective
+			 * so we use the opposite for downstream of the
+			 * host router.
+			 */
+			if (port->sw->link_width == TB_LINK_WIDTH_ASYM_TX) {
+				up_bw = link_speed * 3 * 1000;
+				down_bw = link_speed * 1 * 1000;
+			} else if (port->sw->link_width == TB_LINK_WIDTH_ASYM_RX) {
+				up_bw = link_speed * 1 * 1000;
+				down_bw = link_speed * 3 * 1000;
+			} else {
+				up_bw = link_speed * port->sw->link_width * 1000;
+				down_bw = up_bw;
+			}
 		} else {
 			link_speed = tb_port_get_link_speed(port);
 			if (link_speed < 0)
 				return link_speed;
+
+			link_width = tb_port_get_link_width(port);
+			if (link_width < 0)
+				return link_width;
+
+			if (link_width == TB_LINK_WIDTH_ASYM_TX) {
+				up_bw = link_speed * 1 * 1000;
+				down_bw = link_speed * 3 * 1000;
+			} else if (link_width == TB_LINK_WIDTH_ASYM_RX) {
+				up_bw = link_speed * 3 * 1000;
+				down_bw = link_speed * 1 * 1000;
+			} else {
+				up_bw = link_speed * link_width * 1000;
+				down_bw = up_bw;
+			}
 		}
 
-		link_width = port->bonded ? 2 : 1;
-
-		up_bw = link_speed * link_width * 1000; /* Mb/s */
 		/* Leave 10% guard band */
 		up_bw -= up_bw / 10;
-		down_bw = up_bw;
+		down_bw -= down_bw / 10;
 
 		tb_port_dbg(port, "link total bandwidth %d/%d Mb/s\n", up_bw,
 			    down_bw);
@@ -628,7 +772,7 @@ static int tb_tunnel_usb3(struct tb *tb, struct tb_switch *sw)
 	 * Look up available down port. Since we are chaining it should
 	 * be found right above this switch.
 	 */
-	port = tb_port_at(tb_route(sw), parent);
+	port = tb_switch_downstream_port(sw);
 	down = tb_find_usb3_down(parent, port);
 	if (!down)
 		return 0;
@@ -739,7 +883,6 @@ static void tb_scan_port(struct tb_port *port)
 	struct tb_port *upstream_port;
 	bool discovery = false;
 	struct tb_switch *sw;
-	int ret;
 
 	if (tb_is_upstream_port(port))
 		return;
@@ -838,27 +981,19 @@ static void tb_scan_port(struct tb_port *port)
 	 * CL0s and CL1 are enabled and supported together.
 	 * Silently ignore CLx enabling in case CLx is not supported.
 	 */
-	if (discovery) {
+	if (discovery)
 		tb_sw_dbg(sw, "discovery, not touching CL states\n");
-	} else {
-		ret = tb_switch_enable_clx(sw, TB_CL1);
-		if (ret && ret != -EOPNOTSUPP)
-			tb_sw_warn(sw, "failed to enable %s on upstream port\n",
-				   tb_switch_clx_name(TB_CL1));
-	}
-
-	if (tb_switch_is_clx_enabled(sw, TB_CL1))
-		/*
-		 * To support highest CLx state, we set router's TMU to
-		 * Normal-Uni mode.
-		 */
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
-	else
-		/* If CLx disabled, configure router's TMU to HiFi-Bidir mode*/
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+	else if (tb_enable_clx(sw))
+		tb_sw_warn(sw, "failed to enable CL states\n");
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to enable TMU\n");
+
+	/*
+	 * Configuration valid needs to be set after the TMU has been
+	 * enabled for the upstream port of the router so we do it here.
+	 */
+	tb_switch_configuration_valid(sw);
 
 	/* Scan upstream retimers */
 	tb_retimer_scan(upstream_port, true);
@@ -1034,7 +1169,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		struct tb_tunnel *tunnel;
 		struct tb_port *out;
 
-		if (!usb4_dp_port_bw_mode_enabled(in))
+		if (!usb4_dp_port_bandwidth_mode_enabled(in))
 			continue;
 
 		tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
@@ -1082,7 +1217,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		else
 			estimated_bw = estimated_up;
 
-		if (usb4_dp_port_set_estimated_bw(in, estimated_bw))
+		if (usb4_dp_port_set_estimated_bandwidth(in, estimated_bw))
 			tb_port_warn(in, "failed to update estimated bandwidth\n");
 	}
 
@@ -1263,8 +1398,7 @@ static void tb_tunnel_dp(struct tb *tb)
 	 * In case of DP tunnel exists, change host router's 1st children
 	 * TMU mode to HiFi for CL0s to work.
 	 */
-	tb_switch_enable_tmu_1st_child(tb->root_switch, TB_SWITCH_TMU_RATE_HIFI);
-
+	tb_increase_tmu_accuracy(tunnel);
 	return;
 
 err_free:
@@ -1378,7 +1512,6 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 {
 	struct tb_port *up, *down, *port;
 	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_switch *parent_sw;
 	struct tb_tunnel *tunnel;
 
 	up = tb_switch_find_port(sw, TB_TYPE_PCIE_UP);
@@ -1389,9 +1522,8 @@ static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 	 * Look up available down port. Since we are chaining it should
 	 * be found right above this switch.
 	 */
-	parent_sw = tb_to_switch(sw->dev.parent);
-	port = tb_port_at(tb_route(sw), parent_sw);
-	down = tb_find_pcie_down(parent_sw, port);
+	port = tb_switch_downstream_port(sw);
+	down = tb_find_pcie_down(tb_switch_parent(sw), port);
 	if (!down)
 		return 0;
 
@@ -1428,30 +1560,45 @@ static int tb_approve_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 	struct tb_port *nhi_port, *dst_port;
 	struct tb_tunnel *tunnel;
 	struct tb_switch *sw;
+	int ret;
 
 	sw = tb_to_switch(xd->dev.parent);
 	dst_port = tb_port_at(xd->route, sw);
 	nhi_port = tb_switch_find_port(tb->root_switch, TB_TYPE_NHI);
 
 	mutex_lock(&tb->lock);
+
+	/*
+	 * When tunneling DMA paths the link should not enter CL states
+	 * so disable them now.
+	 */
+	tb_disable_clx(sw);
+
 	tunnel = tb_tunnel_alloc_dma(tb, nhi_port, dst_port, transmit_path,
 				     transmit_ring, receive_path, receive_ring);
 	if (!tunnel) {
-		mutex_unlock(&tb->lock);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_clx;
 	}
 
 	if (tb_tunnel_activate(tunnel)) {
 		tb_port_info(nhi_port,
 			     "DMA tunnel activation failed, aborting\n");
-		tb_tunnel_free(tunnel);
-		mutex_unlock(&tb->lock);
-		return -EIO;
+		ret = -EIO;
+		goto err_free;
 	}
 
 	list_add_tail(&tunnel->list, &tcm->tunnel_list);
 	mutex_unlock(&tb->lock);
 	return 0;
+
+err_free:
+	tb_tunnel_free(tunnel);
+err_clx:
+	tb_enable_clx(sw);
+	mutex_unlock(&tb->lock);
+
+	return ret;
 }
 
 static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
@@ -1477,6 +1624,13 @@ static void __tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
 					receive_path, receive_ring))
 			tb_deactivate_and_free_tunnel(tunnel);
 	}
+
+	/*
+	 * Try to re-enable CL states now, it is OK if this fails
+	 * because we may still have another DMA tunnel active through
+	 * the same host router USB4 downstream port.
+	 */
+	tb_enable_clx(sw);
 }
 
 static int tb_disconnect_xdomain_paths(struct tb *tb, struct tb_xdomain *xd,
@@ -1758,12 +1912,12 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	tb_port_dbg(in, "handling bandwidth allocation request\n");
 
-	if (!usb4_dp_port_bw_mode_enabled(in)) {
+	if (!usb4_dp_port_bandwidth_mode_enabled(in)) {
 		tb_port_warn(in, "bandwidth allocation mode not enabled\n");
 		goto unlock;
 	}
 
-	ret = usb4_dp_port_requested_bw(in);
+	ret = usb4_dp_port_requested_bandwidth(in);
 	if (ret < 0) {
 		if (ret == -ENODATA)
 			tb_port_dbg(in, "no bandwidth request active\n");
@@ -1830,17 +1984,26 @@ static void tb_queue_dp_bandwidth_request(struct tb *tb, u64 route, u8 port)
 static void tb_handle_notification(struct tb *tb, u64 route,
 				   const struct cfg_error_pkg *error)
 {
-	if (tb_cfg_ack_notification(tb->ctl, route, error))
-		tb_warn(tb, "could not ack notification on %llx\n", route);
 
 	switch (error->error) {
+	case TB_CFG_ERROR_PCIE_WAKE:
+	case TB_CFG_ERROR_DP_CON_CHANGE:
+	case TB_CFG_ERROR_DPTX_DISCOVERY:
+		if (tb_cfg_ack_notification(tb->ctl, route, error))
+			tb_warn(tb, "could not ack notification on %llx\n",
+				route);
+		break;
+
 	case TB_CFG_ERROR_DP_BW:
+		if (tb_cfg_ack_notification(tb->ctl, route, error))
+			tb_warn(tb, "could not ack notification on %llx\n",
+				route);
 		tb_queue_dp_bandwidth_request(tb, route, error->port);
 		break;
 
 	default:
-		/* Ack is enough */
-		return;
+		/* Ignore for now */
+		break;
 	}
 }
 
@@ -1955,8 +2118,7 @@ static int tb_start(struct tb *tb)
 	 * To support highest CLx state, we set host router's TMU to
 	 * Normal mode.
 	 */
-	tb_switch_tmu_configure(tb->root_switch, TB_SWITCH_TMU_RATE_NORMAL,
-				false);
+	tb_switch_tmu_configure(tb->root_switch, TB_SWITCH_TMU_MODE_LOWRES);
 	/* Enable TMU if it is off */
 	tb_switch_tmu_enable(tb->root_switch);
 	/* Full scan to discover devices added before the driver was loaded. */
@@ -1997,33 +2159,18 @@ static int tb_suspend_noirq(struct tb *tb)
 static void tb_restore_children(struct tb_switch *sw)
 {
 	struct tb_port *port;
-	int ret;
 
 	/* No need to restore if the router is already unplugged */
 	if (sw->is_unplugged)
 		return;
 
-	/*
-	 * CL0s and CL1 are enabled and supported together.
-	 * Silently ignore CLx re-enabling in case CLx is not supported.
-	 */
-	ret = tb_switch_enable_clx(sw, TB_CL1);
-	if (ret && ret != -EOPNOTSUPP)
-		tb_sw_warn(sw, "failed to re-enable %s on upstream port\n",
-			   tb_switch_clx_name(TB_CL1));
-
-	if (tb_switch_is_clx_enabled(sw, TB_CL1))
-		/*
-		 * To support highest CLx state, we set router's TMU to
-		 * Normal-Uni mode.
-		 */
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_NORMAL, true);
-	else
-		/* If CLx disabled, configure router's TMU to HiFi-Bidir mode*/
-		tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI, false);
+	if (tb_enable_clx(sw))
+		tb_sw_warn(sw, "failed to re-enable CL states\n");
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to restore TMU configuration\n");
+
+	tb_switch_configuration_valid(sw);
 
 	tb_switch_for_each_port(sw, port) {
 		if (!tb_port_has_remote(port) && !port->xdomain)

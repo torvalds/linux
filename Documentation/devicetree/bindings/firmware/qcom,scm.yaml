@@ -51,6 +51,7 @@ properties:
           - qcom,scm-sdm845
           - qcom,scm-sdx55
           - qcom,scm-sdx65
+          - qcom,scm-sdx75
           - qcom,scm-sm6115
           - qcom,scm-sm6125
           - qcom,scm-sm6350
@@ -70,6 +71,8 @@ properties:
   clock-names:
     minItems: 1
     maxItems: 3
+
+  dma-coherent: true
 
   interconnects:
     maxItems: 1

@@ -949,7 +949,7 @@ static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
  */
 static int is_mapped_fn(pte_t *pte, unsigned long addr, void *data)
 {
-	return pte_none(*pte) ? 0 : -EBUSY;
+	return pte_none(ptep_get(pte)) ? 0 : -EBUSY;
 }
 
 static int privcmd_vma_range_is_mapped(

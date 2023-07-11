@@ -97,7 +97,7 @@ static const struct i2c_device_id cma3000_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, cma3000_i2c_id);
 
 static struct i2c_driver cma3000_i2c_driver = {
-	.probe_new	= cma3000_i2c_probe,
+	.probe		= cma3000_i2c_probe,
 	.remove		= cma3000_i2c_remove,
 	.id_table	= cma3000_i2c_id,
 	.driver = {

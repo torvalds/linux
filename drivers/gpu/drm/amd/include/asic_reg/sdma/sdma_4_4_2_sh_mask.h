@@ -1171,6 +1171,30 @@
 #define SDMA_CLK_STATUS__F32_CLK_MASK                                                                         0x00000008L
 #define SDMA_CLK_STATUS__CE_CLK_MASK                                                                          0x00000010L
 #define SDMA_CLK_STATUS__PERF_CLK_MASK                                                                        0x00000020L
+//SDMA_UE_ERR_STATUS_LO
+#define SDMA_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT                                                   0x0
+#define SDMA_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG__SHIFT                                                      0x1
+#define SDMA_UE_ERR_STATUS_LO__ADDRESS__SHIFT                                                                 0x2
+#define SDMA_UE_ERR_STATUS_LO__MEMORY_ID__SHIFT                                                               0x18
+#define SDMA_UE_ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK                                                     0x00000001L
+#define SDMA_UE_ERR_STATUS_LO__ADDRESS_VALID_FLAG_MASK                                                        0x00000002L
+#define SDMA_UE_ERR_STATUS_LO__ADDRESS_MASK                                                                   0x00FFFFFCL
+#define SDMA_UE_ERR_STATUS_LO__MEMORY_ID_MASK                                                                 0xFF000000L
+//SDMA_UE_ERR_STATUS_HI
+#define SDMA_UE_ERR_STATUS_HI__ECC__SHIFT                                                                     0x0
+#define SDMA_UE_ERR_STATUS_HI__PARITY__SHIFT                                                                  0x1
+#define SDMA_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT                                                     0x2
+#define SDMA_UE_ERR_STATUS_HI__ERR_INFO__SHIFT                                                                0x3
+#define SDMA_UE_ERR_STATUS_HI__UE_CNT__SHIFT                                                                  0x17
+#define SDMA_UE_ERR_STATUS_HI__FED_CNT__SHIFT                                                                 0x1a
+#define SDMA_UE_ERR_STATUS_HI__RESERVED__SHIFT                                                                0x1d
+#define SDMA_UE_ERR_STATUS_HI__ECC_MASK                                                                       0x00000001L
+#define SDMA_UE_ERR_STATUS_HI__PARITY_MASK                                                                    0x00000002L
+#define SDMA_UE_ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK                                                       0x00000004L
+#define SDMA_UE_ERR_STATUS_HI__ERR_INFO_MASK                                                                  0x007FFFF8L
+#define SDMA_UE_ERR_STATUS_HI__UE_CNT_MASK                                                                    0x03800000L
+#define SDMA_UE_ERR_STATUS_HI__FED_CNT_MASK                                                                   0x1C000000L
+#define SDMA_UE_ERR_STATUS_HI__RESERVED_MASK                                                                  0xE0000000L
 //SDMA_POWER_CNTL
 #define SDMA_POWER_CNTL__PG_CNTL_ENABLE__SHIFT                                                                0x0
 #define SDMA_POWER_CNTL__EXT_PG_POWER_ON_REQ__SHIFT                                                           0x1

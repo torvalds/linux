@@ -24,7 +24,7 @@
 	.byte	0x02					/* MajorLinkerVersion */
 	.byte	0x14					/* MinorLinkerVersion */
 	.long	__inittext_end - .Lefi_header_end	/* SizeOfCode */
-	.long	_end - __initdata_begin			/* SizeOfInitializedData */
+	.long	_kernel_vsize				/* SizeOfInitializedData */
 	.long	0					/* SizeOfUninitializedData */
 	.long	__efistub_efi_pe_entry - _head		/* AddressOfEntryPoint */
 	.long	.Lefi_header_end - _head		/* BaseOfCode */
@@ -79,9 +79,9 @@
 		IMAGE_SCN_MEM_EXECUTE			/* Characteristics */
 
 	.ascii	".data\0\0\0"
-	.long	_end - __initdata_begin			/* VirtualSize */
+	.long	_kernel_vsize				/* VirtualSize */
 	.long	__initdata_begin - _head		/* VirtualAddress */
-	.long	_edata - __initdata_begin		/* SizeOfRawData */
+	.long	_kernel_rsize				/* SizeOfRawData */
 	.long	__initdata_begin - _head		/* PointerToRawData */
 
 	.long	0					/* PointerToRelocations */

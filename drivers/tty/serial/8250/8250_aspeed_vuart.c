@@ -275,6 +275,9 @@ static void __aspeed_vuart_set_throttle(struct uart_8250_port *up,
 {
 	unsigned char irqs = UART_IER_RLSI | UART_IER_RDI;
 
+	/* Port locked to synchronize UART_IER access against the console. */
+	lockdep_assert_held_once(&up->port.lock);
+
 	up->ier &= ~irqs;
 	if (!throttle)
 		up->ier |= irqs;

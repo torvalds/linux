@@ -187,57 +187,6 @@ static int kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
 }
 
 /**
- * kvm_set_vm_width() - set the register width for the guest
- * @vcpu: Pointer to the vcpu being configured
- *
- * Set both KVM_ARCH_FLAG_EL1_32BIT and KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED
- * in the VM flags based on the vcpu's requested register width, the HW
- * capabilities and other options (such as MTE).
- * When REG_WIDTH_CONFIGURED is already set, the vcpu settings must be
- * consistent with the value of the FLAG_EL1_32BIT bit in the flags.
- *
- * Return: 0 on success, negative error code on failure.
- */
-static int kvm_set_vm_width(struct kvm_vcpu *vcpu)
-{
-	struct kvm *kvm = vcpu->kvm;
-	bool is32bit;
-
-	is32bit = vcpu_has_feature(vcpu, KVM_ARM_VCPU_EL1_32BIT);
-
-	lockdep_assert_held(&kvm->arch.config_lock);
-
-	if (test_bit(KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED, &kvm->arch.flags)) {
-		/*
-		 * The guest's register width is already configured.
-		 * Make sure that the vcpu is consistent with it.
-		 */
-		if (is32bit == test_bit(KVM_ARCH_FLAG_EL1_32BIT, &kvm->arch.flags))
-			return 0;
-
-		return -EINVAL;
-	}
-
-	if (!cpus_have_const_cap(ARM64_HAS_32BIT_EL1) && is32bit)
-		return -EINVAL;
-
-	/* MTE is incompatible with AArch32 */
-	if (kvm_has_mte(kvm) && is32bit)
-		return -EINVAL;
-
-	/* NV is incompatible with AArch32 */
-	if (vcpu_has_nv(vcpu) && is32bit)
-		return -EINVAL;
-
-	if (is32bit)
-		set_bit(KVM_ARCH_FLAG_EL1_32BIT, &kvm->arch.flags);
-
-	set_bit(KVM_ARCH_FLAG_REG_WIDTH_CONFIGURED, &kvm->arch.flags);
-
-	return 0;
-}
-
-/**
  * kvm_reset_vcpu - sets core registers and sys_regs to reset value
  * @vcpu: The VCPU pointer
  *
@@ -261,13 +210,6 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu)
 	int ret;
 	bool loaded;
 	u32 pstate;
-
-	mutex_lock(&vcpu->kvm->arch.config_lock);
-	ret = kvm_set_vm_width(vcpu);
-	mutex_unlock(&vcpu->kvm->arch.config_lock);
-
-	if (ret)
-		return ret;
 
 	spin_lock(&vcpu->arch.mp_state_lock);
 	reset_state = vcpu->arch.reset_state;

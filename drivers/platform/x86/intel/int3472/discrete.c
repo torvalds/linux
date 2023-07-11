@@ -2,6 +2,7 @@
 /* Author: Dan Scally <djrscally@gmail.com> */
 
 #include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/machine.h>
@@ -25,6 +26,10 @@ static const guid_t int3472_gpio_guid =
 	GUID_INIT(0x79234640, 0x9e10, 0x4fea,
 		  0xa5, 0xc1, 0xb5, 0xaa, 0x8b, 0x19, 0x75, 0x6f);
 
+#define INT3472_GPIO_DSM_TYPE				GENMASK(7, 0)
+#define INT3472_GPIO_DSM_PIN				GENMASK(15, 8)
+#define INT3472_GPIO_DSM_SENSOR_ON_VAL			GENMASK(31, 24)
+
 /*
  * 822ace8f-2814-4174-a56b-5f029fe079ee
  * This _DSM GUID returns a string from the sensor device, which acts as a
@@ -34,69 +39,23 @@ static const guid_t cio2_sensor_module_guid =
 	GUID_INIT(0x822ace8f, 0x2814, 0x4174,
 		  0xa5, 0x6b, 0x5f, 0x02, 0x9f, 0xe0, 0x79, 0xee);
 
-/*
- * Here follows platform specific mapping information that we can pass to
- * the functions mapping resources to the sensors. Where the sensors have
- * a power enable pin defined in DSDT we need to provide a supply name so
- * the sensor drivers can find the regulator. The device name will be derived
- * from the sensor's ACPI device within the code. Optionally, we can provide a
- * NULL terminated array of function name mappings to deal with any platform
- * specific deviations from the documented behaviour of GPIOs.
- *
- * Map a GPIO function name to NULL to prevent the driver from mapping that
- * GPIO at all.
- */
-
-static const struct int3472_gpio_function_remap ov2680_gpio_function_remaps[] = {
-	{ "reset", NULL },
-	{ "powerdown", "reset" },
-	{ }
-};
-
-static const struct int3472_sensor_config int3472_sensor_configs[] = {
-	/* Lenovo Miix 510-12ISK - OV2680, Front */
-	{ "GNDF140809R", { 0 }, ov2680_gpio_function_remaps },
-	/* Lenovo Miix 510-12ISK - OV5648, Rear */
-	{ "GEFF150023R", REGULATOR_SUPPLY("avdd", NULL), NULL },
-	/* Surface Go 1&2 - OV5693, Front */
-	{ "YHCU", REGULATOR_SUPPLY("avdd", NULL), NULL },
-};
-
-static const struct int3472_sensor_config *
-skl_int3472_get_sensor_module_config(struct int3472_discrete_device *int3472)
+static void skl_int3472_log_sensor_module_name(struct int3472_discrete_device *int3472)
 {
 	union acpi_object *obj;
-	unsigned int i;
 
 	obj = acpi_evaluate_dsm_typed(int3472->sensor->handle,
 				      &cio2_sensor_module_guid, 0x00,
 				      0x01, NULL, ACPI_TYPE_STRING);
-
-	if (!obj) {
-		dev_err(int3472->dev,
-			"Failed to get sensor module string from _DSM\n");
-		return ERR_PTR(-ENODEV);
+	if (obj) {
+		dev_dbg(int3472->dev, "Sensor module id: '%s'\n", obj->string.pointer);
+		ACPI_FREE(obj);
 	}
-
-	for (i = 0; i < ARRAY_SIZE(int3472_sensor_configs); i++) {
-		if (!strcmp(int3472_sensor_configs[i].sensor_module_name,
-			    obj->string.pointer))
-			break;
-	}
-
-	ACPI_FREE(obj);
-
-	if (i >= ARRAY_SIZE(int3472_sensor_configs))
-		return ERR_PTR(-EINVAL);
-
-	return &int3472_sensor_configs[i];
 }
 
 static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int3472,
 					  struct acpi_resource_gpio *agpio,
 					  const char *func, u32 polarity)
 {
-	const struct int3472_sensor_config *sensor_config;
 	char *path = agpio->resource_source.string_ptr;
 	struct gpiod_lookup *table_entry;
 	struct acpi_device *adev;
@@ -107,22 +66,6 @@ static int skl_int3472_map_gpio_to_sensor(struct int3472_discrete_device *int347
 		dev_warn(int3472->dev, "Too many GPIOs mapped\n");
 		return -EINVAL;
 	}
-
-	sensor_config = int3472->sensor_config;
-	if (!IS_ERR(sensor_config) && sensor_config->function_maps) {
-		const struct int3472_gpio_function_remap *remap;
-
-		for (remap = sensor_config->function_maps; remap->documented; remap++) {
-			if (!strcmp(func, remap->documented)) {
-				func = remap->actual;
-				break;
-			}
-		}
-	}
-
-	/* Functions mapped to NULL should not be mapped to the sensor */
-	if (!func)
-		return 0;
 
 	status = acpi_get_handle(NULL, path, &handle);
 	if (ACPI_FAILURE(status))
@@ -211,8 +154,8 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 {
 	struct int3472_discrete_device *int3472 = data;
 	struct acpi_resource_gpio *agpio;
+	u8 active_value, pin, type;
 	union acpi_object *obj;
-	u8 active_value, type;
 	const char *err_msg;
 	const char *func;
 	u32 polarity;
@@ -236,12 +179,17 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 		return 1;
 	}
 
-	type = obj->integer.value & 0xff;
+	type = FIELD_GET(INT3472_GPIO_DSM_TYPE, obj->integer.value);
 
 	int3472_get_func_and_polarity(type, &func, &polarity);
 
-	/* If bits 31-24 of the _DSM entry are all 0 then the signal is inverted */
-	active_value = obj->integer.value >> 24;
+	pin = FIELD_GET(INT3472_GPIO_DSM_PIN, obj->integer.value);
+	if (pin != agpio->pin_table[0])
+		dev_warn(int3472->dev, "%s %s pin number mismatch _DSM %d resource %d\n",
+			 func, agpio->resource_source.string_ptr, pin,
+			 agpio->pin_table[0]);
+
+	active_value = FIELD_GET(INT3472_GPIO_DSM_SENSOR_ON_VAL, obj->integer.value);
 	if (!active_value)
 		polarity ^= GPIO_ACTIVE_LOW;
 
@@ -258,7 +206,7 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 
 		break;
 	case INT3472_GPIO_TYPE_CLK_ENABLE:
-		ret = skl_int3472_register_clock(int3472, agpio, polarity);
+		ret = skl_int3472_register_gpio_clock(int3472, agpio, polarity);
 		if (ret)
 			err_msg = "Failed to register clock\n";
 
@@ -297,11 +245,7 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 	LIST_HEAD(resource_list);
 	int ret;
 
-	/*
-	 * No error check, because not having a sensor config is not necessarily
-	 * a failure mode.
-	 */
-	int3472->sensor_config = skl_int3472_get_sensor_module_config(int3472);
+	skl_int3472_log_sensor_module_name(int3472);
 
 	ret = acpi_dev_get_resources(int3472->adev, &resource_list,
 				     skl_int3472_handle_gpio_resources,
@@ -310,6 +254,11 @@ static int skl_int3472_parse_crs(struct int3472_discrete_device *int3472)
 		return ret;
 
 	acpi_dev_free_resource_list(&resource_list);
+
+	/* Register _DSM based clock (no-op if a GPIO clock was already registered) */
+	ret = skl_int3472_register_dsm_clock(int3472);
+	if (ret < 0)
+		return ret;
 
 	int3472->gpios.dev_id = int3472->sensor_name;
 	gpiod_add_lookup_table(&int3472->gpios);
@@ -356,6 +305,7 @@ static int skl_int3472_discrete_probe(struct platform_device *pdev)
 	int3472->adev = adev;
 	int3472->dev = &pdev->dev;
 	platform_set_drvdata(pdev, int3472);
+	int3472->clock.imgclk_index = cldb.clock_source;
 
 	ret = skl_int3472_get_sensor_adev_and_name(&pdev->dev, &int3472->sensor,
 						   &int3472->sensor_name);

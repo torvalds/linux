@@ -47,6 +47,7 @@ modpost-args =										\
 	$(if $(KBUILD_MODPOST_WARN),-w)							\
 	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))					\
 	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)	\
+	$(if $(findstring 1, $(KBUILD_EXTRA_WARN)),-W)					\
 	-o $@
 
 modpost-deps := $(MODPOST)
@@ -89,6 +90,13 @@ quiet_cmd_vmlinux_objs = GEN     $@
 targets += .vmlinux.objs
 .vmlinux.objs: vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 	$(call if_changed,vmlinux_objs)
+
+ifdef CONFIG_TRIM_UNUSED_KSYMS
+ksym-wl := $(CONFIG_UNUSED_KSYMS_WHITELIST)
+ksym-wl := $(if $(filter-out /%, $(ksym-wl)),$(srctree)/)$(ksym-wl)
+modpost-args += -t $(addprefix -u , $(ksym-wl))
+modpost-deps += $(ksym-wl)
+endif
 
 ifeq ($(wildcard vmlinux.o),)
 missing-input := vmlinux.o

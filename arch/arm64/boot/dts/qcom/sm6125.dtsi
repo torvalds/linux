@@ -366,7 +366,7 @@
 		hwlocks = <&tcsr_mutex 3>;
 	};
 
-	soc {
+	soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00 0x00 0x00 0xffffffff>;

@@ -157,6 +157,7 @@ config DRM_I915_SW_FENCE_CHECK_DAG
 config DRM_I915_DEBUG_GUC
 	bool "Enable additional driver debugging for GuC"
 	depends on DRM_I915
+	select STACKDEPOT
 	default n
 	help
 	  Choose this option to turn on extra driver debugging that may affect

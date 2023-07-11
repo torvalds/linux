@@ -148,17 +148,18 @@ static void sctp_sched_free_sched(struct sctp_stream *stream)
 int sctp_sched_set_sched(struct sctp_association *asoc,
 			 enum sctp_sched_type sched)
 {
-	struct sctp_sched_ops *n = sctp_sched_ops[sched];
 	struct sctp_sched_ops *old = asoc->outqueue.sched;
 	struct sctp_datamsg *msg = NULL;
+	struct sctp_sched_ops *n;
 	struct sctp_chunk *ch;
 	int i, ret = 0;
 
-	if (old == n)
-		return ret;
-
 	if (sched > SCTP_SS_MAX)
 		return -EINVAL;
+
+	n = sctp_sched_ops[sched];
+	if (old == n)
+		return ret;
 
 	if (old)
 		sctp_sched_free_sched(&asoc->stream);

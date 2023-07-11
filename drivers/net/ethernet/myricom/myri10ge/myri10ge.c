@@ -66,6 +66,7 @@
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <net/checksum.h>
+#include <net/gso.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <asm/byteorder.h>

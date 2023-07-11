@@ -80,20 +80,16 @@ DECLARE_EVENT_CLASS(xhci_log_ctx,
 		__field(dma_addr_t, ctx_dma)
 		__field(u8 *, ctx_va)
 		__field(unsigned, ctx_ep_num)
-		__field(int, slot_id)
 		__dynamic_array(u32, ctx_data,
 			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 8) *
 			((ctx->type == XHCI_CTX_TYPE_INPUT) + ep_num + 1))
 	),
 	TP_fast_assign(
-		struct usb_device *udev;
 
-		udev = to_usb_device(xhci_to_hcd(xhci)->self.controller);
 		__entry->ctx_64 = HCC_64BYTE_CONTEXT(xhci->hcc_params);
 		__entry->ctx_type = ctx->type;
 		__entry->ctx_dma = ctx->dma;
 		__entry->ctx_va = ctx->bytes;
-		__entry->slot_id = udev->slot_id;
 		__entry->ctx_ep_num = ep_num;
 		memcpy(__get_dynamic_array(ctx_data), ctx->bytes,
 			((HCC_64BYTE_CONTEXT(xhci->hcc_params) + 1) * 32) *
@@ -462,7 +458,6 @@ DECLARE_EVENT_CLASS(xhci_log_ring,
 		__field(unsigned int, num_segs)
 		__field(unsigned int, stream_id)
 		__field(unsigned int, cycle_state)
-		__field(unsigned int, num_trbs_free)
 		__field(unsigned int, bounce_buf_len)
 	),
 	TP_fast_assign(
@@ -473,18 +468,16 @@ DECLARE_EVENT_CLASS(xhci_log_ring,
 		__entry->enq_seg = ring->enq_seg->dma;
 		__entry->deq_seg = ring->deq_seg->dma;
 		__entry->cycle_state = ring->cycle_state;
-		__entry->num_trbs_free = ring->num_trbs_free;
 		__entry->bounce_buf_len = ring->bounce_buf_len;
 		__entry->enq = xhci_trb_virt_to_dma(ring->enq_seg, ring->enqueue);
 		__entry->deq = xhci_trb_virt_to_dma(ring->deq_seg, ring->dequeue);
 	),
-	TP_printk("%s %p: enq %pad(%pad) deq %pad(%pad) segs %d stream %d free_trbs %d bounce %d cycle %d",
+	TP_printk("%s %p: enq %pad(%pad) deq %pad(%pad) segs %d stream %d bounce %d cycle %d",
 			xhci_ring_type_string(__entry->type), __entry->ring,
 			&__entry->enq, &__entry->enq_seg,
 			&__entry->deq, &__entry->deq_seg,
 			__entry->num_segs,
 			__entry->stream_id,
-			__entry->num_trbs_free,
 			__entry->bounce_buf_len,
 			__entry->cycle_state
 		)

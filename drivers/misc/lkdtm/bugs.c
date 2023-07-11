@@ -309,7 +309,7 @@ static void lkdtm_OVERFLOW_UNSIGNED(void)
 struct array_bounds_flex_array {
 	int one;
 	int two;
-	char data[1];
+	char data[];
 };
 
 struct array_bounds {
@@ -341,7 +341,7 @@ static void lkdtm_ARRAY_BOUNDS(void)
 	 * For the uninstrumented flex array member, also touch 1 byte
 	 * beyond to verify it is correctly uninstrumented.
 	 */
-	for (i = 0; i < sizeof(not_checked->data) + 1; i++)
+	for (i = 0; i < 2; i++)
 		not_checked->data[i] = 'A';
 
 	pr_info("Array access beyond bounds ...\n");
@@ -487,6 +487,7 @@ static void lkdtm_UNSET_SMEP(void)
 	 * the cr4 writing instruction.
 	 */
 	insn = (unsigned char *)native_write_cr4;
+	OPTIMIZER_HIDE_VAR(insn);
 	for (i = 0; i < MOV_CR4_DEPTH; i++) {
 		/* mov %rdi, %cr4 */
 		if (insn[i] == 0x0f && insn[i+1] == 0x22 && insn[i+2] == 0xe7)

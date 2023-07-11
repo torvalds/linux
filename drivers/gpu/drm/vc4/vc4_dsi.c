@@ -600,19 +600,14 @@ struct vc4_dsi {
 	struct debugfs_regset32 regset;
 };
 
-#define host_to_dsi(host) container_of(host, struct vc4_dsi, dsi_host)
+#define host_to_dsi(host)					\
+	container_of_const(host, struct vc4_dsi, dsi_host)
 
-static inline struct vc4_dsi *
-to_vc4_dsi(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct vc4_dsi, encoder.base);
-}
+#define to_vc4_dsi(_encoder)					\
+	container_of_const(_encoder, struct vc4_dsi, encoder.base)
 
-static inline struct vc4_dsi *
-bridge_to_vc4_dsi(struct drm_bridge *bridge)
-{
-	return container_of(bridge, struct vc4_dsi, bridge);
-}
+#define bridge_to_vc4_dsi(_bridge)				\
+	container_of_const(_bridge, struct vc4_dsi, bridge)
 
 static inline void
 dsi_dma_workaround_write(struct vc4_dsi *dsi, u32 offset, u32 val)

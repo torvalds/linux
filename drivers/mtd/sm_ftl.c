@@ -981,7 +981,7 @@ restart:
 	/* Update the FTL table */
 	zone->lba_to_phys_table[ftl->cache_block] = write_sector;
 
-	/* Write succesfull, so erase and free the old block */
+	/* Write successful, so erase and free the old block */
 	if (block_num > 0)
 		sm_erase_block(ftl, zone_num, block_num, 1);
 

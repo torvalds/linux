@@ -972,6 +972,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	u32 regdata;
 	u32 socitype;
 	int ret;
+	const u32 READ_FAILED = 0xFFFFFFFF;
 
 	/* Get CC core rev
 	 * Chipid is assume to be at offset 0 from SI_ENUM_BASE
@@ -980,6 +981,11 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	 */
 	regdata = ci->ops->read32(ci->ctx,
 				  CORE_CC_REG(ci->pub.enum_base, chipid));
+	if (regdata == READ_FAILED) {
+		brcmf_err("MMIO read failed: 0x%08x\n", regdata);
+		return -ENODEV;
+	}
+
 	ci->pub.chip = regdata & CID_ID_MASK;
 	ci->pub.chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
 	socitype = (regdata & CID_TYPE_MASK) >> CID_TYPE_SHIFT;

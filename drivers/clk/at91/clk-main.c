@@ -152,14 +152,15 @@ struct clk_hw * __init
 at91_clk_register_main_osc(struct regmap *regmap,
 			   const char *name,
 			   const char *parent_name,
+			   struct clk_parent_data *parent_data,
 			   bool bypass)
 {
 	struct clk_main_osc *osc;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 
-	if (!name || !parent_name)
+	if (!name || !(parent_name || parent_data))
 		return ERR_PTR(-EINVAL);
 
 	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
@@ -168,7 +169,10 @@ at91_clk_register_main_osc(struct regmap *regmap,
 
 	init.name = name;
 	init.ops = &main_osc_ops;
-	init.parent_names = &parent_name;
+	if (parent_data)
+		init.parent_data = (const struct clk_parent_data *)parent_data;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.flags = CLK_IGNORE_UNUSED;
 
@@ -397,17 +401,18 @@ static const struct clk_ops rm9200_main_ops = {
 struct clk_hw * __init
 at91_clk_register_rm9200_main(struct regmap *regmap,
 			      const char *name,
-			      const char *parent_name)
+			      const char *parent_name,
+			      struct clk_hw *parent_hw)
 {
 	struct clk_rm9200_main *clkmain;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 
 	if (!name)
 		return ERR_PTR(-EINVAL);
 
-	if (!parent_name)
+	if (!(parent_name || parent_hw))
 		return ERR_PTR(-EINVAL);
 
 	clkmain = kzalloc(sizeof(*clkmain), GFP_KERNEL);
@@ -416,7 +421,10 @@ at91_clk_register_rm9200_main(struct regmap *regmap,
 
 	init.name = name;
 	init.ops = &rm9200_main_ops;
-	init.parent_names = &parent_name;
+	if (parent_hw)
+		init.parent_hws = (const struct clk_hw **)&parent_hw;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.flags = 0;
 
@@ -533,6 +541,7 @@ static const struct clk_ops sam9x5_main_ops = {
 	.prepare = clk_sam9x5_main_prepare,
 	.is_prepared = clk_sam9x5_main_is_prepared,
 	.recalc_rate = clk_sam9x5_main_recalc_rate,
+	.determine_rate = clk_hw_determine_rate_no_reparent,
 	.set_parent = clk_sam9x5_main_set_parent,
 	.get_parent = clk_sam9x5_main_get_parent,
 	.save_context = clk_sam9x5_main_save_context,
@@ -543,10 +552,11 @@ struct clk_hw * __init
 at91_clk_register_sam9x5_main(struct regmap *regmap,
 			      const char *name,
 			      const char **parent_names,
+			      struct clk_hw **parent_hws,
 			      int num_parents)
 {
 	struct clk_sam9x5_main *clkmain;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned int status;
 	struct clk_hw *hw;
 	int ret;
@@ -554,7 +564,7 @@ at91_clk_register_sam9x5_main(struct regmap *regmap,
 	if (!name)
 		return ERR_PTR(-EINVAL);
 
-	if (!parent_names || !num_parents)
+	if (!(parent_hws || parent_names) || !num_parents)
 		return ERR_PTR(-EINVAL);
 
 	clkmain = kzalloc(sizeof(*clkmain), GFP_KERNEL);
@@ -563,7 +573,10 @@ at91_clk_register_sam9x5_main(struct regmap *regmap,
 
 	init.name = name;
 	init.ops = &sam9x5_main_ops;
-	init.parent_names = parent_names;
+	if (parent_hws)
+		init.parent_hws = (const struct clk_hw **)parent_hws;
+	else
+		init.parent_names = parent_names;
 	init.num_parents = num_parents;
 	init.flags = CLK_SET_PARENT_GATE;
 

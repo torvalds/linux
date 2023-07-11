@@ -806,7 +806,7 @@ static int bwmon_remove(struct platform_device *pdev)
 
 static const struct icc_bwmon_data msm8998_bwmon_data = {
 	.sample_ms = 4,
-	.count_unit_kb = 64,
+	.count_unit_kb = 1024,
 	.default_highbw_kbps = 4800 * 1024, /* 4.8 GBps */
 	.default_medbw_kbps = 512 * 1024, /* 512 MBps */
 	.default_lowbw_kbps = 0,

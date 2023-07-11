@@ -36,6 +36,11 @@
 		};
 	};
 
+	gpu@57000000 {
+		vdd-supply = <&max77621_gpu>;
+		status = "okay";
+	};
+
 	pinmux: pinmux@700008d4 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&state_boot>;
@@ -1370,8 +1375,24 @@
 			maxim,dvs-default-state = <1>;
 			maxim,enable-active-discharge;
 			maxim,enable-bias-control;
-			maxim,enable-etr;
 			maxim,enable-gpio = <&pmic 5 0>;
+			maxim,externally-enable;
+		};
+
+		max77621_gpu: regulator@1c {
+			compatible = "maxim,max77621";
+			reg = <0x1c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(A, 6) IRQ_TYPE_LEVEL_LOW>;
+			regulator-min-microvolt = <840000>;
+			regulator-max-microvolt = <1150000>;
+			regulator-name = "PPVAR_GPU";
+			regulator-ramp-delay = <12500>;
+			maxim,dvs-default-state = <1>;
+			maxim,enable-active-discharge;
+			maxim,enable-bias-control;
+			maxim,disable-etr;
+			maxim,enable-gpio = <&pmic 6 GPIO_ACTIVE_HIGH>;
 			maxim,externally-enable;
 		};
 

@@ -109,7 +109,7 @@ static int __maybe_unused tegra210_adx_runtime_resume(struct device *dev)
 
 static int tegra210_adx_set_audio_cif(struct snd_soc_dai *dai,
 				      unsigned int channels,
-				      unsigned int format,
+				      snd_pcm_format_t format,
 				      unsigned int reg)
 {
 	struct tegra210_adx *adx = snd_soc_dai_get_drvdata(dai);

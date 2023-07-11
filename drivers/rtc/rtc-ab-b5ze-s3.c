@@ -944,7 +944,7 @@ static struct i2c_driver abb5zes3_driver = {
 		.pm = &abb5zes3_rtc_pm_ops,
 		.of_match_table = of_match_ptr(abb5zes3_dt_match),
 	},
-	.probe_new = abb5zes3_probe,
+	.probe = abb5zes3_probe,
 	.id_table = abb5zes3_id,
 };
 module_i2c_driver(abb5zes3_driver);

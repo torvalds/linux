@@ -9,7 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/v7m.h>
 #include "proc-macros.S"
 

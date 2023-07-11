@@ -2538,7 +2538,7 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 	if (test_bit(HNS3_NIC_STATE_DOWN, &priv->state))
 		return;
 
-	handle->ae_algo->ops->update_stats(handle, &netdev->stats);
+	handle->ae_algo->ops->update_stats(handle);
 
 	memset(&ring_total_stats, 0, sizeof(ring_total_stats));
 	for (idx = 0; idx < queue_num; idx++) {

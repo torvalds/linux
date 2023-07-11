@@ -45,13 +45,13 @@
 #define RCFW_COMM_PCI_BAR_REGION	0
 #define RCFW_COMM_CONS_PCI_BAR_REGION	2
 #define RCFW_COMM_BASE_OFFSET		0x600
-#define RCFW_PF_COMM_PROD_OFFSET	0xc
-#define RCFW_VF_COMM_PROD_OFFSET	0xc
+#define RCFW_PF_VF_COMM_PROD_OFFSET	0xc
 #define RCFW_COMM_TRIG_OFFSET		0x100
 #define RCFW_COMM_SIZE			0x104
 
 #define RCFW_DBR_PCI_BAR_REGION		2
 #define RCFW_DBR_BASE_PAGE_SHIFT	12
+#define RCFW_FW_STALL_MAX_TIMEOUT	40
 
 /* Cmdq contains a fix number of a 16-Byte slots */
 struct bnxt_qplib_cmdqe {
@@ -67,11 +67,12 @@ static inline void bnxt_qplib_rcfw_cmd_prep(struct cmdq_base *req,
 	req->cmd_size = cmd_size;
 }
 
+/* Shadow queue depth for non blocking command */
+#define RCFW_CMD_NON_BLOCKING_SHADOW_QD	64
 #define RCFW_CMD_WAIT_TIME_MS		20000 /* 20 Seconds timeout */
 
 /* CMDQ elements */
-#define BNXT_QPLIB_CMDQE_MAX_CNT_256	256
-#define BNXT_QPLIB_CMDQE_MAX_CNT_8192	8192
+#define BNXT_QPLIB_CMDQE_MAX_CNT	8192
 #define BNXT_QPLIB_CMDQE_BYTES(depth)	((depth) * BNXT_QPLIB_CMDQE_UNITS)
 
 static inline u32 bnxt_qplib_cmdqe_npages(u32 depth)
@@ -87,6 +88,26 @@ static inline u32 bnxt_qplib_cmdqe_npages(u32 depth)
 static inline u32 bnxt_qplib_cmdqe_page_size(u32 depth)
 {
 	return (bnxt_qplib_cmdqe_npages(depth) * PAGE_SIZE);
+}
+
+/* Get the number of command units required for the req. The
+ * function returns correct value only if called before
+ * setting using bnxt_qplib_set_cmd_slots
+ */
+static inline u32 bnxt_qplib_get_cmd_slots(struct cmdq_base *req)
+{
+	u32 cmd_units = 0;
+
+	if (HAS_TLV_HEADER(req)) {
+		struct roce_tlv *tlv_req = (struct roce_tlv *)req;
+
+		cmd_units = tlv_req->total_size;
+	} else {
+		cmd_units = (req->cmd_size + BNXT_QPLIB_CMDQE_UNITS - 1) /
+			    BNXT_QPLIB_CMDQE_UNITS;
+	}
+
+	return cmd_units;
 }
 
 static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
@@ -106,11 +127,10 @@ static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 	return cmd_byte;
 }
 
-#define RCFW_MAX_COOKIE_VALUE		0x7FFF
+#define RCFW_MAX_COOKIE_VALUE		(BNXT_QPLIB_CMDQE_MAX_CNT - 1)
 #define RCFW_CMD_IS_BLOCKING		0x8000
-#define RCFW_BLOCKED_CMD_WAIT_COUNT	20000000UL /* 20 sec */
 
-#define HWRM_VERSION_RCFW_CMDQ_DEPTH_CHECK 0x1000900020011ULL
+#define HWRM_VERSION_DEV_ATTR_MAX_DPI  0x1000A0000000DULL
 
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {
@@ -132,6 +152,12 @@ typedef int (*aeq_handler_t)(struct bnxt_qplib_rcfw *, void *, void *);
 struct bnxt_qplib_crsqe {
 	struct creq_qp_event	*resp;
 	u32			req_size;
+	/* Free slots at the time of submission */
+	u32			free_slots;
+	u8			opcode;
+	bool			is_waiter_alive;
+	bool			is_internal_cmd;
+	bool			is_in_used;
 };
 
 struct bnxt_qplib_rcfw_sbuf {
@@ -149,7 +175,7 @@ struct bnxt_qplib_qp_node {
 
 #define FIRMWARE_INITIALIZED_FLAG	(0)
 #define FIRMWARE_FIRST_FLAG		(31)
-#define FIRMWARE_TIMED_OUT		(3)
+#define FIRMWARE_STALL_DETECTED		(3)
 #define ERR_DEVICE_DETACHED             (4)
 
 struct bnxt_qplib_cmdq_mbox {
@@ -163,7 +189,7 @@ struct bnxt_qplib_cmdq_ctx {
 	struct bnxt_qplib_cmdq_mbox	cmdq_mbox;
 	wait_queue_head_t		waitq;
 	unsigned long			flags;
-	unsigned long			*cmdq_bitmap;
+	unsigned long			last_seen;
 	u32				seq_num;
 };
 
@@ -186,6 +212,7 @@ struct bnxt_qplib_creq_ctx {
 	u16				ring_id;
 	int				msix_vec;
 	bool				requested; /*irq handler installed */
+	char				*irq_name;
 };
 
 /* RCFW Communication Channels */
@@ -200,6 +227,11 @@ struct bnxt_qplib_rcfw {
 	u64 oos_prev;
 	u32 init_oos_stats;
 	u32 cmdq_depth;
+	atomic_t rcfw_intr_enabled;
+	struct semaphore rcfw_inflight;
+	atomic_t timeout_send;
+	/* cached from chip cctx for quick reference in slow path */
+	u16 max_timeout;
 };
 
 struct bnxt_qplib_cmdqmsg {
@@ -234,7 +266,7 @@ int bnxt_qplib_rcfw_start_irq(struct bnxt_qplib_rcfw *rcfw, int msix_vector,
 			      bool need_init);
 int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 				   int msix_vector,
-				   int cp_bar_reg_off, int virt_fn,
+				   int cp_bar_reg_off,
 				   aeq_handler_t aeq_handler);
 
 struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(

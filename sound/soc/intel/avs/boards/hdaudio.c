@@ -64,56 +64,6 @@ static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int
 	return 0;
 }
 
-static int avs_create_dapm_routes(struct device *dev, struct hda_codec *codec, int pcm_count,
-				  struct snd_soc_dapm_route **routes, int *num_routes)
-{
-	struct snd_soc_dapm_route *dr;
-	struct hda_pcm *pcm;
-	const char *cname = dev_name(&codec->core.dev);
-	int i, n = 0;
-
-	/* at max twice the number of pcms */
-	dr = devm_kcalloc(dev, pcm_count * 2, sizeof(*dr), GFP_KERNEL);
-	if (!dr)
-		return -ENOMEM;
-
-	pcm = list_first_entry(&codec->pcm_list_head, struct hda_pcm, list);
-
-	for (i = 0; i < pcm_count; i++, pcm = list_next_entry(pcm, list)) {
-		struct hda_pcm_stream *stream;
-		int dir;
-
-		dir = SNDRV_PCM_STREAM_PLAYBACK;
-		stream = &pcm->stream[dir];
-		if (!stream->substreams)
-			goto capture_routes;
-
-		dr[n].sink = devm_kasprintf(dev, GFP_KERNEL, "%s %s", pcm->name,
-					    snd_pcm_direction_name(dir));
-		dr[n].source = devm_kasprintf(dev, GFP_KERNEL, "%s-cpu%d Tx", cname, i);
-		if (!dr[n].sink || !dr[n].source)
-			return -ENOMEM;
-		n++;
-
-capture_routes:
-		dir = SNDRV_PCM_STREAM_CAPTURE;
-		stream = &pcm->stream[dir];
-		if (!stream->substreams)
-			continue;
-
-		dr[n].sink = devm_kasprintf(dev, GFP_KERNEL, "%s-cpu%d Rx", cname, i);
-		dr[n].source = devm_kasprintf(dev, GFP_KERNEL, "%s %s", pcm->name,
-					      snd_pcm_direction_name(dir));
-		if (!dr[n].sink || !dr[n].source)
-			return -ENOMEM;
-		n++;
-	}
-
-	*routes = dr;
-	*num_routes = n;
-	return 0;
-}
-
 /* Should be aligned with SectionPCM's name from topology */
 #define FEDAI_NAME_PREFIX "HDMI"
 
@@ -172,13 +122,12 @@ static int avs_card_late_probe(struct snd_soc_card *card)
 
 static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 {
-	struct snd_soc_dapm_route *routes;
 	struct snd_soc_acpi_mach *mach;
 	struct snd_soc_dai_link *links = NULL;
 	struct snd_soc_card *card = rtm->card;
 	struct hda_codec *codec;
 	struct hda_pcm *pcm;
-	int ret, n, pcm_count = 0;
+	int ret, pcm_count = 0;
 
 	mach = dev_get_platdata(card->dev);
 	codec = mach->pdata;
@@ -197,18 +146,6 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 	ret = snd_soc_add_pcm_runtimes(card, links, pcm_count);
 	if (ret < 0) {
 		dev_err(card->dev, "add links failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = avs_create_dapm_routes(card->dev, codec, pcm_count, &routes, &n);
-	if (ret < 0) {
-		dev_err(card->dev, "create routes failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = snd_soc_dapm_add_routes(&card->dapm, routes, n);
-	if (ret < 0) {
-		dev_err(card->dev, "add routes failed: %d\n", ret);
 		return ret;
 	}
 

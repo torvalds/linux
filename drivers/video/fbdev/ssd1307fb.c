@@ -301,6 +301,9 @@ static ssize_t ssd1307fb_write(struct fb_info *info, const char __user *buf,
 	void *dst;
 	int ret;
 
+	if (!info->screen_buffer)
+		return -ENODEV;
+
 	total_size = info->fix.smem_len;
 
 	if (p > total_size)

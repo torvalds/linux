@@ -45,6 +45,7 @@ config QCOM_HIDMA_MGMT
 
 config QCOM_HIDMA
 	tristate "Qualcomm Technologies HIDMA Channel support"
+	depends on HAS_IOMEM
 	select DMA_ENGINE
 	help
 	  Enable support for the Qualcomm Technologies HIDMA controller.

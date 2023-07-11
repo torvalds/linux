@@ -373,44 +373,6 @@
 	status = "okay";
 };
 
-&dsi0 {
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-	status = "okay";
-
-	display_panel: panel@0 {
-		compatible = "jdi,fhd-nt35596s";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0>;
-
-		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
-		vddio-supply = <&vreg_l14a_1p8>;
-		backlight = <&pmi8998_wled>;
-		vddpos-supply = <&lab>;
-		vddneg-supply = <&ibb>;
-
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&sde_dsi_active>;
-		pinctrl-1 = <&sde_dsi_suspend>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-};
-
-&dsi0_out {
-	remote-endpoint = <&panel_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-	status = "okay";
-};
-
 &gcc {
 	protected-clocks = <GCC_QSPI_CORE_CLK>,
 				<GCC_QSPI_CORE_CLK_SRC>,
@@ -483,6 +445,7 @@
 		};
 
 		rmi4-f12@12 {
+			reg = <0x12>;
 			syna,rezero-wait-ms = <0xc8>;
 			syna,clip-x-high = <0x438>;
 			syna,clip-y-high = <0x870>;
@@ -501,6 +464,44 @@
 };
 
 &mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+	status = "okay";
+
+	display_panel: panel@0 {
+		compatible = "jdi,fhd-nt35596s";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+		vddio-supply = <&vreg_l14a_1p8>;
+		backlight = <&pmi8998_wled>;
+		vddpos-supply = <&lab>;
+		vddneg-supply = <&ibb>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&sde_dsi_active>;
+		pinctrl-1 = <&sde_dsi_suspend>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
 	status = "okay";
 };
 

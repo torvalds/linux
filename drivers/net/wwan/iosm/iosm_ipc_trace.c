@@ -3,7 +3,9 @@
  * Copyright (C) 2020-2021 Intel Corporation.
  */
 
+#include <linux/pm_runtime.h>
 #include <linux/wwan.h>
+
 #include "iosm_ipc_trace.h"
 
 /* sub buffer size and number of sub buffer */
@@ -97,6 +99,8 @@ static ssize_t ipc_trace_ctrl_file_write(struct file *filp,
 	if (ret)
 		return ret;
 
+	pm_runtime_get_sync(ipc_trace->ipc_imem->dev);
+
 	mutex_lock(&ipc_trace->trc_mutex);
 	if (val == TRACE_ENABLE && ipc_trace->mode != TRACE_ENABLE) {
 		ipc_trace->channel = ipc_imem_sys_port_open(ipc_trace->ipc_imem,
@@ -117,6 +121,10 @@ static ssize_t ipc_trace_ctrl_file_write(struct file *filp,
 	ret = count;
 unlock:
 	mutex_unlock(&ipc_trace->trc_mutex);
+
+	pm_runtime_mark_last_busy(ipc_trace->ipc_imem->dev);
+	pm_runtime_put_autosuspend(ipc_trace->ipc_imem->dev);
+
 	return ret;
 }
 

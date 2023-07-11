@@ -135,6 +135,9 @@ struct fid {
 	};
 };
 
+#define EXPORT_FH_CONNECTABLE	0x1 /* Encode file handle with parent */
+#define EXPORT_FH_FID		0x2 /* File handle may be non-decodeable */
+
 /**
  * struct export_operations - for nfsd to communicate with file systems
  * @encode_fh:      encode a file handle fragment from a dentry
@@ -150,7 +153,7 @@ struct fid {
  * encode_fh:
  *    @encode_fh should store in the file handle fragment @fh (using at most
  *    @max_len bytes) information that can be used by @decode_fh to recover the
- *    file referred to by the &struct dentry @de.  If the @connectable flag is
+ *    file referred to by the &struct dentry @de.  If @flag has CONNECTABLE bit
  *    set, the encode_fh() should store sufficient information so that a good
  *    attempt can be made to find not only the file but also it's place in the
  *    filesystem.   This typically means storing a reference to de->d_parent in
@@ -225,9 +228,18 @@ struct export_operations {
 };
 
 extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
-				    int *max_len, struct inode *parent);
+				    int *max_len, struct inode *parent,
+				    int flags);
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
-	int *max_len, int connectable);
+			      int *max_len, int flags);
+
+static inline int exportfs_encode_fid(struct inode *inode, struct fid *fid,
+				      int *max_len)
+{
+	return exportfs_encode_inode_fh(inode, fid, max_len, NULL,
+					EXPORT_FH_FID);
+}
+
 extern struct dentry *exportfs_decode_fh_raw(struct vfsmount *mnt,
 					     struct fid *fid, int fh_len,
 					     int fileid_type,

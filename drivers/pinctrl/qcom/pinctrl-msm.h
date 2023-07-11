@@ -8,27 +8,35 @@
 #include <linux/pm.h>
 #include <linux/types.h>
 
+#include <linux/pinctrl/pinctrl.h>
+
 struct platform_device;
 
 struct pinctrl_pin_desc;
 
-/**
- * struct msm_function - a pinmux function
- * @name:    Name of the pinmux function.
- * @groups:  List of pingroups for this function.
- * @ngroups: Number of entries in @groups.
- */
-struct msm_function {
-	const char *name;
-	const char * const *groups;
-	unsigned ngroups;
-};
+#define APQ_PIN_FUNCTION(fname)					\
+	[APQ_MUX_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define IPQ_PIN_FUNCTION(fname)					\
+	[IPQ_MUX_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define MSM_PIN_FUNCTION(fname) 				\
+	[msm_mux_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define QCA_PIN_FUNCTION(fname)					\
+	[qca_mux_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
 
 /**
  * struct msm_pingroup - Qualcomm pingroup definition
- * @name:                 Name of the pingroup.
- * @pins:	          A list of pins assigned to this pingroup.
- * @npins:	          Number of entries in @pins.
+ * @grp:                  Generic data of the pin group (name and pins)
  * @funcs:                A list of pinmux functions that can be selected for
  *                        this group. The index of the selected function is used
  *                        for programming the function selector.
@@ -61,9 +69,7 @@ struct msm_function {
  *                        otherwise 1.
  */
 struct msm_pingroup {
-	const char *name;
-	const unsigned *pins;
-	unsigned npins;
+	struct pingroup grp;
 
 	unsigned *funcs;
 	unsigned nfuncs;
@@ -138,7 +144,7 @@ struct msm_gpio_wakeirq_map {
 struct msm_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
-	const struct msm_function *functions;
+	const struct pinfunction *functions;
 	unsigned nfunctions;
 	const struct msm_pingroup *groups;
 	unsigned ngroups;

@@ -101,12 +101,11 @@
 .org .Lventry_start\@ + 128	// Did we overflow the ventry slot?
 	.endm
 
-	.macro tramp_alias, dst, sym, tmp
-	mov_q	\dst, TRAMP_VALIAS
-	adr_l	\tmp, \sym
-	add	\dst, \dst, \tmp
-	adr_l	\tmp, .entry.tramp.text
-	sub	\dst, \dst, \tmp
+	.macro	tramp_alias, dst, sym
+	.set	.Lalias\@, TRAMP_VALIAS + \sym - .entry.tramp.text
+	movz	\dst, :abs_g2_s:.Lalias\@
+	movk	\dst, :abs_g1_nc:.Lalias\@
+	movk	\dst, :abs_g0_nc:.Lalias\@
 	.endm
 
 	/*
@@ -435,13 +434,14 @@ alternative_if_not ARM64_UNMAP_KERNEL_AT_EL0
 	eret
 alternative_else_nop_endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	bne	4f
 	msr	far_el1, x29
-	tramp_alias	x30, tramp_exit_native, x29
-	br	x30
-4:
-	tramp_alias	x30, tramp_exit_compat, x29
-	br	x30
+
+	ldr_this_cpu	x30, this_cpu_vector, x29
+	tramp_alias	x29, tramp_exit
+	msr		vbar_el1, x30		// install vector table
+	ldr		lr, [sp, #S_LR]		// restore x30
+	add		sp, sp, #PT_REGS_SIZE	// restore sp
+	br		x29
 #endif
 	.else
 	ldr	lr, [sp, #S_LR]
@@ -732,22 +732,6 @@ alternative_else_nop_endif
 .org 1b + 128	// Did we overflow the ventry slot?
 	.endm
 
-	.macro tramp_exit, regsize = 64
-	tramp_data_read_var	x30, this_cpu_vector
-	get_this_cpu_offset x29
-	ldr	x30, [x30, x29]
-
-	msr	vbar_el1, x30
-	ldr	lr, [sp, #S_LR]
-	tramp_unmap_kernel	x29
-	.if	\regsize == 64
-	mrs	x29, far_el1
-	.endif
-	add	sp, sp, #PT_REGS_SIZE		// restore sp
-	eret
-	sb
-	.endm
-
 	.macro	generate_tramp_vector,	kpti, bhb
 .Lvector_start\@:
 	.space	0x400
@@ -768,7 +752,7 @@ alternative_else_nop_endif
  */
 	.pushsection ".entry.tramp.text", "ax"
 	.align	11
-SYM_CODE_START_NOALIGN(tramp_vectors)
+SYM_CODE_START_LOCAL_NOALIGN(tramp_vectors)
 #ifdef CONFIG_MITIGATE_SPECTRE_BRANCH_HISTORY
 	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_LOOP
 	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_FW
@@ -777,13 +761,12 @@ SYM_CODE_START_NOALIGN(tramp_vectors)
 	generate_tramp_vector	kpti=1, bhb=BHB_MITIGATION_NONE
 SYM_CODE_END(tramp_vectors)
 
-SYM_CODE_START(tramp_exit_native)
-	tramp_exit
-SYM_CODE_END(tramp_exit_native)
-
-SYM_CODE_START(tramp_exit_compat)
-	tramp_exit	32
-SYM_CODE_END(tramp_exit_compat)
+SYM_CODE_START_LOCAL(tramp_exit)
+	tramp_unmap_kernel	x29
+	mrs		x29, far_el1		// restore x29
+	eret
+	sb
+SYM_CODE_END(tramp_exit)
 	.popsection				// .entry.tramp.text
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 
@@ -1077,7 +1060,7 @@ alternative_if_not ARM64_UNMAP_KERNEL_AT_EL0
 alternative_else_nop_endif
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-	tramp_alias	dst=x5, sym=__sdei_asm_exit_trampoline, tmp=x3
+	tramp_alias	dst=x5, sym=__sdei_asm_exit_trampoline
 	br	x5
 #endif
 SYM_CODE_END(__sdei_asm_handler)

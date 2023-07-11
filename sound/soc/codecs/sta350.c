@@ -1249,7 +1249,7 @@ static struct i2c_driver sta350_i2c_driver = {
 		.name = "sta350",
 		.of_match_table = of_match_ptr(st350_dt_ids),
 	},
-	.probe_new = sta350_i2c_probe,
+	.probe =    sta350_i2c_probe,
 	.remove =   sta350_i2c_remove,
 	.id_table = sta350_i2c_id,
 };

@@ -786,7 +786,7 @@ static struct i2c_driver bd2802_i2c_driver = {
 		.name	= "BD2802",
 		.pm	= &bd2802_pm,
 	},
-	.probe_new	= bd2802_probe,
+	.probe		= bd2802_probe,
 	.remove		= bd2802_remove,
 	.id_table	= bd2802_id,
 };

@@ -652,7 +652,7 @@ static struct i2c_driver rtq6056_driver = {
 		.of_match_table = rtq6056_device_match,
 		.pm = pm_ptr(&rtq6056_pm_ops),
 	},
-	.probe_new = rtq6056_probe,
+	.probe = rtq6056_probe,
 };
 module_i2c_driver(rtq6056_driver);
 

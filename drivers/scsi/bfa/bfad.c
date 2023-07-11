@@ -965,19 +965,19 @@ bfad_start_ops(struct bfad_s *bfad) {
 
 	/* Fill the driver_info info to fcs*/
 	memset(&driver_info, 0, sizeof(driver_info));
-	strlcpy(driver_info.version, BFAD_DRIVER_VERSION,
+	strscpy(driver_info.version, BFAD_DRIVER_VERSION,
 		sizeof(driver_info.version));
 	if (host_name)
-		strlcpy(driver_info.host_machine_name, host_name,
+		strscpy(driver_info.host_machine_name, host_name,
 			sizeof(driver_info.host_machine_name));
 	if (os_name)
-		strlcpy(driver_info.host_os_name, os_name,
+		strscpy(driver_info.host_os_name, os_name,
 			sizeof(driver_info.host_os_name));
 	if (os_patch)
-		strlcpy(driver_info.host_os_patch, os_patch,
+		strscpy(driver_info.host_os_patch, os_patch,
 			sizeof(driver_info.host_os_patch));
 
-	strlcpy(driver_info.os_device_name, bfad->pci_name,
+	strscpy(driver_info.os_device_name, bfad->pci_name,
 		sizeof(driver_info.os_device_name));
 
 	/* FCS driver info init */

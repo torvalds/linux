@@ -27,8 +27,8 @@
 	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
 	mdio {
-		#address-cells = <0x1>;
-		#size-cells = <0x0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		compatible = "snps,dwmac-mdio";
 		phy1: phy@4 {
 			compatible = "ethernet-phy-ieee802.3-c22";

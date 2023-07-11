@@ -29,7 +29,7 @@ static bool less(struct bpf_rb_node *a, const struct bpf_rb_node *b)
 }
 
 SEC("?tc")
-__failure __msg("Unreleased reference id=3 alloc_insn=21")
+__failure __msg("Unreleased reference id=4 alloc_insn=21")
 long rbtree_refcounted_node_ref_escapes(void *ctx)
 {
 	struct node_acquire *n, *m;
@@ -43,6 +43,8 @@ long rbtree_refcounted_node_ref_escapes(void *ctx)
 	/* m becomes an owning ref but is never drop'd or added to a tree */
 	m = bpf_refcount_acquire(n);
 	bpf_spin_unlock(&glock);
+	if (!m)
+		return 2;
 
 	m->key = 2;
 	return 0;

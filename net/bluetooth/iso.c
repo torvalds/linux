@@ -704,7 +704,7 @@ static struct bt_iso_qos default_qos = {
 	.bcast = {
 		.big			= BT_ISO_QOS_BIG_UNSET,
 		.bis			= BT_ISO_QOS_BIS_UNSET,
-		.sync_interval		= 0x00,
+		.sync_factor		= 0x01,
 		.packing		= 0x00,
 		.framing		= 0x00,
 		.in			= DEFAULT_IO_QOS,
@@ -1213,7 +1213,7 @@ static bool check_ucast_qos(struct bt_iso_qos *qos)
 
 static bool check_bcast_qos(struct bt_iso_qos *qos)
 {
-	if (qos->bcast.sync_interval > 0x07)
+	if (qos->bcast.sync_factor == 0x00)
 		return false;
 
 	if (qos->bcast.packing > 0x01)

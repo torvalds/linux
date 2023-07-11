@@ -101,7 +101,7 @@ also be used, e.g. ::
 
 However, VCPU request users should refrain from doing so, as it would
 break the abstraction.  The first 8 bits are reserved for architecture
-independent requests, all additional bits are available for architecture
+independent requests; all additional bits are available for architecture
 dependent requests.
 
 Architecture Independent Requests
@@ -151,8 +151,8 @@ KVM_REQUEST_NO_WAKEUP
 
   This flag is applied to requests that only need immediate attention
   from VCPUs running in guest mode.  That is, sleeping VCPUs do not need
-  to be awaken for these requests.  Sleeping VCPUs will handle the
-  requests when they are awaken later for some other reason.
+  to be awakened for these requests.  Sleeping VCPUs will handle the
+  requests when they are awakened later for some other reason.
 
 KVM_REQUEST_WAIT
 

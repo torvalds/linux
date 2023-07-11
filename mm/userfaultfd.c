@@ -76,7 +76,10 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	if (flags & MFILL_ATOMIC_WP)
 		_dst_pte = pte_mkuffd_wp(_dst_pte);
 
+	ret = -EAGAIN;
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+	if (!dst_pte)
+		goto out;
 
 	if (vma_is_shmem(dst_vma)) {
 		/* serialize against truncate with the page table lock */
@@ -94,7 +97,7 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	 * registered, we firstly wr-protect a none pte which has no page cache
 	 * page backing it, then access the page.
 	 */
-	if (!pte_none_mostly(*dst_pte))
+	if (!pte_none_mostly(ptep_get(dst_pte)))
 		goto out_unlock;
 
 	folio = page_folio(page);
@@ -121,6 +124,7 @@ int mfill_atomic_install_pte(pmd_t *dst_pmd,
 	ret = 0;
 out_unlock:
 	pte_unmap_unlock(dst_pte, ptl);
+out:
 	return ret;
 }
 
@@ -212,7 +216,10 @@ static int mfill_atomic_pte_zeropage(pmd_t *dst_pmd,
 
 	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
 					 dst_vma->vm_page_prot));
+	ret = -EAGAIN;
 	dst_pte = pte_offset_map_lock(dst_vma->vm_mm, dst_pmd, dst_addr, &ptl);
+	if (!dst_pte)
+		goto out;
 	if (dst_vma->vm_file) {
 		/* the shmem MAP_PRIVATE case requires checking the i_size */
 		inode = dst_vma->vm_file->f_inode;
@@ -223,7 +230,7 @@ static int mfill_atomic_pte_zeropage(pmd_t *dst_pmd,
 			goto out_unlock;
 	}
 	ret = -EEXIST;
-	if (!pte_none(*dst_pte))
+	if (!pte_none(ptep_get(dst_pte)))
 		goto out_unlock;
 	set_pte_at(dst_vma->vm_mm, dst_addr, dst_pte, _dst_pte);
 	/* No need to invalidate - it was non-present before */
@@ -231,6 +238,7 @@ static int mfill_atomic_pte_zeropage(pmd_t *dst_pmd,
 	ret = 0;
 out_unlock:
 	pte_unmap_unlock(dst_pte, ptl);
+out:
 	return ret;
 }
 

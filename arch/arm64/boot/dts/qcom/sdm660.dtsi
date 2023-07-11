@@ -148,14 +148,14 @@
 		port@1 {
 			reg = <1>;
 			mdp5_intf2_out: endpoint {
-				remote-endpoint = <&dsi1_in>;
+				remote-endpoint = <&mdss_dsi1_in>;
 			};
 		};
 	};
 };
 
 &mdss {
-	dsi1: dsi@c996000 {
+	mdss_dsi1: dsi@c996000 {
 		compatible = "qcom,sdm660-dsi-ctrl",
 			     "qcom,mdss-dsi-ctrl";
 		reg = <0x0c996000 0x400>;
@@ -170,8 +170,8 @@
 
 		assigned-clocks = <&mmcc BYTE1_CLK_SRC>,
 					<&mmcc PCLK1_CLK_SRC>;
-		assigned-clock-parents = <&dsi1_phy 0>,
-						<&dsi1_phy 1>;
+		assigned-clock-parents = <&mdss_dsi1_phy 0>,
+						<&mdss_dsi1_phy 1>;
 
 		clocks = <&mmcc MDSS_MDP_CLK>,
 				<&mmcc MDSS_BYTE1_CLK>,
@@ -192,7 +192,7 @@
 					"pixel",
 					"core";
 
-		phys = <&dsi1_phy>;
+		phys = <&mdss_dsi1_phy>;
 
 		status = "disabled";
 
@@ -202,20 +202,20 @@
 
 			port@0 {
 				reg = <0>;
-				dsi1_in: endpoint {
+				mdss_dsi1_in: endpoint {
 					remote-endpoint = <&mdp5_intf2_out>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
-				dsi1_out: endpoint {
+				mdss_dsi1_out: endpoint {
 				};
 			};
 		};
 	};
 
-	dsi1_phy: phy@c996400 {
+	mdss_dsi1_phy: phy@c996400 {
 		compatible = "qcom,dsi-phy-14nm-660";
 		reg = <0x0c996400 0x100>,
 				<0x0c996500 0x300>,
@@ -239,10 +239,10 @@
 			<&sleep_clk>,
 			<&gcc GCC_MMSS_GPLL0_CLK>,
 			<&gcc GCC_MMSS_GPLL0_DIV_CLK>,
-			<&dsi0_phy 1>,
-			<&dsi0_phy 0>,
-			<&dsi1_phy 1>,
-			<&dsi1_phy 0>,
+			<&mdss_dsi0_phy 1>,
+			<&mdss_dsi0_phy 0>,
+			<&mdss_dsi1_phy 1>,
+			<&mdss_dsi1_phy 0>,
 			<0>,
 			<0>;
 };

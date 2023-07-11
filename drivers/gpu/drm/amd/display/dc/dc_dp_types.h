@@ -61,7 +61,7 @@ enum dc_link_rate {
 	 */
 	LINK_RATE_UHBR10 = 1000,	// UHBR10 - 10.0 Gbps/Lane
 	LINK_RATE_UHBR13_5 = 1350,	// UHBR13.5 - 13.5 Gbps/Lane
-	LINK_RATE_UHBR20 = 2000,	// UHBR10 - 20.0 Gbps/Lane
+	LINK_RATE_UHBR20 = 2000,	// UHBR20 - 20.0 Gbps/Lane
 };
 
 enum dc_link_spread {
@@ -564,6 +564,12 @@ struct dpcd_amd_device_id {
 	uint8_t dce_version;
 	uint8_t dal_version_byte1;
 	uint8_t dal_version_byte2;
+};
+
+struct target_luminance_value {
+	uint8_t byte0;
+	uint8_t byte1;
+	uint8_t byte2;
 };
 
 struct dpcd_source_backlight_set {
@@ -1225,6 +1231,7 @@ struct dpcd_caps {
 	union dp_main_line_channel_coding_cap channel_coding_cap;
 	union dp_sink_video_fallback_formats fallback_formats;
 	union dp_fec_capability1 fec_cap1;
+	bool panel_luminance_control;
 	union dp_cable_id cable_id;
 	uint8_t edp_rev;
 	union edp_alpm_caps alpm_caps;

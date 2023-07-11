@@ -450,8 +450,8 @@ config SERIAL_SA1100
 	help
 	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
 	  can enable its onboard serial port by enabling this option.
-	  Please read <file:Documentation/arm/sa1100/serial_uart.rst> for further
-	  info.
+	  Please read <file:Documentation/arch/arm/sa1100/serial_uart.rst> for
+	  further info.
 
 config SERIAL_SA1100_CONSOLE
 	bool "Console on SA1100 serial port"
@@ -1554,6 +1554,29 @@ config SERIAL_SUNPLUS_CONSOLE
 	  (/dev/tty0) will still be used as the system console by default, but
 	  you can alter that using a kernel command line option such as
 	  "console=ttySUPx".
+
+config SERIAL_NUVOTON_MA35D1
+	tristate "Nuvoton MA35D1 family UART support"
+	depends on ARCH_MA35 || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver supports Nuvoton MA35D1 family UART ports. If you would
+	  like to use them, you must answer Y or M to this option. Note that
+	  for use as console, it must be included in kernel and not as a
+	  module. If you enable this option, Ma35D1 serial ports in the system
+	  will be registered as ttyNVTx.
+
+config SERIAL_NUVOTON_MA35D1_CONSOLE
+	bool "Console on a Nuvotn MA35D1 family UART port"
+	depends on SERIAL_NUVOTON_MA35D1=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Select this options if you'd like to use the UART port0 of the
+	  Nuvoton MA35D1 family as a console.
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default,
+	  but you can alter that using a kernel command line option such as
+	  "console=ttyNVTx".
 
 endmenu
 

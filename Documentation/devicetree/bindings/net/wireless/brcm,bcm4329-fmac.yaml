@@ -15,6 +15,9 @@ description:
   These chips also have a Bluetooth portion described in a separate
   binding.
 
+allOf:
+  - $ref: ieee80211.yaml#
+
 properties:
   compatible:
     oneOf:
@@ -38,6 +41,7 @@ properties:
               - brcm,bcm4354-fmac
               - brcm,bcm4356-fmac
               - brcm,bcm4359-fmac
+              - brcm,bcm4366-fmac
               - cypress,cyw4373-fmac
               - cypress,cyw43012-fmac
           - const: brcm,bcm4329-fmac
@@ -120,7 +124,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

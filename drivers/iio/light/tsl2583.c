@@ -942,7 +942,7 @@ static struct i2c_driver tsl2583_driver = {
 		.of_match_table = tsl2583_of_match,
 	},
 	.id_table = tsl2583_idtable,
-	.probe_new = tsl2583_probe,
+	.probe = tsl2583_probe,
 	.remove = tsl2583_remove,
 };
 module_i2c_driver(tsl2583_driver);

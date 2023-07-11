@@ -583,7 +583,7 @@ static void type_attribute_bounds_av(struct policydb *policydb,
 
 /*
  * flag which drivers have permissions
- * only looking for ioctl based extended permssions
+ * only looking for ioctl based extended permissions
  */
 void services_compute_xperms_drivers(
 		struct extended_perms *xperms,
@@ -3541,38 +3541,38 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 	tmprule = kzalloc(sizeof(struct selinux_audit_rule), GFP_KERNEL);
 	if (!tmprule)
 		return -ENOMEM;
-
 	context_init(&tmprule->au_ctxt);
 
 	rcu_read_lock();
 	policy = rcu_dereference(state->policy);
 	policydb = &policy->policydb;
-
 	tmprule->au_seqno = policy->latest_granting;
-
 	switch (field) {
 	case AUDIT_SUBJ_USER:
 	case AUDIT_OBJ_USER:
-		rc = -EINVAL;
 		userdatum = symtab_search(&policydb->p_users, rulestr);
-		if (!userdatum)
-			goto out;
+		if (!userdatum) {
+			rc = -EINVAL;
+			goto err;
+		}
 		tmprule->au_ctxt.user = userdatum->value;
 		break;
 	case AUDIT_SUBJ_ROLE:
 	case AUDIT_OBJ_ROLE:
-		rc = -EINVAL;
 		roledatum = symtab_search(&policydb->p_roles, rulestr);
-		if (!roledatum)
-			goto out;
+		if (!roledatum) {
+			rc = -EINVAL;
+			goto err;
+		}
 		tmprule->au_ctxt.role = roledatum->value;
 		break;
 	case AUDIT_SUBJ_TYPE:
 	case AUDIT_OBJ_TYPE:
-		rc = -EINVAL;
 		typedatum = symtab_search(&policydb->p_types, rulestr);
-		if (!typedatum)
-			goto out;
+		if (!typedatum) {
+			rc = -EINVAL;
+			goto err;
+		}
 		tmprule->au_ctxt.type = typedatum->value;
 		break;
 	case AUDIT_SUBJ_SEN:
@@ -3582,20 +3582,18 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule)
 		rc = mls_from_string(policydb, rulestr, &tmprule->au_ctxt,
 				     GFP_ATOMIC);
 		if (rc)
-			goto out;
+			goto err;
 		break;
 	}
-	rc = 0;
-out:
 	rcu_read_unlock();
 
-	if (rc) {
-		selinux_audit_rule_free(tmprule);
-		tmprule = NULL;
-	}
-
 	*rule = tmprule;
+	return 0;
 
+err:
+	rcu_read_unlock();
+	selinux_audit_rule_free(tmprule);
+	*rule = NULL;
 	return rc;
 }
 

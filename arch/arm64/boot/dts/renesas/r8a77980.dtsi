@@ -1386,7 +1386,8 @@
 				 <0x02000000 0 0xfe200000 0 0xfe200000 0 0x0200000>,
 				 <0x02000000 0 0x30000000 0 0x30000000 0 0x8000000>,
 				 <0x42000000 0 0x38000000 0 0x38000000 0 0x8000000>;
-			dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 0 0x80000000>;
+			/* Map all possible DDR/IOMMU as inbound ranges */
+			dma-ranges = <0x42000000 0 0x00000000 0 0x00000000 1 0x00000000>;
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
@@ -1399,6 +1400,8 @@
 			resets = <&cpg 319>;
 			phys = <&pcie_phy>;
 			phy-names = "pcie";
+			iommu-map = <0 &ipmmu_vi0 5 1>;
+			iommu-map-mask = <0>;
 			status = "disabled";
 		};
 

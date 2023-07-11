@@ -12,6 +12,7 @@
 
 #define WDTRSTCR_RESET		0xA55A0002
 #define WDTRSTCR		0x0054
+#define GEN4_WDTRSTCR		0x0010
 
 #define CR7BAR			0x0070
 #define CR7BAREN		BIT(4)
@@ -24,6 +25,12 @@ static int (*rcar_rst_set_rproc_boot_addr_func)(u64 boot_addr);
 static int rcar_rst_enable_wdt_reset(void __iomem *base)
 {
 	iowrite32(WDTRSTCR_RESET, base + WDTRSTCR);
+	return 0;
+}
+
+static int rcar_rst_v3u_enable_wdt_reset(void __iomem *base)
+{
+	iowrite32(WDTRSTCR_RESET, base + GEN4_WDTRSTCR);
 	return 0;
 }
 
@@ -66,6 +73,12 @@ static const struct rst_config rcar_rst_gen3 __initconst = {
 	.set_rproc_boot_addr = rcar_rst_set_gen3_rproc_boot_addr,
 };
 
+/* V3U firmware doesn't enable WDT reset and there won't be updates anymore */
+static const struct rst_config rcar_rst_v3u __initconst = {
+	.modemr = 0x00,		/* MODEMR0 and it has CPG related bits */
+	.configure = rcar_rst_v3u_enable_wdt_reset,
+};
+
 static const struct rst_config rcar_rst_gen4 __initconst = {
 	.modemr = 0x00,		/* MODEMR0 and it has CPG related bits */
 };
@@ -101,7 +114,7 @@ static const struct of_device_id rcar_rst_matches[] __initconst = {
 	{ .compatible = "renesas,r8a77990-rst", .data = &rcar_rst_gen3 },
 	{ .compatible = "renesas,r8a77995-rst", .data = &rcar_rst_gen3 },
 	/* R-Car Gen4 */
-	{ .compatible = "renesas,r8a779a0-rst", .data = &rcar_rst_gen4 },
+	{ .compatible = "renesas,r8a779a0-rst", .data = &rcar_rst_v3u },
 	{ .compatible = "renesas,r8a779f0-rst", .data = &rcar_rst_gen4 },
 	{ .compatible = "renesas,r8a779g0-rst", .data = &rcar_rst_gen4 },
 	{ /* sentinel */ }

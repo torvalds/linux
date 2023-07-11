@@ -52,7 +52,7 @@ static struct i2c_driver pcm1789_i2c_driver = {
 		.of_match_table = of_match_ptr(pcm1789_of_match),
 	},
 	.id_table	= pcm1789_i2c_ids,
-	.probe_new	= pcm1789_i2c_probe,
+	.probe		= pcm1789_i2c_probe,
 	.remove	= pcm1789_i2c_remove,
 };
 

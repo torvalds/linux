@@ -1805,7 +1805,7 @@ static const struct usb_gadget_ops r8a66597_gadget_ops = {
 	.set_selfpowered	= r8a66597_set_selfpowered,
 };
 
-static int r8a66597_remove(struct platform_device *pdev)
+static void r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 
@@ -1816,8 +1816,6 @@ static int r8a66597_remove(struct platform_device *pdev)
 	if (r8a66597->pdata->on_chip) {
 		clk_disable_unprepare(r8a66597->clk);
 	}
-
-	return 0;
 }
 
 static void nop_completion(struct usb_ep *ep, struct usb_request *r)
@@ -1966,7 +1964,7 @@ clean_up2:
 
 /*-------------------------------------------------------------------------*/
 static struct platform_driver r8a66597_driver = {
-	.remove =	r8a66597_remove,
+	.remove_new =	r8a66597_remove,
 	.driver		= {
 		.name =	udc_name,
 	},

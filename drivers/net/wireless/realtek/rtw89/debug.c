@@ -30,7 +30,7 @@ struct rtw89_debugfs_priv {
 		u32 cb_data;
 		struct {
 			u32 addr;
-			u8 len;
+			u32 len;
 		} read_reg;
 		struct {
 			u32 addr;
@@ -164,11 +164,14 @@ static int rtw89_debug_priv_read_reg_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
-	u32 addr, data;
-	u8 len;
+	u32 addr, end, data, k;
+	u32 len;
 
 	len = debugfs_priv->read_reg.len;
 	addr = debugfs_priv->read_reg.addr;
+
+	if (len > 4)
+		goto ndata;
 
 	switch (len) {
 	case 1:
@@ -186,6 +189,20 @@ static int rtw89_debug_priv_read_reg_get(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m, "get %d bytes at 0x%08x=0x%08x\n", len, addr, data);
+
+	return 0;
+
+ndata:
+	end = addr + len;
+
+	for (; addr < end; addr += 16) {
+		seq_printf(m, "%08xh : ", 0x18600000 + addr);
+		for (k = 0; k < 16; k += 4) {
+			data = rtw89_read32(rtwdev, addr + k);
+			seq_printf(m, "%08x ", data);
+		}
+		seq_puts(m, "\n");
+	}
 
 	return 0;
 }
@@ -359,6 +376,7 @@ struct txpwr_map {
 	u8 size;
 	u32 addr_from;
 	u32 addr_to;
+	u32 addr_to_1ss;
 };
 
 #define __GEN_TXPWR_ENT2(_t, _e0, _e1) \
@@ -396,6 +414,7 @@ static const struct txpwr_map __txpwr_map_byr = {
 	.size = ARRAY_SIZE(__txpwr_ent_byr),
 	.addr_from = R_AX_PWR_BY_RATE,
 	.addr_to = R_AX_PWR_BY_RATE_MAX,
+	.addr_to_1ss = R_AX_PWR_BY_RATE_1SS_MAX,
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt[] = {
@@ -451,6 +470,7 @@ static const struct txpwr_map __txpwr_map_lmt = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt),
 	.addr_from = R_AX_PWR_LMT,
 	.addr_to = R_AX_PWR_LMT_MAX,
+	.addr_to_1ss = R_AX_PWR_LMT_1SS_MAX,
 };
 
 static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
@@ -478,6 +498,7 @@ static const struct txpwr_map __txpwr_map_lmt_ru = {
 	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru),
 	.addr_from = R_AX_PWR_RU_LMT,
 	.addr_to = R_AX_PWR_RU_LMT_MAX,
+	.addr_to_1ss = R_AX_PWR_RU_LMT_1SS_MAX,
 };
 
 static u8 __print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
@@ -510,6 +531,8 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 			     const struct txpwr_map *map)
 {
 	u8 fct = rtwdev->chip->txpwr_factor_mac;
+	u8 path_num = rtwdev->chip->rf_path_num;
+	u32 max_valid_addr;
 	u32 val, addr;
 	s8 *buf, tmp;
 	u8 cur, i;
@@ -519,7 +542,12 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 	if (!buf)
 		return -ENOMEM;
 
-	for (addr = map->addr_from; addr <= map->addr_to; addr += 4) {
+	if (path_num == 1)
+		max_valid_addr = map->addr_to_1ss;
+	else
+		max_valid_addr = map->addr_to;
+
+	for (addr = map->addr_from; addr <= max_valid_addr; addr += 4) {
 		ret = rtw89_mac_txpwr_read32(rtwdev, RTW89_PHY_0, addr, &val);
 		if (ret)
 			val = MASKDWORD;
@@ -3206,7 +3234,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	struct seq_file *m = (struct seq_file *)data;
 	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
 	struct rtw89_hal *hal = &rtwdev->hal;
+	u8 ant_num = hal->ant_diversity ? 2 : rtwdev->chip->rf_path_num;
+	bool ant_asterisk = hal->tx_path_diversity || hal->ant_diversity;
+	u8 evm_min, evm_max;
 	u8 rssi;
+	u8 snr;
 	int i;
 
 	seq_printf(m, "TX rate [%d]: ", rtwsta->mac_id);
@@ -3256,13 +3288,27 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 	rssi = ewma_rssi_read(&rtwsta->avg_rssi);
 	seq_printf(m, "RSSI: %d dBm (raw=%d, prev=%d) [",
 		   RTW89_RSSI_RAW_TO_DBM(rssi), rssi, rtwsta->prev_rssi);
-	for (i = 0; i < rtwdev->chip->rf_path_num; i++) {
+	for (i = 0; i < ant_num; i++) {
 		rssi = ewma_rssi_read(&rtwsta->rssi[i]);
 		seq_printf(m, "%d%s%s", RTW89_RSSI_RAW_TO_DBM(rssi),
-			   hal->tx_path_diversity && (hal->antenna_tx & BIT(i)) ? "*" : "",
-			   i + 1 == rtwdev->chip->rf_path_num ? "" : ", ");
+			   ant_asterisk && (hal->antenna_tx & BIT(i)) ? "*" : "",
+			   i + 1 == ant_num ? "" : ", ");
 	}
 	seq_puts(m, "]\n");
+
+	seq_puts(m, "EVM: [");
+	for (i = 0; i < (hal->ant_diversity ? 2 : 1); i++) {
+		evm_min = ewma_evm_read(&rtwsta->evm_min[i]);
+		evm_max = ewma_evm_read(&rtwsta->evm_max[i]);
+
+		seq_printf(m, "%s(%2u.%02u, %2u.%02u)", i == 0 ? "" : " ",
+			   evm_min >> 2, (evm_min & 0x3) * 25,
+			   evm_max >> 2, (evm_max & 0x3) * 25);
+	}
+	seq_puts(m, "]\t");
+
+	snr = ewma_snr_read(&rtwsta->avg_snr);
+	seq_printf(m, "SNR: %u\n", snr);
 }
 
 static void

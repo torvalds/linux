@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nuvoton,nau8315.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NAU8315/NAU8318 Mono Class-D Amplifier
+
+maintainers:
+  - David Lin <CTLIN0@nuvoton.com>
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - nuvoton,nau8315
+      - nuvoton,nau8318
+
+  '#sound-dai-cells':
+    const: 0
+
+  enable-gpios:
+    maxItems: 1
+    description:
+      GPIO specifier for the chip's device enable input(EN) pin.
+      If this option is not specified then driver does not manage
+      the pin state (e.g. chip is always on).
+
+required:
+  - compatible
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    codec {
+        compatible = "nuvoton,nau8315";
+        #sound-dai-cells = <0>;
+        enable-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+    };

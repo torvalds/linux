@@ -166,8 +166,12 @@ void intel_step_init(struct drm_i915_private *i915)
 						       &RUNTIME_INFO(i915)->graphics.ip);
 		step.media_step = gmd_to_intel_step(i915,
 						    &RUNTIME_INFO(i915)->media.ip);
-		step.display_step = gmd_to_intel_step(i915,
-						      &RUNTIME_INFO(i915)->display.ip);
+		step.display_step = STEP_A0 + DISPLAY_RUNTIME_INFO(i915)->ip.step;
+		if (step.display_step >= STEP_FUTURE) {
+			drm_dbg(&i915->drm, "Using future display steppings\n");
+			step.display_step = STEP_FUTURE;
+		}
+
 		RUNTIME_INFO(i915)->step = step;
 
 		return;

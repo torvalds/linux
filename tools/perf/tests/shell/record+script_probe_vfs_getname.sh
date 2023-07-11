@@ -9,11 +9,11 @@
 # SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
-. $(dirname $0)/lib/probe.sh
+. "$(dirname "$0")/lib/probe.sh"
 
 skip_if_no_perf_probe || exit 2
 
-. $(dirname $0)/lib/probe_vfs_getname.sh
+. "$(dirname "$0")/lib/probe_vfs_getname.sh"
 
 record_open_file() {
 	echo "Recording open file:"

@@ -523,7 +523,7 @@ static struct i2c_driver wm8776_i2c_driver = {
 		.name = "wm8776",
 		.of_match_table = wm8776_of_match,
 	},
-	.probe_new = wm8776_i2c_probe,
+	.probe = wm8776_i2c_probe,
 	.id_table = wm8776_i2c_id,
 };
 #endif

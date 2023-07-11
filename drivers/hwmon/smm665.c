@@ -694,7 +694,7 @@ static struct i2c_driver smm665_driver = {
 	.driver = {
 		   .name = "smm665",
 		   },
-	.probe_new = smm665_probe,
+	.probe = smm665_probe,
 	.remove = smm665_remove,
 	.id_table = smm665_id,
 };

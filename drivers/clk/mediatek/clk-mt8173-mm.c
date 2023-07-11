@@ -106,7 +106,7 @@ static struct platform_driver clk_mt8173_mm_drv = {
 	},
 	.id_table = clk_mt8173_mm_id_table,
 	.probe = mtk_clk_pdev_probe,
-	.remove = mtk_clk_pdev_remove,
+	.remove_new = mtk_clk_pdev_remove,
 };
 module_platform_driver(clk_mt8173_mm_drv);
 

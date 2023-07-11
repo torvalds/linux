@@ -79,6 +79,7 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
 
 	return sc;
 }
+EXPORT_SYMBOL_GPL(octeon_alloc_soft_command_resp);
 
 int octnet_send_nic_data_pkt(struct octeon_device *oct,
 			     struct octnic_data_pkt *ndata,
@@ -90,6 +91,7 @@ int octnet_send_nic_data_pkt(struct octeon_device *oct,
 				   ndata->buf, ndata->datasize,
 				   ndata->reqtype);
 }
+EXPORT_SYMBOL_GPL(octnet_send_nic_data_pkt);
 
 static inline struct octeon_soft_command
 *octnic_alloc_ctrl_pkt_sc(struct octeon_device *oct,
@@ -196,3 +198,4 @@ octnet_send_nic_ctrl_pkt(struct octeon_device *oct,
 
 	return retval;
 }
+EXPORT_SYMBOL_GPL(octnet_send_nic_ctrl_pkt);

@@ -407,20 +407,18 @@ static int vprbrd_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vprbrd_i2c_remove(struct platform_device *pdev)
+static void vprbrd_i2c_remove(struct platform_device *pdev)
 {
 	struct vprbrd_i2c *vb_i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&vb_i2c->i2c);
-
-	return 0;
 }
 
 static struct platform_driver vprbrd_i2c_driver = {
 	.driver.name	= "viperboard-i2c",
 	.driver.owner	= THIS_MODULE,
 	.probe		= vprbrd_i2c_probe,
-	.remove		= vprbrd_i2c_remove,
+	.remove_new	= vprbrd_i2c_remove,
 };
 
 static int __init vprbrd_i2c_init(void)

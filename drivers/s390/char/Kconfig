@@ -96,7 +96,7 @@ config SCLP_OFB
 config S390_UV_UAPI
 	def_tristate m
 	prompt "Ultravisor userspace API"
-	depends on S390
+	depends on S390 && (KVM || PROTECTED_VIRTUALIZATION_GUEST)
 	help
 	  Selecting exposes parts of the UV interface to userspace
 	  by providing a misc character device at /dev/uv.

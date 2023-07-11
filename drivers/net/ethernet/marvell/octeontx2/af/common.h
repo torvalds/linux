@@ -142,8 +142,15 @@ enum nix_scheduler {
 
 #define TXSCH_RR_QTM_MAX		((1 << 24) - 1)
 #define TXSCH_TL1_DFLT_RR_QTM		TXSCH_RR_QTM_MAX
-#define TXSCH_TL1_DFLT_RR_PRIO		(0x1ull)
+#define TXSCH_TL1_DFLT_RR_PRIO		(0x7ull)
 #define CN10K_MAX_DWRR_WEIGHT          16384 /* Weight is 14bit on CN10K */
+
+/* Don't change the order as on CN10K (except CN10KB)
+ * SMQX_CFG[SDP] value should be 1 for SDP flows.
+ */
+#define SMQ_LINK_TYPE_RPM		0
+#define SMQ_LINK_TYPE_SDP		1
+#define SMQ_LINK_TYPE_LBK		2
 
 /* Min/Max packet sizes, excluding FCS */
 #define	NIC_HW_MIN_FRS			40

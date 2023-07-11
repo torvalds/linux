@@ -23,6 +23,7 @@ properties:
           - ingenic,jz4760-i2s
           - ingenic,jz4770-i2s
           - ingenic,jz4780-i2s
+          - ingenic,x1000-i2s
       - items:
           - const: ingenic,jz4725b-i2s
           - const: ingenic,jz4740-i2s

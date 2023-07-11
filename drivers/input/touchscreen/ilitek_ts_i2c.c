@@ -679,7 +679,7 @@ static struct i2c_driver ilitek_ts_i2c_driver = {
 		.of_match_table = of_match_ptr(ilitek_ts_i2c_match),
 		.acpi_match_table = ACPI_PTR(ilitekts_acpi_id),
 	},
-	.probe_new = ilitek_ts_i2c_probe,
+	.probe = ilitek_ts_i2c_probe,
 	.id_table = ilitek_ts_i2c_id,
 };
 module_i2c_driver(ilitek_ts_i2c_driver);

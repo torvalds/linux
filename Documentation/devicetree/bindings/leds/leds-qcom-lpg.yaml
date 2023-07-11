@@ -16,18 +16,24 @@ description: >
 
 properties:
   compatible:
-    enum:
-      - qcom,pm660l-lpg
-      - qcom,pm8150b-lpg
-      - qcom,pm8150l-lpg
-      - qcom,pm8350c-pwm
-      - qcom,pm8916-pwm
-      - qcom,pm8941-lpg
-      - qcom,pm8994-lpg
-      - qcom,pmc8180c-lpg
-      - qcom,pmi8994-lpg
-      - qcom,pmi8998-lpg
-      - qcom,pmk8550-pwm
+    oneOf:
+      - enum:
+          - qcom,pm660l-lpg
+          - qcom,pm8150b-lpg
+          - qcom,pm8150l-lpg
+          - qcom,pm8350c-pwm
+          - qcom,pm8916-pwm
+          - qcom,pm8941-lpg
+          - qcom,pm8994-lpg
+          - qcom,pmc8180c-lpg
+          - qcom,pmi632-lpg
+          - qcom,pmi8994-lpg
+          - qcom,pmi8998-lpg
+          - qcom,pmk8550-pwm
+      - items:
+          - enum:
+              - qcom,pm8550-pwm
+          - const: qcom,pm8350c-pwm
 
   "#pwm-cells":
     const: 2

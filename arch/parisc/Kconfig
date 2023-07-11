@@ -57,6 +57,7 @@ config PARISC
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_IRQ_MIGRATION if SMP
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
@@ -303,16 +304,6 @@ config IRQSTACKS
 	  for handling hard and soft interrupts.  This can help avoid
 	  overflowing the process kernel stacks.
 
-config TLB_PTLOCK
-	bool "Use page table locks in TLB fault handler"
-	depends on SMP
-	default n
-	help
-	  Select this option to enable page table locking in the TLB
-	  fault handler. This ensures that page table entries are
-	  updated consistently on SMP machines at the expense of some
-	  loss in performance.
-
 config HOTPLUG_CPU
 	bool
 	default y if SMP
@@ -345,7 +336,7 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "4" if 64BIT
+	default "8" if 64BIT
 	default "16"
 
 config KEXEC

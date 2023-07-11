@@ -237,7 +237,7 @@ static struct i2c_driver tsl4531_driver = {
 		.name   = TSL4531_DRV_NAME,
 		.pm	= pm_sleep_ptr(&tsl4531_pm_ops),
 	},
-	.probe_new = tsl4531_probe,
+	.probe = tsl4531_probe,
 	.remove = tsl4531_remove,
 	.id_table = tsl4531_id,
 };

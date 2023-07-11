@@ -264,7 +264,7 @@ static struct i2c_driver egalax_ts_driver = {
 		.of_match_table	= egalax_ts_dt_ids,
 	},
 	.id_table	= egalax_ts_id,
-	.probe_new	= egalax_ts_probe,
+	.probe		= egalax_ts_probe,
 };
 
 module_i2c_driver(egalax_ts_driver);

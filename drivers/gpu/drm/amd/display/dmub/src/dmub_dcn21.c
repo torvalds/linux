@@ -54,9 +54,3 @@ const struct dmub_srv_common_regs dmub_srv_dcn21_regs = {
 #undef DMUB_SF
 };
 
-/* Shared functions. */
-
-bool dmub_dcn21_is_phy_init(struct dmub_srv *dmub)
-{
-	return REG_READ(DMCUB_SCRATCH10) == 0;
-}

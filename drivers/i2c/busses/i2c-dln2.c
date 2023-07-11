@@ -236,20 +236,18 @@ out_disable:
 	return ret;
 }
 
-static int dln2_i2c_remove(struct platform_device *pdev)
+static void dln2_i2c_remove(struct platform_device *pdev)
 {
 	struct dln2_i2c *dln2 = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&dln2->adapter);
 	dln2_i2c_enable(dln2, false);
-
-	return 0;
 }
 
 static struct platform_driver dln2_i2c_driver = {
 	.driver.name	= "dln2-i2c",
 	.probe		= dln2_i2c_probe,
-	.remove		= dln2_i2c_remove,
+	.remove_new	= dln2_i2c_remove,
 };
 
 module_platform_driver(dln2_i2c_driver);

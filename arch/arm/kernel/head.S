@@ -17,7 +17,7 @@
 #include <asm/domain.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/thread_info.h>
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_SEMIHOSTING)

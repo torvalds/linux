@@ -9,8 +9,6 @@
 #include <linux/idr.h>
 #include <linux/io.h>
 
-#include <linux/arm-smccc.h>
-
 static struct acpi_ffh_info ffh_ctx;
 
 int __weak acpi_ffh_address_space_arch_setup(void *handler_ctxt,

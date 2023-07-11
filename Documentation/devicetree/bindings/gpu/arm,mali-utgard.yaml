@@ -33,6 +33,7 @@ properties:
               - rockchip,rk3228-mali
               - samsung,exynos4210-mali
               - stericsson,db8500-mali
+              - xlnx,zynqmp-mali
           - const: arm,mali-400
       - items:
           - enum:

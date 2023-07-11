@@ -956,14 +956,13 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int sh_mobile_i2c_remove(struct platform_device *dev)
+static void sh_mobile_i2c_remove(struct platform_device *dev)
 {
 	struct sh_mobile_i2c_data *pd = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&pd->adap);
 	sh_mobile_i2c_release_dma(pd);
 	pm_runtime_disable(&dev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1000,7 +999,7 @@ static struct platform_driver sh_mobile_i2c_driver = {
 		.pm	= DEV_PM_OPS,
 	},
 	.probe		= sh_mobile_i2c_probe,
-	.remove		= sh_mobile_i2c_remove,
+	.remove_new	= sh_mobile_i2c_remove,
 };
 
 static int __init sh_mobile_i2c_adap_init(void)

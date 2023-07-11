@@ -274,9 +274,6 @@ static int mt7628_pci_hw_init(struct platform_device *pdev)
 	val |= 0x50 << 8;
 	pci_config_write(NULL, 0, 0x70c, 4, val);
 
-	pci_config_read(NULL, 0, 0x70c, 4, &val);
-	dev_err(&pdev->dev, "Port 0 N_FTS = %x\n", (unsigned int) val);
-
 	return 0;
 }
 
@@ -330,7 +327,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
 		if (ralink_soc == MT762X_SOC_MT7620A)
 			rt_sysc_m32(LC_CKDRVPD, PDRV_SW_SET, PPLL_DRV);
-		dev_err(&pdev->dev, "PCIE0 no card, disable it(RST&CLK)\n");
+		dev_info(&pdev->dev, "PCIE0 no card, disable it(RST&CLK)\n");
 		return -1;
 	}
 
@@ -373,7 +370,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 			dev->bus->number, slot);
 		return 0;
 	}
-	dev_err(&dev->dev, "card - bus=0x%x, slot = 0x%x irq=%d\n",
+	dev_info(&dev->dev, "card - bus=0x%x, slot = 0x%x irq=%d\n",
 		dev->bus->number, slot, irq);
 
 	/* configure the cache line size to 0x14 */

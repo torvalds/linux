@@ -251,7 +251,7 @@ static struct i2c_driver mc34vr500_driver = {
 		   .name = "mc34vr500",
 		   .of_match_table = of_match_ptr(mc34vr500_of_match),
 		    },
-	.probe_new = mc34vr500_probe,
+	.probe = mc34vr500_probe,
 	.id_table = mc34vr500_id,
 };
 

@@ -322,15 +322,11 @@ static void atomisp_csi2_configure_isp2401(struct atomisp_sub_device *asd)
 
 	struct v4l2_control ctrl;
 	struct atomisp_device *isp = asd->isp;
-	struct camera_mipi_info *mipi_info;
 	int mipi_freq = 0;
 	enum atomisp_camera_port port;
-
 	int n;
 
-	mipi_info = atomisp_to_sensor_mipi_info(
-			isp->inputs[asd->input_curr].camera);
-	port = mipi_info->port;
+	port = isp->inputs[asd->input_curr].port;
 
 	ctrl.id = V4L2_CID_LINK_FREQ;
 	if (v4l2_g_ctrl
@@ -374,6 +370,10 @@ int atomisp_mipi_csi2_init(struct atomisp_device *isp)
 	struct atomisp_mipi_csi2_device *csi2_port;
 	unsigned int i;
 	int ret;
+
+	ret = atomisp_csi2_bridge_init(isp);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
 		csi2_port = &isp->csi2_port[i];

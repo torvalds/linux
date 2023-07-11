@@ -539,7 +539,7 @@ static struct i2c_driver ltrf216a_driver = {
 		.pm = pm_ptr(&ltrf216a_pm_ops),
 		.of_match_table = ltrf216a_of_match,
 	},
-	.probe_new = ltrf216a_probe,
+	.probe = ltrf216a_probe,
 	.id_table = ltrf216a_id,
 };
 module_i2c_driver(ltrf216a_driver);

@@ -125,6 +125,7 @@ struct intel_v4l2_subdev_id {
 struct intel_v4l2_subdev_table {
 	enum intel_v4l2_subdev_type type;
 	enum atomisp_camera_port port;
+	unsigned int lanes;
 	struct v4l2_subdev *subdev;
 };
 

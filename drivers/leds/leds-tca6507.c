@@ -808,7 +808,7 @@ static struct i2c_driver tca6507_driver = {
 		.name    = "leds-tca6507",
 		.of_match_table = of_match_ptr(of_tca6507_leds_match),
 	},
-	.probe_new = tca6507_probe,
+	.probe    = tca6507_probe,
 	.remove   = tca6507_remove,
 	.id_table = tca6507_id,
 };

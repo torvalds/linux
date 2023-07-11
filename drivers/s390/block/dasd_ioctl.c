@@ -612,7 +612,7 @@ static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
 	return ret;
 }
 
-int dasd_ioctl(struct block_device *bdev, fmode_t mode,
+int dasd_ioctl(struct block_device *bdev, blk_mode_t mode,
 	       unsigned int cmd, unsigned long arg)
 {
 	struct dasd_block *block;

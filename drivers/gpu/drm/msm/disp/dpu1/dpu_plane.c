@@ -42,8 +42,6 @@
 #define SHARP_SMOOTH_THR_DEFAULT	8
 #define SHARP_NOISE_THR_DEFAULT	2
 
-#define DPU_NAME_SIZE  12
-
 #define DPU_PLANE_COLOR_FILL_FLAG	BIT(31)
 #define DPU_ZPOS_MAX 255
 
@@ -68,20 +66,6 @@ static const uint32_t qcom_compressed_supported_formats[] = {
 
 	DRM_FORMAT_NV12,
 	DRM_FORMAT_P010,
-};
-
-/**
- * enum dpu_plane_qos - Different qos configurations for each pipe
- *
- * @DPU_PLANE_QOS_VBLANK_CTRL: Setup VBLANK qos for the pipe.
- * @DPU_PLANE_QOS_VBLANK_AMORTIZE: Enables Amortization within pipe.
- *	this configuration is mutually exclusive from VBLANK_CTRL.
- * @DPU_PLANE_QOS_PANIC_CTRL: Setup panic for the pipe.
- */
-enum dpu_plane_qos {
-	DPU_PLANE_QOS_VBLANK_CTRL = BIT(0),
-	DPU_PLANE_QOS_VBLANK_AMORTIZE = BIT(1),
-	DPU_PLANE_QOS_PANIC_CTRL = BIT(2),
 };
 
 /*
@@ -204,12 +188,14 @@ static u64 _dpu_plane_calc_clk(const struct drm_display_mode *mode,
  * _dpu_plane_calc_fill_level - calculate fill level of the given source format
  * @plane:		Pointer to drm plane
  * @pipe:		Pointer to software pipe
+ * @lut_usage:		LUT usecase
  * @fmt:		Pointer to source buffer format
  * @src_width:		width of source buffer
  * Return: fill level corresponding to the source buffer/format or 0 if error
  */
 static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 		struct dpu_sw_pipe *pipe,
+		enum dpu_qos_lut_usage lut_usage,
 		const struct dpu_format *fmt, u32 src_width)
 {
 	struct dpu_plane *pdpu;
@@ -220,6 +206,9 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 		DPU_ERROR("invalid arguments\n");
 		return 0;
 	}
+
+	if (lut_usage == DPU_QOS_LUT_USAGE_NRT)
+		return 0;
 
 	pdpu = to_dpu_plane(plane);
 	fixed_buff_size = pdpu->catalog->caps->pixel_ram_size;
@@ -266,83 +255,58 @@ static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 		const struct dpu_format *fmt, struct dpu_sw_pipe_cfg *pipe_cfg)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	u64 qos_lut;
-	u32 total_fl = 0, lut_usage;
+	struct dpu_hw_qos_cfg cfg;
+	u32 total_fl, lut_usage;
 
 	if (!pdpu->is_rt_pipe) {
 		lut_usage = DPU_QOS_LUT_USAGE_NRT;
 	} else {
-		total_fl = _dpu_plane_calc_fill_level(plane, pipe, fmt,
-				drm_rect_width(&pipe_cfg->src_rect));
-
 		if (fmt && DPU_FORMAT_IS_LINEAR(fmt))
 			lut_usage = DPU_QOS_LUT_USAGE_LINEAR;
 		else
 			lut_usage = DPU_QOS_LUT_USAGE_MACROTILE;
 	}
 
-	qos_lut = _dpu_hw_get_qos_lut(
-			&pdpu->catalog->perf->qos_lut_tbl[lut_usage], total_fl);
+	total_fl = _dpu_plane_calc_fill_level(plane, pipe, lut_usage, fmt,
+				drm_rect_width(&pipe_cfg->src_rect));
+
+	cfg.creq_lut = _dpu_hw_get_qos_lut(&pdpu->catalog->perf->qos_lut_tbl[lut_usage], total_fl);
+	cfg.danger_lut = pdpu->catalog->perf->danger_lut_tbl[lut_usage];
+	cfg.safe_lut = pdpu->catalog->perf->safe_lut_tbl[lut_usage];
+
+	if (pipe->sspp->idx != SSPP_CURSOR0 &&
+	    pipe->sspp->idx != SSPP_CURSOR1 &&
+	    pdpu->is_rt_pipe)
+		cfg.danger_safe_en = true;
+
+	DPU_DEBUG_PLANE(pdpu, "pnum:%d ds:%d is_rt:%d\n",
+		pdpu->pipe - SSPP_VIG0,
+		cfg.danger_safe_en,
+		pdpu->is_rt_pipe);
 
 	trace_dpu_perf_set_qos_luts(pipe->sspp->idx - SSPP_VIG0,
 			(fmt) ? fmt->base.pixel_format : 0,
-			pdpu->is_rt_pipe, total_fl, qos_lut, lut_usage);
+			pdpu->is_rt_pipe, total_fl, cfg.creq_lut, lut_usage);
 
 	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %4.4s rt:%d fl:%u lut:0x%llx\n",
 			pdpu->pipe - SSPP_VIG0,
 			fmt ? (char *)&fmt->base.pixel_format : NULL,
-			pdpu->is_rt_pipe, total_fl, qos_lut);
-
-	pipe->sspp->ops.setup_creq_lut(pipe->sspp, qos_lut);
-}
-
-/**
- * _dpu_plane_set_danger_lut - set danger/safe LUT of the given plane
- * @plane:		Pointer to drm plane
- * @pipe:		Pointer to software pipe
- * @fmt:		Pointer to source buffer format
- */
-static void _dpu_plane_set_danger_lut(struct drm_plane *plane,
-		struct dpu_sw_pipe *pipe,
-		const struct dpu_format *fmt)
-{
-	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	u32 danger_lut, safe_lut;
-
-	if (!pdpu->is_rt_pipe) {
-		danger_lut = pdpu->catalog->perf->danger_lut_tbl
-				[DPU_QOS_LUT_USAGE_NRT];
-		safe_lut = pdpu->catalog->perf->safe_lut_tbl
-				[DPU_QOS_LUT_USAGE_NRT];
-	} else {
-		if (fmt && DPU_FORMAT_IS_LINEAR(fmt)) {
-			danger_lut = pdpu->catalog->perf->danger_lut_tbl
-					[DPU_QOS_LUT_USAGE_LINEAR];
-			safe_lut = pdpu->catalog->perf->safe_lut_tbl
-					[DPU_QOS_LUT_USAGE_LINEAR];
-		} else {
-			danger_lut = pdpu->catalog->perf->danger_lut_tbl
-					[DPU_QOS_LUT_USAGE_MACROTILE];
-			safe_lut = pdpu->catalog->perf->safe_lut_tbl
-					[DPU_QOS_LUT_USAGE_MACROTILE];
-		}
-	}
+			pdpu->is_rt_pipe, total_fl, cfg.creq_lut);
 
 	trace_dpu_perf_set_danger_luts(pdpu->pipe - SSPP_VIG0,
 			(fmt) ? fmt->base.pixel_format : 0,
 			(fmt) ? fmt->fetch_mode : 0,
-			danger_lut,
-			safe_lut);
+			cfg.danger_lut,
+			cfg.safe_lut);
 
 	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %4.4s mode:%d luts[0x%x, 0x%x]\n",
 		pdpu->pipe - SSPP_VIG0,
 		fmt ? (char *)&fmt->base.pixel_format : NULL,
 		fmt ? fmt->fetch_mode : -1,
-		danger_lut,
-		safe_lut);
+		cfg.danger_lut,
+		cfg.safe_lut);
 
-	pipe->sspp->ops.setup_danger_safe_lut(pipe->sspp,
-			danger_lut, safe_lut);
+	pipe->sspp->ops.setup_qos_lut(pipe->sspp, &cfg);
 }
 
 /**
@@ -350,48 +314,23 @@ static void _dpu_plane_set_danger_lut(struct drm_plane *plane,
  * @plane:		Pointer to drm plane
  * @pipe:		Pointer to software pipe
  * @enable:		true to enable QoS control
- * @flags:		QoS control mode (enum dpu_plane_qos)
  */
 static void _dpu_plane_set_qos_ctrl(struct drm_plane *plane,
 	struct dpu_sw_pipe *pipe,
-	bool enable, u32 flags)
+	bool enable)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct dpu_hw_pipe_qos_cfg pipe_qos_cfg;
 
-	memset(&pipe_qos_cfg, 0, sizeof(pipe_qos_cfg));
+	if (!pdpu->is_rt_pipe)
+		enable = false;
 
-	if (flags & DPU_PLANE_QOS_VBLANK_CTRL) {
-		pipe_qos_cfg.creq_vblank = pipe->sspp->cap->sblk->creq_vblank;
-		pipe_qos_cfg.danger_vblank =
-				pipe->sspp->cap->sblk->danger_vblank;
-		pipe_qos_cfg.vblank_en = enable;
-	}
-
-	if (flags & DPU_PLANE_QOS_VBLANK_AMORTIZE) {
-		/* this feature overrules previous VBLANK_CTRL */
-		pipe_qos_cfg.vblank_en = false;
-		pipe_qos_cfg.creq_vblank = 0; /* clear vblank bits */
-	}
-
-	if (flags & DPU_PLANE_QOS_PANIC_CTRL)
-		pipe_qos_cfg.danger_safe_en = enable;
-
-	if (!pdpu->is_rt_pipe) {
-		pipe_qos_cfg.vblank_en = false;
-		pipe_qos_cfg.danger_safe_en = false;
-	}
-
-	DPU_DEBUG_PLANE(pdpu, "pnum:%d ds:%d vb:%d pri[0x%x, 0x%x] is_rt:%d\n",
+	DPU_DEBUG_PLANE(pdpu, "pnum:%d ds:%d is_rt:%d\n",
 		pdpu->pipe - SSPP_VIG0,
-		pipe_qos_cfg.danger_safe_en,
-		pipe_qos_cfg.vblank_en,
-		pipe_qos_cfg.creq_vblank,
-		pipe_qos_cfg.danger_vblank,
+		enable,
 		pdpu->is_rt_pipe);
 
 	pipe->sspp->ops.setup_qos_ctrl(pipe->sspp,
-			&pipe_qos_cfg);
+				       enable);
 }
 
 /**
@@ -1079,10 +1018,10 @@ static void dpu_plane_sspp_update_pipe(struct drm_plane *plane,
 		pipe->sspp->ops.setup_sourceaddress(pipe, layout);
 	}
 
-	_dpu_plane_set_qos_ctrl(plane, pipe, false, DPU_PLANE_QOS_PANIC_CTRL);
-
 	/* override for color fill */
 	if (pdpu->color_fill & DPU_PLANE_COLOR_FILL_FLAG) {
+		_dpu_plane_set_qos_ctrl(plane, pipe, false);
+
 		/* skip remaining processing on color fill */
 		return;
 	}
@@ -1116,30 +1055,18 @@ static void dpu_plane_sspp_update_pipe(struct drm_plane *plane,
 		pipe->sspp->ops.setup_format(pipe, fmt, src_flags);
 
 		if (pipe->sspp->ops.setup_cdp) {
-			struct dpu_hw_cdp_cfg cdp_cfg;
+			const struct dpu_perf_cfg *perf = pdpu->catalog->perf;
 
-			memset(&cdp_cfg, 0, sizeof(struct dpu_hw_cdp_cfg));
-
-			cdp_cfg.enable = pdpu->catalog->perf->cdp_cfg
-					[DPU_PERF_CDP_USAGE_RT].rd_enable;
-			cdp_cfg.ubwc_meta_enable =
-					DPU_FORMAT_IS_UBWC(fmt);
-			cdp_cfg.tile_amortize_enable =
-					DPU_FORMAT_IS_UBWC(fmt) ||
-					DPU_FORMAT_IS_TILE(fmt);
-			cdp_cfg.preload_ahead = DPU_SSPP_CDP_PRELOAD_AHEAD_64;
-
-			pipe->sspp->ops.setup_cdp(pipe, &cdp_cfg);
+			pipe->sspp->ops.setup_cdp(pipe, fmt,
+						  perf->cdp_cfg[DPU_PERF_CDP_USAGE_RT].rd_enable);
 		}
 	}
 
 	_dpu_plane_set_qos_lut(plane, pipe, fmt, pipe_cfg);
-	_dpu_plane_set_danger_lut(plane, pipe, fmt);
 
-	if (plane->type != DRM_PLANE_TYPE_CURSOR) {
-		_dpu_plane_set_qos_ctrl(plane, pipe, true, DPU_PLANE_QOS_PANIC_CTRL);
+	if (pipe->sspp->idx != SSPP_CURSOR0 &&
+	    pipe->sspp->idx != SSPP_CURSOR1)
 		_dpu_plane_set_ot_limit(plane, pipe, pipe_cfg, frame_rate);
-	}
 
 	if (pstate->needs_qos_remap)
 		_dpu_plane_set_qos_remap(plane, pipe);
@@ -1254,10 +1181,10 @@ static void dpu_plane_destroy(struct drm_plane *plane)
 
 	if (pdpu) {
 		pstate = to_dpu_plane_state(plane->state);
-		_dpu_plane_set_qos_ctrl(plane, &pstate->pipe, false, DPU_PLANE_QOS_PANIC_CTRL);
+		_dpu_plane_set_qos_ctrl(plane, &pstate->pipe, false);
 
 		if (pstate->r_pipe.sspp)
-			_dpu_plane_set_qos_ctrl(plane, &pstate->r_pipe, false, DPU_PLANE_QOS_PANIC_CTRL);
+			_dpu_plane_set_qos_ctrl(plane, &pstate->r_pipe, false);
 
 		mutex_destroy(&pdpu->lock);
 
@@ -1414,9 +1341,9 @@ void dpu_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
 		return;
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
-	_dpu_plane_set_qos_ctrl(plane, &pstate->pipe, enable, DPU_PLANE_QOS_PANIC_CTRL);
+	_dpu_plane_set_qos_ctrl(plane, &pstate->pipe, enable);
 	if (pstate->r_pipe.sspp)
-		_dpu_plane_set_qos_ctrl(plane, &pstate->r_pipe, enable, DPU_PLANE_QOS_PANIC_CTRL);
+		_dpu_plane_set_qos_ctrl(plane, &pstate->r_pipe, enable);
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
 #endif
