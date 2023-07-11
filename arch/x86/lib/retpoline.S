@@ -13,7 +13,7 @@
 #include <asm/frame.h>
 #include <asm/nops.h>
 
-	.section .text.__x86.indirect_thunk
+	.section .text..__x86.indirect_thunk
 
 
 .macro POLINE reg
@@ -148,7 +148,7 @@ SYM_CODE_END(__x86_indirect_jump_thunk_array)
  * As a result, srso_safe_ret_alias() becomes a safe return.
  */
 #ifdef CONFIG_CPU_SRSO
-	.section .text.__x86.rethunk_untrain
+	.section .text..__x86.rethunk_untrain
 
 SYM_START(srso_untrain_ret_alias, SYM_L_GLOBAL, SYM_A_NONE)
 	ANNOTATE_NOENDBR
@@ -158,7 +158,7 @@ SYM_START(srso_untrain_ret_alias, SYM_L_GLOBAL, SYM_A_NONE)
 SYM_FUNC_END(srso_untrain_ret_alias)
 __EXPORT_THUNK(srso_untrain_ret_alias)
 
-	.section .text.__x86.rethunk_safe
+	.section .text..__x86.rethunk_safe
 #endif
 
 /* Needs a definition for the __x86_return_thunk alternative below. */
@@ -172,7 +172,7 @@ SYM_START(srso_safe_ret_alias, SYM_L_GLOBAL, SYM_A_NONE)
 	int3
 SYM_FUNC_END(srso_safe_ret_alias)
 
-	.section .text.__x86.return_thunk
+	.section .text..__x86.return_thunk
 
 /*
  * Safety details here pertain to the AMD Zen{1,2} microarchitecture:
