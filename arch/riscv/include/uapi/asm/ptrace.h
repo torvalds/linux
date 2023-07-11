@@ -10,6 +10,11 @@
 
 #include <linux/types.h>
 
+#define PTRACE_GETFDPIC		33
+
+#define PTRACE_GETFDPIC_EXEC	0
+#define PTRACE_GETFDPIC_INTERP	1
+
 /*
  * User-mode register state for core dumps, ptrace, sigcontext
  *
