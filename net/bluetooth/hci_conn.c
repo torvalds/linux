@@ -1684,7 +1684,7 @@ struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type, bdaddr_t *dst,
 	if (!link) {
 		hci_conn_drop(acl);
 		hci_conn_drop(sco);
-		return NULL;
+		return ERR_PTR(-ENOLINK);
 	}
 
 	sco->setting = setting;
@@ -2254,7 +2254,7 @@ struct hci_conn *hci_connect_cis(struct hci_dev *hdev, bdaddr_t *dst,
 	if (!link) {
 		hci_conn_drop(le);
 		hci_conn_drop(cis);
-		return NULL;
+		return ERR_PTR(-ENOLINK);
 	}
 
 	/* If LE is already connected and CIS handle is already set proceed to
