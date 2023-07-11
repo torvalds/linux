@@ -1941,10 +1941,11 @@ static void kfd_topology_set_capabilities(struct kfd_topology_device *dev)
 				HSA_DBG_WATCH_ADDR_MASK_LO_BIT_GFX9 |
 				HSA_DBG_WATCH_ADDR_MASK_HI_BIT;
 
-		if (KFD_GC_VERSION(dev->gpu) < IP_VERSION(9, 4, 2))
+		if (KFD_GC_VERSION(dev->gpu) != IP_VERSION(9, 4, 2))
 			dev->node_props.debug_prop |=
 				HSA_DBG_DISPATCH_INFO_ALWAYS_VALID;
-		else
+
+		if (KFD_GC_VERSION(dev->gpu) >= IP_VERSION(9, 4, 2))
 			dev->node_props.capability |=
 				HSA_CAP_TRAP_DEBUG_PRECISE_MEMORY_OPERATIONS_SUPPORTED;
 	} else {
