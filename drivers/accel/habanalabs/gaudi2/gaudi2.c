@@ -10651,6 +10651,9 @@ static int gaudi2_ctx_init(struct hl_ctx *ctx)
 {
 	int rc;
 
+	if (ctx->asid == HL_KERNEL_ASID_ID)
+		return 0;
+
 	rc = gaudi2_mmu_prepare(ctx->hdev, ctx->asid);
 	if (rc)
 		return rc;
