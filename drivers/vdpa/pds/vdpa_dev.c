@@ -428,6 +428,17 @@ static void pds_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 	}
 }
 
+static void pds_vdpa_init_vqs_entry(struct pds_vdpa_device *pdsv, int qid,
+				    void __iomem *notify)
+{
+	memset(&pdsv->vqs[qid], 0, sizeof(pdsv->vqs[0]));
+	pdsv->vqs[qid].qid = qid;
+	pdsv->vqs[qid].pdsv = pdsv;
+	pdsv->vqs[qid].ready = false;
+	pdsv->vqs[qid].irq = VIRTIO_MSI_NO_VECTOR;
+	pdsv->vqs[qid].notify = notify;
+}
+
 static int pds_vdpa_reset(struct vdpa_device *vdpa_dev)
 {
 	struct pds_vdpa_device *pdsv = vdpa_to_pdsv(vdpa_dev);
@@ -450,8 +461,7 @@ static int pds_vdpa_reset(struct vdpa_device *vdpa_dev)
 				dev_err(dev, "%s: reset_vq failed qid %d: %pe\n",
 					__func__, i, ERR_PTR(err));
 			pds_vdpa_release_irq(pdsv, i);
-			memset(&pdsv->vqs[i], 0, sizeof(pdsv->vqs[0]));
-			pdsv->vqs[i].ready = false;
+			pds_vdpa_init_vqs_entry(pdsv, i, pdsv->vqs[i].notify);
 		}
 	}
 
@@ -640,11 +650,11 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	pds_vdpa_cmd_set_mac(pdsv, pdsv->mac);
 
 	for (i = 0; i < pdsv->num_vqs; i++) {
-		pdsv->vqs[i].qid = i;
-		pdsv->vqs[i].pdsv = pdsv;
-		pdsv->vqs[i].irq = VIRTIO_MSI_NO_VECTOR;
-		pdsv->vqs[i].notify = vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
-							      i, &pdsv->vqs[i].notify_pa);
+		void __iomem *notify;
+
+		notify = vp_modern_map_vq_notify(&pdsv->vdpa_aux->vd_mdev,
+						 i, &pdsv->vqs[i].notify_pa);
+		pds_vdpa_init_vqs_entry(pdsv, i, notify);
 	}
 
 	pdsv->vdpa_dev.mdev = &vdpa_aux->vdpa_mdev;
