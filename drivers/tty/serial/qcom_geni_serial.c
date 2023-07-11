@@ -1757,7 +1757,7 @@ static int qcom_geni_serial_sys_hib_resume(struct device *dev)
 	private_data = uport->private_data;
 
 	if (uart_console(uport)) {
-		geni_icc_set_tag(&port->se, 0x7);
+		geni_icc_set_tag(&port->se, QCOM_ICC_TAG_ALWAYS);
 		geni_icc_set_bw(&port->se);
 		ret = uart_resume_port(private_data->drv, uport);
 		/*
