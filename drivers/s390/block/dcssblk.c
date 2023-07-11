@@ -868,8 +868,8 @@ dcssblk_submit_bio(struct bio *bio)
 	dev_info = bio->bi_bdev->bd_disk->private_data;
 	if (dev_info == NULL)
 		goto fail;
-	if ((bio->bi_iter.bi_sector & 7) != 0 ||
-	    (bio->bi_iter.bi_size & 4095) != 0)
+	if (!IS_ALIGNED(bio->bi_iter.bi_sector, 8) ||
+	    !IS_ALIGNED(bio->bi_iter.bi_size, PAGE_SIZE))
 		/* Request is not page-aligned. */
 		goto fail;
 	/* verify data transfer direction */
@@ -891,7 +891,8 @@ dcssblk_submit_bio(struct bio *bio)
 	bio_for_each_segment(bvec, bio, iter) {
 		page_addr = (unsigned long)bvec_virt(&bvec);
 		source_addr = dev_info->start + (index<<12) + bytes_done;
-		if (unlikely((page_addr & 4095) != 0) || (bvec.bv_len & 4095) != 0)
+		if (unlikely(!IS_ALIGNED(page_addr, PAGE_SIZE) ||
+			     !IS_ALIGNED(bvec.bv_len, PAGE_SIZE)))
 			// More paranoia.
 			goto fail;
 		if (bio_data_dir(bio) == READ) {
