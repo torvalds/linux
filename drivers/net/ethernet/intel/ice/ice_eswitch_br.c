@@ -7,6 +7,7 @@
 #include "ice_switch.h"
 #include "ice_vlan.h"
 #include "ice_vf_vsi_vlan_ops.h"
+#include "ice_trace.h"
 
 #define ICE_ESW_BRIDGE_UPDATE_INTERVAL msecs_to_jiffies(1000)
 
@@ -353,6 +354,7 @@ ice_eswitch_br_fdb_entry_find_and_delete(struct ice_esw_br *bridge,
 		return;
 	}
 
+	trace_ice_eswitch_br_fdb_entry_find_and_delete(fdb_entry);
 	ice_eswitch_br_fdb_entry_notify_and_cleanup(bridge, fdb_entry);
 }
 
@@ -422,6 +424,7 @@ ice_eswitch_br_fdb_entry_create(struct net_device *netdev,
 		goto err_fdb_insert;
 
 	list_add(&fdb_entry->list, &bridge->fdb_list);
+	trace_ice_eswitch_br_fdb_entry_create(fdb_entry);
 
 	ice_eswitch_br_fdb_offload_notify(netdev, mac, vid, event);
 
@@ -597,6 +600,8 @@ ice_eswitch_br_vlan_cleanup(struct ice_esw_br_port *port,
 	struct ice_esw_br_fdb_entry *fdb_entry, *tmp;
 	struct ice_esw_br *bridge = port->bridge;
 
+	trace_ice_eswitch_br_vlan_cleanup(vlan);
+
 	list_for_each_entry_safe(fdb_entry, tmp, &bridge->fdb_list, list) {
 		if (vlan->vid == fdb_entry->data.vid)
 			ice_eswitch_br_fdb_entry_delete(bridge, fdb_entry);
@@ -685,6 +690,8 @@ ice_eswitch_br_vlan_create(u16 vid, u16 flags, struct ice_esw_br_port *port)
 	err = xa_insert(&port->vlans, vlan->vid, vlan, GFP_KERNEL);
 	if (err)
 		goto err_insert;
+
+	trace_ice_eswitch_br_vlan_create(vlan);
 
 	return vlan;
 
@@ -1047,6 +1054,7 @@ ice_eswitch_br_port_unlink(struct ice_esw_br_offloads *br_offloads,
 
 	bridge = br_port->bridge;
 
+	trace_ice_eswitch_br_port_unlink(br_port);
 	ice_eswitch_br_port_deinit(br_port->bridge, br_port);
 	ice_eswitch_br_verify_deinit(br_offloads, bridge);
 
@@ -1075,10 +1083,12 @@ ice_eswitch_br_port_link(struct ice_esw_br_offloads *br_offloads,
 		struct ice_repr *repr = ice_netdev_to_repr(dev);
 
 		err = ice_eswitch_br_vf_repr_port_init(bridge, repr);
+		trace_ice_eswitch_br_port_link(repr->br_port);
 	} else {
 		struct ice_pf *pf = ice_netdev_to_pf(dev);
 
 		err = ice_eswitch_br_uplink_port_init(bridge, pf);
+		trace_ice_eswitch_br_port_link(pf->br_port);
 	}
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to init bridge port");
