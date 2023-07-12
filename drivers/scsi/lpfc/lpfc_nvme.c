@@ -1864,7 +1864,6 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	unsigned long flags;
 	int ret_val;
-	struct nvme_fc_cmd_iu *cp;
 
 	/* Validate pointers. LLDD fault handling with transport does
 	 * have timing races.
@@ -1988,16 +1987,10 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	}
 
-	/*
-	 * Get Command Id from cmd to plug into response. This
-	 * code is not needed in the next NVME Transport drop.
-	 */
-	cp = (struct nvme_fc_cmd_iu *)lpfc_nbuf->nvmeCmd->cmdaddr;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
 			 "6138 Transport Abort NVME Request Issued for "
-			 "ox_id x%x nvme opcode x%x nvme cmd_id x%x\n",
-			 nvmereq_wqe->sli4_xritag, cp->sqe.common.opcode,
-			 cp->sqe.common.command_id);
+			 "ox_id x%x\n",
+			 nvmereq_wqe->sli4_xritag);
 	return;
 
 out_unlock:
