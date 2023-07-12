@@ -1306,6 +1306,10 @@
 						 <&clks IMX6SX_CLK_LCDIF_APB>,
 						 <&clks IMX6SX_CLK_DISPLAY_AXI>;
 					clock-names = "pix", "axi", "disp_axi";
+					assigned-clocks = <&clks IMX6SX_CLK_LCDIF1_PRE_SEL>,
+							  <&clks IMX6SX_CLK_LCDIF1_SEL>;
+					assigned-clock-parents = <&clks IMX6SX_CLK_PLL5_VIDEO_DIV>,
+								 <&clks IMX6SX_CLK_LCDIF1_PODF>;
 					power-domains = <&pd_disp>;
 					status = "disabled";
 
