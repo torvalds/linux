@@ -300,7 +300,10 @@ static int mfill_atomic_pte_poison(pmd_t *dst_pmd,
 	spinlock_t *ptl;
 
 	_dst_pte = make_pte_marker(PTE_MARKER_POISONED);
+	ret = -EAGAIN;
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+	if (!dst_pte)
+		goto out;
 
 	if (mfill_file_over_size(dst_vma, dst_addr)) {
 		ret = -EFAULT;
@@ -319,6 +322,7 @@ static int mfill_atomic_pte_poison(pmd_t *dst_pmd,
 	ret = 0;
 out_unlock:
 	pte_unmap_unlock(dst_pte, ptl);
+out:
 	return ret;
 }
 
