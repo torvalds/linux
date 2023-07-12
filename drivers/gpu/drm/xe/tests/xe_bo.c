@@ -12,6 +12,7 @@
 
 #include "xe_bo_evict.h"
 #include "xe_pci.h"
+#include "xe_pm.h"
 
 static int ccs_test_migrate(struct xe_gt *gt, struct xe_bo *bo,
 			    bool clear, u64 get_val, u64 assign_val,
@@ -295,8 +296,12 @@ static int evict_test_run_device(struct xe_device *xe)
 		return 0;
 	}
 
+	xe_device_mem_access_get(xe);
+
 	for_each_gt(gt, xe, id)
 		evict_test_run_gt(xe, gt, test);
+
+	xe_device_mem_access_put(xe);
 
 	return 0;
 }
