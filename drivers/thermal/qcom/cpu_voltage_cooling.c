@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
 
@@ -198,15 +198,15 @@ static struct cc_limits_data *opp_init(int *cpus)
 	}
 	table_ct[0] = fetch_opp_table(cpu1_dev, &cpu1_freq_table);
 	if (table_ct[0] <= 0)
-		goto opp_err_exit;
+		return ERR_PTR(-ENOMEM);
 
 	table_ct[1] = fetch_opp_table(cpu2_dev, &cpu2_freq_table);
 	if (table_ct[1] <= 0)
-		goto opp_err_exit;
+		goto opp_err_cpu1_exit;
 
 	cc_cdev = kzalloc(sizeof(*cc_cdev), GFP_KERNEL);
 	if (!cc_cdev)
-		goto opp_err_exit;
+		goto opp_err_cpu2_exit;
 	cpu_freq_table[0] = cpu1_freq_table;
 	cpu_freq_table[1] = cpu2_freq_table;
 	ret = build_unified_table(cc_cdev, cpu_freq_table, table_ct, cpus,
@@ -218,12 +218,14 @@ static struct cc_limits_data *opp_init(int *cpus)
 	kfree(cpu2_freq_table);
 	return cc_cdev;
 opp_err_exit:
-	kfree(cpu1_freq_table);
-	kfree(cpu2_freq_table);
 	if (cc_cdev) {
 		kfree(cc_cdev->map_freq);
 		kfree(cc_cdev);
 	}
+opp_err_cpu2_exit:
+	kfree(cpu2_freq_table);
+opp_err_cpu1_exit:
+	kfree(cpu1_freq_table);
 
 	return ERR_PTR(-EPROBE_DEFER);
 }
