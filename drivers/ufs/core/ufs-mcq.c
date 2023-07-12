@@ -490,8 +490,8 @@ static int ufshcd_mcq_sq_start(struct ufs_hba *hba, struct ufs_hw_queue *hwq)
 /**
  * ufshcd_mcq_sq_cleanup - Clean up submission queue resources
  * associated with the pending command.
- * @hba - per adapter instance.
- * @task_tag - The command's task tag.
+ * @hba: per adapter instance.
+ * @task_tag: The command's task tag.
  *
  * Returns 0 for success; error code otherwise.
  */
@@ -554,7 +554,7 @@ unlock:
  * Write the sqe's Command Type to 0xF. The host controller will not
  * fetch any sqe with Command Type = 0xF.
  *
- * @utrd - UTP Transfer Request Descriptor to be nullified.
+ * @utrd: UTP Transfer Request Descriptor to be nullified.
  */
 static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
 {
@@ -571,9 +571,9 @@ static void ufshcd_mcq_nullify_sqe(struct utp_transfer_req_desc *utrd)
  * If the command is in the submission queue and not issued to the device yet,
  * nullify the sqe so the host controller will skip fetching the sqe.
  *
- * @hba - per adapter instance.
- * @hwq - Hardware Queue to be searched.
- * @task_tag - The command's task tag.
+ * @hba: per adapter instance.
+ * @hwq: Hardware Queue to be searched.
+ * @task_tag: The command's task tag.
  *
  * Returns true if the SQE containing the command is present in the SQ
  * (not fetched by the controller); returns false if the SQE is not in the SQ.
@@ -622,7 +622,7 @@ out:
 
 /**
  * ufshcd_mcq_abort - Abort the command in MCQ.
- * @cmd - The command to be aborted.
+ * @cmd: The command to be aborted.
  *
  * Returns SUCCESS or FAILED error codes
  */
