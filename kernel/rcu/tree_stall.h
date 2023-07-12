@@ -537,13 +537,11 @@ static void rcu_check_gp_kthread_starvation(void)
 			pr_err("\tUnless %s kthread gets sufficient CPU time, OOM is now expected behavior.\n", rcu_state.name);
 			pr_err("RCU grace-period kthread stack dump:\n");
 			sched_show_task(gpk);
-			if (cpu >= 0) {
-				if (cpu_is_offline(cpu)) {
-					pr_err("RCU GP kthread last ran on offline CPU %d.\n", cpu);
-				} else  {
-					pr_err("Stack dump where RCU GP kthread last ran:\n");
-					dump_cpu_task(cpu);
-				}
+			if (cpu_is_offline(cpu)) {
+				pr_err("RCU GP kthread last ran on offline CPU %d.\n", cpu);
+			} else  {
+				pr_err("Stack dump where RCU GP kthread last ran:\n");
+				dump_cpu_task(cpu);
 			}
 			wake_up_process(gpk);
 		}
