@@ -861,7 +861,6 @@ static void ufs_mtk_init_mcq_irq(struct ufs_hba *hba)
 		irq = platform_get_irq(pdev, i + 1);
 		if (irq < 0) {
 			host->mcq_intr_info[i].irq = MTK_MCQ_INVALID_IRQ;
-			dev_err(hba->dev, "get platform mcq irq fail: %d\n", i);
 			goto failed;
 		}
 		host->mcq_intr_info[i].hba = hba;
