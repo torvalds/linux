@@ -1,25 +1,17 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
- * dvb-math provides some complex fixed-point math
- * operations shared between the dvb related stuff
+ * Provides fixed-point logarithm operations.
  *
  * Copyright (C) 2006 Christoph Pfister (christophpfister@gmail.com)
- *
- * This library is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as
- * published by the Free Software Foundation; either version 2.1 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Lesser General Public License for more details.
  */
 
 #include <linux/bitops.h>
+#include <linux/export.h>
+#include <linux/int_log.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/types.h>
+
 #include <asm/bug.h>
-#include <media/dvb_math.h>
 
 static const unsigned short logtable[256] = {
 	0x0000, 0x0171, 0x02e0, 0x044e, 0x05ba, 0x0725, 0x088e, 0x09f7,
@@ -53,7 +45,7 @@ static const unsigned short logtable[256] = {
 	0xe82a, 0xe8ef, 0xe9b3, 0xea77, 0xeb3b, 0xebfe, 0xecc1, 0xed83,
 	0xee45, 0xef06, 0xefc8, 0xf088, 0xf149, 0xf209, 0xf2c8, 0xf387,
 	0xf446, 0xf505, 0xf5c3, 0xf680, 0xf73e, 0xf7fb, 0xf8b7, 0xf973,
-	0xfa2f, 0xfaea, 0xfba5, 0xfc60, 0xfd1a, 0xfdd4, 0xfe8e, 0xff47
+	0xfa2f, 0xfaea, 0xfba5, 0xfc60, 0xfd1a, 0xfdd4, 0xfe8e, 0xff47,
 };
 
 unsigned int intlog2(u32 value)
@@ -90,7 +82,7 @@ unsigned int intlog2(u32 value)
 	 *	so we would use the entry 0x18
 	 */
 	significand = value << (31 - msb);
-	logentry = (significand >> 23) & 0xff;
+	logentry = (significand >> 23) % ARRAY_SIZE(logtable);
 
 	/**
 	 *	last step we do is interpolation because of the
@@ -108,7 +100,7 @@ unsigned int intlog2(u32 value)
 	 *	logtable_next is 256
 	 */
 	interpolation = ((significand & 0x7fffff) *
-			((logtable[(logentry + 1) & 0xff] -
+			((logtable[(logentry + 1) % ARRAY_SIZE(logtable)] -
 			  logtable[logentry]) & 0xffff)) >> 15;
 
 	/* now we return the result */

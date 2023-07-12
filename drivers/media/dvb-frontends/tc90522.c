@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/dvb/frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "tc90522.h"
 
 #define TC90522_I2C_THRU_REG 0xfe

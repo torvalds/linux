@@ -16,7 +16,7 @@
 #include <linux/math64.h>
 #include <asm/div64.h>
 #include <media/dvb_frontend.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "tda10048.h"
 
 #define TDA10048_DEFAULT_FIRMWARE "dvb-fe-tda10048-1.0.fw"
