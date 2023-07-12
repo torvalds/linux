@@ -48,6 +48,10 @@ struct dpu_hw_intf_status {
 	u32 line_count;		/* current line count including blanking */
 };
 
+struct dpu_hw_intf_cmd_mode_cfg {
+	u8 data_compress;	/* enable data compress between dpu and dsi */
+};
+
 /**
  * struct dpu_hw_intf_ops : Interface to the interface Hw driver functions
  *  Assumption is these functions will be called after clocks are enabled
@@ -70,7 +74,7 @@ struct dpu_hw_intf_status {
  * @get_autorefresh:            Retrieve autorefresh config from hardware
  *                              Return: 0 on success, -ETIMEDOUT on timeout
  * @vsync_sel:                  Select vsync signal for tear-effect configuration
- * @enable_compression:         Enable data compression
+ * @program_intf_cmd_cfg:       Program the DPU to interface datapath for command mode
  */
 struct dpu_hw_intf_ops {
 	void (*setup_timing_gen)(struct dpu_hw_intf *intf,
@@ -108,7 +112,8 @@ struct dpu_hw_intf_ops {
 	 */
 	void (*disable_autorefresh)(struct dpu_hw_intf *intf, uint32_t encoder_id, u16 vdisplay);
 
-	void (*enable_compression)(struct dpu_hw_intf *intf);
+	void (*program_intf_cmd_cfg)(struct dpu_hw_intf *intf,
+				     struct dpu_hw_intf_cmd_mode_cfg *cmd_mode_cfg);
 };
 
 struct dpu_hw_intf {
