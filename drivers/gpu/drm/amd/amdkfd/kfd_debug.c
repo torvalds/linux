@@ -753,7 +753,8 @@ int kfd_dbg_trap_enable(struct kfd_process *target, uint32_t fd,
 		if (!KFD_IS_SOC15(pdd->dev))
 			return -ENODEV;
 
-		if (!kfd_dbg_has_gws_support(pdd->dev) && pdd->qpd.num_gws)
+		if (pdd->qpd.num_gws && (!kfd_dbg_has_gws_support(pdd->dev) ||
+					 kfd_dbg_has_cwsr_workaround(pdd->dev)))
 			return -EBUSY;
 	}
 

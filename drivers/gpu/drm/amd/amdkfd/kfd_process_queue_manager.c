@@ -123,7 +123,7 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 	if (!gws && pdd->qpd.num_gws == 0)
 		return -EINVAL;
 
-	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3)) {
+	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) && !dev->kfd->shared_resources.enable_mes) {
 		if (gws)
 			ret = amdgpu_amdkfd_add_gws_to_process(pdd->process->kgd_process_info,
 				gws, &mem);
@@ -136,7 +136,9 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 	} else {
 		/*
 		 * Intentionally set GWS to a non-NULL value
-		 * for GFX 9.4.3.
+		 * for devices that do not use GWS for global wave
+		 * synchronization but require the formality
+		 * of setting GWS for cooperative groups.
 		 */
 		pqn->q->gws = gws ? ERR_PTR(-ENOMEM) : NULL;
 	}
@@ -173,7 +175,8 @@ void pqm_uninit(struct process_queue_manager *pqm)
 
 	list_for_each_entry_safe(pqn, next, &pqm->queues, process_queue_list) {
 		if (pqn->q && pqn->q->gws &&
-		    KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3))
+		    KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3) &&
+		    !pqn->q->device->kfd->shared_resources.enable_mes)
 			amdgpu_amdkfd_remove_gws_from_process(pqm->process->kgd_process_info,
 				pqn->q->gws);
 		kfd_procfs_del_queue(pqn->q);
@@ -455,7 +458,8 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 		}
 
 		if (pqn->q->gws) {
-			if (KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3))
+			if (KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3) &&
+			    !dev->kfd->shared_resources.enable_mes)
 				amdgpu_amdkfd_remove_gws_from_process(
 						pqm->process->kgd_process_info,
 						pqn->q->gws);
