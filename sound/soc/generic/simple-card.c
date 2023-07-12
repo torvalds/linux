@@ -346,6 +346,7 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *top = dev->of_node;
 	struct device_node *node;
+	struct device_node *add_devs;
 	uintptr_t dpcm_selectable = (uintptr_t)of_device_get_match_data(dev);
 	bool is_top = 0;
 	int ret = 0;
@@ -357,6 +358,8 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 		is_top = 1;
 	}
 
+	add_devs = of_get_child_by_name(top, PREFIX "additional-devs");
+
 	/* loop for all dai-link */
 	do {
 		struct asoc_simple_data adata;
@@ -364,6 +367,12 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 		struct device_node *plat;
 		struct device_node *np;
 		int num = of_get_child_count(node);
+
+		/* Skip additional-devs node */
+		if (node == add_devs) {
+			node = of_get_next_child(top, node);
+			continue;
+		}
 
 		/* get codec */
 		codec = of_get_child_by_name(node, is_top ?
@@ -378,12 +387,15 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 
 		/* get convert-xxx property */
 		memset(&adata, 0, sizeof(adata));
-		for_each_child_of_node(node, np)
+		for_each_child_of_node(node, np) {
+			if (np == add_devs)
+				continue;
 			simple_parse_convert(dev, np, &adata);
+		}
 
 		/* loop for all CPU/Codec node */
 		for_each_child_of_node(node, np) {
-			if (plat == np)
+			if (plat == np || add_devs == np)
 				continue;
 			/*
 			 * It is DPCM
@@ -426,6 +438,7 @@ static int __simple_for_each_link(struct asoc_simple_priv *priv,
 	} while (!is_top && node);
 
  error:
+	of_node_put(add_devs);
 	of_node_put(node);
 	return ret;
 }
@@ -463,6 +476,31 @@ static int simple_for_each_link(struct asoc_simple_priv *priv,
 	return ret;
 }
 
+static void simple_depopulate_aux(void *data)
+{
+	struct asoc_simple_priv *priv = data;
+
+	of_platform_depopulate(simple_priv_to_dev(priv));
+}
+
+static int simple_populate_aux(struct asoc_simple_priv *priv)
+{
+	struct device *dev = simple_priv_to_dev(priv);
+	struct device_node *node;
+	int ret;
+
+	node = of_get_child_by_name(dev->of_node, PREFIX "additional-devs");
+	if (!node)
+		return 0;
+
+	ret = of_platform_populate(node, NULL, NULL, dev);
+	of_node_put(node);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, simple_depopulate_aux, priv);
+}
+
 static int simple_parse_of(struct asoc_simple_priv *priv, struct link_info *li)
 {
 	struct snd_soc_card *card = simple_priv_to_card(priv);
@@ -489,6 +527,10 @@ static int simple_parse_of(struct asoc_simple_priv *priv, struct link_info *li)
 		return ret;
 
 	ret = asoc_simple_parse_card_name(card, PREFIX);
+	if (ret < 0)
+		return ret;
+
+	ret = simple_populate_aux(priv);
 	if (ret < 0)
 		return ret;
 
