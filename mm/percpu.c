@@ -3189,32 +3189,26 @@ void __init __weak pcpu_populate_pte(unsigned long addr)
 	pmd_t *pmd;
 
 	if (pgd_none(*pgd)) {
-		p4d_t *new;
-
-		new = memblock_alloc(P4D_TABLE_SIZE, P4D_TABLE_SIZE);
-		if (!new)
+		p4d = memblock_alloc(P4D_TABLE_SIZE, P4D_TABLE_SIZE);
+		if (!p4d)
 			goto err_alloc;
-		pgd_populate(&init_mm, pgd, new);
+		pgd_populate(&init_mm, pgd, p4d);
 	}
 
 	p4d = p4d_offset(pgd, addr);
 	if (p4d_none(*p4d)) {
-		pud_t *new;
-
-		new = memblock_alloc(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
-		if (!new)
+		pud = memblock_alloc(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
+		if (!pud)
 			goto err_alloc;
-		p4d_populate(&init_mm, p4d, new);
+		p4d_populate(&init_mm, p4d, pud);
 	}
 
 	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud)) {
-		pmd_t *new;
-
-		new = memblock_alloc(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
-		if (!new)
+		pmd = memblock_alloc(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
+		if (!pmd)
 			goto err_alloc;
-		pud_populate(&init_mm, pud, new);
+		pud_populate(&init_mm, pud, pmd);
 	}
 
 	pmd = pmd_offset(pud, addr);
