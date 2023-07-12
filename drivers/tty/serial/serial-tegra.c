@@ -1577,16 +1577,11 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	tup->cdata = cdata;
 
 	platform_set_drvdata(pdev, tup);
-	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!resource) {
-		dev_err(&pdev->dev, "No IO memory resource\n");
-		return -ENODEV;
-	}
 
-	u->mapbase = resource->start;
-	u->membase = devm_ioremap_resource(&pdev->dev, resource);
+	u->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &resource);
 	if (IS_ERR(u->membase))
 		return PTR_ERR(u->membase);
+	u->mapbase = resource->start;
 
 	tup->uart_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tup->uart_clk))
