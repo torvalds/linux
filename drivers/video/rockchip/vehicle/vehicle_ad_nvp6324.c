@@ -1950,6 +1950,7 @@ int nvp6324_ad_get_cfg(struct vehicle_cfg **cfg)
 	}
 
 	nvp6324_g_addev->cfg.ad_ready = true;
+	nvp6324_g_addev->cfg.drop_frames = nvp6324_g_addev->drop_frames;
 
 	*cfg = &nvp6324_g_addev->cfg;
 

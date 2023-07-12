@@ -63,6 +63,7 @@ struct vehicle_ad_dev {
 	u32 channel_reso[PAD_MAX];
 	u8 detect_status;
 	u8 last_detect_status;
+	int drop_frames;
 };
 
 int vehicle_generic_sensor_write(struct vehicle_ad_dev *ad, char reg, char *pval);

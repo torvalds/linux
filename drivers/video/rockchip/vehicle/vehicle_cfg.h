@@ -139,6 +139,7 @@ struct vehicle_cfg {
 	/*0:no, 1:90; 2:180; 4:270; 0x10:mirror-y; 0x20:mirror-x*/
 	int rotate_mirror;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	int drop_frames;
 };
 
 #endif

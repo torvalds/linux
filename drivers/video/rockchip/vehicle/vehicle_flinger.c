@@ -1076,6 +1076,7 @@ static void rk_drm_vehicle_commit(struct flinger *flinger, struct graphic_buffer
 	rockchip_drm_direct_show_commit(flinger->drm_dev, &commit_info);
 }
 
+static int drop_frames_number;
 static int rk_flinger_vop_show(struct flinger *flinger,
 			       struct graphic_buffer *buffer)
 {
@@ -1084,6 +1085,12 @@ static int rk_flinger_vop_show(struct flinger *flinger,
 
 	VEHICLE_DG("flinger vop show buffer wxh(%zux%zu)\n",
 					buffer->src.w, buffer->src.h);
+	if (drop_frames_number > 0) {
+		VEHICLE_INFO("%s discard the frame num(%d)!\n", __func__, drop_frames_number);
+		drop_frames_number--;
+		return 0;
+	}
+
 	if (!flinger->running)
 		return 0;
 
@@ -1444,6 +1451,7 @@ int vehicle_flinger_reverse_open(struct vehicle_cfg *v_cfg,
 	flg->cvbs_field_count = 0;
 	memcpy(&flg->v_cfg, v_cfg, sizeof(struct vehicle_cfg));
 	flg->running = true;
+	drop_frames_number = v_cfg->drop_frames;
 
 	return 0;
 }
