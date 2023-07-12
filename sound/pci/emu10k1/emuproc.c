@@ -536,15 +536,14 @@ static unsigned int snd_ptr_read(struct snd_emu10k1 * emu,
 				 unsigned int reg,
 				 unsigned int chn)
 {
-	unsigned long flags;
 	unsigned int regptr, val;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	spin_lock_irq(&emu->emu_lock);
 	outl(regptr, emu->port + iobase + PTR);
 	val = inl(emu->port + iobase + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	spin_unlock_irq(&emu->emu_lock);
 	return val;
 }
 
@@ -555,14 +554,13 @@ static void snd_ptr_write(struct snd_emu10k1 *emu,
 			  unsigned int data)
 {
 	unsigned int regptr;
-	unsigned long flags;
 
 	regptr = (reg << 16) | chn;
 
-	spin_lock_irqsave(&emu->emu_lock, flags);
+	spin_lock_irq(&emu->emu_lock);
 	outl(regptr, emu->port + iobase + PTR);
 	outl(data, emu->port + iobase + DATA);
-	spin_unlock_irqrestore(&emu->emu_lock, flags);
+	spin_unlock_irq(&emu->emu_lock);
 }
 
 
