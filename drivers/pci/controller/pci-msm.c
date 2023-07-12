@@ -1062,7 +1062,6 @@ enum i2c_client_id {
 };
 
 struct i2c_driver_data {
-	int rc_index;
 	enum i2c_client_id client_id;
 };
 #endif
@@ -9948,7 +9947,6 @@ static void msm_pcie_drv_connect_worker(struct work_struct *work)
 
 #if IS_ENABLED(CONFIG_I2C)
 static const struct i2c_driver_data ntn3_data = {
-	.rc_index = 0,
 	.client_id = I2C_CLIENT_ID_NTN3,
 };
 
@@ -9981,9 +9979,12 @@ static int pcie_i2c_ctrl_probe(struct i2c_client *client,
 		}
 
 		data = (struct i2c_driver_data *)match->data;
-		rc_index = data->rc_index;
 		client_id = data->client_id;
 	}
+
+	of_property_read_u32(client->dev.of_node, "rc-index", &rc_index);
+
+	dev_info(&client->dev, "%s: PCIe rc-index: 0x%X\n", __func__, rc_index);
 
 	if (rc_index >= MAX_RC_NUM) {
 		dev_err(&client->dev, "invalid RC index %d\n", rc_index);
