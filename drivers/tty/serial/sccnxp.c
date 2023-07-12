@@ -879,14 +879,14 @@ MODULE_DEVICE_TABLE(platform, sccnxp_id_table);
 
 static int sccnxp_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct sccnxp_pdata *pdata = dev_get_platdata(&pdev->dev);
+	struct resource *res;
 	int i, ret, uartclk;
 	struct sccnxp_port *s;
 	void __iomem *membase;
 	struct clk *clk;
 
-	membase = devm_ioremap_resource(&pdev->dev, res);
+	membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(membase))
 		return PTR_ERR(membase);
 
