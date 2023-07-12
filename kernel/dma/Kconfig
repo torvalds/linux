@@ -145,15 +145,16 @@ config DMA_CMA
 
 if  DMA_CMA
 
-config DMA_PERNUMA_CMA
-	bool "Enable separate DMA Contiguous Memory Area for each NUMA Node"
+config DMA_NUMA_CMA
+	bool "Enable separate DMA Contiguous Memory Area for NUMA Node"
 	default NUMA
 	help
-	  Enable this option to get pernuma CMA areas so that NUMA devices
+	  Enable this option to get numa CMA areas so that NUMA devices
 	  can get local memory by DMA coherent APIs.
 
 	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
-	  on the kernel's command line.
+	  or set the node id and its size of CMA by specifying "numa_cma=
+	  <node>:size[,<node>:size]" on the kernel's command line.
 
 comment "Default contiguous memory area size:"
 
