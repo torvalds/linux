@@ -316,7 +316,7 @@ static const struct regmap_config stih407_sas_regmap = {
 	.reg_defaults = stih407_sas_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(stih407_sas_reg_defaults),
 	.volatile_reg = sti_sas_volatile_register,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_read = sti_sas_read_reg,
 	.reg_write = sti_sas_write_reg,
 };
