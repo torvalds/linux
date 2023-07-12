@@ -434,10 +434,10 @@ static int tegra_set_baudrate(struct tegra_uart_port *tup, unsigned int baud)
 	return 0;
 }
 
-static char tegra_uart_decode_rx_error(struct tegra_uart_port *tup,
+static u8 tegra_uart_decode_rx_error(struct tegra_uart_port *tup,
 			unsigned long lsr)
 {
-	char flag = TTY_NORMAL;
+	u8 flag = TTY_NORMAL;
 
 	if (unlikely(lsr & TEGRA_UART_LSR_ANY)) {
 		if (lsr & UART_LSR_OE) {
@@ -642,9 +642,8 @@ static void tegra_uart_handle_rx_pio(struct tegra_uart_port *tup,
 		struct tty_port *port)
 {
 	do {
-		char flag = TTY_NORMAL;
 		unsigned long lsr = 0;
-		unsigned char ch;
+		u8 ch, flag = TTY_NORMAL;
 
 		lsr = tegra_uart_read(tup, UART_LSR);
 		if (!(lsr & UART_LSR_DR))

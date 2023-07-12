@@ -250,7 +250,7 @@ static void asc_receive_chars(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	unsigned long status, mode;
 	unsigned long c = 0;
-	char flag;
+	u8 flag;
 	bool ignore_pe = false;
 
 	/*

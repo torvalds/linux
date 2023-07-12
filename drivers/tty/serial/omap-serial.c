@@ -442,7 +442,7 @@ static unsigned int check_modem_status(struct uart_omap_port *up)
 
 static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 {
-	unsigned int flag;
+	u8 flag;
 
 	/*
 	 * Read one data character out to avoid stalling the receiver according
@@ -498,7 +498,7 @@ static void serial_omap_rlsi(struct uart_omap_port *up, unsigned int lsr)
 
 static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 {
-	unsigned char ch = 0;
+	u8 ch;
 
 	if (!(lsr & UART_LSR_DR))
 		return;

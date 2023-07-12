@@ -402,9 +402,9 @@ static char __ssp_receive_char(struct sifive_serial_port *ssp, char *is_empty)
  */
 static void __ssp_receive_chars(struct sifive_serial_port *ssp)
 {
-	unsigned char ch;
 	char is_empty;
 	int c;
+	u8 ch;
 
 	for (c = SIFIVE_RX_FIFO_DEPTH; c > 0; --c) {
 		ch = __ssp_receive_char(ssp, &is_empty);

@@ -616,9 +616,8 @@ static void mxs_auart_tx_chars(struct mxs_auart_port *s)
 
 static void mxs_auart_rx_char(struct mxs_auart_port *s)
 {
-	int flag;
 	u32 stat;
-	u8 c;
+	u8 c, flag;
 
 	c = mxs_read(s, REG_DATA);
 	stat = mxs_read(s, REG_STAT);

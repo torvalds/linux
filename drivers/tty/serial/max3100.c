@@ -215,8 +215,9 @@ static int max3100_sr(struct max3100_port *s, u16 tx, u16 *rx)
 
 static int max3100_handlerx(struct max3100_port *s, u16 rx)
 {
-	unsigned int ch, flg, status = 0;
+	unsigned int status = 0;
 	int ret = 0, cts;
+	u8 ch, flg;
 
 	if (rx & MAX3100_R && s->rx_enabled) {
 		dev_dbg(&s->spi->dev, "%s\n", __func__);

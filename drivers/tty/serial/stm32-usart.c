@@ -321,7 +321,7 @@ static bool stm32_usart_pending_rx_pio(struct uart_port *port, u32 *sr)
 	return false;
 }
 
-static unsigned long stm32_usart_get_char_pio(struct uart_port *port)
+static u8 stm32_usart_get_char_pio(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
@@ -338,10 +338,9 @@ static unsigned int stm32_usart_receive_chars_pio(struct uart_port *port)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
-	unsigned long c;
 	unsigned int size = 0;
 	u32 sr;
-	char flag;
+	u8 c, flag;
 
 	while (stm32_usart_pending_rx_pio(port, &sr)) {
 		sr |= USART_SR_DUMMY_RX;

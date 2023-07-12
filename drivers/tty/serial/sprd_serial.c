@@ -558,7 +558,7 @@ static void sprd_break_ctl(struct uart_port *port, int break_state)
 }
 
 static int handle_lsr_errors(struct uart_port *port,
-			     unsigned int *flag,
+			     u8 *flag,
 			     unsigned int *lsr)
 {
 	int ret = 0;
@@ -594,7 +594,8 @@ static inline void sprd_rx(struct uart_port *port)
 	struct sprd_uart_port *sp = container_of(port, struct sprd_uart_port,
 						 port);
 	struct tty_port *tty = &port->state->port;
-	unsigned int ch, flag, lsr, max_count = SPRD_TIMEOUT;
+	unsigned int lsr, max_count = SPRD_TIMEOUT;
+	u8 ch, flag;
 
 	if (sp->rx_dma.enable) {
 		sprd_uart_dma_irq(port);

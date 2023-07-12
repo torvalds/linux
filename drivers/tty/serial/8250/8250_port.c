@@ -1706,8 +1706,7 @@ static void serial8250_enable_ms(struct uart_port *port)
 void serial8250_read_char(struct uart_8250_port *up, u16 lsr)
 {
 	struct uart_port *port = &up->port;
-	unsigned char ch;
-	char flag = TTY_NORMAL;
+	u8 ch, flag = TTY_NORMAL;
 
 	if (likely(lsr & UART_LSR_DR))
 		ch = serial_in(up, UART_RX);

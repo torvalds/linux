@@ -205,7 +205,7 @@ static void arc_serial_rx_chars(struct uart_port *port, unsigned int status)
 	 * controller, which is indeed the Rx-FIFO.
 	 */
 	do {
-		unsigned int ch, flg = TTY_NORMAL;
+		u8 ch, flg = TTY_NORMAL;
 
 		/*
 		 * This could be an Rx Intr for err (no data),

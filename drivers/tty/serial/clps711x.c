@@ -92,8 +92,9 @@ static irqreturn_t uart_clps711x_int_rx(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	struct clps711x_port *s = dev_get_drvdata(port->dev);
-	unsigned int status, flg;
+	unsigned int status;
 	u16 ch;
+	u8 flg;
 
 	for (;;) {
 		u32 sysflg = 0;

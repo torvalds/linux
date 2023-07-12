@@ -669,7 +669,8 @@ static void max310x_batch_read(struct uart_port *port, u8 *rxbuf, unsigned int l
 static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 {
 	struct max310x_one *one = to_max310x_port(port);
-	unsigned int sts, ch, flag, i;
+	unsigned int sts, i;
+	u8 ch, flag;
 
 	if (port->read_status_mask == MAX310X_LSR_RXOVR_BIT) {
 		/* We are just reading, happily ignoring any error conditions.

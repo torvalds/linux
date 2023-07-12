@@ -112,7 +112,8 @@ static void pl010_enable_ms(struct uart_port *port)
 
 static void pl010_rx_chars(struct uart_port *port)
 {
-	unsigned int status, ch, flag, rsr, max_count = 256;
+	unsigned int status, rsr, max_count = 256;
+	u8 ch, flag;
 
 	status = readb(port->membase + UART01x_FR);
 	while (UART_RX_DATA(status) && max_count--) {

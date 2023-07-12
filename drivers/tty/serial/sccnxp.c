@@ -383,8 +383,7 @@ static void sccnxp_set_bit(struct uart_port *port, int sig, int state)
 
 static void sccnxp_handle_rx(struct uart_port *port)
 {
-	u8 sr;
-	unsigned int ch, flag;
+	u8 sr, ch, flag;
 
 	for (;;) {
 		sr = sccnxp_port_read(port, SCCNXP_SR_REG);
