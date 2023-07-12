@@ -1059,7 +1059,6 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	struct reserved_mem *rmem;
 	struct qcom_smem *smem;
 	unsigned long flags;
-	size_t array_size;
 	int num_regions;
 	int hwlock_id;
 	u32 version;
@@ -1071,8 +1070,8 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	if (of_property_present(pdev->dev.of_node, "qcom,rpm-msg-ram"))
 		num_regions++;
 
-	array_size = num_regions * sizeof(struct smem_region);
-	smem = devm_kzalloc(&pdev->dev, sizeof(*smem) + array_size, GFP_KERNEL);
+	smem = devm_kzalloc(&pdev->dev, struct_size(smem, regions, num_regions),
+			    GFP_KERNEL);
 	if (!smem)
 		return -ENOMEM;
 
