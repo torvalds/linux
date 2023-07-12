@@ -1066,6 +1066,8 @@ queue:
 			raw_spin_unlock_irq(&sem->wait_lock);
 			rwsem_set_reader_owned(sem);
 			lockevent_inc(rwsem_rlock_fast);
+			trace_android_vh_record_rwsem_lock_starttime(
+							current, jiffies);
 			return sem;
 		}
 		adjustment += RWSEM_FLAG_WAITERS;
