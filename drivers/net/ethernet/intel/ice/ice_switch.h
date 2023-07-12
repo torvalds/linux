@@ -191,6 +191,8 @@ struct ice_adv_rule_info {
 	u16 vlan_type;
 	u16 fltr_rule_id;
 	u32 priority;
+	u16 need_pass_l2:1;
+	u16 allow_pass_l2:1;
 	u16 src_vsi;
 	struct ice_sw_act_ctrl sw_act;
 	struct ice_adv_rule_flags_info flags_info;
@@ -253,6 +255,9 @@ struct ice_sw_recipe {
 	 * priority.
 	 */
 	u8 priority;
+
+	u8 need_pass_l2:1;
+	u8 allow_pass_l2:1;
 
 	struct list_head rg_list;
 
