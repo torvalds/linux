@@ -270,7 +270,7 @@ static int tty_paranoia_check(struct tty_struct *tty, struct inode *inode,
 }
 
 /* Caller must hold tty_lock */
-static int check_tty_count(struct tty_struct *tty, const char *routine)
+static void check_tty_count(struct tty_struct *tty, const char *routine)
 {
 #ifdef CHECK_TTY_COUNT
 	struct list_head *p;
@@ -290,10 +290,8 @@ static int check_tty_count(struct tty_struct *tty, const char *routine)
 	if (tty->count != (count + kopen_count)) {
 		tty_warn(tty, "%s: tty->count(%d) != (#fd's(%d) + #kopen's(%d))\n",
 			 routine, tty->count, count, kopen_count);
-		return (count + kopen_count);
 	}
 #endif
-	return 0;
 }
 
 /**
