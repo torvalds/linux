@@ -16,13 +16,14 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
-#include <linux/crypto.h>
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/jiffies.h>
+#include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+#include <linux/zlib.h>
 
 #include "internal.h"
 
@@ -71,12 +72,21 @@ static char *backend;
 module_param(backend, charp, 0444);
 MODULE_PARM_DESC(backend, "specific backend to use");
 
-static char *compress =
-#ifdef CONFIG_PSTORE_COMPRESS_DEFAULT
-		CONFIG_PSTORE_COMPRESS_DEFAULT;
-#else
-		NULL;
-#endif
+/*
+ * pstore no longer implements compression via the crypto API, and only
+ * supports zlib deflate compression implemented using the zlib library
+ * interface. This removes additional complexity which is hard to justify for a
+ * diagnostic facility that has to operate in conditions where the system may
+ * have become unstable. Zlib deflate is comparatively small in terms of code
+ * size, and compresses ASCII text comparatively well. In terms of compression
+ * speed, deflate is not the best performer but for recording the log output on
+ * a kernel panic, this is not considered critical.
+ *
+ * The only remaining arguments supported by the compress= module parameter are
+ * 'deflate' and 'none'. To retain compatibility with existing installations,
+ * all other values are logged and replaced with 'deflate'.
+ */
+static char *compress = "deflate";
 module_param(compress, charp, 0444);
 MODULE_PARM_DESC(compress, "compression to use");
 
@@ -85,8 +95,7 @@ unsigned long kmsg_bytes = CONFIG_PSTORE_DEFAULT_KMSG_BYTES;
 module_param(kmsg_bytes, ulong, 0444);
 MODULE_PARM_DESC(kmsg_bytes, "amount of kernel log to snapshot (in bytes)");
 
-/* Compression parameters */
-static struct crypto_comp *tfm;
+static void *compress_workspace;
 
 static char *big_oops_buf;
 
@@ -156,36 +165,49 @@ static bool pstore_cannot_block_path(enum kmsg_dump_reason reason)
 static int pstore_compress(const void *in, void *out,
 			   unsigned int inlen, unsigned int outlen)
 {
+	struct z_stream_s zstream = {
+		.next_in	= in,
+		.avail_in	= inlen,
+		.next_out	= out,
+		.avail_out	= outlen,
+		.workspace	= compress_workspace,
+	};
 	int ret;
 
 	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS))
 		return -EINVAL;
 
-	ret = crypto_comp_compress(tfm, in, inlen, out, &outlen);
-	if (ret) {
-		pr_err("crypto_comp_compress failed, ret = %d!\n", ret);
-		return ret;
-	}
+	ret = zlib_deflateInit2(&zstream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
+				-MAX_WBITS, DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY);
+	if (ret != Z_OK)
+		return -EINVAL;
 
-	return outlen;
+	ret = zlib_deflate(&zstream, Z_FINISH);
+	if (ret != Z_STREAM_END)
+		return -EINVAL;
+
+	ret = zlib_deflateEnd(&zstream);
+	if (ret != Z_OK)
+		pr_warn_once("zlib_deflateEnd() failed: %d\n", ret);
+
+	return zstream.total_out;
 }
 
 static void allocate_buf_for_compression(void)
 {
-	struct crypto_comp *ctx;
 	char *buf;
 
-	/* Skip if not built-in or compression backend not selected yet. */
-	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS) || !compress)
+	/* Skip if not built-in or compression disabled. */
+	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS) || !compress ||
+	    !strcmp(compress, "none")) {
+		compress = NULL;
 		return;
+	}
 
-	/* Skip if no pstore backend yet or compression init already done. */
-	if (!psinfo || tfm)
-		return;
-
-	if (!crypto_has_comp(compress, 0, 0)) {
-		pr_err("Unknown compression: %s\n", compress);
-		return;
+	if (strcmp(compress, "deflate")) {
+		pr_err("Unsupported compression '%s', falling back to deflate\n",
+		       compress);
+		compress = "deflate";
 	}
 
 	/*
@@ -200,16 +222,15 @@ static void allocate_buf_for_compression(void)
 		return;
 	}
 
-	ctx = crypto_alloc_comp(compress, 0, 0);
-	if (IS_ERR_OR_NULL(ctx)) {
+	compress_workspace =
+		vmalloc(zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL));
+	if (!compress_workspace) {
+		pr_err("Failed to allocate zlib deflate workspace\n");
 		kfree(buf);
-		pr_err("crypto_alloc_comp('%s') failed: %ld\n", compress,
-		       PTR_ERR(ctx));
 		return;
 	}
 
 	/* A non-NULL big_oops_buf indicates compression is available. */
-	tfm = ctx;
 	big_oops_buf = buf;
 
 	pr_info("Using crash dump compression: %s\n", compress);
@@ -217,10 +238,11 @@ static void allocate_buf_for_compression(void)
 
 static void free_buf_for_compression(void)
 {
-	if (IS_ENABLED(CONFIG_PSTORE_COMPRESS) && tfm) {
-		crypto_free_comp(tfm);
-		tfm = NULL;
+	if (IS_ENABLED(CONFIG_PSTORE_COMPRESS) && compress_workspace) {
+		vfree(compress_workspace);
+		compress_workspace = NULL;
 	}
+
 	kfree(big_oops_buf);
 	big_oops_buf = NULL;
 }
@@ -531,7 +553,8 @@ void pstore_unregister(struct pstore_info *psi)
 }
 EXPORT_SYMBOL_GPL(pstore_unregister);
 
-static void decompress_record(struct pstore_record *record)
+static void decompress_record(struct pstore_record *record,
+			      struct z_stream_s *zstream)
 {
 	int ret;
 	int unzipped_len;
@@ -547,8 +570,14 @@ static void decompress_record(struct pstore_record *record)
 	}
 
 	/* Missing compression buffer means compression was not initialized. */
-	if (!big_oops_buf) {
+	if (!zstream->workspace) {
 		pr_warn("no decompression method initialized!\n");
+		return;
+	}
+
+	ret = zlib_inflateReset(zstream);
+	if (ret != Z_OK) {
+		pr_err("zlib_inflateReset() failed, ret = %d!\n", ret);
 		return;
 	}
 
@@ -558,14 +587,19 @@ static void decompress_record(struct pstore_record *record)
 	if (!workspace)
 		return;
 
-	/* After decompression "unzipped_len" is almost certainly smaller. */
-	ret = crypto_comp_decompress(tfm, record->buf, record->size,
-					  workspace, &unzipped_len);
-	if (ret) {
-		pr_err("crypto_comp_decompress failed, ret = %d!\n", ret);
+	zstream->next_in	= record->buf;
+	zstream->avail_in	= record->size;
+	zstream->next_out	= workspace;
+	zstream->avail_out	= psinfo->bufsize;
+
+	ret = zlib_inflate(zstream, Z_FINISH);
+	if (ret != Z_STREAM_END) {
+		pr_err("zlib_inflate() failed, ret = %d!\n", ret);
 		kfree(workspace);
 		return;
 	}
+
+	unzipped_len = zstream->total_out;
 
 	/* Append ECC notice to decompressed buffer. */
 	memcpy(workspace + unzipped_len, record->buf + record->size,
@@ -596,9 +630,16 @@ void pstore_get_backend_records(struct pstore_info *psi,
 {
 	int failed = 0;
 	unsigned int stop_loop = 65536;
+	struct z_stream_s zstream = {};
 
 	if (!psi || !root)
 		return;
+
+	if (IS_ENABLED(CONFIG_PSTORE_COMPRESS) && compress) {
+		zstream.workspace = kvmalloc(zlib_inflate_workspacesize(),
+					     GFP_KERNEL);
+		zlib_inflateInit2(&zstream, -DEF_WBITS);
+	}
 
 	mutex_lock(&psi->read_mutex);
 	if (psi->open && psi->open(psi))
@@ -628,7 +669,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 			break;
 		}
 
-		decompress_record(record);
+		decompress_record(record, &zstream);
 		rc = pstore_mkfile(root, record);
 		if (rc) {
 			/* pstore_mkfile() did not take record, so free it. */
@@ -643,6 +684,12 @@ void pstore_get_backend_records(struct pstore_info *psi,
 		psi->close(psi);
 out:
 	mutex_unlock(&psi->read_mutex);
+
+	if (IS_ENABLED(CONFIG_PSTORE_COMPRESS) && compress) {
+		if (zlib_inflateEnd(&zstream) != Z_OK)
+			pr_warn("zlib_inflateEnd() failed\n");
+		kvfree(zstream.workspace);
+	}
 
 	if (failed)
 		pr_warn("failed to create %d record(s) from '%s'\n",
@@ -670,13 +717,6 @@ static void pstore_timefunc(struct timer_list *unused)
 static int __init pstore_init(void)
 {
 	int ret;
-
-	/*
-	 * Check if any pstore backends registered earlier but did not
-	 * initialize compression because crypto was not ready. If so,
-	 * initialize compression now.
-	 */
-	allocate_buf_for_compression();
 
 	ret = pstore_init_fs();
 	if (ret)
