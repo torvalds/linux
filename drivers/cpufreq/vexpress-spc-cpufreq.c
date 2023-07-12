@@ -551,7 +551,7 @@ static int ve_spc_cpufreq_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int ve_spc_cpufreq_remove(struct platform_device *pdev)
+static void ve_spc_cpufreq_remove(struct platform_device *pdev)
 {
 	bL_switcher_get_enabled();
 	__bLs_unregister_notifier();
@@ -559,7 +559,6 @@ static int ve_spc_cpufreq_remove(struct platform_device *pdev)
 	bL_switcher_put_enabled();
 	pr_info("%s: Un-registered platform driver: %s\n", __func__,
 		ve_spc_cpufreq_driver.name);
-	return 0;
 }
 
 static struct platform_driver ve_spc_cpufreq_platdrv = {
@@ -567,7 +566,7 @@ static struct platform_driver ve_spc_cpufreq_platdrv = {
 		.name	= "vexpress-spc-cpufreq",
 	},
 	.probe		= ve_spc_cpufreq_probe,
-	.remove		= ve_spc_cpufreq_remove,
+	.remove_new	= ve_spc_cpufreq_remove,
 };
 module_platform_driver(ve_spc_cpufreq_platdrv);
 
