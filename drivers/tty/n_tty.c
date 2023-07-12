@@ -1502,7 +1502,7 @@ static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const unsigned cha
 
 static void
 n_tty_receive_buf_real_raw(struct tty_struct *tty, const unsigned char *cp,
-			   const char *fp, int count)
+			   int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, head;
@@ -1597,7 +1597,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 	size_t la_count = min_t(size_t, ldata->lookahead_count, count);
 
 	if (ldata->real_raw)
-		n_tty_receive_buf_real_raw(tty, cp, fp, count);
+		n_tty_receive_buf_real_raw(tty, cp, count);
 	else if (ldata->raw || (L_EXTPROC(tty) && !preops))
 		n_tty_receive_buf_raw(tty, cp, fp, count);
 	else if (tty->closing && !L_EXTPROC(tty)) {
