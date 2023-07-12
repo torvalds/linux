@@ -12512,10 +12512,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 				    (new_cpup->eq != LPFC_VECTOR_MAP_EMPTY) &&
 				    (new_cpup->phys_id == cpup->phys_id))
 					goto found_same;
-				new_cpu = cpumask_next(
-					new_cpu, cpu_present_mask);
-				if (new_cpu >= nr_cpu_ids)
-					new_cpu = first_cpu;
+				new_cpu = lpfc_next_present_cpu(new_cpu);
 			}
 			/* At this point, we leave the CPU as unassigned */
 			continue;
@@ -12527,9 +12524,7 @@ found_same:
 			 * chance of having multiple unassigned CPU entries
 			 * selecting the same IRQ.
 			 */
-			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu >= nr_cpu_ids)
-				start_cpu = first_cpu;
+			start_cpu = lpfc_next_present_cpu(new_cpu);
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"3337 Set Affinity: CPU %d "
@@ -12562,10 +12557,7 @@ found_same:
 				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
 				    (new_cpup->eq != LPFC_VECTOR_MAP_EMPTY))
 					goto found_any;
-				new_cpu = cpumask_next(
-					new_cpu, cpu_present_mask);
-				if (new_cpu >= nr_cpu_ids)
-					new_cpu = first_cpu;
+				new_cpu = lpfc_next_present_cpu(new_cpu);
 			}
 			/* We should never leave an entry unassigned */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -12581,9 +12573,7 @@ found_any:
 			 * chance of having multiple unassigned CPU entries
 			 * selecting the same IRQ.
 			 */
-			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu >= nr_cpu_ids)
-				start_cpu = first_cpu;
+			start_cpu = lpfc_next_present_cpu(new_cpu);
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 					"3338 Set Affinity: CPU %d "
@@ -12654,9 +12644,7 @@ found_any:
 			    new_cpup->core_id == cpup->core_id) {
 				goto found_hdwq;
 			}
-			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (new_cpu >= nr_cpu_ids)
-				new_cpu = first_cpu;
+			new_cpu = lpfc_next_present_cpu(new_cpu);
 		}
 
 		/* If we can't match both phys_id and core_id,
@@ -12668,10 +12656,7 @@ found_any:
 			if (new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY &&
 			    new_cpup->phys_id == cpup->phys_id)
 				goto found_hdwq;
-
-			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (new_cpu >= nr_cpu_ids)
-				new_cpu = first_cpu;
+			new_cpu = lpfc_next_present_cpu(new_cpu);
 		}
 
 		/* Otherwise just round robin on cfg_hdw_queue */
@@ -12680,9 +12665,7 @@ found_any:
 		goto logit;
  found_hdwq:
 		/* We found an available entry, copy the IRQ info */
-		start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-		if (start_cpu >= nr_cpu_ids)
-			start_cpu = first_cpu;
+		start_cpu = lpfc_next_present_cpu(new_cpu);
 		cpup->hdwq = new_cpup->hdwq;
  logit:
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,

@@ -1710,6 +1710,25 @@ lpfc_next_online_cpu(const struct cpumask *mask, unsigned int start)
 	return cpu_it;
 }
 /**
+ * lpfc_next_present_cpu - Finds next present CPU after n
+ * @n: the cpu prior to search
+ *
+ * Note: If no next present cpu, then fallback to first present cpu.
+ *
+ **/
+static inline unsigned int lpfc_next_present_cpu(int n)
+{
+	unsigned int cpu;
+
+	cpu = cpumask_next(n, cpu_present_mask);
+
+	if (cpu >= nr_cpu_ids)
+		cpu = cpumask_first(cpu_present_mask);
+
+	return cpu;
+}
+
+/**
  * lpfc_sli4_mod_hba_eq_delay - update EQ delay
  * @phba: Pointer to HBA context object.
  * @q: The Event Queue to update.
