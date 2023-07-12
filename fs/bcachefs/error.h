@@ -91,13 +91,6 @@ do {									\
  * be able to repair:
  */
 
-enum fsck_err_opts {
-	FSCK_OPT_EXIT,
-	FSCK_OPT_YES,
-	FSCK_OPT_NO,
-	FSCK_OPT_ASK,
-};
-
 struct fsck_err_state {
 	struct list_head	list;
 	const char		*fmt;

@@ -1808,7 +1808,7 @@ again:
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) ||
 	    (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb) &&
 	     c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations &&
-	     c->opts.fix_errors != FSCK_OPT_NO)) {
+	     c->opts.fix_errors != FSCK_FIX_no)) {
 		bch_info(c, "Starting topology repair pass");
 		ret = bch2_repair_topology(c);
 		if (ret)

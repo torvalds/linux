@@ -204,7 +204,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 			prt_str(out, ", continuing");
 			ret = -BCH_ERR_fsck_ignore;
 		}
-	} else if (c->opts.fix_errors == FSCK_OPT_EXIT) {
+	} else if (c->opts.fix_errors == FSCK_FIX_exit) {
 		prt_str(out, ", exiting");
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 	} else if (flags & FSCK_CAN_FIX) {
@@ -212,7 +212,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 			? s->fix
 			: c->opts.fix_errors;
 
-		if (fix == FSCK_OPT_ASK) {
+		if (fix == FSCK_FIX_ask) {
 			int ask;
 
 			prt_str(out, ": fix?");
@@ -223,13 +223,13 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 
 			if (ask >= YN_ALLNO && s)
 				s->fix = ask == YN_ALLNO
-					? FSCK_OPT_NO
-					: FSCK_OPT_YES;
+					? FSCK_FIX_no
+					: FSCK_FIX_yes;
 
 			ret = ask & 1
 				? -BCH_ERR_fsck_fix
 				: -BCH_ERR_fsck_ignore;
-		} else if (fix == FSCK_OPT_YES ||
+		} else if (fix == FSCK_FIX_yes ||
 			   (c->opts.nochanges &&
 			    !(flags & FSCK_CAN_IGNORE))) {
 			prt_str(out, ", fixing");
@@ -244,7 +244,7 @@ int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 	}
 
 	if (ret == -BCH_ERR_fsck_ignore &&
-	    (c->opts.fix_errors == FSCK_OPT_EXIT ||
+	    (c->opts.fix_errors == FSCK_FIX_exit ||
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 

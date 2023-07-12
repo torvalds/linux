@@ -1175,7 +1175,7 @@ static void check_version_upgrade(struct bch_fs *c)
 			prt_str(&buf, "fsck required");
 
 			c->recovery_passes_explicit |= recovery_passes;
-			c->opts.fix_errors = FSCK_OPT_YES;
+			c->opts.fix_errors = FSCK_FIX_yes;
 		}
 
 		bch_info(c, "%s", buf.buf);

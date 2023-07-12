@@ -5,6 +5,7 @@
 #include "bcachefs.h"
 #include "compress.h"
 #include "disk_groups.h"
+#include "error.h"
 #include "opts.h"
 #include "super-io.h"
 #include "util.h"
@@ -13,6 +14,11 @@
 
 const char * const bch2_error_actions[] = {
 	BCH_ERROR_ACTIONS()
+	NULL
+};
+
+const char * const bch2_fsck_fix_opts[] = {
+	BCH_FIX_ERRORS_OPTS()
 	NULL
 };
 
@@ -88,6 +94,37 @@ const char * const bch2_fs_usage_types[] = {
 };
 
 #undef x
+
+static int bch2_opt_fix_errors_parse(struct bch_fs *c, const char *val, u64 *res,
+				     struct printbuf *err)
+{
+	if (!val) {
+		*res = FSCK_FIX_yes;
+	} else {
+		int ret = match_string(bch2_fsck_fix_opts, -1, val);
+
+		if (ret < 0 && err)
+			prt_str(err, "fix_errors: invalid selection");
+		if (ret < 0)
+			return ret;
+		*res = ret;
+	}
+
+	return 0;
+}
+
+static void bch2_opt_fix_errors_to_text(struct printbuf *out,
+					struct bch_fs *c,
+					struct bch_sb *sb,
+					u64 v)
+{
+	prt_str(out, bch2_fsck_fix_opts[v]);
+}
+
+static const struct bch_opt_fn bch2_opt_fix_errors = {
+	.parse = bch2_opt_fix_errors_parse,
+	.to_text = bch2_opt_fix_errors_to_text,
+};
 
 const char * const bch2_d_types[BCH_DT_MAX] = {
 	[DT_UNKNOWN]	= "unknown",
@@ -265,15 +302,26 @@ int bch2_opt_parse(struct bch_fs *c,
 
 	switch (opt->type) {
 	case BCH_OPT_BOOL:
-		ret = kstrtou64(val, 10, res);
+		if (val) {
+			ret = kstrtou64(val, 10, res);
+		} else {
+			ret = 0;
+			*res = 1;
+		}
+
 		if (ret < 0 || (*res != 0 && *res != 1)) {
 			if (err)
-				prt_printf(err, "%s: must be bool",
-					   opt->attr.name);
+				prt_printf(err, "%s: must be bool", opt->attr.name);
 			return ret;
 		}
 		break;
 	case BCH_OPT_UINT:
+		if (!val) {
+			prt_printf(err, "%s: required value",
+				   opt->attr.name);
+			return -EINVAL;
+		}
+
 		ret = opt->flags & OPT_HUMAN_READABLE
 			? bch2_strtou64_h(val, res)
 			: kstrtou64(val, 10, res);
@@ -285,6 +333,12 @@ int bch2_opt_parse(struct bch_fs *c,
 		}
 		break;
 	case BCH_OPT_STR:
+		if (!val) {
+			prt_printf(err, "%s: required value",
+				   opt->attr.name);
+			return -EINVAL;
+		}
+
 		ret = match_string(opt->choices, -1, val);
 		if (ret < 0) {
 			if (err)
@@ -336,7 +390,7 @@ void bch2_opt_to_text(struct printbuf *out,
 		if (flags & OPT_SHOW_FULL_LIST)
 			prt_string_option(out, opt->choices, v);
 		else
-			prt_printf(out, "%s", opt->choices[v]);
+			prt_str(out, opt->choices[v]);
 		break;
 	case BCH_OPT_FN:
 		opt->fn.to_text(out, c, sb, v);
@@ -400,30 +454,18 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 		name	= strsep(&opt, "=");
 		val	= opt;
 
-		if (val) {
-			id = bch2_mount_opt_lookup(name);
-			if (id < 0)
-				goto bad_opt;
+		id = bch2_mount_opt_lookup(name);
 
-			ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v, &err);
-			if (ret < 0)
-				goto bad_val;
-		} else {
-			id = bch2_mount_opt_lookup(name);
-			v = 1;
-
-			if (id < 0 &&
-			    !strncmp("no", name, 2)) {
-				id = bch2_mount_opt_lookup(name + 2);
-				v = 0;
-			}
-
-			if (id < 0)
-				goto bad_opt;
-
-			if (bch2_opt_table[id].type != BCH_OPT_BOOL)
-				goto no_val;
+		/* Check for the form "noopt", negation of a boolean opt: */
+		if (id < 0 &&
+		    !val &&
+		    !strncmp("no", name, 2)) {
+			id = bch2_mount_opt_lookup(name + 2);
+			val = "0";
 		}
+
+		if (id < 0)
+			goto bad_opt;
 
 		if (!(bch2_opt_table[id].flags & OPT_MOUNT))
 			goto bad_opt;
@@ -437,6 +479,10 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 		    !IS_ENABLED(CONFIG_BCACHEFS_QUOTA))
 			goto bad_opt;
 
+		ret = bch2_opt_parse(c, &bch2_opt_table[id], val, &v, &err);
+		if (ret < 0)
+			goto bad_val;
+
 		bch2_opt_set_by_id(opts, id, v);
 	}
 
@@ -449,10 +495,6 @@ bad_opt:
 	goto out;
 bad_val:
 	pr_err("Invalid mount option %s", err.buf);
-	ret = -1;
-	goto out;
-no_val:
-	pr_err("Mount option %s requires a value", name);
 	ret = -1;
 	goto out;
 out:
