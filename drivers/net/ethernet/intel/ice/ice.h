@@ -517,6 +517,7 @@ enum ice_misc_thread_tasks {
 struct ice_switchdev_info {
 	struct ice_vsi *control_vsi;
 	struct ice_vsi *uplink_vsi;
+	struct ice_esw_br_offloads *br_offloads;
 	bool is_running;
 };
 
@@ -626,6 +627,7 @@ struct ice_pf {
 	struct ice_lag *lag; /* Link Aggregation information */
 
 	struct ice_switchdev_info switchdev;
+	struct ice_esw_br_port *br_port;
 
 #define ICE_INVALID_AGG_NODE_ID		0
 #define ICE_PF_AGG_NODE_ID_START	1
@@ -853,7 +855,7 @@ static inline bool ice_is_adq_active(struct ice_pf *pf)
 	return false;
 }
 
-bool netif_is_ice(struct net_device *dev);
+bool netif_is_ice(const struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);
