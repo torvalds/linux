@@ -741,10 +741,8 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 		goto nomem_urb;
 
 	hf = kmalloc(dev->hf_size_tx, GFP_ATOMIC);
-	if (!hf) {
-		netdev_err(netdev, "No memory left for USB buffer\n");
+	if (!hf)
 		goto nomem_hf;
-	}
 
 	idx = txc->echo_id;
 
@@ -877,8 +875,6 @@ static int gs_can_open(struct net_device *netdev)
 			buf = kmalloc(dev->parent->hf_size_rx,
 				      GFP_KERNEL);
 			if (!buf) {
-				netdev_err(netdev,
-					   "No memory left for USB buffer\n");
 				rc = -ENOMEM;
 				goto out_usb_free_urb;
 			}
@@ -901,7 +897,8 @@ static int gs_can_open(struct net_device *netdev)
 					netif_device_detach(dev->netdev);
 
 				netdev_err(netdev,
-					   "usb_submit failed (err=%d)\n", rc);
+					   "usb_submit_urb() failed, error %pe\n",
+					   ERR_PTR(rc));
 
 				goto out_usb_unanchor_urb;
 			}
