@@ -59,8 +59,7 @@
 		};
 
 		e24_mem: e24@c0000000 {
-			no-map;
-			reg = <0x0 0xc0110000 0x0 0xf0000>;
+			reg = <0x0 0x6ce00000 0x0 0x1600000>;
 		};
 
 		xrp_reserved: xrpbuffer@f0000000 {
@@ -727,6 +726,7 @@
 };
 
 &co_process {
+	memory-region = <&e24_mem>;
 	status = "okay";
 };
 
