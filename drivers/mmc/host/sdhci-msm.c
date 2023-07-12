@@ -488,7 +488,7 @@ struct sdhci_msm_host {
 	bool vbias_skip_wa;
 	struct reset_control *core_reset;
 	bool pltfm_init_done;
-	bool core_3_0v_support;
+	bool fake_core_3_0v_support;
 	bool use_7nm_dll;
 	struct sdhci_msm_dll_hsr *dll_hsr;
 	struct sdhci_msm_regs_restore regs_restore;
@@ -1909,7 +1909,7 @@ static bool sdhci_msm_populate_pdata(struct device *dev,
 	}
 
 	if (of_get_property(np, "qcom,core_3_0v_support", NULL))
-		msm_host->core_3_0v_support = true;
+		msm_host->fake_core_3_0v_support = true;
 
 	msm_host->regs_restore.is_supported =
 		of_property_read_bool(np, "qcom,restore-after-cx-collapse");
@@ -2632,7 +2632,8 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 		new_config = config;
 
 		if ((io_level & REQ_IO_HIGH) &&
-				(msm_host->caps_0 & CORE_3_0V_SUPPORT)) {
+				(msm_host->caps_0 & CORE_3_0V_SUPPORT) &&
+				!msm_host->fake_core_3_0v_support) {
 			if (msm_host->vbias_skip_wa)
 				sdhci_msm_vbias_bypass_wa(host);
 			else
@@ -4092,7 +4093,7 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 		msm_host->use_14lpp_dll_reset = true;
 
 	/* Fake 3.0V support for SDIO devices which requires such voltage */
-	if (msm_host->core_3_0v_support) {
+	if (msm_host->fake_core_3_0v_support) {
 		caps |= CORE_3_0V_SUPPORT;
 			writel_relaxed((readl_relaxed(host->ioaddr +
 			SDHCI_CAPABILITIES) | caps), host->ioaddr +
