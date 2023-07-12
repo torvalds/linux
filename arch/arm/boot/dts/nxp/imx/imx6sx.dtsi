@@ -863,7 +863,6 @@
 							reg = <0>;
 
 							ldb_from_lcdif1: endpoint {
-								remote-endpoint = <&lcdif1_to_ldb>;
 							};
 						};
 
@@ -1309,11 +1308,8 @@
 					power-domains = <&pd_disp>;
 					status = "disabled";
 
-					ports {
-						port {
-							lcdif1_to_ldb: endpoint {
-								remote-endpoint = <&ldb_from_lcdif1>;
-							};
+					port {
+						lcdif1_to_ldb: endpoint {
 						};
 					};
 				};
