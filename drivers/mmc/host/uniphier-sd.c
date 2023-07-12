@@ -706,19 +706,19 @@ static int uniphier_sd_probe(struct platform_device *pdev)
 	tmio_data->max_segs = 1;
 	tmio_data->max_blk_count = U16_MAX;
 
-	ret = tmio_mmc_host_probe(host);
-	if (ret)
-		goto disable_clk;
+	sd_ctrl_write32_as_16_and_16(host, CTL_IRQ_MASK, TMIO_MASK_ALL);
 
 	ret = devm_request_irq(dev, irq, tmio_mmc_irq, IRQF_SHARED,
 			       dev_name(dev), host);
 	if (ret)
-		goto remove_host;
+		goto disable_clk;
+
+	ret = tmio_mmc_host_probe(host);
+	if (ret)
+		goto disable_clk;
 
 	return 0;
 
-remove_host:
-	tmio_mmc_host_remove(host);
 disable_clk:
 	uniphier_sd_clk_disable(host);
 free_host:
