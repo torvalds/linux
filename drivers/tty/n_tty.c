@@ -164,7 +164,8 @@ static void zero_buffer(const struct tty_struct *tty, u8 *buffer, size_t size)
 		memset(buffer, 0, size);
 }
 
-static void tty_copy(struct tty_struct *tty, void *to, size_t tail, size_t n)
+static void tty_copy(const struct tty_struct *tty, void *to, size_t tail,
+		     size_t n)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t size = N_TTY_BUF_SIZE - tail;
@@ -195,7 +196,7 @@ static void tty_copy(struct tty_struct *tty, void *to, size_t tail, size_t n)
  *  * n_tty_read()/consumer path:
  *	holds non-exclusive %termios_rwsem
  */
-static void n_tty_kick_worker(struct tty_struct *tty)
+static void n_tty_kick_worker(const struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -215,9 +216,9 @@ static void n_tty_kick_worker(struct tty_struct *tty)
 	}
 }
 
-static ssize_t chars_in_buffer(struct tty_struct *tty)
+static ssize_t chars_in_buffer(const struct tty_struct *tty)
 {
-	struct n_tty_data *ldata = tty->disc_data;
+	const struct n_tty_data *ldata = tty->disc_data;
 	ssize_t n = 0;
 
 	if (!ldata->icanon)
@@ -393,7 +394,7 @@ static inline int is_utf8_continuation(unsigned char c)
  * Returns: true if the utf8 character @c is a multibyte continuation character
  * and the terminal is in unicode mode.
  */
-static inline int is_continuation(unsigned char c, struct tty_struct *tty)
+static inline int is_continuation(unsigned char c, const struct tty_struct *tty)
 {
 	return I_IUTF8(tty) && is_utf8_continuation(c);
 }
@@ -913,7 +914,7 @@ static void echo_char_raw(unsigned char c, struct n_tty_data *ldata)
  * This variant tags control characters to be echoed as "^X" (where X is the
  * letter representing the control char).
  */
-static void echo_char(unsigned char c, struct tty_struct *tty)
+static void echo_char(unsigned char c, const struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -951,7 +952,7 @@ static inline void finish_erasing(struct n_tty_data *ldata)
  * Locking: n_tty_receive_buf()/producer path:
  *	caller holds non-exclusive %termios_rwsem
  */
-static void eraser(unsigned char c, struct tty_struct *tty)
+static void eraser(unsigned char c, const struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	enum { ERASE, WERASE, KILL } kill_type;
@@ -1167,7 +1168,7 @@ static void n_tty_receive_break(struct tty_struct *tty)
  * Called from the receive_buf path so single threaded. Does not need locking
  * as num_overrun and overrun_time are function private.
  */
-static void n_tty_receive_overrun(struct tty_struct *tty)
+static void n_tty_receive_overrun(const struct tty_struct *tty)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1191,7 +1192,8 @@ static void n_tty_receive_overrun(struct tty_struct *tty)
  * Locking: n_tty_receive_buf()/producer path:
  * 	caller holds non-exclusive %termios_rwsem
  */
-static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
+static void n_tty_receive_parity_error(const struct tty_struct *tty,
+				       unsigned char c)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 
@@ -1498,8 +1500,8 @@ static void n_tty_lookahead_flow_ctrl(struct tty_struct *tty, const unsigned cha
 }
 
 static void
-n_tty_receive_buf_real_raw(struct tty_struct *tty, const unsigned char *cp,
-			   int count)
+n_tty_receive_buf_real_raw(const struct tty_struct *tty,
+			   const unsigned char *cp, int count)
 {
 	struct n_tty_data *ldata = tty->disc_data;
 	size_t n, head;
@@ -1900,9 +1902,9 @@ static int n_tty_open(struct tty_struct *tty)
 	return 0;
 }
 
-static inline int input_available_p(struct tty_struct *tty, int poll)
+static inline int input_available_p(const struct tty_struct *tty, int poll)
 {
-	struct n_tty_data *ldata = tty->disc_data;
+	const struct n_tty_data *ldata = tty->disc_data;
 	int amt = poll && !TIME_CHAR(tty) && MIN_CHAR(tty) ? MIN_CHAR(tty) : 1;
 
 	if (ldata->icanon && !L_EXTPROC(tty))
@@ -1929,7 +1931,7 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
  *		caller holds non-exclusive %termios_rwsem;
  *		read_tail published
  */
-static bool copy_from_read_buf(struct tty_struct *tty,
+static bool copy_from_read_buf(const struct tty_struct *tty,
 				      unsigned char **kbp,
 				      size_t *nr)
 
@@ -1984,7 +1986,7 @@ static bool copy_from_read_buf(struct tty_struct *tty,
  *	caller holds non-exclusive %termios_rwsem;
  *	read_tail published
  */
-static bool canon_copy_from_read_buf(struct tty_struct *tty,
+static bool canon_copy_from_read_buf(const struct tty_struct *tty,
 				     unsigned char **kbp,
 				     size_t *nr)
 {
