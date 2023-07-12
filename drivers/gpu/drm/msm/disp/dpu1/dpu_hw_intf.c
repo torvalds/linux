@@ -95,7 +95,7 @@
 
 
 static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
-		const struct intf_timing_params *p,
+		const struct dpu_hw_intf_timing_params *p,
 		const struct dpu_format *fmt)
 {
 	struct dpu_hw_blk_reg_map *c = &ctx->hw;
@@ -244,7 +244,7 @@ static void dpu_hw_intf_enable_timing_engine(
 
 static void dpu_hw_intf_setup_prg_fetch(
 		struct dpu_hw_intf *intf,
-		const struct intf_prog_fetch *fetch)
+		const struct dpu_hw_intf_prog_fetch *fetch)
 {
 	struct dpu_hw_blk_reg_map *c = &intf->hw;
 	int fetch_enable;
@@ -286,7 +286,7 @@ static void dpu_hw_intf_bind_pingpong_blk(
 
 static void dpu_hw_intf_get_status(
 		struct dpu_hw_intf *intf,
-		struct intf_status *s)
+		struct dpu_hw_intf_status *s)
 {
 	struct dpu_hw_blk_reg_map *c = &intf->hw;
 	unsigned long cap = intf->cap->features;

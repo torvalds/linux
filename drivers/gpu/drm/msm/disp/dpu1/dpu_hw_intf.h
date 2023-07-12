@@ -14,7 +14,7 @@
 struct dpu_hw_intf;
 
 /* intf timing settings */
-struct intf_timing_params {
+struct dpu_hw_intf_timing_params {
 	u32 width;		/* active width */
 	u32 height;		/* active height */
 	u32 xres;		/* Display panel width */
@@ -35,13 +35,13 @@ struct intf_timing_params {
 	bool wide_bus_en;
 };
 
-struct intf_prog_fetch {
+struct dpu_hw_intf_prog_fetch {
 	u8 enable;
 	/* vsync counter for the front porch pixel line */
 	u32 fetch_start;
 };
 
-struct intf_status {
+struct dpu_hw_intf_status {
 	u8 is_en;		/* interface timing engine is enabled or not */
 	u8 is_prog_fetch_en;	/* interface prog fetch counter is enabled or not */
 	u32 frame_count;	/* frame count since timing engine enabled */
@@ -74,17 +74,17 @@ struct intf_status {
  */
 struct dpu_hw_intf_ops {
 	void (*setup_timing_gen)(struct dpu_hw_intf *intf,
-			const struct intf_timing_params *p,
+			const struct dpu_hw_intf_timing_params *p,
 			const struct dpu_format *fmt);
 
 	void (*setup_prg_fetch)(struct dpu_hw_intf *intf,
-			const struct intf_prog_fetch *fetch);
+			const struct dpu_hw_intf_prog_fetch *fetch);
 
 	void (*enable_timing)(struct dpu_hw_intf *intf,
 			u8 enable);
 
 	void (*get_status)(struct dpu_hw_intf *intf,
-			struct intf_status *status);
+			struct dpu_hw_intf_status *status);
 
 	u32 (*get_line_count)(struct dpu_hw_intf *intf);
 
