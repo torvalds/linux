@@ -934,7 +934,7 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_pix_format_mplane *pix_mp = &f->fmt.pix_mp;
 	struct media_entity *sensor;
-	u32 width, height, code;
+	u32 width, height;
 	struct media_pad *pad;
 
 	/* pix to mbus format */
