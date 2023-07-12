@@ -2503,8 +2503,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		lpfc_printf_vlog(vport, KERN_ERR,
 				 LOG_TRACE_EVENT,
 				 "6031 RemotePort Registration failed "
-				 "err: %d, DID x%06x\n",
-				 ret, ndlp->nlp_DID);
+				 "err: %d, DID x%06x ref %u\n",
+				 ret, ndlp->nlp_DID, kref_read(&ndlp->kref));
+		lpfc_nlp_put(ndlp);
 	}
 
 	return ret;
