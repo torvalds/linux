@@ -131,7 +131,7 @@ struct dbg_buf_ctxt {
 
 struct gsi_tre_queue {
 	u32 msg_wr_idx; /* i2c msg write index */
-	u32 msg_rd_idx; /* i2c msg read index */
+	atomic_t msg_rd_idx; /* i2c msg read index */
 	u8 dma_wr_idx; /* i2c dma buf write index */
 	u8 dma_rd_idx; /* i2c dma buf red index */
 	u32 unmap_msg_cnt; /* i2c msg unmap count */
@@ -851,10 +851,7 @@ static void gi2c_gsi_tre_process(struct geni_i2c_dev *gi2c, struct gsi_tre_queue
 
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 		    "%s:start unmap_cnt:%d rd_idx:%d\n",
-		    __func__, gsi_tre->unmap_msg_cnt, gsi_tre->msg_rd_idx);
-
-	if (gsi_tre->unmap_msg_cnt == gsi_tre->msg_rd_idx)
-		return;
+		    __func__, gsi_tre->unmap_msg_cnt, atomic_read(&gsi_tre->msg_rd_idx));
 
 	/**
 	 * When irq context and thread context are running independently
@@ -876,7 +873,10 @@ static void gi2c_gsi_tre_process(struct geni_i2c_dev *gi2c, struct gsi_tre_queue
 		}
 	}
 
-	while (gsi_tre->unmap_msg_cnt < gsi_tre->msg_rd_idx) {
+	if (gsi_tre->unmap_msg_cnt == atomic_read(&gsi_tre->msg_rd_idx))
+		return;
+
+	while (gsi_tre->unmap_msg_cnt < atomic_read(&gsi_tre->msg_rd_idx)) {
 		geni_se_common_iommu_unmap_buf(gi2c->wrapper_dev,
 					       &gi2c->tx_ph[gsi_tre->dma_rd_idx],
 					       gi2c->msgs[gsi_tre->unmap_msg_cnt].len,
@@ -889,7 +889,7 @@ static void gi2c_gsi_tre_process(struct geni_i2c_dev *gi2c, struct gsi_tre_queue
 		gi2c->gsi_tx.dma_rd_idx = (gi2c->gsi_tx.dma_rd_idx + 1) % MAX_NUM_TRE_MSGS;
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "%s: unmap_cnt:%d rd_idx:%d tx_cnt:%d\n",
-			    __func__, gsi_tre->unmap_msg_cnt, gsi_tre->msg_rd_idx,
+			    __func__, gsi_tre->unmap_msg_cnt, atomic_read(&gsi_tre->msg_rd_idx),
 			    atomic_read(&gi2c->gsi_tx.msg_cnt));
 	}
 }
@@ -907,7 +907,7 @@ static void gi2c_gsi_tx_cb(void *ptr)
 	if (gi2c->gsi_err || gi2c->err) {
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "%s:rd_idx:%d wr_idx:%d tx_cnt:%d gsi_err:%d gi2c_err:%d\n",
-			    __func__, gi2c->gsi_tx.msg_rd_idx,
+			    __func__, atomic_read(&gi2c->gsi_tx.msg_rd_idx),
 			    gi2c->gsi_tx.msg_wr_idx,
 			    atomic_read(&gi2c->gsi_tx.msg_cnt),
 			    gi2c->gsi_err, gi2c->err);
@@ -917,16 +917,16 @@ static void gi2c_gsi_tx_cb(void *ptr)
 	}
 
 	if (atomic_read(&gi2c->gsi_tx.msg_cnt)) {
-		gi2c->gsi_tx.msg_rd_idx++;
+		atomic_inc(&gi2c->gsi_tx.msg_rd_idx);
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "%s:rd_idx:%d wr_idx:%d tx_cnt:%d\n",
-			    __func__, gi2c->gsi_tx.msg_rd_idx,
+			    __func__, atomic_read(&gi2c->gsi_tx.msg_rd_idx),
 			    gi2c->gsi_tx.msg_wr_idx,
 			    atomic_read(&gi2c->gsi_tx.msg_cnt));
 	} else {
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "%s:else rd_idx:%d wr_idx:%d tx_cnt:%d\n",
-			    __func__, gi2c->gsi_tx.msg_rd_idx,
+			    __func__, atomic_read(&gi2c->gsi_tx.msg_rd_idx),
 			    gi2c->gsi_tx.msg_wr_idx,
 			    atomic_read(&gi2c->gsi_tx.msg_cnt));
 	}
@@ -936,17 +936,17 @@ static void gi2c_gsi_tx_cb(void *ptr)
 	 * to balance this added msg_wait flag.
 	 */
 	if (atomic_read(&gi2c->msg_wait) ||
-	    gi2c->gsi_tx.msg_rd_idx == gi2c->gsi_tx.msg_wr_idx) {
+	    atomic_read(&gi2c->gsi_tx.msg_rd_idx) == gi2c->gsi_tx.msg_wr_idx) {
 		atomic_set(&gi2c->msg_wait, 0);
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "before complete %s:rd_idx:%d wr_idx:%d tx_cnt:%d\n",
-			    __func__, gi2c->gsi_tx.msg_rd_idx,
+			    __func__, atomic_read(&gi2c->gsi_tx.msg_rd_idx),
 			    gi2c->gsi_tx.msg_wr_idx,
 			    atomic_read(&gi2c->gsi_tx.msg_cnt));
 		complete(&gi2c->xfer);
 		I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 			    "after complete %s:rd_idx:%d wr_idx:%d tx_cnt:%d\n",
-			    __func__, gi2c->gsi_tx.msg_rd_idx,
+			    __func__, atomic_read(&gi2c->gsi_tx.msg_rd_idx),
 			    gi2c->gsi_tx.msg_wr_idx,
 			    atomic_read(&gi2c->gsi_tx.msg_cnt));
 	}
@@ -1299,7 +1299,7 @@ static int geni_i2c_gsi_tx_tre_optimization(struct geni_i2c_dev *gi2c, int i, in
 	 * including last submitted tre as well.
 	 */
 	if ((i == (num - 1)) && num >= MAX_NUM_TRE_MSGS && !gi2c->is_shared) {
-		while (gi2c->gsi_tx.msg_rd_idx != gi2c->gsi_tx.msg_wr_idx) {
+		while (atomic_read(&gi2c->gsi_tx.msg_rd_idx) != gi2c->gsi_tx.msg_wr_idx) {
 			atomic_set(&gi2c->msg_wait, 1);
 			timeout = wait_for_completion_timeout(&gi2c->xfer,
 							      gi2c->xfer_timeout);
@@ -1337,7 +1337,7 @@ static int geni_i2c_gsi_tx_tre_optimization(struct geni_i2c_dev *gi2c, int i, in
 
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 		    "%s: rd_idx:%d wr_idx:%d tx_cnt:%d timeout:%d\n",
-		    __func__, gi2c->gsi_tx.msg_rd_idx,  gi2c->gsi_tx.msg_wr_idx,
+		    __func__, atomic_read(&gi2c->gsi_tx.msg_rd_idx),  gi2c->gsi_tx.msg_wr_idx,
 		    atomic_read(&gi2c->gsi_tx.msg_cnt), timeout);
 	return timeout;
 }
@@ -1376,7 +1376,7 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		cfg0_t = setup_cfg0_tre(gi2c);
 
 	gi2c->gsi_tx.msg_wr_idx = 0;
-	gi2c->gsi_tx.msg_rd_idx = 0;
+	atomic_set(&gi2c->gsi_tx.msg_rd_idx, 0);
 	gi2c->gsi_tx.dma_rd_idx = 0;
 	gi2c->gsi_tx.dma_wr_idx = 0;
 	gi2c->gsi_tx.unmap_msg_cnt = 0;
@@ -1559,7 +1559,7 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			gi2c->gsi_tx.msg_wr_idx++;
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 				    "before dma rd_idx:%d wr_idx:%d tx_cnt:%d timeout:%d\n",
-				    gi2c->gsi_tx.msg_rd_idx, gi2c->gsi_tx.msg_wr_idx,
+				    atomic_read(&gi2c->gsi_tx.msg_rd_idx), gi2c->gsi_tx.msg_wr_idx,
 				    atomic_read(&gi2c->gsi_tx.msg_cnt), timeout);
 
 			/* Issue TX */
@@ -1574,7 +1574,7 @@ static int geni_i2c_gsi_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			dma_async_issue_pending(gi2c->tx_c);
 			I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev,
 				    "after dma rd_idx:%d wr_idx:%d tx_cnt:%d timeout:%d\n",
-				    gi2c->gsi_tx.msg_rd_idx, gi2c->gsi_tx.msg_wr_idx,
+				    atomic_read(&gi2c->gsi_tx.msg_rd_idx), gi2c->gsi_tx.msg_wr_idx,
 				    atomic_read(&gi2c->gsi_tx.msg_cnt), timeout);
 			/* process received tre's */
 			gi2c_gsi_tre_process(gi2c, &gi2c->gsi_tx);
@@ -1659,7 +1659,7 @@ geni_i2c_gsi_cancel_pending:
 			 */
 			while (gi2c->gsi_tx.unmap_msg_cnt != gi2c->gsi_tx.msg_wr_idx) {
 				gi2c_gsi_tre_process(gi2c, &gi2c->gsi_tx);
-				gi2c->gsi_tx.msg_rd_idx++;
+				atomic_inc(&gi2c->gsi_tx.msg_rd_idx);
 			}
 		}
 		if (gi2c->err)
