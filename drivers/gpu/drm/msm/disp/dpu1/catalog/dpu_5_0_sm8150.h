@@ -375,7 +375,13 @@ static const struct dpu_perf_cfg sm8150_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
+static const struct dpu_mdss_version sm8150_mdss_ver = {
+	.core_major_ver = 5,
+	.core_minor_ver = 0,
+};
+
 const struct dpu_mdss_cfg dpu_sm8150_cfg = {
+	.mdss_ver = &sm8150_mdss_ver,
 	.caps = &sm8150_dpu_caps,
 	.ubwc = &sm8150_ubwc_cfg,
 	.mdp = &sm8150_mdp,

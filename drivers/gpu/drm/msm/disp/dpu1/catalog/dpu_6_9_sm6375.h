@@ -146,7 +146,13 @@ static const struct dpu_perf_cfg sm6375_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
+static const struct dpu_mdss_version sm6375_mdss_ver = {
+	.core_major_ver = 6,
+	.core_minor_ver = 9,
+};
+
 const struct dpu_mdss_cfg dpu_sm6375_cfg = {
+	.mdss_ver = &sm6375_mdss_ver,
 	.caps = &sm6375_dpu_caps,
 	.ubwc = &sm6375_ubwc_cfg,
 	.mdp = &sm6375_mdp,

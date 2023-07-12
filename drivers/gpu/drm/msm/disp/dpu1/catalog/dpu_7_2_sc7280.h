@@ -252,7 +252,13 @@ static const struct dpu_perf_cfg sc7280_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
+static const struct dpu_mdss_version sc7280_mdss_ver = {
+	.core_major_ver = 7,
+	.core_minor_ver = 2,
+};
+
 const struct dpu_mdss_cfg dpu_sc7280_cfg = {
+	.mdss_ver = &sc7280_mdss_ver,
 	.caps = &sc7280_dpu_caps,
 	.ubwc = &sc7280_ubwc_cfg,
 	.mdp = &sc7280_mdp,

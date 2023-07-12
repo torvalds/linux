@@ -126,7 +126,13 @@ static const struct dpu_perf_cfg qcm2290_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
+static const struct dpu_mdss_version qcm2290_mdss_ver = {
+	.core_major_ver = 6,
+	.core_minor_ver = 5,
+};
+
 const struct dpu_mdss_cfg dpu_qcm2290_cfg = {
+	.mdss_ver = &qcm2290_mdss_ver,
 	.caps = &qcm2290_dpu_caps,
 	.ubwc = &qcm2290_ubwc_cfg,
 	.mdp = &qcm2290_mdp,

@@ -204,7 +204,13 @@ static const struct dpu_perf_cfg sc7180_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
+static const struct dpu_mdss_version sc7180_mdss_ver = {
+	.core_major_ver = 6,
+	.core_minor_ver = 2,
+};
+
 const struct dpu_mdss_cfg dpu_sc7180_cfg = {
+	.mdss_ver = &sc7180_mdss_ver,
 	.caps = &sc7180_dpu_caps,
 	.ubwc = &sc7180_ubwc_cfg,
 	.mdp = &sc7180_mdp,

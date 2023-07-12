@@ -445,7 +445,13 @@ static const struct dpu_perf_cfg sc8280xp_perf_data = {
 	.bw_inefficiency_factor = 120,
 };
 
+static const struct dpu_mdss_version sc8280xp_mdss_ver = {
+	.core_major_ver = 8,
+	.core_minor_ver = 0,
+};
+
 const struct dpu_mdss_cfg dpu_sc8280xp_cfg = {
+	.mdss_ver = &sc8280xp_mdss_ver,
 	.caps = &sc8280xp_dpu_caps,
 	.ubwc = &sc8280xp_ubwc_cfg,
 	.mdp = &sc8280xp_mdp,
