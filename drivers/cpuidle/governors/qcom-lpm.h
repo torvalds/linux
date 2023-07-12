@@ -59,6 +59,7 @@ struct lpm_cpu {
 	ktime_t now;
 	uint64_t bias;
 	int64_t next_pred_time;
+	uint32_t pred_type;
 	bool ipi_pending;
 	spinlock_t lock;
 };
