@@ -85,6 +85,7 @@ TEST_PROGS = bridge_igmp.sh \
 	tc_flower.sh \
 	tc_flower_l2_miss.sh \
 	tc_flower_cfm.sh \
+	tc_flower_port_range.sh \
 	tc_mpls_l2vpn.sh \
 	tc_police.sh \
 	tc_shblocks.sh \

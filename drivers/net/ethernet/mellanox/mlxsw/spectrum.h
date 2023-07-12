@@ -69,6 +69,7 @@ enum mlxsw_sp_resource_id {
 	MLXSW_SP_RESOURCE_SINGLE_RATE_POLICERS,
 	MLXSW_SP_RESOURCE_RIF_MAC_PROFILES,
 	MLXSW_SP_RESOURCE_RIFS,
+	MLXSW_SP_RESOURCE_PORT_RANGE_REGISTERS,
 };
 
 struct mlxsw_sp_port;
@@ -175,6 +176,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_acl *acl;
 	struct mlxsw_sp_fid_core *fid_core;
 	struct mlxsw_sp_policer_core *policer_core;
+	struct mlxsw_sp_port_range_core *pr_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
 	struct notifier_block netdevice_nb;
@@ -865,9 +867,13 @@ struct mlxsw_sp_acl_rule_info {
 	   egress_bind_blocker:1,
 	   counter_valid:1,
 	   policer_index_valid:1,
-	   ipv6_valid:1;
+	   ipv6_valid:1,
+	   src_port_range_reg_valid:1,
+	   dst_port_range_reg_valid:1;
 	unsigned int counter_index;
 	u16 policer_index;
+	u8 src_port_range_reg_index;
+	u8 dst_port_range_reg_index;
 	struct {
 		u32 prev_val;
 		enum mlxsw_sp_acl_mangle_field prev_field;
@@ -992,7 +998,8 @@ void mlxsw_sp_acl_ruleset_prio_get(struct mlxsw_sp_acl_ruleset *ruleset,
 struct mlxsw_sp_acl_rule_info *
 mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl,
 			  struct mlxsw_afa_block *afa_block);
-void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp_acl_rule_info *rulei);
+void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_commit(struct mlxsw_sp_acl_rule_info *rulei);
 void mlxsw_sp_acl_rulei_priority(struct mlxsw_sp_acl_rule_info *rulei,
 				 unsigned int priority);
@@ -1484,4 +1491,18 @@ int mlxsw_sp_pgt_entry_port_set(struct mlxsw_sp *mlxsw_sp, u16 mid,
 int mlxsw_sp_pgt_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_pgt_fini(struct mlxsw_sp *mlxsw_sp);
 
+/* spectrum_port_range.c */
+struct mlxsw_sp_port_range {
+	u16 min;
+	u16 max;
+	u8 source:1;	/* Source or destination */
+};
+
+int mlxsw_sp_port_range_reg_get(struct mlxsw_sp *mlxsw_sp,
+				const struct mlxsw_sp_port_range *range,
+				struct netlink_ext_ack *extack,
+				u8 *p_prr_index);
+void mlxsw_sp_port_range_reg_put(struct mlxsw_sp *mlxsw_sp, u8 prr_index);
+int mlxsw_sp_port_range_init(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_port_range_fini(struct mlxsw_sp *mlxsw_sp);
 #endif

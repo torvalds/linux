@@ -3188,6 +3188,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_nve_init;
 	}
 
+	err = mlxsw_sp_port_range_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize port ranges\n");
+		goto err_port_range_init;
+	}
+
 	err = mlxsw_sp_acl_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize ACL\n");
@@ -3280,6 +3286,8 @@ err_ptp_clock_init:
 err_router_init:
 	mlxsw_sp_acl_fini(mlxsw_sp);
 err_acl_init:
+	mlxsw_sp_port_range_fini(mlxsw_sp);
+err_port_range_init:
 	mlxsw_sp_nve_fini(mlxsw_sp);
 err_nve_init:
 	mlxsw_sp_ipv6_addr_ht_fini(mlxsw_sp);
@@ -3462,6 +3470,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	}
 	mlxsw_sp_router_fini(mlxsw_sp);
 	mlxsw_sp_acl_fini(mlxsw_sp);
+	mlxsw_sp_port_range_fini(mlxsw_sp);
 	mlxsw_sp_nve_fini(mlxsw_sp);
 	mlxsw_sp_ipv6_addr_ht_fini(mlxsw_sp);
 	mlxsw_sp_afa_fini(mlxsw_sp);
@@ -3730,6 +3739,26 @@ static int mlxsw_sp_resources_rifs_register(struct mlxsw_core *mlxsw_core)
 				      &size_params);
 }
 
+static int
+mlxsw_sp_resources_port_range_register(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	struct devlink_resource_size_params size_params;
+	u64 max;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, ACL_MAX_L4_PORT_RANGE))
+		return -EIO;
+
+	max = MLXSW_CORE_RES_GET(mlxsw_core, ACL_MAX_L4_PORT_RANGE);
+	devlink_resource_size_params_init(&size_params, max, max, 1,
+					  DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	return devl_resource_register(devlink, "port_range_registers", max,
+				      MLXSW_SP_RESOURCE_PORT_RANGE_REGISTERS,
+				      DEVLINK_RESOURCE_ID_PARENT_TOP,
+				      &size_params);
+}
+
 static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 {
 	int err;
@@ -3758,8 +3787,13 @@ static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_resources_rifs_register;
 
+	err = mlxsw_sp_resources_port_range_register(mlxsw_core);
+	if (err)
+		goto err_resources_port_range_register;
+
 	return 0;
 
+err_resources_port_range_register:
 err_resources_rifs_register:
 err_resources_rif_mac_profile_register:
 err_policer_resources_register:
@@ -3797,8 +3831,13 @@ static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
 	if (err)
 		goto err_resources_rifs_register;
 
+	err = mlxsw_sp_resources_port_range_register(mlxsw_core);
+	if (err)
+		goto err_resources_port_range_register;
+
 	return 0;
 
+err_resources_port_range_register:
 err_resources_rifs_register:
 err_resources_rif_mac_profile_register:
 err_policer_resources_register:

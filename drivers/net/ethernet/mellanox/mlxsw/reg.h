@@ -2799,6 +2799,78 @@ static inline void mlxsw_reg_ptar_unpack(char *payload, char *tcam_region_info)
 	mlxsw_reg_ptar_tcam_region_info_memcpy_from(payload, tcam_region_info);
 }
 
+/* PPRR - Policy-Engine Port Range Register
+ * ----------------------------------------
+ * This register is used for configuring port range identification.
+ */
+#define MLXSW_REG_PPRR_ID 0x3008
+#define MLXSW_REG_PPRR_LEN 0x14
+
+MLXSW_REG_DEFINE(pprr, MLXSW_REG_PPRR_ID, MLXSW_REG_PPRR_LEN);
+
+/* reg_pprr_ipv4
+ * Apply port range register to IPv4 packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, ipv4, 0x00, 31, 1);
+
+/* reg_pprr_ipv6
+ * Apply port range register to IPv6 packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, ipv6, 0x00, 30, 1);
+
+/* reg_pprr_src
+ * Apply port range register to source L4 ports.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, src, 0x00, 29, 1);
+
+/* reg_pprr_dst
+ * Apply port range register to destination L4 ports.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, dst, 0x00, 28, 1);
+
+/* reg_pprr_tcp
+ * Apply port range register to TCP packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, tcp, 0x00, 27, 1);
+
+/* reg_pprr_udp
+ * Apply port range register to UDP packets.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, udp, 0x00, 26, 1);
+
+/* reg_pprr_register_index
+ * Index of Port Range Register being accessed.
+ * Range is 0..cap_max_acl_l4_port_range-1.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pprr, register_index, 0x00, 0, 8);
+
+/* reg_prrr_port_range_min
+ * Minimum port range for comparison.
+ * Match is defined as:
+ * port_range_min <= packet_port <= port_range_max.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, port_range_min, 0x04, 16, 16);
+
+/* reg_prrr_port_range_max
+ * Maximum port range for comparison.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pprr, port_range_max, 0x04, 0, 16);
+
+static inline void mlxsw_reg_pprr_pack(char *payload, u8 register_index)
+{
+	MLXSW_REG_ZERO(pprr, payload);
+	mlxsw_reg_pprr_register_index_set(payload, register_index);
+}
+
 /* PPBS - Policy-Engine Policy Based Switching Register
  * ----------------------------------------------------
  * This register retrieves and sets Policy Based Switching Table entries.
@@ -12819,6 +12891,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pacl),
 	MLXSW_REG(pagt),
 	MLXSW_REG(ptar),
+	MLXSW_REG(pprr),
 	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),

@@ -418,6 +418,68 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int
+mlxsw_sp_flower_parse_ports_range(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  struct flow_cls_offload *f, u8 ip_proto)
+{
+	const struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct flow_match_ports_range match;
+	u32 key_mask_value = 0;
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS_RANGE))
+		return 0;
+
+	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Only UDP and TCP keys are supported");
+		return -EINVAL;
+	}
+
+	flow_rule_match_ports_range(rule, &match);
+
+	if (match.mask->tp_min.src) {
+		struct mlxsw_sp_port_range range = {
+			.min = ntohs(match.key->tp_min.src),
+			.max = ntohs(match.key->tp_max.src),
+			.source = true,
+		};
+		u8 prr_index;
+		int err;
+
+		err = mlxsw_sp_port_range_reg_get(mlxsw_sp, &range,
+						  f->common.extack, &prr_index);
+		if (err)
+			return err;
+
+		rulei->src_port_range_reg_index = prr_index;
+		rulei->src_port_range_reg_valid = true;
+		key_mask_value |= BIT(prr_index);
+	}
+
+	if (match.mask->tp_min.dst) {
+		struct mlxsw_sp_port_range range = {
+			.min = ntohs(match.key->tp_min.dst),
+			.max = ntohs(match.key->tp_max.dst),
+		};
+		u8 prr_index;
+		int err;
+
+		err = mlxsw_sp_port_range_reg_get(mlxsw_sp, &range,
+						  f->common.extack, &prr_index);
+		if (err)
+			return err;
+
+		rulei->dst_port_range_reg_index = prr_index;
+		rulei->dst_port_range_reg_valid = true;
+		key_mask_value |= BIT(prr_index);
+	}
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_L4_PORT_RANGE,
+				       key_mask_value, key_mask_value);
+
+	return 0;
+}
+
 static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_rule_info *rulei,
 				     struct flow_cls_offload *f,
@@ -503,6 +565,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS_RANGE) |
 	      BIT(FLOW_DISSECTOR_KEY_TCP) |
 	      BIT(FLOW_DISSECTOR_KEY_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
@@ -604,6 +667,11 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_flower_parse_ports(mlxsw_sp, rulei, f, ip_proto);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_flower_parse_ports_range(mlxsw_sp, rulei, f, ip_proto);
+	if (err)
+		return err;
+
 	err = mlxsw_sp_flower_parse_tcp(mlxsw_sp, rulei, f, ip_proto);
 	if (err)
 		return err;

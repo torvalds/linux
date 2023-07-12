@@ -31,12 +31,14 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_smac_ex[] = {
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_sip[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_0_31, 0x00, 4),
+	MLXSW_AFK_ELEMENT_INST_U32(L4_PORT_RANGE, 0x04, 16, 16),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x08, 0, 8),
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x0C, 0, 16),
 };
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_dip[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_0_31, 0x00, 4),
+	MLXSW_AFK_ELEMENT_INST_U32(L4_PORT_RANGE, 0x04, 16, 16),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x08, 0, 8),
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x0C, 0, 16),
 };
@@ -205,6 +207,7 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_0[] = {
 
 static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_2[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(TCP_FLAGS, 0x04, 16, 9), /* TCP_CONTROL + TCP_ECN */
+	MLXSW_AFK_ELEMENT_INST_U32(L4_PORT_RANGE, 0x04, 0, 16),
 };
 
 static const struct mlxsw_afk_block mlxsw_sp2_afk_blocks[] = {
