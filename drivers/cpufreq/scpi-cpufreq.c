@@ -208,11 +208,10 @@ static int scpi_cpufreq_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int scpi_cpufreq_remove(struct platform_device *pdev)
+static void scpi_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&scpi_cpufreq_driver);
 	scpi_ops = NULL;
-	return 0;
 }
 
 static struct platform_driver scpi_cpufreq_platdrv = {
@@ -220,7 +219,7 @@ static struct platform_driver scpi_cpufreq_platdrv = {
 		.name	= "scpi-cpufreq",
 	},
 	.probe		= scpi_cpufreq_probe,
-	.remove		= scpi_cpufreq_remove,
+	.remove_new	= scpi_cpufreq_remove,
 };
 module_platform_driver(scpi_cpufreq_platdrv);
 
