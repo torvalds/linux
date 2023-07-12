@@ -106,6 +106,24 @@
  * double_lock_hb() and double_unlock_hb(), respectively.
  */
 
+bool __futex_wake_mark(struct futex_q *q)
+{
+	if (WARN(q->pi_state || q->rt_waiter, "refusing to wake PI futex\n"))
+		return false;
+
+	__futex_unqueue(q);
+	/*
+	 * The waiting task can free the futex_q as soon as q->lock_ptr = NULL
+	 * is written, without taking any locks. This is possible in the event
+	 * of a spurious wakeup, for example. A memory barrier is required here
+	 * to prevent the following store to lock_ptr from getting ahead of the
+	 * plist_del in __futex_unqueue().
+	 */
+	smp_store_release(&q->lock_ptr, NULL);
+
+	return true;
+}
+
 /*
  * The hash bucket lock must be held when this is called.
  * Afterwards, the futex_q must not be accessed. Callers
@@ -116,19 +134,12 @@ void futex_wake_mark(struct wake_q_head *wake_q, struct futex_q *q)
 {
 	struct task_struct *p = q->task;
 
-	if (WARN(q->pi_state || q->rt_waiter, "refusing to wake PI futex\n"))
-		return;
-
 	get_task_struct(p);
-	__futex_unqueue(q);
-	/*
-	 * The waiting task can free the futex_q as soon as q->lock_ptr = NULL
-	 * is written, without taking any locks. This is possible in the event
-	 * of a spurious wakeup, for example. A memory barrier is required here
-	 * to prevent the following store to lock_ptr from getting ahead of the
-	 * plist_del in __futex_unqueue().
-	 */
-	smp_store_release(&q->lock_ptr, NULL);
+
+	if (!__futex_wake_mark(q)) {
+		put_task_struct(p);
+		return;
+	}
 
 	/*
 	 * Queue the task for later wakeup for after we've released
