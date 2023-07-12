@@ -359,7 +359,7 @@ static int bcm_kp_probe(struct platform_device *pdev)
 	/* Enable clock */
 	kp->clk = devm_clk_get_optional(&pdev->dev, "peri_clk");
 	if (IS_ERR(kp->clk)) {
-		return dev_err_probe(&pdev->dev, error, "Failed to get clock\n");
+		return dev_err_probe(&pdev->dev, PTR_ERR(kp->clk), "Failed to get clock\n");
 	} else if (!kp->clk) {
 		dev_dbg(&pdev->dev, "No clock specified. Assuming it's enabled\n");
 	} else {
