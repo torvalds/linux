@@ -1088,15 +1088,11 @@ static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute 
 				    const char *buf, size_t count)
 {
 	struct idxd_wq *wq = confdev_to_wq(dev);
-	struct idxd_device *idxd = wq->idxd;
 	bool ats_dis;
 	int rc;
 
 	if (wq->state != IDXD_WQ_DISABLED)
 		return -EPERM;
-
-	if (!idxd->hw.wq_cap.wq_ats_support)
-		return -EOPNOTSUPP;
 
 	rc = kstrtobool(buf, &ats_dis);
 	if (rc < 0)
@@ -1314,6 +1310,9 @@ static umode_t idxd_wq_attr_visible(struct kobject *kobj,
 		return 0;
 
 	if (idxd_wq_attr_invisible(prs_disable, wq_prs_support, attr, idxd))
+		return 0;
+
+	if (idxd_wq_attr_invisible(ats_disable, wq_ats_support, attr, idxd))
 		return 0;
 
 	return attr->mode;
