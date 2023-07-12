@@ -111,9 +111,9 @@ struct amdgpu_prt_cb {
 };
 
 /**
- * struct amdgpu_vm_tlb_seq_cb - Helper to increment the TLB flush sequence
+ * struct amdgpu_vm_tlb_seq_struct - Helper to increment the TLB flush sequence
  */
-struct amdgpu_vm_tlb_seq_cb {
+struct amdgpu_vm_tlb_seq_struct {
 	/**
 	 * @vm: pointer to the amdgpu_vm structure to set the fence sequence on
 	 */
@@ -833,7 +833,7 @@ error:
 static void amdgpu_vm_tlb_seq_cb(struct dma_fence *fence,
 				 struct dma_fence_cb *cb)
 {
-	struct amdgpu_vm_tlb_seq_cb *tlb_cb;
+	struct amdgpu_vm_tlb_seq_struct *tlb_cb;
 
 	tlb_cb = container_of(cb, typeof(*tlb_cb), cb);
 	atomic64_inc(&tlb_cb->vm->tlb_seq);
@@ -871,7 +871,7 @@ int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			   struct dma_fence **fence)
 {
 	struct amdgpu_vm_update_params params;
-	struct amdgpu_vm_tlb_seq_cb *tlb_cb;
+	struct amdgpu_vm_tlb_seq_struct *tlb_cb;
 	struct amdgpu_res_cursor cursor;
 	enum amdgpu_sync_mode sync_mode;
 	int r, idx;
