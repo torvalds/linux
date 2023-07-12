@@ -318,7 +318,7 @@ static int uffd_generic_handler(int uffd_mode, int uffd, struct uffd_msg *msg,
 
 	TEST_ASSERT(uffd_mode == UFFDIO_REGISTER_MODE_MISSING,
 		    "The only expected UFFD mode is MISSING");
-	ASSERT_EQ(addr, (uint64_t)args->hva);
+	TEST_ASSERT_EQ(addr, (uint64_t)args->hva);
 
 	pr_debug("uffd fault: addr=%p write=%d\n",
 		 (void *)addr, !!(flags & UFFD_PAGEFAULT_FLAG_WRITE));
@@ -432,7 +432,7 @@ static void mmio_on_test_gpa_handler(struct kvm_vm *vm, struct kvm_run *run)
 	region = vm_get_mem_region(vm, MEM_REGION_TEST_DATA);
 	hva = (void *)region->region.userspace_addr;
 
-	ASSERT_EQ(run->mmio.phys_addr, region->region.guest_phys_addr);
+	TEST_ASSERT_EQ(run->mmio.phys_addr, region->region.guest_phys_addr);
 
 	memcpy(hva, run->mmio.data, run->mmio.len);
 	events.mmio_exits += 1;
@@ -631,9 +631,9 @@ static void setup_default_handlers(struct test_desc *test)
 
 static void check_event_counts(struct test_desc *test)
 {
-	ASSERT_EQ(test->expected_events.uffd_faults, events.uffd_faults);
-	ASSERT_EQ(test->expected_events.mmio_exits, events.mmio_exits);
-	ASSERT_EQ(test->expected_events.fail_vcpu_runs, events.fail_vcpu_runs);
+	TEST_ASSERT_EQ(test->expected_events.uffd_faults, events.uffd_faults);
+	TEST_ASSERT_EQ(test->expected_events.mmio_exits, events.mmio_exits);
+	TEST_ASSERT_EQ(test->expected_events.fail_vcpu_runs, events.fail_vcpu_runs);
 }
 
 static void print_test_banner(enum vm_guest_mode mode, struct test_params *p)

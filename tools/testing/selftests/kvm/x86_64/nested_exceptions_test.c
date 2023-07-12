@@ -247,12 +247,12 @@ int main(int argc, char *argv[])
 
 	/* Verify the pending events comes back out the same as it went in. */
 	vcpu_events_get(vcpu, &events);
-	ASSERT_EQ(events.flags & KVM_VCPUEVENT_VALID_PAYLOAD,
-		  KVM_VCPUEVENT_VALID_PAYLOAD);
-	ASSERT_EQ(events.exception.pending, true);
-	ASSERT_EQ(events.exception.nr, SS_VECTOR);
-	ASSERT_EQ(events.exception.has_error_code, true);
-	ASSERT_EQ(events.exception.error_code, SS_ERROR_CODE);
+	TEST_ASSERT_EQ(events.flags & KVM_VCPUEVENT_VALID_PAYLOAD,
+			KVM_VCPUEVENT_VALID_PAYLOAD);
+	TEST_ASSERT_EQ(events.exception.pending, true);
+	TEST_ASSERT_EQ(events.exception.nr, SS_VECTOR);
+	TEST_ASSERT_EQ(events.exception.has_error_code, true);
+	TEST_ASSERT_EQ(events.exception.error_code, SS_ERROR_CODE);
 
 	/*
 	 * Run for real with the pending #SS, L1 should get a VM-Exit due to

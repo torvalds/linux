@@ -191,8 +191,8 @@ static void guest_code(void)
 	get_ucall(__vcpu, &uc);					\
 	if (uc.cmd == UCALL_ABORT)				\
 		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");	\
-	ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
-	ASSERT_EQ(uc.args[1], __stage);				\
+	TEST_ASSERT_EQ(uc.cmd, UCALL_SYNC);			\
+	TEST_ASSERT_EQ(uc.args[1], __stage);			\
 })
 
 #define HOST_SYNC(vcpu, stage)			\

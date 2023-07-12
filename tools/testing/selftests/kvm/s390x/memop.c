@@ -281,8 +281,8 @@ enum stage {
 	if (uc.cmd == UCALL_ABORT) {					\
 		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");		\
 	}								\
-	ASSERT_EQ(uc.cmd, UCALL_SYNC);					\
-	ASSERT_EQ(uc.args[1], __stage);					\
+	TEST_ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
+	TEST_ASSERT_EQ(uc.args[1], __stage);				\
 })									\
 
 static void prepare_mem12(void)
@@ -808,7 +808,7 @@ static void test_termination(void)
 	HOST_SYNC(t.vcpu, STAGE_IDLED);
 	MOP(t.vm, ABSOLUTE, READ, &teid, sizeof(teid), GADDR(prefix + 168));
 	/* Bits 56, 60, 61 form a code, 0 being the only one allowing for termination */
-	ASSERT_EQ(teid & teid_mask, 0);
+	TEST_ASSERT_EQ(teid & teid_mask, 0);
 
 	kvm_vm_free(t.kvm_vm);
 }

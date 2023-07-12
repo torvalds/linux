@@ -53,11 +53,11 @@ void test_assert(bool exp, const char *exp_str,
 #define TEST_ASSERT(e, fmt, ...) \
 	test_assert((e), #e, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
-#define ASSERT_EQ(a, b) do { \
+#define TEST_ASSERT_EQ(a, b) do { \
 	typeof(a) __a = (a); \
 	typeof(b) __b = (b); \
 	TEST_ASSERT(__a == __b, \
-		    "ASSERT_EQ(%s, %s) failed.\n" \
+		    "TEST_ASSERT_EQ(%s, %s) failed.\n" \
 		    "\t%s is %#lx\n" \
 		    "\t%s is %#lx", \
 		    #a, #b, #a, (unsigned long) __a, #b, (unsigned long) __b); \
