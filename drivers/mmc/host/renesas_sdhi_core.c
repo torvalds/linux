@@ -983,12 +983,12 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 
 	}
 
-	host->write16_hook	= renesas_sdhi_write16_hook;
-	host->clk_enable	= renesas_sdhi_clk_enable;
-	host->clk_disable	= renesas_sdhi_clk_disable;
-	host->set_clock		= renesas_sdhi_set_clock;
-	host->multi_io_quirk	= renesas_sdhi_multi_io_quirk;
-	host->dma_ops		= dma_ops;
+	host->write16_hook = renesas_sdhi_write16_hook;
+	host->clk_enable = renesas_sdhi_clk_enable;
+	host->clk_disable = renesas_sdhi_clk_disable;
+	host->set_clock = renesas_sdhi_set_clock;
+	host->multi_io_quirk = renesas_sdhi_multi_io_quirk;
+	host->dma_ops = dma_ops;
 
 	if (sdhi_has_quirk(priv, hs400_disabled))
 		host->mmc->caps2 &= ~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
