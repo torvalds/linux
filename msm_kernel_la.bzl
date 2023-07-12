@@ -351,7 +351,7 @@ def _define_kernel_dist(
     if board_cmdline_extras:
         msm_dist_targets.append("{}_extra_cmdline".format(target))
 
-    board_bc_extras = " ".join(boot_image_opts.board_kernel_cmdline_extras)
+    board_bc_extras = " ".join(boot_image_opts.board_bootconfig_extras)
     if board_bc_extras:
         msm_dist_targets.append("{}_extra_bootconfig".format(target))
 
