@@ -437,7 +437,7 @@ static void vgacon_invert_region(struct vc_data *c, u16 * p, int count)
 	}
 }
 
-static void vgacon_set_cursor_size(int xpos, int from, int to)
+static void vgacon_set_cursor_size(int from, int to)
 {
 	unsigned long flags;
 	int curs, cure;
@@ -479,9 +479,9 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 	case CM_ERASE:
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
-			vgacon_set_cursor_size(c->state.x, 31, 30);
+			vgacon_set_cursor_size(31, 30);
 		else
-			vgacon_set_cursor_size(c->state.x, 31, 31);
+			vgacon_set_cursor_size(31, 31);
 		break;
 
 	case CM_MOVE:
@@ -489,8 +489,7 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 		switch (CUR_SIZE(c->vc_cursor_type)) {
 		case CUR_UNDERLINE:
-			vgacon_set_cursor_size(c->state.x,
-					       c->vc_cell_height -
+			vgacon_set_cursor_size(c->vc_cell_height -
 					       (c->vc_cell_height <
 						10 ? 2 : 3),
 					       c->vc_cell_height -
@@ -498,35 +497,31 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 						10 ? 1 : 2));
 			break;
 		case CUR_TWO_THIRDS:
-			vgacon_set_cursor_size(c->state.x,
-					       c->vc_cell_height / 3,
+			vgacon_set_cursor_size(c->vc_cell_height / 3,
 					       c->vc_cell_height -
 					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_LOWER_THIRD:
-			vgacon_set_cursor_size(c->state.x,
-					       (c->vc_cell_height * 2) / 3,
+			vgacon_set_cursor_size((c->vc_cell_height * 2) / 3,
 					       c->vc_cell_height -
 					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_LOWER_HALF:
-			vgacon_set_cursor_size(c->state.x,
-					       c->vc_cell_height / 2,
+			vgacon_set_cursor_size(c->vc_cell_height / 2,
 					       c->vc_cell_height -
 					       (c->vc_cell_height <
 						10 ? 1 : 2));
 			break;
 		case CUR_NONE:
 			if (vga_video_type >= VIDEO_TYPE_VGAC)
-				vgacon_set_cursor_size(c->state.x, 31, 30);
+				vgacon_set_cursor_size(31, 30);
 			else
-				vgacon_set_cursor_size(c->state.x, 31, 31);
+				vgacon_set_cursor_size(31, 31);
 			break;
 		default:
-			vgacon_set_cursor_size(c->state.x, 1,
-					       c->vc_cell_height);
+			vgacon_set_cursor_size(1, c->vc_cell_height);
 			break;
 		}
 		break;
