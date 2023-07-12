@@ -9328,8 +9328,6 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 	if (ret)
 		goto out;
 
-	msm_pcie_cesta_disable_drv(pcie_dev);
-
 	PCIE_DBG(pcie_dev, "PCIe: RC%d:turn on unsuppressible clks\n",
 		pcie_dev->rc_idx);
 
@@ -9347,6 +9345,8 @@ static int msm_pcie_drv_resume(struct msm_pcie_dev_t *pcie_dev)
 
 	PCIE_DBG(pcie_dev, "PCIe: RC%d:turn on unsuppressible clks Done.\n",
 		pcie_dev->rc_idx);
+
+	msm_pcie_cesta_disable_drv(pcie_dev);
 
 	clkreq_override_en = readl_relaxed(pcie_dev->parf +
 				PCIE20_PARF_CLKREQ_OVERRIDE) &
@@ -9518,6 +9518,13 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 	pcie_dev->link_status = MSM_PCIE_LINK_DRV;
 	mutex_unlock(&pcie_dev->aspm_lock);
 
+	if (pcie_dev->pcie_sm) {
+		msm_pcie_cesta_enable_drv(pcie_dev,
+				!(options & MSM_PCIE_CONFIG_NO_L1SS_TO));
+		ab = ICC_AVG_BW;
+		ib = ICC_PEAK_BW;
+	}
+
 	/* turn off all unsuppressible clocks */
 	clk_info = pcie_dev->pipe_clk;
 	for (i = 0; i < pcie_dev->num_pipe_clk; i++, clk_info++)
@@ -9534,13 +9541,6 @@ static int msm_pcie_drv_suspend(struct msm_pcie_dev_t *pcie_dev,
 		!(options & MSM_PCIE_CONFIG_NO_L1SS_TO))
 		msm_pcie_drv_send_rpmsg(pcie_dev,
 					&drv_info->drv_enable_l1ss_sleep);
-
-	if (pcie_dev->pcie_sm) {
-		msm_pcie_cesta_enable_drv(pcie_dev,
-				!(options & MSM_PCIE_CONFIG_NO_L1SS_TO));
-		ab = ICC_AVG_BW;
-		ib = ICC_PEAK_BW;
-	}
 
 	ret = msm_pcie_icc_vote(pcie_dev, ab, ib, true);
 	if (ret) {
