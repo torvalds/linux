@@ -2127,11 +2127,12 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		  uint32_t *mrpi, uint32_t *arpi,
 		  uint32_t *mvpi, uint32_t *avpi)
 {
-	struct lpfc_mbx_read_config *rd_config;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
-	uint32_t max_vpi;
+	struct lpfc_sli4_hba *sli4_hba;
+	struct lpfc_max_cfg_param *max_cfg_param;
+	u16 rsrc_ext_cnt, rsrc_ext_size, max_vpi;
 
 	/*
 	 * prevent udev from issuing mailbox commands until the port is
@@ -2167,31 +2168,65 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	}
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		rd_config = &pmboxq->u.mqe.un.rd_config;
-		if (mrpi)
-			*mrpi = bf_get(lpfc_mbx_rd_conf_rpi_count, rd_config);
-		if (arpi)
-			*arpi = bf_get(lpfc_mbx_rd_conf_rpi_count, rd_config) -
-					phba->sli4_hba.max_cfg_param.rpi_used;
-		if (mxri)
-			*mxri = bf_get(lpfc_mbx_rd_conf_xri_count, rd_config);
-		if (axri)
-			*axri = bf_get(lpfc_mbx_rd_conf_xri_count, rd_config) -
-					phba->sli4_hba.max_cfg_param.xri_used;
+		sli4_hba = &phba->sli4_hba;
+		max_cfg_param = &sli4_hba->max_cfg_param;
 
-		/* Account for differences with SLI-3.  Get vpi count from
-		 * mailbox data and subtract one for max vpi value.
-		 */
-		max_vpi = (bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) > 0) ?
-			(bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) - 1) : 0;
+		/* Normally, extents are not used */
+		if (!phba->sli4_hba.extents_in_use) {
+			if (mrpi)
+				*mrpi = max_cfg_param->max_rpi;
+			if (mxri)
+				*mxri = max_cfg_param->max_xri;
+			if (mvpi) {
+				max_vpi = max_cfg_param->max_vpi;
 
-		/* Limit the max we support */
-		if (max_vpi > LPFC_MAX_VPI)
-			max_vpi = LPFC_MAX_VPI;
-		if (mvpi)
-			*mvpi = max_vpi;
-		if (avpi)
-			*avpi = max_vpi - phba->sli4_hba.max_cfg_param.vpi_used;
+				/* Limit the max we support */
+				if (max_vpi > LPFC_MAX_VPI)
+					max_vpi = LPFC_MAX_VPI;
+				*mvpi = max_vpi;
+			}
+		} else { /* Extents in use */
+			if (mrpi) {
+				if (lpfc_sli4_get_avail_extnt_rsrc(phba,
+								   LPFC_RSC_TYPE_FCOE_RPI,
+								   &rsrc_ext_cnt,
+								   &rsrc_ext_size)) {
+					rc = 0;
+					goto free_pmboxq;
+				}
+
+				*mrpi = rsrc_ext_cnt * rsrc_ext_size;
+			}
+
+			if (mxri) {
+				if (lpfc_sli4_get_avail_extnt_rsrc(phba,
+								   LPFC_RSC_TYPE_FCOE_XRI,
+								   &rsrc_ext_cnt,
+								   &rsrc_ext_size)) {
+					rc = 0;
+					goto free_pmboxq;
+				}
+
+				*mxri = rsrc_ext_cnt * rsrc_ext_size;
+			}
+
+			if (mvpi) {
+				if (lpfc_sli4_get_avail_extnt_rsrc(phba,
+								   LPFC_RSC_TYPE_FCOE_VPI,
+								   &rsrc_ext_cnt,
+								   &rsrc_ext_size)) {
+					rc = 0;
+					goto free_pmboxq;
+				}
+
+				max_vpi = rsrc_ext_cnt * rsrc_ext_size;
+
+				/* Limit the max we support */
+				if (max_vpi > LPFC_MAX_VPI)
+					max_vpi = LPFC_MAX_VPI;
+				*mvpi = max_vpi;
+			}
+		}
 	} else {
 		if (mrpi)
 			*mrpi = pmb->un.varRdConfig.max_rpi;
@@ -2212,8 +2247,12 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		}
 	}
 
+	/* Success */
+	rc = 1;
+
+free_pmboxq:
 	mempool_free(pmboxq, phba->mbox_mem_pool);
-	return 1;
+	return rc;
 }
 
 /**
@@ -2265,10 +2304,19 @@ lpfc_used_rpi_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	uint32_t cnt, acnt;
+	struct lpfc_sli4_hba *sli4_hba;
+	struct lpfc_max_cfg_param *max_cfg_param;
+	u32 cnt = 0, acnt = 0;
 
-	if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, &acnt, NULL, NULL))
-		return scnprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		sli4_hba = &phba->sli4_hba;
+		max_cfg_param = &sli4_hba->max_cfg_param;
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				 max_cfg_param->rpi_used);
+	} else {
+		if (lpfc_get_hba_info(phba, NULL, NULL, &cnt, &acnt, NULL, NULL))
+			return scnprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	}
 	return scnprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
@@ -2321,10 +2369,19 @@ lpfc_used_xri_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	uint32_t cnt, acnt;
+	struct lpfc_sli4_hba *sli4_hba;
+	struct lpfc_max_cfg_param *max_cfg_param;
+	u32 cnt = 0, acnt = 0;
 
-	if (lpfc_get_hba_info(phba, &cnt, &acnt, NULL, NULL, NULL, NULL))
-		return scnprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		sli4_hba = &phba->sli4_hba;
+		max_cfg_param = &sli4_hba->max_cfg_param;
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				 max_cfg_param->xri_used);
+	} else {
+		if (lpfc_get_hba_info(phba, &cnt, &acnt, NULL, NULL, NULL, NULL))
+			return scnprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	}
 	return scnprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
@@ -2377,10 +2434,19 @@ lpfc_used_vpi_show(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	uint32_t cnt, acnt;
+	struct lpfc_sli4_hba *sli4_hba;
+	struct lpfc_max_cfg_param *max_cfg_param;
+	u32 cnt = 0, acnt = 0;
 
-	if (lpfc_get_hba_info(phba, NULL, NULL, NULL, NULL, &cnt, &acnt))
-		return scnprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		sli4_hba = &phba->sli4_hba;
+		max_cfg_param = &sli4_hba->max_cfg_param;
+		return scnprintf(buf, PAGE_SIZE, "%d\n",
+				 max_cfg_param->vpi_used);
+	} else {
+		if (lpfc_get_hba_info(phba, NULL, NULL, NULL, NULL, &cnt, &acnt))
+			return scnprintf(buf, PAGE_SIZE, "%d\n", (cnt - acnt));
+	}
 	return scnprintf(buf, PAGE_SIZE, "Unknown\n");
 }
 
