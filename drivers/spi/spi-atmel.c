@@ -1471,8 +1471,8 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	host->bus_num = pdev->id;
 	host->num_chipselect = 4;
 	host->setup = atmel_spi_setup;
-	host->flags = (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX |
-			SPI_MASTER_GPIO_SS);
+	host->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX |
+			SPI_CONTROLLER_GPIO_SS);
 	host->transfer_one = atmel_spi_one_transfer;
 	host->set_cs = atmel_spi_set_cs;
 	host->cleanup = atmel_spi_cleanup;

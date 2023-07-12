@@ -1784,7 +1784,7 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	if (is_imx51_ecspi(spi_imx) || is_imx53_ecspi(spi_imx)) {
 		controller->max_native_cs = 4;
-		controller->flags |= SPI_MASTER_GPIO_SS;
+		controller->flags |= SPI_CONTROLLER_GPIO_SS;
 	}
 
 	spi_imx->spi_drctl = spi_drctl;

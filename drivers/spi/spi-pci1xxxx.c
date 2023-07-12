@@ -365,7 +365,7 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 		spi_host->bits_per_word_mask = SPI_BPW_MASK(8);
 		spi_host->max_speed_hz = PCI1XXXX_SPI_MAX_CLOCK_HZ;
 		spi_host->min_speed_hz = PCI1XXXX_SPI_MIN_CLOCK_HZ;
-		spi_host->flags = SPI_MASTER_MUST_TX;
+		spi_host->flags = SPI_CONTROLLER_MUST_TX;
 		spi_master_set_devdata(spi_host, spi_sub_ptr);
 		ret = devm_spi_register_master(dev, spi_host);
 		if (ret)
