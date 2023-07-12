@@ -220,6 +220,7 @@
   dma_fence_release
   dma_fence_remove_callback
   dma_fence_signal
+  dma_fence_signal_locked
   dma_fence_wait_timeout
   dma_free_attrs
   dma_heap_buffer_alloc
@@ -322,6 +323,7 @@
   enable_irq
   eth_type_trans
   fd_install
+  fget
   _find_first_bit
   _find_last_bit
   _find_next_and_bit
@@ -467,10 +469,12 @@
   kmemdup
   kobject_add
   kobject_create_and_add
+  kobject_get
   kobject_init
   kobject_init_and_add
   kobject_put
   kobject_uevent_env
+  kobj_sysfs_ops
   krealloc
   kstrdup
   kstrndup
@@ -1384,7 +1388,6 @@
   drm_crtc_enable_color_mgmt
   drm_crtc_handle_vblank
   drm_crtc_vblank_get
-  drm_dev_has_vblank
   drm_display_mode_to_videomode
   drm_edid_to_sad
   drm_format_info
@@ -1765,7 +1768,6 @@
 
 # required by mpam_arch.ko
   bitmap_alloc
-  kobj_sysfs_ops
   kstrtou16
 
 # required by nanohub.ko
@@ -1789,8 +1791,6 @@
   cpuidle_resume_and_unlock
   dev_pm_opp_find_freq_floor
   dma_fence_free
-  dma_fence_signal_locked
-  fget
   vsprintf
 
 # required by pablo-icpu.ko
@@ -1851,7 +1851,6 @@
   pci_generic_config_write
   pci_get_device
   pci_rescan_bus
-  platform_get_irq_byname_optional
 
 # required by pinctrl-samsung-core.ko
   fwnode_handle_put
@@ -2003,7 +2002,6 @@
   vprintk_emit
 
 # required by scsc_mx.ko
-  kobject_get
   kobject_uevent
 
 # required by scsc_platform_mif.ko
@@ -2087,6 +2085,7 @@
   backlight_device_unregister
   __bitmap_xor
   capable
+  copy_highpage
   devfreq_monitor_resume
   devfreq_monitor_start
   devfreq_monitor_stop
@@ -2187,12 +2186,15 @@
   idr_get_next
   idr_replace
   jiffies64_to_msecs
+  mark_page_accessed
   memremap
   memunmap
   mmu_notifier_synchronize
   page_pinner_inited
   __page_pinner_put_page
+  param_get_charp
   param_ops_hexint
+  param_set_charp
   pci_assign_unassigned_bus_resources
   pci_bus_resource_n
   pcie_bandwidth_available
@@ -2218,13 +2220,19 @@
   rb_first_postorder
   __rb_insert_augmented
   rb_next_postorder
+  reclaim_shmem_address_space
   request_firmware_into_buf
   seq_putc
   seq_write
+  set_page_dirty
   sg_alloc_table_from_pages_segment
+  shmem_file_setup
+  shmem_read_mapping_page_gfp
   si_meminfo
   sysfs_remove_files
+  __traceiter_android_vh_meminfo_proc_show
   __traceiter_gpu_mem_total
+  __tracepoint_android_vh_meminfo_proc_show
   __tracepoint_gpu_mem_total
   ttm_bo_eviction_valuable
   ttm_bo_init_reserved
@@ -2239,6 +2247,7 @@
   ttm_bo_put
   ttm_bo_set_bulk_move
   ttm_bo_unlock_delayed_workqueue
+  ttm_bo_unmap_virtual
   ttm_bo_unpin
   ttm_bo_validate
   ttm_bo_vm_access
@@ -2247,6 +2256,7 @@
   ttm_bo_vm_fault_reserved
   ttm_bo_vm_open
   ttm_bo_vm_reserve
+  ttm_bo_wait
   ttm_device_fini
   ttm_device_init
   ttm_eu_backoff_reservation
@@ -2415,7 +2425,7 @@
   ufshcd_dme_get_attr
   ufshcd_dme_set_attr
   ufshcd_hold
-  ufshcd_mcq_poll_cqe_nolock
+  ufshcd_mcq_poll_cqe_lock
   ufshcd_mcq_write_cqis
   ufshcd_pltfrm_init
   ufshcd_release
@@ -2538,4 +2548,5 @@
   __skb_get_hash
   __skb_gso_segment
   tasklet_unlock_wait
+  ufshcd_mcq_poll_cqe_nolock
   unregister_netdevice_many
