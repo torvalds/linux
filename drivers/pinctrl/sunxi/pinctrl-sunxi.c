@@ -848,6 +848,9 @@ static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
 	char supply[16];
 	int ret;
 
+	if (WARN_ON_ONCE(bank_offset >= ARRAY_SIZE(pctl->regulators)))
+		return -EINVAL;
+
 	if (reg) {
 		refcount_inc(&s_reg->refcount);
 		return 0;
