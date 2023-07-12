@@ -133,9 +133,8 @@ static void uart_stop(struct tty_struct *tty)
 	uart_port_unlock(port, flags);
 }
 
-static void __uart_start(struct tty_struct *tty)
+static void __uart_start(struct uart_state *state)
 {
-	struct uart_state *state = tty->driver_data;
 	struct uart_port *port = state->uart_port;
 	struct serial_port_device *port_dev;
 	int err;
@@ -170,7 +169,7 @@ static void uart_start(struct tty_struct *tty)
 	unsigned long flags;
 
 	port = uart_port_lock(state, flags);
-	__uart_start(tty);
+	__uart_start(state);
 	uart_port_unlock(port, flags);
 }
 
@@ -239,7 +238,7 @@ static void uart_change_line_settings(struct tty_struct *tty, struct uart_state 
 		if (!old_hw_stopped)
 			uport->ops->stop_tx(uport);
 		else
-			__uart_start(tty);
+			__uart_start(state);
 	}
 	spin_unlock_irq(&uport->lock);
 }
@@ -619,7 +618,7 @@ static int uart_write(struct tty_struct *tty,
 		ret += c;
 	}
 
-	__uart_start(tty);
+	__uart_start(state);
 	uart_port_unlock(port, flags);
 	return ret;
 }
