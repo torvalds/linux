@@ -27,10 +27,8 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 
 	addr = (unsigned long) kmap_atomic(page);
 
+	icache_inv_range(address, address + PAGE_SIZE);
 	dcache_wb_range(addr, addr + PAGE_SIZE);
-
-	if (vma->vm_flags & VM_EXEC)
-		icache_inv_range(addr, addr + PAGE_SIZE);
 
 	kunmap_atomic((void *) addr);
 }
