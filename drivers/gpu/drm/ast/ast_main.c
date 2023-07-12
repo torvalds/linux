@@ -35,23 +35,6 @@
 
 #include "ast_drv.h"
 
-static int ast_init_pci_config(struct pci_dev *pdev)
-{
-	int err;
-	u16 pcis04;
-
-	err = pci_read_config_word(pdev, PCI_COMMAND, &pcis04);
-	if (err)
-		goto out;
-
-	pcis04 |= PCI_COMMAND_MEMORY | PCI_COMMAND_IO;
-
-	err = pci_write_config_word(pdev, PCI_COMMAND, pcis04);
-
-out:
-	return pcibios_err_to_errno(err);
-}
-
 static bool ast_is_vga_enabled(struct drm_device *dev)
 {
 	struct ast_device *ast = to_ast_device(dev);
@@ -482,10 +465,6 @@ struct ast_device *ast_device_create(const struct drm_driver *drv,
 		if (!ast->ioregs)
 			return ERR_PTR(-EIO);
 	}
-
-	ret = ast_init_pci_config(pdev);
-	if (ret)
-		return ERR_PTR(ret);
 
 	if (!ast_is_vga_enabled(dev)) {
 		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
