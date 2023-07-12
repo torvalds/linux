@@ -879,23 +879,34 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_unlock_irq(shost->host_lock);
 			lpfc_retry_pport_discovery(phba);
 		}
-	} else if ((!(ndlp->nlp_type & NLP_FABRIC) &&
-		((ndlp->nlp_type & NLP_FCP_TARGET) ||
-		(ndlp->nlp_type & NLP_NVME_TARGET) ||
-		(vport->fc_flag & FC_PT2PT))) ||
-		(ndlp->nlp_state == NLP_STE_ADISC_ISSUE)) {
-		/* Only try to re-login if this is NOT a Fabric Node
-		 * AND the remote NPORT is a FCP/NVME Target or we
-		 * are in pt2pt mode. NLP_STE_ADISC_ISSUE is a special
-		 * case for LOGO as a response to ADISC behavior.
-		 */
-		mod_timer(&ndlp->nlp_delayfunc,
-			  jiffies + msecs_to_jiffies(1000 * 1));
-		spin_lock_irq(&ndlp->lock);
-		ndlp->nlp_flag |= NLP_DELAY_TMO;
-		spin_unlock_irq(&ndlp->lock);
+	} else {
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_NODE | LOG_ELS | LOG_DISCOVERY,
+				 "3203 LOGO recover nport x%06x state x%x "
+				 "ntype x%x fc_flag x%x\n",
+				 ndlp->nlp_DID, ndlp->nlp_state,
+				 ndlp->nlp_type, vport->fc_flag);
 
-		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
+		/* Special cases for rports that recover post LOGO. */
+		if ((!(ndlp->nlp_type == NLP_FABRIC) &&
+		     (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET) ||
+		      vport->fc_flag & FC_PT2PT)) ||
+		    (ndlp->nlp_state >= NLP_STE_ADISC_ISSUE ||
+		     ndlp->nlp_state <= NLP_STE_PRLI_ISSUE)) {
+			mod_timer(&ndlp->nlp_delayfunc,
+				  jiffies + msecs_to_jiffies(1000 * 1));
+			spin_lock_irq(&ndlp->lock);
+			ndlp->nlp_flag |= NLP_DELAY_TMO;
+			spin_unlock_irq(&ndlp->lock);
+			ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
+			lpfc_printf_vlog(vport, KERN_INFO,
+					 LOG_NODE | LOG_ELS | LOG_DISCOVERY,
+					 "3204 Start nlpdelay on DID x%06x "
+					 "nflag x%x lastels x%x ref cnt %u",
+					 ndlp->nlp_DID, ndlp->nlp_flag,
+					 ndlp->nlp_last_elscmd,
+					 kref_read(&ndlp->kref));
+		}
 	}
 out:
 	/* Unregister from backend, could have been skipped due to ADISC */
@@ -1854,7 +1865,6 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	struct lpfc_iocbq *cmdiocb = (struct lpfc_iocbq *) arg;
 	LPFC_MBOXQ_t	  *mb;
 	LPFC_MBOXQ_t	  *nextmb;
-	struct lpfc_nodelist *ns_ndlp;
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
@@ -1881,13 +1891,6 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 		}
 	}
 	spin_unlock_irq(&phba->hbalock);
-
-	/* software abort if any GID_FT is outstanding */
-	if (vport->cfg_enable_fc4_type != LPFC_ENABLE_FCP) {
-		ns_ndlp = lpfc_findnode_did(vport, NameServer_DID);
-		if (ns_ndlp)
-			lpfc_els_abort(phba, ns_ndlp);
-	}
 
 	lpfc_rcv_logo(vport, ndlp, cmdiocb, ELS_CMD_LOGO);
 	return ndlp->nlp_state;
