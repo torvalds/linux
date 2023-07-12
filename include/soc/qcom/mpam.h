@@ -7,11 +7,17 @@
 #define _QCOM_MPAM_H
 
 #if IS_ENABLED(CONFIG_QTI_MPAM)
-int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion);
+int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion, u64 config_ctrl);
+int qcom_mpam_get_cache_portion(u32 part_id, u64 *config_ctrl);
 #else
-static inline int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion)
+static inline int qcom_mpam_set_cache_portion(u32 part_id, u32 cache_portion, u64 config_ctrl)
 {
-	return 0;
+	return -ENODEV;
+}
+
+static inline int qcom_mpam_get_cache_portion(u32 part_id, u64 *config_ctrl)
+{
+	return -ENODEV;
 }
 #endif
 
