@@ -1188,7 +1188,7 @@ static void walt_cfs_account_mvp_runtime(struct rq *rq, struct task_struct *curr
 	u64 slice;
 	unsigned int limit;
 
-	lockdep_assert_held(&rq->__lock);
+	walt_lockdep_assert_rq(rq, NULL);
 
 	/*
 	 * RQ clock update happens in tick path in the scheduler.
