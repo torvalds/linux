@@ -1216,6 +1216,14 @@ static int config_term_pmu(struct perf_event_attr *attr,
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE) {
 		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 
+		if (!pmu) {
+			char *err_str;
+
+			if (asprintf(&err_str, "Failed to find PMU for type %d", attr->type) >= 0)
+				parse_events_error__handle(err, term->err_term,
+							   err_str, /*help=*/NULL);
+			return -EINVAL;
+		}
 		if (perf_pmu__supports_legacy_cache(pmu)) {
 			attr->type = PERF_TYPE_HW_CACHE;
 			return parse_events__decode_legacy_cache(term->config, pmu->type,
