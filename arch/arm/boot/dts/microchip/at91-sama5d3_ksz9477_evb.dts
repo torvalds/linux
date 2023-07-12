@@ -162,6 +162,18 @@
 	};
 };
 
+&tcb0 {
+	timer0: timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer1: timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
+	};
+};
+
 &usb0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usba_vbus>;
