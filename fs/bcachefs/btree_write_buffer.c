@@ -129,6 +129,9 @@ int __bch2_btree_write_buffer_flush(struct btree_trans *trans, unsigned commit_f
 	keys = wb->keys[s.idx];
 	nr = s.nr;
 
+	if (race_fault())
+		goto slowpath;
+
 	/*
 	 * We first sort so that we can detect and skip redundant updates, and
 	 * then we attempt to flush in sorted btree order, as this is most
