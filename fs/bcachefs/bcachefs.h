@@ -774,9 +774,10 @@ struct bch_fs {
 	struct mutex		sb_lock;
 
 	/* snapshot.c: */
-	GENRADIX(struct snapshot_t) snapshots;
-	struct bch_snapshot_table __rcu *snapshot_table;
+	struct snapshot_table __rcu *snapshots;
+	size_t			snapshot_table_size;
 	struct mutex		snapshot_table_lock;
+
 	struct work_struct	snapshot_delete_work;
 	struct work_struct	snapshot_wait_for_pagecache_and_delete_work;
 	snapshot_id_list	snapshots_unlinked;

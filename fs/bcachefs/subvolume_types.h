@@ -16,6 +16,10 @@ struct snapshot_t {
 	u32			equiv;
 };
 
+struct snapshot_table {
+	struct snapshot_t	s[0];
+};
+
 typedef struct {
 	u32		subvol;
 	u64		inum;

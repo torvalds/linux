@@ -311,7 +311,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 		!(i->flags & BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) &&
 		test_bit(JOURNAL_REPLAY_DONE, &trans->c->journal.flags) &&
 		i->k->k.p.snapshot &&
-		bch2_snapshot_internal_node(trans->c, i->k->k.p.snapshot));
+		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot));
 }
 
 static noinline int
@@ -1229,7 +1229,7 @@ static inline int check_pos_snapshot_overwritten(struct btree_trans *trans,
 					  struct bpos pos)
 {
 	if (!btree_type_has_snapshots(id) ||
-	    !snapshot_t(trans->c, pos.snapshot)->children[0])
+	    bch2_snapshot_is_leaf(trans->c, pos.snapshot))
 		return 0;
 
 	return __check_pos_snapshot_overwritten(trans, id, pos);

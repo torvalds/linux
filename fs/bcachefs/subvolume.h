@@ -32,17 +32,40 @@ int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
 	.min_val_size	= 24,					\
 })
 
-static inline struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)
+static inline struct snapshot_t *__snapshot_t(struct snapshot_table *t, u32 id)
 {
-	return genradix_ptr(&c->snapshots, U32_MAX - id);
+	return &t->s[U32_MAX - id];
 }
 
-static inline u32 bch2_snapshot_parent_early(struct bch_fs *c, u32 id)
+static inline const struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)
+{
+	return __snapshot_t(rcu_dereference(c->snapshots), id);
+}
+
+static inline u32 bch2_snapshot_tree(struct bch_fs *c, u32 id)
+{
+	rcu_read_lock();
+	id = snapshot_t(c, id)->tree;
+	rcu_read_unlock();
+
+	return id;
+}
+
+static inline u32 __bch2_snapshot_parent_early(struct bch_fs *c, u32 id)
 {
 	return snapshot_t(c, id)->parent;
 }
 
-static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
+static inline u32 bch2_snapshot_parent_early(struct bch_fs *c, u32 id)
+{
+	rcu_read_lock();
+	id = __bch2_snapshot_parent_early(c, id);
+	rcu_read_unlock();
+
+	return id;
+}
+
+static inline u32 __bch2_snapshot_parent(struct bch_fs *c, u32 id)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
 	u32 parent = snapshot_t(c, id)->parent;
@@ -59,10 +82,21 @@ static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
 #endif
 }
 
+static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
+{
+	rcu_read_lock();
+	id = __bch2_snapshot_parent(c, id);
+	rcu_read_unlock();
+
+	return id;
+}
+
 static inline u32 bch2_snapshot_nth_parent(struct bch_fs *c, u32 id, u32 n)
 {
+	rcu_read_lock();
 	while (n--)
-		id = bch2_snapshot_parent(c, id);
+		id = __bch2_snapshot_parent(c, id);
+	rcu_read_unlock();
 
 	return id;
 }
@@ -71,37 +105,60 @@ static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
 {
 	u32 parent;
 
-	while ((parent = bch2_snapshot_parent(c, id)))
+	rcu_read_lock();
+	while ((parent = __bch2_snapshot_parent(c, id)))
 		id = parent;
+	rcu_read_unlock();
+
 	return id;
 }
 
-static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
+static inline u32 __bch2_snapshot_equiv(struct bch_fs *c, u32 id)
 {
 	return snapshot_t(c, id)->equiv;
 }
 
-static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
+static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
 {
-	return id == snapshot_t(c, id)->equiv;
+	rcu_read_lock();
+	id = __bch2_snapshot_equiv(c, id);
+	rcu_read_unlock();
+
+	return id;
 }
 
-static inline u32 bch2_snapshot_internal_node(struct bch_fs *c, u32 id)
+static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
 {
-	struct snapshot_t *s = snapshot_t(c, id);
+	return id == bch2_snapshot_equiv(c, id);
+}
 
-	return s->children[0] || s->children[1];
+static inline bool bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)
+{
+	const struct snapshot_t *s;
+	bool ret;
+
+	rcu_read_lock();
+	s = snapshot_t(c, id);
+	ret = s->children[0];
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static inline u32 bch2_snapshot_is_leaf(struct bch_fs *c, u32 id)
+{
+	return !bch2_snapshot_is_internal_node(c, id);
 }
 
 static inline u32 bch2_snapshot_sibling(struct bch_fs *c, u32 id)
 {
-	struct snapshot_t *s;
-	u32 parent = bch2_snapshot_parent(c, id);
+	const struct snapshot_t *s;
+	u32 parent = __bch2_snapshot_parent(c, id);
 
 	if (!parent)
 		return 0;
 
-	s = snapshot_t(c, bch2_snapshot_parent(c, id));
+	s = snapshot_t(c, __bch2_snapshot_parent(c, id));
 	if (id == s->children[0])
 		return s->children[1];
 	if (id == s->children[1])
@@ -113,9 +170,15 @@ bool bch2_snapshot_is_ancestor(struct bch_fs *, u32, u32);
 
 static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
 {
-	struct snapshot_t *t = snapshot_t(c, id);
+	const struct snapshot_t *t;
+	bool ret;
 
-	return (t->children[0]|t->children[1]) != 0;
+	rcu_read_lock();
+	t = snapshot_t(c, id);
+	ret = (t->children[0]|t->children[1]) != 0;
+	rcu_read_unlock();
+
+	return ret;
 }
 
 static inline bool snapshot_list_has_id(snapshot_id_list *s, u32 id)

@@ -894,7 +894,7 @@ static int check_inode(struct btree_trans *trans,
 	 * particular is not atomic, so on the internal snapshot nodes
 	 * we can see inodes marked for deletion after a clean shutdown
 	 */
-	if (bch2_snapshot_internal_node(c, k.k->p.snapshot))
+	if (bch2_snapshot_is_internal_node(c, k.k->p.snapshot))
 		return 0;
 
 	if (!bkey_is_inode(k.k))
