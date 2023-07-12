@@ -690,8 +690,6 @@ remove_ctlr:
  * This function is called if a device is physically removed from the system or
  * if the driver module is being unloaded. It frees all resources allocated to
  * the device.
- *
- * Return:	0 on success and error value on error
  */
 static void cdns_spi_remove(struct platform_device *pdev)
 {
