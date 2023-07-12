@@ -903,7 +903,7 @@ void uart_handle_dcd_change(struct uart_port *uport, bool active);
 void uart_handle_cts_change(struct uart_port *uport, bool active);
 
 void uart_insert_char(struct uart_port *port, unsigned int status,
-		      unsigned int overrun, unsigned int ch, unsigned int flag);
+		      unsigned int overrun, u8 ch, u8 flag);
 
 void uart_xchar_out(struct uart_port *uport, int offset);
 

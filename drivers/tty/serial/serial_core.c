@@ -3486,7 +3486,7 @@ EXPORT_SYMBOL_GPL(uart_handle_cts_change);
  * @flag: flag for the character (see TTY_NORMAL and friends)
  */
 void uart_insert_char(struct uart_port *port, unsigned int status,
-		 unsigned int overrun, unsigned int ch, unsigned int flag)
+		      unsigned int overrun, u8 ch, u8 flag)
 {
 	struct tty_port *tport = &port->state->port;
 
