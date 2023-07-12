@@ -158,13 +158,10 @@ static inline unsigned char *echo_buf_addr(struct n_tty_data *ldata, size_t i)
 }
 
 /* If we are not echoing the data, perhaps this is a secret so erase it */
-static void zero_buffer(struct tty_struct *tty, u8 *buffer, int size)
+static void zero_buffer(const struct tty_struct *tty, u8 *buffer, size_t size)
 {
-	bool icanon = !!L_ICANON(tty);
-	bool no_echo = !L_ECHO(tty);
-
-	if (icanon && no_echo)
-		memset(buffer, 0x00, size);
+	if (L_ICANON(tty) && !L_ECHO(tty))
+		memset(buffer, 0, size);
 }
 
 static void tty_copy(struct tty_struct *tty, void *to, size_t tail, size_t n)
