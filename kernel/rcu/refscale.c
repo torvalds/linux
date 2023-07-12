@@ -528,6 +528,38 @@ static struct ref_scale_ops clock_ops = {
 	.name		= "clock"
 };
 
+static void ref_jiffies_section(const int nloops)
+{
+	u64 x = 0;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--)
+		x += jiffies;
+	preempt_enable();
+	stopopts = x;
+}
+
+static void ref_jiffies_delay_section(const int nloops, const int udl, const int ndl)
+{
+	u64 x = 0;
+	int i;
+
+	preempt_disable();
+	for (i = nloops; i >= 0; i--) {
+		x += jiffies;
+		un_delay(udl, ndl);
+	}
+	preempt_enable();
+	stopopts = x;
+}
+
+static struct ref_scale_ops jiffies_ops = {
+	.readsection	= ref_jiffies_section,
+	.delaysection	= ref_jiffies_delay_section,
+	.name		= "jiffies"
+};
+
 ////////////////////////////////////////////////////////////////////////
 //
 // Methods leveraging SLAB_TYPESAFE_BY_RCU.
@@ -1047,7 +1079,7 @@ ref_scale_init(void)
 	int firsterr = 0;
 	static struct ref_scale_ops *scale_ops[] = {
 		&rcu_ops, &srcu_ops, RCU_TRACE_OPS RCU_TASKS_OPS &refcnt_ops, &rwlock_ops,
-		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops, &clock_ops,
+		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops, &clock_ops, &jiffies_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
 	};
 
