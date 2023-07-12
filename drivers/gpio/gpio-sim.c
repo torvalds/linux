@@ -488,7 +488,7 @@ struct gpio_sim_device {
 	 * This structure however can be modified by callbacks of different
 	 * attributes so we need another lock.
 	 *
-	 * We use this lock fo protecting all data structures owned by this
+	 * We use this lock for protecting all data structures owned by this
 	 * object too.
 	 */
 	struct mutex lock;
