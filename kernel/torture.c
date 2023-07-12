@@ -92,7 +92,7 @@ int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_s
 	ktime_t hto = baset_ns;
 
 	if (trsp)
-		hto += (torture_random(trsp) >> 3) % fuzzt_ns;
+		hto += torture_random(trsp) % fuzzt_ns;
 	set_current_state(TASK_IDLE);
 	return schedule_hrtimeout(&hto, HRTIMER_MODE_REL);
 }
@@ -362,7 +362,7 @@ torture_onoff(void *arg)
 			torture_hrtimeout_jiffies(HZ / 10, &rand);
 			continue;
 		}
-		cpu = (torture_random(&rand) >> 4) % (maxcpu + 1);
+		cpu = torture_random(&rand) % (maxcpu + 1);
 		if (!torture_offline(cpu,
 				     &n_offline_attempts, &n_offline_successes,
 				     &sum_offline, &min_offline, &max_offline))
