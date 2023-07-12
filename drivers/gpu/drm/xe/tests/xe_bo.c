@@ -158,8 +158,12 @@ static int ccs_test_run_device(struct xe_device *xe)
 		return 0;
 	}
 
+	xe_device_mem_access_get(xe);
+
 	for_each_gt(gt, xe, id)
 		ccs_test_run_gt(xe, gt, test);
+
+	xe_device_mem_access_put(xe);
 
 	return 0;
 }
