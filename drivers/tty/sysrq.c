@@ -100,12 +100,11 @@ __setup("sysrq_always_enabled", sysrq_always_enabled_setup);
 
 static void sysrq_handle_loglevel(int key)
 {
-	int i;
+	u8 loglevel = key - '0';
 
-	i = key - '0';
 	console_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
-	pr_info("Loglevel set to %d\n", i);
-	console_loglevel = i;
+	pr_info("Loglevel set to %u\n", loglevel);
+	console_loglevel = loglevel;
 }
 static const struct sysrq_key_op sysrq_loglevel_op = {
 	.handler	= sysrq_handle_loglevel,
