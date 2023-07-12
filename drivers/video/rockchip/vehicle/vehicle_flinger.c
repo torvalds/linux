@@ -836,7 +836,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		rga_request.rotate_mode = 0;
 		rga_request.sina = 0;
 		rga_request.cosa = 0;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dw;
 		rga_request.dst.act_h = dh;
@@ -845,7 +845,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		break;
 	case RGA_TRANSFORM_FLIP_H:/*x mirror*/
 		rga_request.rotate_mode = 2;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dw;
 		rga_request.dst.act_h = dh;
@@ -854,7 +854,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		break;
 	case RGA_TRANSFORM_FLIP_V:/*y mirror*/
 		rga_request.rotate_mode = 3;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dw;
 		rga_request.dst.act_h = dh;
@@ -865,7 +865,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		rga_request.rotate_mode = 1;
 		rga_request.sina = 65536;
 		rga_request.cosa = 0;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dh;
 		rga_request.dst.act_h = dw;
@@ -876,7 +876,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		rga_request.rotate_mode = 1;
 		rga_request.sina = 0;
 		rga_request.cosa = -65536;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dw;
 		rga_request.dst.act_h = dh;
@@ -887,7 +887,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		rga_request.rotate_mode = 1;
 		rga_request.sina = -65536;
 		rga_request.cosa = 0;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dh;
 		rga_request.dst.act_h = dw;
@@ -898,7 +898,7 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 		rga_request.rotate_mode = 0;
 		rga_request.sina = 0;
 		rga_request.cosa = 0;
-		rga_request.dst.vir_w = ALIGN(ds, 64);
+		rga_request.dst.vir_w = ds;
 		rga_request.dst.vir_h = dh;
 		rga_request.dst.act_w = dw;
 		rga_request.dst.act_h = dh;
