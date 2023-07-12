@@ -275,21 +275,22 @@ static int __hidpp_send_report(struct hid_device *hdev,
 }
 
 /*
- * hidpp_send_message_sync() returns 0 in case of success, and something else
- * in case of a failure.
- * - If ' something else' is positive, that means that an error has been raised
- *   by the protocol itself.
- * - If ' something else' is negative, that means that we had a classic error
- *   (-ENOMEM, -EPIPE, etc...)
+ * Effectively send the message to the device, waiting for its answer.
+ *
+ * Must be called with hidpp->send_mutex locked
+ *
+ * Same return protocol than hidpp_send_message_sync():
+ * - success on 0
+ * - negative error means transport error
+ * - positive value means protocol error
  */
-static int hidpp_send_message_sync(struct hidpp_device *hidpp,
+static int __do_hidpp_send_message_sync(struct hidpp_device *hidpp,
 	struct hidpp_report *message,
 	struct hidpp_report *response)
 {
-	int ret = -1;
-	int max_retries = 3;
+	int ret;
 
-	mutex_lock(&hidpp->send_mutex);
+	__must_hold(&hidpp->send_mutex);
 
 	hidpp->send_receive_buf = response;
 	hidpp->answer_available = false;
@@ -300,47 +301,74 @@ static int hidpp_send_message_sync(struct hidpp_device *hidpp,
 	 */
 	*response = *message;
 
-	for (; max_retries != 0 && ret; max_retries--) {
-		ret = __hidpp_send_report(hidpp->hid_dev, message);
-
-		if (ret) {
-			dbg_hid("__hidpp_send_report returned err: %d\n", ret);
-			memset(response, 0, sizeof(struct hidpp_report));
-			break;
-		}
-
-		if (!wait_event_timeout(hidpp->wait, hidpp->answer_available,
-					5*HZ)) {
-			dbg_hid("%s:timeout waiting for response\n", __func__);
-			memset(response, 0, sizeof(struct hidpp_report));
-			ret = -ETIMEDOUT;
-			break;
-		}
-
-		if (response->report_id == REPORT_ID_HIDPP_SHORT &&
-		    response->rap.sub_id == HIDPP_ERROR) {
-			ret = response->rap.params[1];
-			dbg_hid("%s:got hidpp error %02X\n", __func__, ret);
-			break;
-		}
-
-		if ((response->report_id == REPORT_ID_HIDPP_LONG ||
-		     response->report_id == REPORT_ID_HIDPP_VERY_LONG) &&
-		    response->fap.feature_index == HIDPP20_ERROR) {
-			ret = response->fap.params[1];
-			if (ret != HIDPP20_ERROR_BUSY) {
-				dbg_hid("%s:got hidpp 2.0 error %02X\n", __func__, ret);
-				break;
-			}
-			dbg_hid("%s:got busy hidpp 2.0 error %02X, retrying\n", __func__, ret);
-		}
+	ret = __hidpp_send_report(hidpp->hid_dev, message);
+	if (ret) {
+		dbg_hid("__hidpp_send_report returned err: %d\n", ret);
+		memset(response, 0, sizeof(struct hidpp_report));
+		return ret;
 	}
+
+	if (!wait_event_timeout(hidpp->wait, hidpp->answer_available,
+				5*HZ)) {
+		dbg_hid("%s:timeout waiting for response\n", __func__);
+		memset(response, 0, sizeof(struct hidpp_report));
+		return -ETIMEDOUT;
+	}
+
+	if (response->report_id == REPORT_ID_HIDPP_SHORT &&
+	    response->rap.sub_id == HIDPP_ERROR) {
+		ret = response->rap.params[1];
+		dbg_hid("%s:got hidpp error %02X\n", __func__, ret);
+		return ret;
+	}
+
+	if ((response->report_id == REPORT_ID_HIDPP_LONG ||
+	     response->report_id == REPORT_ID_HIDPP_VERY_LONG) &&
+	    response->fap.feature_index == HIDPP20_ERROR) {
+		ret = response->fap.params[1];
+		dbg_hid("%s:got hidpp 2.0 error %02X\n", __func__, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * hidpp_send_message_sync() returns 0 in case of success, and something else
+ * in case of a failure.
+ *
+ * See __do_hidpp_send_message_sync() for a detailed explanation of the returned
+ * value.
+ */
+static int hidpp_send_message_sync(struct hidpp_device *hidpp,
+	struct hidpp_report *message,
+	struct hidpp_report *response)
+{
+	int ret;
+	int max_retries = 3;
+
+	mutex_lock(&hidpp->send_mutex);
+
+	do {
+		ret = __do_hidpp_send_message_sync(hidpp, message, response);
+		if (ret != HIDPP20_ERROR_BUSY)
+			break;
+
+		dbg_hid("%s:got busy hidpp 2.0 error %02X, retrying\n", __func__, ret);
+	} while (--max_retries);
 
 	mutex_unlock(&hidpp->send_mutex);
 	return ret;
 
 }
 
+/*
+ * hidpp_send_fap_command_sync() returns 0 in case of success, and something else
+ * in case of a failure.
+ *
+ * See __do_hidpp_send_message_sync() for a detailed explanation of the returned
+ * value.
+ */
 static int hidpp_send_fap_command_sync(struct hidpp_device *hidpp,
 	u8 feat_index, u8 funcindex_clientid, u8 *params, int param_count,
 	struct hidpp_report *response)
@@ -373,6 +401,13 @@ static int hidpp_send_fap_command_sync(struct hidpp_device *hidpp,
 	return ret;
 }
 
+/*
+ * hidpp_send_rap_command_sync() returns 0 in case of success, and something else
+ * in case of a failure.
+ *
+ * See __do_hidpp_send_message_sync() for a detailed explanation of the returned
+ * value.
+ */
 static int hidpp_send_rap_command_sync(struct hidpp_device *hidpp_dev,
 	u8 report_id, u8 sub_id, u8 reg_address, u8 *params, int param_count,
 	struct hidpp_report *response)
