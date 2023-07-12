@@ -75,6 +75,9 @@
 
 #define DC_LOGGER_INIT(logger)
 
+#define HEAD_NOT_IN_ODM -2
+#define UNABLE_TO_SPLIT -1
+
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
@@ -1471,7 +1474,24 @@ static int acquire_first_split_pipe(
 			return i;
 		} else if (split_pipe->prev_odm_pipe &&
 				split_pipe->prev_odm_pipe->plane_state == split_pipe->plane_state) {
+
+			// Fix case where ODM slice has child planes
+			// Re-attach child planes
+			struct pipe_ctx *temp_head_pipe = resource_get_head_pipe_for_stream(res_ctx, split_pipe->stream);
+
+			if (split_pipe->bottom_pipe && temp_head_pipe) {
+
+				struct pipe_ctx *temp_tail_pipe = resource_get_tail_pipe(res_ctx, temp_head_pipe);
+
+				if (temp_tail_pipe) {
+
+					split_pipe->bottom_pipe->top_pipe = temp_tail_pipe;
+					temp_tail_pipe->bottom_pipe = split_pipe->bottom_pipe;
+				}
+			}
+
 			split_pipe->prev_odm_pipe->next_odm_pipe = split_pipe->next_odm_pipe;
+
 			if (split_pipe->next_odm_pipe)
 				split_pipe->next_odm_pipe->prev_odm_pipe = split_pipe->prev_odm_pipe;
 
@@ -1479,6 +1499,11 @@ static int acquire_first_split_pipe(
 				resource_build_scaling_params(split_pipe->prev_odm_pipe);
 
 			memset(split_pipe, 0, sizeof(*split_pipe));
+
+			// We cannot split if head pipe is not odm
+			if (temp_head_pipe && !temp_head_pipe->next_odm_pipe && !temp_head_pipe->prev_odm_pipe)
+				return HEAD_NOT_IN_ODM;
+
 			split_pipe->stream_res.tg = pool->timing_generators[i];
 			split_pipe->plane_res.hubp = pool->hubps[i];
 			split_pipe->plane_res.ipp = pool->ipps[i];
@@ -1491,7 +1516,7 @@ static int acquire_first_split_pipe(
 			return i;
 		}
 	}
-	return -1;
+	return UNABLE_TO_SPLIT;
 }
 
 bool dc_add_plane_to_context(
@@ -1543,6 +1568,10 @@ bool dc_add_plane_to_context(
 			int pipe_idx = acquire_first_split_pipe(&context->res_ctx, pool, stream);
 			if (pipe_idx >= 0)
 				free_pipe = &context->res_ctx.pipe_ctx[pipe_idx];
+			else if (pipe_idx == HEAD_NOT_IN_ODM)
+				break;
+			else
+				ASSERT(false);
 		}
 
 		if (!free_pipe) {
@@ -1699,12 +1728,14 @@ bool dc_add_plane_to_context(
 						(free_pipe->plane_state->clip_rect.x + free_pipe->plane_state->clip_rect.width <=
 						free_pipe->stream->src.x + free_pipe->stream->src.width/2))) {
 					if (!free_pipe->next_odm_pipe &&
-						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe) {
+						tail_pipe->next_odm_pipe && tail_pipe->next_odm_pipe->bottom_pipe &&
+						tail_pipe->next_odm_pipe->bottom_pipe->plane_state == free_pipe->plane_state) {
 						free_pipe->next_odm_pipe = tail_pipe->next_odm_pipe->bottom_pipe;
 						tail_pipe->next_odm_pipe->bottom_pipe->prev_odm_pipe = free_pipe;
 					}
 					if (!free_pipe->prev_odm_pipe &&
-						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe) {
+						tail_pipe->prev_odm_pipe && tail_pipe->prev_odm_pipe->bottom_pipe &&
+						tail_pipe->prev_odm_pipe->bottom_pipe->plane_state == free_pipe->plane_state) {
 						free_pipe->prev_odm_pipe = tail_pipe->prev_odm_pipe->bottom_pipe;
 						tail_pipe->prev_odm_pipe->bottom_pipe->next_odm_pipe = free_pipe;
 					}
