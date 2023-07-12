@@ -2053,9 +2053,8 @@ static bool canon_copy_from_read_buf(struct tty_struct *tty,
  * EOF (special EOL character that's a __DISABLED_CHAR)
  * in the stream, silently eat the EOF.
  */
-static void canon_skip_eof(struct tty_struct *tty)
+static void canon_skip_eof(struct n_tty_data *ldata)
 {
-	struct n_tty_data *ldata = tty->disc_data;
 	size_t tail, canon_head;
 
 	canon_head = smp_load_acquire(&ldata->canon_head);
@@ -2153,7 +2152,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			 * releasing the lock and returning done.
 			 */
 			if (!nr)
-				canon_skip_eof(tty);
+				canon_skip_eof(ldata);
 			else if (canon_copy_from_read_buf(tty, &kb, &nr))
 				return kb - kbuf;
 		} else {
