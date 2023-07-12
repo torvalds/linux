@@ -42,6 +42,7 @@ struct ice_esw_br_port {
 	struct ice_vsi *vsi;
 	enum ice_esw_br_port_type type;
 	u16 vsi_idx;
+	u16 pvid;
 	struct xarray vlans;
 };
 
