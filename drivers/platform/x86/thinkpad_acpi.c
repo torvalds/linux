@@ -315,15 +315,10 @@ struct ibm_init_struct {
 /* DMI Quirks */
 struct quirk_entry {
 	bool btusb_bug;
-	u32 s2idle_bug_mmio;
 };
 
 static struct quirk_entry quirk_btusb_bug = {
 	.btusb_bug = true,
-};
-
-static struct quirk_entry quirk_s2idle_bug = {
-	.s2idle_bug_mmio = 0xfed80380,
 };
 
 static struct {
@@ -4422,135 +4417,8 @@ static const struct dmi_system_id fwbug_list[] __initconst = {
 			DMI_MATCH(DMI_BOARD_NAME, "20MV"),
 		},
 	},
-	{
-		.ident = "L14 Gen2 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20X5"),
-		}
-	},
-	{
-		.ident = "T14s Gen2 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20XF"),
-		}
-	},
-	{
-		.ident = "X13 Gen2 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20XH"),
-		}
-	},
-	{
-		.ident = "T14 Gen2 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20XK"),
-		}
-	},
-	{
-		.ident = "T14 Gen1 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20UD"),
-		}
-	},
-	{
-		.ident = "T14 Gen1 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20UE"),
-		}
-	},
-	{
-		.ident = "T14s Gen1 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20UH"),
-		}
-	},
-	{
-		.ident = "T14s Gen1 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20UJ"),
-		}
-	},
-	{
-		.ident = "P14s Gen1 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "20Y1"),
-		}
-	},
-	{
-		.ident = "P14s Gen2 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "21A0"),
-		}
-	},
-	{
-		.ident = "P14s Gen2 AMD",
-		.driver_data = &quirk_s2idle_bug,
-		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "21A1"),
-		}
-	},
 	{}
 };
-
-#ifdef CONFIG_SUSPEND
-/*
- * Lenovo laptops from a variety of generations run a SMI handler during the D3->D0
- * transition that occurs specifically when exiting suspend to idle which can cause
- * large delays during resume when the IOMMU translation layer is enabled (the default
- * behavior) for NVME devices:
- *
- * To avoid this firmware problem, skip the SMI handler on these machines before the
- * D0 transition occurs.
- */
-static void thinkpad_acpi_amd_s2idle_restore(void)
-{
-	struct resource *res;
-	void __iomem *addr;
-	u8 val;
-
-	res = request_mem_region_muxed(tp_features.quirks->s2idle_bug_mmio, 1,
-					"thinkpad_acpi_pm80");
-	if (!res)
-		return;
-
-	addr = ioremap(tp_features.quirks->s2idle_bug_mmio, 1);
-	if (!addr)
-		goto cleanup_resource;
-
-	val = ioread8(addr);
-	iowrite8(val & ~BIT(0), addr);
-
-	iounmap(addr);
-cleanup_resource:
-	release_resource(res);
-	kfree(res);
-}
-
-static struct acpi_s2idle_dev_ops thinkpad_acpi_s2idle_dev_ops = {
-	.restore = thinkpad_acpi_amd_s2idle_restore,
-};
-#endif
 
 static const struct pci_device_id fwbug_cards_ids[] __initconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x24F3) },
@@ -11668,10 +11536,6 @@ static void thinkpad_acpi_module_exit(void)
 
 	tpacpi_lifecycle = TPACPI_LIFE_EXITING;
 
-#ifdef CONFIG_SUSPEND
-	if (tp_features.quirks && tp_features.quirks->s2idle_bug_mmio)
-		acpi_unregister_lps0_dev(&thinkpad_acpi_s2idle_dev_ops);
-#endif
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
 	if (tp_features.sensors_pdrv_registered)
@@ -11861,13 +11725,6 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.input_device_registered = 1;
 	}
 
-#ifdef CONFIG_SUSPEND
-	if (tp_features.quirks && tp_features.quirks->s2idle_bug_mmio) {
-		if (!acpi_register_lps0_dev(&thinkpad_acpi_s2idle_dev_ops))
-			pr_info("Using s2idle quirk to avoid %s platform firmware bug\n",
-				(dmi_id && dmi_id->ident) ? dmi_id->ident : "");
-	}
-#endif
 	return 0;
 }
 
