@@ -634,10 +634,9 @@ err_pm_disable:
 	return ret;
 }
 
-static int jh7110_tdm_dev_remove(struct platform_device *pdev)
+static void jh7110_tdm_dev_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id jh7110_tdm_of_match[] = {
@@ -661,7 +660,7 @@ static struct platform_driver jh7110_tdm_driver = {
 		.pm = pm_ptr(&jh7110_tdm_pm_ops),
 	},
 	.probe = jh7110_tdm_probe,
-	.remove = jh7110_tdm_dev_remove,
+	.remove_new = jh7110_tdm_dev_remove,
 };
 module_platform_driver(jh7110_tdm_driver);
 
