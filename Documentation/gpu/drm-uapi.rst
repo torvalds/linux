@@ -527,12 +527,12 @@ VBlank event handling
 
 The DRM core exposes two vertical blank related ioctls:
 
-DRM_IOCTL_WAIT_VBLANK
+:c:macro:`DRM_IOCTL_WAIT_VBLANK`
     This takes a struct drm_wait_vblank structure as its argument, and
     it is used to block or request a signal when a specified vblank
     event occurs.
 
-DRM_IOCTL_MODESET_CTL
+:c:macro:`DRM_IOCTL_MODESET_CTL`
     This was only used for user-mode-settind drivers around modesetting
     changes to allow the kernel to update the vblank interrupt after
     mode setting, since on many devices the vertical blank counter is
@@ -555,8 +555,8 @@ The index is used in cases where a densely packed identifier for a CRTC is
 needed, for instance a bitmask of CRTC's. The member possible_crtcs of struct
 drm_mode_get_plane is an example.
 
-DRM_IOCTL_MODE_GETRESOURCES populates a structure with an array of CRTC ID's,
-and the CRTC index is its position in this array.
+:c:macro:`DRM_IOCTL_MODE_GETRESOURCES` populates a structure with an array of
+CRTC ID's, and the CRTC index is its position in this array.
 
 .. kernel-doc:: include/uapi/drm/drm.h
    :internal:
