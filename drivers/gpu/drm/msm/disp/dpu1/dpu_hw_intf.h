@@ -127,9 +127,10 @@ struct dpu_hw_intf {
  * interface catalog entry.
  * @cfg:  interface catalog entry for which driver object is required
  * @addr: mapped register io address of MDP
+ * @mdss_rev: dpu core's major and minor versions
  */
 struct dpu_hw_intf *dpu_hw_intf_init(const struct dpu_intf_cfg *cfg,
-		void __iomem *addr);
+		void __iomem *addr, const struct dpu_mdss_version *mdss_rev);
 
 /**
  * dpu_hw_intf_destroy(): Destroys INTF driver context
