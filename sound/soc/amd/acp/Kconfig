@@ -18,6 +18,9 @@ if SND_SOC_AMD_ACP_COMMON
 config SND_SOC_AMD_ACP_PDM
 	tristate
 
+config SND_SOC_AMD_ACP_LEGACY_COMMON
+	tristate
+
 config SND_SOC_AMD_ACP_I2S
 	tristate
 
@@ -36,6 +39,7 @@ config SND_AMD_ASOC_RENOIR
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	depends on X86 && PCI
 	help
 	  This option enables Renoir I2S support on AMD platform.
@@ -45,6 +49,7 @@ config SND_AMD_ASOC_REMBRANDT
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
 	depends on X86 && PCI
 	help
 	  This option enables Rembrandt I2S support on AMD platform.
