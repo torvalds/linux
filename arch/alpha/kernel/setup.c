@@ -422,7 +422,7 @@ register_cpus(void)
 arch_initcall(register_cpus);
 
 #ifdef CONFIG_MAGIC_SYSRQ
-static void sysrq_reboot_handler(int unused)
+static void sysrq_reboot_handler(u8 unused)
 {
 	machine_halt();
 }

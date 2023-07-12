@@ -30,7 +30,7 @@
 #define SYSRQ_ENABLE_RTNICE	0x0100
 
 struct sysrq_key_op {
-	void (* const handler)(int);
+	void (* const handler)(u8);
 	const char * const help_msg;
 	const char * const action_msg;
 	const int enable_mask;
