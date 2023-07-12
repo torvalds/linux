@@ -3364,7 +3364,7 @@ register_fail:
 	return err;
 }
 
-static int gfar_remove(struct platform_device *ofdev)
+static void gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = platform_get_drvdata(ofdev);
 	struct device_node *np = ofdev->dev.of_node;
@@ -3381,8 +3381,6 @@ static int gfar_remove(struct platform_device *ofdev)
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
 	free_gfar_dev(priv);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -3642,7 +3640,7 @@ static struct platform_driver gfar_driver = {
 		.of_match_table = gfar_match,
 	},
 	.probe = gfar_probe,
-	.remove = gfar_remove,
+	.remove_new = gfar_remove,
 };
 
 module_platform_driver(gfar_driver);

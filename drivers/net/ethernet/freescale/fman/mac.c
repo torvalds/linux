@@ -331,12 +331,11 @@ _return_of_node_put:
 	return err;
 }
 
-static int mac_remove(struct platform_device *pdev)
+static void mac_remove(struct platform_device *pdev)
 {
 	struct mac_device *mac_dev = platform_get_drvdata(pdev);
 
 	platform_device_unregister(mac_dev->priv->eth_dev);
-	return 0;
 }
 
 static struct platform_driver mac_driver = {
@@ -345,7 +344,7 @@ static struct platform_driver mac_driver = {
 		.of_match_table	= mac_match,
 	},
 	.probe		= mac_probe,
-	.remove		= mac_remove,
+	.remove_new	= mac_remove,
 };
 
 builtin_platform_driver(mac_driver);

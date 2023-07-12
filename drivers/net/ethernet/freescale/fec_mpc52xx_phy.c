@@ -117,7 +117,7 @@ static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 	return err;
 }
 
-static int mpc52xx_fec_mdio_remove(struct platform_device *of)
+static void mpc52xx_fec_mdio_remove(struct platform_device *of)
 {
 	struct mii_bus *bus = platform_get_drvdata(of);
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
@@ -126,8 +126,6 @@ static int mpc52xx_fec_mdio_remove(struct platform_device *of)
 	iounmap(priv->regs);
 	kfree(priv);
 	mdiobus_free(bus);
-
-	return 0;
 }
 
 static const struct of_device_id mpc52xx_fec_mdio_match[] = {
@@ -145,7 +143,7 @@ struct platform_driver mpc52xx_fec_mdio_driver = {
 		.of_match_table = mpc52xx_fec_mdio_match,
 	},
 	.probe = mpc52xx_fec_mdio_probe,
-	.remove = mpc52xx_fec_mdio_remove,
+	.remove_new = mpc52xx_fec_mdio_remove,
 };
 
 /* let fec driver call it, since this has to be registered before it */
