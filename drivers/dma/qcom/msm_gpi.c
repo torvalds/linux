@@ -558,8 +558,7 @@ struct gpii_chan {
 
 struct gpii {
 	u32 gpii_id;
-	struct gpii_chan *gpii_chan;
-	dma_addr_t gpii_chan_dma;
+	struct gpii_chan gpii_chan[MAX_CHANNELS_PER_GPII];
 	struct gpi_dev *gpi_dev;
 	enum EV_PRIORITY ev_priority;
 	enum se_protocol protocol;
@@ -3132,16 +3131,6 @@ static int gpi_probe(struct platform_device *pdev)
 	for (i = 0; i < gpi_dev->max_gpii; i++) {
 		struct gpii *gpii = &gpi_dev->gpiis[i];
 		int chan;
-
-		gpii->gpii_chan = dmam_alloc_coherent(gpi_dev->dev,
-				MAX_CHANNELS_PER_GPII * sizeof(struct gpii_chan),
-				&gpii->gpii_chan_dma, GFP_KERNEL);
-
-		if (!gpii->gpii_chan) {
-			GPI_ERR(gpi_dev,
-				"No memory for GPII chan alloc\n");
-			return -ENOMEM;
-		}
 
 		gpii->is_resumed = true;
 
