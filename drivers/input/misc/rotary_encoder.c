@@ -251,7 +251,6 @@ static int rotary_encoder_probe(struct platform_device *pdev)
 
 	input->name = pdev->name;
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = dev;
 
 	if (encoder->relative_axis)
 		input_set_capability(input, EV_REL, encoder->axis);
