@@ -1051,7 +1051,7 @@ static struct sched_domain_topology_level powerpc_topology[] = {
 #endif
 	{ shared_cache_mask, powerpc_shared_cache_flags, SD_INIT_NAME(CACHE) },
 	{ cpu_mc_mask, SD_INIT_NAME(MC) },
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
+	{ cpu_cpu_mask, SD_INIT_NAME(PKG) },
 	{ NULL, },
 };
 
@@ -1595,7 +1595,7 @@ static void add_cpu_to_masks(int cpu)
 	/* Skip all CPUs already part of current CPU core mask */
 	cpumask_andnot(mask, cpu_online_mask, cpu_core_mask(cpu));
 
-	/* If chip_id is -1; limit the cpu_core_mask to within DIE*/
+	/* If chip_id is -1; limit the cpu_core_mask to within PKG */
 	if (chip_id == -1)
 		cpumask_and(mask, mask, cpu_cpu_mask(cpu));
 

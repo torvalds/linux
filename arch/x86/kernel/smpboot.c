@@ -641,13 +641,13 @@ static void __init build_sched_topology(void)
 	};
 #endif
 	/*
-	 * When there is NUMA topology inside the package skip the DIE domain
+	 * When there is NUMA topology inside the package skip the PKG domain
 	 * since the NUMA domains will auto-magically create the right spanning
 	 * domains based on the SLIT.
 	 */
 	if (!x86_has_numa_in_package) {
 		x86_topology[i++] = (struct sched_domain_topology_level){
-			cpu_cpu_mask, x86_die_flags, SD_INIT_NAME(DIE)
+			cpu_cpu_mask, x86_die_flags, SD_INIT_NAME(PKG)
 		};
 	}
 
