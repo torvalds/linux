@@ -66,7 +66,6 @@ def define_autogvm():
         "drivers/soc/qcom/rename_devices.ko",
         "drivers/soc/qcom/rq_stats.ko",
         "drivers/soc/qcom/secure_buffer.ko",
-        "drivers/soc/qcom/socinfo_dt.ko",
         "drivers/soc/qcom/usb_bam.ko",
         "drivers/spi/spi-msm-geni.ko",
         "drivers/spi/spidev.ko",
