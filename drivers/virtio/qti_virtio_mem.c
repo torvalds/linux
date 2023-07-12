@@ -303,17 +303,10 @@ static struct attribute_group dev_group = {
 	.attrs = dev_attrs,
 };
 
-static unsigned long get_zone_free_pages(enum zone_type zone_class)
+static inline unsigned long get_zone_free_pages(enum zone_type zone_class)
 {
-	struct zone *z;
-	unsigned long free_pages;
-
-	z = &NODE_DATA(numa_node_id())->node_zones[zone_class];
-	free_pages = zone_page_state(z, NR_FREE_PAGES);
-	if (z->percpu_drift_mark && free_pages < z->percpu_drift_mark)
-		free_pages = zone_page_state_snapshot(z, NR_FREE_PAGES);
-
-	return free_pages;
+	return zone_page_state(&NODE_DATA(numa_node_id())->node_zones[zone_class],
+		NR_FREE_PAGES);
 }
 
 static int qvm_oom_notify(struct notifier_block *self,
@@ -321,8 +314,15 @@ static int qvm_oom_notify(struct notifier_block *self,
 {
 	unsigned long *freed = parm;
 	struct qti_virtio_mem_hint *hint;
+	unsigned long free_pages;
+	struct zone *z;
 
-	if (qvm_hint_total >= max_plugin_threshold)
+	z = &NODE_DATA(numa_node_id())->node_zones[ZONE_MOVABLE];
+	free_pages = get_zone_free_pages(ZONE_MOVABLE);
+
+	/* add a block only if movable zone is exhausted */
+	if ((free_pages > high_wmark_pages(z) + device_block_size / PAGE_SIZE) ||
+	    (qvm_hint_total >= max_plugin_threshold))
 		return NOTIFY_OK;
 
 	pr_info("comm: %s totalram_pages: %lu Normal free_pages: %lu Movable free_pages: %lu\n",
