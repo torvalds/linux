@@ -191,7 +191,7 @@ struct igc_adapter {
 	int tc_setup_type;
 	ktime_t base_time;
 	ktime_t cycle_time;
-	bool qbv_enable;
+	bool taprio_offload_enable;
 	u32 qbv_config_change_errors;
 	bool qbv_transition;
 	unsigned int qbv_count;
