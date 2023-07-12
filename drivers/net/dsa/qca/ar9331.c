@@ -1010,7 +1010,7 @@ static const struct regmap_config ar9331_mdio_regmap_config = {
 	.wr_table = &ar9331_register_set,
 	.rd_table = &ar9331_register_set,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static struct regmap_bus ar9331_sw_bus = {
