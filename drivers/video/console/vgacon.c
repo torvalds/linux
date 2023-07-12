@@ -528,7 +528,7 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 	}
 }
 
-static int vgacon_doresize(struct vc_data *c,
+static void vgacon_doresize(struct vc_data *c,
 		unsigned int width, unsigned int height)
 {
 	unsigned long flags;
@@ -587,7 +587,6 @@ static int vgacon_doresize(struct vc_data *c,
 	}
 
 	raw_spin_unlock_irqrestore(&vga_lock, flags);
-	return 0;
 }
 
 static int vgacon_switch(struct vc_data *c)
