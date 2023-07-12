@@ -171,7 +171,7 @@ static int vehicle_state_change(struct vehicle *v)
 
 	gpio_reverse_on = vehicle_gpio_reverse_check(gpiod);
 	gpio_reverse_on = TEST_GPIO & gpio_reverse_on;
-	VEHICLE_DG(
+	VEHICLE_INFO(
 	"%s, gpio = reverse %s, width = %d, sensor_ready = %d, state=%d dvr_apk_need_start = %d\n",
 	__func__, gpio_reverse_on ? "on" : "over",
 	v_cfg->width, v_cfg->ad_ready, v->state, dvr_apk_need_start);
@@ -201,7 +201,7 @@ static int vehicle_state_change(struct vehicle *v)
 				vehicle_close();
 				vehicle_ad_stream(&v->ad, 0);
 				v->state = STATE_CLOSE;
-			} else if (gpio_reverse_on) {  //  reverse on & video format change
+			} else if (gpio_reverse_on && !v->android_is_ready) { //video fmt change
 				vehicle_open_close();
 				vehicle_open(v_cfg);
 				msleep(100);
@@ -244,7 +244,7 @@ static int vehicle_state_change(struct vehicle *v)
 				vehicle_close();
 				vehicle_ad_stream(&v->ad, 0);
 				v->state = STATE_CLOSE;
-			} else if (gpio_reverse_on) {  //  reverse on & video format change
+			} else if (gpio_reverse_on && !v->android_is_ready) { //video fmt change
 				vehicle_open_close();
 				vehicle_ad_stream(&v->ad, 0);
 				vehicle_ad_channel_set(&g_vehicle->ad, 0);
@@ -287,7 +287,7 @@ static int vehicle_state_change(struct vehicle *v)
 				vehicle_close();
 				vehicle_ad_stream(&v->ad, 0);
 				v->state = STATE_CLOSE;
-			} else if (gpio_reverse_on) {  //  reverse on & video format change
+			} else if (gpio_reverse_on && !v->android_is_ready) { //video fmt change
 				vehicle_open_close();
 				vehicle_ad_stream(&v->ad, 0);
 				vehicle_ad_channel_set(&g_vehicle->ad, 0);
