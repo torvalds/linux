@@ -9,13 +9,13 @@
 #ifndef GPIOLIB_H
 #define GPIOLIB_H
 
-#include <linux/gpio/driver.h>
-#include <linux/gpio/consumer.h> /* for enum gpiod_flags */
-#include <linux/err.h>
+#include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/err.h>
+#include <linux/gpio/consumer.h> /* for enum gpiod_flags */
+#include <linux/gpio/driver.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-#include <linux/cdev.h>
 #include <linux/rwsem.h>
 
 #define GPIOCHIP_NAME	"gpiochip"
