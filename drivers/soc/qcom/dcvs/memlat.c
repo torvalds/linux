@@ -1482,7 +1482,7 @@ static int configure_cpucp_mon(struct memlat_mon *mon)
 	msg.mon_type = mon->is_compute;
 	msg.mon_idx = mon->index;
 	if ((strrchr(dev_name(mon->dev), c) + 1))
-		snprintf(msg.mon_name, MAX_NAME_LEN, (strrchr(dev_name(mon->dev), c) + 1));
+		scnprintf(msg.mon_name, MAX_NAME_LEN, "%s", (strrchr(dev_name(mon->dev), c) + 1));
 	ret = ops->set_param(memlat_data->ph, &msg,
 			MEMLAT_ALGO_STR, MEMLAT_SET_MONITOR, sizeof(msg));
 	if (ret < 0) {
