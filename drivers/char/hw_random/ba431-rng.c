@@ -190,10 +190,8 @@ static int ba431_trng_probe(struct platform_device *pdev)
 	ba431->rng.read = ba431_trng_read;
 
 	ret = devm_hwrng_register(&pdev->dev, &ba431->rng);
-	if (ret) {
-		dev_err(&pdev->dev, "BA431 registration failed (%d)\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "BA431 registration failed\n");
 
 	dev_info(&pdev->dev, "BA431 TRNG registered\n");
 
