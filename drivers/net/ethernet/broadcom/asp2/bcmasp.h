@@ -315,6 +315,8 @@ struct bcmasp_intf {
 	/* Used if per intf wol irq */
 	int				wol_irq;
 	unsigned int			wol_irq_enabled:1;
+
+	struct ethtool_eee		eee;
 };
 
 #define NUM_NET_FILTERS				32
@@ -558,4 +560,6 @@ void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
 				   u32 *rule_cnt);
 
 void bcmasp_netfilt_suspend(struct bcmasp_intf *intf);
+
+void bcmasp_eee_enable_set(struct bcmasp_intf *intf, bool enable);
 #endif

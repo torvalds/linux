@@ -646,6 +646,9 @@ static void bcmasp_adj_link(struct net_device *dev)
 			UMC_CMD_TX_PAUSE_IGNORE);
 		reg |= cmd_bits;
 		umac_wl(intf, reg, UMC_CMD);
+
+		intf->eee.eee_active = phy_init_eee(phydev, 0) >= 0;
+		bcmasp_eee_enable_set(intf, intf->eee.eee_active);
 	}
 
 	reg = rgmii_rl(intf, RGMII_OOB_CNTRL);
@@ -1386,6 +1389,9 @@ int bcmasp_interface_resume(struct bcmasp_intf *intf)
 		goto out;
 
 	bcmasp_resume_from_wol(intf);
+
+	if (intf->eee.eee_enabled)
+		bcmasp_eee_enable_set(intf, true);
 
 	netif_device_attach(dev);
 
