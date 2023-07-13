@@ -45,7 +45,6 @@ static const char * const supply_names[] = {
 	"vdd-usb-cp",
 };
 
-static const u8 wcd_usbss_reg_access[WCD_USBSS_NUM_REGISTERS];
 static bool config_standby;
 static int audio_fsm_mode = WCD_USBSS_AUDIO_MANUAL;
 
@@ -218,19 +217,6 @@ int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
 	return 0;
 }
 EXPORT_SYMBOL(wcd_usbss_set_linearizer_sw_tap);
-
-static bool wcd_usbss_readable_register(struct device *dev, unsigned int reg)
-{
-	if (reg <= (WCD_USBSS_BASE + 1))
-		return false;
-
-	if ((wcd_usbss_ctxt_ && wcd_usbss_ctxt_->version == WCD_USBSS_1_X) &&
-			(reg >= WCD_USBSS_EFUSE_CTL &&
-			reg <= WCD_USBSS_ANA_CSR_DBG_CTL))
-		return false;
-
-	return wcd_usbss_reg_access[WCD_USBSS_REG(reg)] & RD_REG;
-}
 
 /*
  * wcd_usbss_is_in_reset_state() - Check whether a negative surge ESD event has occurred.
@@ -1272,7 +1258,6 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 				__func__);
 		rc = 0;
 	}
-	wcd_usbss_regmap_config.readable_reg = wcd_usbss_readable_register;
 	priv->regmap = wcd_usbss_regmap_init(priv->dev, &wcd_usbss_regmap_config);
 	if (IS_ERR_OR_NULL(priv->regmap)) {
 		rc = PTR_ERR(priv->regmap);
