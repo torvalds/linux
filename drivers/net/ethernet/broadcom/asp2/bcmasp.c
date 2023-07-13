@@ -127,6 +127,597 @@ void bcmasp_flush_rx_port(struct bcmasp_intf *intf)
 	rx_ctrl_core_wl(priv, mask, priv->hw_info->rx_ctrl_flush);
 }
 
+static void bcmasp_netfilt_hw_en_wake(struct bcmasp_priv *priv,
+				      struct bcmasp_net_filter *nfilt)
+{
+	rx_filter_core_wl(priv, ASP_RX_FILTER_NET_OFFSET_L3_1(64),
+			  ASP_RX_FILTER_NET_OFFSET(nfilt->hw_index));
+
+	rx_filter_core_wl(priv, ASP_RX_FILTER_NET_OFFSET_L2(32) |
+			  ASP_RX_FILTER_NET_OFFSET_L3_0(32) |
+			  ASP_RX_FILTER_NET_OFFSET_L3_1(96) |
+			  ASP_RX_FILTER_NET_OFFSET_L4(32),
+			  ASP_RX_FILTER_NET_OFFSET(nfilt->hw_index + 1));
+
+	rx_filter_core_wl(priv, ASP_RX_FILTER_NET_CFG_CH(nfilt->port + 8) |
+			  ASP_RX_FILTER_NET_CFG_EN |
+			  ASP_RX_FILTER_NET_CFG_L2_EN |
+			  ASP_RX_FILTER_NET_CFG_L3_EN |
+			  ASP_RX_FILTER_NET_CFG_L4_EN |
+			  ASP_RX_FILTER_NET_CFG_L3_FRM(2) |
+			  ASP_RX_FILTER_NET_CFG_L4_FRM(2) |
+			  ASP_RX_FILTER_NET_CFG_UMC(nfilt->port),
+			  ASP_RX_FILTER_NET_CFG(nfilt->hw_index));
+
+	rx_filter_core_wl(priv, ASP_RX_FILTER_NET_CFG_CH(nfilt->port + 8) |
+			  ASP_RX_FILTER_NET_CFG_EN |
+			  ASP_RX_FILTER_NET_CFG_L2_EN |
+			  ASP_RX_FILTER_NET_CFG_L3_EN |
+			  ASP_RX_FILTER_NET_CFG_L4_EN |
+			  ASP_RX_FILTER_NET_CFG_L3_FRM(2) |
+			  ASP_RX_FILTER_NET_CFG_L4_FRM(2) |
+			  ASP_RX_FILTER_NET_CFG_UMC(nfilt->port),
+			  ASP_RX_FILTER_NET_CFG(nfilt->hw_index + 1));
+}
+
+#define MAX_WAKE_FILTER_SIZE		256
+enum asp_netfilt_reg_type {
+	ASP_NETFILT_MATCH = 0,
+	ASP_NETFILT_MASK,
+	ASP_NETFILT_MAX
+};
+
+static int bcmasp_netfilt_get_reg_offset(struct bcmasp_priv *priv,
+					 struct bcmasp_net_filter *nfilt,
+					 enum asp_netfilt_reg_type reg_type,
+					 u32 offset)
+{
+	u32 block_index, filter_sel;
+
+	if (offset < 32) {
+		block_index = ASP_RX_FILTER_NET_L2;
+		filter_sel = nfilt->hw_index;
+	} else if (offset < 64) {
+		block_index = ASP_RX_FILTER_NET_L2;
+		filter_sel = nfilt->hw_index + 1;
+	} else if (offset < 96) {
+		block_index = ASP_RX_FILTER_NET_L3_0;
+		filter_sel = nfilt->hw_index;
+	} else if (offset < 128) {
+		block_index = ASP_RX_FILTER_NET_L3_0;
+		filter_sel = nfilt->hw_index + 1;
+	} else if (offset < 160) {
+		block_index = ASP_RX_FILTER_NET_L3_1;
+		filter_sel = nfilt->hw_index;
+	} else if (offset < 192) {
+		block_index = ASP_RX_FILTER_NET_L3_1;
+		filter_sel = nfilt->hw_index + 1;
+	} else if (offset < 224) {
+		block_index = ASP_RX_FILTER_NET_L4;
+		filter_sel = nfilt->hw_index;
+	} else if (offset < 256) {
+		block_index = ASP_RX_FILTER_NET_L4;
+		filter_sel = nfilt->hw_index + 1;
+	} else {
+		return -EINVAL;
+	}
+
+	switch (reg_type) {
+	case ASP_NETFILT_MATCH:
+		return ASP_RX_FILTER_NET_PAT(filter_sel, block_index,
+					     (offset % 32));
+	case ASP_NETFILT_MASK:
+		return ASP_RX_FILTER_NET_MASK(filter_sel, block_index,
+					      (offset % 32));
+	default:
+		return -EINVAL;
+	}
+}
+
+static void bcmasp_netfilt_wr(struct bcmasp_priv *priv,
+			      struct bcmasp_net_filter *nfilt,
+			      enum asp_netfilt_reg_type reg_type,
+			      u32 val, u32 offset)
+{
+	int reg_offset;
+
+	/* HW only accepts 4 byte aligned writes */
+	if (!IS_ALIGNED(offset, 4) || offset > MAX_WAKE_FILTER_SIZE)
+		return;
+
+	reg_offset = bcmasp_netfilt_get_reg_offset(priv, nfilt, reg_type,
+						   offset);
+
+	rx_filter_core_wl(priv, val, reg_offset);
+}
+
+static u32 bcmasp_netfilt_rd(struct bcmasp_priv *priv,
+			     struct bcmasp_net_filter *nfilt,
+			     enum asp_netfilt_reg_type reg_type,
+			     u32 offset)
+{
+	int reg_offset;
+
+	/* HW only accepts 4 byte aligned writes */
+	if (!IS_ALIGNED(offset, 4) || offset > MAX_WAKE_FILTER_SIZE)
+		return 0;
+
+	reg_offset = bcmasp_netfilt_get_reg_offset(priv, nfilt, reg_type,
+						   offset);
+
+	return rx_filter_core_rl(priv, reg_offset);
+}
+
+static int bcmasp_netfilt_wr_m_wake(struct bcmasp_priv *priv,
+				    struct bcmasp_net_filter *nfilt,
+				    u32 offset, void *match, void *mask,
+				    size_t size)
+{
+	u32 shift, mask_val = 0, match_val = 0;
+	bool first_byte = true;
+
+	if ((offset + size) > MAX_WAKE_FILTER_SIZE)
+		return -EINVAL;
+
+	while (size--) {
+		/* The HW only accepts 4 byte aligned writes, so if we
+		 * begin unaligned or if remaining bytes less than 4,
+		 * we need to read then write to avoid losing current
+		 * register state
+		 */
+		if (first_byte && (!IS_ALIGNED(offset, 4) || size < 3)) {
+			match_val = bcmasp_netfilt_rd(priv, nfilt,
+						      ASP_NETFILT_MATCH,
+						      ALIGN_DOWN(offset, 4));
+			mask_val = bcmasp_netfilt_rd(priv, nfilt,
+						     ASP_NETFILT_MASK,
+						     ALIGN_DOWN(offset, 4));
+		}
+
+		shift = (3 - (offset % 4)) * 8;
+		match_val &= ~GENMASK(shift + 7, shift);
+		mask_val &= ~GENMASK(shift + 7, shift);
+		match_val |= (u32)(*((u8 *)match) << shift);
+		mask_val |= (u32)(*((u8 *)mask) << shift);
+
+		/* If last byte or last byte of word, write to reg */
+		if (!size || ((offset % 4) == 3)) {
+			bcmasp_netfilt_wr(priv, nfilt, ASP_NETFILT_MATCH,
+					  match_val, ALIGN_DOWN(offset, 4));
+			bcmasp_netfilt_wr(priv, nfilt, ASP_NETFILT_MASK,
+					  mask_val, ALIGN_DOWN(offset, 4));
+			first_byte = true;
+		} else {
+			first_byte = false;
+		}
+
+		offset++;
+		match++;
+		mask++;
+	}
+
+	return 0;
+}
+
+static void bcmasp_netfilt_reset_hw(struct bcmasp_priv *priv,
+				    struct bcmasp_net_filter *nfilt)
+{
+	int i;
+
+	for (i = 0; i < MAX_WAKE_FILTER_SIZE; i += 4) {
+		bcmasp_netfilt_wr(priv, nfilt, ASP_NETFILT_MATCH, 0, i);
+		bcmasp_netfilt_wr(priv, nfilt, ASP_NETFILT_MASK, 0, i);
+	}
+}
+
+static void bcmasp_netfilt_tcpip4_wr(struct bcmasp_priv *priv,
+				     struct bcmasp_net_filter *nfilt,
+				     struct ethtool_tcpip4_spec *match,
+				     struct ethtool_tcpip4_spec *mask,
+				     u32 offset)
+{
+	__be16 val_16, mask_16;
+
+	val_16 = htons(ETH_P_IP);
+	mask_16 = htons(0xFFFF);
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, (ETH_ALEN * 2) + offset,
+				 &val_16, &mask_16, sizeof(val_16));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 1,
+				 &match->tos, &mask->tos,
+				 sizeof(match->tos));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 12,
+				 &match->ip4src, &mask->ip4src,
+				 sizeof(match->ip4src));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 16,
+				 &match->ip4dst, &mask->ip4dst,
+				 sizeof(match->ip4dst));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 20,
+				 &match->psrc, &mask->psrc,
+				 sizeof(match->psrc));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 22,
+				 &match->pdst, &mask->pdst,
+				 sizeof(match->pdst));
+}
+
+static void bcmasp_netfilt_tcpip6_wr(struct bcmasp_priv *priv,
+				     struct bcmasp_net_filter *nfilt,
+				     struct ethtool_tcpip6_spec *match,
+				     struct ethtool_tcpip6_spec *mask,
+				     u32 offset)
+{
+	__be16 val_16, mask_16;
+
+	val_16 = htons(ETH_P_IPV6);
+	mask_16 = htons(0xFFFF);
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, (ETH_ALEN * 2) + offset,
+				 &val_16, &mask_16, sizeof(val_16));
+	val_16 = htons(match->tclass << 4);
+	mask_16 = htons(mask->tclass << 4);
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset,
+				 &val_16, &mask_16, sizeof(val_16));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 8,
+				 &match->ip6src, &mask->ip6src,
+				 sizeof(match->ip6src));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 24,
+				 &match->ip6dst, &mask->ip6dst,
+				 sizeof(match->ip6dst));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 40,
+				 &match->psrc, &mask->psrc,
+				 sizeof(match->psrc));
+	bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 42,
+				 &match->pdst, &mask->pdst,
+				 sizeof(match->pdst));
+}
+
+static int bcmasp_netfilt_wr_to_hw(struct bcmasp_priv *priv,
+				   struct bcmasp_net_filter *nfilt)
+{
+	struct ethtool_rx_flow_spec *fs = &nfilt->fs;
+	unsigned int offset = 0;
+	__be16 val_16, mask_16;
+	u8 val_8, mask_8;
+
+	/* Currently only supports wake filters */
+	if (!nfilt->wake_filter)
+		return -EINVAL;
+
+	bcmasp_netfilt_reset_hw(priv, nfilt);
+
+	if (fs->flow_type & FLOW_MAC_EXT) {
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, 0, &fs->h_ext.h_dest,
+					 &fs->m_ext.h_dest,
+					 sizeof(fs->h_ext.h_dest));
+	}
+
+	if ((fs->flow_type & FLOW_EXT) &&
+	    (fs->m_ext.vlan_etype || fs->m_ext.vlan_tci)) {
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, (ETH_ALEN * 2),
+					 &fs->h_ext.vlan_etype,
+					 &fs->m_ext.vlan_etype,
+					 sizeof(fs->h_ext.vlan_etype));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ((ETH_ALEN * 2) + 2),
+					 &fs->h_ext.vlan_tci,
+					 &fs->m_ext.vlan_tci,
+					 sizeof(fs->h_ext.vlan_tci));
+		offset += VLAN_HLEN;
+	}
+
+	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	case ETHER_FLOW:
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, 0,
+					 &fs->h_u.ether_spec.h_dest,
+					 &fs->m_u.ether_spec.h_dest,
+					 sizeof(fs->h_u.ether_spec.h_dest));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_ALEN,
+					 &fs->h_u.ether_spec.h_source,
+					 &fs->m_u.ether_spec.h_source,
+					 sizeof(fs->h_u.ether_spec.h_source));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, (ETH_ALEN * 2) + offset,
+					 &fs->h_u.ether_spec.h_proto,
+					 &fs->m_u.ether_spec.h_proto,
+					 sizeof(fs->h_u.ether_spec.h_proto));
+
+		break;
+	case IP_USER_FLOW:
+		val_16 = htons(ETH_P_IP);
+		mask_16 = htons(0xFFFF);
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, (ETH_ALEN * 2) + offset,
+					 &val_16, &mask_16, sizeof(val_16));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 1,
+					 &fs->h_u.usr_ip4_spec.tos,
+					 &fs->m_u.usr_ip4_spec.tos,
+					 sizeof(fs->h_u.usr_ip4_spec.tos));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 9,
+					 &fs->h_u.usr_ip4_spec.proto,
+					 &fs->m_u.usr_ip4_spec.proto,
+					 sizeof(fs->h_u.usr_ip4_spec.proto));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 12,
+					 &fs->h_u.usr_ip4_spec.ip4src,
+					 &fs->m_u.usr_ip4_spec.ip4src,
+					 sizeof(fs->h_u.usr_ip4_spec.ip4src));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 16,
+					 &fs->h_u.usr_ip4_spec.ip4dst,
+					 &fs->m_u.usr_ip4_spec.ip4dst,
+					 sizeof(fs->h_u.usr_ip4_spec.ip4dst));
+		if (!fs->m_u.usr_ip4_spec.l4_4_bytes)
+			break;
+
+		/* Only supports 20 byte IPv4 header */
+		val_8 = 0x45;
+		mask_8 = 0xFF;
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset,
+					 &val_8, &mask_8, sizeof(val_8));
+		bcmasp_netfilt_wr_m_wake(priv, nfilt,
+					 ETH_HLEN + 20 + offset,
+					 &fs->h_u.usr_ip4_spec.l4_4_bytes,
+					 &fs->m_u.usr_ip4_spec.l4_4_bytes,
+					 sizeof(fs->h_u.usr_ip4_spec.l4_4_bytes)
+					 );
+		break;
+	case TCP_V4_FLOW:
+		val_8 = IPPROTO_TCP;
+		mask_8 = 0xFF;
+		bcmasp_netfilt_tcpip4_wr(priv, nfilt, &fs->h_u.tcp_ip4_spec,
+					 &fs->m_u.tcp_ip4_spec, offset);
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 9,
+					 &val_8, &mask_8, sizeof(val_8));
+		break;
+	case UDP_V4_FLOW:
+		val_8 = IPPROTO_UDP;
+		mask_8 = 0xFF;
+		bcmasp_netfilt_tcpip4_wr(priv, nfilt, &fs->h_u.udp_ip4_spec,
+					 &fs->m_u.udp_ip4_spec, offset);
+
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 9,
+					 &val_8, &mask_8, sizeof(val_8));
+		break;
+	case TCP_V6_FLOW:
+		val_8 = IPPROTO_TCP;
+		mask_8 = 0xFF;
+		bcmasp_netfilt_tcpip6_wr(priv, nfilt, &fs->h_u.tcp_ip6_spec,
+					 &fs->m_u.tcp_ip6_spec, offset);
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 6,
+					 &val_8, &mask_8, sizeof(val_8));
+		break;
+	case UDP_V6_FLOW:
+		val_8 = IPPROTO_UDP;
+		mask_8 = 0xFF;
+		bcmasp_netfilt_tcpip6_wr(priv, nfilt, &fs->h_u.udp_ip6_spec,
+					 &fs->m_u.udp_ip6_spec, offset);
+		bcmasp_netfilt_wr_m_wake(priv, nfilt, ETH_HLEN + offset + 6,
+					 &val_8, &mask_8, sizeof(val_8));
+		break;
+	}
+
+	bcmasp_netfilt_hw_en_wake(priv, nfilt);
+
+	return 0;
+}
+
+void bcmasp_netfilt_suspend(struct bcmasp_intf *intf)
+{
+	struct bcmasp_priv *priv = intf->parent;
+	bool write = false;
+	int ret, i;
+
+	/* Write all filters to HW */
+	for (i = 0; i < NUM_NET_FILTERS; i++) {
+		/* If the filter does not match the port, skip programming. */
+		if (!priv->net_filters[i].claimed ||
+		    priv->net_filters[i].port != intf->port)
+			continue;
+
+		if (i > 0 && (i % 2) &&
+		    priv->net_filters[i].wake_filter &&
+		    priv->net_filters[i - 1].wake_filter)
+			continue;
+
+		ret = bcmasp_netfilt_wr_to_hw(priv, &priv->net_filters[i]);
+		if (!ret)
+			write = true;
+	}
+
+	/* Successfully programmed at least one wake filter
+	 * so enable top level wake config
+	 */
+	if (write)
+		rx_filter_core_wl(priv, (ASP_RX_FILTER_OPUT_EN |
+				  ASP_RX_FILTER_LNR_MD |
+				  ASP_RX_FILTER_GEN_WK_EN |
+				  ASP_RX_FILTER_NT_FLT_EN),
+				  ASP_RX_FILTER_BLK_CTRL);
+}
+
+void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
+				   u32 *rule_cnt)
+{
+	struct bcmasp_priv *priv = intf->parent;
+	int j = 0, i;
+
+	for (i = 0; i < NUM_NET_FILTERS; i++) {
+		if (!priv->net_filters[i].claimed ||
+		    priv->net_filters[i].port != intf->port)
+			continue;
+
+		if (i > 0 && (i % 2) &&
+		    priv->net_filters[i].wake_filter &&
+		    priv->net_filters[i - 1].wake_filter)
+			continue;
+
+		rule_locs[j++] = priv->net_filters[i].fs.location;
+	}
+
+	*rule_cnt = j;
+}
+
+int bcmasp_netfilt_get_active(struct bcmasp_intf *intf)
+{
+	struct bcmasp_priv *priv = intf->parent;
+	int cnt = 0, i;
+
+	for (i = 0; i < NUM_NET_FILTERS; i++) {
+		if (!priv->net_filters[i].claimed ||
+		    priv->net_filters[i].port != intf->port)
+			continue;
+
+		/* Skip over a wake filter pair */
+		if (i > 0 && (i % 2) &&
+		    priv->net_filters[i].wake_filter &&
+		    priv->net_filters[i - 1].wake_filter)
+			continue;
+
+		cnt++;
+	}
+
+	return cnt;
+}
+
+bool bcmasp_netfilt_check_dup(struct bcmasp_intf *intf,
+			      struct ethtool_rx_flow_spec *fs)
+{
+	struct bcmasp_priv *priv = intf->parent;
+	struct ethtool_rx_flow_spec *cur;
+	size_t fs_size = 0;
+	int i;
+
+	for (i = 0; i < NUM_NET_FILTERS; i++) {
+		if (!priv->net_filters[i].claimed ||
+		    priv->net_filters[i].port != intf->port)
+			continue;
+
+		cur = &priv->net_filters[i].fs;
+
+		if (cur->flow_type != fs->flow_type ||
+		    cur->ring_cookie != fs->ring_cookie)
+			continue;
+
+		switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+		case ETHER_FLOW:
+			fs_size = sizeof(struct ethhdr);
+			break;
+		case IP_USER_FLOW:
+			fs_size = sizeof(struct ethtool_usrip4_spec);
+			break;
+		case TCP_V6_FLOW:
+		case UDP_V6_FLOW:
+			fs_size = sizeof(struct ethtool_tcpip6_spec);
+			break;
+		case TCP_V4_FLOW:
+		case UDP_V4_FLOW:
+			fs_size = sizeof(struct ethtool_tcpip4_spec);
+			break;
+		default:
+			continue;
+		}
+
+		if (memcmp(&cur->h_u, &fs->h_u, fs_size) ||
+		    memcmp(&cur->m_u, &fs->m_u, fs_size))
+			continue;
+
+		if (cur->flow_type & FLOW_EXT) {
+			if (cur->h_ext.vlan_etype != fs->h_ext.vlan_etype ||
+			    cur->m_ext.vlan_etype != fs->m_ext.vlan_etype ||
+			    cur->h_ext.vlan_tci != fs->h_ext.vlan_tci ||
+			    cur->m_ext.vlan_tci != fs->m_ext.vlan_tci ||
+			    cur->h_ext.data[0] != fs->h_ext.data[0])
+				continue;
+		}
+		if (cur->flow_type & FLOW_MAC_EXT) {
+			if (memcmp(&cur->h_ext.h_dest,
+				   &fs->h_ext.h_dest, ETH_ALEN) ||
+			    memcmp(&cur->m_ext.h_dest,
+				   &fs->m_ext.h_dest, ETH_ALEN))
+				continue;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+/* If no network filter found, return open filter.
+ * If no more open filters return NULL
+ */
+struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
+						  int loc, bool wake_filter,
+						  bool init)
+{
+	struct bcmasp_net_filter *nfilter = NULL;
+	struct bcmasp_priv *priv = intf->parent;
+	int i, open_index = -1;
+
+	/* Check whether we exceed the filter table capacity */
+	if (loc != RX_CLS_LOC_ANY && loc >= NUM_NET_FILTERS)
+		return ERR_PTR(-EINVAL);
+
+	/* If the filter location is busy (already claimed) and we are initializing
+	 * the filter (insertion), return a busy error code.
+	 */
+	if (loc != RX_CLS_LOC_ANY && init && priv->net_filters[loc].claimed)
+		return ERR_PTR(-EBUSY);
+
+	/* We need two filters for wake-up, so we cannot use an odd filter */
+	if (wake_filter && loc != RX_CLS_LOC_ANY && (loc % 2))
+		return ERR_PTR(-EINVAL);
+
+	/* Initialize the loop index based on the desired location or from 0 */
+	i = loc == RX_CLS_LOC_ANY ? 0 : loc;
+
+	for ( ; i < NUM_NET_FILTERS; i++) {
+		/* Found matching network filter */
+		if (!init &&
+		    priv->net_filters[i].claimed &&
+		    priv->net_filters[i].hw_index == i &&
+		    priv->net_filters[i].port == intf->port)
+			return &priv->net_filters[i];
+
+		/* If we don't need a new filter or new filter already found */
+		if (!init || open_index >= 0)
+			continue;
+
+		/* Wake filter conslidates two filters to cover more bytes
+		 * Wake filter is open if...
+		 * 1. It is an even filter
+		 * 2. The current and next filter is not claimed
+		 */
+		if (wake_filter && !(i % 2) && !priv->net_filters[i].claimed &&
+		    !priv->net_filters[i + 1].claimed)
+			open_index = i;
+		else if (!priv->net_filters[i].claimed)
+			open_index = i;
+	}
+
+	if (open_index >= 0) {
+		nfilter = &priv->net_filters[open_index];
+		nfilter->claimed = true;
+		nfilter->port = intf->port;
+		nfilter->hw_index = open_index;
+	}
+
+	if (wake_filter && open_index >= 0) {
+		/* Claim next filter */
+		priv->net_filters[open_index + 1].claimed = true;
+		priv->net_filters[open_index + 1].wake_filter = true;
+		nfilter->wake_filter = true;
+	}
+
+	return nfilter ? nfilter : ERR_PTR(-EINVAL);
+}
+
+void bcmasp_netfilt_release(struct bcmasp_intf *intf,
+			    struct bcmasp_net_filter *nfilt)
+{
+	struct bcmasp_priv *priv = intf->parent;
+
+	if (nfilt->wake_filter) {
+		memset(&priv->net_filters[nfilt->hw_index + 1], 0,
+		       sizeof(struct bcmasp_net_filter));
+	}
+
+	memset(nfilt, 0, sizeof(struct bcmasp_net_filter));
+}
+
 static void bcmasp_addr_to_uint(unsigned char *addr, u32 *high, u32 *low)
 {
 	*high = (u32)(addr[0] << 8 | addr[1]);
@@ -333,6 +924,9 @@ static void bcmasp_core_init_filters(struct bcmasp_priv *priv)
 		rx_filter_core_wl(priv, 0x0, ASP_RX_FILTER_MDA_CFG(i));
 		priv->mda_filters[i].en = 0;
 	}
+
+	for (i = 0; i < NUM_NET_FILTERS; i++)
+		rx_filter_core_wl(priv, 0x0, ASP_RX_FILTER_NET_CFG(i));
 
 	/* Top level filter enable bit should be enabled at all times, set
 	 * GEN_WAKE_CLEAR to clear the network filter wake-up which would
@@ -657,6 +1251,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->mda_lock);
 	spin_lock_init(&priv->clk_lock);
 	mutex_init(&priv->wol_lock);
+	mutex_init(&priv->net_lock);
 	INIT_LIST_HEAD(&priv->intfs);
 
 	pdata = device_get_match_data(&pdev->dev);

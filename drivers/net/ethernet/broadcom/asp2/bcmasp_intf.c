@@ -1300,6 +1300,9 @@ static void bcmasp_suspend_to_wol(struct bcmasp_intf *intf)
 	}
 	umac_wl(intf, reg, UMC_MPD_CTRL);
 
+	if (intf->wolopts & WAKE_FILTER)
+		bcmasp_netfilt_suspend(intf);
+
 	/* UniMAC receive needs to be turned on */
 	umac_enable_set(intf, UMC_CMD_RX_EN, 1);
 

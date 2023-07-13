@@ -30,7 +30,7 @@ static void bcmasp_set_msglevel(struct net_device *dev, u32 level)
 	intf->msg_enable = level;
 }
 
-#define BCMASP_SUPPORTED_WAKE   (WAKE_MAGIC | WAKE_MAGICSECURE)
+#define BCMASP_SUPPORTED_WAKE   (WAKE_MAGIC | WAKE_MAGICSECURE | WAKE_FILTER)
 static void bcmasp_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bcmasp_intf *intf = netdev_priv(dev);
@@ -64,6 +64,133 @@ static int bcmasp_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
+static int bcmasp_flow_insert(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+	struct bcmasp_net_filter *nfilter;
+	u32 loc = cmd->fs.location;
+	bool wake = false;
+
+	if (cmd->fs.ring_cookie == RX_CLS_FLOW_WAKE)
+		wake = true;
+
+	/* Currently only supports WAKE filters */
+	if (!wake)
+		return -EOPNOTSUPP;
+
+	switch (cmd->fs.flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
+	case ETHER_FLOW:
+	case IP_USER_FLOW:
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	/* Check if filter already exists */
+	if (bcmasp_netfilt_check_dup(intf, &cmd->fs))
+		return -EINVAL;
+
+	nfilter = bcmasp_netfilt_get_init(intf, loc, wake, true);
+	if (IS_ERR(nfilter))
+		return PTR_ERR(nfilter);
+
+	/* Return the location where we did insert the filter */
+	cmd->fs.location = nfilter->hw_index;
+	memcpy(&nfilter->fs, &cmd->fs, sizeof(struct ethtool_rx_flow_spec));
+
+	/* Since we only support wake filters, defer register programming till
+	 * suspend time.
+	 */
+	return 0;
+}
+
+static int bcmasp_flow_delete(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+	struct bcmasp_net_filter *nfilter;
+
+	nfilter = bcmasp_netfilt_get_init(intf, cmd->fs.location, false, false);
+	if (IS_ERR(nfilter))
+		return PTR_ERR(nfilter);
+
+	bcmasp_netfilt_release(intf, nfilter);
+
+	return 0;
+}
+
+static int bcmasp_flow_get(struct bcmasp_intf *intf, struct ethtool_rxnfc *cmd)
+{
+	struct bcmasp_net_filter *nfilter;
+
+	nfilter = bcmasp_netfilt_get_init(intf, cmd->fs.location, false, false);
+	if (IS_ERR(nfilter))
+		return PTR_ERR(nfilter);
+
+	memcpy(&cmd->fs, &nfilter->fs, sizeof(nfilter->fs));
+
+	cmd->data = NUM_NET_FILTERS;
+
+	return 0;
+}
+
+static int bcmasp_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+	int ret = -EOPNOTSUPP;
+
+	mutex_lock(&intf->parent->net_lock);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = bcmasp_flow_insert(dev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = bcmasp_flow_delete(dev, cmd);
+		break;
+	default:
+		break;
+	}
+
+	mutex_unlock(&intf->parent->net_lock);
+
+	return ret;
+}
+
+static int bcmasp_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			    u32 *rule_locs)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+	int err = 0;
+
+	mutex_lock(&intf->parent->net_lock);
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = bcmasp_netfilt_get_active(intf);
+		/* We support specifying rule locations */
+		cmd->data |= RX_CLS_LOC_SPECIAL;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = bcmasp_flow_get(intf, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		bcmasp_netfilt_get_all_active(intf, rule_locs, &cmd->rule_cnt);
+		cmd->data = NUM_NET_FILTERS;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	mutex_unlock(&intf->parent->net_lock);
+
+	return err;
+}
+
 const struct ethtool_ops bcmasp_ethtool_ops = {
 	.get_drvinfo		= bcmasp_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -73,4 +200,6 @@ const struct ethtool_ops bcmasp_ethtool_ops = {
 	.set_msglevel		= bcmasp_set_msglevel,
 	.get_wol		= bcmasp_get_wol,
 	.set_wol		= bcmasp_set_wol,
+	.get_rxnfc		= bcmasp_get_rxnfc,
+	.set_rxnfc		= bcmasp_set_rxnfc,
 };

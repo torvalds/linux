@@ -106,6 +106,14 @@
 #define   ASP_RX_FILTER_NET_OFFSET_L3_1(val)	((val) << 16)
 #define   ASP_RX_FILTER_NET_OFFSET_L4(val)	((val) << 24)
 
+enum asp_rx_net_filter_block {
+	ASP_RX_FILTER_NET_L2 = 0,
+	ASP_RX_FILTER_NET_L3_0,
+	ASP_RX_FILTER_NET_L3_1,
+	ASP_RX_FILTER_NET_L4,
+	ASP_RX_FILTER_NET_BLOCK_MAX
+};
+
 #define ASP_EDPKT_OFFSET			0x9c000
 #define  ASP_EDPKT_ENABLE			0x4
 #define   ASP_EDPKT_ENABLE_EN			BIT(0)
@@ -309,6 +317,17 @@ struct bcmasp_intf {
 	unsigned int			wol_irq_enabled:1;
 };
 
+#define NUM_NET_FILTERS				32
+struct bcmasp_net_filter {
+	struct ethtool_rx_flow_spec	fs;
+
+	bool				claimed;
+	bool				wake_filter;
+
+	int				port;
+	unsigned int			hw_index;
+};
+
 #define NUM_MDA_FILTERS				32
 struct bcmasp_mda_filter {
 	/* Current owner of this filter */
@@ -361,6 +380,11 @@ struct bcmasp_priv {
 
 	/* Protects accesses to ASP_CTRL_CLOCK_CTRL */
 	spinlock_t			clk_lock;
+
+	struct bcmasp_net_filter	net_filters[NUM_NET_FILTERS];
+
+	/* Network filter lock */
+	struct mutex			net_lock;
 };
 
 static inline unsigned long bcmasp_intf_rx_desc_read(struct bcmasp_intf *intf)
@@ -518,4 +542,20 @@ void bcmasp_disable_all_filters(struct bcmasp_intf *intf);
 
 void bcmasp_core_clock_set_intf(struct bcmasp_intf *intf, bool en);
 
+struct bcmasp_net_filter *bcmasp_netfilt_get_init(struct bcmasp_intf *intf,
+						  int loc, bool wake_filter,
+						  bool init);
+
+bool bcmasp_netfilt_check_dup(struct bcmasp_intf *intf,
+			      struct ethtool_rx_flow_spec *fs);
+
+void bcmasp_netfilt_release(struct bcmasp_intf *intf,
+			    struct bcmasp_net_filter *nfilt);
+
+int bcmasp_netfilt_get_active(struct bcmasp_intf *intf);
+
+void bcmasp_netfilt_get_all_active(struct bcmasp_intf *intf, u32 *rule_locs,
+				   u32 *rule_cnt);
+
+void bcmasp_netfilt_suspend(struct bcmasp_intf *intf);
 #endif
