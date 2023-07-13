@@ -586,6 +586,7 @@ static inline void hab_ctx_put(struct uhab_context *ctx)
 void hab_send_close_msg(struct virtual_channel *vchan);
 
 int hab_hypervisor_register(void);
+int hab_hypervisor_register_post(void);
 int hab_hypervisor_register_os(void);
 int hab_hypervisor_unregister_os(void);
 void hab_hypervisor_unregister(void);

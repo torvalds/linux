@@ -881,9 +881,6 @@ int hab_hypervisor_register(void)
 		pr_err("failed to reserve 16MB cma region base_pfn %lX cnt %lX\n",
 			   cma_get_base(c), cma_get_size(c));
 #endif
-
-	/* one virtio device */
-	register_virtio_driver(&virtio_hab_driver);
 	pr_info("alloc virtio_pchan_array of %d devices\n",
 			hab_driver.ndevices);
 	return 0;
@@ -1174,4 +1171,11 @@ int hab_stat_log(struct physical_channel **pchans, int pchan_cnt, char *dest,
 	}
 
 	return ret;
+}
+
+int hab_hypervisor_register_post(void)
+{
+	/* one virtio device */
+	register_virtio_driver(&virtio_hab_driver);
+	return 0;
 }

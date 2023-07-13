@@ -394,6 +394,7 @@ static int __init hab_init(void)
 			}
 		}
 	}
+	hab_hypervisor_register_post();
 	hab_stat_init(&hab_driver);
 	return result;
 

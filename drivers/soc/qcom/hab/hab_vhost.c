@@ -770,6 +770,8 @@ void hab_hypervisor_unregister(void)
 	unregister_chrdev_region(g_vh.major, max_devices);
 }
 
+int hab_hypervisor_register_post(void) { return 0; }
+
 void hab_pipe_read_dump(struct physical_channel *pchan) {};
 
 void dump_hab_wq(struct physical_channel *pchan) {};
