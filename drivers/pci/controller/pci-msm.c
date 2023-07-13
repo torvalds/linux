@@ -1697,6 +1697,9 @@ static void pcie_crm_dump(struct msm_pcie_dev_t *dev)
 {
 	int ret;
 
+	if (!dev->pcie_sm)
+		return;
+
 	ret = crm_dump_regs("pcie_crm");
 	if (ret)
 		PCIE_DUMP(dev, "PCIe: RC%d Error dumping crm regs %d\n",
