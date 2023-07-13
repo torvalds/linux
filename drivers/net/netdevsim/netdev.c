@@ -304,6 +304,7 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 	if (err)
 		goto err_utn_destroy;
 
+	nsim_macsec_init(ns);
 	nsim_ipsec_init(ns);
 
 	err = register_netdevice(ns->netdev);
@@ -314,6 +315,7 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 
 err_ipsec_teardown:
 	nsim_ipsec_teardown(ns);
+	nsim_macsec_teardown(ns);
 	nsim_bpf_uninit(ns);
 err_utn_destroy:
 	rtnl_unlock();
@@ -374,6 +376,7 @@ void nsim_destroy(struct netdevsim *ns)
 	rtnl_lock();
 	unregister_netdevice(dev);
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port)) {
+		nsim_macsec_teardown(ns);
 		nsim_ipsec_teardown(ns);
 		nsim_bpf_uninit(ns);
 	}
