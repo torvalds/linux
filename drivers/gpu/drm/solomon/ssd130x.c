@@ -153,7 +153,7 @@ static int ssd130x_buf_alloc(struct ssd130x_device *ssd130x)
 	const struct drm_format_info *fi;
 	unsigned int pitch;
 
-	fi = drm_format_info(DRM_FORMAT_C1);
+	fi = drm_format_info(DRM_FORMAT_R1);
 	if (!fi)
 		return -EINVAL;
 
