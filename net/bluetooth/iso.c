@@ -1288,6 +1288,18 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 			clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
 		break;
 
+	case BT_PKT_STATUS:
+		if (copy_from_sockptr(&opt, optval, sizeof(u32))) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (opt)
+			set_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags);
+		else
+			clear_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags);
+		break;
+
 	case BT_ISO_QOS:
 		if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND &&
 		    sk->sk_state != BT_CONNECT2) {
@@ -1371,6 +1383,12 @@ static int iso_sock_getsockopt(struct socket *sock, int level, int optname,
 			     (u32 __user *)optval))
 			err = -EFAULT;
 
+		break;
+
+	case BT_PKT_STATUS:
+		if (put_user(test_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags),
+			     (int __user *)optval))
+			err = -EFAULT;
 		break;
 
 	case BT_ISO_QOS:
@@ -1767,6 +1785,7 @@ void iso_recv(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 
 		if (len == skb->len) {
 			/* Complete frame received */
+			hci_skb_pkt_status(skb) = flags & 0x03;
 			iso_recv_frame(conn, skb);
 			return;
 		}
@@ -1788,6 +1807,7 @@ void iso_recv(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		if (!conn->rx_skb)
 			goto drop;
 
+		hci_skb_pkt_status(conn->rx_skb) = flags & 0x03;
 		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
 					  skb->len);
 		conn->rx_len = len - skb->len;
