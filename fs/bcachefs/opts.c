@@ -167,11 +167,9 @@ const struct bch_option bch2_opt_table[] = {
 #define OPT_UINT(_min, _max)	.type = BCH_OPT_UINT,			\
 				.min = _min, .max = _max
 #define OPT_STR(_choices)	.type = BCH_OPT_STR,			\
-				.min = 0, .max = ARRAY_SIZE(_choices),\
+				.min = 0, .max = ARRAY_SIZE(_choices),	\
 				.choices = _choices
-#define OPT_FN(_fn)		.type = BCH_OPT_FN,			\
-				.parse = _fn##_parse,			\
-				.to_text = _fn##_to_text
+#define OPT_FN(_fn)		.type = BCH_OPT_FN, .fn	= _fn
 
 #define x(_name, _bits, _flags, _type, _sb_opt, _default, _hint, _help)	\
 	[Opt_##_name] = {						\
@@ -298,10 +296,7 @@ int bch2_opt_parse(struct bch_fs *c,
 		*res = ret;
 		break;
 	case BCH_OPT_FN:
-		if (!c)
-			return 0;
-
-		ret = opt->parse(c, val, res);
+		ret = opt->fn.parse(c, val, res, err);
 		if (ret < 0) {
 			if (err)
 				prt_printf(err, "%s: parse error",
@@ -344,7 +339,7 @@ void bch2_opt_to_text(struct printbuf *out,
 			prt_printf(out, "%s", opt->choices[v]);
 		break;
 	case BCH_OPT_FN:
-		opt->to_text(out, c, sb, v);
+		opt->fn.to_text(out, c, sb, v);
 		break;
 	default:
 		BUG();

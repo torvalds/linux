@@ -8,6 +8,8 @@
 #include <linux/sysfs.h>
 #include "bcachefs_format.h"
 
+struct bch_fs;
+
 extern const char * const bch2_error_actions[];
 extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
@@ -65,6 +67,11 @@ enum opt_type {
 	BCH_OPT_UINT,
 	BCH_OPT_STR,
 	BCH_OPT_FN,
+};
+
+struct bch_opt_fn {
+	int (*parse)(struct bch_fs *, const char *, u64 *, struct printbuf *);
+	void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
 };
 
 /**
@@ -495,8 +502,8 @@ struct bch_option {
 	u64			min, max;
 
 	const char * const *choices;
-	int (*parse)(struct bch_fs *, const char *, u64 *);
-	void (*to_text)(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);
+
+	struct bch_opt_fn	fn;
 
 	const char		*hint;
 	const char		*help;

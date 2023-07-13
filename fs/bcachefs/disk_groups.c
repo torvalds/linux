@@ -460,30 +460,37 @@ int bch2_dev_group_set(struct bch_fs *c, struct bch_dev *ca, const char *name)
 	return ret;
 }
 
-int bch2_opt_target_parse(struct bch_fs *c, const char *buf, u64 *v)
+int bch2_opt_target_parse(struct bch_fs *c, const char *val, u64 *res,
+			  struct printbuf *err)
 {
 	struct bch_dev *ca;
 	int g;
 
-	if (!strlen(buf) || !strcmp(buf, "none")) {
-		*v = 0;
+	if (!val)
+		return -EINVAL;
+
+	if (!c)
+		return 0;
+
+	if (!strlen(val) || !strcmp(val, "none")) {
+		*res = 0;
 		return 0;
 	}
 
 	/* Is it a device? */
-	ca = bch2_dev_lookup(c, buf);
+	ca = bch2_dev_lookup(c, val);
 	if (!IS_ERR(ca)) {
-		*v = dev_to_target(ca->dev_idx);
+		*res = dev_to_target(ca->dev_idx);
 		percpu_ref_put(&ca->ref);
 		return 0;
 	}
 
 	mutex_lock(&c->sb_lock);
-	g = bch2_disk_path_find(&c->disk_sb, buf);
+	g = bch2_disk_path_find(&c->disk_sb, val);
 	mutex_unlock(&c->sb_lock);
 
 	if (g >= 0) {
-		*v = group_to_target(g);
+		*res = group_to_target(g);
 		return 0;
 	}
 
