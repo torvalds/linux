@@ -1415,6 +1415,7 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 	struct wm8960_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8960_priv *wm8960;
 	int ret;
+	u8 val;
 
 	wm8960 = devm_kzalloc(&i2c->dev, sizeof(struct wm8960_priv),
 			      GFP_KERNEL);
@@ -1435,6 +1436,12 @@ static int wm8960_i2c_probe(struct i2c_client *i2c)
 		memcpy(&wm8960->pdata, pdata, sizeof(struct wm8960_data));
 	else if (i2c->dev.of_node)
 		wm8960_set_pdata_from_of(i2c, &wm8960->pdata);
+
+	ret = i2c_master_recv(i2c, &val, sizeof(val));
+	if (ret >= 0) {
+		dev_err(&i2c->dev, "Not wm8960, wm8960 reg can not read by i2c\n");
+		return -EINVAL;
+	}
 
 	ret = wm8960_reset(wm8960->regmap);
 	if (ret != 0) {
