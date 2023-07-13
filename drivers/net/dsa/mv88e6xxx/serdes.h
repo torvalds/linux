@@ -46,6 +46,10 @@ struct phylink_link_state;
 /* 10GBASE-R and 10GBASE-X4/X2 */
 #define MV88E6390_10G_CTRL1		(0x1000 + MDIO_CTRL1)
 #define MV88E6390_10G_STAT1		(0x1000 + MDIO_STAT1)
+#define MV88E6390_10G_INT_ENABLE	0x9001
+#define MV88E6390_10G_INT_LINK_DOWN	BIT(3)
+#define MV88E6390_10G_INT_LINK_UP	BIT(2)
+#define MV88E6390_10G_INT_STATUS	0x9003
 #define MV88E6393X_10G_INT_ENABLE	0x9000
 #define MV88E6393X_10G_INT_LINK_CHANGE	BIT(2)
 #define MV88E6393X_10G_INT_STATUS	0x9001
@@ -116,35 +120,10 @@ int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6393x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
-int mv88e6390_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
-				int lane, unsigned int mode,
-				phy_interface_t interface,
-				const unsigned long *advertise);
-int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
-				   int lane, struct phylink_link_state *state);
-int mv88e6393x_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
-				    int lane, struct phylink_link_state *state);
-int mv88e6390_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
-				    int lane);
-int mv88e6390_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
-				 int lane, int speed, int duplex);
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
-int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
-			   bool on);
-int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
-			    bool on);
-int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip);
-int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, int lane,
-				bool enable);
-int mv88e6393x_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
-				 int lane, bool enable);
-irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
-					int lane);
-irqreturn_t mv88e6393x_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
-					 int lane);
 int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port);
 int mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
 				 int port, uint8_t *data);
@@ -230,5 +209,7 @@ mv88e6xxx_serdes_irq_status(struct mv88e6xxx_chip *chip, int port, int lane)
 
 extern const struct mv88e6xxx_pcs_ops mv88e6185_pcs_ops;
 extern const struct mv88e6xxx_pcs_ops mv88e6352_pcs_ops;
+extern const struct mv88e6xxx_pcs_ops mv88e6390_pcs_ops;
+extern const struct mv88e6xxx_pcs_ops mv88e6393x_pcs_ops;
 
 #endif
