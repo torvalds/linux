@@ -486,33 +486,36 @@ static int adspsleepmon_smem_init(void)
 	g_adspsleepmon.lpm_stats = qcom_smem_get(
 						ADSPSLEEPMON_SMEM_ADSP_PID,
 						ADSPSLEEPMON_SLEEPSTATS_ADSP_SMEM_ID,
-						NULL);
+						&size);
 
-	if (IS_ERR_OR_NULL(g_adspsleepmon.lpm_stats)) {
-		pr_err("Failed to get sleep stats from SMEM for ADSP: %d\n",
-				PTR_ERR(g_adspsleepmon.lpm_stats));
+	if (IS_ERR_OR_NULL(g_adspsleepmon.lpm_stats) ||
+		(sizeof(struct sleep_stats) > size)) {
+		pr_err("Failed to get sleep stats from SMEM for ADSP: %d, size: %d\n",
+				PTR_ERR(g_adspsleepmon.lpm_stats), size);
 		return -ENOMEM;
 	}
 
 	g_adspsleepmon.lpi_stats = qcom_smem_get(
 						ADSPSLEEPMON_SMEM_ADSP_PID,
 						ADSPSLEEPMON_SLEEPSTATS_ADSP_LPI_SMEM_ID,
-						NULL);
+						&size);
 
-	if (IS_ERR_OR_NULL(g_adspsleepmon.lpi_stats)) {
-		pr_err("Failed to get LPI sleep stats from SMEM for ADSP: %d\n",
-				PTR_ERR(g_adspsleepmon.lpi_stats));
+	if (IS_ERR_OR_NULL(g_adspsleepmon.lpi_stats) ||
+		(sizeof(struct sleep_stats) > size)) {
+		pr_err("Failed to get LPI sleep stats from SMEM for ADSP: %d, size: %d\n",
+				PTR_ERR(g_adspsleepmon.lpi_stats), size);
 		return -ENOMEM;
 	}
 
 	g_adspsleepmon.dsppm_stats = qcom_smem_get(
 						   ADSPSLEEPMON_SMEM_ADSP_PID,
 						ADSPSLEEPMON_DSPPMSTATS_SMEM_ID,
-						NULL);
+						&size);
 
-	if (IS_ERR_OR_NULL(g_adspsleepmon.dsppm_stats)) {
-		pr_err("Failed to get DSPPM stats from SMEM for ADSP: %d\n",
-				PTR_ERR(g_adspsleepmon.dsppm_stats));
+	if (IS_ERR_OR_NULL(g_adspsleepmon.dsppm_stats) ||
+		(sizeof(struct dsppm_stats) > size)) {
+		pr_err("Failed to get DSPPM stats from SMEM for ADSP: %d, size: %d\n",
+				PTR_ERR(g_adspsleepmon.dsppm_stats), size);
 		return -ENOMEM;
 	}
 
