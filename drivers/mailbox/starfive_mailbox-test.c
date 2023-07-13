@@ -283,17 +283,6 @@ static void mbox_test_prepare_message(struct mbox_client *client, void *message)
 	}
 }
 
-static void mbox_test_message_sent(struct mbox_client *client,
-		void *message, int r)
-{
-	if (r)
-		dev_warn(client->dev,
-			"Client: Message could not be sent: %d\n", r);
-	else
-		dev_info(client->dev,
-			"Client: Message sent\n");
-}
-
 static struct mbox_chan *
 mbox_test_request_channel(struct platform_device *pdev, const char *name)
 {
