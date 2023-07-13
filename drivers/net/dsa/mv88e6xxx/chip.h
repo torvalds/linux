@@ -205,6 +205,7 @@ struct mv88e6xxx_irq_ops;
 struct mv88e6xxx_gpio_ops;
 struct mv88e6xxx_avb_ops;
 struct mv88e6xxx_ptp_ops;
+struct mv88e6xxx_pcs_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -288,6 +289,7 @@ struct mv88e6xxx_port {
 	unsigned int serdes_irq;
 	char serdes_irq_name[64];
 	struct devlink_region *region;
+	void *pcs_private;
 
 	/* MacAuth Bypass control flag */
 	bool mab;
@@ -664,6 +666,8 @@ struct mv88e6xxx_ops {
 	void (*phylink_get_caps)(struct mv88e6xxx_chip *chip, int port,
 				 struct phylink_config *config);
 
+	const struct mv88e6xxx_pcs_ops *pcs_ops;
+
 	/* Max Frame Size */
 	int (*set_max_frame_size)(struct mv88e6xxx_chip *chip, int mtu);
 };
@@ -734,6 +738,14 @@ struct mv88e6xxx_ptp_ops {
 	u32 cc_mult;
 	u32 cc_mult_num;
 	u32 cc_mult_dem;
+};
+
+struct mv88e6xxx_pcs_ops {
+	int (*pcs_init)(struct mv88e6xxx_chip *chip, int port);
+	void (*pcs_teardown)(struct mv88e6xxx_chip *chip, int port);
+	struct phylink_pcs *(*pcs_select)(struct mv88e6xxx_chip *chip, int port,
+					  phy_interface_t mode);
+
 };
 
 #define STATS_TYPE_PORT		BIT(0)

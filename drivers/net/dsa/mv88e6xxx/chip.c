@@ -844,6 +844,31 @@ static void mv88e6xxx_get_caps(struct dsa_switch *ds, int port,
 		__set_bit(PHY_INTERFACE_MODE_GMII,
 			  config->supported_interfaces);
 	}
+
+	/* If we have a .pcs_ops, or don't have a .serdes_pcs_get_state,
+	 * serdes_pcs_config, serdes_pcs_an_restart, or serdes_pcs_link_up,
+	 * we are not legacy.
+	 */
+	if (chip->info->ops->pcs_ops ||
+	    (!chip->info->ops->serdes_pcs_get_state &&
+	     !chip->info->ops->serdes_pcs_config &&
+	     !chip->info->ops->serdes_pcs_an_restart &&
+	     !chip->info->ops->serdes_pcs_link_up))
+		config->legacy_pre_march2020 = false;
+}
+
+static struct phylink_pcs *mv88e6xxx_mac_select_pcs(struct dsa_switch *ds,
+						    int port,
+						    phy_interface_t interface)
+{
+	struct mv88e6xxx_chip *chip = ds->priv;
+	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
+
+	if (chip->info->ops->pcs_ops)
+		pcs = chip->info->ops->pcs_ops->pcs_select(chip, port,
+							   interface);
+
+	return pcs;
 }
 
 static int mv88e6xxx_mac_prepare(struct dsa_switch *ds, int port,
@@ -3582,6 +3607,10 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
+	/* Do not control power or request irqs if using PCS */
+	if (chip->info->ops->pcs_ops)
+		return 0;
+
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_serdes_power(chip, port, true);
 	mv88e6xxx_reg_unlock(chip);
@@ -3592,6 +3621,10 @@ static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
 static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+
+	/* Do not control power or request irqs if using PCS */
+	if (chip->info->ops->pcs_ops)
+		return;
 
 	mv88e6xxx_reg_lock(chip);
 	if (mv88e6xxx_serdes_power(chip, port, false))
@@ -4061,12 +4094,26 @@ out_mdios:
 
 static int mv88e6xxx_port_setup(struct dsa_switch *ds, int port)
 {
+	struct mv88e6xxx_chip *chip = ds->priv;
+	int err;
+
+	if (chip->info->ops->pcs_ops->pcs_init) {
+		err = chip->info->ops->pcs_ops->pcs_init(chip, port);
+		if (err)
+			return err;
+	}
+
 	return mv88e6xxx_setup_devlink_regions_port(ds, port);
 }
 
 static void mv88e6xxx_port_teardown(struct dsa_switch *ds, int port)
 {
+	struct mv88e6xxx_chip *chip = ds->priv;
+
 	mv88e6xxx_teardown_devlink_regions_port(ds, port);
+
+	if (chip->info->ops->pcs_ops->pcs_teardown)
+		chip->info->ops->pcs_ops->pcs_teardown(chip, port);
 }
 
 static int mv88e6xxx_get_eeprom_len(struct dsa_switch *ds)
@@ -7061,6 +7108,7 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_setup		= mv88e6xxx_port_setup,
 	.port_teardown		= mv88e6xxx_port_teardown,
 	.phylink_get_caps	= mv88e6xxx_get_caps,
+	.phylink_mac_select_pcs	= mv88e6xxx_mac_select_pcs,
 	.phylink_mac_link_state	= mv88e6xxx_serdes_pcs_get_state,
 	.phylink_mac_prepare	= mv88e6xxx_mac_prepare,
 	.phylink_mac_config	= mv88e6xxx_mac_config,
