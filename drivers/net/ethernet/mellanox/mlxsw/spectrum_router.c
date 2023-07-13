@@ -8826,6 +8826,7 @@ static int mlxsw_sp_inetaddr_lag_event(struct net_device *lag_dev,
 
 static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
 					  struct net_device *l3_dev,
+					  int lower_pvid,
 					  unsigned long event,
 					  struct netlink_ext_ack *extack)
 {
@@ -8873,6 +8874,8 @@ static int mlxsw_sp_inetaddr_vlan_event(struct mlxsw_sp *mlxsw_sp,
 {
 	struct net_device *real_dev = vlan_dev_real_dev(vlan_dev);
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
+	u16 lower_pvid;
+	int err;
 
 	if (netif_is_bridge_port(vlan_dev))
 		return 0;
@@ -8885,7 +8888,11 @@ static int mlxsw_sp_inetaddr_vlan_event(struct mlxsw_sp *mlxsw_sp,
 						     vid, extack);
 	} else if (netif_is_bridge_master(real_dev) &&
 		   br_vlan_enabled(real_dev)) {
-		return mlxsw_sp_inetaddr_bridge_event(mlxsw_sp, vlan_dev, event,
+		err = br_vlan_get_pvid(real_dev, &lower_pvid);
+		if (err)
+			return err;
+		return mlxsw_sp_inetaddr_bridge_event(mlxsw_sp, vlan_dev,
+						      lower_pvid, event,
 						      extack);
 	}
 
@@ -9022,7 +9029,7 @@ static int __mlxsw_sp_inetaddr_event(struct mlxsw_sp *mlxsw_sp,
 	else if (netif_is_lag_master(dev))
 		return mlxsw_sp_inetaddr_lag_event(dev, event, extack);
 	else if (netif_is_bridge_master(dev))
-		return mlxsw_sp_inetaddr_bridge_event(mlxsw_sp, dev, event,
+		return mlxsw_sp_inetaddr_bridge_event(mlxsw_sp, dev, -1, event,
 						      extack);
 	else if (is_vlan_dev(dev))
 		return mlxsw_sp_inetaddr_vlan_event(mlxsw_sp, dev, event,
