@@ -9,6 +9,7 @@ struct device_node;
 struct ethtool_cmd;
 struct fwnode_handle;
 struct net_device;
+struct phylink;
 
 enum {
 	MLO_PAUSE_NONE,
@@ -520,14 +521,19 @@ struct phylink_pcs_ops;
 /**
  * struct phylink_pcs - PHYLINK PCS instance
  * @ops: a pointer to the &struct phylink_pcs_ops structure
+ * @phylink: pointer to &struct phylink_config
  * @neg_mode: provide PCS neg mode via "mode" argument
  * @poll: poll the PCS for link changes
  *
  * This structure is designed to be embedded within the PCS private data,
  * and will be passed between phylink and the PCS.
+ *
+ * The @phylink member is private to phylink and must not be touched by
+ * the PCS driver.
  */
 struct phylink_pcs {
 	const struct phylink_pcs_ops *ops;
+	struct phylink *phylink;
 	bool neg_mode;
 	bool poll;
 };
@@ -699,6 +705,7 @@ int phylink_fwnode_phy_connect(struct phylink *pl,
 void phylink_disconnect_phy(struct phylink *);
 
 void phylink_mac_change(struct phylink *, bool up);
+void phylink_pcs_change(struct phylink_pcs *, bool up);
 
 void phylink_start(struct phylink *);
 void phylink_stop(struct phylink *);
