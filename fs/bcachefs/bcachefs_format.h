@@ -695,7 +695,7 @@ struct bch_reservation {
 /* Maximum size (in u64s) a single pointer could be: */
 #define BKEY_EXTENT_PTR_U64s_MAX\
 	((sizeof(struct bch_extent_crc128) +			\
-	  sizeof(struct bch_extent_ptr)) / sizeof(u64))
+	  sizeof(struct bch_extent_ptr)) / sizeof(__u64))
 
 /* Maximum possible size of an entire extent value: */
 #define BKEY_EXTENT_VAL_U64s_MAX				\
@@ -707,7 +707,7 @@ struct bch_reservation {
 /* Btree pointers don't carry around checksums: */
 #define BKEY_BTREE_PTR_VAL_U64s_MAX				\
 	((sizeof(struct bch_btree_ptr_v2) +			\
-	  sizeof(struct bch_extent_ptr) * BCH_REPLICAS_MAX) / sizeof(u64))
+	  sizeof(struct bch_extent_ptr) * BCH_REPLICAS_MAX) / sizeof(__u64))
 #define BKEY_BTREE_PTR_U64s_MAX					\
 	(BKEY_U64s + BKEY_BTREE_PTR_VAL_U64s_MAX)
 
@@ -749,7 +749,7 @@ struct bch_inode_v3 {
 } __packed __aligned(8);
 
 #define INODEv3_FIELDS_START_INITIAL	6
-#define INODEv3_FIELDS_START_CUR	(offsetof(struct bch_inode_v3, fields) / sizeof(u64))
+#define INODEv3_FIELDS_START_CUR	(offsetof(struct bch_inode_v3, fields) / sizeof(__u64))
 
 struct bch_inode_generation {
 	struct bch_val		v;
@@ -916,7 +916,7 @@ struct bch_dirent {
 #define DT_SUBVOL	16
 #define BCH_DT_MAX	17
 
-#define BCH_NAME_MAX	((unsigned) (U8_MAX * sizeof(u64) -		\
+#define BCH_NAME_MAX	((unsigned) (U8_MAX * sizeof(__u64) -		\
 			 sizeof(struct bkey) -				\
 			 offsetof(struct bch_dirent, d_name)))
 
@@ -1009,7 +1009,7 @@ struct bch_alloc_v4 {
 } __packed __aligned(8);
 
 #define BCH_ALLOC_V4_U64s_V0	6
-#define BCH_ALLOC_V4_U64s	(sizeof(struct bch_alloc_v4) / sizeof(u64))
+#define BCH_ALLOC_V4_U64s	(sizeof(struct bch_alloc_v4) / sizeof(__u64))
 
 BITMASK(BCH_ALLOC_V4_NEED_DISCARD,	struct bch_alloc_v4, flags,  0,  1)
 BITMASK(BCH_ALLOC_V4_NEED_INC_GEN,	struct bch_alloc_v4, flags,  1,  2)
@@ -1289,10 +1289,10 @@ struct bch_key {
 };
 
 #define BCH_KEY_MAGIC					\
-	(((u64) 'b' <<  0)|((u64) 'c' <<  8)|		\
-	 ((u64) 'h' << 16)|((u64) '*' << 24)|		\
-	 ((u64) '*' << 32)|((u64) 'k' << 40)|		\
-	 ((u64) 'e' << 48)|((u64) 'y' << 56))
+	(((__u64) 'b' <<  0)|((__u64) 'c' <<  8)|		\
+	 ((__u64) 'h' << 16)|((__u64) '*' << 24)|		\
+	 ((__u64) '*' << 32)|((__u64) 'k' << 40)|		\
+	 ((__u64) 'e' << 48)|((__u64) 'y' << 56))
 
 struct bch_encrypted_key {
 	__le64			magic;
@@ -2272,7 +2272,7 @@ static inline __u64 BTREE_NODE_ID(struct btree_node *n)
 	return BTREE_NODE_ID_LO(n) | (BTREE_NODE_ID_HI(n) << 4);
 }
 
-static inline void SET_BTREE_NODE_ID(struct btree_node *n, u64 v)
+static inline void SET_BTREE_NODE_ID(struct btree_node *n, __u64 v)
 {
 	SET_BTREE_NODE_ID_LO(n, v);
 	SET_BTREE_NODE_ID_HI(n, v >> 4);
