@@ -8877,15 +8877,17 @@ static int mlxsw_sp_inetaddr_vlan_event(struct mlxsw_sp *mlxsw_sp,
 	if (netif_is_bridge_port(vlan_dev))
 		return 0;
 
-	if (mlxsw_sp_port_dev_check(real_dev))
+	if (mlxsw_sp_port_dev_check(real_dev)) {
 		return mlxsw_sp_inetaddr_port_vlan_event(vlan_dev, real_dev,
 							 event, vid, extack);
-	else if (netif_is_lag_master(real_dev))
+	} else if (netif_is_lag_master(real_dev)) {
 		return __mlxsw_sp_inetaddr_lag_event(vlan_dev, real_dev, event,
 						     vid, extack);
-	else if (netif_is_bridge_master(real_dev) && br_vlan_enabled(real_dev))
+	} else if (netif_is_bridge_master(real_dev) &&
+		   br_vlan_enabled(real_dev)) {
 		return mlxsw_sp_inetaddr_bridge_event(mlxsw_sp, vlan_dev, event,
 						      extack);
+	}
 
 	return 0;
 }
