@@ -773,7 +773,7 @@ recheck_buffers:
 
 	bh = head;
 	do {
-		set_bh_page(bh, &dst->page, bh_offset(bh));
+		folio_set_bh(bh, dst, bh_offset(bh));
 		bh = bh->b_this_page;
 	} while (bh != head);
 
