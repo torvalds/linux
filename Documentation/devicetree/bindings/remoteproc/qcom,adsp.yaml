@@ -46,6 +46,7 @@ properties:
 
 required:
   - compatible
+  - memory-region
 
 unevaluatedProperties: false
 

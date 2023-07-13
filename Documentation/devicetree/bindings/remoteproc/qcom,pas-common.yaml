@@ -82,7 +82,6 @@ required:
   - clock-names
   - interrupts
   - interrupt-names
-  - memory-region
   - qcom,smem-states
   - qcom,smem-state-names
 
