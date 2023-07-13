@@ -13,8 +13,8 @@
  * more details.
  */
 
-#ifndef __INPUT_SYSTEM_LOCAL_H_INCLUDED__
-#define __INPUT_SYSTEM_LOCAL_H_INCLUDED__
+#ifndef __INPUT_SYSTEM_2400_LOCAL_H_INCLUDED__
+#define __INPUT_SYSTEM_2400_LOCAL_H_INCLUDED__
 
 #include "input_system_defs.h"		/* HIVE_ISYS_GPREG_MULTICAST_A_IDX,... */
 

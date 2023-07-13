@@ -13,8 +13,8 @@
  * more details.
  */
 
-#ifndef __INPUT_SYSTEM_LOCAL_H_INCLUDED__
-#define __INPUT_SYSTEM_LOCAL_H_INCLUDED__
+#ifndef __INPUT_SYSTEM_2401_LOCAL_H_INCLUDED__
+#define __INPUT_SYSTEM_2401_LOCAL_H_INCLUDED__
 
 #include "csi_rx.h"
 #include "pixelgen.h"

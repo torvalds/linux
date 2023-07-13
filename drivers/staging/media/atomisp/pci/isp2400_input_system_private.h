@@ -13,8 +13,8 @@
  * more details.
  */
 
-#ifndef __INPUT_SYSTEM_PRIVATE_H_INCLUDED__
-#define __INPUT_SYSTEM_PRIVATE_H_INCLUDED__
+#ifndef __INPUT_SYSTEM_2400_PRIVATE_H_INCLUDED__
+#define __INPUT_SYSTEM_2400_PRIVATE_H_INCLUDED__
 
 #include "input_system_public.h"
 
