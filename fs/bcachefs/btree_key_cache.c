@@ -1066,7 +1066,7 @@ void bch2_btree_key_cache_exit(void)
 
 int __init bch2_btree_key_cache_init(void)
 {
-	bch2_key_cache = KMEM_CACHE(bkey_cached, 0);
+	bch2_key_cache = KMEM_CACHE(bkey_cached, SLAB_RECLAIM_ACCOUNT);
 	if (!bch2_key_cache)
 		return -ENOMEM;
 
