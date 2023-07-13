@@ -20,6 +20,7 @@ properties:
       - stericsson,ux500-hash
       - st,stm32f456-hash
       - st,stm32f756-hash
+      - st,stm32mp13-hash
 
   reg:
     maxItems: 1
