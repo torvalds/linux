@@ -38,6 +38,10 @@
 	};
 };
 
+&dvp_clk {
+	clock-frequency = <74250000>;
+};
+
 &gmac0_rgmii_rxin {
 	clock-frequency = <125000000>;
 };
@@ -52,6 +56,10 @@
 
 &gmac1_rmii_refin {
 	clock-frequency = <50000000>;
+};
+
+&hdmitx0_pixelclk {
+	clock-frequency = <297000000>;
 };
 
 &i2srx_bclk_ext {
