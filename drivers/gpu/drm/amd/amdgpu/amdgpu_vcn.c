@@ -521,7 +521,6 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 				   struct dma_fence **fence)
 {
 	u64 addr = AMDGPU_GPU_PAGE_ALIGN(ib_msg->gpu_addr);
-	uint64_t session_ctx_buf_gaddr = AMDGPU_GPU_PAGE_ALIGN(ib_msg->gpu_addr + 8192);
 	struct amdgpu_device *adev = ring->adev;
 	struct dma_fence *f = NULL;
 	struct amdgpu_job *job;
@@ -535,23 +534,13 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 		goto err;
 
 	ib = &job->ibs[0];
-	ib->length_dw = 0;
-	ib->ptr[ib->length_dw++] = PACKET0(adev->vcn.internal.data0, 0);
-	ib->ptr[ib->length_dw++] = lower_32_bits(session_ctx_buf_gaddr);
-	ib->ptr[ib->length_dw++] = PACKET0(adev->vcn.internal.data1, 0);
-	ib->ptr[ib->length_dw++] = upper_32_bits(session_ctx_buf_gaddr);
-	/* session ctx buffer cmd */
-	ib->ptr[ib->length_dw++] = PACKET0(adev->vcn.internal.cmd, 0);
-	ib->ptr[ib->length_dw++] = 0xa;
-
-	ib->ptr[ib->length_dw++] = PACKET0(adev->vcn.internal.data0, 0);
-	ib->ptr[ib->length_dw++] = lower_32_bits(addr);
-	ib->ptr[ib->length_dw++] = PACKET0(adev->vcn.internal.data1, 0);
-	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
-	ib->ptr[ib->length_dw++] = PACKET0(adev->vcn.internal.cmd, 0);
-	ib->ptr[ib->length_dw++] = 0;
-
-	for (i = ib->length_dw; i < 16; i += 2) {
+	ib->ptr[0] = PACKET0(adev->vcn.internal.data0, 0);
+	ib->ptr[1] = addr;
+	ib->ptr[2] = PACKET0(adev->vcn.internal.data1, 0);
+	ib->ptr[3] = addr >> 32;
+	ib->ptr[4] = PACKET0(adev->vcn.internal.cmd, 0);
+	ib->ptr[5] = 0;
+	for (i = 6; i < 16; i += 2) {
 		ib->ptr[i] = PACKET0(adev->vcn.internal.nop, 0);
 		ib->ptr[i+1] = 0;
 	}
