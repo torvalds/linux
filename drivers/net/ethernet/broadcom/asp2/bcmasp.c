@@ -436,6 +436,135 @@ void bcmasp_core_clock_set_intf(struct bcmasp_intf *intf, bool en)
 	spin_unlock_irqrestore(&priv->clk_lock, flags);
 }
 
+static irqreturn_t bcmasp_isr_wol(int irq, void *data)
+{
+	struct bcmasp_priv *priv = data;
+	u32 status;
+
+	/* No L3 IRQ, so we good */
+	if (priv->wol_irq <= 0)
+		goto irq_handled;
+
+	status = wakeup_intr2_core_rl(priv, ASP_WAKEUP_INTR2_STATUS) &
+		~wakeup_intr2_core_rl(priv, ASP_WAKEUP_INTR2_MASK_STATUS);
+	wakeup_intr2_core_wl(priv, status, ASP_WAKEUP_INTR2_CLEAR);
+
+irq_handled:
+	pm_wakeup_event(&priv->pdev->dev, 0);
+	return IRQ_HANDLED;
+}
+
+static int bcmasp_get_and_request_irq(struct bcmasp_priv *priv, int i)
+{
+	struct platform_device *pdev = priv->pdev;
+	int irq, ret;
+
+	irq = platform_get_irq_optional(pdev, i);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, bcmasp_isr_wol, 0,
+			       pdev->name, priv);
+	if (ret)
+		return ret;
+
+	return irq;
+}
+
+static void bcmasp_init_wol_shared(struct bcmasp_priv *priv)
+{
+	struct platform_device *pdev = priv->pdev;
+	struct device *dev = &pdev->dev;
+	int irq;
+
+	irq = bcmasp_get_and_request_irq(priv, 1);
+	if (irq < 0) {
+		dev_warn(dev, "Failed to init WoL irq: %d\n", irq);
+		return;
+	}
+
+	priv->wol_irq = irq;
+	priv->wol_irq_enabled_mask = 0;
+	device_set_wakeup_capable(&pdev->dev, 1);
+}
+
+static void bcmasp_enable_wol_shared(struct bcmasp_intf *intf, bool en)
+{
+	struct bcmasp_priv *priv = intf->parent;
+	struct device *dev = &priv->pdev->dev;
+
+	if (en) {
+		if (priv->wol_irq_enabled_mask) {
+			set_bit(intf->port, &priv->wol_irq_enabled_mask);
+			return;
+		}
+
+		/* First enable */
+		set_bit(intf->port, &priv->wol_irq_enabled_mask);
+		enable_irq_wake(priv->wol_irq);
+		device_set_wakeup_enable(dev, 1);
+	} else {
+		if (!priv->wol_irq_enabled_mask)
+			return;
+
+		clear_bit(intf->port, &priv->wol_irq_enabled_mask);
+		if (priv->wol_irq_enabled_mask)
+			return;
+
+		/* Last disable */
+		disable_irq_wake(priv->wol_irq);
+		device_set_wakeup_enable(dev, 0);
+	}
+}
+
+static void bcmasp_wol_irq_destroy_shared(struct bcmasp_priv *priv)
+{
+	if (priv->wol_irq > 0)
+		free_irq(priv->wol_irq, priv);
+}
+
+static void bcmasp_init_wol_per_intf(struct bcmasp_priv *priv)
+{
+	struct platform_device *pdev = priv->pdev;
+	struct device *dev = &pdev->dev;
+	struct bcmasp_intf *intf;
+	int irq;
+
+	list_for_each_entry(intf, &priv->intfs, list) {
+		irq = bcmasp_get_and_request_irq(priv, intf->port + 1);
+		if (irq < 0) {
+			dev_warn(dev, "Failed to init WoL irq(port %d): %d\n",
+				 intf->port, irq);
+			continue;
+		}
+
+		intf->wol_irq = irq;
+		intf->wol_irq_enabled = false;
+		device_set_wakeup_capable(&pdev->dev, 1);
+	}
+}
+
+static void bcmasp_enable_wol_per_intf(struct bcmasp_intf *intf, bool en)
+{
+	struct device *dev = &intf->parent->pdev->dev;
+
+	if (en ^ intf->wol_irq_enabled)
+		irq_set_irq_wake(intf->wol_irq, en);
+
+	intf->wol_irq_enabled = en;
+	device_set_wakeup_enable(dev, en);
+}
+
+static void bcmasp_wol_irq_destroy_per_intf(struct bcmasp_priv *priv)
+{
+	struct bcmasp_intf *intf;
+
+	list_for_each_entry(intf, &priv->intfs, list) {
+		if (intf->wol_irq > 0)
+			free_irq(intf->wol_irq, priv);
+	}
+}
+
 static struct bcmasp_hw_info v20_hw_info = {
 	.rx_ctrl_flush = ASP_RX_CTRL_FLUSH,
 	.umac2fb = UMAC2FB_OFFSET,
@@ -445,6 +574,9 @@ static struct bcmasp_hw_info v20_hw_info = {
 };
 
 static const struct bcmasp_plat_data v20_plat_data = {
+	.init_wol = bcmasp_init_wol_per_intf,
+	.enable_wol = bcmasp_enable_wol_per_intf,
+	.destroy_wol = bcmasp_wol_irq_destroy_per_intf,
 	.hw_info = &v20_hw_info,
 };
 
@@ -458,6 +590,9 @@ static struct bcmasp_hw_info v21_hw_info = {
 };
 
 static const struct bcmasp_plat_data v21_plat_data = {
+	.init_wol = bcmasp_init_wol_shared,
+	.enable_wol = bcmasp_enable_wol_shared,
+	.destroy_wol = bcmasp_wol_irq_destroy_shared,
 	.hw_info = &v21_hw_info,
 };
 
@@ -521,12 +656,16 @@ static int bcmasp_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 	spin_lock_init(&priv->mda_lock);
 	spin_lock_init(&priv->clk_lock);
+	mutex_init(&priv->wol_lock);
 	INIT_LIST_HEAD(&priv->intfs);
 
 	pdata = device_get_match_data(&pdev->dev);
 	if (!pdata)
 		return dev_err_probe(dev, -EINVAL, "unable to find platform data\n");
 
+	priv->init_wol = pdata->init_wol;
+	priv->enable_wol = pdata->enable_wol;
+	priv->destroy_wol = pdata->destroy_wol;
 	priv->hw_info = pdata->hw_info;
 
 	/* Enable all clocks to ensure successful probing */
@@ -570,6 +709,9 @@ static int bcmasp_probe(struct platform_device *pdev)
 		i++;
 	}
 
+	/* Check and enable WoL */
+	priv->init_wol(priv);
+
 	/* Drop the clock reference count now and let ndo_open()/ndo_close()
 	 * manage it for us from now on.
 	 */
@@ -585,6 +727,7 @@ static int bcmasp_probe(struct platform_device *pdev)
 		if (ret) {
 			netdev_err(intf->ndev,
 				   "failed to register net_device: %d\n", ret);
+			priv->destroy_wol(priv);
 			bcmasp_remove_intfs(priv);
 			goto of_put_exit;
 		}
@@ -605,6 +748,7 @@ static int bcmasp_remove(struct platform_device *pdev)
 	if (!priv)
 		return 0;
 
+	priv->destroy_wol(priv);
 	bcmasp_remove_intfs(priv);
 
 	return 0;

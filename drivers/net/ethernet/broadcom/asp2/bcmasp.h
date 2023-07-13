@@ -301,6 +301,12 @@ struct bcmasp_intf {
 
 	/* Statistics */
 	struct bcmasp_intf_stats64	stats64;
+
+	u32				wolopts;
+	u8				sopass[SOPASS_MAX];
+	/* Used if per intf wol irq */
+	int				wol_irq;
+	unsigned int			wol_irq_enabled:1;
 };
 
 #define NUM_MDA_FILTERS				32
@@ -321,6 +327,9 @@ struct bcmasp_hw_info {
 };
 
 struct bcmasp_plat_data {
+	void (*init_wol)(struct bcmasp_priv *priv);
+	void (*enable_wol)(struct bcmasp_intf *intf, bool en);
+	void (*destroy_wol)(struct bcmasp_priv *priv);
 	struct bcmasp_hw_info		*hw_info;
 };
 
@@ -330,6 +339,15 @@ struct bcmasp_priv {
 
 	int				irq;
 	u32				irq_mask;
+
+	/* Used if shared wol irq */
+	struct mutex			wol_lock;
+	int				wol_irq;
+	unsigned long			wol_irq_enabled_mask;
+
+	void (*init_wol)(struct bcmasp_priv *priv);
+	void (*enable_wol)(struct bcmasp_intf *intf, bool en);
+	void (*destroy_wol)(struct bcmasp_priv *priv);
 
 	void __iomem			*base;
 	struct	bcmasp_hw_info		*hw_info;

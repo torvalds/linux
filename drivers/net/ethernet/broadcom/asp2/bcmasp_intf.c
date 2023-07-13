@@ -1034,7 +1034,7 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 			netdev_err(dev, "could not attach to PHY\n");
 			goto err_phy_disable;
 		}
-	} else {
+	} else if (!intf->wolopts) {
 		ret = phy_resume(dev->phydev);
 		if (ret)
 			goto err_phy_disable;
@@ -1281,8 +1281,39 @@ void bcmasp_interface_destroy(struct bcmasp_intf *intf)
 	free_netdev(intf->ndev);
 }
 
+static void bcmasp_suspend_to_wol(struct bcmasp_intf *intf)
+{
+	struct net_device *ndev = intf->ndev;
+	u32 reg;
+
+	reg = umac_rl(intf, UMC_MPD_CTRL);
+	if (intf->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE))
+		reg |= UMC_MPD_CTRL_MPD_EN;
+	reg &= ~UMC_MPD_CTRL_PSW_EN;
+	if (intf->wolopts & WAKE_MAGICSECURE) {
+		/* Program the SecureOn password */
+		umac_wl(intf, get_unaligned_be16(&intf->sopass[0]),
+			UMC_PSW_MS);
+		umac_wl(intf, get_unaligned_be32(&intf->sopass[2]),
+			UMC_PSW_LS);
+		reg |= UMC_MPD_CTRL_PSW_EN;
+	}
+	umac_wl(intf, reg, UMC_MPD_CTRL);
+
+	/* UniMAC receive needs to be turned on */
+	umac_enable_set(intf, UMC_CMD_RX_EN, 1);
+
+	if (intf->parent->wol_irq > 0) {
+		wakeup_intr2_core_wl(intf->parent, 0xffffffff,
+				     ASP_WAKEUP_INTR2_MASK_CLEAR);
+	}
+
+	netif_dbg(intf, wol, ndev, "entered WOL mode\n");
+}
+
 int bcmasp_interface_suspend(struct bcmasp_intf *intf)
 {
+	struct device *kdev = &intf->parent->pdev->dev;
 	struct net_device *dev = intf->ndev;
 	int ret = 0;
 
@@ -1293,19 +1324,24 @@ int bcmasp_interface_suspend(struct bcmasp_intf *intf)
 
 	bcmasp_netif_deinit(dev);
 
-	ret = phy_suspend(dev->phydev);
-	if (ret)
-		goto out;
+	if (!intf->wolopts) {
+		ret = phy_suspend(dev->phydev);
+		if (ret)
+			goto out;
 
-	if (intf->internal_phy)
-		bcmasp_ephy_enable_set(intf, false);
-	else
-		bcmasp_rgmii_mode_en_set(intf, false);
+		if (intf->internal_phy)
+			bcmasp_ephy_enable_set(intf, false);
+		else
+			bcmasp_rgmii_mode_en_set(intf, false);
 
-	/* If Wake-on-LAN is disabled, we can safely
-	 * disable the network interface clocks.
-	 */
-	bcmasp_core_clock_set_intf(intf, false);
+		/* If Wake-on-LAN is disabled, we can safely
+		 * disable the network interface clocks.
+		 */
+		bcmasp_core_clock_set_intf(intf, false);
+	}
+
+	if (device_may_wakeup(kdev) && intf->wolopts)
+		bcmasp_suspend_to_wol(intf);
 
 	clk_disable_unprepare(intf->parent->clk);
 
@@ -1314,6 +1350,20 @@ int bcmasp_interface_suspend(struct bcmasp_intf *intf)
 out:
 	bcmasp_netif_init(dev, false);
 	return ret;
+}
+
+static void bcmasp_resume_from_wol(struct bcmasp_intf *intf)
+{
+	u32 reg;
+
+	reg = umac_rl(intf, UMC_MPD_CTRL);
+	reg &= ~UMC_MPD_CTRL_MPD_EN;
+	umac_wl(intf, reg, UMC_MPD_CTRL);
+
+	if (intf->parent->wol_irq > 0) {
+		wakeup_intr2_core_wl(intf->parent, 0xffffffff,
+				     ASP_WAKEUP_INTR2_MASK_SET);
+	}
 }
 
 int bcmasp_interface_resume(struct bcmasp_intf *intf)
@@ -1331,6 +1381,8 @@ int bcmasp_interface_resume(struct bcmasp_intf *intf)
 	ret = bcmasp_netif_init(dev, false);
 	if (ret)
 		goto out;
+
+	bcmasp_resume_from_wol(intf);
 
 	netif_device_attach(dev);
 
