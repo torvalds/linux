@@ -878,6 +878,11 @@ static int ntfs_init_from_boot(struct super_block *sb, u32 sector_size,
 
 check_boot:
 	err = -EINVAL;
+
+	/* Corrupted image; do not read OOB */
+	if (bh->b_size - sizeof(*boot) < boot_off)
+		goto out;
+
 	boot = (struct NTFS_BOOT *)Add2Ptr(bh->b_data, boot_off);
 
 	if (memcmp(boot->system_id, "NTFS    ", sizeof("NTFS    ") - 1)) {
