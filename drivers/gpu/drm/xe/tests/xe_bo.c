@@ -218,7 +218,21 @@ static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kuni
 			goto cleanup_all;
 		}
 
+		xe_gt_sanitize(gt);
 		err = xe_bo_restore_kernel(xe);
+		/*
+		 * Snapshotting the CTB and copying back a potentially old
+		 * version seems risky, depending on what might have been
+		 * inflight. Also it seems snapshotting the ADS object and
+		 * copying back results in serious breakage. Normally when
+		 * calling xe_bo_restore_kernel() we always fully restart the
+		 * GT, which re-intializes such things.  We could potentially
+		 * skip saving and restoring such objects in xe_bo_evict_all()
+		 * however seems quite fragile not to also restart the GT. Try
+		 * to do that here by triggering a GT reset.
+		 */
+		xe_gt_reset_async(gt);
+		flush_work(&gt->reset.worker);
 		if (err) {
 			KUNIT_FAIL(test, "restore kernel err=%pe\n",
 				   ERR_PTR(err));
