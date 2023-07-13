@@ -319,7 +319,7 @@ struct regmap_config cs35l56_regmap_i2c = {
 	.volatile_reg = cs35l56_volatile_reg,
 	.readable_reg = cs35l56_readable_reg,
 	.precious_reg = cs35l56_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_i2c, SND_SOC_CS35L56_SHARED);
 
@@ -336,7 +336,7 @@ struct regmap_config cs35l56_regmap_spi = {
 	.volatile_reg = cs35l56_volatile_reg,
 	.readable_reg = cs35l56_readable_reg,
 	.precious_reg = cs35l56_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_spi, SND_SOC_CS35L56_SHARED);
 
@@ -352,7 +352,7 @@ struct regmap_config cs35l56_regmap_sdw = {
 	.volatile_reg = cs35l56_volatile_reg,
 	.readable_reg = cs35l56_readable_reg,
 	.precious_reg = cs35l56_precious_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, SND_SOC_CS35L56_SHARED);
 
