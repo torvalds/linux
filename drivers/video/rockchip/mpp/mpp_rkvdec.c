@@ -953,11 +953,11 @@ static int rkvdec_3328_run(struct mpp_dev *mpp,
 	task = to_rkvdec_task(mpp_task);
 
 	/*
-	 * HW defeat workaround: VP9 power save optimization cause decoding
+	 * HW defeat workaround: VP9 and H.265 power save optimization cause decoding
 	 * corruption, disable optimization here.
 	 */
 	fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
-	if (fmt == RKVDEC_FMT_VP9D) {
+	if (fmt == RKVDEC_FMT_VP9D || fmt == RKVDEC_FMT_H265D) {
 		cfg = task->reg[RKVDEC_POWER_CTL_INDEX] | 0xFFFF;
 		task->reg[RKVDEC_POWER_CTL_INDEX] = cfg & (~(1 << 12));
 		mpp_write_relaxed(mpp, RKVDEC_POWER_CTL_BASE,
