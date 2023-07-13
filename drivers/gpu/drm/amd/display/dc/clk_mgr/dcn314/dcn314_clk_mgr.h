@@ -28,6 +28,8 @@
 #define __DCN314_CLK_MGR_H__
 #include "clk_mgr_internal.h"
 
+#define NUM_CLOCK_SOURCES   5
+
 struct dcn314_watermarks;
 
 struct dcn314_smu_watermark_set {
@@ -38,6 +40,11 @@ struct dcn314_smu_watermark_set {
 struct clk_mgr_dcn314 {
 	struct clk_mgr_internal base;
 	struct dcn314_smu_watermark_set smu_wm_set;
+};
+
+struct dcn314_ss_info_table {
+	uint32_t ss_divider;
+	uint32_t ss_percentage[NUM_CLOCK_SOURCES];
 };
 
 bool dcn314_are_clock_states_equal(struct dc_clocks *a,
