@@ -177,16 +177,20 @@ static void ftgmac100_write_mac_addr(struct ftgmac100 *priv, const u8 *mac)
 	iowrite32(laddr, priv->base + FTGMAC100_OFFSET_MAC_LADR);
 }
 
-static void ftgmac100_initial_mac(struct ftgmac100 *priv)
+static int ftgmac100_initial_mac(struct ftgmac100 *priv)
 {
 	u8 mac[ETH_ALEN];
 	unsigned int m;
 	unsigned int l;
+	int err;
 
-	if (!device_get_ethdev_address(priv->dev, priv->netdev)) {
+	err = of_get_ethdev_address(priv->dev->of_node, priv->netdev);
+	if (err == -EPROBE_DEFER)
+		return err;
+	if (!err) {
 		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
 			 priv->netdev->dev_addr);
-		return;
+		return 0;
 	}
 
 	m = ioread32(priv->base + FTGMAC100_OFFSET_MAC_MADR);
@@ -207,6 +211,8 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 		dev_info(priv->dev, "Generated random MAC address %pM\n",
 			 priv->netdev->dev_addr);
 	}
+
+	return 0;
 }
 
 static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
@@ -1843,7 +1849,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->aneg_pause = true;
 
 	/* MAC address from chip or random one */
-	ftgmac100_initial_mac(priv);
+	err = ftgmac100_initial_mac(priv);
+	if (err)
+		goto err_phy_connect;
 
 	np = pdev->dev.of_node;
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
