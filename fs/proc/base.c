@@ -3581,7 +3581,8 @@ static int proc_tid_comm_permission(struct user_namespace *mnt_userns,
 }
 
 static const struct inode_operations proc_tid_comm_inode_operations = {
-		.permission = proc_tid_comm_permission,
+		.setattr	= proc_setattr,
+		.permission	= proc_tid_comm_permission,
 };
 
 /*
