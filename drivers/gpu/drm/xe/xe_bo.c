@@ -1327,6 +1327,7 @@ xe_bo_create_locked_range(struct xe_device *xe,
 	return bo;
 
 err_unlock_put_bo:
+	__xe_bo_unset_bulk_move(bo);
 	xe_bo_unlock_vm_held(bo);
 	xe_bo_put(bo);
 	return ERR_PTR(err);
@@ -1770,22 +1771,29 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	bo_flags |= args->flags << (ffs(XE_BO_CREATE_SYSTEM_BIT) - 1);
 	bo = xe_bo_create(xe, NULL, vm, args->size, ttm_bo_type_device,
 			  bo_flags);
+	if (IS_ERR(bo)) {
+		err = PTR_ERR(bo);
+		goto out_vm;
+	}
+
+	err = drm_gem_handle_create(file, &bo->ttm.base, &handle);
+	if (err)
+		goto out_bulk;
+
+	args->handle = handle;
+	goto out_put;
+
+out_bulk:
+	if (vm && !xe_vm_in_fault_mode(vm))
+		__xe_bo_unset_bulk_move(bo);
+out_put:
+	xe_bo_put(bo);
+out_vm:
 	if (vm) {
 		xe_vm_unlock(vm, &ww);
 		xe_vm_put(vm);
 	}
-
-	if (IS_ERR(bo))
-		return PTR_ERR(bo);
-
-	err = drm_gem_handle_create(file, &bo->ttm.base, &handle);
-	xe_bo_put(bo);
-	if (err)
-		return err;
-
-	args->handle = handle;
-
-	return 0;
+	return err;
 }
 
 int xe_gem_mmap_offset_ioctl(struct drm_device *dev, void *data,

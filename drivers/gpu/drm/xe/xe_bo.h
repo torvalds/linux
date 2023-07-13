@@ -144,6 +144,12 @@ static inline void xe_bo_put(struct xe_bo *bo)
 		drm_gem_object_put(&bo->ttm.base);
 }
 
+static inline void __xe_bo_unset_bulk_move(struct xe_bo *bo)
+{
+	if (bo)
+		ttm_bo_set_bulk_move(&bo->ttm, NULL);
+}
+
 static inline void xe_bo_assert_held(struct xe_bo *bo)
 {
 	if (bo)

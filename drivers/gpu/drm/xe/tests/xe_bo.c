@@ -283,6 +283,10 @@ static int evict_test_run_gt(struct xe_device *xe, struct xe_gt *gt, struct kuni
 		xe_bo_unlock(external, &ww);
 
 		xe_bo_put(external);
+
+		xe_bo_lock(bo, &ww, 0, false);
+		__xe_bo_unset_bulk_move(bo);
+		xe_bo_unlock(bo, &ww);
 		xe_bo_put(bo);
 		continue;
 
@@ -293,6 +297,9 @@ cleanup_all:
 cleanup_external:
 		xe_bo_put(external);
 cleanup_bo:
+		xe_bo_lock(bo, &ww, 0, false);
+		__xe_bo_unset_bulk_move(bo);
+		xe_bo_unlock(bo, &ww);
 		xe_bo_put(bo);
 		break;
 	}
