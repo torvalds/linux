@@ -341,7 +341,7 @@ int jbd2_journal_write_metadata_buffer(transaction_t *transaction,
 	int do_escape = 0;
 	char *mapped_data;
 	struct buffer_head *new_bh;
-	struct page *new_page;
+	struct folio *new_folio;
 	unsigned int new_offset;
 	struct buffer_head *bh_in = jh2bh(jh_in);
 	journal_t *journal = transaction->t_journal;
@@ -370,14 +370,14 @@ repeat:
 	 */
 	if (jh_in->b_frozen_data) {
 		done_copy_out = 1;
-		new_page = virt_to_page(jh_in->b_frozen_data);
-		new_offset = offset_in_page(jh_in->b_frozen_data);
+		new_folio = virt_to_folio(jh_in->b_frozen_data);
+		new_offset = offset_in_folio(new_folio, jh_in->b_frozen_data);
 	} else {
-		new_page = jh2bh(jh_in)->b_page;
-		new_offset = offset_in_page(jh2bh(jh_in)->b_data);
+		new_folio = jh2bh(jh_in)->b_folio;
+		new_offset = offset_in_folio(new_folio, jh2bh(jh_in)->b_data);
 	}
 
-	mapped_data = kmap_atomic(new_page);
+	mapped_data = kmap_local_folio(new_folio, new_offset);
 	/*
 	 * Fire data frozen trigger if data already wasn't frozen.  Do this
 	 * before checking for escaping, as the trigger may modify the magic
@@ -385,18 +385,17 @@ repeat:
 	 * data in the buffer.
 	 */
 	if (!done_copy_out)
-		jbd2_buffer_frozen_trigger(jh_in, mapped_data + new_offset,
+		jbd2_buffer_frozen_trigger(jh_in, mapped_data,
 					   jh_in->b_triggers);
 
 	/*
 	 * Check for escaping
 	 */
-	if (*((__be32 *)(mapped_data + new_offset)) ==
-				cpu_to_be32(JBD2_MAGIC_NUMBER)) {
+	if (*((__be32 *)mapped_data) == cpu_to_be32(JBD2_MAGIC_NUMBER)) {
 		need_copy_out = 1;
 		do_escape = 1;
 	}
-	kunmap_atomic(mapped_data);
+	kunmap_local(mapped_data);
 
 	/*
 	 * Do we need to do a data copy?
@@ -417,12 +416,10 @@ repeat:
 		}
 
 		jh_in->b_frozen_data = tmp;
-		mapped_data = kmap_atomic(new_page);
-		memcpy(tmp, mapped_data + new_offset, bh_in->b_size);
-		kunmap_atomic(mapped_data);
+		memcpy_from_folio(tmp, new_folio, new_offset, bh_in->b_size);
 
-		new_page = virt_to_page(tmp);
-		new_offset = offset_in_page(tmp);
+		new_folio = virt_to_folio(tmp);
+		new_offset = offset_in_folio(new_folio, tmp);
 		done_copy_out = 1;
 
 		/*
@@ -438,12 +435,12 @@ repeat:
 	 * copying, we can finally do so.
 	 */
 	if (do_escape) {
-		mapped_data = kmap_atomic(new_page);
-		*((unsigned int *)(mapped_data + new_offset)) = 0;
-		kunmap_atomic(mapped_data);
+		mapped_data = kmap_local_folio(new_folio, new_offset);
+		*((unsigned int *)mapped_data) = 0;
+		kunmap_local(mapped_data);
 	}
 
-	set_bh_page(new_bh, new_page, new_offset);
+	folio_set_bh(new_bh, new_folio, new_offset);
 	new_bh->b_size = bh_in->b_size;
 	new_bh->b_bdev = journal->j_dev;
 	new_bh->b_blocknr = blocknr;
