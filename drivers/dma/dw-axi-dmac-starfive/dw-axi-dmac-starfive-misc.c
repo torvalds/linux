@@ -190,7 +190,7 @@ static long axidma_unlocked_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		wait_event_interruptible_timeout(wq,
-				&channels[chncfg.chn_num].status,
+				channels[chncfg.chn_num].status,
 				msecs_to_jiffies(DMA_MAX_TIMEOUT_MS));
 #ifdef CONFIG_SOC_STARFIVE_VIC7100
 		/*flush dcache*/
