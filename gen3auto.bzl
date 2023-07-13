@@ -29,6 +29,7 @@ def define_gen3auto():
         "drivers/cpufreq/qcom-cpufreq-hw.ko",
         "drivers/cpufreq/qcom-cpufreq-hw-debug.ko",
         "drivers/cpuidle/governors/qcom_lpm.ko",
+        "drivers/cpuidle/governors/qcom_simple_lpm.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/dma/qcom/msm_gpi.ko",
         "drivers/edac/kryo_arm64_edac.ko",
