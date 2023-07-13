@@ -367,12 +367,14 @@
 
 &kcs3 {
 	status = "okay";
-	aspeed,lpc-io-reg = <0xca2>;
+	kcs-io-addr = <0xca2>;
+	kcs-channel = <3>;
 };
 
 &kcs4 {
 	status = "okay";
-	aspeed,lpc-io-reg = <0xca4>;
+	kcs-io-addr = <0xca4>;
+	kcs-channel = <4>;
 };
 
 &mbox {
