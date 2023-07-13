@@ -20,7 +20,6 @@
 #include "ia_css_irq.h"
 #include "sh_css_internal.h"
 
-#if !defined(ISP2401)
 void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 {
 	hrt_data bits = receiver_port_reg_load(RX0_ID,
@@ -209,9 +208,7 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 
 	return;
 }
-#endif /* #if !defined(ISP2401) */
 
-#if !defined(ISP2401)
 static int ia_css_isys_2400_set_fmt_type(enum atomisp_input_format input_format,
 					 unsigned int *fmt_type)
 {
@@ -283,9 +280,7 @@ static int ia_css_isys_2400_set_fmt_type(enum atomisp_input_format input_format,
 	}
 	return 0;
 }
-#endif /* #ifndef ISP2401 */
 
-#if defined(ISP2401)
 static int ia_css_isys_2401_set_fmt_type(enum atomisp_input_format input_format,
 					 unsigned int *fmt_type)
 {
@@ -373,7 +368,6 @@ static int ia_css_isys_2401_set_fmt_type(enum atomisp_input_format input_format,
 	}
 	return 0;
 }
-#endif /* #ifdef ISP2401 */
 
 int ia_css_isys_convert_stream_format_to_mipi_format(
     enum atomisp_input_format input_format,
@@ -423,14 +417,12 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 	 *
 	 * MW: For some reason the mapping is not 1-to-1
 	 */
-#if defined(ISP2401)
-	return ia_css_isys_2401_set_fmt_type(input_format, fmt_type);
-#else
-	return ia_css_isys_2400_set_fmt_type(input_format, fmt_type);
-#endif
+	if (IS_ISP2401)
+		return ia_css_isys_2401_set_fmt_type(input_format, fmt_type);
+	else
+		return ia_css_isys_2400_set_fmt_type(input_format, fmt_type);
 }
 
-#if defined(ISP2401)
 static mipi_predictor_t sh_css_csi2_compression_type_2_mipi_predictor(
     enum ia_css_csi2_compression_type type)
 {
@@ -547,9 +539,7 @@ unsigned int ia_css_csi2_calculate_input_system_alignment(
 	return memory_alignment_in_bytes;
 }
 
-#endif
 
-#if !defined(ISP2401)
 static const mipi_lane_cfg_t MIPI_PORT_LANES[N_RX_MODE][N_MIPI_PORT_ID] = {
 	{MIPI_4LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
 	{MIPI_3LANE_CFG, MIPI_1LANE_CFG, MIPI_0LANE_CFG},
@@ -671,4 +661,3 @@ void ia_css_isys_rx_disable(void)
 	}
 	return;
 }
-#endif /* if !defined(ISP2401) */
