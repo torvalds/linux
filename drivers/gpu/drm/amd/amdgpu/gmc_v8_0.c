@@ -252,7 +252,7 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_VEGAM:
 		return 0;
 	default:
-		BUG();
+		return -EINVAL;
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
