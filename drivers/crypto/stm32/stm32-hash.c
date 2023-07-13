@@ -84,12 +84,11 @@
 #define HASH_FLAGS_INIT			BIT(0)
 #define HASH_FLAGS_OUTPUT_READY		BIT(1)
 #define HASH_FLAGS_CPU			BIT(2)
-#define HASH_FLAGS_DMA_READY		BIT(3)
-#define HASH_FLAGS_DMA_ACTIVE		BIT(4)
-#define HASH_FLAGS_HMAC_INIT		BIT(5)
-#define HASH_FLAGS_HMAC_FINAL		BIT(6)
-#define HASH_FLAGS_HMAC_KEY		BIT(7)
-#define HASH_FLAGS_SHA3_MODE		BIT(8)
+#define HASH_FLAGS_DMA_ACTIVE		BIT(3)
+#define HASH_FLAGS_HMAC_INIT		BIT(4)
+#define HASH_FLAGS_HMAC_FINAL		BIT(5)
+#define HASH_FLAGS_HMAC_KEY		BIT(6)
+#define HASH_FLAGS_SHA3_MODE		BIT(7)
 #define HASH_FLAGS_FINAL		BIT(15)
 #define HASH_FLAGS_FINUP		BIT(16)
 #define HASH_FLAGS_ALGO_MASK		GENMASK(20, 17)
@@ -585,8 +584,6 @@ static void stm32_hash_dma_callback(void *param)
 	struct stm32_hash_dev *hdev = param;
 
 	complete(&hdev->dma_completion);
-
-	hdev->flags |= HASH_FLAGS_DMA_READY;
 }
 
 static int stm32_hash_hmac_dma_send(struct stm32_hash_dev *hdev)
@@ -1241,11 +1238,9 @@ static irqreturn_t stm32_hash_irq_thread(int irq, void *dev_id)
 			hdev->flags &= ~HASH_FLAGS_OUTPUT_READY;
 			goto finish;
 		}
-	} else if (HASH_FLAGS_DMA_READY & hdev->flags) {
-		if (HASH_FLAGS_DMA_ACTIVE & hdev->flags) {
-			hdev->flags &= ~HASH_FLAGS_DMA_ACTIVE;
-				goto finish;
-		}
+	} else if (HASH_FLAGS_DMA_ACTIVE & hdev->flags) {
+		hdev->flags &= ~HASH_FLAGS_DMA_ACTIVE;
+			goto finish;
 	}
 
 	return IRQ_HANDLED;
