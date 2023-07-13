@@ -2304,6 +2304,7 @@
   ttm_resource_manager_usage
   ttm_sg_tt_init
   ttm_tt_fini
+  ttm_tt_unpopulate
   vm_get_page_prot
   __wake_up_locked
   ww_mutex_lock_interruptible
