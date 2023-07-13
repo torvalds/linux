@@ -1141,6 +1141,21 @@ config WINMATE_FM07_KEYS
 	  buttons below the display. This module adds an input device
 	  that delivers key events when these buttons are pressed.
 
+config SEL3350_PLATFORM
+	tristate "SEL-3350 LEDs and power supplies"
+	depends on ACPI
+	depends on GPIOLIB
+	depends on PINCTRL_BROXTON
+	select POWER_SUPPLY
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_GPIO
+	help
+	  Support for LEDs and power supplies on SEL-3350 computers.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sel3350-platform.
+
 endif # X86_PLATFORM_DEVICES
 
 config P2SB
