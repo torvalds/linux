@@ -1333,17 +1333,16 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	struct bch_fs *c = trans->c;
 	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
-	struct bpos equiv;
+	struct bpos equiv = k.k->p;
 	int ret = 0;
+
+	equiv.snapshot = bch2_snapshot_equiv(c, k.k->p.snapshot);
 
 	ret = check_key_has_snapshot(trans, iter, k);
 	if (ret) {
 		ret = ret < 0 ? ret : 0;
 		goto out;
 	}
-
-	equiv = k.k->p;
-	equiv.snapshot = bch2_snapshot_equiv(c, k.k->p.snapshot);
 
 	ret = snapshots_seen_update(c, s, iter->btree_id, k.k->p);
 	if (ret)
@@ -1359,8 +1358,6 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 
 		extent_ends_reset(extent_ends);
 	}
-
-	BUG_ON(!iter->path->should_be_locked);
 
 	ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
 	if (ret < 0)
@@ -1381,11 +1378,8 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	if (fsck_err_on(!i, c,
 			"extent in missing inode:\n  %s",
 			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
-		goto out;
-	}
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+		goto delete;
 
 	if (!i)
 		goto out;
@@ -1395,11 +1389,8 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			"extent in non regular inode mode %o:\n  %s",
 			i->inode.bi_mode,
 			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
-		goto out;
-	}
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+		goto delete;
 
 	/*
 	 * Check inodes in reverse order, from oldest snapshots to newest, so
@@ -1440,10 +1431,6 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	if (bkey_extent_is_allocation(k.k))
 		for_each_visible_inode(c, s, inode, equiv.snapshot, i)
 			i->count += k.k->size;
-#if 0
-	bch2_bkey_buf_reassemble(&prev, c, k);
-#endif
-
 out:
 err:
 fsck_err:
@@ -1452,6 +1439,9 @@ fsck_err:
 	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		bch_err_fn(c, ret);
 	return ret;
+delete:
+	ret = bch2_btree_delete_at(trans, iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	goto out;
 }
 
 /*
