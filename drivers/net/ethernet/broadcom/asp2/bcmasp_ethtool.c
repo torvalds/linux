@@ -250,6 +250,80 @@ static int bcmasp_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phy_ethtool_set_eee(dev->phydev, e);
 }
 
+static void bcmasp_get_eth_mac_stats(struct net_device *dev,
+				     struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+
+	mac_stats->FramesTransmittedOK = umac_rl(intf, UMC_GTPOK);
+	mac_stats->SingleCollisionFrames = umac_rl(intf, UMC_GTSCL);
+	mac_stats->MultipleCollisionFrames = umac_rl(intf, UMC_GTMCL);
+	mac_stats->FramesReceivedOK = umac_rl(intf, UMC_GRPOK);
+	mac_stats->FrameCheckSequenceErrors = umac_rl(intf, UMC_GRFCS);
+	mac_stats->AlignmentErrors = umac_rl(intf, UMC_GRALN);
+	mac_stats->OctetsTransmittedOK = umac_rl(intf, UMC_GTBYT);
+	mac_stats->FramesWithDeferredXmissions = umac_rl(intf, UMC_GTDRF);
+	mac_stats->LateCollisions = umac_rl(intf, UMC_GTLCL);
+	mac_stats->FramesAbortedDueToXSColls = umac_rl(intf, UMC_GTXCL);
+	mac_stats->OctetsReceivedOK = umac_rl(intf, UMC_GRBYT);
+	mac_stats->MulticastFramesXmittedOK = umac_rl(intf, UMC_GTMCA);
+	mac_stats->BroadcastFramesXmittedOK = umac_rl(intf, UMC_GTBCA);
+	mac_stats->FramesWithExcessiveDeferral = umac_rl(intf, UMC_GTEDF);
+	mac_stats->MulticastFramesReceivedOK = umac_rl(intf, UMC_GRMCA);
+	mac_stats->BroadcastFramesReceivedOK = umac_rl(intf, UMC_GRBCA);
+}
+
+static const struct ethtool_rmon_hist_range bcmasp_rmon_ranges[] = {
+	{    0,   64},
+	{   65,  127},
+	{  128,  255},
+	{  256,  511},
+	{  512, 1023},
+	{ 1024, 1518},
+	{ 1519, 1522},
+	{}
+};
+
+static void bcmasp_get_rmon_stats(struct net_device *dev,
+				  struct ethtool_rmon_stats *rmon_stats,
+				  const struct ethtool_rmon_hist_range **ranges)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+
+	*ranges = bcmasp_rmon_ranges;
+
+	rmon_stats->undersize_pkts = umac_rl(intf, UMC_RRUND);
+	rmon_stats->oversize_pkts = umac_rl(intf, UMC_GROVR);
+	rmon_stats->fragments = umac_rl(intf, UMC_RRFRG);
+	rmon_stats->jabbers = umac_rl(intf, UMC_GRJBR);
+
+	rmon_stats->hist[0] = umac_rl(intf, UMC_GR64);
+	rmon_stats->hist[1] = umac_rl(intf, UMC_GR127);
+	rmon_stats->hist[2] = umac_rl(intf, UMC_GR255);
+	rmon_stats->hist[3] = umac_rl(intf, UMC_GR511);
+	rmon_stats->hist[4] = umac_rl(intf, UMC_GR1023);
+	rmon_stats->hist[5] = umac_rl(intf, UMC_GR1518);
+	rmon_stats->hist[6] = umac_rl(intf, UMC_GRMGV);
+
+	rmon_stats->hist_tx[0] = umac_rl(intf, UMC_TR64);
+	rmon_stats->hist_tx[1] = umac_rl(intf, UMC_TR127);
+	rmon_stats->hist_tx[2] = umac_rl(intf, UMC_TR255);
+	rmon_stats->hist_tx[3] = umac_rl(intf, UMC_TR511);
+	rmon_stats->hist_tx[4] = umac_rl(intf, UMC_TR1023);
+	rmon_stats->hist_tx[5] = umac_rl(intf, UMC_TR1518);
+	rmon_stats->hist_tx[6] = umac_rl(intf, UMC_TRMGV);
+}
+
+static void bcmasp_get_eth_ctrl_stats(struct net_device *dev,
+				      struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+
+	ctrl_stats->MACControlFramesTransmitted = umac_rl(intf, UMC_GTXCF);
+	ctrl_stats->MACControlFramesReceived = umac_rl(intf, UMC_GRXCF);
+	ctrl_stats->UnsupportedOpcodesReceived = umac_rl(intf, UMC_GRXUO);
+}
+
 const struct ethtool_ops bcmasp_ethtool_ops = {
 	.get_drvinfo		= bcmasp_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
@@ -263,4 +337,7 @@ const struct ethtool_ops bcmasp_ethtool_ops = {
 	.set_rxnfc		= bcmasp_set_rxnfc,
 	.set_eee		= bcmasp_set_eee,
 	.get_eee		= bcmasp_get_eee,
+	.get_eth_mac_stats	= bcmasp_get_eth_mac_stats,
+	.get_rmon_stats		= bcmasp_get_rmon_stats,
+	.get_eth_ctrl_stats	= bcmasp_get_eth_ctrl_stats,
 };
