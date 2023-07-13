@@ -60,14 +60,21 @@ bits:
  ================================   ===   ============================
 
 GDS can also be mitigated on systems that don't have updated microcode by
-disabling AVX. This can be done by setting "clearcpuid=avx" on the kernel
-command-line.
+disabling AVX. This can be done by setting gather_data_sampling="force" or
+"clearcpuid=avx" on the kernel command-line.
+
+If used, these options will disable AVX use by turning on XSAVE YMM support.
+However, the processor will still enumerate AVX support.  Userspace that
+does not follow proper AVX enumeration to check both AVX *and* XSAVE YMM
+support will break.
 
 Mitigation control on the kernel command line
 ---------------------------------------------
 The mitigation can be disabled by setting "gather_data_sampling=off" or
-"mitigations=off" on the kernel command line. Not specifying either will
-default to the mitigation being enabled.
+"mitigations=off" on the kernel command line. Not specifying either will default
+to the mitigation being enabled. Specifying "gather_data_sampling=force" will
+use the microcode mitigation when available or disable AVX on affected systems
+where the microcode hasn't been updated to include the mitigation.
 
 GDS System Information
 ------------------------
@@ -83,6 +90,9 @@ The possible values contained in this file are:
  Vulnerable                     Processor vulnerable and mitigation disabled.
  Vulnerable: No microcode       Processor vulnerable and microcode is missing
                                 mitigation.
+ Mitigation: AVX disabled,
+ no microcode                   Processor is vulnerable and microcode is missing
+                                mitigation. AVX disabled as mitigation.
  Mitigation: Microcode          Processor is vulnerable and mitigation is in
                                 effect.
  Mitigation: Microcode (locked) Processor is vulnerable and mitigation is in
