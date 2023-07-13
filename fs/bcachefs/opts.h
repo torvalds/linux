@@ -174,12 +174,12 @@ enum fsck_err_opts {
 	  NULL,		NULL)						\
 	x(compression,			u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
-	  OPT_STR(bch2_compression_opts),				\
+	  OPT_FN(bch2_opt_compression),					\
 	  BCH_SB_COMPRESSION_TYPE,	BCH_COMPRESSION_OPT_none,	\
 	  NULL,		NULL)						\
 	x(background_compression,	u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
-	  OPT_STR(bch2_compression_opts),				\
+	  OPT_FN(bch2_opt_compression),					\
 	  BCH_SB_BACKGROUND_COMPRESSION_TYPE,BCH_COMPRESSION_OPT_none,	\
 	  NULL,		NULL)						\
 	x(str_hash,			u8,				\

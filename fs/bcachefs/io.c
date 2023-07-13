@@ -1078,7 +1078,7 @@ static enum prep_encoded_ret {
 	/* Can we just write the entire extent as is? */
 	if (op->crc.uncompressed_size == op->crc.live_size &&
 	    op->crc.compressed_size <= wp->sectors_free &&
-	    (op->crc.compression_type == op->compression_type ||
+	    (op->crc.compression_type == bch2_compression_opt_to_type(op->compression_opt) ||
 	     op->incompressible)) {
 		if (!crc_is_compressed(op->crc) &&
 		    op->csum_type != op->crc.csum_type &&
@@ -1126,7 +1126,7 @@ static enum prep_encoded_ret {
 	/*
 	 * If we want to compress the data, it has to be decrypted:
 	 */
-	if ((op->compression_type ||
+	if ((op->compression_opt ||
 	     bch2_csum_type_is_encryption(op->crc.csum_type) !=
 	     bch2_csum_type_is_encryption(op->csum_type)) &&
 	    bch2_write_decrypt(op))
@@ -1173,7 +1173,7 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	}
 
 	if (ec_buf ||
-	    op->compression_type ||
+	    op->compression_opt ||
 	    (op->csum_type &&
 	     !(op->flags & BCH_WRITE_PAGES_STABLE)) ||
 	    (bch2_csum_type_is_encryption(op->csum_type) &&
@@ -1196,16 +1196,16 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		    dst->bi_iter.bi_size < c->opts.encoded_extent_max)
 			break;
 
-		BUG_ON(op->compression_type &&
+		BUG_ON(op->compression_opt &&
 		       (op->flags & BCH_WRITE_DATA_ENCODED) &&
 		       bch2_csum_type_is_encryption(op->crc.csum_type));
-		BUG_ON(op->compression_type && !bounce);
+		BUG_ON(op->compression_opt && !bounce);
 
 		crc.compression_type = op->incompressible
 			? BCH_COMPRESSION_TYPE_incompressible
-			: op->compression_type
+			: op->compression_opt
 			? bch2_bio_compress(c, dst, &dst_len, src, &src_len,
-					    op->compression_type)
+					    op->compression_opt)
 			: 0;
 		if (!crc_is_compressed(crc)) {
 			dst_len = min(dst->bi_iter.bi_size, src->bi_iter.bi_size);

@@ -455,9 +455,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		BCH_WRITE_DATA_ENCODED|
 		BCH_WRITE_MOVE|
 		m->data_opts.write_flags;
-	m->op.compression_type =
-		bch2_compression_opt_to_type[io_opts.background_compression ?:
-					     io_opts.compression];
+	m->op.compression_opt	= io_opts.background_compression ?: io_opts.compression;
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
 	bkey_for_each_ptr(ptrs, ptr)

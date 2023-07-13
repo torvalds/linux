@@ -296,21 +296,32 @@ static int attempt_compress(struct bch_fs *c,
 			    void *workspace,
 			    void *dst, size_t dst_len,
 			    void *src, size_t src_len,
-			    enum bch_compression_type compression_type)
+			    struct bch_compression_opt compression)
 {
+	enum bch_compression_type compression_type =
+		__bch2_compression_opt_to_type[compression.type];
+
 	switch (compression_type) {
-	case BCH_COMPRESSION_TYPE_lz4: {
-		int len = src_len;
-		int ret = LZ4_compress_destSize(
-				src,		dst,
-				&len,		dst_len,
-				workspace);
+	case BCH_COMPRESSION_TYPE_lz4:
+		if (compression.level < LZ4HC_MIN_CLEVEL) {
+			int len = src_len;
+			int ret = LZ4_compress_destSize(
+					src,		dst,
+					&len,		dst_len,
+					workspace);
+			if (len < src_len)
+				return -len;
 
-		if (len < src_len)
-			return -len;
+			return ret;
+		} else {
+			int ret = LZ4_compress_HC(
+					src,		dst,
+					src_len,	dst_len,
+					compression.level,
+					workspace);
 
-		return ret;
-	}
+			return ret ?: -1;
+		}
 	case BCH_COMPRESSION_TYPE_gzip: {
 		z_stream strm = {
 			.next_in	= src,
@@ -320,7 +331,11 @@ static int attempt_compress(struct bch_fs *c,
 		};
 
 		zlib_set_workspace(&strm, workspace);
-		zlib_deflateInit2(&strm, Z_DEFAULT_COMPRESSION,
+		zlib_deflateInit2(&strm,
+				  compression.level
+				  ? clamp_t(unsigned, compression.level,
+					    Z_BEST_SPEED, Z_BEST_COMPRESSION)
+				  : Z_DEFAULT_COMPRESSION,
 				  Z_DEFLATED, -MAX_WBITS, DEF_MEM_LEVEL,
 				  Z_DEFAULT_STRATEGY);
 
@@ -333,8 +348,14 @@ static int attempt_compress(struct bch_fs *c,
 		return strm.total_out;
 	}
 	case BCH_COMPRESSION_TYPE_zstd: {
+		/*
+		 * rescale:
+		 * zstd max compression level is 22, our max level is 15
+		 */
+		unsigned level = min((compression.level * 3) / 2, zstd_max_clevel());
+		ZSTD_parameters params = zstd_get_params(level, c->opts.encoded_extent_max);
 		ZSTD_CCtx *ctx = zstd_init_cctx(workspace,
-			zstd_cctx_workspace_bound(&c->zstd_params.cParams));
+			zstd_cctx_workspace_bound(&params.cParams));
 
 		/*
 		 * ZSTD requires that when we decompress we pass in the exact
@@ -365,10 +386,12 @@ static int attempt_compress(struct bch_fs *c,
 static unsigned __bio_compress(struct bch_fs *c,
 			       struct bio *dst, size_t *dst_len,
 			       struct bio *src, size_t *src_len,
-			       enum bch_compression_type compression_type)
+			       struct bch_compression_opt compression)
 {
 	struct bbuf src_data = { NULL }, dst_data = { NULL };
 	void *workspace;
+	enum bch_compression_type compression_type =
+		__bch2_compression_opt_to_type[compression.type];
 	unsigned pad;
 	int ret = 0;
 
@@ -400,7 +423,7 @@ static unsigned __bio_compress(struct bch_fs *c,
 		ret = attempt_compress(c, workspace,
 				       dst_data.b,	*dst_len,
 				       src_data.b,	*src_len,
-				       compression_type);
+				       compression);
 		if (ret > 0) {
 			*dst_len = ret;
 			ret = 0;
@@ -447,22 +470,24 @@ static unsigned __bio_compress(struct bch_fs *c,
 	BUG_ON(!*src_len || *src_len > src->bi_iter.bi_size);
 	BUG_ON(*dst_len & (block_bytes(c) - 1));
 	BUG_ON(*src_len & (block_bytes(c) - 1));
+	ret = compression_type;
 out:
 	bio_unmap_or_unbounce(c, src_data);
 	bio_unmap_or_unbounce(c, dst_data);
-	return compression_type;
+	return ret;
 err:
-	compression_type = BCH_COMPRESSION_TYPE_incompressible;
+	ret = BCH_COMPRESSION_TYPE_incompressible;
 	goto out;
 }
 
 unsigned bch2_bio_compress(struct bch_fs *c,
 			   struct bio *dst, size_t *dst_len,
 			   struct bio *src, size_t *src_len,
-			   unsigned compression_type)
+			   unsigned compression_opt)
 {
 	unsigned orig_dst = dst->bi_iter.bi_size;
 	unsigned orig_src = src->bi_iter.bi_size;
+	unsigned compression_type;
 
 	/* Don't consume more than BCH_ENCODED_EXTENT_MAX from @src: */
 	src->bi_iter.bi_size = min_t(unsigned, src->bi_iter.bi_size,
@@ -470,11 +495,9 @@ unsigned bch2_bio_compress(struct bch_fs *c,
 	/* Don't generate a bigger output than input: */
 	dst->bi_iter.bi_size = min(dst->bi_iter.bi_size, src->bi_iter.bi_size);
 
-	if (compression_type == BCH_COMPRESSION_TYPE_lz4_old)
-		compression_type = BCH_COMPRESSION_TYPE_lz4;
-
 	compression_type =
-		__bio_compress(c, dst, dst_len, src, src_len, compression_type);
+		__bio_compress(c, dst, dst_len, src, src_len,
+			       bch2_compression_decode(compression_opt));
 
 	dst->bi_iter.bi_size = orig_dst;
 	src->bi_iter.bi_size = orig_src;
@@ -521,8 +544,10 @@ static int __bch2_check_set_has_compressed_data(struct bch_fs *c, u64 f)
 }
 
 int bch2_check_set_has_compressed_data(struct bch_fs *c,
-				       unsigned compression_type)
+				       unsigned compression_opt)
 {
+	unsigned compression_type = bch2_compression_decode(compression_opt).type;
+
 	BUG_ON(compression_type >= ARRAY_SIZE(bch2_compression_opt_to_feature));
 
 	return compression_type
@@ -546,14 +571,16 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 {
 	size_t decompress_workspace_size = 0;
 	bool decompress_workspace_needed;
-	ZSTD_parameters params = zstd_get_params(0, c->opts.encoded_extent_max);
+	ZSTD_parameters params = zstd_get_params(zstd_max_clevel(),
+						 c->opts.encoded_extent_max);
 	struct {
-		unsigned	feature;
-		unsigned	type;
-		size_t		compress_workspace;
-		size_t		decompress_workspace;
+		unsigned			feature;
+		enum bch_compression_type	type;
+		size_t				compress_workspace;
+		size_t				decompress_workspace;
 	} compression_types[] = {
-		{ BCH_FEATURE_lz4, BCH_COMPRESSION_TYPE_lz4, LZ4_MEM_COMPRESS, 0 },
+		{ BCH_FEATURE_lz4, BCH_COMPRESSION_TYPE_lz4,
+			max_t(size_t, LZ4_MEM_COMPRESS, LZ4HC_MEM_COMPRESS) },
 		{ BCH_FEATURE_gzip, BCH_COMPRESSION_TYPE_gzip,
 			zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL),
 			zlib_inflate_workspacesize(), },
@@ -612,16 +639,74 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 	return 0;
 }
 
+static u64 compression_opt_to_feature(unsigned v)
+{
+	unsigned type = bch2_compression_decode(v).type;
+	return 1ULL << bch2_compression_opt_to_feature[type];
+}
+
 int bch2_fs_compress_init(struct bch_fs *c)
 {
 	u64 f = c->sb.features;
 
-	if (c->opts.compression)
-		f |= 1ULL << bch2_compression_opt_to_feature[c->opts.compression];
-
-	if (c->opts.background_compression)
-		f |= 1ULL << bch2_compression_opt_to_feature[c->opts.background_compression];
+	f |= compression_opt_to_feature(c->opts.compression);
+	f |= compression_opt_to_feature(c->opts.background_compression);
 
 	return __bch2_fs_compress_init(c, f);
+}
 
+int bch2_opt_compression_parse(struct bch_fs *c, const char *_val, u64 *res,
+			       struct printbuf *err)
+{
+	char *val = kstrdup(_val, GFP_KERNEL);
+	char *p = val, *type_str, *level_str;
+	struct bch_compression_opt opt = { 0 };
+	int ret;
+
+	if (!val)
+		return -ENOMEM;
+
+	type_str = strsep(&p, ":");
+	level_str = p;
+
+	ret = match_string(bch2_compression_opts, -1, type_str);
+	if (ret < 0 && err)
+		prt_str(err, "invalid compression type");
+	if (ret < 0)
+		goto err;
+
+	opt.type = ret;
+
+	if (level_str) {
+		unsigned level;
+
+		ret = kstrtouint(level_str, 10, &level);
+		if (!ret && !opt.type && level)
+			ret = -EINVAL;
+		if (!ret && level > 15)
+			ret = -EINVAL;
+		if (ret < 0 && err)
+			prt_str(err, "invalid compression level");
+		if (ret < 0)
+			goto err;
+
+		opt.level = level;
+	}
+
+	*res = bch2_compression_encode(opt);
+err:
+	kfree(val);
+	return ret;
+}
+
+void bch2_opt_compression_to_text(struct printbuf *out,
+				  struct bch_fs *c,
+				  struct bch_sb *sb,
+				  u64 v)
+{
+	struct bch_compression_opt opt = bch2_compression_decode(v);
+
+	prt_str(out, bch2_compression_opts[opt.type]);
+	if (opt.level)
+		prt_printf(out, ":%u", opt.level);
 }

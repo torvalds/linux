@@ -115,8 +115,8 @@ struct bch_write_op {
 	u16			flags;
 	s16			error; /* dio write path expects it to hold -ERESTARTSYS... */
 
+	unsigned		compression_opt:8;
 	unsigned		csum_type:4;
-	unsigned		compression_type:4;
 	unsigned		nr_replicas:4;
 	unsigned		nr_replicas_required:4;
 	unsigned		watermark:3;
