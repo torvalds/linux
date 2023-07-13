@@ -113,51 +113,34 @@ int mv88e6xxx_pcs_decode_state(struct device *dev, u16 bmsr, u16 lpa,
 			       u16 status, struct phylink_link_state *state);
 
 int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
-int mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6393x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
-int mv88e6352_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
-				int lane, unsigned int mode,
-				phy_interface_t interface,
-				const unsigned long *advertise);
 int mv88e6390_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
 				int lane, unsigned int mode,
 				phy_interface_t interface,
 				const unsigned long *advertise);
-int mv88e6352_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
-				   int lane, struct phylink_link_state *state);
 int mv88e6390_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 				   int lane, struct phylink_link_state *state);
 int mv88e6393x_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 				    int lane, struct phylink_link_state *state);
-int mv88e6352_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
-				    int lane);
 int mv88e6390_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
 				    int lane);
-int mv88e6352_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
-				 int lane, int speed, int duplex);
 int mv88e6390_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
 				 int lane, int speed, int duplex);
 unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
 unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
-			   bool on);
 int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			   bool on);
 int mv88e6393x_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			    bool on);
 int mv88e6393x_serdes_setup_errata(struct mv88e6xxx_chip *chip);
-int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, int lane,
-				bool enable);
 int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, int lane,
 				bool enable);
 int mv88e6393x_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
 				 int lane, bool enable);
-irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
-					int lane);
 irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
 					int lane);
 irqreturn_t mv88e6393x_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
@@ -246,5 +229,6 @@ mv88e6xxx_serdes_irq_status(struct mv88e6xxx_chip *chip, int port, int lane)
 }
 
 extern const struct mv88e6xxx_pcs_ops mv88e6185_pcs_ops;
+extern const struct mv88e6xxx_pcs_ops mv88e6352_pcs_ops;
 
 #endif
