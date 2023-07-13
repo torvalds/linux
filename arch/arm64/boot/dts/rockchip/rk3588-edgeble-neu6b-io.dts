@@ -84,3 +84,10 @@
 	pinctrl-names = "default";
 	status = "okay";
 };
+
+/* RS485 */
+&uart7 {
+	pinctrl-0 = <&uart7m2_xfer>;
+	pinctrl-names = "default";
+	status = "okay";
+};
