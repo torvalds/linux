@@ -22,7 +22,7 @@ DEFAULT_ABL_EXTENSIONS_SRC = "../bootable/bootloader/edk2/abl_extensions.bzl"
 class BazelBuilder:
     """Helper class for building with Bazel"""
 
-    def __init__(self, target_list, skip_list, out_dir, user_opts):
+    def __init__(self, target_list, skip_list, out_dir, dry_run, user_opts):
         self.workspace = os.path.realpath(
             os.path.join(os.path.dirname(os.path.realpath(__file__)), "..")
         )
@@ -42,6 +42,7 @@ class BazelBuilder:
         self.target_list = target_list
         self.skip_list = skip_list
         self.out_dir = out_dir
+        self.dry_run = dry_run
         self.user_opts = user_opts
         self.process_list = []
         self.setup_extensions()
@@ -244,6 +245,9 @@ class BazelBuilder:
             "--ignore_missing_projects",
         ])
 
+        if self.dry_run:
+            self.user_opts.append("--nobuild")
+
         device_user_opts = self.user_opts + ["--config=android_arm64"]
 
         logging.info("Building device targets...")
@@ -251,18 +255,22 @@ class BazelBuilder:
             cross_targets_to_build,
             user_opts=device_user_opts,
         )
-        self.run_targets(
-            cross_targets_to_build,
-            user_opts=device_user_opts,
-        )
+
+        if not self.dry_run:
+            self.run_targets(
+                cross_targets_to_build,
+                user_opts=device_user_opts,
+            )
 
         logging.info("Building host targets...")
         self.build_targets(
             host_targets_to_build, user_opts=self.user_opts
         )
-        self.run_targets(
-            host_targets_to_build, out_subdir="host", user_opts=self.user_opts
-        )
+
+        if not self.dry_run:
+            self.run_targets(
+                host_targets_to_build, out_subdir="host", user_opts=self.user_opts
+            )
 
 
 def main():
@@ -305,6 +313,12 @@ def main():
         action="store_true",
         help="Run menuconfig for <target>-<variant> and exit without building",
     )
+    parser.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        help="Perform a dry-run of the build which will perform loading/analysis of build files",
+    )
 
     args, user_opts = parser.parse_known_args(sys.argv[1:])
 
@@ -315,7 +329,7 @@ def main():
 
     args.skip.extend(DEFAULT_SKIP_LIST)
 
-    builder = BazelBuilder(args.target, args.skip, args.out_dir, user_opts)
+    builder = BazelBuilder(args.target, args.skip, args.out_dir, args.dry_run, user_opts)
     try:
         if args.menuconfig:
             builder.run_menuconfig()
@@ -326,8 +340,10 @@ def main():
         del builder
         sys.exit(1)
 
-    logging.info("Build completed successfully!")
-
+    if args.dry_run:
+        logging.info("Dry-run completed successfully!")
+    else:
+        logging.info("Build completed successfully!")
 
 if __name__ == "__main__":
     main()
