@@ -17,7 +17,6 @@
 
 #include "system_global.h"
 
-#ifdef ISP2401
 
 #include "ia_css_isys.h"
 #include "ia_css_debug.h"
@@ -866,4 +865,3 @@ static csi_mipi_packet_type_t get_csi_mipi_packet_type(
 }
 
 /* end of Private Methods */
-#endif
