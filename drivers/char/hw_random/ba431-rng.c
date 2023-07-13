@@ -189,8 +189,6 @@ static int ba431_trng_probe(struct platform_device *pdev)
 	ba431->rng.cleanup = ba431_trng_cleanup;
 	ba431->rng.read = ba431_trng_read;
 
-	platform_set_drvdata(pdev, ba431);
-
 	ret = devm_hwrng_register(&pdev->dev, &ba431->rng);
 	if (ret) {
 		dev_err(&pdev->dev, "BA431 registration failed (%d)\n", ret);
