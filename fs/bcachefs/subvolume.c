@@ -28,17 +28,22 @@ static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ances
 bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
 	struct snapshot_table *t;
+	bool ret;
 
 	EBUG_ON(c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_snapshots);
 
 	rcu_read_lock();
 	t = rcu_dereference(c->snapshots);
 
-	while (id && id < ancestor)
+	while (id && id < ancestor - IS_ANCESTOR_BITMAP)
 		id = get_ancestor_below(t, id, ancestor);
+
+	ret = id && id < ancestor
+		? test_bit(ancestor - id - 1, __snapshot_t(t, id)->is_ancestor)
+		: id == ancestor;
 	rcu_read_unlock();
 
-	return id == ancestor;
+	return ret;
 }
 
 static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancestor)
@@ -289,11 +294,12 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct snapshot_t *t;
+	u32 id = new.k->p.offset;
 	int ret = 0;
 
 	mutex_lock(&c->snapshot_table_lock);
 
-	t = snapshot_t_mut(c, new.k->p.offset);
+	t = snapshot_t_mut(c, id);
 	if (!t) {
 		ret = -BCH_ERR_ENOMEM_mark_snapshot;
 		goto err;
@@ -301,6 +307,7 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 
 	if (new.k->type == KEY_TYPE_snapshot) {
 		struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(new);
+		u32 parent = id;
 
 		t->parent	= le32_to_cpu(s.v->parent);
 		t->children[0]	= le32_to_cpu(s.v->children[0]);
@@ -320,14 +327,14 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 			t->skip[2]	= 0;
 		}
 
+		while ((parent = bch2_snapshot_parent_early(c, parent)) &&
+		       parent - id - 1 < IS_ANCESTOR_BITMAP)
+			__set_bit(parent - id - 1, t->is_ancestor);
+
 		if (BCH_SNAPSHOT_DELETED(s.v))
 			set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
 	} else {
-		t->parent	= 0;
-		t->children[0]	= 0;
-		t->children[1]	= 0;
-		t->subvol	= 0;
-		t->tree		= 0;
+		memset(t, 0, sizeof(*t));
 	}
 err:
 	mutex_unlock(&c->snapshot_table_lock);

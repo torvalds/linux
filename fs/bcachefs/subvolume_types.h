@@ -6,6 +6,8 @@
 
 typedef DARRAY(u32) snapshot_id_list;
 
+#define IS_ANCESTOR_BITMAP	128
+
 struct snapshot_t {
 	u32			parent;
 	u32			skip[3];
@@ -14,6 +16,7 @@ struct snapshot_t {
 	u32			subvol; /* Nonzero only if a subvolume points to this node: */
 	u32			tree;
 	u32			equiv;
+	unsigned long		is_ancestor[BITS_TO_LONGS(IS_ANCESTOR_BITMAP)];
 };
 
 struct snapshot_table {
