@@ -201,7 +201,7 @@ static int ba431_trng_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id ba431_trng_dt_ids[] = {
-	{ .compatible = "silex-insight,ba431-rng", .data = NULL },
+	{ .compatible = "silex-insight,ba431-rng" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ba431_trng_dt_ids);
