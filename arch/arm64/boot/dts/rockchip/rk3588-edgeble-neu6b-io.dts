@@ -77,3 +77,10 @@
 	pinctrl-0 = <&uart2m0_xfer>;
 	status = "okay";
 };
+
+/* RS232 */
+&uart6 {
+	pinctrl-0 = <&uart6m0_xfer>;
+	pinctrl-names = "default";
+	status = "okay";
+};
