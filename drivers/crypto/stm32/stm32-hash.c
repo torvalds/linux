@@ -659,8 +659,9 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(hdev->req);
 	u32 *buffer = (void *)rctx->state.buffer;
 	struct scatterlist sg[1], *tsg;
-	int err = 0, len = 0, reg, ncp = 0;
-	unsigned int i;
+	int err = 0, reg, ncp = 0;
+	unsigned int i, len = 0, bufcnt = 0;
+	bool is_last = false;
 
 	rctx->sg = hdev->req->src;
 	rctx->total = hdev->req->nbytes;
@@ -681,7 +682,9 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 		sg[0] = *tsg;
 		len = sg->length;
 
-		if (sg_is_last(sg)) {
+		if (sg_is_last(sg) || (bufcnt + sg[0].length) >= rctx->total) {
+			sg->length = rctx->total - bufcnt;
+			is_last = true;
 			if (hdev->dma_mode == 1) {
 				len = (ALIGN(sg->length, 16) - 16);
 
@@ -707,13 +710,15 @@ static int stm32_hash_dma_send(struct stm32_hash_dev *hdev)
 			return -ENOMEM;
 		}
 
-		err = stm32_hash_xmit_dma(hdev, sg, len,
-					  !sg_is_last(sg));
+		err = stm32_hash_xmit_dma(hdev, sg, len, !is_last);
 
+		bufcnt += sg[0].length;
 		dma_unmap_sg(hdev->dev, sg, 1, DMA_TO_DEVICE);
 
 		if (err == -ENOMEM)
 			return err;
+		if (is_last)
+			break;
 	}
 
 	if (hdev->dma_mode == 1) {
