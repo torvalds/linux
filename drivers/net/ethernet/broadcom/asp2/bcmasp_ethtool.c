@@ -1,12 +1,169 @@
 // SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt)				"bcmasp_ethtool: " fmt
 
+#include <asm-generic/unaligned.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 
 #include "bcmasp.h"
 #include "bcmasp_intf_defs.h"
+
+enum bcmasp_stat_type {
+	BCMASP_STAT_RX_EDPKT,
+	BCMASP_STAT_RX_CTRL,
+	BCMASP_STAT_RX_CTRL_PER_INTF,
+	BCMASP_STAT_SOFT,
+};
+
+struct bcmasp_stats {
+	char stat_string[ETH_GSTRING_LEN];
+	enum bcmasp_stat_type type;
+	u32 reg_offset;
+};
+
+#define STAT_BCMASP_SOFT_MIB(str) { \
+	.stat_string = str, \
+	.type = BCMASP_STAT_SOFT, \
+}
+
+#define STAT_BCMASP_OFFSET(str, _type, offset) { \
+	.stat_string = str, \
+	.type = _type, \
+	.reg_offset = offset, \
+}
+
+#define STAT_BCMASP_RX_EDPKT(str, offset) \
+	STAT_BCMASP_OFFSET(str, BCMASP_STAT_RX_EDPKT, offset)
+#define STAT_BCMASP_RX_CTRL(str, offset) \
+	STAT_BCMASP_OFFSET(str, BCMASP_STAT_RX_CTRL, offset)
+#define STAT_BCMASP_RX_CTRL_PER_INTF(str, offset) \
+	STAT_BCMASP_OFFSET(str, BCMASP_STAT_RX_CTRL_PER_INTF, offset)
+
+/* Must match the order of struct bcmasp_mib_counters */
+static const struct bcmasp_stats bcmasp_gstrings_stats[] = {
+	/* EDPKT counters */
+	STAT_BCMASP_RX_EDPKT("RX Time Stamp", ASP_EDPKT_RX_TS_COUNTER),
+	STAT_BCMASP_RX_EDPKT("RX PKT Count", ASP_EDPKT_RX_PKT_CNT),
+	STAT_BCMASP_RX_EDPKT("RX PKT Buffered", ASP_EDPKT_HDR_EXTR_CNT),
+	STAT_BCMASP_RX_EDPKT("RX PKT Pushed to DRAM", ASP_EDPKT_HDR_OUT_CNT),
+	/* ASP RX control */
+	STAT_BCMASP_RX_CTRL_PER_INTF("Frames From Unimac",
+				     ASP_RX_CTRL_UMAC_0_FRAME_COUNT),
+	STAT_BCMASP_RX_CTRL_PER_INTF("Frames From Port",
+				     ASP_RX_CTRL_FB_0_FRAME_COUNT),
+	STAT_BCMASP_RX_CTRL_PER_INTF("RX Buffer FIFO Depth",
+				     ASP_RX_CTRL_FB_RX_FIFO_DEPTH),
+	STAT_BCMASP_RX_CTRL("Frames Out(Buffer)",
+			    ASP_RX_CTRL_FB_OUT_FRAME_COUNT),
+	STAT_BCMASP_RX_CTRL("Frames Out(Filters)",
+			    ASP_RX_CTRL_FB_FILT_OUT_FRAME_COUNT),
+	/* Software maintained statistics */
+	STAT_BCMASP_SOFT_MIB("RX SKB Alloc Failed"),
+	STAT_BCMASP_SOFT_MIB("TX DMA Failed"),
+	STAT_BCMASP_SOFT_MIB("Multicast Filters Full"),
+	STAT_BCMASP_SOFT_MIB("Unicast Filters Full"),
+	STAT_BCMASP_SOFT_MIB("MDA Filters Combined"),
+	STAT_BCMASP_SOFT_MIB("Promisc Filter Set"),
+	STAT_BCMASP_SOFT_MIB("TX Realloc For Offload Failed"),
+	STAT_BCMASP_SOFT_MIB("Tx Timeout Count"),
+};
+
+#define BCMASP_STATS_LEN	ARRAY_SIZE(bcmasp_gstrings_stats)
+
+static u16 bcmasp_stat_fixup_offset(struct bcmasp_intf *intf,
+				    const struct bcmasp_stats *s)
+{
+	struct bcmasp_priv *priv = intf->parent;
+
+	if (!strcmp("Frames Out(Buffer)", s->stat_string))
+		return priv->hw_info->rx_ctrl_fb_out_frame_count;
+
+	if (!strcmp("Frames Out(Filters)", s->stat_string))
+		return priv->hw_info->rx_ctrl_fb_filt_out_frame_count;
+
+	if (!strcmp("RX Buffer FIFO Depth", s->stat_string))
+		return priv->hw_info->rx_ctrl_fb_rx_fifo_depth;
+
+	return s->reg_offset;
+}
+
+static int bcmasp_get_sset_count(struct net_device *dev, int string_set)
+{
+	switch (string_set) {
+	case ETH_SS_STATS:
+		return BCMASP_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void bcmasp_get_strings(struct net_device *dev, u32 stringset,
+			       u8 *data)
+{
+	unsigned int i;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		for (i = 0; i < BCMASP_STATS_LEN; i++) {
+			memcpy(data + i * ETH_GSTRING_LEN,
+			       bcmasp_gstrings_stats[i].stat_string,
+			       ETH_GSTRING_LEN);
+		}
+		break;
+	default:
+		return;
+	}
+}
+
+static void bcmasp_update_mib_counters(struct bcmasp_intf *intf)
+{
+	unsigned int i;
+
+	for (i = 0; i < BCMASP_STATS_LEN; i++) {
+		const struct bcmasp_stats *s;
+		u32 offset, val;
+		char *p;
+
+		s = &bcmasp_gstrings_stats[i];
+		offset = bcmasp_stat_fixup_offset(intf, s);
+		switch (s->type) {
+		case BCMASP_STAT_SOFT:
+			continue;
+		case BCMASP_STAT_RX_EDPKT:
+			val = rx_edpkt_core_rl(intf->parent, offset);
+			break;
+		case BCMASP_STAT_RX_CTRL:
+			val = rx_ctrl_core_rl(intf->parent, offset);
+			break;
+		case BCMASP_STAT_RX_CTRL_PER_INTF:
+			offset += sizeof(u32) * intf->port;
+			val = rx_ctrl_core_rl(intf->parent, offset);
+			break;
+		default:
+			continue;
+		}
+		p = (char *)(&intf->mib) + (i * sizeof(u32));
+		put_unaligned(val, (u32 *)p);
+	}
+}
+
+static void bcmasp_get_ethtool_stats(struct net_device *dev,
+				     struct ethtool_stats *stats,
+				     u64 *data)
+{
+	struct bcmasp_intf *intf = netdev_priv(dev);
+	unsigned int i;
+	char *p;
+
+	if (netif_running(dev))
+		bcmasp_update_mib_counters(intf);
+
+	for (i = 0; i < BCMASP_STATS_LEN; i++) {
+		p = (char *)(&intf->mib) + (i * sizeof(u32));
+		data[i] = *(u32 *)p;
+	}
+}
 
 static void bcmasp_get_drvinfo(struct net_device *dev,
 			       struct ethtool_drvinfo *info)
@@ -340,4 +497,7 @@ const struct ethtool_ops bcmasp_ethtool_ops = {
 	.get_eth_mac_stats	= bcmasp_get_eth_mac_stats,
 	.get_rmon_stats		= bcmasp_get_rmon_stats,
 	.get_eth_ctrl_stats	= bcmasp_get_eth_ctrl_stats,
+	.get_strings		= bcmasp_get_strings,
+	.get_ethtool_stats	= bcmasp_get_ethtool_stats,
+	.get_sset_count		= bcmasp_get_sset_count,
 };

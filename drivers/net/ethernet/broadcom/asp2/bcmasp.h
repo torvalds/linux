@@ -244,6 +244,26 @@ struct bcmasp_intf_stats64 {
 	struct u64_stats_sync		syncp;
 };
 
+struct bcmasp_mib_counters {
+	u32	edpkt_ts;
+	u32	edpkt_rx_pkt_cnt;
+	u32	edpkt_hdr_ext_cnt;
+	u32	edpkt_hdr_out_cnt;
+	u32	umac_frm_cnt;
+	u32	fb_frm_cnt;
+	u32	fb_rx_fifo_depth;
+	u32	fb_out_frm_cnt;
+	u32	fb_filt_out_frm_cnt;
+	u32	alloc_rx_skb_failed;
+	u32	tx_dma_failed;
+	u32	mc_filters_full_cnt;
+	u32	uc_filters_full_cnt;
+	u32	filters_combine_cnt;
+	u32	promisc_filters_cnt;
+	u32	tx_realloc_offload_failed;
+	u32	tx_timeout_cnt;
+};
+
 struct bcmasp_intf_ops {
 	unsigned long (*rx_desc_read)(struct bcmasp_intf *intf);
 	void (*rx_buffer_write)(struct bcmasp_intf *intf, dma_addr_t addr);
@@ -309,6 +329,7 @@ struct bcmasp_intf {
 
 	/* Statistics */
 	struct bcmasp_intf_stats64	stats64;
+	struct bcmasp_mib_counters	mib;
 
 	u32				wolopts;
 	u8				sopass[SOPASS_MAX];

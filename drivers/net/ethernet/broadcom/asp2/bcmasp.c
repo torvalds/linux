@@ -895,8 +895,10 @@ int bcmasp_set_en_mda_filter(struct bcmasp_intf *intf, unsigned char *addr,
 
 		/* Attempt to combine filters */
 		ret = bcmasp_combine_set_filter(intf, addr, mask, i);
-		if (!ret)
+		if (!ret) {
+			intf->mib.filters_combine_cnt++;
 			return 0;
+		}
 	}
 
 	/* Create new filter if possible */

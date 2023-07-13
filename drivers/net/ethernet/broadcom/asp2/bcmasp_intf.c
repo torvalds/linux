@@ -104,15 +104,19 @@ static void bcmasp_set_rx_mode(struct net_device *dev)
 
 		netdev_for_each_mc_addr(ha, dev) {
 			ret = bcmasp_set_en_mda_filter(intf, ha->addr, mask);
-			if (ret)
+			if (ret) {
+				intf->mib.mc_filters_full_cnt++;
 				goto set_promisc;
+			}
 		}
 	}
 
 	netdev_for_each_uc_addr(ha, dev) {
 		ret = bcmasp_set_en_mda_filter(intf, ha->addr, mask);
-		if (ret)
+		if (ret) {
+			intf->mib.uc_filters_full_cnt++;
 			goto set_promisc;
+		}
 	}
 
 	spin_unlock_bh(&intf->parent->mda_lock);
@@ -120,6 +124,7 @@ static void bcmasp_set_rx_mode(struct net_device *dev)
 
 set_promisc:
 	bcmasp_set_promisc(intf, 1);
+	intf->mib.promisc_filters_cnt++;
 
 	/* disable all filters used by this port */
 	bcmasp_disable_all_filters(intf);
@@ -155,6 +160,7 @@ static struct sk_buff *bcmasp_csum_offload(struct net_device *dev,
 					   struct sk_buff *skb,
 					   bool *csum_hw)
 {
+	struct bcmasp_intf *intf = netdev_priv(dev);
 	u32 header = 0, header2 = 0, epkt = 0;
 	struct bcmasp_pkt_offload *offload;
 	unsigned int header_cnt = 0;
@@ -165,8 +171,10 @@ static struct sk_buff *bcmasp_csum_offload(struct net_device *dev,
 		return skb;
 
 	ret = skb_cow_head(skb, sizeof(*offload));
-	if (ret < 0)
+	if (ret < 0) {
+		intf->mib.tx_realloc_offload_failed++;
 		goto help;
+	}
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
@@ -305,6 +313,7 @@ static netdev_tx_t bcmasp_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (dma_mapping_error(kdev, mapping)) {
+			intf->mib.tx_dma_failed++;
 			spb_index = intf->tx_spb_index;
 			for (j = 0; j < i; j++) {
 				bcmasp_clean_txcb(intf, spb_index);
@@ -541,6 +550,8 @@ static int bcmasp_rx_poll(struct napi_struct *napi, int budget)
 			u64_stats_update_begin(&stats->syncp);
 			u64_stats_inc(&stats->rx_dropped);
 			u64_stats_update_end(&stats->syncp);
+			intf->mib.alloc_rx_skb_failed++;
+
 			goto next;
 		}
 
@@ -1116,6 +1127,7 @@ static void bcmasp_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	struct bcmasp_intf *intf = netdev_priv(dev);
 
 	netif_dbg(intf, tx_err, dev, "transmit timeout!\n");
+	intf->mib.tx_timeout_cnt++;
 }
 
 static int bcmasp_get_phys_port_name(struct net_device *dev,
