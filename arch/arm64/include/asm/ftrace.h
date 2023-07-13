@@ -211,6 +211,10 @@ static inline unsigned long fgraph_ret_regs_frame_pointer(struct fgraph_ret_regs
 {
 	return ret_regs->fp;
 }
+
+void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
+			   unsigned long frame_pointer);
+
 #endif /* ifdef CONFIG_FUNCTION_GRAPH_TRACER  */
 #endif
 
