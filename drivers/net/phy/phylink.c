@@ -998,6 +998,24 @@ static void phylink_resolve_an_pause(struct phylink_link_state *state)
 	}
 }
 
+static void phylink_pcs_pre_config(struct phylink_pcs *pcs,
+				   phy_interface_t interface)
+{
+	if (pcs && pcs->ops->pcs_pre_config)
+		pcs->ops->pcs_pre_config(pcs, interface);
+}
+
+static int phylink_pcs_post_config(struct phylink_pcs *pcs,
+				   phy_interface_t interface)
+{
+	int err = 0;
+
+	if (pcs && pcs->ops->pcs_post_config)
+		err = pcs->ops->pcs_post_config(pcs, interface);
+
+	return err;
+}
+
 static void phylink_pcs_disable(struct phylink_pcs *pcs)
 {
 	if (pcs && pcs->ops->pcs_disable)
@@ -1122,7 +1140,13 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 		pl->pcs = pcs;
 	}
 
+	if (pl->pcs)
+		phylink_pcs_pre_config(pl->pcs, state->interface);
+
 	phylink_mac_config(pl, state);
+
+	if (pl->pcs)
+		phylink_pcs_post_config(pl->pcs, state->interface);
 
 	if (pl->pcs_state == PCS_STATE_STARTING || pcs_changed)
 		phylink_pcs_enable(pl->pcs);
