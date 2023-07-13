@@ -21,6 +21,14 @@
 	};
 };
 
+&combphy0_ps {
+	status = "okay";
+};
+
+&sata0 {
+	status = "okay";
+};
+
 &sdmmc {
 	bus-width = <4>;
 	cap-mmc-highspeed;
