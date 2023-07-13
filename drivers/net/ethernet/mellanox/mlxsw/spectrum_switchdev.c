@@ -1479,30 +1479,15 @@ err_port_vlan_set:
 }
 
 static int
-mlxsw_sp_br_ban_rif_pvid_change(struct mlxsw_sp *mlxsw_sp,
-				const struct net_device *br_dev,
-				const struct switchdev_obj_port_vlan *vlan,
-				struct netlink_ext_ack *extack)
+mlxsw_sp_br_rif_pvid_change(struct mlxsw_sp *mlxsw_sp,
+			    struct net_device *br_dev,
+			    const struct switchdev_obj_port_vlan *vlan,
+			    struct netlink_ext_ack *extack)
 {
-	u16 pvid;
+	bool flag_pvid = vlan->flags & BRIDGE_VLAN_INFO_PVID;
 
-	pvid = mlxsw_sp_rif_vid(mlxsw_sp, br_dev);
-	if (!pvid)
-		return 0;
-
-	if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {
-		if (vlan->vid != pvid) {
-			NL_SET_ERR_MSG_MOD(extack, "Can't change PVID, it's used by router interface");
-			return -EBUSY;
-		}
-	} else {
-		if (vlan->vid == pvid) {
-			NL_SET_ERR_MSG_MOD(extack, "Can't remove PVID, it's used by router interface");
-			return -EBUSY;
-		}
-	}
-
-	return 0;
+	return mlxsw_sp_router_bridge_vlan_add(mlxsw_sp, br_dev, vlan->vid,
+					       flag_pvid, extack);
 }
 
 static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -1519,9 +1504,8 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		int err = 0;
 
 		if (br_vlan_enabled(orig_dev))
-			err = mlxsw_sp_br_ban_rif_pvid_change(mlxsw_sp,
-							      orig_dev, vlan,
-							      extack);
+			err = mlxsw_sp_br_rif_pvid_change(mlxsw_sp, orig_dev,
+							  vlan, extack);
 		if (!err)
 			err = -EOPNOTSUPP;
 		return err;

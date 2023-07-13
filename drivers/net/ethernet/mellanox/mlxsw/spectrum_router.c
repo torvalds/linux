@@ -8411,6 +8411,110 @@ out:
 	mutex_unlock(&mlxsw_sp->router->lock);
 }
 
+static void mlxsw_sp_rif_destroy_vlan_upper(struct mlxsw_sp *mlxsw_sp,
+					    struct net_device *br_dev,
+					    u16 vid)
+{
+	struct net_device *upper_dev;
+	struct mlxsw_sp_crif *crif;
+
+	rcu_read_lock();
+	upper_dev = __vlan_find_dev_deep_rcu(br_dev, htons(ETH_P_8021Q), vid);
+	rcu_read_unlock();
+
+	if (!upper_dev)
+		return;
+
+	crif = mlxsw_sp_crif_lookup(mlxsw_sp->router, upper_dev);
+	if (!crif || !crif->rif)
+		return;
+
+	mlxsw_sp_rif_destroy(crif->rif);
+}
+
+static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
+					  struct net_device *l3_dev,
+					  int lower_pvid,
+					  unsigned long event,
+					  struct netlink_ext_ack *extack);
+
+int mlxsw_sp_router_bridge_vlan_add(struct mlxsw_sp *mlxsw_sp,
+				    struct net_device *br_dev,
+				    u16 new_vid, bool is_pvid,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_rif *old_rif;
+	struct mlxsw_sp_rif *new_rif;
+	struct net_device *upper_dev;
+	u16 old_pvid = 0;
+	u16 new_pvid;
+	int err = 0;
+
+	mutex_lock(&mlxsw_sp->router->lock);
+	old_rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, br_dev);
+	if (old_rif) {
+		/* If the RIF on the bridge is not a VLAN RIF, we shouldn't have
+		 * gotten a PVID notification.
+		 */
+		if (WARN_ON(old_rif->ops->type != MLXSW_SP_RIF_TYPE_VLAN))
+			old_rif = NULL;
+		else
+			old_pvid = mlxsw_sp_fid_8021q_vid(old_rif->fid);
+	}
+
+	if (is_pvid)
+		new_pvid = new_vid;
+	else if (old_pvid == new_vid)
+		new_pvid = 0;
+	else
+		goto out;
+
+	if (old_pvid == new_pvid)
+		goto out;
+
+	if (new_pvid) {
+		struct mlxsw_sp_rif_params params = {
+			.dev = br_dev,
+			.vid = new_pvid,
+		};
+
+		/* If there is a VLAN upper with the same VID as the new PVID,
+		 * kill its RIF, if there is one.
+		 */
+		mlxsw_sp_rif_destroy_vlan_upper(mlxsw_sp, br_dev, new_pvid);
+
+		if (mlxsw_sp_dev_addr_list_empty(br_dev))
+			goto out;
+		new_rif = mlxsw_sp_rif_create(mlxsw_sp, &params, extack);
+		if (IS_ERR(new_rif)) {
+			err = PTR_ERR(new_rif);
+			goto out;
+		}
+
+		if (old_pvid)
+			mlxsw_sp_rif_migrate_destroy(mlxsw_sp, old_rif, new_rif,
+						     true);
+	} else {
+		mlxsw_sp_rif_destroy(old_rif);
+	}
+
+	if (old_pvid) {
+		rcu_read_lock();
+		upper_dev = __vlan_find_dev_deep_rcu(br_dev, htons(ETH_P_8021Q),
+						     old_pvid);
+		rcu_read_unlock();
+		if (upper_dev)
+			err = mlxsw_sp_inetaddr_bridge_event(mlxsw_sp,
+							     upper_dev,
+							     new_pvid,
+							     NETDEV_UP, extack);
+	}
+
+out:
+	mutex_unlock(&mlxsw_sp->router->lock);
+	return err;
+}
+
 static void
 mlxsw_sp_rif_subport_params_init(struct mlxsw_sp_rif_params *params,
 				 struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
@@ -8847,13 +8951,20 @@ static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
 				return -EOPNOTSUPP;
 			}
 			err = br_vlan_get_pvid(l3_dev, &params.vid);
-			if (err < 0 || !params.vid) {
-				NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
-				return -EINVAL;
-			}
+			if (err)
+				return err;
+			if (!params.vid)
+				return 0;
 		} else if (is_vlan_dev(l3_dev)) {
 			params.vid = vlan_dev_vlan_id(l3_dev);
+
+			/* If the VID matches PVID of the bridge below, the
+			 * bridge owns the RIF for this VLAN. Don't do anything.
+			 */
+			if ((int)params.vid == lower_pvid)
+				return 0;
 		}
+
 		rif = mlxsw_sp_rif_create(mlxsw_sp, &params, extack);
 		if (IS_ERR(rif))
 			return PTR_ERR(rif);
