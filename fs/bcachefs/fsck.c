@@ -612,6 +612,7 @@ struct inode_walker_entry {
 
 struct inode_walker {
 	bool				first_this_inode;
+	bool				recalculate_sums;
 	struct bpos			last_pos;
 
 	DARRAY(struct inode_walker_entry) inodes;
@@ -649,6 +650,7 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 	u32 restart_count = trans->restart_count;
 	int ret;
 
+	w->recalculate_sums = false;
 	w->inodes.nr = 0;
 
 	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, inum),
@@ -1137,12 +1139,13 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 
 		count2 = bch2_count_inode_sectors(trans, w->last_pos.inode, i->snapshot);
 
-		if (i->count != count2) {
-			bch_err(c, "fsck counted i_sectors wrong: got %llu should be %llu",
-				i->count, count2);
+		if (w->recalculate_sums)
 			i->count = count2;
-			if (i->inode.bi_sectors == i->count)
-				continue;
+
+		if (i->count != count2) {
+			bch_err(c, "fsck counted i_sectors wrong for inode %llu:%u: got %llu should be %llu",
+				w->last_pos.inode, i->snapshot, i->count, count2);
+			return -BCH_ERR_internal_fsck_err;
 		}
 
 		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY), c,
@@ -1171,23 +1174,78 @@ struct extent_end {
 
 typedef DARRAY(struct extent_end) extent_ends;
 
-static int get_print_extent(struct btree_trans *trans, struct bpos pos, struct printbuf *out)
+static int overlapping_extents_found(struct btree_trans *trans,
+				     enum btree_id btree,
+				     struct bpos pos1, struct bkey pos2,
+				     bool *fixed)
 {
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	u32 snapshot = min(pos1.snapshot, pos2.p.snapshot);
 	int ret;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_extents, pos,
-			       BTREE_ITER_SLOTS|
-			       BTREE_ITER_ALL_SNAPSHOTS|
-			       BTREE_ITER_NOT_EXTENTS);
+	BUG_ON(bkey_le(pos1, bkey_start_pos(&pos2)));
+
+	bch2_trans_iter_init(trans, &iter, btree, SPOS(pos1.inode, pos1.offset - 1, snapshot), 0);
+	k = bch2_btree_iter_peek_upto(&iter, POS(pos1.inode, U64_MAX));
 	ret = bkey_err(k);
 	if (ret)
-		return ret;
+		goto err;
 
-	bch2_bkey_val_to_text(out, trans->c, k);
+	prt_str(&buf, "\n  ");
+	bch2_bkey_val_to_text(&buf, c, k);
+
+	if (!bpos_eq(pos1, k.k->p)) {
+		bch_err(c, "%s: error finding first overlapping extent when repairing%s",
+			__func__, buf.buf);
+		ret = -BCH_ERR_internal_fsck_err;
+		goto err;
+	}
+
+	while (1) {
+		bch2_btree_iter_advance(&iter);
+
+		k = bch2_btree_iter_peek_upto(&iter, POS(pos1.inode, U64_MAX));
+		ret = bkey_err(k);
+		if (ret)
+			goto err;
+
+		if (bkey_ge(k.k->p, pos2.p))
+			break;
+
+	}
+
+	prt_str(&buf, "\n  ");
+	bch2_bkey_val_to_text(&buf, c, k);
+
+	if (bkey_gt(k.k->p, pos2.p) ||
+	    pos2.size != k.k->size) {
+		bch_err(c, "%s: error finding seconding overlapping extent when repairing%s",
+			__func__, buf.buf);
+		ret = -BCH_ERR_internal_fsck_err;
+		goto err;
+	}
+
+	if (fsck_err(c, "overlapping extents%s", buf.buf)) {
+		struct bpos update_pos = pos1.snapshot < pos2.p.snapshot ? pos1 : pos2.p;
+		struct btree_iter update_iter;
+
+		struct bkey_i *update = bch2_bkey_get_mut(trans, &update_iter,
+						btree, update_pos,
+						BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+		bch2_trans_iter_exit(trans, &update_iter);
+		if ((ret = PTR_ERR_OR_ZERO(update)))
+			goto err;
+
+		*fixed = true;
+	}
+fsck_err:
+err:
 	bch2_trans_iter_exit(trans, &iter);
-	return 0;
+	printbuf_exit(&buf);
+	return ret;
 }
 
 static int check_overlapping_extents(struct btree_trans *trans,
@@ -1198,7 +1256,7 @@ static int check_overlapping_extents(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct extent_end *i;
-	struct printbuf buf = PRINTBUF;
+	bool fixed = false;
 	int ret = 0;
 
 	darray_for_each(*extent_ends, i) {
@@ -1212,33 +1270,18 @@ static int check_overlapping_extents(struct btree_trans *trans,
 				  i->snapshot, &i->seen))
 			continue;
 
-		if (i->offset <= bkey_start_offset(k.k))
-			continue;
-
-		printbuf_reset(&buf);
-		prt_str(&buf, "overlapping extents:\n  ");
-		bch2_bkey_val_to_text(&buf, c, k);
-		prt_str(&buf, "\n  ");
-
-		ret = get_print_extent(trans, SPOS(k.k->p.inode, i->offset, i->snapshot), &buf);
-		if (ret)
-			break;
-
-		if (fsck_err(c, "%s", buf.buf)) {
-			struct bkey_i *update = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
-			if ((ret = PTR_ERR_OR_ZERO(update)))
-				goto err;
-			bkey_reassemble(update, k);
-			ret = bch2_trans_update_extent(trans, iter, update,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+		if (i->offset > bkey_start_offset(k.k)) {
+			ret = overlapping_extents_found(trans, iter->btree_id,
+							SPOS(iter->pos.inode,
+							     i->offset,
+							     i->snapshot),
+							*k.k, &fixed);
 			if (ret)
 				goto err;
 		}
 	}
 err:
-fsck_err:
-	printbuf_exit(&buf);
-	return ret;
+	return ret ?: fixed;
 }
 
 static int extent_ends_at(extent_ends *extent_ends,
@@ -1320,8 +1363,11 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	BUG_ON(!iter->path->should_be_locked);
 
 	ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
-	if (ret)
+	if (ret < 0)
 		goto err;
+
+	if (ret)
+		inode->recalculate_sums = true;
 
 	ret = extent_ends_at(extent_ends, s, k);
 	if (ret)
