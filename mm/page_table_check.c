@@ -208,8 +208,7 @@ void __page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd)
 }
 EXPORT_SYMBOL(__page_table_check_pmd_set);
 
-void __page_table_check_pud_set(struct mm_struct *mm, unsigned long addr,
-				pud_t *pudp, pud_t pud)
+void __page_table_check_pud_set(struct mm_struct *mm, pud_t *pudp, pud_t pud)
 {
 	if (&init_mm == mm)
 		return;
