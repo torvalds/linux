@@ -492,81 +492,6 @@ static int mv88e6xxx_port_ppu_updates(struct mv88e6xxx_chip *chip, int port)
 	return !!(reg & MV88E6XXX_PORT_STS_PHY_DETECT);
 }
 
-static int mv88e6xxx_serdes_pcs_get_state(struct dsa_switch *ds, int port,
-					  struct phylink_link_state *state)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	int lane;
-	int err;
-
-	mv88e6xxx_reg_lock(chip);
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (lane >= 0 && chip->info->ops->serdes_pcs_get_state)
-		err = chip->info->ops->serdes_pcs_get_state(chip, port, lane,
-							    state);
-	else
-		err = -EOPNOTSUPP;
-	mv88e6xxx_reg_unlock(chip);
-
-	return err;
-}
-
-static int mv88e6xxx_serdes_pcs_config(struct mv88e6xxx_chip *chip, int port,
-				       unsigned int mode,
-				       phy_interface_t interface,
-				       const unsigned long *advertise)
-{
-	const struct mv88e6xxx_ops *ops = chip->info->ops;
-	int lane;
-
-	if (ops->serdes_pcs_config) {
-		lane = mv88e6xxx_serdes_get_lane(chip, port);
-		if (lane >= 0)
-			return ops->serdes_pcs_config(chip, port, lane, mode,
-						      interface, advertise);
-	}
-
-	return 0;
-}
-
-static void mv88e6xxx_serdes_pcs_an_restart(struct dsa_switch *ds, int port)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	const struct mv88e6xxx_ops *ops;
-	int err = 0;
-	int lane;
-
-	ops = chip->info->ops;
-
-	if (ops->serdes_pcs_an_restart) {
-		mv88e6xxx_reg_lock(chip);
-		lane = mv88e6xxx_serdes_get_lane(chip, port);
-		if (lane >= 0)
-			err = ops->serdes_pcs_an_restart(chip, port, lane);
-		mv88e6xxx_reg_unlock(chip);
-
-		if (err)
-			dev_err(ds->dev, "p%d: failed to restart AN\n", port);
-	}
-}
-
-static int mv88e6xxx_serdes_pcs_link_up(struct mv88e6xxx_chip *chip, int port,
-					unsigned int mode,
-					int speed, int duplex)
-{
-	const struct mv88e6xxx_ops *ops = chip->info->ops;
-	int lane;
-
-	if (!phylink_autoneg_inband(mode) && ops->serdes_pcs_link_up) {
-		lane = mv88e6xxx_serdes_get_lane(chip, port);
-		if (lane >= 0)
-			return ops->serdes_pcs_link_up(chip, port, lane,
-						       speed, duplex);
-	}
-
-	return 0;
-}
-
 static const u8 mv88e6185_phy_interface_modes[] = {
 	[MV88E6185_PORT_STS_CMODE_GMII_FD]	 = PHY_INTERFACE_MODE_GMII,
 	[MV88E6185_PORT_STS_CMODE_MII_100_FD_PS] = PHY_INTERFACE_MODE_MII,
@@ -845,15 +770,8 @@ static void mv88e6xxx_get_caps(struct dsa_switch *ds, int port,
 			  config->supported_interfaces);
 	}
 
-	/* If we have a .pcs_ops, or don't have a .serdes_pcs_get_state,
-	 * serdes_pcs_config, serdes_pcs_an_restart, or serdes_pcs_link_up,
-	 * we are not legacy.
-	 */
-	if (chip->info->ops->pcs_ops ||
-	    (!chip->info->ops->serdes_pcs_get_state &&
-	     !chip->info->ops->serdes_pcs_config &&
-	     !chip->info->ops->serdes_pcs_an_restart &&
-	     !chip->info->ops->serdes_pcs_link_up))
+	/* If we have a .pcs_init, we are not legacy. */
+	if (chip->info->ops->pcs_ops)
 		config->legacy_pre_march2020 = false;
 }
 
@@ -907,16 +825,6 @@ static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
 						      state->interface);
 		if (err && err != -EOPNOTSUPP)
 			goto err_unlock;
-
-		err = mv88e6xxx_serdes_pcs_config(chip, port, mode,
-						  state->interface,
-						  state->advertising);
-		/* FIXME: we should restart negotiation if something changed -
-		 * which is something we get if we convert to using phylinks
-		 * PCS operations.
-		 */
-		if (err > 0)
-			err = 0;
 	}
 
 err_unlock:
@@ -1000,17 +908,6 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 	 */
 	if (!mv88e6xxx_port_ppu_updates(chip, port) ||
 	    mode == MLO_AN_FIXED) {
-		/* FIXME: for an automedia port, should we force the link
-		 * down here - what if the link comes up due to "other" media
-		 * while we're bringing the port up, how is the exclusivity
-		 * handled in the Marvell hardware? E.g. port 2 on 88E6390
-		 * shared between internal PHY and Serdes.
-		 */
-		err = mv88e6xxx_serdes_pcs_link_up(chip, port, mode, speed,
-						   duplex);
-		if (err)
-			goto error;
-
 		if (ops->port_set_speed_duplex) {
 			err = ops->port_set_speed_duplex(chip, port,
 							 speed, duplex);
@@ -3181,102 +3078,6 @@ static int mv88e6xxx_setup_egress_floods(struct mv88e6xxx_chip *chip, int port)
 	return 0;
 }
 
-static irqreturn_t mv88e6xxx_serdes_irq_thread_fn(int irq, void *dev_id)
-{
-	struct mv88e6xxx_port *mvp = dev_id;
-	struct mv88e6xxx_chip *chip = mvp->chip;
-	irqreturn_t ret = IRQ_NONE;
-	int port = mvp->port;
-	int lane;
-
-	mv88e6xxx_reg_lock(chip);
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (lane >= 0)
-		ret = mv88e6xxx_serdes_irq_status(chip, port, lane);
-	mv88e6xxx_reg_unlock(chip);
-
-	return ret;
-}
-
-static int mv88e6xxx_serdes_irq_request(struct mv88e6xxx_chip *chip, int port,
-					int lane)
-{
-	struct mv88e6xxx_port *dev_id = &chip->ports[port];
-	unsigned int irq;
-	int err;
-
-	/* Nothing to request if this SERDES port has no IRQ */
-	irq = mv88e6xxx_serdes_irq_mapping(chip, port);
-	if (!irq)
-		return 0;
-
-	snprintf(dev_id->serdes_irq_name, sizeof(dev_id->serdes_irq_name),
-		 "mv88e6xxx-%s-serdes-%d", dev_name(chip->dev), port);
-
-	/* Requesting the IRQ will trigger IRQ callbacks, so release the lock */
-	mv88e6xxx_reg_unlock(chip);
-	err = request_threaded_irq(irq, NULL, mv88e6xxx_serdes_irq_thread_fn,
-				   IRQF_ONESHOT, dev_id->serdes_irq_name,
-				   dev_id);
-	mv88e6xxx_reg_lock(chip);
-	if (err)
-		return err;
-
-	dev_id->serdes_irq = irq;
-
-	return mv88e6xxx_serdes_irq_enable(chip, port, lane);
-}
-
-static int mv88e6xxx_serdes_irq_free(struct mv88e6xxx_chip *chip, int port,
-				     int lane)
-{
-	struct mv88e6xxx_port *dev_id = &chip->ports[port];
-	unsigned int irq = dev_id->serdes_irq;
-	int err;
-
-	/* Nothing to free if no IRQ has been requested */
-	if (!irq)
-		return 0;
-
-	err = mv88e6xxx_serdes_irq_disable(chip, port, lane);
-
-	/* Freeing the IRQ will trigger IRQ callbacks, so release the lock */
-	mv88e6xxx_reg_unlock(chip);
-	free_irq(irq, dev_id);
-	mv88e6xxx_reg_lock(chip);
-
-	dev_id->serdes_irq = 0;
-
-	return err;
-}
-
-static int mv88e6xxx_serdes_power(struct mv88e6xxx_chip *chip, int port,
-				  bool on)
-{
-	int lane;
-	int err;
-
-	lane = mv88e6xxx_serdes_get_lane(chip, port);
-	if (lane < 0)
-		return 0;
-
-	if (on) {
-		err = mv88e6xxx_serdes_power_up(chip, port, lane);
-		if (err)
-			return err;
-
-		err = mv88e6xxx_serdes_irq_request(chip, port, lane);
-	} else {
-		err = mv88e6xxx_serdes_irq_free(chip, port, lane);
-		if (err)
-			return err;
-
-		err = mv88e6xxx_serdes_power_down(chip, port, lane);
-	}
-
-	return err;
-}
-
 static int mv88e6xxx_set_egress_port(struct mv88e6xxx_chip *chip,
 				     enum mv88e6xxx_egress_direction direction,
 				     int port)
@@ -3599,37 +3400,6 @@ static int mv88e6xxx_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 	mv88e6xxx_reg_unlock(chip);
 
 	return ret;
-}
-
-static int mv88e6xxx_port_enable(struct dsa_switch *ds, int port,
-				 struct phy_device *phydev)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-	int err;
-
-	/* Do not control power or request irqs if using PCS */
-	if (chip->info->ops->pcs_ops)
-		return 0;
-
-	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_serdes_power(chip, port, true);
-	mv88e6xxx_reg_unlock(chip);
-
-	return err;
-}
-
-static void mv88e6xxx_port_disable(struct dsa_switch *ds, int port)
-{
-	struct mv88e6xxx_chip *chip = ds->priv;
-
-	/* Do not control power or request irqs if using PCS */
-	if (chip->info->ops->pcs_ops)
-		return;
-
-	mv88e6xxx_reg_lock(chip);
-	if (mv88e6xxx_serdes_power(chip, port, false))
-		dev_err(chip->dev, "failed to power off SERDES\n");
-	mv88e6xxx_reg_unlock(chip);
 }
 
 static int mv88e6xxx_set_ageing_time(struct dsa_switch *ds,
@@ -7013,18 +6783,14 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_teardown		= mv88e6xxx_port_teardown,
 	.phylink_get_caps	= mv88e6xxx_get_caps,
 	.phylink_mac_select_pcs	= mv88e6xxx_mac_select_pcs,
-	.phylink_mac_link_state	= mv88e6xxx_serdes_pcs_get_state,
 	.phylink_mac_prepare	= mv88e6xxx_mac_prepare,
 	.phylink_mac_config	= mv88e6xxx_mac_config,
 	.phylink_mac_finish	= mv88e6xxx_mac_finish,
-	.phylink_mac_an_restart	= mv88e6xxx_serdes_pcs_an_restart,
 	.phylink_mac_link_down	= mv88e6xxx_mac_link_down,
 	.phylink_mac_link_up	= mv88e6xxx_mac_link_up,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,
-	.port_enable		= mv88e6xxx_port_enable,
-	.port_disable		= mv88e6xxx_port_disable,
 	.port_max_mtu		= mv88e6xxx_get_max_mtu,
 	.port_change_mtu	= mv88e6xxx_change_mtu,
 	.get_mac_eee		= mv88e6xxx_get_mac_eee,

@@ -153,24 +153,6 @@ static inline int mv88e6xxx_serdes_get_lane(struct mv88e6xxx_chip *chip,
 	return chip->info->ops->serdes_get_lane(chip, port);
 }
 
-static inline int mv88e6xxx_serdes_power_up(struct mv88e6xxx_chip *chip,
-					    int port, int lane)
-{
-	if (!chip->info->ops->serdes_power)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->serdes_power(chip, port, lane, true);
-}
-
-static inline int mv88e6xxx_serdes_power_down(struct mv88e6xxx_chip *chip,
-					      int port, int lane)
-{
-	if (!chip->info->ops->serdes_power)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->serdes_power(chip, port, lane, false);
-}
-
 static inline unsigned int
 mv88e6xxx_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
@@ -178,33 +160,6 @@ mv88e6xxx_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 		return 0;
 
 	return chip->info->ops->serdes_irq_mapping(chip, port);
-}
-
-static inline int mv88e6xxx_serdes_irq_enable(struct mv88e6xxx_chip *chip,
-					      int port, int lane)
-{
-	if (!chip->info->ops->serdes_irq_enable)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->serdes_irq_enable(chip, port, lane, true);
-}
-
-static inline int mv88e6xxx_serdes_irq_disable(struct mv88e6xxx_chip *chip,
-					       int port, int lane)
-{
-	if (!chip->info->ops->serdes_irq_enable)
-		return -EOPNOTSUPP;
-
-	return chip->info->ops->serdes_irq_enable(chip, port, lane, false);
-}
-
-static inline irqreturn_t
-mv88e6xxx_serdes_irq_status(struct mv88e6xxx_chip *chip, int port, int lane)
-{
-	if (!chip->info->ops->serdes_irq_status)
-		return IRQ_NONE;
-
-	return chip->info->ops->serdes_irq_status(chip, port, lane);
 }
 
 extern const struct mv88e6xxx_pcs_ops mv88e6185_pcs_ops;

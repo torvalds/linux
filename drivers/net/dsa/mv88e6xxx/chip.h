@@ -286,8 +286,6 @@ struct mv88e6xxx_port {
 	u8 cmode;
 	bool mirror_ingress;
 	bool mirror_egress;
-	unsigned int serdes_irq;
-	char serdes_irq_name[64];
 	struct devlink_region *region;
 	void *pcs_private;
 
@@ -592,31 +590,12 @@ struct mv88e6xxx_ops {
 
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 
-	/* Power on/off a SERDES interface */
-	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, int lane,
-			    bool up);
-
 	/* SERDES lane mapping */
 	int (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);
-
-	int (*serdes_pcs_get_state)(struct mv88e6xxx_chip *chip, int port,
-				    int lane, struct phylink_link_state *state);
-	int (*serdes_pcs_config)(struct mv88e6xxx_chip *chip, int port,
-				 int lane, unsigned int mode,
-				 phy_interface_t interface,
-				 const unsigned long *advertise);
-	int (*serdes_pcs_an_restart)(struct mv88e6xxx_chip *chip, int port,
-				     int lane);
-	int (*serdes_pcs_link_up)(struct mv88e6xxx_chip *chip, int port,
-				  int lane, int speed, int duplex);
 
 	/* SERDES interrupt handling */
 	unsigned int (*serdes_irq_mapping)(struct mv88e6xxx_chip *chip,
 					   int port);
-	int (*serdes_irq_enable)(struct mv88e6xxx_chip *chip, int port, int lane,
-				 bool enable);
-	irqreturn_t (*serdes_irq_status)(struct mv88e6xxx_chip *chip, int port,
-					 int lane);
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
