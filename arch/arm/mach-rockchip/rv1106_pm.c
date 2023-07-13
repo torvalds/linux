@@ -949,9 +949,9 @@ static void gpio_config(void)
 	/* gpio0_a3, pullnone */
 	gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
 
-	/* gpio0_a4, input, pulldown */
+	/* gpio0_a4, input, pullup */
 	gpio0_set_iomux(4, 0);
-	gpio0_set_pull(4, RV1106_GPIO_PULL_DOWN);
+	gpio0_set_pull(4, RV1106_GPIO_PULL_UP);
 	gpio0_set_direct(4, 0);
 
 	/* gpio0_a5, input, pullnone */
