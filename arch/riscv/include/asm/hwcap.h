@@ -76,6 +76,7 @@ unsigned long riscv_get_elf_hwcap(void);
 struct riscv_isa_ext_data {
 	const unsigned int id;
 	const char *name;
+	const char *property;
 };
 
 extern const struct riscv_isa_ext_data riscv_isa_ext[];
