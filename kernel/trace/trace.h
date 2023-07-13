@@ -77,6 +77,16 @@ enum trace_type {
 #undef __array
 #define __array(type, item, size)	type	item[size];
 
+/*
+ * For backward compatibility, older user space expects to see the
+ * kernel_stack event with a fixed size caller field. But today the fix
+ * size is ignored by the kernel, and the real structure is dynamic.
+ * Expose to user space: "unsigned long caller[8];" but the real structure
+ * will be "unsigned long caller[] __counted_by(size)"
+ */
+#undef __stack_array
+#define __stack_array(type, item, size, field)		type item[] __counted_by(field);
+
 #undef __array_desc
 #define __array_desc(type, container, item, size)
 

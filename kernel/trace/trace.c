@@ -3119,7 +3119,6 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 	struct ftrace_stack *fstack;
 	struct stack_entry *entry;
 	int stackidx;
-	void *ptr;
 
 	/*
 	 * Add one, for this function and the call to save_stack_trace()
@@ -3157,32 +3156,16 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 		nr_entries = stack_trace_save(fstack->calls, size, skip);
 	}
 
-	size = nr_entries * sizeof(unsigned long);
 	event = __trace_buffer_lock_reserve(buffer, TRACE_STACK,
-				    (sizeof(*entry) - sizeof(entry->caller)) + size,
+				    struct_size(entry, caller, nr_entries),
 				    trace_ctx);
 	if (!event)
 		goto out;
-	ptr = ring_buffer_event_data(event);
-	entry = ptr;
-
-	/*
-	 * For backward compatibility reasons, the entry->caller is an
-	 * array of 8 slots to store the stack. This is also exported
-	 * to user space. The amount allocated on the ring buffer actually
-	 * holds enough for the stack specified by nr_entries. This will
-	 * go into the location of entry->caller. Due to string fortifiers
-	 * checking the size of the destination of memcpy() it triggers
-	 * when it detects that size is greater than 8. To hide this from
-	 * the fortifiers, we use "ptr" and pointer arithmetic to assign caller.
-	 *
-	 * The below is really just:
-	 *   memcpy(&entry->caller, fstack->calls, size);
-	 */
-	ptr += offsetof(typeof(*entry), caller);
-	memcpy(ptr, fstack->calls, size);
+	entry = ring_buffer_event_data(event);
 
 	entry->size = nr_entries;
+	memcpy(&entry->caller, fstack->calls,
+	       flex_array_size(entry, caller, nr_entries));
 
 	if (!call_filter_check_discard(call, entry, buffer, event))
 		__buffer_unlock_commit(buffer, event);
