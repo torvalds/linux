@@ -58,10 +58,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_eth>;
 		compatible = "davicom,dm9000";
-		reg = <
-			4 0x00c00000 0x2
-			4 0x00c00002 0x2
-		>;
+		reg = <4 0x00c00000 0x2>,
+		      <4 0x00c00002 0x2>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
 		fsl,weim-cs-timing = <0x0000c700 0x19190d01>;
