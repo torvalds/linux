@@ -138,6 +138,7 @@
 
 #define CORE_PWRSAVE_DLL	BIT(3)
 #define CORE_FIFO_ALT_EN	BIT(10)
+#define CORE_CMDEN_HS400_INPUT_MASK_CNT BIT(13)
 #define DDR_CONFIG_POR_VAL		0x80040873
 #define DLL_USR_CTL_POR_VAL		0x10800
 #define ENABLE_DLL_LOCK_STATUS		BIT(26)
@@ -2141,6 +2142,37 @@ static void sdhci_msm_check_power_status(struct sdhci_host *host, u32 req_type)
 			__func__, req_type);
 }
 
+/*
+ * sdhci_msm_enhanced_strobe_mask :-
+ * Before running CMDQ transfers in HS400 Enhanced Strobe mode,
+ * SW should write 3 to
+ * HC_VENDOR_SPECIFIC_FUNC3.CMDEN_HS400_INPUT_MASK_CNT register.
+ * The default reset value of this register is 2.
+ */
+static void sdhci_msm_enhanced_strobe_mask(struct mmc_host *mmc, bool set)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	const struct sdhci_msm_offset *msm_offset = msm_host->offset;
+	u32 config;
+
+	if (!mmc->ios.enhanced_strobe) {
+		pr_debug("%s: host/card does not support hs400 enhanced strobe\n",
+					mmc_hostname(host->mmc));
+		return;
+	}
+
+	config = readl_relaxed(host->ioaddr + msm_offset->core_vendor_spec3);
+
+	if (set)
+		config |= CORE_CMDEN_HS400_INPUT_MASK_CNT;
+	else
+		config &= ~CORE_CMDEN_HS400_INPUT_MASK_CNT;
+
+	writel_relaxed(config, host->ioaddr + msm_offset->core_vendor_spec3);
+}
+
 static void sdhci_msm_dump_pwr_ctrl_regs(struct sdhci_host *host)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -3111,6 +3143,7 @@ static void sdhci_msm_set_timeout(struct sdhci_host *host, struct mmc_command *c
 static const struct cqhci_host_ops sdhci_msm_cqhci_ops = {
 	.enable		= sdhci_msm_cqe_enable,
 	.disable	= sdhci_msm_cqe_disable,
+	.enhanced_strobe_mask = sdhci_msm_enhanced_strobe_mask,
 #ifdef CONFIG_MMC_CRYPTO
 	.program_key	= sdhci_msm_program_key,
 #endif
