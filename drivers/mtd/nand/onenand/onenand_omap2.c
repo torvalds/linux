@@ -467,12 +467,6 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "error getting memory resource\n");
-		return -EINVAL;
-	}
-
 	r = of_property_read_u32(np, "reg", &val);
 	if (r) {
 		dev_err(dev, "reg not found in DT\n");
@@ -486,11 +480,11 @@ static int omap2_onenand_probe(struct platform_device *pdev)
 	init_completion(&c->irq_done);
 	init_completion(&c->dma_done);
 	c->gpmc_cs = val;
-	c->phys_base = res->start;
 
-	c->onenand.base = devm_ioremap_resource(dev, res);
+	c->onenand.base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(c->onenand.base))
 		return PTR_ERR(c->onenand.base);
+	c->phys_base = res->start;
 
 	c->int_gpiod = devm_gpiod_get_optional(dev, "int", GPIOD_IN);
 	if (IS_ERR(c->int_gpiod)) {
