@@ -325,8 +325,11 @@ int vehicle_flinger_init(struct device *dev, struct vehicle_cfg *v_cfg)
 	if (inited)
 		return 0;
 
+	VEHICLE_INFO("%s: v_cfg->rotate_mirror(0x%x)\n", __func__, v_cfg->rotate_mirror);
+
 	// if (FORCE_ROTATION == RGA_TRANSFORM_ROT_270 || FORCE_ROTATION == RGA_TRANSFORM_ROT_90) {
-	if (v_cfg->rotate_mirror == 0x01  || v_cfg->rotate_mirror == 0x04) {
+	if ((v_cfg->rotate_mirror & RGA_TRANSFORM_ROT_MASK) == 0x01 ||
+	    (v_cfg->rotate_mirror & RGA_TRANSFORM_ROT_MASK) == 0x04) {
 		w = FORCE_WIDTH;
 		h = ALIGN(FORCE_HEIGHT, 64);
 		s = ALIGN(FORCE_HEIGHT, 64);
@@ -386,7 +389,8 @@ int vehicle_flinger_init(struct device *dev, struct vehicle_cfg *v_cfg)
 		// f = HAL_PIXEL_FORMAT_RGBX_8888;
 		// if (FORCE_ROTATION == RGA_TRANSFORM_ROT_270 ||
 		//	FORCE_ROTATION == RGA_TRANSFORM_ROT_90)
-		if (v_cfg->rotate_mirror == 0x01  || v_cfg->rotate_mirror == 0x04)
+		if ((v_cfg->rotate_mirror & RGA_TRANSFORM_ROT_MASK) == 0x01 ||
+		    (v_cfg->rotate_mirror & RGA_TRANSFORM_ROT_MASK) == 0x04)
 			ret = rk_flinger_alloc_buffer(flg, buffer, h, w, s, f);
 		else
 			ret = rk_flinger_alloc_buffer(flg, buffer, w, h, s, f);
@@ -527,7 +531,7 @@ rk_flinger_cacultae_dst_rect_by_rotation(struct graphic_buffer *buffer)
 	src_rect = &buffer->src;
 	dst_rect = &buffer->dst;
 
-	switch (buffer->rotation) {
+	switch (buffer->rotation & RGA_TRANSFORM_ROT_MASK) {
 	case RGA_TRANSFORM_ROT_90:
 	case RGA_TRANSFORM_ROT_270:
 		dst_rect->x = src_rect->x;
@@ -954,19 +958,41 @@ static int rk_flinger_rga_blit(struct flinger *flinger,
 
 static int rk_flinger_rga_render(struct flinger *flinger,
 				 struct graphic_buffer *src_buffer,
-				 struct graphic_buffer *dst_buffer)
+				 struct graphic_buffer *dst_buffer,
+				 struct graphic_buffer *tmp_buffer)
 {
+	int rotation;
+
 	if (!flinger || !src_buffer || !dst_buffer)
 		return -EINVAL;
 
 	if (dst_buffer && dst_buffer->rel_fence)
 		dst_buffer->rel_fence = NULL;
 
-	rk_flinger_rga_blit(flinger, src_buffer, dst_buffer);
-	rk_flinger_fill_buffer_rects(dst_buffer, &src_buffer->dst,
-				     &src_buffer->dst);
-	dst_buffer->src.f = src_buffer->dst.f;
+	if ((src_buffer->rotation & RGA_TRANSFORM_ROT_MASK) &&
+		(src_buffer->rotation & RGA_TRANSFORM_FLIP_MASK)) {
 
+		rotation = flinger->v_cfg.rotate_mirror;
+		/* 1. rotate */
+		src_buffer->rotation = rotation & RGA_TRANSFORM_ROT_MASK;
+		rk_flinger_rga_blit(flinger, src_buffer, tmp_buffer);
+		rk_flinger_fill_buffer_rects(tmp_buffer, &src_buffer->dst,
+					     &src_buffer->dst);
+		tmp_buffer->src.f = src_buffer->dst.f;
+		tmp_buffer->rotation = rotation & RGA_TRANSFORM_FLIP_MASK;
+		/* 2. mirror */
+		rk_flinger_rga_blit(flinger, tmp_buffer, dst_buffer);
+		rk_flinger_fill_buffer_rects(dst_buffer, &tmp_buffer->dst,
+					     &tmp_buffer->dst);
+		dst_buffer->src.f = src_buffer->dst.f;
+
+		src_buffer->rotation = rotation;
+	} else {
+		rk_flinger_rga_blit(flinger, src_buffer, dst_buffer);
+		rk_flinger_fill_buffer_rects(dst_buffer, &src_buffer->dst,
+					     &src_buffer->dst);
+		dst_buffer->src.f = src_buffer->dst.f;
+	}
 	/* save rga out buffer */
 	if (vehicle_dump_rga) {
 		struct file *filep = NULL;
@@ -1306,7 +1332,7 @@ try_again:
 			iep_buffer = &(flg->target_buffer[NUM_TARGET_BUFFERS - 1]);
 			iep_buffer->state = ACQUIRE;
 			//scaler by rga to force widthxheight display
-			rk_flinger_rga_render(flg, src_buffer, iep_buffer);
+			rk_flinger_rga_render(flg, src_buffer, iep_buffer, dst_buffer);
 			src_buffer->state = FREE;
 			rk_flinger_rga_scaler(flg, iep_buffer, dst_buffer);
 			iep_buffer->state = FREE;
@@ -1321,7 +1347,7 @@ try_again:
 		} else {
 			// cvbs
 			VEHICLE_DG("it is a cvbs signal\n");
-			rk_flinger_rga_render(flg, src_buffer, dst_buffer);
+			rk_flinger_rga_render(flg, src_buffer, dst_buffer, iep_buffer);
 			src_buffer->state = FREE;
 			rk_flinger_iep_deinterlace(flg, dst_buffer, iep_buffer);
 			dst_buffer->state = FREE;
@@ -1387,18 +1413,27 @@ rk_flinger_lookup_buffer_by_phy_addr(unsigned long phy_addr)
 
 static bool vehicle_rotation_param_check(struct vehicle_cfg *v_cfg)
 {
-	switch (v_cfg->rotate_mirror) {
+	switch (v_cfg->rotate_mirror & RGA_TRANSFORM_ROT_MASK) {
 	case RGA_TRANSFORM_ROT_90:
 	case RGA_TRANSFORM_ROT_270:
 	case RGA_TRANSFORM_ROT_0:
 	case RGA_TRANSFORM_ROT_180:
+		return true;
+	default:
+		VEHICLE_INFO("invalid rotate-mirror param %d\n",
+					v_cfg->rotate_mirror);
+		v_cfg->rotate_mirror = v_cfg->rotate_mirror & RGA_TRANSFORM_FLIP_MASK;
+		return false;
+	}
+
+	switch (v_cfg->rotate_mirror & RGA_TRANSFORM_FLIP_MASK) {
 	case RGA_TRANSFORM_FLIP_H:
 	case RGA_TRANSFORM_FLIP_V:
 		return true;
 	default:
 		VEHICLE_INFO("invalid rotate-mirror param %d\n",
 					v_cfg->rotate_mirror);
-		v_cfg->rotate_mirror = 0;
+		v_cfg->rotate_mirror = v_cfg->rotate_mirror & RGA_TRANSFORM_ROT_MASK;
 		return false;
 	}
 }
