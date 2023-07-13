@@ -7623,7 +7623,6 @@ void ia_css_stream_request_flash(struct ia_css_stream *stream)
 		if (!sh_css_write_host2sp_command(host2sp_cmd_start_flash)) {
 			IA_CSS_ERROR("Call to 'sh-css_write_host2sp_command()' failed");
 			ia_css_debug_dump_sp_sw_debug_info();
-			ia_css_debug_dump_debug_info(NULL);
 		}
 	} else {
 		IA_CSS_LOG("SP is not running!");
@@ -9035,7 +9034,6 @@ ia_css_stop_sp(void)
 	if (!sh_css_write_host2sp_command(host2sp_cmd_terminate)) {
 		IA_CSS_ERROR("Call to 'sh-css_write_host2sp_command()' failed");
 		ia_css_debug_dump_sp_sw_debug_info();
-		ia_css_debug_dump_debug_info(NULL);
 	}
 
 	sh_css_sp_set_sp_running(false);

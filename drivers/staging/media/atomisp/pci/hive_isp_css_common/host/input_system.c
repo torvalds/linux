@@ -116,66 +116,6 @@ static void input_switch_cfg(
     const input_switch_cfg_t *const cfg
 );
 
-void input_system_get_state(
-    const input_system_ID_t			ID,
-    input_system_state_t			*state)
-{
-	sub_system_ID_t	sub_id;
-
-	assert(ID < N_INPUT_SYSTEM_ID);
-	assert(state);
-
-	state->str_multicastA_sel = input_system_sub_system_reg_load(ID,
-				    GPREGS_UNIT0_ID,
-				    HIVE_ISYS_GPREG_MULTICAST_A_IDX);
-	state->str_multicastB_sel = input_system_sub_system_reg_load(ID,
-				    GPREGS_UNIT0_ID,
-				    HIVE_ISYS_GPREG_MULTICAST_B_IDX);
-	state->str_multicastC_sel = input_system_sub_system_reg_load(ID,
-				    GPREGS_UNIT0_ID,
-				    HIVE_ISYS_GPREG_MULTICAST_C_IDX);
-	state->str_mux_sel = input_system_sub_system_reg_load(ID,
-			     GPREGS_UNIT0_ID,
-			     HIVE_ISYS_GPREG_MUX_IDX);
-	state->str_mon_status = input_system_sub_system_reg_load(ID,
-				GPREGS_UNIT0_ID,
-				HIVE_ISYS_GPREG_STRMON_STAT_IDX);
-	state->str_mon_irq_cond = input_system_sub_system_reg_load(ID,
-				  GPREGS_UNIT0_ID,
-				  HIVE_ISYS_GPREG_STRMON_COND_IDX);
-	state->str_mon_irq_en = input_system_sub_system_reg_load(ID,
-				GPREGS_UNIT0_ID,
-				HIVE_ISYS_GPREG_STRMON_IRQ_EN_IDX);
-	state->isys_srst = input_system_sub_system_reg_load(ID,
-			   GPREGS_UNIT0_ID,
-			   HIVE_ISYS_GPREG_SRST_IDX);
-	state->isys_slv_reg_srst = input_system_sub_system_reg_load(ID,
-				   GPREGS_UNIT0_ID,
-				   HIVE_ISYS_GPREG_SLV_REG_SRST_IDX);
-	state->str_deint_portA_cnt = input_system_sub_system_reg_load(ID,
-				     GPREGS_UNIT0_ID,
-				     HIVE_ISYS_GPREG_REG_PORT_A_IDX);
-	state->str_deint_portB_cnt = input_system_sub_system_reg_load(ID,
-				     GPREGS_UNIT0_ID,
-				     HIVE_ISYS_GPREG_REG_PORT_B_IDX);
-
-	for (sub_id = CAPTURE_UNIT0_ID; sub_id < CAPTURE_UNIT0_ID + N_CAPTURE_UNIT_ID;
-	     sub_id++) {
-		capture_unit_get_state(ID, sub_id,
-				       &state->capture_unit[sub_id - CAPTURE_UNIT0_ID]);
-	}
-	for (sub_id = ACQUISITION_UNIT0_ID;
-	     sub_id < ACQUISITION_UNIT0_ID + N_ACQUISITION_UNIT_ID; sub_id++) {
-		acquisition_unit_get_state(ID, sub_id,
-					   &state->acquisition_unit[sub_id - ACQUISITION_UNIT0_ID]);
-	}
-	for (sub_id = CTRL_UNIT0_ID; sub_id < CTRL_UNIT0_ID + N_CTRL_UNIT_ID;
-	     sub_id++) {
-		ctrl_unit_get_state(ID, sub_id,
-				    &state->ctrl_unit_state[sub_id - CTRL_UNIT0_ID]);
-	}
-}
-
 void receiver_get_state(
     const rx_ID_t				ID,
     receiver_state_t			*state)

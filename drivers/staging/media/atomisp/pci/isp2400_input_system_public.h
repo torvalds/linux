@@ -21,7 +21,6 @@
 #include "isys_public.h"
 #else
 
-typedef struct input_system_state_s		input_system_state_t;
 typedef struct receiver_state_s			receiver_state_t;
 
 /*! Read the state of INPUT_SYSTEM[ID]
@@ -31,9 +30,6 @@ typedef struct receiver_state_s			receiver_state_t;
 
  \return none, state = INPUT_SYSTEM[ID].state
  */
-void input_system_get_state(
-    const input_system_ID_t		ID,
-    input_system_state_t		*state);
 
 /*! Read the state of RECEIVER[ID]
 

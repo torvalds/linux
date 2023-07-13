@@ -261,12 +261,6 @@ void ia_css_debug_dump_all_fifo_state(void);
  */
 void ia_css_debug_dump_rx_state(void);
 
-/*! @brief Dump the input system state to the output
- * Dumps the input system state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_isys_state(void);
-
 /*! @brief Dump the frame info to the trace output
  * Dumps the frame info to tracing output.
  * @param[in]	frame		pointer to struct ia_css_frame

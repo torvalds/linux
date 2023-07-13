@@ -66,13 +66,5 @@ typedef enum {
 
 /* The number of stores for compressed format types */
 #define	N_MIPI_COMPRESSOR_CONTEXT	(N_RX_CHANNEL_ID * N_MIPI_FORMAT_CUSTOM)
-typedef struct input_system_state_s	input_system_state_t;
-struct input_system_state_s {
-	ibuf_ctrl_state_t	ibuf_ctrl_state[N_IBUF_CTRL_ID];
-	csi_rx_fe_ctrl_state_t	csi_rx_fe_ctrl_state[N_CSI_RX_FRONTEND_ID];
-	csi_rx_be_ctrl_state_t	csi_rx_be_ctrl_state[N_CSI_RX_BACKEND_ID];
-	pixelgen_ctrl_state_t	pixelgen_ctrl_state[N_PIXELGEN_ID];
-	stream2mmio_state_t	stream2mmio_state[N_STREAM2MMIO_ID];
-	isys_irqc_state_t	isys_irqc_state[N_ISYS_IRQ_ID];
-};
+
 #endif /* __INPUT_SYSTEM_LOCAL_H_INCLUDED__ */

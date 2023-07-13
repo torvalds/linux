@@ -306,23 +306,6 @@ struct ctrl_unit_state_s {
 	int	capt_reserve_one_mem_region;
 };
 
-struct input_system_state_s {
-	int	str_multicastA_sel;
-	int	str_multicastB_sel;
-	int	str_multicastC_sel;
-	int	str_mux_sel;
-	int	str_mon_status;
-	int	str_mon_irq_cond;
-	int	str_mon_irq_en;
-	int	isys_srst;
-	int	isys_slv_reg_srst;
-	int	str_deint_portA_cnt;
-	int	str_deint_portB_cnt;
-	struct capture_unit_state_s		capture_unit[N_CAPTURE_UNIT_ID];
-	struct acquisition_unit_state_s	acquisition_unit[N_ACQUISITION_UNIT_ID];
-	struct ctrl_unit_state_s		ctrl_unit_state[N_CTRL_UNIT_ID];
-};
-
 struct mipi_port_state_s {
 	int	device_ready;
 	int	irq_status;
