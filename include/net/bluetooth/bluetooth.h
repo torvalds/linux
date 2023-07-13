@@ -386,6 +386,7 @@ struct bt_sock {
 enum {
 	BT_SK_DEFER_SETUP,
 	BT_SK_SUSPEND,
+	BT_SK_PKT_STATUS
 };
 
 struct bt_sock_list {
@@ -432,10 +433,6 @@ struct l2cap_ctrl {
 	struct l2cap_chan *chan;
 };
 
-struct sco_ctrl {
-	u8	pkt_status;
-};
-
 struct hci_dev;
 
 typedef void (*hci_req_complete_t)(struct hci_dev *hdev, u8 status, u16 opcode);
@@ -466,9 +463,9 @@ struct bt_skb_cb {
 	u8 force_active;
 	u16 expect;
 	u8 incoming:1;
+	u8 pkt_status:2;
 	union {
 		struct l2cap_ctrl l2cap;
-		struct sco_ctrl sco;
 		struct hci_ctrl hci;
 		struct mgmt_ctrl mgmt;
 		struct scm_creds creds;
@@ -477,6 +474,7 @@ struct bt_skb_cb {
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
 #define hci_skb_pkt_type(skb) bt_cb((skb))->pkt_type
+#define hci_skb_pkt_status(skb) bt_cb((skb))->pkt_status
 #define hci_skb_expect(skb) bt_cb((skb))->expect
 #define hci_skb_opcode(skb) bt_cb((skb))->hci.opcode
 #define hci_skb_event(skb) bt_cb((skb))->hci.req_event

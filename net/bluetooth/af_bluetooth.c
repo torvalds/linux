@@ -333,8 +333,12 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			bt_sk(sk)->skb_msg_name(skb, msg->msg_name,
 						&msg->msg_namelen);
 
-		if (bt_sk(sk)->skb_put_cmsg)
-			bt_sk(sk)->skb_put_cmsg(skb, msg, sk);
+		if (test_bit(BT_SK_PKT_STATUS, &bt_sk(sk)->flags)) {
+			u8 pkt_status = hci_skb_pkt_status(skb);
+
+			put_cmsg(msg, SOL_BLUETOOTH, BT_SCM_PKT_STATUS,
+				 sizeof(pkt_status), &pkt_status);
+		}
 	}
 
 	skb_free_datagram(sk, skb);
