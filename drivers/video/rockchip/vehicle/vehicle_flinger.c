@@ -1169,9 +1169,11 @@ static void rk_flinger_first_done(struct work_struct *work)
 					    FORCE_XOFFSET, FORCE_YOFFSET,
 					    v_cfg->width, v_cfg->height,
 					    v_cfg->width, FORCE_FORMAT);
-			rk_flinger_set_buffer_rotation(buffer, FORCE_ROTATION);
+			rk_flinger_set_buffer_rotation(buffer, v_cfg->rotate_mirror);
 			rk_flinger_cacultae_dst_rect_by_rotation(buffer);
 			buffer->dst.f = buffer->src.f;
+			VEHICLE_INFO("buffer[%d]->rotation(%d).\n",
+				      i, buffer->rotation);
 		}
 	}
 }
