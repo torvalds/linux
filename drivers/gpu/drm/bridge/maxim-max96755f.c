@@ -41,6 +41,7 @@ struct max96755f_bridge {
 	bool dv_swp_ab;
 	bool dpi_deskew_en;
 	bool split_mode;
+	bool bridge_dual_link;
 	u32 dsi_lane_map[4];
 
 	struct {
@@ -283,7 +284,7 @@ static void max96755f_bridge_pre_enable(struct drm_bridge *bridge)
 
 static void max96755f_bridge_reset_oneshot(struct max96755f_bridge *ser)
 {
-	regmap_update_bits(ser->regmap, 0x10, RESET_ONESHOT,
+	regmap_update_bits(ser->regmap, 0x0010, RESET_ONESHOT,
 			   FIELD_PREP(RESET_ONESHOT, 1));
 
 	mdelay(100);
@@ -324,6 +325,12 @@ static void max96755f_bridge_enable(struct drm_bridge *bridge)
 				   FIELD_PREP(START_PORTAY, 1));
 		regmap_update_bits(ser->regmap, 0x02, VID_TX_EN_X,
 				   FIELD_PREP(VID_TX_EN_X, 1));
+		if (ser->bridge_dual_link) {
+			regmap_update_bits(ser->regmap, 0x0010,
+				   AUTO_LINK | LINK_CFG,
+				   FIELD_PREP(AUTO_LINK, 0) |
+				   FIELD_PREP(LINK_CFG, DUAL_LINK));
+		}
 	}
 
 	max96755f_bridge_reset_oneshot(ser);
@@ -358,7 +365,7 @@ static void max96755f_bridge_disable(struct drm_bridge *bridge)
 			   FIELD_PREP(VID_TX_EN_X, 0) |
 			   FIELD_PREP(VID_TX_EN_Y, 0));
 
-	if (ser->split_mode)
+	if (ser->split_mode || ser->bridge_dual_link)
 		regmap_update_bits(ser->regmap, 0x0010,
 				   AUTO_LINK | LINK_CFG,
 				   FIELD_PREP(AUTO_LINK, 1) |
@@ -487,6 +494,7 @@ static irqreturn_t max96755f_bridge_lock_irq_handler(int irq, void *arg)
 static int max96755f_bridge_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct max96755f_bridge *ser;
 	int ret;
 
@@ -528,6 +536,8 @@ static int max96755f_bridge_probe(struct platform_device *pdev)
 					dev_name(dev), ser);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request lock IRQ\n");
+
+	ser->bridge_dual_link = of_property_read_bool(np, "bridge_dual_link");
 
 	ser->bridge.funcs = &max96755f_bridge_funcs;
 	ser->bridge.of_node = dev->of_node;
