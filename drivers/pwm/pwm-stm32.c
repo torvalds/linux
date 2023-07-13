@@ -649,10 +649,6 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 static void stm32_pwm_remove(struct platform_device *pdev)
 {
 	struct stm32_pwm *priv = platform_get_drvdata(pdev);
-	unsigned int i;
-
-	for (i = 0; i < priv->chip.npwm; i++)
-		pwm_disable(&priv->chip.pwms[i]);
 
 	pwmchip_remove(&priv->chip);
 }
