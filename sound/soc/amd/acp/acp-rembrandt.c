@@ -280,8 +280,8 @@ static int __maybe_unused rmb_pcm_resume(struct device *dev)
 			}
 		}
 	}
-		spin_unlock(&adata->acp_lock);
-		return 0;
+	spin_unlock(&adata->acp_lock);
+	return 0;
 }
 
 static const struct dev_pm_ops rmb_dma_pm_ops = {
