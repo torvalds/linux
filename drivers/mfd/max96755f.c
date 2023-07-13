@@ -48,8 +48,6 @@ static bool max96755f_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0x0002:
-	case 0x0010:
-	case 0x0013:
 	case 0x0053:
 	case 0x0057:
 	case 0x02be ... 0x02fc:
