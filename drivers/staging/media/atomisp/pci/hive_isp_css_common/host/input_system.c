@@ -15,7 +15,6 @@
 
 #include "system_global.h"
 
-#ifndef ISP2401
 
 #include "input_system.h"
 #include <type_support.h>
@@ -1714,4 +1713,3 @@ static input_system_err_t input_system_multiplexer_cfg(
 	*flags |= INPUT_SYSTEM_CFG_FLAG_SET;
 	return INPUT_SYSTEM_ERR_NO_ERROR;
 }
-#endif
