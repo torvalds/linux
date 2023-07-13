@@ -149,8 +149,7 @@ void __page_table_check_zero(struct page *page, unsigned int order)
 	page_ext_put(page_ext);
 }
 
-void __page_table_check_pte_clear(struct mm_struct *mm, unsigned long addr,
-				  pte_t pte)
+void __page_table_check_pte_clear(struct mm_struct *mm, pte_t pte)
 {
 	if (&init_mm == mm)
 		return;
@@ -191,7 +190,7 @@ void __page_table_check_pte_set(struct mm_struct *mm, unsigned long addr,
 	if (&init_mm == mm)
 		return;
 
-	__page_table_check_pte_clear(mm, addr, ptep_get(ptep));
+	__page_table_check_pte_clear(mm, ptep_get(ptep));
 	if (pte_user_accessible_page(pte)) {
 		page_table_check_set(pte_pfn(pte), PAGE_SIZE >> PAGE_SHIFT,
 				     pte_write(pte));
@@ -241,7 +240,7 @@ void __page_table_check_pte_clear_range(struct mm_struct *mm,
 		if (WARN_ON(!ptep))
 			return;
 		for (i = 0; i < PTRS_PER_PTE; i++) {
-			__page_table_check_pte_clear(mm, addr, ptep_get(ptep));
+			__page_table_check_pte_clear(mm, ptep_get(ptep));
 			addr += PAGE_SIZE;
 			ptep++;
 		}
