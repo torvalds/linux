@@ -171,8 +171,7 @@ void __page_table_check_pmd_clear(struct mm_struct *mm, pmd_t pmd)
 }
 EXPORT_SYMBOL(__page_table_check_pmd_clear);
 
-void __page_table_check_pud_clear(struct mm_struct *mm, unsigned long addr,
-				  pud_t pud)
+void __page_table_check_pud_clear(struct mm_struct *mm, pud_t pud)
 {
 	if (&init_mm == mm)
 		return;
@@ -217,7 +216,7 @@ void __page_table_check_pud_set(struct mm_struct *mm, unsigned long addr,
 	if (&init_mm == mm)
 		return;
 
-	__page_table_check_pud_clear(mm, addr, *pudp);
+	__page_table_check_pud_clear(mm, *pudp);
 	if (pud_user_accessible_page(pud)) {
 		page_table_check_set(pud_pfn(pud), PUD_SIZE >> PAGE_SHIFT,
 				     pud_write(pud));
