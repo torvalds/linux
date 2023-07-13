@@ -62,6 +62,7 @@ obj-$(CONFIG_INTERCONNECT_QCOM_SM8450) += qnoc-sm8450.o
 obj-$(CONFIG_INTERCONNECT_QCOM_PINEAPPLE) += qnoc-pineapple.o
 obj-$(CONFIG_INTERCONNECT_QCOM_KALAMA) += qnoc-kalama.o
 obj-$(CONFIG_INTERCONNECT_QCOM_BLAIR) += qnoc-blair.o
+obj-$(CONFIG_INTERCONNECT_QCOM_LEMANS) += qnoc-lemans.o
 obj-$(CONFIG_INTERCONNECT_QCOM_MONACO_AUTO) += qnoc-monaco-auto.o
 obj-$(CONFIG_INTERCONNECT_QCOM_SMD_RPM) += icc-smd-rpm.o
 obj-$(CONFIG_INTERCONNECT_QCOM_QOS) += qnoc-qos.o
