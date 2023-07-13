@@ -15,8 +15,7 @@ extern struct page_ext_operations page_table_check_ops;
 
 void __page_table_check_zero(struct page *page, unsigned int order);
 void __page_table_check_pte_clear(struct mm_struct *mm, pte_t pte);
-void __page_table_check_pmd_clear(struct mm_struct *mm, unsigned long addr,
-				  pmd_t pmd);
+void __page_table_check_pmd_clear(struct mm_struct *mm, pmd_t pmd);
 void __page_table_check_pud_clear(struct mm_struct *mm, unsigned long addr,
 				  pud_t pud);
 void __page_table_check_pte_set(struct mm_struct *mm, unsigned long addr,
@@ -53,13 +52,12 @@ static inline void page_table_check_pte_clear(struct mm_struct *mm, pte_t pte)
 	__page_table_check_pte_clear(mm, pte);
 }
 
-static inline void page_table_check_pmd_clear(struct mm_struct *mm,
-					      unsigned long addr, pmd_t pmd)
+static inline void page_table_check_pmd_clear(struct mm_struct *mm, pmd_t pmd)
 {
 	if (static_branch_likely(&page_table_check_disabled))
 		return;
 
-	__page_table_check_pmd_clear(mm, addr, pmd);
+	__page_table_check_pmd_clear(mm, pmd);
 }
 
 static inline void page_table_check_pud_clear(struct mm_struct *mm,
@@ -125,8 +123,7 @@ static inline void page_table_check_pte_clear(struct mm_struct *mm, pte_t pte)
 {
 }
 
-static inline void page_table_check_pmd_clear(struct mm_struct *mm,
-					      unsigned long addr, pmd_t pmd)
+static inline void page_table_check_pmd_clear(struct mm_struct *mm, pmd_t pmd)
 {
 }
 
