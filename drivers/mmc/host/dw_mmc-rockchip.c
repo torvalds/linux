@@ -448,8 +448,10 @@ static int dw_mci_rockchip_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	if (!device_property_read_bool(&pdev->dev, "non-removable") &&
-	    !device_property_read_bool(&pdev->dev, "cd-gpios"))
+	if ((!device_property_read_bool(&pdev->dev, "non-removable") &&
+	     !device_property_read_bool(&pdev->dev, "cd-gpios")) ||
+	    (device_property_read_bool(&pdev->dev, "no-sd") &&
+	     device_property_read_bool(&pdev->dev, "no-mmc")))
 		use_rpm = false;
 
 	match = of_match_node(dw_mci_rockchip_match, pdev->dev.of_node);
