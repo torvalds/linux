@@ -2,7 +2,7 @@
 /*
  * Siemens SIMATIC IPC platform driver
  *
- * Copyright (c) Siemens AG, 2018-2021
+ * Copyright (c) Siemens AG, 2018-2023
  *
  * Authors:
  *  Henning Schild <henning.schild@siemens.com>
@@ -33,36 +33,51 @@ static const struct dmi_system_id simatic_ipc_whitelist[] = {
 
 static struct simatic_ipc_platform platform_data;
 
+#define SIMATIC_IPC_MAX_EXTRA_MODULES 1
+
 static struct {
 	u32 station_id;
 	u8 led_mode;
 	u8 wdt_mode;
 	u8 batt_mode;
+	char *extra_modules[SIMATIC_IPC_MAX_EXTRA_MODULES];
 } device_modes[] = {
 	{SIMATIC_IPC_IPC127E,
-		SIMATIC_IPC_DEVICE_127E, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_127E},
+		SIMATIC_IPC_DEVICE_127E, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_127E,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPC227D,
-		SIMATIC_IPC_DEVICE_227D, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE},
+		SIMATIC_IPC_DEVICE_227D, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPC227E,
-		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E},
+		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPC227G,
-		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G},
+		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G,
+		{ "nct6775" }},
 	{SIMATIC_IPC_IPC277G,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G},
+		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G,
+		{ "nct6775" }},
 	{SIMATIC_IPC_IPC277E,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E},
+		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227E, SIMATIC_IPC_DEVICE_227E,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPC427D,
-		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE},
+		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_NONE,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPC427E,
-		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE},
+		SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPC477E,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE},
+		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_427E, SIMATIC_IPC_DEVICE_NONE,
+		{ "emc1403" }},
 	{SIMATIC_IPC_IPCBX_39A,
-		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_BX_39A},
+		SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_BX_39A,
+		{ "nct6775" }},
 	{SIMATIC_IPC_IPCPX_39A,
-		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_BX_39A},
+		SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_227G, SIMATIC_IPC_DEVICE_BX_39A,
+		{ "nct6775" }},
 	{SIMATIC_IPC_IPCBX_21A,
-		SIMATIC_IPC_DEVICE_BX_21A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_21A},
+		SIMATIC_IPC_DEVICE_BX_21A, SIMATIC_IPC_DEVICE_NONE, SIMATIC_IPC_DEVICE_BX_21A,
+		{ "emc1403" }},
 };
 
 static int register_platform_devices(u32 station_id)
@@ -152,6 +167,29 @@ static int register_platform_devices(u32 station_id)
 	return 0;
 }
 
+static void request_additional_modules(u32 station_id)
+{
+	char **extra_modules = NULL;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(device_modes); i++) {
+		if (device_modes[i].station_id == station_id) {
+			extra_modules = device_modes[i].extra_modules;
+			break;
+		}
+	}
+
+	if (!extra_modules)
+		return;
+
+	for (i = 0; i < SIMATIC_IPC_MAX_EXTRA_MODULES; i++) {
+		if (extra_modules[i])
+			request_module(extra_modules[i]);
+		else
+			break;
+	}
+}
+
 static int __init simatic_ipc_init_module(void)
 {
 	const struct dmi_system_id *match;
@@ -168,6 +206,8 @@ static int __init simatic_ipc_init_module(void)
 		pr_warn("DMI entry %d not found\n", SIMATIC_IPC_DMI_ENTRY_OEM);
 		return 0;
 	}
+
+	request_additional_modules(station_id);
 
 	return register_platform_devices(station_id);
 }
