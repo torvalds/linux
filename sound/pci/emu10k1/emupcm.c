@@ -343,9 +343,7 @@ static void snd_emu10k1_pcm_init_voices(struct snd_emu10k1 *emu,
 					unsigned int end_addr,
 					struct snd_emu10k1_pcm_mixer *mix)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&emu->reg_lock, flags);
+	spin_lock_irq(&emu->reg_lock);
 	snd_emu10k1_pcm_init_voice(emu, evoice, w_16, stereo,
 				   start_addr, end_addr,
 				   &mix->send_routing[stereo][0],
@@ -355,7 +353,7 @@ static void snd_emu10k1_pcm_init_voices(struct snd_emu10k1 *emu,
 					   start_addr, end_addr,
 					   &mix->send_routing[2][0],
 					   &mix->send_volume[2][0]);
-	spin_unlock_irqrestore(&emu->reg_lock, flags);
+	spin_unlock_irq(&emu->reg_lock);
 }
 
 static void snd_emu10k1_pcm_init_extra_voice(struct snd_emu10k1 *emu,
