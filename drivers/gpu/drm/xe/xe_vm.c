@@ -2227,6 +2227,11 @@ static void print_op(struct xe_device *xe, struct drm_gpuva_op *op)
 		       (ULL)xe_vma_start(vma), (ULL)xe_vma_size(vma),
 		       op->unmap.keep ? 1 : 0);
 		break;
+	case DRM_GPUVA_OP_PREFETCH:
+		vma = gpuva_to_vma(op->prefetch.va);
+		vm_dbg(&xe->drm, "PREFETCH: addr=0x%016llx, range=0x%016llx",
+		       (ULL)xe_vma_start(vma), (ULL)xe_vma_size(vma));
+		break;
 	default:
 		XE_BUG_ON("NOT POSSIBLE");
 	}
