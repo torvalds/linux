@@ -2136,6 +2136,7 @@
   ttm_tt_destroy_common
   ttm_tt_populate
   ttm_tt_set_placement_caching
+  ttm_tt_unpopulate
   ttm_unmap_and_unpopulate_pages
   tty_flip_buffer_push
   tty_insert_flip_string_fixed_flag

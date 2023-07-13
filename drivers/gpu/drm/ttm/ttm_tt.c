@@ -466,3 +466,4 @@ void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 	else
 		ttm_pool_unpopulate(ttm);
 }
+EXPORT_SYMBOL(ttm_tt_unpopulate);
