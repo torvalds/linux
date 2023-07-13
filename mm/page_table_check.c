@@ -195,8 +195,7 @@ void __page_table_check_pte_set(struct mm_struct *mm, pte_t *ptep, pte_t pte)
 }
 EXPORT_SYMBOL(__page_table_check_pte_set);
 
-void __page_table_check_pmd_set(struct mm_struct *mm, unsigned long addr,
-				pmd_t *pmdp, pmd_t pmd)
+void __page_table_check_pmd_set(struct mm_struct *mm, pmd_t *pmdp, pmd_t pmd)
 {
 	if (&init_mm == mm)
 		return;
