@@ -360,6 +360,11 @@ static void nft_trans_commit_list_add_tail(struct net *net, struct nft_trans *tr
 		if (nft_set_is_anonymous(nft_trans_set(trans)))
 			list_add_tail(&trans->binding_list, &nft_net->binding_list);
 		break;
+	case NFT_MSG_NEWCHAIN:
+		if (!nft_trans_chain_update(trans) &&
+		    nft_chain_binding(nft_trans_chain(trans)))
+			list_add_tail(&trans->binding_list, &nft_net->binding_list);
+		break;
 	}
 
 	list_add_tail(&trans->list, &nft_net->commit_list);
@@ -8040,6 +8045,14 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			if (nft_set_is_anonymous(nft_trans_set(trans)) &&
 			    !nft_trans_set_bound(trans)) {
 				pr_warn_once("nftables ruleset with unbound set\n");
+				return -EINVAL;
+			}
+			break;
+		case NFT_MSG_NEWCHAIN:
+			if (!nft_trans_chain_update(trans) &&
+			    nft_chain_binding(nft_trans_chain(trans)) &&
+			    !nft_trans_chain_bound(trans)) {
+				pr_warn_once("nftables ruleset with unbound chain\n");
 				return -EINVAL;
 			}
 			break;
