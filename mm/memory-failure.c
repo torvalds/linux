@@ -72,6 +72,8 @@ atomic_long_t num_poisoned_pages __read_mostly = ATOMIC_LONG_INIT(0);
 
 static bool hw_memory_failure __read_mostly = false;
 
+static DEFINE_MUTEX(mf_mutex);
+
 void num_poisoned_pages_inc(unsigned long pfn)
 {
 	atomic_long_inc(&num_poisoned_pages);
@@ -1814,6 +1816,7 @@ EXPORT_SYMBOL_GPL(mf_dax_kill_procs);
 #endif /* CONFIG_FS_DAX */
 
 #ifdef CONFIG_HUGETLB_PAGE
+
 /*
  * Struct raw_hwp_page represents information about "raw error page",
  * constructing singly linked list from ->_hugetlb_hwpoison field of folio.
@@ -1826,6 +1829,41 @@ struct raw_hwp_page {
 static inline struct llist_head *raw_hwp_list_head(struct folio *folio)
 {
 	return (struct llist_head *)&folio->_hugetlb_hwpoison;
+}
+
+bool is_raw_hwpoison_page_in_hugepage(struct page *page)
+{
+	struct llist_head *raw_hwp_head;
+	struct raw_hwp_page *p;
+	struct folio *folio = page_folio(page);
+	bool ret = false;
+
+	if (!folio_test_hwpoison(folio))
+		return false;
+
+	if (!folio_test_hugetlb(folio))
+		return PageHWPoison(page);
+
+	/*
+	 * When RawHwpUnreliable is set, kernel lost track of which subpages
+	 * are HWPOISON. So return as if ALL subpages are HWPOISONed.
+	 */
+	if (folio_test_hugetlb_raw_hwp_unreliable(folio))
+		return true;
+
+	mutex_lock(&mf_mutex);
+
+	raw_hwp_head = raw_hwp_list_head(folio);
+	llist_for_each_entry(p, raw_hwp_head->first, node) {
+		if (page == p->page) {
+			ret = true;
+			break;
+		}
+	}
+
+	mutex_unlock(&mf_mutex);
+
+	return ret;
 }
 
 static unsigned long __folio_free_raw_hwp(struct folio *folio, bool move_flag)
@@ -2109,8 +2147,6 @@ out:
 		action_result(pfn, MF_MSG_DAX, rc ? MF_FAILED : MF_RECOVERED);
 	return rc;
 }
-
-static DEFINE_MUTEX(mf_mutex);
 
 /**
  * memory_failure - Handle memory failure of a page.
