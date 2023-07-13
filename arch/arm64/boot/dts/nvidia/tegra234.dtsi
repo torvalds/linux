@@ -3590,72 +3590,142 @@
 			  opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp2: opp-268800000 {
+		cl0_ch1_opp2: opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp3: opp-268800000 {
 			opp-hz = /bits/ 64 <268800000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp3: opp-422400000 {
+		cl0_ch1_opp4: opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp5: opp-422400000 {
 			opp-hz = /bits/ 64 <422400000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp4: opp-576000000 {
+		cl0_ch1_opp6: opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp7: opp-576000000 {
 			opp-hz = /bits/ 64 <576000000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp5: opp-729600000 {
+		cl0_ch1_opp8: opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp9: opp-729600000 {
 			opp-hz = /bits/ 64 <729600000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp6: opp-883200000 {
+		cl0_ch1_opp10: opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp11: opp-883200000 {
 			opp-hz = /bits/ 64 <883200000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp7: opp-1036800000 {
+		cl0_ch1_opp12: opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl0_ch1_opp13: opp-1036800000 {
 			opp-hz = /bits/ 64 <1036800000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl0_ch1_opp8: opp-1190400000 {
-			opp-hz = /bits/ 64 <1190400000>;
-			opp-peak-kBps = <816000>;
+		cl0_ch1_opp14: opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <1632000>;
 		};
 
-		cl0_ch1_opp9: opp-1344000000 {
+		cl0_ch1_opp15: opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp16: opp-1267200000 {
+			opp-hz = /bits/ 64 <1267200000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl0_ch1_opp17: opp-1344000000 {
 			opp-hz = /bits/ 64 <1344000000>;
 			opp-peak-kBps = <1632000>;
 		};
 
-		cl0_ch1_opp10: opp-1497600000 {
-			opp-hz = /bits/ 64 <1497600000>;
+		cl0_ch1_opp18: opp-1420800000 {
+			opp-hz = /bits/ 64 <1420800000>;
 			opp-peak-kBps = <1632000>;
 		};
 
-		cl0_ch1_opp11: opp-1651200000 {
+		cl0_ch1_opp19: opp-1497600000 {
+			opp-hz = /bits/ 64 <1497600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp20: opp-1574400000 {
+			opp-hz = /bits/ 64 <1574400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp21: opp-1651200000 {
 			opp-hz = /bits/ 64 <1651200000>;
-			opp-peak-kBps = <2660000>;
+			opp-peak-kBps = <3200000>;
 		};
 
-		cl0_ch1_opp12: opp-1804800000 {
+		cl0_ch1_opp22: opp-1728000000 {
+			opp-hz = /bits/ 64 <1728000000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp23: opp-1804800000 {
 			opp-hz = /bits/ 64 <1804800000>;
-			opp-peak-kBps = <2660000>;
+			opp-peak-kBps = <3200000>;
 		};
 
-		cl0_ch1_opp13: opp-1958400000 {
+		cl0_ch1_opp24: opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp25: opp-1958400000 {
 			opp-hz = /bits/ 64 <1958400000>;
 			opp-peak-kBps = <3200000>;
 		};
 
-		cl0_ch1_opp14: opp-2112000000 {
+		cl0_ch1_opp26: opp-2035200000 {
+			opp-hz = /bits/ 64 <2035200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl0_ch1_opp27: opp-2112000000 {
 			opp-hz = /bits/ 64 <2112000000>;
 			opp-peak-kBps = <6400000>;
 		};
 
-		cl0_ch1_opp15: opp-2201600000 {
+		cl0_ch1_opp28: opp-2188800000 {
+			opp-hz = /bits/ 64 <2188800000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl0_ch1_opp29: opp-2201600000 {
 			opp-hz = /bits/ 64 <2201600000>;
 			opp-peak-kBps = <6400000>;
 		};
@@ -3670,72 +3740,142 @@
 			  opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp2: opp-268800000 {
+		cl1_ch1_opp2: opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp3: opp-268800000 {
 			opp-hz = /bits/ 64 <268800000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp3: opp-422400000 {
+		cl1_ch1_opp4: opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp5: opp-422400000 {
 			opp-hz = /bits/ 64 <422400000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp4: opp-576000000 {
+		cl1_ch1_opp6: opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp7: opp-576000000 {
 			opp-hz = /bits/ 64 <576000000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp5: opp-729600000 {
+		cl1_ch1_opp8: opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp9: opp-729600000 {
 			opp-hz = /bits/ 64 <729600000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp6: opp-883200000 {
+		cl1_ch1_opp10: opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp11: opp-883200000 {
 			opp-hz = /bits/ 64 <883200000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp7: opp-1036800000 {
+		cl1_ch1_opp12: opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl1_ch1_opp13: opp-1036800000 {
 			opp-hz = /bits/ 64 <1036800000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl1_ch1_opp8: opp-1190400000 {
-			opp-hz = /bits/ 64 <1190400000>;
-			opp-peak-kBps = <816000>;
+		cl1_ch1_opp14: opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <1632000>;
 		};
 
-		cl1_ch1_opp9: opp-1344000000 {
+		cl1_ch1_opp15: opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp16: opp-1267200000 {
+			opp-hz = /bits/ 64 <1267200000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl1_ch1_opp17: opp-1344000000 {
 			opp-hz = /bits/ 64 <1344000000>;
 			opp-peak-kBps = <1632000>;
 		};
 
-		cl1_ch1_opp10: opp-1497600000 {
-			opp-hz = /bits/ 64 <1497600000>;
+		cl1_ch1_opp18: opp-1420800000 {
+			opp-hz = /bits/ 64 <1420800000>;
 			opp-peak-kBps = <1632000>;
 		};
 
-		cl1_ch1_opp11: opp-1651200000 {
+		cl1_ch1_opp19: opp-1497600000 {
+			opp-hz = /bits/ 64 <1497600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp20: opp-1574400000 {
+			opp-hz = /bits/ 64 <1574400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp21: opp-1651200000 {
 			opp-hz = /bits/ 64 <1651200000>;
-			opp-peak-kBps = <2660000>;
+			opp-peak-kBps = <3200000>;
 		};
 
-		cl1_ch1_opp12: opp-1804800000 {
+		cl1_ch1_opp22: opp-1728000000 {
+			opp-hz = /bits/ 64 <1728000000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp23: opp-1804800000 {
 			opp-hz = /bits/ 64 <1804800000>;
-			opp-peak-kBps = <2660000>;
+			opp-peak-kBps = <3200000>;
 		};
 
-		cl1_ch1_opp13: opp-1958400000 {
+		cl1_ch1_opp24: opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp25: opp-1958400000 {
 			opp-hz = /bits/ 64 <1958400000>;
 			opp-peak-kBps = <3200000>;
 		};
 
-		cl1_ch1_opp14: opp-2112000000 {
+		cl1_ch1_opp26: opp-2035200000 {
+			opp-hz = /bits/ 64 <2035200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl1_ch1_opp27: opp-2112000000 {
 			opp-hz = /bits/ 64 <2112000000>;
 			opp-peak-kBps = <6400000>;
 		};
 
-		cl1_ch1_opp15: opp-2201600000 {
+		cl1_ch1_opp28: opp-2188800000 {
+			opp-hz = /bits/ 64 <2188800000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl1_ch1_opp29: opp-2201600000 {
 			opp-hz = /bits/ 64 <2201600000>;
 			opp-peak-kBps = <6400000>;
 		};
@@ -3750,72 +3890,142 @@
 			  opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp2: opp-268800000 {
+		cl2_ch1_opp2: opp-192000000 {
+			opp-hz = /bits/ 64 <192000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp3: opp-268800000 {
 			opp-hz = /bits/ 64 <268800000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp3: opp-422400000 {
+		cl2_ch1_opp4: opp-345600000 {
+			opp-hz = /bits/ 64 <345600000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp5: opp-422400000 {
 			opp-hz = /bits/ 64 <422400000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp4: opp-576000000 {
+		cl2_ch1_opp6: opp-499200000 {
+			opp-hz = /bits/ 64 <499200000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp7: opp-576000000 {
 			opp-hz = /bits/ 64 <576000000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp5: opp-729600000 {
+		cl2_ch1_opp8: opp-652800000 {
+			opp-hz = /bits/ 64 <652800000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp9: opp-729600000 {
 			opp-hz = /bits/ 64 <729600000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp6: opp-883200000 {
+		cl2_ch1_opp10: opp-806400000 {
+			opp-hz = /bits/ 64 <806400000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp11: opp-883200000 {
 			opp-hz = /bits/ 64 <883200000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp7: opp-1036800000 {
+		cl2_ch1_opp12: opp-960000000 {
+			opp-hz = /bits/ 64 <960000000>;
+			opp-peak-kBps = <816000>;
+		};
+
+		cl2_ch1_opp13: opp-1036800000 {
 			opp-hz = /bits/ 64 <1036800000>;
 			opp-peak-kBps = <816000>;
 		};
 
-		cl2_ch1_opp8: opp-1190400000 {
-			opp-hz = /bits/ 64 <1190400000>;
-			opp-peak-kBps = <816000>;
+		cl2_ch1_opp14: opp-1113600000 {
+			opp-hz = /bits/ 64 <1113600000>;
+			opp-peak-kBps = <1632000>;
 		};
 
-		cl2_ch1_opp9: opp-1344000000 {
+		cl2_ch1_opp15: opp-1190400000 {
+			opp-hz = /bits/ 64 <1190400000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp16: opp-1267200000 {
+			opp-hz = /bits/ 64 <1267200000>;
+			opp-peak-kBps = <1632000>;
+		};
+
+		cl2_ch1_opp17: opp-1344000000 {
 			opp-hz = /bits/ 64 <1344000000>;
 			opp-peak-kBps = <1632000>;
 		};
 
-		cl2_ch1_opp10: opp-1497600000 {
-			opp-hz = /bits/ 64 <1497600000>;
+		cl2_ch1_opp18: opp-1420800000 {
+			opp-hz = /bits/ 64 <1420800000>;
 			opp-peak-kBps = <1632000>;
 		};
 
-		cl2_ch1_opp11: opp-1651200000 {
+		cl2_ch1_opp19: opp-1497600000 {
+			opp-hz = /bits/ 64 <1497600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp20: opp-1574400000 {
+			opp-hz = /bits/ 64 <1574400000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp21: opp-1651200000 {
 			opp-hz = /bits/ 64 <1651200000>;
-			opp-peak-kBps = <2660000>;
+			opp-peak-kBps = <3200000>;
 		};
 
-		cl2_ch1_opp12: opp-1804800000 {
+		cl2_ch1_opp22: opp-1728000000 {
+			opp-hz = /bits/ 64 <1728000000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp23: opp-1804800000 {
 			opp-hz = /bits/ 64 <1804800000>;
-			opp-peak-kBps = <2660000>;
+			opp-peak-kBps = <3200000>;
 		};
 
-		cl2_ch1_opp13: opp-1958400000 {
+		cl2_ch1_opp24: opp-1881600000 {
+			opp-hz = /bits/ 64 <1881600000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp25: opp-1958400000 {
 			opp-hz = /bits/ 64 <1958400000>;
 			opp-peak-kBps = <3200000>;
 		};
 
-		cl2_ch1_opp14: opp-2112000000 {
+		cl2_ch1_opp26: opp-2035200000 {
+			opp-hz = /bits/ 64 <2035200000>;
+			opp-peak-kBps = <3200000>;
+		};
+
+		cl2_ch1_opp27: opp-2112000000 {
 			opp-hz = /bits/ 64 <2112000000>;
 			opp-peak-kBps = <6400000>;
 		};
 
-		cl2_ch1_opp15: opp-2201600000 {
+		cl2_ch1_opp28: opp-2188800000 {
+			opp-hz = /bits/ 64 <2188800000>;
+			opp-peak-kBps = <6400000>;
+		};
+
+		cl2_ch1_opp29: opp-2201600000 {
 			opp-hz = /bits/ 64 <2201600000>;
 			opp-peak-kBps = <6400000>;
 		};
