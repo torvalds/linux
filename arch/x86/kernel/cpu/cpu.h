@@ -83,6 +83,7 @@ void cpu_select_mitigations(void);
 
 extern void x86_spec_ctrl_setup_ap(void);
 extern void update_srbds_msr(void);
+extern void update_gds_msr(void);
 
 extern enum spectre_v2_mitigation spectre_v2_enabled;
 
