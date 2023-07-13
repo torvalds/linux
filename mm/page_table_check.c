@@ -58,8 +58,7 @@ static struct page_table_check *get_page_table_check(struct page_ext *page_ext)
  * An entry is removed from the page table, decrement the counters for that page
  * verify that it is of correct type and counters do not become negative.
  */
-static void page_table_check_clear(struct mm_struct *mm, unsigned long addr,
-				   unsigned long pfn, unsigned long pgcnt)
+static void page_table_check_clear(unsigned long pfn, unsigned long pgcnt)
 {
 	struct page_ext *page_ext;
 	struct page *page;
@@ -158,8 +157,7 @@ void __page_table_check_pte_clear(struct mm_struct *mm, unsigned long addr,
 		return;
 
 	if (pte_user_accessible_page(pte)) {
-		page_table_check_clear(mm, addr, pte_pfn(pte),
-				       PAGE_SIZE >> PAGE_SHIFT);
+		page_table_check_clear(pte_pfn(pte), PAGE_SIZE >> PAGE_SHIFT);
 	}
 }
 EXPORT_SYMBOL(__page_table_check_pte_clear);
@@ -171,8 +169,7 @@ void __page_table_check_pmd_clear(struct mm_struct *mm, unsigned long addr,
 		return;
 
 	if (pmd_user_accessible_page(pmd)) {
-		page_table_check_clear(mm, addr, pmd_pfn(pmd),
-				       PMD_SIZE >> PAGE_SHIFT);
+		page_table_check_clear(pmd_pfn(pmd), PMD_SIZE >> PAGE_SHIFT);
 	}
 }
 EXPORT_SYMBOL(__page_table_check_pmd_clear);
@@ -184,8 +181,7 @@ void __page_table_check_pud_clear(struct mm_struct *mm, unsigned long addr,
 		return;
 
 	if (pud_user_accessible_page(pud)) {
-		page_table_check_clear(mm, addr, pud_pfn(pud),
-				       PUD_SIZE >> PAGE_SHIFT);
+		page_table_check_clear(pud_pfn(pud), PUD_SIZE >> PAGE_SHIFT);
 	}
 }
 EXPORT_SYMBOL(__page_table_check_pud_clear);
