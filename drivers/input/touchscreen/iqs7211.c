@@ -2420,33 +2420,24 @@ ATTRIBUTE_GROUPS(iqs7211);
 static const struct of_device_id iqs7211_of_match[] = {
 	{
 		.compatible = "azoteq,iqs7210a",
-		.data = (void *)IQS7210A,
+		.data = &iqs7211_devs[IQS7210A],
 	},
 	{
 		.compatible = "azoteq,iqs7211a",
-		.data = (void *)IQS7211A,
+		.data = &iqs7211_devs[IQS7211A],
 	},
 	{
 		.compatible = "azoteq,iqs7211e",
-		.data = (void *)IQS7211E,
+		.data = &iqs7211_devs[IQS7211E],
 	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, iqs7211_of_match);
 
-static const struct i2c_device_id iqs7211_id[] = {
-	{ "iqs7210a", IQS7210A },
-	{ "iqs7211a", IQS7211A },
-	{ "iqs7211e", IQS7211E },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, iqs7211_id);
-
 static int iqs7211_probe(struct i2c_client *client)
 {
 	struct iqs7211_private *iqs7211;
 	enum iqs7211_reg_grp_id reg_grp;
-	enum iqs7211_dev_id dev_id;
 	unsigned long irq_flags;
 	bool shared_irq;
 	int error, irq;
@@ -2460,13 +2451,11 @@ static int iqs7211_probe(struct i2c_client *client)
 
 	INIT_LIST_HEAD(&iqs7211->reg_field_head);
 
-	if (client->dev.of_node)
-		dev_id = (enum iqs7211_dev_id)of_device_get_match_data(&client->dev);
-	else
-		dev_id = i2c_match_id(iqs7211_id, client)->driver_data;
+	iqs7211->dev_desc = device_get_match_data(&client->dev);
+	if (!iqs7211->dev_desc)
+		return -ENODEV;
 
-	shared_irq = iqs7211_devs[dev_id].num_ctx == IQS7211_MAX_CTX;
-	iqs7211->dev_desc = &iqs7211_devs[dev_id];
+	shared_irq = iqs7211->dev_desc->num_ctx == IQS7211_MAX_CTX;
 
 	/*
 	 * The RDY pin behaves as an interrupt, but must also be polled ahead
@@ -2554,7 +2543,6 @@ static int iqs7211_probe(struct i2c_client *client)
 
 static struct i2c_driver iqs7211_i2c_driver = {
 	.probe = iqs7211_probe,
-	.id_table = iqs7211_id,
 	.driver = {
 		.name = "iqs7211",
 		.of_match_table = iqs7211_of_match,
