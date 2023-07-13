@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2019, 2022 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2019, 2022-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #include "mvm.h"
@@ -179,9 +179,6 @@ static int iwl_mvm_sf_config(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.state = cpu_to_le32(new_state),
 	};
 	int ret = 0;
-
-	if (mvm->cfg->disable_dummy_notification)
-		sf_cmd.state |= cpu_to_le32(SF_CFG_DUMMY_NOTIF_OFF);
 
 	/*
 	 * If an associated AP sta changed its antenna configuration, the state

@@ -57,6 +57,7 @@
 #include <linux/crc32poly.h>
 
 #include <net/checksum.h>
+#include <net/gso.h>
 #include <net/ip.h>
 
 #include <linux/io.h>
@@ -224,6 +225,7 @@ MODULE_AUTHOR("David S. Miller (davem@redhat.com) and Jeff Garzik (jgarzik@pobox
 MODULE_DESCRIPTION("Broadcom Tigon3 ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(FIRMWARE_TG3);
+MODULE_FIRMWARE(FIRMWARE_TG357766);
 MODULE_FIRMWARE(FIRMWARE_TG3TSO);
 MODULE_FIRMWARE(FIRMWARE_TG3TSO5);
 

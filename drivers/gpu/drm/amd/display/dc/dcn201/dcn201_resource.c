@@ -613,6 +613,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_tri_buf = false,
+		.enable_legacy_fast_update = true,
 };
 
 static void dcn201_dpp_destroy(struct dpp **dpp)
@@ -893,13 +894,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.read_dce_straps = read_dce_straps,
 	.create_audio = dcn201_create_audio,
 	.create_stream_encoder = dcn201_stream_encoder_create,
-	.create_hwseq = dcn201_hwseq_create,
-};
-
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
 	.create_hwseq = dcn201_hwseq_create,
 };
 
@@ -1272,9 +1266,8 @@ static bool dcn201_resource_construct(
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
-			&res_create_funcs : &res_create_maximus_funcs)))
-			goto create_fail;
+			&res_create_funcs))
+		goto create_fail;
 
 	dcn201_hw_sequencer_construct(dc);
 

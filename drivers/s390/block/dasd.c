@@ -2737,7 +2737,12 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 	else if (status == 0) {
 		switch (cqr->intrc) {
 		case -EPERM:
-			error = BLK_STS_NEXUS;
+			/*
+			 * DASD doesn't implement SCSI/NVMe reservations, but it
+			 * implements a locking scheme similar to them. We
+			 * return this error when we no longer have the lock.
+			 */
+			error = BLK_STS_RESV_CONFLICT;
 			break;
 		case -ENOLINK:
 			error = BLK_STS_TRANSPORT;
@@ -3234,12 +3239,12 @@ struct blk_mq_ops dasd_mq_ops = {
 	.exit_hctx = dasd_exit_hctx,
 };
 
-static int dasd_open(struct block_device *bdev, fmode_t mode)
+static int dasd_open(struct gendisk *disk, blk_mode_t mode)
 {
 	struct dasd_device *base;
 	int rc;
 
-	base = dasd_device_from_gendisk(bdev->bd_disk);
+	base = dasd_device_from_gendisk(disk);
 	if (!base)
 		return -ENODEV;
 
@@ -3268,14 +3273,12 @@ static int dasd_open(struct block_device *bdev, fmode_t mode)
 		rc = -ENODEV;
 		goto out;
 	}
-
-	if ((mode & FMODE_WRITE) &&
+	if ((mode & BLK_OPEN_WRITE) &&
 	    (test_bit(DASD_FLAG_DEVICE_RO, &base->flags) ||
 	     (base->features & DASD_FEATURE_READONLY))) {
 		rc = -EROFS;
 		goto out;
 	}
-
 	dasd_put_device(base);
 	return 0;
 
@@ -3287,7 +3290,7 @@ unlock:
 	return rc;
 }
 
-static void dasd_release(struct gendisk *disk, fmode_t mode)
+static void dasd_release(struct gendisk *disk)
 {
 	struct dasd_device *base = dasd_device_from_gendisk(disk);
 	if (base) {

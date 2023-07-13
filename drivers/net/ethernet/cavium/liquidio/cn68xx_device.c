@@ -181,3 +181,4 @@ int lio_setup_cn68xx_octeon_device(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(lio_setup_cn68xx_octeon_device);

@@ -1286,7 +1286,7 @@ static struct Scsi_Host *sym_attach(const struct scsi_host_template *tpnt, int u
 	/*
 	 *  Edit its name.
 	 */
-	strlcpy(np->s.chip_name, dev->chip.name, sizeof(np->s.chip_name));
+	strscpy(np->s.chip_name, dev->chip.name, sizeof(np->s.chip_name));
 	sprintf(np->s.inst_name, "sym%d", np->s.unit);
 
 	if ((SYM_CONF_DMA_ADDRESSING_MODE > 0) && (np->features & FE_DAC) &&

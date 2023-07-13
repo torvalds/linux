@@ -946,7 +946,6 @@ static struct regmap_config wsa883x_regmap_config = {
 	.writeable_reg = wsa883x_writeable_register,
 	.reg_format_endian = REGMAP_ENDIAN_NATIVE,
 	.val_format_endian = REGMAP_ENDIAN_NATIVE,
-	.can_multi_write = true,
 	.use_single_read = true,
 };
 
@@ -1334,7 +1333,8 @@ static int wsa883x_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 					      WSA883X_DRE_GAIN_EN_MASK,
 					      WSA883X_DRE_GAIN_FROM_CSR);
 		snd_soc_component_write_field(component, WSA883X_PA_FSM_CTL,
-					      WSA883X_GLOBAL_PA_EN_MASK, 1);
+					      WSA883X_GLOBAL_PA_EN_MASK,
+					      WSA883X_GLOBAL_PA_ENABLE);
 
 	}
 

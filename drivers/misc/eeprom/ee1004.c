@@ -234,7 +234,7 @@ static struct i2c_driver ee1004_driver = {
 		.name = "ee1004",
 		.dev_groups = ee1004_groups,
 	},
-	.probe_new = ee1004_probe,
+	.probe = ee1004_probe,
 	.remove = ee1004_remove,
 	.id_table = ee1004_ids,
 };

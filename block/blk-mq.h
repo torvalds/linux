@@ -47,7 +47,6 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr);
 void blk_mq_wake_waiters(struct request_queue *q);
 bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *,
 			     unsigned int);
-void blk_mq_add_to_requeue_list(struct request *rq, blk_insert_t insert_flags);
 void blk_mq_flush_busy_ctxs(struct blk_mq_hw_ctx *hctx, struct list_head *list);
 struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
 					struct blk_mq_ctx *start);
@@ -64,10 +63,6 @@ struct blk_mq_tags *blk_mq_alloc_map_and_rqs(struct blk_mq_tag_set *set,
 void blk_mq_free_map_and_rqs(struct blk_mq_tag_set *set,
 			     struct blk_mq_tags *tags,
 			     unsigned int hctx_idx);
-/*
- * Internal helpers for request insertion into sw queues
- */
-void blk_mq_request_bypass_insert(struct request *rq, blk_insert_t flags);
 
 /*
  * CPU -> queue mappings
@@ -226,9 +221,9 @@ static inline bool blk_mq_is_shared_tags(unsigned int flags)
 
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-	if (!(data->rq_flags & RQF_ELV))
-		return data->hctx->tags;
-	return data->hctx->sched_tags;
+	if (data->rq_flags & RQF_SCHED_TAGS)
+		return data->hctx->sched_tags;
+	return data->hctx->tags;
 }
 
 static inline bool blk_mq_hctx_stopped(struct blk_mq_hw_ctx *hctx)
@@ -417,8 +412,7 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 			return true;
 	}
 
-	users = atomic_read(&hctx->tags->active_queues);
-
+	users = READ_ONCE(hctx->tags->active_queues);
 	if (!users)
 		return true;
 

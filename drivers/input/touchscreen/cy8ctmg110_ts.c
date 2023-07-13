@@ -279,7 +279,7 @@ static struct i2c_driver cy8ctmg110_driver = {
 		.pm	= pm_sleep_ptr(&cy8ctmg110_pm),
 	},
 	.id_table	= cy8ctmg110_idtable,
-	.probe_new	= cy8ctmg110_probe,
+	.probe		= cy8ctmg110_probe,
 };
 
 module_i2c_driver(cy8ctmg110_driver);

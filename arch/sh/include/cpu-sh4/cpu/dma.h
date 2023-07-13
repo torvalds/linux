@@ -13,6 +13,5 @@
 #define DMAE0_IRQ	evt2irq(0x6c0)
 
 #define SH_DMAC_BASE0	0xffa00000
-#define SH_DMAC_BASE1	0xffa00070
 
 #endif /* __ASM_CPU_SH4_DMA_H */

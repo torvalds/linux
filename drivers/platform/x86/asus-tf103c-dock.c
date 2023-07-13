@@ -933,7 +933,7 @@ static struct i2c_driver tf103c_dock_driver = {
 		.pm = &tf103c_dock_pm_ops,
 		.acpi_match_table = tf103c_dock_acpi_match,
 	},
-	.probe_new = tf103c_dock_probe,
+	.probe = tf103c_dock_probe,
 	.remove	= tf103c_dock_remove,
 };
 module_i2c_driver(tf103c_dock_driver);

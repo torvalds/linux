@@ -385,7 +385,7 @@ static struct i2c_driver mcp4531_driver = {
 		.name	= "mcp4531",
 		.of_match_table = mcp4531_of_match,
 	},
-	.probe_new	= mcp4531_probe,
+	.probe		= mcp4531_probe,
 	.id_table	= mcp4531_id,
 };
 

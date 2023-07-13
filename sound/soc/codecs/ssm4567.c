@@ -500,7 +500,7 @@ static struct i2c_driver ssm4567_driver = {
 		.of_match_table = of_match_ptr(ssm4567_of_match),
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
-	.probe_new = ssm4567_i2c_probe,
+	.probe = ssm4567_i2c_probe,
 	.id_table = ssm4567_i2c_ids,
 };
 module_i2c_driver(ssm4567_driver);

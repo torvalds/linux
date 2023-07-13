@@ -117,6 +117,7 @@ config S390
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	select ARCH_SUPPORTS_HUGETLBFS
+	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128 && CC_IS_CLANG
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_USE_BUILTIN_BSWAP
@@ -469,19 +470,11 @@ config SCHED_SMT
 config SCHED_MC
 	def_bool n
 
-config SCHED_BOOK
-	def_bool n
-
-config SCHED_DRAWER
-	def_bool n
-
 config SCHED_TOPOLOGY
 	def_bool y
 	prompt "Topology scheduler support"
 	select SCHED_SMT
 	select SCHED_MC
-	select SCHED_BOOK
-	select SCHED_DRAWER
 	help
 	  Topology scheduler support improves the CPU scheduler's decision
 	  making when dealing with machines that have multi-threading,
@@ -716,7 +709,6 @@ config EADM_SCH
 config VFIO_CCW
 	def_tristate n
 	prompt "Support for VFIO-CCW subchannels"
-	depends on S390_CCW_IOMMU
 	depends on VFIO
 	select VFIO_MDEV
 	help
@@ -728,7 +720,7 @@ config VFIO_CCW
 config VFIO_AP
 	def_tristate n
 	prompt "VFIO support for AP devices"
-	depends on S390_AP_IOMMU && KVM
+	depends on KVM
 	depends on VFIO
 	depends on ZCRYPT
 	select VFIO_MDEV

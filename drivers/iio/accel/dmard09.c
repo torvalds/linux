@@ -135,7 +135,7 @@ static struct i2c_driver dmard09_driver = {
 	.driver = {
 		.name = DMARD09_DRV_NAME
 	},
-	.probe_new = dmard09_probe,
+	.probe = dmard09_probe,
 	.id_table = dmard09_id,
 };
 

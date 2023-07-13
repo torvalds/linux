@@ -165,8 +165,7 @@ Most GPIO controllers can be accessed with memory read/write instructions.
 Those don't need to sleep, and can safely be done from inside hard
 (nonthreaded) IRQ handlers and similar contexts.
 
-Use the following calls to access such GPIOs,
-for which gpio_cansleep() will always return false (see below)::
+Use the following calls to access such GPIOs::
 
 	/* GPIO INPUT:  return zero or nonzero */
 	int gpio_get_value(unsigned gpio);
@@ -200,13 +199,6 @@ Some GPIO controllers must be accessed using message based busses like I2C
 or SPI.  Commands to read or write those GPIO values require waiting to
 get to the head of a queue to transmit a command and get its response.
 This requires sleeping, which can't be done from inside IRQ handlers.
-
-Platforms that support this type of GPIO distinguish them from other GPIOs
-by returning nonzero from this call (which requires a valid GPIO number,
-which should have been previously allocated with gpio_request)::
-
-	int gpio_cansleep(unsigned gpio);
-
 To access such GPIOs, a different set of accessors is defined::
 
 	/* GPIO INPUT:  return zero or nonzero, might sleep */
@@ -214,7 +206,6 @@ To access such GPIOs, a different set of accessors is defined::
 
 	/* GPIO OUTPUT, might sleep */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
-
 
 Accessing such GPIOs requires a context which may sleep,  for example
 a threaded IRQ handler, and those accessors must be used instead of
@@ -319,11 +310,6 @@ where 'flags' is currently defined to specify the following properties:
 
 	* GPIOF_INIT_LOW	- as output, set initial level to LOW
 	* GPIOF_INIT_HIGH	- as output, set initial level to HIGH
-	* GPIOF_OPEN_DRAIN	- gpio pin is open drain type.
-	* GPIOF_OPEN_SOURCE	- gpio pin is open source type.
-
-	* GPIOF_EXPORT_DIR_FIXED	- export gpio to sysfs, keep direction
-	* GPIOF_EXPORT_DIR_CHANGEABLE	- also export, allow changing direction
 
 since GPIOF_INIT_* are only valid when configured as output, so group valid
 combinations as:
@@ -331,20 +317,6 @@ combinations as:
 	* GPIOF_IN		- configure as input
 	* GPIOF_OUT_INIT_LOW	- configured as output, initial level LOW
 	* GPIOF_OUT_INIT_HIGH	- configured as output, initial level HIGH
-
-When setting the flag as GPIOF_OPEN_DRAIN then it will assume that pins is
-open drain type. Such pins will not be driven to 1 in output mode. It is
-require to connect pull-up on such pins. By enabling this flag, gpio lib will
-make the direction to input when it is asked to set value of 1 in output mode
-to make the pin HIGH. The pin is make to LOW by driving value 0 in output mode.
-
-When setting the flag as GPIOF_OPEN_SOURCE then it will assume that pins is
-open source type. Such pins will not be driven to 0 in output mode. It is
-require to connect pull-down on such pin. By enabling this flag, gpio lib will
-make the direction to input when it is asked to set value of 0 in output mode
-to make the pin LOW. The pin is make to HIGH by driving value 1 in output mode.
-
-In the future, these flags can be extended to support more properties.
 
 Further more, to ease the claim/release of multiple GPIOs, 'struct gpio' is
 introduced to encapsulate all three fields as::
@@ -556,7 +528,6 @@ code, which always dispatches through the gpio_chip::
 
   #define gpio_get_value	__gpio_get_value
   #define gpio_set_value	__gpio_set_value
-  #define gpio_cansleep		__gpio_cansleep
 
 Fancier implementations could instead define those as inline functions with
 logic optimizing access to specific SOC-based GPIOs.  For example, if the

@@ -27,7 +27,7 @@ MODULE_DEVICE_TABLE(of, ath10k_ahb_of_match);
 
 static inline struct ath10k_ahb *ath10k_ahb_priv(struct ath10k *ar)
 {
-	return &((struct ath10k_pci *)ar->drv_priv)->ahb[0];
+	return &ath10k_pci_priv(ar)->ahb[0];
 }
 
 static void ath10k_ahb_write32(struct ath10k *ar, u32 offset, u32 value)
@@ -816,23 +816,13 @@ err_resource_deinit:
 
 err_core_destroy:
 	ath10k_core_destroy(ar);
-	platform_set_drvdata(pdev, NULL);
 
 	return ret;
 }
 
-static int ath10k_ahb_remove(struct platform_device *pdev)
+static void ath10k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
-	struct ath10k_ahb *ar_ahb;
-
-	if (!ar)
-		return -EINVAL;
-
-	ar_ahb = ath10k_ahb_priv(ar);
-
-	if (!ar_ahb)
-		return -EINVAL;
 
 	ath10k_dbg(ar, ATH10K_DBG_AHB, "ahb remove\n");
 
@@ -844,10 +834,6 @@ static int ath10k_ahb_remove(struct platform_device *pdev)
 	ath10k_ahb_clock_disable(ar);
 	ath10k_ahb_resource_deinit(ar);
 	ath10k_core_destroy(ar);
-
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static struct platform_driver ath10k_ahb_driver = {
@@ -856,7 +842,7 @@ static struct platform_driver ath10k_ahb_driver = {
 		.of_match_table = ath10k_ahb_of_match,
 	},
 	.probe  = ath10k_ahb_probe,
-	.remove = ath10k_ahb_remove,
+	.remove_new = ath10k_ahb_remove,
 };
 
 int ath10k_ahb_init(void)

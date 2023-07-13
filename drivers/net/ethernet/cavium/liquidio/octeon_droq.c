@@ -107,6 +107,7 @@ u32 octeon_droq_check_hw_for_pkts(struct octeon_droq *droq)
 
 	return last_count;
 }
+EXPORT_SYMBOL_GPL(octeon_droq_check_hw_for_pkts);
 
 static void octeon_droq_compute_max_packet_bufs(struct octeon_droq *droq)
 {
@@ -216,6 +217,7 @@ int octeon_delete_droq(struct octeon_device *oct, u32 q_no)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_delete_droq);
 
 int octeon_init_droq(struct octeon_device *oct,
 		     u32 q_no,
@@ -773,6 +775,7 @@ octeon_droq_process_packets(struct octeon_device *oct,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_droq_process_packets);
 
 /*
  * Utility function to poll for packets. check_hw_for_packets must be
@@ -921,6 +924,7 @@ int octeon_unregister_droq_ops(struct octeon_device *oct, u32 q_no)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(octeon_unregister_droq_ops);
 
 int octeon_create_droq(struct octeon_device *oct,
 		       u32 q_no, u32 num_descs,

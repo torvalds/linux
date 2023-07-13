@@ -105,6 +105,16 @@ static void amdgpu_mux_resubmit_chunks(struct amdgpu_ring_mux *mux)
 				amdgpu_fence_update_start_timestamp(e->ring,
 								    chunk->sync_seq,
 								    ktime_get());
+				if (chunk->sync_seq ==
+					le32_to_cpu(*(e->ring->fence_drv.cpu_addr + 2))) {
+					if (chunk->cntl_offset <= e->ring->buf_mask)
+						amdgpu_ring_patch_cntl(e->ring,
+								       chunk->cntl_offset);
+					if (chunk->ce_offset <= e->ring->buf_mask)
+						amdgpu_ring_patch_ce(e->ring, chunk->ce_offset);
+					if (chunk->de_offset <= e->ring->buf_mask)
+						amdgpu_ring_patch_de(e->ring, chunk->de_offset);
+				}
 				amdgpu_ring_mux_copy_pkt_from_sw_ring(mux, e->ring,
 								      chunk->start,
 								      chunk->end);
@@ -407,6 +417,20 @@ void amdgpu_sw_ring_ib_end(struct amdgpu_ring *ring)
 	amdgpu_ring_mux_end_ib(mux, ring);
 }
 
+void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring, enum amdgpu_ring_mux_offset_type type)
+{
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_ring_mux *mux = &adev->gfx.muxer;
+	unsigned offset;
+
+	if (ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT)
+		return;
+
+	offset = ring->wptr & ring->buf_mask;
+
+	amdgpu_ring_mux_ib_mark_offset(mux, ring, offset, type);
+}
+
 void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *ring)
 {
 	struct amdgpu_mux_entry *e;
@@ -429,6 +453,10 @@ void amdgpu_ring_mux_start_ib(struct amdgpu_ring_mux *mux, struct amdgpu_ring *r
 	}
 
 	chunk->start = ring->wptr;
+	/* the initialized value used to check if they are set by the ib submission*/
+	chunk->cntl_offset = ring->buf_mask + 1;
+	chunk->de_offset = ring->buf_mask + 1;
+	chunk->ce_offset = ring->buf_mask + 1;
 	list_add_tail(&chunk->entry, &e->list);
 }
 
@@ -451,6 +479,41 @@ static void scan_and_remove_signaled_chunk(struct amdgpu_ring_mux *mux, struct a
 			list_del(&chunk->entry);
 			kmem_cache_free(amdgpu_mux_chunk_slab, chunk);
 		}
+	}
+}
+
+void amdgpu_ring_mux_ib_mark_offset(struct amdgpu_ring_mux *mux,
+				    struct amdgpu_ring *ring, u64 offset,
+				    enum amdgpu_ring_mux_offset_type type)
+{
+	struct amdgpu_mux_entry *e;
+	struct amdgpu_mux_chunk *chunk;
+
+	e = amdgpu_ring_mux_sw_entry(mux, ring);
+	if (!e) {
+		DRM_ERROR("cannot find entry!\n");
+		return;
+	}
+
+	chunk = list_last_entry(&e->list, struct amdgpu_mux_chunk, entry);
+	if (!chunk) {
+		DRM_ERROR("cannot find chunk!\n");
+		return;
+	}
+
+	switch (type) {
+	case AMDGPU_MUX_OFFSET_TYPE_CONTROL:
+		chunk->cntl_offset = offset;
+		break;
+	case AMDGPU_MUX_OFFSET_TYPE_DE:
+		chunk->de_offset = offset;
+		break;
+	case AMDGPU_MUX_OFFSET_TYPE_CE:
+		chunk->ce_offset = offset;
+		break;
+	default:
+		DRM_ERROR("invalid type (%d)\n", type);
+		break;
 	}
 }
 

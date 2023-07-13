@@ -77,9 +77,9 @@ static const unsigned long	nlm_grace_period_min = 0;
 static const unsigned long	nlm_grace_period_max = 240;
 static const unsigned long	nlm_timeout_min = 3;
 static const unsigned long	nlm_timeout_max = 20;
-static const int		nlm_port_min = 0, nlm_port_max = 65535;
 
 #ifdef CONFIG_SYSCTL
+static const int		nlm_port_min = 0, nlm_port_max = 65535;
 static struct ctl_table_header * nlm_sysctl_table;
 #endif
 
@@ -355,7 +355,6 @@ static int lockd_get(void)
 	int error;
 
 	if (nlmsvc_serv) {
-		svc_get(nlmsvc_serv);
 		nlmsvc_users++;
 		return 0;
 	}

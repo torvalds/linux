@@ -608,7 +608,7 @@ static const struct regmap_config twl6040_regmap_config = {
 	.volatile_reg = twl6040_volatile_reg,
 	.writeable_reg = twl6040_writeable_reg,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -829,7 +829,7 @@ static struct i2c_driver twl6040_driver = {
 	.driver = {
 		.name = "twl6040",
 	},
-	.probe_new	= twl6040_probe,
+	.probe		= twl6040_probe,
 	.remove		= twl6040_remove,
 	.id_table	= twl6040_i2c_id,
 };

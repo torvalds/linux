@@ -470,7 +470,7 @@ static struct i2c_driver sx8654_driver = {
 		.of_match_table = of_match_ptr(sx8654_of_match),
 	},
 	.id_table = sx8654_id_table,
-	.probe_new = sx8654_probe,
+	.probe = sx8654_probe,
 };
 module_i2c_driver(sx8654_driver);
 

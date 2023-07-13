@@ -66,11 +66,10 @@ static noinstr u64 xen_sched_clock(void)
         struct pvclock_vcpu_time_info *src;
 	u64 ret;
 
-	preempt_disable_notrace();
 	src = &__this_cpu_read(xen_vcpu)->time;
 	ret = pvclock_clocksource_read_nowd(src);
 	ret -= xen_sched_clock_offset;
-	preempt_enable_notrace();
+
 	return ret;
 }
 

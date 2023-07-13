@@ -187,7 +187,7 @@ SYM_FUNC_START(__vmx_vcpu_run)
 	_ASM_EXTABLE(.Lvmresume, .Lfixup)
 	_ASM_EXTABLE(.Lvmlaunch, .Lfixup)
 
-SYM_INNER_LABEL(vmx_vmexit, SYM_L_GLOBAL)
+SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
 
 	/* Restore unwind state from before the VMRESUME/VMLAUNCH. */
 	UNWIND_HINT_RESTORE

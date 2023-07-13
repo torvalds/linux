@@ -454,7 +454,7 @@ static struct i2c_driver sensor_emc1403 = {
 		.name = "emc1403",
 	},
 	.detect = emc1403_detect,
-	.probe_new = emc1403_probe,
+	.probe = emc1403_probe,
 	.id_table = emc1403_idtable,
 	.address_list = emc1403_address_list,
 };

@@ -121,10 +121,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	set_linux_timer(get_linux_timer());
 	evt->event_handler(evt);
-
-	/* Allow platform to do something useful (Wdog). */
-	platform_heartbeat();
-
 	return IRQ_HANDLED;
 }
 

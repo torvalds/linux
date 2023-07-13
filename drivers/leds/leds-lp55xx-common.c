@@ -18,6 +18,7 @@
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
+#include <dt-bindings/leds/leds-lp55xx.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -689,6 +690,14 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 			return ERR_PTR(-EINVAL);
 		}
 		i++;
+	}
+
+	if (of_property_read_u32(np, "ti,charge-pump-mode", &pdata->charge_pump_mode))
+		pdata->charge_pump_mode = LP55XX_CP_AUTO;
+
+	if (pdata->charge_pump_mode > LP55XX_CP_AUTO) {
+		dev_err(dev, "invalid charge pump mode %d\n", pdata->charge_pump_mode);
+		return ERR_PTR(-EINVAL);
 	}
 
 	of_property_read_string(np, "label", &pdata->label);

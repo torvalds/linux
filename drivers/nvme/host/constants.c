@@ -12,7 +12,7 @@ static const char * const nvme_ops[] = {
 	[nvme_cmd_read] = "Read",
 	[nvme_cmd_write_uncor] = "Write Uncorrectable",
 	[nvme_cmd_compare] = "Compare",
-	[nvme_cmd_write_zeroes] = "Write Zeros",
+	[nvme_cmd_write_zeroes] = "Write Zeroes",
 	[nvme_cmd_dsm] = "Dataset Management",
 	[nvme_cmd_verify] = "Verify",
 	[nvme_cmd_resv_register] = "Reservation Register",
@@ -21,7 +21,7 @@ static const char * const nvme_ops[] = {
 	[nvme_cmd_resv_release] = "Reservation Release",
 	[nvme_cmd_zone_mgmt_send] = "Zone Management Send",
 	[nvme_cmd_zone_mgmt_recv] = "Zone Management Receive",
-	[nvme_cmd_zone_append] = "Zone Management Append",
+	[nvme_cmd_zone_append] = "Zone Append",
 };
 
 static const char * const nvme_admin_ops[] = {

@@ -209,7 +209,7 @@ static struct i2c_driver cs53l32a_driver = {
 	.driver = {
 		.name	= "cs53l32a",
 	},
-	.probe_new	= cs53l32a_probe,
+	.probe		= cs53l32a_probe,
 	.remove		= cs53l32a_remove,
 	.id_table	= cs53l32a_id,
 };

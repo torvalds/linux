@@ -110,7 +110,7 @@ amd_validate_add_page(unsigned long base, unsigned long size, unsigned int type)
 }
 
 const struct mtrr_ops amd_mtrr_ops = {
-	.vendor            = X86_VENDOR_AMD,
+	.var_regs          = 2,
 	.set               = amd_set_mtrr,
 	.get               = amd_get_mtrr,
 	.get_free_region   = generic_get_free_region,

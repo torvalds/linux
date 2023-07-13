@@ -18,14 +18,14 @@ struct test_data {
 	const char *asm_rep;
 };
 
-struct test_data test_data_32[] = {
+const struct test_data test_data_32[] = {
 #include "insn-x86-dat-32.c"
 	{{0x0f, 0x01, 0xee}, 3, 0, NULL, NULL, "0f 01 ee             \trdpkru"},
 	{{0x0f, 0x01, 0xef}, 3, 0, NULL, NULL, "0f 01 ef             \twrpkru"},
 	{{0}, 0, 0, NULL, NULL, NULL},
 };
 
-struct test_data test_data_64[] = {
+const struct test_data test_data_64[] = {
 #include "insn-x86-dat-64.c"
 	{{0x0f, 0x01, 0xee}, 3, 0, NULL, NULL, "0f 01 ee             \trdpkru"},
 	{{0x0f, 0x01, 0xef}, 3, 0, NULL, NULL, "0f 01 ef             \twrpkru"},
@@ -97,7 +97,7 @@ static int get_branch(const char *branch_str)
 	return -1;
 }
 
-static int test_data_item(struct test_data *dat, int x86_64)
+static int test_data_item(const struct test_data *dat, int x86_64)
 {
 	struct intel_pt_insn intel_pt_insn;
 	int op, branch, ret;
@@ -147,9 +147,9 @@ static int test_data_item(struct test_data *dat, int x86_64)
 	return 0;
 }
 
-static int test_data_set(struct test_data *dat_set, int x86_64)
+static int test_data_set(const struct test_data *dat_set, int x86_64)
 {
-	struct test_data *dat;
+	const struct test_data *dat;
 	int ret = 0;
 
 	for (dat = dat_set; dat->expected_length; dat++) {

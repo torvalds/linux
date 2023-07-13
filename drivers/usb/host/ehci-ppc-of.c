@@ -184,7 +184,7 @@ err_irq:
 }
 
 
-static int ehci_hcd_ppc_of_remove(struct platform_device *op)
+static void ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(op);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -216,8 +216,6 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 		}
 	}
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 
@@ -232,7 +230,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 static struct platform_driver ehci_hcd_ppc_of_driver = {
 	.probe		= ehci_hcd_ppc_of_probe,
-	.remove		= ehci_hcd_ppc_of_remove,
+	.remove_new	= ehci_hcd_ppc_of_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ehci",

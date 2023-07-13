@@ -274,13 +274,6 @@ static int gpy_config_init(struct phy_device *phydev)
 	return ret < 0 ? ret : 0;
 }
 
-static bool gpy_has_broken_mdint(struct phy_device *phydev)
-{
-	/* At least these PHYs are known to have broken interrupt handling */
-	return phydev->drv->phy_id == PHY_ID_GPY215B ||
-	       phydev->drv->phy_id == PHY_ID_GPY215C;
-}
-
 static int gpy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -300,8 +293,7 @@ static int gpy_probe(struct phy_device *phydev)
 	phydev->priv = priv;
 	mutex_init(&priv->mbox_lock);
 
-	if (gpy_has_broken_mdint(phydev) &&
-	    !device_property_present(dev, "maxlinear,use-broken-interrupts"))
+	if (!device_property_present(dev, "maxlinear,use-broken-interrupts"))
 		phydev->dev_flags |= PHY_F_NO_IRQ;
 
 	fw_version = phy_read(phydev, PHY_FWV);
@@ -659,11 +651,9 @@ static irqreturn_t gpy_handle_interrupt(struct phy_device *phydev)
 	 * frame. Therefore, polling is the best we can do and won't do any more
 	 * harm.
 	 * It was observed that this bug happens on link state and link speed
-	 * changes on a GPY215B and GYP215C independent of the firmware version
-	 * (which doesn't mean that this list is exhaustive).
+	 * changes independent of the firmware version.
 	 */
-	if (gpy_has_broken_mdint(phydev) &&
-	    (reg & (PHY_IMASK_LSTC | PHY_IMASK_LSPC))) {
+	if (reg & (PHY_IMASK_LSTC | PHY_IMASK_LSPC)) {
 		reg = gpy_mbox_read(phydev, REG_GPIO0_OUT);
 		if (reg < 0) {
 			phy_error(phydev);

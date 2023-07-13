@@ -1412,8 +1412,7 @@ static int af9005_fe_get_frontend(struct dvb_frontend *fe,
 
 static void af9005_fe_release(struct dvb_frontend *fe)
 {
-	struct af9005_fe_state *state =
-	    (struct af9005_fe_state *)fe->demodulator_priv;
+	struct af9005_fe_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 

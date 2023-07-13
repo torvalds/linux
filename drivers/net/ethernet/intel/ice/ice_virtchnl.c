@@ -3730,7 +3730,6 @@ static int ice_vc_repr_add_mac(struct ice_vf *vf, u8 *msg)
 
 	for (i = 0; i < al->num_elements; i++) {
 		u8 *mac_addr = al->list[i].addr;
-		int result;
 
 		if (!is_unicast_ether_addr(mac_addr) ||
 		    ether_addr_equal(mac_addr, vf->hw_lan_addr))
@@ -3739,13 +3738,6 @@ static int ice_vc_repr_add_mac(struct ice_vf *vf, u8 *msg)
 		if (vf->pf_set_mac) {
 			dev_err(ice_pf_to_dev(pf), "VF attempting to override administratively set MAC address\n");
 			v_ret = VIRTCHNL_STATUS_ERR_NOT_SUPPORTED;
-			goto handle_mac_exit;
-		}
-
-		result = ice_eswitch_add_vf_mac_rule(pf, vf, mac_addr);
-		if (result) {
-			dev_err(ice_pf_to_dev(pf), "Failed to add MAC %pM for VF %d\n, error %d\n",
-				mac_addr, vf->vf_id, result);
 			goto handle_mac_exit;
 		}
 
@@ -3955,6 +3947,7 @@ error_handler:
 		ice_vc_notify_vf_link_state(vf);
 		break;
 	case VIRTCHNL_OP_RESET_VF:
+		clear_bit(ICE_VF_STATE_ACTIVE, vf->vf_states);
 		ops->reset_vf(vf);
 		break;
 	case VIRTCHNL_OP_ADD_ETH_ADDR:

@@ -559,7 +559,7 @@ static struct i2c_driver adm1025_driver = {
 	.driver = {
 		.name	= "adm1025",
 	},
-	.probe_new	= adm1025_probe,
+	.probe		= adm1025_probe,
 	.id_table	= adm1025_id,
 	.detect		= adm1025_detect,
 	.address_list	= normal_i2c,

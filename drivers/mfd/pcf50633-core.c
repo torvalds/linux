@@ -282,7 +282,7 @@ static struct i2c_driver pcf50633_driver = {
 		.pm	= pm_sleep_ptr(&pcf50633_pm),
 	},
 	.id_table = pcf50633_id_table,
-	.probe_new = pcf50633_probe,
+	.probe = pcf50633_probe,
 	.remove = pcf50633_remove,
 };
 

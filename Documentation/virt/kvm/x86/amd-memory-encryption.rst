@@ -57,7 +57,7 @@ information, see the SEV Key Management spec [api-spec]_
 
 The main ioctl to access SEV is KVM_MEMORY_ENCRYPT_OP.  If the argument
 to KVM_MEMORY_ENCRYPT_OP is NULL, the ioctl returns 0 if SEV is enabled
-and ``ENOTTY` if it is disabled (on some older versions of Linux,
+and ``ENOTTY`` if it is disabled (on some older versions of Linux,
 the ioctl runs normally even with a NULL argument, and therefore will
 likely return ``EFAULT``).  If non-NULL, the argument to KVM_MEMORY_ENCRYPT_OP
 must be a struct kvm_sev_cmd::

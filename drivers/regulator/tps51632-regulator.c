@@ -354,7 +354,7 @@ static struct i2c_driver tps51632_i2c_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps51632_of_match),
 	},
-	.probe_new = tps51632_probe,
+	.probe = tps51632_probe,
 	.id_table = tps51632_id,
 };
 

@@ -480,7 +480,7 @@ static struct i2c_driver stv6110x_driver = {
 		.name	= "stv6110x",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= stv6110x_probe,
+	.probe		= stv6110x_probe,
 	.remove		= stv6110x_remove,
 	.id_table	= stv6110x_id_table,
 };

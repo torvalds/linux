@@ -278,11 +278,6 @@ struct perf_session *__perf_session__new(struct perf_data *data,
 	return ERR_PTR(ret);
 }
 
-static void perf_session__delete_threads(struct perf_session *session)
-{
-	machine__delete_threads(&session->machines.host);
-}
-
 static void perf_decomp__release_events(struct decomp *next)
 {
 	struct decomp *decomp;
@@ -305,7 +300,6 @@ void perf_session__delete(struct perf_session *session)
 	auxtrace__free(session);
 	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
-	perf_session__delete_threads(session);
 	perf_decomp__release_events(session->decomp_data.decomp);
 	perf_env__exit(&session->header.env);
 	machines__exit(&session->machines);
@@ -2807,7 +2801,7 @@ static int perf_session__set_guest_cpu(struct perf_session *session, pid_t pid,
 
 	if (!thread)
 		return -ENOMEM;
-	thread->guest_cpu = guest_cpu;
+	thread__set_guest_cpu(thread, guest_cpu);
 	thread__put(thread);
 
 	return 0;

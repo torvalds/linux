@@ -478,7 +478,7 @@ static struct i2c_driver max8997_i2c_driver = {
 		   .suppress_bind_attrs = true,
 		   .of_match_table = of_match_ptr(max8997_pmic_dt_match),
 	},
-	.probe_new = max8997_i2c_probe,
+	.probe = max8997_i2c_probe,
 	.id_table = max8997_i2c_id,
 };
 

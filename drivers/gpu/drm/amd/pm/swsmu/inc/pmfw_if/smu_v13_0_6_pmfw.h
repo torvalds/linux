@@ -123,9 +123,9 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x1
+#define SMU_METRICS_TABLE_VERSION 0x5
 
-typedef struct {
+typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
 
   //TEMPERATURE
@@ -198,11 +198,20 @@ typedef struct {
   uint32_t SocketThmResidencyAcc;
   uint32_t VrThmResidencyAcc;
   uint32_t HbmThmResidencyAcc;
+  uint32_t spare;
+
+  // New Items at end to maintain driver compatibility
+  uint32_t GfxclkFrequency[8];
+
+  //PSNs
+  uint64_t PublicSerialNumber_AID[4];
+  uint64_t PublicSerialNumber_XCD[8];
+  uint64_t PublicSerialNumber_CCD[12];
 } MetricsTable_t;
 
-#define SMU_VF_METRICS_TABLE_VERSION 0x1
+#define SMU_VF_METRICS_TABLE_VERSION 0x3
 
-typedef struct {
+typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
   uint32_t InstGfxclk_TargFreq;
   uint64_t AccGfxclk_TargFreq;

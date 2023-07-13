@@ -57,12 +57,19 @@ struct kmap {
 };
 
 struct maps *maps__new(struct machine *machine);
-void maps__delete(struct maps *maps);
 bool maps__empty(struct maps *maps);
 int maps__clone(struct thread *thread, struct maps *parent);
 
 struct maps *maps__get(struct maps *maps);
 void maps__put(struct maps *maps);
+
+static inline void __maps__zput(struct maps **map)
+{
+	maps__put(*map);
+	*map = NULL;
+}
+
+#define maps__zput(map) __maps__zput(&map)
 
 static inline struct rb_root *maps__entries(struct maps *maps)
 {

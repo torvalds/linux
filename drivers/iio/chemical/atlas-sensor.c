@@ -767,7 +767,7 @@ static struct i2c_driver atlas_driver = {
 		.of_match_table	= atlas_dt_ids,
 		.pm	= pm_ptr(&atlas_pm_ops),
 	},
-	.probe_new	= atlas_probe,
+	.probe		= atlas_probe,
 	.remove		= atlas_remove,
 	.id_table	= atlas_id,
 };

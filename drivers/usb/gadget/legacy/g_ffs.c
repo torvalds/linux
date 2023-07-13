@@ -389,8 +389,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		struct usb_descriptor_header *usb_desc;
 
 		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
-		if (!usb_desc)
+		if (!usb_desc) {
+			ret = -ENOMEM;
 			goto error_rndis;
+		}
 		usb_otg_descriptor_init(cdev->gadget, usb_desc);
 		gfs_otg_desc[0] = usb_desc;
 		gfs_otg_desc[1] = NULL;

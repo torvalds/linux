@@ -13,6 +13,7 @@ Contents
 - `Drivers`_
 - `Basic packet flow`_
 - `Devlink health reporters`_
+- `Quality of service`_
 
 Overview
 ========
@@ -287,3 +288,47 @@ For example::
 	 NIX_AF_ERR:
 	        NIX Error Interrupt Reg : 64
 	        Rx on unmapped PF_FUNC
+
+
+Quality of service
+==================
+
+
+Hardware algorithms used in scheduling
+--------------------------------------
+
+octeontx2 silicon and CN10K transmit interface consists of five transmit levels
+starting from SMQ/MDQ, TL4 to TL1. Each packet will traverse MDQ, TL4 to TL1
+levels. Each level contains an array of queues to support scheduling and shaping.
+The hardware uses the below algorithms depending on the priority of scheduler queues.
+once the usercreates tc classes with different priorities, the driver configures
+schedulers allocated to the class with specified priority along with rate-limiting
+configuration.
+
+1. Strict Priority
+
+      -  Once packets are submitted to MDQ, hardware picks all active MDQs having different priority
+         using strict priority.
+
+2. Round Robin
+
+      - Active MDQs having the same priority level are chosen using round robin.
+
+
+Setup HTB offload
+-----------------
+
+1. Enable HW TC offload on the interface::
+
+        # ethtool -K <interface> hw-tc-offload on
+
+2. Crate htb root::
+
+        # tc qdisc add dev <interface> clsact
+        # tc qdisc replace dev <interface> root handle 1: htb offload
+
+3. Create tc classes with different priorities::
+
+        # tc class add dev <interface> parent 1: classid 1:1 htb rate 10Gbit prio 1
+
+        # tc class add dev <interface> parent 1: classid 1:2 htb rate 10Gbit prio 7

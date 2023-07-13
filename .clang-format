@@ -254,6 +254,7 @@ ForEachMacros:
   - 'for_each_free_mem_range'
   - 'for_each_free_mem_range_reverse'
   - 'for_each_func_rsrc'
+  - 'for_each_group_device'
   - 'for_each_group_evsel'
   - 'for_each_group_member'
   - 'for_each_hstate'

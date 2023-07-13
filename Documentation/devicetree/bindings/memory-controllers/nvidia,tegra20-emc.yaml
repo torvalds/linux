@@ -165,7 +165,7 @@ patternProperties:
         const: 0
 
       lpddr2:
-        $ref: "ddr/jedec,lpddr2.yaml#"
+        $ref: ddr/jedec,lpddr2.yaml#
         type: object
 
     patternProperties:

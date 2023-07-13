@@ -23,8 +23,7 @@
 #include <linux/dma-direct.h>
 
 #include "internal.h"
-
-extern struct acpi_device *acpi_root;
+#include "sleep.h"
 
 #define ACPI_BUS_CLASS			"system_bus"
 #define ACPI_BUS_HID			"LNXSYBUS"
@@ -930,26 +929,29 @@ static int acpi_bus_extract_wakeup_device_power_package(struct acpi_device *dev)
 	return err;
 }
 
+/* Do not use a button for S5 wakeup */
+#define ACPI_AVOID_WAKE_FROM_S5		BIT(0)
+
 static bool acpi_wakeup_gpe_init(struct acpi_device *device)
 {
 	static const struct acpi_device_id button_device_ids[] = {
-		{"PNP0C0C", 0},		/* Power button */
-		{"PNP0C0D", 0},		/* Lid */
-		{"PNP0C0E", 0},		/* Sleep button */
+		{"PNP0C0C", 0},				/* Power button */
+		{"PNP0C0D", ACPI_AVOID_WAKE_FROM_S5},	/* Lid */
+		{"PNP0C0E", ACPI_AVOID_WAKE_FROM_S5},	/* Sleep button */
 		{"", 0},
 	};
 	struct acpi_device_wakeup *wakeup = &device->wakeup;
+	const struct acpi_device_id *match;
 	acpi_status status;
 
 	wakeup->flags.notifier_present = 0;
 
 	/* Power button, Lid switch always enable wakeup */
-	if (!acpi_match_device_ids(device, button_device_ids)) {
-		if (!acpi_match_device_ids(device, &button_device_ids[1])) {
-			/* Do not use Lid/sleep button for S5 wakeup */
-			if (wakeup->sleep_state == ACPI_STATE_S5)
-				wakeup->sleep_state = ACPI_STATE_S4;
-		}
+	match = acpi_match_acpi_device(button_device_ids, device);
+	if (match) {
+		if ((match->driver_data & ACPI_AVOID_WAKE_FROM_S5) &&
+		    wakeup->sleep_state == ACPI_STATE_S5)
+			wakeup->sleep_state = ACPI_STATE_S4;
 		acpi_mark_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
 		device_set_wakeup_capable(&device->dev, true);
 		return true;
@@ -2029,8 +2031,6 @@ static u32 acpi_scan_check_dep(acpi_handle handle, bool check_dep)
 	return count;
 }
 
-static bool acpi_bus_scan_second_pass;
-
 static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 				      struct acpi_device **adev_p)
 {
@@ -2050,10 +2050,8 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, bool check_dep,
 			return AE_OK;
 
 		/* Bail out if there are dependencies. */
-		if (acpi_scan_check_dep(handle, check_dep) > 0) {
-			acpi_bus_scan_second_pass = true;
+		if (acpi_scan_check_dep(handle, check_dep) > 0)
 			return AE_CTRL_DEPTH;
-		}
 
 		fallthrough;
 	case ACPI_TYPE_ANY:	/* for ACPI_ROOT_OBJECT */
@@ -2301,6 +2299,12 @@ static bool acpi_scan_clear_dep_queue(struct acpi_device *adev)
 	return true;
 }
 
+static void acpi_scan_delete_dep_data(struct acpi_dep_data *dep)
+{
+	list_del(&dep->node);
+	kfree(dep);
+}
+
 static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
 {
 	struct acpi_device *adev = acpi_get_acpi_dev(dep->consumer);
@@ -2311,8 +2315,10 @@ static int acpi_scan_clear_dep(struct acpi_dep_data *dep, void *data)
 			acpi_dev_put(adev);
 	}
 
-	list_del(&dep->node);
-	kfree(dep);
+	if (dep->free_when_met)
+		acpi_scan_delete_dep_data(dep);
+	else
+		dep->met = true;
 
 	return 0;
 }
@@ -2406,6 +2412,55 @@ struct acpi_device *acpi_dev_get_next_consumer_dev(struct acpi_device *supplier,
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_next_consumer_dev);
 
+static void acpi_scan_postponed_branch(acpi_handle handle)
+{
+	struct acpi_device *adev = NULL;
+
+	if (ACPI_FAILURE(acpi_bus_check_add(handle, false, &adev)))
+		return;
+
+	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+			    acpi_bus_check_add_2, NULL, NULL, (void **)&adev);
+	acpi_bus_attach(adev, NULL);
+}
+
+static void acpi_scan_postponed(void)
+{
+	struct acpi_dep_data *dep, *tmp;
+
+	mutex_lock(&acpi_dep_list_lock);
+
+	list_for_each_entry_safe(dep, tmp, &acpi_dep_list, node) {
+		acpi_handle handle = dep->consumer;
+
+		/*
+		 * In case there are multiple acpi_dep_list entries with the
+		 * same consumer, skip the current entry if the consumer device
+		 * object corresponding to it is present already.
+		 */
+		if (!acpi_fetch_acpi_dev(handle)) {
+			/*
+			 * Even though the lock is released here, tmp is
+			 * guaranteed to be valid, because none of the list
+			 * entries following dep is marked as "free when met"
+			 * and so they cannot be deleted.
+			 */
+			mutex_unlock(&acpi_dep_list_lock);
+
+			acpi_scan_postponed_branch(handle);
+
+			mutex_lock(&acpi_dep_list_lock);
+		}
+
+		if (dep->met)
+			acpi_scan_delete_dep_data(dep);
+		else
+			dep->free_when_met = true;
+	}
+
+	mutex_unlock(&acpi_dep_list_lock);
+}
+
 /**
  * acpi_bus_scan - Add ACPI device node objects in a given namespace scope.
  * @handle: Root of the namespace scope to scan.
@@ -2424,8 +2479,6 @@ int acpi_bus_scan(acpi_handle handle)
 {
 	struct acpi_device *device = NULL;
 
-	acpi_bus_scan_second_pass = false;
-
 	/* Pass 1: Avoid enumerating devices with missing dependencies. */
 
 	if (ACPI_SUCCESS(acpi_bus_check_add(handle, true, &device)))
@@ -2438,19 +2491,9 @@ int acpi_bus_scan(acpi_handle handle)
 
 	acpi_bus_attach(device, (void *)true);
 
-	if (!acpi_bus_scan_second_pass)
-		return 0;
-
 	/* Pass 2: Enumerate all of the remaining devices. */
 
-	device = NULL;
-
-	if (ACPI_SUCCESS(acpi_bus_check_add(handle, false, &device)))
-		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_check_add_2, NULL, NULL,
-				    (void **)&device);
-
-	acpi_bus_attach(device, NULL);
+	acpi_scan_postponed();
 
 	return 0;
 }

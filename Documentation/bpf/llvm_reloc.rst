@@ -48,7 +48,7 @@ the code with ``llvm-objdump -dr test.o``::
       14:       0f 10 00 00 00 00 00 00 r0 += r1
       15:       95 00 00 00 00 00 00 00 exit
 
-There are four relations in the above for four ``LD_imm64`` instructions.
+There are four relocations in the above for four ``LD_imm64`` instructions.
 The following ``llvm-readelf -r test.o`` shows the binary values of the four
 relocations::
 
@@ -79,14 +79,16 @@ The following is the symbol table with ``llvm-readelf -s test.o``::
 The 6th entry is global variable ``g1`` with value 0.
 
 Similarly, the second relocation is at ``.text`` offset ``0x18``, instruction 3,
-for global variable ``g2`` which has a symbol value 4, the offset
-from the start of ``.data`` section.
+has a type of ``R_BPF_64_64`` and refers to entry 7 in the symbol table.
+The second relocation resolves to global variable ``g2`` which has a symbol
+value 4. The symbol value represents the offset from the start of ``.data``
+section where the initial value of the global variable ``g2`` is stored.
 
-The third and fourth relocations refers to static variables ``l1``
-and ``l2``. From ``.rel.text`` section above, it is not clear
-which symbols they really refers to as they both refers to
+The third and fourth relocations refer to static variables ``l1``
+and ``l2``. From the ``.rel.text`` section above, it is not clear
+to which symbols they really refer as they both refer to
 symbol table entry 4, symbol ``sec``, which has ``STT_SECTION`` type
-and represents a section. So for static variable or function,
+and represents a section. So for a static variable or function,
 the section offset is written to the original insn
 buffer, which is called ``A`` (addend). Looking at
 above insn ``7`` and ``11``, they have section offset ``8`` and ``12``.

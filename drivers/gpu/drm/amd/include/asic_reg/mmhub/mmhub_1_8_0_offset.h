@@ -1491,6 +1491,10 @@
 #define regMMEA0_PERFCOUNTER1_CFG_BASE_IDX                                                              0
 #define regMMEA0_PERFCOUNTER_RSLT_CNTL                                                                  0x0400
 #define regMMEA0_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                         0
+#define regMMEA0_UE_ERR_STATUS_LO                                                                       0x0406
+#define regMMEA0_UE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regMMEA0_UE_ERR_STATUS_HI                                                                       0x0407
+#define regMMEA0_UE_ERR_STATUS_HI_BASE_IDX                                                              0
 #define regMMEA0_DSM_CNTL                                                                               0x0408
 #define regMMEA0_DSM_CNTL_BASE_IDX                                                                      0
 #define regMMEA0_DSM_CNTLA                                                                              0x0409
@@ -1511,8 +1515,12 @@
 #define regMMEA0_ERR_STATUS_BASE_IDX                                                                    0
 #define regMMEA0_MISC2                                                                                  0x0412
 #define regMMEA0_MISC2_BASE_IDX                                                                         0
+#define regMMEA0_CE_ERR_STATUS_LO                                                                       0x0414
+#define regMMEA0_CE_ERR_STATUS_LO_BASE_IDX                                                              0
 #define regMMEA0_MISC_AON                                                                               0x0415
 #define regMMEA0_MISC_AON_BASE_IDX                                                                      0
+#define regMMEA0_CE_ERR_STATUS_HI                                                                       0x0416
+#define regMMEA0_CE_ERR_STATUS_HI_BASE_IDX                                                              0
 
 
 // addressBlock: aid_mmhub_ea_mmeadec1
@@ -1709,6 +1717,10 @@
 #define regMMEA1_PERFCOUNTER1_CFG_BASE_IDX                                                              0
 #define regMMEA1_PERFCOUNTER_RSLT_CNTL                                                                  0x0540
 #define regMMEA1_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                         0
+#define regMMEA1_UE_ERR_STATUS_LO                                                                       0x0546
+#define regMMEA1_UE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regMMEA1_UE_ERR_STATUS_HI                                                                       0x0547
+#define regMMEA1_UE_ERR_STATUS_HI_BASE_IDX                                                              0
 #define regMMEA1_DSM_CNTL                                                                               0x0548
 #define regMMEA1_DSM_CNTL_BASE_IDX                                                                      0
 #define regMMEA1_DSM_CNTLA                                                                              0x0549
@@ -1729,8 +1741,12 @@
 #define regMMEA1_ERR_STATUS_BASE_IDX                                                                    0
 #define regMMEA1_MISC2                                                                                  0x0552
 #define regMMEA1_MISC2_BASE_IDX                                                                         0
+#define regMMEA1_CE_ERR_STATUS_LO                                                                       0x0554
+#define regMMEA1_CE_ERR_STATUS_LO_BASE_IDX                                                              0
 #define regMMEA1_MISC_AON                                                                               0x0555
 #define regMMEA1_MISC_AON_BASE_IDX                                                                      0
+#define regMMEA1_CE_ERR_STATUS_HI                                                                       0x0556
+#define regMMEA1_CE_ERR_STATUS_HI_BASE_IDX                                                              0
 
 
 // addressBlock: aid_mmhub_ea_mmeadec2
@@ -1927,6 +1943,10 @@
 #define regMMEA2_PERFCOUNTER1_CFG_BASE_IDX                                                              0
 #define regMMEA2_PERFCOUNTER_RSLT_CNTL                                                                  0x0680
 #define regMMEA2_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                         0
+#define regMMEA2_UE_ERR_STATUS_LO                                                                       0x0686
+#define regMMEA2_UE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regMMEA2_UE_ERR_STATUS_HI                                                                       0x0687
+#define regMMEA2_UE_ERR_STATUS_HI_BASE_IDX                                                              0
 #define regMMEA2_DSM_CNTL                                                                               0x0688
 #define regMMEA2_DSM_CNTL_BASE_IDX                                                                      0
 #define regMMEA2_DSM_CNTLA                                                                              0x0689
@@ -1947,8 +1967,12 @@
 #define regMMEA2_ERR_STATUS_BASE_IDX                                                                    0
 #define regMMEA2_MISC2                                                                                  0x0692
 #define regMMEA2_MISC2_BASE_IDX                                                                         0
+#define regMMEA2_CE_ERR_STATUS_LO                                                                       0x0694
+#define regMMEA2_CE_ERR_STATUS_LO_BASE_IDX                                                              0
 #define regMMEA2_MISC_AON                                                                               0x0695
 #define regMMEA2_MISC_AON_BASE_IDX                                                                      0
+#define regMMEA2_CE_ERR_STATUS_HI                                                                       0x0696
+#define regMMEA2_CE_ERR_STATUS_HI_BASE_IDX                                                              0
 
 
 // addressBlock: aid_mmhub_ea_mmeadec3
@@ -2145,6 +2169,10 @@
 #define regMMEA3_PERFCOUNTER1_CFG_BASE_IDX                                                              0
 #define regMMEA3_PERFCOUNTER_RSLT_CNTL                                                                  0x07c0
 #define regMMEA3_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                         0
+#define regMMEA3_UE_ERR_STATUS_LO                                                                       0x07c6
+#define regMMEA3_UE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regMMEA3_UE_ERR_STATUS_HI                                                                       0x07c7
+#define regMMEA3_UE_ERR_STATUS_HI_BASE_IDX                                                              0
 #define regMMEA3_DSM_CNTL                                                                               0x07c8
 #define regMMEA3_DSM_CNTL_BASE_IDX                                                                      0
 #define regMMEA3_DSM_CNTLA                                                                              0x07c9
@@ -2165,9 +2193,12 @@
 #define regMMEA3_ERR_STATUS_BASE_IDX                                                                    0
 #define regMMEA3_MISC2                                                                                  0x07d2
 #define regMMEA3_MISC2_BASE_IDX                                                                         0
+#define regMMEA3_CE_ERR_STATUS_LO                                                                       0x07d4
+#define regMMEA3_CE_ERR_STATUS_LO_BASE_IDX                                                              0
 #define regMMEA3_MISC_AON                                                                               0x07d5
 #define regMMEA3_MISC_AON_BASE_IDX                                                                      0
-
+#define regMMEA3_CE_ERR_STATUS_HI                                                                       0x07d6
+#define regMMEA3_CE_ERR_STATUS_HI_BASE_IDX                                                              0
 
 // addressBlock: aid_mmhub_ea_mmeadec4
 // base address: 0x62000
@@ -2363,6 +2394,10 @@
 #define regMMEA4_PERFCOUNTER1_CFG_BASE_IDX                                                              0
 #define regMMEA4_PERFCOUNTER_RSLT_CNTL                                                                  0x0900
 #define regMMEA4_PERFCOUNTER_RSLT_CNTL_BASE_IDX                                                         0
+#define regMMEA4_UE_ERR_STATUS_LO                                                                       0x0906
+#define regMMEA4_UE_ERR_STATUS_LO_BASE_IDX                                                              0
+#define regMMEA4_UE_ERR_STATUS_HI                                                                       0x0907
+#define regMMEA4_UE_ERR_STATUS_HI_BASE_IDX                                                              0
 #define regMMEA4_DSM_CNTL                                                                               0x0908
 #define regMMEA4_DSM_CNTL_BASE_IDX                                                                      0
 #define regMMEA4_DSM_CNTLA                                                                              0x0909
@@ -2383,9 +2418,12 @@
 #define regMMEA4_ERR_STATUS_BASE_IDX                                                                    0
 #define regMMEA4_MISC2                                                                                  0x0912
 #define regMMEA4_MISC2_BASE_IDX                                                                         0
+#define regMMEA4_CE_ERR_STATUS_LO                                                                       0x0914
+#define regMMEA4_CE_ERR_STATUS_LO_BASE_IDX                                                              0
 #define regMMEA4_MISC_AON                                                                               0x0915
 #define regMMEA4_MISC_AON_BASE_IDX                                                                      0
-
+#define regMMEA4_CE_ERR_STATUS_HI                                                                       0x0916
+#define regMMEA4_CE_ERR_STATUS_HI_BASE_IDX                                                              0
 
 // addressBlock: aid_mmhub_pctldec0
 // base address: 0x62a00
@@ -3310,5 +3348,19 @@
 #define regL2TLB_PERFCOUNTER_HI                                                                         0x0d2d
 #define regL2TLB_PERFCOUNTER_HI_BASE_IDX                                                                0
 
+// addressBlock: aid_mmhub_mm_cane_mmcanedec
+// base address: 0x635f0
+#define regMM_CANE_ICG_CTRL                                                                             0x0d8a
+#define regMM_CANE_ICG_CTRL_BASE_IDX                                                                    0
+#define regMM_CANE_ERR_STATUS                                                                           0x0d8c
+#define regMM_CANE_ERR_STATUS_BASE_IDX                                                                  0
+#define regMM_CANE_UE_ERR_STATUS_LO                                                                     0x0d8d
+#define regMM_CANE_UE_ERR_STATUS_LO_BASE_IDX                                                            0
+#define regMM_CANE_UE_ERR_STATUS_HI                                                                     0x0d8e
+#define regMM_CANE_UE_ERR_STATUS_HI_BASE_IDX                                                            0
+#define regMM_CANE_CE_ERR_STATUS_LO                                                                     0x0d8f
+#define regMM_CANE_CE_ERR_STATUS_LO_BASE_IDX                                                            0
+#define regMM_CANE_CE_ERR_STATUS_HI                                                                     0x0d90
+#define regMM_CANE_CE_ERR_STATUS_HI_BASE_IDX                                                            0
 
 #endif

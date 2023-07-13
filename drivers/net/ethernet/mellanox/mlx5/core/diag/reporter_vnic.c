@@ -76,6 +76,16 @@ int mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
 	if (err)
 		return err;
 
+	err = devlink_fmsg_u64_pair_put(fmsg, "generated_pkt_steering_fail",
+					VNIC_ENV_GET64(&vnic, generated_pkt_steering_fail));
+	if (err)
+		return err;
+
+	err = devlink_fmsg_u64_pair_put(fmsg, "handled_pkt_steering_fail",
+					VNIC_ENV_GET64(&vnic, handled_pkt_steering_fail));
+	if (err)
+		return err;
+
 	err = devlink_fmsg_obj_nest_end(fmsg);
 	if (err)
 		return err;

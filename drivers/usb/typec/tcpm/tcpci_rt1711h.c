@@ -412,7 +412,7 @@ static struct i2c_driver rt1711h_i2c_driver = {
 		.name = "rt1711h",
 		.of_match_table = of_match_ptr(rt1711h_of_match),
 	},
-	.probe_new = rt1711h_probe,
+	.probe = rt1711h_probe,
 	.remove = rt1711h_remove,
 	.id_table = rt1711h_id,
 };

@@ -369,7 +369,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_STOP:
 		/* invoke platform trigger to stop DMA even if pcm_ops isn't set or if it failed */
-		if (!pcm_ops || (pcm_ops && !pcm_ops->platform_stop_during_hw_free))
+		if (!pcm_ops || !pcm_ops->platform_stop_during_hw_free)
 			snd_sof_pcm_platform_trigger(sdev, substream, cmd);
 		break;
 	default:
@@ -643,16 +643,17 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 				       "%s/%s",
 				       plat_data->tplg_filename_prefix,
 				       plat_data->tplg_filename);
-	if (!tplg_filename)
-		return -ENOMEM;
-
-	ret = snd_sof_load_topology(component, tplg_filename);
-	if (ret < 0) {
-		dev_err(component->dev, "error: failed to load DSP topology %d\n",
-			ret);
-		return ret;
+	if (!tplg_filename) {
+		ret = -ENOMEM;
+		goto pm_error;
 	}
 
+	ret = snd_sof_load_topology(component, tplg_filename);
+	if (ret < 0)
+		dev_err(component->dev, "error: failed to load DSP topology %d\n",
+			ret);
+
+pm_error:
 	pm_runtime_mark_last_busy(component->dev);
 	pm_runtime_put_autosuspend(component->dev);
 

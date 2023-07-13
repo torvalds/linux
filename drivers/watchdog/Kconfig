@@ -304,6 +304,24 @@ config XILINX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called of_xilinx_wdt.
 
+config XILINX_WINDOW_WATCHDOG
+	tristate "Xilinx window watchdog timer"
+	depends on HAS_IOMEM
+	depends on ARM64
+	select WATCHDOG_CORE
+	help
+	  Window watchdog driver for the versal_wwdt IP core.
+	  Window watchdog timer(WWDT) contains closed(first) and
+	  open(second) window with 32 bit width. Write to the watchdog
+	  timer within predefined window periods of time. This means
+	  a period that is not too soon and a period that is not too
+	  late. The WWDT has to be restarted within the open window time.
+	  If software tries to restart WWDT outside of the open window
+	  time period, it generates a reset.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xilinx_wwdt.
+
 config ZIIRAVE_WATCHDOG
 	tristate "Zodiac RAVE Watchdog Timer"
 	depends on I2C

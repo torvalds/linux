@@ -3,6 +3,30 @@
 #include <linux/err.h>
 
 #ifdef CONFIG_RISCV_ISA_SVNAPOT
+pte_t huge_ptep_get(pte_t *ptep)
+{
+	unsigned long pte_num;
+	int i;
+	pte_t orig_pte = ptep_get(ptep);
+
+	if (!pte_present(orig_pte) || !pte_napot(orig_pte))
+		return orig_pte;
+
+	pte_num = napot_pte_num(napot_cont_order(orig_pte));
+
+	for (i = 0; i < pte_num; i++, ptep++) {
+		pte_t pte = ptep_get(ptep);
+
+		if (pte_dirty(pte))
+			orig_pte = pte_mkdirty(orig_pte);
+
+		if (pte_young(pte))
+			orig_pte = pte_mkyoung(orig_pte);
+	}
+
+	return orig_pte;
+}
+
 pte_t *huge_pte_alloc(struct mm_struct *mm,
 		      struct vm_area_struct *vma,
 		      unsigned long addr,
@@ -43,13 +67,17 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 
 	for_each_napot_order(order) {
 		if (napot_cont_size(order) == sz) {
-			pte = pte_alloc_map(mm, pmd, addr & napot_cont_mask(order));
+			pte = pte_alloc_huge(mm, pmd, addr & napot_cont_mask(order));
 			break;
 		}
 	}
 
 out:
-	WARN_ON_ONCE(pte && pte_present(*pte) && !pte_huge(*pte));
+	if (pte) {
+		pte_t pteval = ptep_get_lockless(pte);
+
+		WARN_ON_ONCE(pte_present(pteval) && !pte_huge(pteval));
+	}
 	return pte;
 }
 
@@ -90,7 +118,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 	for_each_napot_order(order) {
 		if (napot_cont_size(order) == sz) {
-			pte = pte_offset_kernel(pmd, addr & napot_cont_mask(order));
+			pte = pte_offset_huge(pmd, addr & napot_cont_mask(order));
 			break;
 		}
 	}
@@ -218,6 +246,7 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 {
 	pte_t pte = ptep_get(ptep);
 	unsigned long order;
+	pte_t orig_pte;
 	int i, pte_num;
 
 	if (!pte_napot(pte)) {
@@ -228,9 +257,12 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	order = napot_cont_order(pte);
 	pte_num = napot_pte_num(order);
 	ptep = huge_pte_offset(mm, addr, napot_cont_size(order));
+	orig_pte = get_clear_contig_flush(mm, addr, ptep, pte_num);
+
+	orig_pte = pte_wrprotect(orig_pte);
 
 	for (i = 0; i < pte_num; i++, addr += PAGE_SIZE, ptep++)
-		ptep_set_wrprotect(mm, addr, ptep);
+		set_pte_at(mm, addr, ptep, orig_pte);
 }
 
 pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,

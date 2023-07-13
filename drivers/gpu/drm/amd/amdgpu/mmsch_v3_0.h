@@ -30,6 +30,8 @@
 #define MMSCH_VERSION_MINOR	0
 #define MMSCH_VERSION	(MMSCH_VERSION_MAJOR << 16 | MMSCH_VERSION_MINOR)
 
+#define MMSCH_V3_0_VCN_INSTANCES 0x2
+
 enum mmsch_v3_0_command_type {
 	MMSCH_COMMAND__DIRECT_REG_WRITE = 0,
 	MMSCH_COMMAND__DIRECT_REG_POLLING = 2,
@@ -47,7 +49,7 @@ struct mmsch_v3_0_table_info {
 struct mmsch_v3_0_init_header {
 	uint32_t version;
 	uint32_t total_size;
-	struct mmsch_v3_0_table_info inst[AMDGPU_MAX_VCN_INSTANCES];
+	struct mmsch_v3_0_table_info inst[MMSCH_V3_0_VCN_INSTANCES];
 };
 
 struct mmsch_v3_0_cmd_direct_reg_header {

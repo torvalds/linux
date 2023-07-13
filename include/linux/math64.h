@@ -168,7 +168,7 @@ static __always_inline u64 mul_u64_u32_shr(u64 a, u32 mul, unsigned int shift)
 #endif /* mul_u64_u32_shr */
 
 #ifndef mul_u64_u64_shr
-static inline u64 mul_u64_u64_shr(u64 a, u64 mul, unsigned int shift)
+static __always_inline u64 mul_u64_u64_shr(u64 a, u64 mul, unsigned int shift)
 {
 	return (u64)(((unsigned __int128)a * mul) >> shift);
 }

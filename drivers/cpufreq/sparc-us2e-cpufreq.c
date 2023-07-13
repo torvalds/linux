@@ -20,8 +20,6 @@
 #include <asm/asi.h>
 #include <asm/timer.h>
 
-static struct cpufreq_driver *cpufreq_us2e_driver;
-
 struct us2e_freq_percpu_info {
 	struct cpufreq_frequency_table table[6];
 };
@@ -300,11 +298,18 @@ static int __init us2e_freq_cpu_init(struct cpufreq_policy *policy)
 
 static int us2e_freq_cpu_exit(struct cpufreq_policy *policy)
 {
-	if (cpufreq_us2e_driver)
-		us2e_freq_target(policy, 0);
-
+	us2e_freq_target(policy, 0);
 	return 0;
 }
+
+static struct cpufreq_driver cpufreq_us2e_driver = {
+	.name = "UltraSPARC-IIe",
+	.init = us2e_freq_cpu_init,
+	.verify = cpufreq_generic_frequency_table_verify,
+	.target_index = us2e_freq_target,
+	.get = us2e_freq_get,
+	.exit = us2e_freq_cpu_exit,
+};
 
 static int __init us2e_freq_init(void)
 {
@@ -319,39 +324,15 @@ static int __init us2e_freq_init(void)
 	impl  = ((ver >> 32) & 0xffff);
 
 	if (manuf == 0x17 && impl == 0x13) {
-		struct cpufreq_driver *driver;
-
-		ret = -ENOMEM;
-		driver = kzalloc(sizeof(*driver), GFP_KERNEL);
-		if (!driver)
-			goto err_out;
-
-		us2e_freq_table = kzalloc((NR_CPUS * sizeof(*us2e_freq_table)),
-			GFP_KERNEL);
+		us2e_freq_table = kzalloc(NR_CPUS * sizeof(*us2e_freq_table),
+					  GFP_KERNEL);
 		if (!us2e_freq_table)
-			goto err_out;
+			return -ENOMEM;
 
-		driver->init = us2e_freq_cpu_init;
-		driver->verify = cpufreq_generic_frequency_table_verify;
-		driver->target_index = us2e_freq_target;
-		driver->get = us2e_freq_get;
-		driver->exit = us2e_freq_cpu_exit;
-		strcpy(driver->name, "UltraSPARC-IIe");
-
-		cpufreq_us2e_driver = driver;
-		ret = cpufreq_register_driver(driver);
+		ret = cpufreq_register_driver(&cpufreq_us2e_driver);
 		if (ret)
-			goto err_out;
+			kfree(us2e_freq_table);
 
-		return 0;
-
-err_out:
-		if (driver) {
-			kfree(driver);
-			cpufreq_us2e_driver = NULL;
-		}
-		kfree(us2e_freq_table);
-		us2e_freq_table = NULL;
 		return ret;
 	}
 
@@ -360,13 +341,8 @@ err_out:
 
 static void __exit us2e_freq_exit(void)
 {
-	if (cpufreq_us2e_driver) {
-		cpufreq_unregister_driver(cpufreq_us2e_driver);
-		kfree(cpufreq_us2e_driver);
-		cpufreq_us2e_driver = NULL;
-		kfree(us2e_freq_table);
-		us2e_freq_table = NULL;
-	}
+	cpufreq_unregister_driver(&cpufreq_us2e_driver);
+	kfree(us2e_freq_table);
 }
 
 MODULE_AUTHOR("David S. Miller <davem@redhat.com>");

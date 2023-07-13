@@ -23,13 +23,48 @@
 #define RNM_PF_RANDOM		0x400
 #define RNM_TRNG_RESULT		0x408
 
+/* Extended TRNG Read and Status Registers */
+#define RNM_PF_TRNG_DAT		0x1000
+#define RNM_PF_TRNG_RES		0x1008
+
 struct cn10k_rng {
 	void __iomem *reg_base;
 	struct hwrng ops;
 	struct pci_dev *pdev;
+	/* Octeon CN10K-A A0/A1, CNF10K-A A0/A1 and CNF10K-B A0/B0
+	 * does not support extended TRNG registers
+	 */
+	bool extended_trng_regs;
 };
 
 #define PLAT_OCTEONTX_RESET_RNG_EBG_HEALTH_STATE     0xc2000b0f
+
+#define PCI_SUBSYS_DEVID_CN10K_A_RNG	0xB900
+#define PCI_SUBSYS_DEVID_CNF10K_A_RNG	0xBA00
+#define PCI_SUBSYS_DEVID_CNF10K_B_RNG	0xBC00
+
+static bool cn10k_is_extended_trng_regs_supported(struct pci_dev *pdev)
+{
+	/* CN10K-A A0/A1 */
+	if ((pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_A_RNG) &&
+	    (!pdev->revision || (pdev->revision & 0xff) == 0x50 ||
+	     (pdev->revision & 0xff) == 0x51))
+		return false;
+
+	/* CNF10K-A A0 */
+	if ((pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_A_RNG) &&
+	    (!pdev->revision || (pdev->revision & 0xff) == 0x60 ||
+	     (pdev->revision & 0xff) == 0x61))
+		return false;
+
+	/* CNF10K-B A0/B0 */
+	if ((pdev->subsystem_device == PCI_SUBSYS_DEVID_CNF10K_B_RNG) &&
+	    (!pdev->revision || (pdev->revision & 0xff) == 0x70 ||
+	     (pdev->revision & 0xff) == 0x74))
+		return false;
+
+	return true;
+}
 
 static unsigned long reset_rng_health_state(struct cn10k_rng *rng)
 {
@@ -63,9 +98,23 @@ static int check_rng_health(struct cn10k_rng *rng)
 	return 0;
 }
 
-static void cn10k_read_trng(struct cn10k_rng *rng, u64 *value)
+/* Returns true when valid data available otherwise return false */
+static bool cn10k_read_trng(struct cn10k_rng *rng, u64 *value)
 {
+	u16 retry_count = 0;
 	u64 upper, lower;
+	u64 status;
+
+	if (rng->extended_trng_regs) {
+		do {
+			*value = readq(rng->reg_base + RNM_PF_TRNG_DAT);
+			if (*value)
+				return true;
+			status = readq(rng->reg_base + RNM_PF_TRNG_RES);
+			if (!status && (retry_count++ > 0x1000))
+				return false;
+		} while (!status);
+	}
 
 	*value = readq(rng->reg_base + RNM_PF_RANDOM);
 
@@ -82,6 +131,7 @@ static void cn10k_read_trng(struct cn10k_rng *rng, u64 *value)
 
 		*value = (upper & 0xFFFFFFFF00000000) | (lower & 0xFFFFFFFF);
 	}
+	return true;
 }
 
 static int cn10k_rng_read(struct hwrng *hwrng, void *data,
@@ -100,7 +150,8 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 	size = max;
 
 	while (size >= 8) {
-		cn10k_read_trng(rng, &value);
+		if (!cn10k_read_trng(rng, &value))
+			goto out;
 
 		*((u64 *)pos) = value;
 		size -= 8;
@@ -108,7 +159,8 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 	}
 
 	if (size > 0) {
-		cn10k_read_trng(rng, &value);
+		if (!cn10k_read_trng(rng, &value))
+			goto out;
 
 		while (size > 0) {
 			*pos = (u8)value;
@@ -118,6 +170,7 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 		}
 	}
 
+out:
 	return max - size;
 }
 
@@ -144,8 +197,10 @@ static int cn10k_rng_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!rng->ops.name)
 		return -ENOMEM;
 
-	rng->ops.read    = cn10k_rng_read;
+	rng->ops.read = cn10k_rng_read;
 	rng->ops.priv = (unsigned long)rng;
+
+	rng->extended_trng_regs = cn10k_is_extended_trng_regs_supported(pdev);
 
 	reset_rng_health_state(rng);
 

@@ -438,7 +438,7 @@ static void metronomefb_dpy_update(struct metronomefb_par *par)
 {
 	int fbsize;
 	u16 cksum;
-	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
+	unsigned char *buf = par->info->screen_buffer;
 
 	fbsize = par->info->fix.smem_len;
 	/* copy from vm to metromem */
@@ -453,7 +453,7 @@ static u16 metronomefb_dpy_update_page(struct metronomefb_par *par, int index)
 {
 	int i;
 	u16 csum = 0;
-	u16 *buf = (u16 __force *)(par->info->screen_base + index);
+	u16 *buf = (u16 *)(par->info->screen_buffer + index);
 	u16 *img = (u16 *)(par->metromem_img + index);
 
 	/* swizzle from vm to metromem and recalc cksum at the same time*/
@@ -523,8 +523,8 @@ static ssize_t metronomefb_write(struct fb_info *info, const char __user *buf,
 	int err = 0;
 	unsigned long total_size;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!info->screen_buffer)
+		return -ENODEV;
 
 	total_size = info->fix.smem_len;
 
@@ -543,7 +543,7 @@ static ssize_t metronomefb_write(struct fb_info *info, const char __user *buf,
 		count = total_size - p;
 	}
 
-	dst = (void __force *)(info->screen_base + p);
+	dst = info->screen_buffer + p;
 
 	if (copy_from_user(dst, buf, count))
 		err = -EFAULT;
@@ -599,7 +599,7 @@ static int metronomefb_probe(struct platform_device *dev)
 		goto err;
 
 	/* we have two blocks of memory.
-	info->screen_base which is vm, and is the fb used by apps.
+	info->screen_buffer which is vm, and is the fb used by apps.
 	par->metromem which is physically contiguous memory and
 	contains the display controller commands, waveform,
 	processed image data and padding. this is the data pulled
@@ -634,7 +634,7 @@ static int metronomefb_probe(struct platform_device *dev)
 	if (!videomemory)
 		goto err_fb_rel;
 
-	info->screen_base = (char __force __iomem *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &metronomefb_ops;
 
 	metronomefb_fix.line_length = fw;
@@ -756,7 +756,7 @@ static void metronomefb_remove(struct platform_device *dev)
 		fb_dealloc_cmap(&info->cmap);
 		par->board->cleanup(par);
 		vfree(par->csum_table);
-		vfree((void __force *)info->screen_base);
+		vfree(info->screen_buffer);
 		module_put(par->board->owner);
 		dev_dbg(&dev->dev, "calling release\n");
 		framebuffer_release(info);
@@ -778,3 +778,5 @@ MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
 MODULE_DESCRIPTION("fbdev driver for Metronome controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("metronome.wbf");

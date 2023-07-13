@@ -73,19 +73,19 @@
 };
 
 &main_pmx0 {
-	vddshv_sdio_pins_default: vddshv-sdio-pins-default {
+	vddshv_sdio_pins_default: vddshv-sdio-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x07c, PIN_OUTPUT, 7) /* (M19) GPMC0_CLK.GPIO0_31 */
 		>;
 	};
 
-	main_gpio1_ioexp_intr_pins_default: main-gpio1-ioexp-intr-pins-default {
+	main_gpio1_ioexp_intr_pins_default: main-gpio1-ioexp-intr-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01d4, PIN_INPUT, 7) /* (C13) UART0_RTSn.GPIO1_23 */
 		>;
 	};
 
-	pmic_irq_pins_default: pmic-irq-pins-default {
+	pmic_irq_pins_default: pmic-irq-default-pins {
 		pinctrl-single,pins = <
 			AM62X_IOPAD(0x01f4, PIN_INPUT, 0) /* (B16) EXTINTn */
 		>;

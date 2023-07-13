@@ -570,7 +570,7 @@ static void vfio_fsl_mc_release_dev(struct vfio_device *core_vdev)
 	mutex_destroy(&vdev->igate);
 }
 
-static int vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)
+static void vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
 	struct vfio_fsl_mc_device *vdev = dev_get_drvdata(dev);
@@ -578,7 +578,6 @@ static int vfio_fsl_mc_remove(struct fsl_mc_device *mc_dev)
 	vfio_unregister_group_dev(&vdev->vdev);
 	dprc_remove_devices(mc_dev, NULL, 0);
 	vfio_put_device(&vdev->vdev);
-	return 0;
 }
 
 static const struct vfio_device_ops vfio_fsl_mc_ops = {

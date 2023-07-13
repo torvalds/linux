@@ -2369,7 +2369,7 @@ static int usba_udc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int usba_udc_remove(struct platform_device *pdev)
+static void usba_udc_remove(struct platform_device *pdev)
 {
 	struct usba_udc *udc;
 	int i;
@@ -2382,8 +2382,6 @@ static int usba_udc_remove(struct platform_device *pdev)
 	for (i = 1; i < udc->num_ep; i++)
 		usba_ep_cleanup_debugfs(&udc->usba_ep[i]);
 	usba_cleanup_debugfs(udc);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2450,7 +2448,7 @@ static SIMPLE_DEV_PM_OPS(usba_udc_pm_ops, usba_udc_suspend, usba_udc_resume);
 
 static struct platform_driver udc_driver = {
 	.probe		= usba_udc_probe,
-	.remove		= usba_udc_remove,
+	.remove_new	= usba_udc_remove,
 	.driver		= {
 		.name		= "atmel_usba_udc",
 		.pm		= &usba_udc_pm_ops,

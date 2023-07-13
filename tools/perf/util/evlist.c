@@ -28,10 +28,10 @@
 #include "util/string2.h"
 #include "util/perf_api_probe.h"
 #include "util/evsel_fprintf.h"
-#include "util/evlist-hybrid.h"
 #include "util/pmu.h"
 #include "util/sample.h"
 #include "util/bpf-filter.h"
+#include "util/stat.h"
 #include "util/util.h"
 #include <signal.h>
 #include <unistd.h>
@@ -93,8 +93,15 @@ struct evlist *evlist__new(void)
 struct evlist *evlist__new_default(void)
 {
 	struct evlist *evlist = evlist__new();
+	bool can_profile_kernel;
+	int err;
 
-	if (evlist && evlist__add_default(evlist)) {
+	if (!evlist)
+		return NULL;
+
+	can_profile_kernel = perf_event_paranoid_check(1);
+	err = parse_event(evlist, can_profile_kernel ? "cycles:P" : "cycles:Pu");
+	if (err) {
 		evlist__delete(evlist);
 		evlist = NULL;
 	}
@@ -165,6 +172,7 @@ void evlist__delete(struct evlist *evlist)
 	if (evlist == NULL)
 		return;
 
+	evlist__free_stats(evlist);
 	evlist__munmap(evlist);
 	evlist__close(evlist);
 	evlist__purge(evlist);
@@ -235,19 +243,6 @@ out:
 static void evlist__set_leader(struct evlist *evlist)
 {
 	perf_evlist__set_leader(&evlist->core);
-}
-
-int __evlist__add_default(struct evlist *evlist, bool precise)
-{
-	struct evsel *evsel;
-
-	evsel = evsel__new_cycles(precise, PERF_TYPE_HARDWARE,
-				  PERF_COUNT_HW_CPU_CYCLES);
-	if (evsel == NULL)
-		return -ENOMEM;
-
-	evlist__add(evlist, evsel);
-	return 0;
 }
 
 static struct evsel *evlist__dummy_event(struct evlist *evlist)
@@ -1067,7 +1062,7 @@ int evlist__create_maps(struct evlist *evlist, struct target *target)
 	if (!cpus)
 		goto out_delete_threads;
 
-	evlist->core.has_user_cpus = !!target->cpu_list && !target->hybrid;
+	evlist->core.has_user_cpus = !!target->cpu_list;
 
 	perf_evlist__set_maps(&evlist->core, cpus, threads);
 
@@ -2464,4 +2459,43 @@ void evlist__check_mem_load_aux(struct evlist *evlist)
 			}
 		}
 	}
+}
+
+/**
+ * evlist__warn_user_requested_cpus() - Check each evsel against requested CPUs
+ *     and warn if the user CPU list is inapplicable for the event's PMU's
+ *     CPUs. Not core PMUs list a CPU in sysfs, but this may be overwritten by a
+ *     user requested CPU and so any online CPU is applicable. Core PMUs handle
+ *     events on the CPUs in their list and otherwise the event isn't supported.
+ * @evlist: The list of events being checked.
+ * @cpu_list: The user provided list of CPUs.
+ */
+void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_list)
+{
+	struct perf_cpu_map *user_requested_cpus;
+	struct evsel *pos;
+
+	if (!cpu_list)
+		return;
+
+	user_requested_cpus = perf_cpu_map__new(cpu_list);
+	if (!user_requested_cpus)
+		return;
+
+	evlist__for_each_entry(evlist, pos) {
+		struct perf_cpu_map *intersect, *to_test;
+		const struct perf_pmu *pmu = evsel__find_pmu(pos);
+
+		to_test = pmu && pmu->is_core ? pmu->cpus : cpu_map__online();
+		intersect = perf_cpu_map__intersect(to_test, user_requested_cpus);
+		if (!perf_cpu_map__equal(intersect, user_requested_cpus)) {
+			char buf[128];
+
+			cpu_map__snprint(to_test, buf, sizeof(buf));
+			pr_warning("WARNING: A requested CPU in '%s' is not supported by PMU '%s' (CPUs %s) for event '%s'\n",
+				cpu_list, pmu ? pmu->name : "cpu", buf, evsel__name(pos));
+		}
+		perf_cpu_map__put(intersect);
+	}
+	perf_cpu_map__put(user_requested_cpus);
 }

@@ -74,7 +74,6 @@ int pm80x_init(struct i2c_client *client)
 	chip->irq = client->irq;
 
 	chip->dev = &client->dev;
-	dev_set_drvdata(chip->dev, chip);
 	i2c_set_clientdata(chip->client, chip);
 
 	ret = regmap_read(chip->regmap, PM80X_CHIP_ID, &val);

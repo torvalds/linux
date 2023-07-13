@@ -168,14 +168,14 @@ properties:
 patternProperties:
   "^mdio@[0-9a-f]+$":
     type: object
-    $ref: "ti,davinci-mdio.yaml#"
+    $ref: ti,davinci-mdio.yaml#
 
     description:
       CPSW MDIO bus.
 
   "^cpts@[0-9a-f]+":
     type: object
-    $ref: "ti,k3-am654-cpts.yaml#"
+    $ref: ti,k3-am654-cpts.yaml#
     description:
       CPSW Common Platform Time Sync (CPTS) module.
 

@@ -236,16 +236,23 @@ static struct notifier_block ftrace_suspend_notifier = {
 	.notifier_call = ftrace_suspend_notifier_call,
 };
 
+/* fgraph_ret_regs is not defined without CONFIG_FUNCTION_GRAPH_RETVAL */
+struct fgraph_ret_regs;
+
 /*
  * Send the trace to the ring-buffer.
  * @return the original return address.
  */
-unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
+static unsigned long __ftrace_return_to_handler(struct fgraph_ret_regs *ret_regs,
+						unsigned long frame_pointer)
 {
 	struct ftrace_graph_ret trace;
 	unsigned long ret;
 
 	ftrace_pop_return_trace(&trace, &ret, frame_pointer);
+#ifdef CONFIG_FUNCTION_GRAPH_RETVAL
+	trace.retval = fgraph_ret_regs_return_value(ret_regs);
+#endif
 	trace.rettime = trace_clock_local();
 	ftrace_graph_return(&trace);
 	/*
@@ -265,6 +272,23 @@ unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
 
 	return ret;
 }
+
+/*
+ * After all architecures have selected HAVE_FUNCTION_GRAPH_RETVAL, we can
+ * leave only ftrace_return_to_handler(ret_regs).
+ */
+#ifdef CONFIG_HAVE_FUNCTION_GRAPH_RETVAL
+unsigned long ftrace_return_to_handler(struct fgraph_ret_regs *ret_regs)
+{
+	return __ftrace_return_to_handler(ret_regs,
+				fgraph_ret_regs_frame_pointer(ret_regs));
+}
+#else
+unsigned long ftrace_return_to_handler(unsigned long frame_pointer)
+{
+	return __ftrace_return_to_handler(NULL, frame_pointer);
+}
+#endif
 
 /**
  * ftrace_graph_get_ret_stack - return the entry of the shadow stack

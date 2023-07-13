@@ -99,14 +99,15 @@ extern int tty_ldisc_autoload;
 
 /* tty_audit.c */
 #ifdef CONFIG_AUDIT
-void tty_audit_add_data(struct tty_struct *tty, const void *data, size_t size);
-void tty_audit_tiocsti(struct tty_struct *tty, char ch);
+void tty_audit_add_data(const struct tty_struct *tty, const void *data,
+			size_t size);
+void tty_audit_tiocsti(const struct tty_struct *tty, char ch);
 #else
-static inline void tty_audit_add_data(struct tty_struct *tty, const void *data,
-				      size_t size)
+static inline void tty_audit_add_data(const struct tty_struct *tty,
+				      const void *data, size_t size)
 {
 }
-static inline void tty_audit_tiocsti(struct tty_struct *tty, char ch)
+static inline void tty_audit_tiocsti(const struct tty_struct *tty, char ch)
 {
 }
 #endif

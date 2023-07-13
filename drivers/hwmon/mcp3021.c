@@ -198,7 +198,7 @@ static struct i2c_driver mcp3021_driver = {
 		.name = "mcp3021",
 		.of_match_table = of_match_ptr(of_mcp3021_match),
 	},
-	.probe_new = mcp3021_probe,
+	.probe = mcp3021_probe,
 	.id_table = mcp3021_id,
 };
 

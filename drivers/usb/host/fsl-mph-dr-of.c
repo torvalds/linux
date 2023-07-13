@@ -265,10 +265,9 @@ static int __unregister_subdev(struct device *dev, void *d)
 	return 0;
 }
 
-static int fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
+static void fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 {
 	device_for_each_child(&ofdev->dev, NULL, __unregister_subdev);
-	return 0;
 }
 
 #ifdef CONFIG_PPC_MPC512x
@@ -362,7 +361,7 @@ static struct platform_driver fsl_usb2_mph_dr_driver = {
 		.of_match_table = fsl_usb2_mph_dr_of_match,
 	},
 	.probe	= fsl_usb2_mph_dr_of_probe,
-	.remove	= fsl_usb2_mph_dr_of_remove,
+	.remove_new = fsl_usb2_mph_dr_of_remove,
 };
 
 module_platform_driver(fsl_usb2_mph_dr_driver);

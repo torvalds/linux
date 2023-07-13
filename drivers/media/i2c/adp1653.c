@@ -535,7 +535,7 @@ static struct i2c_driver adp1653_i2c_driver = {
 		.name	= ADP1653_NAME,
 		.pm	= &adp1653_pm_ops,
 	},
-	.probe_new	= adp1653_probe,
+	.probe		= adp1653_probe,
 	.remove		= adp1653_remove,
 	.id_table	= adp1653_id_table,
 };

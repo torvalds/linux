@@ -1,0 +1,3 @@
+cat <<EOF
+	return raw_xchg${order}(&v->counter, new);
+EOF

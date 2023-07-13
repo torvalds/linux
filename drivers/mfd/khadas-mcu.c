@@ -134,7 +134,7 @@ static struct i2c_driver khadas_mcu_driver = {
 		.name = "khadas-mcu-core",
 		.of_match_table = of_match_ptr(khadas_mcu_of_match),
 	},
-	.probe_new = khadas_mcu_probe,
+	.probe = khadas_mcu_probe,
 };
 module_i2c_driver(khadas_mcu_driver);
 

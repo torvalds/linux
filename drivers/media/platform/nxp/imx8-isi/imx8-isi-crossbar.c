@@ -223,7 +223,7 @@ static int mxc_isi_crossbar_init_cfg(struct v4l2_subdev *sd,
 		route->sink_pad = i;
 		route->source_pad = i + xbar->num_sinks;
 		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
-	};
+	}
 
 	routing.num_routes = xbar->num_sources;
 	routing.routes = routes;

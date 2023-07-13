@@ -13,8 +13,8 @@
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
+#include <linux/io.h>
 #include <asm/alternative.h>
-#include <asm/io.h>
 
 int spin_retry = -1;
 

@@ -13,6 +13,61 @@
 
 static struct cnqf_config config_store;
 
+#ifdef CONFIG_AMD_PMF_DEBUG
+static const char *state_as_str_cnqf(unsigned int state)
+{
+	switch (state) {
+	case APMF_CNQF_TURBO:
+		return "turbo";
+	case APMF_CNQF_PERFORMANCE:
+		return "performance";
+	case APMF_CNQF_BALANCE:
+		return "balance";
+	case APMF_CNQF_QUIET:
+		return "quiet";
+	default:
+		return "Unknown CnQF State";
+	}
+}
+
+static void amd_pmf_cnqf_dump_defaults(struct apmf_dyn_slider_output *data, int idx)
+{
+	int i;
+
+	pr_debug("Dynamic Slider %s Defaults - BEGIN\n", idx ? "DC" : "AC");
+	pr_debug("size: %u\n", data->size);
+	pr_debug("flags: 0x%x\n", data->flags);
+
+	/* Time constants */
+	pr_debug("t_perf_to_turbo: %u ms\n", data->t_perf_to_turbo);
+	pr_debug("t_balanced_to_perf: %u ms\n", data->t_balanced_to_perf);
+	pr_debug("t_quiet_to_balanced: %u ms\n", data->t_quiet_to_balanced);
+	pr_debug("t_balanced_to_quiet: %u ms\n", data->t_balanced_to_quiet);
+	pr_debug("t_perf_to_balanced: %u ms\n", data->t_perf_to_balanced);
+	pr_debug("t_turbo_to_perf: %u ms\n", data->t_turbo_to_perf);
+
+	for (i = 0 ; i < CNQF_MODE_MAX ; i++) {
+		pr_debug("pfloor_%s: %u mW\n", state_as_str_cnqf(i), data->ps[i].pfloor);
+		pr_debug("fppt_%s: %u mW\n", state_as_str_cnqf(i), data->ps[i].fppt);
+		pr_debug("sppt_%s: %u mW\n", state_as_str_cnqf(i), data->ps[i].sppt);
+		pr_debug("sppt_apuonly_%s: %u mW\n",
+			 state_as_str_cnqf(i), data->ps[i].sppt_apu_only);
+		pr_debug("spl_%s: %u mW\n", state_as_str_cnqf(i), data->ps[i].spl);
+		pr_debug("stt_minlimit_%s: %u mW\n",
+			 state_as_str_cnqf(i), data->ps[i].stt_min_limit);
+		pr_debug("stt_skintemp_apu_%s: %u C\n", state_as_str_cnqf(i),
+			 data->ps[i].stt_skintemp[STT_TEMP_APU]);
+		pr_debug("stt_skintemp_hs2_%s: %u C\n", state_as_str_cnqf(i),
+			 data->ps[i].stt_skintemp[STT_TEMP_HS2]);
+		pr_debug("fan_id_%s: %u\n", state_as_str_cnqf(i), data->ps[i].fan_id);
+	}
+
+	pr_debug("Dynamic Slider %s Defaults - END\n", idx ? "DC" : "AC");
+}
+#else
+static void amd_pmf_cnqf_dump_defaults(struct apmf_dyn_slider_output *data, int idx) {}
+#endif
+
 static int amd_pmf_set_cnqf(struct amd_pmf_dev *dev, int src, int idx,
 			    struct cnqf_config *table)
 {
@@ -120,6 +175,13 @@ int amd_pmf_trans_cnqf(struct amd_pmf_dev *dev, int socket_power, ktime_t time_l
 		config_store.trans_param[src][i].count++;
 
 		tp = &config_store.trans_param[src][i];
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+		dev_dbg(dev->dev, "avg_power: %u mW total_power: %u mW count: %u timer: %u ms\n",
+			avg_power, config_store.trans_param[src][i].total_power,
+			config_store.trans_param[src][i].count,
+			config_store.trans_param[src][i].timer);
+#endif
 		if (tp->timer >= tp->time_constant && tp->count) {
 			avg_power = tp->total_power / tp->count;
 
@@ -139,6 +201,18 @@ int amd_pmf_trans_cnqf(struct amd_pmf_dev *dev, int socket_power, ktime_t time_l
 
 	dev_dbg(dev->dev, "[CNQF] Avg power: %u mW socket power: %u mW mode:%s\n",
 		avg_power, socket_power, state_as_str(config_store.current_mode));
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+	dev_dbg(dev->dev, "[CNQF] priority1: %u priority2: %u priority3: %u\n",
+		config_store.trans_param[src][0].priority,
+		config_store.trans_param[src][1].priority,
+		config_store.trans_param[src][2].priority);
+
+	dev_dbg(dev->dev, "[CNQF] priority4: %u priority5: %u priority6: %u\n",
+		config_store.trans_param[src][3].priority,
+		config_store.trans_param[src][4].priority,
+		config_store.trans_param[src][5].priority);
+#endif
 
 	for (j = 0; j < CNQF_TRANSITION_MAX; j++) {
 		/* apply the highest priority */
@@ -284,6 +358,7 @@ static int amd_pmf_load_defaults_cnqf(struct amd_pmf_dev *dev)
 			return ret;
 		}
 
+		amd_pmf_cnqf_dump_defaults(&out, i);
 		amd_pmf_update_mode_set(i, &out);
 		amd_pmf_update_trans_data(i, &out);
 		amd_pmf_update_power_threshold(i);

@@ -10,7 +10,6 @@
 void rtw8852a_rck(struct rtw89_dev *rtwdev);
 void rtw8852a_dack(struct rtw89_dev *rtwdev);
 void rtw8852a_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
-void rtw8852a_iqk_track(struct rtw89_dev *rtwdev);
 void rtw8852a_rx_dck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
 		     bool is_afe);
 void rtw8852a_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy);

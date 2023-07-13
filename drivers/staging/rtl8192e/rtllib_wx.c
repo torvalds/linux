@@ -19,7 +19,7 @@
 #include "rtllib.h"
 
 static const char * const rtllib_modes[] = {
-	"a", "b", "g", "?", "N-24G", "N-5G"
+	"a", "b", "g", "?", "N-24G"
 };
 
 #define MAX_CUSTOM_LEN 64
@@ -118,7 +118,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 			max_rate = rate;
 	}
 
-	if (network->mode >= IEEE_N_24G) {
+	if (network->mode >= WIRELESS_MODE_N_24G) {
 		struct ht_capab_ele *ht_cap = NULL;
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;
@@ -416,22 +416,6 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 	 */
 	sec.flags |= SEC_LEVEL;
 	sec.level = SEC_LEVEL_1; /* 40 and 104 bit WEP */
-
-	if (ieee->set_security)
-		ieee->set_security(dev, &sec);
-
-	/* Do not reset port if card is in Managed mode since resetting will
-	 * generate new IEEE 802.11 authentication which may end up in looping
-	 * with IEEE 802.1X.  If your hardware requires a reset after WEP
-	 * configuration (for example... Prism2), implement the reset_port in
-	 * the callbacks structures used to initialize the 802.11 stack.
-	 */
-	if (ieee->reset_on_keychange &&
-	    ieee->iw_mode != IW_MODE_INFRA &&
-	    ieee->reset_port && ieee->reset_port(dev)) {
-		netdev_dbg(dev, "%s: reset_port failed\n", dev->name);
-		return -EINVAL;
-	}
 	return 0;
 }
 EXPORT_SYMBOL(rtllib_wx_set_encode);
@@ -623,15 +607,6 @@ int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
 			sec.flags &= ~SEC_LEVEL;
 	}
 done:
-	if (ieee->set_security)
-		ieee->set_security(ieee->dev, &sec);
-
-	if (ieee->reset_on_keychange &&
-	    ieee->iw_mode != IW_MODE_INFRA &&
-	    ieee->reset_port && ieee->reset_port(dev)) {
-		netdev_dbg(ieee->dev, "Port reset failed\n");
-		return -EINVAL;
-	}
 	return ret;
 }
 EXPORT_SYMBOL(rtllib_wx_set_encode_ext);
@@ -644,7 +619,7 @@ int rtllib_wx_set_mlme(struct rtllib_device *ieee,
 	bool deauth = false;
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 
-	if (ieee->state != RTLLIB_LINKED)
+	if (ieee->link_state != MAC80211_LINKED)
 		return -ENOLINK;
 
 	mutex_lock(&ieee->wx_mutex);

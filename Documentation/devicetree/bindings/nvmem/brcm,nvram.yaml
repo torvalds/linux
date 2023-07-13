@@ -36,14 +36,29 @@ properties:
   et0macaddr:
     type: object
     description: First Ethernet interface's MAC address
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
+    additionalProperties: false
 
   et1macaddr:
     type: object
     description: Second Ethernet interface's MAC address
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
+    additionalProperties: false
 
   et2macaddr:
     type: object
     description: Third Ethernet interface's MAC address
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
+    additionalProperties: false
 
 unevaluatedProperties: false
 

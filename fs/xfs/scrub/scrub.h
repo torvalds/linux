@@ -105,11 +105,10 @@ struct xfs_scrub {
 };
 
 /* XCHK state flags grow up from zero, XREP state flags grown down from 2^31 */
-#define XCHK_TRY_HARDER		(1 << 0)  /* can't get resources, try again */
-#define XCHK_REAPING_DISABLED	(1 << 1)  /* background block reaping paused */
-#define XCHK_FSGATES_DRAIN	(1 << 2)  /* defer ops draining enabled */
-#define XCHK_NEED_DRAIN		(1 << 3)  /* scrub needs to drain defer ops */
-#define XREP_ALREADY_FIXED	(1 << 31) /* checking our repair work */
+#define XCHK_TRY_HARDER		(1U << 0)  /* can't get resources, try again */
+#define XCHK_FSGATES_DRAIN	(1U << 2)  /* defer ops draining enabled */
+#define XCHK_NEED_DRAIN		(1U << 3)  /* scrub needs to drain defer ops */
+#define XREP_ALREADY_FIXED	(1U << 31) /* checking our repair work */
 
 /*
  * The XCHK_FSGATES* flags reflect functionality in the main filesystem that

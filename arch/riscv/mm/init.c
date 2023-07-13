@@ -23,6 +23,7 @@
 #ifdef CONFIG_RELOCATABLE
 #include <linux/elf.h>
 #endif
+#include <linux/kfence.h>
 
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
@@ -266,7 +267,6 @@ static void __init setup_bootmem(void)
 	dma_contiguous_reserve(dma32_phys_limit);
 	if (IS_ENABLED(CONFIG_64BIT))
 		hugetlb_cma_reserve(PUD_SHIFT - PAGE_SHIFT);
-	memblock_allow_resize();
 }
 
 #ifdef CONFIG_MMU
@@ -293,7 +293,7 @@ static const pgprot_t protection_map[16] = {
 	[VM_EXEC]					= PAGE_EXEC,
 	[VM_EXEC | VM_READ]				= PAGE_READ_EXEC,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_EXEC,
-	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_READ_EXEC,
+	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_EXEC,
 	[VM_SHARED]					= PAGE_NONE,
 	[VM_SHARED | VM_READ]				= PAGE_READ,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
@@ -356,7 +356,7 @@ static phys_addr_t __init alloc_pte_late(uintptr_t va)
 	unsigned long vaddr;
 
 	vaddr = __get_free_page(GFP_KERNEL);
-	BUG_ON(!vaddr || !pgtable_pte_page_ctor(virt_to_page(vaddr)));
+	BUG_ON(!vaddr || !pgtable_pte_page_ctor(virt_to_page((void *)vaddr)));
 
 	return __pa(vaddr);
 }
@@ -439,7 +439,7 @@ static phys_addr_t __init alloc_pmd_late(uintptr_t va)
 	unsigned long vaddr;
 
 	vaddr = __get_free_page(GFP_KERNEL);
-	BUG_ON(!vaddr || !pgtable_pmd_page_ctor(virt_to_page(vaddr)));
+	BUG_ON(!vaddr || !pgtable_pmd_page_ctor(virt_to_page((void *)vaddr)));
 
 	return __pa(vaddr);
 }
@@ -659,18 +659,19 @@ void __init create_pgd_mapping(pgd_t *pgdp,
 	create_pgd_next_mapping(nextp, va, pa, sz, prot);
 }
 
-static uintptr_t __init best_map_size(phys_addr_t base, phys_addr_t size)
+static uintptr_t __init best_map_size(phys_addr_t pa, uintptr_t va,
+				      phys_addr_t size)
 {
-	if (!(base & (PGDIR_SIZE - 1)) && size >= PGDIR_SIZE)
+	if (!(pa & (PGDIR_SIZE - 1)) && !(va & (PGDIR_SIZE - 1)) && size >= PGDIR_SIZE)
 		return PGDIR_SIZE;
 
-	if (!(base & (P4D_SIZE - 1)) && size >= P4D_SIZE)
+	if (!(pa & (P4D_SIZE - 1)) && !(va & (P4D_SIZE - 1)) && size >= P4D_SIZE)
 		return P4D_SIZE;
 
-	if (!(base & (PUD_SIZE - 1)) && size >= PUD_SIZE)
+	if (!(pa & (PUD_SIZE - 1)) && !(va & (PUD_SIZE - 1)) && size >= PUD_SIZE)
 		return PUD_SIZE;
 
-	if (!(base & (PMD_SIZE - 1)) && size >= PMD_SIZE)
+	if (!(pa & (PMD_SIZE - 1)) && !(va & (PMD_SIZE - 1)) && size >= PMD_SIZE)
 		return PMD_SIZE;
 
 	return PAGE_SIZE;
@@ -922,9 +923,9 @@ static void __init create_kernel_page_table(pgd_t *pgdir, bool early)
 static void __init create_fdt_early_page_table(uintptr_t fix_fdt_va,
 					       uintptr_t dtb_pa)
 {
+#ifndef CONFIG_BUILTIN_DTB
 	uintptr_t pa = dtb_pa & ~(PMD_SIZE - 1);
 
-#ifndef CONFIG_BUILTIN_DTB
 	/* Make sure the fdt fixmap address is always aligned on PMD size */
 	BUILD_BUG_ON(FIX_FDT % (PMD_SIZE / PAGE_SIZE));
 
@@ -1167,14 +1168,16 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 }
 
 static void __init create_linear_mapping_range(phys_addr_t start,
-					       phys_addr_t end)
+					       phys_addr_t end,
+					       uintptr_t fixed_map_size)
 {
 	phys_addr_t pa;
 	uintptr_t va, map_size;
 
 	for (pa = start; pa < end; pa += map_size) {
 		va = (uintptr_t)__va(pa);
-		map_size = best_map_size(pa, end - pa);
+		map_size = fixed_map_size ? fixed_map_size :
+					    best_map_size(pa, va, end - pa);
 
 		create_pgd_mapping(swapper_pg_dir, va, pa, map_size,
 				   pgprot_from_va(va));
@@ -1184,6 +1187,7 @@ static void __init create_linear_mapping_range(phys_addr_t start,
 static void __init create_linear_mapping_page_table(void)
 {
 	phys_addr_t start, end;
+	phys_addr_t kfence_pool __maybe_unused;
 	u64 i;
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
@@ -1197,6 +1201,19 @@ static void __init create_linear_mapping_page_table(void)
 	memblock_mark_nomap(krodata_start, krodata_size);
 #endif
 
+#ifdef CONFIG_KFENCE
+	/*
+	 *  kfence pool must be backed by PAGE_SIZE mappings, so allocate it
+	 *  before we setup the linear mapping so that we avoid using hugepages
+	 *  for this region.
+	 */
+	kfence_pool = memblock_phys_alloc(KFENCE_POOL_SIZE, PAGE_SIZE);
+	BUG_ON(!kfence_pool);
+
+	memblock_mark_nomap(kfence_pool, KFENCE_POOL_SIZE);
+	__kfence_pool = __va(kfence_pool);
+#endif
+
 	/* Map all memory banks in the linear mapping */
 	for_each_mem_range(i, &start, &end) {
 		if (start >= end)
@@ -1207,16 +1224,24 @@ static void __init create_linear_mapping_page_table(void)
 		if (end >= __pa(PAGE_OFFSET) + memory_limit)
 			end = __pa(PAGE_OFFSET) + memory_limit;
 
-		create_linear_mapping_range(start, end);
+		create_linear_mapping_range(start, end, 0);
 	}
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
-	create_linear_mapping_range(ktext_start, ktext_start + ktext_size);
+	create_linear_mapping_range(ktext_start, ktext_start + ktext_size, 0);
 	create_linear_mapping_range(krodata_start,
-				    krodata_start + krodata_size);
+				    krodata_start + krodata_size, 0);
 
 	memblock_clear_nomap(ktext_start,  ktext_size);
 	memblock_clear_nomap(krodata_start, krodata_size);
+#endif
+
+#ifdef CONFIG_KFENCE
+	create_linear_mapping_range(kfence_pool,
+				    kfence_pool + KFENCE_POOL_SIZE,
+				    PAGE_SIZE);
+
+	memblock_clear_nomap(kfence_pool, KFENCE_POOL_SIZE);
 #endif
 }
 
@@ -1344,6 +1369,9 @@ void __init paging_init(void)
 {
 	setup_bootmem();
 	setup_vm_final();
+
+	/* Depend on that Linear Mapping is ready */
+	memblock_allow_resize();
 }
 
 void __init misc_mem_init(void)
@@ -1361,5 +1389,63 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 			       struct vmem_altmap *altmap)
 {
 	return vmemmap_populate_basepages(start, end, node, NULL);
+}
+#endif
+
+#if defined(CONFIG_MMU) && defined(CONFIG_64BIT)
+/*
+ * Pre-allocates page-table pages for a specific area in the kernel
+ * page-table. Only the level which needs to be synchronized between
+ * all page-tables is allocated because the synchronization can be
+ * expensive.
+ */
+static void __init preallocate_pgd_pages_range(unsigned long start, unsigned long end,
+					       const char *area)
+{
+	unsigned long addr;
+	const char *lvl;
+
+	for (addr = start; addr < end && addr >= start; addr = ALIGN(addr + 1, PGDIR_SIZE)) {
+		pgd_t *pgd = pgd_offset_k(addr);
+		p4d_t *p4d;
+		pud_t *pud;
+		pmd_t *pmd;
+
+		lvl = "p4d";
+		p4d = p4d_alloc(&init_mm, pgd, addr);
+		if (!p4d)
+			goto failed;
+
+		if (pgtable_l5_enabled)
+			continue;
+
+		lvl = "pud";
+		pud = pud_alloc(&init_mm, p4d, addr);
+		if (!pud)
+			goto failed;
+
+		if (pgtable_l4_enabled)
+			continue;
+
+		lvl = "pmd";
+		pmd = pmd_alloc(&init_mm, pud, addr);
+		if (!pmd)
+			goto failed;
+	}
+	return;
+
+failed:
+	/*
+	 * The pages have to be there now or they will be missing in
+	 * process page-tables later.
+	 */
+	panic("Failed to pre-allocate %s pages for %s area\n", lvl, area);
+}
+
+void __init pgtable_cache_init(void)
+{
+	preallocate_pgd_pages_range(VMALLOC_START, VMALLOC_END, "vmalloc");
+	if (IS_ENABLED(CONFIG_MODULES))
+		preallocate_pgd_pages_range(MODULES_VADDR, MODULES_END, "bpf/modules");
 }
 #endif

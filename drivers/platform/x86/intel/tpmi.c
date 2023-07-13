@@ -222,7 +222,7 @@ static int tpmi_create_device(struct intel_tpmi_info *tpmi_info,
 	snprintf(feature_id_name, sizeof(feature_id_name), "tpmi-%s", name);
 
 	for (i = 0, tmp = res; i < pfs->pfs_header.num_entries; i++, tmp++) {
-		u64 entry_size_bytes = pfs->pfs_header.entry_size * 4;
+		u64 entry_size_bytes = pfs->pfs_header.entry_size * sizeof(u32);
 
 		tmp->start = pfs->vsec_offset + entry_size_bytes * i;
 		tmp->end = tmp->start + entry_size_bytes - 1;
@@ -277,7 +277,7 @@ static int tpmi_process_info(struct intel_tpmi_info *tpmi_info,
 	void __iomem *info_mem;
 
 	info_mem = ioremap(pfs->vsec_offset + TPMI_INFO_BUS_INFO_OFFSET,
-			   pfs->pfs_header.entry_size * 4 - TPMI_INFO_BUS_INFO_OFFSET);
+			   pfs->pfs_header.entry_size * sizeof(u32) - TPMI_INFO_BUS_INFO_OFFSET);
 	if (!info_mem)
 		return -ENOMEM;
 
@@ -307,6 +307,8 @@ static int tpmi_fetch_pfs_header(struct intel_tpmi_pm_feature *pfs, u64 start, i
 
 	return 0;
 }
+
+#define TPMI_CAP_OFFSET_UNIT	1024
 
 static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 {
@@ -354,7 +356,7 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 		if (!pfs_start)
 			pfs_start = res_start;
 
-		pfs->pfs_header.cap_offset *= 1024;
+		pfs->pfs_header.cap_offset *= TPMI_CAP_OFFSET_UNIT;
 
 		pfs->vsec_offset = pfs_start + pfs->pfs_header.cap_offset;
 

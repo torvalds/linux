@@ -51,7 +51,7 @@ int mlx5e_port_query_buffer(struct mlx5e_priv *priv,
 	if (err)
 		goto out;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 		buffer = MLX5_ADDR_OF(pbmc_reg, out, buffer[i]);
 		port_buffer->buffer[i].lossy =
 			MLX5_GET(bufferx_reg, buffer, lossy);
@@ -65,23 +65,34 @@ int mlx5e_port_query_buffer(struct mlx5e_priv *priv,
 			MLX5_GET(bufferx_reg, buffer, xoff_threshold) * port_buff_cell_sz;
 		total_used += port_buffer->buffer[i].size;
 
-		mlx5e_dbg(HW, priv, "buffer %d: size=%d, xon=%d, xoff=%d, epsb=%d, lossy=%d\n", i,
-			  port_buffer->buffer[i].size,
-			  port_buffer->buffer[i].xon,
-			  port_buffer->buffer[i].xoff,
-			  port_buffer->buffer[i].epsb,
-			  port_buffer->buffer[i].lossy);
+		netdev_dbg(priv->netdev, "buffer %d: size=%d, xon=%d, xoff=%d, epsb=%d, lossy=%d\n",
+			   i,
+			   port_buffer->buffer[i].size,
+			   port_buffer->buffer[i].xon,
+			   port_buffer->buffer[i].xoff,
+			   port_buffer->buffer[i].epsb,
+			   port_buffer->buffer[i].lossy);
 	}
 
-	port_buffer->headroom_size = total_used;
+	port_buffer->internal_buffers_size = 0;
+	for (i = MLX5E_MAX_NETWORK_BUFFER; i < MLX5E_TOTAL_BUFFERS; i++) {
+		buffer = MLX5_ADDR_OF(pbmc_reg, out, buffer[i]);
+		port_buffer->internal_buffers_size +=
+			MLX5_GET(bufferx_reg, buffer, size) * port_buff_cell_sz;
+	}
+
 	port_buffer->port_buffer_size =
 		MLX5_GET(pbmc_reg, out, port_buffer_size) * port_buff_cell_sz;
-	port_buffer->spare_buffer_size =
-		port_buffer->port_buffer_size - total_used;
+	port_buffer->headroom_size = total_used;
+	port_buffer->spare_buffer_size = port_buffer->port_buffer_size -
+					 port_buffer->internal_buffers_size -
+					 port_buffer->headroom_size;
 
-	mlx5e_dbg(HW, priv, "total buffer size=%d, spare buffer size=%d\n",
-		  port_buffer->port_buffer_size,
-		  port_buffer->spare_buffer_size);
+	netdev_dbg(priv->netdev,
+		   "total buffer size=%u, headroom buffer size=%u, internal buffers size=%u, spare buffer size=%u\n",
+		   port_buffer->port_buffer_size, port_buffer->headroom_size,
+		   port_buffer->internal_buffers_size,
+		   port_buffer->spare_buffer_size);
 out:
 	kfree(out);
 	return err;
@@ -206,11 +217,11 @@ static int port_update_pool_cfg(struct mlx5_core_dev *mdev,
 	if (!MLX5_CAP_GEN(mdev, sbcam_reg))
 		return 0;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++)
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++)
 		lossless_buff_count += ((port_buffer->buffer[i].size) &&
 				       (!(port_buffer->buffer[i].lossy)));
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 		p = select_sbcm_params(&port_buffer->buffer[i], lossless_buff_count);
 		err = mlx5e_port_set_sbcm(mdev, 0, i,
 					  MLX5_INGRESS_DIR,
@@ -293,7 +304,7 @@ static int port_set_buffer(struct mlx5e_priv *priv,
 	if (err)
 		goto out;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 		void *buffer = MLX5_ADDR_OF(pbmc_reg, in, buffer[i]);
 		u64 size = port_buffer->buffer[i].size;
 		u64 xoff = port_buffer->buffer[i].xoff;
@@ -342,7 +353,7 @@ static u32 calculate_xoff(struct mlx5e_priv *priv, unsigned int mtu)
 
 	xoff = (301 + 216 * priv->dcbx.cable_len / 100) * speed / 1000 + 272 * mtu / 100;
 
-	mlx5e_dbg(HW, priv, "%s: xoff=%d\n", __func__, xoff);
+	netdev_dbg(priv->netdev, "%s: xoff=%d\n", __func__, xoff);
 	return xoff;
 }
 
@@ -351,7 +362,7 @@ static int update_xoff_threshold(struct mlx5e_port_buffer *port_buffer,
 {
 	int i;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 		if (port_buffer->buffer[i].lossy) {
 			port_buffer->buffer[i].xoff = 0;
 			port_buffer->buffer[i].xon  = 0;
@@ -408,7 +419,7 @@ static int update_buffer_lossy(struct mlx5_core_dev *mdev,
 	int err;
 	int i;
 
-	for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
+	for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
 		prio_count = 0;
 		lossy_count = 0;
 
@@ -432,11 +443,11 @@ static int update_buffer_lossy(struct mlx5_core_dev *mdev,
 	}
 
 	if (changed) {
-		err = port_update_pool_cfg(mdev, port_buffer);
+		err = update_xoff_threshold(port_buffer, xoff, max_mtu, port_buff_cell_sz);
 		if (err)
 			return err;
 
-		err = update_xoff_threshold(port_buffer, xoff, max_mtu, port_buff_cell_sz);
+		err = port_update_pool_cfg(mdev, port_buffer);
 		if (err)
 			return err;
 
@@ -474,6 +485,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 				    u8 *prio2buffer)
 {
 	u16 port_buff_cell_sz = priv->dcbx.port_buff_cell_sz;
+	struct net_device *netdev = priv->netdev;
 	struct mlx5e_port_buffer port_buffer;
 	u32 xoff = calculate_xoff(priv, mtu);
 	bool update_prio2buffer = false;
@@ -485,7 +497,7 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 	int err;
 	int i;
 
-	mlx5e_dbg(HW, priv, "%s: change=%x\n", __func__, change);
+	netdev_dbg(netdev, "%s: change=%x\n", __func__, change);
 	max_mtu = max_t(unsigned int, priv->netdev->max_mtu, MINIMUM_MAX_MTU);
 
 	err = mlx5e_port_query_buffer(priv, &port_buffer);
@@ -500,8 +512,8 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 	}
 
 	if (change & MLX5E_PORT_BUFFER_PFC) {
-		mlx5e_dbg(HW, priv, "%s: requested PFC per priority bitmask: 0x%x\n",
-			  __func__, pfc->pfc_en);
+		netdev_dbg(netdev, "%s: requested PFC per priority bitmask: 0x%x\n",
+			   __func__, pfc->pfc_en);
 		err = mlx5e_port_query_priority2buffer(priv->mdev, buffer);
 		if (err)
 			return err;
@@ -515,9 +527,9 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 
 	if (change & MLX5E_PORT_BUFFER_PRIO2BUFFER) {
 		update_prio2buffer = true;
-		for (i = 0; i < MLX5E_MAX_BUFFER; i++)
-			mlx5e_dbg(HW, priv, "%s: requested to map prio[%d] to buffer %d\n",
-				  __func__, i, prio2buffer[i]);
+		for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++)
+			netdev_dbg(priv->netdev, "%s: requested to map prio[%d] to buffer %d\n",
+				   __func__, i, prio2buffer[i]);
 
 		err = fill_pfc_en(priv->mdev, &curr_pfc_en);
 		if (err)
@@ -530,11 +542,11 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 	}
 
 	if (change & MLX5E_PORT_BUFFER_SIZE) {
-		for (i = 0; i < MLX5E_MAX_BUFFER; i++) {
-			mlx5e_dbg(HW, priv, "%s: buffer[%d]=%d\n", __func__, i, buffer_size[i]);
+		for (i = 0; i < MLX5E_MAX_NETWORK_BUFFER; i++) {
+			netdev_dbg(priv->netdev, "%s: buffer[%d]=%d\n", __func__, i, buffer_size[i]);
 			if (!port_buffer.buffer[i].lossy && !buffer_size[i]) {
-				mlx5e_dbg(HW, priv, "%s: lossless buffer[%d] size cannot be zero\n",
-					  __func__, i);
+				netdev_dbg(priv->netdev, "%s: lossless buffer[%d] size cannot be zero\n",
+					   __func__, i);
 				return -EINVAL;
 			}
 
@@ -542,9 +554,11 @@ int mlx5e_port_manual_buffer_config(struct mlx5e_priv *priv,
 			total_used += buffer_size[i];
 		}
 
-		mlx5e_dbg(HW, priv, "%s: total buffer requested=%d\n", __func__, total_used);
+		netdev_dbg(priv->netdev, "%s: total buffer requested=%d\n", __func__, total_used);
 
-		if (total_used > port_buffer.port_buffer_size)
+		if (total_used > port_buffer.headroom_size &&
+		    (total_used - port_buffer.headroom_size) >
+			    port_buffer.spare_buffer_size)
 			return -EINVAL;
 
 		update_buffer = true;

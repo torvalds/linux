@@ -30,6 +30,8 @@
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
 
+#define NPS_MODE_MASK 0x000000FFL
+
 static void nbio_v7_9_remap_hdp_registers(struct amdgpu_device *adev)
 {
 	WREG32_SOC15(NBIO, 0, regBIF_BX0_REMAP_HDP_MEM_FLUSH_CNTL,
@@ -66,6 +68,13 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 doorbell_range = 0, doorbell_ctrl = 0;
+	int aid_id, dev_inst;
+
+	dev_inst = GET_INST(SDMA0, instance);
+	aid_id = adev->sdma.instance[instance].aid_id;
+
+	if (use_doorbell == false)
+		return;
 
 	doorbell_range =
 		REG_SET_FIELD(doorbell_range, DOORBELL0_CTRL_ENTRY_0,
@@ -80,9 +89,10 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 		REG_SET_FIELD(doorbell_ctrl, S2A_DOORBELL_ENTRY_1_CTRL,
 			S2A_DOORBELL_PORT1_RANGE_SIZE, doorbell_size);
 
-	switch (instance) {
+	switch (dev_inst % adev->sdma.num_inst_per_aid) {
 	case 0:
-		WREG32_SOC15(NBIO, 0, regDOORBELL0_CTRL_ENTRY_1, doorbell_range);
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_1,
+			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 					S2A_DOORBELL_ENTRY_1_CTRL,
@@ -94,10 +104,12 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x1);
-		WREG32_SOC15(NBIO, 0, regS2A_DOORBELL_ENTRY_1_CTRL, doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_1_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	case 1:
-		WREG32_SOC15(NBIO, 0, regDOORBELL0_CTRL_ENTRY_2, doorbell_range);
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_2,
+			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 					S2A_DOORBELL_ENTRY_1_CTRL,
@@ -109,10 +121,12 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x2);
-		WREG32_SOC15(NBIO, 0, regS2A_DOORBELL_ENTRY_2_CTRL, doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_2_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	case 2:
-		WREG32_SOC15(NBIO, 0, regDOORBELL0_CTRL_ENTRY_3, doorbell_range);
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_3,
+			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 					S2A_DOORBELL_ENTRY_1_CTRL,
@@ -124,10 +138,12 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x8);
-		WREG32_SOC15(NBIO, 0, regS2A_DOORBELL_ENTRY_5_CTRL, doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_5_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	case 3:
-		WREG32_SOC15(NBIO, 0, regDOORBELL0_CTRL_ENTRY_4, doorbell_range);
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_4,
+			4 * aid_id, doorbell_range);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 					S2A_DOORBELL_ENTRY_1_CTRL,
@@ -139,11 +155,12 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 					S2A_DOORBELL_ENTRY_1_CTRL,
 					S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE,
 					0x9);
-		WREG32_SOC15(NBIO, 0, regS2A_DOORBELL_ENTRY_6_CTRL, doorbell_ctrl);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_6_CTRL,
+			aid_id, doorbell_ctrl);
 		break;
 	default:
 		break;
-	};
+	}
 
 	return;
 }
@@ -152,6 +169,7 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 					 int doorbell_index, int instance)
 {
 	u32 doorbell_range = 0, doorbell_ctrl = 0;
+	u32 aid_id = instance;
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
@@ -161,7 +179,12 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 				DOORBELL0_CTRL_ENTRY_0,
 				BIF_DOORBELL0_RANGE_SIZE_ENTRY,
-				0x8);
+				0x9);
+		if (aid_id)
+			doorbell_range = REG_SET_FIELD(doorbell_range,
+					DOORBELL0_CTRL_ENTRY_0,
+					DOORBELL0_FENCE_ENABLE_ENTRY,
+					0x4);
 
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
@@ -174,10 +197,15 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 				S2A_DOORBELL_PORT1_RANGE_OFFSET, 0x4);
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
-				S2A_DOORBELL_PORT1_RANGE_SIZE, 0x8);
+				S2A_DOORBELL_PORT1_RANGE_SIZE, 0x9);
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
 				S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE, 0x4);
+
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17,
+					aid_id, doorbell_range);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_4_CTRL,
+				aid_id, doorbell_ctrl);
 	} else {
 		doorbell_range = REG_SET_FIELD(doorbell_range,
 				DOORBELL0_CTRL_ENTRY_0,
@@ -185,10 +213,12 @@ static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_do
 		doorbell_ctrl = REG_SET_FIELD(doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
 				S2A_DOORBELL_PORT1_RANGE_SIZE, 0);
-	}
 
-	WREG32_SOC15(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17, doorbell_range);
-	WREG32_SOC15(NBIO, 0, regS2A_DOORBELL_ENTRY_4_CTRL, doorbell_ctrl);
+		WREG32_SOC15_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_17,
+					aid_id, doorbell_range);
+		WREG32_SOC15_EXT(NBIO, aid_id, regS2A_DOORBELL_ENTRY_4_CTRL,
+				aid_id, doorbell_ctrl);
+	}
 }
 
 static void nbio_v7_9_enable_doorbell_aperture(struct amdgpu_device *adev,
@@ -235,7 +265,7 @@ static void nbio_v7_9_ih_doorbell_range(struct amdgpu_device *adev,
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range,
 				DOORBELL0_CTRL_ENTRY_0,
 				BIF_DOORBELL0_RANGE_SIZE_ENTRY,
-				0x4);
+				0x8);
 
 		ih_doorbell_ctrl = REG_SET_FIELD(ih_doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
@@ -248,7 +278,7 @@ static void nbio_v7_9_ih_doorbell_range(struct amdgpu_device *adev,
 				S2A_DOORBELL_PORT1_RANGE_OFFSET, 0);
 		ih_doorbell_ctrl = REG_SET_FIELD(ih_doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
-				S2A_DOORBELL_PORT1_RANGE_SIZE, 0x4);
+				S2A_DOORBELL_PORT1_RANGE_SIZE, 0x8);
 		ih_doorbell_ctrl = REG_SET_FIELD(ih_doorbell_ctrl,
 				S2A_DOORBELL_ENTRY_1_CTRL,
 				S2A_DOORBELL_PORT1_AWADDR_31_28_VALUE, 0);
@@ -319,6 +349,11 @@ static u32 nbio_v7_9_get_pcie_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX0_PCIE_DATA2);
 }
 
+static u32 nbio_v7_9_get_pcie_index_hi_offset(struct amdgpu_device *adev)
+{
+	return SOC15_REG_OFFSET(NBIO, 0, regBIF_BX0_PCIE_INDEX2_HI);
+}
+
 const struct nbio_hdp_flush_reg nbio_v7_9_hdp_flush_reg = {
 	.ref_and_mask_cp0 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP0_MASK,
 	.ref_and_mask_cp1 = BIF_BX_PF0_GPU_HDP_FLUSH_DONE__CP1_MASK,
@@ -347,11 +382,57 @@ static void nbio_v7_9_enable_doorbell_interrupt(struct amdgpu_device *adev,
 			      DOORBELL_INTERRUPT_DISABLE, enable ? 0 : 1);
 }
 
+static int nbio_v7_9_get_compute_partition_mode(struct amdgpu_device *adev)
+{
+	u32 tmp, px;
+
+	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_COMPUTE_STATUS);
+	px = REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_COMPUTE_STATUS,
+			   PARTITION_MODE);
+
+	return px;
+}
+
+static u32 nbio_v7_9_get_memory_partition_mode(struct amdgpu_device *adev,
+					       u32 *supp_modes)
+{
+	u32 tmp;
+
+	tmp = RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_MEM_STATUS);
+	tmp = REG_GET_FIELD(tmp, BIF_BX_PF0_PARTITION_MEM_STATUS, NPS_MODE);
+
+	if (supp_modes) {
+		*supp_modes =
+			RREG32_SOC15(NBIO, 0, regBIF_BX_PF0_PARTITION_MEM_CAP);
+	}
+
+	return ffs(tmp);
+}
+
+static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
+{
+	u32 inst_mask;
+	int i;
+
+	WREG32_SOC15(NBIO, 0, regXCC_DOORBELL_FENCE,
+		0xff & ~(adev->gfx.xcc_mask));
+
+	WREG32_SOC15(NBIO, 0, regBIFC_GFX_INT_MONITOR_MASK, 0x7ff);
+
+	inst_mask = adev->aid_mask & ~1U;
+	for_each_inst(i, inst_mask) {
+		WREG32_SOC15_EXT(NBIO, i, regXCC_DOORBELL_FENCE, i,
+			XCC_DOORBELL_FENCE__SHUB_SLV_MODE_MASK);
+
+	}
+}
+
 const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_hdp_flush_req_offset = nbio_v7_9_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbio_v7_9_get_hdp_flush_done_offset,
 	.get_pcie_index_offset = nbio_v7_9_get_pcie_index_offset,
 	.get_pcie_data_offset = nbio_v7_9_get_pcie_data_offset,
+	.get_pcie_index_hi_offset = nbio_v7_9_get_pcie_index_hi_offset,
 	.get_rev_id = nbio_v7_9_get_rev_id,
 	.mc_access_enable = nbio_v7_9_mc_access_enable,
 	.get_memsize = nbio_v7_9_get_memsize,
@@ -366,4 +447,7 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 	.get_clockgating_state = nbio_v7_9_get_clockgating_state,
 	.ih_control = nbio_v7_9_ih_control,
 	.remap_hdp_registers = nbio_v7_9_remap_hdp_registers,
+	.get_compute_partition_mode = nbio_v7_9_get_compute_partition_mode,
+	.get_memory_partition_mode = nbio_v7_9_get_memory_partition_mode,
+	.init_registers = nbio_v7_9_init_registers,
 };

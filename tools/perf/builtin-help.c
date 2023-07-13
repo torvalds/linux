@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/zalloc.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -389,9 +390,10 @@ static int get_html_page_path(char **page_path, const char *page)
 {
 	struct stat st;
 	const char *html_path = system_path(PERF_HTML_PATH);
+	char path[PATH_MAX];
 
 	/* Check that we have a perf documentation directory. */
-	if (stat(mkpath("%s/perf.html", html_path), &st)
+	if (stat(mkpath(path, sizeof(path), "%s/perf.html", html_path), &st)
 	    || !S_ISREG(st.st_mode)) {
 		pr_err("'%s': not a documentation directory.", html_path);
 		return -1;

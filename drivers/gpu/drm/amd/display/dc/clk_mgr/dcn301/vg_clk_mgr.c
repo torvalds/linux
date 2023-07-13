@@ -117,7 +117,7 @@ static void vg_update_clocks(struct clk_mgr *clk_mgr_base,
 
 			display_count = vg_get_active_display_cnt_wa(dc, context);
 			/* if we can go lower, go lower */
-			if (display_count == 0 && !IS_DIAG_DC(dc->ctx->dce_environment)) {
+			if (display_count == 0) {
 				union display_idle_optimization_u idle_info = { 0 };
 
 				idle_info.idle_info.df_request_disabled = 1;
@@ -151,10 +151,8 @@ static void vg_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < 100000)
-			new_clocks->dppclk_khz = 100000;
-	}
+	if (new_clocks->dppclk_khz < 100000)
+		new_clocks->dppclk_khz = 100000;
 
 	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr->base.clks.dppclk_khz)) {
 		if (clk_mgr->base.clks.dppclk_khz > new_clocks->dppclk_khz)
@@ -664,6 +662,7 @@ void vg_clk_mgr_construct(
 		struct dccg *dccg)
 {
 	struct smu_dpm_clks smu_dpm_clks = { 0 };
+	struct clk_log_info log_info = {0};
 
 	clk_mgr->base.base.ctx = ctx;
 	clk_mgr->base.base.funcs = &vg_funcs;
@@ -703,32 +702,25 @@ void vg_clk_mgr_construct(
 
 	ASSERT(smu_dpm_clks.dpm_clks);
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		vg_funcs.update_clocks = dcn2_update_clocks_fpga;
+	clk_mgr->base.smu_ver = dcn301_smu_get_smu_version(&clk_mgr->base);
+
+	if (clk_mgr->base.smu_ver)
+		clk_mgr->base.smu_present = true;
+
+	/* TODO: Check we get what we expect during bringup */
+	clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
+
+	/* in case we don't get a value from the register, use default */
+	if (clk_mgr->base.base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.base.dentist_vco_freq_khz = 3600000;
+
+	if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
+		vg_bw_params.wm_table = lpddr5_wm_table;
 	} else {
-		struct clk_log_info log_info = {0};
-
-		clk_mgr->base.smu_ver = dcn301_smu_get_smu_version(&clk_mgr->base);
-
-		if (clk_mgr->base.smu_ver)
-			clk_mgr->base.smu_present = true;
-
-		/* TODO: Check we get what we expect during bringup */
-		clk_mgr->base.base.dentist_vco_freq_khz = get_vco_frequency_from_reg(&clk_mgr->base);
-
-		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->base.base.dentist_vco_freq_khz == 0)
-			clk_mgr->base.base.dentist_vco_freq_khz = 3600000;
-
-		if (ctx->dc_bios->integrated_info->memory_type == LpDdr5MemType) {
-			vg_bw_params.wm_table = lpddr5_wm_table;
-		} else {
-			vg_bw_params.wm_table = ddr4_wm_table;
-		}
-		/* Saved clocks configured at boot for debug purposes */
-		vg_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);
+		vg_bw_params.wm_table = ddr4_wm_table;
 	}
+	/* Saved clocks configured at boot for debug purposes */
+	vg_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);
 
 	clk_mgr->base.base.dprefclk_khz = 600000;
 	dce_clock_read_ss_info(&clk_mgr->base);
@@ -746,12 +738,6 @@ void vg_clk_mgr_construct(
 	if (smu_dpm_clks.dpm_clks && smu_dpm_clks.mc_address.quad_part != 0)
 		dm_helpers_free_gpu_mem(clk_mgr->base.base.ctx, DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
 				smu_dpm_clks.dpm_clks);
-/*
-	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment) && clk_mgr->base.smu_ver) {
-		 enable powerfeatures when displaycount goes to 0
-		dcn301_smu_enable_phy_refclk_pwrdwn(clk_mgr, !debug->disable_48mhz_pwrdwn);
-	}
-*/
 }
 
 void vg_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int)

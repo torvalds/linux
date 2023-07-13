@@ -36,9 +36,16 @@ meta_has_relaxed()
 	meta_in "$1" "BFIR"
 }
 
-#find_fallback_template(pfx, name, sfx, order)
-find_fallback_template()
+#meta_is_implicitly_relaxed(meta)
+meta_is_implicitly_relaxed()
 {
+	meta_in "$1" "vls"
+}
+
+#find_template(tmpltype, pfx, name, sfx, order)
+find_template()
+{
+	local tmpltype="$1"; shift
 	local pfx="$1"; shift
 	local name="$1"; shift
 	local sfx="$1"; shift
@@ -52,14 +59,26 @@ find_fallback_template()
 	#
 	# Start at the most specific, and fall back to the most general. Once
 	# we find a specific fallback, don't bother looking for more.
-	for base in "${pfx}${name}${sfx}${order}" "${name}"; do
-		file="${ATOMICDIR}/fallbacks/${base}"
+	for base in "${pfx}${name}${sfx}${order}" "${pfx}${name}${sfx}" "${name}"; do
+		file="${ATOMICDIR}/${tmpltype}/${base}"
 
 		if [ -f "${file}" ]; then
 			printf "${file}"
 			break
 		fi
 	done
+}
+
+#find_fallback_template(pfx, name, sfx, order)
+find_fallback_template()
+{
+	find_template "fallbacks" "$@"
+}
+
+#find_kerneldoc_template(pfx, name, sfx, order)
+find_kerneldoc_template()
+{
+	find_template "kerneldoc" "$@"
 }
 
 #gen_ret_type(meta, int)
@@ -140,6 +159,91 @@ gen_args()
 		[ "$#" -gt 1 ] && printf ", "
 		shift;
 	done
+}
+
+#gen_desc_return(meta)
+gen_desc_return()
+{
+	local meta="$1"; shift
+
+	case "${meta}" in
+	[v])
+		printf "Return: Nothing."
+		;;
+	[Ff])
+		printf "Return: The original value of @v."
+		;;
+	[R])
+		printf "Return: The updated value of @v."
+		;;
+	[l])
+		printf "Return: The value of @v."
+		;;
+	esac
+}
+
+#gen_template_kerneldoc(template, class, meta, pfx, name, sfx, order, atomic, int, args...)
+gen_template_kerneldoc()
+{
+	local template="$1"; shift
+	local class="$1"; shift
+	local meta="$1"; shift
+	local pfx="$1"; shift
+	local name="$1"; shift
+	local sfx="$1"; shift
+	local order="$1"; shift
+	local atomic="$1"; shift
+	local int="$1"; shift
+
+	local atomicname="${atomic}_${pfx}${name}${sfx}${order}"
+
+	local ret="$(gen_ret_type "${meta}" "${int}")"
+	local retstmt="$(gen_ret_stmt "${meta}")"
+	local params="$(gen_params "${int}" "${atomic}" "$@")"
+	local args="$(gen_args "$@")"
+	local desc_order=""
+	local desc_instrumentation=""
+	local desc_return=""
+
+	if [ ! -z "${order}" ]; then
+		desc_order="${order##_}"
+	elif meta_is_implicitly_relaxed "${meta}"; then
+		desc_order="relaxed"
+	else
+		desc_order="full"
+	fi
+
+	if [ -z "${class}" ]; then
+		desc_noinstr="Unsafe to use in noinstr code; use raw_${atomicname}() there."
+	else
+		desc_noinstr="Safe to use in noinstr code; prefer ${atomicname}() elsewhere."
+	fi
+
+	desc_return="$(gen_desc_return "${meta}")"
+
+	. ${template}
+}
+
+#gen_kerneldoc(class, meta, pfx, name, sfx, order, atomic, int, args...)
+gen_kerneldoc()
+{
+	local class="$1"; shift
+	local meta="$1"; shift
+	local pfx="$1"; shift
+	local name="$1"; shift
+	local sfx="$1"; shift
+	local order="$1"; shift
+
+	local atomicname="${atomic}_${pfx}${name}${sfx}${order}"
+
+	local tmpl="$(find_kerneldoc_template "${pfx}" "${name}" "${sfx}" "${order}")"
+	if [ -z "${tmpl}" ]; then
+		printf "/*\n"
+		printf " * No kerneldoc available for ${class}${atomicname}\n"
+		printf " */\n"
+	else
+	gen_template_kerneldoc "${tmpl}" "${class}" "${meta}" "${pfx}" "${name}" "${sfx}" "${order}" "$@"
+	fi
 }
 
 #gen_proto_order_variants(meta, pfx, name, sfx, ...)

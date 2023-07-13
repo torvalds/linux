@@ -522,11 +522,6 @@ static int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	if (!iwqp->user_mode)
 		cancel_delayed_work_sync(&iwqp->dwork_flush);
 
-	irdma_qp_rem_ref(&iwqp->ibqp);
-	wait_for_completion(&iwqp->free_qp);
-	irdma_free_lsmm_rsrc(iwqp);
-	irdma_cqp_qp_destroy_cmd(&iwdev->rf->sc_dev, &iwqp->sc_qp);
-
 	if (!iwqp->user_mode) {
 		if (iwqp->iwscq) {
 			irdma_clean_cqes(iwqp, iwqp->iwscq);
@@ -534,6 +529,12 @@ static int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 				irdma_clean_cqes(iwqp, iwqp->iwrcq);
 		}
 	}
+
+	irdma_qp_rem_ref(&iwqp->ibqp);
+	wait_for_completion(&iwqp->free_qp);
+	irdma_free_lsmm_rsrc(iwqp);
+	irdma_cqp_qp_destroy_cmd(&iwdev->rf->sc_dev, &iwqp->sc_qp);
+
 	irdma_remove_push_mmap_entries(iwqp);
 	irdma_free_qp_rsrc(iwqp);
 
@@ -3291,6 +3292,7 @@ static int irdma_post_send(struct ib_qp *ibqp,
 			break;
 		case IB_WR_LOCAL_INV:
 			info.op_type = IRDMA_OP_TYPE_INV_STAG;
+			info.local_fence = info.read_fence;
 			info.op.inv_local_stag.target_stag = ib_wr->ex.invalidate_rkey;
 			err = irdma_uk_stag_local_invalidate(ukqp, &info, true);
 			break;
@@ -4450,8 +4452,16 @@ static const struct ib_device_ops irdma_roce_dev_ops = {
 };
 
 static const struct ib_device_ops irdma_iw_dev_ops = {
-	.modify_qp = irdma_modify_qp,
 	.get_port_immutable = irdma_iw_port_immutable,
+	.iw_accept = irdma_accept,
+	.iw_add_ref = irdma_qp_add_ref,
+	.iw_connect = irdma_connect,
+	.iw_create_listen = irdma_create_listen,
+	.iw_destroy_listen = irdma_destroy_listen,
+	.iw_get_qp = irdma_get_qp,
+	.iw_reject = irdma_reject,
+	.iw_rem_ref = irdma_qp_rem_ref,
+	.modify_qp = irdma_modify_qp,
 	.query_gid = irdma_query_gid,
 };
 
@@ -4515,50 +4525,35 @@ static void irdma_init_roce_device(struct irdma_device *iwdev)
  * irdma_init_iw_device - initialization of iwarp rdma device
  * @iwdev: irdma device
  */
-static int irdma_init_iw_device(struct irdma_device *iwdev)
+static void irdma_init_iw_device(struct irdma_device *iwdev)
 {
 	struct net_device *netdev = iwdev->netdev;
 
 	iwdev->ibdev.node_type = RDMA_NODE_RNIC;
 	addrconf_addr_eui48((u8 *)&iwdev->ibdev.node_guid,
 			    netdev->dev_addr);
-	iwdev->ibdev.ops.iw_add_ref = irdma_qp_add_ref;
-	iwdev->ibdev.ops.iw_rem_ref = irdma_qp_rem_ref;
-	iwdev->ibdev.ops.iw_get_qp = irdma_get_qp;
-	iwdev->ibdev.ops.iw_connect = irdma_connect;
-	iwdev->ibdev.ops.iw_accept = irdma_accept;
-	iwdev->ibdev.ops.iw_reject = irdma_reject;
-	iwdev->ibdev.ops.iw_create_listen = irdma_create_listen;
-	iwdev->ibdev.ops.iw_destroy_listen = irdma_destroy_listen;
 	memcpy(iwdev->ibdev.iw_ifname, netdev->name,
 	       sizeof(iwdev->ibdev.iw_ifname));
 	ib_set_device_ops(&iwdev->ibdev, &irdma_iw_dev_ops);
-
-	return 0;
 }
 
 /**
  * irdma_init_rdma_device - initialization of rdma device
  * @iwdev: irdma device
  */
-static int irdma_init_rdma_device(struct irdma_device *iwdev)
+static void irdma_init_rdma_device(struct irdma_device *iwdev)
 {
 	struct pci_dev *pcidev = iwdev->rf->pcidev;
-	int ret;
 
-	if (iwdev->roce_mode) {
+	if (iwdev->roce_mode)
 		irdma_init_roce_device(iwdev);
-	} else {
-		ret = irdma_init_iw_device(iwdev);
-		if (ret)
-			return ret;
-	}
+	else
+		irdma_init_iw_device(iwdev);
+
 	iwdev->ibdev.phys_port_cnt = 1;
 	iwdev->ibdev.num_comp_vectors = iwdev->rf->ceqs_count;
 	iwdev->ibdev.dev.parent = &pcidev->dev;
 	ib_set_device_ops(&iwdev->ibdev, &irdma_dev_ops);
-
-	return 0;
 }
 
 /**
@@ -4596,9 +4591,7 @@ int irdma_ib_register_device(struct irdma_device *iwdev)
 {
 	int ret;
 
-	ret = irdma_init_rdma_device(iwdev);
-	if (ret)
-		return ret;
+	irdma_init_rdma_device(iwdev);
 
 	ret = ib_device_set_netdev(&iwdev->ibdev, iwdev->netdev, 1);
 	if (ret)

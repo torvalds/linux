@@ -296,6 +296,10 @@ enum fe_spectral_inversion {
  * @FEC_28_45: Forward Error Correction Code 28/45
  * @FEC_32_45: Forward Error Correction Code 32/45
  * @FEC_77_90: Forward Error Correction Code 77/90
+ * @FEC_11_45: Forward Error Correction Code 11/45
+ * @FEC_4_15: Forward Error Correction Code 4/15
+ * @FEC_14_45: Forward Error Correction Code 14/45
+ * @FEC_7_15: Forward Error Correction Code 7/15
  *
  * Please note that not all FEC types are supported by a given standard.
  */
@@ -329,6 +333,10 @@ enum fe_code_rate {
 	FEC_28_45,
 	FEC_32_45,
 	FEC_77_90,
+	FEC_11_45,
+	FEC_4_15,
+	FEC_14_45,
+	FEC_7_15,
 };
 
 /**

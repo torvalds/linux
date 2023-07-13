@@ -7,6 +7,7 @@
 #include "adf_accel_devices.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
+#include "adf_dbgfs.h"
 
 static LIST_HEAD(service_table);
 static DEFINE_MUTEX(service_lock);
@@ -216,6 +217,9 @@ static int adf_dev_start(struct adf_accel_dev *accel_dev)
 		clear_bit(ADF_STATUS_STARTED, &accel_dev->status);
 		return -EFAULT;
 	}
+
+	adf_dbgfs_add(accel_dev);
+
 	return 0;
 }
 
@@ -239,6 +243,8 @@ static void adf_dev_stop(struct adf_accel_dev *accel_dev)
 	if (!adf_dev_started(accel_dev) &&
 	    !test_bit(ADF_STATUS_STARTING, &accel_dev->status))
 		return;
+
+	adf_dbgfs_rm(accel_dev);
 
 	clear_bit(ADF_STATUS_STARTING, &accel_dev->status);
 	clear_bit(ADF_STATUS_STARTED, &accel_dev->status);

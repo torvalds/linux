@@ -706,7 +706,7 @@ config CHARGER_BQ256XX
 
 config CHARGER_RK817
 	tristate "Rockchip RK817 PMIC Battery Charger"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  Say Y to include support for Rockchip RK817 Battery Charger.
 
@@ -765,6 +765,14 @@ config BATTERY_RT5033
 	  This adds support for battery fuel gauge in Richtek RT5033 PMIC.
 	  The fuelgauge calculates and determines the battery state of charge
 	  according to battery open circuit voltage.
+
+config CHARGER_RT5033
+	tristate "RT5033 battery charger support"
+	depends on MFD_RT5033
+	help
+	  This adds support for battery charger in Richtek RT5033 PMIC.
+	  The device supports pre-charge mode, fast charge mode and
+	  constant voltage mode.
 
 config CHARGER_RT9455
 	tristate "Richtek RT9455 battery charger driver"
@@ -933,5 +941,14 @@ config BATTERY_UG3105
 	  Since Linux does not monitor coulomb-counter changes while the
 	  device is off or suspended, the functionality of this driver is
 	  limited to reporting capacity only.
+
+config CHARGER_QCOM_SMB2
+	tristate "Qualcomm PMI8998 PMIC charger driver"
+	depends on MFD_SPMI_PMIC
+	depends on IIO
+	help
+	  Say Y here to enable the Qualcomm PMIC Charger driver. This
+	  adds support for the SMB2 switch mode battery charger found
+	  in PMI8998 and related PMICs.
 
 endif # POWER_SUPPLY

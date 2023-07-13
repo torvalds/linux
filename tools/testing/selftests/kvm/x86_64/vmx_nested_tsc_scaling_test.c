@@ -116,29 +116,21 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_DONE();
 }
 
-static void stable_tsc_check_supported(void)
+static bool system_has_stable_tsc(void)
 {
+	bool tsc_is_stable;
 	FILE *fp;
 	char buf[4];
 
 	fp = fopen("/sys/devices/system/clocksource/clocksource0/current_clocksource", "r");
 	if (fp == NULL)
-		goto skip_test;
+		return false;
 
-	if (fgets(buf, sizeof(buf), fp) == NULL)
-		goto close_fp;
-
-	if (strncmp(buf, "tsc", sizeof(buf)))
-		goto close_fp;
+	tsc_is_stable = fgets(buf, sizeof(buf), fp) &&
+			!strncmp(buf, "tsc", sizeof(buf));
 
 	fclose(fp);
-	return;
-
-close_fp:
-	fclose(fp);
-skip_test:
-	print_skip("Kernel does not use TSC clocksource - assuming that host TSC is not stable");
-	exit(KSFT_SKIP);
+	return tsc_is_stable;
 }
 
 int main(int argc, char *argv[])
@@ -156,7 +148,7 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_TSC_CONTROL));
-	stable_tsc_check_supported();
+	TEST_REQUIRE(system_has_stable_tsc());
 
 	/*
 	 * We set L1's scale factor to be a random number from 2 to 10.

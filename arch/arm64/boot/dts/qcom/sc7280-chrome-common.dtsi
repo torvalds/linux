@@ -79,6 +79,11 @@
 	firmware-name = "ath11k/WCN6750/hw1.0/wpss.mdt";
 };
 
+&scm {
+	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
+	dma-coherent;
+};
+
 &wifi {
 	status = "okay";
 

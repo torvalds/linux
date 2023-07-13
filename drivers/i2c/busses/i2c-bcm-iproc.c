@@ -1107,7 +1107,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	return i2c_add_adapter(adap);
 }
 
-static int bcm_iproc_i2c_remove(struct platform_device *pdev)
+static void bcm_iproc_i2c_remove(struct platform_device *pdev)
 {
 	struct bcm_iproc_i2c_dev *iproc_i2c = platform_get_drvdata(pdev);
 
@@ -1123,8 +1123,6 @@ static int bcm_iproc_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&iproc_i2c->adapter);
 	bcm_iproc_i2c_enable_disable(iproc_i2c, false);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1260,7 +1258,7 @@ static struct platform_driver bcm_iproc_i2c_driver = {
 		.pm = BCM_IPROC_I2C_PM_OPS,
 	},
 	.probe = bcm_iproc_i2c_probe,
-	.remove = bcm_iproc_i2c_remove,
+	.remove_new = bcm_iproc_i2c_remove,
 };
 module_platform_driver(bcm_iproc_i2c_driver);
 

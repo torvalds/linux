@@ -1729,8 +1729,8 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 
 	if (offset >= maxsize) {
 		/*
-		 * The starting point lies beyond the allocated meta-data;
-		 * there are no blocks do deallocate.
+		 * The starting point lies beyond the allocated metadata;
+		 * there are no blocks to deallocate.
 		 */
 		return 0;
 	}

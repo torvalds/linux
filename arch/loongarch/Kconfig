@@ -5,11 +5,13 @@ config LOONGARCH
 	select ACPI
 	select ACPI_GENERIC_GSI if ACPI
 	select ACPI_MCFG if ACPI
+	select ACPI_PPTT if ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
 	select ARCH_BINFMT_ELF_STATE
 	select ARCH_ENABLE_MEMORY_HOTPLUG
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
+	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
 	select ARCH_HAS_PTE_SPECIAL
@@ -48,6 +50,8 @@ config LOONGARCH
 	select ARCH_SUPPORTS_ACPI
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_HUGETLBFS
+	select ARCH_SUPPORTS_LTO_CLANG
+	select ARCH_SUPPORTS_LTO_CLANG_THIN
 	select ARCH_SUPPORTS_NUMA_BALANCING
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
@@ -80,9 +84,12 @@ config LOONGARCH
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_TIME_NS
 	select GPIOLIB
 	select HAS_IOPORT
 	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
@@ -90,6 +97,7 @@ config LOONGARCH
 	select HAVE_ASM_MODVERSIONS
 	select HAVE_CONTEXT_TRACKING_USER
 	select HAVE_C_RECORDMCOUNT
+	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
@@ -103,6 +111,7 @@ config LOONGARCH
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_FUNCTION_ERROR_INJECTION
+	select HAVE_FUNCTION_GRAPH_RETVAL if HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GENERIC_VDSO
@@ -120,6 +129,7 @@ config LOONGARCH
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RETHOOK
 	select HAVE_RSEQ
 	select HAVE_SAMPLE_FTRACE_DIRECT
 	select HAVE_SAMPLE_FTRACE_DIRECT_MULTI
@@ -130,6 +140,7 @@ config LOONGARCH
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if !SMP
 	select IRQ_FORCED_THREADING
 	select IRQ_LOONGARCH_CPU
+	select LOCK_MM_AND_FIND_VMA
 	select MMU_GATHER_MERGE_VMAS if MMU
 	select MODULES_USE_ELF_RELA if MODULES
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
@@ -160,14 +171,6 @@ config 32BIT
 
 config 64BIT
 	def_bool y
-
-config CPU_HAS_FPU
-	bool
-	default y
-
-config CPU_HAS_PREFETCH
-	bool
-	default y
 
 config GENERIC_BUG
 	def_bool y
@@ -240,6 +243,15 @@ config SCHED_OMIT_FRAME_POINTER
 
 config AS_HAS_EXPLICIT_RELOCS
 	def_bool $(as-instr,x:pcalau12i \$t0$(comma)%pc_hi20(x))
+
+config AS_HAS_FCSR_CLASS
+	def_bool $(as-instr,movfcsr2gr \$t0$(comma)\$fcsr0)
+
+config AS_HAS_LSX_EXTENSION
+	def_bool $(as-instr,vld \$vr0$(comma)\$a0$(comma)0)
+
+config AS_HAS_LASX_EXTENSION
+	def_bool $(as-instr,xvld \$xr0$(comma)\$a0$(comma)0)
 
 menu "Kernel type and options"
 
@@ -372,6 +384,13 @@ config EFI_STUB
 	  This kernel feature allows the kernel to be loaded directly by
 	  EFI firmware without the use of a bootloader.
 
+config SCHED_SMT
+	bool "SMT scheduler support"
+	default y
+	help
+	  Improves scheduler's performance when there are multiple
+	  threads in one physical core.
+
 config SMP
 	bool "Multi-Processing support"
 	help
@@ -481,6 +500,43 @@ config ARCH_STRICT_ALIGN
 	  to run kernel only on systems with h/w unaligned access support in
 	  order to optimise for performance.
 
+config CPU_HAS_FPU
+	bool
+	default y
+
+config CPU_HAS_LSX
+	bool "Support for the Loongson SIMD Extension"
+	depends on AS_HAS_LSX_EXTENSION
+	help
+	  Loongson SIMD Extension (LSX) introduces 128 bit wide vector registers
+	  and a set of SIMD instructions to operate on them. When this option
+	  is enabled the kernel will support allocating & switching LSX
+	  vector register contexts. If you know that your kernel will only be
+	  running on CPUs which do not support LSX or that your userland will
+	  not be making use of it then you may wish to say N here to reduce
+	  the size & complexity of your kernel.
+
+	  If unsure, say Y.
+
+config CPU_HAS_LASX
+	bool "Support for the Loongson Advanced SIMD Extension"
+	depends on CPU_HAS_LSX
+	depends on AS_HAS_LASX_EXTENSION
+	help
+	  Loongson Advanced SIMD Extension (LASX) introduces 256 bit wide vector
+	  registers and a set of SIMD instructions to operate on them. When this
+	  option is enabled the kernel will support allocating & switching LASX
+	  vector register contexts. If you know that your kernel will only be
+	  running on CPUs which do not support LASX or that your userland will
+	  not be making use of it then you may wish to say N here to reduce
+	  the size & complexity of your kernel.
+
+	  If unsure, say Y.
+
+config CPU_HAS_PREFETCH
+	bool
+	default y
+
 config KEXEC
 	bool "Kexec system call"
 	select KEXEC_CORE
@@ -589,6 +645,9 @@ config ARCH_MMAP_RND_BITS_MIN
 
 config ARCH_MMAP_RND_BITS_MAX
 	default 18
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
 
 menu "Power management options"
 

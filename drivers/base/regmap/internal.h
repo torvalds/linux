@@ -125,6 +125,9 @@ struct regmap {
 	int reg_stride;
 	int reg_stride_order;
 
+	/* If set, will always write field to HW. */
+	bool force_write_field;
+
 	/* regcache specific members */
 	const struct regcache_ops *cache_ops;
 	enum regcache_type cache_type;
@@ -257,6 +260,8 @@ int regcache_sync_block(struct regmap *map, void *block,
 			unsigned long *cache_present,
 			unsigned int block_base, unsigned int start,
 			unsigned int end);
+bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
+			     unsigned int val);
 
 static inline const void *regcache_get_val_addr(struct regmap *map,
 						const void *base,
@@ -267,7 +272,7 @@ static inline const void *regcache_get_val_addr(struct regmap *map,
 
 unsigned int regcache_get_val(struct regmap *map, const void *base,
 			      unsigned int idx);
-bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
+void regcache_set_val(struct regmap *map, void *base, unsigned int idx,
 		      unsigned int val);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
 int regcache_sync_val(struct regmap *map, unsigned int reg, unsigned int val);
@@ -312,6 +317,7 @@ struct regmap_ram_data {
 	unsigned int *vals;  /* Allocatd by caller */
 	bool *read;
 	bool *written;
+	enum regmap_endian reg_endian;
 };
 
 /*
@@ -326,5 +332,12 @@ struct regmap *__regmap_init_ram(const struct regmap_config *config,
 #define regmap_init_ram(config, data)					\
 	__regmap_lockdep_wrapper(__regmap_init_ram, #config, config, data)
 
+struct regmap *__regmap_init_raw_ram(const struct regmap_config *config,
+				     struct regmap_ram_data *data,
+				     struct lock_class_key *lock_key,
+				     const char *lock_name);
+
+#define regmap_init_raw_ram(config, data)				\
+	__regmap_lockdep_wrapper(__regmap_init_raw_ram, #config, config, data)
 
 #endif

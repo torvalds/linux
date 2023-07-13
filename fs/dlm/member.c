@@ -307,6 +307,21 @@ static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 	}
 }
 
+static int add_remote_member(int nodeid)
+{
+	int error;
+
+	if (nodeid == dlm_our_nodeid())
+		return 0;
+
+	error = dlm_lowcomms_connect_node(nodeid);
+	if (error < 0)
+		return error;
+
+	dlm_midcomms_add_member(nodeid);
+	return 0;
+}
+
 static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 {
 	struct dlm_member *memb;
@@ -316,16 +331,16 @@ static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 	if (!memb)
 		return -ENOMEM;
 
-	error = dlm_lowcomms_connect_node(node->nodeid);
+	memb->nodeid = node->nodeid;
+	memb->weight = node->weight;
+	memb->comm_seq = node->comm_seq;
+
+	error = add_remote_member(node->nodeid);
 	if (error < 0) {
 		kfree(memb);
 		return error;
 	}
 
-	memb->nodeid = node->nodeid;
-	memb->weight = node->weight;
-	memb->comm_seq = node->comm_seq;
-	dlm_midcomms_add_member(node->nodeid);
 	add_ordered_member(ls, memb);
 	ls->ls_num_nodes++;
 	return 0;
@@ -370,9 +385,17 @@ static void clear_memb_list(struct list_head *head,
 	}
 }
 
+static void remove_remote_member(int nodeid)
+{
+	if (nodeid == dlm_our_nodeid())
+		return;
+
+	dlm_midcomms_remove_member(nodeid);
+}
+
 static void clear_members_cb(int nodeid)
 {
-	dlm_midcomms_remove_member(nodeid);
+	remove_remote_member(nodeid);
 }
 
 void dlm_clear_members(struct dlm_ls *ls)
@@ -562,7 +585,7 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 
 		neg++;
 		list_move(&memb->list, &ls->ls_nodes_gone);
-		dlm_midcomms_remove_member(memb->nodeid);
+		remove_remote_member(memb->nodeid);
 		ls->ls_num_nodes--;
 		dlm_lsop_recover_slot(ls, memb);
 	}

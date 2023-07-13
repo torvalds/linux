@@ -2972,7 +2972,7 @@ static struct i2c_driver lm90_driver = {
 		.of_match_table = of_match_ptr(lm90_of_match),
 		.pm	= pm_sleep_ptr(&lm90_pm_ops),
 	},
-	.probe_new	= lm90_probe,
+	.probe		= lm90_probe,
 	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,

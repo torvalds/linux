@@ -2,13 +2,156 @@
 /* Copyright (c) 2019 - 2022 Beijing WangXun Technology Co., Ltd. */
 
 #include <linux/etherdevice.h>
+#include <net/ip6_checksum.h>
 #include <net/page_pool.h>
+#include <net/inet_ecn.h>
 #include <linux/iopoll.h>
+#include <linux/sctp.h>
 #include <linux/pci.h>
+#include <net/tcp.h>
+#include <net/ip.h>
 
 #include "wx_type.h"
 #include "wx_lib.h"
 #include "wx_hw.h"
+
+/* Lookup table mapping the HW PTYPE to the bit field for decoding */
+static struct wx_dec_ptype wx_ptype_lookup[256] = {
+	/* L2: mac */
+	[0x11] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
+	[0x12] = WX_PTT(L2, NONE, NONE, NONE, TS,   PAY2),
+	[0x13] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
+	[0x14] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
+	[0x15] = WX_PTT(L2, NONE, NONE, NONE, NONE, NONE),
+	[0x16] = WX_PTT(L2, NONE, NONE, NONE, NONE, PAY2),
+	[0x17] = WX_PTT(L2, NONE, NONE, NONE, NONE, NONE),
+
+	/* L2: ethertype filter */
+	[0x18 ... 0x1F] = WX_PTT(L2, NONE, NONE, NONE, NONE, NONE),
+
+	/* L3: ip non-tunnel */
+	[0x21] = WX_PTT(IP, FGV4, NONE, NONE, NONE, PAY3),
+	[0x22] = WX_PTT(IP, IPV4, NONE, NONE, NONE, PAY3),
+	[0x23] = WX_PTT(IP, IPV4, NONE, NONE, UDP,  PAY4),
+	[0x24] = WX_PTT(IP, IPV4, NONE, NONE, TCP,  PAY4),
+	[0x25] = WX_PTT(IP, IPV4, NONE, NONE, SCTP, PAY4),
+	[0x29] = WX_PTT(IP, FGV6, NONE, NONE, NONE, PAY3),
+	[0x2A] = WX_PTT(IP, IPV6, NONE, NONE, NONE, PAY3),
+	[0x2B] = WX_PTT(IP, IPV6, NONE, NONE, UDP,  PAY3),
+	[0x2C] = WX_PTT(IP, IPV6, NONE, NONE, TCP,  PAY4),
+	[0x2D] = WX_PTT(IP, IPV6, NONE, NONE, SCTP, PAY4),
+
+	/* L2: fcoe */
+	[0x30 ... 0x34] = WX_PTT(FCOE, NONE, NONE, NONE, NONE, PAY3),
+	[0x38 ... 0x3C] = WX_PTT(FCOE, NONE, NONE, NONE, NONE, PAY3),
+
+	/* IPv4 --> IPv4/IPv6 */
+	[0x81] = WX_PTT(IP, IPV4, IPIP, FGV4, NONE, PAY3),
+	[0x82] = WX_PTT(IP, IPV4, IPIP, IPV4, NONE, PAY3),
+	[0x83] = WX_PTT(IP, IPV4, IPIP, IPV4, UDP,  PAY4),
+	[0x84] = WX_PTT(IP, IPV4, IPIP, IPV4, TCP,  PAY4),
+	[0x85] = WX_PTT(IP, IPV4, IPIP, IPV4, SCTP, PAY4),
+	[0x89] = WX_PTT(IP, IPV4, IPIP, FGV6, NONE, PAY3),
+	[0x8A] = WX_PTT(IP, IPV4, IPIP, IPV6, NONE, PAY3),
+	[0x8B] = WX_PTT(IP, IPV4, IPIP, IPV6, UDP,  PAY4),
+	[0x8C] = WX_PTT(IP, IPV4, IPIP, IPV6, TCP,  PAY4),
+	[0x8D] = WX_PTT(IP, IPV4, IPIP, IPV6, SCTP, PAY4),
+
+	/* IPv4 --> GRE/NAT --> NONE/IPv4/IPv6 */
+	[0x90] = WX_PTT(IP, IPV4, IG, NONE, NONE, PAY3),
+	[0x91] = WX_PTT(IP, IPV4, IG, FGV4, NONE, PAY3),
+	[0x92] = WX_PTT(IP, IPV4, IG, IPV4, NONE, PAY3),
+	[0x93] = WX_PTT(IP, IPV4, IG, IPV4, UDP,  PAY4),
+	[0x94] = WX_PTT(IP, IPV4, IG, IPV4, TCP,  PAY4),
+	[0x95] = WX_PTT(IP, IPV4, IG, IPV4, SCTP, PAY4),
+	[0x99] = WX_PTT(IP, IPV4, IG, FGV6, NONE, PAY3),
+	[0x9A] = WX_PTT(IP, IPV4, IG, IPV6, NONE, PAY3),
+	[0x9B] = WX_PTT(IP, IPV4, IG, IPV6, UDP,  PAY4),
+	[0x9C] = WX_PTT(IP, IPV4, IG, IPV6, TCP,  PAY4),
+	[0x9D] = WX_PTT(IP, IPV4, IG, IPV6, SCTP, PAY4),
+
+	/* IPv4 --> GRE/NAT --> MAC --> NONE/IPv4/IPv6 */
+	[0xA0] = WX_PTT(IP, IPV4, IGM, NONE, NONE, PAY3),
+	[0xA1] = WX_PTT(IP, IPV4, IGM, FGV4, NONE, PAY3),
+	[0xA2] = WX_PTT(IP, IPV4, IGM, IPV4, NONE, PAY3),
+	[0xA3] = WX_PTT(IP, IPV4, IGM, IPV4, UDP,  PAY4),
+	[0xA4] = WX_PTT(IP, IPV4, IGM, IPV4, TCP,  PAY4),
+	[0xA5] = WX_PTT(IP, IPV4, IGM, IPV4, SCTP, PAY4),
+	[0xA9] = WX_PTT(IP, IPV4, IGM, FGV6, NONE, PAY3),
+	[0xAA] = WX_PTT(IP, IPV4, IGM, IPV6, NONE, PAY3),
+	[0xAB] = WX_PTT(IP, IPV4, IGM, IPV6, UDP,  PAY4),
+	[0xAC] = WX_PTT(IP, IPV4, IGM, IPV6, TCP,  PAY4),
+	[0xAD] = WX_PTT(IP, IPV4, IGM, IPV6, SCTP, PAY4),
+
+	/* IPv4 --> GRE/NAT --> MAC+VLAN --> NONE/IPv4/IPv6 */
+	[0xB0] = WX_PTT(IP, IPV4, IGMV, NONE, NONE, PAY3),
+	[0xB1] = WX_PTT(IP, IPV4, IGMV, FGV4, NONE, PAY3),
+	[0xB2] = WX_PTT(IP, IPV4, IGMV, IPV4, NONE, PAY3),
+	[0xB3] = WX_PTT(IP, IPV4, IGMV, IPV4, UDP,  PAY4),
+	[0xB4] = WX_PTT(IP, IPV4, IGMV, IPV4, TCP,  PAY4),
+	[0xB5] = WX_PTT(IP, IPV4, IGMV, IPV4, SCTP, PAY4),
+	[0xB9] = WX_PTT(IP, IPV4, IGMV, FGV6, NONE, PAY3),
+	[0xBA] = WX_PTT(IP, IPV4, IGMV, IPV6, NONE, PAY3),
+	[0xBB] = WX_PTT(IP, IPV4, IGMV, IPV6, UDP,  PAY4),
+	[0xBC] = WX_PTT(IP, IPV4, IGMV, IPV6, TCP,  PAY4),
+	[0xBD] = WX_PTT(IP, IPV4, IGMV, IPV6, SCTP, PAY4),
+
+	/* IPv6 --> IPv4/IPv6 */
+	[0xC1] = WX_PTT(IP, IPV6, IPIP, FGV4, NONE, PAY3),
+	[0xC2] = WX_PTT(IP, IPV6, IPIP, IPV4, NONE, PAY3),
+	[0xC3] = WX_PTT(IP, IPV6, IPIP, IPV4, UDP,  PAY4),
+	[0xC4] = WX_PTT(IP, IPV6, IPIP, IPV4, TCP,  PAY4),
+	[0xC5] = WX_PTT(IP, IPV6, IPIP, IPV4, SCTP, PAY4),
+	[0xC9] = WX_PTT(IP, IPV6, IPIP, FGV6, NONE, PAY3),
+	[0xCA] = WX_PTT(IP, IPV6, IPIP, IPV6, NONE, PAY3),
+	[0xCB] = WX_PTT(IP, IPV6, IPIP, IPV6, UDP,  PAY4),
+	[0xCC] = WX_PTT(IP, IPV6, IPIP, IPV6, TCP,  PAY4),
+	[0xCD] = WX_PTT(IP, IPV6, IPIP, IPV6, SCTP, PAY4),
+
+	/* IPv6 --> GRE/NAT -> NONE/IPv4/IPv6 */
+	[0xD0] = WX_PTT(IP, IPV6, IG, NONE, NONE, PAY3),
+	[0xD1] = WX_PTT(IP, IPV6, IG, FGV4, NONE, PAY3),
+	[0xD2] = WX_PTT(IP, IPV6, IG, IPV4, NONE, PAY3),
+	[0xD3] = WX_PTT(IP, IPV6, IG, IPV4, UDP,  PAY4),
+	[0xD4] = WX_PTT(IP, IPV6, IG, IPV4, TCP,  PAY4),
+	[0xD5] = WX_PTT(IP, IPV6, IG, IPV4, SCTP, PAY4),
+	[0xD9] = WX_PTT(IP, IPV6, IG, FGV6, NONE, PAY3),
+	[0xDA] = WX_PTT(IP, IPV6, IG, IPV6, NONE, PAY3),
+	[0xDB] = WX_PTT(IP, IPV6, IG, IPV6, UDP,  PAY4),
+	[0xDC] = WX_PTT(IP, IPV6, IG, IPV6, TCP,  PAY4),
+	[0xDD] = WX_PTT(IP, IPV6, IG, IPV6, SCTP, PAY4),
+
+	/* IPv6 --> GRE/NAT -> MAC -> NONE/IPv4/IPv6 */
+	[0xE0] = WX_PTT(IP, IPV6, IGM, NONE, NONE, PAY3),
+	[0xE1] = WX_PTT(IP, IPV6, IGM, FGV4, NONE, PAY3),
+	[0xE2] = WX_PTT(IP, IPV6, IGM, IPV4, NONE, PAY3),
+	[0xE3] = WX_PTT(IP, IPV6, IGM, IPV4, UDP,  PAY4),
+	[0xE4] = WX_PTT(IP, IPV6, IGM, IPV4, TCP,  PAY4),
+	[0xE5] = WX_PTT(IP, IPV6, IGM, IPV4, SCTP, PAY4),
+	[0xE9] = WX_PTT(IP, IPV6, IGM, FGV6, NONE, PAY3),
+	[0xEA] = WX_PTT(IP, IPV6, IGM, IPV6, NONE, PAY3),
+	[0xEB] = WX_PTT(IP, IPV6, IGM, IPV6, UDP,  PAY4),
+	[0xEC] = WX_PTT(IP, IPV6, IGM, IPV6, TCP,  PAY4),
+	[0xED] = WX_PTT(IP, IPV6, IGM, IPV6, SCTP, PAY4),
+
+	/* IPv6 --> GRE/NAT -> MAC--> NONE/IPv */
+	[0xF0] = WX_PTT(IP, IPV6, IGMV, NONE, NONE, PAY3),
+	[0xF1] = WX_PTT(IP, IPV6, IGMV, FGV4, NONE, PAY3),
+	[0xF2] = WX_PTT(IP, IPV6, IGMV, IPV4, NONE, PAY3),
+	[0xF3] = WX_PTT(IP, IPV6, IGMV, IPV4, UDP,  PAY4),
+	[0xF4] = WX_PTT(IP, IPV6, IGMV, IPV4, TCP,  PAY4),
+	[0xF5] = WX_PTT(IP, IPV6, IGMV, IPV4, SCTP, PAY4),
+	[0xF9] = WX_PTT(IP, IPV6, IGMV, FGV6, NONE, PAY3),
+	[0xFA] = WX_PTT(IP, IPV6, IGMV, IPV6, NONE, PAY3),
+	[0xFB] = WX_PTT(IP, IPV6, IGMV, IPV6, UDP,  PAY4),
+	[0xFC] = WX_PTT(IP, IPV6, IGMV, IPV6, TCP,  PAY4),
+	[0xFD] = WX_PTT(IP, IPV6, IGMV, IPV6, SCTP, PAY4),
+};
+
+static struct wx_dec_ptype wx_decode_ptype(const u8 ptype)
+{
+	return wx_ptype_lookup[ptype];
+}
 
 /* wx_test_staterr - tests bits in Rx descriptor status and error fields */
 static __le32 wx_test_staterr(union wx_rx_desc *rx_desc,
@@ -419,6 +562,116 @@ static bool wx_cleanup_headers(struct wx_ring *rx_ring,
 	return false;
 }
 
+static void wx_rx_hash(struct wx_ring *ring,
+		       union wx_rx_desc *rx_desc,
+		       struct sk_buff *skb)
+{
+	u16 rss_type;
+
+	if (!(ring->netdev->features & NETIF_F_RXHASH))
+		return;
+
+	rss_type = le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.pkt_info) &
+			       WX_RXD_RSSTYPE_MASK;
+
+	if (!rss_type)
+		return;
+
+	skb_set_hash(skb, le32_to_cpu(rx_desc->wb.lower.hi_dword.rss),
+		     (WX_RSS_L4_TYPES_MASK & (1ul << rss_type)) ?
+		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
+}
+
+/**
+ * wx_rx_checksum - indicate in skb if hw indicated a good cksum
+ * @ring: structure containing ring specific data
+ * @rx_desc: current Rx descriptor being processed
+ * @skb: skb currently being received and modified
+ **/
+static void wx_rx_checksum(struct wx_ring *ring,
+			   union wx_rx_desc *rx_desc,
+			   struct sk_buff *skb)
+{
+	struct wx_dec_ptype dptype = wx_decode_ptype(WX_RXD_PKTTYPE(rx_desc));
+
+	skb_checksum_none_assert(skb);
+	/* Rx csum disabled */
+	if (!(ring->netdev->features & NETIF_F_RXCSUM))
+		return;
+
+	/* if IPv4 header checksum error */
+	if ((wx_test_staterr(rx_desc, WX_RXD_STAT_IPCS) &&
+	     wx_test_staterr(rx_desc, WX_RXD_ERR_IPE)) ||
+	    (wx_test_staterr(rx_desc, WX_RXD_STAT_OUTERIPCS) &&
+	     wx_test_staterr(rx_desc, WX_RXD_ERR_OUTERIPER))) {
+		ring->rx_stats.csum_err++;
+		return;
+	}
+
+	/* L4 checksum offload flag must set for the below code to work */
+	if (!wx_test_staterr(rx_desc, WX_RXD_STAT_L4CS))
+		return;
+
+	/* Hardware can't guarantee csum if IPv6 Dest Header found */
+	if (dptype.prot != WX_DEC_PTYPE_PROT_SCTP && WX_RXD_IPV6EX(rx_desc))
+		return;
+
+	/* if L4 checksum error */
+	if (wx_test_staterr(rx_desc, WX_RXD_ERR_TCPE)) {
+		ring->rx_stats.csum_err++;
+		return;
+	}
+
+	/* It must be a TCP or UDP or SCTP packet with a valid checksum */
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	/* If there is an outer header present that might contain a checksum
+	 * we need to bump the checksum level by 1 to reflect the fact that
+	 * we are indicating we validated the inner checksum.
+	 */
+	if (dptype.etype >= WX_DEC_PTYPE_ETYPE_IG)
+		__skb_incr_checksum_unnecessary(skb);
+	ring->rx_stats.csum_good_cnt++;
+}
+
+static void wx_rx_vlan(struct wx_ring *ring, union wx_rx_desc *rx_desc,
+		       struct sk_buff *skb)
+{
+	u16 ethertype;
+	u8 idx = 0;
+
+	if ((ring->netdev->features &
+	     (NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_VLAN_STAG_RX)) &&
+	    wx_test_staterr(rx_desc, WX_RXD_STAT_VP)) {
+		idx = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.pkt_info) &
+		       0x1c0) >> 6;
+		ethertype = ring->q_vector->wx->tpid[idx];
+		__vlan_hwaccel_put_tag(skb, htons(ethertype),
+				       le16_to_cpu(rx_desc->wb.upper.vlan));
+	}
+}
+
+/**
+ * wx_process_skb_fields - Populate skb header fields from Rx descriptor
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_desc: pointer to the EOP Rx descriptor
+ * @skb: pointer to current skb being populated
+ *
+ * This function checks the ring, descriptor, and packet information in
+ * order to populate the hash, checksum, protocol, and
+ * other fields within the skb.
+ **/
+static void wx_process_skb_fields(struct wx_ring *rx_ring,
+				  union wx_rx_desc *rx_desc,
+				  struct sk_buff *skb)
+{
+	wx_rx_hash(rx_ring, rx_desc, skb);
+	wx_rx_checksum(rx_ring, rx_desc, skb);
+	wx_rx_vlan(rx_ring, rx_desc, skb);
+	skb_record_rx_queue(skb, rx_ring->queue_index);
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+}
+
 /**
  * wx_clean_rx_irq - Clean completed descriptors from Rx ring - bounce buf
  * @q_vector: structure containing interrupt and ring information
@@ -486,8 +739,8 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
 
-		skb_record_rx_queue(skb, rx_ring->queue_index);
-		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+		/* populate checksum, timestamp, VLAN, and protocol */
+		wx_process_skb_fields(rx_ring, rx_desc, skb);
 		napi_gro_receive(&q_vector->napi, skb);
 
 		/* update budget accounting */
@@ -707,11 +960,50 @@ static int wx_maybe_stop_tx(struct wx_ring *tx_ring, u16 size)
 	return 0;
 }
 
+static u32 wx_tx_cmd_type(u32 tx_flags)
+{
+	/* set type for advanced descriptor with frame checksum insertion */
+	u32 cmd_type = WX_TXD_DTYP_DATA | WX_TXD_IFCS;
+
+	/* set HW vlan bit if vlan is present */
+	cmd_type |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_HW_VLAN, WX_TXD_VLE);
+	/* set segmentation enable bits for TSO/FSO */
+	cmd_type |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_TSO, WX_TXD_TSE);
+	/* set timestamp bit if present */
+	cmd_type |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_TSTAMP, WX_TXD_MAC_TSTAMP);
+	cmd_type |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_LINKSEC, WX_TXD_LINKSEC);
+
+	return cmd_type;
+}
+
+static void wx_tx_olinfo_status(union wx_tx_desc *tx_desc,
+				u32 tx_flags, unsigned int paylen)
+{
+	u32 olinfo_status = paylen << WX_TXD_PAYLEN_SHIFT;
+
+	/* enable L4 checksum for TSO and TX checksum offload */
+	olinfo_status |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_CSUM, WX_TXD_L4CS);
+	/* enable IPv4 checksum for TSO */
+	olinfo_status |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_IPV4, WX_TXD_IIPCS);
+	/* enable outer IPv4 checksum for TSO */
+	olinfo_status |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_OUTER_IPV4,
+				     WX_TXD_EIPCS);
+	/* Check Context must be set if Tx switch is enabled, which it
+	 * always is for case where virtual functions are running
+	 */
+	olinfo_status |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_CC, WX_TXD_CC);
+	olinfo_status |= WX_SET_FLAG(tx_flags, WX_TX_FLAGS_IPSEC,
+				     WX_TXD_IPSEC);
+	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
+}
+
 static void wx_tx_map(struct wx_ring *tx_ring,
-		      struct wx_tx_buffer *first)
+		      struct wx_tx_buffer *first,
+		      const u8 hdr_len)
 {
 	struct sk_buff *skb = first->skb;
 	struct wx_tx_buffer *tx_buffer;
+	u32 tx_flags = first->tx_flags;
 	u16 i = tx_ring->next_to_use;
 	unsigned int data_len, size;
 	union wx_tx_desc *tx_desc;
@@ -719,10 +1011,9 @@ static void wx_tx_map(struct wx_ring *tx_ring,
 	dma_addr_t dma;
 	u32 cmd_type;
 
-	cmd_type = WX_TXD_DTYP_DATA | WX_TXD_IFCS;
+	cmd_type = wx_tx_cmd_type(tx_flags);
 	tx_desc = WX_TX_DESC(tx_ring, i);
-
-	tx_desc->read.olinfo_status = cpu_to_le32(skb->len << WX_TXD_PAYLEN_SHIFT);
+	wx_tx_olinfo_status(tx_desc, tx_flags, skb->len - hdr_len);
 
 	size = skb_headlen(skb);
 	data_len = skb->data_len;
@@ -838,12 +1129,399 @@ dma_error:
 	tx_ring->next_to_use = i;
 }
 
+static void wx_tx_ctxtdesc(struct wx_ring *tx_ring, u32 vlan_macip_lens,
+			   u32 fcoe_sof_eof, u32 type_tucmd, u32 mss_l4len_idx)
+{
+	struct wx_tx_context_desc *context_desc;
+	u16 i = tx_ring->next_to_use;
+
+	context_desc = WX_TX_CTXTDESC(tx_ring, i);
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+
+	/* set bits to identify this as an advanced context descriptor */
+	type_tucmd |= WX_TXD_DTYP_CTXT;
+	context_desc->vlan_macip_lens   = cpu_to_le32(vlan_macip_lens);
+	context_desc->seqnum_seed       = cpu_to_le32(fcoe_sof_eof);
+	context_desc->type_tucmd_mlhl   = cpu_to_le32(type_tucmd);
+	context_desc->mss_l4len_idx     = cpu_to_le32(mss_l4len_idx);
+}
+
+static void wx_get_ipv6_proto(struct sk_buff *skb, int offset, u8 *nexthdr)
+{
+	struct ipv6hdr *hdr = (struct ipv6hdr *)(skb->data + offset);
+
+	*nexthdr = hdr->nexthdr;
+	offset += sizeof(struct ipv6hdr);
+	while (ipv6_ext_hdr(*nexthdr)) {
+		struct ipv6_opt_hdr _hdr, *hp;
+
+		if (*nexthdr == NEXTHDR_NONE)
+			return;
+		hp = skb_header_pointer(skb, offset, sizeof(_hdr), &_hdr);
+		if (!hp)
+			return;
+		if (*nexthdr == NEXTHDR_FRAGMENT)
+			break;
+		*nexthdr = hp->nexthdr;
+	}
+}
+
+union network_header {
+	struct iphdr *ipv4;
+	struct ipv6hdr *ipv6;
+	void *raw;
+};
+
+static u8 wx_encode_tx_desc_ptype(const struct wx_tx_buffer *first)
+{
+	u8 tun_prot = 0, l4_prot = 0, ptype = 0;
+	struct sk_buff *skb = first->skb;
+
+	if (skb->encapsulation) {
+		union network_header hdr;
+
+		switch (first->protocol) {
+		case htons(ETH_P_IP):
+			tun_prot = ip_hdr(skb)->protocol;
+			ptype = WX_PTYPE_TUN_IPV4;
+			break;
+		case htons(ETH_P_IPV6):
+			wx_get_ipv6_proto(skb, skb_network_offset(skb), &tun_prot);
+			ptype = WX_PTYPE_TUN_IPV6;
+			break;
+		default:
+			return ptype;
+		}
+
+		if (tun_prot == IPPROTO_IPIP) {
+			hdr.raw = (void *)inner_ip_hdr(skb);
+			ptype |= WX_PTYPE_PKT_IPIP;
+		} else if (tun_prot == IPPROTO_UDP) {
+			hdr.raw = (void *)inner_ip_hdr(skb);
+			if (skb->inner_protocol_type != ENCAP_TYPE_ETHER ||
+			    skb->inner_protocol != htons(ETH_P_TEB)) {
+				ptype |= WX_PTYPE_PKT_IG;
+			} else {
+				if (((struct ethhdr *)skb_inner_mac_header(skb))->h_proto
+				     == htons(ETH_P_8021Q))
+					ptype |= WX_PTYPE_PKT_IGMV;
+				else
+					ptype |= WX_PTYPE_PKT_IGM;
+			}
+
+		} else if (tun_prot == IPPROTO_GRE) {
+			hdr.raw = (void *)inner_ip_hdr(skb);
+			if (skb->inner_protocol ==  htons(ETH_P_IP) ||
+			    skb->inner_protocol ==  htons(ETH_P_IPV6)) {
+				ptype |= WX_PTYPE_PKT_IG;
+			} else {
+				if (((struct ethhdr *)skb_inner_mac_header(skb))->h_proto
+				    == htons(ETH_P_8021Q))
+					ptype |= WX_PTYPE_PKT_IGMV;
+				else
+					ptype |= WX_PTYPE_PKT_IGM;
+			}
+		} else {
+			return ptype;
+		}
+
+		switch (hdr.ipv4->version) {
+		case IPVERSION:
+			l4_prot = hdr.ipv4->protocol;
+			break;
+		case 6:
+			wx_get_ipv6_proto(skb, skb_inner_network_offset(skb), &l4_prot);
+			ptype |= WX_PTYPE_PKT_IPV6;
+			break;
+		default:
+			return ptype;
+		}
+	} else {
+		switch (first->protocol) {
+		case htons(ETH_P_IP):
+			l4_prot = ip_hdr(skb)->protocol;
+			ptype = WX_PTYPE_PKT_IP;
+			break;
+		case htons(ETH_P_IPV6):
+			wx_get_ipv6_proto(skb, skb_network_offset(skb), &l4_prot);
+			ptype = WX_PTYPE_PKT_IP | WX_PTYPE_PKT_IPV6;
+			break;
+		default:
+			return WX_PTYPE_PKT_MAC | WX_PTYPE_TYP_MAC;
+		}
+	}
+	switch (l4_prot) {
+	case IPPROTO_TCP:
+		ptype |= WX_PTYPE_TYP_TCP;
+		break;
+	case IPPROTO_UDP:
+		ptype |= WX_PTYPE_TYP_UDP;
+		break;
+	case IPPROTO_SCTP:
+		ptype |= WX_PTYPE_TYP_SCTP;
+		break;
+	default:
+		ptype |= WX_PTYPE_TYP_IP;
+		break;
+	}
+
+	return ptype;
+}
+
+static int wx_tso(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
+		  u8 *hdr_len, u8 ptype)
+{
+	u32 vlan_macip_lens, type_tucmd, mss_l4len_idx;
+	struct net_device *netdev = tx_ring->netdev;
+	u32 l4len, tunhdr_eiplen_tunlen = 0;
+	struct sk_buff *skb = first->skb;
+	bool enc = skb->encapsulation;
+	struct ipv6hdr *ipv6h;
+	struct tcphdr *tcph;
+	struct iphdr *iph;
+	u8 tun_prot = 0;
+	int err;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	if (!skb_is_gso(skb))
+		return 0;
+
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
+
+	/* indicates the inner headers in the skbuff are valid. */
+	iph = enc ? inner_ip_hdr(skb) : ip_hdr(skb);
+	if (iph->version == 4) {
+		tcph = enc ? inner_tcp_hdr(skb) : tcp_hdr(skb);
+		iph->tot_len = 0;
+		iph->check = 0;
+		tcph->check = ~csum_tcpudp_magic(iph->saddr,
+						 iph->daddr, 0,
+						 IPPROTO_TCP, 0);
+		first->tx_flags |= WX_TX_FLAGS_TSO |
+				   WX_TX_FLAGS_CSUM |
+				   WX_TX_FLAGS_IPV4 |
+				   WX_TX_FLAGS_CC;
+	} else if (iph->version == 6 && skb_is_gso_v6(skb)) {
+		ipv6h = enc ? inner_ipv6_hdr(skb) : ipv6_hdr(skb);
+		tcph = enc ? inner_tcp_hdr(skb) : tcp_hdr(skb);
+		ipv6h->payload_len = 0;
+		tcph->check = ~csum_ipv6_magic(&ipv6h->saddr,
+					       &ipv6h->daddr, 0,
+					       IPPROTO_TCP, 0);
+		first->tx_flags |= WX_TX_FLAGS_TSO |
+				   WX_TX_FLAGS_CSUM |
+				   WX_TX_FLAGS_CC;
+	}
+
+	/* compute header lengths */
+	l4len = enc ? inner_tcp_hdrlen(skb) : tcp_hdrlen(skb);
+	*hdr_len = enc ? (skb_inner_transport_header(skb) - skb->data) :
+			 skb_transport_offset(skb);
+	*hdr_len += l4len;
+
+	/* update gso size and bytecount with header size */
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
+	first->bytecount += (first->gso_segs - 1) * *hdr_len;
+
+	/* mss_l4len_id: use 0 as index for TSO */
+	mss_l4len_idx = l4len << WX_TXD_L4LEN_SHIFT;
+	mss_l4len_idx |= skb_shinfo(skb)->gso_size << WX_TXD_MSS_SHIFT;
+
+	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
+	if (enc) {
+		switch (first->protocol) {
+		case htons(ETH_P_IP):
+			tun_prot = ip_hdr(skb)->protocol;
+			first->tx_flags |= WX_TX_FLAGS_OUTER_IPV4;
+			break;
+		case htons(ETH_P_IPV6):
+			tun_prot = ipv6_hdr(skb)->nexthdr;
+			break;
+		default:
+			break;
+		}
+		switch (tun_prot) {
+		case IPPROTO_UDP:
+			tunhdr_eiplen_tunlen = WX_TXD_TUNNEL_UDP;
+			tunhdr_eiplen_tunlen |= ((skb_network_header_len(skb) >> 2) <<
+						 WX_TXD_OUTER_IPLEN_SHIFT) |
+						(((skb_inner_mac_header(skb) -
+						skb_transport_header(skb)) >> 1) <<
+						WX_TXD_TUNNEL_LEN_SHIFT);
+			break;
+		case IPPROTO_GRE:
+			tunhdr_eiplen_tunlen = WX_TXD_TUNNEL_GRE;
+			tunhdr_eiplen_tunlen |= ((skb_network_header_len(skb) >> 2) <<
+						 WX_TXD_OUTER_IPLEN_SHIFT) |
+						(((skb_inner_mac_header(skb) -
+						skb_transport_header(skb)) >> 1) <<
+						WX_TXD_TUNNEL_LEN_SHIFT);
+			break;
+		case IPPROTO_IPIP:
+			tunhdr_eiplen_tunlen = (((char *)inner_ip_hdr(skb) -
+						(char *)ip_hdr(skb)) >> 2) <<
+						WX_TXD_OUTER_IPLEN_SHIFT;
+			break;
+		default:
+			break;
+		}
+		vlan_macip_lens = skb_inner_network_header_len(skb) >> 1;
+	} else {
+		vlan_macip_lens = skb_network_header_len(skb) >> 1;
+	}
+
+	vlan_macip_lens |= skb_network_offset(skb) << WX_TXD_MACLEN_SHIFT;
+	vlan_macip_lens |= first->tx_flags & WX_TX_FLAGS_VLAN_MASK;
+
+	type_tucmd = ptype << 24;
+	if (skb->vlan_proto == htons(ETH_P_8021AD) &&
+	    netdev->features & NETIF_F_HW_VLAN_STAG_TX)
+		type_tucmd |= WX_SET_FLAG(first->tx_flags,
+					  WX_TX_FLAGS_HW_VLAN,
+					  0x1 << WX_TXD_TAG_TPID_SEL_SHIFT);
+	wx_tx_ctxtdesc(tx_ring, vlan_macip_lens, tunhdr_eiplen_tunlen,
+		       type_tucmd, mss_l4len_idx);
+
+	return 1;
+}
+
+static void wx_tx_csum(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
+		       u8 ptype)
+{
+	u32 tunhdr_eiplen_tunlen = 0, vlan_macip_lens = 0;
+	struct net_device *netdev = tx_ring->netdev;
+	u32 mss_l4len_idx = 0, type_tucmd;
+	struct sk_buff *skb = first->skb;
+	u8 tun_prot = 0;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		if (!(first->tx_flags & WX_TX_FLAGS_HW_VLAN) &&
+		    !(first->tx_flags & WX_TX_FLAGS_CC))
+			return;
+		vlan_macip_lens = skb_network_offset(skb) <<
+				  WX_TXD_MACLEN_SHIFT;
+	} else {
+		u8 l4_prot = 0;
+		union {
+			struct iphdr *ipv4;
+			struct ipv6hdr *ipv6;
+			u8 *raw;
+		} network_hdr;
+		union {
+			struct tcphdr *tcphdr;
+			u8 *raw;
+		} transport_hdr;
+
+		if (skb->encapsulation) {
+			network_hdr.raw = skb_inner_network_header(skb);
+			transport_hdr.raw = skb_inner_transport_header(skb);
+			vlan_macip_lens = skb_network_offset(skb) <<
+					  WX_TXD_MACLEN_SHIFT;
+			switch (first->protocol) {
+			case htons(ETH_P_IP):
+				tun_prot = ip_hdr(skb)->protocol;
+				break;
+			case htons(ETH_P_IPV6):
+				tun_prot = ipv6_hdr(skb)->nexthdr;
+				break;
+			default:
+				return;
+			}
+			switch (tun_prot) {
+			case IPPROTO_UDP:
+				tunhdr_eiplen_tunlen = WX_TXD_TUNNEL_UDP;
+				tunhdr_eiplen_tunlen |=
+					((skb_network_header_len(skb) >> 2) <<
+					WX_TXD_OUTER_IPLEN_SHIFT) |
+					(((skb_inner_mac_header(skb) -
+					skb_transport_header(skb)) >> 1) <<
+					WX_TXD_TUNNEL_LEN_SHIFT);
+				break;
+			case IPPROTO_GRE:
+				tunhdr_eiplen_tunlen = WX_TXD_TUNNEL_GRE;
+				tunhdr_eiplen_tunlen |= ((skb_network_header_len(skb) >> 2) <<
+							 WX_TXD_OUTER_IPLEN_SHIFT) |
+							 (((skb_inner_mac_header(skb) -
+							    skb_transport_header(skb)) >> 1) <<
+							  WX_TXD_TUNNEL_LEN_SHIFT);
+				break;
+			case IPPROTO_IPIP:
+				tunhdr_eiplen_tunlen = (((char *)inner_ip_hdr(skb) -
+							(char *)ip_hdr(skb)) >> 2) <<
+							WX_TXD_OUTER_IPLEN_SHIFT;
+				break;
+			default:
+				break;
+			}
+
+		} else {
+			network_hdr.raw = skb_network_header(skb);
+			transport_hdr.raw = skb_transport_header(skb);
+			vlan_macip_lens = skb_network_offset(skb) <<
+					  WX_TXD_MACLEN_SHIFT;
+		}
+
+		switch (network_hdr.ipv4->version) {
+		case IPVERSION:
+			vlan_macip_lens |= (transport_hdr.raw - network_hdr.raw) >> 1;
+			l4_prot = network_hdr.ipv4->protocol;
+			break;
+		case 6:
+			vlan_macip_lens |= (transport_hdr.raw - network_hdr.raw) >> 1;
+			l4_prot = network_hdr.ipv6->nexthdr;
+			break;
+		default:
+			break;
+		}
+
+		switch (l4_prot) {
+		case IPPROTO_TCP:
+		mss_l4len_idx = (transport_hdr.tcphdr->doff * 4) <<
+				WX_TXD_L4LEN_SHIFT;
+			break;
+		case IPPROTO_SCTP:
+			mss_l4len_idx = sizeof(struct sctphdr) <<
+					WX_TXD_L4LEN_SHIFT;
+			break;
+		case IPPROTO_UDP:
+			mss_l4len_idx = sizeof(struct udphdr) <<
+					WX_TXD_L4LEN_SHIFT;
+			break;
+		default:
+			break;
+		}
+
+		/* update TX checksum flag */
+		first->tx_flags |= WX_TX_FLAGS_CSUM;
+	}
+	first->tx_flags |= WX_TX_FLAGS_CC;
+	/* vlan_macip_lens: MACLEN, VLAN tag */
+	vlan_macip_lens |= first->tx_flags & WX_TX_FLAGS_VLAN_MASK;
+
+	type_tucmd = ptype << 24;
+	if (skb->vlan_proto == htons(ETH_P_8021AD) &&
+	    netdev->features & NETIF_F_HW_VLAN_STAG_TX)
+		type_tucmd |= WX_SET_FLAG(first->tx_flags,
+					  WX_TX_FLAGS_HW_VLAN,
+					  0x1 << WX_TXD_TAG_TPID_SEL_SHIFT);
+	wx_tx_ctxtdesc(tx_ring, vlan_macip_lens, tunhdr_eiplen_tunlen,
+		       type_tucmd, mss_l4len_idx);
+}
+
 static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 				      struct wx_ring *tx_ring)
 {
 	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 	struct wx_tx_buffer *first;
+	u8 hdr_len = 0, ptype;
 	unsigned short f;
+	u32 tx_flags = 0;
+	int tso;
 
 	/* need: 1 descriptor per page * PAGE_SIZE/WX_MAX_DATA_PER_TXD,
 	 *       + 1 desc for skb_headlen/WX_MAX_DATA_PER_TXD,
@@ -864,7 +1542,29 @@ static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
-	wx_tx_map(tx_ring, first);
+	/* if we have a HW VLAN tag being added default to the HW one */
+	if (skb_vlan_tag_present(skb)) {
+		tx_flags |= skb_vlan_tag_get(skb) << WX_TX_FLAGS_VLAN_SHIFT;
+		tx_flags |= WX_TX_FLAGS_HW_VLAN;
+	}
+
+	/* record initial flags and protocol */
+	first->tx_flags = tx_flags;
+	first->protocol = vlan_get_protocol(skb);
+
+	ptype = wx_encode_tx_desc_ptype(first);
+
+	tso = wx_tso(tx_ring, first, &hdr_len, ptype);
+	if (tso < 0)
+		goto out_drop;
+	else if (!tso)
+		wx_tx_csum(tx_ring, first, ptype);
+	wx_tx_map(tx_ring, first, hdr_len);
+
+	return NETDEV_TX_OK;
+out_drop:
+	dev_kfree_skb_any(first->skb);
+	first->skb = NULL;
 
 	return NETDEV_TX_OK;
 }
@@ -1348,7 +2048,8 @@ void wx_free_irq(struct wx *wx)
 		free_irq(entry->vector, q_vector);
 	}
 
-	free_irq(wx->msix_entries[vector].vector, wx);
+	if (wx->mac.type == wx_mac_em)
+		free_irq(wx->msix_entries[vector].vector, wx);
 }
 EXPORT_SYMBOL(wx_free_irq);
 
@@ -2003,5 +2704,25 @@ void wx_get_stats64(struct net_device *netdev,
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(wx_get_stats64);
+
+int wx_set_features(struct net_device *netdev, netdev_features_t features)
+{
+	netdev_features_t changed = netdev->features ^ features;
+	struct wx *wx = netdev_priv(netdev);
+
+	if (changed & NETIF_F_RXHASH)
+		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN,
+		      WX_RDB_RA_CTL_RSS_EN);
+	else
+		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN, 0);
+
+	if (changed &
+	    (NETIF_F_HW_VLAN_CTAG_RX |
+	     NETIF_F_HW_VLAN_STAG_RX))
+		wx_set_rx_mode(netdev);
+
+	return 1;
+}
+EXPORT_SYMBOL(wx_set_features);
 
 MODULE_LICENSE("GPL");

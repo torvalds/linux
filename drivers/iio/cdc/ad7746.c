@@ -809,7 +809,7 @@ static struct i2c_driver ad7746_driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = ad7746_of_match,
 	},
-	.probe_new = ad7746_probe,
+	.probe = ad7746_probe,
 	.id_table = ad7746_id,
 };
 module_i2c_driver(ad7746_driver);

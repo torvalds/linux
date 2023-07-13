@@ -67,7 +67,7 @@ following two cases:
 2. Write-Protection: The SPTE is present and the fault is caused by
    write-protect. That means we just need to change the W bit of the spte.
 
-What we use to avoid all the race is the Host-writable bit and MMU-writable bit
+What we use to avoid all the races is the Host-writable bit and MMU-writable bit
 on the spte:
 
 - Host-writable means the gfn is writable in the host kernel page tables and in
@@ -130,7 +130,7 @@ to gfn.  For indirect sp, we disabled fast page fault for simplicity.
 A solution for indirect sp could be to pin the gfn, for example via
 kvm_vcpu_gfn_to_pfn_atomic, before the cmpxchg.  After the pinning:
 
-- We have held the refcount of pfn that means the pfn can not be freed and
+- We have held the refcount of pfn; that means the pfn can not be freed and
   be reused for another gfn.
 - The pfn is writable and therefore it cannot be shared between different gfns
   by KSM.
@@ -186,22 +186,22 @@ writable between reading spte and updating spte. Like below case:
 The Dirty bit is lost in this case.
 
 In order to avoid this kind of issue, we always treat the spte as "volatile"
-if it can be updated out of mmu-lock, see spte_has_volatile_bits(), it means,
+if it can be updated out of mmu-lock [see spte_has_volatile_bits()]; it means
 the spte is always atomically updated in this case.
 
 3) flush tlbs due to spte updated
 
-If the spte is updated from writable to readonly, we should flush all TLBs,
+If the spte is updated from writable to read-only, we should flush all TLBs,
 otherwise rmap_write_protect will find a read-only spte, even though the
 writable spte might be cached on a CPU's TLB.
 
 As mentioned before, the spte can be updated to writable out of mmu-lock on
-fast page fault path, in order to easily audit the path, we see if TLBs need
-be flushed caused by this reason in mmu_spte_update() since this is a common
+fast page fault path. In order to easily audit the path, we see if TLBs needing
+to be flushed caused this reason in mmu_spte_update() since this is a common
 function to update spte (present -> present).
 
 Since the spte is "volatile" if it can be updated out of mmu-lock, we always
-atomically update the spte, the race caused by fast page fault can be avoided,
+atomically update the spte and the race caused by fast page fault can be avoided.
 See the comments in spte_has_volatile_bits() and mmu_spte_update().
 
 Lockless Access Tracking:
@@ -283,9 +283,9 @@ time it will be set using the Dirty tracking mechanism described above.
 :Arch:		x86
 :Protects:	wakeup_vcpus_on_cpu
 :Comment:	This is a per-CPU lock and it is used for VT-d posted-interrupts.
-		When VT-d posted-interrupts is supported and the VM has assigned
+		When VT-d posted-interrupts are supported and the VM has assigned
 		devices, we put the blocked vCPU on the list blocked_vcpu_on_cpu
-		protected by blocked_vcpu_on_cpu_lock, when VT-d hardware issues
+		protected by blocked_vcpu_on_cpu_lock. When VT-d hardware issues
 		wakeup notification event since external interrupts from the
 		assigned devices happens, we will find the vCPU on the list to
 		wakeup.

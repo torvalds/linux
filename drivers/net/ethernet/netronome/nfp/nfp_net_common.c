@@ -53,6 +53,8 @@
 #include "crypto/crypto.h"
 #include "crypto/fw.h"
 
+static int nfp_net_mc_unsync(struct net_device *netdev, const unsigned char *addr);
+
 /**
  * nfp_net_get_fw_version() - Read and parse the FW version
  * @fw_ver:	Output fw_version structure to read to
@@ -598,7 +600,7 @@ nfp_net_tls_tx(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 
 	if (likely(!dp->ktls_tx))
 		return skb;
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
+	if (!tls_is_skb_tx_device_offloaded(skb))
 		return skb;
 
 	datalen = skb->len - skb_tcp_all_headers(skb);
@@ -666,7 +668,7 @@ void nfp_net_tls_tx_undo(struct sk_buff *skb, u64 tls_handle)
 
 	if (!tls_handle)
 		return;
-	if (WARN_ON_ONCE(!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk)))
+	if (WARN_ON_ONCE(!tls_is_skb_tx_device_offloaded(skb)))
 		return;
 
 	datalen = skb->len - skb_tcp_all_headers(skb);
@@ -1084,6 +1086,9 @@ static int nfp_net_netdev_close(struct net_device *netdev)
 
 	/* Step 2: Tell NFP
 	 */
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER)
+		__dev_mc_unsync(netdev, nfp_net_mc_unsync);
+
 	nfp_net_clear_config_and_disable(nn);
 	nfp_port_configure(netdev, false);
 
@@ -2418,6 +2423,8 @@ static void nfp_net_rss_init(struct nfp_net *nn)
 	/* Enable IPv4/IPv6 TCP by default */
 	nn->rss_cfg = NFP_NET_CFG_RSS_IPV4_TCP |
 		      NFP_NET_CFG_RSS_IPV6_TCP |
+		      NFP_NET_CFG_RSS_IPV4_UDP |
+		      NFP_NET_CFG_RSS_IPV6_UDP |
 		      FIELD_PREP(NFP_NET_CFG_RSS_HFUNC, nn->rss_hfunc) |
 		      NFP_NET_CFG_RSS_MASK;
 }

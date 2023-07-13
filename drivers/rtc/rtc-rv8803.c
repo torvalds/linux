@@ -739,7 +739,7 @@ static struct i2c_driver rv8803_driver = {
 		.name = "rtc-rv8803",
 		.of_match_table = of_match_ptr(rv8803_of_match),
 	},
-	.probe_new	= rv8803_probe,
+	.probe		= rv8803_probe,
 	.id_table	= rv8803_id,
 };
 module_i2c_driver(rv8803_driver);

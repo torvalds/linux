@@ -42,3 +42,4 @@ obj-$(CONFIG_USB_ASPEED_VHUB)	+= aspeed-vhub/
 obj-$(CONFIG_USB_ASPEED_UDC)	+= aspeed_udc.o
 obj-$(CONFIG_USB_BDC_UDC)	+= bdc/
 obj-$(CONFIG_USB_MAX3420_UDC)	+= max3420_udc.o
+obj-$(CONFIG_USB_CDNS2_UDC)	+= cdns2/

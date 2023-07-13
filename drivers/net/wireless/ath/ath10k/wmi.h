@@ -7502,8 +7502,6 @@ void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,
 void ath10k_wmi_10x_op_fw_stats_fill(struct ath10k *ar,
 				     struct ath10k_fw_stats *fw_stats,
 				     char *buf);
-size_t ath10k_wmi_fw_stats_num_peers(struct list_head *head);
-size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head);
 void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 				      struct ath10k_fw_stats *fw_stats,
 				      char *buf);

@@ -140,7 +140,7 @@ struct lpfc_rqb {
 
 enum lpfc_poll_mode {
 	LPFC_QUEUE_WORK,
-	LPFC_IRQ_POLL
+	LPFC_THREADED_IRQ,
 };
 
 struct lpfc_idle_stat {
@@ -279,8 +279,6 @@ struct lpfc_queue {
 	struct list_head _poll_list;
 	void **q_pgs;	/* array to index entries per page */
 
-#define LPFC_IRQ_POLL_WEIGHT 256
-	struct irq_poll iop;
 	enum lpfc_poll_mode poll_mode;
 };
 

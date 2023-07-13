@@ -753,7 +753,7 @@ static struct i2c_driver mn88473_driver = {
 		.name		     = "mn88473",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= mn88473_probe,
+	.probe		= mn88473_probe,
 	.remove		= mn88473_remove,
 	.id_table	= mn88473_id_table,
 };

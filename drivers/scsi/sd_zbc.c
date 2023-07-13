@@ -889,7 +889,7 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 	}
 
 	max_append = min_t(u32, logical_to_sectors(sdkp->device, zone_blocks),
-			   q->limits.max_segments << (PAGE_SHIFT - 9));
+			   q->limits.max_segments << PAGE_SECTORS_SHIFT);
 	max_append = min_t(u32, max_append, queue_max_hw_sectors(q));
 
 	blk_queue_max_zone_append_sectors(q, max_append);

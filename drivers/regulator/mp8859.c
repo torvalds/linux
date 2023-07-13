@@ -147,7 +147,7 @@ static struct i2c_driver mp8859_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mp8859_dt_id),
 	},
-	.probe_new = mp8859_i2c_probe,
+	.probe = mp8859_i2c_probe,
 	.id_table = mp8859_i2c_id,
 };
 

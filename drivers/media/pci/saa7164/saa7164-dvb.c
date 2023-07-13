@@ -280,7 +280,7 @@ out:
 static int saa7164_dvb_start_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct saa7164_port *port = (struct saa7164_port *) demux->priv;
+	struct saa7164_port *port = demux->priv;
 	struct saa7164_dvb *dvb = &port->dvb;
 	struct saa7164_dev *dev = port->dev;
 	int ret = 0;
@@ -307,7 +307,7 @@ static int saa7164_dvb_start_feed(struct dvb_demux_feed *feed)
 static int saa7164_dvb_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct saa7164_port *port = (struct saa7164_port *) demux->priv;
+	struct saa7164_port *port = demux->priv;
 	struct saa7164_dvb *dvb = &port->dvb;
 	struct saa7164_dev *dev = port->dev;
 	int ret = 0;

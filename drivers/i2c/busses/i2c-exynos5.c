@@ -882,7 +882,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int exynos5_i2c_remove(struct platform_device *pdev)
+static void exynos5_i2c_remove(struct platform_device *pdev)
 {
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -890,8 +890,6 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 
 	clk_unprepare(i2c->clk);
 	clk_unprepare(i2c->pclk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -945,7 +943,7 @@ static const struct dev_pm_ops exynos5_i2c_dev_pm_ops = {
 
 static struct platform_driver exynos5_i2c_driver = {
 	.probe		= exynos5_i2c_probe,
-	.remove		= exynos5_i2c_remove,
+	.remove_new	= exynos5_i2c_remove,
 	.driver		= {
 		.name	= "exynos5-hsi2c",
 		.pm	= &exynos5_i2c_dev_pm_ops,

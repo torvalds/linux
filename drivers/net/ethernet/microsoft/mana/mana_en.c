@@ -179,6 +179,14 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		pkg.tx_oob.s_oob.short_vp_offset = txq->vp_offset;
 	}
 
+	if (skb_vlan_tag_present(skb)) {
+		pkt_fmt = MANA_LONG_PKT_FMT;
+		pkg.tx_oob.l_oob.inject_vlan_pri_tag = 1;
+		pkg.tx_oob.l_oob.pcp = skb_vlan_tag_get_prio(skb);
+		pkg.tx_oob.l_oob.dei = skb_vlan_tag_get_cfi(skb);
+		pkg.tx_oob.l_oob.vlan_id = skb_vlan_tag_get_id(skb);
+	}
+
 	pkg.tx_oob.s_oob.pkt_fmt = pkt_fmt;
 
 	if (pkt_fmt == MANA_SHORT_PKT_FMT) {
@@ -972,7 +980,7 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 				   bool update_tab)
 {
 	u16 num_entries = MANA_INDIRECT_TABLE_SIZE;
-	struct mana_cfg_rx_steer_req *req = NULL;
+	struct mana_cfg_rx_steer_req_v2 *req;
 	struct mana_cfg_rx_steer_resp resp = {};
 	struct net_device *ndev = apc->ndev;
 	mana_handle_t *req_indir_tab;
@@ -987,6 +995,8 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 	mana_gd_init_req_hdr(&req->hdr, MANA_CONFIG_VPORT_RX, req_buf_size,
 			     sizeof(resp));
 
+	req->hdr.req.msg_version = GDMA_MESSAGE_V2;
+
 	req->vport = apc->port_handle;
 	req->num_indir_entries = num_entries;
 	req->indir_tab_offset = sizeof(*req);
@@ -996,6 +1006,7 @@ static int mana_cfg_vport_steering(struct mana_port_context *apc,
 	req->update_hashkey = update_key;
 	req->update_indir_tab = update_tab;
 	req->default_rxobj = apc->default_rxobj;
+	req->cqe_coalescing_enable = 0;
 
 	if (update_key)
 		memcpy(&req->hashkey, apc->hashkey, MANA_HASH_KEY_SIZE);
@@ -1279,8 +1290,6 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 	if (comp_read < 1)
 		return;
 
-	apc->eth_stats.tx_cqes = comp_read;
-
 	for (i = 0; i < comp_read; i++) {
 		struct mana_tx_comp_oob *cqe_oob;
 
@@ -1363,8 +1372,6 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 		WARN_ON_ONCE(1);
 
 	cq->work_done = pkt_transmitted;
-
-	apc->eth_stats.tx_cqes -= pkt_transmitted;
 }
 
 static void mana_post_pkt_rxq(struct mana_rxq *rxq)
@@ -1459,6 +1466,12 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 			skb_set_hash(skb, hash_value, PKT_HASH_TYPE_L4);
 		else
 			skb_set_hash(skb, hash_value, PKT_HASH_TYPE_L3);
+	}
+
+	if (cqe->rx_vlantag_present) {
+		u16 vlan_tci = cqe->rx_vlan_id;
+
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
 	}
 
 	u64_stats_update_begin(&rx_stats->syncp);
@@ -1626,15 +1639,11 @@ static void mana_poll_rx_cq(struct mana_cq *cq)
 {
 	struct gdma_comp *comp = cq->gdma_comp_buf;
 	struct mana_rxq *rxq = cq->rxq;
-	struct mana_port_context *apc;
 	int comp_read, i;
-
-	apc = netdev_priv(rxq->ndev);
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, comp, CQE_POLLING_BUFFER);
 	WARN_ON_ONCE(comp_read > CQE_POLLING_BUFFER);
 
-	apc->eth_stats.rx_cqes = comp_read;
 	rxq->xdp_flush = false;
 
 	for (i = 0; i < comp_read; i++) {
@@ -1646,8 +1655,6 @@ static void mana_poll_rx_cq(struct mana_cq *cq)
 			return;
 
 		mana_process_rx_cqe(rxq, cq, &comp[i]);
-
-		apc->eth_stats.rx_cqes--;
 	}
 
 	if (rxq->xdp_flush)
@@ -2461,8 +2468,9 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	ndev->hw_features |= NETIF_F_RXCSUM;
 	ndev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
 	ndev->hw_features |= NETIF_F_RXHASH;
-	ndev->features = ndev->hw_features;
-	ndev->vlan_features = 0;
+	ndev->features = ndev->hw_features | NETIF_F_HW_VLAN_CTAG_TX |
+			 NETIF_F_HW_VLAN_CTAG_RX;
+	ndev->vlan_features = ndev->features;
 	ndev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 			     NETDEV_XDP_ACT_NDO_XMIT;
 

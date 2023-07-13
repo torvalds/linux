@@ -709,14 +709,6 @@ int pvrdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			goto out;
 		}
 
-		if (unlikely(wr->opcode < 0)) {
-			dev_warn_ratelimited(&dev->pdev->dev,
-					     "invalid send opcode\n");
-			*bad_wr = wr;
-			ret = -EINVAL;
-			goto out;
-		}
-
 		/*
 		 * Only support UD, RC.
 		 * Need to check opcode table for thorough checking.

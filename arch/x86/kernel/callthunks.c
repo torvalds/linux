@@ -133,8 +133,8 @@ static bool skip_addr(void *dest)
 	/* Accounts directly */
 	if (dest == ret_from_fork)
 		return true;
-#ifdef CONFIG_HOTPLUG_CPU
-	if (dest == start_cpu0)
+#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_AMD_MEM_ENCRYPT)
+	if (dest == soft_restart_cpu)
 		return true;
 #endif
 #ifdef CONFIG_FUNCTION_TRACER
@@ -293,7 +293,8 @@ void *callthunks_translate_call_dest(void *dest)
 	return target ? : dest;
 }
 
-bool is_callthunk(void *addr)
+#ifdef CONFIG_BPF_JIT
+static bool is_callthunk(void *addr)
 {
 	unsigned int tmpl_size = SKL_TMPL_SIZE;
 	void *tmpl = skl_call_thunk_template;
@@ -306,7 +307,6 @@ bool is_callthunk(void *addr)
 	return !bcmp((void *)(dest - tmpl_size), tmpl, tmpl_size);
 }
 
-#ifdef CONFIG_BPF_JIT
 int x86_call_depth_emit_accounting(u8 **pprog, void *func)
 {
 	unsigned int tmpl_size = SKL_TMPL_SIZE;

@@ -289,6 +289,20 @@ config JSA1212
 	  To compile this driver as a module, choose M here:
 	  the module will be called jsa1212.
 
+config ROHM_BU27008
+	tristate "ROHM BU27008 color (RGB+C/IR) sensor"
+	depends on I2C
+	select REGMAP_I2C
+	select IIO_GTS_HELPER
+	help
+	  Enable support for the ROHM BU27008 color sensor.
+	  The ROHM BU27008 is a sensor with 5 photodiodes (red, green,
+	  blue, clear and IR) with four configurable channels. Red and
+	  green being always available and two out of the rest three
+	  (blue, clear, IR) can be selected to be simultaneously measured.
+	  Typical application is adjusting LCD backlight of TVs,
+	  mobile phones and tablet PCs.
+
 config ROHM_BU27034
 	tristate "ROHM BU27034 ambient light sensor"
 	depends on I2C
@@ -412,6 +426,17 @@ config OPT3001
 
 	  If built as a dynamically linked module, it will be called
 	  opt3001.
+
+config OPT4001
+	tristate "Texas Instruments OPT4001 Light Sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say Y or M here, you get support for Texas Instruments
+	  OPT4001 Ambient Light Sensor.
+
+	  If built as a dynamically linked module, it will be called
+	  opt4001.
 
 config PA12203001
 	tristate "TXC PA12203001 light and proximity sensor"

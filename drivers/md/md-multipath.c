@@ -400,8 +400,8 @@ static int multipath_run (struct mddev *mddev)
 	if (ret)
 		goto out_free_conf;
 
-	mddev->thread = md_register_thread(multipathd, mddev,
-					   "multipath");
+	rcu_assign_pointer(mddev->thread,
+			   md_register_thread(multipathd, mddev, "multipath"));
 	if (!mddev->thread)
 		goto out_free_conf;
 

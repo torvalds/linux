@@ -244,15 +244,6 @@ static u8 rsm_ins_bytes[] = "\x0f\xaa";
 
 static unsigned long iopm_base;
 
-struct kvm_ldttss_desc {
-	u16 limit0;
-	u16 base0;
-	unsigned base1:8, type:5, dpl:2, p:1;
-	unsigned limit1:4, zero0:3, g:1, base2:8;
-	u32 base3;
-	u32 zero1;
-} __attribute__((packed));
-
 DEFINE_PER_CPU(struct svm_cpu_data, svm_data);
 
 /*
@@ -588,7 +579,6 @@ static int svm_hardware_enable(void)
 
 	struct svm_cpu_data *sd;
 	uint64_t efer;
-	struct desc_struct *gdt;
 	int me = raw_smp_processor_id();
 
 	rdmsrl(MSR_EFER, efer);
@@ -600,9 +590,6 @@ static int svm_hardware_enable(void)
 	sd->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
 	sd->next_asid = sd->max_asid + 1;
 	sd->min_asid = max_sev_asid + 1;
-
-	gdt = get_current_gdt_rw();
-	sd->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 
 	wrmsrl(MSR_EFER, efer | EFER_SVME);
 
@@ -752,7 +739,7 @@ static bool msr_write_intercepted(struct kvm_vcpu *vcpu, u32 msr)
 
 	BUG_ON(offset == MSR_INVALID);
 
-	return !!test_bit(bit_write,  &tmp);
+	return test_bit(bit_write, &tmp);
 }
 
 static void set_msr_interception_bitmap(struct kvm_vcpu *vcpu, u32 *msrpm,
@@ -2939,9 +2926,10 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 
 		break;
 	case MSR_IA32_CR_PAT:
-		if (!kvm_mtrr_valid(vcpu, MSR_IA32_CR_PAT, data))
-			return 1;
-		vcpu->arch.pat = data;
+		ret = kvm_set_msr_common(vcpu, msr);
+		if (ret)
+			break;
+
 		svm->vmcb01.ptr->save.g_pat = data;
 		if (is_guest_mode(vcpu))
 			nested_vmcb02_compute_g_pat(svm);
@@ -3418,8 +3406,6 @@ static int svm_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	struct kvm_run *kvm_run = vcpu->run;
 	u32 exit_code = svm->vmcb->control.exit_code;
 
-	trace_kvm_exit(vcpu, KVM_ISA_SVM);
-
 	/* SEV-ES guests must use the CR write traps to track CR registers. */
 	if (!sev_es_guest(vcpu->kvm)) {
 		if (!svm_is_intercept(svm, INTERCEPT_CR0_WRITE))
@@ -3455,14 +3441,6 @@ static int svm_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		return 1;
 
 	return svm_invoke_exit_handler(vcpu, exit_code);
-}
-
-static void reload_tss(struct kvm_vcpu *vcpu)
-{
-	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
-
-	sd->tss_desc->type = 9; /* available 32/64-bit TSS */
-	load_TR_desc();
 }
 
 static void pre_svm_run(struct kvm_vcpu *vcpu)
@@ -3510,7 +3488,7 @@ static bool svm_is_vnmi_pending(struct kvm_vcpu *vcpu)
 	if (!is_vnmi_enabled(svm))
 		return false;
 
-	return !!(svm->vmcb->control.int_ctl & V_NMI_BLOCKING_MASK);
+	return !!(svm->vmcb->control.int_ctl & V_NMI_PENDING_MASK);
 }
 
 static bool svm_set_vnmi_pending(struct kvm_vcpu *vcpu)
@@ -4099,9 +4077,6 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	svm_vcpu_enter_exit(vcpu, spec_ctrl_intercepted);
 
-	if (!sev_es_guest(vcpu->kvm))
-		reload_tss(vcpu);
-
 	if (!static_cpu_has(X86_FEATURE_V_SPEC_CTRL))
 		x86_spec_ctrl_restore_host(svm->virt_spec_ctrl);
 
@@ -4155,6 +4130,8 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(svm->vmcb->control.exit_code ==
 		     SVM_EXIT_EXCP_BASE + MC_VECTOR))
 		svm_handle_mce(vcpu);
+
+	trace_kvm_exit(vcpu, KVM_ISA_SVM);
 
 	svm_complete_interrupts(vcpu);
 
@@ -5025,9 +5002,22 @@ static __init void svm_set_cpu_caps(void)
 	    boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
 
-	/* AMD PMU PERFCTR_CORE CPUID */
-	if (enable_pmu && boot_cpu_has(X86_FEATURE_PERFCTR_CORE))
-		kvm_cpu_cap_set(X86_FEATURE_PERFCTR_CORE);
+	if (enable_pmu) {
+		/*
+		 * Enumerate support for PERFCTR_CORE if and only if KVM has
+		 * access to enough counters to virtualize "core" support,
+		 * otherwise limit vPMU support to the legacy number of counters.
+		 */
+		if (kvm_pmu_cap.num_counters_gp < AMD64_NUM_COUNTERS_CORE)
+			kvm_pmu_cap.num_counters_gp = min(AMD64_NUM_COUNTERS,
+							  kvm_pmu_cap.num_counters_gp);
+		else
+			kvm_cpu_cap_check_and_set(X86_FEATURE_PERFCTR_CORE);
+
+		if (kvm_pmu_cap.version != 2 ||
+		    !kvm_cpu_cap_has(X86_FEATURE_PERFCTR_CORE))
+			kvm_cpu_cap_clear(X86_FEATURE_PERFMON_V2);
+	}
 
 	/* CPUID 0x8000001F (SME/SEV features) */
 	sev_set_cpu_caps();

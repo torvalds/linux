@@ -51,18 +51,10 @@ phys_addr_t get_immrbase(void)
 
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
-		int size;
-		u32 naddr;
-		const __be32 *prop = of_get_property(soc, "#address-cells", &size);
+		struct resource res;
 
-		if (prop && size == 4)
-			naddr = be32_to_cpup(prop);
-		else
-			naddr = 2;
-
-		prop = of_get_property(soc, "ranges", &size);
-		if (prop)
-			immrbase = of_translate_address(soc, prop + naddr);
+		if (!of_range_to_resource(soc, 0, &res))
+			immrbase = res.start;
 
 		of_node_put(soc);
 	}

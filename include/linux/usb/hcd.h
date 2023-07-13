@@ -267,7 +267,7 @@ struct hc_driver {
 	int	(*pci_suspend)(struct usb_hcd *hcd, bool do_wakeup);
 
 	/* called after entering D0 (etc), before resuming the hub */
-	int	(*pci_resume)(struct usb_hcd *hcd, bool hibernated);
+	int	(*pci_resume)(struct usb_hcd *hcd, pm_message_t state);
 
 	/* called just before hibernate final D3 state, allows host to poweroff parts */
 	int	(*pci_poweroff_late)(struct usb_hcd *hcd, bool do_wakeup);
@@ -500,6 +500,11 @@ void *hcd_buffer_alloc(struct usb_bus *bus, size_t size,
 	gfp_t mem_flags, dma_addr_t *dma);
 void hcd_buffer_free(struct usb_bus *bus, size_t size,
 	void *addr, dma_addr_t dma);
+
+void *hcd_buffer_alloc_pages(struct usb_hcd *hcd,
+		size_t size, gfp_t mem_flags, dma_addr_t *dma);
+void hcd_buffer_free_pages(struct usb_hcd *hcd,
+		size_t size, void *addr, dma_addr_t dma);
 
 /* generic bus glue, needed for host controllers that don't use PCI */
 extern irqreturn_t usb_hcd_irq(int irq, void *__hcd);

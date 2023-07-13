@@ -7,6 +7,10 @@
 #include "mac.h"
 #include "reg.h"
 
+#define EF_FV_OFSET 0x5ea
+#define EF_CV_MASK GENMASK(7, 4)
+#define EF_CV_INV 15
+
 enum rtw89_efuse_bank {
 	RTW89_EFUSE_BANK_WIFI,
 	RTW89_EFUSE_BANK_BT,
@@ -328,3 +332,20 @@ out_free:
 
 	return ret;
 }
+
+int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *ecv)
+{
+	int ret;
+	u8 val;
+
+	ret = rtw89_dump_physical_efuse_map(rtwdev, &val, EF_FV_OFSET, 1, false);
+	if (ret)
+		return ret;
+
+	*ecv = u8_get_bits(val, EF_CV_MASK);
+	if (*ecv == EF_CV_INV)
+		return -ENOENT;
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_read_efuse_ver);

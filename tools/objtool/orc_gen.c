@@ -118,8 +118,8 @@ static int write_orc_entry(struct elf *elf, struct section *orc_sec,
 	orc->bp_offset = bswap_if_needed(elf, orc->bp_offset);
 
 	/* populate reloc for ip */
-	if (elf_add_reloc_to_insn(elf, ip_sec, idx * sizeof(int), R_X86_64_PC32,
-				  insn_sec, insn_off))
+	if (!elf_init_reloc_text_sym(elf, ip_sec, idx * sizeof(int), idx,
+				     insn_sec, insn_off))
 		return -1;
 
 	return 0;
@@ -237,12 +237,12 @@ int orc_create(struct objtool_file *file)
 		WARN("file already has .orc_unwind section, skipping");
 		return -1;
 	}
-	orc_sec = elf_create_section(file->elf, ".orc_unwind", 0,
+	orc_sec = elf_create_section(file->elf, ".orc_unwind",
 				     sizeof(struct orc_entry), nr);
 	if (!orc_sec)
 		return -1;
 
-	sec = elf_create_section(file->elf, ".orc_unwind_ip", 0, sizeof(int), nr);
+	sec = elf_create_section_pair(file->elf, ".orc_unwind_ip", sizeof(int), nr, nr);
 	if (!sec)
 		return -1;
 

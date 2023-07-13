@@ -419,7 +419,7 @@ static inline struct obj_cgroup *__folio_objcg(struct folio *folio)
  *
  * - the folio lock
  * - LRU isolation
- * - lock_page_memcg()
+ * - folio_memcg_lock()
  * - exclusive reference
  * - mem_cgroup_trylock_pages()
  *
@@ -820,8 +820,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
 				   struct mem_cgroup *,
 				   struct mem_cgroup_reclaim_cookie *);
 void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
-int mem_cgroup_scan_tasks(struct mem_cgroup *,
-			  int (*)(struct task_struct *, void *), void *);
+void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+			   int (*)(struct task_struct *, void *), void *arg);
 
 static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 {
@@ -949,8 +949,6 @@ void mem_cgroup_print_oom_group(struct mem_cgroup *memcg);
 
 void folio_memcg_lock(struct folio *folio);
 void folio_memcg_unlock(struct folio *folio);
-void lock_page_memcg(struct page *page);
-void unlock_page_memcg(struct page *page);
 
 void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val);
 
@@ -1038,7 +1036,6 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 }
 
 void mem_cgroup_flush_stats(void);
-void mem_cgroup_flush_stats_atomic(void);
 void mem_cgroup_flush_stats_ratelimited(void);
 
 void __mod_memcg_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
@@ -1367,10 +1364,9 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
 {
 }
 
-static inline int mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
+static inline void mem_cgroup_scan_tasks(struct mem_cgroup *memcg,
 		int (*fn)(struct task_struct *, void *), void *arg)
 {
-	return 0;
 }
 
 static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
@@ -1436,14 +1432,6 @@ mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *p)
 
 static inline void
 mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
-{
-}
-
-static inline void lock_page_memcg(struct page *page)
-{
-}
-
-static inline void unlock_page_memcg(struct page *page)
 {
 }
 
@@ -1534,10 +1522,6 @@ static inline unsigned long lruvec_page_state_local(struct lruvec *lruvec,
 }
 
 static inline void mem_cgroup_flush_stats(void)
-{
-}
-
-static inline void mem_cgroup_flush_stats_atomic(void)
 {
 }
 

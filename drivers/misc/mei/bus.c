@@ -1046,9 +1046,6 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 	const struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);
 	const struct mei_cl_device_id *found_id;
 
-	if (!cldev)
-		return 0;
-
 	if (!cldev->do_match)
 		return 0;
 
@@ -1078,9 +1075,6 @@ static int mei_cl_device_probe(struct device *dev)
 
 	cldev = to_mei_cl_device(dev);
 	cldrv = to_mei_cl_driver(dev->driver);
-
-	if (!cldev)
-		return 0;
 
 	if (!cldrv || !cldrv->probe)
 		return -ENODEV;
@@ -1275,9 +1269,6 @@ static void mei_dev_bus_put(struct mei_device *bus)
 static void mei_cl_bus_dev_release(struct device *dev)
 {
 	struct mei_cl_device *cldev = to_mei_cl_device(dev);
-
-	if (!cldev)
-		return;
 
 	mei_cl_flush_queues(cldev->cl, NULL);
 	mei_me_cl_put(cldev->me_cl);

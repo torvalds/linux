@@ -11,7 +11,7 @@
 #include "debug.h"
 #include "expr.h"
 #include "stat.h"
-#include "pmu.h"
+#include "pmus.h"
 
 struct value {
 	const char	*event;
@@ -38,6 +38,7 @@ static void load_runtime_stat(struct evlist *evlist, struct value *vals)
 	evlist__alloc_aggr_stats(evlist, 1);
 	evlist__for_each_entry(evlist, evsel) {
 		count = find_value(evsel->name, vals);
+		evsel->supported = true;
 		evsel->stats->aggr->counts.val = count;
 		if (evsel__name_is(evsel, "duration_time"))
 			update_stats(&walltime_nsecs_stats, count);
@@ -301,11 +302,8 @@ static int test__parse_metric(struct test_suite *test __maybe_unused, int subtes
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
 	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
 	TEST_ASSERT_VAL("Memory bandwidth", test_memory_bandwidth() == 0);
-
-	if (!perf_pmu__has_hybrid()) {
-		TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
-		TEST_ASSERT_VAL("test metric group", test_metric_group() == 0);
-	}
+	TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
+	TEST_ASSERT_VAL("test metric group", test_metric_group() == 0);
 	return 0;
 }
 

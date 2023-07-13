@@ -10,8 +10,8 @@ implementation.
    :maxdepth: 2
 
    arc/index
-   ../arm/index
-   ../arm64/index
+   arm/index
+   arm64/index
    ia64/index
    ../loongarch/index
    m68k/index

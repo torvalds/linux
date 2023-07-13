@@ -165,7 +165,7 @@ int lima_sched_context_init(struct lima_sched_pipe *pipe,
 void lima_sched_context_fini(struct lima_sched_pipe *pipe,
 			     struct lima_sched_context *context)
 {
-	drm_sched_entity_fini(&context->base);
+	drm_sched_entity_destroy(&context->base);
 }
 
 struct dma_fence *lima_sched_context_queue_task(struct lima_sched_task *task)

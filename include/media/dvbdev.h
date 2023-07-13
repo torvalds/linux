@@ -130,7 +130,7 @@ struct dvb_adapter {
  * struct dvb_device - represents a DVB device node
  *
  * @list_head:	List head with all DVB devices
- * @ref:	reference counter
+ * @ref:	reference count for this device
  * @fops:	pointer to struct file_operations
  * @adapter:	pointer to the adapter that holds this device node
  * @type:	type of the device, as defined by &enum dvb_device_type.
@@ -194,6 +194,21 @@ struct dvb_device {
 };
 
 /**
+ * struct dvbdevfops_node - fops nodes registered in dvbdevfops_list
+ *
+ * @fops:		Dynamically allocated fops for ->owner registration
+ * @type:		type of dvb_device
+ * @template:		dvb_device used for registration
+ * @list_head:		list_head for dvbdevfops_list
+ */
+struct dvbdevfops_node {
+	struct file_operations *fops;
+	enum dvb_device_type type;
+	const struct dvb_device *template;
+	struct list_head list_head;
+};
+
+/**
  * dvb_device_get - Increase dvb_device reference
  *
  * @dvbdev:	pointer to struct dvb_device
@@ -251,10 +266,10 @@ int dvb_register_device(struct dvb_adapter *adap,
 /**
  * dvb_remove_device - Remove a registered DVB device
  *
+ * @dvbdev:	pointer to struct dvb_device
+ *
  * This does not free memory. dvb_free_device() will do that when
  * reference counter is empty
- *
- * @dvbdev:	pointer to struct dvb_device
  */
 void dvb_remove_device(struct dvb_device *dvbdev);
 

@@ -108,7 +108,7 @@ static int64_t cmp_null(const void *l, const void *r)
 static int64_t
 sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->tid - left->thread->tid;
+	return thread__tid(right->thread) - thread__tid(left->thread);
 }
 
 static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
@@ -117,7 +117,7 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 	const char *comm = thread__comm_str(he->thread);
 
 	width = max(7U, width) - 8;
-	return repsep_snprintf(bf, size, "%7d:%-*.*s", he->thread->tid,
+	return repsep_snprintf(bf, size, "%7d:%-*.*s", thread__tid(he->thread),
 			       width, width, comm ?: "");
 }
 
@@ -128,7 +128,7 @@ static int hist_entry__thread_filter(struct hist_entry *he, int type, const void
 	if (type != HIST_FILTER__THREAD)
 		return -1;
 
-	return th && he->thread != th;
+	return th && RC_CHK_ACCESS(he->thread) != RC_CHK_ACCESS(th);
 }
 
 struct sort_entry sort_thread = {
@@ -643,7 +643,7 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 
 	sf = __get_srcline(map__dso(map), map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true, true, e->ip);
-	if (!strcmp(sf, SRCLINE_UNKNOWN))
+	if (sf == SRCLINE_UNKNOWN)
 		return no_srcfile;
 	p = strchr(sf, ':');
 	if (p && *sf) {
@@ -1543,8 +1543,10 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	    !l_dso->id.ino && !l_dso->id.ino_generation) {
 		/* userspace anonymous */
 
-		if (left->thread->pid_ > right->thread->pid_) return -1;
-		if (left->thread->pid_ < right->thread->pid_) return 1;
+		if (thread__pid(left->thread) > thread__pid(right->thread))
+			return -1;
+		if (thread__pid(left->thread) < thread__pid(right->thread))
+			return 1;
 	}
 
 addr:

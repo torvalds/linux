@@ -344,7 +344,7 @@ static struct i2c_driver cy8ctma140_driver = {
 		.of_match_table = cy8ctma140_of_match,
 	},
 	.id_table	= cy8ctma140_idtable,
-	.probe_new	= cy8ctma140_probe,
+	.probe		= cy8ctma140_probe,
 };
 module_i2c_driver(cy8ctma140_driver);
 

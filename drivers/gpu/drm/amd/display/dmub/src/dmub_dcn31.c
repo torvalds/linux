@@ -242,6 +242,11 @@ void dmub_dcn31_setup_mailbox(struct dmub_srv *dmub,
 	REG_WRITE(DMCUB_INBOX1_SIZE, inbox1->top - inbox1->base);
 }
 
+uint32_t dmub_dcn31_get_inbox1_wptr(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_INBOX1_WPTR);
+}
+
 uint32_t dmub_dcn31_get_inbox1_rptr(struct dmub_srv *dmub)
 {
 	return REG_READ(DMCUB_INBOX1_RPTR);
@@ -295,6 +300,11 @@ bool dmub_dcn31_is_supported(struct dmub_srv *dmub)
 	REG_GET(CC_DC_PIPE_DIS, DC_DMCUB_ENABLE, &supported);
 
 	return supported;
+}
+
+bool dmub_dcn31_is_psrsu_supported(struct dmub_srv *dmub)
+{
+	return dmub->fw_version >= DMUB_FW_VERSION(4, 0, 59);
 }
 
 void dmub_dcn31_set_gpint(struct dmub_srv *dmub,

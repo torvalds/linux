@@ -27,7 +27,7 @@ extern struct page *empty_zero_page;
 #else
 
 #include <asm-generic/pgtable-nopud.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
 
 

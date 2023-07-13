@@ -335,7 +335,7 @@ static struct i2c_driver mpl3115_driver = {
 		.of_match_table = mpl3115_of_match,
 		.pm	= pm_sleep_ptr(&mpl3115_pm_ops),
 	},
-	.probe_new = mpl3115_probe,
+	.probe = mpl3115_probe,
 	.remove = mpl3115_remove,
 	.id_table = mpl3115_id,
 };

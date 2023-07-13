@@ -549,6 +549,27 @@ struct dcn20_dsc {
 	int max_image_width;
 };
 
+void dsc_config_log(struct display_stream_compressor *dsc,
+		const struct dsc_config *config);
+
+void dsc_log_pps(struct display_stream_compressor *dsc,
+		struct drm_dsc_config *pps);
+
+void dsc_override_rc_params(struct rc_params *rc,
+		const struct dc_dsc_rc_params_override *override);
+
+bool dsc_prepare_config(const struct dsc_config *dsc_cfg,
+		struct dsc_reg_values *dsc_reg_vals,
+		struct dsc_optc_config *dsc_optc_cfg);
+
+enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_encoding dc_pix_enc,
+		bool is_ycbcr422_simple);
+
+enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_depth dc_color_depth);
+
+void dsc_init_reg_values(struct dsc_reg_values *reg_vals);
+
+void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params);
 
 void dsc2_construct(struct dcn20_dsc *dsc,
 		struct dc_context *ctx,
@@ -556,6 +577,13 @@ void dsc2_construct(struct dcn20_dsc *dsc,
 		const struct dcn20_dsc_registers *dsc_regs,
 		const struct dcn20_dsc_shift *dsc_shift,
 		const struct dcn20_dsc_mask *dsc_mask);
+
+void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps,
+		int pixel_clock_100Hz);
+
+bool dsc2_get_packed_pps(struct display_stream_compressor *dsc,
+		const struct dsc_config *dsc_cfg,
+		uint8_t *dsc_packed_pps);
 
 #endif
 

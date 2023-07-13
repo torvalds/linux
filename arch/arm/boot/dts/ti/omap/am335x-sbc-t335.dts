@@ -1,0 +1,176 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * am335x-sbc-t335.dts - Device Tree file for Compulab SBC-T335
+ *
+ * Copyright (C) 2014 - 2015 CompuLab Ltd. - http://www.compulab.co.il/
+ */
+
+#include "am335x-cm-t335.dts"
+
+/ {
+	model = "CompuLab CM-T335 on SB-T335";
+	compatible = "compulab,sbc-t335", "compulab,cm-t335", "ti,am33xx";
+
+	/* DRM display driver */
+	panel {
+		compatible = "ti,tilcdc,panel";
+		status = "okay";
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&lcd_pins_default>;
+		pinctrl-1 = <&lcd_pins_sleep>;
+
+		panel-info {
+			ac-bias           = <255>;
+			ac-bias-intrpt    = <0>;
+			dma-burst-sz      = <16>;
+			bpp               = <32>;
+			fdd               = <0x80>;
+			sync-edge         = <0>;
+			sync-ctrl         = <1>;
+			raster-order      = <0>;
+			fifo-th           = <0>;
+		};
+		display-timings {
+			/* Timing selection performed by U-Boot */
+			timing0: lcd {/* 800x480p62 */
+				clock-frequency = <30000000>;
+				hactive = <800>;
+				vactive = <480>;
+				hfront-porch = <39>;
+				hback-porch = <39>;
+				hsync-len = <47>;
+				vback-porch = <29>;
+				vfront-porch = <13>;
+				vsync-len = <2>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+			};
+			timing1: dvi { /* 1024x768p60 */
+				clock-frequency = <65000000>;
+				hactive = <1024>;
+				hfront-porch = <24>;
+				hback-porch = <160>;
+				hsync-len = <136>;
+				vactive = <768>;
+				vfront-porch = <3>;
+				vback-porch = <29>;
+				vsync-len = <6>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+			};
+		};
+	};
+};
+
+&am33xx_pinmux {
+	/* Display */
+	lcd_pins_default: lcd-default-pins {
+		pinctrl-single,pins = <
+			/* gpmc_ad8.lcd_data23 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD8, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad9.lcd_data22 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD9, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad10.lcd_data21 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD10, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad11.lcd_data20 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD11, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad12.lcd_data19 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD12, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad13.lcd_data18 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD13, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad14.lcd_data17 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD14, PIN_OUTPUT, MUX_MODE1)
+			/* gpmc_ad15.lcd_data16 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD15, PIN_OUTPUT, MUX_MODE1)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA0, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA1, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA2, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA3, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA4, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA5, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA6, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA7, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA8, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA9, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA10, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA11, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA12, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA13, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA14, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA15, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_HSYNC, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_PCLK, PIN_OUTPUT, MUX_MODE0)
+			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_OUTPUT, MUX_MODE0)
+		>;
+	};
+
+	lcd_pins_sleep: lcd-sleep-pins {
+		pinctrl-single,pins = <
+			/* gpmc_ad8.lcd_data23 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD8, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad9.lcd_data22 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD9, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad10.lcd_data21 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD10, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad11.lcd_data20 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD11, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad12.lcd_data19 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD12, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad13.lcd_data18 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD13, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad14.lcd_data17 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD14, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			/* gpmc_ad15.lcd_data16 */
+			AM33XX_PADCONF(AM335X_PIN_GPMC_AD15, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA0, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA1, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA2, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA3, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA4, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA5, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA6, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA7, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA8, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA9, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA10, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA11, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA12, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA13, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA14, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_DATA15, PULL_DISABLE, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_VSYNC, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_HSYNC, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_PCLK, PIN_INPUT_PULLDOWN, MUX_MODE7)
+			AM33XX_PADCONF(AM335X_PIN_LCD_AC_BIAS_EN, PIN_INPUT_PULLDOWN, MUX_MODE7)
+		>;
+	};
+};
+
+&i2c0 {
+	/* GPIO extender */
+	gpio_ext: pca9555@26 {
+		compatible = "nxp,pca9555";
+		pinctrl-names = "default";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x26>;
+		dvi-ena-hog {
+			gpio-hog;
+			gpios = <13 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "dvi-enable";
+		};
+		lcd-ena-hog {
+			gpio-hog;
+			gpios = <11 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "lcd-enable";
+		};
+	};
+};
+
+/* Display */
+&lcdc {
+	status = "okay";
+};

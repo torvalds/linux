@@ -2533,13 +2533,15 @@ do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 		thread__zput(browser->hists->thread_filter);
 		ui_helpline__pop();
 	} else {
+		const char *comm_set_str =
+			thread__comm_set(thread) ? thread__comm_str(thread) : "";
+
 		if (hists__has(browser->hists, thread)) {
 			ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s(%d) thread\"",
-					   thread->comm_set ? thread__comm_str(thread) : "",
-					   thread->tid);
+					   comm_set_str, thread__tid(thread));
 		} else {
 			ui_helpline__fpush("To zoom out press ESC or ENTER + \"Zoom out of %s thread\"",
-					   thread->comm_set ? thread__comm_str(thread) : "");
+					   comm_set_str);
 		}
 
 		browser->hists->thread_filter = thread__get(thread);
@@ -2557,20 +2559,19 @@ add_thread_opt(struct hist_browser *browser, struct popup_action *act,
 	       char **optstr, struct thread *thread)
 {
 	int ret;
+	const char *comm_set_str, *in_out;
 
 	if ((!hists__has(browser->hists, thread) &&
 	     !hists__has(browser->hists, comm)) || thread == NULL)
 		return 0;
 
+	in_out = browser->hists->thread_filter ? "out of" : "into";
+	comm_set_str = thread__comm_set(thread) ? thread__comm_str(thread) : "";
 	if (hists__has(browser->hists, thread)) {
 		ret = asprintf(optstr, "Zoom %s %s(%d) thread",
-			       browser->hists->thread_filter ? "out of" : "into",
-			       thread->comm_set ? thread__comm_str(thread) : "",
-			       thread->tid);
+			       in_out, comm_set_str, thread__tid(thread));
 	} else {
-		ret = asprintf(optstr, "Zoom %s %s thread",
-			       browser->hists->thread_filter ? "out of" : "into",
-			       thread->comm_set ? thread__comm_str(thread) : "");
+		ret = asprintf(optstr, "Zoom %s %s thread", in_out, comm_set_str);
 	}
 	if (ret < 0)
 		return 0;

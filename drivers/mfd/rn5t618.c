@@ -280,7 +280,7 @@ static struct i2c_driver rn5t618_i2c_driver = {
 		.of_match_table = of_match_ptr(rn5t618_of_match),
 		.pm = &rn5t618_i2c_dev_pm_ops,
 	},
-	.probe_new = rn5t618_i2c_probe,
+	.probe = rn5t618_i2c_probe,
 	.remove = rn5t618_i2c_remove,
 };
 

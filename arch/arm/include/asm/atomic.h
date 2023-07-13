@@ -197,6 +197,16 @@ static inline int arch_atomic_fetch_##op(int i, atomic_t *v)		\
 	return val;							\
 }
 
+#define arch_atomic_add_return			arch_atomic_add_return
+#define arch_atomic_sub_return			arch_atomic_sub_return
+#define arch_atomic_fetch_add			arch_atomic_fetch_add
+#define arch_atomic_fetch_sub			arch_atomic_fetch_sub
+
+#define arch_atomic_fetch_and			arch_atomic_fetch_and
+#define arch_atomic_fetch_andnot		arch_atomic_fetch_andnot
+#define arch_atomic_fetch_or			arch_atomic_fetch_or
+#define arch_atomic_fetch_xor			arch_atomic_fetch_xor
+
 static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	int ret;
@@ -210,8 +220,7 @@ static inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 
 	return ret;
 }
-
-#define arch_atomic_fetch_andnot		arch_atomic_fetch_andnot
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
 #endif /* __LINUX_ARM_ARCH__ */
 
@@ -239,8 +248,6 @@ ATOMIC_OPS(xor, ^=, eor)
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
-
-#define arch_atomic_xchg(v, new) (arch_xchg(&((v)->counter), new))
 
 #ifndef CONFIG_GENERIC_ATOMIC64
 typedef struct {

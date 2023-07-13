@@ -2059,10 +2059,10 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 		goto out_fw;
 	}
 
-	cs_dsp_dbg(dsp, "%s: v%d.%d.%d\n", file,
-		   (le32_to_cpu(hdr->ver) >> 16) & 0xff,
-		   (le32_to_cpu(hdr->ver) >>  8) & 0xff,
-		   le32_to_cpu(hdr->ver) & 0xff);
+	cs_dsp_info(dsp, "%s: v%d.%d.%d\n", file,
+		    (le32_to_cpu(hdr->ver) >> 16) & 0xff,
+		    (le32_to_cpu(hdr->ver) >>  8) & 0xff,
+		    le32_to_cpu(hdr->ver) & 0xff);
 
 	pos = le32_to_cpu(hdr->len);
 
@@ -2124,6 +2124,7 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 				   file, blocks, le32_to_cpu(blk->len),
 				   type, le32_to_cpu(blk->id));
 
+			region_name = cs_dsp_mem_region_name(type);
 			mem = cs_dsp_find_region(dsp, type);
 			if (!mem) {
 				cs_dsp_err(dsp, "No base for region %x\n", type);
@@ -2147,8 +2148,8 @@ static int cs_dsp_load_coeff(struct cs_dsp *dsp, const struct firmware *firmware
 				reg = dsp->ops->region_to_reg(mem, reg);
 				reg += offset;
 			} else {
-				cs_dsp_err(dsp, "No %x for algorithm %x\n",
-					   type, le32_to_cpu(blk->id));
+				cs_dsp_err(dsp, "No %s for algorithm %x\n",
+					   region_name, le32_to_cpu(blk->id));
 			}
 			break;
 

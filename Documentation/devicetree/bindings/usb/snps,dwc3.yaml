@@ -44,15 +44,15 @@ properties:
       It's either a single common DWC3 interrupt (dwc_usb3) or individual
       interrupts for the host, gadget and DRD modes.
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   interrupt-names:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
     oneOf:
       - const: dwc_usb3
       - items:
-          enum: [host, peripheral, otg]
+          enum: [host, peripheral, otg, wakeup]
 
   clocks:
     description:
@@ -287,7 +287,7 @@ properties:
     description:
       High-Speed PHY interface selection between UTMI+ and ULPI when the
       DWC_USB3_HSPHY_INTERFACE has value 3.
-    $ref: /schemas/types.yaml#/definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/string
     enum: [utmi, ulpi]
 
   snps,quirk-frame-length-adjustment:

@@ -667,7 +667,6 @@ static void program_surface_flip_and_addr(struct hubp *hubp, struct surface_flip
 static void dmcub_PLAT_54186_wa(struct hubp *hubp,
 				struct surface_flip_registers *flip_regs)
 {
-	struct dc_dmub_srv *dmcub = hubp->ctx->dmub_srv;
 	struct dcn21_hubp *hubp21 = TO_DCN21_HUBP(hubp);
 	union dmub_rb_cmd cmd;
 
@@ -690,11 +689,7 @@ static void dmcub_PLAT_54186_wa(struct hubp *hubp,
 	cmd.PLAT_54186_wa.flip.flip_params.vmid = flip_regs->vmid;
 
 	PERF_TRACE();  // TODO: remove after performance is stable.
-	dc_dmub_srv_cmd_queue(dmcub, &cmd);
-	PERF_TRACE();  // TODO: remove after performance is stable.
-	dc_dmub_srv_cmd_execute(dmcub);
-	PERF_TRACE();  // TODO: remove after performance is stable.
-	dc_dmub_srv_wait_idle(dmcub);
+	dm_execute_dmub_cmd(hubp->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	PERF_TRACE();  // TODO: remove after performance is stable.
 }
 

@@ -70,7 +70,7 @@ static struct i2c_driver bmg160_i2c_driver = {
 		.of_match_table = bmg160_of_match,
 		.pm	= &bmg160_pm_ops,
 	},
-	.probe_new	= bmg160_i2c_probe,
+	.probe		= bmg160_i2c_probe,
 	.remove		= bmg160_i2c_remove,
 	.id_table	= bmg160_i2c_id,
 };

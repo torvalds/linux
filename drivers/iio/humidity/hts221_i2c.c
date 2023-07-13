@@ -65,7 +65,7 @@ static struct i2c_driver hts221_driver = {
 		.of_match_table = hts221_i2c_of_match,
 		.acpi_match_table = ACPI_PTR(hts221_acpi_match),
 	},
-	.probe_new = hts221_i2c_probe,
+	.probe = hts221_i2c_probe,
 	.id_table = hts221_i2c_id_table,
 };
 module_i2c_driver(hts221_driver);

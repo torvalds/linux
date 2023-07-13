@@ -19,8 +19,6 @@
 #include <asm/head.h>
 #include <asm/timer.h>
 
-static struct cpufreq_driver *cpufreq_us3_driver;
-
 struct us3_freq_percpu_info {
 	struct cpufreq_frequency_table table[4];
 };
@@ -144,11 +142,18 @@ static int __init us3_freq_cpu_init(struct cpufreq_policy *policy)
 
 static int us3_freq_cpu_exit(struct cpufreq_policy *policy)
 {
-	if (cpufreq_us3_driver)
-		us3_freq_target(policy, 0);
-
+	us3_freq_target(policy, 0);
 	return 0;
 }
+
+static struct cpufreq_driver cpufreq_us3_driver = {
+	.name = "UltraSPARC-III",
+	.init = us3_freq_cpu_init,
+	.verify = cpufreq_generic_frequency_table_verify,
+	.target_index = us3_freq_target,
+	.get = us3_freq_get,
+	.exit = us3_freq_cpu_exit,
+};
 
 static int __init us3_freq_init(void)
 {
@@ -167,39 +172,15 @@ static int __init us3_freq_init(void)
 	     impl == CHEETAH_PLUS_IMPL ||
 	     impl == JAGUAR_IMPL ||
 	     impl == PANTHER_IMPL)) {
-		struct cpufreq_driver *driver;
-
-		ret = -ENOMEM;
-		driver = kzalloc(sizeof(*driver), GFP_KERNEL);
-		if (!driver)
-			goto err_out;
-
-		us3_freq_table = kzalloc((NR_CPUS * sizeof(*us3_freq_table)),
-			GFP_KERNEL);
+		us3_freq_table = kzalloc(NR_CPUS * sizeof(*us3_freq_table),
+					 GFP_KERNEL);
 		if (!us3_freq_table)
-			goto err_out;
+			return -ENOMEM;
 
-		driver->init = us3_freq_cpu_init;
-		driver->verify = cpufreq_generic_frequency_table_verify;
-		driver->target_index = us3_freq_target;
-		driver->get = us3_freq_get;
-		driver->exit = us3_freq_cpu_exit;
-		strcpy(driver->name, "UltraSPARC-III");
-
-		cpufreq_us3_driver = driver;
-		ret = cpufreq_register_driver(driver);
+		ret = cpufreq_register_driver(&cpufreq_us3_driver);
 		if (ret)
-			goto err_out;
+			kfree(us3_freq_table);
 
-		return 0;
-
-err_out:
-		if (driver) {
-			kfree(driver);
-			cpufreq_us3_driver = NULL;
-		}
-		kfree(us3_freq_table);
-		us3_freq_table = NULL;
 		return ret;
 	}
 
@@ -208,13 +189,8 @@ err_out:
 
 static void __exit us3_freq_exit(void)
 {
-	if (cpufreq_us3_driver) {
-		cpufreq_unregister_driver(cpufreq_us3_driver);
-		kfree(cpufreq_us3_driver);
-		cpufreq_us3_driver = NULL;
-		kfree(us3_freq_table);
-		us3_freq_table = NULL;
-	}
+	cpufreq_unregister_driver(&cpufreq_us3_driver);
+	kfree(us3_freq_table);
 }
 
 MODULE_AUTHOR("David S. Miller <davem@redhat.com>");

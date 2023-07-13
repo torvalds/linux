@@ -280,7 +280,7 @@ static struct i2c_driver max7359_i2c_driver = {
 		.name = "max7359",
 		.pm   = pm_sleep_ptr(&max7359_pm),
 	},
-	.probe_new	= max7359_probe,
+	.probe		= max7359_probe,
 	.id_table	= max7359_ids,
 };
 

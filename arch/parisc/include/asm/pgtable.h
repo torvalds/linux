@@ -413,12 +413,12 @@ extern void paging_init (void);
  *   For the 64bit version, the offset is extended by 32bit.
  */
 #define __swp_type(x)                     ((x).val & 0x1f)
-#define __swp_offset(x)                   ( (((x).val >> 6) &  0x7) | \
-					  (((x).val >> 8) & ~0x7) )
+#define __swp_offset(x)                   ( (((x).val >> 5) & 0x7) | \
+					  (((x).val >> 10) << 3) )
 #define __swp_entry(type, offset)         ((swp_entry_t) { \
 					    ((type) & 0x1f) | \
-					    ((offset &  0x7) << 6) | \
-					    ((offset & ~0x7) << 8) })
+					    ((offset & 0x7) << 5) | \
+					    ((offset >> 3) << 10) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
@@ -471,9 +471,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))
-
-struct seq_file;
-extern void arch_report_meminfo(struct seq_file *m);
 
 #endif /* !__ASSEMBLY__ */
 

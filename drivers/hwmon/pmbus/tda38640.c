@@ -62,7 +62,7 @@ static struct i2c_driver tda38640_driver = {
 		.name = "tda38640",
 		.of_match_table = of_match_ptr(tda38640_of_match),
 	},
-	.probe_new = tda38640_probe,
+	.probe = tda38640_probe,
 	.id_table = tda38640_id,
 };
 

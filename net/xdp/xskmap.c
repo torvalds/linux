@@ -5,7 +5,6 @@
 
 #include <linux/bpf.h>
 #include <linux/filter.h>
-#include <linux/capability.h>
 #include <net/xdp_sock.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -67,9 +66,6 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 	struct xsk_map *m;
 	int numa_node;
 	u64 size;
-
-	if (!capable(CAP_NET_ADMIN))
-		return ERR_PTR(-EPERM);
 
 	if (attr->max_entries == 0 || attr->key_size != 4 ||
 	    attr->value_size != 4 ||

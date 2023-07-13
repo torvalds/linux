@@ -510,7 +510,7 @@ static struct i2c_driver da9150_driver = {
 		.name	= "da9150",
 		.of_match_table = da9150_of_match,
 	},
-	.probe_new	= da9150_probe,
+	.probe		= da9150_probe,
 	.remove		= da9150_remove,
 	.shutdown	= da9150_shutdown,
 	.id_table	= da9150_i2c_id,

@@ -223,7 +223,7 @@ err:
 	return ret;
 }
 
-static int wkup_m3_rproc_remove(struct platform_device *pdev)
+static void wkup_m3_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
@@ -231,8 +231,6 @@ static int wkup_m3_rproc_remove(struct platform_device *pdev)
 	rproc_free(rproc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -253,7 +251,7 @@ static const struct dev_pm_ops wkup_m3_rproc_pm_ops = {
 
 static struct platform_driver wkup_m3_rproc_driver = {
 	.probe = wkup_m3_rproc_probe,
-	.remove = wkup_m3_rproc_remove,
+	.remove_new = wkup_m3_rproc_remove,
 	.driver = {
 		.name = "wkup_m3_rproc",
 		.of_match_table = wkup_m3_rproc_of_match,

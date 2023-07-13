@@ -278,7 +278,7 @@ static u32 gmux_mmio_read32(struct apple_gmux_data *gmux_data, int port)
 	iowrite8(GMUX_MMIO_READ | sizeof(val),
 		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
 	gmux_mmio_wait(gmux_data);
-	val = be32_to_cpu(ioread32(gmux_data->iomem_base));
+	val = ioread32be(gmux_data->iomem_base);
 	mutex_unlock(&gmux_data->index_lock);
 
 	return val;
@@ -288,7 +288,7 @@ static void gmux_mmio_write32(struct apple_gmux_data *gmux_data, int port,
 			       u32 val)
 {
 	mutex_lock(&gmux_data->index_lock);
-	iowrite32(cpu_to_be32(val), gmux_data->iomem_base);
+	iowrite32be(val, gmux_data->iomem_base);
 	iowrite8(port & 0xff, gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
 	iowrite8(GMUX_MMIO_WRITE | sizeof(val),
 		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);

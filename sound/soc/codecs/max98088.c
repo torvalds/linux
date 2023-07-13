@@ -310,24 +310,24 @@ static const struct regmap_config max98088_regmap = {
 static void m98088_eq_band(struct snd_soc_component *component, unsigned int dai,
                    unsigned int band, u16 *coefs)
 {
-       unsigned int eq_reg;
-       unsigned int i;
+	unsigned int eq_reg;
+	unsigned int i;
 
 	if (WARN_ON(band > 4) ||
 	    WARN_ON(dai > 1))
 		return;
 
-       /* Load the base register address */
-       eq_reg = dai ? M98088_REG_84_DAI2_EQ_BASE : M98088_REG_52_DAI1_EQ_BASE;
+	/* Load the base register address */
+	eq_reg = dai ? M98088_REG_84_DAI2_EQ_BASE : M98088_REG_52_DAI1_EQ_BASE;
 
-       /* Add the band address offset, note adjustment for word address */
-       eq_reg += band * (M98088_COEFS_PER_BAND << 1);
+	/* Add the band address offset, note adjustment for word address */
+	eq_reg += band * (M98088_COEFS_PER_BAND << 1);
 
-       /* Step through the registers and coefs */
-       for (i = 0; i < M98088_COEFS_PER_BAND; i++) {
-               snd_soc_component_write(component, eq_reg++, M98088_BYTE1(coefs[i]));
-               snd_soc_component_write(component, eq_reg++, M98088_BYTE0(coefs[i]));
-       }
+	/* Step through the registers and coefs */
+	for (i = 0; i < M98088_COEFS_PER_BAND; i++) {
+		snd_soc_component_write(component, eq_reg++, M98088_BYTE1(coefs[i]));
+		snd_soc_component_write(component, eq_reg++, M98088_BYTE0(coefs[i]));
+	}
 }
 
 /*
@@ -1789,7 +1789,7 @@ static struct i2c_driver max98088_i2c_driver = {
 		.name = "max98088",
 		.of_match_table = of_match_ptr(max98088_of_match),
 	},
-	.probe_new = max98088_i2c_probe,
+	.probe = max98088_i2c_probe,
 	.id_table = max98088_i2c_id,
 };
 

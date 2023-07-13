@@ -3158,8 +3158,8 @@ static struct i2c_driver ov8865_driver = {
 		.acpi_match_table = ov8865_acpi_match,
 		.pm = &ov8865_pm_ops,
 	},
-	.probe_new = ov8865_probe,
-	.remove	 = ov8865_remove,
+	.probe = ov8865_probe,
+	.remove = ov8865_remove,
 };
 
 module_i2c_driver(ov8865_driver);

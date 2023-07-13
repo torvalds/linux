@@ -642,7 +642,7 @@ extern void hisi_sas_sata_done(struct sas_task *task,
 extern int hisi_sas_get_fw_info(struct hisi_hba *hisi_hba);
 extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
-extern int hisi_sas_remove(struct platform_device *pdev);
+extern void hisi_sas_remove(struct platform_device *pdev);
 
 extern int hisi_sas_slave_configure(struct scsi_device *sdev);
 extern int hisi_sas_slave_alloc(struct scsi_device *sdev);

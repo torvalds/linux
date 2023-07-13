@@ -751,7 +751,7 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *buf,
 	if (!elv_support_iosched(q))
 		return count;
 
-	strlcpy(elevator_name, buf, sizeof(elevator_name));
+	strscpy(elevator_name, buf, sizeof(elevator_name));
 	ret = elevator_change(q, strstrip(elevator_name));
 	if (!ret)
 		return count;

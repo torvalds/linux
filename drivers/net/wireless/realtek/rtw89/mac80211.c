@@ -89,15 +89,6 @@ static int rtw89_ops_config(struct ieee80211_hw *hw, u32 changed)
 	    !(hw->conf.flags & IEEE80211_CONF_IDLE))
 		rtw89_leave_ips(rtwdev);
 
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
-		if (hw->conf.flags & IEEE80211_CONF_PS) {
-			rtwdev->lps_enabled = true;
-		} else {
-			rtw89_leave_lps(rtwdev);
-			rtwdev->lps_enabled = false;
-		}
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		rtw89_config_entity_chandef(rtwdev, RTW89_SUB_ENTITY_0,
 					    &hw->conf.chandef);
@@ -155,6 +146,7 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->phy_idx = RTW89_PHY_0;
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
 	rtwvif->hit_rule = 0;
+	rtwvif->reg_6ghz_power = RTW89_REG_6GHZ_POWER_DFLT;
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 	INIT_LIST_HEAD(&rtwvif->general_pkt_list);
 
@@ -168,6 +160,8 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	rtw89_core_txq_init(rtwdev, vif->txq);
 
 	rtw89_btc_ntfy_role_info(rtwdev, rtwvif, NULL, BTC_ROLE_START);
+
+	rtw89_recalc_lps(rtwdev);
 out:
 	mutex_unlock(&rtwdev->mutex);
 
@@ -192,6 +186,7 @@ static void rtw89_ops_remove_interface(struct ieee80211_hw *hw,
 	rtw89_mac_remove_vif(rtwdev, rtwvif);
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
 	list_del_init(&rtwvif->list);
+	rtw89_recalc_lps(rtwdev);
 	rtw89_enter_ips_by_hwflags(rtwdev);
 
 	mutex_unlock(&rtwdev->mutex);
@@ -451,6 +446,9 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_CQM)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
 
+	if (changed & BSS_CHANGED_PS)
+		rtw89_recalc_lps(rtwdev);
+
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -460,8 +458,16 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	const struct rtw89_chan *chan;
 
 	mutex_lock(&rtwdev->mutex);
+
+	chan = rtw89_chan_get(rtwdev, rtwvif->sub_entity_idx);
+	if (chan->band_type == RTW89_BAND_6G) {
+		mutex_unlock(&rtwdev->mutex);
+		return -EOPNOTSUPP;
+	}
+
 	ether_addr_copy(rtwvif->bssid, vif->bss_conf.bssid);
 	rtw89_cam_bssid_changed(rtwdev, rtwvif);
 	rtw89_mac_port_update(rtwdev, rtwvif);
@@ -762,13 +768,18 @@ int rtw89_ops_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_hal *hal = &rtwdev->hal;
 
-	if (rx_ant != hw->wiphy->available_antennas_rx && rx_ant != hal->antenna_rx)
+	if (hal->ant_diversity) {
+		if (tx_ant != rx_ant || hweight32(tx_ant) != 1)
+			return -EINVAL;
+	} else if (rx_ant != hw->wiphy->available_antennas_rx && rx_ant != hal->antenna_rx) {
 		return -EINVAL;
+	}
 
 	mutex_lock(&rtwdev->mutex);
 	hal->antenna_tx = tx_ant;
 	hal->antenna_rx = rx_ant;
 	hal->tx_path_diversity = false;
+	hal->ant_diversity_fixed = true;
 	mutex_unlock(&rtwdev->mutex);
 
 	return 0;

@@ -72,7 +72,7 @@ static int cfag12864bfb_probe(struct platform_device *device)
 	if (!info)
 		goto none;
 
-	info->screen_base = (char __iomem *) cfag12864b_buffer;
+	info->screen_buffer = cfag12864b_buffer;
 	info->screen_size = CFAG12864B_SIZE;
 	info->fbops = &cfag12864bfb_ops;
 	info->fix = cfag12864bfb_fix;

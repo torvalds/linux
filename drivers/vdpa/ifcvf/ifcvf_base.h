@@ -24,15 +24,9 @@
 #define N3000_DEVICE_ID		0x1041
 #define N3000_SUBSYS_DEVICE_ID	0x001A
 
-/* Max 8 data queue pairs(16 queues) and one control vq for now. */
-#define IFCVF_MAX_QUEUES	17
-
 #define IFCVF_QUEUE_ALIGNMENT	PAGE_SIZE
-#define IFCVF_QUEUE_MAX		32768
 #define IFCVF_PCI_MAX_RESOURCE	6
 
-#define IFCVF_LM_CFG_SIZE		0x40
-#define IFCVF_LM_RING_STATE_OFFSET	0x20
 #define IFCVF_LM_BAR			4
 
 #define IFCVF_ERR(pdev, fmt, ...)	dev_err(&pdev->dev, fmt, ##__VA_ARGS__)
@@ -47,12 +41,7 @@
 #define MSIX_VECTOR_DEV_SHARED			3
 
 struct vring_info {
-	u64 desc;
-	u64 avail;
-	u64 used;
-	u16 size;
 	u16 last_avail_idx;
-	bool ready;
 	void __iomem *notify_addr;
 	phys_addr_t notify_pa;
 	u32 irq;
@@ -60,10 +49,18 @@ struct vring_info {
 	char msix_name[256];
 };
 
+struct ifcvf_lm_cfg {
+	__le64 control;
+	__le64 status;
+	__le64 lm_mem_log_start_addr;
+	__le64 lm_mem_log_end_addr;
+	__le16 vq_state_region;
+};
+
 struct ifcvf_hw {
 	u8 __iomem *isr;
 	/* Live migration */
-	u8 __iomem *lm_cfg;
+	struct ifcvf_lm_cfg  __iomem *lm_cfg;
 	/* Notification bar number */
 	u8 notify_bar;
 	u8 msix_vector_status;
@@ -74,13 +71,12 @@ struct ifcvf_hw {
 	phys_addr_t notify_base_pa;
 	u32 notify_off_multiplier;
 	u32 dev_type;
-	u64 req_features;
 	u64 hw_features;
 	/* provisioned device features */
 	u64 dev_features;
 	struct virtio_pci_common_cfg __iomem *common_cfg;
 	void __iomem *dev_cfg;
-	struct vring_info vring[IFCVF_MAX_QUEUES];
+	struct vring_info *vring;
 	void __iomem * const *base;
 	char config_msix_name[256];
 	struct vdpa_callback config_cb;
@@ -88,6 +84,7 @@ struct ifcvf_hw {
 	int vqs_reused_irq;
 	u16 nr_vring;
 	/* VIRTIO_PCI_CAP_DEVICE_CFG size */
+	u32 num_msix_vectors;
 	u32 cap_dev_config_size;
 	struct pci_dev *pdev;
 };
@@ -98,16 +95,6 @@ struct ifcvf_adapter {
 	struct ifcvf_hw *vf;
 };
 
-struct ifcvf_vring_lm_cfg {
-	u32 idx_addr[2];
-	u8 reserved[IFCVF_LM_CFG_SIZE - 8];
-};
-
-struct ifcvf_lm_cfg {
-	u8 reserved[IFCVF_LM_RING_STATE_OFFSET];
-	struct ifcvf_vring_lm_cfg vring_lm_cfg[IFCVF_MAX_QUEUES];
-};
-
 struct ifcvf_vdpa_mgmt_dev {
 	struct vdpa_mgmt_dev mdev;
 	struct ifcvf_hw vf;
@@ -116,8 +103,7 @@ struct ifcvf_vdpa_mgmt_dev {
 };
 
 int ifcvf_init_hw(struct ifcvf_hw *hw, struct pci_dev *dev);
-int ifcvf_start_hw(struct ifcvf_hw *hw);
-void ifcvf_stop_hw(struct ifcvf_hw *hw);
+void ifcvf_stop(struct ifcvf_hw *hw);
 void ifcvf_notify_queue(struct ifcvf_hw *hw, u16 qid);
 void ifcvf_read_dev_config(struct ifcvf_hw *hw, u64 offset,
 			   void *dst, int length);
@@ -127,7 +113,7 @@ u8 ifcvf_get_status(struct ifcvf_hw *hw);
 void ifcvf_set_status(struct ifcvf_hw *hw, u8 status);
 void io_write64_twopart(u64 val, u32 *lo, u32 *hi);
 void ifcvf_reset(struct ifcvf_hw *hw);
-u64 ifcvf_get_features(struct ifcvf_hw *hw);
+u64 ifcvf_get_dev_features(struct ifcvf_hw *hw);
 u64 ifcvf_get_hw_features(struct ifcvf_hw *hw);
 int ifcvf_verify_min_features(struct ifcvf_hw *hw, u64 features);
 u16 ifcvf_get_vq_state(struct ifcvf_hw *hw, u16 qid);
@@ -137,4 +123,12 @@ int ifcvf_probed_virtio_net(struct ifcvf_hw *hw);
 u32 ifcvf_get_config_size(struct ifcvf_hw *hw);
 u16 ifcvf_set_vq_vector(struct ifcvf_hw *hw, u16 qid, int vector);
 u16 ifcvf_set_config_vector(struct ifcvf_hw *hw, int vector);
+void ifcvf_set_vq_num(struct ifcvf_hw *hw, u16 qid, u32 num);
+int ifcvf_set_vq_address(struct ifcvf_hw *hw, u16 qid, u64 desc_area,
+			 u64 driver_area, u64 device_area);
+bool ifcvf_get_vq_ready(struct ifcvf_hw *hw, u16 qid);
+void ifcvf_set_vq_ready(struct ifcvf_hw *hw, u16 qid, bool ready);
+void ifcvf_set_driver_features(struct ifcvf_hw *hw, u64 features);
+u64 ifcvf_get_driver_features(struct ifcvf_hw *hw);
+u16 ifcvf_get_max_vq_size(struct ifcvf_hw *hw);
 #endif /* _IFCVF_H_ */

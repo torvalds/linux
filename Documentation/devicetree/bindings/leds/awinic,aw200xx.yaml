@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/leds/awinic,aw200xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AWINIC AW200XX LED
+
+maintainers:
+  - Martin Kurbanov <mmkurbanov@sberdevices.ru>
+
+description: |
+  This controller is present on AW20036/AW20054/AW20072.
+  It is a 3x12/6x9/6x12 matrix LED programmed via
+  an I2C interface, up to 36/54/72 LEDs or 12/18/24 RGBs,
+  3 pattern controllers for auto breathing or group dimming control.
+
+  For more product information please see the link below:
+  aw20036 - https://www.awinic.com/en/productDetail/AW20036QNR#tech-docs
+  aw20054 - https://www.awinic.com/en/productDetail/AW20054QNR#tech-docs
+  aw20072 - https://www.awinic.com/en/productDetail/AW20072QNR#tech-docs
+
+properties:
+  compatible:
+    enum:
+      - awinic,aw20036
+      - awinic,aw20054
+      - awinic,aw20072
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  awinic,display-rows:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Leds matrix size
+
+patternProperties:
+  "^led@[0-9a-f]$":
+    type: object
+    $ref: common.yaml#
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        description:
+          LED number
+        maxItems: 1
+
+      led-max-microamp:
+        default: 9780
+        description: |
+          Note that a driver will take the minimum of all LED limits
+          since the chip has a single global setting.
+          The maximum output current of each LED is calculated by the
+          following formula:
+            IMAXled = 160000 * (592 / 600.5) * (1 / display-rows)
+          And the minimum output current formula:
+            IMINled = 3300 * (592 / 600.5) * (1 / display-rows)
+
+required:
+  - compatible
+  - reg
+  - "#address-cells"
+  - "#size-cells"
+  - awinic,display-rows
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: awinic,aw20036
+    then:
+      properties:
+        awinic,display-rows:
+          enum: [1, 2, 3]
+    else:
+      properties:
+        awinic,display-rows:
+          enum: [1, 2, 3, 4, 5, 6, 7]
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/leds/common.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        led-controller@3a {
+            compatible = "awinic,aw20036";
+            reg = <0x3a>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            awinic,display-rows = <3>;
+
+            led@0 {
+                reg = <0x0>;
+                color = <LED_COLOR_ID_RED>;
+                led-max-microamp = <9780>;
+            };
+
+            led@1 {
+                reg = <0x1>;
+                color = <LED_COLOR_ID_GREEN>;
+                led-max-microamp = <9780>;
+            };
+
+            led@2 {
+                reg = <0x2>;
+                color = <LED_COLOR_ID_BLUE>;
+                led-max-microamp = <9780>;
+            };
+        };
+    };
+
+...

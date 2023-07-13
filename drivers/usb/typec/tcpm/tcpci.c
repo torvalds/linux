@@ -895,7 +895,7 @@ static struct i2c_driver tcpci_i2c_driver = {
 		.name = "tcpci",
 		.of_match_table = of_match_ptr(tcpci_of_match),
 	},
-	.probe_new = tcpci_probe,
+	.probe = tcpci_probe,
 	.remove = tcpci_remove,
 	.id_table = tcpci_id,
 };

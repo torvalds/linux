@@ -83,6 +83,23 @@ struct venus_resources {
 	const char *fwname;
 };
 
+enum venus_fmt {
+	VENUS_FMT_NV12			= 0,
+	VENUS_FMT_QC08C			= 1,
+	VENUS_FMT_QC10C			= 2,
+	VENUS_FMT_P010			= 3,
+	VENUS_FMT_H264			= 4,
+	VENUS_FMT_VP8			= 5,
+	VENUS_FMT_VP9			= 6,
+	VENUS_FMT_HEVC			= 7,
+	VENUS_FMT_VC1_ANNEX_G		= 8,
+	VENUS_FMT_VC1_ANNEX_L		= 9,
+	VENUS_FMT_MPEG4			= 10,
+	VENUS_FMT_MPEG2			= 11,
+	VENUS_FMT_H263			= 12,
+	VENUS_FMT_XVID			= 13,
+};
+
 struct venus_format {
 	u32 pixfmt;
 	unsigned int num_planes;
@@ -201,6 +218,11 @@ struct venus_core {
 	unsigned int core0_usage_count;
 	unsigned int core1_usage_count;
 	struct dentry *root;
+	struct venus_img_version {
+		u32 major;
+		u32 minor;
+		u32 rev;
+	} venus_ver;
 };
 
 struct vdec_controls {
@@ -389,6 +411,7 @@ enum venus_inst_modes {
  * @sequence_out:	a sequence counter for output queue
  * @m2m_dev:	a reference to m2m device structure
  * @m2m_ctx:	a reference to m2m context structure
+ * @ctx_q_lock:	a lock to serialize video device ioctl calls
  * @state:	current state of the instance
  * @done:	a completion for sync HFI operation
  * @error:	an error returned during last HFI sync operation
@@ -460,6 +483,7 @@ struct venus_inst {
 	u32 sequence_out;
 	struct v4l2_m2m_dev *m2m_dev;
 	struct v4l2_m2m_ctx *m2m_ctx;
+	struct mutex ctx_q_lock;
 	unsigned int state;
 	struct completion done;
 	unsigned int error;
@@ -508,4 +532,19 @@ venus_caps_by_codec(struct venus_core *core, u32 codec, u32 domain)
 	return NULL;
 }
 
+static inline bool
+is_fw_rev_or_newer(struct venus_core *core, u32 vmajor, u32 vminor, u32 vrev)
+{
+	return ((core)->venus_ver.major == vmajor &&
+		(core)->venus_ver.minor == vminor &&
+		(core)->venus_ver.rev >= vrev);
+}
+
+static inline bool
+is_fw_rev_or_older(struct venus_core *core, u32 vmajor, u32 vminor, u32 vrev)
+{
+	return ((core)->venus_ver.major == vmajor &&
+		(core)->venus_ver.minor == vminor &&
+		(core)->venus_ver.rev <= vrev);
+}
 #endif

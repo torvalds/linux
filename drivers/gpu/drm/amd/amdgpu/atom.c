@@ -1509,7 +1509,7 @@ struct atom_context *amdgpu_atom_parse(struct card_info *card, void *bios)
 	str = CSTR(idx);
 	if (*str != '\0') {
 		pr_info("ATOM BIOS: %s\n", str);
-		strlcpy(ctx->vbios_version, str, sizeof(ctx->vbios_version));
+		strscpy(ctx->vbios_version, str, sizeof(ctx->vbios_version));
 	}
 
 	atom_rom_header = (struct _ATOM_ROM_HEADER *)CSTR(base);

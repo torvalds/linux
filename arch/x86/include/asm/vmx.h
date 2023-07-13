@@ -13,7 +13,9 @@
 
 
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <linux/types.h>
+
 #include <uapi/asm/vmx.h>
 #include <asm/vmxfeatures.h>
 

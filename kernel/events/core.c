@@ -6647,7 +6647,7 @@ static void perf_sigtrap(struct perf_event *event)
 		return;
 
 	send_sig_perf((void __user *)event->pending_addr,
-		      event->attr.type, event->attr.sig_data);
+		      event->orig_type, event->attr.sig_data);
 }
 
 /*
@@ -7490,6 +7490,7 @@ static u64 perf_get_pgtable_size(struct mm_struct *mm, unsigned long addr)
 		return pud_leaf_size(pud);
 
 	pmdp = pmd_offset_lockless(pudp, pud, addr);
+again:
 	pmd = pmdp_get_lockless(pmdp);
 	if (!pmd_present(pmd))
 		return 0;
@@ -7498,6 +7499,9 @@ static u64 perf_get_pgtable_size(struct mm_struct *mm, unsigned long addr)
 		return pmd_leaf_size(pmd);
 
 	ptep = pte_offset_map(&pmd, addr);
+	if (!ptep)
+		goto again;
+
 	pte = ptep_get_lockless(ptep);
 	if (pte_present(pte))
 		size = pte_leaf_size(pte);
@@ -9951,6 +9955,9 @@ static void sw_perf_event_destroy(struct perf_event *event)
 	swevent_hlist_put();
 }
 
+static struct pmu perf_cpu_clock; /* fwd declaration */
+static struct pmu perf_task_clock;
+
 static int perf_swevent_init(struct perf_event *event)
 {
 	u64 event_id = event->attr.config;
@@ -9966,7 +9973,10 @@ static int perf_swevent_init(struct perf_event *event)
 
 	switch (event_id) {
 	case PERF_COUNT_SW_CPU_CLOCK:
+		event->attr.type = perf_cpu_clock.type;
+		return -ENOENT;
 	case PERF_COUNT_SW_TASK_CLOCK:
+		event->attr.type = perf_task_clock.type;
 		return -ENOENT;
 
 	default:
@@ -10150,8 +10160,20 @@ void perf_tp_event(u16 event_type, u64 count, void *record, int entry_size,
 	perf_trace_buf_update(record, event_type);
 
 	hlist_for_each_entry_rcu(event, head, hlist_entry) {
-		if (perf_tp_event_match(event, &data, regs))
+		if (perf_tp_event_match(event, &data, regs)) {
 			perf_swevent_event(event, count, &data, regs);
+
+			/*
+			 * Here use the same on-stack perf_sample_data,
+			 * some members in data are event-specific and
+			 * need to be re-computed for different sweveents.
+			 * Re-initialize data->sample_flags safely to avoid
+			 * the problem that next event skips preparing data
+			 * because data->sample_flags is set.
+			 */
+			perf_sample_data_init(&data, 0, 0);
+			perf_sample_save_raw_data(&data, &raw);
+		}
 	}
 
 	/*
@@ -11086,7 +11108,7 @@ static void cpu_clock_event_read(struct perf_event *event)
 
 static int cpu_clock_event_init(struct perf_event *event)
 {
-	if (event->attr.type != PERF_TYPE_SOFTWARE)
+	if (event->attr.type != perf_cpu_clock.type)
 		return -ENOENT;
 
 	if (event->attr.config != PERF_COUNT_SW_CPU_CLOCK)
@@ -11107,6 +11129,7 @@ static struct pmu perf_cpu_clock = {
 	.task_ctx_nr	= perf_sw_context,
 
 	.capabilities	= PERF_PMU_CAP_NO_NMI,
+	.dev		= PMU_NULL_DEV,
 
 	.event_init	= cpu_clock_event_init,
 	.add		= cpu_clock_event_add,
@@ -11167,7 +11190,7 @@ static void task_clock_event_read(struct perf_event *event)
 
 static int task_clock_event_init(struct perf_event *event)
 {
-	if (event->attr.type != PERF_TYPE_SOFTWARE)
+	if (event->attr.type != perf_task_clock.type)
 		return -ENOENT;
 
 	if (event->attr.config != PERF_COUNT_SW_TASK_CLOCK)
@@ -11188,6 +11211,7 @@ static struct pmu perf_task_clock = {
 	.task_ctx_nr	= perf_sw_context,
 
 	.capabilities	= PERF_PMU_CAP_NO_NMI,
+	.dev		= PMU_NULL_DEV,
 
 	.event_init	= task_clock_event_init,
 	.add		= task_clock_event_add,
@@ -11367,6 +11391,7 @@ static int pmu_dev_alloc(struct pmu *pmu)
 
 	dev_set_drvdata(pmu->dev, pmu);
 	pmu->dev->bus = &pmu_bus;
+	pmu->dev->parent = pmu->parent;
 	pmu->dev->release = pmu_dev_release;
 
 	ret = dev_set_name(pmu->dev, "%s", pmu->name);
@@ -11415,31 +11440,31 @@ int perf_pmu_register(struct pmu *pmu, const char *name, int type)
 		goto unlock;
 
 	pmu->type = -1;
-	if (!name)
-		goto skip_type;
+	if (WARN_ONCE(!name, "Can not register anonymous pmu.\n")) {
+		ret = -EINVAL;
+		goto free_pdc;
+	}
+
 	pmu->name = name;
 
-	if (type != PERF_TYPE_SOFTWARE) {
-		if (type >= 0)
-			max = type;
+	if (type >= 0)
+		max = type;
 
-		ret = idr_alloc(&pmu_idr, pmu, max, 0, GFP_KERNEL);
-		if (ret < 0)
-			goto free_pdc;
+	ret = idr_alloc(&pmu_idr, pmu, max, 0, GFP_KERNEL);
+	if (ret < 0)
+		goto free_pdc;
 
-		WARN_ON(type >= 0 && ret != type);
+	WARN_ON(type >= 0 && ret != type);
 
-		type = ret;
-	}
+	type = ret;
 	pmu->type = type;
 
-	if (pmu_bus_running) {
+	if (pmu_bus_running && !pmu->dev) {
 		ret = pmu_dev_alloc(pmu);
 		if (ret)
 			goto free_idr;
 	}
 
-skip_type:
 	ret = -ENOMEM;
 	pmu->cpu_pmu_context = alloc_percpu(struct perf_cpu_pmu_context);
 	if (!pmu->cpu_pmu_context)
@@ -11481,16 +11506,7 @@ skip_type:
 	if (!pmu->event_idx)
 		pmu->event_idx = perf_event_idx_default;
 
-	/*
-	 * Ensure the TYPE_SOFTWARE PMUs are at the head of the list,
-	 * since these cannot be in the IDR. This way the linear search
-	 * is fast, provided a valid software event is provided.
-	 */
-	if (type == PERF_TYPE_SOFTWARE || !name)
-		list_add_rcu(&pmu->entry, &pmus);
-	else
-		list_add_tail_rcu(&pmu->entry, &pmus);
-
+	list_add_rcu(&pmu->entry, &pmus);
 	atomic_set(&pmu->exclusive_cnt, 0);
 	ret = 0;
 unlock:
@@ -11499,12 +11515,13 @@ unlock:
 	return ret;
 
 free_dev:
-	device_del(pmu->dev);
-	put_device(pmu->dev);
+	if (pmu->dev && pmu->dev != PMU_NULL_DEV) {
+		device_del(pmu->dev);
+		put_device(pmu->dev);
+	}
 
 free_idr:
-	if (pmu->type != PERF_TYPE_SOFTWARE)
-		idr_remove(&pmu_idr, pmu->type);
+	idr_remove(&pmu_idr, pmu->type);
 
 free_pdc:
 	free_percpu(pmu->pmu_disable_count);
@@ -11525,9 +11542,8 @@ void perf_pmu_unregister(struct pmu *pmu)
 	synchronize_rcu();
 
 	free_percpu(pmu->pmu_disable_count);
-	if (pmu->type != PERF_TYPE_SOFTWARE)
-		idr_remove(&pmu_idr, pmu->type);
-	if (pmu_bus_running) {
+	idr_remove(&pmu_idr, pmu->type);
+	if (pmu_bus_running && pmu->dev && pmu->dev != PMU_NULL_DEV) {
 		if (pmu->nr_addr_filters)
 			device_remove_file(pmu->dev, &dev_attr_nr_addr_filters);
 		device_del(pmu->dev);
@@ -11600,6 +11616,12 @@ static struct pmu *perf_init_event(struct perf_event *event)
 	struct pmu *pmu;
 
 	idx = srcu_read_lock(&pmus_srcu);
+
+	/*
+	 * Save original type before calling pmu->event_init() since certain
+	 * pmus overwrites event->attr.type to forward event to another pmu.
+	 */
+	event->orig_type = event->attr.type;
 
 	/* Try parent's PMU first: */
 	if (event->parent && event->parent->pmu) {
@@ -13640,8 +13662,8 @@ void __init perf_event_init(void)
 	perf_event_init_all_cpus();
 	init_srcu_struct(&pmus_srcu);
 	perf_pmu_register(&perf_swevent, "software", PERF_TYPE_SOFTWARE);
-	perf_pmu_register(&perf_cpu_clock, NULL, -1);
-	perf_pmu_register(&perf_task_clock, NULL, -1);
+	perf_pmu_register(&perf_cpu_clock, "cpu_clock", -1);
+	perf_pmu_register(&perf_task_clock, "task_clock", -1);
 	perf_tp_register();
 	perf_event_init_cpu(smp_processor_id());
 	register_reboot_notifier(&perf_reboot_notifier);
@@ -13684,7 +13706,7 @@ static int __init perf_event_sysfs_init(void)
 		goto unlock;
 
 	list_for_each_entry(pmu, &pmus, entry) {
-		if (!pmu->name || pmu->type < 0)
+		if (pmu->dev)
 			continue;
 
 		ret = pmu_dev_alloc(pmu);

@@ -6,6 +6,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_link.h>
+#include <linux/pm_runtime.h>
 #include <linux/rtnetlink.h>
 #include <linux/wwan.h>
 #include <net/pkt_sched.h>
@@ -17,8 +18,6 @@
 #define IOSM_IP_TYPE_MASK 0xF0
 #define IOSM_IP_TYPE_IPV4 0x40
 #define IOSM_IP_TYPE_IPV6 0x60
-
-#define IOSM_IF_ID_PAYLOAD 2
 
 /**
  * struct iosm_netdev_priv - netdev WWAN driver specific private data
@@ -53,11 +52,13 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 	struct iosm_netdev_priv *priv = wwan_netdev_drvpriv(netdev);
 	struct iosm_wwan *ipc_wwan = priv->ipc_wwan;
 	int if_id = priv->if_id;
+	int ret = 0;
 
 	if (if_id < IP_MUX_SESSION_START ||
 	    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist))
 		return -EINVAL;
 
+	pm_runtime_get_sync(ipc_wwan->ipc_imem->dev);
 	/* get channel id */
 	priv->ch_id = ipc_imem_sys_wwan_open(ipc_wwan->ipc_imem, if_id);
 
@@ -65,7 +66,8 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 		dev_err(ipc_wwan->dev,
 			"cannot connect wwan0 & id %d to the IPC mem layer",
 			if_id);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_out;
 	}
 
 	/* enable tx path, DL data may follow */
@@ -74,7 +76,11 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 	dev_dbg(ipc_wwan->dev, "Channel id %d allocated to if_id %d",
 		priv->ch_id, priv->if_id);
 
-	return 0;
+err_out:
+	pm_runtime_mark_last_busy(ipc_wwan->ipc_imem->dev);
+	pm_runtime_put_autosuspend(ipc_wwan->ipc_imem->dev);
+
+	return ret;
 }
 
 /* Bring-down the wwan net link */
@@ -84,9 +90,12 @@ static int ipc_wwan_link_stop(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 
+	pm_runtime_get_sync(priv->ipc_wwan->ipc_imem->dev);
 	ipc_imem_sys_wwan_close(priv->ipc_wwan->ipc_imem, priv->if_id,
 				priv->ch_id);
 	priv->ch_id = -1;
+	pm_runtime_mark_last_busy(priv->ipc_wwan->ipc_imem->dev);
+	pm_runtime_put_autosuspend(priv->ipc_wwan->ipc_imem->dev);
 
 	return 0;
 }
@@ -108,6 +117,7 @@ static netdev_tx_t ipc_wwan_link_transmit(struct sk_buff *skb,
 	    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist))
 		return -EINVAL;
 
+	pm_runtime_get(ipc_wwan->ipc_imem->dev);
 	/* Send the SKB to device for transmission */
 	ret = ipc_imem_sys_wwan_transmit(ipc_wwan->ipc_imem,
 					 if_id, priv->ch_id, skb);
@@ -121,8 +131,13 @@ static netdev_tx_t ipc_wwan_link_transmit(struct sk_buff *skb,
 		ret = NETDEV_TX_BUSY;
 		dev_err(ipc_wwan->dev, "unable to push packets");
 	} else {
+		pm_runtime_mark_last_busy(ipc_wwan->ipc_imem->dev);
+		pm_runtime_put_autosuspend(ipc_wwan->ipc_imem->dev);
 		goto exit;
 	}
+
+	pm_runtime_mark_last_busy(ipc_wwan->ipc_imem->dev);
+	pm_runtime_put_autosuspend(ipc_wwan->ipc_imem->dev);
 
 	return ret;
 

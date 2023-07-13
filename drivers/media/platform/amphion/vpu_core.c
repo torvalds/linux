@@ -254,7 +254,7 @@ static int vpu_core_register(struct device *dev, struct vpu_core *core)
 	if (vpu_core_is_exist(vpu, core))
 		return 0;
 
-	core->workqueue = alloc_workqueue("vpu", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+	core->workqueue = alloc_ordered_workqueue("vpu", WQ_MEM_RECLAIM);
 	if (!core->workqueue) {
 		dev_err(core->dev, "fail to alloc workqueue\n");
 		return -ENOMEM;

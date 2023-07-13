@@ -952,12 +952,10 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		return 0;
 	}
 
-#if defined(ISP2401)
-	(void)continuous;
-	sh_css_sp_stage.deinterleaved = 0;
-#else
-	sh_css_sp_stage.deinterleaved = ((stage == 0) && continuous);
-#endif
+	if (IS_ISP2401)
+		sh_css_sp_stage.deinterleaved = 0;
+	else
+		sh_css_sp_stage.deinterleaved = ((stage == 0) && continuous);
 
 	initialize_stage_frames(&sh_css_sp_stage.frames);
 	/*

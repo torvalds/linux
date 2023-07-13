@@ -171,11 +171,13 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	switch (type) {
 	case PORT_RT2880:
-		port->iotype = UPIO_AU;
+		ret = rt288x_setup(port);
+		if (ret)
+			goto err_unprepare;
 		break;
 	}
 
-	if (IS_ENABLED(CONFIG_SERIAL_8250_FSL) &&
+	if (IS_REACHABLE(CONFIG_SERIAL_8250_FSL) &&
 	    (of_device_is_compatible(np, "fsl,ns16550") ||
 	     of_device_is_compatible(np, "fsl,16550-FIFO64"))) {
 		port->handle_irq = fsl8250_handle_irq;

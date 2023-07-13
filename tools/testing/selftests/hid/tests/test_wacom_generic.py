@@ -31,6 +31,7 @@ from enum import Enum
 from hidtools.hut import HUT
 from hidtools.hid import HidUnit
 from . import base
+from . import test_multitouch
 import libevdev
 import pytest
 
@@ -517,7 +518,7 @@ class BaseTest:
                 for usage in get_report_usages(report):
                     yield usage
 
-        def assertName(self, uhdev):
+        def assertName(self, uhdev, type):
             """
             Assert that the name is as we expect.
 
@@ -526,7 +527,7 @@ class BaseTest:
             this assertion from the base class to work properly.
             """
             evdev = uhdev.get_evdev()
-            expected_name = uhdev.name + " Pen"
+            expected_name = uhdev.name + type
             if "wacom" not in expected_name.lower():
                 expected_name = "Wacom " + expected_name
             assert evdev.name == expected_name
@@ -547,6 +548,12 @@ class BaseTest:
                     PhysRange.CENTIMETER, 5, 150
                 ),
                 usage_id("Generic Desktop", "Y"): PhysRange(
+                    PhysRange.CENTIMETER, 5, 150
+                ),
+                usage_id("Digitizers", "Width"): PhysRange(
+                    PhysRange.CENTIMETER, 5, 150
+                ),
+                usage_id("Digitizers", "Height"): PhysRange(
                     PhysRange.CENTIMETER, 5, 150
                 ),
                 usage_id("Digitizers", "X Tilt"): PhysRange(PhysRange.DEGREE, 90, 180),
@@ -603,7 +610,17 @@ class BaseTest:
             pass
 
 
-class TestOpaqueTablet(BaseTest.TestTablet):
+class PenTabletTest(BaseTest.TestTablet):
+    def assertName(self, uhdev):
+        super().assertName(uhdev, " Pen")
+
+
+class TouchTabletTest(BaseTest.TestTablet):
+    def assertName(self, uhdev):
+        super().assertName(uhdev, " Finger")
+
+
+class TestOpaqueTablet(PenTabletTest):
     def create_device(self):
         return OpaqueTablet()
 
@@ -842,3 +859,64 @@ class TestPTHX60_Pen(TestOpaqueCTLTablet):
                 libevdev.InputEvent(libevdev.EV_KEY.BTN_0, 0),
             ],
         )
+
+
+class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest):
+    def create_device(self):
+        return test_multitouch.Digitizer(
+            "DTH 2452",
+            rdesc="05 0d 09 04 a1 01 85 0c 95 01 75 08 15 00 26 ff 00 81 03 09 54 81 02 09 22 a1 02 05 0d 95 01 75 01 25 01 09 42 81 02 81 03 09 47 81 02 95 05 81 03 09 51 26 ff 00 75 10 95 01 81 02 35 00 65 11 55 0e 05 01 09 30 26 a0 44 46 96 14 81 42 09 31 26 9a 26 46 95 0b 81 42 05 0d 75 08 95 01 15 00 09 48 26 5f 00 46 7c 14 81 02 09 49 25 35 46 7d 0b 81 02 45 00 65 00 55 00 c0 05 0d 09 22 a1 02 05 0d 95 01 75 01 25 01 09 42 81 02 81 03 09 47 81 02 95 05 81 03 09 51 26 ff 00 75 10 95 01 81 02 35 00 65 11 55 0e 05 01 09 30 26 a0 44 46 96 14 81 42 09 31 26 9a 26 46 95 0b 81 42 05 0d 75 08 95 01 15 00 09 48 26 5f 00 46 7c 14 81 02 09 49 25 35 46 7d 0b 81 02 45 00 65 00 55 00 c0 05 0d 09 22 a1 02 05 0d 95 01 75 01 25 01 09 42 81 02 81 03 09 47 81 02 95 05 81 03 09 51 26 ff 00 75 10 95 01 81 02 35 00 65 11 55 0e 05 01 09 30 26 a0 44 46 96 14 81 42 09 31 26 9a 26 46 95 0b 81 42 05 0d 75 08 95 01 15 00 09 48 26 5f 00 46 7c 14 81 02 09 49 25 35 46 7d 0b 81 02 45 00 65 00 55 00 c0 05 0d 09 22 a1 02 05 0d 95 01 75 01 25 01 09 42 81 02 81 03 09 47 81 02 95 05 81 03 09 51 26 ff 00 75 10 95 01 81 02 35 00 65 11 55 0e 05 01 09 30 26 a0 44 46 96 14 81 42 09 31 26 9a 26 46 95 0b 81 42 05 0d 75 08 95 01 15 00 09 48 26 5f 00 46 7c 14 81 02 09 49 25 35 46 7d 0b 81 02 45 00 65 00 55 00 c0 05 0d 09 22 a1 02 05 0d 95 01 75 01 25 01 09 42 81 02 81 03 09 47 81 02 95 05 81 03 09 51 26 ff 00 75 10 95 01 81 02 35 00 65 11 55 0e 05 01 09 30 26 a0 44 46 96 14 81 42 09 31 26 9a 26 46 95 0b 81 42 05 0d 75 08 95 01 15 00 09 48 26 5f 00 46 7c 14 81 02 09 49 25 35 46 7d 0b 81 02 45 00 65 00 55 00 c0 05 0d 27 ff ff 00 00 75 10 95 01 09 56 81 02 75 08 95 0e 81 03 09 55 26 ff 00 75 08 b1 02 85 0a 06 00 ff 09 c5 96 00 01 b1 02 c0 06 00 ff 09 01 a1 01 09 01 85 13 15 00 26 ff 00 75 08 95 3f 81 02 06 00 ff 09 01 15 00 26 ff 00 75 08 95 3f 91 02 c0",
+            input_info=(0x3, 0x056A, 0x0383),
+        )
+
+    def test_contact_id_0(self):
+        """
+        Bring a finger in contact with the tablet, then hold it down and remove it.
+
+        Ensure that even with contact ID = 0 which is usually given as an invalid
+        touch event by most tablets with the exception of a few, that given the
+        confidence bit is set to 1 it should process it as a valid touch to cover
+        the few tablets using contact ID = 0 as a valid touch value.
+        """
+        uhdev = self.uhdev
+        evdev = uhdev.get_evdev()
+
+        t0 = test_multitouch.Touch(0, 50, 100)
+        r = uhdev.event([t0])
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+
+        slot = self.get_slot(uhdev, t0, 0)
+
+        assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 1) in events
+        assert evdev.slots[slot][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == 0
+        assert evdev.slots[slot][libevdev.EV_ABS.ABS_MT_POSITION_X] == 50
+        assert evdev.slots[slot][libevdev.EV_ABS.ABS_MT_POSITION_Y] == 100
+
+        t0.tipswitch = False
+        if uhdev.quirks is None or "VALID_IS_INRANGE" not in uhdev.quirks:
+            t0.inrange = False
+        r = uhdev.event([t0])
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+        assert libevdev.InputEvent(libevdev.EV_KEY.BTN_TOUCH, 0) in events
+        assert evdev.slots[slot][libevdev.EV_ABS.ABS_MT_TRACKING_ID] == -1
+
+    def test_confidence_false(self):
+        """
+        Bring a finger in contact with the tablet with confidence set to false.
+
+        Ensure that the confidence bit being set to false should not result in a touch event.
+        """
+        uhdev = self.uhdev
+        evdev = uhdev.get_evdev()
+
+        t0 = test_multitouch.Touch(1, 50, 100)
+        t0.confidence = False
+        r = uhdev.event([t0])
+        events = uhdev.next_sync_events()
+        self.debug_reports(r, uhdev, events)
+
+        slot = self.get_slot(uhdev, t0, 0)
+
+        assert not events

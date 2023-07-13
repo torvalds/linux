@@ -1654,7 +1654,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 				   enum smu_clk_type clk_type, uint32_t mask)
 {
 
-	int ret = 0, size = 0;
+	int ret = 0;
 	uint32_t soft_min_level = 0, soft_max_level = 0, min_freq = 0, max_freq = 0;
 
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
@@ -1675,15 +1675,15 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 
 		ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
-			return size;
+			return 0;
 
 		ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
 		if (ret)
-			return size;
+			return 0;
 
 		ret = smu_v11_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
 		if (ret)
-			return size;
+			return 0;
 		break;
 	case SMU_DCEFCLK:
 		dev_info(smu->adev->dev,"Setting DCEFCLK min/max dpm level is not supported!\n");
@@ -1693,7 +1693,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	return size;
+	return 0;
 }
 
 static int navi10_populate_umd_state_clk(struct smu_context *smu)
@@ -3413,26 +3413,8 @@ static int navi10_post_smu_init(struct smu_context *smu)
 		return 0;
 
 	ret = navi10_run_umc_cdr_workaround(smu);
-	if (ret) {
+	if (ret)
 		dev_err(adev->dev, "Failed to apply umc cdr workaround!\n");
-		return ret;
-	}
-
-	if (!smu->dc_controlled_by_gpio) {
-		/*
-		 * For Navi1X, manually switch it to AC mode as PMFW
-		 * may boot it with DC mode.
-		 */
-		ret = smu_v11_0_set_power_source(smu,
-						 adev->pm.ac_power ?
-						 SMU_POWER_SOURCE_AC :
-						 SMU_POWER_SOURCE_DC);
-		if (ret) {
-			dev_err(adev->dev, "Failed to switch to %s mode!\n",
-					adev->pm.ac_power ? "AC" : "DC");
-			return ret;
-		}
-	}
 
 	return ret;
 }

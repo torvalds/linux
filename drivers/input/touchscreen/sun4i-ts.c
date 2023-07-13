@@ -22,7 +22,7 @@
  * in the kernel). So this driver offers straight forward, reliable single
  * touch functionality only.
  *
- * s.a. A20 User Manual "1.15 TP" (Documentation/arm/sunxi.rst)
+ * s.a. A20 User Manual "1.15 TP" (Documentation/arch/arm/sunxi.rst)
  * (looks like the description in the A20 User Manual v1.3 is better
  * than the one in the A10 User Manual v.1.5)
  */

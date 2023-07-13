@@ -988,7 +988,7 @@ static struct i2c_driver ir_kbd_driver = {
 	.driver = {
 		.name   = "ir-kbd-i2c",
 	},
-	.probe_new      = ir_probe,
+	.probe          = ir_probe,
 	.remove         = ir_remove,
 	.id_table       = ir_kbd_id,
 };

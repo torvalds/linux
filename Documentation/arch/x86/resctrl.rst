@@ -287,6 +287,13 @@ Removing a directory will move all tasks and cpus owned by the group it
 represents to the parent. Removing one of the created CTRL_MON groups
 will automatically remove all MON groups below it.
 
+Moving MON group directories to a new parent CTRL_MON group is supported
+for the purpose of changing the resource allocations of a MON group
+without impacting its monitoring data or assigned tasks. This operation
+is not allowed for MON groups which monitor CPUs. No other move
+operation is currently allowed other than simply renaming a CTRL_MON or
+MON group.
+
 All groups contain the following files:
 
 "tasks":

@@ -3157,6 +3157,23 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "All requests issued from IA cores to CXL accelerator memory regions that hit the LLC.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c0018101",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_HIT_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c0008101",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts; DRd hits from local IA",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_HIT_DRD",
@@ -3372,6 +3389,23 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "All requests issued from IA cores to CXL accelerator memory regions that miss the LLC.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c0018201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c0008201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts for DRd misses from local IA",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD",
@@ -3395,6 +3429,23 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : DRd PTEs issued by iA Cores due to a page walk that missed the LLC : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.   Does not include addressless requests such as locks and interrupts.",
         "UMask": "0xc837fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "DRds issued from an IA core which miss the L3 and target memory in a CXL type 2 memory expander card.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8178201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8168201",
         "Unit": "CHA"
     },
     {
@@ -3443,12 +3494,30 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8268201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts; DRd Opt Pref misses from local IA",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT_PREF",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts; Data read opt prefetch from local IA that misses in the snoop filter",
         "UMask": "0xc8a7fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT_PREF_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_OPT_PREF_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8a68201",
         "Unit": "CHA"
     },
     {
@@ -3467,6 +3536,23 @@
         "PerPkg": "1",
         "PublicDescription": "Inserts into the TOR from local IA cores which miss the LLC and snoop filter with the opcode DRD_PREF",
         "UMask": "0xc897fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "L2 data prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8978201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8968201",
         "Unit": "CHA"
     },
     {
@@ -3604,12 +3690,46 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "LLC data prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10ccd78201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10ccd68201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts; LLCPrefRFO misses from local IA",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO",
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts; Last level cache prefetch read for ownership from local IA that misses in the snoop filter",
         "UMask": "0xccc7fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "L2 RFO prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8878201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8868201",
         "Unit": "CHA"
     },
     {
@@ -3702,6 +3822,23 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "RFOs issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8078201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8068201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts RFO misses from local IA",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_LOCAL",
@@ -3717,6 +3854,23 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts; Read for ownership prefetch from local IA that misses in the snoop filter",
         "UMask": "0xc887fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "LLC RFO prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10ccc78201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10ccc68201",
         "Unit": "CHA"
     },
     {
@@ -4428,6 +4582,23 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "TOR Occupancy for All requests issued from IA cores to CXL accelerator memory regions that hit the LLC.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c0018101",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c0008101",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy; DRd hits from local IA",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_HIT_DRD",
@@ -4645,6 +4816,23 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "TOR Occupancy for All requests issued from IA cores to CXL accelerator memory regions that miss the LLC.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c0018201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c0008201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy for DRd misses from local IA",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD",
@@ -4670,6 +4858,23 @@
         "PortMask": "0x00000000",
         "PublicDescription": "TOR Occupancy : DRdPte issued by iA Cores due to a page walk that missed the LLC : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.     Does not include addressless requests such as locks and interrupts.",
         "UMask": "0xc837fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for DRds and equivalent opcodes issued from an IA core which miss the L3 and target memory in a CXL type 2 memory expander card.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8178201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8168201",
         "Unit": "CHA"
     },
     {
@@ -4718,12 +4923,30 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8268201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy; DRd Opt Pref misses from local IA",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_PREF",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy; Data read opt prefetch from local IA that misses in the snoop filter",
         "UMask": "0xc8a7fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_PREF_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_OPT_PREF_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8a68201",
         "Unit": "CHA"
     },
     {
@@ -4742,6 +4965,23 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy; Data read prefetch from local IA that misses in the snoop filter",
         "UMask": "0xc897fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for L2 data prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8978201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8968201",
         "Unit": "CHA"
     },
     {
@@ -4879,12 +5119,46 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "TOR Occupancy for LLC data prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10ccd78201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10ccd68201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy; LLCPrefRFO misses from local IA",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO",
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy; Last level cache prefetch read for ownership from local IA that misses in the snoop filter",
         "UMask": "0xccc7fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for L2 RFO prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8878201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8868201",
         "Unit": "CHA"
     },
     {
@@ -4977,6 +5251,23 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "TOR Occupancy for RFOs issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10c8078201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10c8068201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy; RFO misses from local IA",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_LOCAL",
@@ -4992,6 +5283,23 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy; Read for ownership prefetch from local IA that misses in the snoop filter",
         "UMask": "0xc887fe01",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for LLC RFO prefetches issued from an IA core which miss the L3 and target memory in a CXL type 2 accelerator.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_ACC",
+        "PerPkg": "1",
+        "UMask": "0x10ccc78201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_ACC_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_ACC_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x10ccc68201",
         "Unit": "CHA"
     },
     {

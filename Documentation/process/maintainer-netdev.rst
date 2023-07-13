@@ -127,13 +127,35 @@ the value of ``Message-ID`` to the URL above.
 Updating patch status
 ~~~~~~~~~~~~~~~~~~~~~
 
-It may be tempting to help the maintainers and update the state of your
-own patches when you post a new version or spot a bug. Please **do not**
-do that.
-Interfering with the patch status on patchwork will only cause confusion. Leave
-it to the maintainer to figure out what is the most recent and current
-version that should be applied. If there is any doubt, the maintainer
-will reply and ask what should be done.
+Contributors and reviewers do not have the permissions to update patch
+state directly in patchwork. Patchwork doesn't expose much information
+about the history of the state of patches, therefore having multiple
+people update the state leads to confusion.
+
+Instead of delegating patchwork permissions netdev uses a simple mail
+bot which looks for special commands/lines within the emails sent to
+the mailing list. For example to mark a series as Changes Requested
+one needs to send the following line anywhere in the email thread::
+
+  pw-bot: changes-requested
+
+As a result the bot will set the entire series to Changes Requested.
+This may be useful when author discovers a bug in their own series
+and wants to prevent it from getting applied.
+
+The use of the bot is entirely optional, if in doubt ignore its existence
+completely. Maintainers will classify and update the state of the patches
+themselves. No email should ever be sent to the list with the main purpose
+of communicating with the bot, the bot commands should be seen as metadata.
+
+The use of the bot is restricted to authors of the patches (the ``From:``
+header on patch submission and command must match!), maintainers of
+the modified code according to the MAINTAINERS file (again, ``From:``
+must match the MAINTAINERS entry) and a handful of senior reviewers.
+
+Bot records its activity here:
+
+  https://patchwork.hopto.org/pw-bot.html
 
 Review timelines
 ~~~~~~~~~~~~~~~~

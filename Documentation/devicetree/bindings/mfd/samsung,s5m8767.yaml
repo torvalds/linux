@@ -153,29 +153,18 @@ dependencies:
 additionalProperties: false
 
 allOf:
-  - if:
+  - not:
       required:
         - s5m8767,pmic-buck2-uses-gpio-dvs
-    then:
-      properties:
-        s5m8767,pmic-buck3-uses-gpio-dvs: false
-        s5m8767,pmic-buck4-uses-gpio-dvs: false
-
-  - if:
+        - s5m8767,pmic-buck3-uses-gpio-dvs
+  - not:
+      required:
+        - s5m8767,pmic-buck2-uses-gpio-dvs
+        - s5m8767,pmic-buck4-uses-gpio-dvs
+  - not:
       required:
         - s5m8767,pmic-buck3-uses-gpio-dvs
-    then:
-      properties:
-        s5m8767,pmic-buck2-uses-gpio-dvs: false
-        s5m8767,pmic-buck4-uses-gpio-dvs: false
-
-  - if:
-      required:
         - s5m8767,pmic-buck4-uses-gpio-dvs
-    then:
-      properties:
-        s5m8767,pmic-buck2-uses-gpio-dvs: false
-        s5m8767,pmic-buck3-uses-gpio-dvs: false
 
 examples:
   - |

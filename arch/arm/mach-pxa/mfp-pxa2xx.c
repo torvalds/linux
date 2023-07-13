@@ -20,6 +20,7 @@
 
 #include "pxa2xx-regs.h"
 #include "mfp-pxa2xx.h"
+#include "mfp-pxa27x.h"
 
 #include "generic.h"
 

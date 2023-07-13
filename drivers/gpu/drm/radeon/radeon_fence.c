@@ -955,7 +955,7 @@ void radeon_fence_driver_force_completion(struct radeon_device *rdev, int ring)
 #if defined(CONFIG_DEBUG_FS)
 static int radeon_debugfs_fence_info_show(struct seq_file *m, void *data)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	int i, j;
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {

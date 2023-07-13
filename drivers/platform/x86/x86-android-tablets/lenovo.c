@@ -147,6 +147,32 @@ static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
 	},
 };
 
+/*
+ * DSDT says UART path is "\\_SB.PCIO.URT1" with a letter 'O' instead of
+ * the number '0' add the link manually.
+ */
+static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
+	{
+		.ctrl_hid = "8086228A",
+		.ctrl_uid = "1",
+		.ctrl_devname = "serial0",
+		.serdev_hid = "BCM2E1A",
+	},
+};
+
+static const struct x86_gpio_button lenovo_yb1_x90_lid __initconst = {
+	.button = {
+		.code = SW_LID,
+		.active_low = true,
+		.desc = "lid_sw",
+		.type = EV_SW,
+		.wakeup = true,
+		.debounce_interval = 50,
+	},
+	.chip = "INT33FF:02",
+	.pin = 19,
+};
+
 static struct gpiod_lookup_table lenovo_yb1_x90_goodix_gpios = {
 	.dev_id = "i2c-goodix_ts",
 	.table = {
@@ -203,6 +229,10 @@ const struct x86_dev_info lenovo_yogabook_x90_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(lenovo_yb1_x90_i2c_clients),
 	.pdev_info = lenovo_yb1_x90_pdevs,
 	.pdev_count = ARRAY_SIZE(lenovo_yb1_x90_pdevs),
+	.serdev_info = lenovo_yb1_x90_serdevs,
+	.serdev_count = ARRAY_SIZE(lenovo_yb1_x90_serdevs),
+	.gpio_button = &lenovo_yb1_x90_lid,
+	.gpio_button_count = 1,
 	.gpiod_lookup_tables = lenovo_yb1_x90_gpios,
 	.init = lenovo_yb1_x90_init,
 };
@@ -239,7 +269,7 @@ static const struct software_node lenovo_yoga_tab2_830_1050_bq24190_node = {
 	.properties = lenovo_yoga_tab2_830_1050_bq24190_props,
 };
 
-static struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid = {
+static const struct x86_gpio_button lenovo_yoga_tab2_830_1050_lid __initconst = {
 	.button = {
 		.code = SW_LID,
 		.active_low = true,
@@ -265,6 +295,14 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "lsm303d",
 			.addr = 0x1d,
 			.dev_name = "lsm303d",
+		},
+		.adapter_path = "\\_SB_.I2C5",
+	}, {
+		/* AL3320A ambient light sensor */
+		.board_info = {
+			.type = "al3320a",
+			.addr = 0x1c,
+			.dev_name = "al3320a",
 		},
 		.adapter_path = "\\_SB_.I2C5",
 	}, {
@@ -357,6 +395,7 @@ const struct x86_dev_info lenovo_yoga_tab2_830_1050_info __initconst = {
 	.pdev_info = int3496_pdevs,
 	.pdev_count = 1,
 	.gpio_button = &lenovo_yoga_tab2_830_1050_lid,
+	.gpio_button_count = 1,
 	.gpiod_lookup_tables = lenovo_yoga_tab2_830_1050_gpios,
 	.bat_swnode = &generic_lipo_hv_4v35_battery_node,
 	.modules = bq24190_modules,

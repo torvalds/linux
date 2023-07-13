@@ -1229,7 +1229,13 @@ static int enetc_clean_rx_ring(struct enetc_bdr *rx_ring,
 		if (!skb)
 			break;
 
-		rx_byte_cnt += skb->len;
+		/* When set, the outer VLAN header is extracted and reported
+		 * in the receive buffer descriptor. So rx_byte_cnt should
+		 * add the length of the extracted VLAN header.
+		 */
+		if (bd_status & ENETC_RXBD_FLAG_VLAN)
+			rx_byte_cnt += VLAN_HLEN;
+		rx_byte_cnt += skb->len + ETH_HLEN;
 		rx_frm_cnt++;
 
 		napi_gro_receive(napi, skb);
@@ -1445,9 +1451,8 @@ static void enetc_add_rx_buff_to_xdp(struct enetc_bdr *rx_ring, int i,
 		xdp_buff_set_frag_pfmemalloc(xdp_buff);
 
 	frag = &shinfo->frags[shinfo->nr_frags];
-	skb_frag_off_set(frag, rx_swbd->page_offset);
-	skb_frag_size_set(frag, size);
-	__skb_frag_set_page(frag, rx_swbd->page);
+	skb_frag_fill_page_desc(frag, rx_swbd->page, rx_swbd->page_offset,
+				size);
 
 	shinfo->nr_frags++;
 }
@@ -1564,6 +1569,14 @@ static int enetc_clean_rx_ring_xdp(struct enetc_bdr *rx_ring,
 
 		enetc_build_xdp_buff(rx_ring, bd_status, &rxbd, &i,
 				     &cleaned_cnt, &xdp_buff);
+
+		/* When set, the outer VLAN header is extracted and reported
+		 * in the receive buffer descriptor. So rx_byte_cnt should
+		 * add the length of the extracted VLAN header.
+		 */
+		if (bd_status & ENETC_RXBD_FLAG_VLAN)
+			rx_byte_cnt += VLAN_HLEN;
+		rx_byte_cnt += xdp_get_buff_len(&xdp_buff);
 
 		xdp_act = bpf_prog_run_xdp(prog, &xdp_buff);
 
@@ -1776,7 +1789,7 @@ static int enetc_alloc_tx_resource(struct enetc_bdr_resource *res,
 	res->bd_count = bd_count;
 	res->bd_size = sizeof(union enetc_tx_bd);
 
-	res->tx_swbd = vzalloc(bd_count * sizeof(*res->tx_swbd));
+	res->tx_swbd = vcalloc(bd_count, sizeof(*res->tx_swbd));
 	if (!res->tx_swbd)
 		return -ENOMEM;
 
@@ -1864,7 +1877,7 @@ static int enetc_alloc_rx_resource(struct enetc_bdr_resource *res,
 	if (extended)
 		res->bd_size *= 2;
 
-	res->rx_swbd = vzalloc(bd_count * sizeof(struct enetc_rx_swbd));
+	res->rx_swbd = vcalloc(bd_count, sizeof(struct enetc_rx_swbd));
 	if (!res->rx_swbd)
 		return -ENOMEM;
 
@@ -2625,7 +2638,7 @@ static void enetc_debug_tx_ring_prios(struct enetc_ndev_priv *priv)
 			   priv->tx_ring[i]->prio);
 }
 
-static void enetc_reset_tc_mqprio(struct net_device *ndev)
+void enetc_reset_tc_mqprio(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_hw *hw = &priv->si->hw;
@@ -2650,6 +2663,7 @@ static void enetc_reset_tc_mqprio(struct net_device *ndev)
 
 	enetc_change_preemptible_tcs(priv, 0);
 }
+EXPORT_SYMBOL_GPL(enetc_reset_tc_mqprio);
 
 int enetc_setup_tc_mqprio(struct net_device *ndev, void *type_data)
 {

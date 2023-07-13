@@ -1110,7 +1110,7 @@ static struct i2c_driver helene_driver = {
 	.driver = {
 		.name = "helene",
 	},
-	.probe_new = helene_probe,
+	.probe = helene_probe,
 	.id_table = helene_id,
 };
 module_i2c_driver(helene_driver);

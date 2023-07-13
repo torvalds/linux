@@ -71,6 +71,7 @@ properties:
           - qcom,pm8998
           - qcom,pma8084
           - qcom,pmd9635
+          - qcom,pmi632
           - qcom,pmi8950
           - qcom,pmi8962
           - qcom,pmi8994
@@ -133,6 +134,7 @@ patternProperties:
     oneOf:
       - $ref: /schemas/power/supply/qcom,pm8941-charger.yaml#
       - $ref: /schemas/power/supply/qcom,pm8941-coincell.yaml#
+      - $ref: /schemas/power/supply/qcom,pmi8998-charger.yaml#
 
   "gpio@[0-9a-f]+$":
     type: object
@@ -145,6 +147,10 @@ patternProperties:
   "^nvram@[0-9a-f]+$":
     type: object
     $ref: /schemas/nvmem/qcom,spmi-sdam.yaml#
+
+  "phy@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/phy/qcom,snps-eusb2-repeater.yaml#
 
   "pon@[0-9a-f]+$":
     type: object

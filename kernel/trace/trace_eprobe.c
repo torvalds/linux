@@ -227,37 +227,6 @@ error:
 	return ERR_PTR(ret);
 }
 
-static int trace_eprobe_tp_arg_update(struct trace_eprobe *ep, int i)
-{
-	struct probe_arg *parg = &ep->tp.args[i];
-	struct ftrace_event_field *field;
-	struct list_head *head;
-	int ret = -ENOENT;
-
-	head = trace_get_fields(ep->event);
-	list_for_each_entry(field, head, link) {
-		if (!strcmp(parg->code->data, field->name)) {
-			kfree(parg->code->data);
-			parg->code->data = field;
-			return 0;
-		}
-	}
-
-	/*
-	 * Argument not found on event. But allow for comm and COMM
-	 * to be used to get the current->comm.
-	 */
-	if (strcmp(parg->code->data, "COMM") == 0 ||
-	    strcmp(parg->code->data, "comm") == 0) {
-		parg->code->op = FETCH_OP_COMM;
-		ret = 0;
-	}
-
-	kfree(parg->code->data);
-	parg->code->data = NULL;
-	return ret;
-}
-
 static int eprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	struct eprobe_trace_entry_head field;
@@ -817,18 +786,15 @@ find_and_get_event(const char *system, const char *event_name)
 
 static int trace_eprobe_tp_update_arg(struct trace_eprobe *ep, const char *argv[], int i)
 {
-	unsigned int flags = TPARG_FL_KERNEL | TPARG_FL_TPOINT;
+	struct traceprobe_parse_context ctx = {
+		.event = ep->event,
+		.flags = TPARG_FL_KERNEL | TPARG_FL_TEVENT,
+	};
 	int ret;
 
-	ret = traceprobe_parse_probe_arg(&ep->tp, i, argv[i], flags);
+	ret = traceprobe_parse_probe_arg(&ep->tp, i, argv[i], &ctx);
 	if (ret)
 		return ret;
-
-	if (ep->tp.args[i].code->op == FETCH_OP_TP_ARG) {
-		ret = trace_eprobe_tp_arg_update(ep, i);
-		if (ret)
-			trace_probe_log_err(0, BAD_ATTACH_ARG);
-	}
 
 	/* Handle symbols "@" */
 	if (!ret)

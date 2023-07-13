@@ -1221,7 +1221,7 @@ static struct i2c_driver rt274_i2c_driver = {
 		   .of_match_table = of_match_ptr(rt274_of_match),
 #endif
 		   },
-	.probe_new = rt274_i2c_probe,
+	.probe = rt274_i2c_probe,
 	.remove = rt274_i2c_remove,
 	.id_table = rt274_i2c_id,
 };

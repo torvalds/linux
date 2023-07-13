@@ -2011,7 +2011,7 @@ static struct i2c_driver ds1307_driver = {
 		.name	= "rtc-ds1307",
 		.of_match_table = ds1307_of_match,
 	},
-	.probe_new	= ds1307_probe,
+	.probe		= ds1307_probe,
 	.id_table	= ds1307_id,
 };
 

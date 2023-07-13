@@ -1267,11 +1267,11 @@ static const struct dev_pm_ops apds990x_pm_ops = {
 };
 
 static struct i2c_driver apds990x_driver = {
-	.driver	 = {
+	.driver	  = {
 		.name	= "apds990x",
 		.pm	= &apds990x_pm_ops,
 	},
-	.probe_new = apds990x_probe,
+	.probe    = apds990x_probe,
 	.remove	  = apds990x_remove,
 	.id_table = apds990x_id,
 };

@@ -26,7 +26,7 @@ struct regulator;
 /* Lock to allow exclusive modification to the device and opp lists */
 extern struct mutex opp_table_lock;
 
-extern struct list_head opp_tables, lazy_opp_tables;
+extern struct list_head opp_tables;
 
 /* OPP Config flags */
 #define OPP_CONFIG_CLK			BIT(0)
@@ -78,7 +78,6 @@ struct opp_config_data {
  * @turbo:	true if turbo (boost) OPP
  * @suspend:	true if suspend OPP
  * @removed:	flag indicating that OPP's reference is dropped by OPP core.
- * @pstate: Device's power domain's performance state.
  * @rates:	Frequencies in hertz
  * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
@@ -101,7 +100,6 @@ struct dev_pm_opp {
 	bool turbo;
 	bool suspend;
 	bool removed;
-	unsigned int pstate;
 	unsigned long *rates;
 	unsigned int level;
 
@@ -182,7 +180,6 @@ enum opp_table_access {
  * @paths: Interconnect path handles
  * @path_count: Number of interconnect paths
  * @enabled: Set to true if the device's resources are enabled/configured.
- * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
  * @set_required_opps: Helper responsible to set required OPPs.
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
@@ -233,7 +230,6 @@ struct opp_table {
 	struct icc_path **paths;
 	unsigned int path_count;
 	bool enabled;
-	bool genpd_performance_state;
 	bool is_genpd;
 	int (*set_required_opps)(struct device *dev,
 		struct opp_table *opp_table, struct dev_pm_opp *opp, bool scaling_down);

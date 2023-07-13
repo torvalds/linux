@@ -164,7 +164,7 @@ static int sysv_unlink(struct inode * dir, struct dentry * dentry)
 		inode->i_ctime = dir->i_ctime;
 		inode_dec_link_count(inode);
 	}
-	put_and_unmap_page(page, de);
+	unmap_and_put_page(page, de);
 	return err;
 }
 
@@ -227,7 +227,7 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		if (!new_de)
 			goto out_dir;
 		err = sysv_set_link(new_de, new_page, old_inode);
-		put_and_unmap_page(new_page, new_de);
+		unmap_and_put_page(new_page, new_de);
 		if (err)
 			goto out_dir;
 		new_inode->i_ctime = current_time(new_inode);
@@ -256,9 +256,9 @@ static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 
 out_dir:
 	if (dir_de)
-		put_and_unmap_page(dir_page, dir_de);
+		unmap_and_put_page(dir_page, dir_de);
 out_old:
-	put_and_unmap_page(old_page, old_de);
+	unmap_and_put_page(old_page, old_de);
 out:
 	return err;
 }

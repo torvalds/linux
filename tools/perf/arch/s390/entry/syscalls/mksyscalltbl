@@ -18,7 +18,7 @@ create_table()
 {
 	local max_nr nr abi sc discard
 
-	echo 'static const char *syscalltbl_s390_64[] = {'
+	echo 'static const char *const syscalltbl_s390_64[] = {'
 	while read nr abi sc discard; do
 		printf '\t[%d] = "%s",\n' $nr $sc
 		max_nr=$nr

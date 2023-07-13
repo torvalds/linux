@@ -84,15 +84,12 @@ SECTIONS
 	__init_data_begin = .;
 	INIT_DATA_SECTION(16)
 
-	/* Those sections result from the compilation of kernel/pi/string.c */
-	.init.pidata : {
-		*(.init.srodata.cst8*)
-		*(.init__bug_table*)
-		*(.init.sdata*)
+	.init.pi : {
+		KEEP(*(.init.pi*))
 	}
 
 	.init.bss : {
-		*(.init.bss)	/* from the EFI stub */
+		KEEP(*(.init.bss*))	/* from the EFI stub */
 	}
 	.exit.data :
 	{
@@ -115,7 +112,7 @@ SECTIONS
 	. = ALIGN(8);
 	.alternative : {
 		__alt_start = .;
-		*(.alternative)
+		KEEP(*(.alternative))
 		__alt_end = .;
 	}
 	__init_end = .;

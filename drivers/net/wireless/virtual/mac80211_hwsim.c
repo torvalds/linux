@@ -4,7 +4,7 @@
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2022 Intel Corporation
+ * Copyright (C) 2018 - 2023 Intel Corporation
  */
 
 /*
@@ -582,8 +582,9 @@ static int mac80211_hwsim_vendor_cmd_test(struct wiphy *wiphy,
 		 */
 
 		/* Add vendor data */
-		nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_TEST, val + 1);
-
+		err = nla_put_u32(skb, QCA_WLAN_VENDOR_ATTR_TEST, val + 1);
+		if (err)
+			return err;
 		/* Send the event - this will call nla_nest_end() */
 		cfg80211_vendor_event(skb, GFP_KERNEL);
 	}
@@ -1859,12 +1860,12 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	int i;
 
-	if (!vif->valid_links)
+	if (!ieee80211_vif_is_mld(vif))
 		return &vif->bss_conf;
 
 	WARN_ON(is_multicast_ether_addr(hdr->addr1));
 
-	if (WARN_ON_ONCE(!sta->valid_links))
+	if (WARN_ON_ONCE(!sta || !sta->valid_links))
 		return &vif->bss_conf;
 
 	for (i = 0; i < ARRAY_SIZE(vif->link_conf); i++) {
@@ -1940,7 +1941,14 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 								 hdr, &link_sta);
 		}
 
-		if (WARN_ON(!bss_conf)) {
+		if (unlikely(!bss_conf)) {
+			/* if it's an MLO STA, it might have deactivated all
+			 * links temporarily - but we don't handle real PS in
+			 * this code yet, so just drop the frame in that case
+			 */
+			WARN(link != IEEE80211_LINK_UNSPECIFIED || !sta || !sta->mlo,
+			     "link:%d, sta:%pM, sta->mlo:%d\n",
+			     link, sta ? sta->addr : NULL, sta ? sta->mlo : -1);
 			ieee80211_free_txskb(hw, skb);
 			return;
 		}
@@ -2628,7 +2636,8 @@ static int mac80211_hwsim_sta_state(struct ieee80211_hw *hw,
 	 */
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    new_state == IEEE80211_STA_AUTHORIZED && !sta->tdls)
-		ieee80211_set_active_links_async(vif, vif->valid_links);
+		ieee80211_set_active_links_async(vif,
+						 ieee80211_vif_usable_links(vif));
 
 	return 0;
 }
@@ -5964,10 +5973,11 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 			ret = -ENOMEM;
 			goto out_free;
 		}
+		param.pmsr_capa = pmsr_capa;
+
 		ret = parse_pmsr_capa(info->attrs[HWSIM_ATTR_PMSR_SUPPORT], pmsr_capa, info);
 		if (ret)
 			goto out_free;
-		param.pmsr_capa = pmsr_capa;
 	}
 
 	ret = mac80211_hwsim_new_radio(info, &param);

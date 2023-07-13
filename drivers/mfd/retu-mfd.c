@@ -318,7 +318,7 @@ static struct i2c_driver retu_driver = {
 		.name = "retu-mfd",
 		.of_match_table = retu_of_match,
 	},
-	.probe_new	= retu_probe,
+	.probe		= retu_probe,
 	.remove		= retu_remove,
 	.id_table	= retu_id,
 };

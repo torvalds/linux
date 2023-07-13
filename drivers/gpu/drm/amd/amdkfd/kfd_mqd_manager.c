@@ -46,7 +46,7 @@ int pipe_priority_map[] = {
 	KFD_PIPE_PRIORITY_CS_HIGH
 };
 
-struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_properties *q)
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev, struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
 
@@ -61,7 +61,7 @@ struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev, struct queue_propertie
 	return mqd_mem_obj;
 }
 
-struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_node *dev,
 					struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj = NULL;
@@ -72,11 +72,12 @@ struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
 		return NULL;
 
 	offset = (q->sdma_engine_id *
-		dev->device_info.num_sdma_queues_per_engine +
+		dev->kfd->device_info.num_sdma_queues_per_engine +
 		q->sdma_queue_id) *
 		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
 
-	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size *
+		  NUM_XCC(dev->xcc_mask);
 
 	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
 				+ offset);
@@ -189,7 +190,7 @@ int kfd_hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
 		     struct queue_properties *p, struct mm_struct *mms)
 {
 	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, mqd, pipe_id,
-					      queue_id, p->doorbell_off);
+					      queue_id, p->doorbell_off, 0);
 }
 
 int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
@@ -197,7 +198,7 @@ int kfd_destroy_mqd_cp(struct mqd_manager *mm, void *mqd,
 		uint32_t pipe_id, uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_destroy(mm->dev->adev, mqd, type, timeout,
-						pipe_id, queue_id);
+						pipe_id, queue_id, 0);
 }
 
 void kfd_free_mqd_cp(struct mqd_manager *mm, void *mqd,
@@ -216,7 +217,7 @@ bool kfd_is_occupied_cp(struct mqd_manager *mm, void *mqd,
 		 uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_is_occupied(mm->dev->adev, queue_address,
-						pipe_id, queue_id);
+						pipe_id, queue_id, 0);
 }
 
 int kfd_load_mqd_sdma(struct mqd_manager *mm, void *mqd,
@@ -245,4 +246,29 @@ bool kfd_is_occupied_sdma(struct mqd_manager *mm, void *mqd,
 		      uint32_t queue_id)
 {
 	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
+}
+
+uint64_t kfd_hiq_mqd_stride(struct kfd_node *dev)
+{
+	return dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+}
+
+void kfd_get_hiq_xcc_mqd(struct kfd_node *dev, struct kfd_mem_obj *mqd_mem_obj,
+		     uint32_t virtual_xcc_id)
+{
+	uint64_t offset;
+
+	offset = kfd_hiq_mqd_stride(dev) * virtual_xcc_id;
+
+	mqd_mem_obj->gtt_mem = (virtual_xcc_id == 0) ?
+			dev->dqm->hiq_sdma_mqd.gtt_mem : NULL;
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr + offset;
+	mqd_mem_obj->cpu_ptr = (uint32_t *)((uintptr_t)
+				dev->dqm->hiq_sdma_mqd.cpu_ptr + offset);
+}
+
+uint64_t kfd_mqd_stride(struct mqd_manager *mm,
+			struct queue_properties *q)
+{
+	return mm->mqd_size;
 }

@@ -15,6 +15,100 @@
 static struct auto_mode_mode_config config_store;
 static const char *state_as_str(unsigned int state);
 
+#ifdef CONFIG_AMD_PMF_DEBUG
+static void amd_pmf_dump_auto_mode_defaults(struct auto_mode_mode_config *data)
+{
+	struct auto_mode_mode_settings *its_mode;
+
+	pr_debug("Auto Mode Data - BEGIN\n");
+
+	/* time constant */
+	pr_debug("balanced_to_perf: %u ms\n",
+		 data->transition[AUTO_TRANSITION_TO_PERFORMANCE].time_constant);
+	pr_debug("perf_to_balanced: %u ms\n",
+		 data->transition[AUTO_TRANSITION_FROM_PERFORMANCE_TO_BALANCE].time_constant);
+	pr_debug("quiet_to_balanced: %u ms\n",
+		 data->transition[AUTO_TRANSITION_FROM_QUIET_TO_BALANCE].time_constant);
+	pr_debug("balanced_to_quiet: %u ms\n",
+		 data->transition[AUTO_TRANSITION_TO_QUIET].time_constant);
+
+	/* power floor */
+	pr_debug("pfloor_perf: %u mW\n", data->mode_set[AUTO_PERFORMANCE].power_floor);
+	pr_debug("pfloor_balanced: %u mW\n", data->mode_set[AUTO_BALANCE].power_floor);
+	pr_debug("pfloor_quiet: %u mW\n", data->mode_set[AUTO_QUIET].power_floor);
+
+	/* Power delta for mode change */
+	pr_debug("pd_balanced_to_perf: %u mW\n",
+		 data->transition[AUTO_TRANSITION_TO_PERFORMANCE].power_delta);
+	pr_debug("pd_perf_to_balanced: %u mW\n",
+		 data->transition[AUTO_TRANSITION_FROM_PERFORMANCE_TO_BALANCE].power_delta);
+	pr_debug("pd_quiet_to_balanced: %u mW\n",
+		 data->transition[AUTO_TRANSITION_FROM_QUIET_TO_BALANCE].power_delta);
+	pr_debug("pd_balanced_to_quiet: %u mW\n",
+		 data->transition[AUTO_TRANSITION_TO_QUIET].power_delta);
+
+	/* skin temperature limits */
+	its_mode = &data->mode_set[AUTO_PERFORMANCE_ON_LAP];
+	pr_debug("stt_apu_perf_on_lap: %u C\n",
+		 its_mode->power_control.stt_skin_temp[STT_TEMP_APU]);
+	pr_debug("stt_hs2_perf_on_lap: %u C\n",
+		 its_mode->power_control.stt_skin_temp[STT_TEMP_HS2]);
+	pr_debug("stt_min_limit_perf_on_lap: %u mW\n", its_mode->power_control.stt_min);
+
+	its_mode = &data->mode_set[AUTO_PERFORMANCE];
+	pr_debug("stt_apu_perf: %u C\n", its_mode->power_control.stt_skin_temp[STT_TEMP_APU]);
+	pr_debug("stt_hs2_perf: %u C\n", its_mode->power_control.stt_skin_temp[STT_TEMP_HS2]);
+	pr_debug("stt_min_limit_perf: %u mW\n", its_mode->power_control.stt_min);
+
+	its_mode = &data->mode_set[AUTO_BALANCE];
+	pr_debug("stt_apu_balanced: %u C\n", its_mode->power_control.stt_skin_temp[STT_TEMP_APU]);
+	pr_debug("stt_hs2_balanced: %u C\n", its_mode->power_control.stt_skin_temp[STT_TEMP_HS2]);
+	pr_debug("stt_min_limit_balanced: %u mW\n", its_mode->power_control.stt_min);
+
+	its_mode = &data->mode_set[AUTO_QUIET];
+	pr_debug("stt_apu_quiet: %u C\n", its_mode->power_control.stt_skin_temp[STT_TEMP_APU]);
+	pr_debug("stt_hs2_quiet: %u C\n", its_mode->power_control.stt_skin_temp[STT_TEMP_HS2]);
+	pr_debug("stt_min_limit_quiet: %u mW\n", its_mode->power_control.stt_min);
+
+	/* SPL based power limits */
+	its_mode = &data->mode_set[AUTO_PERFORMANCE_ON_LAP];
+	pr_debug("fppt_perf_on_lap: %u mW\n", its_mode->power_control.fppt);
+	pr_debug("sppt_perf_on_lap: %u mW\n", its_mode->power_control.sppt);
+	pr_debug("spl_perf_on_lap: %u mW\n", its_mode->power_control.spl);
+	pr_debug("sppt_apu_only_perf_on_lap: %u mW\n", its_mode->power_control.sppt_apu_only);
+
+	its_mode = &data->mode_set[AUTO_PERFORMANCE];
+	pr_debug("fppt_perf: %u mW\n", its_mode->power_control.fppt);
+	pr_debug("sppt_perf: %u mW\n", its_mode->power_control.sppt);
+	pr_debug("spl_perf: %u mW\n", its_mode->power_control.spl);
+	pr_debug("sppt_apu_only_perf: %u mW\n", its_mode->power_control.sppt_apu_only);
+
+	its_mode = &data->mode_set[AUTO_BALANCE];
+	pr_debug("fppt_balanced: %u mW\n", its_mode->power_control.fppt);
+	pr_debug("sppt_balanced: %u mW\n", its_mode->power_control.sppt);
+	pr_debug("spl_balanced: %u mW\n", its_mode->power_control.spl);
+	pr_debug("sppt_apu_only_balanced: %u mW\n", its_mode->power_control.sppt_apu_only);
+
+	its_mode = &data->mode_set[AUTO_QUIET];
+	pr_debug("fppt_quiet: %u mW\n", its_mode->power_control.fppt);
+	pr_debug("sppt_quiet: %u mW\n", its_mode->power_control.sppt);
+	pr_debug("spl_quiet: %u mW\n", its_mode->power_control.spl);
+	pr_debug("sppt_apu_only_quiet: %u mW\n", its_mode->power_control.sppt_apu_only);
+
+	/* Fan ID */
+	pr_debug("fan_id_perf: %lu\n",
+		 data->mode_set[AUTO_PERFORMANCE].fan_control.fan_id);
+	pr_debug("fan_id_balanced: %lu\n",
+		 data->mode_set[AUTO_BALANCE].fan_control.fan_id);
+	pr_debug("fan_id_quiet: %lu\n",
+		 data->mode_set[AUTO_QUIET].fan_control.fan_id);
+
+	pr_debug("Auto Mode Data - END\n");
+}
+#else
+static void amd_pmf_dump_auto_mode_defaults(struct auto_mode_mode_config *data) {}
+#endif
+
 static void amd_pmf_set_automode(struct amd_pmf_dev *dev, int idx,
 				 struct auto_mode_mode_config *table)
 {
@@ -85,10 +179,33 @@ void amd_pmf_trans_automode(struct amd_pmf_dev *dev, int socket_power, ktime_t t
 			config_store.transition[i].applied = false;
 			update = true;
 		}
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+		dev_dbg(dev->dev, "[AUTO MODE] average_power : %d mW mode: %s\n", avg_power,
+			state_as_str(config_store.current_mode));
+
+		dev_dbg(dev->dev, "[AUTO MODE] time: %lld ms timer: %u ms tc: %u ms\n",
+			time_elapsed_ms, config_store.transition[i].timer,
+			config_store.transition[i].time_constant);
+
+		dev_dbg(dev->dev, "[AUTO MODE] shiftup: %u pt: %u mW pf: %u mW pd: %u mW\n",
+			config_store.transition[i].shifting_up,
+			config_store.transition[i].power_threshold,
+			config_store.mode_set[i].power_floor,
+			config_store.transition[i].power_delta);
+#endif
 	}
 
 	dev_dbg(dev->dev, "[AUTO_MODE] avg power: %u mW mode: %s\n", avg_power,
 		state_as_str(config_store.current_mode));
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+	dev_dbg(dev->dev, "[AUTO MODE] priority1: %u priority2: %u priority3: %u priority4: %u\n",
+		config_store.transition[0].applied,
+		config_store.transition[1].applied,
+		config_store.transition[2].applied,
+		config_store.transition[3].applied);
+#endif
 
 	if (update) {
 		for (j = 0; j < AUTO_TRANSITION_MAX; j++) {
@@ -140,6 +257,30 @@ static void amd_pmf_get_power_threshold(void)
 	config_store.transition[AUTO_TRANSITION_FROM_PERFORMANCE_TO_BALANCE].power_threshold =
 		config_store.mode_set[AUTO_PERFORMANCE].power_floor -
 		config_store.transition[AUTO_TRANSITION_FROM_PERFORMANCE_TO_BALANCE].power_delta;
+
+#ifdef CONFIG_AMD_PMF_DEBUG
+	pr_debug("[AUTO MODE TO_QUIET] pt: %u mW pf: %u mW pd: %u mW\n",
+		 config_store.transition[AUTO_TRANSITION_TO_QUIET].power_threshold,
+		 config_store.mode_set[AUTO_BALANCE].power_floor,
+		 config_store.transition[AUTO_TRANSITION_TO_QUIET].power_delta);
+
+	pr_debug("[AUTO MODE TO_PERFORMANCE] pt: %u mW pf: %u mW pd: %u mW\n",
+		 config_store.transition[AUTO_TRANSITION_TO_PERFORMANCE].power_threshold,
+		 config_store.mode_set[AUTO_BALANCE].power_floor,
+		 config_store.transition[AUTO_TRANSITION_TO_PERFORMANCE].power_delta);
+
+	pr_debug("[AUTO MODE QUIET_TO_BALANCE] pt: %u mW pf: %u mW pd: %u mW\n",
+		 config_store.transition[AUTO_TRANSITION_FROM_QUIET_TO_BALANCE]
+		 .power_threshold,
+		 config_store.mode_set[AUTO_QUIET].power_floor,
+		 config_store.transition[AUTO_TRANSITION_FROM_QUIET_TO_BALANCE].power_delta);
+
+	pr_debug("[AUTO MODE PERFORMANCE_TO_BALANCE] pt: %u mW pf: %u mW pd: %u mW\n",
+		 config_store.transition[AUTO_TRANSITION_FROM_PERFORMANCE_TO_BALANCE]
+		 .power_threshold,
+		 config_store.mode_set[AUTO_PERFORMANCE].power_floor,
+		 config_store.transition[AUTO_TRANSITION_FROM_PERFORMANCE_TO_BALANCE].power_delta);
+#endif
 }
 
 static const char *state_as_str(unsigned int state)
@@ -262,6 +403,8 @@ static void amd_pmf_load_defaults_auto_mode(struct amd_pmf_dev *dev)
 	/* set to initial default values */
 	config_store.current_mode = AUTO_BALANCE;
 	dev->socket_power_history_idx = -1;
+
+	amd_pmf_dump_auto_mode_defaults(&config_store);
 }
 
 int amd_pmf_reset_amt(struct amd_pmf_dev *dev)

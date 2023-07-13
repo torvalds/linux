@@ -798,9 +798,9 @@ MODULE_DEVICE_TABLE(i2c, mn88443x_i2c_id);
 static struct i2c_driver mn88443x_driver = {
 	.driver = {
 		.name = "mn88443x",
-		.of_match_table = of_match_ptr(mn88443x_of_match),
+		.of_match_table = mn88443x_of_match,
 	},
-	.probe_new = mn88443x_probe,
+	.probe    = mn88443x_probe,
 	.remove   = mn88443x_remove,
 	.id_table = mn88443x_i2c_id,
 };

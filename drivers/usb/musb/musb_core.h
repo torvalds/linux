@@ -352,8 +352,6 @@ struct musb {
 	u16 epmask;
 	u8 nr_endpoints;
 
-	int			(*board_set_power)(int state);
-
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
 	enum musb_mode		port_mode;

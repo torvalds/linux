@@ -85,6 +85,7 @@ void snd_seq_system_broadcast(int client, int port, int type)
 	ev.type = type;
 	snd_seq_kernel_client_dispatch(sysclient, &ev, 0, 0);
 }
+EXPORT_SYMBOL_GPL(snd_seq_system_broadcast);
 
 /* entry points for broadcasting system events */
 int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev)

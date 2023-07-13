@@ -32,7 +32,7 @@ patternProperties:
     properties:
       rohm,led-compatible:
         description: LED identification string
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         enum:
           - bd71828-ambled
           - bd71828-grnled

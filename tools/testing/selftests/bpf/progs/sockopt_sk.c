@@ -37,7 +37,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 	/* Bypass AF_NETLINK. */
 	sk = ctx->sk;
 	if (sk && sk->family == AF_NETLINK)
-		return 1;
+		goto out;
 
 	/* Make sure bpf_get_netns_cookie is callable.
 	 */
@@ -52,8 +52,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
-		ctx->optlen = 0; /* bypass optval>PAGE_SIZE */
-		return 1;
+		goto out;
 	}
 
 	if (ctx->level == SOL_SOCKET && ctx->optname == SO_SNDBUF) {
@@ -61,7 +60,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
-		return 1;
+		goto out;
 	}
 
 	if (ctx->level == SOL_TCP && ctx->optname == TCP_CONGESTION) {
@@ -69,7 +68,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		 * let next BPF program in the cgroup chain or kernel
 		 * handle it.
 		 */
-		return 1;
+		goto out;
 	}
 
 	if (ctx->level == SOL_TCP && ctx->optname == TCP_ZEROCOPY_RECEIVE) {
@@ -85,7 +84,7 @@ int _getsockopt(struct bpf_sockopt *ctx)
 		if (((struct tcp_zerocopy_receive *)optval)->address != 0)
 			return 0; /* unexpected data */
 
-		return 1;
+		goto out;
 	}
 
 	if (ctx->level == SOL_IP && ctx->optname == IP_FREEBIND) {
@@ -129,6 +128,12 @@ int _getsockopt(struct bpf_sockopt *ctx)
 	ctx->optlen = 1;
 
 	return 1;
+
+out:
+	/* optval larger than PAGE_SIZE use kernel's buffer. */
+	if (ctx->optlen > page_size)
+		ctx->optlen = 0;
+	return 1;
 }
 
 SEC("cgroup/setsockopt")
@@ -142,7 +147,7 @@ int _setsockopt(struct bpf_sockopt *ctx)
 	/* Bypass AF_NETLINK. */
 	sk = ctx->sk;
 	if (sk && sk->family == AF_NETLINK)
-		return 1;
+		goto out;
 
 	/* Make sure bpf_get_netns_cookie is callable.
 	 */
@@ -223,5 +228,11 @@ int _setsockopt(struct bpf_sockopt *ctx)
 			   * setsockopt handler.
 			   */
 
+	return 1;
+
+out:
+	/* optval larger than PAGE_SIZE use kernel's buffer. */
+	if (ctx->optlen > page_size)
+		ctx->optlen = 0;
 	return 1;
 }

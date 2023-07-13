@@ -161,16 +161,15 @@ static inline bool svc_put_not_last(struct svc_serv *serv)
 extern u32 svc_max_payload(const struct svc_rqst *rqstp);
 
 /*
- * RPC Requsts and replies are stored in one or more pages.
+ * RPC Requests and replies are stored in one or more pages.
  * We maintain an array of pages for each server thread.
  * Requests are copied into these pages as they arrive.  Remaining
  * pages are available to write the reply into.
  *
- * Pages are sent using ->sendpage so each server thread needs to
- * allocate more to replace those used in sending.  To help keep track
- * of these pages we have a receive list where all pages initialy live,
- * and a send list where pages are moved to when there are to be part
- * of a reply.
+ * Pages are sent using ->sendmsg with MSG_SPLICE_PAGES so each server thread
+ * needs to allocate more to replace those used in sending.  To help keep track
+ * of these pages we have a receive list where all pages initialy live, and a
+ * send list where pages are moved to when there are to be part of a reply.
  *
  * We use xdr_buf for holding responses as it fits well with NFS
  * read responses (that have a header, and some data pages, and possibly
@@ -223,7 +222,7 @@ struct svc_rqst {
 	struct page *		*rq_next_page; /* next reply page to use */
 	struct page *		*rq_page_end;  /* one past the last page */
 
-	struct pagevec		rq_pvec;
+	struct folio_batch	rq_fbatch;
 	struct kvec		rq_vec[RPCSVC_MAXPAGES]; /* generally useful.. */
 	struct bio_vec		rq_bvec[RPCSVC_MAXPAGES];
 
@@ -506,6 +505,27 @@ static inline void svcxdr_init_encode(struct svc_rqst *rqstp)
 	xdr->page_ptr = buf->pages - 1;
 	buf->buflen = PAGE_SIZE * (rqstp->rq_page_end - buf->pages);
 	xdr->rqst = NULL;
+}
+
+/**
+ * svcxdr_encode_opaque_pages - Insert pages into an xdr_stream
+ * @xdr: xdr_stream to be updated
+ * @pages: array of pages to insert
+ * @base: starting offset of first data byte in @pages
+ * @len: number of data bytes in @pages to insert
+ *
+ * After the @pages are added, the tail iovec is instantiated pointing
+ * to end of the head buffer, and the stream is set up to encode
+ * subsequent items into the tail.
+ */
+static inline void svcxdr_encode_opaque_pages(struct svc_rqst *rqstp,
+					      struct xdr_stream *xdr,
+					      struct page **pages,
+					      unsigned int base,
+					      unsigned int len)
+{
+	xdr_write_pages(xdr, pages, base, len);
+	xdr->page_ptr = rqstp->rq_next_page - 1;
 }
 
 /**

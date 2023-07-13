@@ -1505,15 +1505,13 @@ err_bulk_unprepare:
 	return ret;
 }
 
-static int mtk_i2c_remove(struct platform_device *pdev)
+static void mtk_i2c_remove(struct platform_device *pdev)
 {
 	struct mtk_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
 
 	clk_bulk_unprepare(I2C_MT65XX_CLK_MAX, i2c->clocks);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1555,7 +1553,7 @@ static const struct dev_pm_ops mtk_i2c_pm = {
 
 static struct platform_driver mtk_i2c_driver = {
 	.probe = mtk_i2c_probe,
-	.remove = mtk_i2c_remove,
+	.remove_new = mtk_i2c_remove,
 	.driver = {
 		.name = I2C_DRV_NAME,
 		.pm = &mtk_i2c_pm,
