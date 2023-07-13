@@ -33,6 +33,7 @@
 #define MIN_TX_TIMEOUT_GAP (1000 * 10)
 #define DQO_TX_MAX	0x3FFFF
 
+char gve_driver_name[] = "gve";
 const char gve_version_str[] = GVE_VERSION;
 static const char gve_version_prefix[] = GVE_VERSION_PREFIX;
 
@@ -2200,7 +2201,7 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	err = pci_request_regions(pdev, "gvnic-cfg");
+	err = pci_request_regions(pdev, gve_driver_name);
 	if (err)
 		goto abort_with_enabled;
 
@@ -2393,8 +2394,8 @@ static const struct pci_device_id gve_id_table[] = {
 	{ }
 };
 
-static struct pci_driver gvnic_driver = {
-	.name		= "gvnic",
+static struct pci_driver gve_driver = {
+	.name		= gve_driver_name,
 	.id_table	= gve_id_table,
 	.probe		= gve_probe,
 	.remove		= gve_remove,
@@ -2405,10 +2406,10 @@ static struct pci_driver gvnic_driver = {
 #endif
 };
 
-module_pci_driver(gvnic_driver);
+module_pci_driver(gve_driver);
 
 MODULE_DEVICE_TABLE(pci, gve_id_table);
 MODULE_AUTHOR("Google, Inc.");
-MODULE_DESCRIPTION("gVNIC Driver");
+MODULE_DESCRIPTION("Google Virtual NIC Driver");
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_VERSION(GVE_VERSION);

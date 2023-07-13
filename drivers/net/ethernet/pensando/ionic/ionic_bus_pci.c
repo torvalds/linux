@@ -353,12 +353,6 @@ err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
 	ionic_dev_teardown(ionic);
-	pci_clear_master(pdev);
-	/* Don't fail the probe for these errors, keep
-	 * the hw interface around for inspection
-	 */
-	return 0;
-
 err_out_unmap_bars:
 	ionic_unmap_bars(ionic);
 err_out_pci_release_regions:
