@@ -8665,13 +8665,16 @@ __mlxsw_sp_port_vlan_router_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_rif_params params = {
-		.dev = l3_dev,
-	};
+	struct mlxsw_sp_rif_params params;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_fid *fid;
 	int err;
+
+	params = (struct mlxsw_sp_rif_params) {
+		.dev = l3_dev,
+		.vid = vid,
+	};
 
 	mlxsw_sp_rif_subport_params_init(&params, mlxsw_sp_port_vlan);
 	rif = mlxsw_sp_rif_subport_get(mlxsw_sp, &params, extack);
@@ -8830,6 +8833,7 @@ static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
 		.dev = l3_dev,
 	};
 	struct mlxsw_sp_rif *rif;
+	int err;
 
 	switch (event) {
 	case NETDEV_UP:
@@ -8841,6 +8845,13 @@ static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
 				NL_SET_ERR_MSG_MOD(extack, "Adding an IP address to 802.1ad bridge is not supported");
 				return -EOPNOTSUPP;
 			}
+			err = br_vlan_get_pvid(l3_dev, &params.vid);
+			if (err < 0 || !params.vid) {
+				NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
+				return -EINVAL;
+			}
+		} else if (is_vlan_dev(l3_dev)) {
+			params.vid = vlan_dev_vlan_id(l3_dev);
 		}
 		rif = mlxsw_sp_rif_create(mlxsw_sp, &params, extack);
 		if (IS_ERR(rif))
@@ -9877,23 +9888,17 @@ mlxsw_sp_rif_vlan_fid_get(struct mlxsw_sp_rif *rif,
 {
 	struct net_device *dev = mlxsw_sp_rif_dev(rif);
 	struct net_device *br_dev;
-	u16 vid;
-	int err;
+
+	if (WARN_ON(!params->vid))
+		return ERR_PTR(-EINVAL);
 
 	if (is_vlan_dev(dev)) {
-		vid = vlan_dev_vlan_id(dev);
 		br_dev = vlan_dev_real_dev(dev);
 		if (WARN_ON(!netif_is_bridge_master(br_dev)))
 			return ERR_PTR(-EINVAL);
-	} else {
-		err = br_vlan_get_pvid(dev, &vid);
-		if (err < 0 || !vid) {
-			NL_SET_ERR_MSG_MOD(extack, "Couldn't determine bridge PVID");
-			return ERR_PTR(-EINVAL);
-		}
 	}
 
-	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, vid);
+	return mlxsw_sp_fid_8021q_get(rif->mlxsw_sp, params->vid);
 }
 
 static void mlxsw_sp_rif_vlan_fdb_del(struct mlxsw_sp_rif *rif, const char *mac)
