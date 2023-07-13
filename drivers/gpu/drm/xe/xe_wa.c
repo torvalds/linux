@@ -482,7 +482,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 		       ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(CACHE_MODE_SS,
 			     ENABLE_EU_COUNT_FOR_TDL_FLUSH,
-			     /* 
+			     /*
 			      * Wa_14012342262 write-only reg, so skip
 			      * verification
 			      */
@@ -492,7 +492,7 @@ static const struct xe_rtp_entry_sr engine_was[] = {
 	  XE_RTP_RULES(SUBPLATFORM(DG2, G10), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(CACHE_MODE_SS,
 			     ENABLE_EU_COUNT_FOR_TDL_FLUSH,
-			     /* 
+			     /*
 			      * Wa_14012342262 write-only reg, so skip
 			      * verification
 			      */
