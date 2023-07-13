@@ -182,8 +182,7 @@ void __page_table_check_pud_clear(struct mm_struct *mm, pud_t pud)
 }
 EXPORT_SYMBOL(__page_table_check_pud_clear);
 
-void __page_table_check_pte_set(struct mm_struct *mm, unsigned long addr,
-				pte_t *ptep, pte_t pte)
+void __page_table_check_pte_set(struct mm_struct *mm, pte_t *ptep, pte_t pte)
 {
 	if (&init_mm == mm)
 		return;

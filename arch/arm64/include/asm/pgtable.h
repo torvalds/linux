@@ -348,7 +348,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep, pte_t pte)
 {
-	page_table_check_pte_set(mm, addr, ptep, pte);
+	page_table_check_pte_set(mm, ptep, pte);
 	return __set_pte_at(mm, addr, ptep, pte);
 }
 
