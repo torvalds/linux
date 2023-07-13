@@ -213,7 +213,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 	 * clear), set the PTE_DIRTY bit.
 	 */
 	if (pte_hw_dirty(pte))
-		pte = pte_mkdirty(pte);
+		pte = set_pte_bit(pte, __pgprot(PTE_DIRTY));
 
 	pte = clear_pte_bit(pte, __pgprot(PTE_WRITE));
 	pte = set_pte_bit(pte, __pgprot(PTE_RDONLY));
@@ -824,7 +824,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 			      PTE_ATTRINDX_MASK;
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
-		pte = pte_mkdirty(pte);
+		pte = set_pte_bit(pte, __pgprot(PTE_DIRTY));
+
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }
