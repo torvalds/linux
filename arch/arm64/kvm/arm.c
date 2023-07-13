@@ -718,13 +718,15 @@ void kvm_vcpu_wfi(struct kvm_vcpu *vcpu)
 	 */
 	preempt_disable();
 	kvm_vgic_vmcr_sync(vcpu);
-	vgic_v4_put(vcpu, true);
+	vcpu_set_flag(vcpu, IN_WFI);
+	vgic_v4_put(vcpu);
 	preempt_enable();
 
 	kvm_vcpu_halt(vcpu);
 	vcpu_clear_flag(vcpu, IN_WFIT);
 
 	preempt_disable();
+	vcpu_clear_flag(vcpu, IN_WFI);
 	vgic_v4_load(vcpu);
 	preempt_enable();
 }
@@ -792,7 +794,7 @@ static int check_vcpu_requests(struct kvm_vcpu *vcpu)
 		if (kvm_check_request(KVM_REQ_RELOAD_GICv4, vcpu)) {
 			/* The distributor enable bits were changed */
 			preempt_disable();
-			vgic_v4_put(vcpu, false);
+			vgic_v4_put(vcpu);
 			vgic_v4_load(vcpu);
 			preempt_enable();
 		}
