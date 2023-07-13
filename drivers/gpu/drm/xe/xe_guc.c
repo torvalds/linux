@@ -200,7 +200,7 @@ static void guc_init_params(struct xe_guc *guc)
 }
 
 /*
- * Initialise the GuC parameter block before starting the firmware
+ * Initialize the GuC parameter block before starting the firmware
  * transfer. These parameters are read by the firmware on startup
  * and cannot be changed thereafter.
  */

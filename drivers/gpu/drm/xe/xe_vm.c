@@ -3361,7 +3361,7 @@ int xe_vm_lock(struct xe_vm *vm, struct ww_acquire_ctx *ww,
 	XE_BUG_ON(!ww);
 
 	tv_vm.num_shared = num_resv;
-	tv_vm.bo = xe_vm_ttm_bo(vm);;
+	tv_vm.bo = xe_vm_ttm_bo(vm);
 	list_add_tail(&tv_vm.head, &objs);
 
 	return ttm_eu_reserve_buffers(ww, &objs, intr, &dups);
