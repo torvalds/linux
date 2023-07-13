@@ -7,9 +7,10 @@ This chapter describes maintainer level git configuration.
 
 Tagged branches used in :ref:`Documentation/maintainer/pull-requests.rst
 <pullrequests>` should be signed with the developers public GPG key. Signed
-tags can be created by passing the ``-u`` flag to ``git tag``. However,
-since you would *usually* use the same key for the same project, you can
-set it once with
+tags can be created by passing ``-u <key-id>`` to ``git tag``. However,
+since you would *usually* use the same key for the project, you can
+set it in the configuration and use the ``-s`` flag. To set the default
+``key-id`` use
 ::
 
 	git config user.signingkey "keyname"
