@@ -503,7 +503,7 @@
 		};
 
 		ehrpwm_tbclk: clock@4140 {
-			compatible = "ti,am654-ehrpwm-tbclk", "syscon";
+			compatible = "ti,am654-ehrpwm-tbclk";
 			reg = <0x4140 0x18>;
 			#clock-cells = <1>;
 		};
