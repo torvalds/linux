@@ -1559,7 +1559,12 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 
 	i2c_set_clientdata(i2c, priv);
 
-	wcd_usbss_sdam_registration(priv);
+	rc = wcd_usbss_sdam_registration(priv);
+	if (rc == 0)
+		priv->standby_enable = true;
+	else
+		dev_info(priv->dev, "wcd standby feature not enabled\n");
+
 	priv->ucsi_nb.notifier_call = wcd_usbss_usbc_event_changed;
 	priv->ucsi_nb.priority = 0;
 	rc = register_ucsi_glink_notifier(&priv->ucsi_nb);
