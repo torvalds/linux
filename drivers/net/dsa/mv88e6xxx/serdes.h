@@ -12,6 +12,8 @@
 
 #include "chip.h"
 
+struct phylink_link_state;
+
 #define MV88E6352_ADDR_SERDES		0x0f
 #define MV88E6352_SERDES_PAGE_FIBER	0x01
 #define MV88E6352_SERDES_IRQ		0x0b
@@ -106,6 +108,9 @@
 
 #define MV88E6393X_ERRATA_4_8_REG		0xF074
 #define MV88E6393X_ERRATA_4_8_BIT		BIT(14)
+
+int mv88e6xxx_pcs_decode_state(struct device *dev, u16 bmsr, u16 lpa,
+			       u16 status, struct phylink_link_state *state);
 
 int mv88e6185_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);
 int mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port);

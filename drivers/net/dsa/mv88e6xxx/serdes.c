@@ -45,9 +45,8 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_phy_write_c45(chip, lane, device, reg, val);
 }
 
-static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
-					  u16 bmsr, u16 lpa, u16 status,
-					  struct phylink_link_state *state)
+int mv88e6xxx_pcs_decode_state(struct device *dev, u16 bmsr, u16 lpa,
+			       u16 status, struct phylink_link_state *state)
 {
 	state->link = false;
 
@@ -88,7 +87,7 @@ static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
 			state->speed = SPEED_10;
 			break;
 		default:
-			dev_err(chip->dev, "invalid PHY speed\n");
+			dev_err(dev, "invalid PHY speed\n");
 			return -EINVAL;
 		}
 	} else if (state->link &&
@@ -211,7 +210,7 @@ int mv88e6352_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 		return err;
 	}
 
-	return mv88e6xxx_serdes_pcs_get_state(chip, bmsr, lpa, status, state);
+	return mv88e6xxx_pcs_decode_state(chip->dev, bmsr, lpa, status, state);
 }
 
 int mv88e6352_serdes_pcs_an_restart(struct mv88e6xxx_chip *chip, int port,
@@ -942,7 +941,7 @@ static int mv88e6390_serdes_pcs_get_state_sgmii(struct mv88e6xxx_chip *chip,
 		return err;
 	}
 
-	return mv88e6xxx_serdes_pcs_get_state(chip, bmsr, lpa, status, state);
+	return mv88e6xxx_pcs_decode_state(chip->dev, bmsr, lpa, status, state);
 }
 
 static int mv88e6390_serdes_pcs_get_state_10g(struct mv88e6xxx_chip *chip,
