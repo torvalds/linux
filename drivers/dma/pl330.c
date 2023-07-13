@@ -3191,6 +3191,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	struct resource *res;
 	int i, ret, irq;
 	int num_chan;
+	int val;
 	struct device_node *np = adev->dev.of_node;
 
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
@@ -3205,7 +3206,12 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	pd = &pl330->ddma;
 	pd->dev = &adev->dev;
 
-	pl330->mcbufsz = 0;
+	if (!device_property_read_u32(&adev->dev, "arm,pl330-mcbufsz-bytes", &val)) {
+		if ((val > 0) && (val <= PAGE_SIZE))
+			pl330->mcbufsz = val;
+
+		dev_info(&adev->dev, "mcbufsz: %d bytes\n", pl330->mcbufsz);
+	}
 
 	/* get quirk */
 	for (i = 0; i < ARRAY_SIZE(of_quirks); i++)
