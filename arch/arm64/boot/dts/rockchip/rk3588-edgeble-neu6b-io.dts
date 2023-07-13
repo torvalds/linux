@@ -49,6 +49,13 @@
 	};
 };
 
+/* FAN */
+&pwm2 {
+	pinctrl-0 = <&pwm2m1_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &sata0 {
 	status = "okay";
 };
