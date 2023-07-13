@@ -1747,7 +1747,7 @@ LE64_BITMASK(BCH_SB_HAS_TOPOLOGY_ERRORS,struct bch_sb, flags[0], 61, 62);
 LE64_BITMASK(BCH_SB_BIG_ENDIAN,		struct bch_sb, flags[0], 62, 63);
 
 LE64_BITMASK(BCH_SB_STR_HASH_TYPE,	struct bch_sb, flags[1],  0,  4);
-LE64_BITMASK(BCH_SB_COMPRESSION_TYPE,	struct bch_sb, flags[1],  4,  8);
+LE64_BITMASK(BCH_SB_COMPRESSION_TYPE_LO,struct bch_sb, flags[1],  4,  8);
 LE64_BITMASK(BCH_SB_INODE_32BIT,	struct bch_sb, flags[1],  8,  9);
 
 LE64_BITMASK(BCH_SB_128_BIT_MACS,	struct bch_sb, flags[1],  9, 10);
@@ -1767,7 +1767,7 @@ LE64_BITMASK(BCH_SB_PROMOTE_TARGET,	struct bch_sb, flags[1], 28, 40);
 LE64_BITMASK(BCH_SB_FOREGROUND_TARGET,	struct bch_sb, flags[1], 40, 52);
 LE64_BITMASK(BCH_SB_BACKGROUND_TARGET,	struct bch_sb, flags[1], 52, 64);
 
-LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE,
+LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE_LO,
 					struct bch_sb, flags[2],  0,  4);
 LE64_BITMASK(BCH_SB_GC_RESERVE_BYTES,	struct bch_sb, flags[2],  4, 64);
 
@@ -1783,10 +1783,35 @@ LE64_BITMASK(BCH_SB_NOCOW,		struct bch_sb, flags[4], 33, 34);
 LE64_BITMASK(BCH_SB_WRITE_BUFFER_SIZE,	struct bch_sb, flags[4], 34, 54);
 LE64_BITMASK(BCH_SB_VERSION_UPGRADE,	struct bch_sb, flags[4], 54, 56);
 
-/* flags[4] 56-64 unused: */
+LE64_BITMASK(BCH_SB_COMPRESSION_TYPE_HI,struct bch_sb, flags[4], 56, 60);
+LE64_BITMASK(BCH_SB_BACKGROUND_COMPRESSION_TYPE_HI,
+					struct bch_sb, flags[4], 60, 64);
 
 LE64_BITMASK(BCH_SB_VERSION_UPGRADE_COMPLETE,
 					struct bch_sb, flags[5],  0, 16);
+
+static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
+{
+	return BCH_SB_COMPRESSION_TYPE_LO(sb) | (BCH_SB_COMPRESSION_TYPE_HI(sb) << 4);
+}
+
+static inline void SET_BCH_SB_COMPRESSION_TYPE(struct bch_sb *sb, __u64 v)
+{
+	SET_BCH_SB_COMPRESSION_TYPE_LO(sb, v);
+	SET_BCH_SB_COMPRESSION_TYPE_HI(sb, v >> 4);
+}
+
+static inline __u64 BCH_SB_BACKGROUND_COMPRESSION_TYPE(const struct bch_sb *sb)
+{
+	return BCH_SB_BACKGROUND_COMPRESSION_TYPE_LO(sb) |
+		(BCH_SB_BACKGROUND_COMPRESSION_TYPE_HI(sb) << 4);
+}
+
+static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u64 v)
+{
+	SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE_LO(sb, v);
+	SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE_HI(sb, v >> 4);
+}
 
 /*
  * Features:
