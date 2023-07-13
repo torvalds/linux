@@ -94,8 +94,7 @@ static void page_table_check_clear(unsigned long pfn, unsigned long pgcnt)
  * verify that it is of correct type and is not being mapped with a different
  * type to a different process.
  */
-static void page_table_check_set(struct mm_struct *mm, unsigned long addr,
-				 unsigned long pfn, unsigned long pgcnt,
+static void page_table_check_set(unsigned long pfn, unsigned long pgcnt,
 				 bool rw)
 {
 	struct page_ext *page_ext;
@@ -194,8 +193,7 @@ void __page_table_check_pte_set(struct mm_struct *mm, unsigned long addr,
 
 	__page_table_check_pte_clear(mm, addr, ptep_get(ptep));
 	if (pte_user_accessible_page(pte)) {
-		page_table_check_set(mm, addr, pte_pfn(pte),
-				     PAGE_SIZE >> PAGE_SHIFT,
+		page_table_check_set(pte_pfn(pte), PAGE_SIZE >> PAGE_SHIFT,
 				     pte_write(pte));
 	}
 }
@@ -209,8 +207,7 @@ void __page_table_check_pmd_set(struct mm_struct *mm, unsigned long addr,
 
 	__page_table_check_pmd_clear(mm, addr, *pmdp);
 	if (pmd_user_accessible_page(pmd)) {
-		page_table_check_set(mm, addr, pmd_pfn(pmd),
-				     PMD_SIZE >> PAGE_SHIFT,
+		page_table_check_set(pmd_pfn(pmd), PMD_SIZE >> PAGE_SHIFT,
 				     pmd_write(pmd));
 	}
 }
@@ -224,8 +221,7 @@ void __page_table_check_pud_set(struct mm_struct *mm, unsigned long addr,
 
 	__page_table_check_pud_clear(mm, addr, *pudp);
 	if (pud_user_accessible_page(pud)) {
-		page_table_check_set(mm, addr, pud_pfn(pud),
-				     PUD_SIZE >> PAGE_SHIFT,
+		page_table_check_set(pud_pfn(pud), PUD_SIZE >> PAGE_SHIFT,
 				     pud_write(pud));
 	}
 }
