@@ -1441,12 +1441,12 @@ static void print_client_classes(unsigned int adsppmClientClass)
 	char buf[120];
 	int bitMask = 1;
 
-	strlcat(buf, "Client Class: ", sizeof(buf));
+	strscpy(buf, "Client Class: ", sizeof(buf));
 	for (int i = 0; i < 5; i++) {
 		if ((bitMask & adsppmClientClass) != 0) {
 			switch (i) {
 			case 0:
-				strlcat(buf, "AUIDO ", sizeof(buf));
+				strlcat(buf, "AUDIO ", sizeof(buf));
 				break;
 			case 1:
 				strlcat(buf, "VOICE ", sizeof(buf));
