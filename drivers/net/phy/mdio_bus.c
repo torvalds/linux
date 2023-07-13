@@ -1210,6 +1210,26 @@ int mdiobus_c45_write_nested(struct mii_bus *bus, int addr, int devad,
 }
 EXPORT_SYMBOL(mdiobus_c45_write_nested);
 
+/*
+ * __mdiobus_modify - Convenience function for modifying a given mdio device
+ *	register
+ * @bus: the mii_bus struct
+ * @addr: the phy address
+ * @regnum: register number to write
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ */
+int __mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask,
+		     u16 set)
+{
+	int err;
+
+	err = __mdiobus_modify_changed(bus, addr, regnum, mask, set);
+
+	return err < 0 ? err : 0;
+}
+EXPORT_SYMBOL_GPL(__mdiobus_modify);
+
 /**
  * mdiobus_modify - Convenience function for modifying a given mdio device
  *	register
@@ -1224,10 +1244,10 @@ int mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask, u16 set)
 	int err;
 
 	mutex_lock(&bus->mdio_lock);
-	err = __mdiobus_modify_changed(bus, addr, regnum, mask, set);
+	err = __mdiobus_modify(bus, addr, regnum, mask, set);
 	mutex_unlock(&bus->mdio_lock);
 
-	return err < 0 ? err : 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(mdiobus_modify);
 
