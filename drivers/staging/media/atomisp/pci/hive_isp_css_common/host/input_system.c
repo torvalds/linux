@@ -186,19 +186,6 @@ void receiver_get_state(
 						_HRT_CSS_RECEIVER_BE_IRQ_CLEAR_REG_IDX);
 }
 
-bool is_mipi_format_yuv420(
-    const mipi_format_t			mipi_format)
-{
-	bool	is_yuv420 = (
-				(mipi_format == MIPI_FORMAT_YUV420_8) ||
-				(mipi_format == MIPI_FORMAT_YUV420_10) ||
-				(mipi_format == MIPI_FORMAT_YUV420_8_SHIFT) ||
-				(mipi_format == MIPI_FORMAT_YUV420_10_SHIFT));
-	/* MIPI_FORMAT_YUV420_8_LEGACY is not YUV420 */
-
-	return is_yuv420;
-}
-
 void receiver_set_compression(
     const rx_ID_t			ID,
     const unsigned int		cfg_ID,

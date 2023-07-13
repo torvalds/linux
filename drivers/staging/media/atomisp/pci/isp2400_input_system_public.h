@@ -48,8 +48,6 @@ void receiver_get_state(
 
  \return mipi_format == YUV420
  */
-bool is_mipi_format_yuv420(
-    const mipi_format_t			mipi_format);
 
 /*! Set compression parameters for cfg[cfg_ID] of RECEIVER[ID]
 

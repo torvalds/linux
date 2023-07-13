@@ -211,6 +211,170 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 }
 #endif /* #if !defined(ISP2401) */
 
+#if !defined(ISP2401)
+static int ia_css_isys_2400_set_fmt_type(enum atomisp_input_format input_format,
+					 unsigned int *fmt_type)
+{
+	switch (input_format) {
+	case ATOMISP_INPUT_FORMAT_RGB_888:
+		*fmt_type = MIPI_FORMAT_2400_RGB888;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_555:
+		*fmt_type = MIPI_FORMAT_2400_RGB555;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_444:
+		*fmt_type = MIPI_FORMAT_2400_RGB444;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_565:
+		*fmt_type = MIPI_FORMAT_2400_RGB565;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_666:
+		*fmt_type = MIPI_FORMAT_2400_RGB666;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_8:
+		*fmt_type = MIPI_FORMAT_2400_RAW8;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_10:
+		*fmt_type = MIPI_FORMAT_2400_RAW10;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_6:
+		*fmt_type = MIPI_FORMAT_2400_RAW6;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_7:
+		*fmt_type = MIPI_FORMAT_2400_RAW7;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_12:
+		*fmt_type = MIPI_FORMAT_2400_RAW12;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_14:
+		*fmt_type = MIPI_FORMAT_2400_RAW14;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_8:
+		*fmt_type = MIPI_FORMAT_2400_YUV420_8;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_10:
+		*fmt_type = MIPI_FORMAT_2400_YUV420_10;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV422_8:
+		*fmt_type = MIPI_FORMAT_2400_YUV422_8;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV422_10:
+		*fmt_type = MIPI_FORMAT_2400_YUV422_10;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
+		*fmt_type = MIPI_FORMAT_2400_YUV420_8_LEGACY;
+		break;
+	case ATOMISP_INPUT_FORMAT_EMBEDDED:
+		*fmt_type = MIPI_FORMAT_2400_EMBEDDED;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_16:
+		/* This is not specified by Arasan, so we use
+		 * 17 for now.
+		 */
+		*fmt_type = MIPI_FORMAT_2400_RAW16;
+		break;
+	case ATOMISP_INPUT_FORMAT_BINARY_8:
+		*fmt_type = MIPI_FORMAT_BINARY_8;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_16:
+	case ATOMISP_INPUT_FORMAT_YUV422_16:
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+#endif /* #ifndef ISP2401 */
+
+#if defined(ISP2401)
+static int ia_css_isys_2401_set_fmt_type(enum atomisp_input_format input_format,
+					 unsigned int *fmt_type)
+{
+	switch (input_format) {
+	case ATOMISP_INPUT_FORMAT_RGB_888:
+		*fmt_type = MIPI_FORMAT_2401_RGB888;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_555:
+		*fmt_type = MIPI_FORMAT_2401_RGB555;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_444:
+		*fmt_type = MIPI_FORMAT_2401_RGB444;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_565:
+		*fmt_type = MIPI_FORMAT_2401_RGB565;
+		break;
+	case ATOMISP_INPUT_FORMAT_RGB_666:
+		*fmt_type = MIPI_FORMAT_2401_RGB666;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_8:
+		*fmt_type = MIPI_FORMAT_2401_RAW8;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_10:
+		*fmt_type = MIPI_FORMAT_2401_RAW10;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_6:
+		*fmt_type = MIPI_FORMAT_2401_RAW6;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_7:
+		*fmt_type = MIPI_FORMAT_2401_RAW7;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_12:
+		*fmt_type = MIPI_FORMAT_2401_RAW12;
+		break;
+	case ATOMISP_INPUT_FORMAT_RAW_14:
+		*fmt_type = MIPI_FORMAT_2401_RAW14;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_8:
+		*fmt_type = MIPI_FORMAT_2401_YUV420_8;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_10:
+		*fmt_type = MIPI_FORMAT_2401_YUV420_10;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV422_8:
+		*fmt_type = MIPI_FORMAT_2401_YUV422_8;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV422_10:
+		*fmt_type = MIPI_FORMAT_2401_YUV422_10;
+		break;
+	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
+		*fmt_type = MIPI_FORMAT_2401_YUV420_8_LEGACY;
+		break;
+	case ATOMISP_INPUT_FORMAT_EMBEDDED:
+		*fmt_type = MIPI_FORMAT_2401_EMBEDDED;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF1:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM0;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF2:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM1;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF3:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM2;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF4:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM3;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF5:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM4;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF6:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM5;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF7:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM6;
+		break;
+	case ATOMISP_INPUT_FORMAT_USER_DEF8:
+		*fmt_type = MIPI_FORMAT_2401_CUSTOM7;
+		break;
+
+	case ATOMISP_INPUT_FORMAT_YUV420_16:
+	case ATOMISP_INPUT_FORMAT_YUV422_16:
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+#endif /* #ifdef ISP2401 */
+
 int ia_css_isys_convert_stream_format_to_mipi_format(
     enum atomisp_input_format input_format,
     mipi_predictor_t compression,
@@ -259,101 +423,11 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
 	 *
 	 * MW: For some reason the mapping is not 1-to-1
 	 */
-	switch (input_format) {
-	case ATOMISP_INPUT_FORMAT_RGB_888:
-		*fmt_type = MIPI_FORMAT_RGB888;
-		break;
-	case ATOMISP_INPUT_FORMAT_RGB_555:
-		*fmt_type = MIPI_FORMAT_RGB555;
-		break;
-	case ATOMISP_INPUT_FORMAT_RGB_444:
-		*fmt_type = MIPI_FORMAT_RGB444;
-		break;
-	case ATOMISP_INPUT_FORMAT_RGB_565:
-		*fmt_type = MIPI_FORMAT_RGB565;
-		break;
-	case ATOMISP_INPUT_FORMAT_RGB_666:
-		*fmt_type = MIPI_FORMAT_RGB666;
-		break;
-	case ATOMISP_INPUT_FORMAT_RAW_8:
-		*fmt_type = MIPI_FORMAT_RAW8;
-		break;
-	case ATOMISP_INPUT_FORMAT_RAW_10:
-		*fmt_type = MIPI_FORMAT_RAW10;
-		break;
-	case ATOMISP_INPUT_FORMAT_RAW_6:
-		*fmt_type = MIPI_FORMAT_RAW6;
-		break;
-	case ATOMISP_INPUT_FORMAT_RAW_7:
-		*fmt_type = MIPI_FORMAT_RAW7;
-		break;
-	case ATOMISP_INPUT_FORMAT_RAW_12:
-		*fmt_type = MIPI_FORMAT_RAW12;
-		break;
-	case ATOMISP_INPUT_FORMAT_RAW_14:
-		*fmt_type = MIPI_FORMAT_RAW14;
-		break;
-	case ATOMISP_INPUT_FORMAT_YUV420_8:
-		*fmt_type = MIPI_FORMAT_YUV420_8;
-		break;
-	case ATOMISP_INPUT_FORMAT_YUV420_10:
-		*fmt_type = MIPI_FORMAT_YUV420_10;
-		break;
-	case ATOMISP_INPUT_FORMAT_YUV422_8:
-		*fmt_type = MIPI_FORMAT_YUV422_8;
-		break;
-	case ATOMISP_INPUT_FORMAT_YUV422_10:
-		*fmt_type = MIPI_FORMAT_YUV422_10;
-		break;
-	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
-		*fmt_type = MIPI_FORMAT_YUV420_8_LEGACY;
-		break;
-	case ATOMISP_INPUT_FORMAT_EMBEDDED:
-		*fmt_type = MIPI_FORMAT_EMBEDDED;
-		break;
-#ifndef ISP2401
-	case ATOMISP_INPUT_FORMAT_RAW_16:
-		/* This is not specified by Arasan, so we use
-		 * 17 for now.
-		 */
-		*fmt_type = MIPI_FORMAT_RAW16;
-		break;
-	case ATOMISP_INPUT_FORMAT_BINARY_8:
-		*fmt_type = MIPI_FORMAT_BINARY_8;
-		break;
+#if defined(ISP2401)
+	return ia_css_isys_2401_set_fmt_type(input_format, fmt_type);
 #else
-	case ATOMISP_INPUT_FORMAT_USER_DEF1:
-		*fmt_type = MIPI_FORMAT_CUSTOM0;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF2:
-		*fmt_type = MIPI_FORMAT_CUSTOM1;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF3:
-		*fmt_type = MIPI_FORMAT_CUSTOM2;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF4:
-		*fmt_type = MIPI_FORMAT_CUSTOM3;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF5:
-		*fmt_type = MIPI_FORMAT_CUSTOM4;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF6:
-		*fmt_type = MIPI_FORMAT_CUSTOM5;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF7:
-		*fmt_type = MIPI_FORMAT_CUSTOM6;
-		break;
-	case ATOMISP_INPUT_FORMAT_USER_DEF8:
-		*fmt_type = MIPI_FORMAT_CUSTOM7;
-		break;
+	return ia_css_isys_2400_set_fmt_type(input_format, fmt_type);
 #endif
-
-	case ATOMISP_INPUT_FORMAT_YUV420_16:
-	case ATOMISP_INPUT_FORMAT_YUV422_16:
-	default:
-		return -EINVAL;
-	}
-	return 0;
 }
 
 #if defined(ISP2401)
