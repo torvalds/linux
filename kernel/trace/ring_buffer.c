@@ -692,10 +692,7 @@ static void rb_time_set(rb_time_t *t, u64 val)
 static inline bool
 rb_time_read_cmpxchg(local_t *l, unsigned long expect, unsigned long set)
 {
-	unsigned long ret;
-
-	ret = local_cmpxchg(l, expect, set);
-	return ret == expect;
+	return local_try_cmpxchg(l, &expect, set);
 }
 
 static bool rb_time_cmpxchg(rb_time_t *t, u64 expect, u64 set)
@@ -752,9 +749,7 @@ static void rb_time_set(rb_time_t *t, u64 val)
 
 static bool rb_time_cmpxchg(rb_time_t *t, u64 expect, u64 set)
 {
-	u64 val;
-	val = local64_cmpxchg(&t->time, expect, set);
-	return val == expect;
+	return local64_try_cmpxchg(&t->time, &expect, set);
 }
 #endif
 
@@ -1494,14 +1489,11 @@ static bool rb_head_page_replace(struct buffer_page *old,
 {
 	unsigned long *ptr = (unsigned long *)&old->list.prev->next;
 	unsigned long val;
-	unsigned long ret;
 
 	val = *ptr & ~RB_FLAG_MASK;
 	val |= RB_PAGE_HEAD;
 
-	ret = cmpxchg(ptr, val, (unsigned long)&new->list);
-
-	return ret == val;
+	return try_cmpxchg(ptr, &val, (unsigned long)&new->list);
 }
 
 /*
@@ -3003,7 +2995,6 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 {
 	unsigned long new_index, old_index;
 	struct buffer_page *bpage;
-	unsigned long index;
 	unsigned long addr;
 	u64 write_stamp;
 	u64 delta;
@@ -3060,8 +3051,9 @@ rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
 		 */
 		old_index += write_mask;
 		new_index += write_mask;
-		index = local_cmpxchg(&bpage->write, old_index, new_index);
-		if (index == old_index) {
+
+		/* caution: old_index gets updated on cmpxchg failure */
+		if (local_try_cmpxchg(&bpage->write, &old_index, new_index)) {
 			/* update counters */
 			local_sub(event_length, &cpu_buffer->entries_bytes);
 			return true;
