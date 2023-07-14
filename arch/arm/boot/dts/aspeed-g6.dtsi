@@ -914,36 +914,32 @@
 				#size-cells = <1>;
 				ranges = <0x0 0x1e789000 0x1000>;
 
-				kcs1: kcs1@24 {
+				kcs1: kcs@24 {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x24 0x1>, <0x30 0x1>, <0x3c 0x1>;
 					interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
 					clocks = <&syscon ASPEED_CLK_GATE_LCLK>;
-					kcs_chan = <1>;
 					status = "disabled";
 				};
 
-				kcs2: kcs2@28 {
+				kcs2: kcs@28 {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x28 0x1>, <0x34 0x1>, <0x40 0x1>;
 					interrupts = <GIC_SPI 139 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <2>;
 					status = "disabled";
 				};
 
-				kcs3: kcs3@2c {
+				kcs3: kcs@2c {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x2c 0x1>, <0x38 0x1>, <0x44 0x1>;
 					interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <3>;
 					status = "disabled";
 				};
 
-				kcs4: kcs4@114 {
+				kcs4: kcs@114 {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x114 0x1>, <0x118 0x1>, <0x11c 0x1>;
 					interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <4>;
 					status = "disabled";
 				};
 
@@ -1009,35 +1005,31 @@
 				#size-cells = <1>;
 				ranges = <0x0 0x1e789800 0x800>;
 
-				pcie_kcs1: pcie-kcs1@0 {
+				pcie_kcs1: pcie-kcs@24 {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x24 0x1>, <0x30 0x1>, <0x3c 0x1>;
 					interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <5>;
 					status = "disabled";
 				};
 
-				pcie_kcs2: pcie-kcs2@0 {
+				pcie_kcs2: pcie-kcs@28 {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x28 0x1>, <0x34 0x1>, <0x40 0x1>;
 					interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <6>;
 					status = "disabled";
 				};
 
-				pcie_kcs3: pcie-kcs3@0 {
+				pcie_kcs3: pcie-kcs@2c {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x2c 0x1>, <0x38 0x1>, <0x44 0x1>;
 					interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <7>;
 					status = "disabled";
 				};
 
-				pcie_kcs4: pcie-kcs4@0 {
+				pcie_kcs4: pcie-kcs@114 {
 					compatible = "aspeed,ast2600-kcs-bmc";
-					reg = <0x0 0x130>;
+					reg = <0x114 0x1>, <0x118 0x1>, <0x11c 0x1>;
 					interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
-					kcs_chan = <8>;
 					status = "disabled";
 				};
 
