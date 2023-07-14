@@ -2151,7 +2151,7 @@ static int __init cdsprm_init(void)
 	gcdsprm.cdsprm_wq_task = kthread_run(process_cdsp_request_thread,
 					NULL, "cdsprm-wq");
 
-	if (!gcdsprm.cdsprm_wq_task) {
+	if (IS_ERR(gcdsprm.cdsprm_wq_task)) {
 		pr_err("Failed to create kernel thread\n");
 		return -ENOMEM;
 	}
