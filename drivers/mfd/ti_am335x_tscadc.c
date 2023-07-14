@@ -14,7 +14,7 @@
 #include <linux/mfd/core.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/sched.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>

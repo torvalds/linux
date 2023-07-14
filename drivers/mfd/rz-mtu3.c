@@ -12,7 +12,9 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/rz-mtu3.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 
