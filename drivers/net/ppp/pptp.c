@@ -129,10 +129,10 @@ static void del_chan(struct pppox_sock *sock)
 	spin_unlock(&chan_lock);
 }
 
-static struct rtable *pptp_route_output(struct pppox_sock *po,
+static struct rtable *pptp_route_output(const struct pppox_sock *po,
 					struct flowi4 *fl4)
 {
-	struct sock *sk = &po->sk;
+	const struct sock *sk = &po->sk;
 	struct net *net;
 
 	net = sock_net(sk);
