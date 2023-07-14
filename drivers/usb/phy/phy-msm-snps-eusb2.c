@@ -848,6 +848,13 @@ static int msm_eusb2_phy_notify_disconnect(struct usb_phy *uphy,
 {
 	struct msm_eusb2_phy *phy = container_of(uphy, struct msm_eusb2_phy, phy);
 
+	if (is_eud_debug_mode_active(phy)) {
+		msm_eusb2_phy_update_eud_detect(phy, false);
+		/* Ensure that EUD disable occurs before re-enabling */
+		mb();
+		msm_eusb2_phy_update_eud_detect(phy, true);
+	}
+
 	phy->cable_connected = false;
 	return 0;
 }
