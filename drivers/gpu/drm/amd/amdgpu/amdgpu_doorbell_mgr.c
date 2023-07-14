@@ -39,7 +39,7 @@ u32 amdgpu_mm_rdoorbell(struct amdgpu_device *adev, u32 index)
 		return 0;
 
 	if (index < adev->doorbell.num_kernel_doorbells)
-		return readl(adev->doorbell.ptr + index);
+		return readl(adev->doorbell.cpu_addr + index);
 
 	DRM_ERROR("reading beyond doorbell aperture: 0x%08x!\n", index);
 	return 0;
@@ -61,7 +61,7 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v)
 		return;
 
 	if (index < adev->doorbell.num_kernel_doorbells)
-		writel(v, adev->doorbell.ptr + index);
+		writel(v, adev->doorbell.cpu_addr + index);
 	else
 		DRM_ERROR("writing beyond doorbell aperture: 0x%08x!\n", index);
 }
@@ -81,7 +81,7 @@ u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index)
 		return 0;
 
 	if (index < adev->doorbell.num_kernel_doorbells)
-		return atomic64_read((atomic64_t *)(adev->doorbell.ptr + index));
+		return atomic64_read((atomic64_t *)(adev->doorbell.cpu_addr + index));
 
 	DRM_ERROR("reading beyond doorbell aperture: 0x%08x!\n", index);
 	return 0;
@@ -103,9 +103,41 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
 		return;
 
 	if (index < adev->doorbell.num_kernel_doorbells)
-		atomic64_set((atomic64_t *)(adev->doorbell.ptr + index), v);
+		atomic64_set((atomic64_t *)(adev->doorbell.cpu_addr + index), v);
 	else
 		DRM_ERROR("writing beyond doorbell aperture: 0x%08x!\n", index);
+}
+
+/**
+ * amdgpu_doorbell_create_kernel_doorbells - Create kernel doorbells for graphics
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Creates doorbells for graphics driver usages.
+ * returns 0 on success, error otherwise.
+ */
+int amdgpu_doorbell_create_kernel_doorbells(struct amdgpu_device *adev)
+{
+	int r;
+	int size;
+
+	/* Reserve first num_kernel_doorbells (page-aligned) for kernel ops */
+	size = ALIGN(adev->doorbell.num_kernel_doorbells * sizeof(u32), PAGE_SIZE);
+
+	r = amdgpu_bo_create_kernel(adev,
+				    size,
+				    PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_DOORBELL,
+				    &adev->doorbell.kernel_doorbells,
+				    NULL,
+				    (void **)&adev->doorbell.cpu_addr);
+	if (r) {
+		DRM_ERROR("Failed to allocate kernel doorbells, err=%d\n", r);
+		return r;
+	}
+
+	adev->doorbell.num_kernel_doorbells = size / sizeof(u32);
+	return 0;
 }
 
 /*
@@ -127,7 +159,6 @@ int amdgpu_doorbell_init(struct amdgpu_device *adev)
 		adev->doorbell.base = 0;
 		adev->doorbell.size = 0;
 		adev->doorbell.num_kernel_doorbells = 0;
-		adev->doorbell.ptr = NULL;
 		return 0;
 	}
 
@@ -156,12 +187,6 @@ int amdgpu_doorbell_init(struct amdgpu_device *adev)
 	if (adev->asic_type >= CHIP_VEGA10)
 		adev->doorbell.num_kernel_doorbells += 0x400;
 
-	adev->doorbell.ptr = ioremap(adev->doorbell.base,
-				     adev->doorbell.num_kernel_doorbells *
-				     sizeof(u32));
-	if (adev->doorbell.ptr == NULL)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -174,6 +199,7 @@ int amdgpu_doorbell_init(struct amdgpu_device *adev)
  */
 void amdgpu_doorbell_fini(struct amdgpu_device *adev)
 {
-	iounmap(adev->doorbell.ptr);
-	adev->doorbell.ptr = NULL;
+	amdgpu_bo_free_kernel(&adev->doorbell.kernel_doorbells,
+			      NULL,
+			      (void **)&adev->doorbell.cpu_addr);
 }
