@@ -51,9 +51,9 @@ struct pwm_sifive_ddata {
 };
 
 static inline
-struct pwm_sifive_ddata *pwm_sifive_chip_to_ddata(struct pwm_chip *c)
+struct pwm_sifive_ddata *pwm_sifive_chip_to_ddata(struct pwm_chip *chip)
 {
-	return container_of(c, struct pwm_sifive_ddata, chip);
+	return container_of(chip, struct pwm_sifive_ddata, chip);
 }
 
 static int pwm_sifive_request(struct pwm_chip *chip, struct pwm_device *pwm)
