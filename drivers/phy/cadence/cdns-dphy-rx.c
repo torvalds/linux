@@ -7,6 +7,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mipi-dphy.h>
