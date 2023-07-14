@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
 #include <crypto/scatterwalk.h>
@@ -1139,13 +1139,11 @@ static void atmel_tdes_get_cap(struct atmel_tdes_dev *dd)
 	}
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id atmel_tdes_dt_ids[] = {
 	{ .compatible = "atmel,at91sam9g46-tdes" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, atmel_tdes_dt_ids);
-#endif
 
 static int atmel_tdes_probe(struct platform_device *pdev)
 {
@@ -1274,7 +1272,7 @@ static struct platform_driver atmel_tdes_driver = {
 	.remove		= atmel_tdes_remove,
 	.driver		= {
 		.name	= "atmel_tdes",
-		.of_match_table = of_match_ptr(atmel_tdes_dt_ids),
+		.of_match_table = atmel_tdes_dt_ids,
 	},
 };
 

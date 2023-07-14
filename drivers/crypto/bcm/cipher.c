@@ -15,8 +15,7 @@
 #include <linux/kthread.h>
 #include <linux/rtnetlink.h>
 #include <linux/sched.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
 
