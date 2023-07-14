@@ -61,10 +61,15 @@ enum chips {
 	mp2975
 };
 
+static const int mp2975_max_phases[][MP2975_PAGE_NUM] = {
+	[mp2975] = { MP2975_MAX_PHASE_RAIL1, MP2975_MAX_PHASE_RAIL2 },
+};
+
 struct mp2975_data {
 	struct pmbus_driver_info info;
 	enum chips chip_id;
 	int vout_scale;
+	int max_phases[MP2975_PAGE_NUM];
 	int vid_step[MP2975_PAGE_NUM];
 	int vref[MP2975_PAGE_NUM];
 	int vref_off[MP2975_PAGE_NUM];
@@ -304,25 +309,25 @@ static int mp2975_read_word_data(struct i2c_client *client, int page,
 	return ret;
 }
 
-static int mp2975_identify_multiphase_rail2(struct i2c_client *client)
+static int mp2975_identify_multiphase_rail2(struct i2c_client *client,
+					    struct mp2975_data *data)
 {
 	int ret;
 
 	/*
-	 * Identify multiphase for rail 2 - could be from 0 to 4.
+	 * Identify multiphase for rail 2 - could be from 0 to data->max_phases[1].
 	 * In case phase number is zero – only page zero is supported
 	 */
 	ret = i2c_smbus_write_byte_data(client, PMBUS_PAGE, 2);
 	if (ret < 0)
 		return ret;
 
-	/* Identify multiphase for rail 2 - could be from 0 to 4. */
 	ret = i2c_smbus_read_word_data(client, MP2975_MFR_VR_MULTI_CONFIG_R2);
 	if (ret < 0)
 		return ret;
 
 	ret &= GENMASK(2, 0);
-	return (ret >= 4) ? 4 : ret;
+	return (ret >= data->max_phases[1]) ? data->max_phases[1] : ret;
 }
 
 static void mp2975_set_phase_rail1(struct pmbus_driver_info *info)
@@ -353,7 +358,7 @@ mp2975_identify_multiphase(struct i2c_client *client, struct mp2975_data *data,
 	if (ret < 0)
 		return ret;
 
-	/* Identify multiphase for rail 1 - could be from 1 to 8. */
+	/* Identify multiphase for rail 1 - could be from 1 to data->max_phases[0]. */
 	ret = i2c_smbus_read_word_data(client, MP2975_MFR_VR_MULTI_CONFIG_R1);
 	if (ret <= 0)
 		return ret;
@@ -361,19 +366,19 @@ mp2975_identify_multiphase(struct i2c_client *client, struct mp2975_data *data,
 	info->phases[0] = ret & GENMASK(3, 0);
 
 	/*
-	 * The device provides a total of 8 PWM pins, and can be configured
+	 * The device provides a total of $n PWM pins, and can be configured
 	 * to different phase count applications for rail 1 and rail 2.
-	 * Rail 1 can be set to 8 phases, while rail 2 can only be set to 4
-	 * phases at most. When rail 1’s phase count is configured as 0, rail
+	 * Rail 1 can be set to $n phases, while rail 2 can be set to less than
+	 * that. When rail 1’s phase count is configured as 0, rail
 	 * 1 operates with 1-phase DCM. When rail 2 phase count is configured
 	 * as 0, rail 2 is disabled.
 	 */
-	if (info->phases[0] > MP2975_MAX_PHASE_RAIL1)
+	if (info->phases[0] > data->max_phases[0])
 		return -EINVAL;
 
 	mp2975_set_phase_rail1(info);
-	num_phases2 = min(MP2975_MAX_PHASE_RAIL1 - info->phases[0],
-			  MP2975_MAX_PHASE_RAIL2);
+	num_phases2 = min(data->max_phases[0] - info->phases[0],
+			  data->max_phases[1]);
 	if (info->phases[1] && info->phases[1] <= num_phases2)
 		mp2975_set_phase_rail2(info, num_phases2);
 
@@ -669,11 +674,13 @@ static int mp2975_probe(struct i2c_client *client)
 	else
 		data->chip_id = i2c_match_id(mp2975_id, client)->driver_data;
 
-	memcpy(&data->info, &mp2975_info, sizeof(*info));
+	memcpy(data->max_phases, mp2975_max_phases[data->chip_id],
+	       sizeof(data->max_phases));
+
 	info = &data->info;
 
 	/* Identify multiphase configuration for rail 2. */
-	ret = mp2975_identify_multiphase_rail2(client);
+	ret = mp2975_identify_multiphase_rail2(client, data);
 	if (ret < 0)
 		return ret;
 
