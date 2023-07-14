@@ -212,12 +212,12 @@ static int tegra186_emc_get_emc_dvfs_latency(struct tegra186_emc *emc)
 	}
 
 	emc->debugfs.root = debugfs_create_dir("emc", NULL);
-	debugfs_create_file("available_rates", S_IRUGO, emc->debugfs.root,
-			    emc, &tegra186_emc_debug_available_rates_fops);
-	debugfs_create_file("min_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
-			    emc, &tegra186_emc_debug_min_rate_fops);
-	debugfs_create_file("max_rate", S_IRUGO | S_IWUSR, emc->debugfs.root,
-			    emc, &tegra186_emc_debug_max_rate_fops);
+	debugfs_create_file("available_rates", 0444, emc->debugfs.root, emc,
+			    &tegra186_emc_debug_available_rates_fops);
+	debugfs_create_file("min_rate", 0644, emc->debugfs.root, emc,
+			    &tegra186_emc_debug_min_rate_fops);
+	debugfs_create_file("max_rate", 0644, emc->debugfs.root, emc,
+			    &tegra186_emc_debug_max_rate_fops);
 
 	return 0;
 }
