@@ -132,6 +132,7 @@ static int qla_nvme_alloc_queue(struct nvme_fc_local_port *lport,
 			       "Failed to allocate qpair\n");
 			return -EINVAL;
 		}
+		qla_adjust_iocb_limit(vha);
 	}
 	*handle = qpair;
 
