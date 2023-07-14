@@ -1226,9 +1226,14 @@ next_pdu:
 			if (mids[i] != NULL) {
 				mids[i]->resp_buf_size = server->pdu_size;
 
-				if (bufs[i] && server->ops->is_network_name_deleted)
-					server->ops->is_network_name_deleted(bufs[i],
-									server);
+				if (bufs[i] != NULL) {
+					if (server->ops->is_network_name_deleted &&
+					    server->ops->is_network_name_deleted(bufs[i],
+										 server)) {
+						cifs_server_dbg(FYI,
+								"Share deleted. Reconnect needed");
+					}
+				}
 
 				if (!mids[i]->multiRsp || mids[i]->multiEnd)
 					mids[i]->callback(mids[i]);
