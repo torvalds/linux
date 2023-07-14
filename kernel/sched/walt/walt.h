@@ -191,6 +191,7 @@ extern void walt_fill_ta_data(struct core_ctl_notif_data *data);
 extern int sched_set_group_id(struct task_struct *p, unsigned int group_id);
 extern unsigned int sched_get_group_id(struct task_struct *p);
 extern void core_ctl_check(u64 wallclock, u32 wakeup_ctr_sum);
+extern int core_ctl_set_cluster_boost(int idx, bool boost);
 extern int sched_set_boost(int enable);
 extern void walt_boost_init(void);
 extern int sched_pause_cpus(struct cpumask *pause_cpus);

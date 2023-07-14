@@ -1159,6 +1159,45 @@ static void wake_up_core_ctl_thread(void)
 	wake_up_process(core_ctl_thread);
 }
 
+static inline int set_cluster_boost(struct cluster_data *cluster, bool boost,
+				    bool *boost_state_changed)
+{
+	int ret = 0;
+
+	if (boost) {
+		*boost_state_changed = !cluster->boost;
+		++cluster->boost;
+	} else {
+		if (!cluster->boost)
+			return -EINVAL;
+		--cluster->boost;
+		*boost_state_changed = !cluster->boost;
+	}
+
+	return ret;
+}
+
+int core_ctl_set_cluster_boost(int idx, bool boost)
+{
+	struct cluster_data *cluster;
+	bool boost_state_changed = false;
+	unsigned long flags;
+	int ret = 0;
+
+	if (idx >= num_clusters)
+		return -EINVAL;
+
+	spin_lock_irqsave(&state_lock, flags);
+	cluster = &cluster_state[idx];
+	ret = set_cluster_boost(cluster, boost, &boost_state_changed);
+	spin_unlock_irqrestore(&state_lock, flags);
+
+	if (boost_state_changed)
+		sysfs_param_changed(cluster);
+
+	return ret;
+}
+
 static u64 core_ctl_check_timestamp;
 
 int core_ctl_set_boost(bool boost)
@@ -1173,19 +1212,8 @@ int core_ctl_set_boost(bool boost)
 		return 0;
 
 	spin_lock_irqsave(&state_lock, flags);
-	for_each_cluster(cluster, index) {
-		if (boost) {
-			boost_state_changed = !cluster->boost;
-			++cluster->boost;
-		} else {
-			if (!cluster->boost) {
-				ret = -EINVAL;
-				break;
-			}
-			--cluster->boost;
-			boost_state_changed = !cluster->boost;
-		}
-	}
+	for_each_cluster(cluster, index)
+		ret = set_cluster_boost(cluster, boost, &boost_state_changed);
 	spin_unlock_irqrestore(&state_lock, flags);
 
 	if (boost_state_changed) {
