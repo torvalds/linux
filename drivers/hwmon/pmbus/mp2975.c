@@ -600,7 +600,7 @@ mp2975_vout_ov_scale_get(struct i2c_client *client, struct mp2975_data *data,
 	if (ret < 0)
 		return ret;
 	thres_dev = ret & MP2975_PRT_THRES_DIV_OV_EN ? MP2975_PROT_DEV_OV_ON :
-	                                               MP2975_PROT_DEV_OV_OFF;
+						       MP2975_PROT_DEV_OV_OFF;
 
 	/* Select the gain of remote sense amplifier. */
 	ret = i2c_smbus_read_word_data(client, PMBUS_VOUT_SCALE_LOOP);
