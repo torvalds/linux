@@ -177,6 +177,12 @@
 	flash-dma-mode;
 };
 
+&lpc0_kcs2 {
+	status = "okay";
+	kcs-io-addr = <0xca2>;
+	kcs-channel = <2>;
+};
+
 #if 0
 &bmc_dev0 {
 	status = "okay";
@@ -200,27 +206,27 @@
 };
 
 &pcie0_kcs0 {
-	aspeed,lpc-io-reg = <0x3a0>, <0x3a1>;
-
 	status = "okay";
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <8>;
 };
 
 &pcie0_kcs1 {
-	aspeed,lpc-io-reg = <0x3a8>, <0x3a9>;
-
 	status = "okay";
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <9>;
 };
 
 &pcie0_kcs2 {
-	aspeed,lpc-io-reg = <0x3a2>;
-
 	status = "okay";
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <10>;
 };
 
 &pcie0_kcs3 {
-	aspeed,lpc-io-reg = <0x3a4>, <0x3a5>;
-
 	status = "okay";
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <11>;
 };
 
 &pcie0_ibt {
