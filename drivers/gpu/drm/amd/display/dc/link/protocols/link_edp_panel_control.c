@@ -46,43 +46,42 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 {
 	union dpcd_edp_config edp_config_set;
 	bool panel_mode_edp = false;
+	enum dc_status result;
 
 	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
 
-	if (panel_mode != DP_PANEL_MODE_DEFAULT) {
+	switch (panel_mode) {
+	case DP_PANEL_MODE_EDP:
+	case DP_PANEL_MODE_SPECIAL:
+		panel_mode_edp = true;
+		break;
 
-		switch (panel_mode) {
-		case DP_PANEL_MODE_EDP:
-		case DP_PANEL_MODE_SPECIAL:
-			panel_mode_edp = true;
-			break;
+	default:
+		break;
+	}
 
-		default:
-				break;
-		}
+	/*set edp panel mode in receiver*/
+	result = core_link_read_dpcd(
+		link,
+		DP_EDP_CONFIGURATION_SET,
+		&edp_config_set.raw,
+		sizeof(edp_config_set.raw));
 
-		/*set edp panel mode in receiver*/
-		core_link_read_dpcd(
+	if (result == DC_OK &&
+		edp_config_set.bits.PANEL_MODE_EDP
+		!= panel_mode_edp) {
+
+		edp_config_set.bits.PANEL_MODE_EDP =
+		panel_mode_edp;
+		result = core_link_write_dpcd(
 			link,
 			DP_EDP_CONFIGURATION_SET,
 			&edp_config_set.raw,
 			sizeof(edp_config_set.raw));
 
-		if (edp_config_set.bits.PANEL_MODE_EDP
-			!= panel_mode_edp) {
-			enum dc_status result;
-
-			edp_config_set.bits.PANEL_MODE_EDP =
-			panel_mode_edp;
-			result = core_link_write_dpcd(
-				link,
-				DP_EDP_CONFIGURATION_SET,
-				&edp_config_set.raw,
-				sizeof(edp_config_set.raw));
-
-			ASSERT(result == DC_OK);
-		}
+		ASSERT(result == DC_OK);
 	}
+
 	link->panel_mode = panel_mode;
 	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
 		 "eDP panel mode enabled: %d \n",
