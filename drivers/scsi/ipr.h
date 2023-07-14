@@ -16,7 +16,6 @@
 #include <asm/unaligned.h>
 #include <linux/types.h>
 #include <linux/completion.h>
-#include <linux/libata.h>
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/irq_poll.h>
@@ -35,7 +34,6 @@
  *	This can be adjusted at runtime through sysfs device attributes.
  */
 #define IPR_MAX_CMD_PER_LUN				6
-#define IPR_MAX_CMD_PER_ATA_LUN			1
 
 /*
  * IPR_NUM_BASE_CMD_BLKS: This defines the maximum number of
@@ -197,7 +195,6 @@
 #define	IPR_LUN_RESET					0x40
 #define	IPR_TARGET_RESET					0x20
 #define	IPR_BUS_RESET					0x10
-#define	IPR_ATA_PHY_RESET					0x80
 #define IPR_ID_HOST_RR_Q				0xC4
 #define IPR_QUERY_IOA_CONFIG				0xC5
 #define IPR_CANCEL_ALL_REQUESTS			0xCE
@@ -521,7 +518,6 @@ struct ipr_cmd_pkt {
 #define IPR_RQTYPE_SCSICDB		0x00
 #define IPR_RQTYPE_IOACMD		0x01
 #define IPR_RQTYPE_HCAM			0x02
-#define IPR_RQTYPE_ATA_PASSTHRU	0x04
 #define IPR_RQTYPE_PIPE			0x05
 
 	u8 reserved2;
@@ -546,30 +542,6 @@ struct ipr_cmd_pkt {
 	__be16 timeout;
 }__attribute__ ((packed, aligned(4)));
 
-struct ipr_ioarcb_ata_regs {	/* 22 bytes */
-	u8 flags;
-#define IPR_ATA_FLAG_PACKET_CMD			0x80
-#define IPR_ATA_FLAG_XFER_TYPE_DMA			0x40
-#define IPR_ATA_FLAG_STATUS_ON_GOOD_COMPLETION	0x20
-	u8 reserved[3];
-
-	__be16 data;
-	u8 feature;
-	u8 nsect;
-	u8 lbal;
-	u8 lbam;
-	u8 lbah;
-	u8 device;
-	u8 command;
-	u8 reserved2[3];
-	u8 hob_feature;
-	u8 hob_nsect;
-	u8 hob_lbal;
-	u8 hob_lbam;
-	u8 hob_lbah;
-	u8 ctl;
-}__attribute__ ((packed, aligned(2)));
-
 struct ipr_ioadl_desc {
 	__be32 flags_and_data_len;
 #define IPR_IOADL_FLAGS_MASK		0xff000000
@@ -591,15 +563,8 @@ struct ipr_ioadl64_desc {
 	__be64 address;
 }__attribute__((packed, aligned (16)));
 
-struct ipr_ata64_ioadl {
-	struct ipr_ioarcb_ata_regs regs;
-	u16 reserved[5];
-	struct ipr_ioadl64_desc ioadl64[IPR_NUM_IOADL_ENTRIES];
-}__attribute__((packed, aligned (16)));
-
 struct ipr_ioarcb_add_data {
 	union {
-		struct ipr_ioarcb_ata_regs regs;
 		struct ipr_ioadl_desc ioadl[5];
 		__be32 add_cmd_parms[10];
 	} u;
@@ -665,21 +630,6 @@ struct ipr_ioasa_gpdd {
 	__be32 ioa_data[2];
 }__attribute__((packed, aligned (4)));
 
-struct ipr_ioasa_gata {
-	u8 error;
-	u8 nsect;		/* Interrupt reason */
-	u8 lbal;
-	u8 lbam;
-	u8 lbah;
-	u8 device;
-	u8 status;
-	u8 alt_status;	/* ATA CTL */
-	u8 hob_nsect;
-	u8 hob_lbal;
-	u8 hob_lbam;
-	u8 hob_lbah;
-}__attribute__((packed, aligned (4)));
-
 struct ipr_auto_sense {
 	__be16 auto_sense_len;
 	__be16 ioa_data_len;
@@ -713,7 +663,6 @@ struct ipr_ioasa_hdr {
 	__be32 ioasc_specific;	/* status code specific field */
 #define IPR_ADDITIONAL_STATUS_FMT		0x80000000
 #define IPR_AUTOSENSE_VALID			0x40000000
-#define IPR_ATA_DEVICE_WAS_RESET		0x20000000
 #define IPR_IOASC_SPECIFIC_MASK		0x00ffffff
 #define IPR_FIELD_POINTER_VALID		(0x80000000 >> 8)
 #define IPR_FIELD_POINTER_MASK		0x0000ffff
@@ -727,7 +676,6 @@ struct ipr_ioasa {
 		struct ipr_ioasa_vset vset;
 		struct ipr_ioasa_af_dasd dasd;
 		struct ipr_ioasa_gpdd gpdd;
-		struct ipr_ioasa_gata gata;
 	} u;
 
 	struct ipr_auto_sense auto_sense;
@@ -741,7 +689,6 @@ struct ipr_ioasa64 {
 		struct ipr_ioasa_vset vset;
 		struct ipr_ioasa_af_dasd dasd;
 		struct ipr_ioasa_gpdd gpdd;
-		struct ipr_ioasa_gata gata;
 	} u;
 
 	struct ipr_auto_sense auto_sense;
@@ -1279,13 +1226,6 @@ struct ipr_bus_attributes {
 	u32 max_xfer_rate;
 };
 
-struct ipr_sata_port {
-	struct ipr_ioa_cfg *ioa_cfg;
-	struct ata_port *ap;
-	struct ipr_resource_entry *res;
-	struct ipr_ioasa_gata ioasa;
-};
-
 struct ipr_resource_entry {
 	u8 needs_sync_complete:1;
 	u8 in_erp:1;
@@ -1323,7 +1263,6 @@ struct ipr_resource_entry {
 
 	struct ipr_ioa_cfg *ioa_cfg;
 	struct scsi_device *sdev;
-	struct ipr_sata_port *sata_port;
 	struct list_head queue;
 }; /* struct ipr_resource_entry */
 
@@ -1582,7 +1521,6 @@ struct ipr_ioa_cfg {
 	struct ipr_cmnd *reset_cmd;
 	int (*reset) (struct ipr_cmnd *);
 
-	struct ata_host ata_host;
 	char ipr_cmd_label[8];
 #define IPR_CMD_LABEL		"ipr_cmd"
 	u32 max_cmds;
@@ -1604,7 +1542,6 @@ struct ipr_cmnd {
 	union {
 		struct ipr_ioadl_desc ioadl[IPR_NUM_IOADL_ENTRIES];
 		struct ipr_ioadl64_desc ioadl64[IPR_NUM_IOADL_ENTRIES];
-		struct ipr_ata64_ioadl ata_ioadl;
 	} i;
 	union {
 		struct ipr_ioasa ioasa;
@@ -1612,7 +1549,6 @@ struct ipr_cmnd {
 	} s;
 	struct list_head queue;
 	struct scsi_cmnd *scsi_cmd;
-	struct ata_queued_cmd *qc;
 	struct completion completion;
 	struct timer_list timer;
 	struct work_struct work;

@@ -46,15 +46,33 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 {
 	struct v11_compute_mqd *m;
 	uint32_t se_mask[KFD_MAX_NUM_SE] = {0};
+	bool has_wa_flag = minfo && (minfo->update_flag & (UPDATE_FLAG_DBG_WA_ENABLE |
+			UPDATE_FLAG_DBG_WA_DISABLE));
 
-	if (!minfo || (minfo->update_flag != UPDATE_FLAG_CU_MASK) ||
-	    !minfo->cu_mask.ptr)
+	if (!minfo || !(has_wa_flag || minfo->cu_mask.ptr))
 		return;
+
+	m = get_mqd(mqd);
+
+	if (has_wa_flag) {
+		uint32_t wa_mask = minfo->update_flag == UPDATE_FLAG_DBG_WA_ENABLE ?
+						0xffff : 0xffffffff;
+
+		m->compute_static_thread_mgmt_se0 = wa_mask;
+		m->compute_static_thread_mgmt_se1 = wa_mask;
+		m->compute_static_thread_mgmt_se2 = wa_mask;
+		m->compute_static_thread_mgmt_se3 = wa_mask;
+		m->compute_static_thread_mgmt_se4 = wa_mask;
+		m->compute_static_thread_mgmt_se5 = wa_mask;
+		m->compute_static_thread_mgmt_se6 = wa_mask;
+		m->compute_static_thread_mgmt_se7 = wa_mask;
+
+		return;
+	}
 
 	mqd_symmetrically_map_cu_mask(mm,
 		minfo->cu_mask.ptr, minfo->cu_mask.count, se_mask);
 
-	m = get_mqd(mqd);
 	m->compute_static_thread_mgmt_se0 = se_mask[0];
 	m->compute_static_thread_mgmt_se1 = se_mask[1];
 	m->compute_static_thread_mgmt_se2 = se_mask[2];
@@ -81,7 +99,7 @@ static void set_priority(struct v11_compute_mqd *m, struct queue_properties *q)
 	m->cp_hqd_queue_priority = q->priority;
 }
 
-static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+static struct kfd_mem_obj *allocate_mqd(struct kfd_node *node,
 		struct queue_properties *q)
 {
 	struct kfd_mem_obj *mqd_mem_obj;
@@ -91,12 +109,12 @@ static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
 	 * MES write to areas beyond MQD size. So allocate
 	 * 1 PAGE_SIZE memory for MQD is MES is enabled.
 	 */
-	if (kfd->shared_resources.enable_mes)
+	if (node->kfd->shared_resources.enable_mes)
 		size = PAGE_SIZE;
 	else
 		size = sizeof(struct v11_compute_mqd);
 
-	if (kfd_gtt_sa_allocate(kfd, size, &mqd_mem_obj))
+	if (kfd_gtt_sa_allocate(node, size, &mqd_mem_obj))
 		return NULL;
 
 	return mqd_mem_obj;
@@ -109,11 +127,12 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	uint64_t addr;
 	struct v11_compute_mqd *m;
 	int size;
+	uint32_t wa_mask = q->is_dbg_wa ? 0xffff : 0xffffffff;
 
 	m = (struct v11_compute_mqd *) mqd_mem_obj->cpu_ptr;
 	addr = mqd_mem_obj->gpu_addr;
 
-	if (mm->dev->shared_resources.enable_mes)
+	if (mm->dev->kfd->shared_resources.enable_mes)
 		size = PAGE_SIZE;
 	else
 		size = sizeof(struct v11_compute_mqd);
@@ -122,14 +141,15 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 
 	m->header = 0xC0310800;
 	m->compute_pipelinestat_enable = 1;
-	m->compute_static_thread_mgmt_se0 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se1 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se2 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se3 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se4 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se5 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se6 = 0xFFFFFFFF;
-	m->compute_static_thread_mgmt_se7 = 0xFFFFFFFF;
+
+	m->compute_static_thread_mgmt_se0 = wa_mask;
+	m->compute_static_thread_mgmt_se1 = wa_mask;
+	m->compute_static_thread_mgmt_se2 = wa_mask;
+	m->compute_static_thread_mgmt_se3 = wa_mask;
+	m->compute_static_thread_mgmt_se4 = wa_mask;
+	m->compute_static_thread_mgmt_se5 = wa_mask;
+	m->compute_static_thread_mgmt_se6 = wa_mask;
+	m->compute_static_thread_mgmt_se7 = wa_mask;
 
 	m->cp_hqd_persistent_state = CP_HQD_PERSISTENT_STATE__PRELOAD_REQ_MASK |
 			0x55 << CP_HQD_PERSISTENT_STATE__PRELOAD_SIZE__SHIFT;
@@ -143,12 +163,24 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 			1 << CP_HQD_QUANTUM__QUANTUM_SCALE__SHIFT |
 			1 << CP_HQD_QUANTUM__QUANTUM_DURATION__SHIFT;
 
+	/* Set cp_hqd_hq_scheduler0 bit 14 to 1 to have the CP set up the
+	 * DISPATCH_PTR.  This is required for the kfd debugger
+	 */
+	m->cp_hqd_hq_status0 = 1 << 14;
+
+	/*
+	 * GFX11 RS64 CPFW version >= 509 supports PCIe atomics support
+	 * acknowledgment.
+	 */
+	if (amdgpu_amdkfd_have_atomics_support(mm->dev->adev))
+		m->cp_hqd_hq_status0 |= 1 << 29;
+
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;
 	}
 
-	if (mm->dev->cwsr_enabled) {
+	if (mm->dev->kfd->cwsr_enabled) {
 		m->cp_hqd_persistent_state |=
 			(1 << CP_HQD_PERSISTENT_STATE__QSWITCH_MODE__SHIFT);
 		m->cp_hqd_ctx_save_base_addr_lo =
@@ -177,16 +209,8 @@ static int load_mqd(struct mqd_manager *mm, void *mqd,
 
 	r = mm->dev->kfd2kgd->hqd_load(mm->dev->adev, mqd, pipe_id, queue_id,
 					  (uint32_t __user *)p->write_ptr,
-					  wptr_shift, 0, mms);
+					  wptr_shift, 0, mms, 0);
 	return r;
-}
-
-static int hiq_load_mqd_kiq(struct mqd_manager *mm, void *mqd,
-			    uint32_t pipe_id, uint32_t queue_id,
-			    struct queue_properties *p, struct mm_struct *mms)
-{
-	return mm->dev->kfd2kgd->hiq_mqd_load(mm->dev->adev, mqd, pipe_id,
-					      queue_id, p->doorbell_off);
 }
 
 static void update_mqd(struct mqd_manager *mm, void *mqd,
@@ -244,7 +268,7 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 		m->cp_hqd_pq_doorbell_control |=
 			1 << CP_HQD_PQ_DOORBELL_CONTROL__DOORBELL_BIF_DROP__SHIFT;
 	}
-	if (mm->dev->cwsr_enabled)
+	if (mm->dev->kfd->cwsr_enabled)
 		m->cp_hqd_ctx_save_control = 0;
 
 	update_cu_mask(mm, mqd, minfo);
@@ -260,38 +284,14 @@ static uint32_t read_doorbell_id(void *mqd)
 	return m->queue_doorbell_id0;
 }
 
-static int destroy_mqd(struct mqd_manager *mm, void *mqd,
-		       enum kfd_preempt_type type,
-		       unsigned int timeout, uint32_t pipe_id,
-		       uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_destroy
-		(mm->dev->adev, mqd, type, timeout,
-		 pipe_id, queue_id);
-}
-
-static void free_mqd(struct mqd_manager *mm, void *mqd,
-			struct kfd_mem_obj *mqd_mem_obj)
-{
-	kfd_gtt_sa_free(mm->dev, mqd_mem_obj);
-}
-
-static bool is_occupied(struct mqd_manager *mm, void *mqd,
-			uint64_t queue_address,	uint32_t pipe_id,
-			uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_is_occupied(
-		mm->dev->adev, queue_address,
-		pipe_id, queue_id);
-}
-
 static int get_wave_state(struct mqd_manager *mm, void *mqd,
+			  struct queue_properties *q,
 			  void __user *ctl_stack,
 			  u32 *ctl_stack_used_size,
 			  u32 *save_area_used_size)
 {
 	struct v11_compute_mqd *m;
-	/*struct mqd_user_context_save_area_header header;*/
+	struct kfd_context_save_area_header header;
 
 	m = get_mqd(mqd);
 
@@ -309,16 +309,15 @@ static int get_wave_state(struct mqd_manager *mm, void *mqd,
 	 * it's part of the context save area that is already
 	 * accessible to user mode
 	 */
-/*
-	header.control_stack_size = *ctl_stack_used_size;
-	header.wave_state_size = *save_area_used_size;
+	header.wave_state.control_stack_size = *ctl_stack_used_size;
+	header.wave_state.wave_state_size = *save_area_used_size;
 
-	header.wave_state_offset = m->cp_hqd_wg_state_offset;
-	header.control_stack_offset = m->cp_hqd_cntl_stack_offset;
+	header.wave_state.wave_state_offset = m->cp_hqd_wg_state_offset;
+	header.wave_state.control_stack_offset = m->cp_hqd_cntl_stack_offset;
 
-	if (copy_to_user(ctl_stack, &header, sizeof(header)))
+	if (copy_to_user(ctl_stack, &header, sizeof(header.wave_state)))
 		return -EFAULT;
-*/
+
 	return 0;
 }
 
@@ -341,25 +340,21 @@ static void init_mqd_sdma(struct mqd_manager *mm, void **mqd,
 		struct queue_properties *q)
 {
 	struct v11_sdma_mqd *m;
+	int size;
 
 	m = (struct v11_sdma_mqd *) mqd_mem_obj->cpu_ptr;
 
-	memset(m, 0, sizeof(struct v11_sdma_mqd));
+	if (mm->dev->kfd->shared_resources.enable_mes)
+		size = PAGE_SIZE;
+	else
+		size = sizeof(struct v11_sdma_mqd);
 
+	memset(m, 0, size);
 	*mqd = m;
 	if (gart_addr)
 		*gart_addr = mqd_mem_obj->gpu_addr;
 
 	mm->update_mqd(mm, m, q, NULL);
-}
-
-static int load_mqd_sdma(struct mqd_manager *mm, void *mqd,
-		uint32_t pipe_id, uint32_t queue_id,
-		struct queue_properties *p, struct mm_struct *mms)
-{
-	return mm->dev->kfd2kgd->hqd_sdma_load(mm->dev->adev, mqd,
-					       (uint32_t __user *)p->write_ptr,
-					       mms);
 }
 
 #define SDMA_RLC_DUMMY_DEFAULT 0xf
@@ -375,7 +370,8 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 		<< SDMA0_QUEUE0_RB_CNTL__RB_SIZE__SHIFT |
 		q->vmid << SDMA0_QUEUE0_RB_CNTL__RB_VMID__SHIFT |
 		1 << SDMA0_QUEUE0_RB_CNTL__RPTR_WRITEBACK_ENABLE__SHIFT |
-		6 << SDMA0_QUEUE0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT;
+		6 << SDMA0_QUEUE0_RB_CNTL__RPTR_WRITEBACK_TIMER__SHIFT |
+		1 << SDMA0_QUEUE0_RB_CNTL__F32_WPTR_POLL_ENABLE__SHIFT;
 
 	m->sdmax_rlcx_rb_base = lower_32_bits(q->queue_address >> 8);
 	m->sdmax_rlcx_rb_base_hi = upper_32_bits(q->queue_address >> 8);
@@ -386,30 +382,15 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 	m->sdmax_rlcx_doorbell_offset =
 		q->doorbell_off << SDMA0_QUEUE0_DOORBELL_OFFSET__OFFSET__SHIFT;
 
+	m->sdmax_rlcx_sched_cntl = (amdgpu_sdma_phase_quantum
+		<< SDMA0_QUEUE0_SCHEDULE_CNTL__CONTEXT_QUANTUM__SHIFT)
+		 & SDMA0_QUEUE0_SCHEDULE_CNTL__CONTEXT_QUANTUM_MASK;
+
 	m->sdma_engine_id = q->sdma_engine_id;
 	m->sdma_queue_id = q->sdma_queue_id;
 	m->sdmax_rlcx_dummy_reg = SDMA_RLC_DUMMY_DEFAULT;
 
 	q->is_active = QUEUE_IS_ACTIVE(*q);
-}
-
-/*
- *  * preempt type here is ignored because there is only one way
- *  * to preempt sdma queue
- */
-static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,
-		enum kfd_preempt_type type,
-		unsigned int timeout, uint32_t pipe_id,
-		uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_sdma_destroy(mm->dev->adev, mqd, timeout);
-}
-
-static bool is_occupied_sdma(struct mqd_manager *mm, void *mqd,
-		uint64_t queue_address, uint32_t pipe_id,
-		uint32_t queue_id)
-{
-	return mm->dev->kfd2kgd->hqd_sdma_is_occupied(mm->dev->adev, mqd);
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -431,7 +412,7 @@ static int debugfs_show_mqd_sdma(struct seq_file *m, void *data)
 #endif
 
 struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
-		struct kfd_dev *dev)
+		struct kfd_node *dev)
 {
 	struct mqd_manager *mqd;
 
@@ -449,11 +430,11 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 		pr_debug("%s@%i\n", __func__, __LINE__);
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd;
-		mqd->free_mqd = free_mqd;
+		mqd->free_mqd = kfd_free_mqd_cp;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd;
-		mqd->destroy_mqd = destroy_mqd;
-		mqd->is_occupied = is_occupied;
+		mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct v11_compute_mqd);
 		mqd->get_wave_state = get_wave_state;
 #if defined(CONFIG_DEBUG_FS)
@@ -466,10 +447,10 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 		mqd->allocate_mqd = allocate_hiq_mqd;
 		mqd->init_mqd = init_mqd_hiq;
 		mqd->free_mqd = free_mqd_hiq_sdma;
-		mqd->load_mqd = hiq_load_mqd_kiq;
+		mqd->load_mqd = kfd_hiq_load_mqd_kiq;
 		mqd->update_mqd = update_mqd;
-		mqd->destroy_mqd = destroy_mqd;
-		mqd->is_occupied = is_occupied;
+		mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct v11_compute_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
@@ -480,11 +461,11 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 	case KFD_MQD_TYPE_DIQ:
 		mqd->allocate_mqd = allocate_mqd;
 		mqd->init_mqd = init_mqd_hiq;
-		mqd->free_mqd = free_mqd;
+		mqd->free_mqd = kfd_free_mqd_cp;
 		mqd->load_mqd = load_mqd;
 		mqd->update_mqd = update_mqd;
-		mqd->destroy_mqd = destroy_mqd;
-		mqd->is_occupied = is_occupied;
+		mqd->destroy_mqd = kfd_destroy_mqd_cp;
+		mqd->is_occupied = kfd_is_occupied_cp;
 		mqd->mqd_size = sizeof(struct v11_compute_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
@@ -495,14 +476,22 @@ struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
 		mqd->allocate_mqd = allocate_sdma_mqd;
 		mqd->init_mqd = init_mqd_sdma;
 		mqd->free_mqd = free_mqd_hiq_sdma;
-		mqd->load_mqd = load_mqd_sdma;
+		mqd->load_mqd = kfd_load_mqd_sdma;
 		mqd->update_mqd = update_mqd_sdma;
-		mqd->destroy_mqd = destroy_mqd_sdma;
-		mqd->is_occupied = is_occupied_sdma;
+		mqd->destroy_mqd = kfd_destroy_mqd_sdma;
+		mqd->is_occupied = kfd_is_occupied_sdma;
 		mqd->mqd_size = sizeof(struct v11_sdma_mqd);
 #if defined(CONFIG_DEBUG_FS)
 		mqd->debugfs_show_mqd = debugfs_show_mqd_sdma;
 #endif
+		/*
+		 * To allocate SDMA MQDs by generic functions
+		 * when MES is enabled.
+		 */
+		if (dev->kfd->shared_resources.enable_mes) {
+			mqd->allocate_mqd = allocate_mqd;
+			mqd->free_mqd = kfd_free_mqd_cp;
+		}
 		pr_debug("%s@%i\n", __func__, __LINE__);
 		break;
 	default:

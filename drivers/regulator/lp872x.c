@@ -832,8 +832,7 @@ static struct lp872x_platform_data
 		return ERR_PTR(-ENOMEM);
 
 	of_property_read_u8(np, "ti,general-config", &pdata->general_config);
-	if (of_find_property(np, "ti,update-config", NULL))
-		pdata->update_config = true;
+	pdata->update_config = of_property_read_bool(np, "ti,update-config");
 
 	pdata->dvs = devm_kzalloc(dev, sizeof(struct lp872x_dvs), GFP_KERNEL);
 	if (!pdata->dvs)
@@ -879,8 +878,9 @@ static struct lp872x_platform_data
 }
 #endif
 
-static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int lp872x_probe(struct i2c_client *cl)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(cl);
 	struct lp872x *lp;
 	struct lp872x_platform_data *pdata;
 	int ret;
@@ -927,7 +927,7 @@ static int lp872x_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	return lp872x_regulator_register(lp);
 }
 
-static const struct of_device_id lp872x_dt_ids[] = {
+static const struct of_device_id lp872x_dt_ids[] __maybe_unused = {
 	{ .compatible = "ti,lp8720", },
 	{ .compatible = "ti,lp8725", },
 	{ }
@@ -944,6 +944,7 @@ MODULE_DEVICE_TABLE(i2c, lp872x_ids);
 static struct i2c_driver lp872x_driver = {
 	.driver = {
 		.name = "lp872x",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(lp872x_dt_ids),
 	},
 	.probe = lp872x_probe,

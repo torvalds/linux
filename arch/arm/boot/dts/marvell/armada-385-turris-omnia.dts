@@ -1,0 +1,571 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree file for the Turris Omnia
+ *
+ * Copyright (C) 2016 Uwe Kleine-König <uwe@kleine-koenig.org>
+ * Copyright (C) 2016 Tomas Hlavacek <tmshlvkc@gmail.com>
+ *
+ * Schematic available at https://www.turris.cz/doc/_media/rtrom01-schema.pdf
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+#include "armada-385.dtsi"
+
+/ {
+	model = "Turris Omnia";
+	compatible = "cznic,turris-omnia", "marvell,armada385", "marvell,armada380";
+
+	chosen {
+		stdout-path = &uart0;
+	};
+
+	aliases {
+		ethernet0 = &eth0;
+		ethernet1 = &eth1;
+		ethernet2 = &eth2;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>; /* 1024 MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
+
+		internal-regs {
+
+			/* USB part of the PCIe2/USB 2.0 port */
+			usb@58000 {
+				status = "okay";
+			};
+
+			sata@a8000 {
+				status = "okay";
+			};
+
+			sdhci@d8000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&sdhci_pins>;
+				status = "okay";
+
+				bus-width = <8>;
+				no-1-8-v;
+				non-removable;
+			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				status = "okay";
+			};
+		};
+
+		pcie {
+			status = "okay";
+
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
+			};
+
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
+			};
+
+			pcie@3,0 {
+				/* Port 2, Lane 0 */
+				status = "okay";
+				slot-power-limit-milliwatt = <10000>;
+			};
+		};
+	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp_i2c>;
+		tx-fault-gpios = <&pcawan 0 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&pcawan 1 GPIO_ACTIVE_HIGH>;
+		rate-select0-gpios = <&pcawan 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&pcawan 3 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&pcawan 4 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <3000>;
+
+		/*
+		 * For now this has to be enabled at boot time by U-Boot when
+		 * a SFP module is present. Read more in the comment in the
+		 * eth2 node below.
+		 */
+		status = "disabled";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SPDIF";
+		simple-audio-card,format = "i2s";
+
+		simple-audio-card,cpu {
+			sound-dai = <&audio_controller 1>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+	};
+};
+
+&audio_controller {
+	/* Pin header U16, GPIO51 in SPDIFO mode */
+	pinctrl-0 = <&spdif_pins>;
+	pinctrl-names = "default";
+	spdif-mode;
+	status = "okay";
+};
+
+&bm {
+	status = "okay";
+};
+
+&bm_bppi {
+	status = "okay";
+};
+
+/* Connected to 88E6176 switch, port 6 */
+&eth0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ge0_rgmii_pins>;
+	status = "okay";
+	phy-mode = "rgmii";
+	buffer-manager = <&bm>;
+	bm,pool-long = <0>;
+	bm,pool-short = <3>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+/* Connected to 88E6176 switch, port 5 */
+&eth1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ge1_rgmii_pins>;
+	status = "okay";
+	phy-mode = "rgmii";
+	buffer-manager = <&bm>;
+	bm,pool-long = <1>;
+	bm,pool-short = <3>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+	};
+};
+
+/* WAN port */
+&eth2 {
+	/*
+	 * eth2 is connected via a multiplexor to both the SFP cage and to
+	 * ethernet-phy@1. The multiplexor switches the signal to SFP cage when
+	 * a SFP module is present, as determined by the mode-def0 GPIO.
+	 *
+	 * Until kernel supports this configuration properly, in case SFP module
+	 * is present, U-Boot has to enable the sfp node above, remove phy
+	 * handle and add managed = "in-band-status" property.
+	 */
+	status = "okay";
+	phy-mode = "sgmii";
+	phy-handle = <&phy1>;
+	phys = <&comphy5 2>;
+	sfp = <&sfp>;
+	buffer-manager = <&bm>;
+	bm,pool-long = <2>;
+	bm,pool-short = <3>;
+	label = "wan";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+	status = "okay";
+
+	i2cmux@70 {
+		compatible = "nxp,pca9547";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			/* STM32F0 command interface at address 0x2a */
+
+			led-controller@2b {
+				compatible = "cznic,turris-omnia-leds";
+				reg = <0x2b>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "okay";
+
+				/*
+				 * LEDs are controlled by MCU (STM32F0) at
+				 * address 0x2b.
+				 *
+				 * LED functions are not stable yet:
+				 * - there are 3 LEDs connected via MCU to PCIe
+				 *   ports. One of these ports supports mSATA.
+				 *   There is no mSATA nor PCIe function.
+				 *   For now we use LED_FUNCTION_WLAN, since
+				 *   in most cases users have wifi cards in
+				 *   these slots
+				 * - there are 2 LEDs dedicated for user: A and
+				 *   B. Again there is no such function defined.
+				 *   For now we use LED_FUNCTION_INDICATOR
+				 */
+
+				multi-led@0 {
+					reg = <0x0>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_INDICATOR;
+					function-enumerator = <2>;
+				};
+
+				multi-led@1 {
+					reg = <0x1>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_INDICATOR;
+					function-enumerator = <1>;
+				};
+
+				multi-led@2 {
+					reg = <0x2>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <3>;
+				};
+
+				multi-led@3 {
+					reg = <0x3>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <2>;
+				};
+
+				multi-led@4 {
+					reg = <0x4>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <1>;
+				};
+
+				multi-led@5 {
+					reg = <0x5>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WAN;
+				};
+
+				multi-led@6 {
+					reg = <0x6>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <4>;
+				};
+
+				multi-led@7 {
+					reg = <0x7>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <3>;
+				};
+
+				multi-led@8 {
+					reg = <0x8>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <2>;
+				};
+
+				multi-led@9 {
+					reg = <0x9>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <1>;
+				};
+
+				multi-led@a {
+					reg = <0xa>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <0>;
+				};
+
+				multi-led@b {
+					reg = <0xb>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_POWER;
+				};
+			};
+
+			eeprom@54 {
+				compatible = "atmel,24c64";
+				reg = <0x54>;
+
+				/* The EEPROM contains data for bootloader.
+				 * Contents:
+				 * 	struct omnia_eeprom {
+				 * 		u32 magic; (=0x0341a034 in LE)
+				 *		u32 ramsize; (in GiB)
+				 * 		char regdomain[4];
+				 * 		u32 crc32;
+				 * 	};
+				 */
+			};
+		};
+
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			/* routed to PCIe0/mSATA connector (CN7A) */
+		};
+
+		i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			/* routed to PCIe1/USB2 connector (CN61A) */
+		};
+
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			/* routed to PCIe2 connector (CN62A) */
+		};
+
+		sfp_i2c: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+
+			/* routed to SFP+ */
+		};
+
+		i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>;
+
+			/* ATSHA204A-MAHDA-T crypto module */
+			crypto@64 {
+				compatible = "atmel,atsha204a";
+				reg = <0x64>;
+			};
+		};
+
+		i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <6>;
+
+			/* exposed on pin header */
+		};
+
+		i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <7>;
+
+			pcawan: gpio@71 {
+				/*
+				 * GPIO expander for SFP+ signals and
+				 * and phy irq
+				 */
+				compatible = "nxp,pca9538";
+				reg = <0x71>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&pcawan_pins>;
+
+				interrupt-parent = <&gpio1>;
+				interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+		};
+	};
+};
+
+&mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio_pins>;
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+		marvell,reg-init = <3 18 0 0x4985>,
+				   <3 16 0xfff0 0x0001>;
+
+		/* irq is connected to &pcawan pin 7 */
+	};
+
+	/* Switch MV88E6176 at address 0x10 */
+	switch@10 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&swint_pins>;
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dsa,member = <0 0>;
+		reg = <0x10>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			ports@0 {
+				reg = <0>;
+				label = "lan0";
+			};
+
+			ports@1 {
+				reg = <1>;
+				label = "lan1";
+			};
+
+			ports@2 {
+				reg = <2>;
+				label = "lan2";
+			};
+
+			ports@3 {
+				reg = <3>;
+				label = "lan3";
+			};
+
+			ports@4 {
+				reg = <4>;
+				label = "lan4";
+			};
+
+			ports@5 {
+				reg = <5>;
+				ethernet = <&eth1>;
+				phy-mode = "rgmii-id";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+
+			ports@6 {
+				reg = <6>;
+				ethernet = <&eth0>;
+				phy-mode = "rgmii-id";
+
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pcawan_pins: pcawan-pins {
+		marvell,pins = "mpp46";
+		marvell,function = "gpio";
+	};
+
+	swint_pins: swint-pins {
+		marvell,pins = "mpp45";
+		marvell,function = "gpio";
+	};
+
+	spi0cs0_pins: spi0cs0-pins {
+		marvell,pins = "mpp25";
+		marvell,function = "spi0";
+	};
+
+	spi0cs2_pins: spi0cs2-pins {
+		marvell,pins = "mpp26";
+		marvell,function = "spi0";
+	};
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins &spi0cs0_pins>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "spansion,s25fl164k", "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		spi-max-frequency = <40000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				reg = <0x0 0x00100000>;
+				label = "U-Boot";
+			};
+
+			partition@100000 {
+				reg = <0x00100000 0x00700000>;
+				label = "Rescue system";
+			};
+		};
+	};
+
+	/* MISO, MOSI, SCLK and CS2 are routed to pin header CN11 */
+};
+
+&uart0 {
+	/* Pin header CN10 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+	status = "okay";
+};
+
+&uart1 {
+	/* Pin header CN11 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins>;
+	status = "okay";
+};

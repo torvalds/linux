@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -11,8 +11,11 @@
 #include "xfs_mount.h"
 #include "xfs_btree.h"
 #include "xfs_log_format.h"
+#include "xfs_trans.h"
+#include "xfs_ag.h"
 #include "xfs_inode.h"
 #include "xfs_ialloc.h"
+#include "xfs_icache.h"
 #include "xfs_da_format.h"
 #include "xfs_reflink.h"
 #include "xfs_rmap.h"
@@ -20,45 +23,176 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "scrub/trace.h"
+
+/* Prepare the attached inode for scrubbing. */
+static inline int
+xchk_prepare_iscrub(
+	struct xfs_scrub	*sc)
+{
+	int			error;
+
+	sc->ilock_flags = XFS_IOLOCK_EXCL;
+	xfs_ilock(sc->ip, sc->ilock_flags);
+
+	error = xchk_trans_alloc(sc, 0);
+	if (error)
+		return error;
+
+	sc->ilock_flags |= XFS_ILOCK_EXCL;
+	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
+	return 0;
+}
+
+/* Install this scrub-by-handle inode and prepare it for scrubbing. */
+static inline int
+xchk_install_handle_iscrub(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip)
+{
+	int			error;
+
+	error = xchk_install_handle_inode(sc, ip);
+	if (error)
+		return error;
+
+	return xchk_prepare_iscrub(sc);
+}
 
 /*
- * Grab total control of the inode metadata.  It doesn't matter here if
- * the file data is still changing; exclusive access to the metadata is
- * the goal.
+ * Grab total control of the inode metadata.  In the best case, we grab the
+ * incore inode and take all locks on it.  If the incore inode cannot be
+ * constructed due to corruption problems, lock the AGI so that we can single
+ * step the loading process to fix everything that can go wrong.
  */
 int
 xchk_setup_inode(
 	struct xfs_scrub	*sc)
 {
+	struct xfs_imap		imap;
+	struct xfs_inode	*ip;
+	struct xfs_mount	*mp = sc->mp;
+	struct xfs_inode	*ip_in = XFS_I(file_inode(sc->file));
+	struct xfs_buf		*agi_bp;
+	struct xfs_perag	*pag;
+	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, sc->sm->sm_ino);
 	int			error;
 
-	/*
-	 * Try to get the inode.  If the verifiers fail, we try again
-	 * in raw mode.
-	 */
-	error = xchk_get_inode(sc);
-	switch (error) {
-	case 0:
-		break;
-	case -EFSCORRUPTED:
-	case -EFSBADCRC:
-		return xchk_trans_alloc(sc, 0);
-	default:
-		return error;
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
+	/* We want to scan the opened inode, so lock it and exit. */
+	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
+		sc->ip = ip_in;
+		return xchk_prepare_iscrub(sc);
 	}
 
-	/* Got the inode, lock it and we're ready to go. */
-	sc->ilock_flags = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
-	xfs_ilock(sc->ip, sc->ilock_flags);
+	/* Reject internal metadata files and obviously bad inode numbers. */
+	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+		return -ENOENT;
+	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
+		return -ENOENT;
+
+	/* Try a regular untrusted iget. */
+	error = xchk_iget(sc, sc->sm->sm_ino, &ip);
+	if (!error)
+		return xchk_install_handle_iscrub(sc, ip);
+	if (error == -ENOENT)
+		return error;
+	if (error != -EFSCORRUPTED && error != -EFSBADCRC && error != -EINVAL)
+		goto out_error;
+
+	/*
+	 * EINVAL with IGET_UNTRUSTED probably means one of several things:
+	 * userspace gave us an inode number that doesn't correspond to fs
+	 * space; the inode btree lacks a record for this inode; or there is
+	 * a record, and it says this inode is free.
+	 *
+	 * EFSCORRUPTED/EFSBADCRC could mean that the inode was mappable, but
+	 * some other metadata corruption (e.g. inode forks) prevented
+	 * instantiation of the incore inode.  Or it could mean the inobt is
+	 * corrupt.
+	 *
+	 * We want to look up this inode in the inobt directly to distinguish
+	 * three different scenarios: (1) the inobt says the inode is free,
+	 * in which case there's nothing to do; (2) the inobt is corrupt so we
+	 * should flag the corruption and exit to userspace to let it fix the
+	 * inobt; and (3) the inobt says the inode is allocated, but loading it
+	 * failed due to corruption.
+	 *
+	 * Allocate a transaction and grab the AGI to prevent inobt activity in
+	 * this AG.  Retry the iget in case someone allocated a new inode after
+	 * the first iget failed.
+	 */
 	error = xchk_trans_alloc(sc, 0);
 	if (error)
-		goto out;
-	sc->ilock_flags |= XFS_ILOCK_EXCL;
-	xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
+		goto out_error;
 
-out:
-	/* scrub teardown will unlock and release the inode for us */
+	error = xchk_iget_agi(sc, sc->sm->sm_ino, &agi_bp, &ip);
+	if (error == 0) {
+		/* Actually got the incore inode, so install it and proceed. */
+		xchk_trans_cancel(sc);
+		return xchk_install_handle_iscrub(sc, ip);
+	}
+	if (error == -ENOENT)
+		goto out_gone;
+	if (error != -EFSCORRUPTED && error != -EFSBADCRC && error != -EINVAL)
+		goto out_cancel;
+
+	/* Ensure that we have protected against inode allocation/freeing. */
+	if (agi_bp == NULL) {
+		ASSERT(agi_bp != NULL);
+		error = -ECANCELED;
+		goto out_cancel;
+	}
+
+	/*
+	 * Untrusted iget failed a second time.  Let's try an inobt lookup.
+	 * If the inobt doesn't think this is an allocated inode then we'll
+	 * return ENOENT to signal that the check can be skipped.
+	 *
+	 * If the lookup signals corruption, we'll mark this inode corrupt and
+	 * exit to userspace.  There's little chance of fixing anything until
+	 * the inobt is straightened out, but there's nothing we can do here.
+	 *
+	 * If the lookup encounters a runtime error, exit to userspace.
+	 */
+	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, sc->sm->sm_ino));
+	if (!pag) {
+		error = -EFSCORRUPTED;
+		goto out_cancel;
+	}
+
+	error = xfs_imap(pag, sc->tp, sc->sm->sm_ino, &imap,
+			XFS_IGET_UNTRUSTED);
+	xfs_perag_put(pag);
+	if (error == -EINVAL || error == -ENOENT)
+		goto out_gone;
+	if (error)
+		goto out_cancel;
+
+	/*
+	 * The lookup succeeded.  Chances are the ondisk inode is corrupt and
+	 * preventing iget from reading it.  Retain the scrub transaction and
+	 * the AGI buffer to prevent anyone from allocating or freeing inodes.
+	 * This ensures that we preserve the inconsistency between the inobt
+	 * saying the inode is allocated and the icache being unable to load
+	 * the inode until we can flag the corruption in xchk_inode.  The
+	 * scrub function has to note the corruption, since we're not really
+	 * supposed to do that from the setup function.
+	 */
+	return 0;
+
+out_cancel:
+	xchk_trans_cancel(sc);
+out_error:
+	trace_xchk_op_error(sc, agno, XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
+			error, __return_address);
 	return error;
+out_gone:
+	/* The file is gone, so there's nothing to check. */
+	xchk_trans_cancel(sc);
+	return -ENOENT;
 }
 
 /* Inode core */
@@ -365,7 +499,7 @@ xchk_dinode(
 	 * pagecache can't cache all the blocks in this file due to
 	 * overly large offsets, flag the inode for admin review.
 	 */
-	if (isize >= mp->m_super->s_maxbytes)
+	if (isize > mp->m_super->s_maxbytes)
 		xchk_ino_set_warning(sc, ino);
 
 	/* di_nblocks */
@@ -553,8 +687,9 @@ xchk_inode_xref(
 
 	xchk_xref_is_used_space(sc, agbno, 1);
 	xchk_inode_xref_finobt(sc, ino);
-	xchk_xref_is_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_INODES);
+	xchk_xref_is_only_owned_by(sc, agbno, 1, &XFS_RMAP_OINFO_INODES);
 	xchk_xref_is_not_shared(sc, agbno, 1);
+	xchk_xref_is_not_cow_staging(sc, agbno, 1);
 	xchk_inode_xref_bmap(sc, dip);
 
 out_free:

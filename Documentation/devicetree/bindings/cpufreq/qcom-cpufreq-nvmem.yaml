@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/cpufreq/qcom-cpufreq-nvmem.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. NVMEM CPUFreq bindings
+title: Qualcomm Technologies, Inc. NVMEM CPUFreq
 
 maintainers:
   - Ilia Lin <ilia.lin@kernel.org>
@@ -17,6 +17,9 @@ description: |
   on the CPU OPP in use. The CPUFreq driver sets the CPR power domain level
   according to the required OPPs defined in the CPU OPP tables.
 
+  For old implementation efuses are parsed to select the correct opp table and
+  voltage and CPR is not supported/used.
+
 select:
   properties:
     compatible:
@@ -25,6 +28,7 @@ select:
           - qcom,apq8064
           - qcom,apq8096
           - qcom,ipq8064
+          - qcom,ipq8074
           - qcom,msm8939
           - qcom,msm8960
           - qcom,msm8974
@@ -33,37 +37,65 @@ select:
   required:
     - compatible
 
-properties:
-  cpus:
-    type: object
-
-    patternProperties:
-      'cpu@[0-9a-f]+':
-        type: object
-
-        properties:
-          power-domains:
-            maxItems: 1
-
-          power-domain-names:
-            items:
-              - const: cpr
-
-        required:
-          - power-domains
-          - power-domain-names
-
 patternProperties:
   '^opp-table(-[a-z0-9]+)?$':
-    if:
+    allOf:
+      - if:
+          properties:
+            compatible:
+              const: operating-points-v2-kryo-cpu
+        then:
+          $ref: /schemas/opp/opp-v2-kryo-cpu.yaml#
+
+      - if:
+          properties:
+            compatible:
+              const: operating-points-v2-qcom-level
+        then:
+          $ref: /schemas/opp/opp-v2-qcom-level.yaml#
+
+    unevaluatedProperties: false
+
+allOf:
+  - if:
       properties:
         compatible:
-          const: operating-points-v2-kryo-cpu
+          contains:
+            enum:
+              - qcom,qcs404
+
     then:
+      properties:
+        cpus:
+          type: object
+
+          patternProperties:
+            '^cpu@[0-9a-f]+$':
+              type: object
+
+              properties:
+                power-domains:
+                  maxItems: 1
+
+                power-domain-names:
+                  items:
+                    - const: cpr
+
+              required:
+                - power-domains
+                - power-domain-names
+
       patternProperties:
-        '^opp-?[0-9]+$':
-          required:
-            - required-opps
+        '^opp-table(-[a-z0-9]+)?$':
+          if:
+            properties:
+              compatible:
+                const: operating-points-v2-kryo-cpu
+          then:
+            patternProperties:
+              '^opp-?[0-9]+$':
+                required:
+                  - required-opps
 
 additionalProperties: true
 

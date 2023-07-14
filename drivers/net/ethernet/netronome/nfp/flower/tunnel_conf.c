@@ -290,6 +290,11 @@ nfp_flower_xmit_tun_conf(struct nfp_app *app, u8 mtype, u16 plen, void *pdata,
 	     mtype == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6))
 		plen -= sizeof(struct nfp_tun_neigh_ext);
 
+	if (!(priv->flower_ext_feats & NFP_FL_FEATS_TUNNEL_NEIGH_LAG) &&
+	    (mtype == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH ||
+	     mtype == NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6))
+		plen -= sizeof(struct nfp_tun_neigh_lag);
+
 	skb = nfp_flower_cmsg_alloc(app, plen, mtype, flag);
 	if (!skb)
 		return -ENOMEM;
@@ -455,6 +460,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			    sizeof(struct nfp_tun_neigh_v4);
 	unsigned long cookie = (unsigned long)neigh;
 	struct nfp_flower_priv *priv = app->priv;
+	struct nfp_tun_neigh_lag lag_info;
 	struct nfp_neigh_entry *nn_entry;
 	u32 port_id;
 	u8 mtype;
@@ -463,11 +469,17 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 	if (!port_id)
 		return;
 
+	if ((port_id & NFP_FL_LAG_OUT) == NFP_FL_LAG_OUT) {
+		memset(&lag_info, 0, sizeof(struct nfp_tun_neigh_lag));
+		nfp_flower_lag_get_info_from_netdev(app, netdev, &lag_info);
+	}
+
 	spin_lock_bh(&priv->predt_lock);
 	nn_entry = rhashtable_lookup_fast(&priv->neigh_table, &cookie,
 					  neigh_table_params);
 	if (!nn_entry && !neigh_invalid) {
 		struct nfp_tun_neigh_ext *ext;
+		struct nfp_tun_neigh_lag *lag;
 		struct nfp_tun_neigh *common;
 
 		nn_entry = kzalloc(sizeof(*nn_entry) + neigh_size,
@@ -488,6 +500,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			payload->dst_ipv6 = flowi6->daddr;
 			common = &payload->common;
 			ext = &payload->ext;
+			lag = &payload->lag;
 			mtype = NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6;
 		} else {
 			struct flowi4 *flowi4 = (struct flowi4 *)flow;
@@ -498,6 +511,7 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 			payload->dst_ipv4 = flowi4->daddr;
 			common = &payload->common;
 			ext = &payload->ext;
+			lag = &payload->lag;
 			mtype = NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
 		}
 		ext->host_ctx = cpu_to_be32(U32_MAX);
@@ -505,6 +519,9 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		ext->vlan_tci = cpu_to_be16(U16_MAX);
 		ether_addr_copy(common->src_addr, netdev->dev_addr);
 		neigh_ha_snapshot(common->dst_addr, neigh, netdev);
+
+		if ((port_id & NFP_FL_LAG_OUT) == NFP_FL_LAG_OUT)
+			memcpy(lag, &lag_info, sizeof(struct nfp_tun_neigh_lag));
 		common->port_id = cpu_to_be32(port_id);
 
 		if (rhashtable_insert_fast(&priv->neigh_table,
@@ -547,13 +564,38 @@ nfp_tun_write_neigh(struct net_device *netdev, struct nfp_app *app,
 		if (nn_entry->flow)
 			list_del(&nn_entry->list_head);
 		kfree(nn_entry);
-	} else if (nn_entry && !neigh_invalid && override) {
-		mtype = is_ipv6 ? NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6 :
-				NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
-		nfp_tun_link_predt_entries(app, nn_entry);
-		nfp_flower_xmit_tun_conf(app, mtype, neigh_size,
-					 nn_entry->payload,
-					 GFP_ATOMIC);
+	} else if (nn_entry && !neigh_invalid) {
+		struct nfp_tun_neigh *common;
+		u8 dst_addr[ETH_ALEN];
+		bool is_mac_change;
+
+		if (is_ipv6) {
+			struct nfp_tun_neigh_v6 *payload;
+
+			payload = (struct nfp_tun_neigh_v6 *)nn_entry->payload;
+			common = &payload->common;
+			mtype = NFP_FLOWER_CMSG_TYPE_TUN_NEIGH_V6;
+		} else {
+			struct nfp_tun_neigh_v4 *payload;
+
+			payload = (struct nfp_tun_neigh_v4 *)nn_entry->payload;
+			common = &payload->common;
+			mtype = NFP_FLOWER_CMSG_TYPE_TUN_NEIGH;
+		}
+
+		ether_addr_copy(dst_addr, common->dst_addr);
+		neigh_ha_snapshot(common->dst_addr, neigh, netdev);
+		is_mac_change = !ether_addr_equal(dst_addr, common->dst_addr);
+		if (override || is_mac_change) {
+			if (is_mac_change && nn_entry->flow) {
+				list_del(&nn_entry->list_head);
+				nn_entry->flow = NULL;
+			}
+			nfp_tun_link_predt_entries(app, nn_entry);
+			nfp_flower_xmit_tun_conf(app, mtype, neigh_size,
+						 nn_entry->payload,
+						 GFP_ATOMIC);
+		}
 	}
 
 	spin_unlock_bh(&priv->predt_lock);
@@ -593,8 +635,7 @@ nfp_tun_neigh_event_handler(struct notifier_block *nb, unsigned long event,
 	app_priv = container_of(nb, struct nfp_flower_priv, tun.neigh_nb);
 	app = app_priv->app;
 
-	if (!nfp_netdev_is_nfp_repr(n->dev) &&
-	    !nfp_flower_internal_port_can_offload(app, n->dev))
+	if (!nfp_flower_get_port_id_from_netdev(app, n->dev))
 		return NOTIFY_DONE;
 
 #if IS_ENABLED(CONFIG_INET)

@@ -14,7 +14,11 @@
 #include "../kselftest.h"
 #include "parse_vdso.h"
 
+#if defined(__riscv)
+const char *version = "LINUX_4.15";
+#else
 const char *version = "LINUX_2.6";
+#endif
 const char *name = "__vdso_getcpu";
 
 struct getcpu_cache;

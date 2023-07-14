@@ -3,11 +3,10 @@ Unicode support
 
 		 Last update: 2005-01-17, version 1.4
 
-This file is maintained by H. Peter Anvin <unicode@lanana.org> as part
-of the Linux Assigned Names And Numbers Authority (LANANA) project.
-The current version can be found at:
-
-	    http://www.lanana.org/docs/unicode/admin-guide/unicode.rst
+Note: The original version of this document, which was maintained at
+lanana.org as part of the Linux Assigned Names And Numbers Authority
+(LANANA) project, is no longer existent.  So, this version in the
+mainline Linux kernel is now the maintained main document.
 
 Introduction
 ------------

@@ -779,9 +779,9 @@ static const struct dvb_frontend_ops tc90522_ops_ter = {
 };
 
 
-static int tc90522_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int tc90522_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct tc90522_state *state;
 	struct tc90522_config *cfg;
 	const struct dvb_frontend_ops *ops;

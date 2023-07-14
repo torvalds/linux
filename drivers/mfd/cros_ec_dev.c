@@ -20,7 +20,6 @@
 #define DRV_NAME "cros-ec-dev"
 
 static struct class cros_class = {
-	.owner          = THIS_MODULE,
 	.name           = "chromeos",
 };
 
@@ -63,11 +62,6 @@ static const struct cros_feature_to_name cros_mcu_devices[] = {
 		.id	= EC_FEATURE_SCP,
 		.name	= CROS_EC_DEV_SCP_NAME,
 		.desc	= "System Control Processor",
-	},
-	{
-		.id	= EC_FEATURE_SCP_C1,
-		.name	= CROS_EC_DEV_SCP_C1_NAME,
-		.desc	= "System Control Processor 2nd Core",
 	},
 	{
 		.id	= EC_FEATURE_TOUCHPAD,

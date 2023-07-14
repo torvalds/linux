@@ -21,9 +21,11 @@ description: |
 properties:
   compatible:
     oneOf:
+      - enum:
+          - mediatek,mt2712-disp-od
+          - mediatek,mt8173-disp-od
       - items:
-          - const: mediatek,mt2712-disp-od
-      - items:
+          - const: mediatek,mt6795-disp-od
           - const: mediatek,mt8173-disp-od
 
   reg:

@@ -34,6 +34,8 @@
 #include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
+#include "i915_irq.h"
+#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crt.h"
 #include "intel_crtc.h"
@@ -42,10 +44,14 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
+#include "intel_fdi_regs.h"
 #include "intel_fifo_underrun.h"
 #include "intel_gmbus.h"
 #include "intel_hotplug.h"
+#include "intel_hotplug_irq.h"
+#include "intel_load_detect.h"
 #include "intel_pch_display.h"
+#include "intel_pch_refclk.h"
 
 /* Here's the desired hotplug mode */
 #define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_PERIOD_128 |		\
@@ -257,7 +263,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 
 	ilk_pfit_disable(old_crtc_state);
 
-	intel_ddi_disable_pipe_clock(old_crtc_state);
+	intel_ddi_disable_transcoder_clock(old_crtc_state);
 
 	pch_post_disable_crt(state, encoder, old_crtc_state, old_conn_state);
 
@@ -297,7 +303,7 @@ static void hsw_pre_enable_crt(struct intel_atomic_state *state,
 
 	hsw_fdi_link_train(encoder, crtc_state);
 
-	intel_ddi_enable_pipe_clock(encoder, crtc_state);
+	intel_ddi_enable_transcoder_clock(encoder, crtc_state);
 }
 
 static void hsw_enable_crt(struct intel_atomic_state *state,
@@ -390,6 +396,7 @@ static int intel_crt_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
+	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	return 0;
@@ -443,6 +450,8 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 
 	/* FDI must always be 2.7 GHz */
 	pipe_config->port_clock = 135000 * 2;
+
+	adjusted_mode->crtc_clock = lpt_iclkip(pipe_config);
 
 	return 0;
 }
@@ -600,37 +609,38 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	return ret;
 }
 
-static struct edid *intel_crt_get_edid(struct drm_connector *connector,
-				struct i2c_adapter *i2c)
+static const struct drm_edid *intel_crt_get_edid(struct drm_connector *connector,
+						 struct i2c_adapter *i2c)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
-	edid = drm_get_edid(connector, i2c);
+	drm_edid = drm_edid_read_ddc(connector, i2c);
 
-	if (!edid && !intel_gmbus_is_forced_bit(i2c)) {
+	if (!drm_edid && !intel_gmbus_is_forced_bit(i2c)) {
 		drm_dbg_kms(connector->dev,
 			    "CRT GMBUS EDID read failed, retry using GPIO bit-banging\n");
 		intel_gmbus_force_bit(i2c, true);
-		edid = drm_get_edid(connector, i2c);
+		drm_edid = drm_edid_read_ddc(connector, i2c);
 		intel_gmbus_force_bit(i2c, false);
 	}
 
-	return edid;
+	return drm_edid;
 }
 
 /* local version of intel_ddc_get_modes() to use intel_crt_get_edid() */
 static int intel_crt_ddc_get_modes(struct drm_connector *connector,
 				struct i2c_adapter *adapter)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
-	edid = intel_crt_get_edid(connector, adapter);
-	if (!edid)
+	drm_edid = intel_crt_get_edid(connector, adapter);
+	if (!drm_edid)
 		return 0;
 
-	ret = intel_connector_update_modes(connector, edid);
-	kfree(edid);
+	ret = intel_connector_update_modes(connector, drm_edid);
+
+	drm_edid_free(drm_edid);
 
 	return ret;
 }
@@ -639,16 +649,15 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 {
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct drm_i915_private *dev_priv = to_i915(crt->base.base.dev);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	struct i2c_adapter *i2c;
 	bool ret = false;
 
-	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
+	drm_edid = intel_crt_get_edid(connector, i2c);
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
-	edid = intel_crt_get_edid(connector, i2c);
-
-	if (edid) {
+	if (drm_edid) {
+		const struct edid *edid = drm_edid_raw(drm_edid);
 		bool is_digital = edid->input & DRM_EDID_INPUT_DIGITAL;
 
 		/*
@@ -669,65 +678,56 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 			    "CRT not detected via DDC:0x50 [no valid EDID found]\n");
 	}
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	return ret;
 }
 
 static enum drm_connector_status
-intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
+intel_crt_load_detect(struct intel_crt *crt, enum pipe pipe)
 {
 	struct drm_device *dev = crt->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_uncore *uncore = &dev_priv->uncore;
+	enum transcoder cpu_transcoder = (enum transcoder)pipe;
 	u32 save_bclrpat;
 	u32 save_vtotal;
 	u32 vtotal, vactive;
 	u32 vsample;
 	u32 vblank, vblank_start, vblank_end;
 	u32 dsl;
-	i915_reg_t bclrpat_reg, vtotal_reg,
-		vblank_reg, vsync_reg, pipeconf_reg, pipe_dsl_reg;
 	u8 st00;
 	enum drm_connector_status status;
 
 	drm_dbg_kms(&dev_priv->drm, "starting load-detect on CRT\n");
 
-	bclrpat_reg = BCLRPAT(pipe);
-	vtotal_reg = VTOTAL(pipe);
-	vblank_reg = VBLANK(pipe);
-	vsync_reg = VSYNC(pipe);
-	pipeconf_reg = PIPECONF(pipe);
-	pipe_dsl_reg = PIPEDSL(pipe);
+	save_bclrpat = intel_de_read(dev_priv, BCLRPAT(cpu_transcoder));
+	save_vtotal = intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder));
+	vblank = intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder));
 
-	save_bclrpat = intel_uncore_read(uncore, bclrpat_reg);
-	save_vtotal = intel_uncore_read(uncore, vtotal_reg);
-	vblank = intel_uncore_read(uncore, vblank_reg);
+	vtotal = REG_FIELD_GET(VTOTAL_MASK, save_vtotal) + 1;
+	vactive = REG_FIELD_GET(VACTIVE_MASK, save_vtotal) + 1;
 
-	vtotal = ((save_vtotal >> 16) & 0xfff) + 1;
-	vactive = (save_vtotal & 0x7ff) + 1;
-
-	vblank_start = (vblank & 0xfff) + 1;
-	vblank_end = ((vblank >> 16) & 0xfff) + 1;
+	vblank_start = REG_FIELD_GET(VBLANK_START_MASK, vblank) + 1;
+	vblank_end = REG_FIELD_GET(VBLANK_END_MASK, vblank) + 1;
 
 	/* Set the border color to purple. */
-	intel_uncore_write(uncore, bclrpat_reg, 0x500050);
+	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), 0x500050);
 
 	if (DISPLAY_VER(dev_priv) != 2) {
-		u32 pipeconf = intel_uncore_read(uncore, pipeconf_reg);
-		intel_uncore_write(uncore,
-				   pipeconf_reg,
-				   pipeconf | PIPECONF_FORCE_BORDER);
-		intel_uncore_posting_read(uncore, pipeconf_reg);
+		u32 transconf = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
+
+		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder),
+			       transconf | TRANSCONF_FORCE_BORDER);
+		intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
 		/* Wait for next Vblank to substitue
 		 * border color for Color info */
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
-		st00 = intel_uncore_read8(uncore, _VGA_MSR_WRITE);
+		st00 = intel_de_read8(dev_priv, _VGA_MSR_WRITE);
 		status = ((st00 & (1 << 4)) != 0) ?
 			connector_status_connected :
 			connector_status_disconnected;
 
-		intel_uncore_write(uncore, pipeconf_reg, pipeconf);
+		intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), transconf);
 	} else {
 		bool restore_vblank = false;
 		int count, detect;
@@ -737,14 +737,13 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		* Yes, this will flicker
 		*/
 		if (vblank_start <= vactive && vblank_end >= vtotal) {
-			u32 vsync = intel_de_read(dev_priv, vsync_reg);
-			u32 vsync_start = (vsync & 0xffff) + 1;
+			u32 vsync = intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder));
+			u32 vsync_start = REG_FIELD_GET(VSYNC_START_MASK, vsync) + 1;
 
 			vblank_start = vsync_start;
-			intel_uncore_write(uncore,
-					   vblank_reg,
-					   (vblank_start - 1) |
-					   ((vblank_end - 1) << 16));
+			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder),
+				       VBLANK_START(vblank_start - 1) |
+				       VBLANK_END(vblank_end - 1));
 			restore_vblank = true;
 		}
 		/* sample in the vertical border, selecting the larger one */
@@ -756,10 +755,9 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		/*
 		 * Wait for the border to be displayed
 		 */
-		while (intel_uncore_read(uncore, pipe_dsl_reg) >= vactive)
+		while (intel_de_read(dev_priv, PIPEDSL(pipe)) >= vactive)
 			;
-		while ((dsl = intel_uncore_read(uncore, pipe_dsl_reg)) <=
-		       vsample)
+		while ((dsl = intel_de_read(dev_priv, PIPEDSL(pipe))) <= vsample)
 			;
 		/*
 		 * Watch ST00 for an entire scanline
@@ -769,14 +767,14 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 		do {
 			count++;
 			/* Read the ST00 VGA status register */
-			st00 = intel_uncore_read8(uncore, _VGA_MSR_WRITE);
+			st00 = intel_de_read8(dev_priv, _VGA_MSR_WRITE);
 			if (st00 & (1 << 4))
 				detect++;
-		} while ((intel_uncore_read(uncore, pipe_dsl_reg) == dsl));
+		} while ((intel_de_read(dev_priv, PIPEDSL(pipe)) == dsl));
 
 		/* restore vblank if necessary */
 		if (restore_vblank)
-			intel_uncore_write(uncore, vblank_reg, vblank);
+			intel_de_write(dev_priv, TRANS_VBLANK(cpu_transcoder), vblank);
 		/*
 		 * If more than 3/4 of the scanline detected a monitor,
 		 * then it is assumed to be present. This works even on i830,
@@ -789,7 +787,7 @@ intel_crt_load_detect(struct intel_crt *crt, u32 pipe)
 	}
 
 	/* Restore previous settings */
-	intel_uncore_write(uncore, bclrpat_reg, save_bclrpat);
+	intel_de_write(dev_priv, BCLRPAT(cpu_transcoder), save_bclrpat);
 
 	return status;
 }
@@ -828,9 +826,9 @@ intel_crt_detect(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *intel_encoder = &crt->base;
+	struct drm_atomic_state *state;
 	intel_wakeref_t wakeref;
-	int status, ret;
-	struct intel_load_detect_pipe tmp;
+	int status;
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s] force=%d\n",
 		    connector->base.id, connector->name,
@@ -888,8 +886,12 @@ load_detect:
 	}
 
 	/* for pre-945g platforms use load detect */
-	ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
-	if (ret > 0) {
+	state = intel_load_detect_get_pipe(connector, ctx);
+	if (IS_ERR(state)) {
+		status = PTR_ERR(state);
+	} else if (!state) {
+		status = connector_status_unknown;
+	} else {
 		if (intel_crt_detect_ddc(connector))
 			status = connector_status_connected;
 		else if (DISPLAY_VER(dev_priv) < 4)
@@ -899,11 +901,7 @@ load_detect:
 			status = connector_status_disconnected;
 		else
 			status = connector_status_unknown;
-		intel_release_load_detect_pipe(connector, &tmp, ctx);
-	} else if (ret == 0) {
-		status = connector_status_unknown;
-	} else {
-		status = ret;
+		intel_load_detect_release_pipe(connector, state, ctx);
 	}
 
 out:
@@ -931,7 +929,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	wakeref = intel_display_power_get(dev_priv,
 					  intel_encoder->power_domain);
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->display.vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 	if (ret || !IS_G4X(dev_priv))
 		goto out;
@@ -1043,17 +1041,14 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	intel_connector_attach_encoder(intel_connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
-	crt->base.cloneable = (1 << INTEL_OUTPUT_DVO) | (1 << INTEL_OUTPUT_HDMI);
+	crt->base.cloneable = BIT(INTEL_OUTPUT_DVO) | BIT(INTEL_OUTPUT_HDMI);
 	if (IS_I830(dev_priv))
 		crt->base.pipe_mask = BIT(PIPE_A);
 	else
 		crt->base.pipe_mask = ~0;
 
-	if (DISPLAY_VER(dev_priv) == 2)
-		connector->interlace_allowed = 0;
-	else
-		connector->interlace_allowed = 1;
-	connector->doublescan_allowed = 0;
+	if (DISPLAY_VER(dev_priv) != 2)
+		connector->interlace_allowed = true;
 
 	crt->adpa_reg = adpa_reg;
 
@@ -1110,8 +1105,8 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 		u32 fdi_config = FDI_RX_POLARITY_REVERSED_LPT |
 				 FDI_RX_LINK_REVERSAL_OVERRIDE;
 
-		dev_priv->fdi_rx_config = intel_de_read(dev_priv,
-							FDI_RX_CTL(PIPE_A)) & fdi_config;
+		dev_priv->display.fdi.rx_config = intel_de_read(dev_priv,
+								FDI_RX_CTL(PIPE_A)) & fdi_config;
 	}
 
 	intel_crt_reset(&crt->base.base);

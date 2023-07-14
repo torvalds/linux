@@ -10,8 +10,7 @@
 #include <linux/sched.h>
 #include <asm/fpu/types.h>
 #include <asm/fpu/api.h>
-
-asm(".include \"asm/vx-insn.h\"\n");
+#include <asm/vx-insn.h>
 
 void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {

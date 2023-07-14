@@ -10,42 +10,17 @@
 
 #include "i915_reg_defs.h"
 
-struct intel_crtc_state;
-struct i915_vma;
+struct intel_crtc;
+struct intel_dsb;
 
-enum dsb_id {
-	INVALID_DSB = -1,
-	DSB1,
-	DSB2,
-	DSB3,
-	MAX_DSB_PER_PIPE
-};
-
-struct intel_dsb {
-	enum dsb_id id;
-	u32 *cmd_buf;
-	struct i915_vma *vma;
-
-	/*
-	 * free_pos will point the first free entry position
-	 * and help in calculating tail of command buffer.
-	 */
-	int free_pos;
-
-	/*
-	 * ins_start_offset will help to store start address of the dsb
-	 * instuction and help in identifying the batch of auto-increment
-	 * register.
-	 */
-	u32 ins_start_offset;
-};
-
-void intel_dsb_prepare(struct intel_crtc_state *crtc_state);
-void intel_dsb_cleanup(struct intel_crtc_state *crtc_state);
-void intel_dsb_reg_write(const struct intel_crtc_state *crtc_state,
+struct intel_dsb *intel_dsb_prepare(struct intel_crtc *crtc,
+				    unsigned int max_cmds);
+void intel_dsb_finish(struct intel_dsb *dsb);
+void intel_dsb_cleanup(struct intel_dsb *dsb);
+void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val);
-void intel_dsb_indexed_reg_write(const struct intel_crtc_state *crtc_state,
-				 i915_reg_t reg, u32 val);
-void intel_dsb_commit(const struct intel_crtc_state *crtc_state);
+void intel_dsb_commit(struct intel_dsb *dsb,
+		      bool wait_for_vblank);
+void intel_dsb_wait(struct intel_dsb *dsb);
 
 #endif

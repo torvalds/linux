@@ -9,8 +9,26 @@
  * ---------------------------
  * The change attribute (i_version) is mandated by NFSv4 and is mostly for
  * knfsd, but is also used for other purposes (e.g. IMA). The i_version must
- * appear different to observers if there was a change to the inode's data or
- * metadata since it was last queried.
+ * appear larger to observers if there was an explicit change to the inode's
+ * data or metadata since it was last queried.
+ *
+ * An explicit change is one that would ordinarily result in a change to the
+ * inode status change time (aka ctime). i_version must appear to change, even
+ * if the ctime does not (since the whole point is to avoid missing updates due
+ * to timestamp granularity). If POSIX or other relevant spec mandates that the
+ * ctime must change due to an operation, then the i_version counter must be
+ * incremented as well.
+ *
+ * Making the i_version update completely atomic with the operation itself would
+ * be prohibitively expensive. Traditionally the kernel has updated the times on
+ * directories after an operation that changes its contents. For regular files,
+ * the ctime is usually updated before the data is copied into the cache for a
+ * write. This means that there is a window of time when an observer can
+ * associate a new timestamp with old file contents. Since the purpose of the
+ * i_version is to allow for better cache coherency, the i_version must always
+ * be updated after the results of the operation are visible. Updating it before
+ * and after a change is also permitted. (Note that no filesystems currently do
+ * this. Fixing that is a work-in-progress).
  *
  * Observers see the i_version as a 64-bit number that never decreases. If it
  * remains the same since it was last checked, then nothing has changed in the
@@ -123,17 +141,12 @@ inode_peek_iversion_raw(const struct inode *inode)
 static inline void
 inode_set_max_iversion_raw(struct inode *inode, u64 val)
 {
-	u64 cur, old;
+	u64 cur = inode_peek_iversion_raw(inode);
 
-	cur = inode_peek_iversion_raw(inode);
-	for (;;) {
+	do {
 		if (cur > val)
 			break;
-		old = atomic64_cmpxchg(&inode->i_version, cur, val);
-		if (likely(old == cur))
-			break;
-		cur = old;
-	}
+	} while (!atomic64_try_cmpxchg(&inode->i_version, &cur, val));
 }
 
 /**
@@ -177,56 +190,7 @@ inode_set_iversion_queried(struct inode *inode, u64 val)
 				I_VERSION_QUERIED);
 }
 
-/**
- * inode_maybe_inc_iversion - increments i_version
- * @inode: inode with the i_version that should be updated
- * @force: increment the counter even if it's not necessary?
- *
- * Every time the inode is modified, the i_version field must be seen to have
- * changed by any observer.
- *
- * If "force" is set or the QUERIED flag is set, then ensure that we increment
- * the value, and clear the queried flag.
- *
- * In the common case where neither is set, then we can return "false" without
- * updating i_version.
- *
- * If this function returns false, and no other metadata has changed, then we
- * can avoid logging the metadata.
- */
-static inline bool
-inode_maybe_inc_iversion(struct inode *inode, bool force)
-{
-	u64 cur, old, new;
-
-	/*
-	 * The i_version field is not strictly ordered with any other inode
-	 * information, but the legacy inode_inc_iversion code used a spinlock
-	 * to serialize increments.
-	 *
-	 * Here, we add full memory barriers to ensure that any de-facto
-	 * ordering with other info is preserved.
-	 *
-	 * This barrier pairs with the barrier in inode_query_iversion()
-	 */
-	smp_mb();
-	cur = inode_peek_iversion_raw(inode);
-	for (;;) {
-		/* If flag is clear then we needn't do anything */
-		if (!force && !(cur & I_VERSION_QUERIED))
-			return false;
-
-		/* Since lowest bit is flag, add 2 to avoid it */
-		new = (cur & ~I_VERSION_QUERIED) + I_VERSION_INCREMENT;
-
-		old = atomic64_cmpxchg(&inode->i_version, cur, new);
-		if (likely(old == cur))
-			break;
-		cur = old;
-	}
-	return true;
-}
-
+bool inode_maybe_inc_iversion(struct inode *inode, bool force);
 
 /**
  * inode_inc_iversion - forcibly increment i_version
@@ -288,46 +252,6 @@ inode_peek_iversion(const struct inode *inode)
 	return inode_peek_iversion_raw(inode) >> I_VERSION_QUERIED_SHIFT;
 }
 
-/**
- * inode_query_iversion - read i_version for later use
- * @inode: inode from which i_version should be read
- *
- * Read the inode i_version counter. This should be used by callers that wish
- * to store the returned i_version for later comparison. This will guarantee
- * that a later query of the i_version will result in a different value if
- * anything has changed.
- *
- * In this implementation, we fetch the current value, set the QUERIED flag and
- * then try to swap it into place with a cmpxchg, if it wasn't already set. If
- * that fails, we try again with the newly fetched value from the cmpxchg.
- */
-static inline u64
-inode_query_iversion(struct inode *inode)
-{
-	u64 cur, old, new;
-
-	cur = inode_peek_iversion_raw(inode);
-	for (;;) {
-		/* If flag is already set, then no need to swap */
-		if (cur & I_VERSION_QUERIED) {
-			/*
-			 * This barrier (and the implicit barrier in the
-			 * cmpxchg below) pairs with the barrier in
-			 * inode_maybe_inc_iversion().
-			 */
-			smp_mb();
-			break;
-		}
-
-		new = cur | I_VERSION_QUERIED;
-		old = atomic64_cmpxchg(&inode->i_version, cur, new);
-		if (likely(old == cur))
-			break;
-		cur = old;
-	}
-	return cur >> I_VERSION_QUERIED_SHIFT;
-}
-
 /*
  * For filesystems without any sort of change attribute, the best we can
  * do is fake one up from the ctime:
@@ -340,6 +264,8 @@ static inline u64 time_to_chattr(struct timespec64 *t)
 	chattr += t->tv_nsec;
 	return chattr;
 }
+
+u64 inode_query_iversion(struct inode *inode);
 
 /**
  * inode_eq_iversion_raw - check whether the raw i_version counter has changed

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016 Intel Deutschland GmbH
  */
@@ -350,6 +350,11 @@
 #define WFPM_OTP_CFG1_ADDR		0x00a03098
 #define WFPM_OTP_CFG1_IS_JACKET_BIT	BIT(4)
 #define WFPM_OTP_CFG1_IS_CDB_BIT	BIT(5)
+#define WFPM_OTP_BZ_BNJ_JACKET_BIT	5
+#define WFPM_OTP_BZ_BNJ_CDB_BIT		4
+#define WFPM_OTP_CFG1_IS_JACKET(_val)   (((_val) & 0x00000020) >> WFPM_OTP_BZ_BNJ_JACKET_BIT)
+#define WFPM_OTP_CFG1_IS_CDB(_val)      (((_val) & 0x00000010) >> WFPM_OTP_BZ_BNJ_CDB_BIT)
+
 
 #define WFPM_GP2			0xA030B4
 
@@ -368,6 +373,7 @@ enum {
 #define CNVR_AUX_MISC_CHIP				0xA2B800
 #define CNVR_SCU_SD_REGS_SD_REG_DIG_DCDC_VTRIM		0xA29890
 #define CNVR_SCU_SD_REGS_SD_REG_ACTIVE_VDIG_MIRROR	0xA29938
+#define CNVI_SCU_SEQ_DATA_DW9				0xA27488
 
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
 
@@ -377,6 +383,7 @@ enum {
 #define PREG_PRPH_WPROT_22000		0xA04D00
 
 #define SB_MODIFY_CFG_FLAG		0xA03088
+#define SB_CFG_RESIDES_IN_OTP_MASK	0x10
 #define SB_CPU_1_STATUS			0xA01E30
 #define SB_CPU_2_STATUS			0xA01E34
 #define UMAG_SB_CPU_1_STATUS		0xA038C0
@@ -443,6 +450,8 @@ enum {
 #define REG_CRF_ID_TYPE_GF_TC			0xF08
 #define REG_CRF_ID_TYPE_MR			0x810
 #define REG_CRF_ID_TYPE_FM			0x910
+#define REG_CRF_ID_TYPE_FMI			0x930
+#define REG_CRF_ID_TYPE_FMR			0x900
 
 #define HPM_DEBUG			0xA03440
 #define PERSISTENCE_BIT			BIT(12)
@@ -477,6 +486,10 @@ enum {
 #define FSEQ_ALIVE_TOKEN		0xA340F0
 #define FSEQ_CNVI_ID			0xA3408C
 #define FSEQ_CNVR_ID			0xA34090
+#define FSEQ_PREV_CNVIO_INIT_VERSION	0xA34084
+#define FSEQ_WIFI_FSEQ_VERSION		0xA34040
+#define FSEQ_BT_FSEQ_VERSION		0xA34044
+#define FSEQ_CLASS_TP_VERSION		0xA34078
 
 #define IWL_D3_SLEEP_STATUS_SUSPEND	0xD3
 #define IWL_D3_SLEEP_STATUS_RESUME	0xD0
@@ -499,5 +512,8 @@ enum {
 #define WFPM_DPHY_OFF 0xDF10FF
 
 #define REG_OTP_MINOR 0xA0333C
+
+#define WFPM_LMAC2_PD_NOTIFICATION 0xA033CC
+#define WFPM_LMAC2_PD_RE_READ BIT(31)
 
 #endif				/* __iwl_prph_h__ */

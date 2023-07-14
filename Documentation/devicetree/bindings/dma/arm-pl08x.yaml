@@ -11,7 +11,7 @@ maintainers:
 
 allOf:
   - $ref: /schemas/arm/primecell.yaml#
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 # We need a select here so we don't match all nodes with 'arm,primecell'
 select:

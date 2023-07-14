@@ -28,6 +28,10 @@ static char *fw_filename;
 module_param(fw_filename, charp, 0444);
 MODULE_PARM_DESC(fw_filename, "alternate filename for SOF firmware.");
 
+static char *lib_path;
+module_param(lib_path, charp, 0444);
+MODULE_PARM_DESC(lib_path, "alternate path for SOF firmware libraries.");
+
 static char *tplg_path;
 module_param(tplg_path, charp, 0444);
 MODULE_PARM_DESC(tplg_path, "alternate path for SOF topology.");
@@ -138,7 +142,7 @@ static const struct dmi_system_id community_key_platforms[] = {
 		.ident = "Google Chromebooks",
 		.callback = chromebook_use_community_key,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google"),
 		}
 	},
 	{},
@@ -270,6 +274,28 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	} else {
 		sof_pdata->fw_filename_prefix =
 			sof_pdata->desc->default_fw_path[sof_pdata->ipc_type];
+	}
+
+	if (lib_path) {
+		sof_pdata->fw_lib_prefix = lib_path;
+
+		dev_dbg(dev, "Module parameter used, changed fw_lib path to %s\n",
+			sof_pdata->fw_lib_prefix);
+
+	} else if (sof_pdata->desc->default_lib_path[sof_pdata->ipc_type]) {
+		if (dmi_check_system(community_key_platforms) && sof_dmi_use_community_key) {
+			sof_pdata->fw_lib_prefix =
+				devm_kasprintf(dev, GFP_KERNEL, "%s/%s",
+					sof_pdata->desc->default_lib_path[sof_pdata->ipc_type],
+					"community");
+
+			dev_dbg(dev,
+				"Platform uses community key, changed fw_lib path to %s\n",
+				sof_pdata->fw_lib_prefix);
+		} else {
+			sof_pdata->fw_lib_prefix =
+				sof_pdata->desc->default_lib_path[sof_pdata->ipc_type];
+		}
 	}
 
 	if (tplg_path)

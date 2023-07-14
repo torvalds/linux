@@ -118,15 +118,13 @@ DECLARE_SUITE(bpf);
 DECLARE_SUITE(session_topology);
 DECLARE_SUITE(thread_map_synthesize);
 DECLARE_SUITE(thread_map_remove);
-DECLARE_SUITE(cpu_map_synthesize);
+DECLARE_SUITE(cpu_map);
 DECLARE_SUITE(synthesize_stat_config);
 DECLARE_SUITE(synthesize_stat);
 DECLARE_SUITE(synthesize_stat_round);
 DECLARE_SUITE(event_update);
 DECLARE_SUITE(event_times);
 DECLARE_SUITE(backward_ring_buffer);
-DECLARE_SUITE(cpu_map_print);
-DECLARE_SUITE(cpu_map_merge);
 DECLARE_SUITE(sdt_event);
 DECLARE_SUITE(is_printable_array);
 DECLARE_SUITE(bitmap_print);
@@ -147,6 +145,8 @@ DECLARE_SUITE(expand_cgroup_events);
 DECLARE_SUITE(perf_time_to_tsc);
 DECLARE_SUITE(dlfilter);
 DECLARE_SUITE(sigtrap);
+DECLARE_SUITE(event_groups);
+DECLARE_SUITE(symbols);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the
@@ -179,5 +179,34 @@ int test__arch_unwind_sample(struct perf_sample *sample,
 #if defined(__arm__)
 DECLARE_SUITE(vectors_page);
 #endif
+
+/*
+ * Define test workloads to be used in test suites.
+ */
+typedef int (*workload_fnptr)(int argc, const char **argv);
+
+struct test_workload {
+	const char	*name;
+	workload_fnptr	func;
+};
+
+#define DECLARE_WORKLOAD(work) \
+	extern struct test_workload workload__##work
+
+#define DEFINE_WORKLOAD(work) \
+struct test_workload workload__##work = {	\
+	.name = #work,				\
+	.func = work,				\
+}
+
+/* The list of test workloads */
+DECLARE_WORKLOAD(noploop);
+DECLARE_WORKLOAD(thloop);
+DECLARE_WORKLOAD(leafloop);
+DECLARE_WORKLOAD(sqrtloop);
+DECLARE_WORKLOAD(brstack);
+DECLARE_WORKLOAD(datasym);
+
+extern const char *dso_to_test;
 
 #endif /* TESTS_H */

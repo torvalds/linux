@@ -363,9 +363,10 @@ MODULE_DEVICE_TABLE(of, rtq2134_device_tables);
 static struct i2c_driver rtq2134_driver = {
 	.driver = {
 		.name = "rtq2134",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = rtq2134_device_tables,
 	},
-	.probe_new = rtq2134_probe,
+	.probe = rtq2134_probe,
 };
 module_i2c_driver(rtq2134_driver);
 

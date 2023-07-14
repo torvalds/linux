@@ -158,9 +158,9 @@ static int ad5272_reset(struct ad5272_data *data)
 	return 0;
 }
 
-static int ad5272_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ad5272_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct ad5272_data *data;

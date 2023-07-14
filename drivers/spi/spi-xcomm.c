@@ -58,7 +58,7 @@ static int spi_xcomm_sync_config(struct spi_xcomm *spi_xcomm, unsigned int len)
 static void spi_xcomm_chipselect(struct spi_xcomm *spi_xcomm,
 	struct spi_device *spi, int is_active)
 {
-	unsigned long cs = spi->chip_select;
+	unsigned long cs = spi_get_chipselect(spi, 0);
 	uint16_t chipselect = spi_xcomm->chipselect;
 
 	if (is_active)
@@ -202,8 +202,7 @@ static int spi_xcomm_transfer_one(struct spi_master *master,
 	return status;
 }
 
-static int spi_xcomm_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int spi_xcomm_probe(struct i2c_client *i2c)
 {
 	struct spi_xcomm *spi_xcomm;
 	struct spi_master *master;

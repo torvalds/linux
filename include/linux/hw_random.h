@@ -34,7 +34,7 @@
  * @priv:		Private data, for use by the RNG driver.
  * @quality:		Estimation of true entropy in RNG's bitstream
  *			(in bits of entropy per 1024 bits of input;
- *			valid values: 1 to 1024, or 0 for unknown).
+ *			valid values: 1 to 1024, or 0 for maximum).
  */
 struct hwrng {
 	const char *name;
@@ -50,6 +50,7 @@ struct hwrng {
 	struct list_head list;
 	struct kref ref;
 	struct completion cleanup_done;
+	struct completion dying;
 };
 
 struct device;
@@ -60,5 +61,7 @@ extern int devm_hwrng_register(struct device *dev, struct hwrng *rng);
 /** Unregister a Hardware Random Number Generator driver. */
 extern void hwrng_unregister(struct hwrng *rng);
 extern void devm_hwrng_unregister(struct device *dve, struct hwrng *rng);
+
+extern long hwrng_msleep(struct hwrng *rng, unsigned int msecs);
 
 #endif /* LINUX_HWRANDOM_H_ */

@@ -162,7 +162,7 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 }
 
-struct clk_mgr_funcs dcn201_funcs = {
+static struct clk_mgr_funcs dcn201_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn201_update_clocks,
 	.init_clocks = dcn201_init_clocks,
@@ -190,23 +190,17 @@ void dcn201_clk_mgr_construct(struct dc_context *ctx,
 	clk_mgr->dprefclk_ss_divider = 1000;
 	clk_mgr->ss_on_dprefclk = false;
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		dcn201_funcs.update_clocks = dcn2_update_clocks_fpga;
+	clk_mgr->base.dprefclk_khz = REG_READ(CLK4_CLK2_CURRENT_CNT);
+	clk_mgr->base.dprefclk_khz *= 100;
+
+	if (clk_mgr->base.dprefclk_khz == 0)
 		clk_mgr->base.dprefclk_khz = 600000;
+
+	REG_GET(CLK4_CLK_PLL_REQ, FbMult_int, &clk_mgr->base.dentist_vco_freq_khz);
+	clk_mgr->base.dentist_vco_freq_khz *= 100000;
+
+	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 3000000;
-	} else {
-		clk_mgr->base.dprefclk_khz = REG_READ(CLK4_CLK2_CURRENT_CNT);
-		clk_mgr->base.dprefclk_khz *= 100;
-
-		if (clk_mgr->base.dprefclk_khz == 0)
-			clk_mgr->base.dprefclk_khz = 600000;
-
-		REG_GET(CLK4_CLK_PLL_REQ, FbMult_int, &clk_mgr->base.dentist_vco_freq_khz);
-		clk_mgr->base.dentist_vco_freq_khz *= 100000;
-
-		if (clk_mgr->base.dentist_vco_freq_khz == 0)
-			clk_mgr->base.dentist_vco_freq_khz = 3000000;
-	}
 
 	if (!debug->disable_dfs_bypass && bp->integrated_info)
 		if (bp->integrated_info->gpu_cap_info & DFS_BYPASS_ENABLE)

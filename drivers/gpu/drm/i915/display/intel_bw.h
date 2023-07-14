@@ -8,7 +8,7 @@
 
 #include <drm/drm_atomic.h>
 
-#include "intel_display.h"
+#include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_global_state.h"
 
@@ -33,6 +33,12 @@ struct intel_bw_state {
 
 	/* bitmask of active pipes */
 	u8 active_pipes;
+
+	/*
+	 * From MTL onwards, to lock a QGV point, punit expects the peak BW of
+	 * the selected QGV point as the parameter in multiples of 100MB/s
+	 */
+	u16 qgv_point_peakbw;
 
 	/*
 	 * Current QGV points mask, which restricts

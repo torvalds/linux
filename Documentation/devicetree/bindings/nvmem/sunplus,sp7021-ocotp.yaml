@@ -11,7 +11,7 @@ maintainers:
   - Vincent Shih <vincent.sunplus@gmail.com>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:
@@ -27,12 +27,6 @@ properties:
 
   clocks:
     maxItems: 1
-
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 1
 
   thermal-calibration:
     type: object

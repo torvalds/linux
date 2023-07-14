@@ -162,6 +162,15 @@ config CRYPTO_DEV_FSL_CAAM_PRNG_API
 config CRYPTO_DEV_FSL_CAAM_BLOB_GEN
 	bool
 
+config CRYPTO_DEV_FSL_CAAM_RNG_TEST
+	bool "Test caam rng"
+	select CRYPTO_DEV_FSL_CAAM_RNG_API
+	help
+	  Selecting this will enable a self-test to run for the
+	  caam RNG.
+	  This test is several minutes long and executes
+	  just before the RNG is registered with the hw_random API.
+
 endif # CRYPTO_DEV_FSL_CAAM_JR
 
 endif # CRYPTO_DEV_FSL_CAAM

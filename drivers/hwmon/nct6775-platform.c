@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/wmi.h>
 
 #include "nct6775.h"
 
@@ -36,6 +35,7 @@ static const char * const nct6775_sio_names[] __initconst = {
 	"NCT6796D",
 	"NCT6797D",
 	"NCT6798D",
+	"NCT6799D",
 };
 
 static unsigned short force_id;
@@ -86,6 +86,7 @@ MODULE_PARM_DESC(fan_debounce, "Enable debouncing for fan RPM signal");
 #define SIO_NCT6796_ID		0xd420
 #define SIO_NCT6797_ID		0xd450
 #define SIO_NCT6798_ID		0xd428
+#define SIO_NCT6799_ID		0xd800
 #define SIO_ID_MASK		0xFFF8
 
 /*
@@ -107,40 +108,51 @@ struct nct6775_sio_data {
 	void (*sio_exit)(struct nct6775_sio_data *sio_data);
 };
 
-#define ASUSWMI_MONITORING_GUID		"466747A0-70EC-11DE-8A39-0800200C9A66"
+#define ASUSWMI_METHOD			"WMBD"
 #define ASUSWMI_METHODID_RSIO		0x5253494F
 #define ASUSWMI_METHODID_WSIO		0x5753494F
 #define ASUSWMI_METHODID_RHWM		0x5248574D
 #define ASUSWMI_METHODID_WHWM		0x5748574D
 #define ASUSWMI_UNSUPPORTED_METHOD	0xFFFFFFFE
+#define ASUSWMI_DEVICE_HID		"PNP0C14"
+#define ASUSWMI_DEVICE_UID		"ASUSWMI"
+#define ASUSMSI_DEVICE_UID		"AsusMbSwInterface"
+
+#if IS_ENABLED(CONFIG_ACPI)
+/*
+ * ASUS boards have only one device with WMI "WMBD" method and have provided
+ * access to only one SuperIO chip at 0x0290.
+ */
+static struct acpi_device *asus_acpi_dev;
+#endif
 
 static int nct6775_asuswmi_evaluate_method(u32 method_id, u8 bank, u8 reg, u8 val, u32 *retval)
 {
-#if IS_ENABLED(CONFIG_ACPI_WMI)
+#if IS_ENABLED(CONFIG_ACPI)
+	acpi_handle handle = acpi_device_handle(asus_acpi_dev);
 	u32 args = bank | (reg << 8) | (val << 16);
-	struct acpi_buffer input = { (acpi_size) sizeof(args), &args };
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_object_list input;
+	union acpi_object params[3];
+	unsigned long long result;
 	acpi_status status;
-	union acpi_object *obj;
-	u32 tmp = ASUSWMI_UNSUPPORTED_METHOD;
 
-	status = wmi_evaluate_method(ASUSWMI_MONITORING_GUID, 0,
-				     method_id, &input, &output);
+	params[0].type = ACPI_TYPE_INTEGER;
+	params[0].integer.value = 0;
+	params[1].type = ACPI_TYPE_INTEGER;
+	params[1].integer.value = method_id;
+	params[2].type = ACPI_TYPE_BUFFER;
+	params[2].buffer.length = sizeof(args);
+	params[2].buffer.pointer = (void *)&args;
+	input.count = 3;
+	input.pointer = params;
 
+	status = acpi_evaluate_integer(handle, ASUSWMI_METHOD, &input, &result);
 	if (ACPI_FAILURE(status))
 		return -EIO;
 
-	obj = output.pointer;
-	if (obj && obj->type == ACPI_TYPE_INTEGER)
-		tmp = obj->integer.value;
-
 	if (retval)
-		*retval = tmp;
+		*retval = result;
 
-	kfree(obj);
-
-	if (tmp == ASUSWMI_UNSUPPORTED_METHOD)
-		return -ENODEV;
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -408,7 +420,7 @@ static int nct6775_resume(struct device *dev)
 	if (data->kind == nct6791 || data->kind == nct6792 ||
 	    data->kind == nct6793 || data->kind == nct6795 ||
 	    data->kind == nct6796 || data->kind == nct6797 ||
-	    data->kind == nct6798)
+	    data->kind == nct6798 || data->kind == nct6799)
 		nct6791_enable_io_mapping(sio_data);
 
 	sio_data->sio_exit(sio_data);
@@ -555,7 +567,7 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 	} else {
 		/*
 		 * NCT6779D, NCT6791D, NCT6792D, NCT6793D, NCT6795D, NCT6796D,
-		 * NCT6797D, NCT6798D
+		 * NCT6797D, NCT6798D, NCT6799D
 		 */
 		int cr1a = sio_data->sio_inb(sio_data, 0x1a);
 		int cr1b = sio_data->sio_inb(sio_data, 0x1b);
@@ -565,11 +577,16 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 		int cr2b = sio_data->sio_inb(sio_data, 0x2b);
 		int cr2d = sio_data->sio_inb(sio_data, 0x2d);
 		int cr2f = sio_data->sio_inb(sio_data, 0x2f);
+		bool vsb_ctl_en = cr2f & BIT(0);
 		bool dsw_en = cr2f & BIT(3);
 		bool ddr4_en = cr2f & BIT(4);
+		bool as_seq1_en = cr2f & BIT(7);
 		int cre0;
+		int cre6;
 		int creb;
 		int cred;
+
+		cre6 = sio_data->sio_inb(sio_data, 0xe0);
 
 		sio_data->sio_select(sio_data, NCT6775_LD_12);
 		cre0 = sio_data->sio_inb(sio_data, 0xe0);
@@ -673,6 +690,29 @@ nct6775_check_fan_inputs(struct nct6775_data *data, struct nct6775_sio_data *sio
 			pwm7pin = !(cr1d & (BIT(2) | BIT(3)));
 			pwm7pin |= cr2d & BIT(7);
 			pwm7pin |= creb & BIT(2);
+			break;
+		case nct6799:
+			fan4pin = cr1c & BIT(6);
+			fan5pin = cr1c & BIT(7);
+
+			fan6pin = !(cr1b & BIT(0)) && (cre0 & BIT(3));
+			fan6pin |= cre6 & BIT(5);
+			fan6pin |= creb & BIT(5);
+			fan6pin |= !as_seq1_en && (cr2a & BIT(4));
+
+			fan7pin = cr1b & BIT(5);
+			fan7pin |= !vsb_ctl_en && !(cr2b & BIT(2));
+			fan7pin |= creb & BIT(3);
+
+			pwm6pin = !(cr1b & BIT(0)) && (cre0 & BIT(4));
+			pwm6pin |= !as_seq1_en && !(cred & BIT(2)) && (cr2a & BIT(3));
+			pwm6pin |= (creb & BIT(4)) && !(cr2a & BIT(0));
+			pwm6pin |= cre6 & BIT(3);
+
+			pwm7pin = !vsb_ctl_en && !(cr1d & (BIT(2) | BIT(3)));
+			pwm7pin |= creb & BIT(2);
+			pwm7pin |= cr2d & BIT(7);
+
 			break;
 		default:	/* NCT6779D */
 			break;
@@ -828,6 +868,7 @@ static int nct6775_platform_probe_init(struct nct6775_data *data)
 	case nct6796:
 	case nct6797:
 	case nct6798:
+	case nct6799:
 		break;
 	}
 
@@ -866,6 +907,7 @@ static int nct6775_platform_probe_init(struct nct6775_data *data)
 		case nct6796:
 		case nct6797:
 		case nct6798:
+		case nct6799:
 			tmp |= 0x7e;
 			break;
 		}
@@ -995,6 +1037,9 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	case SIO_NCT6798_ID:
 		sio_data->kind = nct6798;
 		break;
+	case SIO_NCT6799_ID:
+		sio_data->kind = nct6799;
+		break;
 	default:
 		if (val != 0xffff)
 			pr_debug("unsupported chip ID: 0x%04x\n", val);
@@ -1023,7 +1068,7 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 	if (sio_data->kind == nct6791 || sio_data->kind == nct6792 ||
 	    sio_data->kind == nct6793 || sio_data->kind == nct6795 ||
 	    sio_data->kind == nct6796 || sio_data->kind == nct6797 ||
-	    sio_data->kind == nct6798)
+	    sio_data->kind == nct6798 || sio_data->kind == nct6799)
 		nct6791_enable_io_mapping(sio_data);
 
 	sio_data->sio_exit(sio_data);
@@ -1042,29 +1087,117 @@ static int __init nct6775_find(int sioaddr, struct nct6775_sio_data *sio_data)
 static struct platform_device *pdev[2];
 
 static const char * const asus_wmi_boards[] = {
-	"PRO H410T",
-	"ProArt X570-CREATOR WIFI",
-	"Pro B550M-C",
-	"Pro WS X570-ACE",
+	"B360M-BASALT",
+	"B360M-D3H",
+	"EX-B360M-V",
+	"EX-B360M-V3",
+	"EX-B360M-V5",
+	"EX-B460M-V5",
+	"EX-H410M-V3",
+	"PRIME A520M-A",
+	"PRIME A520M-A II",
+	"PRIME A520M-E",
+	"PRIME A520M-K",
 	"PRIME B360-PLUS",
+	"PRIME B360M-A",
+	"PRIME B360M-C",
+	"PRIME B360M-D",
+	"PRIME B360M-K",
 	"PRIME B460-PLUS",
+	"PRIME B460I-PLUS",
+	"PRIME B460M-A",
+	"PRIME B460M-A R2.0",
+	"PRIME B460M-K",
 	"PRIME B550-PLUS",
+	"PRIME B550-PLUS AC-HES",
 	"PRIME B550M-A",
 	"PRIME B550M-A (WI-FI)",
+	"PRIME B550M-A AC",
+	"PRIME B550M-A WIFI II",
+	"PRIME B550M-K",
+	"PRIME H310-PLUS",
+	"PRIME H310I-PLUS",
+	"PRIME H310M-A",
+	"PRIME H310M-C",
+	"PRIME H310M-D",
+	"PRIME H310M-DASH",
+	"PRIME H310M-E",
+	"PRIME H310M-E/BR",
+	"PRIME H310M-F",
+	"PRIME H310M-K",
+	"PRIME H310T",
+	"PRIME H370-A",
+	"PRIME H370-PLUS",
+	"PRIME H370M-PLUS",
+	"PRIME H410I-PLUS",
+	"PRIME H410M-A",
+	"PRIME H410M-D",
+	"PRIME H410M-E",
+	"PRIME H410M-F",
+	"PRIME H410M-K",
+	"PRIME H410M-K R2.0",
 	"PRIME H410M-R",
+	"PRIME H470-PLUS",
+	"PRIME H470M-PLUS",
+	"PRIME H510M-K R2.0",
+	"PRIME Q370M-C",
 	"PRIME X570-P",
 	"PRIME X570-PRO",
+	"PRIME Z390-A",
+	"PRIME Z390-A/H10",
+	"PRIME Z390-P",
+	"PRIME Z390M-PLUS",
+	"PRIME Z490-A",
+	"PRIME Z490-P",
+	"PRIME Z490-V",
+	"PRIME Z490M-PLUS",
+	"PRO B460M-C",
+	"PRO H410M-C",
+	"PRO H410T",
+	"PRO Q470M-C",
+	"Pro A520M-C",
+	"Pro A520M-C II",
+	"Pro B550M-C",
+	"Pro WS X570-ACE",
+	"ProArt B550-CREATOR",
+	"ProArt X570-CREATOR WIFI",
+	"ProArt Z490-CREATOR 10G",
 	"ROG CROSSHAIR VIII DARK HERO",
+	"ROG CROSSHAIR VIII EXTREME",
 	"ROG CROSSHAIR VIII FORMULA",
 	"ROG CROSSHAIR VIII HERO",
+	"ROG CROSSHAIR VIII HERO (WI-FI)",
 	"ROG CROSSHAIR VIII IMPACT",
+	"ROG MAXIMUS XI APEX",
+	"ROG MAXIMUS XI CODE",
+	"ROG MAXIMUS XI EXTREME",
+	"ROG MAXIMUS XI FORMULA",
+	"ROG MAXIMUS XI GENE",
+	"ROG MAXIMUS XI HERO",
+	"ROG MAXIMUS XI HERO (WI-FI)",
+	"ROG MAXIMUS XII APEX",
+	"ROG MAXIMUS XII EXTREME",
+	"ROG MAXIMUS XII FORMULA",
+	"ROG MAXIMUS XII HERO (WI-FI)",
+	"ROG STRIX B360-F GAMING",
+	"ROG STRIX B360-G GAMING",
+	"ROG STRIX B360-H GAMING",
+	"ROG STRIX B360-H GAMING/OPTANE",
+	"ROG STRIX B360-I GAMING",
+	"ROG STRIX B460-F GAMING",
+	"ROG STRIX B460-G GAMING",
+	"ROG STRIX B460-H GAMING",
+	"ROG STRIX B460-I GAMING",
 	"ROG STRIX B550-A GAMING",
 	"ROG STRIX B550-E GAMING",
 	"ROG STRIX B550-F GAMING",
 	"ROG STRIX B550-F GAMING (WI-FI)",
 	"ROG STRIX B550-F GAMING WIFI II",
 	"ROG STRIX B550-I GAMING",
-	"ROG STRIX B550-XE GAMING (WI-FI)",
+	"ROG STRIX B550-XE GAMING WIFI",
+	"ROG STRIX H370-F GAMING",
+	"ROG STRIX H370-I GAMING",
+	"ROG STRIX H470-I GAMING",
 	"ROG STRIX X570-E GAMING",
 	"ROG STRIX X570-E GAMING WIFI II",
 	"ROG STRIX X570-F GAMING",
@@ -1080,17 +1213,288 @@ static const char * const asus_wmi_boards[] = {
 	"ROG STRIX Z490-G GAMING (WI-FI)",
 	"ROG STRIX Z490-H GAMING",
 	"ROG STRIX Z490-I GAMING",
-	"TUF GAMING B550M-PLUS",
-	"TUF GAMING B550M-PLUS (WI-FI)",
+	"TUF B360-PLUS GAMING",
+	"TUF B360-PRO GAMING",
+	"TUF B360-PRO GAMING (WI-FI)",
+	"TUF B360M-E GAMING",
+	"TUF B360M-PLUS GAMING",
+	"TUF B360M-PLUS GAMING S",
+	"TUF B360M-PLUS GAMING/BR",
+	"TUF GAMING A520M-PLUS",
+	"TUF GAMING A520M-PLUS II",
+	"TUF GAMING A520M-PLUS WIFI",
+	"TUF GAMING B460-PLUS",
+	"TUF GAMING B460-PRO (WI-FI)",
+	"TUF GAMING B460M-PLUS",
+	"TUF GAMING B460M-PLUS (WI-FI)",
+	"TUF GAMING B460M-PRO",
 	"TUF GAMING B550-PLUS",
+	"TUF GAMING B550-PLUS (WI-FI)",
 	"TUF GAMING B550-PLUS WIFI II",
 	"TUF GAMING B550-PRO",
+	"TUF GAMING B550M ZAKU (WI-FI)",
+	"TUF GAMING B550M-E",
+	"TUF GAMING B550M-E WIFI",
+	"TUF GAMING B550M-PLUS",
+	"TUF GAMING B550M-PLUS (WI-FI)",
+	"TUF GAMING B550M-PLUS WIFI II",
+	"TUF GAMING H470-PRO",
+	"TUF GAMING H470-PRO (WI-FI)",
 	"TUF GAMING X570-PLUS",
 	"TUF GAMING X570-PLUS (WI-FI)",
+	"TUF GAMING X570-PLUS_BR",
 	"TUF GAMING X570-PRO (WI-FI)",
+	"TUF GAMING X570-PRO WIFI II",
 	"TUF GAMING Z490-PLUS",
 	"TUF GAMING Z490-PLUS (WI-FI)",
+	"TUF H310-PLUS GAMING",
+	"TUF H310M-PLUS GAMING",
+	"TUF H310M-PLUS GAMING/BR",
+	"TUF H370-PRO GAMING",
+	"TUF H370-PRO GAMING (WI-FI)",
+	"TUF Z390-PLUS GAMING",
+	"TUF Z390-PLUS GAMING (WI-FI)",
+	"TUF Z390-PRO GAMING",
+	"TUF Z390M-PRO GAMING",
+	"TUF Z390M-PRO GAMING (WI-FI)",
+	"WS Z390 PRO",
+	"Z490-GUNDAM (WI-FI)",
 };
+
+static const char * const asus_msi_boards[] = {
+	"B560M-P",
+	"EX-B560M-V5",
+	"EX-B660M-V5 D4",
+	"EX-B660M-V5 PRO D4",
+	"EX-B760M-V5 D4",
+	"EX-H510M-V3",
+	"EX-H610M-V3 D4",
+	"PRIME A620M-A",
+	"PRIME B560-PLUS",
+	"PRIME B560-PLUS AC-HES",
+	"PRIME B560M-A",
+	"PRIME B560M-A AC",
+	"PRIME B560M-K",
+	"PRIME B650-PLUS",
+	"PRIME B650M-A",
+	"PRIME B650M-A AX",
+	"PRIME B650M-A AX II",
+	"PRIME B650M-A II",
+	"PRIME B650M-A WIFI",
+	"PRIME B650M-A WIFI II",
+	"PRIME B660-PLUS D4",
+	"PRIME B660M-A AC D4",
+	"PRIME B660M-A D4",
+	"PRIME B660M-A WIFI D4",
+	"PRIME B760-PLUS",
+	"PRIME B760-PLUS D4",
+	"PRIME B760M-A",
+	"PRIME B760M-A AX D4",
+	"PRIME B760M-A D4",
+	"PRIME B760M-A WIFI",
+	"PRIME B760M-A WIFI D4",
+	"PRIME B760M-AJ D4",
+	"PRIME B760M-K D4",
+	"PRIME H510M-A",
+	"PRIME H510M-A WIFI",
+	"PRIME H510M-D",
+	"PRIME H510M-E",
+	"PRIME H510M-F",
+	"PRIME H510M-K",
+	"PRIME H510M-R",
+	"PRIME H510T2/CSM",
+	"PRIME H570-PLUS",
+	"PRIME H570M-PLUS",
+	"PRIME H610I-PLUS D4",
+	"PRIME H610M-A D4",
+	"PRIME H610M-A WIFI D4",
+	"PRIME H610M-D D4",
+	"PRIME H610M-E D4",
+	"PRIME H610M-F D4",
+	"PRIME H610M-K D4",
+	"PRIME H610M-R D4",
+	"PRIME H670-PLUS D4",
+	"PRIME H770-PLUS D4",
+	"PRIME X670-P",
+	"PRIME X670-P WIFI",
+	"PRIME X670E-PRO WIFI",
+	"PRIME Z590-A",
+	"PRIME Z590-P",
+	"PRIME Z590-P WIFI",
+	"PRIME Z590-V",
+	"PRIME Z590M-PLUS",
+	"PRIME Z690-A",
+	"PRIME Z690-P",
+	"PRIME Z690-P D4",
+	"PRIME Z690-P WIFI",
+	"PRIME Z690-P WIFI D4",
+	"PRIME Z690M-PLUS D4",
+	"PRIME Z790-A WIFI",
+	"PRIME Z790-P",
+	"PRIME Z790-P D4",
+	"PRIME Z790-P WIFI",
+	"PRIME Z790-P WIFI D4",
+	"PRIME Z790M-PLUS",
+	"PRIME Z790M-PLUS D4",
+	"Pro B560M-C",
+	"Pro B560M-CT",
+	"Pro B660M-C",
+	"Pro B660M-C D4",
+	"Pro B760M-C",
+	"Pro B760M-CT",
+	"Pro H510M-C",
+	"Pro H510M-CT",
+	"Pro H610M-C",
+	"Pro H610M-C D4",
+	"Pro H610M-CT D4",
+	"Pro H610T D4",
+	"Pro Q670M-C",
+	"Pro WS W680-ACE",
+	"Pro WS W680-ACE IPMI",
+	"Pro WS W790-ACE",
+	"Pro WS W790E-SAGE SE",
+	"ProArt B650-CREATOR",
+	"ProArt B660-CREATOR D4",
+	"ProArt B760-CREATOR D4",
+	"ProArt X670E-CREATOR WIFI",
+	"ProArt Z690-CREATOR WIFI",
+	"ProArt Z790-CREATOR WIFI",
+	"ROG CROSSHAIR X670E EXTREME",
+	"ROG CROSSHAIR X670E GENE",
+	"ROG CROSSHAIR X670E HERO",
+	"ROG MAXIMUS XIII APEX",
+	"ROG MAXIMUS XIII EXTREME",
+	"ROG MAXIMUS XIII EXTREME GLACIAL",
+	"ROG MAXIMUS XIII HERO",
+	"ROG MAXIMUS Z690 APEX",
+	"ROG MAXIMUS Z690 EXTREME",
+	"ROG MAXIMUS Z690 EXTREME GLACIAL",
+	"ROG MAXIMUS Z690 FORMULA",
+	"ROG MAXIMUS Z690 HERO",
+	"ROG MAXIMUS Z690 HERO EVA",
+	"ROG MAXIMUS Z790 APEX",
+	"ROG MAXIMUS Z790 EXTREME",
+	"ROG MAXIMUS Z790 HERO",
+	"ROG STRIX B560-A GAMING WIFI",
+	"ROG STRIX B560-E GAMING WIFI",
+	"ROG STRIX B560-F GAMING WIFI",
+	"ROG STRIX B560-G GAMING WIFI",
+	"ROG STRIX B560-I GAMING WIFI",
+	"ROG STRIX B650-A GAMING WIFI",
+	"ROG STRIX B650E-E GAMING WIFI",
+	"ROG STRIX B650E-F GAMING WIFI",
+	"ROG STRIX B650E-I GAMING WIFI",
+	"ROG STRIX B660-A GAMING WIFI",
+	"ROG STRIX B660-A GAMING WIFI D4",
+	"ROG STRIX B660-F GAMING WIFI",
+	"ROG STRIX B660-G GAMING WIFI",
+	"ROG STRIX B660-I GAMING WIFI",
+	"ROG STRIX B760-A GAMING WIFI",
+	"ROG STRIX B760-A GAMING WIFI D4",
+	"ROG STRIX B760-F GAMING WIFI",
+	"ROG STRIX B760-G GAMING WIFI",
+	"ROG STRIX B760-G GAMING WIFI D4",
+	"ROG STRIX B760-I GAMING WIFI",
+	"ROG STRIX X670E-A GAMING WIFI",
+	"ROG STRIX X670E-E GAMING WIFI",
+	"ROG STRIX X670E-F GAMING WIFI",
+	"ROG STRIX X670E-I GAMING WIFI",
+	"ROG STRIX Z590-A GAMING WIFI",
+	"ROG STRIX Z590-A GAMING WIFI II",
+	"ROG STRIX Z590-E GAMING WIFI",
+	"ROG STRIX Z590-F GAMING WIFI",
+	"ROG STRIX Z590-I GAMING WIFI",
+	"ROG STRIX Z690-A GAMING WIFI",
+	"ROG STRIX Z690-A GAMING WIFI D4",
+	"ROG STRIX Z690-E GAMING WIFI",
+	"ROG STRIX Z690-F GAMING WIFI",
+	"ROG STRIX Z690-G GAMING WIFI",
+	"ROG STRIX Z690-I GAMING WIFI",
+	"ROG STRIX Z790-A GAMING WIFI",
+	"ROG STRIX Z790-A GAMING WIFI D4",
+	"ROG STRIX Z790-E GAMING WIFI",
+	"ROG STRIX Z790-F GAMING WIFI",
+	"ROG STRIX Z790-H GAMING WIFI",
+	"ROG STRIX Z790-I GAMING WIFI",
+	"TUF GAMING A620M-PLUS",
+	"TUF GAMING A620M-PLUS WIFI",
+	"TUF GAMING B560-PLUS WIFI",
+	"TUF GAMING B560M-E",
+	"TUF GAMING B560M-PLUS",
+	"TUF GAMING B560M-PLUS WIFI",
+	"TUF GAMING B650-PLUS",
+	"TUF GAMING B650-PLUS WIFI",
+	"TUF GAMING B650M-PLUS",
+	"TUF GAMING B650M-PLUS WIFI",
+	"TUF GAMING B660-PLUS WIFI D4",
+	"TUF GAMING B660M-E D4",
+	"TUF GAMING B660M-PLUS D4",
+	"TUF GAMING B660M-PLUS WIFI",
+	"TUF GAMING B660M-PLUS WIFI D4",
+	"TUF GAMING B760-PLUS WIFI",
+	"TUF GAMING B760-PLUS WIFI D4",
+	"TUF GAMING B760M-BTF WIFI D4",
+	"TUF GAMING B760M-E D4",
+	"TUF GAMING B760M-PLUS",
+	"TUF GAMING B760M-PLUS D4",
+	"TUF GAMING B760M-PLUS WIFI",
+	"TUF GAMING B760M-PLUS WIFI D4",
+	"TUF GAMING H570-PRO",
+	"TUF GAMING H570-PRO WIFI",
+	"TUF GAMING H670-PRO WIFI D4",
+	"TUF GAMING H770-PRO WIFI",
+	"TUF GAMING X670E-PLUS",
+	"TUF GAMING X670E-PLUS WIFI",
+	"TUF GAMING Z590-PLUS",
+	"TUF GAMING Z590-PLUS WIFI",
+	"TUF GAMING Z690-PLUS",
+	"TUF GAMING Z690-PLUS D4",
+	"TUF GAMING Z690-PLUS WIFI",
+	"TUF GAMING Z690-PLUS WIFI D4",
+	"TUF GAMING Z790-PLUS D4",
+	"TUF GAMING Z790-PLUS WIFI",
+	"TUF GAMING Z790-PLUS WIFI D4",
+	"Z590 WIFI GUNDAM EDITION",
+};
+
+#if IS_ENABLED(CONFIG_ACPI)
+/*
+ * Callback for acpi_bus_for_each_dev() to find the right device
+ * by _UID and _HID and return 1 to stop iteration.
+ */
+static int nct6775_asuswmi_device_match(struct device *dev, void *data)
+{
+	struct acpi_device *adev = to_acpi_device(dev);
+	const char *uid = acpi_device_uid(adev);
+	const char *hid = acpi_device_hid(adev);
+
+	if (hid && !strcmp(hid, ASUSWMI_DEVICE_HID) && uid && !strcmp(uid, data)) {
+		asus_acpi_dev = adev;
+		return 1;
+	}
+
+	return 0;
+}
+#endif
+
+static enum sensor_access nct6775_determine_access(const char *device_uid)
+{
+#if IS_ENABLED(CONFIG_ACPI)
+	u8 tmp;
+
+	acpi_bus_for_each_dev(nct6775_asuswmi_device_match, (void *)device_uid);
+	if (!asus_acpi_dev)
+		return access_direct;
+
+	/* if reading chip id via ACPI succeeds, use WMI "WMBD" method for access */
+	if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp) && tmp) {
+		pr_debug("Using Asus WMBD method of %s to access %#x chip.\n", device_uid, tmp);
+		return access_asuswmi;
+	}
+#endif
+
+	return access_direct;
+}
 
 static int __init sensors_nct6775_platform_init(void)
 {
@@ -1102,7 +1506,6 @@ static int __init sensors_nct6775_platform_init(void)
 	int sioaddr[2] = { 0x2e, 0x4e };
 	enum sensor_access access = access_direct;
 	const char *board_vendor, *board_name;
-	u8 tmp;
 
 	err = platform_driver_register(&nct6775_driver);
 	if (err)
@@ -1115,15 +1518,13 @@ static int __init sensors_nct6775_platform_init(void)
 	    !strcmp(board_vendor, "ASUSTeK COMPUTER INC.")) {
 		err = match_string(asus_wmi_boards, ARRAY_SIZE(asus_wmi_boards),
 				   board_name);
-		if (err >= 0) {
-			/* if reading chip id via WMI succeeds, use WMI */
-			if (!nct6775_asuswmi_read(0, NCT6775_PORT_CHIPID, &tmp) && tmp) {
-				pr_info("Using Asus WMI to access %#x chip.\n", tmp);
-				access = access_asuswmi;
-			} else {
-				pr_err("Can't read ChipID by Asus WMI.\n");
-			}
-		}
+		if (err >= 0)
+			access = nct6775_determine_access(ASUSWMI_DEVICE_UID);
+
+		err = match_string(asus_msi_boards, ARRAY_SIZE(asus_msi_boards),
+				   board_name);
+		if (err >= 0)
+			access = nct6775_determine_access(ASUSMSI_DEVICE_UID);
 	}
 
 	/*

@@ -1483,6 +1483,87 @@ static int max98396_probe(struct snd_soc_component *component)
 			   MAX98396_CLK_MON_AUTO_RESTART_MASK,
 			   MAX98396_CLK_MON_AUTO_RESTART_MASK);
 
+	regmap_update_bits(max98396->regmap,
+			   MAX98396_R203F_ENABLE_CTRLS,
+			   MAX98396_CTRL_DMON_STUCK_EN_MASK,
+			   max98396->dmon_stuck_enable ?
+				MAX98396_CTRL_DMON_STUCK_EN_MASK : 0);
+
+	regmap_update_bits(max98396->regmap,
+			   MAX98396_R203F_ENABLE_CTRLS,
+			   MAX98396_CTRL_DMON_MAG_EN_MASK,
+			   max98396->dmon_mag_enable ?
+				MAX98396_CTRL_DMON_MAG_EN_MASK : 0);
+
+	switch (max98396->dmon_duration) {
+	case 64:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_DURATION_MASK, 0);
+		break;
+	case 256:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_DURATION_MASK, 1);
+		break;
+	case 1024:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_DURATION_MASK, 2);
+		break;
+	case 4096:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_DURATION_MASK, 3);
+		break;
+	default:
+		dev_err(component->dev, "Invalid DMON duration %d\n",
+			max98396->dmon_duration);
+	}
+
+	switch (max98396->dmon_stuck_threshold) {
+	case 15:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_STUCK_THRESH_MASK,
+				   0 << MAX98396_DMON_STUCK_THRESH_SHIFT);
+		break;
+	case 13:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_STUCK_THRESH_MASK,
+				   1 << MAX98396_DMON_STUCK_THRESH_SHIFT);
+		break;
+	case 22:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_STUCK_THRESH_MASK,
+				   2 << MAX98396_DMON_STUCK_THRESH_SHIFT);
+		break;
+	case 9:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_STUCK_THRESH_MASK,
+				   3 << MAX98396_DMON_STUCK_THRESH_SHIFT);
+		break;
+	default:
+		dev_err(component->dev, "Invalid DMON stuck threshold %d\n",
+			max98396->dmon_stuck_threshold);
+	}
+
+	switch (max98396->dmon_mag_threshold) {
+	case 2 ... 5:
+		regmap_update_bits(max98396->regmap,
+				   MAX98396_R2039_DATA_MON_CTRL,
+				   MAX98396_DMON_STUCK_THRESH_MASK,
+				   (5 - max98396->dmon_mag_threshold)
+					<< MAX98396_DMON_MAG_THRESH_SHIFT);
+		break;
+	default:
+		dev_err(component->dev, "Invalid DMON magnitude threshold %d\n",
+			max98396->dmon_mag_threshold);
+	}
+
 	/* Speaker Amplifier PCM RX Enable by default */
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R205E_PCM_RX_EN,
@@ -1614,6 +1695,27 @@ static void max98396_read_device_property(struct device *dev,
 		max98396->bypass_slot = value & 0xF;
 	else
 		max98396->bypass_slot = 0;
+
+	max98396->dmon_stuck_enable =
+		device_property_read_bool(dev, "adi,dmon-stuck-enable");
+
+	if (!device_property_read_u32(dev, "adi,dmon-stuck-threshold-bits", &value))
+		max98396->dmon_stuck_threshold = value;
+	else
+		max98396->dmon_stuck_threshold = 15;
+
+	max98396->dmon_mag_enable =
+		device_property_read_bool(dev, "adi,dmon-magnitude-enable");
+
+	if (!device_property_read_u32(dev, "adi,dmon-magnitude-threshold-bits", &value))
+		max98396->dmon_mag_threshold = value;
+	else
+		max98396->dmon_mag_threshold = 5;
+
+	if (!device_property_read_u32(dev, "adi,dmon-duration-ms", &value))
+		max98396->dmon_duration = value;
+	else
+		max98396->dmon_duration = 64;
 }
 
 static void max98396_core_supplies_disable(void *priv)
@@ -1629,9 +1731,9 @@ static void max98396_supply_disable(void *r)
 	regulator_disable((struct regulator *) r);
 }
 
-static int max98396_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int max98396_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max98396_priv *max98396 = NULL;
 	int i, ret, reg;
 

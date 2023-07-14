@@ -139,11 +139,6 @@ enum iwl_legacy_cmds {
 	REMOVE_STA = 0x19,
 
 	/**
-	 * @FW_GET_ITEM_CMD: uses &struct iwl_fw_get_item_cmd
-	 */
-	FW_GET_ITEM_CMD = 0x1a,
-
-	/**
 	 * @TX_CMD: uses &struct iwl_tx_cmd or &struct iwl_tx_cmd_gen2 or
 	 *	&struct iwl_tx_cmd_gen3,
 	 *	response in &struct iwl_mvm_tx_resp or
@@ -153,6 +148,7 @@ enum iwl_legacy_cmds {
 
 	/**
 	 * @TXPATH_FLUSH: &struct iwl_tx_path_flush_cmd
+	 *	response in &struct iwl_tx_path_flush_cmd_rsp
 	 */
 	TXPATH_FLUSH = 0x1e,
 
@@ -263,6 +259,24 @@ enum iwl_legacy_cmds {
 	 * @HOT_SPOT_CMD: uses &struct iwl_hs20_roc_req
 	 */
 	HOT_SPOT_CMD = 0x53,
+
+	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION: Time Sync
+	 *	measurement notification for TM/FTM. Sent on receipt of
+	 *	respective WNM action frame for TM protocol or public action
+	 *	frame for FTM protocol from peer device along with additional
+	 *	meta data specified in &struct iwl_time_msmt_notify
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_NOTIFICATION = 0x67,
+
+	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION: Time Sync
+	 *	measurement confirmation notification for TM/FTM. Sent on
+	 *	receipt of Ack from peer for previously Tx'ed TM/FTM
+	 *	action frame along with additional meta data specified in
+	 *	&struct iwl_time_msmt_cfm_notify
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NOTIFICATION = 0x68,
 
 	/**
 	 * @SCAN_OFFLOAD_COMPLETE:
@@ -515,12 +529,6 @@ enum iwl_legacy_cmds {
 	PROT_OFFLOAD_CONFIG_CMD = 0xd4,
 
 	/**
-	 * @OFFLOADS_QUERY_CMD:
-	 * No data in command, response in &struct iwl_wowlan_status
-	 */
-	OFFLOADS_QUERY_CMD = 0xd5,
-
-	/**
 	 * @D0I3_END_CMD: End D0i3/D3 state, no command data
 	 */
 	D0I3_END_CMD = 0xed,
@@ -547,18 +555,22 @@ enum iwl_legacy_cmds {
 	WOWLAN_TKIP_PARAM = 0xe3,
 
 	/**
-	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd
+	 * @WOWLAN_KEK_KCK_MATERIAL: &struct iwl_wowlan_kek_kck_material_cmd_v2,
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v3 or
+	 * &struct iwl_wowlan_kek_kck_material_cmd_v4
 	 */
 	WOWLAN_KEK_KCK_MATERIAL = 0xe4,
 
 	/**
-	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status
+	 * @WOWLAN_GET_STATUSES: response in &struct iwl_wowlan_status_v6,
+	 *	&struct iwl_wowlan_status_v7, &struct iwl_wowlan_status_v9 or
+	 *	&struct iwl_wowlan_status_v12
 	 */
 	WOWLAN_GET_STATUSES = 0xe5,
 
 	/**
-	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD:
-	 * No command data, response is &struct iwl_scan_offload_profiles_query
+	 * @SCAN_OFFLOAD_PROFILES_QUERY_CMD: No command data, response is
+	 *	&struct iwl_scan_offload_profiles_query_v1
 	 */
 	SCAN_OFFLOAD_PROFILES_QUERY_CMD = 0x56,
 };

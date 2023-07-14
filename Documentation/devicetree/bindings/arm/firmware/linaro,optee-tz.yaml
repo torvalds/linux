@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/firmware/linaro,optee-tz.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: OP-TEE Device Tree Bindings
+title: OP-TEE
 
 maintainers:
   - Jens Wiklander <jens.wiklander@linaro.org>
@@ -28,7 +28,8 @@ properties:
     maxItems: 1
     description: |
       This interrupt which is used to signal an event by the secure world
-      software is expected to be edge-triggered.
+      software is expected to be either a per-cpu interrupt or an
+      edge-triggered peripheral interrupt.
 
   method:
     enum: [smc, hvc]

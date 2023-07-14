@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * DTS file for SPEAr320 SoC
+ *
+ * Copyright 2012 Viresh Kumar <vireshk@kernel.org>
+ */
+
+/include/ "spear3xx.dtsi"
+
+/ {
+	ahb {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x40000000 0x40000000 0x80000000
+			  0xd0000000 0xd0000000 0x30000000>;
+
+		pinmux: pinmux@b3000000 {
+			compatible = "st,spear320-pinmux";
+			reg = <0xb3000000 0x1000>;
+			#gpio-range-cells = <3>;
+		};
+
+		clcd@90000000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0x90000000 0x1000>;
+			interrupts = <8>;
+			interrupt-parent = <&shirq>;
+			status = "disabled";
+		};
+
+		fsmc: flash@4c000000 {
+			compatible = "st,spear600-fsmc-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x4c000000 0x1000	/* FSMC Register */
+			       0x50000000 0x0010	/* NAND Base DATA */
+			       0x50020000 0x0010	/* NAND Base ADDR */
+			       0x50010000 0x0010>;	/* NAND Base CMD */
+			reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+			status = "disabled";
+		};
+
+		sdhci@70000000 {
+			compatible = "st,sdhci-spear";
+			reg = <0x70000000 0x100>;
+			interrupts = <10>;
+			interrupt-parent = <&shirq>;
+			status = "disabled";
+		};
+
+		shirq: interrupt-controller@b3000000 {
+			compatible = "st,spear320-shirq";
+			reg = <0xb3000000 0x1000>;
+			interrupts = <30 28 29 1>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+		};
+
+		spi1: spi@a5000000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0xa5000000 0x1000>;
+			interrupts = <15>;
+			interrupt-parent = <&shirq>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		spi2: spi@a6000000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0xa6000000 0x1000>;
+			interrupts = <16>;
+			interrupt-parent = <&shirq>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		pwm: pwm@a8000000 {
+			compatible = "st,spear-pwm";
+			reg = <0xa8000000 0x1000>;
+			#pwm-cells = <2>;
+			status = "disabled";
+                };
+
+		apb {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			ranges = <0xa0000000 0xa0000000 0x20000000
+				  0xd0000000 0xd0000000 0x30000000>;
+
+			i2c1: i2c@a7000000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0xa7000000 0x1000>;
+				interrupts = <21>;
+				interrupt-parent = <&shirq>;
+				status = "disabled";
+			};
+
+			serial@a3000000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xa3000000 0x1000>;
+				interrupts = <13>;
+				interrupt-parent = <&shirq>;
+				status = "disabled";
+			};
+
+			serial@a4000000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0xa4000000 0x1000>;
+				interrupts = <14>;
+				interrupt-parent = <&shirq>;
+				status = "disabled";
+			};
+
+			gpiopinctrl: gpio@b3000000 {
+				compatible = "st,spear-plgpio";
+				reg = <0xb3000000 0x1000>;
+				regmap = <&pinmux>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&pinmux 0 0 102>;
+				status = "disabled";
+
+				st-plgpio,ngpio = <102>;
+				st-plgpio,enb-reg = <0x24>;
+				st-plgpio,wdata-reg = <0x34>;
+				st-plgpio,dir-reg = <0x44>;
+				st-plgpio,ie-reg = <0x64>;
+				st-plgpio,rdata-reg = <0x54>;
+				st-plgpio,mis-reg = <0x84>;
+				st-plgpio,eit-reg = <0x94>;
+			};
+		};
+	};
+};

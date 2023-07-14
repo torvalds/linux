@@ -10,17 +10,15 @@
 
 #include <linux/compiler_types.h>
 #include <linux/export.h>
-#include <linux/jump_label.h>
 #include <linux/stringify.h>
 #include <asm/alternative.h>
+#include <asm/alternative-macros.h>
 #include <asm/atomic_lse.h>
 #include <asm/cpucaps.h>
 
-extern struct static_key_false cpu_hwcap_keys[ARM64_NCAPS];
-
 static __always_inline bool system_uses_lse_atomics(void)
 {
-	return static_branch_likely(&cpu_hwcap_keys[ARM64_HAS_LSE_ATOMICS]);
+	return alternative_has_cap_likely(ARM64_HAS_LSE_ATOMICS);
 }
 
 #define __lse_ll_sc_body(op, ...)					\

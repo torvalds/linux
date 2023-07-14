@@ -65,7 +65,7 @@ struct vb2_buffer;
  *		 DMABUF memory types.
  * @get_userptr: acquire userspace memory for a hardware operation; used for
  *		 USERPTR memory types; vaddr is the address passed to the
- *		 videobuf layer when queuing a video buffer of USERPTR type;
+ *		 videobuf2 layer when queuing a video buffer of USERPTR type;
  *		 should return an allocator private per-buffer structure
  *		 associated with the buffer on success, ERR_PTR() on failure;
  *		 the returned private structure will then be passed as @buf_priv
@@ -97,7 +97,7 @@ struct vb2_buffer;
  *		associated with the passed private structure or NULL if not
  *		available.
  * @num_users:	return the current number of users of a memory buffer;
- *		return 1 if the videobuf layer (or actually the driver using
+ *		return 1 if the videobuf2 layer (or actually the driver using
  *		it) is the only user.
  * @mmap:	setup a userspace mapping for a given memory buffer under
  *		the provided virtual memory region.
@@ -210,11 +210,11 @@ enum vb2_io_modes {
  * enum vb2_buffer_state - current video buffer state.
  * @VB2_BUF_STATE_DEQUEUED:	buffer under userspace control.
  * @VB2_BUF_STATE_IN_REQUEST:	buffer is queued in media request.
- * @VB2_BUF_STATE_PREPARING:	buffer is being prepared in videobuf.
- * @VB2_BUF_STATE_QUEUED:	buffer queued in videobuf, but not in driver.
+ * @VB2_BUF_STATE_PREPARING:	buffer is being prepared in videobuf2.
+ * @VB2_BUF_STATE_QUEUED:	buffer queued in videobuf2, but not in driver.
  * @VB2_BUF_STATE_ACTIVE:	buffer queued in driver and possibly used
  *				in a hardware operation.
- * @VB2_BUF_STATE_DONE:		buffer returned from driver to videobuf, but
+ * @VB2_BUF_STATE_DONE:		buffer returned from driver to videobuf2, but
  *				not yet dequeued to userspace.
  * @VB2_BUF_STATE_ERROR:	same as above, but the operation on the buffer
  *				has ended with an error, which will be reported
@@ -386,6 +386,12 @@ struct vb2_buffer {
  *			the buffer contents will be ignored anyway.
  * @buf_cleanup:	called once before the buffer is freed; drivers may
  *			perform any additional cleanup; optional.
+ * @prepare_streaming:	called once to prepare for 'streaming' state; this is
+ *			where validation can be done to verify everything is
+ *			okay and streaming resources can be claimed. It is
+ *			called when the VIDIOC_STREAMON ioctl is called. The
+ *			actual streaming starts when @start_streaming is called.
+ *			Optional.
  * @start_streaming:	called once to enter 'streaming' state; the driver may
  *			receive buffers with @buf_queue callback
  *			before @start_streaming is called; the driver gets the
@@ -405,6 +411,10 @@ struct vb2_buffer {
  *			callback by calling vb2_buffer_done() with either
  *			%VB2_BUF_STATE_DONE or %VB2_BUF_STATE_ERROR; may use
  *			vb2_wait_for_all_buffers() function
+ * @unprepare_streaming:called as counterpart to @prepare_streaming; any claimed
+ *			streaming resources can be released here. It is
+ *			called when the VIDIOC_STREAMOFF ioctls is called or
+ *			when the streaming filehandle is closed. Optional.
  * @buf_queue:		passes buffer vb to the driver; driver may start
  *			hardware operation on this buffer; driver should give
  *			the buffer back by calling vb2_buffer_done() function;
@@ -432,8 +442,10 @@ struct vb2_ops {
 	void (*buf_finish)(struct vb2_buffer *vb);
 	void (*buf_cleanup)(struct vb2_buffer *vb);
 
+	int (*prepare_streaming)(struct vb2_queue *q);
 	int (*start_streaming)(struct vb2_queue *q, unsigned int count);
 	void (*stop_streaming)(struct vb2_queue *q);
+	void (*unprepare_streaming)(struct vb2_queue *q);
 
 	void (*buf_queue)(struct vb2_buffer *vb);
 
@@ -466,7 +478,7 @@ struct vb2_buf_ops {
 };
 
 /**
- * struct vb2_queue - a videobuf queue.
+ * struct vb2_queue - a videobuf2 queue.
  *
  * @type:	private buffer type whose content is defined by the vb2-core
  *		caller. For example, for V4L2, it should match
@@ -544,7 +556,7 @@ struct vb2_buf_ops {
  * @mmap_lock:	private mutex used when buffers are allocated/freed/mmapped
  * @memory:	current memory type used
  * @dma_dir:	DMA mapping direction.
- * @bufs:	videobuf buffer structures
+ * @bufs:	videobuf2 buffer structures
  * @num_buffers: number of allocated/used buffers
  * @queued_list: list of buffers currently queued from userspace
  * @queued_count: number of buffers queued and ready for streaming.
@@ -641,8 +653,10 @@ struct vb2_queue {
 	u32				cnt_queue_setup;
 	u32				cnt_wait_prepare;
 	u32				cnt_wait_finish;
+	u32				cnt_prepare_streaming;
 	u32				cnt_start_streaming;
 	u32				cnt_stop_streaming;
+	u32				cnt_unprepare_streaming;
 #endif
 };
 
@@ -683,7 +697,7 @@ void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no);
 void *vb2_plane_cookie(struct vb2_buffer *vb, unsigned int plane_no);
 
 /**
- * vb2_buffer_done() - inform videobuf that an operation on a buffer
+ * vb2_buffer_done() - inform videobuf2 that an operation on a buffer
  *	is finished.
  * @vb:		pointer to &struct vb2_buffer to be used.
  * @state:	state of the buffer, as defined by &enum vb2_buffer_state.

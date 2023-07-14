@@ -33,8 +33,6 @@ static struct clk *ac97conf_clk;
 static int reset_gpio;
 static void __iomem *ac97_reg_base;
 
-extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
-
 /*
  * Beware PXA27x bugs:
  *
@@ -402,8 +400,10 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 		goto err_clk2;
 
 	irq = platform_get_irq(dev, 0);
-	if (!irq)
+	if (irq < 0) {
+		ret = irq;
 		goto err_irq;
+	}
 
 	ret = request_irq(irq, pxa2xx_ac97_irq, 0, "AC97", NULL);
 	if (ret < 0)

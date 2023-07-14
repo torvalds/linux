@@ -11,23 +11,18 @@ that can be viewed via existing tools, such as ftrace and perf.
 To enable this feature, build your kernel with CONFIG_USER_EVENTS=y.
 
 Programs can view status of the events via
-/sys/kernel/debug/tracing/user_events_status and can both register and write
-data out via /sys/kernel/debug/tracing/user_events_data.
-
-Programs can also use /sys/kernel/debug/tracing/dynamic_events to register and
-delete user based events via the u: prefix. The format of the command to
-dynamic_events is the same as the ioctl with the u: prefix applied.
+/sys/kernel/tracing/user_events_status and can both register and write
+data out via /sys/kernel/tracing/user_events_data.
 
 Typically programs will register a set of events that they wish to expose to
 tools that can read trace_events (such as ftrace and perf). The registration
-process gives back two ints to the program for each event. The first int is the
-status index. This index describes which byte in the
-/sys/kernel/debug/tracing/user_events_status file represents this event. The
-second int is the write index. This index describes the data when a write() or
-writev() is called on the /sys/kernel/debug/tracing/user_events_data file.
+process tells the kernel which address and bit to reflect if any tool has
+enabled the event and data should be written. The registration will give back
+a write index which describes the data when a write() or writev() is called
+on the /sys/kernel/tracing/user_events_data file.
 
-The structures referenced in this document are contained with the
-/include/uap/linux/user_events.h file in the source tree.
+The structures referenced in this document are contained within the
+/include/uapi/linux/user_events.h file in the source tree.
 
 **NOTE:** *Both user_events_status and user_events_data are under the tracefs
 filesystem and may be mounted at different paths than above.*
@@ -35,29 +30,70 @@ filesystem and may be mounted at different paths than above.*
 Registering
 -----------
 Registering within a user process is done via ioctl() out to the
-/sys/kernel/debug/tracing/user_events_data file. The command to issue is
+/sys/kernel/tracing/user_events_data file. The command to issue is
 DIAG_IOCSREG.
 
-This command takes a struct user_reg as an argument::
+This command takes a packed struct user_reg as an argument::
 
   struct user_reg {
-        u32 size;
-        u64 name_args;
-        u32 status_index;
-        u32 write_index;
-  };
+        /* Input: Size of the user_reg structure being used */
+        __u32 size;
 
-The struct user_reg requires two inputs, the first is the size of the structure
-to ensure forward and backward compatibility. The second is the command string
-to issue for registering. Upon success two outputs are set, the status index
-and the write index.
+        /* Input: Bit in enable address to use */
+        __u8 enable_bit;
+
+        /* Input: Enable size in bytes at address */
+        __u8 enable_size;
+
+        /* Input: Flags for future use, set to 0 */
+        __u16 flags;
+
+        /* Input: Address to update when enabled */
+        __u64 enable_addr;
+
+        /* Input: Pointer to string with event name, description and flags */
+        __u64 name_args;
+
+        /* Output: Index of the event to use when writing data */
+        __u32 write_index;
+  } __attribute__((__packed__));
+
+The struct user_reg requires all the above inputs to be set appropriately.
+
++ size: This must be set to sizeof(struct user_reg).
+
++ enable_bit: The bit to reflect the event status at the address specified by
+  enable_addr.
+
++ enable_size: The size of the value specified by enable_addr.
+  This must be 4 (32-bit) or 8 (64-bit). 64-bit values are only allowed to be
+  used on 64-bit kernels, however, 32-bit can be used on all kernels.
+
++ flags: The flags to use, if any. For the initial version this must be 0.
+  Callers should first attempt to use flags and retry without flags to ensure
+  support for lower versions of the kernel. If a flag is not supported -EINVAL
+  is returned.
+
++ enable_addr: The address of the value to use to reflect event status. This
+  must be naturally aligned and write accessible within the user program.
+
++ name_args: The name and arguments to describe the event, see command format
+  for details.
+
+Upon successful registration the following is set.
+
++ write_index: The index to use for this file descriptor that represents this
+  event when writing out data. The index is unique to this instance of the file
+  descriptor that was used for the registration. See writing data for details.
 
 User based events show up under tracefs like any other event under the
 subsystem named "user_events". This means tools that wish to attach to the
-events need to use /sys/kernel/debug/tracing/events/user_events/[name]/enable
+events need to use /sys/kernel/tracing/events/user_events/[name]/enable
 or perf record -e user_events:[name] when attaching/recording.
 
-**NOTE:** *The write_index returned is only valid for the FD that was used*
+**NOTE:** The event subsystem name by default is "user_events". Callers should
+not assume it will always be "user_events". Operators reserve the right in the
+future to change the subsystem name per-process to accomodate event isolation.
 
 Command Format
 ^^^^^^^^^^^^^^
@@ -94,9 +130,9 @@ Would be represented by the following field::
   struct mytype myname 20
 
 Deleting
------------
+--------
 Deleting an event from within a user process is done via ioctl() out to the
-/sys/kernel/debug/tracing/user_events_data file. The command to issue is
+/sys/kernel/tracing/user_events_data file. The command to issue is
 DIAG_IOCSDEL.
 
 This command only requires a single string specifying the event to delete by
@@ -104,62 +140,82 @@ its name. Delete will only succeed if there are no references left to the
 event (in both user and kernel space). User programs should use a separate file
 to request deletes than the one used for registration due to this.
 
+**NOTE:** By default events will auto-delete when there are no references left
+to the event. Flags in the future may change this logic.
+
+Unregistering
+-------------
+If after registering an event it is no longer wanted to be updated then it can
+be disabled via ioctl() out to the /sys/kernel/tracing/user_events_data file.
+The command to issue is DIAG_IOCSUNREG. This is different than deleting, where
+deleting actually removes the event from the system. Unregistering simply tells
+the kernel your process is no longer interested in updates to the event.
+
+This command takes a packed struct user_unreg as an argument::
+
+  struct user_unreg {
+        /* Input: Size of the user_unreg structure being used */
+        __u32 size;
+
+        /* Input: Bit to unregister */
+        __u8 disable_bit;
+
+        /* Input: Reserved, set to 0 */
+        __u8 __reserved;
+
+        /* Input: Reserved, set to 0 */
+        __u16 __reserved2;
+
+        /* Input: Address to unregister */
+        __u64 disable_addr;
+  } __attribute__((__packed__));
+
+The struct user_unreg requires all the above inputs to be set appropriately.
+
++ size: This must be set to sizeof(struct user_unreg).
+
++ disable_bit: This must be set to the bit to disable (same bit that was
+  previously registered via enable_bit).
+
++ disable_addr: This must be set to the address to disable (same address that was
+  previously registered via enable_addr).
+
+**NOTE:** Events are automatically unregistered when execve() is invoked. During
+fork() the registered events will be retained and must be unregistered manually
+in each process if wanted.
+
 Status
 ------
 When tools attach/record user based events the status of the event is updated
 in realtime. This allows user programs to only incur the cost of the write() or
 writev() calls when something is actively attached to the event.
 
-User programs call mmap() on /sys/kernel/debug/tracing/user_events_status to
-check the status for each event that is registered. The byte to check in the
-file is given back after the register ioctl() via user_reg.status_index.
-Currently the size of user_events_status is a single page, however, custom
-kernel configurations can change this size to allow more user based events. In
-all cases the size of the file is a multiple of a page size.
-
-For example, if the register ioctl() gives back a status_index of 3 you would
-check byte 3 of the returned mmap data to see if anything is attached to that
-event.
+The kernel will update the specified bit that was registered for the event as
+tools attach/detach from the event. User programs simply check if the bit is set
+to see if something is attached or not.
 
 Administrators can easily check the status of all registered events by reading
 the user_events_status file directly via a terminal. The output is as follows::
 
-  Byte:Name [# Comments]
+  Name [# Comments]
   ...
 
   Active: ActiveCount
   Busy: BusyCount
-  Max: MaxCount
 
 For example, on a system that has a single event the output looks like this::
 
-  1:test
+  test
 
   Active: 1
   Busy: 0
-  Max: 4096
 
 If a user enables the user event via ftrace, the output would change to this::
 
-  1:test # Used by ftrace
+  test # Used by ftrace
 
   Active: 1
   Busy: 1
-  Max: 4096
-
-**NOTE:** *A status index of 0 will never be returned. This allows user
-programs to have an index that can be used on error cases.*
-
-Status Bits
-^^^^^^^^^^^
-The byte being checked will be non-zero if anything is attached. Programs can
-check specific bits in the byte to see what mechanism has been attached.
-
-The following values are defined to aid in checking what has been attached:
-
-**EVENT_STATUS_FTRACE** - Bit set if ftrace has been attached (Bit 0).
-
-**EVENT_STATUS_PERF** - Bit set if perf has been attached (Bit 1).
 
 Writing Data
 ------------
@@ -187,7 +243,7 @@ For example, if I have a struct like this::
         int src;
         int dst;
         int flags;
-  };
+  } __attribute__((__packed__));
 
 It's advised for user programs to do the following::
 

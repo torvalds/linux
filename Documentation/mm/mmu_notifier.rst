@@ -1,5 +1,3 @@
-.. _mmu_notifier:
-
 When do you need to notify inside page table lock ?
 ===================================================
 

@@ -1,0 +1,45 @@
+# Head objects
+#
+# The objects listed here are placed at the head of vmlinux. A typical use-case
+# is an object that contains the entry point. This is kept for compatibility
+# with head-y, which Kbuild used to support.
+#
+# A counter approach is to control the section placement by the linker script.
+# The code marked as __HEAD goes into the ".head.text" section, which is placed
+# before the normal ".text" section.
+#
+# If you can achieve the correct code ordering by linker script, please delete
+# the entry from this file.
+#
+arch/alpha/kernel/head.o
+arch/arc/kernel/head.o
+arch/arm/kernel/head-nommu.o
+arch/arm/kernel/head.o
+arch/csky/kernel/head.o
+arch/hexagon/kernel/head.o
+arch/ia64/kernel/head.o
+arch/loongarch/kernel/head.o
+arch/m68k/68000/head.o
+arch/m68k/coldfire/head.o
+arch/m68k/kernel/head.o
+arch/m68k/kernel/sun3-head.o
+arch/microblaze/kernel/head.o
+arch/mips/kernel/head.o
+arch/nios2/kernel/head.o
+arch/openrisc/kernel/head.o
+arch/parisc/kernel/head.o
+arch/powerpc/kernel/head_40x.o
+arch/powerpc/kernel/head_44x.o
+arch/powerpc/kernel/head_64.o
+arch/powerpc/kernel/head_8xx.o
+arch/powerpc/kernel/head_85xx.o
+arch/powerpc/kernel/head_book3s_32.o
+arch/powerpc/kernel/prom_entry_64.o
+arch/powerpc/kernel/fpu.o
+arch/powerpc/kernel/vector.o
+arch/powerpc/kernel/prom_init.o
+arch/s390/kernel/head64.o
+arch/sh/kernel/head_32.o
+arch/sparc/kernel/head_32.o
+arch/sparc/kernel/head_64.o
+arch/xtensa/kernel/head.o

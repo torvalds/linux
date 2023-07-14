@@ -88,8 +88,7 @@ static const struct iio_info dmard09_info = {
 	.read_raw	= dmard09_read_raw,
 };
 
-static int dmard09_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dmard09_probe(struct i2c_client *client)
 {
 	int ret;
 	struct iio_dev *indio_dev;

@@ -18,6 +18,21 @@
 
 static void __ap_flush_queue(struct ap_queue *aq);
 
+/*
+ * some AP queue helper functions
+ */
+
+static inline bool ap_q_supports_bind(struct ap_queue *aq)
+{
+	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11) ||
+		ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL);
+}
+
+static inline bool ap_q_supports_assoc(struct ap_queue *aq)
+{
+	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11);
+}
+
 /**
  * ap_queue_enable_irq(): Enable interrupt support on this AP queue.
  * @aq: The AP queue
@@ -29,12 +44,14 @@ static void __ap_flush_queue(struct ap_queue *aq);
  */
 static int ap_queue_enable_irq(struct ap_queue *aq, void *ind)
 {
+	union ap_qirq_ctrl qirqctrl = { .value = 0 };
 	struct ap_queue_status status;
-	struct ap_qirq_ctrl qirqctrl = { 0 };
 
 	qirqctrl.ir = 1;
 	qirqctrl.isc = AP_ISC;
 	status = ap_aqic(aq->qid, qirqctrl, virt_to_phys(ind));
+	if (status.async)
+		return -EPERM;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_OTHERWISE_CHANGED:
@@ -59,7 +76,7 @@ static int ap_queue_enable_irq(struct ap_queue *aq, void *ind)
  * @qid: The AP queue number
  * @psmid: The program supplied message identifier
  * @msg: The message text
- * @length: The message length
+ * @msglen: The message length
  * @special: Special Bit
  *
  * Returns AP queue status structure.
@@ -68,19 +85,21 @@ static int ap_queue_enable_irq(struct ap_queue *aq, void *ind)
  * because a segment boundary was reached. The NQAP is repeated.
  */
 static inline struct ap_queue_status
-__ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length,
+__ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen,
 	  int special)
 {
 	if (special)
 		qid |= 0x400000UL;
-	return ap_nqap(qid, psmid, msg, length);
+	return ap_nqap(qid, psmid, msg, msglen);
 }
 
-int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
+int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen)
 {
 	struct ap_queue_status status;
 
-	status = __ap_send(qid, psmid, msg, length, 0);
+	status = __ap_send(qid, psmid, msg, msglen, 0);
+	if (status.async)
+		return -EPERM;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -95,13 +114,15 @@ int ap_send(ap_qid_t qid, unsigned long long psmid, void *msg, size_t length)
 }
 EXPORT_SYMBOL(ap_send);
 
-int ap_recv(ap_qid_t qid, unsigned long long *psmid, void *msg, size_t length)
+int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen)
 {
 	struct ap_queue_status status;
 
 	if (!msg)
 		return -EINVAL;
-	status = ap_dqap(qid, psmid, msg, length, NULL, NULL);
+	status = ap_dqap(qid, psmid, msg, msglen, NULL, NULL, NULL);
+	if (status.async)
+		return -EPERM;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		return 0;
@@ -150,7 +171,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 	do {
 		status = ap_dqap(aq->qid, &aq->reply->psmid,
 				 aq->reply->msg, aq->reply->bufsize,
-				 &reslen, &resgr0);
+				 &aq->reply->len, &reslen, &resgr0);
 		parts++;
 	} while (status.response_code == 0xFF && resgr0 != 0);
 
@@ -177,7 +198,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 			break;
 		}
 		if (!found) {
-			AP_DBF_WARN("%s unassociated reply psmid=0x%016llx on 0x%02x.%04x\n",
+			AP_DBF_WARN("%s unassociated reply psmid=0x%016lx on 0x%02x.%04x\n",
 				    __func__, aq->reply->psmid,
 				    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		}
@@ -210,6 +231,8 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 	if (!aq->reply)
 		return AP_SM_WAIT_NONE;
 	status = ap_sm_recv(aq);
+	if (status.async)
+		return AP_SM_WAIT_NONE;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		if (aq->queue_count > 0) {
@@ -221,7 +244,7 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (aq->queue_count > 0)
 			return aq->interrupt ?
-				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_TIMEOUT;
+				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 		aq->sm_state = AP_SM_STATE_IDLE;
 		return AP_SM_WAIT_NONE;
 	default:
@@ -251,16 +274,11 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 
 	/* Start the next request on the queue. */
 	ap_msg = list_entry(aq->requestq.next, struct ap_message, list);
-#ifdef CONFIG_ZCRYPT_DEBUG
-	if (ap_msg->fi.action == AP_FI_ACTION_NQAP_QID_INVAL) {
-		AP_DBF_WARN("%s fi cmd 0x%04x: forcing invalid qid 0xFF00\n",
-			    __func__, ap_msg->fi.cmd);
-		qid = 0xFF00;
-	}
-#endif
 	status = __ap_send(qid, ap_msg->psmid,
 			   ap_msg->msg, ap_msg->len,
 			   ap_msg->flags & AP_MSG_FLAG_SPECIAL);
+	if (status.async)
+		return AP_SM_WAIT_NONE;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 		aq->queue_count = max_t(int, 1, aq->queue_count + 1);
@@ -277,10 +295,10 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 	case AP_RESPONSE_Q_FULL:
 		aq->sm_state = AP_SM_STATE_QUEUE_FULL;
 		return aq->interrupt ?
-			AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_TIMEOUT;
+			AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	case AP_RESPONSE_INVALID_DOMAIN:
 		AP_DBF_WARN("%s RESPONSE_INVALID_DOMAIN on NQAP\n", __func__);
 		fallthrough;
@@ -322,13 +340,16 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 {
 	struct ap_queue_status status;
 
-	status = ap_rapq(aq->qid);
+	status = ap_rapq(aq->qid, aq->rapq_fbit);
+	if (status.async)
+		return AP_SM_WAIT_NONE;
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
 		aq->interrupt = false;
-		return AP_SM_WAIT_TIMEOUT;
+		aq->rapq_fbit = 0;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
@@ -368,7 +389,7 @@ static enum ap_sm_wait ap_sm_reset_wait(struct ap_queue *aq)
 		return AP_SM_WAIT_AGAIN;
 	case AP_RESPONSE_BUSY:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	case AP_RESPONSE_Q_NOT_AVAIL:
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
@@ -412,12 +433,65 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 			return AP_SM_WAIT_AGAIN;
 		fallthrough;
 	case AP_RESPONSE_NO_PENDING_REPLY:
-		return AP_SM_WAIT_TIMEOUT;
+		return AP_SM_WAIT_LOW_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
 		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
 			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return AP_SM_WAIT_NONE;
+	}
+}
+
+/**
+ * ap_sm_assoc_wait(): Test queue for completion of a pending
+ *		       association request.
+ * @aq: pointer to the AP queue
+ */
+static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
+{
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	/* handle asynchronous error on this queue */
+	if (status.async && status.response_code) {
+		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s asynch RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return AP_SM_WAIT_NONE;
+	}
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s RC 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return AP_SM_WAIT_NONE;
+	}
+
+	/* check bs bits */
+	switch (info.bs) {
+	case AP_BS_Q_USABLE:
+		/* association is through */
+		aq->sm_state = AP_SM_STATE_IDLE;
+		AP_DBF_DBG("%s queue 0x%02x.%04x associated with %u\n",
+			   __func__, AP_QID_CARD(aq->qid),
+			   AP_QID_QUEUE(aq->qid), aq->assoc_idx);
+		return AP_SM_WAIT_NONE;
+	case AP_BS_Q_USABLE_NO_SECURE_KEY:
+		/* association still pending */
+		return AP_SM_WAIT_LOW_TIMEOUT;
+	default:
+		/* reset from 'outside' happened or no idea at all */
+		aq->assoc_idx = ASSOC_IDX_INVALID;
+		aq->dev_state = AP_DEV_STATE_ERROR;
+		aq->last_err_rc = status.response_code;
+		AP_DBF_WARN("%s bs 0x%02x on 0x%02x.%04x -> AP_DEV_STATE_ERROR\n",
+			    __func__, info.bs,
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
@@ -449,6 +523,10 @@ static ap_func_t *ap_jumptable[NR_AP_SM_STATES][NR_AP_SM_EVENTS] = {
 	},
 	[AP_SM_STATE_QUEUE_FULL] = {
 		[AP_SM_EVENT_POLL] = ap_sm_read,
+		[AP_SM_EVENT_TIMEOUT] = ap_sm_reset,
+	},
+	[AP_SM_STATE_ASSOC_WAIT] = {
+		[AP_SM_EVENT_POLL] = ap_sm_assoc_wait,
 		[AP_SM_EVENT_TIMEOUT] = ap_sm_reset,
 	},
 };
@@ -490,9 +568,9 @@ static ssize_t request_count_show(struct device *dev,
 	spin_unlock_bh(&aq->lock);
 
 	if (valid)
-		return scnprintf(buf, PAGE_SIZE, "%llu\n", req_cnt);
+		return sysfs_emit(buf, "%llu\n", req_cnt);
 	else
-		return scnprintf(buf, PAGE_SIZE, "-\n");
+		return sysfs_emit(buf, "-\n");
 }
 
 static ssize_t request_count_store(struct device *dev,
@@ -520,7 +598,7 @@ static ssize_t requestq_count_show(struct device *dev,
 	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		reqq_cnt = aq->requestq_count;
 	spin_unlock_bh(&aq->lock);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
+	return sysfs_emit(buf, "%d\n", reqq_cnt);
 }
 
 static DEVICE_ATTR_RO(requestq_count);
@@ -535,7 +613,7 @@ static ssize_t pendingq_count_show(struct device *dev,
 	if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
 		penq_cnt = aq->pendingq_count;
 	spin_unlock_bh(&aq->lock);
-	return scnprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
+	return sysfs_emit(buf, "%d\n", penq_cnt);
 }
 
 static DEVICE_ATTR_RO(pendingq_count);
@@ -550,14 +628,14 @@ static ssize_t reset_show(struct device *dev,
 	switch (aq->sm_state) {
 	case AP_SM_STATE_RESET_START:
 	case AP_SM_STATE_RESET_WAIT:
-		rc = scnprintf(buf, PAGE_SIZE, "Reset in progress.\n");
+		rc = sysfs_emit(buf, "Reset in progress.\n");
 		break;
 	case AP_SM_STATE_WORKING:
 	case AP_SM_STATE_QUEUE_FULL:
-		rc = scnprintf(buf, PAGE_SIZE, "Reset Timer armed.\n");
+		rc = sysfs_emit(buf, "Reset Timer armed.\n");
 		break;
 	default:
-		rc = scnprintf(buf, PAGE_SIZE, "No Reset Timer set.\n");
+		rc = sysfs_emit(buf, "No Reset Timer set.\n");
 	}
 	spin_unlock_bh(&aq->lock);
 	return rc;
@@ -591,11 +669,11 @@ static ssize_t interrupt_show(struct device *dev,
 
 	spin_lock_bh(&aq->lock);
 	if (aq->sm_state == AP_SM_STATE_SETIRQ_WAIT)
-		rc = scnprintf(buf, PAGE_SIZE, "Enable Interrupt pending.\n");
+		rc = sysfs_emit(buf, "Enable Interrupt pending.\n");
 	else if (aq->interrupt)
-		rc = scnprintf(buf, PAGE_SIZE, "Interrupts enabled.\n");
+		rc = sysfs_emit(buf, "Interrupts enabled.\n");
 	else
-		rc = scnprintf(buf, PAGE_SIZE, "Interrupts disabled.\n");
+		rc = sysfs_emit(buf, "Interrupts disabled.\n");
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
@@ -609,7 +687,7 @@ static ssize_t config_show(struct device *dev,
 	int rc;
 
 	spin_lock_bh(&aq->lock);
-	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->config ? 1 : 0);
+	rc = sysfs_emit(buf, "%d\n", aq->config ? 1 : 0);
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
@@ -623,12 +701,32 @@ static ssize_t chkstop_show(struct device *dev,
 	int rc;
 
 	spin_lock_bh(&aq->lock);
-	rc = scnprintf(buf, PAGE_SIZE, "%d\n", aq->chkstop ? 1 : 0);
+	rc = sysfs_emit(buf, "%d\n", aq->chkstop ? 1 : 0);
 	spin_unlock_bh(&aq->lock);
 	return rc;
 }
 
 static DEVICE_ATTR_RO(chkstop);
+
+static ssize_t ap_functions_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			   __func__, status.response_code,
+			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+
+	return sysfs_emit(buf, "0x%08X\n", info.fac);
+}
+
+static DEVICE_ATTR_RO(ap_functions);
 
 #ifdef CONFIG_ZCRYPT_DEBUG
 static ssize_t states_show(struct device *dev,
@@ -641,50 +739,46 @@ static ssize_t states_show(struct device *dev,
 	/* queue device state */
 	switch (aq->dev_state) {
 	case AP_DEV_STATE_UNINITIATED:
-		rc = scnprintf(buf, PAGE_SIZE, "UNINITIATED\n");
+		rc = sysfs_emit(buf, "UNINITIATED\n");
 		break;
 	case AP_DEV_STATE_OPERATING:
-		rc = scnprintf(buf, PAGE_SIZE, "OPERATING");
+		rc = sysfs_emit(buf, "OPERATING");
 		break;
 	case AP_DEV_STATE_SHUTDOWN:
-		rc = scnprintf(buf, PAGE_SIZE, "SHUTDOWN");
+		rc = sysfs_emit(buf, "SHUTDOWN");
 		break;
 	case AP_DEV_STATE_ERROR:
-		rc = scnprintf(buf, PAGE_SIZE, "ERROR");
+		rc = sysfs_emit(buf, "ERROR");
 		break;
 	default:
-		rc = scnprintf(buf, PAGE_SIZE, "UNKNOWN");
+		rc = sysfs_emit(buf, "UNKNOWN");
 	}
 	/* state machine state */
 	if (aq->dev_state) {
 		switch (aq->sm_state) {
 		case AP_SM_STATE_RESET_START:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [RESET_START]\n");
+			rc += sysfs_emit_at(buf, rc, " [RESET_START]\n");
 			break;
 		case AP_SM_STATE_RESET_WAIT:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [RESET_WAIT]\n");
+			rc += sysfs_emit_at(buf, rc, " [RESET_WAIT]\n");
 			break;
 		case AP_SM_STATE_SETIRQ_WAIT:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [SETIRQ_WAIT]\n");
+			rc += sysfs_emit_at(buf, rc, " [SETIRQ_WAIT]\n");
 			break;
 		case AP_SM_STATE_IDLE:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [IDLE]\n");
+			rc += sysfs_emit_at(buf, rc, " [IDLE]\n");
 			break;
 		case AP_SM_STATE_WORKING:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [WORKING]\n");
+			rc += sysfs_emit_at(buf, rc, " [WORKING]\n");
 			break;
 		case AP_SM_STATE_QUEUE_FULL:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [FULL]\n");
+			rc += sysfs_emit_at(buf, rc, " [FULL]\n");
+			break;
+		case AP_SM_STATE_ASSOC_WAIT:
+			rc += sysfs_emit_at(buf, rc, " [ASSOC_WAIT]\n");
 			break;
 		default:
-			rc += scnprintf(buf + rc, PAGE_SIZE - rc,
-					" [UNKNOWN]\n");
+			rc += sysfs_emit_at(buf, rc, " [UNKNOWN]\n");
 		}
 	}
 	spin_unlock_bh(&aq->lock);
@@ -705,33 +799,33 @@ static ssize_t last_err_rc_show(struct device *dev,
 
 	switch (rc) {
 	case AP_RESPONSE_NORMAL:
-		return scnprintf(buf, PAGE_SIZE, "NORMAL\n");
+		return sysfs_emit(buf, "NORMAL\n");
 	case AP_RESPONSE_Q_NOT_AVAIL:
-		return scnprintf(buf, PAGE_SIZE, "Q_NOT_AVAIL\n");
+		return sysfs_emit(buf, "Q_NOT_AVAIL\n");
 	case AP_RESPONSE_RESET_IN_PROGRESS:
-		return scnprintf(buf, PAGE_SIZE, "RESET_IN_PROGRESS\n");
+		return sysfs_emit(buf, "RESET_IN_PROGRESS\n");
 	case AP_RESPONSE_DECONFIGURED:
-		return scnprintf(buf, PAGE_SIZE, "DECONFIGURED\n");
+		return sysfs_emit(buf, "DECONFIGURED\n");
 	case AP_RESPONSE_CHECKSTOPPED:
-		return scnprintf(buf, PAGE_SIZE, "CHECKSTOPPED\n");
+		return sysfs_emit(buf, "CHECKSTOPPED\n");
 	case AP_RESPONSE_BUSY:
-		return scnprintf(buf, PAGE_SIZE, "BUSY\n");
+		return sysfs_emit(buf, "BUSY\n");
 	case AP_RESPONSE_INVALID_ADDRESS:
-		return scnprintf(buf, PAGE_SIZE, "INVALID_ADDRESS\n");
+		return sysfs_emit(buf, "INVALID_ADDRESS\n");
 	case AP_RESPONSE_OTHERWISE_CHANGED:
-		return scnprintf(buf, PAGE_SIZE, "OTHERWISE_CHANGED\n");
+		return sysfs_emit(buf, "OTHERWISE_CHANGED\n");
 	case AP_RESPONSE_Q_FULL:
-		return scnprintf(buf, PAGE_SIZE, "Q_FULL/NO_PENDING_REPLY\n");
+		return sysfs_emit(buf, "Q_FULL/NO_PENDING_REPLY\n");
 	case AP_RESPONSE_INDEX_TOO_BIG:
-		return scnprintf(buf, PAGE_SIZE, "INDEX_TOO_BIG\n");
+		return sysfs_emit(buf, "INDEX_TOO_BIG\n");
 	case AP_RESPONSE_NO_FIRST_PART:
-		return scnprintf(buf, PAGE_SIZE, "NO_FIRST_PART\n");
+		return sysfs_emit(buf, "NO_FIRST_PART\n");
 	case AP_RESPONSE_MESSAGE_TOO_BIG:
-		return scnprintf(buf, PAGE_SIZE, "MESSAGE_TOO_BIG\n");
+		return sysfs_emit(buf, "MESSAGE_TOO_BIG\n");
 	case AP_RESPONSE_REQ_FAC_NOT_INST:
-		return scnprintf(buf, PAGE_SIZE, "REQ_FAC_NOT_INST\n");
+		return sysfs_emit(buf, "REQ_FAC_NOT_INST\n");
 	default:
-		return scnprintf(buf, PAGE_SIZE, "response code %d\n", rc);
+		return sysfs_emit(buf, "response code %d\n", rc);
 	}
 }
 static DEVICE_ATTR_RO(last_err_rc);
@@ -745,6 +839,7 @@ static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_interrupt.attr,
 	&dev_attr_config.attr,
 	&dev_attr_chkstop.attr,
+	&dev_attr_ap_functions.attr,
 #ifdef CONFIG_ZCRYPT_DEBUG
 	&dev_attr_states.attr,
 	&dev_attr_last_err_rc.attr,
@@ -764,6 +859,186 @@ static const struct attribute_group *ap_queue_dev_attr_groups[] = {
 static struct device_type ap_queue_type = {
 	.name = "ap_queue",
 	.groups = ap_queue_dev_attr_groups,
+};
+
+static ssize_t se_bind_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	if (!ap_q_supports_bind(aq))
+		return sysfs_emit(buf, "-\n");
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			   __func__, status.response_code,
+			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+	switch (info.bs) {
+	case AP_BS_Q_USABLE:
+	case AP_BS_Q_USABLE_NO_SECURE_KEY:
+		return sysfs_emit(buf, "bound\n");
+	default:
+		return sysfs_emit(buf, "unbound\n");
+	}
+}
+
+static ssize_t se_bind_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	bool value;
+	int rc;
+
+	if (!ap_q_supports_bind(aq))
+		return -EINVAL;
+
+	/* only 0 (unbind) and 1 (bind) allowed */
+	rc = kstrtobool(buf, &value);
+	if (rc)
+		return rc;
+
+	if (value) {
+		/* bind, do BAPQ */
+		spin_lock_bh(&aq->lock);
+		if (aq->sm_state < AP_SM_STATE_IDLE) {
+			spin_unlock_bh(&aq->lock);
+			return -EBUSY;
+		}
+		status = ap_bapq(aq->qid);
+		spin_unlock_bh(&aq->lock);
+		if (status.response_code) {
+			AP_DBF_WARN("%s RC 0x%02x on bapq(0x%02x.%04x)\n",
+				    __func__, status.response_code,
+				    AP_QID_CARD(aq->qid),
+				    AP_QID_QUEUE(aq->qid));
+			return -EIO;
+		}
+	} else {
+		/* unbind, set F bit arg and trigger RAPQ */
+		spin_lock_bh(&aq->lock);
+		__ap_flush_queue(aq);
+		aq->rapq_fbit = 1;
+		aq->assoc_idx = ASSOC_IDX_INVALID;
+		aq->sm_state = AP_SM_STATE_RESET_START;
+		ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
+		spin_unlock_bh(&aq->lock);
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(se_bind);
+
+static ssize_t se_associate_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	struct ap_tapq_gr2 info;
+
+	if (!ap_q_supports_assoc(aq))
+		return sysfs_emit(buf, "-\n");
+
+	status = ap_test_queue(aq->qid, 1, &info);
+	if (status.response_code > AP_RESPONSE_BUSY) {
+		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			   __func__, status.response_code,
+			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+
+	switch (info.bs) {
+	case AP_BS_Q_USABLE:
+		if (aq->assoc_idx == ASSOC_IDX_INVALID) {
+			AP_DBF_WARN("%s AP_BS_Q_USABLE but invalid assoc_idx\n", __func__);
+			return -EIO;
+		}
+		return sysfs_emit(buf, "associated %u\n", aq->assoc_idx);
+	case AP_BS_Q_USABLE_NO_SECURE_KEY:
+		if (aq->assoc_idx != ASSOC_IDX_INVALID)
+			return sysfs_emit(buf, "association pending\n");
+		fallthrough;
+	default:
+		return sysfs_emit(buf, "unassociated\n");
+	}
+}
+
+static ssize_t se_associate_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
+	unsigned int value;
+	int rc;
+
+	if (!ap_q_supports_assoc(aq))
+		return -EINVAL;
+
+	/* association index needs to be >= 0 */
+	rc = kstrtouint(buf, 0, &value);
+	if (rc)
+		return rc;
+	if (value >= ASSOC_IDX_INVALID)
+		return -EINVAL;
+
+	spin_lock_bh(&aq->lock);
+
+	/* sm should be in idle state */
+	if (aq->sm_state != AP_SM_STATE_IDLE) {
+		spin_unlock_bh(&aq->lock);
+		return -EBUSY;
+	}
+
+	/* already associated or association pending ? */
+	if (aq->assoc_idx != ASSOC_IDX_INVALID) {
+		spin_unlock_bh(&aq->lock);
+		return -EINVAL;
+	}
+
+	/* trigger the asynchronous association request */
+	status = ap_aapq(aq->qid, value);
+	switch (status.response_code) {
+	case AP_RESPONSE_NORMAL:
+	case AP_RESPONSE_STATE_CHANGE_IN_PROGRESS:
+		aq->sm_state = AP_SM_STATE_ASSOC_WAIT;
+		aq->assoc_idx = value;
+		ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
+		spin_unlock_bh(&aq->lock);
+		break;
+	default:
+		spin_unlock_bh(&aq->lock);
+		AP_DBF_WARN("%s RC 0x%02x on aapq(0x%02x.%04x)\n",
+			    __func__, status.response_code,
+			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		return -EIO;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(se_associate);
+
+static struct attribute *ap_queue_dev_sb_attrs[] = {
+	&dev_attr_se_bind.attr,
+	&dev_attr_se_associate.attr,
+	NULL
+};
+
+static struct attribute_group ap_queue_dev_sb_attr_group = {
+	.attrs = ap_queue_dev_sb_attrs
+};
+
+static const struct attribute_group *ap_queue_dev_sb_attr_groups[] = {
+	&ap_queue_dev_sb_attr_group,
+	NULL
 };
 
 static void ap_queue_device_release(struct device *dev)
@@ -787,6 +1062,9 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	aq->ap_dev.device.release = ap_queue_device_release;
 	aq->ap_dev.device.type = &ap_queue_type;
 	aq->ap_dev.device_type = device_type;
+	// add optional SE secure binding attributes group
+	if (ap_sb_available() && is_prot_virt_guest())
+		aq->ap_dev.device.groups = ap_queue_dev_sb_attr_groups;
 	aq->qid = qid;
 	aq->interrupt = false;
 	spin_lock_init(&aq->lock);
@@ -922,7 +1200,7 @@ void ap_queue_remove(struct ap_queue *aq)
 	 * to the initial value AP_DEV_STATE_UNINITIATED.
 	 */
 	spin_lock_bh(&aq->lock);
-	ap_zapq(aq->qid);
+	ap_zapq(aq->qid, 0);
 	aq->dev_state = AP_DEV_STATE_UNINITIATED;
 	spin_unlock_bh(&aq->lock);
 }
@@ -933,6 +1211,7 @@ void ap_queue_init_state(struct ap_queue *aq)
 	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
 	aq->last_err_rc = 0;
+	aq->assoc_idx = ASSOC_IDX_INVALID;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }

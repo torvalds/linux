@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/renesas,versaclock7.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas Versaclock7 Programmable Clock
+
+maintainers:
+  - Alex Helms <alexander.helms.jy@renesas.com>
+
+description: |
+  Renesas Versaclock7 is a family of configurable clock generator and
+  jitter attenuator ICs with fractional and integer dividers.
+
+properties:
+  '#clock-cells':
+    const: 1
+
+  compatible:
+    enum:
+      - renesas,rc21008a
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: External crystal or oscillator
+
+  clock-names:
+    items:
+      - const: xin
+
+required:
+  - '#clock-cells'
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    vc7_xin: clock {
+        compatible = "fixed-clock";
+        #clock-cells = <0>;
+        clock-frequency = <49152000>;
+    };
+
+    i2c@0 {
+        reg = <0x0 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        vc7: clock-controller@9 {
+            compatible = "renesas,rc21008a";
+            reg = <0x9>;
+            #clock-cells = <1>;
+            clocks = <&vc7_xin>;
+            clock-names = "xin";
+        };
+    };

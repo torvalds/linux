@@ -341,7 +341,7 @@ static ssize_t _nfs42_proc_copy(struct file *src,
 			return status;
 		}
 	}
-	status = nfs_filemap_write_and_wait_range(file_inode(src)->i_mapping,
+	status = nfs_filemap_write_and_wait_range(src->f_mapping,
 			pos_src, pos_src + (loff_t)count - 1);
 	if (status)
 		return status;
@@ -460,7 +460,8 @@ ssize_t nfs42_proc_copy(struct file *src, loff_t pos_src,
 
 		if (err >= 0)
 			break;
-		if (err == -ENOTSUPP &&
+		if ((err == -ENOTSUPP ||
+				err == -NFS4ERR_OFFLOAD_DENIED) &&
 				nfs42_files_from_same_server(src, dst)) {
 			err = -EOPNOTSUPP;
 			break;
@@ -1093,6 +1094,9 @@ static int _nfs42_proc_clone(struct rpc_message *msg, struct file *src_f,
 				&args.seq_args, &res.seq_res, 0);
 	trace_nfs4_clone(src_inode, dst_inode, &args, status);
 	if (status == 0) {
+		/* a zero-length count means clone to EOF in src */
+		if (count == 0 && res.dst_fattr->valid & NFS_ATTR_FATTR_SIZE)
+			count = nfs_size_to_loff_t(res.dst_fattr->size) - dst_offset;
 		nfs42_copy_dest_done(dst_inode, dst_offset, count);
 		status = nfs_post_op_update_inode(dst_inode, res.dst_fattr);
 	}
@@ -1175,6 +1179,7 @@ static int _nfs42_proc_removexattr(struct inode *inode, const char *name)
 
 	ret = nfs4_call_sync(server->client, server, &msg, &args.seq_args,
 	    &res.seq_res, 1);
+	trace_nfs4_removexattr(inode, name, ret);
 	if (!ret)
 		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
 
@@ -1185,15 +1190,19 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 				const void *buf, size_t buflen, int flags)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
+	__u32 bitmask[NFS_BITMASK_SZ];
 	struct page *pages[NFS4XATTR_MAXPAGES];
 	struct nfs42_setxattrargs arg = {
 		.fh		= NFS_FH(inode),
+		.bitmask	= bitmask,
 		.xattr_pages	= pages,
 		.xattr_len	= buflen,
 		.xattr_name	= name,
 		.xattr_flags	= flags,
 	};
-	struct nfs42_setxattrres res;
+	struct nfs42_setxattrres res = {
+		.server		= server,
+	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs4_procedures[NFSPROC4_CLNT_SETXATTR],
 		.rpc_argp	= &arg,
@@ -1205,22 +1214,36 @@ static int _nfs42_proc_setxattr(struct inode *inode, const char *name,
 	if (buflen > server->sxasize)
 		return -ERANGE;
 
+	res.fattr = nfs_alloc_fattr();
+	if (!res.fattr)
+		return -ENOMEM;
+
 	if (buflen > 0) {
 		np = nfs4_buf_to_pages_noslab(buf, buflen, arg.xattr_pages);
-		if (np < 0)
-			return np;
+		if (np < 0) {
+			ret = np;
+			goto out;
+		}
 	} else
 		np = 0;
 
+	nfs4_bitmask_set(bitmask, server->cache_consistency_bitmask,
+			 inode, NFS_INO_INVALID_CHANGE);
+
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 1);
+	trace_nfs4_setxattr(inode, name, ret);
 
 	for (; np > 0; np--)
 		put_page(pages[np - 1]);
 
-	if (!ret)
+	if (!ret) {
 		nfs4_update_changeattr(inode, &res.cinfo, timestamp, 0);
+		ret = nfs_post_op_update_inode(inode, res.fattr);
+	}
 
+out:
+	kfree(res.fattr);
 	return ret;
 }
 
@@ -1246,6 +1269,7 @@ static ssize_t _nfs42_proc_getxattr(struct inode *inode, const char *name,
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 0);
+	trace_nfs4_getxattr(inode, name, ret);
 	if (ret < 0)
 		return ret;
 
@@ -1317,6 +1341,7 @@ static ssize_t _nfs42_proc_listxattrs(struct inode *inode, void *buf,
 
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args,
 	    &res.seq_res, 0);
+	trace_nfs4_listxattr(inode, ret);
 
 	if (ret >= 0) {
 		ret = res.copied;

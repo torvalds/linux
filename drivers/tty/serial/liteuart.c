@@ -5,7 +5,9 @@
  * Copyright (C) 2019-2020 Antmicro <www.antmicro.com>
  */
 
+#include <linux/bits.h>
 #include <linux/console.h>
+#include <linux/interrupt.h>
 #include <linux/litex.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -38,13 +40,13 @@
 #define OFF_EV_ENABLE	0x14
 
 /* events */
-#define EV_TX		0x1
-#define EV_RX		0x2
+#define EV_TX		BIT(0)
+#define EV_RX		BIT(1)
 
 struct liteuart_port {
 	struct uart_port port;
 	struct timer_list timer;
-	u32 id;
+	u8 irq_reg;
 };
 
 #define to_liteuart_port(port)	container_of(port, struct liteuart_port, port)
@@ -57,7 +59,7 @@ static struct console liteuart_console;
 
 static struct uart_driver liteuart_driver = {
 	.owner = THIS_MODULE,
-	.driver_name = "liteuart",
+	.driver_name = KBUILD_MODNAME,
 	.dev_name = "ttyLXU",
 	.major = 0,
 	.minor = 0,
@@ -67,38 +69,95 @@ static struct uart_driver liteuart_driver = {
 #endif
 };
 
-static void liteuart_timer(struct timer_list *t)
+static void liteuart_update_irq_reg(struct uart_port *port, bool set, u8 mask)
 {
-	struct liteuart_port *uart = from_timer(uart, t, timer);
-	struct uart_port *port = &uart->port;
-	unsigned char __iomem *membase = port->membase;
-	unsigned int flg = TTY_NORMAL;
-	int ch;
-	unsigned long status;
+	struct liteuart_port *uart = to_liteuart_port(port);
 
-	while ((status = !litex_read8(membase + OFF_RXEMPTY)) == 1) {
+	if (set)
+		uart->irq_reg |= mask;
+	else
+		uart->irq_reg &= ~mask;
+
+	if (port->irq)
+		litex_write8(port->membase + OFF_EV_ENABLE, uart->irq_reg);
+}
+
+static void liteuart_stop_tx(struct uart_port *port)
+{
+	liteuart_update_irq_reg(port, false, EV_TX);
+}
+
+static void liteuart_start_tx(struct uart_port *port)
+{
+	liteuart_update_irq_reg(port, true, EV_TX);
+}
+
+static void liteuart_stop_rx(struct uart_port *port)
+{
+	struct liteuart_port *uart = to_liteuart_port(port);
+
+	/* just delete timer */
+	del_timer(&uart->timer);
+}
+
+static void liteuart_rx_chars(struct uart_port *port)
+{
+	unsigned char __iomem *membase = port->membase;
+	u8 ch;
+
+	while (!litex_read8(membase + OFF_RXEMPTY)) {
 		ch = litex_read8(membase + OFF_RXTX);
 		port->icount.rx++;
 
 		/* necessary for RXEMPTY to refresh its value */
-		litex_write8(membase + OFF_EV_PENDING, EV_TX | EV_RX);
+		litex_write8(membase + OFF_EV_PENDING, EV_RX);
 
 		/* no overflow bits in status */
 		if (!(uart_handle_sysrq_char(port, ch)))
-			uart_insert_char(port, status, 0, ch, flg);
-
-		tty_flip_buffer_push(&port->state->port);
+			uart_insert_char(port, 1, 0, ch, TTY_NORMAL);
 	}
 
-	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
+	tty_flip_buffer_push(&port->state->port);
 }
 
-static void liteuart_putchar(struct uart_port *port, unsigned char ch)
+static void liteuart_tx_chars(struct uart_port *port)
 {
-	while (litex_read8(port->membase + OFF_TXFULL))
-		cpu_relax();
+	u8 ch;
 
-	litex_write8(port->membase + OFF_RXTX, ch);
+	uart_port_tx(port, ch,
+		!litex_read8(port->membase + OFF_TXFULL),
+		litex_write8(port->membase + OFF_RXTX, ch));
+}
+
+static irqreturn_t liteuart_interrupt(int irq, void *data)
+{
+	struct liteuart_port *uart = data;
+	struct uart_port *port = &uart->port;
+	unsigned long flags;
+	u8 isr;
+
+	/*
+	 * if polling, the context would be "in_serving_softirq", so use
+	 * irq[save|restore] spin_lock variants to cover all possibilities
+	 */
+	spin_lock_irqsave(&port->lock, flags);
+	isr = litex_read8(port->membase + OFF_EV_PENDING) & uart->irq_reg;
+	if (isr & EV_RX)
+		liteuart_rx_chars(port);
+	if (isr & EV_TX)
+		liteuart_tx_chars(port);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	return IRQ_RETVAL(isr);
+}
+
+static void liteuart_timer(struct timer_list *t)
+{
+	struct liteuart_port *uart = from_timer(uart, t, timer);
+	struct uart_port *port = &uart->port;
+
+	liteuart_interrupt(0, port);
+	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
 }
 
 static unsigned int liteuart_tx_empty(struct uart_port *port)
@@ -120,65 +179,53 @@ static unsigned int liteuart_get_mctrl(struct uart_port *port)
 	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 }
 
-static void liteuart_stop_tx(struct uart_port *port)
-{
-}
-
-static void liteuart_start_tx(struct uart_port *port)
-{
-	struct circ_buf *xmit = &port->state->xmit;
-	unsigned char ch;
-
-	if (unlikely(port->x_char)) {
-		litex_write8(port->membase + OFF_RXTX, port->x_char);
-		port->icount.tx++;
-		port->x_char = 0;
-	} else if (!uart_circ_empty(xmit)) {
-		while (xmit->head != xmit->tail) {
-			ch = xmit->buf[xmit->tail];
-			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-			port->icount.tx++;
-			liteuart_putchar(port, ch);
-		}
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-}
-
-static void liteuart_stop_rx(struct uart_port *port)
-{
-	struct liteuart_port *uart = to_liteuart_port(port);
-
-	/* just delete timer */
-	del_timer(&uart->timer);
-}
-
-static void liteuart_break_ctl(struct uart_port *port, int break_state)
-{
-	/* LiteUART doesn't support sending break signal */
-}
-
 static int liteuart_startup(struct uart_port *port)
 {
 	struct liteuart_port *uart = to_liteuart_port(port);
+	unsigned long flags;
+	int ret;
 
-	/* disable events */
-	litex_write8(port->membase + OFF_EV_ENABLE, 0);
+	if (port->irq) {
+		ret = request_irq(port->irq, liteuart_interrupt, 0,
+				  KBUILD_MODNAME, uart);
+		if (ret) {
+			dev_warn(port->dev,
+				"line %d irq %d failed: switch to polling\n",
+				port->line, port->irq);
+			port->irq = 0;
+		}
+	}
 
-	/* prepare timer for polling */
-	timer_setup(&uart->timer, liteuart_timer, 0);
-	mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
+	spin_lock_irqsave(&port->lock, flags);
+	/* only enabling rx irqs during startup */
+	liteuart_update_irq_reg(port, true, EV_RX);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (!port->irq) {
+		timer_setup(&uart->timer, liteuart_timer, 0);
+		mod_timer(&uart->timer, jiffies + uart_poll_timeout(port));
+	}
 
 	return 0;
 }
 
 static void liteuart_shutdown(struct uart_port *port)
 {
+	struct liteuart_port *uart = to_liteuart_port(port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&port->lock, flags);
+	liteuart_update_irq_reg(port, false, EV_RX | EV_TX);
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	if (port->irq)
+		free_irq(port->irq, port);
+	else
+		del_timer_sync(&uart->timer);
 }
 
 static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,
-				 struct ktermios *old)
+				 const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned long flags;
@@ -195,15 +242,6 @@ static void liteuart_set_termios(struct uart_port *port, struct ktermios *new,
 static const char *liteuart_type(struct uart_port *port)
 {
 	return "liteuart";
-}
-
-static void liteuart_release_port(struct uart_port *port)
-{
-}
-
-static int liteuart_request_port(struct uart_port *port)
-{
-	return 0;
 }
 
 static void liteuart_config_port(struct uart_port *port, int flags)
@@ -232,13 +270,10 @@ static const struct uart_ops liteuart_ops = {
 	.stop_tx	= liteuart_stop_tx,
 	.start_tx	= liteuart_start_tx,
 	.stop_rx	= liteuart_stop_rx,
-	.break_ctl	= liteuart_break_ctl,
 	.startup	= liteuart_startup,
 	.shutdown	= liteuart_shutdown,
 	.set_termios	= liteuart_set_termios,
 	.type		= liteuart_type,
-	.release_port	= liteuart_release_port,
-	.request_port	= liteuart_request_port,
 	.config_port	= liteuart_config_port,
 	.verify_port	= liteuart_verify_port,
 };
@@ -250,6 +285,23 @@ static int liteuart_probe(struct platform_device *pdev)
 	struct xa_limit limit;
 	int dev_id, ret;
 
+	uart = devm_kzalloc(&pdev->dev, sizeof(struct liteuart_port), GFP_KERNEL);
+	if (!uart)
+		return -ENOMEM;
+
+	port = &uart->port;
+
+	/* get membase */
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	if (IS_ERR(port->membase))
+		return PTR_ERR(port->membase);
+
+	ret = platform_get_irq_optional(pdev, 0);
+	if (ret < 0 && ret != -ENXIO)
+		return ret;
+	if (ret > 0)
+		port->irq = ret;
+
 	/* look for aliases; auto-enumerate for free index if not found */
 	dev_id = of_alias_get_id(pdev->dev.of_node, "serial");
 	if (dev_id < 0)
@@ -257,32 +309,16 @@ static int liteuart_probe(struct platform_device *pdev)
 	else
 		limit = XA_LIMIT(dev_id, dev_id);
 
-	uart = devm_kzalloc(&pdev->dev, sizeof(struct liteuart_port), GFP_KERNEL);
-	if (!uart)
-		return -ENOMEM;
-
 	ret = xa_alloc(&liteuart_array, &dev_id, uart, limit, GFP_KERNEL);
 	if (ret)
 		return ret;
-
-	uart->id = dev_id;
-	port = &uart->port;
-
-	/* get membase */
-	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (IS_ERR(port->membase)) {
-		ret = PTR_ERR(port->membase);
-		goto err_erase_id;
-	}
 
 	/* values not from device tree */
 	port->dev = &pdev->dev;
 	port->iotype = UPIO_MEM;
 	port->flags = UPF_BOOT_AUTOCONF;
 	port->ops = &liteuart_ops;
-	port->regshift = 2;
 	port->fifosize = 16;
-	port->iobase = 1;
 	port->type = PORT_UNKNOWN;
 	port->line = dev_id;
 	spin_lock_init(&port->lock);
@@ -296,7 +332,7 @@ static int liteuart_probe(struct platform_device *pdev)
 	return 0;
 
 err_erase_id:
-	xa_erase(&liteuart_array, uart->id);
+	xa_erase(&liteuart_array, dev_id);
 
 	return ret;
 }
@@ -304,10 +340,10 @@ err_erase_id:
 static int liteuart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
-	struct liteuart_port *uart = to_liteuart_port(port);
+	unsigned int line = port->line;
 
 	uart_remove_one_port(&liteuart_driver, port);
-	xa_erase(&liteuart_array, uart->id);
+	xa_erase(&liteuart_array, line);
 
 	return 0;
 }
@@ -322,12 +358,20 @@ static struct platform_driver liteuart_platform_driver = {
 	.probe = liteuart_probe,
 	.remove = liteuart_remove,
 	.driver = {
-		.name = "liteuart",
+		.name = KBUILD_MODNAME,
 		.of_match_table = liteuart_of_match,
 	},
 };
 
 #ifdef CONFIG_SERIAL_LITEUART_CONSOLE
+
+static void liteuart_putchar(struct uart_port *port, unsigned char ch)
+{
+	while (litex_read8(port->membase + OFF_TXFULL))
+		cpu_relax();
+
+	litex_write8(port->membase + OFF_RXTX, ch);
+}
 
 static void liteuart_console_write(struct console *co, const char *s,
 	unsigned int count)
@@ -368,7 +412,7 @@ static int liteuart_console_setup(struct console *co, char *options)
 }
 
 static struct console liteuart_console = {
-	.name = "liteuart",
+	.name = KBUILD_MODNAME,
 	.write = liteuart_console_write,
 	.device = uart_console_device,
 	.setup = liteuart_console_setup,
@@ -416,12 +460,10 @@ static int __init liteuart_init(void)
 		return res;
 
 	res = platform_driver_register(&liteuart_platform_driver);
-	if (res) {
+	if (res)
 		uart_unregister_driver(&liteuart_driver);
-		return res;
-	}
 
-	return 0;
+	return res;
 }
 
 static void __exit liteuart_exit(void)

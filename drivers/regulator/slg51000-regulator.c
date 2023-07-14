@@ -457,6 +457,8 @@ static int slg51000_i2c_probe(struct i2c_client *client)
 		chip->cs_gpiod = cs_gpiod;
 	}
 
+	usleep_range(10000, 11000);
+
 	i2c_set_clientdata(client, chip);
 	chip->chip_irq = client->irq;
 	chip->dev = dev;
@@ -503,8 +505,9 @@ MODULE_DEVICE_TABLE(i2c, slg51000_i2c_id);
 static struct i2c_driver slg51000_regulator_driver = {
 	.driver = {
 		.name = "slg51000-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new = slg51000_i2c_probe,
+	.probe = slg51000_i2c_probe,
 	.id_table = slg51000_i2c_id,
 };
 

@@ -41,6 +41,7 @@ struct kfd_event_waiter {
 	wait_queue_entry_t wait;
 	struct kfd_event *event; /* Event to wait for */
 	bool activated;		 /* Becomes true when event is signaled */
+	bool event_age_enabled;  /* set to true when last_event_age is non-zero */
 };
 
 /*
@@ -348,7 +349,7 @@ static int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
 
 int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset)
 {
-	struct kfd_dev *kfd;
+	struct kfd_node *kfd;
 	struct kfd_process_device *pdd;
 	void *mem, *kern_addr;
 	uint64_t size;
@@ -431,6 +432,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 	if (!ret) {
 		*event_id = ev->event_id;
 		*event_trigger_data = ev->event_id;
+		ev->event_age = 1;
 	} else {
 		kfree(ev);
 	}
@@ -506,14 +508,13 @@ int kfd_criu_restore_event(struct file *devkfd,
 		ret = create_other_event(p, ev, &ev_priv->event_id);
 		break;
 	}
+	mutex_unlock(&p->event_mutex);
 
 exit:
 	if (ret)
 		kfree(ev);
 
 	kfree(ev_priv);
-
-	mutex_unlock(&p->event_mutex);
 
 	return ret;
 }
@@ -630,6 +631,11 @@ static void set_event(struct kfd_event *ev)
 	 * updating the wait queues in kfd_wait_on_events.
 	 */
 	ev->signaled = !ev->auto_reset || !waitqueue_active(&ev->wq);
+	if (!(++ev->event_age)) {
+		/* Never wrap back to reserved/default event age 0/1 */
+		ev->event_age = 2;
+		WARN_ONCE(1, "event_age wrap back!");
+	}
 
 	list_for_each_entry(waiter, &ev->wq.head, wait.entry)
 		WRITE_ONCE(waiter->activated, true);
@@ -779,25 +785,22 @@ static struct kfd_event_waiter *alloc_event_waiters(uint32_t num_events)
 	struct kfd_event_waiter *event_waiters;
 	uint32_t i;
 
-	event_waiters = kmalloc_array(num_events,
-					sizeof(struct kfd_event_waiter),
-					GFP_KERNEL);
+	event_waiters = kcalloc(num_events, sizeof(struct kfd_event_waiter),
+				GFP_KERNEL);
 	if (!event_waiters)
 		return NULL;
 
-	for (i = 0; (event_waiters) && (i < num_events) ; i++) {
+	for (i = 0; i < num_events; i++)
 		init_wait(&event_waiters[i].wait);
-		event_waiters[i].activated = false;
-	}
 
 	return event_waiters;
 }
 
 static int init_event_waiter(struct kfd_process *p,
 		struct kfd_event_waiter *waiter,
-		uint32_t event_id)
+		struct kfd_event_data *event_data)
 {
-	struct kfd_event *ev = lookup_event_by_id(p, event_id);
+	struct kfd_event *ev = lookup_event_by_id(p, event_data->event_id);
 
 	if (!ev)
 		return -EINVAL;
@@ -806,6 +809,15 @@ static int init_event_waiter(struct kfd_process *p,
 	waiter->event = ev;
 	waiter->activated = ev->signaled;
 	ev->signaled = ev->signaled && !ev->auto_reset;
+
+	/* last_event_age = 0 reserved for backward compatible */
+	if (waiter->event->type == KFD_EVENT_TYPE_SIGNAL &&
+		event_data->signal_event_data.last_event_age) {
+		waiter->event_age_enabled = true;
+		if (ev->event_age != event_data->signal_event_data.last_event_age)
+			waiter->activated = true;
+	}
+
 	if (!waiter->activated)
 		add_wait_queue(&ev->wq, &waiter->wait);
 	spin_unlock(&ev->lock);
@@ -853,22 +865,29 @@ static int copy_signaled_event_data(uint32_t num_events,
 		struct kfd_event_waiter *event_waiters,
 		struct kfd_event_data __user *data)
 {
-	struct kfd_hsa_memory_exception_data *src;
-	struct kfd_hsa_memory_exception_data __user *dst;
+	void *src;
+	void __user *dst;
 	struct kfd_event_waiter *waiter;
 	struct kfd_event *event;
-	uint32_t i;
+	uint32_t i, size = 0;
 
 	for (i = 0; i < num_events; i++) {
 		waiter = &event_waiters[i];
 		event = waiter->event;
 		if (!event)
 			return -EINVAL; /* event was destroyed */
-		if (waiter->activated && event->type == KFD_EVENT_TYPE_MEMORY) {
-			dst = &data[i].memory_exception_data;
-			src = &event->memory_exception_data;
-			if (copy_to_user(dst, src,
-				sizeof(struct kfd_hsa_memory_exception_data)))
+		if (waiter->activated) {
+			if (event->type == KFD_EVENT_TYPE_MEMORY) {
+				dst = &data[i].memory_exception_data;
+				src = &event->memory_exception_data;
+				size = sizeof(struct kfd_hsa_memory_exception_data);
+			} else if (event->type == KFD_EVENT_TYPE_SIGNAL &&
+				waiter->event_age_enabled) {
+				dst = &data[i].signal_event_data.last_event_age;
+				src = &event->event_age;
+				size = sizeof(u64);
+			}
+			if (size && copy_to_user(dst, src, size))
 				return -EFAULT;
 		}
 	}
@@ -946,8 +965,7 @@ int kfd_wait_on_events(struct kfd_process *p,
 			goto out_unlock;
 		}
 
-		ret = init_event_waiter(p, &event_waiters[i],
-					event_data.event_id);
+		ret = init_event_waiter(p, &event_waiters[i], &event_data);
 		if (ret)
 			goto out_unlock;
 	}
@@ -1053,8 +1071,8 @@ int kfd_event_mmap(struct kfd_process *p, struct vm_area_struct *vma)
 	pfn = __pa(page->kernel_address);
 	pfn >>= PAGE_SHIFT;
 
-	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
-		       | VM_DONTDUMP | VM_PFNMAP;
+	vm_flags_set(vma, VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE
+		       | VM_DONTDUMP | VM_PFNMAP);
 
 	pr_debug("Mapping signal page\n");
 	pr_debug("     start user address  == 0x%08lx\n", vma->vm_start);
@@ -1129,7 +1147,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 }
 
 #ifdef KFD_SUPPORT_IOMMU_V2
-void kfd_signal_iommu_event(struct kfd_dev *dev, u32 pasid,
+void kfd_signal_iommu_event(struct kfd_node *dev, u32 pasid,
 		unsigned long address, bool is_write_requested,
 		bool is_execute_requested)
 {
@@ -1225,8 +1243,9 @@ void kfd_signal_hw_exception_event(u32 pasid)
 	kfd_unref_process(p);
 }
 
-void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
-				struct kfd_vm_fault_info *info)
+void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+				struct kfd_vm_fault_info *info,
+				struct kfd_hsa_memory_exception_data *data)
 {
 	struct kfd_event *ev;
 	uint32_t id;
@@ -1243,19 +1262,24 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 		return;
 	}
 
-	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
-	memory_exception_data.gpu_id = user_gpu_id;
-	memory_exception_data.failure.imprecise = true;
-	/* Set failure reason */
-	if (info) {
-		memory_exception_data.va = (info->page_addr) << PAGE_SHIFT;
-		memory_exception_data.failure.NotPresent =
-			info->prot_valid ? 1 : 0;
-		memory_exception_data.failure.NoExecute =
-			info->prot_exec ? 1 : 0;
-		memory_exception_data.failure.ReadOnly =
-			info->prot_write ? 1 : 0;
-		memory_exception_data.failure.imprecise = 0;
+	/* SoC15 chips and onwards will pass in data from now on. */
+	if (!data) {
+		memset(&memory_exception_data, 0, sizeof(memory_exception_data));
+		memory_exception_data.gpu_id = user_gpu_id;
+		memory_exception_data.failure.imprecise = true;
+
+		/* Set failure reason */
+		if (info) {
+			memory_exception_data.va = (info->page_addr) <<
+								PAGE_SHIFT;
+			memory_exception_data.failure.NotPresent =
+				info->prot_valid ? 1 : 0;
+			memory_exception_data.failure.NoExecute =
+				info->prot_exec ? 1 : 0;
+			memory_exception_data.failure.ReadOnly =
+				info->prot_write ? 1 : 0;
+			memory_exception_data.failure.imprecise = 0;
+		}
 	}
 
 	rcu_read_lock();
@@ -1264,7 +1288,8 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 	idr_for_each_entry_continue(&p->event_idr, ev, id)
 		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
 			spin_lock(&ev->lock);
-			ev->memory_exception_data = memory_exception_data;
+			ev->memory_exception_data = data ? *data :
+							memory_exception_data;
 			set_event(ev);
 			spin_unlock(&ev->lock);
 		}
@@ -1273,7 +1298,7 @@ void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
 	kfd_unref_process(p);
 }
 
-void kfd_signal_reset_event(struct kfd_dev *dev)
+void kfd_signal_reset_event(struct kfd_node *dev)
 {
 	struct kfd_hsa_hw_exception_data hw_exception_data;
 	struct kfd_hsa_memory_exception_data memory_exception_data;
@@ -1329,7 +1354,7 @@ void kfd_signal_reset_event(struct kfd_dev *dev)
 	srcu_read_unlock(&kfd_processes_srcu, idx);
 }
 
-void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid)
+void kfd_signal_poison_consumed_event(struct kfd_node *dev, u32 pasid)
 {
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 	struct kfd_hsa_memory_exception_data memory_exception_data;

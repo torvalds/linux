@@ -3,6 +3,8 @@
  * Copyright (c) 2020-2022, Linaro Limited
  */
 
+#include <drm/display/drm_dsc_helper.h>
+
 #include "dpu_kms.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hwio.h"
@@ -29,6 +31,8 @@
 #define DSC_RANGE_MAX_QP                0x0B0
 #define DSC_RANGE_BPG_OFFSET            0x0EC
 
+#define DSC_CTL(m) (0x1800 - 0x3FC * (m - DSC_0))
+
 static void dpu_hw_dsc_disable(struct dpu_hw_dsc *dsc)
 {
 	struct dpu_hw_blk_reg_map *c = &dsc->hw;
@@ -37,12 +41,12 @@ static void dpu_hw_dsc_disable(struct dpu_hw_dsc *dsc)
 }
 
 static void dpu_hw_dsc_config(struct dpu_hw_dsc *hw_dsc,
-			      struct msm_display_dsc_config *dsc,
+			      struct drm_dsc_config *dsc,
 			      u32 mode,
 			      u32 initial_lines)
 {
 	struct dpu_hw_blk_reg_map *c = &hw_dsc->hw;
-	u32 data, lsb, bpp;
+	u32 data;
 	u32 slice_last_group_size;
 	u32 det_thresh_flatness;
 	bool is_cmd_mode = !(mode & DSC_MODE_VIDEO);
@@ -52,89 +56,83 @@ static void dpu_hw_dsc_config(struct dpu_hw_dsc *hw_dsc,
 	if (is_cmd_mode)
 		initial_lines += 1;
 
-	slice_last_group_size = 3 - (dsc->drm->slice_width % 3);
-	data = (initial_lines << 20);
-	data |= ((slice_last_group_size - 1) << 18);
-	/* bpp is 6.4 format, 4 LSBs bits are for fractional part */
-	data |= dsc->drm->bits_per_pixel << 12;
-	lsb = dsc->drm->bits_per_pixel % 4;
-	bpp = dsc->drm->bits_per_pixel / 4;
-	bpp *= 4;
-	bpp <<= 4;
-	bpp |= lsb;
+	slice_last_group_size = (dsc->slice_width + 2) % 3;
 
-	data |= bpp << 8;
-	data |= (dsc->drm->block_pred_enable << 7);
-	data |= (dsc->drm->line_buf_depth << 3);
-	data |= (dsc->drm->simple_422 << 2);
-	data |= (dsc->drm->convert_rgb << 1);
-	data |= dsc->drm->bits_per_component;
+	data = (initial_lines << 20);
+	data |= (slice_last_group_size << 18);
+	/* bpp is 6.4 format, 4 LSBs bits are for fractional part */
+	data |= (dsc->bits_per_pixel << 8);
+	data |= (dsc->block_pred_enable << 7);
+	data |= (dsc->line_buf_depth << 3);
+	data |= (dsc->simple_422 << 2);
+	data |= (dsc->convert_rgb << 1);
+	data |= dsc->bits_per_component;
 
 	DPU_REG_WRITE(c, DSC_ENC, data);
 
-	data = dsc->drm->pic_width << 16;
-	data |= dsc->drm->pic_height;
+	data = dsc->pic_width << 16;
+	data |= dsc->pic_height;
 	DPU_REG_WRITE(c, DSC_PICTURE, data);
 
-	data = dsc->drm->slice_width << 16;
-	data |= dsc->drm->slice_height;
+	data = dsc->slice_width << 16;
+	data |= dsc->slice_height;
 	DPU_REG_WRITE(c, DSC_SLICE, data);
 
-	data = dsc->drm->slice_chunk_size << 16;
+	data = dsc->slice_chunk_size << 16;
 	DPU_REG_WRITE(c, DSC_CHUNK_SIZE, data);
 
-	data = dsc->drm->initial_dec_delay << 16;
-	data |= dsc->drm->initial_xmit_delay;
+	data = dsc->initial_dec_delay << 16;
+	data |= dsc->initial_xmit_delay;
 	DPU_REG_WRITE(c, DSC_DELAY, data);
 
-	data = dsc->drm->initial_scale_value;
+	data = dsc->initial_scale_value;
 	DPU_REG_WRITE(c, DSC_SCALE_INITIAL, data);
 
-	data = dsc->drm->scale_decrement_interval;
+	data = dsc->scale_decrement_interval;
 	DPU_REG_WRITE(c, DSC_SCALE_DEC_INTERVAL, data);
 
-	data = dsc->drm->scale_increment_interval;
+	data = dsc->scale_increment_interval;
 	DPU_REG_WRITE(c, DSC_SCALE_INC_INTERVAL, data);
 
-	data = dsc->drm->first_line_bpg_offset;
+	data = dsc->first_line_bpg_offset;
 	DPU_REG_WRITE(c, DSC_FIRST_LINE_BPG_OFFSET, data);
 
-	data = dsc->drm->nfl_bpg_offset << 16;
-	data |= dsc->drm->slice_bpg_offset;
+	data = dsc->nfl_bpg_offset << 16;
+	data |= dsc->slice_bpg_offset;
 	DPU_REG_WRITE(c, DSC_BPG_OFFSET, data);
 
-	data = dsc->drm->initial_offset << 16;
-	data |= dsc->drm->final_offset;
+	data = dsc->initial_offset << 16;
+	data |= dsc->final_offset;
 	DPU_REG_WRITE(c, DSC_DSC_OFFSET, data);
 
-	det_thresh_flatness = 7 + 2 * (dsc->drm->bits_per_component - 8);
+	det_thresh_flatness = drm_dsc_flatness_det_thresh(dsc);
 	data = det_thresh_flatness << 10;
-	data |= dsc->drm->flatness_max_qp << 5;
-	data |= dsc->drm->flatness_min_qp;
+	data |= dsc->flatness_max_qp << 5;
+	data |= dsc->flatness_min_qp;
 	DPU_REG_WRITE(c, DSC_FLATNESS, data);
 
-	data = dsc->drm->rc_model_size;
+	data = dsc->rc_model_size;
 	DPU_REG_WRITE(c, DSC_RC_MODEL_SIZE, data);
 
-	data = dsc->drm->rc_tgt_offset_low << 18;
-	data |= dsc->drm->rc_tgt_offset_high << 14;
-	data |= dsc->drm->rc_quant_incr_limit1 << 9;
-	data |= dsc->drm->rc_quant_incr_limit0 << 4;
-	data |= dsc->drm->rc_edge_factor;
+	data = dsc->rc_tgt_offset_low << 18;
+	data |= dsc->rc_tgt_offset_high << 14;
+	data |= dsc->rc_quant_incr_limit1 << 9;
+	data |= dsc->rc_quant_incr_limit0 << 4;
+	data |= dsc->rc_edge_factor;
 	DPU_REG_WRITE(c, DSC_RC, data);
 }
 
 static void dpu_hw_dsc_config_thresh(struct dpu_hw_dsc *hw_dsc,
-				     struct msm_display_dsc_config *dsc)
+				     struct drm_dsc_config *dsc)
 {
-	struct drm_dsc_rc_range_parameters *rc = dsc->drm->rc_range_params;
+	struct drm_dsc_rc_range_parameters *rc = dsc->rc_range_params;
 	struct dpu_hw_blk_reg_map *c = &hw_dsc->hw;
 	u32 off;
 	int i;
 
 	off = DSC_RC_BUF_THRESH;
 	for (i = 0; i < DSC_NUM_BUF_RANGES - 1 ; i++) {
-		DPU_REG_WRITE(c, off, dsc->drm->rc_buf_thresh[i]);
+		DPU_REG_WRITE(c, off, dsc->rc_buf_thresh[i]);
 		off += 4;
 	}
 
@@ -157,22 +155,27 @@ static void dpu_hw_dsc_config_thresh(struct dpu_hw_dsc *hw_dsc,
 	}
 }
 
-static struct dpu_dsc_cfg *_dsc_offset(enum dpu_dsc dsc,
-				       const struct dpu_mdss_cfg *m,
-				       void __iomem *addr,
-				       struct dpu_hw_blk_reg_map *b)
+static void dpu_hw_dsc_bind_pingpong_blk(
+		struct dpu_hw_dsc *hw_dsc,
+		const enum dpu_pingpong pp)
 {
-	int i;
+	struct dpu_hw_blk_reg_map *c = &hw_dsc->hw;
+	int mux_cfg = 0xF;
+	u32 dsc_ctl_offset;
 
-	for (i = 0; i < m->dsc_count; i++) {
-		if (dsc == m->dsc[i].id) {
-			b->blk_addr = addr + m->dsc[i].base;
-			b->log_mask = DPU_DBG_MASK_DSC;
-			return &m->dsc[i];
-		}
-	}
+	dsc_ctl_offset = DSC_CTL(hw_dsc->idx);
 
-	return NULL;
+	if (pp)
+		mux_cfg = (pp - PINGPONG_0) & 0x7;
+
+	if (pp)
+		DRM_DEBUG_KMS("Binding dsc:%d to pp:%d\n",
+			      hw_dsc->idx - DSC_0, pp - PINGPONG_0);
+	else
+		DRM_DEBUG_KMS("Unbinding dsc:%d from any pp\n",
+			      hw_dsc->idx - DSC_0);
+
+	DPU_REG_WRITE(c, dsc_ctl_offset, mux_cfg);
 }
 
 static void _setup_dsc_ops(struct dpu_hw_dsc_ops *ops,
@@ -181,25 +184,23 @@ static void _setup_dsc_ops(struct dpu_hw_dsc_ops *ops,
 	ops->dsc_disable = dpu_hw_dsc_disable;
 	ops->dsc_config = dpu_hw_dsc_config;
 	ops->dsc_config_thresh = dpu_hw_dsc_config_thresh;
+	if (cap & BIT(DPU_DSC_OUTPUT_CTRL))
+		ops->dsc_bind_pingpong_blk = dpu_hw_dsc_bind_pingpong_blk;
 };
 
-struct dpu_hw_dsc *dpu_hw_dsc_init(enum dpu_dsc idx, void __iomem *addr,
-				   const struct dpu_mdss_cfg *m)
+struct dpu_hw_dsc *dpu_hw_dsc_init(const struct dpu_dsc_cfg *cfg,
+				   void __iomem *addr)
 {
 	struct dpu_hw_dsc *c;
-	struct dpu_dsc_cfg *cfg;
 
 	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _dsc_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_DSC;
 
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->caps = cfg;
 	_setup_dsc_ops(&c->ops, c->caps->features);
 

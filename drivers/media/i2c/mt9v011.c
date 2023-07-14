@@ -478,8 +478,7 @@ static const struct v4l2_subdev_ops mt9v011_ops = {
 			I2C Client & Driver
  ****************************************************************************/
 
-static int mt9v011_probe(struct i2c_client *c,
-			 const struct i2c_device_id *id)
+static int mt9v011_probe(struct i2c_client *c)
 {
 	u16 version;
 	struct mt9v011 *core;

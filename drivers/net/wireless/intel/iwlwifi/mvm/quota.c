@@ -33,11 +33,11 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	if (vif == data->disabled_vif)
 		return;
 
-	if (!mvmvif->phy_ctxt)
+	if (!mvmvif->deflink.phy_ctxt)
 		return;
 
 	/* currently, PHY ID == binding ID */
-	id = mvmvif->phy_ctxt->id;
+	id = mvmvif->deflink.phy_ctxt->id;
 
 	/* need at least one binding per PHY */
 	BUILD_BUG_ON(NUM_PHY_CTX > MAX_BINDINGS);
@@ -67,9 +67,10 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	}
 
 	if (data->colors[id] < 0)
-		data->colors[id] = mvmvif->phy_ctxt->color;
+		data->colors[id] = mvmvif->deflink.phy_ctxt->color;
 	else
-		WARN_ON_ONCE(data->colors[id] != mvmvif->phy_ctxt->color);
+		WARN_ON_ONCE(data->colors[id] !=
+			     mvmvif->deflink.phy_ctxt->color);
 
 	data->n_interfaces[id]++;
 
@@ -99,7 +100,7 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 	if (!mvmvif->ap_ibss_active)
 		return;
 
-	phy_id = mvmvif->phy_ctxt->id;
+	phy_id = mvmvif->deflink.phy_ctxt->id;
 	beacon_int = mvm->noa_vif->bss_conf.beacon_int;
 
 	for (i = 0; i < MAX_BINDINGS; i++) {

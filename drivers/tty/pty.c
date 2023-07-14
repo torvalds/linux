@@ -240,7 +240,7 @@ out:
 }
 
 static void pty_set_termios(struct tty_struct *tty,
-					struct ktermios *old_termios)
+			    const struct ktermios *old_termios)
 {
 	/* See if packet mode change of state. */
 	if (tty->link && tty->link->ctrl.packet) {
@@ -931,7 +931,7 @@ static void __init unix98_pty_init(void)
 	if (cdev_add(&ptmx_cdev, MKDEV(TTYAUX_MAJOR, 2), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
 		panic("Couldn't register /dev/ptmx driver");
-	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
+	device_create(&tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
 }
 
 #else

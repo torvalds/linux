@@ -221,7 +221,7 @@ struct gfs2_glock_operations {
 	int (*go_demote_ok) (const struct gfs2_glock *gl);
 	int (*go_instantiate) (struct gfs2_glock *gl);
 	int (*go_held)(struct gfs2_holder *gh);
-	void (*go_dump)(struct seq_file *seq, struct gfs2_glock *gl,
+	void (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl,
 			const char *fs_id_buf);
 	void (*go_callback)(struct gfs2_glock *gl, bool remote);
 	void (*go_free)(struct gfs2_glock *gl);
@@ -252,7 +252,6 @@ struct gfs2_lkstats {
 
 enum {
 	/* States */
-	HIF_MAY_DEMOTE		= 1,
 	HIF_HOLDER		= 6,  /* Set for gh that "holds" the glock */
 	HIF_WAIT		= 10,
 };
@@ -330,8 +329,9 @@ enum {
 	GLF_LRU				= 13,
 	GLF_OBJECT			= 14, /* Used only for tracing */
 	GLF_BLOCKING			= 15,
-	GLF_PENDING_DELETE		= 17,
-	GLF_FREEING			= 18, /* Wait for glock to be freed */
+	GLF_FREEING			= 16, /* Wait for glock to be freed */
+	GLF_TRY_TO_EVICT		= 17, /* iopen glocks only */
+	GLF_VERIFY_EVICT		= 18, /* iopen glocks only */
 };
 
 struct gfs2_glock {
@@ -600,18 +600,15 @@ enum {
 	SDF_RORECOVERY		= 7, /* read only recovery */
 	SDF_SKIP_DLM_UNLOCK	= 8,
 	SDF_FORCE_AIL_FLUSH     = 9,
-	SDF_FS_FROZEN           = 10,
+	SDF_FREEZE_INITIATOR	= 10,
 	SDF_WITHDRAWING		= 11, /* Will withdraw eventually */
 	SDF_WITHDRAW_IN_PROG	= 12, /* Withdraw is in progress */
 	SDF_REMOTE_WITHDRAW	= 13, /* Performing remote recovery */
 	SDF_WITHDRAW_RECOVERY	= 14, /* Wait for journal recovery when we are
 					 withdrawing */
-};
-
-enum gfs2_freeze_state {
-	SFS_UNFROZEN		= 0,
-	SFS_STARTING_FREEZE	= 1,
-	SFS_FROZEN		= 2,
+	SDF_DEACTIVATING	= 15,
+	SDF_EVICTING		= 16,
+	SDF_FROZEN		= 17,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -772,6 +769,10 @@ struct gfs2_sbd {
 
 	struct completion sd_journal_ready;
 
+	/* Workqueue stuff */
+
+	struct workqueue_struct *sd_delete_wq;
+
 	/* Daemon stuff */
 
 	struct task_struct *sd_logd_process;
@@ -835,7 +836,6 @@ struct gfs2_sbd {
 
 	/* For quiescing the filesystem */
 	struct gfs2_holder sd_freeze_gh;
-	atomic_t sd_freeze_state;
 	struct mutex sd_freeze_mutex;
 
 	char sd_fsname[GFS2_FSNAME_LEN + 3 * sizeof(int) + 2];

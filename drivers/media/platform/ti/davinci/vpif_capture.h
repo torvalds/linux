@@ -50,7 +50,7 @@ struct common_obj {
 	struct vpif_cap_buffer *next_frm;
 	/* Used to store pixel format */
 	struct v4l2_format fmt;
-	/* Buffer queue used in video-buf */
+	/* Buffer queue used in vb2 */
 	struct vb2_queue buffer_queue;
 	/* Queue of filled frames */
 	struct list_head dma_queue;

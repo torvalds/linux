@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/bus/palmbus.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ralink PalmBus Device Tree Bindings
+title: Ralink PalmBus
 
 maintainers:
   - Sergio Paracuellos <sergio.paracuellos@gmail.com>
@@ -36,6 +36,7 @@ patternProperties:
   # All other properties should be child nodes with unit-address and 'reg'
   "@[0-9a-f]+$":
     type: object
+    additionalProperties: true
     properties:
       reg:
         maxItems: 1

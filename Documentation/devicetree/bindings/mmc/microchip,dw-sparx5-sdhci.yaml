@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/mmc/microchip,dw-sparx5-sdhci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip Sparx5 Mobile Storage Host Controller Binding
+title: Microchip Sparx5 Mobile Storage Host Controller
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
 
 maintainers:
   - Lars Povlsen <lars.povlsen@microchip.com>
@@ -35,7 +35,7 @@ properties:
   microchip,clock-delay:
     description: Delay clock to card to meet setup time requirements.
       Each step increase by 1.25ns.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 15
 

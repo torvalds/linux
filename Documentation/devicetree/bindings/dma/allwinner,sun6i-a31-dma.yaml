@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/dma/allwinner,sun6i-a31-dma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A31 DMA Controller Device Tree Bindings
+title: Allwinner A31 DMA Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Maxime Ripard <mripard@kernel.org>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   "#dma-cells":

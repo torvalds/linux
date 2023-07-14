@@ -7,10 +7,12 @@
 #ifndef INCLUDE__UTIL_PERF_CS_ETM_H__
 #define INCLUDE__UTIL_PERF_CS_ETM_H__
 
+#include "debug.h"
 #include "util/event.h"
 #include <linux/bits.h>
 
 struct perf_session;
+struct perf_pmu;
 
 /*
  * Versioning header in case things need to change in the future.  That way
@@ -28,13 +30,17 @@ enum {
 /*
  * Update the version for new format.
  *
- * New version 1 format adds a param count to the per cpu metadata.
+ * Version 1: format adds a param count to the per cpu metadata.
  * This allows easy adding of new metadata parameters.
  * Requires that new params always added after current ones.
  * Also allows client reader to handle file versions that are different by
  * checking the number of params in the file vs the number expected.
+ *
+ * Version 2: Drivers will use PERF_RECORD_AUX_OUTPUT_HW_ID to output
+ * CoreSight Trace ID. ...TRACEIDR metadata will be set to legacy values
+ * but with addition flags.
  */
-#define CS_HEADER_CURRENT_VERSION 1
+#define CS_HEADER_CURRENT_VERSION	2
 
 /* Beginning of header common to both ETMv3 and V4 */
 enum {
@@ -70,6 +76,7 @@ enum {
 	CS_ETMV4_TRCIDR2,
 	CS_ETMV4_TRCIDR8,
 	CS_ETMV4_TRCAUTHSTATUS,
+	CS_ETMV4_TS_SOURCE,
 	CS_ETMV4_PRIV_MAX,
 };
 
@@ -81,9 +88,25 @@ enum {
  * added in header V1
  */
 enum {
-	CS_ETE_TRCDEVARCH = CS_ETMV4_PRIV_MAX,
+	/* Dynamic, configurable parameters */
+	CS_ETE_TRCCONFIGR = CS_ETM_COMMON_BLK_MAX_V1,
+	CS_ETE_TRCTRACEIDR,
+	/* RO, taken from sysFS */
+	CS_ETE_TRCIDR0,
+	CS_ETE_TRCIDR1,
+	CS_ETE_TRCIDR2,
+	CS_ETE_TRCIDR8,
+	CS_ETE_TRCAUTHSTATUS,
+	CS_ETE_TRCDEVARCH,
+	CS_ETE_TS_SOURCE,
 	CS_ETE_PRIV_MAX
 };
+
+/*
+ * Check for valid CoreSight trace ID. If an invalid value is present in the metadata,
+ * then IDs are present in the hardware ID packet in the data file.
+ */
+#define CS_IS_VALID_TRACE_ID(id) ((id > 0) && (id < 0x70))
 
 /*
  * ETMv3 exception encoding number:
@@ -156,8 +179,8 @@ struct cs_etm_packet {
 	u32 last_instr_subtype;
 	u32 flags;
 	u32 exception_number;
-	u8 last_instr_cond;
-	u8 last_instr_taken_branch;
+	bool last_instr_cond;
+	bool last_instr_taken_branch;
 	u8 last_instr_size;
 	u8 trace_chan_id;
 	int cpu;
@@ -180,7 +203,7 @@ struct cs_etm_packet_queue {
 	u32 head;
 	u32 tail;
 	u32 instr_count;
-	u64 cs_timestamp;
+	u64 cs_timestamp; /* Timestamp from trace data, converted to ns if possible */
 	u64 next_cs_timestamp;
 	struct cs_etm_packet packet_buffer[CS_ETM_PACKET_MAX_BUFFER];
 };
@@ -201,56 +224,53 @@ struct cs_etm_packet_queue {
 #define CS_ETMV4_PRIV_SIZE (CS_ETMV4_PRIV_MAX * sizeof(u64))
 #define CS_ETE_PRIV_SIZE (CS_ETE_PRIV_MAX * sizeof(u64))
 
-#ifdef HAVE_CSTRACE_SUPPORT
+#define INFO_HEADER_SIZE (sizeof(((struct perf_record_auxtrace_info *)0)->type) + \
+			  sizeof(((struct perf_record_auxtrace_info *)0)->reserved__))
+
+/* CoreSight trace ID is currently the bottom 7 bits of the value */
+#define CORESIGHT_TRACE_ID_VAL_MASK	GENMASK(6, 0)
+
+/*
+ * perf record will set the legacy meta data values as unused initially.
+ * This allows perf report to manage the decoders created when dynamic
+ * allocation in operation.
+ */
+#define CORESIGHT_TRACE_ID_UNUSED_FLAG	BIT(31)
+
+/* Value to set for unused trace ID values */
+#define CORESIGHT_TRACE_ID_UNUSED_VAL	0x7F
+
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
+struct perf_event_attr *cs_etm_get_default_config(struct perf_pmu *pmu);
+
+enum cs_etm_pid_fmt {
+	CS_ETM_PIDFMT_NONE,
+	CS_ETM_PIDFMT_CTXTID,
+	CS_ETM_PIDFMT_CTXTID2
+};
+
+#ifdef HAVE_CSTRACE_SUPPORT
+#include <opencsd/ocsd_if_types.h>
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);
-int cs_etm__get_pid_fmt(u8 trace_chan_id, u64 *pid_fmt);
-int cs_etm__etmq_set_tid(struct cs_etm_queue *etmq,
-			 pid_t tid, u8 trace_chan_id);
+enum cs_etm_pid_fmt cs_etm__get_pid_fmt(struct cs_etm_queue *etmq);
+int cs_etm__etmq_set_tid_el(struct cs_etm_queue *etmq, pid_t tid,
+			    u8 trace_chan_id, ocsd_ex_level el);
 bool cs_etm__etmq_is_timeless(struct cs_etm_queue *etmq);
 void cs_etm__etmq_set_traceid_queue_timestamp(struct cs_etm_queue *etmq,
 					      u8 trace_chan_id);
 struct cs_etm_packet_queue
 *cs_etm__etmq_get_packet_queue(struct cs_etm_queue *etmq, u8 trace_chan_id);
+int cs_etm__process_auxtrace_info_full(union perf_event *event __maybe_unused,
+				       struct perf_session *session __maybe_unused);
+u64 cs_etm__convert_sample_time(struct cs_etm_queue *etmq, u64 cs_timestamp);
 #else
 static inline int
-cs_etm__process_auxtrace_info(union perf_event *event __maybe_unused,
-			      struct perf_session *session __maybe_unused)
+cs_etm__process_auxtrace_info_full(union perf_event *event __maybe_unused,
+				   struct perf_session *session __maybe_unused)
 {
+	pr_err("\nCS ETM Trace: OpenCSD is not linked in, please recompile with CORESIGHT=1\n");
 	return -1;
-}
-
-static inline int cs_etm__get_cpu(u8 trace_chan_id __maybe_unused,
-				  int *cpu __maybe_unused)
-{
-	return -1;
-}
-
-static inline int cs_etm__etmq_set_tid(
-				struct cs_etm_queue *etmq __maybe_unused,
-				pid_t tid __maybe_unused,
-				u8 trace_chan_id __maybe_unused)
-{
-	return -1;
-}
-
-static inline bool cs_etm__etmq_is_timeless(
-				struct cs_etm_queue *etmq __maybe_unused)
-{
-	/* What else to return? */
-	return true;
-}
-
-static inline void cs_etm__etmq_set_traceid_queue_timestamp(
-				struct cs_etm_queue *etmq __maybe_unused,
-				u8 trace_chan_id __maybe_unused) {}
-
-static inline struct cs_etm_packet_queue *cs_etm__etmq_get_packet_queue(
-				struct cs_etm_queue *etmq __maybe_unused,
-				u8 trace_chan_id __maybe_unused)
-{
-	return NULL;
 }
 #endif
 

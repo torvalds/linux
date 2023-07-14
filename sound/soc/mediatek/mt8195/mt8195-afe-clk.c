@@ -117,7 +117,7 @@ static struct mt8195_afe_tuner_cfg mt8195_afe_tuner_cfgs[MT8195_AUD_PLL_NUM] = {
 		.upper_bound_reg = AFE_APLL_TUNER_CFG,
 		.upper_bound_shift = 8,
 		.upper_bound_maskbit = 0xff,
-		.upper_bound_default = 0x2,
+		.upper_bound_default = 0x3,
 	},
 	[MT8195_AUD_PLL2] = {
 		.id = MT8195_AUD_PLL2,
@@ -135,7 +135,7 @@ static struct mt8195_afe_tuner_cfg mt8195_afe_tuner_cfgs[MT8195_AUD_PLL_NUM] = {
 		.upper_bound_reg = AFE_APLL_TUNER_CFG1,
 		.upper_bound_shift = 8,
 		.upper_bound_maskbit = 0xff,
-		.upper_bound_default = 0x2,
+		.upper_bound_default = 0x3,
 	},
 	[MT8195_AUD_PLL3] = {
 		.id = MT8195_AUD_PLL3,
@@ -408,11 +408,6 @@ int mt8195_afe_init_clock(struct mtk_base_afe *afe)
 	}
 
 	return 0;
-}
-
-void mt8195_afe_deinit_clock(struct mtk_base_afe *afe)
-{
-	mt8195_audsys_clk_unregister(afe);
 }
 
 int mt8195_afe_enable_clk(struct mtk_base_afe *afe, struct clk *clk)

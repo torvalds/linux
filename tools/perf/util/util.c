@@ -28,6 +28,8 @@
  * XXX We need to find a better place for these things...
  */
 
+const char *input_name;
+
 bool perf_singlethreaded = true;
 
 void perf_set_singlethreaded(void)
@@ -524,7 +526,8 @@ int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x, size_t msz,
 	new_arr = calloc(new_sz, msz);
 	if (!new_arr)
 		return -ENOMEM;
-	memcpy(new_arr, *arr, *arr_sz * msz);
+	if (*arr_sz)
+		memcpy(new_arr, *arr, *arr_sz * msz);
 	if (init_val) {
 		for (i = *arr_sz; i < new_sz; i++)
 			memcpy(new_arr + (i * msz), init_val, msz);
@@ -533,3 +536,19 @@ int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x, size_t msz,
 	*arr_sz = new_sz;
 	return 0;
 }
+
+#ifndef HAVE_SCHED_GETCPU_SUPPORT
+int sched_getcpu(void)
+{
+#ifdef __NR_getcpu
+	unsigned int cpu;
+	int err = syscall(__NR_getcpu, &cpu, NULL, NULL);
+
+	if (!err)
+		return cpu;
+#else
+	errno = ENOSYS;
+#endif
+	return -1;
+}
+#endif

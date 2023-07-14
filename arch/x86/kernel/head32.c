@@ -29,7 +29,7 @@ static void __init i386_default_early_setup(void)
 	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc;
 }
 
-asmlinkage __visible void __init i386_start_kernel(void)
+asmlinkage __visible void __init __noreturn i386_start_kernel(void)
 {
 	/* Make sure IDT is set up before any exception happens */
 	idt_setup_early_handler();
@@ -69,6 +69,7 @@ asmlinkage __visible void __init i386_start_kernel(void)
  * to the first kernel PMD. Note the upper half of each PMD or PTE are
  * always zero at this stage.
  */
+void __init mk_early_pgtbl_32(void);
 void __init mk_early_pgtbl_32(void)
 {
 #ifdef __pa

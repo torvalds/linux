@@ -1263,9 +1263,8 @@ static void cyttsp4_stop_wd_timer(struct cyttsp4 *cd)
 	 * Ensure we wait until the watchdog timer
 	 * running on a different CPU finishes
 	 */
-	del_timer_sync(&cd->watchdog_timer);
+	timer_shutdown_sync(&cd->watchdog_timer);
 	cancel_work_sync(&cd->watchdog_work);
-	del_timer_sync(&cd->watchdog_timer);
 }
 
 static void cyttsp4_watchdog_timer(struct timer_list *t)
@@ -1744,7 +1743,6 @@ static void cyttsp4_free_si_ptrs(struct cyttsp4 *cd)
 	kfree(si->btn_rec_data);
 }
 
-#ifdef CONFIG_PM
 static int cyttsp4_core_sleep(struct cyttsp4 *cd)
 {
 	int rc;
@@ -1877,13 +1875,9 @@ static int cyttsp4_core_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-const struct dev_pm_ops cyttsp4_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(cyttsp4_core_suspend, cyttsp4_core_resume)
-	SET_RUNTIME_PM_OPS(cyttsp4_core_suspend, cyttsp4_core_resume, NULL)
-};
-EXPORT_SYMBOL_GPL(cyttsp4_pm_ops);
+EXPORT_GPL_RUNTIME_DEV_PM_OPS(cyttsp4_pm_ops,
+			      cyttsp4_core_suspend, cyttsp4_core_resume, NULL);
 
 static int cyttsp4_mt_open(struct input_dev *input)
 {

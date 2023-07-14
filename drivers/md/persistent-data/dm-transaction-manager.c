@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Red Hat, Inc.
  *
@@ -28,14 +29,15 @@ struct prefetch_set {
 	dm_block_t blocks[PREFETCH_SIZE];
 };
 
-static unsigned prefetch_hash(dm_block_t b)
+static unsigned int prefetch_hash(dm_block_t b)
 {
 	return hash_64(b, PREFETCH_BITS);
 }
 
 static void prefetch_wipe(struct prefetch_set *p)
 {
-	unsigned i;
+	unsigned int i;
+
 	for (i = 0; i < PREFETCH_SIZE; i++)
 		p->blocks[i] = PREFETCH_SENTINEL;
 }
@@ -48,7 +50,7 @@ static void prefetch_init(struct prefetch_set *p)
 
 static void prefetch_add(struct prefetch_set *p, dm_block_t b)
 {
-	unsigned h = prefetch_hash(b);
+	unsigned int h = prefetch_hash(b);
 
 	mutex_lock(&p->lock);
 	if (p->blocks[h] == PREFETCH_SENTINEL)
@@ -59,7 +61,7 @@ static void prefetch_add(struct prefetch_set *p, dm_block_t b)
 
 static void prefetch_issue(struct prefetch_set *p, struct dm_block_manager *bm)
 {
-	unsigned i;
+	unsigned int i;
 
 	mutex_lock(&p->lock);
 
@@ -103,7 +105,7 @@ struct dm_transaction_manager {
 static int is_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 {
 	int r = 0;
-	unsigned bucket = dm_hash_block(b, DM_HASH_MASK);
+	unsigned int bucket = dm_hash_block(b, DM_HASH_MASK);
 	struct shadow_info *si;
 
 	spin_lock(&tm->lock);
@@ -123,7 +125,7 @@ static int is_shadow(struct dm_transaction_manager *tm, dm_block_t b)
  */
 static void insert_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 {
-	unsigned bucket;
+	unsigned int bucket;
 	struct shadow_info *si;
 
 	si = kmalloc(sizeof(*si), GFP_NOIO);
@@ -197,6 +199,9 @@ EXPORT_SYMBOL_GPL(dm_tm_create_non_blocking_clone);
 
 void dm_tm_destroy(struct dm_transaction_manager *tm)
 {
+	if (!tm)
+		return;
+
 	if (!tm->is_clone)
 		wipe_shadow_table(tm);
 
@@ -393,11 +398,11 @@ void dm_tm_dec_range(struct dm_transaction_manager *tm, dm_block_t b, dm_block_t
 EXPORT_SYMBOL_GPL(dm_tm_dec_range);
 
 void dm_tm_with_runs(struct dm_transaction_manager *tm,
-		     const __le64 *value_le, unsigned count, dm_tm_run_fn fn)
+		     const __le64 *value_le, unsigned int count, dm_tm_run_fn fn)
 {
 	uint64_t b, begin, end;
 	bool in_run = false;
-	unsigned i;
+	unsigned int i;
 
 	for (i = 0; i < count; i++, value_le++) {
 		b = le64_to_cpu(*value_le);

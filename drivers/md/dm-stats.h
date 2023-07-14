@@ -21,16 +21,16 @@ struct dm_stats_aux {
 	unsigned long long duration_ns;
 };
 
-void dm_stats_init(struct dm_stats *st);
+int dm_stats_init(struct dm_stats *st);
 void dm_stats_cleanup(struct dm_stats *st);
 
 struct mapped_device;
 
-int dm_stats_message(struct mapped_device *md, unsigned argc, char **argv,
-		     char *result, unsigned maxlen);
+int dm_stats_message(struct mapped_device *md, unsigned int argc, char **argv,
+		     char *result, unsigned int maxlen);
 
 void dm_stats_account_io(struct dm_stats *stats, unsigned long bi_rw,
-			 sector_t bi_sector, unsigned bi_sectors, bool end,
+			 sector_t bi_sector, unsigned int bi_sectors, bool end,
 			 unsigned long start_time,
 			 struct dm_stats_aux *aux);
 

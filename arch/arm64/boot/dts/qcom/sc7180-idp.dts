@@ -80,11 +80,17 @@
 			reg = <0x0 0x94400000 0x0 0x200000>;
 			no-map;
 		};
+
+		mdata_mem: mpss-metadata {
+			alloc-ranges = <0x0 0xa0000000 0x0 0x20000000>;
+			size = <0x0 0x4000>;
+			no-map;
+		};
 	};
 };
 
 &apps_rsc {
-	pm6150-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm6150-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -206,7 +212,7 @@
 		};
 	};
 
-	pm6150l-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pm6150l-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -289,7 +295,11 @@
 	};
 };
 
-&dsi0 {
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	status = "okay";
 
 	vdda-supply = <&vreg_l3c_1p2>;
@@ -304,16 +314,11 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&disp_pins>;
 
-		reset-gpios = <&pm6150l_gpio 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pm6150l_gpios 3 GPIO_ACTIVE_HIGH>;
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				panel0_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
+		port {
+			panel0_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
@@ -328,17 +333,9 @@
 	};
 };
 
-&dsi_phy {
+&mdss_dsi0_phy {
 	status = "okay";
 	vdds-supply = <&vreg_l4a_0p8>;
-};
-
-&mdp {
-	status = "okay";
-};
-
-&mdss {
-	status = "okay";
 };
 
 &qfprom {
@@ -348,7 +345,7 @@
 &qspi {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&qspi_clk &qspi_cs0 &qspi_data01>;
+	pinctrl-0 = <&qspi_clk>, <&qspi_cs0>, <&qspi_data0>, <&qspi_data1>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
@@ -370,8 +367,31 @@
 &remoteproc_mpss {
 	status = "okay";
 	compatible = "qcom,sc7180-mss-pil";
+	reg = <0 0x04080000 0 0x4040>, <0 0x04180000 0 0x48>;
+	reg-names = "qdsp6", "rmb";
+
+	clocks = <&gcc GCC_MSS_CFG_AHB_CLK>,
+		 <&gcc GCC_MSS_Q6_MEMNOC_AXI_CLK>,
+		 <&gcc GCC_MSS_NAV_AXI_CLK>,
+		 <&gcc GCC_MSS_SNOC_AXI_CLK>,
+		 <&gcc GCC_MSS_MFAB_AXIS_CLK>,
+		 <&rpmhcc RPMH_CXO_CLK>;
+	clock-names = "iface", "bus", "nav", "snoc_axi", "mnoc_axi", "xo";
+
 	iommus = <&apps_smmu 0x461 0x0>, <&apps_smmu 0x444 0x3>;
-	memory-region = <&mba_mem &mpss_mem>;
+	memory-region = <&mba_mem>, <&mpss_mem>, <&mdata_mem>;
+
+	resets = <&aoss_reset AOSS_CC_MSS_RESTART>,
+		 <&pdc_reset PDC_MODEM_SYNC_RESET>;
+	reset-names = "mss_restart", "pdc_reset";
+
+	qcom,halt-regs = <&tcsr_regs_1 0x3000 0x5000 0x4000>;
+	qcom,spare-regs = <&tcsr_regs_2 0xb3e4>;
+};
+
+&scm {
+	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
+	dma-coherent;
 };
 
 &sdhc_1 {
@@ -406,7 +426,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-1 = <&qup_uart3_sleep>;
 
-	bluetooth: wcn3990-bt {
+	bluetooth: bluetooth {
 		compatible = "qcom,wcn3990-bt";
 		vddio-supply = <&vreg_l10a_1p8>;
 		vddxo-supply = <&vreg_l1c_1p8>;
@@ -467,7 +487,7 @@
 
 /* PINCTRL - additions to nodes defined in sc7180.dtsi */
 
-&pm6150l_gpio {
+&pm6150l_gpios {
 	disp_pins: disp-state {
 		pinconf {
 			pins = "gpio3";
@@ -481,287 +501,264 @@
 };
 
 &qspi_clk {
-	pinconf {
-		pins = "gpio63";
-		bias-disable;
-	};
+	bias-disable;
 };
 
 &qspi_cs0 {
-	pinconf {
-		pins = "gpio68";
-		bias-disable;
-	};
+	bias-disable;
 };
 
-&qspi_data01 {
-	pinconf {
-		pins = "gpio64", "gpio65";
+&qspi_data0 {
+	bias-pull-up;
+};
 
-		/* High-Z when no transfers; nice to park the lines */
-		bias-pull-up;
-	};
+&qspi_data1 {
+	bias-pull-up;
 };
 
 &qup_i2c2_default {
-	pinconf {
-		pins = "gpio15", "gpio16";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c4_default {
-	pinconf {
-		pins = "gpio115", "gpio116";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c7_default {
-	pinconf {
-		pins = "gpio6", "gpio7";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
 &qup_i2c9_default {
-	pinconf {
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
+	drive-strength = <2>;
 
-		/* Has external pullup */
-		bias-disable;
-	};
+	/* Has external pullup */
+	bias-disable;
 };
 
-&qup_uart3_default {
-	pinconf-cts {
-		/*
-		 * Configure a pull-down on CTS to match the pull of
-		 * the Bluetooth module.
-		 */
-		pins = "gpio38";
-		bias-pull-down;
-	};
-
-	pinconf-rts {
-		/* We'll drive RTS, so no pull */
-		pins = "gpio39";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-tx {
-		/* We'll drive TX, so no pull */
-		pins = "gpio40";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		/*
-		 * Configure a pull-up on RX. This is needed to avoid
-		 * garbage data when the TX pin of the Bluetooth module is
-		 * in tri-state (module powered off or not driving the
-		 * signal yet).
-		 */
-		pins = "gpio41";
-		bias-pull-up;
-	};
+&qup_uart3_cts {
+	/*
+	 * Configure a pull-down on CTS to match the pull of
+	 * the Bluetooth module.
+	 */
+	bias-pull-down;
 };
 
-&qup_uart8_default {
-	pinconf-tx {
-		pins = "gpio44";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	pinconf-rx {
-		pins = "gpio45";
-		drive-strength = <2>;
-		bias-pull-up;
-	};
+&qup_uart3_rts {
+	/* We'll drive RTS, so no pull */
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_spi0_default {
-	pinconf {
-		pins = "gpio34", "gpio35", "gpio36", "gpio37";
-		drive-strength = <2>;
-		bias-disable;
-	};
+&qup_uart3_tx {
+	/* We'll drive TX, so no pull */
+	drive-strength = <2>;
+	bias-disable;
 };
 
-&qup_spi6_default {
-	pinconf {
-		pins = "gpio59", "gpio60", "gpio61", "gpio62";
-		drive-strength = <2>;
-		bias-disable;
-	};
+&qup_uart3_rx {
+	/*
+	 * Configure a pull-up on RX. This is needed to avoid
+	 * garbage data when the TX pin of the Bluetooth module is
+	 * in tri-state (module powered off or not driving the
+	 * signal yet).
+	 */
+	bias-pull-up;
 };
 
-&qup_spi10_default {
-	pinconf {
-		pins = "gpio86", "gpio87", "gpio88", "gpio89";
-		drive-strength = <2>;
-		bias-disable;
-	};
+&qup_uart8_tx {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_uart8_rx {
+	drive-strength = <2>;
+	bias-pull-up;
+};
+
+&qup_spi0_spi {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_spi0_cs {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_spi6_spi {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_spi6_cs {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_spi10_spi {
+	drive-strength = <2>;
+	bias-disable;
+};
+
+&qup_spi10_cs {
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &tlmm {
-	qup_uart3_sleep: qup-uart3-sleep {
-		pinmux {
-			pins = "gpio38", "gpio39",
-			       "gpio40", "gpio41";
-			function = "gpio";
-		};
-
-		pinconf-cts {
+	qup_uart3_sleep: qup-uart3-sleep-state {
+		cts-pins {
 			/*
 			 * Configure a pull-down on CTS to match the pull of
 			 * the Bluetooth module.
 			 */
 			pins = "gpio38";
+			function = "gpio";
 			bias-pull-down;
 		};
 
-		pinconf-rts {
+		rts-pins {
 			/*
 			 * Configure pull-down on RTS. As RTS is active low
 			 * signal, pull it low to indicate the BT SoC that it
 			 * can wakeup the system anytime from suspend state by
 			 * pulling RX low (by sending wakeup bytes).
 			 */
-			 pins = "gpio39";
-			 bias-pull-down;
+			pins = "gpio39";
+			function = "gpio";
+			bias-pull-down;
 		};
 
-		pinconf-tx {
+		tx-pins {
 			/*
 			 * Configure pull-up on TX when it isn't actively driven
 			 * to prevent BT SoC from receiving garbage during sleep.
 			 */
 			pins = "gpio40";
+			function = "gpio";
 			bias-pull-up;
 		};
 
-		pinconf-rx {
+		rx-pins {
 			/*
 			 * Configure a pull-up on RX. This is needed to avoid
 			 * garbage data when the TX pin of the Bluetooth module
 			 * is floating which may cause spurious wakeups.
 			 */
 			pins = "gpio41";
+			function = "gpio";
 			bias-pull-up;
 		};
 	};
 
-	sdc1_on: sdc1-on {
-		pinconf-clk {
+	sdc1_on: sdc1-on-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			bias-disable;
 			drive-strength = <16>;
 		};
 
-		pinconf-cmd {
+		cmd-pins {
 			pins = "sdc1_cmd";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		pinconf-data {
+		data-pins {
 			pins = "sdc1_data";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		pinconf-rclk {
+		rclk-pins {
 			pins = "sdc1_rclk";
 			bias-pull-down;
 		};
 	};
 
-	sdc1_off: sdc1-off {
-		pinconf-clk {
+	sdc1_off: sdc1-off-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			bias-disable;
 			drive-strength = <2>;
 		};
 
-		pinconf-cmd {
+		cmd-pins {
 			pins = "sdc1_cmd";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 
-		pinconf-data {
+		data-pins {
 			pins = "sdc1_data";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 
-		pinconf-rclk {
+		rclk-pins {
 			pins = "sdc1_rclk";
 			bias-pull-down;
 		};
 	};
 
-	sdc2_on: sdc2-on {
-		pinconf-clk {
+	sdc2_on: sdc2-on-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;
 			drive-strength = <16>;
 		};
 
-		pinconf-cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		pinconf-data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		pinconf-sd-cd {
+		sd-cd-pins {
 			pins = "gpio69";
+			function = "gpio";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 	};
 
-	sdc2_off: sdc2-off {
-		pinconf-clk {
+	sdc2_off: sdc2-off-state {
+		clk-pins {
 			pins = "sdc2_clk";
 			bias-disable;
 			drive-strength = <2>;
 		};
 
-		pinconf-cmd {
+		cmd-pins {
 			pins = "sdc2_cmd";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 
-		pinconf-data {
+		data-pins {
 			pins = "sdc2_data";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 
-		pinconf-sd-cd {
+		sd-cd-pins {
 			pins = "gpio69";
+			function = "gpio";
 			bias-pull-up;
 			drive-strength = <2>;
 		};

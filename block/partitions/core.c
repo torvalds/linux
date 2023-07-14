@@ -12,7 +12,7 @@
 #include <linux/raid/detect.h>
 #include "check.h"
 
-static int (*check_part[])(struct parsed_partitions *) = {
+static int (*const check_part[])(struct parsed_partitions *) = {
 	/*
 	 * Probe partition formats with tables at disk address 0
 	 * that also have an ADFS boot block at 0xdc0.
@@ -84,14 +84,6 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #endif
 	NULL
 };
-
-static void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors)
-{
-	spin_lock(&bdev->bd_size_lock);
-	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	bdev->bd_nr_sectors = sectors;
-	spin_unlock(&bdev->bd_size_lock);
-}
 
 static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
 {
@@ -236,7 +228,7 @@ static struct attribute *part_attrs[] = {
 	NULL
 };
 
-static struct attribute_group part_attr_group = {
+static const struct attribute_group part_attr_group = {
 	.attrs = part_attrs,
 };
 
@@ -254,9 +246,9 @@ static void part_release(struct device *dev)
 	iput(dev_to_bdev(dev)->bd_inode);
 }
 
-static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int part_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct block_device *part = dev_to_bdev(dev);
+	const struct block_device *part = dev_to_bdev(dev);
 
 	add_uevent_var(env, "PARTN=%u", part->bd_partno);
 	if (part->bd_meta_info && part->bd_meta_info->volname[0])
@@ -264,31 +256,36 @@ static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct device_type part_type = {
+const struct device_type part_type = {
 	.name		= "partition",
 	.groups		= part_attr_groups,
 	.release	= part_release,
 	.uevent		= part_uevent,
 };
 
-static void delete_partition(struct block_device *part)
+void drop_partition(struct block_device *part)
 {
 	lockdep_assert_held(&part->bd_disk->open_mutex);
 
-	fsync_bdev(part);
-	__invalidate_device(part, true);
-
 	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
 	kobject_put(part->bd_holder_dir);
-	device_del(&part->bd_device);
 
+	device_del(&part->bd_device);
+	put_device(&part->bd_device);
+}
+
+static void delete_partition(struct block_device *part)
+{
 	/*
 	 * Remove the block device from the inode hash, so that it cannot be
 	 * looked up any more even when openers still hold references.
 	 */
 	remove_inode_hash(part->bd_inode);
 
-	put_device(&part->bd_device);
+	fsync_bdev(part);
+	__invalidate_device(part, true);
+
+	drop_partition(part);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -296,7 +293,7 @@ static ssize_t whole_disk_show(struct device *dev,
 {
 	return 0;
 }
-static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
+static const DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
 
 /*
  * Must be called either with open_mutex held, before a disk can be opened or
@@ -444,10 +441,21 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length)
 {
+	sector_t capacity = get_capacity(disk), end;
 	struct block_device *part;
 	int ret;
 
 	mutex_lock(&disk->open_mutex);
+	if (check_add_overflow(start, length, &end)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (start >= capacity || end > capacity) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (!disk_live(disk)) {
 		ret = -ENXIO;
 		goto out;
@@ -525,17 +533,6 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	printk(KERN_CONT "enabling native capacity\n");
 	disk->fops->unlock_native_capacity(disk);
 	return true;
-}
-
-void blk_drop_partitions(struct gendisk *disk)
-{
-	struct block_device *part;
-	unsigned long idx;
-
-	lockdep_assert_held(&disk->open_mutex);
-
-	xa_for_each_start(&disk->part_tbl, idx, part, 1)
-		delete_partition(part);
 }
 
 static bool blk_add_partition(struct gendisk *disk,
@@ -654,6 +651,8 @@ out_free_state:
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate)
 {
+	struct block_device *part;
+	unsigned long idx;
 	int ret = 0;
 
 	lockdep_assert_held(&disk->open_mutex);
@@ -666,8 +665,9 @@ rescan:
 		return -EBUSY;
 	sync_blockdev(disk->part0);
 	invalidate_bdev(disk->part0);
-	blk_drop_partitions(disk);
 
+	xa_for_each_start(&disk->part_tbl, idx, part, 1)
+		delete_partition(part);
 	clear_bit(GD_NEED_PART_SCAN, &disk->state);
 
 	/*

@@ -60,11 +60,18 @@ dpaa2_switch_get_link_ksettings(struct net_device *netdev,
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	struct dpsw_link_state state = {0};
-	int err = 0;
+	int err;
 
-	if (dpaa2_switch_port_is_type_phy(port_priv))
-		return phylink_ethtool_ksettings_get(port_priv->mac->phylink,
-						     link_ksettings);
+	mutex_lock(&port_priv->mac_lock);
+
+	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+		err = phylink_ethtool_ksettings_get(port_priv->mac->phylink,
+						    link_ksettings);
+		mutex_unlock(&port_priv->mac_lock);
+		return err;
+	}
+
+	mutex_unlock(&port_priv->mac_lock);
 
 	err = dpsw_if_get_link_state(port_priv->ethsw_data->mc_io, 0,
 				     port_priv->ethsw_data->dpsw_handle,
@@ -99,9 +106,16 @@ dpaa2_switch_set_link_ksettings(struct net_device *netdev,
 	bool if_running;
 	int err = 0, ret;
 
-	if (dpaa2_switch_port_is_type_phy(port_priv))
-		return phylink_ethtool_ksettings_set(port_priv->mac->phylink,
-						     link_ksettings);
+	mutex_lock(&port_priv->mac_lock);
+
+	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+		err = phylink_ethtool_ksettings_set(port_priv->mac->phylink,
+						    link_ksettings);
+		mutex_unlock(&port_priv->mac_lock);
+		return err;
+	}
+
+	mutex_unlock(&port_priv->mac_lock);
 
 	/* Interface needs to be down to change link settings */
 	if_running = netif_running(netdev);
@@ -145,14 +159,9 @@ dpaa2_switch_set_link_ksettings(struct net_device *netdev,
 static int
 dpaa2_switch_ethtool_get_sset_count(struct net_device *netdev, int sset)
 {
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	int num_ss_stats = DPAA2_SWITCH_NUM_COUNTERS;
-
 	switch (sset) {
 	case ETH_SS_STATS:
-		if (port_priv->mac)
-			num_ss_stats += dpaa2_mac_get_sset_count();
-		return num_ss_stats;
+		return DPAA2_SWITCH_NUM_COUNTERS + dpaa2_mac_get_sset_count();
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -161,7 +170,6 @@ dpaa2_switch_ethtool_get_sset_count(struct net_device *netdev, int sset)
 static void dpaa2_switch_ethtool_get_strings(struct net_device *netdev,
 					     u32 stringset, u8 *data)
 {
-	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	u8 *p = data;
 	int i;
 
@@ -172,8 +180,7 @@ static void dpaa2_switch_ethtool_get_strings(struct net_device *netdev,
 			       ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
-		if (port_priv->mac)
-			dpaa2_mac_get_strings(p);
+		dpaa2_mac_get_strings(p);
 		break;
 	}
 }
@@ -196,8 +203,12 @@ static void dpaa2_switch_ethtool_get_stats(struct net_device *netdev,
 				   dpaa2_switch_ethtool_counters[i].name, err);
 	}
 
-	if (port_priv->mac)
+	mutex_lock(&port_priv->mac_lock);
+
+	if (dpaa2_switch_port_has_mac(port_priv))
 		dpaa2_mac_get_ethtool_stats(port_priv->mac, data + i);
+
+	mutex_unlock(&port_priv->mac_lock);
 }
 
 const struct ethtool_ops dpaa2_switch_port_ethtool_ops = {

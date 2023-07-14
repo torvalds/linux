@@ -18,6 +18,12 @@ if NET_DSA
 
 # Drivers must select the appropriate tagging format(s)
 
+config NET_DSA_TAG_NONE
+	tristate "No-op tag driver"
+	help
+	  Say Y or M if you want to enable support for switches which don't tag
+	  frames over the CPU port.
+
 config NET_DSA_TAG_AR9331
 	tristate "Tag driver for Atheros AR9331 SoC with built-in switch"
 	help

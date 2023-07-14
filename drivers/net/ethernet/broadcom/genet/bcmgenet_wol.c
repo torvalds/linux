@@ -42,6 +42,12 @@ void bcmgenet_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
 
+	if (dev->phydev) {
+		phy_ethtool_get_wol(dev->phydev, wol);
+		if (wol->supported)
+			return;
+	}
+
 	if (!device_can_wakeup(kdev)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
@@ -63,6 +69,14 @@ int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct device *kdev = &priv->pdev->dev;
+	int ret;
+
+	/* Try Wake-on-LAN from the PHY first */
+	if (dev->phydev) {
+		ret = phy_ethtool_set_wol(dev->phydev, wol);
+		if (ret != -EOPNOTSUPP)
+			return ret;
+	}
 
 	if (!device_can_wakeup(kdev))
 		return -ENOTSUPP;
@@ -77,14 +91,18 @@ int bcmgenet_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts) {
 		device_set_wakeup_enable(kdev, 1);
 		/* Avoid unbalanced enable_irq_wake calls */
-		if (priv->wol_irq_disabled)
+		if (priv->wol_irq_disabled) {
 			enable_irq_wake(priv->wol_irq);
+			enable_irq_wake(priv->irq0);
+		}
 		priv->wol_irq_disabled = false;
 	} else {
 		device_set_wakeup_enable(kdev, 0);
 		/* Avoid unbalanced disable_irq_wake calls */
-		if (!priv->wol_irq_disabled)
+		if (!priv->wol_irq_disabled) {
 			disable_irq_wake(priv->wol_irq);
+			disable_irq_wake(priv->irq0);
+		}
 		priv->wol_irq_disabled = true;
 	}
 

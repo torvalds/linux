@@ -10,7 +10,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pmi8994_gpios: gpios@c000 {
+		pmi8994_gpios: gpio@c000 {
 			compatible = "qcom,pmi8994-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
@@ -21,7 +21,7 @@
 		};
 
 		pmi8994_mpps: mpps@a000 {
-			compatible = "qcom,pmi8994-mpp";
+			compatible = "qcom,pmi8994-mpp", "qcom,spmi-mpp";
 			reg = <0xa000>;
 			gpio-controller;
 			gpio-ranges = <&pmi8994_mpps 0 0 4>;
@@ -37,7 +37,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pmi8994_lpg: lpg {
+		pmi8994_lpg: pwm {
 			compatible = "qcom,pmi8994-lpg";
 
 			#address-cells = <1>;
@@ -49,8 +49,6 @@
 
 		pmi8994_spmi_regulators: regulators {
 			compatible = "qcom,pmi8994-regulators";
-			#address-cells = <1>;
-			#size-cells = <1>;
 		};
 
 		pmi8994_wled: wled@d800 {

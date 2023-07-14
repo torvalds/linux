@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <linux/suspend.h>
@@ -210,7 +211,6 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 	struct device_node *np_apmu, *np_cpu;
 	struct resource res;
 	int bit, index;
-	u32 id;
 
 	for_each_matching_node(np_apmu, apmu_ids) {
 		/* only enable the cluster that includes the boot CPU */
@@ -218,33 +218,29 @@ static void apmu_parse_dt(void (*fn)(struct resource *res, int cpu, int bit))
 
 		for (bit = 0; bit < CONFIG_NR_CPUS; bit++) {
 			np_cpu = of_parse_phandle(np_apmu, "cpus", bit);
-			if (np_cpu) {
-				if (!of_property_read_u32(np_cpu, "reg", &id)) {
-					if (id == cpu_logical_map(0)) {
-						is_allowed = true;
-						of_node_put(np_cpu);
-						break;
-					}
-
-				}
+			if (!np_cpu)
+				break;
+			if (of_cpu_node_to_id(np_cpu) == 0) {
+				is_allowed = true;
 				of_node_put(np_cpu);
+				break;
 			}
+			of_node_put(np_cpu);
 		}
 		if (!is_allowed)
 			continue;
 
 		for (bit = 0; bit < CONFIG_NR_CPUS; bit++) {
 			np_cpu = of_parse_phandle(np_apmu, "cpus", bit);
-			if (np_cpu) {
-				if (!of_property_read_u32(np_cpu, "reg", &id)) {
-					index = get_logical_index(id);
-					if ((index >= 0) &&
-					    !of_address_to_resource(np_apmu,
-								    0, &res))
-						fn(&res, index, bit);
-				}
-				of_node_put(np_cpu);
-			}
+			if (!np_cpu)
+				break;
+
+			index = of_cpu_node_to_id(np_cpu);
+			if ((index >= 0) &&
+			    !of_address_to_resource(np_apmu, 0, &res))
+				fn(&res, index, bit);
+
+			of_node_put(np_cpu);
 		}
 	}
 }

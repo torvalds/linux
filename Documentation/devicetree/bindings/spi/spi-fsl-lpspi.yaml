@@ -10,7 +10,7 @@ maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
 
 allOf:
-  - $ref: "/schemas/spi/spi-controller.yaml#"
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:
@@ -56,6 +56,13 @@ properties:
       this property to re-config the chipselect value in the LPSPI driver.
     type: boolean
 
+  num-cs:
+    description:
+      number of chip selects.
+    minimum: 1
+    maximum: 2
+    default: 1
+
 required:
   - compatible
   - reg
@@ -80,4 +87,5 @@ examples:
         clock-names = "per", "ipg";
         spi-slave;
         fsl,spi-only-use-cs1-sel;
+        num-cs = <2>;
     };

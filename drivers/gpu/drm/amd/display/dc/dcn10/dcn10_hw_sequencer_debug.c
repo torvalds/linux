@@ -45,7 +45,8 @@
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 
-unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
+__printf(3, 4)
+unsigned int snprintf_count(char *pbuf, unsigned int bufsize, char *fmt, ...)
 {
 	int ret_vsnprintf;
 	unsigned int chars_printed;
@@ -53,15 +54,15 @@ unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
 	va_list args;
 	va_start(args, fmt);
 
-	ret_vsnprintf = vsnprintf(pBuf, bufSize, fmt, args);
+	ret_vsnprintf = vsnprintf(pbuf, bufsize, fmt, args);
 
 	va_end(args);
 
 	if (ret_vsnprintf > 0) {
-		if (ret_vsnprintf < bufSize)
+		if (ret_vsnprintf < bufsize)
 			chars_printed = ret_vsnprintf;
 		else
-			chars_printed = bufSize - 1;
+			chars_printed = bufsize - 1;
 	} else
 		chars_printed = 0;
 
@@ -83,7 +84,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 	memset(&wm, 0, sizeof(struct dcn_hubbub_wm));
 	dc->res_pool->hubbub->funcs->wm_read_state(dc->res_pool->hubbub, &wm);
 
-	chars_printed = snprintf_count(pBuf, remaining_buffer, "wm_set_index,data_urgent,pte_meta_urgent,sr_enter,sr_exit,dram_clk_chanage\n");
+	chars_printed = snprintf_count(pBuf, remaining_buffer, "wm_set_index,data_urgent,pte_meta_urgent,sr_enter,sr_exit,dram_clk_change\n");
 	remaining_buffer -= chars_printed;
 	pBuf += chars_printed;
 
@@ -98,7 +99,7 @@ static unsigned int dcn10_get_hubbub_state(struct dc *dc, char *pBuf, unsigned i
 			(s->pte_meta_urgent * frac) / ref_clk_mhz / frac, (s->pte_meta_urgent * frac) / ref_clk_mhz % frac,
 			(s->sr_enter * frac) / ref_clk_mhz / frac, (s->sr_enter * frac) / ref_clk_mhz % frac,
 			(s->sr_exit * frac) / ref_clk_mhz / frac, (s->sr_exit * frac) / ref_clk_mhz % frac,
-			(s->dram_clk_chanage * frac) / ref_clk_mhz / frac, (s->dram_clk_chanage * frac) / ref_clk_mhz % frac);
+			(s->dram_clk_change * frac) / ref_clk_mhz / frac, (s->dram_clk_change * frac) / ref_clk_mhz % frac);
 		remaining_buffer -= chars_printed;
 		pBuf += chars_printed;
 	}

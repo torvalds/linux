@@ -1269,9 +1269,9 @@ static int si1145_probe_trigger(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int si1145_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int si1145_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct si1145_data *data;
 	struct iio_dev *indio_dev;
 	u8 part_id, rev_id, seq_id;
@@ -1352,7 +1352,7 @@ static struct i2c_driver si1145_driver = {
 	.driver = {
 		.name   = "si1145",
 	},
-	.probe  = si1145_probe,
+	.probe = si1145_probe,
 	.id_table = si1145_ids,
 };
 

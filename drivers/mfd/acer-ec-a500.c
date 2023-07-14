@@ -190,7 +190,7 @@ static struct i2c_driver a500_ec_driver = {
 		.name = "acer-a500-embedded-controller",
 		.of_match_table = a500_ec_match,
 	},
-	.probe_new = a500_ec_probe,
+	.probe = a500_ec_probe,
 	.remove = a500_ec_remove,
 };
 module_i2c_driver(a500_ec_driver);

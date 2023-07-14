@@ -177,8 +177,7 @@ static int s3fwrn5_i2c_parse_dt(struct i2c_client *client)
 	return 0;
 }
 
-static int s3fwrn5_i2c_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int s3fwrn5_i2c_probe(struct i2c_client *client)
 {
 	struct s3fwrn5_i2c_phy *phy;
 	int ret;
@@ -209,27 +208,21 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client,
 	if (ret < 0)
 		return ret;
 
-	phy->clk = devm_clk_get_optional(&client->dev, NULL);
-	if (IS_ERR(phy->clk))
-		return dev_err_probe(&client->dev, PTR_ERR(phy->clk),
-				     "failed to get clock\n");
-
 	/*
 	 * S3FWRN5 depends on a clock input ("XI" pin) to function properly.
 	 * Depending on the hardware configuration this could be an always-on
 	 * oscillator or some external clock that must be explicitly enabled.
 	 * Make sure the clock is running before starting S3FWRN5.
 	 */
-	ret = clk_prepare_enable(phy->clk);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to enable clock: %d\n", ret);
-		return ret;
-	}
+	phy->clk = devm_clk_get_optional_enabled(&client->dev, NULL);
+	if (IS_ERR(phy->clk))
+		return dev_err_probe(&client->dev, PTR_ERR(phy->clk),
+				     "failed to get clock\n");
 
 	ret = s3fwrn5_probe(&phy->common.ndev, phy, &phy->i2c_dev->dev,
 			    &i2c_phy_ops);
 	if (ret < 0)
-		goto disable_clk;
+		return ret;
 
 	ret = devm_request_threaded_irq(&client->dev, phy->i2c_dev->irq, NULL,
 		s3fwrn5_i2c_irq_thread_fn, IRQF_ONESHOT,
@@ -241,8 +234,6 @@ static int s3fwrn5_i2c_probe(struct i2c_client *client,
 
 s3fwrn5_remove:
 	s3fwrn5_remove(phy->common.ndev);
-disable_clk:
-	clk_disable_unprepare(phy->clk);
 	return ret;
 }
 
@@ -251,7 +242,6 @@ static void s3fwrn5_i2c_remove(struct i2c_client *client)
 	struct s3fwrn5_i2c_phy *phy = i2c_get_clientdata(client);
 
 	s3fwrn5_remove(phy->common.ndev);
-	clk_disable_unprepare(phy->clk);
 }
 
 static const struct i2c_device_id s3fwrn5_i2c_id_table[] = {

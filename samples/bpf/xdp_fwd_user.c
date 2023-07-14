@@ -76,9 +76,9 @@ static int do_detach(int ifindex, const char *ifname, const char *app_name)
 		return prog_fd;
 	}
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 	if (err) {
-		printf("ERROR: bpf_obj_get_info_by_fd failed (%s)\n",
+		printf("ERROR: bpf_prog_get_info_by_fd failed (%s)\n",
 		       strerror(errno));
 		goto close_out;
 	}

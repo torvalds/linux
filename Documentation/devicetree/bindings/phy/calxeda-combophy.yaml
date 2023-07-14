@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/calxeda-combophy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Calxeda Highbank Combination PHYs binding for SATA
+title: Calxeda Highbank Combination PHYs for SATA
 
 description: |
   The Calxeda Combination PHYs connect the SoC to the internal fabric

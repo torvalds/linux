@@ -279,8 +279,7 @@ static void tcs3414_powerdown_cleanup(void *data)
 	tcs3414_powerdown(data);
 }
 
-static int tcs3414_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int tcs3414_probe(struct i2c_client *client)
 {
 	struct tcs3414_data *data;
 	struct iio_dev *indio_dev;

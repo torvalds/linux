@@ -1,38 +1,42 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include "util/pmu.h"
+#include "util/pmus.h"
 #include "util/evlist.h"
 #include "util/parse-events.h"
 #include "util/event.h"
-#include "util/pmu-hybrid.h"
 #include "topdown.h"
+#include "evsel.h"
 
 static int ___evlist__add_default_attrs(struct evlist *evlist,
 					struct perf_event_attr *attrs,
 					size_t nr_attrs)
 {
-	struct perf_cpu_map *cpus;
-	struct evsel *evsel, *n;
-	struct perf_pmu *pmu;
 	LIST_HEAD(head);
 	size_t i = 0;
 
 	for (i = 0; i < nr_attrs; i++)
 		event_attr_init(attrs + i);
 
-	if (!perf_pmu__has_hybrid())
+	if (perf_pmus__num_core_pmus() == 1)
 		return evlist__add_attrs(evlist, attrs, nr_attrs);
 
 	for (i = 0; i < nr_attrs; i++) {
+		struct perf_pmu *pmu = NULL;
+
 		if (attrs[i].type == PERF_TYPE_SOFTWARE) {
-			evsel = evsel__new(attrs + i);
+			struct evsel *evsel = evsel__new(attrs + i);
+
 			if (evsel == NULL)
 				goto out_delete_partial_list;
 			list_add_tail(&evsel->core.node, &head);
 			continue;
 		}
 
-		perf_pmu__for_each_hybrid_pmu(pmu) {
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			struct perf_cpu_map *cpus;
+			struct evsel *evsel;
+
 			evsel = evsel__new(attrs + i);
 			if (evsel == NULL)
 				goto out_delete_partial_list;
@@ -50,8 +54,12 @@ static int ___evlist__add_default_attrs(struct evlist *evlist,
 	return 0;
 
 out_delete_partial_list:
-	__evlist__for_each_entry_safe(&head, n, evsel)
-		evsel__delete(evsel);
+	{
+		struct evsel *evsel, *n;
+
+		__evlist__for_each_entry_safe(&head, n, evsel)
+			evsel__delete(evsel);
+	}
 	return -1;
 }
 
@@ -59,35 +67,27 @@ int arch_evlist__add_default_attrs(struct evlist *evlist,
 				   struct perf_event_attr *attrs,
 				   size_t nr_attrs)
 {
-	if (nr_attrs)
-		return ___evlist__add_default_attrs(evlist, attrs, nr_attrs);
+	if (!nr_attrs)
+		return 0;
 
-	return topdown_parse_events(evlist);
+	return ___evlist__add_default_attrs(evlist, attrs, nr_attrs);
 }
 
-struct evsel *arch_evlist__leader(struct list_head *list)
+int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 {
-	struct evsel *evsel, *first, *slots = NULL;
-	bool has_topdown = false;
-
-	first = list_first_entry(list, struct evsel, core.node);
-
-	if (!topdown_sys_has_perf_metrics())
-		return first;
-
-	/* If there is a slots event and a topdown event then the slots event comes first. */
-	__evlist__for_each_entry(list, evsel) {
-		if (evsel->pmu_name && !strncmp(evsel->pmu_name, "cpu", 3) && evsel->name) {
-			if (strcasestr(evsel->name, "slots")) {
-				slots = evsel;
-				if (slots == first)
-					return first;
-			}
-			if (strcasestr(evsel->name, "topdown"))
-				has_topdown = true;
-			if (slots && has_topdown)
-				return slots;
-		}
+	if (topdown_sys_has_perf_metrics() && evsel__sys_has_perf_metrics(lhs)) {
+		/* Ensure the topdown slots comes first. */
+		if (strcasestr(lhs->name, "slots"))
+			return -1;
+		if (strcasestr(rhs->name, "slots"))
+			return 1;
+		/* Followed by topdown events. */
+		if (strcasestr(lhs->name, "topdown") && !strcasestr(rhs->name, "topdown"))
+			return -1;
+		if (!strcasestr(lhs->name, "topdown") && strcasestr(rhs->name, "topdown"))
+			return 1;
 	}
-	return first;
+
+	/* Default ordering by insertion index. */
+	return lhs->core.idx - rhs->core.idx;
 }

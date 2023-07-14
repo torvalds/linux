@@ -16,17 +16,25 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 
-/* for DPU_HW_* defines */
-#include "disp/dpu1/dpu_hw_catalog.h"
-
 #define HW_REV				0x0
 #define HW_INTR_STATUS			0x0010
 
+#define UBWC_DEC_HW_VERSION		0x58
 #define UBWC_STATIC			0x144
 #define UBWC_CTRL_2			0x150
 #define UBWC_PREDICTION_MODE		0x154
 
 #define MIN_IB_BW	400000000UL /* Min ib vote 400MB */
+
+struct msm_mdss_data {
+	u32 ubwc_version;
+	/* can be read from register 0x58 */
+	u32 ubwc_dec_version;
+	u32 ubwc_swizzle;
+	u32 ubwc_static;
+	u32 highest_bank_bit;
+	u32 macrotile_mode;
+};
 
 struct msm_mdss {
 	struct device *dev;
@@ -39,6 +47,7 @@ struct msm_mdss {
 		unsigned long enabled_mask;
 		struct irq_domain *domain;
 	} irq_controller;
+	const struct msm_mdss_data *mdss_data;
 	struct icc_path *path[2];
 	u32 num_paths;
 };
@@ -46,15 +55,17 @@ struct msm_mdss {
 static int msm_mdss_parse_data_bus_icc_path(struct device *dev,
 					    struct msm_mdss *msm_mdss)
 {
-	struct icc_path *path0 = of_icc_get(dev, "mdp0-mem");
-	struct icc_path *path1 = of_icc_get(dev, "mdp1-mem");
+	struct icc_path *path0;
+	struct icc_path *path1;
 
+	path0 = of_icc_get(dev, "mdp0-mem");
 	if (IS_ERR_OR_NULL(path0))
 		return PTR_ERR_OR_ZERO(path0);
 
 	msm_mdss->path[0] = path0;
 	msm_mdss->num_paths = 1;
 
+	path1 = of_icc_get(dev, "mdp1-mem");
 	if (!IS_ERR_OR_NULL(path1)) {
 		msm_mdss->path[1] = path1;
 		msm_mdss->num_paths++;
@@ -174,6 +185,53 @@ static int _msm_mdss_irq_domain_add(struct msm_mdss *msm_mdss)
 	return 0;
 }
 
+#define UBWC_1_0 0x10000000
+#define UBWC_2_0 0x20000000
+#define UBWC_3_0 0x30000000
+#define UBWC_4_0 0x40000000
+
+static void msm_mdss_setup_ubwc_dec_20(struct msm_mdss *msm_mdss)
+{
+	const struct msm_mdss_data *data = msm_mdss->mdss_data;
+
+	writel_relaxed(data->ubwc_static, msm_mdss->mmio + UBWC_STATIC);
+}
+
+static void msm_mdss_setup_ubwc_dec_30(struct msm_mdss *msm_mdss)
+{
+	const struct msm_mdss_data *data = msm_mdss->mdss_data;
+	u32 value = (data->ubwc_swizzle & 0x1) |
+		    (data->highest_bank_bit & 0x3) << 4 |
+		    (data->macrotile_mode & 0x1) << 12;
+
+	if (data->ubwc_version == UBWC_3_0)
+		value |= BIT(10);
+
+	if (data->ubwc_version == UBWC_1_0)
+		value |= BIT(8);
+
+	writel_relaxed(value, msm_mdss->mmio + UBWC_STATIC);
+}
+
+static void msm_mdss_setup_ubwc_dec_40(struct msm_mdss *msm_mdss)
+{
+	const struct msm_mdss_data *data = msm_mdss->mdss_data;
+	u32 value = (data->ubwc_swizzle & 0x7) |
+		    (data->ubwc_static & 0x1) << 3 |
+		    (data->highest_bank_bit & 0x7) << 4 |
+		    (data->macrotile_mode & 0x1) << 12;
+
+	writel_relaxed(value, msm_mdss->mmio + UBWC_STATIC);
+
+	if (data->ubwc_version == UBWC_3_0) {
+		writel_relaxed(1, msm_mdss->mmio + UBWC_CTRL_2);
+		writel_relaxed(0, msm_mdss->mmio + UBWC_PREDICTION_MODE);
+	} else {
+		writel_relaxed(2, msm_mdss->mmio + UBWC_CTRL_2);
+		writel_relaxed(1, msm_mdss->mmio + UBWC_PREDICTION_MODE);
+	}
+}
+
 static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 {
 	int ret;
@@ -192,32 +250,36 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 	}
 
 	/*
-	 * HW_REV requires MDSS_MDP_CLK, which is not enabled by the mdss on
-	 * mdp5 hardware. Skip reading it for now.
+	 * Register access requires MDSS_MDP_CLK, which is not enabled by the
+	 * mdss on mdp5 hardware. Skip it for now.
 	 */
-	if (msm_mdss->is_mdp5)
+	if (msm_mdss->is_mdp5 || !msm_mdss->mdss_data)
 		return 0;
 
 	/*
 	 * ubwc config is part of the "mdss" region which is not accessible
 	 * from the rest of the driver. hardcode known configurations here
+	 *
+	 * Decoder version can be read from the UBWC_DEC_HW_VERSION reg,
+	 * UBWC_n and the rest of params comes from hw data.
 	 */
-	switch (readl_relaxed(msm_mdss->mmio + HW_REV)) {
-	case DPU_HW_VER_500:
-	case DPU_HW_VER_501:
-		writel_relaxed(0x420, msm_mdss->mmio + UBWC_STATIC);
+	switch (msm_mdss->mdss_data->ubwc_dec_version) {
+	case UBWC_2_0:
+		msm_mdss_setup_ubwc_dec_20(msm_mdss);
 		break;
-	case DPU_HW_VER_600:
-		/* TODO: 0x102e for LP_DDR4 */
-		writel_relaxed(0x103e, msm_mdss->mmio + UBWC_STATIC);
-		writel_relaxed(2, msm_mdss->mmio + UBWC_CTRL_2);
-		writel_relaxed(1, msm_mdss->mmio + UBWC_PREDICTION_MODE);
+	case UBWC_3_0:
+		msm_mdss_setup_ubwc_dec_30(msm_mdss);
 		break;
-	case DPU_HW_VER_620:
-		writel_relaxed(0x1e, msm_mdss->mmio + UBWC_STATIC);
+	case UBWC_4_0:
+		msm_mdss_setup_ubwc_dec_40(msm_mdss);
 		break;
-	case DPU_HW_VER_720:
-		writel_relaxed(0x101e, msm_mdss->mmio + UBWC_STATIC);
+	default:
+		dev_err(msm_mdss->dev, "Unsupported UBWC decoder version %x\n",
+			msm_mdss->mdss_data->ubwc_dec_version);
+		dev_err(msm_mdss->dev, "HW_REV: 0x%x\n",
+			readl_relaxed(msm_mdss->mmio + HW_REV));
+		dev_err(msm_mdss->dev, "UBWC_DEC_HW_VERSION: 0x%x\n",
+			readl_relaxed(msm_mdss->mmio + UBWC_DEC_HW_VERSION));
 		break;
 	}
 
@@ -408,6 +470,8 @@ static int mdss_probe(struct platform_device *pdev)
 	if (IS_ERR(mdss))
 		return PTR_ERR(mdss);
 
+	mdss->mdss_data = of_device_get_match_data(&pdev->dev);
+
 	platform_set_drvdata(pdev, mdss);
 
 	/*
@@ -437,16 +501,91 @@ static int mdss_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct msm_mdss_data sc7180_data = {
+	.ubwc_version = UBWC_2_0,
+	.ubwc_dec_version = UBWC_2_0,
+	.ubwc_static = 0x1e,
+};
+
+static const struct msm_mdss_data sc7280_data = {
+	.ubwc_version = UBWC_3_0,
+	.ubwc_dec_version = UBWC_4_0,
+	.ubwc_swizzle = 6,
+	.ubwc_static = 1,
+	.highest_bank_bit = 1,
+	.macrotile_mode = 1,
+};
+
+static const struct msm_mdss_data sc8180x_data = {
+	.ubwc_version = UBWC_3_0,
+	.ubwc_dec_version = UBWC_3_0,
+	.highest_bank_bit = 3,
+	.macrotile_mode = 1,
+};
+
+static const struct msm_mdss_data sc8280xp_data = {
+	.ubwc_version = UBWC_4_0,
+	.ubwc_dec_version = UBWC_4_0,
+	.ubwc_swizzle = 6,
+	.ubwc_static = 1,
+	.highest_bank_bit = 2,
+	.macrotile_mode = 1,
+};
+
+static const struct msm_mdss_data sdm845_data = {
+	.ubwc_version = UBWC_2_0,
+	.ubwc_dec_version = UBWC_2_0,
+	.highest_bank_bit = 2,
+};
+
+static const struct msm_mdss_data sm6350_data = {
+	.ubwc_version = UBWC_2_0,
+	.ubwc_dec_version = UBWC_2_0,
+	.ubwc_swizzle = 6,
+	.ubwc_static = 0x1e,
+	.highest_bank_bit = 1,
+};
+
+static const struct msm_mdss_data sm8150_data = {
+	.ubwc_version = UBWC_3_0,
+	.ubwc_dec_version = UBWC_3_0,
+	.highest_bank_bit = 2,
+};
+
+static const struct msm_mdss_data sm6115_data = {
+	.ubwc_version = UBWC_1_0,
+	.ubwc_dec_version = UBWC_2_0,
+	.ubwc_swizzle = 7,
+	.ubwc_static = 0x11f,
+};
+
+static const struct msm_mdss_data sm8250_data = {
+	.ubwc_version = UBWC_4_0,
+	.ubwc_dec_version = UBWC_4_0,
+	.ubwc_swizzle = 6,
+	.ubwc_static = 1,
+	/* TODO: highest_bank_bit = 2 for LP_DDR4 */
+	.highest_bank_bit = 3,
+	.macrotile_mode = 1,
+};
+
 static const struct of_device_id mdss_dt_match[] = {
 	{ .compatible = "qcom,mdss" },
 	{ .compatible = "qcom,msm8998-mdss" },
 	{ .compatible = "qcom,qcm2290-mdss" },
-	{ .compatible = "qcom,sdm845-mdss" },
-	{ .compatible = "qcom,sc7180-mdss" },
-	{ .compatible = "qcom,sc7280-mdss" },
-	{ .compatible = "qcom,sc8180x-mdss" },
-	{ .compatible = "qcom,sm8150-mdss" },
-	{ .compatible = "qcom,sm8250-mdss" },
+	{ .compatible = "qcom,sdm845-mdss", .data = &sdm845_data },
+	{ .compatible = "qcom,sc7180-mdss", .data = &sc7180_data },
+	{ .compatible = "qcom,sc7280-mdss", .data = &sc7280_data },
+	{ .compatible = "qcom,sc8180x-mdss", .data = &sc8180x_data },
+	{ .compatible = "qcom,sc8280xp-mdss", .data = &sc8280xp_data },
+	{ .compatible = "qcom,sm6115-mdss", .data = &sm6115_data },
+	{ .compatible = "qcom,sm6350-mdss", .data = &sm6350_data },
+	{ .compatible = "qcom,sm6375-mdss", .data = &sm6350_data },
+	{ .compatible = "qcom,sm8150-mdss", .data = &sm8150_data },
+	{ .compatible = "qcom,sm8250-mdss", .data = &sm8250_data },
+	{ .compatible = "qcom,sm8350-mdss", .data = &sm8250_data },
+	{ .compatible = "qcom,sm8450-mdss", .data = &sm8250_data },
+	{ .compatible = "qcom,sm8550-mdss", .data = &sm8250_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, mdss_dt_match);

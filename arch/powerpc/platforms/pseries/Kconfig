@@ -7,6 +7,7 @@ config PPC_PSERIES
 	select OF_DYNAMIC
 	select FORCE_PCI
 	select PCI_MSI
+	select GENERIC_ALLOCATOR
 	select PPC_XICS
 	select PPC_XIVE_SPAPR
 	select PPC_ICP_NATIVE
@@ -21,15 +22,24 @@ config PPC_PSERIES
 	select HOTPLUG_CPU
 	select FORCE_SMP
 	select SWIOTLB
+	select ARCH_SUPPORTS_PER_VMA_LOCK
 	default y
 
+config PARAVIRT
+	bool
+
 config PARAVIRT_SPINLOCKS
+	bool
+
+config PARAVIRT_TIME_ACCOUNTING
+	select PARAVIRT
 	bool
 
 config PPC_SPLPAR
 	bool "Support for shared-processor logical partitions"
 	depends on PPC_PSERIES
 	select PARAVIRT_SPINLOCKS if PPC_QUEUED_SPINLOCKS
+	select PARAVIRT_TIME_ACCOUNTING if VIRT_CPU_ACCOUNTING_GEN
 	default y
 	help
 	  Enabling this option will make the kernel run more efficiently
@@ -143,16 +153,16 @@ config IBMEBUS
 
 config PSERIES_PLPKS
 	depends on PPC_PSERIES
-	bool "Support for the Platform Key Storage"
-	help
-	  PowerVM provides an isolated Platform Keystore(PKS) storage
-	  allocation for each LPAR with individually managed access
-	  controls to store sensitive information securely. It can be
-	  used to store asymmetric public keys or secrets as required
-	  by different usecases. Select this config to enable
-	  operating system interface to hypervisor to access this space.
-
-	  If unsure, select N.
+	select NLS
+	bool
+	# PowerVM provides an isolated Platform Keystore (PKS) storage
+	# allocation for each LPAR with individually managed access
+	# controls to store sensitive information securely. It can be
+	# used to store asymmetric public keys or secrets as required
+	# by different usecases.
+	#
+	# This option is selected by in-kernel consumers that require
+	# access to the PKS.
 
 config PAPR_SCM
 	depends on PPC_PSERIES && MEMORY_HOTPLUG && LIBNVDIMM

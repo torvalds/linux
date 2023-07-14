@@ -401,7 +401,7 @@ error:
 	return ret;
 }
 
-static const struct hwmon_channel_info *max6620_info[] = {
+static const struct hwmon_channel_info * const max6620_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_TARGET | HWMON_F_ALARM,
 			   HWMON_F_INPUT | HWMON_F_DIV | HWMON_F_TARGET | HWMON_F_ALARM,
@@ -503,7 +503,7 @@ static struct i2c_driver max6620_driver = {
 	.driver = {
 		.name	= "max6620",
 	},
-	.probe_new	= max6620_probe,
+	.probe		= max6620_probe,
 	.id_table	= max6620_id,
 };
 

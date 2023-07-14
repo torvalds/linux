@@ -9,7 +9,6 @@
 #include <drm/drm.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_damage_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -24,35 +23,6 @@ static const struct drm_framebuffer_funcs rockchip_drm_fb_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
 	.dirty	       = drm_atomic_helper_dirtyfb,
 };
-
-static struct drm_framebuffer *
-rockchip_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2 *mode_cmd,
-		  struct drm_gem_object **obj, unsigned int num_planes)
-{
-	struct drm_framebuffer *fb;
-	int ret;
-	int i;
-
-	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
-	if (!fb)
-		return ERR_PTR(-ENOMEM);
-
-	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
-
-	for (i = 0; i < num_planes; i++)
-		fb->obj[i] = obj[i];
-
-	ret = drm_framebuffer_init(dev, fb, &rockchip_drm_fb_funcs);
-	if (ret) {
-		DRM_DEV_ERROR(dev->dev,
-			      "Failed to initialize framebuffer: %d\n",
-			      ret);
-		kfree(fb);
-		return ERR_PTR(ret);
-	}
-
-	return fb;
-}
 
 static const struct drm_mode_config_helper_funcs rockchip_mode_config_helpers = {
 	.atomic_commit_tail = drm_atomic_helper_commit_tail_rpm,
@@ -101,24 +71,9 @@ rockchip_fb_create(struct drm_device *dev, struct drm_file *file,
 
 static const struct drm_mode_config_funcs rockchip_drm_mode_config_funcs = {
 	.fb_create = rockchip_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
-
-struct drm_framebuffer *
-rockchip_drm_framebuffer_init(struct drm_device *dev,
-			      const struct drm_mode_fb_cmd2 *mode_cmd,
-			      struct drm_gem_object *obj)
-{
-	struct drm_framebuffer *fb;
-
-	fb = rockchip_fb_alloc(dev, mode_cmd, &obj, 1);
-	if (IS_ERR(fb))
-		return ERR_CAST(fb);
-
-	return fb;
-}
 
 void rockchip_drm_mode_config_init(struct drm_device *dev)
 {

@@ -63,7 +63,7 @@ gf100_devinit_pll_set(struct nvkm_devinit *init, u32 type, u32 freq)
 	return ret;
 }
 
-static u64
+static void
 gf100_devinit_disable(struct nvkm_devinit *init)
 {
 	struct nvkm_device *device = init->subdev.device;
@@ -85,8 +85,6 @@ gf100_devinit_disable(struct nvkm_devinit *init)
 		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 0);
 	if (r022500 & 0x00000200)
 		nvkm_subdev_disable(device, NVKM_ENGINE_CE, 1);
-
-	return 0ULL;
 }
 
 void

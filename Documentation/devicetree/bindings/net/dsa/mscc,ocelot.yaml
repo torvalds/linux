@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/dsa/mscc,ocelot.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip Ocelot Switch Family Device Tree Bindings
+title: Microchip Ocelot Switch Family
 
 maintainers:
   - Vladimir Oltean <vladimir.oltean@nxp.com>
@@ -78,7 +78,7 @@ required:
   - reg
 
 allOf:
-  - $ref: dsa.yaml#
+  - $ref: dsa.yaml#/$defs/ethernet-ports
   - if:
       properties:
         compatible:

@@ -49,6 +49,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t\t: %ld\n", n);
 	seq_printf(m, "package\t\t\t: %d\n", cpu_data[n].package);
 	seq_printf(m, "core\t\t\t: %d\n", cpu_data[n].core);
+	seq_printf(m, "global_id\t\t: %d\n", cpu_data[n].global_id);
 	seq_printf(m, "CPU Family\t\t: %s\n", __cpu_family[n]);
 	seq_printf(m, "Model Name\t\t: %s\n", __cpu_full_name[n]);
 	seq_printf(m, "CPU Revision\t\t: 0x%02x\n", version);
@@ -76,8 +77,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	if (cpu_has_fpu)	seq_printf(m, " fpu");
 	if (cpu_has_lsx)	seq_printf(m, " lsx");
 	if (cpu_has_lasx)	seq_printf(m, " lasx");
+	if (cpu_has_crc32)	seq_printf(m, " crc32");
 	if (cpu_has_complex)	seq_printf(m, " complex");
 	if (cpu_has_crypto)	seq_printf(m, " crypto");
+	if (cpu_has_ptw)	seq_printf(m, " ptw");
 	if (cpu_has_lvz)	seq_printf(m, " lvz");
 	if (cpu_has_lbt_x86)	seq_printf(m, " lbt_x86");
 	if (cpu_has_lbt_arm)	seq_printf(m, " lbt_arm");

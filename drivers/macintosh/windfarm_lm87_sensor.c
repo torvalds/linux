@@ -95,8 +95,7 @@ static const struct wf_sensor_ops wf_lm87_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int wf_lm87_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int wf_lm87_probe(struct i2c_client *client)
 {	
 	struct wf_lm87_sensor *lm;
 	const char *name = NULL, *loc;

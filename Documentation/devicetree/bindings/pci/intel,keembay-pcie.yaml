@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/pci/intel,keembay-pcie.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/pci/intel,keembay-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Intel Keem Bay PCIe controller Root Complex mode
 

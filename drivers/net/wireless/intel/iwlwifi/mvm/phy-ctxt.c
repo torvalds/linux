@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -14,16 +14,18 @@ u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
-		return PHY_VHT_CHANNEL_MODE20;
+		return IWL_PHY_CHANNEL_MODE20;
 	case NL80211_CHAN_WIDTH_40:
-		return PHY_VHT_CHANNEL_MODE40;
+		return IWL_PHY_CHANNEL_MODE40;
 	case NL80211_CHAN_WIDTH_80:
-		return PHY_VHT_CHANNEL_MODE80;
+		return IWL_PHY_CHANNEL_MODE80;
 	case NL80211_CHAN_WIDTH_160:
-		return PHY_VHT_CHANNEL_MODE160;
+		return IWL_PHY_CHANNEL_MODE160;
+	case NL80211_CHAN_WIDTH_320:
+		return IWL_PHY_CHANNEL_MODE320;
 	default:
 		WARN(1, "Invalid channel width=%u", chandef->width);
-		return PHY_VHT_CHANNEL_MODE20;
+		return IWL_PHY_CHANNEL_MODE20;
 	}
 }
 
@@ -33,34 +35,32 @@ u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
  */
 u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 {
-	switch (chandef->chan->center_freq - chandef->center_freq1) {
-	case -70:
-		return PHY_VHT_CTRL_POS_4_BELOW;
-	case -50:
-		return PHY_VHT_CTRL_POS_3_BELOW;
-	case -30:
-		return PHY_VHT_CTRL_POS_2_BELOW;
-	case -10:
-		return PHY_VHT_CTRL_POS_1_BELOW;
-	case  10:
-		return PHY_VHT_CTRL_POS_1_ABOVE;
-	case  30:
-		return PHY_VHT_CTRL_POS_2_ABOVE;
-	case  50:
-		return PHY_VHT_CTRL_POS_3_ABOVE;
-	case  70:
-		return PHY_VHT_CTRL_POS_4_ABOVE;
-	default:
-		WARN(1, "Invalid channel definition");
-		fallthrough;
-	case 0:
+	int offs = chandef->chan->center_freq - chandef->center_freq1;
+	int abs_offs = abs(offs);
+	u8 ret;
+
+	if (offs == 0) {
 		/*
 		 * The FW is expected to check the control channel position only
 		 * when in HT/VHT and the channel width is not 20MHz. Return
 		 * this value as the default one.
 		 */
-		return PHY_VHT_CTRL_POS_1_BELOW;
+		return 0;
 	}
+
+	/* this results in a value 0-7, i.e. fitting into 0b0111 */
+	ret = (abs_offs - 10) / 20;
+	/*
+	 * But we need the value to be in 0b1011 because 0b0100 is
+	 * IWL_PHY_CTRL_POS_ABOVE, so shift bit 2 up to land in
+	 * IWL_PHY_CTRL_POS_OFFS_EXT (0b1000)
+	 */
+	ret = (ret & IWL_PHY_CTRL_POS_OFFS_MSK) |
+	      ((ret & BIT(2)) << 1);
+	/* and add the above bit */
+	ret |= (offs > 0) * IWL_PHY_CTRL_POS_ABOVE;
+
+	return ret;
 }
 
 /*
@@ -151,7 +151,7 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 				      struct cfg80211_chan_def *chandef,
 				      u8 chains_static, u8 chains_dynamic)
 {
-	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm->fw,
+	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm,
 						       chandef->chan->band));
 
 	/* Set the channel info data */
@@ -163,15 +163,18 @@ static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 					     chains_static, chains_dynamic);
 }
 
-static int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm,
-				struct iwl_mvm_phy_ctxt *ctxt,
-				u8 chains_static, u8 chains_dynamic)
+int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
+			 u8 chains_static, u8 chains_dynamic)
 {
 	struct iwl_rlc_config_cmd cmd = {
 		.phy_id = cpu_to_le32(ctxt->id),
 	};
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP, RLC_CONFIG_CMD), 0) < 2)
+	if (ctxt->rlc_disabled)
+		return 0;
+
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(DATA_PATH_GROUP,
+						   RLC_CONFIG_CMD), 0) < 2)
 		return 0;
 
 	BUILD_BUG_ON(IWL_RLC_CHAIN_INFO_DRIVER_FORCE !=
@@ -382,12 +385,12 @@ static void iwl_mvm_binding_iterator(void *_data, u8 *mac,
 	unsigned long *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (!mvmvif->phy_ctxt)
+	if (!mvmvif->deflink.phy_ctxt)
 		return;
 
 	if (vif->type == NL80211_IFTYPE_STATION ||
 	    vif->type == NL80211_IFTYPE_AP)
-		__set_bit(mvmvif->phy_ctxt->id, data);
+		__set_bit(mvmvif->deflink.phy_ctxt->id, data);
 }
 
 int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm)

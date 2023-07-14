@@ -419,7 +419,7 @@ XDP_UMEM_REG setsockopt
 -----------------------
 
 This setsockopt registers a UMEM to a socket. This is the area that
-contain all the buffers that packet can recide in. The call takes a
+contain all the buffers that packet can reside in. The call takes a
 pointer to the beginning of this area and the size of it. Moreover, it
 also has parameter called chunk_size that is the size that the UMEM is
 divided into. It can only be 2K or 4K at the moment. If you have an
@@ -432,6 +432,15 @@ the UMEM. If you set this to N bytes, it means that the packet will
 start N bytes into the buffer leaving the first N bytes for the
 application to use. The final option is the flags field, but it will
 be dealt with in separate sections for each UMEM flag.
+
+SO_BINDTODEVICE setsockopt
+--------------------------
+
+This is a generic SOL_SOCKET option that can be used to tie AF_XDP
+socket to a particular network interface.  It is useful when a socket
+is created by a privileged process and passed to a non-privileged one.
+Once the option is set, kernel will refuse attempts to bind that socket
+to a different interface.  Updating the value requires CAP_NET_RAW.
 
 XDP_STATISTICS getsockopt
 -------------------------
@@ -592,7 +601,7 @@ A: When a netdev of a physical NIC is initialized, Linux usually
    A number of other ways are possible all up to the capabilities of
    the NIC you have.
 
-Q: Can I use the XSKMAP to implement a switch betwen different umems
+Q: Can I use the XSKMAP to implement a switch between different umems
    in copy mode?
 
 A: The short answer is no, that is not supported at the moment. The

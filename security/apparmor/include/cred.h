@@ -64,19 +64,6 @@ static inline struct aa_label *aa_get_newest_cred_label(const struct cred *cred)
 }
 
 /**
- * __aa_task_raw_label - retrieve another task's label
- * @task: task to query  (NOT NULL)
- *
- * Returns: @task's label without incrementing its ref count
- *
- * If @task != current needs to be called in RCU safe critical section
- */
-static inline struct aa_label *__aa_task_raw_label(struct task_struct *task)
-{
-	return aa_cred_raw_label(__task_cred(task));
-}
-
-/**
  * aa_current_raw_label - find the current tasks confining label
  *
  * Returns: up to date confining label or the ns unconfined label (NOT NULL)

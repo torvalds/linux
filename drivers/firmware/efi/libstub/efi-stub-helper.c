@@ -9,10 +9,8 @@
 
 #include <linux/stdarg.h>
 
-#include <linux/ctype.h>
 #include <linux/efi.h>
 #include <linux/kernel.h>
-#include <linux/printk.h> /* For CONSOLE_LOGLEVEL_* */
 #include <asm/efi.h>
 #include <asm/setup.h>
 
@@ -20,7 +18,6 @@
 
 bool efi_nochunk;
 bool efi_nokaslr = !IS_ENABLED(CONFIG_RANDOMIZE_BASE);
-int efi_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
 bool efi_novamap;
 
 static bool efi_noinitrd;
@@ -30,146 +27,6 @@ static bool efi_disable_pci_dma = IS_ENABLED(CONFIG_EFI_DISABLE_PCI_DMA);
 bool __pure __efi_soft_reserve_enabled(void)
 {
 	return !efi_nosoftreserve;
-}
-
-/**
- * efi_char16_puts() - Write a UCS-2 encoded string to the console
- * @str:	UCS-2 encoded string
- */
-void efi_char16_puts(efi_char16_t *str)
-{
-	efi_call_proto(efi_table_attr(efi_system_table, con_out),
-		       output_string, str);
-}
-
-static
-u32 utf8_to_utf32(const u8 **s8)
-{
-	u32 c32;
-	u8 c0, cx;
-	size_t clen, i;
-
-	c0 = cx = *(*s8)++;
-	/*
-	 * The position of the most-significant 0 bit gives us the length of
-	 * a multi-octet encoding.
-	 */
-	for (clen = 0; cx & 0x80; ++clen)
-		cx <<= 1;
-	/*
-	 * If the 0 bit is in position 8, this is a valid single-octet
-	 * encoding. If the 0 bit is in position 7 or positions 1-3, the
-	 * encoding is invalid.
-	 * In either case, we just return the first octet.
-	 */
-	if (clen < 2 || clen > 4)
-		return c0;
-	/* Get the bits from the first octet. */
-	c32 = cx >> clen--;
-	for (i = 0; i < clen; ++i) {
-		/* Trailing octets must have 10 in most significant bits. */
-		cx = (*s8)[i] ^ 0x80;
-		if (cx & 0xc0)
-			return c0;
-		c32 = (c32 << 6) | cx;
-	}
-	/*
-	 * Check for validity:
-	 * - The character must be in the Unicode range.
-	 * - It must not be a surrogate.
-	 * - It must be encoded using the correct number of octets.
-	 */
-	if (c32 > 0x10ffff ||
-	    (c32 & 0xf800) == 0xd800 ||
-	    clen != (c32 >= 0x80) + (c32 >= 0x800) + (c32 >= 0x10000))
-		return c0;
-	*s8 += clen;
-	return c32;
-}
-
-/**
- * efi_puts() - Write a UTF-8 encoded string to the console
- * @str:	UTF-8 encoded string
- */
-void efi_puts(const char *str)
-{
-	efi_char16_t buf[128];
-	size_t pos = 0, lim = ARRAY_SIZE(buf);
-	const u8 *s8 = (const u8 *)str;
-	u32 c32;
-
-	while (*s8) {
-		if (*s8 == '\n')
-			buf[pos++] = L'\r';
-		c32 = utf8_to_utf32(&s8);
-		if (c32 < 0x10000) {
-			/* Characters in plane 0 use a single word. */
-			buf[pos++] = c32;
-		} else {
-			/*
-			 * Characters in other planes encode into a surrogate
-			 * pair.
-			 */
-			buf[pos++] = (0xd800 - (0x10000 >> 10)) + (c32 >> 10);
-			buf[pos++] = 0xdc00 + (c32 & 0x3ff);
-		}
-		if (*s8 == '\0' || pos >= lim - 2) {
-			buf[pos] = L'\0';
-			efi_char16_puts(buf);
-			pos = 0;
-		}
-	}
-}
-
-/**
- * efi_printk() - Print a kernel message
- * @fmt:	format string
- *
- * The first letter of the format string is used to determine the logging level
- * of the message. If the level is less then the current EFI logging level, the
- * message is suppressed. The message will be truncated to 255 bytes.
- *
- * Return:	number of printed characters
- */
-int efi_printk(const char *fmt, ...)
-{
-	char printf_buf[256];
-	va_list args;
-	int printed;
-	int loglevel = printk_get_level(fmt);
-
-	switch (loglevel) {
-	case '0' ... '9':
-		loglevel -= '0';
-		break;
-	default:
-		/*
-		 * Use loglevel -1 for cases where we just want to print to
-		 * the screen.
-		 */
-		loglevel = -1;
-		break;
-	}
-
-	if (loglevel >= efi_loglevel)
-		return 0;
-
-	if (loglevel >= 0)
-		efi_puts("EFI stub: ");
-
-	fmt = printk_skip_level(fmt);
-
-	va_start(args, fmt);
-	printed = vsnprintf(printf_buf, sizeof(printf_buf), fmt, args);
-	va_end(args);
-
-	efi_puts(printf_buf);
-	if (printed >= sizeof(printf_buf)) {
-		efi_puts("[Message truncated]\n");
-		return -1;
-	}
-
-	return printed;
 }
 
 /**
@@ -218,7 +75,7 @@ efi_status_t efi_parse_options(char const *cmdline)
 			efi_noinitrd = true;
 		} else if (!strcmp(param, "efi") && val) {
 			efi_nochunk = parse_option_str(val, "nochunk");
-			efi_novamap = parse_option_str(val, "novamap");
+			efi_novamap |= parse_option_str(val, "novamap");
 
 			efi_nosoftreserve = IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
 					    parse_option_str(val, "nosoftreserve");
@@ -310,7 +167,7 @@ bool efi_load_option_unpack(efi_load_option_unpacked_t *dest,
  *
  * Detect this case and extract OptionalData.
  */
-void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_size)
+void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_size)
 {
 	const efi_load_option_t *load_option = *load_options;
 	efi_load_option_unpacked_t load_option_unpacked;
@@ -334,6 +191,85 @@ void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_si
 	*load_options_size = load_option_unpacked.optional_data_size;
 }
 
+enum efistub_event {
+	EFISTUB_EVT_INITRD,
+	EFISTUB_EVT_LOAD_OPTIONS,
+	EFISTUB_EVT_COUNT,
+};
+
+#define STR_WITH_SIZE(s)	sizeof(s), s
+
+static const struct {
+	u32		pcr_index;
+	u32		event_id;
+	u32		event_data_len;
+	u8		event_data[52];
+} events[] = {
+	[EFISTUB_EVT_INITRD] = {
+		9,
+		INITRD_EVENT_TAG_ID,
+		STR_WITH_SIZE("Linux initrd")
+	},
+	[EFISTUB_EVT_LOAD_OPTIONS] = {
+		9,
+		LOAD_OPTIONS_EVENT_TAG_ID,
+		STR_WITH_SIZE("LOADED_IMAGE::LoadOptions")
+	},
+};
+
+static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
+					     unsigned long load_size,
+					     enum efistub_event event)
+{
+	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
+	efi_tcg2_protocol_t *tcg2 = NULL;
+	efi_status_t status;
+
+	efi_bs_call(locate_protocol, &tcg2_guid, NULL, (void **)&tcg2);
+	if (tcg2) {
+		struct efi_measured_event {
+			efi_tcg2_event_t	event_data;
+			efi_tcg2_tagged_event_t tagged_event;
+			u8			tagged_event_data[];
+		} *evt;
+		int size = sizeof(*evt) + events[event].event_data_len;
+
+		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+				     (void **)&evt);
+		if (status != EFI_SUCCESS)
+			goto fail;
+
+		evt->event_data = (struct efi_tcg2_event){
+			.event_size			= size,
+			.event_header.header_size	= sizeof(evt->event_data.event_header),
+			.event_header.header_version	= EFI_TCG2_EVENT_HEADER_VERSION,
+			.event_header.pcr_index		= events[event].pcr_index,
+			.event_header.event_type	= EV_EVENT_TAG,
+		};
+
+		evt->tagged_event = (struct efi_tcg2_tagged_event){
+			.tagged_event_id		= events[event].event_id,
+			.tagged_event_data_size		= events[event].event_data_len,
+		};
+
+		memcpy(evt->tagged_event_data, events[event].event_data,
+		       events[event].event_data_len);
+
+		status = efi_call_proto(tcg2, hash_log_extend_event, 0,
+					load_addr, load_size, &evt->event_data);
+		efi_bs_call(free_pool, evt);
+
+		if (status != EFI_SUCCESS)
+			goto fail;
+		return EFI_SUCCESS;
+	}
+
+	return EFI_UNSUPPORTED;
+fail:
+	efi_warn("Failed to measure data for event %d: 0x%lx\n", event, status);
+	return status;
+}
+
 /*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
@@ -341,21 +277,26 @@ void efi_apply_loadoptions_quirk(const void **load_options, int *load_options_si
  */
 char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 {
-	const u16 *s2;
-	unsigned long cmdline_addr = 0;
-	int options_chars = efi_table_attr(image, load_options_size);
-	const u16 *options = efi_table_attr(image, load_options);
+	const efi_char16_t *options = efi_table_attr(image, load_options);
+	u32 options_size = efi_table_attr(image, load_options_size);
 	int options_bytes = 0, safe_options_bytes = 0;  /* UTF-8 bytes */
+	unsigned long cmdline_addr = 0;
+	const efi_char16_t *s2;
 	bool in_quote = false;
 	efi_status_t status;
+	u32 options_chars;
 
-	efi_apply_loadoptions_quirk((const void **)&options, &options_chars);
-	options_chars /= sizeof(*options);
+	if (options_size > 0)
+		efi_measure_tagged_event((unsigned long)options, options_size,
+					 EFISTUB_EVT_LOAD_OPTIONS);
+
+	efi_apply_loadoptions_quirk((const void **)&options, &options_size);
+	options_chars = options_size / sizeof(efi_char16_t);
 
 	if (options) {
 		s2 = options;
 		while (options_bytes < COMMAND_LINE_SIZE && options_chars--) {
-			u16 c = *s2++;
+			efi_char16_t c = *s2++;
 
 			if (c < 0x80) {
 				if (c == L'\0' || c == L'\n')
@@ -419,7 +360,6 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 /**
  * efi_exit_boot_services() - Exit boot services
  * @handle:	handle of the exiting image
- * @map:	pointer to receive the memory map
  * @priv:	argument to be passed to @priv_func
  * @priv_func:	function to process the memory map before exiting boot services
  *
@@ -432,26 +372,26 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
  *
  * Return:	status code
  */
-efi_status_t efi_exit_boot_services(void *handle,
-				    struct efi_boot_memmap *map,
-				    void *priv,
+efi_status_t efi_exit_boot_services(void *handle, void *priv,
 				    efi_exit_boot_map_processing priv_func)
 {
+	struct efi_boot_memmap *map;
 	efi_status_t status;
-
-	status = efi_get_memory_map(map);
-
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	status = priv_func(map, priv);
-	if (status != EFI_SUCCESS)
-		goto free_map;
 
 	if (efi_disable_pci_dma)
 		efi_pci_disable_bridge_busmaster();
 
-	status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
+	status = efi_get_memory_map(&map, true);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = priv_func(map, priv);
+	if (status != EFI_SUCCESS) {
+		efi_bs_call(free_pool, map);
+		return status;
+	}
+
+	status = efi_bs_call(exit_boot_services, handle, map->map_key);
 
 	if (status == EFI_INVALID_PARAMETER) {
 		/*
@@ -467,35 +407,26 @@ efi_status_t efi_exit_boot_services(void *handle,
 		 * buffer should account for any changes in the map so the call
 		 * to get_memory_map() is expected to succeed here.
 		 */
-		*map->map_size = *map->buff_size;
+		map->map_size = map->buff_size;
 		status = efi_bs_call(get_memory_map,
-				     map->map_size,
-				     *map->map,
-				     map->key_ptr,
-				     map->desc_size,
-				     map->desc_ver);
+				     &map->map_size,
+				     &map->map,
+				     &map->map_key,
+				     &map->desc_size,
+				     &map->desc_ver);
 
 		/* exit_boot_services() was called, thus cannot free */
 		if (status != EFI_SUCCESS)
-			goto fail;
+			return status;
 
 		status = priv_func(map, priv);
 		/* exit_boot_services() was called, thus cannot free */
 		if (status != EFI_SUCCESS)
-			goto fail;
+			return status;
 
-		status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
+		status = efi_bs_call(exit_boot_services, handle, map->map_key);
 	}
 
-	/* exit_boot_services() was called, thus cannot free */
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	return EFI_SUCCESS;
-
-free_map:
-	efi_bs_call(free_pool, *map->map);
-fail:
 	return status;
 }
 
@@ -552,28 +483,24 @@ static const struct {
 
 /**
  * efi_load_initrd_dev_path() - load the initrd from the Linux initrd device path
- * @load_addr:	pointer to store the address where the initrd was loaded
- * @load_size:	pointer to store the size of the loaded initrd
+ * @initrd:	pointer of struct to store the address where the initrd was loaded
+ *		and the size of the loaded initrd
  * @max:	upper limit for the initrd memory allocation
  *
  * Return:
  * * %EFI_SUCCESS if the initrd was loaded successfully, in which
  *   case @load_addr and @load_size are assigned accordingly
  * * %EFI_NOT_FOUND if no LoadFile2 protocol exists on the initrd device path
- * * %EFI_INVALID_PARAMETER if load_addr == NULL or load_size == NULL
  * * %EFI_OUT_OF_RESOURCES if memory allocation failed
  * * %EFI_LOAD_ERROR in all other cases
  */
 static
-efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
-				      unsigned long *load_size,
+efi_status_t efi_load_initrd_dev_path(struct linux_efi_initrd *initrd,
 				      unsigned long max)
 {
 	efi_guid_t lf2_proto_guid = EFI_LOAD_FILE2_PROTOCOL_GUID;
 	efi_device_path_protocol_t *dp;
 	efi_load_file2_protocol_t *lf2;
-	unsigned long initrd_addr;
-	unsigned long initrd_size;
 	efi_handle_t handle;
 	efi_status_t status;
 
@@ -587,124 +514,97 @@ efi_status_t efi_load_initrd_dev_path(unsigned long *load_addr,
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size, NULL);
+	initrd->size = 0;
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd->size, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return EFI_LOAD_ERROR;
 
-	status = efi_allocate_pages(initrd_size, &initrd_addr, max);
+	status = efi_allocate_pages(initrd->size, &initrd->base, max);
 	if (status != EFI_SUCCESS)
 		return status;
 
-	status = efi_call_proto(lf2, load_file, dp, false, &initrd_size,
-				(void *)initrd_addr);
+	status = efi_call_proto(lf2, load_file, dp, false, &initrd->size,
+				(void *)initrd->base);
 	if (status != EFI_SUCCESS) {
-		efi_free(initrd_size, initrd_addr);
+		efi_free(initrd->size, initrd->base);
 		return EFI_LOAD_ERROR;
 	}
-
-	*load_addr = initrd_addr;
-	*load_size = initrd_size;
 	return EFI_SUCCESS;
 }
 
 static
 efi_status_t efi_load_initrd_cmdline(efi_loaded_image_t *image,
-				     unsigned long *load_addr,
-				     unsigned long *load_size,
+				     struct linux_efi_initrd *initrd,
 				     unsigned long soft_limit,
 				     unsigned long hard_limit)
 {
-	if (!IS_ENABLED(CONFIG_EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER) ||
-	    (IS_ENABLED(CONFIG_X86) && (!efi_is_native() || image == NULL))) {
-		*load_addr = *load_size = 0;
-		return EFI_SUCCESS;
-	}
+	if (image == NULL)
+		return EFI_UNSUPPORTED;
 
 	return handle_cmdline_files(image, L"initrd=", sizeof(L"initrd=") - 2,
 				    soft_limit, hard_limit,
-				    load_addr, load_size);
-}
-
-static const struct {
-	efi_tcg2_event_t	event_data;
-	efi_tcg2_tagged_event_t tagged_event;
-	u8			tagged_event_data[];
-} initrd_tcg2_event = {
-	{
-		sizeof(initrd_tcg2_event) + sizeof("Linux initrd"),
-		{
-			sizeof(initrd_tcg2_event.event_data.event_header),
-			EFI_TCG2_EVENT_HEADER_VERSION,
-			9,
-			EV_EVENT_TAG,
-		},
-	},
-	{
-		INITRD_EVENT_TAG_ID,
-		sizeof("Linux initrd"),
-	},
-	{ "Linux initrd" },
-};
-
-static void efi_measure_initrd(unsigned long load_addr, unsigned long load_size)
-{
-	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
-	efi_tcg2_protocol_t *tcg2 = NULL;
-	efi_status_t status;
-
-	efi_bs_call(locate_protocol, &tcg2_guid, NULL, (void **)&tcg2);
-	if (tcg2) {
-		status = efi_call_proto(tcg2, hash_log_extend_event,
-					0, load_addr, load_size,
-					&initrd_tcg2_event.event_data);
-		if (status != EFI_SUCCESS)
-			efi_warn("Failed to measure initrd data: 0x%lx\n",
-				 status);
-		else
-			efi_info("Measured initrd data into PCR %d\n",
-				 initrd_tcg2_event.event_data.event_header.pcr_index);
-	}
+				    &initrd->base, &initrd->size);
 }
 
 /**
  * efi_load_initrd() - Load initial RAM disk
  * @image:	EFI loaded image protocol
- * @load_addr:	pointer to loaded initrd
- * @load_size:	size of loaded initrd
  * @soft_limit:	preferred address for loading the initrd
  * @hard_limit:	upper limit address for loading the initrd
  *
  * Return:	status code
  */
 efi_status_t efi_load_initrd(efi_loaded_image_t *image,
-			     unsigned long *load_addr,
-			     unsigned long *load_size,
 			     unsigned long soft_limit,
-			     unsigned long hard_limit)
+			     unsigned long hard_limit,
+			     const struct linux_efi_initrd **out)
 {
-	efi_status_t status;
+	efi_guid_t tbl_guid = LINUX_EFI_INITRD_MEDIA_GUID;
+	efi_status_t status = EFI_SUCCESS;
+	struct linux_efi_initrd initrd, *tbl;
 
-	if (efi_noinitrd) {
-		*load_addr = *load_size = 0;
-		status = EFI_SUCCESS;
-	} else {
-		status = efi_load_initrd_dev_path(load_addr, load_size, hard_limit);
-		if (status == EFI_SUCCESS) {
-			efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-			if (*load_size > 0)
-				efi_measure_initrd(*load_addr, *load_size);
-		} else if (status == EFI_NOT_FOUND) {
-			status = efi_load_initrd_cmdline(image, load_addr, load_size,
-							 soft_limit, hard_limit);
-			if (status == EFI_SUCCESS && *load_size > 0)
-				efi_info("Loaded initrd from command line option\n");
-		}
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to load initrd: 0x%lx\n", status);
-			*load_addr = *load_size = 0;
-		}
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INITRD) || efi_noinitrd)
+		return EFI_SUCCESS;
+
+	status = efi_load_initrd_dev_path(&initrd, hard_limit);
+	if (status == EFI_SUCCESS) {
+		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
+		if (initrd.size > 0 &&
+		    efi_measure_tagged_event(initrd.base, initrd.size,
+					     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
+			efi_info("Measured initrd data into PCR 9\n");
+	} else if (status == EFI_NOT_FOUND) {
+		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
+						 hard_limit);
+		/* command line loader disabled or no initrd= passed? */
+		if (status == EFI_UNSUPPORTED || status == EFI_NOT_READY)
+			return EFI_SUCCESS;
+		if (status == EFI_SUCCESS)
+			efi_info("Loaded initrd from command line option\n");
 	}
+	if (status != EFI_SUCCESS)
+		goto failed;
 
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(initrd),
+			     (void **)&tbl);
+	if (status != EFI_SUCCESS)
+		goto free_initrd;
+
+	*tbl = initrd;
+	status = efi_bs_call(install_configuration_table, &tbl_guid, tbl);
+	if (status != EFI_SUCCESS)
+		goto free_tbl;
+
+	if (out)
+		*out = tbl;
+	return EFI_SUCCESS;
+
+free_tbl:
+	efi_bs_call(free_pool, tbl);
+free_initrd:
+	efi_free(initrd.size, initrd.base);
+failed:
+	efi_err("Failed to load initrd: 0x%lx\n", status);
 	return status;
 }
 
@@ -750,4 +650,71 @@ efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
 	efi_bs_call(close_event, timer);
 
 	return status;
+}
+
+/**
+ * efi_remap_image - Remap a loaded image with the appropriate permissions
+ *                   for code and data
+ *
+ * @image_base:	the base of the image in memory
+ * @alloc_size:	the size of the area in memory occupied by the image
+ * @code_size:	the size of the leading part of the image containing code
+ * 		and read-only data
+ *
+ * efi_remap_image() uses the EFI memory attribute protocol to remap the code
+ * region of the loaded image read-only/executable, and the remainder
+ * read-write/non-executable. The code region is assumed to start at the base
+ * of the image, and will therefore cover the PE/COFF header as well.
+ */
+void efi_remap_image(unsigned long image_base, unsigned alloc_size,
+		     unsigned long code_size)
+{
+	efi_guid_t guid = EFI_MEMORY_ATTRIBUTE_PROTOCOL_GUID;
+	efi_memory_attribute_protocol_t *memattr;
+	efi_status_t status;
+	u64 attr;
+
+	/*
+	 * If the firmware implements the EFI_MEMORY_ATTRIBUTE_PROTOCOL, let's
+	 * invoke it to remap the text/rodata region of the decompressed image
+	 * as read-only and the data/bss region as non-executable.
+	 */
+	status = efi_bs_call(locate_protocol, &guid, NULL, (void **)&memattr);
+	if (status != EFI_SUCCESS)
+		return;
+
+	// Get the current attributes for the entire region
+	status = memattr->get_memory_attributes(memattr, image_base,
+						alloc_size, &attr);
+	if (status != EFI_SUCCESS) {
+		efi_warn("Failed to retrieve memory attributes for image region: 0x%lx\n",
+			 status);
+		return;
+	}
+
+	// Mark the code region as read-only
+	status = memattr->set_memory_attributes(memattr, image_base, code_size,
+						EFI_MEMORY_RO);
+	if (status != EFI_SUCCESS) {
+		efi_warn("Failed to remap code region read-only\n");
+		return;
+	}
+
+	// If the entire region was already mapped as non-exec, clear the
+	// attribute from the code region. Otherwise, set it on the data
+	// region.
+	if (attr & EFI_MEMORY_XP) {
+		status = memattr->clear_memory_attributes(memattr, image_base,
+							  code_size,
+							  EFI_MEMORY_XP);
+		if (status != EFI_SUCCESS)
+			efi_warn("Failed to remap code region executable\n");
+	} else {
+		status = memattr->set_memory_attributes(memattr,
+							image_base + code_size,
+							alloc_size - code_size,
+							EFI_MEMORY_XP);
+		if (status != EFI_SUCCESS)
+			efi_warn("Failed to remap data region non-executable\n");
+	}
 }

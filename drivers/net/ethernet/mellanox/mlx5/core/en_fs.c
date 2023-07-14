@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/list.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -67,6 +68,7 @@ struct mlx5e_flow_steering {
 	struct mlx5e_fs_udp            *udp;
 	struct mlx5e_fs_any            *any;
 	struct mlx5e_ptp_fs            *ptp_fs;
+	struct dentry                  *dfs_root;
 };
 
 static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
@@ -102,6 +104,11 @@ struct mlx5e_l2_hash_node {
 static inline int mlx5e_hash_l2(const u8 *addr)
 {
 	return addr[5];
+}
+
+struct dentry *mlx5e_fs_get_debugfs_root(struct mlx5e_flow_steering *fs)
+{
+	return fs->dfs_root;
 }
 
 static void mlx5e_add_l2_to_hash(struct hlist_head *hash, const u8 *addr)
@@ -276,7 +283,7 @@ static int __mlx5e_add_vlan_rule(struct mlx5e_flow_steering *fs,
 	if (IS_ERR(*rule_p)) {
 		err = PTR_ERR(*rule_p);
 		*rule_p = NULL;
-		fs_err(fs, "%s: add rule failed\n", __func__);
+		fs_err(fs, "add rule failed\n");
 	}
 
 	return err;
@@ -388,8 +395,7 @@ int mlx5e_add_vlan_trap(struct mlx5e_flow_steering *fs, int trap_id, int tir_num
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		fs->vlan->trap_rule = NULL;
-		fs_err(fs, "%s: add VLAN trap rule failed, err %d\n",
-		       __func__, err);
+		fs_err(fs, "add VLAN trap rule failed, err %d\n", err);
 		return err;
 	}
 	fs->vlan->trap_rule = rule;
@@ -414,8 +420,7 @@ int mlx5e_add_mac_trap(struct mlx5e_flow_steering *fs, int trap_id, int tir_num)
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		fs->l2.trap_rule = NULL;
-		fs_err(fs, "%s: add MAC trap rule failed, err %d\n",
-		       __func__, err);
+		fs_err(fs, "add MAC trap rule failed, err %d\n", err);
 		return err;
 	}
 	fs->l2.trap_rule = rule;
@@ -443,7 +448,7 @@ void mlx5e_enable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc)
 
 void mlx5e_disable_cvlan_filter(struct mlx5e_flow_steering *fs, bool promisc)
 {
-	if (fs->vlan->cvlan_filter_disabled)
+	if (!fs->vlan || fs->vlan->cvlan_filter_disabled)
 		return;
 
 	fs->vlan->cvlan_filter_disabled = true;
@@ -756,7 +761,7 @@ static int mlx5e_add_promisc_rule(struct mlx5e_flow_steering *fs)
 	if (IS_ERR(*rule_p)) {
 		err = PTR_ERR(*rule_p);
 		*rule_p = NULL;
-		fs_err(fs, "%s: add promiscuous rule failed\n", __func__);
+		fs_err(fs, "add promiscuous rule failed\n");
 	}
 	kvfree(spec);
 	return err;
@@ -776,6 +781,7 @@ static int mlx5e_create_promisc_table(struct mlx5e_flow_steering *fs)
 	ft->t = mlx5_create_auto_grouped_flow_table(fs->ns, &ft_attr);
 	if (IS_ERR(ft->t)) {
 		err = PTR_ERR(ft->t);
+		ft->t = NULL;
 		fs_err(fs, "fail to create promisc table err=%d\n", err);
 		return err;
 	}
@@ -803,7 +809,7 @@ static void mlx5e_del_promisc_rule(struct mlx5e_flow_steering *fs)
 
 static void mlx5e_destroy_promisc_table(struct mlx5e_flow_steering *fs)
 {
-	if (WARN(!fs->promisc.ft.t, "Trying to remove non-existing promiscuous table"))
+	if (!fs->promisc.ft.t)
 		return;
 	mlx5e_del_promisc_rule(fs);
 	mlx5_destroy_flow_table(fs->promisc.ft.t);
@@ -987,7 +993,7 @@ static int mlx5e_add_l2_flow_rule(struct mlx5e_flow_steering *fs,
 
 	ai->rule = mlx5_add_flow_rules(ft, spec, &flow_act, &dest, 1);
 	if (IS_ERR(ai->rule)) {
-		fs_err(fs, "%s: add l2 rule(mac:%pM) failed\n", __func__, mv_dmac);
+		fs_err(fs, "add l2 rule(mac:%pM) failed\n", mv_dmac);
 		err = PTR_ERR(ai->rule);
 		ai->rule = NULL;
 	}
@@ -1429,9 +1435,19 @@ static int mlx5e_fs_ethtool_alloc(struct mlx5e_flow_steering *fs)
 static void mlx5e_fs_ethtool_free(struct mlx5e_flow_steering *fs) { }
 #endif
 
+static void mlx5e_fs_debugfs_init(struct mlx5e_flow_steering *fs,
+				  struct dentry *dfs_root)
+{
+	if (IS_ERR_OR_NULL(dfs_root))
+		return;
+
+	fs->dfs_root = debugfs_create_dir("fs", dfs_root);
+}
+
 struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 					  struct mlx5_core_dev *mdev,
-					  bool state_destroy)
+					  bool state_destroy,
+					  struct dentry *dfs_root)
 {
 	struct mlx5e_flow_steering *fs;
 	int err;
@@ -1458,6 +1474,8 @@ struct mlx5e_flow_steering *mlx5e_fs_init(const struct mlx5e_profile *profile,
 	if (err)
 		goto err_free_tc;
 
+	mlx5e_fs_debugfs_init(fs, dfs_root);
+
 	return fs;
 err_free_tc:
 	mlx5e_fs_tc_free(fs);
@@ -1471,6 +1489,9 @@ err:
 
 void mlx5e_fs_cleanup(struct mlx5e_flow_steering *fs)
 {
+	if (!fs)
+		return;
+	debugfs_remove_recursive(fs->dfs_root);
 	mlx5e_fs_ethtool_free(fs);
 	mlx5e_fs_tc_free(fs);
 	mlx5e_fs_vlan_free(fs);

@@ -9,6 +9,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 
 static unsigned int grace_net_id;
 static DEFINE_SPINLOCK(grace_lock);

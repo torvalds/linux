@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/clock/renesas,9series.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for Renesas 9-series I2C PCIe clock generators
+title: Renesas 9-series I2C PCIe clock generators
 
 description: |
   The Renesas 9-series are I2C PCIe clock generators providing
@@ -16,6 +16,11 @@ description: |
   - 9FGV0241:
     0 -- DIF0
     1 -- DIF1
+  - 9FGV0441:
+    0 -- DIF0
+    1 -- DIF1
+    2 -- DIF2
+    3 -- DIF3
 
 maintainers:
   - Marek Vasut <marex@denx.de>
@@ -24,6 +29,7 @@ properties:
   compatible:
     enum:
       - renesas,9fgv0241
+      - renesas,9fgv0441
 
   reg:
     description: I2C device address

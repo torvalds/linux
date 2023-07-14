@@ -3,7 +3,7 @@
  *
  * Module Name: tbdata - Table manager data structure functions
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -522,7 +522,7 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 		/* Verify the checksum */
 
 		status =
-		    acpi_tb_verify_checksum(table_desc->pointer,
+		    acpi_ut_verify_checksum(table_desc->pointer,
 					    table_desc->length);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, AE_NO_MEMORY,

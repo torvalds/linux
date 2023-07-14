@@ -11,6 +11,7 @@
 #include "processor.h"
 
 #include <assert.h>
+#include <sched.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -50,6 +51,50 @@ int open_kvm_dev_path_or_exit(void)
 	return _open_kvm_dev_path_or_exit(O_RDONLY);
 }
 
+static bool get_module_param_bool(const char *module_name, const char *param)
+{
+	const int path_size = 128;
+	char path[path_size];
+	char value;
+	ssize_t r;
+	int fd;
+
+	r = snprintf(path, path_size, "/sys/module/%s/parameters/%s",
+		     module_name, param);
+	TEST_ASSERT(r < path_size,
+		    "Failed to construct sysfs path in %d bytes.", path_size);
+
+	fd = open_path_or_exit(path, O_RDONLY);
+
+	r = read(fd, &value, 1);
+	TEST_ASSERT(r == 1, "read(%s) failed", path);
+
+	r = close(fd);
+	TEST_ASSERT(!r, "close(%s) failed", path);
+
+	if (value == 'Y')
+		return true;
+	else if (value == 'N')
+		return false;
+
+	TEST_FAIL("Unrecognized value '%c' for boolean module param", value);
+}
+
+bool get_kvm_param_bool(const char *param)
+{
+	return get_module_param_bool("kvm", param);
+}
+
+bool get_kvm_intel_param_bool(const char *param)
+{
+	return get_module_param_bool("kvm_intel", param);
+}
+
+bool get_kvm_amd_param_bool(const char *param)
+{
+	return get_module_param_bool("kvm_amd", param);
+}
+
 /*
  * Capability
  *
@@ -82,7 +127,10 @@ unsigned int kvm_check_cap(long cap)
 
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size)
 {
-	vm_enable_cap(vm, KVM_CAP_DIRTY_LOG_RING, ring_size);
+	if (vm_check_cap(vm, KVM_CAP_DIRTY_LOG_RING_ACQ_REL))
+		vm_enable_cap(vm, KVM_CAP_DIRTY_LOG_RING_ACQ_REL, ring_size);
+	else
+		vm_enable_cap(vm, KVM_CAP_DIRTY_LOG_RING, ring_size);
 	vm->dirty_ring_size = ring_size;
 }
 
@@ -143,12 +191,27 @@ const struct vm_guest_mode_params vm_guest_mode_params[] = {
 _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) == NUM_VM_MODES,
 	       "Missing new mode params?");
 
-struct kvm_vm *____vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
+/*
+ * Initializes vm->vpages_valid to match the canonical VA space of the
+ * architecture.
+ *
+ * The default implementation is valid for architectures which split the
+ * range addressed by a single page table into a low and high region
+ * based on the MSB of the VA. On architectures with this behavior
+ * the VA region spans [0, 2^(va_bits - 1)), [-(2^(va_bits - 1), -1].
+ */
+__weak void vm_vaddr_populate_bitmap(struct kvm_vm *vm)
+{
+	sparsebit_set_num(vm->vpages_valid,
+		0, (1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+	sparsebit_set_num(vm->vpages_valid,
+		(~((1ULL << (vm->va_bits - 1)) - 1)) >> vm->page_shift,
+		(1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+}
+
+struct kvm_vm *____vm_create(enum vm_guest_mode mode)
 {
 	struct kvm_vm *vm;
-
-	pr_debug("%s: mode='%s' pages='%ld'\n", __func__,
-		 vm_guest_mode_string(mode), nr_pages);
 
 	vm = calloc(1, sizeof(*vm));
 	TEST_ASSERT(vm != NULL, "Insufficient Memory");
@@ -234,20 +297,13 @@ struct kvm_vm *____vm_create(enum vm_guest_mode mode, uint64_t nr_pages)
 
 	/* Limit to VA-bit canonical virtual addresses. */
 	vm->vpages_valid = sparsebit_alloc();
-	sparsebit_set_num(vm->vpages_valid,
-		0, (1ULL << (vm->va_bits - 1)) >> vm->page_shift);
-	sparsebit_set_num(vm->vpages_valid,
-		(~((1ULL << (vm->va_bits - 1)) - 1)) >> vm->page_shift,
-		(1ULL << (vm->va_bits - 1)) >> vm->page_shift);
+	vm_vaddr_populate_bitmap(vm);
 
 	/* Limit physical addresses to PA-bits. */
 	vm->max_gfn = vm_compute_max_gfn(vm);
 
 	/* Allocate and setup memory for guest. */
 	vm->vpages_mapped = sparsebit_alloc();
-	if (nr_pages != 0)
-		vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
-					    0, 0, nr_pages, 0);
 
 	return vm;
 }
@@ -292,15 +348,32 @@ struct kvm_vm *__vm_create(enum vm_guest_mode mode, uint32_t nr_runnable_vcpus,
 {
 	uint64_t nr_pages = vm_nr_pages_required(mode, nr_runnable_vcpus,
 						 nr_extra_pages);
+	struct userspace_mem_region *slot0;
 	struct kvm_vm *vm;
+	int i;
 
-	vm = ____vm_create(mode, nr_pages);
+	pr_debug("%s: mode='%s' pages='%ld'\n", __func__,
+		 vm_guest_mode_string(mode), nr_pages);
+
+	vm = ____vm_create(mode);
+
+	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, 0, 0, nr_pages, 0);
+	for (i = 0; i < NR_MEM_REGIONS; i++)
+		vm->memslots[i] = 0;
 
 	kvm_vm_elf_load(vm, program_invocation_name);
 
-#ifdef __x86_64__
-	vm_create_irqchip(vm);
-#endif
+	/*
+	 * TODO: Add proper defines to protect the library's memslots, and then
+	 * carve out memslot1 for the ucall MMIO address.  KVM treats writes to
+	 * read-only memslots as MMIO, and creating a read-only memslot for the
+	 * MMIO region would prevent silently clobbering the MMIO region.
+	 */
+	slot0 = memslot2region(vm, 0);
+	ucall_init(vm, slot0->region.guest_phys_addr + slot0->region.memory_size);
+
+	kvm_arch_vm_post_create(vm);
+
 	return vm;
 }
 
@@ -399,6 +472,76 @@ struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm)
 	kvm_vm_restart(vm);
 
 	return vm_vcpu_recreate(vm, 0);
+}
+
+void kvm_pin_this_task_to_pcpu(uint32_t pcpu)
+{
+	cpu_set_t mask;
+	int r;
+
+	CPU_ZERO(&mask);
+	CPU_SET(pcpu, &mask);
+	r = sched_setaffinity(0, sizeof(mask), &mask);
+	TEST_ASSERT(!r, "sched_setaffinity() failed for pCPU '%u'.\n", pcpu);
+}
+
+static uint32_t parse_pcpu(const char *cpu_str, const cpu_set_t *allowed_mask)
+{
+	uint32_t pcpu = atoi_non_negative("CPU number", cpu_str);
+
+	TEST_ASSERT(CPU_ISSET(pcpu, allowed_mask),
+		    "Not allowed to run on pCPU '%d', check cgroups?\n", pcpu);
+	return pcpu;
+}
+
+void kvm_print_vcpu_pinning_help(void)
+{
+	const char *name = program_invocation_name;
+
+	printf(" -c: Pin tasks to physical CPUs.  Takes a list of comma separated\n"
+	       "     values (target pCPU), one for each vCPU, plus an optional\n"
+	       "     entry for the main application task (specified via entry\n"
+	       "     <nr_vcpus + 1>).  If used, entries must be provided for all\n"
+	       "     vCPUs, i.e. pinning vCPUs is all or nothing.\n\n"
+	       "     E.g. to create 3 vCPUs, pin vCPU0=>pCPU22, vCPU1=>pCPU23,\n"
+	       "     vCPU2=>pCPU24, and pin the application task to pCPU50:\n\n"
+	       "         %s -v 3 -c 22,23,24,50\n\n"
+	       "     To leave the application task unpinned, drop the final entry:\n\n"
+	       "         %s -v 3 -c 22,23,24\n\n"
+	       "     (default: no pinning)\n", name, name);
+}
+
+void kvm_parse_vcpu_pinning(const char *pcpus_string, uint32_t vcpu_to_pcpu[],
+			    int nr_vcpus)
+{
+	cpu_set_t allowed_mask;
+	char *cpu, *cpu_list;
+	char delim[2] = ",";
+	int i, r;
+
+	cpu_list = strdup(pcpus_string);
+	TEST_ASSERT(cpu_list, "strdup() allocation failed.\n");
+
+	r = sched_getaffinity(0, sizeof(allowed_mask), &allowed_mask);
+	TEST_ASSERT(!r, "sched_getaffinity() failed");
+
+	cpu = strtok(cpu_list, delim);
+
+	/* 1. Get all pcpus for vcpus. */
+	for (i = 0; i < nr_vcpus; i++) {
+		TEST_ASSERT(cpu, "pCPU not provided for vCPU '%d'\n", i);
+		vcpu_to_pcpu[i] = parse_pcpu(cpu, &allowed_mask);
+		cpu = strtok(NULL, delim);
+	}
+
+	/* 2. Check if the main worker needs to be pinned. */
+	if (cpu) {
+		kvm_pin_this_task_to_pcpu(parse_pcpu(cpu, &allowed_mask));
+		cpu = strtok(NULL, delim);
+	}
+
+	TEST_ASSERT(!cpu, "pCPU list contains trailing garbage characters '%s'", cpu);
+	free(cpu_list);
 }
 
 /*
@@ -544,6 +687,12 @@ static void __vm_mem_region_delete(struct kvm_vm *vm,
 	sparsebit_free(&region->unused_phy_pages);
 	ret = munmap(region->mmap_start, region->mmap_size);
 	TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+	if (region->fd >= 0) {
+		/* There's an extra map when using shared memory. */
+		ret = munmap(region->mmap_alias, region->mmap_size);
+		TEST_ASSERT(!ret, __KVM_SYSCALL_ERROR("munmap()", ret));
+		close(region->fd);
+	}
 
 	free(region);
 }
@@ -881,6 +1030,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 			    vm_mem_backing_src_alias(src_type)->name);
 	}
 
+	region->backing_src_type = src_type;
 	region->unused_phy_pages = sparsebit_alloc();
 	sparsebit_set_num(region->unused_phy_pages,
 		guest_paddr >> vm->page_shift, npages);
@@ -1109,8 +1259,8 @@ struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
  * TEST_ASSERT failure occurs for invalid input or no area of at least
  * sz unallocated bytes >= vaddr_min is available.
  */
-static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
-				      vm_vaddr_t vaddr_min)
+vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
+			       vm_vaddr_t vaddr_min)
 {
 	uint64_t pages = (sz + vm->page_size - 1) >> vm->page_shift;
 
@@ -1175,6 +1325,34 @@ va_found:
 	return pgidx_start * vm->page_size;
 }
 
+vm_vaddr_t __vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min,
+			    enum kvm_mem_region_type type)
+{
+	uint64_t pages = (sz >> vm->page_shift) + ((sz % vm->page_size) != 0);
+
+	virt_pgd_alloc(vm);
+	vm_paddr_t paddr = vm_phy_pages_alloc(vm, pages,
+					      KVM_UTIL_MIN_PFN * vm->page_size,
+					      vm->memslots[type]);
+
+	/*
+	 * Find an unused range of virtual page addresses of at least
+	 * pages in length.
+	 */
+	vm_vaddr_t vaddr_start = vm_vaddr_unused_gap(vm, sz, vaddr_min);
+
+	/* Map the virtual pages. */
+	for (vm_vaddr_t vaddr = vaddr_start; pages > 0;
+		pages--, vaddr += vm->page_size, paddr += vm->page_size) {
+
+		virt_pg_map(vm, vaddr, paddr);
+
+		sparsebit_set(vm->vpages_mapped, vaddr >> vm->page_shift);
+	}
+
+	return vaddr_start;
+}
+
 /*
  * VM Virtual Address Allocate
  *
@@ -1192,33 +1370,11 @@ va_found:
  * given by vm.  The allocated bytes are mapped to a virtual address >=
  * the address given by vaddr_min.  Note that each allocation uses a
  * a unique set of pages, with the minimum real allocation being at least
- * a page.
+ * a page. The allocated physical space comes from the TEST_DATA memory region.
  */
 vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min)
 {
-	uint64_t pages = (sz >> vm->page_shift) + ((sz % vm->page_size) != 0);
-
-	virt_pgd_alloc(vm);
-	vm_paddr_t paddr = vm_phy_pages_alloc(vm, pages,
-					      KVM_UTIL_MIN_PFN * vm->page_size, 0);
-
-	/*
-	 * Find an unused range of virtual page addresses of at least
-	 * pages in length.
-	 */
-	vm_vaddr_t vaddr_start = vm_vaddr_unused_gap(vm, sz, vaddr_min);
-
-	/* Map the virtual pages. */
-	for (vm_vaddr_t vaddr = vaddr_start; pages > 0;
-		pages--, vaddr += vm->page_size, paddr += vm->page_size) {
-
-		virt_pg_map(vm, vaddr, paddr);
-
-		sparsebit_set(vm->vpages_mapped,
-			vaddr >> vm->page_shift);
-	}
-
-	return vaddr_start;
+	return __vm_vaddr_alloc(vm, sz, vaddr_min, MEM_REGION_TEST_DATA);
 }
 
 /*
@@ -1238,6 +1394,11 @@ vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min)
 vm_vaddr_t vm_vaddr_alloc_pages(struct kvm_vm *vm, int nr_pages)
 {
 	return vm_vaddr_alloc(vm, nr_pages * getpagesize(), KVM_UTIL_MIN_VADDR);
+}
+
+vm_vaddr_t __vm_vaddr_alloc_page(struct kvm_vm *vm, enum kvm_mem_region_type type)
+{
+	return __vm_vaddr_alloc(vm, getpagesize(), KVM_UTIL_MIN_VADDR, type);
 }
 
 /*
@@ -1286,6 +1447,8 @@ void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 
 	while (npages--) {
 		virt_pg_map(vm, vaddr, paddr);
+		sparsebit_set(vm->vpages_mapped, vaddr >> vm->page_shift);
+
 		vaddr += page_size;
 		paddr += page_size;
 	}
@@ -1464,7 +1627,7 @@ struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vcpu *vcpu)
 
 void *vcpu_map_dirty_ring(struct kvm_vcpu *vcpu)
 {
-	uint32_t page_size = vcpu->vm->page_size;
+	uint32_t page_size = getpagesize();
 	uint32_t size = vcpu->vm->dirty_ring_size;
 
 	TEST_ASSERT(size > 0, "Should enable dirty ring first");
@@ -1674,37 +1837,53 @@ void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		vcpu_dump(stream, vcpu, indent + 2);
 }
 
+#define KVM_EXIT_STRING(x) {KVM_EXIT_##x, #x}
+
 /* Known KVM exit reasons */
 static struct exit_reason {
 	unsigned int reason;
 	const char *name;
 } exit_reasons_known[] = {
-	{KVM_EXIT_UNKNOWN, "UNKNOWN"},
-	{KVM_EXIT_EXCEPTION, "EXCEPTION"},
-	{KVM_EXIT_IO, "IO"},
-	{KVM_EXIT_HYPERCALL, "HYPERCALL"},
-	{KVM_EXIT_DEBUG, "DEBUG"},
-	{KVM_EXIT_HLT, "HLT"},
-	{KVM_EXIT_MMIO, "MMIO"},
-	{KVM_EXIT_IRQ_WINDOW_OPEN, "IRQ_WINDOW_OPEN"},
-	{KVM_EXIT_SHUTDOWN, "SHUTDOWN"},
-	{KVM_EXIT_FAIL_ENTRY, "FAIL_ENTRY"},
-	{KVM_EXIT_INTR, "INTR"},
-	{KVM_EXIT_SET_TPR, "SET_TPR"},
-	{KVM_EXIT_TPR_ACCESS, "TPR_ACCESS"},
-	{KVM_EXIT_S390_SIEIC, "S390_SIEIC"},
-	{KVM_EXIT_S390_RESET, "S390_RESET"},
-	{KVM_EXIT_DCR, "DCR"},
-	{KVM_EXIT_NMI, "NMI"},
-	{KVM_EXIT_INTERNAL_ERROR, "INTERNAL_ERROR"},
-	{KVM_EXIT_OSI, "OSI"},
-	{KVM_EXIT_PAPR_HCALL, "PAPR_HCALL"},
-	{KVM_EXIT_DIRTY_RING_FULL, "DIRTY_RING_FULL"},
-	{KVM_EXIT_X86_RDMSR, "RDMSR"},
-	{KVM_EXIT_X86_WRMSR, "WRMSR"},
-	{KVM_EXIT_XEN, "XEN"},
+	KVM_EXIT_STRING(UNKNOWN),
+	KVM_EXIT_STRING(EXCEPTION),
+	KVM_EXIT_STRING(IO),
+	KVM_EXIT_STRING(HYPERCALL),
+	KVM_EXIT_STRING(DEBUG),
+	KVM_EXIT_STRING(HLT),
+	KVM_EXIT_STRING(MMIO),
+	KVM_EXIT_STRING(IRQ_WINDOW_OPEN),
+	KVM_EXIT_STRING(SHUTDOWN),
+	KVM_EXIT_STRING(FAIL_ENTRY),
+	KVM_EXIT_STRING(INTR),
+	KVM_EXIT_STRING(SET_TPR),
+	KVM_EXIT_STRING(TPR_ACCESS),
+	KVM_EXIT_STRING(S390_SIEIC),
+	KVM_EXIT_STRING(S390_RESET),
+	KVM_EXIT_STRING(DCR),
+	KVM_EXIT_STRING(NMI),
+	KVM_EXIT_STRING(INTERNAL_ERROR),
+	KVM_EXIT_STRING(OSI),
+	KVM_EXIT_STRING(PAPR_HCALL),
+	KVM_EXIT_STRING(S390_UCONTROL),
+	KVM_EXIT_STRING(WATCHDOG),
+	KVM_EXIT_STRING(S390_TSCH),
+	KVM_EXIT_STRING(EPR),
+	KVM_EXIT_STRING(SYSTEM_EVENT),
+	KVM_EXIT_STRING(S390_STSI),
+	KVM_EXIT_STRING(IOAPIC_EOI),
+	KVM_EXIT_STRING(HYPERV),
+	KVM_EXIT_STRING(ARM_NISV),
+	KVM_EXIT_STRING(X86_RDMSR),
+	KVM_EXIT_STRING(X86_WRMSR),
+	KVM_EXIT_STRING(DIRTY_RING_FULL),
+	KVM_EXIT_STRING(AP_RESET_HOLD),
+	KVM_EXIT_STRING(X86_BUS_LOCK),
+	KVM_EXIT_STRING(XEN),
+	KVM_EXIT_STRING(RISCV_SBI),
+	KVM_EXIT_STRING(RISCV_CSR),
+	KVM_EXIT_STRING(NOTIFY),
 #ifdef KVM_EXIT_MEMORY_NOT_PRESENT
-	{KVM_EXIT_MEMORY_NOT_PRESENT, "MEMORY_NOT_PRESENT"},
+	KVM_EXIT_STRING(MEMORY_NOT_PRESENT),
 #endif
 };
 
@@ -1800,12 +1979,10 @@ vm_paddr_t vm_phy_page_alloc(struct kvm_vm *vm, vm_paddr_t paddr_min,
 	return vm_phy_pages_alloc(vm, 1, paddr_min, memslot);
 }
 
-/* Arbitrary minimum physical address used for virtual translation tables. */
-#define KVM_GUEST_PAGE_TABLE_MIN_PADDR 0x180000
-
 vm_paddr_t vm_alloc_page_table(struct kvm_vm *vm)
 {
-	return vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR, 0);
+	return vm_phy_page_alloc(vm, KVM_GUEST_PAGE_TABLE_MIN_PADDR,
+				 vm->memslots[MEM_REGION_PT]);
 }
 
 /*
@@ -1978,4 +2155,20 @@ void __vm_get_stat(struct kvm_vm *vm, const char *stat_name, uint64_t *data,
 
 		break;
 	}
+}
+
+__weak void kvm_arch_vm_post_create(struct kvm_vm *vm)
+{
+}
+
+__weak void kvm_selftest_arch_init(void)
+{
+}
+
+void __attribute((constructor)) kvm_selftest_init(void)
+{
+	/* Tell stdout not to buffer its content. */
+	setbuf(stdout, NULL);
+
+	kvm_selftest_arch_init();
 }

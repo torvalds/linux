@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/opp/opp-v2-kryo-cpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. NVMEM OPP bindings
+title: Qualcomm Technologies, Inc. NVMEM OPP
 
 maintainers:
   - Ilia Lin <ilia.lin@kernel.org>
@@ -50,12 +50,22 @@ patternProperties:
       opp-supported-hw:
         description: |
           A single 32 bit bitmap value, representing compatible HW.
-          Bitmap:
+          Bitmap for MSM8996 format:
           0:  MSM8996, speedbin 0
           1:  MSM8996, speedbin 1
           2:  MSM8996, speedbin 2
-          3-31:  unused
-        maximum: 0x7
+          3:  MSM8996, speedbin 3
+          4-31:  unused
+
+          Bitmap for MSM8996SG format (speedbin shifted of 4 left):
+          0-3:  unused
+          4:  MSM8996SG, speedbin 0
+          5:  MSM8996SG, speedbin 1
+          6:  MSM8996SG, speedbin 2
+          7-31:  unused
+        enum: [0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7,
+               0x9, 0xd, 0xe, 0xf,
+               0x10, 0x20, 0x30, 0x70]
 
       clock-latency-ns: true
 
@@ -106,6 +116,7 @@ examples:
                 L2_0: l2-cache {
                     compatible = "cache";
                     cache-level = <2>;
+                    cache-unified;
                 };
             };
 
@@ -140,6 +151,7 @@ examples:
                 L2_1: l2-cache {
                     compatible = "cache";
                     cache-level = <2>;
+                    cache-unified;
                 };
             };
 

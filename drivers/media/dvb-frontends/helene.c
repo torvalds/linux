@@ -1063,8 +1063,7 @@ struct dvb_frontend *helene_attach(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL(helene_attach);
 
-static int helene_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int helene_probe(struct i2c_client *client)
 {
 	struct helene_config *config = client->dev.platform_data;
 	struct dvb_frontend *fe = config->fe;
@@ -1111,7 +1110,7 @@ static struct i2c_driver helene_driver = {
 	.driver = {
 		.name = "helene",
 	},
-	.probe    = helene_probe,
+	.probe = helene_probe,
 	.id_table = helene_id,
 };
 module_i2c_driver(helene_driver);

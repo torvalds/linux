@@ -33,41 +33,58 @@ properties:
   compatible:
     items:
       - enum:
-          - qcom,pm660
-          - qcom,pm660l
+          - qcom,pm2250
+          - qcom,pm6125
           - qcom,pm6150
           - qcom,pm6150l
           - qcom,pm6350
+          - qcom,pm660
+          - qcom,pm660l
+          - qcom,pm7250b
           - qcom,pm7325
           - qcom,pm8004
           - qcom,pm8005
           - qcom,pm8009
+          - qcom,pm8010
           - qcom,pm8019
+          - qcom,pm8028
           - qcom,pm8110
           - qcom,pm8150
           - qcom,pm8150b
+          - qcom,pm8150c
           - qcom,pm8150l
           - qcom,pm8226
           - qcom,pm8350
           - qcom,pm8350b
           - qcom,pm8350c
+          - qcom,pm8550
+          - qcom,pm8550b
+          - qcom,pm8550ve
+          - qcom,pm8550vs
           - qcom,pm8841
           - qcom,pm8909
           - qcom,pm8916
           - qcom,pm8941
           - qcom,pm8950
+          - qcom,pm8953
           - qcom,pm8994
           - qcom,pm8998
           - qcom,pma8084
           - qcom,pmd9635
+          - qcom,pmi632
           - qcom,pmi8950
           - qcom,pmi8962
           - qcom,pmi8994
           - qcom,pmi8998
+          - qcom,pmk8002
           - qcom,pmk8350
+          - qcom,pmk8550
           - qcom,pmm8155au
+          - qcom,pmm8654au
+          - qcom,pmp8074
           - qcom,pmr735a
           - qcom,pmr735b
+          - qcom,pmr735d
           - qcom,pms405
           - qcom,pmx55
           - qcom,pmx65
@@ -90,36 +107,54 @@ properties:
 
   regulators:
     type: object
-    $ref: /schemas/regulator/regulator.yaml#
+    $ref: /schemas/regulator/qcom,spmi-regulator.yaml#
+
+  pwm:
+    type: object
+    $ref: /schemas/leds/leds-qcom-lpg.yaml#
 
 patternProperties:
   "^adc@[0-9a-f]+$":
     type: object
-    $ref: /schemas/iio/adc/qcom,spmi-vadc.yaml#
+    oneOf:
+      - $ref: /schemas/iio/adc/qcom,spmi-iadc.yaml#
+      - $ref: /schemas/iio/adc/qcom,spmi-rradc.yaml#
+      - $ref: /schemas/iio/adc/qcom,spmi-vadc.yaml#
 
   "^adc-tm@[0-9a-f]+$":
     type: object
-    $ref: /schemas/thermal/qcom-spmi-adc-tm5.yaml#
+    # ref depends on compatible, see allOf below
 
   "^audio-codec@[0-9a-f]+$":
     type: object
     additionalProperties: true # FIXME qcom,pm8916-wcd-analog-codec binding not converted yet
 
-  "extcon@[0-9a-f]+$":
+  "^charger@[0-9a-f]+$":
     type: object
-    $ref: /schemas/extcon/qcom,pm8941-misc.yaml#
+    oneOf:
+      - $ref: /schemas/power/supply/qcom,pm8941-charger.yaml#
+      - $ref: /schemas/power/supply/qcom,pm8941-coincell.yaml#
+      - $ref: /schemas/power/supply/qcom,pmi8998-charger.yaml#
 
-  "gpio(s)?@[0-9a-f]+$":
+  "gpio@[0-9a-f]+$":
     type: object
     $ref: /schemas/pinctrl/qcom,pmic-gpio.yaml#
+
+  "^led-controller@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/leds/qcom,spmi-flash-led.yaml#
+
+  "^nvram@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/nvmem/qcom,spmi-sdam.yaml#
+
+  "phy@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/phy/qcom,snps-eusb2-repeater.yaml#
 
   "pon@[0-9a-f]+$":
     type: object
     $ref: /schemas/power/reset/qcom,pon.yaml#
-
-  "pwm@[0-9a-f]+$":
-    type: object
-    $ref: /schemas/leds/leds-qcom-lpg.yaml#
 
   "^rtc@[0-9a-f]+$":
     type: object
@@ -129,9 +164,17 @@ patternProperties:
     type: object
     $ref: /schemas/thermal/qcom,spmi-temp-alarm.yaml#
 
+  "^usb-detect@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/extcon/qcom,pm8941-misc.yaml#
+
+  "^usb-vbus-regulator@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/regulator/qcom,usb-vbus-regulator.yaml#
+
   "^vibrator@[0-9a-f]+$":
     type: object
-    additionalProperties: true # FIXME qcom,pm8916-vib binding not converted yet
+    $ref: /schemas/input/qcom,pm8xxx-vib.yaml#
 
   "^mpps@[0-9a-f]+$":
     type: object
@@ -145,6 +188,22 @@ patternProperties:
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8998
+    then:
+      patternProperties:
+        "^adc-tm@[0-9a-f]+$":
+          $ref: /schemas/thermal/qcom-spmi-adc-tm-hc.yaml#
+    else:
+      patternProperties:
+        "^adc-tm@[0-9a-f]+$":
+          $ref: /schemas/thermal/qcom-spmi-adc-tm5.yaml#
 
 additionalProperties: false
 
@@ -177,7 +236,7 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-            pmi8998_gpio: gpios@c000 {
+            pmi8998_gpio: gpio@c000 {
                 compatible = "qcom,pmi8998-gpio", "qcom,spmi-gpio";
                 reg = <0xc000>;
                 gpio-controller;
@@ -186,5 +245,89 @@ examples:
                 interrupt-controller;
                 #interrupt-cells = <2>;
             };
+        };
+    };
+
+  - |
+    #include <dt-bindings/input/input.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/iio/qcom,spmi-vadc.h>
+    #include <dt-bindings/spmi/spmi.h>
+
+    pmic@0 {
+        compatible = "qcom,pm6150", "qcom,spmi-pmic";
+        reg = <0x0 SPMI_USID>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pon@800 {
+            compatible = "qcom,pm8998-pon";
+            reg = <0x800>;
+            mode-bootloader = <0x2>;
+            mode-recovery = <0x1>;
+
+            pwrkey {
+                compatible = "qcom,pm8941-pwrkey";
+                interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
+                debounce = <15625>;
+                bias-pull-up;
+                linux,code = <KEY_POWER>;
+            };
+        };
+
+        temp-alarm@2400 {
+            compatible = "qcom,spmi-temp-alarm";
+            reg = <0x2400>;
+            interrupts = <0x0 0x24 0x0 IRQ_TYPE_EDGE_RISING>;
+            io-channels = <&pm6150_adc ADC5_DIE_TEMP>;
+            io-channel-names = "thermal";
+            #thermal-sensor-cells = <0>;
+        };
+
+        pm6150_adc: adc@3100 {
+            compatible = "qcom,spmi-adc5";
+            reg = <0x3100>;
+            interrupts = <0x0 0x31 0x0 IRQ_TYPE_EDGE_RISING>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            #io-channel-cells = <1>;
+
+            channel@6 {
+                reg = <ADC5_DIE_TEMP>;
+                label = "die_temp";
+            };
+
+            channel@4f {
+                reg = <ADC5_AMUX_THM3_100K_PU>;
+                qcom,ratiometric;
+                qcom,hw-settle-time = <200>;
+            };
+        };
+
+        adc-tm@3500 {
+            compatible = "qcom,spmi-adc-tm5";
+            reg = <0x3500>;
+            interrupts = <0x0 0x35 0x0 IRQ_TYPE_EDGE_RISING>;
+            #thermal-sensor-cells = <1>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            charger-thermistor@0 {
+                reg = <0>;
+                io-channels = <&pm6150_adc ADC5_AMUX_THM3_100K_PU>;
+                qcom,ratiometric;
+                qcom,hw-settle-time-us = <200>;
+            };
+        };
+
+        pm6150_gpio: gpio@c000 {
+            compatible = "qcom,pm6150-gpio", "qcom,spmi-gpio";
+            reg = <0xc000>;
+            gpio-controller;
+            gpio-ranges = <&pm6150_gpio 0 0 10>;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
         };
     };

@@ -36,6 +36,7 @@ int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 		    int64_t opcode, uint64_t msr);
 
 /* misc runtime */
+void enable_machine_check(void);
 extern u64 __bswapdi2(u64);
 extern s64 __lshrdi3(s64, int);
 extern s64 __ashldi3(s64, int);
@@ -54,19 +55,6 @@ void tm_abort(uint8_t cause);
 struct kvm_vcpu;
 void _kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
 void _kvmppc_save_tm_pr(struct kvm_vcpu *vcpu, u64 guest_msr);
-
-/* Patch sites */
-extern s32 patch__call_flush_branch_caches1;
-extern s32 patch__call_flush_branch_caches2;
-extern s32 patch__call_flush_branch_caches3;
-extern s32 patch__flush_count_cache_return;
-extern s32 patch__flush_link_stack_return;
-extern s32 patch__call_kvm_flush_link_stack;
-extern s32 patch__call_kvm_flush_link_stack_p9;
-extern s32 patch__memset_nocache, patch__memcpy_nocache;
-
-extern long flush_branch_caches;
-extern long kvm_flush_link_stack;
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 void kvmppc_save_tm_hv(struct kvm_vcpu *vcpu, u64 msr, bool preserve_nv);

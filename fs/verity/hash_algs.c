@@ -8,7 +8,6 @@
 #include "fsverity_private.h"
 
 #include <crypto/hash.h>
-#include <linux/scatterlist.h>
 
 /* The hash algorithms supported by fs-verity */
 struct fsverity_hash_alg fsverity_hash_algs[] = {
@@ -16,11 +15,13 @@ struct fsverity_hash_alg fsverity_hash_algs[] = {
 		.name = "sha256",
 		.digest_size = SHA256_DIGEST_SIZE,
 		.block_size = SHA256_BLOCK_SIZE,
+		.algo_id = HASH_ALGO_SHA256,
 	},
 	[FS_VERITY_HASH_ALG_SHA512] = {
 		.name = "sha512",
 		.digest_size = SHA512_DIGEST_SIZE,
 		.block_size = SHA512_BLOCK_SIZE,
+		.algo_id = HASH_ALGO_SHA512,
 	},
 };
 
@@ -38,11 +39,11 @@ static DEFINE_MUTEX(fsverity_hash_alg_init_mutex);
  *
  * Return: pointer to the hash alg on success, else an ERR_PTR()
  */
-struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
-						unsigned int num)
+const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
+						      unsigned int num)
 {
 	struct fsverity_hash_alg *alg;
-	struct crypto_ahash *tfm;
+	struct crypto_shash *tfm;
 	int err;
 
 	if (num >= ARRAY_SIZE(fsverity_hash_algs) ||
@@ -61,11 +62,7 @@ struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 	if (alg->tfm != NULL)
 		goto out_unlock;
 
-	/*
-	 * Using the shash API would make things a bit simpler, but the ahash
-	 * API is preferable as it allows the use of crypto accelerators.
-	 */
-	tfm = crypto_alloc_ahash(alg->name, 0, 0);
+	tfm = crypto_alloc_shash(alg->name, 0, 0);
 	if (IS_ERR(tfm)) {
 		if (PTR_ERR(tfm) == -ENOENT) {
 			fsverity_warn(inode,
@@ -82,66 +79,24 @@ struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 	}
 
 	err = -EINVAL;
-	if (WARN_ON(alg->digest_size != crypto_ahash_digestsize(tfm)))
+	if (WARN_ON_ONCE(alg->digest_size != crypto_shash_digestsize(tfm)))
 		goto err_free_tfm;
-	if (WARN_ON(alg->block_size != crypto_ahash_blocksize(tfm)))
-		goto err_free_tfm;
-
-	err = mempool_init_kmalloc_pool(&alg->req_pool, 1,
-					sizeof(struct ahash_request) +
-					crypto_ahash_reqsize(tfm));
-	if (err)
+	if (WARN_ON_ONCE(alg->block_size != crypto_shash_blocksize(tfm)))
 		goto err_free_tfm;
 
 	pr_info("%s using implementation \"%s\"\n",
-		alg->name, crypto_ahash_driver_name(tfm));
+		alg->name, crypto_shash_driver_name(tfm));
 
 	/* pairs with smp_load_acquire() above */
 	smp_store_release(&alg->tfm, tfm);
 	goto out_unlock;
 
 err_free_tfm:
-	crypto_free_ahash(tfm);
+	crypto_free_shash(tfm);
 	alg = ERR_PTR(err);
 out_unlock:
 	mutex_unlock(&fsverity_hash_alg_init_mutex);
 	return alg;
-}
-
-/**
- * fsverity_alloc_hash_request() - allocate a hash request object
- * @alg: the hash algorithm for which to allocate the request
- * @gfp_flags: memory allocation flags
- *
- * This is mempool-backed, so this never fails if __GFP_DIRECT_RECLAIM is set in
- * @gfp_flags.  However, in that case this might need to wait for all
- * previously-allocated requests to be freed.  So to avoid deadlocks, callers
- * must never need multiple requests at a time to make forward progress.
- *
- * Return: the request object on success; NULL on failure (but see above)
- */
-struct ahash_request *fsverity_alloc_hash_request(struct fsverity_hash_alg *alg,
-						  gfp_t gfp_flags)
-{
-	struct ahash_request *req = mempool_alloc(&alg->req_pool, gfp_flags);
-
-	if (req)
-		ahash_request_set_tfm(req, alg->tfm);
-	return req;
-}
-
-/**
- * fsverity_free_hash_request() - free a hash request object
- * @alg: the hash algorithm
- * @req: the hash request object to free
- */
-void fsverity_free_hash_request(struct fsverity_hash_alg *alg,
-				struct ahash_request *req)
-{
-	if (req) {
-		ahash_request_zero(req);
-		mempool_free(req, &alg->req_pool);
-	}
 }
 
 /**
@@ -153,26 +108,23 @@ void fsverity_free_hash_request(struct fsverity_hash_alg *alg,
  * Return: NULL if the salt is empty, otherwise the kmalloc()'ed precomputed
  *	   initial hash state on success or an ERR_PTR() on failure.
  */
-const u8 *fsverity_prepare_hash_state(struct fsverity_hash_alg *alg,
+const u8 *fsverity_prepare_hash_state(const struct fsverity_hash_alg *alg,
 				      const u8 *salt, size_t salt_size)
 {
 	u8 *hashstate = NULL;
-	struct ahash_request *req = NULL;
+	SHASH_DESC_ON_STACK(desc, alg->tfm);
 	u8 *padded_salt = NULL;
 	size_t padded_salt_size;
-	struct scatterlist sg;
-	DECLARE_CRYPTO_WAIT(wait);
 	int err;
+
+	desc->tfm = alg->tfm;
 
 	if (salt_size == 0)
 		return NULL;
 
-	hashstate = kmalloc(crypto_ahash_statesize(alg->tfm), GFP_KERNEL);
+	hashstate = kmalloc(crypto_shash_statesize(alg->tfm), GFP_KERNEL);
 	if (!hashstate)
 		return ERR_PTR(-ENOMEM);
-
-	/* This allocation never fails, since it's mempool-backed. */
-	req = fsverity_alloc_hash_request(alg, GFP_KERNEL);
 
 	/*
 	 * Zero-pad the salt to the next multiple of the input size of the hash
@@ -188,26 +140,18 @@ const u8 *fsverity_prepare_hash_state(struct fsverity_hash_alg *alg,
 		goto err_free;
 	}
 	memcpy(padded_salt, salt, salt_size);
-
-	sg_init_one(&sg, padded_salt, padded_salt_size);
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   crypto_req_done, &wait);
-	ahash_request_set_crypt(req, &sg, NULL, padded_salt_size);
-
-	err = crypto_wait_req(crypto_ahash_init(req), &wait);
+	err = crypto_shash_init(desc);
 	if (err)
 		goto err_free;
 
-	err = crypto_wait_req(crypto_ahash_update(req), &wait);
+	err = crypto_shash_update(desc, padded_salt, padded_salt_size);
 	if (err)
 		goto err_free;
 
-	err = crypto_ahash_export(req, hashstate);
+	err = crypto_shash_export(desc, hashstate);
 	if (err)
 		goto err_free;
 out:
-	fsverity_free_hash_request(alg, req);
 	kfree(padded_salt);
 	return hashstate;
 
@@ -218,51 +162,38 @@ err_free:
 }
 
 /**
- * fsverity_hash_page() - hash a single data or hash page
+ * fsverity_hash_block() - hash a single data or hash block
  * @params: the Merkle tree's parameters
  * @inode: inode for which the hashing is being done
- * @req: preallocated hash request
- * @page: the page to hash
+ * @data: virtual address of a buffer containing the block to hash
  * @out: output digest, size 'params->digest_size' bytes
  *
- * Hash a single data or hash block, assuming block_size == PAGE_SIZE.
- * The hash is salted if a salt is specified in the Merkle tree parameters.
+ * Hash a single data or hash block.  The hash is salted if a salt is specified
+ * in the Merkle tree parameters.
  *
  * Return: 0 on success, -errno on failure
  */
-int fsverity_hash_page(const struct merkle_tree_params *params,
-		       const struct inode *inode,
-		       struct ahash_request *req, struct page *page, u8 *out)
+int fsverity_hash_block(const struct merkle_tree_params *params,
+			const struct inode *inode, const void *data, u8 *out)
 {
-	struct scatterlist sg;
-	DECLARE_CRYPTO_WAIT(wait);
+	SHASH_DESC_ON_STACK(desc, params->hash_alg->tfm);
 	int err;
 
-	if (WARN_ON(params->block_size != PAGE_SIZE))
-		return -EINVAL;
-
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, page, PAGE_SIZE, 0);
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   crypto_req_done, &wait);
-	ahash_request_set_crypt(req, &sg, out, PAGE_SIZE);
+	desc->tfm = params->hash_alg->tfm;
 
 	if (params->hashstate) {
-		err = crypto_ahash_import(req, params->hashstate);
+		err = crypto_shash_import(desc, params->hashstate);
 		if (err) {
 			fsverity_err(inode,
 				     "Error %d importing hash state", err);
 			return err;
 		}
-		err = crypto_ahash_finup(req);
+		err = crypto_shash_finup(desc, data, params->block_size, out);
 	} else {
-		err = crypto_ahash_digest(req);
+		err = crypto_shash_digest(desc, data, params->block_size, out);
 	}
-
-	err = crypto_wait_req(err, &wait);
 	if (err)
-		fsverity_err(inode, "Error %d computing page hash", err);
+		fsverity_err(inode, "Error %d computing block hash", err);
 	return err;
 }
 
@@ -273,32 +204,12 @@ int fsverity_hash_page(const struct merkle_tree_params *params,
  * @size: size of data to hash, in bytes
  * @out: output digest, size 'alg->digest_size' bytes
  *
- * Hash some data which is located in physically contiguous memory (i.e. memory
- * allocated by kmalloc(), not by vmalloc()).  No salt is used.
- *
  * Return: 0 on success, -errno on failure
  */
-int fsverity_hash_buffer(struct fsverity_hash_alg *alg,
+int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			 const void *data, size_t size, u8 *out)
 {
-	struct ahash_request *req;
-	struct scatterlist sg;
-	DECLARE_CRYPTO_WAIT(wait);
-	int err;
-
-	/* This allocation never fails, since it's mempool-backed. */
-	req = fsverity_alloc_hash_request(alg, GFP_KERNEL);
-
-	sg_init_one(&sg, data, size);
-	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP |
-					CRYPTO_TFM_REQ_MAY_BACKLOG,
-				   crypto_req_done, &wait);
-	ahash_request_set_crypt(req, &sg, out, size);
-
-	err = crypto_wait_req(crypto_ahash_digest(req), &wait);
-
-	fsverity_free_hash_request(alg, req);
-	return err;
+	return crypto_shash_tfm_digest(alg->tfm, data, size, out);
 }
 
 void __init fsverity_check_hash_algs(void)
@@ -324,5 +235,9 @@ void __init fsverity_check_hash_algs(void)
 		 */
 		BUG_ON(!is_power_of_2(alg->digest_size));
 		BUG_ON(!is_power_of_2(alg->block_size));
+
+		/* Verify that there is a valid mapping to HASH_ALGO_*. */
+		BUG_ON(alg->algo_id == 0);
+		BUG_ON(alg->digest_size != hash_digest_size[alg->algo_id]);
 	}
 }

@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/remoteproc/qcom,glink-rpm-edge.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm G-Link RPM edge
+
+description: |
+  Qualcomm G-Link edge, a FIFO based mechanism for communication with Resource
+  Power Manager (RPM) on various Qualcomm platforms.
+
+maintainers:
+  - Bjorn Andersson <andersson@kernel.org>
+
+properties:
+  compatible:
+    const: qcom,glink-rpm
+
+  label:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Name of the edge, used for debugging and identification purposes. The
+      node name will be used if this is not present.
+
+  interrupts:
+    maxItems: 1
+
+  mboxes:
+    items:
+      - description: rpm_hlos mailbox in APCS
+
+  qcom,remote-pid:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The identifier for the remote processor as known by the rest of the
+      system.
+
+  qcom,rpm-msg-ram:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      RPM message memory resource (compatible: qcom,rpm-msg-ram).
+
+  rpm-requests:
+    type: object
+    $ref: /schemas/soc/qcom/qcom,smd-rpm.yaml#
+    unevaluatedProperties: false
+    description:
+      Qualcomm Resource Power Manager (RPM) over G-Link
+
+    properties:
+      qcom,intents:
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        minItems: 1
+        maxItems: 32
+        items:
+          items:
+            - description: size of each intent to preallocate
+            - description: amount of intents to preallocate
+              minimum: 1
+        description:
+          List of (size, amount) pairs describing what intents should be
+          preallocated for this virtual channel. This can be used to tweak the
+          default intents available for the channel to meet expectations of the
+          remote.
+
+    required:
+      - qcom,glink-channels
+
+required:
+  - compatible
+  - interrupts
+  - mboxes
+
+anyOf:
+  - required:
+      - qcom,remote-pid
+  - required:
+      - qcom,rpm-msg-ram
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    rpm-glink {
+        compatible = "qcom,glink-rpm";
+        interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+        mboxes = <&apcs_glb 0>;
+        qcom,rpm-msg-ram = <&rpm_msg_ram>;
+
+        rpm-requests {
+            compatible = "qcom,rpm-msm8996";
+            qcom,glink-channels = "rpm_requests";
+
+            /* ... */
+        };
+    };

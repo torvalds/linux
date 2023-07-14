@@ -218,14 +218,9 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		block->res = child_res;
 		list_add_tail(&block->list, &reserve_list);
 
-		if (of_find_property(child, "export", NULL))
-			block->export = true;
-
-		if (of_find_property(child, "pool", NULL))
-			block->pool = true;
-
-		if (of_find_property(child, "protect-exec", NULL))
-			block->protect_exec = true;
+		block->export = of_property_read_bool(child, "export");
+		block->pool = of_property_read_bool(child, "pool");
+		block->protect_exec = of_property_read_bool(child, "protect-exec");
 
 		if ((block->export || block->pool || block->protect_exec) &&
 		    block->size) {
@@ -240,10 +235,11 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 				goto err_chunks;
 			}
 			if (!label)
-				label = child->name;
-
-			block->label = devm_kstrdup(sram->dev,
-						    label, GFP_KERNEL);
+				block->label = devm_kasprintf(sram->dev, GFP_KERNEL,
+							      "%s", dev_name(sram->dev));
+			else
+				block->label = devm_kstrdup(sram->dev,
+							    label, GFP_KERNEL);
 			if (!block->label) {
 				ret = -ENOMEM;
 				goto err_chunks;
@@ -381,6 +377,7 @@ static int sram_probe(struct platform_device *pdev)
 	struct sram_dev *sram;
 	int ret;
 	struct resource *res;
+	struct clk *clk;
 
 	config = of_device_get_match_data(&pdev->dev);
 
@@ -409,16 +406,14 @@ static int sram_probe(struct platform_device *pdev)
 			return PTR_ERR(sram->pool);
 	}
 
-	sram->clk = devm_clk_get(sram->dev, NULL);
-	if (IS_ERR(sram->clk))
-		sram->clk = NULL;
-	else
-		clk_prepare_enable(sram->clk);
+	clk = devm_clk_get_optional_enabled(sram->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	ret = sram_reserve_regions(sram,
 			platform_get_resource(pdev, IORESOURCE_MEM, 0));
 	if (ret)
-		goto err_disable_clk;
+		return ret;
 
 	platform_set_drvdata(pdev, sram);
 
@@ -436,9 +431,6 @@ static int sram_probe(struct platform_device *pdev)
 
 err_free_partitions:
 	sram_free_partitions(sram);
-err_disable_clk:
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
 
 	return ret;
 }
@@ -451,9 +443,6 @@ static int sram_remove(struct platform_device *pdev)
 
 	if (sram->pool && gen_pool_avail(sram->pool) < gen_pool_size(sram->pool))
 		dev_err(sram->dev, "removed while SRAM allocated\n");
-
-	if (sram->clk)
-		clk_disable_unprepare(sram->clk);
 
 	return 0;
 }

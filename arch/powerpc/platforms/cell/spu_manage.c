@@ -402,7 +402,7 @@ static int __init of_has_vicinity(void)
 	struct device_node *dn;
 
 	for_each_node_by_type(dn, "spe") {
-		if (of_find_property(dn, "vicinity", NULL))  {
+		if (of_property_present(dn, "vicinity"))  {
 			of_node_put(dn);
 			return 1;
 		}
@@ -487,6 +487,8 @@ static void __init init_affinity_node(int cbe)
 				}
 				avoid_ph = vic_dn->phandle;
 			}
+
+			of_node_put(vic_dn);
 
 			list_add_tail(&spu->aff_list, &last_spu->aff_list);
 			last_spu = spu;

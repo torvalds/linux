@@ -14,11 +14,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/set_memory.h>
 
 #include <asm/fncpy.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
-#include <asm/set_memory.h>
 
 #include <asm/mach/map.h>
 
@@ -45,7 +45,7 @@
 
 #define GP_DEVICE		0x300
 
-#define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
+#define ROUND_DOWN(value, boundary)	((value) & (~((boundary) - 1)))
 
 static unsigned long omap_sram_start;
 static unsigned long omap_sram_size;
@@ -96,8 +96,7 @@ void *omap_sram_push(void *funcp, unsigned long size)
 
 	dst = fncpy(sram, funcp, size);
 
-	set_memory_ro(base, pages);
-	set_memory_x(base, pages);
+	set_memory_rox(base, pages);
 
 	return dst;
 }
@@ -119,7 +118,7 @@ static void omap_sram_reset(void)
  */
 static int is_sram_locked(void)
 {
-	if (OMAP2_DEVICE_TYPE_GP == omap_type()) {
+	if (omap_type() == OMAP2_DEVICE_TYPE_GP) {
 		/* RAMFW: R/W access to all initiators for all qualifier sets */
 		if (cpu_is_omap242x()) {
 			writel_relaxed(0xFF, OMAP24XX_VA_REQINFOPERM0); /* all q-vects */
@@ -217,8 +216,7 @@ static void __init omap2_map_sram(void)
 	base = (unsigned long)omap_sram_base;
 	pages = PAGE_ALIGN(omap_sram_size) / PAGE_SIZE;
 
-	set_memory_ro(base, pages);
-	set_memory_x(base, pages);
+	set_memory_rox(base, pages);
 }
 
 static void (*_omap2_sram_ddr_init)(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,

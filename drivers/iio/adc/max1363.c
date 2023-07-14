@@ -29,7 +29,6 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/events.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/driver.h>
 #include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
@@ -149,7 +148,6 @@ struct max1363_chip_info {
  * @chip_info:		chip model specific constants, available modes, etc.
  * @current_mode:	the scan mode of this chip
  * @requestedmask:	a valid requested set of channels
- * @reg:		supply regulator
  * @lock:		lock to ensure state is consistent
  * @monitor_on:		whether monitor mode is enabled
  * @monitor_speed:	parameter corresponding to device monitor speed setting
@@ -169,7 +167,6 @@ struct max1363_state {
 	const struct max1363_chip_info	*chip_info;
 	const struct max1363_mode	*current_mode;
 	u32				requestedmask;
-	struct regulator		*reg;
 	struct mutex			lock;
 
 	/* Using monitor modes and buffer at the same time is
@@ -1582,9 +1579,9 @@ static void max1363_reg_disable(void *reg)
 	regulator_disable(reg);
 }
 
-static int max1363_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int max1363_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
@@ -1595,23 +1592,10 @@ static int max1363_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	ret = devm_iio_map_array_register(&client->dev, indio_dev,
-					  client->dev.platform_data);
-	if (ret < 0)
-		return ret;
-
 	st = iio_priv(indio_dev);
 
 	mutex_init(&st->lock);
-	st->reg = devm_regulator_get(&client->dev, "vcc");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
-
-	ret = regulator_enable(st->reg);
-	if (ret)
-		return ret;
-
-	ret = devm_add_action_or_reset(&client->dev, max1363_reg_disable, st->reg);
+	ret = devm_regulator_get_enable(&client->dev, "vcc");
 	if (ret)
 		return ret;
 

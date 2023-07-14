@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (C) 2021 Stephan Gerhold
+/*
+ * Copyright (C) 2021 Stephan Gerhold
+ */
 
 /dts-v1/;
 
@@ -24,7 +26,9 @@
 	chassis-type = "handset";
 
 	aliases {
-		serial0 = &blsp1_uart2;
+		mmc0 = &sdhc_1; /* eMMC */
+		mmc1 = &sdhc_2; /* SD card */
+		serial0 = &blsp_uart2;
 	};
 
 	chosen {
@@ -41,7 +45,7 @@
 
 		button-volume-up {
 			label = "Volume Up";
-			gpios = <&msmgpio 107 GPIO_ACTIVE_LOW>;
+			gpios = <&tlmm 107 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 		};
 	};
@@ -53,21 +57,21 @@
 		pinctrl-0 = <&gpio_leds_default>;
 
 		led-0 {
-			gpios = <&msmgpio 8 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 8 GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_RED>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
 		};
 
 		led-1 {
-			gpios = <&msmgpio 9 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 9 GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_GREEN>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
 		};
 
 		led-2 {
-			gpios = <&msmgpio 10 GPIO_ACTIVE_HIGH>;
+			gpios = <&tlmm 10 GPIO_ACTIVE_HIGH>;
 			color = <LED_COLOR_ID_BLUE>;
 			default-state = "off";
 			function = LED_FUNCTION_INDICATOR;
@@ -76,7 +80,7 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 117 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 117 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
@@ -92,7 +96,7 @@
 		vdd-supply = <&pm8916_l17>;
 		vid-supply = <&pm8916_l6>;
 
-		reset-gpios = <&msmgpio 36 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&tlmm 36 GPIO_ACTIVE_LOW>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&mag_reset_default>;
@@ -102,7 +106,7 @@
 		compatible = "kionix,kx023-1025";
 		reg = <0x1e>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <115 IRQ_TYPE_EDGE_RISING>;
 
 		vdd-supply = <&pm8916_l17>;
@@ -120,7 +124,7 @@
 		compatible = "avago,apds9930";
 		reg = <0x39>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <113 IRQ_TYPE_EDGE_FALLING>;
 
 		vdd-supply = <&pm8916_l17>;
@@ -144,7 +148,7 @@
 			regulator-name = "outp";
 			regulator-min-microvolt = <5400000>;
 			regulator-max-microvolt = <5400000>;
-			enable-gpios = <&msmgpio 97 GPIO_ACTIVE_HIGH>;
+			enable-gpios = <&tlmm 97 GPIO_ACTIVE_HIGH>;
 			regulator-active-discharge = <1>;
 		};
 
@@ -152,7 +156,7 @@
 			regulator-name = "outn";
 			regulator-min-microvolt = <5400000>;
 			regulator-max-microvolt = <5400000>;
-			enable-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+			enable-gpios = <&tlmm 32 GPIO_ACTIVE_HIGH>;
 			regulator-active-discharge = <1>;
 		};
 	};
@@ -167,7 +171,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
 		vdd-supply = <&pm8916_l17>;
@@ -197,18 +201,18 @@
 		compatible = "nxp,pn547", "nxp,nxp-nci-i2c";
 		reg = <0x28>;
 
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <21 IRQ_TYPE_EDGE_RISING>;
 
-		enable-gpios = <&msmgpio 20 GPIO_ACTIVE_HIGH>;
-		firmware-gpios = <&msmgpio 2 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+		firmware-gpios = <&tlmm 2 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&nfc_default>;
 	};
 };
 
-&blsp1_uart2 {
+&blsp_uart2 {
 	status = "okay";
 };
 
@@ -216,36 +220,57 @@
 	status = "okay";
 };
 
+&lpass_codec {
+	status = "okay";
+};
+
+&pm8916_codec {
+	status = "okay";
+	qcom,micbias-lvl = <2800>;
+	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
+	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
+	qcom,hphl-jack-type-normally-open;
+};
+
+&pm8916_l8 {
+	regulator-min-microvolt = <2950000>;
+	regulator-max-microvolt = <2950000>;
+};
+
 &pm8916_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pm8916_rpm_regulators {
+	pm8916_l16: l16 {
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	pm8916_l17: l17 {
+		regulator-min-microvolt = <2850000>;
+		regulator-max-microvolt = <2850000>;
+	};
 };
 
 &pm8916_vib {
 	status = "okay";
 };
 
-&pronto {
-	status = "okay";
-};
-
 &sdhc_1 {
 	status = "okay";
-
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
-	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
 };
 
 &sdhc_2 {
 	status = "okay";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdhc2_cd_default>;
-	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdhc2_cd_default>;
+	pinctrl-0 = <&sdc2_default &sdc2_cd_default>;
+	pinctrl-1 = <&sdc2_sleep &sdc2_cd_default>;
 
 	/*
-	 * The Huawei device tree sets cd-gpios = <&msmgpio 38 GPIO_ACTIVE_HIGH>.
+	 * The Huawei device tree sets cd-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>.
 	 * However, gpio38 does not change its state when inserting/removing the
 	 * SD card, it's just low all the time. The Huawei kernel seems to use
 	 * polling for SD card detection instead.
@@ -257,7 +282,7 @@
 	 * Maybe Huawei decided to replace the second SIM card slot with the
 	 * SD card slot and forgot to re-route to gpio38.
 	 */
-	cd-gpios = <&msmgpio 56 GPIO_ACTIVE_LOW>;
+	cd-gpios = <&tlmm 56 GPIO_ACTIVE_LOW>;
 };
 
 &sound {
@@ -270,8 +295,8 @@
 		"AMIC3", "MIC BIAS External1";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&cdc_pdm_lines_act>;
-	pinctrl-1 = <&cdc_pdm_lines_sus>;
+	pinctrl-0 = <&cdc_pdm_default>;
+	pinctrl-1 = <&cdc_pdm_sleep>;
 
 	primary-dai-link {
 		link-name = "WCD";
@@ -279,7 +304,7 @@
 			sound-dai = <&lpass MI2S_PRIMARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+			sound-dai = <&lpass_codec 0>, <&pm8916_codec 0>;
 		};
 	};
 
@@ -289,7 +314,7 @@
 			sound-dai = <&lpass MI2S_TERTIARY>;
 		};
 		codec {
-			sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+			sound-dai = <&lpass_codec 1>, <&pm8916_codec 1>;
 		};
 	};
 };
@@ -303,118 +328,16 @@
 	extcon = <&usb_id>;
 };
 
-&wcd_codec {
-	qcom,micbias-lvl = <2800>;
-	qcom,mbhc-vthreshold-low = <75 150 237 450 500>;
-	qcom,mbhc-vthreshold-high = <75 150 237 450 500>;
-	qcom,hphl-jack-type-normally-open;
+&wcnss {
+	status = "okay";
 };
 
-&smd_rpm_regulators {
-	vdd_l1_l2_l3-supply = <&pm8916_s3>;
-	vdd_l4_l5_l6-supply = <&pm8916_s4>;
-	vdd_l7-supply = <&pm8916_s4>;
-
-	s3 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1300000>;
-	};
-
-	s4 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2100000>;
-	};
-
-	l1 {
-		regulator-min-microvolt = <1225000>;
-		regulator-max-microvolt = <1225000>;
-	};
-
-	l2 {
-		regulator-min-microvolt = <1200000>;
-		regulator-max-microvolt = <1200000>;
-	};
-
-	l4 {
-		regulator-min-microvolt = <2050000>;
-		regulator-max-microvolt = <2050000>;
-	};
-
-	l5 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l6 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l7 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l8 {
-		regulator-min-microvolt = <2950000>;
-		regulator-max-microvolt = <2950000>;
-	};
-
-	l9 {
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l10 {
-		regulator-min-microvolt = <2700000>;
-		regulator-max-microvolt = <2800000>;
-	};
-
-	l11 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2950000>;
-		regulator-allow-set-load;
-		regulator-system-load = <200000>;
-	};
-
-	l12 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <2950000>;
-	};
-
-	l13 {
-		regulator-min-microvolt = <3075000>;
-		regulator-max-microvolt = <3075000>;
-	};
-
-	l14 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l15 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	l16 {
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-	};
-
-	l17 {
-		regulator-min-microvolt = <2850000>;
-		regulator-max-microvolt = <2850000>;
-	};
-
-	l18 {
-		regulator-min-microvolt = <2700000>;
-		regulator-max-microvolt = <2700000>;
-	};
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
 };
 
-&msmgpio {
-	accel_irq_default: accel-irq-default {
+&tlmm {
+	accel_irq_default: accel-irq-default-state {
 		pins = "gpio115";
 		function = "gpio";
 
@@ -422,7 +345,7 @@
 		bias-disable;
 	};
 
-	gpio_keys_default: gpio-keys-default {
+	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107";
 		function = "gpio";
 
@@ -430,7 +353,7 @@
 		bias-pull-up;
 	};
 
-	gpio_leds_default: gpio-leds-default {
+	gpio_leds_default: gpio-leds-default-state {
 		pins = "gpio8", "gpio9", "gpio10";
 		function = "gpio";
 
@@ -438,7 +361,7 @@
 		bias-disable;
 	};
 
-	nfc_default: nfc-default {
+	nfc_default: nfc-default-state {
 		pins = "gpio2", "gpio20", "gpio21";
 		function = "gpio";
 
@@ -446,7 +369,7 @@
 		bias-disable;
 	};
 
-	mag_reset_default: mag-reset-default {
+	mag_reset_default: mag-reset-default-state {
 		pins = "gpio36";
 		function = "gpio";
 
@@ -454,7 +377,7 @@
 		bias-disable;
 	};
 
-	prox_irq_default: prox-irq-default {
+	prox_irq_default: prox-irq-default-state {
 		pins = "gpio113";
 		function = "gpio";
 
@@ -462,7 +385,7 @@
 		bias-disable;
 	};
 
-	reg_lcd_en_default: reg-lcd-en-default {
+	reg_lcd_en_default: reg-lcd-en-default-state {
 		pins = "gpio32", "gpio97";
 		function = "gpio";
 
@@ -470,7 +393,7 @@
 		bias-disable;
 	};
 
-	sdhc2_cd_default: sdhc2-cd-default {
+	sdc2_cd_default: sdc2-cd-default-state {
 		pins = "gpio56";
 		function = "gpio";
 
@@ -478,7 +401,7 @@
 		bias-disable;
 	};
 
-	ts_irq_default: ts-irq-default {
+	ts_irq_default: ts-irq-default-state {
 		pins = "gpio13";
 		function = "gpio";
 
@@ -486,7 +409,7 @@
 		bias-disable;
 	};
 
-	usb_id_default: usb-id-default {
+	usb_id_default: usb-id-default-state {
 		pins = "gpio117";
 		function = "gpio";
 

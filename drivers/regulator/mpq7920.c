@@ -318,9 +318,10 @@ MODULE_DEVICE_TABLE(i2c, mpq7920_id);
 static struct i2c_driver mpq7920_regulator_driver = {
 	.driver = {
 		.name = "mpq7920",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mpq7920_of_match),
 	},
-	.probe_new = mpq7920_i2c_probe,
+	.probe = mpq7920_i2c_probe,
 	.id_table = mpq7920_id,
 };
 module_i2c_driver(mpq7920_regulator_driver);

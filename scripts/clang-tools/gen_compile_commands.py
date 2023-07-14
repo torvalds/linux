@@ -19,7 +19,7 @@ _DEFAULT_OUTPUT = 'compile_commands.json'
 _DEFAULT_LOG_LEVEL = 'WARNING'
 
 _FILENAME_PATTERN = r'^\..*\.cmd$'
-_LINE_PATTERN = r'^cmd_[^ ]*\.o := (.* )([^ ]*\.c) *(;|$)'
+_LINE_PATTERN = r'^savedcmd_[^ ]*\.o := (.* )([^ ]*\.c) *(;|$)'
 _VALID_LOG_LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 # The tools/ directory adopts a different build system, and produces .cmd
 # files in a different format. Do not support it.
@@ -109,20 +109,6 @@ def to_cmdfile(path):
     return os.path.join(dir, '.' + base + '.cmd')
 
 
-def cmdfiles_for_o(obj):
-    """Generate the iterator of .cmd files associated with the object
-
-    Yield the .cmd file used to build the given object
-
-    Args:
-        obj: The object path
-
-    Yields:
-        The path to .cmd file
-    """
-    yield to_cmdfile(obj)
-
-
 def cmdfiles_for_a(archive, ar):
     """Generate the iterator of .cmd files associated with the archive.
 
@@ -152,10 +138,10 @@ def cmdfiles_for_modorder(modorder):
     """
     with open(modorder) as f:
         for line in f:
-            ko = line.rstrip()
-            base, ext = os.path.splitext(ko)
-            if ext != '.ko':
-                sys.exit('{}: module path must end with .ko'.format(ko))
+            obj = line.rstrip()
+            base, ext = os.path.splitext(obj)
+            if ext != '.o':
+                sys.exit('{}: module path must end with .o'.format(obj))
             mod = base + '.mod'
             # Read from *.mod, to get a list of objects that compose the module.
             with open(mod) as m:
@@ -211,13 +197,10 @@ def main():
     for path in paths:
         # If 'path' is a directory, handle all .cmd files under it.
         # Otherwise, handle .cmd files associated with the file.
-        # Most of built-in objects are linked via archives (built-in.a or lib.a)
-        # but some objects are linked to vmlinux directly.
+        # built-in objects are linked via vmlinux.a
         # Modules are listed in modules.order.
         if os.path.isdir(path):
             cmdfiles = cmdfiles_in_dir(path)
-        elif path.endswith('.o'):
-            cmdfiles = cmdfiles_for_o(path)
         elif path.endswith('.a'):
             cmdfiles = cmdfiles_for_a(path, ar)
         elif path.endswith('modules.order'):

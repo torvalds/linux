@@ -44,15 +44,15 @@ properties:
       It's either a single common DWC3 interrupt (dwc_usb3) or individual
       interrupts for the host, gadget and DRD modes.
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   interrupt-names:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
     oneOf:
       - const: dwc_usb3
       - items:
-          enum: [host, peripheral, otg]
+          enum: [host, peripheral, otg, wakeup]
 
   clocks:
     description:
@@ -69,6 +69,10 @@ properties:
         - true
 
   dma-coherent: true
+
+  extcon:
+    maxItems: 1
+    deprecated: true
 
   iommus:
     maxItems: 1
@@ -90,6 +94,16 @@ properties:
       enum:
         - usb2-phy
         - usb3-phy
+
+  power-domains:
+    description:
+      The DWC3 has 2 power-domains. The power management unit (PMU) and
+      everything else. The PMU is typically always powered and may not have an
+      entry.
+    minItems: 1
+    items:
+      - description: Core
+      - description: Power management unit
 
   resets:
     minItems: 1
@@ -222,6 +236,11 @@ properties:
       When set, all SuperSpeed bus instances in park mode are disabled.
     type: boolean
 
+  snps,parkmode-disable-hs-quirk:
+    description:
+      When set, all HighSpeed bus instances in park mode are disabled.
+    type: boolean
+
   snps,dis_metastability_quirk:
     description:
       When set, disable metastability workaround. CAUTION! Use only if you are
@@ -232,6 +251,26 @@ properties:
     description:
       When set, change the way URBs are handled by the driver. Needed to
       avoid -EPROTO errors with usbhid on some devices (Hikey 970).
+    type: boolean
+
+  snps,gfladj-refclk-lpm-sel-quirk:
+    description:
+      When set, run the SOF/ITP counter based on ref_clk.
+    type: boolean
+
+  snps,resume-hs-terminations:
+    description:
+      Fix the issue of HS terminations CRC error on resume by enabling this
+      quirk. When set, all the termsel, xcvrsel, opmode becomes 0 during end
+      of resume. This option is to support certain legacy ULPI PHYs.
+    type: boolean
+
+  snps,ulpi-ext-vbus-drv:
+    description:
+      Some ULPI USB PHY does not support internal VBUS supply, and driving
+      the CPEN pin, requires the configuration of the ulpi DRVVBUSEXTERNAL
+      bit. When set, the xhci host will configure the USB2 PHY drives VBUS
+      with an external supply.
     type: boolean
 
   snps,is-utmi-l1-suspend:
@@ -248,7 +287,7 @@ properties:
     description:
       High-Speed PHY interface selection between UTMI+ and ULPI when the
       DWC_USB3_HSPHY_INTERFACE has value 3.
-    $ref: /schemas/types.yaml#/definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/string
     enum: [utmi, ulpi]
 
   snps,quirk-frame-length-adjustment:
@@ -342,6 +381,22 @@ properties:
     description:
       This port is used with the 'usb-role-switch' property  to connect the
       dwc3 to type C connector.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      Those ports should be used with any connector to the data bus of this
+      controller using the OF graph bindings specified if the "usb-role-switch"
+      property is used.
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: High Speed (HS) data bus.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: Super Speed (SS) data bus.
 
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag

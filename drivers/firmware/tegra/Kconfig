@@ -14,6 +14,7 @@ config TEGRA_IVC
 config TEGRA_BPMP
 	bool "Tegra BPMP driver"
 	depends on ARCH_TEGRA && TEGRA_HSP_MBOX && TEGRA_IVC
+	depends on !CPU_BIG_ENDIAN
 	help
 	  BPMP (Boot and Power Management Processor) is designed to off-loading
 	  the PM functions which include clock/DVFS/thermal/power from the CPU.

@@ -286,7 +286,7 @@ struct tccb_tcat {
  */
 struct tccb {
 	struct tccb_tcah tcah;
-	u8 tca[0];
+	u8 tca[];
 } __attribute__ ((packed, aligned(8)));
 
 struct tcw *tcw_get_intrg(struct tcw *tcw);

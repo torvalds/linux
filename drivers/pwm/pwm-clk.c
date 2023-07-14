@@ -89,7 +89,7 @@ static int pwm_clk_probe(struct platform_device *pdev)
 	if (!pcchip)
 		return -ENOMEM;
 
-	pcchip->clk = devm_clk_get(&pdev->dev, NULL);
+	pcchip->clk = devm_clk_get_prepared(&pdev->dev, NULL);
 	if (IS_ERR(pcchip->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(pcchip->clk),
 				     "Failed to get clock\n");
@@ -98,21 +98,15 @@ static int pwm_clk_probe(struct platform_device *pdev)
 	pcchip->chip.ops = &pwm_clk_ops;
 	pcchip->chip.npwm = 1;
 
-	ret = clk_prepare(pcchip->clk);
-	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret, "Failed to prepare clock\n");
-
 	ret = pwmchip_add(&pcchip->chip);
-	if (ret < 0) {
-		clk_unprepare(pcchip->clk);
+	if (ret < 0)
 		return dev_err_probe(&pdev->dev, ret, "Failed to add pwm chip\n");
-	}
 
 	platform_set_drvdata(pdev, pcchip);
 	return 0;
 }
 
-static int pwm_clk_remove(struct platform_device *pdev)
+static void pwm_clk_remove(struct platform_device *pdev)
 {
 	struct pwm_clk_chip *pcchip = platform_get_drvdata(pdev);
 
@@ -120,10 +114,6 @@ static int pwm_clk_remove(struct platform_device *pdev)
 
 	if (pcchip->clk_enabled)
 		clk_disable(pcchip->clk);
-
-	clk_unprepare(pcchip->clk);
-
-	return 0;
 }
 
 static const struct of_device_id pwm_clk_dt_ids[] = {
@@ -138,7 +128,7 @@ static struct platform_driver pwm_clk_driver = {
 		.of_match_table = pwm_clk_dt_ids,
 	},
 	.probe = pwm_clk_probe,
-	.remove = pwm_clk_remove,
+	.remove_new = pwm_clk_remove,
 };
 module_platform_driver(pwm_clk_driver);
 

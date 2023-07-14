@@ -431,7 +431,7 @@ static irqreturn_t rpr0521_drdy_irq_thread(int irq, void *private)
 	struct rpr0521_data *data = iio_priv(indio_dev);
 
 	if (rpr0521_is_triggered(data)) {
-		iio_trigger_poll_chained(data->drdy_trigger0);
+		iio_trigger_poll_nested(data->drdy_trigger0);
 		return IRQ_HANDLED;
 	}
 
@@ -927,8 +927,7 @@ static const struct regmap_config rpr0521_regmap_config = {
 	.volatile_reg	= rpr0521_is_volatile_reg,
 };
 
-static int rpr0521_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int rpr0521_probe(struct i2c_client *client)
 {
 	struct rpr0521_data *data;
 	struct iio_dev *indio_dev;

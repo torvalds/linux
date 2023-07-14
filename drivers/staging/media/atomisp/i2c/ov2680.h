@@ -30,55 +30,30 @@
 #include <linux/v4l2-mediabus.h>
 #include <media/media-entity.h>
 
-#include "../include/linux/atomisp_platform.h"
+#define OV2680_NATIVE_WIDTH			1616
+#define OV2680_NATIVE_HEIGHT			1216
+#define OV2680_NATIVE_START_LEFT		0
+#define OV2680_NATIVE_START_TOP			0
+#define OV2680_ACTIVE_WIDTH			1600
+#define OV2680_ACTIVE_HEIGHT			1200
+#define OV2680_ACTIVE_START_LEFT		8
+#define OV2680_ACTIVE_START_TOP			8
+#define OV2680_MIN_CROP_WIDTH			2
+#define OV2680_MIN_CROP_HEIGHT			2
 
-/* Defines for register writes and register array processing */
-#define I2C_MSG_LENGTH		0x2
-#define I2C_RETRY_COUNT		5
+/* 1704 * 1294 * 30fps = 66MHz pixel clock */
+#define OV2680_PIXELS_PER_LINE			1704
+#define OV2680_LINES_PER_FRAME			1294
+#define OV2680_FPS				30
+#define OV2680_SKIP_FRAMES			3
 
-#define OV2680_FOCAL_LENGTH_NUM	334	/*3.34mm*/
-#define OV2680_FOCAL_LENGTH_DEM	100
-#define OV2680_F_NUMBER_DEFAULT_NUM	24
-#define OV2680_F_NUMBER_DEM	10
+/* If possible send 16 extra rows / lines to the ISP as padding */
+#define OV2680_END_MARGIN			16
 
-#define OV2680_BIN_FACTOR_MAX 4
+#define OV2680_FOCAL_LENGTH_NUM			334	/*3.34mm*/
 
-#define MAX_FMTS		1
-
-/* sensor_mode_data read_mode adaptation */
-#define OV2680_READ_MODE_BINNING_ON	0x0400
-#define OV2680_READ_MODE_BINNING_OFF	0x00
-#define OV2680_INTEGRATION_TIME_MARGIN	8
-
-#define OV2680_MAX_EXPOSURE_VALUE	0xFFF1
-#define OV2680_MAX_GAIN_VALUE		0xFF
-
-/*
- * focal length bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
- */
-#define OV2680_FOCAL_LENGTH_DEFAULT 0x1B70064
-
-/*
- * current f-number bits definition:
- * bits 31-16: numerator, bits 15-0: denominator
- */
-#define OV2680_F_NUMBER_DEFAULT 0x18000a
-
-/*
- * f-number range bits definition:
- * bits 31-24: max f-number numerator
- * bits 23-16: max f-number denominator
- * bits 15-8: min f-number numerator
- * bits 7-0: min f-number denominator
- */
-#define OV2680_F_NUMBER_RANGE 0x180a180a
-#define OV2680_ID	0x2680
-
-#define OV2680_FINE_INTG_TIME_MIN 0
-#define OV2680_FINE_INTG_TIME_MAX_MARGIN 0
-#define OV2680_COARSE_INTG_TIME_MIN 1
-#define OV2680_COARSE_INTG_TIME_MAX_MARGIN 6
+#define OV2680_INTEGRATION_TIME_MARGIN		8
+#define OV2680_ID				0x2680
 
 /*
  * OV2680 System control registers
@@ -92,89 +67,87 @@
 #define OV2680_SC_CMMN_SCCB_ID			0x302B /* 0x300C*/
 #define OV2680_SC_CMMN_SUB_ID			0x302A /* process, version*/
 
-#define OV2680_GROUP_ACCESS							0x3208 /*Bit[7:4] Group control, Bit[3:0] Group ID*/
+#define OV2680_GROUP_ACCESS			0x3208 /*Bit[7:4] Group control, Bit[3:0] Group ID*/
 
-#define OV2680_EXPOSURE_H							0x3500 /*Bit[3:0] Bit[19:16] of exposure, remaining 16 bits lies in Reg0x3501&Reg0x3502*/
-#define OV2680_EXPOSURE_M							0x3501
-#define OV2680_EXPOSURE_L							0x3502
-#define OV2680_AGC_H								0x350A /*Bit[1:0] means Bit[9:8] of gain*/
-#define OV2680_AGC_L								0x350B /*Bit[7:0] of gain*/
+#define OV2680_REG_EXPOSURE_PK_HIGH		0x3500
+#define OV2680_REG_GAIN_PK			0x350a
 
-#define OV2680_HORIZONTAL_START_H					0x3800 /*Bit[11:8]*/
-#define OV2680_HORIZONTAL_START_L					0x3801 /*Bit[7:0]*/
-#define OV2680_VERTICAL_START_H						0x3802 /*Bit[11:8]*/
-#define OV2680_VERTICAL_START_L						0x3803 /*Bit[7:0]*/
-#define OV2680_HORIZONTAL_END_H						0x3804 /*Bit[11:8]*/
-#define OV2680_HORIZONTAL_END_L						0x3805 /*Bit[7:0]*/
-#define OV2680_VERTICAL_END_H						0x3806 /*Bit[11:8]*/
-#define OV2680_VERTICAL_END_L						0x3807 /*Bit[7:0]*/
-#define OV2680_HORIZONTAL_OUTPUT_SIZE_H				0x3808 /*Bit[3:0]*/
-#define OV2680_HORIZONTAL_OUTPUT_SIZE_L				0x3809 /*Bit[7:0]*/
-#define OV2680_VERTICAL_OUTPUT_SIZE_H				0x380a /*Bit[3:0]*/
-#define OV2680_VERTICAL_OUTPUT_SIZE_L				0x380b /*Bit[7:0]*/
-#define OV2680_TIMING_HTS_H							0x380C  /*High 8-bit, and low 8-bit HTS address is 0x380d*/
-#define OV2680_TIMING_HTS_L							0x380D  /*High 8-bit, and low 8-bit HTS address is 0x380d*/
-#define OV2680_TIMING_VTS_H							0x380e  /*High 8-bit, and low 8-bit HTS address is 0x380f*/
-#define OV2680_TIMING_VTS_L							0x380f  /*High 8-bit, and low 8-bit HTS address is 0x380f*/
-#define OV2680_FRAME_OFF_NUM						0x4202
+#define OV2680_REG_SENSOR_CTRL_0A		0x370a
+
+#define OV2680_HORIZONTAL_START_H		0x3800 /* Bit[11:8] */
+#define OV2680_HORIZONTAL_START_L		0x3801 /* Bit[7:0]  */
+#define OV2680_VERTICAL_START_H			0x3802 /* Bit[11:8] */
+#define OV2680_VERTICAL_START_L			0x3803 /* Bit[7:0]  */
+#define OV2680_HORIZONTAL_END_H			0x3804 /* Bit[11:8] */
+#define OV2680_HORIZONTAL_END_L			0x3805 /* Bit[7:0]  */
+#define OV2680_VERTICAL_END_H			0x3806 /* Bit[11:8] */
+#define OV2680_VERTICAL_END_L			0x3807 /* Bit[7:0]  */
+#define OV2680_HORIZONTAL_OUTPUT_SIZE_H		0x3808 /* Bit[11:8] */
+#define OV2680_HORIZONTAL_OUTPUT_SIZE_L		0x3809 /* Bit[7:0]  */
+#define OV2680_VERTICAL_OUTPUT_SIZE_H		0x380a /* Bit[11:8] */
+#define OV2680_VERTICAL_OUTPUT_SIZE_L		0x380b /* Bit[7:0]  */
+#define OV2680_HTS				0x380c
+#define OV2680_VTS				0x380e
+#define OV2680_ISP_X_WIN			0x3810
+#define OV2680_ISP_Y_WIN			0x3812
+#define OV2680_X_INC				0x3814
+#define OV2680_Y_INC				0x3815
+
+#define OV2680_FRAME_OFF_NUM			0x4202
 
 /*Flip/Mirror*/
-#define OV2680_FLIP_REG				0x3820
-#define OV2680_MIRROR_REG			0x3821
-#define OV2680_FLIP_BIT				1
-#define OV2680_MIRROR_BIT			2
-#define OV2680_FLIP_MIRROR_BIT_ENABLE		4
+#define OV2680_REG_FORMAT1			0x3820
+#define OV2680_REG_FORMAT2			0x3821
 
 #define OV2680_MWB_RED_GAIN_H			0x5004/*0x3400*/
 #define OV2680_MWB_GREEN_GAIN_H			0x5006/*0x3402*/
 #define OV2680_MWB_BLUE_GAIN_H			0x5008/*0x3404*/
-#define OV2680_MWB_GAIN_MAX				0x0fff
+#define OV2680_MWB_GAIN_MAX			0x0fff
+
+#define OV2680_REG_ISP_CTRL00			0x5080
+
+#define OV2680_X_WIN				0x5704
+#define OV2680_Y_WIN				0x5706
+#define OV2680_WIN_CONTROL			0x5708
 
 #define OV2680_START_STREAMING			0x01
 #define OV2680_STOP_STREAMING			0x00
 
-#define OV2680_INVALID_CONFIG	0xffffffff
-
-struct regval_list {
-	u16 reg_num;
-	u8 value;
-};
-
-struct ov2680_resolution {
-	const struct ov2680_reg *regs;
-	int res;
-	int width;
-	int height;
-	int fps;
-	int pix_clk_freq;
-	u32 skip_frames;
-	u16 pixels_per_line;
-	u16 lines_per_frame;
-	u8 bin_factor_x;
-	u8 bin_factor_y;
-	u8 bin_mode;
-};
-
-struct ov2680_format {
-	u8 *desc;
-	u32 pixelformat;
-	struct ov2680_reg *regs;
-};
-
 /*
  * ov2680 device structure.
  */
-struct ov2680_device {
+struct ov2680_dev {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
-	struct mutex input_lock;
-	struct v4l2_ctrl_handler ctrl_handler;
-	struct ov2680_resolution *res;
-	struct camera_sensor_platform_data *platform_data;
-	bool power_on;
-	u16 exposure;
-	u16 gain;
-	u16 digitgain;
+	/* Protect against concurrent changes to controls */
+	struct mutex lock;
+	struct i2c_client *client;
+	struct gpio_desc *powerdown;
+	struct fwnode_handle *ep_fwnode;
+	bool is_streaming;
+
+	struct ov2680_mode {
+		struct v4l2_rect crop;
+		struct v4l2_mbus_framefmt fmt;
+		bool binning;
+		u16 h_start;
+		u16 v_start;
+		u16 h_end;
+		u16 v_end;
+		u16 h_output_size;
+		u16 v_output_size;
+		u16 hts;
+		u16 vts;
+	} mode;
+
+	struct ov2680_ctrls {
+		struct v4l2_ctrl_handler handler;
+		struct v4l2_ctrl *hflip;
+		struct v4l2_ctrl *vflip;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *gain;
+		struct v4l2_ctrl *test_pattern;
+	} ctrls;
 };
 
 /**
@@ -190,728 +163,87 @@ struct ov2680_reg {
 	u32 val;	/* @set value for read/mod/write, @mask */
 };
 
-#define to_ov2680_sensor(x) container_of(x, struct ov2680_device, sd)
+#define to_ov2680_sensor(x) container_of(x, struct ov2680_dev, sd)
 
-#define OV2680_MAX_WRITE_BUF_SIZE	30
+static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
+{
+	struct ov2680_dev *sensor =
+		container_of(ctrl->handler, struct ov2680_dev, ctrls.handler);
 
-struct ov2680_write_buffer {
-	u16 addr;
-	u8 data[OV2680_MAX_WRITE_BUF_SIZE];
-};
-
-struct ov2680_write_ctrl {
-	int index;
-	struct ov2680_write_buffer buffer;
-};
+	return &sensor->sd;
+}
 
 static struct ov2680_reg const ov2680_global_setting[] = {
-	{0x0103, 0x01},
-	{0x3002, 0x00},
+	/* MIPI PHY, 0x10 -> 0x1c enable bp_c_hs_en_lat and bp_d_hs_en_lat */
 	{0x3016, 0x1c},
-	{0x3018, 0x44},
-	{0x3020, 0x00},
-	{0x3080, 0x02},
+
+	/* PLL MULT bits 0-7, datasheet default 0x37 for 24MHz extclk, use 0x45 for 19.2 Mhz extclk */
 	{0x3082, 0x45},
-	{0x3084, 0x09},
-	{0x3085, 0x04},
+
+	/* R MANUAL set exposure (0x01) and gain (0x02) to manual (hw does not do auto) */
 	{0x3503, 0x03},
-	{0x350b, 0x36},
-	{0x3600, 0xb4},
-	{0x3603, 0x39},
-	{0x3604, 0x24},
-	{0x3605, 0x00},
-	{0x3620, 0x26},
-	{0x3621, 0x37},
-	{0x3622, 0x04},
-	{0x3628, 0x00},
-	{0x3705, 0x3c},
-	{0x370c, 0x50},
-	{0x370d, 0xc0},
-	{0x3718, 0x88},
-	{0x3720, 0x00},
-	{0x3721, 0x00},
-	{0x3722, 0x00},
-	{0x3723, 0x00},
-	{0x3738, 0x00},
-	{0x3717, 0x58},
-	{0x3781, 0x80},
-	{0x3789, 0x60},
-	{0x3800, 0x00},
-	{0x3819, 0x04},
+
+	/* Analog control register tweaks */
+	{0x3603, 0x39}, /* Reset value 0x99 */
+	{0x3604, 0x24}, /* Reset value 0x74 */
+	{0x3621, 0x37}, /* Reset value 0x44 */
+
+	/* Sensor control register tweaks */
+	{0x3701, 0x64}, /* Reset value 0x61 */
+	{0x3705, 0x3c}, /* Reset value 0x21 */
+	{0x370c, 0x50}, /* Reset value 0x10 */
+	{0x370d, 0xc0}, /* Reset value 0x00 */
+	{0x3718, 0x88}, /* Reset value 0x80 */
+
+	/* PSRAM tweaks */
+	{0x3781, 0x80}, /* Reset value 0x00 */
+	{0x3784, 0x0c}, /* Reset value 0x00, based on OV2680_R1A_AM10.ovt */
+	{0x3789, 0x60}, /* Reset value 0x50 */
+
+	/* BLC CTRL00 0x01 -> 0x81 set avg_weight to 8 */
 	{0x4000, 0x81},
-	{0x4001, 0x40},
+
+	/* Set black level compensation range to 0 - 3 (default 0 - 11) */
+	{0x4008, 0x00},
+	{0x4009, 0x03},
+
+	/* VFIFO R2 0x00 -> 0x02 set Frame reset enable */
 	{0x4602, 0x02},
+
+	/* MIPI ctrl CLK PREPARE MIN change from 0x26 (38) -> 0x36 (54) */
 	{0x481f, 0x36},
+
+	/* MIPI ctrl CLK LPX P MIN change from 0x32 (50) -> 0x36 (54) */
 	{0x4825, 0x36},
-	{0x4837, 0x18},
+
+	/* R ISP CTRL2 0x20 -> 0x30, set sof_sel bit */
 	{0x5002, 0x30},
-	{0x5004, 0x04},//manual awb 1x
-	{0x5005, 0x00},
-	{0x5006, 0x04},
-	{0x5007, 0x00},
-	{0x5008, 0x04},
-	{0x5009, 0x00},
-	{0x5080, 0x00},
-	{0x3701, 0x64},  //add on 14/05/13
-	{0x3784, 0x0c},  //based OV2680_R1A_AM10.ovt add on 14/06/13
-	{0x5780, 0x3e},  //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
-	{0x5781, 0x0f},
-	{0x5782, 0x04},
-	{0x5783, 0x02},
-	{0x5784, 0x01},
-	{0x5785, 0x01},
-	{0x5786, 0x00},
-	{0x5787, 0x04},
+
+	/*
+	 * Window CONTROL 0x00 -> 0x01, enable manual window control,
+	 * this is necessary for full size flip and mirror support.
+	 */
+	{0x5708, 0x01},
+
+	/*
+	 * DPC CTRL0 0x14 -> 0x3e, set enable_tail, enable_3x3_cluster
+	 * and enable_general_tail bits based OV2680_R1A_AM10.ovt.
+	 */
+	{0x5780, 0x3e},
+
+	/* DPC MORE CONNECTION CASE THRE 0x0c (12) -> 0x02 (2) */
 	{0x5788, 0x02},
-	{0x5789, 0x00},
-	{0x578a, 0x01},
-	{0x578b, 0x02},
-	{0x578c, 0x03},
-	{0x578d, 0x03},
+
+	/* DPC GAIN LIST1 0x0f (15) -> 0x08 (8) */
 	{0x578e, 0x08},
+
+	/* DPC GAIN LIST2 0x3f (63) -> 0x0c (12) */
 	{0x578f, 0x0c},
-	{0x5790, 0x08},
-	{0x5791, 0x04},
+
+	/* DPC THRE RATIO 0x04 (4) -> 0x00 (0) */
 	{0x5792, 0x00},
-	{0x5793, 0x00},
-	{0x5794, 0x03}, //based OV2680_R1A_AM10.ovt,Adjust DPC setting (57xx) on 14/06/13
-	{0x0100, 0x00},	//stream off
 
 	{}
 };
-
-/*
- * 176x144 30fps  VBlanking 1lane 10Bit (binning)
- */
-static struct ov2680_reg const ov2680_QCIF_30fps[] = {
-	{0x3086, 0x01},
-	{0x370a, 0x23},
-	{0x3801, 0xa0},
-	{0x3802, 0x00},
-	{0x3803, 0x78},
-	{0x3804, 0x05},
-	{0x3805, 0xaf},
-	{0x3806, 0x04},
-	{0x3807, 0x47},
-	{0x3808, 0x00},
-	{0x3809, 0xC0},
-	{0x380a, 0x00},
-	{0x380b, 0xa0},
-	{0x380c, 0x06},
-	{0x380d, 0xb0},
-	{0x3810, 0x00},
-	{0x3811, 0x04},
-	{0x3812, 0x00},
-	{0x3813, 0x04},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x4000, 0x81},
-	{0x4001, 0x40},
-	{0x4008, 0x00},
-	{0x4009, 0x03},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc2},
-	{0x3821, 0x01},
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- * 352x288 30fps  VBlanking 1lane 10Bit (binning)
- */
-static struct ov2680_reg const ov2680_CIF_30fps[] = {
-	{0x3086, 0x01},
-	{0x370a, 0x23},
-	{0x3801, 0xa0},
-	{0x3802, 0x00},
-	{0x3803, 0x78},
-	{0x3804, 0x03},
-	{0x3805, 0x8f},
-	{0x3806, 0x02},
-	{0x3807, 0xe7},
-	{0x3808, 0x01},
-	{0x3809, 0x70},
-	{0x380a, 0x01},
-	{0x380b, 0x30},
-	{0x380c, 0x06},
-	{0x380d, 0xb0},
-	{0x3810, 0x00},
-	{0x3811, 0x04},
-	{0x3812, 0x00},
-	{0x3813, 0x04},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x4008, 0x00},
-	{0x4009, 0x03},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc2},
-	{0x3821, 0x01},
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- * 336x256 30fps  VBlanking 1lane 10Bit (binning)
- */
-static struct ov2680_reg const ov2680_QVGA_30fps[] = {
-	{0x3086, 0x01},
-	{0x370a, 0x23},
-	{0x3801, 0xa0},
-	{0x3802, 0x00},
-	{0x3803, 0x78},
-	{0x3804, 0x03},
-	{0x3805, 0x4f},
-	{0x3806, 0x02},
-	{0x3807, 0x87},
-	{0x3808, 0x01},
-	{0x3809, 0x50},
-	{0x380a, 0x01},
-	{0x380b, 0x00},
-	{0x380c, 0x06},
-	{0x380d, 0xb0},
-	{0x3810, 0x00},
-	{0x3811, 0x04},
-	{0x3812, 0x00},
-	{0x3813, 0x04},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x4008, 0x00},
-	{0x4009, 0x03},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc2},
-	{0x3821, 0x01},
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- * 656x496 30fps  VBlanking 1lane 10Bit (binning)
- */
-static struct ov2680_reg const ov2680_656x496_30fps[] = {
-	{0x3086, 0x01},
-	{0x370a, 0x23},
-	{0x3801, 0xa0},
-	{0x3802, 0x00},
-	{0x3803, 0x78},
-	{0x3804, 0x05},
-	{0x3805, 0xcf},
-	{0x3806, 0x04},
-	{0x3807, 0x67},
-	{0x3808, 0x02},
-	{0x3809, 0x90},
-	{0x380a, 0x01},
-	{0x380b, 0xf0},
-	{0x380c, 0x06},
-	{0x380d, 0xb0},
-	{0x3810, 0x00},
-	{0x3811, 0x04},
-	{0x3812, 0x00},
-	{0x3813, 0x04},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x4008, 0x00},
-	{0x4009, 0x03},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc2},
-	{0x3821, 0x01},
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- * 720x592 30fps  VBlanking 1lane 10Bit (binning)
- */
-static struct ov2680_reg const ov2680_720x592_30fps[] = {
-	{0x3086, 0x01},
-	{0x370a, 0x23},
-	{0x3801, 0x00}, // X_ADDR_START;
-	{0x3802, 0x00},
-	{0x3803, 0x00}, // Y_ADDR_START;
-	{0x3804, 0x05},
-	{0x3805, 0xaf}, // X_ADDR_END;
-	{0x3806, 0x04},
-	{0x3807, 0xaf}, // Y_ADDR_END;
-	{0x3808, 0x02},
-	{0x3809, 0xd0}, // X_OUTPUT_SIZE;
-	{0x380a, 0x02},
-	{0x380b, 0x50}, // Y_OUTPUT_SIZE;
-	{0x380c, 0x06},
-	{0x380d, 0xac}, // HTS;
-	{0x3810, 0x00},
-	{0x3811, 0x00},
-	{0x3812, 0x00},
-	{0x3813, 0x00},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x4008, 0x00},
-	{0x4009, 0x03},
-	{0x5708, 0x00},
-	{0x5704, 0x02},
-	{0x5705, 0xd0}, // X_WIN;
-	{0x5706, 0x02},
-	{0x5707, 0x50}, // Y_WIN;
-	{0x3820, 0xc2}, // FLIP_FORMAT;
-	{0x3821, 0x01}, // MIRROR_FORMAT;
-	{0x5090, 0x00}, // PRE ISP CTRL16, default value is 0x0C;
-	// BIT[3]: Mirror order, BG or GB;
-	// BIT[2]: Flip order, BR or RB;
-	{0x5081, 0x41},
-	{}
-};
-
-/*
- * 800x600 30fps  VBlanking 1lane 10Bit (binning)
- */
-static struct ov2680_reg const ov2680_800x600_30fps[] = {
-	{0x3086, 0x01},
-	{0x370a, 0x23},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x00},
-	{0x3804, 0x06},
-	{0x3805, 0x4f},
-	{0x3806, 0x04},
-	{0x3807, 0xbf},
-	{0x3808, 0x03},
-	{0x3809, 0x20},
-	{0x380a, 0x02},
-	{0x380b, 0x58},
-	{0x380c, 0x06},
-	{0x380d, 0xac},
-	{0x3810, 0x00},
-	{0x3811, 0x00},
-	{0x3812, 0x00},
-	{0x3813, 0x00},
-	{0x3814, 0x31},
-	{0x3815, 0x31},
-	{0x5708, 0x00},
-	{0x5704, 0x03},
-	{0x5705, 0x20},
-	{0x5706, 0x02},
-	{0x5707, 0x58},
-	{0x3820, 0xc2},
-	{0x3821, 0x01},
-	{0x5090, 0x00},
-	{0x4008, 0x00},
-	{0x4009, 0x03},
-	{0x5081, 0x41},
-	{}
-};
-
-/*
- * 720p=1280*720 30fps  VBlanking 1lane 10Bit (no-Scaling)
- */
-static struct ov2680_reg const ov2680_720p_30fps[] = {
-	{0x3086, 0x00},
-	{0x370a, 0x21},
-	{0x3801, 0xa0},
-	{0x3802, 0x00},
-	{0x3803, 0xf2},
-	{0x3804, 0x05},
-	{0x3805, 0xbf},
-	{0x3806, 0x03},
-	{0x3807, 0xdd},
-	{0x3808, 0x05},
-	{0x3809, 0x10},
-	{0x380a, 0x02},
-	{0x380b, 0xe0},
-	{0x380c, 0x06},
-	{0x380d, 0xa8},
-	{0x3810, 0x00},
-	{0x3811, 0x08},
-	{0x3812, 0x00},
-	{0x3813, 0x06},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x4008, 0x02},
-	{0x4009, 0x09},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc0},
-	{0x3821, 0x00},
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- * 1296x976 30fps  VBlanking 1lane 10Bit(no-scaling)
- */
-static struct ov2680_reg const ov2680_1296x976_30fps[] = {
-	{0x3086, 0x00},
-	{0x370a, 0x21},
-	{0x3801, 0xa0},
-	{0x3802, 0x00},
-	{0x3803, 0x78},
-	{0x3804, 0x05},
-	{0x3805, 0xbf},
-	{0x3806, 0x04},
-	{0x3807, 0x57},
-	{0x3808, 0x05},
-	{0x3809, 0x10},
-	{0x380a, 0x03},
-	{0x380b, 0xd0},
-	{0x380c, 0x06},
-	{0x380d, 0xa8},
-	{0x3810, 0x00},
-	{0x3811, 0x08},
-	{0x3812, 0x00},
-	{0x3813, 0x08},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x4008, 0x02},
-	{0x4009, 0x09},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc0},
-	{0x3821, 0x00}, //mirror/flip
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- *   1456*1096 30fps  VBlanking 1lane 10bit(no-scaling)
- */
-static struct ov2680_reg const ov2680_1456x1096_30fps[] = {
-	{0x3086, 0x00},
-	{0x370a, 0x21},
-	{0x3801, 0x90},
-	{0x3802, 0x00},
-	{0x3803, 0x78},
-	{0x3804, 0x06},
-	{0x3805, 0x4f},
-	{0x3806, 0x04},
-	{0x3807, 0xC0},
-	{0x3808, 0x05},
-	{0x3809, 0xb0},
-	{0x380a, 0x04},
-	{0x380b, 0x48},
-	{0x380c, 0x06},
-	{0x380d, 0xa8},
-	{0x3810, 0x00},
-	{0x3811, 0x08},
-	{0x3812, 0x00},
-	{0x3813, 0x00},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x4008, 0x02},
-	{0x4009, 0x09},
-	{0x5081, 0x41},
-	{0x5708, 0x00}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x10},
-	{0x5705, 0xa0},
-	{0x5706, 0x0c},
-	{0x5707, 0x78},
-	{0x3820, 0xc0},
-	{0x3821, 0x00},
-	// {0x5090, 0x0c},
-	{}
-};
-
-/*
- *1616x916  30fps  VBlanking 1lane 10bit
- */
-
-static struct ov2680_reg const ov2680_1616x916_30fps[] = {
-	{0x3086, 0x00},
-	{0x370a, 0x21},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x96},
-	{0x3804, 0x06},
-	{0x3805, 0x4f},
-	{0x3806, 0x04},
-	{0x3807, 0x39},
-	{0x3808, 0x06},
-	{0x3809, 0x50},
-	{0x380a, 0x03},
-	{0x380b, 0x94},
-	{0x380c, 0x06},
-	{0x380d, 0xa8},
-	{0x3810, 0x00},
-	{0x3811, 0x00},
-	{0x3812, 0x00},
-	{0x3813, 0x08},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x4008, 0x02},
-	{0x4009, 0x09},
-	{0x5081, 0x41},
-	{0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x06},
-	{0x5705, 0x50},
-	{0x5706, 0x03},
-	{0x5707, 0x94},
-	{0x3820, 0xc0},
-	{0x3821, 0x00},
-	// {0x5090, 0x0C},
-	{}
-};
-
-/*
- * 1616x1082 30fps VBlanking 1lane 10Bit
- */
-static struct ov2680_reg const ov2680_1616x1082_30fps[] = {
-	{0x3086, 0x00},
-	{0x370a, 0x21},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x86},
-	{0x3804, 0x06},
-	{0x3805, 0x4f},
-	{0x3806, 0x04},
-	{0x3807, 0xbf},
-	{0x3808, 0x06},
-	{0x3809, 0x50},
-	{0x380a, 0x04},
-	{0x380b, 0x3a},
-	{0x380c, 0x06},
-	{0x380d, 0xa8},
-	{0x3810, 0x00},
-	{0x3811, 0x00},
-	{0x3812, 0x00},
-	{0x3813, 0x00},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x06},
-	{0x5705, 0x50},
-	{0x5706, 0x04},
-	{0x5707, 0x3a},
-	{0x3820, 0xc0},
-	{0x3821, 0x00},
-	// {0x5090, 0x0C},
-	{0x4008, 0x02},
-	{0x4009, 0x09},
-	{0x5081, 0x41},
-	{}
-};
-
-/*
- * 1616x1216 30fps VBlanking 1lane 10Bit
- */
-static struct ov2680_reg const ov2680_1616x1216_30fps[] = {
-	{0x3086, 0x00},
-	{0x370a, 0x21},
-	{0x3801, 0x00},
-	{0x3802, 0x00},
-	{0x3803, 0x00},
-	{0x3804, 0x06},
-	{0x3805, 0x4f},
-	{0x3806, 0x04},
-	{0x3807, 0xbf},
-	{0x3808, 0x06},
-	{0x3809, 0x50},//50},//4line for mirror and flip
-	{0x380a, 0x04},
-	{0x380b, 0xc0},//c0},
-	{0x380c, 0x06},
-	{0x380d, 0xa8},
-	{0x3810, 0x00},
-	{0x3811, 0x00},
-	{0x3812, 0x00},
-	{0x3813, 0x00},
-	{0x3814, 0x11},
-	{0x3815, 0x11},
-	{0x4008, 0x00},
-	{0x4009, 0x0b},
-	{0x5081, 0x01},
-	{0x5708, 0x01}, //add for full size flip off and mirror off 2014/09/11
-	{0x5704, 0x06},
-	{0x5705, 0x50},
-	{0x5706, 0x04},
-	{0x5707, 0xcc},
-	{0x3820, 0xc0},
-	{0x3821, 0x00},
-	// {0x5090, 0x0C},
-	{}
-};
-
-static struct ov2680_resolution ov2680_res_preview[] = {
-	{
-		.width = 1616,
-		.height = 1216,
-		.pix_clk_freq = 66,
-		.fps = 30,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_1616x1216_30fps,
-	},
-	{
-		.width = 1616,
-		.height = 1082,
-		.pix_clk_freq = 66,
-		.fps = 30,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_1616x1082_30fps,
-	},
-	{
-		.width = 1616,
-		.height = 916,
-		.fps = 30,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_1616x916_30fps,
-	},
-	{
-		.width = 1456,
-		.height = 1096,
-		.fps = 30,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_1456x1096_30fps,
-	},
-	{
-		.width = 1296,
-		.height = 976,
-		.fps = 30,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_1296x976_30fps,
-	},
-	{
-		.width = 1280,
-		.height = 720,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_720p_30fps,
-	},
-	{
-		.width = 800,
-		.height = 600,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_800x600_30fps,
-	},
-	{
-		.width = 720,
-		.height = 592,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_720x592_30fps,
-	},
-	{
-		.width = 656,
-		.height = 496,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_656x496_30fps,
-	},
-	{
-		.width = 336,
-		.height = 256,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_QVGA_30fps,
-	},
-	{
-		.width = 352,
-		.height = 288,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_CIF_30fps,
-	},
-	{
-		.width = 176,
-		.height = 144,
-		.fps = 60,
-		.pix_clk_freq = 66,
-		.pixels_per_line = 1698,//1704,
-		.lines_per_frame = 1294,
-		.bin_factor_x = 0,
-		.bin_factor_y = 0,
-		.bin_mode = 0,
-		.skip_frames = 3,
-		.regs = ov2680_QCIF_30fps,
-	},
-};
-
-#define N_RES_PREVIEW (ARRAY_SIZE(ov2680_res_preview))
 
 #endif

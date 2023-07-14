@@ -45,7 +45,7 @@ qla27xx_process_purex_fpin(struct scsi_qla_host *vha, struct purex_item *item)
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x508f,
 		       pkt, pkt_size);
 
-	fc_host_fpin_rcv(vha->host, pkt_size, (char *)pkt);
+	fc_host_fpin_rcv(vha->host, pkt_size, (char *)pkt, 0);
 }
 
 const char *const port_state_str[] = {
@@ -1862,9 +1862,9 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 	}
 }
 
-srb_t *
-qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
-    struct req_que *req, void *iocb)
+static srb_t *
+qla_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
+		       struct req_que *req, void *iocb, u16 *ret_index)
 {
 	struct qla_hw_data *ha = vha->hw;
 	sts_entry_t *pkt = iocb;
@@ -1899,7 +1899,22 @@ qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
 		return NULL;
 	}
 
-	req->outstanding_cmds[index] = NULL;
+	*ret_index = index;
+	qla_put_fw_resources(sp->qpair, &sp->iores);
+	return sp;
+}
+
+srb_t *
+qla2x00_get_sp_from_handle(scsi_qla_host_t *vha, const char *func,
+			   struct req_que *req, void *iocb)
+{
+	uint16_t index;
+	srb_t *sp;
+
+	sp = qla_get_sp_from_handle(vha, func, req, iocb, &index);
+	if (sp)
+		req->outstanding_cmds[index] = NULL;
+
 	return sp;
 }
 
@@ -3197,7 +3212,7 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		}
 		return;
 	}
-	qla_put_iocbs(sp->qpair, &sp->iores);
+	qla_put_fw_resources(sp->qpair, &sp->iores);
 
 	if (sp->cmd_type != TYPE_SRB) {
 		req->outstanding_cmds[handle] = NULL;
@@ -3235,13 +3250,13 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		return;
 	}
 
-	req->outstanding_cmds[handle] = NULL;
 	cp = GET_CMD_SP(sp);
 	if (cp == NULL) {
 		ql_dbg(ql_dbg_io, vha, 0x3018,
 		    "Command already returned (0x%x/%p).\n",
 		    sts->handle, sp);
 
+		req->outstanding_cmds[handle] = NULL;
 		return;
 	}
 
@@ -3361,8 +3376,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				ql_log(ql_log_warn, fcport->vha, 0x301d,
 				       "Dropped frame(s) detected (0x%x of 0x%x bytes).\n",
 				       resid, scsi_bufflen(cp));
-
-				vha->interface_err_cnt++;
 
 				res = DID_ERROR << 16 | lscsi_status;
 				goto check_scsi_status;
@@ -3514,6 +3527,9 @@ out:
 
 	if (rsp->status_srb == NULL)
 		sp->done(sp, res);
+
+	/* for io's, clearing of outstanding_cmds[handle] means scsi_done was called */
+	req->outstanding_cmds[handle] = NULL;
 }
 
 /**
@@ -3590,6 +3606,7 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	uint16_t que = MSW(pkt->handle);
 	struct req_que *req = NULL;
 	int res = DID_ERROR << 16;
+	u16 index;
 
 	ql_dbg(ql_dbg_async, vha, 0x502a,
 	    "iocb type %xh with error status %xh, handle %xh, rspq id %d\n",
@@ -3608,7 +3625,6 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 
 	switch (pkt->entry_type) {
 	case NOTIFY_ACK_TYPE:
-	case STATUS_TYPE:
 	case STATUS_CONT_TYPE:
 	case LOGINOUT_PORT_IOCB_TYPE:
 	case CT_IOCB_TYPE:
@@ -3618,7 +3634,6 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	default:
 		sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
 		if (sp) {
-			qla_put_iocbs(sp->qpair, &sp->iores);
 			sp->done(sp, res);
 			return 0;
 		}
@@ -3629,6 +3644,14 @@ qla2x00_error_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, sts_entry_t *pkt)
 	case CTIO_TYPE7:
 	case CTIO_CRC2:
 		return 1;
+	case STATUS_TYPE:
+		sp = qla_get_sp_from_handle(vha, func, req, pkt, &index);
+		if (sp) {
+			sp->done(sp, res);
+			req->outstanding_cmds[index] = NULL;
+			return 0;
+		}
+		break;
 	}
 fatal:
 	ql_log(ql_log_warn, vha, 0x5030,
@@ -3751,6 +3774,28 @@ static int qla_chk_cont_iocb_avail(struct scsi_qla_host *vha,
 	return rc;
 }
 
+static void qla_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
+	struct mrk_entry_24xx *pkt)
+{
+	const char func[] = "MRK-IOCB";
+	srb_t *sp;
+	int res = QLA_SUCCESS;
+
+	if (!IS_FWI2_CAPABLE(vha->hw))
+		return;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	if (!sp)
+		return;
+
+	if (pkt->entry_status) {
+		ql_dbg(ql_dbg_taskm, vha, 0x8025, "marker failure.\n");
+		res = QLA_COMMAND_ERROR;
+	}
+	sp->u.iocb_cmd.u.tmf.data = res;
+	sp->done(sp, res);
+}
+
 /**
  * qla24xx_process_response_queue() - Process response queue entries.
  * @vha: SCSI driver HA context
@@ -3764,35 +3809,30 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 	struct purex_entry_24xx *purex_entry;
 	struct purex_item *pure_item;
 	u16 rsp_in = 0, cur_ring_index;
-	int follow_inptr, is_shadow_hba;
+	int is_shadow_hba;
 
 	if (!ha->flags.fw_started)
 		return;
 
 	if (rsp->qpair->cpuid != smp_processor_id() || !rsp->qpair->rcv_intr) {
 		rsp->qpair->rcv_intr = 1;
-		qla_cpu_update(rsp->qpair, smp_processor_id());
+
+		if (!rsp->qpair->cpu_mapped)
+			qla_cpu_update(rsp->qpair, raw_smp_processor_id());
 	}
 
-#define __update_rsp_in(_update, _is_shadow_hba, _rsp, _rsp_in)		\
+#define __update_rsp_in(_is_shadow_hba, _rsp, _rsp_in)			\
 	do {								\
-		if (_update) {						\
-			_rsp_in = _is_shadow_hba ? *(_rsp)->in_ptr :	\
+		_rsp_in = _is_shadow_hba ? *(_rsp)->in_ptr :		\
 				rd_reg_dword_relaxed((_rsp)->rsp_q_in);	\
-		}							\
 	} while (0)
 
 	is_shadow_hba = IS_SHADOW_REG_CAPABLE(ha);
-	follow_inptr = is_shadow_hba ? ql2xrspq_follow_inptr :
-				ql2xrspq_follow_inptr_legacy;
 
-	__update_rsp_in(follow_inptr, is_shadow_hba, rsp, rsp_in);
+	__update_rsp_in(is_shadow_hba, rsp, rsp_in);
 
-	while ((likely(follow_inptr &&
-		       rsp->ring_index != rsp_in &&
-		       rsp->ring_ptr->signature != RESPONSE_PROCESSED)) ||
-		       (!follow_inptr &&
-			rsp->ring_ptr->signature != RESPONSE_PROCESSED)) {
+	while (rsp->ring_index != rsp_in &&
+		       rsp->ring_ptr->signature != RESPONSE_PROCESSED) {
 		pkt = (struct sts_entry_24xx *)rsp->ring_ptr;
 		cur_ring_index = rsp->ring_index;
 
@@ -3872,9 +3912,7 @@ process_err:
 					(struct nack_to_isp *)pkt);
 			break;
 		case MARKER_TYPE:
-			/* Do nothing in this case, this check is to prevent it
-			 * from falling into default case
-			 */
+			qla_marker_iocb_entry(vha, rsp->req, (struct mrk_entry_24xx *)pkt);
 			break;
 		case ABORT_IOCB_TYPE:
 			qla24xx_abort_iocb_entry(vha, rsp->req,
@@ -3906,8 +3944,7 @@ process_err:
 				}
 				pure_item = qla27xx_copy_fpin_pkt(vha,
 							  (void **)&pkt, &rsp);
-				__update_rsp_in(follow_inptr, is_shadow_hba,
-						rsp, rsp_in);
+				__update_rsp_in(is_shadow_hba, rsp, rsp_in);
 				if (!pure_item)
 					break;
 				qla24xx_queue_purex_item(vha, pure_item,
@@ -4387,6 +4424,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	for (i = 0; i < ha->msix_count; i++) {
 		qentry = &ha->msix_entries[i];
 		qentry->vector = pci_irq_vector(ha->pdev, i);
+		qentry->vector_base0 = i;
 		qentry->entry = i;
 		qentry->have_irq = 0;
 		qentry->in_use = 0;
@@ -4614,5 +4652,6 @@ int qla25xx_request_irq(struct qla_hw_data *ha, struct qla_qpair *qpair,
 	}
 	msix->have_irq = 1;
 	msix->handle = qpair;
+	qla_mapq_init_qp_cpu_map(ha, msix, qpair);
 	return ret;
 }

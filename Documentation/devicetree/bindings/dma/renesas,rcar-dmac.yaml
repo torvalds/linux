@@ -10,7 +10,7 @@ maintainers:
   - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   compatible:
@@ -45,6 +45,7 @@ properties:
           - enum:
               - renesas,dmac-r8a779a0     # R-Car V3U
               - renesas,dmac-r8a779f0     # R-Car S4-8
+              - renesas,dmac-r8a779g0     # R-Car V4H
           - const: renesas,rcar-gen4-dmac # R-Car Gen4
 
   reg: true

@@ -76,13 +76,6 @@ static int __init fpe_setup(char *line)
 __setup("fpe=", fpe_setup);
 #endif
 
-extern void init_default_cache_policy(unsigned long);
-extern void paging_init(const struct machine_desc *desc);
-extern void early_mm_init(const struct machine_desc *);
-extern void adjust_lowmem_bounds(void);
-extern enum reboot_mode reboot_mode;
-extern void setup_dma_zone(const struct machine_desc *desc);
-
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
 unsigned int __machine_arch_type __read_mostly;
@@ -450,6 +443,8 @@ static void __init cpuid_init_hwcaps(void)
 {
 	int block;
 	u32 isar5;
+	u32 isar6;
+	u32 pfr2;
 
 	if (cpu_architecture() < CPU_ARCH_ARMv7)
 		return;
@@ -485,6 +480,18 @@ static void __init cpuid_init_hwcaps(void)
 	block = cpuid_feature_extract_field(isar5, 16);
 	if (block >= 1)
 		elf_hwcap2 |= HWCAP2_CRC32;
+
+	/* Check for Speculation barrier instruction */
+	isar6 = read_cpuid_ext(CPUID_EXT_ISAR6);
+	block = cpuid_feature_extract_field(isar6, 12);
+	if (block >= 1)
+		elf_hwcap2 |= HWCAP2_SB;
+
+	/* Check for Speculative Store Bypassing control */
+	pfr2 = read_cpuid_ext(CPUID_EXT_PFR2);
+	block = cpuid_feature_extract_field(pfr2, 4);
+	if (block >= 1)
+		elf_hwcap2 |= HWCAP2_SSBS;
 }
 
 static void __init elf_hwcap_fixup(void)
@@ -1128,7 +1135,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_initial_init_mm(_text, _etext, _edata, _end);
 
 	/* populate cmd_line too for later use, preserving boot_command_line */
-	strlcpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
+	strscpy(cmd_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = cmd_line;
 
 	early_fixmap_init();
@@ -1141,7 +1148,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	setup_dma_zone(mdesc);
 	xen_early_init();
-	efi_init();
+	arm_efi_init();
 	/*
 	 * Make sure the calculation for lowmem/highmem is set appropriately
 	 * before reserving/allocating any memory
@@ -1183,10 +1190,6 @@ void __init setup_arch(char **cmdline_p)
 		hyp_mode_check();
 
 	reserve_crashkernel();
-
-#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-	handle_arch_irq = mdesc->handle_irq;
-#endif
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
@@ -1249,6 +1252,12 @@ static const char *hwcap_str[] = {
 	"vfpd32",
 	"lpae",
 	"evtstrm",
+	"fphp",
+	"asimdhp",
+	"asimddp",
+	"asimdfhm",
+	"asimdbf16",
+	"i8mm",
 	NULL
 };
 
@@ -1258,6 +1267,8 @@ static const char *hwcap2_str[] = {
 	"sha1",
 	"sha2",
 	"crc32",
+	"sb",
+	"ssbs",
 	NULL
 };
 

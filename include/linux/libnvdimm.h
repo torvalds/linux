@@ -35,6 +35,14 @@ enum {
 	NDD_WORK_PENDING = 4,
 	/* dimm supports namespace labels */
 	NDD_LABELING = 6,
+	/*
+	 * dimm contents have changed requiring invalidation of CPU caches prior
+	 * to activation of a region that includes this device
+	 */
+	NDD_INCOHERENT = 7,
+
+	/* dimm provider wants synchronous registration by __nvdimm_create() */
+	NDD_REGISTER_SYNC = 8,
 
 	/* need to set a limit somewhere, but yes, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
@@ -183,6 +191,8 @@ struct nvdimm_security_ops {
 	int (*overwrite)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
 	int (*query_overwrite)(struct nvdimm *nvdimm);
+	int (*disable_master)(struct nvdimm *nvdimm,
+			      const struct nvdimm_key_data *key_data);
 };
 
 enum nvdimm_fwa_state {

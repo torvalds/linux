@@ -471,7 +471,7 @@ static int xvip_graph_dma_init(struct xvip_composite_device *xdev)
 {
 	struct device_node *ports;
 	struct device_node *port;
-	int ret;
+	int ret = 0;
 
 	ports = of_get_child_by_name(xdev->dev->of_node, "ports");
 	if (ports == NULL) {
@@ -481,13 +481,14 @@ static int xvip_graph_dma_init(struct xvip_composite_device *xdev)
 
 	for_each_child_of_node(ports, port) {
 		ret = xvip_graph_dma_init_one(xdev, port);
-		if (ret < 0) {
+		if (ret) {
 			of_node_put(port);
-			return ret;
+			break;
 		}
 	}
 
-	return 0;
+	of_node_put(ports);
+	return ret;
 }
 
 static void xvip_graph_cleanup(struct xvip_composite_device *xdev)
@@ -616,14 +617,12 @@ error:
 	return ret;
 }
 
-static int xvip_composite_remove(struct platform_device *pdev)
+static void xvip_composite_remove(struct platform_device *pdev)
 {
 	struct xvip_composite_device *xdev = platform_get_drvdata(pdev);
 
 	xvip_graph_cleanup(xdev);
 	xvip_composite_v4l2_cleanup(xdev);
-
-	return 0;
 }
 
 static const struct of_device_id xvip_composite_of_id_table[] = {
@@ -638,7 +637,7 @@ static struct platform_driver xvip_composite_driver = {
 		.of_match_table = xvip_composite_of_id_table,
 	},
 	.probe = xvip_composite_probe,
-	.remove = xvip_composite_remove,
+	.remove_new = xvip_composite_remove,
 };
 
 module_platform_driver(xvip_composite_driver);

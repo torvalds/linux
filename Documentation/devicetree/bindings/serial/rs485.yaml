@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/rs485.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RS485 serial communications Bindings
+title: RS485 serial communications
 
 description: The RTS signal is capable of automatically controlling line
   direction for the built-in half-duplex mode. The properties described
@@ -49,6 +49,12 @@ properties:
 
   rs485-term-gpios:
     description: GPIO pin to enable RS485 bus termination.
+    maxItems: 1
+
+  rs485-rx-during-tx-gpios:
+    description: Output GPIO pin that sets the state of rs485-rx-during-tx. This
+      signal can be used to control the RX part of an RS485 transceiver. Thereby
+      the active state enables RX during TX.
     maxItems: 1
 
 additionalProperties: true

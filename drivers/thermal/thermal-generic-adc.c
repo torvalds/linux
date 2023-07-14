@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 
+#include "thermal_hwmon.h"
+
 struct gadc_thermal_info {
 	struct device *dev;
 	struct thermal_zone_device *tz_dev;
@@ -54,15 +56,14 @@ static int gadc_thermal_adc_to_temp(struct gadc_thermal_info *gti, int val)
 
 static int gadc_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct gadc_thermal_info *gti = tz->devdata;
+	struct gadc_thermal_info *gti = thermal_zone_device_priv(tz);
 	int val;
 	int ret;
 
 	ret = iio_read_channel_processed(gti->channel, &val);
-	if (ret < 0) {
-		dev_err(gti->dev, "IIO channel read failed %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
+
 	*temp = gadc_thermal_adc_to_temp(gti, val);
 
 	return 0;
@@ -153,6 +154,8 @@ static int gadc_thermal_probe(struct platform_device *pdev)
 				ret);
 		return ret;
 	}
+
+	devm_thermal_add_hwmon_sysfs(&pdev->dev, gti->tz_dev);
 
 	return 0;
 }

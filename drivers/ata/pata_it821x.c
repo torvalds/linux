@@ -800,7 +800,7 @@ static int it821x_rdc_cable(struct ata_port *ap)
 	return ATA_CBL_PATA80;
 }
 
-static struct scsi_host_template it821x_sht = {
+static const struct scsi_host_template it821x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

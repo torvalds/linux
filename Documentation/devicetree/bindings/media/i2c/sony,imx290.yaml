@@ -1,0 +1,140 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/sony,imx290.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sony IMX290 1/2.8-Inch CMOS Image Sensor
+
+maintainers:
+  - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+  - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+
+description: |-
+  The Sony IMX290 is a 1/2.8-Inch CMOS Solid-state image sensor with Square
+  Pixel, available in either mono or colour variants. It is programmable
+  through I2C and 4-wire interfaces.
+
+  The sensor output is available via CMOS logic parallel SDR output, Low voltage
+  LVDS DDR output and CSI-2 serial data output. The CSI-2 bus is the default.
+  No bindings have been defined for the other busses.
+
+  imx290lqr is the full model identifier for the colour variant. "sony,imx290"
+  is treated the same as this as it was the original compatible string.
+  imx290llr is the mono version of the sensor.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - sony,imx290lqr # Colour
+          - sony,imx290llr # Monochrome
+          - sony,imx327lqr # Colour
+      - const: sony,imx290
+        deprecated: true
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    description: Input clock (37.125 MHz or 74.25 MHz)
+    items:
+      - const: xclk
+
+  clock-frequency:
+    description: Frequency of the xclk clock in Hz
+
+  vdda-supply:
+    description: Analog power supply (2.9V)
+
+  vddd-supply:
+    description: Digital core power supply (1.2V)
+
+  vdddo-supply:
+    description: Digital I/O power supply (1.8V)
+
+  reset-gpios:
+    description: Sensor reset (XCLR) GPIO
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    description: |
+      Video output port
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          data-lanes:
+            anyOf:
+              - items:
+                  - const: 1
+                  - const: 2
+              - items:
+                  - const: 1
+                  - const: 2
+                  - const: 3
+                  - const: 4
+
+          link-frequencies: true
+
+        required:
+          - data-lanes
+          - link-frequencies
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - clock-frequency
+  - vdda-supply
+  - vddd-supply
+  - vdddo-supply
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        imx290: camera-sensor@1a {
+            compatible = "sony,imx290lqr";
+            reg = <0x1a>;
+
+            pinctrl-names = "default";
+            pinctrl-0 = <&camera_rear_default>;
+
+            clocks = <&gcc 90>;
+            clock-names = "xclk";
+            clock-frequency = <37125000>;
+
+            vdddo-supply = <&camera_vdddo_1v8>;
+            vdda-supply = <&camera_vdda_2v8>;
+            vddd-supply = <&camera_vddd_1v5>;
+
+            reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+
+            port {
+                imx290_ep: endpoint {
+                    data-lanes = <1 2 3 4>;
+                    link-frequencies = /bits/ 64 <445500000>;
+                    remote-endpoint = <&csiphy0_ep>;
+                };
+            };
+        };
+    };
+...

@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
-
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/spi/qcom,spi-qcom-qspi.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/spi/qcom,spi-qcom-qspi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Qualcomm Quad Serial Peripheral Interface (QSPI)
 
@@ -30,6 +29,9 @@ properties:
   reg:
     maxItems: 1
 
+  iommus:
+    maxItems: 1
+
   interrupts:
     maxItems: 1
 
@@ -52,6 +54,11 @@ properties:
     items:
       - const: qspi-config
       - const: qspi-memory
+
+  operating-points-v2: true
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -88,7 +95,6 @@ examples:
                 spi-tx-bus-width = <2>;
                 spi-rx-bus-width = <2>;
             };
-
         };
     };
 ...

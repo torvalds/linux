@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2022 Broadcom Ltd.
+ */
+
+/dts-v1/;
+
+#include "bcm63138.dtsi"
+
+/ {
+	model = "Broadcom BCM963138 Reference Board";
+	compatible = "brcm,bcm963138", "brcm,bcm63138", "brcm,bcmbca";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &serial0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x08000000>;
+	};
+};
+
+&serial0 {
+	status = "okay";
+};
+
+&hsspi {
+	status = "okay";
+};

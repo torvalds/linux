@@ -171,6 +171,7 @@ static void wf_sat_release(struct kref *ref)
 
 	if (sat->nr >= 0)
 		sats[sat->nr] = NULL;
+	of_node_put(sat->node);
 	kfree(sat);
 }
 
@@ -189,8 +190,7 @@ static const struct wf_sensor_ops wf_sat_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int wf_sat_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int wf_sat_probe(struct i2c_client *client)
 {
 	struct device_node *dev = client->dev.of_node;
 	struct wf_sat *sat;

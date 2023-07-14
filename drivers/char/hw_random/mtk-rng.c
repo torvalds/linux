@@ -22,7 +22,7 @@
 #define RNG_AUTOSUSPEND_TIMEOUT		100
 
 #define USEC_POLL			2
-#define TIMEOUT_POLL			20
+#define TIMEOUT_POLL			60
 
 #define RNG_CTRL			0x00
 #define RNG_EN				BIT(0)
@@ -77,7 +77,7 @@ static bool mtk_rng_wait_ready(struct hwrng *rng, bool wait)
 		readl_poll_timeout_atomic(priv->base + RNG_CTRL, ready,
 					  ready & RNG_READY, USEC_POLL,
 					  TIMEOUT_POLL);
-	return !!ready;
+	return !!(ready & RNG_READY);
 }
 
 static int mtk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
@@ -179,6 +179,7 @@ static const struct dev_pm_ops mtk_rng_pm_ops = {
 #endif	/* CONFIG_PM */
 
 static const struct of_device_id mtk_rng_match[] = {
+	{ .compatible = "mediatek,mt7986-rng" },
 	{ .compatible = "mediatek,mt7623-rng" },
 	{},
 };

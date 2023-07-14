@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2022 Broadcom Inc.
+ * Copyright (C) 2017-2023 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -23,9 +23,13 @@
 #define MPI3_DEBUG_RESET		0x00000020
 #define MPI3_DEBUG_SCSI_ERROR		0x00000040
 #define MPI3_DEBUG_REPLY		0x00000080
+#define MPI3_DEBUG_CFG_ERROR		0x00000100
+#define MPI3_DEBUG_TRANSPORT_ERROR	0x00000200
 #define MPI3_DEBUG_BSG_ERROR		0x00008000
 #define MPI3_DEBUG_BSG_INFO		0x00010000
 #define MPI3_DEBUG_SCSI_INFO		0x00020000
+#define MPI3_DEBUG_CFG_INFO		0x00040000
+#define MPI3_DEBUG_TRANSPORT_INFO	0x00080000
 #define MPI3_DEBUG			0x01000000
 #define MPI3_DEBUG_SG			0x02000000
 
@@ -119,6 +123,29 @@
 #define dprint_bsg_err(ioc, fmt, ...) \
 	do { \
 		if (ioc->logging_level & MPI3_DEBUG_BSG_ERROR) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_cfg_info(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_CFG_INFO) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_cfg_err(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_CFG_ERROR) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+#define dprint_transport_info(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_TRANSPORT_INFO) \
+			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
+	} while (0)
+
+#define dprint_transport_err(ioc, fmt, ...) \
+	do { \
+		if (ioc->logging_level & MPI3_DEBUG_TRANSPORT_ERROR) \
 			pr_info("%s: " fmt, (ioc)->name, ##__VA_ARGS__); \
 	} while (0)
 

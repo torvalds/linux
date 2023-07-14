@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _AMS_H
+#define _AMS_H
+
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
@@ -69,3 +72,5 @@ extern int ams_i2c_init(struct device_node *np);
 
 extern int ams_input_init(void);
 extern void ams_input_exit(void);
+
+#endif /* _AMS_H */

@@ -23,6 +23,8 @@
 #include "ti-bandgap.h"
 #include "../thermal_hwmon.h"
 
+#define TI_BANDGAP_UPDATE_INTERVAL_MS 250
+
 /* common data structures */
 struct ti_thermal_data {
 	struct cpufreq_policy *policy;
@@ -43,8 +45,8 @@ static void ti_thermal_work(struct work_struct *work)
 
 	thermal_zone_device_update(data->ti_thermal, THERMAL_EVENT_UNSPECIFIED);
 
-	dev_dbg(&data->ti_thermal->device, "updated thermal zone %s\n",
-		data->ti_thermal->type);
+	dev_dbg(data->bgp->dev, "updated thermal zone %s\n",
+		thermal_zone_device_type(data->ti_thermal));
 }
 
 /**
@@ -68,7 +70,7 @@ static inline int ti_thermal_hotspot_temperature(int t, int s, int c)
 static inline int __ti_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct thermal_zone_device *pcb_tz = NULL;
-	struct ti_thermal_data *data = tz->devdata;
+	struct ti_thermal_data *data = thermal_zone_device_priv(tz);
 	struct ti_bandgap *bgp;
 	const struct ti_temp_sensor *s;
 	int ret, tmp, slope, constant;
@@ -109,7 +111,7 @@ static inline int __ti_thermal_get_temp(struct thermal_zone_device *tz, int *tem
 
 static int __ti_thermal_get_trend(struct thermal_zone_device *tz, int trip, enum thermal_trend *trend)
 {
-	struct ti_thermal_data *data = tz->devdata;
+	struct ti_thermal_data *data = thermal_zone_device_priv(tz);
 	struct ti_bandgap *bgp;
 	int id, tr, ret = 0;
 
@@ -159,7 +161,6 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 			     char *domain)
 {
 	struct ti_thermal_data *data;
-	int interval;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
 
@@ -177,13 +178,11 @@ int ti_thermal_expose_sensor(struct ti_bandgap *bgp, int id,
 		return PTR_ERR(data->ti_thermal);
 	}
 
-	interval = jiffies_to_msecs(data->ti_thermal->polling_delay_jiffies);
-
 	ti_bandgap_set_sensor_data(bgp, id, data);
-	ti_bandgap_write_update_interval(bgp, data->sensor_id, interval);
+	ti_bandgap_write_update_interval(bgp, data->sensor_id,
+					 TI_BANDGAP_UPDATE_INTERVAL_MS);
 
-	if (devm_thermal_add_hwmon_sysfs(data->ti_thermal))
-		dev_warn(bgp->dev, "failed to add hwmon sysfs attributes\n");
+	devm_thermal_add_hwmon_sysfs(bgp->dev, data->ti_thermal);
 
 	return 0;
 }
@@ -223,7 +222,7 @@ int ti_thermal_register_cpu_cooling(struct ti_bandgap *bgp, int id)
 	 * using DT, then it must be aware that the cooling device
 	 * loading has to happen via cpufreq driver.
 	 */
-	if (of_find_property(np, "#thermal-sensor-cells", NULL))
+	if (of_property_present(np, "#thermal-sensor-cells"))
 		return 0;
 
 	data = ti_bandgap_get_sensor_data(bgp, id);

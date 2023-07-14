@@ -20,12 +20,14 @@ enum ser_evt {
 	SER_EV_NONE,
 	SER_EV_STATE_IN,
 	SER_EV_STATE_OUT,
+	SER_EV_L1_RESET_PREPARE, /* pre-M0 */
 	SER_EV_L1_RESET, /* M1 */
 	SER_EV_DO_RECOVERY, /* M3 */
 	SER_EV_MAC_RESET_DONE, /* M5 */
 	SER_EV_L2_RESET,
 	SER_EV_L2_RECFG_DONE,
 	SER_EV_L2_RECFG_TIMEOUT,
+	SER_EV_M1_TIMEOUT,
 	SER_EV_M3_TIMEOUT,
 	SER_EV_FW_M5_TIMEOUT,
 	SER_EV_L0_RESET,
@@ -34,6 +36,7 @@ enum ser_evt {
 
 enum ser_state {
 	SER_IDLE_ST,
+	SER_L1_RESET_PRE_ST,
 	SER_RESET_TRX_ST,
 	SER_DO_HCI_ST,
 	SER_L2_RESET_ST,
@@ -300,6 +303,7 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
 	rtwvif->net_type = RTW89_NET_TYPE_NO_LINK;
 	rtwvif->trigger = false;
+	rtwvif->tdls_peer = 0;
 }
 
 static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
@@ -338,6 +342,8 @@ static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
 	rtw89_core_release_all_bits_map(rtwdev->mac_id_map, RTW89_MAX_MAC_ID_NUM);
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		ser_reset_vif(rtwdev, rtwvif);
+
+	rtwdev->total_sta_assoc = 0;
 }
 
 /* hal function */
@@ -374,6 +380,13 @@ static int hal_stop_dma(struct rtw89_ser *ser)
 	return ret;
 }
 
+static void hal_send_post_m0_event(struct rtw89_ser *ser)
+{
+	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+
+	rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L1_RESET_START_DMAC);
+}
+
 static void hal_send_m2_event(struct rtw89_ser *ser)
 {
 	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
@@ -396,7 +409,11 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		rtw89_hci_recovery_complete(rtwdev);
+		clear_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
+		break;
+	case SER_EV_L1_RESET_PREPARE:
+		ser_state_goto(ser, SER_L1_RESET_PRE_ST);
 		break;
 	case SER_EV_L1_RESET:
 		ser_state_goto(ser, SER_RESET_TRX_ST);
@@ -405,7 +422,30 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 		ser_state_goto(ser, SER_L2_RESET_ST);
 		break;
 	case SER_EV_STATE_OUT:
+		set_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		rtw89_hci_recovery_start(rtwdev);
+		break;
+	default:
+		break;
+	}
+}
+
+static void ser_l1_reset_pre_st_hdl(struct rtw89_ser *ser, u8 evt)
+{
+	switch (evt) {
+	case SER_EV_STATE_IN:
+		ser->prehandle_l1 = true;
+		hal_send_post_m0_event(ser);
+		ser_set_alarm(ser, 1000, SER_EV_M1_TIMEOUT);
+		break;
+	case SER_EV_L1_RESET:
+		ser_state_goto(ser, SER_RESET_TRX_ST);
+		break;
+	case SER_EV_M1_TIMEOUT:
+		ser_state_goto(ser, SER_L2_RESET_ST);
+		break;
+	case SER_EV_STATE_OUT:
+		ser_del_alarm(ser);
 		break;
 	default:
 		break;
@@ -414,8 +454,11 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 
 static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 {
+	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+
 	switch (evt) {
 	case SER_EV_STATE_IN:
+		cancel_delayed_work_sync(&rtwdev->track_work);
 		drv_stop_tx(ser);
 
 		if (hal_stop_dma(ser)) {
@@ -446,6 +489,8 @@ static void ser_reset_trx_st_hdl(struct rtw89_ser *ser, u8 evt)
 		hal_enable_dma(ser);
 		drv_resume_rx(ser);
 		drv_resume_tx(ser);
+		ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->track_work,
+					     RTW89_TRACK_WORK_PERIOD);
 		break;
 
 	default:
@@ -611,6 +656,7 @@ bottom:
 	ser_reset_mac_binding(rtwdev);
 	rtw89_core_stop(rtwdev);
 	rtw89_entity_init(rtwdev);
+	rtw89_fw_release_general_pkt_list(rtwdev, false);
 	INIT_LIST_HEAD(&rtwdev->rtwvifs_list);
 }
 
@@ -648,12 +694,14 @@ static const struct event_ent ser_ev_tbl[] = {
 	{SER_EV_NONE, "SER_EV_NONE"},
 	{SER_EV_STATE_IN, "SER_EV_STATE_IN"},
 	{SER_EV_STATE_OUT, "SER_EV_STATE_OUT"},
-	{SER_EV_L1_RESET, "SER_EV_L1_RESET"},
+	{SER_EV_L1_RESET_PREPARE, "SER_EV_L1_RESET_PREPARE pre-m0"},
+	{SER_EV_L1_RESET, "SER_EV_L1_RESET m1"},
 	{SER_EV_DO_RECOVERY, "SER_EV_DO_RECOVERY m3"},
 	{SER_EV_MAC_RESET_DONE, "SER_EV_MAC_RESET_DONE m5"},
 	{SER_EV_L2_RESET, "SER_EV_L2_RESET"},
 	{SER_EV_L2_RECFG_DONE, "SER_EV_L2_RECFG_DONE"},
 	{SER_EV_L2_RECFG_TIMEOUT, "SER_EV_L2_RECFG_TIMEOUT"},
+	{SER_EV_M1_TIMEOUT, "SER_EV_M1_TIMEOUT"},
 	{SER_EV_M3_TIMEOUT, "SER_EV_M3_TIMEOUT"},
 	{SER_EV_FW_M5_TIMEOUT, "SER_EV_FW_M5_TIMEOUT"},
 	{SER_EV_L0_RESET, "SER_EV_L0_RESET"},
@@ -662,6 +710,7 @@ static const struct event_ent ser_ev_tbl[] = {
 
 static const struct state_ent ser_st_tbl[] = {
 	{SER_IDLE_ST, "SER_IDLE_ST", ser_idle_st_hdl},
+	{SER_L1_RESET_PRE_ST, "SER_L1_RESET_PRE_ST", ser_l1_reset_pre_st_hdl},
 	{SER_RESET_TRX_ST, "SER_RESET_TRX_ST", ser_reset_trx_st_hdl},
 	{SER_DO_HCI_ST, "SER_DO_HCI_ST", ser_do_hci_st_hdl},
 	{SER_L2_RESET_ST, "SER_L2_RESET_ST", ser_l2_reset_st_hdl}
@@ -707,6 +756,9 @@ int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err)
 	rtw89_info(rtwdev, "SER catches error: 0x%x\n", err);
 
 	switch (err) {
+	case MAC_AX_ERR_L1_PREERR_DMAC: /* pre-M0 */
+		event = SER_EV_L1_RESET_PREPARE;
+		break;
 	case MAC_AX_ERR_L1_ERR_DMAC:
 	case MAC_AX_ERR_L0_PROMOTE_TO_L1:
 		event = SER_EV_L1_RESET; /* M1 */

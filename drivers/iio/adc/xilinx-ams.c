@@ -1220,8 +1220,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 	int num_channels = 0;
 	int ret;
 
-	if (fwnode_property_match_string(fwnode, "compatible",
-					 "xlnx,zynqmp-ams-ps") == 0) {
+	if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams-ps")) {
 		ams->ps_base = fwnode_iomap(fwnode, 0);
 		if (!ams->ps_base)
 			return -ENXIO;
@@ -1232,8 +1231,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 		/* add PS channels to iio device channels */
 		memcpy(channels, ams_ps_channels, sizeof(ams_ps_channels));
 		num_channels = ARRAY_SIZE(ams_ps_channels);
-	} else if (fwnode_property_match_string(fwnode, "compatible",
-						"xlnx,zynqmp-ams-pl") == 0) {
+	} else if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams-pl")) {
 		ams->pl_base = fwnode_iomap(fwnode, 0);
 		if (!ams->pl_base)
 			return -ENXIO;
@@ -1247,8 +1245,7 @@ static int ams_init_module(struct iio_dev *indio_dev,
 		num_channels += AMS_PL_MAX_FIXED_CHANNEL;
 		num_channels = ams_get_ext_chan(fwnode, channels,
 						num_channels);
-	} else if (fwnode_property_match_string(fwnode, "compatible",
-						"xlnx,zynqmp-ams") == 0) {
+	} else if (fwnode_device_is_compatible(fwnode, "xlnx,zynqmp-ams")) {
 		/* add AMS channels to iio device channels */
 		memcpy(channels, ams_ctrl_channels, sizeof(ams_ctrl_channels));
 		num_channels += ARRAY_SIZE(ams_ctrl_channels);
@@ -1266,7 +1263,7 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 	struct device *dev = indio_dev->dev.parent;
 	struct fwnode_handle *child = NULL;
 	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	size_t ams_size, dev_size;
+	size_t ams_size;
 	int ret, ch_cnt = 0, i, rising_off, falling_off;
 	unsigned int num_channels = 0;
 
@@ -1323,13 +1320,10 @@ static int ams_parse_firmware(struct iio_dev *indio_dev)
 		}
 	}
 
-	dev_size = array_size(sizeof(*dev_channels), num_channels);
-	if (dev_size == SIZE_MAX)
-		return -ENOMEM;
-
-	dev_channels = devm_krealloc(dev, ams_channels, dev_size, GFP_KERNEL);
+	dev_channels = devm_krealloc_array(dev, ams_channels, num_channels,
+					   sizeof(*dev_channels), GFP_KERNEL);
 	if (!dev_channels)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
 	indio_dev->channels = dev_channels;
 	indio_dev->num_channels = num_channels;
@@ -1350,11 +1344,6 @@ static const struct of_device_id ams_of_match_table[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ams_of_match_table);
-
-static void ams_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
 
 static int ams_probe(struct platform_device *pdev)
 {
@@ -1380,17 +1369,9 @@ static int ams_probe(struct platform_device *pdev)
 	if (IS_ERR(ams->base))
 		return PTR_ERR(ams->base);
 
-	ams->clk = devm_clk_get(&pdev->dev, NULL);
+	ams->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(ams->clk))
 		return PTR_ERR(ams->clk);
-
-	ret = clk_prepare_enable(ams->clk);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(&pdev->dev, ams_clk_disable_unprepare, ams->clk);
-	if (ret < 0)
-		return ret;
 
 	ret = devm_delayed_work_autocancel(&pdev->dev, &ams->ams_unmask_work,
 					   ams_unmask_worker);

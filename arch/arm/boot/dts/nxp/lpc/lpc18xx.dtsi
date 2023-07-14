@@ -1,0 +1,537 @@
+/*
+ * Common base for NXP LPC18xx and LPC43xx devices.
+ *
+ * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+
+#include "../../armv7-m.dtsi"
+
+#include "dt-bindings/clock/lpc18xx-cgu.h"
+#include "dt-bindings/clock/lpc18xx-ccu.h"
+
+#define LPC_PIN(port, pin)	(0x##port * 32 + pin)
+#define LPC_GPIO(port, pin)	(port * 32 + pin)
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-m3";
+			device_type = "cpu";
+			reg = <0x0>;
+			clocks = <&ccu1 CLK_CPU_CORE>;
+		};
+	};
+
+	clocks {
+		xtal: xtal {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <12000000>;
+		};
+
+		xtal32: xtal32 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+
+		enet_rx_clk: enet_rx_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "enet_rx_clk";
+		};
+
+		enet_tx_clk: enet_tx_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "enet_tx_clk";
+		};
+
+		gp_clkin: gp_clkin {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+			clock-output-names = "gp_clkin";
+		};
+	};
+
+	soc {
+		sct_pwm: pwm@40000000 {
+			compatible = "nxp,lpc1850-sct-pwm";
+			reg = <0x40000000 0x1000>;
+			clocks =<&ccu1 CLK_CPU_SCT>;
+			clock-names = "pwm";
+			resets = <&rgu 37>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		dmac: dma-controller@40002000 {
+			compatible = "arm,pl080", "arm,primecell";
+			arm,primecell-periphid = <0x00041080>;
+			reg = <0x40002000 0x1000>;
+			interrupts = <2>;
+			clocks = <&ccu1 CLK_CPU_DMA>;
+			clock-names = "apb_pclk";
+			resets = <&rgu 19>;
+			#dma-cells = <2>;
+			dma-channels = <8>;
+			dma-requests = <16>;
+			lli-bus-interface-ahb1;
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb1;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
+		};
+
+		spifi: flash-controller@40003000 {
+			compatible = "nxp,lpc1773-spifi";
+			reg = <0x40003000 0x1000>, <0x14000000 0x4000000>;
+			reg-names = "spifi", "flash";
+			interrupts = <30>;
+			clocks = <&ccu1 CLK_SPIFI>, <&ccu1 CLK_CPU_SPIFI>;
+			clock-names = "spifi", "reg";
+			resets = <&rgu 53>;
+			status = "disabled";
+		};
+
+		mmcsd: mmcsd@40004000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x40004000 0x1000>;
+			interrupts = <6>;
+			clocks = <&ccu2 CLK_SDIO>, <&ccu1 CLK_CPU_SDIO>;
+			clock-names = "ciu", "biu";
+			resets = <&rgu 20>;
+			status = "disabled";
+		};
+
+		usb0: usb@40006100 {
+			compatible = "nxp,lpc1850-ehci", "generic-ehci";
+			reg = <0x40006100 0x100>;
+			interrupts = <8>;
+			clocks = <&ccu1 CLK_CPU_USB0>;
+			resets = <&rgu 17>;
+			phys = <&usb0_otg_phy>;
+			phy-names = "usb";
+			has-transaction-translator;
+			status = "disabled";
+		};
+
+		usb1: usb@40007100 {
+			compatible = "nxp,lpc1850-ehci", "generic-ehci";
+			reg = <0x40007100 0x100>;
+			interrupts = <9>;
+			clocks = <&ccu1 CLK_CPU_USB1>;
+			resets = <&rgu 18>;
+			status = "disabled";
+		};
+
+		emc: memory-controller@40005000 {
+			compatible = "arm,pl172", "arm,primecell";
+			reg = <0x40005000 0x1000>;
+			clocks = <&ccu1 CLK_CPU_EMCDIV>, <&ccu1 CLK_CPU_EMC>;
+			clock-names = "mpmcclk", "apb_pclk";
+			resets = <&rgu 21>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			ranges = <0 0 0x1c000000 0x1000000
+				  1 0 0x1d000000 0x1000000
+				  2 0 0x1e000000 0x1000000
+				  3 0 0x1f000000 0x1000000>;
+			status = "disabled";
+		};
+
+		lcdc: lcd-controller@40008000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0x40008000 0x1000>;
+			interrupts = <7>;
+			interrupt-names = "combined";
+			clocks = <&cgu BASE_LCD_CLK>, <&ccu1 CLK_CPU_LCD>;
+			clock-names = "clcdclk", "apb_pclk";
+			resets = <&rgu 16>;
+			status = "disabled";
+		};
+
+		eeprom: eeprom@4000e000 {
+			compatible = "nxp,lpc1857-eeprom";
+			reg = <0x4000e000 0x1000>, <0x20040000 0x4000>;
+			reg-names = "reg", "mem";
+			clocks = <&ccu1 CLK_CPU_EEPROM>;
+			clock-names = "eeprom";
+			resets = <&rgu 27>;
+			interrupts = <4>;
+			status = "disabled";
+		};
+
+		mac: ethernet@40010000 {
+			compatible = "nxp,lpc1850-dwmac", "snps,dwmac-3.611", "snps,dwmac";
+			reg = <0x40010000 0x2000>;
+			interrupts = <5>;
+			interrupt-names = "macirq";
+			clocks = <&ccu1 CLK_CPU_ETHERNET>;
+			clock-names = "stmmaceth";
+			resets = <&rgu 22>;
+			reset-names = "stmmaceth";
+			rx-fifo-depth = <256>;
+			tx-fifo-depth = <256>;
+			snps,pbl = <4>; /* 32 (8x mode) */
+			snps,force_thresh_dma_mode;
+			status = "disabled";
+		};
+
+		creg: syscon@40043000 {
+			compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
+			reg = <0x40043000 0x1000>;
+			clocks = <&ccu1 CLK_CPU_CREG>;
+			resets = <&rgu 5>;
+
+			creg_clk: clock-controller {
+				compatible = "nxp,lpc1850-creg-clk";
+				clocks = <&xtal32>;
+				#clock-cells = <1>;
+			};
+
+			usb0_otg_phy: phy {
+				compatible = "nxp,lpc1850-usb-otg-phy";
+				clocks = <&ccu1 CLK_USB0>;
+				#phy-cells = <0>;
+			};
+
+			dmamux: dma-mux {
+				compatible = "nxp,lpc1850-dmamux";
+				#dma-cells = <3>;
+				dma-requests = <64>;
+				dma-masters = <&dmac>;
+			};
+		};
+
+		rtc: rtc@40046000 {
+			compatible = "nxp,lpc1850-rtc", "nxp,lpc1788-rtc";
+			reg = <0x40046000 0x1000>;
+			interrupts = <47>;
+			clocks = <&creg_clk 0>, <&ccu1 CLK_CPU_BUS>;
+			clock-names = "rtc", "reg";
+		};
+
+		cgu: clock-controller@40050000 {
+			compatible = "nxp,lpc1850-cgu";
+			reg = <0x40050000 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&xtal>, <&creg_clk 1>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
+		};
+
+		ccu1: clock-controller@40051000 {
+			compatible = "nxp,lpc1850-ccu";
+			reg = <0x40051000 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&cgu BASE_APB3_CLK>,   <&cgu BASE_APB1_CLK>,
+				 <&cgu BASE_SPIFI_CLK>,  <&cgu BASE_CPU_CLK>,
+				 <&cgu BASE_PERIPH_CLK>, <&cgu BASE_USB0_CLK>,
+				 <&cgu BASE_USB1_CLK>,   <&cgu BASE_SPI_CLK>;
+			clock-names = "base_apb3_clk",   "base_apb1_clk",
+				      "base_spifi_clk",  "base_cpu_clk",
+				      "base_periph_clk", "base_usb0_clk",
+				      "base_usb1_clk",   "base_spi_clk";
+		};
+
+		ccu2: clock-controller@40052000 {
+			compatible = "nxp,lpc1850-ccu";
+			reg = <0x40052000 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&cgu BASE_AUDIO_CLK>, <&cgu BASE_UART3_CLK>,
+				 <&cgu BASE_UART2_CLK>, <&cgu BASE_UART1_CLK>,
+				 <&cgu BASE_UART0_CLK>, <&cgu BASE_SSP1_CLK>,
+				 <&cgu BASE_SSP0_CLK>,  <&cgu BASE_SDIO_CLK>;
+			clock-names = "base_audio_clk", "base_uart3_clk",
+				      "base_uart2_clk", "base_uart1_clk",
+				      "base_uart0_clk", "base_ssp1_clk",
+				      "base_ssp0_clk",  "base_sdio_clk";
+		};
+
+		rgu: reset-controller@40053000 {
+			compatible = "nxp,lpc1850-rgu";
+			reg = <0x40053000 0x1000>;
+			clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_BUS>;
+			clock-names = "delay", "reg";
+			#reset-cells = <1>;
+		};
+
+		watchdog@40080000 {
+			compatible = "nxp,lpc1850-wwdt";
+			reg = <0x40080000 0x24>;
+			interrupts = <49>;
+			clocks = <&cgu BASE_SAFE_CLK>, <&ccu1 CLK_CPU_WWDT>;
+			clock-names = "wdtclk", "reg";
+		};
+
+		uart0: serial@40081000 {
+			compatible = "nxp,lpc1850-uart", "ns16550a";
+			reg = <0x40081000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <24>;
+			clocks = <&ccu2 CLK_APB0_UART0>, <&ccu1 CLK_CPU_UART0>;
+			clock-names = "uartclk", "reg";
+			resets = <&rgu 44>;
+			dmas = <&dmamux  1 1 2
+				&dmamux  2 1 2
+				&dmamux 11 2 2
+				&dmamux 12 2 2>;
+			dma-names = "tx", "rx", "tx", "rx";
+			status = "disabled";
+		};
+
+		uart1: serial@40082000 {
+			compatible = "nxp,lpc1850-uart", "ns16550a";
+			reg = <0x40082000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <25>;
+			clocks = <&ccu2 CLK_APB0_UART1>, <&ccu1 CLK_CPU_UART1>;
+			clock-names = "uartclk", "reg";
+			resets = <&rgu 45>;
+			dmas = <&dmamux 3 1 2
+				&dmamux 4 1 2>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		ssp0: spi@40083000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x40083000 0x1000>;
+			interrupts = <22>;
+			clocks = <&ccu2 CLK_APB0_SSP0>, <&ccu1 CLK_CPU_SSP0>;
+			clock-names = "sspclk", "apb_pclk";
+			resets = <&rgu 50>;
+			dmas = <&dmamux  9 0 2
+				&dmamux 10 0 2>;
+			dma-names = "rx", "tx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		timer0: timer@40084000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40084000 0x1000>;
+			interrupts = <12>;
+			clocks = <&ccu1 CLK_CPU_TIMER0>;
+			clock-names = "timerclk";
+			resets = <&rgu 32>;
+		};
+
+		timer1: timer@40085000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40085000 0x1000>;
+			interrupts = <13>;
+			clocks = <&ccu1 CLK_CPU_TIMER1>;
+			clock-names = "timerclk";
+			resets = <&rgu 33>;
+		};
+
+		pinctrl: pinctrl@40086000 {
+			compatible = "nxp,lpc1850-scu";
+			reg = <0x40086000 0x1000>;
+			clocks = <&ccu1 CLK_CPU_SCU>;
+		};
+
+		i2c0: i2c@400a1000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400a1000 0x1000>;
+			interrupts = <18>;
+			clocks = <&ccu1 CLK_APB1_I2C0>;
+			resets = <&rgu 48>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		can1: can@400a4000 {
+			compatible = "bosch,c_can";
+			reg = <0x400a4000 0x1000>;
+			interrupts = <43>;
+			clocks = <&ccu1 CLK_APB1_CAN1>;
+			resets = <&rgu 54>;
+			status = "disabled";
+		};
+
+		uart2: serial@400c1000 {
+			compatible = "nxp,lpc1850-uart", "ns16550a";
+			reg = <0x400c1000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <26>;
+			clocks = <&ccu2 CLK_APB2_UART2>, <&ccu1 CLK_CPU_UART2>;
+			clock-names = "uartclk", "reg";
+			resets = <&rgu 46>;
+			dmas = <&dmamux 5 1 2
+				&dmamux 6 1 2>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		uart3: serial@400c2000 {
+			compatible = "nxp,lpc1850-uart", "ns16550a";
+			reg = <0x400c2000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <27>;
+			clocks = <&ccu2 CLK_APB2_UART3>, <&ccu1 CLK_CPU_UART3>;
+			clock-names = "uartclk", "reg";
+			resets = <&rgu 47>;
+			dmas = <&dmamux  7 1 2
+				&dmamux  8 1 2
+				&dmamux 13 3 2
+				&dmamux 14 3 2>;
+			dma-names = "tx", "rx", "rx", "tx";
+			status = "disabled";
+		};
+
+		timer2: timer@400c3000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x400c3000 0x1000>;
+			interrupts = <14>;
+			clocks = <&ccu1 CLK_CPU_TIMER2>;
+			clock-names = "timerclk";
+			resets = <&rgu 34>;
+		};
+
+		timer3: timer@400c4000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x400c4000 0x1000>;
+			interrupts = <15>;
+			clocks = <&ccu1 CLK_CPU_TIMER3>;
+			clock-names = "timerclk";
+			resets = <&rgu 35>;
+		};
+
+		ssp1: spi@400c5000 {
+			compatible = "arm,pl022", "arm,primecell";
+			reg = <0x400c5000 0x1000>;
+			interrupts = <23>;
+			clocks = <&ccu2 CLK_APB2_SSP1>, <&ccu1 CLK_CPU_SSP1>;
+			clock-names = "sspclk", "apb_pclk";
+			resets = <&rgu 51>;
+			dmas = <&dmamux 11 2 2
+				&dmamux 12 2 2
+				&dmamux  3 3 2
+				&dmamux  4 3 2
+				&dmamux  5 2 2
+				&dmamux  6 2 2
+				&dmamux 13 2 2
+				&dmamux 14 2 2>;
+			dma-names = "rx", "tx", "tx", "rx",
+				    "tx", "rx", "rx", "tx";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@400e0000 {
+			compatible = "nxp,lpc1788-i2c";
+			reg = <0x400e0000 0x1000>;
+			interrupts = <19>;
+			clocks = <&ccu1 CLK_APB3_I2C1>;
+			resets = <&rgu 49>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		dac: dac@400e1000 {
+			compatible = "nxp,lpc1850-dac";
+			reg = <0x400e1000 0x1000>;
+			interrupts = <0>;
+			clocks = <&ccu1 CLK_APB3_DAC>;
+			resets = <&rgu 42>;
+			status = "disabled";
+		};
+
+		can0: can@400e2000 {
+			compatible = "bosch,c_can";
+			reg = <0x400e2000 0x1000>;
+			interrupts = <51>;
+			clocks = <&ccu1 CLK_APB3_CAN0>;
+			resets = <&rgu 55>;
+			status = "disabled";
+		};
+
+		adc0: adc@400e3000 {
+			compatible = "nxp,lpc1850-adc";
+			reg = <0x400e3000 0x1000>;
+			interrupts = <17>;
+			clocks = <&ccu1 CLK_APB3_ADC0>;
+			resets = <&rgu 40>;
+			status = "disabled";
+		};
+
+		adc1: adc@400e4000 {
+			compatible = "nxp,lpc1850-adc";
+			reg = <0x400e4000 0x1000>;
+			interrupts = <21>;
+			clocks = <&ccu1 CLK_APB3_ADC1>;
+			resets = <&rgu 41>;
+			status = "disabled";
+		};
+
+		gpio: gpio@400f4000 {
+			compatible = "nxp,lpc1850-gpio";
+			reg = <0x400f4000 0x4000>;
+			clocks = <&ccu1 CLK_CPU_GPIO>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges =	<&pinctrl LPC_GPIO(0,0)  LPC_PIN(0,0)  2>,
+					<&pinctrl LPC_GPIO(0,4)  LPC_PIN(1,0)  1>,
+					<&pinctrl LPC_GPIO(0,8)  LPC_PIN(1,1)  4>,
+					<&pinctrl LPC_GPIO(1,8)  LPC_PIN(1,5)  2>,
+					<&pinctrl LPC_GPIO(1,0)  LPC_PIN(1,7)  8>,
+					<&pinctrl LPC_GPIO(0,2)  LPC_PIN(1,15) 2>,
+					<&pinctrl LPC_GPIO(0,12) LPC_PIN(1,17) 2>,
+					<&pinctrl LPC_GPIO(0,15) LPC_PIN(1,20) 1>,
+					<&pinctrl LPC_GPIO(5,0)  LPC_PIN(2,0)  7>,
+					<&pinctrl LPC_GPIO(0,7)  LPC_PIN(2,7)  1>,
+					<&pinctrl LPC_GPIO(5,7)  LPC_PIN(2,8)  1>,
+					<&pinctrl LPC_GPIO(1,10) LPC_PIN(2,9)  1>,
+					<&pinctrl LPC_GPIO(0,14) LPC_PIN(2,10) 1>,
+					<&pinctrl LPC_GPIO(1,11) LPC_PIN(2,11) 3>,
+					<&pinctrl LPC_GPIO(5,8)  LPC_PIN(3,1)  2>,
+					<&pinctrl LPC_GPIO(1,14) LPC_PIN(3,4)  2>,
+					<&pinctrl LPC_GPIO(0,6)  LPC_PIN(3,6)  1>,
+					<&pinctrl LPC_GPIO(5,10) LPC_PIN(3,7)  2>,
+					<&pinctrl LPC_GPIO(2,0)  LPC_PIN(4,0)  7>,
+					<&pinctrl LPC_GPIO(5,12) LPC_PIN(4,8)  3>,
+					<&pinctrl LPC_GPIO(2,9)  LPC_PIN(5,0)  7>,
+					<&pinctrl LPC_GPIO(2,7)  LPC_PIN(5,7)  1>,
+					<&pinctrl LPC_GPIO(3,0)  LPC_PIN(6,1)  5>,
+					<&pinctrl LPC_GPIO(0,5)  LPC_PIN(6,6)  1>,
+					<&pinctrl LPC_GPIO(5,15) LPC_PIN(6,7)  2>,
+					<&pinctrl LPC_GPIO(3,5)  LPC_PIN(6,9)  3>,
+					<&pinctrl LPC_GPIO(2,8)  LPC_PIN(6,12) 1>,
+					<&pinctrl LPC_GPIO(3,8)  LPC_PIN(7,0)  8>,
+					<&pinctrl LPC_GPIO(4,0)  LPC_PIN(8,0)  8>,
+					<&pinctrl LPC_GPIO(4,12) LPC_PIN(9,0)  4>,
+					<&pinctrl LPC_GPIO(5,17) LPC_PIN(9,4)  2>,
+					<&pinctrl LPC_GPIO(4,11) LPC_PIN(9,6)  1>,
+					<&pinctrl LPC_GPIO(4,8)  LPC_PIN(a,1)  3>,
+					<&pinctrl LPC_GPIO(5,19) LPC_PIN(a,4)  1>,
+					<&pinctrl LPC_GPIO(5,20) LPC_PIN(b,0)  7>,
+					<&pinctrl LPC_GPIO(6,0)  LPC_PIN(c,1) 14>,
+					<&pinctrl LPC_GPIO(6,14) LPC_PIN(d,0) 17>,
+					<&pinctrl LPC_GPIO(7,0)  LPC_PIN(e,0) 16>,
+					<&pinctrl LPC_GPIO(7,16) LPC_PIN(f,1)  3>,
+					<&pinctrl LPC_GPIO(7,19) LPC_PIN(f,5)  7>;
+		};
+	};
+};

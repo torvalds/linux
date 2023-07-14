@@ -1029,7 +1029,7 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 }
 
 static int vgacon_font_set(struct vc_data *c, struct console_font *font,
-			   unsigned int flags)
+			   unsigned int vpitch, unsigned int flags)
 {
 	unsigned charcount = font->charcount;
 	int rc;
@@ -1037,7 +1037,7 @@ static int vgacon_font_set(struct vc_data *c, struct console_font *font,
 	if (vga_video_type < VIDEO_TYPE_EGAM)
 		return -EINVAL;
 
-	if (font->width != VGA_FONTWIDTH ||
+	if (font->width != VGA_FONTWIDTH || font->height > 32 || vpitch != 32 ||
 	    (charcount != 256 && charcount != 512))
 		return -EINVAL;
 
@@ -1050,9 +1050,9 @@ static int vgacon_font_set(struct vc_data *c, struct console_font *font,
 	return rc;
 }
 
-static int vgacon_font_get(struct vc_data *c, struct console_font *font)
+static int vgacon_font_get(struct vc_data *c, struct console_font *font, unsigned int vpitch)
 {
-	if (vga_video_type < VIDEO_TYPE_EGAM)
+	if (vga_video_type < VIDEO_TYPE_EGAM || vpitch != 32)
 		return -EINVAL;
 
 	font->width = VGA_FONTWIDTH;

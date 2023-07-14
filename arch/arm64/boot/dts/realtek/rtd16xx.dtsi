@@ -88,11 +88,15 @@
 		l2: l2-cache {
 			compatible = "cache";
 			next-level-cache = <&l3>;
+			cache-level = <2>;
+			cache-unified;
 
 		};
 
 		l3: l3-cache {
 			compatible = "cache";
+			cache-level = <3>;
+			cache-unified;
 		};
 	};
 
@@ -195,7 +199,7 @@
 };
 
 &iso {
-	uart0: serial0@800 {
+	uart0: serial@800 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x800 0x400>;
 		reg-shift = <2>;
@@ -207,7 +211,7 @@
 };
 
 &misc {
-	uart1: serial1@200 {
+	uart1: serial@200 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x200 0x400>;
 		reg-shift = <2>;
@@ -217,7 +221,7 @@
 		status = "disabled";
 	};
 
-	uart2: serial2@400 {
+	uart2: serial@400 {
 		compatible = "snps,dw-apb-uart";
 		reg = <0x400 0x400>;
 		reg-shift = <2>;

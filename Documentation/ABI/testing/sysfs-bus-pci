@@ -407,6 +407,16 @@ Description:
 	        file contains a '1' if the memory has been published for
 		use outside the driver that owns the device.
 
+What:		/sys/bus/pci/devices/.../p2pmem/allocate
+Date:		August 2022
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		This file allows mapping p2pmem into userspace. For each
+		mmap() call on this file, the kernel will allocate a chunk
+		of Peer-to-Peer memory for use in Peer-to-Peer transactions.
+		This memory can be used in O_DIRECT calls to NVMe backed
+		files for Peer-to-Peer copies.
+
 What:		/sys/bus/pci/devices/.../link/clkpm
 		/sys/bus/pci/devices/.../link/l0s_aspm
 		/sys/bus/pci/devices/.../link/l1_aspm
@@ -457,3 +467,36 @@ Description:
 
 		The file is writable if the PF is bound to a driver that
 		implements ->sriov_set_msix_vec_count().
+
+What:		/sys/bus/pci/devices/.../resourceN_resize
+Date:		September 2022
+Contact:	Alex Williamson <alex.williamson@redhat.com>
+Description:
+		These files provide an interface to PCIe Resizable BAR support.
+		A file is created for each BAR resource (N) supported by the
+		PCIe Resizable BAR extended capability of the device.  Reading
+		each file exposes the bitmap of available resource sizes:
+
+		# cat resource1_resize
+		00000000000001c0
+
+		The bitmap represents supported resource sizes for the BAR,
+		where bit0 = 1MB, bit1 = 2MB, bit2 = 4MB, etc.  In the above
+		example the device supports 64MB, 128MB, and 256MB BAR sizes.
+
+		When writing the file, the user provides the bit position of
+		the desired resource size, for example:
+
+		# echo 7 > resource1_resize
+
+		This indicates to set the size value corresponding to bit 7,
+		128MB.  The resulting size is 2 ^ (bit# + 20).  This definition
+		matches the PCIe specification of this capability.
+
+		In order to make use of resource resizing, all PCI drivers must
+		be unbound from the device and peer devices under the same
+		parent bridge may need to be soft removed.  In the case of
+		VGA devices, writing a resize value will remove low level
+		console drivers from the device.  Raw users of pci-sysfs
+		resourceN attributes must be terminated prior to resizing.
+		Success of the resizing operation is not guaranteed.

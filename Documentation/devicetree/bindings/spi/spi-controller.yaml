@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spi/spi-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SPI Controller Generic Binding
+title: SPI Controller Common Properties
 
 maintainers:
   - Mark Brown <broonie@kernel.org>
@@ -17,7 +17,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^spi(@.*|-[0-9a-f])*$"
+    pattern: "^spi(@.*|-([0-9]|[1-9][0-9]+))?$"
 
   "#address-cells":
     enum: [0, 1]
@@ -94,6 +94,7 @@ patternProperties:
   "^.*@[0-9a-f]+$":
     type: object
     $ref: spi-peripheral-props.yaml
+    additionalProperties: true
 
     properties:
       spi-3wire:

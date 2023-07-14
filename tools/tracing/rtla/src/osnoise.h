@@ -38,6 +38,14 @@ struct osnoise_context {
 	/* -1 as init value because 0 is disabled */
 	long long		orig_print_stack;
 	long long		print_stack;
+
+	/* -1 as init value because 0 is off */
+	int			orig_opt_irq_disable;
+	int			opt_irq_disable;
+
+	/* -1 as init value because 0 is off */
+	int			orig_opt_workload;
+	int			opt_workload;
 };
 
 /*
@@ -79,6 +87,9 @@ void osnoise_restore_print_stack(struct osnoise_context *context);
 int osnoise_set_print_stack(struct osnoise_context *context,
 			    long long print_stack);
 
+int osnoise_set_irq_disable(struct osnoise_context *context, bool onoff);
+int osnoise_set_workload(struct osnoise_context *context, bool onoff);
+
 /*
  * osnoise_tool -  osnoise based tool definition.
  */
@@ -97,3 +108,4 @@ struct osnoise_tool *osnoise_init_trace_tool(char *tracer);
 int osnoise_hist_main(int argc, char *argv[]);
 int osnoise_top_main(int argc, char **argv);
 int osnoise_main(int argc, char **argv);
+int hwnoise_main(int argc, char **argv);

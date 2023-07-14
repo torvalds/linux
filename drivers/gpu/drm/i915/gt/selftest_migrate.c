@@ -6,7 +6,9 @@
 #include <linux/sort.h>
 
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 
+#include "selftests/igt_spinner.h"
 #include "selftests/i915_random.h"
 
 static const unsigned int sizes[] = {
@@ -135,7 +137,7 @@ err_free_src:
 static int intel_context_copy_ccs(struct intel_context *ce,
 				  const struct i915_deps *deps,
 				  struct scatterlist *sg,
-				  enum i915_cache_level cache_level,
+				  unsigned int pat_index,
 				  bool write_to_ccs,
 				  struct i915_request **out)
 {
@@ -183,7 +185,7 @@ static int intel_context_copy_ccs(struct intel_context *ce,
 		if (err)
 			goto out_rq;
 
-		len = emit_pte(rq, &it, cache_level, true, offset, CHUNK_SZ);
+		len = emit_pte(rq, &it, pat_index, true, offset, CHUNK_SZ);
 		if (len <= 0) {
 			err = len;
 			goto out_rq;
@@ -221,7 +223,7 @@ intel_migrate_ccs_copy(struct intel_migrate *m,
 		       struct i915_gem_ww_ctx *ww,
 		       const struct i915_deps *deps,
 		       struct scatterlist *sg,
-		       enum i915_cache_level cache_level,
+		       unsigned int pat_index,
 		       bool write_to_ccs,
 		       struct i915_request **out)
 {
@@ -241,7 +243,7 @@ intel_migrate_ccs_copy(struct intel_migrate *m,
 	if (err)
 		goto out;
 
-	err = intel_context_copy_ccs(ce, deps, sg, cache_level,
+	err = intel_context_copy_ccs(ce, deps, sg, pat_index,
 				     write_to_ccs, out);
 
 	intel_context_unpin(ce);
@@ -298,7 +300,7 @@ static int clear(struct intel_migrate *migrate,
 			/* Write the obj data into ccs surface */
 			err = intel_migrate_ccs_copy(migrate, &ww, NULL,
 						     obj->mm.pages->sgl,
-						     obj->cache_level,
+						     obj->pat_index,
 						     true, &rq);
 			if (rq && !err) {
 				if (i915_request_wait(rq, 0, HZ) < 0) {
@@ -349,7 +351,7 @@ static int clear(struct intel_migrate *migrate,
 
 			err = intel_migrate_ccs_copy(migrate, &ww, NULL,
 						     obj->mm.pages->sgl,
-						     obj->cache_level,
+						     obj->pat_index,
 						     false, &rq);
 			if (rq && !err) {
 				if (i915_request_wait(rq, 0, HZ) < 0) {
@@ -412,9 +414,9 @@ static int __migrate_copy(struct intel_migrate *migrate,
 			  struct i915_request **out)
 {
 	return intel_migrate_copy(migrate, ww, NULL,
-				  src->mm.pages->sgl, src->cache_level,
+				  src->mm.pages->sgl, src->pat_index,
 				  i915_gem_object_is_lmem(src),
-				  dst->mm.pages->sgl, dst->cache_level,
+				  dst->mm.pages->sgl, dst->pat_index,
 				  i915_gem_object_is_lmem(dst),
 				  out);
 }
@@ -426,9 +428,9 @@ static int __global_copy(struct intel_migrate *migrate,
 			 struct i915_request **out)
 {
 	return intel_context_migrate_copy(migrate->context, NULL,
-					  src->mm.pages->sgl, src->cache_level,
+					  src->mm.pages->sgl, src->pat_index,
 					  i915_gem_object_is_lmem(src),
-					  dst->mm.pages->sgl, dst->cache_level,
+					  dst->mm.pages->sgl, dst->pat_index,
 					  i915_gem_object_is_lmem(dst),
 					  out);
 }
@@ -453,7 +455,7 @@ static int __migrate_clear(struct intel_migrate *migrate,
 {
 	return intel_migrate_clear(migrate, ww, NULL,
 				   obj->mm.pages->sgl,
-				   obj->cache_level,
+				   obj->pat_index,
 				   i915_gem_object_is_lmem(obj),
 				   value, out);
 }
@@ -466,7 +468,7 @@ static int __global_clear(struct intel_migrate *migrate,
 {
 	return intel_context_migrate_clear(migrate->context, NULL,
 					   obj->mm.pages->sgl,
-					   obj->cache_level,
+					   obj->pat_index,
 					   i915_gem_object_is_lmem(obj),
 					   value, out);
 }
@@ -485,7 +487,8 @@ global_clear(struct intel_migrate *migrate, u32 sz, struct rnd_state *prng)
 
 static int live_migrate_copy(void *arg)
 {
-	struct intel_migrate *migrate = arg;
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
 	struct drm_i915_private *i915 = migrate->context->engine->i915;
 	I915_RND_STATE(prng);
 	int i;
@@ -506,7 +509,8 @@ static int live_migrate_copy(void *arg)
 
 static int live_migrate_clear(void *arg)
 {
-	struct intel_migrate *migrate = arg;
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
 	struct drm_i915_private *i915 = migrate->context->engine->i915;
 	I915_RND_STATE(prng);
 	int i;
@@ -524,6 +528,149 @@ static int live_migrate_clear(void *arg)
 	}
 
 	return 0;
+}
+
+struct spinner_timer {
+	struct timer_list timer;
+	struct igt_spinner spin;
+};
+
+static void spinner_kill(struct timer_list *timer)
+{
+	struct spinner_timer *st = from_timer(st, timer, timer);
+
+	igt_spinner_end(&st->spin);
+	pr_info("%s\n", __func__);
+}
+
+static int live_emit_pte_full_ring(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
+	struct drm_i915_private *i915 = migrate->context->engine->i915;
+	struct drm_i915_gem_object *obj;
+	struct intel_context *ce;
+	struct i915_request *rq, *prev;
+	struct spinner_timer st;
+	struct sgt_dma it;
+	int len, sz, err;
+	u32 *cs;
+
+	/*
+	 * Simple regression test to check that we don't trample the
+	 * rq->reserved_space when returning from emit_pte(), if the ring is
+	 * nearly full.
+	 */
+
+	if (igt_spinner_init(&st.spin, to_gt(i915)))
+		return -ENOMEM;
+
+	obj = i915_gem_object_create_internal(i915, 2 * PAGE_SIZE);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_spinner;
+	}
+
+	err = i915_gem_object_pin_pages_unlocked(obj);
+	if (err)
+		goto out_obj;
+
+	ce = intel_migrate_create_context(migrate);
+	if (IS_ERR(ce)) {
+		err = PTR_ERR(ce);
+		goto out_obj;
+	}
+
+	ce->ring_size = SZ_4K; /* Not too big */
+
+	err = intel_context_pin(ce);
+	if (err)
+		goto out_put;
+
+	rq = igt_spinner_create_request(&st.spin, ce, MI_ARB_CHECK);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out_unpin;
+	}
+
+	i915_request_add(rq);
+	if (!igt_wait_for_spinner(&st.spin, rq)) {
+		err = -EIO;
+		goto out_unpin;
+	}
+
+	/*
+	 * Fill the rest of the ring leaving I915_EMIT_PTE_NUM_DWORDS +
+	 * ring->reserved_space at the end. To actually emit the PTEs we require
+	 * slightly more than I915_EMIT_PTE_NUM_DWORDS, since our object size is
+	 * greater than PAGE_SIZE. The correct behaviour is to wait for more
+	 * ring space in emit_pte(), otherwise we trample on the reserved_space
+	 * resulting in crashes when later submitting the rq.
+	 */
+
+	prev = NULL;
+	do {
+		if (prev)
+			i915_request_add(rq);
+
+		rq = i915_request_create(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto out_unpin;
+		}
+
+		sz = (rq->ring->space - rq->reserved_space) / sizeof(u32) -
+			I915_EMIT_PTE_NUM_DWORDS;
+		sz = min_t(u32, sz, (SZ_1K - rq->reserved_space) / sizeof(u32) -
+			   I915_EMIT_PTE_NUM_DWORDS);
+		cs = intel_ring_begin(rq, sz);
+		if (IS_ERR(cs)) {
+			err = PTR_ERR(cs);
+			goto out_rq;
+		}
+
+		memset32(cs, MI_NOOP, sz);
+		cs += sz;
+		intel_ring_advance(rq, cs);
+
+		pr_info("%s emit=%u sz=%d\n", __func__, rq->ring->emit, sz);
+
+		prev = rq;
+	} while (rq->ring->space > (rq->reserved_space +
+				    I915_EMIT_PTE_NUM_DWORDS * sizeof(u32)));
+
+	timer_setup_on_stack(&st.timer, spinner_kill, 0);
+	mod_timer(&st.timer, jiffies + 2 * HZ);
+
+	/*
+	 * This should wait for the spinner to be killed, otherwise we should go
+	 * down in flames when doing i915_request_add().
+	 */
+	pr_info("%s emite_pte ring space=%u\n", __func__, rq->ring->space);
+	it = sg_sgt(obj->mm.pages->sgl);
+	len = emit_pte(rq, &it, obj->pat_index, false, 0, CHUNK_SZ);
+	if (!len) {
+		err = -EINVAL;
+		goto out_rq;
+	}
+	if (len < 0) {
+		err = len;
+		goto out_rq;
+	}
+
+out_rq:
+	i915_request_add(rq); /* GEM_BUG_ON(rq->reserved_space > ring->space)? */
+	del_timer_sync(&st.timer);
+	destroy_timer_on_stack(&st.timer);
+out_unpin:
+	intel_context_unpin(ce);
+out_put:
+	intel_context_put(ce);
+out_obj:
+	i915_gem_object_put(obj);
+out_spinner:
+	igt_spinner_fini(&st.spin);
+	return err;
 }
 
 struct threaded_migrate {
@@ -592,7 +739,10 @@ static int __thread_migrate_copy(void *arg)
 
 static int thread_migrate_copy(void *arg)
 {
-	return threaded_migrate(arg, __thread_migrate_copy, 0);
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
+
+	return threaded_migrate(migrate, __thread_migrate_copy, 0);
 }
 
 static int __thread_global_copy(void *arg)
@@ -604,7 +754,10 @@ static int __thread_global_copy(void *arg)
 
 static int thread_global_copy(void *arg)
 {
-	return threaded_migrate(arg, __thread_global_copy, 0);
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
+
+	return threaded_migrate(migrate, __thread_global_copy, 0);
 }
 
 static int __thread_migrate_clear(void *arg)
@@ -623,12 +776,18 @@ static int __thread_global_clear(void *arg)
 
 static int thread_migrate_clear(void *arg)
 {
-	return threaded_migrate(arg, __thread_migrate_clear, 0);
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
+
+	return threaded_migrate(migrate, __thread_migrate_clear, 0);
 }
 
 static int thread_global_clear(void *arg)
 {
-	return threaded_migrate(arg, __thread_global_clear, 0);
+	struct intel_gt *gt = arg;
+	struct intel_migrate *migrate = &gt->migrate;
+
+	return threaded_migrate(migrate, __thread_global_clear, 0);
 }
 
 int intel_migrate_live_selftests(struct drm_i915_private *i915)
@@ -636,6 +795,7 @@ int intel_migrate_live_selftests(struct drm_i915_private *i915)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_migrate_copy),
 		SUBTEST(live_migrate_clear),
+		SUBTEST(live_emit_pte_full_ring),
 		SUBTEST(thread_migrate_copy),
 		SUBTEST(thread_migrate_clear),
 		SUBTEST(thread_global_copy),
@@ -646,7 +806,7 @@ int intel_migrate_live_selftests(struct drm_i915_private *i915)
 	if (!gt->migrate.context)
 		return 0;
 
-	return i915_subtests(tests, &gt->migrate);
+	return intel_gt_live_subtests(tests, gt);
 }
 
 static struct drm_i915_gem_object *
@@ -684,7 +844,7 @@ static int wrap_ktime_compare(const void *A, const void *B)
 
 static int __perf_clear_blt(struct intel_context *ce,
 			    struct scatterlist *sg,
-			    enum i915_cache_level cache_level,
+			    unsigned int pat_index,
 			    bool is_lmem,
 			    size_t sz)
 {
@@ -698,7 +858,7 @@ static int __perf_clear_blt(struct intel_context *ce,
 
 		t0 = ktime_get();
 
-		err = intel_context_migrate_clear(ce, NULL, sg, cache_level,
+		err = intel_context_migrate_clear(ce, NULL, sg, pat_index,
 						  is_lmem, 0, &rq);
 		if (rq) {
 			if (i915_request_wait(rq, 0, MAX_SCHEDULE_TIMEOUT) < 0)
@@ -744,7 +904,8 @@ static int perf_clear_blt(void *arg)
 
 		err = __perf_clear_blt(gt->migrate.context,
 				       dst->mm.pages->sgl,
-				       I915_CACHE_NONE,
+				       i915_gem_get_pat_index(gt->i915,
+							      I915_CACHE_NONE),
 				       i915_gem_object_is_lmem(dst),
 				       sizes[i]);
 
@@ -759,10 +920,10 @@ static int perf_clear_blt(void *arg)
 
 static int __perf_copy_blt(struct intel_context *ce,
 			   struct scatterlist *src,
-			   enum i915_cache_level src_cache_level,
+			   unsigned int src_pat_index,
 			   bool src_is_lmem,
 			   struct scatterlist *dst,
-			   enum i915_cache_level dst_cache_level,
+			   unsigned int dst_pat_index,
 			   bool dst_is_lmem,
 			   size_t sz)
 {
@@ -777,9 +938,9 @@ static int __perf_copy_blt(struct intel_context *ce,
 		t0 = ktime_get();
 
 		err = intel_context_migrate_copy(ce, NULL,
-						 src, src_cache_level,
+						 src, src_pat_index,
 						 src_is_lmem,
-						 dst, dst_cache_level,
+						 dst, dst_pat_index,
 						 dst_is_lmem,
 						 &rq);
 		if (rq) {
@@ -834,10 +995,12 @@ static int perf_copy_blt(void *arg)
 
 		err = __perf_copy_blt(gt->migrate.context,
 				      src->mm.pages->sgl,
-				      I915_CACHE_NONE,
+				      i915_gem_get_pat_index(gt->i915,
+							     I915_CACHE_NONE),
 				      i915_gem_object_is_lmem(src),
 				      dst->mm.pages->sgl,
-				      I915_CACHE_NONE,
+				      i915_gem_get_pat_index(gt->i915,
+							     I915_CACHE_NONE),
 				      i915_gem_object_is_lmem(dst),
 				      sz);
 

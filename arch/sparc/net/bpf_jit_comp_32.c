@@ -555,11 +555,11 @@ void bpf_jit_compile(struct bpf_prog *fp)
 				emit_skb_load16(vlan_tci, r_A);
 				break;
 			case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
-				__emit_skb_load8(__pkt_vlan_present_offset, r_A);
-				if (PKT_VLAN_PRESENT_BIT)
-					emit_alu_K(SRL, PKT_VLAN_PRESENT_BIT);
-				if (PKT_VLAN_PRESENT_BIT < 7)
-					emit_andi(r_A, 1, r_A);
+				emit_skb_load32(vlan_all, r_A);
+				emit_cmpi(r_A, 0);
+				emit_branch_off(BE, 12);
+				emit_nop();
+				emit_loadimm(1, r_A);
 				break;
 			case BPF_LD | BPF_W | BPF_LEN:
 				emit_skb_load32(len, r_A);

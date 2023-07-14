@@ -47,8 +47,8 @@ const struct argp bench_bpf_loop_argp = {
 
 static void validate(void)
 {
-	if (env.consumer_cnt != 1) {
-		fprintf(stderr, "benchmark doesn't support multi-consumer!\n");
+	if (env.consumer_cnt != 0) {
+		fprintf(stderr, "benchmark doesn't support consumer!\n");
 		exit(1);
 	}
 }
@@ -59,11 +59,6 @@ static void *producer(void *input)
 		/* trigger the bpf program */
 		syscall(__NR_getpgid);
 
-	return NULL;
-}
-
-static void *consumer(void *input)
-{
 	return NULL;
 }
 
@@ -95,10 +90,10 @@ static void setup(void)
 
 const struct bench bench_bpf_loop = {
 	.name = "bpf-loop",
+	.argp = &bench_bpf_loop_argp,
 	.validate = validate,
 	.setup = setup,
 	.producer_thread = producer,
-	.consumer_thread = consumer,
 	.measure = measure,
 	.report_progress = ops_report_progress,
 	.report_final = ops_report_final,

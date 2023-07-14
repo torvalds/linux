@@ -91,7 +91,7 @@ module_param(dma_mode, ushort, 0644);
  *      mode 2 == ep-a 1k, ep-b 1k, ep-c 512db
  *      mode 3 == ep-a 1k, ep-b disabled, ep-c 512db
  */
-static ushort fifo_mode = 0;
+static ushort fifo_mode;
 module_param(fifo_mode, ushort, 0644);
 
 /*
@@ -100,7 +100,7 @@ module_param(fifo_mode, ushort, 0644);
  * USB suspend requests will be ignored.  This is acceptable for
  * self-powered devices.  For bus powered devices set this to 1.
  */
-static ushort enable_suspend = 0;
+static ushort enable_suspend;
 module_param(enable_suspend, ushort, 0644);
 
 static void assert_out_naking(struct net2272_ep *ep, const char *where)
@@ -1451,7 +1451,6 @@ static int net2272_start(struct usb_gadget *_gadget,
 		dev->ep[i].irqs = 0;
 	/* hook up the driver ... */
 	dev->softconnect = 1;
-	driver->driver.bus = NULL;
 	dev->driver = driver;
 
 	/* ... then enable host detection and ep0; and we're ready
@@ -2671,7 +2670,7 @@ net2272_plat_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int
+static void
 net2272_plat_remove(struct platform_device *pdev)
 {
 	struct net2272 *dev = platform_get_drvdata(pdev);
@@ -2682,13 +2681,11 @@ net2272_plat_remove(struct platform_device *pdev)
 		resource_size(&pdev->resource[0]));
 
 	usb_put_gadget(&dev->gadget);
-
-	return 0;
 }
 
 static struct platform_driver net2272_plat_driver = {
 	.probe   = net2272_plat_probe,
-	.remove  = net2272_plat_remove,
+	.remove_new = net2272_plat_remove,
 	.driver  = {
 		.name  = driver_name,
 	},

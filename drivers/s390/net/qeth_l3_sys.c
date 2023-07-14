@@ -32,26 +32,26 @@ static ssize_t qeth_l3_dev_route_show(struct qeth_card *card,
 {
 	switch (route->type) {
 	case PRIMARY_ROUTER:
-		return sprintf(buf, "%s\n", "primary router");
+		return sysfs_emit(buf, "%s\n", "primary router");
 	case SECONDARY_ROUTER:
-		return sprintf(buf, "%s\n", "secondary router");
+		return sysfs_emit(buf, "%s\n", "secondary router");
 	case MULTICAST_ROUTER:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
-			return sprintf(buf, "%s\n", "multicast router+");
+			return sysfs_emit(buf, "%s\n", "multicast router+");
 		else
-			return sprintf(buf, "%s\n", "multicast router");
+			return sysfs_emit(buf, "%s\n", "multicast router");
 	case PRIMARY_CONNECTOR:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
-			return sprintf(buf, "%s\n", "primary connector+");
+			return sysfs_emit(buf, "%s\n", "primary connector+");
 		else
-			return sprintf(buf, "%s\n", "primary connector");
+			return sysfs_emit(buf, "%s\n", "primary connector");
 	case SECONDARY_CONNECTOR:
 		if (card->info.broadcast_capable == QETH_BROADCAST_WITHOUT_ECHO)
-			return sprintf(buf, "%s\n", "secondary connector+");
+			return sysfs_emit(buf, "%s\n", "secondary connector+");
 		else
-			return sprintf(buf, "%s\n", "secondary connector");
+			return sysfs_emit(buf, "%s\n", "secondary connector");
 	default:
-		return sprintf(buf, "%s\n", "no");
+		return sysfs_emit(buf, "%s\n", "no");
 	}
 }
 
@@ -138,7 +138,7 @@ static ssize_t qeth_l3_dev_sniffer_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%i\n", card->options.sniffer ? 1 : 0);
+	return sysfs_emit(buf, "%i\n", card->options.sniffer ? 1 : 0);
 }
 
 static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
@@ -200,7 +200,7 @@ static ssize_t qeth_l3_dev_hsuid_show(struct device *dev,
 
 	memcpy(tmp_hsuid, card->options.hsuid, sizeof(tmp_hsuid));
 	EBCASC(tmp_hsuid, 8);
-	return sprintf(buf, "%s\n", tmp_hsuid);
+	return sysfs_emit(buf, "%s\n", tmp_hsuid);
 }
 
 static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
@@ -252,8 +252,8 @@ static ssize_t qeth_l3_dev_hsuid_store(struct device *dev,
 		goto out;
 	}
 
-	snprintf(card->options.hsuid, sizeof(card->options.hsuid),
-		 "%-8s", tmp);
+	scnprintf(card->options.hsuid, sizeof(card->options.hsuid),
+		  "%-8s", tmp);
 	ASCEBC(card->options.hsuid, 8);
 	memcpy(card->dev->perm_addr, card->options.hsuid, 9);
 
@@ -285,7 +285,7 @@ static ssize_t qeth_l3_dev_ipato_enable_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", card->ipato.enabled ? 1 : 0);
+	return sysfs_emit(buf, "%u\n", card->ipato.enabled ? 1 : 0);
 }
 
 static ssize_t qeth_l3_dev_ipato_enable_store(struct device *dev,
@@ -330,7 +330,7 @@ static ssize_t qeth_l3_dev_ipato_invert4_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", card->ipato.invert4 ? 1 : 0);
+	return sysfs_emit(buf, "%u\n", card->ipato.invert4 ? 1 : 0);
 }
 
 static ssize_t qeth_l3_dev_ipato_invert4_store(struct device *dev,
@@ -367,35 +367,21 @@ static ssize_t qeth_l3_dev_ipato_add_show(char *buf, struct qeth_card *card,
 			enum qeth_prot_versions proto)
 {
 	struct qeth_ipato_entry *ipatoe;
-	int str_len = 0;
+	char addr_str[INET6_ADDRSTRLEN];
+	int offset = 0;
 
 	mutex_lock(&card->ip_lock);
 	list_for_each_entry(ipatoe, &card->ipato.entries, entry) {
-		char addr_str[40];
-		int entry_len;
-
 		if (ipatoe->proto != proto)
 			continue;
 
-		entry_len = qeth_l3_ipaddr_to_string(proto, ipatoe->addr,
-						     addr_str);
-		if (entry_len < 0)
-			continue;
-
-		/* Append /%mask to the entry: */
-		entry_len += 1 + ((proto == QETH_PROT_IPV4) ? 2 : 3);
-		/* Enough room to format %entry\n into null terminated page? */
-		if (entry_len + 1 > PAGE_SIZE - str_len - 1)
-			break;
-
-		entry_len = scnprintf(buf, PAGE_SIZE - str_len,
-				      "%s/%i\n", addr_str, ipatoe->mask_bits);
-		str_len += entry_len;
-		buf += entry_len;
+		qeth_l3_ipaddr_to_string(proto, ipatoe->addr, addr_str);
+		offset += sysfs_emit_at(buf, offset, "%s/%i\n",
+					addr_str, ipatoe->mask_bits);
 	}
 	mutex_unlock(&card->ip_lock);
 
-	return str_len ? str_len : scnprintf(buf, PAGE_SIZE, "\n");
+	return offset ? offset : sysfs_emit(buf, "\n");
 }
 
 static ssize_t qeth_l3_dev_ipato_add4_show(struct device *dev,
@@ -413,7 +399,7 @@ static int qeth_l3_parse_ipatoe(const char *buf, enum qeth_prot_versions proto,
 	int rc;
 
 	/* Expected input pattern: %addr/%mask */
-	sep = strnchr(buf, 40, '/');
+	sep = strnchr(buf, INET6_ADDRSTRLEN, '/');
 	if (!sep)
 		return -EINVAL;
 
@@ -501,7 +487,7 @@ static ssize_t qeth_l3_dev_ipato_invert6_show(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", card->ipato.invert6 ? 1 : 0);
+	return sysfs_emit(buf, "%u\n", card->ipato.invert6 ? 1 : 0);
 }
 
 static ssize_t qeth_l3_dev_ipato_invert6_store(struct device *dev,
@@ -586,35 +572,22 @@ static ssize_t qeth_l3_dev_ip_add_show(struct device *dev, char *buf,
 				       enum qeth_ip_types type)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
+	char addr_str[INET6_ADDRSTRLEN];
 	struct qeth_ipaddr *ipaddr;
-	int str_len = 0;
+	int offset = 0;
 	int i;
 
 	mutex_lock(&card->ip_lock);
 	hash_for_each(card->ip_htable, i, ipaddr, hnode) {
-		char addr_str[40];
-		int entry_len;
-
 		if (ipaddr->proto != proto || ipaddr->type != type)
 			continue;
 
-		entry_len = qeth_l3_ipaddr_to_string(proto, (u8 *)&ipaddr->u,
-						     addr_str);
-		if (entry_len < 0)
-			continue;
-
-		/* Enough room to format %addr\n into null terminated page? */
-		if (entry_len + 1 > PAGE_SIZE - str_len - 1)
-			break;
-
-		entry_len = scnprintf(buf, PAGE_SIZE - str_len, "%s\n",
-				      addr_str);
-		str_len += entry_len;
-		buf += entry_len;
+		qeth_l3_ipaddr_to_string(proto, (u8 *)&ipaddr->u, addr_str);
+		offset += sysfs_emit_at(buf, offset, "%s\n", addr_str);
 	}
 	mutex_unlock(&card->ip_lock);
 
-	return str_len ? str_len : scnprintf(buf, PAGE_SIZE, "\n");
+	return offset ? offset : sysfs_emit(buf, "\n");
 }
 
 static ssize_t qeth_l3_dev_vipa_add4_show(struct device *dev,
@@ -652,7 +625,7 @@ static QETH_DEVICE_ATTR(vipa_add4, add4, 0644,
 static ssize_t qeth_l3_dev_vipa_del4_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	return qeth_l3_vipa_store(dev, buf, true, count, QETH_PROT_IPV4);
+	return qeth_l3_vipa_store(dev, buf, false, count, QETH_PROT_IPV4);
 }
 
 static QETH_DEVICE_ATTR(vipa_del4, del4, 0200, NULL,

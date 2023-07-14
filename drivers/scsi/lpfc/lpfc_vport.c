@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -534,7 +534,7 @@ disable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+	struct lpfc_nodelist *ndlp = NULL;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	/* Can't disable during an outstanding delete. */
@@ -546,17 +546,7 @@ disable_vport(struct fc_vport *fc_vport)
 		(void)lpfc_send_npiv_logo(vport, ndlp);
 
 	lpfc_sli_host_down(vport);
-
-	/* Mark all nodes for discovery so we can remove them by
-	 * calling lpfc_cleanup_rpis(vport, 1)
-	 */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
-			continue;
-		lpfc_disc_state_machine(vport, ndlp, NULL,
-					NLP_EVT_DEVICE_RECOVERY);
-	}
-	lpfc_cleanup_rpis(vport, 1);
+	lpfc_cleanup_rpis(vport, 0);
 
 	lpfc_stop_vport_timers(vport);
 	lpfc_unreg_all_rpis(vport);
@@ -809,74 +799,3 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 	kfree(vports);
 }
 
-
-/**
- * lpfc_vport_reset_stat_data - Reset the statistical data for the vport
- * @vport: Pointer to vport object.
- *
- * This function resets the statistical data for the vport. This function
- * is called with the host_lock held
- **/
-void
-lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
-{
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->lat_data)
-			memset(ndlp->lat_data, 0, LPFC_MAX_BUCKET_COUNT *
-				sizeof(struct lpfc_scsicmd_bkt));
-	}
-}
-
-
-/**
- * lpfc_alloc_bucket - Allocate data buffer required for statistical data
- * @vport: Pointer to vport object.
- *
- * This function allocates data buffer required for all the FC
- * nodes of the vport to collect statistical data.
- **/
-void
-lpfc_alloc_bucket(struct lpfc_vport *vport)
-{
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-
-		kfree(ndlp->lat_data);
-		ndlp->lat_data = NULL;
-
-		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
-			ndlp->lat_data = kcalloc(LPFC_MAX_BUCKET_COUNT,
-					 sizeof(struct lpfc_scsicmd_bkt),
-					 GFP_ATOMIC);
-
-			if (!ndlp->lat_data)
-				lpfc_printf_vlog(vport, KERN_ERR,
-					LOG_TRACE_EVENT,
-					"0287 lpfc_alloc_bucket failed to "
-					"allocate statistical data buffer DID "
-					"0x%x\n", ndlp->nlp_DID);
-		}
-	}
-}
-
-/**
- * lpfc_free_bucket - Free data buffer required for statistical data
- * @vport: Pointer to vport object.
- *
- * Th function frees statistical data buffer of all the FC
- * nodes of the vport.
- **/
-void
-lpfc_free_bucket(struct lpfc_vport *vport)
-{
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-
-		kfree(ndlp->lat_data);
-		ndlp->lat_data = NULL;
-	}
-}

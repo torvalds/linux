@@ -2162,11 +2162,11 @@ int cxd2880_tnrdmd_check_internal_cpu_status(struct cxd2880_tnrdmd
 		else
 			*task_completed = 0;
 
-		return ret;
+		return 0;
 	}
 	if (cpu_status != 0) {
 		*task_completed = 0;
-		return ret;
+		return 0;
 	}
 
 	ret = cxd2880_tnrdmd_mon_internal_cpu_status_sub(tnr_dmd, &cpu_status);

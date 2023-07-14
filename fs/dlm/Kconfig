@@ -4,19 +4,9 @@ menuconfig DLM
 	depends on INET
 	depends on SYSFS && CONFIGFS_FS && (IPV6 || IPV6=n)
 	select IP_SCTP
-	select SRCU
 	help
 	A general purpose distributed lock manager for kernel or userspace
 	applications.
-
-config DLM_DEPRECATED_API
-	bool "DLM deprecated API"
-	depends on DLM
-	help
-	Enables deprecated DLM timeout features that will be removed in
-        later Linux kernel releases.
-
-	If you are unsure, say N.
 
 config DLM_DEBUG
 	bool "DLM debugging"

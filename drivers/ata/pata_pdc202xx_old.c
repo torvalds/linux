@@ -289,7 +289,7 @@ static int pdc2026x_check_atapi_dma(struct ata_queued_cmd *qc)
 	return 1;
 }
 
-static struct scsi_host_template pdc202xx_sht = {
+static const struct scsi_host_template pdc202xx_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

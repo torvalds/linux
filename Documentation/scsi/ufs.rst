@@ -206,5 +206,5 @@ Device-Specific Data property named "ref-clk-freq". In both ways the value
 is interpreted as frequency in Hz and must match one of the values given in
 the UFS specification. UFS subsystem will attempt to read the value when
 executing common controller initialization. If the value is available, UFS
-subsytem will ensure the bRefClkFreq attribute of the UFS storage device is
+subsystem will ensure the bRefClkFreq attribute of the UFS storage device is
 set accordingly and will modify it if there is a mismatch.

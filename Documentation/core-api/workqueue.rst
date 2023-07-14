@@ -348,6 +348,37 @@ Guidelines
   level of locality in wq operations and work item execution.
 
 
+Monitoring
+==========
+
+Use tools/workqueue/wq_monitor.py to monitor workqueue operations: ::
+
+  $ tools/workqueue/wq_monitor.py events
+                              total  infl  CPUtime  CPUhog  CMwake  mayday rescued
+  events                      18545     0      6.1       0       5       -       -
+  events_highpri                  8     0      0.0       0       0       -       -
+  events_long                     3     0      0.0       0       0       -       -
+  events_unbound              38306     0      0.1       -       -       -       -
+  events_freezable                0     0      0.0       0       0       -       -
+  events_power_efficient      29598     0      0.2       0       0       -       -
+  events_freezable_power_        10     0      0.0       0       0       -       -
+  sock_diag_events                0     0      0.0       0       0       -       -
+
+                              total  infl  CPUtime  CPUhog  CMwake  mayday rescued
+  events                      18548     0      6.1       0       5       -       -
+  events_highpri                  8     0      0.0       0       0       -       -
+  events_long                     3     0      0.0       0       0       -       -
+  events_unbound              38322     0      0.1       -       -       -       -
+  events_freezable                0     0      0.0       0       0       -       -
+  events_power_efficient      29603     0      0.2       0       0       -       -
+  events_freezable_power_        10     0      0.0       0       0       -       -
+  sock_diag_events                0     0      0.0       0       0       -       -
+
+  ...
+
+See the command's help message for more info.
+
+
 Debugging
 =========
 
@@ -370,8 +401,8 @@ of possible problems:
 
 The first one can be tracked using tracing: ::
 
-	$ echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
-	$ cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+	$ echo workqueue:workqueue_queue_work > /sys/kernel/tracing/set_event
+	$ cat /sys/kernel/tracing/trace_pipe > out.txt
 	(wait a few secs)
 	^C
 
@@ -386,6 +417,7 @@ the stack trace of the offending worker thread. ::
 
 The work item's function should be trivially visible in the stack
 trace.
+
 
 Non-reentrance Conditions
 =========================

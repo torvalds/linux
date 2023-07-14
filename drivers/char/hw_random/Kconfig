@@ -335,9 +335,20 @@ config HW_RANDOM_HISI
 
 	  If unsure, say Y.
 
+config HW_RANDOM_HISTB
+	tristate "Hisilicon STB Random Number Generator support"
+	depends on ARCH_HISI || COMPILE_TEST
+	default ARCH_HISI
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on Hisilicon Hi37xx SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called histb-rng.
+
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
-	depends on HW_RANDOM && ARCH_STI
+	depends on HW_RANDOM && (ARCH_STI || COMPILE_TEST)
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on STi series of SoCs.
@@ -400,9 +411,9 @@ config HW_RANDOM_POLARFIRE_SOC
 
 config HW_RANDOM_MESON
 	tristate "Amlogic Meson Random Number Generator support"
-	depends on HW_RANDOM
 	depends on ARCH_MESON || COMPILE_TEST
-	default y
+	depends on HAS_IOMEM && OF
+	default HW_RANDOM if ARCH_MESON
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Amlogic Meson SoCs.
@@ -427,9 +438,9 @@ config HW_RANDOM_CAVIUM
 
 config HW_RANDOM_MTK
 	tristate "Mediatek Random Number Generator support"
-	depends on HW_RANDOM
 	depends on ARCH_MEDIATEK || COMPILE_TEST
-	default y
+	depends on HAS_IOMEM && OF
+	default HW_RANDOM if ARCH_MEDIATEK
 	help
 	  This driver provides kernel-side support for the Random Number
 	  Generator hardware found on Mediatek SoCs.
@@ -456,7 +467,8 @@ config HW_RANDOM_S390
 config HW_RANDOM_EXYNOS
 	tristate "Samsung Exynos True Random Number Generator support"
 	depends on ARCH_EXYNOS || COMPILE_TEST
-	default HW_RANDOM
+	depends on HAS_IOMEM
+	default HW_RANDOM if ARCH_EXYNOS
 	help
 	  This driver provides support for the True Random Number
 	  Generator available in Exynos SoCs.
@@ -483,7 +495,8 @@ config HW_RANDOM_OPTEE
 config HW_RANDOM_NPCM
 	tristate "NPCM Random Number Generator support"
 	depends on ARCH_NPCM || COMPILE_TEST
-	default HW_RANDOM
+	depends on HAS_IOMEM
+	default HW_RANDOM if ARCH_NPCM
 	help
 	  This driver provides support for the Random Number
 	  Generator hardware available in Nuvoton NPCM SoCs.
@@ -548,6 +561,16 @@ config HW_RANDOM_CN10K
 
 	 To compile this driver as a module, choose M here.
 	 The module will be called cn10k_rng. If unsure, say Y.
+
+config HW_RANDOM_JH7110
+	tristate "StarFive JH7110 Random Number Generator support"
+	depends on SOC_STARFIVE || COMPILE_TEST
+	help
+	  This driver provides support for the True Random Number
+	  Generator in StarFive JH7110 SoCs.
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called jh7110-trng.
 
 endif # HW_RANDOM
 

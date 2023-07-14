@@ -237,9 +237,10 @@ MODULE_DEVICE_TABLE(i2c, mp5416_id);
 static struct i2c_driver mp5416_regulator_driver = {
 	.driver = {
 		.name = "mp5416",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mp5416_of_match),
 	},
-	.probe_new = mp5416_i2c_probe,
+	.probe = mp5416_i2c_probe,
 	.id_table = mp5416_id,
 };
 module_i2c_driver(mp5416_regulator_driver);

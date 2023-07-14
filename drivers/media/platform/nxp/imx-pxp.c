@@ -10,6 +10,7 @@
  * Pawel Osciak, <pawel@osciak.com>
  * Marek Szyprowski, <m.szyprowski@samsung.com>
  */
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -18,15 +19,18 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <linux/platform_device.h>
-#include <media/v4l2-mem2mem.h>
-#include <media/v4l2-device.h>
-#include <media/v4l2-ioctl.h>
+#include <media/media-device.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-ioctl.h>
+#include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 
 #include "imx-pxp.h"
@@ -51,6 +55,11 @@ MODULE_PARM_DESC(debug, "activates debug info");
 /* Flags that indicate processing mode */
 #define MEM2MEM_HFLIP	(1 << 0)
 #define MEM2MEM_VFLIP	(1 << 1)
+
+#define PXP_VERSION_MAJOR(version) \
+	FIELD_GET(BM_PXP_VERSION_MAJOR, version)
+#define PXP_VERSION_MINOR(version) \
+	FIELD_GET(BM_PXP_VERSION_MINOR, version)
 
 #define dprintk(dev, fmt, arg...) \
 	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
@@ -168,14 +177,21 @@ enum {
 	V4L2_M2M_DST = 1,
 };
 
-static struct pxp_fmt *find_format(struct v4l2_format *f)
+static const struct regmap_config pxp_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.max_register = HW_PXP_VERSION,
+};
+
+static struct pxp_fmt *find_format(unsigned int pixelformat)
 {
 	struct pxp_fmt *fmt;
 	unsigned int k;
 
 	for (k = 0; k < NUM_FORMATS; k++) {
 		fmt = &formats[k];
-		if (fmt->fourcc == f->fmt.pix.pixelformat)
+		if (fmt->fourcc == pixelformat)
 			break;
 	}
 
@@ -185,12 +201,23 @@ static struct pxp_fmt *find_format(struct v4l2_format *f)
 	return &formats[k];
 }
 
+struct pxp_ctx;
+
+struct pxp_pdata {
+	u32 (*data_path_ctrl0)(struct pxp_ctx *ctx);
+};
+
 struct pxp_dev {
 	struct v4l2_device	v4l2_dev;
 	struct video_device	vfd;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device	mdev;
+#endif
 
 	struct clk		*clk;
-	void __iomem		*mmio;
+	struct regmap		*regmap;
+
+	const struct pxp_pdata	*pdata;
 
 	atomic_t		num_inst;
 	struct mutex		dev_mutex;
@@ -232,6 +259,20 @@ static struct pxp_q_data *get_q_data(struct pxp_ctx *ctx,
 		return &ctx->q_data[V4L2_M2M_SRC];
 	else
 		return &ctx->q_data[V4L2_M2M_DST];
+}
+
+static inline u32 pxp_read(struct pxp_dev *dev, u32 reg)
+{
+	u32 value;
+
+	regmap_read(dev->regmap, reg, &value);
+
+	return value;
+}
+
+static inline void pxp_write(struct pxp_dev *dev, u32 reg, u32 value)
+{
+	regmap_write(dev->regmap, reg, value);
 }
 
 static u32 pxp_v4l2_pix_fmt_to_ps_format(u32 v4l2_pix_fmt)
@@ -486,11 +527,11 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 				csc1_coef = csc1_coef_smpte240m_lim;
 		}
 
-		writel(csc1_coef[0], dev->mmio + HW_PXP_CSC1_COEF0);
-		writel(csc1_coef[1], dev->mmio + HW_PXP_CSC1_COEF1);
-		writel(csc1_coef[2], dev->mmio + HW_PXP_CSC1_COEF2);
+		pxp_write(dev, HW_PXP_CSC1_COEF0, csc1_coef[0]);
+		pxp_write(dev, HW_PXP_CSC1_COEF1, csc1_coef[1]);
+		pxp_write(dev, HW_PXP_CSC1_COEF2, csc1_coef[2]);
 	} else {
-		writel(BM_PXP_CSC1_COEF0_BYPASS, dev->mmio + HW_PXP_CSC1_COEF0);
+		pxp_write(dev, HW_PXP_CSC1_COEF0, BM_PXP_CSC1_COEF0_BYPASS);
 	}
 
 	if (!pxp_v4l2_pix_fmt_is_yuv(ctx->q_data[V4L2_M2M_SRC].fmt->fourcc) &&
@@ -706,16 +747,93 @@ static void pxp_setup_csc(struct pxp_ctx *ctx)
 				    BP_PXP_CSC2_CTRL_CSC_MODE;
 		}
 
-		writel(csc2_ctrl, dev->mmio + HW_PXP_CSC2_CTRL);
-		writel(csc2_coef[0], dev->mmio + HW_PXP_CSC2_COEF0);
-		writel(csc2_coef[1], dev->mmio + HW_PXP_CSC2_COEF1);
-		writel(csc2_coef[2], dev->mmio + HW_PXP_CSC2_COEF2);
-		writel(csc2_coef[3], dev->mmio + HW_PXP_CSC2_COEF3);
-		writel(csc2_coef[4], dev->mmio + HW_PXP_CSC2_COEF4);
-		writel(csc2_coef[5], dev->mmio + HW_PXP_CSC2_COEF5);
+		pxp_write(dev, HW_PXP_CSC2_CTRL, csc2_ctrl);
+		pxp_write(dev, HW_PXP_CSC2_COEF0, csc2_coef[0]);
+		pxp_write(dev, HW_PXP_CSC2_COEF1, csc2_coef[1]);
+		pxp_write(dev, HW_PXP_CSC2_COEF2, csc2_coef[2]);
+		pxp_write(dev, HW_PXP_CSC2_COEF3, csc2_coef[3]);
+		pxp_write(dev, HW_PXP_CSC2_COEF4, csc2_coef[4]);
+		pxp_write(dev, HW_PXP_CSC2_COEF5, csc2_coef[5]);
 	} else {
-		writel(BM_PXP_CSC2_CTRL_BYPASS, dev->mmio + HW_PXP_CSC2_CTRL);
+		pxp_write(dev, HW_PXP_CSC2_CTRL, BM_PXP_CSC2_CTRL_BYPASS);
 	}
+}
+
+static u32 pxp_imx6ull_data_path_ctrl0(struct pxp_ctx *ctx)
+{
+	u32 ctrl0;
+
+	ctrl0 = 0;
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(3);
+	/* Bypass Dithering x3CH */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(3);
+	/* Select Rotation */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(0);
+	/* Bypass LUT */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(3);
+	/* Select CSC 2 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(3);
+	/* Bypass Rotation 2 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(3);
+
+	return ctrl0;
+}
+
+static u32 pxp_imx7d_data_path_ctrl0(struct pxp_ctx *ctx)
+{
+	u32 ctrl0;
+
+	ctrl0 = 0;
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(3);
+	/* Select Rotation 0 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(3);
+	/* Select MUX11 for Rotation 0 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(1);
+	/* Bypass LUT */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(3);
+	/* Select CSC 2 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(3);
+	/* Select Composite Alpha Blending/Color Key 0 for CSC 2 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(1);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(3);
+	/* Bypass Rotation 1 */
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(3);
+	ctrl0 |= BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(3);
+
+	return ctrl0;
+}
+
+static void pxp_set_data_path(struct pxp_ctx *ctx)
+{
+	struct pxp_dev *dev = ctx->dev;
+	u32 ctrl0;
+	u32 ctrl1;
+
+	ctrl0 = dev->pdata->data_path_ctrl0(ctx);
+
+	ctrl1 = 0;
+	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(3);
+	ctrl1 |= BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(3);
+
+	pxp_write(dev, HW_PXP_DATA_PATH_CTRL0, ctrl0);
+	pxp_write(dev, HW_PXP_DATA_PATH_CTRL1, ctrl1);
 }
 
 static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
@@ -871,67 +989,48 @@ static int pxp_start(struct pxp_ctx *ctx, struct vb2_v4l2_buffer *in_vb,
 		   BF_PXP_PS_SCALE_XSCALE(xscale);
 	ps_offset = BF_PXP_PS_OFFSET_YOFFSET(0) | BF_PXP_PS_OFFSET_XOFFSET(0);
 
-	writel(ctrl, dev->mmio + HW_PXP_CTRL);
+	pxp_write(dev, HW_PXP_CTRL, ctrl);
 	/* skip STAT */
-	writel(out_ctrl, dev->mmio + HW_PXP_OUT_CTRL);
-	writel(out_buf, dev->mmio + HW_PXP_OUT_BUF);
-	writel(out_buf2, dev->mmio + HW_PXP_OUT_BUF2);
-	writel(out_pitch, dev->mmio + HW_PXP_OUT_PITCH);
-	writel(out_lrc, dev->mmio + HW_PXP_OUT_LRC);
-	writel(out_ps_ulc, dev->mmio + HW_PXP_OUT_PS_ULC);
-	writel(out_ps_lrc, dev->mmio + HW_PXP_OUT_PS_LRC);
-	writel(as_ulc, dev->mmio + HW_PXP_OUT_AS_ULC);
-	writel(as_lrc, dev->mmio + HW_PXP_OUT_AS_LRC);
-	writel(ps_ctrl, dev->mmio + HW_PXP_PS_CTRL);
-	writel(ps_buf, dev->mmio + HW_PXP_PS_BUF);
-	writel(ps_ubuf, dev->mmio + HW_PXP_PS_UBUF);
-	writel(ps_vbuf, dev->mmio + HW_PXP_PS_VBUF);
-	writel(ps_pitch, dev->mmio + HW_PXP_PS_PITCH);
-	writel(0x00ffffff, dev->mmio + HW_PXP_PS_BACKGROUND_0);
-	writel(ps_scale, dev->mmio + HW_PXP_PS_SCALE);
-	writel(ps_offset, dev->mmio + HW_PXP_PS_OFFSET);
+	pxp_write(dev, HW_PXP_OUT_CTRL, out_ctrl);
+	pxp_write(dev, HW_PXP_OUT_BUF, out_buf);
+	pxp_write(dev, HW_PXP_OUT_BUF2, out_buf2);
+	pxp_write(dev, HW_PXP_OUT_PITCH, out_pitch);
+	pxp_write(dev, HW_PXP_OUT_LRC, out_lrc);
+	pxp_write(dev, HW_PXP_OUT_PS_ULC, out_ps_ulc);
+	pxp_write(dev, HW_PXP_OUT_PS_LRC, out_ps_lrc);
+	pxp_write(dev, HW_PXP_OUT_AS_ULC, as_ulc);
+	pxp_write(dev, HW_PXP_OUT_AS_LRC, as_lrc);
+	pxp_write(dev, HW_PXP_PS_CTRL, ps_ctrl);
+	pxp_write(dev, HW_PXP_PS_BUF, ps_buf);
+	pxp_write(dev, HW_PXP_PS_UBUF, ps_ubuf);
+	pxp_write(dev, HW_PXP_PS_VBUF, ps_vbuf);
+	pxp_write(dev, HW_PXP_PS_PITCH, ps_pitch);
+	pxp_write(dev, HW_PXP_PS_BACKGROUND_0, 0x00ffffff);
+	pxp_write(dev, HW_PXP_PS_SCALE, ps_scale);
+	pxp_write(dev, HW_PXP_PS_OFFSET, ps_offset);
 	/* disable processed surface color keying */
-	writel(0x00ffffff, dev->mmio + HW_PXP_PS_CLRKEYLOW_0);
-	writel(0x00000000, dev->mmio + HW_PXP_PS_CLRKEYHIGH_0);
+	pxp_write(dev, HW_PXP_PS_CLRKEYLOW_0, 0x00ffffff);
+	pxp_write(dev, HW_PXP_PS_CLRKEYHIGH_0, 0x00000000);
 
 	/* disable alpha surface color keying */
-	writel(0x00ffffff, dev->mmio + HW_PXP_AS_CLRKEYLOW_0);
-	writel(0x00000000, dev->mmio + HW_PXP_AS_CLRKEYHIGH_0);
+	pxp_write(dev, HW_PXP_AS_CLRKEYLOW_0, 0x00ffffff);
+	pxp_write(dev, HW_PXP_AS_CLRKEYHIGH_0, 0x00000000);
 
 	/* setup CSC */
 	pxp_setup_csc(ctx);
 
 	/* bypass LUT */
-	writel(BM_PXP_LUT_CTRL_BYPASS, dev->mmio + HW_PXP_LUT_CTRL);
+	pxp_write(dev, HW_PXP_LUT_CTRL, BM_PXP_LUT_CTRL_BYPASS);
 
-	writel(BF_PXP_DATA_PATH_CTRL0_MUX15_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX14_SEL(1)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX13_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX12_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX11_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX10_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX9_SEL(1)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX8_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX7_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX6_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX5_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX4_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX3_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX2_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX1_SEL(0)|
-	       BF_PXP_DATA_PATH_CTRL0_MUX0_SEL(0),
-	       dev->mmio + HW_PXP_DATA_PATH_CTRL0);
-	writel(BF_PXP_DATA_PATH_CTRL1_MUX17_SEL(1) |
-	       BF_PXP_DATA_PATH_CTRL1_MUX16_SEL(1),
-	       dev->mmio + HW_PXP_DATA_PATH_CTRL1);
+	pxp_set_data_path(ctx);
 
-	writel(0xffff, dev->mmio + HW_PXP_IRQ_MASK);
+	pxp_write(dev, HW_PXP_IRQ_MASK, 0xffff);
 
 	/* ungate, enable PS/AS/OUT and PXP operation */
-	writel(BM_PXP_CTRL_IRQ_ENABLE, dev->mmio + HW_PXP_CTRL_SET);
-	writel(BM_PXP_CTRL_ENABLE | BM_PXP_CTRL_ENABLE_CSC2 |
-	       BM_PXP_CTRL_ENABLE_LUT | BM_PXP_CTRL_ENABLE_ROTATE0 |
-	       BM_PXP_CTRL_ENABLE_PS_AS_OUT, dev->mmio + HW_PXP_CTRL_SET);
+	pxp_write(dev, HW_PXP_CTRL_SET, BM_PXP_CTRL_IRQ_ENABLE);
+	pxp_write(dev, HW_PXP_CTRL_SET,
+		  BM_PXP_CTRL_ENABLE | BM_PXP_CTRL_ENABLE_CSC2 |
+		  BM_PXP_CTRL_ENABLE_ROTATE0 | BM_PXP_CTRL_ENABLE_PS_AS_OUT);
 
 	return 0;
 }
@@ -1004,23 +1103,23 @@ static irqreturn_t pxp_irq_handler(int irq, void *dev_id)
 	struct pxp_dev *dev = dev_id;
 	u32 stat;
 
-	stat = readl(dev->mmio + HW_PXP_STAT);
+	stat = pxp_read(dev, HW_PXP_STAT);
 
 	if (stat & BM_PXP_STAT_IRQ0) {
 		/* we expect x = 0, y = height, irq0 = 1 */
 		if (stat & ~(BM_PXP_STAT_BLOCKX | BM_PXP_STAT_BLOCKY |
 			     BM_PXP_STAT_IRQ0))
 			dprintk(dev, "%s: stat = 0x%08x\n", __func__, stat);
-		writel(BM_PXP_STAT_IRQ0, dev->mmio + HW_PXP_STAT_CLR);
+		pxp_write(dev, HW_PXP_STAT_CLR, BM_PXP_STAT_IRQ0);
 
 		pxp_job_finish(dev);
 	} else {
-		u32 irq = readl(dev->mmio + HW_PXP_IRQ);
+		u32 irq = pxp_read(dev, HW_PXP_IRQ);
 
 		dprintk(dev, "%s: stat = 0x%08x\n", __func__, stat);
 		dprintk(dev, "%s: irq = 0x%08x\n", __func__, irq);
 
-		writel(irq, dev->mmio + HW_PXP_IRQ_CLR);
+		pxp_write(dev, HW_PXP_IRQ_CLR, irq);
 	}
 
 	return IRQ_HANDLED;
@@ -1034,8 +1133,6 @@ static int pxp_querycap(struct file *file, void *priv,
 {
 	strscpy(cap->driver, MEM2MEM_NAME, sizeof(cap->driver));
 	strscpy(cap->card, MEM2MEM_NAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-			"platform:%s", MEM2MEM_NAME);
 	return 0;
 }
 
@@ -1181,10 +1278,10 @@ static int pxp_try_fmt_vid_cap(struct file *file, void *priv,
 	struct pxp_fmt *fmt;
 	struct pxp_ctx *ctx = file2ctx(file);
 
-	fmt = find_format(f);
+	fmt = find_format(f->fmt.pix.pixelformat);
 	if (!fmt) {
 		f->fmt.pix.pixelformat = formats[0].fourcc;
-		fmt = find_format(f);
+		fmt = find_format(f->fmt.pix.pixelformat);
 	}
 	if (!(fmt->types & MEM2MEM_CAPTURE)) {
 		v4l2_err(&ctx->dev->v4l2_dev,
@@ -1209,10 +1306,10 @@ static int pxp_try_fmt_vid_out(struct file *file, void *priv,
 	struct pxp_fmt *fmt;
 	struct pxp_ctx *ctx = file2ctx(file);
 
-	fmt = find_format(f);
+	fmt = find_format(f->fmt.pix.pixelformat);
 	if (!fmt) {
 		f->fmt.pix.pixelformat = formats[0].fourcc;
-		fmt = find_format(f);
+		fmt = find_format(f->fmt.pix.pixelformat);
 	}
 	if (!(fmt->types & MEM2MEM_OUTPUT)) {
 		v4l2_err(&ctx->dev->v4l2_dev,
@@ -1245,7 +1342,7 @@ static int pxp_s_fmt(struct pxp_ctx *ctx, struct v4l2_format *f)
 		return -EBUSY;
 	}
 
-	q_data->fmt		= find_format(f);
+	q_data->fmt		= find_format(f->fmt.pix.pixelformat);
 	q_data->width		= f->fmt.pix.width;
 	q_data->height		= f->fmt.pix.height;
 	q_data->bytesperline	= f->fmt.pix.bytesperline;
@@ -1300,6 +1397,26 @@ static int pxp_s_fmt_vid_out(struct file *file, void *priv,
 	pxp_fixup_colorimetry_cap(ctx, ctx->q_data[V4L2_M2M_DST].fmt->fourcc,
 				  &ctx->q_data[V4L2_M2M_DST].ycbcr_enc,
 				  &ctx->q_data[V4L2_M2M_DST].quant);
+
+	return 0;
+}
+
+static int pxp_enum_framesizes(struct file *file, void *fh,
+			       struct v4l2_frmsizeenum *fsize)
+{
+	if (fsize->index > 0)
+		return -EINVAL;
+
+	if (!find_format(fsize->pixel_format))
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+	fsize->stepwise.min_width = MIN_W;
+	fsize->stepwise.max_width = MAX_W;
+	fsize->stepwise.step_width = 1 << ALIGN_W;
+	fsize->stepwise.min_height = MIN_H;
+	fsize->stepwise.max_height = MAX_H;
+	fsize->stepwise.step_height = 1 << ALIGN_H;
 
 	return 0;
 }
@@ -1371,6 +1488,8 @@ static const struct v4l2_ioctl_ops pxp_ioctl_ops = {
 	.vidioc_g_fmt_vid_out	= pxp_g_fmt_vid_out,
 	.vidioc_try_fmt_vid_out	= pxp_try_fmt_vid_out,
 	.vidioc_s_fmt_vid_out	= pxp_s_fmt_vid_out,
+
+	.vidioc_enum_framesizes	= pxp_enum_framesizes,
 
 	.vidioc_reqbufs		= v4l2_m2m_ioctl_reqbufs,
 	.vidioc_querybuf	= v4l2_m2m_ioctl_querybuf,
@@ -1644,18 +1763,18 @@ static int pxp_soft_reset(struct pxp_dev *dev)
 	int ret;
 	u32 val;
 
-	writel(BM_PXP_CTRL_SFTRST, dev->mmio + HW_PXP_CTRL_CLR);
-	writel(BM_PXP_CTRL_CLKGATE, dev->mmio + HW_PXP_CTRL_CLR);
+	pxp_write(dev, HW_PXP_CTRL_CLR, BM_PXP_CTRL_SFTRST);
+	pxp_write(dev, HW_PXP_CTRL_CLR, BM_PXP_CTRL_CLKGATE);
 
-	writel(BM_PXP_CTRL_SFTRST, dev->mmio + HW_PXP_CTRL_SET);
+	pxp_write(dev, HW_PXP_CTRL_SET, BM_PXP_CTRL_SFTRST);
 
-	ret = readl_poll_timeout(dev->mmio + HW_PXP_CTRL, val,
-				 val & BM_PXP_CTRL_CLKGATE, 0, 100);
+	ret = regmap_read_poll_timeout(dev->regmap, HW_PXP_CTRL, val,
+				       val & BM_PXP_CTRL_CLKGATE, 0, 100);
 	if (ret < 0)
 		return ret;
 
-	writel(BM_PXP_CTRL_SFTRST, dev->mmio + HW_PXP_CTRL_CLR);
-	writel(BM_PXP_CTRL_CLKGATE, dev->mmio + HW_PXP_CTRL_CLR);
+	pxp_write(dev, HW_PXP_CTRL_CLR, BM_PXP_CTRL_SFTRST);
+	pxp_write(dev, HW_PXP_CTRL_CLR, BM_PXP_CTRL_CLKGATE);
 
 	return 0;
 }
@@ -1664,12 +1783,16 @@ static int pxp_probe(struct platform_device *pdev)
 {
 	struct pxp_dev *dev;
 	struct video_device *vfd;
+	u32 hw_version;
 	int irq;
 	int ret;
+	void __iomem *mmio;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+
+	dev->pdata = of_device_get_match_data(&pdev->dev);
 
 	dev->clk = devm_clk_get(&pdev->dev, "axi");
 	if (IS_ERR(dev->clk)) {
@@ -1678,9 +1801,11 @@ static int pxp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dev->mmio = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(dev->mmio))
-		return PTR_ERR(dev->mmio);
+	mmio = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(mmio))
+		return PTR_ERR(mmio);
+	dev->regmap = devm_regmap_init_mmio(&pdev->dev, mmio,
+					    &pxp_regmap_config);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -1688,8 +1813,8 @@ static int pxp_probe(struct platform_device *pdev)
 
 	spin_lock_init(&dev->irqlock);
 
-	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, pxp_irq_handler,
-			IRQF_ONESHOT, dev_name(&pdev->dev), dev);
+	ret = devm_request_irq(&pdev->dev, irq, pxp_irq_handler, 0,
+			       dev_name(&pdev->dev), dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", ret);
 		return ret;
@@ -1704,6 +1829,10 @@ static int pxp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "PXP reset timeout: %d\n", ret);
 		goto err_clk;
 	}
+
+	hw_version = pxp_read(dev, HW_PXP_VERSION);
+	dev_dbg(&pdev->dev, "PXP Version %u.%u\n",
+		PXP_VERSION_MAJOR(hw_version), PXP_VERSION_MINOR(hw_version));
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
@@ -1737,8 +1866,34 @@ static int pxp_probe(struct platform_device *pdev)
 		goto err_m2m;
 	}
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	dev->mdev.dev = &pdev->dev;
+	strscpy(dev->mdev.model, MEM2MEM_NAME, sizeof(dev->mdev.model));
+	media_device_init(&dev->mdev);
+	dev->v4l2_dev.mdev = &dev->mdev;
+
+	ret = v4l2_m2m_register_media_controller(dev->m2m_dev, vfd,
+						 MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize media device\n");
+		goto err_vfd;
+	}
+
+	ret = media_device_register(&dev->mdev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register media device\n");
+		goto err_m2m_mc;
+	}
+#endif
+
 	return 0;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+err_m2m_mc:
+	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
+err_vfd:
+	video_unregister_device(vfd);
+#endif
 err_m2m:
 	v4l2_m2m_release(dev->m2m_dev);
 err_v4l2:
@@ -1749,32 +1904,44 @@ err_clk:
 	return ret;
 }
 
-static int pxp_remove(struct platform_device *pdev)
+static void pxp_remove(struct platform_device *pdev)
 {
 	struct pxp_dev *dev = platform_get_drvdata(pdev);
 
-	writel(BM_PXP_CTRL_CLKGATE, dev->mmio + HW_PXP_CTRL_SET);
-	writel(BM_PXP_CTRL_SFTRST, dev->mmio + HW_PXP_CTRL_SET);
+	pxp_write(dev, HW_PXP_CTRL_SET, BM_PXP_CTRL_CLKGATE);
+	pxp_write(dev, HW_PXP_CTRL_SET, BM_PXP_CTRL_SFTRST);
 
 	clk_disable_unprepare(dev->clk);
 
 	v4l2_info(&dev->v4l2_dev, "Removing " MEM2MEM_NAME);
+
+#ifdef CONFIG_MEDIA_CONTROLLER
+	media_device_unregister(&dev->mdev);
+	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
+#endif
 	video_unregister_device(&dev->vfd);
 	v4l2_m2m_release(dev->m2m_dev);
 	v4l2_device_unregister(&dev->v4l2_dev);
-
-	return 0;
 }
 
+static const struct pxp_pdata pxp_imx6ull_pdata = {
+	.data_path_ctrl0 = pxp_imx6ull_data_path_ctrl0,
+};
+
+static const struct pxp_pdata pxp_imx7d_pdata = {
+	.data_path_ctrl0 = pxp_imx7d_data_path_ctrl0,
+};
+
 static const struct of_device_id pxp_dt_ids[] = {
-	{ .compatible = "fsl,imx6ull-pxp", .data = NULL },
+	{ .compatible = "fsl,imx6ull-pxp", .data = &pxp_imx6ull_pdata },
+	{ .compatible = "fsl,imx7d-pxp", .data = &pxp_imx7d_pdata },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, pxp_dt_ids);
 
 static struct platform_driver pxp_driver = {
 	.probe		= pxp_probe,
-	.remove		= pxp_remove,
+	.remove_new	= pxp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 		.of_match_table = pxp_dt_ids,

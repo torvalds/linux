@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/brcm,sdhci-brcmstb.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BRCMSTB/BMIPS SDHCI Controller binding
+title: Broadcom BRCMSTB/BMIPS SDHCI Controller
 
 maintainers:
   - Al Cooper <alcooperx@gmail.com>

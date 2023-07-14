@@ -58,7 +58,6 @@ extern int gfs2_get_extent(struct inode *inode, u64 lblock, u64 *dblock,
 extern int gfs2_alloc_extent(struct inode *inode, u64 lblock, u64 *dblock,
 			     unsigned *extlen, bool *new);
 extern int gfs2_setattr_size(struct inode *inode, u64 size);
-extern void gfs2_trim_blocks(struct inode *inode);
 extern int gfs2_truncatei_resume(struct gfs2_inode *ip);
 extern int gfs2_file_dealloc(struct gfs2_inode *ip);
 extern int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,

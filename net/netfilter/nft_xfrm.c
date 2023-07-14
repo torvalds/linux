@@ -16,9 +16,9 @@
 #include <net/xfrm.h>
 
 static const struct nla_policy nft_xfrm_policy[NFTA_XFRM_MAX + 1] = {
-	[NFTA_XFRM_KEY]		= { .type = NLA_U32 },
+	[NFTA_XFRM_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_XFRM_DIR]		= { .type = NLA_U8 },
-	[NFTA_XFRM_SPNUM]	= { .type = NLA_U32 },
+	[NFTA_XFRM_SPNUM]	= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_XFRM_DREG]	= { .type = NLA_U32 },
 };
 
@@ -212,7 +212,7 @@ static void nft_xfrm_get_eval(const struct nft_expr *expr,
 }
 
 static int nft_xfrm_get_dump(struct sk_buff *skb,
-			     const struct nft_expr *expr)
+			     const struct nft_expr *expr, bool reset)
 {
 	const struct nft_xfrm *priv = nft_expr_priv(expr);
 

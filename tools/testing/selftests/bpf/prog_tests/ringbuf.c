@@ -13,6 +13,7 @@
 #include <linux/perf_event.h>
 #include <linux/ring_buffer.h>
 #include "test_ringbuf.lskel.h"
+#include "test_ringbuf_map_key.lskel.h"
 
 #define EDONE 7777
 
@@ -58,6 +59,7 @@ static int process_sample(void *ctx, void *data, size_t len)
 	}
 }
 
+static struct test_ringbuf_map_key_lskel *skel_map_key;
 static struct test_ringbuf_lskel *skel;
 static struct ring_buffer *ringbuf;
 
@@ -81,7 +83,7 @@ static void *poll_thread(void *input)
 	return (void *)(long)ring_buffer__poll(ringbuf, timeout);
 }
 
-void test_ringbuf(void)
+static void ringbuf_subtest(void)
 {
 	const size_t rec_sz = BPF_RINGBUF_HDR_SZ + sizeof(struct sample);
 	pthread_t thread;
@@ -296,4 +298,66 @@ void test_ringbuf(void)
 cleanup:
 	ring_buffer__free(ringbuf);
 	test_ringbuf_lskel__destroy(skel);
+}
+
+static int process_map_key_sample(void *ctx, void *data, size_t len)
+{
+	struct sample *s;
+	int err, val;
+
+	s = data;
+	switch (s->seq) {
+	case 1:
+		ASSERT_EQ(s->value, 42, "sample_value");
+		err = bpf_map_lookup_elem(skel_map_key->maps.hash_map.map_fd,
+					  s, &val);
+		ASSERT_OK(err, "hash_map bpf_map_lookup_elem");
+		ASSERT_EQ(val, 1, "hash_map val");
+		return -EDONE;
+	default:
+		return 0;
+	}
+}
+
+static void ringbuf_map_key_subtest(void)
+{
+	int err;
+
+	skel_map_key = test_ringbuf_map_key_lskel__open();
+	if (!ASSERT_OK_PTR(skel_map_key, "test_ringbuf_map_key_lskel__open"))
+		return;
+
+	skel_map_key->maps.ringbuf.max_entries = getpagesize();
+	skel_map_key->bss->pid = getpid();
+
+	err = test_ringbuf_map_key_lskel__load(skel_map_key);
+	if (!ASSERT_OK(err, "test_ringbuf_map_key_lskel__load"))
+		goto cleanup;
+
+	ringbuf = ring_buffer__new(skel_map_key->maps.ringbuf.map_fd,
+				   process_map_key_sample, NULL, NULL);
+	if (!ASSERT_OK_PTR(ringbuf, "ring_buffer__new"))
+		goto cleanup;
+
+	err = test_ringbuf_map_key_lskel__attach(skel_map_key);
+	if (!ASSERT_OK(err, "test_ringbuf_map_key_lskel__attach"))
+		goto cleanup_ringbuf;
+
+	syscall(__NR_getpgid);
+	ASSERT_EQ(skel_map_key->bss->seq, 1, "skel_map_key->bss->seq");
+	err = ring_buffer__poll(ringbuf, -1);
+	ASSERT_EQ(err, -EDONE, "ring_buffer__poll");
+
+cleanup_ringbuf:
+	ring_buffer__free(ringbuf);
+cleanup:
+	test_ringbuf_map_key_lskel__destroy(skel_map_key);
+}
+
+void test_ringbuf(void)
+{
+	if (test__start_subtest("ringbuf"))
+		ringbuf_subtest();
+	if (test__start_subtest("ringbuf_map_key"))
+		ringbuf_map_key_subtest();
 }

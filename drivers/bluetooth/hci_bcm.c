@@ -53,12 +53,16 @@
  * struct bcm_device_data - device specific data
  * @no_early_set_baudrate: Disallow set baudrate before driver setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
+ * @no_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
  * @max_autobaud_speed: max baudrate supported by device in autobaud mode
+ * @max_speed: max baudrate supported
  */
 struct bcm_device_data {
 	bool	no_early_set_baudrate;
 	bool	drive_rts_on_open;
+	bool	no_uart_clock_set;
 	u32	max_autobaud_speed;
+	u32	max_speed;
 };
 
 /**
@@ -100,6 +104,7 @@ struct bcm_device_data {
  * @is_suspended: whether flow control is currently disabled
  * @no_early_set_baudrate: don't set_baudrate before setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
+ * @no_uart_clock_set: UART clock set command for >3Mbps mode is unavailable
  * @pcm_int_params: keep the initial PCM configuration
  * @use_autobaud_mode: start Bluetooth device in autobaud mode
  * @max_autobaud_speed: max baudrate supported by device in autobaud mode
@@ -140,6 +145,7 @@ struct bcm_device {
 #endif
 	bool			no_early_set_baudrate;
 	bool			drive_rts_on_open;
+	bool			no_uart_clock_set;
 	bool			use_autobaud_mode;
 	u8			pcm_int_params[5];
 	u32			max_autobaud_speed;
@@ -172,10 +178,11 @@ static inline void host_set_baudrate(struct hci_uart *hu, unsigned int speed)
 static int bcm_set_baudrate(struct hci_uart *hu, unsigned int speed)
 {
 	struct hci_dev *hdev = hu->hdev;
+	struct bcm_data *bcm = hu->priv;
 	struct sk_buff *skb;
 	struct bcm_update_uart_baud_rate param;
 
-	if (speed > 3000000) {
+	if (speed > 3000000 && !bcm->dev->no_uart_clock_set) {
 		struct bcm_write_uart_clock_setting clock;
 
 		clock.type = BCM_UART_CLOCK_48MHZ;
@@ -636,7 +643,8 @@ static int bcm_setup(struct hci_uart *hu)
 	 * Allow the bootloader to set a valid address through the
 	 * device tree.
 	 */
-	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hu->hdev->quirks);
+	if (test_bit(HCI_QUIRK_INVALID_BDADDR, &hu->hdev->quirks))
+		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hu->hdev->quirks);
 
 	if (!bcm_request_irq(bcm))
 		err = bcm_setup_sleep(hu);
@@ -883,7 +891,7 @@ unlock:
 #endif
 
 /* Some firmware reports an IRQ which does not work (wrong pin in fw table?) */
-static struct gpiod_lookup_table asus_tf103c_irq_gpios = {
+static struct gpiod_lookup_table irq_on_int33fc02_pin17_gpios = {
 	.dev_id = "serial0-0",
 	.table = {
 		GPIO_LOOKUP("INT33FC:02", 17, "host-wakeup-alt", GPIO_ACTIVE_HIGH),
@@ -893,12 +901,31 @@ static struct gpiod_lookup_table asus_tf103c_irq_gpios = {
 
 static const struct dmi_system_id bcm_broken_irq_dmi_table[] = {
 	{
+		.ident = "Acer Iconia One 7 B1-750",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VESPA2"),
+		},
+		.driver_data = &irq_on_int33fc02_pin17_gpios,
+	},
+	{
 		.ident = "Asus TF103C",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TF103C"),
 		},
-		.driver_data = &asus_tf103c_irq_gpios,
+		.driver_data = &irq_on_int33fc02_pin17_gpios,
+	},
+	{
+		.ident = "Lenovo Yoga Tablet 2 830F/L / 1050F/L",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "VALLEYVIEW C0 PLATFORM"),
+			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
+			/* Partial match on beginning of BIOS version */
+			DMI_MATCH(DMI_BIOS_VERSION, "BLADE_21"),
+		},
+		.driver_data = &irq_on_int33fc02_pin17_gpios,
 	},
 	{
 		.ident = "Meegopad T08",
@@ -1295,6 +1322,12 @@ static const struct hci_uart_proto bcm_proto = {
 };
 
 #ifdef CONFIG_ACPI
+
+/* bcm43430a0/a1 BT does not support 48MHz UART clock, limit to 2000000 baud */
+static struct bcm_device_data bcm43430_device_data = {
+	.max_speed = 2000000,
+};
+
 static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E00" },
 	{ "BCM2E01" },
@@ -1409,19 +1442,19 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E71" },
 	{ "BCM2E72" },
 	{ "BCM2E73" },
-	{ "BCM2E74" },
-	{ "BCM2E75" },
+	{ "BCM2E74", (long)&bcm43430_device_data },
+	{ "BCM2E75", (long)&bcm43430_device_data },
 	{ "BCM2E76" },
 	{ "BCM2E77" },
 	{ "BCM2E78" },
 	{ "BCM2E79" },
 	{ "BCM2E7A" },
-	{ "BCM2E7B" },
+	{ "BCM2E7B", (long)&bcm43430_device_data },
 	{ "BCM2E7C" },
 	{ "BCM2E7D" },
 	{ "BCM2E7E" },
 	{ "BCM2E7F" },
-	{ "BCM2E80" },
+	{ "BCM2E80", (long)&bcm43430_device_data },
 	{ "BCM2E81" },
 	{ "BCM2E82" },
 	{ "BCM2E83" },
@@ -1430,7 +1463,7 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E86" },
 	{ "BCM2E87" },
 	{ "BCM2E88" },
-	{ "BCM2E89" },
+	{ "BCM2E89", (long)&bcm43430_device_data },
 	{ "BCM2E8A" },
 	{ "BCM2E8B" },
 	{ "BCM2E8C" },
@@ -1439,29 +1472,30 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E90" },
 	{ "BCM2E92" },
 	{ "BCM2E93" },
-	{ "BCM2E94" },
+	{ "BCM2E94", (long)&bcm43430_device_data },
 	{ "BCM2E95" },
 	{ "BCM2E96" },
 	{ "BCM2E97" },
 	{ "BCM2E98" },
-	{ "BCM2E99" },
+	{ "BCM2E99", (long)&bcm43430_device_data },
 	{ "BCM2E9A" },
-	{ "BCM2E9B" },
+	{ "BCM2E9B", (long)&bcm43430_device_data },
 	{ "BCM2E9C" },
 	{ "BCM2E9D" },
+	{ "BCM2E9F", (long)&bcm43430_device_data },
 	{ "BCM2EA0" },
 	{ "BCM2EA1" },
-	{ "BCM2EA2" },
-	{ "BCM2EA3" },
+	{ "BCM2EA2", (long)&bcm43430_device_data },
+	{ "BCM2EA3", (long)&bcm43430_device_data },
 	{ "BCM2EA4" },
 	{ "BCM2EA5" },
 	{ "BCM2EA6" },
 	{ "BCM2EA7" },
 	{ "BCM2EA8" },
 	{ "BCM2EA9" },
-	{ "BCM2EAA" },
-	{ "BCM2EAB" },
-	{ "BCM2EAC" },
+	{ "BCM2EAA", (long)&bcm43430_device_data },
+	{ "BCM2EAB", (long)&bcm43430_device_data },
+	{ "BCM2EAC", (long)&bcm43430_device_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);
@@ -1529,6 +1563,9 @@ static int bcm_serdev_probe(struct serdev_device *serdev)
 		bcmdev->max_autobaud_speed = data->max_autobaud_speed;
 		bcmdev->no_early_set_baudrate = data->no_early_set_baudrate;
 		bcmdev->drive_rts_on_open = data->drive_rts_on_open;
+		bcmdev->no_uart_clock_set = data->no_uart_clock_set;
+		if (data->max_speed && bcmdev->oper_speed > data->max_speed)
+			bcmdev->oper_speed = data->max_speed;
 	}
 
 	return hci_uart_register_device(&bcmdev->serdev_hu, &bcm_proto);
@@ -1550,6 +1587,10 @@ static struct bcm_device_data bcm43438_device_data = {
 	.drive_rts_on_open = true,
 };
 
+static struct bcm_device_data cyw4373a0_device_data = {
+	.no_uart_clock_set = true,
+};
+
 static struct bcm_device_data cyw55572_device_data = {
 	.max_autobaud_speed = 921600,
 };
@@ -1566,6 +1607,7 @@ static const struct of_device_id bcm_bluetooth_of_match[] = {
 	{ .compatible = "brcm,bcm4349-bt", .data = &bcm43438_device_data },
 	{ .compatible = "brcm,bcm43540-bt", .data = &bcm4354_device_data },
 	{ .compatible = "brcm,bcm4335a0" },
+	{ .compatible = "cypress,cyw4373a0-bt", .data = &cyw4373a0_device_data },
 	{ .compatible = "infineon,cyw55572-bt", .data = &cyw55572_device_data },
 	{ },
 };

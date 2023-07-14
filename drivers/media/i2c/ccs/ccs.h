@@ -57,17 +57,6 @@
 #define CCS_LIM_AT(sensor, limit, offset)	\
 	ccs_get_limit(sensor, CCS_L_##limit, CCS_L_##limit##_OFFSET(offset))
 
-/*
- * Sometimes due to board layout considerations the camera module can be
- * mounted rotated. The typical rotation used is 180 degrees which can be
- * corrected by giving a default H-FLIP and V-FLIP in the sensor readout.
- * FIXME: rotation also changes the bayer pattern.
- */
-enum ccs_module_board_orient {
-	CCS_MODULE_BOARD_ORIENT_0 = 0,
-	CCS_MODULE_BOARD_ORIENT_180,
-};
-
 struct ccs_flash_strobe_parms {
 	u8 mode;
 	u32 strobe_width_high_us;
@@ -89,8 +78,6 @@ struct ccs_hwconfig {
 	unsigned int lanes;		/* Number of CSI-2 lanes */
 	u32 csi_signalling_mode;	/* CCS_CSI_SIGNALLING_MODE_* */
 	u64 *op_sys_clock;
-
-	enum ccs_module_board_orient module_board_orient;
 
 	struct ccs_flash_strobe_parms *strobe_setup;
 };
@@ -243,7 +230,6 @@ struct ccs_sensor {
 	u8 scale_m;
 	u8 scaling_mode;
 
-	u8 hvflip_inv_mask; /* H/VFLIP inversion due to sensor orientation */
 	u8 frame_skip;
 	u16 embedded_start; /* embedded data start line */
 	u16 embedded_end;

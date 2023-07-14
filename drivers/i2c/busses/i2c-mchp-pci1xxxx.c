@@ -48,9 +48,9 @@
  * SR_HOLD_TIME_XK_TICKS field will indicate the number of ticks of the
  * baud clock required to program 'Hold Time' at X KHz.
  */
-#define SR_HOLD_TIME_100K_TICKS	133
-#define SR_HOLD_TIME_400K_TICKS	20
-#define SR_HOLD_TIME_1000K_TICKS	11
+#define SR_HOLD_TIME_100K_TICKS		150
+#define SR_HOLD_TIME_400K_TICKS		20
+#define SR_HOLD_TIME_1000K_TICKS	12
 
 #define SMB_CORE_COMPLETION_REG_OFF3	(SMBUS_MAST_CORE_ADDR_BASE + 0x23)
 
@@ -65,17 +65,17 @@
  * the baud clock required to program 'fair idle delay' at X KHz. Fair idle
  * delay establishes the MCTP T(IDLE_DELAY) period.
  */
-#define FAIR_BUS_IDLE_MIN_100K_TICKS		969
-#define FAIR_BUS_IDLE_MIN_400K_TICKS		157
-#define FAIR_BUS_IDLE_MIN_1000K_TICKS		157
+#define FAIR_BUS_IDLE_MIN_100K_TICKS		992
+#define FAIR_BUS_IDLE_MIN_400K_TICKS		500
+#define FAIR_BUS_IDLE_MIN_1000K_TICKS		500
 
 /*
  * FAIR_IDLE_DELAY_XK_TICKS field will indicate the number of ticks of the
  * baud clock required to satisfy the fairness protocol at X KHz.
  */
-#define FAIR_IDLE_DELAY_100K_TICKS	1000
-#define FAIR_IDLE_DELAY_400K_TICKS	500
-#define FAIR_IDLE_DELAY_1000K_TICKS	500
+#define FAIR_IDLE_DELAY_100K_TICKS	963
+#define FAIR_IDLE_DELAY_400K_TICKS	156
+#define FAIR_IDLE_DELAY_1000K_TICKS	156
 
 #define SMB_IDLE_SCALING_100K		\
 	((FAIR_IDLE_DELAY_100K_TICKS << 16) | FAIR_BUS_IDLE_MIN_100K_TICKS)
@@ -105,7 +105,7 @@
  */
 #define BUS_CLK_100K_LOW_PERIOD_TICKS		156
 #define BUS_CLK_400K_LOW_PERIOD_TICKS		41
-#define BUS_CLK_1000K_LOW_PERIOD_TICKS	15
+#define BUS_CLK_1000K_LOW_PERIOD_TICKS		15
 
 /*
  * BUS_CLK_XK_HIGH_PERIOD_TICKS field defines the number of I2C Baud Clock
@@ -131,7 +131,7 @@
  */
 #define CLK_SYNC_100K			4
 #define CLK_SYNC_400K			4
-#define CLK_SYNC_1000K		4
+#define CLK_SYNC_1000K			4
 
 #define SMB_CORE_DATA_TIMING_REG_OFF	(SMBUS_MAST_CORE_ADDR_BASE + 0x40)
 
@@ -142,25 +142,25 @@
  * determines the SCLK hold time following SDAT driven low during the first
  * START bit in a transfer.
  */
-#define FIRST_START_HOLD_100K_TICKS	22
-#define FIRST_START_HOLD_400K_TICKS	16
-#define FIRST_START_HOLD_1000K_TICKS	6
+#define FIRST_START_HOLD_100K_TICKS	23
+#define FIRST_START_HOLD_400K_TICKS	8
+#define FIRST_START_HOLD_1000K_TICKS	12
 
 /*
  * STOP_SETUP_XK_TICKS will indicate the number of ticks of the baud clock
  * required to program 'STOP_SETUP' timer at X KHz. This timer determines the
  * SDAT setup time from the rising edge of SCLK for a STOP condition.
  */
-#define STOP_SETUP_100K_TICKS		157
+#define STOP_SETUP_100K_TICKS		150
 #define STOP_SETUP_400K_TICKS		20
-#define STOP_SETUP_1000K_TICKS	12
+#define STOP_SETUP_1000K_TICKS		12
 
 /*
  * RESTART_SETUP_XK_TICKS will indicate the number of ticks of the baud clock
  * required to program 'RESTART_SETUP' timer at X KHz. This timer determines the
  * SDAT setup time from the rising edge of SCLK for a repeated START condition.
  */
-#define RESTART_SETUP_100K_TICKS	157
+#define RESTART_SETUP_100K_TICKS	156
 #define RESTART_SETUP_400K_TICKS	20
 #define RESTART_SETUP_1000K_TICKS	12
 
@@ -169,7 +169,7 @@
  * required to program 'DATA_HOLD' timer at X KHz. This timer determines the
  * SDAT hold time following SCLK driven low.
  */
-#define DATA_HOLD_100K_TICKS		2
+#define DATA_HOLD_100K_TICKS		12
 #define DATA_HOLD_400K_TICKS		2
 #define DATA_HOLD_1000K_TICKS		2
 
@@ -190,35 +190,35 @@
  * Bus Idle Minimum time = BUS_IDLE_MIN[7:0] x Baud_Clock_Period x
  * (BUS_IDLE_MIN_XK_TICKS[7] ? 4,1)
  */
-#define BUS_IDLE_MIN_100K_TICKS		167UL
-#define BUS_IDLE_MIN_400K_TICKS		139UL
-#define BUS_IDLE_MIN_1000K_TICKS		133UL
+#define BUS_IDLE_MIN_100K_TICKS		36UL
+#define BUS_IDLE_MIN_400K_TICKS		10UL
+#define BUS_IDLE_MIN_1000K_TICKS	4UL
 
 /*
  * CTRL_CUM_TIME_OUT_XK_TICKS defines SMBus Controller Cumulative Time-Out.
  * SMBus Controller Cumulative Time-Out duration =
  * CTRL_CUM_TIME_OUT_XK_TICKS[7:0] x Baud_Clock_Period x 2048
  */
-#define CTRL_CUM_TIME_OUT_100K_TICKS		159
-#define CTRL_CUM_TIME_OUT_400K_TICKS		159
-#define CTRL_CUM_TIME_OUT_1000K_TICKS		159
+#define CTRL_CUM_TIME_OUT_100K_TICKS		76
+#define CTRL_CUM_TIME_OUT_400K_TICKS		76
+#define CTRL_CUM_TIME_OUT_1000K_TICKS		76
 
 /*
  * TARGET_CUM_TIME_OUT_XK_TICKS defines SMBus Target Cumulative Time-Out duration.
  * SMBus Target Cumulative Time-Out duration = TARGET_CUM_TIME_OUT_XK_TICKS[7:0] x
  * Baud_Clock_Period x 4096
  */
-#define TARGET_CUM_TIME_OUT_100K_TICKS	199
-#define TARGET_CUM_TIME_OUT_400K_TICKS	199
-#define TARGET_CUM_TIME_OUT_1000K_TICKS	199
+#define TARGET_CUM_TIME_OUT_100K_TICKS	95
+#define TARGET_CUM_TIME_OUT_400K_TICKS	95
+#define TARGET_CUM_TIME_OUT_1000K_TICKS	95
 
 /*
  * CLOCK_HIGH_TIME_OUT_XK defines Clock High time out period.
  * Clock High time out period = CLOCK_HIGH_TIME_OUT_XK[7:0] x Baud_Clock_Period x 8
  */
-#define CLOCK_HIGH_TIME_OUT_100K_TICKS	204
-#define CLOCK_HIGH_TIME_OUT_400K_TICKS	204
-#define CLOCK_HIGH_TIME_OUT_1000K_TICKS	204
+#define CLOCK_HIGH_TIME_OUT_100K_TICKS	97
+#define CLOCK_HIGH_TIME_OUT_400K_TICKS	97
+#define CLOCK_HIGH_TIME_OUT_1000K_TICKS	97
 
 #define TO_SCALING_100K		\
 	((BUS_IDLE_MIN_100K_TICKS << 24) | (CTRL_CUM_TIME_OUT_100K_TICKS << 16) | \
@@ -708,7 +708,7 @@ static void pci1xxxx_i2c_init(struct pci1xxxx_i2c *i2c)
 	void __iomem *p2 = i2c->i2c_base + SMBUS_STATUS_REG_OFF;
 	void __iomem *p1 = i2c->i2c_base + SMB_GPR_REG;
 	u8 regval;
-	u8 ret;
+	int ret;
 
 	ret = set_sys_lock(i2c);
 	if (ret == -EPERM) {
@@ -1118,8 +1118,10 @@ static int pci1xxxx_i2c_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(pci1xxxx_i2c_pm_ops, pci1xxxx_i2c_suspend,
 			 pci1xxxx_i2c_resume);
 
-static void pci1xxxx_i2c_shutdown(struct pci1xxxx_i2c *i2c)
+static void pci1xxxx_i2c_shutdown(void *data)
 {
+	struct pci1xxxx_i2c *i2c = data;
+
 	pci1xxxx_i2c_config_padctrl(i2c, false);
 	pci1xxxx_i2c_configure_core_reg(i2c, false);
 }
@@ -1156,7 +1158,7 @@ static int pci1xxxx_i2c_probe_pci(struct pci_dev *pdev,
 	init_completion(&i2c->i2c_xfer_done);
 	pci1xxxx_i2c_init(i2c);
 
-	ret = devm_add_action(dev, (void (*)(void *))pci1xxxx_i2c_shutdown, i2c);
+	ret = devm_add_action(dev, pci1xxxx_i2c_shutdown, i2c);
 	if (ret)
 		return ret;
 

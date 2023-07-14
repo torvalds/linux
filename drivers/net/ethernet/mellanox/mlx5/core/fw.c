@@ -196,14 +196,11 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 			return err;
 	}
 
-	if (MLX5_CAP_GEN(dev, vport_group_manager) &&
-	    MLX5_ESWITCH_MANAGER(dev)) {
+	if (MLX5_ESWITCH_MANAGER(dev)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH_FLOW_TABLE);
 		if (err)
 			return err;
-	}
 
-	if (MLX5_ESWITCH_MANAGER(dev)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_ESWITCH);
 		if (err)
 			return err;
@@ -263,6 +260,12 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, ipsec_offload)) {
 		err = mlx5_core_get_caps(dev, MLX5_CAP_IPSEC);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, crypto)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_CRYPTO);
 		if (err)
 			return err;
 	}

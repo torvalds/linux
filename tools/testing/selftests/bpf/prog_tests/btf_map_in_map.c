@@ -14,7 +14,7 @@ static __u32 bpf_map_id(struct bpf_map *map)
 	int err;
 
 	memset(&info, 0, info_len);
-	err = bpf_obj_get_info_by_fd(bpf_map__fd(map), &info, &info_len);
+	err = bpf_map_get_info_by_fd(bpf_map__fd(map), &info, &info_len);
 	if (err)
 		return 0;
 	return info.id;

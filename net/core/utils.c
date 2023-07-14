@@ -302,7 +302,7 @@ static int inet4_pton(const char *src, u16 port_num,
 		struct sockaddr_storage *addr)
 {
 	struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
-	int srclen = strlen(src);
+	size_t srclen = strlen(src);
 
 	if (srclen > INET_ADDRSTRLEN)
 		return -EINVAL;
@@ -322,7 +322,7 @@ static int inet6_pton(struct net *net, const char *src, u16 port_num,
 {
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
 	const char *scope_delim;
-	int srclen = strlen(src);
+	size_t srclen = strlen(src);
 
 	if (srclen > INET6_ADDRSTRLEN)
 		return -EINVAL;

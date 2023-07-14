@@ -181,7 +181,10 @@ struct perf_cap {
 
 static void process_hfi_event(struct perf_cap *perf_cap)
 {
-	process_level_change(perf_cap->cpu);
+	struct isst_id id;
+
+	set_isst_id(&id, perf_cap->cpu);
+	process_level_change(&id);
 }
 
 static int handle_event(struct nl_msg *n, void *arg)
@@ -244,7 +247,6 @@ int hfi_main(void)
 	struct nl_cb *cb;
 	int err = 0;
 	int mcast_id;
-	int no_block = 0;
 
 	if (!check_hf_suport()) {
 		fprintf(stderr, "CPU Doesn't support HFI\n");
@@ -283,9 +285,6 @@ int hfi_main(void)
 
 	nl_cb_set(cb, NL_CB_SEQ_CHECK, NL_CB_CUSTOM, seq_check_handler, 0);
 	nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, handle_event, NULL);
-
-	if (no_block)
-		nl_socket_set_nonblocking(sock);
 
 	debug_printf("hfi is initialized\n");
 

@@ -47,6 +47,14 @@ void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
+	if (dccg->dpp_clock_gated[dpp_inst]) {
+		/*
+		 * Do not update the DPPCLK DTO if the clock is stopped.
+		 * It is treated the same as if the pipe itself were in PG.
+		 */
+		return;
+	}
+
 	if (dccg->ref_dppclk && req_dppclk) {
 		int ref_dppclk = dccg->ref_dppclk;
 		int modulo, phase;
@@ -66,17 +74,8 @@ void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 		REG_UPDATE(DPPCLK_DTO_CTRL,
 				DPPCLK_DTO_ENABLE[dpp_inst], 1);
 	} else {
-		//DTO must be enabled to generate a 0Hz clock output
-		if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpp) {
-			REG_UPDATE(DPPCLK_DTO_CTRL,
-					DPPCLK_DTO_ENABLE[dpp_inst], 1);
-			REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
-					DPPCLK0_DTO_PHASE, 0,
-					DPPCLK0_DTO_MODULO, 1);
-		} else {
-			REG_UPDATE(DPPCLK_DTO_CTRL,
-					DPPCLK_DTO_ENABLE[dpp_inst], 0);
-		}
+		REG_UPDATE(DPPCLK_DTO_CTRL,
+				DPPCLK_DTO_ENABLE[dpp_inst], 0);
 	}
 	dccg->pipe_dppclk_khz[dpp_inst] = req_dppclk;
 }
@@ -369,6 +368,15 @@ void dccg31_disable_dscclk(struct dccg *dccg, int inst)
 				DSCCLK2_DTO_PHASE, 0,
 				DSCCLK2_DTO_MODULO, 1);
 		break;
+	case 3:
+		if (REG(DSCCLK3_DTO_PARAM)) {
+			REG_UPDATE(DSCCLK_DTO_CTRL,
+					DSCCLK3_DTO_ENABLE, 1);
+			REG_UPDATE_2(DSCCLK3_DTO_PARAM,
+					DSCCLK3_DTO_PHASE, 0,
+					DSCCLK3_DTO_MODULO, 1);
+		}
+		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		return;
@@ -403,6 +411,15 @@ void dccg31_enable_dscclk(struct dccg *dccg, int inst)
 				DSCCLK2_DTO_MODULO, 0);
 		REG_UPDATE(DSCCLK_DTO_CTRL,
 				DSCCLK2_DTO_ENABLE, 0);
+		break;
+	case 3:
+		if (REG(DSCCLK3_DTO_PARAM)) {
+			REG_UPDATE(DSCCLK_DTO_CTRL,
+					DSCCLK3_DTO_ENABLE, 0);
+			REG_UPDATE_2(DSCCLK3_DTO_PARAM,
+					DSCCLK3_DTO_PHASE, 0,
+					DSCCLK3_DTO_MODULO, 0);
+		}
 		break;
 	default:
 		BREAK_TO_DEBUGGER();

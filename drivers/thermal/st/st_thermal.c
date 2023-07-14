@@ -108,8 +108,7 @@ static int st_thermal_calibration(struct st_thermal_sensor *sensor)
 /* Callback to get temperature from HW*/
 static int st_thermal_get_temp(struct thermal_zone_device *th, int *temperature)
 {
-	struct st_thermal_sensor *sensor = th->devdata;
-	struct device *dev = sensor->dev;
+	struct st_thermal_sensor *sensor = thermal_zone_device_priv(th);
 	unsigned int temp;
 	unsigned int overflow;
 	int ret;
@@ -127,54 +126,16 @@ static int st_thermal_get_temp(struct thermal_zone_device *th, int *temperature)
 	temp += sensor->cdata->temp_adjust_val;
 	temp = mcelsius(temp);
 
-	dev_dbg(dev, "temperature: %d\n", temp);
-
 	*temperature = temp;
-
-	return 0;
-}
-
-static int st_thermal_get_trip_type(struct thermal_zone_device *th,
-				int trip, enum thermal_trip_type *type)
-{
-	struct st_thermal_sensor *sensor = th->devdata;
-	struct device *dev = sensor->dev;
-
-	switch (trip) {
-	case 0:
-		*type = THERMAL_TRIP_CRITICAL;
-		break;
-	default:
-		dev_err(dev, "invalid trip point\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int st_thermal_get_trip_temp(struct thermal_zone_device *th,
-				    int trip, int *temp)
-{
-	struct st_thermal_sensor *sensor = th->devdata;
-	struct device *dev = sensor->dev;
-
-	switch (trip) {
-	case 0:
-		*temp = mcelsius(sensor->cdata->crit_temp);
-		break;
-	default:
-		dev_err(dev, "Invalid trip point\n");
-		return -EINVAL;
-	}
 
 	return 0;
 }
 
 static struct thermal_zone_device_ops st_tz_ops = {
 	.get_temp	= st_thermal_get_temp,
-	.get_trip_type	= st_thermal_get_trip_type,
-	.get_trip_temp	= st_thermal_get_trip_temp,
 };
+
+static struct thermal_trip trip;
 
 int st_thermal_register(struct platform_device *pdev,
 			const struct of_device_id *st_thermal_of_match)
@@ -238,9 +199,12 @@ int st_thermal_register(struct platform_device *pdev,
 
 	polling_delay = sensor->ops->register_enable_irq ? 0 : 1000;
 
+	trip.temperature = sensor->cdata->crit_temp;
+	trip.type = THERMAL_TRIP_CRITICAL;
+
 	sensor->thermal_dev =
-		thermal_zone_device_register(dev_name(dev), 1, 0, sensor,
-					     &st_tz_ops, NULL, 0, polling_delay);
+		thermal_zone_device_register_with_trips(dev_name(dev), &trip, 1, 0, sensor,
+							&st_tz_ops, NULL, 0, polling_delay);
 	if (IS_ERR(sensor->thermal_dev)) {
 		dev_err(dev, "failed to register thermal zone device\n");
 		ret = PTR_ERR(sensor->thermal_dev);
@@ -263,14 +227,12 @@ sensor_off:
 }
 EXPORT_SYMBOL_GPL(st_thermal_register);
 
-int st_thermal_unregister(struct platform_device *pdev)
+void st_thermal_unregister(struct platform_device *pdev)
 {
 	struct st_thermal_sensor *sensor = platform_get_drvdata(pdev);
 
 	st_thermal_sensor_off(sensor);
 	thermal_zone_device_unregister(sensor->thermal_dev);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(st_thermal_unregister);
 

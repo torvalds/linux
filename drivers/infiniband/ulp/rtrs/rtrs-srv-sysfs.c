@@ -203,7 +203,6 @@ rtrs_srv_destroy_once_sysfs_root_folders(struct rtrs_srv_path *srv_path)
 
 	mutex_lock(&srv->paths_mutex);
 	if (!--srv->dev_ref) {
-		kobject_del(srv->kobj_paths);
 		kobject_put(srv->kobj_paths);
 		mutex_unlock(&srv->paths_mutex);
 		device_del(&srv->dev);
@@ -304,12 +303,17 @@ destroy_root:
 
 void rtrs_srv_destroy_path_files(struct rtrs_srv_path *srv_path)
 {
-	if (srv_path->kobj.state_in_sysfs) {
+	if (srv_path->stats->kobj_stats.state_in_sysfs) {
+		sysfs_remove_group(&srv_path->stats->kobj_stats,
+				   &rtrs_srv_stats_attr_group);
 		kobject_del(&srv_path->stats->kobj_stats);
 		kobject_put(&srv_path->stats->kobj_stats);
+	}
+
+	if (srv_path->kobj.state_in_sysfs) {
 		sysfs_remove_group(&srv_path->kobj, &rtrs_srv_path_attr_group);
 		kobject_put(&srv_path->kobj);
-
 		rtrs_srv_destroy_once_sysfs_root_folders(srv_path);
 	}
+
 }

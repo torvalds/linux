@@ -11,9 +11,6 @@ description: The STMicroelectronics sensor devices are pretty straight-forward
   what type of sensor it is.
   Note that whilst this covers many STMicro MEMs sensors, some more complex
   IMUs need their own bindings.
-  The STMicroelectronics sensor devices are pretty straight-forward I2C or
-  SPI devices, all sharing the same device tree descriptions no matter what
-  type of sensor it is.
 
 maintainers:
   - Denis Ciocca <denis.ciocca@st.com>
@@ -39,6 +36,7 @@ properties:
           - st,lis3lv02dl-accel
           - st,lng2dm-accel
           - st,lsm303agr-accel
+          - st,lsm303c-accel
           - st,lsm303dl-accel
           - st,lsm303dlh-accel
           - st,lsm303dlhc-accel
@@ -47,6 +45,9 @@ properties:
           - st,lsm330d-accel
           - st,lsm330dl-accel
           - st,lsm330dlc-accel
+      - items:
+          - const: st,iis328dq
+          - const: st,h3lis331dl-accel
       - description: Silan Accelerometers
         enum:
           - silan,sc7a20
@@ -66,6 +67,7 @@ properties:
           - st,lis2mdl
           - st,lis3mdl-magn
           - st,lsm303agr-magn
+          - st,lsm303c-magn
           - st,lsm303dlh-magn
           - st,lsm303dlhc-magn
           - st,lsm303dlm-magn
@@ -73,6 +75,7 @@ properties:
       - description: STMicroelectronics Pressure Sensors
         enum:
           - st,lps001wp-press
+          - st,lps22df
           - st,lps22hb-press
           - st,lps22hh
           - st,lps25h-press
@@ -81,6 +84,7 @@ properties:
           - st,lps35hw
       - description: IMUs
         enum:
+          - st,lsm303d-imu
           - st,lsm9ds0-imu
       - description: Deprecated bindings
         enum:
@@ -141,6 +145,7 @@ allOf:
             - st,lis2mdl
             - st,lis3l02dq
             - st,lis3lv02dl-accel
+            - st,lps22df
             - st,lps22hb-press
             - st,lps22hh
             - st,lps25h-press

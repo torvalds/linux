@@ -7,6 +7,7 @@
 struct stats_req_info {
 	struct ethnl_req_info		base;
 	DECLARE_BITMAP(stat_mask, __ETHTOOL_STATS_CNT);
+	enum ethtool_mac_stats_src	src;
 };
 
 #define STATS_REQINFO(__req_base) \
@@ -75,16 +76,19 @@ const char stats_rmon_names[__ETHTOOL_A_STATS_RMON_CNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_A_STATS_RMON_JABBER]		= "etherStatsJabbers",
 };
 
-const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_GROUPS + 1] = {
+const struct nla_policy ethnl_stats_get_policy[ETHTOOL_A_STATS_SRC + 1] = {
 	[ETHTOOL_A_STATS_HEADER]	=
 		NLA_POLICY_NESTED(ethnl_header_policy),
 	[ETHTOOL_A_STATS_GROUPS]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_STATS_SRC]		=
+		NLA_POLICY_MAX(NLA_U32, ETHTOOL_MAC_STATS_SRC_PMAC),
 };
 
 static int stats_parse_request(struct ethnl_req_info *req_base,
 			       struct nlattr **tb,
 			       struct netlink_ext_ack *extack)
 {
+	enum ethtool_mac_stats_src src = ETHTOOL_MAC_STATS_SRC_AGGREGATE;
 	struct stats_req_info *req_info = STATS_REQINFO(req_base);
 	bool mod = false;
 	int err;
@@ -100,6 +104,11 @@ static int stats_parse_request(struct ethnl_req_info *req_base,
 		return -EINVAL;
 	}
 
+	if (tb[ETHTOOL_A_STATS_SRC])
+		src = nla_get_u32(tb[ETHTOOL_A_STATS_SRC]);
+
+	req_info->src = src;
+
 	return 0;
 }
 
@@ -108,7 +117,9 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 			      struct genl_info *info)
 {
 	const struct stats_req_info *req_info = STATS_REQINFO(req_base);
+	struct netlink_ext_ack *extack = info ? info->extack : NULL;
 	struct stats_reply_data *data = STATS_REPDATA(reply_base);
+	enum ethtool_mac_stats_src src = req_info->src;
 	struct net_device *dev = reply_base->dev;
 	int ret;
 
@@ -116,10 +127,24 @@ static int stats_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 
+	if ((src == ETHTOOL_MAC_STATS_SRC_EMAC ||
+	     src == ETHTOOL_MAC_STATS_SRC_PMAC) &&
+	    !__ethtool_dev_mm_supported(dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Device does not support MAC merge layer");
+		ethnl_ops_complete(dev);
+		return -EOPNOTSUPP;
+	}
+
 	/* Mark all stats as unset (see ETHTOOL_STAT_NOT_SET) to prevent them
 	 * from being reported to user space in case driver did not set them.
 	 */
 	memset(&data->stats, 0xff, sizeof(data->stats));
+
+	data->phy_stats.src = src;
+	data->mac_stats.src = src;
+	data->ctrl_stats.src = src;
+	data->rmon_stats.src = src;
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask) &&
 	    dev->ethtool_ops->get_eth_phy_stats)
@@ -145,6 +170,8 @@ static int stats_reply_size(const struct ethnl_req_info *req_base,
 	const struct stats_req_info *req_info = STATS_REQINFO(req_base);
 	unsigned int n_grps = 0, n_stats = 0;
 	int len = 0;
+
+	len += nla_total_size(sizeof(u32)); /* _STATS_SRC */
 
 	if (test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask)) {
 		n_stats += sizeof(struct ethtool_eth_phy_stats) / sizeof(u64);
@@ -379,6 +406,9 @@ static int stats_fill_reply(struct sk_buff *skb,
 	const struct stats_reply_data *data = STATS_REPDATA(reply_base);
 	int ret = 0;
 
+	if (nla_put_u32(skb, ETHTOOL_A_STATS_SRC, req_info->src))
+		return -EMSGSIZE;
+
 	if (!ret && test_bit(ETHTOOL_STATS_ETH_PHY, req_info->stat_mask))
 		ret = stats_put_stats(skb, data, ETHTOOL_STATS_ETH_PHY,
 				      ETH_SS_STATS_ETH_PHY,
@@ -410,3 +440,130 @@ const struct ethnl_request_ops ethnl_stats_request_ops = {
 	.reply_size		= stats_reply_size,
 	.fill_reply		= stats_fill_reply,
 };
+
+static u64 ethtool_stats_sum(u64 a, u64 b)
+{
+	if (a == ETHTOOL_STAT_NOT_SET)
+		return b;
+	if (b == ETHTOOL_STAT_NOT_SET)
+		return a;
+	return a + b;
+}
+
+/* Avoid modifying the aggregation procedure every time a new counter is added
+ * by treating the structures as an array of u64 statistics.
+ */
+static void ethtool_aggregate_stats(void *aggr_stats, const void *emac_stats,
+				    const void *pmac_stats, size_t stats_size,
+				    size_t stats_offset)
+{
+	size_t num_stats = stats_size / sizeof(u64);
+	const u64 *s1 = emac_stats + stats_offset;
+	const u64 *s2 = pmac_stats + stats_offset;
+	u64 *s = aggr_stats + stats_offset;
+	int i;
+
+	for (i = 0; i < num_stats; i++)
+		s[i] = ethtool_stats_sum(s1[i], s2[i]);
+}
+
+void ethtool_aggregate_mac_stats(struct net_device *dev,
+				 struct ethtool_eth_mac_stats *mac_stats)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_eth_mac_stats pmac, emac;
+
+	memset(&emac, 0xff, sizeof(emac));
+	memset(&pmac, 0xff, sizeof(pmac));
+	emac.src = ETHTOOL_MAC_STATS_SRC_EMAC;
+	pmac.src = ETHTOOL_MAC_STATS_SRC_PMAC;
+
+	ops->get_eth_mac_stats(dev, &emac);
+	ops->get_eth_mac_stats(dev, &pmac);
+
+	ethtool_aggregate_stats(mac_stats, &emac, &pmac,
+				sizeof(mac_stats->stats),
+				offsetof(struct ethtool_eth_mac_stats, stats));
+}
+EXPORT_SYMBOL(ethtool_aggregate_mac_stats);
+
+void ethtool_aggregate_phy_stats(struct net_device *dev,
+				 struct ethtool_eth_phy_stats *phy_stats)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_eth_phy_stats pmac, emac;
+
+	memset(&emac, 0xff, sizeof(emac));
+	memset(&pmac, 0xff, sizeof(pmac));
+	emac.src = ETHTOOL_MAC_STATS_SRC_EMAC;
+	pmac.src = ETHTOOL_MAC_STATS_SRC_PMAC;
+
+	ops->get_eth_phy_stats(dev, &emac);
+	ops->get_eth_phy_stats(dev, &pmac);
+
+	ethtool_aggregate_stats(phy_stats, &emac, &pmac,
+				sizeof(phy_stats->stats),
+				offsetof(struct ethtool_eth_phy_stats, stats));
+}
+EXPORT_SYMBOL(ethtool_aggregate_phy_stats);
+
+void ethtool_aggregate_ctrl_stats(struct net_device *dev,
+				  struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_eth_ctrl_stats pmac, emac;
+
+	memset(&emac, 0xff, sizeof(emac));
+	memset(&pmac, 0xff, sizeof(pmac));
+	emac.src = ETHTOOL_MAC_STATS_SRC_EMAC;
+	pmac.src = ETHTOOL_MAC_STATS_SRC_PMAC;
+
+	ops->get_eth_ctrl_stats(dev, &emac);
+	ops->get_eth_ctrl_stats(dev, &pmac);
+
+	ethtool_aggregate_stats(ctrl_stats, &emac, &pmac,
+				sizeof(ctrl_stats->stats),
+				offsetof(struct ethtool_eth_ctrl_stats, stats));
+}
+EXPORT_SYMBOL(ethtool_aggregate_ctrl_stats);
+
+void ethtool_aggregate_pause_stats(struct net_device *dev,
+				   struct ethtool_pause_stats *pause_stats)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_pause_stats pmac, emac;
+
+	memset(&emac, 0xff, sizeof(emac));
+	memset(&pmac, 0xff, sizeof(pmac));
+	emac.src = ETHTOOL_MAC_STATS_SRC_EMAC;
+	pmac.src = ETHTOOL_MAC_STATS_SRC_PMAC;
+
+	ops->get_pause_stats(dev, &emac);
+	ops->get_pause_stats(dev, &pmac);
+
+	ethtool_aggregate_stats(pause_stats, &emac, &pmac,
+				sizeof(pause_stats->stats),
+				offsetof(struct ethtool_pause_stats, stats));
+}
+EXPORT_SYMBOL(ethtool_aggregate_pause_stats);
+
+void ethtool_aggregate_rmon_stats(struct net_device *dev,
+				  struct ethtool_rmon_stats *rmon_stats)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	const struct ethtool_rmon_hist_range *dummy;
+	struct ethtool_rmon_stats pmac, emac;
+
+	memset(&emac, 0xff, sizeof(emac));
+	memset(&pmac, 0xff, sizeof(pmac));
+	emac.src = ETHTOOL_MAC_STATS_SRC_EMAC;
+	pmac.src = ETHTOOL_MAC_STATS_SRC_PMAC;
+
+	ops->get_rmon_stats(dev, &emac, &dummy);
+	ops->get_rmon_stats(dev, &pmac, &dummy);
+
+	ethtool_aggregate_stats(rmon_stats, &emac, &pmac,
+				sizeof(rmon_stats->stats),
+				offsetof(struct ethtool_rmon_stats, stats));
+}
+EXPORT_SYMBOL(ethtool_aggregate_rmon_stats);

@@ -157,7 +157,7 @@ err_vpu_deinit:
 	return ret;
 }
 
-static int vpu_remove(struct platform_device *pdev)
+static void vpu_remove(struct platform_device *pdev)
 {
 	struct vpu_dev *vpu = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -173,8 +173,6 @@ static int vpu_remove(struct platform_device *pdev)
 	media_device_cleanup(&vpu->mdev);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 	mutex_destroy(&vpu->lock);
-
-	return 0;
 }
 
 static int __maybe_unused vpu_runtime_resume(struct device *dev)
@@ -229,7 +227,7 @@ MODULE_DEVICE_TABLE(of, vpu_dt_match);
 
 static struct platform_driver amphion_vpu_driver = {
 	.probe = vpu_probe,
-	.remove = vpu_remove,
+	.remove_new = vpu_remove,
 	.driver = {
 		.name = "amphion-vpu",
 		.of_match_table = vpu_dt_match,
@@ -245,7 +243,11 @@ static int __init vpu_driver_init(void)
 	if (ret)
 		return ret;
 
-	return vpu_core_driver_init();
+	ret = vpu_core_driver_init();
+	if (ret)
+		platform_driver_unregister(&amphion_vpu_driver);
+
+	return ret;
 }
 
 static void __exit vpu_driver_exit(void)

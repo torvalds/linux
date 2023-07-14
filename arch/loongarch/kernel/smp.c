@@ -8,6 +8,7 @@
  * Copyright (C) 2000, 2001 Silicon Graphics, Inc.
  * Copyright (C) 2000, 2001, 2003 Broadcom Corporation
  */
+#include <linux/acpi.h>
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
@@ -16,6 +17,7 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/export.h>
+#include <linux/syscore_ops.h>
 #include <linux/time.h>
 #include <linux/tracepoint.h>
 #include <linux/sched/hotplug.h>
@@ -35,10 +37,6 @@ EXPORT_SYMBOL(__cpu_number_map);
 
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 EXPORT_SYMBOL(__cpu_logical_map);
-
-/* Number of threads (siblings) per CPU core */
-int smp_num_siblings = 1;
-EXPORT_SYMBOL(smp_num_siblings);
 
 /* Representing the threads (siblings) of each logical CPU */
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
@@ -117,7 +115,7 @@ static u32 ipi_read_clear(int cpu)
 	action = iocsr_read32(LOONGARCH_IOCSR_IPI_STATUS);
 	/* Clear the ipi register to clear the interrupt */
 	iocsr_write32(action, LOONGARCH_IOCSR_IPI_CLEAR);
-	smp_mb();
+	wbflush();
 
 	return action;
 }
@@ -136,12 +134,12 @@ static void ipi_write_action(int cpu, u32 action)
 	}
 }
 
-void loongson3_send_ipi_single(int cpu, unsigned int action)
+void loongson_send_ipi_single(int cpu, unsigned int action)
 {
 	ipi_write_action(cpu_logical_map(cpu), (u32)action);
 }
 
-void loongson3_send_ipi_mask(const struct cpumask *mask, unsigned int action)
+void loongson_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 {
 	unsigned int i;
 
@@ -149,7 +147,18 @@ void loongson3_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		ipi_write_action(cpu_logical_map(i), (u32)action);
 }
 
-irqreturn_t loongson3_ipi_interrupt(int irq, void *dev)
+/*
+ * This function sends a 'reschedule' IPI to another CPU.
+ * it goes straight through and wastes no time serializing
+ * anything. Worst case is that we lose a reschedule ...
+ */
+void arch_smp_send_reschedule(int cpu)
+{
+	loongson_send_ipi_single(cpu, SMP_RESCHEDULE);
+}
+EXPORT_SYMBOL_GPL(arch_smp_send_reschedule);
+
+irqreturn_t loongson_ipi_interrupt(int irq, void *dev)
 {
 	unsigned int action;
 	unsigned int cpu = smp_processor_id();
@@ -169,8 +178,43 @@ irqreturn_t loongson3_ipi_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-void __init loongson3_smp_setup(void)
+static void __init fdt_smp_setup(void)
 {
+#ifdef CONFIG_OF
+	unsigned int cpu, cpuid;
+	struct device_node *node = NULL;
+
+	for_each_of_cpu_node(node) {
+		if (!of_device_is_available(node))
+			continue;
+
+		cpuid = of_get_cpu_hwid(node, 0);
+		if (cpuid >= nr_cpu_ids)
+			continue;
+
+		if (cpuid == loongson_sysconf.boot_cpu_id) {
+			cpu = 0;
+			numa_add_cpu(cpu);
+		} else {
+			cpu = cpumask_next_zero(-1, cpu_present_mask);
+		}
+
+		num_processors++;
+		set_cpu_possible(cpu, true);
+		set_cpu_present(cpu, true);
+		__cpu_number_map[cpuid] = cpu;
+		__cpu_logical_map[cpu] = cpuid;
+	}
+
+	loongson_sysconf.nr_cpus = num_processors;
+	set_bit(0, &(loongson_sysconf.cores_io_master));
+#endif
+}
+
+void __init loongson_smp_setup(void)
+{
+	fdt_smp_setup();
+
 	cpu_data[0].core = cpu_logical_map(0) % loongson_sysconf.cores_per_package;
 	cpu_data[0].package = cpu_logical_map(0) / loongson_sysconf.cores_per_package;
 
@@ -178,13 +222,16 @@ void __init loongson3_smp_setup(void)
 	pr_info("Detected %i available CPU(s)\n", loongson_sysconf.nr_cpus);
 }
 
-void __init loongson3_prepare_cpus(unsigned int max_cpus)
+void __init loongson_prepare_cpus(unsigned int max_cpus)
 {
 	int i = 0;
+
+	parse_acpi_topology();
 
 	for (i = 0; i < loongson_sysconf.nr_cpus; i++) {
 		set_cpu_present(i, true);
 		csr_mail_send(0, __cpu_logical_map[i], 0);
+		cpu_data[i].global_id = __cpu_logical_map[i];
 	}
 
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
@@ -193,7 +240,7 @@ void __init loongson3_prepare_cpus(unsigned int max_cpus)
 /*
  * Setup the PC, SP, and TP of a secondary processor and start it running!
  */
-void loongson3_boot_secondary(int cpu, struct task_struct *idle)
+void loongson_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long entry;
 
@@ -205,13 +252,13 @@ void loongson3_boot_secondary(int cpu, struct task_struct *idle)
 
 	csr_mail_send(entry, cpu_logical_map(cpu), 0);
 
-	loongson3_send_ipi_single(cpu, SMP_BOOT_CPU);
+	loongson_send_ipi_single(cpu, SMP_BOOT_CPU);
 }
 
 /*
  * SMP init and finish on secondary CPUs
  */
-void loongson3_init_secondary(void)
+void loongson_init_secondary(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned int imask = ECFGF_IP0 | ECFGF_IP1 | ECFGF_IP2 |
@@ -225,13 +272,13 @@ void loongson3_init_secondary(void)
 	numa_add_cpu(cpu);
 #endif
 	per_cpu(cpu_state, cpu) = CPU_ONLINE;
-	cpu_data[cpu].core =
-		     cpu_logical_map(cpu) % loongson_sysconf.cores_per_package;
 	cpu_data[cpu].package =
 		     cpu_logical_map(cpu) / loongson_sysconf.cores_per_package;
+	cpu_data[cpu].core = pptt_enabled ? cpu_data[cpu].core :
+		     cpu_logical_map(cpu) % loongson_sysconf.cores_per_package;
 }
 
-void loongson3_smp_finish(void)
+void loongson_smp_finish(void)
 {
 	local_irq_enable();
 	iocsr_write64(0, LOONGARCH_IOCSR_MBUF0);
@@ -240,12 +287,7 @@ void loongson3_smp_finish(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-static bool io_master(int cpu)
-{
-	return test_bit(cpu, &loongson_sysconf.cores_io_master);
-}
-
-int loongson3_cpu_disable(void)
+int loongson_cpu_disable(void)
 {
 	unsigned long flags;
 	unsigned int cpu = smp_processor_id();
@@ -267,7 +309,7 @@ int loongson3_cpu_disable(void)
 	return 0;
 }
 
-void loongson3_cpu_die(unsigned int cpu)
+void loongson_cpu_die(unsigned int cpu)
 {
 	while (per_cpu(cpu_state, cpu) != CPU_DEAD)
 		cpu_relax();
@@ -295,7 +337,7 @@ void play_dead(void)
 	iocsr_write32(0xffffffff, LOONGARCH_IOCSR_IPI_CLEAR);
 
 	init_fn();
-	unreachable();
+	BUG();
 }
 
 #endif
@@ -305,19 +347,19 @@ void play_dead(void)
  */
 #ifdef CONFIG_PM
 
-static int loongson3_ipi_suspend(void)
+static int loongson_ipi_suspend(void)
 {
 	return 0;
 }
 
-static void loongson3_ipi_resume(void)
+static void loongson_ipi_resume(void)
 {
 	iocsr_write32(0xffffffff, LOONGARCH_IOCSR_IPI_EN);
 }
 
-static struct syscore_ops loongson3_ipi_syscore_ops = {
-	.resume         = loongson3_ipi_resume,
-	.suspend        = loongson3_ipi_suspend,
+static struct syscore_ops loongson_ipi_syscore_ops = {
+	.resume         = loongson_ipi_resume,
+	.suspend        = loongson_ipi_suspend,
 };
 
 /*
@@ -326,7 +368,7 @@ static struct syscore_ops loongson3_ipi_syscore_ops = {
  */
 static int __init ipi_pm_init(void)
 {
-	register_syscore_ops(&loongson3_ipi_syscore_ops);
+	register_syscore_ops(&loongson_ipi_syscore_ops);
 	return 0;
 }
 
@@ -339,14 +381,10 @@ static inline void set_cpu_sibling_map(int cpu)
 
 	cpumask_set_cpu(cpu, &cpu_sibling_setup_map);
 
-	if (smp_num_siblings <= 1)
-		cpumask_set_cpu(cpu, &cpu_sibling_map[cpu]);
-	else {
-		for_each_cpu(i, &cpu_sibling_setup_map) {
-			if (cpus_are_siblings(cpu, i)) {
-				cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
-				cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
-			}
+	for_each_cpu(i, &cpu_sibling_setup_map) {
+		if (cpus_are_siblings(cpu, i)) {
+			cpumask_set_cpu(i, &cpu_sibling_map[cpu]);
+			cpumask_set_cpu(cpu, &cpu_sibling_map[i]);
 		}
 	}
 }
@@ -430,7 +468,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	init_new_context(current, &init_mm);
 	current_thread_info()->cpu = 0;
-	loongson3_prepare_cpus(max_cpus);
+	loongson_prepare_cpus(max_cpus);
 	set_cpu_sibling_map(0);
 	set_cpu_core_map(0);
 	calculate_cpu_foreign_map();
@@ -441,7 +479,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	loongson3_boot_secondary(cpu, tidle);
+	loongson_boot_secondary(cpu, tidle);
 
 	/* Wait for CPU to start and be ready to sync counters */
 	if (!wait_for_completion_timeout(&cpu_starting,
@@ -470,7 +508,7 @@ asmlinkage void start_secondary(void)
 
 	cpu_probe();
 	constant_clockevent_init();
-	loongson3_init_secondary();
+	loongson_init_secondary();
 
 	set_cpu_sibling_map(cpu);
 	set_cpu_core_map(cpu);
@@ -492,11 +530,11 @@ asmlinkage void start_secondary(void)
 	complete(&cpu_running);
 
 	/*
-	 * irq will be enabled in loongson3_smp_finish(), enabling it too
+	 * irq will be enabled in loongson_smp_finish(), enabling it too
 	 * early is dangerous.
 	 */
 	WARN_ON_ONCE(!irqs_disabled());
-	loongson3_smp_finish();
+	loongson_smp_finish();
 
 	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }

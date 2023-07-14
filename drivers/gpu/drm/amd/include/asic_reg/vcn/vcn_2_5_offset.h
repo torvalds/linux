@@ -993,7 +993,8 @@
 #define mmUVD_RAS_VCPU_VCODEC_STATUS_BASE_IDX                  1
 #define mmUVD_RAS_MMSCH_FATAL_ERROR                            0x0058
 #define mmUVD_RAS_MMSCH_FATAL_ERROR_BASE_IDX                   1
-
+#define mmVCN_RAS_CNTL                                                                                 0x04b9
+#define mmVCN_RAS_CNTL_BASE_IDX                                                                        1
 
 /* JPEG 2_6_0 regs */
 #define mmUVD_RAS_JPEG0_STATUS                                 0x0059

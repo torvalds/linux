@@ -188,10 +188,10 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 }
 EXPORT_SYMBOL_GPL(kvmppc_book3s_queue_irqprio);
 
-void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong flags)
+void kvmppc_core_queue_machine_check(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_MACHINE_CHECK, flags);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_MACHINE_CHECK, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_machine_check);
 
@@ -201,29 +201,29 @@ void kvmppc_core_queue_syscall(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL(kvmppc_core_queue_syscall);
 
-void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
+void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_PROGRAM, flags);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_PROGRAM, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_program);
 
-void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, 0);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, srr1_flags);
 }
 
-void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_ALTIVEC, 0);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_ALTIVEC, srr1_flags);
 }
 
-void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_vsx_unavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
 	/* might as well deliver this straight away */
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_VSX, 0);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_VSX, srr1_flags);
 }
 
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
@@ -278,18 +278,18 @@ void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu)
 	kvmppc_book3s_dequeue_irqprio(vcpu, BOOK3S_INTERRUPT_EXTERNAL);
 }
 
-void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong dar,
-				    ulong flags)
+void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong srr1_flags,
+				    ulong dar, ulong dsisr)
 {
 	kvmppc_set_dar(vcpu, dar);
-	kvmppc_set_dsisr(vcpu, flags);
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, 0);
+	kvmppc_set_dsisr(vcpu, dsisr);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_DATA_STORAGE, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_data_storage);
 
-void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong flags)
+void kvmppc_core_queue_inst_storage(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
-	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE, flags);
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_INST_STORAGE, srr1_flags);
 }
 EXPORT_SYMBOL_GPL(kvmppc_core_queue_inst_storage);
 
@@ -481,20 +481,42 @@ int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, enum xlate_instdata xlid,
 	return r;
 }
 
+/*
+ * Returns prefixed instructions with the prefix in the high 32 bits
+ * of *inst and suffix in the low 32 bits.  This is the same convention
+ * as used in HEIR, vcpu->arch.last_inst and vcpu->arch.emul_inst.
+ * Like vcpu->arch.last_inst but unlike vcpu->arch.emul_inst, each
+ * half of the value needs byte-swapping if the guest endianness is
+ * different from the host endianness.
+ */
 int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
-		enum instruction_fetch_type type, u32 *inst)
+		enum instruction_fetch_type type, unsigned long *inst)
 {
 	ulong pc = kvmppc_get_pc(vcpu);
 	int r;
+	u32 iw;
 
 	if (type == INST_SC)
 		pc -= 4;
 
-	r = kvmppc_ld(vcpu, &pc, sizeof(u32), inst, false);
-	if (r == EMULATE_DONE)
-		return r;
-	else
+	r = kvmppc_ld(vcpu, &pc, sizeof(u32), &iw, false);
+	if (r != EMULATE_DONE)
 		return EMULATE_AGAIN;
+	/*
+	 * If [H]SRR1 indicates that the instruction that caused the
+	 * current interrupt is a prefixed instruction, get the suffix.
+	 */
+	if (kvmppc_get_msr(vcpu) & SRR1_PREFIXED) {
+		u32 suffix;
+		pc += 4;
+		r = kvmppc_ld(vcpu, &pc, sizeof(u32), &suffix, false);
+		if (r != EMULATE_DONE)
+			return EMULATE_AGAIN;
+		*inst = ((u64)iw << 32) | suffix;
+	} else {
+		*inst = iw;
+	}
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvmppc_load_last_inst);
 
@@ -999,16 +1021,6 @@ int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvmppc_h_logical_ci_store);
 
-int kvmppc_core_check_processor_compat(void)
-{
-	/*
-	 * We always return 0 for book3s. We check
-	 * for compatibility while loading the HV
-	 * or PR module
-	 */
-	return 0;
-}
-
 int kvmppc_book3s_hcall_implemented(struct kvm *kvm, unsigned long hcall)
 {
 	return kvm->arch.kvm_ops->hcall_implemented(hcall);
@@ -1062,7 +1074,7 @@ static int kvmppc_book3s_init(void)
 {
 	int r;
 
-	r = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
+	r = kvm_init(sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 	if (r)
 		return r;
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER

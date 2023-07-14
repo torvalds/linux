@@ -43,7 +43,6 @@ led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_led_info *ledinfo = par->targinfo;
 	struct xt_led_info_internal *ledinternal = ledinfo->internal_data;
-	unsigned long led_delay = XT_LED_BLINK_DELAY;
 
 	/*
 	 * If "always blink" is enabled, and there's still some time until the
@@ -52,7 +51,7 @@ led_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	if ((ledinfo->delay > 0) && ledinfo->always_blink &&
 	    timer_pending(&ledinternal->timer))
 		led_trigger_blink_oneshot(&ledinternal->netfilter_led_trigger,
-					  &led_delay, &led_delay, 1);
+					  XT_LED_BLINK_DELAY, XT_LED_BLINK_DELAY, 1);
 	else
 		led_trigger_event(&ledinternal->netfilter_led_trigger, LED_FULL);
 
@@ -166,7 +165,7 @@ static void led_tg_destroy(const struct xt_tgdtor_param *par)
 
 	list_del(&ledinternal->list);
 
-	del_timer_sync(&ledinternal->timer);
+	timer_shutdown_sync(&ledinternal->timer);
 
 	led_trigger_unregister(&ledinternal->netfilter_led_trigger);
 

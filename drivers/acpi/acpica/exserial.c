@@ -3,7 +3,7 @@
  *
  * Module Name: exserial - field_unit support for serial address spaces
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -320,6 +320,12 @@ acpi_ex_write_serial_bus(union acpi_operand_object *source_desc,
 	case ACPI_ADR_SPACE_PLATFORM_RT:
 
 		buffer_length = ACPI_PRM_INPUT_BUFFER_SIZE;
+		function = ACPI_WRITE;
+		break;
+
+	case ACPI_ADR_SPACE_FIXED_HARDWARE:
+
+		buffer_length = ACPI_FFH_INPUT_BUFFER_SIZE;
 		function = ACPI_WRITE;
 		break;
 

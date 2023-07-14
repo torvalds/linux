@@ -380,6 +380,49 @@ static struct i2c_board_info lenovo_yogabook1_board_info = {
 	.platform_data = &bq2589x_pdata,
 };
 
+/********** Lenovo Yogabook YT3-X90F charger settings **********/
+static const char * const lenovo_yt3_bq25892_1_suppliers[] = { "cht_wcove_pwrsrc" };
+
+/*
+ * bq25892 charger settings for the round li-ion cells in the hinge,
+ * this is the main / biggest battery.
+ */
+static const struct property_entry lenovo_yt3_bq25892_1_props[] = {
+	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", lenovo_yt3_bq25892_1_suppliers),
+	PROPERTY_ENTRY_STRING("linux,secondary-charger-name", "bq25890-charger-0"),
+	PROPERTY_ENTRY_U32("linux,iinlim-percentage", 60),
+	PROPERTY_ENTRY_U32("linux,pump-express-vbus-max", 12000000),
+	PROPERTY_ENTRY_BOOL("linux,skip-reset"),
+	/*
+	 * The firmware sets everything to the defaults, leading to a low(ish)
+	 * charge-current and battery-voltage of 2048mA resp 4.2V. Use the
+	 * Android values instead of "linux,read-back-settings" to fix this.
+	 */
+	PROPERTY_ENTRY_U32("ti,charge-current", 3072000),
+	PROPERTY_ENTRY_U32("ti,battery-regulation-voltage", 4352000),
+	PROPERTY_ENTRY_U32("ti,termination-current", 128000),
+	PROPERTY_ENTRY_U32("ti,precharge-current", 128000),
+	PROPERTY_ENTRY_U32("ti,minimum-sys-voltage", 3700000),
+	PROPERTY_ENTRY_BOOL("ti,use-ilim-pin"),
+	/* Set 5V boost current-limit to 1.2A (MAX/POR values are 2.45A/1.4A) */
+	PROPERTY_ENTRY_U32("ti,boost-voltage", 4998000),
+	PROPERTY_ENTRY_U32("ti,boost-max-current", 1200000),
+	{ }
+};
+
+static const struct software_node lenovo_yt3_bq25892_1_node = {
+	.properties = lenovo_yt3_bq25892_1_props,
+};
+
+/* bq25892 charger for the round li-ion cells in the hinge */
+static struct i2c_board_info lenovo_yoga_tab3_board_info = {
+	.type = "bq25892",
+	.addr = 0x6b,
+	.dev_name = "bq25892_1",
+	.swnode = &lenovo_yt3_bq25892_1_node,
+	.platform_data = &bq2589x_pdata,
+};
+
 static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(pdev->dev.parent);
@@ -459,6 +502,9 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	case INTEL_CHT_WC_LENOVO_YOGABOOK1:
 		board_info = &lenovo_yogabook1_board_info;
 		break;
+	case INTEL_CHT_WC_LENOVO_YT3_X90:
+		board_info = &lenovo_yoga_tab3_board_info;
+		break;
 	default:
 		dev_warn(&pdev->dev, "Unknown model, not instantiating charger device\n");
 		break;
@@ -483,15 +529,13 @@ remove_irq_domain:
 	return ret;
 }
 
-static int cht_wc_i2c_adap_i2c_remove(struct platform_device *pdev)
+static void cht_wc_i2c_adap_i2c_remove(struct platform_device *pdev)
 {
 	struct cht_wc_i2c_adap *adap = platform_get_drvdata(pdev);
 
 	i2c_unregister_device(adap->client);
 	i2c_del_adapter(&adap->adapter);
 	irq_domain_remove(adap->irq_domain);
-
-	return 0;
 }
 
 static const struct platform_device_id cht_wc_i2c_adap_id_table[] = {
@@ -502,7 +546,7 @@ MODULE_DEVICE_TABLE(platform, cht_wc_i2c_adap_id_table);
 
 static struct platform_driver cht_wc_i2c_adap_driver = {
 	.probe = cht_wc_i2c_adap_i2c_probe,
-	.remove = cht_wc_i2c_adap_i2c_remove,
+	.remove_new = cht_wc_i2c_adap_i2c_remove,
 	.driver = {
 		.name = "cht_wcove_ext_chgr",
 	},

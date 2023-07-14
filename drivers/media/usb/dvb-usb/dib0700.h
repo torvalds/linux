@@ -72,7 +72,6 @@ int dib0700_set_i2c_speed(struct dvb_usb_device *d, u16 scl_kHz);
 
 extern struct i2c_algorithm dib0700_i2c_algo;
 extern int dib0700_device_count;
-extern int dvb_usb_dib0700_ir_proto;
 extern struct dvb_usb_device_properties dib0700_devices[];
 extern struct usb_device_id dib0700_usb_id_table[];
 

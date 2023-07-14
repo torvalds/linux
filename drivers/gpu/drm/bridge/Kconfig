@@ -15,17 +15,6 @@ config DRM_PANEL_BRIDGE
 menu "Display Interface Bridges"
 	depends on DRM && DRM_BRIDGE
 
-config DRM_CDNS_DSI
-	tristate "Cadence DPI/DSI bridge"
-	select DRM_KMS_HELPER
-	select DRM_MIPI_DSI
-	select DRM_PANEL_BRIDGE
-	select GENERIC_PHY_MIPI_DPHY
-	depends on OF
-	help
-	  Support Cadence DPI to DSI bridge. This is an internal
-	  bridge and is meant to be directly embedded in a SoC.
-
 config DRM_CHIPONE_ICN6211
 	tristate "Chipone ICN6211 MIPI-DSI/RGB Converter bridge"
 	depends on OF
@@ -231,6 +220,19 @@ config DRM_PARADE_PS8640
 	  The PS8640 is a high-performance and low-power
 	  MIPI DSI to eDP converter
 
+config DRM_SAMSUNG_DSIM
+	tristate "Samsung MIPI DSIM bridge driver"
+	depends on COMMON_CLK
+	depends on OF && HAS_IOMEM
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
+	help
+	  The Samsung MIPI DSIM bridge controller driver.
+	  This MIPI DSIM bridge can be found it on Exynos SoCs and
+	  NXP's i.MX8M Mini/Nano.
+
 config DRM_SIL_SII8620
 	tristate "Silicon Image SII8620 HDMI/MHL bridge"
 	depends on OF
@@ -337,7 +339,7 @@ config DRM_TI_DLPC3433
 	  input that produces a DMD output in RGB565, RGB666, RGB888
 	  formats.
 
-	  It supports upto 720p resolution with 60 and 120 Hz refresh
+	  It supports up to 720p resolution with 60 and 120 Hz refresh
 	  rates.
 
 config DRM_TI_TFP410

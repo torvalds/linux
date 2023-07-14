@@ -7,16 +7,18 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <asm/setup.h>
+#include <asm/cmdline.h>
 
 static inline int myisspace(u8 c)
 {
 	return c <= ' ';	/* Close enough approximation */
 }
 
-/**
+/*
  * Find a boolean option (like quiet,noapic,nosmp....)
  *
  * @cmdline: the cmdline string
+ * @max_cmdline_size: the maximum size of cmdline
  * @option: option string to look for
  *
  * Returns the position of that @option (starts counting with 1)

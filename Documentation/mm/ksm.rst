@@ -1,5 +1,3 @@
-.. _ksm:
-
 =======================
 Kernel Samepage Merging
 =======================
@@ -8,7 +6,7 @@ KSM is a memory-saving de-duplication feature, enabled by CONFIG_KSM=y,
 added to the Linux kernel in 2.6.32.  See ``mm/ksm.c`` for its implementation,
 and http://lwn.net/Articles/306704/ and https://lwn.net/Articles/330589/
 
-The userspace interface of KSM is described in :ref:`Documentation/admin-guide/mm/ksm.rst <admin_guide_ksm>`
+The userspace interface of KSM is described in Documentation/admin-guide/mm/ksm.rst
 
 Design
 ======
@@ -26,7 +24,7 @@ tree.
 
 If a KSM page is shared between less than ``max_page_sharing`` VMAs,
 the node of the stable tree that represents such KSM page points to a
-list of struct rmap_item and the ``page->mapping`` of the
+list of struct ksm_rmap_item and the ``page->mapping`` of the
 KSM page points to the stable tree node.
 
 When the sharing passes this threshold, KSM adds a second dimension to

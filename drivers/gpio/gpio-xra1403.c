@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/seq_file.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
@@ -195,7 +194,7 @@ static const struct spi_device_id xra1403_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, xra1403_ids);
 
-static const struct of_device_id xra1403_spi_of_match[] = {
+static const struct of_device_id xra1403_spi_of_match[] __maybe_unused = {
 	{ .compatible = "exar,xra1403" },
 	{},
 };

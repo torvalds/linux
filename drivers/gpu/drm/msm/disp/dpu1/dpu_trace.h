@@ -633,9 +633,9 @@ TRACE_EVENT(dpu_enc_phys_vid_irq_ctrl,
 TRACE_EVENT(dpu_crtc_setup_mixer,
 	TP_PROTO(uint32_t crtc_id, uint32_t plane_id,
 		 struct drm_plane_state *state, struct dpu_plane_state *pstate,
-		 uint32_t stage_idx, enum dpu_sspp sspp, uint32_t pixel_format,
+		 uint32_t stage_idx, uint32_t pixel_format,
 		 uint64_t modifier),
-	TP_ARGS(crtc_id, plane_id, state, pstate, stage_idx, sspp,
+	TP_ARGS(crtc_id, plane_id, state, pstate, stage_idx,
 		pixel_format, modifier),
 	TP_STRUCT__entry(
 		__field(	uint32_t,		crtc_id		)
@@ -659,9 +659,9 @@ TRACE_EVENT(dpu_crtc_setup_mixer,
 		__entry->dst_rect = drm_plane_state_dest(state);
 		__entry->stage_idx = stage_idx;
 		__entry->stage = pstate->stage;
-		__entry->sspp = sspp;
-		__entry->multirect_idx = pstate->multirect_index;
-		__entry->multirect_mode = pstate->multirect_mode;
+		__entry->sspp = pstate->pipe.sspp->idx;
+		__entry->multirect_idx = pstate->pipe.multirect_index;
+		__entry->multirect_mode = pstate->pipe.multirect_mode;
 		__entry->pixel_format = pixel_format;
 		__entry->modifier = modifier;
 	),
@@ -762,18 +762,17 @@ TRACE_EVENT(dpu_crtc_disable_frame_pending,
 );
 
 TRACE_EVENT(dpu_plane_set_scanout,
-	TP_PROTO(enum dpu_sspp index, struct dpu_hw_fmt_layout *layout,
-		 enum dpu_sspp_multirect_index multirect_index),
-	TP_ARGS(index, layout, multirect_index),
+	TP_PROTO(struct dpu_sw_pipe *pipe, struct dpu_hw_fmt_layout *layout),
+	TP_ARGS(pipe, layout),
 	TP_STRUCT__entry(
 		__field(	enum dpu_sspp,			index	)
 		__field_struct(	struct dpu_hw_fmt_layout,	layout	)
 		__field(	enum dpu_sspp_multirect_index,	multirect_index)
 	),
 	TP_fast_assign(
-		__entry->index = index;
+		__entry->index = pipe->sspp->idx;
 		__entry->layout = *layout;
-		__entry->multirect_index = multirect_index;
+		__entry->multirect_index = pipe->multirect_index;
 	),
 	TP_printk("index:%d layout:{%ux%u @ [%u/%u, %u/%u, %u/%u, %u/%u]} "
 		  "multirect_index:%d", __entry->index, __entry->layout.width,
@@ -870,6 +869,20 @@ TRACE_EVENT(dpu_pp_connect_ext_te,
 		__entry->cfg = cfg;
 	),
 	TP_printk("pp:%d cfg:%u", __entry->pp, __entry->cfg)
+);
+
+TRACE_EVENT(dpu_intf_connect_ext_te,
+	TP_PROTO(enum dpu_intf intf, u32 cfg),
+	TP_ARGS(intf, cfg),
+	TP_STRUCT__entry(
+		__field(	enum dpu_intf,	intf	)
+		__field(	u32,			cfg	)
+	),
+	TP_fast_assign(
+		__entry->intf = intf;
+		__entry->cfg = cfg;
+	),
+	TP_printk("intf:%d cfg:%u", __entry->intf, __entry->cfg)
 );
 
 TRACE_EVENT(dpu_core_irq_register_callback,

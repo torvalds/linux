@@ -33,6 +33,7 @@ properties:
       - description: I2C devices
         enum:
           - adi,ad5311r
+          - adi,ad5337r
           - adi,ad5338r
           - adi,ad5671r
           - adi,ad5675r
@@ -53,13 +54,14 @@ properties:
   vcc-supply:
     description: If not supplied the internal reference is used.
 
-  spi-max-frequency: true
-
-additionalProperties: false
-
 required:
   - compatible
   - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

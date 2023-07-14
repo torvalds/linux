@@ -13,6 +13,7 @@
 #include <linux/cpuhotplug.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 
 #define TAD_PFC_OFFSET		0x800
 #define TAD_PFC(counter)	(TAD_PFC_OFFSET | (counter << 3))
@@ -254,7 +255,7 @@ static const struct attribute_group *tad_pmu_attr_groups[] = {
 
 static int tad_pmu_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct tad_region *regions;
 	struct tad_pmu *tad_pmu;
 	struct resource *res;
@@ -276,21 +277,21 @@ static int tad_pmu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = of_property_read_u32(node, "marvell,tad-page-size",
-				   &tad_page_size);
+	ret = device_property_read_u32(dev, "marvell,tad-page-size",
+				       &tad_page_size);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't find tad-page-size property\n");
 		return ret;
 	}
 
-	ret = of_property_read_u32(node, "marvell,tad-pmu-page-size",
-				   &tad_pmu_page_size);
+	ret = device_property_read_u32(dev, "marvell,tad-pmu-page-size",
+				       &tad_pmu_page_size);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't find tad-pmu-page-size property\n");
 		return ret;
 	}
 
-	ret = of_property_read_u32(node, "marvell,tad-cnt", &tad_cnt);
+	ret = device_property_read_u32(dev, "marvell,tad-cnt", &tad_cnt);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't find tad-cnt property\n");
 		return ret;
@@ -369,10 +370,19 @@ static const struct of_device_id tad_pmu_of_match[] = {
 };
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id tad_pmu_acpi_match[] = {
+	{"MRVL000B", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, tad_pmu_acpi_match);
+#endif
+
 static struct platform_driver tad_pmu_driver = {
 	.driver         = {
 		.name   = "cn10k_tad_pmu",
 		.of_match_table = of_match_ptr(tad_pmu_of_match),
+		.acpi_match_table = ACPI_PTR(tad_pmu_acpi_match),
 		.suppress_bind_attrs = true,
 	},
 	.probe          = tad_pmu_probe,
@@ -408,7 +418,11 @@ static int __init tad_pmu_init(void)
 	if (ret < 0)
 		return ret;
 	tad_pmu_cpuhp_state = ret;
-	return platform_driver_register(&tad_pmu_driver);
+	ret = platform_driver_register(&tad_pmu_driver);
+	if (ret)
+		cpuhp_remove_multi_state(tad_pmu_cpuhp_state);
+
+	return ret;
 }
 
 static void __exit tad_pmu_exit(void)

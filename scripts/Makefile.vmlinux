@@ -1,10 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+PHONY := __default
+__default: vmlinux
+
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
 # for c_flags
 include $(srctree)/scripts/Makefile.lib
+
+targets :=
 
 quiet_cmd_cc_o_c = CC      $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
@@ -12,7 +17,23 @@ quiet_cmd_cc_o_c = CC      $@
 %.o: %.c FORCE
 	$(call if_changed_dep,cc_o_c)
 
-targets := $(MAKECMDGOALS)
+ifdef CONFIG_MODULES
+KASAN_SANITIZE_.vmlinux.export.o := n
+GCOV_PROFILE_.vmlinux.export.o := n
+targets += .vmlinux.export.o
+vmlinux: .vmlinux.export.o
+endif
+
+ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
+
+# Final link of vmlinux with optional arch pass after final link
+cmd_link_vmlinux =							\
+	$< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmlinux)";		\
+	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
+
+targets += vmlinux
+vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
+	+$(call if_changed_dep,link_vmlinux)
 
 # Add FORCE to the prequisites of a target to force it to be always rebuilt.
 # ---------------------------------------------------------------------------

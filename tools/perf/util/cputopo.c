@@ -12,7 +12,8 @@
 #include "cpumap.h"
 #include "debug.h"
 #include "env.h"
-#include "pmu-hybrid.h"
+#include "pmu.h"
+#include "pmus.h"
 
 #define PACKAGE_CPUS_FMT \
 	"%s/devices/system/cpu/cpu%d/topology/package_cpus_list"
@@ -157,6 +158,67 @@ void cpu_topology__delete(struct cpu_topology *tp)
 	free(tp);
 }
 
+bool cpu_topology__smt_on(const struct cpu_topology *topology)
+{
+	for (u32 i = 0; i < topology->core_cpus_lists; i++) {
+		const char *cpu_list = topology->core_cpus_list[i];
+
+		/*
+		 * If there is a need to separate siblings in a core then SMT is
+		 * enabled.
+		 */
+		if (strchr(cpu_list, ',') || strchr(cpu_list, '-'))
+			return true;
+	}
+	return false;
+}
+
+bool cpu_topology__core_wide(const struct cpu_topology *topology,
+			     const char *user_requested_cpu_list)
+{
+	struct perf_cpu_map *user_requested_cpus;
+
+	/*
+	 * If user_requested_cpu_list is empty then all CPUs are recorded and so
+	 * core_wide is true.
+	 */
+	if (!user_requested_cpu_list)
+		return true;
+
+	user_requested_cpus = perf_cpu_map__new(user_requested_cpu_list);
+	/* Check that every user requested CPU is the complete set of SMT threads on a core. */
+	for (u32 i = 0; i < topology->core_cpus_lists; i++) {
+		const char *core_cpu_list = topology->core_cpus_list[i];
+		struct perf_cpu_map *core_cpus = perf_cpu_map__new(core_cpu_list);
+		struct perf_cpu cpu;
+		int idx;
+		bool has_first, first = true;
+
+		perf_cpu_map__for_each_cpu(cpu, idx, core_cpus) {
+			if (first) {
+				has_first = perf_cpu_map__has(user_requested_cpus, cpu);
+				first = false;
+			} else {
+				/*
+				 * If the first core CPU is user requested then
+				 * all subsequent CPUs in the core must be user
+				 * requested too. If the first CPU isn't user
+				 * requested then none of the others must be
+				 * too.
+				 */
+				if (perf_cpu_map__has(user_requested_cpus, cpu) != has_first) {
+					perf_cpu_map__put(core_cpus);
+					perf_cpu_map__put(user_requested_cpus);
+					return false;
+				}
+			}
+		}
+		perf_cpu_map__put(core_cpus);
+	}
+	perf_cpu_map__put(user_requested_cpus);
+	return true;
+}
+
 static bool has_die_topology(void)
 {
 	char filename[MAXPATHLEN];
@@ -175,6 +237,20 @@ static bool has_die_topology(void)
 		return false;
 
 	return true;
+}
+
+const struct cpu_topology *online_topology(void)
+{
+	static const struct cpu_topology *topology;
+
+	if (!topology) {
+		topology = cpu_topology__new();
+		if (!topology) {
+			pr_err("Error creating CPU topology");
+			abort();
+		}
+	}
+	return topology;
 }
 
 struct cpu_topology *cpu_topology__new(void)
@@ -361,8 +437,6 @@ void numa_topology__delete(struct numa_topology *tp)
 static int load_hybrid_node(struct hybrid_topology_node *node,
 			    struct perf_pmu *pmu)
 {
-	const char *sysfs;
-	char path[PATH_MAX];
 	char *buf = NULL, *p;
 	FILE *fp;
 	size_t len = 0;
@@ -371,12 +445,7 @@ static int load_hybrid_node(struct hybrid_topology_node *node,
 	if (!node->pmu_name)
 		return -1;
 
-	sysfs = sysfs__mountpoint();
-	if (!sysfs)
-		goto err;
-
-	snprintf(path, PATH_MAX, CPUS_TEMPLATE_CPU, sysfs, pmu->name);
-	fp = fopen(path, "r");
+	fp = perf_pmu__open_file(pmu, "cpus");
 	if (!fp)
 		goto err;
 
@@ -401,12 +470,11 @@ err:
 
 struct hybrid_topology *hybrid_topology__new(void)
 {
-	struct perf_pmu *pmu;
+	struct perf_pmu *pmu = NULL;
 	struct hybrid_topology *tp = NULL;
-	u32 nr, i = 0;
+	int nr = perf_pmus__num_core_pmus(), i = 0;
 
-	nr = perf_pmu__hybrid_pmu_num();
-	if (nr == 0)
+	if (nr <= 1)
 		return NULL;
 
 	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0]) * nr);
@@ -414,7 +482,7 @@ struct hybrid_topology *hybrid_topology__new(void)
 		return NULL;
 
 	tp->nr = nr;
-	perf_pmu__for_each_hybrid_pmu(pmu) {
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
 		if (load_hybrid_node(&tp->nodes[i], pmu)) {
 			hybrid_topology__delete(tp);
 			return NULL;

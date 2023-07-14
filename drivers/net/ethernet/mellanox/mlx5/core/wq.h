@@ -243,6 +243,23 @@ static inline struct mlx5_cqe64 *mlx5_cqwq_get_cqe(struct mlx5_cqwq *wq)
 	return cqe;
 }
 
+static inline
+struct mlx5_cqe64 *mlx5_cqwq_get_cqe_enahnced_comp(struct mlx5_cqwq *wq)
+{
+	u8 sw_validity_iteration_count = mlx5_cqwq_get_wrap_cnt(wq) & 0xff;
+	u32 ci = mlx5_cqwq_get_ci(wq);
+	struct mlx5_cqe64 *cqe;
+
+	cqe = mlx5_cqwq_get_wqe(wq, ci);
+	if (cqe->validity_iteration_count != sw_validity_iteration_count)
+		return NULL;
+
+	/* ensure cqe content is read after cqe ownership bit/validity byte */
+	dma_rmb();
+
+	return cqe;
+}
+
 static inline u32 mlx5_wq_ll_get_size(struct mlx5_wq_ll *wq)
 {
 	return (u32)wq->fbc.sz_m1 + 1;

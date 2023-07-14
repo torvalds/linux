@@ -155,7 +155,7 @@ static void sctp_v6_err_handle(struct sctp_transport *t, struct sk_buff *skb,
 		sk->sk_err = err;
 		sk_error_report(sk);
 	} else {
-		sk->sk_err_soft = err;
+		WRITE_ONCE(sk->sk_err_soft, err);
 	}
 }
 
@@ -680,9 +680,11 @@ static int sctp_v6_is_any(const union sctp_addr *addr)
 /* Should this be available for binding?   */
 static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
-	int type;
-	struct net *net = sock_net(&sp->inet.sk);
 	const struct in6_addr *in6 = (const struct in6_addr *)&addr->v6.sin6_addr;
+	struct sock *sk = &sp->inet.sk;
+	struct net *net = sock_net(sk);
+	struct net_device *dev = NULL;
+	int type;
 
 	type = ipv6_addr_type(in6);
 	if (IPV6_ADDR_ANY == type)
@@ -696,8 +698,14 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (!(type & IPV6_ADDR_UNICAST))
 		return 0;
 
+	if (sk->sk_bound_dev_if) {
+		dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
+		if (!dev)
+			return 0;
+	}
+
 	return ipv6_can_nonlocal_bind(net, &sp->inet) ||
-	       ipv6_chk_addr(net, in6, NULL, 0);
+	       ipv6_chk_addr(net, in6, dev, 0);
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -799,8 +807,6 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 
 	newsk->sk_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 
-	sk_refcnt_debug_inc(newsk);
-
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);
 		newsk = NULL;
@@ -834,7 +840,12 @@ static int sctp_v6_addr_to_user(struct sctp_sock *sp, union sctp_addr *addr)
 /* Where did this skb come from?  */
 static int sctp_v6_skb_iif(const struct sk_buff *skb)
 {
-	return IP6CB(skb)->iif;
+	return inet6_iif(skb);
+}
+
+static int sctp_v6_skb_sdif(const struct sk_buff *skb)
+{
+	return inet6_sdif(skb);
 }
 
 /* Was this packet marked by Explicit Congestion Notification? */
@@ -1134,6 +1145,7 @@ static struct sctp_af sctp_af_inet6 = {
 	.is_any		   = sctp_v6_is_any,
 	.available	   = sctp_v6_available,
 	.skb_iif	   = sctp_v6_skb_iif,
+	.skb_sdif	   = sctp_v6_skb_sdif,
 	.is_ce		   = sctp_v6_is_ce,
 	.seq_dump_addr	   = sctp_v6_seq_dump_addr,
 	.ecn_capable	   = sctp_v6_ecn_capable,

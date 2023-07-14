@@ -867,11 +867,6 @@ static int sii9234_init_resources(struct sii9234 *ctx,
 	return 0;
 }
 
-static inline struct sii9234 *bridge_to_sii9234(struct drm_bridge *bridge)
-{
-	return container_of(bridge, struct sii9234, bridge);
-}
-
 static enum drm_mode_status sii9234_mode_valid(struct drm_bridge *bridge,
 					 const struct drm_display_info *info,
 					 const struct drm_display_mode *mode)
@@ -886,8 +881,7 @@ static const struct drm_bridge_funcs sii9234_bridge_funcs = {
 	.mode_valid = sii9234_mode_valid,
 };
 
-static int sii9234_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int sii9234_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct sii9234 *ctx;

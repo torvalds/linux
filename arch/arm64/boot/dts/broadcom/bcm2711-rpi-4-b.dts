@@ -1,2 +1,2 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "arm/bcm2711-rpi-4-b.dts"
+#include "arm/broadcom/bcm2711-rpi-4-b.dts"

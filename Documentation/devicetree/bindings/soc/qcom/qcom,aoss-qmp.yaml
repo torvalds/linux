@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/soc/qcom/qcom,aoss-qmp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Always-On Subsystem side channel binding
+title: Qualcomm Always-On Subsystem side channel
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
@@ -25,15 +25,19 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,qdu1000-aoss-qmp
+          - qcom,sa8775p-aoss-qmp
           - qcom,sc7180-aoss-qmp
           - qcom,sc7280-aoss-qmp
           - qcom,sc8180x-aoss-qmp
+          - qcom,sc8280xp-aoss-qmp
           - qcom,sdm845-aoss-qmp
           - qcom,sm6350-aoss-qmp
           - qcom,sm8150-aoss-qmp
           - qcom,sm8250-aoss-qmp
           - qcom,sm8350-aoss-qmp
           - qcom,sm8450-aoss-qmp
+          - qcom,sm8550-aoss-qmp
       - const: qcom,aoss-qmp
 
   reg:

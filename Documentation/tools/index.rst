@@ -11,6 +11,7 @@ more additions are needed here:
    :maxdepth: 1
 
    rtla/index
+   rv/index
 
 .. only::  subproject and html
 

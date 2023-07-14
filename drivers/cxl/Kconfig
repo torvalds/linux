@@ -82,6 +82,7 @@ config CXL_PMEM
 config CXL_MEM
 	tristate "CXL: Memory Expansion"
 	depends on CXL_PCI
+	select FW_UPLOAD
 	default CXL_BUS
 	help
 	  The CXL.mem protocol allows a device to act as a provider of "System
@@ -104,11 +105,52 @@ config CXL_SUSPEND
 	depends on SUSPEND && CXL_MEM
 
 config CXL_REGION
-	bool
+	bool "CXL: Region Support"
 	default CXL_BUS
 	# For MAX_PHYSMEM_BITS
 	depends on SPARSEMEM
 	select MEMREGION
 	select GET_FREE_REGION
+	help
+	  Enable the CXL core to enumerate and provision CXL regions. A CXL
+	  region is defined by one or more CXL expanders that decode a given
+	  system-physical address range. For CXL regions established by
+	  platform-firmware this option enables memory error handling to
+	  identify the devices participating in a given interleaved memory
+	  range. Otherwise, platform-firmware managed CXL is enabled by being
+	  placed in the system address map and does not need a driver.
 
+	  If unsure say 'y'
+
+config CXL_REGION_INVALIDATION_TEST
+	bool "CXL: Region Cache Management Bypass (TEST)"
+	depends on CXL_REGION
+	help
+	  CXL Region management and security operations potentially invalidate
+	  the content of CPU caches without notifying those caches to
+	  invalidate the affected cachelines. The CXL Region driver attempts
+	  to invalidate caches when those events occur.  If that invalidation
+	  fails the region will fail to enable.  Reasons for cache
+	  invalidation failure are due to the CPU not providing a cache
+	  invalidation mechanism. For example usage of wbinvd is restricted to
+	  bare metal x86. However, for testing purposes toggling this option
+	  can disable that data integrity safety and proceed with enabling
+	  regions when there might be conflicting contents in the CPU cache.
+
+	  If unsure, or if this kernel is meant for production environments,
+	  say N.
+
+config CXL_PMU
+	tristate "CXL Performance Monitoring Unit"
+	default CXL_BUS
+	depends on PERF_EVENTS
+	help
+	  Support performance monitoring as defined in CXL rev 3.0
+	  section 13.2: Performance Monitoring. CXL components may have
+	  one or more CXL Performance Monitoring Units (CPMUs).
+
+	  Say 'y/m' to enable a driver that will attach to performance
+	  monitoring units and provide standard perf based interfaces.
+
+	  If unsure say 'm'.
 endif

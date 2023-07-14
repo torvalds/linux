@@ -46,6 +46,8 @@
 
 		l2: l2-cache {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -130,7 +132,7 @@
 		interrupt-controller;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_RAW(0xf) |
 					 IRQ_TYPE_LEVEL_LOW)>;
-		its: gic-its@6020000 {
+		its: msi-controller@6020000 {
 			compatible = "arm,gic-v3-its";
 			msi-controller;
 			reg = <0x0 0x06020000 0 0x20000>;/* GIC Translater */
@@ -712,6 +714,7 @@
 			reg = <0 0x5000000 0 0x800000>;
 			#global-interrupts = <8>;
 			#iommu-cells = <1>;
+			dma-coherent;
 			stream-match-mask = <0x7c00>;
 			/* global secure fault */
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>,
@@ -1156,6 +1159,7 @@
 					mscc_felix_port4: port@4 {
 						reg = <4>;
 						phy-mode = "internal";
+						ethernet = <&enetc_port2>;
 						status = "disabled";
 
 						fixed-link {
@@ -1168,6 +1172,7 @@
 					mscc_felix_port5: port@5 {
 						reg = <5>;
 						phy-mode = "internal";
+						ethernet = <&enetc_port3>;
 						status = "disabled";
 
 						fixed-link {

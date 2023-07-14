@@ -2,8 +2,8 @@
 # Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/pci/ti,j721e-pci-host.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/pci/ti,j721e-pci-host.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: TI J721E PCI Host (PCIe Wrapper)
 
@@ -11,7 +11,7 @@ maintainers:
   - Kishon Vijay Abraham I <kishon@ti.com>
 
 allOf:
-  - $ref: "cdns-pcie-host.yaml#"
+  - $ref: cdns-pcie-host.yaml#
 
 properties:
   compatible:
@@ -66,15 +66,33 @@ properties:
     const: 0x104c
 
   device-id:
-    oneOf:
-      - items:
-          - const: 0xb00d
-      - items:
-          - const: 0xb00f
-      - items:
-          - const: 0xb010
+    enum:
+      - 0xb00d
+      - 0xb00f
+      - 0xb010
+      - 0xb013
 
   msi-map: true
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: link_state
+
+  interrupt-controller:
+    type: object
+    additionalProperties: false
+
+    properties:
+      interrupt-controller: true
+
+      '#interrupt-cells':
+        const: 1
+
+      interrupts:
+        maxItems: 1
 
 required:
   - compatible

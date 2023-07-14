@@ -12,6 +12,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <asm/io.h>
 #include <asm/numa.h>
@@ -31,6 +32,8 @@ u64 acpi_saved_sp;
 #define MAX_CORE_PIC 256
 
 #define PREFIX			"ACPI: "
+
+struct acpi_madt_core_pic acpi_core_pic[NR_CPUS];
 
 void __init __iomem * __acpi_map_table(unsigned long phys, unsigned long size)
 {
@@ -54,23 +57,6 @@ void __iomem *acpi_os_ioremap(acpi_physical_address phys, acpi_size size)
 		return ioremap(phys, size);
 	else
 		return ioremap_cache(phys, size);
-}
-
-void __init acpi_boot_table_init(void)
-{
-	/*
-	 * If acpi_disabled, bail out
-	 */
-	if (acpi_disabled)
-		return;
-
-	/*
-	 * Initialize the ACPI boot-time table parser.
-	 */
-	if (acpi_table_init()) {
-		disable_acpi();
-		return;
-	}
 }
 
 #ifdef CONFIG_SMP
@@ -115,6 +101,7 @@ acpi_parse_processor(union acpi_subtable_headers *header, const unsigned long en
 
 	acpi_table_print_madt_entry(&header->common);
 #ifdef CONFIG_SMP
+	acpi_core_pic[processor->core_id] = *processor;
 	set_processor_mask(processor->core_id, processor->flags);
 #endif
 
@@ -156,13 +143,56 @@ static void __init acpi_process_madt(void)
 	loongson_sysconf.nr_cpus = num_processors;
 }
 
-int __init acpi_boot_init(void)
+int pptt_enabled;
+
+int __init parse_acpi_topology(void)
+{
+	int cpu, topology_id;
+
+	for_each_possible_cpu(cpu) {
+		topology_id = find_acpi_cpu_topology(cpu, 0);
+		if (topology_id < 0) {
+			pr_warn("Invalid BIOS PPTT\n");
+			return -ENOENT;
+		}
+
+		if (acpi_pptt_cpu_is_thread(cpu) <= 0)
+			cpu_data[cpu].core = topology_id;
+		else {
+			topology_id = find_acpi_cpu_topology(cpu, 1);
+			if (topology_id < 0)
+				return -ENOENT;
+
+			cpu_data[cpu].core = topology_id;
+		}
+	}
+
+	pptt_enabled = 1;
+
+	return 0;
+}
+
+#ifndef CONFIG_SUSPEND
+int (*acpi_suspend_lowlevel)(void);
+#else
+int (*acpi_suspend_lowlevel)(void) = loongarch_acpi_suspend;
+#endif
+
+void __init acpi_boot_table_init(void)
 {
 	/*
 	 * If acpi_disabled, bail out
 	 */
 	if (acpi_disabled)
-		return -1;
+		goto fdt_earlycon;
+
+	/*
+	 * Initialize the ACPI boot-time table parser.
+	 */
+	if (acpi_table_init()) {
+		disable_acpi();
+		goto fdt_earlycon;
+	}
 
 	loongson_sysconf.boot_cpu_id = read_csr_cpuid();
 
@@ -174,7 +204,11 @@ int __init acpi_boot_init(void)
 	/* Do not enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 
-	return 0;
+	return;
+
+fdt_earlycon:
+	if (earlycon_acpi_spcr_enable)
+		early_init_dt_scan_chosen_stdout();
 }
 
 #ifdef CONFIG_ACPI_NUMA

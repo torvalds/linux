@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/videodev2.h>
+#include <media/jpeg.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -70,19 +71,6 @@
 
 #define JPU_JPEG_DEFAULT_422_PIX_FMT V4L2_PIX_FMT_NV16M
 #define JPU_JPEG_DEFAULT_420_PIX_FMT V4L2_PIX_FMT_NV12M
-
-/* JPEG markers */
-#define TEM	0x01
-#define SOF0	0xc0
-#define RST	0xd0
-#define SOI	0xd8
-#define EOI	0xd9
-#define DHP	0xde
-#define DHT	0xc4
-#define COM	0xfe
-#define DQT	0xdb
-#define DRI	0xdd
-#define APP0	0xe0
 
 #define JPU_RESET_TIMEOUT	100 /* ms */
 #define JPU_JOB_TIMEOUT		300 /* ms */
@@ -330,26 +318,32 @@ static const u8 zigzag[] = {
  * Huffman tables; Padding with 0xff (33.3.27 R01UH0501EJ0100 Rev.1.00)
  */
 #define JPU_JPEG_HDR_BLOB {                                                    \
-	0xff, SOI, 0xff, DQT, 0x00, JPU_JPEG_QTBL_SIZE + 0x3, JPU_JPEG_LUM,    \
-	[JPU_JPEG_QTBL_LUM_OFFSET ...                                          \
+	0xff, JPEG_MARKER_SOI, 0xff, JPEG_MARKER_DQT, 0x00,		       \
+	JPU_JPEG_QTBL_SIZE + 0x3, JPU_JPEG_LUM,				       \
+	[JPU_JPEG_QTBL_LUM_OFFSET ...					       \
 		JPU_JPEG_QTBL_LUM_OFFSET + JPU_JPEG_QTBL_SIZE - 1] = 0x00,     \
-	0xff, DQT, 0x00, JPU_JPEG_QTBL_SIZE + 0x3, JPU_JPEG_CHR,               \
+	0xff, JPEG_MARKER_DQT, 0x00, JPU_JPEG_QTBL_SIZE + 0x3, JPU_JPEG_CHR,   \
 	[JPU_JPEG_QTBL_CHR_OFFSET ... JPU_JPEG_QTBL_CHR_OFFSET +               \
-		JPU_JPEG_QTBL_SIZE - 1] = 0x00, 0xff, SOF0, 0x00, 0x11, 0x08,  \
+		JPU_JPEG_QTBL_SIZE - 1] = 0x00,				       \
+	0xff, JPEG_MARKER_SOF0, 0x00, 0x11, 0x08,			       \
 	[JPU_JPEG_HEIGHT_OFFSET ... JPU_JPEG_HEIGHT_OFFSET + 1] = 0x00,        \
 	[JPU_JPEG_WIDTH_OFFSET ... JPU_JPEG_WIDTH_OFFSET + 1] = 0x00,          \
 	0x03, 0x01, [JPU_JPEG_SUBS_OFFSET] = 0x00, JPU_JPEG_LUM,               \
 	0x02, 0x11, JPU_JPEG_CHR, 0x03, 0x11, JPU_JPEG_CHR,                    \
-	0xff, DHT, 0x00, JPU_JPEG_HDCTBL_SIZE + 0x3, JPU_JPEG_LUM|JPU_JPEG_DC, \
+	0xff, JPEG_MARKER_DHT, 0x00, JPU_JPEG_HDCTBL_SIZE + 0x3,	       \
+	JPU_JPEG_LUM | JPU_JPEG_DC,					       \
 	[JPU_JPEG_HDCTBL_LUM_OFFSET ...                                        \
 		JPU_JPEG_HDCTBL_LUM_OFFSET + JPU_JPEG_HDCTBL_SIZE - 1] = 0x00, \
-	0xff, DHT, 0x00, JPU_JPEG_HACTBL_SIZE + 0x3, JPU_JPEG_LUM|JPU_JPEG_AC, \
+	0xff, JPEG_MARKER_DHT, 0x00, JPU_JPEG_HACTBL_SIZE + 0x3,	       \
+	JPU_JPEG_LUM | JPU_JPEG_AC,					       \
 	[JPU_JPEG_HACTBL_LUM_OFFSET ...                                        \
 		JPU_JPEG_HACTBL_LUM_OFFSET + JPU_JPEG_HACTBL_SIZE - 1] = 0x00, \
-	0xff, DHT, 0x00, JPU_JPEG_HDCTBL_SIZE + 0x3, JPU_JPEG_CHR|JPU_JPEG_DC, \
+	0xff, JPEG_MARKER_DHT, 0x00, JPU_JPEG_HDCTBL_SIZE + 0x3,	       \
+	JPU_JPEG_CHR | JPU_JPEG_DC,					       \
 	[JPU_JPEG_HDCTBL_CHR_OFFSET ...                                        \
 		JPU_JPEG_HDCTBL_CHR_OFFSET + JPU_JPEG_HDCTBL_SIZE - 1] = 0x00, \
-	0xff, DHT, 0x00, JPU_JPEG_HACTBL_SIZE + 0x3, JPU_JPEG_CHR|JPU_JPEG_AC, \
+	0xff, JPEG_MARKER_DHT, 0x00, JPU_JPEG_HACTBL_SIZE + 0x3,	       \
+	JPU_JPEG_CHR | JPU_JPEG_AC,					       \
 	[JPU_JPEG_HACTBL_CHR_OFFSET ...                                        \
 		JPU_JPEG_HACTBL_CHR_OFFSET + JPU_JPEG_HACTBL_SIZE - 1] = 0x00, \
 	[JPU_JPEG_PADDING_OFFSET ... JPU_JPEG_HDR_SIZE - 1] = 0xff             \
@@ -613,7 +607,8 @@ static u8 jpu_parse_hdr(void *buffer, unsigned long size, unsigned int *width,
 	 * basic size check and EOI - we don't want to let JPU cross
 	 * buffer bounds in any case. Hope it's stopping by EOI.
 	 */
-	if (size < JPU_JPEG_MIN_SIZE || *(u8 *)(buffer + size - 1) != EOI)
+	if (size < JPU_JPEG_MIN_SIZE ||
+	    *(u8 *)(buffer + size - 1) != JPEG_MARKER_EOI)
 		return 0;
 
 	for (;;) {
@@ -624,14 +619,14 @@ static u8 jpu_parse_hdr(void *buffer, unsigned long size, unsigned int *width,
 			c = get_byte(&jpeg_buffer);
 		while (c == 0xff || c == 0);
 
-		if (!soi && c == SOI) {
+		if (!soi && c == JPEG_MARKER_SOI) {
 			soi = true;
 			continue;
-		} else if (soi != (c != SOI))
+		} else if (soi != (c != JPEG_MARKER_SOI))
 			return 0;
 
 		switch (c) {
-		case SOF0: /* SOF0: baseline JPEG */
+		case JPEG_MARKER_SOF0: /* SOF0: baseline JPEG */
 			skip(&jpeg_buffer, 3); /* segment length and bpp */
 			if (get_word_be(&jpeg_buffer, height) ||
 			    get_word_be(&jpeg_buffer, width) ||
@@ -640,11 +635,11 @@ static u8 jpu_parse_hdr(void *buffer, unsigned long size, unsigned int *width,
 
 			skip(&jpeg_buffer, 1);
 			return get_byte(&jpeg_buffer);
-		case DHT:
-		case DQT:
-		case COM:
-		case DRI:
-		case APP0 ... APP0 + 0x0f:
+		case JPEG_MARKER_DHT:
+		case JPEG_MARKER_DQT:
+		case JPEG_MARKER_COM:
+		case JPEG_MARKER_DRI:
+		case JPEG_MARKER_APP0 ... JPEG_MARKER_APP0 + 0x0f:
 			if (get_word_be(&jpeg_buffer, &word))
 				return 0;
 			skip(&jpeg_buffer, (long)word - 2);
@@ -1702,7 +1697,7 @@ device_register_rollback:
 	return ret;
 }
 
-static int jpu_remove(struct platform_device *pdev)
+static void jpu_remove(struct platform_device *pdev)
 {
 	struct jpu *jpu = platform_get_drvdata(pdev);
 
@@ -1710,8 +1705,6 @@ static int jpu_remove(struct platform_device *pdev)
 	video_unregister_device(&jpu->vfd_encoder);
 	v4l2_m2m_release(jpu->m2m_dev);
 	v4l2_device_unregister(&jpu->v4l2_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1746,7 +1739,7 @@ static const struct dev_pm_ops jpu_pm_ops = {
 
 static struct platform_driver jpu_driver = {
 	.probe = jpu_probe,
-	.remove = jpu_remove,
+	.remove_new = jpu_remove,
 	.driver = {
 		.of_match_table = jpu_dt_ids,
 		.name = DRV_NAME,

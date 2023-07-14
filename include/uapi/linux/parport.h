@@ -90,6 +90,9 @@ typedef enum {
 /* Flags for block transfer operations. */
 #define PARPORT_EPP_FAST		(1<<0) /* Unreliable counts. */
 #define PARPORT_W91284PIC		(1<<1) /* have a Warp9 w91284pic in the device */
+#define PARPORT_EPP_FAST_32		PARPORT_EPP_FAST /* 32-bit EPP transfers */
+#define PARPORT_EPP_FAST_16		(1<<2) /* 16-bit EPP transfers */
+#define PARPORT_EPP_FAST_8		(1<<3) /* 8-bit EPP transfers */
 
 /* The rest is for the kernel only */
 #endif /* _UAPI_PARPORT_H_ */

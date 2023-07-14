@@ -369,6 +369,7 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 
 	ctx->bridge.funcs = &tc358764_bridge_funcs;
 	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.pre_enable_prev_first = true;
 
 	drm_bridge_add(&ctx->bridge);
 
@@ -381,14 +382,12 @@ static int tc358764_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int tc358764_remove(struct mipi_dsi_device *dsi)
+static void tc358764_remove(struct mipi_dsi_device *dsi)
 {
 	struct tc358764 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id tc358764_of_match[] = {

@@ -951,9 +951,11 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 #endif
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
+		unsigned int len = skb->len;
+
 		ieee80211_monitor_rx(ieee, skb, rx_stats);
 		stats->rx_packets++;
-		stats->rx_bytes += skb->len;
+		stats->rx_bytes += len;
 		return 1;
 	}
 
@@ -1806,7 +1808,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				info_element->data[0] == 0x00 &&
 				info_element->data[1] == 0x13 &&
 				info_element->data[2] == 0x74)) {
-				netdev_dbg(ieee->dev, "========> athros AP is exist\n");
+				netdev_dbg(ieee->dev, "========> Atheros AP exists\n");
 				network->atheros_cap_exist = true;
 			} else
 				network->atheros_cap_exist = false;
@@ -1956,43 +1958,6 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 	return 0;
 }
 
-static inline u8 ieee80211_SignalStrengthTranslate(
-	u8  CurrSS
-	)
-{
-	u8 RetSS;
-
-	// Step 1. Scale mapping.
-	if (CurrSS >= 71 && CurrSS <= 100) {
-		RetSS = 90 + ((CurrSS - 70) / 3);
-	} else if (CurrSS >= 41 && CurrSS <= 70) {
-		RetSS = 78 + ((CurrSS - 40) / 3);
-	} else if (CurrSS >= 31 && CurrSS <= 40) {
-		RetSS = 66 + (CurrSS - 30);
-	} else if (CurrSS >= 21 && CurrSS <= 30) {
-		RetSS = 54 + (CurrSS - 20);
-	} else if (CurrSS >= 5 && CurrSS <= 20) {
-		RetSS = 42 + (((CurrSS - 5) * 2) / 3);
-	} else if (CurrSS == 4) {
-		RetSS = 36;
-	} else if (CurrSS == 3) {
-		RetSS = 27;
-	} else if (CurrSS == 2) {
-		RetSS = 18;
-	} else if (CurrSS == 1) {
-		RetSS = 9;
-	} else {
-		RetSS = CurrSS;
-	}
-	//RT_TRACE(COMP_DBG, DBG_LOUD, ("##### After Mapping:  LastSS: %d, CurrSS: %d, RetSS: %d\n", LastSS, CurrSS, RetSS));
-
-	// Step 2. Smoothing.
-
-	//RT_TRACE(COMP_DBG, DBG_LOUD, ("$$$$$ After Smoothing:  LastSS: %d, CurrSS: %d, RetSS: %d\n", LastSS, CurrSS, RetSS));
-
-	return RetSS;
-}
-
 /* 0-100 index */
 static long ieee80211_translate_todbm(u8 signal_strength_index)
 {
@@ -2093,7 +2058,6 @@ static inline int ieee80211_network_init(
 		network->flags |= NETWORK_EMPTY_ESSID;
 
 	stats->signal = 30 + (stats->SignalStrength * 70) / 100;
-	//stats->signal = ieee80211_SignalStrengthTranslate(stats->signal);
 	stats->noise = ieee80211_translate_todbm((u8)(100 - stats->signal)) - 25;
 
 	memcpy(&network->stats, stats, sizeof(network->stats));

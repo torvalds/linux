@@ -115,6 +115,10 @@ struct hwseq_private_funcs {
 	void (*plane_atomic_disable)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 	void (*enable_power_gating_plane)(struct dce_hwseq *hws,
 		bool enable);
+	void (*dpp_root_clock_control)(
+			struct dce_hwseq *hws,
+			unsigned int dpp_inst,
+			bool clock_on);
 	void (*dpp_pg_control)(struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool power_on);
@@ -124,6 +128,8 @@ struct hwseq_private_funcs {
 	void (*dsc_pg_control)(struct dce_hwseq *hws,
 			unsigned int dsc_inst,
 			bool power_on);
+	bool (*dsc_pg_status)(struct dce_hwseq *hws,
+			unsigned int dsc_inst);
 	void (*update_odm)(struct dc *dc, struct dc_state *context,
 			struct pipe_ctx *pipe_ctx);
 	void (*program_all_writeback_pipes_in_tree)(struct dc *dc,
@@ -146,14 +152,16 @@ struct hwseq_private_funcs {
 	void (*PLAT_58856_wa)(struct dc_state *context,
 			struct pipe_ctx *pipe_ctx);
 	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
-#ifdef CONFIG_DRM_AMD_DC_DCN
+#ifdef CONFIG_DRM_AMD_DC_FP
 	void (*program_mall_pipe_config)(struct dc *dc, struct dc_state *context);
-	void (*subvp_update_force_pstate)(struct dc *dc, struct dc_state *context);
+	void (*update_force_pstate)(struct dc *dc, struct dc_state *context);
 	void (*update_mall_sel)(struct dc *dc, struct dc_state *context);
 	unsigned int (*calculate_dccg_k1_k2_values)(struct pipe_ctx *pipe_ctx,
 			unsigned int *k1_div,
 			unsigned int *k2_div);
 	void (*set_pixels_per_cycle)(struct pipe_ctx *pipe_ctx);
+	void (*resync_fifo_dccg_dio)(struct dce_hwseq *hws, struct dc *dc,
+			struct dc_state *context);
 	bool (*is_dp_dig_pixel_rate_div_policy)(struct pipe_ctx *pipe_ctx);
 #endif
 };

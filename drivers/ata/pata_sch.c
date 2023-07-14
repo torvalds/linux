@@ -57,7 +57,7 @@ static struct pci_driver sch_pci_driver = {
 #endif
 };
 
-static struct scsi_host_template sch_sht = {
+static const struct scsi_host_template sch_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

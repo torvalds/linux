@@ -44,7 +44,6 @@ void arch_cpu_idle(void)
 {
 	__vmwait();
 	/*  interrupts wake us up, but irqs are still disabled */
-	raw_local_irq_enable();
 }
 
 /*
@@ -110,13 +109,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 */
 
 	return 0;
-}
-
-/*
- * Release any architecture-specific resources locked by thread
- */
-void release_thread(struct task_struct *dead_task)
-{
 }
 
 /*

@@ -59,7 +59,6 @@ static const struct regmap_irq_chip max77843_irq_chip = {
 	.name		= "max77843",
 	.status_base	= MAX77843_SYS_REG_SYSINTSRC,
 	.mask_base	= MAX77843_SYS_REG_SYSINTMASK,
-	.mask_invert	= false,
 	.num_regs	= 1,
 	.irqs		= max77843_irqs,
 	.num_irqs	= ARRAY_SIZE(max77843_irqs),
@@ -93,9 +92,9 @@ err_chg_i2c:
 	return ret;
 }
 
-static int max77843_probe(struct i2c_client *i2c,
-			  const struct i2c_device_id *id)
+static int max77843_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct max77693_dev *max77843;
 	unsigned int reg_data;
 	int ret;

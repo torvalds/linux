@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -110,62 +110,6 @@ lpfc_sli4_set_rsp_sgl_last(struct lpfc_hba *phba,
 }
 
 #define LPFC_INVALID_REFTAG ((u32)-1)
-
-/**
- * lpfc_update_stats - Update statistical data for the command completion
- * @vport: The virtual port on which this call is executing.
- * @lpfc_cmd: lpfc scsi command object pointer.
- *
- * This function is called when there is a command completion and this
- * function updates the statistical data for the command completion.
- **/
-static void
-lpfc_update_stats(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd)
-{
-	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_rport_data *rdata;
-	struct lpfc_nodelist *pnode;
-	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
-	unsigned long flags;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	unsigned long latency;
-	int i;
-
-	if (!vport->stat_data_enabled ||
-	    vport->stat_data_blocked ||
-	    (cmd->result))
-		return;
-
-	latency = jiffies_to_msecs((long)jiffies - (long)lpfc_cmd->start_time);
-	rdata = lpfc_cmd->rdata;
-	pnode = rdata->pnode;
-
-	spin_lock_irqsave(shost->host_lock, flags);
-	if (!pnode ||
-	    !pnode->lat_data ||
-	    (phba->bucket_type == LPFC_NO_BUCKET)) {
-		spin_unlock_irqrestore(shost->host_lock, flags);
-		return;
-	}
-
-	if (phba->bucket_type == LPFC_LINEAR_BUCKET) {
-		i = (latency + phba->bucket_step - 1 - phba->bucket_base)/
-			phba->bucket_step;
-		/* check array subscript bounds */
-		if (i < 0)
-			i = 0;
-		else if (i >= LPFC_MAX_BUCKET_COUNT)
-			i = LPFC_MAX_BUCKET_COUNT - 1;
-	} else {
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT-1; i++)
-			if (latency <= (phba->bucket_base +
-				((1<<i)*phba->bucket_step)))
-				break;
-	}
-
-	pnode->lat_data[i].cmd_count++;
-	spin_unlock_irqrestore(shost->host_lock, flags);
-}
 
 /**
  * lpfc_rampdown_queue_depth - Post RAMP_DOWN_QUEUE event to worker thread
@@ -1745,7 +1689,7 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	struct lpfc_pde6 *pde6 = NULL;
 	struct lpfc_pde7 *pde7 = NULL;
 	dma_addr_t dataphysaddr, protphysaddr;
-	unsigned short curr_data = 0, curr_prot = 0;
+	unsigned short curr_prot = 0;
 	unsigned int split_offset;
 	unsigned int protgroup_len, protgroup_offset = 0, protgroup_remainder;
 	unsigned int protgrp_blks, protgrp_bytes;
@@ -1914,7 +1858,6 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 			bpl->tus.w = le32_to_cpu(bpl->tus.w);
 
 			num_bde++;
-			curr_data++;
 
 			if (split_offset)
 				break;
@@ -2175,7 +2118,7 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	struct scatterlist *sgpe = NULL; /* s/g prot entry */
 	struct sli4_sge_diseed *diseed = NULL;
 	dma_addr_t dataphysaddr, protphysaddr;
-	unsigned short curr_data = 0, curr_prot = 0;
+	unsigned short curr_prot = 0;
 	unsigned int split_offset;
 	unsigned int protgroup_len, protgroup_offset = 0, protgroup_remainder;
 	unsigned int protgrp_blks, protgrp_bytes;
@@ -2420,7 +2363,6 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 				dma_offset += dma_len;
 
 				num_sge++;
-				curr_data++;
 
 				if (split_offset) {
 					sgl++;
@@ -4084,7 +4026,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_fast_path_event *fast_path_evt;
 	struct Scsi_Host *shost;
 	u32 logit = LOG_FCP;
-	u32 status, idx;
+	u32 idx;
 	u32 lat;
 	u8 wait_xb_clr = 0;
 
@@ -4119,8 +4061,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 #endif
 	shost = cmd->device->host;
 
-	status = bf_get(lpfc_wcqe_c_status, wcqe);
-	lpfc_cmd->status = (status & LPFC_IOCB_STATUS_MASK);
+	lpfc_cmd->status = bf_get(lpfc_wcqe_c_status, wcqe);
 	lpfc_cmd->result = (wcqe->parameter & IOERR_PARAM_MASK);
 
 	lpfc_cmd->flags &= ~LPFC_SBUF_XBUSY;
@@ -4162,11 +4103,6 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	}
 #endif
 	if (unlikely(lpfc_cmd->status)) {
-		if (lpfc_cmd->status == IOSTAT_LOCAL_REJECT &&
-		    (lpfc_cmd->result & IOERR_DRVR_MASK))
-			lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
-		else if (lpfc_cmd->status >= IOSTAT_CNT)
-			lpfc_cmd->status = IOSTAT_DEFAULT;
 		if (lpfc_cmd->status == IOSTAT_FCP_RSP_ERROR &&
 		    !lpfc_cmd->fcp_rsp->rspStatus3 &&
 		    (lpfc_cmd->fcp_rsp->rspStatus2 & RESID_UNDER) &&
@@ -4191,16 +4127,16 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	}
 
 	switch (lpfc_cmd->status) {
-	case IOSTAT_SUCCESS:
+	case CQE_STATUS_SUCCESS:
 		cmd->result = DID_OK << 16;
 		break;
-	case IOSTAT_FCP_RSP_ERROR:
+	case CQE_STATUS_FCP_RSP_FAILURE:
 		lpfc_handle_fcp_err(vport, lpfc_cmd,
 				    pwqeIn->wqe.fcp_iread.total_xfer_len -
 				    wcqe->total_data_placed);
 		break;
-	case IOSTAT_NPORT_BSY:
-	case IOSTAT_FABRIC_BSY:
+	case CQE_STATUS_NPORT_BSY:
+	case CQE_STATUS_FABRIC_BSY:
 		cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 		fast_path_evt = lpfc_alloc_fast_evt(phba);
 		if (!fast_path_evt)
@@ -4243,7 +4179,27 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 wcqe->total_data_placed,
 				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
 		break;
-	case IOSTAT_REMOTE_STOP:
+	case CQE_STATUS_DI_ERROR:
+		if (bf_get(lpfc_wcqe_c_bg_edir, wcqe))
+			lpfc_cmd->result = IOERR_RX_DMA_FAILED;
+		else
+			lpfc_cmd->result = IOERR_TX_DMA_FAILED;
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP | LOG_BG,
+				 "9048 DI Error xri x%x status x%x DI ext "
+				 "status x%x data placed x%x\n",
+				 lpfc_cmd->cur_iocbq.sli4_xritag,
+				 lpfc_cmd->status, wcqe->parameter,
+				 wcqe->total_data_placed);
+		if (scsi_get_prot_op(cmd) != SCSI_PROT_NORMAL) {
+			/* BG enabled cmd. Parse BG error */
+			lpfc_parse_bg_err(phba, lpfc_cmd, pwqeOut);
+			break;
+		}
+		cmd->result = DID_ERROR << 16;
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+				 "9040 DI Error on unprotected cmd\n");
+		break;
+	case CQE_STATUS_REMOTE_STOP:
 		if (ndlp) {
 			/* This I/O was aborted by the target, we don't
 			 * know the rxid and because we did not send the
@@ -4254,7 +4210,7 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 					    0, 0);
 		}
 		fallthrough;
-	case IOSTAT_LOCAL_REJECT:
+	case CQE_STATUS_LOCAL_REJECT:
 		if (lpfc_cmd->result & IOERR_DRVR_MASK)
 			lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 		if (lpfc_cmd->result == IOERR_ELXSEC_KEY_UNWRAP_ERROR ||
@@ -4275,24 +4231,6 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			cmd->result = DID_TRANSPORT_DISRUPTED << 16;
 			break;
 		}
-		if ((lpfc_cmd->result == IOERR_RX_DMA_FAILED ||
-		     lpfc_cmd->result == IOERR_TX_DMA_FAILED) &&
-		     status == CQE_STATUS_DI_ERROR) {
-			if (scsi_get_prot_op(cmd) !=
-			    SCSI_PROT_NORMAL) {
-				/*
-				 * This is a response for a BG enabled
-				 * cmd. Parse BG error
-				 */
-				lpfc_parse_bg_err(phba, lpfc_cmd, pwqeOut);
-				break;
-			} else {
-				lpfc_printf_vlog(vport, KERN_WARNING,
-						 LOG_BG,
-						 "9040 non-zero BGSTAT "
-						 "on unprotected cmd\n");
-			}
-		}
 		lpfc_printf_vlog(vport, KERN_WARNING, logit,
 				 "9036 Local Reject FCP cmd x%x failed"
 				 " <%d/%lld> "
@@ -4311,10 +4249,8 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
 		fallthrough;
 	default:
-		if (lpfc_cmd->status >= IOSTAT_CNT)
-			lpfc_cmd->status = IOSTAT_DEFAULT;
 		cmd->result = DID_ERROR << 16;
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 				 "9037 FCP Completion Error: xri %x "
 				 "status x%x result x%x [x%x] "
 				 "placed x%x\n",
@@ -4331,11 +4267,10 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 "x%x SNS x%x x%x LBA x%llx Data: x%x x%x\n",
 				 cmd->device->id, cmd->device->lun, cmd,
 				 cmd->result, *lp, *(lp + 3),
-				 (u64)scsi_get_lba(cmd),
+				 (cmd->device->sector_size) ?
+				 (u64)scsi_get_lba(cmd) : 0,
 				 cmd->retries, scsi_get_resid(cmd));
 	}
-
-	lpfc_update_stats(vport, lpfc_cmd);
 
 	if (vport->cfg_max_scsicmpl_time &&
 	    time_after(jiffies, lpfc_cmd->start_time +
@@ -4617,7 +4552,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				 scsi_get_resid(cmd));
 	}
 
-	lpfc_update_stats(vport, lpfc_cmd);
 	if (vport->cfg_max_scsicmpl_time &&
 	   time_after(jiffies, lpfc_cmd->start_time +
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
@@ -5070,7 +5004,6 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		return -ENODEV;
 	}
 	phba->lpfc_rampdown_queue_depth = lpfc_rampdown_queue_depth;
-	phba->lpfc_scsi_cmd_iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
 	return 0;
 }
 
@@ -6850,6 +6783,33 @@ struct scsi_host_template lpfc_template = {
 	.shost_groups		= lpfc_hba_groups,
 	.max_sectors		= 0xFFFFFFFF,
 	.vendor_id		= LPFC_NL_VENDOR_ID,
+	.change_queue_depth	= scsi_change_queue_depth,
+	.track_queue_depth	= 1,
+};
+
+struct scsi_host_template lpfc_vport_template = {
+	.module			= THIS_MODULE,
+	.name			= LPFC_DRIVER_NAME,
+	.proc_name		= LPFC_DRIVER_NAME,
+	.info			= lpfc_info,
+	.queuecommand		= lpfc_queuecommand,
+	.eh_timed_out		= fc_eh_timed_out,
+	.eh_should_retry_cmd    = fc_eh_should_retry_cmd,
+	.eh_abort_handler	= lpfc_abort_handler,
+	.eh_device_reset_handler = lpfc_device_reset_handler,
+	.eh_target_reset_handler = lpfc_target_reset_handler,
+	.eh_bus_reset_handler	= NULL,
+	.eh_host_reset_handler	= NULL,
+	.slave_alloc		= lpfc_slave_alloc,
+	.slave_configure	= lpfc_slave_configure,
+	.slave_destroy		= lpfc_slave_destroy,
+	.scan_finished		= lpfc_scan_finished,
+	.this_id		= -1,
+	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
+	.cmd_per_lun		= LPFC_CMD_PER_LUN,
+	.shost_groups		= lpfc_vport_groups,
+	.max_sectors		= 0xFFFFFFFF,
+	.vendor_id		= 0,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.track_queue_depth	= 1,
 };

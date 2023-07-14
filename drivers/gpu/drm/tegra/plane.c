@@ -12,7 +12,6 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #include "dc.h"
 #include "plane.h"
@@ -778,21 +777,17 @@ int tegra_plane_interconnect_init(struct tegra_plane *plane)
 
 	plane->icc_mem = devm_of_icc_get(dev, icc_name);
 	err = PTR_ERR_OR_ZERO(plane->icc_mem);
-	if (err) {
-		dev_err_probe(dev, err, "failed to get %s interconnect\n",
-			      icc_name);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "failed to get %s interconnect\n",
+				     icc_name);
 
 	/* plane B on T20/30 has a dedicated memory client for a 6-tap vertical filter */
 	if (plane->index == 1 && dc->soc->has_win_b_vfilter_mem_client) {
 		plane->icc_mem_vfilter = devm_of_icc_get(dev, "winb-vfilter");
 		err = PTR_ERR_OR_ZERO(plane->icc_mem_vfilter);
-		if (err) {
-			dev_err_probe(dev, err, "failed to get %s interconnect\n",
-				      "winb-vfilter");
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err, "failed to get %s interconnect\n",
+					     "winb-vfilter");
 	}
 
 	return 0;

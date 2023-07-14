@@ -323,6 +323,7 @@ static int ltc2992_config_gpio(struct ltc2992_state *st)
 	st->gc.label = name;
 	st->gc.parent = &st->client->dev;
 	st->gc.owner = THIS_MODULE;
+	st->gc.can_sleep = true;
 	st->gc.base = -1;
 	st->gc.names = st->gpio_names;
 	st->gc.ngpio = ARRAY_SIZE(st->gpio_names);
@@ -811,7 +812,7 @@ static const struct hwmon_ops ltc2992_hwmon_ops = {
 	.write = ltc2992_write,
 };
 
-static const struct hwmon_channel_info *ltc2992_info[] = {
+static const struct hwmon_channel_info * const ltc2992_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_IN_RESET_HISTORY),
 	HWMON_CHANNEL_INFO(in,
@@ -881,7 +882,7 @@ static int ltc2992_parse_dt(struct ltc2992_state *st)
 	return 0;
 }
 
-static int ltc2992_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ltc2992_i2c_probe(struct i2c_client *client)
 {
 	struct device *hwmon_dev;
 	struct ltc2992_state *st;
@@ -927,7 +928,7 @@ static struct i2c_driver ltc2992_i2c_driver = {
 		.name = "ltc2992",
 		.of_match_table = ltc2992_of_match,
 	},
-	.probe    = ltc2992_i2c_probe,
+	.probe = ltc2992_i2c_probe,
 	.id_table = ltc2992_i2c_id,
 };
 

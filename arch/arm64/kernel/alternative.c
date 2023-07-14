@@ -10,16 +10,22 @@
 
 #include <linux/init.h>
 #include <linux/cpu.h>
+#include <linux/elf.h>
 #include <asm/cacheflush.h>
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
+#include <asm/module.h>
 #include <asm/sections.h>
+#include <asm/vdso.h>
 #include <linux/stop_machine.h>
 
 #define __ALT_PTR(a, f)		((void *)&(a)->f + (a)->f)
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
+
+#define ALT_CAP(a)		((a)->cpucap & ~ARM64_CB_BIT)
+#define ALT_HAS_CB(a)		((a)->cpucap & ARM64_CB_BIT)
 
 /* Volatile, as we may be patching the guts of READ_ONCE() */
 static volatile int all_alternatives_applied;
@@ -31,12 +37,12 @@ struct alt_region {
 	struct alt_instr *end;
 };
 
-bool alternative_is_applied(u16 cpufeature)
+bool alternative_is_applied(u16 cpucap)
 {
-	if (WARN_ON(cpufeature >= ARM64_NCAPS))
+	if (WARN_ON(cpucap >= ARM64_NCAPS))
 		return false;
 
-	return test_bit(cpufeature, applied_alternatives);
+	return test_bit(cpucap, applied_alternatives);
 }
 
 /*
@@ -115,11 +121,11 @@ static noinstr void patch_alternative(struct alt_instr *alt,
  * accidentally call into the cache.S code, which is patched by us at
  * runtime.
  */
-static void clean_dcache_range_nopatch(u64 start, u64 end)
+static noinstr void clean_dcache_range_nopatch(u64 start, u64 end)
 {
 	u64 cur, d_size, ctr_el0;
 
-	ctr_el0 = read_sanitised_ftr_reg(SYS_CTR_EL0);
+	ctr_el0 = arm64_ftr_reg_ctrel0.sys_val;
 	d_size = 4 << cpuid_feature_extract_unsigned_field(ctr_el0,
 							   CTR_EL0_DminLine_SHIFT);
 	cur = start & ~(d_size - 1);
@@ -133,8 +139,9 @@ static void clean_dcache_range_nopatch(u64 start, u64 end)
 	} while (cur += d_size, cur < end);
 }
 
-static void __apply_alternatives(struct alt_region *region, bool is_module,
-				 unsigned long *feature_mask)
+static void __apply_alternatives(const struct alt_region *region,
+				 bool is_module,
+				 unsigned long *cpucap_mask)
 {
 	struct alt_instr *alt;
 	__le32 *origptr, *updptr;
@@ -142,30 +149,27 @@ static void __apply_alternatives(struct alt_region *region, bool is_module,
 
 	for (alt = region->begin; alt < region->end; alt++) {
 		int nr_inst;
+		int cap = ALT_CAP(alt);
 
-		if (!test_bit(alt->cpufeature, feature_mask))
+		if (!test_bit(cap, cpucap_mask))
 			continue;
 
-		/* Use ARM64_CB_PATCH as an unconditional patch */
-		if (alt->cpufeature < ARM64_CB_PATCH &&
-		    !cpus_have_cap(alt->cpufeature))
+		if (!cpus_have_cap(cap))
 			continue;
 
-		if (alt->cpufeature == ARM64_CB_PATCH)
+		if (ALT_HAS_CB(alt))
 			BUG_ON(alt->alt_len != 0);
 		else
 			BUG_ON(alt->alt_len != alt->orig_len);
-
-		pr_info_once("patching kernel code\n");
 
 		origptr = ALT_ORIG_PTR(alt);
 		updptr = is_module ? origptr : lm_alias(origptr);
 		nr_inst = alt->orig_len / AARCH64_INSN_SIZE;
 
-		if (alt->cpufeature < ARM64_CB_PATCH)
-			alt_cb = patch_alternative;
-		else
+		if (ALT_HAS_CB(alt))
 			alt_cb  = ALT_REPL_PTR(alt);
+		else
+			alt_cb = patch_alternative;
 
 		alt_cb(alt, origptr, updptr, nr_inst);
 
@@ -184,38 +188,62 @@ static void __apply_alternatives(struct alt_region *region, bool is_module,
 		icache_inval_all_pou();
 		isb();
 
-		/* Ignore ARM64_CB bit from feature mask */
 		bitmap_or(applied_alternatives, applied_alternatives,
-			  feature_mask, ARM64_NCAPS);
+			  cpucap_mask, ARM64_NCAPS);
 		bitmap_and(applied_alternatives, applied_alternatives,
-			   cpu_hwcaps, ARM64_NCAPS);
+			   system_cpucaps, ARM64_NCAPS);
 	}
 }
+
+static void __init apply_alternatives_vdso(void)
+{
+	struct alt_region region;
+	const struct elf64_hdr *hdr;
+	const struct elf64_shdr *shdr;
+	const struct elf64_shdr *alt;
+	DECLARE_BITMAP(all_capabilities, ARM64_NCAPS);
+
+	bitmap_fill(all_capabilities, ARM64_NCAPS);
+
+	hdr = (struct elf64_hdr *)vdso_start;
+	shdr = (void *)hdr + hdr->e_shoff;
+	alt = find_section(hdr, shdr, ".altinstructions");
+	if (!alt)
+		return;
+
+	region = (struct alt_region){
+		.begin	= (void *)hdr + alt->sh_offset,
+		.end	= (void *)hdr + alt->sh_offset + alt->sh_size,
+	};
+
+	__apply_alternatives(&region, false, &all_capabilities[0]);
+}
+
+static const struct alt_region kernel_alternatives __initconst = {
+	.begin	= (struct alt_instr *)__alt_instructions,
+	.end	= (struct alt_instr *)__alt_instructions_end,
+};
 
 /*
  * We might be patching the stop_machine state machine, so implement a
  * really simple polling protocol here.
  */
-static int __apply_alternatives_multi_stop(void *unused)
+static int __init __apply_alternatives_multi_stop(void *unused)
 {
-	struct alt_region region = {
-		.begin	= (struct alt_instr *)__alt_instructions,
-		.end	= (struct alt_instr *)__alt_instructions_end,
-	};
-
 	/* We always have a CPU 0 at this point (__init) */
 	if (smp_processor_id()) {
 		while (!all_alternatives_applied)
 			cpu_relax();
 		isb();
 	} else {
-		DECLARE_BITMAP(remaining_capabilities, ARM64_NPATCHABLE);
+		DECLARE_BITMAP(remaining_capabilities, ARM64_NCAPS);
 
-		bitmap_complement(remaining_capabilities, boot_capabilities,
-				  ARM64_NPATCHABLE);
+		bitmap_complement(remaining_capabilities, boot_cpucaps,
+				  ARM64_NCAPS);
 
 		BUG_ON(all_alternatives_applied);
-		__apply_alternatives(&region, false, remaining_capabilities);
+		__apply_alternatives(&kernel_alternatives, false,
+				     remaining_capabilities);
 		/* Barriers provided by the cache flushing */
 		all_alternatives_applied = 1;
 	}
@@ -225,6 +253,9 @@ static int __apply_alternatives_multi_stop(void *unused)
 
 void __init apply_alternatives_all(void)
 {
+	pr_info("applying system-wide alternatives\n");
+
+	apply_alternatives_vdso();
 	/* better not try code patching on a live SMP system */
 	stop_machine(__apply_alternatives_multi_stop, NULL, cpu_online_mask);
 }
@@ -236,15 +267,13 @@ void __init apply_alternatives_all(void)
  */
 void __init apply_boot_alternatives(void)
 {
-	struct alt_region region = {
-		.begin	= (struct alt_instr *)__alt_instructions,
-		.end	= (struct alt_instr *)__alt_instructions_end,
-	};
-
 	/* If called on non-boot cpu things could go wrong */
 	WARN_ON(smp_processor_id() != 0);
 
-	__apply_alternatives(&region, false, &boot_capabilities[0]);
+	pr_info("applying boot alternatives\n");
+
+	__apply_alternatives(&kernel_alternatives, false,
+			     &boot_cpucaps[0]);
 }
 
 #ifdef CONFIG_MODULES
@@ -254,10 +283,18 @@ void apply_alternatives_module(void *start, size_t length)
 		.begin	= start,
 		.end	= start + length,
 	};
-	DECLARE_BITMAP(all_capabilities, ARM64_NPATCHABLE);
+	DECLARE_BITMAP(all_capabilities, ARM64_NCAPS);
 
-	bitmap_fill(all_capabilities, ARM64_NPATCHABLE);
+	bitmap_fill(all_capabilities, ARM64_NCAPS);
 
 	__apply_alternatives(&region, true, &all_capabilities[0]);
 }
 #endif
+
+noinstr void alt_cb_patch_nops(struct alt_instr *alt, __le32 *origptr,
+			       __le32 *updptr, int nr_inst)
+{
+	for (int i = 0; i < nr_inst; i++)
+		updptr[i] = cpu_to_le32(aarch64_insn_gen_nop());
+}
+EXPORT_SYMBOL(alt_cb_patch_nops);

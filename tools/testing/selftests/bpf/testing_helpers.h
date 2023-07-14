@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 /* Copyright (C) 2020 Facebook, Inc. */
+
+#ifndef __TESTING_HELPERS_H
+#define __TESTING_HELPERS_H
+
 #include <stdbool.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
@@ -20,3 +24,13 @@ struct test_filter_set;
 int parse_test_list(const char *s,
 		    struct test_filter_set *test_set,
 		    bool is_glob_pattern);
+int parse_test_list_file(const char *path,
+			 struct test_filter_set *test_set,
+			 bool is_glob_pattern);
+
+__u64 read_perf_max_sample_freq(void);
+int load_bpf_testmod(bool verbose);
+int unload_bpf_testmod(bool verbose);
+int kern_sync_rcu(void);
+
+#endif /* __TESTING_HELPERS_H */

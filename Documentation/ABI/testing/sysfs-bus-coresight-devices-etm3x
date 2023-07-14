@@ -236,7 +236,7 @@ What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/traceid
 Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RW) Holds the trace ID that will appear in the trace stream
+Description: 	(RO) Holds the trace ID that will appear in the trace stream
 		coming from this trace entity.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/trigger_event

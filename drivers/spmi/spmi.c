@@ -35,7 +35,7 @@ static void spmi_ctrl_release(struct device *dev)
 {
 	struct spmi_controller *ctrl = to_spmi_controller(dev);
 
-	ida_simple_remove(&ctrl_ida, ctrl->nr);
+	ida_free(&ctrl_ida, ctrl->nr);
 	kfree(ctrl);
 }
 
@@ -350,7 +350,8 @@ static void spmi_drv_remove(struct device *dev)
 	const struct spmi_driver *sdrv = to_spmi_driver(dev->driver);
 
 	pm_runtime_get_sync(dev);
-	sdrv->remove(to_spmi_device(dev));
+	if (sdrv->remove)
+		sdrv->remove(to_spmi_device(dev));
 	pm_runtime_put_noidle(dev);
 
 	pm_runtime_disable(dev);
@@ -366,7 +367,7 @@ static void spmi_drv_shutdown(struct device *dev)
 		sdrv->shutdown(to_spmi_device(dev));
 }
 
-static int spmi_drv_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int spmi_drv_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	int ret;
 
@@ -404,7 +405,7 @@ struct spmi_device *spmi_device_from_of(struct device_node *np)
 EXPORT_SYMBOL_GPL(spmi_device_from_of);
 
 /**
- * spmi_controller_alloc() - Allocate a new SPMI device
+ * spmi_device_alloc() - Allocate a new SPMI device
  * @ctrl:	associated controller
  *
  * Caller is responsible for either calling spmi_device_add() to add the
@@ -457,7 +458,7 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 	ctrl->dev.of_node = parent->of_node;
 	spmi_controller_set_drvdata(ctrl, &ctrl[1]);
 
-	id = ida_simple_get(&ctrl_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&ctrl_ida, GFP_KERNEL);
 	if (id < 0) {
 		dev_err(parent,
 			"unable to allocate SPMI controller identifier.\n");
@@ -582,8 +583,9 @@ void spmi_controller_remove(struct spmi_controller *ctrl)
 EXPORT_SYMBOL_GPL(spmi_controller_remove);
 
 /**
- * spmi_driver_register() - Register client driver with SPMI core
+ * __spmi_driver_register() - Register client driver with SPMI core
  * @sdrv:	client driver to be associated with client-device.
+ * @owner:	module owner
  *
  * This API will register the client driver with the SPMI framework.
  * It is typically called from the driver's module-init function.

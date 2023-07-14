@@ -364,7 +364,7 @@ static int wusb3801_probe(struct i2c_client *client)
 	/* Initialize the hardware with the devicetree settings. */
 	ret = wusb3801_hw_init(wusb3801);
 	if (ret)
-		return ret;
+		goto err_put_connector;
 
 	wusb3801->cap.revision		= USB_TYPEC_REV_1_2;
 	wusb3801->cap.accessory[0]	= TYPEC_ACCESSORY_AUDIO;
@@ -420,7 +420,7 @@ static const struct of_device_id wusb3801_of_match[] = {
 MODULE_DEVICE_TABLE(of, wusb3801_of_match);
 
 static struct i2c_driver wusb3801_driver = {
-	.probe_new	= wusb3801_probe,
+	.probe		= wusb3801_probe,
 	.remove		= wusb3801_remove,
 	.driver		= {
 		.name		= "wusb3801",

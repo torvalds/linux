@@ -57,7 +57,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Be quiet (do not show any messages including errors).
+	Do not show any warnings or messages.
 	Can not use with -v.
 
 -a::
@@ -222,7 +222,7 @@ probe syntax, 'SRC' means the source file path, 'ALN' is start line number,
 and 'ALN2' is end line number in the file. It is also possible to specify how
 many lines to show by using 'NUM'. Moreover, 'FUNC@SRC' combination is good
 for searching a specific function when several functions share same name.
-So, "source.c:100-120" shows lines between 100th to l20th in source.c file. And "func:10+20" shows 20 lines from 10th line of func function.
+So, "source.c:100-120" shows lines between 100th to 120th in source.c file. And "func:10+20" shows 20 lines from 10th line of func function.
 
 LAZY MATCHING
 -------------

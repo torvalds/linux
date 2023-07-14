@@ -190,11 +190,14 @@ struct drm_panel {
 	struct list_head list;
 
 	/**
-	 * @dsc:
+	 * @prepare_prev_first:
 	 *
-	 * Panel DSC pps payload to be sent
+	 * The previous controller should be prepared first, before the prepare
+	 * for the panel is called. This is largely required for DSI panels
+	 * where the DSI host controller should be initialised to LP-11 before
+	 * the panel is powered up.
 	 */
-	struct drm_dsc_config *dsc;
+	bool prepare_prev_first;
 };
 
 void drm_panel_init(struct drm_panel *panel, struct device *dev,

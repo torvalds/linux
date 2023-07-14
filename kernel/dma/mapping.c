@@ -10,13 +10,18 @@
 #include <linux/dma-map-ops.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
+#include <linux/kmsan.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include "debug.h"
 #include "direct.h"
 
-bool dma_default_coherent;
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
+	defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+bool dma_default_coherent = IS_ENABLED(CONFIG_ARCH_DMA_DEFAULT_COHERENT);
+#endif
 
 /*
  * Managed DMA API
@@ -156,6 +161,7 @@ dma_addr_t dma_map_page_attrs(struct device *dev, struct page *page,
 		addr = dma_direct_map_page(dev, page, offset, size, dir, attrs);
 	else
 		addr = ops->map_page(dev, page, offset, size, dir, attrs);
+	kmsan_handle_dma(page, offset, size, dir);
 	debug_dma_map_page(dev, page, offset, size, dir, addr, attrs);
 
 	return addr;
@@ -194,11 +200,13 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 	else
 		ents = ops->map_sg(dev, sg, nents, dir, attrs);
 
-	if (ents > 0)
+	if (ents > 0) {
+		kmsan_handle_dma_sg(sg, nents, dir);
 		debug_dma_map_sg(dev, sg, nents, ents, dir, attrs);
-	else if (WARN_ON_ONCE(ents != -EINVAL && ents != -ENOMEM &&
-			      ents != -EIO && ents != -EREMOTEIO))
+	} else if (WARN_ON_ONCE(ents != -EINVAL && ents != -ENOMEM &&
+				ents != -EIO && ents != -EREMOTEIO)) {
 		return -EIO;
+	}
 
 	return ents;
 }
@@ -494,6 +502,14 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	WARN_ON_ONCE(!dev->coherent_dma_mask);
 
+	/*
+	 * DMA allocations can never be turned back into a page pointer, so
+	 * requesting compound pages doesn't make sense (and can't even be
+	 * supported at all by various backends).
+	 */
+	if (WARN_ON_ONCE(flag & __GFP_COMP))
+		return NULL;
+
 	if (dma_alloc_from_dev_coherent(dev, size, dma_handle, &cpu_addr))
 		return cpu_addr;
 
@@ -547,6 +563,8 @@ static struct page *__dma_alloc_pages(struct device *dev, size_t size,
 	if (WARN_ON_ONCE(!dev->coherent_dma_mask))
 		return NULL;
 	if (WARN_ON_ONCE(gfp & (__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM)))
+		return NULL;
+	if (WARN_ON_ONCE(gfp & __GFP_COMP))
 		return NULL;
 
 	size = PAGE_ALIGN(size);
@@ -632,6 +650,8 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 	struct sg_table *sgt;
 
 	if (WARN_ON_ONCE(attrs & ~DMA_ATTR_ALLOC_SINGLE_PAGES))
+		return NULL;
+	if (WARN_ON_ONCE(gfp & __GFP_COMP))
 		return NULL;
 
 	if (ops && ops->alloc_noncontiguous)

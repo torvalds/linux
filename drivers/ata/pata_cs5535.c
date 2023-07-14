@@ -141,7 +141,7 @@ static void cs5535_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	wrmsr(ATAC_CH0D0_DMA + 2 * adev->devno, reg, 0);
 }
 
-static struct scsi_host_template cs5535_sht = {
+static const struct scsi_host_template cs5535_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

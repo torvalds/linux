@@ -15,29 +15,20 @@
  * stmmac_adjust_freq
  *
  * @ptp: pointer to ptp_clock_info structure
- * @ppb: desired period change in parts ber billion
+ * @scaled_ppm: desired period change in scaled parts per million
  *
  * Description: this function will adjust the frequency of hardware clock.
+ *
+ * Scaled parts per million is ppm with a 16-bit binary fractional field.
  */
-static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
+static int stmmac_adjust_freq(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct stmmac_priv *priv =
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	unsigned long flags;
-	u32 diff, addend;
-	int neg_adj = 0;
-	u64 adj;
+	u32 addend;
 
-	if (ppb < 0) {
-		neg_adj = 1;
-		ppb = -ppb;
-	}
-
-	addend = priv->default_addend;
-	adj = addend;
-	adj *= ppb;
-	diff = div_u64(adj, 1000000000ULL);
-	addend = neg_adj ? (addend - diff) : (addend + diff);
+	addend = adjust_by_scaled_ppm(priv->default_addend, scaled_ppm);
 
 	write_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_config_addend(priv, priv->ptpaddr, addend);
@@ -219,7 +210,10 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 		}
 		writel(acr_value, ptpaddr + PTP_ACR);
 		mutex_unlock(&priv->aux_ts_lock);
-		ret = 0;
+		/* wait for auxts fifo clear to finish */
+		ret = readl_poll_timeout(ptpaddr + PTP_ACR, acr_value,
+					 !(acr_value & PTP_ACR_ATSFC),
+					 10, 10000);
 		break;
 
 	default:
@@ -269,7 +263,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
 	.n_per_out = 0, /* will be overwritten in stmmac_ptp_register */
 	.n_pins = 0,
 	.pps = 0,
-	.adjfreq = stmmac_adjust_freq,
+	.adjfine = stmmac_adjust_freq,
 	.adjtime = stmmac_adjust_time,
 	.gettime64 = stmmac_get_time,
 	.settime64 = stmmac_set_time,

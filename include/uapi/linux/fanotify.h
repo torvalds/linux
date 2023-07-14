@@ -188,15 +188,43 @@ struct fanotify_event_info_error {
 	__u32 error_count;
 };
 
+/*
+ * User space may need to record additional information about its decision.
+ * The extra information type records what kind of information is included.
+ * The default is none. We also define an extra information buffer whose
+ * size is determined by the extra information type.
+ *
+ * If the information type is Audit Rule, then the information following
+ * is the rule number that triggered the user space decision that
+ * requires auditing.
+ */
+
+#define FAN_RESPONSE_INFO_NONE		0
+#define FAN_RESPONSE_INFO_AUDIT_RULE	1
+
 struct fanotify_response {
 	__s32 fd;
 	__u32 response;
 };
 
+struct fanotify_response_info_header {
+	__u8 type;
+	__u8 pad;
+	__u16 len;
+};
+
+struct fanotify_response_info_audit_rule {
+	struct fanotify_response_info_header hdr;
+	__u32 rule_number;
+	__u32 subj_trust;
+	__u32 obj_trust;
+};
+
 /* Legit userspace responses to a _PERM event */
 #define FAN_ALLOW	0x01
 #define FAN_DENY	0x02
-#define FAN_AUDIT	0x10	/* Bit mask to create audit record for result */
+#define FAN_AUDIT	0x10	/* Bitmask to create audit record for result */
+#define FAN_INFO	0x20	/* Bitmask to indicate additional information */
 
 /* No fd set in event */
 #define FAN_NOFD	-1

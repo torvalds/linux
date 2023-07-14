@@ -17,7 +17,7 @@
 #include <asm/domain.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/thread_info.h>
 
 #if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_SEMIHOSTING)
@@ -344,7 +344,7 @@ __create_page_tables:
 	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
 #endif
 
-#if defined(CONFIG_ARCH_NETWINDER) || defined(CONFIG_ARCH_CATS)
+#if defined(CONFIG_ARCH_NETWINDER)
 	/*
 	 * If we're using the NetWinder or CATS, we also need to map
 	 * in the 16550-type serial port for the debug messages

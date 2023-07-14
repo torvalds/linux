@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/gpio/microchip,mpfs-gpio.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Microchip MPFS GPIO Controller Device Tree Bindings
+title: Microchip MPFS GPIO Controller
 
 maintainers:
   - Conor Dooley <conor.dooley@microchip.com>
@@ -43,6 +43,24 @@ properties:
     default: 32
 
   gpio-controller: true
+
+patternProperties:
+  "^.+-hog(-[0-9]+)?$":
+    type: object
+
+    additionalProperties: false
+
+    properties:
+      gpio-hog: true
+      gpios: true
+      input: true
+      output-high: true
+      output-low: true
+      line-name: true
+
+    required:
+      - gpio-hog
+      - gpios
 
 required:
   - compatible

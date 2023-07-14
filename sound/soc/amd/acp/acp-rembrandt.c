@@ -204,23 +204,6 @@ static int acp6x_power_on(void __iomem *base)
 	return -ETIMEDOUT;
 }
 
-static int acp6x_power_off(void __iomem *base)
-{
-	u32 val;
-	int timeout;
-
-	writel(ACP_PGFSM_CNTL_POWER_OFF_MASK,
-	       base + ACP6X_PGFSM_CONTROL);
-	timeout = 0;
-	while (++timeout < 500) {
-		val = readl(base + ACP6X_PGFSM_STATUS);
-		if ((val & ACP_PGFSM_STATUS_MASK) == ACP_POWERED_OFF)
-			return 0;
-		udelay(1);
-	}
-	return -ETIMEDOUT;
-}
-
 static int acp6x_reset(void __iomem *base)
 {
 	u32 val;
@@ -299,14 +282,6 @@ static int rmb_acp_deinit(void __iomem *base)
 	}
 
 	writel(0x00, base + ACP_CONTROL);
-
-	/* power off */
-	ret = acp6x_power_off(base);
-	if (ret) {
-		pr_err("ACP power off failed\n");
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -366,28 +341,21 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rembrandt_audio_remove(struct platform_device *pdev)
+static void rembrandt_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
-	struct acp_chip_info *chip;
-
-	chip = dev_get_platdata(&pdev->dev);
-	if (!chip || !chip->base) {
-		dev_err(&pdev->dev, "ACP chip data is NULL\n");
-		return -ENODEV;
-	}
+	struct acp_chip_info *chip = dev_get_platdata(dev);
 
 	rmb_acp_deinit(chip->base);
 
 	acp6x_disable_interrupts(adata);
 	acp_platform_unregister(dev);
-	return 0;
 }
 
 static struct platform_driver rembrandt_driver = {
 	.probe = rembrandt_audio_probe,
-	.remove = rembrandt_audio_remove,
+	.remove_new = rembrandt_audio_remove,
 	.driver = {
 		.name = "acp_asoc_rembrandt",
 	},

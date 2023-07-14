@@ -265,7 +265,7 @@
     "BriefDescription": "Load Missed L1, counted at finish time."
   },
   {
-    "EventCode": "0x400FA",
+    "EventCode": "0x500FA",
     "EventName": "PM_RUN_INST_CMPL",
     "BriefDescription": "Completed PowerPC instructions gated by the run latch."
   }

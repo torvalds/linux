@@ -21,13 +21,9 @@
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 				struct camera_sensor_platform_data *plat_data,
 				enum intel_v4l2_subdev_type type);
-struct v4l2_subdev *atomisp_gmin_find_subdev(struct i2c_adapter *adapter,
-	struct i2c_board_info *board_info);
 int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd);
 int gmin_get_var_int(struct device *dev, bool is_gmin,
 		     const char *var, int def);
-int camera_sensor_csi(struct v4l2_subdev *sd, u32 port,
-		      u32 lanes, u32 format, u32 bayer_order, int flag);
 struct camera_sensor_platform_data *
 gmin_camera_platform_data(
     struct v4l2_subdev *subdev,

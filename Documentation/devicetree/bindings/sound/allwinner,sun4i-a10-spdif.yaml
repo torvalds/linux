@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/allwinner,sun4i-a10-spdif.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 S/PDIF Controller Device Tree Bindings
+title: Allwinner A10 S/PDIF Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -54,6 +54,7 @@ properties:
     maxItems: 1
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -104,7 +105,7 @@ required:
   - dmas
   - dma-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

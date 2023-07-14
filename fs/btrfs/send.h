@@ -10,13 +10,20 @@
 #include <linux/types.h>
 
 #define BTRFS_SEND_STREAM_MAGIC "btrfs-stream"
+/* Conditional support for the upcoming protocol version. */
+#ifdef CONFIG_BTRFS_DEBUG
+#define BTRFS_SEND_STREAM_VERSION 3
+#else
 #define BTRFS_SEND_STREAM_VERSION 2
+#endif
 
 /*
- * In send stream v1, no command is larger than 64K. In send stream v2, no limit
- * should be assumed.
+ * In send stream v1, no command is larger than 64K. In send stream v2, no
+ * limit should be assumed, the buffer size is set to be a header with
+ * compressed extent size.
  */
 #define BTRFS_SEND_BUF_SIZE_V1				SZ_64K
+#define BTRFS_SEND_BUF_SIZE_V2	ALIGN(SZ_16K + BTRFS_MAX_COMPRESSED, PAGE_SIZE)
 
 struct inode;
 struct btrfs_ioctl_send_args;
@@ -92,8 +99,11 @@ enum btrfs_send_cmd {
 	BTRFS_SEND_C_ENCODED_WRITE	= 25,
 	BTRFS_SEND_C_MAX_V2		= 25,
 
+	/* Version 3 */
+	BTRFS_SEND_C_ENABLE_VERITY	= 26,
+	BTRFS_SEND_C_MAX_V3		= 26,
 	/* End */
-	BTRFS_SEND_C_MAX		= 25,
+	BTRFS_SEND_C_MAX		= 26,
 };
 
 /* attributes in send stream */
@@ -160,8 +170,14 @@ enum {
 	BTRFS_SEND_A_ENCRYPTION		= 31,
 	BTRFS_SEND_A_MAX_V2		= 31,
 
-	/* End */
-	BTRFS_SEND_A_MAX		= 31,
+	/* Version 3 */
+	BTRFS_SEND_A_VERITY_ALGORITHM	= 32,
+	BTRFS_SEND_A_VERITY_BLOCK_SIZE	= 33,
+	BTRFS_SEND_A_VERITY_SALT_DATA	= 34,
+	BTRFS_SEND_A_VERITY_SIG_DATA	= 35,
+	BTRFS_SEND_A_MAX_V3		= 35,
+
+	__BTRFS_SEND_A_MAX		= 35,
 };
 
 long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg);

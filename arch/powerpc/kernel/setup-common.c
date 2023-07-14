@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/initrd.h>
 #include <linux/platform_device.h>
+#include <linux/printk.h>
 #include <linux/seq_file.h>
 #include <linux/ioport.h>
 #include <linux/console.h>
@@ -25,6 +26,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpu.h>
 #include <linux/unistd.h>
+#include <linux/seq_buf.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/percpu.h>
@@ -57,6 +59,7 @@
 #include <asm/xmon.h>
 #include <asm/cputhreads.h>
 #include <mm/mmu_decl.h>
+#include <asm/archrandom.h>
 #include <asm/fadump.h>
 #include <asm/udbg.h>
 #include <asm/hugetlb.h>
@@ -83,6 +86,10 @@ EXPORT_SYMBOL(machine_id);
 
 int boot_cpuid = -1;
 EXPORT_SYMBOL_GPL(boot_cpuid);
+
+#ifdef CONFIG_PPC64
+int boot_cpu_hwid = -1;
+#endif
 
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
@@ -588,6 +595,15 @@ static __init int add_pcspkr(void)
 device_initcall(add_pcspkr);
 #endif	/* CONFIG_PCSPKR_PLATFORM */
 
+static char ppc_hw_desc_buf[128] __initdata;
+
+struct seq_buf ppc_hw_desc __initdata = {
+	.buffer = ppc_hw_desc_buf,
+	.size = sizeof(ppc_hw_desc_buf),
+	.len = 0,
+	.readpos = 0,
+};
+
 static __init void probe_machine(void)
 {
 	extern struct machdep_calls __machine_desc_start;
@@ -614,13 +630,14 @@ static __init void probe_machine(void)
 	for (machine_id = &__machine_desc_start;
 	     machine_id < &__machine_desc_end;
 	     machine_id++) {
-		DBG("  %s ...", machine_id->name);
+		DBG("  %s ...\n", machine_id->name);
+		if (machine_id->compatible && !of_machine_is_compatible(machine_id->compatible))
+			continue;
 		memcpy(&ppc_md, machine_id, sizeof(struct machdep_calls));
-		if (ppc_md.probe()) {
-			DBG(" match !\n");
-			break;
-		}
-		DBG("\n");
+		if (ppc_md.probe && !ppc_md.probe())
+			continue;
+		DBG("   %s match !\n", machine_id->name);
+		break;
 	}
 	/* What can we do if we didn't find ? */
 	if (machine_id >= &__machine_desc_end) {
@@ -628,7 +645,13 @@ static __init void probe_machine(void)
 		for (;;);
 	}
 
-	printk(KERN_INFO "Using %s machine description\n", ppc_md.name);
+	// Append the machine name to other info we've gathered
+	seq_buf_puts(&ppc_hw_desc, ppc_md.name);
+
+	// Set the generic hardware description shown in oopses
+	dump_stack_set_arch_desc(ppc_hw_desc.buffer);
+
+	pr_info("Hardware name: %s\n", ppc_hw_desc.buffer);
 }
 
 /* Match a class of boards, not a specific device configuration. */

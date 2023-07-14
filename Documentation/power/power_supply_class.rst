@@ -40,8 +40,8 @@ kind of power supply, and can process/present them to a user in consistent
 manner. Results for different power supplies and machines are also directly
 comparable.
 
-See drivers/power/supply/ds2760_battery.c and drivers/power/supply/pda_power.c
-for the example how to declare and handle attributes.
+See drivers/power/supply/ds2760_battery.c for the example how to declare
+and handle attributes.
 
 
 Units

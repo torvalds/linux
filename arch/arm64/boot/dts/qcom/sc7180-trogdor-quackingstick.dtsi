@@ -13,7 +13,7 @@
 /delete-node/ &usb_c1;
 
 / {
-	ppvar_lcd: ppvar-lcd {
+	ppvar_lcd: ppvar-lcd-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "ppvar_lcd";
 
@@ -25,7 +25,7 @@
 		vin-supply = <&pp5000_a>;
 	};
 
-	v1p8_disp: v1p8-disp {
+	v1p8_disp: v1p8-disp-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "v1p8_disp";
 
@@ -52,41 +52,6 @@
 	};
 };
 
-&dsi0 {
-	panel: panel@0 {
-		/* Compatible will be filled in per-board */
-		reg = <0>;
-		enable-gpios = <&tlmm 87 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_rst>;
-		avdd-supply = <&ppvar_lcd>;
-		pp1800-supply = <&v1p8_disp>;
-		pp3300-supply = <&pp3300_dx_edp>;
-		backlight = <&backlight>;
-		rotation = <270>;
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				panel_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
-				};
-			};
-		};
-	};
-
-	ports {
-		port@1 {
-			endpoint {
-				remote-endpoint = <&panel_in>;
-				data-lanes = <0 1 2 3>;
-			};
-		};
-	};
-};
-
 &gpio_keys {
 	status = "okay";
 };
@@ -108,6 +73,36 @@
 		hid-descr-addr = <0x0001>;
 
 		vdd-supply = <&pp3300_ts>;
+	};
+};
+
+&mdss_dsi0 {
+	panel: panel@0 {
+		/* Compatible will be filled in per-board */
+		reg = <0>;
+		enable-gpios = <&tlmm 87 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst>;
+		avdd-supply = <&ppvar_lcd>;
+		pp1800-supply = <&v1p8_disp>;
+		pp3300-supply = <&pp3300_dx_edp>;
+		backlight = <&backlight>;
+		rotation = <270>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+
+	ports {
+		port@1 {
+			endpoint {
+				remote-endpoint = <&panel_in>;
+				data-lanes = <0 1 2 3>;
+			};
+		};
 	};
 };
 
@@ -147,13 +142,7 @@ pp3300_disp_on: &pp3300_dx_edp {
  */
 
 tp_en: &en_pp3300_dx_edp {
-	pinmux {
-		pins = "gpio67";
-	};
-
-	pinconf {
-		pins = "gpio67";
-	};
+	pins = "gpio67";
 };
 
 /* PINCTRL - board-specific pinctrl */
@@ -283,42 +272,24 @@ tp_en: &en_pp3300_dx_edp {
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
 
-	lcd_rst: lcd-rst {
-		pinmux {
-			pins = "gpio87";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio87";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	lcd_rst: lcd-rst-state {
+		pins = "gpio87";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	ppvar_lcd_en: ppvar-lcd-en {
-		pinmux {
-			pins = "gpio88";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio88";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	ppvar_lcd_en: ppvar-lcd-en-state {
+		pins = "gpio88";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
-	pp1800_disp_on: pp1800-disp-on {
-		pinmux {
-			pins = "gpio86";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio86";
-			drive-strength = <2>;
-			bias-disable;
-		};
+	pp1800_disp_on: pp1800-disp-on-state {
+		pins = "gpio86";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 };

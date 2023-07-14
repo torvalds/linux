@@ -307,14 +307,6 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
-	config DEBUG_CNS3XXX
-		bool "Kernel Kernel low-level debugging on Cavium Networks CNS3xxx"
-		depends on ARCH_CNS3XXX
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want the debug print routines to direct
-                  their output to the CNS3xxx UART0.
-
 	config DEBUG_DAVINCI_DA8XX_UART1
 		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
 		depends on ARCH_DAVINCI_DA8XX
@@ -330,14 +322,6 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART2 serial port on DaVinci DA8XX devices.
-
-	config DEBUG_DAVINCI_DMx_UART0
-		bool "Kernel low-level debugging on DaVinci DMx using UART0"
-		depends on ARCH_DAVINCI_DMx
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART0 serial port on DaVinci DMx devices.
 
 	config DEBUG_DC21285_PORT
 		bool "Kernel low-level debugging messages via footbridge serial port"
@@ -768,30 +752,6 @@ choice
 		depends on ARCH_OMAP2PLUS
 		select DEBUG_UART_8250
 
-	config DEBUG_OMAP7XXUART1
-		bool "Kernel low-level debugging via OMAP730 UART1"
-		depends on ARCH_OMAP730
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on OMAP730 based platforms on the UART1.
-
-	config DEBUG_OMAP7XXUART2
-		bool "Kernel low-level debugging via OMAP730 UART2"
-		depends on ARCH_OMAP730
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on OMAP730 based platforms on the UART2.
-
-	config DEBUG_OMAP7XXUART3
-		bool "Kernel low-level debugging via OMAP730 UART3"
-		depends on ARCH_OMAP730
-		select DEBUG_UART_8250
-		help
-		  Say Y here if you want kernel low-level debugging support
-		  on OMAP730 based platforms on the UART3.
-
 	config DEBUG_TI81XXUART1
 		bool "Kernel low-level debugging messages via TI81XX UART1 (ti8148evm)"
 		depends on ARCH_OMAP2PLUS
@@ -1046,7 +1006,6 @@ choice
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
-		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		select DEBUG_S3C64XX_UART if ARCH_S3C64XX
 		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 0 for low-level debug"
@@ -1058,7 +1017,6 @@ choice
 	config DEBUG_S3C_UART1
 		depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
-		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		select DEBUG_S3C64XX_UART if ARCH_S3C64XX
 		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 1 for low-level debug"
@@ -1070,7 +1028,6 @@ choice
 	config DEBUG_S3C_UART2
 		depends on PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
-		select DEBUG_S3C24XX_UART if ARCH_S3C24XX
 		select DEBUG_S3C64XX_UART if ARCH_S3C64XX
 		select DEBUG_S5PV210_UART if ARCH_S5PV210
 		bool "Use Samsung S3C UART 2 for low-level debug"
@@ -1088,33 +1045,6 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to UART 3. The port must have been initialised
-		  by the boot-loader before use.
-
-	config DEBUG_S3C2410_UART0
-		depends on ARCH_S3C24XX
-		select DEBUG_S3C2410_UART
-		bool "Use S3C2410/S3C2412 UART 0 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 0. The port must have been initialised
-		  by the boot-loader before use.
-
-	config DEBUG_S3C2410_UART1
-		depends on ARCH_S3C24XX
-		select DEBUG_S3C2410_UART
-		bool "Use S3C2410/S3C2412 UART 1 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 1. The port must have been initialised
-		  by the boot-loader before use.
-
-	config DEBUG_S3C2410_UART2
-		depends on ARCH_S3C24XX
-		select DEBUG_S3C2410_UART
-		bool "Use S3C2410/S3C2412 UART 2 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 2. The port must have been initialised
 		  by the boot-loader before use.
 
 	config DEBUG_SA1100
@@ -1276,8 +1206,8 @@ choice
 		depends on MACH_STM32MP157
 		select DEBUG_STM32_UART
 		help
-		  Say Y here if you want kernel low-level debugging support
-		  on STM32MP1 based platforms, wich default UART is wired on
+		  Say Y here if you want kernel low-level debugging support on
+		  STM32MP1-based platforms, where the default UART is wired to
 		  UART4, but another UART instance can be selected by modifying
 		  CONFIG_DEBUG_UART_PHYS and CONFIG_DEBUG_UART_VIRT.
 
@@ -1479,13 +1409,6 @@ config DEBUG_AT91_UART
 config DEBUG_EXYNOS_UART
 	bool
 
-config DEBUG_S3C2410_UART
-	bool
-	select DEBUG_S3C24XX_UART
-
-config DEBUG_S3C24XX_UART
-	bool
-
 config DEBUG_S3C64XX_UART
 	bool
 
@@ -1493,8 +1416,7 @@ config DEBUG_S5PV210_UART
 	bool
 
 config DEBUG_S3C_UART
-	depends on DEBUG_S3C2410_UART || DEBUG_S3C24XX_UART || \
-		   DEBUG_S3C64XX_UART ||  DEBUG_S5PV210_UART || \
+	depends on DEBUG_S3C64XX_UART ||  DEBUG_S5PV210_UART || \
 		   DEBUG_EXYNOS_UART
 	int
 	default "0" if DEBUG_S3C_UART0
@@ -1595,7 +1517,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA0
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA1
 	default "debug/renesas-scif.S" if DEBUG_RMOBILE_SCIFA4
-	default "debug/s3c24xx.S" if DEBUG_S3C24XX_UART || DEBUG_S3C64XX_UART
+	default "debug/s3c24xx.S" if DEBUG_S3C64XX_UART
 	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
 	default "debug/sti.S" if DEBUG_STIH41X_ASC2
 	default "debug/sti.S" if DEBUG_STIH41X_SBC_ASC1
@@ -1618,11 +1540,10 @@ config DEBUG_UART_PL01X
 
 # Compatibility options for 8250
 config DEBUG_UART_8250
-	def_bool ARCH_IOP32X || ARCH_IXP4XX || ARCH_RPC
+	def_bool ARCH_IXP4XX || ARCH_RPC
 
 config DEBUG_UART_PHYS
 	hex "Physical base address of debug UART"
-	default 0x01c20000 if DEBUG_DAVINCI_DMx_UART0
 	default 0x01c28000 if DEBUG_SUNXI_UART0
 	default 0x01c28400 if DEBUG_SUNXI_UART1
 	default 0x01d0c000 if DEBUG_DAVINCI_DA8XX_UART1
@@ -1679,13 +1600,6 @@ config DEBUG_UART_PHYS
 	default 0x4806e000 if DEBUG_OMAP2UART3 || DEBUG_OMAP4UART4
 	default 0x49020000 if DEBUG_OMAP3UART3
 	default 0x49042000 if DEBUG_OMAP3UART4
-	default 0x50000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
-				DEBUG_S3C2410_UART0)
-	default 0x50004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
-				DEBUG_S3C2410_UART1)
-	default 0x50008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
-				DEBUG_S3C2410_UART2)
-	default 0x78000000 if DEBUG_CNS3XXX
 	default 0x7c0003f8 if DEBUG_FOOTBRIDGE_COM1
 	default 0x7f005000 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART0
 	default 0x7f005400 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART1
@@ -1729,7 +1643,6 @@ config DEBUG_UART_PHYS
 	default 0xfcb00000 if DEBUG_HI3620_UART
 	default 0xfd883000 if DEBUG_ALPINE_UART0
 	default 0xfe531000 if DEBUG_STIH41X_SBC_ASC1
-	default 0xfe800000 if ARCH_IOP32X
 	default 0xfed32000 if DEBUG_STIH41X_ASC2
 	default 0xff690000 if DEBUG_RK32_UART2
 	default 0xffc02000 if DEBUG_SOCFPGA_UART0
@@ -1738,9 +1651,9 @@ config DEBUG_UART_PHYS
 	default 0xffe40000 if DEBUG_RCAR_GEN1_SCIF0
 	default 0xffe42000 if DEBUG_RCAR_GEN1_SCIF2
 	default 0xfff36000 if DEBUG_HIGHBANK_UART
-	default 0xfffb0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
-	default 0xfffb0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
-	default 0xfffb9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
+	default 0xfffb0000 if DEBUG_OMAP1UART1
+	default 0xfffb0800 if DEBUG_OMAP1UART2
+	default 0xfffb9800 if DEBUG_OMAP1UART3
 	default 0xfffe8600 if DEBUG_BCM63XX_UART
 	default 0xffffee00 if DEBUG_AT91_SAM9263_DBGU
 	default 0xfffff200 if DEBUG_AT91_RM9200_DBGU
@@ -1754,7 +1667,7 @@ config DEBUG_UART_PHYS
 		DEBUG_RCAR_GEN2_SCIF2 || DEBUG_RCAR_GEN2_SCIF4 || \
 		DEBUG_RCAR_GEN2_SCIFA2 || \
 		DEBUG_RMOBILE_SCIFA0 || DEBUG_RMOBILE_SCIFA1 || \
-		DEBUG_RMOBILE_SCIFA4 || DEBUG_S3C24XX_UART || \
+		DEBUG_RMOBILE_SCIFA4 || \
 		DEBUG_S3C64XX_UART || \
 		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_DIGICOLOR_UA0 || \
@@ -1791,15 +1704,9 @@ config DEBUG_UART_VIRT
 	default 0xf6200000 if DEBUG_PXA_UART1
 	default 0xf7000000 if DEBUG_SUN9I_UART0
 	default 0xf7000000 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART0
-	default 0xf7000000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART0 || \
-				DEBUG_S3C2410_UART0)
 	default 0xf7000400 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART1
 	default 0xf7000800 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART2
 	default 0xf7000c00 if DEBUG_S3C64XX_UART && DEBUG_S3C_UART3
-	default 0xf7004000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART1 || \
-				DEBUG_S3C2410_UART1)
-	default 0xf7008000 if DEBUG_S3C24XX_UART && (DEBUG_S3C_UART2 || \
-				DEBUG_S3C2410_UART2)
 	default 0xf7020000 if DEBUG_AT91_SAMA5D2_UART1
 	default 0xf7fc9000 if DEBUG_BERLIN_UART
 	default 0xf8007000 if DEBUG_HIP04_UART
@@ -1818,7 +1725,6 @@ config DEBUG_UART_VIRT
 				DEBUG_OMAP4UART2 || DEBUG_OMAP5UART2
 	default 0xfa06e000 if DEBUG_OMAP2UART3 || DEBUG_OMAP4UART4
 	default 0xfa71e000 if DEBUG_QCOM_UARTDM
-	default 0xfb002000 if DEBUG_CNS3XXX
 	default 0xfb009000 if DEBUG_REALVIEW_STD_PORT
 	default 0xfb00c000 if DEBUG_AT91_SAMA5D4_USART3
 	default 0xfb020000 if DEBUG_OMAP3UART3
@@ -1835,7 +1741,6 @@ config DEBUG_UART_VIRT
 	default 0xfe018000 if DEBUG_MMP_UART3
 	default 0xfe100000 if DEBUG_IMX23_UART || DEBUG_IMX28_UART
 	default 0xfe300000 if DEBUG_BCM_KONA_UART
-	default 0xfe800000 if ARCH_IOP32X
 	default 0xfeb00000 if DEBUG_HI3620_UART || DEBUG_HIX5HD2_UART
 	default 0xfeb24000 if DEBUG_RK3X_UART0
 	default 0xfeb26000 if DEBUG_RK3X_UART1
@@ -1846,7 +1751,6 @@ config DEBUG_UART_VIRT
 	default 0xfec03000 if DEBUG_SOCFPGA_CYCLONE5_UART1
 	default 0xfec12000 if DEBUG_MVEBU_UART0 || DEBUG_MVEBU_UART0_ALTERNATE
 	default 0xfec12100 if DEBUG_MVEBU_UART1_ALTERNATE
-	default 0xfec20000 if DEBUG_DAVINCI_DMx_UART0
 	default 0xfec90000 if DEBUG_RK32_UART2
 	default 0xfed0c000 if DEBUG_DAVINCI_DA8XX_UART1
 	default 0xfed0d000 if DEBUG_DAVINCI_DA8XX_UART2 || DEBUG_SD5203_UART
@@ -1859,14 +1763,14 @@ config DEBUG_UART_VIRT
 	default 0xfec00000 if ARCH_IXP4XX && !CPU_BIG_ENDIAN
 	default 0xfec00003 if ARCH_IXP4XX && CPU_BIG_ENDIAN
 	default 0xfef36000 if DEBUG_HIGHBANK_UART
-	default 0xff0b0000 if DEBUG_OMAP1UART1 || DEBUG_OMAP7XXUART1
-	default 0xff0b0800 if DEBUG_OMAP1UART2 || DEBUG_OMAP7XXUART2
-	default 0xff0b9800 if DEBUG_OMAP1UART3 || DEBUG_OMAP7XXUART3
+	default 0xff0b0000 if DEBUG_OMAP1UART1
+	default 0xff0b0800 if DEBUG_OMAP1UART2
+	default 0xff0b9800 if DEBUG_OMAP1UART3
 	default 0xffd01000 if DEBUG_HIP01_UART
 	default DEBUG_UART_PHYS if !MMU
 	depends on DEBUG_LL_UART_8250 || DEBUG_LL_UART_PL01X || \
 		DEBUG_UART_8250 || DEBUG_UART_PL01X || DEBUG_MESON_UARTAO || \
-		DEBUG_QCOM_UARTDM || DEBUG_S3C24XX_UART || \
+		DEBUG_QCOM_UARTDM || \
 		DEBUG_S3C64XX_UART || \
 		DEBUG_BCM63XX_UART || DEBUG_ASM9260_UART || \
 		DEBUG_DIGICOLOR_UA0 || \
@@ -1877,9 +1781,8 @@ config DEBUG_UART_VIRT
 config DEBUG_UART_8250_SHIFT
 	int "Register offset shift for the 8250 debug UART"
 	depends on DEBUG_LL_UART_8250 || DEBUG_UART_8250
-	default 0 if DEBUG_FOOTBRIDGE_COM1 || ARCH_IOP32X || DEBUG_BCM_5301X || \
-		DEBUG_BCM_HR2 || DEBUG_OMAP7XXUART1 || DEBUG_OMAP7XXUART2 || \
-		DEBUG_OMAP7XXUART3
+	default 0 if DEBUG_FOOTBRIDGE_COM1 || DEBUG_BCM_5301X || \
+		DEBUG_BCM_HR2
 	default 3 if DEBUG_MSTARV7_PMUART
 	default 2
 
@@ -1890,9 +1793,9 @@ config DEBUG_UART_8250_WORD
 	default y if DEBUG_SOCFPGA_UART0 || DEBUG_SOCFPGA_ARRIA10_UART1 || \
 		DEBUG_SOCFPGA_CYCLONE5_UART1 || DEBUG_KEYSTONE_UART0 || \
 		DEBUG_KEYSTONE_UART1 || DEBUG_ALPINE_UART0 || \
-		DEBUG_DAVINCI_DMx_UART0 || DEBUG_DAVINCI_DA8XX_UART1 || \
-		DEBUG_DAVINCI_DA8XX_UART2 || DEBUG_BCM_IPROC_UART3 || \
-		DEBUG_BCM_KONA_UART || DEBUG_RK32_UART2
+		DEBUG_DAVINCI_DA8XX_UART1 || DEBUG_DAVINCI_DA8XX_UART2 || \
+		DEBUG_BCM_IPROC_UART3 || DEBUG_BCM_KONA_UART || \
+		DEBUG_RK32_UART2
 
 config DEBUG_UART_8250_PALMCHIP
 	bool "8250 UART is Palmchip BK-310x"
@@ -1904,7 +1807,8 @@ config DEBUG_UART_8250_PALMCHIP
 
 config DEBUG_UNCOMPRESS
 	bool "Enable decompressor debugging via DEBUG_LL output"
-	depends on ARCH_MULTIPLATFORM || PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
+	depends on !ARCH_MULTIPLATFORM
+	depends on !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
 	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
 		     !DEBUG_BRCMSTB_UART && !DEBUG_SEMIHOSTING
@@ -1921,9 +1825,8 @@ config DEBUG_UNCOMPRESS
 
 config UNCOMPRESS_INCLUDE
 	string
-	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M
-	default "mach/uncompress.h"
+	default "mach/uncompress.h" if ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100
+	default "debug/uncompress.h"
 
 config EARLY_PRINTK
 	bool "Early printk"

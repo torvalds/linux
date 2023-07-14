@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/allwinner,sun4i-a10-codec.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Codec Device Tree Bindings
+title: Allwinner A10 Codec
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -102,6 +102,7 @@ required:
   - dma-names
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -228,7 +229,7 @@ allOf:
               - Mic
               - Speaker
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

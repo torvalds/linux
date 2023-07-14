@@ -83,56 +83,102 @@ const char *const *amdgpu_dm_crtc_get_crc_sources(struct drm_crtc *crtc,
 }
 
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc)
+static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc, struct dc_stream_state *stream)
 {
 	struct drm_device *drm_dev = crtc->dev;
+	struct amdgpu_display_manager *dm = &drm_to_adev(drm_dev)->dm;
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	bool was_activated;
 
 	spin_lock_irq(&drm_dev->event_lock);
-	acrtc->dm_irq_params.crc_window.x_start = 0;
-	acrtc->dm_irq_params.crc_window.y_start = 0;
-	acrtc->dm_irq_params.crc_window.x_end = 0;
-	acrtc->dm_irq_params.crc_window.y_end = 0;
-	acrtc->dm_irq_params.crc_window.activated = false;
-	acrtc->dm_irq_params.crc_window.update_win = false;
-	acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
+	was_activated = acrtc->dm_irq_params.window_param.activated;
+	acrtc->dm_irq_params.window_param.x_start = 0;
+	acrtc->dm_irq_params.window_param.y_start = 0;
+	acrtc->dm_irq_params.window_param.x_end = 0;
+	acrtc->dm_irq_params.window_param.y_end = 0;
+	acrtc->dm_irq_params.window_param.activated = false;
+	acrtc->dm_irq_params.window_param.update_win = false;
+	acrtc->dm_irq_params.window_param.skip_frame_cnt = 0;
 	spin_unlock_irq(&drm_dev->event_lock);
+
+	/* Disable secure_display if it was enabled */
+	if (was_activated) {
+		/* stop ROI update on this crtc */
+		flush_work(&dm->secure_display_ctxs[crtc->index].notify_ta_work);
+		flush_work(&dm->secure_display_ctxs[crtc->index].forward_roi_work);
+		dc_stream_forward_crc_window(stream, NULL, true);
+	}
 }
 
 static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 {
-	struct crc_rd_work *crc_rd_wrk;
-	struct amdgpu_device *adev;
+	struct secure_display_context *secure_display_ctx;
 	struct psp_context *psp;
-	struct securedisplay_cmd *securedisplay_cmd;
+	struct ta_securedisplay_cmd *securedisplay_cmd;
 	struct drm_crtc *crtc;
-	uint8_t phy_id;
+	struct dc_stream_state *stream;
+	uint8_t phy_inst;
 	int ret;
 
-	crc_rd_wrk = container_of(work, struct crc_rd_work, notify_ta_work);
-	spin_lock_irq(&crc_rd_wrk->crc_rd_work_lock);
-	crtc = crc_rd_wrk->crtc;
+	secure_display_ctx = container_of(work, struct secure_display_context, notify_ta_work);
+	crtc = secure_display_ctx->crtc;
 
 	if (!crtc) {
-		spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
 		return;
 	}
 
-	adev = drm_to_adev(crtc->dev);
-	psp = &adev->psp;
-	phy_id = crc_rd_wrk->phy_inst;
-	spin_unlock_irq(&crc_rd_wrk->crc_rd_work_lock);
+	psp = &drm_to_adev(crtc->dev)->psp;
+
+	if (!psp->securedisplay_context.context.initialized) {
+		DRM_DEBUG_DRIVER("Secure Display fails to notify PSP TA\n");
+		return;
+	}
+
+	stream = to_amdgpu_crtc(crtc)->dm_irq_params.stream;
+	phy_inst = stream->link->link_enc_hw_inst;
+
+	/* need lock for multiple crtcs to use the command buffer */
+	mutex_lock(&psp->securedisplay_context.mutex);
 
 	psp_prep_securedisplay_cmd_buf(psp, &securedisplay_cmd,
 						TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
-	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id =
-						phy_id;
+
+	securedisplay_cmd->securedisplay_in_message.send_roi_crc.phy_id = phy_inst;
+
+	/* PSP TA is expected to finish data transmission over I2C within current frame,
+	 * even there are up to 4 crtcs request to send in this frame.
+	 */
 	ret = psp_securedisplay_invoke(psp, TA_SECUREDISPLAY_COMMAND__SEND_ROI_CRC);
+
 	if (!ret) {
 		if (securedisplay_cmd->status != TA_SECUREDISPLAY_STATUS__SUCCESS) {
 			psp_securedisplay_parse_resp_status(psp, securedisplay_cmd->status);
 		}
 	}
+
+	mutex_unlock(&psp->securedisplay_context.mutex);
+}
+
+static void
+amdgpu_dm_forward_crc_window(struct work_struct *work)
+{
+	struct secure_display_context *secure_display_ctx;
+	struct amdgpu_display_manager *dm;
+	struct drm_crtc *crtc;
+	struct dc_stream_state *stream;
+
+	secure_display_ctx = container_of(work, struct secure_display_context, forward_roi_work);
+	crtc = secure_display_ctx->crtc;
+
+	if (!crtc)
+		return;
+
+	dm = &drm_to_adev(crtc->dev)->dm;
+	stream = to_amdgpu_crtc(crtc)->dm_irq_params.stream;
+
+	mutex_lock(&dm->dc_lock);
+	dc_stream_forward_crc_window(stream, &secure_display_ctx->rect, false);
+	mutex_unlock(&dm->dc_lock);
 }
 
 bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc)
@@ -142,7 +188,7 @@ bool amdgpu_dm_crc_window_is_activated(struct drm_crtc *crtc)
 	bool ret = false;
 
 	spin_lock_irq(&drm_dev->event_lock);
-	ret = acrtc->dm_irq_params.crc_window.activated;
+	ret = acrtc->dm_irq_params.window_param.activated;
 	spin_unlock_irq(&drm_dev->event_lock);
 
 	return ret;
@@ -180,22 +226,8 @@ int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
 
 	mutex_lock(&adev->dm.dc_lock);
 
-	/* Enable CRTC CRC generation if necessary. */
+	/* Enable or disable CRTC CRC generation */
 	if (dm_is_crc_source_crtc(source) || source == AMDGPU_DM_PIPE_CRC_SOURCE_NONE) {
-#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-		if (!enable) {
-			if (adev->dm.crc_rd_wrk) {
-				flush_work(&adev->dm.crc_rd_wrk->notify_ta_work);
-				spin_lock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
-				if (adev->dm.crc_rd_wrk->crtc == crtc) {
-					dc_stream_stop_dmcu_crc_win_update(stream_state->ctx->dc,
-									dm_crtc_state->stream);
-					adev->dm.crc_rd_wrk->crtc = NULL;
-				}
-				spin_unlock_irq(&adev->dm.crc_rd_wrk->crc_rd_work_lock);
-			}
-		}
-#endif
 		if (!dc_stream_configure_crc(stream_state->ctx->dc,
 					     stream_state, NULL, enable, enable)) {
 			ret = -EINVAL;
@@ -307,7 +339,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 			goto cleanup;
 		}
 
-		aux = (aconn->port) ? &aconn->port->aux : &aconn->dm_dp_aux.aux;
+		aux = (aconn->mst_output_port) ? &aconn->mst_output_port->aux : &aconn->dm_dp_aux.aux;
 
 		if (!aux) {
 			DRM_DEBUG_DRIVER("No dp aux for amd connector\n");
@@ -325,7 +357,8 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 	}
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
-	amdgpu_dm_set_crc_window_default(crtc);
+	/* Reset secure_display when we change crc source from debugfs */
+	amdgpu_dm_set_crc_window_default(crtc, crtc_state->stream);
 #endif
 
 	if (amdgpu_dm_crtc_configure_crc_source(crtc, crtc_state, source)) {
@@ -434,19 +467,12 @@ void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc)
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 {
-	struct dc_stream_state *stream_state;
 	struct drm_device *drm_dev = NULL;
 	enum amdgpu_dm_pipe_crc_source cur_crc_src;
 	struct amdgpu_crtc *acrtc = NULL;
 	struct amdgpu_device *adev = NULL;
-	struct crc_rd_work *crc_rd_wrk = NULL;
-	struct crc_params *crc_window = NULL, tmp_window;
-	unsigned long flags1, flags2;
-	struct crtc_position position;
-	uint32_t v_blank;
-	uint32_t v_back_porch;
-	uint32_t crc_window_latch_up_line;
-	struct dc_crtc_timing *timing_out;
+	struct secure_display_context *secure_display_ctx = NULL;
+	unsigned long flags1;
 
 	if (crtc == NULL)
 		return;
@@ -456,95 +482,76 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	drm_dev = crtc->dev;
 
 	spin_lock_irqsave(&drm_dev->event_lock, flags1);
-	stream_state = acrtc->dm_irq_params.stream;
 	cur_crc_src = acrtc->dm_irq_params.crc_src;
-	timing_out = &stream_state->timing;
 
 	/* Early return if CRC capture is not enabled. */
-	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src))
+	if (!amdgpu_dm_is_valid_crc_source(cur_crc_src) ||
+		!dm_is_crc_source_crtc(cur_crc_src))
 		goto cleanup;
 
-	if (dm_is_crc_source_crtc(cur_crc_src)) {
-		if (acrtc->dm_irq_params.crc_window.activated) {
-			if (acrtc->dm_irq_params.crc_window.update_win) {
-				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt) {
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt -= 1;
-					goto cleanup;
-				}
-				crc_window = &tmp_window;
+	if (!acrtc->dm_irq_params.window_param.activated)
+		goto cleanup;
 
-				tmp_window.windowa_x_start =
-							acrtc->dm_irq_params.crc_window.x_start;
-				tmp_window.windowa_y_start =
-							acrtc->dm_irq_params.crc_window.y_start;
-				tmp_window.windowa_x_end =
-							acrtc->dm_irq_params.crc_window.x_end;
-				tmp_window.windowa_y_end =
-							acrtc->dm_irq_params.crc_window.y_end;
-				tmp_window.windowb_x_start =
-							acrtc->dm_irq_params.crc_window.x_start;
-				tmp_window.windowb_y_start =
-							acrtc->dm_irq_params.crc_window.y_start;
-				tmp_window.windowb_x_end =
-							acrtc->dm_irq_params.crc_window.x_end;
-				tmp_window.windowb_y_end =
-							acrtc->dm_irq_params.crc_window.y_end;
+	if (acrtc->dm_irq_params.window_param.skip_frame_cnt) {
+		acrtc->dm_irq_params.window_param.skip_frame_cnt -= 1;
+		goto cleanup;
+	}
 
-				dc_stream_forward_dmcu_crc_window(stream_state->ctx->dc,
-									stream_state, crc_window);
+	secure_display_ctx = &adev->dm.secure_display_ctxs[acrtc->crtc_id];
+	if (WARN_ON(secure_display_ctx->crtc != crtc)) {
+		/* We have set the crtc when creating secure_display_context,
+		 * don't expect it to be changed here.
+		 */
+		secure_display_ctx->crtc = crtc;
+	}
 
-				acrtc->dm_irq_params.crc_window.update_win = false;
+	if (acrtc->dm_irq_params.window_param.update_win) {
+		/* prepare work for dmub to update ROI */
+		secure_display_ctx->rect.x = acrtc->dm_irq_params.window_param.x_start;
+		secure_display_ctx->rect.y = acrtc->dm_irq_params.window_param.y_start;
+		secure_display_ctx->rect.width = acrtc->dm_irq_params.window_param.x_end -
+								acrtc->dm_irq_params.window_param.x_start;
+		secure_display_ctx->rect.height = acrtc->dm_irq_params.window_param.y_end -
+								acrtc->dm_irq_params.window_param.y_start;
+		schedule_work(&secure_display_ctx->forward_roi_work);
 
-				dc_stream_get_crtc_position(stream_state->ctx->dc, &stream_state, 1,
-					&position.vertical_count,
-					&position.nominal_vcount);
+		acrtc->dm_irq_params.window_param.update_win = false;
 
-				v_blank = timing_out->v_total - timing_out->v_border_top -
-					timing_out->v_addressable - timing_out->v_border_bottom;
+		/* Statically skip 1 frame, because we may need to wait below things
+		 * before sending ROI to dmub:
+		 * 1. We defer the work by using system workqueue.
+		 * 2. We may need to wait for dc_lock before accessing dmub.
+		 */
+		acrtc->dm_irq_params.window_param.skip_frame_cnt = 1;
 
-				v_back_porch = v_blank - timing_out->v_front_porch -
-					timing_out->v_sync_width;
-
-				crc_window_latch_up_line = v_back_porch + timing_out->v_sync_width;
-
-				/* take 3 lines margin*/
-				if ((position.vertical_count + 3) >= crc_window_latch_up_line)
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 1;
-				else
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt = 0;
-			} else {
-				if (acrtc->dm_irq_params.crc_window.skip_frame_cnt == 0) {
-					if (adev->dm.crc_rd_wrk) {
-						crc_rd_wrk = adev->dm.crc_rd_wrk;
-						spin_lock_irqsave(&crc_rd_wrk->crc_rd_work_lock, flags2);
-						crc_rd_wrk->phy_inst =
-							stream_state->link->link_enc_hw_inst;
-						spin_unlock_irqrestore(&crc_rd_wrk->crc_rd_work_lock, flags2);
-						schedule_work(&crc_rd_wrk->notify_ta_work);
-					}
-				} else {
-					acrtc->dm_irq_params.crc_window.skip_frame_cnt -= 1;
-				}
-			}
-		}
+	} else {
+		/* prepare work for psp to read ROI/CRC and send to I2C */
+		schedule_work(&secure_display_ctx->notify_ta_work);
 	}
 
 cleanup:
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags1);
 }
 
-struct crc_rd_work *amdgpu_dm_crtc_secure_display_create_work(void)
+struct secure_display_context *
+amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 {
-	struct crc_rd_work *crc_rd_wrk = NULL;
+	struct secure_display_context *secure_display_ctxs = NULL;
+	int i;
 
-	crc_rd_wrk = kzalloc(sizeof(*crc_rd_wrk), GFP_KERNEL);
+	secure_display_ctxs = kcalloc(adev->mode_info.num_crtc,
+				      sizeof(struct secure_display_context),
+				      GFP_KERNEL);
 
-	if (!crc_rd_wrk)
+	if (!secure_display_ctxs)
 		return NULL;
 
-	spin_lock_init(&crc_rd_wrk->crc_rd_work_lock);
-	INIT_WORK(&crc_rd_wrk->notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+	for (i = 0; i < adev->mode_info.num_crtc; i++) {
+		INIT_WORK(&secure_display_ctxs[i].forward_roi_work, amdgpu_dm_forward_crc_window);
+		INIT_WORK(&secure_display_ctxs[i].notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+		secure_display_ctxs[i].crtc = &adev->mode_info.crtcs[i]->base;
+	}
 
-	return crc_rd_wrk;
+	return secure_display_ctxs;
 }
 #endif

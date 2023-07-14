@@ -68,8 +68,7 @@ static void elan_i2c_hid_power_down(struct i2chid_ops *ops)
 	regulator_disable(ihid_elan->vcc33);
 }
 
-static int i2c_hid_of_elan_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+static int i2c_hid_of_elan_probe(struct i2c_client *client)
 {
 	struct i2c_hid_of_elan *ihid_elan;
 

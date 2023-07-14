@@ -21,7 +21,7 @@
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/poll.h>
-#include <linux/zlib.h>
+#include <linux/zstd.h>
 #include <uapi/linux/major.h>
 #include <uapi/linux/magic.h>
 
@@ -611,29 +611,30 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 			     const char *match_str, size_t match_len)
 {
+	struct aa_ruleset *rules = list_first_entry(&profile->rules,
+						    typeof(*rules), list);
 	struct aa_perms tmp = { };
-	struct aa_dfa *dfa;
-	unsigned int state = 0;
+	aa_state_t state = DFA_NOMATCH;
 
 	if (profile_unconfined(profile))
 		return;
-	if (profile->file.dfa && *match_str == AA_CLASS_FILE) {
-		dfa = profile->file.dfa;
-		state = aa_dfa_match_len(dfa, profile->file.start,
+	if (rules->file.dfa && *match_str == AA_CLASS_FILE) {
+		state = aa_dfa_match_len(rules->file.dfa,
+					 rules->file.start[AA_CLASS_FILE],
 					 match_str + 1, match_len - 1);
 		if (state) {
 			struct path_cond cond = { };
 
-			tmp = aa_compute_fperms(dfa, state, &cond);
+			tmp = *(aa_lookup_fperms(&(rules->file), state, &cond));
 		}
-	} else if (profile->policy.dfa) {
-		if (!PROFILE_MEDIATES(profile, *match_str))
+	} else if (rules->policy.dfa) {
+		if (!RULE_MEDIATES(rules, *match_str))
 			return;	/* no change to current perms */
-		dfa = profile->policy.dfa;
-		state = aa_dfa_match_len(dfa, profile->policy.start[0],
+		state = aa_dfa_match_len(rules->policy.dfa,
+					 rules->policy.start[0],
 					 match_str, match_len);
 		if (state)
-			aa_compute_perms(dfa, state, &tmp);
+			tmp = *aa_lookup_perms(&rules->policy, state);
 	}
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum_raw(perms, &tmp);
@@ -868,8 +869,10 @@ static struct multi_transaction *multi_transaction_new(struct file *file,
 	if (!t)
 		return ERR_PTR(-ENOMEM);
 	kref_init(&t->count);
-	if (copy_from_user(t->data, buf, size))
+	if (copy_from_user(t->data, buf, size)) {
+		put_multi_transaction(t);
 		return ERR_PTR(-EFAULT);
+	}
 
 	return t;
 }
@@ -1090,9 +1093,9 @@ static int seq_profile_attach_show(struct seq_file *seq, void *v)
 	struct aa_proxy *proxy = seq->private;
 	struct aa_label *label = aa_get_label_rcu(&proxy->label);
 	struct aa_profile *profile = labels_profile(label);
-	if (profile->attach)
-		seq_printf(seq, "%s\n", profile->attach);
-	else if (profile->xmatch)
+	if (profile->attach.xmatch_str)
+		seq_printf(seq, "%s\n", profile->attach.xmatch_str);
+	else if (profile->attach.xmatch.dfa)
 		seq_puts(seq, "<unknown>\n");
 	else
 		seq_printf(seq, "%s\n", profile->base.name);
@@ -1197,10 +1200,24 @@ static int seq_ns_name_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int seq_ns_compress_min_show(struct seq_file *seq, void *v)
+{
+	seq_printf(seq, "%d\n", AA_MIN_CLEVEL);
+	return 0;
+}
+
+static int seq_ns_compress_max_show(struct seq_file *seq, void *v)
+{
+	seq_printf(seq, "%d\n", AA_MAX_CLEVEL);
+	return 0;
+}
+
 SEQ_NS_FOPS(stacked);
 SEQ_NS_FOPS(nsstacked);
 SEQ_NS_FOPS(level);
 SEQ_NS_FOPS(name);
+SEQ_NS_FOPS(compress_min);
+SEQ_NS_FOPS(compress_max);
 
 
 /* policy/raw_data/ * file ops */
@@ -1295,42 +1312,34 @@ SEQ_RAWDATA_FOPS(revision);
 SEQ_RAWDATA_FOPS(hash);
 SEQ_RAWDATA_FOPS(compressed_size);
 
-static int deflate_decompress(char *src, size_t slen, char *dst, size_t dlen)
+static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
 {
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
-	if (aa_g_rawdata_compression_level != 0) {
-		int error = 0;
-		struct z_stream_s strm;
+	if (slen < dlen) {
+		const size_t wksp_len = zstd_dctx_workspace_bound();
+		zstd_dctx *ctx;
+		void *wksp;
+		size_t out_len;
+		int ret = 0;
 
-		memset(&strm, 0, sizeof(strm));
-
-		strm.workspace = kvzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-		if (!strm.workspace)
-			return -ENOMEM;
-
-		strm.next_in = src;
-		strm.avail_in = slen;
-
-		error = zlib_inflateInit(&strm);
-		if (error != Z_OK) {
-			error = -ENOMEM;
-			goto fail_inflate_init;
+		wksp = kvzalloc(wksp_len, GFP_KERNEL);
+		if (!wksp) {
+			ret = -ENOMEM;
+			goto cleanup;
 		}
-
-		strm.next_out = dst;
-		strm.avail_out = dlen;
-
-		error = zlib_inflate(&strm, Z_FINISH);
-		if (error != Z_STREAM_END)
-			error = -EINVAL;
-		else
-			error = 0;
-
-		zlib_inflateEnd(&strm);
-fail_inflate_init:
-		kvfree(strm.workspace);
-
-		return error;
+		ctx = zstd_init_dctx(wksp, wksp_len);
+		if (ctx == NULL) {
+			ret = -ENOMEM;
+			goto cleanup;
+		}
+		out_len = zstd_decompress_dctx(ctx, dst, dlen, src, slen);
+		if (zstd_is_error(out_len)) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+cleanup:
+		kvfree(wksp);
+		return ret;
 	}
 #endif
 
@@ -1379,9 +1388,9 @@ static int rawdata_open(struct inode *inode, struct file *file)
 
 	private->loaddata = loaddata;
 
-	error = deflate_decompress(loaddata->data, loaddata->compressed_size,
-				   RAWDATA_F_DATA_BUF(private),
-				   loaddata->size);
+	error = decompress_zstd(loaddata->data, loaddata->compressed_size,
+				RAWDATA_F_DATA_BUF(private),
+				loaddata->size);
 	if (error)
 		goto fail_decompress;
 
@@ -1784,7 +1793,7 @@ fail2:
 	return error;
 }
 
-static int ns_mkdir_op(struct user_namespace *mnt_userns, struct inode *dir,
+static int ns_mkdir_op(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode)
 {
 	struct aa_ns *ns, *parent;
@@ -2392,6 +2401,8 @@ static struct aa_sfs_entry aa_sfs_entry_apparmor[] = {
 	AA_SFS_FILE_FOPS(".ns_level", 0444, &seq_ns_level_fops),
 	AA_SFS_FILE_FOPS(".ns_name", 0444, &seq_ns_name_fops),
 	AA_SFS_FILE_FOPS("profiles", 0444, &aa_sfs_profiles_fops),
+	AA_SFS_FILE_FOPS("raw_data_compression_level_min", 0444, &seq_ns_compress_min_fops),
+	AA_SFS_FILE_FOPS("raw_data_compression_level_max", 0444, &seq_ns_compress_max_fops),
 	AA_SFS_DIR("features", aa_sfs_entry_features),
 	{ }
 };

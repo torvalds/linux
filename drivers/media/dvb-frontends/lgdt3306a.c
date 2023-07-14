@@ -2169,8 +2169,7 @@ static int lgdt3306a_deselect(struct i2c_mux_core *muxc, u32 chan)
 	return lgdt3306a_i2c_gate_ctrl(&state->frontend, 0);
 }
 
-static int lgdt3306a_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int lgdt3306a_probe(struct i2c_client *client)
 {
 	struct lgdt3306a_config *config;
 	struct lgdt3306a_state *state;

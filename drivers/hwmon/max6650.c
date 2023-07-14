@@ -737,7 +737,7 @@ static umode_t max6650_is_visible(const void *_data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *max6650_info[] = {
+static const struct hwmon_channel_info * const max6650_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_DIV |
 			   HWMON_F_MIN_ALARM | HWMON_F_MAX_ALARM |
 			   HWMON_F_FAULT,
@@ -819,7 +819,7 @@ static struct i2c_driver max6650_driver = {
 		.name	= "max6650",
 		.of_match_table = of_match_ptr(max6650_dt_match),
 	},
-	.probe_new	= max6650_probe,
+	.probe		= max6650_probe,
 	.id_table	= max6650_id,
 };
 

@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
+obj-$(CONFIG_CRYPTO_LIB_UTILS)			+= libcryptoutils.o
+libcryptoutils-y				:= memneq.o utils.o
+
 # chacha is used by the /dev/random driver which is always builtin
 obj-y						+= chacha.o
 obj-$(CONFIG_CRYPTO_LIB_CHACHA_GENERIC)		+= libchacha.o
@@ -7,8 +10,13 @@ obj-$(CONFIG_CRYPTO_LIB_CHACHA_GENERIC)		+= libchacha.o
 obj-$(CONFIG_CRYPTO_LIB_AES)			+= libaes.o
 libaes-y					:= aes.o
 
+obj-$(CONFIG_CRYPTO_LIB_AESGCM)			+= libaesgcm.o
+libaesgcm-y					:= aesgcm.o
+
 obj-$(CONFIG_CRYPTO_LIB_ARC4)			+= libarc4.o
 libarc4-y					:= arc4.o
+
+obj-$(CONFIG_CRYPTO_LIB_GF128MUL)		+= gf128mul.o
 
 # blake2s is used by the /dev/random driver which is always builtin
 obj-y						+= libblake2s.o

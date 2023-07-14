@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <scsi/scsi_host.h>
@@ -58,7 +59,7 @@ struct octeon_cf_port {
 	u64 dma_base;
 };
 
-static struct scsi_host_template octeon_cf_sht = {
+static const struct scsi_host_template octeon_cf_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -67,7 +68,7 @@ module_param(enable_dma, int, 0444);
 MODULE_PARM_DESC(enable_dma,
 		 "Enable use of DMA on interfaces that support it (0=no dma [default], 1=use dma)");
 
-/**
+/*
  * Convert nanosecond based time to setting used in the
  * boot bus timing register, based on timing multiple
  */
@@ -114,7 +115,7 @@ static void octeon_cf_set_boot_reg_cfg(int cs, unsigned int multiplier)
 	cvmx_write_csr(CVMX_MIO_BOOT_REG_CFGX(cs), reg_cfg.u64);
 }
 
-/**
+/*
  * Called after libata determines the needed PIO mode. This
  * function programs the Octeon bootbus regions to support the
  * timing requirements of the PIO mode.
@@ -278,7 +279,7 @@ static void octeon_cf_set_dmamode(struct ata_port *ap, struct ata_device *dev)
 	cvmx_write_csr(cf_port->dma_base + DMA_TIM, dma_tim.u64);
 }
 
-/**
+/*
  * Handle an 8 bit I/O request.
  *
  * @qc:         Queued command
@@ -317,7 +318,7 @@ static unsigned int octeon_cf_data_xfer8(struct ata_queued_cmd *qc,
 	return buflen;
 }
 
-/**
+/*
  * Handle a 16 bit I/O request.
  *
  * @qc:         Queued command
@@ -372,7 +373,7 @@ static unsigned int octeon_cf_data_xfer16(struct ata_queued_cmd *qc,
 	return buflen;
 }
 
-/**
+/*
  * Read the taskfile for 16bit non-True IDE only.
  */
 static void octeon_cf_tf_read16(struct ata_port *ap, struct ata_taskfile *tf)
@@ -453,7 +454,7 @@ static int octeon_cf_softreset16(struct ata_link *link, unsigned int *classes,
 	return 0;
 }
 
-/**
+/*
  * Load the taskfile for 16bit non-True IDE only.  The device_addr is
  * not loaded, we do this as part of octeon_cf_exec_command16.
  */
@@ -525,7 +526,7 @@ static void octeon_cf_dma_setup(struct ata_queued_cmd *qc)
 	ap->ops->sff_exec_command(ap, &qc->tf);
 }
 
-/**
+/*
  * Start a DMA transfer that was already setup
  *
  * @qc:     Information about the DMA
@@ -580,7 +581,7 @@ static void octeon_cf_dma_start(struct ata_queued_cmd *qc)
 	cvmx_write_csr(cf_port->dma_base + DMA_CFG, mio_boot_dma_cfg.u64);
 }
 
-/**
+/*
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
@@ -804,9 +805,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	struct resource *res_cs0, *res_cs1;
 
 	bool is_16bit;
-	const __be32 *cs_num;
-	struct property *reg_prop;
-	int n_addr, n_size, reg_len;
+	u64 reg;
 	struct device_node *node;
 	void __iomem *cs0;
 	void __iomem *cs1 = NULL;
@@ -834,15 +833,10 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	else
 		is_16bit = false;
 
-	n_addr = of_n_addr_cells(node);
-	n_size = of_n_size_cells(node);
-
-	reg_prop = of_find_property(node, "reg", &reg_len);
-	if (!reg_prop || reg_len < sizeof(__be32))
-		return -EINVAL;
-
-	cs_num = reg_prop->value;
-	cf_port->cs0 = be32_to_cpup(cs_num);
+	rv = of_property_read_reg(node, 0, &reg, NULL);
+	if (rv < 0)
+		return rv;
+	cf_port->cs0 = upper_32_bits(reg);
 
 	if (cf_port->is_true_ide) {
 		struct device_node *dma_node;
@@ -884,13 +878,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 		cs1 = devm_ioremap(&pdev->dev, res_cs1->start,
 					   resource_size(res_cs1));
 		if (!cs1)
-			return rv;
-
-		if (reg_len < (n_addr + n_size + 1) * sizeof(__be32))
 			return -EINVAL;
 
-		cs_num += n_addr + n_size;
-		cf_port->cs1 = be32_to_cpup(cs_num);
+		rv = of_property_read_reg(node, 1, &reg, NULL);
+		if (rv < 0)
+			return rv;
+		cf_port->cs1 = upper_32_bits(reg);
 	}
 
 	res_cs0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);

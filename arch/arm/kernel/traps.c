@@ -178,19 +178,22 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 	for (i = -4; i < 1 + !!thumb; i++) {
 		unsigned int val, bad;
 
-		if (!user_mode(regs)) {
-			if (thumb) {
-				u16 val16;
-				bad = get_kernel_nofault(val16, &((u16 *)addr)[i]);
-				val = val16;
-			} else {
-				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
-			}
-		} else {
-			if (thumb)
-				bad = get_user(val, &((u16 *)addr)[i]);
+		if (thumb) {
+			u16 tmp;
+
+			if (user_mode(regs))
+				bad = get_user(tmp, &((u16 __user *)addr)[i]);
 			else
-				bad = get_user(val, &((u32 *)addr)[i]);
+				bad = get_kernel_nofault(tmp, &((u16 *)addr)[i]);
+
+			val = __mem_to_opcode_thumb16(tmp);
+		} else {
+			if (user_mode(regs))
+				bad = get_user(val, &((u32 __user *)addr)[i]);
+			else
+				bad = get_kernel_nofault(val, &((u32 *)addr)[i]);
+
+			val = __mem_to_opcode_arm(val);
 		}
 
 		if (!bad)
@@ -205,14 +208,14 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_ARM_UNWIND
-static inline void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
-				  const char *loglvl)
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
 {
 	unwind_backtrace(regs, tsk, loglvl);
 }
 #else
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
-			   const char *loglvl)
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+		    const char *loglvl)
 {
 	unsigned int fp, mode;
 	int ok = 1;
@@ -487,7 +490,7 @@ asmlinkage void do_undefinstr(struct pt_regs *regs)
 die_sig:
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_UNDEFINED) {
-		pr_info("%s (%d): undefined instruction: pc=%p\n",
+		pr_info("%s (%d): undefined instruction: pc=%px\n",
 			current->comm, task_pid_nr(current), pc);
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
@@ -753,6 +756,7 @@ void __readwrite_bug(const char *fn)
 }
 EXPORT_SYMBOL(__readwrite_bug);
 
+#ifdef CONFIG_MMU
 void __pte_error(const char *file, int line, pte_t pte)
 {
 	pr_err("%s:%d: bad pte %08llx.\n", file, line, (long long)pte_val(pte));
@@ -767,6 +771,7 @@ void __pgd_error(const char *file, int line, pgd_t pgd)
 {
 	pr_err("%s:%d: bad pgd %08llx.\n", file, line, (long long)pgd_val(pgd));
 }
+#endif
 
 asmlinkage void __div0(void)
 {
@@ -920,9 +925,9 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 {
 	unsigned long tsk_stk = (unsigned long)current->stack;
 #ifdef CONFIG_IRQSTACKS
-	unsigned long irq_stk = (unsigned long)this_cpu_read(irq_stack_ptr);
+	unsigned long irq_stk = (unsigned long)raw_cpu_read(irq_stack_ptr);
 #endif
-	unsigned long ovf_stk = (unsigned long)this_cpu_read(overflow_stack_ptr);
+	unsigned long ovf_stk = (unsigned long)raw_cpu_read(overflow_stack_ptr);
 
 	console_verbose();
 	pr_emerg("Insufficient stack space to handle exception!");

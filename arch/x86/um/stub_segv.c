@@ -11,7 +11,7 @@
 void __attribute__ ((__section__ (".__syscall_stub")))
 stub_segv_handler(int sig, siginfo_t *info, void *p)
 {
-	struct faultinfo *f = get_stub_page();
+	struct faultinfo *f = get_stub_data();
 	ucontext_t *uc = p;
 
 	GET_FAULTINFO_FROM_MC(*f, &uc->uc_mcontext);

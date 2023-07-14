@@ -24,32 +24,28 @@
 #include <linux/personality.h>
 #include <linux/random.h>
 #include <linux/compat.h>
+#include <linux/elf-randomize.h>
 
-/* we construct an artificial offset for the mapping based on the physical
- * address of the kernel mapping variable */
-#define GET_LAST_MMAP(filp)		\
-	(filp ? ((unsigned long) filp->f_mapping) >> 8 : 0UL)
-#define SET_LAST_MMAP(filp, val)	\
-	 { /* nothing */ }
+/*
+ * Construct an artificial page offset for the mapping based on the physical
+ * address of the kernel file mapping variable.
+ */
+#define GET_FILP_PGOFF(filp)		\
+	(filp ? (((unsigned long) filp->f_mapping) >> 8)	\
+		 & ((SHM_COLOUR-1) >> PAGE_SHIFT) : 0UL)
 
-static int get_offset(unsigned int last_mmap)
-{
-	return (last_mmap & (SHM_COLOUR-1)) >> PAGE_SHIFT;
-}
-
-static unsigned long shared_align_offset(unsigned int last_mmap,
+static unsigned long shared_align_offset(unsigned long filp_pgoff,
 					 unsigned long pgoff)
 {
-	return (get_offset(last_mmap) + pgoff) << PAGE_SHIFT;
+	return (filp_pgoff + pgoff) << PAGE_SHIFT;
 }
 
 static inline unsigned long COLOR_ALIGN(unsigned long addr,
-			 unsigned int last_mmap, unsigned long pgoff)
+			 unsigned long filp_pgoff, unsigned long pgoff)
 {
 	unsigned long base = (addr+SHM_COLOUR-1) & ~(SHM_COLOUR-1);
 	unsigned long off  = (SHM_COLOUR-1) &
-		(shared_align_offset(last_mmap, pgoff) << PAGE_SHIFT);
-
+		shared_align_offset(filp_pgoff, pgoff);
 	return base + off;
 }
 
@@ -98,92 +94,41 @@ static unsigned long mmap_upper_limit(struct rlimit *rlim_stack)
 	return PAGE_ALIGN(STACK_TOP - stack_base);
 }
 
+enum mmap_allocation_direction {UP, DOWN};
 
-unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags)
+static unsigned long arch_get_unmapped_area_common(struct file *filp,
+	unsigned long addr, unsigned long len, unsigned long pgoff,
+	unsigned long flags, enum mmap_allocation_direction dir)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *prev;
-	unsigned long task_size = TASK_SIZE;
-	int do_color_align, last_mmap;
+	unsigned long filp_pgoff;
+	int do_color_align;
 	struct vm_unmapped_area_info info;
 
-	if (len > task_size)
+	if (unlikely(len > TASK_SIZE))
 		return -ENOMEM;
 
 	do_color_align = 0;
 	if (filp || (flags & MAP_SHARED))
 		do_color_align = 1;
-	last_mmap = GET_LAST_MMAP(filp);
+	filp_pgoff = GET_FILP_PGOFF(filp);
 
 	if (flags & MAP_FIXED) {
-		if ((flags & MAP_SHARED) && last_mmap &&
-		    (addr - shared_align_offset(last_mmap, pgoff))
+		/* Even MAP_FIXED mappings must reside within TASK_SIZE */
+		if (TASK_SIZE - len < addr)
+			return -EINVAL;
+
+		if ((flags & MAP_SHARED) && filp &&
+		    (addr - shared_align_offset(filp_pgoff, pgoff))
 				& (SHM_COLOUR - 1))
 			return -EINVAL;
-		goto found_addr;
+		return addr;
 	}
 
 	if (addr) {
-		if (do_color_align && last_mmap)
-			addr = COLOR_ALIGN(addr, last_mmap, pgoff);
-		else
-			addr = PAGE_ALIGN(addr);
-
-		vma = find_vma_prev(mm, addr, &prev);
-		if (task_size - len >= addr &&
-		    (!vma || addr + len <= vm_start_gap(vma)) &&
-		    (!prev || addr >= vm_end_gap(prev)))
-			goto found_addr;
-	}
-
-	info.flags = 0;
-	info.length = len;
-	info.low_limit = mm->mmap_legacy_base;
-	info.high_limit = mmap_upper_limit(NULL);
-	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
-	info.align_offset = shared_align_offset(last_mmap, pgoff);
-	addr = vm_unmapped_area(&info);
-
-found_addr:
-	if (do_color_align && !last_mmap && !(addr & ~PAGE_MASK))
-		SET_LAST_MMAP(filp, addr - (pgoff << PAGE_SHIFT));
-
-	return addr;
-}
-
-unsigned long
-arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
-			  const unsigned long len, const unsigned long pgoff,
-			  const unsigned long flags)
-{
-	struct vm_area_struct *vma, *prev;
-	struct mm_struct *mm = current->mm;
-	unsigned long addr = addr0;
-	int do_color_align, last_mmap;
-	struct vm_unmapped_area_info info;
-
-	/* requested length too big for entire address space */
-	if (len > TASK_SIZE)
-		return -ENOMEM;
-
-	do_color_align = 0;
-	if (filp || (flags & MAP_SHARED))
-		do_color_align = 1;
-	last_mmap = GET_LAST_MMAP(filp);
-
-	if (flags & MAP_FIXED) {
-		if ((flags & MAP_SHARED) && last_mmap &&
-		    (addr - shared_align_offset(last_mmap, pgoff))
-			& (SHM_COLOUR - 1))
-			return -EINVAL;
-		goto found_addr;
-	}
-
-	/* requesting a specific address */
-	if (addr) {
-		if (do_color_align && last_mmap)
-			addr = COLOR_ALIGN(addr, last_mmap, pgoff);
+		if (do_color_align)
+			addr = COLOR_ALIGN(addr, filp_pgoff, pgoff);
 		else
 			addr = PAGE_ALIGN(addr);
 
@@ -191,33 +136,49 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 		if (TASK_SIZE - len >= addr &&
 		    (!vma || addr + len <= vm_start_gap(vma)) &&
 		    (!prev || addr >= vm_end_gap(prev)))
-			goto found_addr;
+			return addr;
 	}
 
-	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
-	info.low_limit = PAGE_SIZE;
-	info.high_limit = mm->mmap_base;
-	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
-	info.align_offset = shared_align_offset(last_mmap, pgoff);
-	addr = vm_unmapped_area(&info);
-	if (!(addr & ~PAGE_MASK))
-		goto found_addr;
-	VM_BUG_ON(addr != -ENOMEM);
+	info.align_mask = do_color_align ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
+	info.align_offset = shared_align_offset(filp_pgoff, pgoff);
 
-	/*
-	 * A failed mmap() very likely causes application failure,
-	 * so fall back to the bottom-up function here. This scenario
-	 * can happen with large stack limits and large mmap()
-	 * allocations.
-	 */
-	return arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
+	if (dir == DOWN) {
+		info.flags = VM_UNMAPPED_AREA_TOPDOWN;
+		info.low_limit = PAGE_SIZE;
+		info.high_limit = mm->mmap_base;
+		addr = vm_unmapped_area(&info);
+		if (!(addr & ~PAGE_MASK))
+			return addr;
+		VM_BUG_ON(addr != -ENOMEM);
 
-found_addr:
-	if (do_color_align && !last_mmap && !(addr & ~PAGE_MASK))
-		SET_LAST_MMAP(filp, addr - (pgoff << PAGE_SHIFT));
+		/*
+		 * A failed mmap() very likely causes application failure,
+		 * so fall back to the bottom-up function here. This scenario
+		 * can happen with large stack limits and large mmap()
+		 * allocations.
+		 */
+	}
 
-	return addr;
+	info.flags = 0;
+	info.low_limit = mm->mmap_legacy_base;
+	info.high_limit = mmap_upper_limit(NULL);
+	return vm_unmapped_area(&info);
+}
+
+unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
+	unsigned long len, unsigned long pgoff, unsigned long flags)
+{
+	return arch_get_unmapped_area_common(filp,
+			addr, len, pgoff, flags, UP);
+}
+
+unsigned long arch_get_unmapped_area_topdown(struct file *filp,
+	unsigned long addr, unsigned long len, unsigned long pgoff,
+	unsigned long flags)
+{
+	return arch_get_unmapped_area_common(filp,
+			addr, len, pgoff, flags, DOWN);
 }
 
 static int mmap_is_legacy(void)
@@ -239,14 +200,14 @@ static unsigned long mmap_rnd(void)
 	unsigned long rnd = 0;
 
 	if (current->flags & PF_RANDOMIZE)
-		rnd = get_random_int() & MMAP_RND_MASK;
+		rnd = get_random_u32() & MMAP_RND_MASK;
 
 	return rnd << PAGE_SHIFT;
 }
 
 unsigned long arch_mmap_rnd(void)
 {
-	return (get_random_int() & MMAP_RND_MASK) << PAGE_SHIFT;
+	return (get_random_u32() & MMAP_RND_MASK) << PAGE_SHIFT;
 }
 
 static unsigned long mmap_legacy_base(void)
@@ -379,7 +340,7 @@ asmlinkage long parisc_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 			      ((u64)lenhi << 32) | lenlo);
 }
 
-long parisc_personality(unsigned long personality)
+asmlinkage long parisc_personality(unsigned long personality)
 {
 	long err;
 
@@ -464,4 +425,32 @@ asmlinkage long parisc_inotify_init1(int flags)
 {
 	flags = FIX_O_NONBLOCK(flags);
 	return sys_inotify_init1(flags);
+}
+
+/*
+ * madvise() wrapper
+ *
+ * Up to kernel v6.1 parisc has different values than all other
+ * platforms for the MADV_xxx flags listed below.
+ * To keep binary compatibility with existing userspace programs
+ * translate the former values to the new values.
+ *
+ * XXX: Remove this wrapper in year 2025 (or later)
+ */
+
+asmlinkage notrace long parisc_madvise(unsigned long start, size_t len_in, int behavior)
+{
+	switch (behavior) {
+	case 65: behavior = MADV_MERGEABLE;	break;
+	case 66: behavior = MADV_UNMERGEABLE;	break;
+	case 67: behavior = MADV_HUGEPAGE;	break;
+	case 68: behavior = MADV_NOHUGEPAGE;	break;
+	case 69: behavior = MADV_DONTDUMP;	break;
+	case 70: behavior = MADV_DODUMP;	break;
+	case 71: behavior = MADV_WIPEONFORK;	break;
+	case 72: behavior = MADV_KEEPONFORK;	break;
+	case 73: behavior = MADV_COLLAPSE;	break;
+	}
+
+	return sys_madvise(start, len_in, behavior);
 }

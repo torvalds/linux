@@ -10,12 +10,12 @@
 
 #include "autofs_i.h"
 
-static int autofs_dir_permission(struct user_namespace *, struct inode *, int);
-static int autofs_dir_symlink(struct user_namespace *, struct inode *,
+static int autofs_dir_permission(struct mnt_idmap *, struct inode *, int);
+static int autofs_dir_symlink(struct mnt_idmap *, struct inode *,
 			      struct dentry *, const char *);
 static int autofs_dir_unlink(struct inode *, struct dentry *);
 static int autofs_dir_rmdir(struct inode *, struct dentry *);
-static int autofs_dir_mkdir(struct user_namespace *, struct inode *,
+static int autofs_dir_mkdir(struct mnt_idmap *, struct inode *,
 			    struct dentry *, umode_t);
 static long autofs_root_ioctl(struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
@@ -543,7 +543,7 @@ static struct dentry *autofs_lookup(struct inode *dir,
 	return NULL;
 }
 
-static int autofs_dir_permission(struct user_namespace *mnt_userns,
+static int autofs_dir_permission(struct mnt_idmap *idmap,
 				 struct inode *inode, int mask)
 {
 	if (mask & MAY_WRITE) {
@@ -560,10 +560,10 @@ static int autofs_dir_permission(struct user_namespace *mnt_userns,
 			return -EACCES;
 	}
 
-	return generic_permission(mnt_userns, inode, mask);
+	return generic_permission(idmap, inode, mask);
 }
 
-static int autofs_dir_symlink(struct user_namespace *mnt_userns,
+static int autofs_dir_symlink(struct mnt_idmap *idmap,
 			      struct inode *dir, struct dentry *dentry,
 			      const char *symname)
 {
@@ -600,7 +600,7 @@ static int autofs_dir_symlink(struct user_namespace *mnt_userns,
 	p_ino = autofs_dentry_ino(dentry->d_parent);
 	p_ino->count++;
 
-	dir->i_mtime = current_time(dir);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 
 	return 0;
 }
@@ -633,7 +633,7 @@ static int autofs_dir_unlink(struct inode *dir, struct dentry *dentry)
 	d_inode(dentry)->i_size = 0;
 	clear_nlink(d_inode(dentry));
 
-	dir->i_mtime = current_time(dir);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 
 	spin_lock(&sbi->lookup_lock);
 	__autofs_add_expiring(dentry);
@@ -720,7 +720,7 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-static int autofs_dir_mkdir(struct user_namespace *mnt_userns,
+static int autofs_dir_mkdir(struct mnt_idmap *idmap,
 			    struct inode *dir, struct dentry *dentry,
 			    umode_t mode)
 {
@@ -749,7 +749,7 @@ static int autofs_dir_mkdir(struct user_namespace *mnt_userns,
 	p_ino = autofs_dentry_ino(dentry->d_parent);
 	p_ino->count++;
 	inc_nlink(dir);
-	dir->i_mtime = current_time(dir);
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 
 	return 0;
 }

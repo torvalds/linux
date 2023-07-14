@@ -2,7 +2,6 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
-#include <pthread.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
@@ -11,6 +10,7 @@
 #include <stdio.h>
 #include <linux/bitops.h>
 #include "build-id.h"
+#include "mutex.h"
 
 struct machine;
 struct map;
@@ -145,12 +145,13 @@ struct dso_cache {
 struct auxtrace_cache;
 
 struct dso {
-	pthread_mutex_t	 lock;
+	struct mutex	 lock;
 	struct list_head node;
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root_cached symbols;
-	struct rb_root_cached symbol_names;
+	struct symbol	 **symbol_names;
+	size_t		 symbol_names_len;
 	struct rb_root_cached inlined_nodes;
 	struct rb_root_cached srclines;
 	struct {
@@ -266,6 +267,8 @@ static inline bool dso__has_symbols(const struct dso *dso)
 	return !RB_EMPTY_ROOT(&dso->symbols.rb_root);
 }
 
+char *dso__filename_with_chroot(const struct dso *dso, const char *filename);
+
 bool dso__sorted_by_name(const struct dso *dso);
 void dso__set_sorted_by_name(struct dso *dso);
 void dso__sort_by_name(struct dso *dso);
@@ -377,22 +380,24 @@ void dso__reset_find_symbol_cache(struct dso *dso);
 size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);
 size_t dso__fprintf(struct dso *dso, FILE *fp);
 
-static inline bool dso__is_vmlinux(struct dso *dso)
+static inline bool dso__is_vmlinux(const struct dso *dso)
 {
 	return dso->binary_type == DSO_BINARY_TYPE__VMLINUX ||
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_VMLINUX;
 }
 
-static inline bool dso__is_kcore(struct dso *dso)
+static inline bool dso__is_kcore(const struct dso *dso)
 {
 	return dso->binary_type == DSO_BINARY_TYPE__KCORE ||
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
-static inline bool dso__is_kallsyms(struct dso *dso)
+static inline bool dso__is_kallsyms(const struct dso *dso)
 {
 	return dso->kernel && dso->long_name[0] != '/';
 }
+
+bool dso__is_object_file(const struct dso *dso);
 
 void dso__free_a2l(struct dso *dso);
 

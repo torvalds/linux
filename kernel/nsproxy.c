@@ -157,7 +157,8 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 	if (likely(!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
 			      CLONE_NEWPID | CLONE_NEWNET |
 			      CLONE_NEWCGROUP | CLONE_NEWTIME)))) {
-		if (likely(old_ns->time_ns_for_children == old_ns->time_ns)) {
+		if ((flags & CLONE_VM) ||
+		    likely(old_ns->time_ns_for_children == old_ns->time_ns)) {
 			get_nsproxy(old_ns);
 			return 0;
 		}
@@ -179,7 +180,8 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 	if (IS_ERR(new_ns))
 		return  PTR_ERR(new_ns);
 
-	timens_on_fork(new_ns, tsk);
+	if ((flags & CLONE_VM) == 0)
+		timens_on_fork(new_ns, tsk);
 
 	tsk->nsproxy = new_ns;
 	return 0;
@@ -252,6 +254,23 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
 void exit_task_namespaces(struct task_struct *p)
 {
 	switch_task_namespaces(p, NULL);
+}
+
+int exec_task_namespaces(void)
+{
+	struct task_struct *tsk = current;
+	struct nsproxy *new;
+
+	if (tsk->nsproxy->time_ns_for_children == tsk->nsproxy->time_ns)
+		return 0;
+
+	new = create_new_namespaces(0, tsk, current_user_ns(), tsk->fs);
+	if (IS_ERR(new))
+		return PTR_ERR(new);
+
+	timens_on_fork(new, tsk);
+	switch_task_namespaces(tsk, new);
+	return 0;
 }
 
 static int check_setns_flags(unsigned long flags)
@@ -526,21 +545,20 @@ static void commit_nsset(struct nsset *nsset)
 
 SYSCALL_DEFINE2(setns, int, fd, int, flags)
 {
-	struct file *file;
+	struct fd f = fdget(fd);
 	struct ns_common *ns = NULL;
 	struct nsset nsset = {};
 	int err = 0;
 
-	file = fget(fd);
-	if (!file)
+	if (!f.file)
 		return -EBADF;
 
-	if (proc_ns_file(file)) {
-		ns = get_proc_ns(file_inode(file));
+	if (proc_ns_file(f.file)) {
+		ns = get_proc_ns(file_inode(f.file));
 		if (flags && (ns->ops->type != flags))
 			err = -EINVAL;
 		flags = ns->ops->type;
-	} else if (!IS_ERR(pidfd_pid(file))) {
+	} else if (!IS_ERR(pidfd_pid(f.file))) {
 		err = check_setns_flags(flags);
 	} else {
 		err = -EINVAL;
@@ -552,17 +570,17 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 	if (err)
 		goto out;
 
-	if (proc_ns_file(file))
+	if (proc_ns_file(f.file))
 		err = validate_ns(&nsset, ns);
 	else
-		err = validate_nsset(&nsset, file->private_data);
+		err = validate_nsset(&nsset, f.file->private_data);
 	if (!err) {
 		commit_nsset(&nsset);
 		perf_event_namespaces(current);
 	}
 	put_nsset(&nsset);
 out:
-	fput(file);
+	fdput(f);
 	return err;
 }
 

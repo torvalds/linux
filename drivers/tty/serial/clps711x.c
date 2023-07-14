@@ -166,8 +166,7 @@ static irqreturn_t uart_clps711x_int_tx(int irq, void *dev_id)
 		u32 sysflg = 0;
 
 		writew(xmit->buf[xmit->tail], port->membase + UARTDR_OFFSET);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
+		uart_xmit_advance(port, 1);
 
 		regmap_read(s->syscon, SYSFLG_OFFSET, &sysflg);
 		if (sysflg & SYSFLG_UTXFF)
@@ -251,7 +250,7 @@ static void uart_clps711x_shutdown(struct uart_port *port)
 
 static void uart_clps711x_set_termios(struct uart_port *port,
 				      struct ktermios *termios,
-				      struct ktermios *old)
+				      const struct ktermios *old)
 {
 	u32 ubrlcr;
 	unsigned int baud, quot;
@@ -515,7 +514,9 @@ static int uart_clps711x_remove(struct platform_device *pdev)
 {
 	struct clps711x_port *s = platform_get_drvdata(pdev);
 
-	return uart_remove_one_port(&clps711x_uart, &s->port);
+	uart_remove_one_port(&clps711x_uart, &s->port);
+
+	return 0;
 }
 
 static const struct of_device_id __maybe_unused clps711x_uart_dt_ids[] = {

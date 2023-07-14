@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/mediatek-jpeg-decoder.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek JPEG Decoder Device Tree Bindings
+title: MediaTek JPEG Decoder
 
 maintainers:
   - Xia Jiang <xia.jiang@mediatek.com>
@@ -22,6 +22,7 @@ properties:
       - items:
           - enum:
               - mediatek,mt7623-jpgdec
+              - mediatek,mt8188-jpgdec
           - const: mediatek,mt2701-jpgdec
 
   reg:

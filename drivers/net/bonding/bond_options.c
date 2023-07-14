@@ -169,6 +169,12 @@ static const struct bond_opt_value bond_num_peer_notif_tbl[] = {
 	{ NULL,      -1,  0}
 };
 
+static const struct bond_opt_value bond_peer_notif_delay_tbl[] = {
+	{ "off",     0,   0},
+	{ "maxval",  300000, BOND_VALFLAG_MAX},
+	{ NULL,      -1,  0}
+};
+
 static const struct bond_opt_value bond_primary_reselect_tbl[] = {
 	{ "always",  BOND_PRI_RESELECT_ALWAYS,  BOND_VALFLAG_DEFAULT},
 	{ "better",  BOND_PRI_RESELECT_BETTER,  0},
@@ -488,7 +494,7 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.id = BOND_OPT_PEER_NOTIF_DELAY,
 		.name = "peer_notif_delay",
 		.desc = "Delay between each peer notification on failover event, in milliseconds",
-		.values = bond_intmax_tbl,
+		.values = bond_peer_notif_delay_tbl,
 		.set = bond_option_peer_notif_delay_set
 	}
 };
@@ -842,19 +848,6 @@ static bool bond_set_xfrm_features(struct bonding *bond)
 	return true;
 }
 
-static bool bond_set_tls_features(struct bonding *bond)
-{
-	if (!IS_ENABLED(CONFIG_TLS_DEVICE))
-		return false;
-
-	if (bond_sk_check(bond))
-		bond->dev->wanted_features |= BOND_TLS_FEATURES;
-	else
-		bond->dev->wanted_features &= ~BOND_TLS_FEATURES;
-
-	return true;
-}
-
 static int bond_option_mode_set(struct bonding *bond,
 				const struct bond_opt_value *newval)
 {
@@ -885,11 +878,12 @@ static int bond_option_mode_set(struct bonding *bond,
 		bool update = false;
 
 		update |= bond_set_xfrm_features(bond);
-		update |= bond_set_tls_features(bond);
 
 		if (update)
 			netdev_update_features(bond->dev);
 	}
+
+	bond_xdp_set_features(bond->dev);
 
 	return 0;
 }
@@ -1417,10 +1411,6 @@ static int bond_option_xmit_hash_policy_set(struct bonding *bond,
 	netdev_dbg(bond->dev, "Setting xmit hash policy to %s (%llu)\n",
 		   newval->string, newval->value);
 	bond->params.xmit_policy = newval->value;
-
-	if (bond->dev->reg_state == NETREG_REGISTERED)
-		if (bond_set_tls_features(bond))
-			netdev_update_features(bond->dev);
 
 	return 0;
 }

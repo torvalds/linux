@@ -7,3 +7,4 @@ nvkm-y += nvkm/subdev/ltc/gm200.o
 nvkm-y += nvkm/subdev/ltc/gp100.o
 nvkm-y += nvkm/subdev/ltc/gp102.o
 nvkm-y += nvkm/subdev/ltc/gp10b.o
+nvkm-y += nvkm/subdev/ltc/ga102.o

@@ -135,6 +135,20 @@ config PINCTRL_BM1880
 	help
 	  Pinctrl driver for Bitmain BM1880 SoC.
 
+config PINCTRL_CY8C95X0
+	tristate "Cypress CY8C95X0 I2C pinctrl and GPIO driver"
+	depends on I2C
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_I2C
+	help
+	  Support for 20/40/60 pin Cypress Cy8C95x0 pinctrl/gpio I2C expander.
+	  This driver can also be built as a module. If so, the module will be
+	  called pinctrl-cy8c95x0.
+
 config PINCTRL_DA850_PUPD
 	tristate "TI DA850/OMAP-L138/AM18XX pull-up and pull-down groups"
 	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
@@ -158,7 +172,7 @@ config PINCTRL_DA9062
 
 config PINCTRL_DIGICOLOR
 	bool
-	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
+	depends on ARCH_DIGICOLOR || COMPILE_TEST
 	select PINMUX
 	select GENERIC_PINCONF
 
@@ -244,6 +258,17 @@ config PINCTRL_FALCON
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
 
+config PINCTRL_LOONGSON2
+	tristate "Pinctrl driver for the Loongson-2 SoC"
+	depends on OF && (LOONGARCH || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	 This selects pin control driver for the Loongson-2 SoC. It
+	 provides pin config functions multiplexing.  GPIO pin pull-up,
+	 pull-down functions are not supported. Say yes to enable
+	 pinctrl for Loongson-2 SoC.
+
 config PINCTRL_XWAY
 	bool
 	depends on SOC_TYPE_XWAY
@@ -324,6 +349,11 @@ config PINCTRL_OCELOT
 	select GENERIC_PINMUX_FUNCTIONS
 	select OF_GPIO
 	select REGMAP_MMIO
+	help
+	  Support for the internal GPIO interfaces on Microsemi Ocelot and
+	  Jaguar2 SoCs.
+
+	  If conpiled as a module, the module name will be pinctrl-ocelot.
 
 config PINCTRL_OXNAS
 	bool
@@ -377,7 +407,7 @@ config PINCTRL_PISTACHIO
 
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	select GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
@@ -415,23 +445,6 @@ config PINCTRL_ST
 	select PINCONF
 	select GPIOLIB_IRQCHIP
 
-config PINCTRL_STARFIVE
-	tristate "Pinctrl and GPIO driver for the StarFive JH7100 SoC"
-	depends on SOC_STARFIVE || COMPILE_TEST
-	depends on OF
-	default SOC_STARFIVE
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GENERIC_PINCONF
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
-	select OF_GPIO
-	help
-	  Say yes here to support pin control on the StarFive JH7100 SoC.
-	  This also provides an interface to the GPIO pins not used by other
-	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
-	  and interrupts on input changes.
-
 config PINCTRL_STMFX
 	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
 	depends on I2C
@@ -467,25 +480,6 @@ config PINCTRL_TB10X
 	depends on OF && ARC_PLAT_TB10X
 	select GPIOLIB
 
-config PINCTRL_THUNDERBAY
-	tristate "Generic pinctrl and GPIO driver for Intel Thunder Bay SoC"
-	depends on ARCH_THUNDERBAY || (ARM64 && COMPILE_TEST)
-	depends on HAS_IOMEM
-	select PINMUX
-	select PINCONF
-	select GENERIC_PINCONF
-	select GENERIC_PINCTRL_GROUPS
-	select GENERIC_PINMUX_FUNCTIONS
-	select GPIOLIB
-	select GPIOLIB_IRQCHIP
-	select GPIO_GENERIC
-	help
-	  This selects pin control driver for the Intel Thunder Bay SoC.
-	  It provides pin config functions such as pull-up, pull-down,
-	  interrupt, drive strength, sec lock, Schmitt trigger, slew
-	  rate control and direction control. This module will be
-	  called as pinctrl-thunderbay.
-
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"
 	depends on ARCH_ZYNQ
@@ -510,6 +504,18 @@ config PINCTRL_ZYNQMP
 	  This driver can also be built as a module. If so, the module
 	  will be called pinctrl-zynqmp.
 
+config PINCTRL_MLXBF3
+	tristate "NVIDIA BlueField-3 SoC Pinctrl driver"
+	depends on (MELLANOX_PLATFORM && ARM64) || COMPILE_TEST
+	select PINMUX
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y to select the pinctrl driver for BlueField-3 SoCs.
+	  This pin controller allows selecting the mux function for
+	  each pin. This driver can also be built as a module called
+	  pinctrl-mlxbf3.
+
 source "drivers/pinctrl/actions/Kconfig"
 source "drivers/pinctrl/aspeed/Kconfig"
 source "drivers/pinctrl/bcm/Kconfig"
@@ -522,13 +528,14 @@ source "drivers/pinctrl/meson/Kconfig"
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/nomadik/Kconfig"
 source "drivers/pinctrl/nuvoton/Kconfig"
+source "drivers/pinctrl/nxp/Kconfig"
 source "drivers/pinctrl/pxa/Kconfig"
 source "drivers/pinctrl/qcom/Kconfig"
-source "drivers/pinctrl/ralink/Kconfig"
 source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sprd/Kconfig"
+source "drivers/pinctrl/starfive/Kconfig"
 source "drivers/pinctrl/stm32/Kconfig"
 source "drivers/pinctrl/sunplus/Kconfig"
 source "drivers/pinctrl/sunxi/Kconfig"

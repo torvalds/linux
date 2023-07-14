@@ -720,8 +720,6 @@ int __init omap1_clk_init(void)
 		cpu_mask |= CK_16XX;
 	if (cpu_is_omap1510())
 		cpu_mask |= CK_1510;
-	if (cpu_is_omap7xx())
-		cpu_mask |= CK_7XX;
 	if (cpu_is_omap310())
 		cpu_mask |= CK_310;
 
@@ -729,9 +727,6 @@ int __init omap1_clk_init(void)
 	api_ck_p = &api_ck.clk;
 	ck_dpll1_p = &ck_dpll1;
 	ck_ref_p = &ck_ref;
-
-	if (cpu_is_omap7xx())
-		ck_ref.rate = 13000000;
 
 	pr_info("Clocks: ARM_SYSST: 0x%04x DPLL_CTL: 0x%04x ARM_CKCTL: 0x%04x\n",
 		omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
@@ -771,12 +766,6 @@ int __init omap1_clk_init(void)
 		}
 	}
 
-	if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
-		/* Select slicer output as OMAP input clock */
-		omap_writew(omap_readw(OMAP7XX_PCC_UPLD_CTRL) & ~0x1,
-				OMAP7XX_PCC_UPLD_CTRL);
-	}
-
 	/* Amstrad Delta wants BCLK high when inactive */
 	if (machine_is_ams_delta())
 		omap_writel(omap_readl(ULPD_CLOCK_CTRL) |
@@ -784,11 +773,7 @@ int __init omap1_clk_init(void)
 				ULPD_CLOCK_CTRL);
 
 	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
-	/* (on 730, bit 13 must not be cleared) */
-	if (cpu_is_omap7xx())
-		omap_writew(omap_readw(ARM_CKCTL) & 0x2fff, ARM_CKCTL);
-	else
-		omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);
+	omap_writew(omap_readw(ARM_CKCTL) & 0x0fff, ARM_CKCTL);
 
 	/* Put DSP/MPUI into reset until needed */
 	omap_writew(0, ARM_RSTCT1);

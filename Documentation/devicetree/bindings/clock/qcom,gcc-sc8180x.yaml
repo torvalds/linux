@@ -4,17 +4,16 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc-sc8180x.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding for SC8180x
+title: Qualcomm Global Clock & Reset Controller on SC8180x
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
-  power domains on SC8180x.
+  Qualcomm global clock control module provides the clocks, resets and power
+  domains on SC8180x.
 
-  See also:
-  - dt-bindings/clock/qcom,gcc-sc8180x.h
+  See also:: include/dt-bindings/clock/qcom,gcc-sc8180x.h
 
 properties:
   compatible:
@@ -32,32 +31,15 @@ properties:
       - const: bi_tcxo_ao
       - const: sleep_clk
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
-  reg:
-    maxItems: 1
-
-  protected-clocks:
-    description:
-      Protected clock specifier list as per common clock binding.
-
 required:
   - compatible
   - clocks
   - clock-names
-  - reg
-  - '#clock-cells'
-  - '#reset-cells'
-  - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

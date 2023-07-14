@@ -848,14 +848,21 @@ The kernel interface functions are as follows:
      returned.  The caller now holds a reference on this and it must be
      properly ended.
 
- (#) End a client call::
+ (#) Shut down a client call::
 
-	void rxrpc_kernel_end_call(struct socket *sock,
+	void rxrpc_kernel_shutdown_call(struct socket *sock,
+					struct rxrpc_call *call);
+
+     This is used to shut down a previously begun call.  The user_call_ID is
+     expunged from AF_RXRPC's knowledge and will not be seen again in
+     association with the specified call.
+
+ (#) Release the ref on a client call::
+
+	void rxrpc_kernel_put_call(struct socket *sock,
 				   struct rxrpc_call *call);
 
-     This is used to end a previously begun call.  The user_call_ID is expunged
-     from AF_RXRPC's knowledge and will not be seen again in association with
-     the specified call.
+     This is used to release the caller's ref on an rxrpc call.
 
  (#) Send data through a call::
 
@@ -880,8 +887,8 @@ The kernel interface functions are as follows:
 
      notify_end_rx can be NULL or it can be used to specify a function to be
      called when the call changes state to end the Tx phase.  This function is
-     called with the call-state spinlock held to prevent any reply or final ACK
-     from being delivered first.
+     called with a spinlock held to prevent the last DATA packet from being
+     transmitted until the function returns.
 
  (#) Receive data from a call::
 
@@ -1069,7 +1076,7 @@ The kernel interface functions are as follows:
      This value can be used to determine if the remote client has been
      restarted as it shouldn't change otherwise.
 
- (#) Set the maxmimum lifespan on a call::
+ (#) Set the maximum lifespan on a call::
 
 	void rxrpc_kernel_set_max_life(struct socket *sock,
 				       struct rxrpc_call *call,

@@ -9,10 +9,8 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank_work.h>
 
-#include "i915_irq.h"
 #include "i915_vgpu.h"
 #include "i9xx_plane.h"
 #include "icl_dsi.h"
@@ -22,19 +20,26 @@
 #include "intel_crtc.h"
 #include "intel_cursor.h"
 #include "intel_display_debugfs.h"
+#include "intel_display_irq.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
 #include "intel_dsi.h"
+#include "intel_fifo_underrun.h"
 #include "intel_pipe_crc.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
+#include "intel_vblank.h"
 #include "intel_vrr.h"
 #include "skl_universal_plane.h"
 
 static void assert_vblank_disabled(struct drm_crtc *crtc)
 {
-	if (I915_STATE_WARN_ON(drm_crtc_vblank_get(crtc) == 0))
+	struct drm_i915_private *i915 = to_i915(crtc->dev);
+
+	if (I915_STATE_WARN(i915, drm_crtc_vblank_get(crtc) == 0,
+			    "[CRTC:%d:%s] vblank assertion failure (expected off, current on)\n",
+			    crtc->base.id, crtc->name))
 		drm_crtc_vblank_put(crtc);
 }
 
@@ -211,7 +216,7 @@ static void intel_crtc_destroy(struct drm_crtc *_crtc)
 
 static int intel_crtc_late_register(struct drm_crtc *crtc)
 {
-	intel_crtc_debugfs_add(crtc);
+	intel_crtc_debugfs_add(to_intel_crtc(crtc));
 	return 0;
 }
 
@@ -301,7 +306,7 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		return PTR_ERR(crtc);
 
 	crtc->pipe = pipe;
-	crtc->num_scalers = RUNTIME_INFO(dev_priv)->num_scalers[pipe];
+	crtc->num_scalers = DISPLAY_RUNTIME_INFO(dev_priv)->num_scalers[pipe];
 
 	if (DISPLAY_VER(dev_priv) >= 9)
 		primary = skl_universal_plane_create(dev_priv, pipe,
@@ -313,6 +318,8 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 		goto fail;
 	}
 	crtc->plane_ids_mask |= BIT(primary->id);
+
+	intel_init_fifo_underrun_reporting(dev_priv, crtc, false);
 
 	for_each_sprite(dev_priv, pipe, sprite) {
 		struct intel_plane *plane;
@@ -366,9 +373,8 @@ int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 						BIT(DRM_SCALING_FILTER_DEFAULT) |
 						BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
 
-	intel_color_init(crtc);
-
-	intel_crtc_drrs_init(crtc);
+	intel_color_crtc_init(crtc);
+	intel_drrs_crtc_init(crtc);
 	intel_crtc_crc_init(crtc);
 
 	cpu_latency_qos_add_request(&crtc->vblank_pm_qos, PM_QOS_DEFAULT_VALUE);
@@ -388,8 +394,7 @@ static bool intel_crtc_needs_vblank_work(const struct intel_crtc_state *crtc_sta
 	return crtc_state->hw.active &&
 		!intel_crtc_needs_modeset(crtc_state) &&
 		!crtc_state->preload_luts &&
-		(crtc_state->uapi.color_mgmt_changed ||
-		 crtc_state->update_pipe);
+		intel_crtc_needs_color_update(crtc_state);
 }
 
 static void intel_crtc_vblank_work(struct kthread_work *base)
@@ -508,6 +513,13 @@ void intel_pipe_update_start(struct intel_crtc_state *new_crtc_state)
 	min = vblank_start - intel_usecs_to_scanlines(adjusted_mode,
 						      VBLANK_EVASION_TIME_US);
 	max = vblank_start - 1;
+
+	/*
+	 * M/N is double buffered on the transcoder's undelayed vblank,
+	 * so with seamless M/N we must evade both vblanks.
+	 */
+	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+		min -= adjusted_mode->crtc_vblank_start - adjusted_mode->crtc_vdisplay;
 
 	if (min <= 0 || max <= 0)
 		goto irq_disable;
@@ -684,6 +696,15 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 	 * vblank start instead of vmax vblank start.
 	 */
 	intel_vrr_send_push(new_crtc_state);
+
+	/*
+	 * Seamless M/N update may need to update frame timings.
+	 *
+	 * FIXME Should be synchronized with the start of vblank somehow...
+	 */
+	if (new_crtc_state->seamless_m_n && intel_crtc_needs_fastset(new_crtc_state))
+		intel_crtc_update_active_timings(new_crtc_state,
+						 new_crtc_state->vrr.enable);
 
 	local_irq_enable();
 

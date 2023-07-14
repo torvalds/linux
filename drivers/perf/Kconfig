@@ -93,12 +93,22 @@ config ARM_PMU_ACPI
 config ARM_SMMU_V3_PMU
 	 tristate "ARM SMMUv3 Performance Monitors Extension"
 	 depends on (ARM64 && ACPI) || (COMPILE_TEST && 64BIT)
-	 depends on GENERIC_MSI_IRQ_DOMAIN
+	 depends on GENERIC_MSI_IRQ
 	   help
 	   Provides support for the ARM SMMUv3 Performance Monitor Counter
 	   Groups (PMCG), which provide monitoring of transactions passing
 	   through the SMMU and allow the resulting information to be filtered
 	   based on the Stream ID of the corresponding master.
+
+config ARM_PMUV3
+	depends on HW_PERF_EVENTS && ((ARM && CPU_V7) || ARM64)
+	bool "ARM PMUv3 support" if !ARM64
+	default ARM64
+	  help
+	  Say y if you want to use the ARM performance monitor unit (PMU)
+	  version 3. The PMUv3 is the CPU performance monitors on ARMv8
+	  (aarch32 and aarch64) systems that implement the PMUv3
+	  architecture.
 
 config ARM_DSU_PMU
 	tristate "ARM DynamIQ Shared Unit (DSU) PMU"
@@ -116,6 +126,14 @@ config FSL_IMX8_DDR_PMU
 	  Provides support for the DDR performance monitor in i.MX8, which
 	  can give information about memory throughput and other related
 	  events.
+
+config FSL_IMX9_DDR_PMU
+	tristate "Freescale i.MX9 DDR perf monitor"
+	depends on ARCH_MXC
+	 help
+	 Provides support for the DDR performance monitor in i.MX9, which
+	 can give information about memory throughput and other related
+	 events.
 
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
@@ -183,6 +201,13 @@ config APPLE_M1_CPU_PMU
 	  Provides support for the non-architectural CPU PMUs present on
 	  the Apple M1 SoCs and derivatives.
 
+config ALIBABA_UNCORE_DRW_PMU
+	tristate "Alibaba T-Head Yitian 710 DDR Sub-system Driveway PMU driver"
+	depends on (ARM64 && ACPI) || COMPILE_TEST
+	help
+	  Support for Driveway PMU events monitoring on Yitian 710 DDR
+	  Sub-system.
+
 source "drivers/perf/hisilicon/Kconfig"
 
 config MARVELL_CN10K_DDR_PMU
@@ -191,5 +216,22 @@ config MARVELL_CN10K_DDR_PMU
 	help
 	  Enable perf support for Marvell DDR Performance monitoring
 	  event on CN10K platform.
+
+source "drivers/perf/arm_cspmu/Kconfig"
+
+source "drivers/perf/amlogic/Kconfig"
+
+config CXL_PMU
+	tristate "CXL Performance Monitoring Unit"
+	depends on CXL_BUS
+	help
+	  Support performance monitoring as defined in CXL rev 3.0
+	  section 13.2: Performance Monitoring. CXL components may have
+	  one or more CXL Performance Monitoring Units (CPMUs).
+
+	  Say 'y/m' to enable a driver that will attach to performance
+	  monitoring units and provide standard perf based interfaces.
+
+	  If unsure say 'm'.
 
 endmenu

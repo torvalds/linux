@@ -13,6 +13,8 @@
 #define OTX2_CPT_DRV_NAME    "rvu_cptpf"
 #define OTX2_CPT_DRV_STRING  "Marvell RVU CPT Physical Function Driver"
 
+#define CPT_UC_RID_CN9K_B0   1
+
 static void cptpf_enable_vfpf_mbox_intr(struct otx2_cptpf_dev *cptpf,
 					int num_vfs)
 {
@@ -357,9 +359,9 @@ static int cptpf_vfpf_mbox_init(struct otx2_cptpf_dev *cptpf, int num_vfs)
 	u64 vfpf_mbox_base;
 	int err, i;
 
-	cptpf->vfpf_mbox_wq = alloc_workqueue("cpt_vfpf_mailbox",
-					      WQ_UNBOUND | WQ_HIGHPRI |
-					      WQ_MEM_RECLAIM, 1);
+	cptpf->vfpf_mbox_wq =
+		alloc_ordered_workqueue("cpt_vfpf_mailbox",
+					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptpf->vfpf_mbox_wq)
 		return -ENOMEM;
 
@@ -453,9 +455,9 @@ static int cptpf_afpf_mbox_init(struct otx2_cptpf_dev *cptpf)
 	resource_size_t offset;
 	int err;
 
-	cptpf->afpf_mbox_wq = alloc_workqueue("cpt_afpf_mailbox",
-					      WQ_UNBOUND | WQ_HIGHPRI |
-					      WQ_MEM_RECLAIM, 1);
+	cptpf->afpf_mbox_wq =
+		alloc_ordered_workqueue("cpt_afpf_mailbox",
+					WQ_HIGHPRI | WQ_MEM_RECLAIM);
 	if (!cptpf->afpf_mbox_wq)
 		return -ENOMEM;
 
@@ -473,10 +475,19 @@ static int cptpf_afpf_mbox_init(struct otx2_cptpf_dev *cptpf)
 	if (err)
 		goto error;
 
+	err = otx2_mbox_init(&cptpf->afpf_mbox_up, cptpf->afpf_mbox_base,
+			     pdev, cptpf->reg_base, MBOX_DIR_PFAF_UP, 1);
+	if (err)
+		goto mbox_cleanup;
+
 	INIT_WORK(&cptpf->afpf_mbox_work, otx2_cptpf_afpf_mbox_handler);
+	INIT_WORK(&cptpf->afpf_mbox_up_work, otx2_cptpf_afpf_mbox_up_handler);
 	mutex_init(&cptpf->lock);
+
 	return 0;
 
+mbox_cleanup:
+	otx2_mbox_destroy(&cptpf->afpf_mbox);
 error:
 	destroy_workqueue(cptpf->afpf_mbox_wq);
 	return err;
@@ -486,6 +497,33 @@ static void cptpf_afpf_mbox_destroy(struct otx2_cptpf_dev *cptpf)
 {
 	destroy_workqueue(cptpf->afpf_mbox_wq);
 	otx2_mbox_destroy(&cptpf->afpf_mbox);
+	otx2_mbox_destroy(&cptpf->afpf_mbox_up);
+}
+
+static ssize_t sso_pf_func_ovrd_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", cptpf->sso_pf_func_ovrd);
+}
+
+static ssize_t sso_pf_func_ovrd_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
+	u8 sso_pf_func_ovrd;
+
+	if (!(cptpf->pdev->revision == CPT_UC_RID_CN9K_B0))
+		return count;
+
+	if (kstrtou8(buf, 0, &sso_pf_func_ovrd))
+		return -EINVAL;
+
+	cptpf->sso_pf_func_ovrd = sso_pf_func_ovrd;
+
+	return count;
 }
 
 static ssize_t kvf_limits_show(struct device *dev,
@@ -518,8 +556,11 @@ static ssize_t kvf_limits_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(kvf_limits);
+static DEVICE_ATTR_RW(sso_pf_func_ovrd);
+
 static struct attribute *cptpf_attrs[] = {
 	&dev_attr_kvf_limits.attr,
+	&dev_attr_sso_pf_func_ovrd.attr,
 	NULL
 };
 
@@ -830,6 +871,8 @@ static struct pci_driver otx2_cpt_pci_driver = {
 };
 
 module_pci_driver(otx2_cpt_pci_driver);
+
+MODULE_IMPORT_NS(CRYPTO_DEV_OCTEONTX2_CPT);
 
 MODULE_AUTHOR("Marvell");
 MODULE_DESCRIPTION(OTX2_CPT_DRV_STRING);

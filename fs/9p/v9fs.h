@@ -31,29 +31,54 @@
 #define V9FS_ACL_MASK V9FS_POSIX_ACL
 
 enum p9_session_flags {
-	V9FS_PROTO_2000U	= 0x01,
-	V9FS_PROTO_2000L	= 0x02,
-	V9FS_ACCESS_SINGLE	= 0x04,
-	V9FS_ACCESS_USER	= 0x08,
-	V9FS_ACCESS_CLIENT	= 0x10,
-	V9FS_POSIX_ACL		= 0x20
+	V9FS_PROTO_2000U    = 0x01,
+	V9FS_PROTO_2000L    = 0x02,
+	V9FS_ACCESS_SINGLE  = 0x04,
+	V9FS_ACCESS_USER    = 0x08,
+	V9FS_ACCESS_CLIENT  = 0x10,
+	V9FS_POSIX_ACL      = 0x20,
+	V9FS_NO_XATTR       = 0x40,
+	V9FS_IGNORE_QV      = 0x80, /* ignore qid.version for cache hints */
+	V9FS_DIRECT_IO      = 0x100,
+	V9FS_SYNC           = 0x200
 };
 
-/* possible values of ->cache */
 /**
- * enum p9_cache_modes - user specified cache preferences
- * @CACHE_NONE: do not cache data, dentries, or directory contents (default)
- * @CACHE_LOOSE: cache data, dentries, and directory contents w/no consistency
+ * enum p9_cache_shortcuts - human readable cache preferences
+ * @CACHE_SC_NONE: disable all caches
+ * @CACHE_SC_READAHEAD: only provide caching for readahead
+ * @CACHE_SC_MMAP: provide caching to enable mmap
+ * @CACHE_SC_LOOSE: non-coherent caching for files and meta data
+ * @CACHE_SC_FSCACHE: persistent non-coherent caching for files and meta-data
  *
- * eventually support loose, tight, time, session, default always none
  */
 
-enum p9_cache_modes {
-	CACHE_NONE,
-	CACHE_MMAP,
-	CACHE_LOOSE,
-	CACHE_FSCACHE,
-	nr__p9_cache_modes
+enum p9_cache_shortcuts {
+	CACHE_SC_NONE       = 0b00000000,
+	CACHE_SC_READAHEAD  = 0b00000001,
+	CACHE_SC_MMAP       = 0b00000101,
+	CACHE_SC_LOOSE      = 0b00001111,
+	CACHE_SC_FSCACHE    = 0b10001111,
+};
+
+/**
+ * enum p9_cache_bits - possible values of ->cache
+ * @CACHE_NONE: caches disabled
+ * @CACHE_FILE: file caching (open to close)
+ * @CACHE_META: meta-data and directory caching
+ * @CACHE_WRITEBACK: write-back caching for files
+ * @CACHE_LOOSE: don't check cache consistency
+ * @CACHE_FSCACHE: local persistent caches
+ *
+ */
+
+enum p9_cache_bits {
+	CACHE_NONE          = 0b00000000,
+	CACHE_FILE          = 0b00000001,
+	CACHE_META          = 0b00000010,
+	CACHE_WRITEBACK     = 0b00000100,
+	CACHE_LOOSE         = 0b00001000,
+	CACHE_FSCACHE       = 0b10000000,
 };
 
 /**
@@ -62,7 +87,7 @@ enum p9_cache_modes {
  * @nodev: set to 1 to disable device mapping
  * @debug: debug level
  * @afid: authentication handle
- * @cache: cache mode of type &p9_cache_modes
+ * @cache: cache mode of type &p9_cache_bits
  * @cachetag: the tag of the cache associated with this session
  * @fscache: session cookie associated with FS-Cache
  * @uname: string user name to mount hierarchy as
@@ -112,7 +137,6 @@ struct v9fs_inode {
 	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	struct p9_qid qid;
 	unsigned int cache_validity;
-	struct p9_fid *writeback_fid;
 	struct mutex v_mutex;
 };
 
@@ -151,7 +175,7 @@ extern struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 				      unsigned int flags);
 extern int v9fs_vfs_unlink(struct inode *i, struct dentry *d);
 extern int v9fs_vfs_rmdir(struct inode *i, struct dentry *d);
-extern int v9fs_vfs_rename(struct user_namespace *mnt_userns,
+extern int v9fs_vfs_rename(struct mnt_idmap *idmap,
 			   struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry,
 			   unsigned int flags);

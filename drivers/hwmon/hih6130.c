@@ -150,7 +150,7 @@ out:
 }
 
 /**
- * hih6130_show_temperature() - show temperature measurement value in sysfs
+ * hih6130_temperature_show() - show temperature measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -172,7 +172,7 @@ static ssize_t hih6130_temperature_show(struct device *dev,
 }
 
 /**
- * hih6130_show_humidity() - show humidity measurement value in sysfs
+ * hih6130_humidity_show() - show humidity measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -249,7 +249,7 @@ static struct i2c_driver hih6130_driver = {
 		.name = "hih6130",
 		.of_match_table = of_match_ptr(hih6130_of_match),
 	},
-	.probe_new   = hih6130_probe,
+	.probe       = hih6130_probe,
 	.id_table    = hih6130_id,
 };
 

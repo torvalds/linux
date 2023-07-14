@@ -23,17 +23,26 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - fsl,imx6q-gpc
-      - fsl,imx6qp-gpc
-      - fsl,imx6sl-gpc
-      - fsl,imx6sx-gpc
+    oneOf:
+      - enum:
+          - fsl,imx6q-gpc
+      - items:
+          - enum:
+              - fsl,imx6qp-gpc
+              - fsl,imx6sl-gpc
+              - fsl,imx6sx-gpc
+              - fsl,imx6ul-gpc
+          - const: fsl,imx6q-gpc
 
   reg:
     maxItems: 1
 
   interrupts:
     maxItems: 1
+
+  interrupt-controller: true
+  '#interrupt-cells':
+    const: 3
 
   clocks:
     maxItems: 1
@@ -43,11 +52,21 @@ properties:
 
   pgc:
     type: object
+    additionalProperties: false
     description: list of power domains provided by this controller.
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
 
     patternProperties:
       "power-domain@[0-9]$":
         type: object
+        additionalProperties: false
+
         properties:
 
           '#power-domain-cells':
@@ -77,6 +96,10 @@ properties:
         required:
           - '#power-domain-cells'
           - reg
+
+    required:
+      - '#address-cells'
+      - '#size-cells'
 
 required:
   - compatible

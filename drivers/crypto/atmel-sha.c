@@ -292,7 +292,7 @@ static inline int atmel_sha_complete(struct atmel_sha_dev *dd, int err)
 	clk_disable(dd->iclk);
 
 	if ((dd->is_async || dd->force_complete) && req->base.complete)
-		req->base.complete(&req->base, err);
+		ahash_request_complete(req, err);
 
 	/* handle new request */
 	tasklet_schedule(&dd->queue_task);
@@ -1080,7 +1080,7 @@ static int atmel_sha_handle_queue(struct atmel_sha_dev *dd,
 		return ret;
 
 	if (backlog)
-		backlog->complete(backlog, -EINPROGRESS);
+		crypto_request_complete(backlog, -EINPROGRESS);
 
 	ctx = crypto_tfm_ctx(async_req->tfm);
 
@@ -1948,14 +1948,32 @@ static int atmel_sha_hmac_digest2(struct atmel_sha_dev *dd)
 	struct atmel_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct atmel_sha_hmac_ctx *hmac = crypto_ahash_ctx(tfm);
+	struct scatterlist *sgbuf;
 	size_t hs = ctx->hash_size;
 	size_t i, num_words = hs / sizeof(u32);
 	bool use_dma = false;
 	u32 mr;
 
 	/* Special case for empty message. */
-	if (!req->nbytes)
-		return atmel_sha_complete(dd, -EINVAL); // TODO:
+	if (!req->nbytes) {
+		req->nbytes = 0;
+		ctx->bufcnt = 0;
+		ctx->digcnt[0] = 0;
+		ctx->digcnt[1] = 0;
+		switch (ctx->flags & SHA_FLAGS_ALGO_MASK) {
+		case SHA_FLAGS_SHA1:
+		case SHA_FLAGS_SHA224:
+		case SHA_FLAGS_SHA256:
+			atmel_sha_fill_padding(ctx, 64);
+			break;
+
+		case SHA_FLAGS_SHA384:
+		case SHA_FLAGS_SHA512:
+			atmel_sha_fill_padding(ctx, 128);
+			break;
+		}
+		sg_init_one(&dd->tmp, ctx->buffer, ctx->bufcnt);
+	}
 
 	/* Check DMA threshold and alignment. */
 	if (req->nbytes > ATMEL_SHA_DMA_THRESHOLD &&
@@ -1985,12 +2003,20 @@ static int atmel_sha_hmac_digest2(struct atmel_sha_dev *dd)
 
 	atmel_sha_write(dd, SHA_CR, SHA_CR_FIRST);
 
+	/* Special case for empty message. */
+	if (!req->nbytes) {
+		sgbuf = &dd->tmp;
+		req->nbytes = ctx->bufcnt;
+	} else {
+		sgbuf = req->src;
+	}
+
 	/* Process data. */
 	if (use_dma)
-		return atmel_sha_dma_start(dd, req->src, req->nbytes,
+		return atmel_sha_dma_start(dd, sgbuf, req->nbytes,
 					   atmel_sha_hmac_final_done);
 
-	return atmel_sha_cpu_start(dd, req->src, req->nbytes, false, true,
+	return atmel_sha_cpu_start(dd, sgbuf, req->nbytes, false, true,
 				   atmel_sha_hmac_final_done);
 }
 
@@ -2099,10 +2125,9 @@ struct atmel_sha_authenc_reqctx {
 	unsigned int		digestlen;
 };
 
-static void atmel_sha_authenc_complete(struct crypto_async_request *areq,
-				       int err)
+static void atmel_sha_authenc_complete(void *data, int err)
 {
-	struct ahash_request *req = areq->data;
+	struct ahash_request *req = data;
 	struct atmel_sha_authenc_reqctx *authctx  = ahash_request_ctx(req);
 
 	authctx->cb(authctx->aes_dev, err, authctx->base.dd->is_async);
@@ -2509,6 +2534,7 @@ static void atmel_sha_get_cap(struct atmel_sha_dev *dd)
 	/* keep only major version number */
 	switch (dd->hw_version & 0xff0) {
 	case 0x700:
+	case 0x600:
 	case 0x510:
 		dd->caps.has_dma = 1;
 		dd->caps.has_dualbuff = 1;

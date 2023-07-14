@@ -16,18 +16,30 @@ maintainers:
 
 properties:
   compatible:
-    const: qcom,pm8941-coincell
+    oneOf:
+      - items:
+          - enum:
+              - qcom,pm8998-coincell
+          - const: qcom,pm8941-coincell
+
+      - const: qcom,pm8941-coincell
 
   reg:
     maxItems: 1
 
   qcom,rset-ohms:
-    description: resistance (in ohms) for current-limiting resistor
+    description: |
+      Resistance (in ohms) for current-limiting resistor. If unspecified,
+      inherit the previous configuration (e.g. from bootloader or hardware
+      default value).
     enum: [ 800, 1200, 1700, 2100 ]
 
   qcom,vset-millivolts:
     $ref: /schemas/types.yaml#/definitions/uint32
-    description: voltage (in millivolts) to apply for charging
+    description: |
+      Voltage (in millivolts) to apply for charging. If unspecified, inherit
+      the previous configuration (e.g. from bootloader or hardware default
+      value).
     enum: [ 2500, 3000, 3100, 3200 ]
 
   qcom,charger-disable:
@@ -37,8 +49,6 @@ properties:
 required:
   - compatible
   - reg
-  - qcom,rset-ohms
-  - qcom,vset-millivolts
 
 additionalProperties: false
 

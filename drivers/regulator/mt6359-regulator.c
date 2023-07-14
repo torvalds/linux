@@ -951,9 +951,12 @@ static int mt6359_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = {};
 	struct regulator_dev *rdev;
 	struct mt6359_regulator_info *mt6359_info;
-	int i, hw_ver;
+	int i, hw_ver, ret;
 
-	regmap_read(mt6397->regmap, MT6359P_HWCID, &hw_ver);
+	ret = regmap_read(mt6397->regmap, MT6359P_HWCID, &hw_ver);
+	if (ret)
+		return ret;
+
 	if (hw_ver >= MT6359P_CHIP_VER)
 		mt6359_info = mt6359p_regulators;
 	else
@@ -982,6 +985,7 @@ MODULE_DEVICE_TABLE(platform, mt6359_platform_ids);
 static struct platform_driver mt6359_regulator_driver = {
 	.driver = {
 		.name = "mt6359-regulator",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = mt6359_regulator_probe,
 	.id_table = mt6359_platform_ids,

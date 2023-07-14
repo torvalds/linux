@@ -1634,10 +1634,10 @@ static void irdma_hw_stats_timeout(struct timer_list *t)
 		from_timer(pf_devstat, t, stats_timer);
 	struct irdma_sc_vsi *sc_vsi = pf_devstat->vsi;
 
-	if (sc_vsi->dev->hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
-		irdma_cqp_gather_stats_gen1(sc_vsi->dev, sc_vsi->pestat);
-	else
+	if (sc_vsi->dev->hw_attrs.uk_attrs.hw_rev >= IRDMA_GEN_2)
 		irdma_cqp_gather_stats_cmd(sc_vsi->dev, sc_vsi->pestat, false);
+	else
+		irdma_cqp_gather_stats_gen1(sc_vsi->dev, sc_vsi->pestat);
 
 	mod_timer(&pf_devstat->stats_timer,
 		  jiffies + msecs_to_jiffies(STATS_TIMER_DELAY));
@@ -1686,164 +1686,28 @@ void irdma_cqp_gather_stats_gen1(struct irdma_sc_dev *dev,
 {
 	struct irdma_gather_stats *gather_stats =
 		pestat->gather_info.gather_stats_va;
+	const struct irdma_hw_stat_map *map = dev->hw_stats_map;
+	u16 max_stats_idx = dev->hw_attrs.max_stat_idx;
 	u32 stats_inst_offset_32;
 	u32 stats_inst_offset_64;
+	u64 new_val;
+	u16 i;
 
 	stats_inst_offset_32 = (pestat->gather_info.use_stats_inst) ?
-				       pestat->gather_info.stats_inst_index :
-				       pestat->hw->hmc.hmc_fn_id;
+				pestat->gather_info.stats_inst_index :
+				pestat->hw->hmc.hmc_fn_id;
 	stats_inst_offset_32 *= 4;
 	stats_inst_offset_64 = stats_inst_offset_32 * 2;
 
-	gather_stats->rxvlanerr =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_RXVLANERR]
-		     + stats_inst_offset_32);
-	gather_stats->ip4rxdiscard =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_IP4RXDISCARD]
-		     + stats_inst_offset_32);
-	gather_stats->ip4rxtrunc =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_IP4RXTRUNC]
-		     + stats_inst_offset_32);
-	gather_stats->ip4txnoroute =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_IP4TXNOROUTE]
-		     + stats_inst_offset_32);
-	gather_stats->ip6rxdiscard =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_IP6RXDISCARD]
-		     + stats_inst_offset_32);
-	gather_stats->ip6rxtrunc =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_IP6RXTRUNC]
-		     + stats_inst_offset_32);
-	gather_stats->ip6txnoroute =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_IP6TXNOROUTE]
-		     + stats_inst_offset_32);
-	gather_stats->tcprtxseg =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_TCPRTXSEG]
-		     + stats_inst_offset_32);
-	gather_stats->tcprxopterr =
-		rd32(dev->hw,
-		     dev->hw_stats_regs_32[IRDMA_HW_STAT_INDEX_TCPRXOPTERR]
-		     + stats_inst_offset_32);
-
-	gather_stats->ip4rxocts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4RXOCTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4rxpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4RXPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4txfrag =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4RXFRAGS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4rxmcpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4RXMCPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4txocts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4TXOCTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4txpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4TXPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4txfrag =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4TXFRAGS]
-		     + stats_inst_offset_64);
-	gather_stats->ip4txmcpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP4TXMCPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6rxocts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6RXOCTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6rxpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6RXPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6txfrags =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6RXFRAGS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6rxmcpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6RXMCPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6txocts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6TXOCTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6txpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6TXPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6txfrags =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6TXFRAGS]
-		     + stats_inst_offset_64);
-	gather_stats->ip6txmcpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_IP6TXMCPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->tcprxsegs =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_TCPRXSEGS]
-		     + stats_inst_offset_64);
-	gather_stats->tcptxsegs =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_TCPTXSEG]
-		     + stats_inst_offset_64);
-	gather_stats->rdmarxrds =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMARXRDS]
-		     + stats_inst_offset_64);
-	gather_stats->rdmarxsnds =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMARXSNDS]
-		     + stats_inst_offset_64);
-	gather_stats->rdmarxwrs =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMARXWRS]
-		     + stats_inst_offset_64);
-	gather_stats->rdmatxrds =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMATXRDS]
-		     + stats_inst_offset_64);
-	gather_stats->rdmatxsnds =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMATXSNDS]
-		     + stats_inst_offset_64);
-	gather_stats->rdmatxwrs =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMATXWRS]
-		     + stats_inst_offset_64);
-	gather_stats->rdmavbn =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMAVBND]
-		     + stats_inst_offset_64);
-	gather_stats->rdmavinv =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_RDMAVINV]
-		     + stats_inst_offset_64);
-	gather_stats->udprxpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_UDPRXPKTS]
-		     + stats_inst_offset_64);
-	gather_stats->udptxpkts =
-		rd64(dev->hw,
-		     dev->hw_stats_regs_64[IRDMA_HW_STAT_INDEX_UDPTXPKTS]
-		     + stats_inst_offset_64);
+	for (i = 0; i < max_stats_idx; i++) {
+		if (map[i].bitmask <= IRDMA_MAX_STATS_32)
+			new_val = rd32(dev->hw,
+				       dev->hw_stats_regs[i] + stats_inst_offset_32);
+		else
+			new_val = rd64(dev->hw,
+				       dev->hw_stats_regs[i] + stats_inst_offset_64);
+		gather_stats->val[map[i].byteoff / sizeof(u64)] = new_val;
+	}
 
 	irdma_process_stats(pestat);
 }
@@ -2479,6 +2343,9 @@ void irdma_ib_qp_event(struct irdma_qp *iwqp, enum irdma_qp_event_type event)
 	case IRDMA_QP_EVENT_ACCESS_ERR:
 		ibevent.event = IB_EVENT_QP_ACCESS_ERR;
 		break;
+	case IRDMA_QP_EVENT_REQ_ERR:
+		ibevent.event = IB_EVENT_QP_REQ_ERR;
+		break;
 	}
 	ibevent.device = iwqp->ibqp.device;
 	ibevent.element.qp = &iwqp->ibqp;
@@ -2588,10 +2455,14 @@ void irdma_generate_flush_completions(struct irdma_qp *iwqp)
 			sw_wqe = qp->sq_base[wqe_idx].elem;
 			get_64bit_val(sw_wqe, 24, &wqe_qword);
 			cmpl->cpi.op_type = (u8)FIELD_GET(IRDMAQPSQ_OPCODE, IRDMAQPSQ_OPCODE);
+			cmpl->cpi.q_type = IRDMA_CQE_QTYPE_SQ;
 			/* remove the SQ WR by moving SQ tail*/
 			IRDMA_RING_SET_TAIL(*sq_ring,
 				sq_ring->tail + qp->sq_wrtrk_array[sq_ring->tail].quanta);
-
+			if (cmpl->cpi.op_type == IRDMAQP_OP_NOP) {
+				kfree(cmpl);
+				continue;
+			}
 			ibdev_dbg(iwqp->iwscq->ibcq.device,
 				  "DEV: %s: adding wr_id = 0x%llx SQ Completion to list qp_id=%d\n",
 				  __func__, cmpl->cpi.wr_id, qp->qp_id);
@@ -2626,6 +2497,7 @@ void irdma_generate_flush_completions(struct irdma_qp *iwqp)
 
 			cmpl->cpi.wr_id = qp->rq_wrid_array[wqe_idx];
 			cmpl->cpi.op_type = IRDMA_OP_TYPE_REC;
+			cmpl->cpi.q_type = IRDMA_CQE_QTYPE_RQ;
 			/* remove the RQ WR by moving RQ tail */
 			IRDMA_RING_SET_TAIL(*rq_ring, rq_ring->tail + 1);
 			ibdev_dbg(iwqp->iwrcq->ibcq.device,

@@ -159,7 +159,7 @@ static const struct ata_port_info ahci_qoriq_port_info = {
 	.port_ops	= &ahci_qoriq_ops,
 };
 
-static struct scsi_host_template ahci_qoriq_sht = {
+static const struct scsi_host_template ahci_qoriq_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
@@ -280,7 +280,7 @@ static int ahci_qoriq_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (of_id)
-		qoriq_priv->type = (enum ahci_qoriq_type)of_id->data;
+		qoriq_priv->type = (unsigned long)of_id->data;
 	else
 		qoriq_priv->type = (enum ahci_qoriq_type)acpi_id->driver_data;
 
@@ -359,7 +359,7 @@ static SIMPLE_DEV_PM_OPS(ahci_qoriq_pm_ops, ahci_platform_suspend,
 
 static struct platform_driver ahci_qoriq_driver = {
 	.probe = ahci_qoriq_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = ahci_qoriq_of_match,

@@ -2,8 +2,8 @@
 # Copyright 2019-2020 Artur Rojek
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/input/adc-joystick.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/input/adc-joystick.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: ADC attached joystick
 
@@ -13,6 +13,9 @@ maintainers:
 description: >
   Bindings for joystick devices connected to ADC controllers supporting
   the Industrial I/O subsystem.
+
+allOf:
+  - $ref: input.yaml#
 
 properties:
   compatible:
@@ -27,6 +30,8 @@ properties:
       See
       https://github.com/devicetree-org/dt-schema/blob/master/schemas/iio/iio-consumer.yaml
       for details.
+
+  poll-interval: true
 
   '#address-cells':
     const: 1

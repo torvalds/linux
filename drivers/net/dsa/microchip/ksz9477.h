@@ -50,12 +50,13 @@ int ksz9477_mdb_add(struct ksz_device *dev, int port,
 int ksz9477_mdb_del(struct ksz_device *dev, int port,
 		    const struct switchdev_obj_port_mdb *mdb, struct dsa_db db);
 int ksz9477_change_mtu(struct ksz_device *dev, int port, int mtu);
-int ksz9477_max_mtu(struct ksz_device *dev, int port);
 void ksz9477_config_cpu_port(struct dsa_switch *ds);
+int ksz9477_tc_cbs_set_cinc(struct ksz_device *dev, int port, u32 val);
 int ksz9477_enable_stp_addr(struct ksz_device *dev);
 int ksz9477_reset_switch(struct ksz_device *dev);
 int ksz9477_dsa_init(struct ksz_device *dev);
 int ksz9477_switch_init(struct ksz_device *dev);
 void ksz9477_switch_exit(struct ksz_device *dev);
+void ksz9477_port_queue_split(struct ksz_device *dev, int port);
 
 #endif

@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #ifndef __XFS_SCRUB_BTREE_H__
 #define __XFS_SCRUB_BTREE_H__
@@ -19,6 +19,8 @@ bool xchk_btree_xref_process_error(struct xfs_scrub *sc,
 /* Check for btree corruption. */
 void xchk_btree_set_corrupt(struct xfs_scrub *sc,
 		struct xfs_btree_cur *cur, int level);
+void xchk_btree_set_preen(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
+		int level);
 
 /* Check for btree xref discrepancies. */
 void xchk_btree_xref_set_corrupt(struct xfs_scrub *sc,
@@ -29,6 +31,11 @@ typedef int (*xchk_btree_rec_fn)(
 	struct xchk_btree		*bs,
 	const union xfs_btree_rec	*rec);
 
+struct xchk_btree_key {
+	union xfs_btree_key		key;
+	bool				valid;
+};
+
 struct xchk_btree {
 	/* caller-provided scrub state */
 	struct xfs_scrub		*sc;
@@ -38,11 +45,12 @@ struct xchk_btree {
 	void				*private;
 
 	/* internal scrub state */
+	bool				lastrec_valid;
 	union xfs_btree_rec		lastrec;
 	struct list_head		to_check;
 
 	/* this element must come last! */
-	union xfs_btree_key		lastkey[];
+	struct xchk_btree_key		lastkey[];
 };
 
 /*
@@ -52,7 +60,7 @@ struct xchk_btree {
 static inline size_t
 xchk_btree_sizeof(unsigned int nlevels)
 {
-	return struct_size((struct xchk_btree *)NULL, lastkey, nlevels - 1);
+	return struct_size_t(struct xchk_btree, lastkey, nlevels - 1);
 }
 
 int xchk_btree(struct xfs_scrub *sc, struct xfs_btree_cur *cur,

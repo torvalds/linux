@@ -179,13 +179,13 @@ static const struct sysfs_ops erofs_attr_ops = {
 	.store	= erofs_attr_store,
 };
 
-static struct kobj_type erofs_sb_ktype = {
+static const struct kobj_type erofs_sb_ktype = {
 	.default_groups = erofs_groups,
 	.sysfs_ops	= &erofs_attr_ops,
 	.release	= erofs_sb_release,
 };
 
-static struct kobj_type erofs_ktype = {
+static const struct kobj_type erofs_ktype = {
 	.sysfs_ops	= &erofs_attr_ops,
 };
 
@@ -193,7 +193,7 @@ static struct kset erofs_root = {
 	.kobj	= {.ktype = &erofs_ktype},
 };
 
-static struct kobj_type erofs_feat_ktype = {
+static const struct kobj_type erofs_feat_ktype = {
 	.default_groups = erofs_feat_groups,
 	.sysfs_ops	= &erofs_attr_ops,
 };
@@ -210,14 +210,14 @@ int erofs_register_sysfs(struct super_block *sb)
 	int err;
 
 	if (erofs_is_fscache_mode(sb)) {
-		if (sbi->opt.domain_id) {
-			str = kasprintf(GFP_KERNEL, "%s,%s", sbi->opt.domain_id,
-					sbi->opt.fsid);
+		if (sbi->domain_id) {
+			str = kasprintf(GFP_KERNEL, "%s,%s", sbi->domain_id,
+					sbi->fsid);
 			if (!str)
 				return -ENOMEM;
 			name = str;
 		} else {
-			name = sbi->opt.fsid;
+			name = sbi->fsid;
 		}
 	} else {
 		name = sb->s_id;

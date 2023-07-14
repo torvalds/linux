@@ -261,7 +261,7 @@ static const struct regmap_config ltc3676_regmap_config = {
 	.max_register = LTC3676_CLIRQ,
 	.use_single_read = true,
 	.use_single_write = true,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static irqreturn_t ltc3676_isr(int irq, void *dev_id)
@@ -371,9 +371,10 @@ MODULE_DEVICE_TABLE(of, ltc3676_of_match);
 static struct i2c_driver ltc3676_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(ltc3676_of_match),
 	},
-	.probe_new = ltc3676_regulator_probe,
+	.probe = ltc3676_regulator_probe,
 	.id_table = ltc3676_i2c_id,
 };
 module_i2c_driver(ltc3676_driver);

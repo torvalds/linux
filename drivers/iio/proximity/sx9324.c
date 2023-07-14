@@ -783,73 +783,75 @@ static int sx9324_write_raw(struct iio_dev *indio_dev,
 
 static const struct sx_common_reg_default sx9324_default_regs[] = {
 	{ SX9324_REG_IRQ_MSK, 0x00 },
-	{ SX9324_REG_IRQ_CFG0, 0x00 },
-	{ SX9324_REG_IRQ_CFG1, SX9324_REG_IRQ_CFG1_FAILCOND },
-	{ SX9324_REG_IRQ_CFG2, 0x00 },
-	{ SX9324_REG_GNRL_CTRL0, SX9324_REG_GNRL_CTRL0_SCANPERIOD_100MS },
+	{ SX9324_REG_IRQ_CFG0, 0x00, "irq_cfg0" },
+	{ SX9324_REG_IRQ_CFG1, SX9324_REG_IRQ_CFG1_FAILCOND, "irq_cfg1" },
+	{ SX9324_REG_IRQ_CFG2, 0x00, "irq_cfg2" },
+	{ SX9324_REG_GNRL_CTRL0, SX9324_REG_GNRL_CTRL0_SCANPERIOD_100MS, "gnrl_ctrl0" },
 	/*
 	 * The lower 4 bits should not be set as it enable sensors measurements.
 	 * Turning the detection on before the configuration values are set to
 	 * good values can cause the device to return erroneous readings.
 	 */
-	{ SX9324_REG_GNRL_CTRL1, SX9324_REG_GNRL_CTRL1_PAUSECTRL },
+	{ SX9324_REG_GNRL_CTRL1, SX9324_REG_GNRL_CTRL1_PAUSECTRL, "gnrl_ctrl1" },
 
-	{ SX9324_REG_AFE_CTRL0, SX9324_REG_AFE_CTRL0_RINT_LOWEST },
-	{ SX9324_REG_AFE_CTRL3, 0x00 },
+	{ SX9324_REG_AFE_CTRL0, SX9324_REG_AFE_CTRL0_RINT_LOWEST, "afe_ctrl0" },
+	{ SX9324_REG_AFE_CTRL3, 0x00, "afe_ctrl3" },
 	{ SX9324_REG_AFE_CTRL4, SX9324_REG_AFE_CTRL4_FREQ_83_33HZ |
-		SX9324_REG_AFE_CTRL4_RES_100 },
-	{ SX9324_REG_AFE_CTRL6, 0x00 },
+		SX9324_REG_AFE_CTRL4_RES_100, "afe_ctrl4" },
+	{ SX9324_REG_AFE_CTRL6, 0x00, "afe_ctrl6" },
 	{ SX9324_REG_AFE_CTRL7, SX9324_REG_AFE_CTRL4_FREQ_83_33HZ |
-		SX9324_REG_AFE_CTRL4_RES_100 },
+		SX9324_REG_AFE_CTRL4_RES_100, "afe_ctrl7" },
 
 	/* TODO(gwendal): PHx use chip default or all grounded? */
-	{ SX9324_REG_AFE_PH0, 0x29 },
-	{ SX9324_REG_AFE_PH1, 0x26 },
-	{ SX9324_REG_AFE_PH2, 0x1a },
-	{ SX9324_REG_AFE_PH3, 0x16 },
+	{ SX9324_REG_AFE_PH0, 0x29, "afe_ph0" },
+	{ SX9324_REG_AFE_PH1, 0x26, "afe_ph1" },
+	{ SX9324_REG_AFE_PH2, 0x1a, "afe_ph2" },
+	{ SX9324_REG_AFE_PH3, 0x16, "afe_ph3" },
 
 	{ SX9324_REG_AFE_CTRL8, SX9324_REG_AFE_CTRL8_RESERVED |
-		SX9324_REG_AFE_CTRL8_RESFILTIN_4KOHM },
-	{ SX9324_REG_AFE_CTRL9, SX9324_REG_AFE_CTRL9_AGAIN_1 },
+		SX9324_REG_AFE_CTRL8_RESFILTIN_4KOHM, "afe_ctrl8" },
+	{ SX9324_REG_AFE_CTRL9, SX9324_REG_AFE_CTRL9_AGAIN_1, "afe_ctrl9" },
 
 	{ SX9324_REG_PROX_CTRL0,
 		SX9324_REG_PROX_CTRL0_GAIN_1 << SX9324_REG_PROX_CTRL0_GAIN_SHIFT |
-		SX9324_REG_PROX_CTRL0_RAWFILT_1P50 },
+		SX9324_REG_PROX_CTRL0_RAWFILT_1P50, "prox_ctrl0" },
 	{ SX9324_REG_PROX_CTRL1,
 		SX9324_REG_PROX_CTRL0_GAIN_1 << SX9324_REG_PROX_CTRL0_GAIN_SHIFT |
-		SX9324_REG_PROX_CTRL0_RAWFILT_1P50 },
-	{ SX9324_REG_PROX_CTRL2, SX9324_REG_PROX_CTRL2_AVGNEG_THRESH_16K },
+		SX9324_REG_PROX_CTRL0_RAWFILT_1P50, "prox_ctrl1" },
+	{ SX9324_REG_PROX_CTRL2, SX9324_REG_PROX_CTRL2_AVGNEG_THRESH_16K, "prox_ctrl2" },
 	{ SX9324_REG_PROX_CTRL3, SX9324_REG_PROX_CTRL3_AVGDEB_2SAMPLES |
-		SX9324_REG_PROX_CTRL3_AVGPOS_THRESH_16K },
+		SX9324_REG_PROX_CTRL3_AVGPOS_THRESH_16K, "prox_ctrl3" },
 	{ SX9324_REG_PROX_CTRL4, SX9324_REG_PROX_CTRL4_AVGNEG_FILT_2 |
-		SX9324_REG_PROX_CTRL4_AVGPOS_FILT_256 },
-	{ SX9324_REG_PROX_CTRL5, 0x00 },
-	{ SX9324_REG_PROX_CTRL6, SX9324_REG_PROX_CTRL6_PROXTHRESH_32 },
-	{ SX9324_REG_PROX_CTRL7, SX9324_REG_PROX_CTRL6_PROXTHRESH_32 },
-	{ SX9324_REG_ADV_CTRL0, 0x00 },
-	{ SX9324_REG_ADV_CTRL1, 0x00 },
-	{ SX9324_REG_ADV_CTRL2, 0x00 },
-	{ SX9324_REG_ADV_CTRL3, 0x00 },
-	{ SX9324_REG_ADV_CTRL4, 0x00 },
+		SX9324_REG_PROX_CTRL4_AVGPOS_FILT_256, "prox_ctrl4" },
+	{ SX9324_REG_PROX_CTRL5, 0x00, "prox_ctrl5" },
+	{ SX9324_REG_PROX_CTRL6, SX9324_REG_PROX_CTRL6_PROXTHRESH_32, "prox_ctrl6" },
+	{ SX9324_REG_PROX_CTRL7, SX9324_REG_PROX_CTRL6_PROXTHRESH_32, "prox_ctrl7" },
+	{ SX9324_REG_ADV_CTRL0, 0x00, "adv_ctrl0" },
+	{ SX9324_REG_ADV_CTRL1, 0x00, "adv_ctrl1" },
+	{ SX9324_REG_ADV_CTRL2, 0x00, "adv_ctrl2" },
+	{ SX9324_REG_ADV_CTRL3, 0x00, "adv_ctrl3" },
+	{ SX9324_REG_ADV_CTRL4, 0x00, "adv_ctrl4" },
 	{ SX9324_REG_ADV_CTRL5, SX9324_REG_ADV_CTRL5_STARTUP_SENSOR_1 |
-		SX9324_REG_ADV_CTRL5_STARTUP_METHOD_1 },
-	{ SX9324_REG_ADV_CTRL6, 0x00 },
-	{ SX9324_REG_ADV_CTRL7, 0x00 },
-	{ SX9324_REG_ADV_CTRL8, 0x00 },
-	{ SX9324_REG_ADV_CTRL9, 0x00 },
+		SX9324_REG_ADV_CTRL5_STARTUP_METHOD_1, "adv_ctrl5" },
+	{ SX9324_REG_ADV_CTRL6, 0x00, "adv_ctrl6" },
+	{ SX9324_REG_ADV_CTRL7, 0x00, "adv_ctrl7" },
+	{ SX9324_REG_ADV_CTRL8, 0x00, "adv_ctrl8" },
+	{ SX9324_REG_ADV_CTRL9, 0x00, "adv_ctrl9" },
 	/* Body/Table threshold */
-	{ SX9324_REG_ADV_CTRL10, 0x00 },
-	{ SX9324_REG_ADV_CTRL11, 0x00 },
-	{ SX9324_REG_ADV_CTRL12, 0x00 },
+	{ SX9324_REG_ADV_CTRL10, 0x00, "adv_ctrl10" },
+	{ SX9324_REG_ADV_CTRL11, 0x00, "adv_ctrl11" },
+	{ SX9324_REG_ADV_CTRL12, 0x00, "adv_ctrl12" },
 	/* TODO(gwendal): SAR currenly disabled */
-	{ SX9324_REG_ADV_CTRL13, 0x00 },
-	{ SX9324_REG_ADV_CTRL14, 0x00 },
-	{ SX9324_REG_ADV_CTRL15, 0x00 },
-	{ SX9324_REG_ADV_CTRL16, 0x00 },
-	{ SX9324_REG_ADV_CTRL17, 0x00 },
-	{ SX9324_REG_ADV_CTRL18, 0x00 },
-	{ SX9324_REG_ADV_CTRL19, SX9324_REG_ADV_CTRL19_HIGHT_FAILURE_THRESH_SATURATION },
-	{ SX9324_REG_ADV_CTRL20, SX9324_REG_ADV_CTRL19_HIGHT_FAILURE_THRESH_SATURATION },
+	{ SX9324_REG_ADV_CTRL13, 0x00, "adv_ctrl13" },
+	{ SX9324_REG_ADV_CTRL14, 0x00, "adv_ctrl14" },
+	{ SX9324_REG_ADV_CTRL15, 0x00, "adv_ctrl15" },
+	{ SX9324_REG_ADV_CTRL16, 0x00, "adv_ctrl16" },
+	{ SX9324_REG_ADV_CTRL17, 0x00, "adv_ctrl17" },
+	{ SX9324_REG_ADV_CTRL18, 0x00, "adv_ctrl18" },
+	{ SX9324_REG_ADV_CTRL19,
+		SX9324_REG_ADV_CTRL19_HIGHT_FAILURE_THRESH_SATURATION, "adv_ctrl19" },
+	{ SX9324_REG_ADV_CTRL20,
+		SX9324_REG_ADV_CTRL19_HIGHT_FAILURE_THRESH_SATURATION, "adv_ctrl20" },
 };
 
 /* Activate all channels and perform an initial compensation. */
@@ -889,13 +891,15 @@ sx9324_get_default_reg(struct device *dev, int idx,
 	const char *res;
 
 	memcpy(reg_def, &sx9324_default_regs[idx], sizeof(*reg_def));
+
+	sx_common_get_raw_register_config(dev, reg_def);
 	switch (reg_def->reg) {
 	case SX9324_REG_AFE_PH0:
 	case SX9324_REG_AFE_PH1:
 	case SX9324_REG_AFE_PH2:
 	case SX9324_REG_AFE_PH3:
 		ph = reg_def->reg - SX9324_REG_AFE_PH0;
-		scnprintf(prop, ARRAY_SIZE(prop), "semtech,ph%d-pin", ph);
+		snprintf(prop, ARRAY_SIZE(prop), "semtech,ph%d-pin", ph);
 
 		count = device_property_count_u32(dev, prop);
 		if (count != ARRAY_SIZE(pin_defs))
@@ -1073,7 +1077,7 @@ static int sx9324_probe(struct i2c_client *client)
 	return sx_common_probe(client, &sx9324_chip_info, &sx9324_regmap_config);
 }
 
-static int __maybe_unused sx9324_suspend(struct device *dev)
+static int sx9324_suspend(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	unsigned int regval;
@@ -1098,7 +1102,7 @@ out:
 	return ret;
 }
 
-static int __maybe_unused sx9324_resume(struct device *dev)
+static int sx9324_resume(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -1114,7 +1118,7 @@ static int __maybe_unused sx9324_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(sx9324_pm_ops, sx9324_suspend, sx9324_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sx9324_pm_ops, sx9324_suspend, sx9324_resume);
 
 static const struct acpi_device_id sx9324_acpi_match[] = {
 	{ "STH9324", SX9324_WHOAMI_VALUE },
@@ -1139,7 +1143,7 @@ static struct i2c_driver sx9324_driver = {
 		.name	= "sx9324",
 		.acpi_match_table = sx9324_acpi_match,
 		.of_match_table = sx9324_of_match,
-		.pm = &sx9324_pm_ops,
+		.pm = pm_sleep_ptr(&sx9324_pm_ops),
 
 		/*
 		 * Lots of i2c transfers in probe + over 200 ms waiting in
@@ -1148,7 +1152,7 @@ static struct i2c_driver sx9324_driver = {
 		 */
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new	= sx9324_probe,
+	.probe		= sx9324_probe,
 	.id_table	= sx9324_id,
 };
 module_i2c_driver(sx9324_driver);

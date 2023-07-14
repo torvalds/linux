@@ -456,8 +456,7 @@ static const struct v4l2_subdev_ops vpx3220_ops = {
  * Client management code
  */
 
-static int vpx3220_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int vpx3220_probe(struct i2c_client *client)
 {
 	struct vpx3220 *decoder;
 	struct v4l2_subdev *sd;

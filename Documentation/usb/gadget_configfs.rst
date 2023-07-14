@@ -90,6 +90,16 @@ Then the strings can be specified::
 	$ echo <manufacturer> > strings/0x409/manufacturer
 	$ echo <product> > strings/0x409/product
 
+Further custom string descriptors can be created as directories within the
+language's directory, with the string text being written to the "s" attribute
+within the string's directory:
+
+	$ mkdir strings/0x409/xu.0
+	$ echo <string text> > strings/0x409/xu.0/s
+
+Where function drivers support it, functions may allow symlinks to these custom
+string descriptors to associate those strings with class descriptors.
+
 2. Creating the configurations
 ------------------------------
 

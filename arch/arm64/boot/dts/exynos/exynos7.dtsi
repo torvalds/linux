@@ -107,6 +107,8 @@
 
 		atlas_l2: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
 			cache-sets = <2048>;
@@ -117,7 +119,7 @@
 		compatible = "arm,psci";
 		method = "smc";
 		cpu_off = <0x84000002>;
-		cpu_on = <0xC4000003>;
+		cpu_on = <0xc4000003>;
 	};
 
 	soc: soc@0 {
@@ -144,7 +146,7 @@
 
 		pdma0: dma-controller@10e10000 {
 			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x10E10000 0x1000>;
+			reg = <0x10e10000 0x1000>;
 			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_fsys0 ACLK_PDMA0>;
 			clock-names = "apb_pclk";
@@ -153,7 +155,7 @@
 
 		pdma1: dma-controller@10eb0000 {
 			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x10EB0000 0x1000>;
+			reg = <0x10eb0000 0x1000>;
 			interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_fsys0 ACLK_PDMA1>;
 			clock-names = "apb_pclk";
@@ -688,7 +690,7 @@
 			#phy-cells = <1>;
 		};
 
-		usbdrd: usb {
+		usbdrd: usb@15400000 {
 			compatible = "samsung,exynos7-dwusb3";
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 SCLK_USBDRD300_SUSPENDCLK>,
@@ -697,11 +699,11 @@
 				"usbdrd30_axius_clk";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x0 0x15400000 0x10000>;
 
-			usb@15400000 {
+			usb@0 {
 				compatible = "snps,dwc3";
-				reg = <0x15400000 0x10000>;
+				reg = <0x0 0x10000>;
 				interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&usbdrd_phy 0>, <&usbdrd_phy 1>;
 				phy-names = "usb2-phy", "usb3-phy";
@@ -732,4 +734,4 @@
 };
 
 #include "exynos7-pinctrl.dtsi"
-#include "arm/exynos-syscon-restart.dtsi"
+#include "arm/samsung/exynos-syscon-restart.dtsi"

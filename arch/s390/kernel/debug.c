@@ -60,7 +60,7 @@ typedef struct {
 	 * except of floats, and long long (32 bit)
 	 *
 	 */
-	long args[0];
+	long args[];
 } debug_sprintf_entry_t;
 
 /* internal function prototyes */
@@ -92,7 +92,7 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
 				     char *out_buf, const char *in_buf);
 static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, debug_sprintf_entry_t *curr_event);
+				   char *out_buf, const char *inbuf);
 static void debug_areas_swap(debug_info_t *a, debug_info_t *b);
 static void debug_events_append(debug_info_t *dest, debug_info_t *src);
 
@@ -139,7 +139,7 @@ struct debug_view debug_sprintf_view = {
 	"sprintf",
 	NULL,
 	&debug_dflt_header_fn,
-	(debug_format_proc_t *)&debug_sprintf_format_fn,
+	&debug_sprintf_format_fn,
 	NULL,
 	NULL
 };
@@ -250,7 +250,7 @@ static debug_info_t *debug_info_alloc(const char *name, int pages_per_area,
 	rc->level	   = level;
 	rc->buf_size	   = buf_size;
 	rc->entry_size	   = sizeof(debug_entry_t) + buf_size;
-	strlcpy(rc->name, name, sizeof(rc->name));
+	strscpy(rc->name, name, sizeof(rc->name));
 	memset(rc->views, 0, DEBUG_MAX_VIEWS * sizeof(struct debug_view *));
 	memset(rc->debugfs_entries, 0, DEBUG_MAX_VIEWS * sizeof(struct dentry *));
 	refcount_set(&(rc->ref_count), 0);
@@ -981,16 +981,6 @@ static struct ctl_table s390dbf_table[] = {
 	{ }
 };
 
-static struct ctl_table s390dbf_dir_table[] = {
-	{
-		.procname	= "s390dbf",
-		.maxlen		= 0,
-		.mode		= S_IRUGO | S_IXUGO,
-		.child		= s390dbf_table,
-	},
-	{ }
-};
-
 static struct ctl_table_header *s390dbf_sysctl_header;
 
 /**
@@ -1532,8 +1522,9 @@ EXPORT_SYMBOL(debug_dflt_header_fn);
 #define DEBUG_SPRINTF_MAX_ARGS 10
 
 static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, debug_sprintf_entry_t *curr_event)
+				   char *out_buf, const char *inbuf)
 {
+	debug_sprintf_entry_t *curr_event = (debug_sprintf_entry_t *)inbuf;
 	int num_longs, num_used_args = 0, i, rc = 0;
 	int index[DEBUG_SPRINTF_MAX_ARGS];
 
@@ -1573,7 +1564,7 @@ out:
  */
 static int __init debug_init(void)
 {
-	s390dbf_sysctl_header = register_sysctl_table(s390dbf_dir_table);
+	s390dbf_sysctl_header = register_sysctl("s390dbf", s390dbf_table);
 	mutex_lock(&debug_mutex);
 	debug_debugfs_root_entry = debugfs_create_dir(DEBUG_DIR_ROOT, NULL);
 	initialized = 1;

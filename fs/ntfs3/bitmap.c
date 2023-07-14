@@ -40,9 +40,9 @@ static struct kmem_cache *ntfs_enode_cachep;
 
 int __init ntfs3_init_bitmap(void)
 {
-	ntfs_enode_cachep =
-		kmem_cache_create("ntfs3_enode_cache", sizeof(struct e_node), 0,
-				  SLAB_RECLAIM_ACCOUNT, NULL);
+	ntfs_enode_cachep = kmem_cache_create("ntfs3_enode_cache",
+					      sizeof(struct e_node), 0,
+					      SLAB_RECLAIM_ACCOUNT, NULL);
 	return ntfs_enode_cachep ? 0 : -ENOMEM;
 }
 
@@ -59,14 +59,14 @@ void ntfs3_exit_bitmap(void)
  *
  * Return: -1 if not found.
  */
-static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
+static size_t wnd_scan(const void *buf, size_t wbit, u32 wpos, u32 wend,
 		       size_t to_alloc, size_t *prev_tail, size_t *b_pos,
 		       size_t *b_len)
 {
 	while (wpos < wend) {
 		size_t free_len;
 		u32 free_bits, end;
-		u32 used = find_next_zero_bit(buf, wend, wpos);
+		u32 used = find_next_zero_bit_le(buf, wend, wpos);
 
 		if (used >= wend) {
 			if (*b_len < *prev_tail) {
@@ -92,7 +92,7 @@ static size_t wnd_scan(const ulong *buf, size_t wbit, u32 wpos, u32 wend,
 		 * Now we have a fragment [wpos, wend) staring with 0.
 		 */
 		end = wpos + to_alloc - *prev_tail;
-		free_bits = find_next_bit(buf, min(end, wend), wpos);
+		free_bits = find_next_bit_le(buf, min(end, wend), wpos);
 
 		free_len = *prev_tail + free_bits - wpos;
 
@@ -286,9 +286,9 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 		if (wnd->uptodated != 1) {
 			/* Check bits before 'bit'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
-					     bit < wnd->zone_end
-				     ? 0
-				     : wnd->zone_end;
+					     bit < wnd->zone_end ?
+				     0 :
+				     wnd->zone_end;
 
 			while (bit > ib && wnd_is_free_hlp(wnd, bit - 1, 1)) {
 				bit -= 1;
@@ -297,9 +297,9 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 
 			/* Check bits after 'end_in'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
-					     end_in > wnd->zone_bit
-				     ? wnd->nbits
-				     : wnd->zone_bit;
+					     end_in > wnd->zone_bit ?
+				     wnd->nbits :
+				     wnd->zone_bit;
 
 			while (end_in < ib && wnd_is_free_hlp(wnd, end_in, 1)) {
 				end_in += 1;
@@ -417,8 +417,8 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 			return;
 		n3 = rb_first(&wnd->count_tree);
 		wnd->extent_max =
-			n3 ? rb_entry(n3, struct e_node, count.node)->count.key
-			   : 0;
+			n3 ? rb_entry(n3, struct e_node, count.node)->count.key :
+			     0;
 		return;
 	}
 
@@ -504,7 +504,6 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 	u8 cluster_bits = sbi->cluster_bits;
 	u32 wbits = 8 * sb->s_blocksize;
 	u32 used, frb;
-	const ulong *buf;
 	size_t wpos, wbit, iw, vbo;
 	struct buffer_head *bh = NULL;
 	CLST lcn, clen;
@@ -558,9 +557,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 			goto out;
 		}
 
-		buf = (ulong *)bh->b_data;
-
-		used = __bitmap_weight(buf, wbits);
+		used = ntfs_bitmap_weight_le(bh->b_data, wbits);
 		if (used < wbits) {
 			frb = wbits - used;
 			wnd->free_bits[iw] = frb;
@@ -574,7 +571,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 			wbits = wnd->nbits - wbit;
 
 		do {
-			used = find_next_zero_bit(buf, wbits, wpos);
+			used = find_next_zero_bit_le(bh->b_data, wbits, wpos);
 
 			if (used > wpos && prev_tail) {
 				wnd_add_free_ext(wnd, wbit + wpos - prev_tail,
@@ -590,7 +587,7 @@ static int wnd_rescan(struct wnd_bitmap *wnd)
 				break;
 			}
 
-			frb = find_next_bit(buf, wbits, wpos);
+			frb = find_next_bit_le(bh->b_data, wbits, wpos);
 			if (frb >= wbits) {
 				/* Keep last free block. */
 				prev_tail += frb - wpos;
@@ -661,7 +658,8 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 	if (!wnd->bits_last)
 		wnd->bits_last = wbits;
 
-	wnd->free_bits = kcalloc(wnd->nwnd, sizeof(u16), GFP_NOFS);
+	wnd->free_bits =
+		kcalloc(wnd->nwnd, sizeof(u16), GFP_NOFS | __GFP_NOWARN);
 	if (!wnd->free_bits)
 		return -ENOMEM;
 
@@ -718,7 +716,6 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 
 	while (iw < wnd->nwnd && bits) {
 		u32 tail, op;
-		ulong *buf;
 
 		if (iw + 1 == wnd->nwnd)
 			wbits = wnd->bits_last;
@@ -732,11 +729,9 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			break;
 		}
 
-		buf = (ulong *)bh->b_data;
-
 		lock_buffer(bh);
 
-		__bitmap_clear(buf, wbit, op);
+		ntfs_bitmap_clear_le(bh->b_data, wbit, op);
 
 		wnd->free_bits[iw] += op;
 
@@ -771,7 +766,6 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 
 	while (iw < wnd->nwnd && bits) {
 		u32 tail, op;
-		ulong *buf;
 
 		if (unlikely(iw + 1 == wnd->nwnd))
 			wbits = wnd->bits_last;
@@ -784,11 +778,10 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			err = PTR_ERR(bh);
 			break;
 		}
-		buf = (ulong *)bh->b_data;
 
 		lock_buffer(bh);
 
-		__bitmap_set(buf, wbit, op);
+		ntfs_bitmap_set_le(bh->b_data, wbit, op);
 		wnd->free_bits[iw] -= op;
 
 		set_buffer_uptodate(bh);
@@ -805,6 +798,44 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 	if (!RB_EMPTY_ROOT(&wnd->start_tree))
 		wnd_remove_free_ext(wnd, bit, bits0);
 
+	return err;
+}
+
+/*
+ * wnd_set_used_safe - Mark the bits range from bit to bit + bits as used.
+ *
+ * Unlikely wnd_set_used/wnd_set_free this function is not full trusted.
+ * It scans every bit in bitmap and marks free bit as used.
+ * @done - how many bits were marked as used.
+ *
+ * NOTE: normally *done should be 0.
+ */
+int wnd_set_used_safe(struct wnd_bitmap *wnd, size_t bit, size_t bits,
+		      size_t *done)
+{
+	size_t i, from = 0, len = 0;
+	int err = 0;
+
+	*done = 0;
+	for (i = 0; i < bits; i++) {
+		if (wnd_is_free(wnd, bit + i, 1)) {
+			if (!len)
+				from = bit + i;
+			len += 1;
+		} else if (len) {
+			err = wnd_set_used(wnd, from, len);
+			*done += len;
+			len = 0;
+			if (err)
+				break;
+		}
+	}
+
+	if (len) {
+		/* last fragment. */
+		err = wnd_set_used(wnd, from, len);
+		*done += len;
+	}
 	return err;
 }
 
@@ -836,7 +867,7 @@ static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			if (IS_ERR(bh))
 				return false;
 
-			ret = are_bits_clear((ulong *)bh->b_data, wbit, op);
+			ret = are_bits_clear(bh->b_data, wbit, op);
 
 			put_bh(bh);
 			if (!ret)
@@ -928,7 +959,7 @@ use_wnd:
 			if (IS_ERR(bh))
 				goto out;
 
-			ret = are_bits_set((ulong *)bh->b_data, wbit, op);
+			ret = are_bits_set(bh->b_data, wbit, op);
 			put_bh(bh);
 			if (!ret)
 				goto out;
@@ -959,7 +990,6 @@ size_t wnd_find(struct wnd_bitmap *wnd, size_t to_alloc, size_t hint,
 	size_t fnd, max_alloc, b_len, b_pos;
 	size_t iw, prev_tail, nwnd, wbit, ebit, zbit, zend;
 	size_t to_alloc0 = to_alloc;
-	const ulong *buf;
 	const struct e_node *e;
 	const struct rb_node *pr, *cr;
 	u8 log2_bits;
@@ -1185,14 +1215,13 @@ Again:
 					continue;
 				}
 
-				buf = (ulong *)bh->b_data;
-
 				/* Scan range [wbit, zbit). */
 				if (wpos < wzbit) {
 					/* Scan range [wpos, zbit). */
-					fnd = wnd_scan(buf, wbit, wpos, wzbit,
-						       to_alloc, &prev_tail,
-						       &b_pos, &b_len);
+					fnd = wnd_scan(bh->b_data, wbit, wpos,
+						       wzbit, to_alloc,
+						       &prev_tail, &b_pos,
+						       &b_len);
 					if (fnd != MINUS_ONE_T) {
 						put_bh(bh);
 						goto found;
@@ -1203,7 +1232,7 @@ Again:
 
 				/* Scan range [zend, ebit). */
 				if (wzend < wbits) {
-					fnd = wnd_scan(buf, wbit,
+					fnd = wnd_scan(bh->b_data, wbit,
 						       max(wzend, wpos), wbits,
 						       to_alloc, &prev_tail,
 						       &b_pos, &b_len);
@@ -1242,11 +1271,9 @@ Again:
 			continue;
 		}
 
-		buf = (ulong *)bh->b_data;
-
 		/* Scan range [wpos, eBits). */
-		fnd = wnd_scan(buf, wbit, wpos, wbits, to_alloc, &prev_tail,
-			       &b_pos, &b_len);
+		fnd = wnd_scan(bh->b_data, wbit, wpos, wbits, to_alloc,
+			       &prev_tail, &b_pos, &b_len);
 		put_bh(bh);
 		if (fnd != MINUS_ONE_T)
 			goto found;
@@ -1324,7 +1351,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		new_last = wbits;
 
 	if (new_wnd != wnd->nwnd) {
-		new_free = kmalloc(new_wnd * sizeof(u16), GFP_NOFS);
+		new_free = kmalloc_array(new_wnd, sizeof(u16), GFP_NOFS);
 		if (!new_free)
 			return -ENOMEM;
 
@@ -1344,7 +1371,6 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		size_t frb;
 		u64 vbo, lbo, bytes;
 		struct buffer_head *bh;
-		ulong *buf;
 
 		if (iw + 1 == new_wnd)
 			wbits = new_last;
@@ -1361,10 +1387,9 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 			return -EIO;
 
 		lock_buffer(bh);
-		buf = (ulong *)bh->b_data;
 
-		__bitmap_clear(buf, b0, blocksize * 8 - b0);
-		frb = wbits - __bitmap_weight(buf, wbits);
+		ntfs_bitmap_clear_le(bh->b_data, b0, blocksize * 8 - b0);
+		frb = wbits - ntfs_bitmap_weight_le(bh->b_data, wbits);
 		wnd->total_zeroes += frb - wnd->free_bits[iw];
 		wnd->free_bits[iw] = frb;
 
@@ -1411,7 +1436,6 @@ int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range)
 	CLST lcn_from = bytes_to_cluster(sbi, range->start);
 	size_t iw = lcn_from >> (sb->s_blocksize_bits + 3);
 	u32 wbit = lcn_from & (wbits - 1);
-	const ulong *buf;
 	CLST lcn_to;
 
 	if (!minlen)
@@ -1424,7 +1448,7 @@ int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range)
 
 	down_read_nested(&wnd->rw_lock, BITMAP_MUTEX_CLUSTERS);
 
-	for (; iw < wnd->nbits; iw++, wbit = 0) {
+	for (; iw < wnd->nwnd; iw++, wbit = 0) {
 		CLST lcn_wnd = iw * wbits;
 		struct buffer_head *bh;
 
@@ -1446,10 +1470,8 @@ int ntfs_trim_fs(struct ntfs_sb_info *sbi, struct fstrim_range *range)
 			break;
 		}
 
-		buf = (ulong *)bh->b_data;
-
 		for (; wbit < wbits; wbit++) {
-			if (!test_bit(wbit, buf)) {
+			if (!test_bit_le(wbit, bh->b_data)) {
 				if (!len)
 					lcn = lcn_wnd + wbit;
 				len += 1;
@@ -1480,4 +1502,71 @@ out:
 	up_read(&wnd->rw_lock);
 
 	return err;
+}
+
+#if BITS_PER_LONG == 64
+typedef __le64 bitmap_ulong;
+#define cpu_to_ul(x) cpu_to_le64(x)
+#define ul_to_cpu(x) le64_to_cpu(x)
+#else
+typedef __le32 bitmap_ulong;
+#define cpu_to_ul(x) cpu_to_le32(x)
+#define ul_to_cpu(x) le32_to_cpu(x)
+#endif
+
+void ntfs_bitmap_set_le(void *map, unsigned int start, int len)
+{
+	bitmap_ulong *p = (bitmap_ulong *)map + BIT_WORD(start);
+	const unsigned int size = start + len;
+	int bits_to_set = BITS_PER_LONG - (start % BITS_PER_LONG);
+	bitmap_ulong mask_to_set = cpu_to_ul(BITMAP_FIRST_WORD_MASK(start));
+
+	while (len - bits_to_set >= 0) {
+		*p |= mask_to_set;
+		len -= bits_to_set;
+		bits_to_set = BITS_PER_LONG;
+		mask_to_set = cpu_to_ul(~0UL);
+		p++;
+	}
+	if (len) {
+		mask_to_set &= cpu_to_ul(BITMAP_LAST_WORD_MASK(size));
+		*p |= mask_to_set;
+	}
+}
+
+void ntfs_bitmap_clear_le(void *map, unsigned int start, int len)
+{
+	bitmap_ulong *p = (bitmap_ulong *)map + BIT_WORD(start);
+	const unsigned int size = start + len;
+	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
+	bitmap_ulong mask_to_clear = cpu_to_ul(BITMAP_FIRST_WORD_MASK(start));
+
+	while (len - bits_to_clear >= 0) {
+		*p &= ~mask_to_clear;
+		len -= bits_to_clear;
+		bits_to_clear = BITS_PER_LONG;
+		mask_to_clear = cpu_to_ul(~0UL);
+		p++;
+	}
+	if (len) {
+		mask_to_clear &= cpu_to_ul(BITMAP_LAST_WORD_MASK(size));
+		*p &= ~mask_to_clear;
+	}
+}
+
+unsigned int ntfs_bitmap_weight_le(const void *bitmap, int bits)
+{
+	const ulong *bmp = bitmap;
+	unsigned int k, lim = bits / BITS_PER_LONG;
+	unsigned int w = 0;
+
+	for (k = 0; k < lim; k++)
+		w += hweight_long(bmp[k]);
+
+	if (bits % BITS_PER_LONG) {
+		w += hweight_long(ul_to_cpu(((bitmap_ulong *)bitmap)[k]) &
+				  BITMAP_LAST_WORD_MASK(bits));
+	}
+
+	return w;
 }

@@ -43,18 +43,9 @@ enum MIGRATION_COPY_DIR {
 int svm_migrate_to_vram(struct svm_range *prange,  uint32_t best_loc,
 			struct mm_struct *mm, uint32_t trigger);
 int svm_migrate_vram_to_ram(struct svm_range *prange, struct mm_struct *mm,
-			    uint32_t trigger);
+			    uint32_t trigger, struct page *fault_page);
 unsigned long
 svm_migrate_addr_to_pfn(struct amdgpu_device *adev, unsigned long addr);
-
-int svm_migrate_init(struct amdgpu_device *adev);
-
-#else
-
-static inline int svm_migrate_init(struct amdgpu_device *adev)
-{
-	return 0;
-}
 
 #endif /* IS_ENABLED(CONFIG_HSA_AMD_SVM) */
 

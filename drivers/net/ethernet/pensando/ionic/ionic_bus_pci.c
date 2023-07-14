@@ -121,7 +121,7 @@ static void ionic_vf_dealloc_locked(struct ionic *ionic)
 
 		if (v->stats_pa) {
 			vfc.stats_pa = 0;
-			(void)ionic_set_vf_config(ionic, i, &vfc);
+			ionic_set_vf_config(ionic, i, &vfc);
 			dma_unmap_single(ionic->dev, v->stats_pa,
 					 sizeof(v->stats), DMA_FROM_DEVICE);
 			v->stats_pa = 0;
@@ -169,7 +169,7 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 
 		/* ignore failures from older FW, we just won't get stats */
 		vfc.stats_pa = cpu_to_le64(v->stats_pa);
-		(void)ionic_set_vf_config(ionic, i, &vfc);
+		ionic_set_vf_config(ionic, i, &vfc);
 	}
 
 out:
@@ -352,12 +352,7 @@ err_out_port_reset:
 err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
-	pci_clear_master(pdev);
-	/* Don't fail the probe for these errors, keep
-	 * the hw interface around for inspection
-	 */
-	return 0;
-
+	ionic_dev_teardown(ionic);
 err_out_unmap_bars:
 	ionic_unmap_bars(ionic);
 err_out_pci_release_regions:
@@ -390,7 +385,7 @@ static void ionic_remove(struct pci_dev *pdev)
 
 	ionic_port_reset(ionic);
 	ionic_reset(ionic);
-	pci_clear_master(pdev);
+	ionic_dev_teardown(ionic);
 	ionic_unmap_bars(ionic);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

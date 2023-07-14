@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/net/snps,dwmac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Synopsys DesignWare MAC Device Tree Bindings
+title: Synopsys DesignWare MAC
 
 maintainers:
   - Alexandre Torgue <alexandre.torgue@foss.st.com>
@@ -30,6 +30,7 @@ select:
           - snps,dwmac-4.10a
           - snps,dwmac-4.20a
           - snps,dwmac-5.10a
+          - snps,dwmac-5.20
           - snps,dwxgmac
           - snps,dwxgmac-2.10
 
@@ -65,6 +66,10 @@ properties:
         - ingenic,x2000-mac
         - loongson,ls2k-dwmac
         - loongson,ls7a-dwmac
+        - qcom,qcs404-ethqos
+        - qcom,sa8775p-ethqos
+        - qcom,sc8280xp-ethqos
+        - qcom,sm8150-ethqos
         - renesas,r9a06g032-gmac
         - renesas,rzn1-gmac
         - rockchip,px30-gmac
@@ -87,8 +92,10 @@ properties:
         - snps,dwmac-4.10a
         - snps,dwmac-4.20a
         - snps,dwmac-5.10a
+        - snps,dwmac-5.20
         - snps,dwxgmac
         - snps,dwxgmac-2.10
+        - starfive,jh7110-dwmac
 
   reg:
     minItems: 1
@@ -105,7 +112,7 @@ properties:
     minItems: 1
     items:
       - const: macirq
-      - const: eth_wake_irq
+      - enum: [eth_wake_irq, eth_lpi]
       - const: eth_lpi
 
   clocks:
@@ -131,12 +138,16 @@ properties:
         - ptp_ref
 
   resets:
-    maxItems: 1
-    description:
-      MAC Reset signal.
+    minItems: 1
+    items:
+      - description: GMAC stmmaceth reset
+      - description: AHB reset
 
   reset-names:
-    const: stmmaceth
+    minItems: 1
+    items:
+      - const: stmmaceth
+      - const: ahb
 
   power-domains:
     maxItems: 1
@@ -167,56 +178,238 @@ properties:
   snps,mtl-rx-config:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Multiple RX Queues parameters. Phandle to a node that can
-      contain the following properties
-        * snps,rx-queues-to-use, number of RX queues to be used in the
-          driver
-        * Choose one of these RX scheduling algorithms
-          * snps,rx-sched-sp, Strict priority
-          * snps,rx-sched-wsp, Weighted Strict priority
-        * For each RX queue
-          * Choose one of these modes
-            * snps,dcb-algorithm, Queue to be enabled as DCB
-            * snps,avb-algorithm, Queue to be enabled as AVB
-          * snps,map-to-dma-channel, Channel to map
-          * Specifiy specific packet routing
-            * snps,route-avcp, AV Untagged Control packets
-            * snps,route-ptp, PTP Packets
-            * snps,route-dcbcp, DCB Control Packets
-            * snps,route-up, Untagged Packets
-            * snps,route-multi-broad, Multicast & Broadcast Packets
-          * snps,priority, bitmask of the tagged frames priorities assigned to
-            the queue
+      Multiple RX Queues parameters. Phandle to a node that
+      implements the 'rx-queues-config' object described in
+      this binding.
+
+  rx-queues-config:
+    type: object
+    properties:
+      snps,rx-queues-to-use:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: number of RX queues to be used in the driver
+      snps,rx-sched-sp:
+        type: boolean
+        description: Strict priority
+      snps,rx-sched-wsp:
+        type: boolean
+        description: Weighted Strict priority
+    allOf:
+      - if:
+          required:
+            - snps,rx-sched-sp
+        then:
+          properties:
+            snps,rx-sched-wsp: false
+      - if:
+          required:
+            - snps,rx-sched-wsp
+        then:
+          properties:
+            snps,rx-sched-sp: false
+    patternProperties:
+      "^queue[0-9]$":
+        description: Each subnode represents a queue.
+        type: object
+        properties:
+          snps,dcb-algorithm:
+            type: boolean
+            description: Queue to be enabled as DCB
+          snps,avb-algorithm:
+            type: boolean
+            description: Queue to be enabled as AVB
+          snps,map-to-dma-channel:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: DMA channel id to map
+          snps,route-avcp:
+            type: boolean
+            description: AV Untagged Control packets
+          snps,route-ptp:
+            type: boolean
+            description: PTP Packets
+          snps,route-dcbcp:
+            type: boolean
+            description: DCB Control Packets
+          snps,route-up:
+            type: boolean
+            description: Untagged Packets
+          snps,route-multi-broad:
+            type: boolean
+            description: Multicast & Broadcast Packets
+          snps,priority:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: Bitmask of the tagged frames priorities assigned to the queue
+        allOf:
+          - if:
+              required:
+                - snps,dcb-algorithm
+            then:
+              properties:
+                snps,avb-algorithm: false
+          - if:
+              required:
+                - snps,avb-algorithm
+            then:
+              properties:
+                snps,dcb-algorithm: false
+          - if:
+              required:
+                - snps,route-avcp
+            then:
+              properties:
+                snps,route-ptp: false
+                snps,route-dcbcp: false
+                snps,route-up: false
+                snps,route-multi-broad: false
+          - if:
+              required:
+                - snps,route-ptp
+            then:
+              properties:
+                snps,route-avcp: false
+                snps,route-dcbcp: false
+                snps,route-up: false
+                snps,route-multi-broad: false
+          - if:
+              required:
+                - snps,route-dcbcp
+            then:
+              properties:
+                snps,route-avcp: false
+                snps,route-ptp: false
+                snps,route-up: false
+                snps,route-multi-broad: false
+          - if:
+              required:
+                - snps,route-up
+            then:
+              properties:
+                snps,route-avcp: false
+                snps,route-ptp: false
+                snps,route-dcbcp: false
+                snps,route-multi-broad: false
+          - if:
+              required:
+                - snps,route-multi-broad
+            then:
+              properties:
+                snps,route-avcp: false
+                snps,route-ptp: false
+                snps,route-dcbcp: false
+                snps,route-up: false
+        additionalProperties: false
+    additionalProperties: false
 
   snps,mtl-tx-config:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Multiple TX Queues parameters. Phandle to a node that can
-      contain the following properties
-        * snps,tx-queues-to-use, number of TX queues to be used in the
-          driver
-        * Choose one of these TX scheduling algorithms
-          * snps,tx-sched-wrr, Weighted Round Robin
-          * snps,tx-sched-wfq, Weighted Fair Queuing
-          * snps,tx-sched-dwrr, Deficit Weighted Round Robin
-          * snps,tx-sched-sp, Strict priority
-        * For each TX queue
-          * snps,weight, TX queue weight (if using a DCB weight
-            algorithm)
-          * Choose one of these modes
-            * snps,dcb-algorithm, TX queue will be working in DCB
-            * snps,avb-algorithm, TX queue will be working in AVB
-              [Attention] Queue 0 is reserved for legacy traffic
-                          and so no AVB is available in this queue.
-          * Configure Credit Base Shaper (if AVB Mode selected)
-            * snps,send_slope, enable Low Power Interface
-            * snps,idle_slope, unlock on WoL
-            * snps,high_credit, max write outstanding req. limit
-            * snps,low_credit, max read outstanding req. limit
-          * snps,priority, bitmask of the priorities assigned to the queue.
-            When a PFC frame is received with priorities matching the bitmask,
-            the queue is blocked from transmitting for the pause time specified
-            in the PFC frame.
+      Multiple TX Queues parameters. Phandle to a node that
+      implements the 'tx-queues-config' object described in
+      this binding.
+
+  tx-queues-config:
+    type: object
+    properties:
+      snps,tx-queues-to-use:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description: number of TX queues to be used in the driver
+      snps,tx-sched-wrr:
+        type: boolean
+        description: Weighted Round Robin
+      snps,tx-sched-wfq:
+        type: boolean
+        description: Weighted Fair Queuing
+      snps,tx-sched-dwrr:
+        type: boolean
+        description: Deficit Weighted Round Robin
+      snps,tx-sched-sp:
+        type: boolean
+        description: Strict priority
+    allOf:
+      - if:
+          required:
+            - snps,tx-sched-wrr
+        then:
+          properties:
+            snps,tx-sched-wfq: false
+            snps,tx-sched-dwrr: false
+            snps,tx-sched-sp: false
+      - if:
+          required:
+            - snps,tx-sched-wfq
+        then:
+          properties:
+            snps,tx-sched-wrr: false
+            snps,tx-sched-dwrr: false
+            snps,tx-sched-sp: false
+      - if:
+          required:
+            - snps,tx-sched-dwrr
+        then:
+          properties:
+            snps,tx-sched-wrr: false
+            snps,tx-sched-wfq: false
+            snps,tx-sched-sp: false
+      - if:
+          required:
+            - snps,tx-sched-sp
+        then:
+          properties:
+            snps,tx-sched-wrr: false
+            snps,tx-sched-wfq: false
+            snps,tx-sched-dwrr: false
+    patternProperties:
+      "^queue[0-9]$":
+        description: Each subnode represents a queue.
+        type: object
+        properties:
+          snps,weight:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: TX queue weight (if using a DCB weight algorithm)
+          snps,dcb-algorithm:
+            type: boolean
+            description: TX queue will be working in DCB
+          snps,avb-algorithm:
+            type: boolean
+            description:
+              TX queue will be working in AVB.
+              Queue 0 is reserved for legacy traffic and so no AVB is
+              available in this queue.
+          snps,send_slope:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: enable Low Power Interface
+          snps,idle_slope:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: unlock on WoL
+          snps,high_credit:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: max write outstanding req. limit
+          snps,low_credit:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description: max read outstanding req. limit
+          snps,priority:
+            $ref: /schemas/types.yaml#/definitions/uint32
+            description:
+              Bitmask of the tagged frames priorities assigned to the queue.
+              When a PFC frame is received with priorities matching the bitmask,
+              the queue is blocked from transmitting for the pause time specified
+              in the PFC frame.
+        allOf:
+          - if:
+              required:
+                - snps,dcb-algorithm
+            then:
+              properties:
+                snps,avb-algorithm: false
+          - if:
+              required:
+                - snps,avb-algorithm
+            then:
+              properties:
+                snps,dcb-algorithm: false
+                snps,weight: false
+        additionalProperties: false
+    additionalProperties: false
 
   snps,reset-gpio:
     deprecated: true
@@ -370,10 +563,10 @@ required:
 
 dependencies:
   snps,reset-active-low: ["snps,reset-gpio"]
-  snps,reset-delay-us: ["snps,reset-gpio"]
+  snps,reset-delays-us: ["snps,reset-gpio"]
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
   - if:
       properties:
         compatible:
@@ -390,9 +583,12 @@ allOf:
               - ingenic,x1600-mac
               - ingenic,x1830-mac
               - ingenic,x2000-mac
+              - qcom,sa8775p-ethqos
+              - qcom,sc8280xp-ethqos
               - snps,dwmac-3.50a
               - snps,dwmac-4.10a
               - snps,dwmac-4.20a
+              - snps,dwmac-5.20
               - snps,dwxgmac
               - snps,dwxgmac-2.10
               - st,spear600-gmac
@@ -443,10 +639,15 @@ allOf:
               - ingenic,x1600-mac
               - ingenic,x1830-mac
               - ingenic,x2000-mac
+              - qcom,qcs404-ethqos
+              - qcom,sa8775p-ethqos
+              - qcom,sc8280xp-ethqos
+              - qcom,sm8150-ethqos
               - snps,dwmac-4.00
               - snps,dwmac-4.10a
               - snps,dwmac-4.20a
               - snps,dwmac-5.10a
+              - snps,dwmac-5.20
               - snps,dwxgmac
               - snps,dwxgmac-2.10
               - st,spear600-gmac
@@ -463,41 +664,6 @@ additionalProperties: true
 
 examples:
   - |
-    stmmac_axi_setup: stmmac-axi-config {
-        snps,wr_osr_lmt = <0xf>;
-        snps,rd_osr_lmt = <0xf>;
-        snps,blen = <256 128 64 32 0 0 0>;
-    };
-
-    mtl_rx_setup: rx-queues-config {
-        snps,rx-queues-to-use = <1>;
-        snps,rx-sched-sp;
-        queue0 {
-            snps,dcb-algorithm;
-            snps,map-to-dma-channel = <0x0>;
-            snps,priority = <0x0>;
-        };
-    };
-
-    mtl_tx_setup: tx-queues-config {
-        snps,tx-queues-to-use = <2>;
-        snps,tx-sched-wrr;
-        queue0 {
-            snps,weight = <0x10>;
-            snps,dcb-algorithm;
-            snps,priority = <0x0>;
-        };
-
-        queue1 {
-            snps,avb-algorithm;
-            snps,send_slope = <0x1000>;
-            snps,idle_slope = <0x1000>;
-            snps,high_credit = <0x3E800>;
-            snps,low_credit = <0xFFC18000>;
-            snps,priority = <0x1>;
-        };
-    };
-
     gmac0: ethernet@e0800000 {
         compatible = "snps,dwxgmac-2.10", "snps,dwxgmac";
         reg = <0xe0800000 0x8000>;
@@ -516,6 +682,42 @@ examples:
         snps,axi-config = <&stmmac_axi_setup>;
         snps,mtl-rx-config = <&mtl_rx_setup>;
         snps,mtl-tx-config = <&mtl_tx_setup>;
+
+        stmmac_axi_setup: stmmac-axi-config {
+            snps,wr_osr_lmt = <0xf>;
+            snps,rd_osr_lmt = <0xf>;
+            snps,blen = <256 128 64 32 0 0 0>;
+        };
+
+        mtl_rx_setup: rx-queues-config {
+            snps,rx-queues-to-use = <1>;
+            snps,rx-sched-sp;
+            queue0 {
+                snps,dcb-algorithm;
+                snps,map-to-dma-channel = <0x0>;
+                snps,priority = <0x0>;
+            };
+        };
+
+        mtl_tx_setup: tx-queues-config {
+            snps,tx-queues-to-use = <2>;
+            snps,tx-sched-wrr;
+            queue0 {
+                snps,weight = <0x10>;
+                snps,dcb-algorithm;
+                snps,priority = <0x0>;
+            };
+
+            queue1 {
+                snps,avb-algorithm;
+                snps,send_slope = <0x1000>;
+                snps,idle_slope = <0x1000>;
+                snps,high_credit = <0x3E800>;
+                snps,low_credit = <0xFFC18000>;
+                snps,priority = <0x1>;
+            };
+        };
+
         mdio0 {
             #address-cells = <1>;
             #size-cells = <0>;

@@ -107,7 +107,7 @@ config INPUT_ATC260X_ONKEY
 
 config INPUT_ATMEL_CAPTOUCH
 	tristate "Atmel Capacitive Touch Button Driver"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on I2C
 	help
 	  Say Y here if an Atmel Capacitive Touch Button device which
@@ -118,6 +118,17 @@ config INPUT_ATMEL_CAPTOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called atmel_captouch.
+
+config INPUT_BBNSM_PWRKEY
+	tristate "NXP BBNSM Power Key Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on OF
+	help
+	  This is the bbnsm powerkey driver for the NXP i.MX application
+	  processors.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called bbnsm_pwrkey.
 
 config INPUT_BMA150
 	tristate "BMA150/SMB380 acceleration sensor support"
@@ -330,7 +341,7 @@ config INPUT_CPCAP_PWRBUTTON
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
-	depends on X86_32
+	depends on X86_32 && !UML
 	select INPUT_SPARSEKMAP
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -468,6 +479,16 @@ config INPUT_TPS65218_PWRBUTTON
 	  To compile this driver as a module, choose M here. The module will
 	  be called tps65218-pwrbutton.
 
+config INPUT_TPS65219_PWRBUTTON
+	tristate "TPS65219 Power button driver"
+	depends on MFD_TPS65219
+	help
+	  Say Y here if you want to enable power button reporting for
+	  TPS65219 Power Management IC devices.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called tps65219-pwrbutton.
+
 config INPUT_AXP20X_PEK
 	tristate "X-Powers AXP20X power button driver"
 	depends on MFD_AXP20X
@@ -588,7 +609,7 @@ config INPUT_PWM_VIBRA
 
 config INPUT_RK805_PWRKEY
 	tristate "Rockchip RK805 PMIC power key support"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  Select this option to enable power key driver for RK805.
 
@@ -662,17 +683,6 @@ config INPUT_DA9063_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.
 
-config INPUT_DM355EVM
-	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
-	depends on MFD_DM355EVM_MSP
-	select INPUT_SPARSEKMAP
-	help
-	  Supports the pushbuttons and IR remote used with
-	  the DM355 EVM board.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dm355evm_keys.
-
 config INPUT_WM831X_ON
 	tristate "WM831X ON pin"
 	depends on MFD_WM831X
@@ -729,6 +739,24 @@ config INPUT_ADXL34X_SPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adxl34x-spi.
+
+config INPUT_IBM_PANEL
+	tristate "IBM Operation Panel driver"
+	depends on I2C && I2C_SLAVE
+	help
+	  Say Y here if you have an IBM Operation Panel connected to your system
+	  over I2C. The panel is typically connected only to a system's service
+	  processor (BMC).
+
+	  If unsure, say N.
+
+	  The Operation Panel is a controller with some buttons and an LCD
+	  display that allows someone with physical access to the system to
+	  perform various administrative tasks. This driver only supports the part
+	  of the controller that sends commands to the system.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ibm-panel.
 
 config INPUT_IMS_PCU
 	tristate "IMS Passenger Control Unit driver"
@@ -890,6 +918,15 @@ config INPUT_SC27XX_VIBRA
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
+
+config INPUT_RT5120_PWRKEY
+	tristate "RT5120 PMIC power key support"
+	depends on MFD_RT5120 || COMPILE_TEST
+	help
+	  This enables support for RT5120 PMIC power key driver.
+
+	  To compile this driver as a module, choose M here. the module will
+	  be called rt5120-pwrkey.
 
 config INPUT_STPMIC1_ONKEY
 	tristate "STPMIC1 PMIC Onkey support"

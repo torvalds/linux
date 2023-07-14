@@ -11,12 +11,21 @@
 #include <linux/tcp.h>
 #include <linux/vmalloc.h>
 #include <linux/skbuff.h>
+#include <net/xdp_sock_drv.h>
 
 static inline void gve_tx_put_doorbell(struct gve_priv *priv,
 				       struct gve_queue_resources *q_resources,
 				       u32 val)
 {
 	iowrite32be(val, &priv->db_bar2[be32_to_cpu(q_resources->db_index)]);
+}
+
+void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid)
+{
+	u32 tx_qid = gve_xdp_tx_queue_id(priv, xdp_qid);
+	struct gve_tx_ring *tx = &priv->tx[tx_qid];
+
+	gve_tx_put_doorbell(priv, tx->q_resources, tx->req);
 }
 
 /* gvnic can only transmit from a Registered Segment.
@@ -132,6 +141,58 @@ static void gve_tx_free_fifo(struct gve_tx_fifo *fifo, size_t bytes)
 	atomic_add(bytes, &fifo->available);
 }
 
+static size_t gve_tx_clear_buffer_state(struct gve_tx_buffer_state *info)
+{
+	size_t space_freed = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(info->iov); i++) {
+		space_freed += info->iov[i].iov_len + info->iov[i].iov_padding;
+		info->iov[i].iov_len = 0;
+		info->iov[i].iov_padding = 0;
+	}
+	return space_freed;
+}
+
+static int gve_clean_xdp_done(struct gve_priv *priv, struct gve_tx_ring *tx,
+			      u32 to_do)
+{
+	struct gve_tx_buffer_state *info;
+	u32 clean_end = tx->done + to_do;
+	u64 pkts = 0, bytes = 0;
+	size_t space_freed = 0;
+	u32 xsk_complete = 0;
+	u32 idx;
+
+	for (; tx->done < clean_end; tx->done++) {
+		idx = tx->done & tx->mask;
+		info = &tx->info[idx];
+
+		if (unlikely(!info->xdp.size))
+			continue;
+
+		bytes += info->xdp.size;
+		pkts++;
+		xsk_complete += info->xdp.is_xsk;
+
+		info->xdp.size = 0;
+		if (info->xdp_frame) {
+			xdp_return_frame(info->xdp_frame);
+			info->xdp_frame = NULL;
+		}
+		space_freed += gve_tx_clear_buffer_state(info);
+	}
+
+	gve_tx_free_fifo(&tx->tx_fifo, space_freed);
+	if (xsk_complete > 0 && tx->xsk_pool)
+		xsk_tx_completed(tx->xsk_pool, xsk_complete);
+	u64_stats_update_begin(&tx->statss);
+	tx->bytes_done += bytes;
+	tx->pkt_done += pkts;
+	u64_stats_update_end(&tx->statss);
+	return pkts;
+}
+
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			     u32 to_do, bool try_to_wake);
 
@@ -144,8 +205,12 @@ static void gve_tx_free_ring(struct gve_priv *priv, int idx)
 
 	gve_tx_remove_from_block(priv, idx);
 	slots = tx->mask + 1;
-	gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
-	netdev_tx_reset_queue(tx->netdev_txq);
+	if (tx->q_num < priv->tx_cfg.num_queues) {
+		gve_clean_tx_done(priv, tx, priv->tx_desc_cnt, false);
+		netdev_tx_reset_queue(tx->netdev_txq);
+	} else {
+		gve_clean_xdp_done(priv, tx, priv->tx_desc_cnt);
+	}
 
 	dma_free_coherent(hdev, sizeof(*tx->q_resources),
 			  tx->q_resources, tx->q_resources_bus);
@@ -177,12 +242,13 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	/* Make sure everything is zeroed to start */
 	memset(tx, 0, sizeof(*tx));
 	spin_lock_init(&tx->clean_lock);
+	spin_lock_init(&tx->xdp_lock);
 	tx->q_num = idx;
 
 	tx->mask = slots - 1;
 
 	/* alloc metadata */
-	tx->info = vzalloc(sizeof(*tx->info) * slots);
+	tx->info = vcalloc(slots, sizeof(*tx->info));
 	if (!tx->info)
 		return -ENOMEM;
 
@@ -195,7 +261,7 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 	tx->raw_addressing = priv->queue_format == GVE_GQI_RDA_FORMAT;
 	tx->dev = &priv->pdev->dev;
 	if (!tx->raw_addressing) {
-		tx->tx_fifo.qpl = gve_assign_tx_qpl(priv);
+		tx->tx_fifo.qpl = gve_assign_tx_qpl(priv, idx);
 		if (!tx->tx_fifo.qpl)
 			goto abort_with_desc;
 		/* map Tx FIFO */
@@ -213,7 +279,8 @@ static int gve_tx_alloc_ring(struct gve_priv *priv, int idx)
 
 	netif_dbg(priv, drv, priv->dev, "tx[%d]->bus=%lx\n", idx,
 		  (unsigned long)tx->bus);
-	tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
+	if (idx < priv->tx_cfg.num_queues)
+		tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
 	gve_tx_add_to_block(priv, idx);
 
 	return 0;
@@ -233,12 +300,12 @@ abort_with_info:
 	return -ENOMEM;
 }
 
-int gve_tx_alloc_rings(struct gve_priv *priv)
+int gve_tx_alloc_rings(struct gve_priv *priv, int start_id, int num_rings)
 {
 	int err = 0;
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
+	for (i = start_id; i < start_id + num_rings; i++) {
 		err = gve_tx_alloc_ring(priv, i);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
@@ -251,17 +318,17 @@ int gve_tx_alloc_rings(struct gve_priv *priv)
 	if (err) {
 		int j;
 
-		for (j = 0; j < i; j++)
+		for (j = start_id; j < i; j++)
 			gve_tx_free_ring(priv, j);
 	}
 	return err;
 }
 
-void gve_tx_free_rings_gqi(struct gve_priv *priv)
+void gve_tx_free_rings_gqi(struct gve_priv *priv, int start_id, int num_rings)
 {
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++)
+	for (i = start_id; i < start_id + num_rings; i++)
 		gve_tx_free_ring(priv, i);
 }
 
@@ -284,8 +351,8 @@ static inline int gve_skb_fifo_bytes_required(struct gve_tx_ring *tx,
 	int bytes;
 	int hlen;
 
-	hlen = skb_is_gso(skb) ? skb_checksum_start_offset(skb) +
-				 tcp_hdrlen(skb) : skb_headlen(skb);
+	hlen = skb_is_gso(skb) ? skb_checksum_start_offset(skb) + tcp_hdrlen(skb) :
+				 min_t(int, GVE_GQ_TX_MIN_PKT_DESC_BYTES, skb->len);
 
 	pad_bytes = gve_tx_fifo_pad_alloc_one_frag(&tx->tx_fifo,
 						   hlen);
@@ -374,18 +441,18 @@ static int gve_maybe_stop_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
 }
 
 static void gve_tx_fill_pkt_desc(union gve_tx_desc *pkt_desc,
-				 struct sk_buff *skb, bool is_gso,
+				 u16 csum_offset, u8 ip_summed, bool is_gso,
 				 int l4_hdr_offset, u32 desc_cnt,
-				 u16 hlen, u64 addr)
+				 u16 hlen, u64 addr, u16 pkt_len)
 {
 	/* l4_hdr_offset and csum_offset are in units of 16-bit words */
 	if (is_gso) {
 		pkt_desc->pkt.type_flags = GVE_TXD_TSO | GVE_TXF_L4CSUM;
-		pkt_desc->pkt.l4_csum_offset = skb->csum_offset >> 1;
+		pkt_desc->pkt.l4_csum_offset = csum_offset >> 1;
 		pkt_desc->pkt.l4_hdr_offset = l4_hdr_offset >> 1;
-	} else if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
+	} else if (likely(ip_summed == CHECKSUM_PARTIAL)) {
 		pkt_desc->pkt.type_flags = GVE_TXD_STD | GVE_TXF_L4CSUM;
-		pkt_desc->pkt.l4_csum_offset = skb->csum_offset >> 1;
+		pkt_desc->pkt.l4_csum_offset = csum_offset >> 1;
 		pkt_desc->pkt.l4_hdr_offset = l4_hdr_offset >> 1;
 	} else {
 		pkt_desc->pkt.type_flags = GVE_TXD_STD;
@@ -393,7 +460,7 @@ static void gve_tx_fill_pkt_desc(union gve_tx_desc *pkt_desc,
 		pkt_desc->pkt.l4_hdr_offset = 0;
 	}
 	pkt_desc->pkt.desc_cnt = desc_cnt;
-	pkt_desc->pkt.len = cpu_to_be16(skb->len);
+	pkt_desc->pkt.len = cpu_to_be16(pkt_len);
 	pkt_desc->pkt.seg_len = cpu_to_be16(hlen);
 	pkt_desc->pkt.seg_addr = cpu_to_be64(addr);
 }
@@ -412,15 +479,16 @@ static void gve_tx_fill_mtd_desc(union gve_tx_desc *mtd_desc,
 }
 
 static void gve_tx_fill_seg_desc(union gve_tx_desc *seg_desc,
-				 struct sk_buff *skb, bool is_gso,
+				 u16 l3_offset, u16 gso_size,
+				 bool is_gso_v6, bool is_gso,
 				 u16 len, u64 addr)
 {
 	seg_desc->seg.type_flags = GVE_TXD_SEG;
 	if (is_gso) {
-		if (skb_is_gso_v6(skb))
+		if (is_gso_v6)
 			seg_desc->seg.type_flags |= GVE_TXSF_IPV6;
-		seg_desc->seg.l3_offset = skb_network_offset(skb) >> 1;
-		seg_desc->seg.mss = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		seg_desc->seg.l3_offset = l3_offset >> 1;
+		seg_desc->seg.mss = cpu_to_be16(gso_size);
 	}
 	seg_desc->seg.seg_len = cpu_to_be16(len);
 	seg_desc->seg.seg_addr = cpu_to_be64(addr);
@@ -454,13 +522,11 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 	pkt_desc = &tx->desc[idx];
 
 	l4_hdr_offset = skb_checksum_start_offset(skb);
-	/* If the skb is gso, then we want the tcp header in the first segment
-	 * otherwise we want the linear portion of the skb (which will contain
-	 * the checksum because skb->csum_start and skb->csum_offset are given
-	 * relative to skb->head) in the first segment.
+	/* If the skb is gso, then we want the tcp header alone in the first segment
+	 * otherwise we want the minimum required by the gVNIC spec.
 	 */
 	hlen = is_gso ? l4_hdr_offset + tcp_hdrlen(skb) :
-			skb_headlen(skb);
+			min_t(int, GVE_GQ_TX_MIN_PKT_DESC_BYTES, skb->len);
 
 	info->skb =  skb;
 	/* We don't want to split the header, so if necessary, pad to the end
@@ -473,9 +539,10 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 	payload_nfrags = gve_tx_alloc_fifo(&tx->tx_fifo, skb->len - hlen,
 					   &info->iov[payload_iov]);
 
-	gve_tx_fill_pkt_desc(pkt_desc, skb, is_gso, l4_hdr_offset,
+	gve_tx_fill_pkt_desc(pkt_desc, skb->csum_offset, skb->ip_summed,
+			     is_gso, l4_hdr_offset,
 			     1 + mtd_desc_nr + payload_nfrags, hlen,
-			     info->iov[hdr_nfrags - 1].iov_offset);
+			     info->iov[hdr_nfrags - 1].iov_offset, skb->len);
 
 	skb_copy_bits(skb, 0,
 		      tx->tx_fifo.base + info->iov[hdr_nfrags - 1].iov_offset,
@@ -494,7 +561,9 @@ static int gve_tx_add_skb_copy(struct gve_priv *priv, struct gve_tx_ring *tx, st
 		next_idx = (tx->req + 1 + mtd_desc_nr + i - payload_iov) & tx->mask;
 		seg_desc = &tx->desc[next_idx];
 
-		gve_tx_fill_seg_desc(seg_desc, skb, is_gso,
+		gve_tx_fill_seg_desc(seg_desc, skb_network_offset(skb),
+				     skb_shinfo(skb)->gso_size,
+				     skb_is_gso_v6(skb), is_gso,
 				     info->iov[i].iov_len,
 				     info->iov[i].iov_offset);
 
@@ -552,8 +621,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 	if (mtd_desc_nr)
 		num_descriptors++;
 
-	gve_tx_fill_pkt_desc(pkt_desc, skb, is_gso, l4_hdr_offset,
-			     num_descriptors, hlen, addr);
+	gve_tx_fill_pkt_desc(pkt_desc, skb->csum_offset, skb->ip_summed,
+			     is_gso, l4_hdr_offset,
+			     num_descriptors, hlen, addr, skb->len);
 
 	if (mtd_desc_nr) {
 		idx = (idx + 1) & tx->mask;
@@ -569,7 +639,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 		addr += hlen;
 		idx = (idx + 1) & tx->mask;
 		seg_desc = &tx->desc[idx];
-		gve_tx_fill_seg_desc(seg_desc, skb, is_gso, len, addr);
+		gve_tx_fill_seg_desc(seg_desc, skb_network_offset(skb),
+				     skb_shinfo(skb)->gso_size,
+				     skb_is_gso_v6(skb), is_gso, len, addr);
 	}
 
 	for (i = 0; i < shinfo->nr_frags; i++) {
@@ -587,7 +659,9 @@ static int gve_tx_add_skb_no_copy(struct gve_priv *priv, struct gve_tx_ring *tx,
 		dma_unmap_len_set(&tx->info[idx], len, len);
 		dma_unmap_addr_set(&tx->info[idx], dma, addr);
 
-		gve_tx_fill_seg_desc(seg_desc, skb, is_gso, len, addr);
+		gve_tx_fill_seg_desc(seg_desc, skb_network_offset(skb),
+				     skb_shinfo(skb)->gso_size,
+				     skb_is_gso_v6(skb), is_gso, len, addr);
 	}
 
 	return num_descriptors;
@@ -648,6 +722,103 @@ netdev_tx_t gve_tx(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static int gve_tx_fill_xdp(struct gve_priv *priv, struct gve_tx_ring *tx,
+			   void *data, int len, void *frame_p, bool is_xsk)
+{
+	int pad, nfrags, ndescs, iovi, offset;
+	struct gve_tx_buffer_state *info;
+	u32 reqi = tx->req;
+
+	pad = gve_tx_fifo_pad_alloc_one_frag(&tx->tx_fifo, len);
+	if (pad >= GVE_GQ_TX_MIN_PKT_DESC_BYTES)
+		pad = 0;
+	info = &tx->info[reqi & tx->mask];
+	info->xdp_frame = frame_p;
+	info->xdp.size = len;
+	info->xdp.is_xsk = is_xsk;
+
+	nfrags = gve_tx_alloc_fifo(&tx->tx_fifo, pad + len,
+				   &info->iov[0]);
+	iovi = pad > 0;
+	ndescs = nfrags - iovi;
+	offset = 0;
+
+	while (iovi < nfrags) {
+		if (!offset)
+			gve_tx_fill_pkt_desc(&tx->desc[reqi & tx->mask], 0,
+					     CHECKSUM_NONE, false, 0, ndescs,
+					     info->iov[iovi].iov_len,
+					     info->iov[iovi].iov_offset, len);
+		else
+			gve_tx_fill_seg_desc(&tx->desc[reqi & tx->mask],
+					     0, 0, false, false,
+					     info->iov[iovi].iov_len,
+					     info->iov[iovi].iov_offset);
+
+		memcpy(tx->tx_fifo.base + info->iov[iovi].iov_offset,
+		       data + offset, info->iov[iovi].iov_len);
+		gve_dma_sync_for_device(&priv->pdev->dev,
+					tx->tx_fifo.qpl->page_buses,
+					info->iov[iovi].iov_offset,
+					info->iov[iovi].iov_len);
+		offset += info->iov[iovi].iov_len;
+		iovi++;
+		reqi++;
+	}
+
+	return ndescs;
+}
+
+int gve_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
+		 u32 flags)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	struct gve_tx_ring *tx;
+	int i, err = 0, qid;
+
+	if (unlikely(flags & ~XDP_XMIT_FLAGS_MASK))
+		return -EINVAL;
+
+	qid = gve_xdp_tx_queue_id(priv,
+				  smp_processor_id() % priv->num_xdp_queues);
+
+	tx = &priv->tx[qid];
+
+	spin_lock(&tx->xdp_lock);
+	for (i = 0; i < n; i++) {
+		err = gve_xdp_xmit_one(priv, tx, frames[i]->data,
+				       frames[i]->len, frames[i]);
+		if (err)
+			break;
+	}
+
+	if (flags & XDP_XMIT_FLUSH)
+		gve_tx_put_doorbell(priv, tx->q_resources, tx->req);
+
+	spin_unlock(&tx->xdp_lock);
+
+	u64_stats_update_begin(&tx->statss);
+	tx->xdp_xmit += n;
+	tx->xdp_xmit_errors += n - i;
+	u64_stats_update_end(&tx->statss);
+
+	return i ? i : err;
+}
+
+int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
+		     void *data, int len, void *frame_p)
+{
+	int nsegs;
+
+	if (!gve_can_tx(tx, len + GVE_GQ_TX_MIN_PKT_DESC_BYTES - 1))
+		return -EBUSY;
+
+	nsegs = gve_tx_fill_xdp(priv, tx, data, len, frame_p, false);
+	tx->req += nsegs;
+
+	return 0;
+}
+
 #define GVE_TX_START_THRESH	PAGE_SIZE
 
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
@@ -657,8 +828,8 @@ static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 	u64 pkts = 0, bytes = 0;
 	size_t space_freed = 0;
 	struct sk_buff *skb;
-	int i, j;
 	u32 idx;
+	int j;
 
 	for (j = 0; j < to_do; j++) {
 		idx = tx->done & tx->mask;
@@ -680,12 +851,7 @@ static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			dev_consume_skb_any(skb);
 			if (tx->raw_addressing)
 				continue;
-			/* FIFO free */
-			for (i = 0; i < ARRAY_SIZE(info->iov); i++) {
-				space_freed += info->iov[i].iov_len + info->iov[i].iov_padding;
-				info->iov[i].iov_len = 0;
-				info->iov[i].iov_padding = 0;
-			}
+			space_freed += gve_tx_clear_buffer_state(info);
 		}
 	}
 
@@ -718,6 +884,70 @@ u32 gve_tx_load_event_counter(struct gve_priv *priv,
 	__be32 counter = READ_ONCE(priv->counter_array[counter_index]);
 
 	return be32_to_cpu(counter);
+}
+
+static int gve_xsk_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
+		      int budget)
+{
+	struct xdp_desc desc;
+	int sent = 0, nsegs;
+	void *data;
+
+	spin_lock(&tx->xdp_lock);
+	while (sent < budget) {
+		if (!gve_can_tx(tx, GVE_TX_START_THRESH))
+			goto out;
+
+		if (!xsk_tx_peek_desc(tx->xsk_pool, &desc)) {
+			tx->xdp_xsk_done = tx->xdp_xsk_wakeup;
+			goto out;
+		}
+
+		data = xsk_buff_raw_get_data(tx->xsk_pool, desc.addr);
+		nsegs = gve_tx_fill_xdp(priv, tx, data, desc.len, NULL, true);
+		tx->req += nsegs;
+		sent++;
+	}
+out:
+	if (sent > 0) {
+		gve_tx_put_doorbell(priv, tx->q_resources, tx->req);
+		xsk_tx_release(tx->xsk_pool);
+	}
+	spin_unlock(&tx->xdp_lock);
+	return sent;
+}
+
+bool gve_xdp_poll(struct gve_notify_block *block, int budget)
+{
+	struct gve_priv *priv = block->priv;
+	struct gve_tx_ring *tx = block->tx;
+	u32 nic_done;
+	bool repoll;
+	u32 to_do;
+
+	/* If budget is 0, do all the work */
+	if (budget == 0)
+		budget = INT_MAX;
+
+	/* Find out how much work there is to be done */
+	nic_done = gve_tx_load_event_counter(priv, tx);
+	to_do = min_t(u32, (nic_done - tx->done), budget);
+	gve_clean_xdp_done(priv, tx, to_do);
+	repoll = nic_done != tx->done;
+
+	if (tx->xsk_pool) {
+		int sent = gve_xsk_tx(priv, tx, budget);
+
+		u64_stats_update_begin(&tx->statss);
+		tx->xdp_xsk_sent += sent;
+		u64_stats_update_end(&tx->statss);
+		repoll |= (sent == budget);
+		if (xsk_uses_need_wakeup(tx->xsk_pool))
+			xsk_set_tx_need_wakeup(tx->xsk_pool);
+	}
+
+	/* If we still have work we want to repoll */
+	return repoll;
 }
 
 bool gve_tx_poll(struct gve_notify_block *block, int budget)

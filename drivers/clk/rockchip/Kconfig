@@ -23,6 +23,13 @@ config CLK_RV110X
 	help
 	  Build the driver for RV110x Clock Driver.
 
+config CLK_RV1126
+	bool "Rockchip RV1126 clock controller support"
+	depends on ARM || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RV1126 Clock Driver.
+
 config CLK_RK3036
 	bool "Rockchip RK3036 clock controller support"
 	depends on ARM || COMPILE_TEST
@@ -92,4 +99,12 @@ config CLK_RK3568
 	default y
 	help
 	  Build the driver for RK3568 Clock Driver.
+
+config CLK_RK3588
+	bool "Rockchip RK3588 clock controller support"
+	depends on ARM64 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3588 Clock Driver.
+
 endif

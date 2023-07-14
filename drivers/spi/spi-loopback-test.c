@@ -53,6 +53,12 @@ module_param(no_cs, int, 0);
 MODULE_PARM_DESC(no_cs,
 		 "if set Chip Select (CS) will not be used");
 
+/* run tests only for a specific length */
+static int run_only_iter_len = -1;
+module_param(run_only_iter_len, int, 0);
+MODULE_PARM_DESC(run_only_iter_len,
+		 "only run tests for a length of this number in iterate_len list");
+
 /* run only a specific test */
 static int run_only_test = -1;
 module_param(run_only_test, int, 0);
@@ -70,6 +76,11 @@ static int check_ranges = 1;
 module_param(check_ranges, int, 0644);
 MODULE_PARM_DESC(check_ranges,
 		 "checks rx_buffer pattern are valid");
+
+static unsigned int delay_ms = 100;
+module_param(delay_ms, uint, 0644);
+MODULE_PARM_DESC(delay_ms,
+		 "delay between tests, in milliseconds (default: 100)");
 
 /* the actual tests to execute */
 static struct spi_test spi_tests[] = {
@@ -1028,6 +1039,8 @@ int spi_test_run_test(struct spi_device *spi, const struct spi_test *test,
 
 	for (idx_len = 0; idx_len < SPI_TEST_MAX_ITERATE &&
 	     (len = test->iterate_len[idx_len]) != -1; idx_len++) {
+		if ((run_only_iter_len > -1) && len != run_only_iter_len)
+			continue;
 		FOR_EACH_ALIGNMENT(tx_align) {
 			FOR_EACH_ALIGNMENT(rx_align) {
 				/* and run the iteration */
@@ -1098,7 +1111,8 @@ int spi_test_run_tests(struct spi_device *spi,
 		 * detect the individual tests when using a logic analyzer
 		 * we also add scheduling to avoid potential spi_timeouts...
 		 */
-		mdelay(100);
+		if (delay_ms)
+			mdelay(delay_ms);
 		schedule();
 	}
 

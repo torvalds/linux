@@ -65,6 +65,7 @@ config PPC4xx_GPIO
 	bool "PPC4xx GPIO support"
 	depends on 40x
 	select GPIOLIB
+	select OF_GPIO_MM_GPIOCHIP
 	help
 	  Enable gpiolib support for ppc40x based boards
 

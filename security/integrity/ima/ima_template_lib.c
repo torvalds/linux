@@ -598,19 +598,18 @@ int ima_eventevmsig_init(struct ima_event_data *event_data,
 	if (!event_data->file)
 		return 0;
 
-	rc = vfs_getxattr_alloc(&init_user_ns, file_dentry(event_data->file),
+	rc = vfs_getxattr_alloc(&nop_mnt_idmap, file_dentry(event_data->file),
 				XATTR_NAME_EVM, (char **)&xattr_data, 0,
 				GFP_NOFS);
-	if (rc <= 0)
-		return 0;
-
-	if (xattr_data->type != EVM_XATTR_PORTABLE_DIGSIG) {
-		kfree(xattr_data);
-		return 0;
+	if (rc <= 0 || xattr_data->type != EVM_XATTR_PORTABLE_DIGSIG) {
+		rc = 0;
+		goto out;
 	}
 
 	rc = ima_write_template_field_data((char *)xattr_data, rc, DATA_FMT_HEX,
 					   field_data);
+
+out:
 	kfree(xattr_data);
 	return rc;
 }

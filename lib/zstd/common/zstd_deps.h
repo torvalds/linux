@@ -84,7 +84,7 @@ static uint64_t ZSTD_div64(uint64_t dividend, uint32_t divisor) {
 
 #include <linux/kernel.h>
 
-#define assert(x) WARN_ON((x))
+#define assert(x) WARN_ON(!(x))
 
 #endif /* ZSTD_DEPS_ASSERT */
 #endif /* ZSTD_DEPS_NEED_ASSERT */
@@ -105,21 +105,3 @@ static uint64_t ZSTD_div64(uint64_t dividend, uint32_t divisor) {
 
 #endif /* ZSTD_DEPS_IO */
 #endif /* ZSTD_DEPS_NEED_IO */
-
-/*
- * Only requested when MSAN is enabled.
- * Need:
- * intptr_t
- */
-#ifdef ZSTD_DEPS_NEED_STDINT
-#ifndef ZSTD_DEPS_STDINT
-#define ZSTD_DEPS_STDINT
-
-/*
- * The Linux Kernel doesn't provide intptr_t, only uintptr_t, which
- * is an unsigned long.
- */
-typedef long intptr_t;
-
-#endif /* ZSTD_DEPS_STDINT */
-#endif /* ZSTD_DEPS_NEED_STDINT */

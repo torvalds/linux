@@ -220,135 +220,6 @@ static int gc2235_write_reg_array(struct i2c_client *client,
 	return __gc2235_flush_reg_array(client, &ctrl);
 }
 
-static int gc2235_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (GC2235_FOCAL_LENGTH_NUM << 16) | GC2235_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int gc2235_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/* const f number for imx */
-	*val = (GC2235_F_NUMBER_DEFAULT_NUM << 16) | GC2235_F_NUMBER_DEM;
-	return 0;
-}
-
-static int gc2235_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (GC2235_F_NUMBER_DEFAULT_NUM << 24) |
-	       (GC2235_F_NUMBER_DEM << 16) |
-	       (GC2235_F_NUMBER_DEFAULT_NUM << 8) | GC2235_F_NUMBER_DEM;
-	return 0;
-}
-
-static int gc2235_get_intg_factor(struct i2c_client *client,
-				  struct camera_mipi_info *info,
-				  const struct gc2235_resolution *res)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct gc2235_device *dev = to_gc2235_sensor(sd);
-	struct atomisp_sensor_mode_data *buf = &info->data;
-	u16 reg_val, reg_val_h;
-	int ret;
-
-	if (!info)
-		return -EINVAL;
-
-	/* pixel clock calculattion */
-	buf->vt_pix_clk_freq_mhz = dev->vt_pix_clk_freq_mhz = 30000000;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = GC2235_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    GC2235_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = GC2235_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    GC2235_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = GC2235_FINE_INTG_TIME_MIN;
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  gc2235_read_reg(client, GC2235_8BIT,
-			       GC2235_H_CROP_START_H, &reg_val_h);
-	ret =  gc2235_read_reg(client, GC2235_8BIT,
-			       GC2235_H_CROP_START_L, &reg_val);
-	if (ret)
-		return ret;
-
-	buf->crop_horizontal_start = (reg_val_h << 8) | reg_val;
-
-	ret =  gc2235_read_reg(client, GC2235_8BIT,
-			       GC2235_V_CROP_START_H, &reg_val_h);
-	ret =  gc2235_read_reg(client, GC2235_8BIT,
-			       GC2235_V_CROP_START_L, &reg_val);
-	if (ret)
-		return ret;
-
-	buf->crop_vertical_start = (reg_val_h << 8) | reg_val;
-
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_H_OUTSIZE_H, &reg_val_h);
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_H_OUTSIZE_L, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = (reg_val_h << 8) | reg_val;
-
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_V_OUTSIZE_H, &reg_val_h);
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_V_OUTSIZE_L, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = (reg_val_h << 8) | reg_val;
-
-	buf->crop_horizontal_end = buf->crop_horizontal_start +
-				   buf->output_width - 1;
-	buf->crop_vertical_end = buf->crop_vertical_start +
-				 buf->output_height - 1;
-
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_HB_H, &reg_val_h);
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_HB_L, &reg_val);
-	if (ret)
-		return ret;
-
-#if 0
-	u16 dummy = (reg_val_h << 8) | reg_val;
-#endif
-
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_SH_DELAY_H, &reg_val_h);
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_SH_DELAY_L, &reg_val);
-
-#if 0
-	buf->line_length_pck = buf->output_width + 16 + dummy +
-			       (((u16)reg_val_h << 8) | (u16)reg_val) + 4;
-#endif
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_VB_H, &reg_val_h);
-	ret = gc2235_read_reg(client, GC2235_8BIT,
-			      GC2235_VB_L, &reg_val);
-	if (ret)
-		return ret;
-
-#if 0
-	buf->frame_length_lines = buf->output_height + 32 +
-				  (((u16)reg_val_h << 8) | (u16)reg_val);
-#endif
-	buf->binning_factor_x = res->bin_factor_x ?
-				res->bin_factor_x : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				res->bin_factor_y : 1;
-	return 0;
-}
-
 static long __gc2235_set_exposure(struct v4l2_subdev *sd, int coarse_itg,
 				  int gain, int digitgain)
 
@@ -467,15 +338,6 @@ static int gc2235_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = gc2235_q_exposure(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = gc2235_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = gc2235_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = gc2235_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -497,39 +359,6 @@ static struct v4l2_ctrl_config gc2235_controls[] = {
 		.max = 0xffff,
 		.step = 0x01,
 		.def = 0x00,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "focal length",
-		.min = GC2235_FOCAL_LENGTH_DEFAULT,
-		.max = GC2235_FOCAL_LENGTH_DEFAULT,
-		.step = 0x01,
-		.def = GC2235_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number",
-		.min = GC2235_F_NUMBER_DEFAULT,
-		.max = GC2235_F_NUMBER_DEFAULT,
-		.step = 0x01,
-		.def = GC2235_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "f-number range",
-		.min = GC2235_F_NUMBER_RANGE,
-		.max = GC2235_F_NUMBER_RANGE,
-		.step = 0x01,
-		.def = GC2235_F_NUMBER_RANGE,
 		.flags = 0,
 	},
 };
@@ -742,11 +571,6 @@ static int gc2235_set_fmt(struct v4l2_subdev *sd,
 		dev_err(&client->dev, "gc2235 startup err\n");
 		goto err;
 	}
-
-	ret = gc2235_get_intg_factor(client, gc2235_info,
-				     dev->res);
-	if (ret)
-		dev_err(&client->dev, "failed to get integration_factor\n");
 
 err:
 	mutex_unlock(&dev->input_lock);
@@ -1040,7 +864,7 @@ static struct i2c_driver gc2235_driver = {
 		.name = "gc2235",
 		.acpi_match_table = gc2235_acpi_match,
 	},
-	.probe_new = gc2235_probe,
+	.probe = gc2235_probe,
 	.remove = gc2235_remove,
 };
 module_i2c_driver(gc2235_driver);

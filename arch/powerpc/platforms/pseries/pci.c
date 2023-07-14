@@ -60,7 +60,7 @@ static int pseries_send_map_pe(struct pci_dev *pdev, u16 num_vfs,
 	struct pci_dn *pdn;
 	int rc;
 	unsigned long buid, addr;
-	int ibm_map_pes = rtas_token("ibm,open-sriov-map-pe-number");
+	int ibm_map_pes = rtas_function_token(RTAS_FN_IBM_OPEN_SRIOV_MAP_PE_NUMBER);
 
 	if (ibm_map_pes == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
@@ -240,7 +240,7 @@ void __init pSeries_final_fixup(void)
  */
 static void fixup_winbond_82c105(struct pci_dev* dev)
 {
-	int i;
+	struct resource *r;
 	unsigned int reg;
 
 	if (!machine_is(pseries))
@@ -251,14 +251,14 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 	/* Enable LEGIRQ to use INTC instead of ISA interrupts */
 	pci_write_config_dword(dev, 0x40, reg | (1<<11));
 
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; ++i) {
+	pci_dev_for_each_resource(dev, r) {
 		/* zap the 2nd function of the winbond chip */
-		if (dev->resource[i].flags & IORESOURCE_IO
-		    && dev->bus->number == 0 && dev->devfn == 0x81)
-			dev->resource[i].flags &= ~IORESOURCE_IO;
-		if (dev->resource[i].start == 0 && dev->resource[i].end) {
-			dev->resource[i].flags = 0;
-			dev->resource[i].end = 0;
+		if (dev->bus->number == 0 && dev->devfn == 0x81 &&
+		    r->flags & IORESOURCE_IO)
+			r->flags &= ~IORESOURCE_IO;
+		if (r->start == 0 && r->end) {
+			r->flags = 0;
+			r->end = 0;
 		}
 	}
 }

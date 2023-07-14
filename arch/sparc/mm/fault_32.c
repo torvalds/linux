@@ -143,28 +143,19 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	if (pagefault_disabled() || !mm)
 		goto no_context;
 
+	if (!from_user && address >= PAGE_OFFSET)
+		goto no_context;
+
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
 retry:
-	mmap_read_lock(mm);
-
-	if (!from_user && address >= PAGE_OFFSET)
-		goto bad_area;
-
-	vma = find_vma(mm, address);
+	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= address)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, address))
-		goto bad_area;
+		goto bad_area_nosemaphore;
 	/*
 	 * Ok, we have a good vm_area for this memory access, so
 	 * we can handle it..
 	 */
-good_area:
 	code = SEGV_ACCERR;
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
@@ -187,8 +178,11 @@ good_area:
 	 */
 	fault = handle_mm_fault(vma, address, flags, regs);
 
-	if (fault_signal_pending(fault, regs))
+	if (fault_signal_pending(fault, regs)) {
+		if (!from_user)
+			goto no_context;
 		return;
+	}
 
 	/* The fault is fully completed (including releasing mmap lock) */
 	if (fault & VM_FAULT_COMPLETED)
@@ -318,17 +312,9 @@ static void force_user_fault(unsigned long address, int write)
 
 	code = SEGV_MAPERR;
 
-	mmap_read_lock(mm);
-	vma = find_vma(mm, address);
+	vma = lock_mm_and_find_vma(mm, address, NULL);
 	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= address)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, address))
-		goto bad_area;
-good_area:
+		goto bad_area_nosemaphore;
 	code = SEGV_ACCERR;
 	if (write) {
 		if (!(vma->vm_flags & VM_WRITE))
@@ -347,6 +333,7 @@ good_area:
 	return;
 bad_area:
 	mmap_read_unlock(mm);
+bad_area_nosemaphore:
 	__do_fault_siginfo(code, SIGSEGV, tsk->thread.kregs, address);
 	return;
 

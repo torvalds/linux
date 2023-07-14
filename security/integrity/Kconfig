@@ -68,12 +68,33 @@ config INTEGRITY_MACHINE_KEYRING
 	depends on INTEGRITY_ASYMMETRIC_KEYS
 	depends on SYSTEM_BLACKLIST_KEYRING
 	depends on LOAD_UEFI_KEYS
-	depends on !IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
 	help
 	 If set, provide a keyring to which Machine Owner Keys (MOK) may
 	 be added. This keyring shall contain just MOK keys.  Unlike keys
 	 in the platform keyring, keys contained in the .machine keyring will
 	 be trusted within the kernel.
+
+config INTEGRITY_CA_MACHINE_KEYRING
+	bool "Enforce Machine Keyring CA Restrictions"
+	depends on INTEGRITY_MACHINE_KEYRING
+	default n
+	help
+	  The .machine keyring can be configured to enforce CA restriction
+	  on any key added to it.  By default no restrictions are in place
+	  and all Machine Owner Keys (MOK) are added to the machine keyring.
+	  If enabled only CA keys are added to the machine keyring, all
+	  other MOK keys load into the platform keyring.
+
+config INTEGRITY_CA_MACHINE_KEYRING_MAX
+	bool "Only CA keys without DigitialSignature usage set"
+	depends on INTEGRITY_CA_MACHINE_KEYRING
+	default n
+	help
+	  When selected, only load CA keys are loaded into the machine
+	  keyring that contain the CA bit set along with the keyCertSign
+	  Usage field.  Keys containing the digitialSignature Usage field
+	  will not be loaded. The remaining MOK keys are loaded into the
+	  .platform keyring.
 
 config LOAD_UEFI_KEYS
        depends on INTEGRITY_PLATFORM_KEYRING

@@ -2,6 +2,7 @@
 /* Copyright (c) 2019 Facebook */
 
 #include <test_progs.h>
+#include <sys/mman.h>
 
 struct s {
 	int a;
@@ -22,7 +23,8 @@ void test_skeleton(void)
 	struct test_skeleton__kconfig *kcfg;
 	const void *elf_bytes;
 	size_t elf_bytes_sz = 0;
-	int i;
+	void *m;
+	int i, fd;
 
 	skel = test_skeleton__open();
 	if (CHECK(!skel, "skel_open", "failed to open skeleton\n"))
@@ -123,6 +125,13 @@ void test_skeleton(void)
 	ASSERT_EQ(skel->bss->out_mostly_var, 123, "out_mostly_var");
 
 	ASSERT_EQ(bss->huge_arr[ARRAY_SIZE(bss->huge_arr) - 1], 123, "huge_arr");
+
+	fd = bpf_map__fd(skel->maps.data_non_mmapable);
+	m = mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, fd, 0);
+	if (!ASSERT_EQ(m, MAP_FAILED, "unexpected_mmap_success"))
+		munmap(m, getpagesize());
+
+	ASSERT_EQ(bpf_map__map_flags(skel->maps.data_non_mmapable), 0, "non_mmap_flags");
 
 	elf_bytes = test_skeleton__elf_bytes(&elf_bytes_sz);
 	ASSERT_OK_PTR(elf_bytes, "elf_bytes");

@@ -10,9 +10,10 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/cpu.h>
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
@@ -56,12 +57,9 @@ static int sun50i_cpufreq_get_efuse(u32 *versions)
 
 	speedbin_nvmem = of_nvmem_cell_get(np, NULL);
 	of_node_put(np);
-	if (IS_ERR(speedbin_nvmem)) {
-		if (PTR_ERR(speedbin_nvmem) != -EPROBE_DEFER)
-			pr_err("Could not get nvmem cell: %ld\n",
-			       PTR_ERR(speedbin_nvmem));
-		return PTR_ERR(speedbin_nvmem);
-	}
+	if (IS_ERR(speedbin_nvmem))
+		return dev_err_probe(cpu_dev, PTR_ERR(speedbin_nvmem),
+				     "Could not get nvmem cell\n");
 
 	speedbin = nvmem_cell_read(speedbin_nvmem, &len);
 	nvmem_cell_put(speedbin_nvmem);

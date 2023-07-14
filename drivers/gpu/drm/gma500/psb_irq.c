@@ -32,17 +32,6 @@ static inline u32 gma_pipestat(int pipe)
 	BUG();
 }
 
-static inline u32 gma_pipe_event(int pipe)
-{
-	if (pipe == 0)
-		return _PSB_PIPEA_EVENT_FLAG;
-	if (pipe == 1)
-		return _MDFLD_PIPEB_EVENT_FLAG;
-	if (pipe == 2)
-		return _MDFLD_PIPEC_EVENT_FLAG;
-	BUG();
-}
-
 static inline u32 gma_pipeconf(int pipe)
 {
 	if (pipe == 0)
@@ -228,7 +217,7 @@ static irqreturn_t gma_irq_handler(int irq, void *arg)
 	vdc_stat &= dev_priv->vdc_irq_mask;
 	spin_unlock(&dev_priv->irqmask_lock);
 
-	if (dsp_int && gma_power_is_on(dev)) {
+	if (dsp_int) {
 		gma_vdc_interrupt(dev, vdc_stat);
 		handled = 1;
 	}
@@ -264,13 +253,12 @@ void gma_irq_preinstall(struct drm_device *dev)
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
-	if (gma_power_is_on(dev)) {
-		PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
-		PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
-		PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
-		PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
-		PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
-	}
+	PSB_WVDC32(0xFFFFFFFF, PSB_HWSTAM);
+	PSB_WVDC32(0x00000000, PSB_INT_MASK_R);
+	PSB_WVDC32(0x00000000, PSB_INT_ENABLE_R);
+	PSB_WSGX32(0x00000000, PSB_CR_EVENT_HOST_ENABLE);
+	PSB_RSGX32(PSB_CR_EVENT_HOST_ENABLE);
+
 	if (dev->vblank[0].enabled)
 		dev_priv->vdc_irq_mask |= _PSB_VSYNC_PIPEA_FLAG;
 	if (dev->vblank[1].enabled)

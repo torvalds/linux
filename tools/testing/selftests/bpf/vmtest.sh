@@ -13,13 +13,19 @@ s390x)
 	QEMU_BINARY=qemu-system-s390x
 	QEMU_CONSOLE="ttyS1"
 	QEMU_FLAGS=(-smp 2)
-	BZIMAGE="arch/s390/boot/compressed/vmlinux"
+	BZIMAGE="arch/s390/boot/vmlinux"
 	;;
 x86_64)
 	QEMU_BINARY=qemu-system-x86_64
 	QEMU_CONSOLE="ttyS0,115200"
 	QEMU_FLAGS=(-cpu host -smp 8)
 	BZIMAGE="arch/x86/boot/bzImage"
+	;;
+aarch64)
+	QEMU_BINARY=qemu-system-aarch64
+	QEMU_CONSOLE="ttyAMA0,115200"
+	QEMU_FLAGS=(-M virt,gic-version=3 -cpu host -smp 8)
+	BZIMAGE="arch/arm64/boot/Image"
 	;;
 *)
 	echo "Unsupported architecture"

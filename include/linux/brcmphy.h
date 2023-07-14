@@ -89,6 +89,7 @@
 #define MII_BCM54XX_EXP_SEL	0x17	/* Expansion register select */
 #define MII_BCM54XX_EXP_SEL_TOP	0x0d00	/* TOP_MISC expansion register select */
 #define MII_BCM54XX_EXP_SEL_SSD	0x0e00	/* Secondary SerDes select */
+#define MII_BCM54XX_EXP_SEL_WOL	0x0e00	/* Wake-on-LAN expansion select register */
 #define MII_BCM54XX_EXP_SEL_ER	0x0f00	/* Expansion register select */
 #define MII_BCM54XX_EXP_SEL_ETC	0x0d00	/* Expansion register spare + 2k mem */
 
@@ -160,6 +161,7 @@
 #define BCM_LED_SRC_OPENSHORT	0xb
 #define BCM_LED_SRC_OFF		0xe	/* Tied high */
 #define BCM_LED_SRC_ON		0xf	/* Tied low */
+#define BCM_LED_SRC_MASK	GENMASK(3, 0)
 
 /*
  * Broadcom Multicolor LED configurations (expansion register 4)
@@ -205,11 +207,13 @@
 #define  BCM_NO_ANEG_APD_EN		0x0060 /* bits 5 & 6 */
 #define  BCM_APD_SINGLELP_EN	0x0100 /* Bit 8 */
 
-#define BCM5482_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
+#define BCM54XX_SHD_LEDS1	0x0d	/* 01101: LED Selector 1 */
 					/* LED3 / ~LINKSPD[2] selector */
-#define BCM5482_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
+#define BCM54XX_SHD_LEDS_SHIFT(led)	(4 * (led))
+#define BCM54XX_SHD_LEDS1_LED3(src)	((src & 0xf) << 4)
 					/* LED1 / ~LINKSPD[1] selector */
-#define BCM5482_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_LEDS1_LED1(src)	((src & 0xf) << 0)
+#define BCM54XX_SHD_LEDS2	0x0e	/* 01110: LED Selector 2 */
 #define BCM54XX_SHD_RGMII_MODE	0x0b	/* 01011: RGMII Mode Selector */
 #define BCM5482_SHD_SSD		0x14	/* 10100: Secondary SerDes control */
 #define BCM5482_SHD_SSD_LEDM	0x0008	/* SSD LED Mode enable */
@@ -253,6 +257,9 @@
 #define BCM54XX_TOP_MISC_IDDQ_SD		(1 << 2)
 #define BCM54XX_TOP_MISC_IDDQ_SR		(1 << 3)
 
+#define BCM54XX_TOP_MISC_LED_CTL		(MII_BCM54XX_EXP_SEL_TOP + 0x0C)
+#define  BCM54XX_LED4_SEL_INTR			BIT(1)
+
 /*
  * BCM5482: Secondary SerDes registers
  */
@@ -271,6 +278,57 @@
 /* BCM54612E Registers */
 #define BCM54612E_EXP_SPARE0		(MII_BCM54XX_EXP_SEL_ETC + 0x34)
 #define BCM54612E_LED4_CLK125OUT_EN	(1 << 1)
+
+
+/* Wake-on-LAN registers */
+#define BCM54XX_WOL_MAIN_CTL		(MII_BCM54XX_EXP_SEL_WOL + 0x80)
+#define  BCM54XX_WOL_EN			BIT(0)
+#define  BCM54XX_WOL_MODE_SINGLE_MPD	0
+#define  BCM54XX_WOL_MODE_SINGLE_MPDSEC	1
+#define  BCM54XX_WOL_MODE_DUAL		2
+#define  BCM54XX_WOL_MODE_SHIFT		1
+#define  BCM54XX_WOL_MODE_MASK		0x3
+#define  BCM54XX_WOL_MP_MSB_FF_EN	BIT(3)
+#define  BCM54XX_WOL_SECKEY_OPT_4B	0
+#define  BCM54XX_WOL_SECKEY_OPT_6B	1
+#define  BCM54XX_WOL_SECKEY_OPT_8B	2
+#define  BCM54XX_WOL_SECKEY_OPT_SHIFT	4
+#define  BCM54XX_WOL_SECKEY_OPT_MASK	0x3
+#define  BCM54XX_WOL_L2_TYPE_CHK	BIT(6)
+#define  BCM54XX_WOL_L4IPV4UDP_CHK	BIT(7)
+#define  BCM54XX_WOL_L4IPV6UDP_CHK	BIT(8)
+#define  BCM54XX_WOL_UDPPORT_CHK	BIT(9)
+#define  BCM54XX_WOL_CRC_CHK		BIT(10)
+#define  BCM54XX_WOL_SECKEY_MODE	BIT(11)
+#define  BCM54XX_WOL_RST		BIT(12)
+#define  BCM54XX_WOL_DIR_PKT_EN		BIT(13)
+#define  BCM54XX_WOL_MASK_MODE_DA_FF	0
+#define  BCM54XX_WOL_MASK_MODE_DA_MPD	1
+#define  BCM54XX_WOL_MASK_MODE_DA_ONLY	2
+#define  BCM54XX_WOL_MASK_MODE_MPD	3
+#define  BCM54XX_WOL_MASK_MODE_SHIFT	14
+#define  BCM54XX_WOL_MASK_MODE_MASK	0x3
+
+#define BCM54XX_WOL_INNER_PROTO		(MII_BCM54XX_EXP_SEL_WOL + 0x81)
+#define BCM54XX_WOL_OUTER_PROTO		(MII_BCM54XX_EXP_SEL_WOL + 0x82)
+#define BCM54XX_WOL_OUTER_PROTO2	(MII_BCM54XX_EXP_SEL_WOL + 0x83)
+
+#define BCM54XX_WOL_MPD_DATA1(x)	(MII_BCM54XX_EXP_SEL_WOL + 0x84 + (x))
+#define BCM54XX_WOL_MPD_DATA2(x)	(MII_BCM54XX_EXP_SEL_WOL + 0x87 + (x))
+#define BCM54XX_WOL_SEC_KEY_8B		(MII_BCM54XX_EXP_SEL_WOL + 0x8A)
+#define BCM54XX_WOL_MASK(x)		(MII_BCM54XX_EXP_SEL_WOL + 0x8B + (x))
+#define BCM54XX_SEC_KEY_STORE(x)	(MII_BCM54XX_EXP_SEL_WOL + 0x8E)
+#define BCM54XX_WOL_SHARED_CNT		(MII_BCM54XX_EXP_SEL_WOL + 0x92)
+
+#define BCM54XX_WOL_INT_MASK		(MII_BCM54XX_EXP_SEL_WOL + 0x93)
+#define  BCM54XX_WOL_PKT1		BIT(0)
+#define  BCM54XX_WOL_PKT2		BIT(1)
+#define  BCM54XX_WOL_DIR		BIT(2)
+#define  BCM54XX_WOL_ALL_INTRS		(BCM54XX_WOL_PKT1 | \
+					 BCM54XX_WOL_PKT2 | \
+					 BCM54XX_WOL_DIR)
+
+#define BCM54XX_WOL_INT_STATUS		(MII_BCM54XX_EXP_SEL_WOL + 0x94)
 
 /*****************************************************************************/
 /* Fast Ethernet Transceiver definitions. */
@@ -303,6 +361,8 @@
 #define BRCM_CL45VEN_EEE_CONTROL	0x803d
 #define LPI_FEATURE_EN			0x8000
 #define LPI_FEATURE_EN_DIG1000X		0x4000
+
+#define BRCM_CL45VEN_EEE_LPI_CNT	0x803f
 
 /* Core register definitions*/
 #define MII_BRCM_CORE_BASE12	0x12

@@ -175,7 +175,7 @@ static void lpc18xx_pwm_config_duty(struct pwm_chip *chip,
 	u32 val;
 
 	/*
-	 * With clk_rate < NSEC_PER_SEC this cannot overflow.
+	 * With clk_rate <= NSEC_PER_SEC this cannot overflow.
 	 * With duty_ns <= period_ns < max_period_ns this also fits into an u32.
 	 */
 	val = mul_u64_u64_div_u64(duty_ns, lpc18xx_pwm->clk_rate, NSEC_PER_SEC);
@@ -449,7 +449,7 @@ disable_pwmclk:
 	return ret;
 }
 
-static int lpc18xx_pwm_remove(struct platform_device *pdev)
+static void lpc18xx_pwm_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = platform_get_drvdata(pdev);
 	u32 val;
@@ -461,8 +461,6 @@ static int lpc18xx_pwm_remove(struct platform_device *pdev)
 			   val | LPC18XX_PWM_CTRL_HALT);
 
 	clk_disable_unprepare(lpc18xx_pwm->pwm_clk);
-
-	return 0;
 }
 
 static struct platform_driver lpc18xx_pwm_driver = {
@@ -471,7 +469,7 @@ static struct platform_driver lpc18xx_pwm_driver = {
 		.of_match_table = lpc18xx_pwm_of_match,
 	},
 	.probe = lpc18xx_pwm_probe,
-	.remove = lpc18xx_pwm_remove,
+	.remove_new = lpc18xx_pwm_remove,
 };
 module_platform_driver(lpc18xx_pwm_driver);
 

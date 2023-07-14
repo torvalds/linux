@@ -492,9 +492,9 @@ static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
 	return of_driver_match_device(dev, drv);
 }
 
-static int rpmsg_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int rpmsg_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
+	const struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 	int ret;
 
 	ret = of_device_uevent_modalias(dev, env);
@@ -694,7 +694,7 @@ static int __init rpmsg_init(void)
 {
 	int ret;
 
-	rpmsg_class = class_create(THIS_MODULE, "rpmsg");
+	rpmsg_class = class_create("rpmsg");
 	if (IS_ERR(rpmsg_class)) {
 		pr_err("failed to create rpmsg class\n");
 		return PTR_ERR(rpmsg_class);

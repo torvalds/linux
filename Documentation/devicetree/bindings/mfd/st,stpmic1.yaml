@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/st,stpmic1.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectonics STPMIC1 Power Management IC bindings
+title: STMicroelectonics STPMIC1 Power Management IC
 
 description: STMicroelectronics STPMIC1 Power Management IC
 
@@ -184,7 +184,7 @@ properties:
         additionalProperties: false
 
     patternProperties:
-      "^(buck[1-4]|ldo[1-6]|boost|pwr_sw[1-2])-supply$":
+      "^(buck[1-4]|ldo[1-6]|vref_ddr|boost|pwr_sw[1-2])-supply$":
         description: STPMIC1 voltage regulators supplies
 
       "^(buck[1-4]|ldo[1-6]|boost|vref_ddr|pwr_sw[1-2])$":

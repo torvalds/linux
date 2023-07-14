@@ -7,9 +7,9 @@ ifdef CONFIG_DYNAMIC_FTRACE
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 
-extra-y	:= head.o vmlinux.lds
+extra-y	:= vmlinux.lds
 
-obj-y := entry.o efi.o efi_stub.o gate-data.o fsys.o irq.o irq_ia64.o	\
+obj-y := head.o entry.o efi.o efi_stub.o gate-data.o fsys.o irq.o irq_ia64.o	\
 	 irq_lsapic.o ivt.o pal.o patch.o process.o ptrace.o sal.o		\
 	 salinfo.o setup.o signal.o sys_ia64.o time.o traps.o unaligned.o \
 	 unwind.o mca.o mca_asm.o topology.o dma-mapping.o iosapic.o acpi.o \
@@ -34,10 +34,7 @@ mca_recovery-y			+= mca_drv.o mca_drv_asm.o
 obj-$(CONFIG_IA64_MC_ERR_INJECT)+= err_inject.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 
-obj-$(CONFIG_IA64_ESI)		+= esi.o
-ifneq ($(CONFIG_IA64_ESI),)
-obj-y				+= esi_stub.o	# must be in kernel proper
-endif
+obj-$(CONFIG_IA64_ESI)		+= esi.o esi_stub.o # must be in kernel proper
 obj-$(CONFIG_INTEL_IOMMU)	+= pci-dma.o
 
 obj-$(CONFIG_ELF_CORE)		+= elfcore.o
@@ -46,4 +43,4 @@ obj-$(CONFIG_ELF_CORE)		+= elfcore.o
 CFLAGS_traps.o  += -mfixed-range=f2-f5,f16-f31
 
 # The gate DSO image is built using a special linker script.
-include $(src)/Makefile.gate
+include $(srctree)/$(src)/Makefile.gate

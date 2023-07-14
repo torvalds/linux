@@ -36,7 +36,7 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	atom.o radeon_fence.o radeon_ttm.o radeon_object.o radeon_gart.o \
 	radeon_legacy_crtc.o radeon_legacy_encoders.o radeon_connectors.o \
 	radeon_encoders.o radeon_display.o radeon_cursor.o radeon_i2c.o \
-	radeon_clocks.o radeon_fb.o radeon_gem.o radeon_ring.o radeon_irq_kms.o \
+	radeon_clocks.o radeon_gem.o radeon_ring.o radeon_irq_kms.o \
 	radeon_cs.o radeon_bios.o radeon_benchmark.o r100.o r300.o r420.o \
 	rs400.o rs600.o rs690.o rv515.o r520.o r600.o rv770.o radeon_test.o \
 	r200.o radeon_legacy_tv.o r600_cs.o \
@@ -49,7 +49,7 @@ radeon-y += radeon_device.o radeon_asic.o radeon_kms.o \
 	rv770_smc.o cypress_dpm.o btc_dpm.o sumo_dpm.o sumo_smc.o trinity_dpm.o \
 	trinity_smc.o ni_dpm.o si_smc.o si_dpm.o kv_smc.o kv_dpm.o ci_smc.o \
 	ci_dpm.o dce6_afmt.o radeon_vm.o radeon_ucode.o radeon_ib.o \
-	radeon_sync.o radeon_audio.o radeon_dp_auxch.o radeon_dp_mst.o
+	radeon_sync.o radeon_audio.o radeon_dp_auxch.o
 
 radeon-$(CONFIG_MMU_NOTIFIER) += radeon_mn.o
 
@@ -76,6 +76,7 @@ radeon-y += \
 	vce_v1_0.o \
 	vce_v2_0.o
 
+radeon-$(CONFIG_DRM_FBDEV_EMULATION) += radeon_fbdev.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o
 radeon-$(CONFIG_ACPI) += radeon_acpi.o
 

@@ -342,6 +342,9 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
+	/* Reset input selector to its default input */
+	regmap_write(priv->regmap, TIM_TISEL, 0x0);
+
 	/* Register Counter device */
 	ret = devm_counter_add(dev, counter);
 	if (ret < 0)
@@ -417,3 +420,4 @@ MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");
 MODULE_ALIAS("platform:stm32-timer-counter");
 MODULE_DESCRIPTION("STMicroelectronics STM32 TIMER counter driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(COUNTER);

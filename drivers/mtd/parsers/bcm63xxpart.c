@@ -164,7 +164,6 @@ static struct mtd_part_parser bcm63xx_cfe_parser = {
 };
 module_mtd_part_parser(bcm63xx_cfe_parser);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Daniel Dickinson <openwrt@cshore.neomailbox.net>");
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
 MODULE_AUTHOR("Mike Albon <malbon@openwrt.org>");

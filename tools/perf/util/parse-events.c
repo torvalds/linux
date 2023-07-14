@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/hw_breakpoint.h>
 #include <linux/err.h>
+#include <linux/list_sort.h>
 #include <linux/zalloc.h>
 #include <dirent.h>
 #include <errno.h>
@@ -20,22 +21,16 @@
 #include "parse-events-bison.h"
 #include "parse-events-flex.h"
 #include "pmu.h"
+#include "pmus.h"
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"
 #include "util/evsel_config.h"
 #include "util/event.h"
-#include "perf.h"
-#include "util/parse-events-hybrid.h"
-#include "util/pmu-hybrid.h"
+#include "util/bpf-filter.h"
+#include "util/util.h"
 #include "tracepoint.h"
-#include "thread_map.h"
 
 #define MAX_NAME_LEN 100
-
-struct perf_pmu_event_symbol {
-	char	*symbol;
-	enum perf_pmu_event_symbol_type	type;
-};
 
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
@@ -43,18 +38,6 @@ extern int parse_events_debug;
 int parse_events_parse(void *parse_state, void *scanner);
 static int get_config_terms(struct list_head *head_config,
 			    struct list_head *head_terms __maybe_unused);
-static int parse_events__with_hybrid_pmu(struct parse_events_state *parse_state,
-					 const char *str, char *pmu_name,
-					 struct list_head *list);
-
-static struct perf_pmu_event_symbol *perf_pmu_events_list;
-/*
- * The variable indicates the number of supported pmu event symbols.
- * 0 means not initialized and ready to init
- * -1 means failed to init, don't try anymore
- * >0 is the number of supported pmu event symbols
- */
-static int perf_pmu_events_list_num;
 
 struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = {
@@ -150,52 +133,6 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 	},
 };
 
-#define __PERF_EVENT_FIELD(config, name) \
-	((config & PERF_EVENT_##name##_MASK) >> PERF_EVENT_##name##_SHIFT)
-
-#define PERF_EVENT_RAW(config)		__PERF_EVENT_FIELD(config, RAW)
-#define PERF_EVENT_CONFIG(config)	__PERF_EVENT_FIELD(config, CONFIG)
-#define PERF_EVENT_TYPE(config)		__PERF_EVENT_FIELD(config, TYPE)
-#define PERF_EVENT_ID(config)		__PERF_EVENT_FIELD(config, EVENT)
-
-bool is_event_supported(u8 type, u64 config)
-{
-	bool ret = true;
-	int open_return;
-	struct evsel *evsel;
-	struct perf_event_attr attr = {
-		.type = type,
-		.config = config,
-		.disabled = 1,
-	};
-	struct perf_thread_map *tmap = thread_map__new_by_tid(0);
-
-	if (tmap == NULL)
-		return false;
-
-	evsel = evsel__new(&attr);
-	if (evsel) {
-		open_return = evsel__open(evsel, NULL, tmap);
-		ret = open_return >= 0;
-
-		if (open_return == -EACCES) {
-			/*
-			 * This happens if the paranoid value
-			 * /proc/sys/kernel/perf_event_paranoid is set to 2
-			 * Re-run with exclude_kernel set; we don't do that
-			 * by default as some ARM machines do not support it.
-			 *
-			 */
-			evsel->core.attr.exclude_kernel = 1;
-			ret = evsel__open(evsel, NULL, tmap) >= 0;
-		}
-		evsel__delete(evsel);
-	}
-
-	perf_thread_map__put(tmap);
-	return ret;
-}
-
 const char *event_type(int type)
 {
 	switch (type) {
@@ -242,6 +179,57 @@ static char *get_config_name(struct list_head *head_terms)
 	return get_config_str(head_terms, PARSE_EVENTS__TERM_TYPE_NAME);
 }
 
+/**
+ * fix_raw - For each raw term see if there is an event (aka alias) in pmu that
+ *           matches the raw's string value. If the string value matches an
+ *           event then change the term to be an event, if not then change it to
+ *           be a config term. For example, "read" may be an event of the PMU or
+ *           a raw hex encoding of 0xead. The fix-up is done late so the PMU of
+ *           the event can be determined and we don't need to scan all PMUs
+ *           ahead-of-time.
+ * @config_terms: the list of terms that may contain a raw term.
+ * @pmu: the PMU to scan for events from.
+ */
+static void fix_raw(struct list_head *config_terms, struct perf_pmu *pmu)
+{
+	struct parse_events_term *term;
+
+	list_for_each_entry(term, config_terms, list) {
+		struct perf_pmu_alias *alias;
+		bool matched = false;
+
+		if (term->type_term != PARSE_EVENTS__TERM_TYPE_RAW)
+			continue;
+
+		list_for_each_entry(alias, &pmu->aliases, list) {
+			if (!strcmp(alias->name, term->val.str)) {
+				free(term->config);
+				term->config = term->val.str;
+				term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
+				term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+				term->val.num = 1;
+				term->no_value = true;
+				matched = true;
+				break;
+			}
+		}
+		if (!matched) {
+			u64 num;
+
+			free(term->config);
+			term->config = strdup("config");
+			errno = 0;
+			num = strtoull(term->val.str + 1, NULL, 16);
+			assert(errno == 0);
+			free(term->val.str);
+			term->type_val = PARSE_EVENTS__TERM_TYPE_NUM;
+			term->type_term = PARSE_EVENTS__TERM_TYPE_CONFIG;
+			term->val.num = num;
+			term->no_value = false;
+		}
+	}
+}
+
 static struct evsel *
 __add_event(struct list_head *list, int *idx,
 	    struct perf_event_attr *attr,
@@ -254,9 +242,19 @@ __add_event(struct list_head *list, int *idx,
 	struct perf_cpu_map *cpus = pmu ? perf_cpu_map__get(pmu->cpus) :
 			       cpu_list ? perf_cpu_map__new(cpu_list) : NULL;
 
-	if (pmu && attr->type == PERF_TYPE_RAW)
-		perf_pmu__warn_invalid_config(pmu, attr->config, name);
+	if (pmu)
+		perf_pmu__warn_invalid_formats(pmu);
 
+	if (pmu && (attr->type == PERF_TYPE_RAW || attr->type >= PERF_TYPE_MAX)) {
+		perf_pmu__warn_invalid_config(pmu, attr->config, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG, "config");
+		perf_pmu__warn_invalid_config(pmu, attr->config1, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG1, "config1");
+		perf_pmu__warn_invalid_config(pmu, attr->config2, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG2, "config2");
+		perf_pmu__warn_invalid_config(pmu, attr->config3, name,
+					      PERF_PMU_FORMAT_VALUE_CONFIG3, "config3");
+	}
 	if (init_attr)
 		event_attr_init(attr);
 
@@ -270,7 +268,10 @@ __add_event(struct list_head *list, int *idx,
 	evsel->core.cpus = cpus;
 	evsel->core.own_cpus = perf_cpu_map__get(cpus);
 	evsel->core.requires_cpu = pmu ? pmu->is_uncore : false;
+	evsel->core.is_pmu_core = pmu ? pmu->is_core : false;
 	evsel->auto_merge_stats = auto_merge_stats;
+	evsel->pmu = pmu;
+	evsel->pmu_name = pmu && pmu->name ? strdup(pmu->name) : NULL;
 
 	if (name)
 		evsel->name = strdup(name);
@@ -330,18 +331,27 @@ static int add_event_tool(struct list_head *list, int *idx,
 	return 0;
 }
 
-static int parse_aliases(char *str, const char *const names[][EVSEL__MAX_ALIASES], int size)
+/**
+ * parse_aliases - search names for entries beginning or equalling str ignoring
+ *                 case. If mutliple entries in names match str then the longest
+ *                 is chosen.
+ * @str: The needle to look for.
+ * @names: The haystack to search.
+ * @size: The size of the haystack.
+ * @longest: Out argument giving the length of the matching entry.
+ */
+static int parse_aliases(const char *str, const char *const names[][EVSEL__MAX_ALIASES], int size,
+			 int *longest)
 {
-	int i, j;
-	int n, longest = -1;
+	*longest = -1;
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < EVSEL__MAX_ALIASES && names[i][j]; j++) {
+			int n = strlen(names[i][j]);
 
-	for (i = 0; i < size; i++) {
-		for (j = 0; j < EVSEL__MAX_ALIASES && names[i][j]; j++) {
-			n = strlen(names[i][j]);
-			if (n > longest && !strncasecmp(str, names[i][j], n))
-				longest = n;
+			if (n > *longest && !strncasecmp(str, names[i][j], n))
+				*longest = n;
 		}
-		if (longest > 0)
+		if (*longest > 0)
 			return i;
 	}
 
@@ -359,52 +369,52 @@ static int config_attr(struct perf_event_attr *attr,
 		       struct parse_events_error *err,
 		       config_term_func_t config_term);
 
-int parse_events_add_cache(struct list_head *list, int *idx,
-			   char *type, char *op_result1, char *op_result2,
-			   struct parse_events_error *err,
-			   struct list_head *head_config,
-			   struct parse_events_state *parse_state)
+/**
+ * parse_events__decode_legacy_cache - Search name for the legacy cache event
+ *                                     name composed of 1, 2 or 3 hyphen
+ *                                     separated sections. The first section is
+ *                                     the cache type while the others are the
+ *                                     optional op and optional result. To make
+ *                                     life hard the names in the table also
+ *                                     contain hyphens and the longest name
+ *                                     should always be selected.
+ */
+int parse_events__decode_legacy_cache(const char *name, int extended_pmu_type, __u64 *config)
 {
-	struct perf_event_attr attr;
-	LIST_HEAD(config_terms);
-	char name[MAX_NAME_LEN];
-	const char *config_name, *metric_id;
-	int cache_type = -1, cache_op = -1, cache_result = -1;
-	char *op_result[2] = { op_result1, op_result2 };
-	int i, n, ret;
-	bool hybrid;
+	int len, cache_type = -1, cache_op = -1, cache_result = -1;
+	const char *name_end = &name[strlen(name) + 1];
+	const char *str = name;
 
-	/*
-	 * No fallback - if we cannot get a clear cache type
-	 * then bail out:
-	 */
-	cache_type = parse_aliases(type, evsel__hw_cache, PERF_COUNT_HW_CACHE_MAX);
+	cache_type = parse_aliases(str, evsel__hw_cache, PERF_COUNT_HW_CACHE_MAX, &len);
 	if (cache_type == -1)
 		return -EINVAL;
+	str += len + 1;
 
-	config_name = get_config_name(head_config);
-	n = snprintf(name, MAX_NAME_LEN, "%s", type);
-
-	for (i = 0; (i < 2) && (op_result[i]); i++) {
-		char *str = op_result[i];
-
-		n += snprintf(name + n, MAX_NAME_LEN - n, "-%s", str);
-
-		if (cache_op == -1) {
+	if (str < name_end) {
+		cache_op = parse_aliases(str, evsel__hw_cache_op,
+					PERF_COUNT_HW_CACHE_OP_MAX, &len);
+		if (cache_op >= 0) {
+			if (!evsel__is_cache_op_valid(cache_type, cache_op))
+				return -EINVAL;
+			str += len + 1;
+		} else {
+			cache_result = parse_aliases(str, evsel__hw_cache_result,
+						PERF_COUNT_HW_CACHE_RESULT_MAX, &len);
+			if (cache_result >= 0)
+				str += len + 1;
+		}
+	}
+	if (str < name_end) {
+		if (cache_op < 0) {
 			cache_op = parse_aliases(str, evsel__hw_cache_op,
-						 PERF_COUNT_HW_CACHE_OP_MAX);
+						PERF_COUNT_HW_CACHE_OP_MAX, &len);
 			if (cache_op >= 0) {
 				if (!evsel__is_cache_op_valid(cache_type, cache_op))
 					return -EINVAL;
-				continue;
 			}
-		}
-
-		if (cache_result == -1) {
+		} else if (cache_result < 0) {
 			cache_result = parse_aliases(str, evsel__hw_cache_result,
-						     PERF_COUNT_HW_CACHE_RESULT_MAX);
-			if (cache_result >= 0)
-				continue;
+						PERF_COUNT_HW_CACHE_RESULT_MAX, &len);
 		}
 	}
 
@@ -420,35 +430,74 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 	if (cache_result == -1)
 		cache_result = PERF_COUNT_HW_CACHE_RESULT_ACCESS;
 
-	memset(&attr, 0, sizeof(attr));
-	attr.config = cache_type | (cache_op << 8) | (cache_result << 16);
-	attr.type = PERF_TYPE_HW_CACHE;
-
-	if (head_config) {
-		if (config_attr(&attr, head_config, err,
-				config_term_common))
-			return -EINVAL;
-
-		if (get_config_terms(head_config, &config_terms))
-			return -ENOMEM;
-	}
-
-	metric_id = get_config_metric_id(head_config);
-	ret = parse_events__add_cache_hybrid(list, idx, &attr,
-					     config_name ? : name,
-					     metric_id,
-					     &config_terms,
-					     &hybrid, parse_state);
-	if (hybrid)
-		goto out_free_terms;
-
-	ret = add_event(list, idx, &attr, config_name ? : name, metric_id,
-			&config_terms);
-out_free_terms:
-	free_config_terms(&config_terms);
-	return ret;
+	*config = cache_type | (cache_op << 8) | (cache_result << 16);
+	if (perf_pmus__supports_extended_type())
+		*config |= (__u64)extended_pmu_type << PERF_PMU_TYPE_SHIFT;
+	return 0;
 }
 
+/**
+ * parse_events__filter_pmu - returns false if a wildcard PMU should be
+ *                            considered, true if it should be filtered.
+ */
+bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
+			      const struct perf_pmu *pmu)
+{
+	if (parse_state->pmu_filter == NULL)
+		return false;
+
+	if (pmu->name == NULL)
+		return true;
+
+	return strcmp(parse_state->pmu_filter, pmu->name) != 0;
+}
+
+int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
+			   struct parse_events_state *parse_state,
+			   struct list_head *head_config)
+{
+	struct perf_pmu *pmu = NULL;
+	bool found_supported = false;
+	const char *config_name = get_config_name(head_config);
+	const char *metric_id = get_config_metric_id(head_config);
+
+	/* Legacy cache events are only supported by core PMUs. */
+	while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+		LIST_HEAD(config_terms);
+		struct perf_event_attr attr;
+		int ret;
+
+		if (parse_events__filter_pmu(parse_state, pmu))
+			continue;
+
+		memset(&attr, 0, sizeof(attr));
+		attr.type = PERF_TYPE_HW_CACHE;
+
+		ret = parse_events__decode_legacy_cache(name, pmu->type, &attr.config);
+		if (ret)
+			return ret;
+
+		found_supported = true;
+
+		if (head_config) {
+			if (config_attr(&attr, head_config, parse_state->error, config_term_common))
+				return -EINVAL;
+
+			if (get_config_terms(head_config, &config_terms))
+				return -ENOMEM;
+		}
+
+		if (__add_event(list, idx, &attr, /*init_attr*/true, config_name ?: name,
+				metric_id, pmu, &config_terms, /*auto_merge_stats=*/false,
+				/*cpu_list=*/NULL) == NULL)
+			return -ENOMEM;
+
+		free_config_terms(&config_terms);
+	}
+	return found_supported ? 0 : -EINVAL;
+}
+
+#ifdef HAVE_LIBTRACEEVENT
 static void tracepoint_error(struct parse_events_error *e, int err,
 			     const char *sys, const char *name)
 {
@@ -597,6 +646,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 	closedir(events_dir);
 	return ret;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 #ifdef HAVE_LIBBPF_SUPPORT
 struct __add_bpf_event_param {
@@ -896,10 +946,14 @@ do {					\
 	return 0;
 }
 
-int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				u64 addr, char *type, u64 len)
+int parse_events_add_breakpoint(struct parse_events_state *parse_state,
+				struct list_head *list,
+				u64 addr, char *type, u64 len,
+				struct list_head *head_config __maybe_unused)
 {
 	struct perf_event_attr attr;
+	LIST_HEAD(config_terms);
+	const char *name;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.bp_addr = addr;
@@ -920,8 +974,19 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	attr.type = PERF_TYPE_BREAKPOINT;
 	attr.sample_period = 1;
 
-	return add_event(list, idx, &attr, /*name=*/NULL, /*mertic_id=*/NULL,
-			 /*config_terms=*/NULL);
+	if (head_config) {
+		if (config_attr(&attr, head_config, parse_state->error,
+				config_term_common))
+			return -EINVAL;
+
+		if (get_config_terms(head_config, &config_terms))
+			return -ENOMEM;
+	}
+
+	name = get_config_name(head_config);
+
+	return add_event(list, &parse_state->idx, &attr, name, /*mertic_id=*/NULL,
+			 &config_terms);
 }
 
 static int check_type_val(struct parse_events_term *term,
@@ -949,6 +1014,7 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_CONFIG]		= "config",
 	[PARSE_EVENTS__TERM_TYPE_CONFIG1]		= "config1",
 	[PARSE_EVENTS__TERM_TYPE_CONFIG2]		= "config2",
+	[PARSE_EVENTS__TERM_TYPE_CONFIG3]		= "config3",
 	[PARSE_EVENTS__TERM_TYPE_NAME]			= "name",
 	[PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD]		= "period",
 	[PARSE_EVENTS__TERM_TYPE_SAMPLE_FREQ]		= "freq",
@@ -967,6 +1033,9 @@ static const char *config_term_names[__PARSE_EVENTS__TERM_TYPE_NR] = {
 	[PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT]		= "aux-output",
 	[PARSE_EVENTS__TERM_TYPE_AUX_SAMPLE_SIZE]	= "aux-sample-size",
 	[PARSE_EVENTS__TERM_TYPE_METRIC_ID]		= "metric-id",
+	[PARSE_EVENTS__TERM_TYPE_RAW]                   = "raw",
+	[PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE]          = "legacy-cache",
+	[PARSE_EVENTS__TERM_TYPE_HARDWARE]              = "hardware",
 };
 
 static bool config_term_shrinked;
@@ -988,6 +1057,7 @@ config_term_avail(int term_type, struct parse_events_error *err)
 	case PARSE_EVENTS__TERM_TYPE_CONFIG:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
 	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
 	case PARSE_EVENTS__TERM_TYPE_NAME:
 	case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
@@ -1032,6 +1102,10 @@ do {									   \
 	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
 		CHECK_TYPE_VAL(NUM);
 		attr->config2 = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_CONFIG3:
+		CHECK_TYPE_VAL(NUM);
+		attr->config3 = term->val.num;
 		break;
 	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 		CHECK_TYPE_VAL(NUM);
@@ -1081,6 +1155,9 @@ do {									   \
 		CHECK_TYPE_VAL(STR);
 		break;
 	case PARSE_EVENTS__TERM_TYPE_METRIC_ID:
+		CHECK_TYPE_VAL(STR);
+		break;
+	case PARSE_EVENTS__TERM_TYPE_RAW:
 		CHECK_TYPE_VAL(STR);
 		break;
 	case PARSE_EVENTS__TERM_TYPE_MAX_STACK:
@@ -1136,17 +1213,45 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_term *term,
 			   struct parse_events_error *err)
 {
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE) {
+		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
+
+		if (perf_pmu__supports_legacy_cache(pmu)) {
+			attr->type = PERF_TYPE_HW_CACHE;
+			return parse_events__decode_legacy_cache(term->config, pmu->type,
+								 &attr->config);
+		} else
+			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+	}
+	if (term->type_term == PARSE_EVENTS__TERM_TYPE_HARDWARE) {
+		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
+
+		if (!pmu) {
+			char *err_str;
+
+			if (asprintf(&err_str, "Failed to find PMU for type %d", attr->type) >= 0)
+				parse_events_error__handle(err, term->err_term,
+							   err_str, /*help=*/NULL);
+			return -EINVAL;
+		}
+		attr->type = PERF_TYPE_HARDWARE;
+		attr->config = term->val.num;
+		if (perf_pmus__supports_extended_type())
+			attr->config |= (__u64)pmu->type << PERF_PMU_TYPE_SHIFT;
+		return 0;
+	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
-	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG)
+	    term->type_term == PARSE_EVENTS__TERM_TYPE_DRV_CFG) {
 		/*
 		 * Always succeed for sysfs terms, as we dont know
 		 * at this point what type they need to have.
 		 */
 		return 0;
-	else
-		return config_term_common(attr, term, err);
+	}
+	return config_term_common(attr, term, err);
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int config_term_tracepoint(struct perf_event_attr *attr,
 				  struct parse_events_term *term,
 				  struct parse_events_error *err)
@@ -1174,6 +1279,7 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 
 	return 0;
 }
+#endif
 
 static int config_attr(struct perf_event_attr *attr,
 		       struct list_head *head,
@@ -1329,6 +1435,7 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				struct parse_events_error *err,
 				struct list_head *head_config)
 {
+#ifdef HAVE_LIBTRACEEVENT
 	if (head_config) {
 		struct perf_event_attr attr;
 
@@ -1343,22 +1450,35 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 	else
 		return add_tracepoint_event(list, idx, sys, event,
 					    err, head_config);
+#else
+	(void)list;
+	(void)idx;
+	(void)sys;
+	(void)event;
+	(void)head_config;
+	parse_events_error__handle(err, 0, strdup("unsupported tracepoint"),
+				strdup("libtraceevent is necessary for tracepoint support"));
+	return -1;
+#endif
 }
 
-int parse_events_add_numeric(struct parse_events_state *parse_state,
-			     struct list_head *list,
-			     u32 type, u64 config,
-			     struct list_head *head_config)
+static int __parse_events_add_numeric(struct parse_events_state *parse_state,
+				struct list_head *list,
+				struct perf_pmu *pmu, u32 type, u32 extended_type,
+				u64 config, struct list_head *head_config)
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
 	const char *name, *metric_id;
-	bool hybrid;
 	int ret;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = type;
 	attr.config = config;
+	if (extended_type && (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE)) {
+		assert(perf_pmus__supports_extended_type());
+		attr.config |= (u64)extended_type << PERF_PMU_TYPE_SHIFT;
+	}
 
 	if (head_config) {
 		if (config_attr(&attr, head_config, parse_state->error,
@@ -1371,17 +1491,42 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 
 	name = get_config_name(head_config);
 	metric_id = get_config_metric_id(head_config);
-	ret = parse_events__add_numeric_hybrid(parse_state, list, &attr,
-					       name, metric_id,
-					       &config_terms, &hybrid);
-	if (hybrid)
-		goto out_free_terms;
-
-	ret = add_event(list, &parse_state->idx, &attr, name, metric_id,
-			&config_terms);
-out_free_terms:
+	ret = __add_event(list, &parse_state->idx, &attr, /*init_attr*/true, name,
+			metric_id, pmu, &config_terms, /*auto_merge_stats=*/false,
+			/*cpu_list=*/NULL) ? 0 : -ENOMEM;
 	free_config_terms(&config_terms);
 	return ret;
+}
+
+int parse_events_add_numeric(struct parse_events_state *parse_state,
+			     struct list_head *list,
+			     u32 type, u64 config,
+			     struct list_head *head_config,
+			     bool wildcard)
+{
+	struct perf_pmu *pmu = NULL;
+	bool found_supported = false;
+
+	/* Wildcards on numeric values are only supported by core PMUs. */
+	if (wildcard && perf_pmus__supports_extended_type()) {
+		while ((pmu = perf_pmus__scan_core(pmu)) != NULL) {
+			int ret;
+
+			found_supported = true;
+			if (parse_events__filter_pmu(parse_state, pmu))
+				continue;
+
+			ret = __parse_events_add_numeric(parse_state, list, pmu,
+							 type, pmu->type,
+							 config, head_config);
+			if (ret)
+				return ret;
+		}
+		if (found_supported)
+			return 0;
+	}
+	return __parse_events_add_numeric(parse_state, list, perf_pmus__find_by_type(type),
+					type, /*extended_type=*/0, config, head_config);
 }
 
 int parse_events_add_tool(struct parse_events_state *parse_state,
@@ -1403,48 +1548,19 @@ static bool config_term_percore(struct list_head *config_terms)
 	return false;
 }
 
-static int parse_events__inside_hybrid_pmu(struct parse_events_state *parse_state,
-					   struct list_head *list, char *name,
-					   struct list_head *head_config)
-{
-	struct parse_events_term *term;
-	int ret = -1;
-
-	if (parse_state->fake_pmu || !head_config || list_empty(head_config) ||
-	    !perf_pmu__is_hybrid(name)) {
-		return -1;
-	}
-
-	/*
-	 * More than one term in list.
-	 */
-	if (head_config->next && head_config->next->next != head_config)
-		return -1;
-
-	term = list_first_entry(head_config, struct parse_events_term, list);
-	if (term && term->config && strcmp(term->config, "event")) {
-		ret = parse_events__with_hybrid_pmu(parse_state, term->config,
-						    name, list);
-	}
-
-	return ret;
-}
-
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
 			 struct list_head *head_config,
-			 bool auto_merge_stats,
-			 bool use_alias)
+			 bool auto_merge_stats)
 {
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct evsel *evsel;
 	struct parse_events_error *err = parse_state->error;
-	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
-	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
+	pmu = parse_state->fake_pmu ?: perf_pmus__find(name);
 
 	if (verbose > 1 && !(pmu && pmu->selectable)) {
 		fprintf(stderr, "Attempting to add event pmu '%s' with '",
@@ -1468,6 +1584,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 			parse_events_error__handle(err, 0, err_str, NULL);
 		return -EINVAL;
 	}
+	if (head_config)
+		fix_raw(head_config, pmu);
 
 	if (pmu->default_config) {
 		memcpy(&attr, pmu->default_config,
@@ -1475,23 +1593,15 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	} else {
 		memset(&attr, 0, sizeof(attr));
 	}
-
-	use_uncore_alias = (pmu->is_uncore && use_alias);
+	attr.type = pmu->type;
 
 	if (!head_config) {
-		attr.type = pmu->type;
 		evsel = __add_event(list, &parse_state->idx, &attr,
 				    /*init_attr=*/true, /*name=*/NULL,
 				    /*metric_id=*/NULL, pmu,
 				    /*config_terms=*/NULL, auto_merge_stats,
 				    /*cpu_list=*/NULL);
-		if (evsel) {
-			evsel->pmu_name = name ? strdup(name) : NULL;
-			evsel->use_uncore_alias = use_uncore_alias;
-			return 0;
-		} else {
-			return -ENOMEM;
-		}
+		return evsel ? 0 : -ENOMEM;
 	}
 
 	if (!parse_state->fake_pmu && perf_pmu__check_alias(pmu, head_config, &info))
@@ -1527,11 +1637,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	if (pmu->default_config && get_config_chgs(pmu, head_config, &config_terms))
 		return -ENOMEM;
 
-	if (!parse_events__inside_hybrid_pmu(parse_state, list, name,
-					     head_config)) {
-		return 0;
-	}
-
 	if (!parse_state->fake_pmu && perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
 		free_config_terms(&config_terms);
 		return -EINVAL;
@@ -1547,8 +1652,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	if (evsel->name)
 		evsel->use_config_name = true;
 
-	evsel->pmu_name = name ? strdup(name) : NULL;
-	evsel->use_uncore_alias = use_uncore_alias;
 	evsel->percore = config_term_percore(&evsel->config_terms);
 
 	if (parse_state->fake_pmu)
@@ -1559,8 +1662,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	evsel->scale = info.scale;
 	evsel->per_pkg = info.per_pkg;
 	evsel->snapshot = info.snapshot;
-	evsel->metric_expr = info.metric_expr;
-	evsel->metric_name = info.metric_name;
 	return 0;
 }
 
@@ -1590,7 +1691,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_events_term__num(&term,
 				   PARSE_EVENTS__TERM_TYPE_USER,
-				   config, 1, false, &config,
+				   config, 1, false, NULL,
 					NULL) < 0) {
 		free(config);
 		goto out_err;
@@ -1604,15 +1705,21 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	INIT_LIST_HEAD(list);
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		struct perf_pmu_alias *alias;
+		bool auto_merge_stats;
+
+		if (parse_events__filter_pmu(parse_state, pmu))
+			continue;
+
+		auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
 
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			if (!strcasecmp(alias->name, str)) {
 				parse_events_copy_term_list(head, &orig_head);
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, orig_head,
-							  true, true)) {
+							  auto_merge_stats)) {
 					pr_debug("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
@@ -1624,7 +1731,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 
 	if (parse_state->fake_pmu) {
 		if (!parse_events_add_pmu(parse_state, list, str, head,
-					  true, true)) {
+					  /*auto_merge_stats=*/true)) {
 			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", str);
 			ok++;
 		}
@@ -1646,124 +1753,7 @@ int parse_events__modifier_group(struct list_head *list,
 	return parse_events__modifier_event(list, event_mod, true);
 }
 
-/*
- * Check if the two uncore PMUs are from the same uncore block
- * The format of the uncore PMU name is uncore_#blockname_#pmuidx
- */
-static bool is_same_uncore_block(const char *pmu_name_a, const char *pmu_name_b)
-{
-	char *end_a, *end_b;
-
-	end_a = strrchr(pmu_name_a, '_');
-	end_b = strrchr(pmu_name_b, '_');
-
-	if (!end_a || !end_b)
-		return false;
-
-	if ((end_a - pmu_name_a) != (end_b - pmu_name_b))
-		return false;
-
-	return (strncmp(pmu_name_a, pmu_name_b, end_a - pmu_name_a) == 0);
-}
-
-static int
-parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
-					   struct parse_events_state *parse_state)
-{
-	struct evsel *evsel, *leader;
-	uintptr_t *leaders;
-	bool is_leader = true;
-	int i, nr_pmu = 0, total_members, ret = 0;
-
-	leader = list_first_entry(list, struct evsel, core.node);
-	evsel = list_last_entry(list, struct evsel, core.node);
-	total_members = evsel->core.idx - leader->core.idx + 1;
-
-	leaders = calloc(total_members, sizeof(uintptr_t));
-	if (WARN_ON(!leaders))
-		return 0;
-
-	/*
-	 * Going through the whole group and doing sanity check.
-	 * All members must use alias, and be from the same uncore block.
-	 * Also, storing the leader events in an array.
-	 */
-	__evlist__for_each_entry(list, evsel) {
-
-		/* Only split the uncore group which members use alias */
-		if (!evsel->use_uncore_alias)
-			goto out;
-
-		/* The events must be from the same uncore block */
-		if (!is_same_uncore_block(leader->pmu_name, evsel->pmu_name))
-			goto out;
-
-		if (!is_leader)
-			continue;
-		/*
-		 * If the event's PMU name starts to repeat, it must be a new
-		 * event. That can be used to distinguish the leader from
-		 * other members, even they have the same event name.
-		 */
-		if ((leader != evsel) &&
-		    !strcmp(leader->pmu_name, evsel->pmu_name)) {
-			is_leader = false;
-			continue;
-		}
-
-		/* Store the leader event for each PMU */
-		leaders[nr_pmu++] = (uintptr_t) evsel;
-	}
-
-	/* only one event alias */
-	if (nr_pmu == total_members) {
-		parse_state->nr_groups--;
-		goto handled;
-	}
-
-	/*
-	 * An uncore event alias is a joint name which means the same event
-	 * runs on all PMUs of a block.
-	 * Perf doesn't support mixed events from different PMUs in the same
-	 * group. The big group has to be split into multiple small groups
-	 * which only include the events from the same PMU.
-	 *
-	 * Here the uncore event aliases must be from the same uncore block.
-	 * The number of PMUs must be same for each alias. The number of new
-	 * small groups equals to the number of PMUs.
-	 * Setting the leader event for corresponding members in each group.
-	 */
-	i = 0;
-	__evlist__for_each_entry(list, evsel) {
-		if (i >= nr_pmu)
-			i = 0;
-		evsel__set_leader(evsel, (struct evsel *) leaders[i++]);
-	}
-
-	/* The number of members and group name are same for each group */
-	for (i = 0; i < nr_pmu; i++) {
-		evsel = (struct evsel *) leaders[i];
-		evsel->core.nr_members = total_members / nr_pmu;
-		evsel->group_name = name ? strdup(name) : NULL;
-	}
-
-	/* Take the new small groups into account */
-	parse_state->nr_groups += nr_pmu - 1;
-
-handled:
-	ret = 1;
-out:
-	free(leaders);
-	return ret;
-}
-
-__weak struct evsel *arch_evlist__leader(struct list_head *list)
-{
-	return list_first_entry(list, struct evsel, core.node);
-}
-
-void parse_events__set_leader(char *name, struct list_head *list,
-			      struct parse_events_state *parse_state)
+void parse_events__set_leader(char *name, struct list_head *list)
 {
 	struct evsel *leader;
 
@@ -1772,13 +1762,9 @@ void parse_events__set_leader(char *name, struct list_head *list,
 		return;
 	}
 
-	if (parse_events__set_leader_for_uncore_aliase(name, list, parse_state))
-		return;
-
-	leader = arch_evlist__leader(list);
+	leader = list_first_entry(list, struct evsel, core.node);
 	__perf_evlist__set_leader(list, &leader->core);
-	leader->group_name = name ? strdup(name) : NULL;
-	list_move(&leader->core.node, list);
+	leader->group_name = name;
 }
 
 /* list_event is assumed to point to malloc'ed memory */
@@ -1985,180 +1971,6 @@ int parse_events_name(struct list_head *list, const char *name)
 	return 0;
 }
 
-static int
-comp_pmu(const void *p1, const void *p2)
-{
-	struct perf_pmu_event_symbol *pmu1 = (struct perf_pmu_event_symbol *) p1;
-	struct perf_pmu_event_symbol *pmu2 = (struct perf_pmu_event_symbol *) p2;
-
-	return strcasecmp(pmu1->symbol, pmu2->symbol);
-}
-
-static void perf_pmu__parse_cleanup(void)
-{
-	if (perf_pmu_events_list_num > 0) {
-		struct perf_pmu_event_symbol *p;
-		int i;
-
-		for (i = 0; i < perf_pmu_events_list_num; i++) {
-			p = perf_pmu_events_list + i;
-			zfree(&p->symbol);
-		}
-		zfree(&perf_pmu_events_list);
-		perf_pmu_events_list_num = 0;
-	}
-}
-
-#define SET_SYMBOL(str, stype)		\
-do {					\
-	p->symbol = str;		\
-	if (!p->symbol)			\
-		goto err;		\
-	p->type = stype;		\
-} while (0)
-
-/*
- * Read the pmu events list from sysfs
- * Save it into perf_pmu_events_list
- */
-static void perf_pmu__parse_init(void)
-{
-
-	struct perf_pmu *pmu = NULL;
-	struct perf_pmu_alias *alias;
-	int len = 0;
-
-	pmu = NULL;
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		list_for_each_entry(alias, &pmu->aliases, list) {
-			char *tmp = strchr(alias->name, '-');
-
-			if (tmp) {
-				char *tmp2 = NULL;
-
-				tmp2 = strchr(tmp + 1, '-');
-				len++;
-				if (tmp2)
-					len++;
-			}
-
-			len++;
-		}
-	}
-
-	if (len == 0) {
-		perf_pmu_events_list_num = -1;
-		return;
-	}
-	perf_pmu_events_list = malloc(sizeof(struct perf_pmu_event_symbol) * len);
-	if (!perf_pmu_events_list)
-		return;
-	perf_pmu_events_list_num = len;
-
-	len = 0;
-	pmu = NULL;
-	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		list_for_each_entry(alias, &pmu->aliases, list) {
-			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
-			char *tmp = strchr(alias->name, '-');
-			char *tmp2 = NULL;
-
-			if (tmp)
-				tmp2 = strchr(tmp + 1, '-');
-			if (tmp2) {
-				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
-						PMU_EVENT_SYMBOL_PREFIX);
-				p++;
-				tmp++;
-				SET_SYMBOL(strndup(tmp, tmp2 - tmp), PMU_EVENT_SYMBOL_SUFFIX);
-				p++;
-				SET_SYMBOL(strdup(++tmp2), PMU_EVENT_SYMBOL_SUFFIX2);
-				len += 3;
-			} else if (tmp) {
-				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
-						PMU_EVENT_SYMBOL_PREFIX);
-				p++;
-				SET_SYMBOL(strdup(++tmp), PMU_EVENT_SYMBOL_SUFFIX);
-				len += 2;
-			} else {
-				SET_SYMBOL(strdup(alias->name), PMU_EVENT_SYMBOL);
-				len++;
-			}
-		}
-	}
-	qsort(perf_pmu_events_list, len,
-		sizeof(struct perf_pmu_event_symbol), comp_pmu);
-
-	return;
-err:
-	perf_pmu__parse_cleanup();
-}
-
-/*
- * This function injects special term in
- * perf_pmu_events_list so the test code
- * can check on this functionality.
- */
-int perf_pmu__test_parse_init(void)
-{
-	struct perf_pmu_event_symbol *list, *tmp, symbols[] = {
-		{(char *)"read", PMU_EVENT_SYMBOL},
-		{(char *)"event", PMU_EVENT_SYMBOL_PREFIX},
-		{(char *)"two", PMU_EVENT_SYMBOL_SUFFIX},
-		{(char *)"hyphen", PMU_EVENT_SYMBOL_SUFFIX},
-		{(char *)"hyph", PMU_EVENT_SYMBOL_SUFFIX2},
-	};
-	unsigned long i, j;
-
-	tmp = list = malloc(sizeof(*list) * ARRAY_SIZE(symbols));
-	if (!list)
-		return -ENOMEM;
-
-	for (i = 0; i < ARRAY_SIZE(symbols); i++, tmp++) {
-		tmp->type = symbols[i].type;
-		tmp->symbol = strdup(symbols[i].symbol);
-		if (!tmp->symbol)
-			goto err_free;
-	}
-
-	perf_pmu_events_list = list;
-	perf_pmu_events_list_num = ARRAY_SIZE(symbols);
-
-	qsort(perf_pmu_events_list, ARRAY_SIZE(symbols),
-	      sizeof(struct perf_pmu_event_symbol), comp_pmu);
-	return 0;
-
-err_free:
-	for (j = 0, tmp = list; j < i; j++, tmp++)
-		free(tmp->symbol);
-	free(list);
-	return -ENOMEM;
-}
-
-enum perf_pmu_event_symbol_type
-perf_pmu__parse_check(const char *name)
-{
-	struct perf_pmu_event_symbol p, *r;
-
-	/* scan kernel pmu events from sysfs if needed */
-	if (perf_pmu_events_list_num == 0)
-		perf_pmu__parse_init();
-	/*
-	 * name "cpu" could be prefix of cpu-cycles or cpu// events.
-	 * cpu-cycles has been handled by hardcode.
-	 * So it must be cpu// events, not kernel pmu event.
-	 */
-	if ((perf_pmu_events_list_num <= 0) || !strcmp(name, "cpu"))
-		return PMU_EVENT_SYMBOL_ERR;
-
-	p.symbol = strdup(name);
-	r = bsearch(&p, perf_pmu_events_list,
-			(size_t) perf_pmu_events_list_num,
-			sizeof(struct perf_pmu_event_symbol), comp_pmu);
-	zfree(&p.symbol);
-	return r ? r->type : PMU_EVENT_SYMBOL_ERR;
-}
-
 static int parse_events__scanner(const char *str,
 				 struct parse_events_state *parse_state)
 {
@@ -2196,7 +2008,6 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	int ret;
 
 	ret = parse_events__scanner(str, &parse_state);
-	perf_pmu__parse_cleanup();
 
 	if (!ret) {
 		list_splice(parse_state.terms, terms);
@@ -2208,35 +2019,219 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-static int parse_events__with_hybrid_pmu(struct parse_events_state *parse_state,
-					 const char *str, char *pmu_name,
-					 struct list_head *list)
+static int evsel__compute_group_pmu_name(struct evsel *evsel,
+					  const struct list_head *head)
 {
-	struct parse_events_state ps = {
-		.list            = LIST_HEAD_INIT(ps.list),
-		.stoken          = PE_START_EVENTS,
-		.hybrid_pmu_name = pmu_name,
-		.idx             = parse_state->idx,
-	};
-	int ret;
+	struct evsel *leader = evsel__leader(evsel);
+	struct evsel *pos;
+	const char *group_pmu_name;
+	struct perf_pmu *pmu = evsel__find_pmu(evsel);
 
-	ret = parse_events__scanner(str, &ps);
-	perf_pmu__parse_cleanup();
-
-	if (!ret) {
-		if (!list_empty(&ps.list)) {
-			list_splice(&ps.list, list);
-			parse_state->idx = ps.idx;
-			return 0;
-		} else
-			return -1;
+	if (!pmu) {
+		/*
+		 * For PERF_TYPE_HARDWARE and PERF_TYPE_HW_CACHE types the PMU
+		 * is a core PMU, but in heterogeneous systems this is
+		 * unknown. For now pick the first core PMU.
+		 */
+		pmu = perf_pmus__scan_core(NULL);
 	}
+	if (!pmu) {
+		pr_debug("No PMU found for '%s'\n", evsel__name(evsel));
+		return -EINVAL;
+	}
+	group_pmu_name = pmu->name;
+	/*
+	 * Software events may be in a group with other uncore PMU events. Use
+	 * the pmu_name of the first non-software event to avoid breaking the
+	 * software event out of the group.
+	 *
+	 * Aux event leaders, like intel_pt, expect a group with events from
+	 * other PMUs, so substitute the AUX event's PMU in this case.
+	 */
+	if (perf_pmu__is_software(pmu) || evsel__is_aux_event(leader)) {
+		struct perf_pmu *leader_pmu = evsel__find_pmu(leader);
 
-	return ret;
+		if (!leader_pmu) {
+			/* As with determining pmu above. */
+			leader_pmu = perf_pmus__scan_core(NULL);
+		}
+		/*
+		 * Starting with the leader, find the first event with a named
+		 * non-software PMU. for_each_group_(member|evsel) isn't used as
+		 * the list isn't yet sorted putting evsel's in the same group
+		 * together.
+		 */
+		if (leader_pmu && !perf_pmu__is_software(leader_pmu)) {
+			group_pmu_name = leader_pmu->name;
+		} else if (leader->core.nr_members > 1) {
+			list_for_each_entry(pos, head, core.node) {
+				struct perf_pmu *pos_pmu;
+
+				if (pos == leader || evsel__leader(pos) != leader)
+					continue;
+				pos_pmu = evsel__find_pmu(pos);
+				if (!pos_pmu) {
+					/* As with determining pmu above. */
+					pos_pmu = perf_pmus__scan_core(NULL);
+				}
+				if (pos_pmu && !perf_pmu__is_software(pos_pmu)) {
+					group_pmu_name = pos_pmu->name;
+					break;
+				}
+			}
+		}
+	}
+	/* Assign the actual name taking care that the fake PMU lacks a name. */
+	evsel->group_pmu_name = strdup(group_pmu_name ?: "fake");
+	return evsel->group_pmu_name ? 0 : -ENOMEM;
 }
 
-int __parse_events(struct evlist *evlist, const char *str,
-		   struct parse_events_error *err, struct perf_pmu *fake_pmu)
+__weak int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
+{
+	/* Order by insertion index. */
+	return lhs->core.idx - rhs->core.idx;
+}
+
+static int evlist__cmp(void *state, const struct list_head *l, const struct list_head *r)
+{
+	const struct perf_evsel *lhs_core = container_of(l, struct perf_evsel, node);
+	const struct evsel *lhs = container_of(lhs_core, struct evsel, core);
+	const struct perf_evsel *rhs_core = container_of(r, struct perf_evsel, node);
+	const struct evsel *rhs = container_of(rhs_core, struct evsel, core);
+	int *leader_idx = state;
+	int lhs_leader_idx = *leader_idx, rhs_leader_idx = *leader_idx, ret;
+	const char *lhs_pmu_name, *rhs_pmu_name;
+	bool lhs_has_group = false, rhs_has_group = false;
+
+	/*
+	 * First sort by grouping/leader. Read the leader idx only if the evsel
+	 * is part of a group, by default ungrouped events will be sorted
+	 * relative to grouped events based on where the first ungrouped event
+	 * occurs. If both events don't have a group we want to fall-through to
+	 * the arch specific sorting, that can reorder and fix things like
+	 * Intel's topdown events.
+	 */
+	if (lhs_core->leader != lhs_core || lhs_core->nr_members > 1) {
+		lhs_has_group = true;
+		lhs_leader_idx = lhs_core->leader->idx;
+	}
+	if (rhs_core->leader != rhs_core || rhs_core->nr_members > 1) {
+		rhs_has_group = true;
+		rhs_leader_idx = rhs_core->leader->idx;
+	}
+
+	if (lhs_leader_idx != rhs_leader_idx)
+		return lhs_leader_idx - rhs_leader_idx;
+
+	/* Group by PMU if there is a group. Groups can't span PMUs. */
+	if (lhs_has_group && rhs_has_group) {
+		lhs_pmu_name = lhs->group_pmu_name;
+		rhs_pmu_name = rhs->group_pmu_name;
+		ret = strcmp(lhs_pmu_name, rhs_pmu_name);
+		if (ret)
+			return ret;
+	}
+
+	/* Architecture specific sorting. */
+	return arch_evlist__cmp(lhs, rhs);
+}
+
+static int parse_events__sort_events_and_fix_groups(struct list_head *list)
+{
+	int idx = 0, unsorted_idx = -1;
+	struct evsel *pos, *cur_leader = NULL;
+	struct perf_evsel *cur_leaders_grp = NULL;
+	bool idx_changed = false;
+	int orig_num_leaders = 0, num_leaders = 0;
+	int ret;
+
+	/*
+	 * Compute index to insert ungrouped events at. Place them where the
+	 * first ungrouped event appears.
+	 */
+	list_for_each_entry(pos, list, core.node) {
+		const struct evsel *pos_leader = evsel__leader(pos);
+
+		ret = evsel__compute_group_pmu_name(pos, list);
+		if (ret)
+			return ret;
+
+		if (pos == pos_leader)
+			orig_num_leaders++;
+
+		/*
+		 * Ensure indexes are sequential, in particular for multiple
+		 * event lists being merged. The indexes are used to detect when
+		 * the user order is modified.
+		 */
+		pos->core.idx = idx++;
+
+		if (unsorted_idx == -1 && pos == pos_leader && pos->core.nr_members < 2)
+			unsorted_idx = pos->core.idx;
+	}
+
+	/* Sort events. */
+	list_sort(&unsorted_idx, list, evlist__cmp);
+
+	/*
+	 * Recompute groups, splitting for PMUs and adding groups for events
+	 * that require them.
+	 */
+	idx = 0;
+	list_for_each_entry(pos, list, core.node) {
+		const struct evsel *pos_leader = evsel__leader(pos);
+		const char *pos_pmu_name = pos->group_pmu_name;
+		const char *cur_leader_pmu_name, *pos_leader_pmu_name;
+		bool force_grouped = arch_evsel__must_be_in_group(pos);
+
+		/* Reset index and nr_members. */
+		if (pos->core.idx != idx)
+			idx_changed = true;
+		pos->core.idx = idx++;
+		pos->core.nr_members = 0;
+
+		/*
+		 * Set the group leader respecting the given groupings and that
+		 * groups can't span PMUs.
+		 */
+		if (!cur_leader)
+			cur_leader = pos;
+
+		cur_leader_pmu_name = cur_leader->group_pmu_name;
+		if ((cur_leaders_grp != pos->core.leader && !force_grouped) ||
+		    strcmp(cur_leader_pmu_name, pos_pmu_name)) {
+			/* Event is for a different group/PMU than last. */
+			cur_leader = pos;
+			/*
+			 * Remember the leader's group before it is overwritten,
+			 * so that later events match as being in the same
+			 * group.
+			 */
+			cur_leaders_grp = pos->core.leader;
+		}
+		pos_leader_pmu_name = pos_leader->group_pmu_name;
+		if (strcmp(pos_leader_pmu_name, pos_pmu_name) || force_grouped) {
+			/*
+			 * Event's PMU differs from its leader's. Groups can't
+			 * span PMUs, so update leader from the group/PMU
+			 * tracker.
+			 */
+			evsel__set_leader(pos, cur_leader);
+		}
+	}
+	list_for_each_entry(pos, list, core.node) {
+		struct evsel *pos_leader = evsel__leader(pos);
+
+		if (pos == pos_leader)
+			num_leaders++;
+		pos_leader->core.nr_members++;
+	}
+	return (idx_changed || num_leaders != orig_num_leaders) ? 1 : 0;
+}
+
+int __parse_events(struct evlist *evlist, const char *str, const char *pmu_filter,
+		   struct parse_events_error *err, struct perf_pmu *fake_pmu,
+		   bool warn_if_reordered)
 {
 	struct parse_events_state parse_state = {
 		.list	  = LIST_HEAD_INIT(parse_state.list),
@@ -2245,16 +2240,24 @@ int __parse_events(struct evlist *evlist, const char *str,
 		.evlist	  = evlist,
 		.stoken	  = PE_START_EVENTS,
 		.fake_pmu = fake_pmu,
+		.pmu_filter = pmu_filter,
+		.match_legacy_cache_terms = true,
 	};
-	int ret;
+	int ret, ret2;
 
 	ret = parse_events__scanner(str, &parse_state);
-	perf_pmu__parse_cleanup();
 
 	if (!ret && list_empty(&parse_state.list)) {
 		WARN_ONCE(true, "WARNING: event parser found nothing\n");
 		return -1;
 	}
+
+	ret2 = parse_events__sort_events_and_fix_groups(&parse_state.list);
+	if (ret2 < 0)
+		return ret;
+
+	if (ret2 && warn_if_reordered && !parse_state.wild_card_pmus)
+		pr_warning("WARNING: events were regrouped to match PMUs\n");
 
 	/*
 	 * Add list to the evlist even with errors to allow callers to clean up.
@@ -2264,7 +2267,6 @@ int __parse_events(struct evlist *evlist, const char *str,
 	if (!ret) {
 		struct evsel *last;
 
-		evlist->core.nr_groups += parse_state.nr_groups;
 		last = evlist__last(evlist);
 		last->cmdline_group_boundary = true;
 
@@ -2423,12 +2425,13 @@ void parse_events_error__print(struct parse_events_error *err,
 int parse_events_option(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
-	struct evlist *evlist = *(struct evlist **)opt->value;
+	struct parse_events_option_args *args = opt->value;
 	struct parse_events_error err;
 	int ret;
 
 	parse_events_error__init(&err);
-	ret = parse_events(evlist, str, &err);
+	ret = __parse_events(*args->evlistp, str, args->pmu_filter, &err,
+			     /*fake_pmu=*/NULL, /*warn_if_reordered=*/true);
 
 	if (ret) {
 		parse_events_error__print(&err, str);
@@ -2441,22 +2444,21 @@ int parse_events_option(const struct option *opt, const char *str,
 
 int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset)
 {
-	struct evlist **evlistp = opt->value;
+	struct parse_events_option_args *args = opt->value;
 	int ret;
 
-	if (*evlistp == NULL) {
-		*evlistp = evlist__new();
+	if (*args->evlistp == NULL) {
+		*args->evlistp = evlist__new();
 
-		if (*evlistp == NULL) {
+		if (*args->evlistp == NULL) {
 			fprintf(stderr, "Not enough memory to create evlist\n");
 			return -1;
 		}
 	}
-
 	ret = parse_events_option(opt, str, unset);
 	if (ret) {
-		evlist__delete(*evlistp);
-		*evlistp = NULL;
+		evlist__delete(*args->evlistp);
+		*args->evlistp = NULL;
 	}
 
 	return ret;
@@ -2518,7 +2520,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		return 0;
 	}
 
-	while ((pmu = perf_pmu__scan(pmu)) != NULL)
+	while ((pmu = perf_pmus__scan(pmu)) != NULL)
 		if (pmu->type == evsel->core.attr.type) {
 			found = true;
 			break;
@@ -2528,11 +2530,8 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		perf_pmu__scan_file(pmu, "nr_addr_filters",
 				    "%d", &nr_addr_filters);
 
-	if (!nr_addr_filters) {
-		fprintf(stderr,
-			"This CPU does not support address filtering\n");
-		return -1;
-	}
+	if (!nr_addr_filters)
+		return perf_bpf_filter__parse(&evsel->bpf_filters, str);
 
 	if (evsel__append_addr_filter(evsel, str) < 0) {
 		fprintf(stderr,
@@ -2657,29 +2656,13 @@ int parse_events_term__str(struct parse_events_term **term,
 	return new_term(term, &temp, str, 0);
 }
 
-int parse_events_term__sym_hw(struct parse_events_term **term,
-			      char *config, unsigned idx)
+int parse_events_term__term(struct parse_events_term **term,
+			    int term_lhs, int term_rhs,
+			    void *loc_term, void *loc_val)
 {
-	struct event_symbol *sym;
-	char *str;
-	struct parse_events_term temp = {
-		.type_val  = PARSE_EVENTS__TERM_TYPE_STR,
-		.type_term = PARSE_EVENTS__TERM_TYPE_USER,
-		.config    = config,
-	};
-
-	if (!temp.config) {
-		temp.config = strdup("event");
-		if (!temp.config)
-			return -ENOMEM;
-	}
-	BUG_ON(idx >= PERF_COUNT_HW_MAX);
-	sym = &event_symbols_hw[idx];
-
-	str = strdup(sym->symbol);
-	if (!str)
-		return -ENOMEM;
-	return new_term(term, &temp, str, 0);
+	return parse_events_term__str(term, term_lhs, NULL,
+				      strdup(config_term_names[term_rhs]),
+				      loc_term, loc_val);
 }
 
 int parse_events_term__clone(struct parse_events_term **new,
@@ -2829,16 +2812,4 @@ char *parse_events_formats_error_string(char *additional_terms)
 
 fail:
 	return NULL;
-}
-
-struct evsel *parse_events__add_event_hybrid(struct list_head *list, int *idx,
-					     struct perf_event_attr *attr,
-					     const char *name,
-					     const char *metric_id,
-					     struct perf_pmu *pmu,
-					     struct list_head *config_terms)
-{
-	return __add_event(list, idx, attr, /*init_attr=*/true, name, metric_id,
-			   pmu, config_terms, /*auto_merge_stats=*/false,
-			   /*cpu_list=*/NULL);
 }

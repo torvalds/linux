@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2003 Sistina Software Limited.
  * Copyright (C) 2004-2008 Red Hat, Inc. All rights reserved.
@@ -12,9 +13,11 @@
 
 #include <linux/dm-dirty-log.h>
 
-/*-----------------------------------------------------------------
+/*
+ *----------------------------------------------------------------
  * Region hash
- *----------------------------------------------------------------*/
+ *----------------------------------------------------------------
+ */
 struct dm_region_hash;
 struct dm_region;
 
@@ -37,7 +40,7 @@ struct dm_region_hash *dm_region_hash_create(
 						     struct bio_list *bios),
 		void (*wakeup_workers)(void *context),
 		void (*wakeup_all_recovery_waiters)(void *context),
-		sector_t target_begin, unsigned max_recovery,
+		sector_t target_begin, unsigned int max_recovery,
 		struct dm_dirty_log *log, uint32_t region_size,
 		region_t nr_regions);
 void dm_region_hash_destroy(struct dm_region_hash *rh);

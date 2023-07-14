@@ -79,7 +79,7 @@
 #define H_NOT_ENOUGH_RESOURCES -44
 #define H_R_STATE       -45
 #define H_RESCINDED     -46
-#define H_P1		-54
+#define H_ABORTED	-54
 #define H_P2		-55
 #define H_P3		-56
 #define H_P4		-57
@@ -100,7 +100,6 @@
 #define H_COP_HW	-74
 #define H_STATE		-75
 #define H_IN_USE	-77
-#define H_ABORTED	-78
 #define H_UNSUPPORTED_FLAG_START	-256
 #define H_UNSUPPORTED_FLAG_END		-511
 #define H_MULTI_THREADS_ACTIVE	-9005
@@ -336,6 +335,7 @@
 #define H_RPT_INVALIDATE	0x448
 #define H_SCM_FLUSH		0x44C
 #define H_GET_ENERGY_SCALE_INFO	0x450
+#define H_PKS_SIGNED_UPDATE	0x454
 #define H_WATCHDOG		0x45C
 #define MAX_HCALL_OPCODE	H_WATCHDOG
 

@@ -87,7 +87,7 @@ static int armada_3700_tbg_clock_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct clk *parent;
 	void __iomem *reg;
-	int i, ret;
+	int i;
 
 	hw_tbg_data = devm_kzalloc(&pdev->dev,
 				   struct_size(hw_tbg_data, hws, NUM_TBG),
@@ -123,12 +123,10 @@ static int armada_3700_tbg_clock_probe(struct platform_device *pdev)
 			dev_err(dev, "Can't register TBG clock %s\n", name);
 	}
 
-	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, hw_tbg_data);
-
-	return ret;
+	return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, hw_tbg_data);
 }
 
-static int armada_3700_tbg_clock_remove(struct platform_device *pdev)
+static void armada_3700_tbg_clock_remove(struct platform_device *pdev)
 {
 	int i;
 	struct clk_hw_onecell_data *hw_tbg_data = platform_get_drvdata(pdev);
@@ -136,8 +134,6 @@ static int armada_3700_tbg_clock_remove(struct platform_device *pdev)
 	of_clk_del_provider(pdev->dev.of_node);
 	for (i = 0; i < hw_tbg_data->num; i++)
 		clk_hw_unregister_fixed_factor(hw_tbg_data->hws[i]);
-
-	return 0;
 }
 
 static const struct of_device_id armada_3700_tbg_clock_of_match[] = {
@@ -147,7 +143,7 @@ static const struct of_device_id armada_3700_tbg_clock_of_match[] = {
 
 static struct platform_driver armada_3700_tbg_clock_driver = {
 	.probe = armada_3700_tbg_clock_probe,
-	.remove = armada_3700_tbg_clock_remove,
+	.remove_new = armada_3700_tbg_clock_remove,
 	.driver		= {
 		.name	= "marvell-armada-3700-tbg-clock",
 		.of_match_table = armada_3700_tbg_clock_of_match,

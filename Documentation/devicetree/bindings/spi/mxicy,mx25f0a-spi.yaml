@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/spi/mxicy,mx25f0a-spi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Macronix SPI controller device tree bindings
+title: Macronix SPI controller
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:

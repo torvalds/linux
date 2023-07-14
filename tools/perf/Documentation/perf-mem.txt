@@ -23,6 +23,11 @@ Note that on Intel systems the memory latency reported is the use-latency,
 not the pure load (or store latency). Use latency includes any pipeline
 queueing delays in addition to the memory subsystem latency.
 
+On Arm64 this uses SPE to sample load and store operations, therefore hardware
+and kernel support is required. See linkperf:perf-arm-spe[1] for a setup guide.
+Due to the statistical nature of SPE sampling, not every memory operation will
+be sampled.
+
 OPTIONS
 -------
 <command>...::
@@ -85,11 +90,12 @@ RECORD OPTIONS
 	Be more verbose (show counter open errors, etc)
 
 --ldlat <n>::
-	Specify desired latency for loads event. (x86 only)
+	Specify desired latency for loads event. Supported on Intel and Arm64
+	processors only. Ignored on other archs.
 
 In addition, for report all perf report options are valid, and for record
 all perf record options.
 
 SEE ALSO
 --------
-linkperf:perf-record[1], linkperf:perf-report[1]
+linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-arm-spe[1]

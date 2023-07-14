@@ -1,11 +1,17 @@
 # SPDX-License-Identifier: GPL-2.0-only
 bind_bhash
+bind_timewait
+bind_wildcard
+csum
 cmsg_sender
+diag_uid
 fin_ack_lat
 gro
 hwtstamp_config
+io_uring_zerocopy_tx
 ioam6_parser
 ip_defrag
+ip_local_port_range
 ipsec
 ipv6_flowlabel
 ipv6_flowlabel_mgr
@@ -22,9 +28,12 @@ reuseport_bpf_cpu
 reuseport_bpf_numa
 reuseport_dualstack
 rxtimestamp
+sctp_hello
+scm_pidfd
 sk_bind_sendto_listen
 sk_connect_zero_addr
 socket
+so_incoming_cpu
 so_netns_cookie
 so_txtime
 stress_reuseport_listen

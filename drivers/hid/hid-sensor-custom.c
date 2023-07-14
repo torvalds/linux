@@ -5,6 +5,7 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/dmi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -62,7 +63,7 @@ struct hid_sensor_sample {
 	u32 raw_len;
 } __packed;
 
-static struct attribute hid_custom_attrs[] = {
+static struct attribute hid_custom_attrs[HID_CUSTOM_TOTAL_ATTRS] = {
 	{.name = "name", .mode = S_IRUGO},
 	{.name = "units", .mode = S_IRUGO},
 	{.name = "unit-expo", .mode = S_IRUGO},
@@ -750,119 +751,214 @@ static void hid_sensor_custom_dev_if_remove(struct hid_sensor_custom
 
 }
 
-/* luid defined in FW (e.g. ISH).  Maybe used to identify sensor. */
-static const char *const known_sensor_luid[] = { "020B000000000000" };
+/*
+ * Match a known custom sensor.
+ * tag and luid is mandatory.
+ */
+struct hid_sensor_custom_match {
+	const char *tag;
+	const char *luid;
+	const char *model;
+	const char *manufacturer;
+	bool check_dmi;
+	struct dmi_system_id dmi;
+};
 
-static int get_luid_table_index(unsigned char *usage_str)
+/*
+ * Custom sensor properties used for matching.
+ */
+struct hid_sensor_custom_properties {
+	u16 serial_num[HID_CUSTOM_MAX_FEATURE_BYTES];
+	u16 model[HID_CUSTOM_MAX_FEATURE_BYTES];
+	u16 manufacturer[HID_CUSTOM_MAX_FEATURE_BYTES];
+};
+
+static const struct hid_sensor_custom_match hid_sensor_custom_known_table[] = {
+	/*
+	 * Intel Integrated Sensor Hub (ISH)
+	 */
+	{	/* Intel ISH hinge */
+		.tag = "INT",
+		.luid = "020B000000000000",
+		.manufacturer = "INTEL",
+	},
+	/*
+	 * Lenovo Intelligent Sensing Solution (LISS)
+	 */
+	{	/* ambient light */
+		.tag = "LISS",
+		.luid = "0041010200000082",
+		.model = "STK3X3X Sensor",
+		.manufacturer = "Vendor 258",
+		.check_dmi = true,
+		.dmi.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		}
+	},
+	{	/* human presence */
+		.tag = "LISS",
+		.luid = "0226000171AC0081",
+		.model = "VL53L1_HOD Sensor",
+		.manufacturer = "ST_MICRO",
+		.check_dmi = true,
+		.dmi.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		}
+	},
+	{}
+};
+
+static bool hid_sensor_custom_prop_match_str(const u16 *prop, const char *match,
+					     size_t count)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(known_sensor_luid); i++) {
-		if (!strncmp(usage_str, known_sensor_luid[i],
-			     strlen(known_sensor_luid[i])))
-			return i;
+	while (count-- && *prop && *match) {
+		if (*prop != (u16) *match)
+			return false;
+		prop++;
+		match++;
 	}
 
-	return -ENODEV;
+	return (count == -1) || *prop == (u16)*match;
 }
 
-static int get_known_custom_sensor_index(struct hid_sensor_hub_device *hsdev)
+static int hid_sensor_custom_get_prop(struct hid_sensor_hub_device *hsdev,
+				      u32 prop_usage_id, size_t prop_size,
+				      u16 *prop)
 {
-	struct hid_sensor_hub_attribute_info sensor_manufacturer = { 0 };
-	struct hid_sensor_hub_attribute_info sensor_luid_info = { 0 };
-	int report_size;
+	struct hid_sensor_hub_attribute_info prop_attr = { 0 };
 	int ret;
-	static u16 w_buf[HID_CUSTOM_MAX_FEATURE_BYTES];
-	static char buf[HID_CUSTOM_MAX_FEATURE_BYTES];
-	int i;
 
-	memset(w_buf, 0, sizeof(w_buf));
-	memset(buf, 0, sizeof(buf));
+	memset(prop, 0, prop_size);
 
-	/* get manufacturer info */
-	ret = sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, hsdev->usage,
-			HID_USAGE_SENSOR_PROP_MANUFACTURER, &sensor_manufacturer);
+	ret = sensor_hub_input_get_attribute_info(hsdev, HID_FEATURE_REPORT,
+						  hsdev->usage, prop_usage_id,
+						  &prop_attr);
 	if (ret < 0)
 		return ret;
 
-	report_size =
-		sensor_hub_get_feature(hsdev, sensor_manufacturer.report_id,
-				       sensor_manufacturer.index, sizeof(w_buf),
-				       w_buf);
-	if (report_size <= 0) {
-		hid_err(hsdev->hdev,
-			"Failed to get sensor manufacturer info %d\n",
-			report_size);
-		return -ENODEV;
+	ret = sensor_hub_get_feature(hsdev, prop_attr.report_id,
+				     prop_attr.index, prop_size, prop);
+	if (ret < 0) {
+		hid_err(hsdev->hdev, "Failed to get sensor property %08x %d\n",
+			prop_usage_id, ret);
+		return ret;
 	}
 
-	/* convert from wide char to char */
-	for (i = 0; i < ARRAY_SIZE(buf) - 1 && w_buf[i]; i++)
-		buf[i] = (char)w_buf[i];
+	return 0;
+}
 
-	/* ensure it's ISH sensor */
-	if (strncmp(buf, "INTEL", strlen("INTEL")))
-		return -ENODEV;
+static bool
+hid_sensor_custom_do_match(struct hid_sensor_hub_device *hsdev,
+			   const struct hid_sensor_custom_match *match,
+			   const struct hid_sensor_custom_properties *prop)
+{
+	struct dmi_system_id dmi[] = { match->dmi, { 0 } };
 
-	memset(w_buf, 0, sizeof(w_buf));
-	memset(buf, 0, sizeof(buf));
+	if (!hid_sensor_custom_prop_match_str(prop->serial_num, "LUID:", 5) ||
+	    !hid_sensor_custom_prop_match_str(prop->serial_num + 5, match->luid,
+					      HID_CUSTOM_MAX_FEATURE_BYTES - 5))
+		return false;
 
-	/* get real usage id */
-	ret = sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, hsdev->usage,
-			HID_USAGE_SENSOR_PROP_SERIAL_NUM, &sensor_luid_info);
+	if (match->model &&
+	    !hid_sensor_custom_prop_match_str(prop->model, match->model,
+					      HID_CUSTOM_MAX_FEATURE_BYTES))
+		return false;
+
+	if (match->manufacturer &&
+	    !hid_sensor_custom_prop_match_str(prop->manufacturer, match->manufacturer,
+					      HID_CUSTOM_MAX_FEATURE_BYTES))
+		return false;
+
+	if (match->check_dmi && !dmi_check_system(dmi))
+		return false;
+
+	return true;
+}
+
+static int
+hid_sensor_custom_properties_get(struct hid_sensor_hub_device *hsdev,
+				 struct hid_sensor_custom_properties *prop)
+{
+	int ret;
+
+	ret = hid_sensor_custom_get_prop(hsdev,
+					 HID_USAGE_SENSOR_PROP_SERIAL_NUM,
+					 HID_CUSTOM_MAX_FEATURE_BYTES,
+					 prop->serial_num);
 	if (ret < 0)
 		return ret;
 
-	report_size = sensor_hub_get_feature(hsdev, sensor_luid_info.report_id,
-					     sensor_luid_info.index, sizeof(w_buf),
-					     w_buf);
-	if (report_size <= 0) {
-		hid_err(hsdev->hdev, "Failed to get real usage info %d\n",
-			report_size);
-		return -ENODEV;
+	/*
+	 * Ignore errors on the following model and manufacturer properties.
+	 * Because these are optional, it is not an error if they are missing.
+	 */
+
+	hid_sensor_custom_get_prop(hsdev, HID_USAGE_SENSOR_PROP_MODEL,
+				   HID_CUSTOM_MAX_FEATURE_BYTES,
+				   prop->model);
+
+	hid_sensor_custom_get_prop(hsdev, HID_USAGE_SENSOR_PROP_MANUFACTURER,
+				   HID_CUSTOM_MAX_FEATURE_BYTES,
+				   prop->manufacturer);
+
+	return 0;
+}
+
+static int
+hid_sensor_custom_get_known(struct hid_sensor_hub_device *hsdev,
+			    const struct hid_sensor_custom_match **known)
+{
+	int ret;
+	const struct hid_sensor_custom_match *match =
+		hid_sensor_custom_known_table;
+	struct hid_sensor_custom_properties *prop;
+
+	prop = kmalloc(sizeof(struct hid_sensor_custom_properties), GFP_KERNEL);
+	if (!prop)
+		return -ENOMEM;
+
+	ret = hid_sensor_custom_properties_get(hsdev, prop);
+	if (ret < 0)
+		goto out;
+
+	while (match->tag) {
+		if (hid_sensor_custom_do_match(hsdev, match, prop)) {
+			*known = match;
+			ret = 0;
+			goto out;
+		}
+		match++;
 	}
-
-	/* convert from wide char to char */
-	for (i = 0; i < ARRAY_SIZE(buf) - 1 && w_buf[i]; i++)
-		buf[i] = (char)w_buf[i];
-
-	if (strlen(buf) != strlen(known_sensor_luid[0]) + 5) {
-		hid_err(hsdev->hdev,
-			"%s luid length not match %zu != (%zu + 5)\n", __func__,
-			strlen(buf), strlen(known_sensor_luid[0]));
-		return -ENODEV;
-	}
-
-	/* get table index with luid (not matching 'LUID: ' in luid) */
-	return get_luid_table_index(&buf[5]);
+	ret = -ENODATA;
+out:
+	kfree(prop);
+	return ret;
 }
 
 static struct platform_device *
 hid_sensor_register_platform_device(struct platform_device *pdev,
 				    struct hid_sensor_hub_device *hsdev,
-				    int index)
+				    const struct hid_sensor_custom_match *match)
 {
 	char real_usage[HID_SENSOR_USAGE_LENGTH] = { 0 };
 	struct platform_device *custom_pdev;
 	const char *dev_name;
 	char *c;
 
-	/* copy real usage id */
-	memcpy(real_usage, known_sensor_luid[index], 4);
+	memcpy(real_usage, match->luid, 4);
 
 	/* usage id are all lowcase */
 	for (c = real_usage; *c != '\0'; c++)
 		*c = tolower(*c);
 
-	/* HID-SENSOR-INT-REAL_USAGE_ID */
-	dev_name = kasprintf(GFP_KERNEL, "HID-SENSOR-INT-%s", real_usage);
+	/* HID-SENSOR-TAG-REAL_USAGE_ID */
+	dev_name = kasprintf(GFP_KERNEL, "HID-SENSOR-%s-%s",
+			     match->tag, real_usage);
 	if (!dev_name)
 		return ERR_PTR(-ENOMEM);
 
 	custom_pdev = platform_device_register_data(pdev->dev.parent, dev_name,
-						    PLATFORM_DEVID_NONE, hsdev,
+						    PLATFORM_DEVID_AUTO, hsdev,
 						    sizeof(*hsdev));
 	kfree(dev_name);
 	return custom_pdev;
@@ -873,7 +969,7 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	struct hid_sensor_custom *sensor_inst;
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	int ret;
-	int index;
+	const struct hid_sensor_custom_match *match;
 
 	sensor_inst = devm_kzalloc(&pdev->dev, sizeof(*sensor_inst),
 				   GFP_KERNEL);
@@ -888,10 +984,10 @@ static int hid_sensor_custom_probe(struct platform_device *pdev)
 	mutex_init(&sensor_inst->mutex);
 	platform_set_drvdata(pdev, sensor_inst);
 
-	index = get_known_custom_sensor_index(hsdev);
-	if (index >= 0 && index < ARRAY_SIZE(known_sensor_luid)) {
+	ret = hid_sensor_custom_get_known(hsdev, &match);
+	if (!ret) {
 		sensor_inst->custom_pdev =
-			hid_sensor_register_platform_device(pdev, hsdev, index);
+			hid_sensor_register_platform_device(pdev, hsdev, match);
 
 		ret = PTR_ERR_OR_ZERO(sensor_inst->custom_pdev);
 		if (ret) {

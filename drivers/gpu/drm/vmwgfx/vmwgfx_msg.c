@@ -85,7 +85,14 @@ struct rpc_channel {
 	u32 cookie_low;
 };
 
-
+#if IS_ENABLED(CONFIG_DRM_VMWGFX_MKSSTATS)
+/* Kernel mksGuestStats counter names and desciptions; same order as enum mksstat_kern_stats_t */
+static const char* const mksstat_kern_name_desc[MKSSTAT_KERN_COUNT][2] =
+{
+	{ "vmw_execbuf_ioctl", "vmw_execbuf_ioctl" },
+	{ "vmw_cotable_resize", "vmw_cotable_resize" },
+};
+#endif
 
 /**
  * vmw_open_channel
@@ -695,38 +702,6 @@ static inline void hypervisor_ppn_remove(PPN64 pfn)
 /* Header to the text description of mksGuestStat instance descriptor */
 #define MKSSTAT_KERNEL_DESCRIPTION "vmwgfx"
 
-/* Kernel mksGuestStats counter names and desciptions; same order as enum mksstat_kern_stats_t */
-static const char* const mksstat_kern_name_desc[MKSSTAT_KERN_COUNT][2] =
-{
-	{ "vmw_execbuf_ioctl", "vmw_execbuf_ioctl" },
-};
-
-/**
- * mksstat_init_record: Initializes an MKSGuestStatCounter-based record
- * for the respective mksGuestStat index.
- *
- * @stat_idx: Index of the MKSGuestStatCounter-based mksGuestStat record.
- * @pstat: Pointer to array of MKSGuestStatCounterTime.
- * @pinfo: Pointer to array of MKSGuestStatInfoEntry.
- * @pstrs: Pointer to current end of the name/description sequence.
- * Return: Pointer to the new end of the names/description sequence.
- */
-
-static inline char *mksstat_init_record(mksstat_kern_stats_t stat_idx,
-	MKSGuestStatCounterTime *pstat, MKSGuestStatInfoEntry *pinfo, char *pstrs)
-{
-	char *const pstrd = pstrs + strlen(mksstat_kern_name_desc[stat_idx][0]) + 1;
-	strcpy(pstrs, mksstat_kern_name_desc[stat_idx][0]);
-	strcpy(pstrd, mksstat_kern_name_desc[stat_idx][1]);
-
-	pinfo[stat_idx].name.s = pstrs;
-	pinfo[stat_idx].description.s = pstrd;
-	pinfo[stat_idx].flags = MKS_GUEST_STAT_FLAG_NONE;
-	pinfo[stat_idx].stat.counter = (MKSGuestStatCounter *)&pstat[stat_idx];
-
-	return pstrd + strlen(mksstat_kern_name_desc[stat_idx][1]) + 1;
-}
-
 /**
  * mksstat_init_record_time: Initializes an MKSGuestStatCounterTime-based record
  * for the respective mksGuestStat index.
@@ -786,6 +761,7 @@ static int mksstat_init_kern_id(struct page **ppage)
 	/* Set up all kernel-internal counters and corresponding structures */
 	pstrs_acc = pstrs;
 	pstrs_acc = mksstat_init_record_time(MKSSTAT_KERN_EXECBUF, pstat, pinfo, pstrs_acc);
+	pstrs_acc = mksstat_init_record_time(MKSSTAT_KERN_COTABLE_RESIZE, pstat, pinfo, pstrs_acc);
 
 	/* Add new counters above, in their order of appearance in mksstat_kern_stats_t */
 
@@ -1014,8 +990,6 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	struct vmw_private *const dev_priv = vmw_priv(dev);
 
-	struct page *page;
-	MKSGuestStatInstanceDescriptor *pdesc;
 	const size_t num_pages_stat = PFN_UP(arg->stat_len);
 	const size_t num_pages_info = PFN_UP(arg->info_len);
 	const size_t num_pages_strs = PFN_UP(arg->strs_len);
@@ -1023,10 +997,13 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	long nr_pinned_stat;
 	long nr_pinned_info;
 	long nr_pinned_strs;
-	struct page *pages_stat[ARRAY_SIZE(pdesc->statPPNs)];
-	struct page *pages_info[ARRAY_SIZE(pdesc->infoPPNs)];
-	struct page *pages_strs[ARRAY_SIZE(pdesc->strsPPNs)];
+	MKSGuestStatInstanceDescriptor *pdesc;
+	struct page *page = NULL;
+	struct page **pages_stat = NULL;
+	struct page **pages_info = NULL;
+	struct page **pages_strs = NULL;
 	size_t i, slot;
+	int ret_err = -ENOMEM;
 
 	arg->id = -1;
 
@@ -1054,13 +1031,23 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	BUG_ON(dev_priv->mksstat_user_pages[slot]);
 
+	/* Allocate statically-sized temp arrays for pages -- too big to keep in frame */
+	pages_stat = (struct page **)kmalloc_array(
+		ARRAY_SIZE(pdesc->statPPNs) +
+		ARRAY_SIZE(pdesc->infoPPNs) +
+		ARRAY_SIZE(pdesc->strsPPNs), sizeof(*pages_stat), GFP_KERNEL);
+
+	if (!pages_stat)
+		goto err_nomem;
+
+	pages_info = pages_stat + ARRAY_SIZE(pdesc->statPPNs);
+	pages_strs = pages_info + ARRAY_SIZE(pdesc->infoPPNs);
+
 	/* Allocate a page for the instance descriptor */
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 
-	if (!page) {
-		atomic_set(&dev_priv->mksstat_user_pids[slot], 0);
-		return -ENOMEM;
-	}
+	if (!page)
+		goto err_nomem;
 
 	/* Set up the instance descriptor */
 	pdesc = page_address(page);
@@ -1075,8 +1062,8 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 		ARRAY_SIZE(pdesc->description) - 1);
 
 	if (desc_len < 0) {
-		atomic_set(&dev_priv->mksstat_user_pids[slot], 0);
-		return -EFAULT;
+		ret_err = -EFAULT;
+		goto err_nomem;
 	}
 
 	reset_ppn_array(pdesc->statPPNs, ARRAY_SIZE(pdesc->statPPNs));
@@ -1084,21 +1071,21 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 	reset_ppn_array(pdesc->strsPPNs, ARRAY_SIZE(pdesc->strsPPNs));
 
 	/* Pin mksGuestStat user pages and store those in the instance descriptor */
-	nr_pinned_stat = pin_user_pages(arg->stat, num_pages_stat, FOLL_LONGTERM, pages_stat, NULL);
+	nr_pinned_stat = pin_user_pages_fast(arg->stat, num_pages_stat, FOLL_LONGTERM, pages_stat);
 	if (num_pages_stat != nr_pinned_stat)
 		goto err_pin_stat;
 
 	for (i = 0; i < num_pages_stat; ++i)
 		pdesc->statPPNs[i] = page_to_pfn(pages_stat[i]);
 
-	nr_pinned_info = pin_user_pages(arg->info, num_pages_info, FOLL_LONGTERM, pages_info, NULL);
+	nr_pinned_info = pin_user_pages_fast(arg->info, num_pages_info, FOLL_LONGTERM, pages_info);
 	if (num_pages_info != nr_pinned_info)
 		goto err_pin_info;
 
 	for (i = 0; i < num_pages_info; ++i)
 		pdesc->infoPPNs[i] = page_to_pfn(pages_info[i]);
 
-	nr_pinned_strs = pin_user_pages(arg->strs, num_pages_strs, FOLL_LONGTERM, pages_strs, NULL);
+	nr_pinned_strs = pin_user_pages_fast(arg->strs, num_pages_strs, FOLL_LONGTERM, pages_strs);
 	if (num_pages_strs != nr_pinned_strs)
 		goto err_pin_strs;
 
@@ -1117,6 +1104,7 @@ int vmw_mksstat_add_ioctl(struct drm_device *dev, void *data,
 
 	DRM_DEV_INFO(dev->dev, "pid=%d arg.description='%.*s' id=%zu\n", current->pid, (int)desc_len, pdesc->description, slot);
 
+	kfree(pages_stat);
 	return 0;
 
 err_pin_strs:
@@ -1131,9 +1119,13 @@ err_pin_stat:
 	if (nr_pinned_stat > 0)
 		unpin_user_pages(pages_stat, nr_pinned_stat);
 
+err_nomem:
 	atomic_set(&dev_priv->mksstat_user_pids[slot], 0);
-	__free_page(page);
-	return -ENOMEM;
+	if (page)
+		__free_page(page);
+	kfree(pages_stat);
+
+	return ret_err;
 }
 
 /**
@@ -1186,4 +1178,13 @@ int vmw_mksstat_remove_ioctl(struct drm_device *dev, void *data,
 	}
 
 	return -EAGAIN;
+}
+
+/**
+ * vmw_disable_backdoor: Disables all backdoor communication
+ * with the hypervisor.
+ */
+void vmw_disable_backdoor(void)
+{
+	vmw_msg_enabled = 0;
 }

@@ -36,7 +36,7 @@
 
 #define PRID_SERIES_LA132	0x8000  /* Loongson 32bit */
 #define PRID_SERIES_LA264	0xa000  /* Loongson 64bit, 2-issue */
-#define PRID_SERIES_LA364	0xb000  /* Loongson 64bit，3-issue */
+#define PRID_SERIES_LA364	0xb000  /* Loongson 64bit, 3-issue */
 #define PRID_SERIES_LA464	0xc000  /* Loongson 64bit, 4-issue */
 #define PRID_SERIES_LA664	0xd000  /* Loongson 64bit, 6-issue */
 
@@ -78,25 +78,27 @@ enum cpu_type_enum {
 #define CPU_FEATURE_FPU			3	/* CPU has FPU */
 #define CPU_FEATURE_LSX			4	/* CPU has LSX (128-bit SIMD) */
 #define CPU_FEATURE_LASX		5	/* CPU has LASX (256-bit SIMD) */
-#define CPU_FEATURE_COMPLEX		6	/* CPU has Complex instructions */
-#define CPU_FEATURE_CRYPTO		7	/* CPU has Crypto instructions */
-#define CPU_FEATURE_LVZ			8	/* CPU has Virtualization extension */
-#define CPU_FEATURE_LBT_X86		9	/* CPU has X86 Binary Translation */
-#define CPU_FEATURE_LBT_ARM		10	/* CPU has ARM Binary Translation */
-#define CPU_FEATURE_LBT_MIPS		11	/* CPU has MIPS Binary Translation */
-#define CPU_FEATURE_TLB			12	/* CPU has TLB */
-#define CPU_FEATURE_CSR			13	/* CPU has CSR */
-#define CPU_FEATURE_WATCH		14	/* CPU has watchpoint registers */
-#define CPU_FEATURE_VINT		15	/* CPU has vectored interrupts */
-#define CPU_FEATURE_CSRIPI		16	/* CPU has CSR-IPI */
-#define CPU_FEATURE_EXTIOI		17	/* CPU has EXT-IOI */
-#define CPU_FEATURE_PREFETCH		18	/* CPU has prefetch instructions */
-#define CPU_FEATURE_PMP			19	/* CPU has perfermance counter */
-#define CPU_FEATURE_SCALEFREQ		20	/* CPU supports cpufreq scaling */
-#define CPU_FEATURE_FLATMODE		21	/* CPU has flat mode */
-#define CPU_FEATURE_EIODECODE		22	/* CPU has EXTIOI interrupt pin decode mode */
-#define CPU_FEATURE_GUESTID		23	/* CPU has GuestID feature */
-#define CPU_FEATURE_HYPERVISOR		24	/* CPU has hypervisor (running in VM) */
+#define CPU_FEATURE_CRC32		6	/* CPU has CRC32 instructions */
+#define CPU_FEATURE_COMPLEX		7	/* CPU has Complex instructions */
+#define CPU_FEATURE_CRYPTO		8	/* CPU has Crypto instructions */
+#define CPU_FEATURE_LVZ			9	/* CPU has Virtualization extension */
+#define CPU_FEATURE_LBT_X86		10	/* CPU has X86 Binary Translation */
+#define CPU_FEATURE_LBT_ARM		11	/* CPU has ARM Binary Translation */
+#define CPU_FEATURE_LBT_MIPS		12	/* CPU has MIPS Binary Translation */
+#define CPU_FEATURE_TLB			13	/* CPU has TLB */
+#define CPU_FEATURE_CSR			14	/* CPU has CSR */
+#define CPU_FEATURE_WATCH		15	/* CPU has watchpoint registers */
+#define CPU_FEATURE_VINT		16	/* CPU has vectored interrupts */
+#define CPU_FEATURE_CSRIPI		17	/* CPU has CSR-IPI */
+#define CPU_FEATURE_EXTIOI		18	/* CPU has EXT-IOI */
+#define CPU_FEATURE_PREFETCH		19	/* CPU has prefetch instructions */
+#define CPU_FEATURE_PMP			20	/* CPU has perfermance counter */
+#define CPU_FEATURE_SCALEFREQ		21	/* CPU supports cpufreq scaling */
+#define CPU_FEATURE_FLATMODE		22	/* CPU has flat mode */
+#define CPU_FEATURE_EIODECODE		23	/* CPU has EXTIOI interrupt pin decode mode */
+#define CPU_FEATURE_GUESTID		24	/* CPU has GuestID feature */
+#define CPU_FEATURE_HYPERVISOR		25	/* CPU has hypervisor (running in VM) */
+#define CPU_FEATURE_PTW			26	/* CPU has hardware page table walker */
 
 #define LOONGARCH_CPU_CPUCFG		BIT_ULL(CPU_FEATURE_CPUCFG)
 #define LOONGARCH_CPU_LAM		BIT_ULL(CPU_FEATURE_LAM)
@@ -104,6 +106,7 @@ enum cpu_type_enum {
 #define LOONGARCH_CPU_FPU		BIT_ULL(CPU_FEATURE_FPU)
 #define LOONGARCH_CPU_LSX		BIT_ULL(CPU_FEATURE_LSX)
 #define LOONGARCH_CPU_LASX		BIT_ULL(CPU_FEATURE_LASX)
+#define LOONGARCH_CPU_CRC32		BIT_ULL(CPU_FEATURE_CRC32)
 #define LOONGARCH_CPU_COMPLEX		BIT_ULL(CPU_FEATURE_COMPLEX)
 #define LOONGARCH_CPU_CRYPTO		BIT_ULL(CPU_FEATURE_CRYPTO)
 #define LOONGARCH_CPU_LVZ		BIT_ULL(CPU_FEATURE_LVZ)
@@ -123,5 +126,6 @@ enum cpu_type_enum {
 #define LOONGARCH_CPU_EIODECODE		BIT_ULL(CPU_FEATURE_EIODECODE)
 #define LOONGARCH_CPU_GUESTID		BIT_ULL(CPU_FEATURE_GUESTID)
 #define LOONGARCH_CPU_HYPERVISOR	BIT_ULL(CPU_FEATURE_HYPERVISOR)
+#define LOONGARCH_CPU_PTW		BIT_ULL(CPU_FEATURE_PTW)
 
 #endif /* _ASM_CPU_H */

@@ -70,6 +70,8 @@ struct tls_rec {
 	char content_type;
 	struct scatterlist sg_content_type;
 
+	struct sock *sk;
+
 	char aad_space[TLS_AAD_SPACE_SIZE];
 	u8 iv_data[MAX_IV_SIZE];
 	struct aead_request aead_req;
@@ -95,10 +97,7 @@ void tls_update_rx_zc_capable(struct tls_context *tls_ctx);
 void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
 void tls_sw_strparser_done(struct tls_context *tls_ctx);
 int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
-int tls_sw_sendpage_locked(struct sock *sk, struct page *page,
-			   int offset, size_t size, int flags);
-int tls_sw_sendpage(struct sock *sk, struct page *page,
-		    int offset, size_t size, int flags);
+void tls_sw_splice_eof(struct socket *sock);
 void tls_sw_cancel_work_tx(struct tls_context *tls_ctx);
 void tls_sw_release_resources_tx(struct sock *sk);
 void tls_sw_free_ctx_tx(struct tls_context *tls_ctx);
@@ -113,8 +112,7 @@ ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
 			   size_t len, unsigned int flags);
 
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
-int tls_device_sendpage(struct sock *sk, struct page *page,
-			int offset, size_t size, int flags);
+void tls_device_splice_eof(struct socket *sock);
 int tls_tx_records(struct sock *sk, int flags);
 
 void tls_sw_write_space(struct sock *sk, struct tls_context *ctx);
@@ -163,6 +161,11 @@ static inline struct sk_buff *tls_strp_msg(struct tls_sw_context_rx *ctx)
 static inline bool tls_strp_msg_ready(struct tls_sw_context_rx *ctx)
 {
 	return ctx->strp.msg_ready;
+}
+
+static inline bool tls_strp_msg_mixed_decrypted(struct tls_sw_context_rx *ctx)
+{
+	return ctx->strp.mixed_decrypted;
 }
 
 #ifdef CONFIG_TLS_DEVICE

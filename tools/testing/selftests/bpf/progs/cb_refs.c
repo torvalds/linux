@@ -2,9 +2,10 @@
 #include <vmlinux.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_helpers.h>
+#include "../bpf_testmod/bpf_testmod_kfunc.h"
 
 struct map_value {
-	struct prog_test_ref_kfunc __kptr_ref *ptr;
+	struct prog_test_ref_kfunc __kptr *ptr;
 };
 
 struct {
@@ -13,9 +14,6 @@ struct {
 	__type(value, struct map_value);
 	__uint(max_entries, 16);
 } array_map SEC(".maps");
-
-extern struct prog_test_ref_kfunc *bpf_kfunc_call_test_acquire(unsigned long *sp) __ksym;
-extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
 
 static __noinline int cb1(void *map, void *key, void *value, void *ctx)
 {
@@ -52,7 +50,6 @@ int leak_prog(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;
 	struct map_value *v;
-	unsigned long sl;
 
 	v = bpf_map_lookup_elem(&array_map, &(int){0});
 	if (!v)

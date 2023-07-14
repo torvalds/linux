@@ -19,7 +19,7 @@ rules:
   colons: {max-spaces-before: 0, max-spaces-after: 1}
   commas: {min-spaces-after: 1, max-spaces-after: 1}
   comments:
-    require-starting-space: false
+    require-starting-space: true
     min-spaces-from-content: 1
   comments-indentation: disable
   document-start:

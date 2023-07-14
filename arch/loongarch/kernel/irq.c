@@ -92,7 +92,7 @@ static int __init get_ipi_irq(void)
 	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
 
 	if (d)
-		return irq_create_mapping(d, EXCCODE_IPI - EXCCODE_INT_START);
+		return irq_create_mapping(d, INT_IPI);
 
 	return -EINVAL;
 }
@@ -117,7 +117,7 @@ void __init init_IRQ(void)
 	if (ipi_irq < 0)
 		panic("IPI IRQ mapping failed\n");
 	irq_set_percpu_devid(ipi_irq);
-	r = request_percpu_irq(ipi_irq, loongson3_ipi_interrupt, "IPI", &ipi_dummy_dev);
+	r = request_percpu_irq(ipi_irq, loongson_ipi_interrupt, "IPI", &ipi_dummy_dev);
 	if (r < 0)
 		panic("IPI IRQ request failed\n");
 #endif

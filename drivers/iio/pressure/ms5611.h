@@ -13,8 +13,6 @@
 #include <linux/iio/iio.h>
 #include <linux/mutex.h>
 
-struct regulator;
-
 #define MS5611_RESET			0x1e
 #define MS5611_READ_ADC			0x00
 #define MS5611_READ_PROM_WORD		0xA0
@@ -23,13 +21,6 @@ struct regulator;
 enum {
 	MS5611,
 	MS5607,
-};
-
-struct ms5611_chip_info {
-	u16 prom[MS5611_PROM_WORDS_NB];
-
-	int (*temp_and_pressure_compensate)(struct ms5611_chip_info *chip_info,
-					    s32 *temp, s32 *pressure);
 };
 
 /*
@@ -50,17 +41,18 @@ struct ms5611_state {
 	const struct ms5611_osr *pressure_osr;
 	const struct ms5611_osr *temp_osr;
 
+	u16 prom[MS5611_PROM_WORDS_NB];
+
 	int (*reset)(struct ms5611_state *st);
 	int (*read_prom_word)(struct ms5611_state *st, int index, u16 *word);
 	int (*read_adc_temp_and_pressure)(struct ms5611_state *st,
 					  s32 *temp, s32 *pressure);
 
-	struct ms5611_chip_info *chip_info;
-	struct regulator *vdd;
+	int (*compensate_temp_and_pressure)(struct ms5611_state *st, s32 *temp,
+					  s32 *pressure);
 };
 
 int ms5611_probe(struct iio_dev *indio_dev, struct device *dev,
 		 const char *name, int type);
-void ms5611_remove(struct iio_dev *indio_dev);
 
 #endif /* _MS5611_H */

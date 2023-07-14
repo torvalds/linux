@@ -13,6 +13,7 @@
 
 
 #include <linux/kernel.h>
+#include <linux/kstrtox.h>
 #include <linux/string.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -505,7 +506,7 @@ static ssize_t usb2_hardware_lpm_store(struct device *dev,
 	if (ret < 0)
 		return -EINTR;
 
-	ret = strtobool(buf, &value);
+	ret = kstrtobool(buf, &value);
 
 	if (!ret) {
 		udev->usb2_hw_lpm_allowed = value;
@@ -868,11 +869,7 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 	size_t srclen, n;
 	int cfgno;
 	void *src;
-	int retval;
 
-	retval = usb_lock_device_interruptible(udev);
-	if (retval < 0)
-		return -EINTR;
 	/* The binary attribute begins with the device descriptor.
 	 * Following that are the raw descriptor entries for all the
 	 * configurations (config plus subsidiary descriptors).
@@ -897,7 +894,6 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 			off -= srclen;
 		}
 	}
-	usb_unlock_device(udev);
 	return count - nleft;
 }
 
@@ -975,7 +971,7 @@ static ssize_t interface_authorized_default_store(struct device *dev,
 	int rc = count;
 	bool val;
 
-	if (strtobool(buf, &val) != 0)
+	if (kstrtobool(buf, &val) != 0)
 		return -EINVAL;
 
 	if (val)
@@ -1176,7 +1172,7 @@ static ssize_t interface_authorized_store(struct device *dev,
 	struct usb_interface *intf = to_usb_interface(dev);
 	bool val;
 
-	if (strtobool(buf, &val) != 0)
+	if (kstrtobool(buf, &val) != 0)
 		return -EINVAL;
 
 	if (val)
@@ -1231,9 +1227,59 @@ static const struct attribute_group intf_assoc_attr_grp = {
 	.is_visible =	intf_assoc_attrs_are_visible,
 };
 
+static ssize_t wireless_status_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *intf;
+
+	intf = to_usb_interface(dev);
+	if (intf->wireless_status == USB_WIRELESS_STATUS_DISCONNECTED)
+		return sysfs_emit(buf, "%s\n", "disconnected");
+	return sysfs_emit(buf, "%s\n", "connected");
+}
+static DEVICE_ATTR_RO(wireless_status);
+
+static struct attribute *intf_wireless_status_attrs[] = {
+	&dev_attr_wireless_status.attr,
+	NULL
+};
+
+static umode_t intf_wireless_status_attr_is_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb_interface *intf = to_usb_interface(dev);
+
+	if (a != &dev_attr_wireless_status.attr ||
+	    intf->wireless_status != USB_WIRELESS_STATUS_NA)
+		return a->mode;
+	return 0;
+}
+
+static const struct attribute_group intf_wireless_status_attr_grp = {
+	.attrs =	intf_wireless_status_attrs,
+	.is_visible =	intf_wireless_status_attr_is_visible,
+};
+
+int usb_update_wireless_status_attr(struct usb_interface *intf)
+{
+	struct device *dev = &intf->dev;
+	int ret;
+
+	ret = sysfs_update_group(&dev->kobj, &intf_wireless_status_attr_grp);
+	if (ret < 0)
+		return ret;
+
+	sysfs_notify(&dev->kobj, NULL, "wireless_status");
+	kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+
+	return 0;
+}
+
 const struct attribute_group *usb_interface_groups[] = {
 	&intf_attr_grp,
 	&intf_assoc_attr_grp,
+	&intf_wireless_status_attr_grp,
 	NULL
 };
 

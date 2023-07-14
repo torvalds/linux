@@ -27,6 +27,8 @@ properties:
       - st,stm32mp135-pinctrl
       - st,stm32mp157-pinctrl
       - st,stm32mp157-z-pinctrl
+      - st,stm32mp257-pinctrl
+      - st,stm32mp257-z-pinctrl
 
   '#address-cells':
     const: 1
@@ -34,7 +36,9 @@ properties:
     const: 1
 
   ranges: true
-  pins-are-numbered: true
+  pins-are-numbered:
+    $ref: /schemas/types.yaml#/definitions/flag
+    deprecated: true
   hwlocks: true
 
   interrupts:
@@ -42,7 +46,7 @@ properties:
 
   st,syscfg:
     description: Phandle+args to the syscon node which includes IRQ mux selection.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       - items:
           - description: syscon node which includes IRQ mux selection
@@ -54,7 +58,7 @@ properties:
       Indicates the SOC package used.
       More details in include/dt-bindings/pinctrl/stm32-pinfunc.h
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [1, 2, 4, 8]
+    enum: [0x1, 0x2, 0x4, 0x8, 0x100, 0x400, 0x800]
 
 patternProperties:
   '^gpio@[0-9a-f]*$':
@@ -64,6 +68,9 @@ patternProperties:
       gpio-controller: true
       '#gpio-cells':
         const: 2
+      interrupt-controller: true
+      '#interrupt-cells':
+        const: 2
 
       reg:
         maxItems: 1
@@ -71,6 +78,7 @@ patternProperties:
         maxItems: 1
       resets:
         maxItems: 1
+      gpio-line-names: true
       gpio-ranges:
         minItems: 1
         maxItems: 16
@@ -83,7 +91,7 @@ patternProperties:
       st,bank-name:
         description:
           Should be a name string for this bank as specified in the datasheet.
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         enum:
           - GPIOA
           - GPIOB
@@ -102,9 +110,15 @@ patternProperties:
         description:
           Should correspond to the EXTI IOport selection (EXTI line used
           to select GPIOs as interrupts).
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 11
+
+    patternProperties:
+      "^(.+-hog(-[0-9]+)?)$":
+        type: object
+        required:
+          - gpio-hog
 
     required:
       - gpio-controller
@@ -115,9 +129,12 @@ patternProperties:
 
   '-[0-9]*$':
     type: object
+    additionalProperties: false
+
     patternProperties:
       '^pins':
         type: object
+        additionalProperties: false
         description: |
           A pinctrl node should contain at least one subnode representing the
           pinctrl group available on the machine. Each subnode will list the
@@ -125,7 +142,7 @@ patternProperties:
           configuration, pullups, drive, output high/low and output speed.
         properties:
           pinmux:
-            $ref: "/schemas/types.yaml#/definitions/uint32-array"
+            $ref: /schemas/types.yaml#/definitions/uint32-array
             description: |
               Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
@@ -186,14 +203,13 @@ patternProperties:
           - pinmux
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
   - '#address-cells'
   - '#size-cells'
   - ranges
-  - pins-are-numbered
 
 additionalProperties: false
 
@@ -207,7 +223,6 @@ examples:
               #size-cells = <1>;
               compatible = "st,stm32f429-pinctrl";
               ranges = <0 0x40020000 0x3000>;
-              pins-are-numbered;
 
               gpioa: gpio@0 {
                       gpio-controller;
@@ -225,7 +240,6 @@ examples:
               #size-cells = <1>;
               compatible = "st,stm32f429-pinctrl";
               ranges = <0 0x50020000 0x3000>;
-              pins-are-numbered;
 
               gpiob: gpio@1000 {
                       gpio-controller;

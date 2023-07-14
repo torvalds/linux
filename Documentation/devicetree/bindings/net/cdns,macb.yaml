@@ -109,6 +109,16 @@ properties:
   power-domains:
     maxItems: 1
 
+  cdns,rx-watermark:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When the receive partial store and forward mode is activated,
+      the receiver will only begin to forward the packet to the external
+      AHB or AXI slave when enough packet data is stored in the SRAM packet buffer.
+      rx-watermark corresponds to the number of SRAM buffer locations,
+      that need to be filled, before the forwarding process is activated.
+      Width of the SRAM is platform dependent, and can be 4, 8 or 16 bytes.
+
   '#address-cells':
     const: 1
 
@@ -166,6 +176,7 @@ examples:
             compatible = "cdns,macb";
             reg = <0xfffc4000 0x4000>;
             interrupts = <21>;
+            cdns,rx-watermark = <0x44>;
             phy-mode = "rmii";
             local-mac-address = [3a 0e 03 04 05 06];
             clock-names = "pclk", "hclk", "tx_clk";
@@ -203,7 +214,6 @@ examples:
                     power-domains = <&zynqmp_firmware PD_ETH_1>;
                     resets = <&zynqmp_reset ZYNQMP_RESET_GEM1>;
                     reset-names = "gem1_rst";
-                    status = "okay";
                     phy-mode = "sgmii";
                     phys = <&psgtr 1 PHY_TYPE_SGMII 1 1>;
                     fixed-link {

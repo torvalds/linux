@@ -17,9 +17,9 @@
 
 #include "madera.h"
 
-static int madera_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int madera_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	struct madera *madera;
 	const struct regmap_config *regmap_16bit_config = NULL;
 	const struct regmap_config *regmap_32bit_config = NULL;

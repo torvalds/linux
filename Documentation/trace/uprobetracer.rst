@@ -12,13 +12,13 @@ To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
 
 Similar to the kprobe-event tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via
-/sys/kernel/debug/tracing/uprobe_events, and enable it via
-/sys/kernel/debug/tracing/events/uprobes/<EVENT>/enable.
+/sys/kernel/tracing/uprobe_events, and enable it via
+/sys/kernel/tracing/events/uprobes/<EVENT>/enable.
 
 However unlike kprobe-event tracer, the uprobe event interface expects the
 user to calculate the offset of the probepoint in the object.
 
-You can also use /sys/kernel/debug/tracing/dynamic_events instead of
+You can also use /sys/kernel/tracing/dynamic_events instead of
 uprobe_events. That interface will provide unified access to other
 dynamic events too.
 
@@ -79,7 +79,7 @@ For $comm, the default type is "string"; any other type is invalid.
 Event Profiling
 ---------------
 You can check the total number of probe hits per event via
-/sys/kernel/debug/tracing/uprobe_profile. The first column is the filename,
+/sys/kernel/tracing/uprobe_profile. The first column is the filename,
 the second is the event name, the third is the number of probe hits.
 
 Usage examples
@@ -87,28 +87,28 @@ Usage examples
  * Add a probe as a new uprobe event, write a new definition to uprobe_events
    as below (sets a uprobe at an offset of 0x4245c0 in the executable /bin/bash)::
 
-    echo 'p /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+    echo 'p /bin/bash:0x4245c0' > /sys/kernel/tracing/uprobe_events
 
  * Add a probe as a new uretprobe event::
 
-    echo 'r /bin/bash:0x4245c0' > /sys/kernel/debug/tracing/uprobe_events
+    echo 'r /bin/bash:0x4245c0' > /sys/kernel/tracing/uprobe_events
 
  * Unset registered event::
 
-    echo '-:p_bash_0x4245c0' >> /sys/kernel/debug/tracing/uprobe_events
+    echo '-:p_bash_0x4245c0' >> /sys/kernel/tracing/uprobe_events
 
  * Print out the events that are registered::
 
-    cat /sys/kernel/debug/tracing/uprobe_events
+    cat /sys/kernel/tracing/uprobe_events
 
  * Clear all events::
 
-    echo > /sys/kernel/debug/tracing/uprobe_events
+    echo > /sys/kernel/tracing/uprobe_events
 
 Following example shows how to dump the instruction pointer and %ax register
 at the probed text address. Probe zfree function in /bin/zsh::
 
-    # cd /sys/kernel/debug/tracing/
+    # cd /sys/kernel/tracing/
     # cat /proc/`pgrep zsh`/maps | grep /bin/zsh | grep r-xp
     00400000-0048a000 r-xp 00000000 08:03 130904 /bin/zsh
     # objdump -T /bin/zsh | grep -w zfree
@@ -168,7 +168,7 @@ Also, you can disable the event by::
 
     # echo 0 > events/uprobes/enable
 
-And you can see the traced information via /sys/kernel/debug/tracing/trace.
+And you can see the traced information via /sys/kernel/tracing/trace.
 ::
 
     # cat trace

@@ -167,8 +167,7 @@ static int zet6223_query_device(struct zet6223_ts *ts)
 	return 0;
 }
 
-static int zet6223_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int zet6223_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct zet6223_ts *ts;

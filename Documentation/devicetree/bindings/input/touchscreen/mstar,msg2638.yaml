@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/input/touchscreen/mstar,msg2638.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MStar msg2638 touchscreen controller Bindings
+title: MStar msg2638 touchscreen controller
 
 maintainers:
   - Vincent Knecht <vincent.knecht@mailoo.org>
@@ -14,7 +14,9 @@ allOf:
 
 properties:
   compatible:
-    const: mstar,msg2638
+    enum:
+      - mstar,msg2138
+      - mstar,msg2638
 
   reg:
     const: 0x26
@@ -33,6 +35,10 @@ properties:
 
   touchscreen-size-x: true
   touchscreen-size-y: true
+
+  linux,keycodes:
+    minItems: 1
+    maxItems: 4
 
 additionalProperties: false
 

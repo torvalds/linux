@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/hwmon/adi,axi-fan-control.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AXI FAN Control Device Tree Bindings
+title: Analog Devices AXI FAN Control
 
 maintainers:
   - Nuno Sá <nuno.sa@analog.com>
@@ -49,15 +49,15 @@ additionalProperties: false
 examples:
   - |
     fpga_axi: fpga-axi {
-            #address-cells = <0x2>;
-            #size-cells = <0x1>;
+        #address-cells = <0x2>;
+        #size-cells = <0x1>;
 
-            axi_fan_control: axi-fan-control@80000000 {
-                    compatible = "adi,axi-fan-control-1.00.a";
-                    reg = <0x0 0x80000000 0x10000>;
-                    clocks = <&clk 71>;
-                    interrupts = <0 110 0>;
-                    pulses-per-revolution = <2>;
-            };
+        axi_fan_control: axi-fan-control@80000000 {
+            compatible = "adi,axi-fan-control-1.00.a";
+            reg = <0x0 0x80000000 0x10000>;
+            clocks = <&clk 71>;
+            interrupts = <0 110 0>;
+            pulses-per-revolution = <2>;
+        };
     };
 ...

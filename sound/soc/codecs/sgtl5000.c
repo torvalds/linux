@@ -1794,6 +1794,7 @@ static void sgtl5000_i2c_remove(struct i2c_client *client)
 {
 	struct sgtl5000_priv *sgtl5000 = i2c_get_clientdata(client);
 
+	regmap_write(sgtl5000->regmap, SGTL5000_CHIP_CLK_CTRL, SGTL5000_CHIP_CLK_CTRL_DEFAULT);
 	regmap_write(sgtl5000->regmap, SGTL5000_CHIP_DIG_POWER, SGTL5000_DIG_POWER_DEFAULT);
 	regmap_write(sgtl5000->regmap, SGTL5000_CHIP_ANA_POWER, SGTL5000_ANA_POWER_DEFAULT);
 
@@ -1825,7 +1826,7 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 		.name = "sgtl5000",
 		.of_match_table = sgtl5000_dt_ids,
 	},
-	.probe_new = sgtl5000_i2c_probe,
+	.probe = sgtl5000_i2c_probe,
 	.remove = sgtl5000_i2c_remove,
 	.shutdown = sgtl5000_i2c_shutdown,
 	.id_table = sgtl5000_id,

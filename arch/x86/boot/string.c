@@ -350,7 +350,7 @@ static int _kstrtoul(const char *s, unsigned int base, unsigned long *res)
 }
 
 /**
- * kstrtoul - convert a string to an unsigned long
+ * boot_kstrtoul - convert a string to an unsigned long
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
  *  may also be a plus sign, but not a minus sign.

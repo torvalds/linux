@@ -49,16 +49,23 @@ Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the in-place-update policy.
 		updates in f2fs. User can set:
 
-		====  =================
-		0x01  F2FS_IPU_FORCE
-		0x02  F2FS_IPU_SSR
-		0x04  F2FS_IPU_UTIL
-		0x08  F2FS_IPU_SSR_UTIL
-		0x10  F2FS_IPU_FSYNC
-		0x20  F2FS_IPU_ASYNC
-		0x40  F2FS_IPU_NOCACHE
-		0x80  F2FS_IPU_HONOR_OPU_WRITE
-		====  =================
+		===== =============== ===================================================
+		value policy          description
+		0x00  DISABLE         disable IPU(=default option in LFS mode)
+		0x01  FORCE           all the time
+		0x02  SSR             if SSR mode is activated
+		0x04  UTIL            if FS utilization is over threashold
+		0x08  SSR_UTIL        if SSR mode is activated and FS utilization is over
+		                      threashold
+		0x10  FSYNC           activated in fsync path only for high performance
+		                      flash storages. IPU will be triggered only if the
+		                      # of dirty pages over min_fsync_blocks.
+		                      (=default option)
+		0x20  ASYNC           do IPU given by asynchronous write requests
+		0x40  NOCACHE         disable IPU bio cache
+		0x80  HONOR_OPU_WRITE use OPU write prior to IPU write if inode has
+		                      FI_OPU_WRITE flag
+		===== =============== ===================================================
 
 		Refer segment.h for details.
 
@@ -99,6 +106,12 @@ Description:	Controls the issue rate of discard commands that consist of small
 		checkpoint is triggered, and issued during the checkpoint.
 		By default, it is disabled with 0.
 
+What:		/sys/fs/f2fs/<disk>/max_ordered_discard
+Date:		October 2022
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	Controls the maximum ordered discard, the unit size is one block(4KB).
+		Set it to 16 by default.
+
 What:		/sys/fs/f2fs/<disk>/max_discard_request
 Date:		December 2021
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
@@ -132,7 +145,8 @@ Contact:	"Chao Yu" <yuchao0@huawei.com>
 Description:	Controls discard granularity of inner discard thread. Inner thread
 		will not issue discards with size that is smaller than granularity.
 		The unit size is one block(4KB), now only support configuring
-		in range of [1, 512]. Default value is 4(=16KB).
+		in range of [1, 512]. Default value is 16.
+		For small devices, default value is 1.
 
 What:		/sys/fs/f2fs/<disk>/umount_discard_timeout
 Date:		January 2019
@@ -175,12 +189,6 @@ Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the memory footprint used by free nids and cached
 		nat entries. By default, 1 is set, which indicates
 		10 MB / 1 GB RAM.
-
-What:		/sys/fs/f2fs/<disk>/batched_trim_sections
-Date:		February 2015
-Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	Controls the trimming rate in batch mode.
-		<deprecated>
 
 What:		/sys/fs/f2fs/<disk>/cp_interval
 Date:		October 2015
@@ -235,7 +243,7 @@ Description:	Shows total written kbytes issued to disk.
 What:		/sys/fs/f2fs/<disk>/features
 Date:		July 2017
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
-Description:	<deprecated: should use /sys/fs/f2fs/<disk>/feature_list/
+Description:	<deprecated: should use /sys/fs/f2fs/<disk>/feature_list/>
 		Shows all enabled features in current device.
 		Supported features:
 		encryption, blkzoned, extra_attr, projquota, inode_checksum,
@@ -466,6 +474,30 @@ Description:	Show status of f2fs superblock in real time.
 		0x4000 SBI_IS_FREEZING       freefs is in process
 		====== ===================== =================================
 
+What:		/sys/fs/f2fs/<disk>/stat/cp_status
+Date:		September 2022
+Contact:	"Chao Yu" <chao.yu@oppo.com>
+Description:	Show status of f2fs checkpoint in real time.
+
+		=============================== ==============================
+		cp flag				value
+		CP_UMOUNT_FLAG			0x00000001
+		CP_ORPHAN_PRESENT_FLAG		0x00000002
+		CP_COMPACT_SUM_FLAG		0x00000004
+		CP_ERROR_FLAG			0x00000008
+		CP_FSCK_FLAG			0x00000010
+		CP_FASTBOOT_FLAG		0x00000020
+		CP_CRC_RECOVERY_FLAG		0x00000040
+		CP_NAT_BITS_FLAG		0x00000080
+		CP_TRIMMED_FLAG			0x00000100
+		CP_NOCRC_RECOVERY_FLAG		0x00000200
+		CP_LARGE_NAT_BITMAP_FLAG	0x00000400
+		CP_QUOTA_NEED_FSCK_FLAG		0x00000800
+		CP_DISABLED_FLAG		0x00001000
+		CP_DISABLED_QUICK_FLAG		0x00002000
+		CP_RESIZEFS_FLAG		0x00004000
+		=============================== ==============================
+
 What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
 Date:		January 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
@@ -568,10 +600,10 @@ Description:	With "mode=fragment:block" mount options, we can scatter block allo
 		in the length of 1..<max_fragment_hole> by turns. This value can be set
 		between 1..512 and the default value is 4.
 
-What:		/sys/fs/f2fs/<disk>/gc_urgent_high_remaining
-Date:		December 2021
-Contact:	"Daeho Jeong" <daehojeong@google.com>
-Description:	You can set the trial count limit for GC urgent high mode with this value.
+What:		/sys/fs/f2fs/<disk>/gc_remaining_trials
+Date:		October 2022
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	You can set the trial count limit for GC urgent and idle mode with this value.
 		If GC thread gets to the limit, the mode will turn back to GC normal mode.
 		By default, the value is zero, which means there is no limit like before.
 
@@ -610,3 +642,101 @@ Date:		July 2022
 Contact:	"Daeho Jeong" <daehojeong@google.com>
 Description:	Show the accumulated total revoked atomic write block count after boot.
 		If you write "0" here, you can initialize to "0".
+
+What:		/sys/fs/f2fs/<disk>/gc_mode
+Date:		October 2022
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	Show the current gc_mode as a string.
+		This is a read-only entry.
+
+What:		/sys/fs/f2fs/<disk>/discard_urgent_util
+Date:		November 2022
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	When space utilization exceeds this, do background DISCARD aggressively.
+		Does DISCARD forcibly in a period of given min_discard_issue_time when the number
+		of discards is not 0 and set discard granularity to 1.
+		Default: 80
+
+What:		/sys/fs/f2fs/<disk>/hot_data_age_threshold
+Date:		November 2022
+Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
+Description:	When DATA SEPARATION is on, it controls the age threshold to indicate
+		the data blocks as hot. By default it was initialized as 262144 blocks
+		(equals to 1GB).
+
+What:		/sys/fs/f2fs/<disk>/warm_data_age_threshold
+Date:		November 2022
+Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
+Description:	When DATA SEPARATION is on, it controls the age threshold to indicate
+		the data blocks as warm. By default it was initialized as 2621440 blocks
+		(equals to 10GB).
+
+What:		/sys/fs/f2fs/<disk>/fault_rate
+Date:		May 2016
+Contact:	"Sheng Yong" <shengyong@oppo.com>
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	Enable fault injection in all supported types with
+		specified injection rate.
+
+What:		/sys/fs/f2fs/<disk>/fault_type
+Date:		May 2016
+Contact:	"Sheng Yong" <shengyong@oppo.com>
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	Support configuring fault injection type, should be
+		enabled with fault_injection option, fault type value
+		is shown below, it supports single or combined type.
+
+		===================      ===========
+		Type_Name                Type_Value
+		===================      ===========
+		FAULT_KMALLOC            0x000000001
+		FAULT_KVMALLOC           0x000000002
+		FAULT_PAGE_ALLOC         0x000000004
+		FAULT_PAGE_GET           0x000000008
+		FAULT_ALLOC_BIO          0x000000010 (obsolete)
+		FAULT_ALLOC_NID          0x000000020
+		FAULT_ORPHAN             0x000000040
+		FAULT_BLOCK              0x000000080
+		FAULT_DIR_DEPTH          0x000000100
+		FAULT_EVICT_INODE        0x000000200
+		FAULT_TRUNCATE           0x000000400
+		FAULT_READ_IO            0x000000800
+		FAULT_CHECKPOINT         0x000001000
+		FAULT_DISCARD            0x000002000
+		FAULT_WRITE_IO           0x000004000
+		FAULT_SLAB_ALLOC         0x000008000
+		FAULT_DQUOT_INIT         0x000010000
+		FAULT_LOCK_OP            0x000020000
+		FAULT_BLKADDR            0x000040000
+		===================      ===========
+
+What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
+Date:		January 2023
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	Controls background discard granularity of inner discard thread
+		when is not in idle. Inner thread will not issue discards with size that
+		is smaller than granularity. The unit size is one block(4KB), now only
+		support configuring in range of [0, 512].
+		Default: 512
+
+What:		/sys/fs/f2fs/<disk>/last_age_weight
+Date:		January 2023
+Contact:	"Ping Xiong" <xiongping1@xiaomi.com>
+Description:	When DATA SEPARATION is on, it controls the weight of last data block age.
+
+What:		/sys/fs/f2fs/<disk>/compress_watermark
+Date:		February 2023
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	When compress cache is on, it controls free memory watermark
+		in order to limit caching compress page. If free memory is lower
+		than watermark, then deny caching compress page. The value should be in
+		range of (0, 100], by default it was initialized as 20(%).
+
+What:		/sys/fs/f2fs/<disk>/compress_percent
+Date:		February 2023
+Contact:	"Yangtao Li" <frank.li@vivo.com>
+Description:	When compress cache is on, it controls cached page
+		percent(compress pages / free_ram) in order to limit caching compress page.
+		If cached page percent exceed threshold, then deny caching compress page.
+		The value should be in range of (0, 100], by default it was initialized
+		as 20(%).

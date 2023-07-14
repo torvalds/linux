@@ -548,8 +548,7 @@ static void rt8973a_init_dev_type(struct rt8973a_muic_info *info)
 	}
 }
 
-static int rt8973a_muic_i2c_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
+static int rt8973a_muic_i2c_probe(struct i2c_client *i2c)
 {
 	struct device_node *np = i2c->dev.of_node;
 	struct rt8973a_muic_info *info;
@@ -696,7 +695,7 @@ static struct i2c_driver rt8973a_muic_i2c_driver = {
 		.pm	= &rt8973a_muic_pm_ops,
 		.of_match_table = rt8973a_dt_match,
 	},
-	.probe	= rt8973a_muic_i2c_probe,
+	.probe = rt8973a_muic_i2c_probe,
 	.remove	= rt8973a_muic_i2c_remove,
 	.id_table = rt8973a_i2c_id,
 };

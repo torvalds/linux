@@ -514,4 +514,3 @@ core_initcall(rza2_pinctrl_init);
 
 MODULE_AUTHOR("Chris Brandt <chris.brandt@renesas.com>");
 MODULE_DESCRIPTION("Pin and gpio controller driver for RZ/A2 SoC");
-MODULE_LICENSE("GPL v2");

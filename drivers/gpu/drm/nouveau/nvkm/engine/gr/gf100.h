@@ -44,19 +44,6 @@ struct nvkm_acr_lsfw;
 #define PPC_UNIT(t, m, r) (0x503000 + (t) * 0x8000 + (m) * 0x200 + (r))
 #define TPC_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
-struct gf100_gr_data {
-	u32 size;
-	u32 align;
-	bool priv;
-};
-
-struct gf100_gr_mmio {
-	u32 addr;
-	u32 data;
-	u32 shift;
-	int buffer;
-};
-
 struct gf100_gr_zbc_color {
 	u32 format;
 	u32 ds[4];
@@ -101,13 +88,19 @@ struct gf100_gr {
 	 * using hardcoded arrays. To be allocated with vzalloc().
 	 */
 	struct gf100_gr_pack *sw_nonctx;
+	struct gf100_gr_pack *sw_nonctx1;
+	struct gf100_gr_pack *sw_nonctx2;
+	struct gf100_gr_pack *sw_nonctx3;
+	struct gf100_gr_pack *sw_nonctx4;
 	struct gf100_gr_pack *sw_ctx;
 	struct gf100_gr_pack *bundle;
+	struct gf100_gr_pack *bundle_veid;
+	struct gf100_gr_pack *bundle64;
 	struct gf100_gr_pack *method;
 
-	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_CNT];
-	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_CNT];
-	struct gf100_gr_zbc_stencil zbc_stencil[NVKM_LTC_MAX_ZBC_CNT];
+	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_COLOR_CNT];
+	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_DEPTH_CNT];
+	struct gf100_gr_zbc_stencil zbc_stencil[NVKM_LTC_MAX_ZBC_DEPTH_CNT];
 
 	u8 rop_nr;
 	u8 gpc_nr;
@@ -120,6 +113,12 @@ struct gf100_gr {
 	u8 ppc_tpc_nr[GPC_MAX][4];
 	u8 ppc_tpc_min;
 	u8 ppc_tpc_max;
+	u8 ppc_total;
+
+	struct nvkm_memory *pagepool;
+	struct nvkm_memory *bundle_cb;
+	struct nvkm_memory *attrib_cb;
+	struct nvkm_memory *unknown;
 
 	u8 screen_tile_row_offset;
 	u8 tile[TPC_MAX];
@@ -130,8 +129,6 @@ struct gf100_gr {
 	} sm[TPC_MAX];
 	u8 sm_nr;
 
-	struct gf100_gr_data mmio_data[4];
-	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;
 	u32 *data;
 	u32 size_zcull;
@@ -139,6 +136,7 @@ struct gf100_gr {
 };
 
 int gf100_gr_fecs_bind_pointer(struct gf100_gr *, u32 inst);
+int gf100_gr_fecs_wfi_golden_save(struct gf100_gr *, u32 inst);
 
 struct gf100_gr_func_zbc {
 	void (*clear_color)(struct gf100_gr *, int zbc);
@@ -149,8 +147,9 @@ struct gf100_gr_func_zbc {
 };
 
 struct gf100_gr_func {
+	struct nvkm_intr *(*oneinit_intr)(struct gf100_gr *, enum nvkm_intr_type *);
 	void (*oneinit_tiles)(struct gf100_gr *);
-	void (*oneinit_sm_id)(struct gf100_gr *);
+	int (*oneinit_sm_id)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
 	void (*init_419bd8)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
@@ -164,6 +163,7 @@ struct gf100_gr_func {
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
 	void (*init_fs)(struct gf100_gr *);
 	void (*init_fecs_exceptions)(struct gf100_gr *);
+	void (*init_40a790)(struct gf100_gr *);
 	void (*init_ds_hww_esr_2)(struct gf100_gr *);
 	void (*init_40601c)(struct gf100_gr *);
 	void (*init_sked_hww_esr)(struct gf100_gr *);
@@ -174,6 +174,8 @@ struct gf100_gr_func {
 	void (*init_tex_hww_esr)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_504430)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_shader_exceptions)(struct gf100_gr *, int gpc, int tpc);
+	void (*init_rop_exceptions)(struct gf100_gr *);
+	void (*init_exception2)(struct gf100_gr *);
 	void (*init_400054)(struct gf100_gr *);
 	void (*init_4188a4)(struct gf100_gr *);
 	void (*trap_mp)(struct gf100_gr *, int gpc, int tpc);
@@ -181,9 +183,11 @@ struct gf100_gr_func {
 	const struct gf100_gr_pack *mmio;
 	struct {
 		struct gf100_gr_ucode *ucode;
+		void (*reset)(struct gf100_gr *);
 	} fecs;
 	struct {
 		struct gf100_gr_ucode *ucode;
+		void (*reset)(struct gf100_gr *);
 	} gpccs;
 	int (*rops)(struct gf100_gr *);
 	int gpc_nr;
@@ -197,7 +201,7 @@ struct gf100_gr_func {
 
 int gf100_gr_rops(struct gf100_gr *);
 void gf100_gr_oneinit_tiles(struct gf100_gr *);
-void gf100_gr_oneinit_sm_id(struct gf100_gr *);
+int gf100_gr_oneinit_sm_id(struct gf100_gr *);
 int gf100_gr_init(struct gf100_gr *);
 void gf100_gr_init_vsc_stream_master(struct gf100_gr *);
 void gf100_gr_init_zcull(struct gf100_gr *);
@@ -208,9 +212,12 @@ void gf100_gr_init_419cc0(struct gf100_gr *);
 void gf100_gr_init_419eb4(struct gf100_gr *);
 void gf100_gr_init_tex_hww_esr(struct gf100_gr *, int, int);
 void gf100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
+void gf100_gr_init_rop_exceptions(struct gf100_gr *);
+void gf100_gr_init_exception2(struct gf100_gr *);
 void gf100_gr_init_400054(struct gf100_gr *);
 void gf100_gr_init_num_tpc_per_gpc(struct gf100_gr *, bool, bool);
 extern const struct gf100_gr_func_zbc gf100_gr_zbc;
+void gf100_gr_fecs_reset(struct gf100_gr *);
 
 void gf117_gr_init_zcull(struct gf100_gr *);
 
@@ -226,9 +233,13 @@ void gm107_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gm107_gr_init_400054(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
+int gk20a_gr_av_to_init_(struct nvkm_blob *, u8 count, u32 pitch, struct gf100_gr_pack **);
+int gk20a_gr_av_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
+int gk20a_gr_aiv_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
+int gk20a_gr_av_to_method(struct nvkm_blob *, struct gf100_gr_pack **);
 
 void gm200_gr_oneinit_tiles(struct gf100_gr *);
-void gm200_gr_oneinit_sm_id(struct gf100_gr *);
+int gm200_gr_oneinit_sm_id(struct gf100_gr *);
 int gm200_gr_rops(struct gf100_gr *);
 void gm200_gr_init_num_active_ltcs(struct gf100_gr *);
 void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);
@@ -242,13 +253,23 @@ extern const struct gf100_gr_func_zbc gp100_gr_zbc;
 
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
+int gp102_gr_zbc_stencil_get(struct gf100_gr *, int, const u32, const u32);
+void gp102_gr_zbc_clear_stencil(struct gf100_gr *, int);
 
 extern const struct gf100_gr_func gp107_gr;
 
+int gv100_gr_oneinit_sm_id(struct gf100_gr *);
+u32 gv100_gr_nonpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc);
 void gv100_gr_init_419bd8(struct gf100_gr *);
 void gv100_gr_init_504430(struct gf100_gr *, int, int);
 void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
+void gv100_gr_init_4188a4(struct gf100_gr *);
 void gv100_gr_trap_mp(struct gf100_gr *, int, int);
+
+int tu102_gr_av_to_init_veid(struct nvkm_blob *, struct gf100_gr_pack **);
+void tu102_gr_init_zcull(struct gf100_gr *);
+void tu102_gr_init_fs(struct gf100_gr *);
+void tu102_gr_init_fecs_exceptions(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>
@@ -258,14 +279,14 @@ struct gf100_gr_chan {
 	struct gf100_gr *gr;
 	struct nvkm_vmm *vmm;
 
+	struct nvkm_vma *pagepool;
+	struct nvkm_vma *bundle_cb;
+	struct nvkm_vma *attrib_cb;
+	struct nvkm_vma *unknown;
+
 	struct nvkm_memory *mmio;
 	struct nvkm_vma *mmio_vma;
 	int mmio_nr;
-
-	struct {
-		struct nvkm_memory *mem;
-		struct nvkm_vma *vma;
-	} data[4];
 };
 
 void gf100_gr_ctxctl_debug(struct gf100_gr *);
@@ -279,7 +300,7 @@ struct gf100_gr_init {
 	u32 addr;
 	u8  count;
 	u32 pitch;
-	u32 data;
+	u64 data;
 };
 
 struct gf100_gr_pack {
@@ -403,6 +424,9 @@ int gf100_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 int gf100_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 
 int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
+int gk20a_gr_load_net(struct gf100_gr *, const char *, const char *, int,
+		      int (*)(struct nvkm_blob *, struct gf100_gr_pack **),
+		      struct gf100_gr_pack **);
 
 int gm200_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 int gm200_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
@@ -415,6 +439,8 @@ void gm20b_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 
 extern const struct nvkm_acr_lsf_func gp108_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gp108_gr_fecs_acr;
+void gp108_gr_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
+void gp108_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 
 int gf100_gr_new_(const struct gf100_gr_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gr **);

@@ -171,9 +171,9 @@ static void bmc150_acpi_dual_accel_probe(struct i2c_client *client) {}
 static void bmc150_acpi_dual_accel_remove(struct i2c_client *client) {}
 #endif
 
-static int bmc150_accel_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int bmc150_accel_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 	const char *name = NULL;
 	enum bmc150_type type = BOSCH_UNKNOWN;

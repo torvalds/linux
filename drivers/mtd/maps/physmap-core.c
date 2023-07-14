@@ -300,6 +300,9 @@ static const char *of_select_probe_type(struct platform_device *dev)
 	const char *probe_type;
 
 	match = of_match_device(of_flash_match, &dev->dev);
+	if (!match)
+		return NULL;
+
 	probe_type = match->data;
 	if (probe_type)
 		return probe_type;

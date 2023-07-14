@@ -112,11 +112,6 @@ static const struct watchdog_ops visconti_wdt_ops = {
 	.set_timeout	= visconti_wdt_set_timeout,
 };
 
-static void visconti_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
 static int visconti_wdt_probe(struct platform_device *pdev)
 {
 	struct watchdog_device *wdev;
@@ -134,19 +129,9 @@ static int visconti_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	clk = devm_clk_get(dev, NULL);
+	clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(clk))
 		return dev_err_probe(dev, PTR_ERR(clk), "Could not get clock\n");
-
-	ret = clk_prepare_enable(clk);
-	if (ret) {
-		dev_err(dev, "Could not enable clock\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(dev, visconti_clk_disable_unprepare, clk);
-	if (ret)
-		return ret;
 
 	clk_freq = clk_get_rate(clk);
 	if (!clk_freq)

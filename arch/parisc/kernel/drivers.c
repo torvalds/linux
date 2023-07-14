@@ -4,7 +4,7 @@
  *
  * Copyright (c) 1999 The Puffin Group
  * Copyright (c) 2001 Matthew Wilcox for Hewlett Packard
- * Copyright (c) 2001 Helge Deller <deller@gmx.de>
+ * Copyright (c) 2001-2023 Helge Deller <deller@gmx.de>
  * Copyright (c) 2001,2002 Ryan Bradetich 
  * Copyright (c) 2004-2005 Thibaut VARENE <varenet@parisc-linux.org>
  * 
@@ -74,13 +74,13 @@ static int descend_children(struct device * dev, void * data)
 }
 
 /**
- *	for_each_padev - Iterate over all devices in the tree
- *	@fn:	Function to call for each device.
- *	@data:	Data to pass to the called function.
+ * for_each_padev - Iterate over all devices in the tree
+ * @fn: Function to call for each device.
+ * @data: Data to pass to the called function.
  *
- *	This performs a depth-first traversal of the tree, calling the
- *	function passed for each node.  It calls the function for parents
- *	before children.
+ * This performs a depth-first traversal of the tree, calling the
+ * function passed for each node.  It calls the function for parents
+ * before children.
  */
 
 static int for_each_padev(int (*fn)(struct device *, void *), void * data)
@@ -280,7 +280,7 @@ int __init machine_has_merced_bus(void)
 
 /**
  * find_pa_parent_type - Find a parent of a specific type
- * @dev: The device to start searching from
+ * @padev: The device to start searching from
  * @type: The device type to search for.
  *
  * Walks up the device tree looking for a device of the specified type.
@@ -344,8 +344,8 @@ static char *print_hwpath(struct hardware_path *path, char *output)
 
 /**
  * print_pa_hwpath - Returns hardware path for PA devices
- * dev: The device to return the path for
- * output: Pointer to a previously-allocated array to place the path in.
+ * @dev: The device to return the path for
+ * @output: Pointer to a previously-allocated array to place the path in.
  *
  * This function fills in the output array with a human-readable path
  * to a PA device.  This string is compatible with that used by PDC, and
@@ -379,8 +379,8 @@ EXPORT_SYMBOL(get_pci_node_path);
 
 /**
  * print_pci_hwpath - Returns hardware path for PCI devices
- * dev: The device to return the path for
- * output: Pointer to a previously-allocated array to place the path in.
+ * @dev: The device to return the path for
+ * @output: Pointer to a previously-allocated array to place the path in.
  *
  * This function fills in the output array with a human-readable path
  * to a PCI device.  This string is compatible with that used by PDC, and
@@ -415,7 +415,8 @@ static void setup_bus_id(struct parisc_device *padev)
 	dev_set_name(&padev->dev, name);
 }
 
-struct parisc_device * __init create_tree_node(char id, struct device *parent)
+static struct parisc_device * __init create_tree_node(char id,
+						      struct device *parent)
 {
 	struct parisc_device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -552,7 +553,7 @@ static int parisc_generic_match(struct device *dev, struct device_driver *drv)
 	return match_device(to_parisc_driver(drv), to_parisc_device(dev));
 }
 
-static ssize_t make_modalias(struct device *dev, char *buf)
+static ssize_t make_modalias(const struct device *dev, char *buf)
 {
 	const struct parisc_device *padev = to_parisc_device(dev);
 	const struct parisc_device_id *id = &padev->id;
@@ -562,7 +563,7 @@ static ssize_t make_modalias(struct device *dev, char *buf)
 		(u32)id->sversion);
 }
 
-static int parisc_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int parisc_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct parisc_device *padev;
 	char modalias[40];
@@ -741,7 +742,7 @@ parse_tree_node(struct device *parent, int index, struct hardware_path *modpath)
 	};
 
 	if (device_for_each_child(parent, &recurse_data, descend_children))
-		/* nothing */;
+		{ /* nothing */ };
 
 	return d.dev;
 }
@@ -771,8 +772,8 @@ EXPORT_SYMBOL(hwpath_to_device);
 
 /**
  * device_to_hwpath - Populates the hwpath corresponding to the given device.
- * @param dev the target device
- * @param path pointer to a previously allocated hwpath struct to be filled in
+ * @dev: the target device
+ * @path: pointer to a previously allocated hwpath struct to be filled in
  */
 void device_to_hwpath(struct device *dev, struct hardware_path *path)
 {
@@ -882,15 +883,13 @@ void __init walk_central_bus(void)
 			&root);
 }
 
-static void print_parisc_device(struct parisc_device *dev)
+static __init void print_parisc_device(struct parisc_device *dev)
 {
-	char hw_path[64];
-	static int count;
+	static int count __initdata;
 
-	print_pa_hwpath(dev, hw_path);
-	pr_info("%d. %s at %pap [%s] { %d, 0x%x, 0x%.3x, 0x%.5x }",
-		++count, dev->name, &(dev->hpa.start), hw_path, dev->id.hw_type,
-		dev->id.hversion_rev, dev->id.hversion, dev->id.sversion);
+	pr_info("%d. %s at %pap { type:%d, hv:%#x, sv:%#x, rev:%#x }",
+		++count, dev->name, &(dev->hpa.start), dev->id.hw_type,
+		dev->id.hversion, dev->id.sversion, dev->id.hversion_rev);
 
 	if (dev->num_addrs) {
 		int k;
@@ -1079,7 +1078,7 @@ static __init int qemu_print_iodc_data(struct device *lin_dev, void *data)
 
 
 
-static int print_one_device(struct device * dev, void * data)
+static __init int print_one_device(struct device * dev, void * data)
 {
 	struct parisc_device * pdev = to_parisc_device(dev);
 

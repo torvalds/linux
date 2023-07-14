@@ -12,7 +12,7 @@ config DRM_VC4
 	select DRM_DISPLAY_HDMI_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
-	select DRM_GEM_CMA_HELPER
+	select DRM_GEM_DMA_HELPER
 	select DRM_PANEL_BRIDGE
 	select SND_PCM
 	select SND_PCM_ELD
@@ -34,3 +34,19 @@ config DRM_VC4_HDMI_CEC
 	help
 	  Choose this option if you have a Broadcom VC4 GPU
 	  and want to use CEC.
+
+config DRM_VC4_KUNIT_TEST
+	tristate "KUnit tests for VC4" if !KUNIT_ALL_TESTS
+	depends on DRM_VC4 && KUNIT
+	select DRM_KUNIT_TEST_HELPERS
+	default KUNIT_ALL_TESTS
+	help
+	  This builds unit tests for the VC4 DRM/KMS driver. This option is
+	  not useful for distributions or general kernels, but only for kernel
+	  developers working on the VC4 driver.
+
+	  For more information on KUnit and unit tests in general,
+	  please refer to the KUnit documentation in
+	  Documentation/dev-tools/kunit/.
+
+	  If in doubt, say "N".

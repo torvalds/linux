@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/pinctrl/sunplus,sp7021-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sunplus SP7021 Pin Controller Device Tree Bindings
+title: Sunplus SP7021 Pin Controller
 
 maintainers:
   - Dvorkin Dmitry <dvorkin@tibbo.com>
@@ -138,7 +138,7 @@ patternProperties:
         description: |
           Define pin-function which is used by pinctrl node's client device.
           The name should be one of string in the following enumeration.
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         enum: [ SPI_FLASH, SPI_FLASH_4BIT, SPI_NAND, CARD0_EMMC, SD_CARD,
                 UA0, FPGA_IFX, HDMI_TX, LCDIF, USB0_OTG, USB1_OTG ]
 
@@ -146,7 +146,7 @@ patternProperties:
         description: |
           Define pin-group in a specified pin-function.
           The name should be one of string in the following enumeration.
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         enum: [ SPI_FLASH1, SPI_FLASH2, SPI_FLASH_4BIT1, SPI_FLASH_4BIT2,
                 SPI_NAND, CARD0_EMMC, SD_CARD, UA0, FPGA_IFX, HDMI_TX1,
                 HDMI_TX2, HDMI_TX3, LCDIF, USB0_OTG, USB1_OTG ]
@@ -289,7 +289,7 @@ required:
 additionalProperties: false
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 examples:
   - |

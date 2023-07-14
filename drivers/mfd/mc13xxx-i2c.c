@@ -11,7 +11,6 @@
 #include <linux/mfd/mc13xxx.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
 
@@ -52,9 +51,9 @@ static const struct regmap_config mc13xxx_regmap_i2c_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-static int mc13xxx_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int mc13xxx_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mc13xxx *mc13xxx;
 	int ret;
 

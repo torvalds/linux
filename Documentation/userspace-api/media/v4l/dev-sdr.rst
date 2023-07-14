@@ -34,7 +34,7 @@ Devices supporting the SDR transmitter interface set the
 device has an Digital to Analog Converter (DAC), which is a mandatory
 element for the SDR transmitter.
 
-At least one of the read/write, streaming or asynchronous I/O methods
+At least one of the read/write or streaming I/O methods
 must be supported.
 
 

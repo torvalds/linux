@@ -44,3 +44,47 @@ static size_t syscall_arg__scnprintf_perf_flags(char *bf, size_t size,
 }
 
 #define SCA_PERF_FLAGS syscall_arg__scnprintf_perf_flags
+
+struct attr_fprintf_args {
+	size_t size, printed;
+	char *bf;
+	bool first;
+};
+
+static int attr__fprintf(FILE *fp __maybe_unused, const char *name, const char *val, void *priv)
+{
+	struct attr_fprintf_args *args = priv;
+	size_t printed = scnprintf(args->bf + args->printed , args->size - args->printed, "%s%s: %s", args->first ? "" : ", ", name, val);
+
+	args->first = false;
+	args->printed += printed;
+	return printed;
+}
+
+static size_t perf_event_attr___scnprintf(struct perf_event_attr *attr, char *bf, size_t size, bool show_zeros __maybe_unused)
+{
+	struct attr_fprintf_args args = {
+		.printed = scnprintf(bf, size, "{ "),
+		.size    = size,
+		.first   = true,
+		.bf	 = bf,
+	};
+
+	perf_event_attr__fprintf(stdout, attr, attr__fprintf, &args);
+	return args.printed + scnprintf(bf + args.printed, size - args.printed, " }");
+}
+
+static size_t syscall_arg__scnprintf_augmented_perf_event_attr(struct syscall_arg *arg, char *bf, size_t size)
+{
+	return perf_event_attr___scnprintf((void *)arg->augmented.args, bf, size, arg->trace->show_zeros);
+}
+
+static size_t syscall_arg__scnprintf_perf_event_attr(char *bf, size_t size, struct syscall_arg *arg)
+{
+	if (arg->augmented.args)
+		return syscall_arg__scnprintf_augmented_perf_event_attr(arg, bf, size);
+
+	return scnprintf(bf, size, "%#lx", arg->val);
+}
+
+#define SCA_PERF_ATTR syscall_arg__scnprintf_perf_event_attr

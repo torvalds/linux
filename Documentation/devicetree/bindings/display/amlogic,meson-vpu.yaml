@@ -2,8 +2,8 @@
 # Copyright 2019 BayLibre, SAS
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/display/amlogic,meson-vpu.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/display/amlogic,meson-vpu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Amlogic Meson Display Controller
 
@@ -95,6 +95,11 @@ properties:
     $ref: /schemas/graph.yaml#/properties/port
     description:
       A port node pointing to the HDMI-TX port node.
+
+  port@2:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      A port node pointing to the DPI port node (e.g. DSI or LVDS transceiver).
 
   "#address-cells":
     const: 1

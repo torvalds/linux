@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR copyleft-next-0.3.1
 /*
  * kmod stress test driver
  *
  * Copyright (C) 2017 Luis R. Rodriguez <mcgrof@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or at your option any
- * later version; or, when distributed separately from the Linux kernel or
- * when incorporated into other software packages, subject to the following
- * license:
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of copyleft-next (version 0.3.1 or later) as published
- * at http://copyleft-next.org/.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -61,12 +51,11 @@ static int num_test_devs;
 
 /**
  * enum kmod_test_case - linker table test case
- *
- * If you add a  test case, please be sure to review if you need to se
- * @need_mod_put for your tests case.
- *
  * @TEST_KMOD_DRIVER: stress tests request_module()
  * @TEST_KMOD_FS_TYPE: stress tests get_fs_type()
+ *
+ * If you add a  test case, please be sure to review if you need to set
+ * @need_mod_put for your tests case.
  */
 enum kmod_test_case {
 	__TEST_KMOD_INVALID = 0,
@@ -88,7 +77,7 @@ struct test_config {
 struct kmod_test_device;
 
 /**
- * kmod_test_device_info - thread info
+ * struct kmod_test_device_info - thread info
  *
  * @ret_sync: return value if request_module() is used, sync request for
  * 	@TEST_KMOD_DRIVER
@@ -111,7 +100,7 @@ struct kmod_test_device_info {
 };
 
 /**
- * kmod_test_device - test device to help test kmod
+ * struct kmod_test_device - test device to help test kmod
  *
  * @dev_idx: unique ID for test device
  * @config: configuration for the test

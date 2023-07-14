@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/timer/ingenic,tcu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs Timer/Counter Unit (TCU) devicetree bindings
+title: Ingenic SoCs Timer/Counter Unit (TCU)
 
 description: |
   For a description of the TCU hardware and drivers, have a look at
@@ -114,6 +114,8 @@ patternProperties:
   "^watchdog@[a-f0-9]+$":
     type: object
     $ref: /schemas/watchdog/watchdog.yaml#
+    unevaluatedProperties: false
+
     properties:
       compatible:
         oneOf:
@@ -146,6 +148,8 @@ patternProperties:
   "^pwm@[a-f0-9]+$":
     type: object
     $ref: /schemas/pwm/pwm.yaml#
+    unevaluatedProperties: false
+
     properties:
       compatible:
         oneOf:

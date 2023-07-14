@@ -47,6 +47,15 @@ void hubp32_update_force_pstate_disallow(struct hubp *hubp, bool pstate_disallow
 			DATA_UCLK_PSTATE_FORCE_VALUE, 0);
 }
 
+void hubp32_update_force_cursor_pstate_disallow(struct hubp *hubp, bool pstate_disallow)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_UPDATE_2(UCLK_PSTATE_FORCE,
+			CURSOR_UCLK_PSTATE_FORCE_EN, pstate_disallow,
+			CURSOR_UCLK_PSTATE_FORCE_VALUE, 0);
+}
+
 void hubp32_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -79,6 +88,8 @@ void hubp32_phantom_hubp_post_enable(struct hubp *hubp)
 	uint32_t reg_val;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
+	/* For phantom pipe enable, disable GSL */
+	REG_UPDATE(DCSURF_FLIP_CONTROL2, SURFACE_GSL_ENABLE, 0);
 	REG_UPDATE(DCHUBP_CNTL, HUBP_BLANK_EN, 1);
 	reg_val = REG_READ(DCHUBP_CNTL);
 	if (reg_val) {
@@ -153,7 +164,11 @@ void hubp32_cursor_set_attributes(
 	else
 		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, false);
 }
-
+void hubp32_init(struct hubp *hubp)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+	REG_WRITE(HUBPREQ_DEBUG_DB, 1 << 8);
+}
 static struct hubp_funcs dcn32_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,
@@ -164,6 +179,7 @@ static struct hubp_funcs dcn32_hubp_funcs = {
 	.hubp_setup_interdependent = hubp2_setup_interdependent,
 	.hubp_set_vm_system_aperture_settings = hubp3_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
+	.set_blank_regs = hubp2_set_blank_regs,
 	.dcc_control = hubp3_dcc_control,
 	.mem_program_viewport = min_set_viewport,
 	.set_cursor_attributes	= hubp32_cursor_set_attributes,
@@ -179,12 +195,13 @@ static struct hubp_funcs dcn32_hubp_funcs = {
 	.hubp_init = hubp3_init,
 	.set_unbounded_requesting = hubp31_set_unbounded_requesting,
 	.hubp_soft_reset = hubp31_soft_reset,
+	.hubp_set_flip_int = hubp1_set_flip_int,
 	.hubp_in_blank = hubp1_in_blank,
 	.hubp_update_force_pstate_disallow = hubp32_update_force_pstate_disallow,
+	.hubp_update_force_cursor_pstate_disallow = hubp32_update_force_cursor_pstate_disallow,
 	.phantom_hubp_post_enable = hubp32_phantom_hubp_post_enable,
 	.hubp_update_mall_sel = hubp32_update_mall_sel,
-	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering,
-	.hubp_set_flip_int = hubp1_set_flip_int
+	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering
 };
 
 bool hubp32_construct(

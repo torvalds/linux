@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for J721S2 SoC Family
  *
- * TRM (SPRUJ28 – NOVEMBER 2021) : http://www.ti.com/lit/pdf/spruj28
+ * TRM (SPRUJ28 NOVEMBER 2021): https://www.ti.com/lit/pdf/spruj28
  *
  * Copyright (C) 2021 Texas Instruments Incorporated - https://www.ti.com/
  *
@@ -10,8 +10,9 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/pinctrl/k3.h>
 #include <dt-bindings/soc/ti,sci_pm_domain.h>
+
+#include "k3-pinctrl.h"
 
 / {
 
@@ -69,6 +70,7 @@
 
 	L2_0: l2-cache0 {
 		compatible = "cache";
+		cache-unified;
 		cache-level = <2>;
 		cache-size = <0x100000>;
 		cache-line-size = <64>;
@@ -79,6 +81,7 @@
 	msmc_l3: l3-cache0 {
 		compatible = "cache";
 		cache-level = <3>;
+		cache-unified;
 	};
 
 	firmware {
@@ -160,6 +163,10 @@
 
 		};
 
+	};
+
+	thermal_zones: thermal-zones {
+		#include "k3-j721s2-thermal.dtsi"
 	};
 };
 

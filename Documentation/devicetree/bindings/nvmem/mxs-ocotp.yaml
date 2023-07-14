@@ -10,19 +10,13 @@ maintainers:
   - Anson Huang <Anson.Huang@nxp.com>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:
     enum:
       - fsl,imx23-ocotp
       - fsl,imx28-ocotp
-
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 1
 
   reg:
     maxItems: 1
@@ -35,7 +29,7 @@ required:
   - reg
   - clocks
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

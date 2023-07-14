@@ -8,11 +8,12 @@
 #ifndef _NET_FLOW_H
 #define _NET_FLOW_H
 
-#include <linux/socket.h>
 #include <linux/in6.h>
 #include <linux/atomic.h>
-#include <net/flow_dissector.h>
+#include <linux/container_of.h>
 #include <linux/uidgid.h>
+
+struct flow_keys;
 
 /*
  * ifindex generation is per-net namespace, and loopback is
@@ -115,11 +116,10 @@ static inline void flowi4_init_output(struct flowi4 *fl4, int oif,
 }
 
 /* Reset some input parameters after previous lookup */
-static inline void flowi4_update_output(struct flowi4 *fl4, int oif, __u8 tos,
+static inline void flowi4_update_output(struct flowi4 *fl4, int oif,
 					__be32 daddr, __be32 saddr)
 {
 	fl4->flowi4_oif = oif;
-	fl4->flowi4_tos = tos;
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
 }

@@ -69,15 +69,8 @@ do {									\
 /* Forward declaration, a strange C thing */
 struct task_struct;
 
-/* Free all resources held by a thread. */
-static inline void release_thread(struct task_struct *dead_task)
-{
-}
-
 /* Prepare to copy thread state - unlazy all lazy status */
 #define prepare_to_copy(tsk)    do { } while (0)
-
-extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
 unsigned long __get_wchan(struct task_struct *p);
 
@@ -88,5 +81,7 @@ unsigned long __get_wchan(struct task_struct *p);
 	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
 
 #define cpu_relax() barrier()
+
+register unsigned long current_stack_pointer __asm__("sp");
 
 #endif /* __ASM_CSKY_PROCESSOR_H */

@@ -731,7 +731,7 @@ static const struct hwmon_ops adm9240_hwmon_ops = {
 	.write = adm9240_write,
 };
 
-static const struct hwmon_channel_info *adm9240_info[] = {
+static const struct hwmon_channel_info * const adm9240_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_ALARMS),
 	HWMON_CHANNEL_INFO(intrusion, HWMON_INTRUSION_ALARM),
 	HWMON_CHANNEL_INFO(temp,
@@ -819,7 +819,7 @@ static struct i2c_driver adm9240_driver = {
 	.driver = {
 		.name	= "adm9240",
 	},
-	.probe_new	= adm9240_probe,
+	.probe		= adm9240_probe,
 	.id_table	= adm9240_id,
 	.detect		= adm9240_detect,
 	.address_list	= normal_i2c,

@@ -15,7 +15,11 @@
 
 #define MAX_NO_PROPS 2
 #define MAX_HDMI_NUM 4
-#define SDW_AMP_DAI_ID 2
+#define SDW_UNUSED_DAI_ID -1
+#define SDW_JACK_OUT_DAI_ID 0
+#define SDW_JACK_IN_DAI_ID 1
+#define SDW_AMP_OUT_DAI_ID 2
+#define SDW_AMP_IN_DAI_ID 3
 #define SDW_DMIC_DAI_ID 4
 #define SDW_MAX_CPU_DAIS 16
 #define SDW_INTEL_BIDIR_PDI_BASE 2
@@ -37,7 +41,7 @@ enum {
 	SOF_I2S_SSP5 = BIT(5),
 };
 
-#define SOF_RT711_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
+#define SOF_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
 #define SOF_SDW_FOUR_SPK		BIT(4)
 #define SOF_SDW_TGL_HDMI		BIT(5)
 #define SOF_SDW_PCH_DMIC		BIT(6)
@@ -52,29 +56,37 @@ enum {
 	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
 #define SOF_SSP_BT_OFFLOAD_PRESENT	BIT(18)
 
-#define SOF_SDW_CODEC_TYPE_JACK		0
-#define SOF_SDW_CODEC_TYPE_AMP		1
-#define SOF_SDW_CODEC_TYPE_MIC		2
+#define SOF_SDW_DAI_TYPE_JACK		0
+#define SOF_SDW_DAI_TYPE_AMP		1
+#define SOF_SDW_DAI_TYPE_MIC		2
 
-struct sof_sdw_codec_info {
-	const int part_id;
-	const int version_id;
-	const int codec_type;
-	int amp_num;
-	const u8 acpi_id[ACPI_ID_LEN];
-	const bool direction[2]; // playback & capture support
-	const bool ignore_pch_dmic;
+#define SOF_SDW_MAX_DAI_NUM		3
+
+struct sof_sdw_codec_info;
+
+struct sof_sdw_dai_info {
+	const bool direction[2]; /* playback & capture support */
 	const char *dai_name;
-	const struct snd_soc_ops *ops;
-
+	const int dai_type;
+	const int dailink[2]; /* dailink id for each direction */
 	int  (*init)(struct snd_soc_card *card,
 		     const struct snd_soc_acpi_link_adr *link,
 		     struct snd_soc_dai_link *dai_links,
 		     struct sof_sdw_codec_info *info,
 		     bool playback);
-
 	int (*exit)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
-	bool late_probe;
+};
+
+struct sof_sdw_codec_info {
+	const int part_id;
+	const int version_id;
+	int amp_num;
+	const u8 acpi_id[ACPI_ID_LEN];
+	const bool ignore_pch_dmic;
+	const struct snd_soc_ops *ops;
+	struct sof_sdw_dai_info dais[SOF_SDW_MAX_DAI_NUM];
+	const int dai_num;
+
 	int (*codec_card_late_probe)(struct snd_soc_card *card);
 };
 
@@ -83,6 +95,7 @@ struct mc_private {
 	bool idisp_codec;
 	struct snd_soc_jack sdw_headset;
 	struct device *headset_codec_dev; /* only one headset per card */
+	struct device *amp_dev1, *amp_dev2;
 };
 
 extern unsigned long sof_sdw_quirk;
@@ -90,6 +103,8 @@ extern unsigned long sof_sdw_quirk;
 int sdw_startup(struct snd_pcm_substream *substream);
 int sdw_prepare(struct snd_pcm_substream *substream);
 int sdw_trigger(struct snd_pcm_substream *substream, int cmd);
+int sdw_hw_params(struct snd_pcm_substream *substream,
+		  struct snd_pcm_hw_params *params);
 int sdw_hw_free(struct snd_pcm_substream *substream);
 void sdw_shutdown(struct snd_pcm_substream *substream);
 
@@ -110,12 +125,30 @@ int sof_sdw_rt711_init(struct snd_soc_card *card,
 int sof_sdw_rt711_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
 /* RT711-SDCA support */
-int sof_sdw_rt711_sdca_init(struct snd_soc_card *card,
+int sof_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
+			      const struct snd_soc_acpi_link_adr *link,
+			      struct snd_soc_dai_link *dai_links,
+			      struct sof_sdw_codec_info *info,
+			      bool playback);
+int sof_sdw_rt_sdca_jack_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
+
+/* RT712-SDCA support */
+int sof_sdw_rt712_sdca_init(struct snd_soc_card *card,
 			    const struct snd_soc_acpi_link_adr *link,
 			    struct snd_soc_dai_link *dai_links,
 			    struct sof_sdw_codec_info *info,
 			    bool playback);
-int sof_sdw_rt711_sdca_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
+int sof_sdw_rt712_sdca_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
+int sof_sdw_rt712_spk_init(struct snd_soc_card *card,
+			   const struct snd_soc_acpi_link_adr *link,
+			   struct snd_soc_dai_link *dai_links,
+			   struct sof_sdw_codec_info *info,
+			   bool playback);
+int sof_sdw_rt712_sdca_dmic_init(struct snd_soc_card *card,
+				 const struct snd_soc_acpi_link_adr *link,
+				 struct snd_soc_dai_link *dai_links,
+				 struct sof_sdw_codec_info *info,
+				 bool playback);
 
 /* RT700 support */
 int sof_sdw_rt700_init(struct snd_soc_card *card,
@@ -124,21 +157,18 @@ int sof_sdw_rt700_init(struct snd_soc_card *card,
 		       struct sof_sdw_codec_info *info,
 		       bool playback);
 
-/* RT1308 support */
+/* RT1308 I2S support */
 extern struct snd_soc_ops sof_sdw_rt1308_i2s_ops;
 
-int sof_sdw_rt1308_init(struct snd_soc_card *card,
+/* generic amp support */
+int sof_sdw_rt_amp_init(struct snd_soc_card *card,
 			const struct snd_soc_acpi_link_adr *link,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback);
+int sof_sdw_rt_amp_exit(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 
 /* RT1316 support */
-int sof_sdw_rt1316_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
-			struct snd_soc_dai_link *dai_links,
-			struct sof_sdw_codec_info *info,
-			bool playback);
 
 /* RT715 support */
 int sof_sdw_rt715_init(struct snd_soc_card *card,
@@ -154,14 +184,12 @@ int sof_sdw_rt715_sdca_init(struct snd_soc_card *card,
 			    struct sof_sdw_codec_info *info,
 			    bool playback);
 
-/* MAX98373 support */
-int sof_sdw_mx8373_init(struct snd_soc_card *card,
-			const struct snd_soc_acpi_link_adr *link,
-			struct snd_soc_dai_link *dai_links,
-			struct sof_sdw_codec_info *info,
-			bool playback);
-
-int sof_sdw_mx8373_late_probe(struct snd_soc_card *card);
+/* MAXIM codec support */
+int sof_sdw_maxim_init(struct snd_soc_card *card,
+		       const struct snd_soc_acpi_link_adr *link,
+		       struct snd_soc_dai_link *dai_links,
+		       struct sof_sdw_codec_info *info,
+		       bool playback);
 
 /* RT5682 support */
 int sof_sdw_rt5682_init(struct snd_soc_card *card,
@@ -169,5 +197,12 @@ int sof_sdw_rt5682_init(struct snd_soc_card *card,
 			struct snd_soc_dai_link *dai_links,
 			struct sof_sdw_codec_info *info,
 			bool playback);
+
+/* CS42L42 support */
+int sof_sdw_cs42l42_init(struct snd_soc_card *card,
+			 const struct snd_soc_acpi_link_adr *link,
+			 struct snd_soc_dai_link *dai_links,
+			 struct sof_sdw_codec_info *info,
+			 bool playback);
 
 #endif

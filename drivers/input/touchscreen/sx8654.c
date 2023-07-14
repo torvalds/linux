@@ -306,9 +306,9 @@ static void sx8654_close(struct input_dev *dev)
 	}
 }
 
-static int sx8654_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sx8654_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct sx8654 *sx8654;
 	struct input_dev *input;
 	int error;

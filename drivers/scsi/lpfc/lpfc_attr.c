@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -134,7 +134,7 @@ lpfc_cmf_info_show(struct device *dev, struct device_attribute *attr,
 	scnprintf(tmp, sizeof(tmp),
 		  "Congestion Mgmt Info: E2Eattr %d Ver %d "
 		  "CMF %d cnt %d\n",
-		  phba->sli4_hba.pc_sli4_params.mi_ver,
+		  phba->sli4_hba.pc_sli4_params.mi_cap,
 		  cp ? cp->cgn_info_version : 0,
 		  phba->sli4_hba.pc_sli4_params.cmf, phba->cmf_timer_cnt);
 
@@ -1644,6 +1644,12 @@ lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
 	    !bf_get(lpfc_sliport_status_err, &portstat_reg))
 		return -EPERM;
 
+	/* There is no point to wait if the port is in an unrecoverable
+	 * state.
+	 */
+	if (lpfc_sli4_unrecoverable_port(&portstat_reg))
+		return -EIO;
+
 	/* wait for the SLI port firmware ready after firmware reset */
 	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
 		msleep(10);
@@ -1875,6 +1881,109 @@ lpfc_set_trunking(struct lpfc_hba *phba, char *buff_out)
 	mempool_free(mbox, phba->mbox_mem_pool);
 
 	return 0;
+}
+
+static ssize_t
+lpfc_xcvr_data_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	int rc;
+	int len = 0;
+	struct lpfc_rdp_context	*rdp_context;
+	u16 temperature;
+	u16 rx_power;
+	u16 tx_bias;
+	u16 tx_power;
+	u16 vcc;
+	char chbuf[128];
+	u16 wavelength = 0;
+	struct sff_trasnceiver_codes_byte7 *trasn_code_byte7;
+
+	/* Get transceiver information */
+	rdp_context = kmalloc(sizeof(*rdp_context), GFP_KERNEL);
+
+	rc = lpfc_get_sfp_info_wait(phba, rdp_context);
+	if (rc) {
+		len = scnprintf(buf, PAGE_SIZE - len, "SFP info NA:\n");
+		goto out_free_rdp;
+	}
+
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_NAME], 16);
+
+	len = scnprintf(buf, PAGE_SIZE - len, "VendorName:\t%s\n", chbuf);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "VendorOUI:\t%02x-%02x-%02x\n",
+			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI],
+			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI + 1],
+			 (uint8_t)rdp_context->page_a0[SSF_VENDOR_OUI + 2]);
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_PN], 16);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorPN:\t%s\n", chbuf);
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_SN], 16);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorSN:\t%s\n", chbuf);
+	strscpy(chbuf, &rdp_context->page_a0[SSF_VENDOR_REV], 4);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "VendorRev:\t%s\n", chbuf);
+	strscpy(chbuf, &rdp_context->page_a0[SSF_DATE_CODE], 8);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "DateCode:\t%s\n", chbuf);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Identifier:\t%xh\n",
+			 (uint8_t)rdp_context->page_a0[SSF_IDENTIFIER]);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "ExtIdentifier:\t%xh\n",
+			 (uint8_t)rdp_context->page_a0[SSF_EXT_IDENTIFIER]);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Connector:\t%xh\n",
+			 (uint8_t)rdp_context->page_a0[SSF_CONNECTOR]);
+	wavelength = (rdp_context->page_a0[SSF_WAVELENGTH_B1] << 8) |
+		      rdp_context->page_a0[SSF_WAVELENGTH_B0];
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Wavelength:\t%d nm\n",
+			 wavelength);
+	trasn_code_byte7 = (struct sff_trasnceiver_codes_byte7 *)
+			&rdp_context->page_a0[SSF_TRANSCEIVER_CODE_B7];
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Speeds: \t");
+	if (*(uint8_t *)trasn_code_byte7 == 0) {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "Unknown\n");
+	} else {
+		if (trasn_code_byte7->fc_sp_100MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "1 ");
+		if (trasn_code_byte7->fc_sp_200mb)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "2 ");
+		if (trasn_code_byte7->fc_sp_400MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "4 ");
+		if (trasn_code_byte7->fc_sp_800MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "8 ");
+		if (trasn_code_byte7->fc_sp_1600MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "16 ");
+		if (trasn_code_byte7->fc_sp_3200MB)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "32 ");
+		if (trasn_code_byte7->speed_chk_ecc)
+			len += scnprintf(buf + len, PAGE_SIZE - len, "64 ");
+		len += scnprintf(buf + len, PAGE_SIZE - len, "GB\n");
+	}
+	temperature = (rdp_context->page_a2[SFF_TEMPERATURE_B1] << 8 |
+		       rdp_context->page_a2[SFF_TEMPERATURE_B0]);
+	vcc = (rdp_context->page_a2[SFF_VCC_B1] << 8 |
+	       rdp_context->page_a2[SFF_VCC_B0]);
+	tx_power = (rdp_context->page_a2[SFF_TXPOWER_B1] << 8 |
+		    rdp_context->page_a2[SFF_TXPOWER_B0]);
+	tx_bias = (rdp_context->page_a2[SFF_TX_BIAS_CURRENT_B1] << 8 |
+		   rdp_context->page_a2[SFF_TX_BIAS_CURRENT_B0]);
+	rx_power = (rdp_context->page_a2[SFF_RXPOWER_B1] << 8 |
+		    rdp_context->page_a2[SFF_RXPOWER_B0]);
+
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "Temperature:\tx%04x C\n", temperature);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "Vcc:\t\tx%04x V\n", vcc);
+	len += scnprintf(buf + len, PAGE_SIZE - len,
+			 "TxBiasCurrent:\tx%04x mA\n", tx_bias);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "TxPower:\tx%04x mW\n",
+			 tx_power);
+	len += scnprintf(buf + len, PAGE_SIZE - len, "RxPower:\tx%04x mW\n",
+			 rx_power);
+out_free_rdp:
+	kfree(rdp_context);
+	return len;
 }
 
 /**
@@ -2438,7 +2547,7 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 
 /**
  * lpfc_enable_bbcr_set: Sets an attribute value.
- * @phba: pointer the the adapter structure.
+ * @phba: pointer to the adapter structure.
  * @val: integer attribute value.
  *
  * Description:
@@ -2529,7 +2638,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
  * takes a default argument, a minimum and maximum argument.
  *
  * lpfc_##attr##_init: Initializes an attribute.
- * @phba: pointer the the adapter structure.
+ * @phba: pointer to the adapter structure.
  * @val: integer attribute value.
  *
  * Validates the min and max values then sets the adapter config field
@@ -2562,7 +2671,7 @@ lpfc_##attr##_init(struct lpfc_hba *phba, uint val) \
  * into a function with the name lpfc_hba_queue_depth_set
  *
  * lpfc_##attr##_set: Sets an attribute value.
- * @phba: pointer the the adapter structure.
+ * @phba: pointer to the adapter structure.
  * @val: integer attribute value.
  *
  * Description:
@@ -2691,7 +2800,7 @@ lpfc_##attr##_show(struct device *dev, struct device_attribute *attr, \
  * lpfc_##attr##_init: validates the min and max values then sets the
  * adapter config field accordingly, or uses the default if out of range
  * and prints an error message.
- * @phba: pointer the the adapter structure.
+ * @phba: pointer to the adapter structure.
  * @val: integer attribute value.
  *
  * Returns:
@@ -2723,7 +2832,7 @@ lpfc_##attr##_init(struct lpfc_vport *vport, uint val) \
  * lpfc_##attr##_set: validates the min and max values then sets the
  * adapter config field if in the valid range. prints error message
  * and does not set the parameter if invalid.
- * @phba: pointer the the adapter structure.
+ * @phba: pointer to the adapter structure.
  * @val:	integer attribute value.
  *
  * Returns:
@@ -2810,6 +2919,7 @@ static DEVICE_ATTR_RO(lpfc_drvr_version);
 static DEVICE_ATTR_RO(lpfc_enable_fip);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 		   lpfc_board_mode_show, lpfc_board_mode_store);
+static DEVICE_ATTR_RO(lpfc_xcvr_data);
 static DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
 static DEVICE_ATTR(max_vpi, S_IRUGO, lpfc_max_vpi_show, NULL);
 static DEVICE_ATTR(used_vpi, S_IRUGO, lpfc_used_vpi_show, NULL);
@@ -4093,333 +4203,6 @@ lpfc_static_vport_show(struct device *dev, struct device_attribute *attr,
  */
 static DEVICE_ATTR_RO(lpfc_static_vport);
 
-/**
- * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device.
- * @attr: Unused.
- * @buf: Data buffer.
- * @count: Size of the data buffer.
- *
- * This function get called when a user write to the lpfc_stat_data_ctrl
- * sysfs file. This function parse the command written to the sysfs file
- * and take appropriate action. These commands are used for controlling
- * driver statistical data collection.
- * Following are the command this function handles.
- *
- *    setbucket <bucket_type> <base> <step>
- *			       = Set the latency buckets.
- *    destroybucket            = destroy all the buckets.
- *    start                    = start data collection
- *    stop                     = stop data collection
- *    reset                    = reset the collected data
- **/
-static ssize_t
-lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-#define LPFC_MAX_DATA_CTRL_LEN 1024
-	static char bucket_data[LPFC_MAX_DATA_CTRL_LEN];
-	unsigned long i;
-	char *str_ptr, *token;
-	struct lpfc_vport **vports;
-	struct Scsi_Host *v_shost;
-	char *bucket_type_str, *base_str, *step_str;
-	unsigned long base, step, bucket_type;
-
-	if (!strncmp(buf, "setbucket", strlen("setbucket"))) {
-		if (strlen(buf) > (LPFC_MAX_DATA_CTRL_LEN - 1))
-			return -EINVAL;
-
-		strncpy(bucket_data, buf, LPFC_MAX_DATA_CTRL_LEN);
-		str_ptr = &bucket_data[0];
-		/* Ignore this token - this is command token */
-		token = strsep(&str_ptr, "\t ");
-		if (!token)
-			return -EINVAL;
-
-		bucket_type_str = strsep(&str_ptr, "\t ");
-		if (!bucket_type_str)
-			return -EINVAL;
-
-		if (!strncmp(bucket_type_str, "linear", strlen("linear")))
-			bucket_type = LPFC_LINEAR_BUCKET;
-		else if (!strncmp(bucket_type_str, "power2", strlen("power2")))
-			bucket_type = LPFC_POWER2_BUCKET;
-		else
-			return -EINVAL;
-
-		base_str = strsep(&str_ptr, "\t ");
-		if (!base_str)
-			return -EINVAL;
-		base = simple_strtoul(base_str, NULL, 0);
-
-		step_str = strsep(&str_ptr, "\t ");
-		if (!step_str)
-			return -EINVAL;
-		step = simple_strtoul(step_str, NULL, 0);
-		if (!step)
-			return -EINVAL;
-
-		/* Block the data collection for every vport */
-		vports = lpfc_create_vport_work_array(phba);
-		if (vports == NULL)
-			return -ENOMEM;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(v_shost->host_lock);
-			/* Block and reset data collection */
-			vports[i]->stat_data_blocked = 1;
-			if (vports[i]->stat_data_enabled)
-				lpfc_vport_reset_stat_data(vports[i]);
-			spin_unlock_irq(v_shost->host_lock);
-		}
-
-		/* Set the bucket attributes */
-		phba->bucket_type = bucket_type;
-		phba->bucket_base = base;
-		phba->bucket_step = step;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-
-			/* Unblock data collection */
-			spin_lock_irq(v_shost->host_lock);
-			vports[i]->stat_data_blocked = 0;
-			spin_unlock_irq(v_shost->host_lock);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "destroybucket", strlen("destroybucket"))) {
-		vports = lpfc_create_vport_work_array(phba);
-		if (vports == NULL)
-			return -ENOMEM;
-
-		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			v_shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(shost->host_lock);
-			vports[i]->stat_data_blocked = 1;
-			lpfc_free_bucket(vport);
-			vport->stat_data_enabled = 0;
-			vports[i]->stat_data_blocked = 0;
-			spin_unlock_irq(shost->host_lock);
-		}
-		lpfc_destroy_vport_work_array(phba, vports);
-		phba->bucket_type = LPFC_NO_BUCKET;
-		phba->bucket_base = 0;
-		phba->bucket_step = 0;
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "start", strlen("start"))) {
-		/* If no buckets configured return error */
-		if (phba->bucket_type == LPFC_NO_BUCKET)
-			return -EINVAL;
-		spin_lock_irq(shost->host_lock);
-		if (vport->stat_data_enabled) {
-			spin_unlock_irq(shost->host_lock);
-			return strlen(buf);
-		}
-		lpfc_alloc_bucket(vport);
-		vport->stat_data_enabled = 1;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "stop", strlen("stop"))) {
-		spin_lock_irq(shost->host_lock);
-		if (vport->stat_data_enabled == 0) {
-			spin_unlock_irq(shost->host_lock);
-			return strlen(buf);
-		}
-		lpfc_free_bucket(vport);
-		vport->stat_data_enabled = 0;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-
-	if (!strncmp(buf, "reset", strlen("reset"))) {
-		if ((phba->bucket_type == LPFC_NO_BUCKET)
-			|| !vport->stat_data_enabled)
-			return strlen(buf);
-		spin_lock_irq(shost->host_lock);
-		vport->stat_data_blocked = 1;
-		lpfc_vport_reset_stat_data(vport);
-		vport->stat_data_blocked = 0;
-		spin_unlock_irq(shost->host_lock);
-		return strlen(buf);
-	}
-	return -EINVAL;
-}
-
-
-/**
- * lpfc_stat_data_ctrl_show - Read function for lpfc_stat_data_ctrl sysfs file
- * @dev: Pointer to class device.
- * @attr: Unused.
- * @buf: Data buffer.
- *
- * This function is the read call back function for
- * lpfc_stat_data_ctrl sysfs file. This function report the
- * current statistical data collection state.
- **/
-static ssize_t
-lpfc_stat_data_ctrl_show(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	int index = 0;
-	int i;
-	char *bucket_type;
-	unsigned long bucket_value;
-
-	switch (phba->bucket_type) {
-	case LPFC_LINEAR_BUCKET:
-		bucket_type = "linear";
-		break;
-	case LPFC_POWER2_BUCKET:
-		bucket_type = "power2";
-		break;
-	default:
-		bucket_type = "No Bucket";
-		break;
-	}
-
-	sprintf(&buf[index], "Statistical Data enabled :%d, "
-		"blocked :%d, Bucket type :%s, Bucket base :%d,"
-		" Bucket step :%d\nLatency Ranges :",
-		vport->stat_data_enabled, vport->stat_data_blocked,
-		bucket_type, phba->bucket_base, phba->bucket_step);
-	index = strlen(buf);
-	if (phba->bucket_type != LPFC_NO_BUCKET) {
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
-			if (phba->bucket_type == LPFC_LINEAR_BUCKET)
-				bucket_value = phba->bucket_base +
-					phba->bucket_step * i;
-			else
-				bucket_value = phba->bucket_base +
-				(1 << i) * phba->bucket_step;
-
-			if (index + 10 > PAGE_SIZE)
-				break;
-			sprintf(&buf[index], "%08ld ", bucket_value);
-			index = strlen(buf);
-		}
-	}
-	sprintf(&buf[index], "\n");
-	return strlen(buf);
-}
-
-/*
- * Sysfs attribute to control the statistical data collection.
- */
-static DEVICE_ATTR_RW(lpfc_stat_data_ctrl);
-
-/*
- * lpfc_drvr_stat_data: sysfs attr to get driver statistical data.
- */
-
-/*
- * Each Bucket takes 11 characters and 1 new line + 17 bytes WWN
- * for each target.
- */
-#define STAT_DATA_SIZE_PER_TARGET(NUM_BUCKETS) ((NUM_BUCKETS) * 11 + 18)
-#define MAX_STAT_DATA_SIZE_PER_TARGET \
-	STAT_DATA_SIZE_PER_TARGET(LPFC_MAX_BUCKET_COUNT)
-
-
-/**
- * sysfs_drvr_stat_data_read - Read function for lpfc_drvr_stat_data attribute
- * @filp: sysfs file
- * @kobj: Pointer to the kernel object
- * @bin_attr: Attribute object
- * @buf: Buffer pointer
- * @off: File offset
- * @count: Buffer size
- *
- * This function is the read call back function for lpfc_drvr_stat_data
- * sysfs file. This function export the statistical data to user
- * applications.
- **/
-static ssize_t
-sysfs_drvr_stat_data_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *bin_attr,
-		char *buf, loff_t off, size_t count)
-{
-	struct device *dev = container_of(kobj, struct device,
-		kobj);
-	struct Scsi_Host  *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	struct lpfc_hba   *phba = vport->phba;
-	int i = 0, index = 0;
-	unsigned long nport_index;
-	struct lpfc_nodelist *ndlp = NULL;
-	nport_index = (unsigned long)off /
-		MAX_STAT_DATA_SIZE_PER_TARGET;
-
-	if (!vport->stat_data_enabled || vport->stat_data_blocked
-		|| (phba->bucket_type == LPFC_NO_BUCKET))
-		return 0;
-
-	spin_lock_irq(shost->host_lock);
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!ndlp->lat_data)
-			continue;
-
-		if (nport_index > 0) {
-			nport_index--;
-			continue;
-		}
-
-		if ((index + MAX_STAT_DATA_SIZE_PER_TARGET)
-			> count)
-			break;
-
-		if (!ndlp->lat_data)
-			continue;
-
-		/* Print the WWN */
-		sprintf(&buf[index], "%02x%02x%02x%02x%02x%02x%02x%02x:",
-			ndlp->nlp_portname.u.wwn[0],
-			ndlp->nlp_portname.u.wwn[1],
-			ndlp->nlp_portname.u.wwn[2],
-			ndlp->nlp_portname.u.wwn[3],
-			ndlp->nlp_portname.u.wwn[4],
-			ndlp->nlp_portname.u.wwn[5],
-			ndlp->nlp_portname.u.wwn[6],
-			ndlp->nlp_portname.u.wwn[7]);
-
-		index = strlen(buf);
-
-		for (i = 0; i < LPFC_MAX_BUCKET_COUNT; i++) {
-			sprintf(&buf[index], "%010u,",
-				ndlp->lat_data[i].cmd_count);
-			index = strlen(buf);
-		}
-		sprintf(&buf[index], "\n");
-		index = strlen(buf);
-	}
-	spin_unlock_irq(shost->host_lock);
-	return index;
-}
-
-static struct bin_attribute sysfs_drvr_stat_data_attr = {
-	.attr = {
-		.name = "lpfc_drvr_stat_data",
-		.mode = S_IRUSR,
-	},
-	.size = LPFC_MAX_TARGET * MAX_STAT_DATA_SIZE_PER_TARGET,
-	.read = sysfs_drvr_stat_data_read,
-	.write = NULL,
-};
-
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
 # connection.
@@ -4588,13 +4371,22 @@ static DEVICE_ATTR_RW(lpfc_link_speed);
 
 /*
 # lpfc_aer_support: Support PCIe device Advanced Error Reporting (AER)
-#       0  = aer disabled or not supported
 #       1  = aer supported and enabled (default)
-# Value range is [0,1]. Default value is 1.
+# PCIe error reporting is always enabled by the PCI core, so this always
+# shows 1.
+#
+# N.B. Parts of LPFC_ATTR open-coded since some of the underlying
+# infrastructure (phba->cfg_aer_support) is gone.
 */
-LPFC_ATTR(aer_support, 1, 0, 1,
-	"Enable PCIe device AER support");
-lpfc_param_show(aer_support)
+static uint lpfc_aer_support = 1;
+module_param(lpfc_aer_support, uint, S_IRUGO);
+MODULE_PARM_DESC(lpfc_aer_support, "Enable PCIe device AER support");
+static ssize_t
+lpfc_aer_support_show(struct device *dev, struct device_attribute *attr,
+		      char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", lpfc_aer_support);
+}
 
 /**
  * lpfc_aer_support_store - Set the adapter for aer support
@@ -4605,76 +4397,27 @@ lpfc_param_show(aer_support)
  * @count: unused variable.
  *
  * Description:
- * If the val is 1 and currently the device's AER capability was not
- * enabled, invoke the kernel's enable AER helper routine, trying to
- * enable the device's AER capability. If the helper routine enabling
- * AER returns success, update the device's cfg_aer_support flag to
- * indicate AER is supported by the device; otherwise, if the device
- * AER capability is already enabled to support AER, then do nothing.
- *
- * If the val is 0 and currently the device's AER support was enabled,
- * invoke the kernel's disable AER helper routine. After that, update
- * the device's cfg_aer_support flag to indicate AER is not supported
- * by the device; otherwise, if the device AER capability is already
- * disabled from supporting AER, then do nothing.
+ * PCIe error reporting is enabled by the PCI core, so drivers don't need
+ * to do anything.  Retain this interface for backwards compatibility,
+ * but do nothing.
  *
  * Returns:
- * length of the buf on success if val is in range the intended mode
- * is supported.
- * -EINVAL if val out of range or intended mode is not supported.
+ * length of the buf on success
+ * -EINVAL if val out of range
  **/
 static ssize_t
 lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
-	struct Scsi_Host *shost = class_to_shost(dev);
-	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
-	struct lpfc_hba *phba = vport->phba;
-	int val = 0, rc = -EINVAL;
+	int val = 0;
 
 	if (!isdigit(buf[0]))
 		return -EINVAL;
 	if (sscanf(buf, "%i", &val) != 1)
 		return -EINVAL;
 
-	switch (val) {
-	case 0:
-		if (phba->hba_flag & HBA_AER_ENABLED) {
-			rc = pci_disable_pcie_error_reporting(phba->pcidev);
-			if (!rc) {
-				spin_lock_irq(&phba->hbalock);
-				phba->hba_flag &= ~HBA_AER_ENABLED;
-				spin_unlock_irq(&phba->hbalock);
-				phba->cfg_aer_support = 0;
-				rc = strlen(buf);
-			} else
-				rc = -EPERM;
-		} else {
-			phba->cfg_aer_support = 0;
-			rc = strlen(buf);
-		}
-		break;
-	case 1:
-		if (!(phba->hba_flag & HBA_AER_ENABLED)) {
-			rc = pci_enable_pcie_error_reporting(phba->pcidev);
-			if (!rc) {
-				spin_lock_irq(&phba->hbalock);
-				phba->hba_flag |= HBA_AER_ENABLED;
-				spin_unlock_irq(&phba->hbalock);
-				phba->cfg_aer_support = 1;
-				rc = strlen(buf);
-			} else
-				 rc = -EPERM;
-		} else {
-			phba->cfg_aer_support = 1;
-			rc = strlen(buf);
-		}
-		break;
-	default:
-		rc = -EINVAL;
-		break;
-	}
-	return rc;
+	dev_info_once(dev, "PCIe error reporting automatically enabled by the PCI core; sysfs write ignored\n");
+	return strlen(buf);
 }
 
 static DEVICE_ATTR_RW(lpfc_aer_support);
@@ -4687,16 +4430,16 @@ static DEVICE_ATTR_RW(lpfc_aer_support);
  * @count: unused variable.
  *
  * Description:
- * If the @buf contains 1 and the device currently has the AER support
- * enabled, then invokes the kernel AER helper routine
+ * If the @buf contains 1, invokes the kernel AER helper routine
  * pci_aer_clear_nonfatal_status() to clean up the uncorrectable
  * error status register.
  *
  * Notes:
  *
  * Returns:
- * -EINVAL if the buf does not contain the 1 or the device is not currently
- * enabled with the AER support.
+ * -EINVAL if the buf does not contain 1
+ * -EPERM if the OS cannot clear AER error status, i.e., when platform
+ * firmware owns the AER Capability
  **/
 static ssize_t
 lpfc_aer_cleanup_state(struct device *dev, struct device_attribute *attr,
@@ -4714,8 +4457,7 @@ lpfc_aer_cleanup_state(struct device *dev, struct device_attribute *attr,
 	if (val != 1)
 		return -EINVAL;
 
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		rc = pci_aer_clear_nonfatal_status(phba->pcidev);
+	rc = pci_aer_clear_nonfatal_status(phba->pcidev);
 
 	if (rc == 0)
 		return strlen(buf);
@@ -6116,8 +5858,8 @@ int lpfc_fabric_cgn_frequency = 100; /* 100 ms default */
 module_param(lpfc_fabric_cgn_frequency, int, 0444);
 MODULE_PARM_DESC(lpfc_fabric_cgn_frequency, "Congestion signaling fabric freq");
 
-int lpfc_acqe_cgn_frequency = 10; /* 10 sec default */
-module_param(lpfc_acqe_cgn_frequency, int, 0444);
+unsigned char lpfc_acqe_cgn_frequency = 10; /* 10 sec default */
+module_param(lpfc_acqe_cgn_frequency, byte, 0444);
 MODULE_PARM_DESC(lpfc_acqe_cgn_frequency, "Congestion signaling ACQE freq");
 
 int lpfc_use_cgn_signal = 1; /* 0 - only use FPINs, 1 - Use signals if avail  */
@@ -6233,6 +5975,7 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fcp_wait_abts_rsp.attr,
 	&dev_attr_nport_evt_cnt.attr,
 	&dev_attr_board_mode.attr,
+	&dev_attr_lpfc_xcvr_data.attr,
 	&dev_attr_max_vpi.attr,
 	&dev_attr_used_vpi.attr,
 	&dev_attr_max_rpi.attr,
@@ -6273,7 +6016,6 @@ static struct attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_xlane_priority.attr,
 	&dev_attr_lpfc_sg_seg_cnt.attr,
 	&dev_attr_lpfc_max_scsicmpl_time.attr,
-	&dev_attr_lpfc_stat_data_ctrl.attr,
 	&dev_attr_lpfc_aer_support.attr,
 	&dev_attr_lpfc_aer_state_cleanup.attr,
 	&dev_attr_lpfc_sriov_nr_virtfn.attr,
@@ -6332,7 +6074,6 @@ static struct attribute *lpfc_vport_attrs[] = {
 	&dev_attr_npiv_info.attr,
 	&dev_attr_lpfc_enable_da_id.attr,
 	&dev_attr_lpfc_max_scsicmpl_time.attr,
-	&dev_attr_lpfc_stat_data_ctrl.attr,
 	&dev_attr_lpfc_static_vport.attr,
 	&dev_attr_cmf_info.attr,
 	NULL,
@@ -6545,17 +6286,14 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	int error;
 
-	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
-				      &sysfs_drvr_stat_data_attr);
-
 	/* Virtual ports do not need ctrl_reg and mbox */
-	if (error || vport->port_type == LPFC_NPIV_PORT)
-		goto out;
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return 0;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_ctlreg_attr);
 	if (error)
-		goto out_remove_stat_attr;
+		goto out;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_mbox_attr);
@@ -6565,9 +6303,6 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	return 0;
 out_remove_ctlreg_attr:
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
-out_remove_stat_attr:
-	sysfs_remove_bin_file(&shost->shost_dev.kobj,
-			&sysfs_drvr_stat_data_attr);
 out:
 	return error;
 }
@@ -6580,8 +6315,7 @@ void
 lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	sysfs_remove_bin_file(&shost->shost_dev.kobj,
-		&sysfs_drvr_stat_data_attr);
+
 	/* Virtual ports do not need ctrl_reg and mbox */
 	if (vport->port_type == LPFC_NPIV_PORT)
 		return;
@@ -7508,7 +7242,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
-	lpfc_aer_support_init(phba, lpfc_aer_support);
 	lpfc_sriov_nr_virtfn_init(phba, lpfc_sriov_nr_virtfn);
 	lpfc_request_firmware_upgrade_init(phba, lpfc_req_fw_upgrade);
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);

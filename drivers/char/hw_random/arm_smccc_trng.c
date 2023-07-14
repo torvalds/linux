@@ -71,8 +71,6 @@ static int smccc_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 				  MAX_BITS_PER_CALL);
 
 		arm_smccc_1_1_invoke(ARM_SMCCC_TRNG_RND, bits, &res);
-		if ((int)res.a0 < 0)
-			return (int)res.a0;
 
 		switch ((int)res.a0) {
 		case SMCCC_RET_SUCCESS:
@@ -88,6 +86,8 @@ static int smccc_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 				return copied;
 			cond_resched();
 			break;
+		default:
+			return -EIO;
 		}
 	}
 

@@ -17,9 +17,9 @@
 	compatible = "samsung,exynos7-espresso", "samsung,exynos7";
 
 	aliases {
+		mmc0 = &mmc_0;
+		mmc2 = &mmc_2;
 		serial0 = &serial_2;
-		mshc0 = &mmc_0;
-		mshc2 = &mmc_2;
 	};
 
 	chosen {
@@ -28,7 +28,7 @@
 
 	memory@40000000 {
 		device_type = "memory";
-		reg = <0x0 0x40000000 0x0 0xC0000000>;
+		reg = <0x0 0x40000000 0x0 0xc0000000>;
 	};
 
 	usb30_vbus_reg: regulator-usb30 {
@@ -61,7 +61,6 @@
 
 &gpu {
 	mali-supply = <&buck6_reg>;
-	status = "okay";
 };
 
 &serial_2 {
@@ -79,12 +78,11 @@
 };
 
 &adc {
+	vdd-supply = <&ldo3_reg>;
 	status = "okay";
 };
 
 &hsi2c_4 {
-	samsung,i2c-sda-delay = <100>;
-	samsung,i2c-max-bus-freq = <200000>;
 	status = "okay";
 
 	pmic@66 {
@@ -364,6 +362,7 @@
 &mmc_0 {
 	status = "okay";
 	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	non-removable;
 	card-detect-delay = <200>;

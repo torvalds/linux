@@ -11,69 +11,63 @@
  * Amit Kucheria <amit.kucheria@verdurent.com>
  */
 
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
-#include <linux/property.h>
+#include <linux/bits.h>
+#include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/sched.h>
+#include <linux/math.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/err.h>
+#include <linux/property.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 
+#include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <linux/iio/events.h>
-#include <linux/platform_data/tsl2563.h>
 
 /* Use this many bits for fraction part. */
 #define ADC_FRAC_BITS		14
 
 /* Given number of 1/10000's in ADC_FRAC_BITS precision. */
-#define FRAC10K(f)		(((f) * (1L << (ADC_FRAC_BITS))) / (10000))
+#define FRAC10K(f)		(((f) * BIT(ADC_FRAC_BITS)) / (10000))
 
 /* Bits used for fraction in calibration coefficients.*/
 #define CALIB_FRAC_BITS		10
-/* 0.5 in CALIB_FRAC_BITS precision */
-#define CALIB_FRAC_HALF		(1 << (CALIB_FRAC_BITS - 1))
-/* Make a fraction from a number n that was multiplied with b. */
-#define CALIB_FRAC(n, b)	(((n) << CALIB_FRAC_BITS) / (b))
 /* Decimal 10^(digits in sysfs presentation) */
 #define CALIB_BASE_SYSFS	1000
 
-#define TSL2563_CMD		0x80
-#define TSL2563_CLEARINT	0x40
+#define TSL2563_CMD		BIT(7)
+#define TSL2563_CLEARINT	BIT(6)
 
 #define TSL2563_REG_CTRL	0x00
 #define TSL2563_REG_TIMING	0x01
-#define TSL2563_REG_LOWLOW	0x02 /* data0 low threshold, 2 bytes */
-#define TSL2563_REG_LOWHIGH	0x03
-#define TSL2563_REG_HIGHLOW	0x04 /* data0 high threshold, 2 bytes */
-#define TSL2563_REG_HIGHHIGH	0x05
+#define TSL2563_REG_LOW		0x02 /* data0 low threshold, 2 bytes */
+#define TSL2563_REG_HIGH	0x04 /* data0 high threshold, 2 bytes */
 #define TSL2563_REG_INT		0x06
 #define TSL2563_REG_ID		0x0a
-#define TSL2563_REG_DATA0LOW	0x0c /* broadband sensor value, 2 bytes */
-#define TSL2563_REG_DATA0HIGH	0x0d
-#define TSL2563_REG_DATA1LOW	0x0e /* infrared sensor value, 2 bytes */
-#define TSL2563_REG_DATA1HIGH	0x0f
+#define TSL2563_REG_DATA0	0x0c /* broadband sensor value, 2 bytes */
+#define TSL2563_REG_DATA1	0x0e /* infrared sensor value, 2 bytes */
 
 #define TSL2563_CMD_POWER_ON	0x03
 #define TSL2563_CMD_POWER_OFF	0x00
-#define TSL2563_CTRL_POWER_MASK	0x03
+#define TSL2563_CTRL_POWER_MASK	GENMASK(1, 0)
 
 #define TSL2563_TIMING_13MS	0x00
 #define TSL2563_TIMING_100MS	0x01
 #define TSL2563_TIMING_400MS	0x02
-#define TSL2563_TIMING_MASK	0x03
+#define TSL2563_TIMING_MASK	GENMASK(1, 0)
 #define TSL2563_TIMING_GAIN16	0x10
 #define TSL2563_TIMING_GAIN1	0x00
 
 #define TSL2563_INT_DISABLED	0x00
 #define TSL2563_INT_LEVEL	0x10
-#define TSL2563_INT_PERSIST(n)	((n) & 0x0F)
+#define TSL2563_INT_MASK	GENMASK(5, 4)
+#define TSL2563_INT_PERSIST(n)	((n) & GENMASK(3, 0))
 
 struct tsl2563_gainlevel_coeff {
 	u8 gaintime;
@@ -161,24 +155,16 @@ static int tsl2563_configure(struct tsl2563_chip *chip)
 			chip->gainlevel->gaintime);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_HIGHLOW,
-			chip->high_thres & 0xFF);
+	ret = i2c_smbus_write_word_data(chip->client,
+			TSL2563_CMD | TSL2563_REG_HIGH,
+			chip->high_thres);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_HIGHHIGH,
-			(chip->high_thres >> 8) & 0xFF);
+	ret = i2c_smbus_write_word_data(chip->client,
+			TSL2563_CMD | TSL2563_REG_LOW,
+			chip->low_thres);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_LOWLOW,
-			chip->low_thres & 0xFF);
-	if (ret)
-		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-			TSL2563_CMD | TSL2563_REG_LOWHIGH,
-			(chip->low_thres >> 8) & 0xFF);
 /*
  * Interrupt register is automatically written anyway if it is relevant
  * so is not here.
@@ -220,6 +206,24 @@ static int tsl2563_read_id(struct tsl2563_chip *chip, u8 *id)
 
 	*id = ret;
 
+	return 0;
+}
+
+static int tsl2563_configure_irq(struct tsl2563_chip *chip, bool enable)
+{
+	int ret;
+
+	chip->intr &= ~TSL2563_INT_MASK;
+	if (enable)
+		chip->intr |= TSL2563_INT_LEVEL;
+
+	ret = i2c_smbus_write_byte_data(chip->client,
+					TSL2563_CMD | TSL2563_REG_INT,
+					chip->intr);
+	if (ret < 0)
+		return ret;
+
+	chip->int_enabled = enable;
 	return 0;
 }
 
@@ -325,13 +329,13 @@ static int tsl2563_get_adc(struct tsl2563_chip *chip)
 
 	while (retry) {
 		ret = i2c_smbus_read_word_data(client,
-				TSL2563_CMD | TSL2563_REG_DATA0LOW);
+				TSL2563_CMD | TSL2563_REG_DATA0);
 		if (ret < 0)
 			goto out;
 		adc0 = ret;
 
 		ret = i2c_smbus_read_word_data(client,
-				TSL2563_CMD | TSL2563_REG_DATA1LOW);
+				TSL2563_CMD | TSL2563_REG_DATA1);
 		if (ret < 0)
 			goto out;
 		adc1 = ret;
@@ -352,12 +356,12 @@ out:
 
 static inline int tsl2563_calib_to_sysfs(u32 calib)
 {
-	return (int) (((calib * CALIB_BASE_SYSFS) +
-		       CALIB_FRAC_HALF) >> CALIB_FRAC_BITS);
+	return (int)DIV_ROUND_CLOSEST(calib * CALIB_BASE_SYSFS, BIT(CALIB_FRAC_BITS));
 }
 
 static inline u32 tsl2563_calib_from_sysfs(int value)
 {
+	/* Make a fraction from a number n that was multiplied with b. */
 	return (((u32) value) << CALIB_FRAC_BITS) / CALIB_BASE_SYSFS;
 }
 
@@ -584,20 +588,18 @@ static int tsl2563_write_thresh(struct iio_dev *indio_dev,
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
-	u8 address;
+
+	mutex_lock(&chip->lock);
 
 	if (dir == IIO_EV_DIR_RISING)
-		address = TSL2563_REG_HIGHLOW;
+		ret = i2c_smbus_write_word_data(chip->client,
+						TSL2563_CMD | TSL2563_REG_HIGH, val);
 	else
-		address = TSL2563_REG_LOWLOW;
-	mutex_lock(&chip->lock);
-	ret = i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | address,
-					val & 0xFF);
+		ret = i2c_smbus_write_word_data(chip->client,
+						TSL2563_CMD | TSL2563_REG_LOW, val);
 	if (ret)
 		goto error_ret;
-	ret = i2c_smbus_write_byte_data(chip->client,
-					TSL2563_CMD | (address + 1),
-					(val >> 8) & 0xFF);
+
 	if (dir == IIO_EV_DIR_RISING)
 		chip->high_thres = val;
 	else
@@ -634,9 +636,7 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 	int ret = 0;
 
 	mutex_lock(&chip->lock);
-	if (state && !(chip->intr & 0x30)) {
-		chip->intr &= ~0x30;
-		chip->intr |= 0x10;
+	if (state && !(chip->intr & TSL2563_INT_MASK)) {
 		/* ensure the chip is actually on */
 		cancel_delayed_work_sync(&chip->poweroff_work);
 		if (!tsl2563_get_power(chip)) {
@@ -647,18 +647,11 @@ static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 			if (ret)
 				goto out;
 		}
-		ret = i2c_smbus_write_byte_data(chip->client,
-						TSL2563_CMD | TSL2563_REG_INT,
-						chip->intr);
-		chip->int_enabled = true;
+		ret = tsl2563_configure_irq(chip, true);
 	}
 
-	if (!state && (chip->intr & 0x30)) {
-		chip->intr &= ~0x30;
-		ret = i2c_smbus_write_byte_data(chip->client,
-						TSL2563_CMD | TSL2563_REG_INT,
-						chip->intr);
-		chip->int_enabled = false;
+	if (!state && (chip->intr & TSL2563_INT_MASK)) {
+		ret = tsl2563_configure_irq(chip, false);
 		/* now the interrupt is not enabled, we can go to sleep */
 		schedule_delayed_work(&chip->poweroff_work, 5 * HZ);
 	}
@@ -682,7 +675,7 @@ static int tsl2563_read_interrupt_config(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	return !!(ret & 0x30);
+	return !!(ret & TSL2563_INT_MASK);
 }
 
 static const struct iio_info tsl2563_info_no_irq = {
@@ -699,16 +692,16 @@ static const struct iio_info tsl2563_info = {
 	.write_event_config = &tsl2563_write_interrupt_config,
 };
 
-static int tsl2563_probe(struct i2c_client *client,
-				const struct i2c_device_id *device_id)
+static int tsl2563_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct tsl2563_chip *chip;
-	struct tsl2563_platform_data *pdata = client->dev.platform_data;
-	int err = 0;
+	unsigned long irq_flags;
 	u8 id = 0;
+	int err;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -718,16 +711,12 @@ static int tsl2563_probe(struct i2c_client *client,
 	chip->client = client;
 
 	err = tsl2563_detect(chip);
-	if (err) {
-		dev_err(&client->dev, "detect error %d\n", -err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "detect error\n");
 
 	err = tsl2563_read_id(chip, &id);
-	if (err) {
-		dev_err(&client->dev, "read id error %d\n", -err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "read id error\n");
 
 	mutex_init(&chip->lock);
 
@@ -739,16 +728,10 @@ static int tsl2563_probe(struct i2c_client *client,
 	chip->calib0 = tsl2563_calib_from_sysfs(CALIB_BASE_SYSFS);
 	chip->calib1 = tsl2563_calib_from_sysfs(CALIB_BASE_SYSFS);
 
-	if (pdata) {
-		chip->cover_comp_gain = pdata->cover_comp_gain;
-	} else {
-		err = device_property_read_u32(&client->dev, "amstaos,cover-comp-gain",
-					       &chip->cover_comp_gain);
-		if (err)
-			chip->cover_comp_gain = 1;
-	}
+	chip->cover_comp_gain = 1;
+	device_property_read_u32(dev, "amstaos,cover-comp-gain", &chip->cover_comp_gain);
 
-	dev_info(&client->dev, "model %d, rev. %d\n", id >> 4, id & 0x0f);
+	dev_info(dev, "model %d, rev. %d\n", id >> 4, id & 0x0f);
 	indio_dev->name = client->name;
 	indio_dev->channels = tsl2563_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsl2563_channels);
@@ -760,23 +743,24 @@ static int tsl2563_probe(struct i2c_client *client,
 		indio_dev->info = &tsl2563_info_no_irq;
 
 	if (client->irq) {
-		err = devm_request_threaded_irq(&client->dev, client->irq,
+		irq_flags = irq_get_trigger_type(client->irq);
+		if (irq_flags == IRQF_TRIGGER_NONE)
+			irq_flags = IRQF_TRIGGER_RISING;
+		irq_flags |= IRQF_ONESHOT;
+
+		err = devm_request_threaded_irq(dev, client->irq,
 					   NULL,
 					   &tsl2563_event_handler,
-					   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					   irq_flags,
 					   "tsl2563_event",
 					   indio_dev);
-		if (err) {
-			dev_err(&client->dev, "irq request error %d\n", -err);
-			return err;
-		}
+		if (err)
+			return dev_err_probe(dev, err, "irq request error\n");
 	}
 
 	err = tsl2563_configure(chip);
-	if (err) {
-		dev_err(&client->dev, "configure error %d\n", -err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "configure error\n");
 
 	INIT_DELAYED_WORK(&chip->poweroff_work, tsl2563_poweroff_work);
 
@@ -785,7 +769,7 @@ static int tsl2563_probe(struct i2c_client *client,
 
 	err = iio_device_register(indio_dev);
 	if (err) {
-		dev_err(&client->dev, "iio registration error %d\n", -err);
+		dev_err_probe(dev, err, "iio registration error\n");
 		goto fail;
 	}
 
@@ -805,15 +789,13 @@ static void tsl2563_remove(struct i2c_client *client)
 	if (!chip->int_enabled)
 		cancel_delayed_work_sync(&chip->poweroff_work);
 	/* Ensure that interrupts are disabled - then flush any bottom halves */
-	chip->intr &= ~0x30;
-	i2c_smbus_write_byte_data(chip->client, TSL2563_CMD | TSL2563_REG_INT,
-				  chip->intr);
+	tsl2563_configure_irq(chip, false);
 	tsl2563_set_power(chip, 0);
 }
 
 static int tsl2563_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
 
@@ -832,7 +814,7 @@ out:
 
 static int tsl2563_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
 

@@ -88,7 +88,6 @@ void framebuffer_release(struct fb_info *info)
 	mutex_destroy(&info->bl_curve_mutex);
 #endif
 
-	kfree(info->apertures);
 	kfree(info);
 }
 EXPORT_SYMBOL(framebuffer_release);

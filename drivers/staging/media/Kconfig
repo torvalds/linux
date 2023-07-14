@@ -24,8 +24,6 @@ source "drivers/staging/media/atomisp/Kconfig"
 
 source "drivers/staging/media/av7110/Kconfig"
 
-source "drivers/staging/media/hantro/Kconfig"
-
 source "drivers/staging/media/imx/Kconfig"
 
 source "drivers/staging/media/ipu3/Kconfig"
@@ -38,12 +36,24 @@ source "drivers/staging/media/omap4iss/Kconfig"
 
 source "drivers/staging/media/rkvdec/Kconfig"
 
-source "drivers/staging/media/stkwebcam/Kconfig"
-
 source "drivers/staging/media/sunxi/Kconfig"
 
 source "drivers/staging/media/tegra-video/Kconfig"
 
-source "drivers/staging/media/zoran/Kconfig"
+menuconfig STAGING_MEDIA_DEPRECATED
+	bool "Media staging drivers (DEPRECATED)"
+	default n
+	help
+	  This option enables deprecated media drivers that are
+	  scheduled for future removal from the kernel.
+
+	  If you wish to work on these drivers to prevent their removal,
+	  then contact the linux-media@vger.kernel.org mailing list.
+
+	  If in doubt, say N here.
+
+if STAGING_MEDIA_DEPRECATED
+source "drivers/staging/media/deprecated/atmel/Kconfig"
+endif
 
 endif

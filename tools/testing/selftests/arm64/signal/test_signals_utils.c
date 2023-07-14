@@ -29,6 +29,7 @@ static char const *const feats_names[FMAX_END] = {
 	" SVE ",
 	" SME ",
 	" FA64 ",
+	" SME2 ",
 };
 
 #define MAX_FEATS_SZ	128
@@ -165,15 +166,66 @@ static bool handle_signal_ok(struct tdescr *td,
 }
 
 static bool handle_signal_copyctx(struct tdescr *td,
-				  siginfo_t *si, void *uc)
+				  siginfo_t *si, void *uc_in)
 {
+	ucontext_t *uc = uc_in;
+	struct _aarch64_ctx *head;
+	struct extra_context *extra, *copied_extra;
+	size_t offset = 0;
+	size_t to_copy;
+
+	ASSERT_GOOD_CONTEXT(uc);
+
 	/* Mangling PC to avoid loops on original BRK instr */
-	((ucontext_t *)uc)->uc_mcontext.pc += 4;
-	memcpy(td->live_uc, uc, td->live_sz);
-	ASSERT_GOOD_CONTEXT(td->live_uc);
+	uc->uc_mcontext.pc += 4;
+
+	/*
+	 * Check for an preserve any extra data too with fixups.
+	 */
+	head = (struct _aarch64_ctx *)uc->uc_mcontext.__reserved;
+	head = get_header(head, EXTRA_MAGIC, td->live_sz, &offset);
+	if (head) {
+		extra = (struct extra_context *)head;
+
+		/*
+		 * The extra buffer must be immediately after the
+		 * extra_context and a 16 byte terminator. Include it
+		 * in the copy, this was previously validated in
+		 * ASSERT_GOOD_CONTEXT().
+		 */
+		to_copy = __builtin_offsetof(ucontext_t,
+					     uc_mcontext.__reserved);
+		to_copy += offset + sizeof(struct extra_context) + 16;
+		to_copy += extra->size;
+		copied_extra = (struct extra_context *)&(td->live_uc->uc_mcontext.__reserved[offset]);
+	} else {
+		copied_extra = NULL;
+		to_copy = sizeof(ucontext_t);
+	}
+
+	if (to_copy > td->live_sz) {
+		fprintf(stderr,
+			"Not enough space to grab context, %lu/%lu bytes\n",
+			td->live_sz, to_copy);
+		return false;
+	}
+
+	memcpy(td->live_uc, uc, to_copy);
+
+	/*
+	 * If there was any EXTRA_CONTEXT fix up the size to be the
+	 * struct extra_context and the following terminator record,
+	 * this means that the rest of the code does not need to have
+	 * special handling for the record and we don't need to fix up
+	 * datap for the new location.
+	 */
+	if (copied_extra)
+		copied_extra->head.size = sizeof(*copied_extra) + 16;
+
 	td->live_uc_valid = 1;
 	fprintf(stderr,
-		"GOOD CONTEXT grabbed from sig_copyctx handler\n");
+		"%lu byte GOOD CONTEXT grabbed from sig_copyctx handler\n",
+		to_copy);
 
 	return true;
 }
@@ -197,7 +249,8 @@ static void default_handler(int signum, siginfo_t *si, void *uc)
 			fprintf(stderr, "-- Timeout !\n");
 		} else {
 			fprintf(stderr,
-				"-- RX UNEXPECTED SIGNAL: %d\n", signum);
+				"-- RX UNEXPECTED SIGNAL: %d code %d address %p\n",
+				signum, si->si_code, si->si_addr);
 		}
 		default_result(current, 1);
 	}
@@ -274,6 +327,8 @@ int test_init(struct tdescr *td)
 			td->feats_supported |= FEAT_SME;
 		if (getauxval(AT_HWCAP2) & HWCAP2_SME_FA64)
 			td->feats_supported |= FEAT_SME_FA64;
+		if (getauxval(AT_HWCAP2) & HWCAP2_SME2)
+			td->feats_supported |= FEAT_SME2;
 		if (feats_ok(td)) {
 			if (td->feats_required & td->feats_supported)
 				fprintf(stderr,

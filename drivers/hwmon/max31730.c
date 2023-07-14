@@ -248,7 +248,7 @@ static umode_t max31730_is_visible(const void *data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *max31730_info[] = {
+static const struct hwmon_channel_info * const max31730_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
@@ -427,7 +427,7 @@ static struct i2c_driver max31730_driver = {
 		.of_match_table = of_match_ptr(max31730_of_match),
 		.pm	= pm_sleep_ptr(&max31730_pm_ops),
 	},
-	.probe_new	= max31730_probe,
+	.probe		= max31730_probe,
 	.id_table	= max31730_ids,
 	.detect		= max31730_detect,
 	.address_list	= normal_i2c,

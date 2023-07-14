@@ -2,7 +2,7 @@
 /*
  *  HID driver for Sony DualSense(TM) controller.
  *
- *  Copyright (c) 2020 Sony Interactive Entertainment
+ *  Copyright (c) 2020-2022 Sony Interactive Entertainment
  */
 
 #include <linux/bits.h>
@@ -46,6 +46,7 @@ struct ps_device {
 	uint32_t fw_version;
 
 	int (*parse_report)(struct ps_device *dev, struct hid_report *report, u8 *data, int size);
+	void (*remove)(struct ps_device *dev);
 };
 
 /* Calibration data for playstation motion sensors. */
@@ -59,8 +60,10 @@ struct ps_calibration_data {
 struct ps_led_info {
 	const char *name;
 	const char *color;
+	int max_brightness;
 	enum led_brightness (*brightness_get)(struct led_classdev *cdev);
 	int (*brightness_set)(struct led_classdev *cdev, enum led_brightness);
+	int (*blink_set)(struct led_classdev *led, unsigned long *on, unsigned long *off);
 };
 
 /* Seed values for DualShock4 / DualSense CRC32 for different report types. */
@@ -107,6 +110,9 @@ struct ps_led_info {
 #define DS_STATUS_CHARGING		GENMASK(7, 4)
 #define DS_STATUS_CHARGING_SHIFT	4
 
+/* Feature version from DualSense Firmware Info report. */
+#define DS_FEATURE_VERSION(major, minor) ((major & 0xff) << 8 | (minor & 0xff))
+
 /*
  * Status of a DualSense touch point contact.
  * Contact IDs, with highest bit set are 'inactive'
@@ -125,6 +131,7 @@ struct ps_led_info {
 #define DS_OUTPUT_VALID_FLAG1_RELEASE_LEDS BIT(3)
 #define DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE BIT(4)
 #define DS_OUTPUT_VALID_FLAG2_LIGHTBAR_SETUP_CONTROL_ENABLE BIT(1)
+#define DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2 BIT(2)
 #define DS_OUTPUT_POWER_SAVE_CONTROL_MIC_MUTE BIT(4)
 #define DS_OUTPUT_LIGHTBAR_SETUP_LIGHT_OUT BIT(1)
 
@@ -142,6 +149,9 @@ struct dualsense {
 	struct input_dev *sensors;
 	struct input_dev *touchpad;
 
+	/* Update version is used as a feature/capability version. */
+	uint16_t update_version;
+
 	/* Calibration data for accelerometer and gyroscope. */
 	struct ps_calibration_data accel_calib_data[3];
 	struct ps_calibration_data gyro_calib_data[3];
@@ -152,6 +162,7 @@ struct dualsense {
 	uint32_t sensor_timestamp_us;
 
 	/* Compatible rumble state */
+	bool use_vibration_v2;
 	bool update_rumble;
 	uint8_t motor_left;
 	uint8_t motor_right;
@@ -174,6 +185,7 @@ struct dualsense {
 	struct led_classdev player_leds[5];
 
 	struct work_struct output_worker;
+	bool output_worker_initialized;
 	void *output_report_dmabuf;
 	uint8_t output_seq; /* Sequence number for output report. */
 };
@@ -273,6 +285,225 @@ struct dualsense_output_report {
 	struct dualsense_output_report_common *common;
 };
 
+#define DS4_INPUT_REPORT_USB			0x01
+#define DS4_INPUT_REPORT_USB_SIZE		64
+#define DS4_INPUT_REPORT_BT			0x11
+#define DS4_INPUT_REPORT_BT_SIZE		78
+#define DS4_OUTPUT_REPORT_USB			0x05
+#define DS4_OUTPUT_REPORT_USB_SIZE		32
+#define DS4_OUTPUT_REPORT_BT			0x11
+#define DS4_OUTPUT_REPORT_BT_SIZE		78
+
+#define DS4_FEATURE_REPORT_CALIBRATION		0x02
+#define DS4_FEATURE_REPORT_CALIBRATION_SIZE	37
+#define DS4_FEATURE_REPORT_CALIBRATION_BT	0x05
+#define DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE	41
+#define DS4_FEATURE_REPORT_FIRMWARE_INFO	0xa3
+#define DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE	49
+#define DS4_FEATURE_REPORT_PAIRING_INFO		0x12
+#define DS4_FEATURE_REPORT_PAIRING_INFO_SIZE	16
+
+/*
+ * Status of a DualShock4 touch point contact.
+ * Contact IDs, with highest bit set are 'inactive'
+ * and any associated data is then invalid.
+ */
+#define DS4_TOUCH_POINT_INACTIVE BIT(7)
+
+/* Status field of DualShock4 input report. */
+#define DS4_STATUS0_BATTERY_CAPACITY	GENMASK(3, 0)
+#define DS4_STATUS0_CABLE_STATE		BIT(4)
+/* Battery status within batery_status field. */
+#define DS4_BATTERY_STATUS_FULL		11
+/* Status1 bit2 contains dongle connection state:
+ * 0 = connectd
+ * 1 = disconnected
+ */
+#define DS4_STATUS1_DONGLE_STATE	BIT(2)
+
+/* The lower 6 bits of hw_control of the Bluetooth main output report
+ * control the interval at which Dualshock 4 reports data:
+ * 0x00 - 1ms
+ * 0x01 - 1ms
+ * 0x02 - 2ms
+ * 0x3E - 62ms
+ * 0x3F - disabled
+ */
+#define DS4_OUTPUT_HWCTL_BT_POLL_MASK	0x3F
+/* Default to 4ms poll interval, which is same as USB (not adjustable). */
+#define DS4_BT_DEFAULT_POLL_INTERVAL_MS	4
+#define DS4_OUTPUT_HWCTL_CRC32		0x40
+#define DS4_OUTPUT_HWCTL_HID		0x80
+
+/* Flags for DualShock4 output report. */
+#define DS4_OUTPUT_VALID_FLAG0_MOTOR		0x01
+#define DS4_OUTPUT_VALID_FLAG0_LED		0x02
+#define DS4_OUTPUT_VALID_FLAG0_LED_BLINK	0x04
+
+/* DualShock4 hardware limits */
+#define DS4_ACC_RES_PER_G	8192
+#define DS4_ACC_RANGE		(4*DS_ACC_RES_PER_G)
+#define DS4_GYRO_RES_PER_DEG_S	1024
+#define DS4_GYRO_RANGE		(2048*DS_GYRO_RES_PER_DEG_S)
+#define DS4_LIGHTBAR_MAX_BLINK	255 /* 255 centiseconds */
+#define DS4_TOUCHPAD_WIDTH	1920
+#define DS4_TOUCHPAD_HEIGHT	942
+
+enum dualshock4_dongle_state {
+	DONGLE_DISCONNECTED,
+	DONGLE_CALIBRATING,
+	DONGLE_CONNECTED,
+	DONGLE_DISABLED
+};
+
+struct dualshock4 {
+	struct ps_device base;
+	struct input_dev *gamepad;
+	struct input_dev *sensors;
+	struct input_dev *touchpad;
+
+	/* Calibration data for accelerometer and gyroscope. */
+	struct ps_calibration_data accel_calib_data[3];
+	struct ps_calibration_data gyro_calib_data[3];
+
+	/* Only used on dongle to track state transitions. */
+	enum dualshock4_dongle_state dongle_state;
+	/* Used during calibration. */
+	struct work_struct dongle_hotplug_worker;
+
+	/* Timestamp for sensor data */
+	bool sensor_timestamp_initialized;
+	uint32_t prev_sensor_timestamp;
+	uint32_t sensor_timestamp_us;
+
+	/* Bluetooth poll interval */
+	bool update_bt_poll_interval;
+	uint8_t bt_poll_interval;
+
+	bool update_rumble;
+	uint8_t motor_left;
+	uint8_t motor_right;
+
+	/* Lightbar leds */
+	bool update_lightbar;
+	bool update_lightbar_blink;
+	bool lightbar_enabled; /* For use by global LED control. */
+	uint8_t lightbar_red;
+	uint8_t lightbar_green;
+	uint8_t lightbar_blue;
+	uint8_t lightbar_blink_on; /* In increments of 10ms. */
+	uint8_t lightbar_blink_off; /* In increments of 10ms. */
+	struct led_classdev lightbar_leds[4];
+
+	struct work_struct output_worker;
+	bool output_worker_initialized;
+	void *output_report_dmabuf;
+};
+
+struct dualshock4_touch_point {
+	uint8_t contact;
+	uint8_t x_lo;
+	uint8_t x_hi:4, y_lo:4;
+	uint8_t y_hi;
+} __packed;
+static_assert(sizeof(struct dualshock4_touch_point) == 4);
+
+struct dualshock4_touch_report {
+	uint8_t timestamp;
+	struct dualshock4_touch_point points[2];
+} __packed;
+static_assert(sizeof(struct dualshock4_touch_report) == 9);
+
+/* Main DualShock4 input report excluding any BT/USB specific headers. */
+struct dualshock4_input_report_common {
+	uint8_t x, y;
+	uint8_t rx, ry;
+	uint8_t buttons[3];
+	uint8_t z, rz;
+
+	/* Motion sensors */
+	__le16 sensor_timestamp;
+	uint8_t sensor_temperature;
+	__le16 gyro[3]; /* x, y, z */
+	__le16 accel[3]; /* x, y, z */
+	uint8_t reserved2[5];
+
+	uint8_t status[2];
+	uint8_t reserved3;
+} __packed;
+static_assert(sizeof(struct dualshock4_input_report_common) == 32);
+
+struct dualshock4_input_report_usb {
+	uint8_t report_id; /* 0x01 */
+	struct dualshock4_input_report_common common;
+	uint8_t num_touch_reports;
+	struct dualshock4_touch_report touch_reports[3];
+	uint8_t reserved[3];
+} __packed;
+static_assert(sizeof(struct dualshock4_input_report_usb) == DS4_INPUT_REPORT_USB_SIZE);
+
+struct dualshock4_input_report_bt {
+	uint8_t report_id; /* 0x11 */
+	uint8_t reserved[2];
+	struct dualshock4_input_report_common common;
+	uint8_t num_touch_reports;
+	struct dualshock4_touch_report touch_reports[4]; /* BT has 4 compared to 3 for USB */
+	uint8_t reserved2[2];
+	__le32 crc32;
+} __packed;
+static_assert(sizeof(struct dualshock4_input_report_bt) == DS4_INPUT_REPORT_BT_SIZE);
+
+/* Common data between Bluetooth and USB DualShock4 output reports. */
+struct dualshock4_output_report_common {
+	uint8_t valid_flag0;
+	uint8_t valid_flag1;
+
+	uint8_t reserved;
+
+	uint8_t motor_right;
+	uint8_t motor_left;
+
+	uint8_t lightbar_red;
+	uint8_t lightbar_green;
+	uint8_t lightbar_blue;
+	uint8_t lightbar_blink_on;
+	uint8_t lightbar_blink_off;
+} __packed;
+
+struct dualshock4_output_report_usb {
+	uint8_t report_id; /* 0x5 */
+	struct dualshock4_output_report_common common;
+	uint8_t reserved[21];
+} __packed;
+static_assert(sizeof(struct dualshock4_output_report_usb) == DS4_OUTPUT_REPORT_USB_SIZE);
+
+struct dualshock4_output_report_bt {
+	uint8_t report_id; /* 0x11 */
+	uint8_t hw_control;
+	uint8_t audio_control;
+	struct dualshock4_output_report_common common;
+	uint8_t reserved[61];
+	__le32 crc32;
+} __packed;
+static_assert(sizeof(struct dualshock4_output_report_bt) == DS4_OUTPUT_REPORT_BT_SIZE);
+
+/*
+ * The DualShock4 has a main output report used to control most features. It is
+ * largely the same between Bluetooth and USB except for different headers and CRC.
+ * This structure hide the differences between the two to simplify sending output reports.
+ */
+struct dualshock4_output_report {
+	uint8_t *data; /* Start of data */
+	uint8_t len; /* Size of output report */
+
+	/* Points to Bluetooth data payload in case for a Bluetooth report else NULL. */
+	struct dualshock4_output_report_bt *bt;
+	/* Points to USB data payload in case for a USB report else NULL. */
+	struct dualshock4_output_report_usb *usb;
+	/* Points to common section of report, so past any headers. */
+	struct dualshock4_output_report_common *common;
+};
+
 /*
  * Common gamepad buttons across DualShock 3 / 4 and DualSense.
  * Note: for device with a touchpad, touchpad button is not included
@@ -299,7 +530,11 @@ static const struct {int x; int y; } ps_gamepad_hat_mapping[] = {
 	{0, 0},
 };
 
+static int dualshock4_get_calibration_data(struct dualshock4 *ds4);
+static inline void dualsense_schedule_work(struct dualsense *ds);
+static inline void dualshock4_schedule_work(struct dualshock4 *ds4);
 static void dualsense_set_lightbar(struct dualsense *ds, uint8_t red, uint8_t green, uint8_t blue);
+static void dualshock4_set_default_lightbar_colors(struct dualshock4 *ds4);
 
 /*
  * Add a new ps_device to ps_devices if it doesn't exist.
@@ -503,7 +738,8 @@ static struct input_dev *ps_gamepad_create(struct hid_device *hdev,
 	return gamepad;
 }
 
-static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *buf, size_t size)
+static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *buf, size_t size,
+		bool check_crc)
 {
 	int ret;
 
@@ -524,7 +760,7 @@ static int ps_get_report(struct hid_device *hdev, uint8_t report_id, uint8_t *bu
 		return -EINVAL;
 	}
 
-	if (hdev->bus == BUS_BLUETOOTH) {
+	if (hdev->bus == BUS_BLUETOOTH && check_crc) {
 		/* Last 4 bytes contains crc32. */
 		uint8_t crc_offset = size - 4;
 		uint32_t report_crc = get_unaligned_le32(&buf[crc_offset]);
@@ -543,17 +779,24 @@ static int ps_led_register(struct ps_device *ps_dev, struct led_classdev *led,
 {
 	int ret;
 
-	led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
-			"%s:%s:%s", ps_dev->input_dev_name, led_info->color, led_info->name);
+	if (led_info->name) {
+		led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
+				"%s:%s:%s", ps_dev->input_dev_name, led_info->color, led_info->name);
+	} else {
+		/* Backwards compatible mode for hid-sony, but not compliant with LED class spec. */
+		led->name = devm_kasprintf(&ps_dev->hdev->dev, GFP_KERNEL,
+				"%s:%s", ps_dev->input_dev_name, led_info->color);
+	}
 
 	if (!led->name)
 		return -ENOMEM;
 
 	led->brightness = 0;
-	led->max_brightness = 1;
+	led->max_brightness = led_info->max_brightness;
 	led->flags = LED_CORE_SUSPENDRESUME;
 	led->brightness_get = led_info->brightness_get;
 	led->brightness_set_blocking = led_info->brightness_set;
+	led->blink_set = led_info->blink_set;
 
 	ret = devm_led_classdev_register(&ps_dev->hdev->dev, led);
 	if (ret) {
@@ -692,18 +935,16 @@ static ssize_t hardware_version_show(struct device *dev,
 
 static DEVICE_ATTR_RO(hardware_version);
 
-static struct attribute *ps_device_attributes[] = {
+static struct attribute *ps_device_attrs[] = {
 	&dev_attr_firmware_version.attr,
 	&dev_attr_hardware_version.attr,
 	NULL
 };
-
-static const struct attribute_group ps_device_attribute_group = {
-	.attrs = ps_device_attributes,
-};
+ATTRIBUTE_GROUPS(ps_device);
 
 static int dualsense_get_calibration_data(struct dualsense *ds)
 {
+	struct hid_device *hdev = ds->base.hdev;
 	short gyro_pitch_bias, gyro_pitch_plus, gyro_pitch_minus;
 	short gyro_yaw_bias, gyro_yaw_plus, gyro_yaw_minus;
 	short gyro_roll_bias, gyro_roll_plus, gyro_roll_minus;
@@ -714,6 +955,7 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	int speed_2x;
 	int range_2g;
 	int ret = 0;
+	int i;
 	uint8_t *buf;
 
 	buf = kzalloc(DS_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
@@ -721,7 +963,7 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_CALIBRATION, buf,
-			DS_FEATURE_REPORT_CALIBRATION_SIZE);
+			DS_FEATURE_REPORT_CALIBRATION_SIZE, true);
 	if (ret) {
 		hid_err(ds->base.hdev, "Failed to retrieve DualSense calibration info: %d\n", ret);
 		goto err_free;
@@ -751,19 +993,37 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	 */
 	speed_2x = (gyro_speed_plus + gyro_speed_minus);
 	ds->gyro_calib_data[0].abs_code = ABS_RX;
-	ds->gyro_calib_data[0].bias = gyro_pitch_bias;
+	ds->gyro_calib_data[0].bias = 0;
 	ds->gyro_calib_data[0].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[0].sens_denom = gyro_pitch_plus - gyro_pitch_minus;
+	ds->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+			abs(gyro_pitch_minus - gyro_pitch_bias);
 
 	ds->gyro_calib_data[1].abs_code = ABS_RY;
-	ds->gyro_calib_data[1].bias = gyro_yaw_bias;
+	ds->gyro_calib_data[1].bias = 0;
 	ds->gyro_calib_data[1].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[1].sens_denom = gyro_yaw_plus - gyro_yaw_minus;
+	ds->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+			abs(gyro_yaw_minus - gyro_yaw_bias);
 
 	ds->gyro_calib_data[2].abs_code = ABS_RZ;
-	ds->gyro_calib_data[2].bias = gyro_roll_bias;
+	ds->gyro_calib_data[2].bias = 0;
 	ds->gyro_calib_data[2].sens_numer = speed_2x*DS_GYRO_RES_PER_DEG_S;
-	ds->gyro_calib_data[2].sens_denom = gyro_roll_plus - gyro_roll_minus;
+	ds->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+			abs(gyro_roll_minus - gyro_roll_bias);
+
+	/*
+	 * Sanity check gyro calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing
+	 * calibration data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds->gyro_calib_data); i++) {
+		if (ds->gyro_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
+					ds->gyro_calib_data[i].abs_code);
+			ds->gyro_calib_data[i].bias = 0;
+			ds->gyro_calib_data[i].sens_numer = DS_GYRO_RANGE;
+			ds->gyro_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
 
 	/*
 	 * Set accelerometer calibration and normalization parameters.
@@ -787,10 +1047,26 @@ static int dualsense_get_calibration_data(struct dualsense *ds)
 	ds->accel_calib_data[2].sens_numer = 2*DS_ACC_RES_PER_G;
 	ds->accel_calib_data[2].sens_denom = range_2g;
 
+	/*
+	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds->accel_calib_data); i++) {
+		if (ds->accel_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
+					ds->accel_calib_data[i].abs_code);
+			ds->accel_calib_data[i].bias = 0;
+			ds->accel_calib_data[i].sens_numer = DS_ACC_RANGE;
+			ds->accel_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
+
 err_free:
 	kfree(buf);
 	return ret;
 }
+
 
 static int dualsense_get_firmware_info(struct dualsense *ds)
 {
@@ -802,7 +1078,7 @@ static int dualsense_get_firmware_info(struct dualsense *ds)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_FIRMWARE_INFO, buf,
-			DS_FEATURE_REPORT_FIRMWARE_INFO_SIZE);
+			DS_FEATURE_REPORT_FIRMWARE_INFO_SIZE, true);
 	if (ret) {
 		hid_err(ds->base.hdev, "Failed to retrieve DualSense firmware info: %d\n", ret);
 		goto err_free;
@@ -810,6 +1086,15 @@ static int dualsense_get_firmware_info(struct dualsense *ds)
 
 	ds->base.hw_version = get_unaligned_le32(&buf[24]);
 	ds->base.fw_version = get_unaligned_le32(&buf[28]);
+
+	/* Update version is some kind of feature version. It is distinct from
+	 * the firmware version as there can be many different variations of a
+	 * controller over time with the same physical shell, but with different
+	 * PCBs and other internal changes. The update version (internal name) is
+	 * used as a means to detect what features are available and change behavior.
+	 * Note: the version is different between DualSense and DualSense Edge.
+	 */
+	ds->update_version = get_unaligned_le16(&buf[44]);
 
 err_free:
 	kfree(buf);
@@ -826,7 +1111,7 @@ static int dualsense_get_mac_address(struct dualsense *ds)
 		return -ENOMEM;
 
 	ret = ps_get_report(ds->base.hdev, DS_FEATURE_REPORT_PAIRING_INFO, buf,
-			DS_FEATURE_REPORT_PAIRING_INFO_SIZE);
+			DS_FEATURE_REPORT_PAIRING_INFO_SIZE, true);
 	if (ret) {
 		hid_err(ds->base.hdev, "Failed to retrieve DualSense pairing info: %d\n", ret);
 		goto err_free;
@@ -881,7 +1166,7 @@ static int dualsense_player_led_set_brightness(struct led_classdev *led, enum le
 	ds->update_player_leds = true;
 	spin_unlock_irqrestore(&ds->base.lock, flags);
 
-	schedule_work(&ds->output_worker);
+	dualsense_schedule_work(ds);
 
 	return 0;
 }
@@ -925,6 +1210,16 @@ static void dualsense_init_output_report(struct dualsense *ds, struct dualsense_
 	}
 }
 
+static inline void dualsense_schedule_work(struct dualsense *ds)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds->base.lock, flags);
+	if (ds->output_worker_initialized)
+		schedule_work(&ds->output_worker);
+	spin_unlock_irqrestore(&ds->base.lock, flags);
+}
+
 /*
  * Helper function to send DualSense output reports. Applies a CRC at the end of a report
  * for Bluetooth reports.
@@ -963,7 +1258,10 @@ static void dualsense_output_worker(struct work_struct *work)
 	if (ds->update_rumble) {
 		/* Select classic rumble style haptics and enable it. */
 		common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_HAPTICS_SELECT;
-		common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION;
+		if (ds->use_vibration_v2)
+			common->valid_flag2 |= DS_OUTPUT_VALID_FLAG2_COMPATIBLE_VIBRATION2;
+		else
+			common->valid_flag0 |= DS_OUTPUT_VALID_FLAG0_COMPATIBLE_VIBRATION;
 		common->motor_left = ds->motor_left;
 		common->motor_right = ds->motor_right;
 		ds->update_rumble = false;
@@ -1085,7 +1383,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 		spin_unlock_irqrestore(&ps_dev->lock, flags);
 
 		/* Schedule updating of microphone state at hardware level. */
-		schedule_work(&ds->output_worker);
+		dualsense_schedule_work(ds);
 	}
 	ds->last_btn_mic_state = btn_mic_state;
 
@@ -1093,8 +1391,7 @@ static int dualsense_parse_report(struct ps_device *ps_dev, struct hid_report *r
 	for (i = 0; i < ARRAY_SIZE(ds_report->gyro); i++) {
 		int raw_data = (short)le16_to_cpu(ds_report->gyro[i]);
 		int calib_data = mult_frac(ds->gyro_calib_data[i].sens_numer,
-					   raw_data - ds->gyro_calib_data[i].bias,
-					   ds->gyro_calib_data[i].sens_denom);
+					   raw_data, ds->gyro_calib_data[i].sens_denom);
 
 		input_report_abs(ds->sensors, ds->gyro_calib_data[i].abs_code, calib_data);
 	}
@@ -1200,8 +1497,20 @@ static int dualsense_play_effect(struct input_dev *dev, void *data, struct ff_ef
 	ds->motor_right = effect->u.rumble.weak_magnitude / 256;
 	spin_unlock_irqrestore(&ds->base.lock, flags);
 
-	schedule_work(&ds->output_worker);
+	dualsense_schedule_work(ds);
 	return 0;
+}
+
+static void dualsense_remove(struct ps_device *ps_dev)
+{
+	struct dualsense *ds = container_of(ps_dev, struct dualsense, base);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds->base.lock, flags);
+	ds->output_worker_initialized = false;
+	spin_unlock_irqrestore(&ds->base.lock, flags);
+
+	cancel_work_sync(&ds->output_worker);
 }
 
 static int dualsense_reset_leds(struct dualsense *ds)
@@ -1240,7 +1549,7 @@ static void dualsense_set_lightbar(struct dualsense *ds, uint8_t red, uint8_t gr
 	ds->lightbar_blue = blue;
 	spin_unlock_irqrestore(&ds->base.lock, flags);
 
-	schedule_work(&ds->output_worker);
+	dualsense_schedule_work(ds);
 }
 
 static void dualsense_set_player_leds(struct dualsense *ds)
@@ -1263,7 +1572,7 @@ static void dualsense_set_player_leds(struct dualsense *ds)
 
 	ds->update_player_leds = true;
 	ds->player_leds_state = player_ids[player_id];
-	schedule_work(&ds->output_worker);
+	dualsense_schedule_work(ds);
 }
 
 static struct ps_device *dualsense_create(struct hid_device *hdev)
@@ -1274,15 +1583,15 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	int i, ret;
 
 	static const struct ps_led_info player_leds_info[] = {
-		{ LED_FUNCTION_PLAYER1, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER1, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER2, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER2, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER3, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER3, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER4, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER4, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness },
-		{ LED_FUNCTION_PLAYER5, "white", dualsense_player_led_get_brightness,
+		{ LED_FUNCTION_PLAYER5, "white", 1, dualsense_player_led_get_brightness,
 				dualsense_player_led_set_brightness }
 	};
 
@@ -1302,7 +1611,9 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	ps_dev->battery_capacity = 100; /* initial value until parse_report. */
 	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
 	ps_dev->parse_report = dualsense_parse_report;
+	ps_dev->remove = dualsense_remove;
 	INIT_WORK(&ds->output_worker, dualsense_output_worker);
+	ds->output_worker_initialized = true;
 	hid_set_drvdata(hdev, ds);
 
 	max_output_report_size = sizeof(struct dualsense_output_report_bt);
@@ -1321,6 +1632,21 @@ static struct ps_device *dualsense_create(struct hid_device *hdev)
 	if (ret) {
 		hid_err(hdev, "Failed to get firmware info from DualSense\n");
 		return ERR_PTR(ret);
+	}
+
+	/* Original DualSense firmware simulated classic controller rumble through
+	 * its new haptics hardware. It felt different from classic rumble users
+	 * were used to. Since then new firmwares were introduced to change behavior
+	 * and make this new 'v2' behavior default on PlayStation and other platforms.
+	 * The original DualSense requires a new enough firmware as bundled with PS5
+	 * software released in 2021. DualSense edge supports it out of the box.
+	 * Both devices also support the old mode, but it is not really used.
+	 */
+	if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER) {
+		/* Feature version 2.21 introduced new vibration method. */
+		ds->use_vibration_v2 = ds->update_version >= DS_FEATURE_VERSION(2, 21);
+	} else if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) {
+		ds->use_vibration_v2 = true;
 	}
 
 	ret = ps_devices_list_add(ps_dev);
@@ -1405,6 +1731,896 @@ err:
 	return ERR_PTR(ret);
 }
 
+static void dualshock4_dongle_calibration_work(struct work_struct *work)
+{
+	struct dualshock4 *ds4 = container_of(work, struct dualshock4, dongle_hotplug_worker);
+	unsigned long flags;
+	enum dualshock4_dongle_state dongle_state;
+	int ret;
+
+	ret = dualshock4_get_calibration_data(ds4);
+	if (ret < 0) {
+		/* This call is very unlikely to fail for the dongle. When it
+		 * fails we are probably in a very bad state, so mark the
+		 * dongle as disabled. We will re-enable the dongle if a new
+		 * DS4 hotplug is detect from sony_raw_event as any issues
+		 * are likely resolved then (the dongle is quite stupid).
+		 */
+		hid_err(ds4->base.hdev, "DualShock 4 USB dongle: calibration failed, disabling device\n");
+		dongle_state = DONGLE_DISABLED;
+	} else {
+		hid_info(ds4->base.hdev, "DualShock 4 USB dongle: calibration completed\n");
+		dongle_state = DONGLE_CONNECTED;
+	}
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	ds4->dongle_state = dongle_state;
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+}
+
+static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
+{
+	struct hid_device *hdev = ds4->base.hdev;
+	short gyro_pitch_bias, gyro_pitch_plus, gyro_pitch_minus;
+	short gyro_yaw_bias, gyro_yaw_plus, gyro_yaw_minus;
+	short gyro_roll_bias, gyro_roll_plus, gyro_roll_minus;
+	short gyro_speed_plus, gyro_speed_minus;
+	short acc_x_plus, acc_x_minus;
+	short acc_y_plus, acc_y_minus;
+	short acc_z_plus, acc_z_minus;
+	int speed_2x;
+	int range_2g;
+	int ret = 0;
+	int i;
+	uint8_t *buf;
+
+	if (ds4->base.hdev->bus == BUS_USB) {
+		int retries;
+
+		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		/* We should normally receive the feature report data we asked
+		 * for, but hidraw applications such as Steam can issue feature
+		 * reports as well. In particular for Dongle reconnects, Steam
+		 * and this function are competing resulting in often receiving
+		 * data for a different HID report, so retry a few times.
+		 */
+		for (retries = 0; retries < 3; retries++) {
+			ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION, buf,
+					DS4_FEATURE_REPORT_CALIBRATION_SIZE, true);
+			if (ret) {
+				if (retries < 2) {
+					hid_warn(hdev, "Retrying DualShock 4 get calibration report (0x02) request\n");
+					continue;
+				}
+
+				hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+				ret = -EILSEQ;
+				goto err_free;
+			} else {
+				break;
+			}
+		}
+	} else { /* Bluetooth */
+		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION_BT, buf,
+				DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, true);
+		if (ret) {
+			hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+			goto err_free;
+		}
+	}
+
+	gyro_pitch_bias  = get_unaligned_le16(&buf[1]);
+	gyro_yaw_bias    = get_unaligned_le16(&buf[3]);
+	gyro_roll_bias   = get_unaligned_le16(&buf[5]);
+	if (ds4->base.hdev->bus == BUS_USB) {
+		gyro_pitch_plus  = get_unaligned_le16(&buf[7]);
+		gyro_pitch_minus = get_unaligned_le16(&buf[9]);
+		gyro_yaw_plus    = get_unaligned_le16(&buf[11]);
+		gyro_yaw_minus   = get_unaligned_le16(&buf[13]);
+		gyro_roll_plus   = get_unaligned_le16(&buf[15]);
+		gyro_roll_minus  = get_unaligned_le16(&buf[17]);
+	} else {
+		/* BT + Dongle */
+		gyro_pitch_plus  = get_unaligned_le16(&buf[7]);
+		gyro_yaw_plus    = get_unaligned_le16(&buf[9]);
+		gyro_roll_plus   = get_unaligned_le16(&buf[11]);
+		gyro_pitch_minus = get_unaligned_le16(&buf[13]);
+		gyro_yaw_minus   = get_unaligned_le16(&buf[15]);
+		gyro_roll_minus  = get_unaligned_le16(&buf[17]);
+	}
+	gyro_speed_plus  = get_unaligned_le16(&buf[19]);
+	gyro_speed_minus = get_unaligned_le16(&buf[21]);
+	acc_x_plus       = get_unaligned_le16(&buf[23]);
+	acc_x_minus      = get_unaligned_le16(&buf[25]);
+	acc_y_plus       = get_unaligned_le16(&buf[27]);
+	acc_y_minus      = get_unaligned_le16(&buf[29]);
+	acc_z_plus       = get_unaligned_le16(&buf[31]);
+	acc_z_minus      = get_unaligned_le16(&buf[33]);
+
+	/*
+	 * Set gyroscope calibration and normalization parameters.
+	 * Data values will be normalized to 1/DS4_GYRO_RES_PER_DEG_S degree/s.
+	 */
+	speed_2x = (gyro_speed_plus + gyro_speed_minus);
+	ds4->gyro_calib_data[0].abs_code = ABS_RX;
+	ds4->gyro_calib_data[0].bias = 0;
+	ds4->gyro_calib_data[0].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[0].sens_denom = abs(gyro_pitch_plus - gyro_pitch_bias) +
+			abs(gyro_pitch_minus - gyro_pitch_bias);
+
+	ds4->gyro_calib_data[1].abs_code = ABS_RY;
+	ds4->gyro_calib_data[1].bias = 0;
+	ds4->gyro_calib_data[1].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[1].sens_denom = abs(gyro_yaw_plus - gyro_yaw_bias) +
+			abs(gyro_yaw_minus - gyro_yaw_bias);
+
+	ds4->gyro_calib_data[2].abs_code = ABS_RZ;
+	ds4->gyro_calib_data[2].bias = 0;
+	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
+	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
+			abs(gyro_roll_minus - gyro_roll_bias);
+
+	/*
+	 * Sanity check gyro calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing
+	 * calibration data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->gyro_calib_data); i++) {
+		if (ds4->gyro_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid gyro calibration data for axis (%d), disabling calibration.",
+					ds4->gyro_calib_data[i].abs_code);
+			ds4->gyro_calib_data[i].bias = 0;
+			ds4->gyro_calib_data[i].sens_numer = DS4_GYRO_RANGE;
+			ds4->gyro_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
+
+	/*
+	 * Set accelerometer calibration and normalization parameters.
+	 * Data values will be normalized to 1/DS4_ACC_RES_PER_G g.
+	 */
+	range_2g = acc_x_plus - acc_x_minus;
+	ds4->accel_calib_data[0].abs_code = ABS_X;
+	ds4->accel_calib_data[0].bias = acc_x_plus - range_2g / 2;
+	ds4->accel_calib_data[0].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[0].sens_denom = range_2g;
+
+	range_2g = acc_y_plus - acc_y_minus;
+	ds4->accel_calib_data[1].abs_code = ABS_Y;
+	ds4->accel_calib_data[1].bias = acc_y_plus - range_2g / 2;
+	ds4->accel_calib_data[1].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[1].sens_denom = range_2g;
+
+	range_2g = acc_z_plus - acc_z_minus;
+	ds4->accel_calib_data[2].abs_code = ABS_Z;
+	ds4->accel_calib_data[2].bias = acc_z_plus - range_2g / 2;
+	ds4->accel_calib_data[2].sens_numer = 2*DS4_ACC_RES_PER_G;
+	ds4->accel_calib_data[2].sens_denom = range_2g;
+
+	/*
+	 * Sanity check accelerometer calibration data. This is needed to prevent crashes
+	 * during report handling of virtual, clone or broken devices not implementing calibration
+	 * data properly.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ds4->accel_calib_data); i++) {
+		if (ds4->accel_calib_data[i].sens_denom == 0) {
+			hid_warn(hdev, "Invalid accelerometer calibration data for axis (%d), disabling calibration.",
+					ds4->accel_calib_data[i].abs_code);
+			ds4->accel_calib_data[i].bias = 0;
+			ds4->accel_calib_data[i].sens_numer = DS4_ACC_RANGE;
+			ds4->accel_calib_data[i].sens_denom = S16_MAX;
+		}
+	}
+
+err_free:
+	kfree(buf);
+	return ret;
+}
+
+static int dualshock4_get_firmware_info(struct dualshock4 *ds4)
+{
+	uint8_t *buf;
+	int ret;
+
+	buf = kzalloc(DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* Note USB and BT support the same feature report, but this report
+	 * lacks CRC support, so must be disabled in ps_get_report.
+	 */
+	ret = ps_get_report(ds4->base.hdev, DS4_FEATURE_REPORT_FIRMWARE_INFO, buf,
+			DS4_FEATURE_REPORT_FIRMWARE_INFO_SIZE, false);
+	if (ret) {
+		hid_err(ds4->base.hdev, "Failed to retrieve DualShock4 firmware info: %d\n", ret);
+		goto err_free;
+	}
+
+	ds4->base.hw_version = get_unaligned_le16(&buf[35]);
+	ds4->base.fw_version = get_unaligned_le16(&buf[41]);
+
+err_free:
+	kfree(buf);
+	return ret;
+}
+
+static int dualshock4_get_mac_address(struct dualshock4 *ds4)
+{
+	struct hid_device *hdev = ds4->base.hdev;
+	uint8_t *buf;
+	int ret = 0;
+
+	if (hdev->bus == BUS_USB) {
+		buf = kzalloc(DS4_FEATURE_REPORT_PAIRING_INFO_SIZE, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_PAIRING_INFO, buf,
+				DS4_FEATURE_REPORT_PAIRING_INFO_SIZE, false);
+		if (ret) {
+			hid_err(hdev, "Failed to retrieve DualShock4 pairing info: %d\n", ret);
+			goto err_free;
+		}
+
+		memcpy(ds4->base.mac_address, &buf[1], sizeof(ds4->base.mac_address));
+	} else {
+		/* Rely on HIDP for Bluetooth */
+		if (strlen(hdev->uniq) != 17)
+			return -EINVAL;
+
+		ret = sscanf(hdev->uniq, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+				&ds4->base.mac_address[5], &ds4->base.mac_address[4],
+				&ds4->base.mac_address[3], &ds4->base.mac_address[2],
+				&ds4->base.mac_address[1], &ds4->base.mac_address[0]);
+
+		if (ret != sizeof(ds4->base.mac_address))
+			return -EINVAL;
+
+		return 0;
+	}
+
+err_free:
+	kfree(buf);
+	return ret;
+}
+
+static enum led_brightness dualshock4_led_get_brightness(struct led_classdev *led)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned int led_index;
+
+	led_index = led - ds4->lightbar_leds;
+	switch (led_index) {
+	case 0:
+		return ds4->lightbar_red;
+	case 1:
+		return ds4->lightbar_green;
+	case 2:
+		return ds4->lightbar_blue;
+	case 3:
+		return ds4->lightbar_enabled;
+	}
+
+	return -1;
+}
+
+static int dualshock4_led_set_blink(struct led_classdev *led, unsigned long *delay_on,
+		unsigned long *delay_off)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+
+	if (!*delay_on && !*delay_off) {
+		/* Default to 1 Hz (50 centiseconds on, 50 centiseconds off). */
+		ds4->lightbar_blink_on = 50;
+		ds4->lightbar_blink_off = 50;
+	} else {
+		/* Blink delays in centiseconds. */
+		ds4->lightbar_blink_on = min_t(unsigned long, *delay_on/10, DS4_LIGHTBAR_MAX_BLINK);
+		ds4->lightbar_blink_off = min_t(unsigned long, *delay_off/10, DS4_LIGHTBAR_MAX_BLINK);
+	}
+
+	ds4->update_lightbar_blink = true;
+
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	dualshock4_schedule_work(ds4);
+
+	*delay_on = ds4->lightbar_blink_on;
+	*delay_off = ds4->lightbar_blink_off;
+
+	return 0;
+}
+
+static int dualshock4_led_set_brightness(struct led_classdev *led, enum led_brightness value)
+{
+	struct hid_device *hdev = to_hid_device(led->dev->parent);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned long flags;
+	unsigned int led_index;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+
+	led_index = led - ds4->lightbar_leds;
+	switch (led_index) {
+	case 0:
+		ds4->lightbar_red = value;
+		break;
+	case 1:
+		ds4->lightbar_green = value;
+		break;
+	case 2:
+		ds4->lightbar_blue = value;
+		break;
+	case 3:
+		ds4->lightbar_enabled = !!value;
+	}
+
+	ds4->update_lightbar = true;
+
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	dualshock4_schedule_work(ds4);
+
+	return 0;
+}
+
+static void dualshock4_init_output_report(struct dualshock4 *ds4,
+		struct dualshock4_output_report *rp, void *buf)
+{
+	struct hid_device *hdev = ds4->base.hdev;
+
+	if (hdev->bus == BUS_BLUETOOTH) {
+		struct dualshock4_output_report_bt *bt = buf;
+
+		memset(bt, 0, sizeof(*bt));
+		bt->report_id = DS4_OUTPUT_REPORT_BT;
+
+		rp->data = buf;
+		rp->len = sizeof(*bt);
+		rp->bt = bt;
+		rp->usb = NULL;
+		rp->common = &bt->common;
+	} else { /* USB */
+		struct dualshock4_output_report_usb *usb = buf;
+
+		memset(usb, 0, sizeof(*usb));
+		usb->report_id = DS4_OUTPUT_REPORT_USB;
+
+		rp->data = buf;
+		rp->len = sizeof(*usb);
+		rp->bt = NULL;
+		rp->usb = usb;
+		rp->common = &usb->common;
+	}
+}
+
+static void dualshock4_output_worker(struct work_struct *work)
+{
+	struct dualshock4 *ds4 = container_of(work, struct dualshock4, output_worker);
+	struct dualshock4_output_report report;
+	struct dualshock4_output_report_common *common;
+	unsigned long flags;
+
+	dualshock4_init_output_report(ds4, &report, ds4->output_report_dmabuf);
+	common = report.common;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+
+	if (ds4->update_rumble) {
+		/* Select classic rumble style haptics and enable it. */
+		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_MOTOR;
+		common->motor_left = ds4->motor_left;
+		common->motor_right = ds4->motor_right;
+		ds4->update_rumble = false;
+	}
+
+	if (ds4->update_lightbar) {
+		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED;
+		/* Comptabile behavior with hid-sony, which used a dummy global LED to
+		 * allow enabling/disabling the lightbar. The global LED maps to
+		 * lightbar_enabled.
+		 */
+		common->lightbar_red = ds4->lightbar_enabled ? ds4->lightbar_red : 0;
+		common->lightbar_green = ds4->lightbar_enabled ? ds4->lightbar_green : 0;
+		common->lightbar_blue = ds4->lightbar_enabled ? ds4->lightbar_blue : 0;
+		ds4->update_lightbar = false;
+	}
+
+	if (ds4->update_lightbar_blink) {
+		common->valid_flag0 |= DS4_OUTPUT_VALID_FLAG0_LED_BLINK;
+		common->lightbar_blink_on = ds4->lightbar_blink_on;
+		common->lightbar_blink_off = ds4->lightbar_blink_off;
+		ds4->update_lightbar_blink = false;
+	}
+
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	/* Bluetooth packets need additional flags as well as a CRC in the last 4 bytes. */
+	if (report.bt) {
+		uint32_t crc;
+		uint8_t seed = PS_OUTPUT_CRC32_SEED;
+
+		/* Hardware control flags need to set to let the device know
+		 * there is HID data as well as CRC.
+		 */
+		report.bt->hw_control = DS4_OUTPUT_HWCTL_HID | DS4_OUTPUT_HWCTL_CRC32;
+
+		if (ds4->update_bt_poll_interval) {
+			report.bt->hw_control |= ds4->bt_poll_interval;
+			ds4->update_bt_poll_interval = false;
+		}
+
+		crc = crc32_le(0xFFFFFFFF, &seed, 1);
+		crc = ~crc32_le(crc, report.data, report.len - 4);
+
+		report.bt->crc32 = cpu_to_le32(crc);
+	}
+
+	hid_hw_output_report(ds4->base.hdev, report.data, report.len);
+}
+
+static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *report,
+		u8 *data, int size)
+{
+	struct hid_device *hdev = ps_dev->hdev;
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+	struct dualshock4_input_report_common *ds4_report;
+	struct dualshock4_touch_report *touch_reports;
+	uint8_t battery_capacity, num_touch_reports, value;
+	int battery_status, i, j;
+	uint16_t sensor_timestamp;
+	unsigned long flags;
+
+	/*
+	 * DualShock4 in USB uses the full HID report for reportID 1, but
+	 * Bluetooth uses a minimal HID report for reportID 1 and reports
+	 * the full report using reportID 17.
+	 */
+	if (hdev->bus == BUS_USB && report->id == DS4_INPUT_REPORT_USB &&
+			size == DS4_INPUT_REPORT_USB_SIZE) {
+		struct dualshock4_input_report_usb *usb = (struct dualshock4_input_report_usb *)data;
+
+		ds4_report = &usb->common;
+		num_touch_reports = usb->num_touch_reports;
+		touch_reports = usb->touch_reports;
+	} else if (hdev->bus == BUS_BLUETOOTH && report->id == DS4_INPUT_REPORT_BT &&
+			size == DS4_INPUT_REPORT_BT_SIZE) {
+		struct dualshock4_input_report_bt *bt = (struct dualshock4_input_report_bt *)data;
+		uint32_t report_crc = get_unaligned_le32(&bt->crc32);
+
+		/* Last 4 bytes of input report contains CRC. */
+		if (!ps_check_crc32(PS_INPUT_CRC32_SEED, data, size - 4, report_crc)) {
+			hid_err(hdev, "DualShock4 input CRC's check failed\n");
+			return -EILSEQ;
+		}
+
+		ds4_report = &bt->common;
+		num_touch_reports = bt->num_touch_reports;
+		touch_reports = bt->touch_reports;
+	} else {
+		hid_err(hdev, "Unhandled reportID=%d\n", report->id);
+		return -1;
+	}
+
+	input_report_abs(ds4->gamepad, ABS_X,  ds4_report->x);
+	input_report_abs(ds4->gamepad, ABS_Y,  ds4_report->y);
+	input_report_abs(ds4->gamepad, ABS_RX, ds4_report->rx);
+	input_report_abs(ds4->gamepad, ABS_RY, ds4_report->ry);
+	input_report_abs(ds4->gamepad, ABS_Z,  ds4_report->z);
+	input_report_abs(ds4->gamepad, ABS_RZ, ds4_report->rz);
+
+	value = ds4_report->buttons[0] & DS_BUTTONS0_HAT_SWITCH;
+	if (value >= ARRAY_SIZE(ps_gamepad_hat_mapping))
+		value = 8; /* center */
+	input_report_abs(ds4->gamepad, ABS_HAT0X, ps_gamepad_hat_mapping[value].x);
+	input_report_abs(ds4->gamepad, ABS_HAT0Y, ps_gamepad_hat_mapping[value].y);
+
+	input_report_key(ds4->gamepad, BTN_WEST,   ds4_report->buttons[0] & DS_BUTTONS0_SQUARE);
+	input_report_key(ds4->gamepad, BTN_SOUTH,  ds4_report->buttons[0] & DS_BUTTONS0_CROSS);
+	input_report_key(ds4->gamepad, BTN_EAST,   ds4_report->buttons[0] & DS_BUTTONS0_CIRCLE);
+	input_report_key(ds4->gamepad, BTN_NORTH,  ds4_report->buttons[0] & DS_BUTTONS0_TRIANGLE);
+	input_report_key(ds4->gamepad, BTN_TL,     ds4_report->buttons[1] & DS_BUTTONS1_L1);
+	input_report_key(ds4->gamepad, BTN_TR,     ds4_report->buttons[1] & DS_BUTTONS1_R1);
+	input_report_key(ds4->gamepad, BTN_TL2,    ds4_report->buttons[1] & DS_BUTTONS1_L2);
+	input_report_key(ds4->gamepad, BTN_TR2,    ds4_report->buttons[1] & DS_BUTTONS1_R2);
+	input_report_key(ds4->gamepad, BTN_SELECT, ds4_report->buttons[1] & DS_BUTTONS1_CREATE);
+	input_report_key(ds4->gamepad, BTN_START,  ds4_report->buttons[1] & DS_BUTTONS1_OPTIONS);
+	input_report_key(ds4->gamepad, BTN_THUMBL, ds4_report->buttons[1] & DS_BUTTONS1_L3);
+	input_report_key(ds4->gamepad, BTN_THUMBR, ds4_report->buttons[1] & DS_BUTTONS1_R3);
+	input_report_key(ds4->gamepad, BTN_MODE,   ds4_report->buttons[2] & DS_BUTTONS2_PS_HOME);
+	input_sync(ds4->gamepad);
+
+	/* Parse and calibrate gyroscope data. */
+	for (i = 0; i < ARRAY_SIZE(ds4_report->gyro); i++) {
+		int raw_data = (short)le16_to_cpu(ds4_report->gyro[i]);
+		int calib_data = mult_frac(ds4->gyro_calib_data[i].sens_numer,
+					   raw_data, ds4->gyro_calib_data[i].sens_denom);
+
+		input_report_abs(ds4->sensors, ds4->gyro_calib_data[i].abs_code, calib_data);
+	}
+
+	/* Parse and calibrate accelerometer data. */
+	for (i = 0; i < ARRAY_SIZE(ds4_report->accel); i++) {
+		int raw_data = (short)le16_to_cpu(ds4_report->accel[i]);
+		int calib_data = mult_frac(ds4->accel_calib_data[i].sens_numer,
+					   raw_data - ds4->accel_calib_data[i].bias,
+					   ds4->accel_calib_data[i].sens_denom);
+
+		input_report_abs(ds4->sensors, ds4->accel_calib_data[i].abs_code, calib_data);
+	}
+
+	/* Convert timestamp (in 5.33us unit) to timestamp_us */
+	sensor_timestamp = le16_to_cpu(ds4_report->sensor_timestamp);
+	if (!ds4->sensor_timestamp_initialized) {
+		ds4->sensor_timestamp_us = DIV_ROUND_CLOSEST(sensor_timestamp*16, 3);
+		ds4->sensor_timestamp_initialized = true;
+	} else {
+		uint16_t delta;
+
+		if (ds4->prev_sensor_timestamp > sensor_timestamp)
+			delta = (U16_MAX - ds4->prev_sensor_timestamp + sensor_timestamp + 1);
+		else
+			delta = sensor_timestamp - ds4->prev_sensor_timestamp;
+		ds4->sensor_timestamp_us += DIV_ROUND_CLOSEST(delta*16, 3);
+	}
+	ds4->prev_sensor_timestamp = sensor_timestamp;
+	input_event(ds4->sensors, EV_MSC, MSC_TIMESTAMP, ds4->sensor_timestamp_us);
+	input_sync(ds4->sensors);
+
+	for (i = 0; i < num_touch_reports; i++) {
+		struct dualshock4_touch_report *touch_report = &touch_reports[i];
+
+		for (j = 0; j < ARRAY_SIZE(touch_report->points); j++) {
+			struct dualshock4_touch_point *point = &touch_report->points[j];
+			bool active = (point->contact & DS4_TOUCH_POINT_INACTIVE) ? false : true;
+
+			input_mt_slot(ds4->touchpad, j);
+			input_mt_report_slot_state(ds4->touchpad, MT_TOOL_FINGER, active);
+
+			if (active) {
+				int x = (point->x_hi << 8) | point->x_lo;
+				int y = (point->y_hi << 4) | point->y_lo;
+
+				input_report_abs(ds4->touchpad, ABS_MT_POSITION_X, x);
+				input_report_abs(ds4->touchpad, ABS_MT_POSITION_Y, y);
+			}
+		}
+		input_mt_sync_frame(ds4->touchpad);
+		input_sync(ds4->touchpad);
+	}
+	input_report_key(ds4->touchpad, BTN_LEFT, ds4_report->buttons[2] & DS_BUTTONS2_TOUCHPAD);
+
+	/*
+	 * Interpretation of the battery_capacity data depends on the cable state.
+	 * When no cable is connected (bit4 is 0):
+	 * - 0:10: percentage in units of 10%.
+	 * When a cable is plugged in:
+	 * - 0-10: percentage in units of 10%.
+	 * - 11: battery is full
+	 * - 14: not charging due to Voltage or temperature error
+	 * - 15: charge error
+	 */
+	if (ds4_report->status[0] & DS4_STATUS0_CABLE_STATE) {
+		uint8_t battery_data = ds4_report->status[0] & DS4_STATUS0_BATTERY_CAPACITY;
+
+		if (battery_data < 10) {
+			/* Take the mid-point for each battery capacity value,
+			 * because on the hardware side 0 = 0-9%, 1=10-19%, etc.
+			 * This matches official platform behavior, which does
+			 * the same.
+			 */
+			battery_capacity = battery_data * 10 + 5;
+			battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		} else if (battery_data == 10) {
+			battery_capacity = 100;
+			battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		} else if (battery_data == DS4_BATTERY_STATUS_FULL) {
+			battery_capacity = 100;
+			battery_status = POWER_SUPPLY_STATUS_FULL;
+		} else { /* 14, 15 and undefined values */
+			battery_capacity = 0;
+			battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		}
+	} else {
+		uint8_t battery_data = ds4_report->status[0] & DS4_STATUS0_BATTERY_CAPACITY;
+
+		if (battery_data < 10)
+			battery_capacity = battery_data * 10 + 5;
+		else /* 10 */
+			battery_capacity = 100;
+
+		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
+
+	spin_lock_irqsave(&ps_dev->lock, flags);
+	ps_dev->battery_capacity = battery_capacity;
+	ps_dev->battery_status = battery_status;
+	spin_unlock_irqrestore(&ps_dev->lock, flags);
+
+	return 0;
+}
+
+static int dualshock4_dongle_parse_report(struct ps_device *ps_dev, struct hid_report *report,
+		u8 *data, int size)
+{
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+	bool connected = false;
+
+	/* The dongle reports data using the main USB report (0x1) no matter whether a controller
+	 * is connected with mostly zeros. The report does contain dongle status, which we use to
+	 * determine if a controller is connected and if so we forward to the regular DualShock4
+	 * parsing code.
+	 */
+	if (data[0] == DS4_INPUT_REPORT_USB && size == DS4_INPUT_REPORT_USB_SIZE) {
+		struct dualshock4_input_report_common *ds4_report = (struct dualshock4_input_report_common *)&data[1];
+		unsigned long flags;
+
+		connected = ds4_report->status[1] & DS4_STATUS1_DONGLE_STATE ? false : true;
+
+		if (ds4->dongle_state == DONGLE_DISCONNECTED && connected) {
+			hid_info(ps_dev->hdev, "DualShock 4 USB dongle: controller connected\n");
+
+			dualshock4_set_default_lightbar_colors(ds4);
+
+			spin_lock_irqsave(&ps_dev->lock, flags);
+			ds4->dongle_state = DONGLE_CALIBRATING;
+			spin_unlock_irqrestore(&ps_dev->lock, flags);
+
+			schedule_work(&ds4->dongle_hotplug_worker);
+
+			/* Don't process the report since we don't have
+			 * calibration data, but let hidraw have it anyway.
+			 */
+			return 0;
+		} else if ((ds4->dongle_state == DONGLE_CONNECTED ||
+			    ds4->dongle_state == DONGLE_DISABLED) && !connected) {
+			hid_info(ps_dev->hdev, "DualShock 4 USB dongle: controller disconnected\n");
+
+			spin_lock_irqsave(&ps_dev->lock, flags);
+			ds4->dongle_state = DONGLE_DISCONNECTED;
+			spin_unlock_irqrestore(&ps_dev->lock, flags);
+
+			/* Return 0, so hidraw can get the report. */
+			return 0;
+		} else if (ds4->dongle_state == DONGLE_CALIBRATING ||
+			   ds4->dongle_state == DONGLE_DISABLED ||
+			   ds4->dongle_state == DONGLE_DISCONNECTED) {
+			/* Return 0, so hidraw can get the report. */
+			return 0;
+		}
+	}
+
+	if (connected)
+		return dualshock4_parse_report(ps_dev, report, data, size);
+
+	return 0;
+}
+
+static int dualshock4_play_effect(struct input_dev *dev, void *data, struct ff_effect *effect)
+{
+	struct hid_device *hdev = input_get_drvdata(dev);
+	struct dualshock4 *ds4 = hid_get_drvdata(hdev);
+	unsigned long flags;
+
+	if (effect->type != FF_RUMBLE)
+		return 0;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	ds4->update_rumble = true;
+	ds4->motor_left = effect->u.rumble.strong_magnitude / 256;
+	ds4->motor_right = effect->u.rumble.weak_magnitude / 256;
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	dualshock4_schedule_work(ds4);
+	return 0;
+}
+
+static void dualshock4_remove(struct ps_device *ps_dev)
+{
+	struct dualshock4 *ds4 = container_of(ps_dev, struct dualshock4, base);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	ds4->output_worker_initialized = false;
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+
+	cancel_work_sync(&ds4->output_worker);
+
+	if (ps_dev->hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE)
+		cancel_work_sync(&ds4->dongle_hotplug_worker);
+}
+
+static inline void dualshock4_schedule_work(struct dualshock4 *ds4)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&ds4->base.lock, flags);
+	if (ds4->output_worker_initialized)
+		schedule_work(&ds4->output_worker);
+	spin_unlock_irqrestore(&ds4->base.lock, flags);
+}
+
+static void dualshock4_set_bt_poll_interval(struct dualshock4 *ds4, uint8_t interval)
+{
+	ds4->bt_poll_interval = interval;
+	ds4->update_bt_poll_interval = true;
+	dualshock4_schedule_work(ds4);
+}
+
+/* Set default lightbar color based on player. */
+static void dualshock4_set_default_lightbar_colors(struct dualshock4 *ds4)
+{
+	/* Use same player colors as PlayStation 4.
+	 * Array of colors is in RGB.
+	 */
+	static const int player_colors[4][3] = {
+		{ 0x00, 0x00, 0x40 }, /* Blue */
+		{ 0x40, 0x00, 0x00 }, /* Red */
+		{ 0x00, 0x40, 0x00 }, /* Green */
+		{ 0x20, 0x00, 0x20 }  /* Pink */
+	};
+
+	uint8_t player_id = ds4->base.player_id % ARRAY_SIZE(player_colors);
+
+	ds4->lightbar_enabled = true;
+	ds4->lightbar_red = player_colors[player_id][0];
+	ds4->lightbar_green = player_colors[player_id][1];
+	ds4->lightbar_blue = player_colors[player_id][2];
+
+	ds4->update_lightbar = true;
+	dualshock4_schedule_work(ds4);
+}
+
+static struct ps_device *dualshock4_create(struct hid_device *hdev)
+{
+	struct dualshock4 *ds4;
+	struct ps_device *ps_dev;
+	uint8_t max_output_report_size;
+	int i, ret;
+
+	/* The DualShock4 has an RGB lightbar, which the original hid-sony driver
+	 * exposed as a set of 4 LEDs for the 3 color channels and a global control.
+	 * Ideally this should have used the multi-color LED class, which didn't exist
+	 * yet. In addition the driver used a naming scheme not compliant with the LED
+	 * naming spec by using "<mac_address>:<color>", which contained many colons.
+	 * We use a more compliant by using "<device_name>:<color>" name now. Ideally
+	 * would have been "<device_name>:<color>:indicator", but that would break
+	 * existing applications (e.g. Android). Nothing matches against MAC address.
+	 */
+	static const struct ps_led_info lightbar_leds_info[] = {
+		{ NULL, "red", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "green", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "blue", 255, dualshock4_led_get_brightness, dualshock4_led_set_brightness },
+		{ NULL, "global", 1, dualshock4_led_get_brightness, dualshock4_led_set_brightness,
+				dualshock4_led_set_blink },
+	};
+
+	ds4 = devm_kzalloc(&hdev->dev, sizeof(*ds4), GFP_KERNEL);
+	if (!ds4)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Patch version to allow userspace to distinguish between
+	 * hid-generic vs hid-playstation axis and button mapping.
+	 */
+	hdev->version |= HID_PLAYSTATION_VERSION_PATCH;
+
+	ps_dev = &ds4->base;
+	ps_dev->hdev = hdev;
+	spin_lock_init(&ps_dev->lock);
+	ps_dev->battery_capacity = 100; /* initial value until parse_report. */
+	ps_dev->battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+	ps_dev->parse_report = dualshock4_parse_report;
+	ps_dev->remove = dualshock4_remove;
+	INIT_WORK(&ds4->output_worker, dualshock4_output_worker);
+	ds4->output_worker_initialized = true;
+	hid_set_drvdata(hdev, ds4);
+
+	max_output_report_size = sizeof(struct dualshock4_output_report_bt);
+	ds4->output_report_dmabuf = devm_kzalloc(&hdev->dev, max_output_report_size, GFP_KERNEL);
+	if (!ds4->output_report_dmabuf)
+		return ERR_PTR(-ENOMEM);
+
+	if (hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
+		ds4->dongle_state = DONGLE_DISCONNECTED;
+		INIT_WORK(&ds4->dongle_hotplug_worker, dualshock4_dongle_calibration_work);
+
+		/* Override parse report for dongle specific hotplug handling. */
+		ps_dev->parse_report = dualshock4_dongle_parse_report;
+	}
+
+	ret = dualshock4_get_mac_address(ds4);
+	if (ret) {
+		hid_err(hdev, "Failed to get MAC address from DualShock4\n");
+		return ERR_PTR(ret);
+	}
+	snprintf(hdev->uniq, sizeof(hdev->uniq), "%pMR", ds4->base.mac_address);
+
+	ret = dualshock4_get_firmware_info(ds4);
+	if (ret) {
+		hid_err(hdev, "Failed to get firmware info from DualShock4\n");
+		return ERR_PTR(ret);
+	}
+
+	ret = ps_devices_list_add(ps_dev);
+	if (ret)
+		return ERR_PTR(ret);
+
+	ret = dualshock4_get_calibration_data(ds4);
+	if (ret) {
+		hid_err(hdev, "Failed to get calibration data from DualShock4\n");
+		goto err;
+	}
+
+	ds4->gamepad = ps_gamepad_create(hdev, dualshock4_play_effect);
+	if (IS_ERR(ds4->gamepad)) {
+		ret = PTR_ERR(ds4->gamepad);
+		goto err;
+	}
+
+	/* Use gamepad input device name as primary device name for e.g. LEDs */
+	ps_dev->input_dev_name = dev_name(&ds4->gamepad->dev);
+
+	ds4->sensors = ps_sensors_create(hdev, DS4_ACC_RANGE, DS4_ACC_RES_PER_G,
+			DS4_GYRO_RANGE, DS4_GYRO_RES_PER_DEG_S);
+	if (IS_ERR(ds4->sensors)) {
+		ret = PTR_ERR(ds4->sensors);
+		goto err;
+	}
+
+	ds4->touchpad = ps_touchpad_create(hdev, DS4_TOUCHPAD_WIDTH, DS4_TOUCHPAD_HEIGHT, 2);
+	if (IS_ERR(ds4->touchpad)) {
+		ret = PTR_ERR(ds4->touchpad);
+		goto err;
+	}
+
+	ret = ps_device_register_battery(ps_dev);
+	if (ret)
+		goto err;
+
+	for (i = 0; i < ARRAY_SIZE(lightbar_leds_info); i++) {
+		const struct ps_led_info *led_info = &lightbar_leds_info[i];
+
+		ret = ps_led_register(ps_dev, &ds4->lightbar_leds[i], led_info);
+		if (ret < 0)
+			goto err;
+	}
+
+	dualshock4_set_bt_poll_interval(ds4, DS4_BT_DEFAULT_POLL_INTERVAL_MS);
+
+	ret = ps_device_set_player_id(ps_dev);
+	if (ret) {
+		hid_err(hdev, "Failed to assign player id for DualShock4: %d\n", ret);
+		goto err;
+	}
+
+	dualshock4_set_default_lightbar_colors(ds4);
+
+	/*
+	 * Reporting hardware and firmware is important as there are frequent updates, which
+	 * can change behavior.
+	 */
+	hid_info(hdev, "Registered DualShock4 controller hw_version=0x%08x fw_version=0x%08x\n",
+			ds4->base.hw_version, ds4->base.fw_version);
+	return &ds4->base;
+
+err:
+	ps_devices_list_remove(ps_dev);
+	return ERR_PTR(ret);
+}
+
 static int ps_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *data, int size)
 {
@@ -1439,19 +2655,23 @@ static int ps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_stop;
 	}
 
-	if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER) {
+	if (hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER ||
+		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_2 ||
+		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
+		dev = dualshock4_create(hdev);
+		if (IS_ERR(dev)) {
+			hid_err(hdev, "Failed to create dualshock4.\n");
+			ret = PTR_ERR(dev);
+			goto err_close;
+		}
+	} else if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER ||
+		hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) {
 		dev = dualsense_create(hdev);
 		if (IS_ERR(dev)) {
 			hid_err(hdev, "Failed to create dualsense.\n");
 			ret = PTR_ERR(dev);
 			goto err_close;
 		}
-	}
-
-	ret = devm_device_add_group(&hdev->dev, &ps_device_attribute_group);
-	if (ret) {
-		hid_err(hdev, "Failed to register sysfs nodes.\n");
-		goto err_close;
 	}
 
 	return ret;
@@ -1470,13 +2690,25 @@ static void ps_remove(struct hid_device *hdev)
 	ps_devices_list_remove(dev);
 	ps_device_release_player_id(dev);
 
+	if (dev->remove)
+		dev->remove(dev);
+
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 }
 
 static const struct hid_device_id ps_devices[] = {
+	/* Sony DualShock 4 controllers for PS4 */
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) },
+	/* Sony DualSense controllers for PS5 */
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ps_devices);
@@ -1487,6 +2719,9 @@ static struct hid_driver ps_driver = {
 	.probe		= ps_probe,
 	.remove		= ps_remove,
 	.raw_event	= ps_raw_event,
+	.driver = {
+		.dev_groups = ps_device_groups,
+	},
 };
 
 static int __init ps_init(void)

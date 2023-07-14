@@ -215,7 +215,8 @@ void mmhubbub2_config_mcif_irq(struct mcif_wb *mcif_wb,
 	REG_UPDATE(MCIF_WB_BUFMGR_SW_CONTROL, MCIF_WB_BUFMGR_SW_OVERRUN_INT_EN,  params->sw_overrun_int_en);
 
 	REG_UPDATE(MCIF_WB_BUFMGR_VCE_CONTROL, MCIF_WB_BUFMGR_VCE_INT_EN,  params->vce_int_en);
-	REG_UPDATE(MCIF_WB_BUFMGR_VCE_CONTROL, MCIF_WB_BUFMGR_VCE_SLICE_INT_EN,  params->vce_slice_int_en);
+	if (mcif_wb20->mcif_wb_mask->MCIF_WB_BUFMGR_VCE_SLICE_INT_EN)
+		REG_UPDATE(MCIF_WB_BUFMGR_VCE_CONTROL, MCIF_WB_BUFMGR_VCE_SLICE_INT_EN,  params->vce_slice_int_en);
 }
 
 void mmhubbub2_enable_mcif(struct mcif_wb *mcif_wb)
@@ -296,7 +297,7 @@ void mcifwb2_dump_frame(struct mcif_wb *mcif_wb,
 	dump_info->size		= dest_height * (mcif_params->luma_pitch + mcif_params->chroma_pitch);
 }
 
-const struct mcif_wb_funcs dcn20_mmhubbub_funcs = {
+static const struct mcif_wb_funcs dcn20_mmhubbub_funcs = {
 	.enable_mcif		= mmhubbub2_enable_mcif,
 	.disable_mcif		= mmhubbub2_disable_mcif,
 	.config_mcif_buf	= mmhubbub2_config_mcif_buf,

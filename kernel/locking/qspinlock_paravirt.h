@@ -489,7 +489,7 @@ gotlock:
  * PV versions of the unlock fastpath and slowpath functions to be used
  * instead of queued_spin_unlock().
  */
-__visible void
+__visible __lockfunc void
 __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 {
 	struct pv_node *node;
@@ -544,7 +544,7 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 #include <asm/qspinlock_paravirt.h>
 
 #ifndef __pv_queued_spin_unlock
-__visible void __pv_queued_spin_unlock(struct qspinlock *lock)
+__visible __lockfunc void __pv_queued_spin_unlock(struct qspinlock *lock)
 {
 	u8 locked;
 

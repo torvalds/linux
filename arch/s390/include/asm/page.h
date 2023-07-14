@@ -19,7 +19,7 @@
 #define PAGE_SHIFT	_PAGE_SHIFT
 #define PAGE_SIZE	_PAGE_SIZE
 #define PAGE_MASK	_PAGE_MASK
-#define PAGE_DEFAULT_ACC	0
+#define PAGE_DEFAULT_ACC	_AC(0, UL)
 /* storage-protection override */
 #define PAGE_SPO_ACC		9
 #define PAGE_DEFAULT_KEY	(PAGE_DEFAULT_ACC << 4)
@@ -73,9 +73,8 @@ static inline void copy_page(void *to, void *from)
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
-#define alloc_zeroed_user_highpage_movable(vma, vaddr) \
-	alloc_page_vma(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, vma, vaddr)
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
+#define vma_alloc_zeroed_movable_folio(vma, vaddr) \
+	vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr, false)
 
 /*
  * These are used to make use of C type-checking..
@@ -180,8 +179,6 @@ int arch_make_page_accessible(struct page *page);
 #define HAVE_ARCH_MAKE_PAGE_ACCESSIBLE
 #endif
 
-#endif /* !__ASSEMBLY__ */
-
 #define __PAGE_OFFSET		0x0UL
 #define PAGE_OFFSET		0x0UL
 
@@ -204,6 +201,8 @@ int arch_make_page_accessible(struct page *page);
 #define virt_addr_valid(kaddr)	pfn_valid(virt_to_pfn(kaddr))
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
+
+#endif /* !__ASSEMBLY__ */
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>

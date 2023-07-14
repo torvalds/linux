@@ -137,8 +137,7 @@ nv50_fb_intr(struct nvkm_fb *base)
 	struct nv50_fb *fb = nv50_fb(base);
 	struct nvkm_subdev *subdev = &fb->base.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fifo *fifo = device->fifo;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	const struct nvkm_enum *en, *re, *cl, *sc;
 	u32 trap[6], idx, inst;
 	u8 st0, st1, st2, st3;
@@ -178,35 +177,18 @@ nv50_fb_intr(struct nvkm_fb *base)
 	else if (en && en->data) sc = nvkm_enum_find(en->data, st3);
 	else                     sc = NULL;
 
-	chan = nvkm_fifo_chan_inst(fifo, inst, &flags);
+	chan = nvkm_chan_get_inst(&device->fifo->engine, inst, &flags);
 	nvkm_error(subdev, "trapped %s at %02x%04x%04x on channel %d [%08x %s] "
 			   "engine %02x [%s] client %02x [%s] "
 			   "subclient %02x [%s] reason %08x [%s]\n",
 		   (trap[5] & 0x00000100) ? "read" : "write",
 		   trap[5] & 0xff, trap[4] & 0xffff, trap[3] & 0xffff,
-		   chan ? chan->chid : -1, inst,
-		   chan ? chan->object.client->name : "unknown",
+		   chan ? chan->id : -1, inst,
+		   chan ? chan->name : "unknown",
 		   st0, en ? en->name : "",
 		   st2, cl ? cl->name : "", st3, sc ? sc->name : "",
 		   st1, re ? re->name : "");
-	nvkm_fifo_chan_put(fifo, flags, &chan);
-}
-
-static int
-nv50_fb_oneinit(struct nvkm_fb *base)
-{
-	struct nv50_fb *fb = nv50_fb(base);
-	struct nvkm_device *device = fb->base.subdev.device;
-
-	fb->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (fb->r100c08_page) {
-		fb->r100c08 = dma_map_page(device->dev, fb->r100c08_page, 0,
-					   PAGE_SIZE, DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(device->dev, fb->r100c08))
-			return -EFAULT;
-	}
-
-	return 0;
+	nvkm_chan_put(&chan, flags);
 }
 
 static void
@@ -214,12 +196,6 @@ nv50_fb_init(struct nvkm_fb *base)
 {
 	struct nv50_fb *fb = nv50_fb(base);
 	struct nvkm_device *device = fb->base.subdev.device;
-
-	/* Not a clue what this is exactly.  Without pointing it at a
-	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
-	 * cause IOMMU "read from address 0" errors (rh#561267)
-	 */
-	nvkm_wr32(device, 0x100c08, fb->r100c08 >> 8);
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
@@ -235,17 +211,16 @@ nv50_fb_tags(struct nvkm_fb *base)
 	return 0;
 }
 
+static void
+nv50_fb_sysmem_flush_page_init(struct nvkm_fb *fb)
+{
+	nvkm_wr32(fb->subdev.device, 0x100c08, fb->sysmem.flush_page_addr >> 8);
+}
+
 static void *
 nv50_fb_dtor(struct nvkm_fb *base)
 {
 	struct nv50_fb *fb = nv50_fb(base);
-	struct nvkm_device *device = fb->base.subdev.device;
-
-	if (fb->r100c08_page) {
-		dma_unmap_page(device->dev, fb->r100c08, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		__free_page(fb->r100c08_page);
-	}
 
 	return fb;
 }
@@ -254,9 +229,9 @@ static const struct nvkm_fb_func
 nv50_fb_ = {
 	.dtor = nv50_fb_dtor,
 	.tags = nv50_fb_tags,
-	.oneinit = nv50_fb_oneinit,
 	.init = nv50_fb_init,
 	.intr = nv50_fb_intr,
+	.sysmem.flush_page_init = nv50_fb_sysmem_flush_page_init,
 	.ram_new = nv50_fb_ram_new,
 };
 

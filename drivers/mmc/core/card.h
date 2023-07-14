@@ -53,6 +53,10 @@ struct mmc_fixup {
 	unsigned int manfid;
 	unsigned short oemid;
 
+	/* Manufacturing date */
+	unsigned short year;
+	unsigned char month;
+
 	/* SDIO-specific fields. You can use SDIO_ANY_ID here of course */
 	u16 cis_vendor, cis_device;
 
@@ -68,11 +72,14 @@ struct mmc_fixup {
 
 #define CID_MANFID_ANY (-1u)
 #define CID_OEMID_ANY ((unsigned short) -1)
+#define CID_YEAR_ANY ((unsigned short) -1)
+#define CID_MONTH_ANY ((unsigned char) -1)
 #define CID_NAME_ANY (NULL)
 
 #define EXT_CSD_REV_ANY (-1u)
 
 #define CID_MANFID_SANDISK      0x2
+#define CID_MANFID_SANDISK_SD   0x3
 #define CID_MANFID_ATP          0x9
 #define CID_MANFID_TOSHIBA      0x11
 #define CID_MANFID_MICRON       0x13
@@ -80,17 +87,21 @@ struct mmc_fixup {
 #define CID_MANFID_APACER       0x27
 #define CID_MANFID_KINGSTON     0x70
 #define CID_MANFID_HYNIX	0x90
+#define CID_MANFID_KINGSTON_SD	0x9F
 #define CID_MANFID_NUMONYX	0xFE
 
 #define END_FIXUP { NULL }
 
-#define _FIXUP_EXT(_name, _manfid, _oemid, _rev_start, _rev_end,	\
-		   _cis_vendor, _cis_device,				\
-		   _fixup, _data, _ext_csd_rev)				\
+#define _FIXUP_EXT(_name, _manfid, _oemid, _year, _month,	\
+		   _rev_start, _rev_end,			\
+		   _cis_vendor, _cis_device,			\
+		   _fixup, _data, _ext_csd_rev)			\
 	{						\
 		.name = (_name),			\
 		.manfid = (_manfid),			\
 		.oemid = (_oemid),			\
+		.year = (_year),			\
+		.month = (_month),			\
 		.rev_start = (_rev_start),		\
 		.rev_end = (_rev_end),			\
 		.cis_vendor = (_cis_vendor),		\
@@ -102,8 +113,8 @@ struct mmc_fixup {
 
 #define MMC_FIXUP_REV(_name, _manfid, _oemid, _rev_start, _rev_end,	\
 		      _fixup, _data, _ext_csd_rev)			\
-	_FIXUP_EXT(_name, _manfid,					\
-		   _oemid, _rev_start, _rev_end,			\
+	_FIXUP_EXT(_name, _manfid, _oemid, CID_YEAR_ANY, CID_MONTH_ANY,	\
+		   _rev_start, _rev_end,				\
 		   SDIO_ANY_ID, SDIO_ANY_ID,				\
 		   _fixup, _data, _ext_csd_rev)				\
 
@@ -117,8 +128,9 @@ struct mmc_fixup {
 		      _ext_csd_rev)
 
 #define SDIO_FIXUP(_vendor, _device, _fixup, _data)			\
-	_FIXUP_EXT(CID_NAME_ANY, CID_MANFID_ANY,			\
-		    CID_OEMID_ANY, 0, -1ull,				\
+	_FIXUP_EXT(CID_NAME_ANY, CID_MANFID_ANY, CID_OEMID_ANY,		\
+		   CID_YEAR_ANY, CID_MONTH_ANY,				\
+		   0, -1ull,						\
 		   _vendor, _device,					\
 		   _fixup, _data, EXT_CSD_REV_ANY)			\
 
@@ -256,6 +268,16 @@ static inline int mmc_card_broken_irq_polling(const struct mmc_card *c)
 static inline int mmc_card_broken_hpi(const struct mmc_card *c)
 {
 	return c->quirks & MMC_QUIRK_BROKEN_HPI;
+}
+
+static inline int mmc_card_broken_sd_discard(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_BROKEN_SD_DISCARD;
+}
+
+static inline int mmc_card_broken_sd_cache(const struct mmc_card *c)
+{
+	return c->quirks & MMC_QUIRK_BROKEN_SD_CACHE;
 }
 
 #endif

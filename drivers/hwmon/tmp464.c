@@ -589,7 +589,7 @@ static const struct hwmon_ops tmp464_ops = {
 	.write = tmp464_write,
 };
 
-static const struct hwmon_channel_info *tmp464_info[] = {
+static const struct hwmon_channel_info * const tmp464_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
@@ -644,7 +644,7 @@ static const struct regmap_config tmp464_regmap_config = {
 	.max_register = TMP464_DEVICE_ID_REG,
 	.volatile_reg = tmp464_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -699,7 +699,7 @@ static struct i2c_driver tmp464_driver = {
 		.name	= "tmp464",
 		.of_match_table = of_match_ptr(tmp464_of_match),
 	},
-	.probe_new = tmp464_probe,
+	.probe = tmp464_probe,
 	.id_table = tmp464_id,
 	.detect = tmp464_detect,
 	.address_list = normal_i2c,

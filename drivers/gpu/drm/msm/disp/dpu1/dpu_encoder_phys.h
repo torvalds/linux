@@ -61,28 +61,8 @@ enum dpu_enc_enable_state {
 struct dpu_encoder_phys;
 
 /**
- * struct dpu_encoder_virt_ops - Interface the containing virtual encoder
- *	provides for the physical encoders to use to callback.
- * @handle_vblank_virt:	Notify virtual encoder of vblank IRQ reception
- *			Note: This is called from IRQ handler context.
- * @handle_underrun_virt: Notify virtual encoder of underrun IRQ reception
- *			Note: This is called from IRQ handler context.
- * @handle_frame_done:	Notify virtual encoder that this phys encoder
- *			completes last request frame.
- */
-struct dpu_encoder_virt_ops {
-	void (*handle_vblank_virt)(struct drm_encoder *,
-			struct dpu_encoder_phys *phys);
-	void (*handle_underrun_virt)(struct drm_encoder *,
-			struct dpu_encoder_phys *phys);
-	void (*handle_frame_done)(struct drm_encoder *,
-			struct dpu_encoder_phys *phys, u32 event);
-};
-
-/**
  * struct dpu_encoder_phys_ops - Interface the physical encoders provide to
  *	the containing virtual encoder.
- * @late_register:		DRM Call. Add Userspace interfaces, debugfs.
  * @prepare_commit:		MSM Atomic Call, start of atomic commit sequence
  * @is_master:			Whether this phys_enc is the current master
  *				encoder. Can be switched at enable time. Based
@@ -112,8 +92,6 @@ struct dpu_encoder_virt_ops {
  */
 
 struct dpu_encoder_phys_ops {
-	int (*late_register)(struct dpu_encoder_phys *encoder,
-			struct dentry *debugfs_root);
 	void (*prepare_commit)(struct dpu_encoder_phys *encoder);
 	bool (*is_master)(struct dpu_encoder_phys *encoder);
 	void (*atomic_mode_set)(struct dpu_encoder_phys *encoder,
@@ -148,10 +126,10 @@ struct dpu_encoder_phys_ops {
 /**
  * enum dpu_intr_idx - dpu encoder interrupt index
  * @INTR_IDX_VSYNC:    Vsync interrupt for video mode panel
- * @INTR_IDX_PINGPONG: Pingpong done unterrupt for cmd mode panel
- * @INTR_IDX_UNDERRUN: Underrun unterrupt for video and cmd mode panel
- * @INTR_IDX_RDPTR:    Readpointer done unterrupt for cmd mode panel
- * @INTR_IDX_WB_DONE:  Writeback fone interrupt for virtual connector
+ * @INTR_IDX_PINGPONG: Pingpong done interrupt for cmd mode panel
+ * @INTR_IDX_UNDERRUN: Underrun interrupt for video and cmd mode panel
+ * @INTR_IDX_RDPTR:    Readpointer done interrupt for cmd mode panel
+ * @INTR_IDX_WB_DONE:  Writeback done interrupt for virtual connector
  */
 enum dpu_intr_idx {
 	INTR_IDX_VSYNC,
@@ -180,8 +158,6 @@ enum dpu_intr_idx {
  * @enabled:		Whether the encoder has enabled and running a mode
  * @split_role:		Role to play in a split-panel configuration
  * @intf_mode:		Interface mode
- * @intf_idx:		Interface index on dpu hardware
- * @wb_idx:			Writeback index on dpu hardware
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  * @enable_state:	Enable state tracking
  * @vblank_refcount:	Reference count of vblank request
@@ -195,11 +171,11 @@ enum dpu_intr_idx {
  *                              pending.
  * @pending_kickoff_wq:		Wait queue for blocking until kickoff completes
  * @irq:			IRQ indices
+ * @has_intf_te:		Interface TE configuration support
  */
 struct dpu_encoder_phys {
 	struct drm_encoder *parent;
 	struct dpu_encoder_phys_ops ops;
-	const struct dpu_encoder_virt_ops *parent_ops;
 	struct dpu_hw_mdp *hw_mdptop;
 	struct dpu_hw_ctl *hw_ctl;
 	struct dpu_hw_pingpong *hw_pp;
@@ -209,8 +185,6 @@ struct dpu_encoder_phys {
 	struct drm_display_mode cached_mode;
 	enum dpu_enc_split_role split_role;
 	enum dpu_intf_mode intf_mode;
-	enum dpu_intf intf_idx;
-	enum dpu_wb wb_idx;
 	spinlock_t *enc_spinlock;
 	enum dpu_enc_enable_state enable_state;
 	atomic_t vblank_refcount;
@@ -220,6 +194,7 @@ struct dpu_encoder_phys {
 	atomic_t pending_kickoff_cnt;
 	wait_queue_head_t pending_kickoff_wq;
 	int irq[INTR_IDX_MAX];
+	bool has_intf_te;
 };
 
 static inline int dpu_encoder_phys_inc_pending(struct dpu_encoder_phys *phys)
@@ -276,17 +251,16 @@ struct dpu_encoder_phys_cmd {
  * @parent:		Pointer to the containing virtual encoder
  * @parent_ops:		Callbacks exposed by the parent to the phys_enc
  * @split_role:		Role to play in a split-panel configuration
- * @intf_idx:		Interface index this phys_enc will control
- * @wb_idx:			Writeback index this phys_enc will control
+ * @hw_intf:		Hardware interface to the intf registers
+ * @hw_wb:		Hardware interface to the wb registers
  * @enc_spinlock:	Virtual-Encoder-Wide Spin Lock for IRQ purposes
  */
 struct dpu_enc_phys_init_params {
 	struct dpu_kms *dpu_kms;
 	struct drm_encoder *parent;
-	const struct dpu_encoder_virt_ops *parent_ops;
 	enum dpu_enc_split_role split_role;
-	enum dpu_intf intf_idx;
-	enum dpu_wb wb_idx;
+	struct dpu_hw_intf *hw_intf;
+	struct dpu_hw_wb *hw_wb;
 	spinlock_t *enc_spinlock;
 };
 
@@ -399,5 +373,34 @@ int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
  * @phys_enc: Pointer to physical encoder structure
  */
 void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
+
+/**
+ * dpu_encoder_vblank_callback - Notify virtual encoder of vblank IRQ reception
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phys_enc:	Pointer to physical encoder
+ * Note: This is called from IRQ handler context.
+ */
+void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
+				 struct dpu_encoder_phys *phy_enc);
+
+/** dpu_encoder_underrun_callback - Notify virtual encoder of underrun IRQ reception
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phys_enc:	Pointer to physical encoder
+ * Note: This is called from IRQ handler context.
+ */
+void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
+				   struct dpu_encoder_phys *phy_enc);
+
+/** dpu_encoder_frame_done_callback -- Notify virtual encoder that this phys encoder completes last request frame
+ * @drm_enc:    Pointer to drm encoder structure
+ * @phys_enc:	Pointer to physical encoder
+ * @event:	Event to process
+ */
+void dpu_encoder_frame_done_callback(
+		struct drm_encoder *drm_enc,
+		struct dpu_encoder_phys *ready_phys, u32 event);
+
+void dpu_encoder_phys_init(struct dpu_encoder_phys *phys,
+			   struct dpu_enc_phys_init_params *p);
 
 #endif /* __dpu_encoder_phys_H__ */

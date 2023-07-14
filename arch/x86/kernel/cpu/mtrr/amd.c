@@ -109,17 +109,11 @@ amd_validate_add_page(unsigned long base, unsigned long size, unsigned int type)
 	return 0;
 }
 
-static const struct mtrr_ops amd_mtrr_ops = {
-	.vendor            = X86_VENDOR_AMD,
+const struct mtrr_ops amd_mtrr_ops = {
+	.var_regs          = 2,
 	.set               = amd_set_mtrr,
 	.get               = amd_get_mtrr,
 	.get_free_region   = generic_get_free_region,
 	.validate_add_page = amd_validate_add_page,
 	.have_wrcomb       = positive_have_wrcomb,
 };
-
-int __init amd_init_mtrr(void)
-{
-	set_mtrr_ops(&amd_mtrr_ops);
-	return 0;
-}

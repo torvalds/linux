@@ -101,8 +101,7 @@ static const struct attribute_group m_compass_gr = {
 	.attrs = mid_att_compass
 };
 
-static int hmc6352_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int hmc6352_probe(struct i2c_client *client)
 {
 	int res;
 

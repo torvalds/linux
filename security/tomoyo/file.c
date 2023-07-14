@@ -717,7 +717,7 @@ int tomoyo_path_number_perm(const u8 type, const struct path *path,
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_pn2mac[type])
-	    == TOMOYO_CONFIG_DISABLED || !path->dentry)
+	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))

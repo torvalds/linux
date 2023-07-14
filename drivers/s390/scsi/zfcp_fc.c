@@ -48,7 +48,7 @@ unsigned int zfcp_fc_port_scan_backoff(void)
 {
 	if (!port_scan_backoff)
 		return 0;
-	return prandom_u32_max(port_scan_backoff);
+	return get_random_u32_below(port_scan_backoff);
 }
 
 static void zfcp_fc_port_scan_time(struct zfcp_adapter *adapter)
@@ -885,7 +885,7 @@ static int zfcp_fc_gspn(struct zfcp_adapter *adapter,
 			 dev_name(&adapter->ccw_device->dev),
 			 init_utsname()->nodename);
 	else
-		strlcpy(fc_host_symbolic_name(adapter->scsi_host),
+		strscpy(fc_host_symbolic_name(adapter->scsi_host),
 			gspn_rsp->gspn.fp_name, FC_SYMBOLIC_NAME_SIZE);
 
 	return 0;

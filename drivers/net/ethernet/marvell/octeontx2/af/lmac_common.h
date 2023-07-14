@@ -24,6 +24,7 @@
  * @cgx:		parent cgx port
  * @mcast_filters_count:  Number of multicast filters installed
  * @lmac_id:		lmac port id
+ * @lmac_type:	        lmac type like SGMII/XAUI
  * @cmd_pend:		flag set before new command is started
  *			flag cleared after command response is received
  * @name:		lmac port name
@@ -43,6 +44,7 @@ struct lmac {
 	struct cgx *cgx;
 	u8 mcast_filters_count;
 	u8 lmac_id;
+	u8 lmac_type;
 	bool cmd_pend;
 	char *name;
 };
@@ -75,6 +77,11 @@ struct mac_ops {
 	/* RPM & CGX differs in number of Receive/transmit stats */
 	u8			rx_stats_cnt;
 	u8			tx_stats_cnt;
+	/* Unlike CN10K which shares same CSR offset with CGX
+	 * CNF10KB has different csr offset
+	 */
+	u64			rxid_map_offset;
+	u8			dmac_filter_count;
 	/* Incase of RPM get number of lmacs from RPMX_CMR_RX_LMACS[LMAC_EXIST]
 	 * number of setbits in lmac_exist tells number of lmacs
 	 */
@@ -120,7 +127,11 @@ struct mac_ops {
 
 	int                     (*mac_get_pfc_frm_cfg)(void *cgxd, int lmac_id,
 						       u8 *tx_pause, u8 *rx_pause);
+	int			(*mac_reset)(void *cgxd, int lmac_id, u8 pf_req_flr);
 
+	/* FEC stats */
+	int			(*get_fec_stats)(void *cgxd, int lmac_id,
+						 struct cgx_fec_stats_rsp *rsp);
 };
 
 struct cgx {
@@ -128,7 +139,10 @@ struct cgx {
 	struct pci_dev		*pdev;
 	u8			cgx_id;
 	u8			lmac_count;
-	struct lmac		*lmac_idmap[MAX_LMAC_PER_CGX];
+	/* number of LMACs per MAC could be 4 or 8 */
+	u8			max_lmac_per_mac;
+#define MAX_LMAC_COUNT		8
+	struct lmac             *lmac_idmap[MAX_LMAC_COUNT];
 	struct			work_struct cgx_cmd_work;
 	struct			workqueue_struct *cgx_cmd_workq;
 	struct list_head	cgx_list;
@@ -150,6 +164,6 @@ struct lmac *lmac_pdata(u8 lmac_id, struct cgx *cgx);
 int cgx_fwi_cmd_send(u64 req, u64 *resp, struct lmac *lmac);
 int cgx_fwi_cmd_generic(u64 req, u64 *resp, struct cgx *cgx, int lmac_id);
 bool is_lmac_valid(struct cgx *cgx, int lmac_id);
-struct mac_ops *rpm_get_mac_ops(void);
+struct mac_ops *rpm_get_mac_ops(struct cgx *cgx);
 
 #endif /* LMAC_COMMON_H */

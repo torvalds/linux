@@ -56,7 +56,8 @@ static void klsi_105_port_remove(struct usb_serial_port *port);
 static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void klsi_105_close(struct usb_serial_port *port);
 static void klsi_105_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old);
+				 struct usb_serial_port *port,
+				 const struct ktermios *old_termios);
 static int  klsi_105_tiocmget(struct tty_struct *tty);
 static void klsi_105_process_read_urb(struct urb *urb);
 static int klsi_105_prepare_write_buffer(struct usb_serial_port *port,
@@ -366,7 +367,7 @@ static void klsi_105_process_read_urb(struct urb *urb)
 
 static void klsi_105_set_termios(struct tty_struct *tty,
 				 struct usb_serial_port *port,
-				 struct ktermios *old_termios)
+				 const struct ktermios *old_termios)
 {
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	struct device *dev = &port->dev;

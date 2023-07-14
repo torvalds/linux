@@ -11,6 +11,8 @@
 #include "trace-event.h"
 
 #include <linux/ctype.h>
+#include <linux/kernel.h>
+#include <traceevent/event-parse.h>
 
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)

@@ -20,17 +20,8 @@
 #define BXT_GPI_IS	0x100
 #define BXT_GPI_IE	0x110
 
-#define BXT_COMMUNITY(s, e)				\
-	{						\
-		.padown_offset = BXT_PAD_OWN,		\
-		.padcfglock_offset = BXT_PADCFGLOCK,	\
-		.hostown_offset = BXT_HOSTSW_OWN,	\
-		.is_offset = BXT_GPI_IS,		\
-		.ie_offset = BXT_GPI_IE,		\
-		.gpp_size = 32,                         \
-		.pin_base = (s),			\
-		.npins = ((e) - (s) + 1),		\
-	}
+#define BXT_COMMUNITY(b, s, e)				\
+	INTEL_COMMUNITY_SIZE(b, s, e, 32, 4, BXT)
 
 /* BXT */
 static const struct pinctrl_pin_desc bxt_north_pins[] = {
@@ -172,7 +163,7 @@ static const struct intel_function bxt_north_functions[] = {
 };
 
 static const struct intel_community bxt_north_communities[] = {
-	BXT_COMMUNITY(0, 82),
+	BXT_COMMUNITY(0, 0, 82),
 };
 
 static const struct intel_pinctrl_soc_data bxt_north_soc_data = {
@@ -289,7 +280,7 @@ static const struct intel_function bxt_northwest_functions[] = {
 };
 
 static const struct intel_community bxt_northwest_communities[] = {
-	BXT_COMMUNITY(0, 71),
+	BXT_COMMUNITY(0, 0, 71),
 };
 
 static const struct intel_pinctrl_soc_data bxt_northwest_soc_data = {
@@ -396,7 +387,7 @@ static const struct intel_function bxt_west_functions[] = {
 };
 
 static const struct intel_community bxt_west_communities[] = {
-	BXT_COMMUNITY(0, 41),
+	BXT_COMMUNITY(0, 0, 41),
 };
 
 static const struct intel_pinctrl_soc_data bxt_west_soc_data = {
@@ -472,7 +463,7 @@ static const struct intel_function bxt_southwest_functions[] = {
 };
 
 static const struct intel_community bxt_southwest_communities[] = {
-	BXT_COMMUNITY(0, 30),
+	BXT_COMMUNITY(0, 0, 30),
 };
 
 static const struct intel_pinctrl_soc_data bxt_southwest_soc_data = {
@@ -511,7 +502,7 @@ static const struct pinctrl_pin_desc bxt_south_pins[] = {
 };
 
 static const struct intel_community bxt_south_communities[] = {
-	BXT_COMMUNITY(0, 19),
+	BXT_COMMUNITY(0, 0, 19),
 };
 
 static const struct intel_pinctrl_soc_data bxt_south_soc_data = {
@@ -650,7 +641,7 @@ static const struct intel_function apl_north_functions[] = {
 };
 
 static const struct intel_community apl_north_communities[] = {
-	BXT_COMMUNITY(0, 77),
+	BXT_COMMUNITY(0, 0, 77),
 };
 
 static const struct intel_pinctrl_soc_data apl_north_soc_data = {
@@ -770,7 +761,7 @@ static const struct intel_function apl_northwest_functions[] = {
 };
 
 static const struct intel_community apl_northwest_communities[] = {
-	BXT_COMMUNITY(0, 76),
+	BXT_COMMUNITY(0, 0, 76),
 };
 
 static const struct intel_pinctrl_soc_data apl_northwest_soc_data = {
@@ -880,7 +871,7 @@ static const struct intel_function apl_west_functions[] = {
 };
 
 static const struct intel_community apl_west_communities[] = {
-	BXT_COMMUNITY(0, 46),
+	BXT_COMMUNITY(0, 0, 46),
 };
 
 static const struct intel_pinctrl_soc_data apl_west_soc_data = {
@@ -972,7 +963,7 @@ static const struct intel_function apl_southwest_functions[] = {
 };
 
 static const struct intel_community apl_southwest_communities[] = {
-	BXT_COMMUNITY(0, 42),
+	BXT_COMMUNITY(0, 0, 42),
 };
 
 static const struct intel_pinctrl_soc_data apl_southwest_soc_data = {

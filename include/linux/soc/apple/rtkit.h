@@ -22,6 +22,7 @@
  * @size:      Size of the shared memory buffer.
  * @iova:      Device VA of shared memory buffer.
  * @is_mapped: Shared memory buffer is managed by the co-processor.
+ * @private:   Private data pointer for the parent driver.
  */
 
 struct apple_rtkit_shmem {
@@ -30,6 +31,7 @@ struct apple_rtkit_shmem {
 	size_t size;
 	dma_addr_t iova;
 	bool is_mapped;
+	void *private;
 };
 
 /*
@@ -78,6 +80,25 @@ struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
 					  const struct apple_rtkit_ops *ops);
 
 /*
+ * Non-devm version of devm_apple_rtkit_init. Must be freed with
+ * apple_rtkit_free.
+ *
+ * @dev:         Pointer to the device node this coprocessor is assocated with
+ * @cookie:      opaque cookie passed to all functions defined in rtkit_ops
+ * @mbox_name:   mailbox name used to communicate with the co-processor
+ * @mbox_idx:    mailbox index to be used if mbox_name is NULL
+ * @ops:         pointer to rtkit_ops to be used for this co-processor
+ */
+struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
+					  const char *mbox_name, int mbox_idx,
+					  const struct apple_rtkit_ops *ops);
+
+/*
+ * Free an instance of apple_rtkit.
+ */
+void apple_rtkit_free(struct apple_rtkit *rtk);
+
+/*
  * Reinitialize internal structures. Must only be called with the co-processor
  * is held in reset.
  */
@@ -103,6 +124,11 @@ int apple_rtkit_wake(struct apple_rtkit *rtk);
  * Shutdown the co-processor
  */
 int apple_rtkit_shutdown(struct apple_rtkit *rtk);
+
+/*
+ * Put the co-processor into idle mode
+ */
+int apple_rtkit_idle(struct apple_rtkit *rtk);
 
 /*
  * Checks if RTKit is running and ready to handle messages.
@@ -151,5 +177,17 @@ int apple_rtkit_send_message(struct apple_rtkit *rtk, u8 ep, u64 message,
  */
 int apple_rtkit_send_message_wait(struct apple_rtkit *rtk, u8 ep, u64 message,
 				  unsigned long timeout, bool atomic);
+
+/*
+ * Process incoming messages in atomic context.
+ * This only guarantees that messages arrive as far as the recv_message_early
+ * callback; drivers expecting to handle incoming messages synchronously
+ * by calling this function must do it that way.
+ * Will return 1 if some data was processed, 0 if none was, or a
+ * negative error code on failure.
+ *
+ * @rtk:            RTKit reference
+ */
+int apple_rtkit_poll(struct apple_rtkit *rtk);
 
 #endif /* _LINUX_APPLE_RTKIT_H_ */

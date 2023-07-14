@@ -76,6 +76,7 @@ config WIREGUARD
 	tristate "WireGuard secure network tunnel"
 	depends on NET && INET
 	depends on IPV6 || !IPV6
+	depends on !KMSAN # KMSAN doesn't support the crypto configs below
 	select NET_UDP_TUNNEL
 	select DST_CACHE
 	select CRYPTO
@@ -85,8 +86,6 @@ config WIREGUARD
 	select CRYPTO_POLY1305_X86_64 if X86 && 64BIT
 	select CRYPTO_BLAKE2S_X86 if X86 && 64BIT
 	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
-	select ARM_CRYPTO if ARM
-	select ARM64_CRYPTO if ARM64
 	select CRYPTO_CHACHA20_NEON if ARM || (ARM64 && KERNEL_MODE_NEON)
 	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
 	select CRYPTO_POLY1305_ARM if ARM
@@ -335,7 +334,6 @@ config NETCONSOLE_DYNAMIC
 
 config NETPOLL
 	def_bool NETCONSOLE
-	select SRCU
 
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
@@ -404,6 +402,7 @@ config TUN_VNET_CROSS_LE
 
 config VETH
 	tristate "Virtual ethernet pair device"
+	select PAGE_POOL
 	help
 	  This device is a local ethernet tunnel. Devices are created in pairs.
 	  When one end receives the packet it appears on its pair and vice
@@ -584,18 +583,7 @@ config FUJITSU_ES
 	  This driver provides support for Extended Socket network device
 	  on Extended Partitioning of FUJITSU PRIMEQUEST 2000 E2 series.
 
-config USB4_NET
-	tristate "Networking over USB4 and Thunderbolt cables"
-	depends on USB4 && INET
-	help
-	  Select this if you want to create network between two computers
-	  over a USB4 and Thunderbolt cables. The driver supports Apple
-	  ThunderboltIP protocol and allows communication with any host
-	  supporting the same protocol including Windows and macOS.
-
-	  To compile this driver a module, choose M here. The module will be
-	  called thunderbolt-net.
-
+source "drivers/net/thunderbolt/Kconfig"
 source "drivers/net/hyperv/Kconfig"
 
 config NETDEVSIM

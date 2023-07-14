@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (C) 2012 Marek Vasut <marex@denx.de>
+ */
+
+/dts-v1/;
+#include "imx28.dtsi"
+
+/ {
+	model = "SchulerControl GmbH, SC SPS 1";
+	compatible = "schulercontrol,imx28-sps1", "fsl,imx28";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x08000000>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_usb0_vbus: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "usb0_vbus";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			gpio = <&gpio3 9 0>;
+		};
+	};
+
+	leds {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "gpio-leds";
+		status = "okay";
+
+		led@1 {
+			label = "sps1-1:yellow:user";
+			gpios = <&gpio0 6 0>;
+			linux,default-trigger = "heartbeat";
+			reg = <0>;
+		};
+
+		led@2 {
+			label = "sps1-2:red:user";
+			gpios = <&gpio0 3 0>;
+			linux,default-trigger = "heartbeat";
+			reg = <1>;
+		};
+
+		led@3 {
+			label = "sps1-3:red:user";
+			gpios = <&gpio0 0 0>;
+			default-trigger = "heartbeat";
+			reg = <2>;
+		};
+
+	};
+};
+
+&auart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&auart0_pins_a>;
+	status = "okay";
+};
+
+&duart {
+	pinctrl-names = "default";
+	pinctrl-0 = <&duart_pins_a>;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	status = "okay";
+
+	rtc: rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+
+	eeprom: eeprom@52 {
+		compatible = "atmel,24c64";
+		reg = <0x52>;
+		pagesize = <32>;
+	};
+};
+
+&mac0 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac0_pins_a>;
+	status = "okay";
+};
+
+&mac1 {
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mac1_pins_a>;
+	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hog_pins_a>;
+
+	hog_pins_a: hog-gpios@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_GPMI_D00__GPIO_0_0
+			MX28_PAD_GPMI_D03__GPIO_0_3
+			MX28_PAD_GPMI_D06__GPIO_0_6
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+};
+
+&ssp0 {
+	compatible = "fsl,imx28-mmc";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_4bit_pins_a>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&ssp2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "fsl,imx28-spi";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_pins_a>;
+	status = "okay";
+
+	flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "everspin,mr25h256", "mr25h256";
+		spi-max-frequency = <40000000>;
+		reg = <0>;
+	};
+};
+
+&usb0 {
+	vbus-supply = <&reg_usb0_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_pins_b>;
+	status = "okay";
+};
+
+&usbphy0 {
+	status = "okay";
+};

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/allwinner,sun5i-a13-usb-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A13 USB PHY Device Tree Bindings
+title: Allwinner A13 USB PHY
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

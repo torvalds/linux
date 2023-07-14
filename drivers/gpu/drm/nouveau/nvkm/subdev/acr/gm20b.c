@@ -45,43 +45,47 @@ gm20b_acr_wpr_alloc(struct nvkm_acr *acr, u32 wpr_size)
 			       wpr_size, 0, true, &acr->wpr);
 }
 
-static void
-gm20b_acr_load_bld(struct nvkm_acr *acr, struct nvkm_acr_hsf *hsf)
+static int
+gm20b_acr_hsfw_load_bld(struct nvkm_falcon_fw *fw)
 {
 	struct flcn_bl_dmem_desc hsdesc = {
 		.ctx_dma = FALCON_DMAIDX_VIRT,
-		.code_dma_base = hsf->vma->addr >> 8,
-		.non_sec_code_off = hsf->non_sec_addr,
-		.non_sec_code_size = hsf->non_sec_size,
-		.sec_code_off = hsf->sec_addr,
-		.sec_code_size = hsf->sec_size,
+		.code_dma_base = fw->vma->addr >> 8,
+		.non_sec_code_off = fw->nmem_base,
+		.non_sec_code_size = fw->nmem_size,
+		.sec_code_off = fw->imem_base,
+		.sec_code_size = fw->imem_size,
 		.code_entry_point = 0,
-		.data_dma_base = (hsf->vma->addr + hsf->data_addr) >> 8,
-		.data_size = hsf->data_size,
+		.data_dma_base = (fw->vma->addr + fw->dmem_base_img) >> 8,
+		.data_size = fw->dmem_size,
 	};
 
-	flcn_bl_dmem_desc_dump(&acr->subdev, &hsdesc);
+	flcn_bl_dmem_desc_dump(fw->falcon->user, &hsdesc);
 
-	nvkm_falcon_load_dmem(hsf->falcon, &hsdesc, 0, sizeof(hsdesc), 0);
+	return nvkm_falcon_pio_wr(fw->falcon, (u8 *)&hsdesc, 0, 0, DMEM, 0, sizeof(hsdesc), 0, 0);
 }
 
+
 static int
-gm20b_acr_load_load(struct nvkm_acr *acr, struct nvkm_acr_hsfw *hsfw)
+gm20b_acr_load_setup(struct nvkm_falcon_fw *fw)
 {
-	struct flcn_acr_desc *desc = (void *)&hsfw->image[hsfw->data_addr];
+	struct flcn_acr_desc *desc = (void *)&fw->fw.img[fw->dmem_base_img];
+	struct nvkm_acr *acr = fw->falcon->owner->device->acr;
 
 	desc->ucode_blob_base = nvkm_memory_addr(acr->wpr);
 	desc->ucode_blob_size = nvkm_memory_size(acr->wpr);
 	flcn_acr_desc_dump(&acr->subdev, desc);
-
-	return gm200_acr_hsfw_load(acr, hsfw, &acr->subdev.device->pmu->falcon);
+	return 0;
 }
 
-const struct nvkm_acr_hsf_func
+const struct nvkm_falcon_fw_func
 gm20b_acr_load_0 = {
-	.load = gm20b_acr_load_load,
-	.boot = gm200_acr_load_boot,
-	.bld = gm20b_acr_load_bld,
+	.signature = gm200_flcn_fw_signature,
+	.reset = gm200_flcn_fw_reset,
+	.setup = gm20b_acr_load_setup,
+	.load = gm200_flcn_fw_load,
+	.load_bld = gm20b_acr_hsfw_load_bld,
+	.boot = gm200_flcn_fw_boot,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
@@ -91,7 +95,7 @@ MODULE_FIRMWARE("nvidia/gm20b/acr/ucode_load.bin");
 
 static const struct nvkm_acr_hsf_fwif
 gm20b_acr_load_fwif[] = {
-	{ 0, nvkm_acr_hsfw_load, &gm20b_acr_load_0 },
+	{ 0, gm200_acr_hsfw_ctor, &gm20b_acr_load_0, NVKM_ACR_HSF_PMU, 0, 0x10 },
 	{}
 };
 

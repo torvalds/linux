@@ -37,7 +37,8 @@ right representation of the pin.
 Optional properties:
 - GENERIC_PINCONFIG: generic pinconfig options to use:
 	- bias-disable, bias-pull-down, bias-pull-up, drive-open-drain,
-	  input-schmitt-enable, input-debounce, output-low, output-high.
+	 drive-push-pull input-schmitt-enable, input-debounce, output-low,
+	 output-high.
 	- for microchip,sama7g5-pinctrl only:
 		- slew-rate: 0 - disabled, 1 - enabled (default)
 - atmel,drive-strength: 0 or 1 for low drive, 2 for medium drive and 3 for

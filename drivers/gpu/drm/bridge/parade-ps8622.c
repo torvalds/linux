@@ -442,9 +442,9 @@ static const struct of_device_id ps8622_devices[] = {
 };
 MODULE_DEVICE_TABLE(of, ps8622_devices);
 
-static int ps8622_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int ps8622_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct ps8622_bridge *ps8622;
 	struct drm_bridge *panel_bridge;
@@ -496,7 +496,7 @@ static int ps8622_probe(struct i2c_client *client,
 		ps8622->lane_count = ps8622->max_lane_count;
 	}
 
-	if (!of_find_property(dev->of_node, "use-external-pwm", NULL)) {
+	if (!of_property_read_bool(dev->of_node, "use-external-pwm")) {
 		ps8622->bl = backlight_device_register("ps8622-backlight",
 				dev, ps8622, &ps8622_backlight_ops,
 				NULL);

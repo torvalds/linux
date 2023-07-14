@@ -193,7 +193,7 @@ static int tfa9890_init(struct regmap *regmap)
 {
 	int ret;
 
-	/* unhide keys to allow updating them */
+	/* temporarily allow access to hidden registers */
 	ret = regmap_write(regmap, TFA989X_HIDE_UNHIDE_KEY, 0x5a6b);
 	if (ret)
 		return ret;
@@ -203,7 +203,7 @@ static int tfa9890_init(struct regmap *regmap)
 	if (ret)
 		return ret;
 
-	/* hide keys again */
+	/* hide registers again */
 	ret = regmap_write(regmap, TFA989X_HIDE_UNHIDE_KEY, 0x0000);
 	if (ret)
 		return ret;
@@ -416,7 +416,7 @@ static struct i2c_driver tfa989x_i2c_driver = {
 		.name = "tfa989x",
 		.of_match_table = tfa989x_of_match,
 	},
-	.probe_new = tfa989x_i2c_probe,
+	.probe = tfa989x_i2c_probe,
 };
 module_i2c_driver(tfa989x_i2c_driver);
 

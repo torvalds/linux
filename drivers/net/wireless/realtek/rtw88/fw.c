@@ -308,21 +308,17 @@ void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw_fw_c2h_cmd_isr);
 
-static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
-				    u8 *h2c)
+static void rtw_fw_send_h2c_command_register(struct rtw_dev *rtwdev,
+					     struct rtw_h2c_register *h2c)
 {
-	u8 box;
-	u8 box_state;
 	u32 box_reg, box_ex_reg;
-	int idx;
+	u8 box_state, box;
 	int ret;
 
-	rtw_dbg(rtwdev, RTW_DBG_FW,
-		"send H2C content %02x%02x%02x%02x %02x%02x%02x%02x\n",
-		h2c[3], h2c[2], h2c[1], h2c[0],
-		h2c[7], h2c[6], h2c[5], h2c[4]);
+	rtw_dbg(rtwdev, RTW_DBG_FW, "send H2C content %08x %08x\n", h2c->w0,
+		h2c->w1);
 
-	spin_lock(&rtwdev->h2c.lock);
+	lockdep_assert_held(&rtwdev->mutex);
 
 	box = rtwdev->h2c.last_box_num;
 	switch (box) {
@@ -344,7 +340,7 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 		break;
 	default:
 		WARN(1, "invalid h2c mail box number\n");
-		goto out;
+		return;
 	}
 
 	ret = read_poll_timeout_atomic(rtw_read8, box_state,
@@ -353,19 +349,69 @@ static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
 
 	if (ret) {
 		rtw_err(rtwdev, "failed to send h2c command\n");
-		goto out;
+		return;
 	}
 
-	for (idx = 0; idx < 4; idx++)
-		rtw_write8(rtwdev, box_reg + idx, h2c[idx]);
-	for (idx = 0; idx < 4; idx++)
-		rtw_write8(rtwdev, box_ex_reg + idx, h2c[idx + 4]);
+	rtw_write32(rtwdev, box_ex_reg, h2c->w1);
+	rtw_write32(rtwdev, box_reg, h2c->w0);
 
 	if (++rtwdev->h2c.last_box_num >= 4)
 		rtwdev->h2c.last_box_num = 0;
+}
 
-out:
-	spin_unlock(&rtwdev->h2c.lock);
+static void rtw_fw_send_h2c_command(struct rtw_dev *rtwdev,
+				    u8 *h2c)
+{
+	struct rtw_h2c_cmd *h2c_cmd = (struct rtw_h2c_cmd *)h2c;
+	u8 box;
+	u8 box_state;
+	u32 box_reg, box_ex_reg;
+	int ret;
+
+	rtw_dbg(rtwdev, RTW_DBG_FW,
+		"send H2C content %02x%02x%02x%02x %02x%02x%02x%02x\n",
+		h2c[3], h2c[2], h2c[1], h2c[0],
+		h2c[7], h2c[6], h2c[5], h2c[4]);
+
+	lockdep_assert_held(&rtwdev->mutex);
+
+	box = rtwdev->h2c.last_box_num;
+	switch (box) {
+	case 0:
+		box_reg = REG_HMEBOX0;
+		box_ex_reg = REG_HMEBOX0_EX;
+		break;
+	case 1:
+		box_reg = REG_HMEBOX1;
+		box_ex_reg = REG_HMEBOX1_EX;
+		break;
+	case 2:
+		box_reg = REG_HMEBOX2;
+		box_ex_reg = REG_HMEBOX2_EX;
+		break;
+	case 3:
+		box_reg = REG_HMEBOX3;
+		box_ex_reg = REG_HMEBOX3_EX;
+		break;
+	default:
+		WARN(1, "invalid h2c mail box number\n");
+		return;
+	}
+
+	ret = read_poll_timeout_atomic(rtw_read8, box_state,
+				       !((box_state >> box) & 0x1), 100, 3000,
+				       false, rtwdev, REG_HMETFR);
+
+	if (ret) {
+		rtw_err(rtwdev, "failed to send h2c command\n");
+		return;
+	}
+
+	rtw_write32(rtwdev, box_ex_reg, le32_to_cpu(h2c_cmd->msg_ext));
+	rtw_write32(rtwdev, box_reg, le32_to_cpu(h2c_cmd->msg));
+
+	if (++rtwdev->h2c.last_box_num >= 4)
+		rtwdev->h2c.last_box_num = 0;
 }
 
 void rtw_fw_h2c_cmd_dbg(struct rtw_dev *rtwdev, u8 *h2c)
@@ -377,15 +423,13 @@ static void rtw_fw_send_h2c_packet(struct rtw_dev *rtwdev, u8 *h2c_pkt)
 {
 	int ret;
 
-	spin_lock(&rtwdev->h2c.lock);
+	lockdep_assert_held(&rtwdev->mutex);
 
 	FW_OFFLOAD_H2C_SET_SEQ_NUM(h2c_pkt, rtwdev->h2c.seq);
 	ret = rtw_hci_write_data_h2c(rtwdev, h2c_pkt, H2C_PKT_SIZE);
 	if (ret)
 		rtw_err(rtwdev, "failed to send h2c packet\n");
 	rtwdev->h2c.seq++;
-
-	spin_unlock(&rtwdev->h2c.lock);
 }
 
 void
@@ -473,6 +517,23 @@ void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
 	SET_QUERY_BT_INFO(h2c_pkt, true);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_default_port(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
+{
+	struct rtw_h2c_register h2c = {};
+
+	if (rtwvif->net_type != RTW_NET_MGD_LINKED)
+		return;
+
+	/* Leave LPS before default port H2C so FW timer is correct */
+	rtw_leave_lps(rtwdev);
+
+	h2c.w0 = u32_encode_bits(H2C_CMD_DEFAULT_PORT, RTW_H2C_W0_CMDID) |
+		 u32_encode_bits(rtwvif->port, RTW_H2C_DEFAULT_PORT_W0_PORTID) |
+		 u32_encode_bits(rtwvif->mac_id, RTW_H2C_DEFAULT_PORT_W0_MACID);
+
+	rtw_fw_send_h2c_command_register(rtwdev, &h2c);
 }
 
 void rtw_fw_wl_ch_info(struct rtw_dev *rtwdev, u8 link, u8 ch, u8 bw)
@@ -820,6 +881,16 @@ void rtw_fw_set_nlo_info(struct rtw_dev *rtwdev, bool enable)
 		SET_NLO_IGNORE_SECURITY(h2c_pkt, enable);
 		SET_NLO_LOC_NLO_INFO(h2c_pkt, loc_nlo);
 	}
+
+	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
+}
+
+void rtw_fw_set_recover_bt_device(struct rtw_dev *rtwdev)
+{
+	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
+
+	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_RECOVER_BT_DEV);
+	SET_RECOVER_BT_DEV_EN(h2c_pkt, 1);
 
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
@@ -1390,6 +1461,10 @@ static void rtw_build_rsvd_page_iter(void *data, u8 *mac,
 	struct rtw_vif *rtwvif = (struct rtw_vif *)vif->drv_priv;
 	struct rtw_rsvd_page *rsvd_pkt;
 
+	/* AP not yet started, don't gather its rsvd pages */
+	if (vif->type == NL80211_IFTYPE_AP && !rtwdev->ap_active)
+		return;
+
 	list_for_each_entry(rsvd_pkt, &rtwvif->rsvd_page_list, vif_list) {
 		if (rsvd_pkt->type == RSVD_BEACON)
 			list_add(&rsvd_pkt->build_list,
@@ -1611,6 +1686,7 @@ void rtw_fw_update_beacon_work(struct work_struct *work)
 
 	mutex_lock(&rtwdev->mutex);
 	rtw_fw_download_rsvd_page(rtwdev);
+	rtw_send_rsvd_page_h2c(rtwdev);
 	mutex_unlock(&rtwdev->mutex);
 }
 
@@ -2152,11 +2228,19 @@ int rtw_hw_scan_offload(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 	}
 	rtw_fw_set_scan_offload(rtwdev, &cs_option, rtwvif, &chan_list);
 out:
+	if (rtwdev->ap_active) {
+		ret = rtw_download_beacon(rtwdev);
+		if (ret)
+			rtw_err(rtwdev, "HW scan download beacon failed\n");
+	}
+
 	return ret;
 }
 
-void rtw_hw_scan_abort(struct rtw_dev *rtwdev, struct ieee80211_vif *vif)
+void rtw_hw_scan_abort(struct rtw_dev *rtwdev)
 {
+	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
+
 	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_SCAN_OFFLOAD))
 		return;
 
@@ -2241,6 +2325,7 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		if (rtw_is_op_chan(rtwdev, chan)) {
 			rtw_store_op_chan(rtwdev, false);
 			ieee80211_wake_queues(rtwdev->hw);
+			rtw_core_enable_beacon(rtwdev, true);
 		}
 	} else if (id == RTW_SCAN_NOTIFY_ID_PRESWITCH) {
 		if (IS_CH_5G_BAND(chan)) {
@@ -2259,8 +2344,10 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 		 * if next channel is non-op channel.
 		 */
 		if (!rtw_is_op_chan(rtwdev, chan) &&
-		    rtw_is_op_chan(rtwdev, hal->current_channel))
+		    rtw_is_op_chan(rtwdev, hal->current_channel)) {
+			rtw_core_enable_beacon(rtwdev, false);
 			ieee80211_stop_queues(rtwdev->hw);
+		}
 	}
 
 	rtw_dbg(rtwdev, RTW_DBG_HW_SCAN,

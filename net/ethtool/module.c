@@ -91,6 +91,59 @@ static int module_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
+/* MODULE_SET */
+
+const struct nla_policy ethnl_module_set_policy[ETHTOOL_A_MODULE_POWER_MODE_POLICY + 1] = {
+	[ETHTOOL_A_MODULE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_MODULE_POWER_MODE_POLICY] =
+		NLA_POLICY_RANGE(NLA_U8, ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH,
+				 ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO),
+};
+
+static int
+ethnl_set_module_validate(struct ethnl_req_info *req_info,
+			  struct genl_info *info)
+{
+	const struct ethtool_ops *ops = req_info->dev->ethtool_ops;
+	struct nlattr **tb = info->attrs;
+
+	if (!tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY])
+		return 0;
+
+	if (!ops->get_module_power_mode || !ops->set_module_power_mode) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY],
+				    "Setting power mode policy is not supported by this device");
+		return -EOPNOTSUPP;
+	}
+
+	return 1;
+}
+
+static int
+ethnl_set_module(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	struct ethtool_module_power_mode_params power = {};
+	struct ethtool_module_power_mode_params power_new;
+	const struct ethtool_ops *ops;
+	struct net_device *dev = req_info->dev;
+	struct nlattr **tb = info->attrs;
+	int ret;
+
+	ops = dev->ethtool_ops;
+
+	power_new.policy = nla_get_u8(tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY]);
+	ret = ops->get_module_power_mode(dev, &power, info->extack);
+	if (ret < 0)
+		return ret;
+
+	if (power_new.policy == power.policy)
+		return 0;
+
+	ret = ops->set_module_power_mode(dev, &power_new, info->extack);
+	return ret < 0 ? ret : 1;
+}
+
 const struct ethnl_request_ops ethnl_module_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_MODULE_GET,
 	.reply_cmd		= ETHTOOL_MSG_MODULE_GET_REPLY,
@@ -101,80 +154,8 @@ const struct ethnl_request_ops ethnl_module_request_ops = {
 	.prepare_data		= module_prepare_data,
 	.reply_size		= module_reply_size,
 	.fill_reply		= module_fill_reply,
+
+	.set_validate		= ethnl_set_module_validate,
+	.set			= ethnl_set_module,
+	.set_ntf_cmd		= ETHTOOL_MSG_MODULE_NTF,
 };
-
-/* MODULE_SET */
-
-const struct nla_policy ethnl_module_set_policy[ETHTOOL_A_MODULE_POWER_MODE_POLICY + 1] = {
-	[ETHTOOL_A_MODULE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
-	[ETHTOOL_A_MODULE_POWER_MODE_POLICY] =
-		NLA_POLICY_RANGE(NLA_U8, ETHTOOL_MODULE_POWER_MODE_POLICY_HIGH,
-				 ETHTOOL_MODULE_POWER_MODE_POLICY_AUTO),
-};
-
-static int module_set_power_mode(struct net_device *dev, struct nlattr **tb,
-				 bool *p_mod, struct netlink_ext_ack *extack)
-{
-	struct ethtool_module_power_mode_params power = {};
-	struct ethtool_module_power_mode_params power_new;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-	int ret;
-
-	if (!tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY])
-		return 0;
-
-	if (!ops->get_module_power_mode || !ops->set_module_power_mode) {
-		NL_SET_ERR_MSG_ATTR(extack,
-				    tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY],
-				    "Setting power mode policy is not supported by this device");
-		return -EOPNOTSUPP;
-	}
-
-	power_new.policy = nla_get_u8(tb[ETHTOOL_A_MODULE_POWER_MODE_POLICY]);
-	ret = ops->get_module_power_mode(dev, &power, extack);
-	if (ret < 0)
-		return ret;
-
-	if (power_new.policy == power.policy)
-		return 0;
-	*p_mod = true;
-
-	return ops->set_module_power_mode(dev, &power_new, extack);
-}
-
-int ethnl_set_module(struct sk_buff *skb, struct genl_info *info)
-{
-	struct ethnl_req_info req_info = {};
-	struct nlattr **tb = info->attrs;
-	struct net_device *dev;
-	bool mod = false;
-	int ret;
-
-	ret = ethnl_parse_header_dev_get(&req_info, tb[ETHTOOL_A_MODULE_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
-	if (ret < 0)
-		return ret;
-	dev = req_info.dev;
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
-
-	ret = module_set_power_mode(dev, tb, &mod, info->extack);
-	if (ret < 0)
-		goto out_ops;
-
-	if (!mod)
-		goto out_ops;
-
-	ethtool_notify(dev, ETHTOOL_MSG_MODULE_NTF, NULL);
-
-out_ops:
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-	ethnl_parse_header_dev_put(&req_info);
-	return ret;
-}

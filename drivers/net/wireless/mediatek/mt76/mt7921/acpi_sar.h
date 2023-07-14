@@ -8,10 +8,12 @@
 #define MT7921_ASAR_MAX_DYN		8
 #define MT7921_ASAR_MIN_GEO		3
 #define MT7921_ASAR_MAX_GEO		8
+#define MT7921_ASAR_MIN_FG		8
 
 #define MT7921_ACPI_MTCL		"MTCL"
 #define MT7921_ACPI_MTDS		"MTDS"
 #define MT7921_ACPI_MTGS		"MTGS"
+#define MT7921_ACPI_MTFG		"MTFG"
 
 struct mt7921_asar_dyn_limit {
 	u8 idx;
@@ -22,7 +24,7 @@ struct mt7921_asar_dyn {
 	u8 names[4];
 	u8 enable;
 	u8 nr_tbl;
-	struct mt7921_asar_dyn_limit tbl[0];
+	DECLARE_FLEX_ARRAY(struct mt7921_asar_dyn_limit, tbl);
 } __packed;
 
 struct mt7921_asar_dyn_limit_v2 {
@@ -35,7 +37,7 @@ struct mt7921_asar_dyn_v2 {
 	u8 enable;
 	u8 rsvd;
 	u8 nr_tbl;
-	struct mt7921_asar_dyn_limit_v2 tbl[0];
+	DECLARE_FLEX_ARRAY(struct mt7921_asar_dyn_limit_v2, tbl);
 } __packed;
 
 struct mt7921_asar_geo_band {
@@ -53,7 +55,7 @@ struct mt7921_asar_geo {
 	u8 names[4];
 	u8 version;
 	u8 nr_tbl;
-	struct mt7921_asar_geo_limit tbl[0];
+	DECLARE_FLEX_ARRAY(struct mt7921_asar_geo_limit, tbl);
 } __packed;
 
 struct mt7921_asar_geo_limit_v2 {
@@ -67,7 +69,7 @@ struct mt7921_asar_geo_v2 {
 	u8 version;
 	u8 rsvd;
 	u8 nr_tbl;
-	struct mt7921_asar_geo_limit_v2 tbl[0];
+	DECLARE_FLEX_ARRAY(struct mt7921_asar_geo_limit_v2, tbl);
 } __packed;
 
 struct mt7921_asar_cl {
@@ -75,6 +77,15 @@ struct mt7921_asar_cl {
 	u8 version;
 	u8 mode_6g;
 	u8 cl6g[6];
+} __packed;
+
+struct mt7921_asar_fg {
+	u8 names[4];
+	u8 version;
+	u8 rsvd;
+	u8 nr_flag;
+	u8 rsvd1;
+	u8 flag[];
 } __packed;
 
 struct mt7921_acpi_sar {
@@ -88,6 +99,7 @@ struct mt7921_acpi_sar {
 		struct mt7921_asar_geo_v2 *geo_v2;
 	};
 	struct mt7921_asar_cl *countrylist;
+	struct mt7921_asar_fg *fg;
 };
 
 #endif

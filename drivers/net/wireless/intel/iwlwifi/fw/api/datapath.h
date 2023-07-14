@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -27,7 +27,20 @@ enum iwl_data_path_subcmd_ids {
 	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
 
 	/**
-	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd
+	 * @WNM_PLATFORM_PTM_REQUEST_CMD: &struct iwl_time_sync_cfg_cmd
+	 */
+	WNM_PLATFORM_PTM_REQUEST_CMD = 0x3,
+
+	/**
+	 * @WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD:
+	 *	&struct iwl_time_sync_cfg_cmd
+	 */
+	WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD = 0x4,
+
+	/**
+	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd_v1,
+	 *	&struct iwl_he_sta_context_cmd_v2 or
+	 *	&struct iwl_he_sta_context_cmd_v3
 	 */
 	STA_HE_CTXT_CMD = 0x7,
 
@@ -72,13 +85,18 @@ enum iwl_data_path_subcmd_ids {
 	SCD_QUEUE_CONFIG_CMD = 0x17,
 
 	/**
+	 * @SEC_KEY_CMD: security key command, uses &struct iwl_sec_key_cmd
+	 */
+	SEC_KEY_CMD = 0x18,
+
+	/**
 	 * @MONITOR_NOTIF: Datapath monitoring notification, using
 	 *	&struct iwl_datapath_monitor_notif
 	 */
 	MONITOR_NOTIF = 0xF4,
 
 	/**
-	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data
+	 * @RX_NO_DATA_NOTIF: &struct iwl_rx_no_data or &struct iwl_rx_no_data_ver_3
 	 */
 	RX_NO_DATA_NOTIF = 0xF5,
 
@@ -140,6 +158,177 @@ enum iwl_channel_estimation_flags {
 	IWL_CHANNEL_ESTIMATION_TIMER	= BIT(1),
 	IWL_CHANNEL_ESTIMATION_COUNTER	= BIT(2),
 };
+
+enum iwl_time_sync_protocol_type {
+	IWL_TIME_SYNC_PROTOCOL_TM	= BIT(0),
+	IWL_TIME_SYNC_PROTOCOL_FTM	= BIT(1),
+}; /* WNM_TIMING_ENABLED_PROTOCOL_API_E_VER_1 */
+
+/**
+ * struct iwl_time_sync_cfg_cmd - TM/FTM time sync measurement configuration
+ *
+ * @protocols: The type of frames to raise notifications for. A bitmap
+ *	of @iwl_time_sync_protocol_type
+ * @peer_addr: peer address with which TM/FTM measurements are required
+ * @reserved: for alignment
+ */
+struct iwl_time_sync_cfg_cmd {
+	__le32 protocols;
+	u8 peer_addr[ETH_ALEN];
+	u8 reserved[2];
+} __packed; /* WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD_API_S_VER_1 */
+
+/**
+ * enum iwl_synced_time_operation - PTM request options
+ *
+ * @IWL_SYNCED_TIME_OPERATION_READ_ARTB: read only the ARTB time
+ * @IWL_SYNCED_TIME_OPERATION_READ_GP2: read only the GP2 time
+ * @IWL_SYNCED_TIME_OPERATION_READ_BOTH: latch the ARTB and GP2 clocks and
+ *	provide timestamps from both clocks for the same time point
+ */
+enum iwl_synced_time_operation {
+	IWL_SYNCED_TIME_OPERATION_READ_ARTB = 1,
+	IWL_SYNCED_TIME_OPERATION_READ_GP2,
+	IWL_SYNCED_TIME_OPERATION_READ_BOTH,
+};
+
+/**
+ * struct iwl_synced_time_cmd - request synced GP2/ARTB timestamps
+ *
+ * @operation: one of &enum iwl_synced_time_operation
+ */
+struct iwl_synced_time_cmd {
+	__le32 operation;
+} __packed; /* WNM_80211V_TIMING_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_synced_time_rsp - response to iwl_synced_time_cmd
+ *
+ * @operation: one of &enum iwl_synced_time_operation
+ * @platform_timestamp_hi: high DWORD of the ARTB clock timestamp in nanoseconds
+ * @platform_timestamp_lo: low DWORD of the ARTB clock timestamp in nanoseconds
+ * @gp2_timestamp_hi: high DWORD of the GP2 clock timestamp in 10's of
+ *	nanoseconds
+ * @gp2_timestamp_lo: low DWORD of the GP2 clock timestamp in 10's of
+ *	nanoseconds
+ */
+struct iwl_synced_time_rsp {
+	__le32 operation;
+	__le32 platform_timestamp_hi;
+	__le32 platform_timestamp_lo;
+	__le32 gp2_timestamp_hi;
+	__le32 gp2_timestamp_lo;
+} __packed; /* WNM_80211V_TIMING_RSP_API_S_VER_1 */
+
+/* PTP_CTX_MAX_DATA_SIZE_IN_API_D_VER_1 */
+#define PTP_CTX_MAX_DATA_SIZE   128
+
+/**
+ * struct iwl_time_msmt_ptp_ctx - Vendor specific information element
+ * to allow a space for flexibility for the userspace App
+ *
+ * @element_id: element id of vendor specific ie
+ * @length: length of vendor specific ie
+ * @reserved: for alignment
+ * @data: vendor specific data blob
+ */
+struct iwl_time_msmt_ptp_ctx {
+	/* Differentiate between FTM and TM specific Vendor IEs */
+	union {
+		struct {
+			u8 element_id;
+			u8 length;
+			__le16 reserved;
+			u8 data[PTP_CTX_MAX_DATA_SIZE];
+		} ftm; /* FTM specific vendor IE */
+		struct {
+			u8 element_id;
+			u8 length;
+			u8 data[PTP_CTX_MAX_DATA_SIZE];
+		} tm; /* TM specific vendor IE */
+	};
+} __packed /* PTP_CTX_VER_1 */;
+
+/**
+ * struct iwl_time_msmt_notify - Time Sync measurement notification
+ * for TM/FTM, along with additional meta data.
+ *
+ * @peer_addr: peer address
+ * @reserved: for alignment
+ * @dialog_token: measurement flow dialog token number
+ * @followup_dialog_token: Measurement flow previous dialog token number
+ * @t1_hi: high dword of t1-time of the Tx'ed action frame departure on
+ *	sender side in units of 10 nano seconds
+ * @t1_lo: low dword of t1-time of the Tx'ed action frame departure on
+ *	sender side in units of 10 nano seconds
+ * @t1_max_err: maximum t1-time error in units of 10 nano seconds
+ * @t4_hi: high dword of t4-time of the Rx'ed action frame's Ack arrival on
+ *	sender side in units of 10 nano seconds
+ * @t4_lo: low dword of t4-time of the Rx'ed action frame's Ack arrival on
+ *	sender side in units of 10 nano seconds
+ * @t4_max_err: maximum t4-time error in units of 10 nano seconds
+ * @t2_hi: high dword of t2-time of the Rx'ed action frame arrival on
+ *	receiver side in units of 10 nano seconds
+ * @t2_lo: low dword of t2-time of the Rx'ed action frame arrival on
+ *	receiver side in units of 10 nano seconds
+ * @t2_max_err: maximum t2-time error in units of 10 nano seconds
+ * @t3_hi: high dword of t3-time of the Tx'ed action frame's Ack departure on
+ *	receiver side in units of 10 nano seconds
+ * @t3_lo: low dword of t3-time of the Tx'ed action frame's Ack departure on
+ *	receiver side in units of 10 nano seconds
+ * @t3_max_err: maximum t3-time error in units of 10 nano seconds
+ * @ptp: vendor specific information element
+ */
+struct iwl_time_msmt_notify {
+	u8 peer_addr[ETH_ALEN];
+	u8 reserved[2];
+	__le32 dialog_token;
+	__le32 followup_dialog_token;
+	__le32 t1_hi;
+	__le32 t1_lo;
+	__le32 t1_max_err;
+	__le32 t4_hi;
+	__le32 t4_lo;
+	__le32 t4_max_err;
+	__le32 t2_hi;
+	__le32 t2_lo;
+	__le32 t2_max_err;
+	__le32 t3_hi;
+	__le32 t3_lo;
+	__le32 t3_max_err;
+	struct iwl_time_msmt_ptp_ctx ptp;
+} __packed; /* WNM_80211V_TIMING_MEASUREMENT_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_time_msmt_cfm_notify - Time Sync measurement confirmation
+ * notification for TM/FTM. Sent on receipt of 802.11 Ack from peer for the
+ * Tx'ed TM/FTM measurement action frame.
+ *
+ * @peer_addr: peer address
+ * @reserved: for alignment
+ * @dialog_token: measurement flow dialog token number
+ * @t1_hi: high dword of t1-time of the Tx'ed action frame departure on
+ *	sender side in units of 10 nano seconds
+ * @t1_lo: low dword of t1-time of the Tx'ed action frame departure on
+ *	sender side in units of 10 nano seconds
+ * @t1_max_err: maximum t1-time error in units of 10 nano seconds
+ * @t4_hi: high dword of t4-time of the Rx'ed action frame's Ack arrival on
+ *	sender side in units of 10 nano seconds
+ * @t4_lo: low dword of t4-time of the Rx'ed action frame's Ack arrival on
+ *	sender side in units of 10 nano seconds
+ * @t4_max_err: maximum t4-time error in units of 10 nano seconds
+ */
+struct iwl_time_msmt_cfm_notify {
+	u8 peer_addr[ETH_ALEN];
+	u8 reserved[2];
+	__le32 dialog_token;
+	__le32 t1_hi;
+	__le32 t1_lo;
+	__le32 t1_max_err;
+	__le32 t4_hi;
+	__le32 t4_lo;
+	__le32 t4_max_err;
+} __packed; /* WNM_80211V_TIMING_MEASUREMENT_CONFIRM_NTFY_API_S_VER_1 */
 
 /**
  * struct iwl_channel_estimation_cfg - channel estimation reporting config
@@ -260,7 +449,7 @@ struct iwl_sad_properties {
  * @phy_id: PHY index
  * @rlc: RLC properties, &struct iwl_rlc_properties
  * @sad: SAD (single antenna diversity) options, &struct iwl_sad_properties
- * @flags: flags, &enum iwl_rlc_flags
+ * @flags: flags (unused)
  * @reserved: reserved
  */
 struct iwl_rlc_config_cmd {
@@ -377,9 +566,11 @@ enum iwl_scd_queue_cfg_operation {
  * @u.add.cb_size: size code
  * @u.add.bc_dram_addr: byte-count table IOVA
  * @u.add.tfdq_dram_addr: TFD queue IOVA
- * @u.remove.queue: queue ID for removal
- * @u.modify.sta_mask: new station mask for modify
- * @u.modify.queue: queue ID to modify
+ * @u.remove.sta_mask: station mask of queue to remove
+ * @u.remove.tid: TID of queue to remove
+ * @u.modify.old_sta_mask: old station mask for modify
+ * @u.modify.tid: TID of queue to modify
+ * @u.modify.new_sta_mask: new station mask for modify
  */
 struct iwl_scd_queue_cfg_cmd {
 	__le32 operation;
@@ -394,13 +585,89 @@ struct iwl_scd_queue_cfg_cmd {
 			__le64 tfdq_dram_addr;
 		} __packed add; /* TX_QUEUE_CFG_CMD_ADD_API_S_VER_1 */
 		struct {
-			__le32 queue;
+			__le32 sta_mask;
+			__le32 tid;
 		} __packed remove; /* TX_QUEUE_CFG_CMD_REMOVE_API_S_VER_1 */
 		struct {
-			__le32 sta_mask;
-			__le32 queue;
+			__le32 old_sta_mask;
+			__le32 tid;
+			__le32 new_sta_mask;
 		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1 */
 	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1 */
 } __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3 */
+
+/**
+ * enum iwl_sec_key_flags - security key command key flags
+ * @IWL_SEC_KEY_FLAG_CIPHER_MASK: cipher mask
+ * @IWL_SEC_KEY_FLAG_CIPHER_WEP: WEP cipher
+ * @IWL_SEC_KEY_FLAG_CIPHER_CCMP: CCMP/CMAC cipher
+ * @IWL_SEC_KEY_FLAG_CIPHER_TKIP: TKIP cipher
+ * @IWL_SEC_KEY_FLAG_CIPHER_GCMP: GCMP/GMAC cipher
+ * @IWL_SEC_KEY_FLAG_NO_TX: don't install for TX
+ * @IWL_SEC_KEY_FLAG_KEY_SIZE: large key size (WEP-104, GCMP-256, GMAC-256)
+ * @IWL_SEC_KEY_FLAG_MFP: MFP is in used for this key
+ * @IWL_SEC_KEY_FLAG_MCAST_KEY: this is a multicast key
+ * @IWL_SEC_KEY_FLAG_SPP_AMSDU: SPP A-MSDU should be used
+ */
+enum iwl_sec_key_flags {
+	IWL_SEC_KEY_FLAG_CIPHER_MASK	= 0x07,
+	IWL_SEC_KEY_FLAG_CIPHER_WEP	= 0x01,
+	IWL_SEC_KEY_FLAG_CIPHER_CCMP	= 0x02,
+	IWL_SEC_KEY_FLAG_CIPHER_TKIP	= 0x03,
+	IWL_SEC_KEY_FLAG_CIPHER_GCMP	= 0x05,
+	IWL_SEC_KEY_FLAG_NO_TX		= 0x08,
+	IWL_SEC_KEY_FLAG_KEY_SIZE	= 0x10,
+	IWL_SEC_KEY_FLAG_MFP		= 0x20,
+	IWL_SEC_KEY_FLAG_MCAST_KEY	= 0x40,
+	IWL_SEC_KEY_FLAG_SPP_AMSDU	= 0x80,
+};
+
+#define IWL_SEC_WEP_KEY_OFFSET	3
+
+/**
+ * struct iwl_sec_key_cmd - security key command
+ * @action: action from &enum iwl_ctxt_action
+ * @u.add.sta_mask: station mask for the new key
+ * @u.add.key_id: key ID (0-7) for the new key
+ * @u.add.key_flags: key flags per &enum iwl_sec_key_flags
+ * @u.add.key: key material. WEP keys should start from &IWL_SEC_WEP_KEY_OFFSET.
+ * @u.add.tkip_mic_rx_key: TKIP MIC RX key
+ * @u.add.tkip_mic_tx_key: TKIP MIC TX key
+ * @u.add.rx_seq: RX sequence counter value
+ * @u.add.tx_seq: TX sequence counter value
+ * @u.modify.old_sta_mask: old station mask
+ * @u.modify.new_sta_mask: new station mask
+ * @u.modify.key_id: key ID
+ * @u.modify.key_flags: new key flags
+ * @u.remove.sta_mask: station mask
+ * @u.remove.key_id: key ID
+ * @u.remove.key_flags: key flags
+ */
+struct iwl_sec_key_cmd {
+	__le32 action;
+	union {
+		struct {
+			__le32 sta_mask;
+			__le32 key_id;
+			__le32 key_flags;
+			u8 key[32];
+			u8 tkip_mic_rx_key[8];
+			u8 tkip_mic_tx_key[8];
+			__le64 rx_seq;
+			__le64 tx_seq;
+		} __packed add; /* SEC_KEY_ADD_CMD_API_S_VER_1 */
+		struct {
+			__le32 old_sta_mask;
+			__le32 new_sta_mask;
+			__le32 key_id;
+			__le32 key_flags;
+		} __packed modify; /* SEC_KEY_MODIFY_CMD_API_S_VER_1 */
+		struct {
+			__le32 sta_mask;
+			__le32 key_id;
+			__le32 key_flags;
+		} __packed remove; /* SEC_KEY_REMOVE_CMD_API_S_VER_1 */
+	} __packed u; /* SEC_KEY_OPERATION_API_U_VER_1 */
+} __packed; /* SEC_KEY_CMD_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_datapath_h__ */

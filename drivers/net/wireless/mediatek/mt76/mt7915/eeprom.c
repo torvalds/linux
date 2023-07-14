@@ -33,11 +33,14 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u16 val = get_unaligned_le16(eeprom);
 
+#define CHECK_EEPROM_ERR(match)	(match ? 0 : -EINVAL)
 	switch (val) {
 	case 0x7915:
+		return CHECK_EEPROM_ERR(is_mt7915(&dev->mt76));
 	case 0x7916:
+		return CHECK_EEPROM_ERR(is_mt7916(&dev->mt76));
 	case 0x7986:
-		return 0;
+		return CHECK_EEPROM_ERR(is_mt7986(&dev->mt76));
 	default:
 		return -EINVAL;
 	}
@@ -110,18 +113,23 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 	} else {
 		u8 free_block_num;
 		u32 block_num, i;
+		u32 eeprom_blk_size = MT7915_EEPROM_BLOCK_SIZE;
 
-		mt7915_mcu_get_eeprom_free_block(dev, &free_block_num);
-		/* efuse info not enough */
+		ret = mt7915_mcu_get_eeprom_free_block(dev, &free_block_num);
+		if (ret < 0)
+			return ret;
+
+		/* efuse info isn't enough */
 		if (free_block_num >= 29)
 			return -EINVAL;
 
 		/* read eeprom data from efuse */
-		block_num = DIV_ROUND_UP(eeprom_size,
-					 MT7915_EEPROM_BLOCK_SIZE);
-		for (i = 0; i < block_num; i++)
-			mt7915_mcu_get_eeprom(dev,
-					      i * MT7915_EEPROM_BLOCK_SIZE);
+		block_num = DIV_ROUND_UP(eeprom_size, eeprom_blk_size);
+		for (i = 0; i < block_num; i++) {
+			ret = mt7915_mcu_get_eeprom(dev, i * eeprom_blk_size);
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	return mt7915_check_eeprom(dev);
@@ -131,9 +139,10 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 {
 	struct mt7915_dev *dev = phy->dev;
 	u8 *eeprom = dev->mt76.eeprom.data;
+	u8 band = phy->mt76->band_idx;
 	u32 val;
 
-	val = eeprom[MT_EE_WIFI_CONF + phy->band_idx];
+	val = eeprom[MT_EE_WIFI_CONF + band];
 	val = FIELD_GET(MT_EE_WIFI_CONF0_BAND_SEL, val);
 
 	if (!is_mt7915(&dev->mt76)) {
@@ -153,7 +162,7 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 			return;
 		}
 	} else if (val == MT_EE_BAND_SEL_DEFAULT && dev->dbdc_support) {
-		val = phy->band_idx ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
+		val = band ? MT_EE_BAND_SEL_5GHZ : MT_EE_BAND_SEL_2GHZ;
 	}
 
 	switch (val) {
@@ -173,60 +182,51 @@ static void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy)
 void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
 				struct mt7915_phy *phy)
 {
-	u8 nss, nss_band, nss_band_max, *eeprom = dev->mt76.eeprom.data;
+	u8 path, nss, nss_max = 4, *eeprom = dev->mt76.eeprom.data;
 	struct mt76_phy *mphy = phy->mt76;
-	bool ext_phy = phy != &dev->phy;
+	u8 band = phy->mt76->band_idx;
 
 	mt7915_eeprom_parse_band_config(phy);
 
-	/* read tx/rx mask from eeprom */
+	/* read tx/rx path from eeprom */
 	if (is_mt7915(&dev->mt76)) {
-		nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
-				eeprom[MT_EE_WIFI_CONF]);
+		path = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
+				 eeprom[MT_EE_WIFI_CONF]);
 	} else {
-		nss = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
-				eeprom[MT_EE_WIFI_CONF + phy->band_idx]);
+		path = FIELD_GET(MT_EE_WIFI_CONF0_TX_PATH,
+				 eeprom[MT_EE_WIFI_CONF + band]);
 	}
 
-	if (!nss || nss > 4)
-		nss = 4;
+	if (!path || path > 4)
+		path = 4;
 
 	/* read tx/rx stream */
-	nss_band = nss;
-
+	nss = path;
 	if (dev->dbdc_support) {
 		if (is_mt7915(&dev->mt76)) {
-			nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
-					     eeprom[MT_EE_WIFI_CONF + 3]);
-			if (phy->band_idx)
-				nss_band = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B1,
-						     eeprom[MT_EE_WIFI_CONF + 3]);
+			path = min_t(u8, path, 2);
+			nss = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B0,
+					eeprom[MT_EE_WIFI_CONF + 3]);
+			if (band)
+				nss = FIELD_GET(MT_EE_WIFI_CONF3_TX_PATH_B1,
+						eeprom[MT_EE_WIFI_CONF + 3]);
 		} else {
-			nss_band = FIELD_GET(MT_EE_WIFI_CONF_STREAM_NUM,
-					     eeprom[MT_EE_WIFI_CONF + 2 + phy->band_idx]);
+			nss = FIELD_GET(MT_EE_WIFI_CONF_STREAM_NUM,
+					eeprom[MT_EE_WIFI_CONF + 2 + band]);
 		}
 
-		nss_band_max = is_mt7986(&dev->mt76) ?
-			       MT_EE_NSS_MAX_DBDC_MA7986 : MT_EE_NSS_MAX_DBDC_MA7915;
-	} else {
-		nss_band_max = is_mt7986(&dev->mt76) ?
-			       MT_EE_NSS_MAX_MA7986 : MT_EE_NSS_MAX_MA7915;
+		if (!is_mt7986(&dev->mt76))
+			nss_max = 2;
 	}
 
-	if (!nss_band || nss_band > nss_band_max)
-		nss_band = nss_band_max;
+	if (!nss)
+		nss = nss_max;
+	nss = min_t(u8, min_t(u8, nss_max, nss), path);
 
-	if (nss_band > nss) {
-		dev_warn(dev->mt76.dev,
-			 "nss mismatch, nss(%d) nss_band(%d) band(%d) ext_phy(%d)\n",
-			 nss, nss_band, phy->band_idx, ext_phy);
-		nss = nss_band;
-	}
-
-	mphy->chainmask = BIT(nss) - 1;
-	if (ext_phy)
+	mphy->chainmask = BIT(path) - 1;
+	if (band)
 		mphy->chainmask <<= dev->chainshift;
-	mphy->antenna_mask = BIT(nss_band) - 1;
+	mphy->antenna_mask = BIT(nss) - 1;
 	dev->chainmask |= mphy->chainmask;
 	dev->chainshift = hweight8(dev->mphy.chainmask);
 }

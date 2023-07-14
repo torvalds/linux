@@ -47,7 +47,6 @@ enum {
 /**
  * struct sprd_pmic_eic - PMIC EIC controller
  * @chip: the gpio_chip structure.
- * @intc: the irq_chip structure.
  * @map:  the regmap from the parent device.
  * @offset: the EIC controller's offset address of the PMIC.
  * @reg: the array to cache the EIC registers.
@@ -56,7 +55,6 @@ enum {
  */
 struct sprd_pmic_eic {
 	struct gpio_chip chip;
-	struct irq_chip intc;
 	struct regmap *map;
 	u32 offset;
 	u8 reg[CACHE_NR_REGS];
@@ -151,15 +149,21 @@ static void sprd_pmic_eic_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct sprd_pmic_eic *pmic_eic = gpiochip_get_data(chip);
+	u32 offset = irqd_to_hwirq(data);
 
 	pmic_eic->reg[REG_IE] = 0;
 	pmic_eic->reg[REG_TRIG] = 0;
+
+	gpiochip_disable_irq(chip, offset);
 }
 
 static void sprd_pmic_eic_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct sprd_pmic_eic *pmic_eic = gpiochip_get_data(chip);
+	u32 offset = irqd_to_hwirq(data);
+
+	gpiochip_enable_irq(chip, offset);
 
 	pmic_eic->reg[REG_IE] = 1;
 	pmic_eic->reg[REG_TRIG] = 1;
@@ -292,6 +296,17 @@ static irqreturn_t sprd_pmic_eic_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static const struct irq_chip pmic_eic_irq_chip = {
+	.name			= "sprd-pmic-eic",
+	.irq_mask		= sprd_pmic_eic_irq_mask,
+	.irq_unmask		= sprd_pmic_eic_irq_unmask,
+	.irq_set_type		= sprd_pmic_eic_irq_set_type,
+	.irq_bus_lock		= sprd_pmic_eic_bus_lock,
+	.irq_bus_sync_unlock	= sprd_pmic_eic_bus_sync_unlock,
+	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static int sprd_pmic_eic_probe(struct platform_device *pdev)
 {
 	struct gpio_irq_chip *irq;
@@ -338,16 +353,8 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 	pmic_eic->chip.set = sprd_pmic_eic_set;
 	pmic_eic->chip.get = sprd_pmic_eic_get;
 
-	pmic_eic->intc.name = dev_name(&pdev->dev);
-	pmic_eic->intc.irq_mask = sprd_pmic_eic_irq_mask;
-	pmic_eic->intc.irq_unmask = sprd_pmic_eic_irq_unmask;
-	pmic_eic->intc.irq_set_type = sprd_pmic_eic_irq_set_type;
-	pmic_eic->intc.irq_bus_lock = sprd_pmic_eic_bus_lock;
-	pmic_eic->intc.irq_bus_sync_unlock = sprd_pmic_eic_bus_sync_unlock;
-	pmic_eic->intc.flags = IRQCHIP_SKIP_SET_WAKE;
-
 	irq = &pmic_eic->chip.irq;
-	irq->chip = &pmic_eic->intc;
+	gpio_irq_chip_set_chip(irq, &pmic_eic_irq_chip);
 	irq->threaded = true;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &pmic_eic->chip, pmic_eic);

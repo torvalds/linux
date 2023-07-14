@@ -19,13 +19,15 @@
  * struct scmi_mailbox - Structure representing a SCMI mailbox transport
  *
  * @cl: Mailbox Client
- * @chan: Transmit/Receive mailbox channel
+ * @chan: Transmit/Receive mailbox uni/bi-directional channel
+ * @chan_receiver: Optional Receiver mailbox unidirectional channel
  * @cinfo: SCMI channel info
  * @shmem: Transmit/Receive shared memory area
  */
 struct scmi_mailbox {
 	struct mbox_client cl;
 	struct mbox_chan *chan;
+	struct mbox_chan *chan_receiver;
 	struct scmi_chan_info *cinfo;
 	struct scmi_shared_mem __iomem *shmem;
 };
@@ -36,7 +38,7 @@ static void tx_prepare(struct mbox_client *cl, void *m)
 {
 	struct scmi_mailbox *smbox = client_to_scmi_mailbox(cl);
 
-	shmem_tx_prepare(smbox->shmem, m);
+	shmem_tx_prepare(smbox->shmem, m, smbox->cinfo);
 }
 
 static void rx_callback(struct mbox_client *cl, void *m)
@@ -46,10 +48,98 @@ static void rx_callback(struct mbox_client *cl, void *m)
 	scmi_rx_callback(smbox->cinfo, shmem_read_header(smbox->shmem), NULL);
 }
 
-static bool mailbox_chan_available(struct device *dev, int idx)
+static bool mailbox_chan_available(struct device_node *of_node, int idx)
 {
-	return !of_parse_phandle_with_args(dev->of_node, "mboxes",
+	int num_mb;
+
+	/*
+	 * Just check if bidirrectional channels are involved, and check the
+	 * index accordingly; proper full validation will be made later
+	 * in mailbox_chan_setup().
+	 */
+	num_mb = of_count_phandle_with_args(of_node, "mboxes", "#mbox-cells");
+	if (num_mb == 3 && idx == 1)
+		idx = 2;
+
+	return !of_parse_phandle_with_args(of_node, "mboxes",
 					   "#mbox-cells", idx, NULL);
+}
+
+/**
+ * mailbox_chan_validate  - Validate transport configuration and map channels
+ *
+ * @cdev: Reference to the underlying transport device carrying the
+ *	  of_node descriptor to analyze.
+ * @a2p_rx_chan: A reference to an optional unidirectional channel to use
+ *		 for replies on the a2p channel. Set as zero if not present.
+ * @p2a_chan: A reference to the optional p2a channel.
+ *	      Set as zero if not present.
+ *
+ * At first, validate the transport configuration as described in terms of
+ * 'mboxes' and 'shmem', then determin which mailbox channel indexes are
+ * appropriate to be use in the current configuration.
+ *
+ * Return: 0 on Success or error
+ */
+static int mailbox_chan_validate(struct device *cdev,
+				 int *a2p_rx_chan, int *p2a_chan)
+{
+	int num_mb, num_sh, ret = 0;
+	struct device_node *np = cdev->of_node;
+
+	num_mb = of_count_phandle_with_args(np, "mboxes", "#mbox-cells");
+	num_sh = of_count_phandle_with_args(np, "shmem", NULL);
+	dev_dbg(cdev, "Found %d mboxes and %d shmems !\n", num_mb, num_sh);
+
+	/* Bail out if mboxes and shmem descriptors are inconsistent */
+	if (num_mb <= 0 || num_sh <= 0 || num_sh > 2 || num_mb > 3 ||
+	    (num_mb == 1 && num_sh != 1) || (num_mb == 3 && num_sh != 2)) {
+		dev_warn(cdev,
+			 "Invalid channel descriptor for '%s' - mbs:%d  shm:%d\n",
+			 of_node_full_name(np), num_mb, num_sh);
+		return -EINVAL;
+	}
+
+	/* Bail out if provided shmem descriptors do not refer distinct areas  */
+	if (num_sh > 1) {
+		struct device_node *np_tx, *np_rx;
+
+		np_tx = of_parse_phandle(np, "shmem", 0);
+		np_rx = of_parse_phandle(np, "shmem", 1);
+		if (!np_tx || !np_rx || np_tx == np_rx) {
+			dev_warn(cdev, "Invalid shmem descriptor for '%s'\n",
+				 of_node_full_name(np));
+			ret = -EINVAL;
+		}
+
+		of_node_put(np_tx);
+		of_node_put(np_rx);
+	}
+
+	/* Calculate channels IDs to use depending on mboxes/shmem layout */
+	if (!ret) {
+		switch (num_mb) {
+		case 1:
+			*a2p_rx_chan = 0;
+			*p2a_chan = 0;
+			break;
+		case 2:
+			if (num_sh == 2) {
+				*a2p_rx_chan = 0;
+				*p2a_chan = 1;
+			} else {
+				*a2p_rx_chan = 1;
+				*p2a_chan = 0;
+			}
+			break;
+		case 3:
+			*a2p_rx_chan = 1;
+			*p2a_chan = 2;
+			break;
+		}
+	}
+
+	return ret;
 }
 
 static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
@@ -59,10 +149,17 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	struct device *cdev = cinfo->dev;
 	struct scmi_mailbox *smbox;
 	struct device_node *shmem;
-	int ret, idx = tx ? 0 : 1;
+	int ret, a2p_rx_chan, p2a_chan, idx = tx ? 0 : 1;
 	struct mbox_client *cl;
 	resource_size_t size;
 	struct resource res;
+
+	ret = mailbox_chan_validate(cdev, &a2p_rx_chan, &p2a_chan);
+	if (ret)
+		return ret;
+
+	if (!tx && !p2a_chan)
+		return -ENODEV;
 
 	smbox = devm_kzalloc(dev, sizeof(*smbox), GFP_KERNEL);
 	if (!smbox)
@@ -93,13 +190,24 @@ static int mailbox_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	cl->tx_block = false;
 	cl->knows_txdone = tx;
 
-	smbox->chan = mbox_request_channel(cl, tx ? 0 : 1);
+	smbox->chan = mbox_request_channel(cl, tx ? 0 : p2a_chan);
 	if (IS_ERR(smbox->chan)) {
 		ret = PTR_ERR(smbox->chan);
 		if (ret != -EPROBE_DEFER)
-			dev_err(cdev, "failed to request SCMI %s mailbox\n",
-				tx ? "Tx" : "Rx");
+			dev_err(cdev,
+				"failed to request SCMI %s mailbox\n", desc);
 		return ret;
+	}
+
+	/* Additional unidirectional channel for TX if needed */
+	if (tx && a2p_rx_chan) {
+		smbox->chan_receiver = mbox_request_channel(cl, a2p_rx_chan);
+		if (IS_ERR(smbox->chan_receiver)) {
+			ret = PTR_ERR(smbox->chan_receiver);
+			if (ret != -EPROBE_DEFER)
+				dev_err(cdev, "failed to request SCMI Tx Receiver mailbox\n");
+			return ret;
+		}
 	}
 
 	cinfo->transport_info = smbox;
@@ -115,12 +223,12 @@ static int mailbox_chan_free(int id, void *p, void *data)
 
 	if (smbox && !IS_ERR(smbox->chan)) {
 		mbox_free_channel(smbox->chan);
+		mbox_free_channel(smbox->chan_receiver);
 		cinfo->transport_info = NULL;
 		smbox->chan = NULL;
+		smbox->chan_receiver = NULL;
 		smbox->cinfo = NULL;
 	}
-
-	scmi_free_channel(cinfo, data, id);
 
 	return 0;
 }

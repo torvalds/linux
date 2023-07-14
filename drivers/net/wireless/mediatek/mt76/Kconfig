@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config MT76_CORE
 	tristate
+	select PAGE_POOL
 
 config MT76_LEDS
 	bool
@@ -34,3 +35,4 @@ source "drivers/net/wireless/mediatek/mt76/mt7603/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt7615/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt7915/Kconfig"
 source "drivers/net/wireless/mediatek/mt76/mt7921/Kconfig"
+source "drivers/net/wireless/mediatek/mt76/mt7996/Kconfig"

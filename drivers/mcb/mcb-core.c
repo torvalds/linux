@@ -41,9 +41,9 @@ static int mcb_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int mcb_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int mcb_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct mcb_device *mdev = to_mcb_device(dev);
+	const struct mcb_device *mdev = to_mcb_device(dev);
 	int ret;
 
 	ret = add_uevent_var(env, "MODALIAS=mcb:16z%03d", mdev->id);
@@ -71,8 +71,10 @@ static int mcb_probe(struct device *dev)
 
 	get_device(dev);
 	ret = mdrv->probe(mdev, found_id);
-	if (ret)
+	if (ret) {
 		module_put(carrier_mod);
+		put_device(dev);
+	}
 
 	return ret;
 }

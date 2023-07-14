@@ -8,7 +8,6 @@
 #include "core.h"
 
 #define RF_PATH_NUM_8852A 2
-#define NTX_NUM_8852A 2
 
 enum rtw8852a_pmac_mode {
 	NONE_TEST,

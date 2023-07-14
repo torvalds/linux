@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/phy/mediatek,ufs-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: MediaTek Universal Flash Storage (UFS) M-PHY binding
+title: MediaTek Universal Flash Storage (UFS) M-PHY
 
 maintainers:
   - Stanley Chu <stanley.chu@mediatek.com>

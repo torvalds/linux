@@ -23,7 +23,7 @@ commands: Dict[str, Sequence[str]] = {
 	'kunit_tool_test.py': ['./kunit_tool_test.py'],
 	'kunit smoke test': ['./kunit.py', 'run', '--kunitconfig=lib/kunit', '--build_dir=kunit_run_checks'],
 	'pytype': ['/bin/sh', '-c', 'pytype *.py'],
-	'mypy': ['/bin/sh', '-c', 'mypy *.py'],
+	'mypy': ['mypy', '--config-file', 'mypy.ini', '--exclude', '_test.py$', '--exclude', 'qemu_configs/', '.'],
 }
 
 # The user might not have mypy or pytype installed, skip them if so.
@@ -37,7 +37,7 @@ def main(argv: Sequence[str]) -> None:
 	if argv:
 		raise RuntimeError('This script takes no arguments')
 
-	future_to_name: Dict[futures.Future, str] = {}
+	future_to_name: Dict[futures.Future[None], str] = {}
 	executor = futures.ThreadPoolExecutor(max_workers=len(commands))
 	for name, argv in commands.items():
 		if name in necessary_deps and shutil.which(necessary_deps[name]) is None:
@@ -73,7 +73,7 @@ def main(argv: Sequence[str]) -> None:
 		sys.exit(1)
 
 
-def run_cmd(argv: Sequence[str]):
+def run_cmd(argv: Sequence[str]) -> None:
 	subprocess.check_output(argv, stderr=subprocess.STDOUT, cwd=ABS_TOOL_PATH, timeout=TIMEOUT)
 
 

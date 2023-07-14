@@ -7,9 +7,25 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
-&dsi0_out {
-	remote-endpoint = <&sn65dsi86_in>;
+/*
+ * ADDITIONS TO FIXED REGULATORS DEFINED IN PARENT DEVICE TREE FILES
+ *
+ * Sort order matches the order in the parent files (parents before children).
+ */
+
+&pp3300_dx_edp {
+	off-on-delay-us = <500000>;
+
+	/*
+	 * It's nicer to start with this regulator enabled. The
+	 * bootloader may have left it on and it's nice not to cause an
+	 * extra power cycle of the touchscreen and eDP panel at bootup.
+	 * This should help speed bootup because we have off-on-delay-us.
+	 */
+	regulator-boot-on;
 };
+
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
 edp_brij_i2c: &i2c2 {
 	status = "okay";
@@ -45,7 +61,7 @@ edp_brij_i2c: &i2c2 {
 			port@0 {
 				reg = <0>;
 				sn65dsi86_in: endpoint {
-					remote-endpoint = <&dsi0_out>;
+					remote-endpoint = <&mdss_dsi0_out>;
 				};
 			};
 
@@ -75,17 +91,15 @@ edp_brij_i2c: &i2c2 {
 	};
 };
 
-&tlmm {
-	edp_brij_irq: edp-brij-irq {
-		pinmux {
-			pins = "gpio11";
-			function = "gpio";
-		};
+&mdss_dsi0_out {
+	remote-endpoint = <&sn65dsi86_in>;
+};
 
-		pinconf {
-			pins = "gpio11";
-			drive-strength = <2>;
-			bias-pull-down;
-		};
+&tlmm {
+	edp_brij_irq: edp-brij-irq-state {
+		pins = "gpio11";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 };

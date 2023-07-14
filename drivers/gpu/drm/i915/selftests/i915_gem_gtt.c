@@ -27,6 +27,7 @@
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_internal.h"
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "gem/selftests/mock_context.h"
 #include "gt/intel_context.h"
@@ -60,7 +61,6 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 #define PFN_BIAS 0x1000
 	struct sg_table *pages;
 	struct scatterlist *sg;
-	unsigned int sg_page_sizes;
 	typeof(obj->base.size) rem;
 
 	pages = kmalloc(sizeof(*pages), GFP);
@@ -68,12 +68,17 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 		return -ENOMEM;
 
 	rem = round_up(obj->base.size, BIT(31)) >> 31;
+	/* restricted by sg_alloc_table */
+	if (overflows_type(rem, unsigned int)) {
+		kfree(pages);
+		return -E2BIG;
+	}
+
 	if (sg_alloc_table(pages, rem, GFP)) {
 		kfree(pages);
 		return -ENOMEM;
 	}
 
-	sg_page_sizes = 0;
 	rem = obj->base.size;
 	for (sg = pages->sgl; sg; sg = sg_next(sg)) {
 		unsigned long len = min_t(typeof(rem), rem, BIT(31));
@@ -82,13 +87,12 @@ static int fake_get_pages(struct drm_i915_gem_object *obj)
 		sg_set_page(sg, pfn_to_page(PFN_BIAS), len, 0);
 		sg_dma_address(sg) = page_to_phys(sg_page(sg));
 		sg_dma_len(sg) = len;
-		sg_page_sizes |= len;
 
 		rem -= len;
 	}
 	GEM_BUG_ON(rem);
 
-	__i915_gem_object_set_pages(obj, pages, sg_page_sizes);
+	__i915_gem_object_set_pages(obj, pages);
 
 	return 0;
 #undef GFP
@@ -131,7 +135,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
-	obj->cache_level = I915_CACHE_NONE;
+	obj->pat_index = i915_gem_get_pat_index(i915, I915_CACHE_NONE);
 
 	/* Preallocate the "backing storage" */
 	if (i915_gem_object_pin_pages_unlocked(obj))
@@ -355,7 +359,9 @@ alloc_vm_end:
 
 			with_intel_runtime_pm(vm->gt->uncore->rpm, wakeref)
 			  vm->insert_entries(vm, mock_vma_res,
-						   I915_CACHE_NONE, 0);
+					     i915_gem_get_pat_index(vm->i915,
+								    I915_CACHE_NONE),
+					     0);
 		}
 		count = n;
 
@@ -385,7 +391,7 @@ static void close_object_list(struct list_head *objects,
 			      struct i915_address_space *vm)
 {
 	struct drm_i915_gem_object *obj, *on;
-	int ignored;
+	int __maybe_unused ignored;
 
 	list_for_each_entry_safe(obj, on, objects, st_link) {
 		struct i915_vma *vma;
@@ -1080,7 +1086,7 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	bool is_stolen = mr->type == INTEL_MEMORY_STOLEN_SYSTEM ||
 			 mr->type == INTEL_MEMORY_STOLEN_LOCAL;
 
-	obj = i915_gem_object_create_region(mr, size, 0, 0);
+	obj = i915_gem_object_create_region(mr, size, 0, I915_BO_ALLOC_GPU_ONLY);
 	if (IS_ERR(obj)) {
 		/* if iGVT-g or DMAR is active, stolen mem will be uninitialized */
 		if (PTR_ERR(obj) == -ENODEV && is_stolen)
@@ -1113,15 +1119,8 @@ static int misaligned_case(struct i915_address_space *vm, struct intel_memory_re
 	expected_node_size = expected_vma_size;
 
 	if (HAS_64K_PAGES(vm->i915) && i915_gem_object_is_lmem(obj)) {
-		/*
-		 * The compact-pt should expand lmem node to 2MB for the ppGTT,
-		 * for all other cases we should only expect 64K.
-		 */
 		expected_vma_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
-		if (NEEDS_COMPACT_PT(vm->i915) && !i915_is_ggtt(vm))
-			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_2M);
-		else
-			expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
+		expected_node_size = round_up(size, I915_GTT_PAGE_SIZE_64K);
 	}
 
 	if (vma->size != expected_vma_size || vma->node.size != expected_node_size) {
@@ -1380,7 +1379,10 @@ static int igt_ggtt_page(void *arg)
 
 		ggtt->vm.insert_page(&ggtt->vm,
 				     i915_gem_object_get_dma_address(obj, 0),
-				     offset, I915_CACHE_NONE, 0);
+				     offset,
+				     i915_gem_get_pat_index(i915,
+							    I915_CACHE_NONE),
+				     0);
 	}
 
 	order = i915_random_order(count, &prng);
@@ -1513,7 +1515,7 @@ static int reserve_gtt_with_resource(struct i915_vma *vma, u64 offset)
 	mutex_lock(&vm->mutex);
 	err = i915_gem_gtt_reserve(vm, NULL, &vma->node, obj->base.size,
 				   offset,
-				   obj->cache_level,
+				   obj->pat_index,
 				   0);
 	if (!err) {
 		i915_vma_resource_init_from_vma(vma_res, vma);
@@ -1693,7 +1695,7 @@ static int insert_gtt_with_resource(struct i915_vma *vma)
 
 	mutex_lock(&vm->mutex);
 	err = i915_gem_gtt_insert(vm, NULL, &vma->node, obj->base.size, 0,
-				  obj->cache_level, 0, vm->total, 0);
+				  obj->pat_index, 0, vm->total, 0);
 	if (!err) {
 		i915_vma_resource_init_from_vma(vma_res, vma);
 		vma->resource = vma_res;
@@ -1945,361 +1947,6 @@ out_put:
 	return err;
 }
 
-static int context_sync(struct intel_context *ce)
-{
-	struct i915_request *rq;
-	long timeout;
-
-	rq = intel_context_create_request(ce);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-
-	i915_request_get(rq);
-	i915_request_add(rq);
-
-	timeout = i915_request_wait(rq, 0, HZ / 5);
-	i915_request_put(rq);
-
-	return timeout < 0 ? -EIO : 0;
-}
-
-static struct i915_request *
-submit_batch(struct intel_context *ce, u64 addr)
-{
-	struct i915_request *rq;
-	int err;
-
-	rq = intel_context_create_request(ce);
-	if (IS_ERR(rq))
-		return rq;
-
-	err = 0;
-	if (rq->engine->emit_init_breadcrumb) /* detect a hang */
-		err = rq->engine->emit_init_breadcrumb(rq);
-	if (err == 0)
-		err = rq->engine->emit_bb_start(rq, addr, 0, 0);
-
-	if (err == 0)
-		i915_request_get(rq);
-	i915_request_add(rq);
-
-	return err ? ERR_PTR(err) : rq;
-}
-
-static u32 *spinner(u32 *batch, int i)
-{
-	return batch + i * 64 / sizeof(*batch) + 4;
-}
-
-static void end_spin(u32 *batch, int i)
-{
-	*spinner(batch, i) = MI_BATCH_BUFFER_END;
-	wmb();
-}
-
-static int igt_cs_tlb(void *arg)
-{
-	const unsigned int count = PAGE_SIZE / 64;
-	const unsigned int chunk_size = count * PAGE_SIZE;
-	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_object *bbe, *act, *out;
-	struct i915_gem_engines_iter it;
-	struct i915_address_space *vm;
-	struct i915_gem_context *ctx;
-	struct intel_context *ce;
-	struct i915_vma *vma;
-	I915_RND_STATE(prng);
-	struct file *file;
-	unsigned int i;
-	u32 *result;
-	u32 *batch;
-	int err = 0;
-
-	/*
-	 * Our mission here is to fool the hardware to execute something
-	 * from scratch as it has not seen the batch move (due to missing
-	 * the TLB invalidate).
-	 */
-
-	file = mock_file(i915);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
-
-	ctx = live_context(i915, file);
-	if (IS_ERR(ctx)) {
-		err = PTR_ERR(ctx);
-		goto out_unlock;
-	}
-
-	vm = i915_gem_context_get_eb_vm(ctx);
-	if (i915_is_ggtt(vm))
-		goto out_vm;
-
-	/* Create two pages; dummy we prefill the TLB, and intended */
-	bbe = i915_gem_object_create_internal(i915, PAGE_SIZE);
-	if (IS_ERR(bbe)) {
-		err = PTR_ERR(bbe);
-		goto out_vm;
-	}
-
-	batch = i915_gem_object_pin_map_unlocked(bbe, I915_MAP_WC);
-	if (IS_ERR(batch)) {
-		err = PTR_ERR(batch);
-		goto out_put_bbe;
-	}
-	memset32(batch, MI_BATCH_BUFFER_END, PAGE_SIZE / sizeof(u32));
-	i915_gem_object_flush_map(bbe);
-	i915_gem_object_unpin_map(bbe);
-
-	act = i915_gem_object_create_internal(i915, PAGE_SIZE);
-	if (IS_ERR(act)) {
-		err = PTR_ERR(act);
-		goto out_put_bbe;
-	}
-
-	/* Track the execution of each request by writing into different slot */
-	batch = i915_gem_object_pin_map_unlocked(act, I915_MAP_WC);
-	if (IS_ERR(batch)) {
-		err = PTR_ERR(batch);
-		goto out_put_act;
-	}
-	for (i = 0; i < count; i++) {
-		u32 *cs = batch + i * 64 / sizeof(*cs);
-		u64 addr = (vm->total - PAGE_SIZE) + i * sizeof(u32);
-
-		GEM_BUG_ON(GRAPHICS_VER(i915) < 6);
-		cs[0] = MI_STORE_DWORD_IMM_GEN4;
-		if (GRAPHICS_VER(i915) >= 8) {
-			cs[1] = lower_32_bits(addr);
-			cs[2] = upper_32_bits(addr);
-			cs[3] = i;
-			cs[4] = MI_NOOP;
-			cs[5] = MI_BATCH_BUFFER_START_GEN8;
-		} else {
-			cs[1] = 0;
-			cs[2] = lower_32_bits(addr);
-			cs[3] = i;
-			cs[4] = MI_NOOP;
-			cs[5] = MI_BATCH_BUFFER_START;
-		}
-	}
-
-	out = i915_gem_object_create_internal(i915, PAGE_SIZE);
-	if (IS_ERR(out)) {
-		err = PTR_ERR(out);
-		goto out_put_batch;
-	}
-	i915_gem_object_set_cache_coherency(out, I915_CACHING_CACHED);
-
-	vma = i915_vma_instance(out, vm, NULL);
-	if (IS_ERR(vma)) {
-		err = PTR_ERR(vma);
-		goto out_put_out;
-	}
-
-	err = i915_vma_pin(vma, 0, 0,
-			   PIN_USER |
-			   PIN_OFFSET_FIXED |
-			   (vm->total - PAGE_SIZE));
-	if (err)
-		goto out_put_out;
-	GEM_BUG_ON(vma->node.start != vm->total - PAGE_SIZE);
-
-	result = i915_gem_object_pin_map_unlocked(out, I915_MAP_WB);
-	if (IS_ERR(result)) {
-		err = PTR_ERR(result);
-		goto out_put_out;
-	}
-
-	for_each_gem_engine(ce, i915_gem_context_lock_engines(ctx), it) {
-		IGT_TIMEOUT(end_time);
-		unsigned long pass = 0;
-
-		if (!intel_engine_can_store_dword(ce->engine))
-			continue;
-
-		while (!__igt_timeout(end_time, NULL)) {
-			struct i915_vm_pt_stash stash = {};
-			struct i915_request *rq;
-			struct i915_gem_ww_ctx ww;
-			struct i915_vma_resource *vma_res;
-			u64 offset;
-
-			offset = igt_random_offset(&prng,
-						   0, vm->total - PAGE_SIZE,
-						   chunk_size, PAGE_SIZE);
-
-			memset32(result, STACK_MAGIC, PAGE_SIZE / sizeof(u32));
-
-			vma = i915_vma_instance(bbe, vm, NULL);
-			if (IS_ERR(vma)) {
-				err = PTR_ERR(vma);
-				goto end;
-			}
-
-			i915_gem_object_lock(bbe, NULL);
-			err = i915_vma_get_pages(vma);
-			i915_gem_object_unlock(bbe);
-			if (err)
-				goto end;
-
-			vma_res = i915_vma_resource_alloc();
-			if (IS_ERR(vma_res)) {
-				i915_vma_put_pages(vma);
-				err = PTR_ERR(vma_res);
-				goto end;
-			}
-
-			i915_gem_ww_ctx_init(&ww, false);
-retry:
-			err = i915_vm_lock_objects(vm, &ww);
-			if (err)
-				goto end_ww;
-
-			err = i915_vm_alloc_pt_stash(vm, &stash, chunk_size);
-			if (err)
-				goto end_ww;
-
-			err = i915_vm_map_pt_stash(vm, &stash);
-			if (!err)
-				vm->allocate_va_range(vm, &stash, offset, chunk_size);
-			i915_vm_free_pt_stash(vm, &stash);
-end_ww:
-			if (err == -EDEADLK) {
-				err = i915_gem_ww_ctx_backoff(&ww);
-				if (!err)
-					goto retry;
-			}
-			i915_gem_ww_ctx_fini(&ww);
-			if (err) {
-				kfree(vma_res);
-				goto end;
-			}
-
-			i915_vma_resource_init_from_vma(vma_res, vma);
-			/* Prime the TLB with the dummy pages */
-			for (i = 0; i < count; i++) {
-				vma_res->start = offset + i * PAGE_SIZE;
-				vm->insert_entries(vm, vma_res, I915_CACHE_NONE,
-						   0);
-
-				rq = submit_batch(ce, vma_res->start);
-				if (IS_ERR(rq)) {
-					err = PTR_ERR(rq);
-					i915_vma_resource_fini(vma_res);
-					kfree(vma_res);
-					goto end;
-				}
-				i915_request_put(rq);
-			}
-			i915_vma_resource_fini(vma_res);
-			i915_vma_put_pages(vma);
-
-			err = context_sync(ce);
-			if (err) {
-				pr_err("%s: dummy setup timed out\n",
-				       ce->engine->name);
-				kfree(vma_res);
-				goto end;
-			}
-
-			vma = i915_vma_instance(act, vm, NULL);
-			if (IS_ERR(vma)) {
-				kfree(vma_res);
-				err = PTR_ERR(vma);
-				goto end;
-			}
-
-			i915_gem_object_lock(act, NULL);
-			err = i915_vma_get_pages(vma);
-			i915_gem_object_unlock(act);
-			if (err) {
-				kfree(vma_res);
-				goto end;
-			}
-
-			i915_vma_resource_init_from_vma(vma_res, vma);
-			/* Replace the TLB with target batches */
-			for (i = 0; i < count; i++) {
-				struct i915_request *rq;
-				u32 *cs = batch + i * 64 / sizeof(*cs);
-				u64 addr;
-
-				vma_res->start = offset + i * PAGE_SIZE;
-				vm->insert_entries(vm, vma_res, I915_CACHE_NONE, 0);
-
-				addr = vma_res->start + i * 64;
-				cs[4] = MI_NOOP;
-				cs[6] = lower_32_bits(addr);
-				cs[7] = upper_32_bits(addr);
-				wmb();
-
-				rq = submit_batch(ce, addr);
-				if (IS_ERR(rq)) {
-					err = PTR_ERR(rq);
-					i915_vma_resource_fini(vma_res);
-					kfree(vma_res);
-					goto end;
-				}
-
-				/* Wait until the context chain has started */
-				if (i == 0) {
-					while (READ_ONCE(result[i]) &&
-					       !i915_request_completed(rq))
-						cond_resched();
-				} else {
-					end_spin(batch, i - 1);
-				}
-
-				i915_request_put(rq);
-			}
-			end_spin(batch, count - 1);
-
-			i915_vma_resource_fini(vma_res);
-			kfree(vma_res);
-			i915_vma_put_pages(vma);
-
-			err = context_sync(ce);
-			if (err) {
-				pr_err("%s: writes timed out\n",
-				       ce->engine->name);
-				goto end;
-			}
-
-			for (i = 0; i < count; i++) {
-				if (result[i] != i) {
-					pr_err("%s: Write lost on pass %lu, at offset %llx, index %d, found %x, expected %x\n",
-					       ce->engine->name, pass,
-					       offset, i, result[i], i);
-					err = -EINVAL;
-					goto end;
-				}
-			}
-
-			vm->clear_range(vm, offset, chunk_size);
-			pass++;
-		}
-	}
-end:
-	if (igt_flush_test(i915))
-		err = -EIO;
-	i915_gem_context_unlock_engines(ctx);
-	i915_gem_object_unpin_map(out);
-out_put_out:
-	i915_gem_object_put(out);
-out_put_batch:
-	i915_gem_object_unpin_map(act);
-out_put_act:
-	i915_gem_object_put(act);
-out_put_bbe:
-	i915_gem_object_put(bbe);
-out_vm:
-	i915_vm_put(vm);
-out_unlock:
-	fput(file);
-	return err;
-}
-
 int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -2319,10 +1966,9 @@ int i915_gem_gtt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_ggtt_fill),
 		SUBTEST(igt_ggtt_page),
 		SUBTEST(igt_ggtt_misaligned_pin),
-		SUBTEST(igt_cs_tlb),
 	};
 
 	GEM_BUG_ON(offset_in_page(to_gt(i915)->ggtt->vm.total));
 
-	return i915_subtests(tests, i915);
+	return i915_live_subtests(tests, i915);
 }

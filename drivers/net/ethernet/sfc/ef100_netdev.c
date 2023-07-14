@@ -24,6 +24,8 @@
 #include "rx_common.h"
 #include "ef100_sriov.h"
 #include "tc_bindings.h"
+#include "tc_encap_actions.h"
+#include "efx_devlink.h"
 
 static void ef100_update_name(struct efx_nic *efx)
 {
@@ -39,19 +41,26 @@ static int ef100_alloc_vis(struct efx_nic *efx, unsigned int *allocated_vis)
 	unsigned int tx_vis = efx->n_tx_channels + efx->n_extra_tx_channels;
 	unsigned int rx_vis = efx->n_rx_channels;
 	unsigned int min_vis, max_vis;
+	int rc;
 
 	EFX_WARN_ON_PARANOID(efx->tx_queues_per_channel != 1);
 
 	tx_vis += efx->n_xdp_channels * efx->xdp_tx_per_channel;
 
 	max_vis = max(rx_vis, tx_vis);
-	/* Currently don't handle resource starvation and only accept
-	 * our maximum needs and no less.
-	 */
-	min_vis = max_vis;
+	/* We require at least a single complete TX channel worth of queues. */
+	min_vis = efx->tx_queues_per_channel;
 
-	return efx_mcdi_alloc_vis(efx, min_vis, max_vis,
-				  NULL, allocated_vis);
+	rc = efx_mcdi_alloc_vis(efx, min_vis, max_vis,
+				NULL, allocated_vis);
+
+	/* We retry allocating VIs by reallocating channels when we have not
+	 * been able to allocate the maximum VIs.
+	 */
+	if (!rc && *allocated_vis < max_vis)
+		rc = -EAGAIN;
+
+	return rc;
 }
 
 static int ef100_remap_bar(struct efx_nic *efx, int max_vis)
@@ -132,8 +141,40 @@ static int ef100_net_open(struct net_device *net_dev)
 		goto fail;
 
 	rc = ef100_alloc_vis(efx, &allocated_vis);
-	if (rc)
+	if (rc && rc != -EAGAIN)
 		goto fail;
+
+	/* Try one more time but with the maximum number of channels
+	 * equal to the allocated VIs, which would more likely succeed.
+	 */
+	if (rc == -EAGAIN) {
+		rc = efx_mcdi_free_vis(efx);
+		if (rc)
+			goto fail;
+
+		efx_remove_interrupts(efx);
+		efx->max_channels = allocated_vis;
+
+		rc = efx_probe_interrupts(efx);
+		if (rc)
+			goto fail;
+
+		rc = efx_set_channels(efx);
+		if (rc)
+			goto fail;
+
+		rc = ef100_alloc_vis(efx, &allocated_vis);
+		if (rc && rc != -EAGAIN)
+			goto fail;
+
+		/* It should be very unlikely that we failed here again, but in
+		 * such a case we return ENOSPC.
+		 */
+		if (rc == -EAGAIN) {
+			rc = -ENOSPC;
+			goto fail;
+		}
+	}
 
 	rc = efx_probe_channels(efx);
 	if (rc)
@@ -218,6 +259,7 @@ netdev_tx_t __ef100_hard_start_xmit(struct sk_buff *skb,
 		   skb->len, skb->data_len, channel->channel);
 	if (!efx->n_channels || !efx->n_tx_channels || !channel) {
 		netif_stop_queue(net_dev);
+		dev_kfree_skb_any(skb);
 		goto err;
 	}
 
@@ -259,13 +301,37 @@ int ef100_netdev_event(struct notifier_block *this,
 {
 	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_notifier);
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	int err;
 
 	if (efx->net_dev == net_dev &&
 	    (event == NETDEV_CHANGENAME || event == NETDEV_REGISTER))
 		ef100_update_name(efx);
 
+	if (!nic_data->grp_mae)
+		return NOTIFY_DONE;
+	err = efx_tc_netdev_event(efx, event, net_dev);
+	if (err & NOTIFY_STOP_MASK)
+		return err;
+
 	return NOTIFY_DONE;
 }
+
+static int ef100_netevent_event(struct notifier_block *this,
+				unsigned long event, void *ptr)
+{
+	struct efx_nic *efx = container_of(this, struct efx_nic, netevent_notifier);
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	int err;
+
+	if (!nic_data->grp_mae)
+		return NOTIFY_DONE;
+	err = efx_tc_netevent_event(efx, event, ptr);
+	if (err & NOTIFY_STOP_MASK)
+		return err;
+
+	return NOTIFY_DONE;
+};
 
 static int ef100_register_netdev(struct efx_nic *efx)
 {
@@ -326,14 +392,17 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	rtnl_unlock();
 
 	unregister_netdevice_notifier(&efx->netdev_notifier);
+	unregister_netevent_notifier(&efx->netevent_notifier);
 #if defined(CONFIG_SFC_SRIOV)
 	if (!efx->type->is_vf)
 		efx_ef100_pci_sriov_disable(efx, true);
 #endif
 
+	efx_fini_devlink_lock(efx);
 	ef100_unregister_netdev(efx);
 
 #ifdef CONFIG_SFC_SRIOV
+	ef100_pf_unset_devlink_port(efx);
 	efx_fini_tc(efx);
 #endif
 
@@ -344,6 +413,8 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	kfree(efx->phy_data);
 	efx->phy_data = NULL;
 
+	efx_fini_devlink_and_unlock(efx);
+
 	free_netdev(efx->net_dev);
 	efx->net_dev = NULL;
 	efx->state = STATE_PROBED;
@@ -353,6 +424,7 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 {
 	struct efx_nic *efx = &probe_data->efx;
 	struct efx_probe_data **probe_ptr;
+	struct ef100_nic_data *nic_data;
 	struct net_device *net_dev;
 	int rc;
 
@@ -371,7 +443,9 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 	efx->net_dev = net_dev;
 	SET_NETDEV_DEV(net_dev, &efx->pci_dev->dev);
 
-	net_dev->features |= efx->type->offload_features;
+	/* enable all supported features except rx-fcs and rx-all */
+	net_dev->features |= efx->type->offload_features &
+			     ~(NETIF_F_RXFCS | NETIF_F_RXALL);
 	net_dev->hw_features |= efx->type->offload_features;
 	net_dev->hw_enc_features |= efx->type->offload_features;
 	net_dev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_SG |
@@ -404,6 +478,20 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 	/* Don't fail init if RSS setup doesn't work. */
 	efx_mcdi_push_default_indir_table(efx, efx->n_rx_channels);
 
+	nic_data = efx->nic_data;
+	rc = ef100_get_mac_address(efx, net_dev->perm_addr, CLIENT_HANDLE_SELF,
+				   efx->type->is_vf);
+	if (rc)
+		return rc;
+	/* Assign MAC address */
+	eth_hw_addr_set(net_dev, net_dev->perm_addr);
+	ether_addr_copy(nic_data->port_id, net_dev->perm_addr);
+
+	/* devlink creation, registration and lock */
+	rc = efx_probe_devlink_and_lock(efx);
+	if (rc)
+		pci_info(efx->pci_dev, "devlink registration failed");
+
 	rc = ef100_register_netdev(efx);
 	if (rc)
 		goto fail;
@@ -412,6 +500,9 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 		rc = ef100_probe_netdev_pf(efx);
 		if (rc)
 			goto fail;
+#ifdef CONFIG_SFC_SRIOV
+		ef100_pf_set_devlink_port(efx);
+#endif
 	}
 
 	efx->netdev_notifier.notifier_call = ef100_netdev_event;
@@ -422,6 +513,21 @@ int ef100_probe_netdev(struct efx_probe_data *probe_data)
 		goto fail;
 	}
 
+	efx->netevent_notifier.notifier_call = ef100_netevent_event;
+	rc = register_netevent_notifier(&efx->netevent_notifier);
+	if (rc) {
+		netif_err(efx, probe, efx->net_dev,
+			  "Failed to register netevent notifier, rc=%d\n", rc);
+		goto fail;
+	}
+
+	efx_probe_devlink_unlock(efx);
+	return rc;
 fail:
+#ifdef CONFIG_SFC_SRIOV
+	/* remove devlink port if does exist */
+	ef100_pf_unset_devlink_port(efx);
+#endif
+	efx_probe_devlink_unlock(efx);
 	return rc;
 }

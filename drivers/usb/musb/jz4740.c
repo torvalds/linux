@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/usb/role.h>
 #include <linux/usb/usb_phy_generic.h>
@@ -81,6 +82,9 @@ static int jz4740_musb_role_switch_set(struct usb_role_switch *sw,
 	struct jz4740_glue *glue = usb_role_switch_get_drvdata(sw);
 	struct usb_phy *phy = glue->musb->xceiv;
 
+	if (!phy)
+		return 0;
+
 	switch (role) {
 	case USB_ROLE_NONE:
 		atomic_notifier_call_chain(&phy->notifier, USB_EVENT_NONE, phy);
@@ -109,21 +113,47 @@ static int jz4740_musb_init(struct musb *musb)
 
 	glue->musb = musb;
 
-	if (dev->of_node)
-		musb->xceiv = devm_usb_get_phy_by_phandle(dev, "phys", 0);
-	else
-		musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(musb->xceiv)) {
-		err = PTR_ERR(musb->xceiv);
-		if (err != -EPROBE_DEFER)
-			dev_err(dev, "No transceiver configured: %d\n", err);
-		return err;
+	if (IS_ENABLED(CONFIG_GENERIC_PHY)) {
+		musb->phy = devm_of_phy_get_by_index(dev, dev->of_node, 0);
+		if (IS_ERR(musb->phy)) {
+			err = PTR_ERR(musb->phy);
+			if (err != -ENODEV) {
+				dev_err(dev, "Unable to get PHY\n");
+				return err;
+			}
+
+			musb->phy = NULL;
+		}
+	}
+
+	if (musb->phy) {
+		err = phy_init(musb->phy);
+		if (err) {
+			dev_err(dev, "Failed to init PHY\n");
+			return err;
+		}
+
+		err = phy_power_on(musb->phy);
+		if (err) {
+			dev_err(dev, "Unable to power on PHY\n");
+			goto err_phy_shutdown;
+		}
+	} else {
+		if (dev->of_node)
+			musb->xceiv = devm_usb_get_phy_by_phandle(dev, "phys", 0);
+		else
+			musb->xceiv = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
+		if (IS_ERR(musb->xceiv)) {
+			dev_err(dev, "No transceiver configured\n");
+			return PTR_ERR(musb->xceiv);
+		}
 	}
 
 	glue->role_sw = usb_role_switch_register(dev, &role_sw_desc);
 	if (IS_ERR(glue->role_sw)) {
 		dev_err(dev, "Failed to register USB role switch\n");
-		return PTR_ERR(glue->role_sw);
+		err = PTR_ERR(glue->role_sw);
+		goto err_phy_power_down;
 	}
 
 	/*
@@ -135,6 +165,14 @@ static int jz4740_musb_init(struct musb *musb)
 	musb->isr = jz4740_musb_interrupt;
 
 	return 0;
+
+err_phy_power_down:
+	if (musb->phy)
+		phy_power_off(musb->phy);
+err_phy_shutdown:
+	if (musb->phy)
+		phy_exit(musb->phy);
+	return err;
 }
 
 static int jz4740_musb_exit(struct musb *musb)
@@ -142,6 +180,10 @@ static int jz4740_musb_exit(struct musb *musb)
 	struct jz4740_glue *glue = dev_get_drvdata(musb->controller->parent);
 
 	usb_role_switch_unregister(glue->role_sw);
+	if (musb->phy) {
+		phy_power_off(musb->phy);
+		phy_exit(musb->phy);
+	}
 
 	return 0;
 }
@@ -266,14 +308,12 @@ err_platform_device_put:
 	return ret;
 }
 
-static int jz4740_remove(struct platform_device *pdev)
+static void jz4740_remove(struct platform_device *pdev)
 {
 	struct jz4740_glue *glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->pdev);
 	clk_disable_unprepare(glue->clk);
-
-	return 0;
 }
 
 static const struct of_device_id jz4740_musb_of_match[] = {
@@ -285,7 +325,7 @@ MODULE_DEVICE_TABLE(of, jz4740_musb_of_match);
 
 static struct platform_driver jz4740_driver = {
 	.probe		= jz4740_probe,
-	.remove		= jz4740_remove,
+	.remove_new	= jz4740_remove,
 	.driver		= {
 		.name	= "musb-jz4740",
 		.of_match_table = jz4740_musb_of_match,

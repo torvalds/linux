@@ -97,11 +97,11 @@ const struct clk_ops krait_mux_clk_ops = {
 EXPORT_SYMBOL_GPL(krait_mux_clk_ops);
 
 /* The divider can divide by 2, 4, 6 and 8. But we only really need div-2. */
-static long krait_div2_round_rate(struct clk_hw *hw, unsigned long rate,
-				  unsigned long *parent_rate)
+static int krait_div2_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
 {
-	*parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), rate * 2);
-	return DIV_ROUND_UP(*parent_rate, 2);
+	req->best_parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw), req->rate * 2);
+	req->rate = DIV_ROUND_UP(req->best_parent_rate, 2);
+	return 0;
 }
 
 static int krait_div2_set_rate(struct clk_hw *hw, unsigned long rate,
@@ -114,6 +114,8 @@ static int krait_div2_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (d->lpl)
 		mask = mask << (d->shift + LPL_SHIFT) | mask << d->shift;
+	else
+		mask <<= d->shift;
 
 	spin_lock_irqsave(&krait_clock_reg_lock, flags);
 	val = krait_get_l2_indirect_reg(d->offset);
@@ -140,7 +142,7 @@ krait_div2_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 }
 
 const struct clk_ops krait_div2_clk_ops = {
-	.round_rate = krait_div2_round_rate,
+	.determine_rate = krait_div2_determine_rate,
 	.set_rate = krait_div2_set_rate,
 	.recalc_rate = krait_div2_recalc_rate,
 };

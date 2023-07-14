@@ -165,8 +165,7 @@ Most GPIO controllers can be accessed with memory read/write instructions.
 Those don't need to sleep, and can safely be done from inside hard
 (nonthreaded) IRQ handlers and similar contexts.
 
-Use the following calls to access such GPIOs,
-for which gpio_cansleep() will always return false (see below)::
+Use the following calls to access such GPIOs::
 
 	/* GPIO INPUT:  return zero or nonzero */
 	int gpio_get_value(unsigned gpio);
@@ -200,13 +199,6 @@ Some GPIO controllers must be accessed using message based busses like I2C
 or SPI.  Commands to read or write those GPIO values require waiting to
 get to the head of a queue to transmit a command and get its response.
 This requires sleeping, which can't be done from inside IRQ handlers.
-
-Platforms that support this type of GPIO distinguish them from other GPIOs
-by returning nonzero from this call (which requires a valid GPIO number,
-which should have been previously allocated with gpio_request)::
-
-	int gpio_cansleep(unsigned gpio);
-
 To access such GPIOs, a different set of accessors is defined::
 
 	/* GPIO INPUT:  return zero or nonzero, might sleep */
@@ -214,7 +206,6 @@ To access such GPIOs, a different set of accessors is defined::
 
 	/* GPIO OUTPUT, might sleep */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
-
 
 Accessing such GPIOs requires a context which may sleep,  for example
 a threaded IRQ handler, and those accessors must be used instead of
@@ -238,8 +229,6 @@ setup or driver probe/teardown code, so this is an easy constraint.)::
         ## 	gpio_free_array()
 
                 gpio_free()
-                gpio_set_debounce()
-
 
 
 Claiming and Releasing GPIOs
@@ -321,11 +310,6 @@ where 'flags' is currently defined to specify the following properties:
 
 	* GPIOF_INIT_LOW	- as output, set initial level to LOW
 	* GPIOF_INIT_HIGH	- as output, set initial level to HIGH
-	* GPIOF_OPEN_DRAIN	- gpio pin is open drain type.
-	* GPIOF_OPEN_SOURCE	- gpio pin is open source type.
-
-	* GPIOF_EXPORT_DIR_FIXED	- export gpio to sysfs, keep direction
-	* GPIOF_EXPORT_DIR_CHANGEABLE	- also export, allow changing direction
 
 since GPIOF_INIT_* are only valid when configured as output, so group valid
 combinations as:
@@ -333,20 +317,6 @@ combinations as:
 	* GPIOF_IN		- configure as input
 	* GPIOF_OUT_INIT_LOW	- configured as output, initial level LOW
 	* GPIOF_OUT_INIT_HIGH	- configured as output, initial level HIGH
-
-When setting the flag as GPIOF_OPEN_DRAIN then it will assume that pins is
-open drain type. Such pins will not be driven to 1 in output mode. It is
-require to connect pull-up on such pins. By enabling this flag, gpio lib will
-make the direction to input when it is asked to set value of 1 in output mode
-to make the pin HIGH. The pin is make to LOW by driving value 0 in output mode.
-
-When setting the flag as GPIOF_OPEN_SOURCE then it will assume that pins is
-open source type. Such pins will not be driven to 0 in output mode. It is
-require to connect pull-down on such pin. By enabling this flag, gpio lib will
-make the direction to input when it is asked to set value of 0 in output mode
-to make the pin LOW. The pin is make to HIGH by driving value 1 in output mode.
-
-In the future, these flags can be extended to support more properties.
 
 Further more, to ease the claim/release of multiple GPIOs, 'struct gpio' is
 introduced to encapsulate all three fields as::
@@ -387,9 +357,6 @@ map between them using calls like::
 	/* map GPIO numbers to IRQ numbers */
 	int gpio_to_irq(unsigned gpio);
 
-	/* map IRQ numbers to GPIO numbers (avoid using this) */
-	int irq_to_gpio(unsigned irq);
-
 Those return either the corresponding number in the other namespace, or
 else a negative errno code if the mapping can't be done.  (For example,
 some GPIOs can't be used as IRQs.)  It is an unchecked error to use a GPIO
@@ -404,11 +371,6 @@ or free_irq().  They will often be stored into IRQ resources for platform
 devices, by the board-specific initialization code.  Note that IRQ trigger
 options are part of the IRQ interface, e.g. IRQF_TRIGGER_FALLING, as are
 system wakeup capabilities.
-
-Non-error values returned from irq_to_gpio() would most commonly be used
-with gpio_get_value(), for example to initialize or update driver state
-when the IRQ is edge-triggered.  Note that some platforms don't support
-this reverse mapping, so you should avoid using it.
 
 
 Emulating Open Drain Signals
@@ -558,11 +520,6 @@ Platform Support
 To force-enable this framework, a platform's Kconfig will "select" GPIOLIB,
 else it is up to the user to configure support for GPIO.
 
-It may also provide a custom value for ARCH_NR_GPIOS, so that it better
-reflects the number of GPIOs in actual use on that platform, without
-wasting static table space.  (It should count both built-in/SoC GPIOs and
-also ones on GPIO expanders.
-
 If neither of these options are selected, the platform does not support
 GPIOs through GPIO-lib and the code cannot be enabled by the user.
 
@@ -571,7 +528,6 @@ code, which always dispatches through the gpio_chip::
 
   #define gpio_get_value	__gpio_get_value
   #define gpio_set_value	__gpio_set_value
-  #define gpio_cansleep		__gpio_cansleep
 
 Fancier implementations could instead define those as inline functions with
 logic optimizing access to specific SOC-based GPIOs.  For example, if the
@@ -727,36 +683,6 @@ a daughtercard might be different depending on the base board being used,
 or other cards in the stack.  In such cases, you may need to use the
 gpiochip nodes (possibly in conjunction with schematics) to determine
 the correct GPIO number to use for a given signal.
-
-
-Exporting from Kernel code
---------------------------
-Kernel code can explicitly manage exports of GPIOs which have already been
-requested using gpio_request()::
-
-	/* export the GPIO to userspace */
-	int gpio_export(unsigned gpio, bool direction_may_change);
-
-	/* reverse gpio_export() */
-	void gpio_unexport();
-
-	/* create a sysfs link to an exported GPIO node */
-	int gpio_export_link(struct device *dev, const char *name,
-		unsigned gpio)
-
-After a kernel driver requests a GPIO, it may only be made available in
-the sysfs interface by gpio_export().  The driver can control whether the
-signal direction may change.  This helps drivers prevent userspace code
-from accidentally clobbering important system state.
-
-This explicit exporting can help with debugging (by making some kinds
-of experiments easier), or can provide an always-there interface that's
-suitable for documenting as part of a board support package.
-
-After the GPIO has been exported, gpio_export_link() allows creating
-symlinks from elsewhere in sysfs to the GPIO sysfs node.  Drivers can
-use this to provide the interface under their own device in sysfs with
-a descriptive name.
 
 
 API Reference

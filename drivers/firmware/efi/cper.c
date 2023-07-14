@@ -24,6 +24,7 @@
 #include <linux/bcd.h>
 #include <acpi/ghes.h>
 #include <ras/ras_event.h>
+#include "cper_cxl.h"
 
 /*
  * CPER record ID need to be unique even after reboot, because record
@@ -290,6 +291,7 @@ int cper_mem_err_location(struct cper_mem_err_compact *mem, char *msg)
 
 	return n;
 }
+EXPORT_SYMBOL_GPL(cper_mem_err_location);
 
 int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg)
 {
@@ -310,6 +312,7 @@ int cper_dimm_err_location(struct cper_mem_err_compact *mem, char *msg)
 
 	return n;
 }
+EXPORT_SYMBOL_GPL(cper_dimm_err_location);
 
 void cper_mem_err_pack(const struct cper_sec_mem_err *mem,
 		       struct cper_mem_err_compact *cmem)
@@ -331,6 +334,7 @@ void cper_mem_err_pack(const struct cper_sec_mem_err *mem,
 	cmem->mem_array_handle = mem->mem_array_handle;
 	cmem->mem_dev_handle = mem->mem_dev_handle;
 }
+EXPORT_SYMBOL_GPL(cper_mem_err_pack);
 
 const char *cper_mem_err_unpack(struct trace_seq *p,
 				struct cper_mem_err_compact *cmem)
@@ -593,6 +597,14 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 		/* The minimal FW Error Record contains 16 bytes */
 		if (gdata->error_data_length >= SZ_16)
 			cper_print_fw_err(newpfx, gdata, fw_err);
+		else
+			goto err_section_too_small;
+	} else if (guid_equal(sec_type, &CPER_SEC_CXL_PROT_ERR)) {
+		struct cper_sec_prot_err *prot_err = acpi_hest_get_payload(gdata);
+
+		printk("%ssection_type: CXL Protocol Error\n", newpfx);
+		if (gdata->error_data_length >= sizeof(*prot_err))
+			cper_print_prot_err(newpfx, prot_err);
 		else
 			goto err_section_too_small;
 	} else {

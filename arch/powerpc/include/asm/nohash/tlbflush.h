@@ -18,7 +18,7 @@
 /*
  * TLB flushing for software loaded TLB chips
  *
- * TODO: (CONFIG_FSL_BOOKE) determine if flush_tlb_range &
+ * TODO: (CONFIG_PPC_85xx) determine if flush_tlb_range &
  * flush_tlb_kernel_range are best implemented as tlbia vs
  * specific tlbie's
  */
@@ -45,6 +45,12 @@ static inline void local_flush_tlb_page(struct vm_area_struct *vma, unsigned lon
 	asm volatile ("tlbie %0; sync" : : "r" (vmaddr) : "memory");
 }
 
+static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
+					      unsigned long vmaddr, int psize)
+{
+	asm volatile ("tlbie %0; sync" : : "r" (vmaddr) : "memory");
+}
+
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	start &= PAGE_MASK;
@@ -58,6 +64,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
 extern void local_flush_tlb_mm(struct mm_struct *mm);
 extern void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr);
+void local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr, int psize);
 
 extern void __local_flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 				   int tsize, int ind);

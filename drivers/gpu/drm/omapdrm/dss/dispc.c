@@ -855,11 +855,6 @@ struct csc_coef_yuv2rgb {
 	bool full_range;
 };
 
-struct csc_coef_rgb2yuv {
-	int yr, yg, yb, cbr, cbg, cbb, crr, crg, crb;
-	bool full_range;
-};
-
 static void dispc_ovl_write_color_conv_coef(struct dispc_device *dispc,
 					    enum omap_plane_id plane,
 					    const struct csc_coef_yuv2rgb *ct)
@@ -2451,7 +2446,7 @@ static int dispc_ovl_calc_scaling_44xx(struct dispc_device *dispc,
 
 	*decim_x = DIV_ROUND_UP(width, in_width_max);
 
-	*decim_x = *decim_x > decim_x_min ? *decim_x : decim_x_min;
+	*decim_x = max(*decim_x, decim_x_min);
 	if (*decim_x > *x_predecim)
 		return -EINVAL;
 

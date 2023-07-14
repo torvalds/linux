@@ -12,18 +12,6 @@
 #include <linux/pm.h>
 #include "ad714x.h"
 
-static int __maybe_unused ad714x_i2c_suspend(struct device *dev)
-{
-	return ad714x_disable(i2c_get_clientdata(to_i2c_client(dev)));
-}
-
-static int __maybe_unused ad714x_i2c_resume(struct device *dev)
-{
-	return ad714x_enable(i2c_get_clientdata(to_i2c_client(dev)));
-}
-
-static SIMPLE_DEV_PM_OPS(ad714x_i2c_pm, ad714x_i2c_suspend, ad714x_i2c_resume);
-
 static int ad714x_i2c_write(struct ad714x_chip *chip,
 			    unsigned short reg, unsigned short data)
 {
@@ -69,8 +57,7 @@ static int ad714x_i2c_read(struct ad714x_chip *chip,
 	return 0;
 }
 
-static int ad714x_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int ad714x_i2c_probe(struct i2c_client *client)
 {
 	struct ad714x_chip *chip;
 
@@ -97,9 +84,9 @@ MODULE_DEVICE_TABLE(i2c, ad714x_id);
 static struct i2c_driver ad714x_i2c_driver = {
 	.driver = {
 		.name = "ad714x_captouch",
-		.pm   = &ad714x_i2c_pm,
+		.pm   = pm_sleep_ptr(&ad714x_pm),
 	},
-	.probe    = ad714x_i2c_probe,
+	.probe = ad714x_i2c_probe,
 	.id_table = ad714x_id,
 };
 

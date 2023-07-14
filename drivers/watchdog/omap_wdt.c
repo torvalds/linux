@@ -306,17 +306,13 @@ static void omap_wdt_shutdown(struct platform_device *pdev)
 	mutex_unlock(&wdev->lock);
 }
 
-static int omap_wdt_remove(struct platform_device *pdev)
+static void omap_wdt_remove(struct platform_device *pdev)
 {
 	struct omap_wdt_dev *wdev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(wdev->dev);
 	watchdog_unregister_device(&wdev->wdog);
-
-	return 0;
 }
-
-#ifdef	CONFIG_PM
 
 /* REVISIT ... not clear this is the best way to handle system suspend; and
  * it's very inappropriate for selective device suspend (e.g. suspending this
@@ -353,11 +349,6 @@ static int omap_wdt_resume(struct platform_device *pdev)
 	return 0;
 }
 
-#else
-#define	omap_wdt_suspend	NULL
-#define	omap_wdt_resume		NULL
-#endif
-
 static const struct of_device_id omap_wdt_of_match[] = {
 	{ .compatible = "ti,omap3-wdt", },
 	{},
@@ -366,10 +357,10 @@ MODULE_DEVICE_TABLE(of, omap_wdt_of_match);
 
 static struct platform_driver omap_wdt_driver = {
 	.probe		= omap_wdt_probe,
-	.remove		= omap_wdt_remove,
+	.remove_new	= omap_wdt_remove,
 	.shutdown	= omap_wdt_shutdown,
-	.suspend	= omap_wdt_suspend,
-	.resume		= omap_wdt_resume,
+	.suspend	= pm_ptr(omap_wdt_suspend),
+	.resume		= pm_ptr(omap_wdt_resume),
 	.driver		= {
 		.name	= "omap_wdt",
 		.of_match_table = omap_wdt_of_match,

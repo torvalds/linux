@@ -361,11 +361,9 @@ static inline pudval_t native_pud_val(pud_t pud)
 #endif
 
 #if CONFIG_PGTABLE_LEVELS > 2
-typedef struct { pmdval_t pmd; } pmd_t;
-
 static inline pmd_t native_make_pmd(pmdval_t val)
 {
-	return (pmd_t) { val };
+	return (pmd_t) { .pmd = val };
 }
 
 static inline pmdval_t native_pmd_val(pmd_t pmd)
@@ -514,9 +512,6 @@ extern void native_pagetable_init(void);
 #else
 #define native_pagetable_init        paging_init
 #endif
-
-struct seq_file;
-extern void arch_report_meminfo(struct seq_file *m);
 
 enum pg_level {
 	PG_LEVEL_NONE,

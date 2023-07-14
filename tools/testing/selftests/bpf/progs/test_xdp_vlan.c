@@ -98,7 +98,7 @@ bool parse_eth_frame(struct ethhdr *eth, void *data_end, struct parse_pkt *pkt)
 	return true;
 }
 
-/* Hint, VLANs are choosen to hit network-byte-order issues */
+/* Hint, VLANs are chosen to hit network-byte-order issues */
 #define TESTVLAN 4011 /* 0xFAB */
 // #define TO_VLAN  4000 /* 0xFA0 (hint 0xOA0 = 160) */
 
@@ -195,7 +195,7 @@ int  xdp_prognum2(struct xdp_md *ctx)
 
 	/* Moving Ethernet header, dest overlap with src, memmove handle this */
 	dest = data;
-	dest+= VLAN_HDR_SZ;
+	dest += VLAN_HDR_SZ;
 	/*
 	 * Notice: Taking over vlan_hdr->h_vlan_encapsulated_proto, by
 	 * only moving two MAC addrs (12 bytes), not overwriting last 2 bytes
@@ -207,19 +207,6 @@ int  xdp_prognum2(struct xdp_md *ctx)
 	bpf_xdp_adjust_head(ctx, VLAN_HDR_SZ);
 
 	return XDP_PASS;
-}
-
-static __always_inline
-void shift_mac_4bytes_16bit(void *data)
-{
-	__u16 *p = data;
-
-	p[7] = p[5]; /* delete p[7] was vlan_hdr->h_vlan_TCI */
-	p[6] = p[4]; /* delete p[6] was ethhdr->h_proto */
-	p[5] = p[3];
-	p[4] = p[2];
-	p[3] = p[1];
-	p[2] = p[0];
 }
 
 static __always_inline

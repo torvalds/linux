@@ -11,7 +11,7 @@ struct strarray {
 	u64	    offset;
 	int	    nr_entries;
 	const char *prefix;
-	const char **entries;
+	const char * const *entries;
 };
 
 #define DEFINE_STRARRAY(array, _prefix) struct strarray strarray__##array = { \
@@ -243,6 +243,9 @@ size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_a
 
 size_t syscall_arg__scnprintf_sync_file_range_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SYNC_FILE_RANGE_FLAGS syscall_arg__scnprintf_sync_file_range_flags
+
+size_t syscall_arg__scnprintf_timespec(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_TIMESPEC syscall_arg__scnprintf_timespec
 
 size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix);
 

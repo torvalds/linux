@@ -325,7 +325,7 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 	if (!adapter->gate_control)
 		return -EOPNOTSUPP;
 
-	if (!qopt->enable) {
+	if (qopt->cmd == TAPRIO_CMD_DESTROY) {
 		/* disable gate control if active */
 		mutex_lock(&adapter->gate_control_lock);
 
@@ -337,6 +337,8 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 		mutex_unlock(&adapter->gate_control_lock);
 
 		return 0;
+	} else if (qopt->cmd != TAPRIO_CMD_REPLACE) {
+		return -EOPNOTSUPP;
 	}
 
 	retval = tsnep_validate_gcl(qopt);
@@ -403,12 +405,33 @@ static int tsnep_taprio(struct tsnep_adapter *adapter,
 	return 0;
 }
 
+static int tsnep_tc_query_caps(struct tsnep_adapter *adapter,
+			       struct tc_query_caps_base *base)
+{
+	switch (base->type) {
+	case TC_SETUP_QDISC_TAPRIO: {
+		struct tc_taprio_caps *caps = base->caps;
+
+		if (!adapter->gate_control)
+			return -EOPNOTSUPP;
+
+		caps->gate_mask_per_txq = true;
+
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 int tsnep_tc_setup(struct net_device *netdev, enum tc_setup_type type,
 		   void *type_data)
 {
 	struct tsnep_adapter *adapter = netdev_priv(netdev);
 
 	switch (type) {
+	case TC_QUERY_CAPS:
+		return tsnep_tc_query_caps(adapter, type_data);
 	case TC_SETUP_QDISC_TAPRIO:
 		return tsnep_taprio(adapter, type_data);
 	default:

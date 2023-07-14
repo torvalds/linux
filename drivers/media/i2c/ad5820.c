@@ -290,8 +290,7 @@ static int __maybe_unused ad5820_resume(struct device *dev)
 	return ad5820_power_on(coil, true);
 }
 
-static int ad5820_probe(struct i2c_client *client,
-			const struct i2c_device_id *devid)
+static int ad5820_probe(struct i2c_client *client)
 {
 	struct ad5820_device *coil;
 	int ret;
@@ -301,21 +300,15 @@ static int ad5820_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	coil->vana = devm_regulator_get(&client->dev, "VANA");
-	if (IS_ERR(coil->vana)) {
-		ret = PTR_ERR(coil->vana);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&client->dev, "could not get regulator for vana\n");
-		return ret;
-	}
+	if (IS_ERR(coil->vana))
+		return dev_err_probe(&client->dev, PTR_ERR(coil->vana),
+				     "could not get regulator for vana\n");
 
 	coil->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
 						    GPIOD_OUT_LOW);
-	if (IS_ERR(coil->enable_gpio)) {
-		ret = PTR_ERR(coil->enable_gpio);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&client->dev, "could not get enable gpio\n");
-		return ret;
-	}
+	if (IS_ERR(coil->enable_gpio))
+		return dev_err_probe(&client->dev, PTR_ERR(coil->enable_gpio),
+				     "could not get enable gpio\n");
 
 	mutex_init(&coil->power_lock);
 
@@ -327,18 +320,18 @@ static int ad5820_probe(struct i2c_client *client,
 
 	ret = media_entity_pads_init(&coil->subdev.entity, 0, NULL);
 	if (ret < 0)
-		goto cleanup2;
+		goto clean_mutex;
 
 	ret = v4l2_async_register_subdev(&coil->subdev);
 	if (ret < 0)
-		goto cleanup;
+		goto clean_entity;
 
 	return ret;
 
-cleanup2:
-	mutex_destroy(&coil->power_lock);
-cleanup:
+clean_entity:
 	media_entity_cleanup(&coil->subdev.entity);
+clean_mutex:
+	mutex_destroy(&coil->power_lock);
 	return ret;
 }
 

@@ -2059,7 +2059,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PSE1_0,  PSE1_1,
 		PSE0_0,  PSE0_1))
 	},
-	{}
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -2155,7 +2155,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 		PTZ7_DATA, PTZ6_DATA, PTZ5_DATA, PTZ4_DATA,
 		PTZ3_DATA, PTZ2_DATA, PTZ1_DATA, PTZ0_DATA ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 const struct sh_pfc_soc_info sh7724_pinmux_info = {

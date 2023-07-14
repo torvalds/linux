@@ -322,8 +322,7 @@ static const struct v4l2_subdev_ops ths7303_ops = {
 	.video	= &ths7303_video_ops,
 };
 
-static int ths7303_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ths7303_probe(struct i2c_client *client)
 {
 	struct ths7303_platform_data *pdata = client->dev.platform_data;
 	struct ths7303_state *state;

@@ -149,7 +149,7 @@ static struct snd_soc_dai_link st_dai_es8336[] = {
 		.stream_name = "ES8336 HiFi Play",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBP_CFP,
-		.stop_dma_first = 1,
+		.trigger_stop = SND_SOC_TRIGGER_ORDER_LDC,
 		.dpcm_capture = 1,
 		.dpcm_playback = 1,
 		.init = st_es8336_init,
@@ -198,9 +198,11 @@ static int st_es8336_late_probe(struct snd_soc_card *card)
 	int ret;
 
 	adev = acpi_dev_get_first_match_dev("ESSX8336", NULL, -1);
-	if (adev)
-		put_device(&adev->dev);
+	if (!adev)
+		return -ENODEV;
+
 	codec_dev = acpi_get_first_physical_node(adev);
+	acpi_dev_put(adev);
 	if (!codec_dev)
 		dev_err(card->dev, "can not find codec dev\n");
 

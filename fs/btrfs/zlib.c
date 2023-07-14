@@ -63,7 +63,7 @@ struct list_head *zlib_alloc_workspace(unsigned int level)
 
 	workspacesize = max(zlib_deflate_workspacesize(MAX_WBITS, MAX_MEM_LEVEL),
 			zlib_inflate_workspacesize());
-	workspace->strm.workspace = kvmalloc(workspacesize, GFP_KERNEL);
+	workspace->strm.workspace = kvzalloc(workspacesize, GFP_KERNEL | __GFP_NOWARN);
 	workspace->level = level;
 	workspace->buf = NULL;
 	/*
@@ -155,8 +155,8 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 					in_page = find_get_page(mapping,
 								start >> PAGE_SHIFT);
 					data_in = kmap_local_page(in_page);
-					memcpy(workspace->buf + i * PAGE_SIZE,
-					       data_in, PAGE_SIZE);
+					copy_page(workspace->buf + i * PAGE_SIZE,
+						  data_in);
 					start += PAGE_SIZE;
 				}
 				workspace->strm.next_in = workspace->buf;
@@ -350,12 +350,10 @@ done:
 	zlib_inflateEnd(&workspace->strm);
 	if (data_in)
 		kunmap_local(data_in);
-	if (!ret)
-		zero_fill_bio(cb->orig_bio);
 	return ret;
 }
 
-int zlib_decompress(struct list_head *ws, unsigned char *data_in,
+int zlib_decompress(struct list_head *ws, const u8 *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen)
 {

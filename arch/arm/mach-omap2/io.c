@@ -32,11 +32,8 @@
 #include "clockdomain.h"
 #include "common.h"
 #include "clock.h"
-#include "clock2xxx.h"
-#include "clock3xxx.h"
 #include "sdrc.h"
 #include "control.h"
-#include "serial.h"
 #include "sram.h"
 #include "cm2xxx.h"
 #include "cm3xxx.h"
@@ -438,11 +435,6 @@ void __init omap2420_init_early(void)
 	omap_clk_soc_init = omap2420_dt_clk_init;
 	rate_table = omap2420_rate_table;
 }
-
-void __init omap2420_init_late(void)
-{
-	omap_pm_soc_init = omap2_pm_init;
-}
 #endif
 
 #ifdef CONFIG_SOC_OMAP2430
@@ -462,11 +454,6 @@ void __init omap2430_init_early(void)
 	omap_clk_soc_init = omap2430_dt_clk_init;
 	rate_table = omap2430_rate_table;
 }
-
-void __init omap2430_init_late(void)
-{
-	omap_pm_soc_init = omap2_pm_init;
-}
 #endif
 
 /*
@@ -474,7 +461,7 @@ void __init omap2430_init_late(void)
  * same machine_id for 34xx and 36xx beagle.. Will get fixed with DT.
  */
 #ifdef CONFIG_ARCH_OMAP3
-void __init omap3_init_early(void)
+static void __init omap3_init_early(void)
 {
 	omap2_set_globals_tap(OMAP343X_CLASS, OMAP2_L4_IO_ADDRESS(0x4830A000));
 	omap2_set_globals_sdrc(OMAP2_L3_IO_ADDRESS(OMAP343X_SDRC_BASE),
@@ -492,12 +479,6 @@ void __init omap3_init_early(void)
 }
 
 void __init omap3430_init_early(void)
-{
-	omap3_init_early();
-	omap_clk_soc_init = omap3430_dt_clk_init;
-}
-
-void __init omap35xx_init_early(void)
 {
 	omap3_init_early();
 	omap_clk_soc_init = omap3430_dt_clk_init;

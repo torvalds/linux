@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 
-#include <linux/vfio_pci_core.h>
+#include "vfio_pci_priv.h"
 
 #define OPREGION_SIGNATURE	"IntelGraphicsMem"
 #define OPREGION_SIZE		(8 * 1024)
@@ -180,7 +180,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 	if (!addr || !(~addr))
 		return -ENODEV;
 
-	opregionvbt = kzalloc(sizeof(*opregionvbt), GFP_KERNEL);
+	opregionvbt = kzalloc(sizeof(*opregionvbt), GFP_KERNEL_ACCOUNT);
 	if (!opregionvbt)
 		return -ENOMEM;
 
@@ -257,7 +257,7 @@ static int vfio_pci_igd_opregion_init(struct vfio_pci_core_device *vdev)
 		}
 	}
 
-	ret = vfio_pci_register_dev_region(vdev,
+	ret = vfio_pci_core_register_dev_region(vdev,
 		PCI_VENDOR_ID_INTEL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
 		VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION, &vfio_pci_igd_regops,
 		size, VFIO_REGION_INFO_FLAG_READ, opregionvbt);
@@ -402,7 +402,7 @@ static int vfio_pci_igd_cfg_init(struct vfio_pci_core_device *vdev)
 		return -EINVAL;
 	}
 
-	ret = vfio_pci_register_dev_region(vdev,
+	ret = vfio_pci_core_register_dev_region(vdev,
 		PCI_VENDOR_ID_INTEL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
 		VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG,
 		&vfio_pci_igd_cfg_regops, host_bridge->cfg_size,
@@ -422,7 +422,7 @@ static int vfio_pci_igd_cfg_init(struct vfio_pci_core_device *vdev)
 		return -EINVAL;
 	}
 
-	ret = vfio_pci_register_dev_region(vdev,
+	ret = vfio_pci_core_register_dev_region(vdev,
 		PCI_VENDOR_ID_INTEL | VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
 		VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG,
 		&vfio_pci_igd_cfg_regops, lpc_bridge->cfg_size,

@@ -1,5 +1,3 @@
-.. hwpoison:
-
 ========
 hwpoison
 ========

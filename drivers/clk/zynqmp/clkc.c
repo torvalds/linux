@@ -163,7 +163,7 @@ static int zynqmp_get_clock_name(u32 clk_id, char *clk_name)
 
 	ret = zynqmp_is_valid_clock(clk_id);
 	if (ret == 1) {
-		strncpy(clk_name, clock[clk_id].clk_name, MAX_NAME_LEN);
+		strscpy(clk_name, clock[clk_id].clk_name, MAX_NAME_LEN);
 		return 0;
 	}
 
@@ -220,18 +220,22 @@ static int zynqmp_pm_clock_get_num_clocks(u32 *nclocks)
  * This function is used to get name of clock specified by given
  * clock ID.
  *
- * Return: Returns 0
+ * Return: 0 on success else error+reason
  */
 static int zynqmp_pm_clock_get_name(u32 clock_id,
 				    struct name_resp *response)
 {
 	struct zynqmp_pm_query_data qdata = {0};
 	u32 ret_payload[PAYLOAD_ARG_CNT];
+	int ret;
 
 	qdata.qid = PM_QID_CLOCK_GET_NAME;
 	qdata.arg1 = clock_id;
 
-	zynqmp_pm_query_data(qdata, ret_payload);
+	ret = zynqmp_pm_query_data(qdata, ret_payload);
+	if (ret)
+		return ret;
+
 	memcpy(response, ret_payload, sizeof(*response));
 
 	return 0;
@@ -710,9 +714,16 @@ static void zynqmp_get_clock_info(void)
 				  FIELD_PREP(CLK_ATTR_NODE_INDEX, i);
 
 		zynqmp_pm_clock_get_name(clock[i].clk_id, &name);
+
+		/*
+		 * Terminate with NULL character in case name provided by firmware
+		 * is longer and truncated due to size limit.
+		 */
+		name.name[sizeof(name.name) - 1] = '\0';
+
 		if (!strcmp(name.name, RESERVED_CLK_NAME))
 			continue;
-		strncpy(clock[i].clk_name, name.name, MAX_NAME_LEN);
+		strscpy(clock[i].clk_name, name.name, MAX_NAME_LEN);
 	}
 
 	/* Get topology of all clock */

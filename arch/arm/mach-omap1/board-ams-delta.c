@@ -11,7 +11,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -822,8 +821,6 @@ static int __init modem_nreset_init(void)
  */
 static int __init ams_delta_modem_init(void)
 {
-	int err;
-
 	if (!machine_is_ams_delta())
 		return -ENODEV;
 
@@ -832,9 +829,7 @@ static int __init ams_delta_modem_init(void)
 	/* Initialize the modem_nreset regulator consumer before use */
 	modem_priv.regulator = ERR_PTR(-ENODEV);
 
-	err = platform_device_register(&ams_delta_modem_device);
-
-	return err;
+	return platform_device_register(&ams_delta_modem_device);
 }
 arch_initcall_sync(ams_delta_modem_init);
 
@@ -871,7 +866,7 @@ static void __init ams_delta_init_late(void)
 
 static void __init ams_delta_map_io(void)
 {
-	omap15xx_map_io();
+	omap1_map_io();
 	iotable_init(ams_delta_io_desc, ARRAY_SIZE(ams_delta_io_desc));
 }
 
@@ -881,7 +876,6 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.map_io		= ams_delta_map_io,
 	.init_early	= omap1_init_early,
 	.init_irq	= omap1_init_irq,
-	.handle_irq	= omap1_handle_irq,
 	.init_machine	= ams_delta_init,
 	.init_late	= ams_delta_init_late,
 	.init_time	= omap1_timer_init,

@@ -774,8 +774,7 @@ static int adux1020_chip_init(struct adux1020_data *data)
 			   ADUX1020_MODE_INT_MASK, ADUX1020_MODE_INT_DISABLE);
 }
 
-static int adux1020_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int adux1020_probe(struct i2c_client *client)
 {
 	struct adux1020_data *data;
 	struct iio_dev *indio_dev;

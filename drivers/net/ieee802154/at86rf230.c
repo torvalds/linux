@@ -17,8 +17,8 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/at86rf230.h>
 #include <linux/regmap.h>
 #include <linux/skbuff.h>
 #include <linux/of_gpio.h>
@@ -82,7 +82,7 @@ struct at86rf230_local {
 	struct ieee802154_hw *hw;
 	struct at86rf2xx_chip_data *data;
 	struct regmap *regmap;
-	int slp_tr;
+	struct gpio_desc *slp_tr;
 	bool sleep;
 
 	struct completion state_complete;
@@ -107,8 +107,8 @@ at86rf230_async_state_change(struct at86rf230_local *lp,
 static inline void
 at86rf230_sleep(struct at86rf230_local *lp)
 {
-	if (gpio_is_valid(lp->slp_tr)) {
-		gpio_set_value(lp->slp_tr, 1);
+	if (lp->slp_tr) {
+		gpiod_set_value(lp->slp_tr, 1);
 		usleep_range(lp->data->t_off_to_sleep,
 			     lp->data->t_off_to_sleep + 10);
 		lp->sleep = true;
@@ -118,8 +118,8 @@ at86rf230_sleep(struct at86rf230_local *lp)
 static inline void
 at86rf230_awake(struct at86rf230_local *lp)
 {
-	if (gpio_is_valid(lp->slp_tr)) {
-		gpio_set_value(lp->slp_tr, 0);
+	if (lp->slp_tr) {
+		gpiod_set_value(lp->slp_tr, 0);
 		usleep_range(lp->data->t_sleep_to_off,
 			     lp->data->t_sleep_to_off + 100);
 		lp->sleep = false;
@@ -204,9 +204,9 @@ at86rf230_write_subreg(struct at86rf230_local *lp,
 static inline void
 at86rf230_slp_tr_rising_edge(struct at86rf230_local *lp)
 {
-	gpio_set_value(lp->slp_tr, 1);
+	gpiod_set_value(lp->slp_tr, 1);
 	udelay(1);
-	gpio_set_value(lp->slp_tr, 0);
+	gpiod_set_value(lp->slp_tr, 0);
 }
 
 static bool
@@ -819,7 +819,7 @@ at86rf230_write_frame_complete(void *context)
 
 	ctx->trx.len = 2;
 
-	if (gpio_is_valid(lp->slp_tr))
+	if (lp->slp_tr)
 		at86rf230_slp_tr_rising_edge(lp);
 	else
 		at86rf230_async_write_reg(lp, RG_TRX_STATE, STATE_BUSY_TX, ctx,
@@ -1416,32 +1416,6 @@ static int at86rf230_hw_init(struct at86rf230_local *lp, u8 xtal_trim)
 }
 
 static int
-at86rf230_get_pdata(struct spi_device *spi, int *rstn, int *slp_tr,
-		    u8 *xtal_trim)
-{
-	struct at86rf230_platform_data *pdata = spi->dev.platform_data;
-	int ret;
-
-	if (!IS_ENABLED(CONFIG_OF) || !spi->dev.of_node) {
-		if (!pdata)
-			return -ENOENT;
-
-		*rstn = pdata->rstn;
-		*slp_tr = pdata->slp_tr;
-		*xtal_trim = pdata->xtal_trim;
-		return 0;
-	}
-
-	*rstn = of_get_named_gpio(spi->dev.of_node, "reset-gpio", 0);
-	*slp_tr = of_get_named_gpio(spi->dev.of_node, "sleep-gpio", 0);
-	ret = of_property_read_u8(spi->dev.of_node, "xtal-trim", xtal_trim);
-	if (ret < 0 && ret != -EINVAL)
-		return ret;
-
-	return 0;
-}
-
-static int
 at86rf230_detect_device(struct at86rf230_local *lp)
 {
 	unsigned int part, version, val;
@@ -1546,41 +1520,47 @@ static int at86rf230_probe(struct spi_device *spi)
 {
 	struct ieee802154_hw *hw;
 	struct at86rf230_local *lp;
+	struct gpio_desc *slp_tr;
+	struct gpio_desc *rstn;
 	unsigned int status;
-	int rc, irq_type, rstn, slp_tr;
-	u8 xtal_trim = 0;
+	int rc, irq_type;
+	u8 xtal_trim;
 
 	if (!spi->irq) {
 		dev_err(&spi->dev, "no IRQ specified\n");
 		return -EINVAL;
 	}
 
-	rc = at86rf230_get_pdata(spi, &rstn, &slp_tr, &xtal_trim);
+	rc = device_property_read_u8(&spi->dev, "xtal-trim", &xtal_trim);
 	if (rc < 0) {
-		dev_err(&spi->dev, "failed to parse platform_data: %d\n", rc);
+		if (rc != -EINVAL) {
+			dev_err(&spi->dev,
+				"failed to parse xtal-trim: %d\n", rc);
+			return rc;
+		}
+		xtal_trim = 0;
+	}
+
+	rstn = devm_gpiod_get_optional(&spi->dev, "reset", GPIOD_OUT_LOW);
+	rc = PTR_ERR_OR_ZERO(rstn);
+	if (rc)
 		return rc;
-	}
 
-	if (gpio_is_valid(rstn)) {
-		rc = devm_gpio_request_one(&spi->dev, rstn,
-					   GPIOF_OUT_INIT_HIGH, "rstn");
-		if (rc)
-			return rc;
-	}
+	gpiod_set_consumer_name(rstn, "rstn");
 
-	if (gpio_is_valid(slp_tr)) {
-		rc = devm_gpio_request_one(&spi->dev, slp_tr,
-					   GPIOF_OUT_INIT_LOW, "slp_tr");
-		if (rc)
-			return rc;
-	}
+	slp_tr = devm_gpiod_get_optional(&spi->dev, "sleep", GPIOD_OUT_LOW);
+	rc = PTR_ERR_OR_ZERO(slp_tr);
+	if (rc)
+		return rc;
+
+	gpiod_set_consumer_name(slp_tr, "slp_tr");
 
 	/* Reset */
-	if (gpio_is_valid(rstn)) {
+	if (rstn) {
 		udelay(1);
-		gpio_set_value_cansleep(rstn, 0);
+		gpiod_set_value_cansleep(rstn, 1);
 		udelay(1);
-		gpio_set_value_cansleep(rstn, 1);
+		gpiod_set_value_cansleep(rstn, 0);
 		usleep_range(120, 240);
 	}
 
@@ -1682,7 +1662,7 @@ MODULE_DEVICE_TABLE(spi, at86rf230_device_id);
 static struct spi_driver at86rf230_driver = {
 	.id_table = at86rf230_device_id,
 	.driver = {
-		.of_match_table = of_match_ptr(at86rf230_of_match),
+		.of_match_table = at86rf230_of_match,
 		.name	= "at86rf230",
 	},
 	.probe      = at86rf230_probe,

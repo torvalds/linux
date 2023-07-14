@@ -13,8 +13,7 @@ description:
   This ADC forms part of an ST microelectronics STMPE multifunction device .
   The ADC is shared with the STMPE touchscreen. As a result some ADC related
   settings are specified in the parent node.
-  The node name myst be stmpe_adc and should be a child node of the stmpe node
-  to which it belongs.
+  The node should be a child node of the stmpe node to which it belongs.
 
 properties:
   compatible:
@@ -36,10 +35,8 @@ additionalProperties: false
 
 examples:
   - |
-    stmpe {
-        stmpe_adc {
-            compatible = "st,stmpe-adc";
-            st,norequest-mask = <0x0F>; /* dont use ADC CH3-0 */
-        };
+    adc {
+        compatible = "st,stmpe-adc";
+        st,norequest-mask = <0x0f>; /* dont use ADC CH3-0 */
     };
 ...

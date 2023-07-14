@@ -57,10 +57,6 @@ ipq8064_mdio_read(struct mii_bus *bus, int phy_addr, int reg_offset)
 	u32 ret_val;
 	int err;
 
-	/* Reject clause 45 */
-	if (reg_offset & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	miiaddr |= ((phy_addr << MII_ADDR_SHIFT) & MII_ADDR_MASK) |
 		   ((reg_offset << MII_REG_SHIFT) & MII_REG_MASK);
 
@@ -80,10 +76,6 @@ ipq8064_mdio_write(struct mii_bus *bus, int phy_addr, int reg_offset, u16 data)
 {
 	u32 miiaddr = MII_WRITE | MII_BUSY | MII_CLKRANGE_250_300M;
 	struct ipq8064_mdio *priv = bus->priv;
-
-	/* Reject clause 45 */
-	if (reg_offset & MII_ADDR_C45)
-		return -EOPNOTSUPP;
 
 	regmap_write(priv->base, MII_DATA_REG_ADDR, data);
 

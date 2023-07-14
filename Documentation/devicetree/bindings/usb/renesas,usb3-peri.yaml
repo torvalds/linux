@@ -11,18 +11,25 @@ maintainers:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - renesas,r8a774a1-usb3-peri # RZ/G2M
-          - renesas,r8a774b1-usb3-peri # RZ/G2N
-          - renesas,r8a774c0-usb3-peri # RZ/G2E
-          - renesas,r8a774e1-usb3-peri # RZ/G2H
-          - renesas,r8a7795-usb3-peri  # R-Car H3
-          - renesas,r8a7796-usb3-peri  # R-Car M3-W
-          - renesas,r8a77961-usb3-peri # R-Car M3-W+
-          - renesas,r8a77965-usb3-peri # R-Car M3-N
-          - renesas,r8a77990-usb3-peri # R-Car E3
-      - const: renesas,rcar-gen3-usb3-peri
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r8a774a1-usb3-peri # RZ/G2M
+              - renesas,r8a774b1-usb3-peri # RZ/G2N
+              - renesas,r8a774c0-usb3-peri # RZ/G2E
+              - renesas,r8a774e1-usb3-peri # RZ/G2H
+              - renesas,r8a7795-usb3-peri  # R-Car H3
+              - renesas,r8a7796-usb3-peri  # R-Car M3-W
+              - renesas,r8a77961-usb3-peri # R-Car M3-W+
+              - renesas,r8a77965-usb3-peri # R-Car M3-N
+              - renesas,r8a77990-usb3-peri # R-Car E3
+          - const: renesas,rcar-gen3-usb3-peri
+
+      - items:
+          - enum:
+              - renesas,r9a09g011-usb3-peri # RZ/V2M
+              - renesas,r9a09g055-usb3-peri # RZ/V2MA
+          - const: renesas,rzv2m-usb3-peri
 
   reg:
     maxItems: 1
@@ -31,7 +38,16 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: Main clock
+      - description: Register access clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: axi
+      - const: reg
 
   phys:
     maxItems: 1
@@ -77,6 +93,27 @@ required:
   - compatible
   - interrupts
   - clocks
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rzv2m-usb3-peri
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+      required:
+        - clock-names
+        - resets
+    else:
+      properties:
+        clocks:
+          maxItems: 1
 
 additionalProperties: false
 

@@ -18,7 +18,7 @@ if NET_VENDOR_NETRONOME
 
 config NFP
 	tristate "Netronome(R) NFP4000/NFP6000 NIC driver"
-	depends on PCI && PCI_MSI
+	depends on PCI_MSI
 	depends on VXLAN || VXLAN=n
 	depends on TLS && TLS_DEVICE || TLS_DEVICE=n
 	select NET_DEVLINK
@@ -53,6 +53,17 @@ config NFP_APP_ABM_NIC
 	  use one of the NFP4000 and NFP6000 platforms which support this
 	  functionality.
 	  Code will be built into the nfp.ko driver.
+
+config NFP_NET_IPSEC
+	bool "NFP IPsec crypto offload support"
+	depends on NFP
+	depends on XFRM_OFFLOAD
+	default y
+	help
+	  Enable driver support IPsec crypto offload on NFP NIC.
+	  Say Y, if you are planning to make use of IPsec crypto
+	  offload. NOTE that IPsec crypto offload on NFP NIC
+	  requires specific FW to work.
 
 config NFP_DEBUG
 	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"

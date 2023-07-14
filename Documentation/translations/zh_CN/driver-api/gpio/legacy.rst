@@ -153,8 +153,7 @@ get/set(获取/设置)函数调用没法返回错误,且有可能是配置错误
 大多数 GPIO 控制器可以通过内存读/写指令来访问。这些指令不会休眠,可以
 安全地在硬(非线程)中断例程和类似的上下文中完成。
 
-对于那些用 gpio_cansleep()测试总是返回失败的 GPIO(见下文)，使用
-以下的函数访问::
+对于那些 GPIO，使用以下的函数访问::
 
 	/* GPIO 输入:返回零或非零 */
 	int gpio_get_value(unsigned gpio);
@@ -186,11 +185,6 @@ GPIO值是布尔值，零表示低电平，非零表示高电平。当读取一�
 GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其反馈。期间需要
 休眠，这不能在 IRQ 例程(中断上下文)中执行。
 
-支持此类 GPIO 的平台通过以下函数返回非零值来区分出这种 GPIO。(此函数需要
-一个之前通过 gpio_request 分配到的有效 GPIO 编号)::
-
-	int gpio_cansleep(unsigned gpio);
-
 为了访问这种 GPIO,内核定义了一套不同的函数::
 
 	/* GPIO 输入:返回零或非零 ,可能会休眠 */
@@ -198,7 +192,6 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
 
 	/* GPIO 输出,可能会休眠 */
 	void gpio_set_value_cansleep(unsigned gpio, int value);
-
 
 访问这样的 GPIO 需要一个允许休眠的上下文，例如线程 IRQ 处理例程，并用以上的
 访问函数替换那些没有 cansleep()后缀的自旋锁安全访问函数。
@@ -219,7 +212,6 @@ GPIO 值的命令需要等待其信息排到队首才发送命令，再获得其
         ## 	gpio_free_array()
 
                 gpio_free()
-                gpio_set_debounce()
 
 
 
@@ -295,29 +287,12 @@ gpio_request()前将这类细节配置好，例如使用引脚控制子系统的
 
 	* GPIOF_INIT_LOW	- 在作为输出时,初始值为低电平
 	* GPIOF_INIT_HIGH	- 在作为输出时,初始值为高电平
-	* GPIOF_OPEN_DRAIN	- gpio引脚为开漏信号
-	* GPIOF_OPEN_SOURCE	- gpio引脚为源极开路信号
-
-	* GPIOF_EXPORT_DIR_FIXED	- 将 gpio 导出到 sysfs，并保持方向
-	* GPIOF_EXPORT_DIR_CHANGEABLE	- 同样是导出, 但允许改变方向
 
 因为 GPIOF_INIT_* 仅有在配置为输出的时候才存在,所以有效的组合为:
 
 	* GPIOF_IN		- 配置为输入
 	* GPIOF_OUT_INIT_LOW	- 配置为输出,并初始化为低电平
 	* GPIOF_OUT_INIT_HIGH	- 配置为输出,并初始化为高电平
-
-当设置 flag 为 GPIOF_OPEN_DRAIN 时，则假设引脚是开漏信号。这样的引脚
-将不会在输出模式下置1。这样的引脚需要连接上拉电阻。通过使能这个标志，gpio库
-将会在被要求输出模式下置1时将引脚变为输入状态来使引脚置高。引脚在输出模式下
-通过置0使其输出低电平。
-
-当设置 flag 为 GPIOF_OPEN_SOURCE 时，则假设引脚为源极开路信号。这样的引脚
-将不会在输出模式下置0。这样的引脚需要连接下拉电阻。通过使能这个标志，gpio库
-将会在被要求输出模式下置0时将引脚变为输入状态来使引脚置低。引脚在输出模式下
-通过置1使其输出高电平。
-
-将来这些标志可能扩展到支持更多的属性。
 
 更进一步,为了更简单地声明/释放多个 GPIO,'struct gpio'被引进来封装所有
 这三个领域::
@@ -358,9 +333,6 @@ GPIO 编号是无符号整数;IRQ 编号也是。这些构成了两个逻辑上�
 	/* 映射 GPIO 编号到 IRQ 编号 */
 	int gpio_to_irq(unsigned gpio);
 
-	/* 映射 IRQ 编号到 GPIO 编号 (尽量避免使用) */
-	int irq_to_gpio(unsigned irq);
-
 它们的返回值为对应命名空间的相关编号，或是负的错误代码(如果无法映射)。
 (例如,某些 GPIO 无法做为 IRQ 使用。)以下的编号错误是未经检测的:使用一个
 未通过 gpio_direction_input()配置为输入的 GPIO 编号，或者使用一个
@@ -372,10 +344,6 @@ gpio_to_irq()返回的非错误值可以传递给 request_irq()或者 free_irq()
 它们通常通过板级特定的初始化代码存放到平台设备的 IRQ 资源中。注意:IRQ
 触发选项是 IRQ 接口的一部分，如 IRQF_TRIGGER_FALLING，系统唤醒能力
 也是如此。
-
-irq_to_gpio()返回的非错误值大多数通常可以被 gpio_get_value()所使用，
-比如在 IRQ 是沿触发时初始化或更新驱动状态。注意某些平台不支持反映射,所以
-你应该尽量避免使用它。
 
 
 模拟开漏信号
@@ -508,8 +476,8 @@ GPIO 实现者的框架（可选）
 
 为了支持这个框架，一个平台的 Kconfig 文件将会 "select"(选择)
 ARCH_REQUIRE_GPIOLIB 或 ARCH_WANT_OPTIONAL_GPIOLIB，并让它的
-<asm/gpio.h> 包含 <asm-generic/gpio.h>，同时定义三个方法:
-gpio_get_value()、gpio_set_value()和 gpio_cansleep()。
+<asm/gpio.h> 包含 <asm-generic/gpio.h>，同时定义两个方法:
+gpio_get_value()、gpio_set_value()。
 
 它也应提供一个 ARCH_NR_GPIOS 的定义值，这样可以更好地反映该平台 GPIO
 的实际数量,节省静态表的空间。(这个定义值应该包含片上系统内建 GPIO 和
@@ -527,7 +495,6 @@ ARCH_WANT_OPTIONAL_GPIOLIB 意味着 gpiolib 核心默认关闭,且用户可以
 
   #define gpio_get_value	__gpio_get_value
   #define gpio_set_value	__gpio_set_value
-  #define gpio_cansleep		__gpio_cansleep
 
 这些定义可以用更理想的实现方法替代，那就是使用经过逻辑优化的内联函数来访问
 基于特定片上系统的 GPIO。例如,若引用的 GPIO (寄存器位偏移)是常量“12”，
@@ -659,33 +626,6 @@ GPIO 控制器的路径类似 /sys/class/gpio/gpiochip42/ (对于从#42 GPIO
 固定的,例如在扩展卡上的 GPIO会根据所使用的主板或所在堆叠架构中其他的板子而
 有所不同。在这种情况下,你可能需要使用 gpiochip 节点(尽可能地结合电路图)来
 确定给定信号所用的 GPIO 编号。
-
-
-从内核代码中导出
-----------------
-
-内核代码可以明确地管理那些已通过 gpio_request()申请的 GPIO 的导出::
-
-	/* 导出 GPIO 到用户空间 */
-	int gpio_export(unsigned gpio, bool direction_may_change);
-
-	/* gpio_export()的逆操作 */
-	void gpio_unexport();
-
-	/* 创建一个 sysfs 连接到已导出的 GPIO 节点 */
-	int gpio_export_link(struct device *dev, const char *name,
-		unsigned gpio)
-
-在一个内核驱动申请一个 GPIO 之后，它可以通过 gpio_export()使其在 sysfs
-接口中可见。该驱动可以控制信号方向是否可修改。这有助于防止用户空间代码无意间
-破坏重要的系统状态。
-
-这个明确的导出有助于(通过使某些实验更容易来)调试，也可以提供一个始终存在的接口，
-与文档配合作为板级支持包的一部分。
-
-在 GPIO 被导出之后，gpio_export_link()允许在 sysfs 文件系统的任何地方
-创建一个到这个 GPIO sysfs 节点的符号链接。这样驱动就可以通过一个描述性的
-名字，在 sysfs 中他们所拥有的设备下提供一个(到这个 GPIO sysfs 节点的)接口。
 
 
 API参考

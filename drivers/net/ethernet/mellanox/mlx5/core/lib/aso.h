@@ -15,6 +15,7 @@
 #define MLX5_WQE_CTRL_WQE_OPC_MOD_SHIFT 24
 #define MLX5_MACSEC_ASO_DS_CNT (DIV_ROUND_UP(sizeof(struct mlx5_aso_wqe), MLX5_SEND_WQE_DS))
 
+#define ASO_CTRL_READ_EN BIT(0)
 struct mlx5_wqe_aso_ctrl_seg {
 	__be32  va_h;
 	__be32  va_l; /* include read_enable */
@@ -71,19 +72,20 @@ enum {
 };
 
 enum {
+	MLX5_ACCESS_ASO_OPC_MOD_IPSEC = 0x0,
 	MLX5_ACCESS_ASO_OPC_MOD_FLOW_METER = 0x2,
 	MLX5_ACCESS_ASO_OPC_MOD_MACSEC = 0x5,
 };
 
 struct mlx5_aso;
 
-void *mlx5_aso_get_wqe(struct mlx5_aso *aso);
+struct mlx5_aso_wqe *mlx5_aso_get_wqe(struct mlx5_aso *aso);
 void mlx5_aso_build_wqe(struct mlx5_aso *aso, u8 ds_cnt,
 			struct mlx5_aso_wqe *aso_wqe,
 			u32 obj_id, u32 opc_mode);
 void mlx5_aso_post_wqe(struct mlx5_aso *aso, bool with_data,
 		       struct mlx5_wqe_ctrl_seg *doorbell_cseg);
-int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data, u32 interval_ms);
+int mlx5_aso_poll_cq(struct mlx5_aso *aso, bool with_data);
 
 struct mlx5_aso *mlx5_aso_create(struct mlx5_core_dev *mdev, u32 pdn);
 void mlx5_aso_destroy(struct mlx5_aso *aso);

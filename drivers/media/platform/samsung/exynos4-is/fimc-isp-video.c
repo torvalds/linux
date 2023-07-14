@@ -312,7 +312,7 @@ static int isp_video_release(struct file *file)
 	is_singular_file = v4l2_fh_is_singular_file(file);
 
 	if (is_singular_file && ivc->streaming) {
-		media_pipeline_stop(entity);
+		video_device_pipeline_stop(&ivc->ve.vdev);
 		ivc->streaming = 0;
 	}
 
@@ -449,17 +449,22 @@ static int isp_video_s_fmt_mplane(struct file *file, void *priv,
 static int isp_video_pipeline_validate(struct fimc_isp *isp)
 {
 	struct v4l2_subdev *sd = &isp->subdev;
-	struct v4l2_subdev_format sink_fmt, src_fmt;
 	struct media_pad *pad;
 	int ret;
 
 	while (1) {
+		struct v4l2_subdev_format sink_fmt = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+		struct v4l2_subdev_format src_fmt = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+
 		/* Retrieve format at the sink pad */
 		pad = &sd->entity.pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 		sink_fmt.pad = pad->index;
-		sink_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &sink_fmt);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return -EPIPE;
@@ -471,7 +476,6 @@ static int isp_video_pipeline_validate(struct fimc_isp *isp)
 
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 		src_fmt.pad = pad->index;
-		src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &src_fmt);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return -EPIPE;
@@ -490,10 +494,9 @@ static int isp_video_streamon(struct file *file, void *priv,
 {
 	struct fimc_isp *isp = video_drvdata(file);
 	struct exynos_video_entity *ve = &isp->video_capture.ve;
-	struct media_entity *me = &ve->vdev.entity;
 	int ret;
 
-	ret = media_pipeline_start(me, &ve->pipe->mp);
+	ret = video_device_pipeline_start(&ve->vdev, &ve->pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -508,7 +511,7 @@ static int isp_video_streamon(struct file *file, void *priv,
 	isp->video_capture.streaming = 1;
 	return 0;
 p_stop:
-	media_pipeline_stop(me);
+	video_device_pipeline_stop(&ve->vdev);
 	return ret;
 }
 
@@ -523,7 +526,7 @@ static int isp_video_streamoff(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	media_pipeline_stop(&video->ve.vdev.entity);
+	video_device_pipeline_stop(&video->ve.vdev);
 	video->streaming = 0;
 	return 0;
 }

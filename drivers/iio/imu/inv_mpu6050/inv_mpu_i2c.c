@@ -32,6 +32,7 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 	case INV_ICM20608D:
 	case INV_ICM20609:
 	case INV_ICM20689:
+	case INV_ICM20600:
 	case INV_ICM20602:
 	case INV_IAM20680:
 		/* no i2c auxiliary bus on the chip */
@@ -91,13 +92,12 @@ static int inv_mpu_i2c_aux_setup(struct iio_dev *indio_dev)
 /**
  *  inv_mpu_probe() - probe function.
  *  @client:          i2c client.
- *  @id:              i2c device id.
  *
  *  Returns 0 on success, a negative error code otherwise.
  */
-static int inv_mpu_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int inv_mpu_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const void *match;
 	struct inv_mpu6050_state *st;
 	int result;
@@ -184,6 +184,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"icm20608d", INV_ICM20608D},
 	{"icm20609", INV_ICM20609},
 	{"icm20689", INV_ICM20689},
+	{"icm20600", INV_ICM20600},
 	{"icm20602", INV_ICM20602},
 	{"icm20690", INV_ICM20690},
 	{"iam20680", INV_IAM20680},
@@ -238,6 +239,10 @@ static const struct of_device_id inv_of_match[] = {
 		.data = (void *)INV_ICM20689
 	},
 	{
+		.compatible = "invensense,icm20600",
+		.data = (void *)INV_ICM20600
+	},
+	{
 		.compatible = "invensense,icm20602",
 		.data = (void *)INV_ICM20602
 	},
@@ -267,7 +272,7 @@ static struct i2c_driver inv_mpu_driver = {
 		.of_match_table = inv_of_match,
 		.acpi_match_table = inv_acpi_match,
 		.name	=	"inv-mpu6050-i2c",
-		.pm     =       &inv_mpu_pmops,
+		.pm     =       pm_ptr(&inv_mpu_pmops),
 	},
 };
 
@@ -276,3 +281,4 @@ module_i2c_driver(inv_mpu_driver);
 MODULE_AUTHOR("Invensense Corporation");
 MODULE_DESCRIPTION("Invensense device MPU6050 driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_MPU6050);

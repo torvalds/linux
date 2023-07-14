@@ -3,7 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "i915_deps.h"
 #include "i915_drv.h"
@@ -103,7 +103,27 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
 	unsigned int cache_level;
+	unsigned int mem_flags;
 	unsigned int i;
+	int mem_type;
+
+	/*
+	 * We might have been purged (or swapped out) if the resource is NULL,
+	 * in which case the SYSTEM placement is the closest match to describe
+	 * the current domain. If the object is ever used in this state then we
+	 * will require moving it again.
+	 */
+	if (!bo->resource) {
+		mem_flags = I915_BO_FLAG_STRUCT_PAGE;
+		mem_type = I915_PL_SYSTEM;
+		cache_level = I915_CACHE_NONE;
+	} else {
+		mem_flags = i915_ttm_cpu_maps_iomem(bo->resource) ? I915_BO_FLAG_IOMEM :
+			I915_BO_FLAG_STRUCT_PAGE;
+		mem_type = bo->resource->mem_type;
+		cache_level = i915_ttm_cache_level(to_i915(bo->base.dev), bo->resource,
+						   bo->ttm);
+	}
 
 	/*
 	 * If object was moved to an allowable region, update the object
@@ -111,11 +131,11 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 	 * in an allowable region, it's evicted and we don't update the
 	 * object region.
 	 */
-	if (intel_region_to_ttm_type(obj->mm.region) != bo->resource->mem_type) {
+	if (intel_region_to_ttm_type(obj->mm.region) != mem_type) {
 		for (i = 0; i < obj->mm.n_placements; ++i) {
 			struct intel_memory_region *mr = obj->mm.placements[i];
 
-			if (intel_region_to_ttm_type(mr) == bo->resource->mem_type &&
+			if (intel_region_to_ttm_type(mr) == mem_type &&
 			    mr != obj->mm.region) {
 				i915_gem_object_release_memory_region(obj);
 				i915_gem_object_init_memory_region(obj, mr);
@@ -125,12 +145,8 @@ void i915_ttm_adjust_gem_after_move(struct drm_i915_gem_object *obj)
 	}
 
 	obj->mem_flags &= ~(I915_BO_FLAG_STRUCT_PAGE | I915_BO_FLAG_IOMEM);
+	obj->mem_flags |= mem_flags;
 
-	obj->mem_flags |= i915_ttm_cpu_maps_iomem(bo->resource) ? I915_BO_FLAG_IOMEM :
-		I915_BO_FLAG_STRUCT_PAGE;
-
-	cache_level = i915_ttm_cache_level(to_i915(bo->base.dev), bo->resource,
-					   bo->ttm);
 	i915_gem_object_set_cache_coherency(obj, cache_level);
 }
 
@@ -198,7 +214,8 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 
 		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
 		ret = intel_context_migrate_clear(to_gt(i915)->migrate.context, deps,
-						  dst_st->sgl, dst_level,
+						  dst_st->sgl,
+						  i915_gem_get_pat_index(i915, dst_level),
 						  i915_ttm_gtt_binds_lmem(dst_mem),
 						  0, &rq);
 	} else {
@@ -212,9 +229,10 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
 		intel_engine_pm_get(to_gt(i915)->migrate.context->engine);
 		ret = intel_context_migrate_copy(to_gt(i915)->migrate.context,
 						 deps, src_rsgt->table.sgl,
-						 src_level,
+						 i915_gem_get_pat_index(i915, src_level),
 						 i915_ttm_gtt_binds_lmem(bo->resource),
-						 dst_st->sgl, dst_level,
+						 dst_st->sgl,
+						 i915_gem_get_pat_index(i915, dst_level),
 						 i915_ttm_gtt_binds_lmem(dst_mem),
 						 &rq);
 
@@ -237,6 +255,7 @@ static struct dma_fence *i915_ttm_accel_move(struct ttm_buffer_object *bo,
  * @_src_iter: Storage space for the source kmap iterator.
  * @dst_iter: Pointer to the destination kmap iterator.
  * @src_iter: Pointer to the source kmap iterator.
+ * @num_pages: Number of pages
  * @clear: Whether to clear instead of copy.
  * @src_rsgt: Refcounted scatter-gather list of source memory.
  * @dst_rsgt: Refcounted scatter-gather list of destination memory.
@@ -541,6 +560,8 @@ out:
  * i915_ttm_move - The TTM move callback used by i915.
  * @bo: The buffer object.
  * @evict: Whether this is an eviction.
+ * @ctx: Pointer to a struct ttm_operation_ctx indicating how the waits should be
+ *       performed if waiting
  * @dst_mem: The destination ttm resource.
  * @hop: If we need multihop, what temporary memory type to move to.
  *
@@ -557,10 +578,36 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 	struct dma_fence *migration_fence = NULL;
 	struct ttm_tt *ttm = bo->ttm;
 	struct i915_refct_sgt *dst_rsgt;
-	bool clear;
+	bool clear, prealloc_bo;
 	int ret;
 
-	if (GEM_WARN_ON(!obj)) {
+	if (GEM_WARN_ON(i915_ttm_is_ghost_object(bo))) {
+		ttm_bo_move_null(bo, dst_mem);
+		return 0;
+	}
+
+	if (!bo->resource) {
+		if (dst_mem->mem_type != TTM_PL_SYSTEM) {
+			hop->mem_type = TTM_PL_SYSTEM;
+			hop->flags = TTM_PL_FLAG_TEMPORARY;
+			return -EMULTIHOP;
+		}
+
+		/*
+		 * This is only reached when first creating the object, or if
+		 * the object was purged or swapped out (pipeline-gutting). For
+		 * the former we can safely skip all of the below since we are
+		 * only using a dummy SYSTEM placement here. And with the latter
+		 * we will always re-enter here with bo->resource set correctly
+		 * (as per the above), since this is part of a multi-hop
+		 * sequence, where at the end we can do the move for real.
+		 *
+		 * The special case here is when the dst_mem is TTM_PL_SYSTEM,
+		 * which doens't require any kind of move, so it should be safe
+		 * to skip all the below and call ttm_bo_move_null() here, where
+		 * the caller in __i915_ttm_get_pages() will take care of the
+		 * rest, since we should have a valid ttm_tt.
+		 */
 		ttm_bo_move_null(bo, dst_mem);
 		return 0;
 	}
@@ -587,7 +634,8 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		return PTR_ERR(dst_rsgt);
 
 	clear = !i915_ttm_cpu_maps_iomem(bo->resource) && (!ttm || !ttm_tt_is_populated(ttm));
-	if (!(clear && ttm && !(ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC))) {
+	prealloc_bo = obj->flags & I915_BO_PREALLOC;
+	if (!(clear && ttm && !((ttm->page_flags & TTM_TT_FLAG_ZERO_ALLOC) && !prealloc_bo))) {
 		struct i915_deps deps;
 
 		i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
@@ -669,6 +717,10 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 
 	assert_object_held(dst);
 	assert_object_held(src);
+
+	if (GEM_WARN_ON(!src_bo->resource || !dst_bo->resource))
+		return -EINVAL;
+
 	i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
 
 	ret = dma_resv_reserve_fences(src_bo->base.resv, 1);

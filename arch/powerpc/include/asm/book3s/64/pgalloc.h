@@ -113,9 +113,11 @@ static inline void __pud_free(pud_t *pud)
 
 	/*
 	 * Early pud pages allocated via memblock allocator
-	 * can't be directly freed to slab
+	 * can't be directly freed to slab. KFENCE pages have
+	 * both reserved and slab flags set so need to be freed
+	 * kmem_cache_free.
 	 */
-	if (PageReserved(page))
+	if (PageReserved(page) && !PageSlab(page))
 		free_reserved_page(page);
 	else
 		kmem_cache_free(PGT_CACHE(PUD_CACHE_INDEX), pud);

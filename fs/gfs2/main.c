@@ -151,14 +151,6 @@ static int __init init_gfs2_fs(void)
 	if (error)
 		goto fail_shrinker;
 
-	error = register_filesystem(&gfs2_fs_type);
-	if (error)
-		goto fail_fs1;
-
-	error = register_filesystem(&gfs2meta_fs_type);
-	if (error)
-		goto fail_fs2;
-
 	error = -ENOMEM;
 	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
 					  WQ_MEM_RECLAIM | WQ_FREEZABLE, 0);
@@ -180,11 +172,23 @@ static int __init init_gfs2_fs(void)
 		goto fail_mempool;
 
 	gfs2_register_debugfs();
+	error = register_filesystem(&gfs2_fs_type);
+	if (error)
+		goto fail_fs1;
+
+	error = register_filesystem(&gfs2meta_fs_type);
+	if (error)
+		goto fail_fs2;
+
 
 	pr_info("GFS2 installed\n");
 
 	return 0;
 
+fail_fs2:
+	unregister_filesystem(&gfs2_fs_type);
+fail_fs1:
+	mempool_destroy(gfs2_page_pool);
 fail_mempool:
 	destroy_workqueue(gfs2_freeze_wq);
 fail_wq3:
@@ -192,10 +196,6 @@ fail_wq3:
 fail_wq2:
 	destroy_workqueue(gfs_recovery_wq);
 fail_wq1:
-	unregister_filesystem(&gfs2meta_fs_type);
-fail_fs2:
-	unregister_filesystem(&gfs2_fs_type);
-fail_fs1:
 	unregister_shrinker(&gfs2_qd_shrinker);
 fail_shrinker:
 	kmem_cache_destroy(gfs2_trans_cachep);

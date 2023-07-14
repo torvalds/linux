@@ -15,7 +15,6 @@
 #include "clk-gate.h"
 #include "clk-mtk.h"
 #include "clk-mux.h"
-#include "clk-pll.h"
 
 #include <dt-bindings/clock/mt8192-clk.h>
 #include <dt-bindings/reset/mt8192-resets.h>
@@ -26,43 +25,39 @@ static const struct mtk_fixed_clk top_fixed_clks[] = {
 	FIXED_CLK(CLK_TOP_ULPOSC, "ulposc", NULL, 260000000),
 };
 
-static const struct mtk_fixed_factor top_early_divs[] = {
-	FACTOR(CLK_TOP_CSW_F26M_D2, "csw_f26m_d2", "clk26m", 1, 2),
-};
-
 static const struct mtk_fixed_factor top_divs[] = {
-	FACTOR(CLK_TOP_MAINPLL_D3, "mainpll_d3", "mainpll", 1, 3),
-	FACTOR(CLK_TOP_MAINPLL_D4, "mainpll_d4", "mainpll", 1, 4),
-	FACTOR(CLK_TOP_MAINPLL_D4_D2, "mainpll_d4_d2", "mainpll_d4", 1, 2),
-	FACTOR(CLK_TOP_MAINPLL_D4_D4, "mainpll_d4_d4", "mainpll_d4", 1, 4),
-	FACTOR(CLK_TOP_MAINPLL_D4_D8, "mainpll_d4_d8", "mainpll_d4", 1, 8),
-	FACTOR(CLK_TOP_MAINPLL_D4_D16, "mainpll_d4_d16", "mainpll_d4", 1, 16),
-	FACTOR(CLK_TOP_MAINPLL_D5, "mainpll_d5", "mainpll", 1, 5),
-	FACTOR(CLK_TOP_MAINPLL_D5_D2, "mainpll_d5_d2", "mainpll_d5", 1, 2),
-	FACTOR(CLK_TOP_MAINPLL_D5_D4, "mainpll_d5_d4", "mainpll_d5", 1, 4),
-	FACTOR(CLK_TOP_MAINPLL_D5_D8, "mainpll_d5_d8", "mainpll_d5", 1, 8),
-	FACTOR(CLK_TOP_MAINPLL_D6, "mainpll_d6", "mainpll", 1, 6),
-	FACTOR(CLK_TOP_MAINPLL_D6_D2, "mainpll_d6_d2", "mainpll_d6", 1, 2),
-	FACTOR(CLK_TOP_MAINPLL_D6_D4, "mainpll_d6_d4", "mainpll_d6", 1, 4),
-	FACTOR(CLK_TOP_MAINPLL_D7, "mainpll_d7", "mainpll", 1, 7),
-	FACTOR(CLK_TOP_MAINPLL_D7_D2, "mainpll_d7_d2", "mainpll_d7", 1, 2),
-	FACTOR(CLK_TOP_MAINPLL_D7_D4, "mainpll_d7_d4", "mainpll_d7", 1, 4),
-	FACTOR(CLK_TOP_MAINPLL_D7_D8, "mainpll_d7_d8", "mainpll_d7", 1, 8),
-	FACTOR(CLK_TOP_UNIVPLL_D3, "univpll_d3", "univpll", 1, 3),
-	FACTOR(CLK_TOP_UNIVPLL_D4, "univpll_d4", "univpll", 1, 4),
-	FACTOR(CLK_TOP_UNIVPLL_D4_D2, "univpll_d4_d2", "univpll_d4", 1, 2),
-	FACTOR(CLK_TOP_UNIVPLL_D4_D4, "univpll_d4_d4", "univpll_d4", 1, 4),
-	FACTOR(CLK_TOP_UNIVPLL_D4_D8, "univpll_d4_d8", "univpll_d4", 1, 8),
-	FACTOR(CLK_TOP_UNIVPLL_D5, "univpll_d5", "univpll", 1, 5),
-	FACTOR(CLK_TOP_UNIVPLL_D5_D2, "univpll_d5_d2", "univpll_d5", 1, 2),
-	FACTOR(CLK_TOP_UNIVPLL_D5_D4, "univpll_d5_d4", "univpll_d5", 1, 4),
-	FACTOR(CLK_TOP_UNIVPLL_D5_D8, "univpll_d5_d8", "univpll_d5", 1, 8),
-	FACTOR(CLK_TOP_UNIVPLL_D6, "univpll_d6", "univpll", 1, 6),
-	FACTOR(CLK_TOP_UNIVPLL_D6_D2, "univpll_d6_d2", "univpll_d6", 1, 2),
-	FACTOR(CLK_TOP_UNIVPLL_D6_D4, "univpll_d6_d4", "univpll_d6", 1, 4),
-	FACTOR(CLK_TOP_UNIVPLL_D6_D8, "univpll_d6_d8", "univpll_d6", 1, 8),
-	FACTOR(CLK_TOP_UNIVPLL_D6_D16, "univpll_d6_d16", "univpll_d6", 1, 16),
-	FACTOR(CLK_TOP_UNIVPLL_D7, "univpll_d7", "univpll", 1, 7),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D3, "mainpll_d3", "mainpll", 1, 3, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D4, "mainpll_d4", "mainpll", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D4_D2, "mainpll_d4_d2", "mainpll_d4", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D4_D4, "mainpll_d4_d4", "mainpll_d4", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D4_D8, "mainpll_d4_d8", "mainpll_d4", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D4_D16, "mainpll_d4_d16", "mainpll_d4", 1, 16, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D5, "mainpll_d5", "mainpll", 1, 5, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D5_D2, "mainpll_d5_d2", "mainpll_d5", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D5_D4, "mainpll_d5_d4", "mainpll_d5", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D5_D8, "mainpll_d5_d8", "mainpll_d5", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D6, "mainpll_d6", "mainpll", 1, 6, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D6_D2, "mainpll_d6_d2", "mainpll_d6", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D6_D4, "mainpll_d6_d4", "mainpll_d6", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D7, "mainpll_d7", "mainpll", 1, 7, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D7_D2, "mainpll_d7_d2", "mainpll_d7", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D7_D4, "mainpll_d7_d4", "mainpll_d7", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_MAINPLL_D7_D8, "mainpll_d7_d8", "mainpll_d7", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D3, "univpll_d3", "univpll", 1, 3, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D4, "univpll_d4", "univpll", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D4_D2, "univpll_d4_d2", "univpll_d4", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D4_D4, "univpll_d4_d4", "univpll_d4", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D4_D8, "univpll_d4_d8", "univpll_d4", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D5, "univpll_d5", "univpll", 1, 5, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D5_D2, "univpll_d5_d2", "univpll_d5", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D5_D4, "univpll_d5_d4", "univpll_d5", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D5_D8, "univpll_d5_d8", "univpll_d5", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D6, "univpll_d6", "univpll", 1, 6, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D6_D2, "univpll_d6_d2", "univpll_d6", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D6_D4, "univpll_d6_d4", "univpll_d6", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D6_D8, "univpll_d6_d8", "univpll_d6", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D6_D16, "univpll_d6_d16", "univpll_d6", 1, 16, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_D7, "univpll_d7", "univpll", 1, 7, 0),
 	FACTOR(CLK_TOP_APLL1, "apll1_ck", "apll1", 1, 1),
 	FACTOR(CLK_TOP_APLL1_D2, "apll1_d2", "apll1", 1, 2),
 	FACTOR(CLK_TOP_APLL1_D4, "apll1_d4", "apll1", 1, 4),
@@ -95,13 +90,14 @@ static const struct mtk_fixed_factor top_divs[] = {
 	FACTOR(CLK_TOP_OSC_D10, "osc_d10", "ulposc", 1, 10),
 	FACTOR(CLK_TOP_OSC_D16, "osc_d16", "ulposc", 1, 16),
 	FACTOR(CLK_TOP_OSC_D20, "osc_d20", "ulposc", 1, 20),
+	FACTOR(CLK_TOP_CSW_F26M_D2, "csw_f26m_d2", "clk26m", 1, 2),
 	FACTOR(CLK_TOP_ADSPPLL, "adsppll_ck", "adsppll", 1, 1),
-	FACTOR(CLK_TOP_UNIVPLL_192M, "univpll_192m", "univpll", 1, 13),
-	FACTOR(CLK_TOP_UNIVPLL_192M_D2, "univpll_192m_d2", "univpll_192m", 1, 2),
-	FACTOR(CLK_TOP_UNIVPLL_192M_D4, "univpll_192m_d4", "univpll_192m", 1, 4),
-	FACTOR(CLK_TOP_UNIVPLL_192M_D8, "univpll_192m_d8", "univpll_192m", 1, 8),
-	FACTOR(CLK_TOP_UNIVPLL_192M_D16, "univpll_192m_d16", "univpll_192m", 1, 16),
-	FACTOR(CLK_TOP_UNIVPLL_192M_D32, "univpll_192m_d32", "univpll_192m", 1, 32),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_192M, "univpll_192m", "univpll", 1, 13, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_192M_D2, "univpll_192m_d2", "univpll_192m", 1, 2, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_192M_D4, "univpll_192m_d4", "univpll_192m", 1, 4, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_192M_D8, "univpll_192m_d8", "univpll_192m", 1, 8, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_192M_D16, "univpll_192m_d16", "univpll_192m", 1, 16, 0),
+	FACTOR_FLAGS(CLK_TOP_UNIVPLL_192M_D32, "univpll_192m_d32", "univpll_192m", 1, 32, 0),
 };
 
 static const char * const axi_parents[] = {
@@ -167,22 +163,7 @@ static const char * const mdp_parents[] = {
 	"mmpll_d5_d2"
 };
 
-static const char * const img1_parents[] = {
-	"clk26m",
-	"univpll_d4",
-	"tvdpll_ck",
-	"mainpll_d4",
-	"univpll_d5",
-	"mmpll_d6",
-	"univpll_d6",
-	"mainpll_d6",
-	"mmpll_d4_d2",
-	"mainpll_d4_d2",
-	"mmpll_d6_d2",
-	"mmpll_d5_d2"
-};
-
-static const char * const img2_parents[] = {
+static const char * const img_parents[] = {
 	"clk26m",
 	"univpll_d4",
 	"tvdpll_ck",
@@ -280,61 +261,6 @@ static const char * const camtg_parents[] = {
 	"univpll_192m_d32"
 };
 
-static const char * const camtg2_parents[] = {
-	"clk26m",
-	"univpll_192m_d8",
-	"univpll_d6_d8",
-	"univpll_192m_d4",
-	"univpll_d6_d16",
-	"csw_f26m_d2",
-	"univpll_192m_d16",
-	"univpll_192m_d32"
-};
-
-static const char * const camtg3_parents[] = {
-	"clk26m",
-	"univpll_192m_d8",
-	"univpll_d6_d8",
-	"univpll_192m_d4",
-	"univpll_d6_d16",
-	"csw_f26m_d2",
-	"univpll_192m_d16",
-	"univpll_192m_d32"
-};
-
-static const char * const camtg4_parents[] = {
-	"clk26m",
-	"univpll_192m_d8",
-	"univpll_d6_d8",
-	"univpll_192m_d4",
-	"univpll_d6_d16",
-	"csw_f26m_d2",
-	"univpll_192m_d16",
-	"univpll_192m_d32"
-};
-
-static const char * const camtg5_parents[] = {
-	"clk26m",
-	"univpll_192m_d8",
-	"univpll_d6_d8",
-	"univpll_192m_d4",
-	"univpll_d6_d16",
-	"csw_f26m_d2",
-	"univpll_192m_d16",
-	"univpll_192m_d32"
-};
-
-static const char * const camtg6_parents[] = {
-	"clk26m",
-	"univpll_192m_d8",
-	"univpll_d6_d8",
-	"univpll_192m_d4",
-	"univpll_d6_d16",
-	"csw_f26m_d2",
-	"univpll_192m_d16",
-	"univpll_192m_d32"
-};
-
 static const char * const uart_parents[] = {
 	"clk26m",
 	"univpll_d6_d8"
@@ -362,15 +288,7 @@ static const char * const msdc50_0_parents[] = {
 	"univpll_d4_d2"
 };
 
-static const char * const msdc30_1_parents[] = {
-	"clk26m",
-	"univpll_d6_d2",
-	"mainpll_d6_d2",
-	"mainpll_d7_d2",
-	"msdcpll_d2"
-};
-
-static const char * const msdc30_2_parents[] = {
+static const char * const msdc30_parents[] = {
 	"clk26m",
 	"univpll_d6_d2",
 	"mainpll_d6_d2",
@@ -447,39 +365,6 @@ static const char * const i2c_parents[] = {
 };
 
 static const char * const seninf_parents[] = {
-	"clk26m",
-	"univpll_d4_d4",
-	"univpll_d6_d2",
-	"univpll_d4_d2",
-	"univpll_d7",
-	"univpll_d6",
-	"mmpll_d6",
-	"univpll_d5"
-};
-
-static const char * const seninf1_parents[] = {
-	"clk26m",
-	"univpll_d4_d4",
-	"univpll_d6_d2",
-	"univpll_d4_d2",
-	"univpll_d7",
-	"univpll_d6",
-	"mmpll_d6",
-	"univpll_d5"
-};
-
-static const char * const seninf2_parents[] = {
-	"clk26m",
-	"univpll_d4_d4",
-	"univpll_d6_d2",
-	"univpll_d4_d2",
-	"univpll_d7",
-	"univpll_d6",
-	"mmpll_d6",
-	"univpll_d5"
-};
-
-static const char * const seninf3_parents[] = {
 	"clk26m",
 	"univpll_d4_d4",
 	"univpll_d6_d2",
@@ -649,52 +534,7 @@ static const char * const sflash_parents[] = {
 	"univpll_d5_d8"
 };
 
-static const char * const apll_i2s0_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s1_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s2_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s3_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s4_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s5_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s6_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s7_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s8_m_parents[] = {
-	"aud_1_sel",
-	"aud_2_sel"
-};
-
-static const char * const apll_i2s9_m_parents[] = {
+static const char * const apll_i2s_m_parents[] = {
 	"aud_1_sel",
 	"aud_2_sel"
 };
@@ -709,24 +549,24 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	/* CLK_CFG_0 */
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_AXI_SEL, "axi_sel",
 				   axi_parents, 0x010, 0x014, 0x018, 0, 3, 7, 0x004, 0,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_SPM_SEL, "spm_sel",
 				   spm_parents, 0x010, 0x014, 0x018, 8, 2, 15, 0x004, 1,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SCP_SEL, "scp_sel",
 			     scp_parents, 0x010, 0x014, 0x018, 16, 3, 23, 0x004, 2),
 	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_BUS_AXIMEM_SEL, "bus_aximem_sel",
 				   bus_aximem_parents, 0x010, 0x014, 0x018, 24, 3, 31, 0x004, 3,
-				   CLK_IS_CRITICAL),
+				   CLK_IS_CRITICAL | CLK_SET_RATE_PARENT),
 	/* CLK_CFG_1 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DISP_SEL, "disp_sel",
 			     disp_parents, 0x020, 0x024, 0x028, 0, 4, 7, 0x004, 4),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_MDP_SEL, "mdp_sel",
 			     mdp_parents, 0x020, 0x024, 0x028, 8, 4, 15, 0x004, 5),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_IMG1_SEL, "img1_sel",
-			     img1_parents, 0x020, 0x024, 0x028, 16, 4, 23, 0x004, 6),
+			     img_parents, 0x020, 0x024, 0x028, 16, 4, 23, 0x004, 6),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_IMG2_SEL, "img2_sel",
-			     img2_parents, 0x020, 0x024, 0x028, 24, 4, 31, 0x004, 7),
+			     img_parents, 0x020, 0x024, 0x028, 24, 4, 31, 0x004, 7),
 	/* CLK_CFG_2 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_IPE_SEL, "ipe_sel",
 			     ipe_parents, 0x030, 0x034, 0x038, 0, 4, 7, 0x004, 8),
@@ -747,29 +587,30 @@ static const struct mtk_mux top_mtk_muxes[] = {
 			     camtg_parents, 0x050, 0x054, 0x058, 24, 3, 31, 0x004, 19),
 	/* CLK_CFG_5 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG2_SEL, "camtg2_sel",
-			     camtg2_parents, 0x060, 0x064, 0x068, 0, 3, 7, 0x004, 20),
+			     camtg_parents, 0x060, 0x064, 0x068, 0, 3, 7, 0x004, 20),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG3_SEL, "camtg3_sel",
-			     camtg3_parents, 0x060, 0x064, 0x068, 8, 3, 15, 0x004, 21),
+			     camtg_parents, 0x060, 0x064, 0x068, 8, 3, 15, 0x004, 21),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG4_SEL, "camtg4_sel",
-			     camtg4_parents, 0x060, 0x064, 0x068, 16, 3, 23, 0x004, 22),
+			     camtg_parents, 0x060, 0x064, 0x068, 16, 3, 23, 0x004, 22),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG5_SEL, "camtg5_sel",
-			     camtg5_parents, 0x060, 0x064, 0x068, 24, 3, 31, 0x004, 23),
+			     camtg_parents, 0x060, 0x064, 0x068, 24, 3, 31, 0x004, 23),
 	/* CLK_CFG_6 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_CAMTG6_SEL, "camtg6_sel",
-			     camtg6_parents, 0x070, 0x074, 0x078, 0, 3, 7, 0x004, 24),
+			     camtg_parents, 0x070, 0x074, 0x078, 0, 3, 7, 0x004, 24),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_UART_SEL, "uart_sel",
 			     uart_parents, 0x070, 0x074, 0x078, 8, 1, 15, 0x004, 25),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SPI_SEL, "spi_sel",
 			     spi_parents, 0x070, 0x074, 0x078, 16, 2, 23, 0x004, 26),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_H_SEL, "msdc50_0_h_sel",
-			     msdc50_0_h_parents, 0x070, 0x074, 0x078, 24, 2, 31, 0x004, 27),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_H_SEL, "msdc50_0_h_sel",
+				   msdc50_0_h_parents, 0x070, 0x074, 0x078, 24, 2,
+				   31, 0x004, 27, 0),
 	/* CLK_CFG_7 */
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
-			     msdc50_0_parents, 0x080, 0x084, 0x088, 0, 3, 7, 0x004, 28),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
-			     msdc30_1_parents, 0x080, 0x084, 0x088, 8, 3, 15, 0x004, 29),
-	MUX_GATE_CLR_SET_UPD(CLK_TOP_MSDC30_2_SEL, "msdc30_2_sel",
-			     msdc30_2_parents, 0x080, 0x084, 0x088, 16, 3, 23, 0x004, 30),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC50_0_SEL, "msdc50_0_sel",
+				   msdc50_0_parents, 0x080, 0x084, 0x088, 0, 3, 7, 0x004, 28, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_1_SEL, "msdc30_1_sel",
+				   msdc30_parents, 0x080, 0x084, 0x088, 8, 3, 15, 0x004, 29, 0),
+	MUX_GATE_CLR_SET_UPD_FLAGS(CLK_TOP_MSDC30_2_SEL, "msdc30_2_sel",
+				   msdc30_parents, 0x080, 0x084, 0x088, 16, 3, 23, 0x004, 30, 0),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_AUDIO_SEL, "audio_sel",
 			     audio_parents, 0x080, 0x084, 0x088, 24, 2, 31, 0x008, 0),
 	/* CLK_CFG_8 */
@@ -796,12 +637,12 @@ static const struct mtk_mux top_mtk_muxes[] = {
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SENINF_SEL, "seninf_sel",
 			     seninf_parents, 0x0b0, 0x0b4, 0x0b8, 16, 3, 23, 0x008, 11),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SENINF1_SEL, "seninf1_sel",
-			     seninf1_parents, 0x0b0, 0x0b4, 0x0b8, 24, 3, 31, 0x008, 12),
+			     seninf_parents, 0x0b0, 0x0b4, 0x0b8, 24, 3, 31, 0x008, 12),
 	/* CLK_CFG_11 */
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SENINF2_SEL, "seninf2_sel",
-			     seninf2_parents, 0x0c0, 0x0c4, 0x0c8, 0, 3, 7, 0x008, 13),
+			     seninf_parents, 0x0c0, 0x0c4, 0x0c8, 0, 3, 7, 0x008, 13),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_SENINF3_SEL, "seninf3_sel",
-			     seninf3_parents, 0x0c0, 0x0c4, 0x0c8, 8, 3, 15, 0x008, 14),
+			     seninf_parents, 0x0c0, 0x0c4, 0x0c8, 8, 3, 15, 0x008, 14),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_TL_SEL, "tl_sel",
 			     tl_parents, 0x0c0, 0x0c4, 0x0c8, 16, 2, 23, 0x008, 15),
 	MUX_GATE_CLR_SET_UPD(CLK_TOP_DXCC_SEL, "dxcc_sel",
@@ -847,19 +688,17 @@ static const struct mtk_mux top_mtk_muxes[] = {
 
 static struct mtk_composite top_muxes[] = {
 	/* CLK_AUDDIV_0 */
-	MUX(CLK_TOP_APLL_I2S0_M_SEL, "apll_i2s0_m_sel", apll_i2s0_m_parents, 0x320, 16, 1),
-	MUX(CLK_TOP_APLL_I2S1_M_SEL, "apll_i2s1_m_sel", apll_i2s1_m_parents, 0x320, 17, 1),
-	MUX(CLK_TOP_APLL_I2S2_M_SEL, "apll_i2s2_m_sel", apll_i2s2_m_parents, 0x320, 18, 1),
-	MUX(CLK_TOP_APLL_I2S3_M_SEL, "apll_i2s3_m_sel", apll_i2s3_m_parents, 0x320, 19, 1),
-	MUX(CLK_TOP_APLL_I2S4_M_SEL, "apll_i2s4_m_sel", apll_i2s4_m_parents, 0x320, 20, 1),
-	MUX(CLK_TOP_APLL_I2S5_M_SEL, "apll_i2s5_m_sel", apll_i2s5_m_parents, 0x320, 21, 1),
-	MUX(CLK_TOP_APLL_I2S6_M_SEL, "apll_i2s6_m_sel", apll_i2s6_m_parents, 0x320, 22, 1),
-	MUX(CLK_TOP_APLL_I2S7_M_SEL, "apll_i2s7_m_sel", apll_i2s7_m_parents, 0x320, 23, 1),
-	MUX(CLK_TOP_APLL_I2S8_M_SEL, "apll_i2s8_m_sel", apll_i2s8_m_parents, 0x320, 24, 1),
-	MUX(CLK_TOP_APLL_I2S9_M_SEL, "apll_i2s9_m_sel", apll_i2s9_m_parents, 0x320, 25, 1),
-};
-
-static const struct mtk_composite top_adj_divs[] = {
+	MUX(CLK_TOP_APLL_I2S0_M_SEL, "apll_i2s0_m_sel", apll_i2s_m_parents, 0x320, 16, 1),
+	MUX(CLK_TOP_APLL_I2S1_M_SEL, "apll_i2s1_m_sel", apll_i2s_m_parents, 0x320, 17, 1),
+	MUX(CLK_TOP_APLL_I2S2_M_SEL, "apll_i2s2_m_sel", apll_i2s_m_parents, 0x320, 18, 1),
+	MUX(CLK_TOP_APLL_I2S3_M_SEL, "apll_i2s3_m_sel", apll_i2s_m_parents, 0x320, 19, 1),
+	MUX(CLK_TOP_APLL_I2S4_M_SEL, "apll_i2s4_m_sel", apll_i2s_m_parents, 0x320, 20, 1),
+	MUX(CLK_TOP_APLL_I2S5_M_SEL, "apll_i2s5_m_sel", apll_i2s_m_parents, 0x320, 21, 1),
+	MUX(CLK_TOP_APLL_I2S6_M_SEL, "apll_i2s6_m_sel", apll_i2s_m_parents, 0x320, 22, 1),
+	MUX(CLK_TOP_APLL_I2S7_M_SEL, "apll_i2s7_m_sel", apll_i2s_m_parents, 0x320, 23, 1),
+	MUX(CLK_TOP_APLL_I2S8_M_SEL, "apll_i2s8_m_sel", apll_i2s_m_parents, 0x320, 24, 1),
+	MUX(CLK_TOP_APLL_I2S9_M_SEL, "apll_i2s9_m_sel", apll_i2s_m_parents, 0x320, 25, 1),
+	/* APLL_DIV */
 	DIV_GATE(CLK_TOP_APLL12_DIV0, "apll12_div0", "apll_i2s0_m_sel", 0x320, 0, 0x328, 8, 0),
 	DIV_GATE(CLK_TOP_APLL12_DIV1, "apll12_div1", "apll_i2s1_m_sel", 0x320, 1, 0x328, 8, 8),
 	DIV_GATE(CLK_TOP_APLL12_DIV2, "apll12_div2", "apll_i2s2_m_sel", 0x320, 2, 0x328, 8, 16),
@@ -871,19 +710,6 @@ static const struct mtk_composite top_adj_divs[] = {
 	DIV_GATE(CLK_TOP_APLL12_DIV7, "apll12_div7", "apll_i2s7_m_sel", 0x320, 8, 0x338, 8, 0),
 	DIV_GATE(CLK_TOP_APLL12_DIV8, "apll12_div8", "apll_i2s8_m_sel", 0x320, 9, 0x338, 8, 8),
 	DIV_GATE(CLK_TOP_APLL12_DIV9, "apll12_div9", "apll_i2s9_m_sel", 0x320, 10, 0x338, 8, 16),
-};
-
-static const struct mtk_gate_regs apmixed_cg_regs = {
-	.set_ofs = 0x14,
-	.clr_ofs = 0x14,
-	.sta_ofs = 0x14,
-};
-
-#define GATE_APMIXED(_id, _name, _parent, _shift)	\
-	GATE_MTK(_id, _name, _parent, &apmixed_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
-
-static const struct mtk_gate apmixed_clks[] = {
-	GATE_APMIXED(CLK_APMIXED_MIPID26M, "mipid26m", "clk26m", 16),
 };
 
 static const struct mtk_gate_regs infra0_cg_regs = {
@@ -1139,243 +965,70 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 	.rst_idx_map_nr = ARRAY_SIZE(infra_ao_idx_map),
 };
 
-#define MT8192_PLL_FMAX		(3800UL * MHZ)
-#define MT8192_PLL_FMIN		(1500UL * MHZ)
-#define MT8192_INTEGER_BITS	8
-
-#define PLL(_id, _name, _reg, _pwr_reg, _en_mask, _flags,		\
-			_rst_bar_mask, _pcwbits, _pd_reg, _pd_shift,	\
-			_tuner_reg, _tuner_en_reg, _tuner_en_bit,	\
-			_pcw_reg, _pcw_shift, _pcw_chg_reg,		\
-			_en_reg, _pll_en_bit) {				\
-		.id = _id,						\
-		.name = _name,						\
-		.reg = _reg,						\
-		.pwr_reg = _pwr_reg,					\
-		.en_mask = _en_mask,					\
-		.flags = _flags,					\
-		.rst_bar_mask = _rst_bar_mask,				\
-		.fmax = MT8192_PLL_FMAX,				\
-		.fmin = MT8192_PLL_FMIN,				\
-		.pcwbits = _pcwbits,					\
-		.pcwibits = MT8192_INTEGER_BITS,			\
-		.pd_reg = _pd_reg,					\
-		.pd_shift = _pd_shift,					\
-		.tuner_reg = _tuner_reg,				\
-		.tuner_en_reg = _tuner_en_reg,				\
-		.tuner_en_bit = _tuner_en_bit,				\
-		.pcw_reg = _pcw_reg,					\
-		.pcw_shift = _pcw_shift,				\
-		.pcw_chg_reg = _pcw_chg_reg,				\
-		.en_reg = _en_reg,					\
-		.pll_en_bit = _pll_en_bit,				\
-	}
-
-#define PLL_B(_id, _name, _reg, _pwr_reg, _en_mask, _flags,		\
-			_rst_bar_mask, _pcwbits, _pd_reg, _pd_shift,	\
-			_tuner_reg, _tuner_en_reg, _tuner_en_bit,	\
-			_pcw_reg, _pcw_shift)				\
-		PLL(_id, _name, _reg, _pwr_reg, _en_mask, _flags,	\
-			_rst_bar_mask, _pcwbits, _pd_reg, _pd_shift,	\
-			_tuner_reg, _tuner_en_reg, _tuner_en_bit,	\
-			_pcw_reg, _pcw_shift, 0, 0, 0)
-
-static const struct mtk_pll_data plls[] = {
-	PLL_B(CLK_APMIXED_MAINPLL, "mainpll", 0x0340, 0x034c, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x0344, 24, 0, 0, 0, 0x0344, 0),
-	PLL_B(CLK_APMIXED_UNIVPLL, "univpll", 0x0308, 0x0314, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x030c, 24, 0, 0, 0, 0x030c, 0),
-	PLL(CLK_APMIXED_USBPLL, "usbpll", 0x03c4, 0x03cc, 0x00000000,
-	    0, 0, 22, 0x03c4, 24, 0, 0, 0, 0x03c4, 0, 0x03c4, 0x03cc, 2),
-	PLL_B(CLK_APMIXED_MSDCPLL, "msdcpll", 0x0350, 0x035c, 0x00000000,
-	      0, 0, 22, 0x0354, 24, 0, 0, 0, 0x0354, 0),
-	PLL_B(CLK_APMIXED_MMPLL, "mmpll", 0x0360, 0x036c, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x0364, 24, 0, 0, 0, 0x0364, 0),
-	PLL_B(CLK_APMIXED_ADSPPLL, "adsppll", 0x0370, 0x037c, 0xff000000,
-	      HAVE_RST_BAR, BIT(23), 22, 0x0374, 24, 0, 0, 0, 0x0374, 0),
-	PLL_B(CLK_APMIXED_MFGPLL, "mfgpll", 0x0268, 0x0274, 0x00000000,
-	      0, 0, 22, 0x026c, 24, 0, 0, 0, 0x026c, 0),
-	PLL_B(CLK_APMIXED_TVDPLL, "tvdpll", 0x0380, 0x038c, 0x00000000,
-	      0, 0, 22, 0x0384, 24, 0, 0, 0, 0x0384, 0),
-	PLL_B(CLK_APMIXED_APLL1, "apll1", 0x0318, 0x0328, 0x00000000,
-	      0, 0, 32, 0x031c, 24, 0x0040, 0x000c, 0, 0x0320, 0),
-	PLL_B(CLK_APMIXED_APLL2, "apll2", 0x032c, 0x033c, 0x00000000,
-	      0, 0, 32, 0x0330, 24, 0, 0, 0, 0x0334, 0),
-};
-
-static struct clk_hw_onecell_data *top_clk_data;
-
-static void clk_mt8192_top_init_early(struct device_node *node)
+/* Register mux notifier for MFG mux */
+static int clk_mt8192_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
 {
+	struct mtk_mux_nb *mfg_mux_nb;
 	int i;
 
-	top_clk_data = mtk_alloc_clk_data(CLK_TOP_NR_CLK);
-	if (!top_clk_data)
-		return;
-
-	for (i = 0; i < CLK_TOP_NR_CLK; i++)
-		top_clk_data->hws[i] = ERR_PTR(-EPROBE_DEFER);
-
-	mtk_clk_register_factors(top_early_divs, ARRAY_SIZE(top_early_divs), top_clk_data);
-
-	of_clk_add_hw_provider(node, of_clk_hw_onecell_get, top_clk_data);
-}
-
-CLK_OF_DECLARE_DRIVER(mt8192_topckgen, "mediatek,mt8192-topckgen",
-		      clk_mt8192_top_init_early);
-
-static int clk_mt8192_top_probe(struct platform_device *pdev)
-{
-	struct device_node *node = pdev->dev.of_node;
-	int r;
-	void __iomem *base;
-
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	mtk_clk_register_fixed_clks(top_fixed_clks, ARRAY_SIZE(top_fixed_clks), top_clk_data);
-	mtk_clk_register_factors(top_early_divs, ARRAY_SIZE(top_early_divs), top_clk_data);
-	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs), top_clk_data);
-	mtk_clk_register_muxes(top_mtk_muxes, ARRAY_SIZE(top_mtk_muxes), node, &mt8192_clk_lock,
-			       top_clk_data);
-	mtk_clk_register_composites(top_muxes, ARRAY_SIZE(top_muxes), base, &mt8192_clk_lock,
-				    top_clk_data);
-	mtk_clk_register_composites(top_adj_divs, ARRAY_SIZE(top_adj_divs), base, &mt8192_clk_lock,
-				    top_clk_data);
-	r = mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks), top_clk_data);
-	if (r)
-		return r;
-
-	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get,
-				      top_clk_data);
-}
-
-static int clk_mt8192_infra_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-	int r;
-
-	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
-	if (!clk_data)
+	mfg_mux_nb = devm_kzalloc(dev, sizeof(*mfg_mux_nb), GFP_KERNEL);
+	if (!mfg_mux_nb)
 		return -ENOMEM;
 
-	r = mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks), clk_data);
-	if (r)
-		goto free_clk_data;
-
-	r = mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
-	if (r)
-		goto free_clk_data;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		goto free_clk_data;
-
-	return r;
-
-free_clk_data:
-	mtk_free_clk_data(clk_data);
-	return r;
-}
-
-static int clk_mt8192_peri_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-	int r;
-
-	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
-	if (!clk_data)
-		return -ENOMEM;
-
-	r = mtk_clk_register_gates(node, peri_clks, ARRAY_SIZE(peri_clks), clk_data);
-	if (r)
-		goto free_clk_data;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		goto free_clk_data;
-
-	return r;
-
-free_clk_data:
-	mtk_free_clk_data(clk_data);
-	return r;
-}
-
-static int clk_mt8192_apmixed_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
-	int r;
-
-	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
-	if (!clk_data)
-		return -ENOMEM;
-
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
-	r = mtk_clk_register_gates(node, apmixed_clks, ARRAY_SIZE(apmixed_clks), clk_data);
-	if (r)
-		goto free_clk_data;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		goto free_clk_data;
-
-	return r;
-
-free_clk_data:
-	mtk_free_clk_data(clk_data);
-	return r;
-}
-
-static const struct of_device_id of_match_clk_mt8192[] = {
-	{
-		.compatible = "mediatek,mt8192-apmixedsys",
-		.data = clk_mt8192_apmixed_probe,
-	}, {
-		.compatible = "mediatek,mt8192-topckgen",
-		.data = clk_mt8192_top_probe,
-	}, {
-		.compatible = "mediatek,mt8192-infracfg",
-		.data = clk_mt8192_infra_probe,
-	}, {
-		.compatible = "mediatek,mt8192-pericfg",
-		.data = clk_mt8192_peri_probe,
-	}, {
-		/* sentinel */
-	}
-};
-
-static int clk_mt8192_probe(struct platform_device *pdev)
-{
-	int (*clk_probe)(struct platform_device *pdev);
-	int r;
-
-	clk_probe = of_device_get_match_data(&pdev->dev);
-	if (!clk_probe)
+	for (i = 0; i < ARRAY_SIZE(top_mtk_muxes); i++)
+		if (top_mtk_muxes[i].id == CLK_TOP_MFG_PLL_SEL)
+			break;
+	if (i == ARRAY_SIZE(top_mtk_muxes))
 		return -EINVAL;
 
-	r = clk_probe(pdev);
-	if (r)
-		dev_err(&pdev->dev, "could not register clock provider: %s: %d\n", pdev->name, r);
+	mfg_mux_nb->ops = top_mtk_muxes[i].ops;
+	mfg_mux_nb->bypass_index = 0; /* Bypass to 26M crystal */
 
-	return r;
+	return devm_mtk_clk_mux_notifier_register(dev, clk, mfg_mux_nb);
 }
 
+static const struct mtk_clk_desc infra_desc = {
+	.clks = infra_clks,
+	.num_clks = ARRAY_SIZE(infra_clks),
+	.rst_desc = &clk_rst_desc,
+};
+
+static const struct mtk_clk_desc peri_desc = {
+	.clks = peri_clks,
+	.num_clks = ARRAY_SIZE(peri_clks),
+};
+
+static const struct mtk_clk_desc topck_desc = {
+	.fixed_clks = top_fixed_clks,
+	.num_fixed_clks = ARRAY_SIZE(top_fixed_clks),
+	.factor_clks = top_divs,
+	.num_factor_clks = ARRAY_SIZE(top_divs),
+	.mux_clks = top_mtk_muxes,
+	.num_mux_clks = ARRAY_SIZE(top_mtk_muxes),
+	.composite_clks = top_muxes,
+	.num_composite_clks = ARRAY_SIZE(top_muxes),
+	.clks = top_clks,
+	.num_clks = ARRAY_SIZE(top_clks),
+	.clk_lock = &mt8192_clk_lock,
+	.clk_notifier_func = clk_mt8192_reg_mfg_mux_notifier,
+	.mfg_clk_idx = CLK_TOP_MFG_PLL_SEL,
+};
+
+static const struct of_device_id of_match_clk_mt8192[] = {
+	{ .compatible = "mediatek,mt8192-infracfg", .data = &infra_desc },
+	{ .compatible = "mediatek,mt8192-pericfg", .data = &peri_desc },
+	{ .compatible = "mediatek,mt8192-topckgen", .data = &topck_desc },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8192);
+
 static struct platform_driver clk_mt8192_drv = {
-	.probe = clk_mt8192_probe,
 	.driver = {
 		.name = "clk-mt8192",
 		.of_match_table = of_match_clk_mt8192,
 	},
+	.probe = mtk_clk_simple_probe,
+	.remove_new = mtk_clk_simple_remove,
 };
-
-static int __init clk_mt8192_init(void)
-{
-	return platform_driver_register(&clk_mt8192_drv);
-}
-
-arch_initcall(clk_mt8192_init);
+module_platform_driver(clk_mt8192_drv);
+MODULE_LICENSE("GPL");

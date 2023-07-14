@@ -340,16 +340,14 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 	return misc_register(&hsmp_device);
 }
 
-static int hsmp_pltdrv_remove(struct platform_device *pdev)
+static void hsmp_pltdrv_remove(struct platform_device *pdev)
 {
 	misc_deregister(&hsmp_device);
-
-	return 0;
 }
 
 static struct platform_driver amd_hsmp_driver = {
 	.probe		= hsmp_pltdrv_probe,
-	.remove		= hsmp_pltdrv_remove,
+	.remove_new	= hsmp_pltdrv_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
@@ -392,7 +390,7 @@ static int __init hsmp_plt_init(void)
 	if (ret)
 		return ret;
 
-	amd_hsmp_platdev = platform_device_alloc(DRIVER_NAME, -1);
+	amd_hsmp_platdev = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
 	if (!amd_hsmp_platdev) {
 		ret = -ENOMEM;
 		goto drv_unregister;

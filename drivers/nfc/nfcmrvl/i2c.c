@@ -112,8 +112,10 @@ static int nfcmrvl_i2c_nci_send(struct nfcmrvl_private *priv,
 	struct nfcmrvl_i2c_drv_data *drv_data = priv->drv_data;
 	int ret;
 
-	if (test_bit(NFCMRVL_PHY_ERROR, &priv->flags))
+	if (test_bit(NFCMRVL_PHY_ERROR, &priv->flags)) {
+		kfree_skb(skb);
 		return -EREMOTEIO;
+	}
 
 	ret = i2c_master_send(drv_data->i2c, skb->data, skb->len);
 
@@ -132,10 +134,15 @@ static int nfcmrvl_i2c_nci_send(struct nfcmrvl_private *priv,
 			ret = -EREMOTEIO;
 		} else
 			ret = 0;
-		kfree_skb(skb);
 	}
 
-	return ret;
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	consume_skb(skb);
+	return 0;
 }
 
 static void nfcmrvl_i2c_nci_update_config(struct nfcmrvl_private *priv,
@@ -161,7 +168,7 @@ static int nfcmrvl_i2c_parse_dt(struct device_node *node,
 		return ret;
 	}
 
-	if (of_find_property(node, "i2c-int-falling", NULL))
+	if (of_property_read_bool(node, "i2c-int-falling"))
 		pdata->irq_polarity = IRQF_TRIGGER_FALLING;
 	else
 		pdata->irq_polarity = IRQF_TRIGGER_RISING;
@@ -176,8 +183,7 @@ static int nfcmrvl_i2c_parse_dt(struct device_node *node,
 	return 0;
 }
 
-static int nfcmrvl_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int nfcmrvl_i2c_probe(struct i2c_client *client)
 {
 	const struct nfcmrvl_platform_data *pdata;
 	struct nfcmrvl_i2c_drv_data *drv_data;

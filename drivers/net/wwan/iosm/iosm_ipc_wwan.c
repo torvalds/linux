@@ -6,6 +6,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_link.h>
+#include <linux/pm_runtime.h>
 #include <linux/rtnetlink.h>
 #include <linux/wwan.h>
 #include <net/pkt_sched.h>
@@ -17,8 +18,6 @@
 #define IOSM_IP_TYPE_MASK 0xF0
 #define IOSM_IP_TYPE_IPV4 0x40
 #define IOSM_IP_TYPE_IPV6 0x60
-
-#define IOSM_IF_ID_PAYLOAD 2
 
 /**
  * struct iosm_netdev_priv - netdev WWAN driver specific private data
@@ -40,13 +39,11 @@ struct iosm_netdev_priv {
  * @ipc_imem:		Pointer to imem data-struct
  * @sub_netlist:	List of active netdevs
  * @dev:		Pointer device structure
- * @if_mutex:		Mutex used for add and remove interface id
  */
 struct iosm_wwan {
 	struct iosm_imem *ipc_imem;
 	struct iosm_netdev_priv __rcu *sub_netlist[IP_MUX_SESSION_END + 1];
 	struct device *dev;
-	struct mutex if_mutex; /* Mutex used for add and remove interface id */
 };
 
 /* Bring-up the wwan net link */
@@ -55,14 +52,13 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 	struct iosm_netdev_priv *priv = wwan_netdev_drvpriv(netdev);
 	struct iosm_wwan *ipc_wwan = priv->ipc_wwan;
 	int if_id = priv->if_id;
-	int ret;
+	int ret = 0;
 
 	if (if_id < IP_MUX_SESSION_START ||
 	    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist))
 		return -EINVAL;
 
-	mutex_lock(&ipc_wwan->if_mutex);
-
+	pm_runtime_get_sync(ipc_wwan->ipc_imem->dev);
 	/* get channel id */
 	priv->ch_id = ipc_imem_sys_wwan_open(ipc_wwan->ipc_imem, if_id);
 
@@ -71,7 +67,7 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 			"cannot connect wwan0 & id %d to the IPC mem layer",
 			if_id);
 		ret = -ENODEV;
-		goto out;
+		goto err_out;
 	}
 
 	/* enable tx path, DL data may follow */
@@ -80,9 +76,10 @@ static int ipc_wwan_link_open(struct net_device *netdev)
 	dev_dbg(ipc_wwan->dev, "Channel id %d allocated to if_id %d",
 		priv->ch_id, priv->if_id);
 
-	ret = 0;
-out:
-	mutex_unlock(&ipc_wwan->if_mutex);
+err_out:
+	pm_runtime_mark_last_busy(ipc_wwan->ipc_imem->dev);
+	pm_runtime_put_autosuspend(ipc_wwan->ipc_imem->dev);
+
 	return ret;
 }
 
@@ -93,11 +90,12 @@ static int ipc_wwan_link_stop(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 
-	mutex_lock(&priv->ipc_wwan->if_mutex);
+	pm_runtime_get_sync(priv->ipc_wwan->ipc_imem->dev);
 	ipc_imem_sys_wwan_close(priv->ipc_wwan->ipc_imem, priv->if_id,
 				priv->ch_id);
 	priv->ch_id = -1;
-	mutex_unlock(&priv->ipc_wwan->if_mutex);
+	pm_runtime_mark_last_busy(priv->ipc_wwan->ipc_imem->dev);
+	pm_runtime_put_autosuspend(priv->ipc_wwan->ipc_imem->dev);
 
 	return 0;
 }
@@ -119,6 +117,7 @@ static netdev_tx_t ipc_wwan_link_transmit(struct sk_buff *skb,
 	    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist))
 		return -EINVAL;
 
+	pm_runtime_get(ipc_wwan->ipc_imem->dev);
 	/* Send the SKB to device for transmission */
 	ret = ipc_imem_sys_wwan_transmit(ipc_wwan->ipc_imem,
 					 if_id, priv->ch_id, skb);
@@ -132,8 +131,13 @@ static netdev_tx_t ipc_wwan_link_transmit(struct sk_buff *skb,
 		ret = NETDEV_TX_BUSY;
 		dev_err(ipc_wwan->dev, "unable to push packets");
 	} else {
+		pm_runtime_mark_last_busy(ipc_wwan->ipc_imem->dev);
+		pm_runtime_put_autosuspend(ipc_wwan->ipc_imem->dev);
 		goto exit;
 	}
+
+	pm_runtime_mark_last_busy(ipc_wwan->ipc_imem->dev);
+	pm_runtime_put_autosuspend(ipc_wwan->ipc_imem->dev);
 
 	return ret;
 
@@ -168,6 +172,7 @@ static void ipc_wwan_setup(struct net_device *iosm_dev)
 	iosm_dev->max_mtu = ETH_MAX_MTU;
 
 	iosm_dev->flags = IFF_POINTOPOINT | IFF_NOARP;
+	iosm_dev->needs_free_netdev = true;
 
 	iosm_dev->netdev_ops = &ipc_inm_ops;
 }
@@ -189,26 +194,17 @@ static int ipc_wwan_newlink(void *ctxt, struct net_device *dev,
 	priv->netdev = dev;
 	priv->ipc_wwan = ipc_wwan;
 
-	mutex_lock(&ipc_wwan->if_mutex);
-	if (rcu_access_pointer(ipc_wwan->sub_netlist[if_id])) {
-		err = -EBUSY;
-		goto out_unlock;
-	}
+	if (rcu_access_pointer(ipc_wwan->sub_netlist[if_id]))
+		return -EBUSY;
 
 	err = register_netdevice(dev);
 	if (err)
-		goto out_unlock;
+		return err;
 
 	rcu_assign_pointer(ipc_wwan->sub_netlist[if_id], priv);
-	mutex_unlock(&ipc_wwan->if_mutex);
-
 	netif_device_attach(dev);
 
 	return 0;
-
-out_unlock:
-	mutex_unlock(&ipc_wwan->if_mutex);
-	return err;
 }
 
 static void ipc_wwan_dellink(void *ctxt, struct net_device *dev,
@@ -222,17 +218,12 @@ static void ipc_wwan_dellink(void *ctxt, struct net_device *dev,
 		    if_id >= ARRAY_SIZE(ipc_wwan->sub_netlist)))
 		return;
 
-	mutex_lock(&ipc_wwan->if_mutex);
-
 	if (WARN_ON(rcu_access_pointer(ipc_wwan->sub_netlist[if_id]) != priv))
-		goto unlock;
+		return;
 
 	RCU_INIT_POINTER(ipc_wwan->sub_netlist[if_id], NULL);
 	/* unregistering includes synchronize_net() */
 	unregister_netdevice_queue(dev, head);
-
-unlock:
-	mutex_unlock(&ipc_wwan->if_mutex);
 }
 
 static const struct wwan_ops iosm_wwan_ops = {
@@ -323,12 +314,9 @@ struct iosm_wwan *ipc_wwan_init(struct iosm_imem *ipc_imem, struct device *dev)
 	ipc_wwan->dev = dev;
 	ipc_wwan->ipc_imem = ipc_imem;
 
-	mutex_init(&ipc_wwan->if_mutex);
-
 	/* WWAN core will create a netdev for the default IP MUX channel */
 	if (wwan_register_ops(ipc_wwan->dev, &iosm_wwan_ops, ipc_wwan,
 			      IP_MUX_SESSION_DEFAULT)) {
-		mutex_destroy(&ipc_wwan->if_mutex);
 		kfree(ipc_wwan);
 		return NULL;
 	}
@@ -340,8 +328,6 @@ void ipc_wwan_deinit(struct iosm_wwan *ipc_wwan)
 {
 	/* This call will remove all child netdev(s) */
 	wwan_unregister_ops(ipc_wwan->dev);
-
-	mutex_destroy(&ipc_wwan->if_mutex);
 
 	kfree(ipc_wwan);
 }

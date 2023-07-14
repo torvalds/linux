@@ -10,6 +10,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
 #include <linux/timecounter.h>
 #include <sound/core.h>
@@ -122,7 +123,7 @@ void snd_hdac_device_exit(struct hdac_device *dev);
 int snd_hdac_device_register(struct hdac_device *codec);
 void snd_hdac_device_unregister(struct hdac_device *codec);
 int snd_hdac_device_set_chip_name(struct hdac_device *codec, const char *name);
-int snd_hdac_codec_modalias(struct hdac_device *hdac, char *buf, size_t size);
+int snd_hdac_codec_modalias(const struct hdac_device *hdac, char *buf, size_t size);
 
 int snd_hdac_refresh_widgets(struct hdac_device *codec);
 
@@ -346,6 +347,8 @@ struct hdac_bus {
 	bool corbrp_self_clear:1;	/* CORBRP clears itself after reset */
 	bool polling_mode:1;
 	bool needs_damn_long_delay:1;
+	bool not_use_interrupts:1;	/* prohibiting the RIRB IRQ */
+	bool access_sdnctl_in_dword:1;	/* accessing the sdnctl register by dword */
 
 	int poll_count;
 
@@ -494,6 +497,13 @@ static inline u16 snd_hdac_reg_readw(struct hdac_bus *bus, void __iomem *addr)
 	snd_hdac_chip_writeb(chip, reg, \
 			     (snd_hdac_chip_readb(chip, reg) & ~(mask)) | (val))
 
+/* update register macro */
+#define snd_hdac_updatel(addr, reg, mask, val)		\
+	writel(((readl(addr + reg) & ~(mask)) | (val)), addr + reg)
+
+#define snd_hdac_updatew(addr, reg, mask, val)		\
+	writew(((readw(addr + reg) & ~(mask)) | (val)), addr + reg)
+
 /*
  * HD-audio stream
  */
@@ -509,6 +519,13 @@ struct hdac_stream {
 	unsigned int fifo_size;	/* FIFO size */
 
 	void __iomem *sd_addr;	/* stream descriptor pointer */
+
+	void __iomem *spib_addr; /* software position in buffers stream pointer */
+	void __iomem *fifo_addr; /* software position Max fifos stream pointer */
+
+	void __iomem *dpibr_addr; /* DMA position in buffer resume pointer */
+	u32 dpib;		/* DMA position in buffer */
+	u32 lpib;		/* Linear position in buffer */
 
 	u32 sd_int_sta_mask;	/* stream int status mask */
 
@@ -550,6 +567,7 @@ void snd_hdac_stream_init(struct hdac_bus *bus, struct hdac_stream *azx_dev,
 			  int idx, int direction, int tag);
 struct hdac_stream *snd_hdac_stream_assign(struct hdac_bus *bus,
 					   struct snd_pcm_substream *substream);
+void snd_hdac_stream_release_locked(struct hdac_stream *azx_dev);
 void snd_hdac_stream_release(struct hdac_stream *azx_dev);
 struct hdac_stream *snd_hdac_get_stream(struct hdac_bus *bus,
 					int dir, int stream_tag);
@@ -559,9 +577,9 @@ void snd_hdac_stream_cleanup(struct hdac_stream *azx_dev);
 int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev);
 int snd_hdac_stream_set_params(struct hdac_stream *azx_dev,
 				unsigned int format_val);
-void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start);
-void snd_hdac_stream_clear(struct hdac_stream *azx_dev);
+void snd_hdac_stream_start(struct hdac_stream *azx_dev);
 void snd_hdac_stream_stop(struct hdac_stream *azx_dev);
+void snd_hdac_stop_streams(struct hdac_bus *bus);
 void snd_hdac_stop_streams_and_chip(struct hdac_bus *bus);
 void snd_hdac_stream_reset(struct hdac_stream *azx_dev);
 void snd_hdac_stream_sync_trigger(struct hdac_stream *azx_dev, bool set,
@@ -572,6 +590,19 @@ void snd_hdac_stream_timecounter_init(struct hdac_stream *azx_dev,
 				      unsigned int streams);
 int snd_hdac_get_stream_stripe_ctl(struct hdac_bus *bus,
 				struct snd_pcm_substream *substream);
+
+void snd_hdac_stream_spbcap_enable(struct hdac_bus *chip,
+				   bool enable, int index);
+int snd_hdac_stream_set_spib(struct hdac_bus *bus,
+			     struct hdac_stream *azx_dev, u32 value);
+int snd_hdac_stream_get_spbmaxfifo(struct hdac_bus *bus,
+				   struct hdac_stream *azx_dev);
+void snd_hdac_stream_drsm_enable(struct hdac_bus *bus,
+				 bool enable, int index);
+int snd_hdac_stream_wait_drsm(struct hdac_stream *azx_dev);
+int snd_hdac_stream_set_dpibr(struct hdac_bus *bus,
+			      struct hdac_stream *azx_dev, u32 value);
+int snd_hdac_stream_set_lpib(struct hdac_stream *azx_dev, u32 value);
 
 /*
  * macros for easy use
@@ -589,6 +620,12 @@ int snd_hdac_get_stream_stripe_ctl(struct hdac_bus *bus,
 	snd_hdac_reg_readw((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 #define snd_hdac_stream_readb(dev, reg) \
 	snd_hdac_reg_readb((dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
+#define snd_hdac_stream_readb_poll(dev, reg, val, cond, delay_us, timeout_us) \
+	read_poll_timeout_atomic(snd_hdac_reg_readb, val, cond, delay_us, timeout_us, \
+				 false, (dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
+#define snd_hdac_stream_readl_poll(dev, reg, val, cond, delay_us, timeout_us) \
+	read_poll_timeout_atomic(snd_hdac_reg_readl, val, cond, delay_us, timeout_us, \
+				 false, (dev)->bus, (dev)->sd_addr + AZX_REG_ ## reg)
 
 /* update a register, pass without AZX_REG_ prefix */
 #define snd_hdac_stream_updatel(dev, reg, mask, val) \

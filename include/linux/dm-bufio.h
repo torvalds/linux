@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2009-2011 Red Hat, Inc.
  *
@@ -26,8 +27,8 @@ struct dm_buffer;
  * Create a buffered IO cache on a given device
  */
 struct dm_bufio_client *
-dm_bufio_client_create(struct block_device *bdev, unsigned block_size,
-		       unsigned reserved_buffers, unsigned aux_size,
+dm_bufio_client_create(struct block_device *bdev, unsigned int block_size,
+		       unsigned int reserved_buffers, unsigned int aux_size,
 		       void (*alloc_callback)(struct dm_buffer *),
 		       void (*write_callback)(struct dm_buffer *),
 		       unsigned int flags);
@@ -36,6 +37,8 @@ dm_bufio_client_create(struct block_device *bdev, unsigned block_size,
  * Release a buffered IO cache.
  */
 void dm_bufio_client_destroy(struct dm_bufio_client *c);
+
+void dm_bufio_client_reset(struct dm_bufio_client *c);
 
 /*
  * Set the sector range.
@@ -81,7 +84,7 @@ void *dm_bufio_new(struct dm_bufio_client *c, sector_t block,
  * I/O to finish.
  */
 void dm_bufio_prefetch(struct dm_bufio_client *c,
-		       sector_t block, unsigned n_blocks);
+		       sector_t block, unsigned int n_blocks);
 
 /*
  * Release a reference obtained with dm_bufio_{read,get,new}. The data
@@ -106,7 +109,7 @@ void dm_bufio_mark_buffer_dirty(struct dm_buffer *b);
  * write the specified part of the buffer or it may write a larger superset.
  */
 void dm_bufio_mark_partial_buffer_dirty(struct dm_buffer *b,
-					unsigned start, unsigned end);
+					unsigned int start, unsigned int end);
 
 /*
  * Initiate writing of dirty buffers, without waiting for completion.
@@ -130,12 +133,6 @@ int dm_bufio_issue_flush(struct dm_bufio_client *c);
 int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t count);
 
 /*
- * Like dm_bufio_release but also move the buffer to the new
- * block. dm_bufio_write_dirty_buffers is needed to commit the new block.
- */
-void dm_bufio_release_move(struct dm_buffer *b, sector_t new_block);
-
-/*
  * Free the given buffer.
  * This is just a hint, if the buffer is in use or dirty, this function
  * does nothing.
@@ -152,9 +149,9 @@ void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t
 /*
  * Set the minimum number of buffers before cleanup happens.
  */
-void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n);
+void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned int n);
 
-unsigned dm_bufio_get_block_size(struct dm_bufio_client *c);
+unsigned int dm_bufio_get_block_size(struct dm_bufio_client *c);
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c);
 struct dm_io_client *dm_bufio_get_dm_io_client(struct dm_bufio_client *c);
 sector_t dm_bufio_get_block_number(struct dm_buffer *b);

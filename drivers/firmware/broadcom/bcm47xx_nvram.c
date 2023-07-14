@@ -110,6 +110,24 @@ found:
 	return 0;
 }
 
+int bcm47xx_nvram_init_from_iomem(void __iomem *nvram_start, size_t res_size)
+{
+	if (nvram_len) {
+		pr_warn("nvram already initialized\n");
+		return -EEXIST;
+	}
+
+	if (!bcm47xx_nvram_is_valid(nvram_start)) {
+		pr_err("No valid NVRAM found\n");
+		return -ENOENT;
+	}
+
+	bcm47xx_nvram_copy(nvram_start, res_size);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bcm47xx_nvram_init_from_iomem);
+
 /*
  * On bcm47xx we need access to the NVRAM very early, so we can't use mtd
  * subsystem to access flash. We can't even use platform device / driver to
@@ -237,4 +255,3 @@ char *bcm47xx_nvram_get_contents(size_t *nvram_size)
 }
 EXPORT_SYMBOL(bcm47xx_nvram_get_contents);
 
-MODULE_LICENSE("GPL v2");

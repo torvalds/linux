@@ -296,8 +296,8 @@ static int block_range_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	end_line = map__srcline(he->ms.map, bi->sym->start + bi->end,
 				he->ms.sym);
 
-	if ((strncmp(start_line, SRCLINE_UNKNOWN, strlen(SRCLINE_UNKNOWN)) != 0) &&
-	    (strncmp(end_line, SRCLINE_UNKNOWN, strlen(SRCLINE_UNKNOWN)) != 0)) {
+	if (start_line != SRCLINE_UNKNOWN &&
+	    end_line != SRCLINE_UNKNOWN) {
 		scnprintf(buf, sizeof(buf), "[%s -> %s]",
 			  start_line, end_line);
 	} else {
@@ -305,8 +305,8 @@ static int block_range_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 			  bi->start, bi->end);
 	}
 
-	free_srcline(start_line);
-	free_srcline(end_line);
+	zfree_srcline(&start_line);
+	zfree_srcline(&end_line);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width, buf);
 }
@@ -317,9 +317,9 @@ static int block_dso_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	struct block_fmt *block_fmt = container_of(fmt, struct block_fmt, fmt);
 	struct map *map = he->ms.map;
 
-	if (map && map->dso) {
+	if (map && map__dso(map)) {
 		return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,
-				 map->dso->short_name);
+				 map__dso(map)->short_name);
 	}
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", block_fmt->width,

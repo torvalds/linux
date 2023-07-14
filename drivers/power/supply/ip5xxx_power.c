@@ -352,7 +352,7 @@ static int ip5xxx_battery_get_property(struct power_supply *psy,
 		ret = ip5xxx_battery_read_adc(ip5xxx, IP5XXX_BATIADC_DAT0,
 					      IP5XXX_BATIADC_DAT1, &raw);
 
-		val->intval = DIV_ROUND_CLOSEST(raw * 745985, 1000);
+		val->intval = DIV_ROUND_CLOSEST(raw * 149197, 200);
 		return 0;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
@@ -625,7 +625,7 @@ static const struct of_device_id ip5xxx_power_of_match[] = {
 MODULE_DEVICE_TABLE(of, ip5xxx_power_of_match);
 
 static struct i2c_driver ip5xxx_power_driver = {
-	.probe_new	= ip5xxx_power_probe,
+	.probe		= ip5xxx_power_probe,
 	.driver		= {
 		.name		= "ip5xxx-power",
 		.of_match_table	= ip5xxx_power_of_match,

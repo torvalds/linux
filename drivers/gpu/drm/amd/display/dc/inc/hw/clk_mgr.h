@@ -95,10 +95,23 @@ struct clk_limit_table_entry {
 	unsigned int wck_ratio;
 };
 
+struct clk_limit_num_entries {
+	unsigned int num_dcfclk_levels;
+	unsigned int num_fclk_levels;
+	unsigned int num_memclk_levels;
+	unsigned int num_socclk_levels;
+	unsigned int num_dtbclk_levels;
+	unsigned int num_dispclk_levels;
+	unsigned int num_dppclk_levels;
+	unsigned int num_phyclk_levels;
+	unsigned int num_phyclk_d18_levels;
+};
+
 /* This table is contiguous */
 struct clk_limit_table {
 	struct clk_limit_table_entry entries[MAX_NUM_DPM_LVL];
-	unsigned int num_entries;
+	struct clk_limit_num_entries num_entries_per_clk;
+	unsigned int num_entries; /* highest populated dpm level for back compatibility */
 };
 
 struct wm_range_table_entry {
@@ -217,9 +230,11 @@ struct clk_bw_params {
 	unsigned int dram_channel_width_bytes;
  	unsigned int dispclk_vco_khz;
 	unsigned int dc_mode_softmax_memclk;
+	unsigned int max_memclk_mhz;
 	struct clk_limit_table clk_table;
 	struct wm_table wm_table;
 	struct dummy_pstate_entry dummy_pstate_table[4];
+	struct clk_limit_table_entry dc_mode_limit;
 };
 /* Public interfaces */
 
@@ -280,6 +295,9 @@ struct clk_mgr_funcs {
 
 	/* Get SMU present */
 	bool (*is_smu_present)(struct clk_mgr *clk_mgr);
+
+	int (*get_dispclk_from_dentist)(struct clk_mgr *clk_mgr_base);
+
 };
 
 struct clk_mgr {

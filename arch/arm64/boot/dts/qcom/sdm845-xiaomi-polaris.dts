@@ -13,6 +13,7 @@
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
 #include "sdm845.dtsi"
+#include "sdm845-wcd9340.dtsi"
 #include "pm8998.dtsi"
 #include "pmi8998.dtsi"
 #include "pm8005.dtsi"
@@ -55,7 +56,7 @@
 		key-vol-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 			debounce-interval = <15>;
 		};
 	};
@@ -126,7 +127,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 
-		gpio = <&tlmm 23 0>;
+		gpio = <&tlmm 23 GPIO_ACTIVE_HIGH>;
 		regulator-always-on;
 		regulator-boot-on;
 		enable-active-high;
@@ -143,7 +144,7 @@
 };
 
 &apps_rsc {
-	pm8998-rpmh-regulators {
+	regulators-0 {
 		compatible = "qcom,pm8998-rpmh-regulators";
 		qcom,pmic-id = "a";
 
@@ -343,7 +344,7 @@
 		};
 	};
 
-	pmi8998-rpmh-regulators {
+	regulators-1 {
 		compatible = "qcom,pmi8998-rpmh-regulators";
 		qcom,pmic-id = "b";
 
@@ -355,7 +356,7 @@
 		};
 	};
 
-	pm8005-rpmh-regulators {
+	regulators-2 {
 		compatible = "qcom,pm8005-rpmh-regulators";
 		qcom,pmic-id = "c";
 
@@ -369,44 +370,6 @@
 
 &cdsp_pas {
 	firmware-name = "qcom/sdm845/polaris/cdsp.mbn";
-	status = "okay";
-};
-
-&dsi0 {
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-	status = "okay";
-
-	display_panel: panel@0 {
-		compatible = "jdi,fhd-nt35596s";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0>;
-
-		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
-		vddio-supply = <&vreg_l14a_1p8>;
-		backlight = <&pmi8998_wled>;
-		vddpos-supply = <&lab>;
-		vddneg-supply = <&ibb>;
-
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&sde_dsi_active>;
-		pinctrl-1 = <&sde_dsi_suspend>;
-
-		port {
-			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
-			};
-		};
-	};
-};
-
-&dsi0_out {
-	remote-endpoint = <&panel_in>;
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi0_phy {
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
 	status = "okay";
 };
 
@@ -449,6 +412,7 @@
 };
 
 &ipa {
+	qcom,gsi-loader = "self";
 	memory-region = <&ipa_fw_mem>;
 	firmware-name = "qcom/sdm845/polaris/ipa_fws.mbn";
 	status = "okay";
@@ -456,9 +420,6 @@
 
 &i2c14 {
 	clock-frequency = <400000>;
-	dmas = <&gpi_dma1 0 6 QCOM_GPI_I2C>,
-		   <&gpi_dma1 1 6 QCOM_GPI_I2C>;
-	dma-names = "tx", "rx";
 	status = "okay";
 
 	touchscreen@20 {
@@ -484,6 +445,7 @@
 		};
 
 		rmi4-f12@12 {
+			reg = <0x12>;
 			syna,rezero-wait-ms = <0xc8>;
 			syna,clip-x-high = <0x438>;
 			syna,clip-y-high = <0x870>;
@@ -505,6 +467,44 @@
 	status = "okay";
 };
 
+&mdss_dsi0 {
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+	status = "okay";
+
+	display_panel: panel@0 {
+		compatible = "jdi,fhd-nt35596s";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>;
+
+		reset-gpios = <&tlmm 6 GPIO_ACTIVE_LOW>;
+		vddio-supply = <&vreg_l14a_1p8>;
+		backlight = <&pmi8998_wled>;
+		vddpos-supply = <&lab>;
+		vddneg-supply = <&ibb>;
+
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&sde_dsi_active>;
+		pinctrl-1 = <&sde_dsi_suspend>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	remote-endpoint = <&panel_in>;
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+	status = "okay";
+};
+
 &mss_pil {
 	firmware-name = "qcom/sdm845/polaris/mba.mbn", "qcom/sdm845/polaris/modem.mbn";
 	status = "okay";
@@ -521,8 +521,8 @@
 	status = "okay";
 };
 
-&pm8998_gpio {
-	volume_up_gpio: pm8998_gpio6 {
+&pm8998_gpios {
+	volume_up_gpio: pm8998-gpio6-state {
 		pinconf {
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 			function = "normal";
@@ -533,19 +533,14 @@
 	};
 };
 
-&pm8998_pon {
-	resin {
-		interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		compatible = "qcom,pm8941-resin";
-		linux,code = <KEY_VOLUMEDOWN>;
-		debounce = <15625>;
-		bias-pull-up;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &q6afedai {
-	qi2s@22 {
-		reg = <22>;
+	dai@22 {
+		reg = <QUATERNARY_MI2S_RX>;
 		qcom,sd-lines = <0>;
 	};
 };
@@ -573,71 +568,60 @@
 };
 
 &qup_i2c14_default {
-	pinconf {
-		pins = "gpio33", "gpio34";
-		drive-strength = <2>;
-		bias-disable;
-	};
+	drive-strength = <2>;
+	bias-disable;
 };
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
-	ts_reset_default: ts-reset-default {
+	ts_reset_default: ts-reset-default-state {
 		pins = "gpio99";
 		function = "gpio";
 		drive-strength = <16>;
 		output-high;
 	};
 
-	ts_int_default: ts-int-default {
+	ts_int_default: ts-int-default-state {
 		pins = "gpio125";
 		function = "gpio";
 		bias-pull-down;
 		drive-strength = <16>;
-		input-enable;
 	};
 
-	ts_reset_sleep: ts-reset-sleep {
+	ts_reset_sleep: ts-reset-sleep-state {
 		pins = "gpio99";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	ts_int_sleep: ts-int-sleep {
+	ts_int_sleep: ts-int-sleep-state {
 		pins = "gpio125";
 		function = "gpio";
 		bias-pull-down;
 		drive-strength = <2>;
-		input-enable;
 	};
 
-	sde_dsi_active: sde-dsi-active {
+	sde_dsi_active: sde-dsi-active-state {
 		pins = "gpio6", "gpio10";
 		function = "gpio";
 		drive-strength = <8>;
-		bias-disable = <0>;
+		bias-disable;
 	};
 
-	sde_dsi_suspend: sde-dsi-suspend {
+	sde_dsi_suspend: sde-dsi-suspend-state {
 		pins = "gpio6", "gpio10";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
-	};
-
-	wcd_intr_default: wcd-intr-default {
-		pins = "goui54";
-		function = "gpio";
-		input-enable;
-		bias-pull-down;
-		drive-strength = <2>;
 	};
 };
 
 &uart6 {
 	status = "okay";
+
+	pinctrl-0 = <&qup_uart6_4pin>;
 
 	bluetooth {
 		compatible = "qcom,wcn3990-bt";
@@ -708,11 +692,7 @@
 };
 
 &wcd9340 {
-	pinctrl-0 = <&wcd_intr_default>;
-	pinctrl-names = "default";
-	clock-names = "extclk";
-	clocks = <&rpmhcc RPMH_LN_BB_CLK2>;
-	reset-gpios = <&tlmm 64 0>;
+	reset-gpios = <&tlmm 64 GPIO_ACTIVE_HIGH>;
 	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
 	vdd-buck-supply = <&vreg_s4a_1p8>;
 	vdd-tx-supply = <&vreg_s4a_1p8>;
@@ -731,32 +711,5 @@
 	vdd-1.3-rfa-supply = <&vreg_l17a_1p3>;
 	vdd-3.3-ch0-supply = <&vreg_l25a_3p3>;
 	vdd-3.3-ch1-supply = <&vreg_l23a_3p3>;
-
-	qcom,snoc-host-cap-skip-quirk;
 	status = "okay";
-};
-
-/* PINCTRL - additions to nodes defined in sdm845.dtsi */
-
-&qup_uart6_default {
-	pinmux {
-		 pins = "gpio45", "gpio46", "gpio47", "gpio48";
-		 function = "qup6";
-	};
-
-	cts {
-		pins = "gpio45";
-		bias-disable;
-	};
-
-	rts-tx {
-		pins = "gpio46", "gpio47";
-		drive-strength = <2>;
-		bias-disable;
-	};
-
-	rx {
-		pins = "gpio48";
-		bias-pull-up;
-	};
 };

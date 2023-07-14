@@ -49,7 +49,7 @@ int kfd_iommu_check_device(struct kfd_dev *kfd)
 		return -ENODEV;
 
 	iommu_info.flags = 0;
-	err = amd_iommu_device_info(kfd->pdev, &iommu_info);
+	err = amd_iommu_device_info(kfd->adev->pdev, &iommu_info);
 	if (err)
 		return err;
 
@@ -71,7 +71,7 @@ int kfd_iommu_device_init(struct kfd_dev *kfd)
 		return 0;
 
 	iommu_info.flags = 0;
-	err = amd_iommu_device_info(kfd->pdev, &iommu_info);
+	err = amd_iommu_device_info(kfd->adev->pdev, &iommu_info);
 	if (err < 0) {
 		dev_err(kfd_device,
 			"error getting iommu info. is the iommu enabled?\n");
@@ -109,11 +109,11 @@ int kfd_iommu_device_init(struct kfd_dev *kfd)
  */
 int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
 {
-	struct kfd_dev *dev = pdd->dev;
+	struct kfd_node *dev = pdd->dev;
 	struct kfd_process *p = pdd->process;
 	int err;
 
-	if (!dev->use_iommu_v2 || pdd->bound == PDD_BOUND)
+	if (!dev->kfd->use_iommu_v2 || pdd->bound == PDD_BOUND)
 		return 0;
 
 	if (unlikely(pdd->bound == PDD_BOUND_SUSPENDED)) {
@@ -121,7 +121,13 @@ int kfd_iommu_bind_process_to_device(struct kfd_process_device *pdd)
 		return -EINVAL;
 	}
 
-	err = amd_iommu_bind_pasid(dev->pdev, p->pasid, p->lead_thread);
+	if (!kfd_is_first_node(dev)) {
+		dev_warn_once(kfd_device,
+				"IOMMU supported only on first node\n");
+		return 0;
+	}
+
+	err = amd_iommu_bind_pasid(dev->adev->pdev, p->pasid, p->lead_thread);
 	if (!err)
 		pdd->bound = PDD_BOUND;
 
@@ -138,14 +144,16 @@ void kfd_iommu_unbind_process(struct kfd_process *p)
 	int i;
 
 	for (i = 0; i < p->n_pdds; i++)
-		if (p->pdds[i]->bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(p->pdds[i]->dev->pdev, p->pasid);
+		if ((p->pdds[i]->bound == PDD_BOUND) &&
+		    (kfd_is_first_node((p->pdds[i]->dev))))
+			amd_iommu_unbind_pasid(p->pdds[i]->dev->adev->pdev,
+					       p->pasid);
 }
 
 /* Callback for process shutdown invoked by the IOMMU driver */
 static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, u32 pasid)
 {
-	struct kfd_dev *dev = kfd_device_by_pci_dev(pdev);
+	struct kfd_node *dev = kfd_device_by_pci_dev(pdev);
 	struct kfd_process *p;
 	struct kfd_process_device *pdd;
 
@@ -181,7 +189,7 @@ static void iommu_pasid_shutdown_callback(struct pci_dev *pdev, u32 pasid)
 static int iommu_invalid_ppr_cb(struct pci_dev *pdev, u32 pasid,
 				unsigned long address, u16 flags)
 {
-	struct kfd_dev *dev;
+	struct kfd_node *dev;
 
 	dev_warn_ratelimited(kfd_device,
 			"Invalid PPR device %x:%x.%x pasid 0x%x address 0x%lX flags 0x%X",
@@ -204,7 +212,7 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, u32 pasid,
  * Bind processes do the device that have been temporarily unbound
  * (PDD_BOUND_SUSPENDED) in kfd_unbind_processes_from_device.
  */
-static int kfd_bind_processes_to_device(struct kfd_dev *kfd)
+static int kfd_bind_processes_to_device(struct kfd_node *knode)
 {
 	struct kfd_process_device *pdd;
 	struct kfd_process *p;
@@ -215,14 +223,14 @@ static int kfd_bind_processes_to_device(struct kfd_dev *kfd)
 
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		mutex_lock(&p->mutex);
-		pdd = kfd_get_process_device_data(kfd, p);
+		pdd = kfd_get_process_device_data(knode, p);
 
 		if (WARN_ON(!pdd) || pdd->bound != PDD_BOUND_SUSPENDED) {
 			mutex_unlock(&p->mutex);
 			continue;
 		}
 
-		err = amd_iommu_bind_pasid(kfd->pdev, p->pasid,
+		err = amd_iommu_bind_pasid(knode->adev->pdev, p->pasid,
 				p->lead_thread);
 		if (err < 0) {
 			pr_err("Unexpected pasid 0x%x binding failure\n",
@@ -245,7 +253,7 @@ static int kfd_bind_processes_to_device(struct kfd_dev *kfd)
  * processes will be restored to PDD_BOUND state in
  * kfd_bind_processes_to_device.
  */
-static void kfd_unbind_processes_from_device(struct kfd_dev *kfd)
+static void kfd_unbind_processes_from_device(struct kfd_node *knode)
 {
 	struct kfd_process_device *pdd;
 	struct kfd_process *p;
@@ -255,7 +263,7 @@ static void kfd_unbind_processes_from_device(struct kfd_dev *kfd)
 
 	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
 		mutex_lock(&p->mutex);
-		pdd = kfd_get_process_device_data(kfd, p);
+		pdd = kfd_get_process_device_data(knode, p);
 
 		if (WARN_ON(!pdd)) {
 			mutex_unlock(&p->mutex);
@@ -280,11 +288,11 @@ void kfd_iommu_suspend(struct kfd_dev *kfd)
 	if (!kfd->use_iommu_v2)
 		return;
 
-	kfd_unbind_processes_from_device(kfd);
+	kfd_unbind_processes_from_device(kfd->nodes[0]);
 
-	amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
-	amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
-	amd_iommu_free_device(kfd->pdev);
+	amd_iommu_set_invalidate_ctx_cb(kfd->adev->pdev, NULL);
+	amd_iommu_set_invalid_ppr_cb(kfd->adev->pdev, NULL);
+	amd_iommu_free_device(kfd->adev->pdev);
 }
 
 /** kfd_iommu_resume - Restore IOMMU after resume
@@ -302,20 +310,20 @@ int kfd_iommu_resume(struct kfd_dev *kfd)
 
 	pasid_limit = kfd_get_pasid_limit();
 
-	err = amd_iommu_init_device(kfd->pdev, pasid_limit);
+	err = amd_iommu_init_device(kfd->adev->pdev, pasid_limit);
 	if (err)
 		return -ENXIO;
 
-	amd_iommu_set_invalidate_ctx_cb(kfd->pdev,
+	amd_iommu_set_invalidate_ctx_cb(kfd->adev->pdev,
 					iommu_pasid_shutdown_callback);
-	amd_iommu_set_invalid_ppr_cb(kfd->pdev,
+	amd_iommu_set_invalid_ppr_cb(kfd->adev->pdev,
 				     iommu_invalid_ppr_cb);
 
-	err = kfd_bind_processes_to_device(kfd);
+	err = kfd_bind_processes_to_device(kfd->nodes[0]);
 	if (err) {
-		amd_iommu_set_invalidate_ctx_cb(kfd->pdev, NULL);
-		amd_iommu_set_invalid_ppr_cb(kfd->pdev, NULL);
-		amd_iommu_free_device(kfd->pdev);
+		amd_iommu_set_invalidate_ctx_cb(kfd->adev->pdev, NULL);
+		amd_iommu_set_invalid_ppr_cb(kfd->adev->pdev, NULL);
+		amd_iommu_free_device(kfd->adev->pdev);
 		return err;
 	}
 

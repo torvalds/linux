@@ -2,20 +2,24 @@
 /* Copyright (c) 2021 Facebook */
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
+#include "../bpf_testmod/bpf_testmod_kfunc.h"
 
-extern int bpf_kfunc_call_test2(struct sock *sk, __u32 a, __u32 b) __ksym;
-extern __u64 bpf_kfunc_call_test1(struct sock *sk, __u32 a, __u64 b,
-				  __u32 c, __u64 d) __ksym;
+SEC("tc")
+int kfunc_call_test4(struct __sk_buff *skb)
+{
+	struct bpf_sock *sk = skb->sk;
+	long tmp;
 
-extern struct prog_test_ref_kfunc *bpf_kfunc_call_test_acquire(unsigned long *sp) __ksym;
-extern void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p) __ksym;
-extern void bpf_kfunc_call_test_pass_ctx(struct __sk_buff *skb) __ksym;
-extern void bpf_kfunc_call_test_pass1(struct prog_test_pass1 *p) __ksym;
-extern void bpf_kfunc_call_test_pass2(struct prog_test_pass2 *p) __ksym;
-extern void bpf_kfunc_call_test_mem_len_pass1(void *mem, int len) __ksym;
-extern void bpf_kfunc_call_test_mem_len_fail2(__u64 *mem, int len) __ksym;
-extern int *bpf_kfunc_call_test_get_rdwr_mem(struct prog_test_ref_kfunc *p, const int rdwr_buf_size) __ksym;
-extern int *bpf_kfunc_call_test_get_rdonly_mem(struct prog_test_ref_kfunc *p, const int rdonly_buf_size) __ksym;
+	if (!sk)
+		return -1;
+
+	sk = bpf_sk_fullsock(sk);
+	if (!sk)
+		return -1;
+
+	tmp = bpf_kfunc_call_test4(-3, -30, -200, -1000);
+	return (tmp >> 32) + tmp;
+}
 
 SEC("tc")
 int kfunc_call_test2(struct __sk_buff *skb)
@@ -161,6 +165,16 @@ int kfunc_call_test_get_mem(struct __sk_buff *skb)
 		bpf_kfunc_call_test_release(pt);
 	}
 	return ret;
+}
+
+SEC("tc")
+int kfunc_call_test_static_unused_arg(struct __sk_buff *skb)
+{
+
+	u32 expected = 5, actual;
+
+	actual = bpf_kfunc_call_test_static_unused_arg(expected, 0xdeadbeef);
+	return actual != expected ? -1 : 0;
 }
 
 char _license[] SEC("license") = "GPL";

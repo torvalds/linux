@@ -4,10 +4,12 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/slab.h>
 
 struct ti_syscon_gate_clk_priv {
 	struct clk_hw hw;
@@ -61,21 +63,31 @@ static const struct clk_ops ti_syscon_gate_clk_ops = {
 
 static struct clk_hw
 *ti_syscon_gate_clk_register(struct device *dev, struct regmap *regmap,
+			     const char *parent_name,
 			     const struct ti_syscon_gate_clk_data *data)
 {
 	struct ti_syscon_gate_clk_priv *priv;
 	struct clk_init_data init;
+	char *name = NULL;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
-	init.name = data->name;
 	init.ops = &ti_syscon_gate_clk_ops;
-	init.parent_names = NULL;
-	init.num_parents = 0;
-	init.flags = 0;
+	if (parent_name) {
+		name = kasprintf(GFP_KERNEL, "%s:%s", data->name, parent_name);
+		init.name = name;
+		init.parent_names = &parent_name;
+		init.num_parents = 1;
+		init.flags = CLK_SET_RATE_PARENT;
+	} else {
+		init.name = data->name;
+		init.parent_names = NULL;
+		init.num_parents = 0;
+		init.flags = 0;
+	}
 
 	priv->regmap = regmap;
 	priv->reg = data->offset;
@@ -83,6 +95,10 @@ static struct clk_hw
 	priv->hw.init = &init;
 
 	ret = devm_clk_hw_register(dev, &priv->hw);
+
+	if (name)
+		kfree(init.name);
+
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -94,24 +110,29 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 	const struct ti_syscon_gate_clk_data *data, *p;
 	struct clk_hw_onecell_data *hw_data;
 	struct device *dev = &pdev->dev;
+	int num_clks, num_parents, i;
+	const char *parent_name;
 	struct regmap *regmap;
-	int num_clks, i;
 
 	data = device_get_match_data(dev);
 	if (!data)
 		return -EINVAL;
 
-	regmap = syscon_node_to_regmap(dev->of_node);
-	if (IS_ERR(regmap)) {
-		if (PTR_ERR(regmap) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_err(dev, "failed to find parent regmap\n");
-		return PTR_ERR(regmap);
-	}
+	regmap = device_node_to_regmap(dev->of_node);
+	if (IS_ERR(regmap))
+		return dev_err_probe(dev, PTR_ERR(regmap),
+				     "failed to get regmap\n");
 
 	num_clks = 0;
 	for (p = data; p->name; p++)
 		num_clks++;
+
+	num_parents = of_clk_get_parent_count(dev->of_node);
+	if (of_device_is_compatible(dev->of_node, "ti,am62-audio-refclk") &&
+	    num_parents == 0) {
+		return dev_err_probe(dev, -EINVAL,
+				     "must specify a parent clock\n");
+	}
 
 	hw_data = devm_kzalloc(dev, struct_size(hw_data, hws, num_clks),
 			       GFP_KERNEL);
@@ -120,8 +141,10 @@ static int ti_syscon_gate_clk_probe(struct platform_device *pdev)
 
 	hw_data->num = num_clks;
 
+	parent_name = of_clk_get_parent_name(dev->of_node, 0);
 	for (i = 0; i < num_clks; i++) {
 		hw_data->hws[i] = ti_syscon_gate_clk_register(dev, regmap,
+							      parent_name,
 							      &data[i]);
 		if (IS_ERR(hw_data->hws[i]))
 			dev_warn(dev, "failed to register %s\n",
@@ -169,6 +192,11 @@ static const struct ti_syscon_gate_clk_data am62_clk_data[] = {
 	{ /* Sentinel */ },
 };
 
+static const struct ti_syscon_gate_clk_data am62_audio_clk_data[] = {
+	TI_SYSCON_CLK_GATE("audio_refclk", 0x0, 15),
+	{ /* Sentinel */ },
+};
+
 static const struct of_device_id ti_syscon_gate_clk_ids[] = {
 	{
 		.compatible = "ti,am654-ehrpwm-tbclk",
@@ -181,6 +209,10 @@ static const struct of_device_id ti_syscon_gate_clk_ids[] = {
 	{
 		.compatible = "ti,am62-epwm-tbclk",
 		.data = &am62_clk_data,
+	},
+	{
+		.compatible = "ti,am62-audio-refclk",
+		.data = &am62_audio_clk_data,
 	},
 	{ }
 };

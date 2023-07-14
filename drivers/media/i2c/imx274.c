@@ -2060,9 +2060,8 @@ static int imx274_probe(struct i2c_client *client)
 	imx274->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						     GPIOD_OUT_HIGH);
 	if (IS_ERR(imx274->reset_gpio)) {
-		if (PTR_ERR(imx274->reset_gpio) != -EPROBE_DEFER)
-			dev_err(dev, "Reset GPIO not setup in DT");
-		ret = PTR_ERR(imx274->reset_gpio);
+		ret = dev_err_probe(dev, PTR_ERR(imx274->reset_gpio),
+				    "Reset GPIO not setup in DT\n");
 		goto err_me;
 	}
 
@@ -2169,7 +2168,7 @@ static struct i2c_driver imx274_i2c_driver = {
 		.pm = &imx274_pm_ops,
 		.of_match_table	= imx274_of_id_table,
 	},
-	.probe_new	= imx274_probe,
+	.probe		= imx274_probe,
 	.remove		= imx274_remove,
 	.id_table	= imx274_id,
 };

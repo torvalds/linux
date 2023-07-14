@@ -484,11 +484,6 @@ static int sh_mtu2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sh_mtu2_remove(struct platform_device *pdev)
-{
-	return -EBUSY; /* cannot unregister clockevent */
-}
-
 static const struct platform_device_id sh_mtu2_id_table[] = {
 	{ "sh-mtu2", 0 },
 	{ },
@@ -503,10 +498,10 @@ MODULE_DEVICE_TABLE(of, sh_mtu2_of_table);
 
 static struct platform_driver sh_mtu2_device_driver = {
 	.probe		= sh_mtu2_probe,
-	.remove		= sh_mtu2_remove,
 	.driver		= {
 		.name	= "sh_mtu2",
 		.of_match_table = of_match_ptr(sh_mtu2_of_table),
+		.suppress_bind_attrs = true,
 	},
 	.id_table	= sh_mtu2_id_table,
 };
@@ -530,4 +525,3 @@ module_exit(sh_mtu2_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("SuperH MTU2 Timer Driver");
-MODULE_LICENSE("GPL v2");

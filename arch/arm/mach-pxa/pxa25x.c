@@ -27,6 +27,7 @@
 #include <linux/irqchip.h>
 #include <linux/platform_data/mmp_dma.h>
 #include <linux/soc/pxa/cpu.h>
+#include <linux/soc/pxa/smemc.h>
 
 #include <asm/mach/map.h>
 #include <asm/suspend.h>
@@ -143,14 +144,8 @@ set_pwer:
 void __init pxa25x_init_irq(void)
 {
 	pxa_init_irq(32, pxa25x_set_wake);
+	set_handle_irq(pxa25x_handle_irq);
 }
-
-#ifdef CONFIG_CPU_PXA26x
-void __init pxa26x_init_irq(void)
-{
-	pxa_init_irq(32, pxa25x_set_wake);
-}
-#endif
 
 static int __init __init
 pxa25x_dt_init_irq(struct device_node *node, struct device_node *parent)

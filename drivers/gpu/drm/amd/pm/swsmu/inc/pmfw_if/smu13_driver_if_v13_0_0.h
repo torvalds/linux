@@ -24,8 +24,10 @@
 #ifndef SMU13_DRIVER_IF_V13_0_0_H
 #define SMU13_DRIVER_IF_V13_0_0_H
 
+#define SMU13_0_0_DRIVER_IF_VERSION 0x3D
+
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x24
+#define PPTABLE_VERSION 0x2B
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8
@@ -94,7 +96,7 @@
 #define FEATURE_ATHUB_MMHUB_PG_BIT            48
 #define FEATURE_SOC_PCC_BIT                   49
 #define FEATURE_EDC_PWRBRK_BIT                50
-#define FEATURE_SPARE_51_BIT                  51
+#define FEATURE_BOMXCO_SVI3_PROG_BIT          51
 #define FEATURE_SPARE_52_BIT                  52
 #define FEATURE_SPARE_53_BIT                  53
 #define FEATURE_SPARE_54_BIT                  54
@@ -108,6 +110,23 @@
 #define FEATURE_SPARE_62_BIT                  62
 #define FEATURE_SPARE_63_BIT                  63
 #define NUM_FEATURES                          64
+
+#define ALLOWED_FEATURE_CTRL_DEFAULT 0xFFFFFFFFFFFFFFFFULL
+#define ALLOWED_FEATURE_CTRL_SCPM	((1 << FEATURE_DPM_GFXCLK_BIT) | \
+									(1 << FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT) | \
+									(1 << FEATURE_DPM_UCLK_BIT) | \
+									(1 << FEATURE_DPM_FCLK_BIT) | \
+									(1 << FEATURE_DPM_SOCCLK_BIT) | \
+									(1 << FEATURE_DPM_MP0CLK_BIT) | \
+									(1 << FEATURE_DPM_LINK_BIT) | \
+									(1 << FEATURE_DPM_DCN_BIT) | \
+									(1 << FEATURE_DS_GFXCLK_BIT) | \
+									(1 << FEATURE_DS_SOCCLK_BIT) | \
+									(1 << FEATURE_DS_FCLK_BIT) | \
+									(1 << FEATURE_DS_LCLK_BIT) | \
+									(1 << FEATURE_DS_DCFCLK_BIT) | \
+									(1 << FEATURE_DS_UCLK_BIT) | \
+									(1ULL << FEATURE_DS_VCN_BIT))
 
 //For use with feature control messages
 typedef enum {
@@ -133,6 +152,7 @@ typedef enum {
 #define DEBUG_OVERRIDE_DISABLE_DFLL                    0x00000200
 #define DEBUG_OVERRIDE_ENABLE_RLC_VF_BRINGUP_MODE      0x00000400
 #define DEBUG_OVERRIDE_DFLL_MASTER_MODE                0x00000800
+#define DEBUG_OVERRIDE_ENABLE_PROFILING_MODE           0x00001000
 
 // VR Mapping Bit Defines
 #define VR_MAPPING_VR_SELECT_MASK  0x01
@@ -262,15 +282,15 @@ typedef enum {
 } I2cControllerPort_e;
 
 typedef enum {
-  I2C_CONTROLLER_NAME_VR_GFX = 0,
-  I2C_CONTROLLER_NAME_VR_SOC,
-  I2C_CONTROLLER_NAME_VR_VMEMP,
-  I2C_CONTROLLER_NAME_VR_VDDIO,
-  I2C_CONTROLLER_NAME_LIQUID0,
-  I2C_CONTROLLER_NAME_LIQUID1,
-  I2C_CONTROLLER_NAME_PLX,
-  I2C_CONTROLLER_NAME_OTHER,
-  I2C_CONTROLLER_NAME_COUNT,
+	I2C_CONTROLLER_NAME_VR_GFX = 0,
+	I2C_CONTROLLER_NAME_VR_SOC,
+	I2C_CONTROLLER_NAME_VR_VMEMP,
+	I2C_CONTROLLER_NAME_VR_VDDIO,
+	I2C_CONTROLLER_NAME_LIQUID0,
+	I2C_CONTROLLER_NAME_LIQUID1,
+	I2C_CONTROLLER_NAME_PLX,
+	I2C_CONTROLLER_NAME_FAN_INTAKE,
+	I2C_CONTROLLER_NAME_COUNT,
 } I2cControllerName_e;
 
 typedef enum {
@@ -282,16 +302,18 @@ typedef enum {
   I2C_CONTROLLER_THROTTLER_LIQUID0,
   I2C_CONTROLLER_THROTTLER_LIQUID1,
   I2C_CONTROLLER_THROTTLER_PLX,
+  I2C_CONTROLLER_THROTTLER_FAN_INTAKE,
   I2C_CONTROLLER_THROTTLER_INA3221,
   I2C_CONTROLLER_THROTTLER_COUNT,
 } I2cControllerThrottler_e;
 
 typedef enum {
-  I2C_CONTROLLER_PROTOCOL_VR_XPDE132G5,
-  I2C_CONTROLLER_PROTOCOL_VR_IR35217,
-  I2C_CONTROLLER_PROTOCOL_TMP_TMP102A,
-  I2C_CONTROLLER_PROTOCOL_INA3221,
-  I2C_CONTROLLER_PROTOCOL_COUNT,
+	I2C_CONTROLLER_PROTOCOL_VR_XPDE132G5,
+	I2C_CONTROLLER_PROTOCOL_VR_IR35217,
+	I2C_CONTROLLER_PROTOCOL_TMP_MAX31875,
+	I2C_CONTROLLER_PROTOCOL_INA3221,
+	I2C_CONTROLLER_PROTOCOL_TMP_MAX6604,
+	I2C_CONTROLLER_PROTOCOL_COUNT,
 } I2cControllerProtocol_e;
 
 typedef struct {
@@ -549,6 +571,7 @@ typedef enum {
 } POWER_SOURCE_e;
 
 typedef enum {
+  MEM_VENDOR_PLACEHOLDER0,
   MEM_VENDOR_SAMSUNG,
   MEM_VENDOR_INFINEON,
   MEM_VENDOR_ELPIDA,
@@ -558,7 +581,6 @@ typedef enum {
   MEM_VENDOR_MOSEL,
   MEM_VENDOR_WINBOND,
   MEM_VENDOR_ESMT,
-  MEM_VENDOR_PLACEHOLDER0,
   MEM_VENDOR_PLACEHOLDER1,
   MEM_VENDOR_PLACEHOLDER2,
   MEM_VENDOR_PLACEHOLDER3,
@@ -646,7 +668,14 @@ typedef enum {
 
 #define PP_NUM_RTAVFS_PWL_ZONES 5
 
-
+#define PP_OD_FEATURE_GFX_VF_CURVE_BIT  0
+#define PP_OD_FEATURE_PPT_BIT       2
+#define PP_OD_FEATURE_FAN_CURVE_BIT 3
+#define PP_OD_FEATURE_GFXCLK_BIT      7
+#define PP_OD_FEATURE_UCLK_BIT      8
+#define PP_OD_FEATURE_ZERO_FAN_BIT      9
+#define PP_OD_FEATURE_TEMPERATURE_BIT 10
+#define PP_OD_FEATURE_COUNT 13
 
 // VBIOS or PPLIB configures telemetry slope and offset. Only slope expected to be set for SVI3
 // Slope Q1.7, Offset Q1.2
@@ -658,13 +687,18 @@ typedef struct {
 
 #define PP_NUM_OD_VF_CURVE_POINTS PP_NUM_RTAVFS_PWL_ZONES + 1
 
+typedef enum {
+	FAN_MODE_AUTO = 0,
+	FAN_MODE_MANUAL_LINEAR,
+} FanMode_e;
 
 typedef struct {
   uint32_t FeatureCtrlMask;
 
   //Voltage control
   int16_t                VoltageOffsetPerZoneBoundary[PP_NUM_OD_VF_CURVE_POINTS];
-  uint16_t               reserved[2];
+
+  uint32_t               Reserved;
 
   //Frequency changes
   int16_t                GfxclkFmin;           // MHz
@@ -674,7 +708,7 @@ typedef struct {
 
   //PPT
   int16_t                Ppt;         // %
-  int16_t                reserved1;
+  int16_t                Tdc;
 
   //Fan control
   uint8_t                FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
@@ -701,16 +735,18 @@ typedef struct {
   uint32_t FeatureCtrlMask;
 
   int16_t VoltageOffsetPerZoneBoundary;
-  uint16_t               reserved[2];
+  uint16_t               Reserved1;
 
-  uint16_t               GfxclkFmin;           // MHz
-  uint16_t               GfxclkFmax;           // MHz
+  uint16_t               Reserved2;
+
+  int16_t               GfxclkFmin;           // MHz
+  int16_t               GfxclkFmax;           // MHz
   uint16_t               UclkFmin;             // MHz
   uint16_t               UclkFmax;             // MHz
 
   //PPT
   int16_t                Ppt;         // %
-  int16_t                reserved1;
+  int16_t                Tdc;
 
   uint8_t                FanLinearPwmPoints;
   uint8_t                FanLinearTempPoints;
@@ -777,6 +813,9 @@ typedef enum {
 
 #define INVALID_BOARD_GPIO 0xFF
 
+#define MARKETING_BASE_CLOCKS         0
+#define MARKETING_GAME_CLOCKS         1
+#define MARKETING_BOOST_CLOCKS        2
 
 typedef struct {
   //PLL 0
@@ -857,7 +896,8 @@ typedef struct {
   uint16_t  FanStartTempMin;
   uint16_t  FanStartTempMax;
 
-  uint32_t Spare[12];
+  uint16_t  PowerMinPpt0[POWER_SOURCE_COUNT];
+  uint32_t Spare[11];
 
 } MsgLimits_t;
 
@@ -1041,7 +1081,17 @@ typedef struct {
   uint32_t        GfxoffSpare[15];
 
   // GFX GPO
-  uint32_t        GfxGpoSpare[16];
+  uint32_t        DfllBtcMasterScalerM;
+  int32_t         DfllBtcMasterScalerB;
+  uint32_t        DfllBtcSlaveScalerM;
+  int32_t         DfllBtcSlaveScalerB;
+
+  uint32_t        DfllPccAsWaitCtrl; //GDFLL_AS_WAIT_CTRL_PCC register value to be passed to RLC msg
+  uint32_t        DfllPccAsStepCtrl; //GDFLL_AS_STEP_CTRL_PCC register value to be passed to RLC msg
+
+  uint32_t        DfllL2FrequencyBoostM; //Unitless (float)
+  uint32_t        DfllL2FrequencyBoostB; //In MHz (integer)
+  uint32_t        GfxGpoSpare[8];
 
   // GFX DCS
 
@@ -1056,10 +1106,15 @@ typedef struct {
   uint16_t        DcsExitHysteresis;    //The min amount of time power credit accumulator should have a value > 0 before SMU exits the DCS throttling phase.
   uint16_t        DcsTimeout;           //This is the amount of time SMU FW waits for RLC to put GFX into GFXOFF before reverting to the fallback mechanism of throttling GFXCLK to Fmin.
 
+  uint8_t         FoptEnabled;
+  uint8_t         DcsSpare2[3];
+  uint32_t        DcsFoptM;             //Tuning paramters to shift Fopt calculation
+  uint32_t        DcsFoptB;             //Tuning paramters to shift Fopt calculation
 
-  uint32_t        DcsSpare[16];
+  uint32_t        DcsSpare[11];
 
   // UCLK section
+  uint16_t     ShadowFreqTableUclk[NUM_UCLK_DPM_LEVELS];     // In MHz
   uint8_t      UseStrobeModeOptimizations; //Set to indicate that FW should use strobe mode optimizations
   uint8_t      PaddingMem[3];
 
@@ -1114,12 +1169,14 @@ typedef struct {
   uint16_t IntakeTempHighIntakeAcousticLimit;
   uint16_t IntakeTempAcouticLimitReleaseRate;
 
-  uint16_t FanStalledTempLimitOffset;
+  int16_t FanAbnormalTempLimitOffset;
   uint16_t FanStalledTriggerRpm;
-  uint16_t FanAbnormalTriggerRpm;
-  uint16_t FanPadding;
+  uint16_t FanAbnormalTriggerRpmCoeff;
+  uint16_t FanAbnormalDetectionEnable;
 
-  uint32_t     FanSpare[14];
+  uint8_t      FanIntakeSensorSupport;
+  uint8_t      FanIntakePadding[3];
+  uint32_t     FanSpare[13];
 
   // SECTION: VDD_GFX AVFS
 
@@ -1198,8 +1255,18 @@ typedef struct {
   int16_t     TotalBoardPowerM;
   int16_t     TotalBoardPowerB;
 
+  //PMFW-11158
+  QuadraticInt_t qFeffCoeffGameClock[POWER_SOURCE_COUNT];
+  QuadraticInt_t qFeffCoeffBaseClock[POWER_SOURCE_COUNT];
+  QuadraticInt_t qFeffCoeffBoostClock[POWER_SOURCE_COUNT];
+
+  uint16_t TemperatureLimit_Hynix; // In degrees Celsius. Memory temperature limit associated with Hynix
+  uint16_t TemperatureLimit_Micron; // In degrees Celsius. Memory temperature limit associated with Micron
+  uint16_t TemperatureFwCtfLimit_Hynix;
+  uint16_t TemperatureFwCtfLimit_Micron;
+
   // SECTION: Sku Reserved
-  uint32_t         Spare[61];
+  uint32_t         Spare[41];
 
   // Padding for MMHUB - do not modify this
   uint32_t     MmHubPadding[8];
@@ -1271,8 +1338,9 @@ typedef struct {
   // UCLK Spread Spectrum
   uint8_t      UclkSpreadPercent[MEM_VENDOR_COUNT];
 
+  uint8_t      GfxclkSpreadEnable;
+
   // FCLK Spread Spectrum
-  uint8_t      FclkSpreadPadding;
   uint8_t      FclkSpreadPercent;   // Q4.4
   uint16_t     FclkSpreadFreq;      // kHz
 
@@ -1288,8 +1356,11 @@ typedef struct {
   uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
   uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
 
+  uint8_t     FuseWritePowerMuxPresent;
+  uint8_t     FuseWritePadding[3];
+
   // SECTION: Board Reserved
-  uint32_t     BoardSpare[64];
+  uint32_t     BoardSpare[63];
 
   // SECTION: Structure Padding
 
@@ -1297,10 +1368,12 @@ typedef struct {
   uint32_t     MmHubPadding[8];
 } BoardTable_t;
 
+#pragma pack(push, 1)
 typedef struct {
   SkuTable_t SkuTable;
   BoardTable_t BoardTable;
 } PPTable_t;
+#pragma pack(pop)
 
 typedef struct {
   // Time constant parameters for clock averages in ms
@@ -1381,7 +1454,7 @@ typedef struct {
   uint16_t AverageTotalBoardPower;
 
   uint16_t AvgTemperature[TEMP_COUNT];
-  uint16_t TempPadding;
+  uint16_t AvgTemperatureFanIntake;
 
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
@@ -1392,6 +1465,8 @@ typedef struct {
 
 
   uint8_t ThrottlingPercentage[THROTTLER_COUNT];
+  uint8_t VmaxThrottlingPercentage;
+  uint8_t Padding1[3];
 
   //metrics for D3hot entry/exit and driver ARM msgs
   uint32_t D3HotEntryCountPerMode[D3HOT_SEQUENCE_COUNT];
@@ -1411,7 +1486,7 @@ typedef struct {
 
 typedef struct {
   SmuMetrics_t SmuMetrics;
-  uint32_t Spare[30];
+  uint32_t Spare[29];
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
@@ -1550,5 +1625,7 @@ typedef struct {
 #define IH_INTERRUPT_CONTEXT_ID_AUDIO_D0            0x5
 #define IH_INTERRUPT_CONTEXT_ID_AUDIO_D3            0x6
 #define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
+#define IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
+#define IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
 
 #endif

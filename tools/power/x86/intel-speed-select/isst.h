@@ -28,6 +28,8 @@
 #include <stdarg.h>
 #include <sys/ioctl.h>
 
+#include <linux/isst_if.h>
+
 #define BIT(x) (1 << (x))
 #define BIT_ULL(nr) (1ULL << (nr))
 #define GENMASK(h, l) (((~0UL) << (l)) & (~0UL >> (sizeof(long) * 8 - 1 - (h))))
@@ -47,6 +49,7 @@
 #define CONFIG_TDP_GET_UNCORE_P0_P1_INFO	0X09
 #define CONFIG_TDP_GET_P1_INFO			0x0a
 #define CONFIG_TDP_GET_MEM_FREQ			0x0b
+#define	CONFIG_TDP_GET_RATIO_INFO		0x0c
 
 #define CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_NUMCORES	0x10
 #define CONFIG_TDP_GET_FACT_HP_TURBO_LIMIT_RATIOS	0x11
@@ -76,24 +79,29 @@
 
 #define DISP_FREQ_MULTIPLIER 100
 
-#define MAX_PACKAGE_COUNT 8
-#define MAX_DIE_PER_PACKAGE 2
+#define MAX_PACKAGE_COUNT	8
+#define MAX_DIE_PER_PACKAGE	2
+#define MAX_PUNIT_PER_DIE	8
+
+/* Unified structure to specific a CPU or a Power Domain */
+struct isst_id {
+	int cpu;
+	int pkg;
+	int die;
+	int punit;
+};
 
 struct isst_clos_config {
-	int pkg_id;
-	int die_id;
+	unsigned int clos_min;
+	unsigned int clos_max;
 	unsigned char epp;
 	unsigned char clos_prop_prio;
-	unsigned char clos_min;
-	unsigned char clos_max;
 	unsigned char clos_desired;
 };
 
 struct isst_fact_bucket_info {
-	int high_priority_cores_count;
-	int sse_trl;
-	int avx_trl;
-	int avx512_trl;
+	int hp_cores;
+	int hp_ratios[TRL_MAX_LEVELS];
 };
 
 struct isst_pbf_info {
@@ -111,9 +119,7 @@ struct isst_pbf_info {
 #define ISST_TRL_MAX_ACTIVE_CORES	8
 #define ISST_FACT_MAX_BUCKETS		8
 struct isst_fact_info {
-	int lp_clipping_ratio_license_sse;
-	int lp_clipping_ratio_license_avx2;
-	int lp_clipping_ratio_license_avx512;
+	int lp_ratios[TRL_MAX_LEVELS];
 	struct isst_fact_bucket_info bucket_info[ISST_FACT_MAX_BUCKETS];
 };
 
@@ -137,19 +143,20 @@ struct isst_pkg_ctdp_level_info {
 	int pkg_max_power;
 	int fact;
 	int t_proc_hot;
+	int cooling_type;
 	int uncore_p0;
 	int uncore_p1;
+	int uncore_pm;
 	int sse_p1;
 	int avx2_p1;
 	int avx512_p1;
+	int amx_p1;
 	int mem_freq;
 	size_t core_cpumask_size;
 	cpu_set_t *core_cpumask;
 	int cpu_count;
-	unsigned long long buckets_info;
-	int trl_sse_active_cores[ISST_TRL_MAX_ACTIVE_CORES];
-	int trl_avx_active_cores[ISST_TRL_MAX_ACTIVE_CORES];
-	int trl_avx_512_active_cores[ISST_TRL_MAX_ACTIVE_CORES];
+	unsigned long long trl_cores;	/* Buckets info */
+	int trl_ratios[TRL_MAX_LEVELS][ISST_TRL_MAX_ACTIVE_CORES];
 	int kobj_bucket_index;
 	int active_bucket;
 	int fact_max_index;
@@ -171,106 +178,147 @@ struct isst_pkg_ctdp {
 	struct isst_pkg_ctdp_level_info ctdp_level[ISST_MAX_TDP_LEVELS];
 };
 
+enum isst_platform_param {
+	ISST_PARAM_MBOX_DELAY,
+	ISST_PARAM_MBOX_RETRIES,
+};
+
+struct isst_platform_ops {
+	int (*get_disp_freq_multiplier)(void);
+	int (*get_trl_max_levels)(void);
+	char *(*get_trl_level_name)(int level);
+	void (*update_platform_param)(enum isst_platform_param param, int value);
+	int (*is_punit_valid)(struct isst_id *id);
+	int (*read_pm_config)(struct isst_id *id, int *cp_state, int *cp_cap);
+	int (*get_config_levels)(struct isst_id *id, struct isst_pkg_ctdp *pkg_ctdp);
+	int (*get_ctdp_control)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_tdp_info)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_pwr_info)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_coremask_info)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_get_trl)(struct isst_id *id, int level, int avx_level, int *trl);
+	int (*get_get_trls)(struct isst_id *id, int level, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_trl_bucket_info)(struct isst_id *id, int level, unsigned long long *buckets_info);
+	int (*set_tdp_level)(struct isst_id *id, int tdp_level);
+	int (*get_pbf_info)(struct isst_id *id, int level, struct isst_pbf_info *pbf_info);
+	int (*set_pbf_fact_status)(struct isst_id *id, int pbf, int enable);
+	int (*get_fact_info)(struct isst_id *id, int level, int fact_bucket, struct isst_fact_info *fact_info);
+	void (*adjust_uncore_freq)(struct isst_id *id, int config_index, struct isst_pkg_ctdp_level_info *ctdp_level);
+	int (*get_clos_information)(struct isst_id *id, int *enable, int *type);
+	int (*pm_qos_config)(struct isst_id *id, int enable_clos, int priority_type);
+	int (*pm_get_clos)(struct isst_id *id, int clos, struct isst_clos_config *clos_config);
+	int (*set_clos)(struct isst_id *id, int clos, struct isst_clos_config *clos_config);
+	int (*clos_get_assoc_status)(struct isst_id *id, int *clos_id);
+	int (*clos_associate)(struct isst_id *id, int clos_id);
+};
+
+extern int is_cpu_in_power_domain(int cpu, struct isst_id *id);
 extern int get_topo_max_cpus(void);
-extern int get_cpu_count(int pkg_id, int die_id);
-extern int get_max_punit_core_id(int pkg_id, int die_id);
+extern int get_cpu_count(struct isst_id *id);
+extern int get_max_punit_core_id(struct isst_id *id);
+extern int api_version(void);
 
 /* Common interfaces */
 FILE *get_output_file(void);
+extern int is_debug_enabled(void);
 extern void debug_printf(const char *format, ...);
 extern int out_format_is_json(void);
-extern int get_physical_package_id(int cpu);
-extern int get_physical_die_id(int cpu);
+extern void set_isst_id(struct isst_id *id, int cpu);
 extern size_t alloc_cpu_set(cpu_set_t **cpu_set);
 extern void free_cpu_set(cpu_set_t *cpu_set);
-extern int find_logical_cpu(int pkg_id, int die_id, int phy_cpu);
-extern int find_phy_cpu_num(int logical_cpu);
 extern int find_phy_core_num(int logical_cpu);
-extern void set_cpu_mask_from_punit_coremask(int cpu,
+extern void set_cpu_mask_from_punit_coremask(struct isst_id *id,
 					     unsigned long long core_mask,
 					     size_t core_cpumask_size,
 					     cpu_set_t *core_cpumask,
 					     int *cpu_cnt);
-
-extern int isst_send_mbox_command(unsigned int cpu, unsigned char command,
-				  unsigned char sub_command,
-				  unsigned int write,
-				  unsigned int req_data, unsigned int *resp);
-
 extern int isst_send_msr_command(unsigned int cpu, unsigned int command,
 				 int write, unsigned long long *req_resp);
 
-extern int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev);
-extern int isst_get_ctdp_control(int cpu, int config_index,
+extern int isst_set_platform_ops(int api_version);
+extern void isst_update_platform_param(enum isst_platform_param, int vale);
+extern int isst_get_disp_freq_multiplier(void);
+extern int isst_get_trl_max_levels(void);
+extern char *isst_get_trl_level_name(int level);
+extern int isst_is_punit_valid(struct isst_id *id);
+
+extern int isst_get_ctdp_levels(struct isst_id *id, struct isst_pkg_ctdp *pkg_dev);
+extern int isst_get_ctdp_control(struct isst_id *id, int config_index,
 				 struct isst_pkg_ctdp_level_info *ctdp_level);
-extern int isst_get_coremask_info(int cpu, int config_index,
+extern int isst_get_coremask_info(struct isst_id *id, int config_index,
 			   struct isst_pkg_ctdp_level_info *ctdp_level);
-extern int isst_get_process_ctdp(int cpu, int tdp_level,
+extern void isst_adjust_uncore_freq(struct isst_id *id, int config_index,
+					struct isst_pkg_ctdp_level_info *ctdp_level);
+extern int isst_get_process_ctdp(struct isst_id *id, int tdp_level,
 				 struct isst_pkg_ctdp *pkg_dev);
-extern void isst_get_process_ctdp_complete(int cpu,
+extern void isst_get_process_ctdp_complete(struct isst_id *id,
 					   struct isst_pkg_ctdp *pkg_dev);
-extern void isst_ctdp_display_information(int cpu, FILE *outf, int tdp_level,
+extern void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level,
 					  struct isst_pkg_ctdp *pkg_dev);
-extern void isst_ctdp_display_core_info(int cpu, FILE *outf, char *prefix,
+extern void isst_ctdp_display_core_info(struct isst_id *id, FILE *outf, char *prefix,
 					unsigned int val, char *str0, char *str1);
 extern void isst_ctdp_display_information_start(FILE *outf);
 extern void isst_ctdp_display_information_end(FILE *outf);
-extern void isst_pbf_display_information(int cpu, FILE *outf, int level,
+extern void isst_pbf_display_information(struct isst_id *id, FILE *outf, int level,
 					 struct isst_pbf_info *info);
-extern int isst_set_tdp_level(int cpu, int tdp_level);
-extern int isst_set_tdp_level_msr(int cpu, int tdp_level);
-extern int isst_set_pbf_fact_status(int cpu, int pbf, int enable);
-extern int isst_get_pbf_info(int cpu, int level,
+extern int isst_set_tdp_level(struct isst_id *id, int tdp_level);
+extern int isst_set_pbf_fact_status(struct isst_id *id, int pbf, int enable);
+extern int isst_get_pbf_info(struct isst_id *id, int level,
 			     struct isst_pbf_info *pbf_info);
-extern void isst_get_pbf_info_complete(struct isst_pbf_info *pbf_info);
-extern int isst_get_fact_info(int cpu, int level, int fact_bucket,
+extern int isst_get_fact_info(struct isst_id *id, int level, int fact_bucket,
 			      struct isst_fact_info *fact_info);
-extern int isst_get_fact_bucket_info(int cpu, int level,
-				     struct isst_fact_bucket_info *bucket_info);
-extern void isst_fact_display_information(int cpu, FILE *outf, int level,
+extern void isst_fact_display_information(struct isst_id *id, FILE *outf, int level,
 					  int fact_bucket, int fact_avx,
 					  struct isst_fact_info *fact_info);
-extern int isst_set_trl(int cpu, unsigned long long trl);
-extern int isst_get_trl(int cpu, unsigned long long *trl);
-extern int isst_set_trl_from_current_tdp(int cpu, unsigned long long trl);
-extern int isst_get_config_tdp_lock_status(int cpu);
+extern int isst_set_trl(struct isst_id *id, unsigned long long trl);
+extern int isst_get_trl(struct isst_id *id, unsigned long long *trl);
+extern int isst_set_trl_from_current_tdp(struct isst_id *id, unsigned long long trl);
+extern int isst_get_config_tdp_lock_status(struct isst_id *id);
 
-extern int isst_pm_qos_config(int cpu, int enable_clos, int priority_type);
-extern int isst_pm_get_clos(int cpu, int clos,
+extern int isst_pm_qos_config(struct isst_id *id, int enable_clos, int priority_type);
+extern int isst_pm_get_clos(struct isst_id *id, int clos,
 			    struct isst_clos_config *clos_config);
-extern int isst_set_clos(int cpu, int clos,
+extern int isst_set_clos(struct isst_id *id, int clos,
 			 struct isst_clos_config *clos_config);
-extern int isst_clos_associate(int cpu, int clos);
-extern int isst_clos_get_assoc_status(int cpu, int *clos_id);
-extern void isst_clos_display_information(int cpu, FILE *outf, int clos,
+extern int isst_clos_associate(struct isst_id *id, int clos);
+extern int isst_clos_get_assoc_status(struct isst_id *id, int *clos_id);
+extern void isst_clos_display_information(struct isst_id *id, FILE *outf, int clos,
 					  struct isst_clos_config *clos_config);
-extern void isst_clos_display_assoc_information(int cpu, FILE *outf, int clos);
-extern int isst_read_reg(unsigned short reg, unsigned int *val);
-extern int isst_write_reg(int reg, unsigned int val);
+extern void isst_clos_display_assoc_information(struct isst_id *id, FILE *outf, int clos);
 
-extern void isst_display_result(int cpu, FILE *outf, char *feature, char *cmd,
+extern void isst_display_result(struct isst_id *id, FILE *outf, char *feature, char *cmd,
 				int result);
 
-extern int isst_clos_get_clos_information(int cpu, int *enable, int *type);
-extern void isst_clos_display_clos_information(int cpu, FILE *outf,
+extern int isst_clos_get_clos_information(struct isst_id *id, int *enable, int *type);
+extern void isst_clos_display_clos_information(struct isst_id *id, FILE *outf,
 					       int clos_enable, int type,
 					       int state, int cap);
 extern int is_clx_n_platform(void);
 extern int get_cpufreq_base_freq(int cpu);
-extern int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap);
+extern int isst_read_pm_config(struct isst_id *id, int *cp_state, int *cp_cap);
 extern void isst_display_error_info_message(int error, char *msg, int arg_valid, int arg);
 extern int is_skx_based_platform(void);
 extern int is_spr_platform(void);
+extern int is_emr_platform(void);
 extern int is_icx_platform(void);
-extern void isst_trl_display_information(int cpu, FILE *outf, unsigned long long trl);
+extern void isst_trl_display_information(struct isst_id *id, FILE *outf, unsigned long long trl);
 
 extern void set_cpu_online_offline(int cpu, int state);
-extern void for_each_online_package_in_set(void (*callback)(int, void *, void *,
+extern void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void *, void *,
 							    void *, void *),
 					   void *arg1, void *arg2, void *arg3,
 					   void *arg4);
 extern int isst_daemon(int debug_mode, int poll_interval, int no_daemon);
-extern void process_level_change(int cpu);
+extern void process_level_change(struct isst_id *id);
 extern int hfi_main(void);
 extern void hfi_exit(void);
+
+/* Interface specific callbacks */
+extern struct isst_platform_ops *mbox_get_platform_ops(void);
+extern struct isst_platform_ops *tpmi_get_platform_ops(void);
+
+/* Cgroup related interface */
+extern int enable_cpuset_controller(void);
+extern int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int level);
+extern int use_cgroupv2(void);
+
 #endif

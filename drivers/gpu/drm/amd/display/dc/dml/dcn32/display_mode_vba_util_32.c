@@ -721,8 +721,8 @@ void dml32_CalculateSwathWidth(
 
 	unsigned int surface_width_ub_l;
 	unsigned int surface_height_ub_l;
-	unsigned int surface_width_ub_c;
-	unsigned int surface_height_ub_c;
+	unsigned int surface_width_ub_c = 0;
+	unsigned int surface_height_ub_c = 0;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: ForceSingleDPP = %d\n", __func__, ForceSingleDPP);
@@ -786,21 +786,6 @@ void dml32_CalculateSwathWidth(
 
 		surface_width_ub_l  = dml_ceil(SurfaceWidthY[k], Read256BytesBlockWidthY[k]);
 		surface_height_ub_l = dml_ceil(SurfaceHeightY[k], Read256BytesBlockHeightY[k]);
-		surface_width_ub_c  = dml_ceil(SurfaceWidthC[k], Read256BytesBlockWidthC[k]);
-		surface_height_ub_c = dml_ceil(SurfaceHeightC[k], Read256BytesBlockHeightC[k]);
-
-#ifdef __DML_VBA_DEBUG__
-		dml_print("DML::%s: k=%d surface_width_ub_l=%0d\n", __func__, k, surface_width_ub_l);
-		dml_print("DML::%s: k=%d surface_height_ub_l=%0d\n", __func__, k, surface_height_ub_l);
-		dml_print("DML::%s: k=%d surface_width_ub_c=%0d\n", __func__, k, surface_width_ub_c);
-		dml_print("DML::%s: k=%d surface_height_ub_c=%0d\n", __func__, k, surface_height_ub_c);
-		dml_print("DML::%s: k=%d Read256BytesBlockWidthY=%0d\n", __func__, k, Read256BytesBlockWidthY[k]);
-		dml_print("DML::%s: k=%d Read256BytesBlockHeightY=%0d\n", __func__, k, Read256BytesBlockHeightY[k]);
-		dml_print("DML::%s: k=%d Read256BytesBlockWidthC=%0d\n", __func__, k, Read256BytesBlockWidthC[k]);
-		dml_print("DML::%s: k=%d Read256BytesBlockHeightC=%0d\n", __func__, k, Read256BytesBlockHeightC[k]);
-		dml_print("DML::%s: k=%d ViewportStationary=%0d\n", __func__, k, ViewportStationary[k]);
-		dml_print("DML::%s: k=%d DPPPerSurface=%0d\n", __func__, k, DPPPerSurface[k]);
-#endif
 
 		if (!IsVertical(SourceRotation[k])) {
 			MaximumSwathHeightY[k] = Read256BytesBlockHeightY[k];
@@ -820,6 +805,7 @@ void dml32_CalculateSwathWidth(
 								Read256BytesBlockWidthY[k]);
 			}
 			if (BytePerPixC[k] > 0) {
+				surface_width_ub_c  = dml_ceil(SurfaceWidthC[k], Read256BytesBlockWidthC[k]);
 				if (ViewportStationary[k] && DPPPerSurface[k] == 1) {
 					swath_width_chroma_ub[k] = dml_min(surface_width_ub_c,
 							dml_floor(ViewportXStartC[k] + SwathWidthC[k] +
@@ -850,6 +836,7 @@ void dml32_CalculateSwathWidth(
 						Read256BytesBlockHeightY[k]) + Read256BytesBlockHeightY[k]);
 			}
 			if (BytePerPixC[k] > 0) {
+				surface_height_ub_c = dml_ceil(SurfaceHeightC[k], Read256BytesBlockHeightC[k]);
 				if (ViewportStationary[k] && DPPPerSurface[k] == 1) {
 					swath_width_chroma_ub[k] = dml_min(surface_height_ub_c,
 							dml_floor(ViewportYStartC[k] + SwathWidthC[k] +
@@ -868,6 +855,16 @@ void dml32_CalculateSwathWidth(
 		}
 
 #ifdef __DML_VBA_DEBUG__
+		dml_print("DML::%s: k=%d surface_width_ub_l=%0d\n", __func__, k, surface_width_ub_l);
+		dml_print("DML::%s: k=%d surface_height_ub_l=%0d\n", __func__, k, surface_height_ub_l);
+		dml_print("DML::%s: k=%d surface_width_ub_c=%0d\n", __func__, k, surface_width_ub_c);
+		dml_print("DML::%s: k=%d surface_height_ub_c=%0d\n", __func__, k, surface_height_ub_c);
+		dml_print("DML::%s: k=%d Read256BytesBlockWidthY=%0d\n", __func__, k, Read256BytesBlockWidthY[k]);
+		dml_print("DML::%s: k=%d Read256BytesBlockHeightY=%0d\n", __func__, k, Read256BytesBlockHeightY[k]);
+		dml_print("DML::%s: k=%d Read256BytesBlockWidthC=%0d\n", __func__, k, Read256BytesBlockWidthC[k]);
+		dml_print("DML::%s: k=%d Read256BytesBlockHeightC=%0d\n", __func__, k, Read256BytesBlockHeightC[k]);
+		dml_print("DML::%s: k=%d ViewportStationary=%0d\n", __func__, k, ViewportStationary[k]);
+		dml_print("DML::%s: k=%d DPPPerSurface=%0d\n", __func__, k, DPPPerSurface[k]);
 		dml_print("DML::%s: k=%d swath_width_luma_ub=%0d\n", __func__, k, swath_width_luma_ub[k]);
 		dml_print("DML::%s: k=%d swath_width_chroma_ub=%0d\n", __func__, k, swath_width_chroma_ub[k]);
 		dml_print("DML::%s: k=%d MaximumSwathHeightY=%0d\n", __func__, k, MaximumSwathHeightY[k]);
@@ -1196,6 +1193,7 @@ void dml32_CalculateODMMode(
 		double DISPCLKDPPCLKDSCCLKDownSpreading,
 		double DISPCLKRampingMargin,
 		double DISPCLKDPPCLKVCOSpeed,
+		unsigned int NumberOfDSCSlices,
 
 		/* Output */
 		bool *TotalAvailablePipesSupport,
@@ -1231,7 +1229,8 @@ void dml32_CalculateODMMode(
 
 	if (!(Output == dm_hdmi || Output == dm_dp || Output == dm_edp) && (ODMUse == dm_odm_combine_policy_4to1 ||
 			((SurfaceRequiredDISPCLKWithODMCombineTwoToOne > StateDispclk ||
-					(DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit)))))) {
+					(DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit))
+					|| NumberOfDSCSlices > 8)))) {
 		if (TotalNumberOfActiveDPP + 4 <= MaxNumDPP) {
 			*ODMMode = dm_odm_combine_mode_4to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineFourToOne;
@@ -1242,7 +1241,8 @@ void dml32_CalculateODMMode(
 	} else if (Output != dm_hdmi && (ODMUse == dm_odm_combine_policy_2to1 ||
 			(((SurfaceRequiredDISPCLKWithoutODMCombine > StateDispclk &&
 					SurfaceRequiredDISPCLKWithODMCombineTwoToOne <= StateDispclk) ||
-					(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit)))))) {
+					(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit))
+					|| (NumberOfDSCSlices <= 8 && NumberOfDSCSlices > 4))))) {
 		if (TotalNumberOfActiveDPP + 2 <= MaxNumDPP) {
 			*ODMMode = dm_odm_combine_mode_2to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineTwoToOne;
@@ -1595,7 +1595,6 @@ double dml32_TruncToValidBPP(
 	unsigned int   NonDSCBPP0;
 	unsigned int   NonDSCBPP1;
 	unsigned int   NonDSCBPP2;
-	unsigned int   NonDSCBPP3;
 
 	if (Format == dm_420) {
 		NonDSCBPP0 = 12;
@@ -1604,10 +1603,9 @@ double dml32_TruncToValidBPP(
 		MinDSCBPP = 6;
 		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1 / 16;
 	} else if (Format == dm_444) {
-		NonDSCBPP0 = 18;
-		NonDSCBPP1 = 24;
-		NonDSCBPP2 = 30;
-		NonDSCBPP3 = 36;
+		NonDSCBPP0 = 24;
+		NonDSCBPP1 = 30;
+		NonDSCBPP2 = 36;
 		MinDSCBPP = 8;
 		MaxDSCBPP = 3 * DSCInputBitPerComponent - 1.0 / 16;
 	} else {
@@ -1661,9 +1659,7 @@ double dml32_TruncToValidBPP(
 			else
 				return dml_floor(16.0 * MaxLinkBPP, 1.0) / 16.0;
 		} else {
-			if (MaxLinkBPP >= NonDSCBPP3)
-				return NonDSCBPP3;
-			else if (MaxLinkBPP >= NonDSCBPP2)
+			if (MaxLinkBPP >= NonDSCBPP2)
 				return NonDSCBPP2;
 			else if (MaxLinkBPP >= NonDSCBPP1)
 				return NonDSCBPP1;
@@ -1674,7 +1670,7 @@ double dml32_TruncToValidBPP(
 		}
 	} else {
 		if (!((DSCEnable == false && (DesiredBPP == NonDSCBPP2 || DesiredBPP == NonDSCBPP1 ||
-				DesiredBPP == NonDSCBPP0 || DesiredBPP == NonDSCBPP3)) ||
+				DesiredBPP <= NonDSCBPP0)) ||
 				(DSCEnable && DesiredBPP >= MinDSCBPP && DesiredBPP <= MaxDSCBPP)))
 			return BPP_INVALID;
 		else
@@ -1726,7 +1722,8 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 		enum output_format_class  OutputFormat,
 		enum output_encoder_class Output,
 		double PixelClock,
-		double PixelClockBackEnd)
+		double PixelClockBackEnd,
+		double dsc_delay_factor_wa)
 {
 	unsigned int DSCDelayRequirement_val;
 
@@ -1746,7 +1743,7 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 		}
 
 		DSCDelayRequirement_val = DSCDelayRequirement_val + (HTotal - HActive) *
-				dml_ceil(DSCDelayRequirement_val / HActive, 1);
+				dml_ceil((double)DSCDelayRequirement_val / HActive, 1);
 
 		DSCDelayRequirement_val = DSCDelayRequirement_val * PixelClock / PixelClockBackEnd;
 
@@ -1764,13 +1761,14 @@ unsigned int dml32_DSCDelayRequirement(bool DSCEnabled,
 	dml_print("DML::%s: DSCDelayRequirement_val = %d\n", __func__, DSCDelayRequirement_val);
 #endif
 
-	return DSCDelayRequirement_val;
+	return dml_ceil(DSCDelayRequirement_val * dsc_delay_factor_wa, 1);
 }
 
 void dml32_CalculateSurfaceSizeInMall(
 		unsigned int NumberOfActiveSurfaces,
 		unsigned int MALLAllocatedForDCN,
 		enum dm_use_mall_for_static_screen_mode UseMALLForStaticScreen[],
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[],
 		bool DCCEnable[],
 		bool ViewportStationary[],
 		unsigned int ViewportXStartY[],
@@ -1795,13 +1793,17 @@ void dml32_CalculateSurfaceSizeInMall(
 		unsigned int ReadBlockWidthC[],
 		unsigned int ReadBlockHeightY[],
 		unsigned int ReadBlockHeightC[],
+		unsigned int DCCMetaPitchY[],
+		unsigned int DCCMetaPitchC[],
 
 		/* Output */
 		unsigned int    SurfaceSizeInMALL[],
 		bool *ExceededMALLSize)
 {
-	unsigned int TotalSurfaceSizeInMALL  = 0;
 	unsigned int k;
+	unsigned int TotalSurfaceSizeInMALLForSS = 0;
+	unsigned int TotalSurfaceSizeInMALLForSubVP = 0;
+	unsigned int MALLAllocatedForDCNInBytes = MALLAllocatedForDCN * 1024 * 1024;
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (ViewportStationary[k]) {
@@ -1827,18 +1829,18 @@ void dml32_CalculateSurfaceSizeInMall(
 			}
 			if (DCCEnable[k] == true) {
 				SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-						dml_min(dml_ceil(SurfaceWidthY[k], 8 * Read256BytesBlockWidthY[k]),
+						(dml_min(dml_ceil(DCCMetaPitchY[k], 8 * Read256BytesBlockWidthY[k]),
 							dml_floor(ViewportXStartY[k] + ViewportWidthY[k] + 8 *
 							Read256BytesBlockWidthY[k] - 1, 8 * Read256BytesBlockWidthY[k])
 							- dml_floor(ViewportXStartY[k], 8 * Read256BytesBlockWidthY[k]))
 							* dml_min(dml_ceil(SurfaceHeightY[k], 8 *
 							Read256BytesBlockHeightY[k]), dml_floor(ViewportYStartY[k] +
 							ViewportHeightY[k] + 8 * Read256BytesBlockHeightY[k] - 1, 8 *
-							Read256BytesBlockHeightY[k]) - dml_floor(ViewportYStartY[k], 8
-							* Read256BytesBlockHeightY[k])) * BytesPerPixelY[k] / 256;
+							Read256BytesBlockHeightY[k]) - dml_floor(ViewportYStartY[k], 8 *
+							Read256BytesBlockHeightY[k])) * BytesPerPixelY[k] / 256) + (64 * 1024);
 				if (Read256BytesBlockWidthC[k] > 0) {
 					SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-							dml_min(dml_ceil(SurfaceWidthC[k], 8 *
+							dml_min(dml_ceil(DCCMetaPitchC[k], 8 *
 								Read256BytesBlockWidthC[k]),
 								dml_floor(ViewportXStartC[k] + ViewportWidthC[k] + 8
 								* Read256BytesBlockWidthC[k] - 1, 8 *
@@ -1871,16 +1873,16 @@ void dml32_CalculateSurfaceSizeInMall(
 			}
 			if (DCCEnable[k] == true) {
 				SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-						dml_ceil(dml_min(SurfaceWidthY[k], ViewportWidthY[k] + 8 *
+						(dml_ceil(dml_min(DCCMetaPitchY[k], ViewportWidthY[k] + 8 *
 								Read256BytesBlockWidthY[k] - 1), 8 *
 								Read256BytesBlockWidthY[k]) *
 						dml_ceil(dml_min(SurfaceHeightY[k], ViewportHeightY[k] + 8 *
 								Read256BytesBlockHeightY[k] - 1), 8 *
-								Read256BytesBlockHeightY[k]) * BytesPerPixelY[k] / 256;
+								Read256BytesBlockHeightY[k]) * BytesPerPixelY[k] / 256) + (64 * 1024);
 
 				if (Read256BytesBlockWidthC[k] > 0) {
 					SurfaceSizeInMALL[k] = SurfaceSizeInMALL[k] +
-							dml_ceil(dml_min(SurfaceWidthC[k], ViewportWidthC[k] + 8 *
+							dml_ceil(dml_min(DCCMetaPitchC[k], ViewportWidthC[k] + 8 *
 									Read256BytesBlockWidthC[k] - 1), 8 *
 									Read256BytesBlockWidthC[k]) *
 							dml_ceil(dml_min(SurfaceHeightC[k], ViewportHeightC[k] + 8 *
@@ -1893,10 +1895,14 @@ void dml32_CalculateSurfaceSizeInMall(
 	}
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		if (UseMALLForStaticScreen[k] == dm_use_mall_static_screen_enable)
-			TotalSurfaceSizeInMALL = TotalSurfaceSizeInMALL + SurfaceSizeInMALL[k];
+		/* SS and Subvp counted separate as they are never used at the same time */
+		if (UsesMALLForPStateChange[k] == dm_use_mall_pstate_change_phantom_pipe)
+			TotalSurfaceSizeInMALLForSubVP = TotalSurfaceSizeInMALLForSubVP + SurfaceSizeInMALL[k];
+		else if (UseMALLForStaticScreen[k] == dm_use_mall_static_screen_enable)
+			TotalSurfaceSizeInMALLForSS = TotalSurfaceSizeInMALLForSS + SurfaceSizeInMALL[k];
 	}
-	*ExceededMALLSize =  (TotalSurfaceSizeInMALL <= MALLAllocatedForDCN * 1024 * 1024 ? false : true);
+	*ExceededMALLSize =  (TotalSurfaceSizeInMALLForSS > MALLAllocatedForDCNInBytes) ||
+							(TotalSurfaceSizeInMALLForSubVP > MALLAllocatedForDCNInBytes);
 } // CalculateSurfaceSizeInMall
 
 void dml32_CalculateVMRowAndSwath(
@@ -3416,6 +3422,7 @@ bool dml32_CalculatePrefetchSchedule(
 		unsigned int SwathHeightY,
 		unsigned int SwathHeightC,
 		double TWait,
+		double TPreReq,
 		/* Output */
 		double   *DSTXAfterScaler,
 		double   *DSTYAfterScaler,
@@ -3469,7 +3476,7 @@ bool dml32_CalculatePrefetchSchedule(
 	double  prefetch_sw_bytes;
 	double  bytes_pp;
 	double  dep_bytes;
-	unsigned int max_vratio_pre = __DML_MAX_VRATIO_PRE__;
+	unsigned int max_vratio_pre = v->MaxVRatioPre;
 	double  min_Lsw;
 	double  Tsw_est1 = 0;
 	double  Tsw_est3 = 0;
@@ -3666,6 +3673,7 @@ bool dml32_CalculatePrefetchSchedule(
 	dst_y_prefetch_equ = VStartup - (*TSetup + dml_max(TWait + TCalc, *Tdmdl)) / LineTime -
 			(*DSTYAfterScaler + (double) *DSTXAfterScaler / (double) myPipe->HTotal);
 
+	dst_y_prefetch_equ = dml_min(dst_y_prefetch_equ, __DML_VBA_MAX_DST_Y_PRE__);
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: HTotal = %d\n", __func__, myPipe->HTotal);
 	dml_print("DML::%s: min_Lsw = %f\n", __func__, min_Lsw);
@@ -3725,7 +3733,8 @@ bool dml32_CalculatePrefetchSchedule(
 	*VRatioPrefetchY = 0;
 	*VRatioPrefetchC = 0;
 	*RequiredPrefetchPixDataBWLuma = 0;
-	if (dst_y_prefetch_equ > 1) {
+	if (dst_y_prefetch_equ > 1 &&
+			(Tpre_rounded >= TPreReq || dst_y_prefetch_equ == __DML_VBA_MAX_DST_Y_PRE__)) {
 		double PrefetchBandwidth1;
 		double PrefetchBandwidth2;
 		double PrefetchBandwidth3;
@@ -3871,7 +3880,11 @@ bool dml32_CalculatePrefetchSchedule(
 		}
 
 		if (dst_y_prefetch_oto < dst_y_prefetch_equ) {
-			*DestinationLinesForPrefetch = dst_y_prefetch_oto;
+			if (dst_y_prefetch_oto * LineTime < TPreReq) {
+				*DestinationLinesForPrefetch = dst_y_prefetch_equ;
+			} else {
+				*DestinationLinesForPrefetch = dst_y_prefetch_oto;
+			}
 			TimeForFetchingMetaPTE = Tvm_oto;
 			TimeForFetchingRowInVBlank = Tr0_oto;
 			*PrefetchBandwidth = prefetch_bw_oto;
@@ -4260,7 +4273,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 	double ActiveClockChangeLatencyHidingY;
 	double ActiveClockChangeLatencyHidingC;
 	double ActiveClockChangeLatencyHiding;
-    double EffectiveDETBufferSizeY;
+	double EffectiveDETBufferSizeY;
 	double     ActiveFCLKChangeLatencyMargin[DC__NUM_DPP__MAX];
 	double     USRRetrainingLatencyMargin[DC__NUM_DPP__MAX];
 	double TotalPixelBW = 0.0;
@@ -4325,7 +4338,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 				+ v->WritebackChunkSize * 1024.0 / 32.0 / SOCCLK;
 	}
 	if (v->USRRetrainingRequiredFinal)
-		v->Watermark.WritebackUrgentWatermark = v->Watermark.WritebackUrgentWatermark
+		v->Watermark.WritebackDRAMClockChangeWatermark = v->Watermark.WritebackDRAMClockChangeWatermark
 				+ mmSOCParameters.USRRetrainingLatency;
 
 	if (TotalActiveWriteback <= 1) {
@@ -4396,7 +4409,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 
 		if (v->NumberOfActiveSurfaces > 1) {
 			ActiveClockChangeLatencyHidingY = ActiveClockChangeLatencyHidingY
-					- (1 - 1 / v->NumberOfActiveSurfaces) * SwathHeightY[k] * v->HTotal[k]
+					- (1.0 - 1.0 / v->NumberOfActiveSurfaces) * SwathHeightY[k] * v->HTotal[k]
 							/ v->PixelClock[k] / v->VRatio[k];
 		}
 
@@ -6130,29 +6143,46 @@ void dml32_CalculatePrefetchBandwithSupport(unsigned int NumberOfActiveSurfaces,
 		double UrgentBurstFactorLumaPre[],
 		double UrgentBurstFactorChromaPre[],
 		double UrgentBurstFactorCursorPre[],
+		double PrefetchBW[],
+		double VRatio[],
+		double MaxVRatioPre,
 
 		/* output */
-		double  *PrefetchBandwidth,
+		double  *MaxPrefetchBandwidth,
 		double  *FractionOfUrgentBandwidth,
 		bool *PrefetchBandwidthSupport)
 {
 	unsigned int k;
+	double ActiveBandwidthPerSurface;
 	bool NotEnoughUrgentLatencyHiding = false;
+	double TotalActiveBandwidth = 0;
+	double TotalPrefetchBandwidth = 0;
+
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (NotUrgentLatencyHiding[k]) {
 			NotEnoughUrgentLatencyHiding = true;
 		}
 	}
 
-	*PrefetchBandwidth = 0;
+	*MaxPrefetchBandwidth = 0;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		*PrefetchBandwidth = *PrefetchBandwidth + dml_max3(NumberOfDPP[k] * prefetch_vmrow_bw[k],
-				ReadBandwidthLuma[k] * UrgentBurstFactorLuma[k] + ReadBandwidthChroma[k] * UrgentBurstFactorChroma[k] + cursor_bw[k] * UrgentBurstFactorCursor[k] + NumberOfDPP[k] * (meta_row_bandwidth[k] + dpte_row_bandwidth[k]),
+		ActiveBandwidthPerSurface = ReadBandwidthLuma[k] * UrgentBurstFactorLuma[k] + ReadBandwidthChroma[k] * UrgentBurstFactorChroma[k] + cursor_bw[k] * UrgentBurstFactorCursor[k] + NumberOfDPP[k] * (meta_row_bandwidth[k] + dpte_row_bandwidth[k]);
+
+		TotalActiveBandwidth += ActiveBandwidthPerSurface;
+
+		TotalPrefetchBandwidth = TotalPrefetchBandwidth + PrefetchBW[k] * VRatio[k];
+
+		*MaxPrefetchBandwidth = *MaxPrefetchBandwidth + dml_max3(NumberOfDPP[k] * prefetch_vmrow_bw[k],
+				ActiveBandwidthPerSurface,
 				NumberOfDPP[k] * (PrefetchBandwidthLuma[k] * UrgentBurstFactorLumaPre[k] + PrefetchBandwidthChroma[k] * UrgentBurstFactorChromaPre[k]) + cursor_bw_pre[k] * UrgentBurstFactorCursorPre[k]);
 	}
 
-	*PrefetchBandwidthSupport = (*PrefetchBandwidth <= ReturnBW) && !NotEnoughUrgentLatencyHiding;
-	*FractionOfUrgentBandwidth = *PrefetchBandwidth / ReturnBW;
+	if (MaxVRatioPre == __DML_MAX_VRATIO_PRE__)
+		*PrefetchBandwidthSupport = (*MaxPrefetchBandwidth <= ReturnBW) && (TotalPrefetchBandwidth <= TotalActiveBandwidth * __DML_MAX_BW_RATIO_PRE__) && !NotEnoughUrgentLatencyHiding;
+	else
+		*PrefetchBandwidthSupport = (*MaxPrefetchBandwidth <= ReturnBW) && !NotEnoughUrgentLatencyHiding;
+
+	*FractionOfUrgentBandwidth = *MaxPrefetchBandwidth / ReturnBW;
 }
 
 double dml32_CalculateBandwidthAvailableForImmediateFlip(unsigned int NumberOfActiveSurfaces,
@@ -6223,4 +6253,77 @@ void dml32_CalculateImmediateFlipBandwithSupport(unsigned int NumberOfActiveSurf
 	}
 	*ImmediateFlipBandwidthSupport = (*TotalBandwidth <= ReturnBW);
 	*FractionOfUrgentBandwidth = *TotalBandwidth / ReturnBW;
+}
+
+bool dml32_CalculateDETSwathFillLatencyHiding(unsigned int NumberOfActiveSurfaces,
+		double ReturnBW,
+		double UrgentLatency,
+		unsigned int SwathHeightY[],
+		unsigned int SwathHeightC[],
+		unsigned int SwathWidthY[],
+		unsigned int SwathWidthC[],
+		double  BytePerPixelInDETY[],
+		double  BytePerPixelInDETC[],
+		unsigned int    DETBufferSizeY[],
+		unsigned int    DETBufferSizeC[],
+		unsigned int	NumOfDPP[],
+		unsigned int	HTotal[],
+		double	PixelClock[],
+		double	VRatioY[],
+		double	VRatioC[],
+		enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[],
+		enum unbounded_requesting_policy UseUnboundedRequesting)
+{
+	int k;
+	double SwathSizeAllSurfaces = 0;
+	double SwathSizeAllSurfacesInFetchTimeUs;
+	double DETSwathLatencyHidingUs;
+	double DETSwathLatencyHidingYUs;
+	double DETSwathLatencyHidingCUs;
+	double SwathSizePerSurfaceY[DC__NUM_DPP__MAX];
+	double SwathSizePerSurfaceC[DC__NUM_DPP__MAX];
+	bool NotEnoughDETSwathFillLatencyHiding = false;
+
+	if (UseUnboundedRequesting == dm_unbounded_requesting)
+		return false;
+
+	/* calculate sum of single swath size for all pipes in bytes */
+	for (k = 0; k < NumberOfActiveSurfaces; k++) {
+		SwathSizePerSurfaceY[k] = SwathHeightY[k] * SwathWidthY[k] * BytePerPixelInDETY[k] * NumOfDPP[k];
+
+		if (SwathHeightC[k] != 0)
+			SwathSizePerSurfaceC[k] = SwathHeightC[k] * SwathWidthC[k] * BytePerPixelInDETC[k] * NumOfDPP[k];
+		else
+			SwathSizePerSurfaceC[k] = 0;
+
+		SwathSizeAllSurfaces += SwathSizePerSurfaceY[k] + SwathSizePerSurfaceC[k];
+	}
+
+	SwathSizeAllSurfacesInFetchTimeUs = SwathSizeAllSurfaces / ReturnBW + UrgentLatency;
+
+	/* ensure all DET - 1 swath can hide a fetch for all surfaces */
+	for (k = 0; k < NumberOfActiveSurfaces; k++) {
+		double LineTime = HTotal[k] / PixelClock[k];
+
+		/* only care if surface is not phantom */
+		if (UsesMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe) {
+			DETSwathLatencyHidingYUs = (dml_floor(DETBufferSizeY[k] / BytePerPixelInDETY[k] / SwathWidthY[k], 1.0) - SwathHeightY[k]) / VRatioY[k] * LineTime;
+
+			if (SwathHeightC[k] != 0) {
+				DETSwathLatencyHidingCUs = (dml_floor(DETBufferSizeC[k] / BytePerPixelInDETC[k] / SwathWidthC[k], 1.0) - SwathHeightC[k]) / VRatioC[k] * LineTime;
+
+				DETSwathLatencyHidingUs = dml_min(DETSwathLatencyHidingYUs, DETSwathLatencyHidingCUs);
+			} else {
+				DETSwathLatencyHidingUs = DETSwathLatencyHidingYUs;
+			}
+
+			/* DET must be able to hide time to fetch 1 swath for each surface */
+			if (DETSwathLatencyHidingUs < SwathSizeAllSurfacesInFetchTimeUs) {
+				NotEnoughDETSwathFillLatencyHiding = true;
+				break;
+			}
+		}
+	}
+
+	return NotEnoughDETSwathFillLatencyHiding;
 }

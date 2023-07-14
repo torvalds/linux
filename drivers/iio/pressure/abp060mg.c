@@ -174,9 +174,9 @@ static void abp060mg_init_device(struct iio_dev *indio_dev, unsigned long id)
 		state->offset -= ABP060MG_NUM_COUNTS >> 1;
 }
 
-static int abp060mg_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int abp060mg_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct abp_state *state;
 	unsigned long cfg_id = id->driver_data;

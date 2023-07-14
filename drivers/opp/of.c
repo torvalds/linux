@@ -13,13 +13,16 @@
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/device.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_domain.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/energy_model.h>
 
 #include "opp.h"
+
+/* OPP tables with uninitialized required OPPs, protected by opp_table_lock */
+static LIST_HEAD(lazy_opp_tables);
 
 /*
  * Returns opp descriptor node for a device node, caller must
@@ -145,7 +148,10 @@ static void _opp_table_free_required_tables(struct opp_table *opp_table)
 
 	opp_table->required_opp_count = 0;
 	opp_table->required_opp_tables = NULL;
+
+	mutex_lock(&opp_table_lock);
 	list_del(&opp_table->lazy);
+	mutex_unlock(&opp_table_lock);
 }
 
 /*
@@ -194,8 +200,17 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 	}
 
 	/* Let's do the linking later on */
-	if (lazy)
+	if (lazy) {
+		/*
+		 * The OPP table is not held while allocating the table, take it
+		 * now to avoid corruption to the lazy_opp_tables list.
+		 */
+		mutex_lock(&opp_table_lock);
 		list_add(&opp_table->lazy, &lazy_opp_tables);
+		mutex_unlock(&opp_table_lock);
+	}
+	else
+		_update_set_required_opps(opp_table);
 
 	goto put_np;
 
@@ -224,7 +239,7 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	of_property_read_u32(np, "voltage-tolerance",
 			     &opp_table->voltage_tolerance_v1);
 
-	if (of_find_property(np, "#power-domain-cells", NULL))
+	if (of_property_present(np, "#power-domain-cells"))
 		opp_table->is_genpd = true;
 
 	/* Get OPP table node */
@@ -411,6 +426,7 @@ static void lazy_link_required_opp_table(struct opp_table *new_table)
 
 		/* All required opp-tables found, remove from lazy list */
 		if (!lazy) {
+			_update_set_required_opps(opp_table);
 			list_del_init(&opp_table->lazy);
 
 			list_for_each_entry(opp, &opp_table->opp_list, node)
@@ -497,11 +513,7 @@ int dev_pm_opp_of_find_icc_paths(struct device *dev,
 	for (i = 0; i < num_paths; i++) {
 		paths[i] = of_icc_get_by_index(dev, i);
 		if (IS_ERR(paths[i])) {
-			ret = PTR_ERR(paths[i]);
-			if (ret != -EPROBE_DEFER) {
-				dev_err(dev, "%s: Unable to get path%d: %d\n",
-					__func__, i, ret);
-			}
+			ret = dev_err_probe(dev, PTR_ERR(paths[i]), "%s: Unable to get path%d\n", __func__, i);
 			goto err;
 		}
 	}
@@ -536,7 +548,7 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 		 * an OPP then the OPP should not be enabled as there is
 		 * no way to see if the hardware supports it.
 		 */
-		if (of_find_property(np, "opp-supported-hw", NULL))
+		if (of_property_present(np, "opp-supported-hw"))
 			return false;
 		else
 			return true;
@@ -578,169 +590,140 @@ static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 	return false;
 }
 
+static u32 *_parse_named_prop(struct dev_pm_opp *opp, struct device *dev,
+			      struct opp_table *opp_table,
+			      const char *prop_type, bool *triplet)
+{
+	struct property *prop = NULL;
+	char name[NAME_MAX];
+	int count, ret;
+	u32 *out;
+
+	/* Search for "opp-<prop_type>-<name>" */
+	if (opp_table->prop_name) {
+		snprintf(name, sizeof(name), "opp-%s-%s", prop_type,
+			 opp_table->prop_name);
+		prop = of_find_property(opp->np, name, NULL);
+	}
+
+	if (!prop) {
+		/* Search for "opp-<prop_type>" */
+		snprintf(name, sizeof(name), "opp-%s", prop_type);
+		prop = of_find_property(opp->np, name, NULL);
+		if (!prop)
+			return NULL;
+	}
+
+	count = of_property_count_u32_elems(opp->np, name);
+	if (count < 0) {
+		dev_err(dev, "%s: Invalid %s property (%d)\n", __func__, name,
+			count);
+		return ERR_PTR(count);
+	}
+
+	/*
+	 * Initialize regulator_count, if regulator information isn't provided
+	 * by the platform. Now that one of the properties is available, fix the
+	 * regulator_count to 1.
+	 */
+	if (unlikely(opp_table->regulator_count == -1))
+		opp_table->regulator_count = 1;
+
+	if (count != opp_table->regulator_count &&
+	    (!triplet || count != opp_table->regulator_count * 3)) {
+		dev_err(dev, "%s: Invalid number of elements in %s property (%u) with supplies (%d)\n",
+			__func__, prop_type, count, opp_table->regulator_count);
+		return ERR_PTR(-EINVAL);
+	}
+
+	out = kmalloc_array(count, sizeof(*out), GFP_KERNEL);
+	if (!out)
+		return ERR_PTR(-EINVAL);
+
+	ret = of_property_read_u32_array(opp->np, name, out, count);
+	if (ret) {
+		dev_err(dev, "%s: error parsing %s: %d\n", __func__, name, ret);
+		kfree(out);
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (triplet)
+		*triplet = count != opp_table->regulator_count;
+
+	return out;
+}
+
+static u32 *opp_parse_microvolt(struct dev_pm_opp *opp, struct device *dev,
+				struct opp_table *opp_table, bool *triplet)
+{
+	u32 *microvolt;
+
+	microvolt = _parse_named_prop(opp, dev, opp_table, "microvolt", triplet);
+	if (IS_ERR(microvolt))
+		return microvolt;
+
+	if (!microvolt) {
+		/*
+		 * Missing property isn't a problem, but an invalid
+		 * entry is. This property isn't optional if regulator
+		 * information is provided. Check only for the first OPP, as
+		 * regulator_count may get initialized after that to a valid
+		 * value.
+		 */
+		if (list_empty(&opp_table->opp_list) &&
+		    opp_table->regulator_count > 0) {
+			dev_err(dev, "%s: opp-microvolt missing although OPP managing regulators\n",
+				__func__);
+			return ERR_PTR(-EINVAL);
+		}
+	}
+
+	return microvolt;
+}
+
 static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			      struct opp_table *opp_table)
 {
-	u32 *microvolt, *microamp = NULL, *microwatt = NULL;
-	int supplies = opp_table->regulator_count;
-	int vcount, icount, pcount, ret, i, j;
-	struct property *prop = NULL;
-	char name[NAME_MAX];
+	u32 *microvolt, *microamp, *microwatt;
+	int ret = 0, i, j;
+	bool triplet;
 
-	/* Search for "opp-microvolt-<name>" */
-	if (opp_table->prop_name) {
-		snprintf(name, sizeof(name), "opp-microvolt-%s",
-			 opp_table->prop_name);
-		prop = of_find_property(opp->np, name, NULL);
-	}
+	microvolt = opp_parse_microvolt(opp, dev, opp_table, &triplet);
+	if (IS_ERR(microvolt))
+		return PTR_ERR(microvolt);
 
-	if (!prop) {
-		/* Search for "opp-microvolt" */
-		sprintf(name, "opp-microvolt");
-		prop = of_find_property(opp->np, name, NULL);
-
-		/* Missing property isn't a problem, but an invalid entry is */
-		if (!prop) {
-			if (unlikely(supplies == -1)) {
-				/* Initialize regulator_count */
-				opp_table->regulator_count = 0;
-				return 0;
-			}
-
-			if (!supplies)
-				return 0;
-
-			dev_err(dev, "%s: opp-microvolt missing although OPP managing regulators\n",
-				__func__);
-			return -EINVAL;
-		}
-	}
-
-	if (unlikely(supplies == -1)) {
-		/* Initialize regulator_count */
-		supplies = opp_table->regulator_count = 1;
-	} else if (unlikely(!supplies)) {
-		dev_err(dev, "%s: opp-microvolt wasn't expected\n", __func__);
-		return -EINVAL;
-	}
-
-	vcount = of_property_count_u32_elems(opp->np, name);
-	if (vcount < 0) {
-		dev_err(dev, "%s: Invalid %s property (%d)\n",
-			__func__, name, vcount);
-		return vcount;
-	}
-
-	/* There can be one or three elements per supply */
-	if (vcount != supplies && vcount != supplies * 3) {
-		dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
-			__func__, name, vcount, supplies);
-		return -EINVAL;
-	}
-
-	microvolt = kmalloc_array(vcount, sizeof(*microvolt), GFP_KERNEL);
-	if (!microvolt)
-		return -ENOMEM;
-
-	ret = of_property_read_u32_array(opp->np, name, microvolt, vcount);
-	if (ret) {
-		dev_err(dev, "%s: error parsing %s: %d\n", __func__, name, ret);
-		ret = -EINVAL;
+	microamp = _parse_named_prop(opp, dev, opp_table, "microamp", NULL);
+	if (IS_ERR(microamp)) {
+		ret = PTR_ERR(microamp);
 		goto free_microvolt;
 	}
 
-	/* Search for "opp-microamp-<name>" */
-	prop = NULL;
-	if (opp_table->prop_name) {
-		snprintf(name, sizeof(name), "opp-microamp-%s",
-			 opp_table->prop_name);
-		prop = of_find_property(opp->np, name, NULL);
+	microwatt = _parse_named_prop(opp, dev, opp_table, "microwatt", NULL);
+	if (IS_ERR(microwatt)) {
+		ret = PTR_ERR(microwatt);
+		goto free_microamp;
 	}
 
-	if (!prop) {
-		/* Search for "opp-microamp" */
-		sprintf(name, "opp-microamp");
-		prop = of_find_property(opp->np, name, NULL);
+	/*
+	 * Initialize regulator_count if it is uninitialized and no properties
+	 * are found.
+	 */
+	if (unlikely(opp_table->regulator_count == -1)) {
+		opp_table->regulator_count = 0;
+		return 0;
 	}
 
-	if (prop) {
-		icount = of_property_count_u32_elems(opp->np, name);
-		if (icount < 0) {
-			dev_err(dev, "%s: Invalid %s property (%d)\n", __func__,
-				name, icount);
-			ret = icount;
-			goto free_microvolt;
-		}
+	for (i = 0, j = 0; i < opp_table->regulator_count; i++) {
+		if (microvolt) {
+			opp->supplies[i].u_volt = microvolt[j++];
 
-		if (icount != supplies) {
-			dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
-				__func__, name, icount, supplies);
-			ret = -EINVAL;
-			goto free_microvolt;
-		}
-
-		microamp = kmalloc_array(icount, sizeof(*microamp), GFP_KERNEL);
-		if (!microamp) {
-			ret = -EINVAL;
-			goto free_microvolt;
-		}
-
-		ret = of_property_read_u32_array(opp->np, name, microamp,
-						 icount);
-		if (ret) {
-			dev_err(dev, "%s: error parsing %s: %d\n", __func__,
-				name, ret);
-			ret = -EINVAL;
-			goto free_microamp;
-		}
-	}
-
-	/* Search for "opp-microwatt" */
-	sprintf(name, "opp-microwatt");
-	prop = of_find_property(opp->np, name, NULL);
-
-	if (prop) {
-		pcount = of_property_count_u32_elems(opp->np, name);
-		if (pcount < 0) {
-			dev_err(dev, "%s: Invalid %s property (%d)\n", __func__,
-				name, pcount);
-			ret = pcount;
-			goto free_microamp;
-		}
-
-		if (pcount != supplies) {
-			dev_err(dev, "%s: Invalid number of elements in %s property (%d) with supplies (%d)\n",
-				__func__, name, pcount, supplies);
-			ret = -EINVAL;
-			goto free_microamp;
-		}
-
-		microwatt = kmalloc_array(pcount, sizeof(*microwatt),
-					  GFP_KERNEL);
-		if (!microwatt) {
-			ret = -EINVAL;
-			goto free_microamp;
-		}
-
-		ret = of_property_read_u32_array(opp->np, name, microwatt,
-						 pcount);
-		if (ret) {
-			dev_err(dev, "%s: error parsing %s: %d\n", __func__,
-				name, ret);
-			ret = -EINVAL;
-			goto free_microwatt;
-		}
-	}
-
-	for (i = 0, j = 0; i < supplies; i++) {
-		opp->supplies[i].u_volt = microvolt[j++];
-
-		if (vcount == supplies) {
-			opp->supplies[i].u_volt_min = opp->supplies[i].u_volt;
-			opp->supplies[i].u_volt_max = opp->supplies[i].u_volt;
-		} else {
-			opp->supplies[i].u_volt_min = microvolt[j++];
-			opp->supplies[i].u_volt_max = microvolt[j++];
+			if (triplet) {
+				opp->supplies[i].u_volt_min = microvolt[j++];
+				opp->supplies[i].u_volt_max = microvolt[j++];
+			} else {
+				opp->supplies[i].u_volt_min = opp->supplies[i].u_volt;
+				opp->supplies[i].u_volt_max = opp->supplies[i].u_volt;
+			}
 		}
 
 		if (microamp)
@@ -750,7 +733,6 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			opp->supplies[i].u_watt = microwatt[i];
 	}
 
-free_microwatt:
 	kfree(microwatt);
 free_microamp:
 	kfree(microamp);
@@ -959,9 +941,6 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (ret)
 		goto free_required_opps;
 
-	if (opp_table->is_genpd)
-		new_opp->pstate = pm_genpd_opp_to_performance_state(dev, new_opp);
-
 	ret = _opp_add(dev, new_opp, opp_table);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
@@ -1046,14 +1025,6 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 		dev_err(dev, "%s: no supported OPPs", __func__);
 		ret = -ENOENT;
 		goto remove_static_opp;
-	}
-
-	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		/* Any non-zero performance state would enable the feature */
-		if (opp->pstate) {
-			opp_table->genpd_performance_state = true;
-			break;
-		}
 	}
 
 	lazy_link_required_opp_table(opp_table);
@@ -1414,9 +1385,15 @@ int of_get_required_opp_performance_state(struct device_node *np, int index)
 		goto put_required_np;
 	}
 
+	/* The OPP tables must belong to a genpd */
+	if (unlikely(!opp_table->is_genpd)) {
+		pr_err("%s: Performance state is only valid for genpds.\n", __func__);
+		goto put_required_np;
+	}
+
 	opp = _find_opp_of_np(opp_table, required_np);
 	if (opp) {
-		pstate = opp->pstate;
+		pstate = opp->level;
 		dev_pm_opp_put(opp);
 	}
 

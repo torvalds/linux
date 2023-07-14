@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/nvidia,tegra186-dspk.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Tegra186 DSPK Controller Device Tree Bindings
+title: Tegra186 DSPK Controller
 
 description: |
   The Digital Speaker Controller (DSPK) can be viewed as a Pulse
@@ -18,7 +18,7 @@ maintainers:
   - Sameer Pujar <spujar@nvidia.com>
 
 allOf:
-  - $ref: name-prefix.yaml#
+  - $ref: dai-common.yaml#
 
 properties:
   $nodename:

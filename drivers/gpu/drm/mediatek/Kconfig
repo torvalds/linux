@@ -7,7 +7,6 @@ config DRM_MEDIATEK
 	depends on HAVE_ARM_SMCCC
 	depends on OF
 	depends on MTK_MMSYS
-	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL
@@ -20,6 +19,15 @@ config DRM_MEDIATEK
 	  The module will be called mediatek-drm
 	  This driver provides kernel mode setting and
 	  buffer management to userspace.
+
+config DRM_MEDIATEK_DP
+	tristate "DRM DPTX Support for MediaTek SoCs"
+	depends on DRM_MEDIATEK
+	select PHY_MTK_DP
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  DRM/KMS Display Port driver for MediaTek SoCs.
 
 config DRM_MEDIATEK_HDMI
 	tristate "DRM HDMI Support for Mediatek SoCs"

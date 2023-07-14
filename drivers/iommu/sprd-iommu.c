@@ -62,6 +62,7 @@ enum sprd_iommu_version {
  * @eb: gate clock which controls IOMMU access
  */
 struct sprd_iommu_device {
+	struct sprd_iommu_domain	*dom;
 	enum sprd_iommu_version	ver;
 	u32			*prot_page_va;
 	dma_addr_t		prot_page_pa;
@@ -151,13 +152,6 @@ static struct iommu_domain *sprd_iommu_domain_alloc(unsigned int domain_type)
 	return &dom->domain;
 }
 
-static void sprd_iommu_domain_free(struct iommu_domain *domain)
-{
-	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
-
-	kfree(dom);
-}
-
 static void sprd_iommu_first_vpn(struct sprd_iommu_domain *dom)
 {
 	struct sprd_iommu_device *sdev = dom->sdev;
@@ -230,6 +224,28 @@ static void sprd_iommu_hw_en(struct sprd_iommu_device *sdev, bool en)
 	sprd_iommu_update_bits(sdev, reg_cfg, mask, 0, val);
 }
 
+static void sprd_iommu_cleanup(struct sprd_iommu_domain *dom)
+{
+	size_t pgt_size;
+
+	/* Nothing need to do if the domain hasn't been attached */
+	if (!dom->sdev)
+		return;
+
+	pgt_size = sprd_iommu_pgt_size(&dom->domain);
+	dma_free_coherent(dom->sdev->dev, pgt_size, dom->pgt_va, dom->pgt_pa);
+	dom->sdev = NULL;
+	sprd_iommu_hw_en(dom->sdev, false);
+}
+
+static void sprd_iommu_domain_free(struct iommu_domain *domain)
+{
+	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
+
+	sprd_iommu_cleanup(dom);
+	kfree(dom);
+}
+
 static int sprd_iommu_attach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
@@ -237,17 +253,27 @@ static int sprd_iommu_attach_device(struct iommu_domain *domain,
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
 	size_t pgt_size = sprd_iommu_pgt_size(domain);
 
-	if (dom->sdev) {
-		pr_err("There's already a device attached to this domain.\n");
-		return -EINVAL;
+	/* The device is attached to this domain */
+	if (sdev->dom == dom)
+		return 0;
+
+	/* The first time that domain is attaching to a device */
+	if (!dom->pgt_va) {
+		dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
+		if (!dom->pgt_va)
+			return -ENOMEM;
+
+		dom->sdev = sdev;
 	}
 
-	dom->pgt_va = dma_alloc_coherent(sdev->dev, pgt_size, &dom->pgt_pa, GFP_KERNEL);
-	if (!dom->pgt_va)
-		return -ENOMEM;
+	sdev->dom = dom;
 
-	dom->sdev = sdev;
-
+	/*
+	 * One sprd IOMMU serves one client device only, disabled it before
+	 * configure mapping table to avoid access conflict in case other
+	 * mapping table is stored in.
+	 */
+	sprd_iommu_hw_en(sdev, false);
 	sprd_iommu_first_ppn(dom);
 	sprd_iommu_first_vpn(dom);
 	sprd_iommu_vpn_range(dom);
@@ -257,26 +283,12 @@ static int sprd_iommu_attach_device(struct iommu_domain *domain,
 	return 0;
 }
 
-static void sprd_iommu_detach_device(struct iommu_domain *domain,
-					     struct device *dev)
-{
-	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
-	struct sprd_iommu_device *sdev = dom->sdev;
-	size_t pgt_size = sprd_iommu_pgt_size(domain);
-
-	if (!sdev)
-		return;
-
-	dma_free_coherent(sdev->dev, pgt_size, dom->pgt_va, dom->pgt_pa);
-	sprd_iommu_hw_en(sdev, false);
-	dom->sdev = NULL;
-}
-
 static int sprd_iommu_map(struct iommu_domain *domain, unsigned long iova,
-			  phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+			  phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			  int prot, gfp_t gfp, size_t *mapped)
 {
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
-	unsigned int page_num = size >> SPRD_IOMMU_PAGE_SHIFT;
+	size_t size = pgcount * SPRD_IOMMU_PAGE_SIZE;
 	unsigned long flags;
 	unsigned int i;
 	u32 *pgt_base_iova;
@@ -298,35 +310,37 @@ static int sprd_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	pgt_base_iova = dom->pgt_va + ((iova - start) >> SPRD_IOMMU_PAGE_SHIFT);
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
-	for (i = 0; i < page_num; i++) {
+	for (i = 0; i < pgcount; i++) {
 		pgt_base_iova[i] = pabase >> SPRD_IOMMU_PAGE_SHIFT;
 		pabase += SPRD_IOMMU_PAGE_SIZE;
 	}
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
+	*mapped = size;
 	return 0;
 }
 
 static size_t sprd_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			size_t size, struct iommu_iotlb_gather *iotlb_gather)
+			       size_t pgsize, size_t pgcount,
+			       struct iommu_iotlb_gather *iotlb_gather)
 {
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
 	unsigned long flags;
 	u32 *pgt_base_iova;
-	unsigned int page_num = size >> SPRD_IOMMU_PAGE_SHIFT;
+	size_t size = pgcount * SPRD_IOMMU_PAGE_SIZE;
 	unsigned long start = domain->geometry.aperture_start;
 	unsigned long end = domain->geometry.aperture_end;
 
 	if (iova < start || (iova + size) > (end + 1))
-		return -EINVAL;
+		return 0;
 
 	pgt_base_iova = dom->pgt_va + ((iova - start) >> SPRD_IOMMU_PAGE_SHIFT);
 
 	spin_lock_irqsave(&dom->pgtlock, flags);
-	memset(pgt_base_iova, 0, page_num * sizeof(u32));
+	memset(pgt_base_iova, 0, pgcount * sizeof(u32));
 	spin_unlock_irqrestore(&dom->pgtlock, flags);
 
-	return 0;
+	return size;
 }
 
 static void sprd_iommu_sync_map(struct iommu_domain *domain,
@@ -409,13 +423,12 @@ static const struct iommu_ops sprd_iommu_ops = {
 	.probe_device	= sprd_iommu_probe_device,
 	.device_group	= sprd_iommu_device_group,
 	.of_xlate	= sprd_iommu_of_xlate,
-	.pgsize_bitmap	= ~0UL << SPRD_IOMMU_PAGE_SHIFT,
+	.pgsize_bitmap	= SPRD_IOMMU_PAGE_SIZE,
 	.owner		= THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= sprd_iommu_attach_device,
-		.detach_dev	= sprd_iommu_detach_device,
-		.map		= sprd_iommu_map,
-		.unmap		= sprd_iommu_unmap,
+		.map_pages	= sprd_iommu_map,
+		.unmap_pages	= sprd_iommu_unmap,
 		.iotlb_sync_map	= sprd_iommu_sync_map,
 		.iotlb_sync	= sprd_iommu_sync,
 		.iova_to_phys	= sprd_iommu_iova_to_phys,
@@ -496,9 +509,6 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 	if (ret)
 		goto remove_sysfs;
 
-	if (!iommu_present(&platform_bus_type))
-		bus_set_iommu(&platform_bus_type, &sprd_iommu_ops);
-
 	ret = sprd_iommu_clk_enable(sdev);
 	if (ret)
 		goto unregister_iommu;
@@ -525,7 +535,7 @@ free_page:
 	return ret;
 }
 
-static int sprd_iommu_remove(struct platform_device *pdev)
+static void sprd_iommu_remove(struct platform_device *pdev)
 {
 	struct sprd_iommu_device *sdev = platform_get_drvdata(pdev);
 
@@ -534,13 +544,9 @@ static int sprd_iommu_remove(struct platform_device *pdev)
 	iommu_group_put(sdev->group);
 	sdev->group = NULL;
 
-	bus_set_iommu(&platform_bus_type, NULL);
-
 	platform_set_drvdata(pdev, NULL);
 	iommu_device_sysfs_remove(&sdev->iommu);
 	iommu_device_unregister(&sdev->iommu);
-
-	return 0;
 }
 
 static struct platform_driver sprd_iommu_driver = {
@@ -550,7 +556,7 @@ static struct platform_driver sprd_iommu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= sprd_iommu_probe,
-	.remove	= sprd_iommu_remove,
+	.remove_new = sprd_iommu_remove,
 };
 module_platform_driver(sprd_iommu_driver);
 

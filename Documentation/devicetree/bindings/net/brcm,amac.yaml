@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/net/brcm,amac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom AMAC Ethernet Controller Device Tree Bindings
+title: Broadcom AMAC Ethernet Controller
 
 maintainers:
   - Florian Fainelli <f.fainelli@gmail.com>
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
   - if:
       properties:
         compatible:

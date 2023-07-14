@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0
 config FB_SM750
 	tristate "Silicon Motion SM750 framebuffer support"
-	depends on FB && PCI
+	depends on FB && PCI && HAS_IOPORT
 	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select VIDEO_NOMODESET
 	help
 	  Frame buffer driver for the Silicon Motion SM750 chip
-	  with 2D accelearion and dual head support.
+	  with 2D acceleration and dual head support.
 
 	  This driver is also available as a module. The module will be
 	  called sm750fb. If you want to compile it as a module, say M

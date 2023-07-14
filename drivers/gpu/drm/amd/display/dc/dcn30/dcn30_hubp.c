@@ -47,12 +47,8 @@ void hubp3_set_vm_system_aperture_settings(struct hubp *hubp,
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
-	PHYSICAL_ADDRESS_LOC mc_vm_apt_default;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_low;
 	PHYSICAL_ADDRESS_LOC mc_vm_apt_high;
-
-	// The format of default addr is 48:12 of the 48 bit addr
-	mc_vm_apt_default.quad_part = apt->sys_default.quad_part >> 12;
 
 	// The format of high/low are 48:18 of the 48 bit addr
 	mc_vm_apt_low.quad_part = apt->sys_low.quad_part >> 18;
@@ -452,6 +448,12 @@ void hubp3_read_state(struct hubp *hubp)
 		DPTE_GROUP_SIZE_C, &rq_regs->rq_regs_c.dpte_group_size,
 		SWATH_HEIGHT_C, &rq_regs->rq_regs_c.swath_height,
 		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs->rq_regs_c.pte_row_height_linear);
+
+	if (REG(UCLK_PSTATE_FORCE))
+		s->uclk_pstate_force = REG_READ(UCLK_PSTATE_FORCE);
+
+	if (REG(DCHUBP_CNTL))
+		s->hubp_cntl = REG_READ(DCHUBP_CNTL);
 
 }
 

@@ -102,7 +102,7 @@ xfs_trans_dup(
 	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
 	INIT_LIST_HEAD(&ntp->t_dfops);
-	ntp->t_firstblock = NULLFSBLOCK;
+	ntp->t_highest_agno = NULLAGNUMBER;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(tp->t_ticket != NULL);
@@ -278,7 +278,7 @@ retry:
 	INIT_LIST_HEAD(&tp->t_items);
 	INIT_LIST_HEAD(&tp->t_busy);
 	INIT_LIST_HEAD(&tp->t_dfops);
-	tp->t_firstblock = NULLFSBLOCK;
+	tp->t_highest_agno = NULLAGNUMBER;
 
 	error = xfs_trans_reserve(tp, resp, blocks, rtextents);
 	if (error == -ENOSPC && want_retry) {
@@ -290,7 +290,9 @@ retry:
 		 * Do not perform a synchronous scan because callers can hold
 		 * other locks.
 		 */
-		xfs_blockgc_flush_all(mp);
+		error = xfs_blockgc_flush_all(mp);
+		if (error)
+			return error;
 		want_retry = false;
 		goto retry;
 	}
@@ -970,6 +972,11 @@ __xfs_trans_commit(
 		error = xfs_defer_finish_noroll(&tp);
 		if (error)
 			goto out_unreserve;
+
+		/* Run precommits from final tx in defer chain. */
+		error = xfs_trans_run_precommits(tp);
+		if (error)
+			goto out_unreserve;
 	}
 
 	/*
@@ -1078,10 +1085,10 @@ xfs_trans_cancel(
 	/*
 	 * It's never valid to cancel a transaction with deferred ops attached,
 	 * because the transaction is effectively dirty.  Complain about this
-	 * loudly before freeing the in-memory defer items.
+	 * loudly before freeing the in-memory defer items and shutting down the
+	 * filesystem.
 	 */
 	if (!list_empty(&tp->t_dfops)) {
-		ASSERT(xfs_is_shutdown(mp) || list_empty(&tp->t_dfops));
 		ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 		dirty = true;
 		xfs_defer_cancel(tp);

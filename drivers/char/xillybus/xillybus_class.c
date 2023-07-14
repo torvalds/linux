@@ -23,7 +23,9 @@ MODULE_LICENSE("GPL v2");
 
 static DEFINE_MUTEX(unit_mutex);
 static LIST_HEAD(unit_list);
-static struct class *xillybus_class;
+static const struct class xillybus_class = {
+	.name = "xillybus",
+};
 
 #define UNITNAMELEN 16
 
@@ -121,7 +123,7 @@ int xillybus_init_chrdev(struct device *dev,
 		len -= namelen + 1;
 		idt += namelen + 1;
 
-		device = device_create(xillybus_class,
+		device = device_create(&xillybus_class,
 				       NULL,
 				       MKDEV(unit->major,
 					     i + unit->lowest_minor),
@@ -152,7 +154,7 @@ int xillybus_init_chrdev(struct device *dev,
 
 unroll_device_create:
 	for (i--; i >= 0; i--)
-		device_destroy(xillybus_class, MKDEV(unit->major,
+		device_destroy(&xillybus_class, MKDEV(unit->major,
 						     i + unit->lowest_minor));
 
 	cdev_del(unit->cdev);
@@ -193,7 +195,7 @@ void xillybus_cleanup_chrdev(void *private_data,
 	for (minor = unit->lowest_minor;
 	     minor < (unit->lowest_minor + unit->num_nodes);
 	     minor++)
-		device_destroy(xillybus_class, MKDEV(unit->major, minor));
+		device_destroy(&xillybus_class, MKDEV(unit->major, minor));
 
 	cdev_del(unit->cdev);
 
@@ -227,33 +229,27 @@ int xillybus_find_inode(struct inode *inode,
 			break;
 		}
 
-	mutex_unlock(&unit_mutex);
-
-	if (!unit)
+	if (!unit) {
+		mutex_unlock(&unit_mutex);
 		return -ENODEV;
+	}
 
 	*private_data = unit->private_data;
 	*index = minor - unit->lowest_minor;
 
+	mutex_unlock(&unit_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(xillybus_find_inode);
 
 static int __init xillybus_class_init(void)
 {
-	xillybus_class = class_create(THIS_MODULE, "xillybus");
-
-	if (IS_ERR(xillybus_class)) {
-		pr_warn("Failed to register xillybus class\n");
-
-		return PTR_ERR(xillybus_class);
-	}
-	return 0;
+	return class_register(&xillybus_class);
 }
 
 static void __exit xillybus_class_exit(void)
 {
-	class_destroy(xillybus_class);
+	class_unregister(&xillybus_class);
 }
 
 module_init(xillybus_class_init);

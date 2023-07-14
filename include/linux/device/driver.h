@@ -95,7 +95,7 @@ enum probe_type {
  */
 struct device_driver {
 	const char		*name;
-	struct bus_type		*bus;
+	const struct bus_type	*bus;
 
 	struct module		*owner;
 	const char		*mod_name;	/* used for built-in modules */
@@ -122,13 +122,12 @@ struct device_driver {
 };
 
 
-extern int __must_check driver_register(struct device_driver *drv);
-extern void driver_unregister(struct device_driver *drv);
+int __must_check driver_register(struct device_driver *drv);
+void driver_unregister(struct device_driver *drv);
 
-extern struct device_driver *driver_find(const char *name,
-					 struct bus_type *bus);
-extern int driver_probe_done(void);
-extern void wait_for_device_probe(void);
+struct device_driver *driver_find(const char *name, const struct bus_type *bus);
+bool __init driver_probe_done(void);
+void wait_for_device_probe(void);
 void __init wait_for_init_devices_probe(void);
 
 /* sysfs interface for exporting driver attributes */
@@ -147,18 +146,15 @@ struct driver_attribute {
 #define DRIVER_ATTR_WO(_name) \
 	struct driver_attribute driver_attr_##_name = __ATTR_WO(_name)
 
-extern int __must_check driver_create_file(struct device_driver *driver,
-					const struct driver_attribute *attr);
-extern void driver_remove_file(struct device_driver *driver,
-			       const struct driver_attribute *attr);
+int __must_check driver_create_file(struct device_driver *driver,
+				    const struct driver_attribute *attr);
+void driver_remove_file(struct device_driver *driver,
+			const struct driver_attribute *attr);
 
 int driver_set_override(struct device *dev, const char **override,
 			const char *s, size_t len);
-extern int __must_check driver_for_each_device(struct device_driver *drv,
-					       struct device *start,
-					       void *data,
-					       int (*fn)(struct device *dev,
-							 void *));
+int __must_check driver_for_each_device(struct device_driver *drv, struct device *start,
+					void *data, int (*fn)(struct device *dev, void *));
 struct device *driver_find_device(struct device_driver *drv,
 				  struct device *start, const void *data,
 				  int (*match)(struct device *dev, const void *data));
@@ -240,7 +236,6 @@ driver_find_device_by_acpi_dev(struct device_driver *drv, const void *adev)
 }
 #endif
 
-extern int driver_deferred_probe_timeout;
 void driver_deferred_probe_add(struct device *dev);
 int driver_deferred_probe_check_state(struct device *dev);
 void driver_init(void);

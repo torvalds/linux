@@ -125,8 +125,7 @@ static irqreturn_t int0002_irq(int irq, void *data)
 	if (!(gpe_sts_reg & GPE0A_PME_B0_STS_BIT))
 		return IRQ_NONE;
 
-	generic_handle_irq(irq_find_mapping(chip->irq.domain,
-					    GPE0A_PME_B0_VIRT_GPIO_PIN));
+	generic_handle_domain_irq_safe(chip->irq.domain, GPE0A_PME_B0_VIRT_GPIO_PIN);
 
 	pm_wakeup_hard_event(chip->parent);
 
@@ -224,11 +223,10 @@ static int int0002_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int int0002_remove(struct platform_device *pdev)
+static void int0002_remove(struct platform_device *pdev)
 {
 	device_init_wakeup(&pdev->dev, false);
 	acpi_unregister_wakeup_handler(int0002_check_wake, NULL);
-	return 0;
 }
 
 static int int0002_suspend(struct device *dev)
@@ -274,7 +272,7 @@ static struct platform_driver int0002_driver = {
 		.pm			= &int0002_pm_ops,
 	},
 	.probe	= int0002_probe,
-	.remove	= int0002_remove,
+	.remove_new = int0002_remove,
 };
 
 module_platform_driver(int0002_driver);

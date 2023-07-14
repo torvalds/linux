@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2003 Jana Saout <jana@saout.de>
  *
@@ -26,6 +27,7 @@ static int zero_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	 * Silently drop discards, avoiding -EOPNOTSUPP.
 	 */
 	ti->num_discard_bios = 1;
+	ti->discards_supported = true;
 
 	return 0;
 }
@@ -44,6 +46,7 @@ static int zero_map(struct dm_target *ti, struct bio *bio)
 		zero_fill_bio(bio);
 		break;
 	case REQ_OP_WRITE:
+	case REQ_OP_DISCARD:
 		/* writes get silently dropped */
 		break;
 	default:
@@ -56,32 +59,23 @@ static int zero_map(struct dm_target *ti, struct bio *bio)
 	return DM_MAPIO_SUBMITTED;
 }
 
+static void zero_io_hints(struct dm_target *ti, struct queue_limits *limits)
+{
+	limits->max_discard_sectors = UINT_MAX;
+	limits->max_hw_discard_sectors = UINT_MAX;
+	limits->discard_granularity = 512;
+}
+
 static struct target_type zero_target = {
 	.name   = "zero",
-	.version = {1, 1, 0},
+	.version = {1, 2, 0},
 	.features = DM_TARGET_NOWAIT,
 	.module = THIS_MODULE,
 	.ctr    = zero_ctr,
 	.map    = zero_map,
+	.io_hints = zero_io_hints,
 };
-
-static int __init dm_zero_init(void)
-{
-	int r = dm_register_target(&zero_target);
-
-	if (r < 0)
-		DMERR("register failed %d", r);
-
-	return r;
-}
-
-static void __exit dm_zero_exit(void)
-{
-	dm_unregister_target(&zero_target);
-}
-
-module_init(dm_zero_init)
-module_exit(dm_zero_exit)
+module_dm(zero);
 
 MODULE_AUTHOR("Jana Saout <jana@saout.de>");
 MODULE_DESCRIPTION(DM_NAME " dummy target returning zeros");

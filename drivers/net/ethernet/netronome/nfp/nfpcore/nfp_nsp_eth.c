@@ -227,6 +227,30 @@ nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
 		entry->port_type = PORT_DA;
 }
 
+static void
+nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_nsp *nsp, struct nfp_eth_table_port *entry)
+{
+	struct nfp_eth_media_buf ethm = {
+		.eth_index = entry->eth_index,
+	};
+	unsigned int i;
+	int ret;
+
+	if (!nfp_nsp_has_read_media(nsp))
+		return;
+
+	ret = nfp_nsp_read_media(nsp, &ethm, sizeof(ethm));
+	if (ret) {
+		nfp_err(cpp, "Reading media link modes failed: %d\n", ret);
+		return;
+	}
+
+	for (i = 0; i < 2; i++) {
+		entry->link_modes_supp[i] = le64_to_cpu(ethm.supported_modes[i]);
+		entry->link_modes_ad[i] = le64_to_cpu(ethm.advertised_modes[i]);
+	}
+}
+
 /**
  * nfp_eth_read_ports() - retrieve port information
  * @cpp:	NFP CPP handle
@@ -293,8 +317,10 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 					       &table->ports[j++]);
 
 	nfp_eth_calc_port_geometry(cpp, table);
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
 		nfp_eth_calc_port_type(cpp, &table->ports[i]);
+		nfp_eth_read_media(cpp, nsp, &table->ports[i]);
+	}
 
 	kfree(entries);
 

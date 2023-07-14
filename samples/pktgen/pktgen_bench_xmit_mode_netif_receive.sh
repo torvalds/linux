@@ -33,6 +33,10 @@ root_check_run_with_sudo "$@"
 
 # Parameter parsing via include
 source ${basedir}/parameters.sh
+
+# Trap EXIT first
+trap_exit
+
 # Using invalid DST_MAC will cause the packets to get dropped in
 # ip_rcv() which is part of the test
 if [ -z "$DEST_IP" ]; then

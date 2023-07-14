@@ -274,29 +274,22 @@ static int mt7628_pci_hw_init(struct platform_device *pdev)
 	val |= 0x50 << 8;
 	pci_config_write(NULL, 0, 0x70c, 4, val);
 
-	pci_config_read(NULL, 0, 0x70c, 4, &val);
-	dev_err(&pdev->dev, "Port 0 N_FTS = %x\n", (unsigned int) val);
-
 	return 0;
 }
 
 static int mt7620_pci_probe(struct platform_device *pdev)
 {
-	struct resource *bridge_res = platform_get_resource(pdev,
-							    IORESOURCE_MEM, 0);
-	struct resource *pcie_res = platform_get_resource(pdev,
-							  IORESOURCE_MEM, 1);
 	u32 val = 0;
 
 	rstpcie0 = devm_reset_control_get_exclusive(&pdev->dev, "pcie0");
 	if (IS_ERR(rstpcie0))
 		return PTR_ERR(rstpcie0);
 
-	bridge_base = devm_ioremap_resource(&pdev->dev, bridge_res);
+	bridge_base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(bridge_base))
 		return PTR_ERR(bridge_base);
 
-	pcie_base = devm_ioremap_resource(&pdev->dev, pcie_res);
+	pcie_base = devm_platform_get_and_ioremap_resource(pdev, 1, NULL);
 	if (IS_ERR(pcie_base))
 		return PTR_ERR(pcie_base);
 
@@ -334,7 +327,7 @@ static int mt7620_pci_probe(struct platform_device *pdev)
 		rt_sysc_m32(RALINK_PCIE0_CLK_EN, 0, RALINK_CLKCFG1);
 		if (ralink_soc == MT762X_SOC_MT7620A)
 			rt_sysc_m32(LC_CKDRVPD, PDRV_SW_SET, PPLL_DRV);
-		dev_err(&pdev->dev, "PCIE0 no card, disable it(RST&CLK)\n");
+		dev_info(&pdev->dev, "PCIE0 no card, disable it(RST&CLK)\n");
 		return -1;
 	}
 
@@ -377,7 +370,7 @@ int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 			dev->bus->number, slot);
 		return 0;
 	}
-	dev_err(&dev->dev, "card - bus=0x%x, slot = 0x%x irq=%d\n",
+	dev_info(&dev->dev, "card - bus=0x%x, slot = 0x%x irq=%d\n",
 		dev->bus->number, slot, irq);
 
 	/* configure the cache line size to 0x14 */

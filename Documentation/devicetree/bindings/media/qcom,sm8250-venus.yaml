@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
-
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/media/qcom,sm8250-venus.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/media/qcom,sm8250-venus.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Venus video encode and decode accelerators
+title: Qualcomm SM8250 Venus video encode and decode accelerators
 
 maintainers:
   - Stanimir Varbanov <stanimir.varbanov@linaro.org>
@@ -14,15 +13,12 @@ description: |
   The Venus IP is a video encode and decode accelerator present
   on Qualcomm platforms
 
+allOf:
+  - $ref: qcom,venus-common.yaml#
+
 properties:
   compatible:
     const: qcom,sm8250-venus
-
-  reg:
-    maxItems: 1
-
-  interrupts:
-    maxItems: 1
 
   power-domains:
     minItems: 2
@@ -47,9 +43,6 @@ properties:
   iommus:
     maxItems: 1
 
-  memory-region:
-    maxItems: 1
-
   interconnects:
     maxItems: 2
 
@@ -57,6 +50,10 @@ properties:
     items:
       - const: cpu-cfg
       - const: video-mem
+
+  operating-points-v2: true
+  opp-table:
+    type: object
 
   resets:
     maxItems: 2
@@ -90,77 +87,57 @@ properties:
 
     additionalProperties: false
 
-  video-firmware:
-    type: object
-
-    description: |
-      Firmware subnode is needed when the platform does not
-      have TrustZone.
-
-    properties:
-      iommus:
-        maxItems: 1
-
-    required:
-      - iommus
-
 required:
   - compatible
-  - reg
-  - interrupts
-  - power-domains
   - power-domain-names
-  - clocks
-  - clock-names
   - interconnects
   - interconnect-names
   - iommus
-  - memory-region
   - resets
   - reset-names
   - video-decoder
   - video-encoder
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
-        #include <dt-bindings/interrupt-controller/arm-gic.h>
-        #include <dt-bindings/clock/qcom,videocc-sm8250.h>
-        #include <dt-bindings/interconnect/qcom,sm8250.h>
-        #include <dt-bindings/clock/qcom,gcc-sm8250.h>
-        #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/qcom,videocc-sm8250.h>
+    #include <dt-bindings/interconnect/qcom,sm8250.h>
+    #include <dt-bindings/clock/qcom,gcc-sm8250.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
-        venus: video-codec@aa00000 {
-            compatible = "qcom,sm8250-venus";
-            reg = <0x0aa00000 0xff000>;
-            interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
-            power-domains = <&videocc MVS0C_GDSC>,
-                            <&videocc MVS0_GDSC>,
-                            <&rpmhpd SM8250_MX>;
-            power-domain-names = "venus", "vcodec0", "mx";
+    venus: video-codec@aa00000 {
+        compatible = "qcom,sm8250-venus";
+        reg = <0x0aa00000 0xff000>;
+        interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+        power-domains = <&videocc MVS0C_GDSC>,
+                        <&videocc MVS0_GDSC>,
+                        <&rpmhpd SM8250_MX>;
+        power-domain-names = "venus", "vcodec0", "mx";
 
-            clocks = <&gcc GCC_VIDEO_AXI0_CLK>,
-                     <&videocc VIDEO_CC_MVS0C_CLK>,
-                     <&videocc VIDEO_CC_MVS0_CLK>;
-            clock-names = "iface", "core", "vcodec0_core";
+        clocks = <&gcc GCC_VIDEO_AXI0_CLK>,
+                 <&videocc VIDEO_CC_MVS0C_CLK>,
+                 <&videocc VIDEO_CC_MVS0_CLK>;
+        clock-names = "iface", "core", "vcodec0_core";
 
-            interconnects = <&gem_noc MASTER_AMPSS_M0 &config_noc SLAVE_VENUS_CFG>,
-                            <&mmss_noc MASTER_VIDEO_P0 &mc_virt SLAVE_EBI_CH0>;
-            interconnect-names = "cpu-cfg", "video-mem";
+        interconnects = <&gem_noc MASTER_AMPSS_M0 &config_noc SLAVE_VENUS_CFG>,
+                        <&mmss_noc MASTER_VIDEO_P0 &mc_virt SLAVE_EBI_CH0>;
+        interconnect-names = "cpu-cfg", "video-mem";
 
-            iommus = <&apps_smmu 0x2100 0x0400>;
-            memory-region = <&video_mem>;
+        iommus = <&apps_smmu 0x2100 0x0400>;
+        memory-region = <&video_mem>;
 
-            resets = <&gcc GCC_VIDEO_AXI0_CLK_ARES>,
-                     <&videocc VIDEO_CC_MVS0C_CLK_ARES>;
-            reset-names = "bus", "core";
+        resets = <&gcc GCC_VIDEO_AXI0_CLK_ARES>,
+                 <&videocc VIDEO_CC_MVS0C_CLK_ARES>;
+        reset-names = "bus", "core";
 
-            video-decoder {
-                compatible = "venus-decoder";
-            };
-
-            video-encoder {
-                compatible = "venus-encoder";
-            };
+        video-decoder {
+            compatible = "venus-decoder";
         };
+
+        video-encoder {
+            compatible = "venus-encoder";
+        };
+    };

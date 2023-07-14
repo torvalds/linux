@@ -26,6 +26,8 @@
  *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
  *   Port from Qemu.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
@@ -35,7 +37,7 @@
 #include "trace.h"
 
 #define pr_pic_unimpl(fmt, ...)	\
-	pr_err_ratelimited("kvm: pic: " fmt, ## __VA_ARGS__)
+	pr_err_ratelimited("pic: " fmt, ## __VA_ARGS__)
 
 static void pic_irq_request(struct kvm *kvm, int level);
 
@@ -409,7 +411,10 @@ static u32 pic_poll_read(struct kvm_kpic_state *s, u32 addr1)
 		pic_clear_isr(s, ret);
 		if (addr1 >> 7 || ret != 2)
 			pic_update_irq(s->pics_state);
+		/* Bit 7 is 1, means there's an interrupt */
+		ret |= 0x80;
 	} else {
+		/* Bit 7 is 0, means there's no interrupt */
 		ret = 0x07;
 		pic_update_irq(s->pics_state);
 	}

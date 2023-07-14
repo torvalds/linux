@@ -115,9 +115,6 @@ static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
 		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
 					 BLSSI_READBACK_DATA);
 
-	retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
-				 BLSSI_READBACK_DATA);
-
 	rtl_dbg(rtlpriv, COMP_RF, DBG_TRACE, "RFR-%d Addr[0x%x]=0x%x\n",
 		rfpath, pphyreg->rf_rb, retvalue);
 

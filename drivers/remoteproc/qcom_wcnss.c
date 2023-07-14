@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
 #include <linux/soc/qcom/mdt_loader.h>
@@ -141,9 +141,20 @@ static const struct wcnss_data pronto_v2_data = {
 	.num_vregs = 1,
 };
 
+static const struct wcnss_data pronto_v3_data = {
+	.pmu_offset = 0x1004,
+	.spare_offset = 0x1088,
+
+	.pd_names = { "mx", "cx" },
+	.vregs = (struct wcnss_vreg_info[]) {
+		{ "vddpx", 1800000, 1800000, 0 },
+	},
+	.num_vregs = 1,
+};
+
 static int wcnss_load(struct rproc *rproc, const struct firmware *fw)
 {
-	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
+	struct qcom_wcnss *wcnss = rproc->priv;
 	int ret;
 
 	ret = qcom_mdt_load(wcnss->dev, fw, rproc->firmware, WCNSS_PAS_ID,
@@ -216,7 +227,7 @@ static void wcnss_configure_iris(struct qcom_wcnss *wcnss)
 
 static int wcnss_start(struct rproc *rproc)
 {
-	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
+	struct qcom_wcnss *wcnss = rproc->priv;
 	int ret, i;
 
 	mutex_lock(&wcnss->iris_lock);
@@ -282,7 +293,7 @@ release_iris_lock:
 
 static int wcnss_stop(struct rproc *rproc)
 {
-	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
+	struct qcom_wcnss *wcnss = rproc->priv;
 	int ret;
 
 	if (wcnss->state) {
@@ -309,7 +320,7 @@ static int wcnss_stop(struct rproc *rproc)
 
 static void *wcnss_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
-	struct qcom_wcnss *wcnss = (struct qcom_wcnss *)rproc->priv;
+	struct qcom_wcnss *wcnss = rproc->priv;
 	int offset;
 
 	offset = da - wcnss->mem_reloc;
@@ -555,7 +566,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	}
 	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
 
-	wcnss = (struct qcom_wcnss *)rproc->priv;
+	wcnss = rproc->priv;
 	wcnss->dev = &pdev->dev;
 	wcnss->rproc = rproc;
 	platform_set_drvdata(pdev, wcnss);
@@ -655,7 +666,7 @@ free_rproc:
 	return ret;
 }
 
-static int wcnss_remove(struct platform_device *pdev)
+static void wcnss_remove(struct platform_device *pdev)
 {
 	struct qcom_wcnss *wcnss = platform_get_drvdata(pdev);
 
@@ -667,21 +678,20 @@ static int wcnss_remove(struct platform_device *pdev)
 	qcom_remove_smd_subdev(wcnss->rproc, &wcnss->smd_subdev);
 	wcnss_release_pds(wcnss);
 	rproc_free(wcnss->rproc);
-
-	return 0;
 }
 
 static const struct of_device_id wcnss_of_match[] = {
 	{ .compatible = "qcom,riva-pil", &riva_data },
 	{ .compatible = "qcom,pronto-v1-pil", &pronto_v1_data },
 	{ .compatible = "qcom,pronto-v2-pil", &pronto_v2_data },
+	{ .compatible = "qcom,pronto-v3-pil", &pronto_v3_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, wcnss_of_match);
 
 static struct platform_driver wcnss_driver = {
 	.probe = wcnss_probe,
-	.remove = wcnss_remove,
+	.remove_new = wcnss_remove,
 	.driver = {
 		.name = "qcom-wcnss-pil",
 		.of_match_table = wcnss_of_match,

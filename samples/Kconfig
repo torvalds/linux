@@ -38,13 +38,20 @@ config SAMPLE_FTRACE_DIRECT
 	  that hooks to wake_up_process and prints the parameters.
 
 config SAMPLE_FTRACE_DIRECT_MULTI
-	tristate "Build register_ftrace_direct_multi() example"
+	tristate "Build register_ftrace_direct() on multiple ips example"
 	depends on DYNAMIC_FTRACE_WITH_DIRECT_CALLS && m
 	depends on HAVE_SAMPLE_FTRACE_DIRECT_MULTI
 	help
 	  This builds an ftrace direct function example
 	  that hooks to wake_up_process and schedule, and prints
 	  the function addresses.
+
+config SAMPLE_FTRACE_OPS
+	tristate "Build custom ftrace ops example"
+	depends on FUNCTION_TRACER
+	help
+	  This builds an ftrace ops example that hooks two functions and
+	  measures the time taken to invoke one function a number of times.
 
 config SAMPLE_TRACE_ARRAY
         tristate "Build sample module for kernel access to Ftrace instancess"
@@ -184,23 +191,25 @@ config SAMPLE_UHID
 	  Build UHID sample program.
 
 config SAMPLE_VFIO_MDEV_MTTY
-	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"
-	depends on VFIO_MDEV && m
+	tristate "Build VFIO mtty example mediated device sample code"
+	depends on VFIO
+	select VFIO_MDEV
 	help
 	  Build a virtual tty sample driver for use as a VFIO
 	  mediated device
 
 config SAMPLE_VFIO_MDEV_MDPY
-	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
-	depends on VFIO_MDEV && m
+	tristate "Build VFIO mdpy example mediated device sample code"
+	depends on VFIO
+	select VFIO_MDEV
 	help
 	  Build a virtual display sample driver for use as a VFIO
 	  mediated device.  It is a simple framebuffer and supports
 	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
 
 config SAMPLE_VFIO_MDEV_MDPY_FB
-	tristate "Build VFIO mdpy example guest fbdev driver -- loadable module only"
-	depends on FB && m
+	tristate "Build VFIO mdpy example guest fbdev driver"
+	depends on FB
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -208,8 +217,9 @@ config SAMPLE_VFIO_MDEV_MDPY_FB
 	  Guest fbdev driver for the virtual display sample driver.
 
 config SAMPLE_VFIO_MDEV_MBOCHS
-	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
-	depends on VFIO_MDEV && m
+	tristate "Build VFIO mbochs example mediated device sample code"
+	depends on VFIO
+	select VFIO_MDEV
 	select DMA_SHARED_BUFFER
 	help
 	  Build a virtual display sample driver for use as a VFIO
@@ -243,6 +253,13 @@ config SAMPLE_INTEL_MEI
 	help
 	  Build a sample program to work with mei device.
 
+config SAMPLE_TPS6594_PFSM
+	bool "Build example program working with TPS6594 PFSM driver"
+	depends on HEADERS_INSTALL
+	depends on CC_CAN_LINK
+	help
+	  Build a sample program to work with PFSM devices.
+
 config SAMPLE_WATCHDOG
 	bool "watchdog sample"
 	depends on CC_CAN_LINK
@@ -262,6 +279,13 @@ config SAMPLE_CORESIGHT_SYSCFG
 	  and configuration using the CoreSight system configuration API.
 	  This demonstrates how a user may create their own CoreSight
 	  configurations and easily load them into the system at runtime.
+
+config SAMPLE_KMEMLEAK
+        tristate "Simple test for the kernel memory leak detector"
+        depends on DEBUG_KMEMLEAK && m
+        help
+          Build a sample program which have explicitly leaks memory to test
+          kmemleak
 
 source "samples/rust/Kconfig"
 

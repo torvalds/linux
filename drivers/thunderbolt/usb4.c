@@ -9,11 +9,13 @@
 
 #include <linux/delay.h>
 #include <linux/ktime.h>
+#include <linux/units.h>
 
 #include "sb_regs.h"
 #include "tb.h"
 
 #define USB4_DATA_RETRIES		3
+#define USB4_DATA_DWORDS		16
 
 enum usb4_sb_target {
 	USB4_SB_TARGET_ROUTER,
@@ -111,7 +113,7 @@ static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 {
 	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
 
-	if (tx_dwords > NVM_DATA_DWORDS || rx_dwords > NVM_DATA_DWORDS)
+	if (tx_dwords > USB4_DATA_DWORDS || rx_dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	/*
@@ -155,6 +157,8 @@ static inline int usb4_switch_op_data(struct tb_switch *sw, u16 opcode,
 
 static void usb4_switch_check_wakes(struct tb_switch *sw)
 {
+	bool wakeup_usb4 = false;
+	struct usb4_port *usb4;
 	struct tb_port *port;
 	bool wakeup = false;
 	u32 val;
@@ -173,20 +177,31 @@ static void usb4_switch_check_wakes(struct tb_switch *sw)
 		wakeup = val & (ROUTER_CS_6_WOPS | ROUTER_CS_6_WOUS);
 	}
 
-	/* Check for any connected downstream ports for USB4 wake */
+	/*
+	 * Check for any downstream ports for USB4 wake,
+	 * connection wake and disconnection wake.
+	 */
 	tb_switch_for_each_port(sw, port) {
-		if (!tb_port_has_remote(port))
+		if (!port->cap_usb4)
 			continue;
 
 		if (tb_port_read(port, &val, TB_CFG_PORT,
 				 port->cap_usb4 + PORT_CS_18, 1))
 			break;
 
-		tb_port_dbg(port, "USB4 wake: %s\n",
-			    (val & PORT_CS_18_WOU4S) ? "yes" : "no");
+		tb_port_dbg(port, "USB4 wake: %s, connection wake: %s, disconnection wake: %s\n",
+			    (val & PORT_CS_18_WOU4S) ? "yes" : "no",
+			    (val & PORT_CS_18_WOCS) ? "yes" : "no",
+			    (val & PORT_CS_18_WODS) ? "yes" : "no");
 
-		if (val & PORT_CS_18_WOU4S)
-			wakeup = true;
+		wakeup_usb4 = val & (PORT_CS_18_WOU4S | PORT_CS_18_WOCS |
+				     PORT_CS_18_WODS);
+
+		usb4 = port->usb4;
+		if (device_may_wakeup(&usb4->dev) && wakeup_usb4)
+			pm_wakeup_event(&usb4->dev, 0);
+
+		wakeup |= wakeup_usb4;
 	}
 
 	if (wakeup)
@@ -217,11 +232,14 @@ static bool link_is_usb4(struct tb_port *port)
  * is not available for some reason (like that there is Thunderbolt 3
  * switch upstream) then the internal xHCI controller is enabled
  * instead.
+ *
+ * This does not set the configuration valid bit of the router. To do
+ * that call usb4_switch_configuration_valid().
  */
 int usb4_switch_setup(struct tb_switch *sw)
 {
-	struct tb_port *downstream_port;
-	struct tb_switch *parent;
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *down;
 	bool tbt3, xhci;
 	u32 val = 0;
 	int ret;
@@ -235,9 +253,8 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	parent = tb_switch_parent(sw);
-	downstream_port = tb_port_at(tb_route(sw), parent);
-	sw->link_usb4 = link_is_usb4(downstream_port);
+	down = tb_switch_downstream_port(sw);
+	sw->link_usb4 = link_is_usb4(down);
 	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT");
 
 	xhci = val & ROUTER_CS_6_HCI;
@@ -274,7 +291,33 @@ int usb4_switch_setup(struct tb_switch *sw)
 
 	/* TBT3 supported by the CM */
 	val |= ROUTER_CS_5_C3S;
-	/* Tunneling configuration is ready now */
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+}
+
+/**
+ * usb4_switch_configuration_valid() - Set tunneling configuration to be valid
+ * @sw: USB4 router
+ *
+ * Sets configuration valid bit for the router. Must be called before
+ * any tunnels can be set through the router and after
+ * usb4_switch_setup() has been called. Can be called to host and device
+ * routers (does nothing for the latter).
+ *
+ * Returns %0 in success and negative errno otherwise.
+ */
+int usb4_switch_configuration_valid(struct tb_switch *sw)
+{
+	u32 val;
+	int ret;
+
+	if (!tb_route(sw))
+		return 0;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+	if (ret)
+		return ret;
+
 	val |= ROUTER_CS_5_CV;
 
 	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
@@ -366,6 +409,7 @@ bool usb4_switch_lane_bonding_possible(struct tb_switch *sw)
  */
 int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 {
+	struct usb4_port *usb4;
 	struct tb_port *port;
 	u64 route = tb_route(sw);
 	u32 val;
@@ -395,10 +439,13 @@ int usb4_switch_set_wake(struct tb_switch *sw, unsigned int flags)
 			val |= PORT_CS_19_WOU4;
 		} else {
 			bool configured = val & PORT_CS_19_PC;
+			usb4 = port->usb4;
 
-			if ((flags & TB_WAKE_ON_CONNECT) && !configured)
+			if (((flags & TB_WAKE_ON_CONNECT) |
+			      device_may_wakeup(&usb4->dev)) && !configured)
 				val |= PORT_CS_19_WOC;
-			if ((flags & TB_WAKE_ON_DISCONNECT) && configured)
+			if (((flags & TB_WAKE_ON_DISCONNECT) |
+			      device_may_wakeup(&usb4->dev)) && configured)
 				val |= PORT_CS_19_WOD;
 			if ((flags & TB_WAKE_ON_USB4) && configured)
 				val |= PORT_CS_19_WOU4;
@@ -685,7 +732,7 @@ int usb4_switch_credits_init(struct tb_switch *sw)
 	int max_usb3, min_dp_aux, min_dp_main, max_pcie, max_dma;
 	int ret, length, i, nports;
 	const struct tb_port *port;
-	u32 data[NVM_DATA_DWORDS];
+	u32 data[USB4_DATA_DWORDS];
 	u32 metadata = 0;
 	u8 status = 0;
 
@@ -834,7 +881,7 @@ bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
 	 */
 	if (ret == -EOPNOTSUPP)
 		return true;
-	else if (ret)
+	if (ret)
 		return false;
 
 	return !status;
@@ -860,7 +907,7 @@ int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EBUSY : 0;
@@ -883,7 +930,7 @@ int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 			     &status);
 	if (ret == -EOPNOTSUPP)
 		return 0;
-	else if (ret)
+	if (ret)
 		return ret;
 
 	return status ? -EIO : 0;
@@ -1046,6 +1093,26 @@ int usb4_port_unlock(struct tb_port *port)
 	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_4, 1);
 }
 
+/**
+ * usb4_port_hotplug_enable() - Enables hotplug for a port
+ * @port: USB4 port to operate on
+ *
+ * Enables hot plug events on a given port. This is only intended
+ * to be used on lane, DP-IN, and DP-OUT adapters.
+ */
+int usb4_port_hotplug_enable(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT, ADP_CS_5, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_CS_5_DHP;
+	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_5, 1);
+}
+
 static int usb4_port_set_configured(struct tb_port *port, bool configured)
 {
 	int ret;
@@ -1161,7 +1228,7 @@ static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 
 static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 {
-	if (dwords > NVM_DATA_DWORDS)
+	if (dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_read(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1171,7 +1238,7 @@ static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 static int usb4_port_write_data(struct tb_port *port, const void *data,
 				size_t dwords)
 {
-	if (dwords > NVM_DATA_DWORDS)
+	if (dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_write(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1265,6 +1332,20 @@ static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 	return 0;
 }
 
+static int usb4_port_sb_opcode_err_to_errno(u32 val)
+{
+	switch (val) {
+	case 0:
+		return 0;
+	case USB4_SB_OPCODE_ERR:
+		return -EAGAIN;
+	case USB4_SB_OPCODE_ONS:
+		return -EOPNOTSUPP;
+	default:
+		return -EIO;
+	}
+}
+
 static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 			   u8 index, enum usb4_sb_opcode opcode, int timeout_msec)
 {
@@ -1287,21 +1368,8 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 		if (ret)
 			return ret;
 
-		switch (val) {
-		case 0:
-			return 0;
-
-		case USB4_SB_OPCODE_ERR:
-			return -EAGAIN;
-
-		case USB4_SB_OPCODE_ONS:
-			return -EOPNOTSUPP;
-
-		default:
-			if (val != opcode)
-				return -EIO;
-			break;
-		}
+		if (val != opcode)
+			return usb4_port_sb_opcode_err_to_errno(val);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1386,6 +1454,126 @@ bool usb4_port_clx_supported(struct tb_port *port)
 	return !!(val & PORT_CS_18_CPS);
 }
 
+/**
+ * usb4_port_margining_caps() - Read USB4 port marginig capabilities
+ * @port: USB4 port
+ * @caps: Array with at least two elements to hold the results
+ *
+ * Reads the USB4 port lane margining capabilities into @caps.
+ */
+int usb4_port_margining_caps(struct tb_port *port, u32 *caps)
+{
+	int ret;
+
+	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			      USB4_SB_OPCODE_READ_LANE_MARGINING_CAP, 500);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_DATA, caps, sizeof(*caps) * 2);
+}
+
+/**
+ * usb4_port_hw_margin() - Run hardware lane margining on port
+ * @port: USB4 port
+ * @lanes: Which lanes to run (must match the port capabilities). Can be
+ *	   %0, %1 or %7.
+ * @ber_level: BER level contour value
+ * @timing: Perform timing margining instead of voltage
+ * @right_high: Use Right/high margin instead of left/low
+ * @results: Array with at least two elements to hold the results
+ *
+ * Runs hardware lane margining on USB4 port and returns the result in
+ * @results.
+ */
+int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
+			unsigned int ber_level, bool timing, bool right_high,
+			u32 *results)
+{
+	u32 val;
+	int ret;
+
+	val = lanes;
+	if (timing)
+		val |= USB4_MARGIN_HW_TIME;
+	if (right_high)
+		val |= USB4_MARGIN_HW_RH;
+	if (ber_level)
+		val |= (ber_level << USB4_MARGIN_HW_BER_SHIFT) &
+			USB4_MARGIN_HW_BER_MASK;
+
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_METADATA, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			      USB4_SB_OPCODE_RUN_HW_LANE_MARGINING, 2500);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_DATA, results, sizeof(*results) * 2);
+}
+
+/**
+ * usb4_port_sw_margin() - Run software lane margining on port
+ * @port: USB4 port
+ * @lanes: Which lanes to run (must match the port capabilities). Can be
+ *	   %0, %1 or %7.
+ * @timing: Perform timing margining instead of voltage
+ * @right_high: Use Right/high margin instead of left/low
+ * @counter: What to do with the error counter
+ *
+ * Runs software lane margining on USB4 port. Read back the error
+ * counters by calling usb4_port_sw_margin_errors(). Returns %0 in
+ * success and negative errno otherwise.
+ */
+int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
+			bool right_high, u32 counter)
+{
+	u32 val;
+	int ret;
+
+	val = lanes;
+	if (timing)
+		val |= USB4_MARGIN_SW_TIME;
+	if (right_high)
+		val |= USB4_MARGIN_SW_RH;
+	val |= (counter << USB4_MARGIN_SW_COUNTER_SHIFT) &
+		USB4_MARGIN_SW_COUNTER_MASK;
+
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_METADATA, &val, sizeof(val));
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			       USB4_SB_OPCODE_RUN_SW_LANE_MARGINING, 2500);
+}
+
+/**
+ * usb4_port_sw_margin_errors() - Read the software margining error counters
+ * @port: USB4 port
+ * @errors: Error metadata is copied here.
+ *
+ * This reads back the software margining error counters from the port.
+ * Returns %0 in success and negative errno otherwise.
+ */
+int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors)
+{
+	int ret;
+
+	ret = usb4_port_sb_op(port, USB4_SB_TARGET_ROUTER, 0,
+			      USB4_SB_OPCODE_READ_SW_MARGIN_ERR, 150);
+	if (ret)
+		return ret;
+
+	return usb4_port_sb_read(port, USB4_SB_TARGET_ROUTER, 0,
+				 USB4_SB_METADATA, errors, sizeof(*errors));
+}
+
 static inline int usb4_port_retimer_op(struct tb_port *port, u8 index,
 				       enum usb4_sb_opcode opcode,
 				       int timeout_msec)
@@ -1419,6 +1607,20 @@ int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index)
 	 */
 	return usb4_port_retimer_op(port, index, USB4_SB_OPCODE_SET_INBOUND_SBTX,
 				    500);
+}
+
+/**
+ * usb4_port_retimer_unset_inbound_sbtx() - Disable sideband channel transactions
+ * @port: USB4 port
+ * @index: Retimer index
+ *
+ * Disables sideband channel transations on SBTX. The reverse of
+ * usb4_port_retimer_set_inbound_sbtx().
+ */
+int usb4_port_retimer_unset_inbound_sbtx(struct tb_port *port, u8 index)
+{
+	return usb4_port_retimer_op(port, index,
+				    USB4_SB_OPCODE_UNSET_INBOUND_SBTX, 500);
 }
 
 /**
@@ -1642,12 +1844,13 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 	if (ret)
 		return ret;
 
-	switch (val) {
+	ret = usb4_port_sb_opcode_err_to_errno(val);
+	switch (ret) {
 	case 0:
 		*status = 0;
 		return 0;
 
-	case USB4_SB_OPCODE_ERR:
+	case -EAGAIN:
 		ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA,
 					     &metadata, sizeof(metadata));
 		if (ret)
@@ -1656,11 +1859,8 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 		*status = metadata & USB4_SB_METADATA_NVM_AUTH_WRITE_MASK;
 		return 0;
 
-	case USB4_SB_OPCODE_ONS:
-		return -EOPNOTSUPP;
-
 	default:
-		return -EIO;
+		return ret;
 	}
 }
 
@@ -1674,7 +1874,7 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	int ret;
 
 	metadata = dwaddress << USB4_NVM_READ_OFFSET_SHIFT;
-	if (dwords < NVM_DATA_DWORDS)
+	if (dwords < USB4_DATA_DWORDS)
 		metadata |= dwords << USB4_NVM_READ_LENGTH_SHIFT;
 
 	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
@@ -1711,6 +1911,15 @@ int usb4_port_retimer_nvm_read(struct tb_port *port, u8 index,
 				usb4_port_retimer_nvm_read_block, &info);
 }
 
+static inline unsigned int
+usb4_usb3_port_max_bandwidth(const struct tb_port *port, unsigned int bw)
+{
+	/* Take the possible bandwidth limitation into account */
+	if (port->max_bw)
+		return min(bw, port->max_bw);
+	return bw;
+}
+
 /**
  * usb4_usb3_port_max_link_rate() - Maximum support USB3 link rate
  * @port: USB3 adapter port
@@ -1732,7 +1941,9 @@ int usb4_usb3_port_max_link_rate(struct tb_port *port)
 		return ret;
 
 	lr = (val & ADP_USB3_CS_4_MSLR_MASK) >> ADP_USB3_CS_4_MSLR_SHIFT;
-	return lr == ADP_USB3_CS_4_MSLR_20G ? 20000 : 10000;
+	ret = lr == ADP_USB3_CS_4_MSLR_20G ? 20000 : 10000;
+
+	return usb4_usb3_port_max_bandwidth(port, ret);
 }
 
 /**
@@ -1759,7 +1970,9 @@ int usb4_usb3_port_actual_link_rate(struct tb_port *port)
 		return 0;
 
 	lr = val & ADP_USB3_CS_4_ALR_MASK;
-	return lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
+	ret = lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
+
+	return usb4_usb3_port_max_bandwidth(port, ret);
 }
 
 static int usb4_usb3_port_cm_request(struct tb_port *port, bool request)
@@ -1811,7 +2024,7 @@ static unsigned int usb3_bw_to_mbps(u32 bw, u8 scale)
 	unsigned long uframes;
 
 	uframes = bw * 512UL << scale;
-	return DIV_ROUND_CLOSEST(uframes * 8000, 1000 * 1000);
+	return DIV_ROUND_CLOSEST(uframes * 8000, MEGA);
 }
 
 static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
@@ -1819,7 +2032,7 @@ static u32 mbps_to_usb3_bw(unsigned int mbps, u8 scale)
 	unsigned long uframes;
 
 	/* 1 uframe is 1/8 ms (125 us) -> 1 / 8000 s */
-	uframes = ((unsigned long)mbps * 1000 *  1000) / 8000;
+	uframes = ((unsigned long)mbps * MEGA) / 8000;
 	return DIV_ROUND_UP(uframes, 512UL << scale);
 }
 
@@ -1910,17 +2123,29 @@ static int usb4_usb3_port_write_allocated_bandwidth(struct tb_port *port,
 						    int downstream_bw)
 {
 	u32 val, ubw, dbw, scale;
-	int ret;
+	int ret, max_bw;
 
-	/* Read the used scale, hardware default is 0 */
-	ret = tb_port_read(port, &scale, TB_CFG_PORT,
-			   port->cap_adap + ADP_USB3_CS_3, 1);
+	/* Figure out suitable scale */
+	scale = 0;
+	max_bw = max(upstream_bw, downstream_bw);
+	while (scale < 64) {
+		if (mbps_to_usb3_bw(max_bw, scale) < 4096)
+			break;
+		scale++;
+	}
+
+	if (WARN_ON(scale >= 64))
+		return -EINVAL;
+
+	ret = tb_port_write(port, &scale, TB_CFG_PORT,
+			    port->cap_adap + ADP_USB3_CS_3, 1);
 	if (ret)
 		return ret;
 
-	scale &= ADP_USB3_CS_3_SCALE_MASK;
 	ubw = mbps_to_usb3_bw(upstream_bw, scale);
 	dbw = mbps_to_usb3_bw(downstream_bw, scale);
+
+	tb_port_dbg(port, "scaled bandwidth %u/%u, scale %u\n", ubw, dbw, scale);
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_USB3_CS_2, 1);
@@ -2028,4 +2253,611 @@ int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 err_request:
 	usb4_usb3_port_clear_cm_request(port);
 	return ret;
+}
+
+static bool is_usb4_dpin(const struct tb_port *port)
+{
+	if (!tb_port_is_dpin(port))
+		return false;
+	if (!tb_switch_is_usb4(port->sw))
+		return false;
+	return true;
+}
+
+/**
+ * usb4_dp_port_set_cm_id() - Assign CM ID to the DP IN adapter
+ * @port: DP IN adapter
+ * @cm_id: CM ID to assign
+ *
+ * Sets CM ID for the @port. Returns %0 on success and negative errno
+ * otherwise. Speficially returns %-EOPNOTSUPP if the @port does not
+ * support this.
+ */
+int usb4_dp_port_set_cm_id(struct tb_port *port, int cm_id)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_DP_CS_2_CM_ID_MASK;
+	val |= cm_id << ADP_DP_CS_2_CM_ID_SHIFT;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_bandwidth_mode_supported() - Is the bandwidth allocation mode
+ *					     supported
+ * @port: DP IN adapter to check
+ *
+ * Can be called to any DP IN adapter. Returns true if the adapter
+ * supports USB4 bandwidth allocation mode, false otherwise.
+ */
+bool usb4_dp_port_bandwidth_mode_supported(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	if (!is_usb4_dpin(port))
+		return false;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + DP_LOCAL_CAP, 1);
+	if (ret)
+		return false;
+
+	return !!(val & DP_COMMON_CAP_BW_MODE);
+}
+
+/**
+ * usb4_dp_port_bandwidth_mode_enabled() - Is the bandwidth allocation mode
+ *					   enabled
+ * @port: DP IN adapter to check
+ *
+ * Can be called to any DP IN adapter. Returns true if the bandwidth
+ * allocation mode has been enabled, false otherwise.
+ */
+bool usb4_dp_port_bandwidth_mode_enabled(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	if (!is_usb4_dpin(port))
+		return false;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_8, 1);
+	if (ret)
+		return false;
+
+	return !!(val & ADP_DP_CS_8_DPME);
+}
+
+/**
+ * usb4_dp_port_set_cm_bandwidth_mode_supported() - Set/clear CM support for
+ *						    bandwidth allocation mode
+ * @port: DP IN adapter
+ * @supported: Does the CM support bandwidth allocation mode
+ *
+ * Can be called to any DP IN adapter. Sets or clears the CM support bit
+ * of the DP IN adapter. Returns %0 in success and negative errno
+ * otherwise. Specifically returns %-OPNOTSUPP if the passed in adapter
+ * does not support this.
+ */
+int usb4_dp_port_set_cm_bandwidth_mode_supported(struct tb_port *port,
+						 bool supported)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	if (supported)
+		val |= ADP_DP_CS_2_CMMS;
+	else
+		val &= ~ADP_DP_CS_2_CMMS;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_group_id() - Return Group ID assigned for the adapter
+ * @port: DP IN adapter
+ *
+ * Reads bandwidth allocation Group ID from the DP IN adapter and
+ * returns it. If the adapter does not support setting Group_ID
+ * %-EOPNOTSUPP is returned.
+ */
+int usb4_dp_port_group_id(struct tb_port *port)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	return (val & ADP_DP_CS_2_GROUP_ID_MASK) >> ADP_DP_CS_2_GROUP_ID_SHIFT;
+}
+
+/**
+ * usb4_dp_port_set_group_id() - Set adapter Group ID
+ * @port: DP IN adapter
+ * @group_id: Group ID for the adapter
+ *
+ * Sets bandwidth allocation mode Group ID for the DP IN adapter.
+ * Returns %0 in case of success and negative errno otherwise.
+ * Specifically returns %-EOPNOTSUPP if the adapter does not support
+ * this.
+ */
+int usb4_dp_port_set_group_id(struct tb_port *port, int group_id)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_DP_CS_2_GROUP_ID_MASK;
+	val |= group_id << ADP_DP_CS_2_GROUP_ID_SHIFT;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_nrd() - Read non-reduced rate and lanes
+ * @port: DP IN adapter
+ * @rate: Non-reduced rate in Mb/s is placed here
+ * @lanes: Non-reduced lanes are placed here
+ *
+ * Reads the non-reduced rate and lanes from the DP IN adapter. Returns
+ * %0 in success and negative errno otherwise. Specifically returns
+ * %-EOPNOTSUPP if the adapter does not support this.
+ */
+int usb4_dp_port_nrd(struct tb_port *port, int *rate, int *lanes)
+{
+	u32 val, tmp;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	tmp = (val & ADP_DP_CS_2_NRD_MLR_MASK) >> ADP_DP_CS_2_NRD_MLR_SHIFT;
+	switch (tmp) {
+	case DP_COMMON_CAP_RATE_RBR:
+		*rate = 1620;
+		break;
+	case DP_COMMON_CAP_RATE_HBR:
+		*rate = 2700;
+		break;
+	case DP_COMMON_CAP_RATE_HBR2:
+		*rate = 5400;
+		break;
+	case DP_COMMON_CAP_RATE_HBR3:
+		*rate = 8100;
+		break;
+	}
+
+	tmp = val & ADP_DP_CS_2_NRD_MLC_MASK;
+	switch (tmp) {
+	case DP_COMMON_CAP_1_LANE:
+		*lanes = 1;
+		break;
+	case DP_COMMON_CAP_2_LANES:
+		*lanes = 2;
+		break;
+	case DP_COMMON_CAP_4_LANES:
+		*lanes = 4;
+		break;
+	}
+
+	return 0;
+}
+
+/**
+ * usb4_dp_port_set_nrd() - Set non-reduced rate and lanes
+ * @port: DP IN adapter
+ * @rate: Non-reduced rate in Mb/s
+ * @lanes: Non-reduced lanes
+ *
+ * Before the capabilities reduction this function can be used to set
+ * the non-reduced values for the DP IN adapter. Returns %0 in success
+ * and negative errno otherwise. If the adapter does not support this
+ * %-EOPNOTSUPP is returned.
+ */
+int usb4_dp_port_set_nrd(struct tb_port *port, int rate, int lanes)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_DP_CS_2_NRD_MLR_MASK;
+
+	switch (rate) {
+	case 1620:
+		break;
+	case 2700:
+		val |= (DP_COMMON_CAP_RATE_HBR << ADP_DP_CS_2_NRD_MLR_SHIFT)
+			& ADP_DP_CS_2_NRD_MLR_MASK;
+		break;
+	case 5400:
+		val |= (DP_COMMON_CAP_RATE_HBR2 << ADP_DP_CS_2_NRD_MLR_SHIFT)
+			& ADP_DP_CS_2_NRD_MLR_MASK;
+		break;
+	case 8100:
+		val |= (DP_COMMON_CAP_RATE_HBR3 << ADP_DP_CS_2_NRD_MLR_SHIFT)
+			& ADP_DP_CS_2_NRD_MLR_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	val &= ~ADP_DP_CS_2_NRD_MLC_MASK;
+
+	switch (lanes) {
+	case 1:
+		break;
+	case 2:
+		val |= DP_COMMON_CAP_2_LANES;
+		break;
+	case 4:
+		val |= DP_COMMON_CAP_4_LANES;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_granularity() - Return granularity for the bandwidth values
+ * @port: DP IN adapter
+ *
+ * Reads the programmed granularity from @port. If the DP IN adapter does
+ * not support bandwidth allocation mode returns %-EOPNOTSUPP and negative
+ * errno in other error cases.
+ */
+int usb4_dp_port_granularity(struct tb_port *port)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ADP_DP_CS_2_GR_MASK;
+	val >>= ADP_DP_CS_2_GR_SHIFT;
+
+	switch (val) {
+	case ADP_DP_CS_2_GR_0_25G:
+		return 250;
+	case ADP_DP_CS_2_GR_0_5G:
+		return 500;
+	case ADP_DP_CS_2_GR_1G:
+		return 1000;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * usb4_dp_port_set_granularity() - Set granularity for the bandwidth values
+ * @port: DP IN adapter
+ * @granularity: Granularity in Mb/s. Supported values: 1000, 500 and 250.
+ *
+ * Sets the granularity used with the estimated, allocated and requested
+ * bandwidth. Returns %0 in success and negative errno otherwise. If the
+ * adapter does not support this %-EOPNOTSUPP is returned.
+ */
+int usb4_dp_port_set_granularity(struct tb_port *port, int granularity)
+{
+	u32 val;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_DP_CS_2_GR_MASK;
+
+	switch (granularity) {
+	case 250:
+		val |= ADP_DP_CS_2_GR_0_25G << ADP_DP_CS_2_GR_SHIFT;
+		break;
+	case 500:
+		val |= ADP_DP_CS_2_GR_0_5G << ADP_DP_CS_2_GR_SHIFT;
+		break;
+	case 1000:
+		val |= ADP_DP_CS_2_GR_1G << ADP_DP_CS_2_GR_SHIFT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_set_estimated_bandwidth() - Set estimated bandwidth
+ * @port: DP IN adapter
+ * @bw: Estimated bandwidth in Mb/s.
+ *
+ * Sets the estimated bandwidth to @bw. Set the granularity by calling
+ * usb4_dp_port_set_granularity() before calling this. The @bw is round
+ * down to the closest granularity multiplier. Returns %0 in success
+ * and negative errno otherwise. Specifically returns %-EOPNOTSUPP if
+ * the adapter does not support this.
+ */
+int usb4_dp_port_set_estimated_bandwidth(struct tb_port *port, int bw)
+{
+	u32 val, granularity;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = usb4_dp_port_granularity(port);
+	if (ret < 0)
+		return ret;
+	granularity = ret;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_DP_CS_2_ESTIMATED_BW_MASK;
+	val |= (bw / granularity) << ADP_DP_CS_2_ESTIMATED_BW_SHIFT;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_allocated_bandwidth() - Return allocated bandwidth
+ * @port: DP IN adapter
+ *
+ * Reads and returns allocated bandwidth for @port in Mb/s (taking into
+ * account the programmed granularity). Returns negative errno in case
+ * of error.
+ */
+int usb4_dp_port_allocated_bandwidth(struct tb_port *port)
+{
+	u32 val, granularity;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = usb4_dp_port_granularity(port);
+	if (ret < 0)
+		return ret;
+	granularity = ret;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + DP_STATUS, 1);
+	if (ret)
+		return ret;
+
+	val &= DP_STATUS_ALLOCATED_BW_MASK;
+	val >>= DP_STATUS_ALLOCATED_BW_SHIFT;
+
+	return val * granularity;
+}
+
+static int __usb4_dp_port_set_cm_ack(struct tb_port *port, bool ack)
+{
+	u32 val;
+	int ret;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	if (ack)
+		val |= ADP_DP_CS_2_CA;
+	else
+		val &= ~ADP_DP_CS_2_CA;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+static inline int usb4_dp_port_set_cm_ack(struct tb_port *port)
+{
+	return __usb4_dp_port_set_cm_ack(port, true);
+}
+
+static int usb4_dp_port_wait_and_clear_cm_ack(struct tb_port *port,
+					      int timeout_msec)
+{
+	ktime_t end;
+	u32 val;
+	int ret;
+
+	ret = __usb4_dp_port_set_cm_ack(port, false);
+	if (ret)
+		return ret;
+
+	end = ktime_add_ms(ktime_get(), timeout_msec);
+	do {
+		ret = tb_port_read(port, &val, TB_CFG_PORT,
+				   port->cap_adap + ADP_DP_CS_8, 1);
+		if (ret)
+			return ret;
+
+		if (!(val & ADP_DP_CS_8_DR))
+			break;
+
+		usleep_range(50, 100);
+	} while (ktime_before(ktime_get(), end));
+
+	if (val & ADP_DP_CS_8_DR)
+		return -ETIMEDOUT;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_2, 1);
+	if (ret)
+		return ret;
+
+	val &= ~ADP_DP_CS_2_CA;
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_DP_CS_2, 1);
+}
+
+/**
+ * usb4_dp_port_allocate_bandwidth() - Set allocated bandwidth
+ * @port: DP IN adapter
+ * @bw: New allocated bandwidth in Mb/s
+ *
+ * Communicates the new allocated bandwidth with the DPCD (graphics
+ * driver). Takes into account the programmed granularity. Returns %0 in
+ * success and negative errno in case of error.
+ */
+int usb4_dp_port_allocate_bandwidth(struct tb_port *port, int bw)
+{
+	u32 val, granularity;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = usb4_dp_port_granularity(port);
+	if (ret < 0)
+		return ret;
+	granularity = ret;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + DP_STATUS, 1);
+	if (ret)
+		return ret;
+
+	val &= ~DP_STATUS_ALLOCATED_BW_MASK;
+	val |= (bw / granularity) << DP_STATUS_ALLOCATED_BW_SHIFT;
+
+	ret = tb_port_write(port, &val, TB_CFG_PORT,
+			    port->cap_adap + DP_STATUS, 1);
+	if (ret)
+		return ret;
+
+	ret = usb4_dp_port_set_cm_ack(port);
+	if (ret)
+		return ret;
+
+	return usb4_dp_port_wait_and_clear_cm_ack(port, 500);
+}
+
+/**
+ * usb4_dp_port_requested_bandwidth() - Read requested bandwidth
+ * @port: DP IN adapter
+ *
+ * Reads the DPCD (graphics driver) requested bandwidth and returns it
+ * in Mb/s. Takes the programmed granularity into account. In case of
+ * error returns negative errno. Specifically returns %-EOPNOTSUPP if
+ * the adapter does not support bandwidth allocation mode, and %ENODATA
+ * if there is no active bandwidth request from the graphics driver.
+ */
+int usb4_dp_port_requested_bandwidth(struct tb_port *port)
+{
+	u32 val, granularity;
+	int ret;
+
+	if (!is_usb4_dpin(port))
+		return -EOPNOTSUPP;
+
+	ret = usb4_dp_port_granularity(port);
+	if (ret < 0)
+		return ret;
+	granularity = ret;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_DP_CS_8, 1);
+	if (ret)
+		return ret;
+
+	if (!(val & ADP_DP_CS_8_DR))
+		return -ENODATA;
+
+	return (val & ADP_DP_CS_8_REQUESTED_BW_MASK) * granularity;
+}
+
+/**
+ * usb4_pci_port_set_ext_encapsulation() - Enable/disable extended encapsulation
+ * @port: PCIe adapter
+ * @enable: Enable/disable extended encapsulation
+ *
+ * Enables or disables extended encapsulation used in PCIe tunneling. Caller
+ * needs to make sure both adapters support this before enabling. Returns %0 on
+ * success and negative errno otherwise.
+ */
+int usb4_pci_port_set_ext_encapsulation(struct tb_port *port, bool enable)
+{
+	u32 val;
+	int ret;
+
+	if (!tb_port_is_pcie_up(port) && !tb_port_is_pcie_down(port))
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_PCIE_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		val |= ADP_PCIE_CS_1_EE;
+	else
+		val &= ~ADP_PCIE_CS_1_EE;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_PCIE_CS_1, 1);
 }

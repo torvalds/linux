@@ -101,6 +101,7 @@ comment "Generic MPC8xx Options"
 config 8xx_GPIO
 	bool "GPIO API Support"
 	select GPIOLIB
+	select OF_GPIO_MM_GPIOCHIP
 	help
 	  Saying Y here will cause the ports on an MPC8xx processor to be used
 	  with the GPIO API.  If you say N here, the kernel needs less memory.

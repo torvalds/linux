@@ -21,6 +21,45 @@ config NVMEM_SYSFS
 	 This interface is mostly used by userspace applications to
 	 read/write directly into nvmem.
 
+# Layouts
+
+source "drivers/nvmem/layouts/Kconfig"
+
+# Devices
+
+config NVMEM_APPLE_EFUSES
+	tristate "Apple eFuse support"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Say y here to enable support for reading eFuses on Apple SoCs
+	  such as the M1. These are e.g. used to store factory programmed
+	  calibration data required for the PCIe or the USB-C PHY.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called nvmem-apple-efuses.
+
+config NVMEM_BCM_OCOTP
+	tristate "Broadcom On-Chip OTP Controller support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM
+	default ARCH_BCM_IPROC
+	help
+	  Say y here to enable read/write access to the Broadcom OTP
+	  controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-bcm-ocotp.
+
+config NVMEM_BRCM_NVRAM
+	tristate "Broadcom's NVRAM support"
+	depends on ARCH_BCM_5301X || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_NET_UTILS
+	help
+	  This driver provides support for Broadcom's NVRAM that can be accessed
+	  using I/O mapping.
+
 config NVMEM_IMX_IIM
 	tristate "i.MX IC Identification Module support"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -44,6 +83,15 @@ config NVMEM_IMX_OCOTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-imx-ocotp.
 
+config NVMEM_IMX_OCOTP_ELE
+	tristate "i.MX On-Chip OTP Controller support"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAS_IOMEM
+	depends on OF
+	help
+	  This is a driver for the On-Chip OTP Controller (OCOTP)
+	  available on i.MX SoCs which has ELE.
+
 config NVMEM_IMX_OCOTP_SCU
 	tristate "i.MX8 SCU On-Chip OTP Controller support"
 	depends on IMX_SCU
@@ -52,7 +100,7 @@ config NVMEM_IMX_OCOTP_SCU
 	  This is a driver for the SCU On-Chip OTP Controller (OCOTP)
 	  available on i.MX8 SoCs.
 
-config JZ4780_EFUSE
+config NVMEM_JZ4780_EFUSE
 	tristate "JZ4780 EFUSE Memory Support"
 	depends on MACH_INGENIC || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -63,6 +111,27 @@ config JZ4780_EFUSE
 	  all JZ4780 SoC based devices.
 	  To compile this driver as a module, choose M here: the module
 	  will be called nvmem_jz4780_efuse.
+
+config NVMEM_LAN9662_OTPC
+	tristate "Microchip LAN9662 OTP controller support"
+	depends on SOC_LAN966 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This driver enables the OTP controller available on Microchip LAN9662
+	  SoCs. It controls the access to the OTP memory connected to it.
+
+config NVMEM_LAYERSCAPE_SFP
+	tristate "Layerscape SFP (Security Fuse Processor) support"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	depends on HAS_IOMEM
+	select REGMAP_MMIO
+	help
+	  This driver provides support to read the eFuses on Freescale
+	  Layerscape SoC's. For example, the vendor provides a per part
+	  unique ID there.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called layerscape-sfp.
 
 config NVMEM_LPC18XX_EEPROM
 	tristate "NXP LPC18XX EEPROM Memory Support"
@@ -84,6 +153,44 @@ config NVMEM_LPC18XX_OTP
 	  To compile this driver as a module, choose M here: the module
 	  will be called nvmem_lpc18xx_otp.
 
+config NVMEM_MESON_EFUSE
+	tristate "Amlogic Meson GX eFuse Support"
+	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson GX SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_efuse.
+
+config NVMEM_MESON_MX_EFUSE
+	tristate "Amlogic Meson6/Meson8/Meson8b eFuse Support"
+	depends on ARCH_MESON || COMPILE_TEST
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson6, Meson8 and Meson8b SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_mx_efuse.
+
+config NVMEM_MICROCHIP_OTPC
+	tristate "Microchip OTPC support"
+	depends on ARCH_AT91 || COMPILE_TEST
+	help
+	  This driver enable the OTP controller available on Microchip SAMA7G5
+	  SoCs. It controls the access to the OTP memory connected to it.
+
+config NVMEM_MTK_EFUSE
+	tristate "Mediatek SoCs EFUSE support"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a driver to access hardware related data like sensor
+	  calibration, HDMI impedance etc.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called efuse-mtk.
+
 config NVMEM_MXS_OCOTP
 	tristate "Freescale MXS On-Chip OTP Memory Support"
 	depends on ARCH_MXS || COMPILE_TEST
@@ -95,24 +202,6 @@ config NVMEM_MXS_OCOTP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-mxs-ocotp.
-
-config MTK_EFUSE
-	tristate "Mediatek SoCs EFUSE support"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This is a driver to access hardware related data like sensor
-	  calibration, HDMI impedance etc.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called efuse-mtk.
-
-config MICROCHIP_OTPC
-	tristate "Microchip OTPC support"
-	depends on ARCH_AT91 || COMPILE_TEST
-	help
-	  This driver enable the OTP controller available on Microchip SAMA7G5
-	  SoCs. It controlls the access to the OTP memory connected to it.
 
 config NVMEM_NINTENDO_OTP
 	tristate "Nintendo Wii and Wii U OTP Support"
@@ -126,7 +215,7 @@ config NVMEM_NINTENDO_OTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-nintendo-otp.
 
-config QCOM_QFPROM
+config NVMEM_QCOM_QFPROM
 	tristate "QCOM QFPROM Support"
 	depends on ARCH_QCOM || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -137,15 +226,23 @@ config QCOM_QFPROM
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_qfprom.
 
-config NVMEM_SPMI_SDAM
-	tristate "SPMI SDAM Support"
-	depends on SPMI
+config NVMEM_RAVE_SP_EEPROM
+	tristate "Rave SP EEPROM Support"
+	depends on RAVE_SP_CORE
 	help
-	  This driver supports the Shared Direct Access Memory Module on
-	  Qualcomm Technologies, Inc. PMICs. It provides the clients
-	  an interface to read/write to the SDAM module's shared memory.
+	  Say y here to enable Rave SP EEPROM support.
 
-config ROCKCHIP_EFUSE
+config NVMEM_RMEM
+	tristate "Reserved Memory Based Driver Support"
+	depends on HAS_IOMEM
+	help
+	  This driver maps reserved memory into an nvmem device. It might be
+	  useful to expose information left by firmware in memory.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-rmem.
+
+config NVMEM_ROCKCHIP_EFUSE
 	tristate "Rockchip eFuse Support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -156,7 +253,7 @@ config ROCKCHIP_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_efuse.
 
-config ROCKCHIP_OTP
+config NVMEM_ROCKCHIP_OTP
 	tristate "Rockchip OTP controller support"
 	depends on ARCH_ROCKCHIP || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -167,27 +264,77 @@ config ROCKCHIP_OTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_otp.
 
-config NVMEM_BCM_OCOTP
-	tristate "Broadcom On-Chip OTP Controller support"
-	depends on ARCH_BCM_IPROC || COMPILE_TEST
+config NVMEM_SC27XX_EFUSE
+	tristate "Spreadtrum SC27XX eFuse Support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
 	depends on HAS_IOMEM
-	default ARCH_BCM_IPROC
 	help
-	  Say y here to enable read/write access to the Broadcom OTP
-	  controller.
+	  This is a simple driver to dump specified values of Spreadtrum
+	  SC27XX PMICs from eFuse.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called nvmem-bcm-ocotp.
+	  will be called nvmem-sc27xx-efuse.
+
+config NVMEM_SNVS_LPGPR
+	tristate "Support for Low Power General Purpose Register"
+	depends on ARCH_MXC || COMPILE_TEST
+	help
+	  This is a driver for Low Power General Purpose Register (LPGPR) available on
+	  i.MX6 and i.MX7 SoCs in Secure Non-Volatile Storage (SNVS) of this chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-snvs-lpgpr.
+
+config NVMEM_SPMI_SDAM
+	tristate "SPMI SDAM Support"
+	depends on SPMI
+	help
+	  This driver supports the Shared Direct Access Memory Module on
+	  Qualcomm Technologies, Inc. PMICs. It provides the clients
+	  an interface to read/write to the SDAM module's shared memory.
+
+config NVMEM_SPRD_EFUSE
+	tristate "Spreadtrum SoC eFuse Support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a simple driver to dump specified values of Spreadtrum
+	  SoCs from eFuse.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-sprd-efuse.
+
+config NVMEM_STM32_BSEC_OPTEE_TA
+	def_bool NVMEM_STM32_ROMEM && OPTEE
+	help
+	  Say y here to enable the accesses to STM32MP SoC OTPs by the OP-TEE
+	  trusted application STM32MP BSEC.
+
+	  This library is a used by stm32-romem driver or included in the module
+	  called nvmem-stm32-romem.
 
 config NVMEM_STM32_ROMEM
 	tristate "STMicroelectronics STM32 factory-programmed memory support"
 	depends on ARCH_STM32 || COMPILE_TEST
+	depends on OPTEE || !OPTEE
 	help
 	  Say y here to enable read-only access for STMicroelectronics STM32
 	  factory-programmed memory area.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-stm32-romem.
+
+config NVMEM_SUNPLUS_OCOTP
+	tristate "Sunplus SoC OTP support"
+	depends on SOC_SP7021 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  This is a driver for the On-chip OTP controller (OCOTP) available
+	  on Sunplus SoCs. It provides access to 128 bytes of one-time
+	  programmable eFuse.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-sunplus-ocotp.
 
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"
@@ -199,7 +346,21 @@ config NVMEM_SUNXI_SID
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_sunxi_sid.
 
-config UNIPHIER_EFUSE
+config NVMEM_U_BOOT_ENV
+	tristate "U-Boot environment variables support"
+	depends on OF && MTD
+	select CRC32
+	select GENERIC_NET_UTILS
+	help
+	  U-Boot stores its setup as environment variables. This driver adds
+	  support for verifying & exporting such data. It also exposes variables
+	  as NVMEM cells so they can be referenced by other drivers.
+
+	  Currently this drivers works only with env variables on top of MTD.
+
+	  If compiled as module it will be called nvmem_u-boot-env.
+
+config NVMEM_UNIPHIER_EFUSE
 	tristate "UniPhier SoCs eFuse support"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
 	depends on HAS_IOMEM
@@ -221,55 +382,8 @@ config NVMEM_VF610_OCOTP
 	  This driver can also be build as a module. If so, the module will
 	  be called nvmem-vf610-ocotp.
 
-config MESON_EFUSE
-	tristate "Amlogic Meson GX eFuse Support"
-	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
-	help
-	  This is a driver to retrieve specific values from the eFuse found on
-	  the Amlogic Meson GX SoCs.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem_meson_efuse.
-
-config MESON_MX_EFUSE
-	tristate "Amlogic Meson6/Meson8/Meson8b eFuse Support"
-	depends on ARCH_MESON || COMPILE_TEST
-	help
-	  This is a driver to retrieve specific values from the eFuse found on
-	  the Amlogic Meson6, Meson8 and Meson8b SoCs.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem_meson_mx_efuse.
-
-config NVMEM_SNVS_LPGPR
-	tristate "Support for Low Power General Purpose Register"
-	depends on ARCH_MXC || COMPILE_TEST
-	help
-	  This is a driver for Low Power General Purpose Register (LPGPR) available on
-	  i.MX6 and i.MX7 SoCs in Secure Non-Volatile Storage (SNVS) of this chip.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem-snvs-lpgpr.
-
-config RAVE_SP_EEPROM
-	tristate "Rave SP EEPROM Support"
-	depends on RAVE_SP_CORE
-	help
-	  Say y here to enable Rave SP EEPROM support.
-
-config SC27XX_EFUSE
-	tristate "Spreadtrum SC27XX eFuse Support"
-	depends on MFD_SC27XX_PMIC || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This is a simple driver to dump specified values of Spreadtrum
-	  SC27XX PMICs from eFuse.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem-sc27xx-efuse.
-
 config NVMEM_ZYNQMP
-	bool "Xilinx ZYNQMP SoC nvmem firmware support"
+	tristate "Xilinx ZYNQMP SoC nvmem firmware support"
 	depends on ARCH_ZYNQMP
 	help
 	  This is a driver to access hardware related data like
@@ -277,71 +391,5 @@ config NVMEM_ZYNQMP
 	  interface.
 
 	  If sure, say yes. If unsure, say no.
-
-config SPRD_EFUSE
-	tristate "Spreadtrum SoC eFuse Support"
-	depends on ARCH_SPRD || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This is a simple driver to dump specified values of Spreadtrum
-	  SoCs from eFuse.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem-sprd-efuse.
-
-config NVMEM_RMEM
-	tristate "Reserved Memory Based Driver Support"
-	depends on HAS_IOMEM
-	help
-	  This driver maps reserved memory into an nvmem device. It might be
-	  useful to expose information left by firmware in memory.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem-rmem.
-
-config NVMEM_BRCM_NVRAM
-	tristate "Broadcom's NVRAM support"
-	depends on ARCH_BCM_5301X || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This driver provides support for Broadcom's NVRAM that can be accessed
-	  using I/O mapping.
-
-config NVMEM_LAYERSCAPE_SFP
-	tristate "Layerscape SFP (Security Fuse Processor) support"
-	depends on ARCH_LAYERSCAPE || COMPILE_TEST
-	depends on HAS_IOMEM
-	select REGMAP_MMIO
-	help
-	  This driver provides support to read the eFuses on Freescale
-	  Layerscape SoC's. For example, the vendor provides a per part
-	  unique ID there.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called layerscape-sfp.
-
-config NVMEM_SUNPLUS_OCOTP
-	tristate "Sunplus SoC OTP support"
-	depends on SOC_SP7021 || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This is a driver for the On-chip OTP controller (OCOTP) available
-	  on Sunplus SoCs. It provides access to 128 bytes of one-time
-	  programmable eFuse.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called nvmem-sunplus-ocotp.
-
-config NVMEM_APPLE_EFUSES
-	tristate "Apple eFuse support"
-	depends on ARCH_APPLE || COMPILE_TEST
-	default ARCH_APPLE
-	help
-	  Say y here to enable support for reading eFuses on Apple SoCs
-	  such as the M1. These are e.g. used to store factory programmed
-	  calibration data required for the PCIe or the USB-C PHY.
-
-	  This driver can also be built as a module. If so, the module will
-	  be called nvmem-apple-efuses.
 
 endif

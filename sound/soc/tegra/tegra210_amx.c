@@ -573,11 +573,9 @@ static int tegra210_amx_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra210_amx_platform_remove(struct platform_device *pdev)
+static void tegra210_amx_platform_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra210_amx_pm_ops = {
@@ -594,7 +592,7 @@ static struct platform_driver tegra210_amx_driver = {
 		.pm = &tegra210_amx_pm_ops,
 	},
 	.probe = tegra210_amx_platform_probe,
-	.remove = tegra210_amx_platform_remove,
+	.remove_new = tegra210_amx_platform_remove,
 };
 module_platform_driver(tegra210_amx_driver);
 

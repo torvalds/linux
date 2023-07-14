@@ -1213,6 +1213,9 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 	p->port_num = port_num;
 	kobject_init(&p->kobj, &port_type);
 
+	if (device->port_data && is_full_dev)
+		device->port_data[port_num].sysfs = p;
+
 	cur_group = p->groups_list;
 	ret = alloc_port_table_group("gids", &p->groups[0], p->attrs_list,
 				     attr->gid_tbl_len, show_port_gid);
@@ -1258,9 +1261,6 @@ static struct ib_port *setup_port(struct ib_core_device *coredev, int port_num,
 	}
 
 	list_add_tail(&p->kobj.entry, &coredev->port_list);
-	if (device->port_data && is_full_dev)
-		device->port_data[port_num].sysfs = p;
-
 	return p;
 
 err_groups:
@@ -1268,6 +1268,8 @@ err_groups:
 err_del:
 	kobject_del(&p->kobj);
 err_put:
+	if (device->port_data && is_full_dev)
+		device->port_data[port_num].sysfs = NULL;
 	kobject_put(&p->kobj);
 	return ERR_PTR(ret);
 }
@@ -1276,14 +1278,17 @@ static void destroy_port(struct ib_core_device *coredev, struct ib_port *port)
 {
 	bool is_full_dev = &port->ibdev->coredev == coredev;
 
-	if (port->ibdev->port_data &&
-	    port->ibdev->port_data[port->port_num].sysfs == port)
-		port->ibdev->port_data[port->port_num].sysfs = NULL;
 	list_del(&port->kobj.entry);
 	if (is_full_dev)
 		sysfs_remove_groups(&port->kobj, port->ibdev->ops.port_groups);
+
 	sysfs_remove_groups(&port->kobj, port->groups_list);
 	kobject_del(&port->kobj);
+
+	if (port->ibdev->port_data &&
+	    port->ibdev->port_data[port->port_num].sysfs == port)
+		port->ibdev->port_data[port->port_num].sysfs = NULL;
+
 	kobject_put(&port->kobj);
 }
 

@@ -1308,8 +1308,7 @@ static const struct dvb_frontend_ops mxl692_ops = {
 	.read_snr             = mxl692_read_snr,
 };
 
-static int mxl692_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int mxl692_probe(struct i2c_client *client)
 {
 	struct mxl692_config *config = client->dev.platform_data;
 	struct mxl692_dev *dev;

@@ -83,7 +83,7 @@ static void RxPktPendingTimeout(struct timer_list *t)
 	if (bPktInBuf && (pRxTs->rx_timeout_indicate_seq == 0xffff)) {
 		pRxTs->rx_timeout_indicate_seq = pRxTs->rx_indicate_seq;
 		mod_timer(&pRxTs->rx_pkt_pending_timer,  jiffies +
-			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime)
+			  msecs_to_jiffies(ieee->ht_info->rx_reorder_pending_time)
 			  );
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
@@ -517,6 +517,7 @@ void TsStartAddBaProcess(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
 			netdev_dbg(ieee->dev, "Immediately Start ADDBA\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies + 10);
 		}
-	} else
+	} else {
 		netdev_dbg(ieee->dev, "BA timer is already added\n");
+	}
 }

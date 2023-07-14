@@ -29,7 +29,7 @@ static struct page *siw_get_pblpage(struct siw_mem *mem, u64 addr, int *idx)
 	dma_addr_t paddr = siw_pbl_get_buffer(pbl, offset, NULL, idx);
 
 	if (paddr)
-		return virt_to_page((void *)paddr);
+		return ib_virt_dma_to_page(paddr);
 
 	return NULL;
 }
@@ -56,8 +56,7 @@ static int siw_try_1seg(struct siw_iwarp_tx *c_tx, void *paddr)
 
 		if (!mem->mem_obj) {
 			/* Kernel client using kva */
-			memcpy(paddr,
-			       (const void *)(uintptr_t)sge->laddr, bytes);
+			memcpy(paddr, ib_virt_dma_to_ptr(sge->laddr), bytes);
 		} else if (c_tx->in_syscall) {
 			if (copy_from_user(paddr, u64_to_user_ptr(sge->laddr),
 					   bytes))
@@ -313,7 +312,7 @@ static int siw_tx_ctrl(struct siw_iwarp_tx *c_tx, struct socket *s,
 }
 
 /*
- * 0copy TCP transmit interface: Use do_tcp_sendpages.
+ * 0copy TCP transmit interface: Use MSG_SPLICE_PAGES.
  *
  * Using sendpage to push page by page appears to be less efficient
  * than using sendmsg, even if data are copied.
@@ -324,20 +323,26 @@ static int siw_tx_ctrl(struct siw_iwarp_tx *c_tx, struct socket *s,
 static int siw_tcp_sendpages(struct socket *s, struct page **page, int offset,
 			     size_t size)
 {
+	struct bio_vec bvec;
+	struct msghdr msg = {
+		.msg_flags = (MSG_MORE | MSG_DONTWAIT | MSG_SPLICE_PAGES),
+	};
 	struct sock *sk = s->sk;
-	int i = 0, rv = 0, sent = 0,
-	    flags = MSG_MORE | MSG_DONTWAIT | MSG_SENDPAGE_NOTLAST;
+	int i = 0, rv = 0, sent = 0;
 
 	while (size) {
 		size_t bytes = min_t(size_t, PAGE_SIZE - offset, size);
 
 		if (size + offset <= PAGE_SIZE)
-			flags = MSG_MORE | MSG_DONTWAIT;
+			msg.msg_flags &= ~MSG_MORE;
 
 		tcp_rate_check_app_limited(sk);
+		bvec_set_page(&bvec, page[i], bytes, offset);
+		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, &bvec, 1, size);
+
 try_page_again:
 		lock_sock(sk);
-		rv = do_tcp_sendpages(sk, page[i], offset, bytes, flags);
+		rv = tcp_sendmsg_locked(sk, &msg, size);
 		release_sock(sk);
 
 		if (rv > 0) {
@@ -477,7 +482,7 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 			 * or memory region with assigned kernel buffer
 			 */
 			iov[seg].iov_base =
-				(void *)(uintptr_t)(sge->laddr + sge_off);
+				ib_virt_dma_to_ptr(sge->laddr + sge_off);
 			iov[seg].iov_len = sge_len;
 
 			if (do_crc)
@@ -537,19 +542,13 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 				 * Cast to an uintptr_t to preserve all 64 bits
 				 * in sge->laddr.
 				 */
-				uintptr_t va = (uintptr_t)(sge->laddr + sge_off);
+				u64 va = sge->laddr + sge_off;
 
-				/*
-				 * virt_to_page() takes a (void *) pointer
-				 * so cast to a (void *) meaning it will be 64
-				 * bits on a 64 bit platform and 32 bits on a
-				 * 32 bit platform.
-				 */
-				page_array[seg] = virt_to_page((void *)(va & PAGE_MASK));
+				page_array[seg] = ib_virt_dma_to_page(va);
 				if (do_crc)
 					crypto_shash_update(
 						c_tx->mpa_crc_hd,
-						(void *)va,
+						ib_virt_dma_to_ptr(va),
 						plen);
 			}
 
@@ -558,7 +557,7 @@ static int siw_tx_hdt(struct siw_iwarp_tx *c_tx, struct socket *s)
 			data_len -= plen;
 			fp_off = 0;
 
-			if (++seg > (int)MAX_ARRAY) {
+			if (++seg >= (int)MAX_ARRAY) {
 				siw_dbg_qp(tx_qp(c_tx), "to many fragments\n");
 				siw_unmap_pages(iov, kmap_mask, seg-1);
 				wqe->processed -= c_tx->bytes_unsent;

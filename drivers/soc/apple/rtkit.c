@@ -9,6 +9,7 @@
 enum {
 	APPLE_RTKIT_PWR_STATE_OFF = 0x00, /* power off, cannot be restarted */
 	APPLE_RTKIT_PWR_STATE_SLEEP = 0x01, /* sleeping, can be restarted */
+	APPLE_RTKIT_PWR_STATE_IDLE = 0x201, /* sleeping, retain state */
 	APPLE_RTKIT_PWR_STATE_QUIESCED = 0x10, /* running but no communication */
 	APPLE_RTKIT_PWR_STATE_ON = 0x20, /* normal operating state */
 };
@@ -54,7 +55,7 @@ enum {
 
 #define APPLE_RTKIT_BUFFER_REQUEST	1
 #define APPLE_RTKIT_BUFFER_REQUEST_SIZE GENMASK_ULL(51, 44)
-#define APPLE_RTKIT_BUFFER_REQUEST_IOVA GENMASK_ULL(41, 0)
+#define APPLE_RTKIT_BUFFER_REQUEST_IOVA GENMASK_ULL(43, 0)
 
 #define APPLE_RTKIT_SYSLOG_TYPE GENMASK_ULL(59, 52)
 
@@ -408,11 +409,17 @@ static void apple_rtkit_syslog_rx_init(struct apple_rtkit *rtk, u64 msg)
 		rtk->syslog_n_entries, rtk->syslog_msg_size);
 }
 
+static bool should_crop_syslog_char(char c)
+{
+	return c == '\n' || c == '\r' || c == ' ' || c == '\0';
+}
+
 static void apple_rtkit_syslog_rx_log(struct apple_rtkit *rtk, u64 msg)
 {
 	u8 idx = msg & 0xff;
 	char log_context[24];
 	size_t entry_size = 0x20 + rtk->syslog_msg_size;
+	int msglen;
 
 	if (!rtk->syslog_msg_buffer) {
 		dev_warn(
@@ -445,7 +452,13 @@ static void apple_rtkit_syslog_rx_log(struct apple_rtkit *rtk, u64 msg)
 			   rtk->syslog_msg_size);
 
 	log_context[sizeof(log_context) - 1] = 0;
-	rtk->syslog_msg_buffer[rtk->syslog_msg_size - 1] = 0;
+
+	msglen = rtk->syslog_msg_size - 1;
+	while (msglen > 0 &&
+		   should_crop_syslog_char(rtk->syslog_msg_buffer[msglen - 1]))
+		msglen--;
+
+	rtk->syslog_msg_buffer[msglen] = 0;
 	dev_info(rtk->dev, "RTKit: syslog message: %s: %s\n", log_context,
 		 rtk->syslog_msg_buffer);
 
@@ -660,6 +673,12 @@ int apple_rtkit_send_message_wait(struct apple_rtkit *rtk, u8 ep, u64 message,
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_send_message_wait);
 
+int apple_rtkit_poll(struct apple_rtkit *rtk)
+{
+	return mbox_client_peek_data(rtk->mbox_chan);
+}
+EXPORT_SYMBOL_GPL(apple_rtkit_poll);
+
 int apple_rtkit_start_ep(struct apple_rtkit *rtk, u8 endpoint)
 {
 	u64 msg;
@@ -692,7 +711,7 @@ static int apple_rtkit_request_mbox_chan(struct apple_rtkit *rtk)
 	return 0;
 }
 
-static struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
+struct apple_rtkit *apple_rtkit_init(struct device *dev, void *cookie,
 					    const char *mbox_name, int mbox_idx,
 					    const struct apple_rtkit_ops *ops)
 {
@@ -744,6 +763,7 @@ free_rtk:
 	kfree(rtk);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(apple_rtkit_init);
 
 static int apple_rtkit_wait_for_completion(struct completion *c)
 {
@@ -875,6 +895,26 @@ int apple_rtkit_shutdown(struct apple_rtkit *rtk)
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_shutdown);
 
+int apple_rtkit_idle(struct apple_rtkit *rtk)
+{
+	int ret;
+
+	/* if OFF is used here the co-processor will not wake up again */
+	ret = apple_rtkit_set_ap_power_state(rtk,
+					     APPLE_RTKIT_PWR_STATE_IDLE);
+	if (ret)
+		return ret;
+
+	ret = apple_rtkit_set_iop_power_state(rtk, APPLE_RTKIT_PWR_STATE_IDLE);
+	if (ret)
+		return ret;
+
+	rtk->iop_power_state = APPLE_RTKIT_PWR_STATE_IDLE;
+	rtk->ap_power_state = APPLE_RTKIT_PWR_STATE_IDLE;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(apple_rtkit_idle);
+
 int apple_rtkit_quiesce(struct apple_rtkit *rtk)
 {
 	int ret;
@@ -920,7 +960,7 @@ int apple_rtkit_wake(struct apple_rtkit *rtk)
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_wake);
 
-static void apple_rtkit_free(struct apple_rtkit *rtk)
+void apple_rtkit_free(struct apple_rtkit *rtk)
 {
 	mbox_free_channel(rtk->mbox_chan);
 	destroy_workqueue(rtk->wq);
@@ -931,6 +971,12 @@ static void apple_rtkit_free(struct apple_rtkit *rtk)
 
 	kfree(rtk->syslog_msg_buffer);
 	kfree(rtk);
+}
+EXPORT_SYMBOL_GPL(apple_rtkit_free);
+
+static void apple_rtkit_free_wrapper(void *data)
+{
+	apple_rtkit_free(data);
 }
 
 struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
@@ -944,8 +990,7 @@ struct apple_rtkit *devm_apple_rtkit_init(struct device *dev, void *cookie,
 	if (IS_ERR(rtk))
 		return rtk;
 
-	ret = devm_add_action_or_reset(dev, (void (*)(void *))apple_rtkit_free,
-				       rtk);
+	ret = devm_add_action_or_reset(dev, apple_rtkit_free_wrapper, rtk);
 	if (ret)
 		return ERR_PTR(ret);
 

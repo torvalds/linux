@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 
 #include <drm/drm.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
 #include <drm/radeon_drm.h>
@@ -590,7 +589,7 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 #if defined(CONFIG_DEBUG_FS)
 static int rv370_debugfs_pcie_gart_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);

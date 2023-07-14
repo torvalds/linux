@@ -61,9 +61,15 @@ struct std_timing {
 	u8 vfreq_aspect;
 } __attribute__((packed));
 
-#define DRM_EDID_PT_HSYNC_POSITIVE (1 << 1)
-#define DRM_EDID_PT_VSYNC_POSITIVE (1 << 2)
-#define DRM_EDID_PT_SEPARATE_SYNC  (3 << 3)
+#define DRM_EDID_PT_SYNC_MASK              (3 << 3)
+# define DRM_EDID_PT_ANALOG_CSYNC          (0 << 3)
+# define DRM_EDID_PT_BIPOLAR_ANALOG_CSYNC  (1 << 3)
+# define DRM_EDID_PT_DIGITAL_CSYNC         (2 << 3)
+#  define DRM_EDID_PT_CSYNC_ON_RGB         (1 << 1) /* analog csync only */
+#  define DRM_EDID_PT_CSYNC_SERRATE        (1 << 2)
+# define DRM_EDID_PT_DIGITAL_SEPARATE_SYNC (3 << 3)
+#  define DRM_EDID_PT_HSYNC_POSITIVE       (1 << 1) /* also digital csync */
+#  define DRM_EDID_PT_VSYNC_POSITIVE       (1 << 2)
 #define DRM_EDID_PT_STEREO         (1 << 5)
 #define DRM_EDID_PT_INTERLACED     (1 << 7)
 
@@ -97,10 +103,13 @@ struct detailed_data_string {
 #define DRM_EDID_RANGE_OFFSET_MIN_HFREQ (1 << 2) /* 1.4 */
 #define DRM_EDID_RANGE_OFFSET_MAX_HFREQ (1 << 3) /* 1.4 */
 
-#define DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG   0x00
-#define DRM_EDID_RANGE_LIMITS_ONLY_FLAG     0x01
-#define DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG 0x02
-#define DRM_EDID_CVT_SUPPORT_FLAG           0x04
+#define DRM_EDID_DEFAULT_GTF_SUPPORT_FLAG   0x00 /* 1.3 */
+#define DRM_EDID_RANGE_LIMITS_ONLY_FLAG     0x01 /* 1.4 */
+#define DRM_EDID_SECONDARY_GTF_SUPPORT_FLAG 0x02 /* 1.3 */
+#define DRM_EDID_CVT_SUPPORT_FLAG           0x04 /* 1.4 */
+
+#define DRM_EDID_CVT_FLAGS_STANDARD_BLANKING (1 << 3)
+#define DRM_EDID_CVT_FLAGS_REDUCED_BLANKING  (1 << 4)
 
 struct detailed_data_monitor_range {
 	u8 min_vfreq;
@@ -206,7 +215,8 @@ struct detailed_timing {
 #define DRM_EDID_DIGITAL_TYPE_DP       (5 << 0) /* 1.4 */
 #define DRM_EDID_DIGITAL_DFP_1_X       (1 << 0) /* 1.3 */
 
-#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
+#define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0) /* 1.2 */
+#define DRM_EDID_FEATURE_CONTINUOUS_FREQ  (1 << 0) /* 1.4 */
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
 #define DRM_EDID_FEATURE_STANDARD_COLOR   (1 << 2)
 /* If analog */
@@ -384,15 +394,8 @@ int drm_av_sync_delay(struct drm_connector *connector,
 		      const struct drm_display_mode *mode);
 
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
-struct edid *drm_load_edid_firmware(struct drm_connector *connector);
 int __drm_set_edid_firmware_path(const char *path);
 int __drm_get_edid_firmware_path(char *buf, size_t bufsize);
-#else
-static inline struct edid *
-drm_load_edid_firmware(struct drm_connector *connector)
-{
-	return ERR_PTR(-ENOENT);
-}
 #endif
 
 bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2);
@@ -573,7 +576,7 @@ struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter);
 struct edid *drm_edid_duplicate(const struct edid *edid);
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
-int drm_add_override_edid_modes(struct drm_connector *connector);
+int drm_edid_override_connector_update(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 bool drm_detect_hdmi_monitor(const struct edid *edid);
@@ -602,6 +605,7 @@ drm_display_mode_from_cea_vic(struct drm_device *dev,
 const struct drm_edid *drm_edid_alloc(const void *edid, size_t size);
 const struct drm_edid *drm_edid_dup(const struct drm_edid *drm_edid);
 void drm_edid_free(const struct drm_edid *drm_edid);
+bool drm_edid_valid(const struct drm_edid *drm_edid);
 const struct edid *drm_edid_raw(const struct drm_edid *drm_edid);
 const struct drm_edid *drm_edid_read(struct drm_connector *connector);
 const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
@@ -609,8 +613,12 @@ const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
 const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
 					    int (*read_block)(void *context, u8 *buf, unsigned int block, size_t len),
 					    void *context);
+const struct drm_edid *drm_edid_read_switcheroo(struct drm_connector *connector,
+						struct i2c_adapter *adapter);
 int drm_edid_connector_update(struct drm_connector *connector,
 			      const struct drm_edid *edid);
+int drm_edid_connector_add_modes(struct drm_connector *connector);
+
 const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index);
 

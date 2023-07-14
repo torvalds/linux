@@ -10,11 +10,11 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/pci.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -60,7 +60,7 @@ struct histb_pcie {
 	struct reset_control *sys_reset;
 	struct reset_control *bus_reset;
 	void __iomem *ctrl;
-	int reset_gpio;
+	struct gpio_desc *reset_gpio;
 	struct regulator *vpcie;
 };
 
@@ -212,8 +212,8 @@ static void histb_pcie_host_disable(struct histb_pcie *hipcie)
 	clk_disable_unprepare(hipcie->sys_clk);
 	clk_disable_unprepare(hipcie->bus_clk);
 
-	if (gpio_is_valid(hipcie->reset_gpio))
-		gpio_set_value_cansleep(hipcie->reset_gpio, 0);
+	if (hipcie->reset_gpio)
+		gpiod_set_value_cansleep(hipcie->reset_gpio, 1);
 
 	if (hipcie->vpcie)
 		regulator_disable(hipcie->vpcie);
@@ -235,8 +235,8 @@ static int histb_pcie_host_enable(struct dw_pcie_rp *pp)
 		}
 	}
 
-	if (gpio_is_valid(hipcie->reset_gpio))
-		gpio_set_value_cansleep(hipcie->reset_gpio, 1);
+	if (hipcie->reset_gpio)
+		gpiod_set_value_cansleep(hipcie->reset_gpio, 0);
 
 	ret = clk_prepare_enable(hipcie->bus_clk);
 	if (ret) {
@@ -298,10 +298,7 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	struct histb_pcie *hipcie;
 	struct dw_pcie *pci;
 	struct dw_pcie_rp *pp;
-	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	enum of_gpio_flags of_flags;
-	unsigned long flag = GPIOF_DIR_OUT;
 	int ret;
 
 	hipcie = devm_kzalloc(dev, sizeof(*hipcie), GFP_KERNEL);
@@ -336,17 +333,19 @@ static int histb_pcie_probe(struct platform_device *pdev)
 		hipcie->vpcie = NULL;
 	}
 
-	hipcie->reset_gpio = of_get_named_gpio_flags(np,
-				"reset-gpios", 0, &of_flags);
-	if (of_flags & OF_GPIO_ACTIVE_LOW)
-		flag |= GPIOF_ACTIVE_LOW;
-	if (gpio_is_valid(hipcie->reset_gpio)) {
-		ret = devm_gpio_request_one(dev, hipcie->reset_gpio,
-				flag, "PCIe device power control");
-		if (ret) {
-			dev_err(dev, "unable to request gpio\n");
-			return ret;
-		}
+	hipcie->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						     GPIOD_OUT_HIGH);
+	ret = PTR_ERR_OR_ZERO(hipcie->reset_gpio);
+	if (ret) {
+		dev_err(dev, "unable to request reset gpio: %d\n", ret);
+		return ret;
+	}
+
+	ret = gpiod_set_consumer_name(hipcie->reset_gpio,
+				      "PCIe device power control");
+	if (ret) {
+		dev_err(dev, "unable to set reset gpio name: %d\n", ret);
+		return ret;
 	}
 
 	hipcie->aux_clk = devm_clk_get(dev, "aux");
@@ -422,7 +421,7 @@ static int histb_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int histb_pcie_remove(struct platform_device *pdev)
+static void histb_pcie_remove(struct platform_device *pdev)
 {
 	struct histb_pcie *hipcie = platform_get_drvdata(pdev);
 
@@ -430,8 +429,6 @@ static int histb_pcie_remove(struct platform_device *pdev)
 
 	if (hipcie->phy)
 		phy_exit(hipcie->phy);
-
-	return 0;
 }
 
 static const struct of_device_id histb_pcie_of_match[] = {
@@ -442,7 +439,7 @@ MODULE_DEVICE_TABLE(of, histb_pcie_of_match);
 
 static struct platform_driver histb_pcie_platform_driver = {
 	.probe	= histb_pcie_probe,
-	.remove	= histb_pcie_remove,
+	.remove_new = histb_pcie_remove,
 	.driver = {
 		.name = "histb-pcie",
 		.of_match_table = histb_pcie_of_match,
@@ -451,4 +448,3 @@ static struct platform_driver histb_pcie_platform_driver = {
 module_platform_driver(histb_pcie_platform_driver);
 
 MODULE_DESCRIPTION("HiSilicon STB PCIe host controller driver");
-MODULE_LICENSE("GPL v2");

@@ -269,7 +269,6 @@ extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
 #endif
 
 struct mmu_notifier_range {
-	struct vm_area_struct *vma;
 	struct mm_struct *mm;
 	unsigned long start;
 	unsigned long end;
@@ -514,12 +513,10 @@ static inline void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
 static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 					   enum mmu_notifier_event event,
 					   unsigned flags,
-					   struct vm_area_struct *vma,
 					   struct mm_struct *mm,
 					   unsigned long start,
 					   unsigned long end)
 {
-	range->vma = vma;
 	range->event = event;
 	range->mm = mm;
 	range->start = start;
@@ -530,10 +527,10 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
 static inline void mmu_notifier_range_init_owner(
 			struct mmu_notifier_range *range,
 			enum mmu_notifier_event event, unsigned int flags,
-			struct vm_area_struct *vma, struct mm_struct *mm,
-			unsigned long start, unsigned long end, void *owner)
+			struct mm_struct *mm, unsigned long start,
+			unsigned long end, void *owner)
 {
-	mmu_notifier_range_init(range, event, flags, vma, mm, start, end);
+	mmu_notifier_range_init(range, event, flags, mm, start, end);
 	range->owner = owner;
 }
 
@@ -659,9 +656,9 @@ static inline void _mmu_notifier_range_init(struct mmu_notifier_range *range,
 	range->end = end;
 }
 
-#define mmu_notifier_range_init(range,event,flags,vma,mm,start,end)  \
+#define mmu_notifier_range_init(range,event,flags,mm,start,end)  \
 	_mmu_notifier_range_init(range, start, end)
-#define mmu_notifier_range_init_owner(range, event, flags, vma, mm, start, \
+#define mmu_notifier_range_init_owner(range, event, flags, mm, start, \
 					end, owner) \
 	_mmu_notifier_range_init(range, start, end)
 

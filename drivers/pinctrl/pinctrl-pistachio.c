@@ -10,13 +10,14 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -93,10 +94,10 @@ struct pistachio_pin_group {
 struct pistachio_gpio_bank {
 	struct pistachio_pinctrl *pctl;
 	void __iomem *base;
+	int instance;
 	unsigned int pin_base;
 	unsigned int npins;
 	struct gpio_chip gpio_chip;
-	struct irq_chip irq_chip;
 };
 
 struct pistachio_pinctrl {
@@ -1228,12 +1229,14 @@ static void pistachio_gpio_irq_mask(struct irq_data *data)
 	struct pistachio_gpio_bank *bank = irqd_to_bank(data);
 
 	gpio_mask_writel(bank, GPIO_INTERRUPT_EN, data->hwirq, 0);
+	gpiochip_disable_irq(&bank->gpio_chip, irqd_to_hwirq(data));
 }
 
 static void pistachio_gpio_irq_unmask(struct irq_data *data)
 {
 	struct pistachio_gpio_bank *bank = irqd_to_bank(data);
 
+	gpiochip_enable_irq(&bank->gpio_chip, irqd_to_hwirq(data));
 	gpio_mask_writel(bank, GPIO_INTERRUPT_EN, data->hwirq, 1);
 }
 
@@ -1312,6 +1315,7 @@ static void pistachio_gpio_irq_handler(struct irq_desc *desc)
 
 #define GPIO_BANK(_bank, _pin_base, _npins)				\
 	{								\
+		.instance = (_bank),					\
 		.pin_base = _pin_base,					\
 		.npins = _npins,					\
 		.gpio_chip = {						\
@@ -1326,14 +1330,6 @@ static void pistachio_gpio_irq_handler(struct irq_desc *desc)
 			.base = _pin_base,				\
 			.ngpio = _npins,				\
 		},							\
-		.irq_chip = {						\
-			.name = "GPIO" #_bank,				\
-			.irq_startup = pistachio_gpio_irq_startup,	\
-			.irq_ack = pistachio_gpio_irq_ack,		\
-			.irq_mask = pistachio_gpio_irq_mask,		\
-			.irq_unmask = pistachio_gpio_irq_unmask,	\
-			.irq_set_type = pistachio_gpio_irq_set_type,	\
-		},							\
 	}
 
 static struct pistachio_gpio_bank pistachio_gpio_banks[] = {
@@ -1345,51 +1341,75 @@ static struct pistachio_gpio_bank pistachio_gpio_banks[] = {
 	GPIO_BANK(5, PISTACHIO_PIN_MFIO(80), 10),
 };
 
+static void pistachio_gpio_irq_print_chip(struct irq_data *data,
+					  struct seq_file *p)
+{
+	struct pistachio_gpio_bank *bank = irqd_to_bank(data);
+
+	seq_printf(p, "GPIO%d", bank->instance);
+}
+
+static const struct irq_chip pistachio_gpio_irq_chip = {
+	.irq_startup = pistachio_gpio_irq_startup,
+	.irq_ack = pistachio_gpio_irq_ack,
+	.irq_mask = pistachio_gpio_irq_mask,
+	.irq_unmask = pistachio_gpio_irq_unmask,
+	.irq_set_type = pistachio_gpio_irq_set_type,
+	.irq_print_chip = pistachio_gpio_irq_print_chip,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
+
 static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 {
-	struct device_node *node = pctl->dev->of_node;
 	struct pistachio_gpio_bank *bank;
 	unsigned int i;
 	int irq, ret = 0;
 
 	for (i = 0; i < pctl->nbanks; i++) {
 		char child_name[sizeof("gpioXX")];
-		struct device_node *child;
+		struct fwnode_handle *child;
 		struct gpio_irq_chip *girq;
 
 		snprintf(child_name, sizeof(child_name), "gpio%d", i);
-		child = of_get_child_by_name(node, child_name);
+		child = device_get_named_child_node(pctl->dev, child_name);
 		if (!child) {
 			dev_err(pctl->dev, "No node for bank %u\n", i);
 			ret = -ENODEV;
 			goto err;
 		}
 
-		if (!of_find_property(child, "gpio-controller", NULL)) {
+		if (!fwnode_property_present(child, "gpio-controller")) {
+			fwnode_handle_put(child);
 			dev_err(pctl->dev,
 				"No gpio-controller property for bank %u\n", i);
-			of_node_put(child);
 			ret = -ENODEV;
 			goto err;
 		}
 
-		irq = irq_of_parse_and_map(child, 0);
-		if (!irq) {
+		ret = fwnode_irq_get(child, 0);
+		if (ret < 0) {
+			fwnode_handle_put(child);
+			dev_err(pctl->dev, "Failed to retrieve IRQ for bank %u\n", i);
+			goto err;
+		}
+		if (!ret) {
+			fwnode_handle_put(child);
 			dev_err(pctl->dev, "No IRQ for bank %u\n", i);
-			of_node_put(child);
 			ret = -EINVAL;
 			goto err;
 		}
+		irq = ret;
 
 		bank = &pctl->gpio_banks[i];
 		bank->pctl = pctl;
 		bank->base = pctl->base + GPIO_BANK_BASE(i);
 
 		bank->gpio_chip.parent = pctl->dev;
-		bank->gpio_chip.of_node = child;
+		bank->gpio_chip.fwnode = child;
 
 		girq = &bank->gpio_chip.irq;
-		girq->chip = &bank->irq_chip;
+		gpio_irq_chip_set_chip(girq, &pistachio_gpio_irq_chip);
 		girq->parent_handler = pistachio_gpio_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(pctl->dev, 1,

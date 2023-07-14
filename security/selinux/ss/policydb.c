@@ -42,7 +42,7 @@
 #include "services.h"
 
 #ifdef DEBUG_HASHES
-static const char *symtab_name[SYM_NUM] = {
+static const char *const symtab_name[SYM_NUM] = {
 	"common prefixes",
 	"classes",
 	"roles",
@@ -2256,6 +2256,10 @@ static int ocontext_read(struct policydb *p, const struct policydb_compat_info *
 				rc = str_read(&c->u.name, GFP_KERNEL, fp, len);
 				if (rc)
 					goto out;
+
+				if (i == OCON_FS)
+					pr_warn("SELinux:  void and deprecated fs ocon %s\n",
+						c->u.name);
 
 				rc = context_read_and_validate(&c->context[0], p, fp);
 				if (rc)

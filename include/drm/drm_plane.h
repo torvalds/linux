@@ -77,8 +77,8 @@ struct drm_plane_state {
 	 * write this field directly for a driver's implicit fence.
 	 *
 	 * Drivers should store any implicit fence in this from their
-	 * &drm_plane_helper_funcs.prepare_fb callback. See drm_gem_plane_helper_prepare_fb()
-	 * and drm_gem_simple_display_pipe_prepare_fb() for suitable helpers.
+	 * &drm_plane_helper_funcs.prepare_fb callback. See
+	 * drm_gem_plane_helper_prepare_fb() for a suitable helper.
 	 */
 	struct dma_fence *fence;
 
@@ -631,7 +631,7 @@ struct drm_plane {
 	unsigned int format_count;
 	/**
 	 * @format_default: driver hasn't supplied supported formats for the
-	 * plane. Used by the drm_plane_init compatibility wrapper only.
+	 * plane. Used by the non-atomic driver compatibility wrapper only.
 	 */
 	bool format_default;
 
@@ -762,12 +762,6 @@ int drm_universal_plane_init(struct drm_device *dev,
 			     const uint64_t *format_modifiers,
 			     enum drm_plane_type type,
 			     const char *name, ...);
-int drm_plane_init(struct drm_device *dev,
-		   struct drm_plane *plane,
-		   uint32_t possible_crtcs,
-		   const struct drm_plane_funcs *funcs,
-		   const uint32_t *formats, unsigned int format_count,
-		   bool is_primary);
 void drm_plane_cleanup(struct drm_plane *plane);
 
 __printf(10, 11)
@@ -814,6 +808,50 @@ void *__drmm_universal_plane_alloc(struct drm_device *dev,
 					      possible_crtcs, funcs, formats, \
 					      format_count, format_modifiers, \
 					      plane_type, name, ##__VA_ARGS__))
+
+__printf(10, 11)
+void *__drm_universal_plane_alloc(struct drm_device *dev,
+				  size_t size, size_t offset,
+				  uint32_t possible_crtcs,
+				  const struct drm_plane_funcs *funcs,
+				  const uint32_t *formats,
+				  unsigned int format_count,
+				  const uint64_t *format_modifiers,
+				  enum drm_plane_type plane_type,
+				  const char *name, ...);
+
+/**
+ * drm_universal_plane_alloc() - Allocate and initialize an universal plane object
+ * @dev: DRM device
+ * @type: the type of the struct which contains struct &drm_plane
+ * @member: the name of the &drm_plane within @type
+ * @possible_crtcs: bitmask of possible CRTCs
+ * @funcs: callbacks for the new plane
+ * @formats: array of supported formats (DRM_FORMAT\_\*)
+ * @format_count: number of elements in @formats
+ * @format_modifiers: array of struct drm_format modifiers terminated by
+ *                    DRM_FORMAT_MOD_INVALID
+ * @plane_type: type of plane (overlay, primary, cursor)
+ * @name: printf style format string for the plane name, or NULL for default name
+ *
+ * Allocates and initializes a plane object of type @type. The caller
+ * is responsible for releasing the allocated memory with kfree().
+ *
+ * Drivers are encouraged to use drmm_universal_plane_alloc() instead.
+ *
+ * Drivers that only support the DRM_FORMAT_MOD_LINEAR modifier support may set
+ * @format_modifiers to NULL. The plane will advertise the linear modifier.
+ *
+ * Returns:
+ * Pointer to new plane, or ERR_PTR on failure.
+ */
+#define drm_universal_plane_alloc(dev, type, member, possible_crtcs, funcs, formats, \
+				   format_count, format_modifiers, plane_type, name, ...) \
+	((type *)__drm_universal_plane_alloc(dev, sizeof(type), \
+					     offsetof(type, member), \
+					     possible_crtcs, funcs, formats, \
+					     format_count, format_modifiers, \
+					     plane_type, name, ##__VA_ARGS__))
 
 /**
  * drm_plane_index - find the index of a registered plane

@@ -16,6 +16,8 @@
 
 #include "../tools/testing/selftests/kselftest_module.h"
 
+#define EXP1_IN_BITS	(sizeof(exp1) * 8)
+
 KSTM_MODULE_GLOBALS();
 
 static char pbl_buffer[PAGE_SIZE] __initdata;
@@ -217,6 +219,47 @@ static void __init test_zero_clear(void)
 	/* Zeroing entire area */
 	bitmap_zero(bmap, 1024);
 	expect_eq_pbl("", bmap, 1024);
+}
+
+static void __init test_find_nth_bit(void)
+{
+	unsigned long b, bit, cnt = 0;
+	DECLARE_BITMAP(bmap, 64 * 3);
+
+	bitmap_zero(bmap, 64 * 3);
+	__set_bit(10, bmap);
+	__set_bit(20, bmap);
+	__set_bit(30, bmap);
+	__set_bit(40, bmap);
+	__set_bit(50, bmap);
+	__set_bit(60, bmap);
+	__set_bit(80, bmap);
+	__set_bit(123, bmap);
+
+	expect_eq_uint(10,  find_nth_bit(bmap, 64 * 3, 0));
+	expect_eq_uint(20,  find_nth_bit(bmap, 64 * 3, 1));
+	expect_eq_uint(30,  find_nth_bit(bmap, 64 * 3, 2));
+	expect_eq_uint(40,  find_nth_bit(bmap, 64 * 3, 3));
+	expect_eq_uint(50,  find_nth_bit(bmap, 64 * 3, 4));
+	expect_eq_uint(60,  find_nth_bit(bmap, 64 * 3, 5));
+	expect_eq_uint(80,  find_nth_bit(bmap, 64 * 3, 6));
+	expect_eq_uint(123, find_nth_bit(bmap, 64 * 3, 7));
+	expect_eq_uint(64 * 3, find_nth_bit(bmap, 64 * 3, 8));
+
+	expect_eq_uint(10,  find_nth_bit(bmap, 64 * 3 - 1, 0));
+	expect_eq_uint(20,  find_nth_bit(bmap, 64 * 3 - 1, 1));
+	expect_eq_uint(30,  find_nth_bit(bmap, 64 * 3 - 1, 2));
+	expect_eq_uint(40,  find_nth_bit(bmap, 64 * 3 - 1, 3));
+	expect_eq_uint(50,  find_nth_bit(bmap, 64 * 3 - 1, 4));
+	expect_eq_uint(60,  find_nth_bit(bmap, 64 * 3 - 1, 5));
+	expect_eq_uint(80,  find_nth_bit(bmap, 64 * 3 - 1, 6));
+	expect_eq_uint(123, find_nth_bit(bmap, 64 * 3 - 1, 7));
+	expect_eq_uint(64 * 3 - 1, find_nth_bit(bmap, 64 * 3 - 1, 8));
+
+	for_each_set_bit(bit, exp1, EXP1_IN_BITS) {
+		b = find_nth_bit(exp1, EXP1_IN_BITS, cnt++);
+		expect_eq_uint(b, bit);
+	}
 }
 
 static void __init test_fill_set(void)
@@ -427,6 +470,7 @@ static void __init test_bitmap_parselist(void)
 		if (err != ptest.errno) {
 			pr_err("parselist: %d: input is %s, errno is %d, expected %d\n",
 					i, ptest.in, err, ptest.errno);
+			failed_tests++;
 			continue;
 		}
 
@@ -435,6 +479,7 @@ static void __init test_bitmap_parselist(void)
 			pr_err("parselist: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
 					i, ptest.in, bmap[0],
 					*ptest.expected);
+			failed_tests++;
 			continue;
 		}
 
@@ -468,11 +513,13 @@ static void __init test_bitmap_printlist(void)
 
 	if (ret != slen + 1) {
 		pr_err("bitmap_print_to_pagebuf: result is %d, expected %d\n", ret, slen);
+		failed_tests++;
 		goto out;
 	}
 
 	if (strncmp(buf, expected, slen)) {
 		pr_err("bitmap_print_to_pagebuf: result is %s, expected %s\n", buf, expected);
+		failed_tests++;
 		goto out;
 	}
 
@@ -540,6 +587,7 @@ static void __init test_bitmap_parse(void)
 		if (err != test.errno) {
 			pr_err("parse: %d: input is %s, errno is %d, expected %d\n",
 					i, test.in, err, test.errno);
+			failed_tests++;
 			continue;
 		}
 
@@ -548,6 +596,7 @@ static void __init test_bitmap_parse(void)
 			pr_err("parse: %d: input is %s, result is 0x%lx, expected 0x%lx\n",
 					i, test.in, bmap[0],
 					*test.expected);
+			failed_tests++;
 			continue;
 		}
 
@@ -556,8 +605,6 @@ static void __init test_bitmap_parse(void)
 					i, test.in, time);
 	}
 }
-
-#define EXP1_IN_BITS	(sizeof(exp1) * 8)
 
 static void __init test_bitmap_arr32(void)
 {
@@ -574,10 +621,12 @@ static void __init test_bitmap_arr32(void)
 
 		next_bit = find_next_bit(bmap2,
 				round_up(nbits, BITS_PER_LONG), nbits);
-		if (next_bit < round_up(nbits, BITS_PER_LONG))
+		if (next_bit < round_up(nbits, BITS_PER_LONG)) {
 			pr_err("bitmap_copy_arr32(nbits == %d:"
 				" tail is not safely cleared: %d\n",
 				nbits, next_bit);
+			failed_tests++;
+		}
 
 		if (nbits < EXP1_IN_BITS - 32)
 			expect_eq_uint(arr[DIV_ROUND_UP(nbits, 32)],
@@ -600,15 +649,19 @@ static void __init test_bitmap_arr64(void)
 		expect_eq_bitmap(bmap2, exp1, nbits);
 
 		next_bit = find_next_bit(bmap2, round_up(nbits, BITS_PER_LONG), nbits);
-		if (next_bit < round_up(nbits, BITS_PER_LONG))
+		if (next_bit < round_up(nbits, BITS_PER_LONG)) {
 			pr_err("bitmap_copy_arr64(nbits == %d:"
 				" tail is not safely cleared: %d\n", nbits, next_bit);
+			failed_tests++;
+		}
 
 		if ((nbits % 64) &&
-		    (arr[(nbits - 1) / 64] & ~GENMASK_ULL((nbits - 1) % 64, 0)))
+		    (arr[(nbits - 1) / 64] & ~GENMASK_ULL((nbits - 1) % 64, 0))) {
 			pr_err("bitmap_to_arr64(nbits == %d): tail is not safely cleared: 0x%016llx (must be 0x%016llx)\n",
 			       nbits, arr[(nbits - 1) / 64],
 			       GENMASK_ULL((nbits - 1) % 64, 0));
+			failed_tests++;
+		}
 
 		if (nbits < EXP1_IN_BITS - 64)
 			expect_eq_uint(arr[DIV_ROUND_UP(nbits, 64)], 0xa5a5a5a5);
@@ -683,6 +736,239 @@ static void __init test_for_each_set_clump8(void)
 
 	for_each_set_clump8(start, clump, bits, CLUMP_EXP_NUMBITS)
 		expect_eq_clump8(start, CLUMP_EXP_NUMBITS, clump_exp, &clump);
+}
+
+static void __init test_for_each_set_bit_wrap(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int wr, bit;
+
+	bitmap_zero(orig, 500);
+
+	/* Set individual bits */
+	for (bit = 0; bit < 500; bit += 10)
+		bitmap_set(orig, bit, 1);
+
+	/* Set range of bits */
+	bitmap_set(orig, 100, 50);
+
+	for (wr = 0; wr < 500; wr++) {
+		bitmap_zero(copy, 500);
+
+		for_each_set_bit_wrap(bit, orig, 500, wr)
+			bitmap_set(copy, bit, 1);
+
+		expect_eq_bitmap(orig, copy, 500);
+	}
+}
+
+static void __init test_for_each_set_bit(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int bit;
+
+	bitmap_zero(orig, 500);
+	bitmap_zero(copy, 500);
+
+	/* Set individual bits */
+	for (bit = 0; bit < 500; bit += 10)
+		bitmap_set(orig, bit, 1);
+
+	/* Set range of bits */
+	bitmap_set(orig, 100, 50);
+
+	for_each_set_bit(bit, orig, 500)
+		bitmap_set(copy, bit, 1);
+
+	expect_eq_bitmap(orig, copy, 500);
+}
+
+static void __init test_for_each_set_bit_from(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int wr, bit;
+
+	bitmap_zero(orig, 500);
+
+	/* Set individual bits */
+	for (bit = 0; bit < 500; bit += 10)
+		bitmap_set(orig, bit, 1);
+
+	/* Set range of bits */
+	bitmap_set(orig, 100, 50);
+
+	for (wr = 0; wr < 500; wr++) {
+		DECLARE_BITMAP(tmp, 500);
+
+		bitmap_zero(copy, 500);
+		bit = wr;
+
+		for_each_set_bit_from(bit, orig, 500)
+			bitmap_set(copy, bit, 1);
+
+		bitmap_copy(tmp, orig, 500);
+		bitmap_clear(tmp, 0, wr);
+		expect_eq_bitmap(tmp, copy, 500);
+	}
+}
+
+static void __init test_for_each_clear_bit(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int bit;
+
+	bitmap_fill(orig, 500);
+	bitmap_fill(copy, 500);
+
+	/* Set individual bits */
+	for (bit = 0; bit < 500; bit += 10)
+		bitmap_clear(orig, bit, 1);
+
+	/* Set range of bits */
+	bitmap_clear(orig, 100, 50);
+
+	for_each_clear_bit(bit, orig, 500)
+		bitmap_clear(copy, bit, 1);
+
+	expect_eq_bitmap(orig, copy, 500);
+}
+
+static void __init test_for_each_clear_bit_from(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int wr, bit;
+
+	bitmap_fill(orig, 500);
+
+	/* Set individual bits */
+	for (bit = 0; bit < 500; bit += 10)
+		bitmap_clear(orig, bit, 1);
+
+	/* Set range of bits */
+	bitmap_clear(orig, 100, 50);
+
+	for (wr = 0; wr < 500; wr++) {
+		DECLARE_BITMAP(tmp, 500);
+
+		bitmap_fill(copy, 500);
+		bit = wr;
+
+		for_each_clear_bit_from(bit, orig, 500)
+			bitmap_clear(copy, bit, 1);
+
+		bitmap_copy(tmp, orig, 500);
+		bitmap_set(tmp, 0, wr);
+		expect_eq_bitmap(tmp, copy, 500);
+	}
+}
+
+static void __init test_for_each_set_bitrange(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int s, e;
+
+	bitmap_zero(orig, 500);
+	bitmap_zero(copy, 500);
+
+	/* Set individual bits */
+	for (s = 0; s < 500; s += 10)
+		bitmap_set(orig, s, 1);
+
+	/* Set range of bits */
+	bitmap_set(orig, 100, 50);
+
+	for_each_set_bitrange(s, e, orig, 500)
+		bitmap_set(copy, s, e-s);
+
+	expect_eq_bitmap(orig, copy, 500);
+}
+
+static void __init test_for_each_clear_bitrange(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int s, e;
+
+	bitmap_fill(orig, 500);
+	bitmap_fill(copy, 500);
+
+	/* Set individual bits */
+	for (s = 0; s < 500; s += 10)
+		bitmap_clear(orig, s, 1);
+
+	/* Set range of bits */
+	bitmap_clear(orig, 100, 50);
+
+	for_each_clear_bitrange(s, e, orig, 500)
+		bitmap_clear(copy, s, e-s);
+
+	expect_eq_bitmap(orig, copy, 500);
+}
+
+static void __init test_for_each_set_bitrange_from(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int wr, s, e;
+
+	bitmap_zero(orig, 500);
+
+	/* Set individual bits */
+	for (s = 0; s < 500; s += 10)
+		bitmap_set(orig, s, 1);
+
+	/* Set range of bits */
+	bitmap_set(orig, 100, 50);
+
+	for (wr = 0; wr < 500; wr++) {
+		DECLARE_BITMAP(tmp, 500);
+
+		bitmap_zero(copy, 500);
+		s = wr;
+
+		for_each_set_bitrange_from(s, e, orig, 500)
+			bitmap_set(copy, s, e - s);
+
+		bitmap_copy(tmp, orig, 500);
+		bitmap_clear(tmp, 0, wr);
+		expect_eq_bitmap(tmp, copy, 500);
+	}
+}
+
+static void __init test_for_each_clear_bitrange_from(void)
+{
+	DECLARE_BITMAP(orig, 500);
+	DECLARE_BITMAP(copy, 500);
+	unsigned int wr, s, e;
+
+	bitmap_fill(orig, 500);
+
+	/* Set individual bits */
+	for (s = 0; s < 500; s += 10)
+		bitmap_clear(orig, s, 1);
+
+	/* Set range of bits */
+	bitmap_set(orig, 100, 50);
+
+	for (wr = 0; wr < 500; wr++) {
+		DECLARE_BITMAP(tmp, 500);
+
+		bitmap_fill(copy, 500);
+		s = wr;
+
+		for_each_clear_bitrange_from(s, e, orig, 500)
+			bitmap_clear(copy, s, e - s);
+
+		bitmap_copy(tmp, orig, 500);
+		bitmap_set(tmp, 0, wr);
+		expect_eq_bitmap(tmp, copy, 500);
+	}
 }
 
 struct test_bitmap_cut {
@@ -948,10 +1234,21 @@ static void __init selftest(void)
 	test_bitmap_parselist();
 	test_bitmap_printlist();
 	test_mem_optimisations();
-	test_for_each_set_clump8();
 	test_bitmap_cut();
 	test_bitmap_print_buf();
 	test_bitmap_const_eval();
+
+	test_find_nth_bit();
+	test_for_each_set_bit();
+	test_for_each_set_bit_from();
+	test_for_each_clear_bit();
+	test_for_each_clear_bit_from();
+	test_for_each_set_bitrange();
+	test_for_each_clear_bitrange();
+	test_for_each_set_bitrange_from();
+	test_for_each_clear_bitrange_from();
+	test_for_each_set_clump8();
+	test_for_each_set_bit_wrap();
 }
 
 KSTM_MODULE_LOADERS(test_bitmap);

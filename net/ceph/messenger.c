@@ -17,6 +17,7 @@
 #endif	/* CONFIG_BLOCK */
 #include <linux/dns_resolver.h>
 #include <net/tcp.h>
+#include <trace/events/sock.h>
 
 #include <linux/ceph/ceph_features.h>
 #include <linux/ceph/libceph.h>
@@ -344,6 +345,9 @@ static void con_sock_state_closed(struct ceph_connection *con)
 static void ceph_sock_data_ready(struct sock *sk)
 {
 	struct ceph_connection *con = sk->sk_user_data;
+
+	trace_sk_data_ready(sk);
+
 	if (atomic_read(&con->msgr->stopping)) {
 		return;
 	}
@@ -446,6 +450,7 @@ int ceph_tcp_connect(struct ceph_connection *con)
 	if (ret)
 		return ret;
 	sock->sk->sk_allocation = GFP_NOFS;
+	sock->sk->sk_use_task_frag = false;
 
 #ifdef CONFIG_LOCKDEP
 	lockdep_set_class(&sock->sk->sk_lock, &socket_class);
@@ -728,7 +733,6 @@ static void ceph_msg_data_bio_cursor_init(struct ceph_msg_data_cursor *cursor,
 		it->iter.bi_size = cursor->resid;
 
 	BUG_ON(cursor->resid < bio_iter_len(it->bio, it->iter));
-	cursor->last_piece = cursor->resid == bio_iter_len(it->bio, it->iter);
 }
 
 static struct page *ceph_msg_data_bio_next(struct ceph_msg_data_cursor *cursor,
@@ -754,10 +758,8 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 	cursor->resid -= bytes;
 	bio_advance_iter(it->bio, &it->iter, bytes);
 
-	if (!cursor->resid) {
-		BUG_ON(!cursor->last_piece);
+	if (!cursor->resid)
 		return false;   /* no more data */
-	}
 
 	if (!bytes || (it->iter.bi_size && it->iter.bi_bvec_done &&
 		       page == bio_iter_page(it->bio, it->iter)))
@@ -770,9 +772,7 @@ static bool ceph_msg_data_bio_advance(struct ceph_msg_data_cursor *cursor,
 			it->iter.bi_size = cursor->resid;
 	}
 
-	BUG_ON(cursor->last_piece);
 	BUG_ON(cursor->resid < bio_iter_len(it->bio, it->iter));
-	cursor->last_piece = cursor->resid == bio_iter_len(it->bio, it->iter);
 	return true;
 }
 #endif /* CONFIG_BLOCK */
@@ -788,8 +788,6 @@ static void ceph_msg_data_bvecs_cursor_init(struct ceph_msg_data_cursor *cursor,
 	cursor->bvec_iter.bi_size = cursor->resid;
 
 	BUG_ON(cursor->resid < bvec_iter_len(bvecs, cursor->bvec_iter));
-	cursor->last_piece =
-	    cursor->resid == bvec_iter_len(bvecs, cursor->bvec_iter);
 }
 
 static struct page *ceph_msg_data_bvecs_next(struct ceph_msg_data_cursor *cursor,
@@ -815,19 +813,14 @@ static bool ceph_msg_data_bvecs_advance(struct ceph_msg_data_cursor *cursor,
 	cursor->resid -= bytes;
 	bvec_iter_advance(bvecs, &cursor->bvec_iter, bytes);
 
-	if (!cursor->resid) {
-		BUG_ON(!cursor->last_piece);
+	if (!cursor->resid)
 		return false;   /* no more data */
-	}
 
 	if (!bytes || (cursor->bvec_iter.bi_bvec_done &&
 		       page == bvec_iter_page(bvecs, cursor->bvec_iter)))
 		return false;	/* more bytes to process in this segment */
 
-	BUG_ON(cursor->last_piece);
 	BUG_ON(cursor->resid < bvec_iter_len(bvecs, cursor->bvec_iter));
-	cursor->last_piece =
-	    cursor->resid == bvec_iter_len(bvecs, cursor->bvec_iter);
 	return true;
 }
 
@@ -853,7 +846,6 @@ static void ceph_msg_data_pages_cursor_init(struct ceph_msg_data_cursor *cursor,
 	BUG_ON(page_count > (int)USHRT_MAX);
 	cursor->page_count = (unsigned short)page_count;
 	BUG_ON(length > SIZE_MAX - cursor->page_offset);
-	cursor->last_piece = cursor->page_offset + cursor->resid <= PAGE_SIZE;
 }
 
 static struct page *
@@ -868,11 +860,7 @@ ceph_msg_data_pages_next(struct ceph_msg_data_cursor *cursor,
 	BUG_ON(cursor->page_offset >= PAGE_SIZE);
 
 	*page_offset = cursor->page_offset;
-	if (cursor->last_piece)
-		*length = cursor->resid;
-	else
-		*length = PAGE_SIZE - *page_offset;
-
+	*length = min_t(size_t, cursor->resid, PAGE_SIZE - *page_offset);
 	return data->pages[cursor->page_index];
 }
 
@@ -897,8 +885,6 @@ static bool ceph_msg_data_pages_advance(struct ceph_msg_data_cursor *cursor,
 
 	BUG_ON(cursor->page_index >= cursor->page_count);
 	cursor->page_index++;
-	cursor->last_piece = cursor->resid <= PAGE_SIZE;
-
 	return true;
 }
 
@@ -928,7 +914,6 @@ ceph_msg_data_pagelist_cursor_init(struct ceph_msg_data_cursor *cursor,
 	cursor->resid = min(length, pagelist->length);
 	cursor->page = page;
 	cursor->offset = 0;
-	cursor->last_piece = cursor->resid <= PAGE_SIZE;
 }
 
 static struct page *
@@ -948,11 +933,7 @@ ceph_msg_data_pagelist_next(struct ceph_msg_data_cursor *cursor,
 
 	/* offset of first page in pagelist is always 0 */
 	*page_offset = cursor->offset & ~PAGE_MASK;
-	if (cursor->last_piece)
-		*length = cursor->resid;
-	else
-		*length = PAGE_SIZE - *page_offset;
-
+	*length = min_t(size_t, cursor->resid, PAGE_SIZE - *page_offset);
 	return cursor->page;
 }
 
@@ -985,8 +966,6 @@ static bool ceph_msg_data_pagelist_advance(struct ceph_msg_data_cursor *cursor,
 
 	BUG_ON(list_is_last(&cursor->page->lru, &pagelist->head));
 	cursor->page = list_next_entry(cursor->page, lru);
-	cursor->last_piece = cursor->resid <= PAGE_SIZE;
-
 	return true;
 }
 
@@ -1044,8 +1023,7 @@ void ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor,
  * Indicate whether this is the last piece in this data item.
  */
 struct page *ceph_msg_data_next(struct ceph_msg_data_cursor *cursor,
-				size_t *page_offset, size_t *length,
-				bool *last_piece)
+				size_t *page_offset, size_t *length)
 {
 	struct page *page;
 
@@ -1074,8 +1052,6 @@ struct page *ceph_msg_data_next(struct ceph_msg_data_cursor *cursor,
 	BUG_ON(*page_offset + *length > PAGE_SIZE);
 	BUG_ON(!*length);
 	BUG_ON(*length > cursor->resid);
-	if (last_piece)
-		*last_piece = cursor->last_piece;
 
 	return page;
 }
@@ -1112,7 +1088,6 @@ void ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor, size_t bytes)
 	cursor->total_resid -= bytes;
 
 	if (!cursor->resid && cursor->total_resid) {
-		WARN_ON(!cursor->last_piece);
 		cursor->data++;
 		__ceph_msg_data_cursor_init(cursor);
 		new_piece = true;

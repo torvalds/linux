@@ -183,6 +183,7 @@ struct amd_mp2_dev {
 	struct mutex c2p_lock;
 	u8 c2p_lock_busid;
 	unsigned int probed;
+	int dev_irq;
 };
 
 /* PCIe communication driver */

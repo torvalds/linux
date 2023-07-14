@@ -129,9 +129,8 @@ static int dlh_read_direct(struct dlh_state *st,
 	if (ret)
 		return ret;
 
-	*pressure = get_unaligned_be32(&st->rx_buf[1]) >> 8;
-	*temperature = get_unaligned_be32(&st->rx_buf[3]) &
-		GENMASK(DLH_NUM_TEMP_BITS - 1, 0);
+	*pressure = get_unaligned_be24(&st->rx_buf[1]);
+	*temperature = get_unaligned_be24(&st->rx_buf[4]);
 
 	return 0;
 }
@@ -283,9 +282,9 @@ static irqreturn_t dlh_interrupt(int irq, void *private)
 	return IRQ_HANDLED;
 };
 
-static int dlh_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int dlh_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct dlh_state *st;
 	struct iio_dev *indio_dev;
 	int ret;

@@ -937,8 +937,12 @@ static int imx208_init_controls(struct imx208 *imx208)
 
 	imx208->hflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx208_ctrl_ops,
 					  V4L2_CID_HFLIP, 0, 1, 1, 0);
+	if (imx208->hflip)
+		imx208->hflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 	imx208->vflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx208_ctrl_ops,
 					  V4L2_CID_VFLIP, 0, 1, 1, 0);
+	if (imx208->vflip)
+		imx208->vflip->flags |= V4L2_CTRL_FLAG_MODIFY_LAYOUT;
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &imx208_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
 			  IMX208_ANA_GAIN_MIN, IMX208_ANA_GAIN_MAX,
@@ -1096,7 +1100,7 @@ static struct i2c_driver imx208_i2c_driver = {
 		.pm = &imx208_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx208_acpi_ids),
 	},
-	.probe_new = imx208_probe,
+	.probe = imx208_probe,
 	.remove = imx208_remove,
 	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };

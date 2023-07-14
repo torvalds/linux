@@ -285,3 +285,13 @@ to bridges between the PCI root and the device, MSIs are disabled.
 It is also worth checking the device driver to see whether it supports MSIs.
 For example, it may contain calls to pci_alloc_irq_vectors() with the
 PCI_IRQ_MSI or PCI_IRQ_MSIX flags.
+
+
+List of device drivers MSI(-X) APIs
+===================================
+
+The PCI/MSI subsystem has a dedicated C file for its exported device driver
+APIs — `drivers/pci/msi/api.c`. The following functions are exported:
+
+.. kernel-doc:: drivers/pci/msi/api.c
+   :export:

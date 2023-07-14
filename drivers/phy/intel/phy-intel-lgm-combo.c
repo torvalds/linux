@@ -413,44 +413,29 @@ static int intel_cbphy_fwnode_parse(struct intel_combo_phy *cbphy)
 	u32 val;
 
 	cbphy->core_clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(cbphy->core_clk)) {
-		ret = PTR_ERR(cbphy->core_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get clk failed:%d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->core_clk))
+		return dev_err_probe(dev, PTR_ERR(cbphy->core_clk),
+				     "Get clk failed!\n");
 
 	cbphy->core_rst = devm_reset_control_get_optional(dev, "core");
-	if (IS_ERR(cbphy->core_rst)) {
-		ret = PTR_ERR(cbphy->core_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get core reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->core_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->core_rst),
+				     "Get core reset control err!\n");
 
 	cbphy->phy_rst = devm_reset_control_get_optional(dev, "phy");
-	if (IS_ERR(cbphy->phy_rst)) {
-		ret = PTR_ERR(cbphy->phy_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get PHY reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->phy_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->phy_rst),
+				     "Get PHY reset control err!\n");
 
 	cbphy->iphy[0].app_rst = devm_reset_control_get_optional(dev, "iphy0");
-	if (IS_ERR(cbphy->iphy[0].app_rst)) {
-		ret = PTR_ERR(cbphy->iphy[0].app_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get phy0 reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->iphy[0].app_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->iphy[0].app_rst),
+				     "Get phy0 reset control err!\n");
 
 	cbphy->iphy[1].app_rst = devm_reset_control_get_optional(dev, "iphy1");
-	if (IS_ERR(cbphy->iphy[1].app_rst)) {
-		ret = PTR_ERR(cbphy->iphy[1].app_rst);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Get phy1 reset control err: %d!\n", ret);
-		return ret;
-	}
+	if (IS_ERR(cbphy->iphy[1].app_rst))
+		return dev_err_probe(dev, PTR_ERR(cbphy->iphy[1].app_rst),
+				     "Get phy1 reset control err!\n");
 
 	cbphy->app_base = devm_platform_ioremap_resource_byname(pdev, "app");
 	if (IS_ERR(cbphy->app_base))
@@ -604,13 +589,12 @@ static int intel_cbphy_probe(struct platform_device *pdev)
 	return intel_cbphy_create(cbphy);
 }
 
-static int intel_cbphy_remove(struct platform_device *pdev)
+static void intel_cbphy_remove(struct platform_device *pdev)
 {
 	struct intel_combo_phy *cbphy = platform_get_drvdata(pdev);
 
 	intel_cbphy_rst_assert(cbphy);
 	clk_disable_unprepare(cbphy->core_clk);
-	return 0;
 }
 
 static const struct of_device_id of_intel_cbphy_match[] = {
@@ -621,7 +605,7 @@ static const struct of_device_id of_intel_cbphy_match[] = {
 
 static struct platform_driver intel_cbphy_driver = {
 	.probe = intel_cbphy_probe,
-	.remove = intel_cbphy_remove,
+	.remove_new = intel_cbphy_remove,
 	.driver = {
 		.name = "intel-combo-phy",
 		.of_match_table = of_intel_cbphy_match,
@@ -631,4 +615,3 @@ static struct platform_driver intel_cbphy_driver = {
 module_platform_driver(intel_cbphy_driver);
 
 MODULE_DESCRIPTION("Intel Combo-phy driver");
-MODULE_LICENSE("GPL v2");

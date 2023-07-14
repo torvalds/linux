@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Synopsys Designware Watchdog Timer
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 maintainers:
   - Jamie Iles <jamie@jamieiles.com>
@@ -20,6 +20,7 @@ properties:
           - enum:
               - rockchip,px30-wdt
               - rockchip,rk3066-wdt
+              - rockchip,rk3128-wdt
               - rockchip,rk3188-wdt
               - rockchip,rk3228-wdt
               - rockchip,rk3288-wdt
@@ -28,6 +29,7 @@ properties:
               - rockchip,rk3368-wdt
               - rockchip,rk3399-wdt
               - rockchip,rk3568-wdt
+              - rockchip,rk3588-wdt
               - rockchip,rv1108-wdt
           - const: snps,dw-wdt
 
@@ -81,25 +83,25 @@ required:
 examples:
   - |
     watchdog@ffd02000 {
-      compatible = "snps,dw-wdt";
-      reg = <0xffd02000 0x1000>;
-      interrupts = <0 171 4>;
-      clocks = <&per_base_clk>;
-      resets = <&wdt_rst>;
+        compatible = "snps,dw-wdt";
+        reg = <0xffd02000 0x1000>;
+        interrupts = <0 171 4>;
+        clocks = <&per_base_clk>;
+        resets = <&wdt_rst>;
     };
 
   - |
     watchdog@ffd02000 {
-      compatible = "snps,dw-wdt";
-      reg = <0xffd02000 0x1000>;
-      interrupts = <0 171 4>;
-      clocks = <&per_base_clk>;
-      clock-names = "tclk";
-      snps,watchdog-tops = <0x000000FF 0x000001FF 0x000003FF
-                            0x000007FF 0x0000FFFF 0x0001FFFF
-                            0x0003FFFF 0x0007FFFF 0x000FFFFF
-                            0x001FFFFF 0x003FFFFF 0x007FFFFF
-                            0x00FFFFFF 0x01FFFFFF 0x03FFFFFF
-                            0x07FFFFFF>;
+        compatible = "snps,dw-wdt";
+        reg = <0xffd02000 0x1000>;
+        interrupts = <0 171 4>;
+        clocks = <&per_base_clk>;
+        clock-names = "tclk";
+        snps,watchdog-tops = <0x000000FF 0x000001FF 0x000003FF
+                              0x000007FF 0x0000FFFF 0x0001FFFF
+                              0x0003FFFF 0x0007FFFF 0x000FFFFF
+                              0x001FFFFF 0x003FFFFF 0x007FFFFF
+                              0x00FFFFFF 0x01FFFFFF 0x03FFFFFF
+                              0x07FFFFFF>;
     };
 ...

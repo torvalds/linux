@@ -17,24 +17,30 @@
 #include <linux/export.h>
 #include <linux/bitfield.h>
 #include <linux/cpumask.h>
+#include <linux/sched/task_stack.h>
 #include <linux/panic_notifier.h>
 #include <linux/ptrace.h>
+#include <linux/kdebug.h>
+#include <linux/kmsg_dump.h>
 #include <linux/slab.h>
 #include <linux/dma-map-ops.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
 
 /*
- * hv_root_partition and ms_hyperv are defined here with other Hyper-V
- * specific globals so they are shared across all architectures and are
+ * hv_root_partition, ms_hyperv and hv_nested are defined here with other
+ * Hyper-V specific globals so they are shared across all architectures and are
  * built only when CONFIG_HYPERV is defined.  But on x86,
  * ms_hyperv_init_platform() is built even when CONFIG_HYPERV is not
- * defined, and it uses these two variables.  So mark them as __weak
+ * defined, and it uses these three variables.  So mark them as __weak
  * here, allowing for an overriding definition in the module containing
  * ms_hyperv_init_platform().
  */
 bool __weak hv_root_partition;
 EXPORT_SYMBOL_GPL(hv_root_partition);
+
+bool __weak hv_nested;
+EXPORT_SYMBOL_GPL(hv_nested);
 
 struct ms_hyperv_info __weak ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
@@ -51,6 +57,10 @@ EXPORT_SYMBOL_GPL(hyperv_pcpu_input_arg);
 void * __percpu *hyperv_pcpu_output_arg;
 EXPORT_SYMBOL_GPL(hyperv_pcpu_output_arg);
 
+static void hv_kmsg_dump_unregister(void);
+
+static struct ctl_table_header *hv_ctl_table_hdr;
+
 /*
  * Hyper-V specific initialization and shutdown code that is
  * common across all architectures.  Called from architecture
@@ -59,6 +69,12 @@ EXPORT_SYMBOL_GPL(hyperv_pcpu_output_arg);
 
 void __init hv_common_free(void)
 {
+	unregister_sysctl_table(hv_ctl_table_hdr);
+	hv_ctl_table_hdr = NULL;
+
+	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE)
+		hv_kmsg_dump_unregister();
+
 	kfree(hv_vp_index);
 	hv_vp_index = NULL;
 
@@ -69,9 +85,202 @@ void __init hv_common_free(void)
 	hyperv_pcpu_input_arg = NULL;
 }
 
+/*
+ * Functions for allocating and freeing memory with size and
+ * alignment HV_HYP_PAGE_SIZE. These functions are needed because
+ * the guest page size may not be the same as the Hyper-V page
+ * size. We depend upon kmalloc() aligning power-of-two size
+ * allocations to the allocation size boundary, so that the
+ * allocated memory appears to Hyper-V as a page of the size
+ * it expects.
+ */
+
+void *hv_alloc_hyperv_page(void)
+{
+	BUILD_BUG_ON(PAGE_SIZE <  HV_HYP_PAGE_SIZE);
+
+	if (PAGE_SIZE == HV_HYP_PAGE_SIZE)
+		return (void *)__get_free_page(GFP_KERNEL);
+	else
+		return kmalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(hv_alloc_hyperv_page);
+
+void *hv_alloc_hyperv_zeroed_page(void)
+{
+	if (PAGE_SIZE == HV_HYP_PAGE_SIZE)
+		return (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+	else
+		return kzalloc(HV_HYP_PAGE_SIZE, GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(hv_alloc_hyperv_zeroed_page);
+
+void hv_free_hyperv_page(unsigned long addr)
+{
+	if (PAGE_SIZE == HV_HYP_PAGE_SIZE)
+		free_page(addr);
+	else
+		kfree((void *)addr);
+}
+EXPORT_SYMBOL_GPL(hv_free_hyperv_page);
+
+static void *hv_panic_page;
+
+/*
+ * Boolean to control whether to report panic messages over Hyper-V.
+ *
+ * It can be set via /proc/sys/kernel/hyperv_record_panic_msg
+ */
+static int sysctl_record_panic_msg = 1;
+
+/*
+ * sysctl option to allow the user to control whether kmsg data should be
+ * reported to Hyper-V on panic.
+ */
+static struct ctl_table hv_ctl_table[] = {
+	{
+		.procname	= "hyperv_record_panic_msg",
+		.data		= &sysctl_record_panic_msg,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE
+	},
+	{}
+};
+
+static int hv_die_panic_notify_crash(struct notifier_block *self,
+				     unsigned long val, void *args);
+
+static struct notifier_block hyperv_die_report_block = {
+	.notifier_call = hv_die_panic_notify_crash,
+};
+
+static struct notifier_block hyperv_panic_report_block = {
+	.notifier_call = hv_die_panic_notify_crash,
+};
+
+/*
+ * The following callback works both as die and panic notifier; its
+ * goal is to provide panic information to the hypervisor unless the
+ * kmsg dumper is used [see hv_kmsg_dump()], which provides more
+ * information but isn't always available.
+ *
+ * Notice that both the panic/die report notifiers are registered only
+ * if we have the capability HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE set.
+ */
+static int hv_die_panic_notify_crash(struct notifier_block *self,
+				     unsigned long val, void *args)
+{
+	struct pt_regs *regs;
+	bool is_die;
+
+	/* Don't notify Hyper-V unless we have a die oops event or panic. */
+	if (self == &hyperv_panic_report_block) {
+		is_die = false;
+		regs = current_pt_regs();
+	} else { /* die event */
+		if (val != DIE_OOPS)
+			return NOTIFY_DONE;
+
+		is_die = true;
+		regs = ((struct die_args *)args)->regs;
+	}
+
+	/*
+	 * Hyper-V should be notified only once about a panic/die. If we will
+	 * be calling hv_kmsg_dump() later with kmsg data, don't do the
+	 * notification here.
+	 */
+	if (!sysctl_record_panic_msg || !hv_panic_page)
+		hyperv_report_panic(regs, val, is_die);
+
+	return NOTIFY_DONE;
+}
+
+/*
+ * Callback from kmsg_dump. Grab as much as possible from the end of the kmsg
+ * buffer and call into Hyper-V to transfer the data.
+ */
+static void hv_kmsg_dump(struct kmsg_dumper *dumper,
+			 enum kmsg_dump_reason reason)
+{
+	struct kmsg_dump_iter iter;
+	size_t bytes_written;
+
+	/* We are only interested in panics. */
+	if (reason != KMSG_DUMP_PANIC || !sysctl_record_panic_msg)
+		return;
+
+	/*
+	 * Write dump contents to the page. No need to synchronize; panic should
+	 * be single-threaded.
+	 */
+	kmsg_dump_rewind(&iter);
+	kmsg_dump_get_buffer(&iter, false, hv_panic_page, HV_HYP_PAGE_SIZE,
+			     &bytes_written);
+	if (!bytes_written)
+		return;
+	/*
+	 * P3 to contain the physical address of the panic page & P4 to
+	 * contain the size of the panic data in that page. Rest of the
+	 * registers are no-op when the NOTIFY_MSG flag is set.
+	 */
+	hv_set_register(HV_REGISTER_CRASH_P0, 0);
+	hv_set_register(HV_REGISTER_CRASH_P1, 0);
+	hv_set_register(HV_REGISTER_CRASH_P2, 0);
+	hv_set_register(HV_REGISTER_CRASH_P3, virt_to_phys(hv_panic_page));
+	hv_set_register(HV_REGISTER_CRASH_P4, bytes_written);
+
+	/*
+	 * Let Hyper-V know there is crash data available along with
+	 * the panic message.
+	 */
+	hv_set_register(HV_REGISTER_CRASH_CTL,
+			(HV_CRASH_CTL_CRASH_NOTIFY |
+			 HV_CRASH_CTL_CRASH_NOTIFY_MSG));
+}
+
+static struct kmsg_dumper hv_kmsg_dumper = {
+	.dump = hv_kmsg_dump,
+};
+
+static void hv_kmsg_dump_unregister(void)
+{
+	kmsg_dump_unregister(&hv_kmsg_dumper);
+	unregister_die_notifier(&hyperv_die_report_block);
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &hyperv_panic_report_block);
+
+	hv_free_hyperv_page((unsigned long)hv_panic_page);
+	hv_panic_page = NULL;
+}
+
+static void hv_kmsg_dump_register(void)
+{
+	int ret;
+
+	hv_panic_page = hv_alloc_hyperv_zeroed_page();
+	if (!hv_panic_page) {
+		pr_err("Hyper-V: panic message page memory allocation failed\n");
+		return;
+	}
+
+	ret = kmsg_dump_register(&hv_kmsg_dumper);
+	if (ret) {
+		pr_err("Hyper-V: kmsg dump register error 0x%x\n", ret);
+		hv_free_hyperv_page((unsigned long)hv_panic_page);
+		hv_panic_page = NULL;
+	}
+}
+
 int __init hv_common_init(void)
 {
 	int i;
+
+	if (hv_is_isolation_supported())
+		sysctl_record_panic_msg = 0;
 
 	/*
 	 * Hyper-V expects to get crash register data or kmsg when
@@ -81,8 +290,33 @@ int __init hv_common_init(void)
 	 * kernel.
 	 */
 	if (ms_hyperv.misc_features & HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE) {
+		u64 hyperv_crash_ctl;
+
 		crash_kexec_post_notifiers = true;
 		pr_info("Hyper-V: enabling crash_kexec_post_notifiers\n");
+
+		/*
+		 * Panic message recording (sysctl_record_panic_msg)
+		 * is enabled by default in non-isolated guests and
+		 * disabled by default in isolated guests; the panic
+		 * message recording won't be available in isolated
+		 * guests should the following registration fail.
+		 */
+		hv_ctl_table_hdr = register_sysctl("kernel", hv_ctl_table);
+		if (!hv_ctl_table_hdr)
+			pr_err("Hyper-V: sysctl table register error");
+
+		/*
+		 * Register for panic kmsg callback only if the right
+		 * capability is supported by the hypervisor.
+		 */
+		hyperv_crash_ctl = hv_get_register(HV_REGISTER_CRASH_CTL);
+		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG)
+			hv_kmsg_dump_register();
+
+		register_die_notifier(&hyperv_die_report_block);
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &hyperv_panic_report_block);
 	}
 
 	/*
@@ -130,13 +364,20 @@ int hv_common_cpu_init(unsigned int cpu)
 	flags = irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL;
 
 	inputarg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
-	*inputarg = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
-	if (!(*inputarg))
-		return -ENOMEM;
 
-	if (hv_root_partition) {
-		outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
-		*outputarg = (char *)(*inputarg) + HV_HYP_PAGE_SIZE;
+	/*
+	 * hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory is already
+	 * allocated if this CPU was previously online and then taken offline
+	 */
+	if (!*inputarg) {
+		*inputarg = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
+		if (!(*inputarg))
+			return -ENOMEM;
+
+		if (hv_root_partition) {
+			outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
+			*outputarg = (char *)(*inputarg) + HV_HYP_PAGE_SIZE;
+		}
 	}
 
 	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
@@ -151,24 +392,17 @@ int hv_common_cpu_init(unsigned int cpu)
 
 int hv_common_cpu_die(unsigned int cpu)
 {
-	unsigned long flags;
-	void **inputarg, **outputarg;
-	void *mem;
-
-	local_irq_save(flags);
-
-	inputarg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
-	mem = *inputarg;
-	*inputarg = NULL;
-
-	if (hv_root_partition) {
-		outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
-		*outputarg = NULL;
-	}
-
-	local_irq_restore(flags);
-
-	kfree(mem);
+	/*
+	 * The hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory
+	 * is not freed when the CPU goes offline as the hyperv_pcpu_input_arg
+	 * may be used by the Hyper-V vPCI driver in reassigning interrupts
+	 * as part of the offlining process.  The interrupt reassignment
+	 * happens *after* the CPUHP_AP_HYPERV_ONLINE state has run and
+	 * called this function.
+	 *
+	 * If a previously offlined CPU is brought back online again, the
+	 * originally allocated memory is reused in hv_common_cpu_init().
+	 */
 
 	return 0;
 }
@@ -308,14 +542,3 @@ u64 __weak hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_s
 	return HV_STATUS_INVALID_PARAMETER;
 }
 EXPORT_SYMBOL_GPL(hv_ghcb_hypercall);
-
-void __weak *hv_map_memory(void *addr, unsigned long size)
-{
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(hv_map_memory);
-
-void __weak hv_unmap_memory(void *addr)
-{
-}
-EXPORT_SYMBOL_GPL(hv_unmap_memory);

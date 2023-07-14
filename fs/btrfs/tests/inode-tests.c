@@ -11,6 +11,7 @@
 #include "../extent_io.h"
 #include "../volumes.h"
 #include "../compression.h"
+#include "../accessors.h"
 
 static void insert_extent(struct btrfs_root *root, u64 start, u64 len,
 			  u64 ram_bytes, u64 offset, u64 disk_bytenr,
@@ -72,8 +73,8 @@ static void insert_inode_item_key(struct btrfs_root *root)
  * diagram of how the extents will look though this may not be possible we still
  * want to make sure everything acts normally (the last number is not inclusive)
  *
- * [0 - 5][5 -  6][     6 - 4096     ][ 4096 - 4100][4100 - 8195][8195 - 12291]
- * [hole ][inline][hole but no extent][  hole   ][   regular ][regular1 split]
+ * [0  - 6][     6 - 4096     ][ 4096 - 4100][4100 - 8195][8195  -  12291]
+ * [inline][hole but no extent][    hole    ][   regular ][regular1 split]
  *
  * [12291 - 16387][16387 - 24579][24579 - 28675][ 28675 - 32771][32771 - 36867 ]
  * [    hole    ][regular1 split][   prealloc ][   prealloc1  ][prealloc1 written]
@@ -90,19 +91,12 @@ static void setup_file_extents(struct btrfs_root *root, u32 sectorsize)
 	u64 disk_bytenr = SZ_1M;
 	u64 offset = 0;
 
-	/* First we want a hole */
-	insert_extent(root, offset, 5, 5, 0, 0, 0, BTRFS_FILE_EXTENT_REG, 0,
-		      slot);
-	slot++;
-	offset += 5;
-
 	/*
-	 * Now we want an inline extent, I don't think this is possible but hey
-	 * why not?  Also keep in mind if we have an inline extent it counts as
-	 * the whole first page.  If we were to expand it we would have to cow
-	 * and we wouldn't have an inline extent anymore.
+	 * Tree-checker has strict limits on inline extents that they can only
+	 * exist at file offset 0, thus we can only have one inline file extent
+	 * at most.
 	 */
-	insert_extent(root, offset, 1, 1, 0, 0, 0, BTRFS_FILE_EXTENT_INLINE, 0,
+	insert_extent(root, offset, 6, 6, 0, 0, 0, BTRFS_FILE_EXTENT_INLINE, 0,
 		      slot);
 	slot++;
 	offset = sectorsize;
@@ -267,7 +261,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	free_extent_map(em);
-	btrfs_drop_extent_cache(BTRFS_I(inode), 0, (u64)-1, 0);
+	btrfs_drop_extent_map_range(BTRFS_I(inode), 0, (u64)-1, false);
 
 	/*
 	 * All of the magic numbers are based on the mapping setup in
@@ -281,37 +275,25 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		test_err("got an error when we shouldn't have");
 		goto out;
 	}
-	if (em->block_start != EXTENT_MAP_HOLE) {
-		test_err("expected a hole, got %llu", em->block_start);
-		goto out;
-	}
-	if (em->start != 0 || em->len != 5) {
-		test_err(
-		"unexpected extent wanted start 0 len 5, got start %llu len %llu",
-			em->start, em->len);
-		goto out;
-	}
-	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
-		goto out;
-	}
-	offset = em->start + em->len;
-	free_extent_map(em);
-
-	em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, offset, sectorsize);
-	if (IS_ERR(em)) {
-		test_err("got an error when we shouldn't have");
-		goto out;
-	}
 	if (em->block_start != EXTENT_MAP_INLINE) {
 		test_err("expected an inline, got %llu", em->block_start);
 		goto out;
 	}
 
-	if (em->start != offset || em->len != (sectorsize - 5)) {
+	/*
+	 * For inline extent, we always round up the em to sectorsize, as
+	 * they are either:
+	 *
+	 * a) a hidden hole
+	 *    The range will be zeroed at inline extent read time.
+	 *
+	 * b) a file extent with unaligned bytenr
+	 *    Tree checker will reject it.
+	 */
+	if (em->start != 0 || em->len != sectorsize) {
 		test_err(
-	"unexpected extent wanted start %llu len 1, got start %llu len %llu",
-			offset, em->start, em->len);
+	"unexpected extent wanted start 0 len %u, got start %llu len %llu",
+			sectorsize, em->start, em->len);
 		goto out;
 	}
 	if (em->flags != 0) {
@@ -975,7 +957,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 			       BTRFS_MAX_EXTENT_SIZE >> 1,
 			       (BTRFS_MAX_EXTENT_SIZE >> 1) + sectorsize - 1,
 			       EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
-			       EXTENT_UPTODATE, 0, 0, NULL);
+			       EXTENT_UPTODATE, NULL);
 	if (ret) {
 		test_err("clear_extent_bit returned %d", ret);
 		goto out;
@@ -1043,7 +1025,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 			       BTRFS_MAX_EXTENT_SIZE + sectorsize,
 			       BTRFS_MAX_EXTENT_SIZE + 2 * sectorsize - 1,
 			       EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
-			       EXTENT_UPTODATE, 0, 0, NULL);
+			       EXTENT_UPTODATE, NULL);
 	if (ret) {
 		test_err("clear_extent_bit returned %d", ret);
 		goto out;
@@ -1076,7 +1058,7 @@ static int test_extent_accounting(u32 sectorsize, u32 nodesize)
 	/* Empty */
 	ret = clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 			       EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
-			       EXTENT_UPTODATE, 0, 0, NULL);
+			       EXTENT_UPTODATE, NULL);
 	if (ret) {
 		test_err("clear_extent_bit returned %d", ret);
 		goto out;
@@ -1092,7 +1074,7 @@ out:
 	if (ret)
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, 0, (u64)-1,
 				 EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
-				 EXTENT_UPTODATE, 0, 0, NULL);
+				 EXTENT_UPTODATE, NULL);
 	iput(inode);
 	btrfs_free_dummy_root(root);
 	btrfs_free_dummy_fs_info(fs_info);

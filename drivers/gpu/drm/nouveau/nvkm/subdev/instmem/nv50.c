@@ -348,13 +348,11 @@ nv50_instobj_func = {
 };
 
 static int
-nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
-		 struct nvkm_memory **pmemory)
+nv50_instobj_wrap(struct nvkm_instmem *base,
+		  struct nvkm_memory *memory, struct nvkm_memory **pmemory)
 {
 	struct nv50_instmem *imem = nv50_instmem(base);
 	struct nv50_instobj *iobj;
-	struct nvkm_device *device = imem->base.subdev.device;
-	u8 page = max(order_base_2(align), 12);
 
 	if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL)))
 		return -ENOMEM;
@@ -365,7 +363,25 @@ nv50_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	refcount_set(&iobj->maps, 0);
 	INIT_LIST_HEAD(&iobj->lru);
 
-	return nvkm_ram_get(device, 0, 1, page, size, true, true, &iobj->ram);
+	iobj->ram = nvkm_memory_ref(memory);
+	return 0;
+}
+
+static int
+nv50_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
+		 struct nvkm_memory **pmemory)
+{
+	u8 page = max(order_base_2(align), 12);
+	struct nvkm_memory *ram;
+	int ret;
+
+	ret = nvkm_ram_get(imem->subdev.device, 0, 1, page, size, true, true, &ram);
+	if (ret)
+		return ret;
+
+	ret = nv50_instobj_wrap(imem, ram, pmemory);
+	nvkm_memory_unref(&ram);
+	return ret;
 }
 
 /******************************************************************************
@@ -382,6 +398,7 @@ static const struct nvkm_instmem_func
 nv50_instmem = {
 	.fini = nv50_instmem_fini,
 	.memory_new = nv50_instobj_new,
+	.memory_wrap = nv50_instobj_wrap,
 	.zero = false,
 };
 

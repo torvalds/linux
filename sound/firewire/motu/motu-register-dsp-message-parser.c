@@ -142,9 +142,11 @@ static void queue_event(struct snd_motu *motu, u8 msg_type, u8 identifier0, u8 i
 	parser->push_pos = pos;
 }
 
-void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const struct pkt_desc *descs,
-					unsigned int desc_count, unsigned int data_block_quadlets)
+void snd_motu_register_dsp_message_parser_parse(const struct amdtp_stream *s,
+						const struct pkt_desc *desc, unsigned int count)
 {
+	struct snd_motu *motu = container_of(s, struct snd_motu, tx_stream);
+	unsigned int data_block_quadlets = s->data_block_quadlets;
 	struct msg_parser *parser = motu->message_parser;
 	bool meter_pos_quirk = parser->meter_pos_quirk;
 	unsigned int pos = parser->push_pos;
@@ -153,11 +155,12 @@ void snd_motu_register_dsp_message_parser_parse(struct snd_motu *motu, const str
 
 	spin_lock_irqsave(&parser->lock, flags);
 
-	for (i = 0; i < desc_count; ++i) {
-		const struct pkt_desc *desc = descs + i;
+	for (i = 0; i < count; ++i) {
 		__be32 *buffer = desc->ctx_payload;
 		unsigned int data_blocks = desc->data_blocks;
 		int j;
+
+		desc = amdtp_stream_next_packet_desc(s, desc);
 
 		for (j = 0; j < data_blocks; ++j) {
 			u8 *b = (u8 *)buffer;

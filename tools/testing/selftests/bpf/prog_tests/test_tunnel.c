@@ -89,32 +89,20 @@
 #define IP6VXLAN_TUNL_DEV0 "ip6vxlan00"
 #define IP6VXLAN_TUNL_DEV1 "ip6vxlan11"
 
+#define IPIP_TUNL_DEV0 "ipip00"
+#define IPIP_TUNL_DEV1 "ipip11"
+
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
-
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto fail;				\
-	})
-
-#define SYS_NOFAIL(fmt, ...)					\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		system(cmd);					\
-	})
 
 static int config_device(void)
 {
-	SYS("ip netns add at_ns0");
-	SYS("ip link add veth0 address " MAC_VETH1 " type veth peer name veth1");
-	SYS("ip link set veth0 netns at_ns0");
-	SYS("ip addr add " IP4_ADDR1_VETH1 "/24 dev veth1");
-	SYS("ip link set dev veth1 up mtu 1500");
-	SYS("ip netns exec at_ns0 ip addr add " IP4_ADDR_VETH0 "/24 dev veth0");
-	SYS("ip netns exec at_ns0 ip link set dev veth0 up mtu 1500");
+	SYS(fail, "ip netns add at_ns0");
+	SYS(fail, "ip link add veth0 address " MAC_VETH1 " type veth peer name veth1");
+	SYS(fail, "ip link set veth0 netns at_ns0");
+	SYS(fail, "ip addr add " IP4_ADDR1_VETH1 "/24 dev veth1");
+	SYS(fail, "ip link set dev veth1 up mtu 1500");
+	SYS(fail, "ip netns exec at_ns0 ip addr add " IP4_ADDR_VETH0 "/24 dev veth0");
+	SYS(fail, "ip netns exec at_ns0 ip link set dev veth0 up mtu 1500");
 
 	return 0;
 fail:
@@ -132,23 +120,23 @@ static void cleanup(void)
 static int add_vxlan_tunnel(void)
 {
 	/* at_ns0 namespace */
-	SYS("ip netns exec at_ns0 ip link add dev %s type vxlan external gbp dstport 4789",
+	SYS(fail, "ip netns exec at_ns0 ip link add dev %s type vxlan external gbp dstport 4789",
 	    VXLAN_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip link set dev %s address %s up",
+	SYS(fail, "ip netns exec at_ns0 ip link set dev %s address %s up",
 	    VXLAN_TUNL_DEV0, MAC_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip addr add dev %s %s/24",
+	SYS(fail, "ip netns exec at_ns0 ip addr add dev %s %s/24",
 	    VXLAN_TUNL_DEV0, IP4_ADDR_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip neigh add %s lladdr %s dev %s",
+	SYS(fail, "ip netns exec at_ns0 ip neigh add %s lladdr %s dev %s",
 	    IP4_ADDR_TUNL_DEV1, MAC_TUNL_DEV1, VXLAN_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip neigh add %s lladdr %s dev veth0",
+	SYS(fail, "ip netns exec at_ns0 ip neigh add %s lladdr %s dev veth0",
 	    IP4_ADDR2_VETH1, MAC_VETH1);
 
 	/* root namespace */
-	SYS("ip link add dev %s type vxlan external gbp dstport 4789",
+	SYS(fail, "ip link add dev %s type vxlan external gbp dstport 4789",
 	    VXLAN_TUNL_DEV1);
-	SYS("ip link set dev %s address %s up", VXLAN_TUNL_DEV1, MAC_TUNL_DEV1);
-	SYS("ip addr add dev %s %s/24", VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
-	SYS("ip neigh add %s lladdr %s dev %s",
+	SYS(fail, "ip link set dev %s address %s up", VXLAN_TUNL_DEV1, MAC_TUNL_DEV1);
+	SYS(fail, "ip addr add dev %s %s/24", VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
+	SYS(fail, "ip neigh add %s lladdr %s dev %s",
 	    IP4_ADDR_TUNL_DEV0, MAC_TUNL_DEV0, VXLAN_TUNL_DEV1);
 
 	return 0;
@@ -165,26 +153,26 @@ static void delete_vxlan_tunnel(void)
 
 static int add_ip6vxlan_tunnel(void)
 {
-	SYS("ip netns exec at_ns0 ip -6 addr add %s/96 dev veth0",
+	SYS(fail, "ip netns exec at_ns0 ip -6 addr add %s/96 dev veth0",
 	    IP6_ADDR_VETH0);
-	SYS("ip netns exec at_ns0 ip link set dev veth0 up");
-	SYS("ip -6 addr add %s/96 dev veth1", IP6_ADDR1_VETH1);
-	SYS("ip -6 addr add %s/96 dev veth1", IP6_ADDR2_VETH1);
-	SYS("ip link set dev veth1 up");
+	SYS(fail, "ip netns exec at_ns0 ip link set dev veth0 up");
+	SYS(fail, "ip -6 addr add %s/96 dev veth1", IP6_ADDR1_VETH1);
+	SYS(fail, "ip -6 addr add %s/96 dev veth1", IP6_ADDR2_VETH1);
+	SYS(fail, "ip link set dev veth1 up");
 
 	/* at_ns0 namespace */
-	SYS("ip netns exec at_ns0 ip link add dev %s type vxlan external dstport 4789",
+	SYS(fail, "ip netns exec at_ns0 ip link add dev %s type vxlan external dstport 4789",
 	    IP6VXLAN_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip addr add dev %s %s/24",
+	SYS(fail, "ip netns exec at_ns0 ip addr add dev %s %s/24",
 	    IP6VXLAN_TUNL_DEV0, IP4_ADDR_TUNL_DEV0);
-	SYS("ip netns exec at_ns0 ip link set dev %s address %s up",
+	SYS(fail, "ip netns exec at_ns0 ip link set dev %s address %s up",
 	    IP6VXLAN_TUNL_DEV0, MAC_TUNL_DEV0);
 
 	/* root namespace */
-	SYS("ip link add dev %s type vxlan external dstport 4789",
+	SYS(fail, "ip link add dev %s type vxlan external dstport 4789",
 	    IP6VXLAN_TUNL_DEV1);
-	SYS("ip addr add dev %s %s/24", IP6VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
-	SYS("ip link set dev %s address %s up",
+	SYS(fail, "ip addr add dev %s %s/24", IP6VXLAN_TUNL_DEV1, IP4_ADDR_TUNL_DEV1);
+	SYS(fail, "ip link set dev %s address %s up",
 	    IP6VXLAN_TUNL_DEV1, MAC_TUNL_DEV1);
 
 	return 0;
@@ -203,9 +191,82 @@ static void delete_ip6vxlan_tunnel(void)
 	SYS_NOFAIL("ip link delete dev %s", IP6VXLAN_TUNL_DEV1);
 }
 
+enum ipip_encap {
+	NONE	= 0,
+	FOU	= 1,
+	GUE	= 2,
+};
+
+static int set_ipip_encap(const char *ipproto, const char *type)
+{
+	SYS(fail, "ip -n at_ns0 fou add port 5555 %s", ipproto);
+	SYS(fail, "ip -n at_ns0 link set dev %s type ipip encap %s",
+	    IPIP_TUNL_DEV0, type);
+	SYS(fail, "ip -n at_ns0 link set dev %s type ipip encap-dport 5555",
+	    IPIP_TUNL_DEV0);
+
+	return 0;
+fail:
+	return -1;
+}
+
+static int add_ipip_tunnel(enum ipip_encap encap)
+{
+	int err;
+	const char *ipproto, *type;
+
+	switch (encap) {
+	case FOU:
+		ipproto = "ipproto 4";
+		type = "fou";
+		break;
+	case GUE:
+		ipproto = "gue";
+		type = ipproto;
+		break;
+	default:
+		ipproto = NULL;
+		type = ipproto;
+	}
+
+	/* at_ns0 namespace */
+	SYS(fail, "ip -n at_ns0 link add dev %s type ipip local %s remote %s",
+	    IPIP_TUNL_DEV0, IP4_ADDR_VETH0, IP4_ADDR1_VETH1);
+
+	if (type && ipproto) {
+		err = set_ipip_encap(ipproto, type);
+		if (!ASSERT_OK(err, "set_ipip_encap"))
+			goto fail;
+	}
+
+	SYS(fail, "ip -n at_ns0 link set dev %s up", IPIP_TUNL_DEV0);
+	SYS(fail, "ip -n at_ns0 addr add dev %s %s/24",
+	    IPIP_TUNL_DEV0, IP4_ADDR_TUNL_DEV0);
+
+	/* root namespace */
+	if (type && ipproto)
+		SYS(fail, "ip fou add port 5555 %s", ipproto);
+	SYS(fail, "ip link add dev %s type ipip external", IPIP_TUNL_DEV1);
+	SYS(fail, "ip link set dev %s up", IPIP_TUNL_DEV1);
+	SYS(fail, "ip addr add dev %s %s/24", IPIP_TUNL_DEV1,
+	    IP4_ADDR_TUNL_DEV1);
+
+	return 0;
+fail:
+	return -1;
+}
+
+static void delete_ipip_tunnel(void)
+{
+	SYS_NOFAIL("ip -n at_ns0 link delete dev %s", IPIP_TUNL_DEV0);
+	SYS_NOFAIL("ip -n at_ns0 fou del port 5555 2> /dev/null");
+	SYS_NOFAIL("ip link delete dev %s", IPIP_TUNL_DEV1);
+	SYS_NOFAIL("ip fou del port 5555 2> /dev/null");
+}
+
 static int test_ping(int family, const char *addr)
 {
-	SYS("%s %s %s > /dev/null", ping_command(family), PING_ARGS, addr);
+	SYS(fail, "%s %s %s > /dev/null", ping_command(family), PING_ARGS, addr);
 	return 0;
 fail:
 	return -1;
@@ -401,10 +462,80 @@ done:
 		test_tunnel_kern__destroy(skel);
 }
 
-#define RUN_TEST(name)							\
+static void test_ipip_tunnel(enum ipip_encap encap)
+{
+	struct test_tunnel_kern *skel = NULL;
+	struct nstoken *nstoken;
+	int set_src_prog_fd, get_src_prog_fd;
+	int ifindex = -1;
+	int err;
+	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
+			    .attach_point = BPF_TC_INGRESS);
+
+	/* add ipip tunnel */
+	err = add_ipip_tunnel(encap);
+	if (!ASSERT_OK(err, "add_ipip_tunnel"))
+		goto done;
+
+	/* load and attach bpf prog to tunnel dev tc hook point */
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		goto done;
+	ifindex = if_nametoindex(IPIP_TUNL_DEV1);
+	if (!ASSERT_NEQ(ifindex, 0, "ipip11 ifindex"))
+		goto done;
+	tc_hook.ifindex = ifindex;
+
+	switch (encap) {
+	case FOU:
+		get_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_encap_get_tunnel);
+		set_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_fou_set_tunnel);
+		break;
+	case GUE:
+		get_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_encap_get_tunnel);
+		set_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_gue_set_tunnel);
+		break;
+	default:
+		get_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_get_tunnel);
+		set_src_prog_fd = bpf_program__fd(
+			skel->progs.ipip_set_tunnel);
+	}
+
+	if (!ASSERT_GE(set_src_prog_fd, 0, "bpf_program__fd"))
+		goto done;
+	if (!ASSERT_GE(get_src_prog_fd, 0, "bpf_program__fd"))
+		goto done;
+	if (attach_tc_prog(&tc_hook, get_src_prog_fd, set_src_prog_fd))
+		goto done;
+
+	/* ping from root namespace test */
+	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV0);
+	if (!ASSERT_OK(err, "test_ping"))
+		goto done;
+
+	/* ping from at_ns0 namespace test */
+	nstoken = open_netns("at_ns0");
+	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
+	if (!ASSERT_OK(err, "test_ping"))
+		goto done;
+	close_netns(nstoken);
+
+done:
+	/* delete ipip tunnel */
+	delete_ipip_tunnel();
+	if (skel)
+		test_tunnel_kern__destroy(skel);
+}
+
+#define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
-			test_ ## name();				\
+			test_ ## name(__VA_ARGS__);			\
 		}							\
 	})
 
@@ -415,13 +546,16 @@ static void *test_tunnel_run_tests(void *arg)
 
 	RUN_TEST(vxlan_tunnel);
 	RUN_TEST(ip6vxlan_tunnel);
+	RUN_TEST(ipip_tunnel, NONE);
+	RUN_TEST(ipip_tunnel, FOU);
+	RUN_TEST(ipip_tunnel, GUE);
 
 	cleanup();
 
 	return NULL;
 }
 
-void serial_test_tunnel(void)
+void test_tunnel(void)
 {
 	pthread_t test_thread;
 	int err;

@@ -304,6 +304,24 @@ config XILINX_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called of_xilinx_wdt.
 
+config XILINX_WINDOW_WATCHDOG
+	tristate "Xilinx window watchdog timer"
+	depends on HAS_IOMEM
+	depends on ARM64
+	select WATCHDOG_CORE
+	help
+	  Window watchdog driver for the versal_wwdt IP core.
+	  Window watchdog timer(WWDT) contains closed(first) and
+	  open(second) window with 32 bit width. Write to the watchdog
+	  timer within predefined window periods of time. This means
+	  a period that is not too soon and a period that is not too
+	  late. The WWDT has to be restarted within the open window time.
+	  If software tries to restart WWDT outside of the open window
+	  time period, it generates a reset.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xilinx_wwdt.
+
 config ZIIRAVE_WATCHDOG
 	tristate "Zodiac RAVE Watchdog Timer"
 	depends on I2C
@@ -491,14 +509,13 @@ config IXP4XX_WATCHDOG
 	  Say N if you are unsure.
 
 config S3C2410_WATCHDOG
-	tristate "S3C2410 Watchdog"
-	depends on ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || \
-		   COMPILE_TEST
+	tristate "S3C6410/S5Pv210/Exynos Watchdog"
+	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
 	select WATCHDOG_CORE
 	select MFD_SYSCON if ARCH_EXYNOS
 	help
-	  Watchdog timer block in the Samsung S3C24xx, S3C64xx, S5Pv210 and
-	  Exynos SoCs. This will reboot the system when the timer expires with
+	  Watchdog timer block in the Samsung S3C64xx, S5Pv210 and Exynos
+	  SoCs. This will reboot the system when the timer expires with
 	  the watchdog enabled.
 
 	  The driver is limited by the speed of the system's PCLK
@@ -1055,6 +1072,13 @@ config ADVANTECH_WDT
 	  feature. More information can be found at
 	  <https://www.advantech.com.tw/products/>
 
+config ADVANTECH_EC_WDT
+	tristate "Advantech Embedded Controller Watchdog Timer"
+	depends on X86
+	help
+		This driver supports Advantech products with ITE based Embedded Controller.
+		It does not support Advantech products with other ECs or without EC.
+
 config ALIM1535_WDT
 	tristate "ALi M1535 PMU Watchdog Timer"
 	depends on X86 && PCI
@@ -1088,6 +1112,17 @@ config EBC_C384_WDT
 	  Enables watchdog timer support for the watchdog timer on the
 	  WinSystems EBC-C384 motherboard. The timeout may be configured via
 	  the timeout module parameter.
+
+config EXAR_WDT
+	tristate "Exar Watchdog Timer"
+	depends on X86
+	select WATCHDOG_CORE
+	help
+	  Enables watchdog timer support for the watchdog timer present
+	  in some Exar/MaxLinear UART chips like the XR28V38x.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called exar_wdt.
 
 config F71808E_WDT
 	tristate "Fintek F718xx, F818xx Super I/O Watchdog"
@@ -1315,7 +1350,7 @@ config IT87_WDT
 config HP_WATCHDOG
 	tristate "HP ProLiant iLO2+ Hardware Watchdog Timer"
 	select WATCHDOG_CORE
-	depends on X86 && PCI
+	depends on (ARM64 || X86) && PCI
 	help
 	  A software monitoring watchdog and NMI handling driver. This driver
 	  will detect lockups and provide a stack trace. This is a driver that
@@ -1325,7 +1360,7 @@ config HP_WATCHDOG
 
 config HPWDT_NMI_DECODING
 	bool "NMI support for the HP ProLiant iLO2+ Hardware Watchdog Timer"
-	depends on HP_WATCHDOG
+	depends on X86 && HP_WATCHDOG
 	default y
 	help
 	  Enables the NMI handler for the watchdog pretimeout NMI and the iLO
@@ -1799,7 +1834,7 @@ config BCM7038_WDT
 	tristate "BCM63xx/BCM7038 Watchdog"
 	select WATCHDOG_CORE
 	depends on HAS_IOMEM
-	depends on ARCH_BCM4908 || ARCH_BRCMSTB || BMIPS_GENERIC || BCM63XX || COMPILE_TEST
+	depends on ARCH_BCMBCA || ARCH_BRCMSTB || BMIPS_GENERIC || BCM63XX || COMPILE_TEST
 	help
 	  Watchdog driver for the built-in hardware in Broadcom 7038 and
 	  later SoCs used in set-top boxes.  BCM7038 was made public
@@ -1854,7 +1889,9 @@ config GXP_WATCHDOG
 config MT7621_WDT
 	tristate "Mediatek SoC watchdog"
 	select WATCHDOG_CORE
-	depends on SOC_MT7620 || SOC_MT7621
+	select REGMAP_MMIO
+	select MFD_SYSCON
+	depends on SOC_MT7620 || SOC_MT7621 || COMPILE_TEST
 	help
 	  Hardware driver for the Mediatek/Ralink MT7621/8 SoC Watchdog Timer.
 
@@ -1935,10 +1972,10 @@ config BOOKE_WDT
 config BOOKE_WDT_DEFAULT_TIMEOUT
 	int "PowerPC Book-E Watchdog Timer Default Timeout"
 	depends on BOOKE_WDT
-	default 38 if PPC_FSL_BOOK3E
-	range 0 63 if PPC_FSL_BOOK3E
-	default 3 if !PPC_FSL_BOOK3E
-	range 0 3 if !PPC_FSL_BOOK3E
+	default 38 if PPC_E500
+	range 0 63 if PPC_E500
+	default 3 if !PPC_E500
+	range 0 3 if !PPC_E500
 	help
 	  Select the default watchdog timer period to be used by the PowerPC
 	  Book-E watchdog driver.  A watchdog "event" occurs when the bit
@@ -1979,6 +2016,17 @@ config WATCHDOG_RTAS
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called wdrtas.
+
+# RISC-V Architecture
+
+config STARFIVE_WATCHDOG
+	tristate "StarFive Watchdog support"
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	select WATCHDOG_CORE
+	default ARCH_STARFIVE
+	help
+	  Say Y here to support the watchdog of StarFive JH7100 and JH7110
+	  SoC. This driver can also be built as a module if choose M.
 
 # S390 Architecture
 

@@ -31,6 +31,7 @@
 #include "builtin-test-list.h"
 
 static bool dont_fork;
+const char *dso_to_test;
 
 struct test_suite *__weak arch_tests[] = {
 	NULL,
@@ -38,9 +39,11 @@ struct test_suite *__weak arch_tests[] = {
 
 static struct test_suite *generic_tests[] = {
 	&suite__vmlinux_matches_kallsyms,
+#ifdef HAVE_LIBTRACEEVENT
 	&suite__openat_syscall_event,
 	&suite__openat_syscall_event_on_all_cpus,
 	&suite__basic_mmap,
+#endif
 	&suite__mem,
 	&suite__parse_events,
 	&suite__expr,
@@ -51,8 +54,10 @@ static struct test_suite *generic_tests[] = {
 	&suite__dso_data_cache,
 	&suite__dso_data_reopen,
 	&suite__perf_evsel__roundtrip_name_test,
+#ifdef HAVE_LIBTRACEEVENT
 	&suite__perf_evsel__tp_sched_test,
 	&suite__syscall_openat_tp_fields,
+#endif
 	&suite__attr,
 	&suite__hists_link,
 	&suite__python_use,
@@ -71,7 +76,9 @@ static struct test_suite *generic_tests[] = {
 	&suite__thread_maps_share,
 	&suite__hists_output,
 	&suite__hists_cumulate,
+#ifdef HAVE_LIBTRACEEVENT
 	&suite__switch_tracking,
+#endif
 	&suite__fdarray__filter,
 	&suite__fdarray__add,
 	&suite__kmod_path__parse,
@@ -81,15 +88,13 @@ static struct test_suite *generic_tests[] = {
 	&suite__bpf,
 	&suite__thread_map_synthesize,
 	&suite__thread_map_remove,
-	&suite__cpu_map_synthesize,
+	&suite__cpu_map,
 	&suite__synthesize_stat_config,
 	&suite__synthesize_stat,
 	&suite__synthesize_stat_round,
 	&suite__event_update,
 	&suite__event_times,
 	&suite__backward_ring_buffer,
-	&suite__cpu_map_print,
-	&suite__cpu_map_merge,
 	&suite__sdt_event,
 	&suite__is_printable_array,
 	&suite__bitmap_print,
@@ -110,12 +115,23 @@ static struct test_suite *generic_tests[] = {
 	&suite__perf_time_to_tsc,
 	&suite__dlfilter,
 	&suite__sigtrap,
+	&suite__event_groups,
+	&suite__symbols,
 	NULL,
 };
 
 static struct test_suite **tests[] = {
 	generic_tests,
 	arch_tests,
+};
+
+static struct test_workload *workloads[] = {
+	&workload__noploop,
+	&workload__thloop,
+	&workload__leafloop,
+	&workload__sqrtloop,
+	&workload__brstack,
+	&workload__datasym,
 };
 
 static int num_subtests(const struct test_suite *t)
@@ -238,8 +254,8 @@ static int run_test(struct test_suite *test, int subtest)
 }
 
 #define for_each_test(j, k, t)			\
-	for (j = 0; j < ARRAY_SIZE(tests); j++)	\
-		for (k = 0, t = tests[j][k]; tests[j][k]; k++, t = tests[j][k])
+	for (j = 0, k = 0; j < ARRAY_SIZE(tests); j++, k = 0)	\
+		while ((t = tests[j][k++]) != NULL)
 
 static int test_and_print(struct test_suite *t, int subtest)
 {
@@ -289,7 +305,7 @@ static int shell_test__run(struct test_suite *test, int subdir __maybe_unused)
 
 	path__join(script, sizeof(script) - 3, st->dir, st->file);
 
-	if (verbose)
+	if (verbose > 0)
 		strncat(script, " -v", sizeof(script) - strlen(script) - 1);
 
 	err = system(script);
@@ -475,6 +491,21 @@ static int perf_test__list(int argc, const char **argv)
 	return 0;
 }
 
+static int run_workload(const char *work, int argc, const char **argv)
+{
+	unsigned int i = 0;
+	struct test_workload *twl;
+
+	for (i = 0; i < ARRAY_SIZE(workloads); i++) {
+		twl = workloads[i];
+		if (!strcmp(twl->name, work))
+			return twl->func(argc, argv);
+	}
+
+	pr_info("No workload found: %s\n", work);
+	return -1;
+}
+
 int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
@@ -482,12 +513,15 @@ int cmd_test(int argc, const char **argv)
 	NULL,
 	};
 	const char *skip = NULL;
+	const char *workload = NULL;
 	const struct option test_options[] = {
 	OPT_STRING('s', "skip", &skip, "tests", "tests to skip"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('F', "dont-fork", &dont_fork,
 		    "Do not fork for testcase"),
+	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing"),
+	OPT_STRING(0, "dso", &dso_to_test, "dso", "dso to test"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };
@@ -504,8 +538,10 @@ int cmd_test(int argc, const char **argv)
 	if (argc >= 1 && !strcmp(argv[0], "list"))
 		return perf_test__list(argc - 1, argv + 1);
 
+	if (workload)
+		return run_workload(workload, argc, argv);
+
 	symbol_conf.priv_size = sizeof(int);
-	symbol_conf.sort_by_name = true;
 	symbol_conf.try_vmlinux_path = true;
 
 	if (symbol__init(NULL) < 0)

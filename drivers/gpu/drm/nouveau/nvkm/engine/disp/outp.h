@@ -2,8 +2,8 @@
 #ifndef __NVKM_DISP_OUTP_H__
 #define __NVKM_DISP_OUTP_H__
 #include "priv.h"
-#include <core/notify.h>
 
+#include <drm/display/drm_dp.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 #include <subdev/bios/dp.h>
@@ -28,16 +28,22 @@ struct nvkm_outp {
 
 	union {
 		struct {
+			bool dual;
+			bool bpc8;
+		} lvds;
+
+		struct {
 			struct nvbios_dpout info;
 			u8 version;
 
 			struct nvkm_i2c_aux *aux;
 
-			struct nvkm_notify hpd;
-			bool present;
+			bool enabled;
+			bool aux_pwr;
+			bool aux_pwr_pu;
 			u8 lttpr[6];
 			u8 lttprs;
-			u8 dpcd[16];
+			u8 dpcd[DP_RECEIVER_CAP_SIZE];
 
 			struct {
 				int dpcd; /* -1, or index into SUPPORTED_LINK_RATES table */
@@ -49,12 +55,17 @@ struct nvkm_outp {
 			struct mutex mutex;
 			struct {
 				atomic_t done;
+				u8 nr;
+				u8 bw;
 				bool mst;
 			} lt;
 		} dp;
 	};
 
 	struct nvkm_object object;
+	struct {
+		struct nvkm_head *head;
+	} asy;
 };
 
 int nvkm_outp_new_(const struct nvkm_outp_func *, struct nvkm_disp *, int index,

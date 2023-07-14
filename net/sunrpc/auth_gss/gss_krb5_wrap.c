@@ -32,12 +32,15 @@
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
-#include <linux/random.h>
 #include <linux/pagemap.h>
+
+#include "gss_krb5_internal.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
+
+#if defined(CONFIG_RPCSEC_GSS_KRB5_SIMPLIFIED)
 
 static inline int
 gss_krb5_padding(int blocksize, int length)
@@ -113,39 +116,6 @@ out:
 	return 0;
 }
 
-void
-gss_krb5_make_confounder(char *p, u32 conflen)
-{
-	static u64 i = 0;
-	u64 *q = (u64 *)p;
-
-	/* rfc1964 claims this should be "random".  But all that's really
-	 * necessary is that it be unique.  And not even that is necessary in
-	 * our case since our "gssapi" implementation exists only to support
-	 * rpcsec_gss, so we know that the only buffers we will ever encrypt
-	 * already begin with a unique sequence number.  Just to hedge my bets
-	 * I'll make a half-hearted attempt at something unique, but ensuring
-	 * uniqueness would mean worrying about atomicity and rollover, and I
-	 * don't care enough. */
-
-	/* initialize to random value */
-	if (i == 0) {
-		i = prandom_u32();
-		i = (i << 32) | prandom_u32();
-	}
-
-	switch (conflen) {
-	case 16:
-		*q++ = i++;
-		fallthrough;
-	case 8:
-		*q++ = i++;
-		break;
-	default:
-		BUG();
-	}
-}
-
 /* Assumptions: the head and tail of inbuf are ours to play with.
  * The pages, however, may be real pages in the page cache and we replace
  * them with scratch pages from **pages before writing to them. */
@@ -154,9 +124,9 @@ gss_krb5_make_confounder(char *p, u32 conflen)
 
 /* XXX factor out common code with seal/unseal. */
 
-static u32
-gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
-		struct xdr_buf *buf, struct page **pages)
+u32
+gss_krb5_wrap_v1(struct krb5_ctx *kctx, int offset,
+		 struct xdr_buf *buf, struct page **pages)
 {
 	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
@@ -168,7 +138,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	struct page		**tmp_pages;
 	u32			seq_send;
 	u8			*cksumkey;
-	u32			conflen = kctx->gk5e->conflen;
+	u32			conflen = crypto_sync_skcipher_blocksize(kctx->enc);
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -211,7 +181,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	ptr[6] = 0xff;
 	ptr[7] = 0xff;
 
-	gss_krb5_make_confounder(msg_start, conflen);
+	krb5_make_confounder(msg_start, conflen);
 
 	if (kctx->gk5e->keyed_cksum)
 		cksumkey = kctx->cksum;
@@ -243,10 +213,10 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
-static u32
-gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, int len,
-		       struct xdr_buf *buf, unsigned int *slack,
-		       unsigned int *align)
+u32
+gss_krb5_unwrap_v1(struct krb5_ctx *kctx, int offset, int len,
+		   struct xdr_buf *buf, unsigned int *slack,
+		   unsigned int *align)
 {
 	int			signalg;
 	int			sealalg;
@@ -261,7 +231,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, int len,
 	void			*data_start, *orig_start;
 	int			data_len;
 	int			blocksize;
-	u32			conflen = kctx->gk5e->conflen;
+	u32			conflen = crypto_sync_skcipher_blocksize(kctx->enc);
 	int			crypt_offset;
 	u8			*cksumkey;
 	unsigned int		saved_len = buf->len;
@@ -355,6 +325,8 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, int len,
 	return GSS_S_COMPLETE;
 }
 
+#endif
+
 /*
  * We can shift data by up to LOCAL_BUF_LEN bytes in a pass.  If we need
  * to do more than that, we shift repeatedly.  Kevin Coffman reports
@@ -405,9 +377,9 @@ static void rotate_left(u32 base, struct xdr_buf *buf, unsigned int shift)
 	_rotate_left(&subbuf, shift);
 }
 
-static u32
-gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
-		     struct xdr_buf *buf, struct page **pages)
+u32
+gss_krb5_wrap_v2(struct krb5_ctx *kctx, int offset,
+		 struct xdr_buf *buf, struct page **pages)
 {
 	u8		*ptr;
 	time64_t	now;
@@ -417,9 +389,6 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	u32		err;
 
 	dprintk("RPC:       %s\n", __func__);
-
-	if (kctx->gk5e->encrypt_v2 == NULL)
-		return GSS_S_FAILURE;
 
 	/* make room for gss token header */
 	if (xdr_extend_head(buf, offset, GSS_KRB5_TOK_HDR_LEN))
@@ -448,7 +417,7 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	be64ptr = (__be64 *)be16ptr;
 	*be64ptr = cpu_to_be64(atomic64_fetch_inc(&kctx->seq_send64));
 
-	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, pages);
+	err = (*kctx->gk5e->encrypt)(kctx, offset, buf, pages);
 	if (err)
 		return err;
 
@@ -456,10 +425,10 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
-static u32
-gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, int len,
-		       struct xdr_buf *buf, unsigned int *slack,
-		       unsigned int *align)
+u32
+gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
+		   struct xdr_buf *buf, unsigned int *slack,
+		   unsigned int *align)
 {
 	time64_t	now;
 	u8		*ptr;
@@ -472,9 +441,6 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, int len,
 
 
 	dprintk("RPC:       %s\n", __func__);
-
-	if (kctx->gk5e->decrypt_v2 == NULL)
-		return GSS_S_FAILURE;
 
 	ptr = buf->head[0].iov_base + offset;
 
@@ -505,8 +471,8 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, int len,
 	if (rrc != 0)
 		rotate_left(offset + 16, buf, rrc);
 
-	err = (*kctx->gk5e->decrypt_v2)(kctx, offset, len, buf,
-					&headskip, &tailskip);
+	err = (*kctx->gk5e->decrypt)(kctx, offset, len, buf,
+				     &headskip, &tailskip);
 	if (err)
 		return GSS_S_FAILURE;
 
@@ -555,42 +521,4 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, int len,
 	*align = XDR_QUADLEN(GSS_KRB5_TOK_HDR_LEN + headskip);
 	*slack = *align + XDR_QUADLEN(ec + GSS_KRB5_TOK_HDR_LEN + tailskip);
 	return GSS_S_COMPLETE;
-}
-
-u32
-gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
-		  struct xdr_buf *buf, struct page **pages)
-{
-	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
-
-	switch (kctx->enctype) {
-	default:
-		BUG();
-	case ENCTYPE_DES_CBC_RAW:
-	case ENCTYPE_DES3_CBC_RAW:
-		return gss_wrap_kerberos_v1(kctx, offset, buf, pages);
-	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
-	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return gss_wrap_kerberos_v2(kctx, offset, buf, pages);
-	}
-}
-
-u32
-gss_unwrap_kerberos(struct gss_ctx *gctx, int offset,
-		    int len, struct xdr_buf *buf)
-{
-	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
-
-	switch (kctx->enctype) {
-	default:
-		BUG();
-	case ENCTYPE_DES_CBC_RAW:
-	case ENCTYPE_DES3_CBC_RAW:
-		return gss_unwrap_kerberos_v1(kctx, offset, len, buf,
-					      &gctx->slack, &gctx->align);
-	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
-	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return gss_unwrap_kerberos_v2(kctx, offset, len, buf,
-					      &gctx->slack, &gctx->align);
-	}
 }

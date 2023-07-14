@@ -536,9 +536,6 @@ static int f81534_submit_writer(struct usb_serial_port *port, gfp_t mem_flags)
 
 static u32 f81534_calc_baud_divisor(u32 baudrate, u32 clockrate)
 {
-	if (!baudrate)
-		return 0;
-
 	/* Round to nearest divisor */
 	return DIV_ROUND_CLOSEST(clockrate, baudrate);
 }
@@ -568,9 +565,14 @@ static int f81534_set_port_config(struct usb_serial_port *port,
 	u32 baud_list[] = {baudrate, old_baudrate, F81534_DEFAULT_BAUD_RATE};
 
 	for (i = 0; i < ARRAY_SIZE(baud_list); ++i) {
-		idx = f81534_find_clk(baud_list[i]);
+		baudrate = baud_list[i];
+		if (baudrate == 0) {
+			tty_encode_baud_rate(tty, 0, 0);
+			return 0;
+		}
+
+		idx = f81534_find_clk(baudrate);
 		if (idx >= 0) {
-			baudrate = baud_list[i];
 			tty_encode_baud_rate(tty, baudrate, baudrate);
 			break;
 		}
@@ -654,7 +656,7 @@ out_unlock:
 	return status;
 }
 
-static void f81534_break_ctl(struct tty_struct *tty, int break_state)
+static int f81534_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct f81534_port_private *port_priv = usb_get_serial_port_data(port);
@@ -673,6 +675,8 @@ static void f81534_break_ctl(struct tty_struct *tty, int break_state)
 		dev_err(&port->dev, "set break failed: %d\n", status);
 
 	mutex_unlock(&port_priv->lcr_mutex);
+
+	return status;
 }
 
 static int f81534_update_mctrl(struct usb_serial_port *port, unsigned int set,
@@ -944,8 +948,8 @@ static int f81534_calc_num_ports(struct usb_serial *serial,
 }
 
 static void f81534_set_termios(struct tty_struct *tty,
-				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+			       struct usb_serial_port *port,
+			       const struct ktermios *old_termios)
 {
 	u8 new_lcr = 0;
 	int status;

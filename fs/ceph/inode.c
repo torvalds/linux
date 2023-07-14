@@ -126,7 +126,7 @@ const struct inode_operations ceph_file_iops = {
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,
 	.listxattr = ceph_listxattr,
-	.get_acl = ceph_get_acl,
+	.get_inode_acl = ceph_get_acl,
 	.set_acl = ceph_set_acl,
 };
 
@@ -362,7 +362,7 @@ static int ceph_fill_fragtree(struct inode *inode,
 	if (nsplits != ci->i_fragtree_nsplits) {
 		update = true;
 	} else if (nsplits) {
-		i = prandom_u32() % nsplits;
+		i = get_random_u32_below(nsplits);
 		id = le32_to_cpu(fragtree->splits[i].frag);
 		if (!__ceph_find_frag(ci, id))
 			update = true;
@@ -1909,7 +1909,7 @@ static void ceph_do_invalidate_pages(struct inode *inode)
 	mutex_unlock(&ci->i_truncate_mutex);
 out:
 	if (check)
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 }
 
 /*
@@ -1969,7 +1969,7 @@ retry:
 	mutex_unlock(&ci->i_truncate_mutex);
 
 	if (wrbuffer_refs == 0)
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 
 	wake_up_all(&ci->i_cap_wq);
 }
@@ -1991,7 +1991,7 @@ static void ceph_inode_work(struct work_struct *work)
 		__ceph_do_pending_vmtruncate(inode);
 
 	if (test_and_clear_bit(CEPH_I_WORK_CHECK_CAPS, &ci->i_work_mask))
-		ceph_check_caps(ci, 0, NULL);
+		ceph_check_caps(ci, 0);
 
 	if (test_and_clear_bit(CEPH_I_WORK_FLUSH_SNAPS, &ci->i_work_mask))
 		ceph_flush_snaps(ci, NULL);
@@ -2192,6 +2192,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 		inode_dirty_flags = __ceph_mark_dirty_caps(ci, dirtied,
 							   &prealloc_cf);
 		inode->i_ctime = attr->ia_ctime;
+		inode_inc_iversion_raw(inode);
 	}
 
 	release &= issued;
@@ -2226,7 +2227,7 @@ int __ceph_setattr(struct inode *inode, struct iattr *attr)
 /*
  * setattr
  */
-int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int ceph_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
@@ -2239,7 +2240,7 @@ int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (ceph_inode_is_shutdown(inode))
 		return -ESTALE;
 
-	err = setattr_prepare(&init_user_ns, dentry, attr);
+	err = setattr_prepare(&nop_mnt_idmap, dentry, attr);
 	if (err != 0)
 		return err;
 
@@ -2254,7 +2255,7 @@ int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	err = __ceph_setattr(inode, attr);
 
 	if (err >= 0 && (attr->ia_valid & ATTR_MODE))
-		err = posix_acl_chmod(&init_user_ns, inode, attr->ia_mode);
+		err = posix_acl_chmod(&nop_mnt_idmap, dentry, attr->ia_mode);
 
 	return err;
 }
@@ -2356,6 +2357,7 @@ int ceph_do_getvxattr(struct inode *inode, const char *name, void *value,
 		goto out;
 	}
 
+	req->r_feature_needed = CEPHFS_FEATURE_OP_GETVXATTR;
 	req->r_path2 = kstrdup(name, GFP_NOFS);
 	if (!req->r_path2) {
 		err = -ENOMEM;
@@ -2395,7 +2397,7 @@ out:
  * Check inode permissions.  We verify we have a valid value for
  * the AUTH cap, then call the generic handler.
  */
-int ceph_permission(struct user_namespace *mnt_userns, struct inode *inode,
+int ceph_permission(struct mnt_idmap *idmap, struct inode *inode,
 		    int mask)
 {
 	int err;
@@ -2406,7 +2408,7 @@ int ceph_permission(struct user_namespace *mnt_userns, struct inode *inode,
 	err = ceph_do_getattr(inode, CEPH_CAP_AUTH_SHARED, false);
 
 	if (!err)
-		err = generic_permission(&init_user_ns, inode, mask);
+		err = generic_permission(&nop_mnt_idmap, inode, mask);
 	return err;
 }
 
@@ -2415,10 +2417,10 @@ static int statx_to_caps(u32 want, umode_t mode)
 {
 	int mask = 0;
 
-	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME|STATX_BTIME))
+	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME|STATX_BTIME|STATX_CHANGE_COOKIE))
 		mask |= CEPH_CAP_AUTH_SHARED;
 
-	if (want & (STATX_NLINK|STATX_CTIME)) {
+	if (want & (STATX_NLINK|STATX_CTIME|STATX_CHANGE_COOKIE)) {
 		/*
 		 * The link count for directories depends on inode->i_subdirs,
 		 * and that is only updated when Fs caps are held.
@@ -2429,11 +2431,10 @@ static int statx_to_caps(u32 want, umode_t mode)
 			mask |= CEPH_CAP_LINK_SHARED;
 	}
 
-	if (want & (STATX_ATIME|STATX_MTIME|STATX_CTIME|STATX_SIZE|
-		    STATX_BLOCKS))
+	if (want & (STATX_ATIME|STATX_MTIME|STATX_CTIME|STATX_SIZE|STATX_BLOCKS|STATX_CHANGE_COOKIE))
 		mask |= CEPH_CAP_FILE_SHARED;
 
-	if (want & (STATX_CTIME))
+	if (want & (STATX_CTIME|STATX_CHANGE_COOKIE))
 		mask |= CEPH_CAP_XATTR_SHARED;
 
 	return mask;
@@ -2443,10 +2444,11 @@ static int statx_to_caps(u32 want, umode_t mode)
  * Get all the attributes. If we have sufficient caps for the requested attrs,
  * then we can avoid talking to the MDS at all.
  */
-int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
+int ceph_getattr(struct mnt_idmap *idmap, const struct path *path,
 		 struct kstat *stat, u32 request_mask, unsigned int flags)
 {
 	struct inode *inode = d_inode(path->dentry);
+	struct super_block *sb = inode->i_sb;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u32 valid_mask = STATX_BASIC_STATS;
 	int err = 0;
@@ -2463,7 +2465,7 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			return err;
 	}
 
-	generic_fillattr(&init_user_ns, inode, stat);
+	generic_fillattr(&nop_mnt_idmap, inode, stat);
 	stat->ino = ceph_present_inode(inode);
 
 	/*
@@ -2475,17 +2477,40 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		valid_mask |= STATX_BTIME;
 	}
 
+	if (request_mask & STATX_CHANGE_COOKIE) {
+		stat->change_cookie = inode_peek_iversion_raw(inode);
+		valid_mask |= STATX_CHANGE_COOKIE;
+	}
+
 	if (ceph_snap(inode) == CEPH_NOSNAP)
-		stat->dev = inode->i_sb->s_dev;
+		stat->dev = sb->s_dev;
 	else
 		stat->dev = ci->i_snapid_map ? ci->i_snapid_map->dev : 0;
 
 	if (S_ISDIR(inode->i_mode)) {
-		if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb),
-					RBYTES))
+		if (ceph_test_mount_opt(ceph_sb_to_client(sb), RBYTES)) {
 			stat->size = ci->i_rbytes;
-		else
+		} else if (ceph_snap(inode) == CEPH_SNAPDIR) {
+			struct ceph_inode_info *pci;
+			struct ceph_snap_realm *realm;
+			struct inode *parent;
+
+			parent = ceph_lookup_inode(sb, ceph_ino(inode));
+			if (IS_ERR(parent))
+				return PTR_ERR(parent);
+
+			pci = ceph_inode(parent);
+			spin_lock(&pci->i_ceph_lock);
+			realm = pci->i_snap_realm;
+			if (realm)
+				stat->size = realm->num_snaps;
+			else
+				stat->size = 0;
+			spin_unlock(&pci->i_ceph_lock);
+			iput(parent);
+		} else {
 			stat->size = ci->i_files + ci->i_subdirs;
+		}
 		stat->blocks = 0;
 		stat->blksize = 65536;
 		/*
@@ -2498,6 +2523,8 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 			stat->nlink = 1 + 1 + ci->i_subdirs;
 	}
 
+	stat->attributes_mask |= STATX_ATTR_CHANGE_MONOTONIC;
+	stat->attributes |= STATX_ATTR_CHANGE_MONOTONIC;
 	stat->result_mask = request_mask & valid_mask;
 	return err;
 }

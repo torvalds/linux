@@ -193,7 +193,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 
 	size = IO_PAGE_ALIGN(size);
 	order = get_order(size);
-	if (unlikely(order >= MAX_ORDER))
+	if (unlikely(order > MAX_ORDER))
 		return NULL;
 
 	npages = size >> IO_PAGE_SHIFT;

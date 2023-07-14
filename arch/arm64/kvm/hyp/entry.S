@@ -171,7 +171,7 @@ alternative_else
 	dsb	sy		// Synchronize against in-flight ld/st
 	isb			// Prevent an early read of side-effect free ISR
 	mrs	x2, isr_el1
-	tbnz	x2, #8, 2f	// ISR_EL1.A
+	tbnz	x2, #ISR_EL1_A_SHIFT, 2f
 	ret
 	nop
 2:

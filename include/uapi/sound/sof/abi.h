@@ -60,5 +60,7 @@
 
 /* SOF ABI magic number "SOF\0". */
 #define SOF_ABI_MAGIC		0x00464F53
+/* SOF IPC4 ABI magic number "SOF4". */
+#define SOF_IPC4_ABI_MAGIC	0x34464F53
 
 #endif

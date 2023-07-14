@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra.h>
 
 / {
 	model = "NVIDIA Tegra210 P2597 I/O board";
@@ -1293,14 +1296,14 @@
 			};
 		};
 
-		dvfs_pwm_active_state: dvfs_pwm_active {
+		dvfs_pwm_active_state: pinmux-dvfs-pwm-active {
 			dvfs_pwm_pbb1 {
 				nvidia,pins = "dvfs_pwm_pbb1";
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
 
-		dvfs_pwm_inactive_state: dvfs_pwm_inactive {
+		dvfs_pwm_inactive_state: pinmux-dvfs-pwm-inactive {
 			dvfs_pwm_pbb1 {
 				nvidia,pins = "dvfs_pwm_pbb1";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -1368,6 +1371,7 @@
 		#size-cells = <0>;
 
 		ethernet@1 {
+			compatible = "usb955,9ff";
 			reg = <1>;
 		};
 	};
@@ -1666,7 +1670,7 @@
 		vin-supply = <&vdd_5v0_sys>;
 	};
 
-	vdd_cam_1v2: regulator-vdd-cam-1v8 {
+	vdd_cam_1v2: regulator-vdd-cam-1v2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-cam-1v2";
 		regulator-min-microvolt = <1200000>;

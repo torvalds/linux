@@ -83,10 +83,8 @@
 #ifdef CONFIG_PPC64
 	/* Save callee's TOC in the ABI compliant location */
 	std	r2, STK_GOT(r1)
-	ld	r2,PACATOC(r13)	/* get kernel TOC in r2 */
-
-	addis	r3,r2,function_trace_op@toc@ha
-	addi	r3,r3,function_trace_op@toc@l
+	LOAD_PACA_TOC()		/* get kernel TOC in r2 */
+	LOAD_REG_ADDR(r3, function_trace_op)
 	ld	r5,0(r3)
 #else
 	lis	r3,function_trace_op@ha
@@ -112,7 +110,7 @@
 	.endif
 
 	/* Load &pt_regs in r6 for call below */
-	addi    r6, r1, STACK_FRAME_OVERHEAD
+	addi    r6, r1, STACK_INT_FRAME_REGS
 .endm
 
 .macro	ftrace_regs_exit allregs

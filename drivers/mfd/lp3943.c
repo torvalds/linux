@@ -102,7 +102,7 @@ static const struct regmap_config lp3943_regmap_config = {
 	.max_register = LP3943_MAX_REGISTERS,
 };
 
-static int lp3943_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int lp3943_probe(struct i2c_client *cl)
 {
 	struct lp3943 *lp3943;
 	struct device *dev = &cl->dev;

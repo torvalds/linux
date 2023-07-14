@@ -7,6 +7,8 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
+#include <linux/iommu.h>
+#include <linux/sched/mm.h>
 #include <uapi/linux/idxd.h>
 #include "../dmaengine.h"
 #include "idxd.h"
@@ -15,12 +17,6 @@
 enum irq_work_type {
 	IRQ_WORK_NORMAL = 0,
 	IRQ_WORK_PROCESS_FAULT,
-};
-
-struct idxd_fault {
-	struct work_struct work;
-	u64 addr;
-	struct idxd_device *idxd;
 };
 
 struct idxd_resubmit {
@@ -49,11 +45,12 @@ static void idxd_device_reinit(struct work_struct *work)
 		goto out;
 
 	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = idxd->wqs[i];
+		if (test_bit(i, idxd->wq_enable_map)) {
+			struct idxd_wq *wq = idxd->wqs[i];
 
-		if (wq->state == IDXD_WQ_ENABLED) {
 			rc = idxd_wq_enable(wq);
 			if (rc < 0) {
+				clear_bit(i, idxd->wq_enable_map);
 				dev_warn(dev, "Unable to re-enable wq %s\n",
 					 dev_name(wq_confdev(wq)));
 			}
@@ -85,7 +82,7 @@ static void idxd_int_handle_revoke_drain(struct idxd_irq_entry *ie)
 	desc.opcode = DSA_OPCODE_DRAIN;
 	desc.priv = 1;
 
-	if (ie->pasid != INVALID_IOASID)
+	if (ie->pasid != IOMMU_PASID_INVALID)
 		desc.pasid = ie->pasid;
 	desc.int_handle = ie->int_handle;
 	portal = idxd_wq_portal_addr(wq);
@@ -222,13 +219,187 @@ static void idxd_int_handle_revoke(struct work_struct *work)
 	kfree(revoke);
 }
 
-static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
+static void idxd_evl_fault_work(struct work_struct *work)
 {
+	struct idxd_evl_fault *fault = container_of(work, struct idxd_evl_fault, work);
+	struct idxd_wq *wq = fault->wq;
+	struct idxd_device *idxd = wq->idxd;
+	struct device *dev = &idxd->pdev->dev;
+	struct idxd_evl *evl = idxd->evl;
+	struct __evl_entry *entry_head = fault->entry;
+	void *cr = (void *)entry_head + idxd->data->evl_cr_off;
+	int cr_size = idxd->data->compl_size;
+	u8 *status = (u8 *)cr + idxd->data->cr_status_off;
+	u8 *result = (u8 *)cr + idxd->data->cr_result_off;
+	int copied, copy_size;
+	bool *bf;
+
+	switch (fault->status) {
+	case DSA_COMP_CRA_XLAT:
+		if (entry_head->batch && entry_head->first_err_in_batch)
+			evl->batch_fail[entry_head->batch_id] = false;
+
+		copy_size = cr_size;
+		idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULTS);
+		break;
+	case DSA_COMP_BATCH_EVL_ERR:
+		bf = &evl->batch_fail[entry_head->batch_id];
+
+		copy_size = entry_head->rcr || *bf ? cr_size : 0;
+		if (*bf) {
+			if (*status == DSA_COMP_SUCCESS)
+				*status = DSA_COMP_BATCH_FAIL;
+			*result = 1;
+			*bf = false;
+		}
+		idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULTS);
+		break;
+	case DSA_COMP_DRAIN_EVL:
+		copy_size = cr_size;
+		break;
+	default:
+		copy_size = 0;
+		dev_dbg_ratelimited(dev, "Unrecognized error code: %#x\n", fault->status);
+		break;
+	}
+
+	if (copy_size == 0)
+		return;
+
+	/*
+	 * Copy completion record to fault_addr in user address space
+	 * that is found by wq and PASID.
+	 */
+	copied = idxd_copy_cr(wq, entry_head->pasid, entry_head->fault_addr,
+			      cr, copy_size);
+	/*
+	 * The task that triggered the page fault is unknown currently
+	 * because multiple threads may share the user address
+	 * space or the task exits already before this fault.
+	 * So if the copy fails, SIGSEGV can not be sent to the task.
+	 * Just print an error for the failure. The user application
+	 * waiting for the completion record will time out on this
+	 * failure.
+	 */
+	switch (fault->status) {
+	case DSA_COMP_CRA_XLAT:
+		if (copied != copy_size) {
+			idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULT_FAILS);
+			dev_dbg_ratelimited(dev, "Failed to write to completion record: (%d:%d)\n",
+					    copy_size, copied);
+			if (entry_head->batch)
+				evl->batch_fail[entry_head->batch_id] = true;
+		}
+		break;
+	case DSA_COMP_BATCH_EVL_ERR:
+		if (copied != copy_size) {
+			idxd_user_counter_increment(wq, entry_head->pasid, COUNTER_FAULT_FAILS);
+			dev_dbg_ratelimited(dev, "Failed to write to batch completion record: (%d:%d)\n",
+					    copy_size, copied);
+		}
+		break;
+	case DSA_COMP_DRAIN_EVL:
+		if (copied != copy_size)
+			dev_dbg_ratelimited(dev, "Failed to write to drain completion record: (%d:%d)\n",
+					    copy_size, copied);
+		break;
+	}
+
+	kmem_cache_free(idxd->evl_cache, fault);
+}
+
+static void process_evl_entry(struct idxd_device *idxd,
+			      struct __evl_entry *entry_head, unsigned int index)
+{
+	struct device *dev = &idxd->pdev->dev;
+	struct idxd_evl *evl = idxd->evl;
+	u8 status;
+
+	if (test_bit(index, evl->bmap)) {
+		clear_bit(index, evl->bmap);
+	} else {
+		status = DSA_COMP_STATUS(entry_head->error);
+
+		if (status == DSA_COMP_CRA_XLAT || status == DSA_COMP_DRAIN_EVL ||
+		    status == DSA_COMP_BATCH_EVL_ERR) {
+			struct idxd_evl_fault *fault;
+			int ent_size = evl_ent_size(idxd);
+
+			if (entry_head->rci)
+				dev_dbg(dev, "Completion Int Req set, ignoring!\n");
+
+			if (!entry_head->rcr && status == DSA_COMP_DRAIN_EVL)
+				return;
+
+			fault = kmem_cache_alloc(idxd->evl_cache, GFP_ATOMIC);
+			if (fault) {
+				struct idxd_wq *wq = idxd->wqs[entry_head->wq_idx];
+
+				fault->wq = wq;
+				fault->status = status;
+				memcpy(&fault->entry, entry_head, ent_size);
+				INIT_WORK(&fault->work, idxd_evl_fault_work);
+				queue_work(wq->wq, &fault->work);
+			} else {
+				dev_warn(dev, "Failed to service fault work.\n");
+			}
+		} else {
+			dev_warn_ratelimited(dev, "Device error %#x operation: %#x fault addr: %#llx\n",
+					     status, entry_head->operation,
+					     entry_head->fault_addr);
+		}
+	}
+}
+
+static void process_evl_entries(struct idxd_device *idxd)
+{
+	union evl_status_reg evl_status;
+	unsigned int h, t;
+	struct idxd_evl *evl = idxd->evl;
+	struct __evl_entry *entry_head;
+	unsigned int ent_size = evl_ent_size(idxd);
+	u32 size;
+
+	evl_status.bits = 0;
+	evl_status.int_pending = 1;
+
+	spin_lock(&evl->lock);
+	/* Clear interrupt pending bit */
+	iowrite32(evl_status.bits_upper32,
+		  idxd->reg_base + IDXD_EVLSTATUS_OFFSET + sizeof(u32));
+	h = evl->head;
+	evl_status.bits = ioread64(idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
+	t = evl_status.tail;
+	size = idxd->evl->size;
+
+	while (h != t) {
+		entry_head = (struct __evl_entry *)(evl->log + (h * ent_size));
+		process_evl_entry(idxd, entry_head, h);
+		h = (h + 1) % size;
+	}
+
+	evl->head = h;
+	evl_status.head = h;
+	iowrite32(evl_status.bits_lower32, idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
+	spin_unlock(&evl->lock);
+}
+
+irqreturn_t idxd_misc_thread(int vec, void *data)
+{
+	struct idxd_irq_entry *irq_entry = data;
+	struct idxd_device *idxd = ie_to_idxd(irq_entry);
 	struct device *dev = &idxd->pdev->dev;
 	union gensts_reg gensts;
 	u32 val = 0;
 	int i;
 	bool err = false;
+	u32 cause;
+
+	cause = ioread32(idxd->reg_base + IDXD_INTCAUSE_OFFSET);
+	if (!cause)
+		return IRQ_NONE;
+
+	iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 
 	if (cause & IDXD_INTC_HALT_STATE)
 		goto halt;
@@ -300,13 +471,18 @@ static int process_misc_interrupts(struct idxd_device *idxd, u32 cause)
 		perfmon_counter_overflow(idxd);
 	}
 
+	if (cause & IDXD_INTC_EVL) {
+		val |= IDXD_INTC_EVL;
+		process_evl_entries(idxd);
+	}
+
 	val ^= cause;
 	if (val)
 		dev_warn_once(dev, "Unexpected interrupt cause bits set: %#x\n",
 			      val);
 
 	if (!err)
-		return 0;
+		goto out;
 
 halt:
 	gensts.bits = ioread32(idxd->reg_base + IDXD_GENSTATS_OFFSET);
@@ -324,40 +500,15 @@ halt:
 			idxd->state = IDXD_DEV_HALTED;
 			idxd_wqs_quiesce(idxd);
 			idxd_wqs_unmap_portal(idxd);
-			spin_lock(&idxd->dev_lock);
 			idxd_device_clear_state(idxd);
 			dev_err(&idxd->pdev->dev,
 				"idxd halted, need %s.\n",
 				gensts.reset_type == IDXD_DEVICE_RESET_FLR ?
 				"FLR" : "system reset");
-			spin_unlock(&idxd->dev_lock);
-			return -ENXIO;
 		}
 	}
 
-	return 0;
-}
-
-irqreturn_t idxd_misc_thread(int vec, void *data)
-{
-	struct idxd_irq_entry *irq_entry = data;
-	struct idxd_device *idxd = ie_to_idxd(irq_entry);
-	int rc;
-	u32 cause;
-
-	cause = ioread32(idxd->reg_base + IDXD_INTCAUSE_OFFSET);
-	if (cause)
-		iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
-
-	while (cause) {
-		rc = process_misc_interrupts(idxd, cause);
-		if (rc < 0)
-			break;
-		cause = ioread32(idxd->reg_base + IDXD_INTCAUSE_OFFSET);
-		if (cause)
-			iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
-	}
-
+out:
 	return IRQ_HANDLED;
 }
 

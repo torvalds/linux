@@ -301,13 +301,12 @@ static const struct watchdog_info wdat_wdt_info = {
 	.identity = "wdat_wdt",
 };
 
-static const struct watchdog_ops wdat_wdt_ops = {
+static struct watchdog_ops wdat_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = wdat_wdt_start,
 	.stop = wdat_wdt_stop,
 	.ping = wdat_wdt_ping,
 	.set_timeout = wdat_wdt_set_timeout,
-	.get_timeleft = wdat_wdt_get_timeleft,
 };
 
 static int wdat_wdt_probe(struct platform_device *pdev)
@@ -342,9 +341,8 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	wdat->period = tbl->timer_period;
-	wdat->wdd.min_hw_heartbeat_ms = wdat->period * tbl->min_count;
-	wdat->wdd.max_hw_heartbeat_ms = wdat->period * tbl->max_count;
-	wdat->wdd.min_timeout = 1;
+	wdat->wdd.min_timeout = DIV_ROUND_UP(wdat->period * tbl->min_count, 1000);
+	wdat->wdd.max_timeout = wdat->period * tbl->max_count / 1000;
 	wdat->stopped_in_sleep = tbl->flags & ACPI_WDAT_STOPPED;
 	wdat->wdd.info = &wdat_wdt_info;
 	wdat->wdd.ops = &wdat_wdt_ops;
@@ -436,6 +434,9 @@ static int wdat_wdt_probe(struct platform_device *pdev)
 
 		list_add_tail(&instr->node, instructions);
 	}
+
+	if (wdat->instructions[ACPI_WDAT_GET_CURRENT_COUNTDOWN])
+		wdat_wdt_ops.get_timeleft = wdat_wdt_get_timeleft;
 
 	wdat_wdt_boot_status(wdat);
 	wdat_wdt_set_running(wdat);

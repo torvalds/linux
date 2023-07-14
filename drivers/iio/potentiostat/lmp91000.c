@@ -118,7 +118,7 @@ static int lmp91000_read(struct lmp91000_data *data, int channel, int *val)
 
 	data->chan_select = channel != LMP91000_REG_MODECN_3LEAD;
 
-	iio_trigger_poll_chained(data->trig);
+	iio_trigger_poll_nested(data->trig);
 
 	ret = wait_for_completion_timeout(&data->completion, HZ);
 	reinit_completion(&data->completion);
@@ -292,8 +292,7 @@ static const struct iio_buffer_setup_ops lmp91000_buffer_setup_ops = {
 	.predisable = lmp91000_buffer_predisable,
 };
 
-static int lmp91000_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int lmp91000_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct lmp91000_data *data;

@@ -12,6 +12,7 @@
 #include "types.h"
 #include "sys.h"
 #include "string.h"
+#include <linux/auxvec.h>
 
 struct nolibc_heap {
 	size_t	len;
@@ -101,11 +102,37 @@ char *_getenv(const char *name, char **environ)
 	return NULL;
 }
 
-static inline __attribute__((unused,always_inline))
+static __inline__ __attribute__((unused,always_inline))
 char *getenv(const char *name)
 {
 	extern char **environ;
 	return _getenv(name, environ);
+}
+
+static __attribute__((unused))
+unsigned long getauxval(unsigned long type)
+{
+	const unsigned long *auxv = _auxv;
+	unsigned long ret;
+
+	if (!auxv)
+		return 0;
+
+	while (1) {
+		if (!auxv[0] && !auxv[1]) {
+			ret = 0;
+			break;
+		}
+
+		if (auxv[0] == type) {
+			ret = auxv[1];
+			break;
+		}
+
+		auxv += 2;
+	}
+
+	return ret;
 }
 
 static __attribute__((unused))
@@ -204,7 +231,7 @@ int utoh_r(unsigned long in, char *buffer)
 /* converts unsigned long <in> to an hex string using the static itoa_buffer
  * and returns the pointer to that string.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *utoh(unsigned long in)
 {
 	utoh_r(in, itoa_buffer);
@@ -266,7 +293,7 @@ int itoa_r(long in, char *buffer)
 /* for historical compatibility, same as above but returns the pointer to the
  * buffer.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *ltoa_r(long in, char *buffer)
 {
 	itoa_r(in, buffer);
@@ -276,7 +303,7 @@ char *ltoa_r(long in, char *buffer)
 /* converts long integer <in> to a string using the static itoa_buffer and
  * returns the pointer to that string.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *itoa(long in)
 {
 	itoa_r(in, itoa_buffer);
@@ -286,7 +313,7 @@ char *itoa(long in)
 /* converts long integer <in> to a string using the static itoa_buffer and
  * returns the pointer to that string. Same as above, for compatibility.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *ltoa(long in)
 {
 	itoa_r(in, itoa_buffer);
@@ -296,7 +323,7 @@ char *ltoa(long in)
 /* converts unsigned long integer <in> to a string using the static itoa_buffer
  * and returns the pointer to that string.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *utoa(unsigned long in)
 {
 	utoa_r(in, itoa_buffer);
@@ -340,7 +367,7 @@ int u64toh_r(uint64_t in, char *buffer)
 /* converts uint64_t <in> to an hex string using the static itoa_buffer and
  * returns the pointer to that string.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *u64toh(uint64_t in)
 {
 	u64toh_r(in, itoa_buffer);
@@ -402,7 +429,7 @@ int i64toa_r(int64_t in, char *buffer)
 /* converts int64_t <in> to a string using the static itoa_buffer and returns
  * the pointer to that string.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *i64toa(int64_t in)
 {
 	i64toa_r(in, itoa_buffer);
@@ -412,11 +439,14 @@ char *i64toa(int64_t in)
 /* converts uint64_t <in> to a string using the static itoa_buffer and returns
  * the pointer to that string.
  */
-static inline __attribute__((unused))
+static __inline__ __attribute__((unused))
 char *u64toa(uint64_t in)
 {
 	u64toa_r(in, itoa_buffer);
 	return itoa_buffer;
 }
+
+/* make sure to include all global symbols */
+#include "nolibc.h"
 
 #endif /* _NOLIBC_STDLIB_H */

@@ -48,6 +48,7 @@ static struct st_var_header var_headers[] = {
 	{ "chartab", CHARTAB, VAR_PROC, NULL, NULL },
 	{ "direct", DIRECT, VAR_NUM, NULL, NULL },
 	{ "pause", PAUSE, VAR_STRING, spk_str_pause, NULL },
+	{ "cur_phonetic", CUR_PHONETIC, VAR_NUM, &spk_cur_phonetic, NULL },
 };
 
 static struct st_var_header *var_ptrs[MAXVARS] = { NULL, NULL, NULL };
@@ -138,6 +139,7 @@ struct st_var_header *spk_get_var_header(enum var_id_t var_id)
 		return NULL;
 	return p_header;
 }
+EXPORT_SYMBOL_GPL(spk_get_var_header);
 
 struct st_var_header *spk_var_header_by_name(const char *name)
 {
@@ -221,15 +223,17 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		*p_val = val;
 	if (var->var_id == PUNC_LEVEL) {
 		spk_punc_mask = spk_punc_masks[val];
-		return 0;
 	}
 	if (var_data->u.n.multiplier != 0)
 		val *= var_data->u.n.multiplier;
 	val += var_data->u.n.offset;
-	if (var->var_id < FIRST_SYNTH_VAR || !synth)
+
+	if (!synth)
 		return 0;
-	if (synth->synth_adjust)
-		return synth->synth_adjust(var);
+	if (synth->synth_adjust && synth->synth_adjust(synth, var))
+		return 0;
+	if (var->var_id < FIRST_SYNTH_VAR)
+		return 0;
 
 	if (!var_data->u.n.synth_fmt)
 		return 0;
@@ -245,6 +249,7 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	synth_printf("%s", cp);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(spk_set_num_var);
 
 int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 {

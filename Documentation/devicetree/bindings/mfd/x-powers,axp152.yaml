@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/x-powers,axp152.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: X-Powers AXP PMIC Device Tree Bindings
+title: X-Powers AXP PMIC
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -47,9 +47,8 @@ allOf:
               - x-powers,axp209
 
     then:
-      not:
-        required:
-          - x-powers,drive-vbus-en
+      properties:
+        x-powers,drive-vbus-en: false
 
   - if:
       not:
@@ -59,14 +58,9 @@ allOf:
               const: x-powers,axp806
 
     then:
-      allOf:
-        - not:
-            required:
-              - x-powers,self-working-mode
-
-        - not:
-            required:
-              - x-powers,master-mode
+      properties:
+        x-powers,self-working-mode: false
+        x-powers,master-mode: false
 
   - if:
       not:
@@ -79,19 +73,37 @@ allOf:
       required:
         - interrupts
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - x-powers,axp313a
+              - x-powers,axp15060
+
+    then:
+      properties:
+        x-powers,dcdc-freq: false
+
 properties:
   compatible:
     oneOf:
       - enum:
           - x-powers,axp152
+          - x-powers,axp192
           - x-powers,axp202
           - x-powers,axp209
           - x-powers,axp221
           - x-powers,axp223
+          - x-powers,axp313a
           - x-powers,axp803
           - x-powers,axp806
           - x-powers,axp809
           - x-powers,axp813
+          - x-powers,axp15060
+      - items:
+          - const: x-powers,axp228
+          - const: x-powers,axp221
       - items:
           - const: x-powers,axp805
           - const: x-powers,axp806
@@ -257,9 +269,10 @@ properties:
           Defines the work frequency of DC-DC in kHz.
 
     patternProperties:
-      "^(([a-f])?ldo[0-9]|dcdc[0-7a-e]|ldo(_|-)io(0|1)|(dc1)?sw|rtc(_|-)ldo|drivevbus|dc5ldo)$":
+      "^(([a-f])?ldo[0-9]|dcdc[0-7a-e]|ldo(_|-)io(0|1)|(dc1)?sw|rtc(_|-)ldo|cpusldo|drivevbus|dc5ldo)$":
         $ref: /schemas/regulator/regulator.yaml#
         type: object
+        unevaluatedProperties: false
 
         properties:
           regulator-ramp-delay:
@@ -295,7 +308,7 @@ additionalProperties: false
 
 examples:
   - |
-      i2c0 {
+      i2c {
           #address-cells = <1>;
           #size-cells = <0>;
 
@@ -311,7 +324,7 @@ examples:
   - |
       #include <dt-bindings/interrupt-controller/irq.h>
 
-      i2c0 {
+      i2c {
           #address-cells = <1>;
           #size-cells = <0>;
 

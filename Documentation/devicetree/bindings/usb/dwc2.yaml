@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/dwc2.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: DesignWare HS OTG USB 2.0 controller Bindings
+title: DesignWare HS OTG USB 2.0 controller
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -32,6 +32,7 @@ properties:
           - enum:
               - rockchip,px30-usb
               - rockchip,rk3036-usb
+              - rockchip,rk3128-usb
               - rockchip,rk3188-usb
               - rockchip,rk3228-usb
               - rockchip,rk3288-usb
@@ -42,13 +43,17 @@ properties:
           - const: rockchip,rk3066-usb
           - const: snps,dwc2
       - const: lantiq,arx100-usb
+      - const: lantiq,ase-usb
+      - const: lantiq,danube-usb
       - const: lantiq,xrx200-usb
+      - const: lantiq,xrx300-usb
       - items:
           - enum:
               - amlogic,meson8-usb
               - amlogic,meson8b-usb
               - amlogic,meson-gxbb-usb
               - amlogic,meson-g12a-usb
+              - amlogic,meson-a1-usb
               - intel,socfpga-agilex-hsotg
           - const: snps,dwc2
       - const: amcc,dwc-otg
@@ -71,11 +76,14 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   clock-names:
     items:
       - const: otg
+      - const: utmi
+    minItems: 1
 
   disable-over-current:
     type: boolean

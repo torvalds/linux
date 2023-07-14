@@ -1277,13 +1277,13 @@ static void ar5008_hw_set_radar_conf(struct ath_hw *ah)
 
 static void ar5008_hw_init_txpower_cck(struct ath_hw *ah, int16_t *rate_array)
 {
-#define CCK_DELTA(x) ((OLC_FOR_AR9280_20_LATER) ? max((x) - 2, 0) : (x))
-	ah->tx_power[0] = CCK_DELTA(rate_array[rate1l]);
-	ah->tx_power[1] = CCK_DELTA(min(rate_array[rate2l],
+#define CCK_DELTA(_ah, x) ((OLC_FOR_AR9280_20_LATER(_ah)) ? max((x) - 2, 0) : (x))
+	ah->tx_power[0] = CCK_DELTA(ah, rate_array[rate1l]);
+	ah->tx_power[1] = CCK_DELTA(ah, min(rate_array[rate2l],
 					rate_array[rate2s]));
-	ah->tx_power[2] = CCK_DELTA(min(rate_array[rate5_5l],
+	ah->tx_power[2] = CCK_DELTA(ah, min(rate_array[rate5_5l],
 					rate_array[rate5_5s]));
-	ah->tx_power[3] = CCK_DELTA(min(rate_array[rate11l],
+	ah->tx_power[3] = CCK_DELTA(ah, min(rate_array[rate11l],
 					rate_array[rate11s]));
 #undef CCK_DELTA
 }

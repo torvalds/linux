@@ -615,7 +615,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int scd4x_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int scd4x_probe(struct i2c_client *client)
 {
 	static const unsigned long scd4x_scan_masks[] = { 0x07, 0x00 };
 	struct device *dev = &client->dev;

@@ -52,7 +52,7 @@ static int __report_module(struct addr_location *al, u64 ip,
 	thread__find_symbol(ui->thread, PERF_RECORD_MISC_USER, ip, al);
 
 	if (al->map)
-		dso = al->map->dso;
+		dso = map__dso(al->map);
 
 	if (!dso)
 		return 0;
@@ -62,19 +62,23 @@ static int __report_module(struct addr_location *al, u64 ip,
 		Dwarf_Addr s;
 
 		dwfl_module_info(mod, NULL, &s, NULL, NULL, NULL, NULL, NULL);
-		if (s != al->map->start - al->map->pgoff)
+		if (s != map__start(al->map) - map__pgoff(al->map))
 			mod = 0;
 	}
 
-	if (!mod)
-		mod = dwfl_report_elf(ui->dwfl, dso->short_name, dso->long_name, -1,
-				      al->map->start - al->map->pgoff, false);
+	if (!mod) {
+		char filename[PATH_MAX];
+
+		__symbol__join_symfs(filename, sizeof(filename), dso->long_name);
+		mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
+				      map__start(al->map) - map__pgoff(al->map), false);
+	}
 	if (!mod) {
 		char filename[PATH_MAX];
 
 		if (dso__build_id_filename(dso, filename, sizeof(filename), false))
 			mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
-					      al->map->start - al->map->pgoff, false);
+					      map__start(al->map) - map__pgoff(al->map), false);
 	}
 
 	if (mod) {
@@ -90,8 +94,12 @@ static int __report_module(struct addr_location *al, u64 ip,
 static int report_module(u64 ip, struct unwind_info *ui)
 {
 	struct addr_location al;
+	int res;
 
-	return __report_module(&al, ip, ui);
+	addr_location__init(&al);
+	res = __report_module(&al, ip, ui);
+	addr_location__exit(&al);
+	return res;
 }
 
 /*
@@ -104,8 +112,11 @@ static int entry(u64 ip, struct unwind_info *ui)
 	struct unwind_entry *e = &ui->entries[ui->idx++];
 	struct addr_location al;
 
-	if (__report_module(&al, ip, ui))
+	addr_location__init(&al);
+	if (__report_module(&al, ip, ui)) {
+		addr_location__exit(&al);
 		return -1;
+	}
 
 	e->ip	  = ip;
 	e->ms.maps = al.maps;
@@ -115,7 +126,8 @@ static int entry(u64 ip, struct unwind_info *ui)
 	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
 		 al.sym ? al.sym->name : "''",
 		 ip,
-		 al.map ? al.map->map_ip(al.map, ip) : (u64) 0);
+		 al.map ? map__map_ip(al.map, ip) : (u64) 0);
+	addr_location__exit(&al);
 	return 0;
 }
 
@@ -134,19 +146,24 @@ static int access_dso_mem(struct unwind_info *ui, Dwarf_Addr addr,
 {
 	struct addr_location al;
 	ssize_t size;
+	struct dso *dso;
 
+	addr_location__init(&al);
 	if (!thread__find_map(ui->thread, PERF_RECORD_MISC_USER, addr, &al)) {
 		pr_debug("unwind: no map for %lx\n", (unsigned long)addr);
-		return -1;
+		goto out_fail;
 	}
+	dso = map__dso(al.map);
+	if (!dso)
+		goto out_fail;
 
-	if (!al.map->dso)
-		return -1;
+	size = dso__data_read_addr(dso, al.map, ui->machine, addr, (u8 *) data, sizeof(*data));
 
-	size = dso__data_read_addr(al.map->dso, al.map, ui->machine,
-				   addr, (u8 *) data, sizeof(*data));
-
+	addr_location__exit(&al);
 	return !(size == sizeof(*data));
+out_fail:
+	addr_location__exit(&al);
+	return -1;
 }
 
 static bool memory_read(Dwfl *dwfl __maybe_unused, Dwarf_Addr addr, Dwarf_Word *result,
@@ -230,7 +247,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
 		.thread		= thread,
-		.machine	= thread->maps->machine,
+		.machine	= RC_CHK_ACCESS(thread__maps(thread))->machine,
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,
@@ -260,11 +277,11 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	if (err)
 		goto out;
 
-	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread->tid, &callbacks, ui);
+	err = !dwfl_attach_state(ui->dwfl, EM_NONE, thread__tid(thread), &callbacks, ui);
 	if (err)
 		goto out;
 
-	err = dwfl_getthread_frames(ui->dwfl, thread->tid, frame_callback, ui);
+	err = dwfl_getthread_frames(ui->dwfl, thread__tid(thread), frame_callback, ui);
 
 	if (err && ui->max_stack != max_stack)
 		err = 0;

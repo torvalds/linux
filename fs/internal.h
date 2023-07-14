@@ -14,9 +14,9 @@ struct path;
 struct mount;
 struct shrink_control;
 struct fs_context;
-struct user_namespace;
 struct pipe_inode_info;
 struct iov_iter;
+struct mnt_idmap;
 
 /*
  * block/bdev.c
@@ -59,11 +59,9 @@ extern int finish_clean_context(struct fs_context *fc);
  */
 extern int filename_lookup(int dfd, struct filename *name, unsigned flags,
 			   struct path *path, struct path *root);
-extern int vfs_path_lookup(struct dentry *, struct vfsmount *,
-			   const char *, unsigned int, struct path *);
 int do_rmdir(int dfd, struct filename *name);
 int do_unlinkat(int dfd, struct filename *name);
-int may_linkat(struct user_namespace *mnt_userns, struct path *link);
+int may_linkat(struct mnt_idmap *idmap, const struct path *link);
 int do_renameat2(int olddfd, struct filename *oldname, int newdfd,
 		 struct filename *newname, unsigned int flags);
 int do_mkdirat(int dfd, struct filename *name, umode_t mode);
@@ -99,8 +97,19 @@ extern void chroot_fs_refs(const struct path *, const struct path *);
 /*
  * file_table.c
  */
-extern struct file *alloc_empty_file(int, const struct cred *);
-extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
+struct file *alloc_empty_file(int flags, const struct cred *cred);
+struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred);
+struct file *alloc_empty_backing_file(int flags, const struct cred *cred);
+
+static inline void put_file_access(struct file *file)
+{
+	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
+		i_readcount_dec(file->f_inode);
+	} else if (file->f_mode & FMODE_WRITER) {
+		put_write_access(file->f_inode);
+		__mnt_drop_write(file->f_path.mnt);
+	}
+}
 
 /*
  * super.c
@@ -110,6 +119,48 @@ extern bool trylock_super(struct super_block *sb);
 struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
+int sb_init_dio_done_wq(struct super_block *sb);
+
+/*
+ * Prepare superblock for changing its read-only state (i.e., either remount
+ * read-write superblock read-only or vice versa). After this function returns
+ * mnt_is_readonly() will return true for any mount of the superblock if its
+ * caller is able to observe any changes done by the remount. This holds until
+ * sb_end_ro_state_change() is called.
+ */
+static inline void sb_start_ro_state_change(struct super_block *sb)
+{
+	WRITE_ONCE(sb->s_readonly_remount, 1);
+	/*
+	 * For RO->RW transition, the barrier pairs with the barrier in
+	 * mnt_is_readonly() making sure if mnt_is_readonly() sees SB_RDONLY
+	 * cleared, it will see s_readonly_remount set.
+	 * For RW->RO transition, the barrier pairs with the barrier in
+	 * __mnt_want_write() before the mnt_is_readonly() check. The barrier
+	 * makes sure if __mnt_want_write() sees MNT_WRITE_HOLD already
+	 * cleared, it will see s_readonly_remount set.
+	 */
+	smp_wmb();
+}
+
+/*
+ * Ends section changing read-only state of the superblock. After this function
+ * returns if mnt_is_readonly() returns false, the caller will be able to
+ * observe all the changes remount did to the superblock.
+ */
+static inline void sb_end_ro_state_change(struct super_block *sb)
+{
+	/*
+	 * This barrier provides release semantics that pairs with
+	 * the smp_rmb() acquire semantics in mnt_is_readonly().
+	 * This barrier pair ensure that when mnt_is_readonly() sees
+	 * 0 for sb->s_readonly_remount, it will also see all the
+	 * preceding flag changes that were made during the RO state
+	 * change.
+	 */
+	smp_wmb();
+	WRITE_ONCE(sb->s_readonly_remount, 0);
+}
 
 /*
  * open.c
@@ -140,7 +191,11 @@ extern int vfs_open(const struct path *, struct file *);
  * inode.c
  */
 extern long prune_icache_sb(struct super_block *sb, struct shrink_control *sc);
-extern int dentry_needs_remove_privs(struct dentry *dentry);
+int dentry_needs_remove_privs(struct mnt_idmap *, struct dentry *dentry);
+bool in_group_or_capable(struct mnt_idmap *idmap,
+			 const struct inode *inode, vfsgid_t vfsgid);
+void lock_two_inodes(struct inode *inode1, struct inode *inode2,
+		     unsigned subclass1, unsigned subclass2);
 
 /*
  * fs-writeback.c
@@ -174,9 +229,6 @@ extern void mnt_pin_kill(struct mount *m);
  * fs/nsfs.c
  */
 extern const struct dentry_operations ns_dentry_operations;
-
-/* direct-io.c: */
-int sb_init_dio_done_wq(struct super_block *sb);
 
 /*
  * fs/stat.c:
@@ -215,12 +267,40 @@ struct xattr_ctx {
 };
 
 
-ssize_t do_getxattr(struct user_namespace *mnt_userns,
+ssize_t do_getxattr(struct mnt_idmap *idmap,
 		    struct dentry *d,
 		    struct xattr_ctx *ctx);
 
 int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
-int do_setxattr(struct user_namespace *mnt_userns, struct dentry *dentry,
+int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
 		struct xattr_ctx *ctx);
+int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
+
+#ifdef CONFIG_FS_POSIX_ACL
+int do_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+	       const char *acl_name, const void *kvalue, size_t size);
+ssize_t do_get_acl(struct mnt_idmap *idmap, struct dentry *dentry,
+		   const char *acl_name, void *kvalue, size_t size);
+#else
+static inline int do_set_acl(struct mnt_idmap *idmap,
+			     struct dentry *dentry, const char *acl_name,
+			     const void *kvalue, size_t size)
+{
+	return -EOPNOTSUPP;
+}
+static inline ssize_t do_get_acl(struct mnt_idmap *idmap,
+				 struct dentry *dentry, const char *acl_name,
+				 void *kvalue, size_t size)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *pos);
+
+/*
+ * fs/attr.c
+ */
+struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns);
+struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
+void mnt_idmap_put(struct mnt_idmap *idmap);

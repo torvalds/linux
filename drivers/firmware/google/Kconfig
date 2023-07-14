@@ -19,6 +19,21 @@ config GOOGLE_SMI
 	  driver provides an interface for reading and writing NVRAM
 	  variables.
 
+config GOOGLE_CBMEM
+	tristate "CBMEM entries in sysfs"
+	depends on GOOGLE_COREBOOT_TABLE
+	help
+	  CBMEM is a downwards-growing memory region created by the
+	  Coreboot BIOS containing tagged data structures from the
+	  BIOS.  These data structures expose things like the verified
+	  boot firmware variables, flash layout, firmware event log,
+	  and more.
+
+	  This option enables the cbmem module, which causes the
+	  kernel to search for Coreboot CBMEM entries, and expose the
+	  memory for each entry in sysfs under
+	  /sys/bus/coreboot/devices/cbmem-<id>.
+
 config GOOGLE_COREBOOT_TABLE
 	tristate "Coreboot Table Access"
 	depends on HAS_IOMEM && (ACPI || OF)
@@ -28,14 +43,6 @@ config GOOGLE_COREBOOT_TABLE
 	  pointer is accessed through the ACPI "GOOGCB00" object or the
 	  device tree node /firmware/coreboot.
 	  If unsure say N.
-
-config GOOGLE_COREBOOT_TABLE_ACPI
-	tristate
-	select GOOGLE_COREBOOT_TABLE
-
-config GOOGLE_COREBOOT_TABLE_OF
-	tristate
-	select GOOGLE_COREBOOT_TABLE
 
 config GOOGLE_MEMCONSOLE
 	tristate

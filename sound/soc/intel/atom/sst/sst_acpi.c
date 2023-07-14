@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
-#include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
@@ -335,14 +334,13 @@ static int sst_acpi_probe(struct platform_device *pdev)
 * This function is called by OS when a device is unloaded
 * This frees the interrupt etc
 */
-static int sst_acpi_remove(struct platform_device *pdev)
+static void sst_acpi_remove(struct platform_device *pdev)
 {
 	struct intel_sst_drv *ctx;
 
 	ctx = platform_get_drvdata(pdev);
 	sst_context_cleanup(ctx);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct acpi_device_id sst_acpi_ids[] = {
@@ -360,7 +358,7 @@ static struct platform_driver sst_acpi_driver = {
 		.pm			= &intel_sst_pm,
 	},
 	.probe	= sst_acpi_probe,
-	.remove	= sst_acpi_remove,
+	.remove_new = sst_acpi_remove,
 };
 
 module_platform_driver(sst_acpi_driver);

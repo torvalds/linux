@@ -25,7 +25,7 @@
 };
 
 &apps_rsc {
-	pmr735a-regulators {
+	regulators-2 {
 		compatible = "qcom,pmr735a-rpmh-regulators";
 		qcom,pmic-id = "e";
 
@@ -60,11 +60,6 @@
 	vddio-supply = <&vreg_l19b_1p8>;
 };
 
-&ipa {
-	status = "okay";
-	modem-init;
-};
-
 &pmk8350_rtc {
 	status = "okay";
 };
@@ -78,7 +73,7 @@
 };
 
 &pmk8350_vadc {
-	pmr735a_die_temp {
+	pmr735a-die-temp@403 {
 		reg = <PMR735A_ADC7_DIE_TEMP>;
 		label = "pmr735a_die_temp";
 		qcom,pre-scaling = <1 1>;

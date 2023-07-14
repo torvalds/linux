@@ -9,6 +9,7 @@
 #define __LINUX_CROS_EC_PROTO_H
 
 #include <linux/device.h>
+#include <linux/lockdep_types.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
 
@@ -19,7 +20,6 @@
 #define CROS_EC_DEV_ISH_NAME	"cros_ish"
 #define CROS_EC_DEV_PD_NAME	"cros_pd"
 #define CROS_EC_DEV_SCP_NAME	"cros_scp"
-#define CROS_EC_DEV_SCP_C1_NAME	"cros_scp_c1"
 #define CROS_EC_DEV_TP_NAME	"cros_tp"
 
 #define CROS_EC_DEV_EC_INDEX 0
@@ -40,6 +40,13 @@
 #define EC_PROTO_VERSION_UNKNOWN	0
 #define EC_MAX_REQUEST_OVERHEAD		1
 #define EC_MAX_RESPONSE_OVERHEAD	32
+
+/*
+ * EC panic is not covered by the standard (0-F) ACPI notify values.
+ * Arbitrarily choosing B0 to notify ec panic, which is in the 84-BF
+ * device specific ACPI notify range.
+ */
+#define ACPI_NOTIFY_CROS_EC_PANIC 0xB0
 
 /*
  * Command interface between EC and AP, for LPC, I2C and SPI interfaces.
@@ -116,6 +123,8 @@ struct cros_ec_command {
  *            command. The caller should check msg.result for the EC's result
  *            code.
  * @pkt_xfer: Send packet to EC and get response.
+ * @lockdep_key: Lockdep class for each instance. Unused if CONFIG_LOCKDEP is
+ *		 not enabled.
  * @lock: One transaction at a time.
  * @mkbp_event_supported: 0 if MKBP not supported. Otherwise its value is
  *                        the maximum supported version of the MKBP host event
@@ -125,6 +134,15 @@ struct cros_ec_command {
  * @event_data: Raw payload transferred with the MKBP event.
  * @event_size: Size in bytes of the event data.
  * @host_event_wake_mask: Mask of host events that cause wake from suspend.
+ * @suspend_timeout_ms: The timeout in milliseconds between when sleep event
+ *                      is received and when the EC will declare sleep
+ *                      transition failure if the sleep signal is not
+ *                      asserted.  See also struct
+ *                      ec_params_host_sleep_event_v1 in cros_ec_commands.h.
+ * @last_resume_result: The number of sleep power signal transitions that
+ *                      occurred since the suspend message. The high bit
+ *                      indicates a timeout occurred.  See also struct
+ *                      ec_response_host_sleep_event_v1 in cros_ec_commands.h.
  * @last_event_time: exact time from the hard irq when we got notified of
  *     a new event.
  * @notifier_ready: The notifier_block to let the kernel re-query EC
@@ -134,6 +152,7 @@ struct cros_ec_command {
  *      main EC.
  * @pd: The platform_device used by the mfd driver to interface with the
  *      PD behind an EC.
+ * @panic_notifier: EC panic notifier.
  */
 struct cros_ec_device {
 	/* These are used by other drivers that want to talk to the EC */
@@ -160,6 +179,7 @@ struct cros_ec_device {
 			struct cros_ec_command *msg);
 	int (*pkt_xfer)(struct cros_ec_device *ec,
 			struct cros_ec_command *msg);
+	struct lock_class_key lockdep_key;
 	struct mutex lock;
 	u8 mkbp_event_supported;
 	bool host_sleep_v1;
@@ -169,12 +189,15 @@ struct cros_ec_device {
 	int event_size;
 	u32 host_event_wake_mask;
 	u32 last_resume_result;
+	u16 suspend_timeout_ms;
 	ktime_t last_event_time;
 	struct notifier_block notifier_ready;
 
 	/* The platform devices used by the mfd driver */
 	struct platform_device *ec;
 	struct platform_device *pd;
+
+	struct blocking_notifier_head panic_notifier;
 };
 
 /**

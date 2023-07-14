@@ -1359,7 +1359,6 @@ static int mv_udc_start(struct usb_gadget *gadget,
 	spin_lock_irqsave(&udc->lock, flags);
 
 	/* hook up the driver ... */
-	driver->driver.bus = NULL;
 	udc->driver = driver;
 
 	udc->usb_state = USB_STATE_ATTACHED;
@@ -2078,7 +2077,7 @@ static void gadget_release(struct device *_dev)
 	complete(udc->done);
 }
 
-static int mv_udc_remove(struct platform_device *pdev)
+static void mv_udc_remove(struct platform_device *pdev)
 {
 	struct mv_udc *udc;
 
@@ -2100,8 +2099,6 @@ static int mv_udc_remove(struct platform_device *pdev)
 
 	/* free dev, wait for the release() finished */
 	wait_for_completion(udc->done);
-
-	return 0;
 }
 
 static int mv_udc_probe(struct platform_device *pdev)
@@ -2230,7 +2227,11 @@ static int mv_udc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&udc->status_req->queue);
 
 	/* allocate a small amount of memory to get valid address */
-	udc->status_req->req.buf = kzalloc(8, GFP_KERNEL);
+	udc->status_req->req.buf = devm_kzalloc(&pdev->dev, 8, GFP_KERNEL);
+	if (!udc->status_req->req.buf) {
+		retval = -ENOMEM;
+		goto err_destroy_dma;
+	}
 	udc->status_req->req.dma = DMA_ADDR_INVALID;
 
 	udc->resume_state = USB_STATE_NOTATTACHED;
@@ -2408,7 +2409,7 @@ static void mv_udc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver udc_driver = {
 	.probe		= mv_udc_probe,
-	.remove		= mv_udc_remove,
+	.remove_new	= mv_udc_remove,
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.name	= "mv-udc",

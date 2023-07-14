@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/clock/qcom,a53pll.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm A53 PLL Binding
+title: Qualcomm A53 PLL clock
 
 maintainers:
-  - Sivaprakash Murugesan <sivaprak@codeaurora.org>
+  - Bjorn Andersson <andersson@kernel.org>
 
 description:
   The A53 PLL on few Qualcomm platforms is the main CPU PLL used used for
@@ -16,7 +16,10 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,ipq5332-a53pll
       - qcom,ipq6018-a53pll
+      - qcom,ipq8074-a53pll
+      - qcom,ipq9574-a73pll
       - qcom,msm8916-a53pll
       - qcom,msm8939-a53pll
 
@@ -44,14 +47,14 @@ required:
 additionalProperties: false
 
 examples:
-  #Example 1 - A53 PLL found on MSM8916 devices
+  # Example 1 - A53 PLL found on MSM8916 devices
   - |
     a53pll: clock@b016000 {
         compatible = "qcom,msm8916-a53pll";
         reg = <0xb016000 0x40>;
         #clock-cells = <0>;
     };
-  #Example 2 - A53 PLL found on IPQ6018 devices
+  # Example 2 - A53 PLL found on IPQ6018 devices
   - |
     a53pll_ipq: clock-controller@b116000 {
         compatible = "qcom,ipq6018-a53pll";

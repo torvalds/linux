@@ -277,7 +277,7 @@ static u32 update_clock_tree_delay(struct tegra210_emc *emc, int type)
 		/*
 		 * Dev1 LSB.
 		 */
-		value = tegra210_emc_mrr_read(emc, 2, 18);
+		value = tegra210_emc_mrr_read(emc, 1, 18);
 
 		for (i = 0; i < emc->num_channels; i++) {
 			temp[i][0] |= (value & 0x00ff) >> 0;

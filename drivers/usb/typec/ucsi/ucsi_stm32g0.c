@@ -599,7 +599,7 @@ static int ucsi_stm32g0_probe_bootloader(struct ucsi *ucsi)
 		g0->i2c_bl = i2c_new_dummy_device(g0->client->adapter, STM32G0_I2C_BL_ADDR);
 		if (IS_ERR(g0->i2c_bl)) {
 			ret = dev_err_probe(g0->dev, PTR_ERR(g0->i2c_bl),
-					    "Failed to register booloader I2C address\n");
+					    "Failed to register bootloader I2C address\n");
 			return ret;
 		}
 	}
@@ -626,7 +626,7 @@ static int ucsi_stm32g0_probe_bootloader(struct ucsi *ucsi)
 	return 0;
 }
 
-static int ucsi_stm32g0_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ucsi_stm32g0_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ucsi_stm32g0 *g0;

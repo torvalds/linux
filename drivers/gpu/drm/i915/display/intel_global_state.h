@@ -27,7 +27,7 @@ struct intel_global_obj {
 };
 
 #define intel_for_each_global_obj(obj, dev_priv) \
-	list_for_each_entry(obj, &(dev_priv)->global_obj_list, head)
+	list_for_each_entry(obj, &(dev_priv)->display.global.obj_list, head)
 
 #define for_each_new_global_obj_in_state(__state, obj, new_obj_state, __i) \
 	for ((__i) = 0; \
@@ -86,5 +86,7 @@ void intel_atomic_swap_global_state(struct intel_atomic_state *state);
 void intel_atomic_clear_global_state(struct intel_atomic_state *state);
 int intel_atomic_lock_global_state(struct intel_global_state *obj_state);
 int intel_atomic_serialize_global_state(struct intel_global_state *obj_state);
+
+bool intel_atomic_global_state_is_serialized(struct intel_atomic_state *state);
 
 #endif

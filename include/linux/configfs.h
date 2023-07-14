@@ -204,8 +204,6 @@ static struct configfs_bin_attribute _pfx##attr_##_name = {	\
  * group children.  default_groups may coexist alongsize make_group() or
  * make_item(), but if the group wishes to have only default_groups
  * children (disallowing mkdir(2)), it need not provide either function.
- * If the group has commit(), it supports pending and committed (active)
- * items.
  */
 struct configfs_item_operations {
 	void (*release)(struct config_item *);
@@ -216,7 +214,6 @@ struct configfs_item_operations {
 struct configfs_group_operations {
 	struct config_item *(*make_item)(struct config_group *group, const char *name);
 	struct config_group *(*make_group)(struct config_group *group, const char *name);
-	int (*commit_item)(struct config_item *item);
 	void (*disconnect_notify)(struct config_group *group, struct config_item *item);
 	void (*drop_item)(struct config_group *group, struct config_item *item);
 };

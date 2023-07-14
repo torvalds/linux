@@ -10,6 +10,7 @@
 # parseargs.sh scripts for arguments.
 
 . scripts/parseargs.sh
+. scripts/hwfnseg.sh
 
 T=/tmp/checkghlitmus.sh.$$
 trap 'rm -rf $T' 0
@@ -32,19 +33,19 @@ then
 	( cd "$LKMM_DESTDIR"; sed -e 's/^/mkdir -p /' | sh )
 fi
 
-# Create a list of the C-language litmus tests previously run.
-( cd $LKMM_DESTDIR; find litmus -name '*.litmus.out' -print ) |
-	sed -e 's/\.out$//' |
-	xargs -r egrep -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' |
+# Create a list of the specified litmus tests previously run.
+( cd $LKMM_DESTDIR; find litmus -name "*.litmus${hwfnseg}.out" -print ) |
+	sed -e "s/${hwfnseg}"'\.out$//' |
+	xargs -r grep -E -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' |
 	xargs -r grep -L "^P${LKMM_PROCS}"> $T/list-C-already
 
 # Create a list of C-language litmus tests with "Result:" commands and
 # no more than the specified number of processes.
-find litmus -name '*.litmus' -exec grep -l -m 1 "^C " {} \; > $T/list-C
-xargs < $T/list-C -r egrep -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' > $T/list-C-result
+find litmus -name '*.litmus' -print | mselect7 -arch C > $T/list-C
+xargs < $T/list-C -r grep -E -l '^ \* Result: (Never|Sometimes|Always|DEADLOCK)' > $T/list-C-result
 xargs < $T/list-C-result -r grep -L "^P${LKMM_PROCS}" > $T/list-C-result-short
 
-# Form list of tests without corresponding .litmus.out files
+# Form list of tests without corresponding .out files
 sort $T/list-C-already $T/list-C-result-short | uniq -u > $T/list-C-needed
 
 # Run any needed tests.

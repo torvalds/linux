@@ -95,6 +95,7 @@ properties:
     items:
       - description: MBA reserved region
       - description: modem reserved region
+      - description: metadata reserved region
 
   firmware-name:
     $ref: /schemas/types.yaml#/definitions/string-array
@@ -140,6 +141,7 @@ properties:
 
   glink-edge:
     $ref: qcom,glink-edge.yaml#
+    unevaluatedProperties: false
     description:
       Qualcomm G-Link subnode which represents communication edge, channels
       and devices related to the DSP.
@@ -222,7 +224,7 @@ examples:
                         <&rpmhpd SC7180_MSS>;
         power-domain-names = "cx", "mx", "mss";
 
-        memory-region = <&mba_mem>, <&mpss_mem>;
+        memory-region = <&mba_mem>, <&mpss_mem>, <&mdata_mem>;
 
         qcom,qmp = <&aoss_qmp>;
 

@@ -80,6 +80,8 @@ access. For example, cpusets (see Documentation/admin-guide/cgroup-v1/cpusets.rs
 you to associate a set of CPUs and a set of memory nodes with the
 tasks in each cgroup.
 
+.. _cgroups-why-needed:
+
 1.2 Why are cgroups needed ?
 ----------------------------
 

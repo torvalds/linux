@@ -494,9 +494,9 @@ static void max77620_pm_power_off(void)
 			   MAX77620_ONOFFCNFG1_SFT_RST);
 }
 
-static int max77620_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max77620_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	const struct regmap_config *rmap_config;
 	struct max77620_chip *chip;
 	const struct mfd_cell *mfd_cells;
@@ -576,7 +576,6 @@ static int max77620_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int max77620_set_fps_period(struct max77620_chip *chip,
 				   int fps_id, int time_period)
 {
@@ -683,7 +682,6 @@ out:
 
 	return 0;
 }
-#endif
 
 static const struct i2c_device_id max77620_id[] = {
 	{"max77620", MAX77620},
@@ -692,14 +690,13 @@ static const struct i2c_device_id max77620_id[] = {
 	{},
 };
 
-static const struct dev_pm_ops max77620_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(max77620_i2c_suspend, max77620_i2c_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(max77620_pm_ops,
+				max77620_i2c_suspend, max77620_i2c_resume);
 
 static struct i2c_driver max77620_driver = {
 	.driver = {
 		.name = "max77620",
-		.pm = &max77620_pm_ops,
+		.pm = pm_sleep_ptr(&max77620_pm_ops),
 	},
 	.probe = max77620_probe,
 	.id_table = max77620_id,

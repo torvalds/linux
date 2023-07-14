@@ -663,37 +663,37 @@ static int sx9360_write_raw(struct iio_dev *indio_dev,
 
 static const struct sx_common_reg_default sx9360_default_regs[] = {
 	{ SX9360_REG_IRQ_MSK, 0x00 },
-	{ SX9360_REG_IRQ_CFG, 0x00 },
+	{ SX9360_REG_IRQ_CFG, 0x00, "irq_cfg" },
 	/*
 	 * The lower 2 bits should not be set as it enable sensors measurements.
 	 * Turning the detection on before the configuration values are set to
 	 * good values can cause the device to return erroneous readings.
 	 */
-	{ SX9360_REG_GNRL_CTRL0, 0x00 },
-	{ SX9360_REG_GNRL_CTRL1, 0x00 },
-	{ SX9360_REG_GNRL_CTRL2, SX9360_REG_GNRL_CTRL2_PERIOD_102MS },
+	{ SX9360_REG_GNRL_CTRL0, 0x00, "gnrl_ctrl0" },
+	{ SX9360_REG_GNRL_CTRL1, 0x00, "gnrl_ctrl1" },
+	{ SX9360_REG_GNRL_CTRL2, SX9360_REG_GNRL_CTRL2_PERIOD_102MS, "gnrl_ctrl2" },
 
-	{ SX9360_REG_AFE_CTRL1, SX9360_REG_AFE_CTRL1_RESFILTIN_0OHMS },
+	{ SX9360_REG_AFE_CTRL1, SX9360_REG_AFE_CTRL1_RESFILTIN_0OHMS, "afe_ctrl0" },
 	{ SX9360_REG_AFE_PARAM0_PHR, SX9360_REG_AFE_PARAM0_RSVD |
-		SX9360_REG_AFE_PARAM0_RESOLUTION_128 },
+		SX9360_REG_AFE_PARAM0_RESOLUTION_128, "afe_param0_phr" },
 	{ SX9360_REG_AFE_PARAM1_PHR, SX9360_REG_AFE_PARAM1_AGAIN_PHM_6PF |
-		SX9360_REG_AFE_PARAM1_FREQ_83_33HZ },
+		SX9360_REG_AFE_PARAM1_FREQ_83_33HZ, "afe_param1_phr" },
 	{ SX9360_REG_AFE_PARAM0_PHM, SX9360_REG_AFE_PARAM0_RSVD |
-		SX9360_REG_AFE_PARAM0_RESOLUTION_128 },
+		SX9360_REG_AFE_PARAM0_RESOLUTION_128, "afe_param0_phm" },
 	{ SX9360_REG_AFE_PARAM1_PHM, SX9360_REG_AFE_PARAM1_AGAIN_PHM_6PF |
-		SX9360_REG_AFE_PARAM1_FREQ_83_33HZ },
+		SX9360_REG_AFE_PARAM1_FREQ_83_33HZ, "afe_param1_phm" },
 
 	{ SX9360_REG_PROX_CTRL0_PHR, SX9360_REG_PROX_CTRL0_GAIN_1 |
-		SX9360_REG_PROX_CTRL0_RAWFILT_1P50 },
+		SX9360_REG_PROX_CTRL0_RAWFILT_1P50, "prox_ctrl0_phr" },
 	{ SX9360_REG_PROX_CTRL0_PHM, SX9360_REG_PROX_CTRL0_GAIN_1 |
-		SX9360_REG_PROX_CTRL0_RAWFILT_1P50 },
-	{ SX9360_REG_PROX_CTRL1, SX9360_REG_PROX_CTRL1_AVGNEG_THRESH_16K },
+		SX9360_REG_PROX_CTRL0_RAWFILT_1P50, "prox_ctrl0_phm" },
+	{ SX9360_REG_PROX_CTRL1, SX9360_REG_PROX_CTRL1_AVGNEG_THRESH_16K, "prox_ctrl1" },
 	{ SX9360_REG_PROX_CTRL2, SX9360_REG_PROX_CTRL2_AVGDEB_2SAMPLES |
-		SX9360_REG_PROX_CTRL2_AVGPOS_THRESH_16K },
+		SX9360_REG_PROX_CTRL2_AVGPOS_THRESH_16K, "prox_ctrl2" },
 	{ SX9360_REG_PROX_CTRL3, SX9360_REG_PROX_CTRL3_AVGNEG_FILT_2 |
-		SX9360_REG_PROX_CTRL3_AVGPOS_FILT_256 },
-	{ SX9360_REG_PROX_CTRL4, 0x00 },
-	{ SX9360_REG_PROX_CTRL5, SX9360_REG_PROX_CTRL5_PROXTHRESH_32 },
+		SX9360_REG_PROX_CTRL3_AVGPOS_FILT_256, "prox_ctrl3" },
+	{ SX9360_REG_PROX_CTRL4, 0x00, "prox_ctrl4" },
+	{ SX9360_REG_PROX_CTRL5, SX9360_REG_PROX_CTRL5_PROXTHRESH_32, "prox_ctrl5" },
 };
 
 /* Activate all channels and perform an initial compensation. */
@@ -819,7 +819,7 @@ static int sx9360_probe(struct i2c_client *client)
 	return sx_common_probe(client, &sx9360_chip_info, &sx9360_regmap_config);
 }
 
-static int __maybe_unused sx9360_suspend(struct device *dev)
+static int sx9360_suspend(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	unsigned int regval;
@@ -844,7 +844,7 @@ out:
 	return ret;
 }
 
-static int __maybe_unused sx9360_resume(struct device *dev)
+static int sx9360_resume(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -861,10 +861,11 @@ static int __maybe_unused sx9360_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(sx9360_pm_ops, sx9360_suspend, sx9360_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sx9360_pm_ops, sx9360_suspend, sx9360_resume);
 
 static const struct acpi_device_id sx9360_acpi_match[] = {
 	{ "STH9360", SX9360_WHOAMI_VALUE },
+	{ "SAMM0208", SX9360_WHOAMI_VALUE },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, sx9360_acpi_match);
@@ -886,7 +887,7 @@ static struct i2c_driver sx9360_driver = {
 		.name	= "sx9360",
 		.acpi_match_table = sx9360_acpi_match,
 		.of_match_table = sx9360_of_match,
-		.pm = &sx9360_pm_ops,
+		.pm = pm_sleep_ptr(&sx9360_pm_ops),
 
 		/*
 		 * Lots of i2c transfers in probe + over 200 ms waiting in
@@ -895,7 +896,7 @@ static struct i2c_driver sx9360_driver = {
 		 */
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new	= sx9360_probe,
+	.probe		= sx9360_probe,
 	.id_table	= sx9360_id,
 };
 module_i2c_driver(sx9360_driver);

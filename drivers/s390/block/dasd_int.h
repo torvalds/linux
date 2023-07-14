@@ -260,6 +260,55 @@ struct dasd_uid {
 };
 
 /*
+ * PPRC Status data
+ */
+struct dasd_pprc_header {
+	__u8 entries;		/* 0     Number of device entries */
+	__u8 unused;		/* 1     unused */
+	__u16 entry_length;	/* 2-3   Length of device entry */
+	__u32 unused2;		/* 4-7   unused */
+} __packed;
+
+struct dasd_pprc_dev_info {
+	__u8 state;		/* 0       Copy State */
+	__u8 flags;		/* 1       Flags */
+	__u8 reserved1[2];	/* 2-3     reserved */
+	__u8 prim_lss;		/* 4       Primary device LSS */
+	__u8 primary;		/* 5       Primary device address */
+	__u8 sec_lss;		/* 6       Secondary device LSS */
+	__u8 secondary;		/* 7       Secondary device address */
+	__u16 pprc_id;		/* 8-9     Peer-to-Peer Remote Copy ID */
+	__u8 reserved2[12];	/* 10-21   reserved */
+	__u16 prim_cu_ssid;	/* 22-23   Pimary Control Unit SSID */
+	__u8 reserved3[12];	/* 24-35   reserved */
+	__u16 sec_cu_ssid;	/* 36-37   Secondary Control Unit SSID */
+	__u8 reserved4[90];	/* 38-127  reserved */
+} __packed;
+
+struct dasd_pprc_data_sc4 {
+	struct dasd_pprc_header header;
+	struct dasd_pprc_dev_info dev_info[5];
+} __packed;
+
+#define DASD_BUS_ID_SIZE 20
+#define DASD_CP_ENTRIES 5
+
+struct dasd_copy_entry {
+	char busid[DASD_BUS_ID_SIZE];
+	struct dasd_device *device;
+	bool primary;
+	bool configured;
+};
+
+struct dasd_copy_relation {
+	struct dasd_copy_entry entry[DASD_CP_ENTRIES];
+	struct dasd_copy_entry *active;
+};
+
+int dasd_devmap_set_device_copy_relation(struct ccw_device *,
+					 bool pprc_enabled);
+
+/*
  * the struct dasd_discipline is
  * sth like a table of virtual functions, if you think of dasd_eckd
  * inheriting dasd...
@@ -387,26 +436,30 @@ struct dasd_discipline {
 	struct dasd_ccw_req *(*ese_format)(struct dasd_device *,
 					   struct dasd_ccw_req *, struct irb *);
 	int (*ese_read)(struct dasd_ccw_req *, struct irb *);
+	int (*pprc_status)(struct dasd_device *, struct	dasd_pprc_data_sc4 *);
+	bool (*pprc_enabled)(struct dasd_device *);
+	int (*copy_pair_swap)(struct dasd_device *, char *, char *);
+	int (*device_ping)(struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
 
-/*
- * Notification numbers for extended error reporting notifications:
- * The DASD_EER_DISABLE notification is sent before a dasd_device (and it's
- * eer pointer) is freed. The error reporting module needs to do all necessary
- * cleanup steps.
- * The DASD_EER_TRIGGER notification sends the actual error reports (triggers).
- */
-#define DASD_EER_DISABLE 0
-#define DASD_EER_TRIGGER 1
+/* Trigger IDs for extended error reporting DASD EER and autoquiesce */
+enum eer_trigger {
+	DASD_EER_FATALERROR = 1,
+	DASD_EER_NOPATH,
+	DASD_EER_STATECHANGE,
+	DASD_EER_PPRCSUSPEND,
+	DASD_EER_NOSPC,
+	DASD_EER_TIMEOUTS,
+	DASD_EER_STARTIO,
 
-/* Trigger IDs for extended error reporting DASD_EER_TRIGGER notification */
-#define DASD_EER_FATALERROR  1
-#define DASD_EER_NOPATH      2
-#define DASD_EER_STATECHANGE 3
-#define DASD_EER_PPRCSUSPEND 4
-#define DASD_EER_NOSPC	     5
+	/* enum end marker, only add new trigger above */
+	DASD_EER_MAX,
+	DASD_EER_AUTOQUIESCE = 31, /* internal only */
+};
+
+#define DASD_EER_VALID ((1U << DASD_EER_MAX) - 1)
 
 /* DASD path handling */
 
@@ -583,12 +636,14 @@ struct dasd_device {
 	struct dasd_profile profile;
 	struct dasd_format_entry format_entry;
 	struct kset *paths_info;
+	struct dasd_copy_relation *copy;
+	unsigned long aq_mask;
+	unsigned int aq_timeouts;
 };
 
 struct dasd_block {
 	/* Block device stuff. */
 	struct gendisk *gdp;
-	struct request_queue *request_queue;
 	spinlock_t request_queue_lock;
 	struct blk_mq_tag_set tag_set;
 	struct block_device *bdev;
@@ -629,6 +684,7 @@ struct dasd_queue {
 #define DASD_STOPPED_PENDING 4         /* long busy */
 #define DASD_STOPPED_DC_WAIT 8         /* disconnected, wait */
 #define DASD_STOPPED_SU      16        /* summary unit check handling */
+#define DASD_STOPPED_PPRC    32        /* PPRC swap */
 #define DASD_STOPPED_NOSPC   128       /* no space left */
 
 /* per device flags */
@@ -652,6 +708,22 @@ struct dasd_queue {
 #define DASD_SLEEPON_END_TAG	((void *) 2)
 
 void dasd_put_device_wake(struct dasd_device *);
+
+/*
+ * return values to be returned from the copy pair swap function
+ * 0x00: swap successful
+ * 0x01: swap data invalid
+ * 0x02: no active device found
+ * 0x03: wrong primary specified
+ * 0x04: secondary device not found
+ * 0x05: swap already running
+ */
+#define DASD_COPYPAIRSWAP_SUCCESS	0
+#define DASD_COPYPAIRSWAP_INVALID	1
+#define DASD_COPYPAIRSWAP_NOACTIVE	2
+#define DASD_COPYPAIRSWAP_PRIMARY	3
+#define DASD_COPYPAIRSWAP_SECONDARY	4
+#define DASD_COPYPAIRSWAP_MULTIPLE	5
 
 /*
  * Reference count inliners
@@ -779,6 +851,7 @@ extern debug_info_t *dasd_debug_area;
 extern struct dasd_profile dasd_global_profile;
 extern unsigned int dasd_global_profile_level;
 extern const struct block_device_operations dasd_device_operations;
+extern struct blk_mq_ops dasd_mq_ops;
 
 extern struct kmem_cache *dasd_page_cache;
 
@@ -837,6 +910,8 @@ int dasd_generic_verify_path(struct dasd_device *, __u8);
 void dasd_generic_space_exhaust(struct dasd_device *, struct dasd_ccw_req *);
 void dasd_generic_space_avail(struct dasd_device *);
 
+int dasd_generic_requeue_all_requests(struct dasd_device *);
+
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);
 
@@ -890,7 +965,8 @@ int dasd_scan_partitions(struct dasd_block *);
 void dasd_destroy_partitions(struct dasd_block *);
 
 /* externals in dasd_ioctl.c */
-int dasd_ioctl(struct block_device *, fmode_t, unsigned int, unsigned long);
+int dasd_ioctl(struct block_device *bdev, blk_mode_t mode, unsigned int cmd,
+		unsigned long arg);
 int dasd_set_read_only(struct block_device *bdev, bool ro);
 
 /* externals in dasd_proc.c */

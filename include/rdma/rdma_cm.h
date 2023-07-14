@@ -52,7 +52,17 @@ struct rdma_addr {
 struct rdma_route {
 	struct rdma_addr addr;
 	struct sa_path_rec *path_rec;
-	int num_paths;
+
+	/* Optional path records of primary path */
+	struct sa_path_rec *path_rec_inbound;
+	struct sa_path_rec *path_rec_outbound;
+
+	/*
+	 * 0 - No primary nor alternate path is available
+	 * 1 - Only primary path is available
+	 * 2 - Both primary and alternate path are available
+	 */
+	int num_pri_alt_paths;
 };
 
 struct rdma_conn_param {

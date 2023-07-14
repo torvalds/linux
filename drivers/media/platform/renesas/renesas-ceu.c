@@ -702,12 +702,6 @@ static int ceu_start_streaming(struct vb2_queue *vq, unsigned int count)
 	/* Grab the first available buffer and trigger the first capture. */
 	buf = list_first_entry(&ceudev->capture, struct ceu_buffer,
 			       queue);
-	if (!buf) {
-		spin_unlock_irqrestore(&ceudev->lock, irqflags);
-		dev_dbg(ceudev->dev,
-			"No buffer available for capture.\n");
-		goto error_stop_sensor;
-	}
 
 	list_del(&buf->queue);
 	ceudev->active = &buf->vb;
@@ -721,9 +715,6 @@ static int ceu_start_streaming(struct vb2_queue *vq, unsigned int count)
 	spin_unlock_irqrestore(&ceudev->lock, irqflags);
 
 	return 0;
-
-error_stop_sensor:
-	v4l2_subdev_call(v4l2_sd, video, s_stream, 0);
 
 error_return_bufs:
 	spin_lock_irqsave(&ceudev->lock, irqflags);
@@ -795,8 +786,8 @@ static int __ceu_try_fmt(struct ceu_device *ceudev, struct v4l2_format *v4l2_fmt
 	struct v4l2_subdev *v4l2_sd = ceu_sd->v4l2_sd;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	const struct ceu_fmt *ceu_fmt;
 	u32 mbus_code_old;
 	u32 mbus_code;
@@ -1709,7 +1700,7 @@ error_free_ceudev:
 	return ret;
 }
 
-static int ceu_remove(struct platform_device *pdev)
+static void ceu_remove(struct platform_device *pdev)
 {
 	struct ceu_device *ceudev = platform_get_drvdata(pdev);
 
@@ -1722,8 +1713,6 @@ static int ceu_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&ceudev->v4l2_dev);
 
 	video_unregister_device(&ceudev->vdev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops ceu_pm_ops = {
@@ -1739,7 +1728,7 @@ static struct platform_driver ceu_driver = {
 		.of_match_table = of_match_ptr(ceu_of_match),
 	},
 	.probe		= ceu_probe,
-	.remove		= ceu_remove,
+	.remove_new	= ceu_remove,
 };
 
 module_platform_driver(ceu_driver);

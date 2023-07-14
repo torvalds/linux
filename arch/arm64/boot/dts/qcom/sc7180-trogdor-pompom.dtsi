@@ -312,15 +312,9 @@ ap_ts_pen_1v8: &i2c4 {
 			  "DP_HOT_PLUG_DET",
 			  "EC_IN_RW_ODL";
 
-	dmic_sel: dmic-sel {
-		pinmux {
-			pins = "gpio86";
-			function = "gpio";
-		};
-
-		pinconf {
-			pins = "gpio86";
-			bias-pull-down;
-		};
+	dmic_sel: dmic-sel-state {
+		pins = "gpio86";
+		function = "gpio";
+		bias-pull-down;
 	};
 };

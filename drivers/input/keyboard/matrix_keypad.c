@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/irq.h>
@@ -126,6 +127,9 @@ static void matrix_keypad_scan(struct work_struct *work)
 
 	memset(new_state, 0, sizeof(new_state));
 
+	for (row = 0; row < pdata->num_row_gpios; row++)
+		gpio_direction_input(pdata->row_gpios[row]);
+
 	/* assert each column and read the row status out */
 	for (col = 0; col < pdata->num_col_gpios; col++) {
 
@@ -226,7 +230,6 @@ static void matrix_keypad_stop(struct input_dev *dev)
 	disable_row_irqs(keypad);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
@@ -295,10 +298,9 @@ static int matrix_keypad_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
-			 matrix_keypad_suspend, matrix_keypad_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
+				matrix_keypad_suspend, matrix_keypad_resume);
 
 static int matrix_keypad_init_gpio(struct platform_device *pdev,
 				   struct matrix_keypad *keypad)
@@ -416,21 +418,19 @@ matrix_keypad_parse_dt(struct device *dev)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	pdata->num_row_gpios = nrow = of_gpio_named_count(np, "row-gpios");
-	pdata->num_col_gpios = ncol = of_gpio_named_count(np, "col-gpios");
-	if (nrow <= 0 || ncol <= 0) {
+	pdata->num_row_gpios = nrow = gpiod_count(dev, "row");
+	pdata->num_col_gpios = ncol = gpiod_count(dev, "col");
+	if (nrow < 0 || ncol < 0) {
 		dev_err(dev, "number of keypad rows/columns not specified\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (of_get_property(np, "linux,no-autorepeat", NULL))
-		pdata->no_autorepeat = true;
+	pdata->no_autorepeat = of_property_read_bool(np, "linux,no-autorepeat");
 
 	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
 			of_property_read_bool(np, "linux,wakeup"); /* legacy */
 
-	if (of_get_property(np, "gpio-activelow", NULL))
-		pdata->active_low = true;
+	pdata->active_low = of_property_read_bool(np, "gpio-activelow");
 
 	pdata->drive_inactive_cols =
 		of_property_read_bool(np, "drive-inactive-cols");
@@ -573,7 +573,7 @@ static struct platform_driver matrix_keypad_driver = {
 	.remove		= matrix_keypad_remove,
 	.driver		= {
 		.name	= "matrix-keypad",
-		.pm	= &matrix_keypad_pm_ops,
+		.pm	= pm_sleep_ptr(&matrix_keypad_pm_ops),
 		.of_match_table = of_match_ptr(matrix_keypad_dt_match),
 	},
 };

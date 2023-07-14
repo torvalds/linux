@@ -39,7 +39,12 @@ enum opal_response_token {
 #define FIRST_TPER_SESSION_NUM	4096
 
 #define TPER_SYNC_SUPPORTED 0x01
+/* FC_LOCKING features */
+#define LOCKING_SUPPORTED_MASK 0x01
+#define LOCKING_ENABLED_MASK 0x02
+#define LOCKED_MASK 0x04
 #define MBR_ENABLED_MASK 0x10
+#define MBR_DONE_MASK 0x20
 
 #define TINY_ATOM_DATA_MASK 0x3F
 #define TINY_ATOM_SIGNED 0x40
@@ -81,6 +86,15 @@ enum opal_response_token {
 #define OPAL_MSID_KEYLEN 15
 #define OPAL_UID_LENGTH_HALF 4
 
+/*
+ * Boolean operators from TCG Core spec 2.01 Section:
+ * 5.1.3.11
+ * Table 61
+ */
+#define OPAL_BOOLEAN_AND 0
+#define OPAL_BOOLEAN_OR  1
+#define OPAL_BOOLEAN_NOT 2
+
 /* Enum to index OPALUID array */
 enum opal_uid {
 	/* users */
@@ -100,6 +114,7 @@ enum opal_uid {
 	/* tables */
 	OPAL_TABLE_TABLE,
 	OPAL_LOCKINGRANGE_GLOBAL,
+	OPAL_LOCKINGRANGE_ACE_START_TO_KEY,
 	OPAL_LOCKINGRANGE_ACE_RDLOCKED,
 	OPAL_LOCKINGRANGE_ACE_WRLOCKED,
 	OPAL_MBRCONTROL,

@@ -491,7 +491,7 @@ static int moxa_write(struct tty_struct *, const unsigned char *, int);
 static unsigned int moxa_write_room(struct tty_struct *);
 static void moxa_flush_buffer(struct tty_struct *);
 static unsigned int moxa_chars_in_buffer(struct tty_struct *);
-static void moxa_set_termios(struct tty_struct *, struct ktermios *);
+static void moxa_set_termios(struct tty_struct *, const struct ktermios *);
 static void moxa_stop(struct tty_struct *);
 static void moxa_start(struct tty_struct *);
 static void moxa_hangup(struct tty_struct *);
@@ -499,18 +499,18 @@ static int moxa_tiocmget(struct tty_struct *tty);
 static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
 static void moxa_poll(struct timer_list *);
-static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
+static void moxa_set_tty_param(struct tty_struct *, const struct ktermios *);
 static void moxa_shutdown(struct tty_port *);
-static int moxa_carrier_raised(struct tty_port *);
-static void moxa_dtr_rts(struct tty_port *, int);
+static bool moxa_carrier_raised(struct tty_port *);
+static void moxa_dtr_rts(struct tty_port *, bool);
 /*
  * moxa board interface functions:
  */
 static void MoxaPortEnable(struct moxa_port *);
 static void MoxaPortDisable(struct moxa_port *);
 static int MoxaPortSetTermio(struct moxa_port *, struct ktermios *, speed_t);
-static int MoxaPortGetLineOut(struct moxa_port *, int *, int *);
-static void MoxaPortLineCtrl(struct moxa_port *, int, int);
+static int MoxaPortGetLineOut(struct moxa_port *, bool *, bool *);
+static void MoxaPortLineCtrl(struct moxa_port *, bool, bool);
 static void MoxaPortFlowCtrl(struct moxa_port *, int, int, int, int, int);
 static int MoxaPortLineStatus(struct moxa_port *);
 static void MoxaPortFlushData(struct moxa_port *, int);
@@ -1432,7 +1432,7 @@ static void moxa_shutdown(struct tty_port *port)
 	MoxaPortFlushData(ch, 2);
 }
 
-static int moxa_carrier_raised(struct tty_port *port)
+static bool moxa_carrier_raised(struct tty_port *port)
 {
 	struct moxa_port *ch = container_of(port, struct moxa_port, port);
 	int dcd;
@@ -1443,10 +1443,10 @@ static int moxa_carrier_raised(struct tty_port *port)
 	return dcd;
 }
 
-static void moxa_dtr_rts(struct tty_port *port, int onoff)
+static void moxa_dtr_rts(struct tty_port *port, bool active)
 {
 	struct moxa_port *ch = container_of(port, struct moxa_port, port);
-	MoxaPortLineCtrl(ch, onoff, onoff);
+	MoxaPortLineCtrl(ch, active, active);
 }
 
 
@@ -1481,10 +1481,10 @@ static int moxa_open(struct tty_struct *tty, struct file *filp)
 	if (!tty_port_initialized(&ch->port)) {
 		ch->statusflags = 0;
 		moxa_set_tty_param(tty, &tty->termios);
-		MoxaPortLineCtrl(ch, 1, 1);
+		MoxaPortLineCtrl(ch, true, true);
 		MoxaPortEnable(ch);
 		MoxaSetFifo(ch, ch->type == PORT_16550A);
-		tty_port_set_initialized(&ch->port, 1);
+		tty_port_set_initialized(&ch->port, true);
 	}
 	mutex_unlock(&ch->port.mutex);
 	mutex_unlock(&moxa_openlock);
@@ -1557,19 +1557,21 @@ static unsigned int moxa_chars_in_buffer(struct tty_struct *tty)
 static int moxa_tiocmget(struct tty_struct *tty)
 {
 	struct moxa_port *ch = tty->driver_data;
-	int flag = 0, dtr, rts;
+	bool dtr_active, rts_active;
+	int flag = 0;
+	int status;
 
-	MoxaPortGetLineOut(ch, &dtr, &rts);
-	if (dtr)
+	MoxaPortGetLineOut(ch, &dtr_active, &rts_active);
+	if (dtr_active)
 		flag |= TIOCM_DTR;
-	if (rts)
+	if (rts_active)
 		flag |= TIOCM_RTS;
-	dtr = MoxaPortLineStatus(ch);
-	if (dtr & 1)
+	status = MoxaPortLineStatus(ch);
+	if (status & 1)
 		flag |= TIOCM_CTS;
-	if (dtr & 2)
+	if (status & 2)
 		flag |= TIOCM_DSR;
-	if (dtr & 4)
+	if (status & 4)
 		flag |= TIOCM_CD;
 	return flag;
 }
@@ -1577,8 +1579,8 @@ static int moxa_tiocmget(struct tty_struct *tty)
 static int moxa_tiocmset(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear)
 {
+	bool dtr_active, rts_active;
 	struct moxa_port *ch;
-	int dtr, rts;
 
 	mutex_lock(&moxa_openlock);
 	ch = tty->driver_data;
@@ -1587,22 +1589,22 @@ static int moxa_tiocmset(struct tty_struct *tty,
 		return -EINVAL;
 	}
 
-	MoxaPortGetLineOut(ch, &dtr, &rts);
+	MoxaPortGetLineOut(ch, &dtr_active, &rts_active);
 	if (set & TIOCM_RTS)
-		rts = 1;
+		rts_active = true;
 	if (set & TIOCM_DTR)
-		dtr = 1;
+		dtr_active = true;
 	if (clear & TIOCM_RTS)
-		rts = 0;
+		rts_active = false;
 	if (clear & TIOCM_DTR)
-		dtr = 0;
-	MoxaPortLineCtrl(ch, dtr, rts);
+		dtr_active = false;
+	MoxaPortLineCtrl(ch, dtr_active, rts_active);
 	mutex_unlock(&moxa_openlock);
 	return 0;
 }
 
 static void moxa_set_termios(struct tty_struct *tty,
-		struct ktermios *old_termios)
+		             const struct ktermios *old_termios)
 {
 	struct moxa_port *ch = tty->driver_data;
 
@@ -1664,8 +1666,8 @@ static int moxa_poll_port(struct moxa_port *p, unsigned int handle,
 		u16 __iomem *ip)
 {
 	struct tty_struct *tty = tty_port_tty_get(&p->port);
+	bool inited = tty_port_initialized(&p->port);
 	void __iomem *ofsAddr;
-	unsigned int inited = tty_port_initialized(&p->port);
 	u16 intr;
 
 	if (tty) {
@@ -1761,7 +1763,8 @@ static void moxa_poll(struct timer_list *unused)
 
 /******************************************************************************/
 
-static void moxa_set_tty_param(struct tty_struct *tty, struct ktermios *old_termios)
+static void moxa_set_tty_param(struct tty_struct *tty,
+			       const struct ktermios *old_termios)
 {
 	register struct ktermios *ts = &tty->termios;
 	struct moxa_port *ch = tty->driver_data;
@@ -1876,12 +1879,12 @@ static void MoxaPortFlushData(struct moxa_port *port, int mode)
  *
  *      Function 13:    Get the DTR/RTS state of this port.
  *      Syntax:
- *      int  MoxaPortGetLineOut(int port, int *dtrState, int *rtsState);
+ *      int  MoxaPortGetLineOut(int port, bool *dtrState, bool *rtsState);
  *           int port           : port number (0 - 127)
- *           int * dtrState     : pointer to INT to receive the current DTR
+ *           bool * dtr_active  : pointer to bool to receive the current DTR
  *                                state. (if NULL, this function will not
  *                                write to this address)
- *           int * rtsState     : pointer to INT to receive the current RTS
+ *           bool * rts_active  : pointer to bool to receive the current RTS
  *                                state. (if NULL, this function will not
  *                                write to this address)
  *
@@ -1891,10 +1894,10 @@ static void MoxaPortFlushData(struct moxa_port *port, int mode)
  *
  *      Function 14:    Setting the DTR/RTS output state of this port.
  *      Syntax:
- *      void MoxaPortLineCtrl(int port, int dtrState, int rtsState);
+ *      void MoxaPortLineCtrl(int port, bool dtrState, bool rtsState);
  *           int port           : port number (0 - 127)
- *           int dtrState       : DTR output state (0: off, 1: on)
- *           int rtsState       : RTS output state (0: off, 1: on)
+ *           bool dtr_active    : DTR output state
+ *           bool rts_active    : RTS output state
  *
  *
  *      Function 15:    Setting the flow control of this port.
@@ -2102,24 +2105,24 @@ static int MoxaPortSetTermio(struct moxa_port *port, struct ktermios *termio,
 	return baud;
 }
 
-static int MoxaPortGetLineOut(struct moxa_port *port, int *dtrState,
-		int *rtsState)
+static int MoxaPortGetLineOut(struct moxa_port *port, bool *dtr_active,
+		bool *rts_active)
 {
-	if (dtrState)
-		*dtrState = !!(port->lineCtrl & DTR_ON);
-	if (rtsState)
-		*rtsState = !!(port->lineCtrl & RTS_ON);
+	if (dtr_active)
+		*dtr_active = port->lineCtrl & DTR_ON;
+	if (rts_active)
+		*rts_active = port->lineCtrl & RTS_ON;
 
 	return 0;
 }
 
-static void MoxaPortLineCtrl(struct moxa_port *port, int dtr, int rts)
+static void MoxaPortLineCtrl(struct moxa_port *port, bool dtr_active, bool rts_active)
 {
 	u8 mode = 0;
 
-	if (dtr)
+	if (dtr_active)
 		mode |= DTR_ON;
-	if (rts)
+	if (rts_active)
 		mode |= RTS_ON;
 	port->lineCtrl = mode;
 	moxafunc(port->tableAddr, FC_LineControl, mode);

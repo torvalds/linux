@@ -317,6 +317,9 @@ static int stm32_usbphyc_pll_enable(struct stm32_usbphyc *usbphyc)
 
 	stm32_usbphyc_set_bits(pll_reg, PLLEN);
 
+	/* Wait for maximum lock time */
+	usleep_range(200, 300);
+
 	return 0;
 
 reg_disable:
@@ -710,6 +713,8 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(child, "reg", &index);
 		if (ret || index > usbphyc->nphys) {
 			dev_err(&phy->dev, "invalid reg property: %d\n", ret);
+			if (!ret)
+				ret = -EINVAL;
 			goto put_child;
 		}
 
@@ -764,7 +769,7 @@ clk_disable:
 	return ret;
 }
 
-static int stm32_usbphyc_remove(struct platform_device *pdev)
+static void stm32_usbphyc_remove(struct platform_device *pdev)
 {
 	struct stm32_usbphyc *usbphyc = dev_get_drvdata(&pdev->dev);
 	int port;
@@ -777,8 +782,6 @@ static int stm32_usbphyc_remove(struct platform_device *pdev)
 	stm32_usbphyc_clk48_unregister(usbphyc);
 
 	clk_disable_unprepare(usbphyc->clk);
-
-	return 0;
 }
 
 static int __maybe_unused stm32_usbphyc_resume(struct device *dev)
@@ -808,7 +811,7 @@ MODULE_DEVICE_TABLE(of, stm32_usbphyc_of_match);
 
 static struct platform_driver stm32_usbphyc_driver = {
 	.probe = stm32_usbphyc_probe,
-	.remove = stm32_usbphyc_remove,
+	.remove_new = stm32_usbphyc_remove,
 	.driver = {
 		.of_match_table = stm32_usbphyc_of_match,
 		.name = "stm32-usbphyc",

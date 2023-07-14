@@ -207,17 +207,17 @@ static inline int ssam_request_sync_wait(struct ssam_request_sync *rqst)
 	return rqst->status;
 }
 
-int ssam_request_sync(struct ssam_controller *ctrl,
-		      const struct ssam_request *spec,
-		      struct ssam_response *rsp);
+int ssam_request_do_sync(struct ssam_controller *ctrl,
+			 const struct ssam_request *spec,
+			 struct ssam_response *rsp);
 
-int ssam_request_sync_with_buffer(struct ssam_controller *ctrl,
-				  const struct ssam_request *spec,
-				  struct ssam_response *rsp,
-				  struct ssam_span *buf);
+int ssam_request_do_sync_with_buffer(struct ssam_controller *ctrl,
+				     const struct ssam_request *spec,
+				     struct ssam_response *rsp,
+				     struct ssam_span *buf);
 
 /**
- * ssam_request_sync_onstack - Execute a synchronous request on the stack.
+ * ssam_request_do_sync_onstack - Execute a synchronous request on the stack.
  * @ctrl: The controller via which the request is submitted.
  * @rqst: The request specification.
  * @rsp:  The response buffer.
@@ -227,7 +227,7 @@ int ssam_request_sync_with_buffer(struct ssam_controller *ctrl,
  * fully initializes it via the provided request specification, submits it,
  * and finally waits for its completion before returning its status. This
  * helper macro essentially allocates the request message buffer on the stack
- * and then calls ssam_request_sync_with_buffer().
+ * and then calls ssam_request_do_sync_with_buffer().
  *
  * Note: The @payload_len parameter specifies the maximum payload length, used
  * for buffer allocation. The actual payload length may be smaller.
@@ -235,12 +235,12 @@ int ssam_request_sync_with_buffer(struct ssam_controller *ctrl,
  * Return: Returns the status of the request or any failure during setup, i.e.
  * zero on success and a negative value on failure.
  */
-#define ssam_request_sync_onstack(ctrl, rqst, rsp, payload_len)			\
+#define ssam_request_do_sync_onstack(ctrl, rqst, rsp, payload_len)		\
 	({									\
 		u8 __data[SSH_COMMAND_MESSAGE_LENGTH(payload_len)];		\
 		struct ssam_span __buf = { &__data[0], ARRAY_SIZE(__data) };	\
 										\
-		ssam_request_sync_with_buffer(ctrl, rqst, rsp, &__buf);		\
+		ssam_request_do_sync_with_buffer(ctrl, rqst, rsp, &__buf);	\
 	})
 
 /**
@@ -349,7 +349,7 @@ struct ssam_request_spec_md {
  * zero on success and negative on failure. The ``ctrl`` parameter is the
  * controller via which the request is being sent.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_N(name, spec...)				\
@@ -366,7 +366,7 @@ struct ssam_request_spec_md {
 		rqst.length = 0;						\
 		rqst.payload = NULL;						\
 										\
-		return ssam_request_sync_onstack(ctrl, &rqst, NULL, 0);		\
+		return ssam_request_do_sync_onstack(ctrl, &rqst, NULL, 0);	\
 	}
 
 /**
@@ -389,7 +389,7 @@ struct ssam_request_spec_md {
  * parameter is the controller via which the request is sent. The request
  * argument is specified via the ``arg`` pointer.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_W(name, atype, spec...)			\
@@ -406,8 +406,8 @@ struct ssam_request_spec_md {
 		rqst.length = sizeof(atype);					\
 		rqst.payload = (u8 *)arg;					\
 										\
-		return ssam_request_sync_onstack(ctrl, &rqst, NULL,		\
-						 sizeof(atype));		\
+		return ssam_request_do_sync_onstack(ctrl, &rqst, NULL,		\
+						    sizeof(atype));		\
 	}
 
 /**
@@ -430,7 +430,7 @@ struct ssam_request_spec_md {
  * the controller via which the request is sent. The request's return value is
  * written to the memory pointed to by the ``ret`` parameter.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_R(name, rtype, spec...)			\
@@ -453,7 +453,7 @@ struct ssam_request_spec_md {
 		rsp.length = 0;							\
 		rsp.pointer = (u8 *)ret;					\
 										\
-		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, 0);	\
+		status = ssam_request_do_sync_onstack(ctrl, &rqst, &rsp, 0);	\
 		if (status)							\
 			return status;						\
 										\
@@ -491,7 +491,7 @@ struct ssam_request_spec_md {
  * request argument is specified via the ``arg`` pointer. The request's return
  * value is written to the memory pointed to by the ``ret`` parameter.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_WR(name, atype, rtype, spec...)		\
@@ -514,7 +514,7 @@ struct ssam_request_spec_md {
 		rsp.length = 0;							\
 		rsp.pointer = (u8 *)ret;					\
 										\
-		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, sizeof(atype)); \
+		status = ssam_request_do_sync_onstack(ctrl, &rqst, &rsp, sizeof(atype)); \
 		if (status)							\
 			return status;						\
 										\
@@ -550,7 +550,7 @@ struct ssam_request_spec_md {
  * parameter is the controller via which the request is sent, ``tid`` the
  * target ID for the request, and ``iid`` the instance ID.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_MD_N(name, spec...)				\
@@ -567,7 +567,7 @@ struct ssam_request_spec_md {
 		rqst.length = 0;						\
 		rqst.payload = NULL;						\
 										\
-		return ssam_request_sync_onstack(ctrl, &rqst, NULL, 0);		\
+		return ssam_request_do_sync_onstack(ctrl, &rqst, NULL, 0);	\
 	}
 
 /**
@@ -592,7 +592,7 @@ struct ssam_request_spec_md {
  * ``tid`` the target ID for the request, and ``iid`` the instance ID. The
  * request argument is specified via the ``arg`` pointer.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_MD_W(name, atype, spec...)			\
@@ -609,7 +609,7 @@ struct ssam_request_spec_md {
 		rqst.length = sizeof(atype);					\
 		rqst.payload = (u8 *)arg;					\
 										\
-		return ssam_request_sync_onstack(ctrl, &rqst, NULL,		\
+		return ssam_request_do_sync_onstack(ctrl, &rqst, NULL,		\
 						 sizeof(atype));		\
 	}
 
@@ -635,7 +635,7 @@ struct ssam_request_spec_md {
  * the target ID for the request, and ``iid`` the instance ID. The request's
  * return value is written to the memory pointed to by the ``ret`` parameter.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_MD_R(name, rtype, spec...)			\
@@ -658,7 +658,7 @@ struct ssam_request_spec_md {
 		rsp.length = 0;							\
 		rsp.pointer = (u8 *)ret;					\
 										\
-		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, 0);	\
+		status = ssam_request_do_sync_onstack(ctrl, &rqst, &rsp, 0);	\
 		if (status)							\
 			return status;						\
 										\
@@ -698,7 +698,7 @@ struct ssam_request_spec_md {
  * The request argument is specified via the ``arg`` pointer. The request's
  * return value is written to the memory pointed to by the ``ret`` parameter.
  *
- * Refer to ssam_request_sync_onstack() for more details on the behavior of
+ * Refer to ssam_request_do_sync_onstack() for more details on the behavior of
  * the generated function.
  */
 #define SSAM_DEFINE_SYNC_REQUEST_MD_WR(name, atype, rtype, spec...)		\
@@ -722,7 +722,7 @@ struct ssam_request_spec_md {
 		rsp.length = 0;							\
 		rsp.pointer = (u8 *)ret;					\
 										\
-		status = ssam_request_sync_onstack(ctrl, &rqst, &rsp, sizeof(atype)); \
+		status = ssam_request_do_sync_onstack(ctrl, &rqst, &rsp, sizeof(atype)); \
 		if (status)							\
 			return status;						\
 										\
@@ -912,10 +912,10 @@ enum ssam_event_mask {
 	})
 
 #define SSAM_EVENT_REGISTRY_SAM	\
-	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_SAM, 0x01, 0x0b, 0x0c)
+	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_SAM, SSAM_SSH_TID_SAM, 0x0b, 0x0c)
 
 #define SSAM_EVENT_REGISTRY_KIP	\
-	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_KIP, 0x02, 0x27, 0x28)
+	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_KIP, SSAM_SSH_TID_KIP, 0x27, 0x28)
 
 #define SSAM_EVENT_REGISTRY_REG(tid)\
 	SSAM_EVENT_REGISTRY(SSAM_SSH_TC_REG, tid, 0x01, 0x02)

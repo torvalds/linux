@@ -163,10 +163,7 @@ static void fei_debugfs_add_attr(struct fei_attr *attr)
 
 static void fei_debugfs_remove_attr(struct fei_attr *attr)
 {
-	struct dentry *dir;
-
-	dir = debugfs_lookup(attr->kp.symbol_name, fei_debugfs_dir);
-	debugfs_remove_recursive(dir);
+	debugfs_lookup_and_remove(attr->kp.symbol_name, fei_debugfs_dir);
 }
 
 static int fei_kprobe_handler(struct kprobe *kp, struct pt_regs *regs)
@@ -247,15 +244,11 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	/* cut off if it is too long */
 	if (count > KSYM_NAME_LEN)
 		count = KSYM_NAME_LEN;
-	buf = kmalloc(count + 1, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
 
-	if (copy_from_user(buf, buffer, count)) {
-		ret = -EFAULT;
-		goto out_free;
-	}
-	buf[count] = '\0';
+	buf = memdup_user_nul(buffer, count);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
 	sym = strstrip(buf);
 
 	mutex_lock(&fei_lock);
@@ -298,17 +291,15 @@ static ssize_t fei_write(struct file *file, const char __user *buffer,
 	}
 
 	ret = register_kprobe(&attr->kp);
-	if (!ret)
-		fei_debugfs_add_attr(attr);
-	if (ret < 0)
-		fei_attr_remove(attr);
-	else {
-		list_add_tail(&attr->list, &fei_attr_list);
-		ret = count;
+	if (ret) {
+		fei_attr_free(attr);
+		goto out;
 	}
+	fei_debugfs_add_attr(attr);
+	list_add_tail(&attr->list, &fei_attr_list);
+	ret = count;
 out:
 	mutex_unlock(&fei_lock);
-out_free:
 	kfree(buf);
 	return ret;
 }

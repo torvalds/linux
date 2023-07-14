@@ -171,8 +171,7 @@ static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
 }
 #endif
 
-static int max8952_pmic_probe(struct i2c_client *client,
-		const struct i2c_device_id *i2c_id)
+static int max8952_pmic_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct max8952_platform_data *pdata = dev_get_platdata(&client->dev);
@@ -317,6 +316,7 @@ static struct i2c_driver max8952_pmic_driver = {
 	.probe		= max8952_pmic_probe,
 	.driver		= {
 		.name	= "max8952",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(max8952_dt_match),
 	},
 	.id_table	= max8952_ids,

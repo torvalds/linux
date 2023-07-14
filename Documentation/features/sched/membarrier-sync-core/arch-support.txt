@@ -5,7 +5,7 @@
 #
 # Architecture requirements
 #
-# * arm/arm64/powerpc
+# * arm/arm64/powerpc/s390
 #
 # Rely on implicit context synchronization as a result of exception return
 # when returning from IPI handler, and when returning to user-space.
@@ -36,7 +36,7 @@
     |        csky: | TODO |
     |     hexagon: | TODO |
     |        ia64: | TODO |
-    |       loong: | TODO |
+    |   loongarch: | TODO |
     |        m68k: | TODO |
     |  microblaze: | TODO |
     |        mips: | TODO |
@@ -45,7 +45,7 @@
     |      parisc: | TODO |
     |     powerpc: |  ok  |
     |       riscv: | TODO |
-    |        s390: | TODO |
+    |        s390: |  ok  |
     |          sh: | TODO |
     |       sparc: | TODO |
     |          um: | TODO |

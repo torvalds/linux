@@ -11,7 +11,7 @@
 
 / {
 	thermal-zones {
-		pm660l {
+		pm660l-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -48,7 +48,7 @@
 			#thermal-sensor-cells = <0>;
 		};
 
-		pm660l_gpios: gpios@c000 {
+		pm660l_gpios: gpio@c000 {
 			compatible = "qcom,pm660l-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
@@ -65,7 +65,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm660l_lpg: lpg@b100 {
+		pm660l_lpg: pwm {
 			compatible = "qcom,pm660l-lpg";
 
 			status = "disabled";
@@ -81,7 +81,7 @@
 			status = "disabled";
 		};
 
-		pm660l_spmi_regulators: pm660l-regulators {
+		pm660l_spmi_regulators: regulators {
 			compatible = "qcom,pm660l-regulators";
 		};
 	};

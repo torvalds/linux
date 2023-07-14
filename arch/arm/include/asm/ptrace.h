@@ -163,6 +163,10 @@ static inline unsigned long user_stack_pointer(struct pt_regs *regs)
 		((current_stack_pointer | (THREAD_SIZE - 1)) - 7) - 1;	\
 })
 
+static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
+{
+	regs->ARM_r0 = rc;
+}
 
 /*
  * Update ITSTATE after normal execution of an IT block instruction.
@@ -188,6 +192,9 @@ static inline unsigned long it_advance(unsigned long cpsr)
 	}
 	return cpsr;
 }
+
+int syscall_trace_enter(struct pt_regs *regs);
+void syscall_trace_exit(struct pt_regs *regs);
 
 #endif /* __ASSEMBLY__ */
 #endif

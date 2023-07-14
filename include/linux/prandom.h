@@ -9,18 +9,9 @@
 #define _LINUX_PRANDOM_H
 
 #include <linux/types.h>
+#include <linux/once.h>
 #include <linux/percpu.h>
 #include <linux/random.h>
-
-static inline u32 prandom_u32(void)
-{
-	return get_random_u32();
-}
-
-static inline void prandom_bytes(void *buf, size_t nbytes)
-{
-	return get_random_bytes(buf, nbytes);
-}
 
 struct rnd_state {
 	__u32 s1, s2, s3, s4;
@@ -32,23 +23,6 @@ void prandom_seed_full_state(struct rnd_state __percpu *pcpu_state);
 
 #define prandom_init_once(pcpu_state)			\
 	DO_ONCE(prandom_seed_full_state, (pcpu_state))
-
-/**
- * prandom_u32_max - returns a pseudo-random number in interval [0, ep_ro)
- * @ep_ro: right open interval endpoint
- *
- * Returns a pseudo-random number that is in interval [0, ep_ro). Note
- * that the result depends on PRNG being well distributed in [0, ~0U]
- * u32 space. Here we use maximally equidistributed combined Tausworthe
- * generator, that is, prandom_u32(). This is useful when requesting a
- * random index of an array containing ep_ro elements, for example.
- *
- * Returns: pseudo-random number in interval [0, ep_ro)
- */
-static inline u32 prandom_u32_max(u32 ep_ro)
-{
-	return (u32)(((u64) prandom_u32() * ep_ro) >> 32);
-}
 
 /*
  * Handle minimum values for seeds

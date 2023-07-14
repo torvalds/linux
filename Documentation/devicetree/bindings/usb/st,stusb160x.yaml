@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/usb/st,stusb160x.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/usb/st,stusb160x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STUSB160x Type-C controller bindings
+title: STMicroelectronics STUSB160x Type-C controller
 
 maintainers:
   - Amelie Delaunay <amelie.delaunay@foss.st.com>
@@ -33,6 +33,7 @@ properties:
   connector:
     type: object
     $ref: /schemas/connector/usb-connector.yaml#
+    unevaluatedProperties: false
 
     properties:
       compatible:
@@ -55,7 +56,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c4 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -74,9 +75,14 @@ examples:
                 data-role = "dual";
                 typec-power-opmode = "default";
 
-                port {
-                    typec_con_ep: endpoint {
-                        remote-endpoint = <&usbotg_hs_ep>;
+                ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    port@0 {
+                        reg = <0>;
+                        typec_con_ep: endpoint {
+                            remote-endpoint = <&usbotg_hs_ep>;
+                        };
                     };
                 };
             };

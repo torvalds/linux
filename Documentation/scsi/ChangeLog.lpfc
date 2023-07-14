@@ -174,7 +174,7 @@ Changes from 20050201 to 20050208
 	  lpfc_sli_chipset_init static.
 	* Cleaned up references to list_head->next field in the driver.
 	* Replaced lpfc_discq_post_event with lpfc_workq_post_event.
-	* Implmented Christoph Hellwig's review from 2/5: Check for return
+	* Implemented Christoph Hellwig's review from 2/5: Check for return
 	  values of kmalloc.
 	* Integrated Christoph Hellwig's patch from 1/30: Protecting
 	  scan_tmo and friends in !FC_TRANSPORT_PATCHES_V2 &&
@@ -182,7 +182,7 @@ Changes from 20050201 to 20050208
 	* Integrated Christoph Hellwig's patch from 1/30: Some fixes in
 	  the evt handling area.
 	* Integrated Christoph Hellwig's patch from 1/30: Remove usage of
-	  intr_inited variable. The interrupt initilization from OS side
+	  intr_inited variable. The interrupt initialization from OS side
 	  now happens in lpfc_probe_one().
 	* Integrated Christoph Hellwig's patch from 1/30: remove shim
 	  lpfc_alloc_transport_attr - remove shim lpfc_alloc_shost_attrs -
@@ -389,7 +389,7 @@ Changes from 20041220 to 20041229
 	  moved to kthread. kthread_stop() is not able to wake up thread
 	  waiting on a semaphore and "modprobe -r lpfc" is not always
 	  (most of the times) able to complete. Fix is in not using
-	  semaphore for the interruptable sleep.
+	  semaphore for the interruptible sleep.
 	* Small Makefile cleanup - Remove remnants of 2.4 vs. 2.6
 	  determination.
 
@@ -401,7 +401,7 @@ Changes from 20041213 to 20041220
 	  structure.
 	* Integrated patch from Christoph Hellwig <hch@lst.de> Kill
 	  compile warnings on 64 bit platforms: %variables for %llx format
-	  specifiers must be caste to long long because %(u)int64_t can
+	  specifiers must be cast to long long because %(u)int64_t can
 	  just be long on 64bit platforms.
 	* Integrated patch from Christoph Hellwig <hch@lst.de> Removes
 	  dead code.
@@ -439,8 +439,8 @@ Changes from 20041207 to 20041213
 	  hardware actually found).
 	* Integrate Christoph Hellwig's patch for 8.0.14: Add missing
 	  __iomem annotations, remove broken casts, mark functions static.
-	  Only major changes is chaning of some offsets from word-based to
-	  byte-based so we cans simply do void pointer arithmetics (gcc
+	  Only major changes is changing of some offsets from word-based to
+	  byte-based so we can simply do void pointer arithmetic (gcc
 	  extension) instead of casting to uint32_t.
 	* Integrate Christoph Hellwig's patch for 8.0.14: flag is always
 	  LPFC_SLI_ABORT_IMED, aka 0 - remove dead code.
@@ -515,7 +515,7 @@ Changes from 20041018 to 20041123
 	  a result of removing from the txcmpl list item which was already
 	  removed (100100 is a LIST_POISON1 value from the next pointer
 	  and 8 is an offset of the "prev") Driver runs out of iotags and
-	  does not handle that case well. The root of the proble is in the
+	  does not handle that case well. The root of the problem is in the
 	  initialization code in lpfc_sli.c
 	* Changes to work with proposed linux kernel patch to support
 	  hotplug.
@@ -570,8 +570,8 @@ Changes from 20041018 to 20041123
 	  associated I/Os to complete before returning.
 	* Fix memset byte count in lpfc_hba_init so that
 	  LP1050 would initialize correctly.
-	* Backround nodev_timeout processing to DPC This enables us to
-	  unblock (stop dev_loss_tmo) when appopriate.
+	* Background nodev_timeout processing to DPC. This enables us to
+	  unblock (stop dev_loss_tmo) when appropriate.
 	* Fix array discovery with multiple luns.  The max_luns was 0 at
 	  the time the host structure was initialized.  lpfc_cfg_params
 	  then set the max_luns to the correct value afterwards.
@@ -1012,7 +1012,7 @@ Changes from 20040614 to 20040709
 	  LINK_[UP|DOWN] and RSCN events.
 	* Get rid of delay_iodone timer.
 	* Remove qfull timers and qfull logic.
-	* Convert mbox_tmo, nlp_xri_tmo to 1 argment clock handler
+	* Convert mbox_tmo, nlp_xri_tmo to 1 argument clock handler
 	* Removed duplicate extern defs of the bind variables.
 	* Streamline usage of the defines CLASS2 and CLASS3, removing
 	  un-necessary checks on config[LPFC_CFG_FCP_CLASS].
@@ -1369,7 +1369,7 @@ Changes from 20040416 to 20040426
 	* Removed lpfc_max_target from lpfc_linux_attach
 	* Replace references to lpfcDRVR.pHba[] with lpfc_get_phba_by_inst()
 	* Change lpfc_param to lpfc-param
-	* Partially removed 32 HBA restriction within driver.  Incorported
+	* Partially removed 32 HBA restriction within driver.  Incorporated
 	  lpfc_instcnt, lpfc_instance[], and pHba[] into lpfcDRVR
 	  structure Added routines lpfc_get_phba_by_inst()
 	  lpfc_get_inst_by_phba() lpfc_check_valid_phba()
@@ -1535,7 +1535,7 @@ Changes from 20040326 to 20040402
 	* Use Linux list macros for DMABUF_t
 	* Break up ioctls into 3 sections, dfc, util, hbaapi
 	  rearranged code so this could be easily separated into a
-	  differnet module later All 3 are currently turned on by
+	  different module later. All 3 are currently turned on by
 	  defines in lpfc_ioctl.c LPFC_DFC_IOCTL, LPFC_UTIL_IOCTL,
 	  LPFC_HBAAPI_IOCTL
 	* Misc cleanup: some goto's; add comments; clarify function
@@ -1562,7 +1562,7 @@ Changes from 20040326 to 20040402
 	* Remove unused log message.
 	* Collapse elx_crtn.h and prod_crtn.h into lpfc_crtn.h
 	* Ifdef Scheduler specific routines
-	* Removed following ununsed ioclt's: ELX_READ_IOCB
+	* Removed following unused ioctl's: ELX_READ_IOCB
 	  ELX_READ_MEMSEG ELX_READ_BINFO ELX_READ_EINVAL ELX_READ_LHBA
 	  ELX_READ_LXHBA ELX_SET ELX_DBG LPFC_TRACE 
 	* Removed variable fc_dbg_flg
@@ -1570,7 +1570,7 @@ Changes from 20040326 to 20040402
 	  3-digit HBAs.  Also changed can_queue so midlayer will only
 	  send (HBA_Q_DEPTH - 10) cmds.
 	* Clean up code in the error path, check condition.  Remove
-	  ununsed sense-related fields in lun structure.
+	  unused sense-related fields in lun structure.
 	* Added code for safety pools for following objects: mbuf/bpl,
 	  mbox, iocb, ndlp, bind
 	* Wrapped '#include <elx_sched.h>' in '#ifdef USE_SCHEDULER'.
@@ -1592,7 +1592,7 @@ Changes from 20040326 to 20040402
 	  ELX_READ_HBA ELX_INSTANCE ELX_LIP.  Also introduced
 	  attribute "set" to be used in conjunction with the above
 	  attributes.
-	* Removed DLINK, enque and deque declarations now that clock
+	* Removed DLINK, enqueue and dequeue declarations now that clock
 	  doesn't use them anymore
 	* Separated install rule so that BUILD_IPFC has to be set when
 	  make is called in order for the install rule to attempt to
@@ -1662,7 +1662,7 @@ Changes from 20040326 to 20040402
 	* Create utility clock function elx_start_timer() and
 	  elx_stop_timer().  All timeout routines now use these common
 	  routines.
-	* Minor formating changes fix up comments
+	* Minor formatting changes fix up comments
 	* Minor formatting changes get rid of failover defines for
 	  syntax checking
 	* Minor formatting changes remove ISCSI defines.
@@ -1676,7 +1676,7 @@ Changes from 20040326 to 20040402
 	  will not exist otherwise.
 	* Removed unused malloc counters from lpfcLINUXfcp.c.
 	* Remove some unnecessary #includes in lpfcLINUXfcp.c
-	* Remove unncessary #includes in elxLINUXfcp.c
+	* Remove unnecessary #includes in elxLINUXfcp.c
 	* Minor formatting cleanups in Makefile to avoid some
           linewrapping.
 	* Removed unused elx_mem_pool data structure.
@@ -1753,7 +1753,7 @@ Changes from 20040319 to 20040326
 	  elx_str_atox).
 	* Replaced DLINK_t and SLINK_t by standard Linux list_head
 	* Removed deque macro
-	* Replaced ELX_DLINK_t ans ELX_SLINK_t by Linux struct list_head
+	* Replaced ELX_DLINK_t and ELX_SLINK_t by Linux struct list_head
 	  (except for clock)
 	* Removed following functions from code: linux_kmalloc linux_kfree
 	  elx_alloc_bigbuf elx_free_bigbuf
@@ -1801,7 +1801,7 @@ Changes from 20040312 to 20040319
 	* Correct Iocbq completion routine for 2.6 kernel case
 	* Change void *pOSCmd to Scsi_Smnd *pCmd
 	* Change void *pOScmd to struct sk_buff *pCmd
-	* Remove data directon code.
+	* Remove data direction code.
 	* Removed memory pool for buf/bpl buffers and use kmalloc/kfree
 	  pci_pool_alloc/free directly.
 	* Move PPC check for DMA address 0 in scatter-gather list, into

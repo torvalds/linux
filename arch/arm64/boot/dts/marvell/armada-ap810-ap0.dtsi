@@ -54,7 +54,7 @@
 				      <0x00d0000 0x1000>,	/* GICH */
 				      <0x00e0000 0x2000>;	/* GICV */
 
-				gic_its_ap0: interrupt-controller@3040000 {
+				gic_its_ap0: msi-controller@3040000 {
 					compatible = "arm,gic-v3-its";
 					msi-controller;
 					#msi-cells = <1>;

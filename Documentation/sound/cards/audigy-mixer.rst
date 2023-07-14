@@ -17,11 +17,11 @@ Digital mixer controls
 ======================
 
 These controls are built using the DSP instructions. They offer extended
-functionality. Only the default build-in code in the ALSA driver is described
+functionality. Only the default built-in code in the ALSA driver is described
 here. Note that the controls work as attenuators: the maximum value is the 
-neutral position leaving the signal unchanged. Note that if the  same destination 
-is mentioned in multiple controls, the signal is accumulated and can be wrapped 
-(set to maximal or minimal value without checking of overflow).
+neutral position leaving the signal unchanged. Note that if the same destination
+is mentioned in multiple controls, the signal is accumulated and can be clipped
+(set to maximal or minimal value without checking for overflow).
 
 
 Explanation of used abbreviations:
@@ -32,17 +32,17 @@ ADC
 	analog to digital converter
 I2S
 	one-way three wire serial bus for digital sound by Philips Semiconductors
-        (this standard is used for connecting standalone DAC and ADC converters)
+	(this standard is used for connecting standalone D/A and A/D converters)
 LFE
-	low frequency effects (subwoofer signal)
+	low frequency effects (used as subwoofer signal)
 AC97
-	a chip containing an analog mixer, DAC and ADC converters
+	a chip containing an analog mixer, D/A and A/D converters
 IEC958
 	S/PDIF
 FX-bus
 	the EMU10K2 chip has an effect bus containing 64 accumulators.
-        Each of the synthesizer voices can feed its output to these accumulators
-        and the DSP microcontroller can operate with the resulting sum.
+	Each of the synthesizer voices can feed its output to these accumulators
+	and the DSP microcontroller can operate with the resulting sum.
 
 name='PCM Front Playback Volume',index=0
 ----------------------------------------
@@ -218,8 +218,8 @@ LFE outputs.
 name='IEC958 Optical Raw Playback Switch',index=0
 -------------------------------------------------
 If this switch is on, then the samples for the IEC958 (S/PDIF) digital
-output are taken only from the raw FX8010 PCM, otherwise standard front
-PCM samples are taken.
+output are taken only from the raw iec958 ALSA PCM device (which uses
+accumulators 20 and 21 for left and right PCM by default).
 
 
 PCM stream related controls
@@ -227,7 +227,7 @@ PCM stream related controls
 
 name='EMU10K1 PCM Volume',index 0-31
 ------------------------------------
-Channel volume attenuation in range 0-0xffff. The maximum value (no
+Channel volume attenuation in range 0-0x1fffd. The middle value (no
 attenuation) is default. The channel mapping for three values is
 as follows:
 
@@ -237,33 +237,33 @@ as follows:
 
 name='EMU10K1 PCM Send Routing',index 0-31
 ------------------------------------------
-This control specifies the destination - FX-bus accumulators. There 24
-values with this mapping:
+This control specifies the destination - FX-bus accumulators. There are 24
+values in this mapping:
 
-* 0 -  mono, A destination (FX-bus 0-63), default 0
-* 1 -  mono, B destination (FX-bus 0-63), default 1
-* 2 -  mono, C destination (FX-bus 0-63), default 2
-* 3 -  mono, D destination (FX-bus 0-63), default 3
-* 4 -  mono, E destination (FX-bus 0-63), default 0
-* 5 -  mono, F destination (FX-bus 0-63), default 0
-* 6 -  mono, G destination (FX-bus 0-63), default 0
-* 7 -  mono, H destination (FX-bus 0-63), default 0
-* 8 -  left, A destination (FX-bus 0-63), default 0
-* 9 -  left, B destination (FX-bus 0-63), default 1
+*  0 -  mono, A destination (FX-bus 0-63), default 0
+*  1 -  mono, B destination (FX-bus 0-63), default 1
+*  2 -  mono, C destination (FX-bus 0-63), default 2
+*  3 -  mono, D destination (FX-bus 0-63), default 3
+*  4 -  mono, E destination (FX-bus 0-63), default 4
+*  5 -  mono, F destination (FX-bus 0-63), default 5
+*  6 -  mono, G destination (FX-bus 0-63), default 6
+*  7 -  mono, H destination (FX-bus 0-63), default 7
+*  8 -  left, A destination (FX-bus 0-63), default 0
+*  9 -  left, B destination (FX-bus 0-63), default 1
 * 10 -  left, C destination (FX-bus 0-63), default 2
 * 11 -  left, D destination (FX-bus 0-63), default 3
-* 12 -  left, E destination (FX-bus 0-63), default 0
-* 13 -  left, F destination (FX-bus 0-63), default 0
-* 14 -  left, G destination (FX-bus 0-63), default 0
-* 15 -  left, H destination (FX-bus 0-63), default 0
+* 12 -  left, E destination (FX-bus 0-63), default 4
+* 13 -  left, F destination (FX-bus 0-63), default 5
+* 14 -  left, G destination (FX-bus 0-63), default 6
+* 15 -  left, H destination (FX-bus 0-63), default 7
 * 16 - right, A destination (FX-bus 0-63), default 0
 * 17 - right, B destination (FX-bus 0-63), default 1
 * 18 - right, C destination (FX-bus 0-63), default 2
 * 19 - right, D destination (FX-bus 0-63), default 3
-* 20 - right, E destination (FX-bus 0-63), default 0
-* 21 - right, F destination (FX-bus 0-63), default 0
-* 22 - right, G destination (FX-bus 0-63), default 0
-* 23 - right, H destination (FX-bus 0-63), default 0
+* 20 - right, E destination (FX-bus 0-63), default 4
+* 21 - right, F destination (FX-bus 0-63), default 5
+* 22 - right, G destination (FX-bus 0-63), default 6
+* 23 - right, H destination (FX-bus 0-63), default 7
 
 Don't forget that it's illegal to assign a channel to the same FX-bus accumulator 
 more than once (it means 0=0 && 1=0 is an invalid combination).
@@ -305,6 +305,9 @@ MANUALS/PATENTS
 
 ftp://opensource.creative.com/pub/doc
 -------------------------------------
+
+Note that the site is defunct, but the documents are available
+from various other locations.
 
 LM4545.pdf
 	AC97 Codec

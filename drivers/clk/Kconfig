@@ -23,7 +23,6 @@ menuconfig COMMON_CLK
 	depends on !HAVE_LEGACY_CLK
 	select HAVE_CLK_PREPARE
 	select HAVE_CLK
-	select SRCU
 	select RATIONAL
 	help
 	  The common clock framework is a single definition of struct
@@ -83,7 +82,7 @@ config COMMON_CLK_MAX9485
 
 config COMMON_CLK_RK808
 	tristate "Clock driver for RK805/RK808/RK809/RK817/RK818"
-	depends on MFD_RK808
+	depends on MFD_RK8XX
 	help
 	  This driver supports RK805, RK809 and RK817, RK808 and RK818 crystal oscillator clock.
 	  These multi-function devices have two fixed-rate oscillators, clocked at 32KHz each.
@@ -92,7 +91,7 @@ config COMMON_CLK_RK808
 config COMMON_CLK_HI655X
 	tristate "Clock driver for Hi655x" if EXPERT
 	depends on (MFD_HI655X_PMIC || COMPILE_TEST)
-	depends on REGMAP
+	select REGMAP
 	default MFD_HI655X_PMIC
 	help
 	  This driver supports the hi655x PMIC clock. This
@@ -249,7 +248,7 @@ config COMMON_CLK_GEMINI
 	  platform, also known as SL3516 or CS3516.
 
 config COMMON_CLK_LAN966X
-	bool "Generic Clock Controller driver for LAN966X SoC"
+	tristate "Generic Clock Controller driver for LAN966X SoC"
 	depends on HAS_IOMEM
 	depends on OF
 	depends on SOC_LAN966 || COMPILE_TEST
@@ -326,6 +325,15 @@ config COMMON_CLK_LOCHNAGAR
 	  This driver supports the clocking features of the Cirrus Logic
 	  Lochnagar audio development board.
 
+config COMMON_CLK_LOONGSON2
+	bool "Clock driver for Loongson-2 SoC"
+	depends on LOONGARCH || COMPILE_TEST
+	help
+          This driver provides support for clock controller on Loongson-2 SoC.
+          The clock controller can generates and supplies clock to various
+          peripherals within the SoC.
+          Say Y here to support Loongson-2 SoC clock driver.
+
 config COMMON_CLK_NXP
 	def_bool COMMON_CLK && (ARCH_LPC18XX || ARCH_LPC32XX)
 	select REGMAP_MMIO if ARCH_LPC32XX
@@ -368,6 +376,15 @@ config COMMON_CLK_RS9_PCIE
 	  This driver supports the Renesas 9-series PCIe clock generator
 	  models 9FGV/9DBV/9DMV/9FGL/9DML/9QXL/9SQ.
 
+config COMMON_CLK_SI521XX
+	tristate "Clock driver for SkyWorks Si521xx PCIe clock generators"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  This driver supports the SkyWorks Si521xx PCIe clock generator
+	  models Si52144/Si52146/Si52147.
+
 config COMMON_CLK_VC5
 	tristate "Clock driver for IDT VersaClock 5,6 devices"
 	depends on I2C
@@ -376,6 +393,15 @@ config COMMON_CLK_VC5
 	help
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
+
+config COMMON_CLK_VC7
+	tristate "Clock driver for Renesas Versaclock 7 devices"
+	depends on I2C
+	depends on OF
+	select REGMAP_I2C
+	help
+	  Renesas Versaclock7 is a family of configurable clock generator
+	  and jitter attenuator ICs with fractional and integer dividers.
 
 config COMMON_CLK_STM32MP135
 	def_bool COMMON_CLK && MACH_STM32MP13
@@ -428,6 +454,16 @@ config COMMON_CLK_K210
 	help
 	  Support for the Canaan Kendryte K210 RISC-V SoC clocks.
 
+config COMMON_CLK_SP7021
+	tristate "Clock driver for Sunplus SP7021 SoC"
+	depends on SOC_SP7021 || COMPILE_TEST
+	default SOC_SP7021
+	help
+	  This driver supports the Sunplus SP7021 SoC clocks.
+	  It implements SP7021 PLLs/gate.
+	  Not all features of the PLL are currently supported
+	  by the driver.
+
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/baikal-t1/Kconfig"
@@ -442,6 +478,7 @@ source "drivers/clk/meson/Kconfig"
 source "drivers/clk/mstar/Kconfig"
 source "drivers/clk/microchip/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
+source "drivers/clk/nuvoton/Kconfig"
 source "drivers/clk/pistachio/Kconfig"
 source "drivers/clk/qcom/Kconfig"
 source "drivers/clk/ralink/Kconfig"

@@ -116,25 +116,21 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_DONE();
 }
 
-static void stable_tsc_check_supported(void)
+static bool system_has_stable_tsc(void)
 {
+	bool tsc_is_stable;
 	FILE *fp;
 	char buf[4];
 
 	fp = fopen("/sys/devices/system/clocksource/clocksource0/current_clocksource", "r");
 	if (fp == NULL)
-		goto skip_test;
+		return false;
 
-	if (fgets(buf, sizeof(buf), fp) == NULL)
-		goto skip_test;
+	tsc_is_stable = fgets(buf, sizeof(buf), fp) &&
+			!strncmp(buf, "tsc", sizeof(buf));
 
-	if (strncmp(buf, "tsc", sizeof(buf)))
-		goto skip_test;
-
-	return;
-skip_test:
-	print_skip("Kernel does not use TSC clocksource - assuming that host TSC is not stable");
-	exit(KSFT_SKIP);
+	fclose(fp);
+	return tsc_is_stable;
 }
 
 int main(int argc, char *argv[])
@@ -152,7 +148,7 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_TSC_CONTROL));
-	stable_tsc_check_supported();
+	TEST_REQUIRE(system_has_stable_tsc());
 
 	/*
 	 * We set L1's scale factor to be a random number from 2 to 10.
@@ -183,14 +179,10 @@ int main(int argc, char *argv[])
 	vcpu_ioctl(vcpu, KVM_SET_TSC_KHZ, (void *) (tsc_khz / l1_scale_factor));
 
 	for (;;) {
-		volatile struct kvm_run *run = vcpu->run;
 		struct ucall uc;
 
 		vcpu_run(vcpu);
-		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
-			    run->exit_reason,
-			    exit_reason_str(run->exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:

@@ -943,14 +943,9 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	}
 	of_node_put(regulators_np);
 
-	if (of_get_property(pmic_np, "max8997,pmic-buck1-uses-gpio-dvs", NULL))
-		pdata->buck1_gpiodvs = true;
-
-	if (of_get_property(pmic_np, "max8997,pmic-buck2-uses-gpio-dvs", NULL))
-		pdata->buck2_gpiodvs = true;
-
-	if (of_get_property(pmic_np, "max8997,pmic-buck5-uses-gpio-dvs", NULL))
-		pdata->buck5_gpiodvs = true;
+	pdata->buck1_gpiodvs = of_property_read_bool(pmic_np, "max8997,pmic-buck1-uses-gpio-dvs");
+	pdata->buck2_gpiodvs = of_property_read_bool(pmic_np, "max8997,pmic-buck2-uses-gpio-dvs");
+	pdata->buck5_gpiodvs = of_property_read_bool(pmic_np, "max8997,pmic-buck5-uses-gpio-dvs");
 
 	if (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
 						pdata->buck5_gpiodvs) {
@@ -1202,6 +1197,7 @@ MODULE_DEVICE_TABLE(platform, max8997_pmic_id);
 static struct platform_driver max8997_pmic_driver = {
 	.driver = {
 		.name = "max8997-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = max8997_pmic_probe,
 	.id_table = max8997_pmic_id,

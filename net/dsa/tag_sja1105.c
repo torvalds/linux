@@ -5,7 +5,12 @@
 #include <linux/dsa/sja1105.h>
 #include <linux/dsa/8021q.h>
 #include <linux/packing.h>
-#include "dsa_priv.h"
+
+#include "tag.h"
+#include "tag_8021q.h"
+
+#define SJA1105_NAME				"sja1105"
+#define SJA1110_NAME				"sja1110"
 
 /* Is this a TX or an RX header? */
 #define SJA1110_HEADER_HOST_TO_SWITCH		BIT(15)
@@ -53,11 +58,8 @@
 #define SJA1110_TX_TRAILER_LEN			4
 #define SJA1110_MAX_PADDING_LEN			15
 
-#define SJA1105_HWTS_RX_EN			0
-
 struct sja1105_tagger_private {
 	struct sja1105_tagger_data data; /* Must be first */
-	unsigned long state;
 	/* Protects concurrent access to the meta state machine
 	 * from taggers running on multiple ports on SMP systems
 	 */
@@ -113,8 +115,8 @@ static void sja1105_meta_unpack(const struct sk_buff *skb,
 	 * a unified unpacking command for both device series.
 	 */
 	packing(buf,     &meta->tstamp,     31, 0, 4, UNPACK, 0);
-	packing(buf + 4, &meta->dmac_byte_4, 7, 0, 1, UNPACK, 0);
-	packing(buf + 5, &meta->dmac_byte_3, 7, 0, 1, UNPACK, 0);
+	packing(buf + 4, &meta->dmac_byte_3, 7, 0, 1, UNPACK, 0);
+	packing(buf + 5, &meta->dmac_byte_4, 7, 0, 1, UNPACK, 0);
 	packing(buf + 6, &meta->source_port, 7, 0, 1, UNPACK, 0);
 	packing(buf + 7, &meta->switch_id,   7, 0, 1, UNPACK, 0);
 }
@@ -251,7 +253,7 @@ static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
 			return NULL;
 	}
 
-	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	hdr = skb_vlan_eth_hdr(skb);
 
 	/* If skb is already VLAN-tagged, leave that VLAN ID in place */
 	if (hdr->h_vlan_proto == xmit_tpid)
@@ -387,10 +389,6 @@ static struct sk_buff
 
 		priv = sja1105_tagger_private(ds);
 
-		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
-			/* Do normal processing. */
-			return skb;
-
 		spin_lock(&priv->meta_lock);
 		/* Was this a link-local frame instead of the meta
 		 * that we were expecting?
@@ -425,12 +423,6 @@ static struct sk_buff
 		struct sk_buff *stampable_skb;
 
 		priv = sja1105_tagger_private(ds);
-
-		/* Drop the meta frame if we're not in the right state
-		 * to process it.
-		 */
-		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
-			return NULL;
 
 		spin_lock(&priv->meta_lock);
 
@@ -467,30 +459,6 @@ static struct sk_buff
 	return skb;
 }
 
-static bool sja1105_rxtstamp_get_state(struct dsa_switch *ds)
-{
-	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
-
-	return test_bit(SJA1105_HWTS_RX_EN, &priv->state);
-}
-
-static void sja1105_rxtstamp_set_state(struct dsa_switch *ds, bool on)
-{
-	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
-
-	if (on)
-		set_bit(SJA1105_HWTS_RX_EN, &priv->state);
-	else
-		clear_bit(SJA1105_HWTS_RX_EN, &priv->state);
-
-	/* Initialize the meta state machine to a known state */
-	if (!priv->stampable_skb)
-		return;
-
-	kfree_skb(priv->stampable_skb);
-	priv->stampable_skb = NULL;
-}
-
 static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
 {
 	u16 tpid = ntohs(eth_hdr(skb)->h_proto);
@@ -511,7 +479,7 @@ static bool sja1110_skb_has_inband_control_extension(const struct sk_buff *skb)
 static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 			     int *switch_id, int *vbid, u16 *vid)
 {
-	struct vlan_ethhdr *hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	struct vlan_ethhdr *hdr = vlan_eth_hdr(skb);
 	u16 vlan_tci;
 
 	if (skb_vlan_tag_present(skb))
@@ -540,33 +508,53 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
-	if (sja1105_skb_has_tag_8021q(skb)) {
-		/* Normal traffic path. */
-		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vbid, &vid);
-	} else if (is_link_local) {
+	if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
 		 * the incl_srcpt options.
 		 */
 		source_port = hdr->h_dest[3];
 		switch_id = hdr->h_dest[4];
-		/* Clear the DMAC bytes that were mangled by the switch */
-		hdr->h_dest[3] = 0;
-		hdr->h_dest[4] = 0;
 	} else if (is_meta) {
 		sja1105_meta_unpack(skb, &meta);
 		source_port = meta.source_port;
 		switch_id = meta.switch_id;
-	} else {
+	}
+
+	/* Normal data plane traffic and link-local frames are tagged with
+	 * a tag_8021q VLAN which we have to strip
+	 */
+	if (sja1105_skb_has_tag_8021q(skb)) {
+		int tmp_source_port = -1, tmp_switch_id = -1;
+
+		sja1105_vlan_rcv(skb, &tmp_source_port, &tmp_switch_id, &vbid,
+				 &vid);
+		/* Preserve the source information from the INCL_SRCPT option,
+		 * if available. This allows us to not overwrite a valid source
+		 * port and switch ID with zeroes when receiving link-local
+		 * frames from a VLAN-unaware bridged port (non-zero vbid) or a
+		 * VLAN-aware bridged port (non-zero vid). Furthermore, the
+		 * tag_8021q source port information is only of trust when the
+		 * vbid is 0 (precise port). Otherwise, tmp_source_port and
+		 * tmp_switch_id will be zeroes.
+		 */
+		if (vbid == 0 && source_port == -1)
+			source_port = tmp_source_port;
+		if (vbid == 0 && switch_id == -1)
+			switch_id = tmp_switch_id;
+	} else if (source_port == -1 && switch_id == -1) {
+		/* Packets with no source information have no chance of
+		 * getting accepted, drop them straight away.
+		 */
 		return NULL;
 	}
 
-	if (vbid >= 1)
-		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
-	else if (source_port == -1 || switch_id == -1)
-		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
-	else
+	if (source_port != -1 && switch_id != -1)
 		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
+	else if (vbid >= 1)
+		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
+	else
+		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	if (!skb->dev) {
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
@@ -665,7 +653,8 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 		 * padding and trailer we need to account for the fact that
 		 * skb->data points to skb_mac_header(skb) + ETH_HLEN.
 		 */
-		pskb_trim_rcsum(skb, start_of_padding - ETH_HLEN);
+		if (pskb_trim_rcsum(skb, start_of_padding - ETH_HLEN))
+			return NULL;
 	/* Trap-to-host frame, no timestamp trailer */
 	} else {
 		*source_port = SJA1110_RX_HEADER_SRC_PORT(rx_header);
@@ -756,7 +745,6 @@ static void sja1105_disconnect(struct dsa_switch *ds)
 
 static int sja1105_connect(struct dsa_switch *ds)
 {
-	struct sja1105_tagger_data *tagger_data;
 	struct sja1105_tagger_private *priv;
 	struct kthread_worker *xmit_worker;
 	int err;
@@ -776,17 +764,13 @@ static int sja1105_connect(struct dsa_switch *ds)
 	}
 
 	priv->xmit_worker = xmit_worker;
-	/* Export functions for switch driver use */
-	tagger_data = &priv->data;
-	tagger_data->rxtstamp_get_state = sja1105_rxtstamp_get_state;
-	tagger_data->rxtstamp_set_state = sja1105_rxtstamp_set_state;
 	ds->tagger_data = priv;
 
 	return 0;
 }
 
 static const struct dsa_device_ops sja1105_netdev_ops = {
-	.name = "sja1105",
+	.name = SJA1105_NAME,
 	.proto = DSA_TAG_PROTO_SJA1105,
 	.xmit = sja1105_xmit,
 	.rcv = sja1105_rcv,
@@ -798,10 +782,10 @@ static const struct dsa_device_ops sja1105_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(sja1105_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SJA1105);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SJA1105, SJA1105_NAME);
 
 static const struct dsa_device_ops sja1110_netdev_ops = {
-	.name = "sja1110",
+	.name = SJA1110_NAME,
 	.proto = DSA_TAG_PROTO_SJA1110,
 	.xmit = sja1110_xmit,
 	.rcv = sja1110_rcv,
@@ -813,7 +797,7 @@ static const struct dsa_device_ops sja1110_netdev_ops = {
 };
 
 DSA_TAG_DRIVER(sja1110_netdev_ops);
-MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SJA1110);
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_SJA1110, SJA1110_NAME);
 
 static struct dsa_tag_driver *sja1105_tag_driver_array[] = {
 	&DSA_TAG_DRIVER_NAME(sja1105_netdev_ops),

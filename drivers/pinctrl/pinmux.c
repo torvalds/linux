@@ -13,19 +13,22 @@
 #define pr_fmt(fmt) "pinmux core: " fmt
 
 #include <linux/ctype.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/slab.h>
-#include <linux/radix-tree.h>
-#include <linux/err.h>
-#include <linux/list.h>
-#include <linux/string.h>
 #include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/radix-tree.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+
 #include <linux/pinctrl/machine.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+
 #include "core.h"
 #include "pinmux.h"
 
@@ -674,7 +677,6 @@ void pinmux_show_setting(struct seq_file *s,
 DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
 DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
-#define PINMUX_SELECT_MAX 128
 static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 				   size_t len, loff_t *ppos)
 {
@@ -686,17 +688,9 @@ static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 	unsigned int num_groups;
 	int fsel, gsel, ret;
 
-	if (len > PINMUX_SELECT_MAX)
-		return -ENOMEM;
-
-	buf = kzalloc(PINMUX_SELECT_MAX, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	ret = strncpy_from_user(buf, user_buf, PINMUX_SELECT_MAX);
-	if (ret < 0)
-		goto exit_free_buf;
-	buf[len-1] = '\0';
+	buf = memdup_user_nul(user_buf, len);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	/* remove leading and trailing spaces of input buffer */
 	gname = strstrip(buf);
@@ -741,10 +735,8 @@ static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
 	}
 
 	ret = pinctrl_get_group_selector(pctldev, gname);
-	if (ret < 0) {
-		dev_err(pctldev->dev, "failed to get group selector for %s", gname);
+	if (ret < 0)
 		goto exit_free_buf;
-	}
 	gsel = ret;
 
 	ret = pmxops->set_mux(pctldev, fsel, gsel);

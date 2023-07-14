@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-// TLV320ADCX104 Sound driver
+// TLV320ADCX140 Sound driver
 // Copyright (C) 2020 Texas Instruments Incorporated - https://www.ti.com/
 
 #ifndef _TLV320ADCX140_H
 #define _TLV320ADCX140_H
 
 #define ADCX140_RATES	(SNDRV_PCM_RATE_44100 | \
-			 SNDRV_PCM_RATE_48000)
+			 SNDRV_PCM_RATE_48000 | \
+			 SNDRV_PCM_RATE_96000 | \
+			 SNDRV_PCM_RATE_192000)
 
 #define ADCX140_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 			 SNDRV_PCM_FMTBIT_S20_3LE | \
@@ -90,6 +92,7 @@
 #define ADCX140_PWR_CFG		0x75
 #define ADCX140_DEV_STS0	0x76
 #define ADCX140_DEV_STS1	0x77
+#define ADCX140_PHASE_CALIB		0X7b
 
 #define ADCX140_RESET	BIT(0)
 

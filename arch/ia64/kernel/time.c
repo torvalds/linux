@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched/cputime.h>
 
+#include <asm/cputime.h>
 #include <asm/delay.h>
 #include <asm/efi.h>
 #include <asm/hw_irq.h>

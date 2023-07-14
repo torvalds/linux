@@ -5,22 +5,26 @@
  *	Srinivas Kandagatla <srinivas.kandagatla@st.com>
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
-#include <linux/of_gpio.h> /* of_get_named_gpio() */
-#include <linux/of_address.h>
 #include <linux/gpio/driver.h>
-#include <linux/regmap.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/string_helpers.h>
+
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/platform_device.h>
+
 #include "core.h"
 
 /* PIO Block registers */
@@ -1162,6 +1166,31 @@ static void st_parse_syscfgs(struct st_pinctrl *info, int bank,
 	return;
 }
 
+static int st_pctl_dt_calculate_pin(struct st_pinctrl *info,
+				    phandle bank, unsigned int offset)
+{
+	struct device_node *np;
+	struct gpio_chip *chip;
+	int retval = -EINVAL;
+	int i;
+
+	np = of_find_node_by_phandle(bank);
+	if (!np)
+		return -EINVAL;
+
+	for (i = 0; i < info->nbanks; i++) {
+		chip = &info->banks[i].gpio_chip;
+		if (chip->fwnode == of_fwnode_handle(np)) {
+			if (offset < chip->ngpio)
+				retval = chip->base + offset;
+			break;
+		}
+	}
+
+	of_node_put(np);
+	return retval;
+}
+
 /*
  * Each pin is represented in of the below forms.
  * <bank offset mux direction rt_type rt_delay rt_clk>
@@ -1175,6 +1204,8 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 	struct device *dev = info->dev;
 	struct st_pinconf *conf;
 	struct device_node *pins;
+	phandle bank;
+	unsigned int offset;
 	int i = 0, npins = 0, nr_props, ret = 0;
 
 	pins = of_get_child_by_name(np, "st,pins");
@@ -1214,9 +1245,9 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		conf = &grp->pin_conf[i];
 
 		/* bank & offset */
-		be32_to_cpup(list++);
-		be32_to_cpup(list++);
-		conf->pin = of_get_named_gpio(pins, pp->name, 0);
+		bank = be32_to_cpup(list++);
+		offset = be32_to_cpup(list++);
+		conf->pin = st_pctl_dt_calculate_pin(info, bank, offset);
 		conf->name = pp->name;
 		grp->pins[i] = conf->pin;
 		/* mux */
@@ -1282,7 +1313,8 @@ static void st_gpio_irq_mask(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct st_gpio_bank *bank = gpiochip_get_data(gc);
 
-	writel(BIT(d->hwirq), bank->base + REG_PIO_CLR_PMASK);
+	writel(BIT(irqd_to_hwirq(d)), bank->base + REG_PIO_CLR_PMASK);
+	gpiochip_disable_irq(gc, irqd_to_hwirq(d));
 }
 
 static void st_gpio_irq_unmask(struct irq_data *d)
@@ -1290,7 +1322,8 @@ static void st_gpio_irq_unmask(struct irq_data *d)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct st_gpio_bank *bank = gpiochip_get_data(gc);
 
-	writel(BIT(d->hwirq), bank->base + REG_PIO_SET_PMASK);
+	gpiochip_enable_irq(gc, irqd_to_hwirq(d));
+	writel(BIT(irqd_to_hwirq(d)), bank->base + REG_PIO_SET_PMASK);
 }
 
 static int st_gpio_irq_request_resources(struct irq_data *d)
@@ -1299,14 +1332,14 @@ static int st_gpio_irq_request_resources(struct irq_data *d)
 
 	st_gpio_direction_input(gc, d->hwirq);
 
-	return gpiochip_lock_as_irq(gc, d->hwirq);
+	return gpiochip_reqres_irq(gc, d->hwirq);
 }
 
 static void st_gpio_irq_release_resources(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
-	gpiochip_unlock_as_irq(gc, d->hwirq);
+	gpiochip_relres_irq(gc, d->hwirq);
 }
 
 static int st_gpio_irq_set_type(struct irq_data *d, unsigned type)
@@ -1461,7 +1494,7 @@ static const struct gpio_chip st_gpio_template = {
 	.ngpio			= ST_GPIO_PINS_PER_BANK,
 };
 
-static struct irq_chip st_gpio_irqchip = {
+static const struct irq_chip st_gpio_irqchip = {
 	.name			= "GPIO",
 	.irq_request_resources	= st_gpio_irq_request_resources,
 	.irq_release_resources	= st_gpio_irq_release_resources,
@@ -1469,7 +1502,7 @@ static struct irq_chip st_gpio_irqchip = {
 	.irq_mask		= st_gpio_irq_mask,
 	.irq_unmask		= st_gpio_irq_unmask,
 	.irq_set_type		= st_gpio_irq_set_type,
-	.flags			= IRQCHIP_SKIP_SET_WAKE,
+	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_IMMUTABLE,
 };
 
 static int st_gpiolib_register_bank(struct st_pinctrl *info,
@@ -1492,7 +1525,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	bank->gpio_chip = st_gpio_template;
 	bank->gpio_chip.base = bank_num * ST_GPIO_PINS_PER_BANK;
 	bank->gpio_chip.ngpio = ST_GPIO_PINS_PER_BANK;
-	bank->gpio_chip.of_node = np;
+	bank->gpio_chip.fwnode = of_fwnode_handle(np);
 	bank->gpio_chip.parent = dev;
 	spin_lock_init(&bank->lock);
 
@@ -1539,7 +1572,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 		}
 
 		girq = &bank->gpio_chip.irq;
-		girq->chip = &st_gpio_irqchip;
+		gpio_irq_chip_set_chip(girq, &st_gpio_irqchip);
 		girq->parent_handler = st_gpio_irq_handler;
 		girq->num_parents = 1;
 		girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),

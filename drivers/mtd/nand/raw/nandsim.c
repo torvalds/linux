@@ -1393,7 +1393,7 @@ static int ns_do_read_error(struct nandsim *ns, int num)
 	unsigned int page_no = ns->regs.row;
 
 	if (ns_read_error(page_no)) {
-		prandom_bytes(ns->buf.byte, num);
+		get_random_bytes(ns->buf.byte, num);
 		NS_WARN("simulating read error in page %u\n", page_no);
 		return 1;
 	}
@@ -1402,12 +1402,12 @@ static int ns_do_read_error(struct nandsim *ns, int num)
 
 static void ns_do_bit_flips(struct nandsim *ns, int num)
 {
-	if (bitflips && prandom_u32() < (1 << 22)) {
+	if (bitflips && get_random_u16() < (1 << 6)) {
 		int flips = 1;
 		if (bitflips > 1)
-			flips = (prandom_u32() % (int) bitflips) + 1;
+			flips = get_random_u32_inclusive(1, bitflips);
 		while (flips--) {
-			int pos = prandom_u32() % (num * 8);
+			int pos = get_random_u32_below(num * 8);
 			ns->buf.byte[pos / 8] ^= (1 << (pos % 8));
 			NS_WARN("read_page: flipping bit %d in page %d "
 				"reading from %d ecc: corrected=%u failed=%u\n",
@@ -2160,8 +2160,23 @@ static int ns_exec_op(struct nand_chip *chip, const struct nand_operation *op,
 	const struct nand_op_instr *instr = NULL;
 	struct nandsim *ns = nand_get_controller_data(chip);
 
-	if (check_only)
+	if (check_only) {
+		/* The current implementation of nandsim needs to know the
+		 * ongoing operation when performing the address cycles. This
+		 * means it cannot make the difference between a regular read
+		 * and a continuous read. Hence, this hack to manually refuse
+		 * supporting sequential cached operations.
+		 */
+		for (op_id = 0; op_id < op->ninstrs; op_id++) {
+			instr = &op->instrs[op_id];
+			if (instr->type == NAND_OP_CMD_INSTR &&
+			    (instr->ctx.cmd.opcode == NAND_CMD_READCACHEEND ||
+			     instr->ctx.cmd.opcode == NAND_CMD_READCACHESEQ))
+				return -EOPNOTSUPP;
+		}
+
 		return 0;
+	}
 
 	ns->lines.ce = 1;
 

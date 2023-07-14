@@ -17,7 +17,6 @@ SEC("cgroup/sock_create")
 int sock(struct bpf_sock *ctx)
 {
 	int *sk_storage;
-	__u32 key;
 
 	if (ctx->type != SOCK_DGRAM)
 		return 1;
@@ -46,7 +45,6 @@ SEC("cgroup/sock_release")
 int sock_release(struct bpf_sock *ctx)
 {
 	int *sk_storage;
-	__u32 key;
 
 	if (ctx->type != SOCK_DGRAM)
 		return 1;

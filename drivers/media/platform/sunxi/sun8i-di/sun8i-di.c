@@ -906,7 +906,7 @@ err_v4l2:
 	return ret;
 }
 
-static int deinterlace_remove(struct platform_device *pdev)
+static void deinterlace_remove(struct platform_device *pdev)
 {
 	struct deinterlace_dev *dev = platform_get_drvdata(pdev);
 
@@ -915,8 +915,6 @@ static int deinterlace_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 
 	pm_runtime_force_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static int deinterlace_runtime_resume(struct device *device)
@@ -1002,7 +1000,7 @@ static const struct dev_pm_ops deinterlace_pm_ops = {
 
 static struct platform_driver deinterlace_driver = {
 	.probe		= deinterlace_probe,
-	.remove		= deinterlace_remove,
+	.remove_new	= deinterlace_remove,
 	.driver		= {
 		.name		= DEINTERLACE_NAME,
 		.of_match_table	= deinterlace_dt_match,

@@ -31,8 +31,6 @@ properties:
     maxItems: 1
     description: Conversion clock input.
 
-  spi-max-frequency: true
-
   vref-p-supply:
     description: The regulator supply for positive analog voltage reference
 
@@ -62,7 +60,10 @@ required:
   - clocks
   - vref-p-supply
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

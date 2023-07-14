@@ -45,14 +45,17 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
     spi {
-       #address-cells = <1>;
-       #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
         maxadc: adc@0 {
             compatible = "maxim,max1027";
             reg = <0>;

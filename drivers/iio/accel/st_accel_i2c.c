@@ -112,8 +112,16 @@ static const struct of_device_id st_accel_of_match[] = {
 		.data = LIS302DL_ACCEL_DEV_NAME,
 	},
 	{
+		.compatible = "st,lsm303c-accel",
+		.data = LSM303C_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "silan,sc7a20",
 		.data = SC7A20_ACCEL_DEV_NAME,
+	},
+	{
+		.compatible = "st,iis328dq",
+		.data = IIS328DQ_ACCEL_DEV_NAME,
 	},
 	{},
 };
@@ -151,7 +159,9 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ LIS2DE12_ACCEL_DEV_NAME },
 	{ LIS2HH12_ACCEL_DEV_NAME },
 	{ LIS302DL_ACCEL_DEV_NAME },
+	{ LSM303C_ACCEL_DEV_NAME },
 	{ SC7A20_ACCEL_DEV_NAME },
+	{ IIS328DQ_ACCEL_DEV_NAME },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);
@@ -196,7 +206,7 @@ static struct i2c_driver st_accel_driver = {
 		.of_match_table = st_accel_of_match,
 		.acpi_match_table = ACPI_PTR(st_accel_acpi_match),
 	},
-	.probe_new = st_accel_i2c_probe,
+	.probe = st_accel_i2c_probe,
 	.id_table = st_accel_id_table,
 };
 module_i2c_driver(st_accel_driver);

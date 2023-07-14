@@ -176,8 +176,7 @@ static int tsys01_probe(struct iio_dev *indio_dev, struct device *dev)
 	return devm_iio_device_register(dev, indio_dev);
 }
 
-static int tsys01_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int tsys01_i2c_probe(struct i2c_client *client)
 {
 	struct tsys01_dev *dev_data;
 	struct iio_dev *indio_dev;

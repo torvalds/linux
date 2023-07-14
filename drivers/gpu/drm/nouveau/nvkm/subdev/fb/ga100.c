@@ -26,9 +26,10 @@ static const struct nvkm_fb_func
 ga100_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
-	.init = gp100_fb_init,
+	.init = gm200_fb_init,
 	.init_page = gv100_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = gp100_ram_new,
 	.default_bigpage = 16,
 };
@@ -36,5 +37,5 @@ ga100_fb = {
 int
 ga100_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
-	return gp102_fb_new_(&ga100_fb, device, type, inst, pfb);
+	return gf100_fb_new_(&ga100_fb, device, type, inst, pfb);
 }

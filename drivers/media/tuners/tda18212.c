@@ -173,8 +173,7 @@ static const struct dvb_tuner_ops tda18212_tuner_ops = {
 	.get_if_frequency = tda18212_get_if_frequency,
 };
 
-static int tda18212_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int tda18212_probe(struct i2c_client *client)
 {
 	struct tda18212_config *cfg = client->dev.platform_data;
 	struct dvb_frontend *fe = cfg->fe;

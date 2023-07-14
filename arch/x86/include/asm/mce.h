@@ -88,6 +88,9 @@
 #define  MCI_MISC_ADDR_MEM	3	/* memory address */
 #define  MCI_MISC_ADDR_GENERIC	7	/* generic */
 
+/* MCi_ADDR register defines */
+#define MCI_ADDR_PHYSADDR	GENMASK_ULL(boot_cpu_data.x86_phys_bits - 1, 0)
+
 /* CTL2 register defines */
 #define MCI_CTL2_CMCI_EN		BIT_ULL(30)
 #define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
@@ -347,4 +350,7 @@ static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)		{ }
 #endif
 
 static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }
+
+unsigned long copy_mc_fragile_handle_tail(char *to, char *from, unsigned len);
+
 #endif /* _ASM_X86_MCE_H */

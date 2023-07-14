@@ -46,6 +46,7 @@ config JOYSTICK_A3D
 config JOYSTICK_ADC
 	tristate "Simple joystick connected over ADC"
 	depends on IIO
+	select IIO_BUFFER
 	select IIO_BUFFER_CB
 	help
 	  Say Y here if you have a simple joystick connected over ADC.
@@ -291,33 +292,33 @@ config JOYSTICK_JOYDUMP
 	  module will be called joydump.
 
 config JOYSTICK_XPAD
-	tristate "X-Box gamepad support"
+	tristate "Xbox gamepad support"
 	depends on USB_ARCH_HAS_HCD
 	select USB
 	help
-	  Say Y here if you want to use the X-Box pad with your computer.
+	  Say Y here if you want to use Xbox pads with your computer.
 	  Make sure to say Y to "Joystick support" (CONFIG_INPUT_JOYDEV)
 	  and/or "Event interface support" (CONFIG_INPUT_EVDEV) as well.
 
-	  For information about how to connect the X-Box pad to USB, see
+	  For information about how to connect the Xbox pad to USB, see
 	  <file:Documentation/input/devices/xpad.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xpad.
 
 config JOYSTICK_XPAD_FF
-	bool "X-Box gamepad rumble support"
+	bool "Xbox gamepad rumble support"
 	depends on JOYSTICK_XPAD && INPUT
 	select INPUT_FF_MEMLESS
 	help
-	  Say Y here if you want to take advantage of xbox 360 rumble features.
+	  Say Y here if you want to take advantage of Xbox 360 rumble features.
 
 config JOYSTICK_XPAD_LEDS
-	bool "LED Support for Xbox360 controller 'BigX' LED"
+	bool "LED Support for the Xbox 360 controller Guide button"
 	depends on JOYSTICK_XPAD && (LEDS_CLASS=y || LEDS_CLASS=JOYSTICK_XPAD)
 	help
 	  This option enables support for the LED which surrounds the Big X on
-	  XBox 360 controller.
+	  Xbox 360 controllers.
 
 config JOYSTICK_WALKERA0701
 	tristate "Walkera WK-0701 RC transmitter"

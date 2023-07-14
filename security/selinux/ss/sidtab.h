@@ -65,8 +65,7 @@ struct sidtab_isid_entry {
 };
 
 struct sidtab_convert_params {
-	int (*func)(struct context *oldc, struct context *newc, void *args);
-	void *args;
+	struct convert_context_args *args;
 	struct sidtab *target;
 };
 

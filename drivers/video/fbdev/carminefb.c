@@ -7,6 +7,7 @@
  * - FB1 is display 1 with unique memory area
  * - both display use 32 bit colors
  */
+#include <linux/aperture.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
@@ -614,6 +615,10 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	struct fb_info *info;
 	int ret;
 
+	ret = aperture_remove_conflicting_pci_devices(dev, "carminefb");
+	if (ret)
+		return ret;
+
 	ret = pci_enable_device(dev);
 	if (ret)
 		return ret;
@@ -768,6 +773,9 @@ static struct pci_driver carmine_pci_driver = {
 
 static int __init carminefb_init(void)
 {
+	if (fb_modesetting_disabled("carminefb"))
+		return -ENODEV;
+
 	if (!(fb_displays &
 		(CARMINE_USE_DISPLAY0 | CARMINE_USE_DISPLAY1))) {
 		printk(KERN_ERR "If you disable both displays than you don't "

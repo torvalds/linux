@@ -100,8 +100,8 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 
 int ring_buffer_wait(struct trace_buffer *buffer, int cpu, int full);
 __poll_t ring_buffer_poll_wait(struct trace_buffer *buffer, int cpu,
-			  struct file *filp, poll_table *poll_table);
-
+			  struct file *filp, poll_table *poll_table, int full);
+void ring_buffer_wake_waiters(struct trace_buffer *buffer, int cpu);
 
 #define RING_BUFFER_ALL_CPUS -1
 
@@ -113,8 +113,7 @@ void ring_buffer_change_overwrite(struct trace_buffer *buffer, int val);
 
 struct ring_buffer_event *ring_buffer_lock_reserve(struct trace_buffer *buffer,
 						   unsigned long length);
-int ring_buffer_unlock_commit(struct trace_buffer *buffer,
-			      struct ring_buffer_event *event);
+int ring_buffer_unlock_commit(struct trace_buffer *buffer);
 int ring_buffer_write(struct trace_buffer *buffer,
 		      unsigned long length, void *data);
 

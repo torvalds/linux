@@ -367,10 +367,14 @@ LIBBPF_1.0.0 {
 		libbpf_bpf_map_type_str;
 		libbpf_bpf_prog_type_str;
 		perf_buffer__buffer;
-};
+} LIBBPF_0.8.0;
 
 LIBBPF_1.1.0 {
 	global:
+		bpf_btf_get_fd_by_id_opts;
+		bpf_link_get_fd_by_id_opts;
+		bpf_map_get_fd_by_id_opts;
+		bpf_prog_get_fd_by_id_opts;
 		user_ring_buffer__discard;
 		user_ring_buffer__free;
 		user_ring_buffer__new;
@@ -378,3 +382,17 @@ LIBBPF_1.1.0 {
 		user_ring_buffer__reserve_blocking;
 		user_ring_buffer__submit;
 } LIBBPF_1.0.0;
+
+LIBBPF_1.2.0 {
+	global:
+		bpf_btf_get_info_by_fd;
+		bpf_link__update_map;
+		bpf_link_get_info_by_fd;
+		bpf_map_get_info_by_fd;
+		bpf_prog_get_info_by_fd;
+} LIBBPF_1.1.0;
+
+LIBBPF_1.3.0 {
+	global:
+		bpf_obj_pin_opts;
+} LIBBPF_1.2.0;

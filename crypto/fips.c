@@ -66,20 +66,11 @@ static struct ctl_table crypto_sysctl_table[] = {
 	{}
 };
 
-static struct ctl_table crypto_dir_table[] = {
-	{
-		.procname       = "crypto",
-		.mode           = 0555,
-		.child          = crypto_sysctl_table
-	},
-	{}
-};
-
 static struct ctl_table_header *crypto_sysctls;
 
 static void crypto_proc_fips_init(void)
 {
-	crypto_sysctls = register_sysctl_table(crypto_dir_table);
+	crypto_sysctls = register_sysctl("crypto", crypto_sysctl_table);
 }
 
 static void crypto_proc_fips_exit(void)

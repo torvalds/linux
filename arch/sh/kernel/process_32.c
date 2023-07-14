@@ -84,11 +84,6 @@ void flush_thread(void)
 #endif
 }
 
-void release_thread(struct task_struct *dead_task)
-{
-	/* do nothing */
-}
-
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 

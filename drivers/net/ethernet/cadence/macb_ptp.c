@@ -258,6 +258,8 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	 */
 	gem_tsu_get_time(&bp->ptp_clock_info, &tsu, NULL);
 
+	ts->tv_sec |= ((~GEM_DMA_SEC_MASK) & tsu.tv_sec);
+
 	/* If the top bit is set in the timestamp,
 	 * but not in 1588 timer, it has rolled over,
 	 * so subtract max size
@@ -265,8 +267,6 @@ static int gem_hw_timestamp(struct macb *bp, u32 dma_desc_ts_1,
 	if ((ts->tv_sec & (GEM_DMA_SEC_TOP >> 1)) &&
 	    !(tsu.tv_sec & (GEM_DMA_SEC_TOP >> 1)))
 		ts->tv_sec -= GEM_DMA_SEC_TOP;
-
-	ts->tv_sec += ((~GEM_DMA_SEC_MASK) & tsu.tv_sec);
 
 	return 0;
 }
@@ -292,79 +292,39 @@ void gem_ptp_rxstamp(struct macb *bp, struct sk_buff *skb,
 	}
 }
 
-static void gem_tstamp_tx(struct macb *bp, struct sk_buff *skb,
-			  struct macb_dma_desc_ptp *desc_ptp)
+void gem_ptp_txstamp(struct macb *bp, struct sk_buff *skb,
+		     struct macb_dma_desc *desc)
 {
 	struct skb_shared_hwtstamps shhwtstamps;
+	struct macb_dma_desc_ptp *desc_ptp;
 	struct timespec64 ts;
 
+	if (!GEM_BFEXT(DMA_TXVALID, desc->ctrl)) {
+		dev_warn_ratelimited(&bp->pdev->dev,
+				     "Timestamp not set in TX BD as expected\n");
+		return;
+	}
+
+	desc_ptp = macb_ptp_desc(bp, desc);
+	/* Unlikely but check */
+	if (!desc_ptp) {
+		dev_warn_ratelimited(&bp->pdev->dev,
+				     "Timestamp not supported in BD\n");
+		return;
+	}
+
+	/* ensure ts_1/ts_2 is loaded after ctrl (TX_USED check) */
+	dma_rmb();
 	gem_hw_timestamp(bp, desc_ptp->ts_1, desc_ptp->ts_2, &ts);
+
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 	shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
 	skb_tstamp_tx(skb, &shhwtstamps);
 }
 
-int gem_ptp_txstamp(struct macb_queue *queue, struct sk_buff *skb,
-		    struct macb_dma_desc *desc)
-{
-	unsigned long tail = READ_ONCE(queue->tx_ts_tail);
-	unsigned long head = queue->tx_ts_head;
-	struct macb_dma_desc_ptp *desc_ptp;
-	struct gem_tx_ts *tx_timestamp;
-
-	if (!GEM_BFEXT(DMA_TXVALID, desc->ctrl))
-		return -EINVAL;
-
-	if (CIRC_SPACE(head, tail, PTP_TS_BUFFER_SIZE) == 0)
-		return -ENOMEM;
-
-	desc_ptp = macb_ptp_desc(queue->bp, desc);
-	/* Unlikely but check */
-	if (!desc_ptp)
-		return -EINVAL;
-	skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
-	tx_timestamp = &queue->tx_timestamps[head];
-	tx_timestamp->skb = skb;
-	/* ensure ts_1/ts_2 is loaded after ctrl (TX_USED check) */
-	dma_rmb();
-	tx_timestamp->desc_ptp.ts_1 = desc_ptp->ts_1;
-	tx_timestamp->desc_ptp.ts_2 = desc_ptp->ts_2;
-	/* move head */
-	smp_store_release(&queue->tx_ts_head,
-			  (head + 1) & (PTP_TS_BUFFER_SIZE - 1));
-
-	schedule_work(&queue->tx_ts_task);
-	return 0;
-}
-
-static void gem_tx_timestamp_flush(struct work_struct *work)
-{
-	struct macb_queue *queue =
-			container_of(work, struct macb_queue, tx_ts_task);
-	unsigned long head, tail;
-	struct gem_tx_ts *tx_ts;
-
-	/* take current head */
-	head = smp_load_acquire(&queue->tx_ts_head);
-	tail = queue->tx_ts_tail;
-
-	while (CIRC_CNT(head, tail, PTP_TS_BUFFER_SIZE)) {
-		tx_ts = &queue->tx_timestamps[tail];
-		gem_tstamp_tx(queue->bp, tx_ts->skb, &tx_ts->desc_ptp);
-		/* cleanup */
-		dev_kfree_skb_any(tx_ts->skb);
-		/* remove old tail */
-		smp_store_release(&queue->tx_ts_tail,
-				  (tail + 1) & (PTP_TS_BUFFER_SIZE - 1));
-		tail = queue->tx_ts_tail;
-	}
-}
-
 void gem_ptp_init(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
-	struct macb_queue *queue;
-	unsigned int q;
 
 	bp->ptp_clock_info = gem_ptp_caps_template;
 
@@ -384,11 +344,6 @@ void gem_ptp_init(struct net_device *dev)
 	}
 
 	spin_lock_init(&bp->tsu_clk_lock);
-	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue) {
-		queue->tx_ts_head = 0;
-		queue->tx_ts_tail = 0;
-		INIT_WORK(&queue->tx_ts_task, gem_tx_timestamp_flush);
-	}
 
 	gem_ptp_init_tsu(bp);
 

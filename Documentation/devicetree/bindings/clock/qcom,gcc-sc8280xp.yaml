@@ -4,17 +4,16 @@
 $id: http://devicetree.org/schemas/clock/qcom,gcc-sc8280xp.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller Binding for SC8280xp
+title: Qualcomm Global Clock & Reset Controller on SC8280xp
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 description: |
-  Qualcomm global clock control module which supports the clocks, resets and
+  Qualcomm global clock control module provides the clocks, resets and
   power domains on SC8280xp.
 
-  See also:
-  - include/dt-bindings/clock/qcom,gcc-sc8280xp.h
+  See also:: include/dt-bindings/clock/qcom,gcc-sc8280xp.h
 
 properties:
   compatible:
@@ -33,7 +32,7 @@ properties:
       - description: Primary USB SuperSpeed pipe clock
       - description: USB4 PHY pipegmux clock source
       - description: USB4 PHY DP gmux clock source
-      - description: USB4 PHY sys piegmux clock source
+      - description: USB4 PHY sys pipegmux clock source
       - description: USB4 PHY PCIe pipe clock
       - description: USB4 PHY router max pipe clock
       - description: Primary USB4 RX0 clock
@@ -46,7 +45,7 @@ properties:
       - description: Second USB4 PHY router max pipe clock
       - description: Secondary USB4 RX0 clock
       - description: Secondary USB4 RX1 clock
-      - description: Multiport USB first SupserSpeed pipe clock
+      - description: Multiport USB first SuperSpeed pipe clock
       - description: Multiport USB second SuperSpeed pipe clock
       - description: PCIe 2a pipe clock
       - description: PCIe 2b pipe clock
@@ -56,17 +55,9 @@ properties:
       - description: First EMAC controller reference clock
       - description: Second EMAC controller reference clock
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
-  reg:
-    maxItems: 1
+  power-domains:
+    items:
+      - description: CX domain
 
   protected-clocks:
     maxItems: 389
@@ -74,16 +65,17 @@ properties:
 required:
   - compatible
   - clocks
-  - reg
-  - '#clock-cells'
-  - '#reset-cells'
-  - '#power-domain-cells'
 
-additionalProperties: false
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
+
     clock-controller@100000 {
       compatible = "qcom,gcc-sc8280xp";
       reg = <0x00100000 0x1f0000>;
@@ -120,6 +112,7 @@ examples:
                <&pcie4_lane>,
                <&rxc0_ref_clk>,
                <&rxc1_ref_clk>;
+      power-domains = <&rpmhpd SC8280XP_CX>;
 
       #clock-cells = <1>;
       #reset-cells = <1>;

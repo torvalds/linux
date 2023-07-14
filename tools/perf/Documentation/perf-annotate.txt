@@ -41,7 +41,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Do not show any message.  (Suppress -v)
+	Do not show any warnings or messages.  (Suppress -v)
 
 -n::
 --show-nr-samples::
@@ -115,6 +115,9 @@ include::itrace.txt[]
 
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
+
+--addr2line=<path>::
+        Path to addr2line binary.
 
 --objdump=<path>::
         Path to objdump binary.

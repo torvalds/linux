@@ -1,8 +1,0 @@
-[
-    {
-        "ArchStdEvent": "STALL_FRONTEND"
-    },
-    {
-        "ArchStdEvent": "STALL_BACKEND"
-    }
-]

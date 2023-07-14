@@ -61,6 +61,9 @@ properties:
       - const: apb_pclk
       - const: atclk
 
+  power-domains:
+    maxItems: 1
+
   out-ports:
     $ref: /schemas/graph.yaml#/properties/ports
     additionalProperties: false

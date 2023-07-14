@@ -49,7 +49,7 @@ static int menf21bmc_wdt_exit_prod_mode(struct i2c_client *client)
 }
 
 static int
-menf21bmc_probe(struct i2c_client *client, const struct i2c_device_id *ids)
+menf21bmc_probe(struct i2c_client *client)
 {
 	int rev_major, rev_minor, rev_main;
 	int ret;

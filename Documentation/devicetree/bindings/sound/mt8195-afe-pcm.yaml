@@ -32,7 +32,7 @@ properties:
       See ../reserved-memory/reserved-memory.txt for details.
 
   mediatek,topckgen:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of the mediatek topckgen controller
 
   power-domains:

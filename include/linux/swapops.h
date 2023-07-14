@@ -8,6 +8,10 @@
 
 #ifdef CONFIG_MMU
 
+#ifdef CONFIG_SWAP
+#include <linux/swapfile.h>
+#endif	/* CONFIG_SWAP */
+
 /*
  * swapcache pages are stored in the swapper_space radix tree.  We want to
  * get good packing density in that tree, so the index should be dense in
@@ -22,6 +26,47 @@
  */
 #define SWP_TYPE_SHIFT	(BITS_PER_XA_VALUE - MAX_SWAPFILES_SHIFT)
 #define SWP_OFFSET_MASK	((1UL << SWP_TYPE_SHIFT) - 1)
+
+/*
+ * Definitions only for PFN swap entries (see is_pfn_swap_entry()).  To
+ * store PFN, we only need SWP_PFN_BITS bits.  Each of the pfn swap entries
+ * can use the extra bits to store other information besides PFN.
+ */
+#ifdef MAX_PHYSMEM_BITS
+#define SWP_PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
+#else  /* MAX_PHYSMEM_BITS */
+#define SWP_PFN_BITS		min_t(int, \
+				      sizeof(phys_addr_t) * 8 - PAGE_SHIFT, \
+				      SWP_TYPE_SHIFT)
+#endif	/* MAX_PHYSMEM_BITS */
+#define SWP_PFN_MASK		(BIT(SWP_PFN_BITS) - 1)
+
+/**
+ * Migration swap entry specific bitfield definitions.  Layout:
+ *
+ *   |----------+--------------------|
+ *   | swp_type | swp_offset         |
+ *   |----------+--------+-+-+-------|
+ *   |          | resv   |D|A|  PFN  |
+ *   |----------+--------+-+-+-------|
+ *
+ * @SWP_MIG_YOUNG_BIT: Whether the page used to have young bit set (bit A)
+ * @SWP_MIG_DIRTY_BIT: Whether the page used to have dirty bit set (bit D)
+ *
+ * Note: A/D bits will be stored in migration entries iff there're enough
+ * free bits in arch specific swp offset.  By default we'll ignore A/D bits
+ * when migrating a page.  Please refer to migration_entry_supports_ad()
+ * for more information.  If there're more bits besides PFN and A/D bits,
+ * they should be reserved and always be zeros.
+ */
+#define SWP_MIG_YOUNG_BIT		(SWP_PFN_BITS)
+#define SWP_MIG_DIRTY_BIT		(SWP_PFN_BITS + 1)
+#define SWP_MIG_TOTAL_BITS		(SWP_PFN_BITS + 2)
+
+#define SWP_MIG_YOUNG			BIT(SWP_MIG_YOUNG_BIT)
+#define SWP_MIG_DIRTY			BIT(SWP_MIG_DIRTY_BIT)
+
+static inline bool is_pfn_swap_entry(swp_entry_t entry);
 
 /* Clear all flags but only keep swp_entry_t related information */
 static inline pte_t pte_swp_clear_flags(pte_t pte)
@@ -62,6 +107,17 @@ static inline unsigned swp_type(swp_entry_t entry)
 static inline pgoff_t swp_offset(swp_entry_t entry)
 {
 	return entry.val & SWP_OFFSET_MASK;
+}
+
+/*
+ * This should only be called upon a pfn swap entry to get the PFN stored
+ * in the swap entry.  Please refers to is_pfn_swap_entry() for definition
+ * of pfn swap entry.
+ */
+static inline unsigned long swp_offset_pfn(swp_entry_t entry)
+{
+	VM_BUG_ON(!is_pfn_swap_entry(entry));
+	return swp_offset(entry) & SWP_PFN_MASK;
 }
 
 /* check whether a pte points to a swap entry */
@@ -106,16 +162,6 @@ static inline swp_entry_t radix_to_swp_entry(void *arg)
 static inline void *swp_to_radix_entry(swp_entry_t entry)
 {
 	return xa_mk_value(entry.val);
-}
-
-static inline swp_entry_t make_swapin_error_entry(struct page *page)
-{
-	return swp_entry(SWP_SWAPIN_ERROR, page_to_pfn(page));
-}
-
-static inline int is_swapin_error_entry(swp_entry_t entry)
-{
-	return swp_type(entry) == SWP_SWAPIN_ERROR;
 }
 
 #if IS_ENABLED(CONFIG_DEVICE_PRIVATE)
@@ -240,15 +286,56 @@ static inline swp_entry_t make_writable_migration_entry(pgoff_t offset)
 	return swp_entry(SWP_MIGRATION_WRITE, offset);
 }
 
-extern void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
-					spinlock_t *ptl);
+/*
+ * Returns whether the host has large enough swap offset field to support
+ * carrying over pgtable A/D bits for page migrations.  The result is
+ * pretty much arch specific.
+ */
+static inline bool migration_entry_supports_ad(void)
+{
+#ifdef CONFIG_SWAP
+	return swap_migration_ad_supported;
+#else  /* CONFIG_SWAP */
+	return false;
+#endif	/* CONFIG_SWAP */
+}
+
+static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_entry(swp_type(entry),
+				 swp_offset(entry) | SWP_MIG_YOUNG);
+	return entry;
+}
+
+static inline bool is_migration_entry_young(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_offset(entry) & SWP_MIG_YOUNG;
+	/* Keep the old behavior of aging page after migration */
+	return false;
+}
+
+static inline swp_entry_t make_migration_entry_dirty(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_entry(swp_type(entry),
+				 swp_offset(entry) | SWP_MIG_DIRTY);
+	return entry;
+}
+
+static inline bool is_migration_entry_dirty(swp_entry_t entry)
+{
+	if (migration_entry_supports_ad())
+		return swp_offset(entry) & SWP_MIG_DIRTY;
+	/* Keep the old behavior of clean page after migration */
+	return false;
+}
+
 extern void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
 					unsigned long address);
-#ifdef CONFIG_HUGETLB_PAGE
-extern void __migration_entry_wait_huge(pte_t *ptep, spinlock_t *ptl);
 extern void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *pte);
-#endif
-#else
+#else  /* CONFIG_MIGRATION */
 static inline swp_entry_t make_readable_migration_entry(pgoff_t offset)
 {
 	return swp_entry(0, 0);
@@ -269,14 +356,10 @@ static inline int is_migration_entry(swp_entry_t swp)
 	return 0;
 }
 
-static inline void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
-					spinlock_t *ptl) { }
 static inline void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
-					 unsigned long address) { }
-#ifdef CONFIG_HUGETLB_PAGE
-static inline void __migration_entry_wait_huge(pte_t *ptep, spinlock_t *ptl) { }
-static inline void migration_entry_wait_huge(struct vm_area_struct *vma, pte_t *pte) { }
-#endif
+					unsigned long address) { }
+static inline void migration_entry_wait_huge(struct vm_area_struct *vma,
+					pte_t *pte) { }
 static inline int is_writable_migration_entry(swp_entry_t entry)
 {
 	return 0;
@@ -286,14 +369,32 @@ static inline int is_readable_migration_entry(swp_entry_t entry)
 	return 0;
 }
 
-#endif
+static inline swp_entry_t make_migration_entry_young(swp_entry_t entry)
+{
+	return entry;
+}
+
+static inline bool is_migration_entry_young(swp_entry_t entry)
+{
+	return false;
+}
+
+static inline swp_entry_t make_migration_entry_dirty(swp_entry_t entry)
+{
+	return entry;
+}
+
+static inline bool is_migration_entry_dirty(swp_entry_t entry)
+{
+	return false;
+}
+#endif	/* CONFIG_MIGRATION */
 
 typedef unsigned long pte_marker;
 
-#define  PTE_MARKER_UFFD_WP  BIT(0)
-#define  PTE_MARKER_MASK     (PTE_MARKER_UFFD_WP)
-
-#ifdef CONFIG_PTE_MARKER
+#define  PTE_MARKER_UFFD_WP			BIT(0)
+#define  PTE_MARKER_SWAPIN_ERROR		BIT(1)
+#define  PTE_MARKER_MASK			(BIT(2) - 1)
 
 static inline swp_entry_t make_pte_marker_entry(pte_marker marker)
 {
@@ -315,35 +416,20 @@ static inline bool is_pte_marker(pte_t pte)
 	return is_swap_pte(pte) && is_pte_marker_entry(pte_to_swp_entry(pte));
 }
 
-#else /* CONFIG_PTE_MARKER */
-
-static inline swp_entry_t make_pte_marker_entry(pte_marker marker)
-{
-	/* This should never be called if !CONFIG_PTE_MARKER */
-	WARN_ON_ONCE(1);
-	return swp_entry(0, 0);
-}
-
-static inline bool is_pte_marker_entry(swp_entry_t entry)
-{
-	return false;
-}
-
-static inline pte_marker pte_marker_get(swp_entry_t entry)
-{
-	return 0;
-}
-
-static inline bool is_pte_marker(pte_t pte)
-{
-	return false;
-}
-
-#endif /* CONFIG_PTE_MARKER */
-
 static inline pte_t make_pte_marker(pte_marker marker)
 {
 	return swp_entry_to_pte(make_pte_marker_entry(marker));
+}
+
+static inline swp_entry_t make_swapin_error_entry(void)
+{
+	return make_pte_marker_entry(PTE_MARKER_SWAPIN_ERROR);
+}
+
+static inline int is_swapin_error_entry(swp_entry_t entry)
+{
+	return is_pte_marker_entry(entry) &&
+	    (pte_marker_get(entry) & PTE_MARKER_SWAPIN_ERROR);
 }
 
 /*
@@ -358,9 +444,6 @@ static inline pte_t make_pte_marker(pte_marker marker)
  * memory, kernel-only memory (including when the system is during-boot),
  * non-ram based generic file-system.  It's fine to be used even there, but the
  * extra pte marker check will be pure overhead.
- *
- * For systems configured with !CONFIG_PTE_MARKER this will be automatically
- * optimized to pte_none().
  */
 static inline int pte_none_mostly(pte_t pte)
 {
@@ -369,7 +452,7 @@ static inline int pte_none_mostly(pte_t pte)
 
 static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)
 {
-	struct page *p = pfn_to_page(swp_offset(entry));
+	struct page *p = pfn_to_page(swp_offset_pfn(entry));
 
 	/*
 	 * Any use of migration entries may only occur while the
@@ -387,6 +470,9 @@ static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)
  */
 static inline bool is_pfn_swap_entry(swp_entry_t entry)
 {
+	/* Make sure the swp offset can always store the needed fields */
+	BUILD_BUG_ON(SWP_TYPE_SHIFT < SWP_PFN_BITS);
+
 	return is_migration_entry(entry) || is_device_private_entry(entry) ||
 	       is_device_exclusive_entry(entry);
 }
@@ -426,7 +512,7 @@ static inline int is_pmd_migration_entry(pmd_t pmd)
 {
 	return is_swap_pmd(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
 }
-#else
+#else  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 static inline int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 		struct page *page)
 {
@@ -455,11 +541,9 @@ static inline int is_pmd_migration_entry(pmd_t pmd)
 {
 	return 0;
 }
-#endif
+#endif  /* CONFIG_ARCH_ENABLE_THP_MIGRATION */
 
 #ifdef CONFIG_MEMORY_FAILURE
-
-extern atomic_long_t num_poisoned_pages __read_mostly;
 
 /*
  * Support for hardware poisoned pages
@@ -475,26 +559,6 @@ static inline int is_hwpoison_entry(swp_entry_t entry)
 	return swp_type(entry) == SWP_HWPOISON;
 }
 
-static inline unsigned long hwpoison_entry_to_pfn(swp_entry_t entry)
-{
-	return swp_offset(entry);
-}
-
-static inline void num_poisoned_pages_inc(void)
-{
-	atomic_long_inc(&num_poisoned_pages);
-}
-
-static inline void num_poisoned_pages_dec(void)
-{
-	atomic_long_dec(&num_poisoned_pages);
-}
-
-static inline void num_poisoned_pages_sub(long i)
-{
-	atomic_long_sub(i, &num_poisoned_pages);
-}
-
 #else
 
 static inline swp_entry_t make_hwpoison_entry(struct page *page)
@@ -505,14 +569,6 @@ static inline swp_entry_t make_hwpoison_entry(struct page *page)
 static inline int is_hwpoison_entry(swp_entry_t swp)
 {
 	return 0;
-}
-
-static inline void num_poisoned_pages_inc(void)
-{
-}
-
-static inline void num_poisoned_pages_sub(long i)
-{
 }
 #endif
 

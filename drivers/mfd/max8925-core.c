@@ -469,12 +469,6 @@ static struct max8925_irq_data max8925_irqs[] = {
 	},
 };
 
-static inline struct max8925_irq_data *irq_to_max8925(struct max8925_chip *chip,
-						      int irq)
-{
-	return &max8925_irqs[irq - chip->irq_base];
-}
-
 static irqreturn_t max8925_irq(int irq, void *data)
 {
 	struct max8925_chip *chip = data;

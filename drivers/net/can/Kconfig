@@ -93,6 +93,18 @@ config CAN_AT91
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
+config CAN_BXCAN
+	tristate "STM32 Basic Extended CAN (bxCAN) devices"
+	depends on ARCH_STM32 || COMPILE_TEST
+	depends on HAS_IOMEM
+	select CAN_RX_OFFLOAD
+	help
+	  Say yes here to build support for the STMicroelectronics STM32 basic
+	  extended CAN Controller (bxCAN).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bxcan.
+
 config CAN_CAN327
 	tristate "Serial / USB serial ELM327 based OBD-II Interfaces (can327)"
 	depends on TTY
@@ -141,8 +153,7 @@ config CAN_JANZ_ICAN3
 config CAN_KVASER_PCIEFD
 	depends on PCI
 	tristate "Kvaser PCIe FD cards"
-	select CRC32
-	  help
+	help
 	  This is a driver for the Kvaser PCI Express CAN FD family.
 
 	  Supported devices:
@@ -197,14 +208,6 @@ config CAN_XILINXCAN
 	help
 	  Xilinx CAN driver. This driver supports both soft AXI CAN IP and
 	  Zynq CANPS IP.
-
-config PCH_CAN
-	tristate "Intel EG20T PCH CAN controller"
-	depends on PCI && (X86_32 || COMPILE_TEST)
-	help
-	  This driver is for PCH CAN of Topcliff (Intel EG20T PCH) which
-	  is an IOH for x86 embedded processor (Intel Atom E6xx series).
-	  This driver can access CAN bus.
 
 source "drivers/net/can/c_can/Kconfig"
 source "drivers/net/can/cc770/Kconfig"

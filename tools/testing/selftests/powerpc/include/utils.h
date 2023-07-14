@@ -9,11 +9,18 @@
 #define __cacheline_aligned __attribute__((aligned(128)))
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdbool.h>
+#include <sys/signal.h>
 #include <linux/auxvec.h>
 #include <linux/perf_event.h>
 #include <asm/cputable.h>
 #include "reg.h"
+#include <unistd.h>
+
+#ifndef ARRAY_SIZE
+# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
 typedef unsigned long long u64;
@@ -31,10 +38,29 @@ int read_auxv(char *buf, ssize_t buf_size);
 void *find_auxv_entry(int type, char *auxv);
 void *get_auxv_entry(int type);
 
-int pick_online_cpu(void);
+#define BIND_CPU_ANY	(-1)
 
-int read_debugfs_file(char *debugfs_file, int *result);
-int write_debugfs_file(char *debugfs_file, int result);
+int pick_online_cpu(void);
+int bind_to_cpu(int cpu);
+
+int parse_intmax(const char *buffer, size_t count, intmax_t *result, int base);
+int parse_uintmax(const char *buffer, size_t count, uintmax_t *result, int base);
+int parse_int(const char *buffer, size_t count, int *result, int base);
+int parse_uint(const char *buffer, size_t count, unsigned int *result, int base);
+int parse_long(const char *buffer, size_t count, long *result, int base);
+int parse_ulong(const char *buffer, size_t count, unsigned long *result, int base);
+
+int read_file(const char *path, char *buf, size_t count, size_t *len);
+int write_file(const char *path, const char *buf, size_t count);
+int read_file_alloc(const char *path, char **buf, size_t *len);
+int read_long(const char *path, long *result, int base);
+int write_long(const char *path, long result, int base);
+int read_ulong(const char *path, unsigned long *result, int base);
+int write_ulong(const char *path, unsigned long result, int base);
+int read_debugfs_file(const char *debugfs_file, char *buf, size_t count);
+int write_debugfs_file(const char *debugfs_file, const char *buf, size_t count);
+int read_debugfs_int(const char *debugfs_file, int *result);
+int write_debugfs_int(const char *debugfs_file, int result);
 int read_sysfs_file(char *debugfs_file, char *result, size_t result_size);
 int perf_event_open_counter(unsigned int type,
 			    unsigned long config, int group_fd);
@@ -48,7 +74,6 @@ struct perf_event_read {
 };
 
 #if !defined(__GLIBC_PREREQ) || !__GLIBC_PREREQ(2, 30)
-#include <unistd.h>
 #include <sys/syscall.h>
 
 static inline pid_t gettid(void)
@@ -87,6 +112,9 @@ static inline char *auxv_platform(void)
 bool is_ppc64le(void);
 int using_hash_mmu(bool *using_hash);
 
+struct sigaction push_signal_handler(int sig, void (*fn)(int, siginfo_t *, void *));
+struct sigaction pop_signal_handler(int sig, struct sigaction old_handler);
+
 /* Yes, this is evil */
 #define FAIL_IF(x)						\
 do {								\
@@ -97,11 +125,31 @@ do {								\
 	}							\
 } while (0)
 
+#define FAIL_IF_MSG(x, msg)					\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[FAIL] Test FAILED on line %d: %s\n", 		\
+		__LINE__, msg);					\
+		return 1;					\
+	}							\
+} while (0)
+
 #define FAIL_IF_EXIT(x)						\
 do {								\
 	if ((x)) {						\
 		fprintf(stderr,					\
 		"[FAIL] Test FAILED on line %d\n", __LINE__);	\
+		_exit(1);					\
+	}							\
+} while (0)
+
+#define FAIL_IF_EXIT_MSG(x, msg)				\
+do {								\
+	if ((x)) {						\
+		fprintf(stderr,					\
+		"[FAIL] Test FAILED on line %d: %s\n", 		\
+		__LINE__, msg);					\
 		_exit(1);					\
 	}							\
 } while (0)

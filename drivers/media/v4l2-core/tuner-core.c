@@ -614,7 +614,6 @@ static void tuner_lookup(struct i2c_adapter *adap,
  *tuner_probe - Probes the existing tuners on an I2C bus
  *
  * @client:	i2c_client descriptor
- * @id:		not used
  *
  * This routine probes for tuners at the expected I2C addresses. On most
  * cases, if a device answers to a given I2C address, it assumes that the
@@ -625,8 +624,7 @@ static void tuner_lookup(struct i2c_adapter *adap,
  * During client attach, set_type is called by adapter's attach_inform callback.
  * set_type must then be completed by tuner_probe.
  */
-static int tuner_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int tuner_probe(struct i2c_client *client)
 {
 	struct tuner *t;
 	struct tuner *radio;

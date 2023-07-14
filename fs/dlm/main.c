@@ -17,7 +17,7 @@
 #include "user.h"
 #include "memory.h"
 #include "config.h"
-#include "lowcomms.h"
+#include "midcomms.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/dlm.h>
@@ -29,6 +29,8 @@ static int __init init_dlm(void)
 	error = dlm_memory_init();
 	if (error)
 		goto out;
+
+	dlm_midcomms_init();
 
 	error = dlm_lockspace_init();
 	if (error)
@@ -44,20 +46,14 @@ static int __init init_dlm(void)
 	if (error)
 		goto out_debug;
 
-	error = dlm_netlink_init();
-	if (error)
-		goto out_user;
-
 	error = dlm_plock_init();
 	if (error)
-		goto out_netlink;
+		goto out_user;
 
 	printk("DLM installed\n");
 
 	return 0;
 
- out_netlink:
-	dlm_netlink_exit();
  out_user:
 	dlm_user_exit();
  out_debug:
@@ -66,6 +62,7 @@ static int __init init_dlm(void)
  out_lockspace:
 	dlm_lockspace_exit();
  out_mem:
+	dlm_midcomms_exit();
 	dlm_memory_exit();
  out:
 	return error;
@@ -74,13 +71,12 @@ static int __init init_dlm(void)
 static void __exit exit_dlm(void)
 {
 	dlm_plock_exit();
-	dlm_netlink_exit();
 	dlm_user_exit();
 	dlm_config_exit();
-	dlm_memory_exit();
 	dlm_lockspace_exit();
-	dlm_lowcomms_exit();
+	dlm_midcomms_exit();
 	dlm_unregister_debugfs();
+	dlm_memory_exit();
 }
 
 module_init(init_dlm);

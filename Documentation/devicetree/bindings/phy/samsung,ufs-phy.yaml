@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/samsung,ufs-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung SoC series UFS PHY Device Tree Bindings
+title: Samsung SoC series UFS PHY
 
 maintainers:
   - Alim Akhtar <alim.akhtar@samsung.com>
@@ -27,21 +27,15 @@ properties:
       - const: phy-pma
 
   clocks:
-    items:
-      - description: PLL reference clock
-      - description: symbol clock for input symbol ( rx0-ch0 symbol clock)
-      - description: symbol clock for input symbol ( rx1-ch1 symbol clock)
-      - description: symbol clock for output symbol ( tx0 symbol clock)
+    minItems: 1
+    maxItems: 4
 
   clock-names:
-    items:
-      - const: ref_clk
-      - const: rx1_symbol_clk
-      - const: rx0_symbol_clk
-      - const: tx0_symbol_clk
+    minItems: 1
+    maxItems: 4
 
   samsung,pmu-syscon:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     maxItems: 1
     items:
       minItems: 1
@@ -61,6 +55,39 @@ required:
   - clocks
   - clock-names
   - samsung,pmu-syscon
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos7-ufs-phy
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: PLL reference clock
+            - description: symbol clock for input symbol (rx0-ch0 symbol clock)
+            - description: symbol clock for input symbol (rx1-ch1 symbol clock)
+            - description: symbol clock for output symbol (tx0 symbol clock)
+
+        clock-names:
+          items:
+            - const: ref_clk
+            - const: rx1_symbol_clk
+            - const: rx0_symbol_clk
+            - const: tx0_symbol_clk
+
+    else:
+      properties:
+        clocks:
+          items:
+            - description: PLL reference clock
+
+        clock-names:
+          items:
+            - const: ref_clk
 
 additionalProperties: false
 

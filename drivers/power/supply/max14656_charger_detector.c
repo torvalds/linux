@@ -234,8 +234,7 @@ static enum power_supply_property max14656_battery_props[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
-static int max14656_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max14656_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct device *dev = &client->dev;

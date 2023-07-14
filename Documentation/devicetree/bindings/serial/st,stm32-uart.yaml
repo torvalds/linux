@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 maintainers:
   - Erwan Le Ray <erwan.leray@foss.st.com>
 
-title: STMicroelectronics STM32 USART bindings
+title: STMicroelectronics STM32 USART
 
 properties:
   compatible:
@@ -35,8 +35,6 @@ properties:
     description: enable hardware flow control (deprecated)
     $ref: /schemas/types.yaml#/definitions/flag
 
-  uart-has-rtscts: true
-
   rx-tx-swap: true
 
   dmas:
@@ -59,11 +57,6 @@ properties:
   rts-gpios: true
 
   wakeup-source: true
-
-  rs485-rts-delay: true
-  rs485-rts-active-low: true
-  linux,rs485-enabled-at-boot-time: true
-  rs485-rx-during-tx: true
 
   rx-threshold:
     description:

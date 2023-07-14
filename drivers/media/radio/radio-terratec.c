@@ -82,7 +82,6 @@ static int terratec_s_mute_volume(struct radio_isa_card *isa, bool mute, int vol
 static int terratec_s_frequency(struct radio_isa_card *isa, u32 freq)
 {
 	int i;
-	int p;
 	int temp;
 	long rest;
 	unsigned char buffer[25];		/* we have to bit shift 25 registers */
@@ -93,7 +92,6 @@ static int terratec_s_frequency(struct radio_isa_card *isa, u32 freq)
 	rest = freq * 10 + 10700;	/* I once had understood what is going on here */
 					/* maybe some wise guy (friedhelm?) can comment this stuff */
 	i = 13;
-	p = 10;
 	temp = 102400;
 	while (rest != 0) {
 		if (rest % temp  == rest)
@@ -103,7 +101,6 @@ static int terratec_s_frequency(struct radio_isa_card *isa, u32 freq)
 			rest = rest - temp;
 		}
 		i--;
-		p--;
 		temp = temp / 2;
 	}
 

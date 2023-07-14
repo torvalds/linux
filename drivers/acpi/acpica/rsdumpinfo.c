@@ -301,6 +301,23 @@ struct acpi_rsdump_info acpi_rs_dump_pin_function[10] = {
 	 "VendorData", NULL},
 };
 
+struct acpi_rsdump_info acpi_rs_dump_clock_input[7] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_clock_input),
+	 "ClockInput", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(clock_input.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(clock_input.frequency_numerator),
+	 "FrequencyNumerator", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(clock_input.frequency_divisor),
+	 "FrequencyDivisor", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(clock_input.scale), "Scale",
+	 acpi_gbl_clock_input_scale},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(clock_input.mode), "Mode",
+	 acpi_gbl_clock_input_mode},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(clock_input.resource_source),
+	 "ResourceSource", NULL},
+};
+
 struct acpi_rsdump_info acpi_rs_dump_pin_config[11] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_config),
 	 "PinConfig", NULL},

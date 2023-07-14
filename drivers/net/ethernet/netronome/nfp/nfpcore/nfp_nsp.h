@@ -65,6 +65,11 @@ static inline bool nfp_nsp_has_read_module_eeprom(struct nfp_nsp *state)
 	return nfp_nsp_get_abi_ver_minor(state) > 28;
 }
 
+static inline bool nfp_nsp_has_read_media(struct nfp_nsp *state)
+{
+	return nfp_nsp_get_abi_ver_minor(state) > 33;
+}
+
 enum nfp_eth_interface {
 	NFP_INTERFACE_NONE	= 0,
 	NFP_INTERFACE_SFP	= 1,
@@ -95,6 +100,50 @@ enum nfp_eth_fec {
 	NFP_FEC_BASER_BIT,
 	NFP_FEC_REED_SOLOMON_BIT,
 	NFP_FEC_DISABLED_BIT,
+};
+
+/* link modes about RJ45 haven't been used, so there's no mapping to them */
+enum nfp_ethtool_link_mode_list {
+	NFP_MEDIA_W0_RJ45_10M,
+	NFP_MEDIA_W0_RJ45_10M_HD,
+	NFP_MEDIA_W0_RJ45_100M,
+	NFP_MEDIA_W0_RJ45_100M_HD,
+	NFP_MEDIA_W0_RJ45_1G,
+	NFP_MEDIA_W0_RJ45_2P5G,
+	NFP_MEDIA_W0_RJ45_5G,
+	NFP_MEDIA_W0_RJ45_10G,
+	NFP_MEDIA_1000BASE_CX,
+	NFP_MEDIA_1000BASE_KX,
+	NFP_MEDIA_10GBASE_KX4,
+	NFP_MEDIA_10GBASE_KR,
+	NFP_MEDIA_10GBASE_CX4,
+	NFP_MEDIA_10GBASE_CR,
+	NFP_MEDIA_10GBASE_SR,
+	NFP_MEDIA_10GBASE_ER,
+	NFP_MEDIA_25GBASE_KR,
+	NFP_MEDIA_25GBASE_KR_S,
+	NFP_MEDIA_25GBASE_CR,
+	NFP_MEDIA_25GBASE_CR_S,
+	NFP_MEDIA_25GBASE_SR,
+	NFP_MEDIA_40GBASE_CR4,
+	NFP_MEDIA_40GBASE_KR4,
+	NFP_MEDIA_40GBASE_SR4,
+	NFP_MEDIA_40GBASE_LR4,
+	NFP_MEDIA_50GBASE_KR,
+	NFP_MEDIA_50GBASE_SR,
+	NFP_MEDIA_50GBASE_CR,
+	NFP_MEDIA_50GBASE_LR,
+	NFP_MEDIA_50GBASE_ER,
+	NFP_MEDIA_50GBASE_FR,
+	NFP_MEDIA_100GBASE_KR4,
+	NFP_MEDIA_100GBASE_SR4,
+	NFP_MEDIA_100GBASE_CR4,
+	NFP_MEDIA_100GBASE_KP4,
+	NFP_MEDIA_100GBASE_CR10,
+	NFP_MEDIA_10GBASE_LR,
+	NFP_MEDIA_25GBASE_LR,
+	NFP_MEDIA_25GBASE_ER,
+	NFP_MEDIA_LINK_MODES_NUMBER
 };
 
 #define NFP_FEC_AUTO		BIT(NFP_FEC_AUTO_BIT)
@@ -147,6 +196,9 @@ enum nfp_eth_fec {
  *			subports)
  * @ports.is_split:	is interface part of a split port
  * @ports.fec_modes_supported:	bitmap of FEC modes supported
+ *
+ * @ports.link_modes_supp:	bitmap of link modes supported
+ * @ports.link_modes_ad:	bitmap of link modes advertised
  */
 struct nfp_eth_table {
 	unsigned int count;
@@ -186,6 +238,9 @@ struct nfp_eth_table {
 		bool is_split;
 
 		unsigned int fec_modes_supported;
+
+		u64 link_modes_supp[2];
+		u64 link_modes_ad[2];
 	} ports[];
 };
 
@@ -255,6 +310,15 @@ enum nfp_nsp_sensor_id {
 
 int nfp_hwmon_read_sensor(struct nfp_cpp *cpp, enum nfp_nsp_sensor_id id,
 			  long *val);
+
+struct nfp_eth_media_buf {
+	u8 eth_index;
+	u8 reserved[7];
+	__le64 supported_modes[2];
+	__le64 advertised_modes[2];
+};
+
+int nfp_nsp_read_media(struct nfp_nsp *state, void *buf, unsigned int size);
 
 #define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
 

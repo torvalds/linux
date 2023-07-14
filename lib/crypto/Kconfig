@@ -2,10 +2,22 @@
 
 menu "Crypto library routines"
 
+config CRYPTO_LIB_UTILS
+	tristate
+
 config CRYPTO_LIB_AES
 	tristate
 
+config CRYPTO_LIB_AESGCM
+	tristate
+	select CRYPTO_LIB_AES
+	select CRYPTO_LIB_GF128MUL
+	select CRYPTO_LIB_UTILS
+
 config CRYPTO_LIB_ARC4
+	tristate
+
+config CRYPTO_LIB_GF128MUL
 	tristate
 
 config CRYPTO_ARCH_HAVE_LIB_BLAKE2S
@@ -33,6 +45,7 @@ config CRYPTO_ARCH_HAVE_LIB_CHACHA
 
 config CRYPTO_LIB_CHACHA_GENERIC
 	tristate
+	select CRYPTO_LIB_UTILS
 	help
 	  This symbol can be depended upon by arch implementations of the
 	  ChaCha library interface that require the generic code as a
@@ -42,7 +55,6 @@ config CRYPTO_LIB_CHACHA_GENERIC
 
 config CRYPTO_LIB_CHACHA
 	tristate "ChaCha library interface"
-	depends on CRYPTO
 	depends on CRYPTO_ARCH_HAVE_LIB_CHACHA || !CRYPTO_ARCH_HAVE_LIB_CHACHA
 	select CRYPTO_LIB_CHACHA_GENERIC if CRYPTO_ARCH_HAVE_LIB_CHACHA=n
 	help
@@ -70,7 +82,7 @@ config CRYPTO_LIB_CURVE25519
 	tristate "Curve25519 scalar multiplication library"
 	depends on CRYPTO_ARCH_HAVE_LIB_CURVE25519 || !CRYPTO_ARCH_HAVE_LIB_CURVE25519
 	select CRYPTO_LIB_CURVE25519_GENERIC if CRYPTO_ARCH_HAVE_LIB_CURVE25519=n
-	select LIB_MEMNEQ
+	select CRYPTO_LIB_UTILS
 	help
 	  Enable the Curve25519 library interface. This interface may be
 	  fulfilled by either the generic implementation or an arch-specific

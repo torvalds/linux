@@ -530,8 +530,7 @@ static void icp10100_pm_disable(void *data)
 	pm_runtime_disable(dev);
 }
 
-static int icp10100_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int icp10100_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct icp10100_state *st;
@@ -595,7 +594,7 @@ static int icp10100_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-static int __maybe_unused icp10100_suspend(struct device *dev)
+static int icp10100_suspend(struct device *dev)
 {
 	struct icp10100_state *st = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -607,7 +606,7 @@ static int __maybe_unused icp10100_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused icp10100_resume(struct device *dev)
+static int icp10100_resume(struct device *dev)
 {
 	struct icp10100_state *st = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -626,8 +625,8 @@ out_unlock:
 	return ret;
 }
 
-static UNIVERSAL_DEV_PM_OPS(icp10100_pm, icp10100_suspend, icp10100_resume,
-			    NULL);
+static DEFINE_RUNTIME_DEV_PM_OPS(icp10100_pm, icp10100_suspend, icp10100_resume,
+				 NULL);
 
 static const struct of_device_id icp10100_of_match[] = {
 	{
@@ -646,7 +645,7 @@ MODULE_DEVICE_TABLE(i2c, icp10100_id);
 static struct i2c_driver icp10100_driver = {
 	.driver = {
 		.name = "icp10100",
-		.pm = &icp10100_pm,
+		.pm = pm_ptr(&icp10100_pm),
 		.of_match_table = icp10100_of_match,
 	},
 	.probe = icp10100_probe,

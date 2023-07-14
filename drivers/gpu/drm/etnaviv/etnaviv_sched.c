@@ -67,7 +67,7 @@ static enum drm_gpu_sched_stat etnaviv_sched_timedout_job(struct drm_sched_job
 
 	/* get the GPU back into the init state */
 	etnaviv_core_dump(submit);
-	etnaviv_gpu_recover_hang(gpu);
+	etnaviv_gpu_recover_hang(submit);
 
 	drm_sched_resubmit_jobs(&gpu->sched);
 
@@ -97,24 +97,24 @@ static const struct drm_sched_backend_ops etnaviv_sched_ops = {
 
 int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 {
-	int ret = 0;
+	struct etnaviv_gpu *gpu = submit->gpu;
+	int ret;
 
 	/*
-	 * Hold the fence lock across the whole operation to avoid jobs being
+	 * Hold the sched lock across the whole operation to avoid jobs being
 	 * pushed out of order with regard to their sched fence seqnos as
 	 * allocated in drm_sched_job_arm.
 	 */
-	mutex_lock(&submit->gpu->fence_lock);
+	mutex_lock(&gpu->sched_lock);
 
 	drm_sched_job_arm(&submit->sched_job);
 
 	submit->out_fence = dma_fence_get(&submit->sched_job.s_fence->finished);
-	submit->out_fence_id = idr_alloc_cyclic(&submit->gpu->fence_idr,
-						submit->out_fence, 0,
-						INT_MAX, GFP_KERNEL);
-	if (submit->out_fence_id < 0) {
+	ret = xa_alloc_cyclic(&gpu->user_fences, &submit->out_fence_id,
+			      submit->out_fence, xa_limit_32b,
+			      &gpu->next_user_fence, GFP_KERNEL);
+	if (ret < 0) {
 		drm_sched_job_cleanup(&submit->sched_job);
-		ret = -ENOMEM;
 		goto out_unlock;
 	}
 
@@ -124,7 +124,7 @@ int etnaviv_sched_push_job(struct etnaviv_gem_submit *submit)
 	drm_sched_entity_push_job(&submit->sched_job);
 
 out_unlock:
-	mutex_unlock(&submit->gpu->fence_lock);
+	mutex_unlock(&gpu->sched_lock);
 
 	return ret;
 }

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/ingenic,nand.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs NAND controller devicetree bindings
+title: Ingenic SoCs NAND controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
@@ -32,14 +32,16 @@ properties:
 
   partitions:
     type: object
+    deprecated: true
     description:
       Node containing description of fixed partitions.
-      See Documentation/devicetree/bindings/mtd/partition.txt
 
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
+
       rb-gpios:
         description: GPIO specifier for the busy pin.
         maxItems: 1
@@ -47,6 +49,8 @@ patternProperties:
       wp-gpios:
         description: GPIO specifier for the write-protect pin.
         maxItems: 1
+
+    unevaluatedProperties: false
 
 required:
   - compatible
@@ -58,78 +62,78 @@ examples:
   - |
     #include <dt-bindings/clock/ingenic,jz4780-cgu.h>
     memory-controller@13410000 {
-      compatible = "ingenic,jz4780-nemc";
-      reg = <0x13410000 0x10000>;
-      #address-cells = <2>;
-      #size-cells = <1>;
-      ranges = <1 0 0x1b000000 0x1000000>,
-         <2 0 0x1a000000 0x1000000>,
-         <3 0 0x19000000 0x1000000>,
-         <4 0 0x18000000 0x1000000>,
-         <5 0 0x17000000 0x1000000>,
-         <6 0 0x16000000 0x1000000>;
+        compatible = "ingenic,jz4780-nemc";
+        reg = <0x13410000 0x10000>;
+        #address-cells = <2>;
+        #size-cells = <1>;
+        ranges = <1 0 0x1b000000 0x1000000>,
+                 <2 0 0x1a000000 0x1000000>,
+                 <3 0 0x19000000 0x1000000>,
+                 <4 0 0x18000000 0x1000000>,
+                 <5 0 0x17000000 0x1000000>,
+                 <6 0 0x16000000 0x1000000>;
 
-      clocks = <&cgu JZ4780_CLK_NEMC>;
+        clocks = <&cgu JZ4780_CLK_NEMC>;
 
-      nand-controller@1 {
-        compatible = "ingenic,jz4780-nand";
-        reg = <1 0 0x1000000>;
+        nand-controller@1 {
+            compatible = "ingenic,jz4780-nand";
+            reg = <1 0 0x1000000>;
 
-        #address-cells = <1>;
-        #size-cells = <0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-        ecc-engine = <&bch>;
+            ecc-engine = <&bch>;
 
-        ingenic,nemc-tAS = <10>;
-        ingenic,nemc-tAH = <5>;
-        ingenic,nemc-tBP = <10>;
-        ingenic,nemc-tAW = <15>;
-        ingenic,nemc-tSTRV = <100>;
+            ingenic,nemc-tAS = <10>;
+            ingenic,nemc-tAH = <5>;
+            ingenic,nemc-tBP = <10>;
+            ingenic,nemc-tAW = <15>;
+            ingenic,nemc-tSTRV = <100>;
 
-        pinctrl-names = "default";
-        pinctrl-0 = <&pins_nemc>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&pins_nemc>;
 
-        nand@1 {
-          reg = <1>;
+            nand@1 {
+                reg = <1>;
 
-          nand-ecc-step-size = <1024>;
-          nand-ecc-strength = <24>;
-          nand-ecc-mode = "hw";
-          nand-on-flash-bbt;
+                nand-ecc-step-size = <1024>;
+                nand-ecc-strength = <24>;
+                nand-ecc-mode = "hw";
+                nand-on-flash-bbt;
 
-          pinctrl-names = "default";
-          pinctrl-0 = <&pins_nemc_cs1>;
+                pinctrl-names = "default";
+                pinctrl-0 = <&pins_nemc_cs1>;
 
-          partitions {
-            compatible = "fixed-partitions";
-            #address-cells = <2>;
-            #size-cells = <2>;
+                partitions {
+                    compatible = "fixed-partitions";
+                    #address-cells = <2>;
+                    #size-cells = <2>;
 
-            partition@0 {
-              label = "u-boot-spl";
-              reg = <0x0 0x0 0x0 0x800000>;
+                    partition@0 {
+                        label = "u-boot-spl";
+                        reg = <0x0 0x0 0x0 0x800000>;
+                    };
+
+                    partition@800000 {
+                        label = "u-boot";
+                        reg = <0x0 0x800000 0x0 0x200000>;
+                    };
+
+                    partition@a00000 {
+                        label = "u-boot-env";
+                        reg = <0x0 0xa00000 0x0 0x200000>;
+                    };
+
+                    partition@c00000 {
+                        label = "boot";
+                        reg = <0x0 0xc00000 0x0 0x4000000>;
+                    };
+
+                    partition@4c00000 {
+                        label = "system";
+                        reg = <0x0 0x4c00000 0x1 0xfb400000>;
+                    };
+                };
             };
-
-            partition@800000 {
-              label = "u-boot";
-              reg = <0x0 0x800000 0x0 0x200000>;
-            };
-
-            partition@a00000 {
-              label = "u-boot-env";
-              reg = <0x0 0xa00000 0x0 0x200000>;
-            };
-
-            partition@c00000 {
-              label = "boot";
-              reg = <0x0 0xc00000 0x0 0x4000000>;
-            };
-
-            partition@4c00000 {
-              label = "system";
-              reg = <0x0 0x4c00000 0x1 0xfb400000>;
-            };
-          };
         };
-      };
     };

@@ -4,7 +4,7 @@
 
 #include <linux/kvm_host.h>
 
-#define KVM_POSSIBLE_CR0_GUEST_BITS X86_CR0_TS
+#define KVM_POSSIBLE_CR0_GUEST_BITS	(X86_CR0_TS | X86_CR0_WP)
 #define KVM_POSSIBLE_CR4_GUEST_BITS				  \
 	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR  \
 	 | X86_CR4_OSXMMEXCPT | X86_CR4_PGE | X86_CR4_TSD | X86_CR4_FSGSBASE)
@@ -73,6 +73,18 @@ static inline void kvm_register_mark_dirty(struct kvm_vcpu *vcpu,
 {
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
 	__set_bit(reg, (unsigned long *)&vcpu->arch.regs_dirty);
+}
+
+/*
+ * kvm_register_test_and_mark_available() is a special snowflake that uses an
+ * arch bitop directly to avoid the explicit instrumentation that comes with
+ * the generic bitops.  This allows code that cannot be instrumented (noinstr
+ * functions), e.g. the low level VM-Enter/VM-Exit paths, to cache registers.
+ */
+static __always_inline bool kvm_register_test_and_mark_available(struct kvm_vcpu *vcpu,
+								 enum kvm_reg reg)
+{
+	return arch___test_and_set_bit(reg, (unsigned long *)&vcpu->arch.regs_avail);
 }
 
 /*
@@ -145,6 +157,14 @@ static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
 	return vcpu->arch.cr0 & mask;
 }
 
+static __always_inline bool kvm_is_cr0_bit_set(struct kvm_vcpu *vcpu,
+					       unsigned long cr0_bit)
+{
+	BUILD_BUG_ON(!is_power_of_2(cr0_bit));
+
+	return !!kvm_read_cr0_bits(vcpu, cr0_bit);
+}
+
 static inline ulong kvm_read_cr0(struct kvm_vcpu *vcpu)
 {
 	return kvm_read_cr0_bits(vcpu, ~0UL);
@@ -157,6 +177,14 @@ static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
 	    !kvm_register_is_available(vcpu, VCPU_EXREG_CR4))
 		static_call(kvm_x86_cache_reg)(vcpu, VCPU_EXREG_CR4);
 	return vcpu->arch.cr4 & mask;
+}
+
+static __always_inline bool kvm_is_cr4_bit_set(struct kvm_vcpu *vcpu,
+					       unsigned long cr4_bit)
+{
+	BUILD_BUG_ON(!is_power_of_2(cr4_bit));
+
+	return !!kvm_read_cr4_bits(vcpu, cr4_bit);
 }
 
 static inline ulong kvm_read_cr3(struct kvm_vcpu *vcpu)
@@ -198,11 +226,6 @@ static inline void leave_guest_mode(struct kvm_vcpu *vcpu)
 static inline bool is_guest_mode(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.hflags & HF_GUEST_MASK;
-}
-
-static inline bool is_smm(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.hflags & HF_SMM_MASK;
 }
 
 #endif

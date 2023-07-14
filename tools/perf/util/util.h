@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef GIT_COMPAT_UTIL_H
-#define GIT_COMPAT_UTIL_H
+#ifndef __PERF_UTIL_H
+#define __PERF_UTIL_H
 
 #define _BSD_SOURCE 1
 /* glibc 2.20 deprecates _BSD_SOURCE in favour of _DEFAULT_SOURCE */
@@ -14,6 +14,14 @@
 #ifndef __cplusplus
 #include <internal/cpumap.h>
 #endif
+
+extern const char perf_usage_string[];
+extern const char perf_more_info_string[];
+
+extern const char *input_name;
+
+extern bool perf_host;
+extern bool perf_guest;
 
 /* General helper functions */
 void usage(const char *err) __noreturn;
@@ -94,4 +102,23 @@ int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x,
 		0;						\
 	})
 
-#endif /* GIT_COMPAT_UTIL_H */
+static inline bool host_is_bigendian(void)
+{
+#ifdef __BYTE_ORDER__
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	return false;
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+	return true;
+#else
+#error "Unrecognized __BYTE_ORDER__"
+#endif
+#else /* !__BYTE_ORDER__ */
+	unsigned char str[] = { 0x1, 0x2, 0x3, 0x4, 0x0, 0x0, 0x0, 0x0};
+	unsigned int *ptr;
+
+	ptr = (unsigned int *)(void *)str;
+	return *ptr == 0x01020304;
+#endif
+}
+
+#endif /* __PERF_UTIL_H */

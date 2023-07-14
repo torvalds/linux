@@ -10,7 +10,8 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -22,20 +23,18 @@
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/mmc-omap.h>
 #include <linux/mfd/menelaus.h>
-#include <sound/tlv320aic3x.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
 #include "common.h"
 #include "mmc.h"
+#include "usb-tusb6010.h"
 #include "soc.h"
 #include "common-board-devices.h"
 
 #define TUSB6010_ASYNC_CS	1
 #define TUSB6010_SYNC_CS	4
-#define TUSB6010_GPIO_INT	58
-#define TUSB6010_GPIO_ENABLE	0
 #define TUSB6010_DMACHAN	0x3f
 
 #define NOKIA_N810_WIMAX	(1 << 2)
@@ -62,37 +61,6 @@ static void board_check_revision(void)
 }
 
 #if IS_ENABLED(CONFIG_USB_MUSB_TUSB6010)
-/*
- * Enable or disable power to TUSB6010. When enabling, turn on 3.3 V and
- * 1.5 V voltage regulators of PM companion chip. Companion chip will then
- * provide then PGOOD signal to TUSB6010 which will release it from reset.
- */
-static int tusb_set_power(int state)
-{
-	int i, retval = 0;
-
-	if (state) {
-		gpio_set_value(TUSB6010_GPIO_ENABLE, 1);
-		msleep(1);
-
-		/* Wait until TUSB6010 pulls INT pin down */
-		i = 100;
-		while (i && gpio_get_value(TUSB6010_GPIO_INT)) {
-			msleep(1);
-			i--;
-		}
-
-		if (!i) {
-			printk(KERN_ERR "tusb: powerup failed\n");
-			retval = -ENODEV;
-		}
-	} else {
-		gpio_set_value(TUSB6010_GPIO_ENABLE, 0);
-		msleep(10);
-	}
-
-	return retval;
-}
 
 static struct musb_hdrc_config musb_config = {
 	.multipoint	= 1,
@@ -103,39 +71,36 @@ static struct musb_hdrc_config musb_config = {
 
 static struct musb_hdrc_platform_data tusb_data = {
 	.mode		= MUSB_OTG,
-	.set_power	= tusb_set_power,
 	.min_power	= 25,	/* x2 = 50 mA drawn from VBUS as peripheral */
 	.power		= 100,	/* Max 100 mA VBUS for host mode */
 	.config		= &musb_config,
 };
 
+static struct gpiod_lookup_table tusb_gpio_table = {
+	.dev_id = "musb-tusb",
+	.table = {
+		GPIO_LOOKUP("gpio-0-15", 0, "enable",
+			    GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-48-63", 10, "int",
+			    GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static void __init n8x0_usb_init(void)
 {
 	int ret = 0;
-	static const char announce[] __initconst = KERN_INFO "TUSB 6010\n";
 
-	/* PM companion chip power control pin */
-	ret = gpio_request_one(TUSB6010_GPIO_ENABLE, GPIOF_OUT_INIT_LOW,
-			       "TUSB6010 enable");
-	if (ret != 0) {
-		printk(KERN_ERR "Could not get TUSB power GPIO%i\n",
-		       TUSB6010_GPIO_ENABLE);
-		return;
-	}
-	tusb_set_power(0);
-
+	gpiod_add_lookup_table(&tusb_gpio_table);
 	ret = tusb6010_setup_interface(&tusb_data, TUSB6010_REFCLK_19, 2,
-					TUSB6010_ASYNC_CS, TUSB6010_SYNC_CS,
-					TUSB6010_GPIO_INT, TUSB6010_DMACHAN);
+				       TUSB6010_ASYNC_CS, TUSB6010_SYNC_CS,
+				       TUSB6010_DMACHAN);
 	if (ret != 0)
-		goto err;
+		return;
 
-	printk(announce);
+	pr_info("TUSB 6010\n");
 
 	return;
-
-err:
-	gpio_free(TUSB6010_GPIO_ENABLE);
 }
 #else
 
@@ -171,22 +136,32 @@ static struct spi_board_info n800_spi_board_info[] __initdata = {
  * GPIO23 and GPIO9		slot 2 EMMC on N810
  *
  */
-#define N8X0_SLOT_SWITCH_GPIO	96
-#define N810_EMMC_VSD_GPIO	23
-#define N810_EMMC_VIO_GPIO	9
-
 static int slot1_cover_open;
 static int slot2_cover_open;
 static struct device *mmc_device;
 
-static int n8x0_mmc_switch_slot(struct device *dev, int slot)
-{
-#ifdef CONFIG_MMC_DEBUG
-	dev_dbg(dev, "Choose slot %d\n", slot + 1);
-#endif
-	gpio_set_value(N8X0_SLOT_SWITCH_GPIO, slot);
-	return 0;
-}
+static struct gpiod_lookup_table nokia8xx_mmc_gpio_table = {
+	.dev_id = "mmci-omap.0",
+	.table = {
+		/* Slot switch, GPIO 96 */
+		GPIO_LOOKUP("gpio-80-111", 16,
+			    "switch", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
+static struct gpiod_lookup_table nokia810_mmc_gpio_table = {
+	.dev_id = "mmci-omap.0",
+	.table = {
+		/* Slot index 1, VSD power, GPIO 23 */
+		GPIO_LOOKUP_IDX("gpio-16-31", 7,
+				"vsd", 1, GPIO_ACTIVE_HIGH),
+		/* Slot index 1, VIO power, GPIO 9 */
+		GPIO_LOOKUP_IDX("gpio-0-15", 9,
+				"vio", 1, GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
 
 static int n8x0_mmc_set_power_menelaus(struct device *dev, int slot,
 					int power_on, int vdd)
@@ -257,31 +232,13 @@ static int n8x0_mmc_set_power_menelaus(struct device *dev, int slot,
 	return 0;
 }
 
-static void n810_set_power_emmc(struct device *dev,
-					 int power_on)
-{
-	dev_dbg(dev, "Set EMMC power %s\n", power_on ? "on" : "off");
-
-	if (power_on) {
-		gpio_set_value(N810_EMMC_VSD_GPIO, 1);
-		msleep(1);
-		gpio_set_value(N810_EMMC_VIO_GPIO, 1);
-		msleep(1);
-	} else {
-		gpio_set_value(N810_EMMC_VIO_GPIO, 0);
-		msleep(50);
-		gpio_set_value(N810_EMMC_VSD_GPIO, 0);
-		msleep(50);
-	}
-}
-
 static int n8x0_mmc_set_power(struct device *dev, int slot, int power_on,
 			      int vdd)
 {
 	if (board_is_n800() || slot == 0)
 		return n8x0_mmc_set_power_menelaus(dev, slot, power_on, vdd);
 
-	n810_set_power_emmc(dev, power_on);
+	/* The n810 power will be handled by GPIO code in the driver */
 
 	return 0;
 }
@@ -419,13 +376,6 @@ static void n8x0_mmc_shutdown(struct device *dev)
 static void n8x0_mmc_cleanup(struct device *dev)
 {
 	menelaus_unregister_mmc_callback();
-
-	gpio_free(N8X0_SLOT_SWITCH_GPIO);
-
-	if (board_is_n810()) {
-		gpio_free(N810_EMMC_VSD_GPIO);
-		gpio_free(N810_EMMC_VIO_GPIO);
-	}
 }
 
 /*
@@ -434,7 +384,6 @@ static void n8x0_mmc_cleanup(struct device *dev)
  */
 static struct omap_mmc_platform_data mmc1_data = {
 	.nr_slots			= 0,
-	.switch_slot			= n8x0_mmc_switch_slot,
 	.init				= n8x0_mmc_late_init,
 	.cleanup			= n8x0_mmc_cleanup,
 	.shutdown			= n8x0_mmc_shutdown,
@@ -464,14 +413,9 @@ static struct omap_mmc_platform_data mmc1_data = {
 
 static struct omap_mmc_platform_data *mmc_data[OMAP24XX_NR_MMC];
 
-static struct gpio n810_emmc_gpios[] __initdata = {
-	{ N810_EMMC_VSD_GPIO, GPIOF_OUT_INIT_LOW,  "MMC slot 2 Vddf" },
-	{ N810_EMMC_VIO_GPIO, GPIOF_OUT_INIT_LOW,  "MMC slot 2 Vdd"  },
-};
-
 static void __init n8x0_mmc_init(void)
 {
-	int err;
+	gpiod_add_lookup_table(&nokia8xx_mmc_gpio_table);
 
 	if (board_is_n810()) {
 		mmc1_data.slots[0].name = "external";
@@ -484,20 +428,7 @@ static void __init n8x0_mmc_init(void)
 		 */
 		mmc1_data.slots[1].name = "internal";
 		mmc1_data.slots[1].ban_openended = 1;
-	}
-
-	err = gpio_request_one(N8X0_SLOT_SWITCH_GPIO, GPIOF_OUT_INIT_LOW,
-			       "MMC slot switch");
-	if (err)
-		return;
-
-	if (board_is_n810()) {
-		err = gpio_request_array(n810_emmc_gpios,
-					 ARRAY_SIZE(n810_emmc_gpios));
-		if (err) {
-			gpio_free(N8X0_SLOT_SWITCH_GPIO);
-			return;
-		}
+		gpiod_add_lookup_table(&nokia810_mmc_gpio_table);
 	}
 
 	mmc1_data.nr_slots = 2;
@@ -505,7 +436,7 @@ static void __init n8x0_mmc_init(void)
 }
 #else
 static struct omap_mmc_platform_data mmc1_data;
-void __init n8x0_mmc_init(void)
+static void __init n8x0_mmc_init(void)
 {
 }
 #endif	/* CONFIG_MMC_OMAP */
@@ -565,10 +496,6 @@ static int n8x0_menelaus_late_init(struct device *dev)
 
 struct menelaus_platform_data n8x0_menelaus_platform_data = {
 	.late_init = n8x0_menelaus_late_init,
-};
-
-struct aic3x_pdata n810_aic33_data = {
-	.gpio_reset = 118,
 };
 
 static int __init n8x0_late_initcall(void)

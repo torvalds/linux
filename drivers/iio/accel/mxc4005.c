@@ -385,8 +385,7 @@ static int mxc4005_chip_init(struct mxc4005_data *data)
 	return 0;
 }
 
-static int mxc4005_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mxc4005_probe(struct i2c_client *client)
 {
 	struct mxc4005_data *data;
 	struct iio_dev *indio_dev;

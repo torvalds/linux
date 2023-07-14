@@ -1,0 +1,271 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/usb251xb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip USB 2.0 Hi-Speed Hub Controller
+
+maintainers:
+  - Richard Leitner <richard.leitner@skidata.com>
+
+properties:
+  compatible:
+    enum:
+      - microchip,usb2422
+      - microchip,usb2512b
+      - microchip,usb2512bi
+      - microchip,usb2513b
+      - microchip,usb2513bi
+      - microchip,usb2514b
+      - microchip,usb2514bi
+      - microchip,usb2517
+      - microchip,usb2517i
+      - microchip,usb251xb
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    description: |
+      Should specify the gpio for hub reset
+
+  vdd-supply:
+    description: |
+      Should specify the phandle to the regulator supplying vdd
+
+  skip-config:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      Skip Hub configuration, but only send the USB-Attach command
+
+  vendor-id:
+    $ref: /schemas/types.yaml#/definitions/uint16
+    default: 0x0424
+    description: |
+      Set USB Vendor ID of the hub
+
+  product-id:
+    $ref: /schemas/types.yaml#/definitions/uint16
+    description: |
+      Set USB Product ID of the hub
+
+  device-id:
+    $ref: /schemas/types.yaml#/definitions/uint16
+    default: 0x0bb3
+    description: |
+      Set USB Device ID of the hub
+
+  language-id:
+    $ref: /schemas/types.yaml#/definitions/uint16
+    default: 0x0000
+    description: |
+      Set USB Language ID
+
+  manufacturer:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: |
+      Set USB Manufacturer string (max 31 characters long)
+
+  product:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: |
+      Set USB Product string (max 31 characters long)
+
+  serial:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: |
+      Set USB Serial string (max 31 characters long)
+
+  bus-powered:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      selects between self- and bus-powered operation
+      (boolean, default is self-powered)
+
+  self-powered:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      selects between self- and bus-powered operation
+      (boolean, default is self-powered)
+
+  disable-hi-speed:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      disable USB Hi-Speed support (boolean)
+
+  multi-tt:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      selects between multi- and single-transaction-translator
+      (boolean, default is multi-tt)
+
+  single-tt:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      selects between multi- and single-transaction-translator
+      (boolean, default is multi-tt)
+
+  disable-eop:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      disable End of Packet generation in full-speed mode (boolean)
+
+  ganged-sensing:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      select over-current sense type in self-powered mode
+      (boolean, default is individual)
+
+  individual-sensing:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      select over-current sense type in self-powered mode
+      (boolean, default is individual)
+
+  ganged-port-switching:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      select port power switching mode (boolean, default is individual)
+
+  individual-port-switching:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      select port power switching mode (boolean, default is individual)
+
+  dynamic-power-switching:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      enable auto-switching from self- to bus-powered operation if the
+      local power source is removed or unavailable (boolean)
+
+  oc-delay-us:
+    enum: [100, 4000, 8000, 16000]
+    default: 8000
+    description: |
+      Delay time (in microseconds) for filtering the over-current sense
+      inputs. If an invalid value is given, the default is used instead.
+
+  compound-device:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      indicate the hub is part of a compound device (boolean)
+
+  port-mapping-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      enable port mapping mode (boolean)
+
+  led-usb-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      led usb/speed indication mode selection (boolean, default is speed mode)
+
+  led-speed-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      led usb/speed indication mode selection (boolean, default is speed mode)
+
+  string-support:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      enable string descriptor support (required for manufacturer, product
+      and serial string configuration)
+
+  non-removable-ports:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description: |
+      Should specify the ports which have a non-removable device connected.
+
+  sp-disabled-ports:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description: |
+      Specifies the ports which will be self-power disabled
+
+  bp-disabled-ports:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    description: |
+      Specifies the ports which will be bus-power disabled
+
+  sp-max-total-current-microamp:
+    maximum: 100000
+    default: 1000
+    description: |
+      Specifies max current consumed by the hub from VBUS when
+      operating in self-powered hub. It includes the hub silicon
+      along with all associated circuitry including a permanently
+      attached peripheral.
+
+  bp-max-total-current-microamp:
+    maximum: 510000
+    default: 100000
+    description: |
+      Specifies max current consumed by the hub from VBUS when
+      operating in self-powered hub. It includes the hub silicon
+      along with all associated circuitry including a permanently
+      attached peripheral.
+
+  sp-max-removable-current-microamp:
+    maximum: 100000
+    default: 1000
+    description: |
+      Specifies max current consumed by the hub from VBUS when
+      operating in self-powered hub. It includes the hub silicon
+      along with all associated circuitry excluding a permanently
+      attached peripheral.
+
+  bp-max-removable-current-microamp:
+    maximum: 510000
+    default: 100000
+    description: |
+      Specifies max current consumed by the hub from VBUS when
+      operating in self-powered hub. It includes the hub silicon
+      along with all associated circuitry excluding a permanently
+      attached peripheral.
+
+  power-on-time-ms:
+    maximum: 510
+    default: 100
+    description: |
+      Specifies the time it takes from the time the host initiates the
+      power-on sequence to a port until the port has adequate power.
+
+  swap-dx-lanes:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: |
+      Specifies the ports which will swap the differential-pair (D+/D-),
+      default is not-swapped.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      usb-hub@2c {
+        compatible = "microchip,usb2512b";
+        reg = <0x2c>;
+        reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+      };
+
+      usb-hub@2d {
+        compatible = "microchip,usb2514b";
+        reg = <0x2d>;
+        vendor-id = /bits/ 16 <0x0000>;
+        product-id = /bits/ 16 <0x0000>;
+        string-support;
+        manufacturer = "Foo";
+        product = "Foo-Bar";
+        serial = "1234567890A";
+        /* correct misplaced usb connectors on port 1,2 */
+        swap-dx-lanes = <1 2>;
+      };
+    };

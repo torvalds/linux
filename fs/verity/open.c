@@ -7,6 +7,7 @@
 
 #include "fsverity_private.h"
 
+#include <linux/mm.h>
 #include <linux/slab.h>
 
 static struct kmem_cache *fsverity_info_cachep;
@@ -31,9 +32,10 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 				     unsigned int log_blocksize,
 				     const u8 *salt, size_t salt_size)
 {
-	struct fsverity_hash_alg *hash_alg;
+	const struct fsverity_hash_alg *hash_alg;
 	int err;
 	u64 blocks;
+	u64 blocks_in_level[FS_VERITY_MAX_LEVELS];
 	u64 offset;
 	int level;
 
@@ -54,7 +56,23 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		goto out_err;
 	}
 
-	if (log_blocksize != PAGE_SHIFT) {
+	/*
+	 * fs/verity/ directly assumes that the Merkle tree block size is a
+	 * power of 2 less than or equal to PAGE_SIZE.  Another restriction
+	 * arises from the interaction between fs/verity/ and the filesystems
+	 * themselves: filesystems expect to be able to verify a single
+	 * filesystem block of data at a time.  Therefore, the Merkle tree block
+	 * size must also be less than or equal to the filesystem block size.
+	 *
+	 * The above are the only hard limitations, so in theory the Merkle tree
+	 * block size could be as small as twice the digest size.  However,
+	 * that's not useful, and it would result in some unusually deep and
+	 * large Merkle trees.  So we currently require that the Merkle tree
+	 * block size be at least 1024 bytes.  That's small enough to test the
+	 * sub-page block case on systems with 4K pages, but not too small.
+	 */
+	if (log_blocksize < 10 || log_blocksize > PAGE_SHIFT ||
+	    log_blocksize > inode->i_blkbits) {
 		fsverity_warn(inode, "Unsupported log_blocksize: %u",
 			      log_blocksize);
 		err = -EINVAL;
@@ -62,8 +80,10 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 	}
 	params->log_blocksize = log_blocksize;
 	params->block_size = 1 << log_blocksize;
+	params->log_blocks_per_page = PAGE_SHIFT - log_blocksize;
+	params->blocks_per_page = 1 << params->log_blocks_per_page;
 
-	if (WARN_ON(!is_power_of_2(params->digest_size))) {
+	if (WARN_ON_ONCE(!is_power_of_2(params->digest_size))) {
 		err = -EINVAL;
 		goto out_err;
 	}
@@ -74,12 +94,9 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 		err = -EINVAL;
 		goto out_err;
 	}
-	params->log_arity = params->log_blocksize - ilog2(params->digest_size);
+	params->log_digestsize = ilog2(params->digest_size);
+	params->log_arity = log_blocksize - params->log_digestsize;
 	params->hashes_per_block = 1 << params->log_arity;
-
-	pr_debug("Merkle tree uses %s with %u-byte blocks (%u hashes/block), salt=%*phN\n",
-		 hash_alg->name, params->block_size, params->hashes_per_block,
-		 (int)salt_size, salt);
 
 	/*
 	 * Compute the number of levels in the Merkle tree and create a map from
@@ -90,31 +107,45 @@ int fsverity_init_merkle_tree_params(struct merkle_tree_params *params,
 
 	/* Compute number of levels and the number of blocks in each level */
 	blocks = ((u64)inode->i_size + params->block_size - 1) >> log_blocksize;
-	pr_debug("Data is %lld bytes (%llu blocks)\n", inode->i_size, blocks);
 	while (blocks > 1) {
 		if (params->num_levels >= FS_VERITY_MAX_LEVELS) {
 			fsverity_err(inode, "Too many levels in Merkle tree");
-			err = -EINVAL;
+			err = -EFBIG;
 			goto out_err;
 		}
 		blocks = (blocks + params->hashes_per_block - 1) >>
 			 params->log_arity;
-		/* temporarily using level_start[] to store blocks in level */
-		params->level_start[params->num_levels++] = blocks;
+		blocks_in_level[params->num_levels++] = blocks;
 	}
-	params->level0_blocks = params->level_start[0];
 
 	/* Compute the starting block of each level */
 	offset = 0;
 	for (level = (int)params->num_levels - 1; level >= 0; level--) {
-		blocks = params->level_start[level];
 		params->level_start[level] = offset;
-		pr_debug("Level %d is %llu blocks starting at index %llu\n",
-			 level, blocks, offset);
-		offset += blocks;
+		offset += blocks_in_level[level];
+	}
+
+	/*
+	 * With block_size != PAGE_SIZE, an in-memory bitmap will need to be
+	 * allocated to track the "verified" status of hash blocks.  Don't allow
+	 * this bitmap to get too large.  For now, limit it to 1 MiB, which
+	 * limits the file size to about 4.4 TB with SHA-256 and 4K blocks.
+	 *
+	 * Together with the fact that the data, and thus also the Merkle tree,
+	 * cannot have more than ULONG_MAX pages, this implies that hash block
+	 * indices can always fit in an 'unsigned long'.  But to be safe, we
+	 * explicitly check for that too.  Note, this is only for hash block
+	 * indices; data block indices might not fit in an 'unsigned long'.
+	 */
+	if ((params->block_size != PAGE_SIZE && offset > 1 << 23) ||
+	    offset > ULONG_MAX) {
+		fsverity_err(inode, "Too many blocks in Merkle tree");
+		err = -EFBIG;
+		goto out_err;
 	}
 
 	params->tree_size = offset << log_blocksize;
+	params->tree_pages = PAGE_ALIGN(params->tree_size) >> PAGE_SHIFT;
 	return 0;
 
 out_err:
@@ -125,9 +156,9 @@ out_err:
 
 /*
  * Compute the file digest by hashing the fsverity_descriptor excluding the
- * signature and with the sig_size field set to 0.
+ * builtin signature and with the sig_size field set to 0.
  */
-static int compute_file_digest(struct fsverity_hash_alg *hash_alg,
+static int compute_file_digest(const struct fsverity_hash_alg *hash_alg,
 			       struct fsverity_descriptor *desc,
 			       u8 *file_digest)
 {
@@ -143,7 +174,7 @@ static int compute_file_digest(struct fsverity_hash_alg *hash_alg,
 
 /*
  * Create a new fsverity_info from the given fsverity_descriptor (with optional
- * appended signature), and check the signature if present.  The
+ * appended builtin signature), and check the signature if present.  The
  * fsverity_descriptor must have already undergone basic validation.
  */
 struct fsverity_info *fsverity_create_info(const struct inode *inode,
@@ -165,7 +196,7 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 		fsverity_err(inode,
 			     "Error %d initializing Merkle tree parameters",
 			     err);
-		goto out;
+		goto fail;
 	}
 
 	memcpy(vi->root_hash, desc->root_hash, vi->tree_params.digest_size);
@@ -174,20 +205,48 @@ struct fsverity_info *fsverity_create_info(const struct inode *inode,
 				  vi->file_digest);
 	if (err) {
 		fsverity_err(inode, "Error %d computing file digest", err);
-		goto out;
+		goto fail;
 	}
-	pr_debug("Computed file digest: %s:%*phN\n",
-		 vi->tree_params.hash_alg->name,
-		 vi->tree_params.digest_size, vi->file_digest);
 
 	err = fsverity_verify_signature(vi, desc->signature,
 					le32_to_cpu(desc->sig_size));
-out:
-	if (err) {
-		fsverity_free_info(vi);
-		vi = ERR_PTR(err);
+	if (err)
+		goto fail;
+
+	if (vi->tree_params.block_size != PAGE_SIZE) {
+		/*
+		 * When the Merkle tree block size and page size differ, we use
+		 * a bitmap to keep track of which hash blocks have been
+		 * verified.  This bitmap must contain one bit per hash block,
+		 * including alignment to a page boundary at the end.
+		 *
+		 * Eventually, to support extremely large files in an efficient
+		 * way, it might be necessary to make pages of this bitmap
+		 * reclaimable.  But for now, simply allocating the whole bitmap
+		 * is a simple solution that works well on the files on which
+		 * fsverity is realistically used.  E.g., with SHA-256 and 4K
+		 * blocks, a 100MB file only needs a 24-byte bitmap, and the
+		 * bitmap for any file under 17GB fits in a 4K page.
+		 */
+		unsigned long num_bits =
+			vi->tree_params.tree_pages <<
+			vi->tree_params.log_blocks_per_page;
+
+		vi->hash_block_verified = kvcalloc(BITS_TO_LONGS(num_bits),
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (!vi->hash_block_verified) {
+			err = -ENOMEM;
+			goto fail;
+		}
+		spin_lock_init(&vi->hash_page_init_lock);
 	}
+
 	return vi;
+
+fail:
+	fsverity_free_info(vi);
+	return ERR_PTR(err);
 }
 
 void fsverity_set_info(struct inode *inode, struct fsverity_info *vi)
@@ -214,6 +273,7 @@ void fsverity_free_info(struct fsverity_info *vi)
 	if (!vi)
 		return;
 	kfree(vi->tree_params.hashstate);
+	kvfree(vi->hash_block_verified);
 	kmem_cache_free(fsverity_info_cachep, vi);
 }
 
@@ -259,8 +319,8 @@ static bool validate_fsverity_descriptor(struct inode *inode,
 }
 
 /*
- * Read the inode's fsverity_descriptor (with optional appended signature) from
- * the filesystem, and do basic validation of it.
+ * Read the inode's fsverity_descriptor (with optional appended builtin
+ * signature) from the filesystem, and do basic validation of it.
  */
 int fsverity_get_descriptor(struct inode *inode,
 			    struct fsverity_descriptor **desc_ret)
@@ -325,67 +385,28 @@ out_free_desc:
 	return err;
 }
 
-/**
- * fsverity_file_open() - prepare to open a verity file
- * @inode: the inode being opened
- * @filp: the struct file being set up
- *
- * When opening a verity file, deny the open if it is for writing.  Otherwise,
- * set up the inode's ->i_verity_info if not already done.
- *
- * When combined with fscrypt, this must be called after fscrypt_file_open().
- * Otherwise, we won't have the key set up to decrypt the verity metadata.
- *
- * Return: 0 on success, -errno on failure
- */
-int fsverity_file_open(struct inode *inode, struct file *filp)
+int __fsverity_file_open(struct inode *inode, struct file *filp)
 {
-	if (!IS_VERITY(inode))
-		return 0;
-
-	if (filp->f_mode & FMODE_WRITE) {
-		pr_debug("Denying opening verity file (ino %lu) for write\n",
-			 inode->i_ino);
+	if (filp->f_mode & FMODE_WRITE)
 		return -EPERM;
-	}
-
 	return ensure_verity_info(inode);
 }
-EXPORT_SYMBOL_GPL(fsverity_file_open);
+EXPORT_SYMBOL_GPL(__fsverity_file_open);
 
-/**
- * fsverity_prepare_setattr() - prepare to change a verity inode's attributes
- * @dentry: dentry through which the inode is being changed
- * @attr: attributes to change
- *
- * Verity files are immutable, so deny truncates.  This isn't covered by the
- * open-time check because sys_truncate() takes a path, not a file descriptor.
- *
- * Return: 0 on success, -errno on failure
- */
-int fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr)
+int __fsverity_prepare_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	if (IS_VERITY(d_inode(dentry)) && (attr->ia_valid & ATTR_SIZE)) {
-		pr_debug("Denying truncate of verity file (ino %lu)\n",
-			 d_inode(dentry)->i_ino);
+	if (attr->ia_valid & ATTR_SIZE)
 		return -EPERM;
-	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fsverity_prepare_setattr);
+EXPORT_SYMBOL_GPL(__fsverity_prepare_setattr);
 
-/**
- * fsverity_cleanup_inode() - free the inode's verity info, if present
- * @inode: an inode being evicted
- *
- * Filesystems must call this on inode eviction to free ->i_verity_info.
- */
-void fsverity_cleanup_inode(struct inode *inode)
+void __fsverity_cleanup_inode(struct inode *inode)
 {
 	fsverity_free_info(inode->i_verity_info);
 	inode->i_verity_info = NULL;
 }
-EXPORT_SYMBOL_GPL(fsverity_cleanup_inode);
+EXPORT_SYMBOL_GPL(__fsverity_cleanup_inode);
 
 int __init fsverity_init_info_cache(void)
 {

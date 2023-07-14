@@ -142,9 +142,15 @@ finish_ftrace() {
 
 check_requires() { # Check required files and tracers
     for i in "$@" ; do
+	p=${i%:program}
         r=${i%:README}
         t=${i%:tracer}
-        if [ $t != $i ]; then
+	if [ $p != $i ]; then
+	    if ! which $p ; then
+                echo "Required program $p is not found."
+                exit_unresolved
+	    fi
+        elif [ $t != $i ]; then
             if ! grep -wq $t available_tracers ; then
                 echo "Required tracer $t is not configured."
                 exit_unsupported

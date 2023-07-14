@@ -474,8 +474,8 @@ static int si570_probe(struct i2c_client *client)
 		dev_err(&client->dev, "clock registration failed\n");
 		return err;
 	}
-	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_hw_simple_get,
-				     &data->hw);
+	err = devm_of_clk_add_hw_provider(&client->dev, of_clk_hw_simple_get,
+					  &data->hw);
 	if (err) {
 		dev_err(&client->dev, "unable to add clk provider\n");
 		return err;
@@ -485,10 +485,8 @@ static int si570_probe(struct i2c_client *client)
 	if (!of_property_read_u32(client->dev.of_node, "clock-frequency",
 				&initial_fout)) {
 		err = clk_set_rate(data->hw.clk, initial_fout);
-		if (err) {
-			of_clk_del_provider(client->dev.of_node);
+		if (err)
 			return err;
-		}
 	}
 
 	/* Display a message indicating that we've successfully registered */
@@ -496,11 +494,6 @@ static int si570_probe(struct i2c_client *client)
 			data->frequency);
 
 	return 0;
-}
-
-static void si570_remove(struct i2c_client *client)
-{
-	of_clk_del_provider(client->dev.of_node);
 }
 
 static const struct of_device_id clk_si570_of_match[] = {
@@ -517,8 +510,7 @@ static struct i2c_driver si570_driver = {
 		.name = "si570",
 		.of_match_table = clk_si570_of_match,
 	},
-	.probe_new	= si570_probe,
-	.remove		= si570_remove,
+	.probe		= si570_probe,
 	.id_table	= si570_id,
 };
 module_i2c_driver(si570_driver);

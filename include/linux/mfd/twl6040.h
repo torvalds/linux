@@ -174,35 +174,7 @@
 
 #define TWL6040_GPO_MAX	3
 
-/* TODO: All platform data struct can be removed */
-struct twl6040_codec_data {
-	u16 hs_left_step;
-	u16 hs_right_step;
-	u16 hf_left_step;
-	u16 hf_right_step;
-};
-
-struct twl6040_vibra_data {
-	unsigned int vibldrv_res;	/* left driver resistance */
-	unsigned int vibrdrv_res;	/* right driver resistance */
-	unsigned int viblmotor_res;	/* left motor resistance */
-	unsigned int vibrmotor_res;	/* right motor resistance */
-	int vddvibl_uV;			/* VDDVIBL volt, set 0 for fixed reg */
-	int vddvibr_uV;			/* VDDVIBR volt, set 0 for fixed reg */
-};
-
-struct twl6040_gpo_data {
-	int gpio_base;
-};
-
-struct twl6040_platform_data {
-	int audpwron_gpio;	/* audio power-on gpio */
-
-	struct twl6040_codec_data *codec;
-	struct twl6040_vibra_data *vibra;
-	struct twl6040_gpo_data *gpo;
-};
-
+struct gpio_desc;
 struct regmap;
 struct regmap_irq_chips_data;
 
@@ -218,7 +190,7 @@ struct twl6040 {
 	struct mfd_cell cells[TWL6040_CELLS];
 	struct completion ready;
 
-	int audpwron;
+	struct gpio_desc *audpwron;
 	int power_count;
 	int rev;
 

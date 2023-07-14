@@ -77,9 +77,11 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 
 	channels = devm_iio_channel_get_all(dev);
 	if (IS_ERR(channels)) {
-		if (PTR_ERR(channels) == -ENODEV)
-			return -EPROBE_DEFER;
-		return PTR_ERR(channels);
+		ret = PTR_ERR(channels);
+		if (ret == -ENODEV)
+			ret = -EPROBE_DEFER;
+		return dev_err_probe(dev, ret,
+				     "Failed to get channels\n");
 	}
 
 	st = devm_kzalloc(dev, sizeof(*st), GFP_KERNEL);

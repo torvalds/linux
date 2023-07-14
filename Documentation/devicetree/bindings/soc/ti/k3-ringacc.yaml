@@ -25,6 +25,9 @@ description: |
   The Ring Accelerator is a hardware module that is responsible for accelerating
   management of the packet queues. The K3 SoCs can have more than one RA instances
 
+allOf:
+  - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+
 properties:
   compatible:
     items:
@@ -54,14 +57,6 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: TI-SCI RM subtype for GP ring range
 
-  ti,sci:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    description: phandle on TI-SCI compatible System controller node
-
-  ti,sci-dev-id:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    description: TI-SCI device id of the ring accelerator
-
 required:
   - compatible
   - reg
@@ -72,7 +67,7 @@ required:
   - ti,sci
   - ti,sci-dev-id
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

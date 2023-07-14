@@ -28,7 +28,7 @@ struct mlx5e_flow_meter_aso_obj {
 	int base_id;
 	int total_meters;
 
-	unsigned long meters_map[0]; /* must be at the end of this struct */
+	unsigned long meters_map[]; /* must be at the end of this struct */
 };
 
 struct mlx5e_flow_meters {
@@ -115,6 +115,7 @@ mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 	struct mlx5e_flow_meters *flow_meters;
 	u8 cir_man, cir_exp, cbs_man, cbs_exp;
 	struct mlx5_aso_wqe *aso_wqe;
+	unsigned long expires;
 	struct mlx5_aso *aso;
 	u64 rate, burst;
 	u8 ds_cnt;
@@ -161,7 +162,6 @@ mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 			   MLX5_ACCESS_ASO_OPC_MOD_FLOW_METER);
 
 	aso_ctrl = &aso_wqe->aso_ctrl;
-	memset(aso_ctrl, 0, sizeof(*aso_ctrl));
 	aso_ctrl->data_mask_mode = MLX5_ASO_DATA_MASK_MODE_BYTEWISE_64BYTE << 6;
 	aso_ctrl->condition_1_0_operand = MLX5_ASO_ALWAYS_TRUE |
 					  MLX5_ASO_ALWAYS_TRUE << 4;
@@ -187,7 +187,12 @@ mlx5e_tc_meter_modify(struct mlx5_core_dev *mdev,
 	mlx5_aso_post_wqe(aso, true, &aso_wqe->ctrl);
 
 	/* With newer FW, the wait for the first ASO WQE is more than 2us, put the wait 10ms. */
-	err = mlx5_aso_poll_cq(aso, true, 10);
+	expires = jiffies + msecs_to_jiffies(10);
+	do {
+		err = mlx5_aso_poll_cq(aso, true);
+		if (err)
+			usleep_range(2, 10);
+	} while (err && time_is_after_jiffies(expires));
 	mutex_unlock(&flow_meters->aso_lock);
 
 	return err;
@@ -199,13 +204,15 @@ mlx5e_flow_meter_create_aso_obj(struct mlx5e_flow_meters *flow_meters, int *obj_
 	u32 in[MLX5_ST_SZ_DW(create_flow_meter_aso_obj_in)] = {};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
 	struct mlx5_core_dev *mdev = flow_meters->mdev;
-	void *obj;
+	void *obj, *param;
 	int err;
 
 	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
 		 MLX5_GENERAL_OBJECT_TYPES_FLOW_METER_ASO);
-	MLX5_SET(general_obj_in_cmd_hdr, in, log_obj_range, flow_meters->log_granularity);
+	param = MLX5_ADDR_OF(general_obj_in_cmd_hdr, in, op_param);
+	MLX5_SET(general_obj_create_param, param, log_obj_range,
+		 flow_meters->log_granularity);
 
 	obj = MLX5_ADDR_OF(create_flow_meter_aso_obj_in, in, flow_meter_aso_obj);
 	MLX5_SET(flow_meter_aso_obj, obj, meter_aso_access_pd, flow_meters->pdn);
@@ -235,7 +242,7 @@ mlx5e_flow_meter_destroy_aso_obj(struct mlx5_core_dev *mdev, u32 obj_id)
 }
 
 static struct mlx5e_flow_meter_handle *
-__mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
+__mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters, bool alloc_aso)
 {
 	struct mlx5_core_dev *mdev = flow_meters->mdev;
 	struct mlx5e_flow_meter_aso_obj *meters_obj;
@@ -251,16 +258,19 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 	counter = mlx5_fc_create(mdev, true);
 	if (IS_ERR(counter)) {
 		err = PTR_ERR(counter);
-		goto err_red_counter;
+		goto err_drop_counter;
 	}
-	meter->red_counter = counter;
+	meter->drop_counter = counter;
 
 	counter = mlx5_fc_create(mdev, true);
 	if (IS_ERR(counter)) {
 		err = PTR_ERR(counter);
-		goto err_green_counter;
+		goto err_act_counter;
 	}
-	meter->green_counter = counter;
+	meter->act_counter = counter;
+
+	if (!alloc_aso)
+		goto no_aso;
 
 	meters_obj = list_first_entry_or_null(&flow_meters->partial_list,
 					      struct mlx5e_flow_meter_aso_obj,
@@ -294,11 +304,12 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 	}
 
 	bitmap_set(meters_obj->meters_map, pos, 1);
-	meter->flow_meters = flow_meters;
 	meter->meters_obj = meters_obj;
 	meter->obj_id = meters_obj->base_id + pos / 2;
 	meter->idx = pos % 2;
 
+no_aso:
+	meter->flow_meters = flow_meters;
 	mlx5_core_dbg(mdev, "flow meter allocated, obj_id=0x%x, index=%d\n",
 		      meter->obj_id, meter->idx);
 
@@ -307,10 +318,10 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 err_mem:
 	mlx5e_flow_meter_destroy_aso_obj(mdev, id);
 err_create:
-	mlx5_fc_destroy(mdev, meter->green_counter);
-err_green_counter:
-	mlx5_fc_destroy(mdev, meter->red_counter);
-err_red_counter:
+	mlx5_fc_destroy(mdev, meter->act_counter);
+err_act_counter:
+	mlx5_fc_destroy(mdev, meter->drop_counter);
+err_drop_counter:
 	kfree(meter);
 	return ERR_PTR(err);
 }
@@ -323,8 +334,11 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 	struct mlx5e_flow_meter_aso_obj *meters_obj;
 	int n, pos;
 
-	mlx5_fc_destroy(mdev, meter->green_counter);
-	mlx5_fc_destroy(mdev, meter->red_counter);
+	mlx5_fc_destroy(mdev, meter->act_counter);
+	mlx5_fc_destroy(mdev, meter->drop_counter);
+
+	if (meter->params.mtu)
+		goto out_no_aso;
 
 	meters_obj = meter->meters_obj;
 	pos = (meter->obj_id - meters_obj->base_id) * 2 + meter->idx;
@@ -339,6 +353,7 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 		list_add(&meters_obj->entry, &flow_meters->partial_list);
 	}
 
+out_no_aso:
 	mlx5_core_dbg(mdev, "flow meter freed, obj_id=0x%x, index=%d\n",
 		      meter->obj_id, meter->idx);
 	kfree(meter);
@@ -403,12 +418,13 @@ mlx5e_tc_meter_alloc(struct mlx5e_flow_meters *flow_meters,
 {
 	struct mlx5e_flow_meter_handle *meter;
 
-	meter = __mlx5e_flow_meter_alloc(flow_meters);
+	meter = __mlx5e_flow_meter_alloc(flow_meters, !params->mtu);
 	if (IS_ERR(meter))
 		return meter;
 
 	hash_add(flow_meters->hashtbl, &meter->hlist, params->index);
 	meter->params.index = params->index;
+	meter->params.mtu = params->mtu;
 	meter->refcnt++;
 
 	return meter;
@@ -569,8 +585,8 @@ mlx5e_tc_meter_get_stats(struct mlx5e_flow_meter_handle *meter,
 	u64 bytes1, packets1, lastuse1;
 	u64 bytes2, packets2, lastuse2;
 
-	mlx5_fc_query_cached(meter->green_counter, &bytes1, &packets1, &lastuse1);
-	mlx5_fc_query_cached(meter->red_counter, &bytes2, &packets2, &lastuse2);
+	mlx5_fc_query_cached(meter->act_counter, &bytes1, &packets1, &lastuse1);
+	mlx5_fc_query_cached(meter->drop_counter, &bytes2, &packets2, &lastuse2);
 
 	*bytes = bytes1 + bytes2;
 	*packets = packets1 + packets2;

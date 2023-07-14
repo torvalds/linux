@@ -14,16 +14,15 @@
 
 TRACE_EVENT(rpmh_tx_done,
 
-	TP_PROTO(struct rsc_drv *d, int m, const struct tcs_request *r, int e),
+	TP_PROTO(struct rsc_drv *d, int m, const struct tcs_request *r),
 
-	TP_ARGS(d, m, r, e),
+	TP_ARGS(d, m, r),
 
 	TP_STRUCT__entry(
 			 __string(name, d->name)
 			 __field(int, m)
 			 __field(u32, addr)
 			 __field(u32, data)
-			 __field(int, err)
 	),
 
 	TP_fast_assign(
@@ -31,12 +30,10 @@ TRACE_EVENT(rpmh_tx_done,
 		       __entry->m = m;
 		       __entry->addr = r->cmds[0].addr;
 		       __entry->data = r->cmds[0].data;
-		       __entry->err = e;
 	),
 
-	TP_printk("%s: ack: tcs-m: %d addr: %#x data: %#x errno: %d",
-		  __get_str(name), __entry->m, __entry->addr, __entry->data,
-		  __entry->err)
+	TP_printk("%s: ack: tcs-m: %d addr: %#x data: %#x",
+		  __get_str(name), __entry->m, __entry->addr, __entry->data)
 );
 
 TRACE_EVENT(rpmh_send_msg,

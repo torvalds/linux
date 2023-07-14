@@ -501,7 +501,6 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct tegra_mipi *mipi;
-	struct resource *res;
 	int err;
 
 	match = of_match_node(tegra_mipi_of_match, pdev->dev.of_node);
@@ -515,8 +514,7 @@ static int tegra_mipi_probe(struct platform_device *pdev)
 	mipi->soc = match->data;
 	mipi->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mipi->regs = devm_ioremap_resource(&pdev->dev, res);
+	mipi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(mipi->regs))
 		return PTR_ERR(mipi->regs);
 

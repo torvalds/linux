@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/qcom,lpass-cpu.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc. LPASS CPU dai driver bindings
+title: Qualcomm Technologies Inc. LPASS CPU dai driver
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
@@ -35,7 +35,7 @@ properties:
 
   clocks:
     minItems: 3
-    maxItems: 7
+    maxItems: 10
 
   clock-names:
     minItems: 1
@@ -65,6 +65,9 @@ properties:
   power-domain-names:
     maxItems: 1
 
+  required-opps:
+    maxItems: 1
+
   '#sound-dai-cells':
     const: 1
 
@@ -75,7 +78,7 @@ properties:
     const: 0
 
 patternProperties:
-  "^dai-link@[0-9a-f]$":
+  "^dai-link@[0-9a-f]+$":
     type: object
     description: |
       LPASS CPU dai node for each I2S device or Soundwire device. Bindings of each node
@@ -109,9 +112,10 @@ required:
   - interrupt-names
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         compatible:
@@ -120,6 +124,8 @@ allOf:
 
     then:
       properties:
+        clocks:
+          maxItems: 3
         clock-names:
           items:
             - const: ahbix-clk
@@ -134,6 +140,9 @@ allOf:
 
     then:
       properties:
+        clocks:
+          minItems: 7
+          maxItems: 7
         clock-names:
           items:
             - const: ahbix-clk
@@ -152,33 +161,31 @@ allOf:
 
     then:
       properties:
+        clocks:
+          minItems: 6
+          maxItems: 6
         clock-names:
-          oneOf:
-            - items:   #for I2S
-                - const: pcnoc-sway-clk
-                - const: audio-core
-                - const: mclk0
-                - const: pcnoc-mport-clk
-                - const: mi2s-bit-clk0
-                - const: mi2s-bit-clk1
-            - items:   #for HDMI
-                - const: pcnoc-sway-clk
-                - const: audio-core
-                - const: pcnoc-mport-clk
+          items:
+            - const: pcnoc-sway-clk
+            - const: audio-core
+            - const: mclk0
+            - const: pcnoc-mport-clk
+            - const: mi2s-bit-clk0
+            - const: mi2s-bit-clk1
+        reg:
+          minItems: 2
+          maxItems: 2
         reg-names:
-          anyOf:
-            - items:   #for I2S
-                - const: lpass-lpaif
-            - items:   #for I2S and HDMI
-                - const: lpass-hdmiif
-                - const: lpass-lpaif
+          items:
+            - const: lpass-hdmiif
+            - const: lpass-lpaif
+        interrupts:
+          minItems: 2
+          maxItems: 2
         interrupt-names:
-          anyOf:
-            - items:   #for I2S
-                - const: lpass-irq-lpaif
-            - items:   #for I2S and HDMI
-                - const: lpass-irq-lpaif
-                - const: lpass-irq-hdmi
+          items:
+            - const: lpass-irq-lpaif
+            - const: lpass-irq-hdmi
       required:
         - iommus
         - power-domains
@@ -191,54 +198,44 @@ allOf:
 
     then:
       properties:
+        clocks:
+          minItems: 10
+          maxItems: 10
         clock-names:
-          oneOf:
-            - items:   #for I2S
-                - const: aon_cc_audio_hm_h
-                - const: audio_cc_ext_mclk0
-                - const: core_cc_sysnoc_mport_core
-                - const: core_cc_ext_if0_ibit
-                - const: core_cc_ext_if1_ibit
-            - items:   #for Soundwire
-                - const: aon_cc_audio_hm_h
-                - const: audio_cc_codec_mem
-                - const: audio_cc_codec_mem0
-                - const: audio_cc_codec_mem1
-                - const: audio_cc_codec_mem2
-                - const: aon_cc_va_mem0
-            - items:   #for HDMI
-                - const: core_cc_sysnoc_mport_core
-
+          items:
+            - const: aon_cc_audio_hm_h
+            - const: audio_cc_ext_mclk0
+            - const: core_cc_sysnoc_mport_core
+            - const: core_cc_ext_if0_ibit
+            - const: core_cc_ext_if1_ibit
+            - const: audio_cc_codec_mem
+            - const: audio_cc_codec_mem0
+            - const: audio_cc_codec_mem1
+            - const: audio_cc_codec_mem2
+            - const: aon_cc_va_mem0
+        reg:
+          minItems: 6
+          maxItems: 6
         reg-names:
-          anyOf:
-            - items:   #for I2S
-                - const: lpass-lpaif
-            - items:   #for I2S and HDMI
-                - const: lpass-hdmiif
-                - const: lpass-lpaif
-            - items:   #for I2S, soundwire and HDMI
-                - const: lpass-hdmiif
-                - const: lpass-lpaif
-                - const: lpass-rxtx-cdc-dma-lpm
-                - const: lpass-rxtx-lpaif
-                - const: lpass-va-lpaif
-                - const: lpass-va-cdc-dma-lpm
+          items:
+            - const: lpass-hdmiif
+            - const: lpass-lpaif
+            - const: lpass-rxtx-cdc-dma-lpm
+            - const: lpass-rxtx-lpaif
+            - const: lpass-va-lpaif
+            - const: lpass-va-cdc-dma-lpm
+        interrupts:
+          minItems: 4
+          maxItems: 4
         interrupt-names:
-          anyOf:
-            - items:   #for I2S
-                - const: lpass-irq-lpaif
-            - items:   #for I2S and HDMI
-                - const: lpass-irq-lpaif
-                - const: lpass-irq-hdmi
-            - items:   #for I2S, soundwire and HDMI
-                - const: lpass-irq-lpaif
-                - const: lpass-irq-hdmi
-                - const: lpass-irq-vaif
-                - const: lpass-irq-rxtxif
+          items:
+            - const: lpass-irq-lpaif
+            - const: lpass-irq-hdmi
+            - const: lpass-irq-vaif
+            - const: lpass-irq-rxtxif
         power-domain-names:
-          allOf:
-            - items:
-                - const: lcx
+          items:
+            - const: lcx
 
       required:
         - iommus

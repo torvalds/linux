@@ -218,7 +218,7 @@ static inline void set_trbe_enabled(struct trbe_cpudata *cpudata, u64 trblimitr)
 	 * Enable the TRBE without clearing LIMITPTR which
 	 * might be required for fetching the buffer limits.
 	 */
-	trblimitr |= TRBLIMITR_ENABLE;
+	trblimitr |= TRBLIMITR_EL1_E;
 	write_sysreg_s(trblimitr, SYS_TRBLIMITR_EL1);
 
 	/* Synchronize the TRBE enable event */
@@ -236,7 +236,7 @@ static inline void set_trbe_disabled(struct trbe_cpudata *cpudata)
 	 * Disable the TRBE without clearing LIMITPTR which
 	 * might be required for fetching the buffer limits.
 	 */
-	trblimitr &= ~TRBLIMITR_ENABLE;
+	trblimitr &= ~TRBLIMITR_EL1_E;
 	write_sysreg_s(trblimitr, SYS_TRBLIMITR_EL1);
 
 	if (trbe_needs_drain_after_disable(cpudata))
@@ -582,12 +582,12 @@ static void clr_trbe_status(void)
 	u64 trbsr = read_sysreg_s(SYS_TRBSR_EL1);
 
 	WARN_ON(is_trbe_enabled());
-	trbsr &= ~TRBSR_IRQ;
-	trbsr &= ~TRBSR_TRG;
-	trbsr &= ~TRBSR_WRAP;
-	trbsr &= ~(TRBSR_EC_MASK << TRBSR_EC_SHIFT);
-	trbsr &= ~(TRBSR_BSC_MASK << TRBSR_BSC_SHIFT);
-	trbsr &= ~TRBSR_STOP;
+	trbsr &= ~TRBSR_EL1_IRQ;
+	trbsr &= ~TRBSR_EL1_TRG;
+	trbsr &= ~TRBSR_EL1_WRAP;
+	trbsr &= ~TRBSR_EL1_EC_MASK;
+	trbsr &= ~TRBSR_EL1_BSC_MASK;
+	trbsr &= ~TRBSR_EL1_S;
 	write_sysreg_s(trbsr, SYS_TRBSR_EL1);
 }
 
@@ -596,13 +596,13 @@ static void set_trbe_limit_pointer_enabled(struct trbe_buf *buf)
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
 	unsigned long addr = buf->trbe_limit;
 
-	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBLIMITR_LIMIT_SHIFT)));
+	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBLIMITR_EL1_LIMIT_SHIFT)));
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 
-	trblimitr &= ~TRBLIMITR_NVM;
-	trblimitr &= ~(TRBLIMITR_FILL_MODE_MASK << TRBLIMITR_FILL_MODE_SHIFT);
-	trblimitr &= ~(TRBLIMITR_TRIG_MODE_MASK << TRBLIMITR_TRIG_MODE_SHIFT);
-	trblimitr &= ~(TRBLIMITR_LIMIT_MASK << TRBLIMITR_LIMIT_SHIFT);
+	trblimitr &= ~TRBLIMITR_EL1_nVM;
+	trblimitr &= ~TRBLIMITR_EL1_FM_MASK;
+	trblimitr &= ~TRBLIMITR_EL1_TM_MASK;
+	trblimitr &= ~TRBLIMITR_EL1_LIMIT_MASK;
 
 	/*
 	 * Fill trace buffer mode is used here while configuring the
@@ -613,14 +613,15 @@ static void set_trbe_limit_pointer_enabled(struct trbe_buf *buf)
 	 * trace data in the interrupt handler, before reconfiguring
 	 * the TRBE.
 	 */
-	trblimitr |= (TRBE_FILL_MODE_FILL & TRBLIMITR_FILL_MODE_MASK) << TRBLIMITR_FILL_MODE_SHIFT;
+	trblimitr |= (TRBLIMITR_EL1_FM_FILL << TRBLIMITR_EL1_FM_SHIFT) &
+		     TRBLIMITR_EL1_FM_MASK;
 
 	/*
 	 * Trigger mode is not used here while configuring the TRBE for
 	 * the trace capture. Hence just keep this in the ignore mode.
 	 */
-	trblimitr |= (TRBE_TRIG_MODE_IGNORE & TRBLIMITR_TRIG_MODE_MASK) <<
-		      TRBLIMITR_TRIG_MODE_SHIFT;
+	trblimitr |= (TRBLIMITR_EL1_TM_IGNR << TRBLIMITR_EL1_TM_SHIFT) &
+		     TRBLIMITR_EL1_TM_MASK;
 	trblimitr |= (addr & PAGE_MASK);
 	set_trbe_enabled(buf->cpudata, trblimitr);
 }
@@ -1005,7 +1006,8 @@ err:
 	return ret;
 }
 
-static int arm_trbe_enable(struct coresight_device *csdev, u32 mode, void *data)
+static int arm_trbe_enable(struct coresight_device *csdev, enum cs_mode mode,
+			   void *data)
 {
 	struct trbe_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	struct trbe_cpudata *cpudata = dev_get_drvdata(&csdev->dev);
@@ -1434,6 +1436,7 @@ static int arm_trbe_probe_cpuhp(struct trbe_drvdata *drvdata)
 
 static void arm_trbe_remove_cpuhp(struct trbe_drvdata *drvdata)
 {
+	cpuhp_state_remove_instance(drvdata->trbe_online, &drvdata->hotplug_node);
 	cpuhp_remove_multi_state(drvdata->trbe_online);
 }
 

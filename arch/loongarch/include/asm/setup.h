@@ -13,9 +13,28 @@
 
 extern unsigned long eentry;
 extern unsigned long tlbrentry;
+extern char init_command_line[COMMAND_LINE_SIZE];
+extern void tlb_init(int cpu);
 extern void cpu_cache_init(void);
+extern void cache_error_setup(void);
 extern void per_cpu_trap_init(int cpu);
 extern void set_handler(unsigned long offset, void *addr, unsigned long len);
 extern void set_merr_handler(unsigned long offset, void *addr, unsigned long len);
+
+#ifdef CONFIG_RELOCATABLE
+
+struct rela_la_abs {
+	long offset;
+	long symvalue;
+};
+
+extern long __la_abs_begin;
+extern long __la_abs_end;
+extern long __rela_dyn_begin;
+extern long __rela_dyn_end;
+
+extern void * __init relocate_kernel(void);
+
+#endif
 
 #endif /* __SETUP_H */

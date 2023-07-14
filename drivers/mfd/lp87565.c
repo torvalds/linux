@@ -43,8 +43,7 @@ static const struct of_device_id of_lp87565_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, of_lp87565_match_table);
 
-static int lp87565_probe(struct i2c_client *client,
-			 const struct i2c_device_id *ids)
+static int lp87565_probe(struct i2c_client *client)
 {
 	struct lp87565 *lp87565;
 	const struct of_device_id *of_id;

@@ -13,6 +13,7 @@ struct thermal_genl_cpu_caps {
 /* Netlink notification function */
 #ifdef CONFIG_THERMAL_NETLINK
 int __init thermal_netlink_init(void);
+void __init thermal_netlink_exit(void);
 int thermal_notify_tz_create(int tz_id, const char *name);
 int thermal_notify_tz_delete(int tz_id);
 int thermal_notify_tz_enable(int tz_id);
@@ -114,5 +115,7 @@ static inline int thermal_genl_cpu_capability_event(int count, struct thermal_ge
 {
 	return 0;
 }
+
+static inline void __init thermal_netlink_exit(void) {}
 
 #endif /* CONFIG_THERMAL_NETLINK */

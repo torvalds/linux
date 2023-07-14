@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/memory-controllers/st,stm32-fmc2-ebi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics Flexible Memory Controller 2 (FMC2) Bindings
+title: STMicroelectronics Flexible Memory Controller 2 (FMC2)
 
 description: |
   The FMC2 functional block makes the interface with: synchronous and
@@ -47,144 +47,9 @@ properties:
 
 patternProperties:
   "^.*@[0-4],[a-f0-9]+$":
+    additionalProperties: true
     type: object
-
-    properties:
-      reg:
-        description: Bank number, base address and size of the device.
-
-      st,fmc2-ebi-cs-transaction-type:
-        description: |
-          Select one of the transactions type supported
-          0: Asynchronous mode 1 SRAM/FRAM.
-          1: Asynchronous mode 1 PSRAM.
-          2: Asynchronous mode A SRAM/FRAM.
-          3: Asynchronous mode A PSRAM.
-          4: Asynchronous mode 2 NOR.
-          5: Asynchronous mode B NOR.
-          6: Asynchronous mode C NOR.
-          7: Asynchronous mode D NOR.
-          8: Synchronous read synchronous write PSRAM.
-          9: Synchronous read asynchronous write PSRAM.
-          10: Synchronous read synchronous write NOR.
-          11: Synchronous read asynchronous write NOR.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        minimum: 0
-        maximum: 11
-
-      st,fmc2-ebi-cs-cclk-enable:
-        description: Continuous clock enable (first bank must be configured
-          in synchronous mode). The FMC_CLK is generated continuously
-          during asynchronous and synchronous access. By default, the
-          FMC_CLK is only generated during synchronous access.
-        $ref: /schemas/types.yaml#/definitions/flag
-
-      st,fmc2-ebi-cs-mux-enable:
-        description: Address/Data multiplexed on databus (valid only with
-          NOR and PSRAM transactions type). By default, Address/Data
-          are not multiplexed.
-        $ref: /schemas/types.yaml#/definitions/flag
-
-      st,fmc2-ebi-cs-buswidth:
-        description: Data bus width
-        $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [ 8, 16 ]
-        default: 16
-
-      st,fmc2-ebi-cs-waitpol-high:
-        description: Wait signal polarity (NWAIT signal active high).
-          By default, NWAIT is active low.
-        $ref: /schemas/types.yaml#/definitions/flag
-
-      st,fmc2-ebi-cs-waitcfg-enable:
-        description: The NWAIT signal indicates wheither the data from the
-          device are valid or if a wait state must be inserted when accessing
-          the device in synchronous mode. By default, the NWAIT signal is
-          active one data cycle before wait state.
-        $ref: /schemas/types.yaml#/definitions/flag
-
-      st,fmc2-ebi-cs-wait-enable:
-        description: The NWAIT signal is enabled (its level is taken into
-          account after the programmed latency period to insert wait states
-          if asserted). By default, the NWAIT signal is disabled.
-        $ref: /schemas/types.yaml#/definitions/flag
-
-      st,fmc2-ebi-cs-asyncwait-enable:
-        description: The NWAIT signal is taken into account during asynchronous
-          transactions. By default, the NWAIT signal is not taken into account
-          during asynchronous transactions.
-        $ref: /schemas/types.yaml#/definitions/flag
-
-      st,fmc2-ebi-cs-cpsize:
-        description: CRAM page size. The controller splits the burst access
-          when the memory page is reached. By default, no burst split when
-          crossing page boundary.
-        $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [ 0, 128, 256, 512, 1024 ]
-        default: 0
-
-      st,fmc2-ebi-cs-byte-lane-setup-ns:
-        description: This property configures the byte lane setup timing
-          defined in nanoseconds from NBLx low to Chip Select NEx low.
-
-      st,fmc2-ebi-cs-address-setup-ns:
-        description: This property defines the duration of the address setup
-          phase in nanoseconds used for asynchronous read/write transactions.
-
-      st,fmc2-ebi-cs-address-hold-ns:
-        description: This property defines the duration of the address hold
-          phase in nanoseconds used for asynchronous multiplexed read/write
-          transactions.
-
-      st,fmc2-ebi-cs-data-setup-ns:
-        description: This property defines the duration of the data setup phase
-          in nanoseconds used for asynchronous read/write transactions.
-
-      st,fmc2-ebi-cs-bus-turnaround-ns:
-        description: This property defines the delay in nanoseconds between the
-          end of current read/write transaction and the next transaction.
-
-      st,fmc2-ebi-cs-data-hold-ns:
-        description: This property defines the duration of the data hold phase
-          in nanoseconds used for asynchronous read/write transactions.
-
-      st,fmc2-ebi-cs-clk-period-ns:
-        description: This property defines the FMC_CLK output signal period in
-          nanoseconds.
-
-      st,fmc2-ebi-cs-data-latency-ns:
-        description: This property defines the data latency before reading or
-          writing the first data in nanoseconds.
-
-      st,fmc2_ebi-cs-write-address-setup-ns:
-        description: This property defines the duration of the address setup
-          phase in nanoseconds used for asynchronous write transactions.
-
-      st,fmc2-ebi-cs-write-address-hold-ns:
-        description: This property defines the duration of the address hold
-          phase in nanoseconds used for asynchronous multiplexed write
-          transactions.
-
-      st,fmc2-ebi-cs-write-data-setup-ns:
-        description: This property defines the duration of the data setup
-          phase in nanoseconds used for asynchronous write transactions.
-
-      st,fmc2-ebi-cs-write-bus-turnaround-ns:
-        description: This property defines the delay between the end of current
-          write transaction and the next transaction in nanoseconds.
-
-      st,fmc2-ebi-cs-write-data-hold-ns:
-        description: This property defines the duration of the data hold phase
-          in nanoseconds used for asynchronous write transactions.
-
-      st,fmc2-ebi-cs-max-low-pulse-ns:
-        description: This property defines the maximum chip select low pulse
-          duration in nanoseconds for synchronous transactions. When this timing
-          reaches 0, the controller splits the current access, toggles NE to
-          allow device refresh and restarts a new access.
-
-    required:
-      - reg
+    $ref: mc-peripheral-props.yaml#
 
 required:
   - "#address-cells"

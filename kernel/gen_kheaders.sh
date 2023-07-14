@@ -7,12 +7,14 @@ set -e
 sfile="$(readlink -f "$0")"
 outdir="$(pwd)"
 tarfile=$1
-cpio_dir=$outdir/$tarfile.tmp
+cpio_dir=$outdir/${tarfile%/*}/.tmp_cpio_dir
 
 dir_list="
 include/
 arch/$SRCARCH/include/
 "
+
+type cpio > /dev/null
 
 # Support incremental builds by skipping archive generation
 # if timestamps of files being archived are not changed.
@@ -31,8 +33,8 @@ if [ "$building_out_of_srctree" ]; then
 fi
 all_dirs="$all_dirs $dir_list"
 
-# include/generated/compile.h is ignored because it is touched even when none
-# of the source files changed.
+# include/generated/utsversion.h is ignored because it is generated after this
+# script is executed. (utsversion.h is unneeded for kheaders)
 #
 # When Kconfig regenerates include/generated/autoconf.h, its timestamp is
 # updated, but the contents might be still the same. When any CONFIG option is
@@ -42,7 +44,7 @@ all_dirs="$all_dirs $dir_list"
 #
 # Ignore them for md5 calculation to avoid pointless regeneration.
 headers_md5="$(find $all_dirs -name "*.h"			|
-		grep -v "include/generated/compile.h"	|
+		grep -v "include/generated/utsversion.h"	|
 		grep -v "include/generated/autoconf.h"	|
 		xargs ls -l | md5sum | cut -d ' ' -f1)"
 
@@ -81,12 +83,9 @@ find $cpio_dir -type f -print0 |
 	xargs -0 -P8 -n1 perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;'
 
 # Create archive and try to normalize metadata for reproducibility.
-# For compatibility with older versions of tar, files are fed to tar
-# pre-sorted, as --sort=name might not be available.
-find $cpio_dir -printf "./%P\n" | LC_ALL=C sort | \
-    tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
-    --owner=0 --group=0 --numeric-owner --no-recursion \
-    -I $XZ -cf $tarfile -C $cpio_dir/ -T - > /dev/null
+tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
+    --owner=0 --group=0 --sort=name --numeric-owner \
+    -I $XZ -cf $tarfile -C $cpio_dir/ . > /dev/null
 
 echo $headers_md5 > kernel/kheaders.md5
 echo "$this_file_md5" >> kernel/kheaders.md5

@@ -3,10 +3,11 @@ menu "IRQ chip support"
 
 config IRQCHIP
 	def_bool y
-	depends on OF_IRQ
+	depends on (OF_IRQ || ACPI_GENERIC_GSI)
 
 config ARM_GIC
 	bool
+	depends on OF
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK if SMP
 
@@ -35,10 +36,11 @@ config ARM_GIC_V3
 	select IRQ_DOMAIN_HIERARCHY
 	select PARTITION_PERCPU
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK if SMP
+	select HAVE_ARM_SMCCC_DISCOVERY
 
 config ARM_GIC_V3_ITS
 	bool
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 	default ARM_GIC_V3
 
 config ARM_GIC_V3_ITS_PCI
@@ -86,7 +88,7 @@ config ALPINE_MSI
 
 config AL_FIC
 	bool "Amazon's Annapurna Labs Fabric Interrupt Controller"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 	help
@@ -133,11 +135,6 @@ config BRCMSTB_L2_IRQ
 	tristate "Broadcom STB generic L2 interrupt controller driver"
 	depends on ARCH_BCM2835 || ARCH_BRCMSTB || BMIPS_GENERIC
 	default ARCH_BCM2835 || ARCH_BRCMSTB || BMIPS_GENERIC
-	select GENERIC_IRQ_CHIP
-	select IRQ_DOMAIN
-
-config DAVINCI_AINTC
-	bool
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
@@ -375,7 +372,7 @@ config MVEBU_ICU
 
 config MVEBU_ODMI
 	bool
-	select GENERIC_MSI_IRQ_DOMAIN
+	select GENERIC_MSI_IRQ
 
 config MVEBU_PIC
 	bool
@@ -389,7 +386,7 @@ config LS_EXTIRQ
 
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
-	depends on PCI && PCI_MSI
+	depends on PCI_MSI
 
 config PARTITION_PERCPU
 	bool
@@ -481,6 +478,21 @@ config IMX_INTMUX
 	help
 	  Support for the i.MX INTMUX interrupt multiplexer.
 
+config IMX_MU_MSI
+	tristate "i.MX MU used as MSI controller"
+	depends on OF && HAS_IOMEM
+	depends on ARCH_MXC || COMPILE_TEST
+	default m if ARCH_MXC
+	select IRQ_DOMAIN
+	select IRQ_DOMAIN_HIERARCHY
+	select GENERIC_MSI_IRQ
+	help
+	  Provide a driver for the i.MX Messaging Unit block used as a
+	  CPU-to-CPU MSI controller. This requires a specially crafted DT
+	  to make use of this driver.
+
+	  If unsure, say N
+
 config LS1X_IRQ
 	bool "Loongson-1 Interrupt Controller"
 	depends on MACH_LOONGSON32
@@ -523,31 +535,15 @@ config TI_PRUSS_INTC
 	  different processors within the SoC.
 
 config RISCV_INTC
-	bool "RISC-V Local Interrupt Controller"
+	bool
 	depends on RISCV
-	default y
-	help
-	   This enables support for the per-HART local interrupt controller
-	   found in standard RISC-V systems.  The per-HART local interrupt
-	   controller handles timer interrupts, software interrupts, and
-	   hardware interrupts. Without a per-HART local interrupt controller,
-	   a RISC-V system will be unable to handle any interrupts.
-
-	   If you don't know what to do here, say Y.
+	select IRQ_DOMAIN_HIERARCHY
 
 config SIFIVE_PLIC
-	bool "SiFive Platform-Level Interrupt Controller"
+	bool
 	depends on RISCV
 	select IRQ_DOMAIN_HIERARCHY
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK if SMP
-	help
-	   This enables support for the PLIC chip found in SiFive (and
-	   potentially other) RISC-V systems.  The PLIC controls devices
-	   interrupts and connects them to each core's local interrupt
-	   controller.  Aside from timer and software interrupts, all other
-	   interrupt sources are subordinate to the PLIC.
-
-	   If you don't know what to do here, say Y.
 
 config EXYNOS_IRQ_COMBINER
 	bool "Samsung Exynos IRQ combiner support" if COMPILE_TEST
@@ -561,6 +557,7 @@ config IRQ_LOONGARCH_CPU
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 	select GENERIC_IRQ_EFFECTIVE_AFF_MASK
+	select LOONGSON_HTVEC
 	select LOONGSON_LIOINTC
 	select LOONGSON_EIOINTC
 	select LOONGSON_PCH_PIC
@@ -659,6 +656,7 @@ config APPLE_AIC
 	bool "Apple Interrupt Controller (AIC)"
 	depends on ARM64
 	depends on ARCH_APPLE || COMPILE_TEST
+	select GENERIC_IRQ_IPI_MUX
 	help
 	  Support for the Apple Interrupt Controller found on Apple Silicon SoCs,
 	  such as the M1.

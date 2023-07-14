@@ -858,7 +858,7 @@ static int cxgb4vf_open(struct net_device *dev)
 	 */
 	err = t4vf_update_port_info(pi);
 	if (err < 0)
-		return err;
+		goto err_unwind;
 
 	/*
 	 * Note that this interface is up and start everything up ...
@@ -3258,7 +3258,6 @@ err_free_adapter:
 
 err_release_regions:
 	pci_release_regions(pdev);
-	pci_clear_master(pdev);
 
 err_disable_device:
 	pci_disable_device(pdev);
@@ -3338,7 +3337,6 @@ static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 	 * Disable the device and release its PCI resources.
 	 */
 	pci_disable_device(pdev);
-	pci_clear_master(pdev);
 	pci_release_regions(pdev);
 }
 

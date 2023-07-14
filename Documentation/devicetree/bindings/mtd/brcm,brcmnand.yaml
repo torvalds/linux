@@ -86,15 +86,15 @@ properties:
     minItems: 1
     items:
       - description: NAND CTLRDY interrupt
-      - description: FLASH_DMA_DONE if flash DMA is available
-      - description: FLASH_EDU_DONE if EDU is available
+      - description: FLASH_DMA_DONE (if flash DMA is available) or FLASH_EDU_DONE (if EDU is available)
 
   interrupt-names:
     minItems: 1
     items:
       - const: nand_ctlrdy
-      - const: flash_dma_done
-      - const: flash_edu_done
+      - enum:
+          - flash_dma_done
+          - flash_edu_done
 
   clocks:
     maxItems: 1
@@ -114,6 +114,7 @@ properties:
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
+    $ref: raw-nand-chip.yaml
     properties:
       compatible:
         const: brcm,nandcs
@@ -135,6 +136,8 @@ patternProperties:
           number of available options for its default ECC
           layout.
         $ref: /schemas/types.yaml#/definitions/uint32
+
+    unevaluatedProperties: false
 
 allOf:
   - $ref: nand-controller.yaml#
@@ -173,6 +176,13 @@ allOf:
             - const: nand
             - const: iproc-idm
             - const: iproc-ext
+  - if:
+      properties:
+        interrupts:
+          minItems: 2
+    then:
+      required:
+        - interrupt-names
 
 unevaluatedProperties: false
 
@@ -184,51 +194,52 @@ required:
 examples:
   - |
     nand-controller@f0442800 {
-            compatible = "brcm,brcmnand-v7.0", "brcm,brcmnand";
-            reg = <0xf0442800 0x600>,
-                  <0xf0443000 0x100>;
-            reg-names = "nand", "flash-dma";
-            interrupt-parent = <&hif_intr2_intc>;
-            interrupts = <24>, <4>;
+        compatible = "brcm,brcmnand-v7.0", "brcm,brcmnand";
+        reg = <0xf0442800 0x600>,
+              <0xf0443000 0x100>;
+        reg-names = "nand", "flash-dma";
+        interrupt-parent = <&hif_intr2_intc>;
+        interrupts = <24>, <4>;
+        interrupt-names = "nand_ctlrdy", "flash_dma_done";
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        nand@1 {
+            compatible = "brcm,nandcs";
+            reg = <1>; // Chip select 1
+            nand-on-flash-bbt;
+            nand-ecc-strength = <12>;
+            nand-ecc-step-size = <512>;
 
             #address-cells = <1>;
-            #size-cells = <0>;
-
-            nand@1 {
-                    compatible = "brcm,nandcs";
-                    reg = <1>; // Chip select 1
-                    nand-on-flash-bbt;
-                    nand-ecc-strength = <12>;
-                    nand-ecc-step-size = <512>;
-
-                    #address-cells = <1>;
-                    #size-cells = <1>;
-            };
+            #size-cells = <1>;
+        };
     };
   - |
     nand-controller@10000200 {
-            compatible = "brcm,nand-bcm63168", "brcm,nand-bcm6368",
-                         "brcm,brcmnand-v4.0", "brcm,brcmnand";
-            reg = <0x10000200 0x180>,
-                  <0x100000b0 0x10>,
-                  <0x10000600 0x200>;
-            reg-names = "nand", "nand-int-base", "nand-cache";
-            interrupt-parent = <&periph_intc>;
-            interrupts = <50>;
-            clocks = <&periph_clk 20>;
-            clock-names = "nand";
+        compatible = "brcm,nand-bcm63168", "brcm,nand-bcm6368",
+                     "brcm,brcmnand-v4.0", "brcm,brcmnand";
+        reg = <0x10000200 0x180>,
+              <0x100000b0 0x10>,
+              <0x10000600 0x200>;
+        reg-names = "nand", "nand-int-base", "nand-cache";
+        interrupt-parent = <&periph_intc>;
+        interrupts = <50>;
+        clocks = <&periph_clk 20>;
+        clock-names = "nand";
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        nand@0 {
+            compatible = "brcm,nandcs";
+            reg = <0>;
+            nand-on-flash-bbt;
+            nand-ecc-strength = <1>;
+            nand-ecc-step-size = <512>;
 
             #address-cells = <1>;
-            #size-cells = <0>;
-
-            nand@0 {
-                    compatible = "brcm,nandcs";
-                    reg = <0>;
-                    nand-on-flash-bbt;
-                    nand-ecc-strength = <1>;
-                    nand-ecc-step-size = <512>;
-
-                    #address-cells = <1>;
-                    #size-cells = <1>;
-            };
+            #size-cells = <1>;
+        };
     };

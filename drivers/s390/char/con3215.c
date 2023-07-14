@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/ebcdic.h>
 #include <linux/uaccess.h>
 #include <asm/delay.h>
@@ -102,6 +102,7 @@ static struct raw3215_req *raw3215_freelist;
 static DEFINE_SPINLOCK(raw3215_freelist_lock);
 
 static struct tty_driver *tty3215_driver;
+static bool con3215_drop = true;
 
 /*
  * Get a request structure from the free list
@@ -159,7 +160,7 @@ static void raw3215_mk_read_req(struct raw3215_info *raw)
 	ccw->cmd_code = 0x0A; /* read inquiry */
 	ccw->flags = 0x20;    /* ignore incorrect length */
 	ccw->count = 160;
-	ccw->cda = (__u32) __pa(raw->inbuf);
+	ccw->cda = (__u32)__pa(raw->inbuf);
 }
 
 /*
@@ -218,8 +219,7 @@ static void raw3215_mk_write_req(struct raw3215_info *raw)
 			ccw[-1].flags |= 0x40; /* use command chaining */
 		ccw->cmd_code = 0x01; /* write, auto carrier return */
 		ccw->flags = 0x20;    /* ignore incorrect length ind.  */
-		ccw->cda =
-			(__u32) __pa(raw->buffer + ix);
+		ccw->cda = (__u32)__pa(raw->buffer + ix);
 		count = len;
 		if (ix + count > RAW3215_BUFFER_SIZE)
 			count = RAW3215_BUFFER_SIZE - ix;
@@ -447,13 +447,45 @@ put_tty:
 }
 
 /*
+ * Need to drop data to avoid blocking. Drop as much data as possible.
+ * This is unqueued part in the buffer and the queued part in the request.
+ * Also adjust the head position to append new data and set count
+ * accordingly.
+ *
+ * Return number of bytes available in buffer.
+ */
+static unsigned int raw3215_drop(struct raw3215_info *raw)
+{
+	struct raw3215_req *req;
+
+	req = raw->queued_write;
+	if (req) {
+		/* Drop queued data and delete request */
+		raw->written -= req->len;
+		raw3215_free_req(req);
+		raw->queued_write = NULL;
+	}
+	raw->head = (raw->head - raw->count + raw->written) &
+		    (RAW3215_BUFFER_SIZE - 1);
+	raw->count = raw->written;
+
+	return RAW3215_BUFFER_SIZE - raw->count;
+}
+
+/*
  * Wait until length bytes are available int the output buffer.
+ * If drop mode is active and wait condition holds true, start dropping
+ * data.
  * Has to be called with the s390irq lock held. Can be called
  * disabled.
  */
-static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
+static unsigned int raw3215_make_room(struct raw3215_info *raw,
+				      unsigned int length, bool drop)
 {
 	while (RAW3215_BUFFER_SIZE - raw->count < length) {
+		if (drop)
+			return raw3215_drop(raw);
+
 		/* there might be a request pending */
 		raw->flags |= RAW3215_FLUSHING;
 		raw3215_mk_write_req(raw);
@@ -470,6 +502,70 @@ static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 		udelay(100);
 		spin_lock(get_ccwdev_lock(raw->cdev));
 	}
+	return length;
+}
+
+#define	RAW3215_COUNT	1
+#define	RAW3215_STORE	2
+
+/*
+ * Add text to console buffer. Find tabs in input and calculate size
+ * including tab replacement.
+ * This function operates in 2 different modes, depending on parameter
+ * opmode:
+ * RAW3215_COUNT: Get the size needed for the input string with
+ *	proper tab replacement calculation.
+ *	Return value is the number of bytes required to store the
+ *	input. However no data is actually stored.
+ *	The parameter todrop is not used.
+ * RAW3215_STORE: Add data to the console buffer. The parameter todrop is
+ *	valid and contains the number of bytes to be dropped from head of
+ *	string	without blocking.
+ *	Return value is the number of bytes copied.
+ */
+static unsigned int raw3215_addtext(const char *str, unsigned int length,
+				    struct raw3215_info *raw, int opmode,
+				    unsigned int todrop)
+{
+	unsigned int c, ch, i, blanks, expanded_size = 0;
+	unsigned int column = raw->line_pos;
+
+	if (opmode == RAW3215_COUNT)
+		todrop = 0;
+
+	for (c = 0; c < length; ++c) {
+		blanks = 1;
+		ch = str[c];
+
+		switch (ch) {
+		case '\n':
+			expanded_size++;
+			column = 0;
+			break;
+		case '\t':
+			blanks = TAB_STOP_SIZE - (column % TAB_STOP_SIZE);
+			column += blanks;
+			expanded_size += blanks;
+			ch = ' ';
+			break;
+		default:
+			expanded_size++;
+			column++;
+			break;
+		}
+
+		if (opmode == RAW3215_COUNT)
+			continue;
+		if (todrop && expanded_size < todrop)	/* Drop head data */
+			continue;
+		for (i = 0; i < blanks; i++) {
+			raw->buffer[raw->head] = (char)_ascebc[(int)ch];
+			raw->head = (raw->head + 1) & (RAW3215_BUFFER_SIZE - 1);
+			raw->count++;
+		}
+		raw->line_pos = column;
+	}
+	return expanded_size - todrop;
 }
 
 /*
@@ -478,67 +574,17 @@ static void raw3215_make_room(struct raw3215_info *raw, unsigned int length)
 static void raw3215_write(struct raw3215_info *raw, const char *str,
 			  unsigned int length)
 {
+	unsigned int count, avail;
 	unsigned long flags;
-	int c, count;
-
-	while (length > 0) {
-		spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
-		count = (length > RAW3215_BUFFER_SIZE) ?
-					     RAW3215_BUFFER_SIZE : length;
-		length -= count;
-
-		raw3215_make_room(raw, count);
-
-		/* copy string to output buffer and convert it to EBCDIC */
-		while (1) {
-			c = min_t(int, count,
-				  min(RAW3215_BUFFER_SIZE - raw->count,
-				      RAW3215_BUFFER_SIZE - raw->head));
-			if (c <= 0)
-				break;
-			memcpy(raw->buffer + raw->head, str, c);
-			ASCEBC(raw->buffer + raw->head, c);
-			raw->head = (raw->head + c) & (RAW3215_BUFFER_SIZE - 1);
-			raw->count += c;
-			raw->line_pos += c;
-			str += c;
-			count -= c;
-		}
-		if (!(raw->flags & RAW3215_WORKING)) {
-			raw3215_mk_write_req(raw);
-			/* start or queue request */
-			raw3215_try_io(raw);
-		}
-		spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
-	}
-}
-
-/*
- * Put character routine for 3215 devices
- */
-static void raw3215_putchar(struct raw3215_info *raw, unsigned char ch)
-{
-	unsigned long flags;
-	unsigned int length, i;
 
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
-	if (ch == '\t') {
-		length = TAB_STOP_SIZE - (raw->line_pos%TAB_STOP_SIZE);
-		raw->line_pos += length;
-		ch = ' ';
-	} else if (ch == '\n') {
-		length = 1;
-		raw->line_pos = 0;
-	} else {
-		length = 1;
-		raw->line_pos++;
-	}
-	raw3215_make_room(raw, length);
 
-	for (i = 0; i < length; i++) {
-		raw->buffer[raw->head] = (char) _ascebc[(int) ch];
-		raw->head = (raw->head + 1) & (RAW3215_BUFFER_SIZE - 1);
-		raw->count++;
+	count = raw3215_addtext(str, length, raw, RAW3215_COUNT, 0);
+
+	avail = raw3215_make_room(raw, count, con3215_drop);
+	if (avail) {
+		raw3215_addtext(str, length, raw, RAW3215_STORE,
+				count - avail);
 	}
 	if (!(raw->flags & RAW3215_WORKING)) {
 		raw3215_mk_write_req(raw);
@@ -546,6 +592,14 @@ static void raw3215_putchar(struct raw3215_info *raw, unsigned char ch)
 		raw3215_try_io(raw);
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
+}
+
+/*
+ * Put character routine for 3215 devices
+ */
+static void raw3215_putchar(struct raw3215_info *raw, unsigned char ch)
+{
+	raw3215_write(raw, &ch, 1);
 }
 
 /*
@@ -575,7 +629,7 @@ static int raw3215_startup(struct raw3215_info *raw)
 	if (tty_port_initialized(&raw->port))
 		return 0;
 	raw->line_pos = 0;
-	tty_port_set_initialized(&raw->port, 1);
+	tty_port_set_initialized(&raw->port, true);
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 	raw3215_try_io(raw);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
@@ -605,7 +659,7 @@ static void raw3215_shutdown(struct raw3215_info *raw)
 		spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
 		remove_wait_queue(&raw->empty_wait, &wait);
 		set_current_state(TASK_RUNNING);
-		tty_port_set_initialized(&raw->port, 1);
+		tty_port_set_initialized(&raw->port, true);
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 }
@@ -642,7 +696,7 @@ static void raw3215_free_info(struct raw3215_info *raw)
 	kfree(raw);
 }
 
-static int raw3215_probe (struct ccw_device *cdev)
+static int raw3215_probe(struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
 	int line;
@@ -675,7 +729,7 @@ static int raw3215_probe (struct ccw_device *cdev)
 	return 0;
 }
 
-static void raw3215_remove (struct ccw_device *cdev)
+static void raw3215_remove(struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
 	unsigned int line;
@@ -694,7 +748,7 @@ static void raw3215_remove (struct ccw_device *cdev)
 	}
 }
 
-static int raw3215_set_online (struct ccw_device *cdev)
+static int raw3215_set_online(struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
 
@@ -705,7 +759,7 @@ static int raw3215_set_online (struct ccw_device *cdev)
 	return raw3215_startup(raw);
 }
 
-static int raw3215_set_offline (struct ccw_device *cdev)
+static int raw3215_set_offline(struct ccw_device *cdev)
 {
 	struct raw3215_info *raw;
 
@@ -723,9 +777,43 @@ static struct ccw_device_id raw3215_id[] = {
 	{ /* end of list */ },
 };
 
+static ssize_t con_drop_store(struct device_driver *dev, const char *buf, size_t count)
+{
+	bool drop;
+	int rc;
+
+	rc = kstrtobool(buf, &drop);
+	if (!rc)
+		con3215_drop = drop;
+	return rc ?: count;
+}
+
+static ssize_t con_drop_show(struct device_driver *dev, char *buf)
+{
+	return sysfs_emit(buf, "%d\n", con3215_drop ? 1 : 0);
+}
+
+static DRIVER_ATTR_RW(con_drop);
+
+static struct attribute *con3215_drv_attrs[] = {
+	&driver_attr_con_drop.attr,
+	NULL,
+};
+
+static struct attribute_group con3215_drv_attr_group = {
+	.attrs = con3215_drv_attrs,
+	NULL,
+};
+
+static const struct attribute_group *con3215_drv_attr_groups[] = {
+	&con3215_drv_attr_group,
+	NULL,
+};
+
 static struct ccw_driver raw3215_ccw_driver = {
 	.driver = {
 		.name	= "3215",
+		.groups = con3215_drv_attr_groups,
 		.owner	= THIS_MODULE,
 	},
 	.ids		= raw3215_id,
@@ -736,32 +824,25 @@ static struct ccw_driver raw3215_ccw_driver = {
 	.int_class	= IRQIO_C15,
 };
 
+static void handle_write(struct raw3215_info *raw, const char *str, int count)
+{
+	int i;
+
+	while (count > 0) {
+		i = min_t(int, count, RAW3215_BUFFER_SIZE - 1);
+		raw3215_write(raw, str, i);
+		count -= i;
+		str += i;
+	}
+}
+
 #ifdef CONFIG_TN3215_CONSOLE
 /*
  * Write a string to the 3215 console
  */
-static void con3215_write(struct console *co, const char *str,
-			  unsigned int count)
+static void con3215_write(struct console *co, const char *str, unsigned int count)
 {
-	struct raw3215_info *raw;
-	int i;
-
-	if (count <= 0)
-		return;
-	raw = raw3215[0];	/* console 3215 is the first one */
-	while (count > 0) {
-		for (i = 0; i < count; i++)
-			if (str[i] == '\t' || str[i] == '\n')
-				break;
-		raw3215_write(raw, str, i);
-		count -= i;
-		str += i;
-		if (count > 0) {
-			raw3215_putchar(raw, *str);
-			count--;
-			str++;
-		}
-	}
+	handle_write(raw3215[0], str, count);
 }
 
 static struct tty_driver *con3215_device(struct console *c, int *index)
@@ -787,7 +868,7 @@ static int con3215_notify(struct notifier_block *self,
 	raw = raw3215[0];  /* console 3215 is the first one */
 	if (!spin_trylock_irqsave(get_ccwdev_lock(raw->cdev), flags))
 		return NOTIFY_DONE;
-	raw3215_make_room(raw, RAW3215_BUFFER_SIZE);
+	raw3215_make_room(raw, RAW3215_BUFFER_SIZE, false);
 	spin_unlock_irqrestore(get_ccwdev_lock(raw->cdev), flags);
 
 	return NOTIFY_DONE;
@@ -940,27 +1021,11 @@ static unsigned int tty3215_write_room(struct tty_struct *tty)
 /*
  * String write routine for 3215 ttys
  */
-static int tty3215_write(struct tty_struct * tty,
+static int tty3215_write(struct tty_struct *tty,
 			 const unsigned char *buf, int count)
 {
-	struct raw3215_info *raw = tty->driver_data;
-	int i, written;
-
-	written = count;
-	while (count > 0) {
-		for (i = 0; i < count; i++)
-			if (buf[i] == '\t' || buf[i] == '\n')
-				break;
-		raw3215_write(raw, buf, i);
-		count -= i;
-		buf += i;
-		if (count > 0) {
-			raw3215_putchar(raw, *buf);
-			count--;
-			buf++;
-		}
-	}
-	return written;
+	handle_write(tty->driver_data, buf, count);
+	return count;
 }
 
 /*
@@ -1000,7 +1065,7 @@ static void tty3215_flush_buffer(struct tty_struct *tty)
 /*
  * Disable reading from a 3215 tty
  */
-static void tty3215_throttle(struct tty_struct * tty)
+static void tty3215_throttle(struct tty_struct *tty)
 {
 	struct raw3215_info *raw = tty->driver_data;
 
@@ -1010,7 +1075,7 @@ static void tty3215_throttle(struct tty_struct * tty)
 /*
  * Enable reading from a 3215 tty
  */
-static void tty3215_unthrottle(struct tty_struct * tty)
+static void tty3215_unthrottle(struct tty_struct *tty)
 {
 	struct raw3215_info *raw = tty->driver_data;
 	unsigned long flags;
@@ -1064,6 +1129,18 @@ static const struct tty_operations tty3215_ops = {
 	.stop = tty3215_stop,
 	.start = tty3215_start,
 };
+
+static int __init con3215_setup_drop(char *str)
+{
+	bool drop;
+	int rc;
+
+	rc = kstrtobool(str, &drop);
+	if (!rc)
+		con3215_drop = drop;
+	return rc;
+}
+early_param("con3215_drop", con3215_setup_drop);
 
 /*
  * 3215 tty registration code called from tty_init().

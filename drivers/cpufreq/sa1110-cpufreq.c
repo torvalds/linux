@@ -344,14 +344,8 @@ static int __init sa1110_clk_init(void)
 	if (!name[0]) {
 		if (machine_is_assabet())
 			name = "TC59SM716-CL3";
-		if (machine_is_pt_system3())
-			name = "K4S641632D";
-		if (machine_is_h3100())
-			name = "KM416S4030CT";
 		if (machine_is_jornada720() || machine_is_h3600())
 			name = "K4S281632B-1H";
-		if (machine_is_nanoengine())
-			name = "MT48LC8M16A2TG-75";
 	}
 
 	sdram = sa1110_find_sdram(name);

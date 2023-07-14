@@ -97,14 +97,15 @@ static const struct clk_ops peripheral_ops = {
 
 struct clk_hw * __init
 at91_clk_register_peripheral(struct regmap *regmap, const char *name,
-			     const char *parent_name, u32 id)
+			     const char *parent_name, struct clk_hw *parent_hw,
+			     u32 id)
 {
 	struct clk_peripheral *periph;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 
-	if (!name || !parent_name || id > PERIPHERAL_ID_MAX)
+	if (!name || !(parent_name || parent_hw) || id > PERIPHERAL_ID_MAX)
 		return ERR_PTR(-EINVAL);
 
 	periph = kzalloc(sizeof(*periph), GFP_KERNEL);
@@ -113,7 +114,10 @@ at91_clk_register_peripheral(struct regmap *regmap, const char *name,
 
 	init.name = name;
 	init.ops = &peripheral_ops;
-	init.parent_names = &parent_name;
+	if (parent_hw)
+		init.parent_hws = (const struct clk_hw **)&parent_hw;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.flags = 0;
 
@@ -269,7 +273,6 @@ static int clk_sam9x5_peripheral_determine_rate(struct clk_hw *hw,
 {
 	struct clk_sam9x5_peripheral *periph = to_clk_sam9x5_peripheral(hw);
 	struct clk_hw *parent = clk_hw_get_parent(hw);
-	struct clk_rate_request req_parent = *req;
 	unsigned long parent_rate = clk_hw_get_rate(parent);
 	unsigned long tmp_rate;
 	long best_rate = LONG_MIN;
@@ -302,8 +305,9 @@ static int clk_sam9x5_peripheral_determine_rate(struct clk_hw *hw,
 		goto end;
 
 	for (shift = 0; shift <= PERIPHERAL_MAX_SHIFT; shift++) {
-		req_parent.rate = req->rate << shift;
+		struct clk_rate_request req_parent;
 
+		clk_hw_forward_rate_request(hw, req, parent, &req_parent, req->rate << shift);
 		if (__clk_determine_rate(parent, &req_parent))
 			continue;
 
@@ -444,15 +448,16 @@ struct clk_hw * __init
 at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 				    const struct clk_pcr_layout *layout,
 				    const char *name, const char *parent_name,
+				    struct clk_hw *parent_hw,
 				    u32 id, const struct clk_range *range,
-				    int chg_pid)
+				    int chg_pid, unsigned long flags)
 {
 	struct clk_sam9x5_peripheral *periph;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	int ret;
 
-	if (!name || !parent_name)
+	if (!name || !(parent_name || parent_hw))
 		return ERR_PTR(-EINVAL);
 
 	periph = kzalloc(sizeof(*periph), GFP_KERNEL);
@@ -460,14 +465,17 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.parent_names = &parent_name;
+	if (parent_hw)
+		init.parent_hws = (const struct clk_hw **)&parent_hw;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
+	init.flags = flags;
 	if (chg_pid < 0) {
-		init.flags = 0;
 		init.ops = &sam9x5_peripheral_ops;
 	} else {
-		init.flags = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
-			     CLK_SET_RATE_PARENT;
+		init.flags |= CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+			      CLK_SET_RATE_PARENT;
 		init.ops = &sam9x5_peripheral_chg_ops;
 	}
 

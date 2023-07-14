@@ -73,12 +73,13 @@
 #include <linux/mmu_notifier.h>
 #endif
 
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_execbuf_util.h>
 
 #include <drm/drm_gem.h>
+#include <drm/drm_audio_component.h>
+#include <drm/drm_suballoc.h>
 
 #include "radeon_family.h"
 #include "radeon_mode.h"
@@ -116,7 +117,6 @@ extern int radeon_use_pflipirq;
 extern int radeon_bapm;
 extern int radeon_backlight;
 extern int radeon_auxch;
-extern int radeon_mst;
 extern int radeon_uvd;
 extern int radeon_vce;
 extern int radeon_si_support;
@@ -512,52 +512,12 @@ struct radeon_bo {
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, tbo.base)
 
-/* sub-allocation manager, it has to be protected by another lock.
- * By conception this is an helper for other part of the driver
- * like the indirect buffer or semaphore, which both have their
- * locking.
- *
- * Principe is simple, we keep a list of sub allocation in offset
- * order (first entry has offset == 0, last entry has the highest
- * offset).
- *
- * When allocating new object we first check if there is room at
- * the end total_size - (last_object_offset + last_object_size) >=
- * alloc_size. If so we allocate new object there.
- *
- * When there is not enough room at the end, we start waiting for
- * each sub object until we reach object_offset+object_size >=
- * alloc_size, this object then become the sub object we return.
- *
- * Alignment can't be bigger than page size.
- *
- * Hole are not considered for allocation to keep things simple.
- * Assumption is that there won't be hole (all object on same
- * alignment).
- */
 struct radeon_sa_manager {
-	wait_queue_head_t	wq;
-	struct radeon_bo	*bo;
-	struct list_head	*hole;
-	struct list_head	flist[RADEON_NUM_RINGS];
-	struct list_head	olist;
-	unsigned		size;
-	uint64_t		gpu_addr;
-	void			*cpu_ptr;
-	uint32_t		domain;
-	uint32_t		align;
-};
-
-struct radeon_sa_bo;
-
-/* sub-allocation buffer */
-struct radeon_sa_bo {
-	struct list_head		olist;
-	struct list_head		flist;
-	struct radeon_sa_manager	*manager;
-	unsigned			soffset;
-	unsigned			eoffset;
-	struct radeon_fence		*fence;
+	struct drm_suballoc_manager	base;
+	struct radeon_bo		*bo;
+	uint64_t			gpu_addr;
+	void				*cpu_ptr;
+	u32 domain;
 };
 
 /*
@@ -569,6 +529,8 @@ struct radeon_gem {
 };
 
 extern const struct drm_gem_object_funcs radeon_gem_object_funcs;
+
+int radeon_align_pitch(struct radeon_device *rdev, int width, int cpp, bool tiled);
 
 int radeon_gem_init(struct radeon_device *rdev);
 void radeon_gem_fini(struct radeon_device *rdev);
@@ -588,7 +550,7 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
  * Semaphores.
  */
 struct radeon_semaphore {
-	struct radeon_sa_bo	*sa_bo;
+	struct drm_suballoc	*sa_bo;
 	signed			waiters;
 	uint64_t		gpu_addr;
 };
@@ -817,7 +779,7 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask);
  */
 
 struct radeon_ib {
-	struct radeon_sa_bo		*sa_bo;
+	struct drm_suballoc		*sa_bo;
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
@@ -1797,6 +1759,9 @@ struct r600_audio {
 	struct radeon_audio_funcs *hdmi_funcs;
 	struct radeon_audio_funcs *dp_funcs;
 	struct radeon_audio_basic_funcs *funcs;
+	struct drm_audio_component *component;
+	bool component_registered;
+	struct mutex component_mutex;
 };
 
 /*
@@ -2950,8 +2915,6 @@ struct radeon_hdmi_acr {
 
 };
 
-extern struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock);
-
 extern u32 r6xx_remap_render_backend(struct radeon_device *rdev,
 				     u32 tiling_pipe_num,
 				     u32 max_rb_num,
@@ -2996,6 +2959,10 @@ void radeon_irq_kms_set_irq_n_enabled(struct radeon_device *rdev,
 				      u32 reg, u32 mask,
 				      bool enable, const char *name,
 				      unsigned n);
+
+/* Audio component binding */
+void radeon_audio_component_init(struct radeon_device *rdev);
+void radeon_audio_component_fini(struct radeon_device *rdev);
 
 #include "radeon_object.h"
 

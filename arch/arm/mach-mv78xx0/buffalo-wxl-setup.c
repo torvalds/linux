@@ -14,11 +14,19 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/ethtool.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include "mv78xx0.h"
 #include "common.h"
 #include "mpp.h"
+
+
+#define TSWXL_AUTO_SWITCH	15
+#define TSWXL_USB_POWER1	30
+#define TSWXL_USB_POWER2	31
 
 
 /* This arch has 2 Giga Ethernet */
@@ -39,7 +47,7 @@ static struct mv_sata_platform_data db78x00_sata_data = {
 };
 
 static struct i2c_board_info __initdata db78x00_i2c_rtc = {
-	I2C_BOARD_INFO("ds1338", 0x68),
+	I2C_BOARD_INFO("rs5c372a", 0x32),
 };
 
 
@@ -57,9 +65,9 @@ static unsigned int wxl_mpp_config[] __initdata = {
 	MPP10_GE1_RXD2,
 	MPP11_GE1_RXD3,
 	MPP12_GPIO,
-	MPP13_SYSRST_OUTn,
-	MPP14_SATA1_ACTn,
-	MPP15_SATA0_ACTn,
+	MPP13_GPIO,
+	MPP14_GPIO,
+	MPP15_GPIO,
 	MPP16_GPIO,
 	MPP17_GPIO,
 	MPP18_GPIO,
@@ -73,7 +81,7 @@ static unsigned int wxl_mpp_config[] __initdata = {
 	MPP26_UA2_CTSn,
 	MPP27_UA2_RTSn,
 	MPP28_GPIO,
-	MPP29_SYSRST_OUTn,
+	MPP29_GPIO,
 	MPP30_GPIO,
 	MPP31_GPIO,
 	MPP32_GPIO,
@@ -84,19 +92,41 @@ static unsigned int wxl_mpp_config[] __initdata = {
 	MPP37_GPIO,
 	MPP38_GPIO,
 	MPP39_GPIO,
-	MPP40_UNUSED,
-	MPP41_UNUSED,
-	MPP42_UNUSED,
-	MPP43_UNUSED,
-	MPP44_UNUSED,
-	MPP45_UNUSED,
-	MPP46_UNUSED,
-	MPP47_UNUSED,
-	MPP48_SATA1_ACTn,
-	MPP49_SATA0_ACTn,
+	MPP40_GPIO,
+	MPP41_GPIO,
+	MPP42_GPIO,
+	MPP43_GPIO,
+	MPP44_GPIO,
+	MPP45_GPIO,
+	MPP46_GPIO,
+	MPP47_GPIO,
+	MPP48_GPIO,
+	MPP49_GPIO,
 	0
 };
 
+static struct gpio_keys_button tswxl_buttons[] = {
+	{
+		.code	   = KEY_OPTION,
+		.gpio	   = TSWXL_AUTO_SWITCH,
+		.desc	   = "Power-auto Switch",
+		.active_low     = 1,
+	}
+};
+
+static struct gpio_keys_platform_data tswxl_button_data = {
+	.buttons	= tswxl_buttons,
+	.nbuttons       = ARRAY_SIZE(tswxl_buttons),
+};
+
+static struct platform_device tswxl_button_device = {
+	.name	   = "gpio-keys",
+	.id	     = -1,
+	.num_resources  = 0,
+	.dev	    = {
+		.platform_data  = &tswxl_button_data,
+	},
+};
 
 static void __init wxl_init(void)
 {
@@ -111,7 +141,6 @@ static void __init wxl_init(void)
 	 */
 	mv78xx0_ehci0_init();
 	mv78xx0_ehci1_init();
-	mv78xx0_ehci2_init();
 	mv78xx0_ge00_init(&db78x00_ge00_data);
 	mv78xx0_ge01_init(&db78x00_ge01_data);
 	mv78xx0_sata_init(&db78x00_sata_data);
@@ -119,22 +148,23 @@ static void __init wxl_init(void)
 	mv78xx0_uart1_init();
 	mv78xx0_uart2_init();
 	mv78xx0_uart3_init();
+	mv78xx0_xor_init();
+	mv78xx0_crypto_init();
 	mv78xx0_i2c_init();
 	i2c_register_board_info(0, &db78x00_i2c_rtc, 1);
+
+	//enable both usb ports
+	gpio_direction_output(TSWXL_USB_POWER1, 1);
+	gpio_direction_output(TSWXL_USB_POWER2, 1);
+
+	//enable rear switch
+	platform_device_register(&tswxl_button_device);
 }
 
 static int __init wxl_pci_init(void)
 {
-	if (machine_is_terastation_wxl()) {
-		/*
-		 * Assign the x16 PCIe slot on the board to CPU core
-		 * #0, and let CPU core #1 have the four x1 slots.
-		 */
-		if (mv78xx0_core_index() == 0)
-			mv78xx0_pcie_init(0, 1);
-		else
-			mv78xx0_pcie_init(1, 0);
-	}
+	if (machine_is_terastation_wxl() && mv78xx0_core_index() == 0)
+                mv78xx0_pcie_init(1, 1);
 
 	return 0;
 }

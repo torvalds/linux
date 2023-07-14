@@ -233,7 +233,7 @@ out_disable_clk:
 	return ret;
 }
 
-static int denali_dt_remove(struct platform_device *pdev)
+static void denali_dt_remove(struct platform_device *pdev)
 {
 	struct denali_dt *dt = platform_get_drvdata(pdev);
 
@@ -243,13 +243,11 @@ static int denali_dt_remove(struct platform_device *pdev)
 	clk_disable_unprepare(dt->clk_ecc);
 	clk_disable_unprepare(dt->clk_x);
 	clk_disable_unprepare(dt->clk);
-
-	return 0;
 }
 
 static struct platform_driver denali_dt_driver = {
 	.probe		= denali_dt_probe,
-	.remove		= denali_dt_remove,
+	.remove_new	= denali_dt_remove,
 	.driver		= {
 		.name	= "denali-nand-dt",
 		.of_match_table	= denali_nand_dt_ids,

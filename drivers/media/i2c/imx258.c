@@ -9,6 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-fwnode.h>
 #include <asm/unaligned.h>
 
 #define IMX258_REG_VALUE_08BIT		1
@@ -1148,7 +1149,9 @@ static const struct v4l2_subdev_internal_ops imx258_internal_ops = {
 static int imx258_init_controls(struct imx258 *imx258)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx258->sd);
+	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl_handler *ctrl_hdlr;
+	struct v4l2_ctrl *vflip, *hflip;
 	s64 vblank_def;
 	s64 vblank_min;
 	s64 pixel_rate_min;
@@ -1156,7 +1159,7 @@ static int imx258_init_controls(struct imx258 *imx258)
 	int ret;
 
 	ctrl_hdlr = &imx258->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 13);
 	if (ret)
 		return ret;
 
@@ -1171,6 +1174,17 @@ static int imx258_init_controls(struct imx258 *imx258)
 
 	if (imx258->link_freq)
 		imx258->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	/* The driver only supports one bayer order and flips by default. */
+	hflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops,
+				  V4L2_CID_HFLIP, 1, 1, 1, 1);
+	if (hflip)
+		hflip->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+
+	vflip = v4l2_ctrl_new_std(ctrl_hdlr, &imx258_ctrl_ops,
+				  V4L2_CID_VFLIP, 1, 1, 1, 1);
+	if (vflip)
+		vflip->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	pixel_rate_max = link_freq_to_pixel_rate(link_freq_menu_items[0]);
 	pixel_rate_min = link_freq_to_pixel_rate(link_freq_menu_items[1]);
@@ -1232,6 +1246,15 @@ static int imx258_init_controls(struct imx258 *imx258)
 		goto error;
 	}
 
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		goto error;
+
+	ret = v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &imx258_ctrl_ops,
+					      &props);
+	if (ret)
+		goto error;
+
 	imx258->sd.ctrl_handler = ctrl_hdlr;
 
 	return 0;
@@ -1275,14 +1298,6 @@ static int imx258_probe(struct i2c_client *client)
 		dev_err(&client->dev, "input clock frequency not supported\n");
 		return -EINVAL;
 	}
-
-	/*
-	 * Check that the device is mounted upside down. The driver only
-	 * supports a single pixel order right now.
-	 */
-	ret = device_property_read_u32(&client->dev, "rotation", &val);
-	if (ret || val != 180)
-		return -EINVAL;
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx258->sd, client, &imx258_subdev_ops);
@@ -1380,7 +1395,7 @@ static struct i2c_driver imx258_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(imx258_acpi_ids),
 		.of_match_table	= imx258_dt_ids,
 	},
-	.probe_new = imx258_probe,
+	.probe = imx258_probe,
 	.remove = imx258_remove,
 };
 

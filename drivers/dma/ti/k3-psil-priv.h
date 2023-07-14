@@ -43,5 +43,7 @@ extern struct psil_ep_map j7200_ep_map;
 extern struct psil_ep_map am64_ep_map;
 extern struct psil_ep_map j721s2_ep_map;
 extern struct psil_ep_map am62_ep_map;
+extern struct psil_ep_map am62a_ep_map;
+extern struct psil_ep_map j784s4_ep_map;
 
 #endif /* K3_PSIL_PRIV_H_ */

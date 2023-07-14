@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <generated/utsversion.h>
 #include <generated/utsrelease.h>
 #include <generated/compile.h>
 #include "boot.h"

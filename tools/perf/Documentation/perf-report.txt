@@ -27,7 +27,7 @@ OPTIONS
 
 -q::
 --quiet::
-	Do not show any message.  (Suppress -v)
+	Do not show any warnings or messages.  (Suppress -v)
 
 -n::
 --show-nr-samples::
@@ -73,7 +73,7 @@ OPTIONS
 	Sort histogram entries by given key(s) - multiple keys can be specified
 	in CSV format.  Following sort keys are available:
 	pid, comm, dso, symbol, parent, cpu, socket, srcline, weight,
-	local_weight, cgroup_id.
+	local_weight, cgroup_id, addr.
 
 	Each key has following meaning:
 
@@ -114,6 +114,10 @@ OPTIONS
 	- local_ins_lat: Local instruction latency version
 	- p_stage_cyc: On powerpc, this presents the number of cycles spent in a
 	  pipeline stage. And currently supported only on powerpc.
+	- addr: (Full) virtual address of the sampled instruction
+	- retire_lat: On X86, this reports pipeline stall of this instruction compared
+	  to the previous instruction in cycles. And currently supported only on X86
+	- simd: Flags describing a SIMD operation. "e" for empty Arm SVE predicate. "p" for partial Arm SVE predicate
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)
@@ -377,6 +381,9 @@ OPTIONS
 	This allows to examine the path the program took to each sample.
 	The data collection must have used -b (or -j) and -g.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
 --objdump=<path>::
         Path to objdump binary.
 
@@ -506,7 +513,7 @@ include::itrace.txt[]
 	perf record --call-graph lbr.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not full proof. There can be cases
+	output. But this approach is not foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
 	The known limitations include exception handing such as
 	setjmp/longjmp will have calls/returns not match.

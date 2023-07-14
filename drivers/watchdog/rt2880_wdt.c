@@ -40,10 +40,13 @@
 #define TMR1CTL_PRESCALE_MASK		0xf
 #define TMR1CTL_PRESCALE_65536		0xf
 
-static struct clk *rt288x_wdt_clk;
-static unsigned long rt288x_wdt_freq;
-static void __iomem *rt288x_wdt_base;
-static struct reset_control *rt288x_wdt_reset;
+struct rt2880_wdt_data {
+	void __iomem *base;
+	unsigned long freq;
+	struct clk *clk;
+	struct reset_control *rst;
+	struct watchdog_device wdt;
+};
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
@@ -51,52 +54,56 @@ MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static inline void rt_wdt_w32(unsigned reg, u32 val)
+static inline void rt_wdt_w32(void __iomem *base, unsigned int reg, u32 val)
 {
-	iowrite32(val, rt288x_wdt_base + reg);
+	iowrite32(val, base + reg);
 }
 
-static inline u32 rt_wdt_r32(unsigned reg)
+static inline u32 rt_wdt_r32(void __iomem *base, unsigned int reg)
 {
-	return ioread32(rt288x_wdt_base + reg);
+	return ioread32(base + reg);
 }
 
 static int rt288x_wdt_ping(struct watchdog_device *w)
 {
-	rt_wdt_w32(TIMER_REG_TMR1LOAD, w->timeout * rt288x_wdt_freq);
+	struct rt2880_wdt_data *drvdata = watchdog_get_drvdata(w);
+
+	rt_wdt_w32(drvdata->base, TIMER_REG_TMR1LOAD, w->timeout * drvdata->freq);
 
 	return 0;
 }
 
 static int rt288x_wdt_start(struct watchdog_device *w)
 {
+	struct rt2880_wdt_data *drvdata = watchdog_get_drvdata(w);
 	u32 t;
 
-	t = rt_wdt_r32(TIMER_REG_TMR1CTL);
+	t = rt_wdt_r32(drvdata->base, TIMER_REG_TMR1CTL);
 	t &= ~(TMR1CTL_MODE_MASK << TMR1CTL_MODE_SHIFT |
 		TMR1CTL_PRESCALE_MASK);
 	t |= (TMR1CTL_MODE_WDT << TMR1CTL_MODE_SHIFT |
 		TMR1CTL_PRESCALE_65536);
-	rt_wdt_w32(TIMER_REG_TMR1CTL, t);
+	rt_wdt_w32(drvdata->base, TIMER_REG_TMR1CTL, t);
 
 	rt288x_wdt_ping(w);
 
-	t = rt_wdt_r32(TIMER_REG_TMR1CTL);
+	t = rt_wdt_r32(drvdata->base, TIMER_REG_TMR1CTL);
 	t |= TMR1CTL_ENABLE;
-	rt_wdt_w32(TIMER_REG_TMR1CTL, t);
+	rt_wdt_w32(drvdata->base, TIMER_REG_TMR1CTL, t);
 
 	return 0;
 }
 
 static int rt288x_wdt_stop(struct watchdog_device *w)
 {
+	struct rt2880_wdt_data *drvdata = watchdog_get_drvdata(w);
 	u32 t;
 
 	rt288x_wdt_ping(w);
 
-	t = rt_wdt_r32(TIMER_REG_TMR1CTL);
+	t = rt_wdt_r32(drvdata->base, TIMER_REG_TMR1CTL);
 	t &= ~TMR1CTL_ENABLE;
-	rt_wdt_w32(TIMER_REG_TMR1CTL, t);
+	rt_wdt_w32(drvdata->base, TIMER_REG_TMR1CTL, t);
 
 	return 0;
 }
@@ -130,41 +137,45 @@ static const struct watchdog_ops rt288x_wdt_ops = {
 	.set_timeout = rt288x_wdt_set_timeout,
 };
 
-static struct watchdog_device rt288x_wdt_dev = {
-	.info = &rt288x_wdt_info,
-	.ops = &rt288x_wdt_ops,
-	.min_timeout = 1,
-};
-
 static int rt288x_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct watchdog_device *wdt;
+	struct rt2880_wdt_data *drvdata;
 	int ret;
 
-	rt288x_wdt_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(rt288x_wdt_base))
-		return PTR_ERR(rt288x_wdt_base);
+	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
 
-	rt288x_wdt_clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(rt288x_wdt_clk))
-		return PTR_ERR(rt288x_wdt_clk);
+	drvdata->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(drvdata->base))
+		return PTR_ERR(drvdata->base);
 
-	rt288x_wdt_reset = devm_reset_control_get_exclusive(dev, NULL);
-	if (!IS_ERR(rt288x_wdt_reset))
-		reset_control_deassert(rt288x_wdt_reset);
+	drvdata->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(drvdata->clk))
+		return PTR_ERR(drvdata->clk);
 
-	rt288x_wdt_freq = clk_get_rate(rt288x_wdt_clk) / RALINK_WDT_PRESCALE;
+	drvdata->rst = devm_reset_control_get_exclusive(dev, NULL);
+	if (!IS_ERR(drvdata->rst))
+		reset_control_deassert(drvdata->rst);
 
-	rt288x_wdt_dev.bootstatus = rt288x_wdt_bootcause();
-	rt288x_wdt_dev.max_timeout = (0xfffful / rt288x_wdt_freq);
-	rt288x_wdt_dev.parent = dev;
+	drvdata->freq = clk_get_rate(drvdata->clk) / RALINK_WDT_PRESCALE;
 
-	watchdog_init_timeout(&rt288x_wdt_dev, rt288x_wdt_dev.max_timeout,
-			      dev);
-	watchdog_set_nowayout(&rt288x_wdt_dev, nowayout);
+	wdt = &drvdata->wdt;
+	wdt->info = &rt288x_wdt_info;
+	wdt->ops = &rt288x_wdt_ops;
+	wdt->min_timeout = 1;
+	wdt->max_timeout = (0xfffful / drvdata->freq);
+	wdt->parent = dev;
+	wdt->bootstatus = rt288x_wdt_bootcause();
 
-	watchdog_stop_on_reboot(&rt288x_wdt_dev);
-	ret = devm_watchdog_register_device(dev, &rt288x_wdt_dev);
+	watchdog_init_timeout(wdt, wdt->max_timeout, dev);
+	watchdog_set_nowayout(wdt, nowayout);
+	watchdog_set_drvdata(wdt, drvdata);
+
+	watchdog_stop_on_reboot(wdt);
+	ret = devm_watchdog_register_device(dev, &drvdata->wdt);
 	if (!ret)
 		dev_info(dev, "Initialized\n");
 

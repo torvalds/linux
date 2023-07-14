@@ -76,7 +76,7 @@ struct r10conf {
 	/* queue pending writes and submit them on unplug */
 	struct bio_list		pending_bio_list;
 
-	spinlock_t		resync_lock;
+	seqlock_t		resync_lock;
 	atomic_t		nr_pending;
 	int			nr_waiting;
 	int			nr_queued;
@@ -100,7 +100,7 @@ struct r10conf {
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.
 	 */
-	struct md_thread	*thread;
+	struct md_thread __rcu	*thread;
 
 	/*
 	 * Keep track of cluster resync window to send to other nodes.

@@ -412,8 +412,10 @@ static void __adxl34x_enable(struct adxl34x *ac)
 	AC_WRITE(ac, POWER_CTL, ac->pdata.power_mode | PCTL_MEASURE);
 }
 
-void adxl34x_suspend(struct adxl34x *ac)
+static int adxl34x_suspend(struct device *dev)
 {
+	struct adxl34x *ac = dev_get_drvdata(dev);
+
 	mutex_lock(&ac->mutex);
 
 	if (!ac->suspended && !ac->disabled && ac->opened)
@@ -422,11 +424,14 @@ void adxl34x_suspend(struct adxl34x *ac)
 	ac->suspended = true;
 
 	mutex_unlock(&ac->mutex);
-}
-EXPORT_SYMBOL_GPL(adxl34x_suspend);
 
-void adxl34x_resume(struct adxl34x *ac)
+	return 0;
+}
+
+static int adxl34x_resume(struct device *dev)
 {
+	struct adxl34x *ac = dev_get_drvdata(dev);
+
 	mutex_lock(&ac->mutex);
 
 	if (ac->suspended && !ac->disabled && ac->opened)
@@ -435,8 +440,9 @@ void adxl34x_resume(struct adxl34x *ac)
 	ac->suspended = false;
 
 	mutex_unlock(&ac->mutex);
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(adxl34x_resume);
 
 static ssize_t adxl34x_disable_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -811,8 +817,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	AC_WRITE(ac, POWER_CTL, 0);
 
 	err = request_threaded_irq(ac->irq, NULL, adxl34x_irq,
-				   IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
-				   dev_name(dev), ac);
+				   IRQF_ONESHOT, dev_name(dev), ac);
 	if (err) {
 		dev_err(dev, "irq %d busy?\n", ac->irq);
 		goto err_free_mem;
@@ -905,6 +910,8 @@ void adxl34x_remove(struct adxl34x *ac)
 	kfree(ac);
 }
 EXPORT_SYMBOL_GPL(adxl34x_remove);
+
+EXPORT_GPL_SIMPLE_DEV_PM_OPS(adxl34x_pm, adxl34x_suspend, adxl34x_resume);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("ADXL345/346 Three-Axis Digital Accelerometer Driver");

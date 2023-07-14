@@ -31,6 +31,7 @@
 /* Max number on VIN instances that can be in a system */
 #define RCAR_VIN_NUM 32
 
+struct rvin_dev;
 struct rvin_group;
 
 enum model_id {
@@ -155,6 +156,7 @@ struct rvin_group_route {
  * @max_height:		max input height the VIN supports
  * @routes:		list of possible routes from the CSI-2 recivers to
  *			all VINs. The list mush be NULL terminated.
+ * @scaler:		Optional scaler
  */
 struct rvin_info {
 	enum model_id model;
@@ -165,6 +167,7 @@ struct rvin_info {
 	unsigned int max_width;
 	unsigned int max_height;
 	const struct rvin_group_route *routes;
+	void (*scaler)(struct rvin_dev *vin);
 };
 
 /**
@@ -203,7 +206,7 @@ struct rvin_info {
  *
  * @crop:		active cropping
  * @compose:		active composing
- * @src_rect:		active size of the video source
+ * @scaler:		Optional scaler
  * @std:		active video standard of the video source
  *
  * @alpha:		Alpha component to fill in for supported pixel formats
@@ -247,7 +250,7 @@ struct rvin_dev {
 
 	struct v4l2_rect crop;
 	struct v4l2_rect compose;
-	struct v4l2_rect src_rect;
+	void (*scaler)(struct rvin_dev *vin);
 	v4l2_std_id std;
 
 	unsigned int alpha;
@@ -304,6 +307,8 @@ const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
 
 
 /* Cropping, composing and scaling */
+void rvin_scaler_gen2(struct rvin_dev *vin);
+void rvin_scaler_gen3(struct rvin_dev *vin);
 void rvin_crop_scale_comp(struct rvin_dev *vin);
 
 int rvin_set_channel_routing(struct rvin_dev *vin, u8 chsel);

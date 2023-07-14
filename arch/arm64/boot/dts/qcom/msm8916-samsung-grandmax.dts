@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-samsung-e2015-common.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/*
+ * NOTE: The original firmware from Samsung can only boot ARM32 kernels on some
+ * variants.
+ * Unfortunately, the firmware is signed and cannot be replaced easily.
+ * There seems to be no way to boot ARM64 kernels on 32-bit devices at the
+ * moment, even though the hardware would support it.
+ *
+ * However, it is possible to use this device tree by compiling an ARM32 kernel
+ * instead. For clarity and build testing this device tree is maintained next
+ * to the other MSM8916 device trees. However, it is actually used through
+ * arch/arm/boot/dts/qcom-msm8916-samsung-grandmax.dts
+ */
+
+/ {
+	model = "Samsung Galaxy Grand Max";
+	compatible = "samsung,grandmax", "qcom,msm8916";
+	chassis-type = "handset";
+
+	/delete-node/ gpio-hall-sensor;
+	/delete-node/ i2c-nfc;
+	/delete-node/ i2c-tkey;
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		led-keyled {
+			function = LED_FUNCTION_KBD_BACKLIGHT;
+			color = <LED_COLOR_ID_WHITE>;
+
+			gpios = <&tlmm 60 GPIO_ACTIVE_HIGH>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio_leds_default>;
+		};
+	};
+};
+
+&reg_motor_vdd {
+	gpio = <&tlmm 72 GPIO_ACTIVE_HIGH>;
+};
+
+&reg_touch_key {
+	status = "disabled";
+};
+
+&tlmm {
+	gpio_leds_default: gpio-led-default-state {
+		pins = "gpio60";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&motor_en_default {
+	pins = "gpio72";
+};

@@ -13,7 +13,7 @@
  * Protects against simultaneous tests on multiple cores, or
  * reloading can file while a test is in progress
  */
-DEFINE_SEMAPHORE(ifs_sem);
+static DEFINE_SEMAPHORE(ifs_sem, 1);
 
 /*
  * The sysfs interface to check additional details of last test
@@ -64,7 +64,6 @@ static ssize_t run_test_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	struct ifs_data *ifsd = ifs_get_data(dev);
 	unsigned int cpu;
 	int rc;
 
@@ -75,10 +74,7 @@ static ssize_t run_test_store(struct device *dev,
 	if (down_interruptible(&ifs_sem))
 		return -EINTR;
 
-	if (!ifsd->loaded)
-		rc = -EPERM;
-	else
-		rc = do_core_test(cpu, dev);
+	rc = do_core_test(cpu, dev);
 
 	up(&ifs_sem);
 
@@ -87,33 +83,42 @@ static ssize_t run_test_store(struct device *dev,
 
 static DEVICE_ATTR_WO(run_test);
 
-/*
- * Reload the IFS image. When user wants to install new IFS image
- */
-static ssize_t reload_store(struct device *dev,
-			    struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t current_batch_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct ifs_data *ifsd = ifs_get_data(dev);
-	bool res;
+	unsigned int cur_batch;
+	int rc;
 
-
-	if (kstrtobool(buf, &res))
+	rc = kstrtouint(buf, 0, &cur_batch);
+	if (rc < 0 || cur_batch > 0xff)
 		return -EINVAL;
-	if (!res)
-		return count;
 
 	if (down_interruptible(&ifs_sem))
 		return -EINTR;
 
-	ifs_load_firmware(dev);
+	ifsd->cur_batch = cur_batch;
+
+	rc = ifs_load_firmware(dev);
 
 	up(&ifs_sem);
 
-	return ifsd->loaded ? count : -ENODEV;
+	return (rc == 0) ? count : rc;
 }
 
-static DEVICE_ATTR_WO(reload);
+static ssize_t current_batch_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct ifs_data *ifsd = ifs_get_data(dev);
+
+	if (!ifsd->loaded)
+		return sysfs_emit(buf, "none\n");
+	else
+		return sysfs_emit(buf, "0x%02x\n", ifsd->cur_batch);
+}
+
+static DEVICE_ATTR_RW(current_batch);
 
 /*
  * Display currently loaded IFS image version.
@@ -132,18 +137,19 @@ static ssize_t image_version_show(struct device *dev,
 static DEVICE_ATTR_RO(image_version);
 
 /* global scan sysfs attributes */
-static struct attribute *plat_ifs_attrs[] = {
+struct attribute *plat_ifs_attrs[] = {
 	&dev_attr_details.attr,
 	&dev_attr_status.attr,
 	&dev_attr_run_test.attr,
-	&dev_attr_reload.attr,
+	&dev_attr_current_batch.attr,
 	&dev_attr_image_version.attr,
 	NULL
 };
 
-ATTRIBUTE_GROUPS(plat_ifs);
-
-const struct attribute_group **ifs_get_groups(void)
-{
-	return plat_ifs_groups;
-}
+/* global array sysfs attributes */
+struct attribute *plat_ifs_array_attrs[] = {
+	&dev_attr_details.attr,
+	&dev_attr_status.attr,
+	&dev_attr_run_test.attr,
+	NULL
+};

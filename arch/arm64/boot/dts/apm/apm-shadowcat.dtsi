@@ -97,15 +97,23 @@
 		};
 		xgene_L2_0: l2-cache-0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 		xgene_L2_1: l2-cache-1 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 		xgene_L2_2: l2-cache-2 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 		xgene_L2_3: l2-cache-3 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -588,7 +596,6 @@
 		};
 
 		serial0: serial@10600000 {
-			device_type = "serial";
 			compatible = "ns16550";
 			reg = <0 0x10600000 0x0 0x1000>;
 			reg-shift = <2>;

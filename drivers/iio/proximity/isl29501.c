@@ -949,8 +949,7 @@ static irqreturn_t isl29501_trigger_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static int isl29501_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int isl29501_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct isl29501_private *isl29501;

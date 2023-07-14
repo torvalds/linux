@@ -7,18 +7,22 @@
  */
 
 #include <dt-bindings/pinctrl/at91.h>
+
 #include <linux/clk.h>
 #include <linux/gpio/driver.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pinctrl/pinconf.h>
+#include <linux/seq_file.h>
+#include <linux/slab.h>
+
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/slab.h>
+
 #include "core.h"
 #include "pinconf.h"
 #include "pinctrl-utils.h"
@@ -758,6 +762,11 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = 1;
 		break;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		if (res & ATMEL_PIO_OPD_MASK)
+			return -EINVAL;
+		arg = 1;
+		break;
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 		if (!(res & ATMEL_PIO_SCHMITT_MASK))
 			return -EINVAL;
@@ -775,6 +784,8 @@ static int atmel_conf_pin_config_group_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 		arg = (res & ATMEL_PIO_DRVSTR_MASK) >> ATMEL_PIO_DRVSTR_OFFSET;
 		break;
+	case PIN_CONFIG_PERSIST_STATE:
+		return -ENOTSUPP;
 	default:
 		return -ENOTSUPP;
 	}
@@ -821,10 +832,10 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 			conf &= (~ATMEL_PIO_PUEN_MASK);
 			break;
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-			if (arg == 0)
-				conf &= (~ATMEL_PIO_OPD_MASK);
-			else
-				conf |= ATMEL_PIO_OPD_MASK;
+			conf |= ATMEL_PIO_OPD_MASK;
+			break;
+		case PIN_CONFIG_DRIVE_PUSH_PULL:
+			conf &= ~ATMEL_PIO_OPD_MASK;
 			break;
 		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
 			if (arg == 0)
@@ -883,6 +894,8 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				dev_warn(pctldev->dev, "drive strength not updated (incorrect value)\n");
 			}
 			break;
+		case PIN_CONFIG_PERSIST_STATE:
+			return -ENOTSUPP;
 		default:
 			dev_warn(pctldev->dev,
 				 "unsupported configuration parameter: %u\n",
@@ -895,6 +908,25 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 	atmel_pin_config_write(pctldev, pin_id, conf);
 
 	return 0;
+}
+
+static int atmel_conf_pin_config_set(struct pinctrl_dev *pctldev,
+				     unsigned pin,
+				     unsigned long *configs,
+				     unsigned num_configs)
+{
+	struct atmel_group *grp = atmel_pctl_find_group_by_pin(pctldev, pin);
+
+	return atmel_conf_pin_config_group_set(pctldev, grp->pin, configs, num_configs);
+}
+
+static int atmel_conf_pin_config_get(struct pinctrl_dev *pctldev,
+				     unsigned pin,
+				     unsigned long *configs)
+{
+	struct atmel_group *grp = atmel_pctl_find_group_by_pin(pctldev, pin);
+
+	return atmel_conf_pin_config_group_get(pctldev, grp->pin, configs);
 }
 
 static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
@@ -921,6 +953,8 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "%s ", "debounce");
 	if (conf & ATMEL_PIO_OPD_MASK)
 		seq_printf(s, "%s ", "open-drain");
+	else
+		seq_printf(s, "%s ", "push-pull");
 	if (conf & ATMEL_PIO_SCHMITT_MASK)
 		seq_printf(s, "%s ", "schmitt");
 	if (atmel_pioctrl->slew_rate_support && (conf & ATMEL_PIO_SR_MASK))
@@ -944,6 +978,8 @@ static const struct pinconf_ops atmel_confops = {
 	.pin_config_group_get	= atmel_conf_pin_config_group_get,
 	.pin_config_group_set	= atmel_conf_pin_config_group_set,
 	.pin_config_dbg_show	= atmel_conf_pin_config_dbg_show,
+	.pin_config_set	        = atmel_conf_pin_config_set,
+	.pin_config_get	        = atmel_conf_pin_config_get,
 };
 
 static struct pinctrl_desc atmel_pinctrl_desc = {
@@ -1038,7 +1074,6 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc	*pin_desc;
 	const char **group_names;
-	const struct of_device_id *match;
 	int i, ret;
 	struct atmel_pioctrl *atmel_pioctrl;
 	const struct atmel_pioctrl_data *atmel_pioctrl_data;
@@ -1050,12 +1085,10 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->node = dev->of_node;
 	platform_set_drvdata(pdev, atmel_pioctrl);
 
-	match = of_match_node(atmel_pctrl_of_match, dev->of_node);
-	if (!match) {
-		dev_err(dev, "unknown compatible string\n");
-		return -ENODEV;
-	}
-	atmel_pioctrl_data = match->data;
+	atmel_pioctrl_data = device_get_match_data(dev);
+	if (!atmel_pioctrl_data)
+		return dev_err_probe(dev, -ENODEV, "Invalid device data\n");
+
 	atmel_pioctrl->nbanks = atmel_pioctrl_data->nbanks;
 	atmel_pioctrl->npins = atmel_pioctrl->nbanks * ATMEL_PIO_NPINS_PER_BANK;
 	/* if last bank has limited number of pins, adjust accordingly */
@@ -1069,11 +1102,9 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(atmel_pioctrl->reg_base))
 		return PTR_ERR(atmel_pioctrl->reg_base);
 
-	atmel_pioctrl->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(atmel_pioctrl->clk)) {
-		dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(atmel_pioctrl->clk);
-	}
+	atmel_pioctrl->clk = devm_clk_get_enabled(dev, NULL);
+	if (IS_ERR(atmel_pioctrl->clk))
+		return dev_err_probe(dev, PTR_ERR(atmel_pioctrl->clk), "failed to get clock\n");
 
 	atmel_pioctrl->pins = devm_kcalloc(dev,
 					   atmel_pioctrl->npins,
@@ -1120,8 +1151,10 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 
 		pin_desc[i].number = i;
 		/* Pin naming convention: P(bank_name)(bank_pin_number). */
-		pin_desc[i].name = kasprintf(GFP_KERNEL, "P%c%d",
-					     bank + 'A', line);
+		pin_desc[i].name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "P%c%u",
+						  bank + 'A', line);
+		if (!pin_desc[i].name)
+			return -ENOMEM;
 
 		group->name = group_names[i] = pin_desc[i].name;
 		group->pin = pin_desc[i].number;
@@ -1134,6 +1167,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->gpio_chip->label = dev_name(dev);
 	atmel_pioctrl->gpio_chip->parent = dev;
 	atmel_pioctrl->gpio_chip->names = atmel_pioctrl->group_names;
+	atmel_pioctrl->gpio_chip->set_config = gpiochip_generic_config;
 
 	atmel_pioctrl->pm_wakeup_sources = devm_kcalloc(dev,
 			atmel_pioctrl->nbanks,
@@ -1172,11 +1206,8 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,
 			atmel_pioctrl->gpio_chip->ngpio,
 			&irq_domain_simple_ops, NULL);
-	if (!atmel_pioctrl->irq_domain) {
-		dev_err(dev, "can't add the irq domain\n");
-		return -ENODEV;
-	}
-	atmel_pioctrl->irq_domain->name = "atmel gpio";
+	if (!atmel_pioctrl->irq_domain)
+		return dev_err_probe(dev, -ENODEV, "can't add the irq domain\n");
 
 	for (i = 0; i < atmel_pioctrl->npins; i++) {
 		int irq = irq_create_mapping(atmel_pioctrl->irq_domain, i);
@@ -1189,25 +1220,19 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 			i, irq);
 	}
 
-	ret = clk_prepare_enable(atmel_pioctrl->clk);
-	if (ret) {
-		dev_err(dev, "failed to prepare and enable clock\n");
-		goto clk_prepare_enable_error;
-	}
-
 	atmel_pioctrl->pinctrl_dev = devm_pinctrl_register(&pdev->dev,
 							   &atmel_pinctrl_desc,
 							   atmel_pioctrl);
 	if (IS_ERR(atmel_pioctrl->pinctrl_dev)) {
 		ret = PTR_ERR(atmel_pioctrl->pinctrl_dev);
 		dev_err(dev, "pinctrl registration failed\n");
-		goto clk_unprep;
+		goto irq_domain_remove_error;
 	}
 
 	ret = gpiochip_add_data(atmel_pioctrl->gpio_chip, atmel_pioctrl);
 	if (ret) {
 		dev_err(dev, "failed to add gpiochip\n");
-		goto clk_unprep;
+		goto irq_domain_remove_error;
 	}
 
 	ret = gpiochip_add_pin_range(atmel_pioctrl->gpio_chip, dev_name(dev),
@@ -1224,10 +1249,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 gpiochip_add_pin_range_error:
 	gpiochip_remove(atmel_pioctrl->gpio_chip);
 
-clk_unprep:
-	clk_disable_unprepare(atmel_pioctrl->clk);
-
-clk_prepare_enable_error:
+irq_domain_remove_error:
 	irq_domain_remove(atmel_pioctrl->irq_domain);
 
 	return ret;

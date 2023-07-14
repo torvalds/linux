@@ -21,7 +21,13 @@ _GLOBAL(epapr_ev_idle)
 	ori	r4, r4,_TLF_NAPPING	/* so when we take an exception */
 	PPC_STL	r4, TI_LOCAL_FLAGS(r2)	/* it will return to our caller */
 
+#ifdef CONFIG_BOOKE_OR_40x
 	wrteei	1
+#else
+	mfmsr	r4
+	ori	r4, r4, MSR_EE
+	mtmsr	r4
+#endif
 
 idle_loop:
 	LOAD_REG_IMMEDIATE(r11, EV_HCALL_TOKEN(EV_IDLE))

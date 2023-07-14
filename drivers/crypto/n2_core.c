@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/cpumask.h>
 #include <linux/slab.h>
@@ -1229,6 +1230,7 @@ struct n2_hash_tmpl {
 	const u8	*hash_init;
 	u8		hw_op_hashsz;
 	u8		digest_size;
+	u8		statesize;
 	u8		block_size;
 	u8		auth_type;
 	u8		hmac_type;
@@ -1260,6 +1262,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .hmac_type	= AUTH_TYPE_HMAC_MD5,
 	  .hw_op_hashsz	= MD5_DIGEST_SIZE,
 	  .digest_size	= MD5_DIGEST_SIZE,
+	  .statesize	= sizeof(struct md5_state),
 	  .block_size	= MD5_HMAC_BLOCK_SIZE },
 	{ .name		= "sha1",
 	  .hash_zero	= sha1_zero_message_hash,
@@ -1268,6 +1271,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .hmac_type	= AUTH_TYPE_HMAC_SHA1,
 	  .hw_op_hashsz	= SHA1_DIGEST_SIZE,
 	  .digest_size	= SHA1_DIGEST_SIZE,
+	  .statesize	= sizeof(struct sha1_state),
 	  .block_size	= SHA1_BLOCK_SIZE },
 	{ .name		= "sha256",
 	  .hash_zero	= sha256_zero_message_hash,
@@ -1276,6 +1280,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .hmac_type	= AUTH_TYPE_HMAC_SHA256,
 	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
 	  .digest_size	= SHA256_DIGEST_SIZE,
+	  .statesize	= sizeof(struct sha256_state),
 	  .block_size	= SHA256_BLOCK_SIZE },
 	{ .name		= "sha224",
 	  .hash_zero	= sha224_zero_message_hash,
@@ -1284,6 +1289,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .hmac_type	= AUTH_TYPE_RESERVED,
 	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
 	  .digest_size	= SHA224_DIGEST_SIZE,
+	  .statesize	= sizeof(struct sha256_state),
 	  .block_size	= SHA224_BLOCK_SIZE },
 };
 #define NUM_HASH_TMPLS ARRAY_SIZE(hash_tmpls)
@@ -1424,6 +1430,7 @@ static int __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 
 	halg = &ahash->halg;
 	halg->digestsize = tmpl->digest_size;
+	halg->statesize = tmpl->statesize;
 
 	base = &halg->base;
 	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "%s", tmpl->name);
@@ -1494,7 +1501,7 @@ static void n2_unregister_algs(void)
  *
  * So we have to back-translate, going through the 'intr' and 'ino'
  * property tables of the n2cp MDESC node, matching it with the OF
- * 'interrupts' property entries, in order to to figure out which
+ * 'interrupts' property entries, in order to figure out which
  * devino goes to which already-translated IRQ.
  */
 static int find_devino_index(struct platform_device *dev, struct spu_mdesc_info *ip,
@@ -1789,11 +1796,9 @@ static int grab_mdesc_irq_props(struct mdesc_handle *mdesc,
 				struct spu_mdesc_info *ip,
 				const char *node_name)
 {
-	const unsigned int *reg;
-	u64 node;
+	u64 node, reg;
 
-	reg = of_get_property(dev->dev.of_node, "reg", NULL);
-	if (!reg)
+	if (of_property_read_reg(dev->dev.of_node, 0, &reg, NULL) < 0)
 		return -ENODEV;
 
 	mdesc_for_each_node_by_name(mdesc, node, "virtual-device") {
@@ -1804,7 +1809,7 @@ static int grab_mdesc_irq_props(struct mdesc_handle *mdesc,
 		if (!name || strcmp(name, node_name))
 			continue;
 		chdl = mdesc_get_property(mdesc, node, "cfg-handle", NULL);
-		if (!chdl || (*chdl != *reg))
+		if (!chdl || (*chdl != reg))
 			continue;
 		ip->cfg_handle = *chdl;
 		return get_irq_props(mdesc, node, ip);

@@ -201,7 +201,7 @@ static int onetouch_connect_input(struct us_data *ss)
 	onetouch->dev = input_dev;
 
 	if (udev->manufacturer)
-		strlcpy(onetouch->name, udev->manufacturer,
+		strscpy(onetouch->name, udev->manufacturer,
 			sizeof(onetouch->name));
 	if (udev->product) {
 		if (udev->manufacturer)

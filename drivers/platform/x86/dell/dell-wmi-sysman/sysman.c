@@ -255,7 +255,7 @@ static void attr_name_release(struct kobject *kobj)
 	kfree(kobj);
 }
 
-static struct kobj_type attr_name_ktype = {
+static const struct kobj_type attr_name_ktype = {
 	.release	= attr_name_release,
 	.sysfs_ops	= &wmi_sysman_kobj_sysfs_ops,
 };
@@ -270,7 +270,7 @@ void strlcpy_attr(char *dest, char *src)
 	size_t len = strlen(src) + 1;
 
 	if (len > 1 && len <= MAX_BUFF)
-		strlcpy(dest, src, len);
+		strscpy(dest, src, len);
 
 	/*len can be zero because any property not-applicable to attribute can
 	 * be empty so check only for too long buffers and log error
@@ -303,16 +303,13 @@ union acpi_object *get_wmiobj_pointer(int instance_id, const char *guid_string)
  */
 int get_instance_count(const char *guid_string)
 {
-	union acpi_object *wmi_obj = NULL;
-	int i = 0;
+	int ret;
 
-	do {
-		kfree(wmi_obj);
-		wmi_obj = get_wmiobj_pointer(i, guid_string);
-		i++;
-	} while (wmi_obj);
+	ret = wmi_instance_count(guid_string);
+	if (ret < 0)
+		return 0;
 
-	return (i-1);
+	return ret;
 }
 
 /**

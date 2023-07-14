@@ -1037,7 +1037,7 @@ static void sa_free_sa_rx_data(struct sa_rx_data *rxd)
 
 static void sa_aes_dma_in_callback(void *data)
 {
-	struct sa_rx_data *rxd = (struct sa_rx_data *)data;
+	struct sa_rx_data *rxd = data;
 	struct skcipher_request *req;
 	u32 *result;
 	__be32 *mdptr;
@@ -1351,7 +1351,7 @@ static int sa_decrypt(struct skcipher_request *req)
 
 static void sa_sha_dma_in_callback(void *data)
 {
-	struct sa_rx_data *rxd = (struct sa_rx_data *)data;
+	struct sa_rx_data *rxd = data;
 	struct ahash_request *req;
 	struct crypto_ahash *tfm;
 	unsigned int authsize;
@@ -1689,7 +1689,7 @@ static void sa_sha_cra_exit(struct crypto_tfm *tfm)
 
 static void sa_aead_dma_in_callback(void *data)
 {
-	struct sa_rx_data *rxd = (struct sa_rx_data *)data;
+	struct sa_rx_data *rxd = data;
 	struct aead_request *req;
 	struct crypto_aead *tfm;
 	unsigned int start;

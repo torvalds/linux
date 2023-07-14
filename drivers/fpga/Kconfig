@@ -246,7 +246,9 @@ config FPGA_MGR_VERSAL_FPGA
 
 config FPGA_M10_BMC_SEC_UPDATE
 	tristate "Intel MAX10 BMC Secure Update driver"
-	depends on MFD_INTEL_M10_BMC && FW_UPLOAD
+	depends on MFD_INTEL_M10_BMC_CORE
+	select FW_LOADER
+	select FW_UPLOAD
 	help
 	  Secure update support for the Intel MAX10 board management
 	  controller.
@@ -262,5 +264,16 @@ config FPGA_MGR_MICROCHIP_SPI
 	  FPGA manager driver support for Microchip Polarfire FPGAs
 	  programming over slave SPI interface with .dat formatted
 	  bitstream image.
+
+config FPGA_MGR_LATTICE_SYSCONFIG
+	tristate
+
+config FPGA_MGR_LATTICE_SYSCONFIG_SPI
+	tristate "Lattice sysCONFIG SPI FPGA manager"
+	depends on SPI
+	select FPGA_MGR_LATTICE_SYSCONFIG
+	help
+	  FPGA manager driver support for Lattice FPGAs programming over slave
+	  SPI sysCONFIG interface.
 
 endif # FPGA

@@ -327,6 +327,7 @@ static int __init acpi_parse_cfmws(union acpi_subtable_headers *header,
 		pr_warn("ACPI NUMA: Failed to add memblk for CFMWS node %d [mem %#llx-%#llx]\n",
 			node, start, end);
 	}
+	node_set(node, numa_nodes_parsed);
 
 	/* Set the next available fake_pxm value */
 	(*fake_pxm)++;

@@ -43,14 +43,6 @@ struct boe_bf060y8m_aj0 *to_boe_bf060y8m_aj0(struct drm_panel *panel)
 	return container_of(panel, struct boe_bf060y8m_aj0, panel);
 }
 
-#define dsi_dcs_write_seq(dsi, seq...) do {				\
-		static const u8 d[] = { seq };				\
-		int ret;						\
-		ret = mipi_dsi_dcs_write_buffer(dsi, d, ARRAY_SIZE(d));	\
-		if (ret < 0)						\
-			return ret;					\
-	} while (0)
-
 static void boe_bf060y8m_aj0_reset(struct boe_bf060y8m_aj0 *boe)
 {
 	gpiod_set_value_cansleep(boe->reset_gpio, 0);
@@ -67,12 +59,12 @@ static int boe_bf060y8m_aj0_on(struct boe_bf060y8m_aj0 *boe)
 	struct device *dev = &dsi->dev;
 	int ret;
 
-	dsi_dcs_write_seq(dsi, 0xb0, 0xa5, 0x00);
-	dsi_dcs_write_seq(dsi, 0xb2, 0x00, 0x4c);
-	dsi_dcs_write_seq(dsi, MIPI_DCS_SET_3D_CONTROL, 0x10);
-	dsi_dcs_write_seq(dsi, MIPI_DCS_WRITE_POWER_SAVE, DCS_ALLOW_HBM_RANGE);
-	dsi_dcs_write_seq(dsi, 0xf8,
-			  0x00, 0x08, 0x10, 0x00, 0x22, 0x00, 0x00, 0x2d);
+	mipi_dsi_dcs_write_seq(dsi, 0xb0, 0xa5, 0x00);
+	mipi_dsi_dcs_write_seq(dsi, 0xb2, 0x00, 0x4c);
+	mipi_dsi_dcs_write_seq(dsi, MIPI_DCS_SET_3D_CONTROL, 0x10);
+	mipi_dsi_dcs_write_seq(dsi, MIPI_DCS_WRITE_POWER_SAVE, DCS_ALLOW_HBM_RANGE);
+	mipi_dsi_dcs_write_seq(dsi, 0xf8,
+			       0x00, 0x08, 0x10, 0x00, 0x22, 0x00, 0x00, 0x2d);
 
 	ret = mipi_dsi_dcs_exit_sleep_mode(dsi);
 	if (ret < 0) {
@@ -81,17 +73,17 @@ static int boe_bf060y8m_aj0_on(struct boe_bf060y8m_aj0 *boe)
 	}
 	msleep(30);
 
-	dsi_dcs_write_seq(dsi, 0xb0, 0xa5, 0x00);
-	dsi_dcs_write_seq(dsi, 0xc0,
-			  0x08, 0x48, 0x65, 0x33, 0x33, 0x33,
-			  0x2a, 0x31, 0x39, 0x20, 0x09);
-	dsi_dcs_write_seq(dsi, 0xc1, 0x00, 0x00, 0x00, 0x1f, 0x1f,
-			  0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f,
-			  0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f);
-	dsi_dcs_write_seq(dsi, 0xe2, 0x20, 0x04, 0x10, 0x12, 0x92,
-			  0x4f, 0x8f, 0x44, 0x84, 0x83, 0x83, 0x83,
-			  0x5c, 0x5c, 0x5c);
-	dsi_dcs_write_seq(dsi, 0xde, 0x01, 0x2c, 0x00, 0x77, 0x3e);
+	mipi_dsi_dcs_write_seq(dsi, 0xb0, 0xa5, 0x00);
+	mipi_dsi_dcs_write_seq(dsi, 0xc0,
+			       0x08, 0x48, 0x65, 0x33, 0x33, 0x33,
+			       0x2a, 0x31, 0x39, 0x20, 0x09);
+	mipi_dsi_dcs_write_seq(dsi, 0xc1, 0x00, 0x00, 0x00, 0x1f, 0x1f,
+			       0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f,
+			       0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f);
+	mipi_dsi_dcs_write_seq(dsi, 0xe2, 0x20, 0x04, 0x10, 0x12, 0x92,
+			       0x4f, 0x8f, 0x44, 0x84, 0x83, 0x83, 0x83,
+			       0x5c, 0x5c, 0x5c);
+	mipi_dsi_dcs_write_seq(dsi, 0xde, 0x01, 0x2c, 0x00, 0x77, 0x3e);
 
 	msleep(30);
 
@@ -410,7 +402,7 @@ static int boe_bf060y8m_aj0_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int boe_bf060y8m_aj0_remove(struct mipi_dsi_device *dsi)
+static void boe_bf060y8m_aj0_remove(struct mipi_dsi_device *dsi)
 {
 	struct boe_bf060y8m_aj0 *boe = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -420,8 +412,6 @@ static int boe_bf060y8m_aj0_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&boe->panel);
-
-	return 0;
 }
 
 static const struct of_device_id boe_bf060y8m_aj0_of_match[] = {

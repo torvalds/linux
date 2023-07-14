@@ -161,9 +161,14 @@ static void dp_aux_ep_dev_release(struct device *dev)
 	kfree(aux_ep_with_data);
 }
 
+static int dp_aux_ep_dev_modalias(const struct device *dev, struct kobj_uevent_env *env)
+{
+	return of_device_uevent_modalias(dev, env);
+}
+
 static struct device_type dp_aux_device_type_type = {
 	.groups		= dp_aux_ep_dev_groups,
-	.uevent		= of_device_uevent_modalias,
+	.uevent		= dp_aux_ep_dev_modalias,
 	.release	= dp_aux_ep_dev_release,
 };
 

@@ -504,8 +504,6 @@ static const struct resource_caps rv2_res_cap = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -544,8 +542,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.disable_pplib_clock_request = false,
 		.disable_pplib_wm_range = false,
 		.pplib_wm_report_mode = WM_REPORT_DEFAULT,
-		.pipe_split_policy = MPC_SPLIT_AVOID,
-		.force_single_disp_pipe_split = false,
+		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
+		.force_single_disp_pipe_split = true,
 		.disable_dcc = DCC_ENABLE,
 		.voltage_align_fclk = true,
 		.disable_stereo_support = true,
@@ -555,6 +553,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.recovery_enabled = false, /*enable this by default after testing.*/
 		.max_downscale_src_width = 3840,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
+		.enable_legacy_fast_update = true,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -885,13 +884,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.read_dce_straps = read_dce_straps,
 	.create_audio = create_audio,
 	.create_stream_encoder = dcn10_stream_encoder_create,
-	.create_hwseq = dcn10_hwseq_create,
-};
-
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
 	.create_hwseq = dcn10_hwseq_create,
 };
 
@@ -1295,45 +1287,19 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 	return value;
 }
 
-/*
- * Some architectures don't support soft-float (e.g. aarch64), on those
- * this function has to be called with hardfloat enabled, make sure not
- * to inline it so whatever fp stuff is done stays inside
- */
-static noinline void dcn10_resource_construct_fp(
-	struct dc *dc)
+static bool verify_clock_values(struct dm_pp_clock_levels_with_voltage *clks)
 {
-	if (dc->ctx->dce_version == DCN_VERSION_1_01) {
-		struct dcn_soc_bounding_box *dcn_soc = dc->dcn_soc;
-		struct dcn_ip_params *dcn_ip = dc->dcn_ip;
-		struct display_mode_lib *dml = &dc->dml;
+	int i;
 
-		dml->ip.max_num_dpp = 3;
-		/* TODO how to handle 23.84? */
-		dcn_soc->dram_clock_change_latency = 23;
-		dcn_ip->max_num_dpp = 3;
-	}
-	if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
-		dc->dcn_soc->urgent_latency = 3;
-		dc->debug.disable_dmcu = true;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = 41.60f;
-	}
+	if (clks->num_levels == 0)
+		return false;
 
+	for (i = 0; i < clks->num_levels; i++)
+		/* Ensure that the result is sane */
+		if (clks->data[i].clocks_in_khz == 0)
+			return false;
 
-	dc->dcn_soc->number_of_channels = dc->ctx->asic_id.vram_width / ddr4_dram_width;
-	ASSERT(dc->dcn_soc->number_of_channels < 3);
-	if (dc->dcn_soc->number_of_channels == 0)/*old sbios bug*/
-		dc->dcn_soc->number_of_channels = 2;
-
-	if (dc->dcn_soc->number_of_channels == 1) {
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = 19.2f;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 = 17.066f;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = 14.933f;
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 12.8f;
-		if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
-			dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = 20.80f;
-		}
-	}
+	return true;
 }
 
 static bool dcn10_resource_construct(
@@ -1345,6 +1311,9 @@ static bool dcn10_resource_construct(
 	int j;
 	struct dc_context *ctx = dc->ctx;
 	uint32_t pipe_fuses = read_pipe_fuses(ctx);
+	struct dm_pp_clock_levels_with_voltage fclks = {0}, dcfclks = {0};
+	int min_fclk_khz, min_dcfclk_khz, socclk_khz;
+	bool res;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -1492,8 +1461,27 @@ static bool dcn10_resource_construct(
 	memcpy(dc->dcn_ip, &dcn10_ip_defaults, sizeof(dcn10_ip_defaults));
 	memcpy(dc->dcn_soc, &dcn10_soc_defaults, sizeof(dcn10_soc_defaults));
 
-	/* Other architectures we build for build this with soft-float */
+	DC_FP_START();
 	dcn10_resource_construct_fp(dc);
+	DC_FP_END();
+
+	if (!dc->config.is_vmin_only_asic)
+		if (ASICREV_IS_RAVEN2(dc->ctx->asic_id.hw_internal_rev))
+			switch (dc->ctx->asic_id.pci_revision_id) {
+			case PRID_DALI_DE:
+			case PRID_DALI_DF:
+			case PRID_DALI_E3:
+			case PRID_DALI_E4:
+			case PRID_POLLOCK_94:
+			case PRID_POLLOCK_95:
+			case PRID_POLLOCK_E9:
+			case PRID_POLLOCK_EA:
+			case PRID_POLLOCK_EB:
+				dc->config.is_vmin_only_asic = true;
+				break;
+			default:
+				break;
+			}
 
 	pool->base.pp_smu = dcn10_pp_smu_create(ctx);
 
@@ -1505,15 +1493,53 @@ static bool dcn10_resource_construct(
 			&& pool->base.pp_smu->rv_funcs.set_pme_wa_enable != NULL)
 		dc->debug.az_endpoint_mute_only = false;
 
-	DC_FP_START();
-	if (!dc->debug.disable_pplib_clock_request)
-		dcn_bw_update_from_pplib(dc);
+
+	if (!dc->debug.disable_pplib_clock_request) {
+		/*
+		 * TODO: This is not the proper way to obtain
+		 * fabric_and_dram_bandwidth, should be min(fclk, memclk).
+		 */
+		res = dm_pp_get_clock_levels_by_type_with_voltage(
+				ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
+
+		DC_FP_START();
+
+		if (res)
+			res = verify_clock_values(&fclks);
+
+		if (res)
+			dcn_bw_update_from_pplib_fclks(dc, &fclks);
+		else
+			BREAK_TO_DEBUGGER();
+
+		DC_FP_END();
+
+		res = dm_pp_get_clock_levels_by_type_with_voltage(
+			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
+
+		DC_FP_START();
+
+		if (res)
+			res = verify_clock_values(&dcfclks);
+
+		if (res)
+			dcn_bw_update_from_pplib_dcfclks(dc, &dcfclks);
+		else
+			BREAK_TO_DEBUGGER();
+
+		DC_FP_END();
+	}
+
 	dcn_bw_sync_calcs_and_dml(dc);
 	if (!dc->debug.disable_pplib_wm_range) {
 		dc->res_pool = &pool->base;
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		DC_FP_START();
+		dcn_get_soc_clks(
+			dc, &min_fclk_khz, &min_dcfclk_khz, &socclk_khz);
+		DC_FP_END();
+		dcn_bw_notify_pplib_of_wm_ranges(
+			dc, min_fclk_khz, min_dcfclk_khz, socclk_khz);
 	}
-	DC_FP_END();
 
 	{
 		struct irq_service_init_data init_data;
@@ -1619,9 +1645,8 @@ static bool dcn10_resource_construct(
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
-			&res_create_funcs : &res_create_maximus_funcs)))
-			goto fail;
+			&res_create_funcs))
+		goto fail;
 
 	dcn10_hw_sequencer_construct(dc);
 	dc->caps.max_planes =  pool->base.pipe_count;

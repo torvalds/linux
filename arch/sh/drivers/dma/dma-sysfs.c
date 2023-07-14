@@ -45,13 +45,19 @@ static DEVICE_ATTR(devices, S_IRUGO, dma_show_devices, NULL);
 
 static int __init dma_subsys_init(void)
 {
+	struct device *dev_root;
 	int ret;
 
 	ret = subsys_system_register(&dma_subsys, NULL);
 	if (unlikely(ret))
 		return ret;
 
-	return device_create_file(dma_subsys.dev_root, &dev_attr_devices);
+	dev_root = bus_get_dev_root(&dma_subsys);
+	if (dev_root) {
+		ret = device_create_file(dev_root, &dev_attr_devices);
+		put_device(dev_root);
+	}
+	return ret;
 }
 postcore_initcall(dma_subsys_init);
 

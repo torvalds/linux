@@ -103,10 +103,10 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 {
 	struct ice_pf *pf = vsi->back;
 	struct ice_q_vector *q_vector;
+	int err;
 
 	/* allocate q_vector */
-	q_vector = devm_kzalloc(ice_pf_to_dev(pf), sizeof(*q_vector),
-				GFP_KERNEL);
+	q_vector = kzalloc(sizeof(*q_vector), GFP_KERNEL);
 	if (!q_vector)
 		return -ENOMEM;
 
@@ -118,9 +118,34 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	q_vector->rx.itr_mode = ITR_DYNAMIC;
 	q_vector->tx.type = ICE_TX_CONTAINER;
 	q_vector->rx.type = ICE_RX_CONTAINER;
+	q_vector->irq.index = -ENOENT;
 
-	if (vsi->type == ICE_VSI_VF)
+	if (vsi->type == ICE_VSI_VF) {
+		q_vector->reg_idx = ice_calc_vf_reg_idx(vsi->vf, q_vector);
 		goto out;
+	} else if (vsi->type == ICE_VSI_CTRL && vsi->vf) {
+		struct ice_vsi *ctrl_vsi = ice_get_vf_ctrl_vsi(pf, vsi);
+
+		if (ctrl_vsi) {
+			if (unlikely(!ctrl_vsi->q_vectors)) {
+				err = -ENOENT;
+				goto err_free_q_vector;
+			}
+
+			q_vector->irq = ctrl_vsi->q_vectors[0]->irq;
+			goto skip_alloc;
+		}
+	}
+
+	q_vector->irq = ice_alloc_irq(pf, vsi->irq_dyn_alloc);
+	if (q_vector->irq.index < 0) {
+		err = -ENOMEM;
+		goto err_free_q_vector;
+	}
+
+skip_alloc:
+	q_vector->reg_idx = q_vector->irq.index;
+
 	/* only set affinity_mask if the CPU is online */
 	if (cpu_online(v_idx))
 		cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
@@ -137,6 +162,11 @@ out:
 	vsi->q_vectors[v_idx] = q_vector;
 
 	return 0;
+
+err_free_q_vector:
+	kfree(q_vector);
+
+	return err;
 }
 
 /**
@@ -168,7 +198,19 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 	if (vsi->netdev)
 		netif_napi_del(&q_vector->napi);
 
-	devm_kfree(dev, q_vector);
+	/* release MSIX interrupt if q_vector had interrupt allocated */
+	if (q_vector->irq.index < 0)
+		goto free_q_vector;
+
+	/* only free last VF ctrl vsi interrupt */
+	if (vsi->type == ICE_VSI_CTRL && vsi->vf &&
+	    ice_get_vf_ctrl_vsi(pf, vsi))
+		goto free_q_vector;
+
+	ice_free_irq(pf, q_vector->irq);
+
+free_q_vector:
+	kfree(q_vector);
 	vsi->q_vectors[v_idx] = NULL;
 }
 
@@ -355,9 +397,6 @@ static unsigned int ice_rx_offset(struct ice_rx_ring *rx_ring)
 {
 	if (ice_ring_uses_build_skb(rx_ring))
 		return ICE_SKB_PAD;
-	else if (ice_is_xdp_ena_vsi(rx_ring->vsi))
-		return XDP_PACKET_HEADROOM;
-
 	return 0;
 }
 
@@ -389,7 +428,7 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	 * Indicates the starting address of the descriptor queue defined in
 	 * 128 Byte units.
 	 */
-	rlan_ctx.base = ring->dma >> 7;
+	rlan_ctx.base = ring->dma >> ICE_RLAN_BASE_S;
 
 	rlan_ctx.qlen = ring->count;
 
@@ -495,7 +534,7 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 {
 	struct device *dev = ice_pf_to_dev(ring->vsi->back);
-	u16 num_bufs = ICE_DESC_UNUSED(ring);
+	u32 num_bufs = ICE_RX_DESC_UNUSED(ring);
 	int err;
 
 	ring->rx_buf_len = ring->vsi->rx_buf_len;
@@ -503,8 +542,10 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 	if (ring->vsi->type == ICE_VSI_PF) {
 		if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
 			/* coverity[check_return] */
-			xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
-					 ring->q_index, ring->q_vector->napi.napi_id);
+			__xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
+					   ring->q_index,
+					   ring->q_vector->napi.napi_id,
+					   ring->vsi->rx_buf_len);
 
 		ring->xsk_pool = ice_xsk_pool(ring);
 		if (ring->xsk_pool) {
@@ -524,9 +565,11 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 		} else {
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
 				/* coverity[check_return] */
-				xdp_rxq_info_reg(&ring->xdp_rxq,
-						 ring->netdev,
-						 ring->q_index, ring->q_vector->napi.napi_id);
+				__xdp_rxq_info_reg(&ring->xdp_rxq,
+						   ring->netdev,
+						   ring->q_index,
+						   ring->q_vector->napi.napi_id,
+						   ring->vsi->rx_buf_len);
 
 			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
 							 MEM_TYPE_PAGE_SHARED,
@@ -536,6 +579,8 @@ int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 		}
 	}
 
+	xdp_init_buff(&ring->xdp, ice_rx_pg_size(ring) / 2, &ring->xdp_rxq);
+	ring->xdp.data = NULL;
 	err = ice_setup_rx_ctx(ring);
 	if (err) {
 		dev_err(dev, "ice_setup_rx_ctx failed for RxQ %d, err %d\n",
@@ -958,7 +1003,7 @@ ice_vsi_stop_tx_ring(struct ice_vsi *vsi, enum ice_disq_rst_src rst_src,
 	 * associated to the queue to schedule NAPI handler
 	 */
 	q_vector = ring->q_vector;
-	if (q_vector)
+	if (q_vector && !(vsi->vf && ice_is_vf_disabled(vsi->vf)))
 		ice_trigger_sw_intr(hw, q_vector);
 
 	status = ice_dis_vsi_txq(vsi->port_info, txq_meta->vsi_idx,

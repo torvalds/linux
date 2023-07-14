@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -190,7 +190,7 @@ static u32 iwl_mvm_set_mac80211_rx_flag(struct iwl_mvm *mvm,
 	default:
 		/* Expected in monitor (not having the keys) */
 		if (!mvm->monitor_on)
-			IWL_ERR(mvm, "Unhandled alg: 0x%x\n", rx_pkt_status);
+			IWL_WARN(mvm, "Unhandled alg: 0x%x\n", rx_pkt_status);
 	}
 
 	return 0;
@@ -213,8 +213,12 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 	};
 	u16 thr;
 
-	if (ieee80211_is_data_qos(hdr->frame_control))
-		ac = tid_to_mac80211_ac[ieee80211_get_tid(hdr)];
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 tid = ieee80211_get_tid(hdr);
+
+		if (tid < IWL_MAX_TID_COUNT)
+			ac = tid_to_mac80211_ac[tid];
+	}
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
@@ -237,11 +241,11 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 
 	if (mdata->opened_rx_ba_sessions ||
 	    mdata->uapsd_nonagg_detect.detected ||
-	    (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
-	     !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
-	     !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
-	     !mvmvif->queue_params[IEEE80211_AC_BK].uapsd) ||
-	    mvmsta->sta_id != mvmvif->ap_sta_id)
+	    (!mvmvif->deflink.queue_params[IEEE80211_AC_VO].uapsd &&
+	     !mvmvif->deflink.queue_params[IEEE80211_AC_VI].uapsd &&
+	     !mvmvif->deflink.queue_params[IEEE80211_AC_BE].uapsd &&
+	     !mvmvif->deflink.queue_params[IEEE80211_AC_BK].uapsd) ||
+	    mvmsta->deflink.sta_id != mvmvif->deflink.ap_sta_id)
 		return;
 
 	if (rate_n_flags & RATE_MCS_HT_MSK_V1) {
@@ -253,8 +257,7 @@ static void iwl_mvm_rx_handle_tcm(struct iwl_mvm *mvm,
 				ARRAY_SIZE(thresh_tpt)))
 			return;
 		thr = thresh_tpt[rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK];
-		thr *= 1 + ((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-					RATE_VHT_MCS_NSS_POS);
+		thr *= 1 + FIELD_GET(RATE_MCS_NSS_MSK, rate_n_flags);
 	}
 
 	thr <<= ((rate_n_flags & RATE_MCS_CHAN_WIDTH_MSK_V1) >>
@@ -384,9 +387,10 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 * Don't even try to decrypt a MCAST frame that was received
 		 * before the managed vif is authorized, we'd fail anyway.
 		 */
-		if (vif->type == NL80211_IFTYPE_STATION &&
+		if (is_multicast_ether_addr(hdr->addr1) &&
+		    vif->type == NL80211_IFTYPE_STATION &&
 		    !mvmvif->authorized &&
-		    is_multicast_ether_addr(hdr->addr1)) {
+		    ieee80211_has_protected(hdr->frame_control)) {
 			IWL_DEBUG_DROP(mvm, "MCAST before the vif is authorized\n");
 			kfree_skb(skb);
 			rcu_read_unlock();
@@ -500,8 +504,7 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		u8 stbc = (rate_n_flags & RATE_MCS_STBC_MSK) >>
 				RATE_MCS_STBC_POS;
 		rx_status->nss =
-			((rate_n_flags & RATE_VHT_MCS_NSS_MSK) >>
-						RATE_VHT_MCS_NSS_POS) + 1;
+			FIELD_GET(RATE_MCS_NSS_MSK, rate_n_flags) + 1;
 		rx_status->rate_idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
 		rx_status->encoding = RX_ENC_VHT;
 		rx_status->enc_flags |= stbc << RX_ENC_FLAG_STBC_SHIFT;
@@ -630,9 +633,9 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	 * data copied into the "data" struct, but rather the data from
 	 * the notification directly.
 	 */
-	mvmvif->beacon_stats.num_beacons =
+	mvmvif->deflink.beacon_stats.num_beacons =
 		le32_to_cpu(data->beacon_counter[vif_id]);
-	mvmvif->beacon_stats.avg_signal =
+	mvmvif->deflink.beacon_stats.avg_signal =
 		-data->beacon_average_energy[vif_id];
 
 	if (mvmvif->id != id)
@@ -645,8 +648,8 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 	 * request to clear statistics
 	 */
 	if (le32_to_cpu(data->flags) & IWL_STATISTICS_REPLY_FLG_CLEAR)
-		mvmvif->beacon_stats.accu_num_beacons +=
-			mvmvif->beacon_stats.num_beacons;
+		mvmvif->deflink.beacon_stats.accu_num_beacons +=
+			mvmvif->deflink.beacon_stats.num_beacons;
 
 	iwl_mvm_update_vif_sig(vif, sig);
 }
@@ -668,17 +671,17 @@ static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
 
 	mac_stats = &data->per_mac_stats[vif_id];
 
-	mvmvif->beacon_stats.num_beacons =
+	mvmvif->deflink.beacon_stats.num_beacons =
 		le32_to_cpu(mac_stats->beacon_counter);
-	mvmvif->beacon_stats.avg_signal =
+	mvmvif->deflink.beacon_stats.avg_signal =
 		-le32_to_cpu(mac_stats->beacon_average_energy);
 
 	/* make sure that beacon statistics don't go backwards with TCM
 	 * request to clear statistics
 	 */
 	if (le32_to_cpu(data->flags) & IWL_STATISTICS_REPLY_FLG_CLEAR)
-		mvmvif->beacon_stats.accu_num_beacons +=
-			mvmvif->beacon_stats.num_beacons;
+		mvmvif->deflink.beacon_stats.accu_num_beacons +=
+			mvmvif->deflink.beacon_stats.num_beacons;
 
 	sig = -le32_to_cpu(mac_stats->beacon_filter_average_energy);
 	iwl_mvm_update_vif_sig(vif, sig);
@@ -714,14 +717,14 @@ static void iwl_mvm_stats_energy_iter(void *_data,
 {
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	u8 *energy = _data;
-	u32 sta_id = mvmsta->sta_id;
+	u32 sta_id = mvmsta->deflink.sta_id;
 
 	if (WARN_ONCE(sta_id >= IWL_MVM_STATION_COUNT_MAX, "sta_id %d >= %d",
 		      sta_id, IWL_MVM_STATION_COUNT_MAX))
 		return;
 
 	if (energy[sta_id])
-		mvmsta->avg_energy = energy[sta_id];
+		mvmsta->deflink.avg_energy = energy[sta_id];
 
 }
 

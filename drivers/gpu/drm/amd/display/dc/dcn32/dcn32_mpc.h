@@ -310,6 +310,19 @@ struct dcn32_mpc_registers {
 	MPC_REG_VARIABLE_LIST_DCN3_0;
 	MPC_REG_VARIABLE_LIST_DCN32;
 };
+void mpc32_mpc_init(struct mpc *mpc);
+bool mpc32_program_3dlut(
+		struct mpc *mpc,
+		const struct tetrahedral_params *params,
+		int mpcc_id);
+bool mpc32_program_post1dlut(
+		struct mpc *mpc,
+		const struct pwl_params *params,
+		uint32_t mpcc_id);
+bool mpc32_program_shaper(
+		struct mpc *mpc,
+		const struct pwl_params *params,
+		uint32_t mpcc_id);
 
 void dcn32_mpc_construct(struct dcn30_mpc *mpc30,
 	struct dc_context *ctx,

@@ -8,6 +8,9 @@
 
 /*
  * Admin commands, issued by ublk server, and handled by ublk driver.
+ *
+ * Legacy command definition, don't use in new application, and don't
+ * add new such definition any more
  */
 #define	UBLK_CMD_GET_QUEUE_AFFINITY	0x01
 #define	UBLK_CMD_GET_DEV_INFO	0x02
@@ -17,6 +20,41 @@
 #define	UBLK_CMD_STOP_DEV	0x07
 #define	UBLK_CMD_SET_PARAMS	0x08
 #define	UBLK_CMD_GET_PARAMS	0x09
+#define	UBLK_CMD_START_USER_RECOVERY	0x10
+#define	UBLK_CMD_END_USER_RECOVERY	0x11
+#define	UBLK_CMD_GET_DEV_INFO2		0x12
+
+/* Any new ctrl command should encode by __IO*() */
+#define UBLK_U_CMD_GET_QUEUE_AFFINITY	\
+	_IOR('u', UBLK_CMD_GET_QUEUE_AFFINITY, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_GET_DEV_INFO		\
+	_IOR('u', UBLK_CMD_GET_DEV_INFO, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_ADD_DEV		\
+	_IOWR('u', UBLK_CMD_ADD_DEV, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_DEL_DEV		\
+	_IOWR('u', UBLK_CMD_DEL_DEV, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_START_DEV		\
+	_IOWR('u', UBLK_CMD_START_DEV, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_STOP_DEV		\
+	_IOWR('u', UBLK_CMD_STOP_DEV, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_SET_PARAMS		\
+	_IOWR('u', UBLK_CMD_SET_PARAMS, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_GET_PARAMS		\
+	_IOR('u', UBLK_CMD_GET_PARAMS, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_START_USER_RECOVERY	\
+	_IOWR('u', UBLK_CMD_START_USER_RECOVERY, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_END_USER_RECOVERY	\
+	_IOWR('u', UBLK_CMD_END_USER_RECOVERY, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_GET_DEV_INFO2	\
+	_IOR('u', UBLK_CMD_GET_DEV_INFO2, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_GET_FEATURES	\
+	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
+
+/*
+ * 64bits are enough now, and it should be easy to extend in case of
+ * running out of feature flags
+ */
+#define UBLK_FEATURES_LEN  8
 
 /*
  * IO commands, issued by ublk server, and handled by ublk driver.
@@ -38,9 +76,22 @@
  *      It is only used if ublksrv set UBLK_F_NEED_GET_DATA flag
  *      while starting a ublk device.
  */
+
+/*
+ * Legacy IO command definition, don't use in new application, and don't
+ * add new such definition any more
+ */
 #define	UBLK_IO_FETCH_REQ		0x20
 #define	UBLK_IO_COMMIT_AND_FETCH_REQ	0x21
 #define	UBLK_IO_NEED_GET_DATA	0x22
+
+/* Any new IO command should encode by __IOWR() */
+#define	UBLK_U_IO_FETCH_REQ		\
+	_IOWR('u', UBLK_IO_FETCH_REQ, struct ublksrv_io_cmd)
+#define	UBLK_U_IO_COMMIT_AND_FETCH_REQ	\
+	_IOWR('u', UBLK_IO_COMMIT_AND_FETCH_REQ, struct ublksrv_io_cmd)
+#define	UBLK_U_IO_NEED_GET_DATA		\
+	_IOWR('u', UBLK_IO_NEED_GET_DATA, struct ublksrv_io_cmd)
 
 /* only ABORT means that no re-fetch */
 #define UBLK_IO_RES_OK			0
@@ -50,8 +101,28 @@
 #define UBLKSRV_CMD_BUF_OFFSET	0
 #define UBLKSRV_IO_BUF_OFFSET	0x80000000
 
-/* tag bit is 12bit, so at most 4096 IOs for each queue */
+/* tag bit is 16bit, so far limit at most 4096 IOs for each queue */
 #define UBLK_MAX_QUEUE_DEPTH	4096
+
+/* single IO buffer max size is 32MB */
+#define UBLK_IO_BUF_OFF		0
+#define UBLK_IO_BUF_BITS	25
+#define UBLK_IO_BUF_BITS_MASK	((1ULL << UBLK_IO_BUF_BITS) - 1)
+
+/* so at most 64K IOs for each queue */
+#define UBLK_TAG_OFF		UBLK_IO_BUF_BITS
+#define UBLK_TAG_BITS		16
+#define UBLK_TAG_BITS_MASK	((1ULL << UBLK_TAG_BITS) - 1)
+
+/* max 4096 queues */
+#define UBLK_QID_OFF		(UBLK_TAG_OFF + UBLK_TAG_BITS)
+#define UBLK_QID_BITS		12
+#define UBLK_QID_BITS_MASK	((1ULL << UBLK_QID_BITS) - 1)
+
+#define UBLK_MAX_NR_QUEUES	(1U << UBLK_QID_BITS)
+
+#define UBLKSRV_IO_BUF_TOTAL_BITS	(UBLK_QID_OFF + UBLK_QID_BITS)
+#define UBLKSRV_IO_BUF_TOTAL_SIZE	(1ULL << UBLKSRV_IO_BUF_TOTAL_BITS)
 
 /*
  * zero copy requires 4k block size, and can remap ublk driver's io
@@ -74,9 +145,41 @@
  */
 #define UBLK_F_NEED_GET_DATA (1UL << 2)
 
+#define UBLK_F_USER_RECOVERY	(1UL << 3)
+
+#define UBLK_F_USER_RECOVERY_REISSUE	(1UL << 4)
+
+/*
+ * Unprivileged user can create /dev/ublkcN and /dev/ublkbN.
+ *
+ * /dev/ublk-control needs to be available for unprivileged user, and it
+ * can be done via udev rule to make all control commands available to
+ * unprivileged user. Except for the command of UBLK_CMD_ADD_DEV, all
+ * other commands are only allowed for the owner of the specified device.
+ *
+ * When userspace sends UBLK_CMD_ADD_DEV, the device pair's owner_uid and
+ * owner_gid are stored to ublksrv_ctrl_dev_info by kernel, so far only
+ * the current user's uid/gid is stored, that said owner of the created
+ * device is always the current user.
+ *
+ * We still need udev rule to apply OWNER/GROUP with the stored owner_uid
+ * and owner_gid.
+ *
+ * Then ublk server can be run as unprivileged user, and /dev/ublkbN can
+ * be accessed and managed by its owner represented by owner_uid/owner_gid.
+ */
+#define UBLK_F_UNPRIVILEGED_DEV	(1UL << 5)
+
+/* use ioctl encoding for uring command */
+#define UBLK_F_CMD_IOCTL_ENCODE	(1UL << 6)
+
+/* Copy between request and user buffer by pread()/pwrite() */
+#define UBLK_F_USER_COPY	(1UL << 7)
+
 /* device state */
 #define UBLK_S_DEV_DEAD	0
 #define UBLK_S_DEV_LIVE	1
+#define UBLK_S_DEV_QUIESCED	2
 
 /* shipped via sqe->cmd of io_uring command */
 struct ublksrv_ctrl_cmd {
@@ -92,7 +195,15 @@ struct ublksrv_ctrl_cmd {
 	__u64	addr;
 
 	/* inline data */
-	__u64	data[2];
+	__u64	data[1];
+
+	/*
+	 * Used for UBLK_F_UNPRIVILEGED_DEV and UBLK_CMD_GET_DEV_INFO2
+	 * only, include null char
+	 */
+	__u16	dev_path_len;
+	__u16	pad;
+	__u32	reserved;
 };
 
 struct ublksrv_ctrl_dev_info {
@@ -112,7 +223,8 @@ struct ublksrv_ctrl_dev_info {
 	/* For ublksrv internal use, invisible to ublk driver */
 	__u64	ublksrv_flags;
 
-	__u64	reserved0;
+	__u32	owner_uid;	/* store by kernel */
+	__u32	owner_gid;	/* store by kernel */
 	__u64	reserved1;
 	__u64   reserved2;
 };
@@ -208,6 +320,17 @@ struct ublk_param_discard {
 	__u16	reserved0;
 };
 
+/*
+ * read-only, can't set via UBLK_CMD_SET_PARAMS, disk_devt is available
+ * after device is started
+ */
+struct ublk_param_devt {
+	__u32   char_major;
+	__u32   char_minor;
+	__u32   disk_major;
+	__u32   disk_minor;
+};
+
 struct ublk_params {
 	/*
 	 * Total length of parameters, userspace has to set 'len' for both
@@ -218,10 +341,12 @@ struct ublk_params {
 	__u32	len;
 #define UBLK_PARAM_TYPE_BASIC           (1 << 0)
 #define UBLK_PARAM_TYPE_DISCARD         (1 << 1)
+#define UBLK_PARAM_TYPE_DEVT            (1 << 2)
 	__u32	types;			/* types of parameter included */
 
 	struct ublk_param_basic		basic;
 	struct ublk_param_discard	discard;
+	struct ublk_param_devt		devt;
 };
 
 #endif

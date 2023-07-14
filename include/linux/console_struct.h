@@ -18,7 +18,6 @@
 #include <linux/workqueue.h>
 
 struct uni_pagedict;
-struct uni_screen;
 
 #define NPAR 16
 #define VC_TABSTOPS_COUNT	256U
@@ -159,7 +158,7 @@ struct vc_data {
 	struct vc_data **vc_display_fg;		/* [!] Ptr to var holding fg console for this display */
 	struct uni_pagedict *uni_pagedict;
 	struct uni_pagedict **uni_pagedict_loc; /* [!] Location of uni_pagedict variable for this console */
-	struct uni_screen *vc_uni_screen;	/* unicode screen content */
+	u32 **vc_uni_lines;			/* unicode screen content */
 	/* additional information is in vt_kern.h */
 };
 

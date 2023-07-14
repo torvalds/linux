@@ -5,7 +5,9 @@
 #include <poll.h>
 #include <linux/err.h>
 #include <perf/cpumap.h>
+#ifdef HAVE_LIBTRACEEVENT
 #include <traceevent/event-parse.h>
+#endif
 #include <perf/mmap.h>
 #include "evlist.h"
 #include "callchain.h"
@@ -17,7 +19,10 @@
 #include "mmap.h"
 #include "stat.h"
 #include "metricgroup.h"
+#include "util/bpf-filter.h"
 #include "util/env.h"
+#include "util/pmu.h"
+#include "util/pmus.h"
 #include <internal/lib.h>
 #include "util.h"
 
@@ -44,6 +49,14 @@
 #ifndef Py_TYPE
 #define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
 #endif
+
+/*
+ * Avoid bringing in event parsing.
+ */
+int parse_event(struct evlist *evlist __maybe_unused, const char *str __maybe_unused)
+{
+	return 0;
+}
 
 /*
  * Provide these two so that we don't have to link against callchain.c and
@@ -74,22 +87,30 @@ const char *perf_env__arch(struct perf_env *env __maybe_unused)
 }
 
 /*
- * Add this one here not to drag util/stat-shadow.c
- */
-void perf_stat__collect_metric_expr(struct evlist *evsel_list)
-{
-}
-
-/*
- * This one is needed not to drag the PMU bandwagon, jevents generated
+ * These ones are needed not to drag the PMU bandwagon, jevents generated
  * pmu_sys_event_tables, etc and evsel__find_pmu() is used so far just for
  * doing per PMU perf_event_attr.exclude_guest handling, not really needed, so
  * far, for the perf python binding known usecases, revisit if this become
  * necessary.
  */
-struct perf_pmu *evsel__find_pmu(struct evsel *evsel __maybe_unused)
+struct perf_pmu *evsel__find_pmu(const struct evsel *evsel __maybe_unused)
 {
 	return NULL;
+}
+
+int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...)
+{
+	return EOF;
+}
+
+int perf_pmus__num_core_pmus(void)
+{
+	return 1;
+}
+
+bool evsel__is_aux_event(const struct evsel *evsel __maybe_unused)
+{
+	return false;
 }
 
 /*
@@ -100,6 +121,14 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 				    struct rblist *old_metric_events)
 {
 	return 0;
+}
+
+/*
+ * Add this one here not to drag util/trace-event-info.c
+ */
+char *tracepoint_id_to_name(u64 config)
+{
+	return NULL;
 }
 
 /*
@@ -128,6 +157,19 @@ int bpf_counter__disable(struct evsel *evsel __maybe_unused)
 {
 	return 0;
 }
+
+// not to drag util/bpf-filter.c
+#ifdef HAVE_BPF_SKEL
+int perf_bpf_filter__prepare(struct evsel *evsel __maybe_unused)
+{
+	return 0;
+}
+
+int perf_bpf_filter__destroy(struct evsel *evsel __maybe_unused)
+{
+	return 0;
+}
+#endif
 
 /*
  * Support debug printing even though util/debug.c is not linked.  That means
@@ -417,6 +459,7 @@ static PyObject *pyrf_sample_event__repr(struct pyrf_event *pevent)
 	return ret;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static bool is_tracepoint(struct pyrf_event *pevent)
 {
 	return pevent->evsel->core.attr.type == PERF_TYPE_TRACEPOINT;
@@ -439,7 +482,7 @@ tracepoint_field(struct pyrf_event *pe, struct tep_format_field *field)
 			offset  = val;
 			len     = offset >> 16;
 			offset &= 0xffff;
-			if (field->flags & TEP_FIELD_IS_RELATIVE)
+			if (tep_field_is_relative(field->flags))
 				offset += field->offset + field->size;
 		}
 		if (field->flags & TEP_FIELD_IS_STRING &&
@@ -486,14 +529,17 @@ get_tracepoint_field(struct pyrf_event *pevent, PyObject *attr_name)
 
 	return tracepoint_field(pevent, field);
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 static PyObject*
 pyrf_sample_event__getattro(struct pyrf_event *pevent, PyObject *attr_name)
 {
 	PyObject *obj = NULL;
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (is_tracepoint(pevent))
 		obj = get_tracepoint_field(pevent, attr_name);
+#endif
 
 	return obj ?: PyObject_GenericGetAttr((PyObject *) pevent, attr_name);
 }
@@ -718,17 +764,17 @@ static Py_ssize_t pyrf_thread_map__length(PyObject *obj)
 {
 	struct pyrf_thread_map *pthreads = (void *)obj;
 
-	return pthreads->threads->nr;
+	return perf_thread_map__nr(pthreads->threads);
 }
 
 static PyObject *pyrf_thread_map__item(PyObject *obj, Py_ssize_t i)
 {
 	struct pyrf_thread_map *pthreads = (void *)obj;
 
-	if (i >= pthreads->threads->nr)
+	if (i >= perf_thread_map__nr(pthreads->threads))
 		return NULL;
 
-	return Py_BuildValue("i", pthreads->threads->map[i]);
+	return Py_BuildValue("i", perf_thread_map__pid(pthreads->threads, i));
 }
 
 static PySequenceMethods pyrf_thread_map__sequence_methods = {
@@ -1134,14 +1180,6 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
 	struct evlist *evlist = &pevlist->evlist;
-	int group = 0;
-	static char *kwlist[] = { "group", NULL };
-
-	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "|OOii", kwlist, &group))
-		return NULL;
-
-	if (group)
-		evlist__set_leader(evlist);
 
 	if (evlist__open(evlist) < 0) {
 		PyErr_SetFromErrno(PyExc_OSError);
@@ -1326,6 +1364,9 @@ static struct {
 static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
 				  PyObject *args, PyObject *kwargs)
 {
+#ifndef HAVE_LIBTRACEEVENT
+	return NULL;
+#else
 	struct tep_event *tp_format;
 	static char *kwlist[] = { "sys", "name", NULL };
 	char *sys  = NULL;
@@ -1340,6 +1381,7 @@ static PyObject *pyrf__tracepoint(struct pyrf_evsel *pevsel,
 		return _PyLong_FromLong(-1);
 
 	return _PyLong_FromLong(tp_format->id);
+#endif // HAVE_LIBTRACEEVENT
 }
 
 static PyMethodDef perf__methods[] = {
@@ -1458,5 +1500,9 @@ error:
  */
 void test_attr__open(struct perf_event_attr *attr, pid_t pid, struct perf_cpu cpu,
                      int fd, int group_fd, unsigned long flags)
+{
+}
+
+void evlist__free_stats(struct evlist *evlist)
 {
 }

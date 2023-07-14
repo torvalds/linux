@@ -76,7 +76,7 @@ static void mpc201_init_mpcc(struct mpcc *mpcc, int mpcc_inst)
 	mpcc->shared_bottom = false;
 }
 
-const struct mpc_funcs dcn201_mpc_funcs = {
+static const struct mpc_funcs dcn201_mpc_funcs = {
 	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,

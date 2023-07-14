@@ -2,7 +2,6 @@
 /* Copyright (c) 2019 HiSilicon Limited. */
 #include <asm/page.h>
 #include <linux/acpi.h>
-#include <linux/aer.h>
 #include <linux/bitmap.h>
 #include <linux/dma-mapping.h>
 #include <linux/idr.h>
@@ -16,26 +15,24 @@
 #include <linux/uaccess.h>
 #include <uapi/misc/uacce/hisi_qm.h>
 #include <linux/hisi_acc_qm.h>
+#include "qm_common.h"
 
 /* eq/aeq irq enable */
 #define QM_VF_AEQ_INT_SOURCE		0x0
 #define QM_VF_AEQ_INT_MASK		0x4
 #define QM_VF_EQ_INT_SOURCE		0x8
 #define QM_VF_EQ_INT_MASK		0xc
-#define QM_IRQ_NUM_V1			1
-#define QM_IRQ_NUM_PF_V2		4
-#define QM_IRQ_NUM_VF_V2		2
-#define QM_IRQ_NUM_VF_V3		3
 
-#define QM_EQ_EVENT_IRQ_VECTOR		0
-#define QM_AEQ_EVENT_IRQ_VECTOR		1
-#define QM_CMD_EVENT_IRQ_VECTOR		2
-#define QM_ABNORMAL_EVENT_IRQ_VECTOR	3
+#define QM_IRQ_VECTOR_MASK		GENMASK(15, 0)
+#define QM_IRQ_TYPE_MASK		GENMASK(15, 0)
+#define QM_IRQ_TYPE_SHIFT		16
+#define QM_ABN_IRQ_TYPE_MASK		GENMASK(7, 0)
 
 /* mailbox */
 #define QM_MB_PING_ALL_VFS		0xffff
 #define QM_MB_CMD_DATA_SHIFT		32
 #define QM_MB_CMD_DATA_MASK		GENMASK(31, 0)
+#define QM_MB_STATUS_MASK		GENMASK(12, 9)
 
 /* sqc shift */
 #define QM_SQ_HOP_NUM_SHIFT		0
@@ -77,6 +74,9 @@
 #define QM_EQ_OVERFLOW			1
 #define QM_CQE_ERROR			2
 
+#define QM_XQ_DEPTH_SHIFT		16
+#define QM_XQ_DEPTH_MASK		GENMASK(15, 0)
+
 #define QM_DOORBELL_CMD_SQ		0
 #define QM_DOORBELL_CMD_CQ		1
 #define QM_DOORBELL_CMD_EQ		2
@@ -86,11 +86,7 @@
 #define QM_DB_CMD_SHIFT_V1		16
 #define QM_DB_INDEX_SHIFT_V1		32
 #define QM_DB_PRIORITY_SHIFT_V1		48
-#define QM_QUE_ISO_CFG_V		0x0030
 #define QM_PAGE_SIZE			0x0034
-#define QM_QUE_ISO_EN			0x100154
-#define QM_CAPBILITY			0x100158
-#define QM_QP_NUN_MASK			GENMASK(10, 0)
 #define QM_QP_DB_INTERVAL		0x10000
 
 #define QM_MEM_START_INIT		0x100040
@@ -98,8 +94,6 @@
 #define QM_VFT_CFG_RDY			0x10006c
 #define QM_VFT_CFG_OP_WR		0x100058
 #define QM_VFT_CFG_TYPE			0x10005c
-#define QM_SQC_VFT			0x0
-#define QM_CQC_VFT			0x1
 #define QM_VFT_CFG			0x100060
 #define QM_VFT_CFG_OP_ENABLE		0x100054
 #define QM_PM_CTRL			0x100148
@@ -121,12 +115,9 @@
 #define QM_SQC_VFT_BASE_SHIFT_V2	28
 #define QM_SQC_VFT_BASE_MASK_V2		GENMASK(15, 0)
 #define QM_SQC_VFT_NUM_SHIFT_V2		45
-#define QM_SQC_VFT_NUM_MASK_v2		GENMASK(9, 0)
-
-#define QM_DFX_CNT_CLR_CE		0x100118
+#define QM_SQC_VFT_NUM_MASK_V2		GENMASK(9, 0)
 
 #define QM_ABNORMAL_INT_SOURCE		0x100000
-#define QM_ABNORMAL_INT_SOURCE_CLR	GENMASK(14, 0)
 #define QM_ABNORMAL_INT_MASK		0x100004
 #define QM_ABNORMAL_INT_MASK_VALUE	0x7fff
 #define QM_ABNORMAL_INT_STATUS		0x100008
@@ -144,8 +135,10 @@
 #define QM_RAS_NFE_ENABLE		0x1000f4
 #define QM_RAS_CE_THRESHOLD		0x1000f8
 #define QM_RAS_CE_TIMES_PER_IRQ		1
-#define QM_RAS_MSI_INT_SEL		0x1040f4
 #define QM_OOO_SHUTDOWN_SEL		0x1040f8
+#define QM_ECC_MBIT			BIT(2)
+#define QM_DB_TIMEOUT			BIT(10)
+#define QM_OF_FIFO_OF			BIT(11)
 
 #define QM_RESET_WAIT_TIMEOUT		400
 #define QM_PEH_VENDOR_ID		0x1000d8
@@ -168,7 +161,6 @@
 
 /* interfunction communication */
 #define QM_IFC_READY_STATUS		0x100128
-#define QM_IFC_C_STS_M			0x10012C
 #define QM_IFC_INT_SET_P		0x100130
 #define QM_IFC_INT_CFG			0x100134
 #define QM_IFC_INT_SOURCE_P		0x100138
@@ -190,14 +182,6 @@
 #define QM_VF_RESET_WAIT_TIMEOUT_US    \
 	(QM_VF_RESET_WAIT_US * QM_VF_RESET_WAIT_CNT)
 
-#define QM_DFX_MB_CNT_VF		0x104010
-#define QM_DFX_DB_CNT_VF		0x104020
-#define QM_DFX_SQE_CNT_VF_SQN		0x104030
-#define QM_DFX_CQE_CNT_VF_CQN		0x104040
-#define QM_DFX_QN_SHIFT			16
-#define CURRENT_FUN_MASK		GENMASK(5, 0)
-#define CURRENT_Q_MASK			GENMASK(31, 16)
-
 #define POLL_PERIOD			10
 #define POLL_TIMEOUT			1000
 #define WAIT_PERIOD_US_MAX		200
@@ -205,30 +189,24 @@
 #define MAX_WAIT_COUNTS			1000
 #define QM_CACHE_WB_START		0x204
 #define QM_CACHE_WB_DONE		0x208
+#define QM_FUNC_CAPS_REG		0x3100
+#define QM_CAPBILITY_VERSION		GENMASK(7, 0)
 
 #define PCI_BAR_2			2
 #define PCI_BAR_4			4
-#define QM_SQE_DATA_ALIGN_MASK		GENMASK(6, 0)
 #define QMC_ALIGN(sz)			ALIGN(sz, 32)
 
 #define QM_DBG_READ_LEN		256
-#define QM_DBG_WRITE_LEN		1024
-#define QM_DBG_TMP_BUF_LEN		22
 #define QM_PCI_COMMAND_INVALID		~0
 #define QM_RESET_STOP_TX_OFFSET		1
 #define QM_RESET_STOP_RX_OFFSET		2
 
 #define WAIT_PERIOD			20
 #define REMOVE_WAIT_DELAY		10
-#define QM_SQE_ADDR_MASK		GENMASK(7, 0)
-#define QM_EQ_DEPTH			(1024 * 2)
 
 #define QM_DRIVER_REMOVING		0
 #define QM_RST_SCHED			1
-#define QM_RESETTING			2
 #define QM_QOS_PARAM_NUM		2
-#define QM_QOS_VAL_NUM			1
-#define QM_QOS_BDF_PARAM_NUM		4
 #define QM_QOS_MAX_VAL			1000
 #define QM_QOS_RATE			100
 #define QM_QOS_EXPAND_RATE		1000
@@ -240,52 +218,38 @@
 #define QM_SHAPER_FACTOR_CBS_B_SHIFT	15
 #define QM_SHAPER_FACTOR_CBS_S_SHIFT	19
 #define QM_SHAPER_CBS_B			1
-#define QM_SHAPER_CBS_S			16
 #define QM_SHAPER_VFT_OFFSET		6
-#define WAIT_FOR_QOS_VF			100
 #define QM_QOS_MIN_ERROR_RATE		5
-#define QM_QOS_TYPICAL_NUM		8
 #define QM_SHAPER_MIN_CBS_S		8
 #define QM_QOS_TICK			0x300U
 #define QM_QOS_DIVISOR_CLK		0x1f40U
 #define QM_QOS_MAX_CIR_B		200
 #define QM_QOS_MIN_CIR_B		100
 #define QM_QOS_MAX_CIR_U		6
-#define QM_QOS_MAX_CIR_S		11
-#define QM_QOS_VAL_MAX_LEN		32
-#define QM_DFX_BASE		0x0100000
-#define QM_DFX_STATE1		0x0104000
-#define QM_DFX_STATE2		0x01040C8
-#define QM_DFX_COMMON		0x0000
-#define QM_DFX_BASE_LEN		0x5A
-#define QM_DFX_STATE1_LEN		0x2E
-#define QM_DFX_STATE2_LEN		0x11
-#define QM_DFX_COMMON_LEN		0xC3
-#define QM_DFX_REGS_LEN		4UL
 #define QM_AUTOSUSPEND_DELAY		3000
 
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \
-	(((hop_num) << QM_CQ_HOP_NUM_SHIFT)	| \
-	((pg_sz) << QM_CQ_PAGE_SIZE_SHIFT)	| \
-	((buf_sz) << QM_CQ_BUF_SIZE_SHIFT)	| \
+	(((hop_num) << QM_CQ_HOP_NUM_SHIFT) | \
+	((pg_sz) << QM_CQ_PAGE_SIZE_SHIFT) | \
+	((buf_sz) << QM_CQ_BUF_SIZE_SHIFT) | \
 	((cqe_sz) << QM_CQ_CQE_SIZE_SHIFT))
 
-#define QM_MK_CQC_DW3_V2(cqe_sz) \
-	((QM_Q_DEPTH - 1) | ((cqe_sz) << QM_CQ_CQE_SIZE_SHIFT))
+#define QM_MK_CQC_DW3_V2(cqe_sz, cq_depth) \
+	((((u32)cq_depth) - 1) | ((cqe_sz) << QM_CQ_CQE_SIZE_SHIFT))
 
 #define QM_MK_SQC_W13(priority, orders, alg_type) \
-	(((priority) << QM_SQ_PRIORITY_SHIFT)	| \
-	((orders) << QM_SQ_ORDERS_SHIFT)	| \
+	(((priority) << QM_SQ_PRIORITY_SHIFT) | \
+	((orders) << QM_SQ_ORDERS_SHIFT) | \
 	(((alg_type) & QM_SQ_TYPE_MASK) << QM_SQ_TYPE_SHIFT))
 
 #define QM_MK_SQC_DW3_V1(hop_num, pg_sz, buf_sz, sqe_sz) \
-	(((hop_num) << QM_SQ_HOP_NUM_SHIFT)	| \
-	((pg_sz) << QM_SQ_PAGE_SIZE_SHIFT)	| \
-	((buf_sz) << QM_SQ_BUF_SIZE_SHIFT)	| \
+	(((hop_num) << QM_SQ_HOP_NUM_SHIFT) | \
+	((pg_sz) << QM_SQ_PAGE_SIZE_SHIFT) | \
+	((buf_sz) << QM_SQ_BUF_SIZE_SHIFT) | \
 	((u32)ilog2(sqe_sz) << QM_SQ_SQE_SIZE_SHIFT))
 
-#define QM_MK_SQC_DW3_V2(sqe_sz) \
-	((QM_Q_DEPTH - 1) | ((u32)ilog2(sqe_sz) << QM_SQ_SQE_SIZE_SHIFT))
+#define QM_MK_SQC_DW3_V2(sqe_sz, sq_depth) \
+	((((u32)sq_depth) - 1) | ((u32)ilog2(sqe_sz) << QM_SQ_SQE_SIZE_SHIFT))
 
 #define INIT_QC_COMMON(qc, base, pasid) do {			\
 	(qc)->head = 0;						\
@@ -329,71 +293,46 @@ enum qm_mb_cmd {
 	QM_VF_GET_QOS,
 };
 
-struct qm_cqe {
-	__le32 rsvd0;
-	__le16 cmd_id;
-	__le16 rsvd1;
-	__le16 sq_head;
-	__le16 sq_num;
-	__le16 rsvd2;
-	__le16 w7;
+enum qm_basic_type {
+	QM_TOTAL_QP_NUM_CAP = 0x0,
+	QM_FUNC_MAX_QP_CAP,
+	QM_XEQ_DEPTH_CAP,
+	QM_QP_DEPTH_CAP,
+	QM_EQ_IRQ_TYPE_CAP,
+	QM_AEQ_IRQ_TYPE_CAP,
+	QM_ABN_IRQ_TYPE_CAP,
+	QM_PF2VF_IRQ_TYPE_CAP,
+	QM_PF_IRQ_NUM_CAP,
+	QM_VF_IRQ_NUM_CAP,
 };
 
-struct qm_eqe {
-	__le32 dw0;
+static const struct hisi_qm_cap_info qm_cap_info_comm[] = {
+	{QM_SUPPORT_DB_ISOLATION, 0x30,   0, BIT(0),  0x0, 0x0, 0x0},
+	{QM_SUPPORT_FUNC_QOS,     0x3100, 0, BIT(8),  0x0, 0x0, 0x1},
+	{QM_SUPPORT_STOP_QP,      0x3100, 0, BIT(9),  0x0, 0x0, 0x1},
+	{QM_SUPPORT_MB_COMMAND,   0x3100, 0, BIT(11), 0x0, 0x0, 0x1},
+	{QM_SUPPORT_SVA_PREFETCH, 0x3100, 0, BIT(14), 0x0, 0x0, 0x1},
 };
 
-struct qm_aeqe {
-	__le32 dw0;
+static const struct hisi_qm_cap_info qm_cap_info_pf[] = {
+	{QM_SUPPORT_RPM, 0x3100, 0, BIT(13), 0x0, 0x0, 0x1},
 };
 
-struct qm_sqc {
-	__le16 head;
-	__le16 tail;
-	__le32 base_l;
-	__le32 base_h;
-	__le32 dw3;
-	__le16 w8;
-	__le16 rsvd0;
-	__le16 pasid;
-	__le16 w11;
-	__le16 cq_num;
-	__le16 w13;
-	__le32 rsvd1;
+static const struct hisi_qm_cap_info qm_cap_info_vf[] = {
+	{QM_SUPPORT_RPM, 0x3100, 0, BIT(12), 0x0, 0x0, 0x0},
 };
 
-struct qm_cqc {
-	__le16 head;
-	__le16 tail;
-	__le32 base_l;
-	__le32 base_h;
-	__le32 dw3;
-	__le16 w8;
-	__le16 rsvd0;
-	__le16 pasid;
-	__le16 w11;
-	__le32 dw6;
-	__le32 rsvd1;
-};
-
-struct qm_eqc {
-	__le16 head;
-	__le16 tail;
-	__le32 base_l;
-	__le32 base_h;
-	__le32 dw3;
-	__le32 rsvd[2];
-	__le32 dw6;
-};
-
-struct qm_aeqc {
-	__le16 head;
-	__le16 tail;
-	__le32 base_l;
-	__le32 base_h;
-	__le32 dw3;
-	__le32 rsvd[2];
-	__le32 dw6;
+static const struct hisi_qm_cap_info qm_basic_info[] = {
+	{QM_TOTAL_QP_NUM_CAP,   0x100158, 0,  GENMASK(10, 0), 0x1000,    0x400,     0x400},
+	{QM_FUNC_MAX_QP_CAP,    0x100158, 11, GENMASK(10, 0), 0x1000,    0x400,     0x400},
+	{QM_XEQ_DEPTH_CAP,      0x3104,   0,  GENMASK(31, 0), 0x800,     0x4000800, 0x4000800},
+	{QM_QP_DEPTH_CAP,       0x3108,   0,  GENMASK(31, 0), 0x4000400, 0x4000400, 0x4000400},
+	{QM_EQ_IRQ_TYPE_CAP,    0x310c,   0,  GENMASK(31, 0), 0x10000,   0x10000,   0x10000},
+	{QM_AEQ_IRQ_TYPE_CAP,   0x3110,   0,  GENMASK(31, 0), 0x0,       0x10001,   0x10001},
+	{QM_ABN_IRQ_TYPE_CAP,   0x3114,   0,  GENMASK(31, 0), 0x0,       0x10003,   0x10003},
+	{QM_PF2VF_IRQ_TYPE_CAP, 0x3118,   0,  GENMASK(31, 0), 0x0,       0x0,       0x10002},
+	{QM_PF_IRQ_NUM_CAP,     0x311c,   16, GENMASK(15, 0), 0x1,       0x4,       0x4},
+	{QM_VF_IRQ_NUM_CAP,     0x311c,   0,  GENMASK(15, 0), 0x1,       0x2,       0x3},
 };
 
 struct qm_mailbox {
@@ -417,38 +356,25 @@ struct hisi_qm_resource {
 	struct list_head list;
 };
 
+/**
+ * struct qm_hw_err - Structure describing the device errors
+ * @list: hardware error list
+ * @timestamp: timestamp when the error occurred
+ */
+struct qm_hw_err {
+	struct list_head list;
+	unsigned long long timestamp;
+};
+
 struct hisi_qm_hw_ops {
 	int (*get_vft)(struct hisi_qm *qm, u32 *base, u32 *number);
 	void (*qm_db)(struct hisi_qm *qm, u16 qn,
 		      u8 cmd, u16 index, u8 priority);
-	u32 (*get_irq_num)(struct hisi_qm *qm);
 	int (*debug_init)(struct hisi_qm *qm);
-	void (*hw_error_init)(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe);
+	void (*hw_error_init)(struct hisi_qm *qm);
 	void (*hw_error_uninit)(struct hisi_qm *qm);
 	enum acc_err_result (*hw_error_handle)(struct hisi_qm *qm);
-	int (*stop_qp)(struct hisi_qp *qp);
 	int (*set_msi)(struct hisi_qm *qm, bool set);
-	int (*ping_all_vfs)(struct hisi_qm *qm, u64 cmd);
-	int (*ping_pf)(struct hisi_qm *qm, u64 cmd);
-};
-
-struct qm_dfx_item {
-	const char *name;
-	u32 offset;
-};
-
-static struct qm_dfx_item qm_dfx_files[] = {
-	{"err_irq", offsetof(struct qm_dfx, err_irq_cnt)},
-	{"aeq_irq", offsetof(struct qm_dfx, aeq_irq_cnt)},
-	{"abnormal_irq", offsetof(struct qm_dfx, abnormal_irq_cnt)},
-	{"create_qp_err", offsetof(struct qm_dfx, create_qp_err_cnt)},
-	{"mb_err", offsetof(struct qm_dfx, mb_err_cnt)},
-};
-
-static const char * const qm_debug_file_name[] = {
-	[CURRENT_QM]   = "current_qm",
-	[CURRENT_Q]    = "current_q",
-	[CLEAR_ENABLE] = "clear_enable",
 };
 
 struct hisi_qm_hw_error {
@@ -475,33 +401,12 @@ static const struct hisi_qm_hw_error qm_hw_error[] = {
 	{ /* sentinel */ }
 };
 
-/* define the QM's dfx regs region and region length */
-static struct dfx_diff_registers qm_diff_regs[] = {
-	{
-		.reg_offset = QM_DFX_BASE,
-		.reg_len = QM_DFX_BASE_LEN,
-	}, {
-		.reg_offset = QM_DFX_STATE1,
-		.reg_len = QM_DFX_STATE1_LEN,
-	}, {
-		.reg_offset = QM_DFX_STATE2,
-		.reg_len = QM_DFX_STATE2_LEN,
-	}, {
-		.reg_offset = QM_DFX_COMMON,
-		.reg_len = QM_DFX_COMMON_LEN,
-	},
-};
-
 static const char * const qm_db_timeout[] = {
 	"sq", "cq", "eq", "aeq",
 };
 
 static const char * const qm_fifo_overflow[] = {
 	"cq", "eq", "aeq",
-};
-
-static const char * const qm_s[] = {
-	"init", "start", "close", "stop",
 };
 
 static const char * const qp_s[] = {
@@ -532,6 +437,8 @@ static struct qm_typical_qos_table shaper_cbs_s[] = {
 	{25100, 50000, 18},
 	{50100, 100000, 19}
 };
+
+static void qm_irqs_unregister(struct hisi_qm *qm);
 
 static bool qm_avail_state(struct hisi_qm *qm, enum qm_state new)
 {
@@ -623,22 +530,17 @@ static u32 qm_get_dev_err_status(struct hisi_qm *qm)
 }
 
 /* Check if the error causes the master ooo block */
-static int qm_check_dev_error(struct hisi_qm *qm)
+static bool qm_check_dev_error(struct hisi_qm *qm)
 {
 	u32 val, dev_val;
 
 	if (qm->fun_type == QM_HW_VF)
-		return 0;
+		return false;
 
-	val = qm_get_hw_error_status(qm);
-	dev_val = qm_get_dev_err_status(qm);
+	val = qm_get_hw_error_status(qm) & qm->err_info.qm_shutdown_mask;
+	dev_val = qm_get_dev_err_status(qm) & qm->err_info.dev_shutdown_mask;
 
-	if (qm->ver < QM_HW_V3)
-		return (val & QM_ECC_MBIT) ||
-		       (dev_val & qm->err_info.ecc_2bits_mask);
-
-	return (val & readl(qm->io_base + QM_OOO_SHUTDOWN_SEL)) ||
-	       (dev_val & (~qm->err_info.dev_ce_mask));
+	return val || dev_val;
 }
 
 static int qm_wait_reset_finish(struct hisi_qm *qm)
@@ -708,7 +610,10 @@ EXPORT_SYMBOL_GPL(hisi_qm_wait_mb_ready);
 static void qm_mb_write(struct hisi_qm *qm, const void *src)
 {
 	void __iomem *fun_base = qm->io_base + QM_MB_CMD_SEND_BASE;
+
+#if IS_ENABLED(CONFIG_ARM64)
 	unsigned long tmp0 = 0, tmp1 = 0;
+#endif
 
 	if (!IS_ENABLED(CONFIG_ARM64)) {
 		memcpy_toio(fun_base, src, 16);
@@ -716,6 +621,7 @@ static void qm_mb_write(struct hisi_qm *qm, const void *src)
 		return;
 	}
 
+#if IS_ENABLED(CONFIG_ARM64)
 	asm volatile("ldp %0, %1, %3\n"
 		     "stp %0, %1, %2\n"
 		     "dmb oshst\n"
@@ -724,12 +630,17 @@ static void qm_mb_write(struct hisi_qm *qm, const void *src)
 		       "+Q" (*((char __iomem *)fun_base))
 		     : "Q" (*((char *)src))
 		     : "memory");
+#endif
 }
 
 static int qm_mb_nolock(struct hisi_qm *qm, struct qm_mailbox *mailbox)
 {
+	int ret;
+	u32 val;
+
 	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
 		dev_err(&qm->pdev->dev, "QM mailbox is busy to start!\n");
+		ret = -EBUSY;
 		goto mb_busy;
 	}
 
@@ -737,6 +648,14 @@ static int qm_mb_nolock(struct hisi_qm *qm, struct qm_mailbox *mailbox)
 
 	if (unlikely(hisi_qm_wait_mb_ready(qm))) {
 		dev_err(&qm->pdev->dev, "QM mailbox operation timeout!\n");
+		ret = -ETIMEDOUT;
+		goto mb_busy;
+	}
+
+	val = readl(qm->io_base + QM_MB_CMD_SEND_BASE);
+	if (val & QM_MB_STATUS_MASK) {
+		dev_err(&qm->pdev->dev, "QM mailbox operation failed!\n");
+		ret = -EIO;
 		goto mb_busy;
 	}
 
@@ -744,7 +663,7 @@ static int qm_mb_nolock(struct hisi_qm *qm, struct qm_mailbox *mailbox)
 
 mb_busy:
 	atomic64_inc(&qm->debug.dfx.mb_err_cnt);
-	return -EBUSY;
+	return ret;
 }
 
 int hisi_qm_mb(struct hisi_qm *qm, u8 cmd, dma_addr_t dma_addr, u16 queue,
@@ -791,7 +710,7 @@ static void qm_db_v2(struct hisi_qm *qm, u16 qn, u8 cmd, u16 index, u8 priority)
 
 	doorbell = qn | ((u64)cmd << QM_DB_CMD_SHIFT_V2) |
 		   ((u64)randata << QM_DB_RAND_SHIFT_V2) |
-		   ((u64)index << QM_DB_INDEX_SHIFT_V2)	 |
+		   ((u64)index << QM_DB_INDEX_SHIFT_V2) |
 		   ((u64)priority << QM_DB_PRIORITY_SHIFT_V2);
 
 	writeq(doorbell, io_base);
@@ -828,25 +747,52 @@ static int qm_dev_mem_reset(struct hisi_qm *qm)
 					  POLL_TIMEOUT);
 }
 
-static u32 qm_get_irq_num_v1(struct hisi_qm *qm)
+/**
+ * hisi_qm_get_hw_info() - Get device information.
+ * @qm: The qm which want to get information.
+ * @info_table: Array for storing device information.
+ * @index: Index in info_table.
+ * @is_read: Whether read from reg, 0: not support read from reg.
+ *
+ * This function returns device information the caller needs.
+ */
+u32 hisi_qm_get_hw_info(struct hisi_qm *qm,
+			const struct hisi_qm_cap_info *info_table,
+			u32 index, bool is_read)
 {
-	return QM_IRQ_NUM_V1;
+	u32 val;
+
+	switch (qm->ver) {
+	case QM_HW_V1:
+		return info_table[index].v1_val;
+	case QM_HW_V2:
+		return info_table[index].v2_val;
+	default:
+		if (!is_read)
+			return info_table[index].v3_val;
+
+		val = readl(qm->io_base + info_table[index].offset);
+		return (val >> info_table[index].shift) & info_table[index].mask;
+	}
+}
+EXPORT_SYMBOL_GPL(hisi_qm_get_hw_info);
+
+static void qm_get_xqc_depth(struct hisi_qm *qm, u16 *low_bits,
+			     u16 *high_bits, enum qm_basic_type type)
+{
+	u32 depth;
+
+	depth = hisi_qm_get_hw_info(qm, qm_basic_info, type, qm->cap_ver);
+	*low_bits = depth & QM_XQ_DEPTH_MASK;
+	*high_bits = (depth >> QM_XQ_DEPTH_SHIFT) & QM_XQ_DEPTH_MASK;
 }
 
-static u32 qm_get_irq_num_v2(struct hisi_qm *qm)
+static u32 qm_get_irq_num(struct hisi_qm *qm)
 {
 	if (qm->fun_type == QM_HW_PF)
-		return QM_IRQ_NUM_PF_V2;
-	else
-		return QM_IRQ_NUM_VF_V2;
-}
+		return hisi_qm_get_hw_info(qm, qm_basic_info, QM_PF_IRQ_NUM_CAP, qm->cap_ver);
 
-static u32 qm_get_irq_num_v3(struct hisi_qm *qm)
-{
-	if (qm->fun_type == QM_HW_PF)
-		return QM_IRQ_NUM_PF_V2;
-
-	return QM_IRQ_NUM_VF_V3;
+	return hisi_qm_get_hw_info(qm, qm_basic_info, QM_VF_IRQ_NUM_CAP, qm->cap_ver);
 }
 
 static int qm_pm_get_sync(struct hisi_qm *qm)
@@ -854,7 +800,7 @@ static int qm_pm_get_sync(struct hisi_qm *qm)
 	struct device *dev = &qm->pdev->dev;
 	int ret;
 
-	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_RPM, &qm->caps))
 		return 0;
 
 	ret = pm_runtime_resume_and_get(dev);
@@ -870,7 +816,7 @@ static void qm_pm_put_sync(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
 
-	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_RPM, &qm->caps))
 		return;
 
 	pm_runtime_mark_last_busy(dev);
@@ -879,7 +825,7 @@ static void qm_pm_put_sync(struct hisi_qm *qm)
 
 static void qm_cq_head_update(struct hisi_qp *qp)
 {
-	if (qp->qp_status.cq_head == QM_Q_DEPTH - 1) {
+	if (qp->qp_status.cq_head == qp->cq_depth - 1) {
 		qp->qp_status.cqc_phase = !qp->qp_status.cqc_phase;
 		qp->qp_status.cq_head = 0;
 	} else {
@@ -911,6 +857,7 @@ static int qm_get_complete_eqe_num(struct hisi_qm_poll_data *poll_data)
 {
 	struct hisi_qm *qm = poll_data->qm;
 	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
+	u16 eq_depth = qm->eq_depth;
 	int eqe_num = 0;
 	u16 cqn;
 
@@ -919,7 +866,7 @@ static int qm_get_complete_eqe_num(struct hisi_qm_poll_data *poll_data)
 		poll_data->qp_finish_id[eqe_num] = cqn;
 		eqe_num++;
 
-		if (qm->status.eq_head == QM_EQ_DEPTH - 1) {
+		if (qm->status.eq_head == eq_depth - 1) {
 			qm->status.eqc_phase = !qm->status.eqc_phase;
 			eqe = qm->eqe;
 			qm->status.eq_head = 0;
@@ -928,7 +875,7 @@ static int qm_get_complete_eqe_num(struct hisi_qm_poll_data *poll_data)
 			qm->status.eq_head++;
 		}
 
-		if (eqe_num == (QM_EQ_DEPTH >> 1) - 1)
+		if (eqe_num == (eq_depth >> 1) - 1)
 			break;
 	}
 
@@ -962,7 +909,7 @@ static void qm_work_process(struct work_struct *work)
 	}
 }
 
-static bool do_qm_irq(struct hisi_qm *qm)
+static bool do_qm_eq_irq(struct hisi_qm *qm)
 {
 	struct qm_eqe *eqe = qm->eqe + qm->status.eq_head;
 	struct hisi_qm_poll_data *poll_data;
@@ -982,12 +929,12 @@ static bool do_qm_irq(struct hisi_qm *qm)
 	return false;
 }
 
-static irqreturn_t qm_irq(int irq, void *data)
+static irqreturn_t qm_eq_irq(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
 	bool ret;
 
-	ret = do_qm_irq(qm);
+	ret = do_qm_eq_irq(qm);
 	if (ret)
 		return IRQ_HANDLED;
 
@@ -1068,6 +1015,7 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 {
 	struct hisi_qm *qm = data;
 	struct qm_aeqe *aeqe = qm->aeqe + qm->status.aeq_head;
+	u16 aeq_depth = qm->aeq_depth;
 	u32 type, qp_id;
 
 	while (QM_AEQE_PHASE(aeqe) == qm->status.aeqc_phase) {
@@ -1092,7 +1040,7 @@ static irqreturn_t qm_aeq_thread(int irq, void *data)
 			break;
 		}
 
-		if (qm->status.aeq_head == QM_Q_DEPTH - 1) {
+		if (qm->status.aeq_head == aeq_depth - 1) {
 			qm->status.aeqc_phase = !qm->status.aeqc_phase;
 			aeqe = qm->aeqe;
 			qm->status.aeq_head = 0;
@@ -1118,24 +1066,6 @@ static irqreturn_t qm_aeq_irq(int irq, void *data)
 	return IRQ_WAKE_THREAD;
 }
 
-static void qm_irq_unregister(struct hisi_qm *qm)
-{
-	struct pci_dev *pdev = qm->pdev;
-
-	free_irq(pci_irq_vector(pdev, QM_EQ_EVENT_IRQ_VECTOR), qm);
-
-	if (qm->ver > QM_HW_V1) {
-		free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
-
-		if (qm->fun_type == QM_HW_PF)
-			free_irq(pci_irq_vector(pdev,
-				 QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
-	}
-
-	if (qm->ver > QM_HW_V2)
-		free_irq(pci_irq_vector(pdev, QM_CMD_EVENT_IRQ_VECTOR), qm);
-}
-
 static void qm_init_qp_status(struct hisi_qp *qp)
 {
 	struct hisi_qp_status *qp_status = &qp->qp_status;
@@ -1151,7 +1081,7 @@ static void qm_init_prefetch(struct hisi_qm *qm)
 	struct device *dev = &qm->pdev->dev;
 	u32 page_type = 0x0;
 
-	if (qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_SVA_PREFETCH, &qm->caps))
 		return;
 
 	switch (PAGE_SIZE) {
@@ -1270,7 +1200,7 @@ static void qm_vft_data_cfg(struct hisi_qm *qm, enum vft_type type, u32 base,
 			}
 			break;
 		case SHAPER_VFT:
-			if (qm->ver >= QM_HW_V3) {
+			if (factor) {
 				tmp = factor->cir_b |
 				(factor->cir_u << QM_SHAPER_FACTOR_CIR_U_SHIFT) |
 				(factor->cir_s << QM_SHAPER_FACTOR_CIR_S_SHIFT) |
@@ -1288,9 +1218,12 @@ static void qm_vft_data_cfg(struct hisi_qm *qm, enum vft_type type, u32 base,
 static int qm_set_vft_common(struct hisi_qm *qm, enum vft_type type,
 			     u32 fun_num, u32 base, u32 number)
 {
-	struct qm_shaper_factor *factor = &qm->factor[fun_num];
+	struct qm_shaper_factor *factor = NULL;
 	unsigned int val;
 	int ret;
+
+	if (type == SHAPER_VFT && test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps))
+		factor = &qm->factor[fun_num];
 
 	ret = readl_relaxed_poll_timeout(qm->io_base + QM_VFT_CFG_RDY, val,
 					 val & BIT(0), POLL_PERIOD,
@@ -1349,7 +1282,7 @@ static int qm_set_sqc_cqc_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
 	}
 
 	/* init default shaper qos val */
-	if (qm->ver >= QM_HW_V3) {
+	if (test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps)) {
 		ret = qm_shaper_init_vft(qm, fun_num);
 		if (ret)
 			goto back_sqc_cqc;
@@ -1357,11 +1290,9 @@ static int qm_set_sqc_cqc_vft(struct hisi_qm *qm, u32 fun_num, u32 base,
 
 	return 0;
 back_sqc_cqc:
-	for (i = SQC_VFT; i <= CQC_VFT; i++) {
-		ret = qm_set_vft_common(qm, i, fun_num, 0, 0);
-		if (ret)
-			return ret;
-	}
+	for (i = SQC_VFT; i <= CQC_VFT; i++)
+		qm_set_vft_common(qm, i, fun_num, 0, 0);
+
 	return ret;
 }
 
@@ -1377,458 +1308,13 @@ static int qm_get_vft_v2(struct hisi_qm *qm, u32 *base, u32 *number)
 	sqc_vft = readl(qm->io_base + QM_MB_CMD_DATA_ADDR_L) |
 		  ((u64)readl(qm->io_base + QM_MB_CMD_DATA_ADDR_H) << 32);
 	*base = QM_SQC_VFT_BASE_MASK_V2 & (sqc_vft >> QM_SQC_VFT_BASE_SHIFT_V2);
-	*number = (QM_SQC_VFT_NUM_MASK_v2 &
+	*number = (QM_SQC_VFT_NUM_MASK_V2 &
 		   (sqc_vft >> QM_SQC_VFT_NUM_SHIFT_V2)) + 1;
 
 	return 0;
 }
 
-static int qm_get_vf_qp_num(struct hisi_qm *qm, u32 fun_num)
-{
-	u32 remain_q_num, vfq_num;
-	u32 num_vfs = qm->vfs_num;
-
-	vfq_num = (qm->ctrl_qp_num - qm->qp_num) / num_vfs;
-	if (vfq_num >= qm->max_qp_num)
-		return qm->max_qp_num;
-
-	remain_q_num = (qm->ctrl_qp_num - qm->qp_num) % num_vfs;
-	if (vfq_num + remain_q_num <= qm->max_qp_num)
-		return fun_num == num_vfs ? vfq_num + remain_q_num : vfq_num;
-
-	/*
-	 * if vfq_num + remain_q_num > max_qp_num, the last VFs,
-	 * each with one more queue.
-	 */
-	return fun_num + remain_q_num > num_vfs ? vfq_num + 1 : vfq_num;
-}
-
-static struct hisi_qm *file_to_qm(struct debugfs_file *file)
-{
-	struct qm_debug *debug = file->debug;
-
-	return container_of(debug, struct hisi_qm, debug);
-}
-
-static u32 current_q_read(struct hisi_qm *qm)
-{
-	return readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) >> QM_DFX_QN_SHIFT;
-}
-
-static int current_q_write(struct hisi_qm *qm, u32 val)
-{
-	u32 tmp;
-
-	if (val >= qm->debug.curr_qm_qp_num)
-		return -EINVAL;
-
-	tmp = val << QM_DFX_QN_SHIFT |
-	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_FUN_MASK);
-	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-
-	tmp = val << QM_DFX_QN_SHIFT |
-	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_FUN_MASK);
-	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	return 0;
-}
-
-static u32 clear_enable_read(struct hisi_qm *qm)
-{
-	return readl(qm->io_base + QM_DFX_CNT_CLR_CE);
-}
-
-/* rd_clr_ctrl 1 enable read clear, otherwise 0 disable it */
-static int clear_enable_write(struct hisi_qm *qm, u32 rd_clr_ctrl)
-{
-	if (rd_clr_ctrl > 1)
-		return -EINVAL;
-
-	writel(rd_clr_ctrl, qm->io_base + QM_DFX_CNT_CLR_CE);
-
-	return 0;
-}
-
-static u32 current_qm_read(struct hisi_qm *qm)
-{
-	return readl(qm->io_base + QM_DFX_MB_CNT_VF);
-}
-
-static int current_qm_write(struct hisi_qm *qm, u32 val)
-{
-	u32 tmp;
-
-	if (val > qm->vfs_num)
-		return -EINVAL;
-
-	/* According PF or VF Dev ID to calculation curr_qm_qp_num and store */
-	if (!val)
-		qm->debug.curr_qm_qp_num = qm->qp_num;
-	else
-		qm->debug.curr_qm_qp_num = qm_get_vf_qp_num(qm, val);
-
-	writel(val, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(val, qm->io_base + QM_DFX_DB_CNT_VF);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_SQE_CNT_VF_SQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-
-	tmp = val |
-	      (readl(qm->io_base + QM_DFX_CQE_CNT_VF_CQN) & CURRENT_Q_MASK);
-	writel(tmp, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	return 0;
-}
-
-static ssize_t qm_debug_read(struct file *filp, char __user *buf,
-			     size_t count, loff_t *pos)
-{
-	struct debugfs_file *file = filp->private_data;
-	enum qm_debug_file index = file->index;
-	struct hisi_qm *qm = file_to_qm(file);
-	char tbuf[QM_DBG_TMP_BUF_LEN];
-	u32 val;
-	int ret;
-
-	ret = hisi_qm_get_dfx_access(qm);
-	if (ret)
-		return ret;
-
-	mutex_lock(&file->lock);
-	switch (index) {
-	case CURRENT_QM:
-		val = current_qm_read(qm);
-		break;
-	case CURRENT_Q:
-		val = current_q_read(qm);
-		break;
-	case CLEAR_ENABLE:
-		val = clear_enable_read(qm);
-		break;
-	default:
-		goto err_input;
-	}
-	mutex_unlock(&file->lock);
-
-	hisi_qm_put_dfx_access(qm);
-	ret = scnprintf(tbuf, QM_DBG_TMP_BUF_LEN, "%u\n", val);
-	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
-
-err_input:
-	mutex_unlock(&file->lock);
-	hisi_qm_put_dfx_access(qm);
-	return -EINVAL;
-}
-
-static ssize_t qm_debug_write(struct file *filp, const char __user *buf,
-			      size_t count, loff_t *pos)
-{
-	struct debugfs_file *file = filp->private_data;
-	enum qm_debug_file index = file->index;
-	struct hisi_qm *qm = file_to_qm(file);
-	unsigned long val;
-	char tbuf[QM_DBG_TMP_BUF_LEN];
-	int len, ret;
-
-	if (*pos != 0)
-		return 0;
-
-	if (count >= QM_DBG_TMP_BUF_LEN)
-		return -ENOSPC;
-
-	len = simple_write_to_buffer(tbuf, QM_DBG_TMP_BUF_LEN - 1, pos, buf,
-				     count);
-	if (len < 0)
-		return len;
-
-	tbuf[len] = '\0';
-	if (kstrtoul(tbuf, 0, &val))
-		return -EFAULT;
-
-	ret = hisi_qm_get_dfx_access(qm);
-	if (ret)
-		return ret;
-
-	mutex_lock(&file->lock);
-	switch (index) {
-	case CURRENT_QM:
-		ret = current_qm_write(qm, val);
-		break;
-	case CURRENT_Q:
-		ret = current_q_write(qm, val);
-		break;
-	case CLEAR_ENABLE:
-		ret = clear_enable_write(qm, val);
-		break;
-	default:
-		ret = -EINVAL;
-	}
-	mutex_unlock(&file->lock);
-
-	hisi_qm_put_dfx_access(qm);
-
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static const struct file_operations qm_debug_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = qm_debug_read,
-	.write = qm_debug_write,
-};
-
-#define CNT_CYC_REGS_NUM		10
-static const struct debugfs_reg32 qm_dfx_regs[] = {
-	/* XXX_CNT are reading clear register */
-	{"QM_ECC_1BIT_CNT               ",  0x104000ull},
-	{"QM_ECC_MBIT_CNT               ",  0x104008ull},
-	{"QM_DFX_MB_CNT                 ",  0x104018ull},
-	{"QM_DFX_DB_CNT                 ",  0x104028ull},
-	{"QM_DFX_SQE_CNT                ",  0x104038ull},
-	{"QM_DFX_CQE_CNT                ",  0x104048ull},
-	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050ull},
-	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058ull},
-	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060ull},
-	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4ull},
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
-	{"QM_ECC_1BIT_INF               ",  0x104004ull},
-	{"QM_ECC_MBIT_INF               ",  0x10400cull},
-	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0ull},
-	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4ull},
-	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8ull},
-	{"QM_DFX_FF_ST0                 ",  0x1040c8ull},
-	{"QM_DFX_FF_ST1                 ",  0x1040ccull},
-	{"QM_DFX_FF_ST2                 ",  0x1040d0ull},
-	{"QM_DFX_FF_ST3                 ",  0x1040d4ull},
-	{"QM_DFX_FF_ST4                 ",  0x1040d8ull},
-	{"QM_DFX_FF_ST5                 ",  0x1040dcull},
-	{"QM_DFX_FF_ST6                 ",  0x1040e0ull},
-	{"QM_IN_IDLE_ST                 ",  0x1040e4ull},
-};
-
-static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
-};
-
-/**
- * hisi_qm_regs_dump() - Dump registers's value.
- * @s: debugfs file handle.
- * @regset: accelerator registers information.
- *
- * Dump accelerator registers.
- */
-void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset)
-{
-	struct pci_dev *pdev = to_pci_dev(regset->dev);
-	struct hisi_qm *qm = pci_get_drvdata(pdev);
-	const struct debugfs_reg32 *regs = regset->regs;
-	int regs_len = regset->nregs;
-	int i, ret;
-	u32 val;
-
-	ret = hisi_qm_get_dfx_access(qm);
-	if (ret)
-		return;
-
-	for (i = 0; i < regs_len; i++) {
-		val = readl(regset->base + regs[i].offset);
-		seq_printf(s, "%s= 0x%08x\n", regs[i].name, val);
-	}
-
-	hisi_qm_put_dfx_access(qm);
-}
-EXPORT_SYMBOL_GPL(hisi_qm_regs_dump);
-
-static int qm_regs_show(struct seq_file *s, void *unused)
-{
-	struct hisi_qm *qm = s->private;
-	struct debugfs_regset32 regset;
-
-	if (qm->fun_type == QM_HW_PF) {
-		regset.regs = qm_dfx_regs;
-		regset.nregs = ARRAY_SIZE(qm_dfx_regs);
-	} else {
-		regset.regs = qm_vf_dfx_regs;
-		regset.nregs = ARRAY_SIZE(qm_vf_dfx_regs);
-	}
-
-	regset.base = qm->io_base;
-	regset.dev = &qm->pdev->dev;
-
-	hisi_qm_regs_dump(s, &regset);
-
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(qm_regs);
-
-static struct dfx_diff_registers *dfx_regs_init(struct hisi_qm *qm,
-	const struct dfx_diff_registers *cregs, int reg_len)
-{
-	struct dfx_diff_registers *diff_regs;
-	u32 j, base_offset;
-	int i;
-
-	diff_regs = kcalloc(reg_len, sizeof(*diff_regs), GFP_KERNEL);
-	if (!diff_regs)
-		return ERR_PTR(-ENOMEM);
-
-	for (i = 0; i < reg_len; i++) {
-		if (!cregs[i].reg_len)
-			continue;
-
-		diff_regs[i].reg_offset = cregs[i].reg_offset;
-		diff_regs[i].reg_len = cregs[i].reg_len;
-		diff_regs[i].regs = kcalloc(QM_DFX_REGS_LEN, cregs[i].reg_len,
-					 GFP_KERNEL);
-		if (!diff_regs[i].regs)
-			goto alloc_error;
-
-		for (j = 0; j < diff_regs[i].reg_len; j++) {
-			base_offset = diff_regs[i].reg_offset +
-					j * QM_DFX_REGS_LEN;
-			diff_regs[i].regs[j] = readl(qm->io_base + base_offset);
-		}
-	}
-
-	return diff_regs;
-
-alloc_error:
-	while (i > 0) {
-		i--;
-		kfree(diff_regs[i].regs);
-	}
-	kfree(diff_regs);
-	return ERR_PTR(-ENOMEM);
-}
-
-static void dfx_regs_uninit(struct hisi_qm *qm,
-		struct dfx_diff_registers *dregs, int reg_len)
-{
-	int i;
-
-	/* Setting the pointer is NULL to prevent double free */
-	for (i = 0; i < reg_len; i++) {
-		kfree(dregs[i].regs);
-		dregs[i].regs = NULL;
-	}
-	kfree(dregs);
-	dregs = NULL;
-}
-
-/**
- * hisi_qm_diff_regs_init() - Allocate memory for registers.
- * @qm: device qm handle.
- * @dregs: diff registers handle.
- * @reg_len: diff registers region length.
- */
-int hisi_qm_diff_regs_init(struct hisi_qm *qm,
-		struct dfx_diff_registers *dregs, int reg_len)
-{
-	if (!qm || !dregs || reg_len <= 0)
-		return -EINVAL;
-
-	if (qm->fun_type != QM_HW_PF)
-		return 0;
-
-	qm->debug.qm_diff_regs = dfx_regs_init(qm, qm_diff_regs,
-						ARRAY_SIZE(qm_diff_regs));
-	if (IS_ERR(qm->debug.qm_diff_regs))
-		return PTR_ERR(qm->debug.qm_diff_regs);
-
-	qm->debug.acc_diff_regs = dfx_regs_init(qm, dregs, reg_len);
-	if (IS_ERR(qm->debug.acc_diff_regs)) {
-		dfx_regs_uninit(qm, qm->debug.qm_diff_regs,
-				ARRAY_SIZE(qm_diff_regs));
-		return PTR_ERR(qm->debug.acc_diff_regs);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(hisi_qm_diff_regs_init);
-
-/**
- * hisi_qm_diff_regs_uninit() - Free memory for registers.
- * @qm: device qm handle.
- * @reg_len: diff registers region length.
- */
-void hisi_qm_diff_regs_uninit(struct hisi_qm *qm, int reg_len)
-{
-	if (!qm  || reg_len <= 0 || qm->fun_type != QM_HW_PF)
-		return;
-
-	dfx_regs_uninit(qm, qm->debug.acc_diff_regs, reg_len);
-	dfx_regs_uninit(qm, qm->debug.qm_diff_regs, ARRAY_SIZE(qm_diff_regs));
-}
-EXPORT_SYMBOL_GPL(hisi_qm_diff_regs_uninit);
-
-/**
- * hisi_qm_acc_diff_regs_dump() - Dump registers's value.
- * @qm: device qm handle.
- * @s: Debugfs file handle.
- * @dregs: diff registers handle.
- * @regs_len: diff registers region length.
- */
-void hisi_qm_acc_diff_regs_dump(struct hisi_qm *qm, struct seq_file *s,
-	struct dfx_diff_registers *dregs, int regs_len)
-{
-	u32 j, val, base_offset;
-	int i, ret;
-
-	if (!qm || !s || !dregs || regs_len <= 0)
-		return;
-
-	ret = hisi_qm_get_dfx_access(qm);
-	if (ret)
-		return;
-
-	down_read(&qm->qps_lock);
-	for (i = 0; i < regs_len; i++) {
-		if (!dregs[i].reg_len)
-			continue;
-
-		for (j = 0; j < dregs[i].reg_len; j++) {
-			base_offset = dregs[i].reg_offset + j * QM_DFX_REGS_LEN;
-			val = readl(qm->io_base + base_offset);
-			if (val != dregs[i].regs[j])
-				seq_printf(s, "0x%08x = 0x%08x ---> 0x%08x\n",
-					   base_offset, dregs[i].regs[j], val);
-		}
-	}
-	up_read(&qm->qps_lock);
-
-	hisi_qm_put_dfx_access(qm);
-}
-EXPORT_SYMBOL_GPL(hisi_qm_acc_diff_regs_dump);
-
-static int qm_diff_regs_show(struct seq_file *s, void *unused)
-{
-	struct hisi_qm *qm = s->private;
-
-	hisi_qm_acc_diff_regs_dump(qm, s, qm->debug.qm_diff_regs,
-					ARRAY_SIZE(qm_diff_regs));
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(qm_diff_regs);
-
-static ssize_t qm_cmd_read(struct file *filp, char __user *buffer,
-			   size_t count, loff_t *pos)
-{
-	char buf[QM_DBG_READ_LEN];
-	int len;
-
-	len = scnprintf(buf, QM_DBG_READ_LEN, "%s\n",
-			"Please echo help to cmd to get help information");
-
-	return simple_read_from_buffer(buffer, count, pos, buf, len);
-}
-
-static void *qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
+void *hisi_qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
 			  dma_addr_t *dma_addr)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -1848,48 +1334,13 @@ static void *qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
 	return ctx_addr;
 }
 
-static void qm_ctx_free(struct hisi_qm *qm, size_t ctx_size,
+void hisi_qm_ctx_free(struct hisi_qm *qm, size_t ctx_size,
 			const void *ctx_addr, dma_addr_t *dma_addr)
 {
 	struct device *dev = &qm->pdev->dev;
 
 	dma_unmap_single(dev, *dma_addr, ctx_size, DMA_FROM_DEVICE);
 	kfree(ctx_addr);
-}
-
-static int dump_show(struct hisi_qm *qm, void *info,
-		     unsigned int info_size, char *info_name)
-{
-	struct device *dev = &qm->pdev->dev;
-	u8 *info_buf, *info_curr = info;
-	u32 i;
-#define BYTE_PER_DW	4
-
-	info_buf = kzalloc(info_size, GFP_KERNEL);
-	if (!info_buf)
-		return -ENOMEM;
-
-	for (i = 0; i < info_size; i++, info_curr++) {
-		if (i % BYTE_PER_DW == 0)
-			info_buf[i + 3UL] = *info_curr;
-		else if (i % BYTE_PER_DW == 1)
-			info_buf[i + 1UL] = *info_curr;
-		else if (i % BYTE_PER_DW == 2)
-			info_buf[i - 1] = *info_curr;
-		else if (i % BYTE_PER_DW == 3)
-			info_buf[i - 3] = *info_curr;
-	}
-
-	dev_info(dev, "%s DUMP\n", info_name);
-	for (i = 0; i < info_size; i += BYTE_PER_DW) {
-		pr_info("DW%u: %02X%02X %02X%02X\n", i / BYTE_PER_DW,
-			info_buf[i], info_buf[i + 1UL],
-			info_buf[i + 2UL], info_buf[i + 3UL]);
-	}
-
-	kfree(info_buf);
-
-	return 0;
 }
 
 static int qm_dump_sqc_raw(struct hisi_qm *qm, dma_addr_t dma_addr, u16 qp_id)
@@ -1902,456 +1353,65 @@ static int qm_dump_cqc_raw(struct hisi_qm *qm, dma_addr_t dma_addr, u16 qp_id)
 	return hisi_qm_mb(qm, QM_MB_CMD_CQC, dma_addr, qp_id, 1);
 }
 
-static int qm_sqc_dump(struct hisi_qm *qm, const char *s)
-{
-	struct device *dev = &qm->pdev->dev;
-	struct qm_sqc *sqc, *sqc_curr;
-	dma_addr_t sqc_dma;
-	u32 qp_id;
-	int ret;
-
-	if (!s)
-		return -EINVAL;
-
-	ret = kstrtou32(s, 0, &qp_id);
-	if (ret || qp_id >= qm->qp_num) {
-		dev_err(dev, "Please input qp num (0-%u)", qm->qp_num - 1);
-		return -EINVAL;
-	}
-
-	sqc = qm_ctx_alloc(qm, sizeof(*sqc), &sqc_dma);
-	if (IS_ERR(sqc))
-		return PTR_ERR(sqc);
-
-	ret = qm_dump_sqc_raw(qm, sqc_dma, qp_id);
-	if (ret) {
-		down_read(&qm->qps_lock);
-		if (qm->sqc) {
-			sqc_curr = qm->sqc + qp_id;
-
-			ret = dump_show(qm, sqc_curr, sizeof(*sqc),
-					"SOFT SQC");
-			if (ret)
-				dev_info(dev, "Show soft sqc failed!\n");
-		}
-		up_read(&qm->qps_lock);
-
-		goto err_free_ctx;
-	}
-
-	ret = dump_show(qm, sqc, sizeof(*sqc), "SQC");
-	if (ret)
-		dev_info(dev, "Show hw sqc failed!\n");
-
-err_free_ctx:
-	qm_ctx_free(qm, sizeof(*sqc), sqc, &sqc_dma);
-	return ret;
-}
-
-static int qm_cqc_dump(struct hisi_qm *qm, const char *s)
-{
-	struct device *dev = &qm->pdev->dev;
-	struct qm_cqc *cqc, *cqc_curr;
-	dma_addr_t cqc_dma;
-	u32 qp_id;
-	int ret;
-
-	if (!s)
-		return -EINVAL;
-
-	ret = kstrtou32(s, 0, &qp_id);
-	if (ret || qp_id >= qm->qp_num) {
-		dev_err(dev, "Please input qp num (0-%u)", qm->qp_num - 1);
-		return -EINVAL;
-	}
-
-	cqc = qm_ctx_alloc(qm, sizeof(*cqc), &cqc_dma);
-	if (IS_ERR(cqc))
-		return PTR_ERR(cqc);
-
-	ret = qm_dump_cqc_raw(qm, cqc_dma, qp_id);
-	if (ret) {
-		down_read(&qm->qps_lock);
-		if (qm->cqc) {
-			cqc_curr = qm->cqc + qp_id;
-
-			ret = dump_show(qm, cqc_curr, sizeof(*cqc),
-					"SOFT CQC");
-			if (ret)
-				dev_info(dev, "Show soft cqc failed!\n");
-		}
-		up_read(&qm->qps_lock);
-
-		goto err_free_ctx;
-	}
-
-	ret = dump_show(qm, cqc, sizeof(*cqc), "CQC");
-	if (ret)
-		dev_info(dev, "Show hw cqc failed!\n");
-
-err_free_ctx:
-	qm_ctx_free(qm, sizeof(*cqc), cqc, &cqc_dma);
-	return ret;
-}
-
-static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, size_t size,
-			    int cmd, char *name)
-{
-	struct device *dev = &qm->pdev->dev;
-	dma_addr_t xeqc_dma;
-	void *xeqc;
-	int ret;
-
-	if (strsep(&s, " ")) {
-		dev_err(dev, "Please do not input extra characters!\n");
-		return -EINVAL;
-	}
-
-	xeqc = qm_ctx_alloc(qm, size, &xeqc_dma);
-	if (IS_ERR(xeqc))
-		return PTR_ERR(xeqc);
-
-	ret = hisi_qm_mb(qm, cmd, xeqc_dma, 0, 1);
-	if (ret)
-		goto err_free_ctx;
-
-	ret = dump_show(qm, xeqc, size, name);
-	if (ret)
-		dev_info(dev, "Show hw %s failed!\n", name);
-
-err_free_ctx:
-	qm_ctx_free(qm, size, xeqc, &xeqc_dma);
-	return ret;
-}
-
-static int q_dump_param_parse(struct hisi_qm *qm, char *s,
-			      u32 *e_id, u32 *q_id)
-{
-	struct device *dev = &qm->pdev->dev;
-	unsigned int qp_num = qm->qp_num;
-	char *presult;
-	int ret;
-
-	presult = strsep(&s, " ");
-	if (!presult) {
-		dev_err(dev, "Please input qp number!\n");
-		return -EINVAL;
-	}
-
-	ret = kstrtou32(presult, 0, q_id);
-	if (ret || *q_id >= qp_num) {
-		dev_err(dev, "Please input qp num (0-%u)", qp_num - 1);
-		return -EINVAL;
-	}
-
-	presult = strsep(&s, " ");
-	if (!presult) {
-		dev_err(dev, "Please input sqe number!\n");
-		return -EINVAL;
-	}
-
-	ret = kstrtou32(presult, 0, e_id);
-	if (ret || *e_id >= QM_Q_DEPTH) {
-		dev_err(dev, "Please input sqe num (0-%d)", QM_Q_DEPTH - 1);
-		return -EINVAL;
-	}
-
-	if (strsep(&s, " ")) {
-		dev_err(dev, "Please do not input extra characters!\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int qm_sq_dump(struct hisi_qm *qm, char *s)
-{
-	struct device *dev = &qm->pdev->dev;
-	void *sqe, *sqe_curr;
-	struct hisi_qp *qp;
-	u32 qp_id, sqe_id;
-	int ret;
-
-	ret = q_dump_param_parse(qm, s, &sqe_id, &qp_id);
-	if (ret)
-		return ret;
-
-	sqe = kzalloc(qm->sqe_size * QM_Q_DEPTH, GFP_KERNEL);
-	if (!sqe)
-		return -ENOMEM;
-
-	qp = &qm->qp_array[qp_id];
-	memcpy(sqe, qp->sqe, qm->sqe_size * QM_Q_DEPTH);
-	sqe_curr = sqe + (u32)(sqe_id * qm->sqe_size);
-	memset(sqe_curr + qm->debug.sqe_mask_offset, QM_SQE_ADDR_MASK,
-	       qm->debug.sqe_mask_len);
-
-	ret = dump_show(qm, sqe_curr, qm->sqe_size, "SQE");
-	if (ret)
-		dev_info(dev, "Show sqe failed!\n");
-
-	kfree(sqe);
-
-	return ret;
-}
-
-static int qm_cq_dump(struct hisi_qm *qm, char *s)
-{
-	struct device *dev = &qm->pdev->dev;
-	struct qm_cqe *cqe_curr;
-	struct hisi_qp *qp;
-	u32 qp_id, cqe_id;
-	int ret;
-
-	ret = q_dump_param_parse(qm, s, &cqe_id, &qp_id);
-	if (ret)
-		return ret;
-
-	qp = &qm->qp_array[qp_id];
-	cqe_curr = qp->cqe + cqe_id;
-	ret = dump_show(qm, cqe_curr, sizeof(struct qm_cqe), "CQE");
-	if (ret)
-		dev_info(dev, "Show cqe failed!\n");
-
-	return ret;
-}
-
-static int qm_eq_aeq_dump(struct hisi_qm *qm, const char *s,
-			  size_t size, char *name)
-{
-	struct device *dev = &qm->pdev->dev;
-	void *xeqe;
-	u32 xeqe_id;
-	int ret;
-
-	if (!s)
-		return -EINVAL;
-
-	ret = kstrtou32(s, 0, &xeqe_id);
-	if (ret)
-		return -EINVAL;
-
-	if (!strcmp(name, "EQE") && xeqe_id >= QM_EQ_DEPTH) {
-		dev_err(dev, "Please input eqe num (0-%d)", QM_EQ_DEPTH - 1);
-		return -EINVAL;
-	} else if (!strcmp(name, "AEQE") && xeqe_id >= QM_Q_DEPTH) {
-		dev_err(dev, "Please input aeqe num (0-%d)", QM_Q_DEPTH - 1);
-		return -EINVAL;
-	}
-
-	down_read(&qm->qps_lock);
-
-	if (qm->eqe && !strcmp(name, "EQE")) {
-		xeqe = qm->eqe + xeqe_id;
-	} else if (qm->aeqe && !strcmp(name, "AEQE")) {
-		xeqe = qm->aeqe + xeqe_id;
-	} else {
-		ret = -EINVAL;
-		goto err_unlock;
-	}
-
-	ret = dump_show(qm, xeqe, size, name);
-	if (ret)
-		dev_info(dev, "Show %s failed!\n", name);
-
-err_unlock:
-	up_read(&qm->qps_lock);
-	return ret;
-}
-
-static int qm_dbg_help(struct hisi_qm *qm, char *s)
-{
-	struct device *dev = &qm->pdev->dev;
-
-	if (strsep(&s, " ")) {
-		dev_err(dev, "Please do not input extra characters!\n");
-		return -EINVAL;
-	}
-
-	dev_info(dev, "available commands:\n");
-	dev_info(dev, "sqc <num>\n");
-	dev_info(dev, "cqc <num>\n");
-	dev_info(dev, "eqc\n");
-	dev_info(dev, "aeqc\n");
-	dev_info(dev, "sq <num> <e>\n");
-	dev_info(dev, "cq <num> <e>\n");
-	dev_info(dev, "eq <e>\n");
-	dev_info(dev, "aeq <e>\n");
-
-	return 0;
-}
-
-static int qm_cmd_write_dump(struct hisi_qm *qm, const char *cmd_buf)
-{
-	struct device *dev = &qm->pdev->dev;
-	char *presult, *s, *s_tmp;
-	int ret;
-
-	s = kstrdup(cmd_buf, GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
-
-	s_tmp = s;
-	presult = strsep(&s, " ");
-	if (!presult) {
-		ret = -EINVAL;
-		goto err_buffer_free;
-	}
-
-	if (!strcmp(presult, "sqc"))
-		ret = qm_sqc_dump(qm, s);
-	else if (!strcmp(presult, "cqc"))
-		ret = qm_cqc_dump(qm, s);
-	else if (!strcmp(presult, "eqc"))
-		ret = qm_eqc_aeqc_dump(qm, s, sizeof(struct qm_eqc),
-				       QM_MB_CMD_EQC, "EQC");
-	else if (!strcmp(presult, "aeqc"))
-		ret = qm_eqc_aeqc_dump(qm, s, sizeof(struct qm_aeqc),
-				       QM_MB_CMD_AEQC, "AEQC");
-	else if (!strcmp(presult, "sq"))
-		ret = qm_sq_dump(qm, s);
-	else if (!strcmp(presult, "cq"))
-		ret = qm_cq_dump(qm, s);
-	else if (!strcmp(presult, "eq"))
-		ret = qm_eq_aeq_dump(qm, s, sizeof(struct qm_eqe), "EQE");
-	else if (!strcmp(presult, "aeq"))
-		ret = qm_eq_aeq_dump(qm, s, sizeof(struct qm_aeqe), "AEQE");
-	else if (!strcmp(presult, "help"))
-		ret = qm_dbg_help(qm, s);
-	else
-		ret = -EINVAL;
-
-	if (ret)
-		dev_info(dev, "Please echo help\n");
-
-err_buffer_free:
-	kfree(s_tmp);
-
-	return ret;
-}
-
-static ssize_t qm_cmd_write(struct file *filp, const char __user *buffer,
-			    size_t count, loff_t *pos)
-{
-	struct hisi_qm *qm = filp->private_data;
-	char *cmd_buf, *cmd_buf_tmp;
-	int ret;
-
-	if (*pos)
-		return 0;
-
-	ret = hisi_qm_get_dfx_access(qm);
-	if (ret)
-		return ret;
-
-	/* Judge if the instance is being reset. */
-	if (unlikely(atomic_read(&qm->status.flags) == QM_STOP))
-		return 0;
-
-	if (count > QM_DBG_WRITE_LEN) {
-		ret = -ENOSPC;
-		goto put_dfx_access;
-	}
-
-	cmd_buf = memdup_user_nul(buffer, count);
-	if (IS_ERR(cmd_buf)) {
-		ret = PTR_ERR(cmd_buf);
-		goto put_dfx_access;
-	}
-
-	cmd_buf_tmp = strchr(cmd_buf, '\n');
-	if (cmd_buf_tmp) {
-		*cmd_buf_tmp = '\0';
-		count = cmd_buf_tmp - cmd_buf + 1;
-	}
-
-	ret = qm_cmd_write_dump(qm, cmd_buf);
-	if (ret) {
-		kfree(cmd_buf);
-		goto put_dfx_access;
-	}
-
-	kfree(cmd_buf);
-
-	ret = count;
-
-put_dfx_access:
-	hisi_qm_put_dfx_access(qm);
-	return ret;
-}
-
-static const struct file_operations qm_cmd_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = qm_cmd_read,
-	.write = qm_cmd_write,
-};
-
-static void qm_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
-				   enum qm_debug_file index)
-{
-	struct debugfs_file *file = qm->debug.files + index;
-
-	debugfs_create_file(qm_debug_file_name[index], 0600, dir, file,
-			    &qm_debug_fops);
-
-	file->index = index;
-	mutex_init(&file->lock);
-	file->debug = &qm->debug;
-}
-
-static void qm_hw_error_init_v1(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_init_v1(struct hisi_qm *qm)
 {
 	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
-static void qm_hw_error_cfg(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_cfg(struct hisi_qm *qm)
 {
-	qm->error_mask = ce | nfe | fe;
+	struct hisi_qm_err_info *err_info = &qm->err_info;
+
+	qm->error_mask = err_info->nfe | err_info->ce | err_info->fe;
 	/* clear QM hw residual error source */
-	writel(QM_ABNORMAL_INT_SOURCE_CLR,
-	       qm->io_base + QM_ABNORMAL_INT_SOURCE);
+	writel(qm->error_mask, qm->io_base + QM_ABNORMAL_INT_SOURCE);
 
 	/* configure error type */
-	writel(ce, qm->io_base + QM_RAS_CE_ENABLE);
+	writel(err_info->ce, qm->io_base + QM_RAS_CE_ENABLE);
 	writel(QM_RAS_CE_TIMES_PER_IRQ, qm->io_base + QM_RAS_CE_THRESHOLD);
-	writel(nfe, qm->io_base + QM_RAS_NFE_ENABLE);
-	writel(fe, qm->io_base + QM_RAS_FE_ENABLE);
+	writel(err_info->nfe, qm->io_base + QM_RAS_NFE_ENABLE);
+	writel(err_info->fe, qm->io_base + QM_RAS_FE_ENABLE);
 }
 
-static void qm_hw_error_init_v2(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_init_v2(struct hisi_qm *qm)
 {
-	u32 irq_enable = ce | nfe | fe;
-	u32 irq_unmask = ~irq_enable;
+	u32 irq_unmask;
 
-	qm_hw_error_cfg(qm, ce, nfe, fe);
+	qm_hw_error_cfg(qm);
 
+	irq_unmask = ~qm->error_mask;
 	irq_unmask &= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
 	writel(irq_unmask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
 static void qm_hw_error_uninit_v2(struct hisi_qm *qm)
 {
-	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
+	u32 irq_mask = qm->error_mask;
+
+	irq_mask |= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
+	writel(irq_mask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
-static void qm_hw_error_init_v3(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe)
+static void qm_hw_error_init_v3(struct hisi_qm *qm)
 {
-	u32 irq_enable = ce | nfe | fe;
-	u32 irq_unmask = ~irq_enable;
+	u32 irq_unmask;
 
-	qm_hw_error_cfg(qm, ce, nfe, fe);
+	qm_hw_error_cfg(qm);
 
 	/* enable close master ooo when hardware error happened */
-	writel(nfe & (~QM_DB_RANDOM_INVALID), qm->io_base + QM_OOO_SHUTDOWN_SEL);
+	writel(qm->err_info.qm_shutdown_mask, qm->io_base + QM_OOO_SHUTDOWN_SEL);
 
+	irq_unmask = ~qm->error_mask;
 	irq_unmask &= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
 	writel(irq_unmask, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
 static void qm_hw_error_uninit_v3(struct hisi_qm *qm)
 {
-	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
+	u32 irq_mask = qm->error_mask;
+
+	irq_mask |= readl(qm->io_base + QM_ABNORMAL_INT_MASK);
+	writel(irq_mask, qm->io_base + QM_ABNORMAL_INT_MASK);
 
 	/* disable close master ooo when hardware error happened */
 	writel(0x0, qm->io_base + QM_OOO_SHUTDOWN_SEL);
@@ -2396,7 +1456,7 @@ static void qm_log_hw_error(struct hisi_qm *qm, u32 error_status)
 
 static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 {
-	u32 error_status, tmp, val;
+	u32 error_status, tmp;
 
 	/* read err sts */
 	tmp = readl(qm->io_base + QM_ABNORMAL_INT_STATUS);
@@ -2407,17 +1467,11 @@ static enum acc_err_result qm_hw_error_handle_v2(struct hisi_qm *qm)
 			qm->err_status.is_qm_ecc_mbit = true;
 
 		qm_log_hw_error(qm, error_status);
-		val = error_status | QM_DB_RANDOM_INVALID | QM_BASE_CE;
-		/* ce error does not need to be reset */
-		if (val == (QM_DB_RANDOM_INVALID | QM_BASE_CE)) {
-			writel(error_status, qm->io_base +
-			       QM_ABNORMAL_INT_SOURCE);
-			writel(qm->err_info.nfe,
-			       qm->io_base + QM_RAS_NFE_ENABLE);
-			return ACC_ERR_RECOVERED;
-		}
+		if (error_status & qm->err_info.qm_reset_mask)
+			return ACC_ERR_NEED_RESET;
 
-		return ACC_ERR_NEED_RESET;
+		writel(error_status, qm->io_base + QM_ABNORMAL_INT_SOURCE);
+		writel(qm->err_info.nfe, qm->io_base + QM_RAS_NFE_ENABLE);
 	}
 
 	return ACC_ERR_RECOVERED;
@@ -2493,7 +1547,7 @@ static int qm_wait_vf_prepare_finish(struct hisi_qm *qm)
 	u64 val;
 	u32 i;
 
-	if (!qm->vfs_num || qm->ver < QM_HW_V3)
+	if (!qm->vfs_num || !test_bit(QM_SUPPORT_MB_COMMAND, &qm->caps))
 		return 0;
 
 	while (true) {
@@ -2756,7 +1810,6 @@ static int qm_set_msi_v3(struct hisi_qm *qm, bool set)
 
 static const struct hisi_qm_hw_ops qm_hw_ops_v1 = {
 	.qm_db = qm_db_v1,
-	.get_irq_num = qm_get_irq_num_v1,
 	.hw_error_init = qm_hw_error_init_v1,
 	.set_msi = qm_set_msi,
 };
@@ -2764,7 +1817,6 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v1 = {
 static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
 	.get_vft = qm_get_vft_v2,
 	.qm_db = qm_db_v2,
-	.get_irq_num = qm_get_irq_num_v2,
 	.hw_error_init = qm_hw_error_init_v2,
 	.hw_error_uninit = qm_hw_error_uninit_v2,
 	.hw_error_handle = qm_hw_error_handle_v2,
@@ -2774,14 +1826,10 @@ static const struct hisi_qm_hw_ops qm_hw_ops_v2 = {
 static const struct hisi_qm_hw_ops qm_hw_ops_v3 = {
 	.get_vft = qm_get_vft_v2,
 	.qm_db = qm_db_v2,
-	.get_irq_num = qm_get_irq_num_v3,
 	.hw_error_init = qm_hw_error_init_v3,
 	.hw_error_uninit = qm_hw_error_uninit_v3,
 	.hw_error_handle = qm_hw_error_handle_v2,
-	.stop_qp = qm_stop_qp,
 	.set_msi = qm_set_msi_v3,
-	.ping_all_vfs = qm_ping_all_vfs,
-	.ping_pf = qm_ping_pf,
 };
 
 static void *qm_get_avail_sqe(struct hisi_qp *qp)
@@ -2789,7 +1837,7 @@ static void *qm_get_avail_sqe(struct hisi_qp *qp)
 	struct hisi_qp_status *qp_status = &qp->qp_status;
 	u16 sq_tail = qp_status->sq_tail;
 
-	if (unlikely(atomic_read(&qp->qp_status.used) == QM_Q_DEPTH - 1))
+	if (unlikely(atomic_read(&qp->qp_status.used) == qp->sq_depth - 1))
 		return NULL;
 
 	return qp->sqe + sq_tail * qp->qm->sqe_size;
@@ -2830,7 +1878,7 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
 
 	qp = &qm->qp_array[qp_id];
 	hisi_qm_unset_hw_reset(qp);
-	memset(qp->cqe, 0, sizeof(struct qm_cqe) * QM_Q_DEPTH);
+	memset(qp->cqe, 0, sizeof(struct qm_cqe) * qp->cq_depth);
 
 	qp->event_cb = NULL;
 	qp->req_cb = NULL;
@@ -2848,8 +1896,7 @@ static struct hisi_qp *qm_create_qp_nolock(struct hisi_qm *qm, u8 alg_type)
  * @qm: The qm we create a qp from.
  * @alg_type: Accelerator specific algorithm type in sqc.
  *
- * return created qp, -EBUSY if all qps in qm allocated, -ENOMEM if allocating
- * qp memory fails.
+ * Return created qp, negative error code if failed.
  */
 static struct hisi_qp *hisi_qm_create_qp(struct hisi_qm *qm, u8 alg_type)
 {
@@ -2911,9 +1958,9 @@ static int qm_sq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	INIT_QC_COMMON(sqc, qp->sqe_dma, pasid);
 	if (ver == QM_HW_V1) {
 		sqc->dw3 = cpu_to_le32(QM_MK_SQC_DW3_V1(0, 0, 0, qm->sqe_size));
-		sqc->w8 = cpu_to_le16(QM_Q_DEPTH - 1);
+		sqc->w8 = cpu_to_le16(qp->sq_depth - 1);
 	} else {
-		sqc->dw3 = cpu_to_le32(QM_MK_SQC_DW3_V2(qm->sqe_size));
+		sqc->dw3 = cpu_to_le32(QM_MK_SQC_DW3_V2(qm->sqe_size, qp->sq_depth));
 		sqc->w8 = 0; /* rand_qc */
 	}
 	sqc->cq_num = cpu_to_le16(qp_id);
@@ -2954,9 +2001,9 @@ static int qm_cq_ctx_cfg(struct hisi_qp *qp, int qp_id, u32 pasid)
 	if (ver == QM_HW_V1) {
 		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V1(0, 0, 0,
 							QM_QC_CQE_SIZE));
-		cqc->w8 = cpu_to_le16(QM_Q_DEPTH - 1);
+		cqc->w8 = cpu_to_le16(qp->cq_depth - 1);
 	} else {
-		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V2(QM_QC_CQE_SIZE));
+		cqc->dw3 = cpu_to_le32(QM_MK_CQC_DW3_V2(QM_QC_CQE_SIZE, qp->cq_depth));
 		cqc->w8 = 0; /* rand_qc */
 	}
 	cqc->dw6 = cpu_to_le32(1 << QM_CQ_PHASE_SHIFT | 1 << QM_CQ_FLAG_SHIFT);
@@ -3018,7 +2065,7 @@ static int qm_start_qp_nolock(struct hisi_qp *qp, unsigned long arg)
  * @arg: Accelerator specific argument.
  *
  * After this function, qp can receive request from user. Return 0 if
- * successful, Return -EBUSY if failed.
+ * successful, negative error code if failed.
  */
 int hisi_qm_start_qp(struct hisi_qp *qp, unsigned long arg)
 {
@@ -3043,13 +2090,14 @@ static void qp_stop_fail_cb(struct hisi_qp *qp)
 {
 	int qp_used = atomic_read(&qp->qp_status.used);
 	u16 cur_tail = qp->qp_status.sq_tail;
-	u16 cur_head = (cur_tail + QM_Q_DEPTH - qp_used) % QM_Q_DEPTH;
+	u16 sq_depth = qp->sq_depth;
+	u16 cur_head = (cur_tail + sq_depth - qp_used) % sq_depth;
 	struct hisi_qm *qm = qp->qm;
 	u16 pos;
 	int i;
 
 	for (i = 0; i < qp_used; i++) {
-		pos = (i + cur_head) % QM_Q_DEPTH;
+		pos = (i + cur_head) % sq_depth;
 		qp->req_cb(qp, qp->sqe + (u32)(qm->sqe_size * pos));
 		atomic_dec(&qp->qp_status.used);
 	}
@@ -3078,14 +2126,14 @@ static int qm_drain_qp(struct hisi_qp *qp)
 		return 0;
 
 	/* Kunpeng930 supports drain qp by device */
-	if (qm->ops->stop_qp) {
-		ret = qm->ops->stop_qp(qp);
+	if (test_bit(QM_SUPPORT_STOP_QP, &qm->caps)) {
+		ret = qm_stop_qp(qp);
 		if (ret)
 			dev_err(dev, "Failed to stop qp(%u)!\n", qp->qp_id);
 		return ret;
 	}
 
-	addr = qm_ctx_alloc(qm, size, &dma_addr);
+	addr = hisi_qm_ctx_alloc(qm, size, &dma_addr);
 	if (IS_ERR(addr)) {
 		dev_err(dev, "Failed to alloc ctx for sqc and cqc!\n");
 		return -ENOMEM;
@@ -3120,7 +2168,7 @@ static int qm_drain_qp(struct hisi_qp *qp)
 		usleep_range(WAIT_PERIOD_US_MIN, WAIT_PERIOD_US_MAX);
 	}
 
-	qm_ctx_free(qm, size, addr, &dma_addr);
+	hisi_qm_ctx_free(qm, size, addr, &dma_addr);
 
 	return ret;
 }
@@ -3197,7 +2245,7 @@ int hisi_qp_send(struct hisi_qp *qp, const void *msg)
 {
 	struct hisi_qp_status *qp_status = &qp->qp_status;
 	u16 sq_tail = qp_status->sq_tail;
-	u16 sq_tail_next = (sq_tail + 1) % QM_Q_DEPTH;
+	u16 sq_tail_next = (sq_tail + 1) % qp->sq_depth;
 	void *sqe = qm_get_avail_sqe(qp);
 
 	if (unlikely(atomic_read(&qp->qp_status.flags) == QP_STOP ||
@@ -3286,7 +2334,6 @@ static void hisi_qm_uacce_put_queue(struct uacce_queue *q)
 {
 	struct hisi_qp *qp = q->priv;
 
-	hisi_qm_cache_wb(qp->qm);
 	hisi_qm_release_qp(qp);
 }
 
@@ -3310,7 +2357,7 @@ static int hisi_qm_uacce_mmap(struct uacce_queue *q,
 		if (qm->ver == QM_HW_V1) {
 			if (sz > PAGE_SIZE * QM_DOORBELL_PAGE_NR)
 				return -EINVAL;
-		} else if (qm->ver == QM_HW_V2 || !qm->use_db_isolation) {
+		} else if (!test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps)) {
 			if (sz > PAGE_SIZE * (QM_DOORBELL_PAGE_NR +
 			    QM_DOORBELL_SQ_CQ_BASE_V2 / PAGE_SIZE))
 				return -EINVAL;
@@ -3319,7 +2366,7 @@ static int hisi_qm_uacce_mmap(struct uacce_queue *q,
 				return -EINVAL;
 		}
 
-		vma->vm_flags |= VM_IO;
+		vm_flags_set(vma, VM_IO);
 
 		return remap_pfn_range(vma, vma->vm_start,
 				       phys_base >> PAGE_SHIFT,
@@ -3387,6 +2434,7 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 				unsigned long arg)
 {
 	struct hisi_qp *qp = q->priv;
+	struct hisi_qp_info qp_info;
 	struct hisi_qp_ctx qp_ctx;
 
 	if (cmd == UACCE_CMD_QM_SET_QP_CTX) {
@@ -3403,11 +2451,132 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 		if (copy_to_user((void __user *)arg, &qp_ctx,
 				 sizeof(struct hisi_qp_ctx)))
 			return -EFAULT;
-	} else {
-		return -EINVAL;
+
+		return 0;
+	} else if (cmd == UACCE_CMD_QM_SET_QP_INFO) {
+		if (copy_from_user(&qp_info, (void __user *)arg,
+				   sizeof(struct hisi_qp_info)))
+			return -EFAULT;
+
+		qp_info.sqe_size = qp->qm->sqe_size;
+		qp_info.sq_depth = qp->sq_depth;
+		qp_info.cq_depth = qp->cq_depth;
+
+		if (copy_to_user((void __user *)arg, &qp_info,
+				  sizeof(struct hisi_qp_info)))
+			return -EFAULT;
+
+		return 0;
 	}
 
+	return -EINVAL;
+}
+
+/**
+ * qm_hw_err_isolate() - Try to set the isolation status of the uacce device
+ * according to user's configuration of error threshold.
+ * @qm: the uacce device
+ */
+static int qm_hw_err_isolate(struct hisi_qm *qm)
+{
+	struct qm_hw_err *err, *tmp, *hw_err;
+	struct qm_err_isolate *isolate;
+	u32 count = 0;
+
+	isolate = &qm->isolate_data;
+
+#define SECONDS_PER_HOUR	3600
+
+	/* All the hw errs are processed by PF driver */
+	if (qm->uacce->is_vf || isolate->is_isolate || !isolate->err_threshold)
+		return 0;
+
+	hw_err = kzalloc(sizeof(*hw_err), GFP_KERNEL);
+	if (!hw_err)
+		return -ENOMEM;
+
+	/*
+	 * Time-stamp every slot AER error. Then check the AER error log when the
+	 * next device AER error occurred. if the device slot AER error count exceeds
+	 * the setting error threshold in one hour, the isolated state will be set
+	 * to true. And the AER error logs that exceed one hour will be cleared.
+	 */
+	mutex_lock(&isolate->isolate_lock);
+	hw_err->timestamp = jiffies;
+	list_for_each_entry_safe(err, tmp, &isolate->qm_hw_errs, list) {
+		if ((hw_err->timestamp - err->timestamp) / HZ >
+		    SECONDS_PER_HOUR) {
+			list_del(&err->list);
+			kfree(err);
+		} else {
+			count++;
+		}
+	}
+	list_add(&hw_err->list, &isolate->qm_hw_errs);
+	mutex_unlock(&isolate->isolate_lock);
+
+	if (count >= isolate->err_threshold)
+		isolate->is_isolate = true;
+
 	return 0;
+}
+
+static void qm_hw_err_destroy(struct hisi_qm *qm)
+{
+	struct qm_hw_err *err, *tmp;
+
+	mutex_lock(&qm->isolate_data.isolate_lock);
+	list_for_each_entry_safe(err, tmp, &qm->isolate_data.qm_hw_errs, list) {
+		list_del(&err->list);
+		kfree(err);
+	}
+	mutex_unlock(&qm->isolate_data.isolate_lock);
+}
+
+static enum uacce_dev_state hisi_qm_get_isolate_state(struct uacce_device *uacce)
+{
+	struct hisi_qm *qm = uacce->priv;
+	struct hisi_qm *pf_qm;
+
+	if (uacce->is_vf)
+		pf_qm = pci_get_drvdata(pci_physfn(qm->pdev));
+	else
+		pf_qm = qm;
+
+	return pf_qm->isolate_data.is_isolate ?
+			UACCE_DEV_ISOLATE : UACCE_DEV_NORMAL;
+}
+
+static int hisi_qm_isolate_threshold_write(struct uacce_device *uacce, u32 num)
+{
+	struct hisi_qm *qm = uacce->priv;
+
+	/* Must be set by PF */
+	if (uacce->is_vf)
+		return -EPERM;
+
+	if (qm->isolate_data.is_isolate)
+		return -EPERM;
+
+	qm->isolate_data.err_threshold = num;
+
+	/* After the policy is updated, need to reset the hardware err list */
+	qm_hw_err_destroy(qm);
+
+	return 0;
+}
+
+static u32 hisi_qm_isolate_threshold_read(struct uacce_device *uacce)
+{
+	struct hisi_qm *qm = uacce->priv;
+	struct hisi_qm *pf_qm;
+
+	if (uacce->is_vf) {
+		pf_qm = pci_get_drvdata(pci_physfn(qm->pdev));
+		return pf_qm->isolate_data.err_threshold;
+	}
+
+	return qm->isolate_data.err_threshold;
 }
 
 static const struct uacce_ops uacce_qm_ops = {
@@ -3419,7 +2588,21 @@ static const struct uacce_ops uacce_qm_ops = {
 	.mmap = hisi_qm_uacce_mmap,
 	.ioctl = hisi_qm_uacce_ioctl,
 	.is_q_updated = hisi_qm_is_q_updated,
+	.get_isolate_state = hisi_qm_get_isolate_state,
+	.isolate_err_threshold_write = hisi_qm_isolate_threshold_write,
+	.isolate_err_threshold_read = hisi_qm_isolate_threshold_read,
 };
+
+static void qm_remove_uacce(struct hisi_qm *qm)
+{
+	struct uacce_device *uacce = qm->uacce;
+
+	if (qm->use_sva) {
+		qm_hw_err_destroy(qm);
+		uacce_remove(uacce);
+		qm->uacce = NULL;
+	}
+}
 
 static int qm_alloc_uacce(struct hisi_qm *qm)
 {
@@ -3427,6 +2610,7 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 	struct uacce_device *uacce;
 	unsigned long mmio_page_nr;
 	unsigned long dus_page_nr;
+	u16 sq_depth, cq_depth;
 	struct uacce_interface interface = {
 		.flags = UACCE_DEV_SVA,
 		.ops = &uacce_qm_ops,
@@ -3446,14 +2630,12 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 		qm->use_sva = true;
 	} else {
 		/* only consider sva case */
-		uacce_remove(uacce);
-		qm->uacce = NULL;
+		qm_remove_uacce(qm);
 		return -EINVAL;
 	}
 
 	uacce->is_vf = pdev->is_virtfn;
 	uacce->priv = qm;
-	uacce->algs = qm->algs;
 
 	if (qm->ver == QM_HW_V1)
 		uacce->api_ver = HISI_QM_API_VER_BASE;
@@ -3464,21 +2646,25 @@ static int qm_alloc_uacce(struct hisi_qm *qm)
 
 	if (qm->ver == QM_HW_V1)
 		mmio_page_nr = QM_DOORBELL_PAGE_NR;
-	else if (qm->ver == QM_HW_V2 || !qm->use_db_isolation)
+	else if (!test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps))
 		mmio_page_nr = QM_DOORBELL_PAGE_NR +
 			QM_DOORBELL_SQ_CQ_BASE_V2 / PAGE_SIZE;
 	else
 		mmio_page_nr = qm->db_interval / PAGE_SIZE;
 
+	qm_get_xqc_depth(qm, &sq_depth, &cq_depth, QM_QP_DEPTH_CAP);
+
 	/* Add one more page for device or qp status */
-	dus_page_nr = (PAGE_SIZE - 1 + qm->sqe_size * QM_Q_DEPTH +
-		       sizeof(struct qm_cqe) * QM_Q_DEPTH  + PAGE_SIZE) >>
+	dus_page_nr = (PAGE_SIZE - 1 + qm->sqe_size * sq_depth +
+		       sizeof(struct qm_cqe) * cq_depth  + PAGE_SIZE) >>
 					 PAGE_SHIFT;
 
 	uacce->qf_pg_num[UACCE_QFRT_MMIO] = mmio_page_nr;
 	uacce->qf_pg_num[UACCE_QFRT_DUS]  = dus_page_nr;
 
 	qm->uacce = uacce;
+	INIT_LIST_HEAD(&qm->isolate_data.qm_hw_errs);
+	mutex_init(&qm->isolate_data.isolate_lock);
 
 	return 0;
 }
@@ -3577,10 +2763,11 @@ static void hisi_qp_memory_uninit(struct hisi_qm *qm, int num)
 	kfree(qm->qp_array);
 }
 
-static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id)
+static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id,
+			       u16 sq_depth, u16 cq_depth)
 {
 	struct device *dev = &qm->pdev->dev;
-	size_t off = qm->sqe_size * QM_Q_DEPTH;
+	size_t off = qm->sqe_size * sq_depth;
 	struct hisi_qp *qp;
 	int ret = -ENOMEM;
 
@@ -3600,6 +2787,8 @@ static int hisi_qp_memory_init(struct hisi_qm *qm, size_t dma_size, int id)
 	qp->cqe = qp->qdma.va + off;
 	qp->cqe_dma = qp->qdma.dma + off;
 	qp->qdma.size = dma_size;
+	qp->sq_depth = sq_depth;
+	qp->cq_depth = cq_depth;
 	qp->qm = qm;
 	qp->qp_id = id;
 
@@ -3626,7 +2815,7 @@ static void hisi_qm_pre_init(struct hisi_qm *qm)
 	init_rwsem(&qm->qps_lock);
 	qm->qp_in_used = 0;
 	qm->misc_ctl = false;
-	if (qm->fun_type == QM_HW_PF && qm->ver > QM_HW_V2) {
+	if (test_bit(QM_SUPPORT_RPM, &qm->caps)) {
 		if (!acpi_device_power_manageable(ACPI_COMPANION(&pdev->dev)))
 			dev_info(&pdev->dev, "_PS0 and _PR0 are not defined");
 	}
@@ -3636,7 +2825,7 @@ static void qm_cmd_uninit(struct hisi_qm *qm)
 {
 	u32 val;
 
-	if (qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_MB_COMMAND, &qm->caps))
 		return;
 
 	val = readl(qm->io_base + QM_IFC_INT_MASK);
@@ -3648,7 +2837,7 @@ static void qm_cmd_init(struct hisi_qm *qm)
 {
 	u32 val;
 
-	if (qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_MB_COMMAND, &qm->caps))
 		return;
 
 	/* Clear communication interrupt source */
@@ -3664,7 +2853,7 @@ static void qm_put_pci_res(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
 
-	if (qm->use_db_isolation)
+	if (test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps))
 		iounmap(qm->db_io_base);
 
 	iounmap(qm->io_base);
@@ -3686,17 +2875,6 @@ static void hisi_qm_set_state(struct hisi_qm *qm, u8 state)
 		writel(state, qm->io_base + QM_VF_STATE);
 }
 
-static void qm_last_regs_uninit(struct hisi_qm *qm)
-{
-	struct qm_debug *debug = &qm->debug;
-
-	if (qm->fun_type == QM_HW_VF || !debug->qm_last_words)
-		return;
-
-	kfree(debug->qm_last_words);
-	debug->qm_last_words = NULL;
-}
-
 static void hisi_qm_unint_work(struct hisi_qm *qm)
 {
 	destroy_workqueue(qm->wq);
@@ -3714,7 +2892,9 @@ static void hisi_qm_memory_uninit(struct hisi_qm *qm)
 	}
 
 	idr_destroy(&qm->qp_idr);
-	kfree(qm->factor);
+
+	if (test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps))
+		kfree(qm->factor);
 }
 
 /**
@@ -3725,8 +2905,6 @@ static void hisi_qm_memory_uninit(struct hisi_qm *qm)
  */
 void hisi_qm_uninit(struct hisi_qm *qm)
 {
-	qm_last_regs_uninit(qm);
-
 	qm_cmd_uninit(qm);
 	hisi_qm_unint_work(qm);
 	down_write(&qm->qps_lock);
@@ -3740,7 +2918,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	hisi_qm_set_state(qm, QM_NOT_READY);
 	up_write(&qm->qps_lock);
 
-	qm_irq_unregister(qm);
+	qm_irqs_unregister(qm);
 	hisi_qm_pci_uninit(qm);
 	if (qm->use_sva) {
 		uacce_remove(qm->uacce);
@@ -3841,7 +3019,7 @@ static int qm_eq_ctx_cfg(struct hisi_qm *qm)
 	eqc->base_h = cpu_to_le32(upper_32_bits(qm->eqe_dma));
 	if (qm->ver == QM_HW_V1)
 		eqc->dw3 = cpu_to_le32(QM_EQE_AEQE_SIZE);
-	eqc->dw6 = cpu_to_le32((QM_EQ_DEPTH - 1) | (1 << QM_EQC_PHASE_SHIFT));
+	eqc->dw6 = cpu_to_le32(((u32)qm->eq_depth - 1) | (1 << QM_EQC_PHASE_SHIFT));
 
 	eqc_dma = dma_map_single(dev, eqc, sizeof(struct qm_eqc),
 				 DMA_TO_DEVICE);
@@ -3870,7 +3048,7 @@ static int qm_aeq_ctx_cfg(struct hisi_qm *qm)
 
 	aeqc->base_l = cpu_to_le32(lower_32_bits(qm->aeqe_dma));
 	aeqc->base_h = cpu_to_le32(upper_32_bits(qm->aeqe_dma));
-	aeqc->dw6 = cpu_to_le32((QM_Q_DEPTH - 1) | (1 << QM_EQC_PHASE_SHIFT));
+	aeqc->dw6 = cpu_to_le32(((u32)qm->aeq_depth - 1) | (1 << QM_EQC_PHASE_SHIFT));
 
 	aeqc_dma = dma_map_single(dev, aeqc, sizeof(struct qm_aeqc),
 				  DMA_TO_DEVICE);
@@ -4021,7 +3199,6 @@ static int qm_stop_started_qp(struct hisi_qm *qm)
 	return 0;
 }
 
-
 /**
  * qm_clear_queues() - Clear all queues memory in a qm.
  * @qm: The qm in which the queues will be cleared.
@@ -4095,55 +3272,14 @@ err_unlock:
 }
 EXPORT_SYMBOL_GPL(hisi_qm_stop);
 
-static ssize_t qm_status_read(struct file *filp, char __user *buffer,
-			      size_t count, loff_t *pos)
-{
-	struct hisi_qm *qm = filp->private_data;
-	char buf[QM_DBG_READ_LEN];
-	int val, len;
-
-	val = atomic_read(&qm->status.flags);
-	len = scnprintf(buf, QM_DBG_READ_LEN, "%s\n", qm_s[val]);
-
-	return simple_read_from_buffer(buffer, count, pos, buf, len);
-}
-
-static const struct file_operations qm_status_fops = {
-	.owner = THIS_MODULE,
-	.open = simple_open,
-	.read = qm_status_read,
-};
-
-static int qm_debugfs_atomic64_set(void *data, u64 val)
-{
-	if (val)
-		return -EINVAL;
-
-	atomic64_set((atomic64_t *)data, 0);
-
-	return 0;
-}
-
-static int qm_debugfs_atomic64_get(void *data, u64 *val)
-{
-	*val = atomic64_read((atomic64_t *)data);
-
-	return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
-			 qm_debugfs_atomic64_set, "%llu\n");
-
 static void qm_hw_error_init(struct hisi_qm *qm)
 {
-	struct hisi_qm_err_info *err_info = &qm->err_info;
-
 	if (!qm->ops->hw_error_init) {
 		dev_err(&qm->pdev->dev, "QM doesn't support hw error handling!\n");
 		return;
 	}
 
-	qm->ops->hw_error_init(qm, err_info->ce, err_info->nfe, err_info->fe);
+	qm->ops->hw_error_init(qm);
 }
 
 static void qm_hw_error_uninit(struct hisi_qm *qm)
@@ -4242,16 +3378,14 @@ static int hisi_qm_sort_devices(int node, struct list_head *head,
 	struct hisi_qm *qm;
 	struct list_head *n;
 	struct device *dev;
-	int dev_node = 0;
+	int dev_node;
 
 	list_for_each_entry(qm, &qm_list->list, list) {
 		dev = &qm->pdev->dev;
 
-		if (IS_ENABLED(CONFIG_NUMA)) {
-			dev_node = dev_to_node(dev);
-			if (dev_node < 0)
-				dev_node = 0;
-		}
+		dev_node = dev_to_node(dev);
+		if (dev_node < 0)
+			dev_node = 0;
 
 		res = kzalloc(sizeof(*res), GFP_KERNEL);
 		if (!res)
@@ -4361,7 +3495,7 @@ static int qm_vf_q_assign(struct hisi_qm *qm, u32 num_vfs)
 			act_q_num = q_num;
 		}
 
-		act_q_num = min_t(int, act_q_num, max_qp_num);
+		act_q_num = min(act_q_num, max_qp_num);
 		ret = hisi_qm_set_vft(qm, i, q_base, act_q_num);
 		if (ret) {
 			for (j = num_vfs; j > i; j--)
@@ -4497,12 +3631,10 @@ static int qm_vf_read_qos(struct hisi_qm *qm)
 	qm->mb_qos = 0;
 
 	/* vf ping pf to get function qos */
-	if (qm->ops->ping_pf) {
-		ret = qm->ops->ping_pf(qm, QM_VF_GET_QOS);
-		if (ret) {
-			pci_err(qm->pdev, "failed to send cmd to PF to get qos!\n");
-			return ret;
-		}
+	ret = qm_ping_pf(qm, QM_VF_GET_QOS);
+	if (ret) {
+		pci_err(qm->pdev, "failed to send cmd to PF to get qos!\n");
+		return ret;
 	}
 
 	while (true) {
@@ -4550,7 +3682,7 @@ static ssize_t qm_algqos_read(struct file *filp, char __user *buf,
 	qos_val = ir / QM_QOS_RATE;
 	ret = scnprintf(tbuf, QM_DBG_READ_LEN, "%u\n", qos_val);
 
-	ret =  simple_read_from_buffer(buf, count, pos, tbuf, ret);
+	ret = simple_read_from_buffer(buf, count, pos, tbuf, ret);
 
 err_get_status:
 	clear_bit(QM_RESETTING, &qm->misc_ctl);
@@ -4559,49 +3691,36 @@ err_put_dfx_access:
 	return ret;
 }
 
-static ssize_t qm_qos_value_init(const char *buf, unsigned long *val)
-{
-	int buflen = strlen(buf);
-	int ret, i;
-
-	for (i = 0; i < buflen; i++) {
-		if (!isdigit(buf[i]))
-			return -EINVAL;
-	}
-
-	ret = sscanf(buf, "%lu", val);
-	if (ret != QM_QOS_VAL_NUM)
-		return -EINVAL;
-
-	return 0;
-}
-
 static ssize_t qm_get_qos_value(struct hisi_qm *qm, const char *buf,
 			       unsigned long *val,
 			       unsigned int *fun_index)
 {
+	const struct bus_type *bus_type = qm->pdev->dev.bus;
 	char tbuf_bdf[QM_DBG_READ_LEN] = {0};
-	char val_buf[QM_QOS_VAL_MAX_LEN] = {0};
-	u32 tmp1, device, function;
-	int ret, bus;
+	char val_buf[QM_DBG_READ_LEN] = {0};
+	struct pci_dev *pdev;
+	struct device *dev;
+	int ret;
 
 	ret = sscanf(buf, "%s %s", tbuf_bdf, val_buf);
 	if (ret != QM_QOS_PARAM_NUM)
 		return -EINVAL;
 
-	ret = qm_qos_value_init(val_buf, val);
+	ret = kstrtoul(val_buf, 10, val);
 	if (ret || *val == 0 || *val > QM_QOS_MAX_VAL) {
 		pci_err(qm->pdev, "input qos value is error, please set 1~1000!\n");
 		return -EINVAL;
 	}
 
-	ret = sscanf(tbuf_bdf, "%u:%x:%u.%u", &tmp1, &bus, &device, &function);
-	if (ret != QM_QOS_BDF_PARAM_NUM) {
-		pci_err(qm->pdev, "input pci bdf value is error!\n");
-		return -EINVAL;
+	dev = bus_find_device_by_name(bus_type, NULL, tbuf_bdf);
+	if (!dev) {
+		pci_err(qm->pdev, "input pci bdf number is error!\n");
+		return -ENODEV;
 	}
 
-	*fun_index = PCI_DEVFN(device, function);
+	pdev = container_of(dev, struct pci_dev, dev);
+
+	*fun_index = pdev->devfn;
 
 	return 0;
 }
@@ -4614,9 +3733,6 @@ static ssize_t qm_algqos_write(struct file *filp, const char __user *buf,
 	unsigned int fun_index;
 	unsigned long val;
 	int len, ret;
-
-	if (qm->fun_type == QM_HW_VF)
-		return -EINVAL;
 
 	if (*pos != 0)
 		return 0;
@@ -4674,99 +3790,25 @@ static const struct file_operations qm_algqos_fops = {
  * hisi_qm_set_algqos_init() - Initialize function qos debugfs files.
  * @qm: The qm for which we want to add debugfs files.
  *
- * Create function qos debugfs files.
+ * Create function qos debugfs files, VF ping PF to get function qos.
  */
-static void hisi_qm_set_algqos_init(struct hisi_qm *qm)
+void hisi_qm_set_algqos_init(struct hisi_qm *qm)
 {
 	if (qm->fun_type == QM_HW_PF)
 		debugfs_create_file("alg_qos", 0644, qm->debug.debug_root,
 				    qm, &qm_algqos_fops);
-	else
+	else if (test_bit(QM_SUPPORT_MB_COMMAND, &qm->caps))
 		debugfs_create_file("alg_qos", 0444, qm->debug.debug_root,
 				    qm, &qm_algqos_fops);
 }
 
-/**
- * hisi_qm_debug_init() - Initialize qm related debugfs files.
- * @qm: The qm for which we want to add debugfs files.
- *
- * Create qm related debugfs files.
- */
-void hisi_qm_debug_init(struct hisi_qm *qm)
+static void hisi_qm_init_vf_qos(struct hisi_qm *qm, int total_func)
 {
-	struct dfx_diff_registers *qm_regs = qm->debug.qm_diff_regs;
-	struct qm_dfx *dfx = &qm->debug.dfx;
-	struct dentry *qm_d;
-	void *data;
 	int i;
 
-	qm_d = debugfs_create_dir("qm", qm->debug.debug_root);
-	qm->debug.qm_d = qm_d;
-
-	/* only show this in PF */
-	if (qm->fun_type == QM_HW_PF) {
-		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
-		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
-			qm_create_debugfs_file(qm, qm->debug.qm_d, i);
-	}
-
-	if (qm_regs)
-		debugfs_create_file("diff_regs", 0444, qm->debug.qm_d,
-					qm, &qm_diff_regs_fops);
-
-	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
-
-	debugfs_create_file("cmd", 0600, qm->debug.qm_d, qm, &qm_cmd_fops);
-
-	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
-			&qm_status_fops);
-	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
-		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
-		debugfs_create_file(qm_dfx_files[i].name,
-			0644,
-			qm_d,
-			data,
-			&qm_atomic64_ops);
-	}
-
-	if (qm->ver >= QM_HW_V3)
-		hisi_qm_set_algqos_init(qm);
+	for (i = 1; i <= total_func; i++)
+		qm->factor[i].func_qos = QM_QOS_MAX_VAL;
 }
-EXPORT_SYMBOL_GPL(hisi_qm_debug_init);
-
-/**
- * hisi_qm_debug_regs_clear() - clear qm debug related registers.
- * @qm: The qm for which we want to clear its debug registers.
- */
-void hisi_qm_debug_regs_clear(struct hisi_qm *qm)
-{
-	const struct debugfs_reg32 *regs;
-	int i;
-
-	/* clear current_qm */
-	writel(0x0, qm->io_base + QM_DFX_MB_CNT_VF);
-	writel(0x0, qm->io_base + QM_DFX_DB_CNT_VF);
-
-	/* clear current_q */
-	writel(0x0, qm->io_base + QM_DFX_SQE_CNT_VF_SQN);
-	writel(0x0, qm->io_base + QM_DFX_CQE_CNT_VF_CQN);
-
-	/*
-	 * these registers are reading and clearing, so clear them after
-	 * reading them.
-	 */
-	writel(0x1, qm->io_base + QM_DFX_CNT_CLR_CE);
-
-	regs = qm_dfx_regs;
-	for (i = 0; i < CNT_CYC_REGS_NUM; i++) {
-		readl(qm->io_base + regs->offset);
-		regs++;
-	}
-
-	/* clear clear_enable */
-	writel(0x0, qm->io_base + QM_DFX_CNT_CLR_CE);
-}
-EXPORT_SYMBOL_GPL(hisi_qm_debug_regs_clear);
 
 /**
  * hisi_qm_sriov_enable() - enable virtual functions
@@ -4794,7 +3836,17 @@ int hisi_qm_sriov_enable(struct pci_dev *pdev, int max_vfs)
 		goto err_put_sync;
 	}
 
-	num_vfs = min_t(int, max_vfs, total_vfs);
+	if (max_vfs > total_vfs) {
+		pci_err(pdev, "%d VFs is more than total VFs %d!\n", max_vfs, total_vfs);
+		ret = -ERANGE;
+		goto err_put_sync;
+	}
+
+	num_vfs = max_vfs;
+
+	if (test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps))
+		hisi_qm_init_vf_qos(qm, num_vfs);
+
 	ret = qm_vf_q_assign(qm, num_vfs);
 	if (ret) {
 		pci_err(pdev, "Can't assign queues for VF!\n");
@@ -4830,7 +3882,6 @@ EXPORT_SYMBOL_GPL(hisi_qm_sriov_enable);
 int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen)
 {
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
-	int total_vfs = pci_sriov_get_totalvfs(qm->pdev);
 	int ret;
 
 	if (pci_vfs_assigned(pdev)) {
@@ -4845,8 +3896,7 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen)
 	}
 
 	pci_disable_sriov(pdev);
-	/* clear vf function shaper configure array */
-	memset(qm->factor + 1, 0, sizeof(struct qm_shaper_factor) * total_vfs);
+
 	ret = qm_clear_vft_config(qm);
 	if (ret)
 		return ret;
@@ -4891,17 +3941,11 @@ static enum acc_err_result qm_dev_err_handle(struct hisi_qm *qm)
 		if (qm->err_ini->log_dev_hw_err)
 			qm->err_ini->log_dev_hw_err(qm, err_sts);
 
-		/* ce error does not need to be reset */
-		if ((err_sts | qm->err_info.dev_ce_mask) ==
-		     qm->err_info.dev_ce_mask) {
-			if (qm->err_ini->clear_dev_hw_err_status)
-				qm->err_ini->clear_dev_hw_err_status(qm,
-								err_sts);
+		if (err_sts & qm->err_info.dev_reset_mask)
+			return ACC_ERR_NEED_RESET;
 
-			return ACC_ERR_RECOVERED;
-		}
-
-		return ACC_ERR_NEED_RESET;
+		if (qm->err_ini->clear_dev_hw_err_status)
+			qm->err_ini->clear_dev_hw_err_status(qm, err_sts);
 	}
 
 	return ACC_ERR_RECOVERED;
@@ -5070,8 +4114,8 @@ static int qm_try_stop_vfs(struct hisi_qm *qm, u64 cmd,
 		return 0;
 
 	/* Kunpeng930 supports to notify VFs to stop before PF reset */
-	if (qm->ops->ping_all_vfs) {
-		ret = qm->ops->ping_all_vfs(qm, cmd);
+	if (test_bit(QM_SUPPORT_MB_COMMAND, &qm->caps)) {
+		ret = qm_ping_all_vfs(qm, cmd);
 		if (ret)
 			pci_err(pdev, "failed to send cmd to all VFs before PF reset!\n");
 	} else {
@@ -5109,6 +4153,12 @@ static int qm_controller_reset_prepare(struct hisi_qm *qm)
 		return ret;
 	}
 
+	if (qm->use_sva) {
+		ret = qm_hw_err_isolate(qm);
+		if (ret)
+			pci_err(pdev, "failed to isolate hw err!\n");
+	}
+
 	ret = qm_wait_vf_prepare_finish(qm);
 	if (ret)
 		pci_err(pdev, "failed to stop by vfs in soft reset!\n");
@@ -5129,13 +4179,10 @@ static void qm_dev_ecc_mbit_handle(struct hisi_qm *qm)
 	if (!qm->err_status.is_dev_ecc_mbit &&
 	    qm->err_status.is_qm_ecc_mbit &&
 	    qm->err_ini->close_axi_master_ooo) {
-
 		qm->err_ini->close_axi_master_ooo(qm);
-
 	} else if (qm->err_status.is_dev_ecc_mbit &&
 		   !qm->err_status.is_qm_ecc_mbit &&
 		   !qm->err_ini->close_axi_master_ooo) {
-
 		nfe_enb = readl(qm->io_base + QM_RAS_NFE_ENABLE);
 		writel(nfe_enb & QM_RAS_NFE_MBIT_DISABLE,
 		       qm->io_base + QM_RAS_NFE_ENABLE);
@@ -5262,8 +4309,8 @@ static int qm_try_start_vfs(struct hisi_qm *qm, enum qm_mb_cmd cmd)
 	}
 
 	/* Kunpeng930 supports to notify VFs to start after PF reset. */
-	if (qm->ops->ping_all_vfs) {
-		ret = qm->ops->ping_all_vfs(qm, cmd);
+	if (test_bit(QM_SUPPORT_MB_COMMAND, &qm->caps)) {
+		ret = qm_ping_all_vfs(qm, cmd);
 		if (ret)
 			pci_warn(pdev, "failed to send cmd to all VFs after PF reset!\n");
 	} else {
@@ -5396,24 +4443,6 @@ static int qm_controller_reset_done(struct hisi_qm *qm)
 	return 0;
 }
 
-static void qm_show_last_dfx_regs(struct hisi_qm *qm)
-{
-	struct qm_debug *debug = &qm->debug;
-	struct pci_dev *pdev = qm->pdev;
-	u32 val;
-	int i;
-
-	if (qm->fun_type == QM_HW_VF || !debug->qm_last_words)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(qm_dfx_regs); i++) {
-		val = readl_relaxed(qm->io_base + qm_dfx_regs[i].offset);
-		if (debug->qm_last_words[i] != val)
-			pci_info(pdev, "%s \t= 0x%08x => 0x%08x\n",
-			qm_dfx_regs[i].name, debug->qm_last_words[i], val);
-	}
-}
-
 static int qm_controller_reset(struct hisi_qm *qm)
 {
 	struct pci_dev *pdev = qm->pdev;
@@ -5429,26 +4458,30 @@ static int qm_controller_reset(struct hisi_qm *qm)
 		return ret;
 	}
 
-	qm_show_last_dfx_regs(qm);
+	hisi_qm_show_last_dfx_regs(qm);
 	if (qm->err_ini->show_last_dfx_regs)
 		qm->err_ini->show_last_dfx_regs(qm);
 
 	ret = qm_soft_reset(qm);
-	if (ret) {
-		pci_err(pdev, "Controller reset failed (%d)\n", ret);
-		qm_reset_bit_clear(qm);
-		return ret;
-	}
+	if (ret)
+		goto err_reset;
 
 	ret = qm_controller_reset_done(qm);
-	if (ret) {
-		qm_reset_bit_clear(qm);
-		return ret;
-	}
+	if (ret)
+		goto err_reset;
 
 	pci_info(pdev, "Controller reset complete\n");
 
 	return 0;
+
+err_reset:
+	pci_err(pdev, "Controller reset failed (%d)\n", ret);
+	qm_reset_bit_clear(qm);
+
+	/* if resetting fails, isolate the device */
+	if (qm->use_sva)
+		qm->isolate_data.is_isolate = true;
+	return ret;
 }
 
 /**
@@ -5465,8 +4498,6 @@ pci_ers_result_t hisi_qm_dev_slot_reset(struct pci_dev *pdev)
 
 	if (pdev->is_virtfn)
 		return PCI_ERS_RESULT_RECOVERED;
-
-	pci_aer_clear_nonfatal_status(pdev);
 
 	/* reset pcie device controller */
 	ret = qm_controller_reset(qm);
@@ -5599,52 +4630,6 @@ static irqreturn_t qm_abnormal_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int qm_irq_register(struct hisi_qm *qm)
-{
-	struct pci_dev *pdev = qm->pdev;
-	int ret;
-
-	ret = request_irq(pci_irq_vector(pdev, QM_EQ_EVENT_IRQ_VECTOR),
-			  qm_irq, 0, qm->dev_name, qm);
-	if (ret)
-		return ret;
-
-	if (qm->ver > QM_HW_V1) {
-		ret = request_threaded_irq(pci_irq_vector(pdev,
-					   QM_AEQ_EVENT_IRQ_VECTOR),
-					   qm_aeq_irq, qm_aeq_thread,
-					   0, qm->dev_name, qm);
-		if (ret)
-			goto err_aeq_irq;
-
-		if (qm->fun_type == QM_HW_PF) {
-			ret = request_irq(pci_irq_vector(pdev,
-					  QM_ABNORMAL_EVENT_IRQ_VECTOR),
-					  qm_abnormal_irq, 0, qm->dev_name, qm);
-			if (ret)
-				goto err_abonormal_irq;
-		}
-	}
-
-	if (qm->ver > QM_HW_V2) {
-		ret = request_irq(pci_irq_vector(pdev, QM_CMD_EVENT_IRQ_VECTOR),
-				qm_mb_cmd_irq, 0, qm->dev_name, qm);
-		if (ret)
-			goto err_mb_cmd_irq;
-	}
-
-	return 0;
-
-err_mb_cmd_irq:
-	if (qm->fun_type == QM_HW_PF)
-		free_irq(pci_irq_vector(pdev, QM_ABNORMAL_EVENT_IRQ_VECTOR), qm);
-err_abonormal_irq:
-	free_irq(pci_irq_vector(pdev, QM_AEQ_EVENT_IRQ_VECTOR), qm);
-err_aeq_irq:
-	free_irq(pci_irq_vector(pdev, QM_EQ_EVENT_IRQ_VECTOR), qm);
-	return ret;
-}
-
 /**
  * hisi_qm_dev_shutdown() - Shutdown device.
  * @pdev: The device will be shutdown.
@@ -5711,7 +4696,7 @@ err_prepare:
 	hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
 out:
 	pci_save_state(pdev);
-	ret = qm->ops->ping_pf(qm, cmd);
+	ret = qm_ping_pf(qm, cmd);
 	if (ret)
 		dev_warn(&pdev->dev, "PF responds timeout in reset prepare!\n");
 }
@@ -5729,7 +4714,8 @@ static void qm_pf_reset_vf_done(struct hisi_qm *qm)
 		cmd = QM_VF_START_FAIL;
 	}
 
-	ret = qm->ops->ping_pf(qm, cmd);
+	qm_cmd_init(qm);
+	ret = qm_ping_pf(qm, cmd);
 	if (ret)
 		dev_warn(&pdev->dev, "PF responds timeout in reset done!\n");
 
@@ -5790,7 +4776,6 @@ static void qm_pf_reset_vf_process(struct hisi_qm *qm,
 		goto err_get_status;
 
 	qm_pf_reset_vf_done(qm);
-	qm_cmd_init(qm);
 
 	dev_info(dev, "device reset done.\n");
 
@@ -5924,21 +4909,193 @@ void hisi_qm_alg_unregister(struct hisi_qm *qm, struct hisi_qm_list *qm_list)
 }
 EXPORT_SYMBOL_GPL(hisi_qm_alg_unregister);
 
+static void qm_unregister_abnormal_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+
+	if (qm->fun_type == QM_HW_VF)
+		return;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_ABN_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_ABN_IRQ_TYPE_MASK))
+		return;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	free_irq(pci_irq_vector(pdev, irq_vector), qm);
+}
+
+static int qm_register_abnormal_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+	int ret;
+
+	if (qm->fun_type == QM_HW_VF)
+		return 0;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_ABN_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_ABN_IRQ_TYPE_MASK))
+		return 0;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	ret = request_irq(pci_irq_vector(pdev, irq_vector), qm_abnormal_irq, 0, qm->dev_name, qm);
+	if (ret)
+		dev_err(&qm->pdev->dev, "failed to request abnormal irq, ret = %d", ret);
+
+	return ret;
+}
+
+static void qm_unregister_mb_cmd_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_PF2VF_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
+		return;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	free_irq(pci_irq_vector(pdev, irq_vector), qm);
+}
+
+static int qm_register_mb_cmd_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+	int ret;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_PF2VF_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
+		return 0;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	ret = request_irq(pci_irq_vector(pdev, irq_vector), qm_mb_cmd_irq, 0, qm->dev_name, qm);
+	if (ret)
+		dev_err(&pdev->dev, "failed to request function communication irq, ret = %d", ret);
+
+	return ret;
+}
+
+static void qm_unregister_aeq_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_AEQ_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
+		return;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	free_irq(pci_irq_vector(pdev, irq_vector), qm);
+}
+
+static int qm_register_aeq_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+	int ret;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_AEQ_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
+		return 0;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	ret = request_threaded_irq(pci_irq_vector(pdev, irq_vector), qm_aeq_irq,
+						   qm_aeq_thread, 0, qm->dev_name, qm);
+	if (ret)
+		dev_err(&pdev->dev, "failed to request eq irq, ret = %d", ret);
+
+	return ret;
+}
+
+static void qm_unregister_eq_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_EQ_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
+		return;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	free_irq(pci_irq_vector(pdev, irq_vector), qm);
+}
+
+static int qm_register_eq_irq(struct hisi_qm *qm)
+{
+	struct pci_dev *pdev = qm->pdev;
+	u32 irq_vector, val;
+	int ret;
+
+	val = hisi_qm_get_hw_info(qm, qm_basic_info, QM_EQ_IRQ_TYPE_CAP, qm->cap_ver);
+	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
+		return 0;
+
+	irq_vector = val & QM_IRQ_VECTOR_MASK;
+	ret = request_irq(pci_irq_vector(pdev, irq_vector), qm_eq_irq, 0, qm->dev_name, qm);
+	if (ret)
+		dev_err(&pdev->dev, "failed to request eq irq, ret = %d", ret);
+
+	return ret;
+}
+
+static void qm_irqs_unregister(struct hisi_qm *qm)
+{
+	qm_unregister_mb_cmd_irq(qm);
+	qm_unregister_abnormal_irq(qm);
+	qm_unregister_aeq_irq(qm);
+	qm_unregister_eq_irq(qm);
+}
+
+static int qm_irqs_register(struct hisi_qm *qm)
+{
+	int ret;
+
+	ret = qm_register_eq_irq(qm);
+	if (ret)
+		return ret;
+
+	ret = qm_register_aeq_irq(qm);
+	if (ret)
+		goto free_eq_irq;
+
+	ret = qm_register_abnormal_irq(qm);
+	if (ret)
+		goto free_aeq_irq;
+
+	ret = qm_register_mb_cmd_irq(qm);
+	if (ret)
+		goto free_abnormal_irq;
+
+	return 0;
+
+free_abnormal_irq:
+	qm_unregister_abnormal_irq(qm);
+free_aeq_irq:
+	qm_unregister_aeq_irq(qm);
+free_eq_irq:
+	qm_unregister_eq_irq(qm);
+	return ret;
+}
+
 static int qm_get_qp_num(struct hisi_qm *qm)
 {
-	if (qm->ver == QM_HW_V1)
-		qm->ctrl_qp_num = QM_QNUM_V1;
-	else if (qm->ver == QM_HW_V2)
-		qm->ctrl_qp_num = QM_QNUM_V2;
-	else
-		qm->ctrl_qp_num = readl(qm->io_base + QM_CAPBILITY) &
-					QM_QP_NUN_MASK;
+	bool is_db_isolation;
 
-	if (qm->use_db_isolation)
-		qm->max_qp_num = (readl(qm->io_base + QM_CAPBILITY) >>
-				  QM_QP_MAX_NUM_SHIFT) & QM_QP_NUN_MASK;
-	else
-		qm->max_qp_num = qm->ctrl_qp_num;
+	/* VF's qp_num assigned by PF in v2, and VF can get qp_num by vft. */
+	if (qm->fun_type == QM_HW_VF) {
+		if (qm->ver != QM_HW_V1)
+			/* v2 starts to support get vft by mailbox */
+			return hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
+
+		return 0;
+	}
+
+	is_db_isolation = test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps);
+	qm->ctrl_qp_num = hisi_qm_get_hw_info(qm, qm_basic_info, QM_TOTAL_QP_NUM_CAP, true);
+	qm->max_qp_num = hisi_qm_get_hw_info(qm, qm_basic_info,
+					     QM_FUNC_MAX_QP_CAP, is_db_isolation);
 
 	/* check if qp number is valid */
 	if (qm->qp_num > qm->max_qp_num) {
@@ -5948,6 +5105,39 @@ static int qm_get_qp_num(struct hisi_qm *qm)
 	}
 
 	return 0;
+}
+
+static void qm_get_hw_caps(struct hisi_qm *qm)
+{
+	const struct hisi_qm_cap_info *cap_info = qm->fun_type == QM_HW_PF ?
+						  qm_cap_info_pf : qm_cap_info_vf;
+	u32 size = qm->fun_type == QM_HW_PF ? ARRAY_SIZE(qm_cap_info_pf) :
+				   ARRAY_SIZE(qm_cap_info_vf);
+	u32 val, i;
+
+	/* Doorbell isolate register is a independent register. */
+	val = hisi_qm_get_hw_info(qm, qm_cap_info_comm, QM_SUPPORT_DB_ISOLATION, true);
+	if (val)
+		set_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps);
+
+	if (qm->ver >= QM_HW_V3) {
+		val = readl(qm->io_base + QM_FUNC_CAPS_REG);
+		qm->cap_ver = val & QM_CAPBILITY_VERSION;
+	}
+
+	/* Get PF/VF common capbility */
+	for (i = 1; i < ARRAY_SIZE(qm_cap_info_comm); i++) {
+		val = hisi_qm_get_hw_info(qm, qm_cap_info_comm, i, qm->cap_ver);
+		if (val)
+			set_bit(qm_cap_info_comm[i].type, &qm->caps);
+	}
+
+	/* Get PF/VF different capbility */
+	for (i = 0; i < size; i++) {
+		val = hisi_qm_get_hw_info(qm, cap_info, i, qm->cap_ver);
+		if (val)
+			set_bit(cap_info[i].type, &qm->caps);
+	}
 }
 
 static int qm_get_pci_res(struct hisi_qm *qm)
@@ -5969,16 +5159,8 @@ static int qm_get_pci_res(struct hisi_qm *qm)
 		goto err_request_mem_regions;
 	}
 
-	if (qm->ver > QM_HW_V2) {
-		if (qm->fun_type == QM_HW_PF)
-			qm->use_db_isolation = readl(qm->io_base +
-						     QM_QUE_ISO_EN) & BIT(0);
-		else
-			qm->use_db_isolation = readl(qm->io_base +
-						     QM_QUE_ISO_CFG_V) & BIT(0);
-	}
-
-	if (qm->use_db_isolation) {
+	qm_get_hw_caps(qm);
+	if (test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps)) {
 		qm->db_interval = QM_QP_DB_INTERVAL;
 		qm->db_phys_base = pci_resource_start(pdev, PCI_BAR_4);
 		qm->db_io_base = ioremap(qm->db_phys_base,
@@ -5993,16 +5175,14 @@ static int qm_get_pci_res(struct hisi_qm *qm)
 		qm->db_interval = 0;
 	}
 
-	if (qm->fun_type == QM_HW_PF) {
-		ret = qm_get_qp_num(qm);
-		if (ret)
-			goto err_db_ioremap;
-	}
+	ret = qm_get_qp_num(qm);
+	if (ret)
+		goto err_db_ioremap;
 
 	return 0;
 
 err_db_ioremap:
-	if (qm->use_db_isolation)
+	if (test_bit(QM_SUPPORT_DB_ISOLATION, &qm->caps))
 		iounmap(qm->db_io_base);
 err_ioremap:
 	iounmap(qm->io_base);
@@ -6033,11 +5213,7 @@ static int hisi_qm_pci_init(struct hisi_qm *qm)
 		goto err_get_pci_res;
 	pci_set_master(pdev);
 
-	if (!qm->ops->get_irq_num) {
-		ret = -EOPNOTSUPP;
-		goto err_get_pci_res;
-	}
-	num_vec = qm->ops->get_irq_num(qm);
+	num_vec = qm_get_irq_num(qm);
 	ret = pci_alloc_irq_vectors(pdev, num_vec, num_vec, PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable MSI vectors!\n");
@@ -6080,6 +5256,7 @@ static int hisi_qm_init_work(struct hisi_qm *qm)
 static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
+	u16 sq_depth, cq_depth;
 	size_t qp_dma_size;
 	int i, ret;
 
@@ -6093,13 +5270,14 @@ static int hisi_qp_alloc_memory(struct hisi_qm *qm)
 		return -ENOMEM;
 	}
 
+	qm_get_xqc_depth(qm, &sq_depth, &cq_depth, QM_QP_DEPTH_CAP);
+
 	/* one more page for device or qp statuses */
-	qp_dma_size = qm->sqe_size * QM_Q_DEPTH +
-		      sizeof(struct qm_cqe) * QM_Q_DEPTH;
+	qp_dma_size = qm->sqe_size * sq_depth + sizeof(struct qm_cqe) * cq_depth;
 	qp_dma_size = PAGE_ALIGN(qp_dma_size) + PAGE_SIZE;
 	for (i = 0; i < qm->qp_num; i++) {
 		qm->poll_data[i].qm = qm;
-		ret = hisi_qp_memory_init(qm, qp_dma_size, i);
+		ret = hisi_qp_memory_init(qm, qp_dma_size, i, sq_depth, cq_depth);
 		if (ret)
 			goto err_init_qp_mem;
 
@@ -6116,15 +5294,18 @@ err_init_qp_mem:
 static int hisi_qm_memory_init(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
-	int ret, total_func, i;
+	int ret, total_func;
 	size_t off = 0;
 
-	total_func = pci_sriov_get_totalvfs(qm->pdev) + 1;
-	qm->factor = kcalloc(total_func, sizeof(struct qm_shaper_factor), GFP_KERNEL);
-	if (!qm->factor)
-		return -ENOMEM;
-	for (i = 0; i < total_func; i++)
-		qm->factor[i].func_qos = QM_QOS_MAX_VAL;
+	if (test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps)) {
+		total_func = pci_sriov_get_totalvfs(qm->pdev) + 1;
+		qm->factor = kcalloc(total_func, sizeof(struct qm_shaper_factor), GFP_KERNEL);
+		if (!qm->factor)
+			return -ENOMEM;
+
+		/* Only the PF value needs to be initialized */
+		qm->factor[0].func_qos = QM_QOS_MAX_VAL;
+	}
 
 #define QM_INIT_BUF(qm, type, num) do { \
 	(qm)->type = ((qm)->qdma.va + (off)); \
@@ -6133,20 +5314,21 @@ static int hisi_qm_memory_init(struct hisi_qm *qm)
 } while (0)
 
 	idr_init(&qm->qp_idr);
-	qm->qdma.size = QMC_ALIGN(sizeof(struct qm_eqe) * QM_EQ_DEPTH) +
-			QMC_ALIGN(sizeof(struct qm_aeqe) * QM_Q_DEPTH) +
+	qm_get_xqc_depth(qm, &qm->eq_depth, &qm->aeq_depth, QM_XEQ_DEPTH_CAP);
+	qm->qdma.size = QMC_ALIGN(sizeof(struct qm_eqe) * qm->eq_depth) +
+			QMC_ALIGN(sizeof(struct qm_aeqe) * qm->aeq_depth) +
 			QMC_ALIGN(sizeof(struct qm_sqc) * qm->qp_num) +
 			QMC_ALIGN(sizeof(struct qm_cqc) * qm->qp_num);
 	qm->qdma.va = dma_alloc_coherent(dev, qm->qdma.size, &qm->qdma.dma,
 					 GFP_ATOMIC);
 	dev_dbg(dev, "allocate qm dma buf size=%zx)\n", qm->qdma.size);
 	if (!qm->qdma.va) {
-		ret =  -ENOMEM;
-		goto err_alloc_qdma;
+		ret = -ENOMEM;
+		goto err_destroy_idr;
 	}
 
-	QM_INIT_BUF(qm, eqe, QM_EQ_DEPTH);
-	QM_INIT_BUF(qm, aeqe, QM_Q_DEPTH);
+	QM_INIT_BUF(qm, eqe, qm->eq_depth);
+	QM_INIT_BUF(qm, aeqe, qm->aeq_depth);
 	QM_INIT_BUF(qm, sqc, qm->qp_num);
 	QM_INIT_BUF(qm, cqc, qm->qp_num);
 
@@ -6158,30 +5340,12 @@ static int hisi_qm_memory_init(struct hisi_qm *qm)
 
 err_alloc_qp_array:
 	dma_free_coherent(dev, qm->qdma.size, qm->qdma.va, qm->qdma.dma);
-err_alloc_qdma:
-	kfree(qm->factor);
+err_destroy_idr:
+	idr_destroy(&qm->qp_idr);
+	if (test_bit(QM_SUPPORT_FUNC_QOS, &qm->caps))
+		kfree(qm->factor);
 
 	return ret;
-}
-
-static void qm_last_regs_init(struct hisi_qm *qm)
-{
-	int dfx_regs_num = ARRAY_SIZE(qm_dfx_regs);
-	struct qm_debug *debug = &qm->debug;
-	int i;
-
-	if (qm->fun_type == QM_HW_VF)
-		return;
-
-	debug->qm_last_words = kcalloc(dfx_regs_num, sizeof(unsigned int),
-								GFP_KERNEL);
-	if (!debug->qm_last_words)
-		return;
-
-	for (i = 0; i < dfx_regs_num; i++) {
-		debug->qm_last_words[i] = readl_relaxed(qm->io_base +
-			qm_dfx_regs[i].offset);
-	}
 }
 
 /**
@@ -6202,16 +5366,9 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (ret)
 		return ret;
 
-	ret = qm_irq_register(qm);
+	ret = qm_irqs_register(qm);
 	if (ret)
 		goto err_pci_init;
-
-	if (qm->fun_type == QM_HW_VF && qm->ver != QM_HW_V1) {
-		/* v2 starts to support get vft by mailbox */
-		ret = hisi_qm_get_vft(qm, &qm->qp_base, &qm->qp_num);
-		if (ret)
-			goto err_irq_register;
-	}
 
 	if (qm->fun_type == QM_HW_PF) {
 		qm_disable_clock_gate(qm);
@@ -6239,19 +5396,14 @@ int hisi_qm_init(struct hisi_qm *qm)
 	qm_cmd_init(qm);
 	atomic_set(&qm->status.flags, QM_INIT);
 
-	qm_last_regs_init(qm);
-
 	return 0;
 
 err_free_qm_memory:
 	hisi_qm_memory_uninit(qm);
 err_alloc_uacce:
-	if (qm->use_sva) {
-		uacce_remove(qm->uacce);
-		qm->uacce = NULL;
-	}
+	qm_remove_uacce(qm);
 err_irq_register:
-	qm_irq_unregister(qm);
+	qm_irqs_unregister(qm);
 err_pci_init:
 	hisi_qm_pci_uninit(qm);
 	return ret;
@@ -6302,7 +5454,7 @@ void hisi_qm_pm_init(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
 
-	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_RPM, &qm->caps))
 		return;
 
 	pm_runtime_set_autosuspend_delay(dev, QM_AUTOSUSPEND_DELAY);
@@ -6321,7 +5473,7 @@ void hisi_qm_pm_uninit(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
 
-	if (qm->fun_type == QM_HW_VF || qm->ver < QM_HW_V3)
+	if (!test_bit(QM_SUPPORT_RPM, &qm->caps))
 		return;
 
 	pm_runtime_get_noresume(dev);
@@ -6443,8 +5595,14 @@ int hisi_qm_resume(struct device *dev)
 	}
 
 	ret = hisi_qm_start(qm);
-	if (ret)
-		pci_err(pdev, "failed to start qm(%d)\n", ret);
+	if (ret) {
+		if (qm_check_dev_error(qm)) {
+			pci_info(pdev, "failed to start qm due to device error, device will be reset!\n");
+			return 0;
+		}
+
+		pci_err(pdev, "failed to start qm(%d)!\n", ret);
+	}
 
 	return ret;
 }

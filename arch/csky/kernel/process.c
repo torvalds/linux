@@ -9,6 +9,7 @@
 #include <linux/kallsyms.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
+#include <linux/elfcore.h>
 
 #include <asm/elf.h>
 #include <abi/reg_ops.h>
@@ -69,12 +70,11 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 }
 
 /* Fill in the fpu structure for a core dump.  */
-int dump_fpu(struct pt_regs *regs, struct user_fp *fpu)
+int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
 {
 	memcpy(fpu, &current->thread.user_fp, sizeof(*fpu));
 	return 1;
 }
-EXPORT_SYMBOL(dump_fpu);
 
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *pr_regs)
 {
@@ -100,6 +100,5 @@ void arch_cpu_idle(void)
 #ifdef CONFIG_CPU_PM_STOP
 	asm volatile("stop\n");
 #endif
-	raw_local_irq_enable();
 }
 #endif

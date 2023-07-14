@@ -921,7 +921,7 @@ static void lm3554_remove(struct i2c_client *client)
 
 	atomisp_gmin_remove_subdev(sd);
 
-	del_timer_sync(&flash->flash_off_delay);
+	timer_shutdown_sync(&flash->flash_off_delay);
 
 	lm3554_gpio_uninit(client);
 
@@ -945,7 +945,7 @@ static struct i2c_driver lm3554_driver = {
 		.pm   = &lm3554_pm_ops,
 		.acpi_match_table = lm3554_acpi_match,
 	},
-	.probe_new = lm3554_probe,
+	.probe = lm3554_probe,
 	.remove = lm3554_remove,
 };
 module_i2c_driver(lm3554_driver);

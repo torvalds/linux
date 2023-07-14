@@ -250,7 +250,7 @@ static int tf103c_dock_hid_raw_request(struct hid_device *hid, u8 reportnum,
 	return 0;
 }
 
-static struct hid_ll_driver tf103c_dock_hid_ll_driver = {
+static const struct hid_ll_driver tf103c_dock_hid_ll_driver = {
 	.parse = tf103c_dock_hid_parse,
 	.start = tf103c_dock_hid_start,
 	.stop = tf103c_dock_hid_stop,
@@ -259,7 +259,7 @@ static struct hid_ll_driver tf103c_dock_hid_ll_driver = {
 	.raw_request = tf103c_dock_hid_raw_request,
 };
 
-static int tf103c_dock_toprow_codes[13][2] = {
+static const int tf103c_dock_toprow_codes[13][2] = {
 	/* Normal,            AltGr pressed */
 	{ KEY_POWER,          KEY_F1 },
 	{ KEY_RFKILL,         KEY_F2 },
@@ -933,7 +933,7 @@ static struct i2c_driver tf103c_dock_driver = {
 		.pm = &tf103c_dock_pm_ops,
 		.acpi_match_table = tf103c_dock_acpi_match,
 	},
-	.probe_new = tf103c_dock_probe,
+	.probe = tf103c_dock_probe,
 	.remove	= tf103c_dock_remove,
 };
 module_i2c_driver(tf103c_dock_driver);

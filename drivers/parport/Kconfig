@@ -42,7 +42,8 @@ if PARPORT
 
 config PARPORT_PC
 	tristate "PC-style hardware"
-	depends on ARCH_MIGHT_HAVE_PC_PARPORT || (PCI && !S390)
+	depends on ARCH_MIGHT_HAVE_PC_PARPORT || PCI
+	depends on HAS_IOPORT
 	help
 	  You should say Y here if you have a PC-style parallel port. All
 	  IBM PC compatible computers and some Alphas have PC-style
@@ -139,17 +140,6 @@ config PARPORT_SUNBPP
 	  This driver provides support for the bidirectional parallel port
 	  found on many Sun machines. Note that many of the newer Ultras
 	  actually have pc style hardware instead.
-
-config PARPORT_AX88796
-	tristate "AX88796 Parallel Port"
-	select PARPORT_NOT_PC
-	help
-	  Say Y here if you need support for the parallel port hardware on
-	  the AX88796 network controller chip. This code is also available
-	  as a module (say M), called parport_ax88796.
-
-	  The driver is not dependent on the AX88796 network driver, and
-	  should not interfere with the networking functions of the chip.
 
 config PARPORT_1284
 	bool "IEEE 1284 transfer modes"

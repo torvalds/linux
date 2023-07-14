@@ -404,6 +404,7 @@ struct hns3_rx_ptype {
 	u32 ip_summed : 2;
 	u32 l3_type : 4;
 	u32 valid : 1;
+	u32 hash_type: 3;
 };
 
 struct ring_stats {
@@ -693,6 +694,12 @@ static inline unsigned int hns3_page_order(struct hns3_enet_ring *ring)
 
 #define hns3_get_handle(ndev) \
 	(((struct hns3_nic_priv *)netdev_priv(ndev))->ae_handle)
+
+#define hns3_get_ae_dev(handle) \
+	(pci_get_drvdata((handle)->pdev))
+
+#define hns3_get_ops(handle) \
+	((handle)->ae_algo->ops)
 
 #define hns3_gl_usec_to_reg(int_gl) ((int_gl) >> 1)
 #define hns3_gl_round_down(int_gl) round_down(int_gl, 2)

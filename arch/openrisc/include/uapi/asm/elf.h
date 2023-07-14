@@ -53,8 +53,7 @@ typedef unsigned long elf_greg_t;
 #define ELF_NGREG (sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
-/* A placeholder; OR32 does not have fp support yes, so no fp regs for now.  */
-typedef unsigned long elf_fpregset_t;
+typedef struct __or1k_fpu_state elf_fpregset_t;
 
 /* EM_OPENRISC is defined in linux/elf-em.h */
 #define EM_OR32         0x8472

@@ -296,8 +296,7 @@ static void sis_ts_reset(struct sis_ts_data *ts)
 	}
 }
 
-static int sis_ts_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int sis_ts_probe(struct i2c_client *client)
 {
 	struct sis_ts_data *ts;
 	struct input_dev *input;

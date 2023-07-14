@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -376,7 +376,9 @@ struct efa_admin_reg_mr_cmd {
 	 * 0 : local_write_enable - Local write permissions:
 	 *    must be set for RQ buffers and buffers posted for
 	 *    RDMA Read requests
-	 * 1 : reserved1 - MBZ
+	 * 1 : remote_write_enable - Remote write
+	 *    permissions: must be set to enable RDMA write to
+	 *    the region
 	 * 2 : remote_read_enable - Remote read permissions:
 	 *    must be set to enable RDMA read from the region
 	 * 7:3 : reserved2 - MBZ
@@ -444,7 +446,10 @@ struct efa_admin_create_cq_cmd {
 	/*
 	 * 4:0 : cq_entry_size_words - size of CQ entry in
 	 *    32-bit words, valid values: 4, 8.
-	 * 7:5 : reserved7 - MBZ
+	 * 5 : set_src_addr - If set, source address will be
+	 *    filled on RX completions from unknown senders.
+	 *    Requires 8 words CQ entry size.
+	 * 7:6 : reserved7 - MBZ
 	 */
 	u8 cq_caps_2;
 
@@ -615,7 +620,11 @@ struct efa_admin_feature_device_attr_desc {
 	 *    TX queues
 	 * 1 : rnr_retry - If set, RNR retry is supported on
 	 *    modify QP command
-	 * 31:2 : reserved - MBZ
+	 * 2 : data_polling_128 - If set, 128 bytes data
+	 *    polling is supported
+	 * 3 : rdma_write - If set, RDMA Write is supported
+	 *    on TX queues
+	 * 31:4 : reserved - MBZ
 	 */
 	u32 device_caps;
 
@@ -669,7 +678,7 @@ struct efa_admin_feature_queue_attr_desc {
 	/* The maximum size of LLQ in bytes */
 	u32 max_llq_size;
 
-	/* Maximum number of SGEs for a single RDMA read WQE */
+	/* Maximum number of SGEs for a single RDMA read/write WQE */
 	u16 max_wr_rdma_sges;
 
 	/*
@@ -974,12 +983,14 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_REG_MR_CMD_PHYS_PAGE_SIZE_SHIFT_MASK      GENMASK(4, 0)
 #define EFA_ADMIN_REG_MR_CMD_MEM_ADDR_PHY_MODE_EN_MASK      BIT(7)
 #define EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK        BIT(0)
+#define EFA_ADMIN_REG_MR_CMD_REMOTE_WRITE_ENABLE_MASK       BIT(1)
 #define EFA_ADMIN_REG_MR_CMD_REMOTE_READ_ENABLE_MASK        BIT(2)
 
 /* create_cq_cmd */
 #define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_MASK BIT(5)
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
+#define EFA_ADMIN_CREATE_CQ_CMD_SET_SRC_ADDR_MASK           BIT(5)
 
 /* create_cq_resp */
 #define EFA_ADMIN_CREATE_CQ_RESP_DB_VALID_MASK              BIT(0)
@@ -987,6 +998,8 @@ struct efa_admin_host_info {
 /* feature_device_attr_desc */
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_DATA_POLLING_128_MASK BIT(2)
+#define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_WRITE_MASK  BIT(3)
 
 /* create_eq_cmd */
 #define EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS_MASK       GENMASK(4, 0)

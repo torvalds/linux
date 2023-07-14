@@ -29,7 +29,7 @@
 #include "ehci-fsl.h"
 
 #define DRIVER_DESC "Freescale EHCI Host controller driver"
-#define DRV_NAME "ehci-fsl"
+#define DRV_NAME "fsl-ehci"
 
 static struct hc_driver __read_mostly fsl_ehci_hc_driver;
 
@@ -684,7 +684,7 @@ static const struct ehci_driver_overrides ehci_fsl_overrides __initconst = {
  *
  * Reverses the effect of usb_hcd_fsl_probe().
  */
-static int fsl_ehci_drv_remove(struct platform_device *pdev)
+static void fsl_ehci_drv_remove(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
@@ -703,16 +703,14 @@ static int fsl_ehci_drv_remove(struct platform_device *pdev)
 	if (pdata->exit)
 		pdata->exit(pdev);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static struct platform_driver ehci_fsl_driver = {
 	.probe = fsl_ehci_drv_probe,
-	.remove = fsl_ehci_drv_remove,
+	.remove_new = fsl_ehci_drv_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
-		.name = "fsl-ehci",
+		.name = DRV_NAME,
 		.pm = EHCI_FSL_PM_OPS,
 	},
 };
@@ -721,8 +719,6 @@ static int __init ehci_fsl_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info(DRV_NAME ": " DRIVER_DESC "\n");
 
 	ehci_init_driver(&fsl_ehci_hc_driver, &ehci_fsl_overrides);
 

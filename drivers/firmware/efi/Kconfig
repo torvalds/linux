@@ -26,39 +26,6 @@ config EFI_VARS_PSTORE_DEFAULT_DISABLE
 	  backend for pstore by default. This setting can be overridden
 	  using the efivars module's pstore_disable parameter.
 
-config EFI_RUNTIME_MAP
-	bool "Export efi runtime maps to sysfs"
-	depends on X86 && EFI && KEXEC_CORE
-	default y
-	help
-	  Export efi runtime memory maps to /sys/firmware/efi/runtime-map.
-	  That memory map is used for example by kexec to set up efi virtual
-	  mapping the 2nd kernel, but can also be used for debugging purposes.
-
-	  See also Documentation/ABI/testing/sysfs-firmware-efi-runtime-map.
-
-config EFI_FAKE_MEMMAP
-	bool "Enable EFI fake memory map"
-	depends on EFI && X86
-	default n
-	help
-	  Saying Y here will enable "efi_fake_mem" boot option.
-	  By specifying this parameter, you can add arbitrary attribute
-	  to specific memory range by updating original (firmware provided)
-	  EFI memmap.
-	  This is useful for debugging of EFI memmap related feature.
-	  e.g. Address Range Mirroring feature.
-
-config EFI_MAX_FAKE_MEM
-	int "maximum allowable number of ranges in efi_fake_mem boot option"
-	depends on EFI_FAKE_MEMMAP
-	range 1 128
-	default 8
-	help
-	  Maximum allowable number of ranges in efi_fake_mem boot option.
-	  Ranges can be set up to this value using comma-separated list.
-	  The default value is 8.
-
 config EFI_SOFT_RESERVE
 	bool "Reserve EFI Specific Purpose Memory"
 	depends on EFI && EFI_STUB && ACPI_HMAT
@@ -105,9 +72,28 @@ config EFI_RUNTIME_WRAPPERS
 config EFI_GENERIC_STUB
 	bool
 
+config EFI_ZBOOT
+	bool "Enable the generic EFI decompressor"
+	depends on EFI_GENERIC_STUB && !ARM
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select HAVE_KERNEL_ZSTD
+	help
+	  Create the bootable image as an EFI application that carries the
+	  actual kernel image in compressed form, and decompresses it into
+	  memory before executing it via LoadImage/StartImage EFI boot service
+	  calls. For compatibility with non-EFI loaders, the payload can be
+	  decompressed and executed by the loader as well, provided that the
+	  loader implements the decompression algorithm and that non-EFI boot
+	  is supported by the encapsulated image. (The compression algorithm
+	  used is described in the zboot image header)
+
 config EFI_ARMSTUB_DTB_LOADER
 	bool "Enable the DTB loader"
-	depends on EFI_GENERIC_STUB && !RISCV
+	depends on EFI_GENERIC_STUB && !RISCV && !LOONGARCH
 	default y
 	help
 	  Select this config option to add support for the dtb= command
@@ -119,18 +105,6 @@ config EFI_ARMSTUB_DTB_LOADER
 	  But, for various development reasons and to maintain existing
 	  functionality for bootloaders that do not have such support
 	  this option is necessary.
-
-config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
-	bool "Enable the command line initrd loader" if !X86
-	depends on EFI_STUB && (EFI_GENERIC_STUB || X86)
-	default y if X86
-	depends on !RISCV
-	help
-	  Select this config option to add support for the initrd= command
-	  line parameter, allowing an initrd that resides on the same volume
-	  as the kernel image to be loaded into memory.
-
-	  This method is deprecated.
 
 config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
@@ -294,6 +268,20 @@ config EFI_COCO_SECRET
 	  for usage inside the kernel.  This will allow the
 	  virt/coco/efi_secret module to access the secrets, which in turn
 	  allows userspace programs to access the injected secrets.
+
+config UNACCEPTED_MEMORY
+	bool
+	depends on EFI_STUB
+	help
+	   Some Virtual Machine platforms, such as Intel TDX, require
+	   some memory to be "accepted" by the guest before it can be used.
+	   This mechanism helps prevent malicious hosts from making changes
+	   to guest memory.
+
+	   UEFI specification v2.9 introduced EFI_UNACCEPTED_MEMORY memory type.
+
+	   This option adds support for unaccepted memory and makes such memory
+	   usable by the kernel.
 
 config EFI_EMBEDDED_FIRMWARE
 	bool

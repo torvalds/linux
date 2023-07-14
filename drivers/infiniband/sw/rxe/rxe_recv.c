@@ -14,49 +14,46 @@ static int check_type_state(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 			    struct rxe_qp *qp)
 {
 	unsigned int pkt_type;
+	unsigned long flags;
 
 	if (unlikely(!qp->valid))
-		goto err1;
+		return -EINVAL;
 
 	pkt_type = pkt->opcode & 0xe0;
 
 	switch (qp_type(qp)) {
 	case IB_QPT_RC:
-		if (unlikely(pkt_type != IB_OPCODE_RC)) {
-			pr_warn_ratelimited("bad qp type\n");
-			goto err1;
-		}
+		if (unlikely(pkt_type != IB_OPCODE_RC))
+			return -EINVAL;
 		break;
 	case IB_QPT_UC:
-		if (unlikely(pkt_type != IB_OPCODE_UC)) {
-			pr_warn_ratelimited("bad qp type\n");
-			goto err1;
-		}
+		if (unlikely(pkt_type != IB_OPCODE_UC))
+			return -EINVAL;
 		break;
 	case IB_QPT_UD:
 	case IB_QPT_GSI:
-		if (unlikely(pkt_type != IB_OPCODE_UD)) {
-			pr_warn_ratelimited("bad qp type\n");
-			goto err1;
-		}
+		if (unlikely(pkt_type != IB_OPCODE_UD))
+			return -EINVAL;
 		break;
 	default:
-		pr_warn_ratelimited("unsupported qp type\n");
-		goto err1;
+		return -EINVAL;
 	}
 
+	spin_lock_irqsave(&qp->state_lock, flags);
 	if (pkt->mask & RXE_REQ_MASK) {
-		if (unlikely(qp->resp.state != QP_STATE_READY))
-			goto err1;
-	} else if (unlikely(qp->req.state < QP_STATE_READY ||
-				qp->req.state > QP_STATE_DRAINED)) {
-		goto err1;
+		if (unlikely(qp_state(qp) < IB_QPS_RTR)) {
+			spin_unlock_irqrestore(&qp->state_lock, flags);
+			return -EINVAL;
+		}
+	} else {
+		if (unlikely(qp_state(qp) < IB_QPS_RTS)) {
+			spin_unlock_irqrestore(&qp->state_lock, flags);
+			return -EINVAL;
+		}
 	}
+	spin_unlock_irqrestore(&qp->state_lock, flags);
 
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static void set_bad_pkey_cntr(struct rxe_port *port)
@@ -84,26 +81,20 @@ static int check_keys(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	pkt->pkey_index = 0;
 
 	if (!pkey_match(pkey, IB_DEFAULT_PKEY_FULL)) {
-		pr_warn_ratelimited("bad pkey = 0x%x\n", pkey);
 		set_bad_pkey_cntr(port);
-		goto err1;
+		return -EINVAL;
 	}
 
 	if (qp_type(qp) == IB_QPT_UD || qp_type(qp) == IB_QPT_GSI) {
 		u32 qkey = (qpn == 1) ? GSI_QKEY : qp->attr.qkey;
 
 		if (unlikely(deth_qkey(pkt) != qkey)) {
-			pr_warn_ratelimited("bad qkey, got 0x%x expected 0x%x for qpn 0x%x\n",
-					    deth_qkey(pkt), qkey, qpn);
 			set_qkey_viol_cntr(port);
-			goto err1;
+			return -EINVAL;
 		}
 	}
 
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
@@ -112,13 +103,10 @@ static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 	struct sk_buff *skb = PKT_TO_SKB(pkt);
 
 	if (qp_type(qp) != IB_QPT_RC && qp_type(qp) != IB_QPT_UC)
-		goto done;
+		return 0;
 
-	if (unlikely(pkt->port_num != qp->attr.port_num)) {
-		pr_warn_ratelimited("port %d != qp port %d\n",
-				    pkt->port_num, qp->attr.port_num);
-		goto err1;
-	}
+	if (unlikely(pkt->port_num != qp->attr.port_num))
+		return -EINVAL;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		struct in_addr *saddr =
@@ -126,19 +114,9 @@ static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		struct in_addr *daddr =
 			&qp->pri_av.dgid_addr._sockaddr_in.sin_addr;
 
-		if (ip_hdr(skb)->daddr != saddr->s_addr) {
-			pr_warn_ratelimited("dst addr %pI4 != qp source addr %pI4\n",
-					    &ip_hdr(skb)->daddr,
-					    &saddr->s_addr);
-			goto err1;
-		}
-
-		if (ip_hdr(skb)->saddr != daddr->s_addr) {
-			pr_warn_ratelimited("source addr %pI4 != qp dst addr %pI4\n",
-					    &ip_hdr(skb)->saddr,
-					    &daddr->s_addr);
-			goto err1;
-		}
+		if ((ip_hdr(skb)->daddr != saddr->s_addr) ||
+		    (ip_hdr(skb)->saddr != daddr->s_addr))
+			return -EINVAL;
 
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
 		struct in6_addr *saddr =
@@ -146,24 +124,12 @@ static int check_addr(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
 		struct in6_addr *daddr =
 			&qp->pri_av.dgid_addr._sockaddr_in6.sin6_addr;
 
-		if (memcmp(&ipv6_hdr(skb)->daddr, saddr, sizeof(*saddr))) {
-			pr_warn_ratelimited("dst addr %pI6 != qp source addr %pI6\n",
-					    &ipv6_hdr(skb)->daddr, saddr);
-			goto err1;
-		}
-
-		if (memcmp(&ipv6_hdr(skb)->saddr, daddr, sizeof(*daddr))) {
-			pr_warn_ratelimited("source addr %pI6 != qp dst addr %pI6\n",
-					    &ipv6_hdr(skb)->saddr, daddr);
-			goto err1;
-		}
+		if (memcmp(&ipv6_hdr(skb)->daddr, saddr, sizeof(*saddr)) ||
+		    memcmp(&ipv6_hdr(skb)->saddr, daddr, sizeof(*daddr)))
+			return -EINVAL;
 	}
 
-done:
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static int hdr_check(struct rxe_pkt_info *pkt)
@@ -175,24 +141,18 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 	int index;
 	int err;
 
-	if (unlikely(bth_tver(pkt) != BTH_TVER)) {
-		pr_warn_ratelimited("bad tver\n");
+	if (unlikely(bth_tver(pkt) != BTH_TVER))
 		goto err1;
-	}
 
-	if (unlikely(qpn == 0)) {
-		pr_warn_once("QP 0 not supported");
+	if (unlikely(qpn == 0))
 		goto err1;
-	}
 
 	if (qpn != IB_MULTICAST_QPN) {
 		index = (qpn == 1) ? port->qp_gsi_index : qpn;
 
 		qp = rxe_pool_get_index(&rxe->qp_pool, index);
-		if (unlikely(!qp)) {
-			pr_warn_ratelimited("no qp matches qpn 0x%x\n", qpn);
+		if (unlikely(!qp))
 			goto err1;
-		}
 
 		err = check_type_state(rxe, pkt, qp);
 		if (unlikely(err))
@@ -206,10 +166,8 @@ static int hdr_check(struct rxe_pkt_info *pkt)
 		if (unlikely(err))
 			goto err2;
 	} else {
-		if (unlikely((pkt->mask & RXE_GRH_MASK) == 0)) {
-			pr_warn_ratelimited("no grh for mcast qpn\n");
+		if (unlikely((pkt->mask & RXE_GRH_MASK) == 0))
 			goto err1;
-		}
 	}
 
 	pkt->qp = qp;
@@ -364,10 +322,8 @@ void rxe_rcv(struct sk_buff *skb)
 	if (unlikely(skb->len < RXE_BTH_BYTES))
 		goto drop;
 
-	if (rxe_chk_dgid(rxe, skb) < 0) {
-		pr_warn_ratelimited("failed checking dgid\n");
+	if (rxe_chk_dgid(rxe, skb) < 0)
 		goto drop;
-	}
 
 	pkt->opcode = bth_opcode(pkt);
 	pkt->psn = bth_psn(pkt);

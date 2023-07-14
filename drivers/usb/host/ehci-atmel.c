@@ -25,8 +25,6 @@
 
 #define DRIVER_DESC "EHCI Atmel driver"
 
-static const char hcd_name[] = "ehci-atmel";
-
 #define EHCI_INSNREG(index)			((index) * 4 + 0x90)
 #define EHCI_INSNREG08_HSIC_EN			BIT(2)
 
@@ -175,7 +173,7 @@ fail_create_hcd:
 	return retval;
 }
 
-static int ehci_atmel_drv_remove(struct platform_device *pdev)
+static void ehci_atmel_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
@@ -183,8 +181,6 @@ static int ehci_atmel_drv_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 
 	atmel_stop_ehci(pdev);
-
-	return 0;
 }
 
 static int __maybe_unused ehci_atmel_drv_suspend(struct device *dev)
@@ -225,7 +221,7 @@ static SIMPLE_DEV_PM_OPS(ehci_atmel_pm_ops, ehci_atmel_drv_suspend,
 
 static struct platform_driver ehci_atmel_driver = {
 	.probe		= ehci_atmel_drv_probe,
-	.remove		= ehci_atmel_drv_remove,
+	.remove_new	= ehci_atmel_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "atmel-ehci",
@@ -239,7 +235,6 @@ static int __init ehci_atmel_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ehci_init_driver(&ehci_atmel_hc_driver, &ehci_atmel_drv_overrides);
 	return platform_driver_register(&ehci_atmel_driver);
 }

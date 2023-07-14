@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/media/allwinner,sun4i-a10-ir.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Infrared Controller Device Tree Bindings
+title: Allwinner A10 Infrared Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Maxime Ripard <mripard@kernel.org>
 
 allOf:
-  - $ref: "rc.yaml#"
+  - $ref: rc.yaml#
 
 properties:
   compatible:
@@ -21,6 +21,7 @@ properties:
       - const: allwinner,sun6i-a31-ir
       - items:
           - enum:
+              - allwinner,suniv-f1c100s-ir
               - allwinner,sun8i-a83t-ir
               - allwinner,sun8i-r40-ir
               - allwinner,sun50i-a64-ir

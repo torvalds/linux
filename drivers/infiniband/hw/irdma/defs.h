@@ -36,6 +36,7 @@ enum irdma_protocol_used {
 #define IRDMA_QP_STATE_ERROR		6
 
 #define IRDMA_MAX_TRAFFIC_CLASS		8
+#define	IRDMA_MAX_STATS_COUNT_GEN_1	12
 #define IRDMA_MAX_USER_PRIORITY		8
 #define IRDMA_MAX_APPS			8
 #define IRDMA_MAX_STATS_COUNT		128
@@ -314,6 +315,7 @@ enum irdma_cqp_op_type {
 #define IRDMA_AE_IB_REMOTE_ACCESS_ERROR					0x020d
 #define IRDMA_AE_IB_REMOTE_OP_ERROR					0x020e
 #define IRDMA_AE_WQE_LSMM_TOO_LONG					0x0220
+#define IRDMA_AE_INVALID_REQUEST					0x0223
 #define IRDMA_AE_DDP_INVALID_MSN_GAP_IN_MSN				0x0301
 #define IRDMA_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER	0x0303
 #define IRDMA_AE_DDP_UBE_INVALID_DDP_VERSION				0x0304
@@ -364,9 +366,11 @@ enum irdma_cqp_op_type {
 #define FLD_RS_32(dev, val, field)	\
 	((u64)((val) & (dev)->hw_masks[field ## _M]) >> (dev)->hw_shifts[field ## _S])
 
-#define IRDMA_STATS_DELTA(a, b, c) ((a) >= (b) ? (a) - (b) : (a) + (c) - (b))
-#define IRDMA_MAX_STATS_32	0xFFFFFFFFULL
-#define IRDMA_MAX_STATS_48	0xFFFFFFFFFFFFULL
+#define IRDMA_MAX_STATS_24	0xffffffULL
+#define IRDMA_MAX_STATS_32	0xffffffffULL
+#define IRDMA_MAX_STATS_48	0xffffffffffffULL
+#define IRDMA_MAX_STATS_56	0xffffffffffffffULL
+#define IRDMA_MAX_STATS_64	0xffffffffffffffffULL
 
 #define IRDMA_MAX_CQ_READ_THRESH 0x3FFFF
 #define IRDMA_CQPSQ_QHASH_VLANID GENMASK_ULL(43, 32)

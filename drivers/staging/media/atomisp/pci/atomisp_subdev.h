@@ -21,8 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
-#include <media/videobuf-core.h>
-
+#include <media/videobuf2-v4l2.h>
 #include "atomisp_common.h"
 #include "atomisp_compat.h"
 #include "atomisp_v4l2.h"
@@ -31,29 +30,10 @@
 
 /* EXP_ID's ranger is 1 ~ 250 */
 #define ATOMISP_MAX_EXP_ID     (250)
-enum atomisp_subdev_input_entity {
-	ATOMISP_SUBDEV_INPUT_NONE,
-	ATOMISP_SUBDEV_INPUT_MEMORY,
-	ATOMISP_SUBDEV_INPUT_CSI2,
-	/*
-	 * The following enum for CSI2 port must go together in one row.
-	 * Otherwise it breaks the code logic.
-	 */
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT1,
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT2,
-	ATOMISP_SUBDEV_INPUT_CSI2_PORT3,
-};
 
 #define ATOMISP_SUBDEV_PAD_SINK			0
-/* capture output for still frames */
-#define ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE	1
-/* viewfinder output for downscaled capture output */
-#define ATOMISP_SUBDEV_PAD_SOURCE_VF		2
-/* preview output for display */
-#define ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW	3
-/* main output for video pipeline */
-#define ATOMISP_SUBDEV_PAD_SOURCE_VIDEO	4
-#define ATOMISP_SUBDEV_PADS_NUM			5
+#define ATOMISP_SUBDEV_PAD_SOURCE		1
+#define ATOMISP_SUBDEV_PADS_NUM			2
 
 struct atomisp_in_fmt_conv {
 	u32     code;
@@ -69,10 +49,13 @@ struct atomisp_video_pipe {
 	struct video_device vdev;
 	enum v4l2_buf_type type;
 	struct media_pad pad;
-	struct videobuf_queue capq;
-	struct videobuf_queue outq;
+	struct vb2_queue vb_queue;
+	/* Lock for vb_queue, when also taking isp->mutex this must be taken first! */
+	struct mutex vb_queue_mutex;
+	/* List of video-buffers handed over to the CSS  */
+	struct list_head buffers_in_css;
+	/* List of video-buffers handed over to the driver, but not yet to the CSS */
 	struct list_head activeq;
-	struct list_head activeq_out;
 	/*
 	 * the buffers waiting for per-frame parameters, this is only valid
 	 * in per-frame setting mode.
@@ -81,14 +64,16 @@ struct atomisp_video_pipe {
 	/* the link list to store per_frame parameters */
 	struct list_head per_frame_params;
 
-	/* Store here the initial run mode */
-	unsigned int default_run_mode;
+	/* Filled through atomisp_get_css_frame_info() on queue setup */
+	struct ia_css_frame_info frame_info;
 
-	unsigned int buffers_in_css;
+	/* Set from streamoff to disallow queuing further buffers in CSS */
+	bool stopping;
 
-	/* irq_lock is used to protect video buffer state change operations and
-	 * also to make activeq, activeq_out, capq and outq list
-	 * operations atomic. */
+	/*
+	 * irq_lock is used to protect video buffer state change operations and
+	 * also to make activeq and capq operations atomic.
+	 */
 	spinlock_t irq_lock;
 	unsigned int users;
 
@@ -109,24 +94,12 @@ struct atomisp_video_pipe {
 	 */
 	unsigned int frame_request_config_id[VIDEO_MAX_FRAME];
 	struct atomisp_css_params_with_list *frame_params[VIDEO_MAX_FRAME];
-
-	/*
-	* move wdt from asd struct to create wdt for each pipe
-	*/
-	/* ISP2401 */
-	struct timer_list wdt;
-	unsigned int wdt_duration;	/* in jiffies */
-	unsigned long wdt_expires;
-	atomic_t wdt_count;
 };
 
-struct atomisp_acc_pipe {
-	struct video_device vdev;
-	unsigned int users;
-	bool running;
-	struct atomisp_sub_device *asd;
-	struct atomisp_device *isp;
-};
+#define vq_to_pipe(queue) \
+	container_of(queue, struct atomisp_video_pipe, vb_queue)
+
+#define vb_to_pipe(vb) vq_to_pipe((vb)->vb2_queue)
 
 struct atomisp_pad_format {
 	struct v4l2_mbus_framefmt fmt;
@@ -201,9 +174,6 @@ struct atomisp_css_params {
 };
 
 struct atomisp_subdev_params {
-	/* FIXME: Determines whether raw capture buffer are being passed to
-	 * user space. Unimplemented for now. */
-	int online_process;
 	int yuv_ds_en;
 	unsigned int color_effect;
 	bool gdc_cac_en;
@@ -255,8 +225,6 @@ struct atomisp_subdev_params {
 	enum atomisp_flash_state flash_state;
 	enum atomisp_frame_status last_frame_status;
 
-	/* continuous capture */
-	struct atomisp_cont_capture_conf offline_parm;
 	/* Flag to check if driver needs to update params to css */
 	bool css_update_params_needed;
 };
@@ -267,52 +235,20 @@ struct atomisp_css_params_with_list {
 	struct list_head list;
 };
 
-struct atomisp_acc_fw {
-	struct ia_css_fw_info *fw;
-	unsigned int handle;
-	unsigned int flags;
-	unsigned int type;
-	struct {
-		size_t length;
-		unsigned long css_ptr;
-	} args[ATOMISP_ACC_NR_MEMORY];
-	struct list_head list;
-};
-
-struct atomisp_map {
-	ia_css_ptr ptr;
-	size_t length;
-	struct list_head list;
-	/* FIXME: should keep book which maps are currently used
-	 * by binaries and not allow releasing those
-	 * which are in use. Implement by reference counting.
-	 */
-};
-
 struct atomisp_sub_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[ATOMISP_SUBDEV_PADS_NUM];
 	struct atomisp_pad_format fmt[ATOMISP_SUBDEV_PADS_NUM];
-	u16 capture_pad; /* main capture pad; defines much of isp config */
+	/* Padding for currently set sink-pad fmt */
+	u32 sink_pad_padding_w;
+	u32 sink_pad_padding_h;
 
-	enum atomisp_subdev_input_entity input;
 	unsigned int output;
-	struct atomisp_video_pipe video_in;
-	struct atomisp_video_pipe video_out_capture; /* capture output */
-	struct atomisp_video_pipe video_out_vf;      /* viewfinder output */
-	struct atomisp_video_pipe video_out_preview; /* preview output */
-	struct atomisp_acc_pipe video_acc;
-	/* video pipe main output */
-	struct atomisp_video_pipe video_out_video_capture;
-	/* struct isp_subdev_params params; */
-	spinlock_t lock;
+	struct atomisp_video_pipe video_out;
 	struct atomisp_device *isp;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl *fmt_auto;
 	struct v4l2_ctrl *run_mode;
-	struct v4l2_ctrl *depth_mode;
 	struct v4l2_ctrl *vfpp;
-	struct v4l2_ctrl *continuous_mode;
 	struct v4l2_ctrl *continuous_raw_buffer_size;
 	struct v4l2_ctrl *continuous_viewfinder;
 	struct v4l2_ctrl *enable_raw_buffer_lock;
@@ -351,56 +287,37 @@ struct atomisp_sub_device {
 	spinlock_t dis_stats_lock;
 
 	struct ia_css_frame *vf_frame; /* TODO: needed? */
-	struct ia_css_frame *raw_output_frame;
 	enum atomisp_frame_status frame_status[VIDEO_MAX_FRAME];
 
 	/* This field specifies which camera (v4l2 input) is selected. */
 	int input_curr;
-	/* This field specifies which sensor is being selected when there
-	   are multiple sensors connected to the same MIPI port. */
-	int sensor_curr;
 
 	atomic_t sof_count;
 	atomic_t sequence;      /* Sequence value that is assigned to buffer. */
 	atomic_t sequence_temp;
 
-	unsigned int streaming; /* Hold both mutex and lock to change this */
-	bool stream_prepared; /* whether css stream is created */
-
-	/* subdev index: will be used to show which subdev is holding the
-	 * resource, like which camera is used by which subdev
+	/*
+	 * Writers of streaming must hold both isp->mutex and isp->lock.
+	 * Readers of streaming need to hold only one of the two locks.
 	 */
-	unsigned int index;
-
-	/* delayed memory allocation for css */
-	struct completion init_done;
-	struct workqueue_struct *delayed_init_workq;
-	unsigned int delayed_init;
-	struct work_struct delayed_init_work;
+	bool streaming;
+	bool stream_prepared; /* whether css stream is created */
+	bool recreate_streams_on_resume;
 
 	unsigned int latest_preview_exp_id; /* CSS ZSL/SDV raw buffer id */
 
-	unsigned int mipi_frame_size;
-
 	bool copy_mode; /* CSI2+ use copy mode */
-	bool yuvpp_mode;	/* CSI2+ yuvpp pipe */
 
 	int raw_buffer_bitmap[ATOMISP_MAX_EXP_ID / 32 +
 						 1]; /* Record each Raw Buffer lock status */
 	int raw_buffer_locked_count;
 	spinlock_t raw_buffer_bitmap_lock;
 
-	/* ISP 2400 */
-	struct timer_list wdt;
-	unsigned int wdt_duration;	/* in jiffies */
-	unsigned long wdt_expires;
-
 	/* ISP2401 */
 	bool re_trigger_capture;
 
 	struct atomisp_resolution sensor_array_res;
 	bool high_speed_mode; /* Indicate whether now is a high speed mode */
-	int pending_capture_request; /* Indicates the number of pending capture requests. */
 
 	unsigned int preview_exp_id;
 	unsigned int postview_exp_id;
@@ -422,9 +339,7 @@ const struct atomisp_in_fmt_conv
 	atomisp_in_fmt);
 
 const struct atomisp_in_fmt_conv *atomisp_find_in_fmt_conv_compressed(u32 code);
-bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd,
-				      unsigned int source_pad);
-uint16_t atomisp_subdev_source_pad(struct video_device *vdev);
+bool atomisp_subdev_format_conversion(struct atomisp_sub_device *asd);
 
 /* Get pointer to appropriate format */
 struct v4l2_mbus_framefmt
@@ -450,10 +365,9 @@ int atomisp_update_run_mode(struct atomisp_sub_device *asd);
 void atomisp_subdev_cleanup_pending_events(struct atomisp_sub_device *asd);
 
 void atomisp_subdev_unregister_entities(struct atomisp_sub_device *asd);
-int atomisp_subdev_register_entities(struct atomisp_sub_device *asd,
-				     struct v4l2_device *vdev);
+int atomisp_subdev_register_subdev(struct atomisp_sub_device *asd,
+				   struct v4l2_device *vdev);
 int atomisp_subdev_init(struct atomisp_device *isp);
 void atomisp_subdev_cleanup(struct atomisp_device *isp);
-int atomisp_create_pads_links(struct atomisp_device *isp);
 
 #endif /* __ATOMISP_SUBDEV_H__ */

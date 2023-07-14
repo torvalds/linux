@@ -32,6 +32,10 @@ static DEFINE_PER_CPU(u64, mdcr_el2);
  *
  * Guest access to MDSCR_EL1 is trapped by the hypervisor and handled
  * after we have restored the preserved value to the main context.
+ *
+ * When single-step is enabled by userspace, we tweak PSTATE.SS on every
+ * guest entry. Preserve PSTATE.SS so we can restore the original value
+ * for the vcpu after the single-step is disabled.
  */
 static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 {
@@ -41,6 +45,9 @@ static void save_guest_debug_regs(struct kvm_vcpu *vcpu)
 
 	trace_kvm_arm_set_dreg32("Saved MDSCR_EL1",
 				vcpu->arch.guest_debug_preserved.mdscr_el1);
+
+	vcpu->arch.guest_debug_preserved.pstate_ss =
+					(*vcpu_cpsr(vcpu) & DBG_SPSR_SS);
 }
 
 static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
@@ -51,6 +58,11 @@ static void restore_guest_debug_regs(struct kvm_vcpu *vcpu)
 
 	trace_kvm_arm_set_dreg32("Restored MDSCR_EL1",
 				vcpu_read_sys_reg(vcpu, MDSCR_EL1));
+
+	if (vcpu->arch.guest_debug_preserved.pstate_ss)
+		*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
+	else
+		*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
 }
 
 /**
@@ -188,7 +200,18 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu)
 		 * debugging the system.
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-			*vcpu_cpsr(vcpu) |=  DBG_SPSR_SS;
+			/*
+			 * If the software step state at the last guest exit
+			 * was Active-pending, we don't set DBG_SPSR_SS so
+			 * that the state is maintained (to not run another
+			 * single-step until the pending Software Step
+			 * exception is taken).
+			 */
+			if (!vcpu_get_flag(vcpu, DBG_SS_ACTIVE_PENDING))
+				*vcpu_cpsr(vcpu) |= DBG_SPSR_SS;
+			else
+				*vcpu_cpsr(vcpu) &= ~DBG_SPSR_SS;
+
 			mdscr = vcpu_read_sys_reg(vcpu, MDSCR_EL1);
 			mdscr |= DBG_MDSCR_SS;
 			vcpu_write_sys_reg(vcpu, mdscr, MDSCR_EL1);
@@ -262,6 +285,15 @@ void kvm_arm_clear_debug(struct kvm_vcpu *vcpu)
 	 * Restore the guest's debug registers if we were using them.
 	 */
 	if (vcpu->guest_debug || kvm_vcpu_os_lock_enabled(vcpu)) {
+		if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
+			if (!(*vcpu_cpsr(vcpu) & DBG_SPSR_SS))
+				/*
+				 * Mark the vcpu as ACTIVE_PENDING
+				 * until Software Step exception is taken.
+				 */
+				vcpu_set_flag(vcpu, DBG_SS_ACTIVE_PENDING);
+		}
+
 		restore_guest_debug_regs(vcpu);
 
 		/*
@@ -295,13 +327,13 @@ void kvm_arch_vcpu_load_debug_state_flags(struct kvm_vcpu *vcpu)
 	 * If SPE is present on this CPU and is available at current EL,
 	 * we may need to check if the host state needs to be saved.
 	 */
-	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_PMSVER_SHIFT) &&
-	    !(read_sysreg_s(SYS_PMBIDR_EL1) & BIT(SYS_PMBIDR_EL1_P_SHIFT)))
+	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_EL1_PMSVer_SHIFT) &&
+	    !(read_sysreg_s(SYS_PMBIDR_EL1) & BIT(PMBIDR_EL1_P_SHIFT)))
 		vcpu_set_flag(vcpu, DEBUG_STATE_SAVE_SPE);
 
 	/* Check if we have TRBE implemented and available at the host */
-	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_TRBE_SHIFT) &&
-	    !(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_PROG))
+	if (cpuid_feature_extract_unsigned_field(dfr0, ID_AA64DFR0_EL1_TraceBuffer_SHIFT) &&
+	    !(read_sysreg_s(SYS_TRBIDR_EL1) & TRBIDR_EL1_P))
 		vcpu_set_flag(vcpu, DEBUG_STATE_SAVE_TRBE);
 }
 

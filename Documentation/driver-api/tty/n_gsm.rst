@@ -25,7 +25,11 @@ Config Initiator
 #. Switch the serial line to using the n_gsm line discipline by using
    ``TIOCSETD`` ioctl.
 
+#. Configure the mux using ``GSMIOC_GETCONF_EXT``/``GSMIOC_SETCONF_EXT`` ioctl if needed.
+
 #. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
+
+#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for non-defaults.
 
 #. Obtain base gsmtty number for the used serial port.
 
@@ -42,6 +46,8 @@ Config Initiator
 
       int ldisc = N_GSM0710;
       struct gsm_config c;
+      struct gsm_config_ext ce;
+      struct gsm_dlci_config dc;
       struct termios configuration;
       uint32_t first;
 
@@ -62,6 +68,12 @@ Config Initiator
       /* use n_gsm line discipline */
       ioctl(fd, TIOCSETD, &ldisc);
 
+      /* get n_gsm extended configuration */
+      ioctl(fd, GSMIOC_GETCONF_EXT, &ce);
+      /* use keep-alive once every 5s for modem connection supervision */
+      ce.keep_alive = 500;
+      /* set the new extended configuration */
+      ioctl(fd, GSMIOC_SETCONF_EXT, &ce);
       /* get n_gsm configuration */
       ioctl(fd, GSMIOC_GETCONF, &c);
       /* we are initiator and need encoding 0 (basic) */
@@ -72,6 +84,13 @@ Config Initiator
       c.mtu = 127;
       /* set the new configuration */
       ioctl(fd, GSMIOC_SETCONF, &c);
+      /* get DLC 1 configuration */
+      dc.channel = 1;
+      ioctl(fd, GSMIOC_GETCONF_DLCI, &dc);
+      /* the first user channel gets a higher priority */
+      dc.priority = 1;
+      /* set the new DLC 1 specific configuration */
+      ioctl(fd, GSMIOC_SETCONF_DLCI, &dc);
       /* get first gsmtty device node */
       ioctl(fd, GSMIOC_GETFIRST, &first);
       printf("first muxed line: /dev/gsmtty%i\n", first);
@@ -106,7 +125,12 @@ Config Requester
 #. Switch the serial line to using the *n_gsm* line discipline by using
    ``TIOCSETD`` ioctl.
 
+#. Configure the mux using ``GSMIOC_GETCONF_EXT``/``GSMIOC_SETCONF_EXT``
+   ioctl if needed.
+
 #. Configure the mux using ``GSMIOC_GETCONF``/``GSMIOC_SETCONF`` ioctl.
+
+#. Configure DLCs using ``GSMIOC_GETCONF_DLCI``/``GSMIOC_SETCONF_DLCI`` ioctl for non-defaults.
 
 #. Obtain base gsmtty number for the used serial port::
 
@@ -119,6 +143,8 @@ Config Requester
 
 	int ldisc = N_GSM0710;
 	struct gsm_config c;
+	struct gsm_config_ext ce;
+	struct gsm_dlci_config dc;
 	struct termios configuration;
 	uint32_t first;
 
@@ -132,6 +158,12 @@ Config Requester
 	/* use n_gsm line discipline */
 	ioctl(fd, TIOCSETD, &ldisc);
 
+	/* get n_gsm extended configuration */
+	ioctl(fd, GSMIOC_GETCONF_EXT, &ce);
+	/* use keep-alive once every 5s for peer connection supervision */
+	ce.keep_alive = 500;
+	/* set the new extended configuration */
+	ioctl(fd, GSMIOC_SETCONF_EXT, &ce);
 	/* get n_gsm configuration */
 	ioctl(fd, GSMIOC_GETCONF, &c);
 	/* we are requester and need encoding 0 (basic) */
@@ -142,6 +174,13 @@ Config Requester
 	c.mtu = 127;
 	/* set the new configuration */
 	ioctl(fd, GSMIOC_SETCONF, &c);
+	/* get DLC 1 configuration */
+	dc.channel = 1;
+	ioctl(fd, GSMIOC_GETCONF_DLCI, &dc);
+	/* the first user channel gets a higher priority */
+	dc.priority = 1;
+	/* set the new DLC 1 specific configuration */
+	ioctl(fd, GSMIOC_SETCONF_DLCI, &dc);
 	/* get first gsmtty device node */
 	ioctl(fd, GSMIOC_GETFIRST, &first);
 	printf("first muxed line: /dev/gsmtty%i\n", first);

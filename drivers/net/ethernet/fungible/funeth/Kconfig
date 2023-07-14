@@ -5,7 +5,7 @@
 
 config FUN_ETH
 	tristate "Fungible Ethernet device driver"
-	depends on PCI && PCI_MSI
+	depends on PCI_MSI
 	depends on TLS && TLS_DEVICE || TLS_DEVICE=n
 	select NET_DEVLINK
 	select FUN_CORE

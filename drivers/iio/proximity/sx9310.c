@@ -965,7 +965,7 @@ static int sx9310_probe(struct i2c_client *client)
 	return sx_common_probe(client, &sx9310_chip_info, &sx9310_regmap_config);
 }
 
-static int __maybe_unused sx9310_suspend(struct device *dev)
+static int sx9310_suspend(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	u8 ctrl0;
@@ -991,7 +991,7 @@ out:
 	return ret;
 }
 
-static int __maybe_unused sx9310_resume(struct device *dev)
+static int sx9310_resume(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	int ret;
@@ -1013,7 +1013,7 @@ out:
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(sx9310_pm_ops, sx9310_suspend, sx9310_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sx9310_pm_ops, sx9310_suspend, sx9310_resume);
 
 static const struct acpi_device_id sx9310_acpi_match[] = {
 	{ "STH9310", SX9310_WHOAMI_VALUE },
@@ -1041,7 +1041,7 @@ static struct i2c_driver sx9310_driver = {
 		.name	= "sx9310",
 		.acpi_match_table = sx9310_acpi_match,
 		.of_match_table = sx9310_of_match,
-		.pm = &sx9310_pm_ops,
+		.pm = pm_sleep_ptr(&sx9310_pm_ops),
 
 		/*
 		 * Lots of i2c transfers in probe + over 200 ms waiting in
@@ -1050,7 +1050,7 @@ static struct i2c_driver sx9310_driver = {
 		 */
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
-	.probe_new	= sx9310_probe,
+	.probe		= sx9310_probe,
 	.id_table	= sx9310_id,
 };
 module_i2c_driver(sx9310_driver);

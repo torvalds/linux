@@ -844,8 +844,7 @@ static const struct attribute_group *lt9611uxc_attr_groups[] = {
 	NULL,
 };
 
-static int lt9611uxc_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int lt9611uxc_probe(struct i2c_client *client)
 {
 	struct lt9611uxc *lt9611uxc;
 	struct device *dev = &client->dev;

@@ -544,7 +544,7 @@ static const struct of_device_id nau7802_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, nau7802_dt_ids);
 
 static struct i2c_driver nau7802_driver = {
-	.probe_new = nau7802_probe,
+	.probe = nau7802_probe,
 	.id_table = nau7802_i2c_id,
 	.driver = {
 		   .name = "nau7802",

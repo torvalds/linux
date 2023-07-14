@@ -133,8 +133,9 @@ TI_LMU_DATA(lm3633, LM3633_MAX_REG);
 TI_LMU_DATA(lm3695, LM3695_MAX_REG);
 TI_LMU_DATA(lm36274, LM36274_MAX_REG);
 
-static int ti_lmu_probe(struct i2c_client *cl, const struct i2c_device_id *id)
+static int ti_lmu_probe(struct i2c_client *cl)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(cl);
 	struct device *dev = &cl->dev;
 	const struct ti_lmu_data *data;
 	struct regmap_config regmap_cfg;

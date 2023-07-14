@@ -13,14 +13,25 @@ typedef struct func_desc func_desc_t;
 #include <asm-generic/sections.h>
 
 extern char __head_end[];
+extern char __srwx_boundary[];
+
+/* Patch sites */
+extern s32 patch__call_flush_branch_caches1;
+extern s32 patch__call_flush_branch_caches2;
+extern s32 patch__call_flush_branch_caches3;
+extern s32 patch__flush_count_cache_return;
+extern s32 patch__flush_link_stack_return;
+extern s32 patch__call_kvm_flush_link_stack;
+extern s32 patch__call_kvm_flush_link_stack_p9;
+extern s32 patch__memset_nocache, patch__memcpy_nocache;
+
+extern long flush_branch_caches;
+extern long kvm_flush_link_stack;
 
 #ifdef __powerpc64__
 
 extern char __start_interrupts[];
 extern char __end_interrupts[];
-
-extern char __prom_init_toc_start[];
-extern char __prom_init_toc_end[];
 
 #ifdef CONFIG_PPC_POWERNV
 extern char start_real_trampolines[];
@@ -35,10 +46,15 @@ extern char end_virt_trampolines[];
  */
 static inline unsigned long kernel_toc_addr(void)
 {
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	BUILD_BUG();
+	return -1UL;
+#else
 	unsigned long toc_ptr;
 
 	asm volatile("mr %0, 2" : "=r" (toc_ptr));
 	return toc_ptr;
+#endif
 }
 
 static inline int overlaps_interrupt_vector_text(unsigned long start,

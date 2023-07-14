@@ -1044,9 +1044,9 @@ done:
 	return pdata;
 }
 
-static int mt9v032_probe(struct i2c_client *client,
-		const struct i2c_device_id *did)
+static int mt9v032_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *did = i2c_client_get_device_id(client);
 	struct mt9v032_platform_data *pdata = mt9v032_get_pdata(client);
 	struct mt9v032 *mt9v032;
 	unsigned int i;

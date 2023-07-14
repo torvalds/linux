@@ -12,7 +12,6 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -103,10 +102,14 @@ static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	int ret;
 
-	ret = drm_atomic_helper_check_crtc_state(crtc_state, false);
+	if (!crtc_state->enable)
+		goto out;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(crtc_state);
 	if (ret)
 		return ret;
 
+out:
 	return drm_atomic_add_affected_planes(state, crtc);
 }
 
@@ -223,8 +226,8 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 						   &pipe->crtc);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  false, false);
 	if (ret)
 		return ret;
@@ -264,7 +267,7 @@ static int drm_simple_kms_plane_prepare_fb(struct drm_plane *plane,
 
 		WARN_ON_ONCE(pipe->funcs && pipe->funcs->cleanup_fb);
 
-		return drm_gem_simple_display_pipe_prepare_fb(pipe, state);
+		return drm_gem_plane_helper_prepare_fb(plane, state);
 	}
 
 	return pipe->funcs->prepare_fb(pipe, state);
@@ -282,6 +285,30 @@ static void drm_simple_kms_plane_cleanup_fb(struct drm_plane *plane,
 	pipe->funcs->cleanup_fb(pipe, state);
 }
 
+static int drm_simple_kms_plane_begin_fb_access(struct drm_plane *plane,
+						struct drm_plane_state *new_plane_state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->begin_fb_access)
+		return 0;
+
+	return pipe->funcs->begin_fb_access(pipe, new_plane_state);
+}
+
+static void drm_simple_kms_plane_end_fb_access(struct drm_plane *plane,
+					       struct drm_plane_state *new_plane_state)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
+	if (!pipe->funcs || !pipe->funcs->end_fb_access)
+		return;
+
+	pipe->funcs->end_fb_access(pipe, new_plane_state);
+}
+
 static bool drm_simple_kms_format_mod_supported(struct drm_plane *plane,
 						uint32_t format,
 						uint64_t modifier)
@@ -292,6 +319,8 @@ static bool drm_simple_kms_format_mod_supported(struct drm_plane *plane,
 static const struct drm_plane_helper_funcs drm_simple_kms_plane_helper_funcs = {
 	.prepare_fb = drm_simple_kms_plane_prepare_fb,
 	.cleanup_fb = drm_simple_kms_plane_cleanup_fb,
+	.begin_fb_access = drm_simple_kms_plane_begin_fb_access,
+	.end_fb_access = drm_simple_kms_plane_end_fb_access,
 	.atomic_check = drm_simple_kms_plane_atomic_check,
 	.atomic_update = drm_simple_kms_plane_atomic_update,
 };

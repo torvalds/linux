@@ -15,5 +15,5 @@ struct nvkm_nvdec_fwif {
 };
 
 int nvkm_nvdec_new_(const struct nvkm_nvdec_fwif *fwif, struct nvkm_device *,
-		    enum nvkm_subdev_type, int, struct nvkm_nvdec **);
+		    enum nvkm_subdev_type, int, u32 addr, struct nvkm_nvdec **);
 #endif

@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Atmel Triple Data Encryption Standard (TDES) HW cryptographic accelerator
 
 maintainers:
-  - Tudor Ambarus <tudor.ambarus@microchip.com>
+  - Tudor Ambarus <tudor.ambarus@linaro.org>
 
 properties:
   compatible:

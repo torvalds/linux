@@ -15,6 +15,12 @@
 	compatible = "renesas,v3hsk", "renesas,r8a77980";
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
 		serial0 = &scif0;
 		ethernet0 = &gether;
 	};
@@ -116,6 +122,7 @@
 	phy0: ethernet-phy@0 {
 		compatible = "ethernet-phy-id0022.1622",
 			     "ethernet-phy-ieee802.3-c22";
+		rxc-skew-ps = <1500>;
 		reg = <0>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;

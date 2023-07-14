@@ -820,8 +820,8 @@ static int spear_smi_probe_config_dt(struct platform_device *pdev,
 		pdata->board_flash_info->mem_base = be32_to_cpup(&addr[0]);
 		pdata->board_flash_info->size = be32_to_cpup(&addr[1]);
 
-		if (of_get_property(pp, "st,smi-fast-mode", NULL))
-			pdata->board_flash_info->fast_mode = 1;
+		pdata->board_flash_info->fast_mode =
+			of_property_read_bool(pp, "st,smi-fast-mode");
 
 		i++;
 	}

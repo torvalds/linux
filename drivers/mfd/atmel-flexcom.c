@@ -37,7 +37,6 @@ struct atmel_flexcom {
 static int atmel_flexcom_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct resource *res;
 	struct atmel_flexcom *ddata;
 	int err;
 
@@ -55,8 +54,7 @@ static int atmel_flexcom_probe(struct platform_device *pdev)
 	    ddata->opmode > ATMEL_FLEXCOM_MODE_TWI)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ddata->base = devm_ioremap_resource(&pdev->dev, res);
+	ddata->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(ddata->base))
 		return PTR_ERR(ddata->base);
 

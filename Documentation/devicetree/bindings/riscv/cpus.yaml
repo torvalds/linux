@@ -4,11 +4,12 @@
 $id: http://devicetree.org/schemas/riscv/cpus.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: RISC-V bindings for 'cpus' DT nodes
+title: RISC-V CPUs
 
 maintainers:
   - Paul Walmsley <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@sifive.com>
+  - Conor Dooley <conor@kernel.org>
 
 description: |
   This document uses some terminology common to the RISC-V community
@@ -22,22 +23,30 @@ description: |
   two cores, each of which has two hyperthreads, could be described as
   having four harts.
 
+allOf:
+  - $ref: /schemas/cpu.yaml#
+  - $ref: extensions.yaml
+
 properties:
   compatible:
     oneOf:
       - items:
           - enum:
-              - sifive,rocket0
+              - andestech,ax45mp
+              - canaan,k210
               - sifive,bullet0
               - sifive,e5
               - sifive,e7
               - sifive,e71
-              - sifive,u74-mc
-              - sifive,u54
-              - sifive,u74
+              - sifive,rocket0
+              - sifive,s7
               - sifive,u5
+              - sifive,u54
               - sifive,u7
-              - canaan,k210
+              - sifive,u74
+              - sifive,u74-mc
+              - thead,c906
+              - thead,c910
           - const: riscv
       - items:
           - enum:
@@ -56,11 +65,12 @@ properties:
       hart.  These values originate from the RISC-V Privileged
       Specification document, available from
       https://riscv.org/specifications/
-    $ref: "/schemas/types.yaml#/definitions/string"
+    $ref: /schemas/types.yaml#/definitions/string
     enum:
       - riscv,sv32
       - riscv,sv39
       - riscv,sv48
+      - riscv,sv57
       - riscv,none
 
   riscv,cbom-block-size:
@@ -68,21 +78,14 @@ properties:
     description:
       The blocksize in bytes for the Zicbom cache operations.
 
-  riscv,isa:
+  riscv,cboz-block-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
-      Identifies the specific RISC-V instruction set architecture
-      supported by the hart.  These are documented in the RISC-V
-      User-Level ISA document, available from
-      https://riscv.org/specifications/
+      The blocksize in bytes for the Zicboz cache operations.
 
-      While the isa strings in ISA specification are case
-      insensitive, letters in the riscv,isa string must be all
-      lowercase to simplify parsing.
-    $ref: "/schemas/types.yaml#/definitions/string"
-    enum:
-      - rv64imac
-      - rv64imafdc
-
+  # RISC-V has multiple properties for cache op block sizes as the sizes
+  # differ between individual CBO extensions
+  cache-op-block-size: false
   # RISC-V requires 'timebase-frequency' in /cpus, so disallow it here
   timebase-frequency: false
 
@@ -105,18 +108,33 @@ properties:
       - interrupt-controller
 
   cpu-idle-states:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
     description: |
       List of phandles to idle state nodes supported
       by this hart (see ./idle-states.yaml).
 
+  capacity-dmips-mhz:
+    description:
+      u32 value representing CPU capacity (see ../cpu/cpu-capacity.txt) in
+      DMIPS/MHz, relative to highest capacity-dmips-mhz
+      in the system.
+
+anyOf:
+  - required:
+      - riscv,isa
+  - required:
+      - riscv,isa-base
+
+dependencies:
+  riscv,isa-base: [ "riscv,isa-extensions" ]
+  riscv,isa-extensions: [ "riscv,isa-base" ]
+
 required:
-  - riscv,isa
   - interrupt-controller
 
-additionalProperties: true
+unevaluatedProperties: false
 
 examples:
   - |
@@ -133,7 +151,9 @@ examples:
                 i-cache-sets = <128>;
                 i-cache-size = <16384>;
                 reg = <0>;
-                riscv,isa = "rv64imac";
+                riscv,isa-base = "rv64i";
+                riscv,isa-extensions = "i", "m", "a", "c";
+
                 cpu_intc0: interrupt-controller {
                         #interrupt-cells = <1>;
                         compatible = "riscv,cpu-intc";
@@ -156,8 +176,10 @@ examples:
                 i-tlb-size = <32>;
                 mmu-type = "riscv,sv39";
                 reg = <1>;
-                riscv,isa = "rv64imafdc";
                 tlb-split;
+                riscv,isa-base = "rv64i";
+                riscv,isa-extensions = "i", "m", "a", "f", "d", "c";
+
                 cpu_intc1: interrupt-controller {
                         #interrupt-cells = <1>;
                         compatible = "riscv,cpu-intc";
@@ -175,8 +197,10 @@ examples:
                 device_type = "cpu";
                 reg = <0>;
                 compatible = "riscv";
-                riscv,isa = "rv64imafdc";
                 mmu-type = "riscv,sv48";
+                riscv,isa-base = "rv64i";
+                riscv,isa-extensions = "i", "m", "a", "f", "d", "c";
+
                 interrupt-controller {
                         #interrupt-cells = <1>;
                         interrupt-controller;

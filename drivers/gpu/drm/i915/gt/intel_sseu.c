@@ -6,6 +6,7 @@
 #include <linux/string_helpers.h>
 
 #include "i915_drv.h"
+#include "i915_perf_types.h"
 #include "intel_engine_regs.h"
 #include "intel_gt_regs.h"
 #include "intel_sseu.h"
@@ -382,7 +383,6 @@ static void cherryview_sseu_info_init(struct intel_gt *gt)
 static void gen9_sseu_info_init(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
-	struct intel_device_info *info = mkwrite_device_info(i915);
 	struct sseu_dev_info *sseu = &gt->info.sseu;
 	struct intel_uncore *uncore = gt->uncore;
 	u32 fuse2, eu_disable, subslice_mask;
@@ -471,10 +471,10 @@ static void gen9_sseu_info_init(struct intel_gt *gt)
 
 	if (IS_GEN9_LP(i915)) {
 #define IS_SS_DISABLED(ss)	(!(sseu->subslice_mask.hsw[0] & BIT(ss)))
-		info->has_pooled_eu = hweight8(sseu->subslice_mask.hsw[0]) == 3;
+		RUNTIME_INFO(i915)->has_pooled_eu = hweight8(sseu->subslice_mask.hsw[0]) == 3;
 
 		sseu->min_eu_in_pool = 0;
-		if (info->has_pooled_eu) {
+		if (HAS_POOLED_EU(i915)) {
 			if (IS_SS_DISABLED(2) || IS_SS_DISABLED(0))
 				sseu->min_eu_in_pool = 3;
 			else if (IS_SS_DISABLED(1))
@@ -678,8 +678,8 @@ u32 intel_sseu_make_rpcs(struct intel_gt *gt,
 	 * If i915/perf is active, we want a stable powergating configuration
 	 * on the system. Use the configuration pinned by i915/perf.
 	 */
-	if (i915->perf.exclusive_stream)
-		req_sseu = &i915->perf.sseu;
+	if (gt->perf.group && gt->perf.group[PERF_GROUP_OAG].exclusive_stream)
+		req_sseu = &gt->perf.sseu;
 
 	slices = hweight8(req_sseu->slice_mask);
 	subslices = hweight8(req_sseu->subslice_mask);

@@ -277,10 +277,10 @@ sh_css_sp_start_raw_copy(struct ia_css_frame *out_frame,
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
 	pipe = &sh_css_sp_group.pipe[thread_id];
 
-	pipe->copy.raw.height	    = out_frame->info.res.height;
-	pipe->copy.raw.width	    = out_frame->info.res.width;
-	pipe->copy.raw.padded_width  = out_frame->info.padded_width;
-	pipe->copy.raw.raw_bit_depth = out_frame->info.raw_bit_depth;
+	pipe->copy.raw.height	    = out_frame->frame_info.res.height;
+	pipe->copy.raw.width	    = out_frame->frame_info.res.width;
+	pipe->copy.raw.padded_width  = out_frame->frame_info.padded_width;
+	pipe->copy.raw.raw_bit_depth = out_frame->frame_info.raw_bit_depth;
 	pipe->copy.raw.max_input_width = max_input_width;
 	pipe->num_stages = 1;
 	pipe->pipe_id = pipe_id;
@@ -351,10 +351,10 @@ sh_css_sp_start_isys_copy(struct ia_css_frame *out_frame,
 	ia_css_pipeline_get_sp_thread_id(pipe_num, &thread_id);
 	pipe = &sh_css_sp_group.pipe[thread_id];
 
-	pipe->copy.raw.height		= out_frame->info.res.height;
-	pipe->copy.raw.width		= out_frame->info.res.width;
-	pipe->copy.raw.padded_width	= out_frame->info.padded_width;
-	pipe->copy.raw.raw_bit_depth	= out_frame->info.raw_bit_depth;
+	pipe->copy.raw.height		= out_frame->frame_info.res.height;
+	pipe->copy.raw.width		= out_frame->frame_info.res.width;
+	pipe->copy.raw.padded_width	= out_frame->frame_info.padded_width;
+	pipe->copy.raw.raw_bit_depth	= out_frame->frame_info.raw_bit_depth;
 	pipe->copy.raw.max_input_width	= max_input_width;
 	pipe->num_stages		= 1;
 	pipe->pipe_id			= pipe_id;
@@ -451,9 +451,9 @@ sh_css_copy_frame_to_spframe(struct ia_css_frame_sp *sp_frame_out,
 					    frame_in->data,
 					    frame_in->buf_type);
 
-	ia_css_frame_info_to_frame_sp_info(&sp_frame_out->info, &frame_in->info);
+	ia_css_frame_info_to_frame_sp_info(&sp_frame_out->info, &frame_in->frame_info);
 
-	switch (frame_in->info.format) {
+	switch (frame_in->frame_info.format) {
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
 	case IA_CSS_FRAME_FORMAT_RAW:
 		sp_frame_out->planes.raw.offset = frame_in->planes.raw.offset;
@@ -536,7 +536,7 @@ set_input_frame_buffer(const struct ia_css_frame *frame)
 	if (!frame)
 		return -EINVAL;
 
-	switch (frame->info.format) {
+	switch (frame->frame_info.format) {
 	case IA_CSS_FRAME_FORMAT_QPLANE6:
 	case IA_CSS_FRAME_FORMAT_YUV420_16:
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
@@ -567,7 +567,7 @@ set_output_frame_buffer(const struct ia_css_frame *frame,
 	if (!frame)
 		return -EINVAL;
 
-	switch (frame->info.format) {
+	switch (frame->frame_info.format) {
 	case IA_CSS_FRAME_FORMAT_YUV420:
 	case IA_CSS_FRAME_FORMAT_YUV422:
 	case IA_CSS_FRAME_FORMAT_YUV444:
@@ -608,7 +608,7 @@ set_view_finder_buffer(const struct ia_css_frame *frame)
 	if (!frame)
 		return -EINVAL;
 
-	switch (frame->info.format) {
+	switch (frame->frame_info.format) {
 	/* the dual output pin */
 	case IA_CSS_FRAME_FORMAT_NV12:
 	case IA_CSS_FRAME_FORMAT_NV12_16:
@@ -819,34 +819,35 @@ static int configure_isp_from_args(const struct sh_css_sp_pipeline *pipeline,
 	ret = ia_css_fpn_configure(binary,  &binary->in_frame_info);
 	if (ret)
 		return ret;
-	ret = ia_css_crop_configure(binary, &args->delay_frames[0]->info);
+	ret = ia_css_crop_configure(binary, ia_css_frame_get_info(args->delay_frames[0]));
 	if (ret)
 		return ret;
 	ret = ia_css_qplane_configure(pipeline, binary, &binary->in_frame_info);
 	if (ret)
 		return ret;
-	ret = ia_css_output0_configure(binary, &args->out_frame[0]->info);
+	ret = ia_css_output0_configure(binary, ia_css_frame_get_info(args->out_frame[0]));
 	if (ret)
 		return ret;
-	ret = ia_css_output1_configure(binary, &args->out_vf_frame->info);
+	ret = ia_css_output1_configure(binary, ia_css_frame_get_info(args->out_vf_frame));
 	if (ret)
 		return ret;
 	ret = ia_css_copy_output_configure(binary, args->copy_output);
 	if (ret)
 		return ret;
-	ret = ia_css_output0_configure(binary, &args->out_frame[0]->info);
+	ret = ia_css_output0_configure(binary, ia_css_frame_get_info(args->out_frame[0]));
 	if (ret)
 		return ret;
-	ret = ia_css_iterator_configure(binary, &args->in_frame->info);
+	ret = ia_css_iterator_configure(binary, ia_css_frame_get_info(args->in_frame));
 	if (ret)
 		return ret;
-	ret = ia_css_dvs_configure(binary, &args->out_frame[0]->info);
+	ret = ia_css_dvs_configure(binary, ia_css_frame_get_info(args->out_frame[0]));
 	if (ret)
 		return ret;
-	ret = ia_css_output_configure(binary, &args->out_frame[0]->info);
+	ret = ia_css_output_configure(binary, ia_css_frame_get_info(args->out_frame[0]));
 	if (ret)
 		return ret;
-	ret = ia_css_raw_configure(pipeline, binary, &args->in_frame->info, &binary->in_frame_info, two_ppc, deinterleaved);
+	ret = ia_css_raw_configure(pipeline, binary, ia_css_frame_get_info(args->in_frame),
+				   &binary->in_frame_info, two_ppc, deinterleaved);
 	if (ret)
 		return ret;
 
@@ -951,12 +952,10 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		return 0;
 	}
 
-#if defined(ISP2401)
-	(void)continuous;
-	sh_css_sp_stage.deinterleaved = 0;
-#else
-	sh_css_sp_stage.deinterleaved = ((stage == 0) && continuous);
-#endif
+	if (IS_ISP2401)
+		sh_css_sp_stage.deinterleaved = 0;
+	else
+		sh_css_sp_stage.deinterleaved = ((stage == 0) && continuous);
 
 	initialize_stage_frames(&sh_css_sp_stage.frames);
 	/*
@@ -1037,7 +1036,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 		return -EINVAL;
 
 	if (args->in_frame)
-		ia_css_get_crop_offsets(pipe, &args->in_frame->info);
+		ia_css_get_crop_offsets(pipe, &args->in_frame->frame_info);
 	else
 		ia_css_get_crop_offsets(pipe, &binary->in_frame_info);
 #else
@@ -1124,15 +1123,14 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 		const struct ia_css_frame_info *out_infos[IA_CSS_BINARY_MAX_OUTPUT_PORTS] = {NULL};
 
 		if (args->out_frame[0])
-			out_infos[0] = &args->out_frame[0]->info;
+			out_infos[0] = &args->out_frame[0]->frame_info;
 		info = &firmware->info.isp;
 		ia_css_binary_fill_info(info, false, false,
 					ATOMISP_INPUT_FORMAT_RAW_10,
-					args->in_frame  ? &args->in_frame->info  : NULL,
+					ia_css_frame_get_info(args->in_frame),
 					NULL,
 					out_infos,
-					args->out_vf_frame ? &args->out_vf_frame->info
-					: NULL,
+					ia_css_frame_get_info(args->out_vf_frame),
 					&tmp_binary,
 					NULL,
 					-1, true);
@@ -1266,7 +1264,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	sh_css_sp_group.pipe[thread_id].thread_id = thread_id;
 	sh_css_sp_group.pipe[thread_id].pipe_num = pipe_num;
 	sh_css_sp_group.pipe[thread_id].num_execs = me->num_execs;
-	sh_css_sp_group.pipe[thread_id].pipe_qos_config = me->pipe_qos_config;
+	sh_css_sp_group.pipe[thread_id].pipe_qos_config = QOS_INVALID;
 	sh_css_sp_group.pipe[thread_id].required_bds_factor = required_bds_factor;
 	sh_css_sp_group.pipe[thread_id].input_system_mode
 	= (uint32_t)input_mode;

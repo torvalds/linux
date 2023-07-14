@@ -177,6 +177,24 @@ struct mce_vendor_flags {
 
 extern struct mce_vendor_flags mce_flags;
 
+struct mce_bank {
+	/* subevents to enable */
+	u64			ctl;
+
+	/* initialise bank? */
+	__u64 init		: 1,
+
+	/*
+	 * (AMD) MCA_CONFIG[McaLsbInStatusSupported]: When set, this bit indicates
+	 * the LSB field is found in MCA_STATUS and not in MCA_ADDR.
+	 */
+	lsb_in_status		: 1,
+
+	__reserved_1		: 62;
+};
+
+DECLARE_PER_CPU_READ_MOSTLY(struct mce_bank[MAX_NR_BANKS], mce_banks_array);
+
 enum mca_msr {
 	MCA_CTL,
 	MCA_STATUS,
@@ -189,8 +207,34 @@ extern bool filter_mce(struct mce *m);
 
 #ifdef CONFIG_X86_MCE_AMD
 extern bool amd_filter_mce(struct mce *m);
+
+/*
+ * If MCA_CONFIG[McaLsbInStatusSupported] is set, extract ErrAddr in bits
+ * [56:0] of MCA_STATUS, else in bits [55:0] of MCA_ADDR.
+ */
+static __always_inline void smca_extract_err_addr(struct mce *m)
+{
+	u8 lsb;
+
+	if (!mce_flags.smca)
+		return;
+
+	if (this_cpu_ptr(mce_banks_array)[m->bank].lsb_in_status) {
+		lsb = (m->status >> 24) & 0x3f;
+
+		m->addr &= GENMASK_ULL(56, lsb);
+
+		return;
+	}
+
+	lsb = (m->addr >> 56) & 0x3f;
+
+	m->addr &= GENMASK_ULL(55, lsb);
+}
+
 #else
 static inline bool amd_filter_mce(struct mce *m) { return false; }
+static inline void smca_extract_err_addr(struct mce *m) { }
 #endif
 
 #ifdef CONFIG_X86_ANCIENT_MCE
@@ -200,11 +244,11 @@ noinstr void pentium_machine_check(struct pt_regs *regs);
 noinstr void winchip_machine_check(struct pt_regs *regs);
 static inline void enable_p5_mce(void) { mce_p5_enabled = 1; }
 #else
-static inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
-static inline void enable_p5_mce(void) {}
-static inline void pentium_machine_check(struct pt_regs *regs) {}
-static inline void winchip_machine_check(struct pt_regs *regs) {}
+static __always_inline void intel_p5_mcheck_init(struct cpuinfo_x86 *c) {}
+static __always_inline void winchip_mcheck_init(struct cpuinfo_x86 *c) {}
+static __always_inline void enable_p5_mce(void) {}
+static __always_inline void pentium_machine_check(struct pt_regs *regs) {}
+static __always_inline void winchip_machine_check(struct pt_regs *regs) {}
 #endif
 
 noinstr u64 mce_rdmsrl(u32 msr);

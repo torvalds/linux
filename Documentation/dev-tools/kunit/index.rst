@@ -13,11 +13,9 @@ KUnit - Linux Kernel Unit Testing
 	run_wrapper
 	run_manual
 	usage
-	kunit-tool
 	api/index
 	style
 	faq
-	tips
 	running_tips
 
 This section details the kernel unit testing framework.
@@ -29,10 +27,10 @@ KUnit (Kernel unit testing framework) provides a common framework for
 unit tests within the Linux kernel. Using KUnit, you can define groups
 of test cases called test suites. The tests either run on kernel boot
 if built-in, or load as a module. KUnit automatically flags and reports
-failed test cases in the kernel log. The test results appear in `TAP
-(Test Anything Protocol) format <https://testanything.org/>`_. It is inspired by
-JUnit, Python’s unittest.mock, and GoogleTest/GoogleMock (C++ unit testing
-framework).
+failed test cases in the kernel log. The test results appear in
+:doc:`KTAP (Kernel - Test Anything Protocol) format</dev-tools/ktap>`.
+It is inspired by JUnit, Python’s unittest.mock, and GoogleTest/GoogleMock
+(C++ unit testing framework).
 
 KUnit tests are part of the kernel, written in the C (programming)
 language, and test parts of the Kernel implementation (example: a C
@@ -46,8 +44,9 @@ internal system functionality. KUnit runs in kernel space and is not
 restricted to things exposed to user-space.
 
 In addition, KUnit has kunit_tool, a script (``tools/testing/kunit/kunit.py``)
-that configures the Linux kernel, runs KUnit tests under QEMU or UML (`User Mode
-Linux <http://user-mode-linux.sourceforge.net/>`_), parses the test results and
+that configures the Linux kernel, runs KUnit tests under QEMU or UML
+(:doc:`User Mode Linux </virt/uml/user_mode_linux_howto_v2>`),
+parses the test results and
 displays them in a user friendly manner.
 
 Features
@@ -95,19 +94,16 @@ Unit Testing Advantages
 - Improves code quality.
 - Encourages writing testable code.
 
+Read also :ref:`kinds-of-tests`.
+
 How do I use it?
 ================
 
-*   Documentation/dev-tools/kunit/start.rst - for KUnit new users.
-*   Documentation/dev-tools/kunit/architecture.rst - KUnit architecture.
-*   Documentation/dev-tools/kunit/run_wrapper.rst - run kunit_tool.
-*   Documentation/dev-tools/kunit/run_manual.rst - run tests without kunit_tool.
-*   Documentation/dev-tools/kunit/usage.rst - write tests.
-*   Documentation/dev-tools/kunit/tips.rst - best practices with
-    examples.
-*   Documentation/dev-tools/kunit/api/index.rst - KUnit APIs
-    used for testing.
-*   Documentation/dev-tools/kunit/kunit-tool.rst - kunit_tool helper
-    script.
-*   Documentation/dev-tools/kunit/faq.rst - KUnit common questions and
-    answers.
+You can find a step-by-step guide to writing and running KUnit tests in
+Documentation/dev-tools/kunit/start.rst
+
+Alternatively, feel free to look through the rest of the KUnit documentation,
+or to experiment with tools/testing/kunit/kunit.py and the example test under
+lib/kunit/kunit-example-test.c
+
+Happy testing!

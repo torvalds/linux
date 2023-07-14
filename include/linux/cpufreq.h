@@ -15,7 +15,6 @@
 #include <linux/kobject.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pm_opp.h>
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
@@ -237,6 +236,7 @@ bool cpufreq_supports_freq_invariance(void);
 struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
 void cpufreq_disable_fast_switch(struct cpufreq_policy *policy);
+bool has_target_index(void);
 #else
 static inline unsigned int cpufreq_get(unsigned int cpu)
 {
@@ -340,7 +340,10 @@ struct cpufreq_driver {
 	/*
 	 * ->fast_switch() replacement for drivers that use an internal
 	 * representation of performance levels and can pass hints other than
-	 * the target performance level to the hardware.
+	 * the target performance level to the hardware. This can only be set
+	 * if ->fast_switch is set too, because in those cases (under specific
+	 * conditions) scale invariance can be disabled, which causes the
+	 * schedutil governor to fall back to the latter.
 	 */
 	void		(*adjust_perf)(unsigned int cpu,
 				       unsigned long min_perf,
@@ -448,7 +451,7 @@ struct cpufreq_driver {
 #define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING	BIT(6)
 
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
-int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
+void cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 
 bool cpufreq_driver_test_flags(u16 flags);
 const char *cpufreq_get_current_driver(void);
@@ -1110,10 +1113,10 @@ cpufreq_table_set_inefficient(struct cpufreq_policy *policy,
 }
 
 static inline int parse_perf_domain(int cpu, const char *list_name,
-				    const char *cell_name)
+				    const char *cell_name,
+				    struct of_phandle_args *args)
 {
 	struct device_node *cpu_np;
-	struct of_phandle_args args;
 	int ret;
 
 	cpu_np = of_cpu_device_node_get(cpu);
@@ -1121,41 +1124,44 @@ static inline int parse_perf_domain(int cpu, const char *list_name,
 		return -ENODEV;
 
 	ret = of_parse_phandle_with_args(cpu_np, list_name, cell_name, 0,
-					 &args);
+					 args);
 	if (ret < 0)
 		return ret;
 
 	of_node_put(cpu_np);
 
-	return args.args[0];
+	return 0;
 }
 
 static inline int of_perf_domain_get_sharing_cpumask(int pcpu, const char *list_name,
-						     const char *cell_name, struct cpumask *cpumask)
+						     const char *cell_name, struct cpumask *cpumask,
+						     struct of_phandle_args *pargs)
 {
-	int target_idx;
 	int cpu, ret;
+	struct of_phandle_args args;
 
-	ret = parse_perf_domain(pcpu, list_name, cell_name);
+	ret = parse_perf_domain(pcpu, list_name, cell_name, pargs);
 	if (ret < 0)
 		return ret;
 
-	target_idx = ret;
 	cpumask_set_cpu(pcpu, cpumask);
 
 	for_each_possible_cpu(cpu) {
 		if (cpu == pcpu)
 			continue;
 
-		ret = parse_perf_domain(cpu, list_name, cell_name);
+		ret = parse_perf_domain(cpu, list_name, cell_name, &args);
 		if (ret < 0)
 			continue;
 
-		if (target_idx == ret)
+		if (pargs->np == args.np && pargs->args_count == args.args_count &&
+		    !memcmp(pargs->args, args.args, sizeof(args.args[0]) * args.args_count))
 			cpumask_set_cpu(cpu, cpumask);
+
+		of_node_put(args.np);
 	}
 
-	return target_idx;
+	return 0;
 }
 #else
 static inline int cpufreq_boost_trigger_state(int state)
@@ -1185,7 +1191,8 @@ cpufreq_table_set_inefficient(struct cpufreq_policy *policy,
 }
 
 static inline int of_perf_domain_get_sharing_cpumask(int pcpu, const char *list_name,
-						     const char *cell_name, struct cpumask *cpumask)
+						     const char *cell_name, struct cpumask *cpumask,
+						     struct of_phandle_args *pargs)
 {
 	return -EOPNOTSUPP;
 }

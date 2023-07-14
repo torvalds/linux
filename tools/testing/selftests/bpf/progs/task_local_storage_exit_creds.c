@@ -14,6 +14,7 @@ struct {
 	__type(value, __u64);
 } task_storage SEC(".maps");
 
+int run_count = 0;
 int valid_ptr_count = 0;
 int null_ptr_count = 0;
 
@@ -28,5 +29,7 @@ int BPF_PROG(trace_exit_creds, struct task_struct *task)
 		__sync_fetch_and_add(&valid_ptr_count, 1);
 	else
 		__sync_fetch_and_add(&null_ptr_count, 1);
+
+	__sync_fetch_and_add(&run_count, 1);
 	return 0;
 }

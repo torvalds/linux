@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-ita.rst
 
-:Original: :ref:`Documentation/admin-guide/security-bugs.rst <securitybugs>`
+:Original: :ref:`Documentation/process/security-bugs.rst <securitybugs>`
 
 .. _it_securitybugs:
 

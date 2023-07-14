@@ -57,134 +57,85 @@ EXPORT_SYMBOL_GPL(clear_page_erms)
  * Input:
  * rdi destination
  * rcx count
+ * rax is zero
  *
  * Output:
  * rcx: uncleared bytes or 0 if successful.
  */
-SYM_FUNC_START(clear_user_original)
-	/*
-	 * Copy only the lower 32 bits of size as that is enough to handle the rest bytes,
-	 * i.e., no need for a 'q' suffix and thus a REX prefix.
-	 */
-	mov %ecx,%eax
-	shr $3,%rcx
-	jz .Lrest_bytes
+SYM_FUNC_START(rep_stos_alternative)
+	cmpq $64,%rcx
+	jae .Lunrolled
 
-	# do the qwords first
-	.p2align 4
-.Lqwords:
-	movq $0,(%rdi)
-	lea 8(%rdi),%rdi
-	dec %rcx
-	jnz .Lqwords
+	cmp $8,%ecx
+	jae .Lword
 
-.Lrest_bytes:
-	and $7,  %eax
-	jz .Lexit
+	testl %ecx,%ecx
+	je .Lexit
 
-	# now do the rest bytes
-.Lbytes:
-	movb $0,(%rdi)
+.Lclear_user_tail:
+0:	movb %al,(%rdi)
 	inc %rdi
-	dec %eax
-	jnz .Lbytes
-
+	dec %rcx
+	jnz .Lclear_user_tail
 .Lexit:
+	RET
+
+	_ASM_EXTABLE_UA( 0b, .Lexit)
+
+.Lword:
+1:	movq %rax,(%rdi)
+	addq $8,%rdi
+	sub $8,%ecx
+	je .Lexit
+	cmp $8,%ecx
+	jae .Lword
+	jmp .Lclear_user_tail
+
+	.p2align 4
+.Lunrolled:
+10:	movq %rax,(%rdi)
+11:	movq %rax,8(%rdi)
+12:	movq %rax,16(%rdi)
+13:	movq %rax,24(%rdi)
+14:	movq %rax,32(%rdi)
+15:	movq %rax,40(%rdi)
+16:	movq %rax,48(%rdi)
+17:	movq %rax,56(%rdi)
+	addq $64,%rdi
+	subq $64,%rcx
+	cmpq $64,%rcx
+	jae .Lunrolled
+	cmpl $8,%ecx
+	jae .Lword
+	testl %ecx,%ecx
+	jne .Lclear_user_tail
+	RET
+
 	/*
-	 * %rax still needs to be cleared in the exception case because this function is called
-	 * from inline asm and the compiler expects %rax to be zero when exiting the inline asm,
-	 * in case it might reuse it somewhere.
+	 * If we take an exception on any of the
+	 * word stores, we know that %rcx isn't zero,
+	 * so we can just go to the tail clearing to
+	 * get the exact count.
+	 *
+	 * The unrolled case might end up clearing
+	 * some bytes twice. Don't care.
+	 *
+	 * We could use the value in %rdi to avoid
+	 * a second fault on the exact count case,
+	 * but do we really care? No.
+	 *
+	 * Finally, we could try to align %rdi at the
+	 * top of the unrolling. But unaligned stores
+	 * just aren't that common or expensive.
 	 */
-        xor %eax,%eax
-        RET
-
-.Lqwords_exception:
-        # convert remaining qwords back into bytes to return to caller
-        shl $3, %rcx
-        and $7, %eax
-        add %rax,%rcx
-        jmp .Lexit
-
-.Lbytes_exception:
-        mov %eax,%ecx
-        jmp .Lexit
-
-        _ASM_EXTABLE_UA(.Lqwords, .Lqwords_exception)
-        _ASM_EXTABLE_UA(.Lbytes, .Lbytes_exception)
-SYM_FUNC_END(clear_user_original)
-EXPORT_SYMBOL(clear_user_original)
-
-/*
- * Alternative clear user-space when CPU feature X86_FEATURE_REP_GOOD is
- * present.
- * Input:
- * rdi destination
- * rcx count
- *
- * Output:
- * rcx: uncleared bytes or 0 if successful.
- */
-SYM_FUNC_START(clear_user_rep_good)
-	# call the original thing for less than a cacheline
-	cmp $64, %rcx
-	jb clear_user_original
-
-.Lprep:
-	# copy lower 32-bits for rest bytes
-	mov %ecx, %edx
-	shr $3, %rcx
-	jz .Lrep_good_rest_bytes
-
-.Lrep_good_qwords:
-	rep stosq
-
-.Lrep_good_rest_bytes:
-	and $7, %edx
-	jz .Lrep_good_exit
-
-.Lrep_good_bytes:
-	mov %edx, %ecx
-	rep stosb
-
-.Lrep_good_exit:
-	# see .Lexit comment above
-	xor %eax, %eax
-	RET
-
-.Lrep_good_qwords_exception:
-	# convert remaining qwords back into bytes to return to caller
-	shl $3, %rcx
-	and $7, %edx
-	add %rdx, %rcx
-	jmp .Lrep_good_exit
-
-	_ASM_EXTABLE_UA(.Lrep_good_qwords, .Lrep_good_qwords_exception)
-	_ASM_EXTABLE_UA(.Lrep_good_bytes, .Lrep_good_exit)
-SYM_FUNC_END(clear_user_rep_good)
-EXPORT_SYMBOL(clear_user_rep_good)
-
-/*
- * Alternative clear user-space when CPU feature X86_FEATURE_ERMS is present.
- * Input:
- * rdi destination
- * rcx count
- *
- * Output:
- * rcx: uncleared bytes or 0 if successful.
- *
- */
-SYM_FUNC_START(clear_user_erms)
-	# call the original thing for less than a cacheline
-	cmp $64, %rcx
-	jb clear_user_original
-
-.Lerms_bytes:
-	rep stosb
-
-.Lerms_exit:
-	xorl %eax,%eax
-	RET
-
-	_ASM_EXTABLE_UA(.Lerms_bytes, .Lerms_exit)
-SYM_FUNC_END(clear_user_erms)
-EXPORT_SYMBOL(clear_user_erms)
+	_ASM_EXTABLE_UA( 1b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(10b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(11b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(12b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(13b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(14b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(15b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(16b, .Lclear_user_tail)
+	_ASM_EXTABLE_UA(17b, .Lclear_user_tail)
+SYM_FUNC_END(rep_stos_alternative)
+EXPORT_SYMBOL(rep_stos_alternative)

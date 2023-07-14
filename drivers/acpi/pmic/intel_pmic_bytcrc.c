@@ -283,6 +283,7 @@ static const struct intel_pmic_opregion_data intel_crc_pmic_opregion_data = {
 	.power_table_count= ARRAY_SIZE(power_table),
 	.thermal_table	= thermal_table,
 	.thermal_table_count = ARRAY_SIZE(thermal_table),
+	.pmic_i2c_address = 0x6e,
 };
 
 static int intel_crc_pmic_opregion_probe(struct platform_device *pdev)

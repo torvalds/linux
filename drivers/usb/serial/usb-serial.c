@@ -519,7 +519,8 @@ static int serial_ioctl(struct tty_struct *tty,
 	return retval;
 }
 
-static void serial_set_termios(struct tty_struct *tty, struct ktermios *old)
+static void serial_set_termios(struct tty_struct *tty,
+		               const struct ktermios *old)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
@@ -538,9 +539,9 @@ static int serial_break(struct tty_struct *tty, int break_state)
 	dev_dbg(&port->dev, "%s\n", __func__);
 
 	if (port->serial->type->break_ctl)
-		port->serial->type->break_ctl(tty, break_state);
+		return port->serial->type->break_ctl(tty, break_state);
 
-	return 0;
+	return -ENOTTY;
 }
 
 static int serial_proc_show(struct seq_file *m, void *v)
@@ -753,7 +754,7 @@ static struct usb_serial_driver *search_serial_device(
 	return NULL;
 }
 
-static int serial_port_carrier_raised(struct tty_port *port)
+static bool serial_port_carrier_raised(struct tty_port *port)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = p->serial->type;
@@ -761,10 +762,10 @@ static int serial_port_carrier_raised(struct tty_port *port)
 	if (drv->carrier_raised)
 		return drv->carrier_raised(p);
 	/* No carrier control - don't block */
-	return 1;
+	return true;
 }
 
-static void serial_port_dtr_rts(struct tty_port *port, int on)
+static void serial_port_dtr_rts(struct tty_port *port, bool on)
 {
 	struct usb_serial_port *p = container_of(port, struct usb_serial_port, port);
 	struct usb_serial_driver *drv = p->serial->type;

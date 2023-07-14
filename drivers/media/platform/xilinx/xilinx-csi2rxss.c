@@ -188,6 +188,7 @@ static const u32 xcsi2dt_mbus_lut[][2] = {
 	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SBGGR12_1X12 },
 	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SGBRG12_1X12 },
 	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_SGRBG12_1X12 },
+	{ MIPI_CSI2_DT_RAW12, MEDIA_BUS_FMT_Y12_1X12 },
 	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SRGGB16_1X16 },
 	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SBGGR16_1X16 },
 	{ MIPI_CSI2_DT_RAW16, MEDIA_BUS_FMT_SGBRG16_1X16 },
@@ -975,11 +976,9 @@ static int xcsi2rxss_probe(struct platform_device *pdev)
 	/* Reset GPIO */
 	xcsi2rxss->rst_gpio = devm_gpiod_get_optional(dev, "video-reset",
 						      GPIOD_OUT_HIGH);
-	if (IS_ERR(xcsi2rxss->rst_gpio)) {
-		if (PTR_ERR(xcsi2rxss->rst_gpio) != -EPROBE_DEFER)
-			dev_err(dev, "Video Reset GPIO not setup in DT");
-		return PTR_ERR(xcsi2rxss->rst_gpio);
-	}
+	if (IS_ERR(xcsi2rxss->rst_gpio))
+		return dev_err_probe(dev, PTR_ERR(xcsi2rxss->rst_gpio),
+				     "Video Reset GPIO not setup in DT\n");
 
 	ret = xcsi2rxss_parse_of(xcsi2rxss);
 	if (ret < 0)
@@ -1060,7 +1059,7 @@ err_clk_put:
 	return ret;
 }
 
-static int xcsi2rxss_remove(struct platform_device *pdev)
+static void xcsi2rxss_remove(struct platform_device *pdev)
 {
 	struct xcsi2rxss_state *xcsi2rxss = platform_get_drvdata(pdev);
 	struct v4l2_subdev *subdev = &xcsi2rxss->subdev;
@@ -1071,8 +1070,6 @@ static int xcsi2rxss_remove(struct platform_device *pdev)
 	mutex_destroy(&xcsi2rxss->lock);
 	clk_bulk_disable_unprepare(num_clks, xcsi2rxss->clks);
 	clk_bulk_put(num_clks, xcsi2rxss->clks);
-
-	return 0;
 }
 
 static const struct of_device_id xcsi2rxss_of_id_table[] = {
@@ -1087,7 +1084,7 @@ static struct platform_driver xcsi2rxss_driver = {
 		.of_match_table	= xcsi2rxss_of_id_table,
 	},
 	.probe			= xcsi2rxss_probe,
-	.remove			= xcsi2rxss_remove,
+	.remove_new		= xcsi2rxss_remove,
 };
 
 module_platform_driver(xcsi2rxss_driver);

@@ -3,6 +3,8 @@
  * Copyright �� 2021 Intel Corporation
  */
 
+#include "gt/intel_gt_print.h"
+#include "intel_guc_print.h"
 #include "selftests/igt_spinner.h"
 #include "selftests/intel_scheduler_helpers.h"
 
@@ -54,6 +56,9 @@ static int intel_guc_scrub_ctbs(void *arg)
 	struct intel_engine_cs *engine;
 	struct intel_context *ce;
 
+	if (!intel_has_gpu_reset(gt))
+		return 0;
+
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 	engine = intel_selftest_find_any_engine(gt);
 
@@ -62,7 +67,7 @@ static int intel_guc_scrub_ctbs(void *arg)
 		ce = intel_context_create(engine);
 		if (IS_ERR(ce)) {
 			ret = PTR_ERR(ce);
-			pr_err("Failed to create context, %d: %d\n", i, ret);
+			gt_err(gt, "Failed to create context %d: %pe\n", i, ce);
 			goto err;
 		}
 
@@ -83,7 +88,7 @@ static int intel_guc_scrub_ctbs(void *arg)
 
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
-			pr_err("Failed to create request, %d: %d\n", i, ret);
+			gt_err(gt, "Failed to create request %d: %pe\n", i, rq);
 			goto err;
 		}
 
@@ -93,7 +98,7 @@ static int intel_guc_scrub_ctbs(void *arg)
 	for (i = 0; i < 3; ++i) {
 		ret = i915_request_wait(last[i], 0, HZ);
 		if (ret < 0) {
-			pr_err("Last request failed to complete: %d\n", ret);
+			gt_err(gt, "Last request failed to complete: %pe\n", ERR_PTR(ret));
 			goto err;
 		}
 		i915_request_put(last[i]);
@@ -110,7 +115,7 @@ static int intel_guc_scrub_ctbs(void *arg)
 	/* GT will not idle if G2H are lost */
 	ret = intel_gt_wait_for_idle(gt, HZ);
 	if (ret < 0) {
-		pr_err("GT failed to idle: %d\n", ret);
+		gt_err(gt, "GT failed to idle: %pe\n", ERR_PTR(ret));
 		goto err;
 	}
 
@@ -150,7 +155,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 
 	ce = kcalloc(GUC_MAX_CONTEXT_ID, sizeof(*ce), GFP_KERNEL);
 	if (!ce) {
-		pr_err("Context array allocation failed\n");
+		guc_err(guc, "Context array allocation failed\n");
 		return -ENOMEM;
 	}
 
@@ -163,25 +168,25 @@ static int intel_guc_steal_guc_ids(void *arg)
 	ce[context_index] = intel_context_create(engine);
 	if (IS_ERR(ce[context_index])) {
 		ret = PTR_ERR(ce[context_index]);
+		guc_err(guc, "Failed to create context: %pe\n", ce[context_index]);
 		ce[context_index] = NULL;
-		pr_err("Failed to create context: %d\n", ret);
 		goto err_wakeref;
 	}
 	ret = igt_spinner_init(&spin, engine->gt);
 	if (ret) {
-		pr_err("Failed to create spinner: %d\n", ret);
+		guc_err(guc, "Failed to create spinner: %pe\n", ERR_PTR(ret));
 		goto err_contexts;
 	}
 	spin_rq = igt_spinner_create_request(&spin, ce[context_index],
 					     MI_ARB_CHECK);
 	if (IS_ERR(spin_rq)) {
 		ret = PTR_ERR(spin_rq);
-		pr_err("Failed to create spinner request: %d\n", ret);
+		guc_err(guc, "Failed to create spinner request: %pe\n", spin_rq);
 		goto err_contexts;
 	}
 	ret = request_add_spin(spin_rq, &spin);
 	if (ret) {
-		pr_err("Failed to add Spinner request: %d\n", ret);
+		guc_err(guc, "Failed to add Spinner request: %pe\n", ERR_PTR(ret));
 		goto err_spin_rq;
 	}
 
@@ -189,9 +194,9 @@ static int intel_guc_steal_guc_ids(void *arg)
 	while (ret != -EAGAIN) {
 		ce[++context_index] = intel_context_create(engine);
 		if (IS_ERR(ce[context_index])) {
-			ret = PTR_ERR(ce[context_index--]);
-			ce[context_index] = NULL;
-			pr_err("Failed to create context: %d\n", ret);
+			ret = PTR_ERR(ce[context_index]);
+			guc_err(guc, "Failed to create context: %pe\n", ce[context_index]);
+			ce[context_index--] = NULL;
 			goto err_spin_rq;
 		}
 
@@ -200,8 +205,8 @@ static int intel_guc_steal_guc_ids(void *arg)
 			ret = PTR_ERR(rq);
 			rq = NULL;
 			if (ret != -EAGAIN) {
-				pr_err("Failed to create request, %d: %d\n",
-				       context_index, ret);
+				guc_err(guc, "Failed to create request %d: %pe\n",
+					context_index, ERR_PTR(ret));
 				goto err_spin_rq;
 			}
 		} else {
@@ -215,7 +220,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	igt_spinner_end(&spin);
 	ret = intel_selftest_wait_for_rq(spin_rq);
 	if (ret) {
-		pr_err("Spin request failed to complete: %d\n", ret);
+		guc_err(guc, "Spin request failed to complete: %pe\n", ERR_PTR(ret));
 		i915_request_put(last);
 		goto err_spin_rq;
 	}
@@ -227,7 +232,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	ret = i915_request_wait(last, 0, HZ * 30);
 	i915_request_put(last);
 	if (ret < 0) {
-		pr_err("Last request failed to complete: %d\n", ret);
+		guc_err(guc, "Last request failed to complete: %pe\n", ERR_PTR(ret));
 		goto err_spin_rq;
 	}
 
@@ -235,7 +240,7 @@ static int intel_guc_steal_guc_ids(void *arg)
 	rq = nop_user_request(ce[context_index], NULL);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);
-		pr_err("Failed to steal guc_id, %d: %d\n", context_index, ret);
+		guc_err(guc, "Failed to steal guc_id %d: %pe\n", context_index, rq);
 		goto err_spin_rq;
 	}
 
@@ -243,21 +248,20 @@ static int intel_guc_steal_guc_ids(void *arg)
 	ret = i915_request_wait(rq, 0, HZ);
 	i915_request_put(rq);
 	if (ret < 0) {
-		pr_err("Request with stolen guc_id failed to complete: %d\n",
-		       ret);
+		guc_err(guc, "Request with stolen guc_id failed to complete: %pe\n", ERR_PTR(ret));
 		goto err_spin_rq;
 	}
 
 	/* Wait for idle */
 	ret = intel_gt_wait_for_idle(gt, HZ * 30);
 	if (ret < 0) {
-		pr_err("GT failed to idle: %d\n", ret);
+		guc_err(guc, "GT failed to idle: %pe\n", ERR_PTR(ret));
 		goto err_spin_rq;
 	}
 
 	/* Verify a guc_id was stolen */
 	if (guc->number_guc_id_stolen == number_guc_id_stolen) {
-		pr_err("No guc_id was stolen");
+		guc_err(guc, "No guc_id was stolen");
 		ret = -EINVAL;
 	} else {
 		ret = 0;

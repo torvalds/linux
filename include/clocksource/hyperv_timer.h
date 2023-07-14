@@ -15,12 +15,14 @@
 
 #include <linux/clocksource.h>
 #include <linux/math64.h>
-#include <asm/mshyperv.h>
+#include <asm/hyperv-tlfs.h>
 
 #define HV_MAX_MAX_DELTA_TICKS 0xffffffff
 #define HV_MIN_DELTA_TICKS 1
 
 #ifdef CONFIG_HYPERV_TIMER
+
+#include <asm/hyperv_timer.h>
 
 /* Routines called by the VMbus driver */
 extern int hv_stimer_alloc(bool have_percpu_irqs);
@@ -31,11 +33,14 @@ extern void hv_stimer_global_cleanup(void);
 extern void hv_stimer0_isr(void);
 
 extern void hv_init_clocksource(void);
+extern void hv_remap_tsc_clocksource(void);
 
+extern unsigned long hv_get_tsc_pfn(void);
 extern struct ms_hyperv_tsc_page *hv_get_tsc_page(void);
 
-static inline notrace u64
-hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg, u64 *cur_tsc)
+static __always_inline bool
+hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg,
+		     u64 *cur_tsc, u64 *time)
 {
 	u64 scale, offset;
 	u32 sequence;
@@ -59,7 +64,7 @@ hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg, u64 *cur_tsc)
 	do {
 		sequence = READ_ONCE(tsc_pg->tsc_sequence);
 		if (!sequence)
-			return U64_MAX;
+			return false;
 		/*
 		 * Make sure we read sequence before we read other values from
 		 * TSC page.
@@ -78,27 +83,25 @@ hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg, u64 *cur_tsc)
 
 	} while (READ_ONCE(tsc_pg->tsc_sequence) != sequence);
 
-	return mul_u64_u64_shr(*cur_tsc, scale, 64) + offset;
-}
-
-static inline notrace u64
-hv_read_tsc_page(const struct ms_hyperv_tsc_page *tsc_pg)
-{
-	u64 cur_tsc;
-
-	return hv_read_tsc_page_tsc(tsc_pg, &cur_tsc);
+	*time = mul_u64_u64_shr(*cur_tsc, scale, 64) + offset;
+	return true;
 }
 
 #else /* CONFIG_HYPERV_TIMER */
+static inline unsigned long hv_get_tsc_pfn(void)
+{
+	return 0;
+}
+
 static inline struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
 	return NULL;
 }
 
-static inline u64 hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg,
-				       u64 *cur_tsc)
+static __always_inline bool
+hv_read_tsc_page_tsc(const struct ms_hyperv_tsc_page *tsc_pg, u64 *cur_tsc, u64 *time)
 {
-	return U64_MAX;
+	return false;
 }
 
 static inline int hv_stimer_cleanup(unsigned int cpu) { return 0; }

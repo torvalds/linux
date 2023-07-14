@@ -26,14 +26,14 @@ static int sample_ustack(struct perf_sample *sample,
 
 	sp = (unsigned long) regs[PERF_REG_POWERPC_R1];
 
-	map = maps__find(thread->maps, (u64)sp);
+	map = maps__find(thread__maps(thread), (u64)sp);
 	if (!map) {
 		pr_debug("failed to get stack map\n");
 		free(buf);
 		return -1;
 	}
 
-	stack_size = map->end - sp;
+	stack_size = map__end(map) - sp;
 	stack_size = stack_size > STACK_SIZE ? STACK_SIZE : stack_size;
 
 	memcpy(buf, (void *) sp, stack_size);

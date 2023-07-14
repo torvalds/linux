@@ -47,6 +47,59 @@ static bool dsc_policy_disable_dsc_stream_overhead;
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
 
+uint32_t dc_bandwidth_in_kbps_from_timing(
+	const struct dc_crtc_timing *timing)
+{
+	uint32_t bits_per_channel = 0;
+	uint32_t kbps;
+
+	if (timing->flags.DSC)
+		return dc_dsc_stream_bandwidth_in_kbps(timing,
+				timing->dsc_cfg.bits_per_pixel,
+				timing->dsc_cfg.num_slices_h,
+				timing->dsc_cfg.is_dp);
+
+	switch (timing->display_color_depth) {
+	case COLOR_DEPTH_666:
+		bits_per_channel = 6;
+		break;
+	case COLOR_DEPTH_888:
+		bits_per_channel = 8;
+		break;
+	case COLOR_DEPTH_101010:
+		bits_per_channel = 10;
+		break;
+	case COLOR_DEPTH_121212:
+		bits_per_channel = 12;
+		break;
+	case COLOR_DEPTH_141414:
+		bits_per_channel = 14;
+		break;
+	case COLOR_DEPTH_161616:
+		bits_per_channel = 16;
+		break;
+	default:
+		ASSERT(bits_per_channel != 0);
+		bits_per_channel = 8;
+		break;
+	}
+
+	kbps = timing->pix_clk_100hz / 10;
+	kbps *= bits_per_channel;
+
+	if (timing->flags.Y_ONLY != 1) {
+		/*Only YOnly make reduce bandwidth by 1/3 compares to RGB*/
+		kbps *= 3;
+		if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			kbps /= 2;
+		else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+			kbps = kbps * 2 / 3;
+	}
+
+	return kbps;
+}
+
+
 /* Forward Declerations */
 static bool decide_dsc_bandwidth_range(
 		const uint32_t min_bpp_x16,
@@ -79,8 +132,7 @@ static bool setup_dsc_config(
 		const struct dsc_enc_caps *dsc_enc_caps,
 		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
-		int min_slice_height_override,
-		int max_dsc_target_bpp_limit_override_x16,
+		const struct dc_dsc_config_options *options,
 		struct dc_dsc_config *dsc_cfg);
 
 static bool dsc_buff_block_size_from_dpcd(int dpcd_buff_block_size, int *buff_block_size)
@@ -352,6 +404,11 @@ bool dc_dsc_compute_bandwidth_range(
 	struct dsc_enc_caps dsc_enc_caps;
 	struct dsc_enc_caps dsc_common_caps;
 	struct dc_dsc_config config;
+	struct dc_dsc_config_options options = {0};
+
+	options.dsc_min_slice_height_override = dsc_min_slice_height_override;
+	options.max_target_bpp_limit_override_x16 = max_bpp_x16;
+	options.slice_height_granularity = 1;
 
 	get_dsc_enc_caps(dsc, &dsc_enc_caps, timing->pix_clk_100hz);
 
@@ -360,7 +417,7 @@ bool dc_dsc_compute_bandwidth_range(
 
 	if (is_dsc_possible)
 		is_dsc_possible = setup_dsc_config(dsc_sink_caps, &dsc_enc_caps, 0, timing,
-				dsc_min_slice_height_override, max_bpp_x16, &config);
+				&options, &config);
 
 	if (is_dsc_possible)
 		is_dsc_possible = decide_dsc_bandwidth_range(min_bpp_x16, max_bpp_x16,
@@ -588,8 +645,6 @@ static int get_available_dsc_slices(union dsc_enc_slice_caps slice_caps, int *av
 {
 	int idx = 0;
 
-	memset(available_slices, -1, MIN_AVAILABLE_SLICES_SIZE);
-
 	if (slice_caps.bits.NUM_SLICES_1)
 		available_slices[idx++] = 1;
 
@@ -643,7 +698,7 @@ static int inc_num_slices(union dsc_enc_slice_caps slice_caps, int num_slices)
 		}
 	}
 
-	if (new_num_slices == num_slices) // No biger number of slices found
+	if (new_num_slices == num_slices) // No bigger number of slices found
 		new_num_slices++;
 
 	return new_num_slices;
@@ -740,8 +795,7 @@ static bool setup_dsc_config(
 		const struct dsc_enc_caps *dsc_enc_caps,
 		int target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
-		int min_slice_height_override,
-		int max_dsc_target_bpp_limit_override_x16,
+		const struct dc_dsc_config_options *options,
 		struct dc_dsc_config *dsc_cfg)
 {
 	struct dsc_enc_caps dsc_common_caps;
@@ -760,7 +814,7 @@ static bool setup_dsc_config(
 
 	memset(dsc_cfg, 0, sizeof(struct dc_dsc_config));
 
-	dc_dsc_get_policy_for_timing(timing, max_dsc_target_bpp_limit_override_x16, &policy);
+	dc_dsc_get_policy_for_timing(timing, options->max_target_bpp_limit_override_x16, &policy);
 	pic_width = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
@@ -896,6 +950,13 @@ static bool setup_dsc_config(
 		else
 			is_dsc_possible = false;
 	}
+	// When we force 2:1 ODM, we can't have 1 slice to divide amongst 2 separate DSC instances
+	// need to enforce at minimum 2 horizontal slices
+	if (options->dsc_force_odm_hslice_override) {
+		num_slices_h = fit_num_slices_up(dsc_common_caps.slice_caps, 2);
+		if (num_slices_h == 0)
+			is_dsc_possible = false;
+	}
 
 	if (!is_dsc_possible)
 		goto done;
@@ -909,12 +970,13 @@ static bool setup_dsc_config(
 
 	// Slice height (i.e. number of slices per column): start with policy and pick the first one that height is divisible by.
 	// For 4:2:0 make sure the slice height is divisible by 2 as well.
-	if (min_slice_height_override == 0)
+	if (options->dsc_min_slice_height_override == 0)
 		slice_height = min(policy.min_slice_height, pic_height);
 	else
-		slice_height = min(min_slice_height_override, pic_height);
+		slice_height = min((int)(options->dsc_min_slice_height_override), pic_height);
 
 	while (slice_height < pic_height && (pic_height % slice_height != 0 ||
+		slice_height % options->slice_height_granularity != 0 ||
 		(timing->pixel_encoding == PIXEL_ENCODING_YCBCR420 && slice_height % 2 != 0)))
 		slice_height++;
 
@@ -958,8 +1020,7 @@ done:
 bool dc_dsc_compute_config(
 		const struct display_stream_compressor *dsc,
 		const struct dsc_dec_dpcd_caps *dsc_sink_caps,
-		uint32_t dsc_min_slice_height_override,
-		uint32_t max_target_bpp_limit_override,
+		const struct dc_dsc_config_options *options,
 		uint32_t target_bandwidth_kbps,
 		const struct dc_crtc_timing *timing,
 		struct dc_dsc_config *dsc_cfg)
@@ -971,8 +1032,7 @@ bool dc_dsc_compute_config(
 	is_dsc_possible = setup_dsc_config(dsc_sink_caps,
 		&dsc_enc_caps,
 		target_bandwidth_kbps,
-		timing, dsc_min_slice_height_override,
-		max_target_bpp_limit_override * 16, dsc_cfg);
+		timing, options, dsc_cfg);
 	return is_dsc_possible;
 }
 
@@ -1103,4 +1163,12 @@ void dc_dsc_policy_set_enable_dsc_when_not_needed(bool enable)
 void dc_dsc_policy_set_disable_dsc_stream_overhead(bool disable)
 {
 	dsc_policy_disable_dsc_stream_overhead = disable;
+}
+
+void dc_dsc_get_default_config_option(const struct dc *dc, struct dc_dsc_config_options *options)
+{
+	options->dsc_min_slice_height_override = dc->debug.dsc_min_slice_height_override;
+	options->dsc_force_odm_hslice_override = dc->debug.force_odm_combine;
+	options->max_target_bpp_limit_override_x16 = 0;
+	options->slice_height_granularity = 1;
 }

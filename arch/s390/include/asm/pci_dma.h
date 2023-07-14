@@ -186,9 +186,10 @@ static inline unsigned long *get_st_pto(unsigned long entry)
 
 /* Prototypes */
 void dma_free_seg_table(unsigned long);
-unsigned long *dma_alloc_cpu_table(void);
+unsigned long *dma_alloc_cpu_table(gfp_t gfp);
 void dma_cleanup_tables(unsigned long *);
-unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr);
+unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr,
+				  gfp_t gfp);
 void dma_update_cpu_trans(unsigned long *entry, phys_addr_t page_addr, int flags);
 
 extern const struct dma_map_ops s390_pci_dma_ops;

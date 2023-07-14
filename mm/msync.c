@@ -104,7 +104,7 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
 				error = 0;
 				goto out_unlock;
 			}
-			vma = vma->vm_next;
+			vma = find_vma(mm, vma->vm_end);
 		}
 	}
 out_unlock:

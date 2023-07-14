@@ -695,7 +695,7 @@ static u32 sa1111_dma_mask[] = {
 /*
  * Configure the SA1111 shared memory controller.
  */
-void
+static void
 sa1111_configure_smc(struct sa1111 *sachip, int sdram, unsigned int drac,
 		     unsigned int cas_latency)
 {
@@ -1123,7 +1123,7 @@ static int sa1111_probe(struct platform_device *pdev)
 	return __sa1111_probe(&pdev->dev, mem, irq);
 }
 
-static int sa1111_remove(struct platform_device *pdev)
+static void sa1111_remove(struct platform_device *pdev)
 {
 	struct sa1111 *sachip = platform_get_drvdata(pdev);
 
@@ -1135,8 +1135,6 @@ static int sa1111_remove(struct platform_device *pdev)
 		__sa1111_remove(sachip);
 		platform_set_drvdata(pdev, NULL);
 	}
-
-	return 0;
 }
 
 static struct dev_pm_ops sa1111_pm_ops = {
@@ -1155,7 +1153,7 @@ static struct dev_pm_ops sa1111_pm_ops = {
  */
 static struct platform_driver sa1111_device_driver = {
 	.probe		= sa1111_probe,
-	.remove		= sa1111_remove,
+	.remove_new	= sa1111_remove,
 	.driver		= {
 		.name	= "sa1111",
 		.pm	= &sa1111_pm_ops,

@@ -803,7 +803,7 @@ static int nct7904_detect(struct i2c_client *client,
 	return 0;
 }
 
-static const struct hwmon_channel_info *nct7904_info[] = {
+static const struct hwmon_channel_info * const nct7904_info[] = {
 	HWMON_CHANNEL_INFO(in,
 			   /* dummy, skipped in is_visible */
 			   HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX |
@@ -1171,7 +1171,7 @@ static struct i2c_driver nct7904_driver = {
 	.driver = {
 		.name = "nct7904",
 	},
-	.probe_new = nct7904_probe,
+	.probe = nct7904_probe,
 	.id_table = nct7904_id,
 	.detect = nct7904_detect,
 	.address_list = normal_i2c,

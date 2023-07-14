@@ -296,6 +296,12 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->intf = intf;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
+	/* Sanity check that pipe's type matches endpoint's type */
+	if (usb_pipe_type_check(dev, pipe)) {
+		error = -EINVAL;
+		goto err_free_mem;
+	}
+
 	pegasus->data_len = usb_maxpacket(dev, pipe);
 
 	pegasus->data = usb_alloc_coherent(dev, pegasus->data_len, GFP_KERNEL,
@@ -319,7 +325,7 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	if (dev->manufacturer)
-		strlcpy(pegasus->name, dev->manufacturer,
+		strscpy(pegasus->name, dev->manufacturer,
 			sizeof(pegasus->name));
 
 	if (dev->product) {

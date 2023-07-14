@@ -1181,7 +1181,7 @@ static int tegra_nand_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	err = pm_runtime_resume_and_get(&pdev->dev);
 	if (err)
-		return err;
+		goto err_dis_pm;
 
 	err = reset_control_reset(rst);
 	if (err) {
@@ -1215,10 +1215,12 @@ static int tegra_nand_probe(struct platform_device *pdev)
 err_put_pm:
 	pm_runtime_put_sync_suspend(ctrl->dev);
 	pm_runtime_force_suspend(ctrl->dev);
+err_dis_pm:
+	pm_runtime_disable(&pdev->dev);
 	return err;
 }
 
-static int tegra_nand_remove(struct platform_device *pdev)
+static void tegra_nand_remove(struct platform_device *pdev)
 {
 	struct tegra_nand_controller *ctrl = platform_get_drvdata(pdev);
 	struct nand_chip *chip = ctrl->chip;
@@ -1230,8 +1232,6 @@ static int tegra_nand_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync_suspend(ctrl->dev);
 	pm_runtime_force_suspend(ctrl->dev);
-
-	return 0;
 }
 
 static int __maybe_unused tegra_nand_runtime_resume(struct device *dev)
@@ -1275,7 +1275,7 @@ static struct platform_driver tegra_nand_driver = {
 		.pm = &tegra_nand_pm,
 	},
 	.probe = tegra_nand_probe,
-	.remove = tegra_nand_remove,
+	.remove_new = tegra_nand_remove,
 };
 module_platform_driver(tegra_nand_driver);
 

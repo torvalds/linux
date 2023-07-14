@@ -709,7 +709,9 @@ static int lt9211_host_attach(struct lt9211 *ctx)
 	dsi->lanes = dsi_lanes;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-			  MIPI_DSI_MODE_VIDEO_HSE;
+			  MIPI_DSI_MODE_VIDEO_HSE | MIPI_DSI_MODE_VIDEO_NO_HSA |
+			  MIPI_DSI_MODE_VIDEO_NO_HFP | MIPI_DSI_MODE_VIDEO_NO_HBP |
+			  MIPI_DSI_MODE_NO_EOT_PACKET;
 
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
@@ -720,8 +722,7 @@ static int lt9211_host_attach(struct lt9211 *ctx)
 	return 0;
 }
 
-static int lt9211_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lt9211_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct lt9211 *ctx;

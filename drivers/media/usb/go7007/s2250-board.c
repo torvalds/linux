@@ -494,8 +494,7 @@ static const struct v4l2_subdev_ops s2250_ops = {
 
 /* --------------------------------------------------------------------------*/
 
-static int s2250_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int s2250_probe(struct i2c_client *client)
 {
 	struct i2c_client *audio;
 	struct i2c_adapter *adapter = client->adapter;

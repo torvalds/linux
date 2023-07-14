@@ -76,7 +76,6 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @nslabs:	The number of IO TLB blocks (in groups of 64) between @start and
  *		@end. For default swiotlb, this is command line adjustable via
  *		setup_io_tlb_npages.
- * @used:	The number of used IO TLB block.
  * @list:	The free list describing the number of free entries available
  *		from each index.
  * @orig_addr:	The original address corresponding to a mapped entry.
@@ -87,13 +86,17 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t phys,
  * @for_alloc:  %true if the pool is used for memory allocation
  * @nareas:  The area number in the pool.
  * @area_nslabs: The slot number in the area.
+ * @total_used:	The total number of slots in the pool that are currently used
+ *		across all areas. Used only for calculating used_hiwater in
+ *		debugfs.
+ * @used_hiwater: The high water mark for total_used.  Used only for reporting
+ *		in debugfs.
  */
 struct io_tlb_mem {
 	phys_addr_t start;
 	phys_addr_t end;
 	void *vaddr;
 	unsigned long nslabs;
-	unsigned long used;
 	struct dentry *debugfs;
 	bool late_alloc;
 	bool force_bounce;
@@ -102,6 +105,10 @@ struct io_tlb_mem {
 	unsigned int area_nslabs;
 	struct io_tlb_area *areas;
 	struct io_tlb_slot *slots;
+#ifdef CONFIG_DEBUG_FS
+	atomic_long_t total_used;
+	atomic_long_t used_hiwater;
+#endif
 };
 extern struct io_tlb_mem io_tlb_default_mem;
 
@@ -121,7 +128,6 @@ static inline bool is_swiotlb_force_bounce(struct device *dev)
 
 void swiotlb_init(bool addressing_limited, unsigned int flags);
 void __init swiotlb_exit(void);
-unsigned int swiotlb_max_segment(void);
 size_t swiotlb_max_mapping_size(struct device *dev);
 bool is_swiotlb_active(struct device *dev);
 void __init swiotlb_adjust_size(unsigned long size);
@@ -139,10 +145,6 @@ static inline bool is_swiotlb_force_bounce(struct device *dev)
 }
 static inline void swiotlb_exit(void)
 {
-}
-static inline unsigned int swiotlb_max_segment(void)
-{
-	return 0;
 }
 static inline size_t swiotlb_max_mapping_size(struct device *dev)
 {
@@ -184,7 +186,5 @@ static inline bool is_swiotlb_for_alloc(struct device *dev)
 	return false;
 }
 #endif /* CONFIG_DMA_RESTRICTED_POOL */
-
-extern phys_addr_t swiotlb_unencrypted_base;
 
 #endif /* __LINUX_SWIOTLB_H */

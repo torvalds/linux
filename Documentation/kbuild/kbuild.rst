@@ -150,6 +150,12 @@ the UTS_MACHINE variable, and on some architectures also the kernel config.
 The value of KBUILD_DEBARCH is assumed (not checked) to be a valid Debian
 architecture.
 
+KDOCFLAGS
+---------
+Specify extra (warning/error) flags for kernel-doc checks during the build,
+see scripts/kernel-doc for which flags are supported. Note that this doesn't
+(currently) apply to documentation builds.
+
 ARCH
 ----
 Set ARCH to the architecture to be built.
@@ -160,7 +166,7 @@ directory name found in the arch/ directory.
 But some architectures such as x86 and sparc have aliases.
 
 - x86: i386 for 32 bit, x86_64 for 64 bit
-- sh: sh for 32 bit, sh64 for 64 bit
+- parisc: parisc64 for 64 bit
 - sparc: sparc32 for 32 bit, sparc64 for 64 bit
 
 CROSS_COMPILE
@@ -277,6 +283,13 @@ to be included in the databases, separated by blank space. E.g.::
 To get all available archs you can also specify all. E.g.::
 
     $ make ALLSOURCE_ARCHS=all tags
+
+IGNORE_DIRS
+-----------
+For tags/TAGS/cscope targets, you can choose which directories won't
+be included in the databases, separated by blank space. E.g.::
+
+    $ make IGNORE_DIRS="drivers/gpu/drm/radeon tools" cscope
 
 KBUILD_BUILD_TIMESTAMP
 ----------------------

@@ -927,6 +927,7 @@ static int ath10k_snoc_hif_start(struct ath10k *ar)
 
 	bitmap_clear(ar_snoc->pending_ce_irqs, 0, CE_COUNT_MAX);
 
+	dev_set_threaded(&ar->napi_dev, true);
 	ath10k_core_napi_enable(ar);
 	ath10k_snoc_irq_enable(ar);
 	ath10k_snoc_rx_post(ar);
@@ -1639,7 +1640,7 @@ static int ath10k_fw_init(struct ath10k *ar)
 
 	ret = iommu_map(iommu_dom, ar_snoc->fw.fw_start_addr,
 			ar->msa.paddr, ar->msa.mem_size,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		ath10k_err(ar, "failed to map firmware region: %d\n", ret);
 		goto err_iommu_detach;
@@ -1847,7 +1848,7 @@ static int ath10k_snoc_free_resources(struct ath10k *ar)
 	return 0;
 }
 
-static int ath10k_snoc_remove(struct platform_device *pdev)
+static void ath10k_snoc_remove(struct platform_device *pdev)
 {
 	struct ath10k *ar = platform_get_drvdata(pdev);
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
@@ -1860,8 +1861,6 @@ static int ath10k_snoc_remove(struct platform_device *pdev)
 		wait_for_completion_timeout(&ar->driver_recovery, 3 * HZ);
 
 	ath10k_snoc_free_resources(ar);
-
-	return 0;
 }
 
 static void ath10k_snoc_shutdown(struct platform_device *pdev)
@@ -1874,8 +1873,8 @@ static void ath10k_snoc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ath10k_snoc_driver = {
 	.probe  = ath10k_snoc_probe,
-	.remove = ath10k_snoc_remove,
-	.shutdown =  ath10k_snoc_shutdown,
+	.remove_new = ath10k_snoc_remove,
+	.shutdown = ath10k_snoc_shutdown,
 	.driver = {
 		.name   = "ath10k_snoc",
 		.of_match_table = ath10k_snoc_dt_match,

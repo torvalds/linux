@@ -1,0 +1,475 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for Cortina systems Gemini SoC
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/cortina,gemini-clock.h>
+#include <dt-bindings/reset/cortina,gemini-reset.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		compatible = "simple-bus";
+		interrupt-parent = <&intcon>;
+
+		flash: flash@30000000 {
+			compatible = "cortina,gemini-flash", "cfi-flash";
+			syscon = <&syscon>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pflash_default_pins>;
+			bank-width = <2>;
+			status = "disabled";
+		};
+
+		syscon: syscon@40000000 {
+			compatible = "cortina,gemini-syscon",
+				     "syscon", "simple-mfd";
+			reg = <0x40000000 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+
+			syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&syscon>;
+				/* GLOBAL_RESET register */
+				offset = <0x0c>;
+				/* RESET_GLOBAL | RESET_CPU1 */
+				mask = <0xC0000000>;
+			};
+
+			pinctrl {
+				compatible = "cortina,gemini-pinctrl";
+				regmap = <&syscon>;
+				/* Hog the DRAM pins */
+				pinctrl-names = "default";
+				pinctrl-0 = <&dram_default_pins>, <&system_default_pins>,
+					    <&vcontrol_default_pins>;
+
+				dram_default_pins: pinctrl-dram {
+					mux {
+						function = "dram";
+						groups = "dramgrp";
+					};
+				};
+				rtc_default_pins: pinctrl-rtc {
+					mux {
+						function = "rtc";
+						groups = "rtcgrp";
+					};
+				};
+				power_default_pins: pinctrl-power {
+					mux {
+						function = "power";
+						groups = "powergrp";
+					};
+				};
+				cir_default_pins: pinctrl-cir {
+					mux {
+						function = "cir";
+						groups = "cirgrp";
+					};
+				};
+				system_default_pins: pinctrl-system {
+					mux {
+						function = "system";
+						groups = "systemgrp";
+					};
+				};
+				vcontrol_default_pins: pinctrl-vcontrol {
+					mux {
+						function = "vcontrol";
+						groups = "vcontrolgrp";
+					};
+				};
+				ice_default_pins: pinctrl-ice {
+					mux {
+						function = "ice";
+						groups = "icegrp";
+					};
+				};
+				uart_default_pins: pinctrl-uart {
+					mux {
+						function = "uart";
+						groups = "uartrxtxgrp";
+					};
+				};
+				pflash_default_pins: pinctrl-pflash {
+					mux {
+						function = "pflash";
+						groups = "pflashgrp";
+					};
+				};
+				usb_default_pins: pinctrl-usb {
+					mux {
+						function = "usb";
+						groups = "usbgrp";
+					};
+				};
+				gmii_default_pins: pinctrl-gmii {
+					/*
+					 * Only activate GMAC0 by default since
+					 * GMAC1 will overlap with 8 GPIO lines
+					 * gpio2a, gpio2b. Overlay groups with
+					 * "gmii_gmac0_grp", "gmii_gmac1_grp" for
+					 * both ethernet interfaces.
+					 */
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp";
+					};
+				};
+				pci_default_pins: pinctrl-pci {
+					mux {
+						function = "pci";
+						groups = "pcigrp";
+					};
+				};
+				sata_default_pins: pinctrl-sata {
+					mux {
+						function = "sata";
+						groups = "satagrp";
+					};
+				};
+				/* Activate both groups of pins for this state */
+				sata_and_ide_pins: pinctrl-sata-ide {
+					mux0 {
+						function = "sata";
+						groups = "satagrp";
+					};
+					mux1 {
+						function = "ide";
+						groups = "idegrp";
+					};
+				};
+				tvc_default_pins: pinctrl-tvc {
+					mux {
+						function = "tvc";
+						groups = "tvcgrp";
+					};
+				};
+			};
+		};
+
+		watchdog@41000000 {
+			compatible = "cortina,gemini-watchdog", "faraday,ftwdt010";
+			reg = <0x41000000 0x1000>;
+			interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_WDOG>;
+			clocks = <&syscon GEMINI_CLK_APB>;
+			clock-names = "PCLK";
+		};
+
+		uart0: serial@42000000 {
+			compatible = "ns16550a";
+			reg = <0x42000000 0x100>;
+			resets = <&syscon GEMINI_RESET_UART>;
+			clocks = <&syscon GEMINI_CLK_UART>;
+			interrupts = <18 IRQ_TYPE_LEVEL_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart_default_pins>;
+			reg-shift = <2>;
+		};
+
+		timer@43000000 {
+			compatible = "faraday,fttmr010";
+			reg = <0x43000000 0x1000>;
+			interrupt-parent = <&intcon>;
+			interrupts = <14 IRQ_TYPE_EDGE_FALLING>, /* Timer 1 */
+				     <15 IRQ_TYPE_EDGE_FALLING>, /* Timer 2 */
+				     <16 IRQ_TYPE_EDGE_FALLING>; /* Timer 3 */
+			resets = <&syscon GEMINI_RESET_TIMER>;
+			/* APB clock or RTC clock */
+			clocks = <&syscon GEMINI_CLK_APB>, <&syscon GEMINI_CLK_RTC>;
+			clock-names = "PCLK", "EXTCLK";
+			syscon = <&syscon>;
+		};
+
+		rtc@45000000 {
+			compatible = "cortina,gemini-rtc", "faraday,ftrtc010";
+			reg = <0x45000000 0x100>;
+			interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_RTC>;
+			clocks = <&syscon GEMINI_CLK_APB>, <&syscon GEMINI_CLK_RTC>;
+			clock-names = "PCLK", "EXTCLK";
+			pinctrl-names = "default";
+			pinctrl-0 = <&rtc_default_pins>;
+		};
+
+		sata: sata@46000000 {
+			compatible = "cortina,gemini-sata-bridge";
+			reg = <0x46000000 0x100>;
+			resets = <&syscon GEMINI_RESET_SATA0>,
+				 <&syscon GEMINI_RESET_SATA1>;
+			reset-names = "sata0", "sata1";
+			clocks = <&syscon GEMINI_CLK_GATE_SATA0>,
+				 <&syscon GEMINI_CLK_GATE_SATA1>;
+			clock-names = "SATA0_PCLK", "SATA1_PCLK";
+			/*
+			 * This defines the special "ide" state that needs
+			 * to be explicitly enabled to enable the IDE pins,
+			 * as these pins are normally used for other things.
+			 */
+			pinctrl-names = "default", "ide";
+			pinctrl-0 = <&sata_default_pins>;
+			pinctrl-1 = <&sata_and_ide_pins>;
+			syscon = <&syscon>;
+			status = "disabled";
+		};
+
+		intcon: interrupt-controller@48000000 {
+			compatible = "faraday,ftintc010";
+			reg = <0x48000000 0x1000>;
+			resets = <&syscon GEMINI_RESET_INTCON0>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		power-controller@4b000000 {
+			compatible = "cortina,gemini-power-controller";
+			reg = <0x4b000000 0x100>;
+			interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&power_default_pins>;
+		};
+
+		gpio0: gpio@4d000000 {
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
+			reg = <0x4d000000 0x100>;
+			interrupts = <22 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_GPIO0>;
+			clocks = <&syscon GEMINI_CLK_APB>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio1: gpio@4e000000 {
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
+			reg = <0x4e000000 0x100>;
+			interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_GPIO1>;
+			clocks = <&syscon GEMINI_CLK_APB>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		gpio2: gpio@4f000000 {
+			compatible = "cortina,gemini-gpio", "faraday,ftgpio010";
+			reg = <0x4f000000 0x100>;
+			interrupts = <24 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_GPIO2>;
+			clocks = <&syscon GEMINI_CLK_APB>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pci@50000000 {
+			compatible = "cortina,gemini-pci", "faraday,ftpci100";
+			/*
+			 * The first 256 bytes in the IO range is actually used
+			 * to configure the host bridge.
+			 */
+			reg = <0x50000000 0x100>;
+			resets = <&syscon GEMINI_RESET_PCI>;
+			clocks = <&syscon GEMINI_CLK_GATE_PCI>, <&syscon GEMINI_CLK_PCI>;
+			clock-names = "PCLK", "PCICLK";
+			pinctrl-names = "default";
+			pinctrl-0 = <&pci_default_pins>;
+			device_type = "pci";
+			#address-cells = <3>;
+			#size-cells = <2>;
+			status = "disabled";
+
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+				<0x4800 0 0 1 &pci_intc 0>, /* Slot 9 */
+				<0x4800 0 0 2 &pci_intc 1>,
+				<0x4800 0 0 3 &pci_intc 2>,
+				<0x4800 0 0 4 &pci_intc 3>,
+				<0x5000 0 0 1 &pci_intc 1>, /* Slot 10 */
+				<0x5000 0 0 2 &pci_intc 2>,
+				<0x5000 0 0 3 &pci_intc 3>,
+				<0x5000 0 0 4 &pci_intc 0>,
+				<0x5800 0 0 1 &pci_intc 2>, /* Slot 11 */
+				<0x5800 0 0 2 &pci_intc 3>,
+				<0x5800 0 0 3 &pci_intc 0>,
+				<0x5800 0 0 4 &pci_intc 1>,
+				<0x6000 0 0 1 &pci_intc 3>, /* Slot 12 */
+				<0x6000 0 0 2 &pci_intc 0>,
+				<0x6000 0 0 3 &pci_intc 1>,
+				<0x6000 0 0 4 &pci_intc 2>;
+
+			bus-range = <0x00 0xff>;
+			/* PCI ranges mappings */
+			ranges =
+			/* 1MiB I/O space 0x50000000-0x500fffff */
+			<0x01000000 0 0          0x50000000 0 0x00100000>,
+			/* 128MiB non-prefetchable memory 0x58000000-0x5fffffff */
+			<0x02000000 0 0x58000000 0x58000000 0 0x08000000>;
+
+			/* DMA ranges */
+			dma-ranges =
+			/* 128MiB at 0x00000000-0x07ffffff */
+			<0x02000000 0 0x00000000 0x00000000 0 0x08000000>,
+			/* 64MiB at 0x00000000-0x03ffffff */
+			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>,
+			/* 64MiB at 0x00000000-0x03ffffff */
+			<0x02000000 0 0x00000000 0x00000000 0 0x04000000>;
+
+			/*
+			 * This PCI host bridge variant has a cascaded interrupt
+			 * controller embedded in the host bridge.
+			 */
+			pci_intc: interrupt-controller {
+				interrupt-parent = <&intcon>;
+				interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <1>;
+			};
+		};
+
+		ethernet: ethernet@60000000 {
+			compatible = "cortina,gemini-ethernet";
+			reg = <0x60000000 0x4000>, /* Global registers, queue */
+			      <0x60004000 0x2000>, /* V-bit */
+			      <0x60006000 0x2000>; /* A-bit */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gmii_default_pins>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gmac0: ethernet-port@0 {
+				compatible = "cortina,gemini-ethernet-port";
+				reg = <0x60008000 0x2000>, /* Port 0 DMA/TOE */
+				      <0x6000a000 0x2000>; /* Port 0 GMAC */
+				interrupt-parent = <&intcon>;
+				interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon GEMINI_RESET_GMAC0>;
+				clocks = <&syscon GEMINI_CLK_GATE_GMAC0>;
+				clock-names = "PCLK";
+			};
+
+			gmac1: ethernet-port@1 {
+				compatible = "cortina,gemini-ethernet-port";
+				reg = <0x6000c000 0x2000>, /* Port 1 DMA/TOE */
+				      <0x6000e000 0x2000>; /* Port 1 GMAC */
+				interrupt-parent = <&intcon>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon GEMINI_RESET_GMAC1>;
+				clocks = <&syscon GEMINI_CLK_GATE_GMAC1>;
+				clock-names = "PCLK";
+			};
+		};
+
+		crypto: crypto@62000000 {
+			compatible = "cortina,sl3516-crypto";
+			reg = <0x62000000 0x10000>;
+			interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_SECURITY>;
+			clocks = <&syscon GEMINI_CLK_GATE_SECURITY>;
+		};
+
+		ide0: ide@63000000 {
+			compatible = "cortina,gemini-pata", "faraday,ftide010";
+			reg = <0x63000000 0x1000>;
+			interrupts = <4 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_IDE>;
+			clocks = <&syscon GEMINI_CLK_GATE_IDE>;
+			clock-names = "PCLK";
+			sata = <&sata>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		ide1: ide@63400000 {
+			compatible = "cortina,gemini-pata", "faraday,ftide010";
+			reg = <0x63400000 0x1000>;
+			interrupts = <5 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_IDE>;
+			clocks = <&syscon GEMINI_CLK_GATE_IDE>;
+			clock-names = "PCLK";
+			sata = <&sata>;
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		dma-controller@67000000 {
+			compatible = "faraday,ftdma020", "arm,pl080", "arm,primecell";
+			/* Faraday Technology FTDMAC020 variant */
+			arm,primecell-periphid = <0x0003b080>;
+			reg = <0x67000000 0x1000>;
+			interrupts = <9 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_DMAC>;
+			clocks = <&syscon GEMINI_CLK_AHB>;
+			clock-names = "apb_pclk";
+			/* Bus interface AHB1 (AHB0) is totally tilted */
+			lli-bus-interface-ahb2;
+			mem-bus-interface-ahb2;
+			memcpy-burst-size = <256>;
+			memcpy-bus-width = <32>;
+			#dma-cells = <2>;
+		};
+
+		display-controller@6a000000 {
+			compatible = "cortina,gemini-tvc", "faraday,tve200";
+			reg = <0x6a000000 0x1000>;
+			interrupts = <13 IRQ_TYPE_EDGE_RISING>;
+			resets = <&syscon GEMINI_RESET_TVC>;
+			clocks = <&syscon GEMINI_CLK_GATE_TVC>,
+				 <&syscon GEMINI_CLK_TVC>;
+			clock-names = "PCLK", "TVE";
+			pinctrl-names = "default";
+			pinctrl-0 = <&tvc_default_pins>;
+			status = "disabled";
+		};
+
+		usb0: usb@68000000 {
+			compatible = "cortina,gemini-usb", "faraday,fotg200";
+			reg = <0x68000000 0x1000>;
+			interrupts = <10 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_USB0>;
+			clocks = <&syscon GEMINI_CLK_GATE_USB0>;
+			clock-names = "PCLK";
+			/*
+			 * This will claim pins for USB0 and USB1 at the same
+			 * time as they are using some common pins. If you for
+			 * some reason have a system using USB1 at 96000000 but
+			 * NOT using USB0 at 68000000 you wll have to add the
+			 * usb_default_pins to the USB controller at 96000000
+			 * in your .dts for the board.
+			 */
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb_default_pins>;
+			/* Default to host mode */
+			dr_mode = "host";
+			syscon = <&syscon>;
+			status = "disabled";
+		};
+
+		usb1: usb@69000000 {
+			compatible = "cortina,gemini-usb", "faraday,fotg200";
+			reg = <0x69000000 0x1000>;
+			interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon GEMINI_RESET_USB1>;
+			clocks = <&syscon GEMINI_CLK_GATE_USB1>;
+			clock-names = "PCLK";
+			syscon = <&syscon>;
+			status = "disabled";
+		};
+	};
+};

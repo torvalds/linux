@@ -74,7 +74,6 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
 source mlxsw_lib.sh
-source qos_lib.sh
 
 ipaddr()
 {

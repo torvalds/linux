@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/sunxi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner platforms device tree bindings
+title: Allwinner platforms
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -305,6 +305,12 @@ properties:
           - const: allwinner,i12-tvbox
           - const: allwinner,sun7i-a20
 
+      - description: ICnova A20 ADB4006
+        items:
+          - const: incircuit,icnova-a20-adb4006
+          - const: incircuit,icnova-a20
+          - const: allwinner,sun7i-a20
+
       - description: ICNova A20 SWAC
         items:
           - const: incircuit,icnova-a20-swac
@@ -365,6 +371,12 @@ properties:
         items:
           - const: lamobo,lamobo-r1
           - const: allwinner,sun7i-a20
+
+      - description: Lctech Pi F1C200s
+        items:
+          - const: lctech,pi-f1c200s
+          - const: allwinner,suniv-f1c200s
+          - const: allwinner,suniv-f1c100s
 
       - description: Libre Computer Board ALL-H3-CC H2+
         items:
@@ -807,6 +819,13 @@ properties:
           - const: sinlinx,sina33
           - const: allwinner,sun8i-a33
 
+      - description: SourceParts PopStick v1.1
+        items:
+          - const: sourceparts,popstick-v1.1
+          - const: sourceparts,popstick
+          - const: allwinner,suniv-f1c200s
+          - const: allwinner,suniv-f1c100s
+
       - description: SL631 Action Camera with IMX179
         items:
           - const: allwinner,sl631-imx179
@@ -842,6 +861,11 @@ properties:
         items:
           - const: wexler,tab7200
           - const: allwinner,sun7i-a20
+
+      - description: MangoPi MQ-R board
+        items:
+          - const: widora,mangopi-mq-r-t113
+          - const: allwinner,sun8i-t113s
 
       - description: WITS A31 Colombus Evaluation Board
         items:

@@ -29,11 +29,10 @@
 #pragma pack(1)
 
 /*
- * 4CC signature values for the CRAT and CDIT ACPI tables
+ * 4CC signature value for the CRAT ACPI table
  */
 
 #define CRAT_SIGNATURE	"CRAT"
-#define CDIT_SIGNATURE	"CDIT"
 
 /*
  * Component Resource Association Table (CRAT)
@@ -276,7 +275,7 @@ struct crat_subtype_iolink {
 	uint32_t	maximum_bandwidth_mbs;
 	uint32_t	recommended_transfer_size;
 	uint8_t		reserved2[CRAT_IOLINK_RESERVED_LENGTH - 1];
-	uint8_t		num_hops_xgmi;
+	uint8_t		weight_xgmi;
 };
 
 /*
@@ -292,37 +291,28 @@ struct crat_subtype_generic {
 	uint32_t	flags;
 };
 
-/*
- * Component Locality Distance Information Table (CDIT)
- */
-#define CDIT_OEMID_LENGTH	6
-#define CDIT_OEMTABLEID_LENGTH	8
-
-struct cdit_header {
-	uint32_t	signature;
-	uint32_t	length;
-	uint8_t		revision;
-	uint8_t		checksum;
-	uint8_t		oem_id[CDIT_OEMID_LENGTH];
-	uint8_t		oem_table_id[CDIT_OEMTABLEID_LENGTH];
-	uint32_t	oem_revision;
-	uint32_t	creator_id;
-	uint32_t	creator_revision;
-	uint32_t	total_entries;
-	uint16_t	num_domains;
-	uint8_t		entry[1];
-};
-
 #pragma pack()
 
-struct kfd_dev;
+struct kfd_node;
+
+/* Static table to describe GPU Cache information */
+struct kfd_gpu_cache_info {
+	uint32_t	cache_size;
+	uint32_t	cache_level;
+	uint32_t	flags;
+	/* Indicates how many Compute Units share this cache
+	 * within a SA. Value = 1 indicates the cache is not shared
+	 */
+	uint32_t	num_cu_shared;
+};
+int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pcache_info);
 
 int kfd_create_crat_image_acpi(void **crat_image, size_t *size);
 void kfd_destroy_crat_image(void *crat_image);
 int kfd_parse_crat_table(void *crat_image, struct list_head *device_list,
 			 uint32_t proximity_domain);
 int kfd_create_crat_image_virtual(void **crat_image, size_t *size,
-				  int flags, struct kfd_dev *kdev,
+				  int flags, struct kfd_node *kdev,
 				  uint32_t proximity_domain);
 
 #endif /* KFD_CRAT_H_INCLUDED */

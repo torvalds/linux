@@ -76,43 +76,6 @@ void efi_handle_post_ebs_state(void)
 		      &efi_entry_state->sctlr_after_ebs);
 }
 
-static efi_guid_t screen_info_guid = LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID;
-
-struct screen_info *alloc_screen_info(void)
-{
-	struct screen_info *si;
-	efi_status_t status;
-
-	/*
-	 * Unlike on arm64, where we can directly fill out the screen_info
-	 * structure from the stub, we need to allocate a buffer to hold
-	 * its contents while we hand over to the kernel proper from the
-	 * decompressor.
-	 */
-	status = efi_bs_call(allocate_pool, EFI_RUNTIME_SERVICES_DATA,
-			     sizeof(*si), (void **)&si);
-
-	if (status != EFI_SUCCESS)
-		return NULL;
-
-	status = efi_bs_call(install_configuration_table,
-			     &screen_info_guid, si);
-	if (status == EFI_SUCCESS)
-		return si;
-
-	efi_bs_call(free_pool, si);
-	return NULL;
-}
-
-void free_screen_info(struct screen_info *si)
-{
-	if (!si)
-		return;
-
-	efi_bs_call(install_configuration_table, &screen_info_guid, NULL);
-	efi_bs_call(free_pool, si);
-}
-
 efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,

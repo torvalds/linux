@@ -11,13 +11,19 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 
+/delete-node/ &adsp_mem;
+/delete-node/ &audio_mem;
+/delete-node/ &mpss_mem;
+/delete-node/ &peripheral_region;
+/delete-node/ &rmtfs_mem;
+
 / {
 	model = "Xiaomi Mi 4C";
 	compatible = "xiaomi,libra", "qcom,msm8992";
 	chassis-type = "handset";
 
 	/* required for bootloader to select correct board */
-	qcom,msm-id = <251 0 252 0>;
+	qcom,msm-id = <251 0>, <252 0>;
 	qcom,pmic-id = <65545 65546 0 0>;
 	qcom,board-id = <12 0>;
 
@@ -70,24 +76,66 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* This is for getting crash logs using Android downstream kernels */
+		memory_hole: hole@6400000 {
+			reg = <0 0x06400000 0 0x600000>;
+			no-map;
+		};
+
+		memory_hole2: hole2@6c00000 {
+			reg = <0 0x06c00000 0 0x2400000>;
+			no-map;
+		};
+
+		mpss_mem: mpss@9000000 {
+			reg = <0 0x09000000 0 0x5a00000>;
+			no-map;
+		};
+
+		tzapp: tzapp@ea00000 {
+			reg = <0 0x0ea00000 0 0x1900000>;
+			no-map;
+		};
+
+		mdm_rfsa_mem: mdm-rfsa@ca0b0000 {
+			reg = <0 0xca0b0000 0 0x10000>;
+			no-map;
+		};
+
+		rmtfs_mem: rmtfs@ca100000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0 0xca100000 0 0x180000>;
+			no-map;
+
+			qcom,client-id = <1>;
+		};
+
+		audio_mem: audio@cb400000 {
+			reg = <0 0xcb000000 0 0x400000>;
+			no-mem;
+		};
+
+		qseecom_mem: qseecom@cb400000 {
+			reg = <0 0xcb400000 0 0x1c00000>;
+			no-mem;
+		};
+
+		adsp_rfsa_mem: adsp-rfsa@cd000000 {
+			reg = <0 0xcd000000 0 0x10000>;
+			no-map;
+		};
+
+		sensor_rfsa_mem: sensor-rfsa@cd010000 {
+			reg = <0 0xcd010000 0 0x10000>;
+			no-map;
+		};
+
 		ramoops@dfc00000 {
 			compatible = "ramoops";
-			reg = <0x0 0xdfc00000 0x0 0x40000>;
+			reg = <0 0xdfc00000 0 0x40000>;
 			console-size = <0x10000>;
 			record-size = <0x10000>;
 			ftrace-size = <0x10000>;
 			pmsg-size = <0x20000>;
-		};
-
-		modem_region: modem_region@9000000 {
-			reg = <0x0 0x9000000 0x0 0x5a00000>;
-			no-map;
-		};
-
-		tzapp: modem_region@ea00000 {
-			reg = <0x0 0xea00000 0x0 0x1900000>;
-			no-map;
 		};
 	};
 };
@@ -130,11 +178,6 @@
 	status = "okay";
 };
 
-&peripheral_region {
-	reg = <0x0 0x7400000 0x0 0x1c00000>;
-	no-map;
-};
-
 &pm8994_spmi_regulators {
 	VDD_APC0: s8 {
 		regulator-min-microvolt = <680000>;
@@ -153,7 +196,7 @@
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_l1-supply = <&pm8994_s7>;
@@ -363,7 +406,7 @@
 		pm8994_lvs2: lvs2 {};
 	};
 
-	pmi8994_regulators: pmi8994-regulators {
+	pmi8994_regulators: regulators-1 {
 		compatible = "qcom,rpm-pmi8994-regulators";
 		vdd_s1-supply = <&vph_pwr>;
 		vdd_bst_byp-supply = <&vph_pwr>;

@@ -260,7 +260,7 @@ static umode_t lan966x_hwmon_is_visible(const void *data,
 	return mode;
 }
 
-static const struct hwmon_channel_info *lan966x_hwmon_info[] = {
+static const struct hwmon_channel_info * const lan966x_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT),

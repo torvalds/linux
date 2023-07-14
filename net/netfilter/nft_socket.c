@@ -40,16 +40,17 @@ static noinline bool
 nft_sock_get_eval_cgroupv2(u32 *dest, struct sock *sk, const struct nft_pktinfo *pkt, u32 level)
 {
 	struct cgroup *cgrp;
+	u64 cgid;
 
 	if (!sk_fullsock(sk))
 		return false;
 
-	cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
-	if (level > cgrp->level)
+	cgrp = cgroup_ancestor(sock_cgroup_ptr(&sk->sk_cgrp_data), level);
+	if (!cgrp)
 		return false;
 
-	memcpy(dest, &cgrp->ancestor_ids[level], sizeof(u64));
-
+	cgid = cgroup_id(cgrp);
+	memcpy(dest, &cgid, sizeof(u64));
 	return true;
 }
 #endif
@@ -137,9 +138,9 @@ static void nft_socket_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_socket_policy[NFTA_SOCKET_MAX + 1] = {
-	[NFTA_SOCKET_KEY]		= { .type = NLA_U32 },
+	[NFTA_SOCKET_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_SOCKET_DREG]		= { .type = NLA_U32 },
-	[NFTA_SOCKET_LEVEL]		= { .type = NLA_U32 },
+	[NFTA_SOCKET_LEVEL]		= NLA_POLICY_MAX(NLA_BE32, 255),
 };
 
 static int nft_socket_init(const struct nft_ctx *ctx,
@@ -198,7 +199,7 @@ static int nft_socket_init(const struct nft_ctx *ctx,
 }
 
 static int nft_socket_dump(struct sk_buff *skb,
-			   const struct nft_expr *expr)
+			   const struct nft_expr *expr, bool reset)
 {
 	const struct nft_socket *priv = nft_expr_priv(expr);
 

@@ -13,7 +13,10 @@
 #include "test_signals_utils.h"
 #include "testcases.h"
 
-struct fake_sigframe sf;
+static union {
+	ucontext_t uc;
+	char buf[1024 * 64];
+} context;
 static unsigned int vls[SVE_VQ_MAX];
 unsigned int nvls = 0;
 
@@ -30,6 +33,10 @@ static bool sme_get_vls(struct tdescr *td)
 			return false;
 
 		vl &= PR_SME_VL_LEN_MASK;
+
+		/* Did we find the lowest supported VL? */
+		if (vq < sve_vq_from_vl(vl))
+			break;
 
 		/* Skip missing VLs */
 		vq = sve_vq_from_vl(vl);
@@ -55,8 +62,8 @@ static void setup_ssve_regs(void)
 static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 			 unsigned int vl)
 {
-	size_t resv_sz, offset;
-	struct _aarch64_ctx *head = GET_SF_RESV_HEAD(sf);
+	size_t offset;
+	struct _aarch64_ctx *head = GET_BUF_RESV_HEAD(context);
 	struct sve_context *ssve;
 	int ret;
 
@@ -73,11 +80,11 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 	 * in it.
 	 */
 	setup_ssve_regs();
-	if (!get_current_context(td, &sf.uc))
+	if (!get_current_context(td, &context.uc, sizeof(context)))
 		return 1;
 
-	resv_sz = GET_SF_RESV_SIZE(sf);
-	head = get_header(head, SVE_MAGIC, resv_sz, &offset);
+	head = get_header(head, SVE_MAGIC, GET_BUF_RESV_SIZE(context),
+			  &offset);
 	if (!head) {
 		fprintf(stderr, "No SVE context\n");
 		return 1;
@@ -86,6 +93,11 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 	ssve = (struct sve_context *)head;
 	if (ssve->vl != vl) {
 		fprintf(stderr, "Got VL %d, expected %d\n", ssve->vl, vl);
+		return 1;
+	}
+
+	if (!(ssve->flags & SVE_SIG_FLAG_SM)) {
+		fprintf(stderr, "SVE_SIG_FLAG_SM not set in SVE record\n");
 		return 1;
 	}
 
@@ -101,16 +113,6 @@ static int sme_regs(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 	int i;
 
 	for (i = 0; i < nvls; i++) {
-		/*
-		 * TODO: the signal test helpers can't currently cope
-		 * with signal frames bigger than struct sigcontext,
-		 * skip VLs that will trigger that.
-		 */
-		if (vls[i] > 64) {
-			printf("Skipping VL %u due to stack size\n", vls[i]);
-			continue;
-		}
-
 		if (do_one_sme_vl(td, si, uc, vls[i]))
 			return 1;
 	}
@@ -123,12 +125,7 @@ static int sme_regs(struct tdescr *td, siginfo_t *si, ucontext_t *uc)
 struct tdescr tde = {
 	.name = "Streaming SVE registers",
 	.descr = "Check that we get the right Streaming SVE registers reported",
-	/*
-	 * We shouldn't require FA64 but things like memset() used in the
-	 * helpers might use unsupported instructions so for now disable
-	 * the test unless we've got the full instruction set.
-	 */
-	.feats_required = FEAT_SME | FEAT_SME_FA64,
+	.feats_required = FEAT_SME,
 	.timeout = 3,
 	.init = sme_get_vls,
 	.run = sme_regs,

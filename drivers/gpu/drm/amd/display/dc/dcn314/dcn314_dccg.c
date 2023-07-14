@@ -45,6 +45,16 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+static void dccg314_trigger_dio_fifo_resync(
+	struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	uint32_t dispclk_rdivider_value = 0;
+
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_RDIVIDER, &dispclk_rdivider_value);
+	REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, dispclk_rdivider_value);
+}
+
 static void dccg314_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
@@ -96,8 +106,15 @@ static void dccg314_set_pixel_rate_div(
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	enum pixel_rate_div cur_k1 = PIXEL_RATE_DIV_NA, cur_k2 = PIXEL_RATE_DIV_NA;
 
+	// Don't program 0xF into the register field. Not valid since
+	// K1 / K2 field is only 1 / 2 bits wide
+	if (k1 == PIXEL_RATE_DIV_NA || k2 == PIXEL_RATE_DIV_NA) {
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+
 	dccg314_get_pixel_rate_div(dccg, otg_inst, &cur_k1, &cur_k2);
-	if (k1 == PIXEL_RATE_DIV_NA || k2 == PIXEL_RATE_DIV_NA || (k1 == cur_k1 && k2 == cur_k2))
+	if (k1 == cur_k1 && k2 == cur_k2)
 		return;
 
 	switch (otg_inst) {
@@ -184,7 +201,7 @@ static void dccg314_set_dtbclk_p_src(
 }
 
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
-void dccg314_set_dtbclk_dto(
+static void dccg314_set_dtbclk_dto(
 		struct dccg *dccg,
 		const struct dtbclk_dto_params *params)
 {
@@ -228,7 +245,7 @@ void dccg314_set_dtbclk_dto(
 	}
 }
 
-void dccg314_set_dpstreamclk(
+static void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		int otg_inst,
@@ -267,7 +284,33 @@ void dccg314_set_dpstreamclk(
 	}
 }
 
-void dccg314_set_valid_pixel_rate(
+static void dccg314_init(struct dccg *dccg)
+{
+	int otg_inst;
+
+	/* Set HPO stream encoder to use refclk to avoid case where PHY is
+	 * disabled and SYMCLK32 for HPO SE is sourced from PHYD32CLK which
+	 * will cause DCN to hang.
+	 */
+	for (otg_inst = 0; otg_inst < 4; otg_inst++)
+		dccg31_disable_symclk32_se(dccg, otg_inst);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
+		for (otg_inst = 0; otg_inst < 2; otg_inst++)
+			dccg31_disable_symclk32_le(dccg, otg_inst);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.dpstream)
+		for (otg_inst = 0; otg_inst < 4; otg_inst++)
+			dccg314_set_dpstreamclk(dccg, REFCLK, otg_inst,
+						otg_inst);
+
+	if (dccg->ctx->dc->debug.root_clock_optimization.bits.physymclk)
+		for (otg_inst = 0; otg_inst < 5; otg_inst++)
+			dccg31_set_physymclk(dccg, otg_inst,
+					     PHYSYMCLK_FORCE_SRC_SYMCLK, false);
+}
+
+static void dccg314_set_valid_pixel_rate(
 		struct dccg *dccg,
 		int ref_dtbclk_khz,
 		int otg_inst,
@@ -282,10 +325,38 @@ void dccg314_set_valid_pixel_rate(
 	dccg314_set_dtbclk_dto(dccg, &dto_params);
 }
 
+static void dccg314_dpp_root_clock_control(
+		struct dccg *dccg,
+		unsigned int dpp_inst,
+		bool clock_on)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	if (dccg->dpp_clock_gated[dpp_inst] != clock_on)
+		return;
+
+	if (clock_on) {
+		/* turn off the DTO and leave phase/modulo at max */
+		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_ENABLE[dpp_inst], 0);
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+			  DPPCLK0_DTO_PHASE, 0xFF,
+			  DPPCLK0_DTO_MODULO, 0xFF);
+	} else {
+		/* turn on the DTO to generate a 0hz clock */
+		REG_UPDATE(DPPCLK_DTO_CTRL, DPPCLK_DTO_ENABLE[dpp_inst], 1);
+		REG_SET_2(DPPCLK_DTO_PARAM[dpp_inst], 0,
+			  DPPCLK0_DTO_PHASE, 0,
+			  DPPCLK0_DTO_MODULO, 1);
+	}
+
+	dccg->dpp_clock_gated[dpp_inst] = !clock_on;
+}
+
 static const struct dccg_funcs dccg314_funcs = {
 	.update_dpp_dto = dccg31_update_dpp_dto,
+	.dpp_root_clock_control = dccg314_dpp_root_clock_control,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
-	.dccg_init = dccg31_init,
+	.dccg_init = dccg314_init,
 	.set_dpstreamclk = dccg314_set_dpstreamclk,
 	.enable_symclk32_se = dccg31_enable_symclk32_se,
 	.disable_symclk32_se = dccg31_disable_symclk32_se,
@@ -301,6 +372,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,
 	.set_pixel_rate_div = dccg314_set_pixel_rate_div,
+	.trigger_dio_fifo_resync = dccg314_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
 };
 

@@ -7,7 +7,7 @@
  * the syscall declarations and the _start code definition. This is the only
  * global part. On all architectures the kernel puts everything in the stack
  * before jumping to _start just above us, without any return address (_start
- * is not a function but an entry pint). So at the stack pointer we find argc.
+ * is not a function but an entry point). So at the stack pointer we find argc.
  * Then argv[] begins, and ends at the first NULL. Then we have envp which
  * starts and ends with a NULL as well. So envp=argv+argc+1.
  */
@@ -27,6 +27,10 @@
 #include "arch-mips.h"
 #elif defined(__riscv)
 #include "arch-riscv.h"
+#elif defined(__s390x__)
+#include "arch-s390.h"
+#elif defined(__loongarch__)
+#include "arch-loongarch.h"
 #endif
 
 #endif /* _NOLIBC_ARCH_H */

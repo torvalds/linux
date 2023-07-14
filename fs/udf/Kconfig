@@ -3,6 +3,7 @@ config UDF_FS
 	tristate "UDF file system support"
 	select CRC_ITU_T
 	select NLS
+	select LEGACY_DIRECT_IO
 	help
 	  This is a file system used on some CD-ROMs and DVDs. Since the
 	  file system is supported by multiple operating systems and is more

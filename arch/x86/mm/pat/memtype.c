@@ -43,6 +43,7 @@
 #include <linux/rbtree.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cacheinfo.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/x86_init.h>
@@ -60,41 +61,34 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 
-static bool __read_mostly pat_bp_initialized;
 static bool __read_mostly pat_disabled = !IS_ENABLED(CONFIG_X86_PAT);
-static bool __initdata pat_force_disabled = !IS_ENABLED(CONFIG_X86_PAT);
-static bool __read_mostly pat_bp_enabled;
-static bool __read_mostly pat_cm_initialized;
+static u64 __ro_after_init pat_msr_val;
 
 /*
  * PAT support is enabled by default, but can be disabled for
  * various user-requested or hardware-forced reasons:
  */
-void pat_disable(const char *msg_reason)
+static void __init pat_disable(const char *msg_reason)
 {
 	if (pat_disabled)
 		return;
 
-	if (pat_bp_initialized) {
-		WARN_ONCE(1, "x86/PAT: PAT cannot be disabled after initialization\n");
-		return;
-	}
-
 	pat_disabled = true;
 	pr_info("x86/PAT: %s\n", msg_reason);
+
+	memory_caching_control &= ~CACHE_PAT;
 }
 
 static int __init nopat(char *str)
 {
 	pat_disable("PAT support disabled via boot option.");
-	pat_force_disabled = true;
 	return 0;
 }
 early_param("nopat", nopat);
 
 bool pat_enabled(void)
 {
-	return pat_bp_enabled;
+	return !pat_disabled;
 }
 EXPORT_SYMBOL_GPL(pat_enabled);
 
@@ -165,10 +159,10 @@ static inline void set_page_memtype(struct page *pg,
 		break;
 	}
 
+	old_flags = READ_ONCE(pg->flags);
 	do {
-		old_flags = pg->flags;
 		new_flags = (old_flags & _PGMT_CLEAR_MASK) | memtype_flags;
-	} while (cmpxchg(&pg->flags, old_flags, new_flags) != old_flags);
+	} while (!try_cmpxchg(&pg->flags, &old_flags, new_flags));
 }
 #else
 static inline enum page_cache_mode get_page_memtype(struct page *pg)
@@ -192,7 +186,8 @@ enum {
 
 #define CM(c) (_PAGE_CACHE_MODE_ ## c)
 
-static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
+static enum page_cache_mode __init pat_get_cache_mode(unsigned int pat_val,
+						      char *msg)
 {
 	enum page_cache_mode cache;
 	char *cache_mode;
@@ -219,13 +214,11 @@ static enum page_cache_mode pat_get_cache_mode(unsigned pat_val, char *msg)
  * configuration.
  * Using lower indices is preferred, so we start with highest index.
  */
-static void __init_cache_modes(u64 pat)
+static void __init init_cache_modes(u64 pat)
 {
 	enum page_cache_mode cache;
 	char pat_msg[33];
 	int i;
-
-	WARN_ON_ONCE(pat_cm_initialized);
 
 	pat_msg[32] = 0;
 	for (i = 7; i >= 0; i--) {
@@ -234,34 +227,9 @@ static void __init_cache_modes(u64 pat)
 		update_cache_mode_entry(i, cache);
 	}
 	pr_info("x86/PAT: Configuration [0-7]: %s\n", pat_msg);
-
-	pat_cm_initialized = true;
 }
 
-#define PAT(x, y)	((u64)PAT_ ## y << ((x)*8))
-
-static void pat_bp_init(u64 pat)
-{
-	u64 tmp_pat;
-
-	if (!boot_cpu_has(X86_FEATURE_PAT)) {
-		pat_disable("PAT not supported by the CPU.");
-		return;
-	}
-
-	rdmsrl(MSR_IA32_CR_PAT, tmp_pat);
-	if (!tmp_pat) {
-		pat_disable("PAT support disabled by the firmware.");
-		return;
-	}
-
-	wrmsrl(MSR_IA32_CR_PAT, pat);
-	pat_bp_enabled = true;
-
-	__init_cache_modes(pat);
-}
-
-static void pat_ap_init(u64 pat)
+void pat_cpu_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_PAT)) {
 		/*
@@ -271,30 +239,39 @@ static void pat_ap_init(u64 pat)
 		panic("x86/PAT: PAT enabled, but not supported by secondary CPU\n");
 	}
 
-	wrmsrl(MSR_IA32_CR_PAT, pat);
+	wrmsrl(MSR_IA32_CR_PAT, pat_msr_val);
 }
 
-void __init init_cache_modes(void)
+/**
+ * pat_bp_init - Initialize the PAT MSR value and PAT table
+ *
+ * This function initializes PAT MSR value and PAT table with an OS-defined
+ * value to enable additional cache attributes, WC, WT and WP.
+ *
+ * This function prepares the calls of pat_cpu_init() via cache_cpu_init()
+ * on all CPUs.
+ */
+void __init pat_bp_init(void)
 {
-	u64 pat = 0;
+	struct cpuinfo_x86 *c = &boot_cpu_data;
+#define PAT(p0, p1, p2, p3, p4, p5, p6, p7)			\
+	(((u64)PAT_ ## p0) | ((u64)PAT_ ## p1 << 8) |		\
+	((u64)PAT_ ## p2 << 16) | ((u64)PAT_ ## p3 << 24) |	\
+	((u64)PAT_ ## p4 << 32) | ((u64)PAT_ ## p5 << 40) |	\
+	((u64)PAT_ ## p6 << 48) | ((u64)PAT_ ## p7 << 56))
 
-	if (pat_cm_initialized)
-		return;
 
-	if (boot_cpu_has(X86_FEATURE_PAT)) {
-		/*
-		 * CPU supports PAT. Set PAT table to be consistent with
-		 * PAT MSR. This case supports "nopat" boot option, and
-		 * virtual machine environments which support PAT without
-		 * MTRRs. In specific, Xen has unique setup to PAT MSR.
-		 *
-		 * If PAT MSR returns 0, it is considered invalid and emulates
-		 * as No PAT.
-		 */
-		rdmsrl(MSR_IA32_CR_PAT, pat);
-	}
+	if (!IS_ENABLED(CONFIG_X86_PAT))
+		pr_info_once("x86/PAT: PAT support disabled because CONFIG_X86_PAT is disabled in the kernel.\n");
 
-	if (!pat) {
+	if (!cpu_feature_enabled(X86_FEATURE_PAT))
+		pat_disable("PAT not supported by the CPU.");
+	else
+		rdmsrl(MSR_IA32_CR_PAT, pat_msr_val);
+
+	if (!pat_msr_val) {
+		pat_disable("PAT support disabled by the firmware.");
+
 		/*
 		 * No PAT. Emulate the PAT table that corresponds to the two
 		 * cache bits, PWT (Write Through) and PCD (Cache Disable).
@@ -313,40 +290,22 @@ void __init init_cache_modes(void)
 		 * NOTE: When WC or WP is used, it is redirected to UC- per
 		 * the default setup in __cachemode2pte_tbl[].
 		 */
-		pat = PAT(0, WB) | PAT(1, WT) | PAT(2, UC_MINUS) | PAT(3, UC) |
-		      PAT(4, WB) | PAT(5, WT) | PAT(6, UC_MINUS) | PAT(7, UC);
-	} else if (!pat_force_disabled && cpu_feature_enabled(X86_FEATURE_HYPERVISOR)) {
-		/*
-		 * Clearly PAT is enabled underneath. Allow pat_enabled() to
-		 * reflect this.
-		 */
-		pat_bp_enabled = true;
+		pat_msr_val = PAT(WB, WT, UC_MINUS, UC, WB, WT, UC_MINUS, UC);
 	}
 
-	__init_cache_modes(pat);
-}
-
-/**
- * pat_init - Initialize the PAT MSR and PAT table on the current CPU
- *
- * This function initializes PAT MSR and PAT table with an OS-defined value
- * to enable additional cache attributes, WC, WT and WP.
- *
- * This function must be called on all CPUs using the specific sequence of
- * operations defined in Intel SDM. mtrr_rendezvous_handler() provides this
- * procedure for PAT.
- */
-void pat_init(void)
-{
-	u64 pat;
-	struct cpuinfo_x86 *c = &boot_cpu_data;
-
-#ifndef CONFIG_X86_PAT
-	pr_info_once("x86/PAT: PAT support disabled because CONFIG_X86_PAT is disabled in the kernel.\n");
-#endif
-
-	if (pat_disabled)
+	/*
+	 * Xen PV doesn't allow to set PAT MSR, but all cache modes are
+	 * supported.
+	 * When running as TDX guest setting the PAT MSR won't work either
+	 * due to the requirement to set CR0.CD when doing so. Rely on
+	 * firmware to have set the PAT MSR correctly.
+	 */
+	if (pat_disabled ||
+	    cpu_feature_enabled(X86_FEATURE_XENPV) ||
+	    cpu_feature_enabled(X86_FEATURE_TDX_GUEST)) {
+		init_cache_modes(pat_msr_val);
 		return;
+	}
 
 	if ((c->x86_vendor == X86_VENDOR_INTEL) &&
 	    (((c->x86 == 0x6) && (c->x86_model <= 0xd)) ||
@@ -371,8 +330,7 @@ void pat_init(void)
 		 * NOTE: When WT or WP is used, it is redirected to UC- per
 		 * the default setup in __cachemode2pte_tbl[].
 		 */
-		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-		      PAT(4, WB) | PAT(5, WC) | PAT(6, UC_MINUS) | PAT(7, UC);
+		pat_msr_val = PAT(WB, WC, UC_MINUS, UC, WB, WC, UC_MINUS, UC);
 	} else {
 		/*
 		 * Full PAT support.  We put WT in slot 7 to improve
@@ -400,19 +358,14 @@ void pat_init(void)
 		 * The reserved slots are unused, but mapped to their
 		 * corresponding types in the presence of PAT errata.
 		 */
-		pat = PAT(0, WB) | PAT(1, WC) | PAT(2, UC_MINUS) | PAT(3, UC) |
-		      PAT(4, WB) | PAT(5, WP) | PAT(6, UC_MINUS) | PAT(7, WT);
+		pat_msr_val = PAT(WB, WC, UC_MINUS, UC, WB, WP, UC_MINUS, WT);
 	}
 
-	if (!pat_bp_initialized) {
-		pat_bp_init(pat);
-		pat_bp_initialized = true;
-	} else {
-		pat_ap_init(pat);
-	}
-}
+	memory_caching_control |= CACHE_PAT;
 
+	init_cache_modes(pat_msr_val);
 #undef PAT
+}
 
 static DEFINE_SPINLOCK(memtype_lock);	/* protects memtype accesses */
 
@@ -1046,7 +999,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 
 		ret = reserve_pfn_range(paddr, size, prot, 0);
 		if (ret == 0 && vma)
-			vma->vm_flags |= VM_PAT;
+			vm_flags_set(vma, VM_PAT);
 		return ret;
 	}
 
@@ -1092,7 +1045,7 @@ void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot, pfn_t pfn)
  * can be for the entire vma (in which case pfn, size are zero).
  */
 void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
-		 unsigned long size)
+		 unsigned long size, bool mm_wr_locked)
 {
 	resource_size_t paddr;
 	unsigned long prot;
@@ -1111,18 +1064,26 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 		size = vma->vm_end - vma->vm_start;
 	}
 	free_pfn_range(paddr, size);
-	if (vma)
-		vma->vm_flags &= ~VM_PAT;
+	if (vma) {
+		if (mm_wr_locked)
+			vm_flags_clear(vma, VM_PAT);
+		else
+			__vm_flags_mod(vma, 0, VM_PAT);
+	}
 }
 
 /*
- * untrack_pfn_moved is called, while mremapping a pfnmap for a new region,
- * with the old vma after its pfnmap page table has been removed.  The new
- * vma has a new pfnmap to the same pfn & cache type with VM_PAT set.
+ * untrack_pfn_clear is called if the following situation fits:
+ *
+ * 1) while mremapping a pfnmap for a new region,  with the old vma after
+ * its pfnmap page table has been removed.  The new vma has a new pfnmap
+ * to the same pfn & cache type with VM_PAT set.
+ * 2) while duplicating vm area, the new vma fails to copy the pgtable from
+ * old vma.
  */
-void untrack_pfn_moved(struct vm_area_struct *vma)
+void untrack_pfn_clear(struct vm_area_struct *vma)
 {
-	vma->vm_flags &= ~VM_PAT;
+	vm_flags_clear(vma, VM_PAT);
 }
 
 pgprot_t pgprot_writecombine(pgprot_t prot)

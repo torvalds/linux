@@ -15,35 +15,53 @@
 #define TRACE_SYSTEM hfi1_mmu
 
 DECLARE_EVENT_CLASS(hfi1_mmu_rb_template,
-		    TP_PROTO(unsigned long addr, unsigned long len),
-		    TP_ARGS(addr, len),
+		    TP_PROTO(struct mmu_rb_node *node),
+		    TP_ARGS(node),
 		    TP_STRUCT__entry(__field(unsigned long, addr)
 				     __field(unsigned long, len)
+				     __field(unsigned int, refcount)
 			    ),
-		    TP_fast_assign(__entry->addr = addr;
-				   __entry->len = len;
+		    TP_fast_assign(__entry->addr = node->addr;
+				   __entry->len = node->len;
+				   __entry->refcount = kref_read(&node->refcount);
 			    ),
-		    TP_printk("MMU node addr 0x%lx, len %lu",
+		    TP_printk("MMU node addr 0x%lx, len %lu, refcount %u",
 			      __entry->addr,
-			      __entry->len
+			      __entry->len,
+			      __entry->refcount
 			    )
 );
 
 DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_insert,
-	     TP_PROTO(unsigned long addr, unsigned long len),
-	     TP_ARGS(addr, len));
+	     TP_PROTO(struct mmu_rb_node *node),
+	     TP_ARGS(node));
 
-DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_search,
-	     TP_PROTO(unsigned long addr, unsigned long len),
-	     TP_ARGS(addr, len));
-
-DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_remove,
-	     TP_PROTO(unsigned long addr, unsigned long len),
-	     TP_ARGS(addr, len));
+TRACE_EVENT(hfi1_mmu_rb_search,
+	    TP_PROTO(unsigned long addr, unsigned long len),
+	    TP_ARGS(addr, len),
+	    TP_STRUCT__entry(__field(unsigned long, addr)
+			     __field(unsigned long, len)
+		    ),
+	    TP_fast_assign(__entry->addr = addr;
+			   __entry->len = len;
+		    ),
+	    TP_printk("MMU node addr 0x%lx, len %lu",
+		      __entry->addr,
+		      __entry->len
+		    )
+);
 
 DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_mem_invalidate,
-	     TP_PROTO(unsigned long addr, unsigned long len),
-	     TP_ARGS(addr, len));
+	     TP_PROTO(struct mmu_rb_node *node),
+	     TP_ARGS(node));
+
+DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_rb_evict,
+	     TP_PROTO(struct mmu_rb_node *node),
+	     TP_ARGS(node));
+
+DEFINE_EVENT(hfi1_mmu_rb_template, hfi1_mmu_release_node,
+	     TP_PROTO(struct mmu_rb_node *node),
+	     TP_ARGS(node));
 
 #endif /* __HFI1_TRACE_RC_H */
 

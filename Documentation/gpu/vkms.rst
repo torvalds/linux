@@ -118,19 +118,9 @@ Add Plane Features
 
 There's lots of plane features we could add support for:
 
-- Clearing primary plane: clear primary plane before plane composition (at the
-  start) for correctness of pixel blend ops. It also guarantees alpha channel
-  is cleared in the target buffer for stable crc. [Good to get started]
+- Add background color KMS property[Good to get started].
 
-- ARGB format on primary plane: blend the primary plane into background with
-  translucent alpha.
-
-- Support when the primary plane isn't exactly matching the output size: blend
-  the primary plane into the black background.
-
-- Full alpha blending on all planes.
-
-- Rotation, scaling.
+- Scaling.
 
 - Additional buffer formats, especially YUV formats for video like NV12.
   Low/high bpp RGB formats would also be interesting.

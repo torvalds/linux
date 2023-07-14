@@ -338,6 +338,7 @@ Currently, the following pairs of encryption modes are supported:
 - AES-128-CBC for contents and AES-128-CTS-CBC for filenames
 - Adiantum for both contents and filenames
 - AES-256-XTS for contents and AES-256-HCTR2 for filenames (v2 policies only)
+- SM4-XTS for contents and SM4-CTS-CBC for filenames (v2 policies only)
 
 If unsure, you should use the (AES-256-XTS, AES-256-CTS-CBC) pair.
 
@@ -368,6 +369,12 @@ reused within a directory.  For more details on AES-256-HCTR2, see the paper
 CONFIG_CRYPTO_HCTR2 must be enabled.  Also, fast implementations of XCTR and
 POLYVAL should be enabled, e.g. CRYPTO_POLYVAL_ARM64_CE and
 CRYPTO_AES_ARM64_CE_BLK for ARM64.
+
+SM4 is a Chinese block cipher that is an alternative to AES.  It has
+not seen as much security review as AES, and it only has a 128-bit key
+size.  It may be useful in cases where its use is mandated.
+Otherwise, it should not be used.  For SM4 support to be available, it
+also needs to be enabled in the kernel crypto API.
 
 New encryption modes can be added relatively easily, without changes
 to individual filesystems.  However, authenticated encryption (AE)
@@ -1270,8 +1277,8 @@ the file contents themselves, as described below:
 
 For the read path (->read_folio()) of regular files, filesystems can
 read the ciphertext into the page cache and decrypt it in-place.  The
-page lock must be held until decryption has finished, to prevent the
-page from becoming visible to userspace prematurely.
+folio lock must be held until decryption has finished, to prevent the
+folio from becoming visible to userspace prematurely.
 
 For the write path (->writepage()) of regular files, filesystems
 cannot encrypt data in-place in the page cache, since the cached

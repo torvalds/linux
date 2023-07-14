@@ -8,11 +8,6 @@
 #include <linux/netdevice.h>
 
 /************ NGBE_register.h ************/
-/* Vendor ID */
-#ifndef PCI_VENDOR_ID_WANGXUN
-#define PCI_VENDOR_ID_WANGXUN			0x8088
-#endif
-
 /* Device IDs */
 #define NGBE_DEV_ID_EM_WX1860AL_W		0x0100
 #define NGBE_DEV_ID_EM_WX1860A2			0x0101
@@ -46,5 +41,115 @@
 #define NGBE_NCSI_MASK				0x8000
 #define NGBE_WOL_SUP				0x4000
 #define NGBE_WOL_MASK				0x4000
+
+/**************** EM Registers ****************************/
+/* chip control Registers */
+#define NGBE_MIS_PRB_CTL			0x10010
+/* FMGR Registers */
+#define NGBE_SPI_ILDR_STATUS			0x10120
+#define NGBE_SPI_ILDR_STATUS_PERST		BIT(0) /* PCIE_PERST is done */
+#define NGBE_SPI_ILDR_STATUS_PWRRST		BIT(1) /* Power on reset is done */
+
+/* Checksum and EEPROM pointers */
+#define NGBE_CALSUM_COMMAND			0xE9
+#define NGBE_CALSUM_CAP_STATUS			0x10224
+#define NGBE_EEPROM_VERSION_STORE_REG		0x1022C
+#define NGBE_SAN_MAC_ADDR_PTR			0x18
+#define NGBE_DEVICE_CAPS			0x1C
+#define NGBE_EEPROM_VERSION_L			0x1D
+#define NGBE_EEPROM_VERSION_H			0x1E
+
+/* mdio access */
+#define NGBE_MSCA				0x11200
+#define NGBE_MSCA_RA(v)				FIELD_PREP(U16_MAX, v)
+#define NGBE_MSCA_PA(v)				FIELD_PREP(GENMASK(20, 16), v)
+#define NGBE_MSCA_DA(v)				FIELD_PREP(GENMASK(25, 21), v)
+#define NGBE_MSCC				0x11204
+#define NGBE_MSCC_CMD(v)			FIELD_PREP(GENMASK(17, 16), v)
+
+enum NGBE_MSCA_CMD_value {
+	NGBE_MSCA_CMD_RSV = 0,
+	NGBE_MSCA_CMD_WRITE,
+	NGBE_MSCA_CMD_POST_READ,
+	NGBE_MSCA_CMD_READ,
+};
+
+#define NGBE_MSCC_SADDR				BIT(18)
+#define NGBE_MSCC_BUSY				BIT(22)
+#define NGBE_MDIO_CLK(v)			FIELD_PREP(GENMASK(21, 19), v)
+
+/* Media-dependent registers. */
+#define NGBE_MDIO_CLAUSE_SELECT			0x11220
+
+/* GPIO Registers */
+#define NGBE_GPIO_DR				0x14800
+#define NGBE_GPIO_DDR				0x14804
+/*GPIO bit */
+#define NGBE_GPIO_DR_0				BIT(0) /* SDP0 Data Value */
+#define NGBE_GPIO_DR_1				BIT(1) /* SDP1 Data Value */
+#define NGBE_GPIO_DDR_0				BIT(0) /* SDP0 IO direction */
+#define NGBE_GPIO_DDR_1				BIT(1) /* SDP1 IO direction */
+
+/* Extended Interrupt Enable Set */
+#define NGBE_PX_MISC_IEN_DEV_RST		BIT(10)
+#define NGBE_PX_MISC_IEN_ETH_LK			BIT(18)
+#define NGBE_PX_MISC_IEN_INT_ERR		BIT(20)
+#define NGBE_PX_MISC_IEN_GPIO			BIT(26)
+#define NGBE_PX_MISC_IEN_MASK ( \
+				NGBE_PX_MISC_IEN_DEV_RST | \
+				NGBE_PX_MISC_IEN_ETH_LK | \
+				NGBE_PX_MISC_IEN_INT_ERR | \
+				NGBE_PX_MISC_IEN_GPIO)
+
+#define NGBE_INTR_ALL				0x1FF
+#define NGBE_INTR_MISC(A)			BIT((A)->num_q_vectors)
+
+#define NGBE_PHY_CONFIG(reg_offset)		(0x14000 + ((reg_offset) * 4))
+#define NGBE_CFG_LAN_SPEED			0x14440
+#define NGBE_CFG_PORT_ST			0x14404
+
+/* Wake up registers */
+#define NGBE_PSR_WKUP_CTL			0x15B80
+/* Wake Up Filter Control Bit */
+#define NGBE_PSR_WKUP_CTL_LNKC			BIT(0) /* Link Status Change Wakeup Enable*/
+#define NGBE_PSR_WKUP_CTL_MAG			BIT(1) /* Magic Packet Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_EX			BIT(2) /* Directed Exact Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_MC			BIT(3) /* Directed Multicast Wakeup Enable*/
+#define NGBE_PSR_WKUP_CTL_BC			BIT(4) /* Broadcast Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_ARP			BIT(5) /* ARP Request Packet Wakeup Enable*/
+#define NGBE_PSR_WKUP_CTL_IPV4			BIT(6) /* Directed IPv4 Pkt Wakeup Enable */
+#define NGBE_PSR_WKUP_CTL_IPV6			BIT(7) /* Directed IPv6 Pkt Wakeup Enable */
+
+#define NGBE_FW_EEPROM_CHECKSUM_CMD		0xE9
+#define NGBE_FW_NVM_DATA_OFFSET			3
+#define NGBE_FW_CMD_DEFAULT_CHECKSUM		0xFF /* checksum always 0xFF */
+#define NGBE_FW_CMD_ST_PASS			0x80658383
+#define NGBE_FW_CMD_ST_FAIL			0x70657376
+
+#define NGBE_MAX_FDIR_INDICES			7
+
+#define NGBE_MAX_RX_QUEUES			(NGBE_MAX_FDIR_INDICES + 1)
+#define NGBE_MAX_TX_QUEUES			(NGBE_MAX_FDIR_INDICES + 1)
+
+#define NGBE_ETH_LENGTH_OF_ADDRESS		6
+#define NGBE_MAX_MSIX_VECTORS			0x09
+#define NGBE_RAR_ENTRIES			32
+#define NGBE_RX_PB_SIZE				42
+#define NGBE_MC_TBL_SIZE			128
+#define NGBE_SP_VFT_TBL_SIZE			128
+#define NGBE_TDB_PB_SZ				(20 * 1024) /* 160KB Packet Buffer */
+
+/* TX/RX descriptor defines */
+#define NGBE_DEFAULT_TXD			512 /* default ring size */
+#define NGBE_DEFAULT_TX_WORK			256
+#define NGBE_MAX_TXD				8192
+#define NGBE_MIN_TXD				128
+
+#define NGBE_DEFAULT_RXD			512 /* default ring size */
+#define NGBE_DEFAULT_RX_WORK			256
+#define NGBE_MAX_RXD				8192
+#define NGBE_MIN_RXD				128
+
+extern char ngbe_driver_name[];
 
 #endif /* _NGBE_TYPE_H_ */

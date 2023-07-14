@@ -112,7 +112,7 @@ static int zpci_reset_aipb(u8 nisc)
 		return -EINVAL;
 
 	aift->sbv = zpci_aif_sbv;
-	aift->gait = (struct zpci_gaite *)zpci_aipb->aipb.gait;
+	aift->gait = phys_to_virt(zpci_aipb->aipb.gait);
 
 	return 0;
 }
@@ -126,7 +126,7 @@ int kvm_s390_pci_aen_init(u8 nisc)
 		return -EPERM;
 
 	mutex_lock(&aift->aift_lock);
-	aift->kzdev = kcalloc(ZPCI_NR_DEVICES, sizeof(struct kvm_zdev),
+	aift->kzdev = kcalloc(ZPCI_NR_DEVICES, sizeof(struct kvm_zdev *),
 			      GFP_KERNEL);
 	if (!aift->kzdev) {
 		rc = -ENOMEM;
@@ -427,13 +427,14 @@ static void kvm_s390_pci_dev_release(struct zpci_dev *zdev)
 
 
 /*
- * Register device with the specified KVM. If interpetation facilities are
+ * Register device with the specified KVM. If interpretation facilities are
  * available, enable them and let userspace indicate whether or not they will
  * be used (specify SHM bit to disable).
  */
 static int kvm_s390_pci_register_kvm(void *opaque, struct kvm *kvm)
 {
 	struct zpci_dev *zdev = opaque;
+	u8 status;
 	int rc;
 
 	if (!zdev)
@@ -486,7 +487,7 @@ static int kvm_s390_pci_register_kvm(void *opaque, struct kvm *kvm)
 
 	/* Re-register the IOMMU that was already created */
 	rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-				virt_to_phys(zdev->dma_table));
+				virt_to_phys(zdev->dma_table), &status);
 	if (rc)
 		goto clear_gisa;
 
@@ -516,6 +517,7 @@ static void kvm_s390_pci_unregister_kvm(void *opaque)
 {
 	struct zpci_dev *zdev = opaque;
 	struct kvm *kvm;
+	u8 status;
 
 	if (!zdev)
 		return;
@@ -554,7 +556,7 @@ static void kvm_s390_pci_unregister_kvm(void *opaque)
 
 	/* Re-register the IOMMU that was already created */
 	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-			   virt_to_phys(zdev->dma_table));
+			   virt_to_phys(zdev->dma_table), &status);
 
 out:
 	spin_lock(&kvm->arch.kzdev_list_lock);
@@ -670,7 +672,7 @@ out:
 	return r;
 }
 
-int kvm_s390_pci_init(void)
+int __init kvm_s390_pci_init(void)
 {
 	zpci_kvm_hook.kvm_register = kvm_s390_pci_register_kvm;
 	zpci_kvm_hook.kvm_unregister = kvm_s390_pci_unregister_kvm;

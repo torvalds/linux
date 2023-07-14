@@ -13,7 +13,8 @@
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/platform_device.h>
-#include <linux/qcom_scm.h>
+#include <linux/firmware/qcom/qcom_scm.h>
+#include <linux/soc/qcom/smem.h>
 #include <linux/string.h>
 #include <net/sock.h>
 
@@ -22,13 +23,17 @@
 
 #define ATH10K_QMI_CLIENT_ID		0x4b4e454c
 #define ATH10K_QMI_TIMEOUT		30
+#define SMEM_IMAGE_VERSION_TABLE       469
+#define SMEM_IMAGE_TABLE_CNSS_INDEX     13
+#define SMEM_IMAGE_VERSION_ENTRY_SIZE	128
+#define SMEM_IMAGE_VERSION_NAME_SIZE	75
 
 static int ath10k_qmi_map_msa_permission(struct ath10k_qmi *qmi,
 					 struct ath10k_msa_mem_info *mem_info)
 {
 	struct qcom_scm_vmperm dst_perms[3];
 	struct ath10k *ar = qmi->ar;
-	unsigned int src_perms;
+	u64 src_perms;
 	u32 perm_count;
 	int ret;
 
@@ -60,7 +65,7 @@ static int ath10k_qmi_unmap_msa_permission(struct ath10k_qmi *qmi,
 {
 	struct qcom_scm_vmperm dst_perms;
 	struct ath10k *ar = qmi->ar;
-	unsigned int src_perms;
+	u64 src_perms;
 	int ret;
 
 	src_perms = BIT(QCOM_SCM_VMID_MSS_MSA) | BIT(QCOM_SCM_VMID_WLAN);
@@ -536,6 +541,33 @@ int ath10k_qmi_wlan_disable(struct ath10k *ar)
 	return ath10k_qmi_mode_send_sync_msg(ar, QMI_WLFW_OFF_V01);
 }
 
+static void ath10k_qmi_add_wlan_ver_smem(struct ath10k *ar, const char *fw_build_id)
+{
+	u8 *table_ptr;
+	size_t smem_item_size;
+	const u32 smem_img_idx_wlan = SMEM_IMAGE_TABLE_CNSS_INDEX *
+				      SMEM_IMAGE_VERSION_ENTRY_SIZE;
+
+	table_ptr = qcom_smem_get(QCOM_SMEM_HOST_ANY,
+				  SMEM_IMAGE_VERSION_TABLE,
+				  &smem_item_size);
+
+	if (IS_ERR(table_ptr)) {
+		ath10k_err(ar, "smem image version table not found\n");
+		return;
+	}
+
+	if (smem_img_idx_wlan + SMEM_IMAGE_VERSION_ENTRY_SIZE >
+	    smem_item_size) {
+		ath10k_err(ar, "smem block size too small: %zu\n",
+			   smem_item_size);
+		return;
+	}
+
+	strscpy(table_ptr + smem_img_idx_wlan, fw_build_id,
+		SMEM_IMAGE_VERSION_NAME_SIZE);
+}
+
 static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 {
 	struct wlfw_cap_resp_msg_v01 *resp;
@@ -606,6 +638,9 @@ static int ath10k_qmi_cap_send_sync_msg(struct ath10k_qmi *qmi)
 			    qmi->fw_version, qmi->fw_build_timestamp, qmi->fw_build_id);
 	}
 
+	if (resp->fw_build_id_valid)
+		ath10k_qmi_add_wlan_ver_smem(ar, qmi->fw_build_id);
+
 	kfree(resp);
 	return 0;
 
@@ -618,7 +653,7 @@ static int ath10k_qmi_host_cap_send_sync(struct ath10k_qmi *qmi)
 {
 	struct wlfw_host_cap_resp_msg_v01 resp = {};
 	struct wlfw_host_cap_req_msg_v01 req = {};
-	struct qmi_elem_info *req_ei;
+	const struct qmi_elem_info *req_ei;
 	struct ath10k *ar = qmi->ar;
 	struct ath10k_snoc *ar_snoc = ath10k_snoc_priv(ar);
 	struct qmi_txn txn;
@@ -1047,8 +1082,7 @@ int ath10k_qmi_init(struct ath10k *ar, u32 msa_size)
 	if (ret)
 		goto err;
 
-	qmi->event_wq = alloc_workqueue("ath10k_qmi_driver_event",
-					WQ_UNBOUND, 1);
+	qmi->event_wq = alloc_ordered_workqueue("ath10k_qmi_driver_event", 0);
 	if (!qmi->event_wq) {
 		ath10k_err(ar, "failed to allocate workqueue\n");
 		ret = -EFAULT;

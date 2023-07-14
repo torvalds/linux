@@ -13,6 +13,7 @@ Linux Tracing Technologies
    kprobes
    kprobetrace
    uprobetracer
+   fprobetrace
    tracepoints
    events
    events-kmem
@@ -33,3 +34,4 @@ Linux Tracing Technologies
    coresight/index
    user_events
    rv/index
+   hisi-ptt

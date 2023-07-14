@@ -154,11 +154,6 @@ struct thread_struct {
 	unsigned long ra; /* kernel's a0: return address and window call size */
 	unsigned long sp; /* kernel's a1: stack pointer */
 
-	/* struct xtensa_cpuinfo info; */
-
-	unsigned long bad_vaddr; /* last user fault */
-	unsigned long bad_uaddr; /* last kernel fault accessing user space */
-	unsigned long error_code;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	struct perf_event *ptrace_bp[XCHAL_NUM_IBREAK];
 	struct perf_event *ptrace_wp[XCHAL_NUM_DBREAK];
@@ -176,10 +171,6 @@ struct thread_struct {
 {									\
 	ra:		0, 						\
 	sp:		sizeof(init_stack) + (long) &init_stack,	\
-	/*info:		{0}, */						\
-	bad_vaddr:	0,						\
-	bad_uaddr:	0,						\
-	error_code:	0,						\
 }
 
 
@@ -205,9 +196,12 @@ struct thread_struct {
 #define start_thread(regs, new_pc, new_sp) \
 	do { \
 		unsigned long syscall = (regs)->syscall; \
+		unsigned long current_aregs[16]; \
+		memcpy(current_aregs, (regs)->areg, sizeof(current_aregs)); \
 		memset((regs), 0, sizeof(*(regs))); \
 		(regs)->pc = (new_pc); \
 		(regs)->ps = USER_PS_VALUE; \
+		memcpy((regs)->areg, current_aregs, sizeof(current_aregs)); \
 		(regs)->areg[1] = (new_sp); \
 		(regs)->areg[0] = 0; \
 		(regs)->wmask = 1; \
@@ -220,9 +214,6 @@ struct thread_struct {
 /* Forward declaration */
 struct task_struct;
 struct mm_struct;
-
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while(0)
 
 extern unsigned long __get_wchan(struct task_struct *p);
 

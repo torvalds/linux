@@ -9,6 +9,7 @@ config CSKY
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_INLINE_READ_LOCK if !PREEMPTION
 	select ARCH_INLINE_READ_LOCK_BH if !PREEMPTION
 	select ARCH_INLINE_READ_LOCK_IRQ if !PREEMPTION
@@ -93,9 +94,10 @@ config CSKY
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RSEQ
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
+	select LOCK_MM_AND_FIND_VMA
 	select MAY_HAVE_SPARSE_IRQ
 	select MODULES_USE_ELF_RELA if MODULES
 	select OF
@@ -165,11 +167,6 @@ config STACKTRACE_SUPPORT
 
 config TIME_LOW_RES
 	def_bool y
-
-config CPU_TLB_SIZE
-	int
-	default "128"	if (CPU_CK610 || CPU_CK807 || CPU_CK810)
-	default "1024"	if (CPU_CK860)
 
 config CPU_ASID_BITS
 	int
@@ -269,7 +266,7 @@ menuconfig HAVE_TCM
 	bool "Tightly-Coupled/Sram Memory"
 	depends on !COMPILE_TEST
 	help
-	  The implementation are not only used by TCM (Tightly-Coupled Meory)
+	  The implementation are not only used by TCM (Tightly-Coupled Memory)
 	  but also used by sram on SOC bus. It follow existed linux tcm
 	  software interface, so that old tcm application codes could be
 	  re-used directly.
@@ -331,10 +328,6 @@ config HIGHMEM
 	depends on !CPU_CK610
 	select KMAP_LOCAL
 	default y
-
-config FORCE_MAX_ZONEORDER
-	int "Maximum zone order"
-	default "11"
 
 config DRAM_BASE
 	hex "DRAM start addr (the same with memory-section in dts)"

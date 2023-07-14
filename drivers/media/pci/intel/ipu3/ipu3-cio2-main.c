@@ -989,7 +989,7 @@ static int cio2_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 		return r;
 	}
 
-	r = media_pipeline_start(&q->vdev.entity, &q->pipe);
+	r = video_device_pipeline_start(&q->vdev, &q->pipe);
 	if (r)
 		goto fail_pipeline;
 
@@ -1009,7 +1009,7 @@ static int cio2_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 fail_csi2_subdev:
 	cio2_hw_exit(cio2, q);
 fail_hw:
-	media_pipeline_stop(&q->vdev.entity);
+	video_device_pipeline_stop(&q->vdev);
 fail_pipeline:
 	dev_dbg(dev, "failed to start streaming (%d)\n", r);
 	cio2_vb2_return_all_buffers(q, VB2_BUF_STATE_QUEUED);
@@ -1030,7 +1030,7 @@ static void cio2_vb2_stop_streaming(struct vb2_queue *vq)
 	cio2_hw_exit(cio2, q);
 	synchronize_irq(cio2->pci_dev->irq);
 	cio2_vb2_return_all_buffers(q, VB2_BUF_STATE_ERROR);
-	media_pipeline_stop(&q->vdev.entity);
+	video_device_pipeline_stop(&q->vdev);
 	pm_runtime_put(dev);
 	cio2->streaming = false;
 }
@@ -1305,6 +1305,7 @@ static int cio2_subdev_link_validate_get_format(struct media_pad *pad,
 		struct v4l2_subdev *sd =
 			media_entity_to_v4l2_subdev(pad->entity);
 
+		memset(fmt, 0, sizeof(*fmt));
 		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		fmt->pad = pad->index;
 		return v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);
@@ -1374,7 +1375,8 @@ struct sensor_async_subdev {
 	struct csi2_bus_info csi2;
 };
 
-#define to_sensor_asd(asd)	container_of(asd, struct sensor_async_subdev, asd)
+#define to_sensor_asd(__asd)	\
+	container_of_const(__asd, struct sensor_async_subdev, asd)
 
 /* The .bound() notifier callback when a match is found */
 static int cio2_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -1416,31 +1418,27 @@ static int cio2_notifier_complete(struct v4l2_async_notifier *notifier)
 	struct sensor_async_subdev *s_asd;
 	struct v4l2_async_subdev *asd;
 	struct cio2_queue *q;
-	unsigned int pad;
 	int ret;
 
 	list_for_each_entry(asd, &cio2->notifier.asd_list, asd_list) {
 		s_asd = to_sensor_asd(asd);
 		q = &cio2->queue[s_asd->csi2.port];
 
-		for (pad = 0; pad < q->sensor->entity.num_pads; pad++)
-			if (q->sensor->entity.pads[pad].flags &
-						MEDIA_PAD_FL_SOURCE)
-				break;
-
-		if (pad == q->sensor->entity.num_pads) {
-			dev_err(dev, "failed to find src pad for %s\n",
-				q->sensor->name);
-			return -ENXIO;
+		ret = media_entity_get_fwnode_pad(&q->sensor->entity,
+						  s_asd->asd.match.fwnode,
+						  MEDIA_PAD_FL_SOURCE);
+		if (ret < 0) {
+			dev_err(dev, "no pad for endpoint %pfw (%d)\n",
+				s_asd->asd.match.fwnode, ret);
+			return ret;
 		}
 
-		ret = media_create_pad_link(
-				&q->sensor->entity, pad,
-				&q->subdev.entity, CIO2_PAD_SINK,
-				0);
+		ret = media_create_pad_link(&q->sensor->entity, ret,
+					    &q->subdev.entity, CIO2_PAD_SINK,
+					    0);
 		if (ret) {
-			dev_err(dev, "failed to create link for %s\n",
-				q->sensor->name);
+			dev_err(dev, "failed to create link for %s (endpoint %pfw, error %d)\n",
+				q->sensor->name, s_asd->asd.match.fwnode, ret);
 			return ret;
 		}
 	}
@@ -1843,6 +1841,9 @@ static void cio2_pci_remove(struct pci_dev *pci_dev)
 	v4l2_device_unregister(&cio2->v4l2_dev);
 	media_device_cleanup(&cio2->media_dev);
 	mutex_destroy(&cio2->lock);
+
+	pm_runtime_forbid(&pci_dev->dev);
+	pm_runtime_get_noresume(&pci_dev->dev);
 }
 
 static int __maybe_unused cio2_runtime_suspend(struct device *dev)

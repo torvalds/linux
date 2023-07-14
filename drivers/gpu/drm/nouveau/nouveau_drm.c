@@ -28,10 +28,11 @@
 #include <linux/pm_runtime.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/mmu_notifier.h>
+#include <linux/dynamic_debug.h>
 
 #include <drm/drm_aperture.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_vblank.h>
@@ -48,7 +49,6 @@
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
-#include <nvif/cla06f.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -61,7 +61,6 @@
 #include "nouveau_bios.h"
 #include "nouveau_ioctl.h"
 #include "nouveau_abi16.h"
-#include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
 #include "nouveau_debugfs.h"
 #include "nouveau_usif.h"
@@ -69,6 +68,18 @@
 #include "nouveau_platform.h"
 #include "nouveau_svm.h"
 #include "nouveau_dmem.h"
+
+DECLARE_DYNDBG_CLASSMAP(drm_debug_classes, DD_CLASS_TYPE_DISJOINT_BITS, 0,
+			"DRM_UT_CORE",
+			"DRM_UT_DRIVER",
+			"DRM_UT_KMS",
+			"DRM_UT_PRIME",
+			"DRM_UT_ATOMIC",
+			"DRM_UT_VBL",
+			"DRM_UT_STATE",
+			"DRM_UT_LEASE",
+			"DRM_UT_DP",
+			"DRM_UT_DRMRES");
 
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
@@ -126,10 +137,16 @@ nouveau_name(struct drm_device *dev)
 static inline bool
 nouveau_cli_work_ready(struct dma_fence *fence)
 {
-	if (!dma_fence_is_signaled(fence))
-		return false;
-	dma_fence_put(fence);
-	return true;
+	bool ret = true;
+
+	spin_lock_irq(fence->lock);
+	if (!dma_fence_is_signaled_locked(fence))
+		ret = false;
+	spin_unlock_irq(fence->lock);
+
+	if (ret == true)
+		dma_fence_put(fence);
+	return ret;
 }
 
 static void
@@ -303,28 +320,19 @@ static void
 nouveau_accel_ce_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
+	u64 runm;
 	int ret = 0;
 
 	/* Allocate channel that has access to a (preferably async) copy
 	 * engine, to use for TTM buffer moves.
 	 */
-	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		ret = nouveau_channel_new(drm, device,
-					  nvif_fifo_runlist_ce(device), 0,
-					  true, &drm->cechan);
-	} else
-	if (device->info.chipset >= 0xa3 &&
-	    device->info.chipset != 0xaa &&
-	    device->info.chipset != 0xac) {
-		/* Prior to Kepler, there's only a single runlist, so all
-		 * engines can be accessed from any channel.
-		 *
-		 * We still want to use a separate channel though.
-		 */
-		ret = nouveau_channel_new(drm, device, NvDmaFB, NvDmaTT, false,
-					  &drm->cechan);
+	runm = nvif_fifo_runlist_ce(device);
+	if (!runm) {
+		NV_DEBUG(drm, "no ce runlist\n");
+		return;
 	}
 
+	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
 	if (ret)
 		NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 }
@@ -342,23 +350,17 @@ static void
 nouveau_accel_gr_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
-	u32 arg0, arg1;
+	u64 runm;
 	int ret;
 
-	if (device->info.family >= NV_DEVICE_INFO_V0_AMPERE)
-		return;
-
 	/* Allocate channel that has access to the graphics engine. */
-	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		arg0 = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
-		arg1 = 1;
-	} else {
-		arg0 = NvDmaFB;
-		arg1 = NvDmaTT;
+	runm = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
+	if (!runm) {
+		NV_DEBUG(drm, "no gr runlist\n");
+		return;
 	}
 
-	ret = nouveau_channel_new(drm, device, arg0, arg1, false,
-				  &drm->channel);
+	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_gr_fini(drm);
@@ -373,15 +375,29 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 		ret = nvif_object_ctor(&drm->channel->user, "drmNvsw",
 				       NVDRM_NVSW, nouveau_abi16_swclass(drm),
 				       NULL, 0, &drm->channel->nvsw);
+
+		if (ret == 0 && device->info.chipset >= 0x11) {
+			ret = nvif_object_ctor(&drm->channel->user, "drmBlit",
+					       0x005f, 0x009f,
+					       NULL, 0, &drm->channel->blit);
+		}
+
 		if (ret == 0) {
 			struct nvif_push *push = drm->channel->chan.push;
-			ret = PUSH_WAIT(push, 2);
-			if (ret == 0)
+			ret = PUSH_WAIT(push, 8);
+			if (ret == 0) {
+				if (device->info.chipset >= 0x11) {
+					PUSH_NVSQ(push, NV05F, 0x0000, drm->channel->blit.handle);
+					PUSH_NVSQ(push, NV09F, 0x0120, 0,
+							       0x0124, 1,
+							       0x0128, 2);
+				}
 				PUSH_NVSQ(push, NV_SW, 0x0000, drm->channel->nvsw.handle);
+			}
 		}
 
 		if (ret) {
-			NV_ERROR(drm, "failed to allocate sw class, %d\n", ret);
+			NV_ERROR(drm, "failed to allocate sw or blit class, %d\n", ret);
 			nouveau_accel_gr_fini(drm);
 			return;
 		}
@@ -423,6 +439,7 @@ nouveau_accel_fini(struct nouveau_drm *drm)
 	nouveau_accel_gr_fini(drm);
 	if (drm->fence)
 		nouveau_fence(drm)->dtor(drm);
+	nouveau_channels_fini(drm);
 }
 
 static void
@@ -472,6 +489,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		case PASCAL_CHANNEL_GPFIFO_A:
 		case VOLTA_CHANNEL_GPFIFO_A:
 		case TURING_CHANNEL_GPFIFO_A:
+		case AMPERE_CHANNEL_GPFIFO_A:
 		case AMPERE_CHANNEL_GPFIFO_B:
 			ret = nvc0_fence_create(drm);
 			break;
@@ -598,7 +616,6 @@ nouveau_drm_device_init(struct drm_device *dev)
 	nouveau_hwmon_init(dev);
 	nouveau_svm_init(drm);
 	nouveau_dmem_init(drm);
-	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
 	if (nouveau_pmops_runtime()) {
@@ -642,7 +659,6 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	}
 
 	nouveau_led_fini(dev);
-	nouveau_fbcon_fini(dev);
 	nouveau_dmem_fini(drm);
 	nouveau_svm_fini(drm);
 	nouveau_hwmon_fini(dev);
@@ -796,6 +812,11 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm_dev_init;
 
+	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
+		drm_fbdev_generic_setup(drm_dev, 8);
+	else
+		drm_fbdev_generic_setup(drm_dev, 32);
+
 	quirk_broken_nv_runpm(pdev);
 	return 0;
 
@@ -852,8 +873,6 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	nouveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_DEBUG(drm, "suspending console...\n");
-		nouveau_fbcon_set_suspend(dev, 1);
 		NV_DEBUG(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev, runtime);
 		if (ret)
@@ -927,8 +946,6 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	if (dev->mode_config.num_crtc) {
 		NV_DEBUG(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
-		NV_DEBUG(drm, "resuming console...\n");
-		nouveau_fbcon_set_suspend(dev, 0);
 	}
 
 	nouveau_led_resume(dev);
@@ -1222,13 +1239,9 @@ nouveau_driver_fops = {
 
 static struct drm_driver
 driver_stub = {
-	.driver_features =
-		DRIVER_GEM | DRIVER_MODESET | DRIVER_RENDER
-#if defined(CONFIG_NOUVEAU_LEGACY_CTX_SUPPORT)
-		| DRIVER_KMS_LEGACY_CONTEXT
-#endif
-		,
-
+	.driver_features = DRIVER_GEM |
+			   DRIVER_MODESET |
+			   DRIVER_RENDER,
 	.open = nouveau_drm_open,
 	.postclose = nouveau_drm_postclose,
 	.lastclose = nouveau_vga_lastclose,
@@ -1283,7 +1296,6 @@ static void nouveau_display_options(void)
 	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
 	DRM_DEBUG_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
 	DRM_DEBUG_DRIVER("... duallink     : %d\n", nouveau_duallink);
-	DRM_DEBUG_DRIVER("... nofbaccel    : %d\n", nouveau_nofbaccel);
 	DRM_DEBUG_DRIVER("... config       : %s\n", nouveau_config);
 	DRM_DEBUG_DRIVER("... debug        : %s\n", nouveau_debug);
 	DRM_DEBUG_DRIVER("... noaccel      : %d\n", nouveau_noaccel);

@@ -215,6 +215,7 @@ enum {
 #define DEVICE_ID_NV_143F 0x143F
 #define FAMILY_VGH 144
 #define DEVICE_ID_VGH_163F 0x163F
+#define DEVICE_ID_VGH_1435 0x1435
 #define VANGOGH_A0 0x01
 #define VANGOGH_UNKNOWN 0xFF
 
@@ -245,6 +246,7 @@ enum {
 
 #define AMDGPU_FAMILY_GC_11_0_0 145
 #define AMDGPU_FAMILY_GC_11_0_1 148
+#define AMDGPU_FAMILY_GC_11_5_0 150
 #define GC_11_0_0_A0 0x1
 #define GC_11_0_2_A0 0x10
 #define GC_11_0_3_A0 0x20

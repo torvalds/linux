@@ -102,9 +102,9 @@ static int brcm_pm_notifier(struct notifier_block *notifier,
 
 static irqreturn_t brcm_usb_phy_wake_isr(int irq, void *dev_id)
 {
-	struct phy *gphy = dev_id;
+	struct device *dev = dev_id;
 
-	pm_wakeup_event(&gphy->dev, 0);
+	pm_wakeup_event(dev, 0);
 
 	return IRQ_HANDLED;
 }
@@ -233,7 +233,7 @@ static ssize_t dr_mode_show(struct device *dev,
 	return sprintf(buf, "%s\n",
 		value_to_name(&brcm_dr_mode_to_name[0],
 			      ARRAY_SIZE(brcm_dr_mode_to_name),
-			      priv->ini.mode));
+			      priv->ini.supported_port_modes));
 }
 static DEVICE_ATTR_RO(dr_mode);
 
@@ -249,7 +249,8 @@ static ssize_t dual_select_store(struct device *dev,
 	res = name_to_value(&brcm_dual_mode_to_name[0],
 			    ARRAY_SIZE(brcm_dual_mode_to_name), buf, &value);
 	if (!res) {
-		brcm_usb_set_dual_select(&priv->ini, value);
+		priv->ini.port_mode = value;
+		brcm_usb_set_dual_select(&priv->ini);
 		res = len;
 	}
 	mutex_unlock(&sysfs_lock);
@@ -445,13 +446,13 @@ static int brcm_usb_phy_dvr_init(struct platform_device *pdev,
 		priv->suspend_clk = NULL;
 	}
 
-	priv->wake_irq = platform_get_irq_byname(pdev, "wake");
+	priv->wake_irq = platform_get_irq_byname_optional(pdev, "wake");
 	if (priv->wake_irq < 0)
-		priv->wake_irq = platform_get_irq_byname(pdev, "wakeup");
+		priv->wake_irq = platform_get_irq_byname_optional(pdev, "wakeup");
 	if (priv->wake_irq >= 0) {
 		err = devm_request_irq(dev, priv->wake_irq,
 				       brcm_usb_phy_wake_isr, 0,
-				       dev_name(dev), gphy);
+				       dev_name(dev), dev);
 		if (err < 0)
 			return err;
 		device_set_wakeup_capable(dev, 1);
@@ -495,13 +496,16 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	of_property_read_u32(dn, "brcm,ipp", &priv->ini.ipp);
 	of_property_read_u32(dn, "brcm,ioc", &priv->ini.ioc);
 
-	priv->ini.mode = USB_CTLR_MODE_HOST;
+	priv->ini.supported_port_modes = USB_CTLR_MODE_HOST;
 	err = of_property_read_string(dn, "dr_mode", &mode);
 	if (err == 0) {
 		name_to_value(&brcm_dr_mode_to_name[0],
 			      ARRAY_SIZE(brcm_dr_mode_to_name),
-			mode, &priv->ini.mode);
+			mode, &priv->ini.supported_port_modes);
 	}
+	/* Default port_mode to supported port_modes */
+	priv->ini.port_mode = priv->ini.supported_port_modes;
+
 	if (of_property_read_bool(dn, "brcm,has-xhci"))
 		priv->has_xhci = true;
 	if (of_property_read_bool(dn, "brcm,has-eohci"))
@@ -539,7 +543,7 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	 * Create sysfs entries for mode.
 	 * Remove "dual_select" attribute if not in dual mode
 	 */
-	if (priv->ini.mode != USB_CTLR_MODE_DRD)
+	if (priv->ini.supported_port_modes != USB_CTLR_MODE_DRD)
 		brcm_usb_phy_attrs[1] = NULL;
 	err = sysfs_create_group(&dev->kobj, &brcm_usb_phy_group);
 	if (err)
@@ -568,14 +572,12 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static int brcm_usb_phy_remove(struct platform_device *pdev)
+static void brcm_usb_phy_remove(struct platform_device *pdev)
 {
 	struct brcm_usb_phy_data *priv = dev_get_drvdata(&pdev->dev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &brcm_usb_phy_group);
 	unregister_pm_notifier(&priv->pm_notifier);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -598,7 +600,7 @@ static int brcm_usb_phy_suspend(struct device *dev)
 		 * and newer XHCI->2.0-clks/3.0-clks.
 		 */
 
-		if (!priv->ini.suspend_with_clocks) {
+		if (!priv->ini.wake_enabled) {
 			if (priv->phys[BRCM_USB_PHY_3_0].inited)
 				clk_disable_unprepare(priv->usb_30_clk);
 			if (priv->phys[BRCM_USB_PHY_2_0].inited ||
@@ -615,8 +617,10 @@ static int brcm_usb_phy_resume(struct device *dev)
 {
 	struct brcm_usb_phy_data *priv = dev_get_drvdata(dev);
 
-	clk_prepare_enable(priv->usb_20_clk);
-	clk_prepare_enable(priv->usb_30_clk);
+	if (!priv->ini.wake_enabled) {
+		clk_prepare_enable(priv->usb_20_clk);
+		clk_prepare_enable(priv->usb_30_clk);
+	}
 	brcm_usb_init_ipp(&priv->ini);
 
 	/*
@@ -664,7 +668,7 @@ MODULE_DEVICE_TABLE(of, brcm_usb_dt_ids);
 
 static struct platform_driver brcm_usb_driver = {
 	.probe		= brcm_usb_phy_probe,
-	.remove		= brcm_usb_phy_remove,
+	.remove_new	= brcm_usb_phy_remove,
 	.driver		= {
 		.name	= "brcmstb-usb-phy",
 		.pm = &brcm_usb_phy_pm_ops,

@@ -8,7 +8,7 @@
 #define IONIC_DEV_INFO_VERSION			1
 #define IONIC_IFNAMSIZ				16
 
-/**
+/*
  * enum ionic_cmd_opcode - Device commands
  */
 enum ionic_cmd_opcode {
@@ -54,6 +54,7 @@ enum ionic_cmd_opcode {
 	/* SR/IOV commands */
 	IONIC_CMD_VF_GETATTR			= 60,
 	IONIC_CMD_VF_SETATTR			= 61,
+	IONIC_CMD_VF_CTRL			= 62,
 
 	/* QoS commands */
 	IONIC_CMD_QOS_CLASS_IDENTIFY		= 240,
@@ -200,6 +201,7 @@ struct ionic_dev_reset_comp {
 };
 
 #define IONIC_IDENTITY_VERSION_1	1
+#define IONIC_DEV_IDENTITY_VERSION_2	2
 
 /**
  * struct ionic_dev_identify_cmd - Driver/device identify command
@@ -254,6 +256,14 @@ union ionic_drv_identity {
 };
 
 /**
+ * enum ionic_dev_capability - Device capabilities
+ * @IONIC_DEV_CAP_VF_CTRL:     Device supports VF ctrl operations
+ */
+enum ionic_dev_capability {
+	IONIC_DEV_CAP_VF_CTRL        = BIT(0),
+};
+
+/**
  * union ionic_dev_identity - device identity information
  * @version:          Version of device identify
  * @type:             Identify type (0 for now)
@@ -273,6 +283,7 @@ union ionic_drv_identity {
  * @hwstamp_mask:     Bitmask for subtraction of hardware tick values.
  * @hwstamp_mult:     Hardware tick to nanosecond multiplier.
  * @hwstamp_shift:    Hardware tick to nanosecond divisor (power of two).
+ * @capabilities:     Device capabilities
  */
 union ionic_dev_identity {
 	struct {
@@ -290,6 +301,7 @@ union ionic_dev_identity {
 		__le64 hwstamp_mask;
 		__le32 hwstamp_mult;
 		__le32 hwstamp_shift;
+		__le64 capabilities;
 	};
 	__le32 words[478];
 };
@@ -2044,6 +2056,35 @@ struct ionic_vf_getattr_comp {
 	u8     color;
 };
 
+enum ionic_vf_ctrl_opcode {
+	IONIC_VF_CTRL_START_ALL	= 0,
+	IONIC_VF_CTRL_START	= 1,
+};
+
+/**
+ * struct ionic_vf_ctrl_cmd - VF control command
+ * @opcode:         Opcode for the command
+ * @vf_index:       VF Index. It is unused if op START_ALL is used.
+ * @ctrl_opcode:    VF control operation type
+ */
+struct ionic_vf_ctrl_cmd {
+	u8	opcode;
+	u8	ctrl_opcode;
+	__le16	vf_index;
+	/* private: */
+	u8	rsvd1[60];
+};
+
+/**
+ * struct ionic_vf_ctrl_comp - VF_CTRL command completion.
+ * @status:     Status of the command (enum ionic_status_code)
+ */
+struct ionic_vf_ctrl_comp {
+	u8	status;
+	/* private: */
+	u8      rsvd[15];
+};
+
 /**
  * struct ionic_qos_identify_cmd - QoS identify command
  * @opcode:  opcode
@@ -2865,6 +2906,7 @@ union ionic_dev_cmd {
 
 	struct ionic_vf_setattr_cmd vf_setattr;
 	struct ionic_vf_getattr_cmd vf_getattr;
+	struct ionic_vf_ctrl_cmd vf_ctrl;
 
 	struct ionic_lif_identify_cmd lif_identify;
 	struct ionic_lif_init_cmd lif_init;
@@ -2903,6 +2945,7 @@ union ionic_dev_cmd_comp {
 
 	struct ionic_vf_setattr_comp vf_setattr;
 	struct ionic_vf_getattr_comp vf_getattr;
+	struct ionic_vf_ctrl_comp vf_ctrl;
 
 	struct ionic_lif_identify_comp lif_identify;
 	struct ionic_lif_init_comp lif_init;
@@ -3030,9 +3073,10 @@ union ionic_adminq_comp {
 
 #define IONIC_BARS_MAX			6
 #define IONIC_PCI_BAR_DBELL		1
+#define IONIC_PCI_BAR_CMB		2
 
-/* BAR0 */
 #define IONIC_BAR0_SIZE				0x8000
+#define IONIC_BAR2_SIZE				0x800000
 
 #define IONIC_BAR0_DEV_INFO_REGS_OFFSET		0x0000
 #define IONIC_BAR0_DEV_CMD_REGS_OFFSET		0x0800

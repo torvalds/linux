@@ -132,7 +132,7 @@ ds1685_rtc_bin2bcd(struct ds1685_priv *rtc, u8 val, u8 bin_mask, u8 bcd_mask)
 }
 
 /**
- * s1685_rtc_check_mday - check validity of the day of month.
+ * ds1685_rtc_check_mday - check validity of the day of month.
  * @rtc: pointer to the ds1685 rtc structure.
  * @mday: day of month.
  *
@@ -1322,7 +1322,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
  * ds1685_rtc_remove - removes rtc driver.
  * @pdev: pointer to platform_device structure.
  */
-static int
+static void
 ds1685_rtc_remove(struct platform_device *pdev)
 {
 	struct ds1685_priv *rtc = platform_get_drvdata(pdev);
@@ -1344,8 +1344,6 @@ ds1685_rtc_remove(struct platform_device *pdev)
 	rtc->write(rtc, RTC_EXT_CTRL_4A,
 		   (rtc->read(rtc, RTC_EXT_CTRL_4A) &
 		    ~(RTC_CTRL_4A_RWK_MASK)));
-
-	return 0;
 }
 
 /*
@@ -1356,7 +1354,7 @@ static struct platform_driver ds1685_rtc_driver = {
 		.name	= "rtc-ds1685",
 	},
 	.probe		= ds1685_rtc_probe,
-	.remove		= ds1685_rtc_remove,
+	.remove_new	= ds1685_rtc_remove,
 };
 module_platform_driver(ds1685_rtc_driver);
 /* ----------------------------------------------------------------------- */

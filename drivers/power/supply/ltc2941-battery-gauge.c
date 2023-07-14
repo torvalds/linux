@@ -439,8 +439,7 @@ static enum power_supply_property ltc294x_properties[] = {
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
-static int ltc294x_i2c_probe(struct i2c_client *client,
-	const struct i2c_device_id *id)
+static int ltc294x_i2c_probe(struct i2c_client *client)
 {
 	struct power_supply_config psy_cfg = {};
 	struct ltc294x_info *info;

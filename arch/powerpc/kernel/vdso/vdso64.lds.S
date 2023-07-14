@@ -32,7 +32,7 @@ SECTIONS
 	. = ALIGN(16);
 	.text		: {
 		*(.text .stub .text.* .gnu.linkonce.t.* __ftr_alt_*)
-		*(.sfpr .glink)
+		*(.sfpr)
 	}						:text
 	PROVIDE(__etext = .);
 	PROVIDE(_etext = .);
@@ -76,16 +76,17 @@ SECTIONS
 	_end = .;
 	PROVIDE(end = .);
 
-	STABS_DEBUG
 	DWARF_DEBUG
 	ELF_DETAILS
 
 	/DISCARD/	: {
 		*(.note.GNU-stack)
+		*(*.EMB.apuinfo)
 		*(.branch_lt)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
 		*(.opd)
+		*(.glink .iplt .plt .rela*)
 	}
 }
 

@@ -214,8 +214,7 @@ static const struct iio_info cm3323_info = {
 	.attrs		= &cm3323_attribute_group,
 };
 
-static int cm3323_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cm3323_probe(struct i2c_client *client)
 {
 	struct cm3323_data *data;
 	struct iio_dev *indio_dev;

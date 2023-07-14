@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -30,13 +30,12 @@
 #include <linux/kthread.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
+#include <linux/sched/clock.h>
 #include <linux/ctype.h>
-#include <linux/aer.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>
 #include <linux/percpu.h>
-#include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/crash_dump.h>
@@ -102,6 +101,7 @@ static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
 static DEFINE_IDR(lpfc_hba_index);
 #define LPFC_NVMET_BUF_POST 254
 static int lpfc_vmid_res_alloc(struct lpfc_hba *phba, struct lpfc_vport *vport);
+static void lpfc_cgn_update_tstamp(struct lpfc_hba *phba, struct lpfc_cgn_ts *ts);
 
 /**
  * lpfc_config_port_prep - Perform lpfc initialization prior to config port
@@ -325,8 +325,7 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	prog_id_word = pmboxq->u.mb.un.varWords[7];
 
 	/* Decode the Option rom version word to a readable string */
-	if (prg->dist < 4)
-		dist = dist_char[prg->dist];
+	dist = dist_char[prg->dist];
 
 	if ((prg->dist == 3) && (prg->num == 0))
 		snprintf(phba->OptionROMVersion, 32, "%d.%d%d",
@@ -700,6 +699,8 @@ lpfc_sli4_refresh_params(struct lpfc_hba *phba)
 		return rc;
 	}
 	mbx_sli4_parameters = &mqe->un.get_sli4_parameters.sli4_parameters;
+	phba->sli4_hba.pc_sli4_params.mi_cap =
+		bf_get(cfg_mi_ver, mbx_sli4_parameters);
 
 	/* Are we forcing MI off via module parameter? */
 	if (phba->cfg_enable_mi)
@@ -1279,7 +1280,7 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 /*
  * lpfc_idle_stat_delay_work - idle_stat tracking
  *
- * This routine tracks per-cq idle_stat and determines polling decisions.
+ * This routine tracks per-eq idle_stat and determines polling decisions.
  *
  * Return codes:
  *   None
@@ -1290,7 +1291,7 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 	struct lpfc_hba *phba = container_of(to_delayed_work(work),
 					     struct lpfc_hba,
 					     idle_stat_delay_work);
-	struct lpfc_queue *cq;
+	struct lpfc_queue *eq;
 	struct lpfc_sli4_hdw_queue *hdwq;
 	struct lpfc_idle_stat *idle_stat;
 	u32 i, idle_percent;
@@ -1306,10 +1307,10 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 
 	for_each_present_cpu(i) {
 		hdwq = &phba->sli4_hba.hdwq[phba->sli4_hba.cpu_map[i].hdwq];
-		cq = hdwq->io_cq;
+		eq = hdwq->hba_eq;
 
-		/* Skip if we've already handled this cq's primary CPU */
-		if (cq->chann != i)
+		/* Skip if we've already handled this eq's primary CPU */
+		if (eq->chann != i)
 			continue;
 
 		idle_stat = &phba->sli4_hba.idle_stat[i];
@@ -1333,9 +1334,9 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 		idle_percent = 100 - idle_percent;
 
 		if (idle_percent < 15)
-			cq->poll_mode = LPFC_QUEUE_WORK;
+			eq->poll_mode = LPFC_QUEUE_WORK;
 		else
-			cq->poll_mode = LPFC_IRQ_POLL;
+			eq->poll_mode = LPFC_THREADED_IRQ;
 
 		idle_stat->prev_idle = wall_idle;
 		idle_stat->prev_wall = wall;
@@ -2147,7 +2148,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		/* fall through for not able to recover */
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"3152 Unrecoverable error\n");
-		phba->link_state = LPFC_HBA_ERROR;
+		lpfc_sli4_offline_eratt(phba);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
@@ -2258,6 +2259,101 @@ lpfc_handle_latt_err_exit:
 	return;
 }
 
+static void
+lpfc_fill_vpd(struct lpfc_hba *phba, uint8_t *vpd, int length, int *pindex)
+{
+	int i, j;
+
+	while (length > 0) {
+		/* Look for Serial Number */
+		if ((vpd[*pindex] == 'S') && (vpd[*pindex + 1] == 'N')) {
+			*pindex += 2;
+			i = vpd[*pindex];
+			*pindex += 1;
+			j = 0;
+			length -= (3+i);
+			while (i--) {
+				phba->SerialNumber[j++] = vpd[(*pindex)++];
+				if (j == 31)
+					break;
+			}
+			phba->SerialNumber[j] = 0;
+			continue;
+		} else if ((vpd[*pindex] == 'V') && (vpd[*pindex + 1] == '1')) {
+			phba->vpd_flag |= VPD_MODEL_DESC;
+			*pindex += 2;
+			i = vpd[*pindex];
+			*pindex += 1;
+			j = 0;
+			length -= (3+i);
+			while (i--) {
+				phba->ModelDesc[j++] = vpd[(*pindex)++];
+				if (j == 255)
+					break;
+			}
+			phba->ModelDesc[j] = 0;
+			continue;
+		} else if ((vpd[*pindex] == 'V') && (vpd[*pindex + 1] == '2')) {
+			phba->vpd_flag |= VPD_MODEL_NAME;
+			*pindex += 2;
+			i = vpd[*pindex];
+			*pindex += 1;
+			j = 0;
+			length -= (3+i);
+			while (i--) {
+				phba->ModelName[j++] = vpd[(*pindex)++];
+				if (j == 79)
+					break;
+			}
+			phba->ModelName[j] = 0;
+			continue;
+		} else if ((vpd[*pindex] == 'V') && (vpd[*pindex + 1] == '3')) {
+			phba->vpd_flag |= VPD_PROGRAM_TYPE;
+			*pindex += 2;
+			i = vpd[*pindex];
+			*pindex += 1;
+			j = 0;
+			length -= (3+i);
+			while (i--) {
+				phba->ProgramType[j++] = vpd[(*pindex)++];
+				if (j == 255)
+					break;
+			}
+			phba->ProgramType[j] = 0;
+			continue;
+		} else if ((vpd[*pindex] == 'V') && (vpd[*pindex + 1] == '4')) {
+			phba->vpd_flag |= VPD_PORT;
+			*pindex += 2;
+			i = vpd[*pindex];
+			*pindex += 1;
+			j = 0;
+			length -= (3 + i);
+			while (i--) {
+				if ((phba->sli_rev == LPFC_SLI_REV4) &&
+				    (phba->sli4_hba.pport_name_sta ==
+				     LPFC_SLI4_PPNAME_GET)) {
+					j++;
+					(*pindex)++;
+				} else
+					phba->Port[j++] = vpd[(*pindex)++];
+				if (j == 19)
+					break;
+			}
+			if ((phba->sli_rev != LPFC_SLI_REV4) ||
+			    (phba->sli4_hba.pport_name_sta ==
+			     LPFC_SLI4_PPNAME_NON))
+				phba->Port[j] = 0;
+			continue;
+		} else {
+			*pindex += 2;
+			i = vpd[*pindex];
+			*pindex += 1;
+			*pindex += i;
+			length -= (3 + i);
+		}
+	}
+}
+
 /**
  * lpfc_parse_vpd - Parse VPD (Vital Product Data)
  * @phba: pointer to lpfc hba data structure.
@@ -2277,7 +2373,7 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 {
 	uint8_t lenlo, lenhi;
 	int Length;
-	int i, j;
+	int i;
 	int finished = 0;
 	int index = 0;
 
@@ -2310,101 +2406,10 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 			Length = ((((unsigned short)lenhi) << 8) + lenlo);
 			if (Length > len - index)
 				Length = len - index;
-			while (Length > 0) {
-			/* Look for Serial Number */
-			if ((vpd[index] == 'S') && (vpd[index+1] == 'N')) {
-				index += 2;
-				i = vpd[index];
-				index += 1;
-				j = 0;
-				Length -= (3+i);
-				while(i--) {
-					phba->SerialNumber[j++] = vpd[index++];
-					if (j == 31)
-						break;
-				}
-				phba->SerialNumber[j] = 0;
-				continue;
-			}
-			else if ((vpd[index] == 'V') && (vpd[index+1] == '1')) {
-				phba->vpd_flag |= VPD_MODEL_DESC;
-				index += 2;
-				i = vpd[index];
-				index += 1;
-				j = 0;
-				Length -= (3+i);
-				while(i--) {
-					phba->ModelDesc[j++] = vpd[index++];
-					if (j == 255)
-						break;
-				}
-				phba->ModelDesc[j] = 0;
-				continue;
-			}
-			else if ((vpd[index] == 'V') && (vpd[index+1] == '2')) {
-				phba->vpd_flag |= VPD_MODEL_NAME;
-				index += 2;
-				i = vpd[index];
-				index += 1;
-				j = 0;
-				Length -= (3+i);
-				while(i--) {
-					phba->ModelName[j++] = vpd[index++];
-					if (j == 79)
-						break;
-				}
-				phba->ModelName[j] = 0;
-				continue;
-			}
-			else if ((vpd[index] == 'V') && (vpd[index+1] == '3')) {
-				phba->vpd_flag |= VPD_PROGRAM_TYPE;
-				index += 2;
-				i = vpd[index];
-				index += 1;
-				j = 0;
-				Length -= (3+i);
-				while(i--) {
-					phba->ProgramType[j++] = vpd[index++];
-					if (j == 255)
-						break;
-				}
-				phba->ProgramType[j] = 0;
-				continue;
-			}
-			else if ((vpd[index] == 'V') && (vpd[index+1] == '4')) {
-				phba->vpd_flag |= VPD_PORT;
-				index += 2;
-				i = vpd[index];
-				index += 1;
-				j = 0;
-				Length -= (3+i);
-				while(i--) {
-					if ((phba->sli_rev == LPFC_SLI_REV4) &&
-					    (phba->sli4_hba.pport_name_sta ==
-					     LPFC_SLI4_PPNAME_GET)) {
-						j++;
-						index++;
-					} else
-						phba->Port[j++] = vpd[index++];
-					if (j == 19)
-						break;
-				}
-				if ((phba->sli_rev != LPFC_SLI_REV4) ||
-				    (phba->sli4_hba.pport_name_sta ==
-				     LPFC_SLI4_PPNAME_NON))
-					phba->Port[j] = 0;
-				continue;
-			}
-			else {
-				index += 2;
-				i = vpd[index];
-				index += 1;
-				index += i;
-				Length -= (3 + i);
-			}
-		}
-		finished = 0;
-		break;
+
+			lpfc_fill_vpd(phba, vpd, Length, &index);
+			finished = 0;
+			break;
 		case 0x78:
 			finished = 1;
 			break;
@@ -3193,6 +3198,7 @@ lpfc_cmf_stop(struct lpfc_hba *phba)
 			"6221 Stop CMF / Cancel Timer\n");
 
 	/* Cancel the CMF timer */
+	hrtimer_cancel(&phba->cmf_stats_timer);
 	hrtimer_cancel(&phba->cmf_timer);
 
 	/* Zero CMF counters */
@@ -3279,7 +3285,10 @@ lpfc_cmf_start(struct lpfc_hba *phba)
 
 	phba->cmf_timer_cnt = 0;
 	hrtimer_start(&phba->cmf_timer,
-		      ktime_set(0, LPFC_CMF_INTERVAL * 1000000),
+		      ktime_set(0, LPFC_CMF_INTERVAL * NSEC_PER_MSEC),
+		      HRTIMER_MODE_REL);
+	hrtimer_start(&phba->cmf_stats_timer,
+		      ktime_set(0, LPFC_SEC_MIN * NSEC_PER_SEC),
 		      HRTIMER_MODE_REL);
 	/* Setup for latency check in IO cmpl routines */
 	ktime_get_real_ts64(&phba->cmf_latency);
@@ -4353,6 +4362,7 @@ lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
 	struct lpfc_sli4_hdw_queue *qp;
 	struct lpfc_io_buf *lpfc_cmd;
 	int idx, cnt;
+	unsigned long iflags;
 
 	qp = phba->sli4_hba.hdwq;
 	cnt = 0;
@@ -4367,12 +4377,13 @@ lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
 			lpfc_cmd->hdwq_no = idx;
 			lpfc_cmd->hdwq = qp;
 			lpfc_cmd->cur_iocbq.cmd_cmpl = NULL;
-			spin_lock(&qp->io_buf_list_put_lock);
+			spin_lock_irqsave(&qp->io_buf_list_put_lock, iflags);
 			list_add_tail(&lpfc_cmd->list,
 				      &qp->lpfc_io_buf_list_put);
 			qp->put_io_bufs++;
 			qp->total_io_bufs++;
-			spin_unlock(&qp->io_buf_list_put_lock);
+			spin_unlock_irqrestore(&qp->io_buf_list_put_lock,
+					       iflags);
 		}
 	}
 	return cnt;
@@ -4614,6 +4625,17 @@ lpfc_get_wwpn(struct lpfc_hba *phba)
 		return rol64(wwn, 32);
 }
 
+static unsigned short lpfc_get_sg_tablesize(struct lpfc_hba *phba)
+{
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		if (phba->cfg_xpsgl && !phba->nvmet_support)
+			return LPFC_MAX_SG_TABLESIZE;
+		else
+			return phba->cfg_scsi_seg_cnt;
+	else
+		return phba->cfg_sg_seg_cnt;
+}
+
 /**
  * lpfc_vmid_res_alloc - Allocates resources for VMID
  * @phba: pointer to lpfc hba data structure.
@@ -4716,42 +4738,26 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	/* Seed template for SCSI host registration */
 	if (dev == &phba->pcidev->dev) {
-		template = &phba->port_template;
-
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
 			/* Seed physical port template */
-			memcpy(template, &lpfc_template, sizeof(*template));
+			template = &lpfc_template;
 
 			if (use_no_reset_hba)
 				/* template is for a no reset SCSI Host */
 				template->eh_host_reset_handler = NULL;
 
-			/* Template for all vports this physical port creates */
-			memcpy(&phba->vport_template, &lpfc_template,
-			       sizeof(*template));
-			phba->vport_template.shost_groups = lpfc_vport_groups;
-			phba->vport_template.eh_bus_reset_handler = NULL;
-			phba->vport_template.eh_host_reset_handler = NULL;
-			phba->vport_template.vendor_id = 0;
-
-			/* Initialize the host templates with updated value */
-			if (phba->sli_rev == LPFC_SLI_REV4) {
-				template->sg_tablesize = phba->cfg_scsi_seg_cnt;
-				phba->vport_template.sg_tablesize =
-					phba->cfg_scsi_seg_cnt;
-			} else {
-				template->sg_tablesize = phba->cfg_sg_seg_cnt;
-				phba->vport_template.sg_tablesize =
-					phba->cfg_sg_seg_cnt;
-			}
-
+			/* Seed updated value of sg_tablesize */
+			template->sg_tablesize = lpfc_get_sg_tablesize(phba);
 		} else {
 			/* NVMET is for physical port only */
-			memcpy(template, &lpfc_template_nvme,
-			       sizeof(*template));
+			template = &lpfc_template_nvme;
 		}
 	} else {
-		template = &phba->vport_template;
+		/* Seed vport template */
+		template = &lpfc_vport_template;
+
+		/* Seed updated value of sg_tablesize */
+		template->sg_tablesize = lpfc_get_sg_tablesize(phba);
 	}
 
 	shost = scsi_host_alloc(template, sizeof(struct lpfc_vport));
@@ -4784,11 +4790,6 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
-
-		if (phba->cfg_xpsgl && !phba->nvmet_support)
-			shost->sg_tablesize = LPFC_MAX_SG_TABLESIZE;
-		else
-			shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
 	} else
 		/* SLI-3 has a limited number of hardware queues (3),
 		 * thus there is only one for FCP processing.
@@ -4819,7 +4820,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	rc = lpfc_vmid_res_alloc(phba, vport);
 
 	if (rc)
-		goto out;
+		goto out_put_shost;
 
 	/* Initialize all internally managed lists. */
 	INIT_LIST_HEAD(&vport->fc_nodes);
@@ -4837,16 +4838,17 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
-		goto out_put_shost;
+		goto out_free_vmid;
 
 	spin_lock_irq(&phba->port_list_lock);
 	list_add_tail(&vport->listentry, &phba->port_list);
 	spin_unlock_irq(&phba->port_list_lock);
 	return vport;
 
-out_put_shost:
+out_free_vmid:
 	kfree(vport->vmid);
 	bitmap_free(vport->vmid_priority_range);
+out_put_shost:
 	scsi_host_put(shost);
 out:
 	return NULL;
@@ -5194,16 +5196,25 @@ static void
 lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 			   struct lpfc_acqe_link *acqe_link)
 {
-	switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
-	case LPFC_ASYNC_LINK_FAULT_NONE:
-	case LPFC_ASYNC_LINK_FAULT_LOCAL:
-	case LPFC_ASYNC_LINK_FAULT_REMOTE:
-	case LPFC_ASYNC_LINK_FAULT_LR_LRR:
+	switch (bf_get(lpfc_acqe_fc_la_att_type, acqe_link)) {
+	case LPFC_FC_LA_TYPE_LINK_DOWN:
+	case LPFC_FC_LA_TYPE_TRUNKING_EVENT:
+	case LPFC_FC_LA_TYPE_ACTIVATE_FAIL:
+	case LPFC_FC_LA_TYPE_LINK_RESET_PRTCL_EVT:
 		break;
 	default:
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"0398 Unknown link fault code: x%x\n",
-				bf_get(lpfc_acqe_link_fault, acqe_link));
+		switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
+		case LPFC_ASYNC_LINK_FAULT_NONE:
+		case LPFC_ASYNC_LINK_FAULT_LOCAL:
+		case LPFC_ASYNC_LINK_FAULT_REMOTE:
+		case LPFC_ASYNC_LINK_FAULT_LR_LRR:
+			break;
+		default:
+			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
+					"0398 Unknown link fault code: x%x\n",
+					bf_get(lpfc_acqe_link_fault, acqe_link));
+			break;
+		}
 		break;
 	}
 }
@@ -5497,7 +5508,7 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	bf_set(lpfc_mbx_read_top_link_spd, la,
 	       (bf_get(lpfc_acqe_link_speed, acqe_link)));
 
-	/* Fake the the following irrelvant fields */
+	/* Fake the following irrelevant fields */
 	bf_set(lpfc_mbx_read_top_topology, la, LPFC_TOPOLOGY_PT_PT);
 	bf_set(lpfc_mbx_read_top_alpa_granted, la, 0);
 	bf_set(lpfc_mbx_read_top_il, la, 0);
@@ -5569,38 +5580,12 @@ lpfc_async_link_speed_to_read_top(struct lpfc_hba *phba, uint8_t speed_code)
 void
 lpfc_cgn_dump_rxmonitor(struct lpfc_hba *phba)
 {
-	struct rxtable_entry *entry;
-	int cnt = 0, head, tail, last, start;
-
-	head = atomic_read(&phba->rxtable_idx_head);
-	tail = atomic_read(&phba->rxtable_idx_tail);
-	if (!phba->rxtable || head == tail) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT,
-				"4411 Rxtable is empty\n");
-		return;
-	}
-	last = tail;
-	start = head;
-
-	/* Display the last LPFC_MAX_RXMONITOR_DUMP entries from the rxtable */
-	while (start != last) {
-		if (start)
-			start--;
-		else
-			start = LPFC_MAX_RXMONITOR_ENTRY - 1;
-		entry = &phba->rxtable[start];
+	if (!phba->rx_monitor) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
-				"4410 %02d: MBPI %lld Xmit %lld Cmpl %lld "
-				"Lat %lld ASz %lld Info %02d BWUtil %d "
-				"Int %d slot %d\n",
-				cnt, entry->max_bytes_per_interval,
-				entry->total_bytes, entry->rcv_bytes,
-				entry->avg_io_latency, entry->avg_io_size,
-				entry->cmf_info, entry->timer_utilization,
-				entry->timer_interval, start);
-		cnt++;
-		if (cnt >= LPFC_MAX_RXMONITOR_DUMP)
-			return;
+				"4411 Rx Monitor Info is empty.\n");
+	} else {
+		lpfc_rx_monitor_report(phba, phba->rx_monitor, NULL, 0,
+				       LPFC_MAX_RXMONITOR_DUMP);
 	}
 }
 
@@ -5615,81 +5600,74 @@ void
 lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag)
 {
 	struct lpfc_cgn_info *cp;
-	struct tm broken;
-	struct timespec64 cur_time;
-	u32 cnt;
 	u32 value;
 
 	/* Make sure we have a congestion info buffer */
 	if (!phba->cgn_i)
 		return;
 	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
-	ktime_get_real_ts64(&cur_time);
-	time64_to_tm(cur_time.tv_sec, 0, &broken);
 
 	/* Update congestion statistics */
 	switch (dtag) {
 	case ELS_DTAG_LNK_INTEGRITY:
-		cnt = le32_to_cpu(cp->link_integ_notification);
-		cnt++;
-		cp->link_integ_notification = cpu_to_le32(cnt);
-
-		cp->cgn_stat_lnk_month = broken.tm_mon + 1;
-		cp->cgn_stat_lnk_day = broken.tm_mday;
-		cp->cgn_stat_lnk_year = broken.tm_year - 100;
-		cp->cgn_stat_lnk_hour = broken.tm_hour;
-		cp->cgn_stat_lnk_min = broken.tm_min;
-		cp->cgn_stat_lnk_sec = broken.tm_sec;
+		le32_add_cpu(&cp->link_integ_notification, 1);
+		lpfc_cgn_update_tstamp(phba, &cp->stat_lnk);
 		break;
 	case ELS_DTAG_DELIVERY:
-		cnt = le32_to_cpu(cp->delivery_notification);
-		cnt++;
-		cp->delivery_notification = cpu_to_le32(cnt);
-
-		cp->cgn_stat_del_month = broken.tm_mon + 1;
-		cp->cgn_stat_del_day = broken.tm_mday;
-		cp->cgn_stat_del_year = broken.tm_year - 100;
-		cp->cgn_stat_del_hour = broken.tm_hour;
-		cp->cgn_stat_del_min = broken.tm_min;
-		cp->cgn_stat_del_sec = broken.tm_sec;
+		le32_add_cpu(&cp->delivery_notification, 1);
+		lpfc_cgn_update_tstamp(phba, &cp->stat_delivery);
 		break;
 	case ELS_DTAG_PEER_CONGEST:
-		cnt = le32_to_cpu(cp->cgn_peer_notification);
-		cnt++;
-		cp->cgn_peer_notification = cpu_to_le32(cnt);
-
-		cp->cgn_stat_peer_month = broken.tm_mon + 1;
-		cp->cgn_stat_peer_day = broken.tm_mday;
-		cp->cgn_stat_peer_year = broken.tm_year - 100;
-		cp->cgn_stat_peer_hour = broken.tm_hour;
-		cp->cgn_stat_peer_min = broken.tm_min;
-		cp->cgn_stat_peer_sec = broken.tm_sec;
+		le32_add_cpu(&cp->cgn_peer_notification, 1);
+		lpfc_cgn_update_tstamp(phba, &cp->stat_peer);
 		break;
 	case ELS_DTAG_CONGESTION:
-		cnt = le32_to_cpu(cp->cgn_notification);
-		cnt++;
-		cp->cgn_notification = cpu_to_le32(cnt);
-
-		cp->cgn_stat_cgn_month = broken.tm_mon + 1;
-		cp->cgn_stat_cgn_day = broken.tm_mday;
-		cp->cgn_stat_cgn_year = broken.tm_year - 100;
-		cp->cgn_stat_cgn_hour = broken.tm_hour;
-		cp->cgn_stat_cgn_min = broken.tm_min;
-		cp->cgn_stat_cgn_sec = broken.tm_sec;
+		le32_add_cpu(&cp->cgn_notification, 1);
+		lpfc_cgn_update_tstamp(phba, &cp->stat_fpin);
 	}
 	if (phba->cgn_fpin_frequency &&
 	    phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ) {
 		value = LPFC_CGN_TIMER_TO_MIN / phba->cgn_fpin_frequency;
 		cp->cgn_stat_npm = value;
 	}
+
 	value = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
 				    LPFC_CGN_CRC32_SEED);
 	cp->cgn_info_crc = cpu_to_le32(value);
 }
 
 /**
- * lpfc_cgn_save_evt_cnt - Save data into registered congestion buffer
+ * lpfc_cgn_update_tstamp - Update cmf timestamp
  * @phba: pointer to lpfc hba data structure.
+ * @ts: structure to write the timestamp to.
+ */
+void
+lpfc_cgn_update_tstamp(struct lpfc_hba *phba, struct lpfc_cgn_ts *ts)
+{
+	struct timespec64 cur_time;
+	struct tm tm_val;
+
+	ktime_get_real_ts64(&cur_time);
+	time64_to_tm(cur_time.tv_sec, 0, &tm_val);
+
+	ts->month = tm_val.tm_mon + 1;
+	ts->day	= tm_val.tm_mday;
+	ts->year = tm_val.tm_year - 100;
+	ts->hour = tm_val.tm_hour;
+	ts->minute = tm_val.tm_min;
+	ts->second = tm_val.tm_sec;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+			"2646 Updated CMF timestamp : "
+			"%u/%u/%u %u:%u:%u\n",
+			ts->day, ts->month,
+			ts->year, ts->hour,
+			ts->minute, ts->second);
+}
+
+/**
+ * lpfc_cmf_stats_timer - Save data into registered congestion buffer
+ * @timer: Timer cookie to access lpfc private data
  *
  * Save the congestion event data every minute.
  * On the hour collapse all the minute data into hour data. Every day
@@ -5697,12 +5675,11 @@ lpfc_cgn_update_stat(struct lpfc_hba *phba, uint32_t dtag)
  * and fabrc congestion event counters that will be saved out
  * to the registered congestion buffer every minute.
  */
-static void
-lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
+static enum hrtimer_restart
+lpfc_cmf_stats_timer(struct hrtimer *timer)
 {
+	struct lpfc_hba *phba;
 	struct lpfc_cgn_info *cp;
-	struct tm broken;
-	struct timespec64 cur_time;
 	uint32_t i, index;
 	uint16_t value, mvalue;
 	uint64_t bps;
@@ -5713,21 +5690,18 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 	__le32 *lptr;
 	__le16 *mptr;
 
+	phba = container_of(timer, struct lpfc_hba, cmf_stats_timer);
 	/* Make sure we have a congestion info buffer */
 	if (!phba->cgn_i)
-		return;
+		return HRTIMER_NORESTART;
 	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
 
-	if (time_before(jiffies, phba->cgn_evt_timestamp))
-		return;
 	phba->cgn_evt_timestamp = jiffies +
 			msecs_to_jiffies(LPFC_CGN_TIMER_TO_MIN);
 	phba->cgn_evt_minute++;
 
 	/* We should get to this point in the routine on 1 minute intervals */
-
-	ktime_get_real_ts64(&cur_time);
-	time64_to_tm(cur_time.tv_sec, 0, &broken);
+	lpfc_cgn_update_tstamp(phba, &cp->base_time);
 
 	if (phba->cgn_fpin_frequency &&
 	    phba->cgn_fpin_frequency != LPFC_FPIN_INIT_FREQ) {
@@ -5880,31 +5854,6 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 			index = 0;
 		}
 
-		/* Anytime we overwrite daily index 0, after we wrap,
-		 * we will be overwriting the oldest day, so we must
-		 * update the congestion data start time for that day.
-		 * That start time should have previously been saved after
-		 * we wrote the last days worth of data.
-		 */
-		if ((phba->hba_flag & HBA_CGN_DAY_WRAP) && index == 0) {
-			time64_to_tm(phba->cgn_daily_ts.tv_sec, 0, &broken);
-
-			cp->cgn_info_month = broken.tm_mon + 1;
-			cp->cgn_info_day = broken.tm_mday;
-			cp->cgn_info_year = broken.tm_year - 100;
-			cp->cgn_info_hour = broken.tm_hour;
-			cp->cgn_info_minute = broken.tm_min;
-			cp->cgn_info_second = broken.tm_sec;
-
-			lpfc_printf_log
-				(phba, KERN_INFO, LOG_CGN_MGMT,
-				"2646 CGNInfo idx0 Start Time: "
-				"%d/%d/%d %d:%d:%d\n",
-				cp->cgn_info_day, cp->cgn_info_month,
-				cp->cgn_info_year, cp->cgn_info_hour,
-				cp->cgn_info_minute, cp->cgn_info_second);
-		}
-
 		dvalue = 0;
 		wvalue = 0;
 		lvalue = 0;
@@ -5938,15 +5887,6 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 				"2420 Congestion Info - daily (%d): "
 				"%d %d %d %d %d\n",
 				index, dvalue, wvalue, lvalue, mvalue, avalue);
-
-		/* We just wrote LPFC_MAX_CGN_DAYS of data,
-		 * so we are wrapped on any data after this.
-		 * Save this as the start time for the next day.
-		 */
-		if (index == (LPFC_MAX_CGN_DAYS - 1)) {
-			phba->hba_flag |= HBA_CGN_DAY_WRAP;
-			ktime_get_real_ts64(&phba->cgn_daily_ts);
-		}
 	}
 
 	/* Use the frequency found in the last rcv'ed FPIN */
@@ -5957,6 +5897,10 @@ lpfc_cgn_save_evt_cnt(struct lpfc_hba *phba)
 	lvalue = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ,
 				     LPFC_CGN_CRC32_SEED);
 	cp->cgn_info_crc = cpu_to_le32(lvalue);
+
+	hrtimer_forward_now(timer, ktime_set(0, LPFC_SEC_MIN * NSEC_PER_SEC));
+
+	return HRTIMER_RESTART;
 }
 
 /**
@@ -6007,9 +5951,8 @@ lpfc_cmf_timer(struct hrtimer *timer)
 {
 	struct lpfc_hba *phba = container_of(timer, struct lpfc_hba,
 					     cmf_timer);
-	struct rxtable_entry *entry;
+	struct rx_info_entry entry;
 	uint32_t io_cnt;
-	uint32_t head, tail;
 	uint32_t busy, max_read;
 	uint64_t total, rcv, lat, mbpi, extra, cnt;
 	int timer_interval = LPFC_CMF_INTERVAL;
@@ -6088,13 +6031,6 @@ lpfc_cmf_timer(struct hrtimer *timer)
 		if (ms && ms < LPFC_CMF_INTERVAL) {
 			cnt = div_u64(total, ms); /* bytes per ms */
 			cnt *= LPFC_CMF_INTERVAL; /* what total should be */
-
-			/* If the timeout is scheduled to be shorter,
-			 * this value may skew the data, so cap it at mbpi.
-			 */
-			if ((phba->hba_flag & HBA_SHORT_CMF) && cnt > mbpi)
-				cnt = mbpi;
-
 			extra = cnt - total;
 		}
 		lpfc_issue_cmf_sync_wqe(phba, LPFC_CMF_INTERVAL, total + extra);
@@ -6129,40 +6065,30 @@ lpfc_cmf_timer(struct hrtimer *timer)
 	}
 
 	/* Save rxmonitor information for debug */
-	if (phba->rxtable) {
-		head = atomic_xchg(&phba->rxtable_idx_head,
-				   LPFC_RXMONITOR_TABLE_IN_USE);
-		entry = &phba->rxtable[head];
-		entry->total_bytes = total;
-		entry->cmf_bytes = total + extra;
-		entry->rcv_bytes = rcv;
-		entry->cmf_busy = busy;
-		entry->cmf_info = phba->cmf_active_info;
+	if (phba->rx_monitor) {
+		entry.total_bytes = total;
+		entry.cmf_bytes = total + extra;
+		entry.rcv_bytes = rcv;
+		entry.cmf_busy = busy;
+		entry.cmf_info = phba->cmf_active_info;
 		if (io_cnt) {
-			entry->avg_io_latency = div_u64(lat, io_cnt);
-			entry->avg_io_size = div_u64(rcv, io_cnt);
+			entry.avg_io_latency = div_u64(lat, io_cnt);
+			entry.avg_io_size = div_u64(rcv, io_cnt);
 		} else {
-			entry->avg_io_latency = 0;
-			entry->avg_io_size = 0;
+			entry.avg_io_latency = 0;
+			entry.avg_io_size = 0;
 		}
-		entry->max_read_cnt = max_read;
-		entry->io_cnt = io_cnt;
-		entry->max_bytes_per_interval = mbpi;
+		entry.max_read_cnt = max_read;
+		entry.io_cnt = io_cnt;
+		entry.max_bytes_per_interval = mbpi;
 		if (phba->cmf_active_mode == LPFC_CFG_MANAGED)
-			entry->timer_utilization = phba->cmf_last_ts;
+			entry.timer_utilization = phba->cmf_last_ts;
 		else
-			entry->timer_utilization = ms;
-		entry->timer_interval = ms;
+			entry.timer_utilization = ms;
+		entry.timer_interval = ms;
 		phba->cmf_last_ts = 0;
 
-		/* Increment rxtable index */
-		head = (head + 1) % LPFC_MAX_RXMONITOR_ENTRY;
-		tail = atomic_read(&phba->rxtable_idx_tail);
-		if (head == tail) {
-			tail = (tail + 1) % LPFC_MAX_RXMONITOR_ENTRY;
-			atomic_set(&phba->rxtable_idx_tail, tail);
-		}
-		atomic_set(&phba->rxtable_idx_head, head);
+		lpfc_rx_monitor_record(phba->rx_monitor, &entry);
 	}
 
 	if (phba->cmf_active_mode == LPFC_CFG_MONITOR) {
@@ -6173,34 +6099,6 @@ lpfc_cmf_timer(struct hrtimer *timer)
 			atomic_inc(&phba->cgn_driver_evt_cnt);
 	}
 	phba->rx_block_cnt += div_u64(rcv, 512);  /* save 512 byte block cnt */
-
-	/* Each minute save Fabric and Driver congestion information */
-	lpfc_cgn_save_evt_cnt(phba);
-
-	phba->hba_flag &= ~HBA_SHORT_CMF;
-
-	/* Since we need to call lpfc_cgn_save_evt_cnt every minute, on the
-	 * minute, adjust our next timer interval, if needed, to ensure a
-	 * 1 minute granularity when we get the next timer interrupt.
-	 */
-	if (time_after(jiffies + msecs_to_jiffies(LPFC_CMF_INTERVAL),
-		       phba->cgn_evt_timestamp)) {
-		timer_interval = jiffies_to_msecs(phba->cgn_evt_timestamp -
-						  jiffies);
-		if (timer_interval <= 0)
-			timer_interval = LPFC_CMF_INTERVAL;
-		else
-			phba->hba_flag |= HBA_SHORT_CMF;
-
-		/* If we adjust timer_interval, max_bytes_per_interval
-		 * needs to be adjusted as well.
-		 */
-		phba->cmf_link_byte_count = div_u64(phba->cmf_max_line_rate *
-						    timer_interval, 1000);
-		if (phba->cmf_active_mode == LPFC_CFG_MONITOR)
-			phba->cmf_max_bytes_per_interval =
-				phba->cmf_link_byte_count;
-	}
 
 	/* Since total_bytes has already been zero'ed, its okay to unblock
 	 * after max_bytes_per_interval is setup.
@@ -6232,6 +6130,7 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 {
 	uint8_t port_fault = bf_get(lpfc_acqe_fc_la_trunk_linkmask, acqe_fc);
 	uint8_t err = bf_get(lpfc_acqe_fc_la_trunk_fault, acqe_fc);
+	u8 cnt = 0;
 
 	phba->sli4_hba.link_state.speed =
 		lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_FC,
@@ -6250,25 +6149,35 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port0, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
 		phba->trunk_link.link0.fault = port_fault & 0x1 ? err : 0;
+		cnt++;
 	}
 	if (bf_get(lpfc_acqe_fc_la_trunk_config_port1, acqe_fc)) {
 		phba->trunk_link.link1.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port1, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
 		phba->trunk_link.link1.fault = port_fault & 0x2 ? err : 0;
+		cnt++;
 	}
 	if (bf_get(lpfc_acqe_fc_la_trunk_config_port2, acqe_fc)) {
 		phba->trunk_link.link2.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port2, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
 		phba->trunk_link.link2.fault = port_fault & 0x4 ? err : 0;
+		cnt++;
 	}
 	if (bf_get(lpfc_acqe_fc_la_trunk_config_port3, acqe_fc)) {
 		phba->trunk_link.link3.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port3, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
 		phba->trunk_link.link3.fault = port_fault & 0x8 ? err : 0;
+		cnt++;
 	}
+
+	if (cnt)
+		phba->trunk_link.phy_lnk_speed =
+			phba->sli4_hba.link_state.logical_speed / (cnt * 1000);
+	else
+		phba->trunk_link.phy_lnk_speed = LPFC_LINK_SPEED_UNKNOWN;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 			"2910 Async FC Trunking Event - Speed:%d\n"
@@ -6312,6 +6221,7 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 	LPFC_MBOXQ_t *pmb;
 	MAILBOX_t *mb;
 	struct lpfc_mbx_read_top *la;
+	char *log_level;
 	int rc;
 
 	if (bf_get(lpfc_trailer_type, acqe_fc) !=
@@ -6343,25 +6253,70 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				bf_get(lpfc_acqe_fc_la_port_number, acqe_fc);
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_fc);
+	phba->sli4_hba.link_state.link_status =
+				bf_get(lpfc_acqe_fc_la_link_status, acqe_fc);
 
-	if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
-	    LPFC_FC_LA_TYPE_LINK_DOWN)
-		phba->sli4_hba.link_state.logical_speed = 0;
-	else if	(!phba->sli4_hba.conf_trunk)
-		phba->sli4_hba.link_state.logical_speed =
+	/*
+	 * Only select attention types need logical speed modification to what
+	 * was previously set.
+	 */
+	if (phba->sli4_hba.link_state.status >= LPFC_FC_LA_TYPE_LINK_UP &&
+	    phba->sli4_hba.link_state.status < LPFC_FC_LA_TYPE_ACTIVATE_FAIL) {
+		if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
+		    LPFC_FC_LA_TYPE_LINK_DOWN)
+			phba->sli4_hba.link_state.logical_speed = 0;
+		else if (!phba->sli4_hba.conf_trunk)
+			phba->sli4_hba.link_state.logical_speed =
 				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
+	}
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
 			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
-			"%dMbps Fault:%d\n",
+			"%dMbps Fault:x%x Link Status:x%x\n",
 			phba->sli4_hba.link_state.speed,
 			phba->sli4_hba.link_state.topology,
 			phba->sli4_hba.link_state.status,
 			phba->sli4_hba.link_state.type,
 			phba->sli4_hba.link_state.number,
 			phba->sli4_hba.link_state.logical_speed,
-			phba->sli4_hba.link_state.fault);
+			phba->sli4_hba.link_state.fault,
+			phba->sli4_hba.link_state.link_status);
+
+	/*
+	 * The following attention types are informational only, providing
+	 * further details about link status.  Overwrite the value of
+	 * link_state.status appropriately.  No further action is required.
+	 */
+	if (phba->sli4_hba.link_state.status >= LPFC_FC_LA_TYPE_ACTIVATE_FAIL) {
+		switch (phba->sli4_hba.link_state.status) {
+		case LPFC_FC_LA_TYPE_ACTIVATE_FAIL:
+			log_level = KERN_WARNING;
+			phba->sli4_hba.link_state.status =
+					LPFC_FC_LA_TYPE_LINK_DOWN;
+			break;
+		case LPFC_FC_LA_TYPE_LINK_RESET_PRTCL_EVT:
+			/*
+			 * During bb credit recovery establishment, receiving
+			 * this attention type is normal.  Link Up attention
+			 * type is expected to occur before this informational
+			 * attention type so keep the Link Up status.
+			 */
+			log_level = KERN_INFO;
+			phba->sli4_hba.link_state.status =
+					LPFC_FC_LA_TYPE_LINK_UP;
+			break;
+		default:
+			log_level = KERN_INFO;
+			break;
+		}
+		lpfc_log_msg(phba, log_level, LOG_SLI,
+			     "2992 Async FC event - Informational Link "
+			     "Attention Type x%x\n",
+			     bf_get(lpfc_acqe_fc_la_att_type, acqe_fc));
+		return;
+	}
+
 	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -6465,7 +6420,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			"2901 Async SLI event - Type:%d, Event Data: x%08x "
 			"x%08x x%08x x%08x\n", evt_type,
 			acqe_sli->event_data1, acqe_sli->event_data2,
-			acqe_sli->reserved, acqe_sli->trailer);
+			acqe_sli->event_data3, acqe_sli->trailer);
 
 	port_name = phba->Port[0];
 	if (port_name == 0x00)
@@ -6494,7 +6449,7 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 		temp_event_data.event_code = LPFC_NORMAL_TEMP;
 		temp_event_data.data = (uint32_t)acqe_sli->event_data1;
 
-		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI | LOG_LDS_EVENT,
 				"3191 Normal Temperature:%d Celsius - Port Name %c\n",
 				acqe_sli->event_data1, port_name);
 
@@ -6671,6 +6626,15 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				atomic_add(cnt, &phba->cgn_sync_warn_cnt);
 			}
 		}
+		break;
+	case LPFC_SLI_EVENT_TYPE_RD_SIGNAL:
+		/* May be accompanied by a temperature event */
+		lpfc_printf_log(phba, KERN_INFO,
+				LOG_SLI | LOG_LINK_EVENT | LOG_LDS_EVENT,
+				"2902 Remote Degrade Signaling: x%08x x%08x "
+				"x%08x\n",
+				acqe_sli->event_data1, acqe_sli->event_data2,
+				acqe_sli->event_data3);
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
@@ -7085,6 +7049,12 @@ lpfc_cgn_params_val(struct lpfc_hba *phba, struct lpfc_cgn_param *p_cfg_param)
 	spin_unlock_irq(&phba->hbalock);
 }
 
+static const char * const lpfc_cmf_mode_to_str[] = {
+	"OFF",
+	"MANAGED",
+	"MONITOR",
+};
+
 /**
  * lpfc_cgn_params_parse - Process a FW cong parm change event
  * @phba: pointer to lpfc hba data structure.
@@ -7104,6 +7074,7 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 {
 	struct lpfc_cgn_info *cp;
 	uint32_t crc, oldmode;
+	char acr_string[4] = {0};
 
 	/* Make sure the FW has encoded the correct magic number to
 	 * validate the congestion parameter in FW memory.
@@ -7180,9 +7151,6 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 					lpfc_issue_els_edc(phba->pport, 0);
 				break;
 			case LPFC_CFG_MONITOR:
-				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
-						"4661 Switch from MANAGED to "
-						"`MONITOR mode\n");
 				phba->cmf_max_bytes_per_interval =
 					phba->cmf_link_byte_count;
 
@@ -7201,13 +7169,25 @@ lpfc_cgn_params_parse(struct lpfc_hba *phba,
 					lpfc_issue_els_edc(phba->pport, 0);
 				break;
 			case LPFC_CFG_MANAGED:
-				lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
-						"4662 Switch from MONITOR to "
-						"MANAGED mode\n");
 				lpfc_cmf_signal_init(phba);
 				break;
 			}
 			break;
+		}
+		if (oldmode != LPFC_CFG_OFF ||
+		    oldmode != phba->cgn_p.cgn_param_mode) {
+			if (phba->cgn_p.cgn_param_mode == LPFC_CFG_MANAGED)
+				scnprintf(acr_string, sizeof(acr_string), "%u",
+					  phba->cgn_p.cgn_param_level0);
+			else
+				scnprintf(acr_string, sizeof(acr_string), "NA");
+
+			dev_info(&phba->pcidev->dev, "%d: "
+				 "4663 CMF: Mode %s acr %s\n",
+				 phba->brd_no,
+				 lpfc_cmf_mode_to_str
+				 [phba->cgn_p.cgn_param_mode],
+				 acr_string);
 		}
 	} else {
 		lpfc_printf_log(phba, KERN_ERR, LOG_CGN_MGMT | LOG_INIT,
@@ -7241,6 +7221,8 @@ lpfc_sli4_cgn_params_read(struct lpfc_hba *phba)
 	/* Find out if the FW has a new set of congestion parameters. */
 	len = sizeof(struct lpfc_cgn_param);
 	pdata = kzalloc(len, GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
 	ret = lpfc_read_object(phba, (char *)LPFC_PORT_CFG_NAME,
 			       pdata, len);
 
@@ -7963,6 +7945,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/* CMF congestion timer */
 	hrtimer_init(&phba->cmf_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	phba->cmf_timer.function = lpfc_cmf_timer;
+	/* CMF 1 minute stats collection timer */
+	hrtimer_init(&phba->cmf_stats_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	phba->cmf_stats_timer.function = lpfc_cmf_stats_timer;
 
 	/*
 	 * Control structure for handling external multi-buffer mailbox
@@ -8315,8 +8300,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 					&phba->pcidev->dev,
 					phba->cfg_sg_dma_buf_size,
 					i, 0);
-	if (!phba->lpfc_sg_dma_buf_pool)
+	if (!phba->lpfc_sg_dma_buf_pool) {
+		rc = -ENOMEM;
 		goto out_free_bsmbx;
+	}
 
 	phba->lpfc_cmd_rsp_buf_pool =
 			dma_pool_create("lpfc_cmd_rsp_buf_pool",
@@ -8324,8 +8311,10 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 					sizeof(struct fcp_cmnd) +
 					sizeof(struct fcp_rsp),
 					i, 0);
-	if (!phba->lpfc_cmd_rsp_buf_pool)
+	if (!phba->lpfc_cmd_rsp_buf_pool) {
+		rc = -ENOMEM;
 		goto out_free_sg_dma_buf;
+	}
 
 	mempool_free(mboxq, phba->mbox_mem_pool);
 
@@ -9513,8 +9502,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			/* Final checks.  The port status should be clean. */
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&reg_data.word0) ||
-				(bf_get(lpfc_sliport_status_err, &reg_data) &&
-				 !bf_get(lpfc_sliport_status_rn, &reg_data))) {
+				lpfc_sli4_unrecoverable_port(&reg_data)) {
 				phba->work_status[0] =
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR1regaddr);
@@ -10096,17 +10084,15 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		qmin = phba->sli4_hba.max_cfg_param.max_wq;
 		if (phba->sli4_hba.max_cfg_param.max_cq < qmin)
 			qmin = phba->sli4_hba.max_cfg_param.max_cq;
-		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
-			qmin = phba->sli4_hba.max_cfg_param.max_eq;
 		/*
-		 * Whats left after this can go toward NVME / FCP.
-		 * The minus 4 accounts for ELS, NVME LS, MBOX
-		 * plus one extra. When configured for
-		 * NVMET, FCP io channel WQs are not created.
+		 * Reserve 4 (ELS, NVME LS, MBOX, plus one extra) and
+		 * the remainder can be used for NVME / FCP.
 		 */
 		qmin -= 4;
+		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_eq;
 
-		/* Check to see if there is enough for NVME */
+		/* Check to see if there is enough for default cfg */
 		if ((phba->cfg_irq_chann > qmin) ||
 		    (phba->cfg_hdw_queue > qmin)) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -11972,7 +11958,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 				goto out_iounmap_all;
 		} else {
 			error = -ENOMEM;
-			goto out_iounmap_all;
+			goto out_iounmap_ctrl;
 		}
 	}
 
@@ -11990,7 +11976,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			dev_err(&pdev->dev,
 			   "ioremap failed for SLI4 HBA dpp registers.\n");
 			error = -ENOMEM;
-			goto out_iounmap_ctrl;
+			goto out_iounmap_all;
 		}
 		phba->pci_bar4_memmap_p = phba->sli4_hba.dpp_regs_memmap_p;
 	}
@@ -12015,9 +12001,11 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	return 0;
 
 out_iounmap_all:
-	iounmap(phba->sli4_hba.drbl_regs_memmap_p);
+	if (phba->sli4_hba.drbl_regs_memmap_p)
+		iounmap(phba->sli4_hba.drbl_regs_memmap_p);
 out_iounmap_ctrl:
-	iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
+	if (phba->sli4_hba.ctrl_regs_memmap_p)
+		iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
 out_iounmap_conf:
 	iounmap(phba->sli4_hba.conf_regs_memmap_p);
 
@@ -12053,6 +12041,7 @@ lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
 			iounmap(phba->sli4_hba.dpp_regs_memmap_p);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
+		break;
 	default:
 		dev_printk(KERN_ERR, &phba->pcidev->dev,
 			   "FATAL - unsupported SLI4 interface type - %d\n",
@@ -12416,7 +12405,7 @@ lpfc_hba_eq_hdl_array_init(struct lpfc_hba *phba)
 
 	for (i = 0; i < phba->cfg_irq_chann; i++) {
 		eqhdl = lpfc_get_eq_hdl(i);
-		eqhdl->irq = LPFC_VECTOR_MAP_EMPTY;
+		eqhdl->irq = LPFC_IRQ_EMPTY;
 		eqhdl->phba = phba;
 	}
 }
@@ -12497,7 +12486,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 			/* Mark CPU as IRQ not assigned by the kernel */
 			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
 
-			/* If so, find a new_cpup thats on the the SAME
+			/* If so, find a new_cpup that is on the SAME
 			 * phys_id as cpup. start_cpu will start where we
 			 * left off so all unassigned entries don't get assgined
 			 * the IRQ of the first entry.
@@ -12511,7 +12500,7 @@ lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 					goto found_same;
 				new_cpu = cpumask_next(
 					new_cpu, cpu_present_mask);
-				if (new_cpu == nr_cpumask_bits)
+				if (new_cpu >= nr_cpu_ids)
 					new_cpu = first_cpu;
 			}
 			/* At this point, we leave the CPU as unassigned */
@@ -12525,7 +12514,7 @@ found_same:
 			 * selecting the same IRQ.
 			 */
 			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu == nr_cpumask_bits)
+			if (start_cpu >= nr_cpu_ids)
 				start_cpu = first_cpu;
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -12561,7 +12550,7 @@ found_same:
 					goto found_any;
 				new_cpu = cpumask_next(
 					new_cpu, cpu_present_mask);
-				if (new_cpu == nr_cpumask_bits)
+				if (new_cpu >= nr_cpu_ids)
 					new_cpu = first_cpu;
 			}
 			/* We should never leave an entry unassigned */
@@ -12579,7 +12568,7 @@ found_any:
 			 * selecting the same IRQ.
 			 */
 			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (start_cpu == nr_cpumask_bits)
+			if (start_cpu >= nr_cpu_ids)
 				start_cpu = first_cpu;
 
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -12652,7 +12641,7 @@ found_any:
 				goto found_hdwq;
 			}
 			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (new_cpu == nr_cpumask_bits)
+			if (new_cpu >= nr_cpu_ids)
 				new_cpu = first_cpu;
 		}
 
@@ -12667,7 +12656,7 @@ found_any:
 				goto found_hdwq;
 
 			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
-			if (new_cpu == nr_cpumask_bits)
+			if (new_cpu >= nr_cpu_ids)
 				new_cpu = first_cpu;
 		}
 
@@ -12678,7 +12667,7 @@ found_any:
  found_hdwq:
 		/* We found an available entry, copy the IRQ info */
 		start_cpu = cpumask_next(new_cpu, cpu_present_mask);
-		if (start_cpu == nr_cpumask_bits)
+		if (start_cpu >= nr_cpu_ids)
 			start_cpu = first_cpu;
 		cpup->hdwq = new_cpup->hdwq;
  logit:
@@ -12789,7 +12778,7 @@ static void __lpfc_cpuhp_remove(struct lpfc_hba *phba)
 
 static void lpfc_cpuhp_remove(struct lpfc_hba *phba)
 {
-	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+	if (phba->pport && (phba->pport->fc_flag & FC_OFFLINE_MODE))
 		return;
 
 	__lpfc_cpuhp_remove(phba);
@@ -13053,17 +13042,25 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 			 LPFC_DRIVER_HANDLER_NAME"%d", index);
 
 		eqhdl->idx = index;
-		rc = request_irq(pci_irq_vector(phba->pcidev, index),
-			 &lpfc_sli4_hba_intr_handler, 0,
-			 name, eqhdl);
+		rc = pci_irq_vector(phba->pcidev, index);
+		if (rc < 0) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"0489 MSI-X fast-path (%d) "
+					"pci_irq_vec failed (%d)\n", index, rc);
+			goto cfg_fail_out;
+		}
+		eqhdl->irq = rc;
+
+		rc = request_threaded_irq(eqhdl->irq,
+					  &lpfc_sli4_hba_intr_handler,
+					  &lpfc_sli4_hba_intr_handler_th,
+					  IRQF_ONESHOT, name, eqhdl);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 					"0486 MSI-X fast-path (%d) "
 					"request_irq failed (%d)\n", index, rc);
 			goto cfg_fail_out;
 		}
-
-		eqhdl->irq = pci_irq_vector(phba->pcidev, index);
 
 		if (aff_mask) {
 			/* If found a neighboring online cpu, set affinity */
@@ -13181,7 +13178,14 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 	}
 
 	eqhdl = lpfc_get_eq_hdl(0);
-	eqhdl->irq = pci_irq_vector(phba->pcidev, 0);
+	rc = pci_irq_vector(phba->pcidev, 0);
+	if (rc < 0) {
+		pci_free_irq_vectors(phba->pcidev);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+				"0496 MSI pci_irq_vec failed (%d)\n", rc);
+		return rc;
+	}
+	eqhdl->irq = rc;
 
 	cpu = cpumask_first(cpu_present_mask);
 	lpfc_assign_eq_map_info(phba, 0, LPFC_CPU_FIRST_IRQ, cpu);
@@ -13208,8 +13212,8 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
  * MSI-X -> MSI -> IRQ.
  *
  * Return codes
- * 	0 - successful
- * 	other values - error
+ *	Interrupt mode (2, 1, 0) - successful
+ *	LPFC_INTR_ERROR - error
  **/
 static uint32_t
 lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
@@ -13254,7 +13258,14 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 			intr_mode = 0;
 
 			eqhdl = lpfc_get_eq_hdl(0);
-			eqhdl->irq = pci_irq_vector(phba->pcidev, 0);
+			retval = pci_irq_vector(phba->pcidev, 0);
+			if (retval < 0) {
+				lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
+					"0502 INTR pci_irq_vec failed (%d)\n",
+					 retval);
+				return LPFC_INTR_ERROR;
+			}
+			eqhdl->irq = retval;
 
 			cpu = cpumask_first(cpu_present_mask);
 			lpfc_assign_eq_map_info(phba, 0, LPFC_CPU_FIRST_IRQ,
@@ -13446,6 +13457,7 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	struct pci_dev *pdev = phba->pcidev;
 
 	lpfc_stop_hba_timers(phba);
+	hrtimer_cancel(&phba->cmf_stats_timer);
 	hrtimer_cancel(&phba->cmf_timer);
 
 	if (phba->pport)
@@ -13570,8 +13582,6 @@ void
 lpfc_init_congestion_buf(struct lpfc_hba *phba)
 {
 	struct lpfc_cgn_info *cp;
-	struct timespec64 cmpl_time;
-	struct tm broken;
 	uint16_t size;
 	uint32_t crc;
 
@@ -13591,11 +13601,10 @@ lpfc_init_congestion_buf(struct lpfc_hba *phba)
 	atomic_set(&phba->cgn_latency_evt_cnt, 0);
 	atomic64_set(&phba->cgn_latency_evt, 0);
 	phba->cgn_evt_minute = 0;
-	phba->hba_flag &= ~HBA_CGN_DAY_WRAP;
 
 	memset(cp, 0xff, offsetof(struct lpfc_cgn_info, cgn_stat));
 	cp->cgn_info_size = cpu_to_le16(LPFC_CGN_INFO_SZ);
-	cp->cgn_info_version = LPFC_CGN_INFO_V3;
+	cp->cgn_info_version = LPFC_CGN_INFO_V4;
 
 	/* cgn parameters */
 	cp->cgn_info_mode = phba->cgn_p.cgn_param_mode;
@@ -13603,22 +13612,7 @@ lpfc_init_congestion_buf(struct lpfc_hba *phba)
 	cp->cgn_info_level1 = phba->cgn_p.cgn_param_level1;
 	cp->cgn_info_level2 = phba->cgn_p.cgn_param_level2;
 
-	ktime_get_real_ts64(&cmpl_time);
-	time64_to_tm(cmpl_time.tv_sec, 0, &broken);
-
-	cp->cgn_info_month = broken.tm_mon + 1;
-	cp->cgn_info_day = broken.tm_mday;
-	cp->cgn_info_year = broken.tm_year - 100; /* relative to 2000 */
-	cp->cgn_info_hour = broken.tm_hour;
-	cp->cgn_info_minute = broken.tm_min;
-	cp->cgn_info_second = broken.tm_sec;
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
-			"2643 CGNInfo Init: Start Time "
-			"%d/%d/%d %d:%d:%d\n",
-			cp->cgn_info_day, cp->cgn_info_month,
-			cp->cgn_info_year, cp->cgn_info_hour,
-			cp->cgn_info_minute, cp->cgn_info_second);
+	lpfc_cgn_update_tstamp(phba, &cp->base_time);
 
 	/* Fill in default LUN qdepth */
 	if (phba->pport) {
@@ -13641,8 +13635,6 @@ void
 lpfc_init_congestion_stat(struct lpfc_hba *phba)
 {
 	struct lpfc_cgn_info *cp;
-	struct timespec64 cmpl_time;
-	struct tm broken;
 	uint32_t crc;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
@@ -13654,22 +13646,7 @@ lpfc_init_congestion_stat(struct lpfc_hba *phba)
 	cp = (struct lpfc_cgn_info *)phba->cgn_i->virt;
 	memset(&cp->cgn_stat, 0, sizeof(cp->cgn_stat));
 
-	ktime_get_real_ts64(&cmpl_time);
-	time64_to_tm(cmpl_time.tv_sec, 0, &broken);
-
-	cp->cgn_stat_month = broken.tm_mon + 1;
-	cp->cgn_stat_day = broken.tm_mday;
-	cp->cgn_stat_year = broken.tm_year - 100; /* relative to 2000 */
-	cp->cgn_stat_hour = broken.tm_hour;
-	cp->cgn_stat_minute = broken.tm_min;
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_INIT,
-			"2647 CGNstat Init: Start Time "
-			"%d/%d/%d %d:%d\n",
-			cp->cgn_stat_day, cp->cgn_stat_month,
-			cp->cgn_stat_year, cp->cgn_stat_hour,
-			cp->cgn_stat_minute);
-
+	lpfc_cgn_update_tstamp(phba, &cp->stat_start);
 	crc = lpfc_cgn_calc_crc32(cp, LPFC_CGN_INFO_SZ, LPFC_CGN_CRC32_SEED);
 	cp->cgn_info_crc = cpu_to_le32(crc);
 }
@@ -13825,6 +13802,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
+	sli4_params->mi_cap = bf_get(cfg_mi_ver, mbx_sli4_parameters);
 
 	/* Check for Extended Pre-Registered SGL support */
 	phba->cfg_xpsgl = bf_get(cfg_xpsgl, mbx_sli4_parameters);
@@ -13899,6 +13877,13 @@ fcponly:
 	/* Make sure that sge_supp_len can be handled by the driver */
 	if (sli4_params->sge_supp_len > LPFC_MAX_SGE_SIZE)
 		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
+
+	rc = dma_set_max_seg_size(&phba->pcidev->dev, sli4_params->sge_supp_len);
+	if (unlikely(rc)) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"6400 Can't set dma maximum segment size\n");
+		return rc;
+	}
 
 	/*
 	 * Check whether the adapter supports an embedded copy of the
@@ -14660,10 +14645,10 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 	INIT_LIST_HEAD(&dma_buffer_list);
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
 	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3023 Updating Firmware, Current Version:%s "
-				"New Version:%s\n",
-				fwrev, image->revision);
+		lpfc_log_msg(phba, KERN_NOTICE, LOG_INIT | LOG_SLI,
+			     "3023 Updating Firmware, Current Version:%s "
+			     "New Version:%s\n",
+			     fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
 			dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
 					 GFP_KERNEL);
@@ -14710,10 +14695,10 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 		}
 		rc = offset;
 	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3029 Skipped Firmware update, Current "
-				"Version:%s New Version:%s\n",
-				fwrev, image->revision);
+		lpfc_log_msg(phba, KERN_NOTICE, LOG_INIT | LOG_SLI,
+			     "3029 Skipped Firmware update, Current "
+			     "Version:%s New Version:%s\n",
+			     fwrev, image->revision);
 
 release_out:
 	list_for_each_entry_safe(dmabuf, next, &dma_buffer_list, list) {
@@ -14725,11 +14710,11 @@ release_out:
 	release_firmware(fw);
 out:
 	if (rc < 0)
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3062 Firmware update error, status %d.\n", rc);
+		lpfc_log_msg(phba, KERN_ERR, LOG_INIT | LOG_SLI,
+			     "3062 Firmware update error, status %d.\n", rc);
 	else
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3024 Firmware update success: size %d.\n", rc);
+		lpfc_log_msg(phba, KERN_NOTICE, LOG_INIT | LOG_SLI,
+			     "3024 Firmware update success: size %d.\n", rc);
 }
 
 /**

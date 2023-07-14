@@ -15,6 +15,8 @@
 
 # Res1	<msb>[:<lsb>]
 
+# Unkn	<msb>[:<lsb>]
+
 # Field	<msb>[:<lsb>]	<name>
 
 # Enum	<msb>[:<lsb>]	<name>
@@ -46,150 +48,1208 @@
 # feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
 # item ACCDATA) though it may be more taseful to do something else.
 
-Sysreg	ID_AA64ZFR0_EL1	3	0	0	4	4
-Res0	63:60
-Enum	59:56	F64MM
+Sysreg	OSDTRRX_EL1	2	0	0	0	2
+Res0	63:32
+Field	31:0	DTRRX
+EndSysreg
+
+Sysreg	MDCCINT_EL1	2	0	0	2	0
+Res0	63:31
+Field	30	RX
+Field	29	TX
+Res0	28:0
+EndSysreg
+
+Sysreg	MDSCR_EL1	2	0	0	2	2
+Res0	63:36
+Field	35	EHBWE
+Field	34	EnSPM
+Field	33	TTA
+Field	32	EMBWE
+Field	31	TFO
+Field	30	RXfull
+Field	29	TXfull
+Res0	28
+Field	27	RXO
+Field	26	TXU
+Res0	25:24
+Field	23:22	INTdis
+Field	21	TDA
+Res0	20
+Field	19	SC2
+Res0	18:16
+Field	15	MDE
+Field	14	HDE
+Field	13	KDE
+Field	12	TDCC
+Res0	11:7
+Field	6	ERR
+Res0	5:1
+Field	0	SS
+EndSysreg
+
+Sysreg	OSDTRTX_EL1	2	0	0	3	2
+Res0	63:32
+Field	31:0	DTRTX
+EndSysreg
+
+Sysreg	OSECCR_EL1	2	0	0	6	2
+Res0	63:32
+Field	31:0	EDECCR
+EndSysreg
+
+Sysreg	OSLAR_EL1	2	0	1	0	4
+Res0	63:1
+Field	0	OSLK
+EndSysreg
+
+Sysreg ID_PFR0_EL1	3	0	0	1	0
+Res0	63:32
+UnsignedEnum	31:28	RAS
+	0b0000	NI
+	0b0001	RAS
+	0b0010	RASv1p1
+EndEnum
+UnsignedEnum	27:24	DIT
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	55:52	F32MM
+UnsignedEnum	23:20	AMU
+	0b0000	NI
+	0b0001	AMUv1
+	0b0010	AMUv1p1
+EndEnum
+UnsignedEnum	19:16	CSV2
+	0b0000	UNDISCLOSED
+	0b0001	IMP
+	0b0010	CSV2p1
+EndEnum
+UnsignedEnum	15:12	State3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	State2
+	0b0000	NI
+	0b0001	NO_CV
+	0b0010	CV
+EndEnum
+UnsignedEnum	7:4	State1
+	0b0000	NI
+	0b0001	THUMB
+	0b0010	THUMB2
+EndEnum
+UnsignedEnum	3:0	State0
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_PFR1_EL1	3	0	0	1	1
+Res0	63:32
+UnsignedEnum	31:28	GIC
+	0b0000	NI
+	0b0001	GICv3
+	0b0010	GICv4p1
+EndEnum
+UnsignedEnum	27:24	Virt_frac
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	Sec_frac
+	0b0000	NI
+	0b0001	WALK_DISABLE
+	0b0010	SECURE_MEMORY
+EndEnum
+UnsignedEnum	19:16	GenTimer
+	0b0000	NI
+	0b0001	IMP
+	0b0010	ECV
+EndEnum
+UnsignedEnum	15:12	Virtualization
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	MProgMod
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	Security
+	0b0000	NI
+	0b0001	EL3
+	0b0001	NSACR_RFR
+EndEnum
+UnsignedEnum	3:0	ProgMod
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_DFR0_EL1	3	0	0	1	2
+Res0	63:32
+UnsignedEnum	31:28	TraceFilt
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	PerfMon
+	0b0000	NI
+	0b0001	PMUv1
+	0b0010	PMUv2
+	0b0011	PMUv3
+	0b0100	PMUv3p1
+	0b0101	PMUv3p4
+	0b0110	PMUv3p5
+	0b0111	PMUv3p7
+	0b1000	PMUv3p8
+	0b1111	IMPDEF
+EndEnum
+Enum	23:20	MProfDbg
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	MMapTrc
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	CopTrc
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	MMapDbg
+	0b0000	NI
+	0b0100	Armv7
+	0b0101	Armv7p1
+EndEnum
+Field	7:4	CopSDbg
+Enum	3:0	CopDbg
+	0b0000	NI
+	0b0010	Armv6
+	0b0011	Armv6p1
+	0b0100	Armv7
+	0b0101	Armv7p1
+	0b0110	Armv8
+	0b0111	VHE
+	0b1000	Debugv8p2
+	0b1001	Debugv8p4
+	0b1010	Debugv8p8
+EndEnum
+EndSysreg
+
+Sysreg ID_AFR0_EL1	3	0	0	1	3
+Res0	63:16
+Field	15:12	IMPDEF3
+Field	11:8	IMPDEF2
+Field	7:4	IMPDEF1
+Field	3:0	IMPDEF0
+EndSysreg
+
+Sysreg ID_MMFR0_EL1	3	0	0	1	4
+Res0	63:32
+Enum	31:28	InnerShr
+	0b0000	NC
+	0b0001	HW
+	0b1111	IGNORED
+EndEnum
+UnsignedEnum	27:24	FCSE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	AuxReg
+	0b0000	NI
+	0b0001	ACTLR
+	0b0010	AIFSR
+EndEnum
+Enum	19:16	TCM
+	0b0000	NI
+	0b0001	IMPDEF
+	0b0010	TCM
+	0b0011	TCM_DMA
+EndEnum
+Enum	15:12	ShareLvl
+	0b0000	ONE
+	0b0001	TWO
+EndEnum
+Enum	11:8	OuterShr
+	0b0000	NC
+	0b0001	HW
+	0b1111	IGNORED
+EndEnum
+Enum	7:4	PMSA
+	0b0000	NI
+	0b0001	IMPDEF
+	0b0010	PMSAv6
+	0b0011	PMSAv7
+EndEnum
+Enum	3:0	VMSA
+	0b0000	NI
+	0b0001	IMPDEF
+	0b0010	VMSAv6
+	0b0011	VMSAv7
+	0b0100	VMSAv7_PXN
+	0b0101	VMSAv7_LONG
+EndEnum
+EndSysreg
+
+Sysreg ID_MMFR1_EL1	3	0	0	1	5
+Res0	63:32
+Enum	31:28	BPred
+	0b0000	NI
+	0b0001	BP_SW_MANGED
+	0b0010	BP_ASID_AWARE
+	0b0011	BP_NOSNOOP
+	0b0100	BP_INVISIBLE
+EndEnum
+Enum	27:24	L1TstCln
+	0b0000	NI
+	0b0001	NOINVALIDATE
+	0b0010	INVALIDATE
+EndEnum
+Enum	23:20	L1Uni
+	0b0000	NI
+	0b0001	INVALIDATE
+	0b0010	CLEAN_AND_INVALIDATE
+EndEnum
+Enum	19:16	L1Hvd
+	0b0000	NI
+	0b0001	INVALIDATE_ISIDE_ONLY
+	0b0010	INVALIDATE
+	0b0011	CLEAN_AND_INVALIDATE
+EndEnum
+Enum	15:12	L1UniSW
+	0b0000	NI
+	0b0001	CLEAN
+	0b0010	CLEAN_AND_INVALIDATE
+	0b0011	INVALIDATE
+EndEnum
+Enum	11:8	L1HvdSW
+	0b0000	NI
+	0b0001	CLEAN_AND_INVALIDATE
+	0b0010	INVALIDATE_DSIDE_ONLY
+	0b0011	INVALIDATE
+EndEnum
+Enum	7:4	L1UniVA
+	0b0000	NI
+	0b0001	CLEAN_AND_INVALIDATE
+	0b0010	INVALIDATE_BP
+EndEnum
+Enum	3:0	L1HvdVA
+	0b0000	NI
+	0b0001	CLEAN_AND_INVALIDATE
+	0b0010	INVALIDATE_BP
+EndEnum
+EndSysreg
+
+Sysreg ID_MMFR2_EL1	3	0	0	1	6
+Res0	63:32
+Enum	31:28	HWAccFlg
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	WFIStall
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	MemBarr
+	0b0000	NI
+	0b0001	DSB_ONLY
+	0b0010	IMP
+EndEnum
+Enum	19:16	UniTLB
+	0b0000	NI
+	0b0001	BY_VA
+	0b0010	BY_MATCH_ASID
+	0b0011	BY_ALL_ASID
+	0b0100	OTHER_TLBS
+	0b0101	BROADCAST
+	0b0110	BY_IPA
+EndEnum
+Enum	15:12	HvdTLB
+	0b0000	NI
+EndEnum
+Enum	11:8	L1HvdRng
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	L1HvdBG
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	L1HvdFG
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_MMFR3_EL1	3	0	0	1	7
+Res0	63:32
+Enum	31:28	Supersec
+	0b0000	IMP
+	0b1111	NI
+EndEnum
+Enum	27:24	CMemSz
+	0b0000	4GB
+	0b0001	64GB
+	0b0010	1TB
+EndEnum
+Enum	23:20	CohWalk
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	PAN
+	0b0000	NI
+	0b0001	PAN
+	0b0010	PAN2
+EndEnum
+Enum	15:12	MaintBcst
+	0b0000	NI
+	0b0001	NO_TLB
+	0b0010	ALL
+EndEnum
+Enum	11:8	BPMaint
+	0b0000	NI
+	0b0001	ALL
+	0b0010	BY_VA
+EndEnum
+Enum	7:4	CMaintSW
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	CMaintVA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR0_EL1	3	0	0	2	0
+Res0	63:28
+Enum	27:24	Divide
+	0b0000	NI
+	0b0001	xDIV_T32
+	0b0010	xDIV_A32
+EndEnum
+UnsignedEnum	23:20	Debug
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	Coproc
+	0b0000	NI
+	0b0001	MRC
+	0b0010	MRC2
+	0b0011	MRRC
+	0b0100	MRRC2
+EndEnum
+UnsignedEnum	15:12	CmpBranch
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	BitField
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	BitCount
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	Swap
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR1_EL1	3	0	0	2	1
+Res0	63:32
+Enum	31:28	Jazelle
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	Interwork
+	0b0000	NI
+	0b0001	BX
+	0b0010	BLX
+	0b0011	A32_BX
+EndEnum
+Enum	23:20	Immediate
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	IfThen
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	Extend
+	0b0000	NI
+	0b0001	SXTB
+	0b0010	SXTB16
+EndEnum
+Enum	11:8	Except_AR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	Except
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	Endian
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR2_EL1	3	0	0	2	2
+Res0	63:32
+Enum	31:28	Reversal
+	0b0000	NI
+	0b0001	REV
+	0b0010	RBIT
+EndEnum
+Enum	27:24	PSR_AR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	MultU
+	0b0000	NI
+	0b0001	UMULL
+	0b0010	UMAAL
+EndEnum
+Enum	19:16	MultS
+	0b0000	NI
+	0b0001	SMULL
+	0b0010	SMLABB
+	0b0011	SMLAD
+EndEnum
+Enum	15:12	Mult
+	0b0000	NI
+	0b0001	MLA
+	0b0010	MLS
+EndEnum
+Enum	11:8	MultiAccessInt
+	0b0000	NI
+	0b0001	RESTARTABLE
+	0b0010	CONTINUABLE
+EndEnum
+Enum	7:4	MemHint
+	0b0000	NI
+	0b0001	PLD
+	0b0010	PLD2
+	0b0011	PLI
+	0b0100	PLDW
+EndEnum
+Enum	3:0	LoadStore
+	0b0000	NI
+	0b0001	DOUBLE
+	0b0010	ACQUIRE
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR3_EL1	3	0	0	2	3
+Res0	63:32
+Enum	31:28	T32EE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	TrueNOP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	T32Copy
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	TabBranch
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	SynchPrim
+	0b0000	NI
+	0b0001	EXCLUSIVE
+	0b0010	DOUBLE
+EndEnum
+Enum	11:8	SVC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	SIMD
+	0b0000	NI
+	0b0001	SSAT
+	0b0011	PKHBT
+EndEnum
+Enum	3:0	Saturate
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR4_EL1	3	0	0	2	4
+Res0	63:32
+Enum	31:28	SWP_frac
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	PSR_M
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	SynchPrim_frac
+	0b0000	NI
+	0b0011	IMP
+EndEnum
+Enum	19:16	Barrier
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	SMC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	11:8	Writeback
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	WithShifts
+	0b0000	NI
+	0b0001	LSL3
+	0b0011	LS
+	0b0100	REG
+EndEnum
+Enum	3:0	Unpriv
+	0b0000	NI
+	0b0001	REG_BYTE
+	0b0010	SIGNED_HALFWORD
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR5_EL1	3	0	0	2	5
+Res0	63:32
+UnsignedEnum	31:28	VCMA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	RDM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	23:20
+UnsignedEnum	19:16	CRC32
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	SHA2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	SHA1
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	AES
+	0b0000	NI
+	0b0001	IMP
+	0b0010  VMULL
+EndEnum
+UnsignedEnum	3:0	SEVL
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_ISAR6_EL1	3	0	0	2	7
+Res0	63:28
+UnsignedEnum	27:24	I8MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	BF16
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	SPECRES
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	SB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	FHM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	DP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	JSCVT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_MMFR4_EL1	3	0	0	2	6
+Res0	63:32
+UnsignedEnum	31:28	EVT
+	0b0000	NI
+	0b0001	NO_TLBIS
+	0b0010	TLBIS
+EndEnum
+UnsignedEnum	27:24	CCIDX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	LSM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	HPDS
+	0b0000	NI
+	0b0001	AA32HPD
+	0b0010	HPDS2
+EndEnum
+UnsignedEnum	15:12	CnP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	XNX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	AC2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	SpecSEI
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg MVFR0_EL1	3	0	0	3	0
+Res0	63:32
+UnsignedEnum	31:28	FPRound
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	FPShVec
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	FPSqrt
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	FPDivide
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	FPTrap
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	FPDP
+	0b0000	NI
+	0b0001	VFPv2
+	0b0010	VFPv3
+EndEnum
+UnsignedEnum	7:4	FPSP
+	0b0000	NI
+	0b0001	VFPv2
+	0b0010	VFPv3
+EndEnum
+Enum	3:0	SIMDReg
+	0b0000	NI
+	0b0001	IMP_16x64
+	0b0010	IMP_32x64
+EndEnum
+EndSysreg
+
+Sysreg MVFR1_EL1	3	0	0	3	1
+Res0	63:32
+UnsignedEnum	31:28	SIMDFMAC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	FPHP
+	0b0000	NI
+	0b0001	FPHP
+	0b0010	FPHP_CONV
+	0b0011	FP16
+EndEnum
+UnsignedEnum	23:20	SIMDHP
+	0b0000	NI
+	0b0001	SIMDHP
+	0b0010	SIMDHP_FLOAT
+EndEnum
+UnsignedEnum	19:16	SIMDSP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	SIMDInt
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	SIMDLS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	FPDNaN
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	FPFtZ
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg MVFR2_EL1	3	0	0	3	2
+Res0	63:8
+Enum	7:4	FPMisc
+	0b0000	NI
+	0b0001	FP
+	0b0010	FP_DIRECTED_ROUNDING
+	0b0011	FP_ROUNDING
+	0b0100	FP_MAX_MIN
+EndEnum
+Enum	3:0	SIMDMisc
+	0b0000	NI
+	0b0001	SIMD_DIRECTED_ROUNDING
+	0b0010	SIMD_ROUNDING
+	0b0011	SIMD_MAX_MIN
+EndEnum
+EndSysreg
+
+Sysreg ID_PFR2_EL1	3	0	0	3	4
+Res0	63:12
+UnsignedEnum	11:8	RAS_frac
+	0b0000	NI
+	0b0001	RASv1p1
+EndEnum
+UnsignedEnum	7:4	SSBS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	CSV3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg ID_DFR1_EL1	3	0	0	3	5
+Res0	63:8
+UnsignedEnum	7:4	HPMN0
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	MTPMU
+	0b0000	IMPDEF
+	0b0001	IMP
+	0b1111	NI
+EndEnum
+EndSysreg
+
+Sysreg ID_MMFR5_EL1	3	0	0	3	6
+Res0	63:8
+UnsignedEnum	7:4	nTLBPA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	ETS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64PFR0_EL1	3	0	0	4	0
+UnsignedEnum	63:60	CSV3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	CSV2
+	0b0000	NI
+	0b0001	IMP
+	0b0010	CSV2_2
+	0b0011	CSV2_3
+EndEnum
+UnsignedEnum	55:52	RME
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	51:48	DIT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	47:44	AMU
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V1P1
+EndEnum
+UnsignedEnum	43:40	MPAM
+	0b0000	0
+	0b0001	1
+EndEnum
+UnsignedEnum	39:36	SEL2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	SVE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	31:28	RAS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V1P1
+EndEnum
+UnsignedEnum	27:24	GIC
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V4P1
+EndEnum
+SignedEnum	23:20	AdvSIMD
+	0b0000	IMP
+	0b0001	FP16
+	0b1111	NI
+EndEnum
+SignedEnum	19:16	FP
+	0b0000	IMP
+	0b0001	FP16
+	0b1111	NI
+EndEnum
+UnsignedEnum	15:12	EL3
+	0b0000	NI
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+UnsignedEnum	11:8	EL2
+	0b0000	NI
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+UnsignedEnum	7:4	EL1
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+UnsignedEnum	3:0	EL0
+	0b0001	IMP
+	0b0010	AARCH32
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64PFR1_EL1	3	0	0	4	1
+UnsignedEnum	63:60	PFAR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	DF2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	55:52	MTEX
+	0b0000	MTE
+	0b0001	MTE4
+EndEnum
+UnsignedEnum	51:48	THE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	47:44	GCS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	43:40	MTE_frac
+	0b0000	ASYNC
+	0b1111	NI
+EndEnum
+UnsignedEnum	39:36	NMI
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	CSV2_frac
+	0b0000	NI
+	0b0001	CSV2_1p1
+	0b0010	CSV2_1p2
+EndEnum
+UnsignedEnum	31:28	RNDR_trap
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	SME
+	0b0000	NI
+	0b0001	IMP
+	0b0010	SME2
+EndEnum
+Res0	23:20
+UnsignedEnum	19:16	MPAM_frac
+	0b0000	MINOR_0
+	0b0001	MINOR_1
+EndEnum
+UnsignedEnum	15:12	RAS_frac
+	0b0000	NI
+	0b0001	RASv1p1
+EndEnum
+UnsignedEnum	11:8	MTE
+	0b0000	NI
+	0b0001	IMP
+	0b0010	MTE2
+	0b0011	MTE3
+EndEnum
+UnsignedEnum	7:4	SSBS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	SSBS2
+EndEnum
+UnsignedEnum	3:0	BT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64ZFR0_EL1	3	0	0	4	4
+Res0	63:60
+UnsignedEnum	59:56	F64MM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	55:52	F32MM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
 Res0	51:48
-Enum	47:44	I8MM
+UnsignedEnum	47:44	I8MM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	43:40	SM4
+UnsignedEnum	43:40	SM4
 	0b0000	NI
 	0b0001	IMP
 EndEnum
 Res0	39:36
-Enum	35:32	SHA3
+UnsignedEnum	35:32	SHA3
 	0b0000	NI
 	0b0001	IMP
 EndEnum
 Res0	31:24
-Enum	23:20	BF16
+UnsignedEnum	23:20	BF16
 	0b0000	NI
 	0b0001	IMP
 	0b0010	EBF16
 EndEnum
-Enum	19:16	BitPerm
+UnsignedEnum	19:16	BitPerm
 	0b0000	NI
 	0b0001	IMP
 EndEnum
 Res0	15:8
-Enum	7:4	AES
+UnsignedEnum	7:4	AES
 	0b0000	NI
 	0b0001	IMP
 	0b0010	PMULL128
 EndEnum
-Enum	3:0	SVEver
+UnsignedEnum	3:0	SVEver
 	0b0000	IMP
 	0b0001	SVE2
+	0b0010	SVE2p1
 EndEnum
 EndSysreg
 
 Sysreg	ID_AA64SMFR0_EL1	3	0	0	4	5
-Enum	63	FA64
+UnsignedEnum	63	FA64
 	0b0	NI
 	0b1	IMP
 EndEnum
 Res0	62:60
-Field	59:56	SMEver
-Enum	55:52	I16I64
+UnsignedEnum	59:56	SMEver
+	0b0000	SME
+	0b0001	SME2
+	0b0010	SME2p1
+	0b0000	IMP
+EndEnum
+UnsignedEnum	55:52	I16I64
 	0b0000	NI
 	0b1111	IMP
 EndEnum
 Res0	51:49
-Enum	48	F64F64
+UnsignedEnum	48	F64F64
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	47:40
-Enum	39:36	I8I32
+UnsignedEnum	47:44	I16I32
+	0b0000	NI
+	0b0101	IMP
+EndEnum
+UnsignedEnum	43	B16B16
+	0b0	NI
+	0b1	IMP
+EndEnum
+UnsignedEnum	42	F16F16
+	0b0	NI
+	0b1	IMP
+EndEnum
+Res0	41:40
+UnsignedEnum	39:36	I8I32
 	0b0000	NI
 	0b1111	IMP
 EndEnum
-Enum	35	F16F32
+UnsignedEnum	35	F16F32
 	0b0	NI
 	0b1	IMP
 EndEnum
-Enum	34	B16F32
+UnsignedEnum	34	B16F32
 	0b0	NI
 	0b1	IMP
 EndEnum
-Res0	33
-Enum	32	F32F32
+UnsignedEnum	33	BI32I32
+	0b0	NI
+	0b1	IMP
+EndEnum
+UnsignedEnum	32	F32F32
 	0b0	NI
 	0b1	IMP
 EndEnum
 Res0	31:0
 EndSysreg
 
-Sysreg	ID_AA64ISAR0_EL1	3	0	0	6	0
-Enum	63:60	RNDR
+Sysreg	ID_AA64DFR0_EL1	3	0	0	5	0
+Enum	63:60	HPMN0
+	0b0000	UNPREDICTABLE
+	0b0001	DEF
+EndEnum
+Res0	59:56
+UnsignedEnum	55:52	BRBE
+	0b0000	NI
+	0b0001	IMP
+	0b0010	BRBE_V1P1
+EndEnum
+Enum	51:48	MTPMU
+	0b0000	NI_IMPDEF
+	0b0001	IMP
+	0b1111	NI
+EndEnum
+UnsignedEnum	47:44	TraceBuffer
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	59:56	TLB
+UnsignedEnum	43:40	TraceFilt
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	39:36	DoubleLock
+	0b0000	IMP
+	0b1111	NI
+EndEnum
+UnsignedEnum	35:32	PMSVer
+	0b0000	NI
+	0b0001	IMP
+	0b0010	V1P1
+	0b0011	V1P2
+	0b0100	V1P3
+EndEnum
+Field	31:28	CTX_CMPs
+Res0	27:24
+Field	23:20	WRPs
+Res0	19:16
+Field	15:12	BRPs
+UnsignedEnum	11:8	PMUVer
+	0b0000	NI
+	0b0001	IMP
+	0b0100	V3P1
+	0b0101	V3P4
+	0b0110	V3P5
+	0b0111	V3P7
+	0b1000	V3P8
+	0b1111	IMP_DEF
+EndEnum
+UnsignedEnum	7:4	TraceVer
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	DebugVer
+	0b0110	IMP
+	0b0111	VHE
+	0b1000	V8P2
+	0b1001	V8P4
+	0b1010	V8P8
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64DFR1_EL1	3	0	0	5	1
+Res0	63:0
+EndSysreg
+
+Sysreg	ID_AA64AFR0_EL1	3	0	0	5	4
+Res0	63:32
+Field	31:28	IMPDEF7
+Field	27:24	IMPDEF6
+Field	23:20	IMPDEF5
+Field	19:16	IMPDEF4
+Field	15:12	IMPDEF3
+Field	11:8	IMPDEF2
+Field	7:4	IMPDEF1
+Field	3:0	IMPDEF0
+EndSysreg
+
+Sysreg	ID_AA64AFR1_EL1	3	0	0	5	5
+Res0	63:0
+EndSysreg
+
+Sysreg	ID_AA64ISAR0_EL1	3	0	0	6	0
+UnsignedEnum	63:60	RNDR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	TLB
 	0b0000	NI
 	0b0001	OS
 	0b0010	RANGE
 EndEnum
-Enum	55:52	TS
+UnsignedEnum	55:52	TS
 	0b0000	NI
 	0b0001	FLAGM
 	0b0010	FLAGM2
 EndEnum
-Enum	51:48	FHM
+UnsignedEnum	51:48	FHM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	47:44	DP
+UnsignedEnum	47:44	DP
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	43:40	SM4
+UnsignedEnum	43:40	SM4
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	39:36	SM3
+UnsignedEnum	39:36	SM3
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	35:32	SHA3
+UnsignedEnum	35:32	SHA3
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	31:28	RDM
+UnsignedEnum	31:28	RDM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	27:24	TME
+UnsignedEnum	27:24	TME
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	23:20	ATOMIC
+UnsignedEnum	23:20	ATOMIC
 	0b0000	NI
 	0b0010	IMP
 EndEnum
-Enum	19:16	CRC32
+UnsignedEnum	19:16	CRC32
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	15:12	SHA2
+UnsignedEnum	15:12	SHA2
 	0b0000	NI
 	0b0001	SHA256
 	0b0010	SHA512
 EndEnum
-Enum	11:8	SHA1
+UnsignedEnum	11:8	SHA1
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	7:4	AES
+UnsignedEnum	7:4	AES
 	0b0000	NI
 	0b0001	AES
 	0b0010	PMULL
@@ -198,63 +1258,63 @@ Res0	3:0
 EndSysreg
 
 Sysreg	ID_AA64ISAR1_EL1	3	0	0	6	1
-Enum	63:60	LS64
+UnsignedEnum	63:60	LS64
 	0b0000	NI
 	0b0001	LS64
 	0b0010	LS64_V
 	0b0011	LS64_ACCDATA
 EndEnum
-Enum	59:56	XS
+UnsignedEnum	59:56	XS
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	55:52	I8MM
+UnsignedEnum	55:52	I8MM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	51:48	DGH
+UnsignedEnum	51:48	DGH
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	47:44	BF16
+UnsignedEnum	47:44	BF16
 	0b0000	NI
 	0b0001	IMP
 	0b0010	EBF16
 EndEnum
-Enum	43:40	SPECRES
+UnsignedEnum	43:40	SPECRES
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	39:36	SB
+UnsignedEnum	39:36	SB
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	35:32	FRINTTS
+UnsignedEnum	35:32	FRINTTS
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	31:28	GPI
+UnsignedEnum	31:28	GPI
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	27:24	GPA
+UnsignedEnum	27:24	GPA
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	23:20	LRCPC
+UnsignedEnum	23:20	LRCPC
 	0b0000	NI
 	0b0001	IMP
 	0b0010	LRCPC2
 EndEnum
-Enum	19:16	FCMA
+UnsignedEnum	19:16	FCMA
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	15:12	JSCVT
+UnsignedEnum	15:12	JSCVT
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	11:8	API
+UnsignedEnum	11:8	API
 	0b0000	NI
 	0b0001	PAuth
 	0b0010	EPAC
@@ -262,7 +1322,7 @@ Enum	11:8	API
 	0b0100	FPAC
 	0b0101	FPACCOMBINE
 EndEnum
-Enum	7:4	APA
+UnsignedEnum	7:4	APA
 	0b0000	NI
 	0b0001	PAuth
 	0b0010	EPAC
@@ -270,7 +1330,7 @@ Enum	7:4	APA
 	0b0100	FPAC
 	0b0101	FPACCOMBINE
 EndEnum
-Enum	3:0	DPB
+UnsignedEnum	3:0	DPB
 	0b0000	NI
 	0b0001	IMP
 	0b0010	DPB2
@@ -278,20 +1338,29 @@ EndEnum
 EndSysreg
 
 Sysreg	ID_AA64ISAR2_EL1	3	0	0	6	2
-Res0	63:28
-Enum	27:24	PAC_frac
+Res0	63:56
+UnsignedEnum	55:52	CSSC
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	23:20	BC
+UnsignedEnum	51:48	RPRFM
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	19:16	MOPS
+Res0	47:28
+UnsignedEnum	27:24	PAC_frac
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	15:12	APA3
+UnsignedEnum	23:20	BC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	MOPS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	APA3
 	0b0000	NI
 	0b0001	PAuth
 	0b0010	EPAC
@@ -299,23 +1368,306 @@ Enum	15:12	APA3
 	0b0100	FPAC
 	0b0101	FPACCOMBINE
 EndEnum
-Enum	11:8	GPA3
+UnsignedEnum	11:8	GPA3
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	7:4	RPRES
+UnsignedEnum	7:4	RPRES
 	0b0000	NI
 	0b0001	IMP
 EndEnum
-Enum	3:0	WFxT
+UnsignedEnum	3:0	WFxT
 	0b0000	NI
 	0b0010	IMP
 EndEnum
 EndSysreg
 
+Sysreg	ID_AA64MMFR0_EL1	3	0	0	7	0
+UnsignedEnum	63:60	ECV
+	0b0000	NI
+	0b0001	IMP
+	0b0010	CNTPOFF
+EndEnum
+UnsignedEnum	59:56	FGT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	55:48
+UnsignedEnum	47:44	EXS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	43:40	TGRAN4_2
+	0b0000	TGRAN4
+	0b0001	NI
+	0b0010	IMP
+	0b0011	52_BIT
+EndEnum
+Enum	39:36	TGRAN64_2
+	0b0000	TGRAN64
+	0b0001	NI
+	0b0010	IMP
+EndEnum
+Enum	35:32	TGRAN16_2
+	0b0000	TGRAN16
+	0b0001	NI
+	0b0010	IMP
+	0b0011	52_BIT
+EndEnum
+Enum	31:28	TGRAN4
+	0b0000	IMP
+	0b0001	52_BIT
+	0b1111	NI
+EndEnum
+Enum	27:24	TGRAN64
+	0b0000	IMP
+	0b1111	NI
+EndEnum
+Enum	23:20	TGRAN16
+	0b0000	NI
+	0b0001	IMP
+	0b0010	52_BIT
+EndEnum
+UnsignedEnum	19:16	BIGENDEL0
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	SNSMEM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	BIGEND
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	ASIDBITS
+	0b0000	8
+	0b0010	16
+EndEnum
+Enum	3:0	PARANGE
+	0b0000	32
+	0b0001	36
+	0b0010	40
+	0b0011	42
+	0b0100	44
+	0b0101	48
+	0b0110	52
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64MMFR1_EL1	3	0	0	7	1
+UnsignedEnum	63:60	ECBHB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	CMOW
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	55:52	TIDCP1
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	51:48	nTLBPA
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	47:44	AFP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	43:40	HCX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	39:36	ETS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	TWED
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	31:28	XNX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	SpecSEI
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	PAN
+	0b0000	NI
+	0b0001	IMP
+	0b0010	PAN2
+	0b0011	PAN3
+EndEnum
+UnsignedEnum	19:16	LO
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	HPDS
+	0b0000	NI
+	0b0001	IMP
+	0b0010	HPDS2
+EndEnum
+UnsignedEnum	11:8	VH
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	VMIDBits
+	0b0000	8
+	0b0010	16
+EndEnum
+UnsignedEnum	3:0	HAFDBS
+	0b0000	NI
+	0b0001	AF
+	0b0010	DBM
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64MMFR2_EL1	3	0	0	7	2
+UnsignedEnum	63:60	E0PD
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	EVT
+	0b0000	NI
+	0b0001	IMP
+	0b0010	TTLBxS
+EndEnum
+UnsignedEnum	55:52	BBM
+	0b0000	0
+	0b0001	1
+	0b0010	2
+EndEnum
+UnsignedEnum	51:48	TTL
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	47:44
+UnsignedEnum	43:40	FWB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	39:36	IDS
+	0b0000	0x0
+	0b0001	0x18
+EndEnum
+UnsignedEnum	35:32	AT
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	31:28	ST
+	0b0000	39
+	0b0001	48_47
+EndEnum
+UnsignedEnum	27:24	NV
+	0b0000	NI
+	0b0001	IMP
+	0b0010	NV2
+EndEnum
+Enum	23:20	CCIDX
+	0b0000	32
+	0b0001	64
+EndEnum
+Enum	19:16	VARange
+	0b0000	48
+	0b0001	52
+EndEnum
+UnsignedEnum	15:12	IESB
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	LSM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	UAO
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	CnP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
+Sysreg	ID_AA64MMFR3_EL1	3	0	0	7	3
+UnsignedEnum	63:60	Spec_FPACC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	59:56	ADERR
+	0b0000	NI
+	0b0001	DEV_ASYNC
+	0b0010	FEAT_ADERR
+	0b0011	FEAT_ADERR_IND
+EndEnum
+UnsignedEnum	55:52	SDERR
+	0b0000	NI
+	0b0001	DEV_SYNC
+	0b0010	FEAT_ADERR
+	0b0011	FEAT_ADERR_IND
+EndEnum
+Res0	51:48
+UnsignedEnum	47:44	ANERR
+	0b0000	NI
+	0b0001	ASYNC
+	0b0010	FEAT_ANERR
+	0b0011	FEAT_ANERR_IND
+EndEnum
+UnsignedEnum	43:40	SNERR
+	0b0000	NI
+	0b0001	SYNC
+	0b0010	FEAT_ANERR
+	0b0011	FEAT_ANERR_IND
+EndEnum
+UnsignedEnum	39:36	D128_2
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	35:32	D128
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	31:28	MEC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	27:24	AIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	S2POE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	S1POE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	15:12	S2PIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	11:8	S1PIE
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	7:4	SCTLRX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	3:0	TCRX
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg	SCTLR_EL1	3	0	1	0	0
 Field	63	TIDCP
-Field	62	SPINMASK
+Field	62	SPINTMASK
 Field	61	NMI
 Field	60	EnTP2
 Res0	59:58
@@ -418,7 +1770,8 @@ EndSysreg
 SysregFields	SMCR_ELx
 Res0	63:32
 Field	31	FA64
-Res0	30:9
+Field	30	EZT0
+Res0	29:9
 Raz	8:4
 Field	3:0	LEN
 EndSysregFields
@@ -427,8 +1780,138 @@ Sysreg	SMCR_EL1	3	0	1	2	6
 Fields	SMCR_ELx
 EndSysreg
 
+Sysreg	ALLINT	3	0	4	3	0
+Res0	63:14
+Field	13	ALLINT
+Res0	12:0
+EndSysreg
+
 Sysreg	FAR_EL1	3	0	6	0	0
 Field	63:0	ADDR
+EndSysreg
+
+Sysreg	PMSCR_EL1	3	0	9	9	0
+Res0	63:8
+Field	7:6	PCT
+Field	5	TS
+Field	4	PA
+Field	3	CX
+Res0	2
+Field	1	E1SPE
+Field	0	E0SPE
+EndSysreg
+
+Sysreg	PMSNEVFR_EL1	3	0	9	9	1
+Field	63:0	E
+EndSysreg
+
+Sysreg	PMSICR_EL1	3	0	9	9	2
+Field	63:56	ECOUNT
+Res0	55:32
+Field	31:0	COUNT
+EndSysreg
+
+Sysreg	PMSIRR_EL1	3	0	9	9	3
+Res0	63:32
+Field	31:8	INTERVAL
+Res0	7:1
+Field	0	RND
+EndSysreg
+
+Sysreg	PMSFCR_EL1	3	0	9	9	4
+Res0	63:19
+Field	18	ST
+Field	17	LD
+Field	16	B
+Res0	15:4
+Field	3	FnE
+Field	2	FL
+Field	1	FT
+Field	0	FE
+EndSysreg
+
+Sysreg	PMSEVFR_EL1	3	0	9	9	5
+Field	63:0	E
+EndSysreg
+
+Sysreg	PMSLATFR_EL1	3	0	9	9	6
+Res0	63:16
+Field	15:0	MINLAT
+EndSysreg
+
+Sysreg	PMSIDR_EL1	3	0	9	9	7
+Res0	63:25
+Field	24	PBT
+Field	23:20	FORMAT
+Enum	19:16	COUNTSIZE
+	0b0010	12_BIT_SAT
+	0b0011	16_BIT_SAT
+EndEnum
+Field	15:12	MAXSIZE
+Enum	11:8	INTERVAL
+	0b0000	256
+	0b0010	512
+	0b0011	768
+	0b0100	1024
+	0b0101	1536
+	0b0110	2048
+	0b0111	3072
+	0b1000	4096
+EndEnum
+Res0	7
+Field	6	FnE
+Field	5	ERND
+Field	4	LDS
+Field	3	ARCHINST
+Field	2	FL
+Field	1	FT
+Field	0	FE
+EndSysreg
+
+Sysreg	PMBLIMITR_EL1	3	0	9	10	0
+Field	63:12	LIMIT
+Res0	11:6
+Field	5	PMFZ
+Res0	4:3
+Enum	2:1	FM
+	0b00	FILL
+	0b10	DISCARD
+EndEnum
+Field	0	E
+EndSysreg
+
+Sysreg	PMBPTR_EL1	3	0	9	10	1
+Field	63:0	PTR
+EndSysreg
+
+Sysreg	PMBSR_EL1	3	0	9	10	3
+Res0	63:32
+Enum	31:26	EC
+	0b000000	BUF
+	0b100100	FAULT_S1
+	0b100101	FAULT_S2
+	0b011110	FAULT_GPC
+	0b011111	IMP_DEF
+EndEnum
+Res0	25:20
+Field	19	DL
+Field	18	EA
+Field	17	S
+Field	16	COLL
+Field	15:0	MSS
+EndSysreg
+
+Sysreg	PMBIDR_EL1	3	0	9	10	7
+Res0	63:12
+Enum	11:8	EA
+	0b0000	NotDescribed
+	0b0001	Ignored
+	0b0010	SError
+EndEnum
+Res0	7:6
+Field	5	F
+Field	4	P
+Field	3:0	ALIGN
 EndSysreg
 
 SysregFields	CONTEXTIDR_ELx
@@ -438,6 +1921,24 @@ EndSysregFields
 
 Sysreg	CONTEXTIDR_EL1	3	0	13	0	1
 Fields	CONTEXTIDR_ELx
+EndSysreg
+
+Sysreg	TPIDR_EL1	3	0	13	0	4
+Field	63:0	ThreadID
+EndSysreg
+
+Sysreg	SCXTNUM_EL1	3	0	13	0	7
+Field	63:0	SoftwareContextNumber
+EndSysreg
+
+# The bit layout for CCSIDR_EL1 depends on whether FEAT_CCIDX is implemented.
+# The following is for case when FEAT_CCIDX is not implemented.
+Sysreg	CCSIDR_EL1	3	1	0	0	0
+Res0	63:32
+Unkn	31:28
+Field	27:13	NumSets
+Field	12:3	Associativity
+Field	2:0	LineSize
 EndSysreg
 
 Sysreg	CLIDR_EL1	3	1	0	0	1
@@ -454,6 +1955,11 @@ Field	11:9	Ctype4
 Field	8:6	Ctype3
 Field	5:3	Ctype2
 Field	2:0	Ctype1
+EndSysreg
+
+Sysreg	CCSIDR2_EL1	3	1	0	0	2
+Res0	63:24
+Field	23:0	NumSets
 EndSysreg
 
 Sysreg	GMID_EL1	3	1	0	0	4
@@ -510,8 +2016,174 @@ Field	1	ZA
 Field	0	SM
 EndSysreg
 
+SysregFields	HFGxTR_EL2
+Field	63	nAMIAIR2_EL1
+Field	62	nMAIR2_EL1
+Field	61	nS2POR_EL1
+Field	60	nPOR_EL1
+Field	59	nPOR_EL0
+Field	58	nPIR_EL1
+Field	57	nPIRE0_EL1
+Field	56	nRCWMASK_EL1
+Field	55	nTPIDR2_EL0
+Field	54	nSMPRI_EL1
+Field	53	nGCS_EL1
+Field	52	nGCS_EL0
+Res0	51
+Field	50	nACCDATA_EL1
+Field	49	ERXADDR_EL1
+Field	48	EXRPFGCDN_EL1
+Field	47	EXPFGCTL_EL1
+Field	46	EXPFGF_EL1
+Field	45	ERXMISCn_EL1
+Field	44	ERXSTATUS_EL1
+Field	43	ERXCTLR_EL1
+Field	42	ERXFR_EL1
+Field	41	ERRSELR_EL1
+Field	40	ERRIDR_EL1
+Field	39	ICC_IGRPENn_EL1
+Field	38	VBAR_EL1
+Field	37	TTBR1_EL1
+Field	36	TTBR0_EL1
+Field	35	TPIDR_EL0
+Field	34	TPIDRRO_EL0
+Field	33	TPIDR_EL1
+Field	32	TCR_EL1
+Field	31	SCTXNUM_EL0
+Field	30	SCTXNUM_EL1
+Field	29	SCTLR_EL1
+Field	28	REVIDR_EL1
+Field	27	PAR_EL1
+Field	26	MPIDR_EL1
+Field	25	MIDR_EL1
+Field	24	MAIR_EL1
+Field	23	LORSA_EL1
+Field	22	LORN_EL1
+Field	21	LORID_EL1
+Field	20	LOREA_EL1
+Field	19	LORC_EL1
+Field	18	ISR_EL1
+Field	17	FAR_EL1
+Field	16	ESR_EL1
+Field	15	DCZID_EL0
+Field	14	CTR_EL0
+Field	13	CSSELR_EL1
+Field	12	CPACR_EL1
+Field	11	CONTEXTIDR_EL1
+Field	10	CLIDR_EL1
+Field	9	CCSIDR_EL1
+Field	8	APIBKey
+Field	7	APIAKey
+Field	6	APGAKey
+Field	5	APDBKey
+Field	4	APDAKey
+Field	3	AMAIR_EL1
+Field	2	AIDR_EL1
+Field	1	AFSR1_EL1
+Field	0	AFSR0_EL1
+EndSysregFields
+
+Sysreg HFGRTR_EL2	3	4	1	1	4
+Fields	HFGxTR_EL2
+EndSysreg
+
+Sysreg HFGWTR_EL2	3	4	1	1	5
+Fields	HFGxTR_EL2
+EndSysreg
+
+Sysreg HFGITR_EL2	3	4	1	1	6
+Res0	63:61
+Field	60	COSPRCTX
+Field	59	nGCSEPP
+Field	58	nGCSSTR_EL1
+Field	57	nGCSPUSHM_EL1
+Field	56	nBRBIALL
+Field	55	nBRBINJ
+Field	54	DCCVAC
+Field	53	SVC_EL1
+Field	52	SVC_EL0
+Field	51	ERET
+Field	50	CPPRCTX
+Field	49	DVPRCTX
+Field	48	CFPRCTX
+Field	47	TLBIVAALE1
+Field	46	TLBIVALE1
+Field	45	TLBIVAAE1
+Field	44	TLBIASIDE1
+Field	43	TLBIVAE1
+Field	42	TLBIVMALLE1
+Field	41	TLBIRVAALE1
+Field	40	TLBIRVALE1
+Field	39	TLBIRVAAE1
+Field	38	TLBIRVAE1
+Field	37	TLBIRVAALE1IS
+Field	36	TLBIRVALE1IS
+Field	35	TLBIRVAAE1IS
+Field	34	TLBIRVAE1IS
+Field	33	TLBIVAALE1IS
+Field	32	TLBIVALE1IS
+Field	31	TLBIVAAE1IS
+Field	30	TLBIASIDE1IS
+Field	29	TLBIVAE1IS
+Field	28	TLBIVMALLE1IS
+Field	27	TLBIRVAALE1OS
+Field	26	TLBIRVALE1OS
+Field	25	TLBIRVAAE1OS
+Field	24	TLBIRVAE1OS
+Field	23	TLBIVAALE1OS
+Field	22	TLBIVALE1OS
+Field	21	TLBIVAAE1OS
+Field	20	TLBIASIDE1OS
+Field	19	TLBIVAE1OS
+Field	18	TLBIVMALLE1OS
+Field	17	ATS1E1WP
+Field	16	ATS1E1RP
+Field	15	ATS1E0W
+Field	14	ATS1E0R
+Field	13	ATS1E1W
+Field	12	ATS1E1R
+Field	11	DCZVA
+Field	10	DCCIVAC
+Field	9	DCCVADP
+Field	8	DCCVAP
+Field	7	DCCVAU
+Field	6	DCCISW
+Field	5	DCCSW
+Field	4	DCISW
+Field	3	DCIVAC
+Field	2	ICIVAU
+Field	1	ICIALLU
+Field	0	ICIALLUIS
+EndSysreg
+
 Sysreg	ZCR_EL2	3	4	1	2	0
 Fields	ZCR_ELx
+EndSysreg
+
+Sysreg	HCRX_EL2	3	4	1	2	2
+Res0	63:23
+Field	22	GCSEn
+Field	21	EnIDCP128
+Field	20	EnSDERR
+Field	19	TMEA
+Field	18	EnSNERR
+Field	17	D128En
+Field	16	PTTWI
+Field	15	SCTLR2En
+Field	14	TCR2En
+Res0	13:12
+Field	11	MSCEn
+Field	10	MCE2
+Field	9	CMOW
+Field	8	VFNMI
+Field	7	VINMI
+Field	6	TALLINT
+Field	5	SMPME
+Field	4	FGTnXS
+Field	3	FnXS
+Field	2	EnASR
+Field	1	EnALS
+Field	0	EnAS0
 EndSysreg
 
 Sysreg	SMPRIMAP_EL2	3	4	1	2	5
@@ -561,8 +2233,27 @@ Sysreg	FAR_EL2	3	4	6	0	0
 Field	63:0	ADDR
 EndSysreg
 
+Sysreg	PMSCR_EL2	3	4	9	9	0
+Res0	63:8
+Enum	7:6	PCT
+	0b00	VIRT
+	0b01	PHYS
+	0b11	GUEST
+EndEnum
+Field	5	TS
+Field	4	PA
+Field	3	CX
+Res0	2
+Field	1	E2SPE
+Field	0	E0HSPE
+EndSysreg
+
 Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
 Fields	CONTEXTIDR_ELx
+EndSysreg
+
+Sysreg	CNTPOFF_EL2	3	4	14	0	6
+Field	63:0	PhysicalOffset
 EndSysreg
 
 Sysreg	CPACR_EL12	3	5	1	0	2
@@ -599,6 +2290,87 @@ Sysreg	TTBR1_EL1	3	0	2	0	1
 Fields	TTBRx_EL1
 EndSysreg
 
+SysregFields	TCR2_EL1x
+Res0	63:16
+Field	15	DisCH1
+Field	14	DisCH0
+Res0	13:12
+Field	11	HAFT
+Field	10	PTTWI
+Res0	9:6
+Field	5	D128
+Field	4	AIE
+Field	3	POE
+Field	2	E0POE
+Field	1	PIE
+Field	0	PnCH
+EndSysregFields
+
+Sysreg	TCR2_EL1	3	0	2	0	3
+Fields	TCR2_EL1x
+EndSysreg
+
+Sysreg	TCR2_EL12	3	5	2	0	3
+Fields	TCR2_EL1x
+EndSysreg
+
+Sysreg	TCR2_EL2	3	4	2	0	3
+Res0	63:16
+Field	15	DisCH1
+Field	14	DisCH0
+Field	13	AMEC1
+Field	12	AMEC0
+Field	11	HAFT
+Field	10	PTTWI
+Field	9:8	SKL1
+Field	7:6	SKL0
+Field	5	D128
+Field	4	AIE
+Field	3	POE
+Field	2	E0POE
+Field	1	PIE
+Field	0	PnCH
+EndSysreg
+
+SysregFields PIRx_ELx
+Field	63:60	Perm15
+Field	59:56	Perm14
+Field	55:52	Perm13
+Field	51:48	Perm12
+Field	47:44	Perm11
+Field	43:40	Perm10
+Field	39:36	Perm9
+Field	35:32	Perm8
+Field	31:28	Perm7
+Field	27:24	Perm6
+Field	23:20	Perm5
+Field	19:16	Perm4
+Field	15:12	Perm3
+Field	11:8	Perm2
+Field	7:4	Perm1
+Field	3:0	Perm0
+EndSysregFields
+
+Sysreg	PIRE0_EL1	3	0	10	2	2
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIRE0_EL12	3	5	10	2	2
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL1		3	0	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL12	3	5	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
+Sysreg	PIR_EL2		3	4	10	2	3
+Fields	PIRx_ELx
+EndSysreg
+
 Sysreg	LORSA_EL1	3	0	10	4	0
 Res0	63:52
 Field	51:16	SA
@@ -630,4 +2402,96 @@ Res0	63:24
 Field	23:16	LD
 Res0	15:8
 Field	7:0	LR
+EndSysreg
+
+Sysreg	ISR_EL1	3	0	12	1	0
+Res0	63:11
+Field	10	IS
+Field	9	FS
+Field	8	A
+Field	7	I
+Field	6	F
+Res0	5:0
+EndSysreg
+
+Sysreg	ICC_NMIAR1_EL1	3	0	12	9	5
+Res0	63:24
+Field	23:0	INTID
+EndSysreg
+
+Sysreg	TRBLIMITR_EL1	3	0	9	11	0
+Field	63:12	LIMIT
+Res0	11:7
+Field	6	XE
+Field	5	nVM
+Enum	4:3	TM
+	0b00	STOP
+	0b01	IRQ
+	0b11	IGNR
+EndEnum
+Enum	2:1	FM
+	0b00	FILL
+	0b01	WRAP
+	0b11	CBUF
+EndEnum
+Field	0	E
+EndSysreg
+
+Sysreg	TRBPTR_EL1	3	0	9	11	1
+Field	63:0	PTR
+EndSysreg
+
+Sysreg	TRBBASER_EL1	3	0	9	11	2
+Field	63:12	BASE
+Res0	11:0
+EndSysreg
+
+Sysreg	TRBSR_EL1	3	0	9	11	3
+Res0	63:56
+Field	55:32	MSS2
+Field	31:26	EC
+Res0	25:24
+Field	23	DAT
+Field	22	IRQ
+Field	21	TRG
+Field	20	WRAP
+Res0	19
+Field	18	EA
+Field	17	S
+Res0	16
+Field	15:0	MSS
+EndSysreg
+
+Sysreg	TRBMAR_EL1	3	0	9	11	4
+Res0	63:12
+Enum	11:10	PAS
+	0b00	SECURE
+	0b01	NON_SECURE
+	0b10	ROOT
+	0b11	REALM
+EndEnum
+Enum	9:8	SH
+	0b00	NON_SHAREABLE
+	0b10	OUTER_SHAREABLE
+	0b11	INNER_SHAREABLE
+EndEnum
+Field	7:0	Attr
+EndSysreg
+
+Sysreg	TRBTRG_EL1	3	0	9	11	6
+Res0	63:32
+Field	31:0	TRG
+EndSysreg
+
+Sysreg	TRBIDR_EL1	3	0	9	11	7
+Res0	63:12
+Enum	11:8	EA
+	0b0000	NON_DESC
+	0b0001	IGNORE
+	0b0010	SERROR
+EndEnum
+Res0	7:6
+Field	5	F
+Field	4	P
+Field	3:0	Align
 EndSysreg

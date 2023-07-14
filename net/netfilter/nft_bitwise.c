@@ -86,7 +86,7 @@ static const struct nla_policy nft_bitwise_policy[NFTA_BITWISE_MAX + 1] = {
 	[NFTA_BITWISE_LEN]	= { .type = NLA_U32 },
 	[NFTA_BITWISE_MASK]	= { .type = NLA_NESTED },
 	[NFTA_BITWISE_XOR]	= { .type = NLA_NESTED },
-	[NFTA_BITWISE_OP]	= { .type = NLA_U32 },
+	[NFTA_BITWISE_OP]	= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_BITWISE_DATA]	= { .type = NLA_NESTED },
 };
 
@@ -232,7 +232,8 @@ static int nft_bitwise_dump_shift(struct sk_buff *skb,
 	return 0;
 }
 
-static int nft_bitwise_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_bitwise_dump(struct sk_buff *skb,
+			    const struct nft_expr *expr, bool reset)
 {
 	const struct nft_bitwise *priv = nft_expr_priv(expr);
 	int err = 0;
@@ -322,7 +323,7 @@ static bool nft_bitwise_reduce(struct nft_regs_track *track,
 	dreg = priv->dreg;
 	regcount = DIV_ROUND_UP(priv->len, NFT_REG32_SIZE);
 	for (i = 0; i < regcount; i++, dreg++)
-		track->regs[priv->dreg].bitwise = expr;
+		track->regs[dreg].bitwise = expr;
 
 	return false;
 }
@@ -393,7 +394,8 @@ static int nft_bitwise_fast_init(const struct nft_ctx *ctx,
 }
 
 static int
-nft_bitwise_fast_dump(struct sk_buff *skb, const struct nft_expr *expr)
+nft_bitwise_fast_dump(struct sk_buff *skb,
+		      const struct nft_expr *expr, bool reset)
 {
 	const struct nft_bitwise_fast_expr *priv = nft_expr_priv(expr);
 	struct nft_data data;

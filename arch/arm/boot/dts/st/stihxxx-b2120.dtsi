@@ -1,0 +1,206 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 STMicroelectronics (R&D) Limited.
+ * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
+ */
+#include <dt-bindings/clock/stih407-clks.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/media/c8sectpfe.h>
+/ {
+	leds {
+		compatible = "gpio-leds";
+		led-red {
+			label = "Front Panel LED";
+			gpios = <&pio4 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+		led-green {
+			gpios = <&pio1 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+
+	sound: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "STI-B2120";
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
+			/* HDMI */
+			format = "i2s";
+			mclk-fs = <128>;
+			cpu {
+				sound-dai = <&sti_uni_player0>;
+			};
+
+			codec {
+				sound-dai = <&sti_hdmi>;
+			};
+		};
+
+		simple-audio-card,dai-link@1 {
+			reg = <1>;
+			/* DAC */
+			format = "i2s";
+			mclk-fs = <256>;
+			frame-inversion;
+			cpu {
+				sound-dai = <&sti_uni_player2>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 1>;
+			};
+		};
+
+		simple-audio-card,dai-link@2 {
+			reg = <2>;
+			/* SPDIF */
+			format = "left_j";
+			mclk-fs = <128>;
+			cpu {
+				sound-dai = <&sti_uni_player3>;
+			};
+
+			codec {
+				sound-dai = <&sti_sasg_codec 0>;
+			};
+		};
+	};
+
+	miphy28lp_phy: miphy28lp {
+
+		phy_port0: port@9b22000 {
+			st,osc-rdy;
+		};
+
+		phy_port1: port@9b2a000 {
+			st,osc-force-ext;
+		};
+	};
+
+	soc {
+		sbc_serial0: serial@9530000 {
+			status = "okay";
+		};
+
+		pwm0: pwm@9810000 {
+			status = "okay";
+		};
+
+		pwm1: pwm@9510000 {
+			status = "okay";
+		};
+
+		ssc2: i2c@9842000 {
+			status = "okay";
+			clock-frequency = <100000>;
+			st,i2c-min-scl-pulse-width-us = <0>;
+			st,i2c-min-sda-pulse-width-us = <5>;
+		};
+
+		ssc3: i2c@9843000 {
+			status = "okay";
+			clock-frequency = <100000>;
+			st,i2c-min-scl-pulse-width-us = <0>;
+			st,i2c-min-sda-pulse-width-us = <5>;
+		};
+
+		i2c@9844000 {
+			status = "okay";
+		};
+
+		i2c@9845000 {
+			status = "okay";
+		};
+
+		i2c@9540000 {
+			status = "okay";
+		};
+
+		mmc0: sdhci@9060000 {
+			non-removable;
+			status = "okay";
+		};
+
+		mmc1: sdhci@9080000 {
+			status = "okay";
+		};
+
+		/* SSC11 to HDMI */
+		hdmiddc: i2c@9541000 {
+			status = "okay";
+			/* HDMI V1.3a supports Standard mode only */
+			clock-frequency = <100000>;
+			st,i2c-min-scl-pulse-width-us = <0>;
+			st,i2c-min-sda-pulse-width-us = <5>;
+		};
+
+		st_dwc3: dwc3@8f94000 {
+			status = "okay";
+		};
+
+		ethernet0: dwmac@9630000 {
+			st,tx-retime-src = "clkgen";
+			status = "okay";
+			phy-mode = "rgmii";
+			fixed-link = <0 1 1000 0 0>;
+		};
+
+		demux@8a20000 {
+			compatible	= "st,stih407-c8sectpfe";
+			status		= "okay";
+			reg		= <0x08a20000 0x10000>,
+					  <0x08a00000 0x4000>;
+			reg-names	= "c8sectpfe", "c8sectpfe-ram";
+			interrupts	= <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+					  <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names	= "c8sectpfe-error-irq",
+					  "c8sectpfe-idle-irq";
+			pinctrl-0	= <&pinctrl_tsin0_serial>;
+			pinctrl-1	= <&pinctrl_tsin0_parallel>;
+			pinctrl-2	= <&pinctrl_tsin3_serial>;
+			pinctrl-3	= <&pinctrl_tsin4_serial_alt3>;
+			pinctrl-4	= <&pinctrl_tsin5_serial_alt1>;
+			pinctrl-names	= "tsin0-serial",
+					  "tsin0-parallel",
+					  "tsin3-serial",
+					  "tsin4-serial",
+					  "tsin5-serial";
+			clocks		= <&clk_s_c0_flexgen CLK_PROC_STFE>;
+			clock-names	= "c8sectpfe";
+
+			/* tsin0 is TSA on NIMA */
+			tsin0: port {
+				tsin-num = <0>;
+				serial-not-parallel;
+				i2c-bus = <&ssc2>;
+				reset-gpios = <&pio15 4 GPIO_ACTIVE_LOW>;
+				dvb-card = <STV0367_TDA18212_NIMA_1>;
+			};
+		};
+
+		sti_uni_player0: sti-uni-player@8d80000 {
+			status = "okay";
+		};
+
+		sti_uni_player2: sti-uni-player@8d82000 {
+			status = "okay";
+		};
+
+		sti_uni_player3: sti-uni-player@8d85000 {
+			status = "okay";
+		};
+
+		syscfg_core: core-syscfg@92b0000 {
+			sti_sasg_codec: sti-sasg-codec {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_spdif_out>;
+			};
+		};
+	};
+};

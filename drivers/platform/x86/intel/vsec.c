@@ -64,13 +64,7 @@ enum intel_vsec_id {
 	VSEC_ID_WATCHER		= 3,
 	VSEC_ID_CRASHLOG	= 4,
 	VSEC_ID_SDSI		= 65,
-};
-
-static enum intel_vsec_id intel_vsec_allow_list[] = {
-	VSEC_ID_TELEMETRY,
-	VSEC_ID_WATCHER,
-	VSEC_ID_CRASHLOG,
-	VSEC_ID_SDSI,
+	VSEC_ID_TPMI		= 66,
 };
 
 static const char *intel_vsec_name(enum intel_vsec_id id)
@@ -88,31 +82,27 @@ static const char *intel_vsec_name(enum intel_vsec_id id)
 	case VSEC_ID_SDSI:
 		return "sdsi";
 
+	case VSEC_ID_TPMI:
+		return "tpmi";
+
 	default:
 		return NULL;
 	}
 }
 
-static bool intel_vsec_allowed(u16 id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(intel_vsec_allow_list); i++)
-		if (intel_vsec_allow_list[i] == id)
-			return true;
-
-	return false;
-}
-
-static bool intel_vsec_disabled(u16 id, unsigned long quirks)
+static bool intel_vsec_supported(u16 id, unsigned long caps)
 {
 	switch (id) {
+	case VSEC_ID_TELEMETRY:
+		return !!(caps & VSEC_CAP_TELEMETRY);
 	case VSEC_ID_WATCHER:
-		return !!(quirks & VSEC_QUIRK_NO_WATCHER);
-
+		return !!(caps & VSEC_CAP_WATCHER);
 	case VSEC_ID_CRASHLOG:
-		return !!(quirks & VSEC_QUIRK_NO_CRASHLOG);
-
+		return !!(caps & VSEC_CAP_CRASHLOG);
+	case VSEC_ID_SDSI:
+		return !!(caps & VSEC_CAP_SDSI);
+	case VSEC_ID_TPMI:
+		return !!(caps & VSEC_CAP_TPMI);
 	default:
 		return false;
 	}
@@ -124,37 +114,47 @@ static void intel_vsec_remove_aux(void *data)
 	auxiliary_device_uninit(data);
 }
 
+static DEFINE_MUTEX(vsec_ida_lock);
+
 static void intel_vsec_dev_release(struct device *dev)
 {
 	struct intel_vsec_device *intel_vsec_dev = dev_to_ivdev(dev);
 
+	mutex_lock(&vsec_ida_lock);
 	ida_free(intel_vsec_dev->ida, intel_vsec_dev->auxdev.id);
+	mutex_unlock(&vsec_ida_lock);
+
 	kfree(intel_vsec_dev->resource);
 	kfree(intel_vsec_dev);
 }
 
-static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *intel_vsec_dev,
-			      const char *name)
+int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
+		       struct intel_vsec_device *intel_vsec_dev,
+		       const char *name)
 {
 	struct auxiliary_device *auxdev = &intel_vsec_dev->auxdev;
 	int ret, id;
 
+	mutex_lock(&vsec_ida_lock);
 	ret = ida_alloc(intel_vsec_dev->ida, GFP_KERNEL);
+	mutex_unlock(&vsec_ida_lock);
 	if (ret < 0) {
+		kfree(intel_vsec_dev->resource);
 		kfree(intel_vsec_dev);
 		return ret;
 	}
 
+	if (!parent)
+		parent = &pdev->dev;
+
 	auxdev->id = ret;
 	auxdev->name = name;
-	auxdev->dev.parent = &pdev->dev;
+	auxdev->dev.parent = parent;
 	auxdev->dev.release = intel_vsec_dev_release;
 
 	ret = auxiliary_device_init(auxdev);
 	if (ret < 0) {
-		ida_free(intel_vsec_dev->ida, auxdev->id);
-		kfree(intel_vsec_dev->resource);
-		kfree(intel_vsec_dev);
+		intel_vsec_dev_release(&auxdev->dev);
 		return ret;
 	}
 
@@ -164,7 +164,7 @@ static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *in
 		return ret;
 	}
 
-	ret = devm_add_action_or_reset(&pdev->dev, intel_vsec_remove_aux,
+	ret = devm_add_action_or_reset(parent, intel_vsec_remove_aux,
 				       auxdev);
 	if (ret < 0)
 		return ret;
@@ -177,6 +177,7 @@ static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *in
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, INTEL_VSEC);
 
 static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *header,
 			      struct intel_vsec_platform_info *info)
@@ -186,7 +187,7 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	unsigned long quirks = info->quirks;
 	int i;
 
-	if (!intel_vsec_allowed(header->id) || intel_vsec_disabled(header->id, quirks))
+	if (!intel_vsec_supported(header->id, info->caps))
 		return -EINVAL;
 
 	if (!header->num_entries) {
@@ -234,20 +235,21 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	else
 		intel_vsec_dev->ida = &intel_vsec_ida;
 
-	return intel_vsec_add_aux(pdev, intel_vsec_dev, intel_vsec_name(header->id));
+	return intel_vsec_add_aux(pdev, NULL, intel_vsec_dev,
+				  intel_vsec_name(header->id));
 }
 
 static bool intel_vsec_walk_header(struct pci_dev *pdev,
 				   struct intel_vsec_platform_info *info)
 {
-	struct intel_vsec_header **header = info->capabilities;
+	struct intel_vsec_header **header = info->headers;
 	bool have_devices = false;
 	int ret;
 
 	for ( ; *header; header++) {
 		ret = intel_vsec_add_dev(pdev, *header, info);
 		if (ret)
-			dev_info(&pdev->dev, "Could not add device for DVSEC id %d\n",
+			dev_info(&pdev->dev, "Could not add device for VSEC id %d\n",
 				 (*header)->id);
 		else
 			have_devices = true;
@@ -382,14 +384,8 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 	return 0;
 }
 
-/* TGL info */
-static const struct intel_vsec_platform_info tgl_info = {
-	.quirks = VSEC_QUIRK_NO_WATCHER | VSEC_QUIRK_NO_CRASHLOG |
-		  VSEC_QUIRK_TABLE_SHIFT | VSEC_QUIRK_EARLY_HW,
-};
-
 /* DG1 info */
-static struct intel_vsec_header dg1_telemetry = {
+static struct intel_vsec_header dg1_header = {
 	.length = 0x10,
 	.id = 2,
 	.num_entries = 1,
@@ -398,25 +394,46 @@ static struct intel_vsec_header dg1_telemetry = {
 	.offset = 0x466000,
 };
 
-static struct intel_vsec_header *dg1_capabilities[] = {
-	&dg1_telemetry,
+static struct intel_vsec_header *dg1_headers[] = {
+	&dg1_header,
 	NULL
 };
 
 static const struct intel_vsec_platform_info dg1_info = {
-	.capabilities = dg1_capabilities,
+	.caps = VSEC_CAP_TELEMETRY,
+	.headers = dg1_headers,
 	.quirks = VSEC_QUIRK_NO_DVSEC | VSEC_QUIRK_EARLY_HW,
+};
+
+/* MTL info */
+static const struct intel_vsec_platform_info mtl_info = {
+	.caps = VSEC_CAP_TELEMETRY,
+};
+
+/* OOBMSM info */
+static const struct intel_vsec_platform_info oobmsm_info = {
+	.caps = VSEC_CAP_TELEMETRY | VSEC_CAP_SDSI | VSEC_CAP_TPMI,
+};
+
+/* TGL info */
+static const struct intel_vsec_platform_info tgl_info = {
+	.caps = VSEC_CAP_TELEMETRY,
+	.quirks = VSEC_QUIRK_TABLE_SHIFT | VSEC_QUIRK_EARLY_HW,
 };
 
 #define PCI_DEVICE_ID_INTEL_VSEC_ADL		0x467d
 #define PCI_DEVICE_ID_INTEL_VSEC_DG1		0x490e
+#define PCI_DEVICE_ID_INTEL_VSEC_MTL_M		0x7d0d
+#define PCI_DEVICE_ID_INTEL_VSEC_MTL_S		0xad0d
 #define PCI_DEVICE_ID_INTEL_VSEC_OOBMSM		0x09a7
 #define PCI_DEVICE_ID_INTEL_VSEC_RPL		0xa77d
 #define PCI_DEVICE_ID_INTEL_VSEC_TGL		0x9a0d
 static const struct pci_device_id intel_vsec_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, VSEC_ADL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_DG1, &dg1_info) },
-	{ PCI_DEVICE_DATA(INTEL, VSEC_OOBMSM, &(struct intel_vsec_platform_info) {}) },
+	{ PCI_DEVICE_DATA(INTEL, VSEC_MTL_M, &mtl_info) },
+	{ PCI_DEVICE_DATA(INTEL, VSEC_MTL_S, &mtl_info) },
+	{ PCI_DEVICE_DATA(INTEL, VSEC_OOBMSM, &oobmsm_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_RPL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_TGL, &tgl_info) },
 	{ }

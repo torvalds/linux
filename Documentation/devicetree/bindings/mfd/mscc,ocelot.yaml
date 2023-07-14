@@ -12,7 +12,8 @@ maintainers:
 description: |
   The Ocelot ethernet switch family contains chips that have an internal CPU
   (VSC7513, VSC7514) and chips that don't (VSC7511, VSC7512). All switches have
-  the option to be controlled externally, which is the purpose of this driver.
+  the option to be controlled externally via external interfaces like SPI or
+  PCIe.
 
   The switch family is a multi-port networking switch that supports many
   interfaces. Additionally, the device can perform pin control, MDIO buses, and
@@ -56,12 +57,20 @@ patternProperties:
         enum:
           - mscc,ocelot-miim
 
+  "^ethernet-switch@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/net/mscc,vsc7514-switch.yaml
+    unevaluatedProperties: false
+    properties:
+      compatible:
+        enum:
+          - mscc,vsc7512-switch
+
 required:
   - compatible
   - reg
   - '#address-cells'
   - '#size-cells'
-  - spi-max-frequency
 
 additionalProperties: false
 

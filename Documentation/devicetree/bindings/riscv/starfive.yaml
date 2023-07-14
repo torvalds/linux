@@ -19,8 +19,16 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: beagle,beaglev-starlight-jh7100-r0
+          - enum:
+              - beagle,beaglev-starlight-jh7100-r0
+              - starfive,visionfive-v1
           - const: starfive,jh7100
+
+      - items:
+          - enum:
+              - starfive,visionfive-2-v1.2a
+              - starfive,visionfive-2-v1.3b
+          - const: starfive,jh7110
 
 additionalProperties: true
 

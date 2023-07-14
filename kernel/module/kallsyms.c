@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/module_symbol.h>
 #include <linux/kallsyms.h>
 #include <linux/buildid.h>
 #include <linux/bsearch.h>
@@ -78,6 +79,7 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
 			   unsigned int shnum, unsigned int pcpundx)
 {
 	const Elf_Shdr *sec;
+	enum mod_mem_type type;
 
 	if (src->st_shndx == SHN_UNDEF ||
 	    src->st_shndx >= shnum ||
@@ -90,11 +92,12 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
 #endif
 
 	sec = sechdrs + src->st_shndx;
+	type = sec->sh_entsize >> SH_ENTSIZE_TYPE_SHIFT;
 	if (!(sec->sh_flags & SHF_ALLOC)
 #ifndef CONFIG_KALLSYMS_ALL
 	    || !(sec->sh_flags & SHF_EXECINSTR)
 #endif
-	    || (sec->sh_entsize & INIT_OFFSET_MASK))
+	    || mod_mem_type_is_init(type))
 		return false;
 
 	return true;
@@ -113,11 +116,13 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	Elf_Shdr *strsect = info->sechdrs + info->index.str;
 	const Elf_Sym *src;
 	unsigned int i, nsrc, ndst, strtab_size = 0;
+	struct module_memory *mod_mem_data = &mod->mem[MOD_DATA];
+	struct module_memory *mod_mem_init_data = &mod->mem[MOD_INIT_DATA];
 
 	/* Put symbol section at end of init part of module. */
 	symsect->sh_flags |= SHF_ALLOC;
-	symsect->sh_entsize = module_get_offset(mod, &mod->init_layout.size, symsect,
-						info->index.sym) | INIT_OFFSET_MASK;
+	symsect->sh_entsize = module_get_offset_and_type(mod, MOD_INIT_DATA,
+							 symsect, info->index.sym);
 	pr_debug("\t%s\n", info->secstrings + symsect->sh_name);
 
 	src = (void *)info->hdr + symsect->sh_offset;
@@ -134,28 +139,27 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	}
 
 	/* Append room for core symbols at end of core part. */
-	info->symoffs = ALIGN(mod->data_layout.size, symsect->sh_addralign ?: 1);
-	info->stroffs = mod->data_layout.size = info->symoffs + ndst * sizeof(Elf_Sym);
-	mod->data_layout.size += strtab_size;
+	info->symoffs = ALIGN(mod_mem_data->size, symsect->sh_addralign ?: 1);
+	info->stroffs = mod_mem_data->size = info->symoffs + ndst * sizeof(Elf_Sym);
+	mod_mem_data->size += strtab_size;
 	/* Note add_kallsyms() computes strtab_size as core_typeoffs - stroffs */
-	info->core_typeoffs = mod->data_layout.size;
-	mod->data_layout.size += ndst * sizeof(char);
-	mod->data_layout.size = strict_align(mod->data_layout.size);
+	info->core_typeoffs = mod_mem_data->size;
+	mod_mem_data->size += ndst * sizeof(char);
 
 	/* Put string table section at end of init part of module. */
 	strsect->sh_flags |= SHF_ALLOC;
-	strsect->sh_entsize = module_get_offset(mod, &mod->init_layout.size, strsect,
-						info->index.str) | INIT_OFFSET_MASK;
+	strsect->sh_entsize = module_get_offset_and_type(mod, MOD_INIT_DATA,
+							 strsect, info->index.str);
 	pr_debug("\t%s\n", info->secstrings + strsect->sh_name);
 
 	/* We'll tack temporary mod_kallsyms on the end. */
-	mod->init_layout.size = ALIGN(mod->init_layout.size,
-				      __alignof__(struct mod_kallsyms));
-	info->mod_kallsyms_init_off = mod->init_layout.size;
-	mod->init_layout.size += sizeof(struct mod_kallsyms);
-	info->init_typeoffs = mod->init_layout.size;
-	mod->init_layout.size += nsrc * sizeof(char);
-	mod->init_layout.size = strict_align(mod->init_layout.size);
+	mod_mem_init_data->size = ALIGN(mod_mem_init_data->size,
+					__alignof__(struct mod_kallsyms));
+	info->mod_kallsyms_init_off = mod_mem_init_data->size;
+
+	mod_mem_init_data->size += sizeof(struct mod_kallsyms);
+	info->init_typeoffs = mod_mem_init_data->size;
+	mod_mem_init_data->size += nsrc * sizeof(char);
 }
 
 /*
@@ -171,9 +175,11 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	char *s;
 	Elf_Shdr *symsec = &info->sechdrs[info->index.sym];
 	unsigned long strtab_size;
+	void *data_base = mod->mem[MOD_DATA].base;
+	void *init_data_base = mod->mem[MOD_INIT_DATA].base;
 
 	/* Set up to point into init section. */
-	mod->kallsyms = (void __rcu *)mod->init_layout.base +
+	mod->kallsyms = (void __rcu *)init_data_base +
 		info->mod_kallsyms_init_off;
 
 	rcu_read_lock();
@@ -183,15 +189,15 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	/* Make sure we get permanent strtab: don't use info->strtab. */
 	rcu_dereference(mod->kallsyms)->strtab =
 		(void *)info->sechdrs[info->index.str].sh_addr;
-	rcu_dereference(mod->kallsyms)->typetab = mod->init_layout.base + info->init_typeoffs;
+	rcu_dereference(mod->kallsyms)->typetab = init_data_base + info->init_typeoffs;
 
 	/*
 	 * Now populate the cut down core kallsyms for after init
 	 * and set types up while we still have access to sections.
 	 */
-	mod->core_kallsyms.symtab = dst = mod->data_layout.base + info->symoffs;
-	mod->core_kallsyms.strtab = s = mod->data_layout.base + info->stroffs;
-	mod->core_kallsyms.typetab = mod->data_layout.base + info->core_typeoffs;
+	mod->core_kallsyms.symtab = dst = data_base + info->symoffs;
+	mod->core_kallsyms.strtab = s = data_base + info->stroffs;
+	mod->core_kallsyms.typetab = data_base + info->core_typeoffs;
 	strtab_size = info->core_typeoffs - info->stroffs;
 	src = rcu_dereference(mod->kallsyms)->symtab;
 	for (ndst = i = 0; i < rcu_dereference(mod->kallsyms)->num_symtab; i++) {
@@ -238,18 +244,6 @@ void init_build_id(struct module *mod, const struct load_info *info)
 }
 #endif
 
-/*
- * This ignores the intensely annoying "mapping symbols" found
- * in ARM ELF files: $a, $t and $d.
- */
-static inline int is_arm_mapping_symbol(const char *str)
-{
-	if (str[0] == '.' && str[1] == 'L')
-		return true;
-	return str[0] == '$' && strchr("axtd", str[1]) &&
-	       (str[2] == '\0' || str[2] == '.');
-}
-
 static const char *kallsyms_symbol_name(struct mod_kallsyms *kallsyms, unsigned int symnum)
 {
 	return kallsyms->strtab + kallsyms->symtab[symnum].st_name;
@@ -267,12 +261,15 @@ static const char *find_kallsyms_symbol(struct module *mod,
 	unsigned int i, best = 0;
 	unsigned long nextval, bestval;
 	struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
+	struct module_memory *mod_mem;
 
 	/* At worse, next value is at end of module */
 	if (within_module_init(addr, mod))
-		nextval = (unsigned long)mod->init_layout.base + mod->init_layout.text_size;
+		mod_mem = &mod->mem[MOD_INIT_TEXT];
 	else
-		nextval = (unsigned long)mod->core_layout.base + mod->core_layout.text_size;
+		mod_mem = &mod->mem[MOD_TEXT];
+
+	nextval = (unsigned long)mod_mem->base + mod_mem->size;
 
 	bestval = kallsyms_symbol_value(&kallsyms->symtab[best]);
 
@@ -292,7 +289,7 @@ static const char *find_kallsyms_symbol(struct module *mod,
 		 * and inserted at a whim.
 		 */
 		if (*kallsyms_symbol_name(kallsyms, i) == '\0' ||
-		    is_arm_mapping_symbol(kallsyms_symbol_name(kallsyms, i)))
+		    is_mapping_symbol(kallsyms_symbol_name(kallsyms, i)))
 			continue;
 
 		if (thisval <= addr && thisval > bestval) {
@@ -384,34 +381,6 @@ out:
 	return -ERANGE;
 }
 
-int lookup_module_symbol_attrs(unsigned long addr, unsigned long *size,
-			       unsigned long *offset, char *modname, char *name)
-{
-	struct module *mod;
-
-	preempt_disable();
-	list_for_each_entry_rcu(mod, &modules, list) {
-		if (mod->state == MODULE_STATE_UNFORMED)
-			continue;
-		if (within_module(addr, mod)) {
-			const char *sym;
-
-			sym = find_kallsyms_symbol(mod, addr, size, offset);
-			if (!sym)
-				goto out;
-			if (modname)
-				strscpy(modname, mod->name, MODULE_NAME_LEN);
-			if (name)
-				strscpy(name, sym, KSYM_NAME_LEN);
-			preempt_enable();
-			return 0;
-		}
-	}
-out:
-	preempt_enable();
-	return -ERANGE;
-}
-
 int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		       char *name, char *module_name, int *exported)
 {
@@ -442,7 +411,7 @@ int module_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 }
 
 /* Given a module and name of symbol, find and return the symbol's value */
-unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
+static unsigned long __find_kallsyms_symbol_value(struct module *mod, const char *name)
 {
 	unsigned int i;
 	struct mod_kallsyms *kallsyms = rcu_dereference_sched(mod->kallsyms);
@@ -466,7 +435,7 @@ static unsigned long __module_kallsyms_lookup_name(const char *name)
 	if (colon) {
 		mod = find_module_all(name, colon - name, false);
 		if (mod)
-			return find_kallsyms_symbol_value(mod, colon + 1);
+			return __find_kallsyms_symbol_value(mod, colon + 1);
 		return 0;
 	}
 
@@ -475,7 +444,7 @@ static unsigned long __module_kallsyms_lookup_name(const char *name)
 
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
-		ret = find_kallsyms_symbol_value(mod, name);
+		ret = __find_kallsyms_symbol_value(mod, name);
 		if (ret)
 			return ret;
 	}
@@ -494,9 +463,18 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 	return ret;
 }
 
-#ifdef CONFIG_LIVEPATCH
-int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
-					     struct module *, unsigned long),
+unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
+{
+	unsigned long ret;
+
+	preempt_disable();
+	ret = __find_kallsyms_symbol_value(mod, name);
+	preempt_enable();
+	return ret;
+}
+
+int module_kallsyms_on_each_symbol(const char *modname,
+				   int (*fn)(void *, const char *, unsigned long),
 				   void *data)
 {
 	struct module *mod;
@@ -508,6 +486,9 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 		struct mod_kallsyms *kallsyms;
 
 		if (mod->state == MODULE_STATE_UNFORMED)
+			continue;
+
+		if (modname && strcmp(modname, mod->name))
 			continue;
 
 		/* Use rcu_dereference_sched() to remain compliant with the sparse tool */
@@ -522,13 +503,19 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 				continue;
 
 			ret = fn(data, kallsyms_symbol_name(kallsyms, i),
-				 mod, kallsyms_symbol_value(sym));
+				 kallsyms_symbol_value(sym));
 			if (ret != 0)
 				goto out;
 		}
+
+		/*
+		 * The given module is found, the subsequent modules do not
+		 * need to be compared.
+		 */
+		if (modname)
+			break;
 	}
 out:
 	mutex_unlock(&module_mutex);
 	return ret;
 }
-#endif /* CONFIG_LIVEPATCH */

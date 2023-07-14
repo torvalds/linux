@@ -59,7 +59,7 @@ static struct pci_driver uli_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static struct scsi_host_template uli_sht = {
+static const struct scsi_host_template uli_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

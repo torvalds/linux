@@ -2597,6 +2597,7 @@ static void ov5648_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls.handler);
 	mutex_destroy(&sensor->mutex);
 	media_entity_cleanup(&subdev->entity);
+	v4l2_fwnode_endpoint_free(&sensor->endpoint);
 }
 
 static const struct dev_pm_ops ov5648_pm_ops = {
@@ -2615,8 +2616,8 @@ static struct i2c_driver ov5648_driver = {
 		.of_match_table = ov5648_of_match,
 		.pm = &ov5648_pm_ops,
 	},
-	.probe_new = ov5648_probe,
-	.remove	 = ov5648_remove,
+	.probe = ov5648_probe,
+	.remove = ov5648_remove,
 };
 
 module_i2c_driver(ov5648_driver);

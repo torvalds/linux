@@ -24,22 +24,6 @@ static inline struct tm5p5_nt35596 *to_tm5p5_nt35596(struct drm_panel *panel)
 	return container_of(panel, struct tm5p5_nt35596, panel);
 }
 
-#define dsi_generic_write_seq(dsi, seq...) do {				\
-		static const u8 d[] = { seq };				\
-		int ret;						\
-		ret = mipi_dsi_generic_write(dsi, d, ARRAY_SIZE(d));	\
-		if (ret < 0)						\
-			return ret;					\
-	} while (0)
-
-#define dsi_dcs_write_seq(dsi, seq...) do {				\
-		static const u8 d[] = { seq };				\
-		int ret;						\
-		ret = mipi_dsi_dcs_write_buffer(dsi, d, ARRAY_SIZE(d));	\
-		if (ret < 0)						\
-			return ret;					\
-	} while (0)
-
 static void tm5p5_nt35596_reset(struct tm5p5_nt35596 *ctx)
 {
 	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
@@ -54,46 +38,46 @@ static int tm5p5_nt35596_on(struct tm5p5_nt35596 *ctx)
 {
 	struct mipi_dsi_device *dsi = ctx->dsi;
 
-	dsi_generic_write_seq(dsi, 0xff, 0x05);
-	dsi_generic_write_seq(dsi, 0xfb, 0x01);
-	dsi_generic_write_seq(dsi, 0xc5, 0x31);
-	dsi_generic_write_seq(dsi, 0xff, 0x04);
-	dsi_generic_write_seq(dsi, 0x01, 0x84);
-	dsi_generic_write_seq(dsi, 0x05, 0x25);
-	dsi_generic_write_seq(dsi, 0x06, 0x01);
-	dsi_generic_write_seq(dsi, 0x07, 0x20);
-	dsi_generic_write_seq(dsi, 0x08, 0x06);
-	dsi_generic_write_seq(dsi, 0x09, 0x08);
-	dsi_generic_write_seq(dsi, 0x0a, 0x10);
-	dsi_generic_write_seq(dsi, 0x0b, 0x10);
-	dsi_generic_write_seq(dsi, 0x0c, 0x10);
-	dsi_generic_write_seq(dsi, 0x0d, 0x14);
-	dsi_generic_write_seq(dsi, 0x0e, 0x14);
-	dsi_generic_write_seq(dsi, 0x0f, 0x14);
-	dsi_generic_write_seq(dsi, 0x10, 0x14);
-	dsi_generic_write_seq(dsi, 0x11, 0x14);
-	dsi_generic_write_seq(dsi, 0x12, 0x14);
-	dsi_generic_write_seq(dsi, 0x17, 0xf3);
-	dsi_generic_write_seq(dsi, 0x18, 0xc0);
-	dsi_generic_write_seq(dsi, 0x19, 0xc0);
-	dsi_generic_write_seq(dsi, 0x1a, 0xc0);
-	dsi_generic_write_seq(dsi, 0x1b, 0xb3);
-	dsi_generic_write_seq(dsi, 0x1c, 0xb3);
-	dsi_generic_write_seq(dsi, 0x1d, 0xb3);
-	dsi_generic_write_seq(dsi, 0x1e, 0xb3);
-	dsi_generic_write_seq(dsi, 0x1f, 0xb3);
-	dsi_generic_write_seq(dsi, 0x20, 0xb3);
-	dsi_generic_write_seq(dsi, 0xfb, 0x01);
-	dsi_generic_write_seq(dsi, 0xff, 0x00);
-	dsi_generic_write_seq(dsi, 0xfb, 0x01);
-	dsi_generic_write_seq(dsi, 0x35, 0x01);
-	dsi_generic_write_seq(dsi, 0xd3, 0x06);
-	dsi_generic_write_seq(dsi, 0xd4, 0x04);
-	dsi_generic_write_seq(dsi, 0x5e, 0x0d);
-	dsi_generic_write_seq(dsi, 0x11, 0x00);
+	mipi_dsi_generic_write_seq(dsi, 0xff, 0x05);
+	mipi_dsi_generic_write_seq(dsi, 0xfb, 0x01);
+	mipi_dsi_generic_write_seq(dsi, 0xc5, 0x31);
+	mipi_dsi_generic_write_seq(dsi, 0xff, 0x04);
+	mipi_dsi_generic_write_seq(dsi, 0x01, 0x84);
+	mipi_dsi_generic_write_seq(dsi, 0x05, 0x25);
+	mipi_dsi_generic_write_seq(dsi, 0x06, 0x01);
+	mipi_dsi_generic_write_seq(dsi, 0x07, 0x20);
+	mipi_dsi_generic_write_seq(dsi, 0x08, 0x06);
+	mipi_dsi_generic_write_seq(dsi, 0x09, 0x08);
+	mipi_dsi_generic_write_seq(dsi, 0x0a, 0x10);
+	mipi_dsi_generic_write_seq(dsi, 0x0b, 0x10);
+	mipi_dsi_generic_write_seq(dsi, 0x0c, 0x10);
+	mipi_dsi_generic_write_seq(dsi, 0x0d, 0x14);
+	mipi_dsi_generic_write_seq(dsi, 0x0e, 0x14);
+	mipi_dsi_generic_write_seq(dsi, 0x0f, 0x14);
+	mipi_dsi_generic_write_seq(dsi, 0x10, 0x14);
+	mipi_dsi_generic_write_seq(dsi, 0x11, 0x14);
+	mipi_dsi_generic_write_seq(dsi, 0x12, 0x14);
+	mipi_dsi_generic_write_seq(dsi, 0x17, 0xf3);
+	mipi_dsi_generic_write_seq(dsi, 0x18, 0xc0);
+	mipi_dsi_generic_write_seq(dsi, 0x19, 0xc0);
+	mipi_dsi_generic_write_seq(dsi, 0x1a, 0xc0);
+	mipi_dsi_generic_write_seq(dsi, 0x1b, 0xb3);
+	mipi_dsi_generic_write_seq(dsi, 0x1c, 0xb3);
+	mipi_dsi_generic_write_seq(dsi, 0x1d, 0xb3);
+	mipi_dsi_generic_write_seq(dsi, 0x1e, 0xb3);
+	mipi_dsi_generic_write_seq(dsi, 0x1f, 0xb3);
+	mipi_dsi_generic_write_seq(dsi, 0x20, 0xb3);
+	mipi_dsi_generic_write_seq(dsi, 0xfb, 0x01);
+	mipi_dsi_generic_write_seq(dsi, 0xff, 0x00);
+	mipi_dsi_generic_write_seq(dsi, 0xfb, 0x01);
+	mipi_dsi_generic_write_seq(dsi, 0x35, 0x01);
+	mipi_dsi_generic_write_seq(dsi, 0xd3, 0x06);
+	mipi_dsi_generic_write_seq(dsi, 0xd4, 0x04);
+	mipi_dsi_generic_write_seq(dsi, 0x5e, 0x0d);
+	mipi_dsi_generic_write_seq(dsi, 0x11, 0x00);
 	msleep(100);
-	dsi_generic_write_seq(dsi, 0x29, 0x00);
-	dsi_generic_write_seq(dsi, 0x53, 0x24);
+	mipi_dsi_generic_write_seq(dsi, 0x29, 0x00);
+	mipi_dsi_generic_write_seq(dsi, 0x53, 0x24);
 
 	return 0;
 }
@@ -117,7 +101,7 @@ static int tm5p5_nt35596_off(struct tm5p5_nt35596 *ctx)
 		return ret;
 	}
 
-	dsi_dcs_write_seq(dsi, 0x4f, 0x01);
+	mipi_dsi_dcs_write_seq(dsi, 0x4f, 0x01);
 
 	return 0;
 }
@@ -321,7 +305,7 @@ static int tm5p5_nt35596_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
+static void tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
 {
 	struct tm5p5_nt35596 *ctx = mipi_dsi_get_drvdata(dsi);
 	int ret;
@@ -332,8 +316,6 @@ static int tm5p5_nt35596_remove(struct mipi_dsi_device *dsi)
 			"Failed to detach from DSI host: %d\n", ret);
 
 	drm_panel_remove(&ctx->panel);
-
-	return 0;
 }
 
 static const struct of_device_id tm5p5_nt35596_of_match[] = {

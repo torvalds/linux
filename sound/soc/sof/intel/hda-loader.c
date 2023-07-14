@@ -19,7 +19,9 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
 #include <sound/sof.h>
+#include <sound/sof/ipc4/header.h>
 #include "ext_manifest.h"
+#include "../ipc4-priv.h"
 #include "../ops.h"
 #include "../sof-priv.h"
 #include "hda.h"
@@ -177,14 +179,13 @@ int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot)
 	 * - IMR boot: wait for ROM firmware entered (firmware booted up from IMR)
 	 */
 	if (imr_boot)
-		target_status = HDA_DSP_ROM_FW_ENTERED;
+		target_status = FSR_STATE_FW_ENTERED;
 	else
-		target_status = HDA_DSP_ROM_INIT;
+		target_status = FSR_STATE_INIT_DONE;
 
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 					chip->rom_status_reg, status,
-					((status & HDA_DSP_ROM_STS_MASK)
-						== target_status),
+					(FSR_TO_STATE_CODE(status) == target_status),
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					chip->rom_init_timeout *
 					USEC_PER_MSEC);
@@ -264,9 +265,9 @@ int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 
 	/* reset BDL address */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPL, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPL, 0);
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
-			  sd_offset + SOF_HDA_ADSP_REG_CL_SD_BDLPU, 0);
+			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU, 0);
 
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset, 0);
 	snd_dma_free_pages(dmab);
@@ -292,8 +293,7 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 
 	status = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 					chip->rom_status_reg, reg,
-					((reg & HDA_DSP_ROM_STS_MASK)
-						== HDA_DSP_ROM_FW_ENTERED),
+					(FSR_TO_STATE_CODE(reg) == FSR_STATE_FW_ENTERED),
 					HDA_DSP_REG_POLL_INTERVAL_US,
 					HDA_DSP_BASEFW_TIMEOUT_US);
 
@@ -320,26 +320,20 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 
 int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 {
-	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct hdac_ext_stream *iccmax_stream;
-	struct hdac_bus *bus = sof_to_bus(sdev);
-	struct firmware stripped_firmware;
 	struct snd_dma_buffer dmab_bdl;
 	int ret, ret1;
 	u8 original_gb;
 
 	/* save the original LTRP guardband value */
-	original_gb = snd_hdac_chip_readb(bus, VS_LTRP) & HDA_VS_INTEL_LTRP_GB_MASK;
+	original_gb = snd_sof_dsp_read8(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_LTRP) &
+		HDA_VS_INTEL_LTRP_GB_MASK;
 
-	if (plat_data->fw->size <= plat_data->fw_offset) {
-		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
-		return -EINVAL;
-	}
-
-	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
-
-	/* prepare capture stream for ICCMAX */
-	iccmax_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, stripped_firmware.size,
+	/*
+	 * Prepare capture stream for ICCMAX. We do not need to store
+	 * the data, so use a buffer of PAGE_SIZE for receiving.
+	 */
+	iccmax_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, PAGE_SIZE,
 					      &dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
 	if (IS_ERR(iccmax_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
@@ -362,7 +356,8 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	}
 
 	/* restore the original guardband value after FW boot */
-	snd_hdac_chip_updateb(bus, VS_LTRP, HDA_VS_INTEL_LTRP_GB_MASK, original_gb);
+	snd_sof_dsp_update8(sdev, HDA_DSP_HDA_BAR, HDA_VS_INTEL_LTRP,
+			    HDA_VS_INTEL_LTRP_GB_MASK, original_gb);
 
 	return ret;
 }
@@ -399,21 +394,25 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
 		hda->boot_iteration = 0;
 		ret = hda_dsp_boot_imr(sdev);
-		if (!ret)
+		if (!ret) {
+			hda->booted_from_imr = true;
 			return 0;
+		}
 
 		dev_warn(sdev->dev, "IMR restore failed, trying to cold boot\n");
 	}
 
+	hda->booted_from_imr = false;
+
 	chip_info = desc->chip_info;
 
-	if (plat_data->fw->size <= plat_data->fw_offset) {
+	if (sdev->basefw.fw->size <= sdev->basefw.payload_offset) {
 		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
 		return -EINVAL;
 	}
 
-	stripped_firmware.data = plat_data->fw->data + plat_data->fw_offset;
-	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
+	stripped_firmware.data = sdev->basefw.fw->data + sdev->basefw.payload_offset;
+	stripped_firmware.size = sdev->basefw.fw->size - sdev->basefw.payload_offset;
 
 	/* init for booting wait */
 	init_waitqueue_head(&sdev->boot_wait);
@@ -514,6 +513,70 @@ cleanup:
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR,
 				SOF_HDA_REG_PP_PPCTL,
 				SOF_HDA_PPCTL_GPROCEN, 0);
+	return ret;
+}
+
+int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
+			      struct sof_ipc4_fw_library *fw_lib, bool reload)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	struct hdac_ext_stream *hext_stream;
+	struct firmware stripped_firmware;
+	struct sof_ipc4_msg msg = {};
+	struct snd_dma_buffer dmab;
+	int ret, ret1;
+
+	/* IMR booting will restore the libraries as well, skip the loading */
+	if (reload && hda->booted_from_imr)
+		return 0;
+
+	/* the fw_lib has been verified during loading, we can trust the validity here */
+	stripped_firmware.data = fw_lib->sof_fw.fw->data + fw_lib->sof_fw.payload_offset;
+	stripped_firmware.size = fw_lib->sof_fw.fw->size - fw_lib->sof_fw.payload_offset;
+
+	/* prepare DMA for code loader stream */
+	hext_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT,
+					    stripped_firmware.size,
+					    &dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	if (IS_ERR(hext_stream)) {
+		dev_err(sdev->dev, "%s: DMA prepare failed\n", __func__);
+		return PTR_ERR(hext_stream);
+	}
+
+	memcpy(dmab.area, stripped_firmware.data, stripped_firmware.size);
+
+	msg.primary = hext_stream->hstream.stream_tag - 1;
+	msg.primary |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_GLB_LOAD_LIBRARY);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_FW_GEN_MSG);
+	msg.primary |= SOF_IPC4_GLB_LOAD_LIBRARY_LIB_ID(fw_lib->id);
+
+	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_START);
+	if (ret < 0) {
+		dev_err(sdev->dev, "%s: DMA trigger start failed\n", __func__);
+		goto cleanup;
+	}
+
+	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+
+	ret1 = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
+	if (ret1 < 0) {
+		dev_err(sdev->dev, "%s: DMA trigger stop failed\n", __func__);
+		if (!ret)
+			ret = ret1;
+	}
+
+cleanup:
+	/* clean up even in case of error and return the first error */
+	ret1 = hda_cl_cleanup(sdev, &dmab, hext_stream);
+	if (ret1 < 0) {
+		dev_err(sdev->dev, "%s: Code loader DSP cleanup failed\n", __func__);
+
+		/* set return value to indicate cleanup failure */
+		if (!ret)
+			ret = ret1;
+	}
+
 	return ret;
 }
 

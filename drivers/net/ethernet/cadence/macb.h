@@ -82,6 +82,7 @@
 #define GEM_NCFGR		0x0004 /* Network Config */
 #define GEM_USRIO		0x000c /* User IO */
 #define GEM_DMACFG		0x0010 /* DMA Configuration */
+#define GEM_PBUFRXCUT		0x0044 /* RX Partial Store and Forward */
 #define GEM_JML			0x0048 /* Jumbo Max Length */
 #define GEM_HS_MAC_CONFIG	0x0050 /* GEM high speed config */
 #define GEM_HRB			0x0080 /* Hash Bottom */
@@ -95,6 +96,8 @@
 #define GEM_SA4B		0x00A0 /* Specific4 Bottom */
 #define GEM_SA4T		0x00A4 /* Specific4 Top */
 #define GEM_WOL			0x00b8 /* Wake on LAN */
+#define GEM_RXPTPUNI		0x00D4 /* PTP RX Unicast address */
+#define GEM_TXPTPUNI		0x00D8 /* PTP TX Unicast address */
 #define GEM_EFTSH		0x00e8 /* PTP Event Frame Transmitted Seconds Register 47:32 */
 #define GEM_EFRSH		0x00ec /* PTP Event Frame Received Seconds Register 47:32 */
 #define GEM_PEFTSH		0x00f0 /* PTP Peer Event Frame Transmitted Seconds Register 47:32 */
@@ -245,6 +248,8 @@
 #define MACB_TZQ_OFFSET		12 /* Transmit zero quantum pause frame */
 #define MACB_TZQ_SIZE		1
 #define MACB_SRTSM_OFFSET	15 /* Store Receive Timestamp to Memory */
+#define MACB_PTPUNI_OFFSET	20 /* PTP Unicast packet enable */
+#define MACB_PTPUNI_SIZE	1
 #define MACB_OSSMODE_OFFSET	24 /* Enable One Step Synchro Mode */
 #define MACB_OSSMODE_SIZE	1
 #define MACB_MIIONRGMII_OFFSET	28 /* MII Usage on RGMII Interface */
@@ -342,6 +347,10 @@
 #define GEM_ADDR64_OFFSET	30 /* Address bus width - 64b or 32b */
 #define GEM_ADDR64_SIZE		1
 
+
+/* Bitfields in PBUFRXCUT */
+#define GEM_ENCUTTHRU_OFFSET	31 /* Enable RX partial store and forward */
+#define GEM_ENCUTTHRU_SIZE	1
 
 /* Bitfields in NSR */
 #define MACB_NSR_LINK_OFFSET	0 /* pcs_link_state */
@@ -509,6 +518,8 @@
 #define GEM_TX_PKT_BUFF_OFFSET			21
 #define GEM_TX_PKT_BUFF_SIZE			1
 
+#define GEM_RX_PBUF_ADDR_OFFSET			22
+#define GEM_RX_PBUF_ADDR_SIZE			4
 
 /* Bitfields in DCFG5. */
 #define GEM_TSU_OFFSET				8
@@ -517,6 +528,8 @@
 /* Bitfields in DCFG6. */
 #define GEM_PBUF_LSO_OFFSET			27
 #define GEM_PBUF_LSO_SIZE			1
+#define GEM_PBUF_CUTTHRU_OFFSET			25
+#define GEM_PBUF_CUTTHRU_SIZE			1
 #define GEM_DAW64_OFFSET			23
 #define GEM_DAW64_SIZE				1
 
@@ -692,6 +705,8 @@
 #define GEM_CLK_DIV48				3
 #define GEM_CLK_DIV64				4
 #define GEM_CLK_DIV96				5
+#define GEM_CLK_DIV128				6
+#define GEM_CLK_DIV224				7
 
 /* Constants for MAN register */
 #define MACB_MAN_C22_SOF			1
@@ -768,8 +783,6 @@
 #define gem_readl_n(port, reg, idx)		(port)->macb_reg_readl((port), GEM_##reg + idx * 4)
 #define gem_writel_n(port, reg, idx, value)	(port)->macb_reg_writel((port), GEM_##reg + idx * 4, (value))
 
-#define PTP_TS_BUFFER_SIZE		128 /* must be power of 2 */
-
 /* Conditional GEM/MACB macros.  These perform the operation to the correct
  * register dependent on whether the device is a GEM or a MACB.  For registers
  * and bitfields that are common across both devices, use macb_{read,write}l
@@ -818,11 +831,6 @@ struct macb_dma_desc_64 {
 struct macb_dma_desc_ptp {
 	u32	ts_1;
 	u32	ts_2;
-};
-
-struct gem_tx_ts {
-	struct sk_buff *skb;
-	struct macb_dma_desc_ptp desc_ptp;
 };
 #endif
 
@@ -1182,6 +1190,7 @@ struct macb_config {
 			    struct clk **hclk, struct clk **tx_clk,
 			    struct clk **rx_clk, struct clk **tsu_clk);
 	int	(*init)(struct platform_device *pdev);
+	unsigned int		max_tx_length;
 	int	jumbo_max_len;
 	const struct macb_usrio_config *usrio;
 };
@@ -1224,12 +1233,6 @@ struct macb_queue {
 	void			*rx_buffers;
 	struct napi_struct	napi_rx;
 	struct queue_stats stats;
-
-#ifdef CONFIG_MACB_USE_HWSTAMP
-	struct work_struct	tx_ts_task;
-	unsigned int		tx_ts_head, tx_ts_tail;
-	struct gem_tx_ts	tx_timestamps[PTP_TS_BUFFER_SIZE];
-#endif
 };
 
 struct ethtool_rx_fs_item {
@@ -1296,6 +1299,9 @@ struct macb {
 
 	u32			wol;
 
+	/* holds value of rx watermark value for pbuf_rxcutthru register */
+	u32			rx_watermark;
+
 	struct macb_ptp_info	*ptp_info;	/* macb-ptp interface */
 
 	struct phy		*sgmii_phy;	/* for ZynqMP SGMII mode */
@@ -1340,14 +1346,14 @@ enum macb_bd_control {
 
 void gem_ptp_init(struct net_device *ndev);
 void gem_ptp_remove(struct net_device *ndev);
-int gem_ptp_txstamp(struct macb_queue *queue, struct sk_buff *skb, struct macb_dma_desc *des);
+void gem_ptp_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc);
 void gem_ptp_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc);
-static inline int gem_ptp_do_txstamp(struct macb_queue *queue, struct sk_buff *skb, struct macb_dma_desc *desc)
+static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc)
 {
-	if (queue->bp->tstamp_config.tx_type == TSTAMP_DISABLED)
-		return -ENOTSUPP;
+	if (bp->tstamp_config.tx_type == TSTAMP_DISABLED)
+		return;
 
-	return gem_ptp_txstamp(queue, skb, desc);
+	gem_ptp_txstamp(bp, skb, desc);
 }
 
 static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc)
@@ -1363,11 +1369,7 @@ int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd);
 static inline void gem_ptp_init(struct net_device *ndev) { }
 static inline void gem_ptp_remove(struct net_device *ndev) { }
 
-static inline int gem_ptp_do_txstamp(struct macb_queue *queue, struct sk_buff *skb, struct macb_dma_desc *desc)
-{
-	return -1;
-}
-
+static inline void gem_ptp_do_txstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }
 static inline void gem_ptp_do_rxstamp(struct macb *bp, struct sk_buff *skb, struct macb_dma_desc *desc) { }
 #endif
 
@@ -1378,7 +1380,7 @@ static inline bool macb_is_gem(struct macb *bp)
 
 static inline bool gem_has_ptp(struct macb *bp)
 {
-	return !!(bp->caps & MACB_CAPS_GEM_HAS_PTP);
+	return IS_ENABLED(CONFIG_MACB_USE_HWSTAMP) && (bp->caps & MACB_CAPS_GEM_HAS_PTP);
 }
 
 /**

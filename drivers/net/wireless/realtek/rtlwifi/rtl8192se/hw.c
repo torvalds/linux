@@ -731,12 +731,12 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	/* After MACIO reset,we must refresh LED state. */
 	if ((ppsc->rfoff_reason == RF_CHANGE_BY_IPS) ||
 	   (ppsc->rfoff_reason == 0)) {
-		struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
+		enum rtl_led_pin pin0 = rtlpriv->ledctl.sw_led0;
 		enum rf_pwrstate rfpwr_state_toset;
 		rfpwr_state_toset = _rtl92se_rf_onoff_detect(hw);
 
 		if (rfpwr_state_toset == ERFON)
-			rtl92se_sw_led_on(hw, pled0);
+			rtl92se_sw_led_on(hw, pin0);
 	}
 }
 
@@ -1302,7 +1302,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	u8 u1btmp;
 
-	if (rtlhal->driver_going2unload)
+	if (rtlhal->driver_is_goingto_unload)
 		rtl_write_byte(rtlpriv, 0x560, 0x0);
 
 	/* Power save for BB/RF */
@@ -1323,7 +1323,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, CMDR, 0x57FC);
 	rtl_write_word(rtlpriv, CMDR, 0x0000);
 
-	if (rtlhal->driver_going2unload) {
+	if (rtlhal->driver_is_goingto_unload) {
 		u1btmp = rtl_read_byte(rtlpriv, (REG_SYS_FUNC_EN + 1));
 		u1btmp &= ~(BIT(0));
 		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, u1btmp);
@@ -1345,7 +1345,7 @@ static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 
 	/* Power save for MAC */
 	if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS  &&
-		!rtlhal->driver_going2unload) {
+		!rtlhal->driver_is_goingto_unload) {
 		/* enable LED function */
 		rtl_write_byte(rtlpriv, 0x03, 0xF9);
 	/* SW/HW radio off or halt adapter!! For example S3/S4 */
@@ -1371,15 +1371,15 @@ static void _rtl92se_gen_refreshledstate(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
+	enum rtl_led_pin pin0 = rtlpriv->ledctl.sw_led0;
 
 	if (rtlpci->up_first_time)
 		return;
 
 	if (rtlpriv->psc.rfoff_reason == RF_CHANGE_BY_IPS)
-		rtl92se_sw_led_on(hw, pled0);
+		rtl92se_sw_led_on(hw, pin0);
 	else
-		rtl92se_sw_led_off(hw, pled0);
+		rtl92se_sw_led_off(hw, pin0);
 }
 
 
@@ -1552,8 +1552,6 @@ void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	u16 bcntime_cfg = 0;
-	u16 bcn_cw = 6, bcn_ifs = 0xf;
 	u16 atim_window = 2;
 
 	/* ATIM Window (in unit of TU). */
@@ -1575,13 +1573,6 @@ void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw)
 	 * after receiving beacon frame from
 	 * other ad hoc STA */
 	rtl_write_byte(rtlpriv, BCN_ERR_THRESH, 100);
-
-	/* Beacon Time Configuration */
-	if (mac->opmode == NL80211_IFTYPE_ADHOC)
-		bcntime_cfg |= (bcn_cw << BCN_TCFG_CW_SHIFT);
-
-	/* TODO: bcn_ifs may required to be changed on ASIC */
-	bcntime_cfg |= bcn_ifs << BCN_TCFG_IFS;
 
 	/*for beacon changed */
 	rtl92s_phy_set_beacon_hwreg(hw, mac->beacon_interval);

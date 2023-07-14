@@ -334,10 +334,10 @@ int ocfs2_cluster_connect(const char *stack_name,
 		goto out;
 	}
 
-	strlcpy(new_conn->cc_name, group, GROUP_NAME_MAX + 1);
+	strscpy(new_conn->cc_name, group, GROUP_NAME_MAX + 1);
 	new_conn->cc_namelen = grouplen;
 	if (cluster_name_len)
-		strlcpy(new_conn->cc_cluster_name, cluster_name,
+		strscpy(new_conn->cc_cluster_name, cluster_name,
 			CLUSTER_NAME_MAX + 1);
 	new_conn->cc_cluster_name_len = cluster_name_len;
 	new_conn->cc_recovery_handler = recovery_handler;
@@ -669,6 +669,8 @@ static struct ctl_table_header *ocfs2_table_header;
 
 static int __init ocfs2_stack_glue_init(void)
 {
+	int ret;
+
 	strcpy(cluster_stack_name, OCFS2_STACK_PLUGIN_O2CB);
 
 	ocfs2_table_header = register_sysctl("fs/ocfs2/nm", ocfs2_nm_table);
@@ -678,7 +680,11 @@ static int __init ocfs2_stack_glue_init(void)
 		return -ENOMEM; /* or something. */
 	}
 
-	return ocfs2_sysfs_init();
+	ret = ocfs2_sysfs_init();
+	if (ret)
+		unregister_sysctl_table(ocfs2_table_header);
+
+	return ret;
 }
 
 static void __exit ocfs2_stack_glue_exit(void)

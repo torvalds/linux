@@ -1,5 +1,3 @@
-.. _slub:
-
 ==========================
 Short users guide for SLUB
 ==========================
@@ -21,7 +19,7 @@ slabs that have data in them. See "slabinfo -h" for more options when
 running the command. ``slabinfo`` can be compiled with
 ::
 
-	gcc -o slabinfo tools/vm/slabinfo.c
+	gcc -o slabinfo tools/mm/slabinfo.c
 
 Some of the modes of operation of ``slabinfo`` require that slub debugging
 be enabled on the command line. F.e. no tracking information will be
@@ -116,6 +114,8 @@ options from the ``slub_debug`` parameter translate to the following files::
 	T	trace
 	A	failslab
 
+failslab file is writable, so writing 1 or 0 will enable or disable
+the option at runtime. Write returns -EINVAL if cache is an alias.
 Careful with tracing: It may spew out lots of information and never stop if
 used on the wrong slab.
 
@@ -400,21 +400,30 @@ information:
     allocated objects. The output is sorted by frequency of each trace.
 
     Information in the output:
-    Number of objects, allocating function, minimal/average/maximal jiffies since alloc,
-    pid range of the allocating processes, cpu mask of allocating cpus, and stack trace.
+    Number of objects, allocating function, possible memory wastage of
+    kmalloc objects(total/per-object), minimal/average/maximal jiffies
+    since alloc, pid range of the allocating processes, cpu mask of
+    allocating cpus, numa node mask of origins of memory, and stack trace.
 
     Example:::
 
-    1085 populate_error_injection_list+0x97/0x110 age=166678/166680/166682 pid=1 cpus=1::
-	__slab_alloc+0x6d/0x90
-	kmem_cache_alloc_trace+0x2eb/0x300
-	populate_error_injection_list+0x97/0x110
-	init_error_injection+0x1b/0x71
-	do_one_initcall+0x5f/0x2d0
-	kernel_init_freeable+0x26f/0x2d7
-	kernel_init+0xe/0x118
-	ret_from_fork+0x22/0x30
-
+    338 pci_alloc_dev+0x2c/0xa0 waste=521872/1544 age=290837/291891/293509 pid=1 cpus=106 nodes=0-1
+        __kmem_cache_alloc_node+0x11f/0x4e0
+        kmalloc_trace+0x26/0xa0
+        pci_alloc_dev+0x2c/0xa0
+        pci_scan_single_device+0xd2/0x150
+        pci_scan_slot+0xf7/0x2d0
+        pci_scan_child_bus_extend+0x4e/0x360
+        acpi_pci_root_create+0x32e/0x3b0
+        pci_acpi_scan_root+0x2b9/0x2d0
+        acpi_pci_root_add.cold.11+0x110/0xb0a
+        acpi_bus_attach+0x262/0x3f0
+        device_for_each_child+0xb7/0x110
+        acpi_dev_for_each_child+0x77/0xa0
+        acpi_bus_attach+0x108/0x3f0
+        device_for_each_child+0xb7/0x110
+        acpi_dev_for_each_child+0x77/0xa0
+        acpi_bus_attach+0x108/0x3f0
 
 2. free_traces::
 

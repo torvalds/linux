@@ -318,13 +318,6 @@ struct thread_struct {
 struct mm_struct;
 struct task_struct;
 
-/*
- * Free all resources held by a thread. This is called after the
- * parent of DEAD_TASK has collected the exit status of the task via
- * wait().
- */
-#define release_thread(dead_task)
-
 /* Get wait channel for task P.  */
 extern unsigned long __get_wchan (struct task_struct *p);
 

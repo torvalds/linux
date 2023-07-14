@@ -12,14 +12,14 @@
 #include <linux/clk/renesas.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
 #include <linux/slab.h>
-
-#include <asm/io.h>
 
 /* SYSC */
 #define SPDCR		0x08	/* SYS Power Down Control Register */
@@ -47,6 +47,7 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 {
 	struct rmobile_pm_domain *rmobile_pd = to_rmobile_pd(genpd);
 	unsigned int mask = BIT(rmobile_pd->bit_shift);
+	u32 val;
 
 	if (rmobile_pd->suspend) {
 		int ret = rmobile_pd->suspend();
@@ -56,14 +57,10 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 	}
 
 	if (readl(rmobile_pd->base + PSTR) & mask) {
-		unsigned int retry_count;
 		writel(mask, rmobile_pd->base + SPDCR);
 
-		for (retry_count = PSTR_RETRIES; retry_count; retry_count--) {
-			if (!(readl(rmobile_pd->base + SPDCR) & mask))
-				break;
-			cpu_relax();
-		}
+		readl_poll_timeout_atomic(rmobile_pd->base + SPDCR, val,
+					  !(val & mask), 0, PSTR_RETRIES);
 	}
 
 	pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n", genpd->name, mask,
@@ -74,8 +71,7 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 
 static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd)
 {
-	unsigned int mask = BIT(rmobile_pd->bit_shift);
-	unsigned int retry_count;
+	unsigned int val, mask = BIT(rmobile_pd->bit_shift);
 	int ret = 0;
 
 	if (readl(rmobile_pd->base + PSTR) & mask)
@@ -83,16 +79,9 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd)
 
 	writel(mask, rmobile_pd->base + SWUCR);
 
-	for (retry_count = 2 * PSTR_RETRIES; retry_count; retry_count--) {
-		if (!(readl(rmobile_pd->base + SWUCR) & mask))
-			break;
-		if (retry_count > PSTR_RETRIES)
-			udelay(PSTR_DELAY_US);
-		else
-			cpu_relax();
-	}
-	if (!retry_count)
-		ret = -EIO;
+	ret = readl_poll_timeout_atomic(rmobile_pd->base + SWUCR, val,
+					(val & mask), PSTR_DELAY_US,
+					PSTR_RETRIES * PSTR_DELAY_US);
 
 	pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
 		 rmobile_pd->genpd.name, mask,
@@ -343,7 +332,7 @@ static int __init rmobile_init_pm_domains(void)
 			break;
 		}
 
-		fwnode_dev_initialized(&np->fwnode, true);
+		fwnode_dev_initialized(of_fwnode_handle(np), true);
 	}
 
 	put_special_pds();

@@ -31,6 +31,7 @@ struct adcx140_priv {
 	struct device *dev;
 
 	bool micbias_vg;
+	bool phase_calib_on;
 
 	unsigned int dai_fmt;
 	unsigned int slot_width;
@@ -592,6 +593,52 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"MIC4M Input Mux", "Digital", "MIC4M"},
 };
 
+#define ADCX140_PHASE_CALIB_SWITCH(xname) {\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.info = adcx140_phase_calib_info, \
+	.get = adcx140_phase_calib_get, \
+	.put = adcx140_phase_calib_put}
+
+static int adcx140_phase_calib_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int adcx140_phase_calib_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *value)
+{
+	struct snd_soc_component *codec =
+		snd_soc_kcontrol_component(kcontrol);
+	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(codec);
+
+	value->value.integer.value[0] = adcx140->phase_calib_on ? 1 : 0;
+
+
+	return 0;
+}
+
+static int adcx140_phase_calib_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *value)
+{
+	struct snd_soc_component *codec
+		= snd_soc_kcontrol_component(kcontrol);
+	struct adcx140_priv *adcx140 = snd_soc_component_get_drvdata(codec);
+
+	bool v = value->value.integer.value[0] ? true : false;
+
+	if (adcx140->phase_calib_on != v) {
+		adcx140->phase_calib_on = v;
+		return 1;
+	}
+	return 0;
+}
+
 static const struct snd_kcontrol_new adcx140_snd_controls[] = {
 	SOC_SINGLE_TLV("Analog CH1 Mic Gain Volume", ADCX140_CH1_CFG1, 2, 42, 0,
 			adc_tlv),
@@ -628,6 +675,7 @@ static const struct snd_kcontrol_new adcx140_snd_controls[] = {
 			0, 0xff, 0, dig_vol_tlv),
 	SOC_SINGLE_TLV("Digital CH8 Out Volume", ADCX140_CH8_CFG2,
 			0, 0xff, 0, dig_vol_tlv),
+	ADCX140_PHASE_CALIB_SWITCH("Phase Calibration Switch"),
 };
 
 static int adcx140_reset(struct adcx140_priv *adcx140)
@@ -653,12 +701,22 @@ static int adcx140_reset(struct adcx140_priv *adcx140)
 static void adcx140_pwr_ctrl(struct adcx140_priv *adcx140, bool power_state)
 {
 	int pwr_ctrl = 0;
+	int ret = 0;
+	struct snd_soc_component *component = adcx140->component;
 
 	if (power_state)
 		pwr_ctrl = ADCX140_PWR_CFG_ADC_PDZ | ADCX140_PWR_CFG_PLL_PDZ;
 
 	if (adcx140->micbias_vg && power_state)
 		pwr_ctrl |= ADCX140_PWR_CFG_BIAS_PDZ;
+
+	if (pwr_ctrl) {
+		ret = regmap_write(adcx140->regmap, ADCX140_PHASE_CALIB,
+			adcx140->phase_calib_on ? 0x00 : 0x40);
+		if (ret)
+			dev_err(component->dev, "%s: register write error %d\n",
+				__func__, ret);
+	}
 
 	regmap_update_bits(adcx140->regmap, ADCX140_PWR_CFG,
 			   ADCX140_PWR_CTRL_MSK, pwr_ctrl);
@@ -867,7 +925,7 @@ static int adcx140_configure_gpio(struct adcx140_priv *adcx140)
 
 	gpio_count = device_property_count_u32(adcx140->dev,
 			"ti,gpio-config");
-	if (gpio_count == 0)
+	if (gpio_count <= 0)
 		return 0;
 
 	if (gpio_count != ADCX140_NUM_GPIO_CFGS)
@@ -1095,6 +1153,7 @@ static int adcx140_i2c_probe(struct i2c_client *i2c)
 	if (!adcx140)
 		return -ENOMEM;
 
+	adcx140->phase_calib_on = false;
 	adcx140->dev = &i2c->dev;
 
 	adcx140->gpio_reset = devm_gpiod_get_optional(adcx140->dev,
@@ -1149,7 +1208,7 @@ static struct i2c_driver adcx140_i2c_driver = {
 		.name	= "tlv320adcx140-codec",
 		.of_match_table = of_match_ptr(tlv320adcx140_of_match),
 	},
-	.probe_new	= adcx140_i2c_probe,
+	.probe		= adcx140_i2c_probe,
 	.id_table	= adcx140_i2c_id,
 };
 module_i2c_driver(adcx140_i2c_driver);

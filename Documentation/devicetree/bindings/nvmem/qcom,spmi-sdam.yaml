@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/nvmem/qcom,spmi-sdam.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. SPMI SDAM DT bindings
+title: Qualcomm Technologies, Inc. SPMI SDAM
 
 maintainers:
   - Shyam Kumar Thella <sthella@codeaurora.org>
@@ -15,7 +15,7 @@ description: |
   to/from the PBUS.
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:
@@ -24,12 +24,6 @@ properties:
 
   reg:
     maxItems: 1
-
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 1
 
   ranges: true
 
@@ -42,17 +36,22 @@ unevaluatedProperties: false
 
 examples:
   - |
-      sdam_1: nvram@b000 {
-          #address-cells = <1>;
-          #size-cells = <1>;
-          compatible = "qcom,spmi-sdam";
-          reg = <0xb000 0x100>;
-          ranges = <0 0xb000 0x100>;
+    pmic {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-          /* Data cells */
-          restart_reason: restart@50 {
-              reg = <0x50 0x1>;
-              bits = <6 2>;
-          };
-      };
+        sdam_1: nvram@b000 {
+            compatible = "qcom,spmi-sdam";
+            reg = <0xb000>;
+            #address-cells = <1>;
+            #size-cells = <1>;
+            ranges = <0 0xb000 0x100>;
+
+            /* Data cells */
+            restart_reason: restart@50 {
+                reg = <0x50 0x1>;
+                bits = <6 2>;
+            };
+        };
+    };
 ...

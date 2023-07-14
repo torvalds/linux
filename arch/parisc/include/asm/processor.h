@@ -11,6 +11,7 @@
 
 #ifndef __ASSEMBLY__
 #include <linux/threads.h>
+#include <linux/irqreturn.h>
 
 #include <asm/assembly.h>
 #include <asm/prefetch.h>
@@ -266,9 +267,6 @@ on downward growing arches, it looks like this:
 
 struct mm_struct;
 
-/* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
-
 extern unsigned long __get_wchan(struct task_struct *p);
 
 #define KSTK_EIP(tsk)	((tsk)->thread.regs.iaoq[0])
@@ -294,6 +292,42 @@ extern void __noreturn toc_intr(struct pt_regs *regs);
 extern void toc_handler(void);
 extern unsigned int toc_handler_size;
 extern unsigned int toc_handler_csum;
+extern void do_cpu_irq_mask(struct pt_regs *);
+extern irqreturn_t timer_interrupt(int, void *);
+extern irqreturn_t ipi_interrupt(int, void *);
+extern void start_cpu_itimer(void);
+extern void handle_interruption(int, struct pt_regs *);
+
+/* called from assembly code: */
+extern void start_parisc(void);
+extern void smp_callin(unsigned long);
+extern void sys_rt_sigreturn(struct pt_regs *, int);
+extern void do_notify_resume(struct pt_regs *, long);
+extern long do_syscall_trace_enter(struct pt_regs *);
+extern void do_syscall_trace_exit(struct pt_regs *);
+
+/* CPU startup and info */
+struct seq_file;
+extern void early_trap_init(void);
+extern void collect_boot_cpu_data(void);
+extern int show_cpuinfo (struct seq_file *m, void *v);
+
+/* driver code in driver/parisc */
+extern void gsc_init(void);
+extern void processor_init(void);
+extern void ccio_init(void);
+extern void hppb_init(void);
+extern void dino_init(void);
+extern void iosapic_init(void);
+extern void lba_init(void);
+extern void sba_init(void);
+extern void parisc_eisa_init(void);
+struct parisc_device;
+struct resource;
+extern void sba_distributed_lmmio(struct parisc_device *, struct resource *);
+extern void sba_directed_lmmio(struct parisc_device *, struct resource *);
+extern void lba_set_iregs(struct parisc_device *lba, u32 ibase, u32 imask);
+extern void ccio_cujo20_fixup(struct parisc_device *dev, u32 iovp);
 
 #endif /* __ASSEMBLY__ */
 

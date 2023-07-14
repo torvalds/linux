@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/qcom,wcd9335.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm WCD9335 Audio Codec
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+
+description:
+  Qualcomm WCD9335 Codec is a standalone Hi-Fi audio codec IC with in-built
+  Soundwire controller and interrupt mux. It supports both I2S/I2C and SLIMbus
+  audio interfaces.
+
+properties:
+  compatible:
+    const: slim217,1a0
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: mclk
+      - const: slimbus
+
+  interrupts:
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: intr1
+      - const: intr2
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  slim-ifc-dev:
+    description: SLIM IFC device interface
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  '#sound-dai-cells':
+    const: 1
+
+  vdd-buck-supply:
+    description: 1.8V buck supply
+
+  vdd-buck-sido-supply:
+    description: 1.8V SIDO buck supply
+
+  vdd-io-supply:
+    description: 1.8V I/O supply
+
+  vdd-micbias-supply:
+    description: micbias supply
+
+  vdd-rx-supply:
+    description: 1.8V rx supply
+
+  vdd-tx-supply:
+    description: 1.8V tx supply
+
+  vdd-vbat-supply:
+    description: vbat supply
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      required:
+        - slim-ifc-dev
+    then:
+      required:
+        - clocks
+        - clock-names
+        - interrupts
+        - interrupt-names
+        - interrupt-controller
+        - '#interrupt-cells'
+        - reset-gpios
+        - slim-ifc-dev
+        - '#sound-dai-cells'
+        - vdd-buck-supply
+        - vdd-buck-sido-supply
+        - vdd-io-supply
+        - vdd-rx-supply
+        - vdd-tx-supply
+    else:
+      properties:
+        clocks: false
+        clock-names: false
+        interrupts: false
+        interrupt-names: false
+        interrupt-controller: false
+        '#interrupt-cells': false
+        reset-gpios: false
+        slim-ifc-dev: false
+        '#sound-dai-cells': false
+        vdd-buck-supply: false
+        vdd-buck-sido-supply: false
+        vdd-io-supply: false
+        vdd-micbias-supply: false
+        vdd-rx-supply: false
+        vdd-tx-supply: false
+        vdd-vbat-supply: false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    tasha_ifd: codec@0,0 {
+        compatible = "slim217,1a0";
+        reg = <0 0>;
+    };
+
+    codec@1,0 {
+        compatible = "slim217,1a0";
+        reg = <1 0>;
+
+        clock-names = "mclk", "slimbus";
+        clocks = <&div1_mclk>, <&rpmcc RPM_SMD_BB_CLK1>;
+
+        interrupt-parent = <&tlmm>;
+        interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
+                     <53 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "intr1", "intr2";
+        interrupt-controller;
+        #interrupt-cells = <1>;
+
+        reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+        slim-ifc-dev = <&tasha_ifd>;
+        #sound-dai-cells = <1>;
+
+        vdd-buck-supply = <&vreg_s4a_1p8>;
+        vdd-buck-sido-supply = <&vreg_s4a_1p8>;
+        vdd-tx-supply = <&vreg_s4a_1p8>;
+        vdd-rx-supply = <&vreg_s4a_1p8>;
+        vdd-io-supply = <&vreg_s4a_1p8>;
+    };

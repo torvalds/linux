@@ -59,28 +59,28 @@
 };
 
 &gpio {
-	i2cmux_pins_i: i2cmux-pins-i {
+	i2cmux_pins_i: i2cmux-pins {
 	       pins = "GPIO_35", "GPIO_36",
 		      "GPIO_50", "GPIO_51";
 		function = "twi_scl_m";
 		output-low;
 	};
-	i2cmux_s29: i2cmux-0 {
+	i2cmux_s29: i2cmux-0-pins {
 		pins = "GPIO_35";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_s30: i2cmux-1 {
+	i2cmux_s30: i2cmux-1-pins {
 		pins = "GPIO_36";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_s31: i2cmux-2 {
+	i2cmux_s31: i2cmux-2-pins {
 		pins = "GPIO_50";
 		function = "twi_scl_m";
 		output-high;
 	};
-	i2cmux_s32: i2cmux-3 {
+	i2cmux_s32: i2cmux-3-pins {
 		pins = "GPIO_51";
 		function = "twi_scl_m";
 		output-high;
@@ -208,7 +208,7 @@
 };
 
 &mdio0 {
-	status = "ok";
+	status = "okay";
 	phy0: ethernet-phy@0 {
 		reg = <0>;
 	};
@@ -284,7 +284,7 @@
 };
 
 &mdio1 {
-	status = "ok";
+	status = "okay";
 	phy24: ethernet-phy@24 {
 		reg = <0>;
 	};
@@ -360,7 +360,7 @@
 };
 
 &mdio3 {
-	status = "ok";
+	status = "okay";
 	phy64: ethernet-phy@64 {
 		reg = <28>;
 	};

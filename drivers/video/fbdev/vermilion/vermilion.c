@@ -14,6 +14,7 @@
  *   Alan Hourihane <alanh-at-tungstengraphics-dot-com>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -196,7 +197,7 @@ static int vmlfb_alloc_vram(struct vml_info *vinfo,
 		va = &vinfo->vram[i];
 		order = 0;
 
-		while (requested > (PAGE_SIZE << order) && order < MAX_ORDER)
+		while (requested > (PAGE_SIZE << order) && order <= MAX_ORDER)
 			order++;
 
 		err = vmlfb_alloc_vram_area(va, order, 0);
@@ -277,8 +278,10 @@ static int vmlfb_get_gpu(struct vml_par *par)
 
 	mutex_unlock(&vml_mutex);
 
-	if (pci_enable_device(par->gpu) < 0)
+	if (pci_enable_device(par->gpu) < 0) {
+		pci_dev_put(par->gpu);
 		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -442,7 +445,11 @@ static int vml_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	struct vml_info *vinfo;
 	struct fb_info *info;
 	struct vml_par *par;
-	int err = 0;
+	int err;
+
+	err = aperture_remove_conflicting_pci_devices(dev, "vmlfb");
+	if (err)
+		return err;
 
 	par = kzalloc(sizeof(*par), GFP_KERNEL);
 	if (par == NULL)
@@ -1052,7 +1059,12 @@ static int __init vmlfb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("vmlfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options(MODULE_NAME, &option))
 		return -ENODEV;
 #endif

@@ -34,6 +34,12 @@
 #define NUM_SYMBOLS_PER_USEC(_usec) (_usec >> 2)
 #define NUM_SYMBOLS_PER_USEC_HALFGI(_usec) (((_usec*5)-4)/18)
 
+/* Shifts in ar5008_phy.c and ar9003_phy.c are equal for all revisions */
+#define ATH9K_PWRTBL_11NA_OFDM_SHIFT    0
+#define ATH9K_PWRTBL_11NG_OFDM_SHIFT    4
+#define ATH9K_PWRTBL_11NA_HT_SHIFT      8
+#define ATH9K_PWRTBL_11NG_HT_SHIFT      12
+
 
 static u16 bits_per_symbol[][2] = {
 	/* 20MHz 40MHz */
@@ -1169,13 +1175,14 @@ void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop)
 }
 
 static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
-			       u8 rateidx, bool is_40, bool is_cck)
+			       u8 rateidx, bool is_40, bool is_cck, bool is_mcs)
 {
 	u8 max_power;
 	struct sk_buff *skb;
 	struct ath_frame_info *fi;
 	struct ieee80211_tx_info *info;
 	struct ath_hw *ah = sc->sc_ah;
+	bool is_2ghz, is_5ghz, use_stbc;
 
 	if (sc->tx99_state || !ah->tpc_enabled)
 		return MAX_RATE_POWER;
@@ -1183,6 +1190,19 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 	skb = bf->bf_mpdu;
 	fi = get_frame_info(skb);
 	info = IEEE80211_SKB_CB(skb);
+
+	is_2ghz = info->band == NL80211_BAND_2GHZ;
+	is_5ghz = info->band == NL80211_BAND_5GHZ;
+	use_stbc = is_mcs && rateidx < 8 && (info->flags &
+					     IEEE80211_TX_CTL_STBC);
+
+	if (is_mcs)
+		rateidx += is_5ghz ? ATH9K_PWRTBL_11NA_HT_SHIFT
+				   : ATH9K_PWRTBL_11NG_HT_SHIFT;
+	else if (is_2ghz && !is_cck)
+		rateidx += ATH9K_PWRTBL_11NG_OFDM_SHIFT;
+	else
+		rateidx += ATH9K_PWRTBL_11NA_OFDM_SHIFT;
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
 		int txpower = fi->tx_power;
@@ -1193,10 +1213,8 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 			u16 eeprom_rev = ah->eep_ops->get_eeprom_rev(ah);
 
 			if (eeprom_rev >= AR5416_EEP_MINOR_VER_2) {
-				bool is_2ghz;
 				struct modal_eep_header *pmodal;
 
-				is_2ghz = info->band == NL80211_BAND_2GHZ;
 				pmodal = &eep->modalHeader[is_2ghz];
 				power_ht40delta = pmodal->ht40PowerIncForPdadc;
 			} else {
@@ -1216,7 +1234,7 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 			txpower -= 2 * power_offset;
 		}
 
-		if (OLC_FOR_AR9280_20_LATER && is_cck)
+		if (OLC_FOR_AR9280_20_LATER(ah) && is_cck)
 			txpower -= 2;
 
 		txpower = max(txpower, 0);
@@ -1229,7 +1247,7 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 		if (!max_power && !AR_SREV_9280_20_OR_LATER(ah))
 			max_power = 1;
 	} else if (!bf->bf_state.bfs_paprd) {
-		if (rateidx < 8 && (info->flags & IEEE80211_TX_CTL_STBC))
+		if (use_stbc)
 			max_power = min_t(u8, ah->tx_power_stbc[rateidx],
 					  fi->tx_power);
 		else
@@ -1319,7 +1337,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			}
 
 			info->txpower[i] = ath_get_rate_txpower(sc, bf, rix,
-								is_40, false);
+								is_40, false, true);
 			continue;
 		}
 
@@ -1350,7 +1368,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 
 		is_cck = IS_CCK_RATE(info->rates[i].Rate);
 		info->txpower[i] = ath_get_rate_txpower(sc, bf, rix, false,
-							is_cck);
+							is_cck, false);
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
@@ -1678,7 +1696,6 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct list_head bf_q;
 	struct ath_buf *bf_tail = NULL, *bf = NULL;
-	int sent = 0;
 	int i, ret;
 
 	INIT_LIST_HEAD(&bf_q);
@@ -1707,7 +1724,6 @@ void ath9k_release_buffered_frames(struct ieee80211_hw *hw,
 
 			bf_tail = bf;
 			nframes--;
-			sent++;
 			TX_STAT_INC(sc, txq->axq_qnum, a_queued_hw);
 
 			if (an->sta && skb_queue_empty(&tid->retry_q))

@@ -551,7 +551,7 @@ static int conf_choice(struct menu *menu)
 			print_help(child);
 			continue;
 		}
-		sym_set_choice_value(sym, child->sym);
+		sym_set_tristate_value(child->sym, yes);
 		for (child = child->list; child; child = child->next) {
 			indent += 2;
 			conf(child);

@@ -452,7 +452,7 @@ static netdev_tx_t at91_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int mb, prio;
 	u32 reg_mid, reg_mcr;
 
-	if (can_dropped_invalid_skb(dev, skb))
+	if (can_dev_dropped_skb(dev, skb))
 		return NETDEV_TX_OK;
 
 	mb = get_tx_next_mb(priv);
@@ -1346,7 +1346,7 @@ static int at91_can_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int at91_can_remove(struct platform_device *pdev)
+static void at91_can_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct at91_priv *priv = netdev_priv(dev);
@@ -1362,8 +1362,6 @@ static int at91_can_remove(struct platform_device *pdev)
 	clk_put(priv->clk);
 
 	free_candev(dev);
-
-	return 0;
 }
 
 static const struct platform_device_id at91_can_id_table[] = {
@@ -1381,7 +1379,7 @@ MODULE_DEVICE_TABLE(platform, at91_can_id_table);
 
 static struct platform_driver at91_can_driver = {
 	.probe = at91_can_probe,
-	.remove = at91_can_remove,
+	.remove_new = at91_can_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(at91_can_dt_ids),

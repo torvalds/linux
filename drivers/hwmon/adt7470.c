@@ -1187,7 +1187,7 @@ static const struct hwmon_ops adt7470_hwmon_ops = {
 	.write = adt7470_write,
 };
 
-static const struct hwmon_channel_info *adt7470_info[] = {
+static const struct hwmon_channel_info * const adt7470_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX | HWMON_T_ALARM,
 			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX | HWMON_T_ALARM,
@@ -1314,7 +1314,7 @@ static struct i2c_driver adt7470_driver = {
 	.driver = {
 		.name	= "adt7470",
 	},
-	.probe_new	= adt7470_probe,
+	.probe		= adt7470_probe,
 	.remove		= adt7470_remove,
 	.id_table	= adt7470_id,
 	.detect		= adt7470_detect,

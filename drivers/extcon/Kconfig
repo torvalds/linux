@@ -183,8 +183,9 @@ config EXTCON_USBC_CROS_EC
 
 config EXTCON_USBC_TUSB320
 	tristate "TI TUSB320 USB-C extcon support"
-	depends on I2C
+	depends on I2C && TYPEC
 	select REGMAP_I2C
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	help
 	  Say Y here to enable support for USB Type C cable detection extcon
 	  support using a TUSB320.

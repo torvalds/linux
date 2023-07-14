@@ -6,6 +6,7 @@
  * Author: Brendan Higgins <brendanhiggins@google.com>
  */
 #include <kunit/test.h>
+#include <kunit/test-bug.h>
 
 #include "try-catch-impl.h"
 
@@ -111,7 +112,7 @@ struct kunit_test_resource_context {
 	struct kunit test;
 	bool is_resource_initialized;
 	int allocate_order[2];
-	int free_order[2];
+	int free_order[4];
 };
 
 static int fake_resource_init(struct kunit_resource *res, void *context)
@@ -159,6 +160,13 @@ static void kunit_resource_test_alloc_resource(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, free, res->free);
 
 	kunit_put_resource(res);
+}
+
+static inline bool kunit_resource_instance_match(struct kunit *test,
+						 struct kunit_resource *res,
+						 void *match_data)
+{
+	return res->data == match_data;
 }
 
 /*
@@ -395,6 +403,88 @@ static void kunit_resource_test_named(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, list_empty(&test->resources));
 }
 
+static void increment_int(void *ctx)
+{
+	int *i = (int *)ctx;
+	(*i)++;
+}
+
+static void kunit_resource_test_action(struct kunit *test)
+{
+	int num_actions = 0;
+
+	kunit_add_action(test, increment_int, &num_actions);
+	KUNIT_EXPECT_EQ(test, num_actions, 0);
+	kunit_cleanup(test);
+	KUNIT_EXPECT_EQ(test, num_actions, 1);
+
+	/* Once we've cleaned up, the action queue is empty. */
+	kunit_cleanup(test);
+	KUNIT_EXPECT_EQ(test, num_actions, 1);
+
+	/* Check the same function can be deferred multiple times. */
+	kunit_add_action(test, increment_int, &num_actions);
+	kunit_add_action(test, increment_int, &num_actions);
+	kunit_cleanup(test);
+	KUNIT_EXPECT_EQ(test, num_actions, 3);
+}
+static void kunit_resource_test_remove_action(struct kunit *test)
+{
+	int num_actions = 0;
+
+	kunit_add_action(test, increment_int, &num_actions);
+	KUNIT_EXPECT_EQ(test, num_actions, 0);
+
+	kunit_remove_action(test, increment_int, &num_actions);
+	kunit_cleanup(test);
+	KUNIT_EXPECT_EQ(test, num_actions, 0);
+}
+static void kunit_resource_test_release_action(struct kunit *test)
+{
+	int num_actions = 0;
+
+	kunit_add_action(test, increment_int, &num_actions);
+	KUNIT_EXPECT_EQ(test, num_actions, 0);
+	/* Runs immediately on trigger. */
+	kunit_release_action(test, increment_int, &num_actions);
+	KUNIT_EXPECT_EQ(test, num_actions, 1);
+
+	/* Doesn't run again on test exit. */
+	kunit_cleanup(test);
+	KUNIT_EXPECT_EQ(test, num_actions, 1);
+}
+static void action_order_1(void *ctx)
+{
+	struct kunit_test_resource_context *res_ctx = (struct kunit_test_resource_context *)ctx;
+
+	KUNIT_RESOURCE_TEST_MARK_ORDER(res_ctx, free_order, 1);
+	kunit_log(KERN_INFO, current->kunit_test, "action_order_1");
+}
+static void action_order_2(void *ctx)
+{
+	struct kunit_test_resource_context *res_ctx = (struct kunit_test_resource_context *)ctx;
+
+	KUNIT_RESOURCE_TEST_MARK_ORDER(res_ctx, free_order, 2);
+	kunit_log(KERN_INFO, current->kunit_test, "action_order_2");
+}
+static void kunit_resource_test_action_ordering(struct kunit *test)
+{
+	struct kunit_test_resource_context *ctx = test->priv;
+
+	kunit_add_action(test, action_order_1, ctx);
+	kunit_add_action(test, action_order_2, ctx);
+	kunit_add_action(test, action_order_1, ctx);
+	kunit_add_action(test, action_order_2, ctx);
+	kunit_remove_action(test, action_order_1, ctx);
+	kunit_release_action(test, action_order_2, ctx);
+	kunit_cleanup(test);
+
+	/* [2 is triggered] [2], [(1 is cancelled)] [1] */
+	KUNIT_EXPECT_EQ(test, ctx->free_order[0], 2);
+	KUNIT_EXPECT_EQ(test, ctx->free_order[1], 2);
+	KUNIT_EXPECT_EQ(test, ctx->free_order[2], 1);
+}
+
 static int kunit_resource_test_init(struct kunit *test)
 {
 	struct kunit_test_resource_context *ctx =
@@ -426,6 +516,10 @@ static struct kunit_case kunit_resource_test_cases[] = {
 	KUNIT_CASE(kunit_resource_test_proper_free_ordering),
 	KUNIT_CASE(kunit_resource_test_static),
 	KUNIT_CASE(kunit_resource_test_named),
+	KUNIT_CASE(kunit_resource_test_action),
+	KUNIT_CASE(kunit_resource_test_remove_action),
+	KUNIT_CASE(kunit_resource_test_release_action),
+	KUNIT_CASE(kunit_resource_test_action_ordering),
 	{}
 };
 
@@ -434,18 +528,6 @@ static struct kunit_suite kunit_resource_test_suite = {
 	.init = kunit_resource_test_init,
 	.exit = kunit_resource_test_exit,
 	.test_cases = kunit_resource_test_cases,
-};
-
-static void kunit_log_test(struct kunit *test);
-
-static struct kunit_case kunit_log_test_cases[] = {
-	KUNIT_CASE(kunit_log_test),
-	{}
-};
-
-static struct kunit_suite kunit_log_test_suite = {
-	.name = "kunit-log-test",
-	.test_cases = kunit_log_test_cases,
 };
 
 static void kunit_log_test(struct kunit *test)
@@ -473,6 +555,29 @@ static void kunit_log_test(struct kunit *test)
 	KUNIT_EXPECT_NULL(test, test->log);
 #endif
 }
+
+static void kunit_log_newline_test(struct kunit *test)
+{
+	kunit_info(test, "Add newline\n");
+	if (test->log) {
+		KUNIT_ASSERT_NOT_NULL_MSG(test, strstr(test->log, "Add newline\n"),
+			"Missing log line, full log:\n%s", test->log);
+		KUNIT_EXPECT_NULL(test, strstr(test->log, "Add newline\n\n"));
+	} else {
+		kunit_skip(test, "only useful when debugfs is enabled");
+	}
+}
+
+static struct kunit_case kunit_log_test_cases[] = {
+	KUNIT_CASE(kunit_log_test),
+	KUNIT_CASE(kunit_log_newline_test),
+	{}
+};
+
+static struct kunit_suite kunit_log_test_suite = {
+	.name = "kunit-log-test",
+	.test_cases = kunit_log_test_cases,
+};
 
 static void kunit_status_set_failure_test(struct kunit *test)
 {
@@ -514,7 +619,46 @@ static struct kunit_suite kunit_status_test_suite = {
 	.test_cases = kunit_status_test_cases,
 };
 
+static void kunit_current_test(struct kunit *test)
+{
+	/* Check results of both current->kunit_test and
+	 * kunit_get_current_test() are equivalent to current test.
+	 */
+	KUNIT_EXPECT_PTR_EQ(test, test, current->kunit_test);
+	KUNIT_EXPECT_PTR_EQ(test, test, kunit_get_current_test());
+}
+
+static void kunit_current_fail_test(struct kunit *test)
+{
+	struct kunit fake;
+
+	kunit_init_test(&fake, "fake test", NULL);
+	KUNIT_EXPECT_EQ(test, fake.status, KUNIT_SUCCESS);
+
+	/* Set current->kunit_test to fake test. */
+	current->kunit_test = &fake;
+
+	kunit_fail_current_test("This should make `fake` test fail.");
+	KUNIT_EXPECT_EQ(test, fake.status, (enum kunit_status)KUNIT_FAILURE);
+	kunit_cleanup(&fake);
+
+	/* Reset current->kunit_test to current test. */
+	current->kunit_test = test;
+}
+
+static struct kunit_case kunit_current_test_cases[] = {
+	KUNIT_CASE(kunit_current_test),
+	KUNIT_CASE(kunit_current_fail_test),
+	{}
+};
+
+static struct kunit_suite kunit_current_test_suite = {
+	.name = "kunit_current",
+	.test_cases = kunit_current_test_cases,
+};
+
 kunit_test_suites(&kunit_try_catch_test_suite, &kunit_resource_test_suite,
-		  &kunit_log_test_suite, &kunit_status_test_suite);
+		  &kunit_log_test_suite, &kunit_status_test_suite,
+		  &kunit_current_test_suite);
 
 MODULE_LICENSE("GPL v2");

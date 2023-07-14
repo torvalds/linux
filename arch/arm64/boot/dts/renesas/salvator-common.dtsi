@@ -33,6 +33,14 @@
 
 / {
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c_dvfs;
 		serial0 = &scif2;
 		serial1 = &hscif1;
 		ethernet0 = &avb;
@@ -790,9 +798,6 @@
 &rcar_sound {
 	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
-
-	/* Single DAI */
-	#sound-dai-cells = <0>;
 
 	/* audio_clkout0/1/2/3 */
 	#clock-cells = <1>;

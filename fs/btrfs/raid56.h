@@ -65,7 +65,7 @@ struct btrfs_raid_bio {
 	/* Number of data stripes (no p/q) */
 	u8 nr_data;
 
-	/* Numer of all stripes (including P/Q) */
+	/* Number of all stripes (including P/Q) */
 	u8 real_stripes;
 
 	/* How many pages there are for each stripe */
@@ -73,12 +73,6 @@ struct btrfs_raid_bio {
 
 	/* How many sectors there are for each stripe */
 	u8 stripe_nsectors;
-
-	/* First bad stripe, -1 means no corruption */
-	s8 faila;
-
-	/* Second bad stripe (for RAID6 use) */
-	s8 failb;
 
 	/* Stripe number that we're scrubbing  */
 	u8 scrubp;
@@ -89,15 +83,11 @@ struct btrfs_raid_bio {
 	 */
 	int bio_list_bytes;
 
-	int generic_bio_cnt;
-
 	refcount_t refs;
 
 	atomic_t stripes_pending;
 
-	atomic_t error;
-
-	struct work_struct end_io_work;
+	wait_queue_head_t io_wait;
 
 	/* Bitmap to record which horizontal stripe has data */
 	unsigned long dbitmap;
@@ -128,6 +118,29 @@ struct btrfs_raid_bio {
 
 	/* Allocated with real_stripes-many pointers for finish_*() calls */
 	void **finish_pointers;
+
+	/*
+	 * The bitmap recording where IO errors happened.
+	 * Each bit is corresponding to one sector in either bio_sectors[] or
+	 * stripe_sectors[] array.
+	 *
+	 * The reason we don't use another bit in sector_ptr is, we have two
+	 * arrays of sectors, and a lot of IO can use sectors in both arrays.
+	 * Thus making it much harder to iterate.
+	 */
+	unsigned long *error_bitmap;
+
+	/*
+	 * Checksum buffer if the rbio is for data.  The buffer should cover
+	 * all data sectors (excluding P/Q sectors).
+	 */
+	u8 *csum_buf;
+
+	/*
+	 * Each bit represents if the corresponding sector has data csum found.
+	 * Should only cover data sectors (excluding P/Q sectors).
+	 */
+	unsigned long *csum_bitmap;
 };
 
 /*
@@ -157,6 +170,11 @@ static inline int nr_data_stripes(const struct map_lookup *map)
 	return map->num_stripes - btrfs_nr_parity_stripes(map->type);
 }
 
+static inline int nr_bioc_data_stripes(const struct btrfs_io_context *bioc)
+{
+	return bioc->num_stripes - btrfs_nr_parity_stripes(bioc->map_type);
+}
+
 #define RAID5_P_STRIPE ((u64)-2)
 #define RAID6_Q_STRIPE ((u64)-1)
 
@@ -166,11 +184,8 @@ static inline int nr_data_stripes(const struct map_lookup *map)
 struct btrfs_device;
 
 void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
-			   int mirror_num, bool generic_io);
+			   int mirror_num);
 void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc);
-
-void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,
-			    unsigned int pgoff, u64 logical);
 
 struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 				struct btrfs_io_context *bioc,
@@ -178,9 +193,8 @@ struct btrfs_raid_bio *raid56_parity_alloc_scrub_rbio(struct bio *bio,
 				unsigned long *dbitmap, int stripe_nsectors);
 void raid56_parity_submit_scrub_rbio(struct btrfs_raid_bio *rbio);
 
-struct btrfs_raid_bio *
-raid56_alloc_missing_rbio(struct bio *bio, struct btrfs_io_context *bioc);
-void raid56_submit_missing_rbio(struct btrfs_raid_bio *rbio);
+void raid56_parity_cache_data_pages(struct btrfs_raid_bio *rbio,
+				    struct page **data_pages, u64 data_logical);
 
 int btrfs_alloc_stripe_hash_table(struct btrfs_fs_info *info);
 void btrfs_free_stripe_hash_table(struct btrfs_fs_info *info);

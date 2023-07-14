@@ -42,39 +42,39 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led0 {
+		led-0 {
 			label = "ci20:red:led0";
 			gpios = <&gpc 3 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "none";
 		};
 
-		led1 {
+		led-1 {
 			label = "ci20:red:led1";
 			gpios = <&gpc 2 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "nand-disk";
 		};
 
-		led2 {
+		led-2 {
 			label = "ci20:red:led2";
 			gpios = <&gpc 1 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "cpu1";
 		};
 
-		led3 {
+		led-3 {
 			label = "ci20:red:led3";
 			gpios = <&gpc 0 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "cpu0";
 		};
 	};
 
-	eth0_power: fixedregulator@0 {
+	eth0_power: fixedregulator-0 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "eth0_power";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&gpb 25 GPIO_ACTIVE_LOW>;
+		gpio = <&gpb 25 0>;
 		enable-active-high;
 	};
 
@@ -97,24 +97,63 @@
 		gpios = <&gpe 3 GPIO_ACTIVE_LOW>;
 	};
 
-	wlan0_power: fixedregulator@1 {
+	bt_power: fixedregulator-1 {
 		compatible = "regulator-fixed";
 
-		regulator-name = "wlan0_power";
+		regulator-name = "bt_power";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-settling-time-us = <1400>;
 
-		gpio = <&gpb 19 GPIO_ACTIVE_LOW>;
+		vin-supply = <&vcc_50>;
+
+		gpio = <&gpb 19 0>;
 		enable-active-high;
 	};
 
-	otg_power: fixedregulator@2 {
+	otg_power: fixedregulator-2 {
 		compatible = "regulator-fixed";
 
 		regulator-name = "otg_power";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 
-		gpio = <&gpf 14 GPIO_ACTIVE_LOW>;
+		gpio = <&gpf 15 0>;
 		enable-active-high;
+	};
+
+	wifi_power: fixedregulator-4 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "wifi_power";
+
+		/*
+		 * Technically it's 5V, the WiFi chip has its own internal
+		 * regulators; but the MMC/SD subsystem won't accept such a
+		 * value.
+		 */
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-settling-time-us = <150000>;
+
+		vin-supply = <&bt_power>;
+	};
+
+	vcc_33v: fixedregulator-5 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vcc_33v";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	wifi_pwrseq: pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpf 7 GPIO_ACTIVE_LOW>;
+
+		clocks = <&rtc_dev>;
+		clock-names = "ext_clock";
 	};
 };
 
@@ -129,10 +168,11 @@
 	 */
 	assigned-clocks = <&cgu JZ4780_CLK_OTGPHY>, <&cgu JZ4780_CLK_RTC>,
 			  <&cgu JZ4780_CLK_SSIPLL>, <&cgu JZ4780_CLK_SSI>,
-			  <&cgu JZ4780_CLK_HDMI>;
+			  <&cgu JZ4780_CLK_HDMI>, <&cgu JZ4780_CLK_MSCMUX>;
 	assigned-clock-parents = <0>, <&cgu JZ4780_CLK_RTCLK>,
 				 <&cgu JZ4780_CLK_MPLL>,
-				 <&cgu JZ4780_CLK_SSIPLL>;
+				 <&cgu JZ4780_CLK_SSIPLL>,
+				 <0>, <&cgu JZ4780_CLK_MPLL>;
 	assigned-clock-rates = <48000000>, <0>, <54000000>, <0>, <27000000>;
 };
 
@@ -160,24 +200,33 @@
 	pinctrl-0 = <&pins_mmc0>;
 
 	cd-gpios = <&gpf 20 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&vcc_33v>;
+	vqmmc-supply = <&vcc_33v>;
 };
 
 &mmc1 {
 	status = "okay";
 
 	bus-width = <4>;
-	max-frequency = <50000000>;
+	max-frequency = <25000000>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	vmmc-supply = <&wifi_power>;
+	vqmmc-supply = <&wifi_io>;
 	non-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_mmc1>;
 
-	brcmf: wifi@1 {
-/*		reg = <4>;*/
-		compatible = "brcm,bcm4330-fmac";
-		vcc-supply = <&wlan0_power>;
-		device-wakeup-gpios = <&gpd 9 GPIO_ACTIVE_HIGH>;
-		shutdown-gpios = <&gpf 7 GPIO_ACTIVE_LOW>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	wifi@1 {
+		compatible = "brcm,bcm4329-fmac";
+		reg = <1>;
+
+		interrupt-parent = <&gpd>;
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "host-wake";
 	};
 };
 
@@ -204,11 +253,20 @@
 
 	bluetooth {
 		compatible = "brcm,bcm4330-bt";
-		reset-gpios = <&gpf 8 GPIO_ACTIVE_HIGH>;
-		vcc-supply = <&wlan0_power>;
+
+		vbat-supply = <&bt_power>;
+		vddio-supply = <&wifi_io>;
+
+		interrupt-parent = <&gpf>;
+		interrupts = <6 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "host-wakeup";
+
+		clocks = <&rtc_dev>;
+		clock-names = "lpo";
+
+		reset-gpios = <&gpf 8 GPIO_ACTIVE_LOW>;
 		device-wakeup-gpios = <&gpf 5 GPIO_ACTIVE_HIGH>;
-		host-wakeup-gpios = <&gpf 6 GPIO_ACTIVE_HIGH>;
-		shutdown-gpios = <&gpf 4 GPIO_ACTIVE_LOW>;
+		shutdown-gpios = <&gpf 4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -237,59 +295,54 @@
 	act8600: act8600@5a {
 		compatible = "active-semi,act8600";
 		reg = <0x5a>;
-		status = "okay";
 
 		regulators {
-			vddcore: SUDCDC1 {
-				regulator-name = "DCDC_REG1";
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>;
+			vddcore: DCDC1 {
+				regulator-min-microvolt = <1125000>;
+				regulator-max-microvolt = <1125000>;
+				vp1-supply = <&vcc_33v>;
 				regulator-always-on;
 			};
-			vddmem: SUDCDC2 {
-				regulator-name = "DCDC_REG2";
+			vddmem: DCDC2 {
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
+				vp2-supply = <&vcc_33v>;
 				regulator-always-on;
 			};
-			vcc_33: SUDCDC3 {
-				regulator-name = "DCDC_REG3";
+			vcc_33: DCDC3 {
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
+				vp3-supply = <&vcc_33v>;
 				regulator-always-on;
 			};
-			vcc_50: SUDCDC4 {
-				regulator-name = "SUDCDC_REG4";
+			vcc_50: SUDCDC_REG4 {
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5000000>;
 				regulator-always-on;
 			};
-			vcc_25: LDO_REG5 {
-				regulator-name = "LDO_REG5";
+			vcc_25: LDO5 {
 				regulator-min-microvolt = <2500000>;
 				regulator-max-microvolt = <2500000>;
+				inl-supply = <&vcc_33v>;
 				regulator-always-on;
 			};
-			wifi_io: LDO_REG6 {
-				regulator-name = "LDO_REG6";
-				regulator-min-microvolt = <2500000>;
-				regulator-max-microvolt = <2500000>;
-				regulator-always-on;
+			wifi_io: LDO6 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-settling-time-us = <150000>;
+				inl-supply = <&vcc_33v>;
 			};
-			vcc_28: LDO_REG7 {
-				regulator-name = "LDO_REG7";
+			cim_io_28: LDO7 {
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
-				regulator-always-on;
+				inl-supply = <&vcc_33v>;
 			};
-			vcc_15: LDO_REG8 {
-				regulator-name = "LDO_REG8";
+			cim_io_15: LDO8 {
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
-				regulator-always-on;
+				inl-supply = <&vcc_33v>;
 			};
 			vrtc_18: LDO_REG9 {
-				regulator-name = "LDO_REG9";
 				/* Despite the datasheet stating 3.3V
 				 * for REG9 and the driver expecting that,
 				 * REG9 outputs 1.8V.
@@ -303,7 +356,6 @@
 				regulator-always-on;
 			};
 			vcc_11: LDO_REG10 {
-				regulator-name = "LDO_REG10";
 				regulator-min-microvolt = <1200000>;
 				regulator-max-microvolt = <1200000>;
 				regulator-always-on;
@@ -363,7 +415,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ingenic,bch-controller = <&bch>;
+		ecc-engine = <&bch>;
 
 		ingenic,nemc-tAS = <10>;
 		ingenic,nemc-tAH = <5>;
@@ -429,8 +481,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pins_nemc_cs6>;
 
-		reg = <6 0 1   /* addr */
-		       6 2 1>; /* data */
+		reg = <6 0 1>, /* addr */
+		      <6 2 1>; /* data */
 
 		ingenic,nemc-tAS = <15>;
 		ingenic,nemc-tAH = <10>;
@@ -438,11 +490,11 @@
 		ingenic,nemc-tAW = <50>;
 		ingenic,nemc-tSTRV = <100>;
 
-		reset-gpios = <&gpf 12 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpf 12 GPIO_ACTIVE_LOW>;
 		vcc-supply = <&eth0_power>;
 
 		interrupt-parent = <&gpe>;
-		interrupts = <19 4>;
+		interrupts = <19 IRQ_TYPE_EDGE_RISING>;
 
 		nvmem-cells = <&eth0_addr>;
 		nvmem-cell-names = "mac-address";

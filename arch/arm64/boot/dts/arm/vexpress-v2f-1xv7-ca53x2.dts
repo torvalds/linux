@@ -13,7 +13,7 @@
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "vexpress-v2m-rs1.dtsi"
+#include "arm/arm/vexpress-v2m-rs1.dtsi"
 
 / {
 	model = "V2F-1XV7 Cortex-A53x2 SMM";
@@ -57,6 +57,8 @@
 
 		L2_0: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 

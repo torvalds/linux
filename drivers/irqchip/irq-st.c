@@ -15,10 +15,7 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-#define STIH415_SYSCFG_642		0x0a8
-#define STIH416_SYSCFG_7543		0x87c
 #define STIH407_SYSCFG_5102		0x198
-#define STID127_SYSCFG_734		0x088
 
 #define ST_A9_IRQ_MASK			0x001FFFFF
 #define ST_A9_IRQ_MAX_CHANS		2
@@ -45,20 +42,8 @@ struct st_irq_syscfg {
 
 static const struct of_device_id st_irq_syscfg_match[] = {
 	{
-		.compatible = "st,stih415-irq-syscfg",
-		.data = (void *)STIH415_SYSCFG_642,
-	},
-	{
-		.compatible = "st,stih416-irq-syscfg",
-		.data = (void *)STIH416_SYSCFG_7543,
-	},
-	{
 		.compatible = "st,stih407-irq-syscfg",
 		.data = (void *)STIH407_SYSCFG_5102,
-	},
-	{
-		.compatible = "st,stid127-irq-syscfg",
-		.data = (void *)STID127_SYSCFG_734,
 	},
 	{}
 };
@@ -153,18 +138,13 @@ static int st_irq_syscfg_enable(struct platform_device *pdev)
 static int st_irq_syscfg_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct st_irq_syscfg *ddata;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
-	match = of_match_device(st_irq_syscfg_match, &pdev->dev);
-	if (!match)
-		return -ENODEV;
-
-	ddata->syscfg = (unsigned int)match->data;
+	ddata->syscfg = (unsigned int) device_get_match_data(&pdev->dev);
 
 	ddata->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscfg");
 	if (IS_ERR(ddata->regmap)) {

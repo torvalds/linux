@@ -259,7 +259,7 @@ void batadv_gw_init(struct batadv_priv *bat_priv)
 		atomic_set(&bat_priv->gw.sel_class, 1);
 
 	batadv_tvlv_handler_register(bat_priv, batadv_gw_tvlv_ogm_handler_v1,
-				     NULL, BATADV_TVLV_GW, 1,
+				     NULL, NULL, BATADV_TVLV_GW, 1,
 				     BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
 }
 

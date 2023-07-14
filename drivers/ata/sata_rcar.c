@@ -608,7 +608,7 @@ static u8 sata_rcar_bmdma_status(struct ata_port *ap)
 	return host_stat;
 }
 
-static struct scsi_host_template sata_rcar_sht = {
+static const struct scsi_host_template sata_rcar_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	/*
 	 * This controller allows transfer chunks up to 512MB which cross 64KB
@@ -875,7 +875,7 @@ static int sata_rcar_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->type = (enum sata_rcar_type)of_device_get_match_data(dev);
+	priv->type = (unsigned long)of_device_get_match_data(dev);
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);

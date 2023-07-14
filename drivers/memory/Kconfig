@@ -30,17 +30,6 @@ config ARM_PL172_MPMC
 	  If you have an embedded system with an AMBA bus and a PL172
 	  controller, say Y or M here.
 
-config ATMEL_SDRAMC
-	bool "Atmel (Multi-port DDR-)SDRAM Controller"
-	default y if ARCH_AT91
-	depends on ARCH_AT91 || COMPILE_TEST
-	depends on OF
-	help
-	  This driver is for Atmel SDRAM Controller or Atmel Multi-port
-	  DDR-SDRAM Controller available on Atmel AT91SAM9 and SAMA5 SoCs.
-	  Starting with the at91sam9g45, this controller supports SDR, DDR and
-	  LP-DDR memories.
-
 config ATMEL_EBI
 	bool "Atmel EBI driver"
 	default y if ARCH_AT91
@@ -65,6 +54,15 @@ config BRCMSTB_DPFE
 	  the DRAM refresh rate. This can be used as an indirect indicator
 	  for the DRAM's temperature. Slower refresh rate means cooler RAM,
 	  higher refresh rate means hotter RAM.
+
+config BRCMSTB_MEMC
+	tristate "Broadcom STB MEMC driver"
+	default ARCH_BRCMSTB
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	help
+	  This driver provides a way to configure the Broadcom STB memory
+	  controller and specifically control the Self Refresh Power Down
+	  (SRPD) inactivity timeout.
 
 config BT1_L2_CTL
 	bool "Baikal-T1 CM2 L2-RAM Cache Control Block"
@@ -219,7 +217,7 @@ config RENESAS_RPCIF
 
 config STM32_FMC2_EBI
 	tristate "Support for FMC2 External Bus Interface on STM32MP SoCs"
-	depends on MACH_STM32MP157 || COMPILE_TEST
+	depends on ARCH_STM32 || COMPILE_TEST
 	select MFD_SYSCON
 	help
 	  Select this option to enable the STM32 FMC2 External Bus Interface

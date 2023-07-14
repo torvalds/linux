@@ -22,6 +22,8 @@
 
 #include <asm/efi.h>
 
+unsigned long __initdata screen_info_table = EFI_INVALID_TABLE_ADDR;
+
 static int __init is_memory(efi_memory_desc_t *md)
 {
 	if (md->attribute & (EFI_MEMORY_WB|EFI_MEMORY_WT|EFI_MEMORY_WC))
@@ -51,37 +53,29 @@ static phys_addr_t __init efi_to_phys(unsigned long addr)
 	return addr;
 }
 
-static __initdata unsigned long screen_info_table = EFI_INVALID_TABLE_ADDR;
-static __initdata unsigned long cpu_state_table = EFI_INVALID_TABLE_ADDR;
-
-static const efi_config_table_type_t arch_tables[] __initconst = {
-	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, &screen_info_table},
-	{LINUX_EFI_ARM_CPU_STATE_TABLE_GUID, &cpu_state_table},
-	{}
-};
+extern __weak const efi_config_table_type_t efi_arch_tables[];
 
 static void __init init_screen_info(void)
 {
 	struct screen_info *si;
 
-	if (IS_ENABLED(CONFIG_ARM) &&
-	    screen_info_table != EFI_INVALID_TABLE_ADDR) {
-		si = early_memremap_ro(screen_info_table, sizeof(*si));
+	if (screen_info_table != EFI_INVALID_TABLE_ADDR) {
+		si = early_memremap(screen_info_table, sizeof(*si));
 		if (!si) {
 			pr_err("Could not map screen_info config table\n");
 			return;
 		}
 		screen_info = *si;
+		memset(si, 0, sizeof(*si));
 		early_memunmap(si, sizeof(*si));
 
-		/* dummycon on ARM needs non-zero values for columns/lines */
-		screen_info.orig_video_cols = 80;
-		screen_info.orig_video_lines = 25;
-	}
+		if (memblock_is_map_memory(screen_info.lfb_base))
+			memblock_mark_nomap(screen_info.lfb_base,
+					    screen_info.lfb_size);
 
-	if (screen_info.orig_video_isVGA == VIDEO_TYPE_EFI &&
-	    memblock_is_map_memory(screen_info.lfb_base))
-		memblock_mark_nomap(screen_info.lfb_base, screen_info.lfb_size);
+		if (IS_ENABLED(CONFIG_EFI_EARLYCON))
+			efi_earlycon_reprobe();
+	}
 }
 
 static int __init uefi_init(u64 efi_system_table)
@@ -101,7 +95,7 @@ static int __init uefi_init(u64 efi_system_table)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_bit(EFI_64BIT, &efi.flags);
 
-	retval = efi_systab_check_header(&systab->hdr, 2);
+	retval = efi_systab_check_header(&systab->hdr);
 	if (retval)
 		goto out;
 
@@ -119,8 +113,7 @@ static int __init uefi_init(u64 efi_system_table)
 		goto out;
 	}
 	retval = efi_config_parse_tables(config_tables, systab->nr_tables,
-					 IS_ENABLED(CONFIG_ARM) ? arch_tables
-								: NULL);
+					 efi_arch_tables);
 
 	early_memunmap(config_tables, table_size);
 out:
@@ -248,36 +241,4 @@ void __init efi_init(void)
 			 PAGE_ALIGN(data.size + (data.phys_map & ~PAGE_MASK)));
 
 	init_screen_info();
-
-#ifdef CONFIG_ARM
-	/* ARM does not permit early mappings to persist across paging_init() */
-	efi_memmap_unmap();
-
-	if (cpu_state_table != EFI_INVALID_TABLE_ADDR) {
-		struct efi_arm_entry_state *state;
-		bool dump_state = true;
-
-		state = early_memremap_ro(cpu_state_table,
-					  sizeof(struct efi_arm_entry_state));
-		if (state == NULL) {
-			pr_warn("Unable to map CPU entry state table.\n");
-			return;
-		}
-
-		if ((state->sctlr_before_ebs & 1) == 0)
-			pr_warn(FW_BUG "EFI stub was entered with MMU and Dcache disabled, please fix your firmware!\n");
-		else if ((state->sctlr_after_ebs & 1) == 0)
-			pr_warn(FW_BUG "ExitBootServices() returned with MMU and Dcache disabled, please fix your firmware!\n");
-		else
-			dump_state = false;
-
-		if (dump_state || efi_enabled(EFI_DBG)) {
-			pr_info("CPSR at EFI stub entry        : 0x%08x\n", state->cpsr_before_ebs);
-			pr_info("SCTLR at EFI stub entry       : 0x%08x\n", state->sctlr_before_ebs);
-			pr_info("CPSR after ExitBootServices() : 0x%08x\n", state->cpsr_after_ebs);
-			pr_info("SCTLR after ExitBootServices(): 0x%08x\n", state->sctlr_after_ebs);
-		}
-		early_memunmap(state, sizeof(struct efi_arm_entry_state));
-	}
-#endif
 }

@@ -47,8 +47,7 @@ static inline void flush_pmd_tlb_range(struct vm_area_struct *vma,
 				       unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_pmd_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_pmd_tlb_range(vma, start, end);
 }
 
 #define __HAVE_ARCH_FLUSH_HUGETLB_TLB_RANGE
@@ -57,86 +56,73 @@ static inline void flush_hugetlb_tlb_range(struct vm_area_struct *vma,
 					   unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_hugetlb_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_hugetlb_tlb_range(vma, start, end);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_range(vma, start, end);
-	return hash__flush_tlb_range(vma, start, end);
+		radix__flush_tlb_range(vma, start, end);
 }
 
 static inline void flush_tlb_kernel_range(unsigned long start,
 					  unsigned long end)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_kernel_range(start, end);
-	return hash__flush_tlb_kernel_range(start, end);
+		radix__flush_tlb_kernel_range(start, end);
 }
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	if (radix_enabled())
-		return radix__local_flush_tlb_mm(mm);
-	return hash__local_flush_tlb_mm(mm);
+		radix__local_flush_tlb_mm(mm);
 }
 
 static inline void local_flush_tlb_page(struct vm_area_struct *vma,
 					unsigned long vmaddr)
 {
 	if (radix_enabled())
-		return radix__local_flush_tlb_page(vma, vmaddr);
-	return hash__local_flush_tlb_page(vma, vmaddr);
+		radix__local_flush_tlb_page(vma, vmaddr);
 }
 
-static inline void local_flush_all_mm(struct mm_struct *mm)
+static inline void local_flush_tlb_page_psize(struct mm_struct *mm,
+					      unsigned long vmaddr, int psize)
 {
 	if (radix_enabled())
-		return radix__local_flush_all_mm(mm);
-	return hash__local_flush_all_mm(mm);
+		radix__local_flush_tlb_page_psize(mm, vmaddr, psize);
 }
 
 static inline void tlb_flush(struct mmu_gather *tlb)
 {
 	if (radix_enabled())
-		return radix__tlb_flush(tlb);
-	return hash__tlb_flush(tlb);
+		radix__tlb_flush(tlb);
+	else
+		hash__tlb_flush(tlb);
 }
 
 #ifdef CONFIG_SMP
 static inline void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_mm(mm);
-	return hash__flush_tlb_mm(mm);
+		radix__flush_tlb_mm(mm);
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long vmaddr)
 {
 	if (radix_enabled())
-		return radix__flush_tlb_page(vma, vmaddr);
-	return hash__flush_tlb_page(vma, vmaddr);
-}
-
-static inline void flush_all_mm(struct mm_struct *mm)
-{
-	if (radix_enabled())
-		return radix__flush_all_mm(mm);
-	return hash__flush_all_mm(mm);
+		radix__flush_tlb_page(vma, vmaddr);
 }
 #else
 #define flush_tlb_mm(mm)		local_flush_tlb_mm(mm)
 #define flush_tlb_page(vma, addr)	local_flush_tlb_page(vma, addr)
-#define flush_all_mm(mm)		local_flush_all_mm(mm)
 #endif /* CONFIG_SMP */
 
 #define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
 static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
-						unsigned long address)
+						unsigned long address,
+						pte_t *ptep)
 {
 	/*
 	 * Book3S 64 does not require spurious fault flushes because the PTE
@@ -162,6 +148,67 @@ static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
 	 * upgrading PTE permissions, see radix__ptep_set_access_flags.
 	 */
 }
+
+static inline bool __pte_protnone(unsigned long pte)
+{
+	return (pte & (pgprot_val(PAGE_NONE) | _PAGE_RWX)) == pgprot_val(PAGE_NONE);
+}
+
+static inline bool __pte_flags_need_flush(unsigned long oldval,
+					  unsigned long newval)
+{
+	unsigned long delta = oldval ^ newval;
+
+	/*
+	 * The return value of this function doesn't matter for hash,
+	 * ptep_modify_prot_start() does a pte_update() which does or schedules
+	 * any necessary hash table update and flush.
+	 */
+	if (!radix_enabled())
+		return true;
+
+	/*
+	 * We do not expect kernel mappings or non-PTEs or not-present PTEs.
+	 */
+	VM_WARN_ON_ONCE(!__pte_protnone(oldval) && oldval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(!__pte_protnone(newval) && newval & _PAGE_PRIVILEGED);
+	VM_WARN_ON_ONCE(!(oldval & _PAGE_PTE));
+	VM_WARN_ON_ONCE(!(newval & _PAGE_PTE));
+	VM_WARN_ON_ONCE(!(oldval & _PAGE_PRESENT));
+	VM_WARN_ON_ONCE(!(newval & _PAGE_PRESENT));
+
+	/*
+	*  Must flush on any change except READ, WRITE, EXEC, DIRTY, ACCESSED.
+	*
+	 * In theory, some changed software bits could be tolerated, in
+	 * practice those should rarely if ever matter.
+	 */
+
+	if (delta & ~(_PAGE_RWX | _PAGE_DIRTY | _PAGE_ACCESSED))
+		return true;
+
+	/*
+	 * If any of the above was present in old but cleared in new, flush.
+	 * With the exception of _PAGE_ACCESSED, don't worry about flushing
+	 * if that was cleared (see the comment in ptep_clear_flush_young()).
+	 */
+	if ((delta & ~_PAGE_ACCESSED) & oldval)
+		return true;
+
+	return false;
+}
+
+static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
+{
+	return __pte_flags_need_flush(pte_val(oldpte), pte_val(newpte));
+}
+#define pte_needs_flush pte_needs_flush
+
+static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
+{
+	return __pte_flags_need_flush(pmd_val(oldpmd), pmd_val(newpmd));
+}
+#define huge_pmd_needs_flush huge_pmd_needs_flush
 
 extern bool tlbie_capable;
 extern bool tlbie_enabled;

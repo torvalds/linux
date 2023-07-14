@@ -69,12 +69,12 @@ static int ahci_dm816_phy_init(struct ahci_host_priv *hpriv, struct device *dev)
 	 * keep-alive clock and the external reference clock. We need the
 	 * rate of the latter to calculate the correct value of MPY bits.
 	 */
-	if (!hpriv->clks[1]) {
+	if (hpriv->n_clks < 2) {
 		dev_err(dev, "reference clock not supplied\n");
 		return -EINVAL;
 	}
 
-	refclk_rate = clk_get_rate(hpriv->clks[1]);
+	refclk_rate = clk_get_rate(hpriv->clks[1].clk);
 	if ((refclk_rate % 100) != 0) {
 		dev_err(dev, "reference clock rate must be divisible by 100\n");
 		return -EINVAL;
@@ -134,7 +134,7 @@ static const struct ata_port_info ahci_dm816_port_info = {
 	.port_ops	= &ahci_dm816_port_ops,
 };
 
-static struct scsi_host_template ahci_dm816_platform_sht = {
+static const struct scsi_host_template ahci_dm816_platform_sht = {
 	AHCI_SHT(AHCI_DM816_DRV_NAME),
 };
 
@@ -182,7 +182,7 @@ MODULE_DEVICE_TABLE(of, ahci_dm816_of_match);
 
 static struct platform_driver ahci_dm816_driver = {
 	.probe = ahci_dm816_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = AHCI_DM816_DRV_NAME,
 		.of_match_table = ahci_dm816_of_match,

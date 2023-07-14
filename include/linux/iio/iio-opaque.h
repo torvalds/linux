@@ -11,6 +11,8 @@
  *				checked by device drivers but should be considered
  *				read-only as this is a core internal bit
  * @driver_module:		used to make it harder to undercut users
+ * @mlock:			lock used to prevent simultaneous device state changes
+ * @mlock_key:			lockdep class for iio_dev lock
  * @info_exist_lock:		lock to prevent use during removal
  * @trig_readonly:		mark the current trigger immutable
  * @event_interface:		event chrdevs associated with interrupt lines
@@ -42,6 +44,8 @@ struct iio_dev_opaque {
 	int				currentmode;
 	int				id;
 	struct module			*driver_module;
+	struct mutex			mlock;
+	struct lock_class_key		mlock_key;
 	struct mutex			info_exist_lock;
 	bool				trig_readonly;
 	struct iio_event_interface	*event_interface;

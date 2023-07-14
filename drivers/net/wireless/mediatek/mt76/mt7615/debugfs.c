@@ -278,7 +278,6 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 {
 	struct mt7615_dev *dev = file->private;
 	u32 reg = is_mt7663(&dev->mt76) ? MT_MIB_ARNG(0) : MT_AGG_ASRCR0;
-	bool ext_phy = phy != &dev->phy;
 	int bound[7], i, range;
 
 	if (!phy)
@@ -292,7 +291,7 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 	for (i = 0; i < 3; i++)
 		bound[i + 4] = MT_AGG_ASRCR_RANGE(range, i) + 1;
 
-	seq_printf(file, "\nPhy %d\n", ext_phy);
+	seq_printf(file, "\nPhy %d\n", phy != &dev->phy);
 
 	seq_printf(file, "Length: %8d | ", bound[0]);
 	for (i = 0; i < ARRAY_SIZE(bound) - 1; i++)
@@ -300,9 +299,8 @@ mt7615_ampdu_stat_read_phy(struct mt7615_phy *phy,
 			   bound[i], bound[i + 1]);
 	seq_puts(file, "\nCount:  ");
 
-	range = ext_phy ? ARRAY_SIZE(dev->mt76.aggr_stats) / 2 : 0;
 	for (i = 0; i < ARRAY_SIZE(bound); i++)
-		seq_printf(file, "%8d | ", dev->mt76.aggr_stats[i + range]);
+		seq_printf(file, "%8d | ", phy->mt76->aggr_stats[i]);
 	seq_puts(file, "\n");
 
 	seq_printf(file, "BA miss count: %d\n", phy->mib.ba_miss_cnt);

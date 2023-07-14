@@ -710,7 +710,7 @@ static int xgene_ahci_mux_select(struct xgene_ahci_context *ctx)
 	return val & CFG_SATA_ENET_SELECT_MASK ? -1 : 0;
 }
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
@@ -785,7 +785,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	of_devid = of_match_device(xgene_ahci_of_match, dev);
 	if (of_devid) {
 		if (of_devid->data)
-			version = (enum xgene_ahci_version) of_devid->data;
+			version = (unsigned long) of_devid->data;
 	}
 #ifdef CONFIG_ACPI
 	else {
@@ -868,7 +868,7 @@ disable_resources:
 
 static struct platform_driver xgene_ahci_driver = {
 	.probe = xgene_ahci_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = xgene_ahci_of_match,

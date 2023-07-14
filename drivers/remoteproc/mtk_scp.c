@@ -74,8 +74,8 @@ static void scp_wdt_handler(struct mtk_scp *scp, u32 scp_to_host)
 
 static void scp_init_ipi_handler(void *data, unsigned int len, void *priv)
 {
-	struct mtk_scp *scp = (struct mtk_scp *)priv;
-	struct scp_run *run = (struct scp_run *)data;
+	struct mtk_scp *scp = priv;
+	struct scp_run *run = data;
 
 	scp->run.signaled = run->signaled;
 	strscpy(scp->run.fw_ver, run->fw_ver, SCP_FW_VER_LEN);
@@ -498,7 +498,7 @@ static int scp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 
 static int scp_start(struct rproc *rproc)
 {
-	struct mtk_scp *scp = (struct mtk_scp *)rproc->priv;
+	struct mtk_scp *scp = rproc->priv;
 	struct device *dev = scp->dev;
 	struct scp_run *run = &scp->run;
 	int ret;
@@ -587,7 +587,7 @@ static void *mt8192_scp_da_to_va(struct mtk_scp *scp, u64 da, size_t len)
 
 static void *scp_da_to_va(struct rproc *rproc, u64 da, size_t len, bool *is_iomem)
 {
-	struct mtk_scp *scp = (struct mtk_scp *)rproc->priv;
+	struct mtk_scp *scp = rproc->priv;
 
 	return scp->data->scp_da_to_va(scp, da, len);
 }
@@ -627,7 +627,7 @@ static void mt8195_scp_stop(struct mtk_scp *scp)
 
 static int scp_stop(struct rproc *rproc)
 {
-	struct mtk_scp *scp = (struct mtk_scp *)rproc->priv;
+	struct mtk_scp *scp = rproc->priv;
 	int ret;
 
 	ret = clk_prepare_enable(scp->clk);
@@ -649,6 +649,7 @@ static const struct rproc_ops scp_ops = {
 	.load		= scp_load,
 	.da_to_va	= scp_da_to_va,
 	.parse_fw	= scp_parse_fw,
+	.sanity_check	= rproc_elf_sanity_check,
 };
 
 /**
@@ -828,7 +829,7 @@ static int scp_probe(struct platform_device *pdev)
 	if (!rproc)
 		return dev_err_probe(dev, -ENOMEM, "unable to allocate remoteproc\n");
 
-	scp = (struct mtk_scp *)rproc->priv;
+	scp = rproc->priv;
 	scp->rproc = rproc;
 	scp->dev = dev;
 	scp->data = of_device_get_match_data(dev);
@@ -912,7 +913,7 @@ release_dev_mem:
 	return ret;
 }
 
-static int scp_remove(struct platform_device *pdev)
+static void scp_remove(struct platform_device *pdev)
 {
 	struct mtk_scp *scp = platform_get_drvdata(pdev);
 	int i;
@@ -924,8 +925,6 @@ static int scp_remove(struct platform_device *pdev)
 	for (i = 0; i < SCP_IPI_MAX; i++)
 		mutex_destroy(&scp->ipi_desc[i].lock);
 	mutex_destroy(&scp->send_lock);
-
-	return 0;
 }
 
 static const struct mtk_scp_of_data mt8183_of_data = {
@@ -1002,7 +1001,7 @@ MODULE_DEVICE_TABLE(of, mtk_scp_of_match);
 
 static struct platform_driver mtk_scp_driver = {
 	.probe = scp_probe,
-	.remove = scp_remove,
+	.remove_new = scp_remove,
 	.driver = {
 		.name = "mtk-scp",
 		.of_match_table = mtk_scp_of_match,

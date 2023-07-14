@@ -37,6 +37,15 @@ config CLK_BCM_63XX_GATE
 	  Enable common clock framework support for Broadcom BCM63xx DSL SoCs
 	  based on the MIPS architecture
 
+config CLK_BCM63268_TIMER
+	bool "Broadcom BCM63268 timer clock and reset support"
+	depends on BMIPS_GENERIC || COMPILE_TEST
+	default BMIPS_GENERIC
+	select RESET_CONTROLLER
+	help
+	  Enable timer clock and reset support for Broadcom BCM63268 DSL SoCs
+	  based on the MIPS architecture.
+
 config CLK_BCM_KONA
 	bool "Broadcom Kona CCU clock support"
 	depends on ARCH_BCM_MOBILE || COMPILE_TEST

@@ -19,19 +19,9 @@ also read Documentation/hwmon/submitting-patches.rst.
 
 The API
 -------
-Each hardware monitoring driver must #include <linux/hwmon.h> and, in most
+Each hardware monitoring driver must #include <linux/hwmon.h> and, in some
 cases, <linux/hwmon-sysfs.h>. linux/hwmon.h declares the following
 register/unregister functions::
-
-  struct device *
-  hwmon_device_register_with_groups(struct device *dev, const char *name,
-				    void *drvdata,
-				    const struct attribute_group **groups);
-
-  struct device *
-  devm_hwmon_device_register_with_groups(struct device *dev,
-					 const char *name, void *drvdata,
-					 const struct attribute_group **groups);
 
   struct device *
   hwmon_device_register_with_info(struct device *dev,
@@ -54,46 +44,30 @@ register/unregister functions::
 
   char *devm_hwmon_sanitize_name(struct device *dev, const char *name);
 
-hwmon_device_register_with_groups registers a hardware monitoring device.
-The first parameter of this function is a pointer to the parent device.
-The name parameter is a pointer to the hwmon device name. The registration
-function wil create a name sysfs attribute pointing to this name.
-The drvdata parameter is the pointer to the local driver data.
-hwmon_device_register_with_groups will attach this pointer to the newly
-allocated hwmon device. The pointer can be retrieved by the driver using
-dev_get_drvdata() on the hwmon device pointer. The groups parameter is
-a pointer to a list of sysfs attribute groups. The list must be NULL terminated.
-hwmon_device_register_with_groups creates the hwmon device with name attribute
-as well as all sysfs attributes attached to the hwmon device.
-This function returns a pointer to the newly created hardware monitoring device
-or PTR_ERR for failure.
-
-devm_hwmon_device_register_with_groups is similar to
-hwmon_device_register_with_groups. However, it is device managed, meaning the
-hwmon device does not have to be removed explicitly by the removal function.
-
-hwmon_device_register_with_info is the most comprehensive and preferred means
-to register a hardware monitoring device. It creates the standard sysfs
-attributes in the hardware monitoring core, letting the driver focus on reading
-from and writing to the chip instead of having to bother with sysfs attributes.
-The parent device parameter as well as the chip parameter must not be NULL. Its
-parameters are described in more detail below.
+hwmon_device_register_with_info registers a hardware monitoring device.
+It creates the standard sysfs attributes in the hardware monitoring core,
+letting the driver focus on reading from and writing to the chip instead
+of having to bother with sysfs attributes. The parent device parameter
+as well as the chip parameter must not be NULL. Its parameters are described
+in more detail below.
 
 devm_hwmon_device_register_with_info is similar to
 hwmon_device_register_with_info. However, it is device managed, meaning the
 hwmon device does not have to be removed explicitly by the removal function.
 
+All other hardware monitoring device registration functions are deprecated
+and must not be used in new drivers.
+
 hwmon_device_unregister deregisters a registered hardware monitoring device.
 The parameter of this function is the pointer to the registered hardware
 monitoring device structure. This function must be called from the driver
 remove function if the hardware monitoring device was registered with
-hwmon_device_register_with_groups or hwmon_device_register_with_info.
+hwmon_device_register_with_info.
 
 devm_hwmon_device_unregister does not normally have to be called. It is only
 needed for error handling, and only needed if the driver probe fails after
-the call to devm_hwmon_device_register_with_groups or
-hwmon_device_register_with_info and if the automatic (device managed)
-removal would be too late.
+the call to devm_hwmon_device_register_with_info and if the automatic (device
+managed) removal would be too late.
 
 All supported hwmon device registration functions only accept valid device
 names. Device names including invalid characters (whitespace, '*', or '-')
@@ -133,7 +107,7 @@ The hwmon_chip_info structure looks as follows::
 
 	struct hwmon_chip_info {
 		const struct hwmon_ops *ops;
-		const struct hwmon_channel_info **info;
+		const struct hwmon_channel_info * const *info;
 	};
 
 It contains the following fields:
@@ -229,7 +203,7 @@ register (HWMON_T_MAX) as well as a maximum temperature hysteresis register
 		.config = lm75_temp_config,
 	};
 
-	static const struct hwmon_channel_info *lm75_info[] = {
+	static const struct hwmon_channel_info * const lm75_info[] = {
 		&lm75_chip,
 		&lm75_temp,
 		NULL
@@ -238,7 +212,7 @@ register (HWMON_T_MAX) as well as a maximum temperature hysteresis register
 	The HWMON_CHANNEL_INFO() macro can and should be used when possible.
 	With this macro, the above example can be simplified to
 
-	static const struct hwmon_channel_info *lm75_info[] = {
+	static const struct hwmon_channel_info * const lm75_info[] = {
 		HWMON_CHANNEL_INFO(chip,
 				HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 		HWMON_CHANNEL_INFO(temp,
@@ -299,7 +273,7 @@ Parameters:
 
 Return value:
 	The file mode for this attribute. Typically, this will be 0 (the
-	attribute will not be created), S_IRUGO, or 'S_IRUGO | S_IWUSR'.
+	attribute will not be created), 0444, or 0644.
 
 ::
 
@@ -351,16 +325,14 @@ Return value:
 Driver-provided sysfs attributes
 --------------------------------
 
-If the hardware monitoring device is registered with
-hwmon_device_register_with_info or devm_hwmon_device_register_with_info,
-it is most likely not necessary to provide sysfs attributes. Only additional
-non-standard sysfs attributes need to be provided when one of those registration
-functions is used.
+In most situations it should not be necessary for a driver to provide sysfs
+attributes since the hardware monitoring core creates those internally.
+Only additional non-standard sysfs attributes need to be provided.
 
 The header file linux/hwmon-sysfs.h provides a number of useful macros to
 declare and use hardware monitoring sysfs attributes.
 
-In many cases, you can use the exsting define DEVICE_ATTR or its variants
+In many cases, you can use the existing define DEVICE_ATTR or its variants
 DEVICE_ATTR_{RW,RO,WO} to declare such attributes. This is feasible if an
 attribute has no additional context. However, in many cases there will be
 additional information such as a sensor index which will need to be passed

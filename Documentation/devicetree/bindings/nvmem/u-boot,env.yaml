@@ -24,6 +24,8 @@ description: |
   Right now only flash partition case is covered but it may be extended to e.g.
   UBI volumes in the future.
 
+  Variables can be defined as NVMEM device subnodes.
+
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
@@ -36,9 +38,23 @@ properties:
         const: u-boot,env-redundant-bool
       - description: Two redundant blocks with active having higher counter
         const: u-boot,env-redundant-count
+      - description: Broadcom's variant with custom header
+        const: brcm,env
 
   reg:
     maxItems: 1
+
+  bootcmd:
+    type: object
+    description: Command to use for automatic booting
+
+  ethaddr:
+    type: object
+    description: Ethernet interfaces base MAC address.
+    properties:
+      "#nvmem-cell-cells":
+        description: The first argument is a MAC address offset.
+        const: 1
 
 additionalProperties: false
 
@@ -58,5 +74,28 @@ examples:
         env: partition@40000 {
             compatible = "u-boot,env";
             reg = <0x40000 0x10000>;
+
+            mac: ethaddr {
+                #nvmem-cell-cells = <1>;
+            };
+        };
+    };
+  - |
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        partition@0 {
+            reg = <0x0 0x100000>;
+            compatible = "brcm,u-boot";
+            label = "u-boot";
+
+            partition-u-boot-env {
+                compatible = "brcm,env";
+
+                ethaddr {
+                };
+            };
         };
     };

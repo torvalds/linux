@@ -35,8 +35,8 @@ static void test_xdp_with_devmap_helpers(void)
 
 	dm_fd = bpf_program__fd(skel->progs.xdp_dummy_dm);
 	map_fd = bpf_map__fd(skel->maps.dm_ports);
-	err = bpf_obj_get_info_by_fd(dm_fd, &info, &len);
-	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd"))
+	err = bpf_prog_get_info_by_fd(dm_fd, &info, &len);
+	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd"))
 		goto out_close;
 
 	val.bpf_prog.fd = dm_fd;
@@ -98,8 +98,8 @@ static void test_xdp_with_devmap_frags_helpers(void)
 
 	dm_fd_frags = bpf_program__fd(skel->progs.xdp_dummy_dm_frags);
 	map_fd = bpf_map__fd(skel->maps.dm_ports);
-	err = bpf_obj_get_info_by_fd(dm_fd_frags, &info, &len);
-	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd"))
+	err = bpf_prog_get_info_by_fd(dm_fd_frags, &info, &len);
+	if (!ASSERT_OK(err, "bpf_prog_get_info_by_fd"))
 		goto out_close;
 
 	val.bpf_prog.fd = dm_fd_frags;

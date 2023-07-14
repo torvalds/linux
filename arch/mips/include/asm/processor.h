@@ -202,11 +202,13 @@ struct octeon_cop2_state {
 #define COP2_INIT						\
 	.cp2			= {0,},
 
+#if defined(CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE) && \
+	CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
 struct octeon_cvmseg_state {
 	unsigned long cvmseg[CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE]
 			    [cpu_dcache_line_size() / sizeof(unsigned long)];
 };
-
+#endif
 #else
 #define COP2_INIT
 #endif
@@ -263,7 +265,10 @@ struct thread_struct {
 	unsigned long trap_nr;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
+#if defined(CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE) && \
+	CONFIG_CAVIUM_OCTEON_CVMSEG_SIZE > 0
 	struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
+#endif
 #endif
 	struct mips_abi *abi;
 };
@@ -343,9 +348,6 @@ struct thread_struct {
 }
 
 struct task_struct;
-
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while(0)
 
 /*
  * Do necessary setup to start up a newly executed thread.

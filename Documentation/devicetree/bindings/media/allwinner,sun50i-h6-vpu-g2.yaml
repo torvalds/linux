@@ -2,8 +2,8 @@
 
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/media/allwinner,sun50i-h6-vpu-g2.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/media/allwinner,sun50i-h6-vpu-g2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Hantro G2 VPU codec implemented on Allwinner H6 SoC
 
@@ -36,6 +36,9 @@ properties:
   resets:
     maxItems: 1
 
+  iommus:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -43,6 +46,7 @@ required:
   - clocks
   - clock-names
   - resets
+  - iommus
 
 additionalProperties: false
 
@@ -59,6 +63,7 @@ examples:
         clocks = <&ccu CLK_BUS_VP9>, <&ccu CLK_VP9>;
         clock-names = "bus", "mod";
         resets = <&ccu RST_BUS_VP9>;
+        iommus = <&iommu 5>;
     };
 
 ...

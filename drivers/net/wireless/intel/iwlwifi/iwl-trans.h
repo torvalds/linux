@@ -459,6 +459,24 @@ struct iwl_trans_rxq_dma_data {
 	u64 ur_bd_cb;
 };
 
+/* maximal number of DRAM MAP entries supported by FW */
+#define IPC_DRAM_MAP_ENTRY_NUM_MAX 64
+
+/**
+ * struct iwl_pnvm_image - contains info about the parsed pnvm image
+ * @chunks: array of pointers to pnvm payloads and their sizes
+ * @n_chunks: the number of the pnvm payloads.
+ * @version: the version of the loaded PNVM image
+ */
+struct iwl_pnvm_image {
+	struct {
+		const void *data;
+		u32 len;
+	} chunks[IPC_DRAM_MAP_ENTRY_NUM_MAX];
+	u32 n_chunks;
+	u32 version;
+};
+
 /**
  * struct iwl_trans_ops - transport specific operations
  *
@@ -541,8 +559,11 @@ struct iwl_trans_rxq_dma_data {
  *	Note that the transport must fill in the proper file headers.
  * @debugfs_cleanup: used in the driver unload flow to make a proper cleanup
  *	of the trans debugfs
+ * @load_pnvm: save the pnvm data in DRAM
  * @set_pnvm: set the pnvm data in the prph scratch buffer, inside the
  *	context info.
+ * @load_reduce_power: copy reduce power table to the corresponding DRAM memory
+ * @set_reduce_power: set reduce power table addresses in the sratch buffer
  * @interrupts: disable/enable interrupts to transport
  */
 struct iwl_trans_ops {
@@ -614,9 +635,17 @@ struct iwl_trans_ops {
 						 void *sanitize_ctx);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
-	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
-	int (*set_reduce_power)(struct iwl_trans *trans,
-				const void *data, u32 len);
+	int (*load_pnvm)(struct iwl_trans *trans,
+			 const struct iwl_pnvm_image *pnvm_payloads,
+			 const struct iwl_ucode_capabilities *capa);
+	void (*set_pnvm)(struct iwl_trans *trans,
+			 const struct iwl_ucode_capabilities *capa);
+	int (*load_reduce_power)(struct iwl_trans *trans,
+				 const struct iwl_pnvm_image *payloads,
+				 const struct iwl_ucode_capabilities *capa);
+	void (*set_reduce_power)(struct iwl_trans *trans,
+				 const struct iwl_ucode_capabilities *capa);
+
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
 	int (*imr_dma_data)(struct iwl_trans *trans,
 			    u32 dst_addr, u64 src_addr,
@@ -705,6 +734,19 @@ struct iwl_dram_data {
 };
 
 /**
+ * @drams: array of several DRAM areas that contains the pnvm and power
+ *	reduction table payloads.
+ * @n_regions: number of DRAM regions that were allocated
+ * @prph_scratch_mem_desc: points to a structure allocated in dram,
+ *	designed to show FW where all the payloads are.
+ */
+struct iwl_dram_regions {
+	struct iwl_dram_data drams[IPC_DRAM_MAP_ENTRY_NUM_MAX];
+	struct iwl_dram_data prph_scratch_mem_desc;
+	u8 n_regions;
+};
+
+/**
  * struct iwl_fw_mon - fw monitor per allocation id
  * @num_frags: number of fragments
  * @frags: an array of DRAM buffer fragments
@@ -748,6 +790,18 @@ struct iwl_imr_data {
 	__le64 imr_base_addr;
 };
 
+#define IWL_TRANS_CURRENT_PC_NAME_MAX_BYTES      32
+
+/**
+ * struct iwl_pc_data - program counter details
+ * @pc_name: cpu name
+ * @pc_address: cpu program counter
+ */
+struct iwl_pc_data {
+	u8  pc_name[IWL_TRANS_CURRENT_PC_NAME_MAX_BYTES];
+	u32 pc_address;
+};
+
 /**
  * struct iwl_trans_debug - transport debug related data
  *
@@ -775,6 +829,10 @@ struct iwl_imr_data {
  * @periodic_trig_list: periodic triggers list
  * @domains_bitmap: bitmap of active domains other than &IWL_FW_INI_DOMAIN_ALWAYS_ON
  * @ucode_preset: preset based on ucode
+ * @dump_file_name_ext: dump file name extension
+ * @dump_file_name_ext_valid: dump file name extension if valid or not
+ * @num_pc: number of program counter for cpu
+ * @pc_data: details of the program counter
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -813,6 +871,10 @@ struct iwl_trans_debug {
 	bool restart_required;
 	u32 last_tp_resetfw;
 	struct iwl_imr_data imr_data;
+	u8 dump_file_name_ext[IWL_FW_INI_MAX_NAME];
+	bool dump_file_name_ext_valid;
+	u32 num_pc;
+	struct iwl_pc_data *pc_data;
 };
 
 struct iwl_dma_ptr {
@@ -976,12 +1038,16 @@ struct iwl_trans_txqs {
  * @max_skb_frags: maximum number of fragments an SKB can have when transmitted.
  *	0 indicates that frag SKBs (NETIF_F_SG) aren't supported.
  * @hw_rf_id a u32 with the device RF ID
+ * @hw_crf_id a u32 with the device CRF ID
+ * @hw_wfpm_id a u32 with the device wfpm ID
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
+ * @fail_to_parse_pnvm_image: set to true if pnvm parsing failed
+ * @failed_to_load_reduce_power_image: set to true if pnvm loading failed
  * @wide_cmd_header: true when ucode supports wide command header format
  * @wait_command_queue: wait queue for sync commands
  * @num_rx_queues: number of RX queues allocated by the transport;
@@ -999,6 +1065,10 @@ struct iwl_trans_txqs {
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
  * @iwl_trans_txqs: transport tx queues data.
+ * @mbx_addr_0_step: step address data 0
+ * @mbx_addr_1_step: step address data 1
+ * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
+ *	only valid for discrete (not integrated) NICs
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1015,6 +1085,9 @@ struct iwl_trans {
 	u32 hw_rev;
 	u32 hw_rev_step;
 	u32 hw_rf_id;
+	u32 hw_crf_id;
+	u32 hw_cnv_id;
+	u32 hw_wfpm_id;
 	u32 hw_id;
 	char hw_id_str[52];
 	u32 sku_id[3];
@@ -1024,7 +1097,9 @@ struct iwl_trans {
 	bool pm_support;
 	bool ltr_enabled;
 	u8 pnvm_loaded:1;
+	u8 fail_to_parse_pnvm_image:1;
 	u8 reduce_power_loaded:1;
+	u8 failed_to_load_reduce_power_image:1;
 
 	const struct iwl_hcmd_arr *command_groups;
 	int command_groups_size;
@@ -1053,6 +1128,10 @@ struct iwl_trans {
 
 	const char *name;
 	struct iwl_trans_txqs txqs;
+	u32 mbx_addr_0_step;
+	u32 mbx_addr_1_step;
+
+	u8 pcie_link_speed;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
@@ -1131,7 +1210,7 @@ static inline int iwl_trans_d3_suspend(struct iwl_trans *trans, bool test,
 {
 	might_sleep();
 	if (!trans->ops->d3_suspend)
-		return 0;
+		return -EOPNOTSUPP;
 
 	return trans->ops->d3_suspend(trans, test, reset);
 }
@@ -1142,7 +1221,7 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 {
 	might_sleep();
 	if (!trans->ops->d3_resume)
-		return 0;
+		return -EOPNOTSUPP;
 
 	return trans->ops->d3_resume(trans, status, test, reset);
 }
@@ -1486,33 +1565,34 @@ static inline void iwl_trans_sync_nmi(struct iwl_trans *trans)
 void iwl_trans_sync_nmi_with_addr(struct iwl_trans *trans, u32 inta_addr,
 				  u32 sw_err_bit);
 
-static inline int iwl_trans_set_pnvm(struct iwl_trans *trans,
-				     const void *data, u32 len)
+static inline int iwl_trans_load_pnvm(struct iwl_trans *trans,
+				      const struct iwl_pnvm_image *pnvm_data,
+				      const struct iwl_ucode_capabilities *capa)
 {
-	if (trans->ops->set_pnvm) {
-		int ret = trans->ops->set_pnvm(trans, data, len);
-
-		if (ret)
-			return ret;
-	}
-
-	trans->pnvm_loaded = true;
-
-	return 0;
+	return trans->ops->load_pnvm(trans, pnvm_data, capa);
 }
 
-static inline int iwl_trans_set_reduce_power(struct iwl_trans *trans,
-					     const void *data, u32 len)
+static inline void iwl_trans_set_pnvm(struct iwl_trans *trans,
+				      const struct iwl_ucode_capabilities *capa)
 {
-	if (trans->ops->set_reduce_power) {
-		int ret = trans->ops->set_reduce_power(trans, data, len);
+	if (trans->ops->set_pnvm)
+		trans->ops->set_pnvm(trans, capa);
+}
 
-		if (ret)
-			return ret;
-	}
+static inline int iwl_trans_load_reduce_power
+				(struct iwl_trans *trans,
+				 const struct iwl_pnvm_image *payloads,
+				 const struct iwl_ucode_capabilities *capa)
+{
+	return trans->ops->load_reduce_power(trans, payloads, capa);
+}
 
-	trans->reduce_power_loaded = true;
-	return 0;
+static inline void
+iwl_trans_set_reduce_power(struct iwl_trans *trans,
+			   const struct iwl_ucode_capabilities *capa)
+{
+	if (trans->ops->set_reduce_power)
+		trans->ops->set_reduce_power(trans, capa);
 }
 
 static inline bool iwl_trans_dbg_ini_valid(struct iwl_trans *trans)
@@ -1537,10 +1617,16 @@ struct iwl_trans *iwl_trans_alloc(unsigned int priv_size,
 int iwl_trans_init(struct iwl_trans *trans);
 void iwl_trans_free(struct iwl_trans *trans);
 
+static inline bool iwl_trans_is_hw_error_value(u32 val)
+{
+	return ((val & ~0xf) == 0xa5a5a5a0) || ((val & ~0xf) == 0x5a5a5a50);
+}
+
 /*****************************************************
 * driver (transport) register/unregister functions
 ******************************************************/
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
+void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan);
 
 #endif /* __iwl_trans_h__ */

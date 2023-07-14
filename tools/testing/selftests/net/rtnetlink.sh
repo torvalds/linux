@@ -4,6 +4,31 @@
 #
 # set -e
 
+ALL_TESTS="
+	kci_test_polrouting
+	kci_test_route_get
+	kci_test_addrlft
+	kci_test_promote_secondaries
+	kci_test_tc
+	kci_test_gre
+	kci_test_gretap
+	kci_test_ip6gretap
+	kci_test_erspan
+	kci_test_ip6erspan
+	kci_test_bridge
+	kci_test_addrlabel
+	kci_test_ifalias
+	kci_test_vrf
+	kci_test_encap
+	kci_test_macsec
+	kci_test_ipsec
+	kci_test_ipsec_offload
+	kci_test_fdb_get
+	kci_test_neigh_get
+	kci_test_bridge_parent_id
+	kci_test_address_proto
+"
+
 devdummy="test-dummy0"
 
 # Kselftest framework requirement - SKIP code is 4.
@@ -782,7 +807,7 @@ kci_test_ipsec_offload()
 	    tmpl proto esp src $srcip dst $dstip spi 9 \
 	    mode transport reqid 42
 	check_err $?
-	ip x p add dir out src $dstip/24 dst $srcip/24 \
+	ip x p add dir in src $dstip/24 dst $srcip/24 \
 	    tmpl proto esp src $dstip dst $srcip spi 9 \
 	    mode transport reqid 42
 	check_err $?
@@ -835,6 +860,7 @@ EOF
 	fi
 
 	# clean up any leftovers
+	echo 0 > /sys/bus/netdevsim/del_device
 	$probed && rmmod netdevsim
 
 	if [ $ret -ne 0 ]; then
@@ -1225,60 +1251,128 @@ kci_test_bridge_parent_id()
 	echo "PASS: bridge_parent_id"
 }
 
-kci_test_rtnl()
+address_get_proto()
+{
+	local addr=$1; shift
+
+	ip -N -j address show dev "$devdummy" |
+	    jq -e -r --arg addr "${addr%/*}" \
+	       '.[].addr_info[] | select(.local == $addr) | .protocol'
+}
+
+address_count()
+{
+	ip -N -j address show dev "$devdummy" "$@" |
+	    jq -e -r '[.[].addr_info[] | .local | select(. != null)] | length'
+}
+
+do_test_address_proto()
+{
+	local what=$1; shift
+	local addr=$1; shift
+	local addr2=${addr%/*}2/${addr#*/}
+	local addr3=${addr%/*}3/${addr#*/}
+	local proto
+	local count
+	local ret=0
+	local err
+
+	ip address add dev "$devdummy" "$addr3"
+	check_err $?
+	proto=$(address_get_proto "$addr3")
+	[[ "$proto" == null ]]
+	check_err $?
+
+	ip address add dev "$devdummy" "$addr2" proto 0x99
+	check_err $?
+	proto=$(address_get_proto "$addr2")
+	[[ "$proto" == 0x99 ]]
+	check_err $?
+
+	ip address add dev "$devdummy" "$addr" proto 0xab
+	check_err $?
+	proto=$(address_get_proto "$addr")
+	[[ "$proto" == 0xab ]]
+	check_err $?
+
+	ip address replace dev "$devdummy" "$addr" proto 0x11
+	proto=$(address_get_proto "$addr")
+	check_err $?
+	[[ "$proto" == 0x11 ]]
+	check_err $?
+
+	count=$(address_count)
+	check_err $?
+	(( count >= 3 )) # $addr, $addr2 and $addr3 plus any kernel addresses
+	check_err $?
+
+	count=$(address_count proto 0)
+	check_err $?
+	(( count == 1 )) # just $addr3
+	check_err $?
+
+	count=$(address_count proto 0x11)
+	check_err $?
+	(( count == 2 )) # $addr and $addr3
+	check_err $?
+
+	count=$(address_count proto 0xab)
+	check_err $?
+	(( count == 1 )) # just $addr3
+	check_err $?
+
+	ip address del dev "$devdummy" "$addr"
+	ip address del dev "$devdummy" "$addr2"
+	ip address del dev "$devdummy" "$addr3"
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: address proto $what"
+		return 1
+	fi
+	echo "PASS: address proto $what"
+}
+
+kci_test_address_proto()
 {
 	local ret=0
+
+	do_test_address_proto IPv4 192.0.2.1/28
+	check_err $?
+
+	do_test_address_proto IPv6 2001:db8:1::1/64
+	check_err $?
+
+	return $ret
+}
+
+kci_test_rtnl()
+{
+	local current_test
+	local ret=0
+
 	kci_add_dummy
 	if [ $ret -ne 0 ];then
 		echo "FAIL: cannot add dummy interface"
 		return 1
 	fi
 
-	kci_test_polrouting
-	check_err $?
-	kci_test_route_get
-	check_err $?
-	kci_test_addrlft
-	check_err $?
-	kci_test_promote_secondaries
-	check_err $?
-	kci_test_tc
-	check_err $?
-	kci_test_gre
-	check_err $?
-	kci_test_gretap
-	check_err $?
-	kci_test_ip6gretap
-	check_err $?
-	kci_test_erspan
-	check_err $?
-	kci_test_ip6erspan
-	check_err $?
-	kci_test_bridge
-	check_err $?
-	kci_test_addrlabel
-	check_err $?
-	kci_test_ifalias
-	check_err $?
-	kci_test_vrf
-	check_err $?
-	kci_test_encap
-	check_err $?
-	kci_test_macsec
-	check_err $?
-	kci_test_ipsec
-	check_err $?
-	kci_test_ipsec_offload
-	check_err $?
-	kci_test_fdb_get
-	check_err $?
-	kci_test_neigh_get
-	check_err $?
-	kci_test_bridge_parent_id
-	check_err $?
+	for current_test in ${TESTS:-$ALL_TESTS}; do
+		$current_test
+		check_err $?
+	done
 
 	kci_del_dummy
 	return $ret
+}
+
+usage()
+{
+	cat <<EOF
+usage: ${0##*/} OPTS
+
+        -t <test>   Test(s) to run (default: all)
+                    (options: $(echo $ALL_TESTS))
+EOF
 }
 
 #check for needed privileges
@@ -1293,6 +1387,14 @@ for x in ip tc;do
 		echo "SKIP: Could not run test without the $x tool"
 		exit $ksft_skip
 	fi
+done
+
+while getopts t:h o; do
+	case $o in
+		t) TESTS=$OPTARG;;
+		h) usage; exit 0;;
+		*) usage; exit 1;;
+	esac
 done
 
 kci_test_rtnl

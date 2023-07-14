@@ -141,7 +141,7 @@ static umode_t tmp102_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *tmp102_info[] = {
+static const struct hwmon_channel_info * const tmp102_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
@@ -184,7 +184,7 @@ static const struct regmap_config tmp102_regmap_config = {
 	.writeable_reg = tmp102_is_writeable_reg,
 	.volatile_reg = tmp102_is_volatile_reg,
 	.val_format_endian = REGMAP_ENDIAN_BIG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
 };
@@ -301,7 +301,7 @@ static struct i2c_driver tmp102_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.of_match_table = of_match_ptr(tmp102_of_match),
 	.driver.pm	= pm_sleep_ptr(&tmp102_dev_pm_ops),
-	.probe_new	= tmp102_probe,
+	.probe		= tmp102_probe,
 	.id_table	= tmp102_id,
 };
 

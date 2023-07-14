@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/usb/smsc,usb3503.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: SMSC USB3503 High-Speed Hub Controller Device Tree Bindings
+title: SMSC USB3503 High-Speed Hub Controller
 
 maintainers:
   - Dongjin Kim <tobetter@gmail.com>
@@ -14,6 +14,7 @@ properties:
     enum:
       - smsc,usb3503
       - smsc,usb3503a
+      - smsc,usb3803
 
   reg:
     maxItems: 1
@@ -33,6 +34,12 @@ properties:
     description: >
       GPIO for reset
 
+  bypass-gpios:
+    maxItems: 1
+    description: >
+      GPIO for bypass.
+      Control signal to select between HUB MODE and BYPASS MODE.
+
   disabled-ports:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
@@ -46,9 +53,10 @@ properties:
 
   initial-mode:
     $ref: /schemas/types.yaml#/definitions/uint32
-    enum: [1, 2]
     description: >
-      Specifies initial mode. 1 for Hub mode, 2 for standby mode.
+      Specifies initial mode. 1 for Hub mode, 2 for standby mode and 3 for bypass mode.
+      In bypass mode the downstream port 3 is connected to the upstream port with low
+      switch resistance R_on.
 
   clocks:
     maxItems: 1
@@ -71,6 +79,29 @@ properties:
 required:
   - compatible
 
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            enum:
+              - smsc,usb3803
+    then:
+      properties:
+        bypass-gpios: false
+
+  - if:
+      required:
+        - bypass-gpios
+    then:
+      properties:
+        initial-mode:
+          enum: [1, 2, 3]
+    else:
+      properties:
+        initial-mode:
+          enum: [1, 2]
+
 additionalProperties: false
 
 examples:
@@ -87,6 +118,25 @@ examples:
               intn-gpios = <&gpx3 4 1>;
               reset-gpios = <&gpx3 5 1>;
               initial-mode = <1>;
+              clocks = <&clks 80>;
+              clock-names = "refclk";
+          };
+      };
+
+  - |
+      i2c {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          usb-hub@8 {
+              compatible = "smsc,usb3803";
+              reg = <0x08>;
+              connect-gpios = <&gpx3 0 1>;
+              disabled-ports = <2 3>;
+              intn-gpios = <&gpx3 4 1>;
+              reset-gpios = <&gpx3 5 1>;
+              bypass-gpios = <&gpx3 6 1>;
+              initial-mode = <3>;
               clocks = <&clks 80>;
               clock-names = "refclk";
           };

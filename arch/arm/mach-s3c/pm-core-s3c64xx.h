@@ -20,23 +20,6 @@
 
 static inline void s3c_pm_debug_init_uart(void)
 {
-#ifdef CONFIG_SAMSUNG_PM_DEBUG
-	u32 tmp = __raw_readl(S3C_PCLK_GATE);
-
-	/* As a note, since the S3C64XX UARTs generally have multiple
-	 * clock sources, we simply enable PCLK at the moment and hope
-	 * that the resume settings for the UART are suitable for the
-	 * use with PCLK.
-	 */
-
-	tmp |= S3C_CLKCON_PCLK_UART0;
-	tmp |= S3C_CLKCON_PCLK_UART1;
-	tmp |= S3C_CLKCON_PCLK_UART2;
-	tmp |= S3C_CLKCON_PCLK_UART3;
-
-	__raw_writel(tmp, S3C_PCLK_GATE);
-	udelay(10);
-#endif
 }
 
 static inline void s3c_pm_arch_prepare_irqs(void)

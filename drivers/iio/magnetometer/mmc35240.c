@@ -481,8 +481,7 @@ static const struct regmap_config mmc35240_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(mmc35240_reg_defaults),
 };
 
-static int mmc35240_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int mmc35240_probe(struct i2c_client *client)
 {
 	struct mmc35240_data *data;
 	struct iio_dev *indio_dev;

@@ -182,3 +182,42 @@ Date:		November 2021
 Contact:	Jarkko Sakkinen <jarkko@kernel.org>
 Description:
 		The total amount of SGX physical memory in bytes.
+
+What:		/sys/devices/system/node/nodeX/memory_failure/total
+Date:		January 2023
+Contact:	Jiaqi Yan <jiaqiyan@google.com>
+Description:
+		The total number of raw poisoned pages (pages containing
+		corrupted data due to memory errors) on a NUMA node.
+
+What:		/sys/devices/system/node/nodeX/memory_failure/ignored
+Date:		January 2023
+Contact:	Jiaqi Yan <jiaqiyan@google.com>
+Description:
+		Of the raw poisoned pages on a NUMA node, how many pages are
+		ignored by memory error recovery attempt, usually because
+		support for this type of pages is unavailable, and kernel
+		gives up the recovery.
+
+What:		/sys/devices/system/node/nodeX/memory_failure/failed
+Date:		January 2023
+Contact:	Jiaqi Yan <jiaqiyan@google.com>
+Description:
+		Of the raw poisoned pages on a NUMA node, how many pages are
+		failed by memory error recovery attempt. This usually means
+		a key recovery operation failed.
+
+What:		/sys/devices/system/node/nodeX/memory_failure/delayed
+Date:		January 2023
+Contact:	Jiaqi Yan <jiaqiyan@google.com>
+Description:
+		Of the raw poisoned pages on a NUMA node, how many pages are
+		delayed by memory error recovery attempt. Delayed poisoned
+		pages usually will be retried by kernel.
+
+What:		/sys/devices/system/node/nodeX/memory_failure/recovered
+Date:		January 2023
+Contact:	Jiaqi Yan <jiaqiyan@google.com>
+Description:
+		Of the raw poisoned pages on a NUMA node, how many pages are
+		recovered by memory error recovery attempt.

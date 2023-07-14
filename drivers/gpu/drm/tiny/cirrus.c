@@ -24,13 +24,14 @@
 #include <video/vga.h>
 
 #include <drm/drm_aperture.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_edid.h>
-#include <drm/drm_fb_helper.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_file.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
@@ -43,7 +44,6 @@
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_simple_kms_helper.h>
 
 #define DRIVER_NAME "cirrus"
 #define DRIVER_DESC "qemu cirrus vga"
@@ -56,15 +56,33 @@
 
 struct cirrus_device {
 	struct drm_device	       dev;
-	struct drm_simple_display_pipe pipe;
-	struct drm_connector	       conn;
-	unsigned int		       cpp;
-	unsigned int		       pitch;
+
+	/* modesetting pipeline */
+	struct drm_plane	       primary_plane;
+	struct drm_crtc		       crtc;
+	struct drm_encoder	       encoder;
+	struct drm_connector	       connector;
+
+	/* HW resources */
 	void __iomem		       *vram;
 	void __iomem		       *mmio;
 };
 
 #define to_cirrus(_dev) container_of(_dev, struct cirrus_device, dev)
+
+struct cirrus_primary_plane_state {
+	struct drm_shadow_plane_state base;
+
+	/* HW scanout buffer */
+	const struct drm_format_info   *format;
+	unsigned int		       pitch;
+};
+
+static inline struct cirrus_primary_plane_state *
+to_cirrus_primary_plane_state(struct drm_plane_state *plane_state)
+{
+	return container_of(plane_state, struct cirrus_primary_plane_state, base.base);
+};
 
 /* ------------------------------------------------------------------ */
 /*
@@ -126,45 +144,41 @@ static void wreg_hdr(struct cirrus_device *cirrus, u8 val)
 	iowrite8(val, cirrus->mmio + VGA_DAC_MASK);
 }
 
-static int cirrus_convert_to(struct drm_framebuffer *fb)
+static const struct drm_format_info *cirrus_convert_to(struct drm_framebuffer *fb)
 {
-	if (fb->format->cpp[0] == 4 && fb->pitches[0] > CIRRUS_MAX_PITCH) {
+	if (fb->format->format == DRM_FORMAT_XRGB8888 && fb->pitches[0] > CIRRUS_MAX_PITCH) {
 		if (fb->width * 3 <= CIRRUS_MAX_PITCH)
 			/* convert from XR24 to RG24 */
-			return 3;
+			return drm_format_info(DRM_FORMAT_RGB888);
 		else
 			/* convert from XR24 to RG16 */
-			return 2;
+			return drm_format_info(DRM_FORMAT_RGB565);
 	}
-	return 0;
+	return NULL;
 }
 
-static int cirrus_cpp(struct drm_framebuffer *fb)
+static const struct drm_format_info *cirrus_format(struct drm_framebuffer *fb)
 {
-	int convert_cpp = cirrus_convert_to(fb);
+	const struct drm_format_info *format = cirrus_convert_to(fb);
 
-	if (convert_cpp)
-		return convert_cpp;
-	return fb->format->cpp[0];
+	if (format)
+		return format;
+	return fb->format;
 }
 
 static int cirrus_pitch(struct drm_framebuffer *fb)
 {
-	int convert_cpp = cirrus_convert_to(fb);
+	const struct drm_format_info *format = cirrus_convert_to(fb);
 
-	if (convert_cpp)
-		return convert_cpp * fb->width;
+	if (format)
+		return drm_format_info_min_pitch(format, 0, fb->width);
 	return fb->pitches[0];
 }
 
 static void cirrus_set_start_address(struct cirrus_device *cirrus, u32 offset)
 {
-	int idx;
 	u32 addr;
 	u8 tmp;
-
-	if (!drm_dev_enter(&cirrus->dev, &idx))
-		return;
 
 	addr = offset >> 2;
 	wreg_crt(cirrus, 0x0c, (u8)((addr >> 8) & 0xff));
@@ -180,21 +194,14 @@ static void cirrus_set_start_address(struct cirrus_device *cirrus, u32 offset)
 	tmp &= 0x7f;
 	tmp |= (addr >> 12) & 0x80;
 	wreg_crt(cirrus, 0x1d, tmp);
-
-	drm_dev_exit(idx);
 }
 
-static int cirrus_mode_set(struct cirrus_device *cirrus,
-			   struct drm_display_mode *mode,
-			   struct drm_framebuffer *fb)
+static void cirrus_mode_set(struct cirrus_device *cirrus,
+			    struct drm_display_mode *mode)
 {
 	int hsyncstart, hsyncend, htotal, hdispend;
 	int vtotal, vdispend;
-	int tmp, idx;
-	int sr07 = 0, hdr = 0;
-
-	if (!drm_dev_enter(&cirrus->dev, &idx))
-		return -1;
+	int tmp;
 
 	htotal = mode->htotal / 8;
 	hsyncend = mode->hsync_end / 8;
@@ -258,45 +265,38 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 
 	/* Disable Hercules/CGA compatibility */
 	wreg_crt(cirrus, VGA_CRTC_MODE, 0x03);
+}
+
+static void cirrus_format_set(struct cirrus_device *cirrus,
+			      const struct drm_format_info *format)
+{
+	u8 sr07, hdr;
 
 	sr07 = rreg_seq(cirrus, 0x07);
 	sr07 &= 0xe0;
-	hdr = 0;
 
-	cirrus->cpp = cirrus_cpp(fb);
-	switch (cirrus->cpp * 8) {
-	case 8:
+	switch (format->format) {
+	case DRM_FORMAT_C8:
 		sr07 |= 0x11;
+		hdr = 0x00;
 		break;
-	case 16:
+	case DRM_FORMAT_RGB565:
 		sr07 |= 0x17;
 		hdr = 0xc1;
 		break;
-	case 24:
+	case DRM_FORMAT_RGB888:
 		sr07 |= 0x15;
 		hdr = 0xc5;
 		break;
-	case 32:
+	case DRM_FORMAT_XRGB8888:
 		sr07 |= 0x19;
 		hdr = 0xc5;
 		break;
 	default:
-		drm_dev_exit(idx);
-		return -1;
+		return;
 	}
 
 	wreg_seq(cirrus, 0x7, sr07);
-
-	/* Program the pitch */
-	cirrus->pitch = cirrus_pitch(fb);
-	tmp = cirrus->pitch / 8;
-	wreg_crt(cirrus, VGA_CRTC_OFFSET, tmp);
-
-	/* Enable extended blanking and pitch bits, and enable full memory */
-	tmp = 0x22;
-	tmp |= (cirrus->pitch >> 7) & 0x10;
-	tmp |= (cirrus->pitch >> 6) & 0x40;
-	wreg_crt(cirrus, 0x1b, tmp);
 
 	/* Enable high-colour modes */
 	wreg_gfx(cirrus, VGA_GFX_MODE, 0x40);
@@ -305,95 +305,249 @@ static int cirrus_mode_set(struct cirrus_device *cirrus,
 	wreg_gfx(cirrus, VGA_GFX_MISC, 0x01);
 
 	wreg_hdr(cirrus, hdr);
+}
+
+static void cirrus_pitch_set(struct cirrus_device *cirrus, unsigned int pitch)
+{
+	u8 cr13, cr1b;
+
+	/* Program the pitch */
+	cr13 = pitch / 8;
+	wreg_crt(cirrus, VGA_CRTC_OFFSET, cr13);
+
+	/* Enable extended blanking and pitch bits, and enable full memory */
+	cr1b = 0x22;
+	cr1b |= (pitch >> 7) & 0x10;
+	cr1b |= (pitch >> 6) & 0x40;
+	wreg_crt(cirrus, 0x1b, cr1b);
 
 	cirrus_set_start_address(cirrus, 0);
-
-	/* Unblank (needed on S3 resume, vgabios doesn't do it then) */
-	outb(0x20, 0x3c0);
-
-	drm_dev_exit(idx);
-	return 0;
-}
-
-static int cirrus_fb_blit_rect(struct drm_framebuffer *fb,
-			       const struct iosys_map *map,
-			       struct drm_rect *rect)
-{
-	struct cirrus_device *cirrus = to_cirrus(fb->dev);
-	void __iomem *dst = cirrus->vram;
-	void *vmap = map->vaddr; /* TODO: Use mapping abstraction properly */
-	int idx;
-
-	if (!drm_dev_enter(&cirrus->dev, &idx))
-		return -ENODEV;
-
-	if (cirrus->cpp == fb->format->cpp[0]) {
-		dst += drm_fb_clip_offset(fb->pitches[0], fb->format, rect);
-		drm_fb_memcpy_toio(dst, fb->pitches[0], vmap, fb, rect);
-
-	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 2) {
-		dst += drm_fb_clip_offset(cirrus->pitch, fb->format, rect);
-		drm_fb_xrgb8888_to_rgb565_toio(dst, cirrus->pitch, vmap, fb, rect, false);
-
-	} else if (fb->format->cpp[0] == 4 && cirrus->cpp == 3) {
-		dst += drm_fb_clip_offset(cirrus->pitch, fb->format, rect);
-		drm_fb_xrgb8888_to_rgb888_toio(dst, cirrus->pitch, vmap, fb, rect);
-
-	} else {
-		WARN_ON_ONCE("cpp mismatch");
-	}
-
-	drm_dev_exit(idx);
-
-	return 0;
-}
-
-static int cirrus_fb_blit_fullscreen(struct drm_framebuffer *fb,
-				     const struct iosys_map *map)
-{
-	struct drm_rect fullscreen = {
-		.x1 = 0,
-		.x2 = fb->width,
-		.y1 = 0,
-		.y2 = fb->height,
-	};
-	return cirrus_fb_blit_rect(fb, map, &fullscreen);
-}
-
-static int cirrus_check_size(int width, int height,
-			     struct drm_framebuffer *fb)
-{
-	int pitch = width * 2;
-
-	if (fb)
-		pitch = cirrus_pitch(fb);
-
-	if (pitch > CIRRUS_MAX_PITCH)
-		return -EINVAL;
-	if (pitch * height > CIRRUS_VRAM_SIZE)
-		return -EINVAL;
-	return 0;
 }
 
 /* ------------------------------------------------------------------ */
-/* cirrus connector						      */
+/* cirrus display pipe						      */
 
-static int cirrus_conn_get_modes(struct drm_connector *conn)
+static const uint32_t cirrus_primary_plane_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_XRGB8888,
+};
+
+static const uint64_t cirrus_primary_plane_format_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
+static int cirrus_primary_plane_helper_atomic_check(struct drm_plane *plane,
+						    struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct cirrus_primary_plane_state *new_primary_plane_state =
+		to_cirrus_primary_plane_state(new_plane_state);
+	struct drm_framebuffer *fb = new_plane_state->fb;
+	struct drm_crtc *new_crtc = new_plane_state->crtc;
+	struct drm_crtc_state *new_crtc_state = NULL;
+	int ret;
+	unsigned int pitch;
+
+	if (new_crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_crtc);
+
+	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  false, false);
+	if (ret)
+		return ret;
+	else if (!new_plane_state->visible)
+		return 0;
+
+	pitch = cirrus_pitch(fb);
+
+	/* validate size constraints */
+	if (pitch > CIRRUS_MAX_PITCH)
+		return -EINVAL;
+	else if (pitch * fb->height > CIRRUS_VRAM_SIZE)
+		return -EINVAL;
+
+	new_primary_plane_state->format = cirrus_format(fb);
+	new_primary_plane_state->pitch = pitch;
+
+	return 0;
+}
+
+static void cirrus_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						      struct drm_atomic_state *state)
+{
+	struct cirrus_device *cirrus = to_cirrus(plane->dev);
+	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct cirrus_primary_plane_state *primary_plane_state =
+		to_cirrus_primary_plane_state(plane_state);
+	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
+	struct drm_framebuffer *fb = plane_state->fb;
+	const struct drm_format_info *format = primary_plane_state->format;
+	unsigned int pitch = primary_plane_state->pitch;
+	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
+	struct cirrus_primary_plane_state *old_primary_plane_state =
+		to_cirrus_primary_plane_state(old_plane_state);
+	struct iosys_map vaddr = IOSYS_MAP_INIT_VADDR_IOMEM(cirrus->vram);
+	struct drm_atomic_helper_damage_iter iter;
+	struct drm_rect damage;
+	int idx;
+
+	if (!fb)
+		return;
+
+	if (!drm_dev_enter(&cirrus->dev, &idx))
+		return;
+
+	if (old_primary_plane_state->format != format)
+		cirrus_format_set(cirrus, format);
+	if (old_primary_plane_state->pitch != pitch)
+		cirrus_pitch_set(cirrus, pitch);
+
+	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
+	drm_atomic_for_each_plane_damage(&iter, &damage) {
+		unsigned int offset = drm_fb_clip_offset(pitch, format, &damage);
+		struct iosys_map dst = IOSYS_MAP_INIT_OFFSET(&vaddr, offset);
+
+		drm_fb_blit(&dst, &pitch, format->format, shadow_plane_state->data, fb, &damage);
+	}
+
+	drm_dev_exit(idx);
+}
+
+static const struct drm_plane_helper_funcs cirrus_primary_plane_helper_funcs = {
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
+	.atomic_check = cirrus_primary_plane_helper_atomic_check,
+	.atomic_update = cirrus_primary_plane_helper_atomic_update,
+};
+
+static struct drm_plane_state *
+cirrus_primary_plane_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct drm_plane_state *plane_state = plane->state;
+	struct cirrus_primary_plane_state *primary_plane_state =
+		to_cirrus_primary_plane_state(plane_state);
+	struct cirrus_primary_plane_state *new_primary_plane_state;
+	struct drm_shadow_plane_state *new_shadow_plane_state;
+
+	if (!plane_state)
+		return NULL;
+
+	new_primary_plane_state = kzalloc(sizeof(*new_primary_plane_state), GFP_KERNEL);
+	if (!new_primary_plane_state)
+		return NULL;
+	new_shadow_plane_state = &new_primary_plane_state->base;
+
+	__drm_gem_duplicate_shadow_plane_state(plane, new_shadow_plane_state);
+	new_primary_plane_state->format = primary_plane_state->format;
+	new_primary_plane_state->pitch = primary_plane_state->pitch;
+
+	return &new_shadow_plane_state->base;
+}
+
+static void cirrus_primary_plane_atomic_destroy_state(struct drm_plane *plane,
+						      struct drm_plane_state *plane_state)
+{
+	struct cirrus_primary_plane_state *primary_plane_state =
+		to_cirrus_primary_plane_state(plane_state);
+
+	__drm_gem_destroy_shadow_plane_state(&primary_plane_state->base);
+	kfree(primary_plane_state);
+}
+
+static void cirrus_reset_primary_plane(struct drm_plane *plane)
+{
+	struct cirrus_primary_plane_state *primary_plane_state;
+
+	if (plane->state) {
+		cirrus_primary_plane_atomic_destroy_state(plane, plane->state);
+		plane->state = NULL; /* must be set to NULL here */
+	}
+
+	primary_plane_state = kzalloc(sizeof(*primary_plane_state), GFP_KERNEL);
+	if (!primary_plane_state)
+		return;
+	__drm_gem_reset_shadow_plane(plane, &primary_plane_state->base);
+}
+
+static const struct drm_plane_funcs cirrus_primary_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	.reset = cirrus_reset_primary_plane,
+	.atomic_duplicate_state = cirrus_primary_plane_atomic_duplicate_state,
+	.atomic_destroy_state = cirrus_primary_plane_atomic_destroy_state,
+};
+
+static int cirrus_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
+{
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	int ret;
+
+	if (!crtc_state->enable)
+		return 0;
+
+	ret = drm_atomic_helper_check_crtc_primary_plane(crtc_state);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void cirrus_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+					     struct drm_atomic_state *state)
+{
+	struct cirrus_device *cirrus = to_cirrus(crtc->dev);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	int idx;
+
+	if (!drm_dev_enter(&cirrus->dev, &idx))
+		return;
+
+	cirrus_mode_set(cirrus, &crtc_state->mode);
+
+	/* Unblank (needed on S3 resume, vgabios doesn't do it then) */
+	outb(VGA_AR_ENABLE_DISPLAY, VGA_ATT_W);
+
+	drm_dev_exit(idx);
+}
+
+static const struct drm_crtc_helper_funcs cirrus_crtc_helper_funcs = {
+	.atomic_check = cirrus_crtc_helper_atomic_check,
+	.atomic_enable = cirrus_crtc_helper_atomic_enable,
+};
+
+static const struct drm_crtc_funcs cirrus_crtc_funcs = {
+	.reset = drm_atomic_helper_crtc_reset,
+	.destroy = drm_crtc_cleanup,
+	.set_config = drm_atomic_helper_set_config,
+	.page_flip = drm_atomic_helper_page_flip,
+	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+};
+
+static const struct drm_encoder_funcs cirrus_encoder_funcs = {
+	.destroy = drm_encoder_cleanup,
+};
+
+static int cirrus_connector_helper_get_modes(struct drm_connector *connector)
 {
 	int count;
 
-	count = drm_add_modes_noedid(conn,
-				     conn->dev->mode_config.max_width,
-				     conn->dev->mode_config.max_height);
-	drm_set_preferred_mode(conn, 1024, 768);
+	count = drm_add_modes_noedid(connector,
+				     connector->dev->mode_config.max_width,
+				     connector->dev->mode_config.max_height);
+	drm_set_preferred_mode(connector, 1024, 768);
 	return count;
 }
 
-static const struct drm_connector_helper_funcs cirrus_conn_helper_funcs = {
-	.get_modes = cirrus_conn_get_modes,
+static const struct drm_connector_helper_funcs cirrus_connector_helper_funcs = {
+	.get_modes = cirrus_connector_helper_get_modes,
 };
 
-static const struct drm_connector_funcs cirrus_conn_funcs = {
+static const struct drm_connector_funcs cirrus_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -401,111 +555,73 @@ static const struct drm_connector_funcs cirrus_conn_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int cirrus_conn_init(struct cirrus_device *cirrus)
-{
-	drm_connector_helper_add(&cirrus->conn, &cirrus_conn_helper_funcs);
-	return drm_connector_init(&cirrus->dev, &cirrus->conn,
-				  &cirrus_conn_funcs, DRM_MODE_CONNECTOR_VGA);
-
-}
-
-/* ------------------------------------------------------------------ */
-/* cirrus (simple) display pipe					      */
-
-static enum drm_mode_status cirrus_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
-						   const struct drm_display_mode *mode)
-{
-	if (cirrus_check_size(mode->hdisplay, mode->vdisplay, NULL) < 0)
-		return MODE_BAD;
-	return MODE_OK;
-}
-
-static int cirrus_pipe_check(struct drm_simple_display_pipe *pipe,
-			     struct drm_plane_state *plane_state,
-			     struct drm_crtc_state *crtc_state)
-{
-	struct drm_framebuffer *fb = plane_state->fb;
-
-	if (!fb)
-		return 0;
-	return cirrus_check_size(fb->width, fb->height, fb);
-}
-
-static void cirrus_pipe_enable(struct drm_simple_display_pipe *pipe,
-			       struct drm_crtc_state *crtc_state,
-			       struct drm_plane_state *plane_state)
-{
-	struct cirrus_device *cirrus = to_cirrus(pipe->crtc.dev);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-
-	cirrus_mode_set(cirrus, &crtc_state->mode, plane_state->fb);
-	cirrus_fb_blit_fullscreen(plane_state->fb, &shadow_plane_state->data[0]);
-}
-
-static void cirrus_pipe_update(struct drm_simple_display_pipe *pipe,
-			       struct drm_plane_state *old_state)
-{
-	struct cirrus_device *cirrus = to_cirrus(pipe->crtc.dev);
-	struct drm_plane_state *state = pipe->plane.state;
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(state);
-	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_rect rect;
-
-	if (state->fb && cirrus->cpp != cirrus_cpp(state->fb))
-		cirrus_mode_set(cirrus, &crtc->mode, state->fb);
-
-	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		cirrus_fb_blit_rect(state->fb, &shadow_plane_state->data[0], &rect);
-}
-
-static const struct drm_simple_display_pipe_funcs cirrus_pipe_funcs = {
-	.mode_valid = cirrus_pipe_mode_valid,
-	.check	    = cirrus_pipe_check,
-	.enable	    = cirrus_pipe_enable,
-	.update	    = cirrus_pipe_update,
-	DRM_GEM_SIMPLE_DISPLAY_PIPE_SHADOW_PLANE_FUNCS,
-};
-
-static const uint32_t cirrus_formats[] = {
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_RGB888,
-	DRM_FORMAT_XRGB8888,
-};
-
-static const uint64_t cirrus_modifiers[] = {
-	DRM_FORMAT_MOD_LINEAR,
-	DRM_FORMAT_MOD_INVALID
-};
-
 static int cirrus_pipe_init(struct cirrus_device *cirrus)
 {
-	return drm_simple_display_pipe_init(&cirrus->dev,
-					    &cirrus->pipe,
-					    &cirrus_pipe_funcs,
-					    cirrus_formats,
-					    ARRAY_SIZE(cirrus_formats),
-					    cirrus_modifiers,
-					    &cirrus->conn);
+	struct drm_device *dev = &cirrus->dev;
+	struct drm_plane *primary_plane;
+	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector;
+	int ret;
+
+	primary_plane = &cirrus->primary_plane;
+	ret = drm_universal_plane_init(dev, primary_plane, 0,
+				       &cirrus_primary_plane_funcs,
+				       cirrus_primary_plane_formats,
+				       ARRAY_SIZE(cirrus_primary_plane_formats),
+				       cirrus_primary_plane_format_modifiers,
+				       DRM_PLANE_TYPE_PRIMARY, NULL);
+	if (ret)
+		return ret;
+	drm_plane_helper_add(primary_plane, &cirrus_primary_plane_helper_funcs);
+	drm_plane_enable_fb_damage_clips(primary_plane);
+
+	crtc = &cirrus->crtc;
+	ret = drm_crtc_init_with_planes(dev, crtc, primary_plane, NULL,
+					&cirrus_crtc_funcs, NULL);
+	if (ret)
+		return ret;
+	drm_crtc_helper_add(crtc, &cirrus_crtc_helper_funcs);
+
+	encoder = &cirrus->encoder;
+	ret = drm_encoder_init(dev, encoder, &cirrus_encoder_funcs,
+			       DRM_MODE_ENCODER_DAC, NULL);
+	if (ret)
+		return ret;
+	encoder->possible_crtcs = drm_crtc_mask(crtc);
+
+	connector = &cirrus->connector;
+	ret = drm_connector_init(dev, connector, &cirrus_connector_funcs,
+				 DRM_MODE_CONNECTOR_VGA);
+	if (ret)
+		return ret;
+	drm_connector_helper_add(connector, &cirrus_connector_helper_funcs);
+
+	ret = drm_connector_attach_encoder(connector, encoder);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 /* ------------------------------------------------------------------ */
 /* cirrus framebuffers & mode config				      */
 
-static struct drm_framebuffer*
-cirrus_fb_create(struct drm_device *dev, struct drm_file *file_priv,
-		 const struct drm_mode_fb_cmd2 *mode_cmd)
+static enum drm_mode_status cirrus_mode_config_mode_valid(struct drm_device *dev,
+							  const struct drm_display_mode *mode)
 {
-	if (mode_cmd->pixel_format != DRM_FORMAT_RGB565 &&
-	    mode_cmd->pixel_format != DRM_FORMAT_RGB888 &&
-	    mode_cmd->pixel_format != DRM_FORMAT_XRGB8888)
-		return ERR_PTR(-EINVAL);
-	if (cirrus_check_size(mode_cmd->width, mode_cmd->height, NULL) < 0)
-		return ERR_PTR(-EINVAL);
-	return drm_gem_fb_create_with_dirty(dev, file_priv, mode_cmd);
+	const struct drm_format_info *format = drm_format_info(DRM_FORMAT_XRGB8888);
+	uint64_t pitch = drm_format_info_min_pitch(format, 0, mode->hdisplay);
+
+	if (pitch * mode->vdisplay > CIRRUS_VRAM_SIZE)
+		return MODE_MEM;
+
+	return MODE_OK;
 }
 
 static const struct drm_mode_config_funcs cirrus_mode_config_funcs = {
-	.fb_create = cirrus_fb_create,
+	.fb_create = drm_gem_fb_create_with_dirty,
+	.mode_valid = cirrus_mode_config_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -588,10 +704,6 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	ret = cirrus_conn_init(cirrus);
-	if (ret < 0)
-		return ret;
-
 	ret = cirrus_pipe_init(cirrus);
 	if (ret < 0)
 		return ret;
@@ -603,7 +715,7 @@ static int cirrus_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	drm_fbdev_generic_setup(dev, dev->mode_config.preferred_depth);
+	drm_fbdev_generic_setup(dev, 16);
 	return 0;
 }
 

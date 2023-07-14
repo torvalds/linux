@@ -7,7 +7,7 @@
  *
  * This file add support for MD5 and SHA1/SHA224/SHA256.
  *
- * You could find the datasheet in Documentation/arm/sunxi.rst
+ * You could find the datasheet in Documentation/arch/arm/sunxi.rst
  */
 #include <linux/bottom_half.h>
 #include <linux/dma-mapping.h>
@@ -79,10 +79,10 @@ int sun8i_ss_hmac_setkey(struct crypto_ahash *ahash, const u8 *key,
 		memcpy(tfmctx->key, key, keylen);
 	}
 
-	tfmctx->ipad = kzalloc(bs, GFP_KERNEL | GFP_DMA);
+	tfmctx->ipad = kzalloc(bs, GFP_KERNEL);
 	if (!tfmctx->ipad)
 		return -ENOMEM;
-	tfmctx->opad = kzalloc(bs, GFP_KERNEL | GFP_DMA);
+	tfmctx->opad = kzalloc(bs, GFP_KERNEL);
 	if (!tfmctx->opad) {
 		ret = -ENOMEM;
 		goto err_opad;

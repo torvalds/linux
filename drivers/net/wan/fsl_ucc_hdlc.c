@@ -1177,14 +1177,9 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 	uhdlc_priv->dev = &pdev->dev;
 	uhdlc_priv->ut_info = ut_info;
 
-	if (of_get_property(np, "fsl,tdm-interface", NULL))
-		uhdlc_priv->tsa = 1;
-
-	if (of_get_property(np, "fsl,ucc-internal-loopback", NULL))
-		uhdlc_priv->loopback = 1;
-
-	if (of_get_property(np, "fsl,hdlc-bus", NULL))
-		uhdlc_priv->hdlc_bus = 1;
+	uhdlc_priv->tsa = of_property_read_bool(np, "fsl,tdm-interface");
+	uhdlc_priv->loopback = of_property_read_bool(np, "fsl,ucc-internal-loopback");
+	uhdlc_priv->hdlc_bus = of_property_read_bool(np, "fsl,hdlc-bus");
 
 	if (uhdlc_priv->tsa == 1) {
 		utdm = kzalloc(sizeof(*utdm), GFP_KERNEL);
@@ -1243,9 +1238,11 @@ static int ucc_hdlc_probe(struct platform_device *pdev)
 free_dev:
 	free_netdev(dev);
 undo_uhdlc_init:
-	iounmap(utdm->siram);
+	if (utdm)
+		iounmap(utdm->siram);
 unmap_si_regs:
-	iounmap(utdm->si_regs);
+	if (utdm)
+		iounmap(utdm->si_regs);
 free_utdm:
 	if (uhdlc_priv->tsa)
 		kfree(utdm);

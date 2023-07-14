@@ -150,7 +150,7 @@ static bool optc314_disable_crtc(struct timing_generator *optc)
 	return true;
 }
 
-void optc314_phantom_crtc_post_enable(struct timing_generator *optc)
+static void optc314_phantom_crtc_post_enable(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 
@@ -237,12 +237,10 @@ static struct timing_generator_funcs dcn314_tg_funcs = {
 		.clear_optc_underflow = optc1_clear_optc_underflow,
 		.setup_global_swap_lock = NULL,
 		.get_crc = optc1_get_crc,
-		.configure_crc = optc2_configure_crc,
+		.configure_crc = optc1_configure_crc,
 		.set_dsc_config = optc3_set_dsc_config,
 		.get_dsc_status = optc2_get_dsc_status,
 		.set_dwb_source = NULL,
-		.set_odm_bypass = optc3_set_odm_bypass,
-		.set_odm_combine = optc314_set_odm_combine,
 		.get_optc_source = optc2_get_optc_source,
 		.set_out_mux = optc3_set_out_mux,
 		.set_drr_trigger_window = optc3_set_drr_trigger_window,

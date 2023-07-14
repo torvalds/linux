@@ -70,6 +70,7 @@ static void pseries_cpu_offline_self(void)
 		xics_teardown_cpu();
 
 	unregister_slb_shadow(hwcpu);
+	unregister_vpa(hwcpu);
 	rtas_stop_self();
 
 	/* Should never get here... */
@@ -492,7 +493,7 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	bool found = false;
 	int rc, index;
 
-	if (of_find_property(parent, "ibm,drc-info", NULL))
+	if (of_property_present(parent, "ibm,drc-info"))
 		return drc_info_valid_index(parent, drc_index);
 
 	/* Note that the format of the ibm,drc-indexes array is
@@ -619,17 +620,21 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 static unsigned int pseries_cpuhp_cache_use_count(const struct device_node *cachedn)
 {
 	unsigned int use_count = 0;
-	struct device_node *dn;
+	struct device_node *dn, *tn;
 
 	WARN_ON(!of_node_is_type(cachedn, "cache"));
 
 	for_each_of_cpu_node(dn) {
-		if (of_find_next_cache_node(dn) == cachedn)
+		tn = of_find_next_cache_node(dn);
+		of_node_put(tn);
+		if (tn == cachedn)
 			use_count++;
 	}
 
 	for_each_node_by_type(dn, "cache") {
-		if (of_find_next_cache_node(dn) == cachedn)
+		tn = of_find_next_cache_node(dn);
+		of_node_put(tn);
+		if (tn == cachedn)
 			use_count++;
 	}
 
@@ -649,10 +654,13 @@ static int pseries_cpuhp_detach_nodes(struct device_node *cpudn)
 
 	dn = cpudn;
 	while ((dn = of_find_next_cache_node(dn))) {
-		if (pseries_cpuhp_cache_use_count(dn) > 1)
+		if (pseries_cpuhp_cache_use_count(dn) > 1) {
+			of_node_put(dn);
 			break;
+		}
 
 		ret = of_changeset_detach_node(&cs, dn);
+		of_node_put(dn);
 		if (ret)
 			goto out;
 	}
@@ -847,8 +855,8 @@ static int __init pseries_cpu_hotplug_init(void)
 	ppc_md.cpu_release = dlpar_cpu_release;
 #endif /* CONFIG_ARCH_CPU_PROBE_RELEASE */
 
-	rtas_stop_self_token = rtas_token("stop-self");
-	qcss_tok = rtas_token("query-cpu-stopped-state");
+	rtas_stop_self_token = rtas_function_token(RTAS_FN_STOP_SELF);
+	qcss_tok = rtas_function_token(RTAS_FN_QUERY_CPU_STOPPED_STATE);
 
 	if (rtas_stop_self_token == RTAS_UNKNOWN_SERVICE ||
 			qcss_tok == RTAS_UNKNOWN_SERVICE) {

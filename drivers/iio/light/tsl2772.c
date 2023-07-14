@@ -601,6 +601,7 @@ static int tsl2772_read_prox_diodes(struct tsl2772_chip *chip)
 			return -EINVAL;
 		}
 	}
+	chip->settings.prox_diode = prox_diode_mask;
 
 	return 0;
 }
@@ -1750,9 +1751,9 @@ static const struct tsl2772_chip_info tsl2772_chip_info_tbl[] = {
 	},
 };
 
-static int tsl2772_probe(struct i2c_client *clientp,
-			 const struct i2c_device_id *id)
+static int tsl2772_probe(struct i2c_client *clientp)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(clientp);
 	struct iio_dev *indio_dev;
 	struct tsl2772_chip *chip;
 	int ret;

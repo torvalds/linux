@@ -167,8 +167,7 @@ static const struct dvb_tuner_ops tua9001_tuner_ops = {
 	.get_if_frequency = tua9001_get_if_frequency,
 };
 
-static int tua9001_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int tua9001_probe(struct i2c_client *client)
 {
 	struct tua9001_dev *dev;
 	struct tua9001_platform_data *pdata = client->dev.platform_data;

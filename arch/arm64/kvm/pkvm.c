@@ -4,13 +4,18 @@
  * Author: Quentin Perret <qperret@google.com>
  */
 
+#include <linux/init.h>
+#include <linux/kmemleak.h>
 #include <linux/kvm_host.h>
 #include <linux/memblock.h>
+#include <linux/mutex.h>
 #include <linux/sort.h>
 
 #include <asm/kvm_pkvm.h>
 
 #include "hyp_constants.h"
+
+DEFINE_STATIC_KEY_FALSE(kvm_protected_mode_initialized);
 
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
 static unsigned int *hyp_memblock_nr_ptr = &kvm_nvhe_sym(hyp_memblock_nr);
@@ -53,7 +58,7 @@ static int __init register_memblock_regions(void)
 
 void __init kvm_hyp_reserve(void)
 {
-	u64 nr_pages, prev, hyp_mem_pages = 0;
+	u64 hyp_mem_pages = 0;
 	int ret;
 
 	if (!is_hyp_mode_available() || is_kernel_in_hyp_mode())
@@ -71,21 +76,9 @@ void __init kvm_hyp_reserve(void)
 
 	hyp_mem_pages += hyp_s1_pgtable_pages();
 	hyp_mem_pages += host_s2_pgtable_pages();
-
-	/*
-	 * The hyp_vmemmap needs to be backed by pages, but these pages
-	 * themselves need to be present in the vmemmap, so compute the number
-	 * of pages needed by looking for a fixed point.
-	 */
-	nr_pages = 0;
-	do {
-		prev = nr_pages;
-		nr_pages = hyp_mem_pages + prev;
-		nr_pages = DIV_ROUND_UP(nr_pages * STRUCT_HYP_PAGE_SIZE,
-					PAGE_SIZE);
-		nr_pages += __hyp_pgtable_max_pages(nr_pages);
-	} while (nr_pages != prev);
-	hyp_mem_pages += nr_pages;
+	hyp_mem_pages += hyp_vm_table_pages();
+	hyp_mem_pages += hyp_vmemmap_pages(STRUCT_HYP_PAGE_SIZE);
+	hyp_mem_pages += hyp_ffa_proxy_pages();
 
 	/*
 	 * Try to allocate a PMD-aligned region to reduce TLB pressure once
@@ -107,3 +100,164 @@ void __init kvm_hyp_reserve(void)
 	kvm_info("Reserved %lld MiB at 0x%llx\n", hyp_mem_size >> 20,
 		 hyp_mem_base);
 }
+
+/*
+ * Allocates and donates memory for hypervisor VM structs at EL2.
+ *
+ * Allocates space for the VM state, which includes the hyp vm as well as
+ * the hyp vcpus.
+ *
+ * Stores an opaque handler in the kvm struct for future reference.
+ *
+ * Return 0 on success, negative error code on failure.
+ */
+static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
+{
+	size_t pgd_sz, hyp_vm_sz, hyp_vcpu_sz;
+	struct kvm_vcpu *host_vcpu;
+	pkvm_handle_t handle;
+	void *pgd, *hyp_vm;
+	unsigned long idx;
+	int ret;
+
+	if (host_kvm->created_vcpus < 1)
+		return -EINVAL;
+
+	pgd_sz = kvm_pgtable_stage2_pgd_size(host_kvm->arch.vtcr);
+
+	/*
+	 * The PGD pages will be reclaimed using a hyp_memcache which implies
+	 * page granularity. So, use alloc_pages_exact() to get individual
+	 * refcounts.
+	 */
+	pgd = alloc_pages_exact(pgd_sz, GFP_KERNEL_ACCOUNT);
+	if (!pgd)
+		return -ENOMEM;
+
+	/* Allocate memory to donate to hyp for vm and vcpu pointers. */
+	hyp_vm_sz = PAGE_ALIGN(size_add(PKVM_HYP_VM_SIZE,
+					size_mul(sizeof(void *),
+						 host_kvm->created_vcpus)));
+	hyp_vm = alloc_pages_exact(hyp_vm_sz, GFP_KERNEL_ACCOUNT);
+	if (!hyp_vm) {
+		ret = -ENOMEM;
+		goto free_pgd;
+	}
+
+	/* Donate the VM memory to hyp and let hyp initialize it. */
+	ret = kvm_call_hyp_nvhe(__pkvm_init_vm, host_kvm, hyp_vm, pgd);
+	if (ret < 0)
+		goto free_vm;
+
+	handle = ret;
+
+	host_kvm->arch.pkvm.handle = handle;
+
+	/* Donate memory for the vcpus at hyp and initialize it. */
+	hyp_vcpu_sz = PAGE_ALIGN(PKVM_HYP_VCPU_SIZE);
+	kvm_for_each_vcpu(idx, host_vcpu, host_kvm) {
+		void *hyp_vcpu;
+
+		/* Indexing of the vcpus to be sequential starting at 0. */
+		if (WARN_ON(host_vcpu->vcpu_idx != idx)) {
+			ret = -EINVAL;
+			goto destroy_vm;
+		}
+
+		hyp_vcpu = alloc_pages_exact(hyp_vcpu_sz, GFP_KERNEL_ACCOUNT);
+		if (!hyp_vcpu) {
+			ret = -ENOMEM;
+			goto destroy_vm;
+		}
+
+		ret = kvm_call_hyp_nvhe(__pkvm_init_vcpu, handle, host_vcpu,
+					hyp_vcpu);
+		if (ret) {
+			free_pages_exact(hyp_vcpu, hyp_vcpu_sz);
+			goto destroy_vm;
+		}
+	}
+
+	return 0;
+
+destroy_vm:
+	pkvm_destroy_hyp_vm(host_kvm);
+	return ret;
+free_vm:
+	free_pages_exact(hyp_vm, hyp_vm_sz);
+free_pgd:
+	free_pages_exact(pgd, pgd_sz);
+	return ret;
+}
+
+int pkvm_create_hyp_vm(struct kvm *host_kvm)
+{
+	int ret = 0;
+
+	mutex_lock(&host_kvm->lock);
+	if (!host_kvm->arch.pkvm.handle)
+		ret = __pkvm_create_hyp_vm(host_kvm);
+	mutex_unlock(&host_kvm->lock);
+
+	return ret;
+}
+
+void pkvm_destroy_hyp_vm(struct kvm *host_kvm)
+{
+	if (host_kvm->arch.pkvm.handle) {
+		WARN_ON(kvm_call_hyp_nvhe(__pkvm_teardown_vm,
+					  host_kvm->arch.pkvm.handle));
+	}
+
+	host_kvm->arch.pkvm.handle = 0;
+	free_hyp_memcache(&host_kvm->arch.pkvm.teardown_mc);
+}
+
+int pkvm_init_host_vm(struct kvm *host_kvm)
+{
+	mutex_init(&host_kvm->lock);
+	return 0;
+}
+
+static void __init _kvm_host_prot_finalize(void *arg)
+{
+	int *err = arg;
+
+	if (WARN_ON(kvm_call_hyp_nvhe(__pkvm_prot_finalize)))
+		WRITE_ONCE(*err, -EINVAL);
+}
+
+static int __init pkvm_drop_host_privileges(void)
+{
+	int ret = 0;
+
+	/*
+	 * Flip the static key upfront as that may no longer be possible
+	 * once the host stage 2 is installed.
+	 */
+	static_branch_enable(&kvm_protected_mode_initialized);
+	on_each_cpu(_kvm_host_prot_finalize, &ret, 1);
+	return ret;
+}
+
+static int __init finalize_pkvm(void)
+{
+	int ret;
+
+	if (!is_protected_kvm_enabled())
+		return 0;
+
+	/*
+	 * Exclude HYP sections from kmemleak so that they don't get peeked
+	 * at, which would end badly once inaccessible.
+	 */
+	kmemleak_free_part(__hyp_bss_start, __hyp_bss_end - __hyp_bss_start);
+	kmemleak_free_part_phys(hyp_mem_base, hyp_mem_size);
+
+	ret = pkvm_drop_host_privileges();
+	if (ret)
+		pr_err("Failed to finalize Hyp protection: %d\n", ret);
+
+	return ret;
+}
+device_initcall_sync(finalize_pkvm);

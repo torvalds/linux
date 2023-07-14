@@ -20,6 +20,7 @@
 #include <asm/pvclock.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
+#include <asm/xen/cpuid.h>
 
 #include <xen/events.h>
 #include <xen/features.h>
@@ -60,9 +61,16 @@ static u64 xen_clocksource_get_cycles(struct clocksource *cs)
 	return xen_clocksource_read();
 }
 
-static u64 xen_sched_clock(void)
+static noinstr u64 xen_sched_clock(void)
 {
-	return xen_clocksource_read() - xen_sched_clock_offset;
+        struct pvclock_vcpu_time_info *src;
+	u64 ret;
+
+	src = &__this_cpu_read(xen_vcpu)->time;
+	ret = pvclock_clocksource_read_nowd(src);
+	ret -= xen_sched_clock_offset;
+
+	return ret;
 }
 
 static void xen_read_wallclock(struct timespec64 *ts)
@@ -474,15 +482,47 @@ static void xen_setup_vsyscall_time_info(void)
 	xen_clocksource.vdso_clock_mode = VDSO_CLOCKMODE_PVCLOCK;
 }
 
+/*
+ * Check if it is possible to safely use the tsc as a clocksource.  This is
+ * only true if the hypervisor notifies the guest that its tsc is invariant,
+ * the tsc is stable, and the tsc instruction will never be emulated.
+ */
+static int __init xen_tsc_safe_clocksource(void)
+{
+	u32 eax, ebx, ecx, edx;
+
+	if (!(boot_cpu_has(X86_FEATURE_CONSTANT_TSC)))
+		return 0;
+
+	if (!(boot_cpu_has(X86_FEATURE_NONSTOP_TSC)))
+		return 0;
+
+	if (check_tsc_unstable())
+		return 0;
+
+	/* Leaf 4, sub-leaf 0 (0x40000x03) */
+	cpuid_count(xen_cpuid_base() + 3, 0, &eax, &ebx, &ecx, &edx);
+
+	return ebx == XEN_CPUID_TSC_MODE_NEVER_EMULATE;
+}
+
 static void __init xen_time_init(void)
 {
 	struct pvclock_vcpu_time_info *pvti;
 	int cpu = smp_processor_id();
 	struct timespec64 tp;
 
-	/* As Dom0 is never moved, no penalty on using TSC there */
+	/*
+	 * As Dom0 is never moved, no penalty on using TSC there.
+	 *
+	 * If it is possible for the guest to determine that the tsc is a safe
+	 * clocksource, then set xen_clocksource rating below that of the tsc
+	 * so that the system prefers tsc instead.
+	 */
 	if (xen_initial_domain())
 		xen_clocksource.rating = 275;
+	else if (xen_tsc_safe_clocksource())
+		xen_clocksource.rating = 299;
 
 	clocksource_register_hz(&xen_clocksource, NSEC_PER_SEC);
 

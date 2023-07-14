@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/sdw.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <linux/of.h>
@@ -18,10 +19,6 @@
 #include <linux/soundwire/sdw_registers.h>
 #include "max98373.h"
 #include "max98373-sdw.h"
-
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
-};
 
 static const u32 max98373_sdw_cache_reg[] = {
 	MAX98373_R2054_MEAS_ADC_PVDD_CH_READBACK,
@@ -281,6 +278,8 @@ static __maybe_unused int max98373_resume(struct device *dev)
 					   msecs_to_jiffies(MAX98373_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(dev, "Initialization not complete, timed out\n");
+		sdw_show_ping_status(slave->bus, true);
+
 		return -ETIMEDOUT;
 	}
 
@@ -531,48 +530,38 @@ static int max98373_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct max98373_priv *max98373 =
 		snd_soc_component_get_drvdata(component);
-
-	struct sdw_stream_config stream_config;
-	struct sdw_port_config port_config;
-	enum sdw_data_direction direction;
-	struct sdw_stream_data *stream;
+	struct sdw_stream_config stream_config = {0};
+	struct sdw_port_config port_config = {0};
+	struct sdw_stream_runtime *sdw_stream;
 	int ret, chan_sz, sampling_rate;
 
-	stream = snd_soc_dai_get_dma_data(dai, substream);
+	sdw_stream = snd_soc_dai_get_dma_data(dai, substream);
 
-	if (!stream)
+	if (!sdw_stream)
 		return -EINVAL;
 
 	if (!max98373->slave)
 		return -EINVAL;
 
+	snd_sdw_params_to_config(substream, params, &stream_config, &port_config);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		direction = SDW_DATA_DIR_RX;
 		port_config.num = 1;
+
+		if (max98373->slot) {
+			stream_config.ch_count = max98373->slot;
+			port_config.ch_mask = max98373->rx_mask;
+		}
 	} else {
-		direction = SDW_DATA_DIR_TX;
 		port_config.num = 3;
-	}
 
-	stream_config.frame_rate = params_rate(params);
-	stream_config.bps = snd_pcm_format_width(params_format(params));
-	stream_config.direction = direction;
-
-	if (max98373->slot && direction == SDW_DATA_DIR_RX) {
-		stream_config.ch_count = max98373->slot;
-		port_config.ch_mask = max98373->rx_mask;
-	} else {
 		/* only IV are supported by capture */
-		if (direction == SDW_DATA_DIR_TX)
-			stream_config.ch_count = 2;
-		else
-			stream_config.ch_count = params_channels(params);
-
+		stream_config.ch_count = 2;
 		port_config.ch_mask = GENMASK((int)stream_config.ch_count - 1, 0);
 	}
 
 	ret = sdw_stream_add_slave(max98373->slave, &stream_config,
-				   &port_config, 1, stream->sdw_stream);
+				   &port_config, 1, sdw_stream);
 	if (ret) {
 		dev_err(dai->dev, "Unable to configure port\n");
 		return ret;
@@ -671,35 +660,20 @@ static int max98373_pcm_hw_free(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct max98373_priv *max98373 =
 		snd_soc_component_get_drvdata(component);
-	struct sdw_stream_data *stream =
+	struct sdw_stream_runtime *sdw_stream =
 		snd_soc_dai_get_dma_data(dai, substream);
 
 	if (!max98373->slave)
 		return -EINVAL;
 
-	sdw_stream_remove_slave(max98373->slave, stream->sdw_stream);
+	sdw_stream_remove_slave(max98373->slave, sdw_stream);
 	return 0;
 }
 
 static int max98373_set_sdw_stream(struct snd_soc_dai *dai,
 				   void *sdw_stream, int direction)
 {
-	struct sdw_stream_data *stream;
-
-	if (!sdw_stream)
-		return 0;
-
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
-	if (!stream)
-		return -ENOMEM;
-
-	stream->sdw_stream = sdw_stream;
-
-	/* Use tx_mask or rx_mask to configure stream tag and set dma_data */
-	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
-		dai->playback_dma_data = stream;
-	else
-		dai->capture_dma_data = stream;
+	snd_soc_dai_dma_data_set(dai, direction, sdw_stream);
 
 	return 0;
 }
@@ -707,11 +681,7 @@ static int max98373_set_sdw_stream(struct snd_soc_dai *dai,
 static void max98373_shutdown(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
-	struct sdw_stream_data *stream;
-
-	stream = snd_soc_dai_get_dma_data(dai, substream);
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
-	kfree(stream);
 }
 
 static int max98373_sdw_set_tdm_slot(struct snd_soc_dai *dai,

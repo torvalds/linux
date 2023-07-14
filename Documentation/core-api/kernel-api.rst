@@ -36,6 +36,9 @@ String Conversions
 String Manipulation
 -------------------
 
+.. kernel-doc:: include/linux/fortify-string.h
+   :internal:
+
 .. kernel-doc:: lib/string.c
    :export:
 
@@ -93,6 +96,12 @@ Command-line Parsing
 .. kernel-doc:: lib/cmdline.c
    :export:
 
+Error Pointers
+--------------
+
+.. kernel-doc:: include/linux/err.h
+   :internal:
+
 Sorting
 -------
 
@@ -117,6 +126,12 @@ Text Searching
 
 CRC and Math Functions in Linux
 ===============================
+
+Arithmetic Overflow Checking
+----------------------------
+
+.. kernel-doc:: include/linux/overflow.h
+   :internal:
 
 CRC Functions
 -------------
@@ -165,9 +180,6 @@ Division Functions
 .. kernel-doc:: include/linux/math64.h
    :internal:
 
-.. kernel-doc:: lib/math/div64.c
-   :functions: div_s64_rem div64_u64_rem div64_u64 div64_s64
-
 .. kernel-doc:: lib/math/gcd.c
    :export:
 
@@ -214,11 +226,29 @@ relay interface
 Module Support
 ==============
 
-Module Loading
---------------
+Kernel module auto-loading
+--------------------------
 
-.. kernel-doc:: kernel/kmod.c
+.. kernel-doc:: kernel/module/kmod.c
    :export:
+
+Module debugging
+----------------
+
+.. kernel-doc:: kernel/module/stats.c
+   :doc: module debugging statistics overview
+
+dup_failed_modules - tracks duplicate failed modules
+****************************************************
+
+.. kernel-doc:: kernel/module/stats.c
+   :doc: dup_failed_modules - tracks duplicate failed modules
+
+module statistics debugfs counters
+**********************************
+
+.. kernel-doc:: kernel/module/stats.c
+   :doc: module statistics debugfs counters
 
 Inter Module support
 --------------------
@@ -388,3 +418,15 @@ Read-Copy Update (RCU)
 .. kernel-doc:: include/linux/rcu_sync.h
 
 .. kernel-doc:: kernel/rcu/sync.c
+
+.. kernel-doc:: kernel/rcu/tasks.h
+
+.. kernel-doc:: kernel/rcu/tree_stall.h
+
+.. kernel-doc:: include/linux/rcupdate_trace.h
+
+.. kernel-doc:: include/linux/rcupdate_wait.h
+
+.. kernel-doc:: include/linux/rcuref.h
+
+.. kernel-doc:: include/linux/rcutree.h

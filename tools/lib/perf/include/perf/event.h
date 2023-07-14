@@ -6,7 +6,6 @@
 #include <linux/types.h>
 #include <linux/limits.h>
 #include <linux/bpf.h>
-#include <linux/compiler.h>
 #include <sys/types.h> /* pid_t */
 
 #define event_contains(obj, mem) ((obj).header.size > offsetof(typeof(obj), mem))
@@ -70,6 +69,8 @@ struct perf_record_lost {
 	__u64			 id;
 	__u64			 lost;
 };
+
+#define PERF_RECORD_MISC_LOST_SAMPLES_BPF (1 << 15)
 
 struct perf_record_lost_samples {
 	struct perf_event_header header;
@@ -153,6 +154,7 @@ struct perf_record_header_attr {
 enum {
 	PERF_CPU_MAP__CPUS = 0,
 	PERF_CPU_MAP__MASK = 1,
+	PERF_CPU_MAP__RANGE_CPUS = 2,
 };
 
 /*
@@ -195,7 +197,18 @@ struct perf_record_mask_cpu_map64 {
 #pragma GCC diagnostic ignored "-Wpacked"
 #pragma GCC diagnostic ignored "-Wattributes"
 
-struct __packed perf_record_cpu_map_data {
+/*
+ * An encoding of a CPU map for a range starting at start_cpu through to
+ * end_cpu. If any_cpu is 1, an any CPU (-1) value (aka dummy value) is present.
+ */
+struct perf_record_range_cpu_map {
+	__u8 any_cpu;
+	__u8 __pad;
+	__u16 start_cpu;
+	__u16 end_cpu;
+};
+
+struct perf_record_cpu_map_data {
 	__u16			 type;
 	union {
 		/* Used when type == PERF_CPU_MAP__CPUS. */
@@ -204,8 +217,10 @@ struct __packed perf_record_cpu_map_data {
 		struct perf_record_mask_cpu_map32 mask32_data;
 		/* Used when type == PERF_CPU_MAP__MASK and long_size == 8. */
 		struct perf_record_mask_cpu_map64 mask64_data;
+		/* Used when type == PERF_CPU_MAP__RANGE_CPUS. */
+		struct perf_record_range_cpu_map range_cpu_data;
 	};
-};
+} __attribute__((packed));
 
 #pragma GCC diagnostic pop
 
@@ -233,7 +248,16 @@ struct perf_record_event_update {
 	struct perf_event_header header;
 	__u64			 type;
 	__u64			 id;
-	char			 data[];
+	union {
+		/* Used when type == PERF_EVENT_UPDATE__SCALE. */
+		struct perf_record_event_update_scale scale;
+		/* Used when type == PERF_EVENT_UPDATE__UNIT. */
+		char unit[0];
+		/* Used when type == PERF_EVENT_UPDATE__NAME. */
+		char name[0];
+		/* Used when type == PERF_EVENT_UPDATE__CPUS. */
+		struct perf_record_event_update_cpus cpus;
+	};
 };
 
 #define MAX_EVENT_NAME 64
@@ -356,7 +380,8 @@ enum {
 	PERF_STAT_CONFIG_TERM__AGGR_MODE	= 0,
 	PERF_STAT_CONFIG_TERM__INTERVAL		= 1,
 	PERF_STAT_CONFIG_TERM__SCALE		= 2,
-	PERF_STAT_CONFIG_TERM__MAX		= 3,
+	PERF_STAT_CONFIG_TERM__AGGR_LEVEL	= 3,
+	PERF_STAT_CONFIG_TERM__MAX		= 4,
 };
 
 struct perf_record_stat_config_entry {

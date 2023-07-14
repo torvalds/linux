@@ -56,40 +56,43 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
         gyroscope@20 {
-          compatible = "nxp,fxas21002c";
-          reg = <0x20>;
+            compatible = "nxp,fxas21002c";
+            reg = <0x20>;
 
-          vdd-supply = <&reg_peri_3p15v>;
-          vddio-supply = <&reg_peri_3p15v>;
+            vdd-supply = <&reg_peri_3p15v>;
+            vddio-supply = <&reg_peri_3p15v>;
 
-          interrupt-parent = <&gpio1>;
-          interrupts = <7 IRQ_TYPE_EDGE_RISING>;
-          interrupt-names = "INT1";
+            interrupt-parent = <&gpio1>;
+            interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT1";
         };
     };
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
         gyroscope@0 {
-          compatible = "nxp,fxas21002c";
-          reg = <0x0>;
+            compatible = "nxp,fxas21002c";
+            reg = <0x0>;
 
-          spi-max-frequency = <2000000>;
+            spi-max-frequency = <2000000>;
 
-          interrupt-parent = <&gpio2>;
-          interrupts = <7 IRQ_TYPE_EDGE_RISING>;
-          interrupt-names = "INT2";
+            interrupt-parent = <&gpio2>;
+            interrupts = <7 IRQ_TYPE_EDGE_RISING>;
+            interrupt-names = "INT2";
         };
     };

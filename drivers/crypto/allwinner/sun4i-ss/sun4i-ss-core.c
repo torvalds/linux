@@ -6,7 +6,7 @@
  *
  * Core file which registers crypto algorithms supported by the SS.
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi.rst
+ * You could find a link for the datasheet in Documentation/arch/arm/sunxi.rst
  */
 #include <linux/clk.h>
 #include <linux/crypto.h>
@@ -235,7 +235,7 @@ static struct sun4i_ss_alg_template ss_algs[] = {
 #endif
 };
 
-static int sun4i_ss_dbgfs_read(struct seq_file *seq, void *v)
+static int sun4i_ss_debugfs_show(struct seq_file *seq, void *v)
 {
 	unsigned int i;
 
@@ -266,19 +266,7 @@ static int sun4i_ss_dbgfs_read(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
-
-static int sun4i_ss_dbgfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sun4i_ss_dbgfs_read, inode->i_private);
-}
-
-static const struct file_operations sun4i_ss_debugfs_fops = {
-	.owner = THIS_MODULE,
-	.open = sun4i_ss_dbgfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sun4i_ss_debugfs);
 
 /*
  * Power management strategy: The device is suspended unless a TFM exists for

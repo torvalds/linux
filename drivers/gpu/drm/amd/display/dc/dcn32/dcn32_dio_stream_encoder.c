@@ -29,7 +29,7 @@
 #include "dcn32_dio_stream_encoder.h"
 #include "reg_helper.h"
 #include "hw_shared.h"
-#include "inc/link_dpcd.h"
+#include "link.h"
 #include "dpcd_defs.h"
 
 #define DC_LOGGER \
@@ -60,7 +60,7 @@ static void enc32_dp_set_odm_combine(
 }
 
 /* setup stream encoder in dvi mode */
-void enc32_stream_encoder_dvi_set_stream_attribute(
+static void enc32_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -211,10 +211,8 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_GC_SEND, 1,
 		HDMI_NULL_SEND, 1);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	/* Disable Audio Content Protection packet transmission */
 	REG_UPDATE(HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, 0);
-#endif
 
 	/* following belongs to audio */
 	/* Enable Audio InfoFrame packet transmission. */
@@ -243,10 +241,43 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-static void enc32_stream_encoder_dp_unblank(
-        struct dc_link *link,
-		struct stream_encoder *enc,
-		const struct encoder_unblank_param *param)
+static bool is_h_timing_divisible_by_2(const struct dc_crtc_timing *timing)
+{
+	/* math borrowed from function of same name in inc/resource
+	 * checks if h_timing is divisible by 2
+	 */
+
+	bool divisible = false;
+	uint16_t h_blank_start = 0;
+	uint16_t h_blank_end = 0;
+
+	if (timing) {
+		h_blank_start = timing->h_total - timing->h_front_porch;
+		h_blank_end = h_blank_start - timing->h_addressable;
+
+		/* HTOTAL, Hblank start/end, and Hsync start/end all must be
+		 * divisible by 2 in order for the horizontal timing params
+		 * to be considered divisible by 2. Hsync start is always 0.
+		 */
+		divisible = (timing->h_total % 2 == 0) &&
+				(h_blank_start % 2 == 0) &&
+				(h_blank_end % 2 == 0) &&
+				(timing->h_sync_width % 2 == 0);
+	}
+	return divisible;
+}
+
+static bool is_dp_dig_pixel_rate_div_policy(struct dc *dc, const struct dc_crtc_timing *timing)
+{
+	/* should be functionally the same as dcn32_is_dp_dig_pixel_rate_div_policy for DP encoders*/
+	return is_h_timing_divisible_by_2(timing) &&
+		dc->debug.enable_dp_dig_pixel_rate_div_policy;
+}
+
+void enc32_stream_encoder_dp_unblank(
+	struct dc_link *link,
+	struct stream_encoder *enc,
+	const struct encoder_unblank_param *param)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	struct dc *dc = enc->ctx->dc;
@@ -255,13 +286,15 @@ static void enc32_stream_encoder_dp_unblank(
 		uint32_t n_vid = 0x8000;
 		uint32_t m_vid;
 		uint32_t n_multiply = 0;
+		uint32_t pix_per_cycle = 0;
 		uint64_t m_vid_l = n_vid;
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
 		if (is_two_pixels_per_containter(&param->timing) || param->opp_cnt > 1
-			|| dc->debug.enable_dp_dig_pixel_rate_div_policy) {
+			|| is_dp_dig_pixel_rate_div_policy(dc, &param->timing)) {
 			/*this logic should be the same in get_pixel_clock_parameters() */
 			n_multiply = 1;
+			pix_per_cycle = 1;
 		}
 		/* M / N = Fstream / Flink
 		 * m_vid / n_vid = pixel rate / link rate
@@ -289,6 +322,10 @@ static void enc32_stream_encoder_dp_unblank(
 		REG_UPDATE_2(DP_VID_TIMING,
 				DP_VID_M_N_GEN_EN, 1,
 				DP_VID_N_MUL, n_multiply);
+
+		REG_UPDATE(DP_PIXEL_FORMAT,
+				DP_PIXEL_PER_CYCLE_PROCESSING_MODE,
+				pix_per_cycle);
 	}
 
 	/* make sure stream is disabled before resetting steer fifo */
@@ -340,7 +377,7 @@ static void enc32_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 
-	dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
+	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 /* Set DSC-related configuration.
@@ -355,7 +392,7 @@ static void enc32_dp_set_dsc_config(struct stream_encoder *enc,
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	REG_UPDATE(DP_DSC_CNTL,	DP_DSC_MODE, dsc_mode);
+	REG_UPDATE(DP_DSC_CNTL,	DP_DSC_MODE, dsc_mode == OPTC_DSC_DISABLED ? 0 : 1);
 }
 
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
@@ -378,24 +415,6 @@ static void enc32_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
-static void enc32_stream_encoder_reset_fifo(struct stream_encoder *enc)
-{
-	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-	uint32_t fifo_enabled;
-
-	REG_GET(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, &fifo_enabled);
-
-	if (fifo_enabled == 0) {
-		/* reset DIG resync FIFO */
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
-		/* TODO: fix timeout when wait for DIG_FIFO_RESET_DONE */
-		//REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 1, 100);
-		udelay(1);
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
-		REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 1, 100);
-	}
-}
-
 static void enc32_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
@@ -404,6 +423,33 @@ static void enc32_set_dig_input_mode(struct stream_encoder *enc, unsigned int pi
 	 * is the input mode of the dig
 	 */
 	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, pix_per_container == 2 ? 0x1 : 0x0);
+}
+
+static void enc32_reset_fifo(struct stream_encoder *enc, bool reset)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	uint32_t reset_val = reset ? 1 : 0;
+	uint32_t is_symclk_on;
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, reset_val);
+	REG_GET(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, &is_symclk_on);
+
+	if (is_symclk_on)
+		REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, reset_val, 10, 5000);
+	else
+		udelay(10);
+}
+
+void enc32_enable_fifo(struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_READ_START_LEVEL, 0x7);
+
+	enc32_reset_fifo(enc, true);
+	enc32_reset_fifo(enc, false);
+
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
 }
 
 static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
@@ -421,12 +467,12 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 		enc3_stream_encoder_update_hdmi_info_packets,
 	.stop_hdmi_info_packets =
 		enc3_stream_encoder_stop_hdmi_info_packets,
+	.update_dp_info_packets_sdp_line_num =
+		enc3_stream_encoder_update_dp_info_packets_sdp_line_num,
 	.update_dp_info_packets =
 		enc3_stream_encoder_update_dp_info_packets,
 	.stop_dp_info_packets =
 		enc1_stream_encoder_stop_dp_info_packets,
-	.reset_fifo =
-		enc32_stream_encoder_reset_fifo,
 	.dp_blank =
 		enc1_stream_encoder_dp_blank,
 	.dp_unblank =
@@ -453,6 +499,7 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 
 	.set_input_mode = enc32_set_dig_input_mode,
+	.enable_fifo = enc32_enable_fifo,
 };
 
 void dcn32_dio_stream_encoder_construct(

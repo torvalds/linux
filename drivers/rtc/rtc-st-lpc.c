@@ -228,13 +228,10 @@ static int st_rtc_probe(struct platform_device *pdev)
 	enable_irq_wake(rtc->irq);
 	disable_irq(rtc->irq);
 
-	rtc->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(rtc->clk)) {
-		dev_err(&pdev->dev, "Unable to request clock\n");
-		return PTR_ERR(rtc->clk);
-	}
-
-	clk_prepare_enable(rtc->clk);
+	rtc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(rtc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rtc->clk),
+				     "Unable to request clock\n");
 
 	rtc->clkrate = clk_get_rate(rtc->clk);
 	if (!rtc->clkrate) {
@@ -251,10 +248,8 @@ static int st_rtc_probe(struct platform_device *pdev)
 	do_div(rtc->rtc_dev->range_max, rtc->clkrate);
 
 	ret = devm_rtc_register_device(rtc->rtc_dev);
-	if (ret) {
-		clk_disable_unprepare(rtc->clk);
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }

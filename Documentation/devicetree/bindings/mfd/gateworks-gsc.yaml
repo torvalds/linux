@@ -46,6 +46,7 @@ properties:
 
   adc:
     type: object
+    additionalProperties: false
     description: Optional hardware monitoring module
 
     properties:
@@ -59,8 +60,9 @@ properties:
         const: 0
 
     patternProperties:
-      "^channel@[0-9]+$":
+      "^channel@[0-9a-f]+$":
         type: object
+        additionalProperties: false
         description: |
           Properties for a single ADC which can report cooked values
           (i.e. temperature sensor based on thermister), raw values
@@ -113,17 +115,12 @@ properties:
 patternProperties:
   "^fan-controller@[0-9a-f]+$":
     type: object
+    additionalProperties: false
     description: Optional fan controller
 
     properties:
       compatible:
         const: gw,gsc-fan
-
-      "#address-cells":
-        const: 1
-
-      "#size-cells":
-        const: 0
 
       reg:
         description: The fan controller base address
@@ -132,8 +129,6 @@ patternProperties:
     required:
       - compatible
       - reg
-      - "#address-cells"
-      - "#size-cells"
 
 required:
   - compatible
@@ -191,8 +186,6 @@ examples:
             };
 
             fan-controller@2c {
-                #address-cells = <1>;
-                #size-cells = <0>;
                 compatible = "gw,gsc-fan";
                 reg = <0x2c>;
             };

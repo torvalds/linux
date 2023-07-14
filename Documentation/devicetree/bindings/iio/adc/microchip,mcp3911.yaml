@@ -2,8 +2,8 @@
 # Copyright 2019 Marcus Folkesson <marcus.folkesson@gmail.com>
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/iio/adc/microchip,mcp3911.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/iio/adc/microchip,mcp3911.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Microchip MCP3911 Dual channel analog front end (ADC)
 
@@ -36,6 +36,13 @@ properties:
     description: IRQ line of the ADC
     maxItems: 1
 
+  microchip,data-ready-hiz:
+    description:
+      Data Ready Pin Inactive State Control
+      true = The DR pin state is high-impedance
+      false = The DR pin state is logic high
+    type: boolean
+
   microchip,device-addr:
     description: Device address when multiple MCP3911 chips are present on the same SPI bus.
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -51,7 +58,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

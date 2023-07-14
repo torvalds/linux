@@ -46,16 +46,14 @@ static inline struct dpu_hw_merge_3d *to_dpu_hw_merge_3d(struct dpu_hw_blk *hw)
 }
 
 /**
- * dpu_hw_merge_3d_init - initializes the merge_3d driver for the passed
- *	merge_3d idx.
- * @idx:  Pingpong index for which driver object is required
+ * dpu_hw_merge_3d_init() - Initializes the merge_3d driver for the passed
+ * merge3d catalog entry.
+ * @cfg:  Pingpong catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
- * @m:    Pointer to mdss catalog data
- * Returns: Error code or allocated dpu_hw_merge_3d context
+ * Return: Error code or allocated dpu_hw_merge_3d context
  */
-struct dpu_hw_merge_3d *dpu_hw_merge_3d_init(enum dpu_merge_3d idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m);
+struct dpu_hw_merge_3d *dpu_hw_merge_3d_init(const struct dpu_merge_3d_cfg *cfg,
+		void __iomem *addr);
 
 /**
  * dpu_hw_merge_3d_destroy - destroys merge_3d driver context

@@ -322,12 +322,92 @@ static const struct soc_enum nau8821_dac_oversampl_enum =
 	SOC_ENUM_SINGLE(NAU8821_R2C_DAC_CTRL1, NAU8821_DAC_OVERSAMPLE_SFT,
 		ARRAY_SIZE(nau8821_dac_oversampl), nau8821_dac_oversampl);
 
+static const char * const nau8821_adc_drc_noise_gate[] = {
+	"1:1", "2:1", "4:1", "8:1" };
+
+static const struct soc_enum nau8821_adc_drc_noise_gate_enum =
+	SOC_ENUM_SINGLE(NAU8821_R38_ADC_DRC_SLOPES, NAU8821_DRC_NG_SLP_ADC_SFT,
+		ARRAY_SIZE(nau8821_adc_drc_noise_gate),
+		nau8821_adc_drc_noise_gate);
+
+static const char * const nau8821_adc_drc_expansion_slope[] = {
+	"1:1", "2:1", "4:1" };
+
+static const struct soc_enum nau8821_adc_drc_expansion_slope_enum =
+	SOC_ENUM_SINGLE(NAU8821_R38_ADC_DRC_SLOPES, NAU8821_DRC_EXP_SLP_ADC_SFT,
+		ARRAY_SIZE(nau8821_adc_drc_expansion_slope),
+		nau8821_adc_drc_expansion_slope);
+
+static const char * const nau8821_adc_drc_lower_region[] = {
+	"0", "1:2", "1:4", "1:8", "1:16", "", "", "1:1" };
+
+static const struct soc_enum nau8821_adc_drc_lower_region_enum =
+	SOC_ENUM_SINGLE(NAU8821_R38_ADC_DRC_SLOPES,
+		NAU8821_DRC_CMP2_SLP_ADC_SFT,
+		ARRAY_SIZE(nau8821_adc_drc_lower_region),
+		nau8821_adc_drc_lower_region);
+
+static const char * const nau8821_higher_region[] = {
+	"0", "1:2", "1:4", "1:8", "1:16", "", "", "1:1" };
+
+static const struct soc_enum nau8821_higher_region_enum =
+	SOC_ENUM_SINGLE(NAU8821_R38_ADC_DRC_SLOPES,
+		NAU8821_DRC_CMP1_SLP_ADC_SFT,
+		ARRAY_SIZE(nau8821_higher_region),
+		nau8821_higher_region);
+
+static const char * const nau8821_limiter_slope[] = {
+	"0", "1:2", "1:4", "1:8", "1:16", "1:32", "1:64", "1:1" };
+
+static const struct soc_enum nau8821_limiter_slope_enum =
+	SOC_ENUM_SINGLE(NAU8821_R38_ADC_DRC_SLOPES,
+		NAU8821_DRC_LMT_SLP_ADC_SFT, ARRAY_SIZE(nau8821_limiter_slope),
+		nau8821_limiter_slope);
+
+static const char * const nau8821_detection_attack_time[] = {
+	"Ts", "3Ts", "7Ts", "15Ts", "31Ts", "63Ts", "127Ts", "255Ts",
+	"", "511Ts" };
+
+static const struct soc_enum nau8821_detection_attack_time_enum =
+	SOC_ENUM_SINGLE(NAU8821_R39_ADC_DRC_ATKDCY,
+		NAU8821_DRC_PK_COEF1_ADC_SFT,
+		ARRAY_SIZE(nau8821_detection_attack_time),
+		nau8821_detection_attack_time);
+
+static const char * const nau8821_detection_release_time[] = {
+	"63Ts", "127Ts", "255Ts", "511Ts", "1023Ts", "2047Ts", "4095Ts",
+	"8191Ts", "", "16383Ts" };
+
+static const struct soc_enum nau8821_detection_release_time_enum =
+	SOC_ENUM_SINGLE(NAU8821_R39_ADC_DRC_ATKDCY,
+		NAU8821_DRC_PK_COEF2_ADC_SFT,
+		ARRAY_SIZE(nau8821_detection_release_time),
+		nau8821_detection_release_time);
+
+static const char * const nau8821_attack_time[] = {
+	"Ts", "3Ts", "7Ts", "15Ts", "31Ts", "63Ts", "127Ts", "255Ts",
+	"511Ts", "1023Ts", "2047Ts", "4095Ts", "8191Ts" };
+
+static const struct soc_enum nau8821_attack_time_enum =
+	SOC_ENUM_SINGLE(NAU8821_R39_ADC_DRC_ATKDCY, NAU8821_DRC_ATK_ADC_SFT,
+		ARRAY_SIZE(nau8821_attack_time), nau8821_attack_time);
+
+static const char * const nau8821_decay_time[] = {
+	"63Ts", "127Ts", "255Ts", "511Ts", "1023Ts", "2047Ts", "4095Ts",
+	"8191Ts", "16383Ts", "32757Ts", "65535Ts" };
+
+static const struct soc_enum nau8821_decay_time_enum =
+	SOC_ENUM_SINGLE(NAU8821_R39_ADC_DRC_ATKDCY, NAU8821_DRC_DCY_ADC_SFT,
+		ARRAY_SIZE(nau8821_decay_time), nau8821_decay_time);
+
 static const DECLARE_TLV_DB_MINMAX_MUTE(adc_vol_tlv, -6600, 2400);
 static const DECLARE_TLV_DB_MINMAX_MUTE(sidetone_vol_tlv, -4200, 0);
 static const DECLARE_TLV_DB_MINMAX(hp_vol_tlv, -900, 0);
 static const DECLARE_TLV_DB_SCALE(playback_vol_tlv, -6600, 50, 1);
 static const DECLARE_TLV_DB_MINMAX(fepga_gain_tlv, -100, 3600);
 static const DECLARE_TLV_DB_MINMAX_MUTE(crosstalk_vol_tlv, -7000, 2400);
+static const DECLARE_TLV_DB_MINMAX(drc_knee4_tlv, -9800, -3500);
+static const DECLARE_TLV_DB_MINMAX(drc_knee3_tlv, -8100, -1800);
 
 static const struct snd_kcontrol_new nau8821_controls[] = {
 	SOC_DOUBLE_TLV("Mic Volume", NAU8821_R35_ADC_DGAIN_CTRL1,
@@ -346,6 +426,22 @@ static const struct snd_kcontrol_new nau8821_controls[] = {
 	SOC_DOUBLE_TLV("Headphone Crosstalk Volume",
 		NAU8821_R2F_DAC_DGAIN_CTRL,
 		0, 8, 0xff, 0, crosstalk_vol_tlv),
+	SOC_SINGLE_TLV("ADC DRC KNEE4", NAU8821_R37_ADC_DRC_KNEE_IP34,
+		NAU8821_DRC_KNEE4_IP_ADC_SFT, 0x3f, 1, drc_knee4_tlv),
+	SOC_SINGLE_TLV("ADC DRC KNEE3", NAU8821_R37_ADC_DRC_KNEE_IP34,
+		NAU8821_DRC_KNEE3_IP_ADC_SFT, 0x3f, 1, drc_knee3_tlv),
+
+	SOC_ENUM("ADC DRC Noise Gate", nau8821_adc_drc_noise_gate_enum),
+	SOC_ENUM("ADC DRC Expansion Slope", nau8821_adc_drc_expansion_slope_enum),
+	SOC_ENUM("ADC DRC Lower Region", nau8821_adc_drc_lower_region_enum),
+	SOC_ENUM("ADC DRC Higher Region", nau8821_higher_region_enum),
+	SOC_ENUM("ADC DRC Limiter Slope", nau8821_limiter_slope_enum),
+	SOC_ENUM("ADC DRC Peak Detection Attack Time", nau8821_detection_attack_time_enum),
+	SOC_ENUM("ADC DRC Peak Detection Release Time", nau8821_detection_release_time_enum),
+	SOC_ENUM("ADC DRC Attack Time", nau8821_attack_time_enum),
+	SOC_ENUM("ADC DRC Decay Time", nau8821_decay_time_enum),
+	SOC_SINGLE("DRC Enable Switch", NAU8821_R36_ADC_DRC_KNEE_IP12,
+		NAU8821_DRC_ENA_ADC_SFT, 1, 0),
 
 	SOC_ENUM("ADC Decimation Rate", nau8821_adc_decimation_enum),
 	SOC_ENUM("DAC Oversampling Rate", nau8821_dac_oversampl_enum),
@@ -1763,7 +1859,7 @@ static struct i2c_driver nau8821_driver = {
 		.of_match_table = of_match_ptr(nau8821_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8821_acpi_match),
 	},
-	.probe_new = nau8821_i2c_probe,
+	.probe = nau8821_i2c_probe,
 	.id_table = nau8821_i2c_ids,
 };
 module_i2c_driver(nau8821_driver);

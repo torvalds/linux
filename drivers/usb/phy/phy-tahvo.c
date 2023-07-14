@@ -391,7 +391,7 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 
 	tu->irq = ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		return ret;
+		goto err_remove_phy;
 	ret = request_threaded_irq(tu->irq, NULL, tahvo_usb_vbus_interrupt,
 				   IRQF_ONESHOT,
 				   "tahvo-vbus", tu);
@@ -412,7 +412,7 @@ err_disable_clk:
 	return ret;
 }
 
-static int tahvo_usb_remove(struct platform_device *pdev)
+static void tahvo_usb_remove(struct platform_device *pdev)
 {
 	struct tahvo_usb *tu = platform_get_drvdata(pdev);
 
@@ -420,13 +420,11 @@ static int tahvo_usb_remove(struct platform_device *pdev)
 	usb_remove_phy(&tu->phy);
 	if (!IS_ERR(tu->ick))
 		clk_disable(tu->ick);
-
-	return 0;
 }
 
 static struct platform_driver tahvo_usb_driver = {
 	.probe		= tahvo_usb_probe,
-	.remove		= tahvo_usb_remove,
+	.remove_new	= tahvo_usb_remove,
 	.driver		= {
 		.name	= "tahvo-usb",
 		.dev_groups = tahvo_groups,

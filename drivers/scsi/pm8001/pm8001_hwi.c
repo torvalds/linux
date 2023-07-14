@@ -1724,7 +1724,14 @@ void pm8001_work_fn(struct work_struct *work)
 				pm8001_free_dev(pm8001_dev);
 			}
 		}
-	}	break;
+	}
+	break;
+	case IO_XFER_ERROR_ABORTED_NCQ_MODE:
+	{
+		dev = pm8001_dev->sas_device;
+		sas_ata_device_link_abort(dev, false);
+	}
+	break;
 	}
 	kfree(pw);
 }
@@ -1746,110 +1753,6 @@ int pm8001_handle_event(struct pm8001_hba_info *pm8001_ha, void *data,
 		ret = -ENOMEM;
 
 	return ret;
-}
-
-static void pm8001_send_abort_all(struct pm8001_hba_info *pm8001_ha,
-		struct pm8001_device *pm8001_ha_dev)
-{
-	struct pm8001_ccb_info *ccb;
-	struct sas_task *task;
-	struct task_abort_req task_abort;
-	u32 opc = OPC_INB_SATA_ABORT;
-	int ret;
-
-	pm8001_ha_dev->id |= NCQ_ABORT_ALL_FLAG;
-	pm8001_ha_dev->id &= ~NCQ_READ_LOG_FLAG;
-
-	task = sas_alloc_slow_task(GFP_ATOMIC);
-	if (!task) {
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task\n");
-		return;
-	}
-
-	task->task_done = pm8001_task_done;
-
-	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_ha_dev, task);
-	if (!ccb) {
-		sas_free_task(task);
-		return;
-	}
-
-	memset(&task_abort, 0, sizeof(task_abort));
-	task_abort.abort_all = cpu_to_le32(1);
-	task_abort.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
-	task_abort.tag = cpu_to_le32(ccb->ccb_tag);
-
-	ret = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &task_abort,
-				   sizeof(task_abort), 0);
-	if (ret) {
-		sas_free_task(task);
-		pm8001_ccb_free(pm8001_ha, ccb);
-	}
-}
-
-static void pm8001_send_read_log(struct pm8001_hba_info *pm8001_ha,
-		struct pm8001_device *pm8001_ha_dev)
-{
-	struct sata_start_req sata_cmd;
-	int res;
-	struct pm8001_ccb_info *ccb;
-	struct sas_task *task = NULL;
-	struct host_to_dev_fis fis;
-	struct domain_device *dev;
-	u32 opc = OPC_INB_SATA_HOST_OPSTART;
-
-	task = sas_alloc_slow_task(GFP_ATOMIC);
-	if (!task) {
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task !!!\n");
-		return;
-	}
-	task->task_done = pm8001_task_done;
-
-	/*
-	 * Allocate domain device by ourselves as libsas is not going to
-	 * provide any.
-	 */
-	dev = kzalloc(sizeof(struct domain_device), GFP_ATOMIC);
-	if (!dev) {
-		sas_free_task(task);
-		pm8001_dbg(pm8001_ha, FAIL,
-			   "Domain device cannot be allocated\n");
-		return;
-	}
-	task->dev = dev;
-	task->dev->lldd_dev = pm8001_ha_dev;
-
-	ccb = pm8001_ccb_alloc(pm8001_ha, pm8001_ha_dev, task);
-	if (!ccb) {
-		sas_free_task(task);
-		kfree(dev);
-		return;
-	}
-
-	pm8001_ha_dev->id |= NCQ_READ_LOG_FLAG;
-	pm8001_ha_dev->id |= NCQ_2ND_RLE_FLAG;
-
-	/* construct read log FIS */
-	memset(&fis, 0, sizeof(struct host_to_dev_fis));
-	fis.fis_type = 0x27;
-	fis.flags = 0x80;
-	fis.command = ATA_CMD_READ_LOG_EXT;
-	fis.lbal = 0x10;
-	fis.sector_count = 0x1;
-
-	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	sata_cmd.tag = cpu_to_le32(ccb->ccb_tag);
-	sata_cmd.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
-	sata_cmd.ncqtag_atap_dir_m = cpu_to_le32((0x1 << 7) | (0x5 << 9));
-	memcpy(&sata_cmd.sata_fis, &fis, sizeof(struct host_to_dev_fis));
-
-	res = pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &sata_cmd,
-				   sizeof(sata_cmd), 0);
-	if (res) {
-		sas_free_task(task);
-		pm8001_ccb_free(pm8001_ha, ccb);
-		kfree(dev);
-	}
 }
 
 /**
@@ -2295,12 +2198,13 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (t->dev && (t->dev->lldd_dev))
 			pm8001_dev = t->dev->lldd_dev;
 	} else {
-		pm8001_dbg(pm8001_ha, FAIL, "task null\n");
+		pm8001_dbg(pm8001_ha, FAIL, "task null, freeing CCB tag %d\n",
+			   ccb->ccb_tag);
+		pm8001_ccb_free(pm8001_ha, ccb);
 		return;
 	}
 
-	if ((pm8001_dev && !(pm8001_dev->id & NCQ_READ_LOG_FLAG))
-		&& unlikely(!t || !t->lldd_task || !t->dev)) {
+	if (pm8001_dev && unlikely(!t || !t->lldd_task || !t->dev)) {
 		pm8001_dbg(pm8001_ha, FAIL, "task or dev null\n");
 		return;
 	}
@@ -2358,15 +2262,6 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (param == 0) {
 			ts->resp = SAS_TASK_COMPLETE;
 			ts->stat = SAS_SAM_STAT_GOOD;
-			/* check if response is for SEND READ LOG */
-			if (pm8001_dev &&
-			    (pm8001_dev->id & NCQ_READ_LOG_FLAG)) {
-				pm8001_send_abort_all(pm8001_ha, pm8001_dev);
-				/* Free the tag */
-				pm8001_tag_free(pm8001_ha, tag);
-				sas_free_task(t);
-				return;
-			}
 		} else {
 			u8 len;
 			ts->resp = SAS_TASK_COMPLETE;
@@ -2664,9 +2559,10 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	if (event == IO_XFER_ERROR_ABORTED_NCQ_MODE) {
 		/* find device using device id */
 		pm8001_dev = pm8001_find_dev(pm8001_ha, dev_id);
-		/* send read log extension */
 		if (pm8001_dev)
-			pm8001_send_read_log(pm8001_ha, pm8001_dev);
+			pm8001_handle_event(pm8001_ha,
+				pm8001_dev,
+				IO_XFER_ERROR_ABORTED_NCQ_MODE);
 		return;
 	}
 
@@ -2675,8 +2571,17 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_dev = ccb->device;
 	if (event)
 		pm8001_dbg(pm8001_ha, FAIL, "sata IO status 0x%x\n", event);
-	if (unlikely(!t || !t->lldd_task || !t->dev))
+
+	if (unlikely(!t)) {
+		pm8001_dbg(pm8001_ha, FAIL, "task null, freeing CCB tag %d\n",
+			   ccb->ccb_tag);
+		pm8001_ccb_free(pm8001_ha, ccb);
 		return;
+	}
+
+	if (unlikely(!t->lldd_task || !t->dev))
+		return;
+
 	ts = &t->task_status;
 	pm8001_dbg(pm8001_ha, DEVIO,
 		   "port_id:0x%x, device_id:0x%x, tag:0x%x, event:0x%x\n",
@@ -3457,8 +3362,9 @@ int pm8001_mpi_reg_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_dev = ccb->device;
 	status = le32_to_cpu(registerRespPayload->status);
 	device_id = le32_to_cpu(registerRespPayload->device_id);
-	pm8001_dbg(pm8001_ha, MSG, " register device is status = %d\n",
-		   status);
+	pm8001_dbg(pm8001_ha, INIT,
+		   "register device status %d phy_id 0x%x device_id %d\n",
+		   status, pm8001_dev->attached_phy, device_id);
 	switch (status) {
 	case DEVREG_SUCCESS:
 		pm8001_dbg(pm8001_ha, MSG, "DEVREG_SUCCESS\n");
@@ -3612,6 +3518,10 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		pm8001_dbg(pm8001_ha, FAIL, " TASK NULL. RETURNING !!!\n");
 		return -1;
 	}
+
+	if (t->task_proto == SAS_PROTOCOL_INTERNAL_ABORT)
+		atomic_dec(&pm8001_dev->running_req);
+
 	ts = &t->task_status;
 	if (status != 0)
 		pm8001_dbg(pm8001_ha, FAIL, "task abort failed status 0x%x ,tag = 0x%x, scp= 0x%x\n",
@@ -3634,12 +3544,7 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	pm8001_ccb_task_free(pm8001_ha, ccb);
 	mb();
 
-	if (pm8001_dev->id & NCQ_ABORT_ALL_FLAG) {
-		sas_free_task(t);
-		pm8001_dev->id &= ~NCQ_ABORT_ALL_FLAG;
-	} else {
-		t->task_done(t);
-	}
+	t->task_done(t);
 
 	return 0;
 }
@@ -4191,7 +4096,6 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	u64 phys_addr;
 	u32 ATAP = 0x0;
 	u32 dir;
-	unsigned long flags;
 	u32  opc = OPC_INB_SATA_HOST_OPSTART;
 
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
@@ -4244,39 +4148,6 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 		sata_cmd.addr_high = 0;
 		sata_cmd.len = cpu_to_le32(task->total_xfer_len);
 		sata_cmd.esgl = 0;
-	}
-
-	/* Check for read log for failed drive and return */
-	if (sata_cmd.sata_fis.command == 0x2f) {
-		if (((pm8001_ha_dev->id & NCQ_READ_LOG_FLAG) ||
-			(pm8001_ha_dev->id & NCQ_ABORT_ALL_FLAG) ||
-			(pm8001_ha_dev->id & NCQ_2ND_RLE_FLAG))) {
-			struct task_status_struct *ts;
-
-			pm8001_ha_dev->id &= 0xDFFFFFFF;
-			ts = &task->task_status;
-
-			spin_lock_irqsave(&task->task_state_lock, flags);
-			ts->resp = SAS_TASK_COMPLETE;
-			ts->stat = SAS_SAM_STAT_GOOD;
-			task->task_state_flags &= ~SAS_TASK_STATE_PENDING;
-			task->task_state_flags |= SAS_TASK_STATE_DONE;
-			if (unlikely((task->task_state_flags &
-					SAS_TASK_STATE_ABORTED))) {
-				spin_unlock_irqrestore(&task->task_state_lock,
-							flags);
-				pm8001_dbg(pm8001_ha, FAIL,
-					   "task 0x%p resp 0x%x  stat 0x%x but aborted by upper layer\n",
-					   task, ts->resp,
-					   ts->stat);
-				pm8001_ccb_task_free(pm8001_ha, ccb);
-			} else {
-				spin_unlock_irqrestore(&task->task_state_lock,
-							flags);
-				pm8001_ccb_task_free_done(pm8001_ha, ccb);
-				return 0;
-			}
-		}
 	}
 
 	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &sata_cmd,
@@ -4408,7 +4279,7 @@ int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	memset(&payload, 0, sizeof(payload));
 	payload.tag = cpu_to_le32(1);
 	payload.device_id = cpu_to_le32(device_id);
-	pm8001_dbg(pm8001_ha, MSG, "unregister device device_id = %d\n",
+	pm8001_dbg(pm8001_ha, INIT, "unregister device device_id %d\n",
 		   device_id);
 
 	return pm8001_mpi_build_cmd(pm8001_ha, 0, opc, &payload,

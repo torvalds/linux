@@ -163,6 +163,7 @@
 #include "s390-cpumsf-kernel.h"
 #include "s390-cpumcf-kernel.h"
 #include "config.h"
+#include "util/sample.h"
 
 struct s390_cpumsf {
 	struct auxtrace		auxtrace;

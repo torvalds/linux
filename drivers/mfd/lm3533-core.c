@@ -286,7 +286,7 @@ static ssize_t show_output(struct device *dev,
 
 	val = (val & mask) >> shift;
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", val);
+	return sysfs_emit(buf, "%u\n", val);
 }
 
 static ssize_t store_output(struct device *dev,
@@ -485,8 +485,6 @@ static int lm3533_device_init(struct lm3533 *lm3533)
 
 	lm3533->gpio_hwen = pdata->gpio_hwen;
 
-	dev_set_drvdata(lm3533->dev, lm3533);
-
 	if (gpio_is_valid(lm3533->gpio_hwen)) {
 		ret = devm_gpio_request_one(lm3533->dev, lm3533->gpio_hwen,
 					GPIOF_OUT_INIT_LOW, "lm3533-hwen");
@@ -584,8 +582,7 @@ static const struct regmap_config regmap_config = {
 	.precious_reg	= lm3533_precious_register,
 };
 
-static int lm3533_i2c_probe(struct i2c_client *i2c,
-					const struct i2c_device_id *id)
+static int lm3533_i2c_probe(struct i2c_client *i2c)
 {
 	struct lm3533 *lm3533;
 

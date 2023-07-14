@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/mmc-pwrseq-simple.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Simple MMC power sequence provider binding
+title: Simple MMC power sequence provider
 
 maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
@@ -55,7 +55,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    sdhci0_pwrseq {
+    pwrseq {
       compatible = "mmc-pwrseq-simple";
       reset-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
       clocks = <&clk_32768_ck>;

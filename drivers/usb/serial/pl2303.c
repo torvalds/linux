@@ -173,7 +173,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define PL2303_HXN_FLOWCTRL_RTS_CTS	0x18
 #define PL2303_HXN_FLOWCTRL_XON_XOFF	0x0c
 
-static void pl2303_set_break(struct usb_serial_port *port, bool enable);
+static int pl2303_set_break(struct usb_serial_port *port, bool enable);
 
 enum pl2303_type {
 	TYPE_H,
@@ -789,7 +789,8 @@ static bool pl2303_enable_xonxoff(struct tty_struct *tty, const struct pl2303_ty
 }
 
 static void pl2303_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+			       struct usb_serial_port *port,
+			       const struct ktermios *old_termios)
 {
 	struct usb_serial *serial = port->serial;
 	struct pl2303_serial_private *spriv = usb_get_serial_data(serial);
@@ -1059,7 +1060,7 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static void pl2303_set_break(struct usb_serial_port *port, bool enable)
+static int pl2303_set_break(struct usb_serial_port *port, bool enable)
 {
 	struct usb_serial *serial = port->serial;
 	u16 state;
@@ -1076,15 +1077,19 @@ static void pl2303_set_break(struct usb_serial_port *port, bool enable)
 	result = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				 BREAK_REQUEST, BREAK_REQUEST_TYPE, state,
 				 0, NULL, 0, 100);
-	if (result)
+	if (result) {
 		dev_err(&port->dev, "error sending break = %d\n", result);
+		return result;
+	}
+
+	return 0;
 }
 
-static void pl2303_break_ctl(struct tty_struct *tty, int state)
+static int pl2303_break_ctl(struct tty_struct *tty, int state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	pl2303_set_break(port, state);
+	return pl2303_set_break(port, state);
 }
 
 static void pl2303_update_line_status(struct usb_serial_port *port,

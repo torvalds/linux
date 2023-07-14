@@ -1119,7 +1119,7 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 					NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
 
 	mutex_lock(&vif->wdev.mtx);
-	cfg80211_ch_switch_notify(vif->ndev, &chandef, 0);
+	cfg80211_ch_switch_notify(vif->ndev, &chandef, 0, 0);
 	mutex_unlock(&vif->wdev.mtx);
 }
 

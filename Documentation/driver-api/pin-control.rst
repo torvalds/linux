@@ -11,19 +11,17 @@ This subsystem deals with:
 - Multiplexing of pins, pads, fingers (etc) see below for details
 
 - Configuration of pins, pads, fingers (etc), such as software-controlled
-  biasing and driving mode specific pins, such as pull-up/down, open drain,
+  biasing and driving mode specific pins, such as pull-up, pull-down, open drain,
   load capacitance etc.
 
 Top-level interface
 ===================
 
-Definition of PIN CONTROLLER:
+Definitions:
 
-- A pin controller is a piece of hardware, usually a set of registers, that
+- A PIN CONTROLLER is a piece of hardware, usually a set of registers, that
   can control PINs. It may be able to multiplex, bias, set load capacitance,
   set drive strength, etc. for individual pins or groups of pins.
-
-Definition of PIN:
 
 - PINS are equal to pads, fingers, balls or whatever packaging input or
   output line you want to control and these are denoted by unsigned integers
@@ -57,7 +55,9 @@ Here is an example of a PGA (Pin Grid Array) chip seen from underneath::
    1    o   o   o   o   o   o   o   o
 
 To register a pin controller and name all the pins on this package we can do
-this in our driver::
+this in our driver:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/pinctrl.h>
 
@@ -78,14 +78,13 @@ this in our driver::
 		.owner = THIS_MODULE,
 	};
 
-	int __init foo_probe(void)
+	int __init foo_init(void)
 	{
 		int error;
 
 		struct pinctrl_dev *pctl;
 
-		error = pinctrl_register_and_init(&foo_desc, <PARENT>,
-						  NULL, &pctl);
+		error = pinctrl_register_and_init(&foo_desc, <PARENT>, NULL, &pctl);
 		if (error)
 			return error;
 
@@ -95,20 +94,20 @@ this in our driver::
 To enable the pinctrl subsystem and the subgroups for PINMUX and PINCONF and
 selected drivers, you need to select them from your machine's Kconfig entry,
 since these are so tightly integrated with the machines they are used on.
-See for example arch/arm/mach-ux500/Kconfig for an example.
+See ``arch/arm/mach-ux500/Kconfig`` for an example.
 
 Pins usually have fancier names than this. You can find these in the datasheet
 for your chip. Notice that the core pinctrl.h file provides a fancy macro
-called PINCTRL_PIN() to create the struct entries. As you can see I enumerated
-the pins from 0 in the upper left corner to 63 in the lower right corner.
+called ``PINCTRL_PIN()`` to create the struct entries. As you can see the pins are
+enumerated from 0 in the upper left corner to 63 in the lower right corner.
 This enumeration was arbitrarily chosen, in practice you need to think
 through your numbering system so that it matches the layout of registers
 and such things in your driver, or the code may become complicated. You must
 also consider matching of offsets to the GPIO ranges that may be handled by
 the pin controller.
 
-For a padring with 467 pads, as opposed to actual pins, I used an enumeration
-like this, walking around the edge of the chip, which seems to be industry
+For a padding with 467 pads, as opposed to actual pins, the enumeration will
+be like this, walking around the edge of the chip, which seems to be industry
 standard too (all these pads had names, too)::
 
 
@@ -132,32 +131,19 @@ on { 0, 8, 16, 24 }, and a group of pins dealing with an I2C interface on pins
 on { 24, 25 }.
 
 These two groups are presented to the pin control subsystem by implementing
-some generic pinctrl_ops like this::
+some generic ``pinctrl_ops`` like this:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/pinctrl.h>
-
-	struct foo_group {
-		const char *name;
-		const unsigned int *pins;
-		const unsigned num_pins;
-	};
 
 	static const unsigned int spi0_pins[] = { 0, 8, 16, 24 };
 	static const unsigned int i2c0_pins[] = { 24, 25 };
 
-	static const struct foo_group foo_groups[] = {
-		{
-			.name = "spi0_grp",
-			.pins = spi0_pins,
-			.num_pins = ARRAY_SIZE(spi0_pins),
-		},
-		{
-			.name = "i2c0_grp",
-			.pins = i2c0_pins,
-			.num_pins = ARRAY_SIZE(i2c0_pins),
-		},
+	static const struct pingroup foo_groups[] = {
+		PINCTRL_PINGROUP("spi0_grp", spi0_pins, ARRAY_SIZE(spi0_pins)),
+		PINCTRL_PINGROUP("i2c0_grp", i2c0_pins, ARRAY_SIZE(i2c0_pins)),
 	};
-
 
 	static int foo_get_groups_count(struct pinctrl_dev *pctldev)
 	{
@@ -165,17 +151,18 @@ some generic pinctrl_ops like this::
 	}
 
 	static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
-					unsigned selector)
+					      unsigned int selector)
 	{
 		return foo_groups[selector].name;
 	}
 
-	static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-				const unsigned **pins,
-				unsigned *num_pins)
+	static int foo_get_group_pins(struct pinctrl_dev *pctldev,
+				      unsigned int selector,
+				      const unsigned int **pins,
+				      unsigned int *npins)
 	{
-		*pins = (unsigned *) foo_groups[selector].pins;
-		*num_pins = foo_groups[selector].num_pins;
+		*pins = foo_groups[selector].pins;
+		*npins = foo_groups[selector].npins;
 		return 0;
 	}
 
@@ -185,13 +172,12 @@ some generic pinctrl_ops like this::
 		.get_group_pins = foo_get_group_pins,
 	};
 
-
 	static struct pinctrl_desc foo_desc = {
-	...
-	.pctlops = &foo_pctrl_ops,
+		...
+		.pctlops = &foo_pctrl_ops,
 	};
 
-The pin control subsystem will call the .get_groups_count() function to
+The pin control subsystem will call the ``.get_groups_count()`` function to
 determine the total number of legal selectors, then it will call the other functions
 to retrieve the name and pins of the group. Maintaining the data structure of
 the groups is up to the driver, this is just a simple example - in practice you
@@ -204,59 +190,62 @@ Pin configuration
 
 Pins can sometimes be software-configured in various ways, mostly related
 to their electronic properties when used as inputs or outputs. For example you
-may be able to make an output pin high impedance, or "tristate" meaning it is
+may be able to make an output pin high impedance (Hi-Z), or "tristate" meaning it is
 effectively disconnected. You may be able to connect an input pin to VDD or GND
 using a certain resistor value - pull up and pull down - so that the pin has a
 stable value when nothing is driving the rail it is connected to, or when it's
 unconnected.
 
 Pin configuration can be programmed by adding configuration entries into the
-mapping table; see section "Board/machine configuration" below.
+mapping table; see section `Board/machine configuration`_ below.
 
 The format and meaning of the configuration parameter, PLATFORM_X_PULL_UP
 above, is entirely defined by the pin controller driver.
 
 The pin configuration driver implements callbacks for changing pin
-configuration in the pin controller ops like this::
+configuration in the pin controller ops like this:
 
-	#include <linux/pinctrl/pinctrl.h>
+.. code-block:: c
+
 	#include <linux/pinctrl/pinconf.h>
+	#include <linux/pinctrl/pinctrl.h>
+
 	#include "platform_x_pindefs.h"
 
 	static int foo_pin_config_get(struct pinctrl_dev *pctldev,
-			unsigned offset,
-			unsigned long *config)
+				      unsigned int offset,
+				      unsigned long *config)
 	{
 		struct my_conftype conf;
 
-		... Find setting for pin @ offset ...
+		/* ... Find setting for pin @ offset ... */
 
 		*config = (unsigned long) conf;
 	}
 
 	static int foo_pin_config_set(struct pinctrl_dev *pctldev,
-			unsigned offset,
-			unsigned long config)
+				      unsigned int offset,
+				      unsigned long config)
 	{
 		struct my_conftype *conf = (struct my_conftype *) config;
 
 		switch (conf) {
 			case PLATFORM_X_PULL_UP:
 			...
-			}
+			break;
 		}
 	}
 
-	static int foo_pin_config_group_get (struct pinctrl_dev *pctldev,
-			unsigned selector,
-			unsigned long *config)
+	static int foo_pin_config_group_get(struct pinctrl_dev *pctldev,
+					    unsigned selector,
+					    unsigned long *config)
 	{
 		...
 	}
 
-	static int foo_pin_config_group_set (struct pinctrl_dev *pctldev,
-			unsigned selector,
-			unsigned long config)
+	static int foo_pin_config_group_set(struct pinctrl_dev *pctldev,
+					    unsigned selector,
+					    unsigned long config)
 	{
 		...
 	}
@@ -281,8 +270,8 @@ The GPIO drivers may want to perform operations of various types on the same
 physical pins that are also registered as pin controller pins.
 
 First and foremost, the two subsystems can be used as completely orthogonal,
-see the section named "pin control requests from drivers" and
-"drivers needing both pin control and GPIOs" below for details. But in some
+see the section named `Pin control requests from drivers`_ and
+`Drivers needing both pin control and GPIOs`_ below for details. But in some
 situations a cross-subsystem mapping between pins and GPIOs is needed.
 
 Since the pin controller subsystem has its pinspace local to the pin controller
@@ -291,7 +280,13 @@ controller handles control of a certain GPIO pin. Since a single pin controller
 may be muxing several GPIO ranges (typically SoCs that have one set of pins,
 but internally several GPIO silicon blocks, each modelled as a struct
 gpio_chip) any number of GPIO ranges can be added to a pin controller instance
-like this::
+like this:
+
+.. code-block:: c
+
+	#include <linux/gpio/driver.h>
+
+	#include <linux/pinctrl/pinctrl.h>
 
 	struct gpio_chip chip_a;
 	struct gpio_chip chip_b;
@@ -302,7 +297,7 @@ like this::
 		.base = 32,
 		.pin_base = 32,
 		.npins = 16,
-		.gc = &chip_a;
+		.gc = &chip_a,
 	};
 
 	static struct pinctrl_gpio_range gpio_range_b = {
@@ -314,16 +309,18 @@ like this::
 		.gc = &chip_b;
 	};
 
+	int __init foo_init(void)
 	{
 		struct pinctrl_dev *pctl;
 		...
 		pinctrl_add_gpio_range(pctl, &gpio_range_a);
 		pinctrl_add_gpio_range(pctl, &gpio_range_b);
+		...
 	}
 
 So this complex system has one pin controller handling two different
 GPIO chips. "chip a" has 16 pins and "chip b" has 8 pins. The "chip a" and
-"chip b" have different .pin_base, which means a start pin number of the
+"chip b" have different ``pin_base``, which means a start pin number of the
 GPIO range.
 
 The GPIO range of "chip a" starts from the GPIO base of 32 and actual
@@ -331,7 +328,7 @@ pin range also starts from 32. However "chip b" has different starting
 offset for the GPIO range and pin range. The GPIO range of "chip b" starts
 from GPIO number 48, while the pin range of "chip b" starts from 64.
 
-We can convert a gpio number to actual pin number using this "pin_base".
+We can convert a gpio number to actual pin number using this ``pin_base``.
 They are mapped in the global GPIO pin space at:
 
 chip a:
@@ -343,9 +340,11 @@ chip b:
 
 The above examples assume the mapping between the GPIOs and pins is
 linear. If the mapping is sparse or haphazard, an array of arbitrary pin
-numbers can be encoded in the range like this::
+numbers can be encoded in the range like this:
 
-	static const unsigned range_pins[] = { 14, 1, 22, 17, 10, 8, 6, 2 };
+.. code-block:: c
+
+	static const unsigned int range_pins[] = { 14, 1, 22, 17, 10, 8, 6, 2 };
 
 	static struct pinctrl_gpio_range gpio_range = {
 		.name = "chip",
@@ -353,16 +352,17 @@ numbers can be encoded in the range like this::
 		.base = 32,
 		.pins = &range_pins,
 		.npins = ARRAY_SIZE(range_pins),
-		.gc = &chip;
+		.gc = &chip,
 	};
 
-In this case the pin_base property will be ignored. If the name of a pin
+In this case the ``pin_base`` property will be ignored. If the name of a pin
 group is known, the pins and npins elements of the above structure can be
-initialised using the function pinctrl_get_group_pins(), e.g. for pin
-group "foo"::
+initialised using the function ``pinctrl_get_group_pins()``, e.g. for pin
+group "foo":
 
-	pinctrl_get_group_pins(pctl, "foo", &gpio_range.pins,
-			       &gpio_range.npins);
+.. code-block:: c
+
+	pinctrl_get_group_pins(pctl, "foo", &gpio_range.pins, &gpio_range.npins);
 
 When GPIO-specific functions in the pin control subsystem are called, these
 ranges will be used to look up the appropriate pin controller by inspecting
@@ -378,8 +378,8 @@ will get a pin number into its handled number range. Further it is also passed
 the range ID value, so that the pin controller knows which range it should
 deal with.
 
-Calling pinctrl_add_gpio_range from pinctrl driver is DEPRECATED. Please see
-section 2.1 of Documentation/devicetree/bindings/gpio/gpio.txt on how to bind
+Calling ``pinctrl_add_gpio_range()`` from pinctrl driver is DEPRECATED. Please see
+section 2.1 of ``Documentation/devicetree/bindings/gpio/gpio.txt`` on how to bind
 pinctrl and gpio drivers.
 
 
@@ -466,10 +466,10 @@ in your machine configuration. It is inspired by the clk, GPIO and regulator
 subsystems, so devices will request their mux setting, but it's also possible
 to request a single pin for e.g. GPIO.
 
-Definitions:
+The conventions are:
 
 - FUNCTIONS can be switched in and out by a driver residing with the pin
-  control subsystem in the drivers/pinctrl/* directory of the kernel. The
+  control subsystem in the ``drivers/pinctrl`` directory of the kernel. The
   pin control driver knows the possible functions. In the example above you can
   identify three pinmux functions, one for spi, one for i2c and one for mmc.
 
@@ -515,11 +515,13 @@ Definitions:
   In the example case we can define that this particular machine shall
   use device spi0 with pinmux function fspi0 group gspi0 and i2c0 on function
   fi2c0 group gi2c0, on the primary pin controller, we get mappings
-  like these::
+  like these:
+
+  .. code-block:: c
 
 	{
 		{"map-spi0", spi0, pinctrl0, fspi0, gspi0},
-		{"map-i2c0", i2c0, pinctrl0, fi2c0, gi2c0}
+		{"map-i2c0", i2c0, pinctrl0, fi2c0, gi2c0},
 	}
 
   Every map must be assigned a state name, pin controller, device and
@@ -569,62 +571,33 @@ is possible to perform the requested mux setting, poke the hardware so that
 this happens.
 
 Pinmux drivers are required to supply a few callback functions, some are
-optional. Usually the set_mux() function is implemented, writing values into
+optional. Usually the ``.set_mux()`` function is implemented, writing values into
 some certain registers to activate a certain mux setting for a certain pin.
 
-A simple driver for the above example will work by setting bits 0, 1, 2, 3 or 4
+A simple driver for the above example will work by setting bits 0, 1, 2, 3, 4, or 5
 into some register named MUX to select a certain function with a certain
-group of pins would work something like this::
+group of pins would work something like this:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/pinctrl.h>
 	#include <linux/pinctrl/pinmux.h>
 
-	struct foo_group {
-		const char *name;
-		const unsigned int *pins;
-		const unsigned num_pins;
+	static const unsigned int spi0_0_pins[] = { 0, 8, 16, 24 };
+	static const unsigned int spi0_1_pins[] = { 38, 46, 54, 62 };
+	static const unsigned int i2c0_pins[] = { 24, 25 };
+	static const unsigned int mmc0_1_pins[] = { 56, 57 };
+	static const unsigned int mmc0_2_pins[] = { 58, 59 };
+	static const unsigned int mmc0_3_pins[] = { 60, 61, 62, 63 };
+
+	static const struct pingroup foo_groups[] = {
+		PINCTRL_PINGROUP("spi0_0_grp", spi0_0_pins, ARRAY_SIZE(spi0_0_pins)),
+		PINCTRL_PINGROUP("spi0_1_grp", spi0_1_pins, ARRAY_SIZE(spi0_1_pins)),
+		PINCTRL_PINGROUP("i2c0_grp", i2c0_pins, ARRAY_SIZE(i2c0_pins)),
+		PINCTRL_PINGROUP("mmc0_1_grp", mmc0_1_pins, ARRAY_SIZE(mmc0_1_pins)),
+		PINCTRL_PINGROUP("mmc0_2_grp", mmc0_2_pins, ARRAY_SIZE(mmc0_2_pins)),
+		PINCTRL_PINGROUP("mmc0_3_grp", mmc0_3_pins, ARRAY_SIZE(mmc0_3_pins)),
 	};
-
-	static const unsigned spi0_0_pins[] = { 0, 8, 16, 24 };
-	static const unsigned spi0_1_pins[] = { 38, 46, 54, 62 };
-	static const unsigned i2c0_pins[] = { 24, 25 };
-	static const unsigned mmc0_1_pins[] = { 56, 57 };
-	static const unsigned mmc0_2_pins[] = { 58, 59 };
-	static const unsigned mmc0_3_pins[] = { 60, 61, 62, 63 };
-
-	static const struct foo_group foo_groups[] = {
-		{
-			.name = "spi0_0_grp",
-			.pins = spi0_0_pins,
-			.num_pins = ARRAY_SIZE(spi0_0_pins),
-		},
-		{
-			.name = "spi0_1_grp",
-			.pins = spi0_1_pins,
-			.num_pins = ARRAY_SIZE(spi0_1_pins),
-		},
-		{
-			.name = "i2c0_grp",
-			.pins = i2c0_pins,
-			.num_pins = ARRAY_SIZE(i2c0_pins),
-		},
-		{
-			.name = "mmc0_1_grp",
-			.pins = mmc0_1_pins,
-			.num_pins = ARRAY_SIZE(mmc0_1_pins),
-		},
-		{
-			.name = "mmc0_2_grp",
-			.pins = mmc0_2_pins,
-			.num_pins = ARRAY_SIZE(mmc0_2_pins),
-		},
-		{
-			.name = "mmc0_3_grp",
-			.pins = mmc0_3_pins,
-			.num_pins = ARRAY_SIZE(mmc0_3_pins),
-		},
-	};
-
 
 	static int foo_get_groups_count(struct pinctrl_dev *pctldev)
 	{
@@ -632,17 +605,17 @@ group of pins would work something like this::
 	}
 
 	static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
-					unsigned selector)
+					      unsigned int selector)
 	{
 		return foo_groups[selector].name;
 	}
 
-	static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-				const unsigned ** pins,
-				unsigned * num_pins)
+	static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned int selector,
+				      const unsigned int **pins,
+				      unsigned int *npins)
 	{
-		*pins = (unsigned *) foo_groups[selector].pins;
-		*num_pins = foo_groups[selector].num_pins;
+		*pins = foo_groups[selector].pins;
+		*npins = foo_groups[selector].npins;
 		return 0;
 	}
 
@@ -652,33 +625,14 @@ group of pins would work something like this::
 		.get_group_pins = foo_get_group_pins,
 	};
 
-	struct foo_pmx_func {
-		const char *name;
-		const char * const *groups;
-		const unsigned num_groups;
-	};
-
 	static const char * const spi0_groups[] = { "spi0_0_grp", "spi0_1_grp" };
 	static const char * const i2c0_groups[] = { "i2c0_grp" };
-	static const char * const mmc0_groups[] = { "mmc0_1_grp", "mmc0_2_grp",
-						"mmc0_3_grp" };
+	static const char * const mmc0_groups[] = { "mmc0_1_grp", "mmc0_2_grp", "mmc0_3_grp" };
 
-	static const struct foo_pmx_func foo_functions[] = {
-		{
-			.name = "spi0",
-			.groups = spi0_groups,
-			.num_groups = ARRAY_SIZE(spi0_groups),
-		},
-		{
-			.name = "i2c0",
-			.groups = i2c0_groups,
-			.num_groups = ARRAY_SIZE(i2c0_groups),
-		},
-		{
-			.name = "mmc0",
-			.groups = mmc0_groups,
-			.num_groups = ARRAY_SIZE(mmc0_groups),
-		},
+	static const struct pinfunction foo_functions[] = {
+		PINCTRL_PINFUNCTION("spi0", spi0_groups, ARRAY_SIZE(spi0_groups)),
+		PINCTRL_PINFUNCTION("i2c0", i2c0_groups, ARRAY_SIZE(i2c0_groups)),
+		PINCTRL_PINFUNCTION("mmc0", mmc0_groups, ARRAY_SIZE(mmc0_groups)),
 	};
 
 	static int foo_get_functions_count(struct pinctrl_dev *pctldev)
@@ -686,26 +640,26 @@ group of pins would work something like this::
 		return ARRAY_SIZE(foo_functions);
 	}
 
-	static const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
+	static const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned int selector)
 	{
 		return foo_functions[selector].name;
 	}
 
-	static int foo_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
-				const char * const **groups,
-				unsigned * const num_groups)
+	static int foo_get_groups(struct pinctrl_dev *pctldev, unsigned int selector,
+				  const char * const **groups,
+				  unsigned int * const ngroups)
 	{
 		*groups = foo_functions[selector].groups;
-		*num_groups = foo_functions[selector].num_groups;
+		*ngroups = foo_functions[selector].ngroups;
 		return 0;
 	}
 
-	static int foo_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
-			unsigned group)
+	static int foo_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
+			       unsigned int group)
 	{
-		u8 regbit = (1 << selector + group);
+		u8 regbit = BIT(group);
 
-		writeb((readb(MUX)|regbit), MUX);
+		writeb((readb(MUX) | regbit), MUX);
 		return 0;
 	}
 
@@ -724,16 +678,17 @@ group of pins would work something like this::
 		.pmxops = &foo_pmxops,
 	};
 
-In the example activating muxing 0 and 1 at the same time setting bits
-0 and 1, uses one pin in common so they would collide.
+In the example activating muxing 0 and 2 at the same time setting bits
+0 and 2, uses pin 24 in common so they would collide. All the same for
+the muxes 1 and 5, which have pin 62 in common.
 
 The beauty of the pinmux subsystem is that since it keeps track of all
 pins and who is using them, it will already have denied an impossible
 request like that, so the driver does not need to worry about such
 things - when it gets a selector passed in, the pinmux subsystem makes
 sure no other device or GPIO assignment is already using the selected
-pins. Thus bits 0 and 1 in the control register will never be set at the
-same time.
+pins. Thus bits 0 and 2, or 1 and 5 in the control register will never
+be set at the same time.
 
 All the above functions are mandatory to implement for a pinmux driver.
 
@@ -742,18 +697,18 @@ Pin control interaction with the GPIO subsystem
 ===============================================
 
 Note that the following implies that the use case is to use a certain pin
-from the Linux kernel using the API in <linux/gpio.h> with gpio_request()
+from the Linux kernel using the API in ``<linux/gpio/consumer.h>`` with gpiod_get()
 and similar functions. There are cases where you may be using something
 that your datasheet calls "GPIO mode", but actually is just an electrical
 configuration for a certain device. See the section below named
-"GPIO mode pitfalls" for more details on this scenario.
+`GPIO mode pitfalls`_ for more details on this scenario.
 
-The public pinmux API contains two functions named pinctrl_gpio_request()
-and pinctrl_gpio_free(). These two functions shall *ONLY* be called from
-gpiolib-based drivers as part of their gpio_request() and
-gpio_free() semantics. Likewise the pinctrl_gpio_direction_[input|output]
-shall only be called from within respective gpio_direction_[input|output]
-gpiolib implementation.
+The public pinmux API contains two functions named ``pinctrl_gpio_request()``
+and ``pinctrl_gpio_free()``. These two functions shall *ONLY* be called from
+gpiolib-based drivers as part of their ``.request()`` and ``.free()`` semantics.
+Likewise the ``pinctrl_gpio_direction_input()`` / ``pinctrl_gpio_direction_output()``
+shall only be called from within respective ``.direction_input()`` /
+``.direction_output()`` gpiolib implementation.
 
 NOTE that platforms and individual drivers shall *NOT* request GPIO pins to be
 controlled e.g. muxed in. Instead, implement a proper gpiolib driver and have
@@ -767,8 +722,8 @@ In this case, the function array would become 64 entries for each GPIO
 setting and then the device functions.
 
 For this reason there are two functions a pin control driver can implement
-to enable only GPIO on an individual pin: .gpio_request_enable() and
-.gpio_disable_free().
+to enable only GPIO on an individual pin: ``.gpio_request_enable()`` and
+``.gpio_disable_free()``.
 
 This function will pass in the affected GPIO range identified by the pin
 controller core, so you know which GPIO pins are being affected by the request
@@ -776,12 +731,12 @@ operation.
 
 If your driver needs to have an indication from the framework of whether the
 GPIO pin shall be used for input or output you can implement the
-.gpio_set_direction() function. As described this shall be called from the
+``.gpio_set_direction()`` function. As described this shall be called from the
 gpiolib driver and the affected GPIO range, pin offset and desired direction
 will be passed along to this function.
 
 Alternatively to using these special functions, it is fully allowed to use
-named functions for each GPIO pin, the pinctrl_gpio_request() will attempt to
+named functions for each GPIO pin, the ``pinctrl_gpio_request()`` will attempt to
 obtain the function "gpioN" where "N" is the global GPIO pin number if no
 special GPIO-handler is registered.
 
@@ -794,7 +749,7 @@ is taken to mean different things than what the kernel does, the developer
 may be confused by a datasheet talking about a pin being possible to set
 into "GPIO mode". It appears that what hardware engineers mean with
 "GPIO mode" is not necessarily the use case that is implied in the kernel
-interface <linux/gpio.h>: a pin that you grab from kernel code and then
+interface ``<linux/gpio/consumer.h>``: a pin that you grab from kernel code and then
 either listen for input or drive high/low to assert/deassert some
 external line.
 
@@ -805,9 +760,10 @@ for a device.
 
 The GPIO portions of a pin and its relation to a certain pin controller
 configuration and muxing logic can be constructed in several ways. Here
-are two examples::
+are two examples.
 
-     (A)
+Example **(A)**::
+
                        pin config
                        logic regs
                        |               +- SPI
@@ -836,9 +792,7 @@ simultaneous access to the same pin from GPIO and pin multiplexing
 consumers on hardware of this type. The pinctrl driver should set this flag
 accordingly.
 
-::
-
-     (B)
+Example **(B)**::
 
                        pin config
                        logic regs
@@ -882,7 +836,7 @@ hardware and shall be put into different subsystems:
 
 Depending on the exact HW register design, some functions exposed by the
 GPIO subsystem may call into the pinctrl subsystem in order to
-co-ordinate register settings across HW modules. In particular, this may
+coordinate register settings across HW modules. In particular, this may
 be needed for HW with separate GPIO and pin controller HW modules, where
 e.g. GPIO direction is determined by a register in the pin controller HW
 module rather than the GPIO HW module.
@@ -899,14 +853,14 @@ If you make a 1-to-1 map to the GPIO subsystem for this pin, you may start
 to think that you need to come up with something really complex, that the
 pin shall be used for UART TX and GPIO at the same time, that you will grab
 a pin control handle and set it to a certain state to enable UART TX to be
-muxed in, then twist it over to GPIO mode and use gpio_direction_output()
+muxed in, then twist it over to GPIO mode and use gpiod_direction_output()
 to drive it low during sleep, then mux it over to UART TX again when you
-wake up and maybe even gpio_request/gpio_free as part of this cycle. This
+wake up and maybe even gpiod_get() / gpiod_put() as part of this cycle. This
 all gets very complicated.
 
 The solution is to not think that what the datasheet calls "GPIO mode"
-has to be handled by the <linux/gpio.h> interface. Instead view this as
-a certain pin config setting. Look in e.g. <linux/pinctrl/pinconf-generic.h>
+has to be handled by the ``<linux/gpio/consumer.h>`` interface. Instead view this as
+a certain pin config setting. Look in e.g. ``<linux/pinctrl/pinconf-generic.h>``
 and you find this in the documentation:
 
   PIN_CONFIG_OUTPUT:
@@ -915,7 +869,9 @@ and you find this in the documentation:
 
 So it is perfectly possible to push a pin into "GPIO mode" and drive the
 line low as part of the usual pin control map. So for example your UART
-driver may look like this::
+driver may look like this:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/consumer.h>
 
@@ -928,13 +884,13 @@ driver may look like this::
 
 	/* Normal mode */
 	retval = pinctrl_select_state(pinctrl, pins_default);
+
 	/* Sleep mode */
 	retval = pinctrl_select_state(pinctrl, pins_sleep);
 
 And your machine configuration may look like this:
---------------------------------------------------
 
-::
+.. code-block:: c
 
 	static unsigned long uart_default_mode[] = {
 		PIN_CONF_PACKED(PIN_CONFIG_DRIVE_PUSH_PULL, 0),
@@ -946,16 +902,17 @@ And your machine configuration may look like this:
 
 	static struct pinctrl_map pinmap[] __initdata = {
 		PIN_MAP_MUX_GROUP("uart", PINCTRL_STATE_DEFAULT, "pinctrl-foo",
-			"u0_group", "u0"),
+				  "u0_group", "u0"),
 		PIN_MAP_CONFIGS_PIN("uart", PINCTRL_STATE_DEFAULT, "pinctrl-foo",
-				"UART_TX_PIN", uart_default_mode),
+				    "UART_TX_PIN", uart_default_mode),
 		PIN_MAP_MUX_GROUP("uart", PINCTRL_STATE_SLEEP, "pinctrl-foo",
-			"u0_group", "gpio-mode"),
+				  "u0_group", "gpio-mode"),
 		PIN_MAP_CONFIGS_PIN("uart", PINCTRL_STATE_SLEEP, "pinctrl-foo",
-				"UART_TX_PIN", uart_sleep_mode),
+				    "UART_TX_PIN", uart_sleep_mode),
 	};
 
-	foo_init(void) {
+	foo_init(void)
+	{
 		pinctrl_register_mappings(pinmap, ARRAY_SIZE(pinmap));
 	}
 
@@ -995,7 +952,9 @@ part of this.
 
 A pin controller configuration for a machine looks pretty much like a simple
 regulator configuration, so for the example array above we want to enable i2c
-and spi on the second function mapping::
+and spi on the second function mapping:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/machine.h>
 
@@ -1030,13 +989,17 @@ must match a function provided by the pinmux driver handling this pin range.
 As you can see we may have several pin controllers on the system and thus
 we need to specify which one of them contains the functions we wish to map.
 
-You register this pinmux mapping to the pinmux subsystem by simply::
+You register this pinmux mapping to the pinmux subsystem by simply:
+
+.. code-block:: c
 
        ret = pinctrl_register_mappings(mapping, ARRAY_SIZE(mapping));
 
 Since the above construct is pretty common there is a helper macro to make
 it even more compact which assumes you want to use pinctrl-foo and position
-0 for mapping, for example::
+0 for mapping, for example:
+
+.. code-block:: c
 
 	static struct pinctrl_map mapping[] __initdata = {
 		PIN_MAP_MUX_GROUP("foo-i2c.o", PINCTRL_STATE_DEFAULT,
@@ -1046,7 +1009,9 @@ it even more compact which assumes you want to use pinctrl-foo and position
 The mapping table may also contain pin configuration entries. It's common for
 each pin/group to have a number of configuration entries that affect it, so
 the table entries for configuration reference an array of config parameters
-and values. An example using the convenience macros is shown below::
+and values. An example using the convenience macros is shown below:
+
+.. code-block:: c
 
 	static unsigned long i2c_grp_configs[] = {
 		FOO_PIN_DRIVEN,
@@ -1073,8 +1038,10 @@ Finally, some devices expect the mapping table to contain certain specific
 named states. When running on hardware that doesn't need any pin controller
 configuration, the mapping table must still contain those named states, in
 order to explicitly indicate that the states were provided and intended to
-be empty. Table entry macro PIN_MAP_DUMMY_STATE serves the purpose of defining
-a named state without causing any pin controller to be programmed::
+be empty. Table entry macro ``PIN_MAP_DUMMY_STATE()`` serves the purpose of defining
+a named state without causing any pin controller to be programmed:
+
+.. code-block:: c
 
 	static struct pinctrl_map mapping[] __initdata = {
 		PIN_MAP_DUMMY_STATE("foo-i2c.0", PINCTRL_STATE_DEFAULT),
@@ -1085,7 +1052,9 @@ Complex mappings
 ================
 
 As it is possible to map a function to different groups of pins an optional
-.group can be specified like this::
+.group can be specified like this:
+
+.. code-block:: c
 
 	...
 	{
@@ -1107,13 +1076,15 @@ As it is possible to map a function to different groups of pins an optional
 	...
 
 This example mapping is used to switch between two positions for spi0 at
-runtime, as described further below under the heading "Runtime pinmuxing".
+runtime, as described further below under the heading `Runtime pinmuxing`_.
 
 Further it is possible for one named state to affect the muxing of several
 groups of pins, say for example in the mmc0 example above, where you can
 additively expand the mmc0 bus from 2 to 4 to 8 pins. If we want to use all
-three groups for a total of 2+2+4 = 8 pins (for an 8-bit MMC bus as is the
-case), we define a mapping like this::
+three groups for a total of 2 + 2 + 4 = 8 pins (for an 8-bit MMC bus as is the
+case), we define a mapping like this:
+
+.. code-block:: c
 
 	...
 	{
@@ -1167,13 +1138,17 @@ case), we define a mapping like this::
 	...
 
 The result of grabbing this mapping from the device with something like
-this (see next paragraph)::
+this (see next paragraph):
+
+.. code-block:: c
 
 	p = devm_pinctrl_get(dev);
 	s = pinctrl_lookup_state(p, "8bit");
 	ret = pinctrl_select_state(p, s);
 
-or more simply::
+or more simply:
+
+.. code-block:: c
 
 	p = devm_pinctrl_get_select(dev, "8bit");
 
@@ -1188,7 +1163,7 @@ Pin control requests from drivers
 =================================
 
 When a device driver is about to probe the device core will automatically
-attempt to issue pinctrl_get_select_default() on these devices.
+attempt to issue ``pinctrl_get_select_default()`` on these devices.
 This way driver writers do not need to add any of the boilerplate code
 of the type found below. However when doing fine-grained state selection
 and not using the "default" state, you may have to do some device driver
@@ -1206,12 +1181,14 @@ some cases where a driver needs to e.g. switch between different mux mappings
 at runtime this is not possible.
 
 A typical case is if a driver needs to switch bias of pins from normal
-operation and going to sleep, moving from the PINCTRL_STATE_DEFAULT to
-PINCTRL_STATE_SLEEP at runtime, re-biasing or even re-muxing pins to save
+operation and going to sleep, moving from the ``PINCTRL_STATE_DEFAULT`` to
+``PINCTRL_STATE_SLEEP`` at runtime, re-biasing or even re-muxing pins to save
 current in sleep mode.
 
 A driver may request a certain control state to be activated, usually just the
-default state like this::
+default state like this:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/consumer.h>
 
@@ -1238,7 +1215,7 @@ default state like this::
 			return PTR_ERR(foo->s);
 		}
 
-		ret = pinctrl_select_state(foo->s);
+		ret = pinctrl_select_state(foo->p, foo->s);
 		if (ret < 0) {
 			/* FIXME: clean up "foo" here */
 			return ret;
@@ -1251,49 +1228,49 @@ arrangement on your bus.
 
 The semantics of the pinctrl APIs are:
 
-- pinctrl_get() is called in process context to obtain a handle to all pinctrl
+- ``pinctrl_get()`` is called in process context to obtain a handle to all pinctrl
   information for a given client device. It will allocate a struct from the
   kernel memory to hold the pinmux state. All mapping table parsing or similar
   slow operations take place within this API.
 
-- devm_pinctrl_get() is a variant of pinctrl_get() that causes pinctrl_put()
+- ``devm_pinctrl_get()`` is a variant of pinctrl_get() that causes ``pinctrl_put()``
   to be called automatically on the retrieved pointer when the associated
   device is removed. It is recommended to use this function over plain
-  pinctrl_get().
+  ``pinctrl_get()``.
 
-- pinctrl_lookup_state() is called in process context to obtain a handle to a
+- ``pinctrl_lookup_state()`` is called in process context to obtain a handle to a
   specific state for a client device. This operation may be slow, too.
 
-- pinctrl_select_state() programs pin controller hardware according to the
+- ``pinctrl_select_state()`` programs pin controller hardware according to the
   definition of the state as given by the mapping table. In theory, this is a
   fast-path operation, since it only involved blasting some register settings
   into hardware. However, note that some pin controllers may have their
   registers on a slow/IRQ-based bus, so client devices should not assume they
-  can call pinctrl_select_state() from non-blocking contexts.
+  can call ``pinctrl_select_state()`` from non-blocking contexts.
 
-- pinctrl_put() frees all information associated with a pinctrl handle.
+- ``pinctrl_put()`` frees all information associated with a pinctrl handle.
 
-- devm_pinctrl_put() is a variant of pinctrl_put() that may be used to
-  explicitly destroy a pinctrl object returned by devm_pinctrl_get().
+- ``devm_pinctrl_put()`` is a variant of ``pinctrl_put()`` that may be used to
+  explicitly destroy a pinctrl object returned by ``devm_pinctrl_get()``.
   However, use of this function will be rare, due to the automatic cleanup
   that will occur even without calling it.
 
-  pinctrl_get() must be paired with a plain pinctrl_put().
-  pinctrl_get() may not be paired with devm_pinctrl_put().
-  devm_pinctrl_get() can optionally be paired with devm_pinctrl_put().
-  devm_pinctrl_get() may not be paired with plain pinctrl_put().
+  ``pinctrl_get()`` must be paired with a plain ``pinctrl_put()``.
+  ``pinctrl_get()`` may not be paired with ``devm_pinctrl_put()``.
+  ``devm_pinctrl_get()`` can optionally be paired with ``devm_pinctrl_put()``.
+  ``devm_pinctrl_get()`` may not be paired with plain ``pinctrl_put()``.
 
 Usually the pin control core handled the get/put pair and call out to the
 device drivers bookkeeping operations, like checking available functions and
-the associated pins, whereas select_state pass on to the pin controller
+the associated pins, whereas ``pinctrl_select_state()`` pass on to the pin controller
 driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
-The pins are allocated for your device when you issue the devm_pinctrl_get()
+The pins are allocated for your device when you issue the ``devm_pinctrl_get()``
 call, after this you should be able to see this in the debugfs listing of all
 pins.
 
-NOTE: the pinctrl system will return -EPROBE_DEFER if it cannot find the
+NOTE: the pinctrl system will return ``-EPROBE_DEFER`` if it cannot find the
 requested pinctrl handles, for example if the pinctrl driver has not yet
 registered. Thus make sure that the error path in your driver gracefully
 cleans up and is ready to retry the probing later in the startup process.
@@ -1305,18 +1282,20 @@ Drivers needing both pin control and GPIOs
 Again, it is discouraged to let drivers lookup and select pin control states
 themselves, but again sometimes this is unavoidable.
 
-So say that your driver is fetching its resources like this::
+So say that your driver is fetching its resources like this:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/consumer.h>
-	#include <linux/gpio.h>
+	#include <linux/gpio/consumer.h>
 
 	struct pinctrl *pinctrl;
-	int gpio;
+	struct gpio_desc *gpio;
 
 	pinctrl = devm_pinctrl_get_select_default(&dev);
-	gpio = devm_gpio_request(&dev, 14, "foo");
+	gpio = devm_gpiod_get(&dev, "foo");
 
-Here we first request a certain pin state and then request GPIO 14 to be
+Here we first request a certain pin state and then request GPIO "foo" to be
 used. If you're using the subsystems orthogonally like this, you should
 nominally always get your pinctrl handle and select the desired pinctrl
 state BEFORE requesting the GPIO. This is a semantic convention to avoid
@@ -1331,9 +1310,9 @@ probing, nevertheless orthogonal to the GPIO subsystem.
 But there are also situations where it makes sense for the GPIO subsystem
 to communicate directly with the pinctrl subsystem, using the latter as a
 back-end. This is when the GPIO driver may call out to the functions
-described in the section "Pin control interaction with the GPIO subsystem"
+described in the section `Pin control interaction with the GPIO subsystem`_
 above. This only involves per-pin multiplexing, and will be completely
-hidden behind the gpio_*() function namespace. In this case, the driver
+hidden behind the gpiod_*() function namespace. In this case, the driver
 need not interact with the pin control subsystem at all.
 
 If a pin control driver and a GPIO driver is dealing with the same pins
@@ -1348,12 +1327,14 @@ System pin control hogging
 ==========================
 
 Pin control map entries can be hogged by the core when the pin controller
-is registered. This means that the core will attempt to call pinctrl_get(),
-lookup_state() and select_state() on it immediately after the pin control
-device has been registered.
+is registered. This means that the core will attempt to call ``pinctrl_get()``,
+``pinctrl_lookup_state()`` and ``pinctrl_select_state()`` on it immediately after
+the pin control device has been registered.
 
 This occurs for mapping table entries where the client device name is equal
-to the pin controller device name, and the state name is PINCTRL_STATE_DEFAULT::
+to the pin controller device name, and the state name is ``PINCTRL_STATE_DEFAULT``:
+
+.. code-block:: c
 
 	{
 		.dev_name = "pinctrl-foo",
@@ -1365,7 +1346,9 @@ to the pin controller device name, and the state name is PINCTRL_STATE_DEFAULT::
 
 Since it may be common to request the core to hog a few always-applicable
 mux settings on the primary pin controller, there is a convenience macro for
-this::
+this:
+
+.. code-block:: c
 
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-foo", NULL /* group */,
 				      "power_func")
@@ -1385,7 +1368,9 @@ function, but with different named in the mapping as described under
 
 This snippet first initializes a state object for both groups (in foo_probe()),
 then muxes the function in the pins defined by group A, and finally muxes it in
-on the pins defined by group B::
+on the pins defined by group B:
+
+.. code-block:: c
 
 	#include <linux/pinctrl/consumer.h>
 
@@ -1399,11 +1384,11 @@ on the pins defined by group B::
 		if (IS_ERR(p))
 			...
 
-		s1 = pinctrl_lookup_state(foo->p, "pos-A");
+		s1 = pinctrl_lookup_state(p, "pos-A");
 		if (IS_ERR(s1))
 			...
 
-		s2 = pinctrl_lookup_state(foo->p, "pos-B");
+		s2 = pinctrl_lookup_state(p, "pos-B");
 		if (IS_ERR(s2))
 			...
 	}
@@ -1411,16 +1396,16 @@ on the pins defined by group B::
 	foo_switch()
 	{
 		/* Enable on position A */
-		ret = pinctrl_select_state(s1);
+		ret = pinctrl_select_state(p, s1);
 		if (ret < 0)
-		...
+			...
 
 		...
 
 		/* Enable on position B */
-		ret = pinctrl_select_state(s2);
+		ret = pinctrl_select_state(p, s2);
 		if (ret < 0)
-		...
+			...
 
 		...
 	}
@@ -1432,6 +1417,7 @@ can be used by different functions at different times on a running system.
 
 Debugfs files
 =============
+
 These files are created in ``/sys/kernel/debug/pinctrl``:
 
 - ``pinctrl-devices``: prints each pin controller device along with columns to
@@ -1440,7 +1426,7 @@ These files are created in ``/sys/kernel/debug/pinctrl``:
 - ``pinctrl-handles``: prints each configured pin controller handle and the
   corresponding pinmux maps
 
-- ``pinctrl-maps``: print all pinctrl maps
+- ``pinctrl-maps``: prints all pinctrl maps
 
 A sub-directory is created inside of ``/sys/kernel/debug/pinctrl`` for each pin
 controller device containing these files:
@@ -1448,20 +1434,22 @@ controller device containing these files:
 - ``pins``: prints a line for each pin registered on the pin controller. The
   pinctrl driver may add additional information such as register contents.
 
-- ``gpio-ranges``: print ranges that map gpio lines to pins on the controller
+- ``gpio-ranges``: prints ranges that map gpio lines to pins on the controller
 
-- ``pingroups``: print all pin groups registered on the pin controller
+- ``pingroups``: prints all pin groups registered on the pin controller
 
-- ``pinconf-pins``: print pin config settings for each pin
+- ``pinconf-pins``: prints pin config settings for each pin
 
-- ``pinconf-groups``: print pin config settings per pin group
+- ``pinconf-groups``: prints pin config settings per pin group
 
-- ``pinmux-functions``: print each pin function along with the pin groups that
+- ``pinmux-functions``: prints each pin function along with the pin groups that
   map to the pin function
 
-- ``pinmux-pins``: iterate through all pins and print mux owner, gpio owner
+- ``pinmux-pins``: iterates through all pins and prints mux owner, gpio owner
   and if the pin is a hog
 
-- ``pinmux-select``: write to this file to activate a pin function for a group::
+- ``pinmux-select``: write to this file to activate a pin function for a group:
+
+  .. code-block:: sh
 
         echo "<group-name function-name>" > pinmux-select

@@ -6,9 +6,12 @@ import os
 import sys
 import glob
 import optparse
+import platform
 import tempfile
 import logging
+import re
 import shutil
+import subprocess
 
 try:
     import configparser
@@ -123,23 +126,33 @@ class Event(dict):
             if not data_equal(self[t], other[t]):
                 log.warning("expected %s=%s, got %s" % (t, self[t], other[t]))
 
+def parse_version(version):
+    if not version:
+        return None
+    return [int(v) for v in version.split(".")[0:2]]
+
 # Test file description needs to have following sections:
 # [config]
 #   - just single instance in file
 #   - needs to specify:
 #     'command' - perf command name
 #     'args'    - special command arguments
-#     'ret'     - expected command return value (0 by default)
+#     'ret'     - Skip test if Perf doesn't exit with this value (0 by default)
+#     'test_ret'- If set to 'true', fail test instead of skipping for 'ret' argument
 #     'arch'    - architecture specific test (optional)
 #                 comma separated list, ! at the beginning
 #                 negates it.
-#
+#     'auxv'    - Truthy statement that is evaled in the scope of the auxv map. When false,
+#                 the test is skipped. For example 'auxv["AT_HWCAP"] == 10'. (optional)
+#     'kernel_since' - Inclusive kernel version from which the test will start running. Only the
+#                      first two values are supported, for example "6.1" (optional)
+#     'kernel_until' - Exclusive kernel version from which the test will stop running. (optional)
 # [eventX:base]
 #   - one or multiple instances in file
 #   - expected values assignments
 class Test(object):
     def __init__(self, path, options):
-        parser = configparser.SafeConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(path)
 
         log.warning("running '%s'" % path)
@@ -155,12 +168,17 @@ class Test(object):
         except:
             self.ret  = 0
 
+        self.test_ret = parser.getboolean('config', 'test_ret', fallback=False)
+
         try:
             self.arch  = parser.get('config', 'arch')
             log.warning("test limitation '%s'" % self.arch)
         except:
             self.arch  = ''
 
+        self.auxv = parser.get('config', 'auxv', fallback=None)
+        self.kernel_since = parse_version(parser.get('config', 'kernel_since', fallback=None))
+        self.kernel_until = parse_version(parser.get('config', 'kernel_until', fallback=None))
         self.expect   = {}
         self.result   = {}
         log.debug("  loading expected events");
@@ -172,7 +190,38 @@ class Test(object):
         else:
             return True
 
-    def skip_test(self, myarch):
+    def skip_test_kernel_since(self):
+        if not self.kernel_since:
+            return False
+        return not self.kernel_since <= parse_version(platform.release())
+
+    def skip_test_kernel_until(self):
+        if not self.kernel_until:
+            return False
+        return not parse_version(platform.release()) < self.kernel_until
+
+    def skip_test_auxv(self):
+        def new_auxv(a, pattern):
+            items = list(filter(None, pattern.split(a)))
+            # AT_HWCAP is hex but doesn't have a prefix, so special case it
+            if items[0] == "AT_HWCAP":
+                value = int(items[-1], 16)
+            else:
+                try:
+                    value = int(items[-1], 0)
+                except:
+                    value = items[-1]
+            return (items[0], value)
+
+        if not self.auxv:
+            return False
+        auxv = subprocess.check_output("LD_SHOW_AUXV=1 sleep 0", shell=True) \
+               .decode(sys.stdout.encoding)
+        pattern = re.compile(r"[: ]+")
+        auxv = dict([new_auxv(a, pattern) for a in auxv.splitlines()])
+        return not eval(self.auxv)
+
+    def skip_test_arch(self, myarch):
         # If architecture not set always run test
         if self.arch == '':
             # log.warning("test for arch %s is ok" % myarch)
@@ -198,7 +247,7 @@ class Test(object):
         return True
 
     def load_events(self, path, events):
-        parser_event = configparser.SafeConfigParser()
+        parser_event = configparser.ConfigParser()
         parser_event.read(path)
 
         # The event record section header contains 'event' word,
@@ -212,7 +261,7 @@ class Test(object):
             # Read parent event if there's any
             if (':' in section):
                 base = section[section.index(':') + 1:]
-                parser_base = configparser.SafeConfigParser()
+                parser_base = configparser.ConfigParser()
                 parser_base.read(self.test_dir + '/' + base)
                 base_items = parser_base.items('event')
 
@@ -222,8 +271,17 @@ class Test(object):
     def run_cmd(self, tempdir):
         junk1, junk2, junk3, junk4, myarch = (os.uname())
 
-        if self.skip_test(myarch):
+        if self.skip_test_arch(myarch):
             raise Notest(self, myarch)
+
+        if self.skip_test_auxv():
+            raise Notest(self, "auxv skip")
+
+        if self.skip_test_kernel_since():
+            raise Notest(self, "old kernel skip")
+
+        if self.skip_test_kernel_until():
+            raise Notest(self, "new kernel skip")
 
         cmd = "PERF_TEST_ATTR=%s %s %s -o %s/perf.data %s" % (tempdir,
               self.perf, self.command, tempdir, self.args)
@@ -232,7 +290,10 @@ class Test(object):
         log.info("  '%s' ret '%s', expected '%s'" % (cmd, str(ret), str(self.ret)))
 
         if not data_equal(str(ret), str(self.ret)):
-            raise Unsup(self)
+            if self.test_ret:
+                raise Fail(self, "Perf exit code failure")
+            else:
+                raise Unsup(self)
 
     def compare(self, expect, result):
         match = {}

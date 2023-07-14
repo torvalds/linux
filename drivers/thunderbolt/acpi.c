@@ -15,24 +15,20 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 				    void **return_value)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
-	struct fwnode_reference_args args;
 	struct fwnode_handle *fwnode;
 	struct tb_nhi *nhi = data;
 	struct pci_dev *pdev;
 	struct device *dev;
-	int ret;
 
 	if (!adev)
 		return AE_OK;
 
-	fwnode = acpi_fwnode_handle(adev);
-	ret = fwnode_property_get_reference_args(fwnode, "usb4-host-interface",
-						 NULL, 0, 0, &args);
-	if (ret)
+	fwnode = fwnode_find_reference(acpi_fwnode_handle(adev), "usb4-host-interface", 0);
+	if (IS_ERR(fwnode))
 		return AE_OK;
 
 	/* It needs to reference this NHI */
-	if (dev_fwnode(&nhi->pdev->dev) != args.fwnode)
+	if (dev_fwnode(&nhi->pdev->dev) != fwnode)
 		goto out_put;
 
 	/*
@@ -40,16 +36,13 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	 * We need to do this because the xHCI driver might not yet be
 	 * bound so the USB3 SuperSpeed ports are not yet created.
 	 */
-	dev = acpi_get_first_physical_node(adev);
-	while (!dev) {
-		adev = acpi_dev_parent(adev);
-		if (!adev)
-			break;
+	do {
 		dev = acpi_get_first_physical_node(adev);
-	}
+		if (dev)
+			break;
 
-	if (!dev)
-		goto out_put;
+		adev = acpi_dev_parent(adev);
+	} while (adev);
 
 	/*
 	 * Check that the device is PCIe. This is because USB3
@@ -100,7 +93,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 	}
 
 out_put:
-	fwnode_handle_put(args.fwnode);
+	fwnode_handle_put(fwnode);
 	return AE_OK;
 }
 
@@ -303,16 +296,15 @@ static bool tb_acpi_bus_match(struct device *dev)
 
 static struct acpi_device *tb_acpi_switch_find_companion(struct tb_switch *sw)
 {
+	struct tb_switch *parent_sw = tb_switch_parent(sw);
 	struct acpi_device *adev = NULL;
-	struct tb_switch *parent_sw;
 
 	/*
 	 * Device routers exists under the downstream facing USB4 port
 	 * of the parent router. Their _ADR is always 0.
 	 */
-	parent_sw = tb_switch_parent(sw);
 	if (parent_sw) {
-		struct tb_port *port = tb_port_at(tb_route(sw), parent_sw);
+		struct tb_port *port = tb_switch_downstream_port(sw);
 		struct acpi_device *port_adev;
 
 		port_adev = acpi_find_child_by_adr(ACPI_COMPANION(&parent_sw->dev),
@@ -348,7 +340,7 @@ static struct acpi_device *tb_acpi_find_companion(struct device *dev)
 	 */
 	if (tb_is_switch(dev))
 		return tb_acpi_switch_find_companion(tb_to_switch(dev));
-	else if (tb_is_usb4_port_device(dev))
+	if (tb_is_usb4_port_device(dev))
 		return acpi_find_child_by_adr(ACPI_COMPANION(dev->parent),
 					      tb_to_usb4_port_device(dev)->port->port);
 	return NULL;

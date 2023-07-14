@@ -11,6 +11,16 @@
 #define DMC_PROGRAM(addr, i)	_MMIO((addr) + (i) * 4)
 #define DMC_SSP_BASE_ADDR_GEN9	0x00002FC0
 
+#define _PIPEDMC_CONTROL_A		0x45250
+#define _PIPEDMC_CONTROL_B		0x45254
+#define PIPEDMC_CONTROL(pipe)		_MMIO_PIPE(pipe, \
+						   _PIPEDMC_CONTROL_A, \
+						   _PIPEDMC_CONTROL_B)
+#define  PIPEDMC_ENABLE			REG_BIT(0)
+
+#define MTL_PIPEDMC_CONTROL		_MMIO(0x45250)
+#define  PIPEDMC_ENABLE_MTL(pipe)	REG_BIT(((pipe) - PIPE_A) * 4)
+
 #define _ADLP_PIPEDMC_REG_MMIO_BASE_A	0x5f000
 #define _TGL_PIPEDMC_REG_MMIO_BASE_A	0x92000
 
@@ -27,6 +37,8 @@
 
 #define _DMC_REG(i915, dmc_id, reg) \
 	((reg) - __DMC_REG_MMIO_BASE + _DMC_REG_MMIO_BASE(i915, dmc_id))
+
+#define DMC_EVENT_HANDLER_COUNT_GEN12	8
 
 #define _DMC_EVT_HTP_0			0x8f004
 

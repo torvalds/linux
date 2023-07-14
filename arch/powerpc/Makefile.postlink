@@ -9,7 +9,7 @@ PHONY := __archpost
 __archpost:
 
 -include include/config/auto.conf
-include scripts/Kbuild.include
+include $(srctree)/scripts/Kbuild.include
 
 quiet_cmd_head_check = CHKHEAD $@
       cmd_head_check = $(CONFIG_SHELL) $(srctree)/arch/powerpc/tools/head_check.sh "$(NM)" "$@"

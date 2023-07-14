@@ -6,13 +6,13 @@ perf-y += parse-events.o
 perf-y += dso-data.o
 perf-y += attr.o
 perf-y += vmlinux-kallsyms.o
-perf-y += openat-syscall.o
-perf-y += openat-syscall-all-cpus.o
-perf-y += openat-syscall-tp-fields.o
-perf-y += mmap-basic.o
+perf-$(CONFIG_LIBTRACEEVENT) += openat-syscall.o
+perf-$(CONFIG_LIBTRACEEVENT) += openat-syscall-all-cpus.o
+perf-$(CONFIG_LIBTRACEEVENT) += openat-syscall-tp-fields.o
+perf-$(CONFIG_LIBTRACEEVENT) += mmap-basic.o
 perf-y += perf-record.o
 perf-y += evsel-roundtrip-name.o
-perf-y += evsel-tp-sched.o
+perf-$(CONFIG_LIBTRACEEVENT) += evsel-tp-sched.o
 perf-y += fdarray.o
 perf-y += pmu.o
 perf-y += pmu-events.o
@@ -30,7 +30,7 @@ perf-y += task-exit.o
 perf-y += sw-clock.o
 perf-y += mmap-thread-lookup.o
 perf-y += thread-maps-share.o
-perf-y += switch-tracking.o
+perf-$(CONFIG_LIBTRACEEVENT) += switch-tracking.o
 perf-y += keep-tracking.o
 perf-y += code-reading.o
 perf-y += sample-parsing.o
@@ -67,6 +67,8 @@ perf-y += expand-cgroup.o
 perf-y += perf-time-to-tsc.o
 perf-y += dlfilter-test.o
 perf-y += sigtrap.o
+perf-y += event_groups.o
+perf-y += symbols.o
 
 $(OUTPUT)tests/llvm-src-base.c: tests/bpf-script-example.c tests/Build
 	$(call rule_mkdir)
@@ -103,3 +105,5 @@ endif
 CFLAGS_attr.o         += -DBINDIR="BUILD_STR($(bindir_SQ))" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
 CFLAGS_python-use.o   += -DPYTHONPATH="BUILD_STR($(OUTPUT)python)" -DPYTHON="BUILD_STR($(PYTHON_WORD))"
 CFLAGS_dwarf-unwind.o += -fno-optimize-sibling-calls
+
+perf-y += workloads/

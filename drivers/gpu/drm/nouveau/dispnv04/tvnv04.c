@@ -30,7 +30,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
 #include "hw.h"
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_modeset_helper_vtables.h>
 
 #include <drm/i2c/ch7006.h>
 

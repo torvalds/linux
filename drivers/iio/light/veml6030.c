@@ -786,8 +786,7 @@ static int veml6030_hw_init(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static int veml6030_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int veml6030_probe(struct i2c_client *client)
 {
 	int ret;
 	struct veml6030_data *data;

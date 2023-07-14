@@ -338,8 +338,7 @@ out:
 	return ret;
 }
 
-static int pa12203001_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int pa12203001_probe(struct i2c_client *client)
 {
 	struct pa12203001_data *data;
 	struct iio_dev *indio_dev;

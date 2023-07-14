@@ -20,16 +20,23 @@
 
 struct ssam_tablet_sw;
 
+struct ssam_tablet_sw_state {
+	u32 source;
+	u32 state;
+};
+
 struct ssam_tablet_sw_ops {
-	int (*get_state)(struct ssam_tablet_sw *sw, u32 *state);
-	const char *(*state_name)(struct ssam_tablet_sw *sw, u32 state);
-	bool (*state_is_tablet_mode)(struct ssam_tablet_sw *sw, u32 state);
+	int (*get_state)(struct ssam_tablet_sw *sw, struct ssam_tablet_sw_state *state);
+	const char *(*state_name)(struct ssam_tablet_sw *sw,
+				  const struct ssam_tablet_sw_state *state);
+	bool (*state_is_tablet_mode)(struct ssam_tablet_sw *sw,
+				     const struct ssam_tablet_sw_state *state);
 };
 
 struct ssam_tablet_sw {
 	struct ssam_device *sdev;
 
-	u32 state;
+	struct ssam_tablet_sw_state state;
 	struct work_struct update_work;
 	struct input_dev *mode_switch;
 
@@ -45,9 +52,11 @@ struct ssam_tablet_sw_desc {
 
 	struct {
 		u32 (*notify)(struct ssam_event_notifier *nf, const struct ssam_event *event);
-		int (*get_state)(struct ssam_tablet_sw *sw, u32 *state);
-		const char *(*state_name)(struct ssam_tablet_sw *sw, u32 state);
-		bool (*state_is_tablet_mode)(struct ssam_tablet_sw *sw, u32 state);
+		int (*get_state)(struct ssam_tablet_sw *sw, struct ssam_tablet_sw_state *state);
+		const char *(*state_name)(struct ssam_tablet_sw *sw,
+					  const struct ssam_tablet_sw_state *state);
+		bool (*state_is_tablet_mode)(struct ssam_tablet_sw *sw,
+					     const struct ssam_tablet_sw_state *state);
 	} ops;
 
 	struct {
@@ -61,7 +70,7 @@ struct ssam_tablet_sw_desc {
 static ssize_t state_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ssam_tablet_sw *sw = dev_get_drvdata(dev);
-	const char *state = sw->ops.state_name(sw, sw->state);
+	const char *state = sw->ops.state_name(sw, &sw->state);
 
 	return sysfs_emit(buf, "%s\n", state);
 }
@@ -79,19 +88,19 @@ static const struct attribute_group ssam_tablet_sw_group = {
 static void ssam_tablet_sw_update_workfn(struct work_struct *work)
 {
 	struct ssam_tablet_sw *sw = container_of(work, struct ssam_tablet_sw, update_work);
+	struct ssam_tablet_sw_state state;
 	int tablet, status;
-	u32 state;
 
 	status = sw->ops.get_state(sw, &state);
 	if (status)
 		return;
 
-	if (sw->state == state)
+	if (sw->state.source == state.source && sw->state.state == state.state)
 		return;
 	sw->state = state;
 
 	/* Send SW_TABLET_MODE event. */
-	tablet = sw->ops.state_is_tablet_mode(sw, state);
+	tablet = sw->ops.state_is_tablet_mode(sw, &state);
 	input_report_switch(sw->mode_switch, SW_TABLET_MODE, tablet);
 	input_sync(sw->mode_switch);
 }
@@ -146,7 +155,7 @@ static int ssam_tablet_sw_probe(struct ssam_device *sdev)
 	sw->mode_switch->id.bustype = BUS_HOST;
 	sw->mode_switch->dev.parent = &sdev->dev;
 
-	tablet = sw->ops.state_is_tablet_mode(sw, sw->state);
+	tablet = sw->ops.state_is_tablet_mode(sw, &sw->state);
 	input_set_capability(sw->mode_switch, EV_SW, SW_TABLET_MODE);
 	input_report_switch(sw->mode_switch, SW_TABLET_MODE, tablet);
 
@@ -201,11 +210,13 @@ enum ssam_kip_cover_state {
 	SSAM_KIP_COVER_STATE_LAPTOP        = 0x03,
 	SSAM_KIP_COVER_STATE_FOLDED_CANVAS = 0x04,
 	SSAM_KIP_COVER_STATE_FOLDED_BACK   = 0x05,
+	SSAM_KIP_COVER_STATE_BOOK          = 0x06,
 };
 
-static const char *ssam_kip_cover_state_name(struct ssam_tablet_sw *sw, u32 state)
+static const char *ssam_kip_cover_state_name(struct ssam_tablet_sw *sw,
+					     const struct ssam_tablet_sw_state *state)
 {
-	switch (state) {
+	switch (state->state) {
 	case SSAM_KIP_COVER_STATE_DISCONNECTED:
 		return "disconnected";
 
@@ -221,18 +232,23 @@ static const char *ssam_kip_cover_state_name(struct ssam_tablet_sw *sw, u32 stat
 	case SSAM_KIP_COVER_STATE_FOLDED_BACK:
 		return "folded-back";
 
+	case SSAM_KIP_COVER_STATE_BOOK:
+		return "book";
+
 	default:
-		dev_warn(&sw->sdev->dev, "unknown KIP cover state: %u\n", state);
+		dev_warn(&sw->sdev->dev, "unknown KIP cover state: %u\n", state->state);
 		return "<unknown>";
 	}
 }
 
-static bool ssam_kip_cover_state_is_tablet_mode(struct ssam_tablet_sw *sw, u32 state)
+static bool ssam_kip_cover_state_is_tablet_mode(struct ssam_tablet_sw *sw,
+						const struct ssam_tablet_sw_state *state)
 {
-	switch (state) {
+	switch (state->state) {
 	case SSAM_KIP_COVER_STATE_DISCONNECTED:
 	case SSAM_KIP_COVER_STATE_FOLDED_CANVAS:
 	case SSAM_KIP_COVER_STATE_FOLDED_BACK:
+	case SSAM_KIP_COVER_STATE_BOOK:
 		return true;
 
 	case SSAM_KIP_COVER_STATE_CLOSED:
@@ -240,19 +256,19 @@ static bool ssam_kip_cover_state_is_tablet_mode(struct ssam_tablet_sw *sw, u32 s
 		return false;
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown KIP cover state: %d\n", sw->state);
+		dev_warn(&sw->sdev->dev, "unknown KIP cover state: %d\n", state->state);
 		return true;
 	}
 }
 
 SSAM_DEFINE_SYNC_REQUEST_R(__ssam_kip_get_cover_state, u8, {
 	.target_category = SSAM_SSH_TC_KIP,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x1d,
 	.instance_id     = 0x00,
 });
 
-static int ssam_kip_get_cover_state(struct ssam_tablet_sw *sw, u32 *state)
+static int ssam_kip_get_cover_state(struct ssam_tablet_sw *sw, struct ssam_tablet_sw_state *state)
 {
 	int status;
 	u8 raw;
@@ -263,7 +279,8 @@ static int ssam_kip_get_cover_state(struct ssam_tablet_sw *sw, u32 *state)
 		return status;
 	}
 
-	*state = raw;
+	state->source = 0;	/* Unused for KIP switch. */
+	state->state = raw;
 	return 0;
 }
 
@@ -312,11 +329,25 @@ MODULE_PARM_DESC(tablet_mode_in_slate_state, "Enable tablet mode in slate device
 #define SSAM_EVENT_POS_CID_POSTURE_CHANGED	0x03
 #define SSAM_POS_MAX_SOURCES			4
 
-enum ssam_pos_state {
-	SSAM_POS_POSTURE_LID_CLOSED = 0x00,
-	SSAM_POS_POSTURE_LAPTOP     = 0x01,
-	SSAM_POS_POSTURE_SLATE      = 0x02,
-	SSAM_POS_POSTURE_TABLET     = 0x03,
+enum ssam_pos_source_id {
+	SSAM_POS_SOURCE_COVER = 0x00,
+	SSAM_POS_SOURCE_SLS   = 0x03,
+};
+
+enum ssam_pos_state_cover {
+	SSAM_POS_COVER_DISCONNECTED  = 0x01,
+	SSAM_POS_COVER_CLOSED        = 0x02,
+	SSAM_POS_COVER_LAPTOP        = 0x03,
+	SSAM_POS_COVER_FOLDED_CANVAS = 0x04,
+	SSAM_POS_COVER_FOLDED_BACK   = 0x05,
+	SSAM_POS_COVER_BOOK          = 0x06,
+};
+
+enum ssam_pos_state_sls {
+	SSAM_POS_SLS_LID_CLOSED = 0x00,
+	SSAM_POS_SLS_LAPTOP     = 0x01,
+	SSAM_POS_SLS_SLATE      = 0x02,
+	SSAM_POS_SLS_TABLET     = 0x03,
 };
 
 struct ssam_sources_list {
@@ -324,42 +355,120 @@ struct ssam_sources_list {
 	__le32 id[SSAM_POS_MAX_SOURCES];
 } __packed;
 
-static const char *ssam_pos_state_name(struct ssam_tablet_sw *sw, u32 state)
+static const char *ssam_pos_state_name_cover(struct ssam_tablet_sw *sw, u32 state)
 {
 	switch (state) {
-	case SSAM_POS_POSTURE_LID_CLOSED:
+	case SSAM_POS_COVER_DISCONNECTED:
+		return "disconnected";
+
+	case SSAM_POS_COVER_CLOSED:
 		return "closed";
 
-	case SSAM_POS_POSTURE_LAPTOP:
+	case SSAM_POS_COVER_LAPTOP:
 		return "laptop";
 
-	case SSAM_POS_POSTURE_SLATE:
-		return "slate";
+	case SSAM_POS_COVER_FOLDED_CANVAS:
+		return "folded-canvas";
 
-	case SSAM_POS_POSTURE_TABLET:
-		return "tablet";
+	case SSAM_POS_COVER_FOLDED_BACK:
+		return "folded-back";
+
+	case SSAM_POS_COVER_BOOK:
+		return "book";
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture: %u\n", state);
+		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
 		return "<unknown>";
 	}
 }
 
-static bool ssam_pos_state_is_tablet_mode(struct ssam_tablet_sw *sw, u32 state)
+static const char *ssam_pos_state_name_sls(struct ssam_tablet_sw *sw, u32 state)
 {
 	switch (state) {
-	case SSAM_POS_POSTURE_LAPTOP:
-	case SSAM_POS_POSTURE_LID_CLOSED:
+	case SSAM_POS_SLS_LID_CLOSED:
+		return "closed";
+
+	case SSAM_POS_SLS_LAPTOP:
+		return "laptop";
+
+	case SSAM_POS_SLS_SLATE:
+		return "slate";
+
+	case SSAM_POS_SLS_TABLET:
+		return "tablet";
+
+	default:
+		dev_warn(&sw->sdev->dev, "unknown device posture for SLS: %u\n", state);
+		return "<unknown>";
+	}
+}
+
+static const char *ssam_pos_state_name(struct ssam_tablet_sw *sw,
+				       const struct ssam_tablet_sw_state *state)
+{
+	switch (state->source) {
+	case SSAM_POS_SOURCE_COVER:
+		return ssam_pos_state_name_cover(sw, state->state);
+
+	case SSAM_POS_SOURCE_SLS:
+		return ssam_pos_state_name_sls(sw, state->state);
+
+	default:
+		dev_warn(&sw->sdev->dev, "unknown device posture source: %u\n", state->source);
+		return "<unknown>";
+	}
+}
+
+static bool ssam_pos_state_is_tablet_mode_cover(struct ssam_tablet_sw *sw, u32 state)
+{
+	switch (state) {
+	case SSAM_POS_COVER_DISCONNECTED:
+	case SSAM_POS_COVER_FOLDED_CANVAS:
+	case SSAM_POS_COVER_FOLDED_BACK:
+	case SSAM_POS_COVER_BOOK:
+		return true;
+
+	case SSAM_POS_COVER_CLOSED:
+	case SSAM_POS_COVER_LAPTOP:
 		return false;
 
-	case SSAM_POS_POSTURE_SLATE:
+	default:
+		dev_warn(&sw->sdev->dev, "unknown device posture for type-cover: %u\n", state);
+		return true;
+	}
+}
+
+static bool ssam_pos_state_is_tablet_mode_sls(struct ssam_tablet_sw *sw, u32 state)
+{
+	switch (state) {
+	case SSAM_POS_SLS_LAPTOP:
+	case SSAM_POS_SLS_LID_CLOSED:
+		return false;
+
+	case SSAM_POS_SLS_SLATE:
 		return tablet_mode_in_slate_state;
 
-	case SSAM_POS_POSTURE_TABLET:
+	case SSAM_POS_SLS_TABLET:
 		return true;
 
 	default:
-		dev_warn(&sw->sdev->dev, "unknown device posture: %u\n", state);
+		dev_warn(&sw->sdev->dev, "unknown device posture for SLS: %u\n", state);
+		return true;
+	}
+}
+
+static bool ssam_pos_state_is_tablet_mode(struct ssam_tablet_sw *sw,
+					  const struct ssam_tablet_sw_state *state)
+{
+	switch (state->source) {
+	case SSAM_POS_SOURCE_COVER:
+		return ssam_pos_state_is_tablet_mode_cover(sw, state->state);
+
+	case SSAM_POS_SOURCE_SLS:
+		return ssam_pos_state_is_tablet_mode_sls(sw, state->state);
+
+	default:
+		dev_warn(&sw->sdev->dev, "unknown device posture source: %u\n", state->source);
 		return true;
 	}
 }
@@ -371,7 +480,7 @@ static int ssam_pos_get_sources_list(struct ssam_tablet_sw *sw, struct ssam_sour
 	int status;
 
 	rqst.target_category = SSAM_SSH_TC_POS;
-	rqst.target_id = 0x01;
+	rqst.target_id = SSAM_SSH_TID_SAM;
 	rqst.command_id = 0x01;
 	rqst.instance_id = 0x00;
 	rqst.flags = SSAM_REQUEST_HAS_RESPONSE;
@@ -382,7 +491,7 @@ static int ssam_pos_get_sources_list(struct ssam_tablet_sw *sw, struct ssam_sour
 	rsp.length = 0;
 	rsp.pointer = (u8 *)sources;
 
-	status = ssam_retry(ssam_request_sync_onstack, sw->sdev->ctrl, &rqst, &rsp, 0);
+	status = ssam_retry(ssam_request_do_sync_onstack, sw->sdev->ctrl, &rqst, &rsp, 0);
 	if (status)
 		return status;
 
@@ -430,7 +539,7 @@ static int ssam_pos_get_source(struct ssam_tablet_sw *sw, u32 *source_id)
 
 SSAM_DEFINE_SYNC_REQUEST_WR(__ssam_pos_get_posture_for_source, __le32, __le32, {
 	.target_category = SSAM_SSH_TC_POS,
-	.target_id       = 0x01,
+	.target_id       = SSAM_SSH_TID_SAM,
 	.command_id      = 0x02,
 	.instance_id     = 0x00,
 });
@@ -450,9 +559,10 @@ static int ssam_pos_get_posture_for_source(struct ssam_tablet_sw *sw, u32 source
 	return 0;
 }
 
-static int ssam_pos_get_posture(struct ssam_tablet_sw *sw, u32 *state)
+static int ssam_pos_get_posture(struct ssam_tablet_sw *sw, struct ssam_tablet_sw_state *state)
 {
 	u32 source_id;
+	u32 source_state;
 	int status;
 
 	status = ssam_pos_get_source(sw, &source_id);
@@ -461,13 +571,15 @@ static int ssam_pos_get_posture(struct ssam_tablet_sw *sw, u32 *state)
 		return status;
 	}
 
-	status = ssam_pos_get_posture_for_source(sw, source_id, state);
+	status = ssam_pos_get_posture_for_source(sw, source_id, &source_state);
 	if (status) {
 		dev_err(&sw->sdev->dev, "failed to get posture value for source %u: %d\n",
 			source_id, status);
 		return status;
 	}
 
+	state->source = source_id;
+	state->state = source_state;
 	return 0;
 }
 
@@ -510,8 +622,8 @@ static const struct ssam_tablet_sw_desc ssam_pos_sw_desc = {
 /* -- Driver registration. -------------------------------------------------- */
 
 static const struct ssam_device_id ssam_tablet_sw_match[] = {
-	{ SSAM_SDEV(KIP, 0x01, 0x00, 0x01), (unsigned long)&ssam_kip_sw_desc },
-	{ SSAM_SDEV(POS, 0x01, 0x00, 0x01), (unsigned long)&ssam_pos_sw_desc },
+	{ SSAM_SDEV(KIP, SAM, 0x00, 0x01), (unsigned long)&ssam_kip_sw_desc },
+	{ SSAM_SDEV(POS, SAM, 0x00, 0x01), (unsigned long)&ssam_pos_sw_desc },
 	{ },
 };
 MODULE_DEVICE_TABLE(ssam, ssam_tablet_sw_match);

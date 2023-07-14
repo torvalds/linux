@@ -198,22 +198,6 @@ struct scsi_qla_host *qla_find_host_by_d_id(struct scsi_qla_host *vha,
 	return host;
 }
 
-static inline
-struct scsi_qla_host *qlt_find_host_by_vp_idx(struct scsi_qla_host *vha,
-	uint16_t vp_idx)
-{
-	struct qla_hw_data *ha = vha->hw;
-
-	if (vha->vp_idx == vp_idx)
-		return vha;
-
-	BUG_ON(ha->tgt.tgt_vp_map == NULL);
-	if (likely(test_bit(vp_idx, ha->vp_idx_map)))
-		return ha->tgt.tgt_vp_map[vp_idx].vha;
-
-	return NULL;
-}
-
 static inline void qlt_incr_num_pend_cmds(struct scsi_qla_host *vha)
 {
 	unsigned long flags;
@@ -371,7 +355,7 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 
 		if ((entry->u.isp24.vp_index != 0xFF) &&
 		    (entry->u.isp24.nport_handle != cpu_to_le16(0xFFFF))) {
-			host = qlt_find_host_by_vp_idx(vha,
+			host = qla_find_host_by_vp_idx(vha,
 			    entry->u.isp24.vp_index);
 			if (unlikely(!host)) {
 				ql_dbg(ql_dbg_tgt, vha, 0xe03f,
@@ -395,7 +379,7 @@ static bool qlt_24xx_atio_pkt_all_vps(struct scsi_qla_host *vha,
 	{
 		struct abts_recv_from_24xx *entry =
 			(struct abts_recv_from_24xx *)atio;
-		struct scsi_qla_host *host = qlt_find_host_by_vp_idx(vha,
+		struct scsi_qla_host *host = qla_find_host_by_vp_idx(vha,
 			entry->vp_index);
 		unsigned long flags;
 
@@ -438,7 +422,7 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 	case CTIO_TYPE7:
 	{
 		struct ctio7_from_24xx *entry = (struct ctio7_from_24xx *)pkt;
-		struct scsi_qla_host *host = qlt_find_host_by_vp_idx(vha,
+		struct scsi_qla_host *host = qla_find_host_by_vp_idx(vha,
 		    entry->vp_index);
 		if (unlikely(!host)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe041,
@@ -457,7 +441,7 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 		struct imm_ntfy_from_isp *entry =
 		    (struct imm_ntfy_from_isp *)pkt;
 
-		host = qlt_find_host_by_vp_idx(vha, entry->u.isp24.vp_index);
+		host = qla_find_host_by_vp_idx(vha, entry->u.isp24.vp_index);
 		if (unlikely(!host)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe042,
 			    "qla_target(%d): Response pkt (IMMED_NOTIFY_TYPE) "
@@ -475,7 +459,7 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 		struct nack_to_isp *entry = (struct nack_to_isp *)pkt;
 
 		if (0xFF != entry->u.isp24.vp_index) {
-			host = qlt_find_host_by_vp_idx(vha,
+			host = qla_find_host_by_vp_idx(vha,
 			    entry->u.isp24.vp_index);
 			if (unlikely(!host)) {
 				ql_dbg(ql_dbg_tgt, vha, 0xe043,
@@ -495,7 +479,7 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 	{
 		struct abts_recv_from_24xx *entry =
 		    (struct abts_recv_from_24xx *)pkt;
-		struct scsi_qla_host *host = qlt_find_host_by_vp_idx(vha,
+		struct scsi_qla_host *host = qla_find_host_by_vp_idx(vha,
 		    entry->vp_index);
 		if (unlikely(!host)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe044,
@@ -512,7 +496,7 @@ void qlt_response_pkt_all_vps(struct scsi_qla_host *vha,
 	{
 		struct abts_resp_to_24xx *entry =
 		    (struct abts_resp_to_24xx *)pkt;
-		struct scsi_qla_host *host = qlt_find_host_by_vp_idx(vha,
+		struct scsi_qla_host *host = qla_find_host_by_vp_idx(vha,
 		    entry->vp_index);
 		if (unlikely(!host)) {
 			ql_dbg(ql_dbg_tgt, vha, 0xe045,
@@ -1028,8 +1012,7 @@ void qlt_free_session_done(struct work_struct *work)
 		}
 
 		if (ha->flags.edif_enabled &&
-		    (!own || (own &&
-			      own->iocb.u.isp24.status_subcode == ELS_PLOGI))) {
+				(!own || own->iocb.u.isp24.status_subcode == ELS_PLOGI)) {
 			sess->edif.authok = 0;
 			if (!ha->flags.host_shutting_down) {
 				ql_dbg(ql_dbg_edif, vha, 0x911e,
@@ -1557,11 +1540,11 @@ int qlt_stop_phase1(struct qla_tgt *tgt)
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf009,
 	    "Waiting for sess works (tgt %p)", tgt);
 	spin_lock_irqsave(&tgt->sess_work_lock, flags);
-	while (!list_empty(&tgt->sess_works_list)) {
+	do {
 		spin_unlock_irqrestore(&tgt->sess_work_lock, flags);
-		flush_scheduled_work();
+		flush_work(&tgt->sess_work);
 		spin_lock_irqsave(&tgt->sess_work_lock, flags);
-	}
+	} while (!list_empty(&tgt->sess_works_list));
 	spin_unlock_irqrestore(&tgt->sess_work_lock, flags);
 
 	ql_dbg(ql_dbg_tgt_mgt, vha, 0xf00a,
@@ -6336,69 +6319,6 @@ out_term:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
-static void qlt_tmr_work(struct qla_tgt *tgt,
-	struct qla_tgt_sess_work_param *prm)
-{
-	struct atio_from_isp *a = &prm->tm_iocb2;
-	struct scsi_qla_host *vha = tgt->vha;
-	struct qla_hw_data *ha = vha->hw;
-	struct fc_port *sess;
-	unsigned long flags;
-	be_id_t s_id;
-	int rc;
-	u64 unpacked_lun;
-	int fn;
-	void *iocb;
-
-	spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-
-	if (tgt->tgt_stop)
-		goto out_term2;
-
-	s_id = prm->tm_iocb2.u.isp24.fcp_hdr.s_id;
-	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, s_id);
-	if (!sess) {
-		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-
-		sess = qlt_make_local_sess(vha, s_id);
-		/* sess has got an extra creation ref */
-
-		spin_lock_irqsave(&ha->tgt.sess_lock, flags);
-		if (!sess)
-			goto out_term2;
-	} else {
-		if (sess->deleted) {
-			goto out_term2;
-		}
-
-		if (!kref_get_unless_zero(&sess->sess_kref)) {
-			ql_dbg(ql_dbg_tgt_tmr, vha, 0xf020,
-			    "%s: kref_get fail %8phC\n",
-			     __func__, sess->port_name);
-			goto out_term2;
-		}
-	}
-
-	iocb = a;
-	fn = a->u.isp24.fcp_cmnd.task_mgmt_flags;
-	unpacked_lun =
-	    scsilun_to_int((struct scsi_lun *)&a->u.isp24.fcp_cmnd.lun);
-
-	rc = qlt_issue_task_mgmt(sess, unpacked_lun, fn, iocb, 0);
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-
-	ha->tgt.tgt_ops->put_sess(sess);
-
-	if (rc != 0)
-		goto out_term;
-	return;
-
-out_term2:
-	spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
-out_term:
-	qlt_send_term_exchange(ha->base_qpair, NULL, &prm->tm_iocb2, 1, 0);
-}
-
 static void qlt_sess_work_fn(struct work_struct *work)
 {
 	struct qla_tgt *tgt = container_of(work, struct qla_tgt, sess_work);
@@ -6424,9 +6344,6 @@ static void qlt_sess_work_fn(struct work_struct *work)
 		switch (prm->type) {
 		case QLA_TGT_SESS_WORK_ABORT:
 			qlt_abort_work(tgt, prm);
-			break;
-		case QLA_TGT_SESS_WORK_TM:
-			qlt_tmr_work(tgt, prm);
 			break;
 		default:
 			BUG_ON(1);
@@ -6478,8 +6395,7 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 		return -ENOMEM;
 	}
 
-	if (!(base_vha->host->hostt->supported_mode & MODE_TARGET))
-		base_vha->host->hostt->supported_mode |= MODE_TARGET;
+	qla2xxx_driver_template.supported_mode |= MODE_TARGET;
 
 	rc = btree_init64(&tgt->lun_qpair_map);
 	if (rc) {
@@ -6514,7 +6430,6 @@ int qlt_add_target(struct qla_hw_data *ha, struct scsi_qla_host *base_vha)
 	tgt->ha = ha;
 	tgt->vha = base_vha;
 	init_waitqueue_head(&tgt->waitQ);
-	INIT_LIST_HEAD(&tgt->del_sess_list);
 	spin_lock_init(&tgt->sess_work_lock);
 	INIT_WORK(&tgt->sess_work, qlt_sess_work_fn);
 	INIT_LIST_HEAD(&tgt->sess_works_list);
@@ -6807,6 +6722,9 @@ qlt_vport_create(struct scsi_qla_host *vha, struct qla_hw_data *ha)
 
 	mutex_init(&vha->vha_tgt.tgt_mutex);
 	mutex_init(&vha->vha_tgt.tgt_host_action_mutex);
+
+	INIT_LIST_HEAD(&vha->unknown_atio_list);
+	INIT_DELAYED_WORK(&vha->unknown_atio_work, qlt_unknown_atio_work_fn);
 
 	qlt_clear_mode(vha);
 
@@ -7209,7 +7127,7 @@ qlt_probe_one_stage1(struct scsi_qla_host *base_vha, struct qla_hw_data *ha)
 
 	qlt_clear_mode(base_vha);
 
-	qlt_update_vp_map(base_vha, SET_VP_IDX);
+	qla_update_vp_map(base_vha, SET_VP_IDX);
 }
 
 irqreturn_t
@@ -7288,17 +7206,10 @@ qlt_mem_alloc(struct qla_hw_data *ha)
 	if (!QLA_TGT_MODE_ENABLED())
 		return 0;
 
-	ha->tgt.tgt_vp_map = kcalloc(MAX_MULTI_ID_FABRIC,
-				     sizeof(struct qla_tgt_vp_map),
-				     GFP_KERNEL);
-	if (!ha->tgt.tgt_vp_map)
-		return -ENOMEM;
-
 	ha->tgt.atio_ring = dma_alloc_coherent(&ha->pdev->dev,
 	    (ha->tgt.atio_q_length + 1) * sizeof(struct atio_from_isp),
 	    &ha->tgt.atio_dma, GFP_KERNEL);
 	if (!ha->tgt.atio_ring) {
-		kfree(ha->tgt.tgt_vp_map);
 		return -ENOMEM;
 	}
 	return 0;
@@ -7317,70 +7228,6 @@ qlt_mem_free(struct qla_hw_data *ha)
 	}
 	ha->tgt.atio_ring = NULL;
 	ha->tgt.atio_dma = 0;
-	kfree(ha->tgt.tgt_vp_map);
-	ha->tgt.tgt_vp_map = NULL;
-}
-
-/* vport_slock to be held by the caller */
-void
-qlt_update_vp_map(struct scsi_qla_host *vha, int cmd)
-{
-	void *slot;
-	u32 key;
-	int rc;
-
-	key = vha->d_id.b24;
-
-	switch (cmd) {
-	case SET_VP_IDX:
-		if (!QLA_TGT_MODE_ENABLED())
-			return;
-		vha->hw->tgt.tgt_vp_map[vha->vp_idx].vha = vha;
-		break;
-	case SET_AL_PA:
-		slot = btree_lookup32(&vha->hw->host_map, key);
-		if (!slot) {
-			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf018,
-			    "Save vha in host_map %p %06x\n", vha, key);
-			rc = btree_insert32(&vha->hw->host_map,
-				key, vha, GFP_ATOMIC);
-			if (rc)
-				ql_log(ql_log_info, vha, 0xd03e,
-				    "Unable to insert s_id into host_map: %06x\n",
-				    key);
-			return;
-		}
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf019,
-		    "replace existing vha in host_map %p %06x\n", vha, key);
-		btree_update32(&vha->hw->host_map, key, vha);
-		break;
-	case RESET_VP_IDX:
-		if (!QLA_TGT_MODE_ENABLED())
-			return;
-		vha->hw->tgt.tgt_vp_map[vha->vp_idx].vha = NULL;
-		break;
-	case RESET_AL_PA:
-		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf01a,
-		   "clear vha in host_map %p %06x\n", vha, key);
-		slot = btree_lookup32(&vha->hw->host_map, key);
-		if (slot)
-			btree_remove32(&vha->hw->host_map, key);
-		vha->d_id.b24 = 0;
-		break;
-	}
-}
-
-void qlt_update_host_map(struct scsi_qla_host *vha, port_id_t id)
-{
-
-	if (!vha->d_id.b24) {
-		vha->d_id = id;
-		qlt_update_vp_map(vha, SET_AL_PA);
-	} else if (vha->d_id.b24 != id.b24) {
-		qlt_update_vp_map(vha, RESET_AL_PA);
-		vha->d_id = id;
-		qlt_update_vp_map(vha, SET_AL_PA);
-	}
 }
 
 static int __init qlt_parse_ini_mode(void)

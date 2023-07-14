@@ -49,7 +49,7 @@ xfs_fileattr_get(
 
 extern int
 xfs_fileattr_set(
-	struct user_namespace	*mnt_userns,
+	struct mnt_idmap	*idmap,
 	struct dentry		*dentry,
 	struct fileattr		*fa);
 

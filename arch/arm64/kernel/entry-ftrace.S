@@ -7,95 +7,109 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 /*
  * Due to -fpatchable-function-entry=2, the compiler has placed two NOPs before
  * the regular function prologue. For an enabled callsite, ftrace_init_nop() and
  * ftrace_make_call() have patched those NOPs to:
  *
  * 	MOV	X9, LR
- * 	BL	<entry>
- *
- * ... where <entry> is either ftrace_caller or ftrace_regs_caller.
+ * 	BL	ftrace_caller
  *
  * Each instrumented function follows the AAPCS, so here x0-x8 and x18-x30 are
  * live (x18 holds the Shadow Call Stack pointer), and x9-x17 are safe to
  * clobber.
  *
- * We save the callsite's context into a pt_regs before invoking any ftrace
- * callbacks. So that we can get a sensible backtrace, we create a stack record
- * for the callsite and the ftrace entry assembly. This is not sufficient for
- * reliable stacktrace: until we create the callsite stack record, its caller
- * is missing from the LR and existing chain of frame records.
+ * We save the callsite's context into a struct ftrace_regs before invoking any
+ * ftrace callbacks. So that we can get a sensible backtrace, we create frame
+ * records for the callsite and the ftrace entry assembly. This is not
+ * sufficient for reliable stacktrace: until we create the callsite stack
+ * record, its caller is missing from the LR and existing chain of frame
+ * records.
  */
-	.macro  ftrace_regs_entry, allregs=0
-	/* Make room for pt_regs, plus a callee frame */
-	sub	sp, sp, #(PT_REGS_SIZE + 16)
-
-	/* Save function arguments (and x9 for simplicity) */
-	stp	x0, x1, [sp, #S_X0]
-	stp	x2, x3, [sp, #S_X2]
-	stp	x4, x5, [sp, #S_X4]
-	stp	x6, x7, [sp, #S_X6]
-	stp	x8, x9, [sp, #S_X8]
-
-	/* Optionally save the callee-saved registers, always save the FP */
-	.if \allregs == 1
-	stp	x10, x11, [sp, #S_X10]
-	stp	x12, x13, [sp, #S_X12]
-	stp	x14, x15, [sp, #S_X14]
-	stp	x16, x17, [sp, #S_X16]
-	stp	x18, x19, [sp, #S_X18]
-	stp	x20, x21, [sp, #S_X20]
-	stp	x22, x23, [sp, #S_X22]
-	stp	x24, x25, [sp, #S_X24]
-	stp	x26, x27, [sp, #S_X26]
-	stp	x28, x29, [sp, #S_X28]
-	.else
-	str	x29, [sp, #S_FP]
-	.endif
-
-	/* Save the callsite's SP and LR */
-	add	x10, sp, #(PT_REGS_SIZE + 16)
-	stp	x9, x10, [sp, #S_LR]
-
-	/* Save the PC after the ftrace callsite */
-	str	x30, [sp, #S_PC]
-
-	/* Create a frame record for the callsite above pt_regs */
-	stp	x29, x9, [sp, #PT_REGS_SIZE]
-	add	x29, sp, #PT_REGS_SIZE
-
-	/* Create our frame record within pt_regs. */
-	stp	x29, x30, [sp, #S_STACKFRAME]
-	add	x29, sp, #S_STACKFRAME
-	.endm
-
-SYM_CODE_START(ftrace_regs_caller)
-	bti	c
-	ftrace_regs_entry	1
-	b	ftrace_common
-SYM_CODE_END(ftrace_regs_caller)
-
 SYM_CODE_START(ftrace_caller)
 	bti	c
-	ftrace_regs_entry	0
-	b	ftrace_common
-SYM_CODE_END(ftrace_caller)
 
-SYM_CODE_START(ftrace_common)
-	sub	x0, x30, #AARCH64_INSN_SIZE	// ip (callsite's BL insn)
-	mov	x1, x9				// parent_ip (callsite's LR)
-	ldr_l	x2, function_trace_op		// op
-	mov	x3, sp				// regs
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	/*
+	 * The literal pointer to the ops is at an 8-byte aligned boundary
+	 * which is either 12 or 16 bytes before the BL instruction in the call
+	 * site. See ftrace_call_adjust() for details.
+	 *
+	 * Therefore here the LR points at `literal + 16` or `literal + 20`,
+	 * and we can find the address of the literal in either case by
+	 * aligning to an 8-byte boundary and subtracting 16. We do the
+	 * alignment first as this allows us to fold the subtraction into the
+	 * LDR.
+	 */
+	bic	x11, x30, 0x7
+	ldr	x11, [x11, #-(4 * AARCH64_INSN_SIZE)]		// op
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	/*
+	 * If the op has a direct call, handle it immediately without
+	 * saving/restoring registers.
+	 */
+	ldr	x17, [x11, #FTRACE_OPS_DIRECT_CALL]		// op->direct_call
+	cbnz	x17, ftrace_caller_direct
+#endif
+#endif
+
+	/* Save original SP */
+	mov	x10, sp
+
+	/* Make room for ftrace regs, plus two frame records */
+	sub	sp, sp, #(FREGS_SIZE + 32)
+
+	/* Save function arguments */
+	stp	x0, x1, [sp, #FREGS_X0]
+	stp	x2, x3, [sp, #FREGS_X2]
+	stp	x4, x5, [sp, #FREGS_X4]
+	stp	x6, x7, [sp, #FREGS_X6]
+	str	x8,     [sp, #FREGS_X8]
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	str	xzr, [sp, #FREGS_DIRECT_TRAMP]
+#endif
+
+	/* Save the callsite's FP, LR, SP */
+	str	x29, [sp, #FREGS_FP]
+	str	x9,  [sp, #FREGS_LR]
+	str	x10, [sp, #FREGS_SP]
+
+	/* Save the PC after the ftrace callsite */
+	str	x30, [sp, #FREGS_PC]
+
+	/* Create a frame record for the callsite above the ftrace regs */
+	stp	x29, x9, [sp, #FREGS_SIZE + 16]
+	add	x29, sp, #FREGS_SIZE + 16
+
+	/* Create our frame record above the ftrace regs */
+	stp	x29, x30, [sp, #FREGS_SIZE]
+	add	x29, sp, #FREGS_SIZE
+
+	/* Prepare arguments for the the tracer func */
+	sub	x0, x30, #AARCH64_INSN_SIZE		// ip (callsite's BL insn)
+	mov	x1, x9					// parent_ip (callsite's LR)
+	mov	x3, sp					// regs
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+	mov	x2, x11					// op
+	ldr	x4, [x2, #FTRACE_OPS_FUNC]		// op->func
+	blr	x4					// op->func(ip, parent_ip, op, regs)
+
+#else
+	ldr_l   x2, function_trace_op			// op
 
 SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
-	bl	ftrace_stub
+	bl      ftrace_stub				// func(ip, parent_ip, op, regs)
+#endif
 
 /*
  * At the callsite x0-x8 and x19-x30 were live. Any C code will have preserved
@@ -103,24 +117,68 @@ SYM_INNER_LABEL(ftrace_call, SYM_L_GLOBAL)
  * to restore x0-x8, x29, and x30.
  */
 	/* Restore function arguments */
-	ldp	x0, x1, [sp]
-	ldp	x2, x3, [sp, #S_X2]
-	ldp	x4, x5, [sp, #S_X4]
-	ldp	x6, x7, [sp, #S_X6]
-	ldr	x8, [sp, #S_X8]
+	ldp	x0, x1, [sp, #FREGS_X0]
+	ldp	x2, x3, [sp, #FREGS_X2]
+	ldp	x4, x5, [sp, #FREGS_X4]
+	ldp	x6, x7, [sp, #FREGS_X6]
+	ldr	x8,     [sp, #FREGS_X8]
 
-	/* Restore the callsite's FP, LR, PC */
-	ldr	x29, [sp, #S_FP]
-	ldr	x30, [sp, #S_LR]
-	ldr	x9, [sp, #S_PC]
+	/* Restore the callsite's FP */
+	ldr	x29, [sp, #FREGS_FP]
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	ldr	x17, [sp, #FREGS_DIRECT_TRAMP]
+	cbnz	x17, ftrace_caller_direct_late
+#endif
+
+	/* Restore the callsite's LR and PC */
+	ldr	x30, [sp, #FREGS_LR]
+	ldr	x9,  [sp, #FREGS_PC]
 
 	/* Restore the callsite's SP */
-	add	sp, sp, #PT_REGS_SIZE + 16
+	add	sp, sp, #FREGS_SIZE + 32
 
 	ret	x9
-SYM_CODE_END(ftrace_common)
 
-#else /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+SYM_INNER_LABEL(ftrace_caller_direct_late, SYM_L_LOCAL)
+	/*
+	 * Head to a direct trampoline in x17 after having run other tracers.
+	 * The ftrace_regs are live, and x0-x8 and FP have been restored. The
+	 * LR, PC, and SP have not been restored.
+	 */
+
+	/*
+	 * Restore the callsite's LR and PC matching the trampoline calling
+	 * convention.
+	 */
+	ldr	x9,  [sp, #FREGS_LR]
+	ldr	x30, [sp, #FREGS_PC]
+
+	/* Restore the callsite's SP */
+	add	sp, sp, #FREGS_SIZE + 32
+
+SYM_INNER_LABEL(ftrace_caller_direct, SYM_L_LOCAL)
+	/*
+	 * Head to a direct trampoline in x17.
+	 *
+	 * We use `BR X17` as this can safely land on a `BTI C` or `PACIASP` in
+	 * the trampoline, and will not unbalance any return stack.
+	 */
+	br	x17
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
+SYM_CODE_END(ftrace_caller)
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+SYM_CODE_START(ftrace_stub_direct_tramp)
+	bti	c
+	mov	x10, x30
+	mov	x30, x9
+	ret	x10
+SYM_CODE_END(ftrace_stub_direct_tramp)
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */
+
+#else /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
 /*
  * Gcc with -pg will put the following code in the beginning of each function:
@@ -194,44 +252,6 @@ SYM_CODE_END(ftrace_common)
 	add	\reg, \reg, #8
 	.endm
 
-#ifndef CONFIG_DYNAMIC_FTRACE
-/*
- * void _mcount(unsigned long return_address)
- * @return_address: return address to instrumented function
- *
- * This function makes calls, if enabled, to:
- *     - tracer function to probe instrumented function's entry,
- *     - ftrace_graph_caller to set up an exit hook
- */
-SYM_FUNC_START(_mcount)
-	mcount_enter
-
-	ldr_l	x2, ftrace_trace_function
-	adr	x0, ftrace_stub
-	cmp	x0, x2			// if (ftrace_trace_function
-	b.eq	skip_ftrace_call	//     != ftrace_stub) {
-
-	mcount_get_pc	x0		//       function's pc
-	mcount_get_lr	x1		//       function's lr (= parent's pc)
-	blr	x2			//   (*ftrace_trace_function)(pc, lr);
-
-skip_ftrace_call:			// }
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	ldr_l	x2, ftrace_graph_return
-	cmp	x0, x2			//   if ((ftrace_graph_return
-	b.ne	ftrace_graph_caller	//        != ftrace_stub)
-
-	ldr_l	x2, ftrace_graph_entry	//     || (ftrace_graph_entry
-	adr_l	x0, ftrace_graph_entry_stub //     != ftrace_graph_entry_stub))
-	cmp	x0, x2
-	b.ne	ftrace_graph_caller	//     ftrace_graph_caller();
-#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-	mcount_exit
-SYM_FUNC_END(_mcount)
-EXPORT_SYMBOL(_mcount)
-NOKPROBE(_mcount)
-
-#else /* CONFIG_DYNAMIC_FTRACE */
 /*
  * _mcount() is used to build the kernel with -pg option, but all the branch
  * instructions to _mcount() are replaced to NOP initially at kernel start up,
@@ -271,7 +291,6 @@ SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL) // ftrace_graph_caller();
 
 	mcount_exit
 SYM_FUNC_END(ftrace_caller)
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 /*
@@ -292,13 +311,17 @@ SYM_FUNC_START(ftrace_graph_caller)
 	mcount_exit
 SYM_FUNC_END(ftrace_graph_caller)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 
-SYM_FUNC_START(ftrace_stub)
+SYM_TYPED_FUNC_START(ftrace_stub)
 	ret
 SYM_FUNC_END(ftrace_stub)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+SYM_TYPED_FUNC_START(ftrace_stub_graph)
+	ret
+SYM_FUNC_END(ftrace_stub_graph)
+
 /*
  * void return_to_handler(void)
  *
@@ -307,22 +330,23 @@ SYM_FUNC_END(ftrace_stub)
  */
 SYM_CODE_START(return_to_handler)
 	/* save return value regs */
-	sub sp, sp, #64
-	stp x0, x1, [sp]
-	stp x2, x3, [sp, #16]
-	stp x4, x5, [sp, #32]
-	stp x6, x7, [sp, #48]
+	sub sp, sp, #FGRET_REGS_SIZE
+	stp x0, x1, [sp, #FGRET_REGS_X0]
+	stp x2, x3, [sp, #FGRET_REGS_X2]
+	stp x4, x5, [sp, #FGRET_REGS_X4]
+	stp x6, x7, [sp, #FGRET_REGS_X6]
+	str x29,    [sp, #FGRET_REGS_FP]	// parent's fp
 
-	mov	x0, x29			//     parent's fp
-	bl	ftrace_return_to_handler// addr = ftrace_return_to_hander(fp);
-	mov	x30, x0			// restore the original return address
+	mov	x0, sp
+	bl	ftrace_return_to_handler	// addr = ftrace_return_to_hander(regs);
+	mov	x30, x0				// restore the original return address
 
 	/* restore return value regs */
-	ldp x0, x1, [sp]
-	ldp x2, x3, [sp, #16]
-	ldp x4, x5, [sp, #32]
-	ldp x6, x7, [sp, #48]
-	add sp, sp, #64
+	ldp x0, x1, [sp, #FGRET_REGS_X0]
+	ldp x2, x3, [sp, #FGRET_REGS_X2]
+	ldp x4, x5, [sp, #FGRET_REGS_X4]
+	ldp x6, x7, [sp, #FGRET_REGS_X6]
+	add sp, sp, #FGRET_REGS_SIZE
 
 	ret
 SYM_CODE_END(return_to_handler)

@@ -6,42 +6,11 @@
 
 #include "../mt76_connac2_mac.h"
 
-#define MT_CT_PARSE_LEN			72
-#define MT_CT_DMA_BUF_NUM		2
-
-#define MT_RXD0_LENGTH			GENMASK(15, 0)
-#define MT_RXD0_PKT_TYPE		GENMASK(31, 27)
-
-#define MT_RXD0_NORMAL_ETH_TYPE_OFS	GENMASK(22, 16)
-#define MT_RXD0_NORMAL_IP_SUM		BIT(23)
-#define MT_RXD0_NORMAL_UDP_TCP_SUM	BIT(24)
-
-enum rx_pkt_type {
-	PKT_TYPE_TXS,
-	PKT_TYPE_TXRXV,
-	PKT_TYPE_NORMAL,
-	PKT_TYPE_RX_DUP_RFB,
-	PKT_TYPE_RX_TMR,
-	PKT_TYPE_RETRIEVE,
-	PKT_TYPE_TXRX_NOTIFY,
-	PKT_TYPE_RX_EVENT,
-	PKT_TYPE_RX_FW_MONITOR = 0x0c,
-	PKT_TYPE_TXRX_NOTIFY_V0 = 0x18,
-};
-
 #define MT_TX_FREE_VER			GENMASK(18, 16)
-#define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
-#define MT_TX_FREE_MSDU_CNT_V0	GENMASK(6, 0)
-#define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
-#define MT_TX_FREE_LATENCY		GENMASK(12, 0)
+#define MT_TX_FREE_MSDU_CNT_V0		GENMASK(6, 0)
 /* 0: success, others: dropped */
-#define MT_TX_FREE_MSDU_ID		GENMASK(30, 16)
-#define MT_TX_FREE_PAIR			BIT(31)
 #define MT_TX_FREE_MPDU_HEADER		BIT(30)
 #define MT_TX_FREE_MSDU_ID_V3		GENMASK(14, 0)
-
-/* will support this field in further revision */
-#define MT_TX_FREE_RATE			GENMASK(13, 0)
 
 #define MT_TXS5_F0_FINAL_MPDU		BIT(31)
 #define MT_TXS5_F0_QOS			BIT(30)

@@ -55,9 +55,9 @@ static struct attribute *mmc_dev_attrs[] = {
 ATTRIBUTE_GROUPS(mmc_dev);
 
 static int
-mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+mmc_bus_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct mmc_card *card = mmc_dev_to_card(dev);
+	const struct mmc_card *card = mmc_dev_to_card(dev);
 	const char *type;
 	unsigned int i;
 	int retval = 0;
@@ -359,9 +359,7 @@ int mmc_add_card(struct mmc_card *card)
 			uhs_bus_speed_mode, type, card->rca);
 	}
 
-#ifdef CONFIG_DEBUG_FS
 	mmc_add_card_debugfs(card);
-#endif
 	card->dev.of_node = mmc_of_find_child_device(card->host, 0);
 
 	device_enable_async_suspend(&card->dev);
@@ -383,9 +381,7 @@ void mmc_remove_card(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 
-#ifdef CONFIG_DEBUG_FS
 	mmc_remove_card_debugfs(card);
-#endif
 
 	if (mmc_card_present(card)) {
 		if (mmc_host_is_spi(card->host)) {

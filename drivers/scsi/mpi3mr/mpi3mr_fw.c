@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2022 Broadcom Inc.
+ * Copyright (C) 2017-2023 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -244,6 +244,9 @@ static void mpi3mr_print_event_data(struct mpi3mr_ioc *mrioc,
 	case MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE:
 		desc = "Enclosure Device Status Change";
 		break;
+	case MPI3_EVENT_ENCL_DEVICE_ADDED:
+		desc = "Enclosure Added";
+		break;
 	case MPI3_EVENT_HARD_RESET_RECEIVED:
 		desc = "Hard Reset Received";
 		break;
@@ -299,6 +302,8 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 	switch (host_tag) {
 	case MPI3MR_HOSTTAG_INITCMDS:
 		return &mrioc->init_cmds;
+	case MPI3MR_HOSTTAG_CFG_CMDS:
+		return &mrioc->cfg_cmds;
 	case MPI3MR_HOSTTAG_BSG_CMDS:
 		return &mrioc->bsg_cmds;
 	case MPI3MR_HOSTTAG_BLK_TMS:
@@ -307,6 +312,8 @@ mpi3mr_get_drv_cmd(struct mpi3mr_ioc *mrioc, u16 host_tag,
 		return &mrioc->pel_abort_cmd;
 	case MPI3MR_HOSTTAG_PEL_WAIT:
 		return &mrioc->pel_cmds;
+	case MPI3MR_HOSTTAG_TRANSPORT_CMDS:
+		return &mrioc->transport_cmds;
 	case MPI3MR_HOSTTAG_INVALID:
 		if (def_reply && def_reply->function ==
 		    MPI3_FUNCTION_EVENT_NOTIFICATION)
@@ -395,6 +402,11 @@ static void mpi3mr_process_admin_reply_desc(struct mpi3mr_ioc *mrioc,
 				memcpy((u8 *)cmdptr->reply, (u8 *)def_reply,
 				    mrioc->reply_sz);
 			}
+			if (sense_buf && cmdptr->sensebuf) {
+				cmdptr->is_sense = 1;
+				memcpy(cmdptr->sensebuf, sense_buf,
+				       MPI3MR_SENSE_BUF_SZ);
+			}
 			if (cmdptr->is_waiting) {
 				complete(&cmdptr->done);
 				cmdptr->is_waiting = 0;
@@ -408,7 +420,7 @@ out:
 		    le64_to_cpu(scsi_reply->sense_data_buffer_address));
 }
 
-static int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
+int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 {
 	u32 exp_phase = mrioc->admin_reply_ephase;
 	u32 admin_reply_ci = mrioc->admin_reply_ci;
@@ -416,14 +428,22 @@ static int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 	u64 reply_dma = 0;
 	struct mpi3_default_reply_descriptor *reply_desc;
 
+	if (!atomic_add_unless(&mrioc->admin_reply_q_in_use, 1, 1))
+		return 0;
+
 	reply_desc = (struct mpi3_default_reply_descriptor *)mrioc->admin_reply_base +
 	    admin_reply_ci;
 
 	if ((le16_to_cpu(reply_desc->reply_flags) &
-	    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
+	    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase) {
+		atomic_dec(&mrioc->admin_reply_q_in_use);
 		return 0;
+	}
 
 	do {
+		if (mrioc->unrecoverable)
+			break;
+
 		mrioc->admin_req_ci = le16_to_cpu(reply_desc->request_queue_ci);
 		mpi3mr_process_admin_reply_desc(mrioc, reply_desc, &reply_dma);
 		if (reply_dma)
@@ -444,6 +464,7 @@ static int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 	writel(admin_reply_ci, &mrioc->sysif_regs->admin_reply_queue_ci);
 	mrioc->admin_reply_ci = admin_reply_ci;
 	mrioc->admin_reply_ephase = exp_phase;
+	atomic_dec(&mrioc->admin_reply_q_in_use);
 
 	return num_admin_replies;
 }
@@ -509,6 +530,9 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 	}
 
 	do {
+		if (mrioc->unrecoverable)
+			break;
+
 		req_q_idx = le16_to_cpu(reply_desc->request_queue_id) - 1;
 		op_req_q = &mrioc->req_qinfo[req_q_idx];
 
@@ -530,6 +554,7 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 		if ((le16_to_cpu(reply_desc->reply_flags) &
 		    MPI3_REPLY_DESCRIPT_FLAGS_PHASE_MASK) != exp_phase)
 			break;
+#ifndef CONFIG_PREEMPT_RT
 		/*
 		 * Exit completion loop to avoid CPU lockup
 		 * Ensure remaining completion happens from threaded ISR.
@@ -538,7 +563,7 @@ int mpi3mr_process_op_reply_q(struct mpi3mr_ioc *mrioc,
 			op_reply_q->enable_irq_poll = true;
 			break;
 		}
-
+#endif
 	} while (1);
 
 	writel(reply_ci,
@@ -569,7 +594,8 @@ int mpi3mr_blk_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 
 	mrioc = (struct mpi3mr_ioc *)shost->hostdata;
 
-	if ((mrioc->reset_in_progress || mrioc->prepare_for_reset))
+	if ((mrioc->reset_in_progress || mrioc->prepare_for_reset ||
+	    mrioc->unrecoverable))
 		return 0;
 
 	num_entries = mpi3mr_process_op_reply_q(mrioc,
@@ -607,18 +633,16 @@ static irqreturn_t mpi3mr_isr_primary(int irq, void *privdata)
 		return IRQ_NONE;
 }
 
+#ifndef CONFIG_PREEMPT_RT
+
 static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 {
 	struct mpi3mr_intr_info *intr_info = privdata;
-	struct mpi3mr_ioc *mrioc;
-	u16 midx;
 	int ret;
 
 	if (!intr_info)
 		return IRQ_NONE;
 
-	mrioc = intr_info->mrioc;
-	midx = intr_info->msix_index;
 	/* Call primary ISR routine */
 	ret = mpi3mr_isr_primary(irq, privdata);
 
@@ -633,7 +657,7 @@ static irqreturn_t mpi3mr_isr(int irq, void *privdata)
 	    !atomic_read(&intr_info->op_reply_q->pend_ios))
 		return ret;
 
-	disable_irq_nosync(pci_irq_vector(mrioc->pdev, midx));
+	disable_irq_nosync(intr_info->os_irq);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -663,7 +687,7 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 
 	/* Poll for pending IOs completions */
 	do {
-		if (!mrioc->intr_enabled)
+		if (!mrioc->intr_enabled || mrioc->unrecoverable)
 			break;
 
 		if (!midx)
@@ -679,10 +703,12 @@ static irqreturn_t mpi3mr_isr_poll(int irq, void *privdata)
 	    (num_op_reply < mrioc->max_host_ios));
 
 	intr_info->op_reply_q->enable_irq_poll = false;
-	enable_irq(pci_irq_vector(mrioc->pdev, midx));
+	enable_irq(intr_info->os_irq);
 
 	return IRQ_HANDLED;
 }
+
+#endif
 
 /**
  * mpi3mr_request_irq - Request IRQ and register ISR
@@ -706,14 +732,20 @@ static inline int mpi3mr_request_irq(struct mpi3mr_ioc *mrioc, u16 index)
 	snprintf(intr_info->name, MPI3MR_NAME_LENGTH, "%s%d-msix%d",
 	    mrioc->driver_name, mrioc->id, index);
 
+#ifndef CONFIG_PREEMPT_RT
 	retval = request_threaded_irq(pci_irq_vector(pdev, index), mpi3mr_isr,
 	    mpi3mr_isr_poll, IRQF_SHARED, intr_info->name, intr_info);
+#else
+	retval = request_threaded_irq(pci_irq_vector(pdev, index), mpi3mr_isr_primary,
+	    NULL, IRQF_SHARED, intr_info->name, intr_info);
+#endif
 	if (retval) {
 		ioc_err(mrioc, "%s: Unable to allocate interrupt %d!\n",
 		    intr_info->name, pci_irq_vector(pdev, index));
 		return retval;
 	}
 
+	intr_info->os_irq = pci_irq_vector(pdev, index);
 	return retval;
 }
 
@@ -907,6 +939,8 @@ static const struct {
 	{ MPI3MR_RESET_FROM_SYSFS, "sysfs invocation" },
 	{ MPI3MR_RESET_FROM_SYSFS_TIMEOUT, "sysfs TM timeout" },
 	{ MPI3MR_RESET_FROM_FIRMWARE, "firmware asynchronous reset" },
+	{ MPI3MR_RESET_FROM_CFG_REQ_TIMEOUT, "configuration request timeout"},
+	{ MPI3MR_RESET_FROM_SAS_TRANSPORT_TIMEOUT, "timeout of a SAS transport layer request" },
 };
 
 /**
@@ -1069,7 +1103,7 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 	ioc_config &= ~MPI3_SYSIF_IOC_CONFIG_ENABLE_IOC;
 	writel(ioc_config, &mrioc->sysif_regs->ioc_configuration);
 
-	timeout = MPI3MR_RESET_ACK_TIMEOUT * 10;
+	timeout = MPI3MR_MUR_TIMEOUT * 10;
 	do {
 		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY)) {
@@ -1105,8 +1139,7 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
 static int
 mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
 {
-	u16 dev_handle_bitmap_sz;
-	void *removepend_bitmap;
+	unsigned long *removepend_bitmap;
 
 	if (mrioc->facts.reply_sz > mrioc->reply_sz) {
 		ioc_err(mrioc,
@@ -1130,25 +1163,30 @@ mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
 		return -EPERM;
 	}
 
-	dev_handle_bitmap_sz = mrioc->facts.max_devhandle / 8;
-	if (mrioc->facts.max_devhandle % 8)
-		dev_handle_bitmap_sz++;
-	if (dev_handle_bitmap_sz > mrioc->dev_handle_bitmap_sz) {
-		removepend_bitmap = krealloc(mrioc->removepend_bitmap,
-		    dev_handle_bitmap_sz, GFP_KERNEL);
+	if ((mrioc->sas_transport_enabled) && (mrioc->facts.ioc_capabilities &
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED))
+		ioc_err(mrioc,
+		    "critical error: multipath capability is enabled at the\n"
+		    "\tcontroller while sas transport support is enabled at the\n"
+		    "\tdriver, please reboot the system or reload the driver\n");
+
+	if (mrioc->facts.max_devhandle > mrioc->dev_handle_bitmap_bits) {
+		removepend_bitmap = bitmap_zalloc(mrioc->facts.max_devhandle,
+						  GFP_KERNEL);
 		if (!removepend_bitmap) {
 			ioc_err(mrioc,
-			    "failed to increase removepend_bitmap sz from: %d to %d\n",
-			    mrioc->dev_handle_bitmap_sz, dev_handle_bitmap_sz);
+				"failed to increase removepend_bitmap bits from %d to %d\n",
+				mrioc->dev_handle_bitmap_bits,
+				mrioc->facts.max_devhandle);
 			return -EPERM;
 		}
-		memset(removepend_bitmap + mrioc->dev_handle_bitmap_sz, 0,
-		    dev_handle_bitmap_sz - mrioc->dev_handle_bitmap_sz);
+		bitmap_free(mrioc->removepend_bitmap);
 		mrioc->removepend_bitmap = removepend_bitmap;
 		ioc_info(mrioc,
-		    "increased dev_handle_bitmap_sz from %d to %d\n",
-		    mrioc->dev_handle_bitmap_sz, dev_handle_bitmap_sz);
-		mrioc->dev_handle_bitmap_sz = dev_handle_bitmap_sz;
+			 "increased bits of dev_handle_bitmap from %d to %d\n",
+			 mrioc->dev_handle_bitmap_bits,
+			 mrioc->facts.max_devhandle);
+		mrioc->dev_handle_bitmap_bits = mrioc->facts.max_devhandle;
 	}
 
 	return 0;
@@ -1165,7 +1203,7 @@ mpi3mr_revalidate_factsdata(struct mpi3mr_ioc *mrioc)
  */
 static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 {
-	u32 ioc_config, ioc_status, timeout;
+	u32 ioc_config, ioc_status, timeout, host_diagnostic;
 	int retval = 0;
 	enum mpi3mr_iocstate ioc_state;
 	u64 base_info;
@@ -1194,6 +1232,14 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			msleep(100);
 		} while (--timeout);
 
+		if (!pci_device_is_present(mrioc->pdev)) {
+			mrioc->unrecoverable = 1;
+			ioc_err(mrioc,
+			    "controller is not present while waiting to reset\n");
+			retval = -1;
+			goto out_device_not_present;
+		}
+
 		ioc_state = mpi3mr_get_iocstate(mrioc);
 		ioc_info(mrioc,
 		    "controller is in %s state after waiting to reset\n",
@@ -1211,6 +1257,23 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			    retval, mpi3mr_iocstate_name(ioc_state));
 	}
 	if (ioc_state != MRIOC_STATE_RESET) {
+		if (ioc_state == MRIOC_STATE_FAULT) {
+			timeout = MPI3_SYSIF_DIAG_SAVE_TIMEOUT * 10;
+			mpi3mr_print_fault_info(mrioc);
+			do {
+				host_diagnostic =
+					readl(&mrioc->sysif_regs->host_diagnostic);
+				if (!(host_diagnostic &
+				      MPI3_SYSIF_HOST_DIAG_SAVE_IN_PROGRESS))
+					break;
+				if (!pci_device_is_present(mrioc->pdev)) {
+					mrioc->unrecoverable = 1;
+					ioc_err(mrioc, "controller is not present at the bringup\n");
+					goto out_device_not_present;
+				}
+				msleep(100);
+			} while (--timeout);
+		}
 		mpi3mr_print_fault_info(mrioc);
 		ioc_info(mrioc, "issuing soft reset to bring to reset state\n");
 		retval = mpi3mr_issue_reset(mrioc,
@@ -1251,6 +1314,13 @@ static int mpi3mr_bring_ioc_ready(struct mpi3mr_ioc *mrioc)
 			    mpi3mr_iocstate_name(ioc_state));
 			return 0;
 		}
+		if (!pci_device_is_present(mrioc->pdev)) {
+			mrioc->unrecoverable = 1;
+			ioc_err(mrioc,
+			    "controller is not present at the bringup\n");
+			retval = -1;
+			goto out_device_not_present;
+		}
 		msleep(100);
 	} while (--timeout);
 
@@ -1259,6 +1329,7 @@ out_failed:
 	ioc_err(mrioc,
 	    "failed to bring to ready state,  current state: %s\n",
 	    mpi3mr_iocstate_name(ioc_state));
+out_device_not_present:
 	return retval;
 }
 
@@ -2163,9 +2234,13 @@ int mpi3mr_op_request_post(struct mpi3mr_ioc *mrioc,
 		pi = 0;
 	op_req_q->pi = pi;
 
+#ifndef CONFIG_PREEMPT_RT
 	if (atomic_inc_return(&mrioc->op_reply_qinfo[reply_qidx].pend_ios)
 	    > MPI3MR_IRQ_POLL_TRIGGER_IOCOUNT)
 		mrioc->op_reply_qinfo[reply_qidx].enable_irq_poll = true;
+#else
+	atomic_inc_return(&mrioc->op_reply_qinfo[reply_qidx].pend_ios);
+#endif
 
 	writel(op_req_q->pi,
 	    &mrioc->sysif_regs->oper_queue_indexes[reply_qidx].producer_index);
@@ -2192,6 +2267,17 @@ out:
 void mpi3mr_check_rh_fault_ioc(struct mpi3mr_ioc *mrioc, u32 reason_code)
 {
 	u32 ioc_status, host_diagnostic, timeout;
+
+	if (mrioc->unrecoverable) {
+		ioc_err(mrioc, "controller is unrecoverable\n");
+		return;
+	}
+
+	if (!pci_device_is_present(mrioc->pdev)) {
+		mrioc->unrecoverable = 1;
+		ioc_err(mrioc, "controller is not present\n");
+		return;
+	}
 
 	ioc_status = readl(&mrioc->sysif_regs->ioc_status);
 	if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
@@ -2384,8 +2470,20 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	u32 fault, host_diagnostic, ioc_status;
 	u32 reset_reason = MPI3MR_RESET_FROM_FAULT_WATCH;
 
-	if (mrioc->reset_in_progress || mrioc->unrecoverable)
+	if (mrioc->reset_in_progress)
 		return;
+
+	if (!mrioc->unrecoverable && !pci_device_is_present(mrioc->pdev)) {
+		ioc_err(mrioc, "watchdog could not detect the controller\n");
+		mrioc->unrecoverable = 1;
+	}
+
+	if (mrioc->unrecoverable) {
+		ioc_err(mrioc,
+		    "flush pending commands for unrecoverable controller\n");
+		mpi3mr_flush_cmds_for_unrecovered_controller(mrioc);
+		return;
+	}
 
 	if (mrioc->ts_update_counter++ >= MPI3MR_TSUPDATE_INTERVAL) {
 		mrioc->ts_update_counter = 0;
@@ -2426,13 +2524,14 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 	mrioc->diagsave_timeout = 0;
 
 	switch (fault) {
+	case MPI3_SYSIF_FAULT_CODE_COMPLETE_RESET_NEEDED:
 	case MPI3_SYSIF_FAULT_CODE_POWER_CYCLE_REQUIRED:
-		ioc_info(mrioc,
+		ioc_warn(mrioc,
 		    "controller requires system power cycle, marking controller as unrecoverable\n");
 		mrioc->unrecoverable = 1;
-		return;
+		goto schedule_work;
 	case MPI3_SYSIF_FAULT_CODE_SOFT_RESET_IN_PROGRESS:
-		return;
+		goto schedule_work;
 	case MPI3_SYSIF_FAULT_CODE_CI_ACTIVATION_RESET:
 		reset_reason = MPI3MR_RESET_FROM_CIACTIV_FAULT;
 		break;
@@ -2526,14 +2625,13 @@ static int mpi3mr_setup_admin_qpair(struct mpi3mr_ioc *mrioc)
 	mrioc->num_admin_req = mrioc->admin_req_q_sz /
 	    MPI3MR_ADMIN_REQ_FRAME_SZ;
 	mrioc->admin_req_ci = mrioc->admin_req_pi = 0;
-	mrioc->admin_req_base = NULL;
 
 	mrioc->admin_reply_q_sz = MPI3MR_ADMIN_REPLY_Q_SIZE;
 	mrioc->num_admin_replies = mrioc->admin_reply_q_sz /
 	    MPI3MR_ADMIN_REPLY_FRAME_SZ;
 	mrioc->admin_reply_ci = 0;
 	mrioc->admin_reply_ephase = 1;
-	mrioc->admin_reply_base = NULL;
+	atomic_set(&mrioc->admin_reply_q_in_use, 0);
 
 	if (!mrioc->admin_req_base) {
 		mrioc->admin_req_base = dma_alloc_coherent(&mrioc->pdev->dev,
@@ -2853,6 +2951,10 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->bsg_cmds.reply)
 		goto out_failed;
 
+	mrioc->transport_cmds.reply = kzalloc(mrioc->reply_sz, GFP_KERNEL);
+	if (!mrioc->transport_cmds.reply)
+		goto out_failed;
+
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
 		mrioc->dev_rmhs_cmds[i].reply = kzalloc(mrioc->reply_sz,
 		    GFP_KERNEL);
@@ -2879,27 +2981,18 @@ static int mpi3mr_alloc_reply_sense_bufs(struct mpi3mr_ioc *mrioc)
 	if (!mrioc->pel_abort_cmd.reply)
 		goto out_failed;
 
-	mrioc->dev_handle_bitmap_sz = mrioc->facts.max_devhandle / 8;
-	if (mrioc->facts.max_devhandle % 8)
-		mrioc->dev_handle_bitmap_sz++;
-	mrioc->removepend_bitmap = kzalloc(mrioc->dev_handle_bitmap_sz,
-	    GFP_KERNEL);
+	mrioc->dev_handle_bitmap_bits = mrioc->facts.max_devhandle;
+	mrioc->removepend_bitmap = bitmap_zalloc(mrioc->dev_handle_bitmap_bits,
+						 GFP_KERNEL);
 	if (!mrioc->removepend_bitmap)
 		goto out_failed;
 
-	mrioc->devrem_bitmap_sz = MPI3MR_NUM_DEVRMCMD / 8;
-	if (MPI3MR_NUM_DEVRMCMD % 8)
-		mrioc->devrem_bitmap_sz++;
-	mrioc->devrem_bitmap = kzalloc(mrioc->devrem_bitmap_sz,
-	    GFP_KERNEL);
+	mrioc->devrem_bitmap = bitmap_zalloc(MPI3MR_NUM_DEVRMCMD, GFP_KERNEL);
 	if (!mrioc->devrem_bitmap)
 		goto out_failed;
 
-	mrioc->evtack_cmds_bitmap_sz = MPI3MR_NUM_EVTACKCMD / 8;
-	if (MPI3MR_NUM_EVTACKCMD % 8)
-		mrioc->evtack_cmds_bitmap_sz++;
-	mrioc->evtack_cmds_bitmap = kzalloc(mrioc->evtack_cmds_bitmap_sz,
-	    GFP_KERNEL);
+	mrioc->evtack_cmds_bitmap = bitmap_zalloc(MPI3MR_NUM_EVTACKCMD,
+						  GFP_KERNEL);
 	if (!mrioc->evtack_cmds_bitmap)
 		goto out_failed;
 
@@ -3337,10 +3430,7 @@ static int mpi3mr_alloc_chain_bufs(struct mpi3mr_ioc *mrioc)
 		if (!mrioc->chain_sgl_list[i].addr)
 			goto out_failed;
 	}
-	mrioc->chain_bitmap_sz = num_chains / 8;
-	if (num_chains % 8)
-		mrioc->chain_bitmap_sz++;
-	mrioc->chain_bitmap = kzalloc(mrioc->chain_bitmap_sz, GFP_KERNEL);
+	mrioc->chain_bitmap = bitmap_zalloc(num_chains, GFP_KERNEL);
 	if (!mrioc->chain_bitmap)
 		goto out_failed;
 	return retval;
@@ -3362,10 +3452,13 @@ out_failed:
 static void mpi3mr_port_enable_complete(struct mpi3mr_ioc *mrioc,
 	struct mpi3mr_drv_cmd *drv_cmd)
 {
-	drv_cmd->state = MPI3MR_CMD_NOTUSED;
 	drv_cmd->callback = NULL;
-	mrioc->scan_failed = drv_cmd->ioc_status;
 	mrioc->scan_started = 0;
+	if (drv_cmd->state & MPI3MR_CMD_RESET)
+		mrioc->scan_failed = MPI3_IOCSTATUS_INTERNAL_ERROR;
+	else
+		mrioc->scan_failed = drv_cmd->ioc_status;
+	drv_cmd->state = MPI3MR_CMD_NOTUSED;
 }
 
 /**
@@ -3447,6 +3540,7 @@ static const struct {
 	char *name;
 } mpi3mr_capabilities[] = {
 	{ MPI3_IOCFACTS_CAPABILITY_RAID_CAPABLE, "RAID" },
+	{ MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED, "MultiPath" },
 };
 
 /**
@@ -3551,8 +3645,7 @@ int mpi3mr_setup_resources(struct mpi3mr_ioc *mrioc)
 	int i, retval = 0, capb = 0;
 	u16 message_control;
 	u64 dma_mask = mrioc->dma_mask ? mrioc->dma_mask :
-	    (((dma_get_required_mask(&pdev->dev) > DMA_BIT_MASK(32)) &&
-	    (sizeof(dma_addr_t) > 4)) ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
+	    ((sizeof(dma_addr_t) > 4) ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32));
 
 	if (pci_enable_device_mem(pdev)) {
 		ioc_err(mrioc, "pci_enable_device_mem: failed\n");
@@ -3657,6 +3750,7 @@ static int mpi3mr_enable_events(struct mpi3mr_ioc *mrioc)
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_INFO_CHANGED);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_DEVICE_STATUS_CHANGE);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENCL_DEVICE_STATUS_CHANGE);
+	mpi3mr_unmask_events(mrioc, MPI3_EVENT_ENCL_DEVICE_ADDED);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_TOPOLOGY_CHANGE_LIST);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DISCOVERY);
 	mpi3mr_unmask_events(mrioc, MPI3_EVENT_SAS_DEVICE_DISCOVERY_ERROR);
@@ -3727,6 +3821,14 @@ retry_init:
 		mrioc->max_host_ios = min_t(int, mrioc->max_host_ios,
 		    MPI3MR_HOST_IOS_KDUMP);
 
+	if (!(mrioc->facts.ioc_capabilities &
+	    MPI3_IOCFACTS_CAPABILITY_MULTIPATH_ENABLED)) {
+		mrioc->sas_transport_enabled = 1;
+		mrioc->scsi_device_channel = 1;
+		mrioc->shost->max_channel = 1;
+		mrioc->shost->transportt = mpi3mr_transport_template;
+	}
+
 	mrioc->reply_sz = mrioc->facts.reply_sz;
 
 	retval = mpi3mr_check_reset_dma_mask(mrioc);
@@ -3738,19 +3840,34 @@ retry_init:
 
 	mpi3mr_print_ioc_info(mrioc);
 
-	retval = mpi3mr_alloc_reply_sense_bufs(mrioc);
-	if (retval) {
-		ioc_err(mrioc,
-		    "%s :Failed to allocated reply sense buffers %d\n",
-		    __func__, retval);
-		goto out_failed_noretry;
+	if (!mrioc->cfg_page) {
+		dprint_init(mrioc, "allocating config page buffers\n");
+		mrioc->cfg_page_sz = MPI3MR_DEFAULT_CFG_PAGE_SZ;
+		mrioc->cfg_page = dma_alloc_coherent(&mrioc->pdev->dev,
+		    mrioc->cfg_page_sz, &mrioc->cfg_page_dma, GFP_KERNEL);
+		if (!mrioc->cfg_page) {
+			retval = -1;
+			goto out_failed_noretry;
+		}
 	}
 
-	retval = mpi3mr_alloc_chain_bufs(mrioc);
-	if (retval) {
-		ioc_err(mrioc, "Failed to allocated chain buffers %d\n",
-		    retval);
-		goto out_failed_noretry;
+	if (!mrioc->init_cmds.reply) {
+		retval = mpi3mr_alloc_reply_sense_bufs(mrioc);
+		if (retval) {
+			ioc_err(mrioc,
+			    "%s :Failed to allocated reply sense buffers %d\n",
+			    __func__, retval);
+			goto out_failed_noretry;
+		}
+	}
+
+	if (!mrioc->chain_sgl_list) {
+		retval = mpi3mr_alloc_chain_bufs(mrioc);
+		if (retval) {
+			ioc_err(mrioc, "Failed to allocated chain buffers %d\n",
+			    retval);
+			goto out_failed_noretry;
+		}
 	}
 
 	retval = mpi3mr_issue_iocinit(mrioc);
@@ -3795,10 +3912,11 @@ retry_init:
 	if (!mrioc->throttle_groups && mrioc->num_io_throttle_group) {
 		dprint_init(mrioc, "allocating memory for throttle groups\n");
 		sz = sizeof(struct mpi3mr_throttle_group_info);
-		mrioc->throttle_groups = (struct mpi3mr_throttle_group_info *)
-		    kcalloc(mrioc->num_io_throttle_group, sz, GFP_KERNEL);
-		if (!mrioc->throttle_groups)
+		mrioc->throttle_groups = kcalloc(mrioc->num_io_throttle_group, sz, GFP_KERNEL);
+		if (!mrioc->throttle_groups) {
+			retval = -1;
 			goto out_failed_noretry;
+		}
 	}
 
 	retval = mpi3mr_enable_events(mrioc);
@@ -3818,6 +3936,7 @@ out_failed:
 		mpi3mr_memset_buffers(mrioc);
 		goto retry_init;
 	}
+	retval = -1;
 out_failed_noretry:
 	ioc_err(mrioc, "controller initialization failed\n");
 	mpi3mr_issue_reset(mrioc, MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT,
@@ -3845,8 +3964,12 @@ int mpi3mr_reinit_ioc(struct mpi3mr_ioc *mrioc, u8 is_resume)
 	int retval = 0;
 	u8 retry = 0;
 	struct mpi3_ioc_facts_data facts_data;
+	u32 pe_timeout, ioc_status;
 
 retry_init:
+	pe_timeout =
+	    (MPI3MR_PORTENABLE_TIMEOUT / MPI3MR_PORTENABLE_POLL_INTERVAL);
+
 	dprint_reset(mrioc, "bringing up the controller to ready state\n");
 	retval = mpi3mr_bring_ioc_ready(mrioc);
 	if (retval) {
@@ -3926,6 +4049,7 @@ retry_init:
 		ioc_err(mrioc,
 		    "cannot create minimum number of operational queues expected:%d created:%d\n",
 		    mrioc->shost->nr_hw_queues, mrioc->num_op_reply_q);
+		retval = -1;
 		goto out_failed_noretry;
 	}
 
@@ -3936,12 +4060,50 @@ retry_init:
 		goto out_failed;
 	}
 
+	mrioc->device_refresh_on = 1;
+	mpi3mr_add_event_wait_for_device_refresh(mrioc);
+
 	ioc_info(mrioc, "sending port enable\n");
-	retval = mpi3mr_issue_port_enable(mrioc, 0);
+	retval = mpi3mr_issue_port_enable(mrioc, 1);
 	if (retval) {
 		ioc_err(mrioc, "failed to issue port enable\n");
 		goto out_failed;
 	}
+	do {
+		ssleep(MPI3MR_PORTENABLE_POLL_INTERVAL);
+		if (mrioc->init_cmds.state == MPI3MR_CMD_NOTUSED)
+			break;
+		if (!pci_device_is_present(mrioc->pdev))
+			mrioc->unrecoverable = 1;
+		if (mrioc->unrecoverable) {
+			retval = -1;
+			goto out_failed_noretry;
+		}
+		ioc_status = readl(&mrioc->sysif_regs->ioc_status);
+		if ((ioc_status & MPI3_SYSIF_IOC_STATUS_RESET_HISTORY) ||
+		    (ioc_status & MPI3_SYSIF_IOC_STATUS_FAULT)) {
+			mpi3mr_print_fault_info(mrioc);
+			mrioc->init_cmds.is_waiting = 0;
+			mrioc->init_cmds.callback = NULL;
+			mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+			goto out_failed;
+		}
+	} while (--pe_timeout);
+
+	if (!pe_timeout) {
+		ioc_err(mrioc, "port enable timed out\n");
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_PE_TIMEOUT);
+		mrioc->init_cmds.is_waiting = 0;
+		mrioc->init_cmds.callback = NULL;
+		mrioc->init_cmds.state = MPI3MR_CMD_NOTUSED;
+		goto out_failed;
+	} else if (mrioc->scan_failed) {
+		ioc_err(mrioc,
+		    "port enable failed with status=0x%04x\n",
+		    mrioc->scan_failed);
+	} else
+		ioc_info(mrioc, "port enable completed successfully\n");
 
 	ioc_info(mrioc, "controller %s completed successfully\n",
 	    (is_resume)?"resume":"re-initialization");
@@ -3954,6 +4116,7 @@ out_failed:
 		mpi3mr_memset_buffers(mrioc);
 		goto retry_init;
 	}
+	retval = -1;
 out_failed_noretry:
 	ioc_err(mrioc, "controller %s is failed\n",
 	    (is_resume)?"resume":"re-initialization");
@@ -4031,6 +4194,7 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		memset(mrioc->admin_req_base, 0, mrioc->admin_req_q_sz);
 	if (mrioc->admin_reply_base)
 		memset(mrioc->admin_reply_base, 0, mrioc->admin_reply_q_sz);
+	atomic_set(&mrioc->admin_reply_q_in_use, 0);
 
 	if (mrioc->init_cmds.reply) {
 		memset(mrioc->init_cmds.reply, 0, sizeof(*mrioc->init_cmds.reply));
@@ -4042,16 +4206,19 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		    sizeof(*mrioc->pel_cmds.reply));
 		memset(mrioc->pel_abort_cmd.reply, 0,
 		    sizeof(*mrioc->pel_abort_cmd.reply));
+		memset(mrioc->transport_cmds.reply, 0,
+		    sizeof(*mrioc->transport_cmds.reply));
 		for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
 			memset(mrioc->dev_rmhs_cmds[i].reply, 0,
 			    sizeof(*mrioc->dev_rmhs_cmds[i].reply));
 		for (i = 0; i < MPI3MR_NUM_EVTACKCMD; i++)
 			memset(mrioc->evtack_cmds[i].reply, 0,
 			    sizeof(*mrioc->evtack_cmds[i].reply));
-		memset(mrioc->removepend_bitmap, 0, mrioc->dev_handle_bitmap_sz);
-		memset(mrioc->devrem_bitmap, 0, mrioc->devrem_bitmap_sz);
-		memset(mrioc->evtack_cmds_bitmap, 0,
-		    mrioc->evtack_cmds_bitmap_sz);
+		bitmap_clear(mrioc->removepend_bitmap, 0,
+			     mrioc->dev_handle_bitmap_bits);
+		bitmap_clear(mrioc->devrem_bitmap, 0, MPI3MR_NUM_DEVRMCMD);
+		bitmap_clear(mrioc->evtack_cmds_bitmap, 0,
+			     MPI3MR_NUM_EVTACKCMD);
 	}
 
 	for (i = 0; i < mrioc->num_queues; i++) {
@@ -4101,6 +4268,8 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 {
 	u16 i;
 	struct mpi3mr_intr_info *intr_info;
+
+	mpi3mr_free_enclosure_list(mrioc);
 
 	if (mrioc->sense_buf_pool) {
 		if (mrioc->sense_buf)
@@ -4175,17 +4344,20 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 		mrioc->evtack_cmds[i].reply = NULL;
 	}
 
-	kfree(mrioc->removepend_bitmap);
+	bitmap_free(mrioc->removepend_bitmap);
 	mrioc->removepend_bitmap = NULL;
 
-	kfree(mrioc->devrem_bitmap);
+	bitmap_free(mrioc->devrem_bitmap);
 	mrioc->devrem_bitmap = NULL;
 
-	kfree(mrioc->evtack_cmds_bitmap);
+	bitmap_free(mrioc->evtack_cmds_bitmap);
 	mrioc->evtack_cmds_bitmap = NULL;
 
-	kfree(mrioc->chain_bitmap);
+	bitmap_free(mrioc->chain_bitmap);
 	mrioc->chain_bitmap = NULL;
+
+	kfree(mrioc->transport_cmds.reply);
+	mrioc->transport_cmds.reply = NULL;
 
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++) {
 		kfree(mrioc->dev_rmhs_cmds[i].reply);
@@ -4218,12 +4390,19 @@ void mpi3mr_free_mem(struct mpi3mr_ioc *mrioc)
 		    mrioc->admin_req_base, mrioc->admin_req_dma);
 		mrioc->admin_req_base = NULL;
 	}
-
+	if (mrioc->cfg_page) {
+		dma_free_coherent(&mrioc->pdev->dev, mrioc->cfg_page_sz,
+		    mrioc->cfg_page, mrioc->cfg_page_dma);
+		mrioc->cfg_page = NULL;
+	}
 	if (mrioc->pel_seqnum_virt) {
 		dma_free_coherent(&mrioc->pdev->dev, mrioc->pel_seqnum_sz,
 		    mrioc->pel_seqnum_virt, mrioc->pel_seqnum_dma);
 		mrioc->pel_seqnum_virt = NULL;
 	}
+
+	kfree(mrioc->throttle_groups);
+	mrioc->throttle_groups = NULL;
 
 	kfree(mrioc->logdata_buf);
 	mrioc->logdata_buf = NULL;
@@ -4355,13 +4534,17 @@ static inline void mpi3mr_drv_cmd_comp_reset(struct mpi3mr_ioc *mrioc,
  *
  * Return: Nothing.
  */
-static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
+void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 {
 	struct mpi3mr_drv_cmd *cmdptr;
 	u8 i;
 
 	cmdptr = &mrioc->init_cmds;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+
+	cmdptr = &mrioc->cfg_cmds;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
+
 	cmdptr = &mrioc->bsg_cmds;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 	cmdptr = &mrioc->host_tm_cmds;
@@ -4383,6 +4566,8 @@ static void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc)
 	cmdptr = &mrioc->pel_abort_cmd;
 	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 
+	cmdptr = &mrioc->transport_cmds;
+	mpi3mr_drv_cmd_comp_reset(mrioc, cmdptr);
 }
 
 /**
@@ -4681,6 +4866,7 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 	ioc_info(mrioc, "controller reset is triggered by %s\n",
 	    mpi3mr_reset_rc_name(reset_reason));
 
+	mrioc->device_refresh_on = 0;
 	mrioc->reset_in_progress = 1;
 	mrioc->stop_bsgs = 1;
 	mrioc->prev_reset_result = -1;
@@ -4733,12 +4919,15 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 
 	mpi3mr_flush_delayed_cmd_lists(mrioc);
 	mpi3mr_flush_drv_cmds(mrioc);
-	memset(mrioc->devrem_bitmap, 0, mrioc->devrem_bitmap_sz);
-	memset(mrioc->removepend_bitmap, 0, mrioc->dev_handle_bitmap_sz);
-	memset(mrioc->evtack_cmds_bitmap, 0, mrioc->evtack_cmds_bitmap_sz);
+	bitmap_clear(mrioc->devrem_bitmap, 0, MPI3MR_NUM_DEVRMCMD);
+	bitmap_clear(mrioc->removepend_bitmap, 0,
+		     mrioc->dev_handle_bitmap_bits);
+	bitmap_clear(mrioc->evtack_cmds_bitmap, 0, MPI3MR_NUM_EVTACKCMD);
 	mpi3mr_flush_host_io(mrioc);
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	mpi3mr_invalidate_devhandles(mrioc);
+	mpi3mr_free_enclosure_list(mrioc);
+
 	if (mrioc->prepare_for_reset) {
 		mrioc->prepare_for_reset = 0;
 		mrioc->prepare_for_reset_timeout_counter = 0;
@@ -4750,7 +4939,7 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 		    mrioc->name, reset_reason);
 		goto out;
 	}
-	ssleep(10);
+	ssleep(MPI3MR_RESET_TOPOLOGY_SETTLE_TIME);
 
 out:
 	if (!retval) {
@@ -4762,7 +4951,8 @@ out:
 			mpi3mr_pel_wait_post(mrioc, &mrioc->pel_cmds);
 		}
 
-		mpi3mr_rfresh_tgtdevs(mrioc);
+		mrioc->device_refresh_on = 0;
+
 		mrioc->ts_update_counter = 0;
 		spin_lock_irqsave(&mrioc->watchdog_lock, flags);
 		if (mrioc->watchdog_work_q)
@@ -4776,13 +4966,848 @@ out:
 	} else {
 		mpi3mr_issue_reset(mrioc,
 		    MPI3_SYSIF_HOST_DIAG_RESET_ACTION_DIAG_FAULT, reset_reason);
+		mrioc->device_refresh_on = 0;
 		mrioc->unrecoverable = 1;
 		mrioc->reset_in_progress = 0;
 		retval = -1;
+		mpi3mr_flush_cmds_for_unrecovered_controller(mrioc);
 	}
 	mrioc->prev_reset_result = retval;
 	mutex_unlock(&mrioc->reset_mutex);
 	ioc_info(mrioc, "controller reset is %s\n",
 	    ((retval == 0) ? "successful" : "failed"));
 	return retval;
+}
+
+
+/**
+ * mpi3mr_free_config_dma_memory - free memory for config page
+ * @mrioc: Adapter instance reference
+ * @mem_desc: memory descriptor structure
+ *
+ * Check whether the size of the buffer specified by the memory
+ * descriptor is greater than the default page size if so then
+ * free the memory pointed by the descriptor.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_free_config_dma_memory(struct mpi3mr_ioc *mrioc,
+	struct dma_memory_desc *mem_desc)
+{
+	if ((mem_desc->size > mrioc->cfg_page_sz) && mem_desc->addr) {
+		dma_free_coherent(&mrioc->pdev->dev, mem_desc->size,
+		    mem_desc->addr, mem_desc->dma_addr);
+		mem_desc->addr = NULL;
+	}
+}
+
+/**
+ * mpi3mr_alloc_config_dma_memory - Alloc memory for config page
+ * @mrioc: Adapter instance reference
+ * @mem_desc: Memory descriptor to hold dma memory info
+ *
+ * This function allocates new dmaable memory or provides the
+ * default config page dmaable memory based on the memory size
+ * described by the descriptor.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_alloc_config_dma_memory(struct mpi3mr_ioc *mrioc,
+	struct dma_memory_desc *mem_desc)
+{
+	if (mem_desc->size > mrioc->cfg_page_sz) {
+		mem_desc->addr = dma_alloc_coherent(&mrioc->pdev->dev,
+		    mem_desc->size, &mem_desc->dma_addr, GFP_KERNEL);
+		if (!mem_desc->addr)
+			return -ENOMEM;
+	} else {
+		mem_desc->addr = mrioc->cfg_page;
+		mem_desc->dma_addr = mrioc->cfg_page_dma;
+		memset(mem_desc->addr, 0, mrioc->cfg_page_sz);
+	}
+	return 0;
+}
+
+/**
+ * mpi3mr_post_cfg_req - Issue config requests and wait
+ * @mrioc: Adapter instance reference
+ * @cfg_req: Configuration request
+ * @timeout: Timeout in seconds
+ * @ioc_status: Pointer to return ioc status
+ *
+ * A generic function for posting MPI3 configuration request to
+ * the firmware. This blocks for the completion of request for
+ * timeout seconds and if the request times out this function
+ * faults the controller with proper reason code.
+ *
+ * On successful completion of the request this function returns
+ * appropriate ioc status from the firmware back to the caller.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_post_cfg_req(struct mpi3mr_ioc *mrioc,
+	struct mpi3_config_request *cfg_req, int timeout, u16 *ioc_status)
+{
+	int retval = 0;
+
+	mutex_lock(&mrioc->cfg_cmds.mutex);
+	if (mrioc->cfg_cmds.state & MPI3MR_CMD_PENDING) {
+		retval = -1;
+		ioc_err(mrioc, "sending config request failed due to command in use\n");
+		mutex_unlock(&mrioc->cfg_cmds.mutex);
+		goto out;
+	}
+	mrioc->cfg_cmds.state = MPI3MR_CMD_PENDING;
+	mrioc->cfg_cmds.is_waiting = 1;
+	mrioc->cfg_cmds.callback = NULL;
+	mrioc->cfg_cmds.ioc_status = 0;
+	mrioc->cfg_cmds.ioc_loginfo = 0;
+
+	cfg_req->host_tag = cpu_to_le16(MPI3MR_HOSTTAG_CFG_CMDS);
+	cfg_req->function = MPI3_FUNCTION_CONFIG;
+
+	init_completion(&mrioc->cfg_cmds.done);
+	dprint_cfg_info(mrioc, "posting config request\n");
+	if (mrioc->logging_level & MPI3_DEBUG_CFG_INFO)
+		dprint_dump(cfg_req, sizeof(struct mpi3_config_request),
+		    "mpi3_cfg_req");
+	retval = mpi3mr_admin_request_post(mrioc, cfg_req, sizeof(*cfg_req), 1);
+	if (retval) {
+		ioc_err(mrioc, "posting config request failed\n");
+		goto out_unlock;
+	}
+	wait_for_completion_timeout(&mrioc->cfg_cmds.done, (timeout * HZ));
+	if (!(mrioc->cfg_cmds.state & MPI3MR_CMD_COMPLETE)) {
+		mpi3mr_check_rh_fault_ioc(mrioc,
+		    MPI3MR_RESET_FROM_CFG_REQ_TIMEOUT);
+		ioc_err(mrioc, "config request timed out\n");
+		retval = -1;
+		goto out_unlock;
+	}
+	*ioc_status = mrioc->cfg_cmds.ioc_status & MPI3_IOCSTATUS_STATUS_MASK;
+	if ((*ioc_status) != MPI3_IOCSTATUS_SUCCESS)
+		dprint_cfg_err(mrioc,
+		    "cfg_page request returned with ioc_status(0x%04x), log_info(0x%08x)\n",
+		    *ioc_status, mrioc->cfg_cmds.ioc_loginfo);
+
+out_unlock:
+	mrioc->cfg_cmds.state = MPI3MR_CMD_NOTUSED;
+	mutex_unlock(&mrioc->cfg_cmds.mutex);
+
+out:
+	return retval;
+}
+
+/**
+ * mpi3mr_process_cfg_req - config page request processor
+ * @mrioc: Adapter instance reference
+ * @cfg_req: Configuration request
+ * @cfg_hdr: Configuration page header
+ * @timeout: Timeout in seconds
+ * @ioc_status: Pointer to return ioc status
+ * @cfg_buf: Memory pointer to copy config page or header
+ * @cfg_buf_sz: Size of the memory to get config page or header
+ *
+ * This is handler for config page read, write and config page
+ * header read operations.
+ *
+ * This function expects the cfg_req to be populated with page
+ * type, page number, action for the header read and with page
+ * address for all other operations.
+ *
+ * The cfg_hdr can be passed as null for reading required header
+ * details for read/write pages the cfg_hdr should point valid
+ * configuration page header.
+ *
+ * This allocates dmaable memory based on the size of the config
+ * buffer and set the SGE of the cfg_req.
+ *
+ * For write actions, the config page data has to be passed in
+ * the cfg_buf and size of the data has to be mentioned in the
+ * cfg_buf_sz.
+ *
+ * For read/header actions, on successful completion of the
+ * request with successful ioc_status the data will be copied
+ * into the cfg_buf limited to a minimum of actual page size and
+ * cfg_buf_sz
+ *
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+static int mpi3mr_process_cfg_req(struct mpi3mr_ioc *mrioc,
+	struct mpi3_config_request *cfg_req,
+	struct mpi3_config_page_header *cfg_hdr, int timeout, u16 *ioc_status,
+	void *cfg_buf, u32 cfg_buf_sz)
+{
+	struct dma_memory_desc mem_desc;
+	int retval = -1;
+	u8 invalid_action = 0;
+	u8 sgl_flags = MPI3MR_SGEFLAGS_SYSTEM_SIMPLE_END_OF_LIST;
+
+	memset(&mem_desc, 0, sizeof(struct dma_memory_desc));
+
+	if (cfg_req->action == MPI3_CONFIG_ACTION_PAGE_HEADER)
+		mem_desc.size = sizeof(struct mpi3_config_page_header);
+	else {
+		if (!cfg_hdr) {
+			ioc_err(mrioc, "null config header passed for config action(%d), page_type(0x%02x), page_num(%d)\n",
+			    cfg_req->action, cfg_req->page_type,
+			    cfg_req->page_number);
+			goto out;
+		}
+		switch (cfg_hdr->page_attribute & MPI3_CONFIG_PAGEATTR_MASK) {
+		case MPI3_CONFIG_PAGEATTR_READ_ONLY:
+			if (cfg_req->action
+			    != MPI3_CONFIG_ACTION_READ_CURRENT)
+				invalid_action = 1;
+			break;
+		case MPI3_CONFIG_PAGEATTR_CHANGEABLE:
+			if ((cfg_req->action ==
+			     MPI3_CONFIG_ACTION_READ_PERSISTENT) ||
+			    (cfg_req->action ==
+			     MPI3_CONFIG_ACTION_WRITE_PERSISTENT))
+				invalid_action = 1;
+			break;
+		case MPI3_CONFIG_PAGEATTR_PERSISTENT:
+		default:
+			break;
+		}
+		if (invalid_action) {
+			ioc_err(mrioc,
+			    "config action(%d) is not allowed for page_type(0x%02x), page_num(%d) with page_attribute(0x%02x)\n",
+			    cfg_req->action, cfg_req->page_type,
+			    cfg_req->page_number, cfg_hdr->page_attribute);
+			goto out;
+		}
+		mem_desc.size = le16_to_cpu(cfg_hdr->page_length) * 4;
+		cfg_req->page_length = cfg_hdr->page_length;
+		cfg_req->page_version = cfg_hdr->page_version;
+	}
+	if (mpi3mr_alloc_config_dma_memory(mrioc, &mem_desc))
+		goto out;
+
+	mpi3mr_add_sg_single(&cfg_req->sgl, sgl_flags, mem_desc.size,
+	    mem_desc.dma_addr);
+
+	if ((cfg_req->action == MPI3_CONFIG_ACTION_WRITE_PERSISTENT) ||
+	    (cfg_req->action == MPI3_CONFIG_ACTION_WRITE_CURRENT)) {
+		memcpy(mem_desc.addr, cfg_buf, min_t(u16, mem_desc.size,
+		    cfg_buf_sz));
+		dprint_cfg_info(mrioc, "config buffer to be written\n");
+		if (mrioc->logging_level & MPI3_DEBUG_CFG_INFO)
+			dprint_dump(mem_desc.addr, mem_desc.size, "cfg_buf");
+	}
+
+	if (mpi3mr_post_cfg_req(mrioc, cfg_req, timeout, ioc_status))
+		goto out;
+
+	retval = 0;
+	if ((*ioc_status == MPI3_IOCSTATUS_SUCCESS) &&
+	    (cfg_req->action != MPI3_CONFIG_ACTION_WRITE_PERSISTENT) &&
+	    (cfg_req->action != MPI3_CONFIG_ACTION_WRITE_CURRENT)) {
+		memcpy(cfg_buf, mem_desc.addr, min_t(u16, mem_desc.size,
+		    cfg_buf_sz));
+		dprint_cfg_info(mrioc, "config buffer read\n");
+		if (mrioc->logging_level & MPI3_DEBUG_CFG_INFO)
+			dprint_dump(mem_desc.addr, mem_desc.size, "cfg_buf");
+	}
+
+out:
+	mpi3mr_free_config_dma_memory(mrioc, &mem_desc);
+	return retval;
+}
+
+/**
+ * mpi3mr_cfg_get_dev_pg0 - Read current device page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @dev_pg0: Pointer to return device page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like device handle
+ *
+ * This is handler for config page read for a specific device
+ * page0. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_dev_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_device_page0 *dev_pg0, u16 pg_sz, u32 form, u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(dev_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_DEVICE;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "device page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "device page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_DEVICE_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_DEVICE_PGAD_HANDLE_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, dev_pg0, pg_sz)) {
+		ioc_err(mrioc, "device page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+
+/**
+ * mpi3mr_cfg_get_sas_phy_pg0 - Read current SAS Phy page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @phy_pg0: Pointer to return SAS Phy page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like phy number
+ *
+ * This is handler for config page read for a specific SAS Phy
+ * page0. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_phy_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_phy_page0 *phy_pg0, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(phy_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_PHY;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas phy page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas phy page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_PHY_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_SAS_PHY_PGAD_PHY_NUMBER_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, phy_pg0, pg_sz)) {
+		ioc_err(mrioc, "sas phy page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_sas_phy_pg1 - Read current SAS Phy page1
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @phy_pg1: Pointer to return SAS Phy page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like phy number
+ *
+ * This is handler for config page read for a specific SAS Phy
+ * page1. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_phy_pg1(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_phy_page1 *phy_pg1, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(phy_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_PHY;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas phy page1 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas phy page1 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_PHY_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_SAS_PHY_PGAD_PHY_NUMBER_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, phy_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas phy page1 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+
+/**
+ * mpi3mr_cfg_get_sas_exp_pg0 - Read current SAS Expander page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @exp_pg0: Pointer to return SAS Expander page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like device handle
+ *
+ * This is handler for config page read for a specific SAS
+ * Expander page0. The ioc_status has the controller returned
+ * ioc_status. This routine doesn't check ioc_status to decide
+ * whether the page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_exp_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_expander_page0 *exp_pg0, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(exp_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_EXPANDER;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "expander page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "expander page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_EXPAND_PGAD_FORM_MASK) |
+	    (form_spec & (MPI3_SAS_EXPAND_PGAD_PHYNUM_MASK |
+	    MPI3_SAS_EXPAND_PGAD_HANDLE_MASK)));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, exp_pg0, pg_sz)) {
+		ioc_err(mrioc, "expander page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_sas_exp_pg1 - Read current SAS Expander page1
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @exp_pg1: Pointer to return SAS Expander page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like phy number
+ *
+ * This is handler for config page read for a specific SAS
+ * Expander page1. The ioc_status has the controller returned
+ * ioc_status. This routine doesn't check ioc_status to decide
+ * whether the page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_exp_pg1(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_sas_expander_page1 *exp_pg1, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(exp_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_EXPANDER;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "expander page1 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "expander page1 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_SAS_EXPAND_PGAD_FORM_MASK) |
+	    (form_spec & (MPI3_SAS_EXPAND_PGAD_PHYNUM_MASK |
+	    MPI3_SAS_EXPAND_PGAD_HANDLE_MASK)));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, exp_pg1, pg_sz)) {
+		ioc_err(mrioc, "expander page1 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_enclosure_pg0 - Read current Enclosure page0
+ * @mrioc: Adapter instance reference
+ * @ioc_status: Pointer to return ioc status
+ * @encl_pg0: Pointer to return Enclosure page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ * @form: The form to be used for addressing the page
+ * @form_spec: Form specific information like device handle
+ *
+ * This is handler for config page read for a specific Enclosure
+ * page0. The ioc_status has the controller returned ioc_status.
+ * This routine doesn't check ioc_status to decide whether the
+ * page read is success or not and it is the callers
+ * responsibility.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_enclosure_pg0(struct mpi3mr_ioc *mrioc, u16 *ioc_status,
+	struct mpi3_enclosure_page0 *encl_pg0, u16 pg_sz, u32 form,
+	u32 form_spec)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u32 page_address;
+
+	memset(encl_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_ENCLOSURE;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "enclosure page0 header read failed\n");
+		goto out_failed;
+	}
+	if (*ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "enclosure page0 header read failed with ioc_status(0x%04x)\n",
+		    *ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+	page_address = ((form & MPI3_ENCLOS_PGAD_FORM_MASK) |
+	    (form_spec & MPI3_ENCLOS_PGAD_HANDLE_MASK));
+	cfg_req.page_address = cpu_to_le32(page_address);
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, ioc_status, encl_pg0, pg_sz)) {
+		ioc_err(mrioc, "enclosure page0 read failed\n");
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+
+/**
+ * mpi3mr_cfg_get_sas_io_unit_pg0 - Read current SASIOUnit page0
+ * @mrioc: Adapter instance reference
+ * @sas_io_unit_pg0: Pointer to return SAS IO Unit page 0
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page read for the SAS IO Unit
+ * page0. This routine checks ioc_status to decide whether the
+ * page read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_io_unit_pg0(struct mpi3mr_ioc *mrioc,
+	struct mpi3_sas_io_unit_page0 *sas_io_unit_pg0, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(sas_io_unit_pg0, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_IO_UNIT;
+	cfg_req.page_number = 0;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas io unit page0 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page0 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg0, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page0 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page0 read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_sas_io_unit_pg1 - Read current SASIOUnit page1
+ * @mrioc: Adapter instance reference
+ * @sas_io_unit_pg1: Pointer to return SAS IO Unit page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page read for the SAS IO Unit
+ * page1. This routine checks ioc_status to decide whether the
+ * page read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_sas_io_unit_pg1(struct mpi3mr_ioc *mrioc,
+	struct mpi3_sas_io_unit_page1 *sas_io_unit_pg1, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(sas_io_unit_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_IO_UNIT;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas io unit page1 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page1 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_set_sas_io_unit_pg1 - Write SASIOUnit page1
+ * @mrioc: Adapter instance reference
+ * @sas_io_unit_pg1: Pointer to the SAS IO Unit page 1 to write
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page write for the SAS IO Unit
+ * page1. This routine checks ioc_status to decide whether the
+ * page read is success or not. This will modify both current
+ * and persistent page.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_set_sas_io_unit_pg1(struct mpi3mr_ioc *mrioc,
+	struct mpi3_sas_io_unit_page1 *sas_io_unit_pg1, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_SAS_IO_UNIT;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "sas io unit page1 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_WRITE_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page1 write current failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 write current failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+
+	cfg_req.action = MPI3_CONFIG_ACTION_WRITE_PERSISTENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, sas_io_unit_pg1, pg_sz)) {
+		ioc_err(mrioc, "sas io unit page1 write persistent failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "sas io unit page1 write persistent failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
+}
+
+/**
+ * mpi3mr_cfg_get_driver_pg1 - Read current Driver page1
+ * @mrioc: Adapter instance reference
+ * @driver_pg1: Pointer to return Driver page 1
+ * @pg_sz: Size of the memory allocated to the page pointer
+ *
+ * This is handler for config page read for the Driver page1.
+ * This routine checks ioc_status to decide whether the page
+ * read is success or not.
+ *
+ * Return: 0 on success, non-zero on failure.
+ */
+int mpi3mr_cfg_get_driver_pg1(struct mpi3mr_ioc *mrioc,
+	struct mpi3_driver_page1 *driver_pg1, u16 pg_sz)
+{
+	struct mpi3_config_page_header cfg_hdr;
+	struct mpi3_config_request cfg_req;
+	u16 ioc_status = 0;
+
+	memset(driver_pg1, 0, pg_sz);
+	memset(&cfg_hdr, 0, sizeof(cfg_hdr));
+	memset(&cfg_req, 0, sizeof(cfg_req));
+
+	cfg_req.function = MPI3_FUNCTION_CONFIG;
+	cfg_req.action = MPI3_CONFIG_ACTION_PAGE_HEADER;
+	cfg_req.page_type = MPI3_CONFIG_PAGETYPE_DRIVER;
+	cfg_req.page_number = 1;
+	cfg_req.page_address = 0;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, NULL,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, &cfg_hdr, sizeof(cfg_hdr))) {
+		ioc_err(mrioc, "driver page1 header read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "driver page1 header read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	cfg_req.action = MPI3_CONFIG_ACTION_READ_CURRENT;
+
+	if (mpi3mr_process_cfg_req(mrioc, &cfg_req, &cfg_hdr,
+	    MPI3MR_INTADMCMD_TIMEOUT, &ioc_status, driver_pg1, pg_sz)) {
+		ioc_err(mrioc, "driver page1 read failed\n");
+		goto out_failed;
+	}
+	if (ioc_status != MPI3_IOCSTATUS_SUCCESS) {
+		ioc_err(mrioc, "driver page1 read failed with ioc_status(0x%04x)\n",
+		    ioc_status);
+		goto out_failed;
+	}
+	return 0;
+out_failed:
+	return -1;
 }

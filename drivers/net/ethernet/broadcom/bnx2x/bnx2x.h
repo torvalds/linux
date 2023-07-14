@@ -1486,7 +1486,6 @@ struct bnx2x {
 #define IS_VF_FLAG			(1 << 22)
 #define BC_SUPPORTS_RMMOD_CMD		(1 << 23)
 #define HAS_PHYS_PORT_ID		(1 << 24)
-#define AER_ENABLED			(1 << 25)
 #define PTP_SUPPORTED			(1 << 26)
 #define TX_TIMESTAMPING_EN		(1 << 27)
 

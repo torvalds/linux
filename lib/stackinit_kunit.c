@@ -3,7 +3,7 @@
  * Test cases for compiler-based stack variable zeroing via
  * -ftrivial-auto-var-init={zero,pattern} or CONFIG_GCC_PLUGIN_STRUCTLEAK*.
  * For example, see:
- * https://www.kernel.org/doc/html/latest/dev-tools/kunit/kunit-tool.html#configuring-building-and-running-tests
+ * "Running tests with kunit_tool" at Documentation/dev-tools/kunit/start.rst
  *	./tools/testing/kunit/kunit.py run stackinit [--raw_output] \
  *		--make_option LLVM=1 \
  *		--kconfig_add CONFIG_INIT_STACK_ALL_ZERO=y
@@ -31,8 +31,8 @@ static volatile u8 forced_mask = 0xff;
 static void *fill_start, *target_start;
 static size_t fill_size, target_size;
 
-static bool range_contains(char *haystack_start, size_t haystack_size,
-			   char *needle_start, size_t needle_size)
+static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
+				     char *needle_start, size_t needle_size)
 {
 	if (needle_start >= haystack_start &&
 	    needle_start + needle_size <= haystack_start + haystack_size)
@@ -175,7 +175,7 @@ static noinline void test_ ## name (struct kunit *test)		\
 								\
 	/* Validate that compiler lined up fill and target. */	\
 	KUNIT_ASSERT_TRUE_MSG(test,				\
-		range_contains(fill_start, fill_size,		\
+		stackinit_range_contains(fill_start, fill_size,	\
 			    target_start, target_size),		\
 		"stack fill missed target!? "			\
 		"(fill %zu wide, target offset by %d)\n",	\

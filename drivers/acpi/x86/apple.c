@@ -71,13 +71,16 @@ void acpi_extract_apple_properties(struct acpi_device *adev)
 
 		if ( key->type != ACPI_TYPE_STRING ||
 		    (val->type != ACPI_TYPE_INTEGER &&
-		     val->type != ACPI_TYPE_BUFFER))
+		     val->type != ACPI_TYPE_BUFFER &&
+		     val->type != ACPI_TYPE_STRING))
 			continue; /* skip invalid properties */
 
 		__set_bit(i, valid);
 		newsize += key->string.length + 1;
 		if ( val->type == ACPI_TYPE_BUFFER)
 			newsize += val->buffer.length;
+		else if (val->type == ACPI_TYPE_STRING)
+			newsize += val->string.length + 1;
 	}
 
 	numvalid = bitmap_weight(valid, numprops);
@@ -119,6 +122,12 @@ void acpi_extract_apple_properties(struct acpi_device *adev)
 		newprops[v].type = val->type;
 		if (val->type == ACPI_TYPE_INTEGER) {
 			newprops[v].integer.value = val->integer.value;
+		} else if (val->type == ACPI_TYPE_STRING) {
+			newprops[v].string.length = val->string.length;
+			newprops[v].string.pointer = free_space;
+			memcpy(free_space, val->string.pointer,
+			       val->string.length);
+			free_space += val->string.length + 1;
 		} else {
 			newprops[v].buffer.length = val->buffer.length;
 			newprops[v].buffer.pointer = free_space;

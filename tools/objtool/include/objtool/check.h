@@ -27,7 +27,7 @@ struct alt_group {
 	struct alt_group *orig_group;
 
 	/* First and last instructions in the group */
-	struct instruction *first_insn, *last_insn;
+	struct instruction *first_insn, *last_insn, *nop;
 
 	/*
 	 * Byte-offset-addressed len-sized array of pointers to CFI structs.
@@ -36,46 +36,63 @@ struct alt_group {
 	struct cfi_state **cfi;
 };
 
+#define INSN_CHUNK_BITS		8
+#define INSN_CHUNK_SIZE		(1 << INSN_CHUNK_BITS)
+#define INSN_CHUNK_MAX		(INSN_CHUNK_SIZE - 1)
+
 struct instruction {
-	struct list_head list;
 	struct hlist_node hash;
 	struct list_head call_node;
 	struct section *sec;
 	unsigned long offset;
-	unsigned int len;
-	enum insn_type type;
 	unsigned long immediate;
 
-	u16 dead_end		: 1,
-	   ignore		: 1,
-	   ignore_alts		: 1,
-	   hint			: 1,
-	   save			: 1,
-	   restore		: 1,
-	   retpoline_safe	: 1,
-	   noendbr		: 1,
-	   entry		: 1;
-		/* 7 bit hole */
-
+	u8 len;
+	u8 prev_len;
+	u8 type;
 	s8 instr;
-	u8 visited;
+
+	u32 idx			: INSN_CHUNK_BITS,
+	    dead_end		: 1,
+	    ignore		: 1,
+	    ignore_alts		: 1,
+	    hint		: 1,
+	    save		: 1,
+	    restore		: 1,
+	    retpoline_safe	: 1,
+	    noendbr		: 1,
+	    unret		: 1,
+	    visited		: 4,
+	    no_reloc		: 1;
+		/* 10 bit hole */
 
 	struct alt_group *alt_group;
-	struct symbol *call_dest;
 	struct instruction *jump_dest;
 	struct instruction *first_jump_src;
-	struct reloc *jump_table;
-	struct reloc *reloc;
-	struct list_head alts;
-	struct symbol *func;
-	struct list_head stack_ops;
+	union {
+		struct symbol *_call_dest;
+		struct reloc *_jump_table;
+	};
+	struct alternative *alts;
+	struct symbol *sym;
+	struct stack_op *stack_ops;
 	struct cfi_state *cfi;
 };
+
+static inline struct symbol *insn_func(struct instruction *insn)
+{
+	struct symbol *sym = insn->sym;
+
+	if (sym && sym->type != STT_FUNC)
+		sym = NULL;
+
+	return sym;
+}
 
 #define VISITED_BRANCH		0x01
 #define VISITED_BRANCH_UACCESS	0x02
 #define VISITED_BRANCH_MASK	0x03
-#define VISITED_ENTRY		0x04
+#define VISITED_UNRET		0x04
 
 static inline bool is_static_jump(struct instruction *insn)
 {
@@ -97,13 +114,11 @@ static inline bool is_jump(struct instruction *insn)
 struct instruction *find_insn(struct objtool_file *file,
 			      struct section *sec, unsigned long offset);
 
-#define for_each_insn(file, insn)					\
-	list_for_each_entry(insn, &file->insn_list, list)
+struct instruction *next_insn_same_sec(struct objtool_file *file, struct instruction *insn);
 
-#define sec_for_each_insn(file, sec, insn)				\
-	for (insn = find_insn(file, sec, 0);				\
-	     insn && &insn->list != &file->insn_list &&			\
-			insn->sec == sec;				\
-	     insn = list_next_entry(insn, list))
+#define sec_for_each_insn(file, _sec, insn)				\
+	for (insn = find_insn(file, _sec, 0);				\
+	     insn && insn->sec == _sec;					\
+	     insn = next_insn_same_sec(file, insn))
 
 #endif /* _CHECK_H */

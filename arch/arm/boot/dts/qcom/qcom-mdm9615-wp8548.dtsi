@@ -1,0 +1,134 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Device Tree Source for Sierra Wireless WP8548 Module
+ *
+ * Copyright (C) 2016 BayLibre, SAS.
+ * Author : Neil Armstrong <narmstrong@baylibre.com>
+ */
+
+#include "qcom-mdm9615.dtsi"
+
+/ {
+	model = "Sierra Wireless WP8548 Module";
+	compatible = "swir,wp8548", "qcom,mdm9615";
+
+	memory@48000000 {
+		device_type = "memory";
+		reg = <0x48000000 0x7F00000>;
+	};
+};
+
+&msmgpio {
+	pinctrl-0 = <&reset_out_pins>;
+	pinctrl-names = "default";
+
+	gsbi3_pins: gsbi3-state {
+		gsbi3-pins {
+			pins = "gpio8", "gpio9", "gpio10", "gpio11";
+			function = "gsbi3";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	gsbi4_pins: gsbi4-state {
+		gsbi4-pins {
+			pins = "gpio12", "gpio13", "gpio14", "gpio15";
+			function = "gsbi4";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	gsbi5_i2c_pins: gsbi5-i2c-state {
+		sda-pins {
+			pins = "gpio16";
+			function = "gsbi5_i2c";
+			drive-strength = <8>;
+			bias-disable;
+		};
+
+		scl-pins {
+			pins = "gpio17";
+			function = "gsbi5_i2c";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	gsbi5_uart_pins: gsbi5-uart-state {
+		gsbi5-uart-pins {
+			pins = "gpio18", "gpio19";
+			function = "gsbi5_uart";
+			drive-strength = <8>;
+			bias-disable;
+		};
+	};
+
+	reset_out_pins: reset-out-state {
+		reset-out-pins {
+			pins = "gpio66";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+			output-high;
+		};
+	};
+};
+
+&pmicgpio {
+	usb_vbus_5v_pins: usb-vbus-5v-state {
+		pins = "gpio4";
+		function = "normal";
+		output-high;
+		bias-disable;
+		qcom,drive-strength = <1>;
+		power-source = <2>;
+	};
+};
+
+&gsbi3 {
+	status = "okay";
+	qcom,mode = <GSBI_PROT_SPI>;
+};
+
+&gsbi3_spi {
+	status = "okay";
+	pinctrl-0 = <&gsbi3_pins>;
+	pinctrl-names = "default";
+	assigned-clocks = <&gcc GSBI3_QUP_CLK>;
+	assigned-clock-rates = <24000000>;
+};
+
+&gsbi4 {
+	status = "okay";
+	qcom,mode = <GSBI_PROT_UART_W_FC>;
+};
+
+&gsbi4_serial {
+	status = "okay";
+	pinctrl-0 = <&gsbi4_pins>;
+	pinctrl-names = "default";
+};
+
+&gsbi5 {
+	status = "okay";
+	qcom,mode = <GSBI_PROT_I2C_UART>;
+};
+
+&gsbi5_i2c {
+	status = "okay";
+	clock-frequency = <200000>;
+	pinctrl-0 = <&gsbi5_i2c_pins>;
+	pinctrl-names = "default";
+};
+
+&gsbi5_serial {
+	status = "okay";
+	pinctrl-0 = <&gsbi5_uart_pins>;
+	pinctrl-names = "default";
+};
+
+&sdcc1 {
+	status = "okay";
+};

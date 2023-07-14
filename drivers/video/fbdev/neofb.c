@@ -23,9 +23,9 @@
  *
  * 0.3.3
  *  - Porting over to new fbdev api. (jsimmons)
- *  
+ *
  * 0.3.2
- *  - got rid of all floating point (dok) 
+ *  - got rid of all floating point (dok)
  *
  * 0.3.1
  *  - added module license (dok)
@@ -54,6 +54,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1154,14 +1155,14 @@ static int neofb_set_par(struct fb_info *info)
 
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
-		case FB_ACCEL_NEOMAGIC_NM2380: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
+		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_accel_init(info, &info->var);
 			break;
 		default:
 			break;
-	}	
+	}
 	return 0;
 }
 
@@ -1493,15 +1494,15 @@ neofb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
 		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_fillrect(info, rect);
 			break;
 		default:
 			cfb_fillrect(info, rect);
 			break;
-	}	
+	}
 }
 
 static void
@@ -1509,15 +1510,15 @@ neofb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
-		case FB_ACCEL_NEOMAGIC_NM2380: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
+		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_copyarea(info, area);
 			break;
 		default:
 			cfb_copyarea(info, area);
 			break;
-	}	
+	}
 }
 
 static void
@@ -1536,20 +1537,20 @@ neofb_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 }
 
-static int 
+static int
 neofb_sync(struct fb_info *info)
 {
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
-		case FB_ACCEL_NEOMAGIC_NM2380: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
+		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_sync(info);
 			break;
 		default:
 			break;
 	}
-	return 0;		
+	return 0;
 }
 
 /*
@@ -2029,6 +2030,10 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	DBG("neofb_probe");
 
+	err = aperture_remove_conflicting_pci_devices(dev, "neofb");
+	if (err)
+		return err;
+
 	err = pci_enable_device(dev);
 	if (err)
 		return err;
@@ -2204,7 +2209,12 @@ static int __init neofb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("neofb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("neofb", &option))
 		return -ENODEV;
 	neofb_setup(option);

@@ -498,7 +498,7 @@ static int wm8978_configure_pll(struct snd_soc_component *component)
 
 		if (4 * f_opclk < 3 * f_mclk)
 			/* Have to use OPCLKDIV */
-			opclk_div = (3 * f_mclk / 4 + f_opclk - 1) / f_opclk;
+			opclk_div = DIV_ROUND_UP(3 * f_mclk / 4, f_opclk);
 		else
 			opclk_div = 1;
 
@@ -1072,7 +1072,7 @@ static struct i2c_driver wm8978_i2c_driver = {
 		.name = "wm8978",
 		.of_match_table = wm8978_of_match,
 	},
-	.probe_new = wm8978_i2c_probe,
+	.probe = wm8978_i2c_probe,
 	.id_table = wm8978_i2c_id,
 };
 

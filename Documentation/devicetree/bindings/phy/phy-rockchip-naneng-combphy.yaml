@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/phy-rockchip-naneng-combphy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip SoC Naneng Combo Phy Device Tree Bindings
+title: Rockchip SoC Naneng Combo Phy
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>
@@ -13,6 +13,7 @@ properties:
   compatible:
     enum:
       - rockchip,rk3568-naneng-combphy
+      - rockchip,rk3588-naneng-combphy
 
   reg:
     maxItems: 1
@@ -30,8 +31,14 @@ properties:
       - const: pipe
 
   resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names:
+    minItems: 1
     items:
-      - description: exclusive PHY reset line
+      - const: phy
+      - const: apb
 
   rockchip,enable-ssc:
     type: boolean
@@ -76,6 +83,32 @@ required:
   - rockchip,pipe-grf
   - rockchip,pipe-phy-grf
   - "#phy-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3568-naneng-combphy
+    then:
+      properties:
+        resets:
+          maxItems: 1
+        reset-names:
+          maxItems: 1
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3588-naneng-combphy
+    then:
+      properties:
+        resets:
+          minItems: 2
+        reset-names:
+          minItems: 2
+      required:
+        - reset-names
 
 additionalProperties: false
 

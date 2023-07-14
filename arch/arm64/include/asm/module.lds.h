@@ -1,9 +1,7 @@
 SECTIONS {
-#ifdef CONFIG_ARM64_MODULE_PLTS
 	.plt 0 : { BYTE(0) }
 	.init.plt 0 : { BYTE(0) }
 	.text.ftrace_trampoline 0 : { BYTE(0) }
-#endif
 
 #ifdef CONFIG_KASAN_SW_TAGS
 	/*
@@ -16,5 +14,13 @@ SECTIONS {
 	 * warning.
 	 */
 	.text.hot : { *(.text.hot) }
+#endif
+
+#ifdef CONFIG_UNWIND_TABLES
+	/*
+	 * Currently, we only use unwind info at module load time, so we can
+	 * put it into the .init allocation.
+	 */
+	.init.eh_frame : { *(.eh_frame) }
 #endif
 }

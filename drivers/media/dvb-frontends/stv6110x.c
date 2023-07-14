@@ -406,8 +406,7 @@ static struct stv6110x_devctl *stv6110x_get_devctl(struct i2c_client *client)
 	return stv6110x->devctl;
 }
 
-static int stv6110x_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int stv6110x_probe(struct i2c_client *client)
 {
 	struct stv6110x_config *config = client->dev.platform_data;
 

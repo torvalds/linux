@@ -4,12 +4,13 @@
  *
  * Copyright (c) 2014 Peter Meerwald <pmeerw@pmeerw.net>
  *
- * TODO: shutdown pin
+ * TODO: synchronization with system suspend
  */
 
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 
 #include "mpl115.h"
 
@@ -27,6 +28,7 @@ struct mpl115_data {
 	s16 a0;
 	s16 b1, b2;
 	s16 c12;
+	struct gpio_desc *shutdown;
 	const struct mpl115_ops *ops;
 };
 
@@ -102,16 +104,24 @@ static int mpl115_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_PROCESSED:
+		pm_runtime_get_sync(data->dev);
 		ret = mpl115_comp_pressure(data, val, val2);
 		if (ret < 0)
 			return ret;
+		pm_runtime_mark_last_busy(data->dev);
+		pm_runtime_put_autosuspend(data->dev);
+
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_RAW:
+		pm_runtime_get_sync(data->dev);
 		/* temperature -5.35 C / LSB, 472 LSB is 25 C */
 		ret = mpl115_read_temp(data);
 		if (ret < 0)
 			return ret;
+		pm_runtime_mark_last_busy(data->dev);
+		pm_runtime_put_autosuspend(data->dev);
 		*val = ret >> 6;
+
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = -605;
@@ -168,6 +178,8 @@ int mpl115_probe(struct device *dev, const char *name,
 	if (ret)
 		return ret;
 
+	dev_set_drvdata(dev, indio_dev);
+
 	ret = data->ops->read(data->dev, MPL115_A0);
 	if (ret < 0)
 		return ret;
@@ -185,9 +197,57 @@ int mpl115_probe(struct device *dev, const char *name,
 		return ret;
 	data->c12 = ret;
 
+	data->shutdown = devm_gpiod_get_optional(dev, "shutdown",
+						 GPIOD_OUT_LOW);
+	if (IS_ERR(data->shutdown))
+		return dev_err_probe(dev, PTR_ERR(data->shutdown),
+				     "cannot get shutdown gpio\n");
+
+	if (data->shutdown) {
+		/* Enable runtime PM */
+		pm_runtime_get_noresume(dev);
+		pm_runtime_set_active(dev);
+		pm_runtime_enable(dev);
+
+		/*
+		 * As the device takes 3 ms to come up with a fresh
+		 * reading after power-on and 5 ms to actually power-on,
+		 * do not shut it down unnecessarily. Set autosuspend to
+		 * 2000 ms.
+		 */
+		pm_runtime_set_autosuspend_delay(dev, 2000);
+		pm_runtime_use_autosuspend(dev);
+		pm_runtime_put(dev);
+
+		dev_dbg(dev, "low-power mode enabled");
+	} else
+		dev_dbg(dev, "low-power mode disabled");
+
 	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL_NS_GPL(mpl115_probe, IIO_MPL115);
+
+static int mpl115_runtime_suspend(struct device *dev)
+{
+	struct mpl115_data *data = iio_priv(dev_get_drvdata(dev));
+
+	gpiod_set_value(data->shutdown, 1);
+
+	return 0;
+}
+
+static int mpl115_runtime_resume(struct device *dev)
+{
+	struct mpl115_data *data = iio_priv(dev_get_drvdata(dev));
+
+	gpiod_set_value(data->shutdown, 0);
+	usleep_range(5000, 6000);
+
+	return 0;
+}
+
+EXPORT_NS_RUNTIME_DEV_PM_OPS(mpl115_dev_pm_ops, mpl115_runtime_suspend,
+			  mpl115_runtime_resume, NULL, IIO_MPL115);
 
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
 MODULE_DESCRIPTION("Freescale MPL115 pressure/temperature driver");

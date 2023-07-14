@@ -6,14 +6,6 @@
  * Copyright (C) 2016 Cogent Embedded, Inc.
  */
 
-/*
- * SSI-AK4613
- *	aplay   -D plughw:0,0 xxx.wav
- *	arecord -D plughw:0,0 xxx.wav
- * SSI-HDMI
- *	aplay   -D plughw:0,1 xxx.wav
- */
-
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 
@@ -21,6 +13,14 @@
 	model = "Renesas R-Car Gen3 ULCB board";
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
+		i2c7 = &i2c_dvfs;
 		serial0 = &scif2;
 		ethernet0 = &avb;
 		mmc0 = &sdhi2;
@@ -92,15 +92,6 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
-	};
-
-	sound_card: sound {
-		compatible = "audio-graph-card2";
-		label = "rcar-sound";
-
-		links = <&rsnd_port0	/* ak4613 */
-			 &rsnd_port1	/* HDMI0  */
-			>;
 	};
 
 	vcc_sdhi0: regulator-vcc-sdhi0 {
@@ -193,9 +184,6 @@
 		};
 		port@2 {
 			reg = <2>;
-			dw_hdmi0_snd_in: endpoint {
-				remote-endpoint = <&rsnd_for_hdmi>;
-			};
 		};
 	};
 };
@@ -210,7 +198,6 @@
 
 	ak4613: codec@10 {
 		compatible = "asahi-kasei,ak4613";
-		#sound-dai-cells = <0>;
 		reg = <0x10>;
 		clocks = <&rcar_sound 3>;
 
@@ -222,12 +209,6 @@
 		asahi-kasei,out4-single-end;
 		asahi-kasei,out5-single-end;
 		asahi-kasei,out6-single-end;
-
-		port {
-			ak4613_endpoint: endpoint {
-				remote-endpoint = <&rsnd_for_ak4613>;
-			};
-		};
 	};
 
 	cs2000: clk-multiplier@4f {
@@ -285,6 +266,12 @@
 				regulator-always-on;
 			};
 		};
+	};
+
+	eeprom@50 {
+		compatible = "rohm,br24t01", "atmel,24c01";
+		reg = <0x50>;
+		pagesize = <8>;
 	};
 };
 
@@ -373,9 +360,6 @@
 	pinctrl-0 = <&sound_pins>, <&sound_clk_pins>;
 	pinctrl-names = "default";
 
-	/* Single DAI */
-	#sound-dai-cells = <0>;
-
 	/* audio_clkout0/1/2/3 */
 	#clock-cells = <1>;
 	clock-frequency = <12288000 11289600>;
@@ -400,30 +384,6 @@
 		 <&audio_clk_a>, <&cs2000>,
 		 <&audio_clk_c>,
 		 <&cpg CPG_CORE CPG_AUDIO_CLK_I>;
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		rsnd_port0: port@0 {
-			reg = <0>;
-			rsnd_for_ak4613: endpoint {
-				remote-endpoint = <&ak4613_endpoint>;
-				bitclock-master;
-				frame-master;
-				playback = <&ssi0>, <&src0>, <&dvc0>;
-				capture = <&ssi1>, <&src1>, <&dvc1>;
-			};
-		};
-		rsnd_port1: port@1 {
-			reg = <1>;
-			rsnd_for_hdmi: endpoint {
-				remote-endpoint = <&dw_hdmi0_snd_in>;
-				bitclock-master;
-				frame-master;
-				playback = <&ssi2>;
-			};
-		};
-	};
 };
 
 &rpc {
@@ -533,3 +493,17 @@
 
 	status = "okay";
 };
+
+
+/*
+ * For sound-test.
+ *
+ * We can switch Audio Card for testing
+ *
+ * #include "ulcb-simple-audio-card.dtsi"
+ * #include "ulcb-simple-audio-card-mix+split.dtsi"
+ * #include "ulcb-audio-graph-card.dtsi"
+ * #include "ulcb-audio-graph-card-mix+split.dtsi"
+ * #include "ulcb-audio-graph-card2-mix+split.dtsi"
+ */
+#include "ulcb-audio-graph-card2.dtsi"

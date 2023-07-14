@@ -29,16 +29,9 @@ called DAMON Operator (DAMO).  It is available at
 https://github.com/awslabs/damo.  The examples below assume that ``damo`` is on
 your ``$PATH``.  It's not mandatory, though.
 
-Because DAMO is using the debugfs interface (refer to :doc:`usage` for the
-detail) of DAMON, you should ensure debugfs is mounted.  Mount it manually as
-below::
-
-    # mount -t debugfs none /sys/kernel/debug/
-
-or append the following line to your ``/etc/fstab`` file so that your system
-can automatically mount debugfs upon booting::
-
-    debugfs /sys/kernel/debug debugfs defaults 0 0
+Because DAMO is using the sysfs interface (refer to :doc:`usage` for the
+detail) of DAMON, you should ensure :doc:`sysfs </filesystems/sysfs>` is
+mounted.
 
 
 Recording Data Access Patterns
@@ -126,9 +119,9 @@ set size has chronologically changed.::
 Data Access Pattern Aware Memory Management
 ===========================================
 
-Below three commands make every memory region of size >=4K that doesn't
-accessed for >=60 seconds in your workload to be swapped out. ::
+Below command makes every memory region of size >=4K that has not accessed for
+>=60 seconds in your workload to be swapped out. ::
 
-    $ echo "#min-size max-size min-acc max-acc min-age max-age action" > test_scheme
-    $ echo "4K        max      0       0       60s     max     pageout" >> test_scheme
-    $ damo schemes -c test_scheme <pid of your workload>
+    $ sudo damo schemes --damos_access_rate 0 0 --damos_sz_region 4K max \
+                        --damos_age 60s max --damos_action pageout \
+                        <pid of your workload>

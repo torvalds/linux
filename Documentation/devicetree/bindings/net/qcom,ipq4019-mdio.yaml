@@ -4,19 +4,23 @@
 $id: http://devicetree.org/schemas/net/qcom,ipq4019-mdio.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm IPQ40xx MDIO Controller Device Tree Bindings
+title: Qualcomm IPQ40xx MDIO Controller
 
 maintainers:
   - Robert Marko <robert.marko@sartura.hr>
 
-allOf:
-  - $ref: "mdio.yaml#"
-
 properties:
   compatible:
-    enum:
-      - qcom,ipq4019-mdio
-      - qcom,ipq5018-mdio
+    oneOf:
+      - enum:
+          - qcom,ipq4019-mdio
+          - qcom,ipq5018-mdio
+
+      - items:
+          - enum:
+              - qcom,ipq6018-mdio
+              - qcom,ipq8074-mdio
+          - const: qcom,ipq4019-mdio
 
   "#address-cells":
     const: 1
@@ -33,16 +37,38 @@ properties:
       address range is only required by the platform IPQ50xx.
 
   clocks:
-    maxItems: 1
-    description: |
-      MDIO clock source frequency fixed to 100MHZ, this clock should be specified
-      by the platform IPQ807x, IPQ60xx and IPQ50xx.
+    items:
+      - description: MDIO clock source frequency fixed to 100MHZ
+
+  clock-names:
+    items:
+      - const: gcc_mdio_ahb_clk
 
 required:
   - compatible
   - reg
   - "#address-cells"
   - "#size-cells"
+
+allOf:
+  - $ref: mdio.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq5018-mdio
+              - qcom,ipq6018-mdio
+              - qcom,ipq8074-mdio
+    then:
+      required:
+        - clocks
+        - clock-names
+    else:
+      properties:
+        clocks: false
+        clock-names: false
 
 unevaluatedProperties: false
 

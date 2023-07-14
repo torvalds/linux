@@ -37,7 +37,7 @@ struct ring_desc {
 /* NHI registers in bar 0 */
 
 /*
- * 16 bytes per entry, one entry for every hop (REG_HOP_COUNT)
+ * 16 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: physical pointer to an array of struct ring_desc
  * 08: ring tail (set by NHI)
  * 10: ring head (index of first non posted descriptor)
@@ -46,7 +46,7 @@ struct ring_desc {
 #define REG_TX_RING_BASE	0x00000
 
 /*
- * 16 bytes per entry, one entry for every hop (REG_HOP_COUNT)
+ * 16 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: physical pointer to an array of struct ring_desc
  * 08: ring head (index of first not posted descriptor)
  * 10: ring tail (set by NHI)
@@ -56,7 +56,7 @@ struct ring_desc {
 #define REG_RX_RING_BASE	0x08000
 
 /*
- * 32 bytes per entry, one entry for every hop (REG_HOP_COUNT)
+ * 32 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: enum_ring_flags
  * 04: isoch time stamp ?? (write 0)
  * ..: unknown
@@ -64,7 +64,7 @@ struct ring_desc {
 #define REG_TX_OPTIONS_BASE	0x19800
 
 /*
- * 32 bytes per entry, one entry for every hop (REG_HOP_COUNT)
+ * 32 bytes per entry, one entry for every hop (REG_CAPS)
  * 00: enum ring_flags
  *     If RING_FLAG_E2E_FLOW_CONTROL is set then bits 13-23 must be set to
  *     the corresponding TX hop id.
@@ -77,20 +77,23 @@ struct ring_desc {
 
 /*
  * three bitfields: tx, rx, rx overflow
- * Every bitfield contains one bit for every hop (REG_HOP_COUNT). Registers are
- * cleared on read. New interrupts are fired only after ALL registers have been
+ * Every bitfield contains one bit for every hop (REG_CAPS).
+ * New interrupts are fired only after ALL registers have been
  * read (even those containing only disabled rings).
  */
 #define REG_RING_NOTIFY_BASE	0x37800
 #define RING_NOTIFY_REG_COUNT(nhi) ((31 + 3 * nhi->hop_count) / 32)
+#define REG_RING_INT_CLEAR	0x37808
 
 /*
  * two bitfields: rx, tx
- * Both bitfields contains one bit for every hop (REG_HOP_COUNT). To
+ * Both bitfields contains one bit for every hop (REG_CAPS). To
  * enable/disable interrupts set/clear the corresponding bits.
  */
 #define REG_RING_INTERRUPT_BASE	0x38200
 #define RING_INTERRUPT_REG_COUNT(nhi) ((31 + 2 * nhi->hop_count) / 32)
+
+#define REG_RING_INTERRUPT_MASK_CLEAR_BASE	0x38208
 
 #define REG_INT_THROTTLING_RATE	0x38c00
 
@@ -101,10 +104,16 @@ struct ring_desc {
 #define REG_INT_VEC_ALLOC_REGS	(32 / REG_INT_VEC_ALLOC_BITS)
 
 /* The last 11 bits contain the number of hops supported by the NHI port. */
-#define REG_HOP_COUNT		0x39640
+#define REG_CAPS			0x39640
+#define REG_CAPS_VERSION_MASK		GENMASK(23, 16)
+#define REG_CAPS_VERSION_2		0x40
 
 #define REG_DMA_MISC			0x39864
 #define REG_DMA_MISC_INT_AUTO_CLEAR     BIT(2)
+#define REG_DMA_MISC_DISABLE_AUTO_CLEAR	BIT(17)
+
+#define REG_RESET			0x39898
+#define REG_RESET_HRR			BIT(0)
 
 #define REG_INMAIL_DATA			0x39900
 

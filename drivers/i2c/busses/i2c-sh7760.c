@@ -443,9 +443,8 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 		goto out0;
 	}
 
-	id = kzalloc(sizeof(struct cami2c), GFP_KERNEL);
+	id = kzalloc(sizeof(*id), GFP_KERNEL);
 	if (!id) {
-		dev_err(&pdev->dev, "no mem for private data\n");
 		ret = -ENOMEM;
 		goto out0;
 	}
@@ -536,7 +535,7 @@ out0:
 	return ret;
 }
 
-static int sh7760_i2c_remove(struct platform_device *pdev)
+static void sh7760_i2c_remove(struct platform_device *pdev)
 {
 	struct cami2c *id = platform_get_drvdata(pdev);
 
@@ -546,8 +545,6 @@ static int sh7760_i2c_remove(struct platform_device *pdev)
 	release_resource(id->ioarea);
 	kfree(id->ioarea);
 	kfree(id);
-
-	return 0;
 }
 
 static struct platform_driver sh7760_i2c_drv = {
@@ -555,7 +552,7 @@ static struct platform_driver sh7760_i2c_drv = {
 		.name	= SH7760_I2C_DEVNAME,
 	},
 	.probe		= sh7760_i2c_probe,
-	.remove		= sh7760_i2c_remove,
+	.remove_new	= sh7760_i2c_remove,
 };
 
 module_platform_driver(sh7760_i2c_drv);

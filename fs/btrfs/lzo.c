@@ -13,8 +13,11 @@
 #include <linux/bio.h>
 #include <linux/lzo.h>
 #include <linux/refcount.h>
+#include "messages.h"
 #include "compression.h"
 #include "ctree.h"
+#include "super.h"
+#include "btrfs_inode.h"
 
 #define LZO_LEN	4
 
@@ -85,9 +88,9 @@ struct list_head *lzo_alloc_workspace(unsigned int level)
 	if (!workspace)
 		return ERR_PTR(-ENOMEM);
 
-	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
-	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL);
-	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL);
+	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL | __GFP_NOWARN);
+	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
+	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL | __GFP_NOWARN);
 	if (!workspace->mem || !workspace->buf || !workspace->cbuf)
 		goto fail;
 
@@ -278,7 +281,7 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 		}
 
 		/* Check if we have reached page boundary */
-		if (IS_ALIGNED(cur_in, PAGE_SIZE)) {
+		if (PAGE_ALIGNED(cur_in)) {
 			put_page(page_in);
 			page_in = NULL;
 		}
@@ -327,7 +330,7 @@ static void copy_compressed_segment(struct compressed_bio *cb,
 int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
-	const struct btrfs_fs_info *fs_info = btrfs_sb(cb->inode->i_sb);
+	const struct btrfs_fs_info *fs_info = cb->bbio.inode->root->fs_info;
 	const u32 sectorsize = fs_info->sectorsize;
 	char *kaddr;
 	int ret;
@@ -386,8 +389,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 			 */
 			btrfs_err(fs_info, "unexpectedly large lzo segment len %u",
 					seg_len);
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		/* Copy the compressed segment payload into workspace */
@@ -398,8 +400,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 					    workspace->buf, &out_len);
 		if (ret != LZO_E_OK) {
 			btrfs_err(fs_info, "failed to decompress");
-			ret = -EIO;
-			goto out;
+			return -EIO;
 		}
 
 		/* Copy the data into inode pages */
@@ -408,7 +409,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 
 		/* All data read, exit */
 		if (ret == 0)
-			goto out;
+			return 0;
 		ret = 0;
 
 		/* Check if the sector has enough space for a segment header */
@@ -419,13 +420,11 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		/* Skip the padding zeros */
 		cur_in += sector_bytes_left;
 	}
-out:
-	if (!ret)
-		zero_fill_bio(cb->orig_bio);
-	return ret;
+
+	return 0;
 }
 
-int lzo_decompress(struct list_head *ws, unsigned char *data_in,
+int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		struct page *dest_page, unsigned long start_byte, size_t srclen,
 		size_t destlen)
 {

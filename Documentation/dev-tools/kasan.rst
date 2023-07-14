@@ -107,13 +107,24 @@ effectively disables ``panic_on_warn`` for KASAN reports.
 Alternatively, independent of ``panic_on_warn``, the ``kasan.fault=`` boot
 parameter can be used to control panic and reporting behaviour:
 
-- ``kasan.fault=report`` or ``=panic`` controls whether to only print a KASAN
-  report or also panic the kernel (default: ``report``). The panic happens even
-  if ``kasan_multi_shot`` is enabled.
+- ``kasan.fault=report``, ``=panic``, or ``=panic_on_write`` controls whether
+  to only print a KASAN report, panic the kernel, or panic the kernel on
+  invalid writes only (default: ``report``). The panic happens even if
+  ``kasan_multi_shot`` is enabled. Note that when using asynchronous mode of
+  Hardware Tag-Based KASAN, ``kasan.fault=panic_on_write`` always panics on
+  asynchronously checked accesses (including reads).
 
-Hardware Tag-Based KASAN mode (see the section about various modes below) is
-intended for use in production as a security mitigation. Therefore, it supports
-additional boot parameters that allow disabling KASAN or controlling features:
+Software and Hardware Tag-Based KASAN modes (see the section about various
+modes below) support altering stack trace collection behavior:
+
+- ``kasan.stacktrace=off`` or ``=on`` disables or enables alloc and free stack
+  traces collection (default: ``on``).
+- ``kasan.stack_ring_size=<number of entries>`` specifies the number of entries
+  in the stack ring (default: ``32768``).
+
+Hardware Tag-Based KASAN mode is intended for use in production as a security
+mitigation. Therefore, it supports additional boot parameters that allow
+disabling KASAN altogether or controlling its features:
 
 - ``kasan=off`` or ``=on`` controls whether KASAN is enabled (default: ``on``).
 
@@ -132,8 +143,22 @@ additional boot parameters that allow disabling KASAN or controlling features:
 - ``kasan.vmalloc=off`` or ``=on`` disables or enables tagging of vmalloc
   allocations (default: ``on``).
 
-- ``kasan.stacktrace=off`` or ``=on`` disables or enables alloc and free stack
-  traces collection (default: ``on``).
+- ``kasan.page_alloc.sample=<sampling interval>`` makes KASAN tag only every
+  Nth page_alloc allocation with the order equal or greater than
+  ``kasan.page_alloc.sample.order``, where N is the value of the ``sample``
+  parameter (default: ``1``, or tag every such allocation).
+  This parameter is intended to mitigate the performance overhead introduced
+  by KASAN.
+  Note that enabling this parameter makes Hardware Tag-Based KASAN skip checks
+  of allocations chosen by sampling and thus miss bad accesses to these
+  allocations. Use the default value for accurate bug detection.
+
+- ``kasan.page_alloc.sample.order=<minimum page order>`` specifies the minimum
+  order of allocations that are affected by sampling (default: ``3``).
+  Only applies when ``kasan.page_alloc.sample`` is set to a value greater
+  than ``1``.
+  This parameter is intended to allow sampling only large page_alloc
+  allocations, which is the biggest source of the performance overhead.
 
 Error reports
 ~~~~~~~~~~~~~

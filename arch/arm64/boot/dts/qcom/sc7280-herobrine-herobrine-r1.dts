@@ -8,6 +8,8 @@
 /dts-v1/;
 
 #include "sc7280-herobrine.dtsi"
+#include "sc7280-herobrine-audio-rt5682.dtsi"
+#include "sc7280-herobrine-lte-sku.dtsi"
 
 / {
 	model = "Google Herobrine (rev1+)";
@@ -45,10 +47,6 @@
 };
 
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
-
-&ap_spi_fp {
-	status = "okay";
-};
 
 /*
  * Although the trackpad is really part of the herobrine baseboard, we'll
@@ -356,7 +354,6 @@ ts_i2c: &i2c13 {
 			  "",				/* 170 */
 			  "MOS_BLE_UART_TX",
 			  "MOS_BLE_UART_RX",
-			  "",
 			  "",
 			  "";
 };

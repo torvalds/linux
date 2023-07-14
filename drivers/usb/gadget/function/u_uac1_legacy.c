@@ -158,8 +158,8 @@ size_t u_audio_playback(struct gaudio *card, void *buf, size_t count)
 	snd_pcm_sframes_t frames;
 
 try_again:
-	if (runtime->status->state == SNDRV_PCM_STATE_XRUN ||
-		runtime->status->state == SNDRV_PCM_STATE_SUSPENDED) {
+	if (runtime->state == SNDRV_PCM_STATE_XRUN ||
+		runtime->state == SNDRV_PCM_STATE_SUSPENDED) {
 		result = snd_pcm_kernel_ioctl(substream,
 				SNDRV_PCM_IOCTL_PREPARE, NULL);
 		if (result < 0) {

@@ -23,6 +23,12 @@ extern void yyerror(char const *s);
 
 extern struct dt_info *parser_output;
 extern bool treesource_error;
+
+static bool is_ref_relative(const char *ref)
+{
+	return ref[0] != '/' && strchr(&ref[1], '/');
+}
+
 %}
 
 %union {
@@ -169,6 +175,8 @@ devicetree:
 			 */
 			if (!($<flags>-1 & DTSF_PLUGIN))
 				ERROR(&@2, "Label or path %s not found", $1);
+			else if (is_ref_relative($1))
+				ERROR(&@2, "Label-relative reference %s not supported in plugin", $1);
 			$$ = add_orphan_node(
 					name_node(build_node(NULL, NULL, NULL),
 						  ""),
@@ -177,6 +185,9 @@ devicetree:
 	| devicetree DT_LABEL dt_ref nodedef
 		{
 			struct node *target = get_node_by_ref($1, $3);
+
+			if (($<flags>-1 & DTSF_PLUGIN) && is_ref_relative($3))
+				ERROR(&@2, "Label-relative reference %s not supported in plugin", $3);
 
 			if (target) {
 				add_label(&target->labels, $2);
@@ -193,6 +204,8 @@ devicetree:
 			 * so $-1 is what we want (plugindecl)
 			 */
 			if ($<flags>-1 & DTSF_PLUGIN) {
+				if (is_ref_relative($2))
+					ERROR(&@2, "Label-relative reference %s not supported in plugin", $2);
 				add_orphan_node($1, $3, $2);
 			} else {
 				struct node *target = get_node_by_ref($1, $2);
@@ -391,9 +404,14 @@ arrayprefix:
 				 * within the mask to one (i.e. | in the
 				 * mask), all bits are one.
 				 */
-				if (($2 > mask) && (($2 | mask) != -1ULL))
-					ERROR(&@2, "Value out of range for"
-					      " %d-bit array element", $1.bits);
+				if (($2 > mask) && (($2 | mask) != -1ULL)) {
+					char *loc = srcpos_string(&@2);
+					fprintf(stderr,
+						"WARNING: %s: Value 0x%016" PRIx64
+						" truncated to 0x%0*" PRIx64 "\n",
+						loc, $2, $1.bits / 4, ($2 & mask));
+					free(loc);
+				}
 			}
 
 			$$.data = data_append_integer($1.data, $2, $1.bits);

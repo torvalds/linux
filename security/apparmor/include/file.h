@@ -17,6 +17,7 @@
 #include "match.h"
 #include "perms.h"
 
+struct aa_policydb;
 struct aa_profile;
 struct path;
 
@@ -87,18 +88,17 @@ static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
  * - exec type - which determines how the executable name and index are used
  * - flags - which modify how the destination name is applied
  */
-#define AA_X_INDEX_MASK		0x03ff
+#define AA_X_INDEX_MASK		AA_INDEX_MASK
 
-#define AA_X_TYPE_MASK		0x0c00
-#define AA_X_TYPE_SHIFT		10
-#define AA_X_NONE		0x0000
-#define AA_X_NAME		0x0400	/* use executable name px */
-#define AA_X_TABLE		0x0800	/* use a specified name ->n# */
+#define AA_X_TYPE_MASK		0x0c000000
+#define AA_X_NONE		AA_INDEX_NONE
+#define AA_X_NAME		0x04000000 /* use executable name px */
+#define AA_X_TABLE		0x08000000 /* use a specified name ->n# */
 
-#define AA_X_UNSAFE		0x1000
-#define AA_X_CHILD		0x2000	/* make >AA_X_NONE apply to children */
-#define AA_X_INHERIT		0x4000
-#define AA_X_UNCONFINED		0x8000
+#define AA_X_UNSAFE		0x10000000
+#define AA_X_CHILD		0x20000000
+#define AA_X_INHERIT		0x40000000
+#define AA_X_UNCONFINED		0x80000000
 
 /* need to make conditional which ones are being set */
 struct path_cond {
@@ -108,90 +108,17 @@ struct path_cond {
 
 #define COMBINED_PERM_MASK(X) ((X).allow | (X).audit | (X).quiet | (X).kill)
 
-/* FIXME: split perms from dfa and match this to description
- *        also add delegation info.
- */
-static inline u16 dfa_map_xindex(u16 mask)
-{
-	u16 old_index = (mask >> 10) & 0xf;
-	u16 index = 0;
-
-	if (mask & 0x100)
-		index |= AA_X_UNSAFE;
-	if (mask & 0x200)
-		index |= AA_X_INHERIT;
-	if (mask & 0x80)
-		index |= AA_X_UNCONFINED;
-
-	if (old_index == 1) {
-		index |= AA_X_UNCONFINED;
-	} else if (old_index == 2) {
-		index |= AA_X_NAME;
-	} else if (old_index == 3) {
-		index |= AA_X_NAME | AA_X_CHILD;
-	} else if (old_index) {
-		index |= AA_X_TABLE;
-		index |= old_index - 4;
-	}
-
-	return index;
-}
-
-/*
- * map old dfa inline permissions to new format
- */
-#define dfa_user_allow(dfa, state) (((ACCEPT_TABLE(dfa)[state]) & 0x7f) | \
-				    ((ACCEPT_TABLE(dfa)[state]) & 0x80000000))
-#define dfa_user_xbits(dfa, state) (((ACCEPT_TABLE(dfa)[state]) >> 7) & 0x7f)
-#define dfa_user_audit(dfa, state) ((ACCEPT_TABLE2(dfa)[state]) & 0x7f)
-#define dfa_user_quiet(dfa, state) (((ACCEPT_TABLE2(dfa)[state]) >> 7) & 0x7f)
-#define dfa_user_xindex(dfa, state) \
-	(dfa_map_xindex(ACCEPT_TABLE(dfa)[state] & 0x3fff))
-
-#define dfa_other_allow(dfa, state) ((((ACCEPT_TABLE(dfa)[state]) >> 14) & \
-				      0x7f) |				\
-				     ((ACCEPT_TABLE(dfa)[state]) & 0x80000000))
-#define dfa_other_xbits(dfa, state) \
-	((((ACCEPT_TABLE(dfa)[state]) >> 7) >> 14) & 0x7f)
-#define dfa_other_audit(dfa, state) (((ACCEPT_TABLE2(dfa)[state]) >> 14) & 0x7f)
-#define dfa_other_quiet(dfa, state) \
-	((((ACCEPT_TABLE2(dfa)[state]) >> 7) >> 14) & 0x7f)
-#define dfa_other_xindex(dfa, state) \
-	dfa_map_xindex((ACCEPT_TABLE(dfa)[state] >> 14) & 0x3fff)
-
 int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *op, u32 request, const char *name,
 		  const char *target, struct aa_label *tlabel, kuid_t ouid,
 		  const char *info, int error);
 
-/**
- * struct aa_file_rules - components used for file rule permissions
- * @dfa: dfa to match path names and conditionals against
- * @perms: permission table indexed by the matched state accept entry of @dfa
- * @trans: transition table for indexed by named x transitions
- *
- * File permission are determined by matching a path against @dfa and
- * then using the value of the accept entry for the matching state as
- * an index into @perms.  If a named exec transition is required it is
- * looked up in the transition table.
- */
-struct aa_file_rules {
-	unsigned int start;
-	struct aa_dfa *dfa;
-	/* struct perms perms; */
-	struct aa_domain trans;
-	/* TODO: add delegate table */
-};
+struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
+				  aa_state_t state, struct path_cond *cond);
+aa_state_t aa_str_perms(struct aa_policydb *file_rules, aa_state_t start,
+			const char *name, struct path_cond *cond,
+			struct aa_perms *perms);
 
-struct aa_perms aa_compute_fperms(struct aa_dfa *dfa, unsigned int state,
-				    struct path_cond *cond);
-unsigned int aa_str_perms(struct aa_dfa *dfa, unsigned int start,
-			  const char *name, struct path_cond *cond,
-			  struct aa_perms *perms);
-
-int __aa_path_perm(const char *op, struct aa_profile *profile,
-		   const char *name, u32 request, struct path_cond *cond,
-		   int flags, struct aa_perms *perms);
 int aa_path_perm(const char *op, struct aa_label *label,
 		 const struct path *path, int flags, u32 request,
 		 struct path_cond *cond);
@@ -204,11 +131,6 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 
 void aa_inherit_files(const struct cred *cred, struct files_struct *files);
 
-static inline void aa_free_file_rules(struct aa_file_rules *rules)
-{
-	aa_put_dfa(rules->dfa);
-	aa_free_domain_entries(&rules->trans);
-}
 
 /**
  * aa_map_file_perms - map file flags to AppArmor permissions

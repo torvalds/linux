@@ -170,9 +170,7 @@ static void st_lsm6dsx_shub_wait_complete(struct st_lsm6dsx_hw *hw)
  *
  * Read st_lsm6dsx i2c controller register
  */
-static int
-st_lsm6dsx_shub_read_output(struct st_lsm6dsx_hw *hw, u8 *data,
-			    int len)
+int st_lsm6dsx_shub_read_output(struct st_lsm6dsx_hw *hw, u8 *data, int len)
 {
 	const struct st_lsm6dsx_shub_settings *hub_settings;
 	int err;
@@ -706,18 +704,18 @@ static ssize_t st_lsm6dsx_shub_scale_avail(struct device *dev,
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(st_lsm6dsx_shub_sampling_freq_avail);
 static IIO_DEVICE_ATTR(in_scale_available, 0444,
 		       st_lsm6dsx_shub_scale_avail, NULL, 0);
-static struct attribute *st_lsm6dsx_ext_attributes[] = {
+static struct attribute *st_lsm6dsx_shub_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_scale_available.dev_attr.attr,
 	NULL,
 };
 
-static const struct attribute_group st_lsm6dsx_ext_attribute_group = {
-	.attrs = st_lsm6dsx_ext_attributes,
+static const struct attribute_group st_lsm6dsx_shub_attribute_group = {
+	.attrs = st_lsm6dsx_shub_attributes,
 };
 
-static const struct iio_info st_lsm6dsx_ext_info = {
-	.attrs = &st_lsm6dsx_ext_attribute_group,
+static const struct iio_info st_lsm6dsx_shub_info = {
+	.attrs = &st_lsm6dsx_shub_attribute_group,
 	.read_raw = st_lsm6dsx_shub_read_raw,
 	.write_raw = st_lsm6dsx_shub_write_raw,
 	.hwfifo_set_watermark = st_lsm6dsx_set_watermark,
@@ -739,7 +737,7 @@ st_lsm6dsx_shub_alloc_iiodev(struct st_lsm6dsx_hw *hw,
 		return NULL;
 
 	iio_dev->modes = INDIO_DIRECT_MODE;
-	iio_dev->info = &st_lsm6dsx_ext_info;
+	iio_dev->info = &st_lsm6dsx_shub_info;
 
 	sensor = iio_priv(iio_dev);
 	sensor->id = id;

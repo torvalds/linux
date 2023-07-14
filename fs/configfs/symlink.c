@@ -137,7 +137,7 @@ static int get_target(const char *symname, struct path *path,
 }
 
 
-int configfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+int configfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		     struct dentry *dentry, const char *symname)
 {
 	int ret;
@@ -196,7 +196,7 @@ int configfs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 	if (dentry->d_inode || d_unhashed(dentry))
 		ret = -EEXIST;
 	else
-		ret = inode_permission(&init_user_ns, dir,
+		ret = inode_permission(&nop_mnt_idmap, dir,
 				       MAY_WRITE | MAY_EXEC);
 	if (!ret)
 		ret = type->ct_item_ops->allow_link(parent_item, target_item);

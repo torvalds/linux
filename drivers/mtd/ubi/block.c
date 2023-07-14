@@ -35,7 +35,6 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/mtd/ubi.h>
-#include <linux/workqueue.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
 #include <linux/hdreg.h>
@@ -62,7 +61,6 @@ struct ubiblock_param {
 };
 
 struct ubiblock_pdu {
-	struct work_struct work;
 	struct ubi_sgl usgl;
 };
 
@@ -81,8 +79,6 @@ struct ubiblock {
 
 	struct gendisk *gd;
 	struct request_queue *rq;
-
-	struct workqueue_struct *wq;
 
 	struct mutex dev_mutex;
 	struct list_head list;
@@ -181,20 +177,29 @@ static struct ubiblock *find_dev_nolock(int ubi_num, int vol_id)
 	return NULL;
 }
 
-static int ubiblock_read(struct ubiblock_pdu *pdu)
+static blk_status_t ubiblock_read(struct request *req)
 {
-	int ret, leb, offset, bytes_left, to_read;
-	u64 pos;
-	struct request *req = blk_mq_rq_from_pdu(pdu);
+	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
 	struct ubiblock *dev = req->q->queuedata;
-
-	to_read = blk_rq_bytes(req);
-	pos = blk_rq_pos(req) << 9;
-
+	u64 pos = blk_rq_pos(req) << 9;
+	int to_read = blk_rq_bytes(req);
+	int bytes_left = to_read;
 	/* Get LEB:offset address to read from */
-	offset = do_div(pos, dev->leb_size);
-	leb = pos;
-	bytes_left = to_read;
+	int offset = do_div(pos, dev->leb_size);
+	int leb = pos;
+	struct req_iterator iter;
+	struct bio_vec bvec;
+	int ret;
+
+	blk_mq_start_request(req);
+
+	/*
+	 * It is safe to ignore the return value of blk_rq_map_sg() because
+	 * the number of sg entries is limited to UBI_MAX_SG_COUNT
+	 * and ubi_read_sg() will check that limit.
+	 */
+	ubi_sgl_init(&pdu->usgl);
+	blk_rq_map_sg(req->q, req, pdu->usgl.sg);
 
 	while (bytes_left) {
 		/*
@@ -206,19 +211,25 @@ static int ubiblock_read(struct ubiblock_pdu *pdu)
 
 		ret = ubi_read_sg(dev->desc, leb, &pdu->usgl, offset, to_read);
 		if (ret < 0)
-			return ret;
+			break;
 
 		bytes_left -= to_read;
 		to_read = bytes_left;
 		leb += 1;
 		offset = 0;
 	}
-	return 0;
+
+	rq_for_each_segment(bvec, req, iter)
+		flush_dcache_page(bvec.bv_page);
+
+	blk_mq_end_request(req, errno_to_blk_status(ret));
+
+	return BLK_STS_OK;
 }
 
-static int ubiblock_open(struct block_device *bdev, fmode_t mode)
+static int ubiblock_open(struct gendisk *disk, blk_mode_t mode)
 {
-	struct ubiblock *dev = bdev->bd_disk->private_data;
+	struct ubiblock *dev = disk->private_data;
 	int ret;
 
 	mutex_lock(&dev->dev_mutex);
@@ -235,11 +246,10 @@ static int ubiblock_open(struct block_device *bdev, fmode_t mode)
 	 * It's just a paranoid check, as write requests will get rejected
 	 * in any case.
 	 */
-	if (mode & FMODE_WRITE) {
+	if (mode & BLK_OPEN_WRITE) {
 		ret = -EROFS;
 		goto out_unlock;
 	}
-
 	dev->desc = ubi_open_volume(dev->ubi_num, dev->vol_id, UBI_READONLY);
 	if (IS_ERR(dev->desc)) {
 		dev_err(disk_to_dev(dev->gd), "failed to open ubi volume %d_%d",
@@ -259,7 +269,7 @@ out_unlock:
 	return ret;
 }
 
-static void ubiblock_release(struct gendisk *gd, fmode_t mode)
+static void ubiblock_release(struct gendisk *gd)
 {
 	struct ubiblock *dev = gd->private_data;
 
@@ -289,47 +299,15 @@ static const struct block_device_operations ubiblock_ops = {
 	.getgeo	= ubiblock_getgeo,
 };
 
-static void ubiblock_do_work(struct work_struct *work)
-{
-	int ret;
-	struct ubiblock_pdu *pdu = container_of(work, struct ubiblock_pdu, work);
-	struct request *req = blk_mq_rq_from_pdu(pdu);
-	struct req_iterator iter;
-	struct bio_vec bvec;
-
-	blk_mq_start_request(req);
-
-	/*
-	 * It is safe to ignore the return value of blk_rq_map_sg() because
-	 * the number of sg entries is limited to UBI_MAX_SG_COUNT
-	 * and ubi_read_sg() will check that limit.
-	 */
-	blk_rq_map_sg(req->q, req, pdu->usgl.sg);
-
-	ret = ubiblock_read(pdu);
-
-	rq_for_each_segment(bvec, req, iter)
-		flush_dcache_page(bvec.bv_page);
-
-	blk_mq_end_request(req, errno_to_blk_status(ret));
-}
-
 static blk_status_t ubiblock_queue_rq(struct blk_mq_hw_ctx *hctx,
 			     const struct blk_mq_queue_data *bd)
 {
-	struct request *req = bd->rq;
-	struct ubiblock *dev = hctx->queue->queuedata;
-	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
-
-	switch (req_op(req)) {
+	switch (req_op(bd->rq)) {
 	case REQ_OP_READ:
-		ubi_sgl_init(&pdu->usgl);
-		queue_work(dev->wq, &pdu->work);
-		return BLK_STS_OK;
+		return ubiblock_read(bd->rq);
 	default:
 		return BLK_STS_IOERR;
 	}
-
 }
 
 static int ubiblock_init_request(struct blk_mq_tag_set *set,
@@ -339,8 +317,6 @@ static int ubiblock_init_request(struct blk_mq_tag_set *set,
 	struct ubiblock_pdu *pdu = blk_mq_rq_to_pdu(req);
 
 	sg_init_table(pdu->usgl.sg, UBI_MAX_SG_COUNT);
-	INIT_WORK(&pdu->work, ubiblock_do_work);
-
 	return 0;
 }
 
@@ -354,9 +330,12 @@ static int calc_disk_capacity(struct ubi_volume_info *vi, u64 *disk_capacity)
 	u64 size = vi->used_bytes >> 9;
 
 	if (vi->used_bytes % 512) {
-		pr_warn("UBI: block: volume size is not a multiple of 512, "
-			"last %llu bytes are ignored!\n",
-			vi->used_bytes - (size << 9));
+		if (vi->vol_type == UBI_DYNAMIC_VOLUME)
+			pr_warn("UBI: block: volume size is not a multiple of 512, last %llu bytes are ignored!\n",
+				vi->used_bytes - (size << 9));
+		else
+			pr_info("UBI: block: volume size is not a multiple of 512, last %llu bytes are ignored!\n",
+				vi->used_bytes - (size << 9));
 	}
 
 	if ((sector_t)size != size)
@@ -401,7 +380,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	dev->tag_set.ops = &ubiblock_mq_ops;
 	dev->tag_set.queue_depth = 64;
 	dev->tag_set.numa_node = NUMA_NO_NODE;
-	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
 	dev->tag_set.cmd_size = sizeof(struct ubiblock_pdu);
 	dev->tag_set.driver_data = dev;
 	dev->tag_set.nr_hw_queues = 1;
@@ -409,7 +388,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	ret = blk_mq_alloc_tag_set(&dev->tag_set);
 	if (ret) {
 		dev_err(disk_to_dev(dev->gd), "blk_mq_alloc_tag_set failed");
-		goto out_free_dev;;
+		goto out_free_dev;
 	}
 
 
@@ -439,32 +418,20 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	dev->rq = gd->queue;
 	blk_queue_max_segments(dev->rq, UBI_MAX_SG_COUNT);
 
-	/*
-	 * Create one workqueue per volume (per registered block device).
-	 * Rembember workqueues are cheap, they're not threads.
-	 */
-	dev->wq = alloc_workqueue("%s", 0, 0, gd->disk_name);
-	if (!dev->wq) {
-		ret = -ENOMEM;
-		goto out_remove_minor;
-	}
-
 	list_add_tail(&dev->list, &ubiblock_devices);
 
 	/* Must be the last step: anyone can call file ops from now on */
-	ret = add_disk(dev->gd);
+	ret = device_add_disk(vi->dev, dev->gd, NULL);
 	if (ret)
-		goto out_destroy_wq;
+		goto out_remove_minor;
 
 	dev_info(disk_to_dev(dev->gd), "created from ubi%d:%d(%s)",
 		 dev->ubi_num, dev->vol_id, vi->name);
 	mutex_unlock(&devices_mutex);
 	return 0;
 
-out_destroy_wq:
-	list_del(&dev->list);
-	destroy_workqueue(dev->wq);
 out_remove_minor:
+	list_del(&dev->list);
 	idr_remove(&ubiblock_minor_idr, gd->first_minor);
 out_cleanup_disk:
 	put_disk(dev->gd);
@@ -482,8 +449,6 @@ static void ubiblock_cleanup(struct ubiblock *dev)
 {
 	/* Stop new requests to arrive */
 	del_gendisk(dev->gd);
-	/* Flush pending work */
-	destroy_workqueue(dev->wq);
 	/* Finally destroy the blk queue */
 	dev_info(disk_to_dev(dev->gd), "released");
 	put_disk(dev->gd);

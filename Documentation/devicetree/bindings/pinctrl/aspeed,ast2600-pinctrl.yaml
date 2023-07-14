@@ -30,7 +30,7 @@ patternProperties:
     then:
       properties:
         function:
-          $ref: "/schemas/types.yaml#/definitions/string"
+          $ref: /schemas/types.yaml#/definitions/string
           enum: [ ADC0, ADC1, ADC10, ADC11, ADC12, ADC13, ADC14, ADC15, ADC2,
                   ADC3, ADC4, ADC5, ADC6, ADC7, ADC8, ADC9, BMCINT, EMMC, ESPI, ESPIALT,
                   FSI1, FSI2, FWQSPI, FWSPIABR, FWSPID, FWSPIWP, GPIT0, GPIT1, GPIT2, GPIT3,
@@ -55,7 +55,7 @@ patternProperties:
                   USB2BD, USB2BH, VB, VGAHS, VGAVS, WDTRST1, WDTRST2, WDTRST3, WDTRST4 ]
 
         groups:
-          $ref: "/schemas/types.yaml#/definitions/string"
+          $ref: /schemas/types.yaml#/definitions/string
           enum: [ ADC0, ADC1, ADC10, ADC11, ADC12, ADC13, ADC14, ADC15, ADC2,
                   ADC3, ADC4, ADC5, ADC6, ADC7, ADC8, ADC9, BMCINT, EMMCG1, EMMCG4,
                   EMMCG8, ESPI, ESPIALT, FSI1, FSI2, FWQSPI, FWSPIABR, FWSPID, FWSPIWP,
@@ -84,7 +84,7 @@ patternProperties:
                   WDTRST3, WDTRST4]
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible
@@ -96,6 +96,12 @@ examples:
     syscon: scu@1e6e2000 {
         compatible = "aspeed,ast2600-scu", "syscon", "simple-mfd";
         reg = <0x1e6e2000 0xf6c>;
+        #clock-cells = <1>;
+        #reset-cells = <1>;
+
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x1e6e2000 0x1000>;
 
         pinctrl: pinctrl {
             compatible = "aspeed,ast2600-pinctrl";

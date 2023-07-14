@@ -159,6 +159,7 @@
 #ifdef CONFIG_ARM64_PA_BITS_52
 #define PTE_ADDR_HIGH		(_AT(pteval_t, 0xf) << 12)
 #define PTE_ADDR_MASK		(PTE_ADDR_LOW | PTE_ADDR_HIGH)
+#define PTE_ADDR_HIGH_SHIFT	36
 #else
 #define PTE_ADDR_MASK		PTE_ADDR_LOW
 #endif
@@ -168,6 +169,14 @@
  */
 #define PTE_ATTRINDX(t)		(_AT(pteval_t, (t)) << 2)
 #define PTE_ATTRINDX_MASK	(_AT(pteval_t, 7) << 2)
+
+/*
+ * PIIndex[3:0] encoding (Permission Indirection Extension)
+ */
+#define PTE_PI_IDX_0	6	/* AP[1], USER */
+#define PTE_PI_IDX_1	51	/* DBM */
+#define PTE_PI_IDX_2	53	/* PXN */
+#define PTE_PI_IDX_3	54	/* UXN */
 
 /*
  * Memory Attribute override for Stage-2 (MemAttr[3:0])

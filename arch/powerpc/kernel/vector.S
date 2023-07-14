@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/linkage.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/reg.h>
@@ -155,8 +156,8 @@ _GLOBAL(load_up_vsx)
  * usage of floating-point registers.  These routines must be called
  * with preempt disabled.
  */
-#ifdef CONFIG_PPC32
 	.data
+#ifdef CONFIG_PPC32
 fpzero:
 	.long	0
 fpone:
@@ -169,24 +170,29 @@ fphalf:
 	lfs	fr,name@l(r11)
 #else
 
-	.section ".toc","aw"
 fpzero:
-	.tc	FD_0_0[TC],0
+	.quad	0
 fpone:
-	.tc	FD_3ff00000_0[TC],0x3ff0000000000000	/* 1.0 */
+	.quad	0x3ff0000000000000	/* 1.0 */
 fphalf:
-	.tc	FD_3fe00000_0[TC],0x3fe0000000000000	/* 0.5 */
+	.quad	0x3fe0000000000000	/* 0.5 */
 
-#define LDCONST(fr, name)	\
-	lfd	fr,name@toc(r2)
+#ifdef CONFIG_PPC_KERNEL_PCREL
+#define LDCONST(fr, name)		\
+	pla	r11,name@pcrel;		\
+	lfd	fr,0(r11)
+#else
+#define LDCONST(fr, name)		\
+	addis	r11,r2,name@toc@ha;	\
+	lfd	fr,name@toc@l(r11)
 #endif
-
+#endif
 	.text
 /*
  * Internal routine to enable floating point and set FPSCR to 0.
  * Don't call it from C; it doesn't use the normal calling convention.
  */
-fpenable:
+SYM_FUNC_START_LOCAL(fpenable)
 #ifdef CONFIG_PPC32
 	stwu	r1,-64(r1)
 #else
@@ -203,6 +209,7 @@ fpenable:
 	mffs	fr31
 	MTFSF_L(fr1)
 	blr
+SYM_FUNC_END(fpenable)
 
 fpdisable:
 	mtlr	r12

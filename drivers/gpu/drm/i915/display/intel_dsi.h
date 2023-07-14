@@ -89,9 +89,6 @@ struct intel_dsi {
 	u8 escape_clk_div;
 	u8 dual_link;
 
-	u16 dcs_backlight_ports;
-	u16 dcs_cabc_ports;
-
 	/* RGB or BGR */
 	bool bgr_enabled;
 

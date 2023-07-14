@@ -6,6 +6,7 @@
  */
 
 #include <linux/bsg-lib.h>
+#include <linux/dma-mapping.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include "ufs_bsg.h"
@@ -16,31 +17,11 @@ static int ufs_bsg_get_query_desc_size(struct ufs_hba *hba, int *desc_len,
 				       struct utp_upiu_query *qr)
 {
 	int desc_size = be16_to_cpu(qr->length);
-	int desc_id = qr->idn;
 
 	if (desc_size <= 0)
 		return -EINVAL;
 
-	ufshcd_map_desc_id_to_length(hba, desc_id, desc_len);
-	if (!*desc_len)
-		return -EINVAL;
-
-	*desc_len = min_t(int, *desc_len, desc_size);
-
-	return 0;
-}
-
-static int ufs_bsg_verify_query_size(struct ufs_hba *hba,
-				     unsigned int request_len,
-				     unsigned int reply_len)
-{
-	int min_req_len = sizeof(struct ufs_bsg_request);
-	int min_rsp_len = sizeof(struct ufs_bsg_reply);
-
-	if (min_req_len > request_len || min_rsp_len > reply_len) {
-		dev_err(hba->dev, "not enough space assigned\n");
-		return -EINVAL;
-	}
+	*desc_len = min_t(int, QUERY_DESC_MAX_SIZE, desc_size);
 
 	return 0;
 }
@@ -83,23 +64,84 @@ out:
 	return 0;
 }
 
+static int ufs_bsg_exec_advanced_rpmb_req(struct ufs_hba *hba, struct bsg_job *job)
+{
+	struct ufs_rpmb_request *rpmb_request = job->request;
+	struct ufs_rpmb_reply *rpmb_reply = job->reply;
+	struct bsg_buffer *payload = NULL;
+	enum dma_data_direction dir;
+	struct scatterlist *sg_list = NULL;
+	int rpmb_req_type;
+	int sg_cnt = 0;
+	int ret;
+	int data_len;
+
+	if (hba->ufs_version < ufshci_version(4, 0) || !hba->dev_info.b_advanced_rpmb_en ||
+	    !(hba->capabilities & MASK_EHSLUTRD_SUPPORTED))
+		return -EINVAL;
+
+	if (rpmb_request->ehs_req.length != 2 || rpmb_request->ehs_req.ehs_type != 1)
+		return -EINVAL;
+
+	rpmb_req_type = be16_to_cpu(rpmb_request->ehs_req.meta.req_resp_type);
+
+	switch (rpmb_req_type) {
+	case UFS_RPMB_WRITE_KEY:
+	case UFS_RPMB_READ_CNT:
+	case UFS_RPMB_PURGE_ENABLE:
+		dir = DMA_NONE;
+		break;
+	case UFS_RPMB_WRITE:
+	case UFS_RPMB_SEC_CONF_WRITE:
+		dir = DMA_TO_DEVICE;
+		break;
+	case UFS_RPMB_READ:
+	case UFS_RPMB_SEC_CONF_READ:
+	case UFS_RPMB_PURGE_STATUS_READ:
+		dir = DMA_FROM_DEVICE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (dir != DMA_NONE) {
+		payload = &job->request_payload;
+		if (!payload || !payload->payload_len || !payload->sg_cnt)
+			return -EINVAL;
+
+		sg_cnt = dma_map_sg(hba->host->dma_dev, payload->sg_list, payload->sg_cnt, dir);
+		if (unlikely(!sg_cnt))
+			return -ENOMEM;
+		sg_list = payload->sg_list;
+		data_len = payload->payload_len;
+	}
+
+	ret = ufshcd_advanced_rpmb_req_handler(hba, &rpmb_request->bsg_request.upiu_req,
+				   &rpmb_reply->bsg_reply.upiu_rsp, &rpmb_request->ehs_req,
+				   &rpmb_reply->ehs_rsp, sg_cnt, sg_list, dir);
+
+	if (dir != DMA_NONE) {
+		dma_unmap_sg(hba->host->dma_dev, payload->sg_list, payload->sg_cnt, dir);
+
+		if (!ret)
+			rpmb_reply->bsg_reply.reply_payload_rcv_len = data_len;
+	}
+
+	return ret;
+}
+
 static int ufs_bsg_request(struct bsg_job *job)
 {
 	struct ufs_bsg_request *bsg_request = job->request;
 	struct ufs_bsg_reply *bsg_reply = job->reply;
 	struct ufs_hba *hba = shost_priv(dev_to_shost(job->dev->parent));
-	unsigned int req_len = job->request_len;
-	unsigned int reply_len = job->reply_len;
 	struct uic_command uc = {};
 	int msgcode;
-	uint8_t *desc_buff = NULL;
+	uint8_t *buff = NULL;
 	int desc_len = 0;
 	enum query_opcode desc_op = UPIU_QUERY_OPCODE_NOP;
 	int ret;
-
-	ret = ufs_bsg_verify_query_size(hba, req_len, reply_len);
-	if (ret)
-		goto out;
+	bool rpmb = false;
 
 	bsg_reply->reply_payload_rcv_len = 0;
 
@@ -109,33 +151,38 @@ static int ufs_bsg_request(struct bsg_job *job)
 	switch (msgcode) {
 	case UPIU_TRANSACTION_QUERY_REQ:
 		desc_op = bsg_request->upiu_req.qr.opcode;
-		ret = ufs_bsg_alloc_desc_buffer(hba, job, &desc_buff,
-						&desc_len, desc_op);
-		if (ret) {
-			ufshcd_rpm_put_sync(hba);
+		ret = ufs_bsg_alloc_desc_buffer(hba, job, &buff, &desc_len, desc_op);
+		if (ret)
 			goto out;
-		}
-
 		fallthrough;
 	case UPIU_TRANSACTION_NOP_OUT:
 	case UPIU_TRANSACTION_TASK_REQ:
 		ret = ufshcd_exec_raw_upiu_cmd(hba, &bsg_request->upiu_req,
 					       &bsg_reply->upiu_rsp, msgcode,
-					       desc_buff, &desc_len, desc_op);
+					       buff, &desc_len, desc_op);
 		if (ret)
-			dev_err(hba->dev,
-				"exe raw upiu: error code %d\n", ret);
-
+			dev_err(hba->dev, "exe raw upiu: error code %d\n", ret);
+		else if (desc_op == UPIU_QUERY_OPCODE_READ_DESC && desc_len) {
+			bsg_reply->reply_payload_rcv_len =
+				sg_copy_from_buffer(job->request_payload.sg_list,
+						    job->request_payload.sg_cnt,
+						    buff, desc_len);
+		}
 		break;
 	case UPIU_TRANSACTION_UIC_CMD:
 		memcpy(&uc, &bsg_request->upiu_req.uc, UIC_CMD_SIZE);
 		ret = ufshcd_send_uic_cmd(hba, &uc);
 		if (ret)
-			dev_err(hba->dev,
-				"send uic cmd: error code %d\n", ret);
+			dev_err(hba->dev, "send uic cmd: error code %d\n", ret);
 
 		memcpy(&bsg_reply->upiu_rsp.uc, &uc, UIC_CMD_SIZE);
 
+		break;
+	case UPIU_TRANSACTION_ARPMB_CMD:
+		rpmb = true;
+		ret = ufs_bsg_exec_advanced_rpmb_req(hba, job);
+		if (ret)
+			dev_err(hba->dev, "ARPMB OP failed: error code  %d\n", ret);
 		break;
 	default:
 		ret = -ENOTSUPP;
@@ -144,22 +191,11 @@ static int ufs_bsg_request(struct bsg_job *job)
 		break;
 	}
 
-	ufshcd_rpm_put_sync(hba);
-
-	if (!desc_buff)
-		goto out;
-
-	if (desc_op == UPIU_QUERY_OPCODE_READ_DESC && desc_len)
-		bsg_reply->reply_payload_rcv_len =
-			sg_copy_from_buffer(job->request_payload.sg_list,
-					    job->request_payload.sg_cnt,
-					    desc_buff, desc_len);
-
-	kfree(desc_buff);
-
 out:
+	ufshcd_rpm_put_sync(hba);
+	kfree(buff);
 	bsg_reply->result = ret;
-	job->reply_len = sizeof(struct ufs_bsg_reply);
+	job->reply_len = !rpmb ? sizeof(struct ufs_bsg_reply) : sizeof(struct ufs_rpmb_reply);
 	/* complete the job here only if no error */
 	if (ret == 0)
 		bsg_job_done(job, ret, bsg_reply->reply_payload_rcv_len);

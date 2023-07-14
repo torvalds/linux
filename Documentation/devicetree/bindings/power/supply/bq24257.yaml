@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/power/supply/bq24257.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Binding for bq24250, bq24251 and bq24257 Li-Ion Charger
+title: Bq24250, bq24251 and bq24257 Li-Ion Charger
 
 maintainers:
   - Sebastian Reichel <sre@kernel.org>
@@ -84,7 +84,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 
@@ -104,7 +104,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    i2c0 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 

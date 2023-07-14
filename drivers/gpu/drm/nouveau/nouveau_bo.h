@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_BO_H__
 #define __NOUVEAU_BO_H__
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/drm_gem.h>
+#include <drm/ttm/ttm_bo.h>
+#include <drm/ttm/ttm_placement.h>
 
 struct nouveau_channel;
 struct nouveau_cli;

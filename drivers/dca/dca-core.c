@@ -294,9 +294,7 @@ EXPORT_SYMBOL_GPL(dca3_get_tag);
  */
 u8 dca_get_tag(int cpu)
 {
-	struct device *dev = NULL;
-
-	return dca_common_get_tag(dev, cpu);
+	return dca_common_get_tag(NULL, cpu);
 }
 EXPORT_SYMBOL_GPL(dca_get_tag);
 

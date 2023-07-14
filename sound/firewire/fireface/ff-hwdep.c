@@ -15,16 +15,23 @@
 
 #include "ff.h"
 
+static bool has_msg(struct snd_ff *ff)
+{
+	if (ff->spec->protocol->has_msg)
+		return ff->spec->protocol->has_msg(ff);
+	else
+		return 0;
+}
+
 static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 		       loff_t *offset)
 {
 	struct snd_ff *ff = hwdep->private_data;
 	DEFINE_WAIT(wait);
-	union snd_firewire_event event;
 
 	spin_lock_irq(&ff->lock);
 
-	while (!ff->dev_lock_changed) {
+	while (!ff->dev_lock_changed && !has_msg(ff)) {
 		prepare_to_wait(&ff->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&ff->lock);
 		schedule();
@@ -34,17 +41,29 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 		spin_lock_irq(&ff->lock);
 	}
 
-	memset(&event, 0, sizeof(event));
-	event.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS;
-	event.lock_status.status = (ff->dev_lock_count > 0);
-	ff->dev_lock_changed = false;
+	if (ff->dev_lock_changed && count >= sizeof(struct snd_firewire_event_lock_status)) {
+		struct snd_firewire_event_lock_status ev = {
+			.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS,
+			.status = (ff->dev_lock_count > 0),
+		};
 
-	count = min_t(long, count, sizeof(event.lock_status));
+		ff->dev_lock_changed = false;
 
-	spin_unlock_irq(&ff->lock);
+		spin_unlock_irq(&ff->lock);
 
-	if (copy_to_user(buf, &event, count))
-		return -EFAULT;
+		if (copy_to_user(buf, &ev, sizeof(ev)))
+			return -EFAULT;
+		count = sizeof(ev);
+	} else if (has_msg(ff)) {
+		// NOTE: Acquired spin lock should be released before accessing to user space in the
+		// callback since the access can cause page fault.
+		count = ff->spec->protocol->copy_msg_to_user(ff, buf, count);
+		spin_unlock_irq(&ff->lock);
+	} else {
+		spin_unlock_irq(&ff->lock);
+
+		count = 0;
+	}
 
 	return count;
 }
@@ -58,7 +77,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 	poll_wait(file, &ff->hwdep_wait, wait);
 
 	spin_lock_irq(&ff->lock);
-	if (ff->dev_lock_changed)
+	if (ff->dev_lock_changed || has_msg(ff))
 		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;

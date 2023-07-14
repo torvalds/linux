@@ -41,13 +41,13 @@ additionalProperties: false
 
 examples:
   - |
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
         sbrmi@3c {
-                compatible = "amd,sbrmi";
-                reg = <0x3c>;
+            compatible = "amd,sbrmi";
+            reg = <0x3c>;
         };
     };
 ...

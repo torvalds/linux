@@ -52,9 +52,6 @@ static inline int check_stack_overflow(void) { return 0; }
 static inline void print_stack_overflow(void) { }
 #endif
 
-DEFINE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
-DEFINE_PER_CPU(struct irq_stack *, softirq_stack_ptr);
-
 static void call_on_stack(void *func, void *stack)
 {
 	asm volatile("xchgl	%%ebx,%%esp	\n"
@@ -77,7 +74,7 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 	u32 *isp, *prev_esp, arg1;
 
 	curstk = (struct irq_stack *) current_stack();
-	irqstk = __this_cpu_read(hardirq_stack_ptr);
+	irqstk = __this_cpu_read(pcpu_hot.hardirq_stack_ptr);
 
 	/*
 	 * this is where we switch to the IRQ stack. However, if we are
@@ -115,7 +112,7 @@ int irq_init_percpu_irqstack(unsigned int cpu)
 	int node = cpu_to_node(cpu);
 	struct page *ph, *ps;
 
-	if (per_cpu(hardirq_stack_ptr, cpu))
+	if (per_cpu(pcpu_hot.hardirq_stack_ptr, cpu))
 		return 0;
 
 	ph = alloc_pages_node(node, THREADINFO_GFP, THREAD_SIZE_ORDER);
@@ -127,8 +124,8 @@ int irq_init_percpu_irqstack(unsigned int cpu)
 		return -ENOMEM;
 	}
 
-	per_cpu(hardirq_stack_ptr, cpu) = page_address(ph);
-	per_cpu(softirq_stack_ptr, cpu) = page_address(ps);
+	per_cpu(pcpu_hot.hardirq_stack_ptr, cpu) = page_address(ph);
+	per_cpu(pcpu_hot.softirq_stack_ptr, cpu) = page_address(ps);
 	return 0;
 }
 
@@ -138,7 +135,7 @@ void do_softirq_own_stack(void)
 	struct irq_stack *irqstk;
 	u32 *isp, *prev_esp;
 
-	irqstk = __this_cpu_read(softirq_stack_ptr);
+	irqstk = __this_cpu_read(pcpu_hot.softirq_stack_ptr);
 
 	/* build the stack frame on the softirq stack */
 	isp = (u32 *) ((char *)irqstk + sizeof(*irqstk));

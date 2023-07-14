@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/i2c/xlnx,xps-iic-2.00.a.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/i2c/xlnx,xps-iic-2.00.a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx IIC controller Device Tree Bindings
+title: Xilinx IIC controller
 
 maintainers:
   - info@mocean-labs.com
@@ -14,7 +14,9 @@ allOf:
 
 properties:
   compatible:
-    const: xlnx,xps-iic-2.00.a
+    enum:
+      - xlnx,axi-iic-2.1
+      - xlnx,xps-iic-2.00.a
 
   reg:
     maxItems: 1
@@ -29,6 +31,13 @@ properties:
     const: pclk
     description: |
       Input clock name.
+
+  clock-frequency:
+    description:
+      Optional I2C SCL clock frequency. If not specified, do not configure
+      in software, rely only on hardware design value.
+    default: 100000
+    enum: [ 100000, 400000, 1000000 ]
 
 required:
   - compatible

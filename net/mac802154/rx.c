@@ -29,11 +29,87 @@ static int ieee802154_deliver_skb(struct sk_buff *skb)
 	return netif_receive_skb(skb);
 }
 
+void mac802154_rx_beacon_worker(struct work_struct *work)
+{
+	struct ieee802154_local *local =
+		container_of(work, struct ieee802154_local, rx_beacon_work);
+	struct cfg802154_mac_pkt *mac_pkt;
+
+	mac_pkt = list_first_entry_or_null(&local->rx_beacon_list,
+					   struct cfg802154_mac_pkt, node);
+	if (!mac_pkt)
+		return;
+
+	mac802154_process_beacon(local, mac_pkt->skb, mac_pkt->page, mac_pkt->channel);
+
+	list_del(&mac_pkt->node);
+	kfree_skb(mac_pkt->skb);
+	kfree(mac_pkt);
+}
+
+static bool mac802154_should_answer_beacon_req(struct ieee802154_local *local)
+{
+	struct cfg802154_beacon_request *beacon_req;
+	unsigned int interval;
+
+	rcu_read_lock();
+	beacon_req = rcu_dereference(local->beacon_req);
+	if (!beacon_req) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	interval = beacon_req->interval;
+	rcu_read_unlock();
+
+	if (!mac802154_is_beaconing(local))
+		return false;
+
+	return interval == IEEE802154_ACTIVE_SCAN_DURATION;
+}
+
+void mac802154_rx_mac_cmd_worker(struct work_struct *work)
+{
+	struct ieee802154_local *local =
+		container_of(work, struct ieee802154_local, rx_mac_cmd_work);
+	struct cfg802154_mac_pkt *mac_pkt;
+	u8 mac_cmd;
+	int rc;
+
+	mac_pkt = list_first_entry_or_null(&local->rx_mac_cmd_list,
+					   struct cfg802154_mac_pkt, node);
+	if (!mac_pkt)
+		return;
+
+	rc = ieee802154_get_mac_cmd(mac_pkt->skb, &mac_cmd);
+	if (rc)
+		goto out;
+
+	switch (mac_cmd) {
+	case IEEE802154_CMD_BEACON_REQ:
+		dev_dbg(&mac_pkt->sdata->dev->dev, "processing BEACON REQ\n");
+		if (!mac802154_should_answer_beacon_req(local))
+			break;
+
+		queue_delayed_work(local->mac_wq, &local->beacon_work, 0);
+		break;
+	default:
+		break;
+	}
+
+out:
+	list_del(&mac_pkt->node);
+	kfree_skb(mac_pkt->skb);
+	kfree(mac_pkt);
+}
+
 static int
 ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 		       struct sk_buff *skb, const struct ieee802154_hdr *hdr)
 {
+	struct wpan_phy *wpan_phy = sdata->local->hw.phy;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct cfg802154_mac_pkt *mac_pkt;
 	__le16 span, sshort;
 	int rc;
 
@@ -41,6 +117,17 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	span = wpan_dev->pan_id;
 	sshort = wpan_dev->short_addr;
+
+	/* Level 3 filtering: Only beacons are accepted during scans */
+	if (sdata->required_filtering == IEEE802154_FILTERING_3_SCAN &&
+	    sdata->required_filtering > wpan_phy->filtering) {
+		if (mac_cb(skb)->type != IEEE802154_FC_TYPE_BEACON) {
+			dev_dbg(&sdata->dev->dev,
+				"drop non-beacon frame (0x%x) during scan\n",
+				mac_cb(skb)->type);
+			goto fail;
+		}
+	}
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
@@ -94,8 +181,35 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	switch (mac_cb(skb)->type) {
 	case IEEE802154_FC_TYPE_BEACON:
-	case IEEE802154_FC_TYPE_ACK:
+		dev_dbg(&sdata->dev->dev, "BEACON received\n");
+		if (!mac802154_is_scanning(sdata->local))
+			goto fail;
+
+		mac_pkt = kzalloc(sizeof(*mac_pkt), GFP_ATOMIC);
+		if (!mac_pkt)
+			goto fail;
+
+		mac_pkt->skb = skb_get(skb);
+		mac_pkt->sdata = sdata;
+		mac_pkt->page = sdata->local->scan_page;
+		mac_pkt->channel = sdata->local->scan_channel;
+		list_add_tail(&mac_pkt->node, &sdata->local->rx_beacon_list);
+		queue_work(sdata->local->mac_wq, &sdata->local->rx_beacon_work);
+		return NET_RX_SUCCESS;
+
 	case IEEE802154_FC_TYPE_MAC_CMD:
+		dev_dbg(&sdata->dev->dev, "MAC COMMAND received\n");
+		mac_pkt = kzalloc(sizeof(*mac_pkt), GFP_ATOMIC);
+		if (!mac_pkt)
+			goto fail;
+
+		mac_pkt->skb = skb_get(skb);
+		mac_pkt->sdata = sdata;
+		list_add_tail(&mac_pkt->node, &sdata->local->rx_mac_cmd_list);
+		queue_work(sdata->local->mac_wq, &sdata->local->rx_mac_cmd_work);
+		return NET_RX_SUCCESS;
+
+	case IEEE802154_FC_TYPE_ACK:
 		goto fail;
 
 	case IEEE802154_FC_TYPE_DATA:
@@ -114,8 +228,10 @@ fail:
 static void
 ieee802154_print_addr(const char *name, const struct ieee802154_addr *addr)
 {
-	if (addr->mode == IEEE802154_ADDR_NONE)
+	if (addr->mode == IEEE802154_ADDR_NONE) {
 		pr_debug("%s not present\n", name);
+		return;
+	}
 
 	pr_debug("%s PAN ID: %04x\n", name, le16_to_cpu(addr->pan_id));
 	if (addr->mode == IEEE802154_ADDR_SHORT) {
@@ -132,7 +248,7 @@ static int
 ieee802154_parse_frame_start(struct sk_buff *skb, struct ieee802154_hdr *hdr)
 {
 	int hlen;
-	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
+	struct ieee802154_mac_cb *cb = mac_cb(skb);
 
 	skb_reset_mac_header(skb);
 
@@ -194,27 +310,34 @@ __ieee802154_rx_handle_packet(struct ieee802154_local *local,
 	int ret;
 	struct ieee802154_sub_if_data *sdata;
 	struct ieee802154_hdr hdr;
+	struct sk_buff *skb2;
 
 	ret = ieee802154_parse_frame_start(skb, &hdr);
 	if (ret) {
 		pr_debug("got invalid frame\n");
-		kfree_skb(skb);
 		return;
 	}
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->wpan_dev.iftype != NL802154_IFTYPE_NODE)
+		if (sdata->wpan_dev.iftype == NL802154_IFTYPE_MONITOR)
 			continue;
 
 		if (!ieee802154_sdata_running(sdata))
 			continue;
 
-		ieee802154_subif_frame(sdata, skb, &hdr);
-		skb = NULL;
-		break;
-	}
+		/* Do not deliver packets received on interfaces expecting
+		 * AACK=1 if the address filters where disabled.
+		 */
+		if (local->hw.phy->filtering < IEEE802154_FILTERING_4_FRAME_FIELDS &&
+		    sdata->required_filtering == IEEE802154_FILTERING_4_FRAME_FIELDS)
+			continue;
 
-	kfree_skb(skb);
+		skb2 = skb_clone(skb, GFP_ATOMIC);
+		if (skb2) {
+			skb2->dev = sdata->dev;
+			ieee802154_subif_frame(sdata, skb2, &hdr);
+		}
+	}
 }
 
 static void
@@ -253,7 +376,7 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 	WARN_ON_ONCE(softirq_count() == 0);
 
 	if (local->suspended)
-		goto drop;
+		goto free_skb;
 
 	/* TODO: When a transceiver omits the checksum here, we
 	 * add an own calculated one. This is currently an ugly
@@ -268,25 +391,20 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb)
 
 	ieee802154_monitors_rx(local, skb);
 
-	/* Check if transceiver doesn't validate the checksum.
-	 * If not we validate the checksum here.
-	 */
-	if (local->hw.flags & IEEE802154_HW_RX_DROP_BAD_CKSUM) {
+	/* Level 1 filtering: Check the FCS by software when relevant */
+	if (local->hw.phy->filtering == IEEE802154_FILTERING_NONE) {
 		crc = crc_ccitt(0, skb->data, skb->len);
-		if (crc) {
-			rcu_read_unlock();
+		if (crc)
 			goto drop;
-		}
 	}
 	/* remove crc */
 	skb_trim(skb, skb->len - 2);
 
 	__ieee802154_rx_handle_packet(local, skb);
 
-	rcu_read_unlock();
-
-	return;
 drop:
+	rcu_read_unlock();
+free_skb:
 	kfree_skb(skb);
 }
 
@@ -294,8 +412,9 @@ void
 ieee802154_rx_irqsafe(struct ieee802154_hw *hw, struct sk_buff *skb, u8 lqi)
 {
 	struct ieee802154_local *local = hw_to_local(hw);
+	struct ieee802154_mac_cb *cb = mac_cb_init(skb);
 
-	mac_cb(skb)->lqi = lqi;
+	cb->lqi = lqi;
 	skb->pkt_type = IEEE802154_RX_MSG;
 	skb_queue_tail(&local->skb_queue, skb);
 	tasklet_schedule(&local->tasklet);

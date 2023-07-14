@@ -214,7 +214,7 @@ static int sht4x_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *sht4x_info[] = {
+static const struct hwmon_channel_info * const sht4x_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	HWMON_CHANNEL_INFO(humidity, HWMON_H_INPUT),
@@ -232,8 +232,7 @@ static const struct hwmon_chip_info sht4x_chip_info = {
 	.info = sht4x_info,
 };
 
-static int sht4x_probe(struct i2c_client *client,
-		       const struct i2c_device_id *sht4x_id)
+static int sht4x_probe(struct i2c_client *client)
 {
 	struct device *device = &client->dev;
 	struct device *hwmon_dev;

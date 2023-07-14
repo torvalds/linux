@@ -33,7 +33,7 @@ menu "USB Peripheral Controller"
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
 	depends on ARCH_AT91
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
@@ -108,17 +108,6 @@ config USB_FUSB300
 	help
 	   Faraday usb device controller FUSB300 driver
 
-config USB_FOTG210_UDC
-	depends on HAS_DMA
-	tristate "Faraday FOTG210 USB Peripheral Controller"
-	help
-	   Faraday USB2.0 OTG controller which can be configured as
-	   high speed or full speed USB device. This driver supppors
-	   Bulk Transfer so far.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "fotg210_udc".
-
 config USB_GR_UDC
 	tristate "Aeroflex Gaisler GRUSBDC USB Peripheral Controller Driver"
 	depends on HAS_DMA
@@ -129,7 +118,6 @@ config USB_GR_UDC
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
-	depends on ISP1301_OMAP || !(MACH_OMAP_H2 || MACH_OMAP_H3)
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -191,9 +179,20 @@ config USB_RENESAS_USBHS_UDC
 	   dynamically linked module called "renesas_usbhs" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_RZV2M_USB3DRD
+	tristate 'Renesas USB3.1 DRD controller'
+	depends on ARCH_R9A09G011 || COMPILE_TEST
+	help
+	   Renesas USB3.1 DRD controller is a USB DRD controller
+	   that supports both host and device switching.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "rzv2m_usb3drd".
+
 config USB_RENESAS_USB3
 	tristate 'Renesas USB3.0 Peripheral controller'
 	depends on ARCH_RENESAS || COMPILE_TEST
+	depends on USB_RZV2M_USB3DRD || !USB_RZV2M_USB3DRD
 	depends on EXTCON
 	select USB_ROLE_SWITCH
 	help
@@ -202,6 +201,17 @@ config USB_RENESAS_USB3
 
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "renesas_usb3" and force all
+	   gadget drivers to also be dynamically linked.
+
+config USB_RENESAS_USBF
+	tristate 'Renesas USB Function controller'
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	   Renesas USB Function controller is a USB peripheral controller
+	   available on RZ/N1 Renesas SoCs.
+
+	   Say "y" to link the driver statically, or "m" to build a
+	   dynamically linked module called "renesas_usbf" and force all
 	   gadget drivers to also be dynamically linked.
 
 config USB_PXA27X
@@ -217,31 +227,6 @@ config USB_PXA27X
 	   Say "y" to link the driver statically, or "m" to build a
 	   dynamically linked module called "pxa27x_udc" and force all
 	   gadget drivers to also be dynamically linked.
-
-config USB_S3C2410
-	tristate "S3C2410 USB Device Controller"
-	depends on ARCH_S3C24XX
-	help
-	  Samsung's S3C2410 is an ARM-4 processor with an integrated
-	  full speed USB 1.1 device controller.  It has 4 configurable
-	  endpoints, as well as endpoint zero (for control transfers).
-
-	  This driver has been tested on the S3C2410, S3C2412, and
-	  S3C2440 processors.
-
-config USB_S3C2410_DEBUG
-	bool "S3C2410 udc debug messages"
-	depends on USB_S3C2410
-
-config USB_S3C_HSUDC
-	tristate "S3C2416, S3C2443 and S3C2450 USB Device Controller"
-	depends on ARCH_S3C24XX
-	help
-	  Samsung's S3C2416, S3C2443 and S3C2450 is an ARM9 based SoC
-	  integrated with dual speed USB 2.0 device controller. It has
-	  8 endpoints, as well as endpoint zero.
-
-	  This driver has been tested on S3C2416 and S3C2450 processors.
 
 config USB_MV_UDC
 	tristate "Marvell USB2.0 Device Controller"
@@ -430,7 +415,7 @@ config USB_EG20T
 config USB_GADGET_XILINX
 	tristate "Xilinx USB Driver"
 	depends on HAS_DMA
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  USB peripheral controller driver for Xilinx USB2 device.
 	  Xilinx USB2 device is a soft IP which supports both full
@@ -477,6 +462,8 @@ config USB_ASPEED_UDC
 	  gadget drivers to also be dynamically linked.
 
 source "drivers/usb/gadget/udc/aspeed-vhub/Kconfig"
+
+source "drivers/usb/gadget/udc/cdns2/Kconfig"
 
 #
 # LAST -- dummy/emulated controller

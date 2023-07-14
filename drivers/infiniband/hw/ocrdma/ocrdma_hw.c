@@ -1363,7 +1363,7 @@ static int ocrdma_mbx_get_ctrl_attribs(struct ocrdma_dev *dev)
 		dev->hba_port_num = (hba_attribs->ptpnum_maxdoms_hbast_cv &
 					OCRDMA_HBA_ATTRB_PTNUM_MASK)
 					>> OCRDMA_HBA_ATTRB_PTNUM_SHIFT;
-		strlcpy(dev->model_number,
+		strscpy(dev->model_number,
 			hba_attribs->controller_model_number,
 			sizeof(dev->model_number));
 	}

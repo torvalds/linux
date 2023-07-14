@@ -168,6 +168,7 @@ struct smu_temperature_range {
 	int mem_crit_max;
 	int mem_emergency_max;
 	int software_shutdown_temp;
+	int software_shutdown_temp_offset;
 };
 
 struct smu_state_validation_block {
@@ -568,6 +569,12 @@ struct smu_context
 	u32 param_reg;
 	u32 msg_reg;
 	u32 resp_reg;
+
+	u32 debug_param_reg;
+	u32 debug_msg_reg;
+	u32 debug_resp_reg;
+
+	struct delayed_work		swctf_delayed_work;
 };
 
 struct i2c_adapter;
@@ -715,6 +722,18 @@ struct pptable_funcs {
 	 */
 	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
+
+	/**
+	 * @get_apu_thermal_limit: get apu core limit from smu
+	 * &limit: current limit temperature in millidegrees Celsius
+	 */
+	int (*get_apu_thermal_limit)(struct smu_context *smu, uint32_t *limit);
+
+	/**
+	 * @set_apu_thermal_limit: update all controllers with new limit
+	 * &limit: limit temperature to be setted, in millidegrees Celsius
+	 */
+	int (*set_apu_thermal_limit)(struct smu_context *smu, uint32_t limit);
 
 	/**
 	 * @pre_display_config_changed: Prepare GPU for a display configuration
@@ -1112,6 +1131,22 @@ struct pptable_funcs {
 	uint32_t (*get_gfx_off_status)(struct smu_context *smu);
 
 	/**
+	 * @gfx_off_entrycount: total GFXOFF entry count at the time of
+	 * query since system power-up
+	 */
+	u32 (*get_gfx_off_entrycount)(struct smu_context *smu, uint64_t *entrycount);
+
+	/**
+	 * @set_gfx_off_residency: set 1 to start logging, 0 to stop logging
+	 */
+	u32 (*set_gfx_off_residency)(struct smu_context *smu, bool start);
+
+	/**
+	 * @get_gfx_off_residency: Average GFXOFF residency % during the logging interval
+	 */
+	u32 (*get_gfx_off_residency)(struct smu_context *smu, uint32_t *residency);
+
+	/**
 	 * @register_irq_handler: Register interupt request handlers.
 	 */
 	int (*register_irq_handler)(struct smu_context *smu);
@@ -1180,6 +1215,8 @@ struct pptable_funcs {
 	 * IPs reset varies by asic.
 	 */
 	int (*mode2_reset)(struct smu_context *smu);
+	/* for gfx feature enablement after mode2 reset */
+	int (*enable_gfx_features)(struct smu_context *smu);
 
 	/**
 	 * @get_dpm_ultimate_freq: Get the hard frequency range of a clock
@@ -1372,6 +1409,14 @@ enum smu_cmn2asic_mapping_type {
 	CMN2ASIC_MAPPING_WORKLOAD,
 };
 
+enum smu_baco_seq {
+	BACO_SEQ_BACO = 0,
+	BACO_SEQ_MSR,
+	BACO_SEQ_BAMACO,
+	BACO_SEQ_ULPS,
+	BACO_SEQ_COUNT,
+};
+
 #define MSG_MAP(msg, index, valid_in_vf) \
 	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
 
@@ -1453,6 +1498,12 @@ int smu_set_gfx_power_up_by_imu(struct smu_context *smu);
 int smu_set_ac_dc(struct smu_context *smu);
 
 int smu_allow_xgmi_power_down(struct smu_context *smu, bool en);
+
+int smu_get_entrycount_gfxoff(struct smu_context *smu, u64 *value);
+
+int smu_get_residency_gfxoff(struct smu_context *smu, u32 *value);
+
+int smu_set_residency_gfxoff(struct smu_context *smu, bool value);
 
 int smu_get_status_gfxoff(struct smu_context *smu, uint32_t *value);
 

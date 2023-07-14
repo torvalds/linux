@@ -71,8 +71,8 @@ config W1_SLAVE_DS2805
 	help
 	  Say Y here if you want to use a 1-wire
 	  is a 112-byte user-programmable EEPROM is
-          organized as 7 pages of 16 bytes each with 64bit
-          unique number. Requires OverDrive Speed to talk to.
+	  organized as 7 pages of 16 bytes each with 64bit
+	  unique number. Requires OverDrive Speed to talk to.
 
 config W1_SLAVE_DS2430
 	tristate "256b EEPROM family support (DS2430)"

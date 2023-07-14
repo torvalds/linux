@@ -32,9 +32,11 @@
  *
  */
 
+#include "display/intel_dp_aux_regs.h"
+#include "display/intel_gmbus_regs.h"
+#include "gvt.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
-#include "gvt.h"
 
 #define GMBUS1_TOTAL_BYTES_SHIFT 16
 #define GMBUS1_TOTAL_BYTES_MASK 0x1ff
@@ -461,10 +463,6 @@ static inline int get_aux_ch_reg(unsigned int offset)
 	return reg;
 }
 
-#define AUX_CTL_MSG_LENGTH(reg) \
-	((reg & DP_AUX_CH_CTL_MESSAGE_SIZE_MASK) >> \
-		DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT)
-
 /**
  * intel_gvt_i2c_handle_aux_ch_write - emulate AUX channel register write
  * @vgpu: a vGPU
@@ -493,7 +491,8 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 		return;
 	}
 
-	msg_length = AUX_CTL_MSG_LENGTH(value);
+	msg_length = REG_FIELD_GET(DP_AUX_CH_CTL_MESSAGE_SIZE_MASK, reg);
+
 	// check the msg in DATA register.
 	msg = vgpu_vreg(vgpu, offset + 4);
 	addr = (msg >> 8) & 0xffff;
@@ -508,8 +507,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 	ret_msg_size = (((op & 0x1) == GVT_AUX_I2C_READ) ? 2 : 1);
 	vgpu_vreg(vgpu, offset) =
 		DP_AUX_CH_CTL_DONE |
-		((ret_msg_size << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) &
-		DP_AUX_CH_CTL_MESSAGE_SIZE_MASK);
+		DP_AUX_CH_CTL_MESSAGE_SIZE(ret_msg_size);
 
 	if (msg_length == 3) {
 		if (!(op & GVT_AUX_I2C_MOT)) {

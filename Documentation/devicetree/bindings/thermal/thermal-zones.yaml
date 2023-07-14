@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/thermal/thermal-zones.yaml#
 $schema: http://devicetree.org/meta-schemas/base.yaml#
 
-title: Thermal zone binding
+title: Thermal zone
 
 maintainers:
   - Amit Kucheria <amitk@kernel.org>
@@ -171,6 +171,7 @@ patternProperties:
 
       cooling-maps:
         type: object
+        additionalProperties: false
         description:
           This node describes the action to be taken when a thermal zone
           crosses one of the temperature thresholds described in the trips

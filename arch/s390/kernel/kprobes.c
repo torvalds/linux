@@ -24,14 +24,13 @@
 #include <asm/set_memory.h>
 #include <asm/sections.h>
 #include <asm/dis.h>
+#include "kprobes.h"
 #include "entry.h"
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe);
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = { };
-
-DEFINE_INSN_CACHE_OPS(s390_insn);
 
 static int insn_page_in_use;
 
@@ -42,7 +41,7 @@ void *alloc_insn_page(void)
 	page = module_alloc(PAGE_SIZE);
 	if (!page)
 		return NULL;
-	__set_memory((unsigned long) page, 1, SET_MEMORY_RO | SET_MEMORY_X);
+	set_memory_rox((unsigned long)page, 1);
 	return page;
 }
 
@@ -279,18 +278,9 @@ static void pop_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
 	kcb->kprobe_status = kcb->prev_kprobe.status;
+	kcb->prev_kprobe.kp = NULL;
 }
 NOKPROBE_SYMBOL(pop_kprobe);
-
-void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	ri->ret_addr = (kprobe_opcode_t *)regs->gprs[14];
-	ri->fp = (void *)regs->gprs[15];
-
-	/* Replace the return addr with trampoline addr */
-	regs->gprs[14] = (unsigned long)&__kretprobe_trampoline;
-}
-NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
 static void kprobe_reenter_check(struct kprobe_ctlblk *kcb, struct kprobe *p)
 {
@@ -372,26 +362,6 @@ static int kprobe_handler(struct pt_regs *regs)
 }
 NOKPROBE_SYMBOL(kprobe_handler);
 
-void arch_kretprobe_fixup_return(struct pt_regs *regs,
-				 kprobe_opcode_t *correct_ret_addr)
-{
-	/* Replace fake return address with real one. */
-	regs->gprs[14] = (unsigned long)correct_ret_addr;
-}
-NOKPROBE_SYMBOL(arch_kretprobe_fixup_return);
-
-/*
- * Called from __kretprobe_trampoline
- */
-void trampoline_probe_handler(struct pt_regs *regs)
-{
-	kretprobe_trampoline_handler(regs, (void *)regs->gprs[15]);
-}
-NOKPROBE_SYMBOL(trampoline_probe_handler);
-
-/* assembler function that handles the kretprobes must not be probed itself */
-NOKPROBE_SYMBOL(__kretprobe_trampoline);
-
 /*
  * Called after single-stepping.  p->addr is the address of the
  * instruction whose first byte has been replaced by the "breakpoint"
@@ -433,12 +403,11 @@ static int post_kprobe_handler(struct pt_regs *regs)
 	if (!p)
 		return 0;
 
+	resume_execution(p, regs);
 	if (kcb->kprobe_status != KPROBE_REENTER && p->post_handler) {
 		kcb->kprobe_status = KPROBE_HIT_SSDONE;
 		p->post_handler(p, regs, 0);
 	}
-
-	resume_execution(p, regs);
 	pop_kprobe(kcb);
 	preempt_enable_no_resched();
 

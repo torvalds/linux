@@ -19,17 +19,61 @@ allOf:
     then:
       required:
         - power-domains
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: starfive,jh7110-qspi
+    then:
+      properties:
+        resets:
+          minItems: 2
+          maxItems: 3
+
+        reset-names:
+          minItems: 2
+          maxItems: 3
+          items:
+            enum: [ qspi, qspi-ocp, rstc_ref ]
+
+    else:
+      properties:
+        resets:
+          maxItems: 2
+
+        reset-names:
+          minItems: 1
+          maxItems: 2
+          items:
+            enum: [ qspi, qspi-ocp ]
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: amd,pensando-elba-qspi
+    then:
+      properties:
+        cdns,fifo-depth:
+          enum: [ 128, 256, 1024 ]
+          default: 1024
+    else:
+      properties:
+        cdns,fifo-depth:
+          enum: [ 128, 256 ]
+          default: 128
 
 properties:
   compatible:
     oneOf:
       - items:
           - enum:
+              - amd,pensando-elba-qspi
               - ti,k2g-qspi
               - ti,am654-ospi
               - intel,lgm-qspi
               - xlnx,versal-ospi-1.0
               - intel,socfpga-qspi
+              - starfive,jh7110-qspi
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
 
@@ -47,9 +91,7 @@ properties:
   cdns,fifo-depth:
     description:
       Size of the data FIFO in words.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
-    enum: [ 128, 256 ]
-    default: 128
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   cdns,fifo-width:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -79,13 +121,14 @@ properties:
     maxItems: 1
 
   resets:
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
 
   reset-names:
-    minItems: 1
-    maxItems: 2
+    minItems: 2
+    maxItems: 3
     items:
-      enum: [ qspi, qspi-ocp ]
+      enum: [ qspi, qspi-ocp, rstc_ref ]
 
 required:
   - compatible
@@ -103,21 +146,21 @@ unevaluatedProperties: false
 examples:
   - |
     qspi: spi@ff705000 {
-      compatible = "cdns,qspi-nor";
-      #address-cells = <1>;
-      #size-cells = <0>;
-      reg = <0xff705000 0x1000>,
-            <0xffa00000 0x1000>;
-      interrupts = <0 151 4>;
-      clocks = <&qspi_clk>;
-      cdns,fifo-depth = <128>;
-      cdns,fifo-width = <4>;
-      cdns,trigger-address = <0x00000000>;
-      resets = <&rst 0x1>, <&rst 0x2>;
-      reset-names = "qspi", "qspi-ocp";
+        compatible = "cdns,qspi-nor";
+        #address-cells = <1>;
+        #size-cells = <0>;
+        reg = <0xff705000 0x1000>,
+              <0xffa00000 0x1000>;
+        interrupts = <0 151 4>;
+        clocks = <&qspi_clk>;
+        cdns,fifo-depth = <128>;
+        cdns,fifo-width = <4>;
+        cdns,trigger-address = <0x00000000>;
+        resets = <&rst 0x1>, <&rst 0x2>;
+        reset-names = "qspi", "qspi-ocp";
 
-      flash@0 {
-              compatible = "jedec,spi-nor";
-              reg = <0x0>;
-      };
+        flash@0 {
+            compatible = "jedec,spi-nor";
+            reg = <0x0>;
+        };
     };

@@ -22,6 +22,8 @@
 #define CLK_RESET_CCLK_BURST	0x20
 #define CLK_RESET_CCLK_DIVIDER  0x24
 
+.arch armv7-a
+
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PM_SLEEP)
 /*
  * tegra_disable_clean_inv_dcache

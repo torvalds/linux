@@ -197,7 +197,7 @@ static const struct dvb_tuner_ops qm1d1b0004_ops = {
 };
 
 static int
-qm1d1b0004_probe(struct i2c_client *client, const struct i2c_device_id *id)
+qm1d1b0004_probe(struct i2c_client *client)
 {
 	struct dvb_frontend *fe;
 	struct qm1d1b0004_config *cfg;

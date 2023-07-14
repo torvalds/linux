@@ -217,7 +217,7 @@ static void gnss_device_release(struct device *dev)
 
 	kfree(gdev->write_buf);
 	kfifo_free(&gdev->read_fifo);
-	ida_simple_remove(&gnss_minors, gdev->id);
+	ida_free(&gnss_minors, gdev->id);
 	kfree(gdev);
 }
 
@@ -232,7 +232,7 @@ struct gnss_device *gnss_allocate_device(struct device *parent)
 	if (!gdev)
 		return NULL;
 
-	id = ida_simple_get(&gnss_minors, 0, GNSS_MINORS, GFP_KERNEL);
+	id = ida_alloc_max(&gnss_minors, GNSS_MINORS - 1, GFP_KERNEL);
 	if (id < 0) {
 		kfree(gdev);
 		return NULL;
@@ -337,7 +337,7 @@ static const char * const gnss_type_names[GNSS_TYPE_COUNT] = {
 	[GNSS_TYPE_MTK]		= "MTK",
 };
 
-static const char *gnss_type_name(struct gnss_device *gdev)
+static const char *gnss_type_name(const struct gnss_device *gdev)
 {
 	const char *name = NULL;
 
@@ -365,9 +365,9 @@ static struct attribute *gnss_attrs[] = {
 };
 ATTRIBUTE_GROUPS(gnss);
 
-static int gnss_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int gnss_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gnss_device *gdev = to_gnss_device(dev);
+	const struct gnss_device *gdev = to_gnss_device(dev);
 	int ret;
 
 	ret = add_uevent_var(env, "GNSS_TYPE=%s", gnss_type_name(gdev));
@@ -387,7 +387,7 @@ static int __init gnss_module_init(void)
 		return ret;
 	}
 
-	gnss_class = class_create(THIS_MODULE, "gnss");
+	gnss_class = class_create("gnss");
 	if (IS_ERR(gnss_class)) {
 		ret = PTR_ERR(gnss_class);
 		pr_err("failed to create class: %d\n", ret);

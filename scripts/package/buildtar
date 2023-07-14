@@ -16,39 +16,7 @@ set -e
 #
 # Some variables and settings used throughout the script
 #
-tmpdir="${objtree}/tar-install"
-tarball="${objtree}/linux-${KERNELRELEASE}-${ARCH}.tar"
-
-
-#
-# Figure out how to compress, if requested at all
-#
-case "${1}" in
-	dir-pkg|tar-pkg)
-		opts=
-		;;
-	targz-pkg)
-		opts="-I ${KGZIP}"
-		tarball=${tarball}.gz
-		;;
-	tarbz2-pkg)
-		opts="-I ${KBZIP2}"
-		tarball=${tarball}.bz2
-		;;
-	tarxz-pkg)
-		opts="-I ${XZ}"
-		tarball=${tarball}.xz
-		;;
-	tarzst-pkg)
-		opts="-I ${ZSTD}"
-		tarball=${tarball}.zst
-		;;
-	*)
-		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
-		exit 1
-		;;
-esac
-
+tmpdir=$1
 
 #
 # Clean-up and re-create the temporary directory
@@ -122,7 +90,7 @@ case "${ARCH}" in
 		fi
 		;;
 	arm64)
-		for i in Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo ; do
+		for i in Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo vmlinuz.efi ; do
 			if [ -f "${objtree}/arch/arm64/boot/${i}" ] ; then
 				cp -v -- "${objtree}/arch/arm64/boot/${i}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
 				break
@@ -148,21 +116,3 @@ case "${ARCH}" in
 		sleep 5
 		;;
 esac
-
-if [ "${1}" = dir-pkg ]; then
-	echo "Kernel tree successfully created in $tmpdir"
-	exit 0
-fi
-
-#
-# Create the tarball
-#
-if tar --owner=root --group=root --help >/dev/null 2>&1; then
-	opts="$opts --owner=root --group=root"
-fi
-
-tar cf $tarball -C $tmpdir $opts $dirs
-
-echo "Tarball successfully created in $tarball"
-
-exit 0

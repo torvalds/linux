@@ -41,6 +41,7 @@
 struct dma_fence;
 struct drm_file;
 struct drm_device;
+struct drm_printer;
 struct device;
 struct file;
 
@@ -51,11 +52,15 @@ struct file;
 
 /* Note that the order of this enum is ABI (it determines
  * /dev/dri/renderD* numbers).
+ *
+ * Setting DRM_MINOR_ACCEL to 32 gives enough space for more drm minors to
+ * be implemented before we hit any future
  */
 enum drm_minor_type {
 	DRM_MINOR_PRIMARY,
 	DRM_MINOR_CONTROL,
 	DRM_MINOR_RENDER,
+	DRM_MINOR_ACCEL = 32,
 };
 
 /**
@@ -70,7 +75,7 @@ enum drm_minor_type {
 struct drm_minor {
 	/* private: */
 	int index;			/* Minor device number */
-	int type;                       /* Control or render */
+	int type;                       /* Control or render or accel */
 	struct device *kdev;		/* Linux device */
 	struct drm_device *dev;
 
@@ -254,6 +259,9 @@ struct drm_file {
 	/** @pid: Process that opened this file. */
 	struct pid *pid;
 
+	/** @client_id: A unique id for fdinfo */
+	u64 client_id;
+
 	/** @magic: Authentication magic, see @authenticated. */
 	drm_magic_t magic;
 
@@ -397,7 +405,23 @@ static inline bool drm_is_render_client(const struct drm_file *file_priv)
 	return file_priv->minor->type == DRM_MINOR_RENDER;
 }
 
+/**
+ * drm_is_accel_client - is this an open file of the compute acceleration node
+ * @file_priv: DRM file
+ *
+ * Returns true if this is an open file of the compute acceleration node, i.e.
+ * &drm_file.minor of @file_priv is a accel minor.
+ *
+ * See also :doc:`Introduction to compute accelerators subsystem
+ * </accel/introduction>`.
+ */
+static inline bool drm_is_accel_client(const struct drm_file *file_priv)
+{
+	return file_priv->minor->type == DRM_MINOR_ACCEL;
+}
+
 int drm_open(struct inode *inode, struct file *filp);
+int drm_open_helper(struct file *filp, struct drm_minor *minor);
 ssize_t drm_read(struct file *filp, char __user *buffer,
 		 size_t count, loff_t *offset);
 int drm_release(struct inode *inode, struct file *filp);
@@ -419,15 +443,34 @@ void drm_send_event_timestamp_locked(struct drm_device *dev,
 				     struct drm_pending_event *e,
 				     ktime_t timestamp);
 
+/**
+ * struct drm_memory_stats - GEM object stats associated
+ * @shared: Total size of GEM objects shared between processes
+ * @private: Total size of GEM objects
+ * @resident: Total size of GEM objects backing pages
+ * @purgeable: Total size of GEM objects that can be purged (resident and not active)
+ * @active: Total size of GEM objects active on one or more engines
+ *
+ * Used by drm_print_memory_stats()
+ */
+struct drm_memory_stats {
+	u64 shared;
+	u64 private;
+	u64 resident;
+	u64 purgeable;
+	u64 active;
+};
+
+enum drm_gem_object_status;
+
+void drm_print_memory_stats(struct drm_printer *p,
+			    const struct drm_memory_stats *stats,
+			    enum drm_gem_object_status supported_status,
+			    const char *region);
+
+void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file);
+void drm_show_fdinfo(struct seq_file *m, struct file *f);
+
 struct file *mock_drm_getfile(struct drm_minor *minor, unsigned int flags);
-
-#ifdef CONFIG_MMU
-struct drm_vma_offset_manager;
-unsigned long drm_get_unmapped_area(struct file *file,
-				    unsigned long uaddr, unsigned long len,
-				    unsigned long pgoff, unsigned long flags,
-				    struct drm_vma_offset_manager *mgr);
-#endif /* CONFIG_MMU */
-
 
 #endif /* _DRM_FILE_H_ */

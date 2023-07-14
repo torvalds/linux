@@ -105,7 +105,7 @@ find isn't necessarily helpful.  The four modes combine two mode bits:
  - CPHA indicates the clock phase used to sample data; CPHA=0 says
    sample on the leading edge, CPHA=1 means the trailing edge.
 
-   Since the signal needs to stablize before it's sampled, CPHA=0
+   Since the signal needs to stabilize before it's sampled, CPHA=0
    implies that its data is written half a clock before the first
    clock edge.  The chipselect may have made it become available.
 
@@ -178,10 +178,10 @@ shows up in sysfs in several locations::
 
    /sys/bus/spi/drivers/D ... driver for one or more spi*.* devices
 
-   /sys/class/spi_master/spiB ... symlink (or actual device node) to
-	a logical node which could hold class related state for the SPI
-	master controller managing bus "B".  All spiB.* devices share one
-	physical SPI bus segment, with SCLK, MOSI, and MISO.
+   /sys/class/spi_master/spiB ... symlink to a logical node which could hold
+	class related state for the SPI master controller managing bus "B".
+	All spiB.* devices share one physical SPI bus segment, with SCLK,
+	MOSI, and MISO.
 
    /sys/devices/.../CTLR/slave ... virtual file for (un)registering the
 	slave device for an SPI slave controller.
@@ -191,16 +191,13 @@ shows up in sysfs in several locations::
 	Reading from this file shows the name of the slave device ("(null)"
 	if not registered).
 
-   /sys/class/spi_slave/spiB ... symlink (or actual device node) to
-	a logical node which could hold class related state for the SPI
-	slave controller on bus "B".  When registered, a single spiB.*
-	device is present here, possible sharing the physical SPI bus
-	segment with other SPI slave devices.
+   /sys/class/spi_slave/spiB ... symlink to a logical node which could hold
+	class related state for the SPI slave controller on bus "B".  When
+	registered, a single spiB.* device is present here, possible sharing
+	the physical SPI bus segment with other SPI slave devices.
 
-Note that the actual location of the controller's class state depends
-on whether you enabled CONFIG_SYSFS_DEPRECATED or not.  At this time,
-the only class-specific state is the bus number ("B" in "spiB"), so
-those /sys/class entries are only useful to quickly identify busses.
+At this time, the only class-specific state is the bus number ("B" in "spiB"),
+so those /sys/class entries are only useful to quickly identify busses.
 
 
 How does board-specific init code declare SPI devices?

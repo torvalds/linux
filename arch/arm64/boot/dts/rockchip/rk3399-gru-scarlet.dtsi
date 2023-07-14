@@ -167,7 +167,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_en>;
 		pwms = <&pwm1 0 1000000 0>;
-		pwm-delay-us = <10000>;
 	};
 
 	dmic: dmic {
@@ -734,10 +733,6 @@ camera: &i2c7 {
 };
 
 /* PINCTRL OVERRIDES */
-&ec_ap_int_l {
-	rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
-};
-
 &ap_fw_wp {
 	rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 };
@@ -761,6 +756,16 @@ camera: &i2c7 {
 &i2s0_8ch_bus {
 	rockchip,pins =
 		<3 RK_PD0 1 &pcfg_pull_none_6ma>,
+		<3 RK_PD1 1 &pcfg_pull_none_6ma>,
+		<3 RK_PD2 1 &pcfg_pull_none_6ma>,
+		<3 RK_PD3 1 &pcfg_pull_none_6ma>,
+		<3 RK_PD7 1 &pcfg_pull_none_6ma>,
+		<4 RK_PA0 1 &pcfg_pull_none_6ma>;
+};
+
+&i2s0_8ch_bus_bclk_off {
+	rockchip,pins =
+		<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none_6ma>,
 		<3 RK_PD1 1 &pcfg_pull_none_6ma>,
 		<3 RK_PD2 1 &pcfg_pull_none_6ma>,
 		<3 RK_PD3 1 &pcfg_pull_none_6ma>,

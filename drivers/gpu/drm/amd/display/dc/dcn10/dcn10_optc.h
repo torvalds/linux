@@ -161,10 +161,20 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC_CNTL2;
 	uint32_t OTG_CRC0_DATA_RG;
 	uint32_t OTG_CRC0_DATA_B;
+	uint32_t OTG_CRC1_DATA_B;
+	uint32_t OTG_CRC2_DATA_B;
+	uint32_t OTG_CRC3_DATA_B;
+	uint32_t OTG_CRC1_DATA_RG;
+	uint32_t OTG_CRC2_DATA_RG;
+	uint32_t OTG_CRC3_DATA_RG;
 	uint32_t OTG_CRC0_WINDOWA_X_CONTROL;
 	uint32_t OTG_CRC0_WINDOWA_Y_CONTROL;
 	uint32_t OTG_CRC0_WINDOWB_X_CONTROL;
 	uint32_t OTG_CRC0_WINDOWB_Y_CONTROL;
+	uint32_t OTG_CRC1_WINDOWA_X_CONTROL;
+	uint32_t OTG_CRC1_WINDOWA_Y_CONTROL;
+	uint32_t OTG_CRC1_WINDOWB_X_CONTROL;
+	uint32_t OTG_CRC1_WINDOWB_Y_CONTROL;
 	uint32_t GSL_SOURCE_SELECT;
 	uint32_t DWB_SOURCE_SELECT;
 	uint32_t OTG_DSC_START_POSITION;
@@ -464,6 +474,15 @@ struct dcn_optc_registers {
 	type CRC0_R_CR;\
 	type CRC0_G_Y;\
 	type CRC0_B_CB;\
+	type CRC1_R_CR;\
+	type CRC1_G_Y;\
+	type CRC1_B_CB;\
+	type CRC2_R_CR;\
+	type CRC2_G_Y;\
+	type CRC2_B_CB;\
+	type CRC3_R_CR;\
+	type CRC3_G_Y;\
+	type CRC3_B_CB;\
 	type OTG_CRC0_WINDOWA_X_START;\
 	type OTG_CRC0_WINDOWA_X_END;\
 	type OTG_CRC0_WINDOWA_Y_START;\
@@ -472,6 +491,15 @@ struct dcn_optc_registers {
 	type OTG_CRC0_WINDOWB_X_END;\
 	type OTG_CRC0_WINDOWB_Y_START;\
 	type OTG_CRC0_WINDOWB_Y_END;\
+	type OTG_CRC_WINDOW_DB_EN;\
+	type OTG_CRC1_WINDOWA_X_START;\
+	type OTG_CRC1_WINDOWA_X_END;\
+	type OTG_CRC1_WINDOWA_Y_START;\
+	type OTG_CRC1_WINDOWA_Y_END;\
+	type OTG_CRC1_WINDOWB_X_START;\
+	type OTG_CRC1_WINDOWB_X_END;\
+	type OTG_CRC1_WINDOWB_Y_START;\
+	type OTG_CRC1_WINDOWB_Y_END;\
 	type GSL0_READY_SOURCE_SEL;\
 	type GSL1_READY_SOURCE_SEL;\
 	type GSL2_READY_SOURCE_SEL;\
@@ -519,10 +547,12 @@ struct dcn_optc_registers {
 	type OTG_CRC_DATA_STREAM_COMBINE_MODE;\
 	type OTG_CRC_DATA_STREAM_SPLIT_MODE;\
 	type OTG_CRC_DATA_FORMAT;\
-	type OTG_V_TOTAL_LAST_USED_BY_DRR;
+	type OTG_V_TOTAL_LAST_USED_BY_DRR;\
+	type OTG_DRR_TIMING_DBUF_UPDATE_PENDING;
 
 #define TG_REG_FIELD_LIST_DCN3_2(type) \
 	type OTG_H_TIMING_DIV_MODE_MANUAL;
+
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)
@@ -583,6 +613,8 @@ struct dcn_otg_state {
 	uint32_t underflow_occurred_status;
 	uint32_t otg_enabled;
 	uint32_t blank_enabled;
+	uint32_t vertical_interrupt1_en;
+	uint32_t vertical_interrupt1_line;
 	uint32_t vertical_interrupt2_en;
 	uint32_t vertical_interrupt2_line;
 };
@@ -652,7 +684,6 @@ void optc1_set_blank(struct timing_generator *optc,
 		bool enable_blanking);
 
 bool optc1_is_blanked(struct timing_generator *optc);
-bool optc1_is_locked(struct timing_generator *optc);
 
 void optc1_program_blank_color(
 		struct timing_generator *optc,

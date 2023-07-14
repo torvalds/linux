@@ -181,7 +181,7 @@ b) ORC (Oops Rewind Capability) unwind table generation
    band.  So it doesn't affect runtime performance and it can be
    reliable even when interrupts or exceptions are involved.
 
-   For more details, see Documentation/x86/orc-unwinder.rst.
+   For more details, see Documentation/arch/x86/orc-unwinder.rst.
 
 c) Higher live patching compatibility rate
 
@@ -244,6 +244,11 @@ To achieve the validation, objtool enforces the following rules:
 Objtool warnings
 ----------------
 
+NOTE: When requesting help with an objtool warning, please recreate with
+OBJTOOL_VERBOSE=1 (e.g., "make OBJTOOL_VERBOSE=1") and send the full
+output, including any disassembly or backtrace below the warning, to the
+objtool maintainers.
+
 For asm files, if you're getting an error which doesn't make sense,
 first make sure that the affected code follows the above rules.
 
@@ -298,6 +303,11 @@ the objtool maintainers.
    If it's not actually in a callable function (e.g. kernel entry code),
    change ENDPROC to END.
 
+3. file.o: warning: objtool: foo+0x48c: bar() is missing a __noreturn annotation
+
+   The call from foo() to bar() doesn't return, but bar() is missing the
+   __noreturn annotation.  NOTE: In addition to annotating the function
+   with __noreturn, please also add it to tools/objtool/noreturns.h.
 
 4. file.o: warning: objtool: func(): can't find starting instruction
    or
@@ -409,6 +419,14 @@ the objtool maintainers.
    is not at the beginning of a function. If this is a legit call, you
    can remove this warning by putting the ANNOTATE_INTRA_FUNCTION_CALL
    directive right before the call.
+
+12. file.o: warning: func(): not an indirect call target
+
+   This means that objtool is running with --ibt and a function expected
+   to be an indirect call target is not. In particular, this happens for
+   init_module() or cleanup_module() if a module relies on these special
+   names and does not use module_init() / module_exit() macros to create
+   them.
 
 
 If the error doesn't seem to make sense, it could be a bug in objtool.

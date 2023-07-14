@@ -43,10 +43,10 @@
  */
 
 #include <asm/byteorder.h>
+#include <crypto/algapi.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/crypto.h>
 
 #define ROUNDS 16
 

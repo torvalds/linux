@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0
 //
 // cs35l45-spi.c -- CS35L45 SPI driver
 //
@@ -23,6 +23,9 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 	if (cs35l45 == NULL)
 		return -ENOMEM;
 
+	spi->max_speed_hz = CS35L45_SPI_MAX_FREQ;
+	spi_setup(spi);
+
 	spi_set_drvdata(spi, cs35l45);
 	cs35l45->regmap = devm_regmap_init_spi(spi, &cs35l45_spi_regmap);
 	if (IS_ERR(cs35l45->regmap)) {
@@ -32,6 +35,8 @@ static int cs35l45_spi_probe(struct spi_device *spi)
 	}
 
 	cs35l45->dev = dev;
+	cs35l45->irq = spi->irq;
+	cs35l45->bus_type = CONTROL_BUS_SPI;
 
 	return cs35l45_probe(cs35l45);
 }
@@ -69,6 +74,5 @@ module_spi_driver(cs35l45_spi_driver);
 
 MODULE_DESCRIPTION("SPI CS35L45 driver");
 MODULE_AUTHOR("James Schulman, Cirrus Logic Inc, <james.schulman@cirrus.com>");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_CS35L45);
-MODULE_IMPORT_NS(SND_SOC_CS35L45_TABLES);

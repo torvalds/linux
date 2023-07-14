@@ -346,6 +346,30 @@ struct test tests[] = {
 		.retval = BPF_OK,
 	},
 	{
+		.name = "ipv6-empty-flow-label",
+		.pkt.ipv6 = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.iph.nexthdr = IPPROTO_TCP,
+			.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
+			.iph.flow_lbl = { 0x00, 0x00, 0x00 },
+			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
+		},
+		.keys = {
+			.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL,
+			.nhoff = ETH_HLEN,
+			.thoff = ETH_HLEN + sizeof(struct ipv6hdr),
+			.addr_proto = ETH_P_IPV6,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IPV6),
+			.sport = 80,
+			.dport = 8080,
+		},
+		.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL,
+		.retval = BPF_OK,
+	},
+	{
 		.name = "ipip-encap",
 		.pkt.ipip = {
 			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),

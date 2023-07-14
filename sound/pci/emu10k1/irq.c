@@ -18,19 +18,22 @@
 irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 {
 	struct snd_emu10k1 *emu = dev_id;
-	unsigned int status, status2, orig_status, orig_status2;
+	unsigned int status, orig_status;
 	int handled = 0;
 	int timeout = 0;
 
-	while (((status = inl(emu->port + IPR)) != 0) && (timeout < 1000)) {
-		timeout++;
-		orig_status = status;
+	while ((status = inl(emu->port + IPR)) != 0) {
 		handled = 1;
 		if ((status & 0xffffffff) == 0xffffffff) {
 			dev_info(emu->card->dev,
 				 "Suspected sound card removal\n");
 			break;
 		}
+		if (++timeout == 1000) {
+			dev_info(emu->card->dev, "emu10k1 irq routine failure\n");
+			break;
+		}
+		orig_status = status;
 		if (status & IPR_PCIERROR) {
 			dev_err(emu->card->dev, "interrupt: PCI error\n");
 			snd_emu10k1_intr_disable(emu, INTE_PCIERRORENABLE);
@@ -44,12 +47,13 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 			status &= ~(IPR_VOLINCR|IPR_VOLDECR|IPR_MUTE);
 		}
 		if (status & IPR_CHANNELLOOP) {
+			struct snd_emu10k1_voice *pvoice;
 			int voice;
 			int voice_max = status & IPR_CHANNELNUMBERMASK;
 			u32 val;
-			struct snd_emu10k1_voice *pvoice = emu->voices;
 
 			val = snd_emu10k1_ptr_read(emu, CLIPL, 0);
+			pvoice = emu->voices;
 			for (voice = 0; voice <= voice_max; voice++) {
 				if (voice == 0x20)
 					val = snd_emu10k1_ptr_read(emu, CLIPH, 0);
@@ -65,6 +69,7 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 				pvoice++;
 			}
 			val = snd_emu10k1_ptr_read(emu, HLIPL, 0);
+			pvoice = emu->voices;
 			for (voice = 0; voice <= voice_max; voice++) {
 				if (voice == 0x20)
 					val = snd_emu10k1_ptr_read(emu, HLIPH, 0);
@@ -79,9 +84,8 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 				val >>= 1;
 				pvoice++;
 			}
-			status &= ~IPR_CHANNELLOOP;
+			status &= ~(IPR_CHANNELLOOP | IPR_CHANNELNUMBERMASK);
 		}
-		status &= ~IPR_CHANNELNUMBERMASK;
 		if (status & (IPR_ADCBUFFULL|IPR_ADCBUFHALFFULL)) {
 			if (emu->capture_interrupt)
 				emu->capture_interrupt(emu, status);
@@ -139,61 +143,19 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 			status &= ~IPR_FXDSP;
 		}
 		if (status & IPR_P16V) {
-			while ((status2 = inl(emu->port + IPR2)) != 0) {
-				u32 mask = INTE2_PLAYBACK_CH_0_LOOP;  /* Full Loop */
-				struct snd_emu10k1_voice *pvoice = &(emu->p16v_voices[0]);
-				struct snd_emu10k1_voice *cvoice = &(emu->p16v_capture_voice);
-
-				/* dev_dbg(emu->card->dev, "status2=0x%x\n", status2); */
-				orig_status2 = status2;
-				if(status2 & mask) {
-					if(pvoice->use) {
-						snd_pcm_period_elapsed(pvoice->epcm->substream);
-					} else { 
-						dev_err(emu->card->dev,
-							"p16v: status: 0x%08x, mask=0x%08x, pvoice=%p, use=%d\n",
-							status2, mask, pvoice,
-							pvoice->use);
-					}
-				}
-				if(status2 & 0x110000) {
-					/* dev_info(emu->card->dev, "capture int found\n"); */
-					if(cvoice->use) {
-						/* dev_info(emu->card->dev, "capture period_elapsed\n"); */
-						snd_pcm_period_elapsed(cvoice->epcm->substream);
-					}
-				}
-				outl(orig_status2, emu->port + IPR2); /* ack all */
-			}
+			if (emu->p16v_interrupt)
+				emu->p16v_interrupt(emu);
+			else
+				outl(0, emu->port + INTE2);
 			status &= ~IPR_P16V;
 		}
 
 		if (status) {
-			unsigned int bits;
 			dev_err(emu->card->dev,
 				"unhandled interrupt: 0x%08x\n", status);
-			//make sure any interrupts we don't handle are disabled:
-			bits = INTE_FXDSPENABLE |
-				INTE_PCIERRORENABLE |
-				INTE_VOLINCRENABLE |
-				INTE_VOLDECRENABLE |
-				INTE_MUTEENABLE |
-				INTE_MICBUFENABLE |
-				INTE_ADCBUFENABLE |
-				INTE_EFXBUFENABLE |
-				INTE_GPSPDIFENABLE |
-				INTE_CDSPDIFENABLE |
-				INTE_INTERVALTIMERENB |
-				INTE_MIDITXENABLE |
-				INTE_MIDIRXENABLE;
-			if (emu->audigy)
-				bits |= INTE_A_MIDITXENABLE2 | INTE_A_MIDIRXENABLE2;
-			snd_emu10k1_intr_disable(emu, bits);
 		}
 		outl(orig_status, emu->port + IPR); /* ack all */
 	}
-	if (timeout == 1000)
-		dev_info(emu->card->dev, "emu10k1 irq routine failure\n");
 
 	return IRQ_RETVAL(handled);
 }

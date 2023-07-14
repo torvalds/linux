@@ -616,7 +616,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 {
 	struct sam9x60_frac *frac;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned long parent_rate, irqflags;
 	unsigned int val;
 	int ret;
@@ -629,7 +629,10 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.parent_names = &parent_name;
+	if (parent_name)
+		init.parent_names = &parent_name;
+	else
+		init.parent_hws = (const struct clk_hw **)&parent_hw;
 	init.num_parents = 1;
 	if (flags & CLK_SET_RATE_GATE)
 		init.ops = &sam9x60_frac_pll_ops;
@@ -668,7 +671,7 @@ sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 
 		ret = sam9x60_frac_pll_compute_mul_frac(&frac->core, FCORE_MIN,
 							parent_rate, true);
-		if (ret <= 0) {
+		if (ret < 0) {
 			hw = ERR_PTR(ret);
 			goto free;
 		}
@@ -692,14 +695,15 @@ free:
 
 struct clk_hw * __init
 sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
-			     const char *name, const char *parent_name, u8 id,
+			     const char *name, const char *parent_name,
+			     struct clk_hw *parent_hw, u8 id,
 			     const struct clk_pll_characteristics *characteristics,
 			     const struct clk_pll_layout *layout, u32 flags,
 			     u32 safe_div)
 {
 	struct sam9x60_div *div;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned long irqflags;
 	unsigned int val;
 	int ret;
@@ -716,7 +720,10 @@ sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = name;
-	init.parent_names = &parent_name;
+	if (parent_hw)
+		init.parent_hws = (const struct clk_hw **)&parent_hw;
+	else
+		init.parent_names = &parent_name;
 	init.num_parents = 1;
 	if (flags & CLK_SET_RATE_GATE)
 		init.ops = &sam9x60_div_pll_ops;

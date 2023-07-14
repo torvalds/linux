@@ -2,6 +2,7 @@
 config FAT_FS
 	tristate
 	select NLS
+	select LEGACY_DIRECT_IO
 	help
 	  If you want to use one of the FAT-based file systems (the MS-DOS and
 	  VFAT (Windows 95) file systems), then you must say Y or M here

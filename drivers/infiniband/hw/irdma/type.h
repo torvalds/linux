@@ -98,9 +98,11 @@ enum irdma_term_mpa_errors {
 enum irdma_qp_event_type {
 	IRDMA_QP_EVENT_CATASTROPHIC,
 	IRDMA_QP_EVENT_ACCESS_ERR,
+	IRDMA_QP_EVENT_REQ_ERR,
 };
 
-enum irdma_hw_stats_index_32b {
+enum irdma_hw_stats_index {
+	/* gen1 - 32-bit */
 	IRDMA_HW_STAT_INDEX_IP4RXDISCARD	= 0,
 	IRDMA_HW_STAT_INDEX_IP4RXTRUNC		= 1,
 	IRDMA_HW_STAT_INDEX_IP4TXNOROUTE	= 2,
@@ -110,50 +112,48 @@ enum irdma_hw_stats_index_32b {
 	IRDMA_HW_STAT_INDEX_TCPRTXSEG		= 6,
 	IRDMA_HW_STAT_INDEX_TCPRXOPTERR		= 7,
 	IRDMA_HW_STAT_INDEX_TCPRXPROTOERR	= 8,
-	IRDMA_HW_STAT_INDEX_MAX_32_GEN_1	= 9, /* Must be same value as next entry */
 	IRDMA_HW_STAT_INDEX_RXVLANERR		= 9,
-	IRDMA_HW_STAT_INDEX_RXRPCNPHANDLED	= 10,
-	IRDMA_HW_STAT_INDEX_RXRPCNPIGNORED	= 11,
-	IRDMA_HW_STAT_INDEX_TXNPCNPSENT		= 12,
-	IRDMA_HW_STAT_INDEX_MAX_32, /* Must be last entry */
-};
-
-enum irdma_hw_stats_index_64b {
-	IRDMA_HW_STAT_INDEX_IP4RXOCTS	= 0,
-	IRDMA_HW_STAT_INDEX_IP4RXPKTS	= 1,
-	IRDMA_HW_STAT_INDEX_IP4RXFRAGS	= 2,
-	IRDMA_HW_STAT_INDEX_IP4RXMCPKTS	= 3,
-	IRDMA_HW_STAT_INDEX_IP4TXOCTS	= 4,
-	IRDMA_HW_STAT_INDEX_IP4TXPKTS	= 5,
-	IRDMA_HW_STAT_INDEX_IP4TXFRAGS	= 6,
-	IRDMA_HW_STAT_INDEX_IP4TXMCPKTS	= 7,
-	IRDMA_HW_STAT_INDEX_IP6RXOCTS	= 8,
-	IRDMA_HW_STAT_INDEX_IP6RXPKTS	= 9,
-	IRDMA_HW_STAT_INDEX_IP6RXFRAGS	= 10,
-	IRDMA_HW_STAT_INDEX_IP6RXMCPKTS	= 11,
-	IRDMA_HW_STAT_INDEX_IP6TXOCTS	= 12,
-	IRDMA_HW_STAT_INDEX_IP6TXPKTS	= 13,
-	IRDMA_HW_STAT_INDEX_IP6TXFRAGS	= 14,
-	IRDMA_HW_STAT_INDEX_IP6TXMCPKTS	= 15,
-	IRDMA_HW_STAT_INDEX_TCPRXSEGS	= 16,
-	IRDMA_HW_STAT_INDEX_TCPTXSEG	= 17,
-	IRDMA_HW_STAT_INDEX_RDMARXRDS	= 18,
-	IRDMA_HW_STAT_INDEX_RDMARXSNDS	= 19,
-	IRDMA_HW_STAT_INDEX_RDMARXWRS	= 20,
-	IRDMA_HW_STAT_INDEX_RDMATXRDS	= 21,
-	IRDMA_HW_STAT_INDEX_RDMATXSNDS	= 22,
-	IRDMA_HW_STAT_INDEX_RDMATXWRS	= 23,
-	IRDMA_HW_STAT_INDEX_RDMAVBND	= 24,
-	IRDMA_HW_STAT_INDEX_RDMAVINV	= 25,
-	IRDMA_HW_STAT_INDEX_MAX_64_GEN_1 = 26, /* Must be same value as next entry */
-	IRDMA_HW_STAT_INDEX_IP4RXMCOCTS	= 26,
-	IRDMA_HW_STAT_INDEX_IP4TXMCOCTS	= 27,
-	IRDMA_HW_STAT_INDEX_IP6RXMCOCTS	= 28,
-	IRDMA_HW_STAT_INDEX_IP6TXMCOCTS	= 29,
-	IRDMA_HW_STAT_INDEX_UDPRXPKTS	= 30,
-	IRDMA_HW_STAT_INDEX_UDPTXPKTS	= 31,
-	IRDMA_HW_STAT_INDEX_RXNPECNMARKEDPKTS = 32,
-	IRDMA_HW_STAT_INDEX_MAX_64, /* Must be last entry */
+		/* gen1 - 64-bit */
+	IRDMA_HW_STAT_INDEX_IP4RXOCTS		= 10,
+	IRDMA_HW_STAT_INDEX_IP4RXPKTS		= 11,
+	IRDMA_HW_STAT_INDEX_IP4RXFRAGS		= 12,
+	IRDMA_HW_STAT_INDEX_IP4RXMCPKTS		= 13,
+	IRDMA_HW_STAT_INDEX_IP4TXOCTS		= 14,
+	IRDMA_HW_STAT_INDEX_IP4TXPKTS		= 15,
+	IRDMA_HW_STAT_INDEX_IP4TXFRAGS		= 16,
+	IRDMA_HW_STAT_INDEX_IP4TXMCPKTS		= 17,
+	IRDMA_HW_STAT_INDEX_IP6RXOCTS		= 18,
+	IRDMA_HW_STAT_INDEX_IP6RXPKTS		= 19,
+	IRDMA_HW_STAT_INDEX_IP6RXFRAGS		= 20,
+	IRDMA_HW_STAT_INDEX_IP6RXMCPKTS		= 21,
+	IRDMA_HW_STAT_INDEX_IP6TXOCTS		= 22,
+	IRDMA_HW_STAT_INDEX_IP6TXPKTS		= 23,
+	IRDMA_HW_STAT_INDEX_IP6TXFRAGS		= 24,
+	IRDMA_HW_STAT_INDEX_IP6TXMCPKTS		= 25,
+	IRDMA_HW_STAT_INDEX_TCPRXSEGS		= 26,
+	IRDMA_HW_STAT_INDEX_TCPTXSEG		= 27,
+	IRDMA_HW_STAT_INDEX_RDMARXRDS		= 28,
+	IRDMA_HW_STAT_INDEX_RDMARXSNDS		= 29,
+	IRDMA_HW_STAT_INDEX_RDMARXWRS		= 30,
+	IRDMA_HW_STAT_INDEX_RDMATXRDS		= 31,
+	IRDMA_HW_STAT_INDEX_RDMATXSNDS		= 32,
+	IRDMA_HW_STAT_INDEX_RDMATXWRS		= 33,
+	IRDMA_HW_STAT_INDEX_RDMAVBND		= 34,
+	IRDMA_HW_STAT_INDEX_RDMAVINV		= 35,
+	IRDMA_HW_STAT_INDEX_IP4RXMCOCTS         = 36,
+	IRDMA_HW_STAT_INDEX_IP4TXMCOCTS         = 37,
+	IRDMA_HW_STAT_INDEX_IP6RXMCOCTS         = 38,
+	IRDMA_HW_STAT_INDEX_IP6TXMCOCTS         = 39,
+	IRDMA_HW_STAT_INDEX_UDPRXPKTS           = 40,
+	IRDMA_HW_STAT_INDEX_UDPTXPKTS           = 41,
+	IRDMA_HW_STAT_INDEX_MAX_GEN_1           = 42, /* Must be same value as next entry */
+	/* gen2 - 64-bit */
+	IRDMA_HW_STAT_INDEX_RXNPECNMARKEDPKTS   = 42,
+	/* gen2 - 32-bit */
+	IRDMA_HW_STAT_INDEX_RXRPCNPHANDLED      = 43,
+	IRDMA_HW_STAT_INDEX_RXRPCNPIGNORED      = 44,
+	IRDMA_HW_STAT_INDEX_TXNPCNPSENT         = 45,
+	IRDMA_HW_STAT_INDEX_MAX_GEN_2		= 46,
 };
 
 enum irdma_feature_type {
@@ -273,65 +273,21 @@ struct irdma_cq_shadow_area {
 };
 
 struct irdma_dev_hw_stats_offsets {
-	u32 stats_offset_32[IRDMA_HW_STAT_INDEX_MAX_32];
-	u32 stats_offset_64[IRDMA_HW_STAT_INDEX_MAX_64];
+	u32 stats_offset[IRDMA_HW_STAT_INDEX_MAX_GEN_1];
 };
 
 struct irdma_dev_hw_stats {
-	u64 stats_val_32[IRDMA_HW_STAT_INDEX_MAX_32];
-	u64 stats_val_64[IRDMA_HW_STAT_INDEX_MAX_64];
+	u64 stats_val[IRDMA_GATHER_STATS_BUF_SIZE / sizeof(u64)];
 };
 
 struct irdma_gather_stats {
-	u32 rsvd1;
-	u32 rxvlanerr;
-	u64 ip4rxocts;
-	u64 ip4rxpkts;
-	u32 ip4rxtrunc;
-	u32 ip4rxdiscard;
-	u64 ip4rxfrags;
-	u64 ip4rxmcocts;
-	u64 ip4rxmcpkts;
-	u64 ip6rxocts;
-	u64 ip6rxpkts;
-	u32 ip6rxtrunc;
-	u32 ip6rxdiscard;
-	u64 ip6rxfrags;
-	u64 ip6rxmcocts;
-	u64 ip6rxmcpkts;
-	u64 ip4txocts;
-	u64 ip4txpkts;
-	u64 ip4txfrag;
-	u64 ip4txmcocts;
-	u64 ip4txmcpkts;
-	u64 ip6txocts;
-	u64 ip6txpkts;
-	u64 ip6txfrags;
-	u64 ip6txmcocts;
-	u64 ip6txmcpkts;
-	u32 ip6txnoroute;
-	u32 ip4txnoroute;
-	u64 tcprxsegs;
-	u32 tcprxprotoerr;
-	u32 tcprxopterr;
-	u64 tcptxsegs;
-	u32 rsvd2;
-	u32 tcprtxseg;
-	u64 udprxpkts;
-	u64 udptxpkts;
-	u64 rdmarxwrs;
-	u64 rdmarxrds;
-	u64 rdmarxsnds;
-	u64 rdmatxwrs;
-	u64 rdmatxrds;
-	u64 rdmatxsnds;
-	u64 rdmavbn;
-	u64 rdmavinv;
-	u64 rxnpecnmrkpkts;
-	u32 rxrpcnphandled;
-	u32 rxrpcnpignored;
-	u32 txnpcnpsent;
-	u32 rsvd3[88];
+	u64 val[IRDMA_GATHER_STATS_BUF_SIZE / sizeof(u64)];
+};
+
+struct irdma_hw_stat_map {
+	u16 byteoff;
+	u8 bitoff;
+	u64 bitmask;
 };
 
 struct irdma_stats_gather_info {
@@ -583,7 +539,7 @@ struct irdma_qos {
 	bool valid;
 };
 
-#define IRDMA_INVALID_FCN_ID 0xff
+#define IRDMA_INVALID_STATS_IDX 0xff
 struct irdma_sc_vsi {
 	u16 vsi_idx;
 	struct irdma_sc_dev *dev;
@@ -597,11 +553,9 @@ struct irdma_sc_vsi {
 	u32 exception_lan_q;
 	u16 mtu;
 	u16 vm_id;
-	u8 fcn_id;
 	enum irdma_vm_vf_type vm_vf_type;
-	bool stats_fcn_id_alloc:1;
+	bool stats_inst_alloc:1;
 	bool tc_change_pending:1;
-	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
 	struct irdma_vsi_pestat *pestat;
 	atomic_t qp_suspend_reqs;
 	int (*register_qset)(struct irdma_sc_vsi *vsi,
@@ -610,14 +564,17 @@ struct irdma_sc_vsi {
 				struct irdma_ws_node *tc_node);
 	u8 qos_rel_bw;
 	u8 qos_prio_type;
+	u8 stats_idx;
 	u8 dscp_map[IIDC_MAX_DSCP_MAPPING];
+	struct irdma_qos qos[IRDMA_MAX_USER_PRIORITY];
+	u64 hw_stats_regs[IRDMA_HW_STAT_INDEX_MAX_GEN_1];
 	bool dscp_mode:1;
 };
 
 struct irdma_sc_dev {
 	struct list_head cqp_cmd_head; /* head of the CQP command list */
 	spinlock_t cqp_lock; /* protect CQP list access */
-	bool fcn_id_array[IRDMA_MAX_STATS_COUNT];
+	bool stats_idx_array[IRDMA_MAX_STATS_COUNT_GEN_1];
 	struct irdma_dma_mem vf_fpm_query_buf[IRDMA_MAX_PE_ENA_VF_COUNT];
 	u64 fpm_query_buf_pa;
 	u64 fpm_commit_buf_pa;
@@ -636,8 +593,8 @@ struct irdma_sc_dev {
 	u32 ceq_itr;   /* Interrupt throttle, usecs between interrupts: 0 disabled. 2 - 8160 */
 	u64 hw_masks[IRDMA_MAX_MASKS];
 	u64 hw_shifts[IRDMA_MAX_SHIFTS];
-	u64 hw_stats_regs_32[IRDMA_HW_STAT_INDEX_MAX_32];
-	u64 hw_stats_regs_64[IRDMA_HW_STAT_INDEX_MAX_64];
+	const struct irdma_hw_stat_map *hw_stats_map;
+	u64 hw_stats_regs[IRDMA_HW_STAT_INDEX_MAX_GEN_1];
 	u64 feature_info[IRDMA_MAX_FEATURES];
 	u64 cqp_cmd_stats[IRDMA_MAX_CQP_OPS];
 	struct irdma_hw_attrs hw_attrs;
@@ -762,7 +719,7 @@ struct irdma_vsi_init_info {
 struct irdma_vsi_stats_info {
 	struct irdma_vsi_pestat *pestat;
 	u8 fcn_id;
-	bool alloc_fcn_id;
+	bool alloc_stats_inst;
 };
 
 struct irdma_device_init_info {

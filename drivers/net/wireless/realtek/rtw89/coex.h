@@ -66,6 +66,11 @@ enum btc_rssi_st {
 	BTC_RSSI_ST_MAX
 };
 
+enum btc_fddt_en {
+	BTC_FDDT_DISABLE,
+	BTC_FDDT_ENABLE,
+};
+
 #define	BTC_RSSI_HIGH(_rssi_) \
 	({typeof(_rssi_) __rssi = (_rssi_); \
 	  ((__rssi == BTC_RSSI_ST_HIGH || \
@@ -126,6 +131,7 @@ enum btc_role_state {
 enum btc_rfctrl {
 	BTC_RFCTRL_WL_OFF,
 	BTC_RFCTRL_WL_ON,
+	BTC_RFCTRL_LPS_WL_ON,
 	BTC_RFCTRL_FW_CTRL,
 	BTC_RFCTRL_MAX
 };
@@ -164,6 +170,7 @@ void rtw89_coex_rfk_chk_work(struct work_struct *work);
 void rtw89_coex_power_on(struct rtw89_dev *rtwdev);
 void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type);
 void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type);
+void rtw89_coex_recognize_ver(struct rtw89_dev *rtwdev);
 
 static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,

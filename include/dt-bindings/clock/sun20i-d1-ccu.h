@@ -152,5 +152,7 @@
 #define CLK_FANOUT0		142
 #define CLK_FANOUT1		143
 #define CLK_FANOUT2		144
+#define CLK_BUS_CAN0		145
+#define CLK_BUS_CAN1		146
 
 #endif /* _DT_BINDINGS_CLK_SUN20I_D1_CCU_H_ */

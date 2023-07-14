@@ -115,9 +115,6 @@ bool mod_color_calculate_degamma_params(struct dc_color_caps *dc_caps,
 		struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp);
 
-bool mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
-				struct dc_transfer_func_distributed_points *points);
-
 bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
 		struct calculate_buffer *cal_buffer,

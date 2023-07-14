@@ -15,6 +15,7 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/io.h>
 
 #include <asm/css_chars.h>
 #include <asm/debug.h>
@@ -62,8 +63,8 @@ static int eadm_subchannel_start(struct subchannel *sch, struct aob *aob)
 	int cc;
 
 	orb_init(orb);
-	orb->eadm.aob = (u32)__pa(aob);
-	orb->eadm.intparm = (u32)(addr_t)sch;
+	orb->eadm.aob = (u32)virt_to_phys(aob);
+	orb->eadm.intparm = (u32)virt_to_phys(sch);
 	orb->eadm.key = PAGE_DEFAULT_KEY >> 4;
 
 	EADM_LOG(6, "start");
@@ -146,7 +147,7 @@ static void eadm_subchannel_irq(struct subchannel *sch)
 		css_sched_sch_todo(sch, SCH_TODO_EVAL);
 		return;
 	}
-	scm_irq_handler((struct aob *)(unsigned long)scsw->aob, error);
+	scm_irq_handler(phys_to_virt(scsw->aob), error);
 	private->state = EADM_IDLE;
 
 	if (private->completion)
@@ -225,7 +226,7 @@ static int eadm_subchannel_probe(struct subchannel *sch)
 	private->state = EADM_IDLE;
 	private->sch = sch;
 	sch->isc = EADM_SCH_ISC;
-	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
+	ret = cio_enable_subchannel(sch, (u32)virt_to_phys(sch));
 	if (ret) {
 		set_eadm_private(sch, NULL);
 		spin_unlock_irq(sch->lock);

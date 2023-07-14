@@ -36,6 +36,9 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    maxItems: 1
+
   fsl,pfuze-support-disable-sw:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |
@@ -63,19 +66,19 @@ properties:
 
     patternProperties:
       "^sw([1-4]|[1-4][a-c]|[1-4][a-c][a-c])$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
         type: object
 
       "^vgen[1-6]$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
         type: object
 
       "^vldo[1-4]$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
         type: object
 
       "^(vsnvs|vref|vrefddr|swbst|coin|v33|vccsd)$":
-        $ref: "regulator.yaml#"
+        $ref: regulator.yaml#
         type: object
 
     additionalProperties: false

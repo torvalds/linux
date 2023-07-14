@@ -651,9 +651,9 @@ static int act8600_charger_probe(struct device *dev, struct regmap *regmap)
 	return PTR_ERR_OR_ZERO(charger);
 }
 
-static int act8865_pmic_probe(struct i2c_client *client,
-			      const struct i2c_device_id *i2c_id)
+static int act8865_pmic_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(client);
 	const struct regulator_desc *regulators;
 	struct act8865_platform_data *pdata = NULL;
 	struct device *dev = &client->dev;
@@ -789,6 +789,7 @@ MODULE_DEVICE_TABLE(i2c, act8865_ids);
 static struct i2c_driver act8865_pmic_driver = {
 	.driver	= {
 		.name	= "act8865",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= act8865_pmic_probe,
 	.id_table	= act8865_ids,

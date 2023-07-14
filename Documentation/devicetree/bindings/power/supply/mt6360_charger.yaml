@@ -26,6 +26,7 @@ properties:
     type: object
     description: OTG boost regulator.
     $ref: /schemas/regulator/regulator.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible
@@ -39,7 +40,6 @@ examples:
       richtek,vinovp-microvolt = <14500000>;
 
       otg_vbus_regulator: usb-otg-vbus-regulator {
-        regulator-compatible = "usb-otg-vbus";
         regulator-name = "usb-otg-vbus";
         regulator-min-microvolt = <4425000>;
         regulator-max-microvolt = <5825000>;

@@ -1044,10 +1044,7 @@ static int hptiop_queuecommand_lck(struct scsi_cmnd *scp)
 	req->channel = scp->device->channel;
 	req->target = scp->device->id;
 	req->lun = scp->device->lun;
-	req->header.size = cpu_to_le32(
-				sizeof(struct hpt_iop_request_scsi_command)
-				 - sizeof(struct hpt_iopsg)
-				 + sg_count * sizeof(struct hpt_iopsg));
+	req->header.size = cpu_to_le32(struct_size(req, sg_list, sg_count));
 
 	memcpy(req->cdb, scp->cmnd, sizeof(req->cdb));
 	hba->ops->post_req(hba, _req);
@@ -1162,7 +1159,7 @@ static int hptiop_slave_config(struct scsi_device *sdev)
 	return 0;
 }
 
-static struct scsi_host_template driver_template = {
+static const struct scsi_host_template driver_template = {
 	.module                     = THIS_MODULE,
 	.name                       = driver_name,
 	.queuecommand               = hptiop_queuecommand,
@@ -1397,8 +1394,8 @@ static int hptiop_probe(struct pci_dev *pcidev, const struct pci_device_id *id)
 	host->cmd_per_lun = le32_to_cpu(iop_config.max_requests);
 	host->max_cmd_len = 16;
 
-	req_size = sizeof(struct hpt_iop_request_scsi_command)
-		+ sizeof(struct hpt_iopsg) * (hba->max_sg_descriptors - 1);
+	req_size = struct_size_t(struct hpt_iop_request_scsi_command,
+				 sg_list, hba->max_sg_descriptors);
 	if ((req_size & 0x1f) != 0)
 		req_size = (req_size + 0x1f) & ~0x1f;
 

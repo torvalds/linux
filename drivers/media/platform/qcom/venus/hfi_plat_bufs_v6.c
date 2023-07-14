@@ -93,7 +93,7 @@
 #define LCU_MIN_SIZE_PELS		16
 #define SIZE_SEI_USERDATA		4096
 
-#define H265D_MAX_SLICE			600
+#define H265D_MAX_SLICE			3600
 #define SIZE_H265D_HW_PIC_T		SIZE_H264D_HW_PIC_T
 #define SIZE_H265D_BSE_CMD_PER_BUF	(16 * sizeof(u32))
 #define SIZE_H265D_VPP_CMD_PER_BUF	256
@@ -1021,7 +1021,7 @@ static u32 h264d_persist1_size(void)
 static u32 h265d_persist1_size(void)
 {
 	return ALIGN((SIZE_SLIST_BUF_H265 * NUM_SLIST_BUF_H265 + H265_NUM_TILE
-			* sizeof(u32)), HFI_DMA_ALIGNMENT);
+			* sizeof(u32) + NUM_HW_PIC_BUF * SIZE_SEI_USERDATA), HFI_DMA_ALIGNMENT);
 }
 
 static u32 vp8d_persist1_size(void)
@@ -1185,6 +1185,7 @@ static int bufreq_dec(struct hfi_plat_buffers_params *params, u32 buftype,
 	enum hfi_version version = params->version;
 	u32 codec = params->codec;
 	u32 width = params->width, height = params->height, out_min_count;
+	u32 out_width = params->out_width, out_height = params->out_height;
 	struct dec_bufsize_ops *dec_ops;
 	bool is_secondary_output = params->dec.is_secondary_output;
 	bool is_interlaced = params->dec.is_interlaced;
@@ -1230,12 +1231,16 @@ static int bufreq_dec(struct hfi_plat_buffers_params *params, u32 buftype,
 			calculate_dec_input_frame_size(width, height, codec,
 						       max_mbs_per_frame,
 						       buffer_size_limit);
-	} else if (buftype == HFI_BUFFER_OUTPUT ||
-		   buftype == HFI_BUFFER_OUTPUT2) {
+	} else if (buftype == HFI_BUFFER_OUTPUT || buftype == HFI_BUFFER_OUTPUT2) {
 		bufreq->count_min = out_min_count;
 		bufreq->size =
 			venus_helper_get_framesz_raw(params->hfi_color_fmt,
-						     width, height);
+						     out_width, out_height);
+		if (buftype == HFI_BUFFER_OUTPUT &&
+		    params->dec.is_secondary_output)
+			bufreq->size =
+				venus_helper_get_framesz_raw(params->hfi_dpb_color_fmt,
+							     out_width, out_height);
 	} else if (buftype == HFI_BUFFER_INTERNAL_SCRATCH(version)) {
 		bufreq->size = dec_ops->scratch(width, height, is_interlaced);
 	} else if (buftype == HFI_BUFFER_INTERNAL_SCRATCH_1(version)) {

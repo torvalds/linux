@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  */
 
 #include <net/mac80211.h>
@@ -126,7 +126,7 @@ u32 iwl_new_rate_from_v1(u32 rate_v1)
 		   rate_v1 & RATE_MCS_HE_MSK_V1) {
 		rate_v2 |= rate_v1 & RATE_VHT_MCS_RATE_CODE_MSK;
 
-		rate_v2 |= rate_v1 & RATE_VHT_MCS_MIMO2_MSK;
+		rate_v2 |= rate_v1 & RATE_MCS_NSS_MSK;
 
 		if (rate_v1 & RATE_MCS_HE_MSK_V1) {
 			u32 he_type_bits = rate_v1 & RATE_MCS_HE_TYPE_MSK_V1;
@@ -218,6 +218,8 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 		type = "HT";
 	else if (format == RATE_MCS_HE_MSK)
 		type = "HE";
+	else if (format == RATE_MCS_EHT_MSK)
+		type = "EHT";
 	else
 		type = "Unknown"; /* shouldn't happen */
 

@@ -521,8 +521,7 @@ static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *clien
 	return touch;
 }
 
-static int synaptics_i2c_probe(struct i2c_client *client,
-			       const struct i2c_device_id *dev_id)
+static int synaptics_i2c_probe(struct i2c_client *client)
 {
 	int ret;
 	struct synaptics_i2c *touch;
@@ -598,7 +597,7 @@ static void synaptics_i2c_remove(struct i2c_client *client)
 	kfree(touch);
 }
 
-static int __maybe_unused synaptics_i2c_suspend(struct device *dev)
+static int synaptics_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct synaptics_i2c *touch = i2c_get_clientdata(client);
@@ -611,7 +610,7 @@ static int __maybe_unused synaptics_i2c_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused synaptics_i2c_resume(struct device *dev)
+static int synaptics_i2c_resume(struct device *dev)
 {
 	int ret;
 	struct i2c_client *client = to_i2c_client(dev);
@@ -627,8 +626,8 @@ static int __maybe_unused synaptics_i2c_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(synaptics_i2c_pm, synaptics_i2c_suspend,
-			 synaptics_i2c_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(synaptics_i2c_pm, synaptics_i2c_suspend,
+				synaptics_i2c_resume);
 
 static const struct i2c_device_id synaptics_i2c_id_table[] = {
 	{ "synaptics_i2c", 0 },
@@ -648,7 +647,7 @@ static struct i2c_driver synaptics_i2c_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(synaptics_i2c_of_match),
-		.pm	= &synaptics_i2c_pm,
+		.pm	= pm_sleep_ptr(&synaptics_i2c_pm),
 	},
 
 	.probe		= synaptics_i2c_probe,

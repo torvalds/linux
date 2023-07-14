@@ -6,6 +6,12 @@
  * Copyright(c) 2020-2022 Intel Corporation. All rights reserved.
  */
 
+/* HDA Registers */
+#define MTL_PPLCLLPL_BASE		0x948
+#define MTL_PPLCLLPU_STRIDE		0x10
+#define MTL_PPLCLLPL(x)			(MTL_PPLCLLPL_BASE + (x) * MTL_PPLCLLPU_STRIDE)
+#define MTL_PPLCLLPU(x)			(MTL_PPLCLLPL_BASE + 0x4 + (x) * MTL_PPLCLLPU_STRIDE)
+
 /* DSP Registers */
 #define MTL_HFDSSCS			0x1000
 #define MTL_HFDSSCS_SPA_MASK		BIT(16)
@@ -20,6 +26,8 @@
 #define MTL_IRQ_INTEN_L_HOST_IPC_MASK	BIT(0)
 #define MTL_IRQ_INTEN_L_SOUNDWIRE_MASK	BIT(6)
 #define MTL_HFINTIPPTR_PTR_MASK		GENMASK(20, 0)
+
+#define MTL_HDA_VS_D0I3C		0x1D4A
 
 #define MTL_DSP2CXCAP_PRIMARY_CORE	0x178D00
 #define MTL_DSP2CXCTL_PRIMARY_CORE	0x178D04
@@ -74,3 +82,10 @@
 #define MTL_DSP_REG_HfIMRIS1		0x162088
 #define MTL_DSP_REG_HfIMRIS1_IU_MASK	BIT(0)
 
+void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev);
+void mtl_disable_ipc_interrupts(struct snd_sof_dev *sdev);
+bool mtl_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
+
+int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable);
+int mtl_dsp_cl_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
+int mtl_power_down_dsp(struct snd_sof_dev *sdev);

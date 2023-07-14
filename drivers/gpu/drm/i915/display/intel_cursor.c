@@ -8,21 +8,20 @@
 #include <drm/drm_atomic_uapi.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_damage_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_fourcc.h>
 
+#include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"
 #include "intel_cursor.h"
 #include "intel_de.h"
-#include "intel_display_types.h"
 #include "intel_display.h"
+#include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
 #include "intel_frontbuffer.h"
-#include "intel_pm.h"
 #include "intel_psr.h"
-#include "intel_sprite.h"
+#include "skl_watermark.h"
 
 /* Cursor formats */
 static const u32 intel_cursor_formats[] = {
@@ -37,7 +36,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	u32 base;
 
-	if (INTEL_INFO(dev_priv)->display.cursor_needs_physical)
+	if (DISPLAY_INFO(dev_priv)->cursor_needs_physical)
 		base = sg_dma_address(obj->mm.pages->sgl);
 	else
 		base = intel_plane_ggtt_offset(plane_state);
@@ -144,8 +143,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 	}
 
 	ret = intel_atomic_plane_check_clipping(plane_state, crtc_state,
-						DRM_PLANE_HELPER_NO_SCALING,
-						DRM_PLANE_HELPER_NO_SCALING,
+						DRM_PLANE_NO_SCALING,
+						DRM_PLANE_NO_SCALING,
 						true);
 	if (ret)
 		return ret;
@@ -532,9 +531,10 @@ static void i9xx_cursor_update_arm(struct intel_plane *plane,
 		skl_write_cursor_wm(plane, crtc_state);
 
 	if (plane_state)
-		intel_psr2_program_plane_sel_fetch(plane, crtc_state, plane_state, 0);
+		intel_psr2_program_plane_sel_fetch_arm(plane, crtc_state,
+						       plane_state);
 	else
-		intel_psr2_disable_plane_sel_fetch(plane, crtc_state);
+		intel_psr2_disable_plane_sel_fetch_arm(plane, crtc_state);
 
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != fbc_ctl ||
@@ -632,8 +632,10 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	 *
 	 * FIXME bigjoiner fastpath would be good
 	 */
-	if (!crtc_state->hw.active || intel_crtc_needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe || crtc_state->bigjoiner_pipes)
+	if (!crtc_state->hw.active ||
+	    intel_crtc_needs_modeset(crtc_state) ||
+	    intel_crtc_needs_fastset(crtc_state) ||
+	    crtc_state->bigjoiner_pipes)
 		goto slow;
 
 	/*
@@ -812,7 +814,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 						   DRM_MODE_ROTATE_0 |
 						   DRM_MODE_ROTATE_180);
 
-	zpos = RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
+	zpos = DISPLAY_RUNTIME_INFO(dev_priv)->num_sprites[pipe] + 1;
 	drm_plane_create_zpos_immutable_property(&cursor->base, zpos);
 
 	if (DISPLAY_VER(dev_priv) >= 12)

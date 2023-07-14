@@ -429,6 +429,14 @@ static const struct iio_info cm32181_info = {
 	.attrs			= &cm32181_attribute_group,
 };
 
+static void cm32181_unregister_dummy_client(void *data)
+{
+	struct i2c_client *client = data;
+
+	/* Unregister the dummy client */
+	i2c_unregister_device(client);
+}
+
 static int cm32181_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -439,6 +447,8 @@ static int cm32181_probe(struct i2c_client *client)
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*cm32181));
 	if (!indio_dev)
 		return -ENOMEM;
+
+	i2c_set_clientdata(client, indio_dev);
 
 	/*
 	 * Some ACPI systems list 2 I2C resources for the CM3218 sensor, the
@@ -458,9 +468,11 @@ static int cm32181_probe(struct i2c_client *client)
 		client = i2c_acpi_new_device(dev, 1, &board_info);
 		if (IS_ERR(client))
 			return PTR_ERR(client);
-	}
 
-	i2c_set_clientdata(client, indio_dev);
+		ret = devm_add_action_or_reset(dev, cm32181_unregister_dummy_client, client);
+		if (ret)
+			return ret;
+	}
 
 	cm32181 = iio_priv(indio_dev);
 	cm32181->client = client;
@@ -490,7 +502,8 @@ static int cm32181_probe(struct i2c_client *client)
 
 static int cm32181_suspend(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct cm32181_chip *cm32181 = iio_priv(dev_get_drvdata(dev));
+	struct i2c_client *client = cm32181->client;
 
 	return i2c_smbus_write_word_data(client, CM32181_REG_ADDR_CMD,
 					 CM32181_CMD_ALS_DISABLE);
@@ -498,8 +511,8 @@ static int cm32181_suspend(struct device *dev)
 
 static int cm32181_resume(struct device *dev)
 {
-	struct i2c_client *client = to_i2c_client(dev);
 	struct cm32181_chip *cm32181 = iio_priv(dev_get_drvdata(dev));
+	struct i2c_client *client = cm32181->client;
 
 	return i2c_smbus_write_word_data(client, CM32181_REG_ADDR_CMD,
 					 cm32181->conf_regs[CM32181_REG_ADDR_CMD]);
@@ -529,7 +542,7 @@ static struct i2c_driver cm32181_driver = {
 		.of_match_table = cm32181_of_match,
 		.pm = pm_sleep_ptr(&cm32181_pm_ops),
 	},
-	.probe_new	= cm32181_probe,
+	.probe		= cm32181_probe,
 };
 
 module_i2c_driver(cm32181_driver);

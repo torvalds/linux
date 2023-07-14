@@ -125,8 +125,7 @@ static const struct iio_info dmard06_info = {
 	.read_raw	= dmard06_read_raw,
 };
 
-static int dmard06_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dmard06_probe(struct i2c_client *client)
 {
 	int ret;
 	struct iio_dev *indio_dev;

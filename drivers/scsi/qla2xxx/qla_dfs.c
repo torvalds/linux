@@ -235,7 +235,7 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	uint16_t mb[MAX_IOCB_MB_REG];
 	int rc;
 	struct qla_hw_data *ha = vha->hw;
-	u16 iocbs_used, i;
+	u16 iocbs_used, i, exch_used;
 
 	rc = qla24xx_res_count_wait(vha, mb, SIZEOF_IOCB_MB_REG);
 	if (rc != QLA_SUCCESS) {
@@ -263,13 +263,19 @@ qla_dfs_fw_resource_cnt_show(struct seq_file *s, void *unused)
 	if (ql2xenforce_iocb_limit) {
 		/* lock is not require. It's an estimate. */
 		iocbs_used = ha->base_qpair->fwres.iocbs_used;
+		exch_used = ha->base_qpair->fwres.exch_used;
 		for (i = 0; i < ha->max_qpairs; i++) {
-			if (ha->queue_pair_map[i])
+			if (ha->queue_pair_map[i]) {
 				iocbs_used += ha->queue_pair_map[i]->fwres.iocbs_used;
+				exch_used += ha->queue_pair_map[i]->fwres.exch_used;
+			}
 		}
 
 		seq_printf(s, "Driver: estimate iocb used [%d] high water limit [%d]\n",
 			   iocbs_used, ha->base_qpair->fwres.iocbs_limit);
+
+		seq_printf(s, "estimate exchange used[%d] high water limit [%d] n",
+			   exch_used, ha->base_qpair->fwres.exch_limit);
 	}
 
 	return 0;
@@ -488,6 +494,99 @@ qla_dfs_naqp_show(struct seq_file *s, void *unused)
 	seq_printf(s, "%d\n", ha->tgt.num_act_qpairs);
 	return 0;
 }
+
+/*
+ * Helper macros for setting up debugfs entries.
+ * _name: The name of the debugfs entry
+ * _ctx_struct: The context that was passed when creating the debugfs file
+ *
+ * QLA_DFS_SETUP_RD could be used when there is only a show function.
+ * - show function take the name qla_dfs_<sysfs-name>_show
+ *
+ * QLA_DFS_SETUP_RW could be used when there are both show and write functions.
+ * - show function take the name  qla_dfs_<sysfs-name>_show
+ * - write function take the name qla_dfs_<sysfs-name>_write
+ *
+ * To have a new debugfs entry, do:
+ * 1. Create a "struct dentry *" in the appropriate structure in the format
+ * dfs_<sysfs-name>
+ * 2. Setup debugfs entries using QLA_DFS_SETUP_RD / QLA_DFS_SETUP_RW
+ * 3. Create debugfs file in qla2x00_dfs_setup() using QLA_DFS_CREATE_FILE
+ * or QLA_DFS_ROOT_CREATE_FILE
+ * 4. Remove debugfs file in qla2x00_dfs_remove() using QLA_DFS_REMOVE_FILE
+ * or QLA_DFS_ROOT_REMOVE_FILE
+ *
+ * Example for creating "TEST" sysfs file:
+ * 1. struct qla_hw_data { ... struct dentry *dfs_TEST; }
+ * 2. QLA_DFS_SETUP_RD(TEST, scsi_qla_host_t);
+ * 3. In qla2x00_dfs_setup():
+ * QLA_DFS_CREATE_FILE(ha, TEST, 0600, ha->dfs_dir, vha);
+ * 4. In qla2x00_dfs_remove():
+ * QLA_DFS_REMOVE_FILE(ha, TEST);
+ */
+#define QLA_DFS_SETUP_RD(_name, _ctx_struct)				\
+static int								\
+qla_dfs_##_name##_open(struct inode *inode, struct file *file)		\
+{									\
+	_ctx_struct *__ctx = inode->i_private;				\
+									\
+	return single_open(file, qla_dfs_##_name##_show, __ctx);	\
+}									\
+									\
+static const struct file_operations qla_dfs_##_name##_ops = {		\
+	.open           = qla_dfs_##_name##_open,			\
+	.read           = seq_read,					\
+	.llseek         = seq_lseek,					\
+	.release        = single_release,				\
+};
+
+#define QLA_DFS_SETUP_RW(_name, _ctx_struct)				\
+static int								\
+qla_dfs_##_name##_open(struct inode *inode, struct file *file)		\
+{									\
+	_ctx_struct *__ctx = inode->i_private;				\
+									\
+	return single_open(file, qla_dfs_##_name##_show, __ctx);	\
+}									\
+									\
+static const struct file_operations qla_dfs_##_name##_ops = {		\
+	.open           = qla_dfs_##_name##_open,			\
+	.read           = seq_read,					\
+	.llseek         = seq_lseek,					\
+	.release        = single_release,				\
+	.write		= qla_dfs_##_name##_write,			\
+};
+
+#define QLA_DFS_ROOT_CREATE_FILE(_name, _perm, _ctx)			\
+	do {								\
+		if (!qla_dfs_##_name)					\
+			qla_dfs_##_name = debugfs_create_file(#_name,	\
+					_perm, qla2x00_dfs_root, _ctx,	\
+					&qla_dfs_##_name##_ops);	\
+	} while (0)
+
+#define QLA_DFS_ROOT_REMOVE_FILE(_name)					\
+	do {								\
+		if (qla_dfs_##_name) {					\
+			debugfs_remove(qla_dfs_##_name);		\
+			qla_dfs_##_name = NULL;				\
+		}							\
+	} while (0)
+
+#define QLA_DFS_CREATE_FILE(_struct, _name, _perm, _parent, _ctx)	\
+	do {								\
+		(_struct)->dfs_##_name = debugfs_create_file(#_name,	\
+					_perm, _parent, _ctx,		\
+					&qla_dfs_##_name##_ops)		\
+	} while (0)
+
+#define QLA_DFS_REMOVE_FILE(_struct, _name)				\
+	do {								\
+		if ((_struct)->dfs_##_name) {				\
+			debugfs_remove((_struct)->dfs_##_name);		\
+			(_struct)->dfs_##_name = NULL;			\
+		}							\
+	} while (0)
 
 static int
 qla_dfs_naqp_open(struct inode *inode, struct file *file)

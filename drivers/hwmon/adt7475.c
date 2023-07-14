@@ -488,10 +488,10 @@ static ssize_t temp_store(struct device *dev, struct device_attribute *attr,
 		val = (temp - val) / 1000;
 
 		if (sattr->index != 1) {
-			data->temp[HYSTERSIS][sattr->index] &= 0xF0;
+			data->temp[HYSTERSIS][sattr->index] &= 0x0F;
 			data->temp[HYSTERSIS][sattr->index] |= (val & 0xF) << 4;
 		} else {
-			data->temp[HYSTERSIS][sattr->index] &= 0x0F;
+			data->temp[HYSTERSIS][sattr->index] &= 0xF0;
 			data->temp[HYSTERSIS][sattr->index] |= (val & 0xF);
 		}
 
@@ -556,11 +556,11 @@ static ssize_t temp_st_show(struct device *dev, struct device_attribute *attr,
 		val = data->enh_acoustics[0] & 0xf;
 		break;
 	case 1:
-		val = (data->enh_acoustics[1] >> 4) & 0xf;
+		val = data->enh_acoustics[1] & 0xf;
 		break;
 	case 2:
 	default:
-		val = data->enh_acoustics[1] & 0xf;
+		val = (data->enh_acoustics[1] >> 4) & 0xf;
 		break;
 	}
 
@@ -1468,7 +1468,7 @@ static int load_config3(const struct i2c_client *client, const char *propname)
 	u8 config3;
 	int ret;
 
-	ret = of_property_read_string(client->dev.of_node, propname, &function);
+	ret = device_property_read_string(&client->dev, propname, &function);
 	if (!ret) {
 		ret = adt7475_read(REG_CONFIG3);
 		if (ret < 0)
@@ -1494,7 +1494,7 @@ static int load_config4(const struct i2c_client *client, const char *propname)
 	u8 config4;
 	int ret;
 
-	ret = of_property_read_string(client->dev.of_node, propname, &function);
+	ret = device_property_read_string(&client->dev, propname, &function);
 	if (!ret) {
 		ret = adt7475_read(REG_CONFIG4);
 		if (ret < 0)
@@ -1556,8 +1556,8 @@ static int set_property_bit(const struct i2c_client *client, char *property,
 			    u8 *config, u8 bit_index)
 {
 	u32 prop_value = 0;
-	int ret = of_property_read_u32(client->dev.of_node, property,
-					&prop_value);
+	int ret = device_property_read_u32(&client->dev, property,
+					   &prop_value);
 
 	if (!ret) {
 		if (prop_value)
@@ -1604,9 +1604,9 @@ static int adt7475_set_pwm_polarity(struct i2c_client *client)
 	int ret, i;
 	u8 val;
 
-	ret = of_property_read_u32_array(client->dev.of_node,
-					 "adi,pwm-active-state", states,
-					 ARRAY_SIZE(states));
+	ret = device_property_read_u32_array(&client->dev,
+					     "adi,pwm-active-state", states,
+					     ARRAY_SIZE(states));
 	if (ret)
 		return ret;
 
@@ -1821,7 +1821,7 @@ static struct i2c_driver adt7475_driver = {
 		.name	= "adt7475",
 		.of_match_table = of_match_ptr(adt7475_of_match),
 	},
-	.probe_new	= adt7475_probe,
+	.probe		= adt7475_probe,
 	.id_table	= adt7475_id,
 	.detect		= adt7475_detect,
 	.address_list	= normal_i2c,

@@ -47,23 +47,31 @@ enum amdgpu_ib_pool_type;
 struct amdgpu_job {
 	struct drm_sched_job    base;
 	struct amdgpu_vm	*vm;
-	struct amdgpu_sync	sync;
-	struct amdgpu_sync	sched_sync;
+	struct amdgpu_sync	explicit_sync;
 	struct dma_fence	hw_fence;
+	struct dma_fence	*gang_submit;
 	uint32_t		preamble_status;
 	uint32_t                preemption_status;
 	bool                    vm_needs_flush;
+	bool			gds_switch_needed;
+	bool			spm_update_needed;
 	uint64_t		vm_pd_addr;
 	unsigned		vmid;
 	unsigned		pasid;
 	uint32_t		gds_base, gds_size;
 	uint32_t		gws_base, gws_size;
 	uint32_t		oa_base, oa_size;
-	uint32_t		vram_lost_counter;
+	uint64_t		generation;
 
 	/* user fence handling */
 	uint64_t		uf_addr;
 	uint64_t		uf_sequence;
+
+	/* virtual addresses for shadow/GDS/CSA */
+	uint64_t		shadow_va;
+	uint64_t		csa_va;
+	uint64_t		gds_va;
+	bool			init_shadow;
 
 	/* job_run_counter >= 1 means a resubmit job */
 	uint32_t		job_run_counter;
@@ -72,14 +80,25 @@ struct amdgpu_job {
 	struct amdgpu_ib	ibs[];
 };
 
-int amdgpu_job_alloc(struct amdgpu_device *adev, unsigned num_ibs,
-		     struct amdgpu_job **job, struct amdgpu_vm *vm);
-int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev, unsigned size,
-		enum amdgpu_ib_pool_type pool, struct amdgpu_job **job);
+static inline struct amdgpu_ring *amdgpu_job_ring(struct amdgpu_job *job)
+{
+	return to_amdgpu_ring(job->base.entity->rq->sched);
+}
+
+int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+		     struct drm_sched_entity *entity, void *owner,
+		     unsigned int num_ibs, struct amdgpu_job **job);
+int amdgpu_job_alloc_with_ib(struct amdgpu_device *adev,
+			     struct drm_sched_entity *entity, void *owner,
+			     size_t size, enum amdgpu_ib_pool_type pool_type,
+			     struct amdgpu_job **job);
+void amdgpu_job_set_resources(struct amdgpu_job *job, struct amdgpu_bo *gds,
+			      struct amdgpu_bo *gws, struct amdgpu_bo *oa);
 void amdgpu_job_free_resources(struct amdgpu_job *job);
+void amdgpu_job_set_gang_leader(struct amdgpu_job *job,
+				struct amdgpu_job *leader);
 void amdgpu_job_free(struct amdgpu_job *job);
-int amdgpu_job_submit(struct amdgpu_job *job, struct drm_sched_entity *entity,
-		      void *owner, struct dma_fence **f);
+struct dma_fence *amdgpu_job_submit(struct amdgpu_job *job);
 int amdgpu_job_submit_direct(struct amdgpu_job *job, struct amdgpu_ring *ring,
 			     struct dma_fence **fence);
 

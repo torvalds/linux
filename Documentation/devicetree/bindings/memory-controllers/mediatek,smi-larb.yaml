@@ -25,6 +25,7 @@ properties:
           - mediatek,mt8173-smi-larb
           - mediatek,mt8183-smi-larb
           - mediatek,mt8186-smi-larb
+          - mediatek,mt8188-smi-larb
           - mediatek,mt8192-smi-larb
           - mediatek,mt8195-smi-larb
 
@@ -32,6 +33,10 @@ properties:
         items:
           - const: mediatek,mt7623-smi-larb
           - const: mediatek,mt2701-smi-larb
+
+      - items:
+          - const: mediatek,mt8365-smi-larb
+          - const: mediatek,mt8186-smi-larb
 
   reg:
     maxItems: 1
@@ -78,6 +83,7 @@ allOf:
           enum:
             - mediatek,mt8183-smi-larb
             - mediatek,mt8186-smi-larb
+            - mediatek,mt8188-smi-larb
             - mediatek,mt8195-smi-larb
 
     then:
@@ -111,6 +117,7 @@ allOf:
               - mediatek,mt2712-smi-larb
               - mediatek,mt6779-smi-larb
               - mediatek,mt8186-smi-larb
+              - mediatek,mt8188-smi-larb
               - mediatek,mt8192-smi-larb
               - mediatek,mt8195-smi-larb
 

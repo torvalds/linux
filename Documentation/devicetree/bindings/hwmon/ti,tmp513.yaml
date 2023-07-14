@@ -77,15 +77,15 @@ additionalProperties: false
 examples:
   - |
     i2c {
-          #address-cells = <1>;
-          #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-          tmp513@5c {
-              compatible = "ti,tmp513";
-              reg = <0x5C>;
-              shunt-resistor-micro-ohms = <330000>;
-              ti,bus-range-microvolt = <32000000>;
-              ti,pga-gain = <8>;
-              ti,nfactor = <0x1 0xF3 0x00>;
-          };
+        tmp513@5c {
+            compatible = "ti,tmp513";
+            reg = <0x5c>;
+            shunt-resistor-micro-ohms = <330000>;
+            ti,bus-range-microvolt = <32000000>;
+            ti,pga-gain = <8>;
+            ti,nfactor = <0x1 0xf3 0x00>;
+        };
     };

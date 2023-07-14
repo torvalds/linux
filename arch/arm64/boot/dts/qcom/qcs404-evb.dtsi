@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018, Linaro Limited
+/*
+ * Copyright (c) 2018, Linaro Limited
+ */
 
 #include <dt-bindings/gpio/gpio.h>
 #include "qcs404.dtsi"
@@ -99,7 +101,7 @@
 &pcie {
 	status = "okay";
 
-	perst-gpio = <&tlmm 43 GPIO_ACTIVE_LOW>;
+	perst-gpios = <&tlmm 43 GPIO_ACTIVE_LOW>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&perst_state>;
@@ -125,7 +127,7 @@
 };
 
 &rpm_requests {
-	pms405-regulators {
+	regulators {
 		compatible = "qcom,rpm-pms405-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -229,7 +231,7 @@
 };
 
 &tlmm {
-	perst_state: perst {
+	perst_state: perst-state {
 		pins = "gpio43";
 		function = "gpio";
 
@@ -238,68 +240,62 @@
 		output-low;
 	};
 
-	sdc1_on: sdc1-on {
-		clk {
+	sdc1_on: sdc1-on-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			bias-disable;
 			drive-strength = <16>;
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc1_cmd";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		data {
+		data-pins {
 			pins = "sdc1_data";
 			bias-pull-up;
 			drive-strength = <10>;
 		};
 
-		rclk {
+		rclk-pins {
 			pins = "sdc1_rclk";
 			bias-pull-down;
 		};
 	};
 
-	sdc1_off: sdc1-off {
-		clk {
+	sdc1_off: sdc1-off-state {
+		clk-pins {
 			pins = "sdc1_clk";
 			bias-disable;
 			drive-strength = <2>;
 		};
 
-		cmd {
+		cmd-pins {
 			pins = "sdc1_cmd";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 
-		data {
+		data-pins {
 			pins = "sdc1_data";
 			bias-pull-up;
 			drive-strength = <2>;
 		};
 
-		rclk {
+		rclk-pins {
 			pins = "sdc1_rclk";
 			bias-pull-down;
 		};
 	};
 
-	usb3_id_pin: usb3-id-pin {
-		pinmux {
-			pins = "gpio116";
-			function = "gpio";
-		};
+	usb3_id_pin: usb3-id-state {
+		pins = "gpio116";
+		function = "gpio";
 
-		pinconf {
-			pins = "gpio116";
-			drive-strength = <2>;
-			bias-pull-up;
-			input-enable;
-		};
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 };
 
@@ -366,31 +362,28 @@
 /* PINCTRL - additions to nodes defined in qcs404.dtsi */
 
 &blsp1_uart2_default {
-	rx {
+	rx-pins {
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	tx {
+	tx-pins {
 		drive-strength = <2>;
 		bias-disable;
 	};
 };
 
 &blsp1_uart3_default {
-	cts {
-		pins = "gpio84";
+	cts-pins {
 		bias-disable;
 	};
 
-	rts-tx {
-		pins = "gpio85", "gpio82";
+	rts-tx-pins {
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	rx {
-		pins = "gpio83";
+	rx-pins {
 		bias-pull-up;
 	};
 };

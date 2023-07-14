@@ -175,6 +175,7 @@ static int ntxec_probe(struct i2c_client *client)
 	/* Bail out if we encounter an unknown firmware version */
 	switch (version) {
 	case NTXEC_VERSION_KOBO_AURA:
+	case NTXEC_VERSION_TOLINO_VISION:
 		subdevs = ntxec_subdev;
 		n_subdevs = ARRAY_SIZE(ntxec_subdev);
 		break;
@@ -259,7 +260,7 @@ static struct i2c_driver ntxec_driver = {
 		.name = "ntxec",
 		.of_match_table = of_ntxec_match_table,
 	},
-	.probe_new = ntxec_probe,
+	.probe = ntxec_probe,
 	.remove = ntxec_remove,
 };
 module_i2c_driver(ntxec_driver);

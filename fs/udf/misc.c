@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * misc.c
  *
@@ -5,11 +6,6 @@
  *	Miscellaneous routines for the OSTA-UDF(tm) filesystem.
  *
  * COPYRIGHT
- *	This file is distributed under the terms of the GNU General Public
- *	License (GPL). Copies of the GPL can be obtained from:
- *		ftp://prep.ai.mit.edu/pub/gnu/GPL
- *	Each contributing author retains all rights to their own work.
- *
  *  (C) 1998 Dave Boynton
  *  (C) 1998-2004 Ben Fennema
  *  (C) 1999-2000 Stelias Computing Inc
@@ -27,22 +23,6 @@
 
 #include "udf_i.h"
 #include "udf_sb.h"
-
-struct buffer_head *udf_tgetblk(struct super_block *sb, udf_pblk_t block)
-{
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV))
-		return sb_getblk(sb, udf_fixed_to_variable(block));
-	else
-		return sb_getblk(sb, block);
-}
-
-struct buffer_head *udf_tread(struct super_block *sb, udf_pblk_t block)
-{
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV))
-		return sb_bread(sb, udf_fixed_to_variable(block));
-	else
-		return sb_bread(sb, block);
-}
 
 struct genericFormat *udf_add_extendedattr(struct inode *inode, uint32_t size,
 					   uint32_t type, uint8_t loc)
@@ -216,7 +196,7 @@ struct buffer_head *udf_read_tagged(struct super_block *sb, uint32_t block,
 	if (block == 0xFFFFFFFF)
 		return NULL;
 
-	bh = udf_tread(sb, block);
+	bh = sb_bread(sb, block);
 	if (!bh) {
 		udf_err(sb, "read failed, block=%u, location=%u\n",
 			block, location);

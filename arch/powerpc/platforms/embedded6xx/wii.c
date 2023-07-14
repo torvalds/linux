@@ -15,8 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
-#include <mm/mmu_decl.h>
 
 #include <asm/io.h>
 #include <asm/machdep.h>
@@ -49,19 +47,6 @@
 static void __iomem *hw_ctrl;
 static void __iomem *hw_gpio;
 
-static int __init page_aligned(unsigned long x)
-{
-	return !(x & (PAGE_SIZE-1));
-}
-
-void __init wii_memory_fixups(void)
-{
-	struct memblock_region *p = memblock.memory.regions;
-
-	BUG_ON(memblock.memory.cnt != 2);
-	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
-}
-
 static void __noreturn wii_spin(void)
 {
 	local_irq_disable();
@@ -89,8 +74,8 @@ static void __iomem *__init wii_ioremap_hw_regs(char *name, char *compatible)
 
 	hw_regs = ioremap(res.start, resource_size(&res));
 	if (hw_regs) {
-		pr_info("%s at 0x%08x mapped to 0x%p\n", name,
-			res.start, hw_regs);
+		pr_info("%s at 0x%pa mapped to 0x%p\n", name,
+			&res.start, hw_regs);
 	}
 
 out_put:
@@ -156,9 +141,6 @@ static void __init wii_pic_probe(void)
 
 static int __init wii_probe(void)
 {
-	if (!of_machine_is_compatible("nintendo,wii"))
-		return 0;
-
 	pm_power_off = wii_power_off;
 
 	ug_udbg_init();
@@ -179,23 +161,20 @@ static const struct of_device_id wii_of_bus[] = {
 
 static int __init wii_device_probe(void)
 {
-	if (!machine_is(wii))
-		return 0;
-
 	of_platform_populate(NULL, wii_of_bus, NULL, NULL);
 	return 0;
 }
-device_initcall(wii_device_probe);
+machine_device_initcall(wii, wii_device_probe);
 
 define_machine(wii) {
 	.name			= "wii",
+	.compatible		= "nintendo,wii",
 	.probe			= wii_probe,
 	.setup_arch		= wii_setup_arch,
 	.restart		= wii_restart,
 	.halt			= wii_halt,
 	.init_IRQ		= wii_pic_probe,
 	.get_irq		= flipper_pic_get_irq,
-	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,
 	.machine_shutdown	= wii_shutdown,
 };

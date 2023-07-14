@@ -238,6 +238,43 @@ static int get_key_knc1(struct IR_i2c *ir, enum rc_proto *protocol,
 	return 1;
 }
 
+static int get_key_geniatech(struct IR_i2c *ir, enum rc_proto *protocol,
+			     u32 *scancode, u8 *toggle)
+{
+	int i, rc;
+	unsigned char b;
+
+	/* poll IR chip */
+	for (i = 0; i < 4; i++) {
+		rc = i2c_master_recv(ir->c, &b, 1);
+		if (rc == 1)
+			break;
+		msleep(20);
+	}
+	if (rc != 1) {
+		dev_dbg(&ir->rc->dev, "read error\n");
+		if (rc < 0)
+			return rc;
+		return -EIO;
+	}
+
+	/* don't repeat the key */
+	if (ir->old == b)
+		return 0;
+	ir->old = b;
+
+	/* decode to RC5 */
+	b &= 0x7f;
+	b = (b - 1) / 2;
+
+	dev_dbg(&ir->rc->dev, "key %02x\n", b);
+
+	*protocol = RC_PROTO_RC5;
+	*scancode = b;
+	*toggle = ir->old >> 7;
+	return 1;
+}
+
 static int get_key_avermedia_cardbus(struct IR_i2c *ir, enum rc_proto *protocol,
 				     u32 *scancode, u8 *toggle)
 {
@@ -720,8 +757,9 @@ static int zilog_tx_duty_cycle(struct rc_dev *dev, u32 duty_cycle)
 	return 0;
 }
 
-static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ir_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	char *ir_codes = NULL;
 	const char *name = NULL;
 	u64 rc_proto = RC_PROTO_BIT_UNKNOWN;
@@ -765,6 +803,13 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_knc1;
 		rc_proto    = RC_PROTO_BIT_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
+		break;
+	case 0x33:
+		name        = "Geniatech";
+		ir->get_key = get_key_geniatech;
+		rc_proto    = RC_PROTO_BIT_RC5;
+		ir_codes    = RC_MAP_TOTAL_MEDIA_IN_HAND_02;
+		ir->old     = 0xfc;
 		break;
 	case 0x6b:
 		name        = "FusionHDTV";
@@ -824,6 +869,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			break;
 		case IR_KBD_GET_KEY_KNC1:
 			ir->get_key = get_key_knc1;
+			break;
+		case IR_KBD_GET_KEY_GENIATECH:
+			ir->get_key = get_key_geniatech;
 			break;
 		case IR_KBD_GET_KEY_FUSIONHDTV:
 			ir->get_key = get_key_fusionhdtv;

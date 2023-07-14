@@ -23,3 +23,55 @@ Description:
 		Reading this attribute gives the state of the DbC. It
 		can be one of the following states: disabled, enabled,
 		initialized, connected, configured and stalled.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_idVendor
+Date:		March 2023
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		This dbc_idVendor attribute lets us change the idVendor field
+		presented in the USB device descriptor by this xhci debug
+		device.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB device descriptor change while
+		connected to a USB host.
+		The default value is 0x1d6b (Linux Foundation).
+		It can be any 16-bit integer.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_idProduct
+Date:		March 2023
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		This dbc_idProduct attribute lets us change the idProduct field
+		presented in the USB device descriptor by this xhci debug
+		device.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB device descriptor change while
+		connected to a USB host.
+		The default value is 0x0010. It can be any 16-bit integer.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_bcdDevice
+Date:		March 2023
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		This dbc_bcdDevice attribute lets us change the bcdDevice field
+		presented in the USB device descriptor by this xhci debug
+		device.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB device descriptor change while
+		connected to a USB host.
+		The default value is 0x0010. (device rev 0.10)
+		It can be any 16-bit integer.
+
+What:		/sys/bus/pci/drivers/xhci_hcd/.../dbc_bInterfaceProtocol
+Date:		March 2023
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		This attribute lets us change the bInterfaceProtocol field
+		presented in the USB Interface descriptor by the xhci debug
+		device.
+		Value can only be changed while debug capability (DbC) is in
+		disabled state to prevent USB descriptor change while
+		connected to a USB host.
+		The default value is 1  (GNU Remote Debug command).
+		Other permissible value is 0 which is for vendor defined debug
+		target.

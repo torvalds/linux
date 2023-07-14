@@ -33,11 +33,11 @@ struct mpa_rr_params {
  * MPA request/response Hdr bits & fields
  */
 enum {
-	MPA_RR_FLAG_MARKERS = __cpu_to_be16(0x8000),
-	MPA_RR_FLAG_CRC = __cpu_to_be16(0x4000),
-	MPA_RR_FLAG_REJECT = __cpu_to_be16(0x2000),
-	MPA_RR_RESERVED = __cpu_to_be16(0x1f00),
-	MPA_RR_MASK_REVISION = __cpu_to_be16(0x00ff)
+	MPA_RR_FLAG_MARKERS = cpu_to_be16(0x8000),
+	MPA_RR_FLAG_CRC = cpu_to_be16(0x4000),
+	MPA_RR_FLAG_REJECT = cpu_to_be16(0x2000),
+	MPA_RR_RESERVED = cpu_to_be16(0x1f00),
+	MPA_RR_MASK_REVISION = cpu_to_be16(0x00ff)
 };
 
 /*

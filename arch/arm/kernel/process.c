@@ -78,7 +78,6 @@ void arch_cpu_idle(void)
 		arm_pm_idle();
 	else
 		cpu_do_idle();
-	raw_local_irq_enable();
 }
 
 void arch_cpu_idle_prepare(void)
@@ -201,7 +200,7 @@ void __show_regs(struct pt_regs *regs)
 void show_regs(struct pt_regs * regs)
 {
 	__show_regs(regs);
-	dump_stack();
+	dump_backtrace(regs, NULL, KERN_DEFAULT);
 }
 
 ATOMIC_NOTIFIER_HEAD(thread_notify_head);
@@ -230,10 +229,6 @@ void flush_thread(void)
 	flush_tls();
 
 	thread_notify(THREAD_NOTIFY_FLUSH, thread);
-}
-
-void release_thread(struct task_struct *dead_task)
-{
 }
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
@@ -320,7 +315,7 @@ static int __init gate_vma_init(void)
 	gate_vma.vm_page_prot = PAGE_READONLY_EXEC;
 	gate_vma.vm_start = 0xffff0000;
 	gate_vma.vm_end	= 0xffff0000 + PAGE_SIZE;
-	gate_vma.vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC;
+	vm_flags_init(&gate_vma, VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC);
 	return 0;
 }
 arch_initcall(gate_vma_init);
@@ -375,7 +370,7 @@ static unsigned long sigpage_addr(const struct mm_struct *mm,
 
 	slots = ((last - first) >> PAGE_SHIFT) + 1;
 
-	offset = get_random_int() % slots;
+	offset = get_random_u32_below(slots);
 
 	addr = first + (offset << PAGE_SHIFT);
 

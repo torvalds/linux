@@ -43,6 +43,8 @@ static inline int __cci_control_port_by_index(u32 port, bool enable)
 }
 #endif
 
+void cci_enable_port_for_self(void);
+
 #define cci_disable_port_by_device(dev) \
 	__cci_control_port_by_device(dev, false)
 #define cci_enable_port_by_device(dev) \

@@ -169,7 +169,7 @@ static int hisi_spi_debugfs_init(struct hisi_spi *hs)
 	master = container_of(hs->dev, struct spi_controller, dev);
 	snprintf(name, 32, "hisi_spi%d", master->bus_num);
 	hs->debugfs = debugfs_create_dir(name, NULL);
-	if (!hs->debugfs)
+	if (IS_ERR(hs->debugfs))
 		return -ENOMEM;
 
 	hs->regset.regs = hisi_spi_regs;
@@ -523,15 +523,13 @@ static int hisi_spi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hisi_spi_remove(struct platform_device *pdev)
+static void hisi_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *master = platform_get_drvdata(pdev);
 	struct hisi_spi *hs = spi_controller_get_devdata(master);
 
 	debugfs_remove_recursive(hs->debugfs);
 	spi_unregister_controller(master);
-
-	return 0;
 }
 
 static const struct acpi_device_id hisi_spi_acpi_match[] = {
@@ -542,7 +540,7 @@ MODULE_DEVICE_TABLE(acpi, hisi_spi_acpi_match);
 
 static struct platform_driver hisi_spi_driver = {
 	.probe		= hisi_spi_probe,
-	.remove		= hisi_spi_remove,
+	.remove_new	= hisi_spi_remove,
 	.driver		= {
 		.name	= "hisi-kunpeng-spi",
 		.acpi_match_table = hisi_spi_acpi_match,

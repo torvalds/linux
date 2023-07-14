@@ -3,9 +3,6 @@
  * Copyright (c) 2020, Yassine Oudjana <y.oudjana@protonmail.com>
  */
 
-/dts-v1/;
-
-#include "msm8996.dtsi"
 #include "pm8994.dtsi"
 #include "pmi8994.dtsi"
 #include <dt-bindings/input/input.h>
@@ -15,8 +12,6 @@
 
 / {
 	clocks {
-		compatible = "simple-bus";
-
 		divclk1_cdc: divclk1 {
 			compatible = "gpio-gate-clock";
 			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
@@ -56,6 +51,14 @@
 			wakeup-source;
 			debounce-interval = <15>;
 		};
+	};
+
+	irled {
+		compatible = "pwm-ir-tx";
+		pwms = <&pm8994_lpg 1 1000000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&irled_default>;
 	};
 
 	reserved-memory {
@@ -224,7 +227,7 @@
 	status = "okay";
 	label = "QCA_UART";
 
-	bluetooth: qca6174a {
+	bluetooth: bluetooth {
 		compatible = "qcom,qca6174-bt";
 
 		enable-gpios = <&pm8994_gpios 19 GPIO_ACTIVE_HIGH>;
@@ -232,7 +235,15 @@
 	};
 };
 
-&dsi0 {
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	status = "okay";
 
 	vdd-supply = <&vreg_l2a_1p25>;
@@ -243,24 +254,16 @@
 	pinctrl-1 = <&mdss_dsi_sleep &mdss_te_sleep>;
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	status = "okay";
 
 	data-lanes = <0 1 2 3>;
 };
 
-&dsi0_phy {
+&mdss_dsi0_phy {
 	status = "okay";
 
 	vcca-supply = <&vreg_l28a_0p925>;
-};
-
-&gpu {
-	status = "okay";
-};
-
-&mdss {
-	status = "okay";
 };
 
 &mmcc {
@@ -295,6 +298,87 @@
 	status = "okay";
 
 	linux,code = <KEY_VOLUMEDOWN>;
+};
+
+&pm8994_lpg {
+	status = "okay";
+
+	qcom,power-source = <1>;
+};
+
+&pmi8994_lpg {
+	status = "okay";
+
+	qcom,power-source = <1>;
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_RED>;
+		};
+	};
+};
+
+&slim_msm {
+	status = "okay";
+
+	slim@1 {
+		reg = <1>;
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		tasha_ifd: tas-ifd@0,0 {
+			compatible = "slim217,1a0";
+			reg = <0 0>;
+		};
+
+		wcd9335: codec@1,0 {
+			compatible = "slim217,1a0";
+			reg = <1 0>;
+
+			clock-names = "mclk", "slimbus";
+			clocks = <&divclk1_cdc>,
+				 <&rpmcc RPM_SMD_BB_CLK1>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
+				     <53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "intr1", "intr2";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+
+			pinctrl-0 = <&cdc_reset_active &wcd_intr_default>;
+			pinctrl-names = "default";
+
+			reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+			slim-ifc-dev = <&tasha_ifd>;
+
+			#sound-dai-cells = <1>;
+
+			vdd-buck-supply = <&vreg_s4a_1p8>;
+			vdd-buck-sido-supply = <&vreg_s4a_1p8>;
+			vdd-rx-supply = <&vreg_s4a_1p8>;
+			vdd-tx-supply = <&vreg_s4a_1p8>;
+			vdd-vbat-supply = <&vph_pwr>;
+			vdd-micbias-supply = <&vph_pwr_bbyp>;
+			vdd-io-supply = <&vreg_s4a_1p8>;
+		};
+	};
 };
 
 &slpi_pil {
@@ -355,22 +439,8 @@
 	status = "okay";
 };
 
-&wcd9335 {
-	clock-names = "mclk", "slimbus";
-	clocks = <&divclk1_cdc>,
-		 <&rpmcc RPM_SMD_BB_CLK1>;
-
-	vdd-buck-supply = <&vreg_s4a_1p8>;
-	vdd-buck-sido-supply = <&vreg_s4a_1p8>;
-	vdd-rx-supply = <&vreg_s4a_1p8>;
-	vdd-tx-supply = <&vreg_s4a_1p8>;
-	vdd-vbat-supply = <&vph_pwr>;
-	vdd-micbias-supply = <&vph_pwr_bbyp>;
-	vdd-io-supply = <&vreg_s4a_1p8>;
-};
-
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -555,7 +625,7 @@
 		};
 	};
 
-	pmi8994-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pmi8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -608,6 +678,15 @@
 };
 
 &pm8994_gpios {
+	irled_default: irled-default-state {
+		pins = "gpio5";
+		function = PMIC_GPIO_FUNC_FUNC1;
+		output-low;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+		power-source = <PM8994_GPIO_S4>;
+		bias-disable;
+	};
+
 	wlan_en_default: wlan-en-state {
 		pins = "gpio8";
 		function = PMIC_GPIO_FUNC_NORMAL;
@@ -642,35 +721,35 @@
 };
 
 &tlmm {
-	mdss_dsi_default: mdss_dsi_default {
+	mdss_dsi_default: mdss-dsi-default-state {
 		pins = "gpio8";
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
 	};
 
-	mdss_dsi_sleep: mdss_dsi_sleep {
+	mdss_dsi_sleep: mdss-dsi-sleep-state {
 		pins = "gpio8";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	mdss_te_default: mdss_te_default {
+	mdss_te_default: mdss-te-default-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	mdss_te_sleep: mdss_te_sleep {
+	mdss_te_sleep: mdss-te-sleep-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
 
-	nfc_default: nfc_default {
+	nfc_default: nfc-default-state {
 		pins = "gpio12", "gpio21";
 		function = "gpio";
 		drive-strength = <16>;

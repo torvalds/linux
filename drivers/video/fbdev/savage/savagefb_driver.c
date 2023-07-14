@@ -41,6 +41,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -2176,6 +2177,10 @@ static int savagefb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	DBG("savagefb_probe");
 
+	err = aperture_remove_conflicting_pci_devices(dev, "savagefb");
+	if (err)
+		return err;
+
 	info = framebuffer_alloc(sizeof(struct savagefb_par), &dev->dev);
 	if (!info)
 		return -ENOMEM;
@@ -2550,6 +2555,9 @@ static int __init savagefb_init(void)
 	char *option;
 
 	DBG("savagefb_init");
+
+	if (fb_modesetting_disabled("savagefb"))
+		return -ENODEV;
 
 	if (fb_get_options("savagefb", &option))
 		return -ENODEV;

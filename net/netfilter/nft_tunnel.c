@@ -66,9 +66,9 @@ static void nft_tunnel_get_eval(const struct nft_expr *expr,
 }
 
 static const struct nla_policy nft_tunnel_policy[NFTA_TUNNEL_MAX + 1] = {
-	[NFTA_TUNNEL_KEY]	= { .type = NLA_U32 },
+	[NFTA_TUNNEL_KEY]	= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_TUNNEL_DREG]	= { .type = NLA_U32 },
-	[NFTA_TUNNEL_MODE]	= { .type = NLA_U32 },
+	[NFTA_TUNNEL_MODE]	= NLA_POLICY_MAX(NLA_BE32, 255),
 };
 
 static int nft_tunnel_get_init(const struct nft_ctx *ctx,
@@ -108,7 +108,7 @@ static int nft_tunnel_get_init(const struct nft_ctx *ctx,
 }
 
 static int nft_tunnel_get_dump(struct sk_buff *skb,
-			       const struct nft_expr *expr)
+			       const struct nft_expr *expr, bool reset)
 {
 	const struct nft_tunnel *priv = nft_expr_priv(expr);
 

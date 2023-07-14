@@ -22,6 +22,7 @@
 #include <linux/platform_data/st_sensors_pdata.h>
 
 #define LSM9DS0_IMU_DEV_NAME		"lsm9ds0"
+#define LSM303D_IMU_DEV_NAME		"lsm303d"
 
 /*
  * Buffer size max case: 2bytes per channel, 3 channels in total +
@@ -224,8 +225,6 @@ struct st_sensor_settings {
  * @mount_matrix: The mounting matrix of the sensor.
  * @sensor_settings: Pointer to the specific sensor settings in use.
  * @current_fullscale: Maximum range of measure by the sensor.
- * @vdd: Pointer to sensor's Vdd power supply
- * @vdd_io: Pointer to sensor's Vdd-IO power supply
  * @regmap: Pointer to specific sensor regmap configuration.
  * @enabled: Status of the sensor (false->off, true->on).
  * @odr: Output data rate of the sensor [Hz].
@@ -244,8 +243,6 @@ struct st_sensor_data {
 	struct iio_mount_matrix mount_matrix;
 	struct st_sensor_settings *sensor_settings;
 	struct st_sensor_fullscale_avl *current_fullscale;
-	struct regulator *vdd;
-	struct regulator *vdd_io;
 	struct regmap *regmap;
 
 	bool enabled;

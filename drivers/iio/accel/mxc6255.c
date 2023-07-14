@@ -113,8 +113,7 @@ static const struct regmap_config mxc6255_regmap_config = {
 	.readable_reg = mxc6255_is_readable_reg,
 };
 
-static int mxc6255_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mxc6255_probe(struct i2c_client *client)
 {
 	struct mxc6255_data *data;
 	struct iio_dev *indio_dev;

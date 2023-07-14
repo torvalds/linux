@@ -10,7 +10,7 @@ maintainers:
   - Robin van der Gracht <robin@protonic.nl>
 
 allOf:
-  - $ref: "/schemas/input/matrix-keymap.yaml#"
+  - $ref: /schemas/input/matrix-keymap.yaml#
 
 properties:
   compatible:
@@ -40,6 +40,7 @@ properties:
   linux,keymap: true
 
   linux,no-autorepeat:
+    type: boolean
     description: Disable keyrepeat
 
   default-brightness-level:
@@ -72,7 +73,7 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/input/input.h>
     #include <dt-bindings/leds/common.h>
-    i2c1 {
+    i2c {
             #address-cells = <1>;
             #size-cells = <0>;
 

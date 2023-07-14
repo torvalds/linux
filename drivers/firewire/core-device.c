@@ -133,7 +133,7 @@ static void get_ids(const u32 *directory, int *id)
 	}
 }
 
-static void get_modalias_ids(struct fw_unit *unit, int *id)
+static void get_modalias_ids(const struct fw_unit *unit, int *id)
 {
 	get_ids(&fw_parent_device(unit)->config_rom[5], id);
 	get_ids(unit->directory, id);
@@ -195,7 +195,7 @@ static void fw_unit_remove(struct device *dev)
 	driver->remove(fw_unit(dev));
 }
 
-static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
+static int get_modalias(const struct fw_unit *unit, char *buffer, size_t buffer_size)
 {
 	int id[] = {0, 0, 0, 0};
 
@@ -206,9 +206,9 @@ static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 			id[0], id[1], id[2], id[3]);
 }
 
-static int fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int fw_unit_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct fw_unit *unit = fw_unit(dev);
+	const struct fw_unit *unit = fw_unit(dev);
 	char modalias[64];
 
 	get_modalias(unit, modalias, sizeof(modalias));
@@ -1211,7 +1211,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 * without actually having a link.
 		 */
  create:
-		device = kzalloc(sizeof(*device), GFP_ATOMIC);
+		device = kzalloc(sizeof(*device), GFP_KERNEL);
 		if (device == NULL)
 			break;
 

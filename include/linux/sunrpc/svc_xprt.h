@@ -23,12 +23,11 @@ struct svc_xprt_ops {
 	int		(*xpo_sendto)(struct svc_rqst *);
 	int		(*xpo_result_payload)(struct svc_rqst *, unsigned int,
 					      unsigned int);
-	void		(*xpo_release_rqst)(struct svc_rqst *);
+	void		(*xpo_release_ctxt)(struct svc_xprt *xprt, void *ctxt);
 	void		(*xpo_detach)(struct svc_xprt *);
 	void		(*xpo_free)(struct svc_xprt *);
-	void		(*xpo_secure_port)(struct svc_rqst *rqstp);
 	void		(*xpo_kill_temp_xprt)(struct svc_xprt *);
-	void		(*xpo_start_tls)(struct svc_xprt *);
+	void		(*xpo_handshake)(struct svc_xprt *xprt);
 };
 
 struct svc_xprt_class {
@@ -71,6 +70,9 @@ struct svc_xprt {
 #define XPT_LOCAL	12		/* connection from loopback interface */
 #define XPT_KILL_TEMP   13		/* call xpo_kill_temp_xprt before closing */
 #define XPT_CONG_CTRL	14		/* has congestion control */
+#define XPT_HANDSHAKE	15		/* xprt requests a handshake */
+#define XPT_TLS_SESSION	16		/* transport-layer security established */
+#define XPT_PEER_AUTH	17		/* peer has been authenticated */
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */

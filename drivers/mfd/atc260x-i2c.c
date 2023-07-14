@@ -12,8 +12,7 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 
-static int atc260x_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int atc260x_i2c_probe(struct i2c_client *client)
 {
 	struct atc260x *atc260x;
 	struct regmap_config regmap_cfg;
@@ -52,7 +51,7 @@ MODULE_DEVICE_TABLE(of, atc260x_i2c_of_match);
 static struct i2c_driver atc260x_i2c_driver = {
 	.driver = {
 		.name = "atc260x",
-		.of_match_table	= of_match_ptr(atc260x_i2c_of_match),
+		.of_match_table	= atc260x_i2c_of_match,
 	},
 	.probe = atc260x_i2c_probe,
 };

@@ -5,6 +5,20 @@
 
 menu "Analog to digital and digital to analog converters"
 
+config AD74115
+	tristate "Analog Devices AD74115H driver"
+	depends on GPIOLIB && SPI
+	select CRC8
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select REGMAP_SPI
+	help
+	  Say yes here to build support for Analog Devices AD74115H
+	  single-channel software configurable input/output solution.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad74115.
+
 config AD74413R
 	tristate "Analog Devices AD74412R/AD74413R driver"
 	depends on GPIOLIB && SPI
@@ -16,5 +30,23 @@ config AD74413R
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad74413r.
+
+config STX104
+	tristate "Apex Embedded Systems STX104 driver"
+	depends on PC104 && X86
+	select ISA_BUS_API
+	select REGMAP_MMIO
+	select GPIOLIB
+	select GPIO_REGMAP
+	help
+	  Say yes here to build support for the Apex Embedded Systems STX104
+	  integrated analog PC/104 card.
+
+	  This driver supports the 16 channels of single-ended (8 channels of
+	  differential) analog inputs, 2 channels of analog output, 4 digital
+	  inputs, and 4 digital outputs provided by the STX104.
+
+	  The base port addresses for the devices may be configured via the base
+	  array module parameter.
 
 endmenu

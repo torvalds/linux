@@ -231,13 +231,8 @@ static int ir_rx51_probe(struct platform_device *dev)
 	struct rc_dev *rcdev;
 
 	pwm = pwm_get(&dev->dev, NULL);
-	if (IS_ERR(pwm)) {
-		int err = PTR_ERR(pwm);
-
-		if (err != -EPROBE_DEFER)
-			dev_err(&dev->dev, "pwm_get failed: %d\n", err);
-		return err;
-	}
+	if (IS_ERR(pwm))
+		return dev_err_probe(&dev->dev, PTR_ERR(pwm), "pwm_get failed\n");
 
 	/* Use default, in case userspace does not set the carrier */
 	ir_rx51.freq = DIV_ROUND_CLOSEST_ULL(pwm_get_period(pwm), NSEC_PER_SEC);
@@ -266,11 +261,6 @@ static int ir_rx51_probe(struct platform_device *dev)
 	return devm_rc_register_device(&dev->dev, ir_rx51.rcdev);
 }
 
-static int ir_rx51_remove(struct platform_device *dev)
-{
-	return 0;
-}
-
 static const struct of_device_id ir_rx51_match[] = {
 	{
 		.compatible = "nokia,n900-ir",
@@ -281,7 +271,6 @@ MODULE_DEVICE_TABLE(of, ir_rx51_match);
 
 static struct platform_driver ir_rx51_platform_driver = {
 	.probe		= ir_rx51_probe,
-	.remove		= ir_rx51_remove,
 	.suspend	= ir_rx51_suspend,
 	.resume		= ir_rx51_resume,
 	.driver		= {

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mfd/brcm,bcm6318-gpio-sysctl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom BCM6318 GPIO System Controller Device Tree Bindings
+title: Broadcom BCM6318 GPIO System Controller
 
 maintainers:
   - Álvaro Fernández Rojas <noltari@gmail.com>
@@ -35,11 +35,11 @@ patternProperties:
   "^gpio@[0-9a-f]+$":
     # Child node
     type: object
-    $ref: "../gpio/brcm,bcm6345-gpio.yaml"
+    $ref: "../gpio/brcm,bcm63xx-gpio.yaml"
     description:
       GPIO controller for the SoC GPIOs. This child node definition
       should follow the bindings specified in
-      Documentation/devicetree/bindings/gpio/brcm,bcm6345-gpio.yaml.
+      Documentation/devicetree/bindings/gpio/brcm,bcm63xx-gpio.yaml.
 
   "^pinctrl@[0-9a-f]+$":
     # Child node

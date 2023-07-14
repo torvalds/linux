@@ -2,38 +2,44 @@
 /*
  * Clock specification for Xilinx ZynqMP
  *
- * (C) Copyright 2017 - 2021, Xilinx, Inc.
+ * (C) Copyright 2017 - 2022, Xilinx, Inc.
+ * (C) Copyright 2022 - 2023, Advanced Micro Devices, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 #include <dt-bindings/clock/xlnx-zynqmp-clk.h>
 / {
 	pss_ref_clk: pss_ref_clk {
+		bootph-all;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <33333333>;
 	};
 
 	video_clk: video_clk {
+		bootph-all;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
 	};
 
 	pss_alt_ref_clk: pss_alt_ref_clk {
+		bootph-all;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <0>;
 	};
 
 	gt_crx_ref_clk: gt_crx_ref_clk {
+		bootph-all;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <108000000>;
 	};
 
 	aux_ref_clk: aux_ref_clk {
+		bootph-all;
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <27000000>;
@@ -42,6 +48,7 @@
 
 &zynqmp_firmware {
 	zynqmp_clk: clock-controller {
+		bootph-all;
 		#clock-cells = <1>;
 		compatible = "xlnx,zynqmp-clk";
 		clocks = <&pss_ref_clk>, <&video_clk>, <&pss_alt_ref_clk>,
@@ -95,6 +102,10 @@
 	clocks = <&zynqmp_clk GDMA_REF>, <&zynqmp_clk LPD_LSBUS>;
 };
 
+&gpu {
+	clocks = <&zynqmp_clk GPU_REF>, <&zynqmp_clk GPU_PP0_REF>;
+};
+
 &lpd_dma_chan1 {
 	clocks = <&zynqmp_clk ADMA_REF>, <&zynqmp_clk LPD_LSBUS>;
 };
@@ -135,28 +146,24 @@
 	clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM0_REF>,
 		 <&zynqmp_clk GEM0_TX>, <&zynqmp_clk GEM0_RX>,
 		 <&zynqmp_clk GEM_TSU>;
-	clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 };
 
 &gem1 {
 	clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM1_REF>,
 		 <&zynqmp_clk GEM1_TX>, <&zynqmp_clk GEM1_RX>,
 		 <&zynqmp_clk GEM_TSU>;
-	clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 };
 
 &gem2 {
 	clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM2_REF>,
 		 <&zynqmp_clk GEM2_TX>, <&zynqmp_clk GEM2_RX>,
 		 <&zynqmp_clk GEM_TSU>;
-	clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 };
 
 &gem3 {
 	clocks = <&zynqmp_clk LPD_LSBUS>, <&zynqmp_clk GEM3_REF>,
 		 <&zynqmp_clk GEM3_TX>, <&zynqmp_clk GEM3_RX>,
 		 <&zynqmp_clk GEM_TSU>;
-	clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
 };
 
 &gpio {
@@ -185,10 +192,12 @@
 
 &sdhci0 {
 	clocks = <&zynqmp_clk SDIO0_REF>, <&zynqmp_clk LPD_LSBUS>;
+	assigned-clocks = <&zynqmp_clk SDIO0_REF>;
 };
 
 &sdhci1 {
 	clocks = <&zynqmp_clk SDIO1_REF>, <&zynqmp_clk LPD_LSBUS>;
+	assigned-clocks = <&zynqmp_clk SDIO1_REF>;
 };
 
 &spi0 {
@@ -245,10 +254,14 @@
 
 &zynqmp_dpdma {
 	clocks = <&zynqmp_clk DPDMA_REF>;
+	assigned-clocks = <&zynqmp_clk DPDMA_REF>; /* apll */
 };
 
 &zynqmp_dpsub {
 	clocks = <&zynqmp_clk TOPSW_LSBUS>,
 		 <&zynqmp_clk DP_AUDIO_REF>,
 		 <&zynqmp_clk DP_VIDEO_REF>;
+	assigned-clocks = <&zynqmp_clk DP_STC_REF>,
+			  <&zynqmp_clk DP_AUDIO_REF>,
+			  <&zynqmp_clk DP_VIDEO_REF>;  /* rpll, rpll, vpll */
 };

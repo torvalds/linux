@@ -178,7 +178,7 @@ static const struct ata_port_info ahci_mvebu_port_info = {
 	.port_ops  = &ahci_platform_ops,
 };
 
-static struct scsi_host_template ahci_platform_sht = {
+static const struct scsi_host_template ahci_platform_sht = {
 	AHCI_SHT(DRV_NAME),
 };
 
@@ -245,7 +245,7 @@ MODULE_DEVICE_TABLE(of, ahci_mvebu_of_match);
 
 static struct platform_driver ahci_mvebu_driver = {
 	.probe = ahci_mvebu_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.suspend = ahci_mvebu_suspend,
 	.resume = ahci_mvebu_resume,
 	.driver = {

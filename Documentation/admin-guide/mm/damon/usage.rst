@@ -10,9 +10,8 @@ DAMON provides below interfaces for different users.
   `This <https://github.com/awslabs/damo>`_ is for privileged people such as
   system administrators who want a just-working human-friendly interface.
   Using this, users can use the DAMON’s major features in a human-friendly way.
-  It may not be highly tuned for special cases, though.  It supports both
-  virtual and physical address spaces monitoring.  For more detail, please
-  refer to its `usage document
+  It may not be highly tuned for special cases, though.  For more detail,
+  please refer to its `usage document
   <https://github.com/awslabs/damo/blob/next/USAGE.md>`_.
 - *sysfs interface.*
   :ref:`This <sysfs_interface>` is for privileged user space programmers who
@@ -20,15 +19,13 @@ DAMON provides below interfaces for different users.
   features by reading from and writing to special sysfs files.  Therefore,
   you can write and use your personalized DAMON sysfs wrapper programs that
   reads/writes the sysfs files instead of you.  The `DAMON user space tool
-  <https://github.com/awslabs/damo>`_ is one example of such programs.  It
-  supports both virtual and physical address spaces monitoring.  Note that this
-  interface provides only simple :ref:`statistics <damos_stats>` for the
-  monitoring results.  For detailed monitoring results, DAMON provides a
-  :ref:`tracepoint <tracepoint>`.
-- *debugfs interface.*
+  <https://github.com/awslabs/damo>`_ is one example of such programs.
+- *debugfs interface. (DEPRECATED!)*
   :ref:`This <debugfs_interface>` is almost identical to :ref:`sysfs interface
-  <sysfs_interface>`.  This will be removed after next LTS kernel is released,
-  so users should move to the :ref:`sysfs interface <sysfs_interface>`.
+  <sysfs_interface>`.  This is deprecated, so users should move to the
+  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
+  move, please report your usecase to damon@lists.linux.dev and
+  linux-mm@kvack.org.
 - *Kernel Space Programming Interface.*
   :doc:`This </mm/damon/api>` is for kernel space programmers.  Using this,
   users can utilize every feature of DAMON most flexibly and efficiently by
@@ -87,7 +84,12 @@ comma (","). ::
     │ │ │ │ │ │ │ quotas/ms,bytes,reset_interval_ms
     │ │ │ │ │ │ │ │ weights/sz_permil,nr_accesses_permil,age_permil
     │ │ │ │ │ │ │ watermarks/metric,interval_us,high,mid,low
+    │ │ │ │ │ │ │ filters/nr_filters
+    │ │ │ │ │ │ │ │ 0/type,matching,memcg_id
     │ │ │ │ │ │ │ stats/nr_tried,sz_tried,nr_applied,sz_applied,qt_exceeds
+    │ │ │ │ │ │ │ tried_regions/
+    │ │ │ │ │ │ │ │ 0/start,end,nr_accesses,age
+    │ │ │ │ │ │ │ │ ...
     │ │ │ │ │ │ ...
     │ │ │ │ ...
     │ │ ...
@@ -125,7 +127,14 @@ in the state.  Writing ``commit`` to the ``state`` file makes kdamond reads the
 user inputs in the sysfs files except ``state`` file again.  Writing
 ``update_schemes_stats`` to ``state`` file updates the contents of stats files
 for each DAMON-based operation scheme of the kdamond.  For details of the
-stats, please refer to :ref:`stats section <sysfs_schemes_stats>`.
+stats, please refer to :ref:`stats section <sysfs_schemes_stats>`.  Writing
+``update_schemes_tried_regions`` to ``state`` file updates the DAMON-based
+operation scheme action tried regions directory for each DAMON-based operation
+scheme of the kdamond.  Writing ``clear_schemes_tried_regions`` to ``state``
+file clears the DAMON-based operating scheme action tried regions directory for
+each DAMON-based operation scheme of the kdamond.  For details of the
+DAMON-based operation scheme action tried regions directory, please refer to
+:ref:`tried_regions section <sysfs_schemes_tried_regions>`.
 
 If the state is ``on``, reading ``pid`` shows the pid of the kdamond thread.
 
@@ -140,6 +149,8 @@ number (``N``) to the file creates the number of child directories named as
 ``0`` to ``N-1``.  Each directory represents each monitoring context.  At the
 moment, only one context per kdamond is supported, so only ``0`` or ``1`` can
 be written to the file.
+
+.. _sysfs_contexts:
 
 contexts/<N>/
 -------------
@@ -165,6 +176,8 @@ regions.
 You can set and get what type of monitoring operations DAMON will use for the
 context by writing one of the keywords listed in ``avail_operations`` file and
 reading from the ``operations`` file.
+
+.. _sysfs_monitoring_attrs:
 
 contexts/<N>/monitoring_attrs/
 ------------------------------
@@ -235,15 +248,15 @@ In each region directory, you will find two files (``start`` and ``end``).  You
 can set and get the start and end addresses of the initial monitoring target
 region by writing to and reading from the files, respectively.
 
+Each region should not overlap with others.  ``end`` of directory ``N`` should
+be equal or smaller than ``start`` of directory ``N+1``.
+
 contexts/<N>/schemes/
 ---------------------
 
-For usual DAMON-based data access aware memory management optimizations, users
-would normally want the system to apply a memory management action to a memory
-region of a specific access pattern.  DAMON receives such formalized operation
-schemes from the user and applies those to the target memory regions.  Users
-can get and set the schemes by reading from and writing to files under this
-directory.
+The directory for DAMON-based Operation Schemes (:ref:`DAMOS
+<damon_design_damos>`).  Users can get and set the schemes by reading from and
+writing to files under this directory.
 
 In the beginning, this directory has only one file, ``nr_schemes``.  Writing a
 number (``N``) to the file creates the number of child directories named ``0``
@@ -252,51 +265,52 @@ to ``N-1``.  Each directory represents each DAMON-based operation scheme.
 schemes/<N>/
 ------------
 
-In each scheme directory, four directories (``access_pattern``, ``quotas``,
-``watermarks``, and ``stats``) and one file (``action``) exist.
+In each scheme directory, five directories (``access_pattern``, ``quotas``,
+``watermarks``, ``filters``, ``stats``, and ``tried_regions``) and one file
+(``action``) exist.
 
-The ``action`` file is for setting and getting what action you want to apply to
-memory regions having specific access pattern of the interest.  The keywords
-that can be written to and read from the file and their meaning are as below.
+The ``action`` file is for setting and getting the scheme's :ref:`action
+<damon_design_damos_action>`.  The keywords that can be written to and read
+from the file and their meaning are as below.
 
- - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``
- - ``cold``: Call ``madvise()`` for the region with ``MADV_COLD``
- - ``pageout``: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
- - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
- - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
+Note that support of each action depends on the running DAMON operations set
+:ref:`implementation <sysfs_contexts>`.
+
+ - ``willneed``: Call ``madvise()`` for the region with ``MADV_WILLNEED``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``cold``: Call ``madvise()`` for the region with ``MADV_COLD``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``pageout``: Call ``madvise()`` for the region with ``MADV_PAGEOUT``.
+   Supported by ``vaddr``, ``fvaddr`` and ``paddr`` operations set.
+ - ``hugepage``: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
+ - ``nohugepage``: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.
+   Supported by ``vaddr`` and ``fvaddr`` operations set.
  - ``lru_prio``: Prioritize the region on its LRU lists.
+   Supported by ``paddr`` operations set.
  - ``lru_deprio``: Deprioritize the region on its LRU lists.
- - ``stat``: Do nothing but count the statistics
+   Supported by ``paddr`` operations set.
+ - ``stat``: Do nothing but count the statistics.
+   Supported by all operations sets.
 
 schemes/<N>/access_pattern/
 ---------------------------
 
-The target access pattern of each DAMON-based operation scheme is constructed
-with three ranges including the size of the region in bytes, number of
-monitored accesses per aggregate interval, and number of aggregated intervals
-for the age of the region.
+The directory for the target access :ref:`pattern
+<damon_design_damos_access_pattern>` of the given DAMON-based operation scheme.
 
 Under the ``access_pattern`` directory, three directories (``sz``,
 ``nr_accesses``, and ``age``) each having two files (``min`` and ``max``)
 exist.  You can set and get the access pattern for the given scheme by writing
 to and reading from the ``min`` and ``max`` files under ``sz``,
-``nr_accesses``, and ``age`` directories, respectively.
+``nr_accesses``, and ``age`` directories, respectively.  Note that the ``min``
+and the ``max`` form a closed interval.
 
 schemes/<N>/quotas/
 -------------------
 
-Optimal ``target access pattern`` for each ``action`` is workload dependent, so
-not easy to find.  Worse yet, setting a scheme of some action too aggressive
-can cause severe overhead.  To avoid such overhead, users can limit time and
-size quota for each scheme.  In detail, users can ask DAMON to try to use only
-up to specific time (``time quota``) for applying the action, and to apply the
-action to only up to specific amount (``size quota``) of memory regions having
-the target access pattern within a given time interval (``reset interval``).
-
-When the quota limit is expected to be exceeded, DAMON prioritizes found memory
-regions of the ``target access pattern`` based on their size, access frequency,
-and age.  For personalized prioritization, users can set the weights for the
-three properties.
+The directory for the :ref:`quotas <damon_design_damos_quotas>` of the given
+DAMON-based operation scheme.
 
 Under ``quotas`` directory, three files (``ms``, ``bytes``,
 ``reset_interval_ms``) and one directory (``weights``) having three files
@@ -304,23 +318,26 @@ Under ``quotas`` directory, three files (``ms``, ``bytes``,
 
 You can set the ``time quota`` in milliseconds, ``size quota`` in bytes, and
 ``reset interval`` in milliseconds by writing the values to the three files,
-respectively.  You can also set the prioritization weights for size, access
-frequency, and age in per-thousand unit by writing the values to the three
-files under the ``weights`` directory.
+respectively.  Then, DAMON tries to use only up to ``time quota`` milliseconds
+for applying the ``action`` to memory regions of the ``access_pattern``, and to
+apply the action to only up to ``bytes`` bytes of memory regions within the
+``reset_interval_ms``.  Setting both ``ms`` and ``bytes`` zero disables the
+quota limits.
+
+You can also set the :ref:`prioritization weights
+<damon_design_damos_quotas_prioritization>` for size, access frequency, and age
+in per-thousand unit by writing the values to the three files under the
+``weights`` directory.
 
 schemes/<N>/watermarks/
 -----------------------
 
-To allow easy activation and deactivation of each scheme based on system
-status, DAMON provides a feature called watermarks.  The feature receives five
-values called ``metric``, ``interval``, ``high``, ``mid``, and ``low``.  The
-``metric`` is the system metric such as free memory ratio that can be measured.
-If the metric value of the system is higher than the value in ``high`` or lower
-than ``low`` at the memoent, the scheme is deactivated.  If the value is lower
-than ``mid``, the scheme is activated.
+The directory for the :ref:`watermarks <damon_design_damos_watermarks>` of the
+given DAMON-based operation scheme.
 
 Under the watermarks directory, five files (``metric``, ``interval_us``,
-``high``, ``mid``, and ``low``) for setting each value exist.  You can set and
+``high``, ``mid``, and ``low``) for setting the metric, the time interval
+between check of the metric, and the three watermarks exist.  You can set and
 get the five values by writing to the files, respectively.
 
 Keywords and meanings of those that can be written to the ``metric`` file are
@@ -330,6 +347,42 @@ as below.
  - free_mem_rate: System's free memory rate (per thousand)
 
 The ``interval`` should written in microseconds unit.
+
+schemes/<N>/filters/
+--------------------
+
+The directory for the :ref:`filters <damon_design_damos_filters>` of the given
+DAMON-based operation scheme.
+
+In the beginning, this directory has only one file, ``nr_filters``.  Writing a
+number (``N``) to the file creates the number of child directories named ``0``
+to ``N-1``.  Each directory represents each filter.  The filters are evaluated
+in the numeric order.
+
+Each filter directory contains three files, namely ``type``, ``matcing``, and
+``memcg_path``.  You can write one of two special keywords, ``anon`` for
+anonymous pages, or ``memcg`` for specific memory cgroup filtering.  In case of
+the memory cgroup filtering, you can specify the memory cgroup of the interest
+by writing the path of the memory cgroup from the cgroups mount point to
+``memcg_path`` file.  You can write ``Y`` or ``N`` to ``matching`` file to
+filter out pages that does or does not match to the type, respectively.  Then,
+the scheme's action will not be applied to the pages that specified to be
+filtered out.
+
+For example, below restricts a DAMOS action to be applied to only non-anonymous
+pages of all memory cgroups except ``/having_care_already``.::
+
+    # echo 2 > nr_filters
+    # # filter out anonymous pages
+    echo anon > 0/type
+    echo Y > 0/matching
+    # # further filter out all cgroups except one at '/having_care_already'
+    echo memcg > 1/type
+    echo /having_care_already > 1/memcg_path
+    echo N > 1/matching
+
+Note that filters are currently supported only when ``paddr``
+`implementation <sysfs_contexts>` is being used.
 
 .. _sysfs_schemes_stats:
 
@@ -347,6 +400,36 @@ The statistics can be retrieved by reading the files under ``stats`` directory
 should ask DAMON sysfs interface to updte the content of the files for the
 stats by writing a special keyword, ``update_schemes_stats`` to the relevant
 ``kdamonds/<N>/state`` file.
+
+.. _sysfs_schemes_tried_regions:
+
+schemes/<N>/tried_regions/
+--------------------------
+
+When a special keyword, ``update_schemes_tried_regions``, is written to the
+relevant ``kdamonds/<N>/state`` file, DAMON creates directories named integer
+starting from ``0`` under this directory.  Each directory contains files
+exposing detailed information about each of the memory region that the
+corresponding scheme's ``action`` has tried to be applied under this directory,
+during next :ref:`aggregation interval <sysfs_monitoring_attrs>`.  The
+information includes address range, ``nr_accesses``, and ``age`` of the region.
+
+The directories will be removed when another special keyword,
+``clear_schemes_tried_regions``, is written to the relevant
+``kdamonds/<N>/state`` file.
+
+The expected usage of this directory is investigations of schemes' behaviors,
+and query-like efficient data access monitoring results retrievals.  For the
+latter use case, in particular, users can set the ``action`` as ``stat`` and
+set the ``access pattern`` as their interested pattern that they want to query.
+
+tried_regions/<N>/
+------------------
+
+In each region directory, you will find four files (``start``, ``end``,
+``nr_accesses``, and ``age``).  Reading the files will show the start and end
+addresses, ``nr_accesses``, and ``age`` of the region that corresponding
+DAMON-based operation scheme ``action`` has tried to be applied.
 
 Example
 ~~~~~~~
@@ -390,8 +473,17 @@ the files as above.  Above is only for an example.
 
 .. _debugfs_interface:
 
-debugfs Interface
-=================
+debugfs Interface (DEPRECATED!)
+===============================
+
+.. note::
+
+  THIS IS DEPRECATED!
+
+  DAMON debugfs interface is deprecated, so users should move to the
+  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
+  move, please report your usecase to damon@lists.linux.dev and
+  linux-mm@kvack.org.
 
 DAMON exports eight files, ``attrs``, ``target_ids``, ``init_regions``,
 ``schemes``, ``monitor_on``, ``kdamond_pid``, ``mk_contexts`` and
@@ -460,8 +552,9 @@ regions in case of physical memory monitoring.  Therefore, users should set the
 monitoring target regions by themselves.
 
 In such cases, users can explicitly set the initial monitoring target regions
-as they want, by writing proper values to the ``init_regions`` file.  Each line
-of the input should represent one region in below form.::
+as they want, by writing proper values to the ``init_regions`` file.  The input
+should be a sequence of three integers separated by white spaces that represent
+one region in below form.::
 
     <target idx> <start address> <end address>
 
@@ -476,9 +569,9 @@ ranges, ``20-40`` and ``50-100`` as that of pid 4242, which is the second one
     # cd <debugfs>/damon
     # cat target_ids
     42 4242
-    # echo "0   1       100
-            0   100     200
-            1   20      40
+    # echo "0   1       100 \
+            0   100     200 \
+            1   20      40  \
             1   50      100" > init_regions
 
 Note that this sets the initial monitoring target regions only.  In case of
@@ -491,15 +584,10 @@ update.
 Schemes
 -------
 
-For usual DAMON-based data access aware memory management optimizations, users
-would simply want the system to apply a memory management action to a memory
-region of a specific access pattern.  DAMON receives such formalized operation
-schemes from the user and applies those to the target processes.
-
-Users can get and set the schemes by reading from and writing to ``schemes``
-debugfs file.  Reading the file also shows the statistics of each scheme.  To
-the file, each of the schemes should be represented in each line in below
-form::
+Users can get and set the DAMON-based operation :ref:`schemes
+<damon_design_damos>` by reading from and writing to ``schemes`` debugfs file.
+Reading the file also shows the statistics of each scheme.  To the file, each
+of the schemes should be represented in each line in below form::
 
     <target access pattern> <action> <quota> <watermarks>
 
@@ -508,8 +596,9 @@ You can disable schemes by simply writing an empty string to the file.
 Target Access Pattern
 ~~~~~~~~~~~~~~~~~~~~~
 
-The ``<target access pattern>`` is constructed with three ranges in below
-form::
+The target access :ref:`pattern <damon_design_damos_access_pattern>` of the
+scheme.  The ``<target access pattern>`` is constructed with three ranges in
+below form::
 
     min-size max-size min-acc max-acc min-age max-age
 
@@ -522,24 +611,26 @@ closed interval.
 Action
 ~~~~~~
 
-The ``<action>`` is a predefined integer for memory management actions, which
-DAMON will apply to the regions having the target access pattern.  The
-supported numbers and their meanings are as below.
+The ``<action>`` is a predefined integer for memory management :ref:`actions
+<damon_design_damos_action>`.  The supported numbers and their meanings are as
+below.
 
- - 0: Call ``madvise()`` for the region with ``MADV_WILLNEED``
- - 1: Call ``madvise()`` for the region with ``MADV_COLD``
- - 2: Call ``madvise()`` for the region with ``MADV_PAGEOUT``
- - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``
- - 4: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``
+ - 0: Call ``madvise()`` for the region with ``MADV_WILLNEED``.  Ignored if
+   ``target`` is ``paddr``.
+ - 1: Call ``madvise()`` for the region with ``MADV_COLD``.  Ignored if
+   ``target`` is ``paddr``.
+ - 2: Call ``madvise()`` for the region with ``MADV_PAGEOUT``.
+ - 3: Call ``madvise()`` for the region with ``MADV_HUGEPAGE``.  Ignored if
+   ``target`` is ``paddr``.
+ - 4: Call ``madvise()`` for the region with ``MADV_NOHUGEPAGE``.  Ignored if
+   ``target`` is ``paddr``.
  - 5: Do nothing but count the statistics
 
 Quota
 ~~~~~
 
-Optimal ``target access pattern`` for each ``action`` is workload dependent, so
-not easy to find.  Worse yet, setting a scheme of some action too aggressive
-can cause severe overhead.  To avoid such overhead, users can limit time and
-size quota for the scheme via the ``<quota>`` in below form::
+Users can set the :ref:`quotas <damon_design_damos_quotas>` of the given scheme
+via the ``<quota>`` in below form::
 
     <ms> <sz> <reset interval> <priority weights>
 
@@ -549,19 +640,17 @@ the action to memory regions of the ``target access pattern`` within the
 ``<sz>`` bytes of memory regions within the ``<reset interval>``.  Setting both
 ``<ms>`` and ``<sz>`` zero disables the quota limits.
 
-When the quota limit is expected to be exceeded, DAMON prioritizes found memory
-regions of the ``target access pattern`` based on their size, access frequency,
-and age.  For personalized prioritization, users can set the weights for the
-three properties in ``<priority weights>`` in below form::
+For the :ref:`prioritization <damon_design_damos_quotas_prioritization>`, users
+can set the weights for the three properties in ``<priority weights>`` in below
+form::
 
     <size weight> <access frequency weight> <age weight>
 
 Watermarks
 ~~~~~~~~~~
 
-Some schemes would need to run based on current value of the system's specific
-metrics like free memory ratio.  For such cases, users can specify watermarks
-for the condition.::
+Users can specify :ref:`watermarks <damon_design_damos_watermarks>` of the
+given scheme via ``<watermarks>`` in below form::
 
     <metric> <check interval> <high mark> <middle mark> <low mark>
 
@@ -684,10 +773,12 @@ root directory only.
 Tracepoint for Monitoring Results
 =================================
 
-DAMON provides the monitoring results via a tracepoint,
-``damon:damon_aggregated``.  While the monitoring is turned on, you could
-record the tracepoint events and show results using tracepoint supporting tools
-like ``perf``.  For example::
+Users can get the monitoring results via the :ref:`tried_regions
+<sysfs_schemes_tried_regions>` or a tracepoint, ``damon:damon_aggregated``.
+While the tried regions directory is useful for getting a snapshot, the
+tracepoint is useful for getting a full record of the results.  While the
+monitoring is turned on, you could record the tracepoint events and show
+results using tracepoint supporting tools like ``perf``.  For example::
 
     # echo on > monitor_on
     # perf record -e damon:damon_aggregated &

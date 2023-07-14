@@ -92,10 +92,16 @@ static void otx2_get_qset_strings(struct otx2_nic *pfvf, u8 **data, int qset)
 			*data += ETH_GSTRING_LEN;
 		}
 	}
-	for (qidx = 0; qidx < pfvf->hw.tx_queues; qidx++) {
+
+	for (qidx = 0; qidx < otx2_get_total_tx_queues(pfvf); qidx++) {
 		for (stats = 0; stats < otx2_n_queue_stats; stats++) {
-			sprintf(*data, "txq%d: %s", qidx + start_qidx,
-				otx2_queue_stats[stats].name);
+			if (qidx >= pfvf->hw.non_qos_queues)
+				sprintf(*data, "txq_qos%d: %s",
+					qidx + start_qidx - pfvf->hw.non_qos_queues,
+					otx2_queue_stats[stats].name);
+			else
+				sprintf(*data, "txq%d: %s", qidx + start_qidx,
+					otx2_queue_stats[stats].name);
 			*data += ETH_GSTRING_LEN;
 		}
 	}
@@ -159,7 +165,7 @@ static void otx2_get_qset_stats(struct otx2_nic *pfvf,
 				[otx2_queue_stats[stat].index];
 	}
 
-	for (qidx = 0; qidx < pfvf->hw.tx_queues; qidx++) {
+	for (qidx = 0; qidx < otx2_get_total_tx_queues(pfvf); qidx++) {
 		if (!otx2_update_sq_stats(pfvf, qidx)) {
 			for (stat = 0; stat < otx2_n_queue_stats; stat++)
 				*((*data)++) = 0;
@@ -254,7 +260,7 @@ static int otx2_get_sset_count(struct net_device *netdev, int sset)
 		return -EINVAL;
 
 	qstats_count = otx2_n_queue_stats *
-		       (pfvf->hw.rx_queues + pfvf->hw.tx_queues);
+		       (pfvf->hw.rx_queues + otx2_get_total_tx_queues(pfvf));
 	if (!test_bit(CN10K_RPM, &pfvf->hw.cap_flag))
 		mac_stats = CGX_RX_STATS_COUNT + CGX_TX_STATS_COUNT;
 	otx2_update_lmac_fec_stats(pfvf);
@@ -282,7 +288,7 @@ static int otx2_set_channels(struct net_device *dev,
 {
 	struct otx2_nic *pfvf = netdev_priv(dev);
 	bool if_up = netif_running(dev);
-	int err = 0;
+	int err, qos_txqs;
 
 	if (!channel->rx_count || !channel->tx_count)
 		return -EINVAL;
@@ -296,14 +302,19 @@ static int otx2_set_channels(struct net_device *dev,
 	if (if_up)
 		dev->netdev_ops->ndo_stop(dev);
 
-	err = otx2_set_real_num_queues(dev, channel->tx_count,
+	qos_txqs = bitmap_weight(pfvf->qos.qos_sq_bmap,
+				 OTX2_QOS_MAX_LEAF_NODES);
+
+	err = otx2_set_real_num_queues(dev, channel->tx_count + qos_txqs,
 				       channel->rx_count);
 	if (err)
 		return err;
 
 	pfvf->hw.rx_queues = channel->rx_count;
 	pfvf->hw.tx_queues = channel->tx_count;
-	pfvf->qset.cq_cnt = pfvf->hw.tx_queues +  pfvf->hw.rx_queues;
+	if (pfvf->xdp_prog)
+		pfvf->hw.xdp_queues = channel->rx_count;
+	pfvf->hw.non_qos_queues =  pfvf->hw.tx_queues + pfvf->hw.xdp_queues;
 
 	if (if_up)
 		err = dev->netdev_ops->ndo_open(dev);
@@ -1268,6 +1279,39 @@ end:
 	return err;
 }
 
+static void otx2_get_fec_stats(struct net_device *netdev,
+			       struct ethtool_fec_stats *fec_stats)
+{
+	struct otx2_nic *pfvf = netdev_priv(netdev);
+	struct cgx_fw_data *rsp;
+
+	otx2_update_lmac_fec_stats(pfvf);
+
+	/* Report MAC FEC stats */
+	fec_stats->corrected_blocks.total     = pfvf->hw.cgx_fec_corr_blks;
+	fec_stats->uncorrectable_blocks.total = pfvf->hw.cgx_fec_uncorr_blks;
+
+	rsp = otx2_get_fwdata(pfvf);
+	if (!IS_ERR(rsp) && rsp->fwdata.phy.misc.has_fec_stats &&
+	    !otx2_get_phy_fec_stats(pfvf)) {
+		/* Fetch fwdata again because it's been recently populated with
+		 * latest PHY FEC stats.
+		 */
+		rsp = otx2_get_fwdata(pfvf);
+		if (!IS_ERR(rsp)) {
+			struct fec_stats_s *p = &rsp->fwdata.phy.fec_stats;
+
+			if (pfvf->linfo.fec == OTX2_FEC_BASER) {
+				fec_stats->corrected_blocks.total = p->brfec_corr_blks;
+				fec_stats->uncorrectable_blocks.total = p->brfec_uncorr_blks;
+			} else {
+				fec_stats->corrected_blocks.total = p->rsfec_corr_cws;
+				fec_stats->uncorrectable_blocks.total = p->rsfec_uncorr_cws;
+			}
+		}
+	}
+}
+
 static const struct ethtool_ops otx2_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -1298,6 +1342,7 @@ static const struct ethtool_ops otx2_ethtool_ops = {
 	.get_pauseparam		= otx2_get_pauseparam,
 	.set_pauseparam		= otx2_set_pauseparam,
 	.get_ts_info		= otx2_get_ts_info,
+	.get_fec_stats		= otx2_get_fec_stats,
 	.get_fecparam		= otx2_get_fecparam,
 	.set_fecparam		= otx2_set_fecparam,
 	.get_link_ksettings     = otx2_get_link_ksettings,
@@ -1371,7 +1416,7 @@ static int otx2vf_get_sset_count(struct net_device *netdev, int sset)
 		return -EINVAL;
 
 	qstats_count = otx2_n_queue_stats *
-		       (vf->hw.rx_queues + vf->hw.tx_queues);
+		       (vf->hw.rx_queues + otx2_get_total_tx_queues(vf));
 
 	return otx2_n_dev_stats + otx2_n_drv_stats + qstats_count + 1;
 }

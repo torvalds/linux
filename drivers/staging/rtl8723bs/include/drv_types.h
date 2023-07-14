@@ -50,7 +50,6 @@
 #include <rtw_mlme_ext.h>
 #include <rtw_ap.h>
 #include <rtw_version.h>
-#include <rtw_odm.h>
 
 #include "ioctl_cfg80211.h"
 
@@ -306,7 +305,11 @@ struct sdio_data intf_data;
 };
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
-#define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
+
+static inline struct dvobj_priv *pwrctl_to_dvobj(struct pwrctrl_priv *pwrctl_priv)
+{
+	return container_of(pwrctl_priv, struct dvobj_priv, pwrctl_priv);
+}
 
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 {
@@ -492,8 +495,6 @@ static inline u8 *myid(struct eeprom_priv *peepriv)
 #include <sdio_hal.h>
 
 #include <rtw_btcoex.h>
-
-int rtw_change_ifname(struct adapter *padapter, const char *ifname);
 
 extern char *rtw_initmac;
 extern int rtw_mc2u_disable;

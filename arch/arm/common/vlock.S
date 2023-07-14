@@ -6,11 +6,13 @@
  * Copyright:	(C) 2012-2013  Linaro Limited
  *
  * This algorithm is described in more detail in
- * Documentation/arm/vlocks.rst.
+ * Documentation/arch/arm/vlocks.rst.
  */
 
 #include <linux/linkage.h>
 #include "vlock.h"
+
+.arch armv7-a
 
 /* Select different code if voting flags  can fit in a single word. */
 #if VLOCK_VOTING_SIZE > 4

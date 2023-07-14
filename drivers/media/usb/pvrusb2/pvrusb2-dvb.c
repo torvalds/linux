@@ -80,7 +80,7 @@ static int pvr2_dvb_feed_func(struct pvr2_dvb_adapter *adap)
 static int pvr2_dvb_feed_thread(void *data)
 {
 	int stat = pvr2_dvb_feed_func(data);
-	/* from videobuf-dvb.c: */
+
 	while (!kthread_should_stop()) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();

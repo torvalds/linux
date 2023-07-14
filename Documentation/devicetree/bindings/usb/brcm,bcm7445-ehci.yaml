@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/usb/brcm,bcm7445-ehci.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Broadcom STB USB EHCI Controller Device Tree Bindings
+title: Broadcom STB USB EHCI Controller
 
 allOf:
-  - $ref: "usb-hcd.yaml"
+  - $ref: usb-hcd.yaml
 
 maintainers:
   - Al Cooper <alcooperx@gmail.com>

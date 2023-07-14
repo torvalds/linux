@@ -70,20 +70,20 @@ static bool ipa_resource_limits_valid(struct ipa *ipa,
 
 static void
 ipa_resource_config_common(struct ipa *ipa, u32 resource_type,
-			   const struct ipa_reg *reg,
+			   const struct reg *reg,
 			   const struct ipa_resource_limits *xlimits,
 			   const struct ipa_resource_limits *ylimits)
 {
 	u32 val;
 
-	val = ipa_reg_encode(reg, X_MIN_LIM, xlimits->min);
-	val |= ipa_reg_encode(reg, X_MAX_LIM, xlimits->max);
+	val = reg_encode(reg, X_MIN_LIM, xlimits->min);
+	val |= reg_encode(reg, X_MAX_LIM, xlimits->max);
 	if (ylimits) {
-		val |= ipa_reg_encode(reg, Y_MIN_LIM, ylimits->min);
-		val |= ipa_reg_encode(reg, Y_MAX_LIM, ylimits->max);
+		val |= reg_encode(reg, Y_MIN_LIM, ylimits->min);
+		val |= reg_encode(reg, Y_MAX_LIM, ylimits->max);
 	}
 
-	iowrite32(val, ipa->reg_virt + ipa_reg_n_offset(reg, resource_type));
+	iowrite32(val, ipa->reg_virt + reg_n_offset(reg, resource_type));
 }
 
 static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,
@@ -92,7 +92,7 @@ static void ipa_resource_config_src(struct ipa *ipa, u32 resource_type,
 	u32 group_count = data->rsrc_group_src_count;
 	const struct ipa_resource_limits *ylimits;
 	const struct ipa_resource *resource;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 
 	resource = &data->resource_src[resource_type];
 
@@ -129,7 +129,7 @@ static void ipa_resource_config_dst(struct ipa *ipa, u32 resource_type,
 	u32 group_count = data->rsrc_group_dst_count;
 	const struct ipa_resource_limits *ylimits;
 	const struct ipa_resource *resource;
-	const struct ipa_reg *reg;
+	const struct reg *reg;
 
 	resource = &data->resource_dst[resource_type];
 

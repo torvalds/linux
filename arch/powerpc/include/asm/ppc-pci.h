@@ -57,11 +57,19 @@ void eeh_sysfs_remove_device(struct pci_dev *pdev);
 
 #endif /* CONFIG_EEH */
 
+#ifdef CONFIG_FSL_ULI1575
+void __init uli_init(void);
+#endif /* CONFIG_FSL_ULI1575 */
+
 #define PCI_BUSNO(bdfn) ((bdfn >> 8) & 0xff)
 
 #else /* CONFIG_PCI */
 static inline void init_pci_config_tokens(void) { }
 #endif /* !CONFIG_PCI */
+
+#if !defined(CONFIG_PCI) || !defined(CONFIG_FSL_ULI1575)
+static inline void __init uli_init(void) {}
+#endif /* !defined(CONFIG_PCI) || !defined(CONFIG_FSL_ULI1575) */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PPC_PCI_H */

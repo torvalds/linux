@@ -129,8 +129,7 @@ static const struct v4l2_subdev_ops m52790_ops = {
 
 /* i2c implementation */
 
-static int m52790_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int m52790_probe(struct i2c_client *client)
 {
 	struct m52790_state *state;
 	struct v4l2_subdev *sd;

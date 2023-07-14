@@ -98,6 +98,7 @@ struct fsl_lpspi_data {
 	struct clk *clk_ipg;
 	struct clk *clk_per;
 	bool is_slave;
+	u32 num_cs;
 	bool is_only_cs1;
 	bool is_first_byte;
 
@@ -302,6 +303,12 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 
 	perclk_rate = clk_get_rate(fsl_lpspi->clk_per);
 
+	if (!config.speed_hz) {
+		dev_err(fsl_lpspi->dev,
+			"error: the transmission speed provided is 0!\n");
+		return -EINVAL;
+	}
+
 	if (config.speed_hz > perclk_rate / 2) {
 		dev_err(fsl_lpspi->dev,
 		      "per-clk should be at least two times of transfer speed");
@@ -424,7 +431,7 @@ static int fsl_lpspi_setup_transfer(struct spi_controller *controller,
 	if (fsl_lpspi->is_only_cs1)
 		fsl_lpspi->config.chip_select = 1;
 	else
-		fsl_lpspi->config.chip_select = spi->chip_select;
+		fsl_lpspi->config.chip_select = spi_get_chipselect(spi, 0);
 
 	if (!fsl_lpspi->config.speed_hz)
 		fsl_lpspi->config.speed_hz = spi->max_speed_hz;
@@ -840,6 +847,9 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	fsl_lpspi->is_slave = is_slave;
 	fsl_lpspi->is_only_cs1 = of_property_read_bool((&pdev->dev)->of_node,
 						"fsl,spi-only-use-cs1-sel");
+	if (of_property_read_u32((&pdev->dev)->of_node, "num-cs",
+				 &fsl_lpspi->num_cs))
+		fsl_lpspi->num_cs = 1;
 
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
 	controller->transfer_one = fsl_lpspi_transfer_one;
@@ -849,6 +859,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	controller->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
 	controller->dev.of_node = pdev->dev.of_node;
 	controller->bus_num = pdev->id;
+	controller->num_chipselect = fsl_lpspi->num_cs;
 	controller->slave_abort = fsl_lpspi_slave_abort;
 	if (!fsl_lpspi->is_slave)
 		controller->use_gpio_descriptors = true;
@@ -905,9 +916,14 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	ret = fsl_lpspi_dma_init(&pdev->dev, fsl_lpspi, controller);
 	if (ret == -EPROBE_DEFER)
 		goto out_pm_get;
-
 	if (ret < 0)
-		dev_err(&pdev->dev, "dma setup error %d, use pio\n", ret);
+		dev_warn(&pdev->dev, "dma setup error %d, use pio\n", ret);
+	else
+		/*
+		 * disable LPSPI module IRQ when enable DMA mode successfully,
+		 * to prevent the unexpected LPSPI module IRQ events.
+		 */
+		disable_irq(irq);
 
 	ret = devm_spi_register_controller(&pdev->dev, controller);
 	if (ret < 0) {
@@ -932,7 +948,7 @@ out_controller_put:
 	return ret;
 }
 
-static int fsl_lpspi_remove(struct platform_device *pdev)
+static void fsl_lpspi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *controller = platform_get_drvdata(pdev);
 	struct fsl_lpspi_data *fsl_lpspi =
@@ -941,7 +957,6 @@ static int fsl_lpspi_remove(struct platform_device *pdev)
 	fsl_lpspi_dma_exit(controller);
 
 	pm_runtime_disable(fsl_lpspi->dev);
-	return 0;
 }
 
 static int __maybe_unused fsl_lpspi_suspend(struct device *dev)
@@ -978,7 +993,7 @@ static struct platform_driver fsl_lpspi_driver = {
 		.pm = &fsl_lpspi_pm_ops,
 	},
 	.probe = fsl_lpspi_probe,
-	.remove = fsl_lpspi_remove,
+	.remove_new = fsl_lpspi_remove,
 };
 module_platform_driver(fsl_lpspi_driver);
 

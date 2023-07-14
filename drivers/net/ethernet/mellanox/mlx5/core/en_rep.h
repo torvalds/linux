@@ -100,6 +100,11 @@ struct mlx5_rep_uplink_priv {
 	struct mlx5e_tc_int_port_priv *int_port_priv;
 
 	struct mlx5e_flow_meters *flow_meters;
+
+	/* tc action stats */
+	struct mlx5e_tc_act_stats_handle *action_stats_handle;
+
+	struct work_struct mpesw_work;
 };
 
 struct mlx5e_rep_priv {
@@ -113,6 +118,7 @@ struct mlx5e_rep_priv {
 	struct rtnl_link_stats64 prev_vf_vport_stats;
 	struct mlx5_flow_handle *send_to_vport_meta_rule;
 	struct rhashtable tc_ht;
+	struct devlink_health_reporter *rep_vnic_reporter;
 };
 
 static inline
@@ -219,9 +225,14 @@ struct mlx5e_encap_entry {
 	struct rcu_head rcu;
 };
 
+struct mlx5e_rep_sq_peer {
+	struct mlx5_flow_handle *rule;
+	void *peer;
+};
+
 struct mlx5e_rep_sq {
 	struct mlx5_flow_handle	*send_to_vport_rule;
-	struct mlx5_flow_handle *send_to_vport_rule_peer;
+	struct xarray sq_peer;
 	u32 sqn;
 	struct list_head	 list;
 };

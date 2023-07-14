@@ -9,12 +9,17 @@
 #include "intel_display_types.h"
 #include "intel_quirks.h"
 
+static void intel_set_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk)
+{
+	i915->display.quirks.mask |= BIT(quirk);
+}
+
 /*
  * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
  */
 static void quirk_ssc_force_disable(struct drm_i915_private *i915)
 {
-	i915->quirks |= QUIRK_LVDS_SSC_DISABLE;
+	intel_set_quirk(i915, QUIRK_LVDS_SSC_DISABLE);
 	drm_info(&i915->drm, "applying lvds SSC disable quirk\n");
 }
 
@@ -24,14 +29,14 @@ static void quirk_ssc_force_disable(struct drm_i915_private *i915)
  */
 static void quirk_invert_brightness(struct drm_i915_private *i915)
 {
-	i915->quirks |= QUIRK_INVERT_BRIGHTNESS;
+	intel_set_quirk(i915, QUIRK_INVERT_BRIGHTNESS);
 	drm_info(&i915->drm, "applying inverted panel brightness quirk\n");
 }
 
 /* Some VBT's incorrectly indicate no backlight is present */
 static void quirk_backlight_present(struct drm_i915_private *i915)
 {
-	i915->quirks |= QUIRK_BACKLIGHT_PRESENT;
+	intel_set_quirk(i915, QUIRK_BACKLIGHT_PRESENT);
 	drm_info(&i915->drm, "applying backlight present quirk\n");
 }
 
@@ -40,7 +45,7 @@ static void quirk_backlight_present(struct drm_i915_private *i915)
  */
 static void quirk_increase_t12_delay(struct drm_i915_private *i915)
 {
-	i915->quirks |= QUIRK_INCREASE_T12_DELAY;
+	intel_set_quirk(i915, QUIRK_INCREASE_T12_DELAY);
 	drm_info(&i915->drm, "Applying T12 delay quirk\n");
 }
 
@@ -50,13 +55,13 @@ static void quirk_increase_t12_delay(struct drm_i915_private *i915)
  */
 static void quirk_increase_ddi_disabled_time(struct drm_i915_private *i915)
 {
-	i915->quirks |= QUIRK_INCREASE_DDI_DISABLED_TIME;
+	intel_set_quirk(i915, QUIRK_INCREASE_DDI_DISABLED_TIME);
 	drm_info(&i915->drm, "Applying Increase DDI Disabled quirk\n");
 }
 
 static void quirk_no_pps_backlight_power_hook(struct drm_i915_private *i915)
 {
-	i915->quirks |= QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK;
+	intel_set_quirk(i915, QUIRK_NO_PPS_BACKLIGHT_POWER_HOOK);
 	drm_info(&i915->drm, "Applying no pps backlight power quirk\n");
 }
 
@@ -194,6 +199,8 @@ static struct intel_quirk intel_quirks[] = {
 	/* ECS Liva Q2 */
 	{ 0x3185, 0x1019, 0xa94d, quirk_increase_ddi_disabled_time },
 	{ 0x3184, 0x1019, 0xa94d, quirk_increase_ddi_disabled_time },
+	/* HP Notebook - 14-r206nv */
+	{ 0x0f31, 0x103c, 0x220f, quirk_invert_brightness },
 };
 
 void intel_init_quirks(struct drm_i915_private *i915)
@@ -215,4 +222,9 @@ void intel_init_quirks(struct drm_i915_private *i915)
 		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
 			intel_dmi_quirks[i].hook(i915);
 	}
+}
+
+bool intel_has_quirk(struct drm_i915_private *i915, enum intel_quirk_id quirk)
+{
+	return i915->display.quirks.mask & BIT(quirk);
 }

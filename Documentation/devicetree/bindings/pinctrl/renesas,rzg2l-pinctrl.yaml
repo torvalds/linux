@@ -23,7 +23,7 @@ properties:
     oneOf:
       - items:
           - enum:
-              - renesas,r9a07g043-pinctrl # RZ/G2UL{Type-1,Type-2}
+              - renesas,r9a07g043-pinctrl # RZ/G2UL{Type-1,Type-2} and RZ/Five
               - renesas,r9a07g044-pinctrl # RZ/G2{L,LC}
 
       - items:
@@ -113,7 +113,7 @@ additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
 
 required:
   - compatible

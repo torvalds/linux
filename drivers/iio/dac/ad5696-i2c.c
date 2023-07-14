@@ -58,9 +58,9 @@ static int ad5686_i2c_write(struct ad5686_state *st,
 	return (ret != 3) ? -EIO : 0;
 }
 
-static int ad5686_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int ad5686_i2c_probe(struct i2c_client *i2c)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	return ad5686_probe(&i2c->dev, id->driver_data, id->name,
 			    ad5686_i2c_write, ad5686_i2c_read);
 }
@@ -72,6 +72,7 @@ static void ad5686_i2c_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id ad5686_i2c_id[] = {
 	{"ad5311r", ID_AD5311R},
+	{"ad5337r", ID_AD5337R},
 	{"ad5338r", ID_AD5338R},
 	{"ad5671r", ID_AD5671R},
 	{"ad5673r", ID_AD5673R},
@@ -92,6 +93,7 @@ MODULE_DEVICE_TABLE(i2c, ad5686_i2c_id);
 
 static const struct of_device_id ad5686_of_match[] = {
 	{ .compatible = "adi,ad5311r" },
+	{ .compatible = "adi,ad5337r" },
 	{ .compatible = "adi,ad5338r" },
 	{ .compatible = "adi,ad5671r" },
 	{ .compatible = "adi,ad5675r" },

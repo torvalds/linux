@@ -33,21 +33,43 @@ static inline void *akcipher_request_ctx(struct akcipher_request *req)
 	return req->__ctx;
 }
 
+static inline void *akcipher_request_ctx_dma(struct akcipher_request *req)
+{
+	unsigned int align = crypto_dma_align();
+
+	if (align <= crypto_tfm_ctx_alignment())
+		align = 1;
+
+	return PTR_ALIGN(akcipher_request_ctx(req), align);
+}
+
 static inline void akcipher_set_reqsize(struct crypto_akcipher *akcipher,
 					unsigned int reqsize)
 {
-	crypto_akcipher_alg(akcipher)->reqsize = reqsize;
+	akcipher->reqsize = reqsize;
+}
+
+static inline void akcipher_set_reqsize_dma(struct crypto_akcipher *akcipher,
+					    unsigned int reqsize)
+{
+	reqsize += crypto_dma_align() & ~(crypto_tfm_ctx_alignment() - 1);
+	akcipher->reqsize = reqsize;
 }
 
 static inline void *akcipher_tfm_ctx(struct crypto_akcipher *tfm)
 {
-	return tfm->base.__crt_ctx;
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline void *akcipher_tfm_ctx_dma(struct crypto_akcipher *tfm)
+{
+	return crypto_tfm_ctx_dma(&tfm->base);
 }
 
 static inline void akcipher_request_complete(struct akcipher_request *req,
 					     int err)
 {
-	req->base.complete(&req->base, err);
+	crypto_request_complete(&req->base, err);
 }
 
 static inline const char *akcipher_alg_name(struct crypto_akcipher *tfm)

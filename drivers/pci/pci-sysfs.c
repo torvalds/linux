@@ -28,6 +28,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/msi.h>
 #include <linux/of.h>
+#include <linux/aperture.h>
 #include "pci.h"
 
 static int sysfs_initialized;	/* = 0 */
@@ -427,7 +428,7 @@ static ssize_t msi_bus_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(msi_bus);
 
-static ssize_t rescan_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t rescan_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	unsigned long val;
 	struct pci_bus *b = NULL;
@@ -754,6 +755,13 @@ static ssize_t pci_write_config(struct file *filp, struct kobject *kobj,
 	ret = security_locked_down(LOCKDOWN_PCI_ACCESS);
 	if (ret)
 		return ret;
+
+	if (resource_is_exclusive(&dev->driver_exclusive_resource, off,
+				  count)) {
+		pci_warn_once(dev, "%s: Unexpected write to kernel-exclusive config offset %llx",
+			      current->comm, off);
+		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
+	}
 
 	if (off > dev->cfg_size)
 		return 0;
@@ -1174,11 +1182,9 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 
 	sysfs_bin_attr_init(res_attr);
 	if (write_combine) {
-		pdev->res_attr_wc[num] = res_attr;
 		sprintf(res_attr_name, "resource%d_wc", num);
 		res_attr->mmap = pci_mmap_resource_wc;
 	} else {
-		pdev->res_attr[num] = res_attr;
 		sprintf(res_attr_name, "resource%d", num);
 		if (pci_resource_flags(pdev, num) & IORESOURCE_IO) {
 			res_attr->read = pci_read_resource_io;
@@ -1196,10 +1202,17 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 	res_attr->size = pci_resource_len(pdev, num);
 	res_attr->private = (void *)(unsigned long)num;
 	retval = sysfs_create_bin_file(&pdev->dev.kobj, res_attr);
-	if (retval)
+	if (retval) {
 		kfree(res_attr);
+		return retval;
+	}
 
-	return retval;
+	if (write_combine)
+		pdev->res_attr_wc[num] = res_attr;
+	else
+		pdev->res_attr[num] = res_attr;
+
+	return 0;
 }
 
 /**
@@ -1373,6 +1386,112 @@ static const struct attribute_group pci_dev_reset_attr_group = {
 	.is_visible = pci_dev_reset_attr_is_visible,
 };
 
+#define pci_dev_resource_resize_attr(n)					\
+static ssize_t resource##n##_resize_show(struct device *dev,		\
+					 struct device_attribute *attr,	\
+					 char * buf)			\
+{									\
+	struct pci_dev *pdev = to_pci_dev(dev);				\
+	ssize_t ret;							\
+									\
+	pci_config_pm_runtime_get(pdev);				\
+									\
+	ret = sysfs_emit(buf, "%016llx\n",				\
+			 (u64)pci_rebar_get_possible_sizes(pdev, n));	\
+									\
+	pci_config_pm_runtime_put(pdev);				\
+									\
+	return ret;							\
+}									\
+									\
+static ssize_t resource##n##_resize_store(struct device *dev,		\
+					  struct device_attribute *attr,\
+					  const char *buf, size_t count)\
+{									\
+	struct pci_dev *pdev = to_pci_dev(dev);				\
+	unsigned long size, flags;					\
+	int ret, i;							\
+	u16 cmd;							\
+									\
+	if (kstrtoul(buf, 0, &size) < 0)				\
+		return -EINVAL;						\
+									\
+	device_lock(dev);						\
+	if (dev->driver) {						\
+		ret = -EBUSY;						\
+		goto unlock;						\
+	}								\
+									\
+	pci_config_pm_runtime_get(pdev);				\
+									\
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {		\
+		ret = aperture_remove_conflicting_pci_devices(pdev,	\
+						"resourceN_resize");	\
+		if (ret)						\
+			goto pm_put;					\
+	}								\
+									\
+	pci_read_config_word(pdev, PCI_COMMAND, &cmd);			\
+	pci_write_config_word(pdev, PCI_COMMAND,			\
+			      cmd & ~PCI_COMMAND_MEMORY);		\
+									\
+	flags = pci_resource_flags(pdev, n);				\
+									\
+	pci_remove_resource_files(pdev);				\
+									\
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {			\
+		if (pci_resource_len(pdev, i) &&			\
+		    pci_resource_flags(pdev, i) == flags)		\
+			pci_release_resource(pdev, i);			\
+	}								\
+									\
+	ret = pci_resize_resource(pdev, n, size);			\
+									\
+	pci_assign_unassigned_bus_resources(pdev->bus);			\
+									\
+	if (pci_create_resource_files(pdev))				\
+		pci_warn(pdev, "Failed to recreate resource files after BAR resizing\n");\
+									\
+	pci_write_config_word(pdev, PCI_COMMAND, cmd);			\
+pm_put:									\
+	pci_config_pm_runtime_put(pdev);				\
+unlock:									\
+	device_unlock(dev);						\
+									\
+	return ret ? ret : count;					\
+}									\
+static DEVICE_ATTR_RW(resource##n##_resize)
+
+pci_dev_resource_resize_attr(0);
+pci_dev_resource_resize_attr(1);
+pci_dev_resource_resize_attr(2);
+pci_dev_resource_resize_attr(3);
+pci_dev_resource_resize_attr(4);
+pci_dev_resource_resize_attr(5);
+
+static struct attribute *resource_resize_attrs[] = {
+	&dev_attr_resource0_resize.attr,
+	&dev_attr_resource1_resize.attr,
+	&dev_attr_resource2_resize.attr,
+	&dev_attr_resource3_resize.attr,
+	&dev_attr_resource4_resize.attr,
+	&dev_attr_resource5_resize.attr,
+	NULL,
+};
+
+static umode_t resource_resize_is_visible(struct kobject *kobj,
+					  struct attribute *a, int n)
+{
+	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
+
+	return pci_rebar_get_current_size(pdev, n) < 0 ? 0 : a->mode;
+}
+
+static const struct attribute_group pci_dev_resource_resize_group = {
+	.attrs = resource_resize_attrs,
+	.is_visible = resource_resize_is_visible,
+};
+
 int __must_check pci_create_sysfs_dev_files(struct pci_dev *pdev)
 {
 	if (!sysfs_initialized)
@@ -1494,6 +1613,7 @@ const struct attribute_group *pci_dev_groups[] = {
 #ifdef CONFIG_ACPI
 	&pci_dev_acpi_attr_group,
 #endif
+	&pci_dev_resource_resize_group,
 	NULL,
 };
 

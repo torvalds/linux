@@ -11,12 +11,12 @@
 
 MODULE_DESCRIPTION("RME Fireface series Driver");
 MODULE_AUTHOR("Takashi Sakamoto <o-takashi@sakamocchi.jp>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 static void name_card(struct snd_ff *ff)
 {
 	struct fw_device *fw_dev = fw_parent_device(ff->unit);
-	const char *const names[] = {
+	static const char *const names[] = {
 		[SND_FF_UNIT_VERSION_FF800]	= "Fireface800",
 		[SND_FF_UNIT_VERSION_FF400]	= "Fireface400",
 		[SND_FF_UNIT_VERSION_UFX]	= "FirefaceUFX",
@@ -42,6 +42,8 @@ static void ff_card_free(struct snd_card *card)
 
 	snd_ff_stream_destroy_duplex(ff);
 	snd_ff_transaction_unregister(ff);
+
+	kfree(ff->msg_parser);
 
 	mutex_destroy(&ff->mutex);
 	fw_unit_put(ff->unit);
@@ -93,6 +95,14 @@ static int snd_ff_probe(struct fw_unit *unit, const struct ieee1394_device_id *e
 	err = snd_ff_create_hwdep_devices(ff);
 	if (err < 0)
 		goto error;
+
+	if (ff->spec->protocol->msg_parser_size > 0) {
+		ff->msg_parser = kzalloc(ff->spec->protocol->msg_parser_size, GFP_KERNEL);
+		if (!ff->msg_parser) {
+			err = -ENOMEM;
+			goto error;
+		}
+	}
 
 	err = snd_card_register(card);
 	if (err < 0)

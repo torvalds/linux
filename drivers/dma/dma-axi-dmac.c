@@ -910,7 +910,6 @@ static int axi_dmac_probe(struct platform_device *pdev)
 {
 	struct dma_device *dma_dev;
 	struct axi_dmac *dmac;
-	struct resource *res;
 	struct regmap *regmap;
 	unsigned int version;
 	int ret;
@@ -925,8 +924,7 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	if (dmac->irq == 0)
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmac->base = devm_ioremap_resource(&pdev->dev, res);
+	dmac->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dmac->base))
 		return PTR_ERR(dmac->base);
 
@@ -965,7 +963,6 @@ static int axi_dmac_probe(struct platform_device *pdev)
 	dma_dev->device_terminate_all = axi_dmac_terminate_all;
 	dma_dev->device_synchronize = axi_dmac_synchronize;
 	dma_dev->dev = &pdev->dev;
-	dma_dev->chancnt = 1;
 	dma_dev->src_addr_widths = BIT(dmac->chan.src_width);
 	dma_dev->dst_addr_widths = BIT(dmac->chan.dest_width);
 	dma_dev->directions = BIT(dmac->chan.direction);

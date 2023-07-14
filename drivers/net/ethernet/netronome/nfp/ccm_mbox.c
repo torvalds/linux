@@ -503,7 +503,7 @@ nfp_ccm_mbox_msg_prepare(struct nfp_net *nn, struct sk_buff *skb,
 	max_len = max(max_reply_size, round_up(skb->len, 4));
 	if (max_len > mbox_max) {
 		nn_dp_warn(&nn->dp,
-			   "message too big for tha mailbox: %u/%u vs %u\n",
+			   "message too big for the mailbox: %u/%u vs %u\n",
 			   skb->len, max_reply_size, mbox_max);
 		return -EMSGSIZE;
 	}

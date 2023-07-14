@@ -614,7 +614,7 @@ out_iounmap:
 	return err;
 }
 
-static int cpwd_remove(struct platform_device *op)
+static void cpwd_remove(struct platform_device *op)
 {
 	struct cpwd *p = platform_get_drvdata(op);
 	int i;
@@ -638,8 +638,6 @@ static int cpwd_remove(struct platform_device *op)
 	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
 
 	cpwd_device = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id cpwd_match[] = {
@@ -656,7 +654,7 @@ static struct platform_driver cpwd_driver = {
 		.of_match_table = cpwd_match,
 	},
 	.probe		= cpwd_probe,
-	.remove		= cpwd_remove,
+	.remove_new	= cpwd_remove,
 };
 
 module_platform_driver(cpwd_driver);

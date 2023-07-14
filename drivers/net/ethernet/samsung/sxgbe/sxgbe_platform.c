@@ -172,9 +172,10 @@ err_out:
 static int sxgbe_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
-	int ret = sxgbe_drv_remove(ndev);
 
-	return ret;
+	sxgbe_drv_remove(ndev);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -229,7 +230,7 @@ static struct platform_driver sxgbe_platform_driver = {
 	.driver	= {
 		.name		= SXGBE_RESOURCE_NAME,
 		.pm		= &sxgbe_platform_pm_ops,
-		.of_match_table	= of_match_ptr(sxgbe_dt_ids),
+		.of_match_table	= sxgbe_dt_ids,
 	},
 };
 

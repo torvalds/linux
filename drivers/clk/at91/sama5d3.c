@@ -40,9 +40,14 @@ static const struct clk_pcr_layout sama5d3_pcr_layout = {
 static const struct {
 	char *n;
 	char *p;
+	unsigned long flags;
 	u8 id;
 } sama5d3_systemck[] = {
-	{ .n = "ddrck", .p = "masterck_div", .id = 2 },
+	/*
+	 * ddrck feeds DDR controller and is enabled by bootloader thus we need
+	 * to keep it enabled in case there is no Linux consumer for it.
+	 */
+	{ .n = "ddrck", .p = "masterck_div", .id = 2, .flags = CLK_IS_CRITICAL },
 	{ .n = "lcdck", .p = "masterck_div", .id = 3 },
 	{ .n = "smdck", .p = "smdclk",       .id = 4 },
 	{ .n = "uhpck", .p = "usbck",        .id = 6 },
@@ -56,6 +61,7 @@ static const struct {
 	char *n;
 	u8 id;
 	struct clk_range r;
+	unsigned long flags;
 } sama5d3_periphck[] = {
 	{ .n = "dbgu_clk", .id = 2, },
 	{ .n = "hsmc_clk", .id = 5, },
@@ -99,7 +105,11 @@ static const struct {
 	{ .n = "tdes_clk", .id = 44, },
 	{ .n = "trng_clk", .id = 45, },
 	{ .n = "fuse_clk", .id = 48, },
-	{ .n = "mpddr_clk", .id = 49, },
+	/*
+	 * mpddr_clk feeds DDR controller and is enabled by bootloader thus we
+	 * need to keep it enabled in case there is no Linux consumer for it.
+	 */
+	{ .n = "mpddr_clk", .id = 49, .flags = CLK_IS_CRITICAL },
 };
 
 static void __init sama5d3_pmc_setup(struct device_node *np)
@@ -140,14 +150,14 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 
 	bypass = of_property_read_bool(np, "atmel,osc-bypass");
 
-	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name,
+	hw = at91_clk_register_main_osc(regmap, "main_osc", mainxtal_name, NULL,
 					bypass);
 	if (IS_ERR(hw))
 		goto err_free;
 
 	parent_names[0] = "main_rc_osc";
 	parent_names[1] = "main_osc";
-	hw = at91_clk_register_sam9x5_main(regmap, "mainck", parent_names, 2);
+	hw = at91_clk_register_sam9x5_main(regmap, "mainck", parent_names, NULL, 2);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -162,7 +172,7 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 
 	sama5d3_pmc->chws[PMC_PLLACK] = hw;
 
-	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
+	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck", NULL);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -173,14 +183,14 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 	parent_names[2] = "plladivck";
 	parent_names[3] = "utmick";
 	hw = at91_clk_register_master_pres(regmap, "masterck_pres", 4,
-					   parent_names,
+					   parent_names, NULL,
 					   &at91sam9x5_master_layout,
 					   &mck_characteristics, &mck_lock);
 	if (IS_ERR(hw))
 		goto err_free;
 
 	hw = at91_clk_register_master_div(regmap, "masterck_div",
-					  "masterck_pres",
+					  "masterck_pres", NULL,
 					  &at91sam9x5_master_layout,
 					  &mck_characteristics, &mck_lock,
 					  CLK_SET_RATE_GATE, 0);
@@ -210,7 +220,7 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 		snprintf(name, sizeof(name), "prog%d", i);
 
 		hw = at91_clk_register_programmable(regmap, name,
-						    parent_names, 5, i,
+						    parent_names, NULL, 5, i,
 						    &at91sam9x5_programmable_layout,
 						    NULL);
 		if (IS_ERR(hw))
@@ -221,8 +231,9 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 
 	for (i = 0; i < ARRAY_SIZE(sama5d3_systemck); i++) {
 		hw = at91_clk_register_system(regmap, sama5d3_systemck[i].n,
-					      sama5d3_systemck[i].p,
-					      sama5d3_systemck[i].id);
+					      sama5d3_systemck[i].p, NULL,
+					      sama5d3_systemck[i].id,
+					      sama5d3_systemck[i].flags);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -233,10 +244,11 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 		hw = at91_clk_register_sam9x5_peripheral(regmap, &pmc_pcr_lock,
 							 &sama5d3_pcr_layout,
 							 sama5d3_periphck[i].n,
-							 "masterck_div",
+							 "masterck_div", NULL,
 							 sama5d3_periphck[i].id,
 							 &sama5d3_periphck[i].r,
-							 INT_MIN);
+							 INT_MIN,
+							 sama5d3_periphck[i].flags);
 		if (IS_ERR(hw))
 			goto err_free;
 

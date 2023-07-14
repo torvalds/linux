@@ -38,9 +38,9 @@ static unsigned int zpa2326_i2c_hwid(const struct i2c_client *client)
 		(ZPA2326_SA0(client->addr) << ZPA2326_DEVICE_ID_SA0_SHIFT));
 }
 
-static int zpa2326_probe_i2c(struct i2c_client          *client,
-			     const struct i2c_device_id *i2c_id)
+static int zpa2326_probe_i2c(struct i2c_client          *client)
 {
+	const struct i2c_device_id *i2c_id = i2c_client_get_device_id(client);
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_i2c(client, &zpa2326_regmap_i2c_config);
@@ -76,7 +76,7 @@ static struct i2c_driver zpa2326_i2c_driver = {
 		.of_match_table = zpa2326_i2c_matches,
 		.pm             = ZPA2326_PM_OPS,
 	},
-	.probe    = zpa2326_probe_i2c,
+	.probe = zpa2326_probe_i2c,
 	.remove   = zpa2326_remove_i2c,
 	.id_table = zpa2326_i2c_ids,
 };

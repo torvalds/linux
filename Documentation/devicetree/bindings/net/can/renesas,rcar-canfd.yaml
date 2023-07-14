@@ -9,9 +9,6 @@ title: Renesas R-Car CAN FD Controller
 maintainers:
   - Fabrizio Castro <fabrizio.castro.jz@renesas.com>
 
-allOf:
-  - $ref: can-controller.yaml#
-
 properties:
   compatible:
     oneOf:
@@ -33,12 +30,16 @@ properties:
 
       - items:
           - enum:
-              - renesas,r9a07g043-canfd    # RZ/G2UL
+              - renesas,r8a779a0-canfd     # R-Car V3U
+              - renesas,r8a779g0-canfd     # R-Car V4H
+          - const: renesas,rcar-gen4-canfd # R-Car Gen4
+
+      - items:
+          - enum:
+              - renesas,r9a07g043-canfd    # RZ/G2UL and RZ/Five
               - renesas,r9a07g044-canfd    # RZ/G2{L,LC}
               - renesas,r9a07g054-canfd    # RZ/V2L
           - const: renesas,rzg2l-canfd     # RZ/G2L family
-
-      - const: renesas,r8a779a0-canfd      # R-Car V3U
 
   reg:
     maxItems: 1
@@ -63,7 +64,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       The controller can operate in either CAN FD only mode (default) or
-      Classical CAN only mode.  The mode is global to both the channels.
+      Classical CAN only mode.  The mode is global to all channels.
       Specify this property to put the controller in Classical CAN only mode.
 
   assigned-clocks:
@@ -77,12 +78,17 @@ properties:
     description: Maximum frequency of the CANFD clock.
 
 patternProperties:
-  "^channel[01]$":
+  "^channel[0-7]$":
     type: object
     description:
-      The controller supports two channels and each is represented as a child
-      node.  Each child node supports the "status" property only, which
-      is used to enable/disable the respective channel.
+      The controller supports multiple channels and each is represented as a
+      child node.  Each channel can be enabled/disabled individually.
+
+    properties:
+      phys:
+        maxItems: 1
+
+    additionalProperties: false
 
 required:
   - compatible
@@ -98,60 +104,73 @@ required:
   - channel0
   - channel1
 
-if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - renesas,rzg2l-canfd
-then:
-  properties:
-    interrupts:
-      items:
-        - description: CAN global error interrupt
-        - description: CAN receive FIFO interrupt
-        - description: CAN0 error interrupt
-        - description: CAN0 transmit interrupt
-        - description: CAN0 transmit/receive FIFO receive completion interrupt
-        - description: CAN1 error interrupt
-        - description: CAN1 transmit interrupt
-        - description: CAN1 transmit/receive FIFO receive completion interrupt
+allOf:
+  - $ref: can-controller.yaml#
 
-    interrupt-names:
-      items:
-        - const: g_err
-        - const: g_recc
-        - const: ch0_err
-        - const: ch0_rec
-        - const: ch0_trx
-        - const: ch1_err
-        - const: ch1_rec
-        - const: ch1_trx
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - renesas,rzg2l-canfd
+    then:
+      properties:
+        interrupts:
+          items:
+            - description: CAN global error interrupt
+            - description: CAN receive FIFO interrupt
+            - description: CAN0 error interrupt
+            - description: CAN0 transmit interrupt
+            - description: CAN0 transmit/receive FIFO receive completion interrupt
+            - description: CAN1 error interrupt
+            - description: CAN1 transmit interrupt
+            - description: CAN1 transmit/receive FIFO receive completion interrupt
 
-    resets:
-      maxItems: 2
+        interrupt-names:
+          items:
+            - const: g_err
+            - const: g_recc
+            - const: ch0_err
+            - const: ch0_rec
+            - const: ch0_trx
+            - const: ch1_err
+            - const: ch1_rec
+            - const: ch1_trx
 
-    reset-names:
-      items:
-        - const: rstp_n
-        - const: rstc_n
+        resets:
+          maxItems: 2
 
-  required:
-    - reset-names
-else:
-  properties:
-    interrupts:
-      items:
-        - description: Channel interrupt
-        - description: Global interrupt
+        reset-names:
+          items:
+            - const: rstp_n
+            - const: rstc_n
 
-    interrupt-names:
-      items:
-        - const: ch_int
-        - const: g_int
+      required:
+        - reset-names
+    else:
+      properties:
+        interrupts:
+          items:
+            - description: Channel interrupt
+            - description: Global interrupt
 
-    resets:
-      maxItems: 1
+        interrupt-names:
+          items:
+            - const: ch_int
+            - const: g_int
+
+        resets:
+          maxItems: 1
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: renesas,rcar-gen4-canfd
+    then:
+      patternProperties:
+        "^channel[2-7]$": false
 
 unevaluatedProperties: false
 

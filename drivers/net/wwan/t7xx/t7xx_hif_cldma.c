@@ -1018,6 +1018,8 @@ static int t7xx_cldma_late_init(struct cldma_ctrl *md_ctrl)
 			dev_err(md_ctrl->dev, "control TX ring init fail\n");
 			goto err_free_tx_ring;
 		}
+
+		md_ctrl->tx_ring[i].pkt_size = CLDMA_MTU;
 	}
 
 	for (j = 0; j < CLDMA_RXQ_NUM; j++) {
@@ -1291,9 +1293,9 @@ int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 	for (i = 0; i < CLDMA_TXQ_NUM; i++) {
 		md_cd_queue_struct_init(&md_ctrl->txq[i], md_ctrl, MTK_TX, i);
 		md_ctrl->txq[i].worker =
-			alloc_workqueue("md_hif%d_tx%d_worker",
-					WQ_UNBOUND | WQ_MEM_RECLAIM | (i ? 0 : WQ_HIGHPRI),
-					1, md_ctrl->hif_id, i);
+			alloc_ordered_workqueue("md_hif%d_tx%d_worker",
+					WQ_MEM_RECLAIM | (i ? 0 : WQ_HIGHPRI),
+					md_ctrl->hif_id, i);
 		if (!md_ctrl->txq[i].worker)
 			goto err_workqueue;
 
@@ -1304,9 +1306,10 @@ int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 		md_cd_queue_struct_init(&md_ctrl->rxq[i], md_ctrl, MTK_RX, i);
 		INIT_WORK(&md_ctrl->rxq[i].cldma_work, t7xx_cldma_rx_done);
 
-		md_ctrl->rxq[i].worker = alloc_workqueue("md_hif%d_rx%d_worker",
-							 WQ_UNBOUND | WQ_MEM_RECLAIM,
-							 1, md_ctrl->hif_id, i);
+		md_ctrl->rxq[i].worker =
+			alloc_ordered_workqueue("md_hif%d_rx%d_worker",
+						WQ_MEM_RECLAIM,
+						md_ctrl->hif_id, i);
 		if (!md_ctrl->rxq[i].worker)
 			goto err_workqueue;
 	}

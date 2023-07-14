@@ -59,6 +59,7 @@ static struct scripting_context *get_scripting_context(PyObject *args)
 	return get_args(args, "context", NULL);
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static PyObject *perf_trace_context_common_pc(PyObject *obj, PyObject *args)
 {
 	struct scripting_context *c = get_scripting_context(args);
@@ -90,6 +91,7 @@ static PyObject *perf_trace_context_common_lock_depth(PyObject *obj,
 
 	return Py_BuildValue("i", common_lock_depth(c));
 }
+#endif
 
 static PyObject *perf_sample_insn(PyObject *obj, PyObject *args)
 {
@@ -98,10 +100,11 @@ static PyObject *perf_sample_insn(PyObject *obj, PyObject *args)
 	if (!c)
 		return NULL;
 
-	if (c->sample->ip && !c->sample->insn_len &&
-	    c->al->thread->maps && c->al->thread->maps->machine)
-		script_fetch_insn(c->sample, c->al->thread, c->al->thread->maps->machine);
+	if (c->sample->ip && !c->sample->insn_len && thread__maps(c->al->thread)) {
+		struct machine *machine =  maps__machine(thread__maps(c->al->thread));
 
+		script_fetch_insn(c->sample, c->al->thread, machine);
+	}
 	if (!c->sample->insn_len)
 		Py_RETURN_NONE; /* N.B. This is a return statement */
 
@@ -142,6 +145,7 @@ static PyObject *perf_sample_src(PyObject *obj, PyObject *args, bool get_srccode
 	char *srccode = NULL;
 	PyObject *result;
 	struct map *map;
+	struct dso *dso;
 	int len = 0;
 	u64 addr;
 
@@ -150,9 +154,10 @@ static PyObject *perf_sample_src(PyObject *obj, PyObject *args, bool get_srccode
 
 	map = c->al->map;
 	addr = c->al->addr;
+	dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso)
-		srcfile = get_srcline_split(map->dso, map__rip_2objdump(map, addr), &line);
+	if (dso)
+		srcfile = get_srcline_split(dso, map__rip_2objdump(map, addr), &line);
 
 	if (get_srccode) {
 		if (srcfile)
@@ -178,12 +183,14 @@ static PyObject *perf_sample_srccode(PyObject *obj, PyObject *args)
 }
 
 static PyMethodDef ContextMethods[] = {
+#ifdef HAVE_LIBTRACEEVENT
 	{ "common_pc", perf_trace_context_common_pc, METH_VARARGS,
 	  "Get the common preempt count event field value."},
 	{ "common_flags", perf_trace_context_common_flags, METH_VARARGS,
 	  "Get the common flags event field value."},
 	{ "common_lock_depth", perf_trace_context_common_lock_depth,
 	  METH_VARARGS,	"Get the common lock depth event field value."},
+#endif
 	{ "perf_sample_insn", perf_sample_insn,
 	  METH_VARARGS,	"Get the machine code instruction."},
 	{ "perf_set_itrace_options", perf_set_itrace_options,

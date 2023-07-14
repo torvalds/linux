@@ -11,7 +11,7 @@
 #include <linux/device.h>
 #include <linux/list.h>
 #include <linux/pci.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/videodev2.h>
@@ -26,7 +26,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_qos.h>
 #include <linux/via-core.h>
-#include <linux/via-gpio.h>
 #include <linux/via_i2c.h>
 
 #ifdef CONFIG_X86
@@ -71,8 +70,8 @@ struct via_camera {
 	/*
 	 * GPIO info for power/reset management
 	 */
-	int power_gpio;
-	int reset_gpio;
+	struct gpio_desc *power_gpio;
+	struct gpio_desc *reset_gpio;
 	/*
 	 * I/O memory stuff.
 	 */
@@ -180,27 +179,19 @@ static struct via_format *via_find_format(u32 pixelformat)
  */
 static int via_sensor_power_setup(struct via_camera *cam)
 {
-	int ret;
+	struct device *dev = &cam->platdev->dev;
 
-	cam->power_gpio = viafb_gpio_lookup("VGPIO3");
-	cam->reset_gpio = viafb_gpio_lookup("VGPIO2");
-	if (!gpio_is_valid(cam->power_gpio) || !gpio_is_valid(cam->reset_gpio)) {
-		dev_err(&cam->platdev->dev, "Unable to find GPIO lines\n");
-		return -EINVAL;
-	}
-	ret = gpio_request(cam->power_gpio, "viafb-camera");
-	if (ret) {
-		dev_err(&cam->platdev->dev, "Unable to request power GPIO\n");
-		return ret;
-	}
-	ret = gpio_request(cam->reset_gpio, "viafb-camera");
-	if (ret) {
-		dev_err(&cam->platdev->dev, "Unable to request reset GPIO\n");
-		gpio_free(cam->power_gpio);
-		return ret;
-	}
-	gpio_direction_output(cam->power_gpio, 0);
-	gpio_direction_output(cam->reset_gpio, 0);
+	cam->power_gpio = devm_gpiod_get(dev, "VGPIO3", GPIOD_OUT_LOW);
+	if (IS_ERR(cam->power_gpio))
+		return dev_err_probe(dev, PTR_ERR(cam->power_gpio),
+				     "failed to get power GPIO");
+
+	/* Request the reset line asserted */
+	cam->reset_gpio = devm_gpiod_get(dev, "VGPIO2", GPIOD_OUT_HIGH);
+	if (IS_ERR(cam->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(cam->reset_gpio),
+				     "failed to get reset GPIO");
+
 	return 0;
 }
 
@@ -209,25 +200,23 @@ static int via_sensor_power_setup(struct via_camera *cam)
  */
 static void via_sensor_power_up(struct via_camera *cam)
 {
-	gpio_set_value(cam->power_gpio, 1);
-	gpio_set_value(cam->reset_gpio, 0);
+	gpiod_set_value(cam->power_gpio, 1);
+	gpiod_set_value(cam->reset_gpio, 1);
 	msleep(20);  /* Probably excessive */
-	gpio_set_value(cam->reset_gpio, 1);
+	gpiod_set_value(cam->reset_gpio, 0);
 	msleep(20);
 }
 
 static void via_sensor_power_down(struct via_camera *cam)
 {
-	gpio_set_value(cam->power_gpio, 0);
-	gpio_set_value(cam->reset_gpio, 0);
+	gpiod_set_value(cam->power_gpio, 0);
+	gpiod_set_value(cam->reset_gpio, 1);
 }
 
 
 static void via_sensor_power_release(struct via_camera *cam)
 {
 	via_sensor_power_down(cam);
-	gpio_free(cam->power_gpio);
-	gpio_free(cam->reset_gpio);
 }
 
 /* --------------------------------------------------------------------------*/
@@ -845,8 +834,8 @@ static int viacam_do_try_fmt(struct via_camera *cam,
 	int ret;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1208,7 +1197,9 @@ static int viacam_probe(struct platform_device *pdev)
 	 * Convince the system that we can do DMA.
 	 */
 	pdev->dev.dma_mask = &viadev->pdev->dma_mask;
-	dma_set_mask(&pdev->dev, 0xffffffff);
+	ret = dma_set_mask(&pdev->dev, 0xffffffff);
+	if (ret)
+		goto out_ctrl_hdl_free;
 	/*
 	 * Fire up the capture port.  The write to 0x78 looks purely
 	 * OLPCish; any system will need to tweak 0x1e.
@@ -1294,7 +1285,7 @@ out_free:
 	return ret;
 }
 
-static int viacam_remove(struct platform_device *pdev)
+static void viacam_remove(struct platform_device *pdev)
 {
 	struct via_camera *cam = via_cam_info;
 	struct viafb_dev *viadev = pdev->dev.platform_data;
@@ -1309,7 +1300,6 @@ static int viacam_remove(struct platform_device *pdev)
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
 	kfree(cam);
 	via_cam_info = NULL;
-	return 0;
 }
 
 static struct platform_driver viacam_driver = {
@@ -1317,7 +1307,7 @@ static struct platform_driver viacam_driver = {
 		.name = "viafb-camera",
 	},
 	.probe = viacam_probe,
-	.remove = viacam_remove,
+	.remove_new = viacam_remove,
 };
 
 module_platform_driver(viacam_driver);

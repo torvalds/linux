@@ -68,7 +68,10 @@ struct imx_media_fim {
 	bool              stream_on;
 };
 
-#define icap_enabled(fim) ((fim)->icap_flags != IRQ_TYPE_NONE)
+static bool icap_enabled(struct imx_media_fim *fim)
+{
+	return fim->icap_flags != IRQ_TYPE_NONE;
+}
 
 static void update_fim_nominal(struct imx_media_fim *fim,
 			       const struct v4l2_fract *fi)
@@ -186,54 +189,6 @@ out_update_ts:
 	if (send_event)
 		send_fim_event(fim, error_avg);
 }
-
-#ifdef CONFIG_IMX_GPT_ICAP
-/*
- * Input Capture method of measuring frame intervals. Not subject
- * to interrupt latency.
- */
-static void fim_input_capture_handler(int channel, void *dev_id,
-				      ktime_t timestamp)
-{
-	struct imx_media_fim *fim = dev_id;
-	unsigned long flags;
-
-	spin_lock_irqsave(&fim->lock, flags);
-
-	frame_interval_monitor(fim, timestamp);
-
-	if (!completion_done(&fim->icap_first_event))
-		complete(&fim->icap_first_event);
-
-	spin_unlock_irqrestore(&fim->lock, flags);
-}
-
-static int fim_request_input_capture(struct imx_media_fim *fim)
-{
-	init_completion(&fim->icap_first_event);
-
-	return mxc_request_input_capture(fim->icap_channel,
-					 fim_input_capture_handler,
-					 fim->icap_flags, fim);
-}
-
-static void fim_free_input_capture(struct imx_media_fim *fim)
-{
-	mxc_free_input_capture(fim->icap_channel, fim);
-}
-
-#else /* CONFIG_IMX_GPT_ICAP */
-
-static int fim_request_input_capture(struct imx_media_fim *fim)
-{
-	return 0;
-}
-
-static void fim_free_input_capture(struct imx_media_fim *fim)
-{
-}
-
-#endif /* CONFIG_IMX_GPT_ICAP */
 
 /*
  * In case we are monitoring the first frame interval after streamon
@@ -416,12 +371,11 @@ void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp)
 }
 
 /* Called by the subdev in its s_stream callback */
-int imx_media_fim_set_stream(struct imx_media_fim *fim,
-			     const struct v4l2_fract *fi,
-			     bool on)
+void imx_media_fim_set_stream(struct imx_media_fim *fim,
+			      const struct v4l2_fract *fi,
+			      bool on)
 {
 	unsigned long flags;
-	int ret = 0;
 
 	v4l2_ctrl_lock(fim->ctrl[FIM_CL_ENABLE]);
 
@@ -434,21 +388,13 @@ int imx_media_fim_set_stream(struct imx_media_fim *fim,
 		update_fim_nominal(fim, fi);
 		spin_unlock_irqrestore(&fim->lock, flags);
 
-		if (icap_enabled(fim)) {
-			ret = fim_request_input_capture(fim);
-			if (ret)
-				goto out;
-			fim_acquire_first_ts(fim);
-		}
-	} else {
 		if (icap_enabled(fim))
-			fim_free_input_capture(fim);
+			fim_acquire_first_ts(fim);
 	}
 
 	fim->stream_on = on;
 out:
 	v4l2_ctrl_unlock(fim->ctrl[FIM_CL_ENABLE]);
-	return ret;
 }
 
 int imx_media_fim_add_controls(struct imx_media_fim *fim)

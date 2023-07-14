@@ -169,7 +169,7 @@ static int usb_console_setup(struct console *co, char *options)
 			tty_save_termios(tty);
 			tty_kref_put(tty);
 		}
-		tty_port_set_initialized(&port->port, 1);
+		tty_port_set_initialized(&port->port, true);
 	}
 	/* Now that any required fake tty operations are completed restore
 	 * the tty port count */
@@ -189,8 +189,8 @@ static int usb_console_setup(struct console *co, char *options)
 	info->port = NULL;
 	usb_autopm_put_interface(serial->interface);
  error_get_interface:
-	usb_serial_put(serial);
 	mutex_unlock(&serial->disc_mutex);
+	usb_serial_put(serial);
 	return retval;
 }
 

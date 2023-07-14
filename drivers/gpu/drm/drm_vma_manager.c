@@ -240,27 +240,8 @@ void drm_vma_offset_remove(struct drm_vma_offset_manager *mgr,
 }
 EXPORT_SYMBOL(drm_vma_offset_remove);
 
-/**
- * drm_vma_node_allow - Add open-file to list of allowed users
- * @node: Node to modify
- * @tag: Tag of file to remove
- *
- * Add @tag to the list of allowed open-files for this node. If @tag is
- * already on this list, the ref-count is incremented.
- *
- * The list of allowed-users is preserved across drm_vma_offset_add() and
- * drm_vma_offset_remove() calls. You may even call it if the node is currently
- * not added to any offset-manager.
- *
- * You must remove all open-files the same number of times as you added them
- * before destroying the node. Otherwise, you will leak memory.
- *
- * This is locked against concurrent access internally.
- *
- * RETURNS:
- * 0 on success, negative error code on internal failure (out-of-mem)
- */
-int drm_vma_node_allow(struct drm_vma_offset_node *node, struct drm_file *tag)
+static int vma_node_allow(struct drm_vma_offset_node *node,
+			  struct drm_file *tag, bool ref_counted)
 {
 	struct rb_node **iter;
 	struct rb_node *parent = NULL;
@@ -282,7 +263,8 @@ int drm_vma_node_allow(struct drm_vma_offset_node *node, struct drm_file *tag)
 		entry = rb_entry(*iter, struct drm_vma_offset_file, vm_rb);
 
 		if (tag == entry->vm_tag) {
-			entry->vm_count++;
+			if (ref_counted)
+				entry->vm_count++;
 			goto unlock;
 		} else if (tag > entry->vm_tag) {
 			iter = &(*iter)->rb_right;
@@ -307,7 +289,57 @@ unlock:
 	kfree(new);
 	return ret;
 }
+
+/**
+ * drm_vma_node_allow - Add open-file to list of allowed users
+ * @node: Node to modify
+ * @tag: Tag of file to remove
+ *
+ * Add @tag to the list of allowed open-files for this node. If @tag is
+ * already on this list, the ref-count is incremented.
+ *
+ * The list of allowed-users is preserved across drm_vma_offset_add() and
+ * drm_vma_offset_remove() calls. You may even call it if the node is currently
+ * not added to any offset-manager.
+ *
+ * You must remove all open-files the same number of times as you added them
+ * before destroying the node. Otherwise, you will leak memory.
+ *
+ * This is locked against concurrent access internally.
+ *
+ * RETURNS:
+ * 0 on success, negative error code on internal failure (out-of-mem)
+ */
+int drm_vma_node_allow(struct drm_vma_offset_node *node, struct drm_file *tag)
+{
+	return vma_node_allow(node, tag, true);
+}
 EXPORT_SYMBOL(drm_vma_node_allow);
+
+/**
+ * drm_vma_node_allow_once - Add open-file to list of allowed users
+ * @node: Node to modify
+ * @tag: Tag of file to remove
+ *
+ * Add @tag to the list of allowed open-files for this node.
+ *
+ * The list of allowed-users is preserved across drm_vma_offset_add() and
+ * drm_vma_offset_remove() calls. You may even call it if the node is currently
+ * not added to any offset-manager.
+ *
+ * This is not ref-counted unlike drm_vma_node_allow() hence drm_vma_node_revoke()
+ * should only be called once after this.
+ *
+ * This is locked against concurrent access internally.
+ *
+ * RETURNS:
+ * 0 on success, negative error code on internal failure (out-of-mem)
+ */
+int drm_vma_node_allow_once(struct drm_vma_offset_node *node, struct drm_file *tag)
+{
+	return vma_node_allow(node, tag, false);
+}
+EXPORT_SYMBOL(drm_vma_node_allow_once);
 
 /**
  * drm_vma_node_revoke - Remove open-file from list of allowed users

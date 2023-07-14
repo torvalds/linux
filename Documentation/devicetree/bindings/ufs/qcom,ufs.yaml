@@ -26,6 +26,7 @@ properties:
           - qcom,msm8994-ufshc
           - qcom,msm8996-ufshc
           - qcom,msm8998-ufshc
+          - qcom,sa8775p-ufshc
           - qcom,sc8280xp-ufshc
           - qcom,sdm845-ufshc
           - qcom,sm6350-ufshc
@@ -33,6 +34,7 @@ properties:
           - qcom,sm8250-ufshc
           - qcom,sm8350-ufshc
           - qcom,sm8450-ufshc
+          - qcom,sm8550-ufshc
       - const: qcom,ufshc
       - const: jedec,ufs-2.0
 
@@ -43,6 +45,8 @@ properties:
   clock-names:
     minItems: 8
     maxItems: 11
+
+  dma-coherent: true
 
   interconnects:
     minItems: 2
@@ -67,9 +71,16 @@ properties:
   power-domains:
     maxItems: 1
 
+  qcom,ice:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: phandle to the Inline Crypto Engine node
+
   reg:
     minItems: 1
     maxItems: 2
+
+  required-opps:
+    maxItems: 1
 
   resets:
     maxItems: 1
@@ -99,10 +110,12 @@ allOf:
           contains:
             enum:
               - qcom,msm8998-ufshc
+              - qcom,sa8775p-ufshc
               - qcom,sc8280xp-ufshc
               - qcom,sm8250-ufshc
               - qcom,sm8350-ufshc
               - qcom,sm8450-ufshc
+              - qcom,sm8550-ufshc
     then:
       properties:
         clocks:
@@ -179,6 +192,25 @@ allOf:
           maxItems: 1
 
     # TODO: define clock bindings for qcom,msm8994-ufshc
+
+  - if:
+      required:
+        - qcom,ice
+    then:
+      properties:
+        reg:
+          maxItems: 1
+        clocks:
+          minItems: 8
+          maxItems: 8
+    else:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 2
+        clocks:
+          minItems: 8
+          maxItems: 11
 
 unevaluatedProperties: false
 

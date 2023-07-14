@@ -210,9 +210,18 @@ ld_version()
 	gsub(".*version ", "");
 	gsub("-.*", "");
 	split($1,a, ".");
+	if( length(a[3]) == "8" )
+		# a[3] is probably a date of format yyyymmdd used for release snapshots. We
+		# can assume it to be zero as it does not signify a new version as such.
+		a[3] = 0;
 	print a[1]*100000000 + a[2]*1000000 + a[3]*10000;
 	exit
     }'
+}
+
+ld_is_lld()
+{
+	${CROSS}ld -V 2>&1 | grep -q LLD
 }
 
 # Do not include PT_INTERP segment when linking pie. Non-pie linking
@@ -221,6 +230,14 @@ LD_VERSION=$(${CROSS}ld --version | ld_version)
 LD_NO_DL_MIN_VERSION=$(echo 2.26 | ld_version)
 if [ "$LD_VERSION" -ge "$LD_NO_DL_MIN_VERSION" ] ; then
 	nodl="--no-dynamic-linker"
+fi
+
+# suppress some warnings in recent ld versions
+nowarn="-z noexecstack"
+if ! ld_is_lld; then
+	if [ "$LD_VERSION" -ge "$(echo 2.39 | ld_version)" ]; then
+		nowarn="$nowarn --no-warn-rwx-segments"
+	fi
 fi
 
 platformo=$object/"$platform".o
@@ -433,7 +450,7 @@ fi
 # Extract kernel version information, some platforms want to include
 # it in the image header
 version=`${CROSS}strings "$kernel" | grep '^Linux version [-0-9.]' | \
-    cut -d' ' -f3`
+    head -n1 | cut -d' ' -f3`
 if [ -n "$version" ]; then
     uboot_version="-n Linux-$version"
 fi
@@ -504,7 +521,7 @@ if [ "$platform" != "miboot" ]; then
         text_start="-Ttext $link_address"
     fi
 #link everything
-    ${CROSS}ld -m $format -T $lds $text_start $pie $nodl $rodynamic $notext -o "$ofile" $map \
+    ${CROSS}ld -m $format -T $lds $text_start $pie $nodl $nowarn $rodynamic $notext -o "$ofile" $map \
 	$platformo $tmp $object/wrapper.a
     rm $tmp
 fi
@@ -581,7 +598,7 @@ ps3)
     # reached, then enter the system reset vector of the partially decompressed
     # image.  No warning is issued.
     rm -f "$odir"/{otheros,otheros-too-big}.bld
-    size=$(${CROSS}nm --no-sort --radix=d "$ofile" | egrep ' _end$' | cut -d' ' -f1)
+    size=$(${CROSS}nm --no-sort --radix=d "$ofile" | grep -E ' _end$' | cut -d' ' -f1)
     bld="otheros.bld"
     if [ $size -gt $((0x1000000)) ]; then
         bld="otheros-too-big.bld"

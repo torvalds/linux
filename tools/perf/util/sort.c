@@ -22,15 +22,19 @@
 #include "srcline.h"
 #include "strlist.h"
 #include "strbuf.h"
-#include <traceevent/event-parse.h>
 #include "mem-events.h"
 #include "annotate.h"
 #include "event.h"
 #include "time-utils.h"
 #include "cgroup.h"
 #include "machine.h"
+#include "trace-event.h"
 #include <linux/kernel.h>
 #include <linux/string.h>
+
+#ifdef HAVE_LIBTRACEEVENT
+#include <traceevent/event-parse.h>
+#endif
 
 regex_t		parent_regex;
 const char	default_parent_pattern[] = "^sys_|^do_page_fault";
@@ -48,6 +52,13 @@ int		have_ignore_callees = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 static const char *const dynamic_headers[] = {"local_ins_lat", "ins_lat", "local_p_stage_cyc", "p_stage_cyc"};
 static const char *const arch_specific_sort_keys[] = {"local_p_stage_cyc", "p_stage_cyc"};
+
+/*
+ * Some architectures have Adjacent Cacheline Prefetch feature, which
+ * behaves like the cacheline size is doubled. Enable this flag to
+ * check things in double cacheline granularity.
+ */
+bool chk_double_cl;
 
 /*
  * Replaces all occurrences of a char used with the:
@@ -97,7 +108,7 @@ static int64_t cmp_null(const void *l, const void *r)
 static int64_t
 sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	return right->thread->tid - left->thread->tid;
+	return thread__tid(right->thread) - thread__tid(left->thread);
 }
 
 static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
@@ -106,7 +117,7 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 	const char *comm = thread__comm_str(he->thread);
 
 	width = max(7U, width) - 8;
-	return repsep_snprintf(bf, size, "%7d:%-*.*s", he->thread->tid,
+	return repsep_snprintf(bf, size, "%7d:%-*.*s", thread__tid(he->thread),
 			       width, width, comm ?: "");
 }
 
@@ -117,7 +128,7 @@ static int hist_entry__thread_filter(struct hist_entry *he, int type, const void
 	if (type != HIST_FILTER__THREAD)
 		return -1;
 
-	return th && he->thread != th;
+	return th && RC_CHK_ACCESS(he->thread) != RC_CHK_ACCESS(th);
 }
 
 struct sort_entry sort_thread = {
@@ -126,6 +137,52 @@ struct sort_entry sort_thread = {
 	.se_snprintf	= hist_entry__thread_snprintf,
 	.se_filter	= hist_entry__thread_filter,
 	.se_width_idx	= HISTC_THREAD,
+};
+
+/* --sort simd */
+
+static int64_t
+sort__simd_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (left->simd_flags.arch != right->simd_flags.arch)
+		return (int64_t) left->simd_flags.arch - right->simd_flags.arch;
+
+	return (int64_t) left->simd_flags.pred - right->simd_flags.pred;
+}
+
+static const char *hist_entry__get_simd_name(struct simd_flags *simd_flags)
+{
+	u64 arch = simd_flags->arch;
+
+	if (arch & SIMD_OP_FLAGS_ARCH_SVE)
+		return "SVE";
+	else
+		return "n/a";
+}
+
+static int hist_entry__simd_snprintf(struct hist_entry *he, char *bf,
+				     size_t size, unsigned int width __maybe_unused)
+{
+	const char *name;
+
+	if (!he->simd_flags.arch)
+		return repsep_snprintf(bf, size, "");
+
+	name = hist_entry__get_simd_name(&he->simd_flags);
+
+	if (he->simd_flags.pred & SIMD_OP_FLAGS_PRED_EMPTY)
+		return repsep_snprintf(bf, size, "[e] %s", name);
+	else if (he->simd_flags.pred & SIMD_OP_FLAGS_PRED_PARTIAL)
+		return repsep_snprintf(bf, size, "[p] %s", name);
+
+	return repsep_snprintf(bf, size, "[.] %s", name);
+}
+
+struct sort_entry sort_simd = {
+	.se_header	= "Simd   ",
+	.se_cmp		= sort__simd_cmp,
+	.se_snprintf	= hist_entry__simd_snprintf,
+	.se_width_idx	= HISTC_SIMD,
 };
 
 /* --sort comm */
@@ -173,8 +230,8 @@ struct sort_entry sort_comm = {
 
 static int64_t _sort__dso_cmp(struct map *map_l, struct map *map_r)
 {
-	struct dso *dso_l = map_l ? map_l->dso : NULL;
-	struct dso *dso_r = map_r ? map_r->dso : NULL;
+	struct dso *dso_l = map_l ? map__dso(map_l) : NULL;
+	struct dso *dso_r = map_r ? map__dso(map_r) : NULL;
 	const char *dso_name_l, *dso_name_r;
 
 	if (!dso_l || !dso_r)
@@ -200,13 +257,13 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 static int _hist_entry__dso_snprintf(struct map *map, char *bf,
 				     size_t size, unsigned int width)
 {
-	if (map && map->dso) {
-		const char *dso_name = verbose > 0 ? map->dso->long_name :
-			map->dso->short_name;
-		return repsep_snprintf(bf, size, "%-*.*s", width, width, dso_name);
-	}
+	const struct dso *dso = map ? map__dso(map) : NULL;
+	const char *dso_name = "[unknown]";
 
-	return repsep_snprintf(bf, size, "%-*.*s", width, width, "[unknown]");
+	if (dso)
+		dso_name = verbose > 0 ? dso->long_name : dso->short_name;
+
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, dso_name);
 }
 
 static int hist_entry__dso_snprintf(struct hist_entry *he, char *bf,
@@ -222,7 +279,7 @@ static int hist_entry__dso_filter(struct hist_entry *he, int type, const void *a
 	if (type != HIST_FILTER__DSO)
 		return -1;
 
-	return dso && (!he->ms.map || he->ms.map->dso != dso);
+	return dso && (!he->ms.map || map__dso(he->ms.map) != dso);
 }
 
 struct sort_entry sort_dso = {
@@ -302,12 +359,12 @@ static int _hist_entry__sym_snprintf(struct map_symbol *ms,
 	size_t ret = 0;
 
 	if (verbose > 0) {
-		char o = map ? dso__symtab_origin(map->dso) : '!';
+		struct dso *dso = map ? map__dso(map) : NULL;
+		char o = dso ? dso__symtab_origin(dso) : '!';
 		u64 rip = ip;
 
-		if (map && map->dso && map->dso->kernel
-		    && map->dso->adjust_symbols)
-			rip = map->unmap_ip(map, ip);
+		if (dso && dso->kernel && dso->adjust_symbols)
+			rip = map__unmap_ip(map, ip);
 
 		ret += repsep_snprintf(bf, size, "%-#*llx %c ",
 				       BITS_PER_LONG / 4 + 2, rip, o);
@@ -318,7 +375,7 @@ static int _hist_entry__sym_snprintf(struct map_symbol *ms,
 		if (sym->type == STT_OBJECT) {
 			ret += repsep_snprintf(bf + ret, size - ret, "%s", sym->name);
 			ret += repsep_snprintf(bf + ret, size - ret, "+0x%llx",
-					ip - map->unmap_ip(map, sym->start));
+					ip - map__unmap_ip(map, sym->start));
 		} else {
 			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
@@ -371,6 +428,18 @@ char *hist_entry__srcline(struct hist_entry *he)
 static int64_t
 sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	int64_t ret;
+
+	ret = _sort__addr_cmp(left->ip, right->ip);
+	if (ret)
+		return ret;
+
+	return sort__dso_cmp(left, right);
+}
+
+static int64_t
+sort__srcline_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->srcline)
 		left->srcline = hist_entry__srcline(left);
 	if (!right->srcline)
@@ -379,18 +448,31 @@ sort__srcline_cmp(struct hist_entry *left, struct hist_entry *right)
 	return strcmp(right->srcline, left->srcline);
 }
 
-static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
-					size_t size, unsigned int width)
+static int64_t
+sort__srcline_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcline_collapse(left, right);
+}
+
+static void
+sort__srcline_init(struct hist_entry *he)
 {
 	if (!he->srcline)
 		he->srcline = hist_entry__srcline(he);
+}
 
+static int hist_entry__srcline_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
 	return repsep_snprintf(bf, size, "%-.*s", width, he->srcline);
 }
 
 struct sort_entry sort_srcline = {
 	.se_header	= "Source:Line",
 	.se_cmp		= sort__srcline_cmp,
+	.se_collapse	= sort__srcline_collapse,
+	.se_sort	= sort__srcline_sort,
+	.se_init	= sort__srcline_init,
 	.se_snprintf	= hist_entry__srcline_snprintf,
 	.se_width_idx	= HISTC_SRCLINE,
 };
@@ -405,6 +487,12 @@ static char *addr_map_symbol__srcline(struct addr_map_symbol *ams)
 static int64_t
 sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	return left->branch_info->from.addr - right->branch_info->from.addr;
+}
+
+static int64_t
+sort__srcline_from_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->branch_info->srcline_from)
 		left->branch_info->srcline_from = addr_map_symbol__srcline(&left->branch_info->from);
 
@@ -412,6 +500,18 @@ sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
 		right->branch_info->srcline_from = addr_map_symbol__srcline(&right->branch_info->from);
 
 	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
+}
+
+static int64_t
+sort__srcline_from_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcline_from_collapse(left, right);
+}
+
+static void sort__srcline_from_init(struct hist_entry *he)
+{
+	if (!he->branch_info->srcline_from)
+		he->branch_info->srcline_from = addr_map_symbol__srcline(&he->branch_info->from);
 }
 
 static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
@@ -423,6 +523,9 @@ static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
 struct sort_entry sort_srcline_from = {
 	.se_header	= "From Source:Line",
 	.se_cmp		= sort__srcline_from_cmp,
+	.se_collapse	= sort__srcline_from_collapse,
+	.se_sort	= sort__srcline_from_sort,
+	.se_init	= sort__srcline_from_init,
 	.se_snprintf	= hist_entry__srcline_from_snprintf,
 	.se_width_idx	= HISTC_SRCLINE_FROM,
 };
@@ -432,6 +535,12 @@ struct sort_entry sort_srcline_from = {
 static int64_t
 sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	return left->branch_info->to.addr - right->branch_info->to.addr;
+}
+
+static int64_t
+sort__srcline_to_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->branch_info->srcline_to)
 		left->branch_info->srcline_to = addr_map_symbol__srcline(&left->branch_info->to);
 
@@ -439,6 +548,18 @@ sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
 		right->branch_info->srcline_to = addr_map_symbol__srcline(&right->branch_info->to);
 
 	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
+}
+
+static int64_t
+sort__srcline_to_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcline_to_collapse(left, right);
+}
+
+static void sort__srcline_to_init(struct hist_entry *he)
+{
+	if (!he->branch_info->srcline_to)
+		he->branch_info->srcline_to = addr_map_symbol__srcline(&he->branch_info->to);
 }
 
 static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
@@ -450,6 +571,9 @@ static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
 struct sort_entry sort_srcline_to = {
 	.se_header	= "To Source:Line",
 	.se_cmp		= sort__srcline_to_cmp,
+	.se_collapse	= sort__srcline_to_collapse,
+	.se_sort	= sort__srcline_to_sort,
+	.se_init	= sort__srcline_to_init,
 	.se_snprintf	= hist_entry__srcline_to_snprintf,
 	.se_width_idx	= HISTC_SRCLINE_TO,
 };
@@ -517,9 +641,9 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 	if (!map)
 		return no_srcfile;
 
-	sf = __get_srcline(map->dso, map__rip_2objdump(map, e->ip),
+	sf = __get_srcline(map__dso(map), map__rip_2objdump(map, e->ip),
 			 e->ms.sym, false, true, true, e->ip);
-	if (!strcmp(sf, SRCLINE_UNKNOWN))
+	if (sf == SRCLINE_UNKNOWN)
 		return no_srcfile;
 	p = strchr(sf, ':');
 	if (p && *sf) {
@@ -533,6 +657,12 @@ static char *hist_entry__get_srcfile(struct hist_entry *e)
 static int64_t
 sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
 {
+	return sort__srcline_cmp(left, right);
+}
+
+static int64_t
+sort__srcfile_collapse(struct hist_entry *left, struct hist_entry *right)
+{
 	if (!left->srcfile)
 		left->srcfile = hist_entry__get_srcfile(left);
 	if (!right->srcfile)
@@ -541,18 +671,30 @@ sort__srcfile_cmp(struct hist_entry *left, struct hist_entry *right)
 	return strcmp(right->srcfile, left->srcfile);
 }
 
-static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
-					size_t size, unsigned int width)
+static int64_t
+sort__srcfile_sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return sort__srcfile_collapse(left, right);
+}
+
+static void sort__srcfile_init(struct hist_entry *he)
 {
 	if (!he->srcfile)
 		he->srcfile = hist_entry__get_srcfile(he);
+}
 
+static int hist_entry__srcfile_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
 	return repsep_snprintf(bf, size, "%-.*s", width, he->srcfile);
 }
 
 struct sort_entry sort_srcfile = {
 	.se_header	= "Source File",
 	.se_cmp		= sort__srcfile_cmp,
+	.se_collapse	= sort__srcfile_collapse,
+	.se_sort	= sort__srcfile_sort,
+	.se_init	= sort__srcfile_init,
 	.se_snprintf	= hist_entry__srcfile_snprintf,
 	.se_width_idx	= HISTC_SRCFILE,
 };
@@ -661,7 +803,7 @@ static int hist_entry__cgroup_snprintf(struct hist_entry *he,
 	const char *cgrp_name = "N/A";
 
 	if (he->cgroup) {
-		struct cgroup *cgrp = cgroup__find(he->ms.maps->machine->env,
+		struct cgroup *cgrp = cgroup__find(maps__machine(he->ms.maps)->env,
 						   he->cgroup);
 		if (cgrp != NULL)
 			cgrp_name = cgrp->name;
@@ -743,6 +885,7 @@ struct sort_entry sort_time = {
 
 /* --sort trace */
 
+#ifdef HAVE_LIBTRACEEVENT
 static char *get_trace_output(struct hist_entry *he)
 {
 	struct trace_seq seq;
@@ -806,6 +949,7 @@ struct sort_entry sort_trace = {
 	.se_snprintf    = hist_entry__trace_snprintf,
 	.se_width_idx	= HISTC_TRACE,
 };
+#endif /* HAVE_LIBTRACEEVENT */
 
 /* sort keys for branch stacks */
 
@@ -838,7 +982,7 @@ static int hist_entry__dso_from_filter(struct hist_entry *he, int type,
 		return -1;
 
 	return dso && (!he->branch_info || !he->branch_info->from.ms.map ||
-		       he->branch_info->from.ms.map->dso != dso);
+		map__dso(he->branch_info->from.ms.map) != dso);
 }
 
 static int64_t
@@ -870,14 +1014,13 @@ static int hist_entry__dso_to_filter(struct hist_entry *he, int type,
 		return -1;
 
 	return dso && (!he->branch_info || !he->branch_info->to.ms.map ||
-		       he->branch_info->to.ms.map->dso != dso);
+		map__dso(he->branch_info->to.ms.map) != dso);
 }
 
 static int64_t
 sort__sym_from_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	struct addr_map_symbol *from_l = &left->branch_info->from;
-	struct addr_map_symbol *from_r = &right->branch_info->from;
+	struct addr_map_symbol *from_l, *from_r;
 
 	if (!left->branch_info || !right->branch_info)
 		return cmp_null(left->branch_info, right->branch_info);
@@ -1003,7 +1146,7 @@ static int _hist_entry__addr_snprintf(struct map_symbol *ms,
 		if (sym->type == STT_OBJECT) {
 			ret += repsep_snprintf(bf + ret, size - ret, "%s", sym->name);
 			ret += repsep_snprintf(bf + ret, size - ret, "+0x%llx",
-					ip - map->unmap_ip(map, sym->start));
+					ip - map__unmap_ip(map, sym->start));
 		} else {
 			ret += repsep_snprintf(bf + ret, size - ret, "%.*s",
 					       width - ret,
@@ -1362,6 +1505,7 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	u64 l, r;
 	struct map *l_map, *r_map;
+	struct dso *l_dso, *r_dso;
 	int rc;
 
 	if (!left->mem_info)  return -1;
@@ -1381,7 +1525,9 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (!l_map) return -1;
 	if (!r_map) return 1;
 
-	rc = dso__cmp_id(l_map->dso, r_map->dso);
+	l_dso = map__dso(l_map);
+	r_dso = map__dso(r_map);
+	rc = dso__cmp_id(l_dso, r_dso);
 	if (rc)
 		return rc;
 	/*
@@ -1393,19 +1539,20 @@ sort__dcacheline_cmp(struct hist_entry *left, struct hist_entry *right)
 	 */
 
 	if ((left->cpumode != PERF_RECORD_MISC_KERNEL) &&
-	    (!(l_map->flags & MAP_SHARED)) &&
-	    !l_map->dso->id.maj && !l_map->dso->id.min &&
-	    !l_map->dso->id.ino && !l_map->dso->id.ino_generation) {
+	    (!(map__flags(l_map) & MAP_SHARED)) && !l_dso->id.maj && !l_dso->id.min &&
+	    !l_dso->id.ino && !l_dso->id.ino_generation) {
 		/* userspace anonymous */
 
-		if (left->thread->pid_ > right->thread->pid_) return -1;
-		if (left->thread->pid_ < right->thread->pid_) return 1;
+		if (thread__pid(left->thread) > thread__pid(right->thread))
+			return -1;
+		if (thread__pid(left->thread) < thread__pid(right->thread))
+			return 1;
 	}
 
 addr:
 	/* al_addr does all the right addr - start + offset calculations */
-	l = cl_address(left->mem_info->daddr.al_addr);
-	r = cl_address(right->mem_info->daddr.al_addr);
+	l = cl_address(left->mem_info->daddr.al_addr, chk_double_cl);
+	r = cl_address(right->mem_info->daddr.al_addr, chk_double_cl);
 
 	if (l > r) return -1;
 	if (l < r) return 1;
@@ -1423,16 +1570,16 @@ static int hist_entry__dcacheline_snprintf(struct hist_entry *he, char *bf,
 
 	if (he->mem_info) {
 		struct map *map = he->mem_info->daddr.ms.map;
+		struct dso *dso = map ? map__dso(map) : NULL;
 
-		addr = cl_address(he->mem_info->daddr.al_addr);
+		addr = cl_address(he->mem_info->daddr.al_addr, chk_double_cl);
 		ms = &he->mem_info->daddr.ms;
 
 		/* print [s] for shared data mmaps */
 		if ((he->cpumode != PERF_RECORD_MISC_KERNEL) &&
-		     map && !(map->prot & PROT_EXEC) &&
-		    (map->flags & MAP_SHARED) &&
-		    (map->dso->id.maj || map->dso->id.min ||
-		     map->dso->id.ino || map->dso->id.ino_generation))
+		     map && !(map__prot(map) & PROT_EXEC) &&
+		     (map__flags(map) & MAP_SHARED) &&
+		    (dso->id.maj || dso->id.min || dso->id.ino || dso->id.ino_generation))
 			level = 's';
 		else if (!map)
 			level = 'X';
@@ -1928,9 +2075,8 @@ sort__dso_size_cmp(struct hist_entry *left, struct hist_entry *right)
 static int _hist_entry__dso_size_snprintf(struct map *map, char *bf,
 					  size_t bf_size, unsigned int width)
 {
-	if (map && map->dso)
-		return repsep_snprintf(bf, bf_size, "%*d", width,
-				       map__size(map));
+	if (map && map__dso(map))
+		return repsep_snprintf(bf, bf_size, "%*d", width, map__size(map));
 
 	return repsep_snprintf(bf, bf_size, "%*s", width, "unknown");
 }
@@ -1946,6 +2092,43 @@ struct sort_entry sort_dso_size = {
 	.se_cmp		= sort__dso_size_cmp,
 	.se_snprintf	= hist_entry__dso_size_snprintf,
 	.se_width_idx	= HISTC_DSO_SIZE,
+};
+
+/* --sort dso_size */
+
+static int64_t
+sort__addr_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	u64 left_ip = left->ip;
+	u64 right_ip = right->ip;
+	struct map *left_map = left->ms.map;
+	struct map *right_map = right->ms.map;
+
+	if (left_map)
+		left_ip = map__unmap_ip(left_map, left_ip);
+	if (right_map)
+		right_ip = map__unmap_ip(right_map, right_ip);
+
+	return _sort__addr_cmp(left_ip, right_ip);
+}
+
+static int hist_entry__addr_snprintf(struct hist_entry *he, char *bf,
+				     size_t size, unsigned int width)
+{
+	u64 ip = he->ip;
+	struct map *map = he->ms.map;
+
+	if (map)
+		ip = map__unmap_ip(map, ip);
+
+	return repsep_snprintf(bf, size, "%-#*llx", width, ip);
+}
+
+struct sort_entry sort_addr = {
+	.se_header	= "Address",
+	.se_cmp		= sort__addr_cmp,
+	.se_snprintf	= hist_entry__addr_snprintf,
+	.se_width_idx	= HISTC_ADDR,
 };
 
 
@@ -1985,7 +2168,9 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_LOCAL_WEIGHT, "local_weight", sort_local_weight),
 	DIM(SORT_GLOBAL_WEIGHT, "weight", sort_global_weight),
 	DIM(SORT_TRANSACTION, "transaction", sort_transaction),
+#ifdef HAVE_LIBTRACEEVENT
 	DIM(SORT_TRACE, "trace", sort_trace),
+#endif
 	DIM(SORT_SYM_SIZE, "symbol_size", sort_sym_size),
 	DIM(SORT_DSO_SIZE, "dso_size", sort_dso_size),
 	DIM(SORT_CGROUP, "cgroup", sort_cgroup),
@@ -1997,6 +2182,10 @@ static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_GLOBAL_INS_LAT, "ins_lat", sort_global_ins_lat),
 	DIM(SORT_LOCAL_PIPELINE_STAGE_CYC, "local_p_stage_cyc", sort_local_p_stage_cyc),
 	DIM(SORT_GLOBAL_PIPELINE_STAGE_CYC, "p_stage_cyc", sort_global_p_stage_cyc),
+	DIM(SORT_ADDR, "addr", sort_addr),
+	DIM(SORT_LOCAL_RETIRE_LAT, "local_retire_lat", sort_local_p_stage_cyc),
+	DIM(SORT_GLOBAL_RETIRE_LAT, "retire_lat", sort_global_p_stage_cyc),
+	DIM(SORT_SIMD, "simd", sort_simd)
 };
 
 #undef DIM
@@ -2168,7 +2357,14 @@ bool perf_hpp__is_ ## key ## _entry(struct perf_hpp_fmt *fmt)	\
 	return hse->se == &sort_ ## key ;			\
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 MK_SORT_ENTRY_CHK(trace)
+#else
+bool perf_hpp__is_trace_entry(struct perf_hpp_fmt *fmt __maybe_unused)
+{
+	return false;
+}
+#endif
 MK_SORT_ENTRY_CHK(srcline)
 MK_SORT_ENTRY_CHK(srcfile)
 MK_SORT_ENTRY_CHK(thread)
@@ -2199,6 +2395,19 @@ static void hse_free(struct perf_hpp_fmt *fmt)
 	free(hse);
 }
 
+static void hse_init(struct perf_hpp_fmt *fmt, struct hist_entry *he)
+{
+	struct hpp_sort_entry *hse;
+
+	if (!perf_hpp__is_sort_entry(fmt))
+		return;
+
+	hse = container_of(fmt, struct hpp_sort_entry, hpp);
+
+	if (hse->se->se_init)
+		hse->se->se_init(he);
+}
+
 static struct hpp_sort_entry *
 __sort_dimension__alloc_hpp(struct sort_dimension *sd, int level)
 {
@@ -2222,6 +2431,7 @@ __sort_dimension__alloc_hpp(struct sort_dimension *sd, int level)
 	hse->hpp.sort = __sort__hpp_sort;
 	hse->hpp.equal = __sort__hpp_equal;
 	hse->hpp.free = hse_free;
+	hse->hpp.init = hse_init;
 
 	INIT_LIST_HEAD(&hse->hpp.list);
 	INIT_LIST_HEAD(&hse->hpp.sort_list);
@@ -2309,6 +2519,17 @@ static int __sort_dimension__add_hpp_output(struct sort_dimension *sd,
 	return 0;
 }
 
+#ifndef HAVE_LIBTRACEEVENT
+bool perf_hpp__is_dynamic_entry(struct perf_hpp_fmt *fmt __maybe_unused)
+{
+	return false;
+}
+bool perf_hpp__defined_dynamic_entry(struct perf_hpp_fmt *fmt __maybe_unused,
+				     struct hists *hists __maybe_unused)
+{
+	return false;
+}
+#else
 struct hpp_dynamic_entry {
 	struct perf_hpp_fmt hpp;
 	struct evsel *evsel;
@@ -2493,11 +2714,6 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 
 	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
 
-	if (b == NULL) {
-		update_dynamic_len(hde, a);
-		return 0;
-	}
-
 	field = hde->field;
 	if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long dyn;
@@ -2505,9 +2721,8 @@ static int64_t __sort__hde_cmp(struct perf_hpp_fmt *fmt,
 		tep_read_number_field(field, a->raw_data, &dyn);
 		offset = dyn & 0xffff;
 		size = (dyn >> 16) & 0xffff;
-		if (field->flags & TEP_FIELD_IS_RELATIVE)
+		if (tep_field_is_relative(field->flags))
 			offset += field->offset + field->size;
-
 		/* record max width for output */
 		if (size > hde->dynamic_len)
 			hde->dynamic_len = size;
@@ -2546,6 +2761,17 @@ static void hde_free(struct perf_hpp_fmt *fmt)
 	free(hde);
 }
 
+static void __sort__hde_init(struct perf_hpp_fmt *fmt, struct hist_entry *he)
+{
+	struct hpp_dynamic_entry *hde;
+
+	if (!perf_hpp__is_dynamic_entry(fmt))
+		return;
+
+	hde = container_of(fmt, struct hpp_dynamic_entry, hpp);
+	update_dynamic_len(hde, he);
+}
+
 static struct hpp_dynamic_entry *
 __alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 		      int level)
@@ -2568,6 +2794,7 @@ __alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 	hde->hpp.entry  = __sort__hde_entry;
 	hde->hpp.color  = NULL;
 
+	hde->hpp.init = __sort__hde_init;
 	hde->hpp.cmp = __sort__hde_cmp;
 	hde->hpp.collapse = __sort__hde_cmp;
 	hde->hpp.sort = __sort__hde_cmp;
@@ -2583,6 +2810,7 @@ __alloc_dynamic_entry(struct evsel *evsel, struct tep_format_field *field,
 
 	return hde;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
 {
@@ -2595,6 +2823,7 @@ struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
 		new_hse = memdup(hse, sizeof(*hse));
 		if (new_hse)
 			new_fmt = &new_hse->hpp;
+#ifdef HAVE_LIBTRACEEVENT
 	} else if (perf_hpp__is_dynamic_entry(fmt)) {
 		struct hpp_dynamic_entry *hde, *new_hde;
 
@@ -2602,6 +2831,7 @@ struct perf_hpp_fmt *perf_hpp_fmt__dup(struct perf_hpp_fmt *fmt)
 		new_hde = memdup(hde, sizeof(*hde));
 		if (new_hde)
 			new_fmt = &new_hde->hpp;
+#endif
 	} else {
 		new_fmt = memdup(fmt, sizeof(*fmt));
 	}
@@ -2665,7 +2895,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 	full_name = !!strchr(event_name, ':');
 	evlist__for_each_entry(evlist, pos) {
 		/* case 2 */
-		if (full_name && !strcmp(pos->name, event_name))
+		if (full_name && evsel__name_is(pos, event_name))
 			return pos;
 		/* case 3 */
 		if (!full_name && strstr(pos->name, event_name)) {
@@ -2681,6 +2911,7 @@ static struct evsel *find_evsel(struct evlist *evlist, char *event_name)
 	return evsel;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int __dynamic_dimension__add(struct evsel *evsel,
 				    struct tep_format_field *field,
 				    bool raw_trace, int level)
@@ -2751,13 +2982,13 @@ static int add_all_matching_fields(struct evlist *evlist,
 	}
 	return ret;
 }
+#endif /* HAVE_LIBTRACEEVENT */
 
 static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 			     int level)
 {
 	char *str, *event_name, *field_name, *opt_name;
 	struct evsel *evsel;
-	struct tep_format_field *field;
 	bool raw_trace = symbol_conf.raw_trace;
 	int ret = 0;
 
@@ -2782,6 +3013,7 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		raw_trace = true;
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (!strcmp(field_name, "trace_fields")) {
 		ret = add_all_dynamic_fields(evlist, raw_trace, level);
 		goto out;
@@ -2791,6 +3023,19 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		ret = add_all_matching_fields(evlist, field_name, raw_trace, level);
 		goto out;
 	}
+#else
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
+			pr_err("%s %s", ret ? "," : "This perf binary isn't linked with libtraceevent, can't process", evsel__name(evsel));
+			ret = -ENOTSUP;
+		}
+	}
+
+	if (ret) {
+		pr_err("\n");
+		goto out;
+	}
+#endif
 
 	evsel = find_evsel(evlist, event_name);
 	if (evsel == NULL) {
@@ -2805,10 +3050,12 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 		goto out;
 	}
 
+#ifdef HAVE_LIBTRACEEVENT
 	if (!strcmp(field_name, "*")) {
 		ret = add_evsel_fields(evsel, raw_trace, level);
 	} else {
-		field = tep_find_any_field(evsel->tp_format, field_name);
+		struct tep_format_field *field = tep_find_any_field(evsel->tp_format, field_name);
+
 		if (field == NULL) {
 			pr_debug("Cannot find event field for %s.%s\n",
 				 event_name, field_name);
@@ -2817,6 +3064,10 @@ static int add_dynamic_entry(struct evlist *evlist, const char *tok,
 
 		ret = __dynamic_dimension__add(evsel, field, raw_trace, level);
 	}
+#else
+	(void)level;
+	(void)raw_trace;
+#endif /* HAVE_LIBTRACEEVENT */
 
 out:
 	free(str);
@@ -2917,11 +3168,11 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		for (j = 0; j < ARRAY_SIZE(dynamic_headers); j++) {
-			if (!strcmp(dynamic_headers[j], sd->name))
+			if (sd->name && !strcmp(dynamic_headers[j], sd->name))
 				sort_dimension_add_dynamic_header(sd);
 		}
 
@@ -2971,7 +3222,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
 		struct sort_dimension *sd = &bstack_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__BRANCH)
@@ -2987,7 +3238,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
 		struct sort_dimension *sd = &memory_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__MEMORY)
@@ -3301,7 +3552,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		return __sort_dimension__add_output(list, sd);
@@ -3319,7 +3570,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
 		struct sort_dimension *sd = &bstack_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__BRANCH)
@@ -3331,7 +3582,7 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 	for (i = 0; i < ARRAY_SIZE(memory_sort_dimensions); i++) {
 		struct sort_dimension *sd = &memory_sort_dimensions[i];
 
-		if (strncasecmp(tok, sd->name, strlen(tok)))
+		if (!sd->name || strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
 
 		if (sort__mode != SORT_MODE__MEMORY)
@@ -3470,6 +3721,9 @@ void reset_output_field(void)
 
 static void add_key(struct strbuf *sb, const char *str, int *llen)
 {
+	if (!str)
+		return;
+
 	if (*llen >= 75) {
 		strbuf_addstr(sb, "\n\t\t\t ");
 		*llen = INDENT;

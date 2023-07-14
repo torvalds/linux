@@ -165,7 +165,7 @@ static int bcma_sprom_valid(struct bcma_bus *bus, const u16 *sprom,
 		return err;
 
 	revision = sprom[words - 1] & SSB_SPROM_REVISION_REV;
-	if (revision != 8 && revision != 9 && revision != 10) {
+	if (revision < 8 || revision > 11) {
 		pr_err("Unsupported SPROM revision: %d\n", revision);
 		return -ENOENT;
 	}

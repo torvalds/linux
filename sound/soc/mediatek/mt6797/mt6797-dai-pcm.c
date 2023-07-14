@@ -183,6 +183,8 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_dapm_widget *p = snd_soc_dai_get_widget_playback(dai);
+	struct snd_soc_dapm_widget *c = snd_soc_dai_get_widget_capture(dai);
 	unsigned int rate = params_rate(params);
 	unsigned int rate_reg = mt6797_rate_transform(afe->dev, rate, dai->id);
 	unsigned int pcm_con = 0;
@@ -193,10 +195,10 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 		substream->stream,
 		rate,
 		rate_reg,
-		dai->playback_widget->active,
-		dai->capture_widget->active);
+		p->active,
+		c->active);
 
-	if (dai->playback_widget->active || dai->capture_widget->active)
+	if (p->active || c->active)
 		return 0;
 
 	switch (dai->id) {

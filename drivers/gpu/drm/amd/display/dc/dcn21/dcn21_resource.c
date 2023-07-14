@@ -94,8 +94,6 @@
  * macros to expend register list macro defined in HW object header file */
 
 /* DCN */
-/* TODO awful hack. fixup dcn20_dwb.h */
-#undef BASE_INNER
 #define BASE_INNER(seg) DMU_BASE__INST0_SEG ## seg
 
 #define BASE(seg) BASE_INNER(seg)
@@ -611,8 +609,6 @@ static const struct resource_caps res_cap_rn_FPGA_2pipe_dsc = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -644,7 +640,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
 		.min_disp_clk_khz = 100000,
-		.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+		.pipe_split_policy = MPC_SPLIT_DYNAMIC,
 		.force_single_disp_pipe_split = false,
 		.disable_dcc = DCC_ENABLE,
 		.vsr_support = true,
@@ -657,24 +653,17 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.usbc_combo_phy_reset_wa = true,
 		.dmub_command_table = true,
 		.use_max_lb = true,
-		.optimize_edp_link_rate = true
+		.enable_legacy_fast_update = true,
 };
 
-static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = false,
-		.force_abm_enable = false,
-		.timing_trace = true,
-		.clock_trace = true,
-		.disable_dpp_power_gate = true,
-		.disable_hubp_power_gate = true,
-		.disable_clock_gate = true,
-		.disable_pplib_clock_request = true,
-		.disable_pplib_wm_range = true,
-		.disable_stutter = true,
-		.disable_48mhz_pwrdwn = true,
-		.disable_psr = true,
-		.enable_tri_buf = true,
-		.use_max_lb = true
+static const struct dc_panel_config panel_config_defaults = {
+		.psr = {
+			.disable_psr = false,
+			.disallow_psrsu = false,
+		},
+		.ilr = {
+			.optimize_edp_link_rate = true,
+		},
 };
 
 enum dcn20_clk_src_array_id {
@@ -1215,13 +1204,6 @@ static const struct resource_create_funcs res_create_funcs = {
 	.create_hwseq = dcn21_hwseq_create,
 };
 
-static const struct resource_create_funcs res_create_maximus_funcs = {
-	.read_dce_straps = NULL,
-	.create_audio = NULL,
-	.create_stream_encoder = NULL,
-	.create_hwseq = dcn21_hwseq_create,
-};
-
 static const struct encoder_feature_support link_enc_feature = {
 		.max_hdmi_deep_color = COLOR_DEPTH_121212,
 		.max_hdmi_pixel_clock = 600000,
@@ -1367,6 +1349,11 @@ static struct panel_cntl *dcn21_panel_cntl_create(const struct panel_cntl_init_d
 	return &panel_cntl->base;
 }
 
+static void dcn21_get_panel_config_defaults(struct dc_panel_config *panel_config)
+{
+	*panel_config = panel_config_defaults;
+}
+
 #define CTX ctx
 
 #define REG(reg_name) \
@@ -1382,15 +1369,13 @@ static uint32_t read_pipe_fuses(struct dc_context *ctx)
 
 static enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
-	enum dc_status result = DC_OK;
-
 	if (plane_state->ctx->dc->debug.disable_dcc == DCC_ENABLE) {
 		plane_state->dcc.enable = 1;
 		/* align to our worst case block width */
 		plane_state->dcc.meta_pitch = ((plane_state->src_rect.width + 1023) / 1024) * 1024;
 	}
-	result = dcn20_patch_unknown_plane_state(plane_state);
-	return result;
+
+	return dcn20_patch_unknown_plane_state(plane_state);
 }
 
 static const struct resource_funcs dcn21_res_pool_funcs = {
@@ -1408,6 +1393,7 @@ static const struct resource_funcs dcn21_res_pool_funcs = {
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
 	.update_bw_bounding_box = dcn21_update_bw_bounding_box,
+	.get_panel_config_defaults = dcn21_get_panel_config_defaults,
 };
 
 static bool dcn21_resource_construct(
@@ -1495,11 +1481,6 @@ static bool dcn21_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else if (dc->ctx->dce_environment == DCE_ENV_FPGA_MAXIMUS) {
-		pool->base.pipe_count = 4;
-		dc->debug = debug_defaults_diags;
-	} else
-		dc->debug = debug_defaults_diags;
 
 	// Init the vm_helper
 	if (dc->vm_helper)
@@ -1713,9 +1694,8 @@ static bool dcn21_resource_construct(
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
-			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
-			&res_create_funcs : &res_create_maximus_funcs)))
-			goto create_fail;
+			&res_create_funcs))
+		goto create_fail;
 
 	dcn21_hw_sequencer_construct(dc);
 

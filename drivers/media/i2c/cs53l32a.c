@@ -128,9 +128,9 @@ static const struct v4l2_subdev_ops cs53l32a_ops = {
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static int cs53l32a_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int cs53l32a_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct cs53l32a_state *state;
 	struct v4l2_subdev *sd;
 	int i;

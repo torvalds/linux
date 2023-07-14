@@ -446,9 +446,9 @@ static void tmp007_powerdown_action_cb(void *priv)
 	tmp007_powerdown(data);
 }
 
-static int tmp007_probe(struct i2c_client *client,
-			const struct i2c_device_id *tmp007_id)
+static int tmp007_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *tmp007_id = i2c_client_get_device_id(client);
 	struct tmp007_data *data;
 	struct iio_dev *indio_dev;
 	int ret;

@@ -87,6 +87,7 @@ struct sclp_info {
 	unsigned char has_gisaf : 1;
 	unsigned char has_diag318 : 1;
 	unsigned char has_sipl : 1;
+	unsigned char has_sipl_eckd : 1;
 	unsigned char has_dirq : 1;
 	unsigned char has_iplcc : 1;
 	unsigned char has_zpci_lsi : 1;
@@ -131,6 +132,7 @@ void sclp_early_get_ipl_info(struct sclp_ipl_info *info);
 void sclp_early_detect(void);
 void sclp_early_printk(const char *s);
 void __sclp_early_printk(const char *s, unsigned int len);
+void sclp_emergency_printk(const char *s);
 
 int sclp_early_get_memsize(unsigned long *mem);
 int sclp_early_get_hsa_size(unsigned long *hsa_size);

@@ -112,7 +112,7 @@ required:
   - samsung,dw-mshc-sdr-timing
 
 allOf:
-  - $ref: "synopsys-dw-mshc-common.yaml#"
+  - $ref: synopsys-dw-mshc-common.yaml#
   - if:
       properties:
         compatible:

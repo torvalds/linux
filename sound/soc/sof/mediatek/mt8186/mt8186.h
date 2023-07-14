@@ -38,6 +38,11 @@ struct snd_sof_dev;
 #define DSP_MBOX3_IRQ_EN		BIT(3)
 #define DSP_MBOX4_IRQ_EN		BIT(4)
 #define DSP_PDEBUGPC			0x013C
+#define DSP_PDEBUGDATA			0x0140
+#define DSP_PDEBUGINST			0x0144
+#define DSP_PDEBUGLS0STAT		0x0148
+#define DSP_PDEBUGSTATUS		0x014C
+#define DSP_PFAULTINFO			0x0150
 #define ADSP_CK_EN			0x1000
 #define CORE_CLK_EN			BIT(0)
 #define COREDBG_EN			BIT(1)
@@ -52,7 +57,15 @@ struct snd_sof_dev;
 #define ADSP_PRID			0x0
 #define ADSP_ALTVEC_C0			0x04
 #define ADSP_ALTVECSEL			0x0C
-#define ADSP_ALTVECSEL_C0		BIT(1)
+#define MT8188_ADSP_ALTVECSEL_C0	BIT(0)
+#define MT8186_ADSP_ALTVECSEL_C0	BIT(1)
+
+/*
+ * On MT8188, BIT(1) is not evaluated and on MT8186 BIT(0) is not evaluated:
+ * We can simplify the driver by safely setting both bits regardless of the SoC.
+ */
+#define ADSP_ALTVECSEL_C0		(MT8188_ADSP_ALTVECSEL_C0 | \
+					 MT8186_ADSP_ALTVECSEL_C0)
 
 /* dsp bus */
 #define ADSP_SRAM_POOL_CON		0x190

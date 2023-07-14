@@ -4,6 +4,7 @@
 #define _GNU_SOURCE
 #include <sched.h>
 #include <linux/socket.h>
+#include <linux/tls.h>
 #include <net/if.h>
 
 #include "test_progs.h"
@@ -83,6 +84,76 @@ static void test_udp(int family)
 	ASSERT_EQ(bss->nr_binddev, 1, "nr_bind");
 }
 
+static void test_ktls(int family)
+{
+	struct tls12_crypto_info_aes_gcm_128 aes128;
+	struct setget_sockopt__bss *bss = skel->bss;
+	int cfd = -1, sfd = -1, fd = -1, ret;
+	char buf;
+
+	memset(bss, 0, sizeof(*bss));
+
+	sfd = start_server(family, SOCK_STREAM,
+			   family == AF_INET6 ? addr6_str : addr4_str, 0, 0);
+	if (!ASSERT_GE(sfd, 0, "start_server"))
+		return;
+	fd = connect_to_fd(sfd, 0);
+	if (!ASSERT_GE(fd, 0, "connect_to_fd"))
+		goto err_out;
+
+	cfd = accept(sfd, NULL, 0);
+	if (!ASSERT_GE(cfd, 0, "accept"))
+		goto err_out;
+
+	close(sfd);
+	sfd = -1;
+
+	/* Setup KTLS */
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (!ASSERT_OK(ret, "setsockopt"))
+		goto err_out;
+	ret = setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (!ASSERT_OK(ret, "setsockopt"))
+		goto err_out;
+
+	memset(&aes128, 0, sizeof(aes128));
+	aes128.info.version = TLS_1_2_VERSION;
+	aes128.info.cipher_type = TLS_CIPHER_AES_GCM_128;
+
+	ret = setsockopt(fd, SOL_TLS, TLS_TX, &aes128, sizeof(aes128));
+	if (!ASSERT_OK(ret, "setsockopt"))
+		goto err_out;
+
+	ret = setsockopt(cfd, SOL_TLS, TLS_RX, &aes128, sizeof(aes128));
+	if (!ASSERT_OK(ret, "setsockopt"))
+		goto err_out;
+
+	/* KTLS is enabled */
+
+	close(fd);
+	/* At this point, the cfd socket is at the CLOSE_WAIT state
+	 * and still run TLS protocol.  The test for
+	 * BPF_TCP_CLOSE_WAIT should be run at this point.
+	 */
+	ret = read(cfd, &buf, sizeof(buf));
+	ASSERT_EQ(ret, 0, "read");
+	close(cfd);
+
+	ASSERT_EQ(bss->nr_listen, 1, "nr_listen");
+	ASSERT_EQ(bss->nr_connect, 1, "nr_connect");
+	ASSERT_EQ(bss->nr_active, 1, "nr_active");
+	ASSERT_EQ(bss->nr_passive, 1, "nr_passive");
+	ASSERT_EQ(bss->nr_socket_post_create, 2, "nr_socket_post_create");
+	ASSERT_EQ(bss->nr_binddev, 2, "nr_bind");
+	ASSERT_EQ(bss->nr_fin_wait1, 1, "nr_fin_wait1");
+	return;
+
+err_out:
+	close(fd);
+	close(cfd);
+	close(sfd);
+}
+
 void test_setget_sockopt(void)
 {
 	cg_fd = test__join_cgroup(CG_NAME);
@@ -118,6 +189,8 @@ void test_setget_sockopt(void)
 	test_tcp(AF_INET);
 	test_udp(AF_INET6);
 	test_udp(AF_INET);
+	test_ktls(AF_INET6);
+	test_ktls(AF_INET);
 
 done:
 	setget_sockopt__destroy(skel);

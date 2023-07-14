@@ -29,10 +29,10 @@
 #include <drm/drm_file.h>
 #include <drm/drm_debugfs.h>
 #include <drm/qxl_drm.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "qxl_drv.h"
 #include "qxl_object.h"
@@ -142,6 +142,17 @@ static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 {
 	struct ttm_resource *old_mem = bo->resource;
 	int ret;
+
+	if (!old_mem) {
+		if (new_mem->mem_type != TTM_PL_SYSTEM) {
+			hop->mem_type = TTM_PL_SYSTEM;
+			hop->flags = TTM_PL_FLAG_TEMPORARY;
+			return -EMULTIHOP;
+		}
+
+		ttm_bo_move_null(bo, new_mem);
+		return 0;
+	}
 
 	qxl_bo_move_notify(bo, new_mem);
 

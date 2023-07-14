@@ -9,6 +9,7 @@
 		simple-audio-card,bitclock-master = <&dailink_master>;
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,name = "imx8mm-wm8904";
 		simple-audio-card,routing =
 			"Headphone Jack", "HPOUTL",
@@ -136,11 +137,13 @@
 
 /* Verdin USB_1 */
 &usbotg1 {
+	disable-over-current;
 	status = "okay";
 };
 
 /* Verdin USB_2 */
 &usbotg2 {
+	disable-over-current;
 	status = "okay";
 };
 

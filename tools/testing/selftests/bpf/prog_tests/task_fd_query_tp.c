@@ -17,8 +17,13 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	if (CHECK(err, "bpf_prog_test_load", "err %d errno %d\n", err, errno))
 		goto close_prog;
 
-	snprintf(buf, sizeof(buf),
-		 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
+	if (access("/sys/kernel/tracing/trace", F_OK) == 0) {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/tracing/events/%s/id", probe_name);
+	} else {
+		snprintf(buf, sizeof(buf),
+			 "/sys/kernel/debug/tracing/events/%s/id", probe_name);
+	}
 	efd = open(buf, O_RDONLY, 0);
 	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
 		goto close_prog;

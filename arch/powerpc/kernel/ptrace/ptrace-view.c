@@ -267,9 +267,9 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 					 (PT_MAX_PUT_REG + 1) * sizeof(reg));
 
 	if (PT_MAX_PUT_REG + 1 < PT_TRAP && !ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-						(PT_MAX_PUT_REG + 1) * sizeof(reg),
-						PT_TRAP * sizeof(reg));
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  (PT_MAX_PUT_REG + 1) * sizeof(reg),
+					  PT_TRAP * sizeof(reg));
 
 	if (!ret && count > 0) {
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &reg,
@@ -280,8 +280,8 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 	}
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-						(PT_TRAP + 1) * sizeof(reg), -1);
+		user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+					  (PT_TRAP + 1) * sizeof(reg), -1);
 
 	return ret;
 }
@@ -290,6 +290,9 @@ static int gpr_set(struct task_struct *target, const struct user_regset *regset,
 static int ppr_get(struct task_struct *target, const struct user_regset *regset,
 		   struct membuf to)
 {
+	if (!target->thread.regs)
+		return -EINVAL;
+
 	return membuf_write(&to, &target->thread.regs->ppr, sizeof(u64));
 }
 
@@ -297,6 +300,9 @@ static int ppr_set(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count, const void *kbuf,
 		   const void __user *ubuf)
 {
+	if (!target->thread.regs)
+		return -EINVAL;
+
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  &target->thread.regs->ppr, 0, sizeof(u64));
 }
@@ -448,7 +454,65 @@ static int pmu_set(struct task_struct *target, const struct user_regset *regset,
 					 5 * sizeof(unsigned long));
 	return ret;
 }
-#endif
+
+static int dexcr_active(struct task_struct *target, const struct user_regset *regset)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return regset->n;
+}
+
+static int dexcr_get(struct task_struct *target, const struct user_regset *regset,
+		     struct membuf to)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	/*
+	 * The DEXCR is currently static across all CPUs, so we don't
+	 * store the target's value anywhere, but the static value
+	 * will also be correct.
+	 */
+	membuf_store(&to, (u64)lower_32_bits(DEXCR_INIT));
+
+	/*
+	 * Technically the HDEXCR is per-cpu, but a hypervisor can't reasonably
+	 * change it between CPUs of the same guest.
+	 */
+	return membuf_store(&to, (u64)lower_32_bits(mfspr(SPRN_HDEXCR_RO)));
+}
+
+#ifdef CONFIG_CHECKPOINT_RESTORE
+static int hashkeyr_active(struct task_struct *target, const struct user_regset *regset)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return regset->n;
+}
+
+static int hashkeyr_get(struct task_struct *target, const struct user_regset *regset,
+			struct membuf to)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return membuf_store(&to, target->thread.hashkeyr);
+}
+
+static int hashkeyr_set(struct task_struct *target, const struct user_regset *regset,
+			unsigned int pos, unsigned int count, const void *kbuf,
+			const void __user *ubuf)
+{
+	if (!cpu_has_feature(CPU_FTR_ARCH_31))
+		return -ENODEV;
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, &target->thread.hashkeyr,
+				  0, sizeof(unsigned long));
+}
+#endif /* CONFIG_CHECKPOINT_RESTORE */
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_MEM_KEYS
 static int pkey_active(struct task_struct *target, const struct user_regset *regset)
@@ -609,6 +673,18 @@ static const struct user_regset native_regsets[] = {
 		.size = sizeof(u64), .align = sizeof(u64),
 		.active = pmu_active, .regset_get = pmu_get, .set = pmu_set
 	},
+	[REGSET_DEXCR] = {
+		.core_note_type = NT_PPC_DEXCR, .n = ELF_NDEXCR,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = dexcr_active, .regset_get = dexcr_get
+	},
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	[REGSET_HASHKEYR] = {
+		.core_note_type = NT_PPC_HASHKEYR, .n = ELF_NHASHKEYR,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = hashkeyr_active, .regset_get = hashkeyr_get, .set = hashkeyr_set
+	},
+#endif
 #endif
 #ifdef CONFIG_PPC_MEM_KEYS
 	[REGSET_PKEY] = {
@@ -706,8 +782,9 @@ int gpr32_set_common(struct task_struct *target,
 	ubuf = u;
 	pos *= sizeof(reg);
 	count *= sizeof(reg);
-	return user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
-					 (PT_TRAP + 1) * sizeof(reg), -1);
+	user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+				  (PT_TRAP + 1) * sizeof(reg), -1);
+	return 0;
 
 Efault:
 	user_read_access_end();

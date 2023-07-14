@@ -334,9 +334,9 @@ static int hv_kbd_probe(struct hv_device *hv_dev,
 	hv_serio->dev.parent  = &hv_dev->device;
 	hv_serio->id.type = SERIO_8042_XL;
 	hv_serio->port_data = kbd_dev;
-	strlcpy(hv_serio->name, dev_name(&hv_dev->device),
+	strscpy(hv_serio->name, dev_name(&hv_dev->device),
 		sizeof(hv_serio->name));
-	strlcpy(hv_serio->phys, dev_name(&hv_dev->device),
+	strscpy(hv_serio->phys, dev_name(&hv_dev->device),
 		sizeof(hv_serio->phys));
 
 	hv_serio->start = hv_kbd_start;
@@ -369,7 +369,7 @@ err_free_mem:
 	return error;
 }
 
-static int hv_kbd_remove(struct hv_device *hv_dev)
+static void hv_kbd_remove(struct hv_device *hv_dev)
 {
 	struct hv_kbd_dev *kbd_dev = hv_get_drvdata(hv_dev);
 
@@ -378,8 +378,6 @@ static int hv_kbd_remove(struct hv_device *hv_dev)
 	kfree(kbd_dev);
 
 	hv_set_drvdata(hv_dev, NULL);
-
-	return 0;
 }
 
 static int hv_kbd_suspend(struct hv_device *hv_dev)

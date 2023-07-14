@@ -204,7 +204,7 @@ struct read_storage_sccb {
 	u16 assigned;
 	u16 standby;
 	u16 :16;
-	u32 entries[0];
+	u32 entries[];
 } __packed;
 
 static inline void sclp_fill_core_info(struct sclp_core_info *info,
@@ -307,7 +307,7 @@ enum {
 
 extern int sclp_init_state;
 extern int sclp_console_pages;
-extern int sclp_console_drop;
+extern bool sclp_console_drop;
 extern unsigned long sclp_console_full;
 extern bool sclp_mask_compat_mode;
 

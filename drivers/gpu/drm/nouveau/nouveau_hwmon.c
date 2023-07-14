@@ -41,7 +41,7 @@ static ssize_t
 nouveau_hwmon_show_temp1_auto_point1_pwm(struct device *d,
 					 struct device_attribute *a, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n", 100);
+	return sysfs_emit(buf, "%d\n", 100);
 }
 static SENSOR_DEVICE_ATTR(temp1_auto_point1_pwm, 0444,
 			  nouveau_hwmon_show_temp1_auto_point1_pwm, NULL, 0);
@@ -54,8 +54,8 @@ nouveau_hwmon_temp1_auto_point1_temp(struct device *d,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-	      therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST) * 1000);
+	return sysfs_emit(buf, "%d\n",
+			  therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST) * 1000);
 }
 static ssize_t
 nouveau_hwmon_set_temp1_auto_point1_temp(struct device *d,
@@ -87,8 +87,8 @@ nouveau_hwmon_temp1_auto_point1_temp_hyst(struct device *d,
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-	 therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST_HYST) * 1000);
+	return sysfs_emit(buf, "%d\n",
+			  therm->attr_get(therm, NVKM_THERM_ATTR_THRS_FAN_BOOST_HYST) * 1000);
 }
 static ssize_t
 nouveau_hwmon_set_temp1_auto_point1_temp_hyst(struct device *d,
@@ -211,75 +211,24 @@ static const struct attribute_group temp1_auto_point_sensor_group = {
 
 #define N_ATTR_GROUPS   3
 
-static const u32 nouveau_config_chip[] = {
-	HWMON_C_UPDATE_INTERVAL,
-	0
-};
-
-static const u32 nouveau_config_in[] = {
-	HWMON_I_INPUT | HWMON_I_MIN | HWMON_I_MAX | HWMON_I_LABEL,
-	0
-};
-
-static const u32 nouveau_config_temp[] = {
-	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
-	HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_EMERGENCY |
-	HWMON_T_EMERGENCY_HYST,
-	0
-};
-
-static const u32 nouveau_config_fan[] = {
-	HWMON_F_INPUT,
-	0
-};
-
-static const u32 nouveau_config_pwm[] = {
-	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	0
-};
-
-static const u32 nouveau_config_power[] = {
-	HWMON_P_INPUT | HWMON_P_CAP_MAX | HWMON_P_CRIT,
-	0
-};
-
-static const struct hwmon_channel_info nouveau_chip = {
-	.type = hwmon_chip,
-	.config = nouveau_config_chip,
-};
-
-static const struct hwmon_channel_info nouveau_temp = {
-	.type = hwmon_temp,
-	.config = nouveau_config_temp,
-};
-
-static const struct hwmon_channel_info nouveau_fan = {
-	.type = hwmon_fan,
-	.config = nouveau_config_fan,
-};
-
-static const struct hwmon_channel_info nouveau_in = {
-	.type = hwmon_in,
-	.config = nouveau_config_in,
-};
-
-static const struct hwmon_channel_info nouveau_pwm = {
-	.type = hwmon_pwm,
-	.config = nouveau_config_pwm,
-};
-
-static const struct hwmon_channel_info nouveau_power = {
-	.type = hwmon_power,
-	.config = nouveau_config_power,
-};
-
-static const struct hwmon_channel_info *nouveau_info[] = {
-	&nouveau_chip,
-	&nouveau_temp,
-	&nouveau_fan,
-	&nouveau_in,
-	&nouveau_pwm,
-	&nouveau_power,
+static const struct hwmon_channel_info * const nouveau_info[] = {
+	HWMON_CHANNEL_INFO(chip,
+			   HWMON_C_UPDATE_INTERVAL),
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT |
+			   HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT | HWMON_T_CRIT_HYST |
+			   HWMON_T_EMERGENCY | HWMON_T_EMERGENCY_HYST),
+	HWMON_CHANNEL_INFO(fan,
+			   HWMON_F_INPUT),
+	HWMON_CHANNEL_INFO(in,
+			   HWMON_I_INPUT |
+			   HWMON_I_MIN | HWMON_I_MAX |
+			   HWMON_I_LABEL),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
+	HWMON_CHANNEL_INFO(power,
+			   HWMON_P_INPUT | HWMON_P_CAP_MAX | HWMON_P_CRIT),
 	NULL
 };
 

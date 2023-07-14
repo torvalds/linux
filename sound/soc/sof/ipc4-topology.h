@@ -26,6 +26,10 @@
 #define SOF_IPC4_MODULE_LL		BIT(5)
 #define SOF_IPC4_MODULE_DP		BIT(6)
 #define SOF_IPC4_MODULE_LIB_CODE		BIT(7)
+#define SOF_IPC4_MODULE_INIT_CONFIG_MASK	GENMASK(11, 8)
+
+#define SOF_IPC4_MODULE_INIT_CONFIG_TYPE_BASE_CFG		0
+#define SOF_IPC4_MODULE_INIT_CONFIG_TYPE_BASE_CFG_WITH_EXT	1
 
 #define SOF_IPC4_MODULE_INSTANCE_LIST_ITEM_SIZE 12
 #define SOF_IPC4_PIPELINE_OBJECT_SIZE 448
@@ -46,12 +50,17 @@
 #define SOF_IPC4_NODE_INDEX_INTEL_SSP(x) (((x) & 0xf) << 4)
 
 /* Node ID for DMIC type DAI copiers */
-#define SOF_IPC4_NODE_INDEX_INTEL_DMIC(x) (((x) & 0x7) << 5)
+#define SOF_IPC4_NODE_INDEX_INTEL_DMIC(x) ((x) & 0x7)
 
 #define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
 #define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
 
-#define ALH_MAX_NUMBER_OF_GTW   16
+#define SOF_IPC4_DMA_DEVICE_MAX_COUNT 16
+
+#define SOF_IPC4_INVALID_NODE_ID	0xffffffff
+
+/* FW requires minimum 2ms DMA buffer size */
+#define SOF_IPC4_MIN_DMA_BUFFER_SIZE	2
 
 /*
  * The base of multi-gateways. Multi-gateways addressing starts from
@@ -64,36 +73,111 @@
 /* A magic number from FW */
 #define ALH_MULTI_GTW_COUNT	8
 
+enum sof_ipc4_copier_module_config_params {
+/*
+ * Use LARGE_CONFIG_SET to initialize timestamp event. Ipc mailbox must
+ * contain properly built CopierConfigTimestampInitData struct.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_TIMESTAMP_INIT = 1,
+/*
+ * Use LARGE_CONFIG_SET to initialize copier sink. Ipc mailbox must contain
+ * properly built CopierConfigSetSinkFormat struct.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_SET_SINK_FORMAT,
+/*
+ * Use LARGE_CONFIG_SET to initialize and enable on Copier data segment
+ * event. Ipc mailbox must contain properly built DataSegmentEnabled struct.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_DATA_SEGMENT_ENABLED,
+/*
+ * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for non
+ * HD-A gateways.
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_LLP_READING,
+/*
+ * Use LARGE_CONFIG_GET to retrieve Linear Link Position (LLP) value for non
+ * HD-A gateways and corresponding total processed data
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_PARAM_LLP_READING_EXTENDED,
+/*
+ * Use LARGE_CONFIG_SET to setup attenuation on output pins. Data is just uint32_t.
+ * note Config is only allowed when output pin is set up for 32bit and source
+ * is connected to Gateway
+ */
+	SOF_IPC4_COPIER_MODULE_CFG_ATTENUATION,
+};
+
+struct sof_ipc4_copier_config_set_sink_format {
+/* Id of sink */
+	u32 sink_id;
+/*
+ * Input format used by the source
+ * attention must be the same as present if already initialized.
+ */
+	struct sof_ipc4_audio_format source_fmt;
+/* Output format used by the sink */
+	struct sof_ipc4_audio_format sink_fmt;
+} __packed __aligned(4);
+
 /**
  * struct sof_ipc4_pipeline - pipeline config data
  * @priority: Priority of this pipeline
  * @lp_mode: Low power mode
  * @mem_usage: Memory usage
+ * @core_id: Target core for the pipeline
  * @state: Pipeline state
+ * @use_chain_dma: flag to indicate if the firmware shall use chained DMA
  * @msg: message structure for pipeline
+ * @skip_during_fe_trigger: skip triggering this pipeline during the FE DAI trigger
  */
 struct sof_ipc4_pipeline {
 	uint32_t priority;
 	uint32_t lp_mode;
 	uint32_t mem_usage;
+	uint32_t core_id;
 	int state;
+	bool use_chain_dma;
 	struct sof_ipc4_msg msg;
+	bool skip_during_fe_trigger;
+};
+
+/**
+ * struct sof_ipc4_multi_pipeline_data - multi pipeline trigger IPC data
+ * @count: Number of pipelines to be triggered
+ * @pipeline_ids: Flexible array of IDs of the pipelines to be triggered
+ */
+struct ipc4_pipeline_set_state_data {
+	u32 count;
+	DECLARE_FLEX_ARRAY(u32, pipeline_ids);
+} __packed;
+
+/**
+ * struct sof_ipc4_pin_format - Module pin format
+ * @pin_index: pin index
+ * @buffer_size: buffer size in bytes
+ * @audio_fmt: audio format for the pin
+ *
+ * This structure can be used for both output or input pins and the pin_index is relative to the
+ * pin type i.e output/input pin
+ */
+struct sof_ipc4_pin_format {
+	u32 pin_index;
+	u32 buffer_size;
+	struct sof_ipc4_audio_format audio_fmt;
 };
 
 /**
  * struct sof_ipc4_available_audio_format - Available audio formats
- * @base_config: Available base config
- * @out_audio_fmt: Available output audio format
- * @ref_audio_fmt: Reference audio format to match runtime audio format
- * @dma_buffer_size: Available Gateway DMA buffer size (in bytes)
- * @audio_fmt_num: Number of available audio formats
+ * @output_pin_fmts: Available output pin formats
+ * @input_pin_fmts: Available input pin formats
+ * @num_input_formats: Number of input pin formats
+ * @num_output_formats: Number of output pin formats
  */
 struct sof_ipc4_available_audio_format {
-	struct sof_ipc4_base_module_cfg *base_config;
-	struct sof_ipc4_audio_format *out_audio_fmt;
-	struct sof_ipc4_audio_format *ref_audio_fmt;
-	u32 *dma_buffer_size;
-	int audio_fmt_num;
+	struct sof_ipc4_pin_format *output_pin_fmts;
+	struct sof_ipc4_pin_format *input_pin_fmts;
+	u32 num_input_formats;
+	u32 num_output_formats;
 };
 
 /**
@@ -136,18 +220,64 @@ struct sof_ipc4_gtw_attributes {
 	uint32_t rsvd : 30;
 };
 
-/** struct sof_ipc4_alh_multi_gtw_cfg: ALH gateway cfg data
- * @count: Number of streams (valid items in mapping array)
- * @alh_id: ALH stream id of a single ALH stream aggregated
- * @channel_mask: Channel mask
- * @mapping: ALH streams
+/**
+ * struct sof_ipc4_dma_device_stream_ch_map: abstract representation of
+ * channel mapping to DMAs
+ * @device: representation of hardware device address or FIFO
+ * @channel_mask: channels handled by @device. Channels are expected to be
+ * contiguous
  */
-struct sof_ipc4_alh_multi_gtw_cfg {
-	uint32_t count;
-	struct {
-		uint32_t alh_id;
-		uint32_t channel_mask;
-	} mapping[ALH_MAX_NUMBER_OF_GTW];
+struct sof_ipc4_dma_device_stream_ch_map {
+	uint32_t device;
+	uint32_t channel_mask;
+};
+
+/**
+ * struct sof_ipc4_dma_stream_ch_map: DMA configuration data
+ * @device_count: Number valid items in mapping array
+ * @mapping: device address and channel mask
+ */
+struct sof_ipc4_dma_stream_ch_map {
+	uint32_t device_count;
+	struct sof_ipc4_dma_device_stream_ch_map mapping[SOF_IPC4_DMA_DEVICE_MAX_COUNT];
+} __packed;
+
+#define SOF_IPC4_DMA_METHOD_HDA   1
+#define SOF_IPC4_DMA_METHOD_GPDMA 2 /* defined for consistency but not used */
+
+/**
+ * struct sof_ipc4_dma_config: DMA configuration
+ * @dma_method: HDAudio or GPDMA
+ * @pre_allocated_by_host: 1 if host driver allocates DMA channels, 0 otherwise
+ * @dma_channel_id: for HDaudio defined as @stream_id - 1
+ * @stream_id: HDaudio stream tag
+ * @dma_stream_channel_map: array of device/channel mappings
+ * @dma_priv_config_size: currently not used
+ * @dma_priv_config: currently not used
+ */
+struct sof_ipc4_dma_config {
+	uint8_t dma_method;
+	uint8_t pre_allocated_by_host;
+	uint16_t rsvd;
+	uint32_t dma_channel_id;
+	uint32_t stream_id;
+	struct sof_ipc4_dma_stream_ch_map dma_stream_channel_map;
+	uint32_t dma_priv_config_size;
+	uint8_t dma_priv_config[];
+} __packed;
+
+#define SOF_IPC4_GTW_DMA_CONFIG_ID 0x1000
+
+/**
+ * struct sof_ipc4_dma_config: DMA configuration
+ * @type: set to SOF_IPC4_GTW_DMA_CONFIG_ID
+ * @length: sizeof(struct sof_ipc4_dma_config) + dma_config.dma_priv_config_size
+ * @dma_config: actual DMA configuration
+ */
+struct sof_ipc4_dma_config_tlv {
+	uint32_t type;
+	uint32_t length;
+	struct sof_ipc4_dma_config dma_config;
 } __packed;
 
 /** struct sof_ipc4_alh_configuration_blob: ALH blob
@@ -156,7 +286,7 @@ struct sof_ipc4_alh_multi_gtw_cfg {
  */
 struct sof_ipc4_alh_configuration_blob {
 	struct sof_ipc4_gtw_attributes gw_attr;
-	struct sof_ipc4_alh_multi_gtw_cfg alh_cfg;
+	struct sof_ipc4_dma_stream_ch_map alh_cfg;
 };
 
 /**
@@ -170,6 +300,7 @@ struct sof_ipc4_alh_configuration_blob {
  * @gtw_attr: Gateway attributes for copier blob
  * @dai_type: DAI type
  * @dai_index: DAI index
+ * @dma_config_tlv: DMA configuration
  */
 struct sof_ipc4_copier {
 	struct sof_ipc4_copier_data data;
@@ -182,6 +313,7 @@ struct sof_ipc4_copier {
 	struct sof_ipc4_gtw_attributes *gtw_attr;
 	u32 dai_type;
 	int dai_index;
+	struct sof_ipc4_dma_config_tlv dma_config_tlv;
 };
 
 /**
@@ -206,8 +338,8 @@ struct sof_ipc4_control_data {
 	int index;
 
 	union {
-		struct sof_ipc4_ctrl_value_chan chanv[0];
-		struct sof_abi_hdr data[0];
+		DECLARE_FLEX_ARRAY(struct sof_ipc4_ctrl_value_chan, chanv);
+		DECLARE_FLEX_ARRAY(struct sof_abi_hdr, data);
 	};
 };
 
@@ -217,14 +349,16 @@ struct sof_ipc4_control_data {
  * @init_val: Initial value
  * @curve_type: Curve type
  * @reserved: reserved for future use
- * @curve_duration: Curve duration
+ * @curve_duration_l: Curve duration low part
+ * @curve_duration_h: Curve duration high part
  */
 struct sof_ipc4_gain_data {
 	uint32_t channels;
 	uint32_t init_val;
 	uint32_t curve_type;
 	uint32_t reserved;
-	uint32_t curve_duration;
+	uint32_t curve_duration_l;
+	uint32_t curve_duration_h;
 } __aligned(8);
 
 /**
@@ -265,6 +399,47 @@ struct sof_ipc4_src {
 	uint32_t sink_rate;
 	struct sof_ipc4_available_audio_format available_fmt;
 	struct sof_ipc4_msg msg;
+};
+
+/**
+ * struct sof_ipc4_base_module_cfg_ext - base module config extension containing the pin format
+ * information for the module. Both @num_input_pin_fmts and @num_output_pin_fmts cannot be 0 for a
+ * module.
+ * @num_input_pin_fmts: number of input pin formats in the @pin_formats array
+ * @num_output_pin_fmts: number of output pin formats in the @pin_formats array
+ * @reserved: reserved for future use
+ * @pin_formats: flexible array consisting of @num_input_pin_fmts input pin format items followed
+ *		 by @num_output_pin_fmts output pin format items
+ */
+struct sof_ipc4_base_module_cfg_ext {
+	u16 num_input_pin_fmts;
+	u16 num_output_pin_fmts;
+	u8 reserved[12];
+	DECLARE_FLEX_ARRAY(struct sof_ipc4_pin_format, pin_formats);
+} __packed;
+
+/**
+ * struct sof_ipc4_process - process config data
+ * @base_config: IPC base config data
+ * @base_config_ext: Base config extension data for module init
+ * @output_format: Output audio format
+ * @available_fmt: Available audio format
+ * @ipc_config_data: Process module config data
+ * @ipc_config_size: Size of process module config data
+ * @msg: IPC4 message struct containing header and data info
+ * @base_config_ext_size: Size of the base config extension data in bytes
+ * @init_config: Module init config type (SOF_IPC4_MODULE_INIT_CONFIG_TYPE_*)
+ */
+struct sof_ipc4_process {
+	struct sof_ipc4_base_module_cfg base_config;
+	struct sof_ipc4_base_module_cfg_ext *base_config_ext;
+	struct sof_ipc4_audio_format output_format;
+	struct sof_ipc4_available_audio_format available_fmt;
+	void *ipc_config_data;
+	uint32_t ipc_config_size;
+	struct sof_ipc4_msg msg;
+	u32 base_config_ext_size;
+	u32 init_config;
 };
 
 #endif

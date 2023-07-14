@@ -8,8 +8,8 @@
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_modes.h>
-#include <drm/ttm/ttm_bo_api.h>
-#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_bo.h>
+#include <drm/ttm/ttm_placement.h>
 
 #include <linux/container_of.h>
 #include <linux/iosys-map.h>
@@ -160,7 +160,9 @@ void drm_gem_vram_simple_display_pipe_cleanup_fb(
 	.debugfs_init             = drm_vram_mm_debugfs_init, \
 	.dumb_create		  = drm_gem_vram_driver_dumb_create, \
 	.dumb_map_offset	  = drm_gem_ttm_dumb_map_offset, \
-	.gem_prime_mmap		  = drm_gem_prime_mmap
+	.gem_prime_mmap		  = drm_gem_prime_mmap, \
+	.prime_handle_to_fd	  = drm_gem_prime_handle_to_fd, \
+	.prime_fd_to_handle	  = drm_gem_prime_fd_to_handle
 
 /*
  *  VRAM memory manager

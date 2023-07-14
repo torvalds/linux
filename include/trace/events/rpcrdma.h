@@ -15,8 +15,8 @@
 #include <linux/tracepoint.h>
 #include <rdma/ib_cm.h>
 
-#include <trace/events/rdma.h>
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/rdma.h>
+#include <trace/misc/sunrpc.h>
 
 /**
  ** Event classes
@@ -2111,6 +2111,14 @@ DECLARE_EVENT_CLASS(svcrdma_post_chunk_class,
 DEFINE_POST_CHUNK_EVENT(read);
 DEFINE_POST_CHUNK_EVENT(write);
 DEFINE_POST_CHUNK_EVENT(reply);
+
+DEFINE_EVENT(svcrdma_post_chunk_class, svcrdma_cc_release,
+	TP_PROTO(
+		const struct rpc_rdma_cid *cid,
+		int sqecount
+	),
+	TP_ARGS(cid, sqecount)
+);
 
 TRACE_EVENT(svcrdma_wc_read,
 	TP_PROTO(

@@ -11,6 +11,7 @@
 #define INCLUDE__CS_ETM_DECODER_H__
 
 #include <linux/types.h>
+#include <opencsd/ocsd_if_types.h>
 #include <stdio.h>
 
 struct cs_etm_decoder;
@@ -19,7 +20,8 @@ struct cs_etm_packet_queue;
 
 struct cs_etm_queue;
 
-typedef u32 (*cs_etm_mem_cb_type)(struct cs_etm_queue *, u8, u64, size_t, u8 *);
+typedef u32 (*cs_etm_mem_cb_type)(struct cs_etm_queue *, u8, u64, size_t, u8 *,
+				  const ocsd_mem_space_acc_t);
 
 struct cs_etmv3_trace_params {
 	u32 reg_ctrl;
@@ -60,10 +62,10 @@ struct cs_etm_decoder_params {
 	int operation;
 	void (*packet_printer)(const char *msg);
 	cs_etm_mem_cb_type mem_acc_cb;
-	u8 formatted;
-	u8 fsyncs;
-	u8 hsyncs;
-	u8 frame_aligned;
+	bool formatted;
+	bool fsyncs;
+	bool hsyncs;
+	bool frame_aligned;
 	void *data;
 };
 

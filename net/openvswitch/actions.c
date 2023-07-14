@@ -17,6 +17,7 @@
 #include <linux/if_vlan.h>
 
 #include <net/dst.h>
+#include <net/gso.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
@@ -913,7 +914,7 @@ static void do_output(struct datapath *dp, struct sk_buff *skb, int out_port,
 {
 	struct vport *vport = ovs_vport_rcu(dp, out_port);
 
-	if (likely(vport)) {
+	if (likely(vport && netif_carrier_ok(vport->dev))) {
 		u16 mru = OVS_CB(skb)->mru;
 		u32 cutlen = OVS_CB(skb)->cutlen;
 
@@ -1033,7 +1034,7 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 	actions = nla_next(sample_arg, &rem);
 
 	if ((arg->probability != U32_MAX) &&
-	    (!arg->probability || prandom_u32() > arg->probability)) {
+	    (!arg->probability || get_random_u32() > arg->probability)) {
 		if (last)
 			consume_skb(skb);
 		return 0;
@@ -1072,8 +1073,16 @@ static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
 	struct ovs_action_hash *hash_act = nla_data(attr);
 	u32 hash = 0;
 
-	/* OVS_HASH_ALG_L4 is the only possible hash algorithm.  */
-	hash = skb_get_hash(skb);
+	if (hash_act->hash_alg == OVS_HASH_ALG_L4) {
+		/* OVS_HASH_ALG_L4 hasing type. */
+		hash = skb_get_hash(skb);
+	} else if (hash_act->hash_alg == OVS_HASH_ALG_SYM_L4) {
+		/* OVS_HASH_ALG_SYM_L4 hashing type.  NOTE: this doesn't
+		 * extend past an encapsulated header.
+		 */
+		hash = __skb_get_hash_symmetric(skb);
+	}
+
 	hash = jhash_1word(hash, hash_act->hash_basis);
 	if (!hash)
 		hash = 0x1;

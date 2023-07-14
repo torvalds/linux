@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/pm_runtime.h>
 
 #include "omap-mcbsp.h"
 #include "omap-mcbsp-priv.h"
@@ -244,10 +243,10 @@ static ssize_t st_taps_show(struct device *dev,
 
 	spin_lock_irq(&mcbsp->lock);
 	for (i = 0; i < st_data->nr_taps; i++)
-		status += sprintf(&buf[status], (i ? ", %d" : "%d"),
-				  st_data->taps[i]);
+		status += sysfs_emit_at(buf, status, (i ? ", %d" : "%d"),
+					st_data->taps[i]);
 	if (i)
-		status += sprintf(&buf[status], "\n");
+		status += sysfs_emit_at(buf, status, "\n");
 	spin_unlock_irq(&mcbsp->lock);
 
 	return status;

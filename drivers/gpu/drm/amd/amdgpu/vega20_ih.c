@@ -38,6 +38,11 @@
 #define mmIH_CHICKEN_ALDEBARAN			0x18d
 #define mmIH_CHICKEN_ALDEBARAN_BASE_IDX		0
 
+#define mmIH_RETRY_INT_CAM_CNTL_ALDEBARAN		0x00ea
+#define mmIH_RETRY_INT_CAM_CNTL_ALDEBARAN_BASE_IDX	0
+#define IH_RETRY_INT_CAM_CNTL_ALDEBARAN__ENABLE__SHIFT	0x10
+#define IH_RETRY_INT_CAM_CNTL_ALDEBARAN__ENABLE_MASK	0x00010000L
+
 static void vega20_ih_set_interrupt_funcs(struct amdgpu_device *adev);
 
 /**
@@ -251,36 +256,14 @@ static int vega20_ih_enable_ring(struct amdgpu_device *adev,
 	return 0;
 }
 
-/**
- * vega20_ih_reroute_ih - reroute VMC/UTCL2 ih to an ih ring
- *
- * @adev: amdgpu_device pointer
- *
- * Reroute VMC and UMC interrupts on primary ih ring to
- * ih ring 1 so they won't lose when bunches of page faults
- * interrupts overwhelms the interrupt handler(VEGA20)
- */
-static void vega20_ih_reroute_ih(struct amdgpu_device *adev)
+static uint32_t vega20_setup_retry_doorbell(u32 doorbell_index)
 {
-	uint32_t tmp;
+	u32 val = 0;
 
-	/* vega20 ih reroute will go through psp this
-	 * function is used for newer asics starting arcturus
-	 */
-	if (adev->asic_type >= CHIP_ARCTURUS) {
-		/* Reroute to IH ring 1 for VMC */
-		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x12);
-		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
-		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, CLIENT_TYPE, 1);
-		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
+	val = REG_SET_FIELD(val, IH_DOORBELL_RPTR, OFFSET, doorbell_index);
+	val = REG_SET_FIELD(val, IH_DOORBELL_RPTR, ENABLE, 1);
 
-		/* Reroute IH ring 1 for UTCL2 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_INDEX, 0x1B);
-		tmp = RREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA);
-		tmp = REG_SET_FIELD(tmp, IH_CLIENT_CFG_DATA, RING_ID, 1);
-		WREG32_SOC15(OSSSYS, 0, mmIH_CLIENT_CFG_DATA, tmp);
-	}
+	return val;
 }
 
 /**
@@ -308,7 +291,7 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 
 	adev->nbio.funcs->ih_control(adev);
 
-	if (adev->asic_type == CHIP_ARCTURUS &&
+	if ((adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 2, 1)) &&
 	    adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 		if (adev->irq.ih.use_bus_addr) {
@@ -321,7 +304,8 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 	/* psp firmware won't program IH_CHICKEN for aldebaran
 	 * driver needs to program it properly according to
 	 * MC_SPACE type in IH_RB_CNTL */
-	if (adev->asic_type == CHIP_ALDEBARAN) {
+	if ((adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0)) ||
+	    (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2))) {
 		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN_ALDEBARAN);
 		if (adev->irq.ih.use_bus_addr) {
 			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
@@ -332,8 +316,6 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < ARRAY_SIZE(ih); i++) {
 		if (ih[i]->ring_size) {
-			if (i == 1)
-				vega20_ih_reroute_ih(adev);
 			ret = vega20_ih_enable_ring(adev, ih[i]);
 			if (ret)
 				return ret;
@@ -345,6 +327,21 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 						    adev->irq.ih.doorbell_index);
 
 	pci_set_master(adev->pdev);
+
+	/* Allocate the doorbell for IH Retry CAM */
+	adev->irq.retry_cam_doorbell_index = (adev->doorbell_index.ih + 3) << 1;
+	WREG32_SOC15(OSSSYS, 0, mmIH_DOORBELL_RETRY_CAM,
+		vega20_setup_retry_doorbell(adev->irq.retry_cam_doorbell_index));
+
+	/* Enable IH Retry CAM */
+	if (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 0) ||
+	    adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2))
+		WREG32_FIELD15(OSSSYS, 0, IH_RETRY_INT_CAM_CNTL_ALDEBARAN,
+			       ENABLE, 1);
+	else
+		WREG32_FIELD15(OSSSYS, 0, IH_RETRY_INT_CAM_CNTL, ENABLE, 1);
+
+	adev->irq.retry_cam_enabled = true;
 
 	/* enable interrupts */
 	ret = vega20_ih_toggle_interrupts(adev, true);
@@ -530,6 +527,7 @@ static int vega20_ih_early_init(void *handle)
 static int vega20_ih_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool use_bus_addr = true;
 	int r;
 
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_IH, 0,
@@ -537,31 +535,37 @@ static int vega20_ih_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, true);
+	if ((adev->flags & AMD_IS_APU) &&
+	    (adev->ip_versions[OSSSYS_HWIP][0] == IP_VERSION(4, 4, 2)))
+		use_bus_addr = false;
+
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 256 * 1024, use_bus_addr);
 	if (r)
 		return r;
 
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, PAGE_SIZE, use_bus_addr);
 	if (r)
 		return r;
 
 	adev->irq.ih1.use_doorbell = true;
 	adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
-	if (r)
-		return r;
+	if (adev->ip_versions[OSSSYS_HWIP][0] != IP_VERSION(4, 4, 2)) {
+		r = amdgpu_ih_ring_init(adev, &adev->irq.ih2, PAGE_SIZE, true);
+		if (r)
+			return r;
 
-	adev->irq.ih2.use_doorbell = true;
-	adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+		adev->irq.ih2.use_doorbell = true;
+		adev->irq.ih2.doorbell_index = (adev->doorbell_index.ih + 2) << 1;
+	}
 
 	/* initialize ih control registers offset */
 	vega20_ih_init_register_offset(adev);
 
-	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
+	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, use_bus_addr);
 	if (r)
 		return r;
 

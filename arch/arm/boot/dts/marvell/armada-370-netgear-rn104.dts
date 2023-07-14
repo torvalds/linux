@@ -1,0 +1,302 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for NETGEAR ReadyNAS 104
+ *
+ * Copyright (C) 2013, Arnaud EBALARD <arno@natisbad.org>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "armada-370.dtsi"
+
+/ {
+	model = "NETGEAR ReadyNAS 104";
+	compatible = "netgear,readynas-104", "marvell,armada370", "marvell,armada-370-xp";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>; /* 512 MB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xd0000000 0x100000
+			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x01) 0 0xf1100000 0x10000>;
+
+		internal-regs {
+
+			/* RTC is provided by Intersil ISL12057 I2C RTC chip */
+			rtc@10300 {
+				status = "disabled";
+			};
+
+			serial@12000 {
+				status = "okay";
+			};
+
+			ethernet@70000 {
+				pinctrl-0 = <&ge0_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+			};
+
+			ethernet@74000 {
+				pinctrl-0 = <&ge1_rgmii_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "rgmii-id";
+			};
+
+			usb@50000 {
+				status = "okay";
+			};
+
+			i2c@11000 {
+				clock-frequency = <100000>;
+
+				pinctrl-0 = <&i2c0_pins>;
+				pinctrl-names = "default";
+
+				status = "okay";
+
+				isl12057: rtc@68 {
+					compatible = "isil,isl12057";
+					reg = <0x68>;
+					wakeup-source;
+				};
+
+				g762: g762@3e {
+					compatible = "gmt,g762";
+					reg = <0x3e>;
+					clocks = <&g762_clk>; /* input clock */
+					fan_gear_mode = <0>;
+					fan_startv = <1>;
+					pwm_polarity = <0>;
+				};
+
+				pca9554: pca9554@23 {
+					compatible = "nxp,pca9554";
+					gpio-controller;
+					#gpio-cells = <2>;
+					reg = <0x23>;
+				};
+			};
+		};
+	};
+
+	clocks {
+		g762_clk: g762-oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <8192>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&backup_led_pin &power_led_pin>;
+		pinctrl-names = "default";
+
+		blue-backup-led {
+			label = "rn104:blue:backup";
+			gpios = <&gpio1 31 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		blue-power-led {
+			label = "rn104:blue:pwr";
+			gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "keep";
+		};
+
+		blue-sata1-led {
+			label = "rn104:blue:sata1";
+			gpios = <&pca9554 0 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		blue-sata2-led {
+			label = "rn104:blue:sata2";
+			gpios = <&pca9554 1 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		blue-sata3-led {
+			label = "rn104:blue:sata3";
+			gpios = <&pca9554 2 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		blue-sata4-led {
+			label = "rn104:blue:sata4";
+			gpios = <&pca9554 3 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+
+	auxdisplay {
+		compatible = "hit,hd44780";
+		data-gpios = <&gpio1 25 GPIO_ACTIVE_HIGH>,
+				<&gpio1 26 GPIO_ACTIVE_HIGH>,
+				<&gpio1 27 GPIO_ACTIVE_HIGH>,
+				<&gpio1 29 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
+		rs-gpios = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+		rw-gpios = <&gpio1 23 GPIO_ACTIVE_HIGH>;
+		backlight-gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+		display-height-chars = <2>;
+		display-width-chars = <16>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&backup_button_pin
+			     &power_button_pin
+			     &reset_button_pin>;
+		pinctrl-names = "default";
+
+		backup-button {
+			label = "Backup Button";
+			linux,code = <KEY_COPY>;
+			gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
+		};
+
+		power-button {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+		};
+
+		reset-button {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio1 28 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/* Connected to FL1009 USB 3.0 controller */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* Connected to Marvell 88SE9215 SATA controller */
+	pcie@2,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+	phy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 { /* Marvell 88E1318 */
+		reg = <1>;
+	};
+};
+
+&pinctrl {
+	poweroff: poweroff {
+		marvell,pins = "mpp60";
+		marvell,function = "gpio";
+	};
+
+	backup_button_pin: backup-button-pin {
+		marvell,pins = "mpp52";
+		marvell,function = "gpio";
+	};
+
+	power_button_pin: power-button-pin {
+		marvell,pins = "mpp62";
+		marvell,function = "gpio";
+	};
+
+	backup_led_pin: backup-led-pin {
+		marvell,pins = "mpp63";
+		marvell,function = "gpio";
+	};
+
+	power_led_pin: power-led-pin {
+		marvell,pins = "mpp64";
+		marvell,function = "gpio";
+	};
+
+	reset_button_pin: reset-button-pin {
+		marvell,pins = "mpp65";
+		marvell,function = "gpio";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+
+		/* Use Hardware BCH ECC */
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0000000 0x180000>;  /* 1.5MB */
+				read-only;
+			};
+
+			partition@180000 {
+				label = "u-boot-env";
+				reg = <0x180000 0x20000>;    /* 128KB */
+				read-only;
+			};
+
+			partition@200000 {
+				label = "uImage";
+				reg = <0x0200000 0x600000>;    /* 6MB */
+			};
+
+			partition@800000 {
+				label = "minirootfs";
+				reg = <0x0800000 0x400000>;    /* 4MB */
+			};
+
+			/* Last MB is for the BBT, i.e. not writable */
+			partition@c00000 {
+				label = "ubifs";
+				reg = <0x0c00000 0x7400000>; /* 116MB */
+			};
+		};
+	};
+};

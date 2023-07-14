@@ -1666,10 +1666,9 @@ static int cs43130_show_dc(struct device *dev, char *buf, u8 ch)
 	struct cs43130_private *cs43130 = i2c_get_clientdata(client);
 
 	if (!cs43130->hpload_done)
-		return scnprintf(buf, PAGE_SIZE, "NO_HPLOAD\n");
+		return sysfs_emit(buf, "NO_HPLOAD\n");
 	else
-		return scnprintf(buf, PAGE_SIZE, "%u\n",
-				 cs43130->hpload_dc[ch]);
+		return sysfs_emit(buf, "%u\n", cs43130->hpload_dc[ch]);
 }
 
 static ssize_t hpload_dc_l_show(struct device *dev,
@@ -1705,8 +1704,8 @@ static int cs43130_show_ac(struct device *dev, char *buf, u8 ch)
 
 	if (cs43130->hpload_done && cs43130->ac_meas) {
 		for (i = 0; i < ARRAY_SIZE(cs43130_ac_freq); i++) {
-			tmp = scnprintf(buf + j, PAGE_SIZE - j, "%u\n",
-					cs43130->hpload_ac[i][ch]);
+			tmp = sysfs_emit_at(buf, j, "%u\n",
+					    cs43130->hpload_ac[i][ch]);
 			if (!tmp)
 				break;
 
@@ -1715,7 +1714,7 @@ static int cs43130_show_ac(struct device *dev, char *buf, u8 ch)
 
 		return j;
 	} else {
-		return scnprintf(buf, PAGE_SIZE, "NO_HPLOAD\n");
+		return sysfs_emit(buf, "NO_HPLOAD\n");
 	}
 }
 
@@ -2358,7 +2357,7 @@ static const struct regmap_config cs43130_regmap = {
 	.readable_reg		= cs43130_readable_register,
 	.precious_reg		= cs43130_precious_register,
 	.volatile_reg		= cs43130_volatile_register,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 	/* needed for regcache_sync */
 	.use_single_read	= true,
 	.use_single_write	= true,
@@ -2698,7 +2697,7 @@ static struct i2c_driver cs43130_i2c_driver = {
 		.pm             = &cs43130_runtime_pm,
 	},
 	.id_table	= cs43130_i2c_id,
-	.probe_new	= cs43130_i2c_probe,
+	.probe		= cs43130_i2c_probe,
 	.remove		= cs43130_i2c_remove,
 };
 

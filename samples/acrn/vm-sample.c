@@ -13,7 +13,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <signal.h>
@@ -29,8 +28,6 @@ static struct acrn_io_request *io_req_buf = (struct acrn_io_request *)io_request
 
 __u16 vcpu_num;
 __u16 vmid;
-/* POST_STANDARD_VM_UUID1, refer to https://github.com/projectacrn/acrn-hypervisor/blob/master/hypervisor/include/common/vm_uuids.h */
-guid_t vm_uuid = GUID_INIT(0x385479d2, 0xd625, 0xe811, 0x86, 0x4e, 0xcb, 0x7a, 0x18, 0xb3, 0x46, 0x43);
 
 int hsm_fd;
 int is_running = 1;
@@ -56,14 +53,13 @@ int main(int argc, char **argv)
 	argc = argc;
 	argv = argv;
 
-	guest_memory = memalign(4096, GUEST_MEMORY_SIZE);
-	if (!guest_memory) {
+	ret = posix_memalign(&guest_memory, 4096, GUEST_MEMORY_SIZE);
+	if (ret < 0) {
 		printf("No enough memory!\n");
 		return -1;
 	}
 	hsm_fd = open("/dev/acrn_hsm", O_RDWR|O_CLOEXEC);
 
-	memcpy(&create_vm.uuid, &vm_uuid, 16);
 	create_vm.ioreq_buf = (__u64)io_req_buf;
 	ret = ioctl(hsm_fd, ACRN_IOCTL_CREATE_VM, &create_vm);
 	printf("Created VM! [%d]\n", ret);

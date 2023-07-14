@@ -62,6 +62,7 @@ int main(void)
 	OFFSET(__SF_SIE_SAVEAREA, stack_frame, sie_savearea);
 	OFFSET(__SF_SIE_REASON, stack_frame, sie_reason);
 	OFFSET(__SF_SIE_FLAGS, stack_frame, sie_flags);
+	OFFSET(__SF_SIE_CONTROL_PHYS, stack_frame, sie_control_block_phys);
 	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
 	/* idle data offsets */
@@ -121,7 +122,6 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_TIMER, lowcore, last_update_timer);
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
-	OFFSET(__LC_MCCK_CLOCK, lowcore, mcck_clock);
 	OFFSET(__LC_BOOT_CLOCK, lowcore, boot_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);

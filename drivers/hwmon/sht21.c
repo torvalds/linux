@@ -114,7 +114,7 @@ out:
 }
 
 /**
- * sht21_show_temperature() - show temperature measurement value in sysfs
+ * sht21_temperature_show() - show temperature measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -136,7 +136,7 @@ static ssize_t sht21_temperature_show(struct device *dev,
 }
 
 /**
- * sht21_show_humidity() - show humidity measurement value in sysfs
+ * sht21_humidity_show() - show humidity measurement value in sysfs
  * @dev: device
  * @attr: device attribute
  * @buf: sysfs buffer (PAGE_SIZE) where measurement values are written to
@@ -285,7 +285,7 @@ MODULE_DEVICE_TABLE(i2c, sht21_id);
 
 static struct i2c_driver sht21_driver = {
 	.driver.name = "sht21",
-	.probe_new   = sht21_probe,
+	.probe       = sht21_probe,
 	.id_table    = sht21_id,
 };
 

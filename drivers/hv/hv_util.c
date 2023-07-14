@@ -602,7 +602,7 @@ error1:
 	return ret;
 }
 
-static int util_remove(struct hv_device *dev)
+static void util_remove(struct hv_device *dev)
 {
 	struct hv_util_service *srv = hv_get_drvdata(dev);
 
@@ -610,8 +610,6 @@ static int util_remove(struct hv_device *dev)
 		srv->util_deinit();
 	vmbus_close(dev->channel);
 	kfree(srv->recv_buffer);
-
-	return 0;
 }
 
 /*
@@ -706,7 +704,7 @@ static int hv_ptp_settime(struct ptp_clock_info *p, const struct timespec64 *ts)
 	return -EOPNOTSUPP;
 }
 
-static int hv_ptp_adjfreq(struct ptp_clock_info *ptp, s32 delta)
+static int hv_ptp_adjfine(struct ptp_clock_info *ptp, long delta)
 {
 	return -EOPNOTSUPP;
 }
@@ -724,7 +722,7 @@ static struct ptp_clock_info ptp_hyperv_info = {
 	.name		= "hyperv",
 	.enable         = hv_ptp_enable,
 	.adjtime        = hv_ptp_adjtime,
-	.adjfreq        = hv_ptp_adjfreq,
+	.adjfine        = hv_ptp_adjfine,
 	.gettime64      = hv_ptp_gettime,
 	.settime64      = hv_ptp_settime,
 	.owner		= THIS_MODULE,

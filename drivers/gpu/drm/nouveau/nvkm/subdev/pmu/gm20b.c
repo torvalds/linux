@@ -62,16 +62,6 @@ gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 	return ret;
 }
 
-int
-gm20b_pmu_acr_boot(struct nvkm_falcon *falcon)
-{
-	struct nv_pmu_args args = { .secure_mode = true };
-	const u32 addr_args = falcon->data.limit - sizeof(struct nv_pmu_args);
-	nvkm_falcon_load_dmem(falcon, &args, addr_args, sizeof(args), 0);
-	nvkm_falcon_start(falcon);
-	return 0;
-}
-
 void
 gm20b_pmu_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
 {
@@ -125,7 +115,6 @@ gm20b_pmu_acr = {
 	.bld_size = sizeof(struct loader_config),
 	.bld_write = gm20b_pmu_acr_bld_write,
 	.bld_patch = gm20b_pmu_acr_bld_patch,
-	.boot = gm20b_pmu_acr_boot,
 	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_PMU) |
 			     BIT_ULL(NVKM_ACR_LSF_FECS) |
 			     BIT_ULL(NVKM_ACR_LSF_GPCCS),
@@ -166,7 +155,7 @@ gm20b_pmu_acr_init_wpr(struct nvkm_pmu *pmu)
 				     gm20b_pmu_acr_init_wpr_callback, pmu, 0);
 }
 
-int
+static int
 gm20b_pmu_initmsg(struct nvkm_pmu *pmu)
 {
 	struct nv_pmu_init_msg msg;
@@ -192,14 +181,13 @@ gm20b_pmu_initmsg(struct nvkm_pmu *pmu)
 	return gm20b_pmu_acr_init_wpr(pmu);
 }
 
-void
+static void
 gm20b_pmu_recv(struct nvkm_pmu *pmu)
 {
 	if (!pmu->initmsg_received) {
 		int ret = pmu->func->initmsg(pmu);
 		if (ret) {
-			nvkm_error(&pmu->subdev,
-				   "error parsing init message: %d\n", ret);
+			nvkm_error(&pmu->subdev, "error parsing init message: %d\n", ret);
 			return;
 		}
 
@@ -209,10 +197,44 @@ gm20b_pmu_recv(struct nvkm_pmu *pmu)
 	nvkm_falcon_msgq_recv(pmu->msgq);
 }
 
-static const struct nvkm_pmu_func
+static void
+gm20b_pmu_fini(struct nvkm_pmu *pmu)
+{
+	/*TODO: shutdown RTOS. */
+
+	flush_work(&pmu->recv.work);
+	nvkm_falcon_cmdq_fini(pmu->lpq);
+	nvkm_falcon_cmdq_fini(pmu->hpq);
+
+	reinit_completion(&pmu->wpr_ready);
+
+	nvkm_falcon_put(&pmu->falcon, &pmu->subdev);
+}
+
+static int
+gm20b_pmu_init(struct nvkm_pmu *pmu)
+{
+	struct nvkm_falcon *falcon = &pmu->falcon;
+	struct nv_pmu_args args = { .secure_mode = true };
+	u32 addr_args = falcon->data.limit - sizeof(args);
+	int ret;
+
+	ret = nvkm_falcon_get(&pmu->falcon, &pmu->subdev);
+	if (ret)
+		return ret;
+
+	pmu->initmsg_received = false;
+
+	nvkm_falcon_pio_wr(falcon, (u8 *)&args, 0, 0, DMEM, addr_args, sizeof(args), 0, false);
+	nvkm_falcon_start(falcon);
+	return 0;
+}
+
+const struct nvkm_pmu_func
 gm20b_pmu = {
 	.flcn = &gm200_pmu_flcn,
-	.enabled = gf100_pmu_enabled,
+	.init = gm20b_pmu_init,
+	.fini = gm20b_pmu_fini,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
 	.initmsg = gm20b_pmu_initmsg,

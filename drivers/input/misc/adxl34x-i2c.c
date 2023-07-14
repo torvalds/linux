@@ -74,8 +74,7 @@ static const struct adxl34x_bus_ops adxl34x_i2c_bops = {
 	.read_block	= adxl34x_i2c_read_block,
 };
 
-static int adxl34x_i2c_probe(struct i2c_client *client,
-				       const struct i2c_device_id *id)
+static int adxl34x_i2c_probe(struct i2c_client *client)
 {
 	struct adxl34x *ac;
 	int error;
@@ -106,29 +105,6 @@ static void adxl34x_i2c_remove(struct i2c_client *client)
 	adxl34x_remove(ac);
 }
 
-static int __maybe_unused adxl34x_i2c_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adxl34x *ac = i2c_get_clientdata(client);
-
-	adxl34x_suspend(ac);
-
-	return 0;
-}
-
-static int __maybe_unused adxl34x_i2c_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct adxl34x *ac = i2c_get_clientdata(client);
-
-	adxl34x_resume(ac);
-
-	return 0;
-}
-
-static SIMPLE_DEV_PM_OPS(adxl34x_i2c_pm, adxl34x_i2c_suspend,
-			 adxl34x_i2c_resume);
-
 static const struct i2c_device_id adxl34x_id[] = {
 	{ "adxl34x", 0 },
 	{ }
@@ -156,7 +132,7 @@ MODULE_DEVICE_TABLE(of, adxl34x_of_id);
 static struct i2c_driver adxl34x_driver = {
 	.driver = {
 		.name = "adxl34x",
-		.pm = &adxl34x_i2c_pm,
+		.pm = pm_sleep_ptr(&adxl34x_pm),
 		.of_match_table = adxl34x_of_id,
 	},
 	.probe    = adxl34x_i2c_probe,

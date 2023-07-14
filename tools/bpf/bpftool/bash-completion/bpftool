@@ -255,27 +255,30 @@ _bpftool_map_update_get_name()
 
 _bpftool()
 {
-    local cur prev words objword
+    local cur prev words objword json=0
     _init_completion || return
 
     # Deal with options
     if [[ ${words[cword]} == -* ]]; then
         local c='--version --json --pretty --bpffs --mapcompat --debug \
-	       --use-loader --base-btf --legacy'
+            --use-loader --base-btf'
         COMPREPLY=( $( compgen -W "$c" -- "$cur" ) )
         return 0
+    fi
+    if _bpftool_search_list -j --json -p --pretty; then
+        json=1
     fi
 
     # Deal with simplest keywords
     case $prev in
-        help|hex|opcodes|visual|linum)
+        help|hex)
             return 0
             ;;
         tag)
             _bpftool_get_prog_tags
             return 0
             ;;
-        dev)
+        dev|offload_dev|xdpmeta_dev)
             _sysfs_get_netdevs
             return 0
             ;;
@@ -366,13 +369,16 @@ _bpftool()
                             return 0
                             ;;
                         *)
-                            _bpftool_once_attr 'file'
-                            if _bpftool_search_list 'xlated'; then
-                                COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
-                                    "$cur" ) )
-                            else
-                                COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
-                                    "$cur" ) )
+                            # "file" is not compatible with other keywords here
+                            if _bpftool_search_list 'file'; then
+                                return 0
+                            fi
+                            if ! _bpftool_search_list 'linum opcodes visual'; then
+                                _bpftool_once_attr 'file'
+                            fi
+                            _bpftool_once_attr 'linum opcodes'
+                            if _bpftool_search_list 'xlated' && [[ "$json" == 0 ]]; then
+                                _bpftool_once_attr 'visual'
                             fi
                             return 0
                             ;;
@@ -502,9 +508,8 @@ _bpftool()
                             ;;
                         *)
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
-                            _bpftool_once_attr 'type'
-                            _bpftool_once_attr 'dev'
-                            _bpftool_once_attr 'pinmaps'
+                            _bpftool_once_attr 'type pinmaps autoattach'
+                            _bpftool_one_of_list 'offload_dev xdpmeta_dev'
                             return 0
                             ;;
                     esac
@@ -729,16 +734,10 @@ _bpftool()
                             esac
                             ;;
                         *)
-                            _bpftool_once_attr 'type'
-                            _bpftool_once_attr 'key'
-                            _bpftool_once_attr 'value'
-                            _bpftool_once_attr 'entries'
-                            _bpftool_once_attr 'name'
-                            _bpftool_once_attr 'flags'
+                            _bpftool_once_attr 'type key value entries name flags offload_dev'
                             if _bpftool_search_list 'array_of_maps' 'hash_of_maps'; then
                                 _bpftool_once_attr 'inner_map'
                             fi
-                            _bpftool_once_attr 'dev'
                             return 0
                             ;;
                     esac
@@ -879,8 +878,7 @@ _bpftool()
                             return 0
                             ;;
                         *)
-                            _bpftool_once_attr 'cpu'
-                            _bpftool_once_attr 'index'
+                            _bpftool_once_attr 'cpu index'
                             return 0
                             ;;
                     esac

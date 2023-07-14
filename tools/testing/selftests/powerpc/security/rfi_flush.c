@@ -34,18 +34,18 @@ int rfi_flush_test(void)
 	// The PMU event we use only works on Power7 or later
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
-	if (read_debugfs_file("powerpc/rfi_flush", &rfi_flush_orig) < 0) {
+	if (read_debugfs_int("powerpc/rfi_flush", &rfi_flush_orig) < 0) {
 		perror("Unable to read powerpc/rfi_flush debugfs file");
 		SKIP_IF(1);
 	}
 
-	if (read_debugfs_file("powerpc/entry_flush", &entry_flush_orig) < 0) {
+	if (read_debugfs_int("powerpc/entry_flush", &entry_flush_orig) < 0) {
 		have_entry_flush = 0;
 	} else {
 		have_entry_flush = 1;
 
 		if (entry_flush_orig != 0) {
-			if (write_debugfs_file("powerpc/entry_flush", 0) < 0) {
+			if (write_debugfs_int("powerpc/entry_flush", 0) < 0) {
 				perror("error writing to powerpc/entry_flush debugfs file");
 				return 1;
 			}
@@ -105,7 +105,7 @@ again:
 
 	if (rfi_flush == rfi_flush_orig) {
 		rfi_flush = !rfi_flush_orig;
-		if (write_debugfs_file("powerpc/rfi_flush", rfi_flush) < 0) {
+		if (write_debugfs_int("powerpc/rfi_flush", rfi_flush) < 0) {
 			perror("error writing to powerpc/rfi_flush debugfs file");
 			return 1;
 		}
@@ -120,13 +120,13 @@ again:
 
 	set_dscr(0);
 
-	if (write_debugfs_file("powerpc/rfi_flush", rfi_flush_orig) < 0) {
+	if (write_debugfs_int("powerpc/rfi_flush", rfi_flush_orig) < 0) {
 		perror("unable to restore original value of powerpc/rfi_flush debugfs file");
 		return 1;
 	}
 
 	if (have_entry_flush) {
-		if (write_debugfs_file("powerpc/entry_flush", entry_flush_orig) < 0) {
+		if (write_debugfs_int("powerpc/entry_flush", entry_flush_orig) < 0) {
 			perror("unable to restore original value of powerpc/entry_flush "
 			       "debugfs file");
 			return 1;

@@ -26,9 +26,6 @@ struct snd_dma_device {
 	struct device *dev;		/* generic device */
 };
 
-#define snd_dma_continuous_data(x)	((struct device *)(__force unsigned long)(x))
-
-
 /*
  * buffer types
  */

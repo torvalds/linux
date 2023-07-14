@@ -40,28 +40,29 @@ properties:
       output stage will shut down until the ADF4371/ADF4372 achieves lock as
       measured by the digital lock detect circuitry.
 
-  spi-max-frequency: true
-
 required:
   - compatible
   - reg
   - clocks
   - clock-names
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
         frequency@0 {
-                compatible = "adi,adf4371";
-                reg = <0>;
-                spi-max-frequency = <1000000>;
-                clocks = <&adf4371_clkin>;
-                clock-names = "clkin";
+            compatible = "adi,adf4371";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            clocks = <&adf4371_clkin>;
+            clock-names = "clkin";
         };
     };
 ...

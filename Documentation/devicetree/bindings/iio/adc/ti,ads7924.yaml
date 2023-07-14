@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,ads7924.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI ADS7924 4 channels 12 bits I2C analog to digital converter
+
+maintainers:
+  - Hugo Villeneuve <hvilleneuve@dimonoff.com>
+
+description: |
+  Texas Instruments ADS7924 4 channels 12 bits I2C analog to digital converter
+
+  Specifications:
+    https://www.ti.com/lit/gpn/ads7924
+
+properties:
+  compatible:
+    const: ti,ads7924
+
+  reg:
+    maxItems: 1
+
+  vref-supply:
+    description:
+      The regulator supply for the ADC reference voltage (AVDD)
+
+  reset-gpios:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 0
+
+  "#io-channel-cells":
+    const: 1
+
+patternProperties:
+  "^channel@[0-3]+$":
+    $ref: adc.yaml
+
+    description: |
+      Represents the external channels which are connected to the ADC.
+
+    properties:
+      reg:
+        description: |
+          The channel number. It can have up to 4 channels numbered from 0 to 3.
+        items:
+          - minimum: 0
+            maximum: 3
+
+      label: true
+
+    required:
+      - reg
+
+    additionalProperties: false
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - vref-supply
+  - "#address-cells"
+  - "#size-cells"
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@48 {
+            compatible = "ti,ads7924";
+            reg = <0x48>;
+            vref-supply = <&ads7924_reg>;
+            reset-gpios = <&gpio 5 GPIO_ACTIVE_LOW>;
+            interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-parent = <&gpio>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            channel@0 {
+                reg = <0>;
+                label = "CH0";
+            };
+            channel@1 {
+                reg = <1>;
+                label = "CH1";
+            };
+            channel@2 {
+                reg = <2>;
+                label = "CH2";
+            };
+            channel@3 {
+                reg = <3>;
+                label = "CH3";
+            };
+        };
+    };
+...

@@ -43,6 +43,29 @@
 
 static DEFINE_RAW_SPINLOCK(native_tlbie_lock);
 
+#ifdef CONFIG_LOCKDEP
+static struct lockdep_map hpte_lock_map =
+	STATIC_LOCKDEP_MAP_INIT("hpte_lock", &hpte_lock_map);
+
+static void acquire_hpte_lock(void)
+{
+	lock_map_acquire(&hpte_lock_map);
+}
+
+static void release_hpte_lock(void)
+{
+	lock_map_release(&hpte_lock_map);
+}
+#else
+static void acquire_hpte_lock(void)
+{
+}
+
+static void release_hpte_lock(void)
+{
+}
+#endif
+
 static inline unsigned long  ___tlbie(unsigned long vpn, int psize,
 						int apsize, int ssize)
 {
@@ -220,6 +243,7 @@ static inline void native_lock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = (unsigned long *)&hptep->v;
 
+	acquire_hpte_lock();
 	while (1) {
 		if (!test_and_set_bit_lock(HPTE_LOCK_BIT, word))
 			break;
@@ -234,6 +258,7 @@ static inline void native_unlock_hpte(struct hash_pte *hptep)
 {
 	unsigned long *word = (unsigned long *)&hptep->v;
 
+	release_hpte_lock();
 	clear_bit_unlock(HPTE_LOCK_BIT, word);
 }
 
@@ -243,7 +268,10 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 {
 	struct hash_pte *hptep = htab_address + hpte_group;
 	unsigned long hpte_v, hpte_r;
+	unsigned long flags;
 	int i;
+
+	local_irq_save(flags);
 
 	if (!(vflags & HPTE_V_BOLTED)) {
 		DBG_LOW("    insert(group=%lx, vpn=%016lx, pa=%016lx,"
@@ -263,8 +291,10 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 		hptep++;
 	}
 
-	if (i == HPTES_PER_GROUP)
+	if (i == HPTES_PER_GROUP) {
+		local_irq_restore(flags);
 		return -1;
+	}
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
 	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
@@ -286,9 +316,12 @@ static long native_hpte_insert(unsigned long hpte_group, unsigned long vpn,
 	 * Now set the first dword including the valid bit
 	 * NOTE: this also unlocks the hpte
 	 */
+	release_hpte_lock();
 	hptep->v = cpu_to_be64(hpte_v);
 
 	__asm__ __volatile__ ("ptesync" : : : "memory");
+
+	local_irq_restore(flags);
 
 	return i | (!!(vflags & HPTE_V_SECONDARY) << 3);
 }
@@ -327,6 +360,7 @@ static long native_hpte_remove(unsigned long hpte_group)
 		return -1;
 
 	/* Invalidate the hpte. NOTE: this also unlocks it */
+	release_hpte_lock();
 	hptep->v = 0;
 
 	return i;
@@ -339,6 +373,9 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	struct hash_pte *hptep = htab_address + slot;
 	unsigned long hpte_v, want_v;
 	int ret = 0, local = 0;
+	unsigned long irqflags;
+
+	local_irq_save(irqflags);
 
 	want_v = hpte_encode_avpn(vpn, bpsize, ssize);
 
@@ -381,6 +418,8 @@ static long native_hpte_updatepp(unsigned long slot, unsigned long newpp,
 	 */
 	if (!(flags & HPTE_NOHPTE_UPDATE))
 		tlbie(vpn, bpsize, apsize, ssize, local);
+
+	local_irq_restore(irqflags);
 
 	return ret;
 }
@@ -445,6 +484,9 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	unsigned long vsid;
 	long slot;
 	struct hash_pte *hptep;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	vsid = get_kernel_vsid(ea, ssize);
 	vpn = hpt_vpn(ea, vsid, ssize);
@@ -463,6 +505,8 @@ static void native_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
 	 * actual page size will be same.
 	 */
 	tlbie(vpn, psize, psize, ssize, 0);
+
+	local_irq_restore(flags);
 }
 
 /*
@@ -476,6 +520,9 @@ static int native_hpte_removebolted(unsigned long ea, int psize, int ssize)
 	unsigned long vsid;
 	long slot;
 	struct hash_pte *hptep;
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	vsid = get_kernel_vsid(ea, ssize);
 	vpn = hpt_vpn(ea, vsid, ssize);
@@ -493,6 +540,9 @@ static int native_hpte_removebolted(unsigned long ea, int psize, int ssize)
 
 	/* Invalidate the TLB */
 	tlbie(vpn, psize, psize, ssize, 0);
+
+	local_irq_restore(flags);
+
 	return 0;
 }
 
@@ -517,10 +567,11 @@ static void native_hpte_invalidate(unsigned long slot, unsigned long vpn,
 		/* recheck with locks held */
 		hpte_v = hpte_get_old_v(hptep);
 
-		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID))
+		if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
 			/* Invalidate the hpte. NOTE: this also unlocks it */
+			release_hpte_lock();
 			hptep->v = 0;
-		else
+		} else
 			native_unlock_hpte(hptep);
 	}
 	/*
@@ -580,10 +631,8 @@ static void native_hugepage_invalidate(unsigned long vsid,
 			hpte_v = hpte_get_old_v(hptep);
 
 			if (HPTE_V_COMPARE(hpte_v, want_v) && (hpte_v & HPTE_V_VALID)) {
-				/*
-				 * Invalidate the hpte. NOTE: this also unlocks it
-				 */
-
+				/* Invalidate the hpte. NOTE: this also unlocks it */
+				release_hpte_lock();
 				hptep->v = 0;
 			} else
 				native_unlock_hpte(hptep);
@@ -765,8 +814,10 @@ static void native_flush_hash_range(unsigned long number, int local)
 
 			if (!HPTE_V_COMPARE(hpte_v, want_v) || !(hpte_v & HPTE_V_VALID))
 				native_unlock_hpte(hptep);
-			else
+			else {
+				release_hpte_lock();
 				hptep->v = 0;
+			}
 
 		} pte_iterate_hashed_end();
 	}

@@ -3,7 +3,7 @@
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -295,8 +295,8 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 						 target));
 	}
 	if (target->common.type != ACPI_TYPE_INTEGER) {
-		ACPI_EXCEPTION((AE_INFO, AE_TYPE,
-				"Type not integer: %X\n", target->common.type));
+		ACPI_ERROR((AE_INFO, "Type not integer: %X",
+			    target->common.type));
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
 

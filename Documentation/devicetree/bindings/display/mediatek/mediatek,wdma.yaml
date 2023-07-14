@@ -21,7 +21,10 @@ description: |
 properties:
   compatible:
     oneOf:
+      - enum:
+          - mediatek,mt8173-disp-wdma
       - items:
+          - const: mediatek,mt6795-disp-wdma
           - const: mediatek,mt8173-disp-wdma
 
   reg:

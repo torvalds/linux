@@ -102,11 +102,11 @@ size_is_lt(uint32_t width, uint32_t height, int cpp)
 		height <= 4 * utile_height(cpp));
 }
 
-struct drm_gem_cma_object *
+struct drm_gem_dma_object *
 vc4_use_bo(struct vc4_exec_info *exec, uint32_t hindex)
 {
 	struct vc4_dev *vc4 = exec->dev;
-	struct drm_gem_cma_object *obj;
+	struct drm_gem_dma_object *obj;
 	struct vc4_bo *bo;
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
@@ -117,7 +117,7 @@ vc4_use_bo(struct vc4_exec_info *exec, uint32_t hindex)
 			  hindex, exec->bo_count);
 		return NULL;
 	}
-	obj = exec->bo[hindex];
+	obj = to_drm_gem_dma_obj(exec->bo[hindex]);
 	bo = to_vc4_bo(&obj->base);
 
 	if (bo->validated_shader) {
@@ -129,7 +129,7 @@ vc4_use_bo(struct vc4_exec_info *exec, uint32_t hindex)
 	return obj;
 }
 
-static struct drm_gem_cma_object *
+static struct drm_gem_dma_object *
 vc4_use_handle(struct vc4_exec_info *exec, uint32_t gem_handles_packet_index)
 {
 	return vc4_use_bo(exec, exec->bo_index[gem_handles_packet_index]);
@@ -160,7 +160,7 @@ gl_shader_rec_size(uint32_t pointer_bits)
 }
 
 bool
-vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_cma_object *fbo,
+vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_dma_object *fbo,
 		   uint32_t offset, uint8_t tiling_format,
 		   uint32_t width, uint32_t height, uint8_t cpp)
 {
@@ -263,7 +263,7 @@ validate_increment_semaphore(VALIDATE_ARGS)
 static int
 validate_indexed_prim_list(VALIDATE_ARGS)
 {
-	struct drm_gem_cma_object *ib;
+	struct drm_gem_dma_object *ib;
 	uint32_t length = *(uint32_t *)(untrusted + 1);
 	uint32_t offset = *(uint32_t *)(untrusted + 5);
 	uint32_t max_index = *(uint32_t *)(untrusted + 9);
@@ -294,7 +294,7 @@ validate_indexed_prim_list(VALIDATE_ARGS)
 		return -EINVAL;
 	}
 
-	*(uint32_t *)(validated + 5) = ib->paddr + offset;
+	*(uint32_t *)(validated + 5) = ib->dma_addr + offset;
 
 	return 0;
 }
@@ -400,7 +400,7 @@ validate_tile_binning_config(VALIDATE_ARGS)
 	 * free when the job completes rendering.
 	 */
 	exec->bin_slots |= BIT(bin_slot);
-	bin_addr = vc4->bin_bo->base.paddr + bin_slot * vc4->bin_alloc_size;
+	bin_addr = vc4->bin_bo->base.dma_addr + bin_slot * vc4->bin_alloc_size;
 
 	/* The tile state data array is 48 bytes per tile, and we put it at
 	 * the start of a BO containing both it and the tile alloc.
@@ -575,7 +575,7 @@ reloc_tex(struct vc4_exec_info *exec,
 	  struct vc4_texture_sample_info *sample,
 	  uint32_t texture_handle_index, bool is_cs)
 {
-	struct drm_gem_cma_object *tex;
+	struct drm_gem_dma_object *tex;
 	uint32_t p0 = *(uint32_t *)(uniform_data_u + sample->p_offset[0]);
 	uint32_t p1 = *(uint32_t *)(uniform_data_u + sample->p_offset[1]);
 	uint32_t p2 = (sample->p_offset[2] != ~0 ?
@@ -608,7 +608,7 @@ reloc_tex(struct vc4_exec_info *exec,
 				  "outside of UBO\n");
 			goto fail;
 		}
-		*validated_p0 = tex->paddr + p0;
+		*validated_p0 = tex->dma_addr + p0;
 		return true;
 	}
 
@@ -736,7 +736,7 @@ reloc_tex(struct vc4_exec_info *exec,
 		offset -= level_size;
 	}
 
-	*validated_p0 = tex->paddr + p0;
+	*validated_p0 = tex->dma_addr + p0;
 
 	if (is_cs) {
 		exec->bin_dep_seqno = max(exec->bin_dep_seqno,
@@ -765,7 +765,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 		28, /* cs */
 	};
 	uint32_t shader_reloc_count = ARRAY_SIZE(shader_reloc_offsets);
-	struct drm_gem_cma_object *bo[ARRAY_SIZE(shader_reloc_offsets) + 8];
+	struct drm_gem_dma_object *bo[ARRAY_SIZE(shader_reloc_offsets) + 8];
 	uint32_t nr_attributes, nr_relocs, packet_size;
 	int i;
 
@@ -810,7 +810,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 			return -EINVAL;
 		}
 
-		bo[i] = exec->bo[src_handles[i]];
+		bo[i] = to_drm_gem_dma_obj(exec->bo[src_handles[i]]);
 		if (!bo[i])
 			return -EINVAL;
 	}
@@ -840,7 +840,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 		void *uniform_data_u;
 		uint32_t tex, uni;
 
-		*(uint32_t *)(pkt_v + o) = bo[i]->paddr + src_offset;
+		*(uint32_t *)(pkt_v + o) = bo[i]->dma_addr + src_offset;
 
 		if (src_offset != 0) {
 			DRM_DEBUG("Shaders must be at offset 0 of "
@@ -896,7 +896,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 	}
 
 	for (i = 0; i < nr_attributes; i++) {
-		struct drm_gem_cma_object *vbo =
+		struct drm_gem_dma_object *vbo =
 			bo[ARRAY_SIZE(shader_reloc_offsets) + i];
 		uint32_t o = 36 + i * 8;
 		uint32_t offset = *(uint32_t *)(pkt_u + o + 0);
@@ -928,7 +928,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 			}
 		}
 
-		*(uint32_t *)(pkt_v + o) = vbo->paddr + offset;
+		*(uint32_t *)(pkt_v + o) = vbo->dma_addr + offset;
 	}
 
 	return 0;

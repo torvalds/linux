@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/net/allwinner,sun7i-a20-gmac.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A20 GMAC Device Tree Bindings
+title: Allwinner A20 GMAC
 
 allOf:
-  - $ref: "snps,dwmac.yaml#"
+  - $ref: snps,dwmac.yaml#
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>

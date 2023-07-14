@@ -3,6 +3,7 @@
 #include "pmu.h"
 #include "tests.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <linux/kernel.h>
 #include <linux/limits.h>
@@ -85,17 +86,16 @@ static struct parse_events_term test_terms[] = {
  * Prepare format directory data, exported by kernel
  * at /sys/bus/event_source/devices/<dev>/format.
  */
-static char *test_format_dir_get(void)
+static char *test_format_dir_get(char *dir, size_t sz)
 {
-	static char dir[PATH_MAX];
 	unsigned int i;
 
-	snprintf(dir, PATH_MAX, "/tmp/perf-pmu-test-format-XXXXXX");
+	snprintf(dir, sz, "/tmp/perf-pmu-test-format-XXXXXX");
 	if (!mkdtemp(dir))
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(test_formats); i++) {
-		static char name[PATH_MAX];
+		char name[PATH_MAX];
 		struct test_format *format = &test_formats[i];
 		FILE *file;
 
@@ -117,12 +117,13 @@ static char *test_format_dir_get(void)
 /* Cleanup format directory. */
 static int test_format_dir_put(char *dir)
 {
-	char buf[PATH_MAX];
-	snprintf(buf, PATH_MAX, "rm -f %s/*\n", dir);
+	char buf[PATH_MAX + 20];
+
+	snprintf(buf, sizeof(buf), "rm -f %s/*\n", dir);
 	if (system(buf))
 		return -1;
 
-	snprintf(buf, PATH_MAX, "rmdir %s\n", dir);
+	snprintf(buf, sizeof(buf), "rmdir %s\n", dir);
 	return system(buf);
 }
 
@@ -139,7 +140,8 @@ static struct list_head *test_terms_list(void)
 
 static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	char *format = test_format_dir_get();
+	char dir[PATH_MAX];
+	char *format = test_format_dir_get(dir, sizeof(dir));
 	LIST_HEAD(formats);
 	struct list_head *terms = test_terms_list();
 	int ret;
@@ -149,10 +151,16 @@ static int test__pmu(struct test_suite *test __maybe_unused, int subtest __maybe
 
 	do {
 		struct perf_event_attr attr;
+		int fd;
 
 		memset(&attr, 0, sizeof(attr));
 
-		ret = perf_pmu__format_parse(format, &formats);
+		fd = open(format, O_DIRECTORY);
+		if (fd < 0) {
+			ret = fd;
+			break;
+		}
+		ret = perf_pmu__format_parse(fd, &formats);
 		if (ret)
 			break;
 

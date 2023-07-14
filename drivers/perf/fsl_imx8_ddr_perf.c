@@ -97,7 +97,6 @@ struct ddr_pmu {
 	struct	hlist_node node;
 	struct	device *dev;
 	struct perf_event *events[NUM_COUNTERS];
-	int active_events;
 	enum cpuhp_state cpuhp_state;
 	const struct fsl_ddr_devtype_data *devtype_data;
 	int irq;
@@ -530,7 +529,6 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 	}
 
 	pmu->events[counter] = event;
-	pmu->active_events++;
 	hwc->idx = counter;
 
 	hwc->state |= PERF_HES_STOPPED;
@@ -562,7 +560,6 @@ static void ddr_perf_event_del(struct perf_event *event, int flags)
 	ddr_perf_event_stop(event, PERF_EF_UPDATE);
 
 	ddr_perf_free_counter(pmu, counter);
-	pmu->active_events--;
 	hwc->idx = -1;
 }
 

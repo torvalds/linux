@@ -381,7 +381,7 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 	}
 
 	/* Take PCS out of reset */
-	lan_rmw(DEV_CLOCK_CFG_LINK_SPEED_SET(2) |
+	lan_rmw(DEV_CLOCK_CFG_LINK_SPEED_SET(LAN966X_SPEED_1000) |
 		DEV_CLOCK_CFG_PCS_RX_RST_SET(0) |
 		DEV_CLOCK_CFG_PCS_TX_RST_SET(0),
 		DEV_CLOCK_CFG_LINK_SPEED |
@@ -392,6 +392,155 @@ int lan966x_port_pcs_set(struct lan966x_port *port,
 	port->config = *config;
 
 	return 0;
+}
+
+static void lan966x_port_qos_pcp_set(struct lan966x_port *port,
+				     struct lan966x_port_qos_pcp *qos)
+{
+	u8 *pcp_itr = qos->map;
+	u8 pcp, dp;
+
+	lan_rmw(ANA_QOS_CFG_QOS_PCP_ENA_SET(qos->enable),
+		ANA_QOS_CFG_QOS_PCP_ENA,
+		port->lan966x, ANA_QOS_CFG(port->chip_port));
+
+	/* Map PCP and DEI to priority */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++) {
+		pcp = *(pcp_itr + i);
+		dp = (i < LAN966X_PORT_QOS_PCP_COUNT) ? 0 : 1;
+
+		lan_rmw(ANA_PCP_DEI_CFG_QOS_PCP_DEI_VAL_SET(pcp) |
+			ANA_PCP_DEI_CFG_DP_PCP_DEI_VAL_SET(dp),
+			ANA_PCP_DEI_CFG_QOS_PCP_DEI_VAL |
+			ANA_PCP_DEI_CFG_DP_PCP_DEI_VAL,
+			port->lan966x,
+			ANA_PCP_DEI_CFG(port->chip_port, i));
+	}
+}
+
+static void lan966x_port_qos_dscp_set(struct lan966x_port *port,
+				      struct lan966x_port_qos_dscp *qos)
+{
+	struct lan966x *lan966x = port->lan966x;
+
+	/* Enable/disable dscp for qos classification. */
+	lan_rmw(ANA_QOS_CFG_QOS_DSCP_ENA_SET(qos->enable),
+		ANA_QOS_CFG_QOS_DSCP_ENA,
+		lan966x, ANA_QOS_CFG(port->chip_port));
+
+	/* Map each dscp value to priority and dp */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++)
+		lan_rmw(ANA_DSCP_CFG_DP_DSCP_VAL_SET(0) |
+			ANA_DSCP_CFG_QOS_DSCP_VAL_SET(*(qos->map + i)),
+			ANA_DSCP_CFG_DP_DSCP_VAL |
+			ANA_DSCP_CFG_QOS_DSCP_VAL,
+			lan966x, ANA_DSCP_CFG(i));
+
+	/* Set per-dscp trust */
+	for (int i = 0; i <  ARRAY_SIZE(qos->map); i++)
+		lan_rmw(ANA_DSCP_CFG_DSCP_TRUST_ENA_SET(qos->enable),
+			ANA_DSCP_CFG_DSCP_TRUST_ENA,
+			lan966x, ANA_DSCP_CFG(i));
+}
+
+static int lan966x_port_qos_default_set(struct lan966x_port *port,
+					struct lan966x_port_qos *qos)
+{
+	/* Set default prio and dp level */
+	lan_rmw(ANA_QOS_CFG_DP_DEFAULT_VAL_SET(0) |
+		ANA_QOS_CFG_QOS_DEFAULT_VAL_SET(qos->default_prio),
+		ANA_QOS_CFG_DP_DEFAULT_VAL |
+		ANA_QOS_CFG_QOS_DEFAULT_VAL,
+		port->lan966x, ANA_QOS_CFG(port->chip_port));
+
+	/* Set default pcp and dei for untagged frames */
+	lan_rmw(ANA_VLAN_CFG_VLAN_DEI_SET(0) |
+		ANA_VLAN_CFG_VLAN_PCP_SET(0),
+		ANA_VLAN_CFG_VLAN_DEI |
+		ANA_VLAN_CFG_VLAN_PCP,
+		port->lan966x, ANA_VLAN_CFG(port->chip_port));
+
+	return 0;
+}
+
+static void lan966x_port_qos_pcp_rewr_set(struct lan966x_port *port,
+					  struct lan966x_port_qos_pcp_rewr *qos)
+{
+	u8 mode = LAN966X_PORT_REW_TAG_CTRL_CLASSIFIED;
+	u8 pcp, dei;
+
+	if (qos->enable)
+		mode = LAN966X_PORT_REW_TAG_CTRL_MAPPED;
+
+	/* Map the values only if it is enabled otherwise will be the classified
+	 * value
+	 */
+	lan_rmw(REW_TAG_CFG_TAG_PCP_CFG_SET(mode) |
+		REW_TAG_CFG_TAG_DEI_CFG_SET(mode),
+		REW_TAG_CFG_TAG_PCP_CFG |
+		REW_TAG_CFG_TAG_DEI_CFG,
+		port->lan966x, REW_TAG_CFG(port->chip_port));
+
+	/* Map each value to pcp and dei */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++) {
+		pcp = qos->map[i];
+		if (pcp > LAN966X_PORT_QOS_PCP_COUNT)
+			dei = 1;
+		else
+			dei = 0;
+
+		lan_rmw(REW_PCP_DEI_CFG_DEI_QOS_VAL_SET(dei) |
+			REW_PCP_DEI_CFG_PCP_QOS_VAL_SET(pcp),
+			REW_PCP_DEI_CFG_DEI_QOS_VAL |
+			REW_PCP_DEI_CFG_PCP_QOS_VAL,
+			port->lan966x,
+			REW_PCP_DEI_CFG(port->chip_port,
+					i + dei * LAN966X_PORT_QOS_PCP_COUNT));
+	}
+}
+
+static void lan966x_port_qos_dscp_rewr_set(struct lan966x_port *port,
+					   struct lan966x_port_qos_dscp_rewr *qos)
+{
+	u16 dscp;
+	u8 mode;
+
+	if (qos->enable)
+		mode = LAN966X_PORT_REW_DSCP_ANALIZER;
+	else
+		mode = LAN966X_PORT_REW_DSCP_FRAME;
+
+	/* Enable the rewrite otherwise will use the values from the frame */
+	lan_rmw(REW_DSCP_CFG_DSCP_REWR_CFG_SET(mode),
+		REW_DSCP_CFG_DSCP_REWR_CFG,
+		port->lan966x, REW_DSCP_CFG(port->chip_port));
+
+	/* Map each classified Qos class and DP to classified DSCP value */
+	for (int i = 0; i < ARRAY_SIZE(qos->map); i++) {
+		dscp = qos->map[i];
+
+		lan_rmw(ANA_DSCP_REWR_CFG_DSCP_QOS_REWR_VAL_SET(dscp),
+			ANA_DSCP_REWR_CFG_DSCP_QOS_REWR_VAL,
+			port->lan966x, ANA_DSCP_REWR_CFG(i));
+	}
+}
+
+void lan966x_port_qos_dscp_rewr_mode_set(struct lan966x_port *port,
+					 int mode)
+{
+	lan_rmw(ANA_QOS_CFG_DSCP_REWR_CFG_SET(mode),
+		ANA_QOS_CFG_DSCP_REWR_CFG,
+		port->lan966x, ANA_QOS_CFG(port->chip_port));
+}
+
+void lan966x_port_qos_set(struct lan966x_port *port,
+			  struct lan966x_port_qos *qos)
+{
+	lan966x_port_qos_pcp_set(port, &qos->pcp);
+	lan966x_port_qos_dscp_set(port, &qos->dscp);
+	lan966x_port_qos_default_set(port, qos);
+	lan966x_port_qos_pcp_rewr_set(port, &qos->pcp_rewr);
+	lan966x_port_qos_dscp_rewr_set(port, &qos->dscp_rewr);
 }
 
 void lan966x_port_init(struct lan966x_port *port)

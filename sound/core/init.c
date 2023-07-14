@@ -129,7 +129,7 @@ void snd_device_initialize(struct device *dev, struct snd_card *card)
 	device_initialize(dev);
 	if (card)
 		dev->parent = &card->card_dev;
-	dev->class = sound_class;
+	dev->class = &sound_class;
 	dev->release = default_release;
 }
 EXPORT_SYMBOL_GPL(snd_device_initialize);
@@ -331,7 +331,7 @@ static int snd_card_init(struct snd_card *card, struct device *parent,
 
 	device_initialize(&card->card_dev);
 	card->card_dev.parent = parent;
-	card->card_dev.class = sound_class;
+	card->card_dev.class = &sound_class;
 	card->card_dev.release = release_card_device;
 	card->card_dev.groups = card->dev_groups;
 	card->dev_groups[0] = &card_dev_attr_group;
@@ -489,17 +489,17 @@ static const struct file_operations snd_shutdown_f_ops =
  *  Note: The current implementation replaces all active file->f_op with special
  *        dummy file operations (they do nothing except release).
  */
-int snd_card_disconnect(struct snd_card *card)
+void snd_card_disconnect(struct snd_card *card)
 {
 	struct snd_monitor_file *mfile;
 
 	if (!card)
-		return -EINVAL;
+		return;
 
 	spin_lock(&card->files_lock);
 	if (card->shutdown) {
 		spin_unlock(&card->files_lock);
-		return 0;
+		return;
 	}
 	card->shutdown = 1;
 
@@ -548,7 +548,6 @@ int snd_card_disconnect(struct snd_card *card)
 	wake_up(&card->power_sleep);
 	snd_power_sync_ref(card);
 #endif
-	return 0;	
 }
 EXPORT_SYMBOL(snd_card_disconnect);
 
@@ -563,15 +562,7 @@ EXPORT_SYMBOL(snd_card_disconnect);
  */
 void snd_card_disconnect_sync(struct snd_card *card)
 {
-	int err;
-
-	err = snd_card_disconnect(card);
-	if (err < 0) {
-		dev_err(card->dev,
-			"snd_card_disconnect error (%d), skipping sync\n",
-			err);
-		return;
-	}
+	snd_card_disconnect(card);
 
 	spin_lock_irq(&card->files_lock);
 	wait_event_lock_irq(card->remove_sleep,
@@ -617,13 +608,14 @@ static int snd_card_do_free(struct snd_card *card)
  *
  * Return: zero if successful, or a negative error code
  */
-int snd_card_free_when_closed(struct snd_card *card)
+void snd_card_free_when_closed(struct snd_card *card)
 {
-	int ret = snd_card_disconnect(card);
-	if (ret)
-		return ret;
+	if (!card)
+		return;
+
+	snd_card_disconnect(card);
 	put_device(&card->card_dev);
-	return 0;
+	return;
 }
 EXPORT_SYMBOL(snd_card_free_when_closed);
 
@@ -640,10 +632,9 @@ EXPORT_SYMBOL(snd_card_free_when_closed);
  * Return: Zero. Frees all associated devices and frees the control
  * interface associated to given soundcard.
  */
-int snd_card_free(struct snd_card *card)
+void snd_card_free(struct snd_card *card)
 {
 	DECLARE_COMPLETION_ONSTACK(released);
-	int ret;
 
 	/* The call of snd_card_free() is allowed from various code paths;
 	 * a manual call from the driver and the call via devres_free, and
@@ -652,16 +643,13 @@ int snd_card_free(struct snd_card *card)
 	 * the check here at the beginning.
 	 */
 	if (card->releasing)
-		return 0;
+		return;
 
 	card->release_completion = &released;
-	ret = snd_card_free_when_closed(card);
-	if (ret)
-		return ret;
+	snd_card_free_when_closed(card);
+
 	/* wait, until all devices are ready for the free operation */
 	wait_for_completion(&released);
-
-	return 0;
 }
 EXPORT_SYMBOL(snd_card_free);
 

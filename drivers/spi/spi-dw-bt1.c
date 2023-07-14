@@ -308,7 +308,7 @@ err_disable_clk:
 	return ret;
 }
 
-static int dw_spi_bt1_remove(struct platform_device *pdev)
+static void dw_spi_bt1_remove(struct platform_device *pdev)
 {
 	struct dw_spi_bt1 *dwsbt1 = platform_get_drvdata(pdev);
 
@@ -317,8 +317,6 @@ static int dw_spi_bt1_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	clk_disable_unprepare(dwsbt1->clk);
-
-	return 0;
 }
 
 static const struct of_device_id dw_spi_bt1_of_match[] = {
@@ -330,7 +328,7 @@ MODULE_DEVICE_TABLE(of, dw_spi_bt1_of_match);
 
 static struct platform_driver dw_spi_bt1_driver = {
 	.probe	= dw_spi_bt1_probe,
-	.remove	= dw_spi_bt1_remove,
+	.remove_new = dw_spi_bt1_remove,
 	.driver	= {
 		.name		= "bt1-sys-ssi",
 		.of_match_table	= dw_spi_bt1_of_match,

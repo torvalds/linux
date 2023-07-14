@@ -31,6 +31,7 @@
 #include <linux/swap.h>
 
 #include <linux/uaccess.h>
+#include <linux/filelock.h>
 
 #include "delegation.h"
 #include "internal.h"
@@ -177,6 +178,27 @@ nfs_file_read(struct kiocb *iocb, struct iov_iter *to)
 }
 EXPORT_SYMBOL_GPL(nfs_file_read);
 
+ssize_t
+nfs_file_splice_read(struct file *in, loff_t *ppos, struct pipe_inode_info *pipe,
+		     size_t len, unsigned int flags)
+{
+	struct inode *inode = file_inode(in);
+	ssize_t result;
+
+	dprintk("NFS: splice_read(%pD2, %zu@%llu)\n", in, len, *ppos);
+
+	nfs_start_io_read(inode);
+	result = nfs_revalidate_mapping(inode, in->f_mapping);
+	if (!result) {
+		result = filemap_splice_read(in, ppos, pipe, len, flags);
+		if (result > 0)
+			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, result);
+	}
+	nfs_end_io_read(inode);
+	return result;
+}
+EXPORT_SYMBOL_GPL(nfs_file_splice_read);
+
 int
 nfs_file_mmap(struct file * file, struct vm_area_struct * vma)
 {
@@ -276,27 +298,28 @@ EXPORT_SYMBOL_GPL(nfs_file_fsync);
  * and that the new data won't completely replace the old data in
  * that range of the file.
  */
-static bool nfs_full_page_write(struct page *page, loff_t pos, unsigned int len)
+static bool nfs_folio_is_full_write(struct folio *folio, loff_t pos,
+				    unsigned int len)
 {
-	unsigned int pglen = nfs_page_length(page);
-	unsigned int offset = pos & (PAGE_SIZE - 1);
+	unsigned int pglen = nfs_folio_length(folio);
+	unsigned int offset = offset_in_folio(folio, pos);
 	unsigned int end = offset + len;
 
 	return !pglen || (end >= pglen && !offset);
 }
 
-static bool nfs_want_read_modify_write(struct file *file, struct page *page,
-			loff_t pos, unsigned int len)
+static bool nfs_want_read_modify_write(struct file *file, struct folio *folio,
+				       loff_t pos, unsigned int len)
 {
 	/*
 	 * Up-to-date pages, those with ongoing or full-page write
 	 * don't need read/modify/write
 	 */
-	if (PageUptodate(page) || PagePrivate(page) ||
-	    nfs_full_page_write(page, pos, len))
+	if (folio_test_uptodate(folio) || folio_test_private(folio) ||
+	    nfs_folio_is_full_write(folio, pos, len))
 		return false;
 
-	if (pnfs_ld_read_whole_page(file->f_mapping->host))
+	if (pnfs_ld_read_whole_page(file_inode(file)))
 		return true;
 	/* Open for reading too? */
 	if (file->f_mode & FMODE_READ)
@@ -313,32 +336,32 @@ static bool nfs_want_read_modify_write(struct file *file, struct page *page,
  * increment the page use counts until he is done with the page.
  */
 static int nfs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			   loff_t pos, unsigned len, struct page **pagep,
+			   void **fsdata)
 {
-	int ret;
-	pgoff_t index = pos >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 	int once_thru = 0;
+	int ret;
 
 	dfprintk(PAGECACHE, "NFS: write_begin(%pD2(%lu), %u@%lld)\n",
 		file, mapping->host->i_ino, len, (long long) pos);
 
 start:
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
-	*pagep = page;
+	folio = __filemap_get_folio(mapping, pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
+				    mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	*pagep = &folio->page;
 
-	ret = nfs_flush_incompatible(file, page);
+	ret = nfs_flush_incompatible(file, folio);
 	if (ret) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 	} else if (!once_thru &&
-		   nfs_want_read_modify_write(file, page, pos, len)) {
+		   nfs_want_read_modify_write(file, folio, pos, len)) {
 		once_thru = 1;
-		ret = nfs_read_folio(file, page_folio(page));
-		put_page(page);
+		ret = nfs_read_folio(file, folio);
+		folio_put(folio);
 		if (!ret)
 			goto start;
 	}
@@ -346,11 +369,12 @@ start:
 }
 
 static int nfs_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			 loff_t pos, unsigned len, unsigned copied,
+			 struct page *page, void *fsdata)
 {
-	unsigned offset = pos & (PAGE_SIZE - 1);
 	struct nfs_open_context *ctx = nfs_file_open_context(file);
+	struct folio *folio = page_folio(page);
+	unsigned offset = offset_in_folio(folio, pos);
 	int status;
 
 	dfprintk(PAGECACHE, "NFS: write_end(%pD2(%lu), %u@%lld)\n",
@@ -360,26 +384,26 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	 * Zero any uninitialised parts of the page, and then mark the page
 	 * as up to date if it turns out that we're extending the file.
 	 */
-	if (!PageUptodate(page)) {
-		unsigned pglen = nfs_page_length(page);
+	if (!folio_test_uptodate(folio)) {
+		size_t fsize = folio_size(folio);
+		unsigned pglen = nfs_folio_length(folio);
 		unsigned end = offset + copied;
 
 		if (pglen == 0) {
-			zero_user_segments(page, 0, offset,
-					end, PAGE_SIZE);
-			SetPageUptodate(page);
+			folio_zero_segments(folio, 0, offset, end, fsize);
+			folio_mark_uptodate(folio);
 		} else if (end >= pglen) {
-			zero_user_segment(page, end, PAGE_SIZE);
+			folio_zero_segment(folio, end, fsize);
 			if (offset == 0)
-				SetPageUptodate(page);
+				folio_mark_uptodate(folio);
 		} else
-			zero_user_segment(page, pglen, PAGE_SIZE);
+			folio_zero_segment(folio, pglen, fsize);
 	}
 
-	status = nfs_updatepage(file, page, offset, copied);
+	status = nfs_update_folio(file, folio, offset, copied);
 
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	if (status < 0)
 		return status;
@@ -401,14 +425,16 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 static void nfs_invalidate_folio(struct folio *folio, size_t offset,
 				size_t length)
 {
+	struct inode *inode = folio_file_mapping(folio)->host;
 	dfprintk(PAGECACHE, "NFS: invalidate_folio(%lu, %zu, %zu)\n",
 		 folio->index, offset, length);
 
 	if (offset != 0 || length < folio_size(folio))
 		return;
 	/* Cancel any unstarted writes on this page */
-	nfs_wb_folio_cancel(folio->mapping->host, folio);
+	nfs_wb_folio_cancel(inode, folio);
 	folio_wait_fscache(folio);
+	trace_nfs_invalidate_folio(inode, folio);
 }
 
 /*
@@ -422,8 +448,13 @@ static bool nfs_release_folio(struct folio *folio, gfp_t gfp)
 	dfprintk(PAGECACHE, "NFS: release_folio(%p)\n", folio);
 
 	/* If the private flag is set, then the folio is not freeable */
-	if (folio_test_private(folio))
-		return false;
+	if (folio_test_private(folio)) {
+		if ((current_gfp_context(gfp) & GFP_KERNEL) != GFP_KERNEL ||
+		    current_is_kswapd())
+			return false;
+		if (nfs_wb_folio(folio_file_mapping(folio)->host, folio) < 0)
+			return false;
+	}
 	return nfs_fscache_release_folio(folio, gfp);
 }
 
@@ -464,12 +495,15 @@ static void nfs_check_dirty_writeback(struct folio *folio,
 static int nfs_launder_folio(struct folio *folio)
 {
 	struct inode *inode = folio->mapping->host;
+	int ret;
 
 	dfprintk(PAGECACHE, "NFS: launder_folio(%ld, %llu)\n",
 		inode->i_ino, folio_pos(folio));
 
 	folio_wait_fscache(folio);
-	return nfs_wb_page(inode, &folio->page);
+	ret = nfs_wb_folio(inode, folio);
+	trace_nfs_launder_folio_done(inode, folio, ret);
+	return ret;
 }
 
 static int nfs_swap_activate(struct swap_info_struct *sis, struct file *file,
@@ -546,48 +580,49 @@ const struct address_space_operations nfs_file_aops = {
  */
 static vm_fault_t nfs_vm_page_mkwrite(struct vm_fault *vmf)
 {
-	struct page *page = vmf->page;
 	struct file *filp = vmf->vma->vm_file;
 	struct inode *inode = file_inode(filp);
 	unsigned pagelen;
 	vm_fault_t ret = VM_FAULT_NOPAGE;
 	struct address_space *mapping;
+	struct folio *folio = page_folio(vmf->page);
 
 	dfprintk(PAGECACHE, "NFS: vm_page_mkwrite(%pD2(%lu), offset %lld)\n",
-		filp, filp->f_mapping->host->i_ino,
-		(long long)page_offset(page));
+		 filp, filp->f_mapping->host->i_ino,
+		 (long long)folio_file_pos(folio));
 
 	sb_start_pagefault(inode->i_sb);
 
 	/* make sure the cache has finished storing the page */
-	if (PageFsCache(page) &&
-	    wait_on_page_fscache_killable(vmf->page) < 0) {
+	if (folio_test_fscache(folio) &&
+	    folio_wait_fscache_killable(folio) < 0) {
 		ret = VM_FAULT_RETRY;
 		goto out;
 	}
 
 	wait_on_bit_action(&NFS_I(inode)->flags, NFS_INO_INVALIDATING,
-			nfs_wait_bit_killable, TASK_KILLABLE);
+			   nfs_wait_bit_killable,
+			   TASK_KILLABLE|TASK_FREEZABLE_UNSAFE);
 
-	lock_page(page);
-	mapping = page_file_mapping(page);
+	folio_lock(folio);
+	mapping = folio_file_mapping(folio);
 	if (mapping != inode->i_mapping)
 		goto out_unlock;
 
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
-	pagelen = nfs_page_length(page);
+	pagelen = nfs_folio_length(folio);
 	if (pagelen == 0)
 		goto out_unlock;
 
 	ret = VM_FAULT_LOCKED;
-	if (nfs_flush_incompatible(filp, page) == 0 &&
-	    nfs_updatepage(filp, page, 0, pagelen) == 0)
+	if (nfs_flush_incompatible(filp, folio) == 0 &&
+	    nfs_update_folio(filp, folio, 0, pagelen) == 0)
 		goto out;
 
 	ret = VM_FAULT_SIGBUS;
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 out:
 	sb_end_pagefault(inode->i_sb);
 	return ret;
@@ -634,17 +669,13 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 	since = filemap_sample_wb_err(file->f_mapping);
 	nfs_start_io_write(inode);
 	result = generic_write_checks(iocb, from);
-	if (result > 0) {
-		current->backing_dev_info = inode_to_bdi(inode);
+	if (result > 0)
 		result = generic_perform_write(iocb, from);
-		current->backing_dev_info = NULL;
-	}
 	nfs_end_io_write(inode);
 	if (result <= 0)
 		goto out;
 
 	written = result;
-	iocb->ki_pos += written;
 	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
 
 	if (mntflags & NFS_MOUNT_WRITE_EAGER) {
@@ -655,9 +686,9 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 	}
 	if (mntflags & NFS_MOUNT_WRITE_WAIT) {
-		result = filemap_fdatawait_range(file->f_mapping,
-						 iocb->ki_pos - written,
-						 iocb->ki_pos - 1);
+		filemap_fdatawait_range(file->f_mapping,
+					iocb->ki_pos - written,
+					iocb->ki_pos - 1);
 	}
 	result = generic_write_sync(iocb, written);
 	if (result < 0)
@@ -865,7 +896,7 @@ const struct file_operations nfs_file_operations = {
 	.fsync		= nfs_file_fsync,
 	.lock		= nfs_lock,
 	.flock		= nfs_flock,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= nfs_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,

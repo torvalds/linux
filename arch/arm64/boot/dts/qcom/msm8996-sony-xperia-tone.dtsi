@@ -11,6 +11,7 @@
 #include "pmi8996.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/pinctrl/qcom,pmic-mpp.h>
 
@@ -24,11 +25,7 @@
 	qcom,board-id = <8 0>;
 
 	chosen {
-		/*
-		 * Due to an unknown-for-a-few-years regression,
-		 * SDHCI only works on MSM8996 in PIO (lame) mode.
-		 */
-		bootargs = "sdhci.debug_quirks=0x40 sdhci.debug_quirks2=0x4 maxcpus=2";
+		bootargs = "maxcpus=2";
 	};
 
 	reserved-memory {
@@ -104,8 +101,8 @@
 };
 
 &blsp1_i2c3 {
-	status = "okay";
 	clock-frequency = <355000>;
+	status = "okay";
 
 	tof_sensor: vl53l0x@29 {
 		compatible = "st,vl53l0x";
@@ -118,15 +115,15 @@
 };
 
 &blsp2_i2c5 {
-	status = "okay";
 	clock-frequency = <355000>;
+	status = "okay";
 
 	/* FUSB301 USB-C controller */
 };
 
 &blsp2_i2c6 {
-	status = "okay";
 	clock-frequency = <355000>;
+	status = "okay";
 
 	synaptics@2c {
 		compatible = "syna,rmi4-i2c";
@@ -183,11 +180,10 @@
 };
 
 &hsusb_phy1 {
-	status = "okay";
-
 	vdd-supply = <&pm8994_l28>;
 	vdda-pll-supply = <&pm8994_l12>;
 	vdda-phy-dpdm-supply = <&pm8994_l24>;
+	status = "okay";
 };
 
 &mmcc {
@@ -195,18 +191,17 @@
 };
 
 &pcie0 {
-	status = "okay";
-	perst-gpio = <&tlmm 35 GPIO_ACTIVE_LOW>;
-	wake-gpio = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+	perst-gpios = <&tlmm 35 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
 	vddpe-3v3-supply = <&wlan_en>;
 	vdda-supply = <&pm8994_l28>;
+	status = "okay";
 };
 
 &pcie_phy {
-	status = "okay";
-
 	vdda-phy-supply = <&pm8994_l28>;
 	vdda-pll-supply = <&pm8994_l12>;
+	status = "okay";
 };
 
 &pm8994_gpios {
@@ -478,8 +473,8 @@
 };
 
 &pm8994_resin {
-	status = "okay";
 	linux,code = <KEY_VOLUMEUP>;
+	status = "okay";
 };
 
 &pmi8994_gpios {
@@ -611,6 +606,34 @@
 	};
 };
 
+&pmi8994_lpg {
+	qcom,power-source = <1>;
+	status = "okay";
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_BLUE>;
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_RED>;
+		};
+	};
+};
+
 &pmi8994_spmi_regulators {
 	vdd_gfx:
 	pmi8994_s2: s2 {
@@ -623,13 +646,13 @@
 };
 
 &pmi8994_wled {
-	status = "okay";
 	default-brightness = <512>;
 	qcom,num-strings = <3>;
+	status = "okay";
 };
 
 &rpm_requests {
-	pm8994-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8994-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -825,21 +848,18 @@
 };
 
 &sdhc1 {
-	/* eMMC doesn't seem to cooperate even in PIO mode.. */
-	status = "disabled";
-
 	vmmc-supply = <&pm8994_l20>;
 	vqmmc-supply = <&pm8994_s4>;
 	mmc-hs400-1_8v;
 	mmc-hs200-1_8v;
+	status = "okay";
 };
 
 &sdhc2 {
-	status = "okay";
-
 	cd-gpios = <&tlmm 40 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&pm8994_l21>;
 	vqmmc-supply = <&pm8994_l13>;
+	status = "okay";
 };
 
 &tlmm {
@@ -847,28 +867,28 @@
 	pinctrl-0 = <&sw_service_gpio>;
 	pinctrl-names = "default";
 
-	disp_reset_n_gpio: disp-reset-n {
+	disp_reset_n_gpio: disp-reset-n-state {
 		pins = "gpio8";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	mdp_vsync_p_gpio: mdp-vsync-p {
+	mdp_vsync_p_gpio: mdp-vsync-p-state {
 		pins = "gpio10";
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	sw_service_gpio: sw-service-gpio {
+	sw_service_gpio: sw-service-gpio-state {
 		pins = "gpio16";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	usb_detect: usb-detect {
+	usb_detect: usb-detect-state {
 		pins = "gpio25";
 		function = "gpio";
 		drive-strength = <2>;
@@ -876,7 +896,7 @@
 		output-high;
 	};
 
-	uim_detect_en: uim-detect-en {
+	uim_detect_en: uim-detect-en-state {
 		pins = "gpio29";
 		function = "gpio";
 		drive-strength = <2>;
@@ -884,14 +904,14 @@
 		output-high;
 	};
 
-	tray_det_pin: tray-det {
+	tray_det_pin: tray-det-state {
 		pins = "gpio40";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
 	};
 
-	tp_vddio_en: tp-vddio-en {
+	tp_vddio_en: tp-vddio-en-state {
 		pins = "gpio50";
 		function = "gpio";
 		drive-strength = <2>;
@@ -899,7 +919,7 @@
 		output-high;
 	};
 
-	lcd_vddio_en: lcd-vddio-en {
+	lcd_vddio_en: lcd-vddio-en-state {
 		pins = "gpio51";
 		function = "gpio";
 		drive-strength = <2>;
@@ -907,15 +927,14 @@
 		output-low;
 	};
 
-	wl_host_wake: wl-host-wake {
+	wl_host_wake: wl-host-wake-state {
 		pins = "gpio79";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
-		input-high;
 	};
 
-	wl_reg_on: wl-reg-on {
+	wl_reg_on: wl-reg-on-state {
 		pins = "gpio84";
 		function = "gpio";
 		drive-strength = <2>;
@@ -923,20 +942,20 @@
 		output-low;
 	};
 
-	ts_reset_n: ts-rst-n {
+	ts_reset_n: ts-rst-n-state {
 		pins = "gpio89";
 		function = "gpio";
 		drive-strength = <2>;
 	};
 
-	touch_int_n: touch-int-n {
+	touch_int_n: touch-int-n-state {
 		pins = "gpio125";
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	touch_int_sleep: touch-int-sleep {
+	touch_int_sleep: touch-int-sleep-state {
 		pins = "gpio125";
 		function = "gpio";
 		drive-strength = <2>;
@@ -944,18 +963,15 @@
 	};
 };
 
-/*
- * For reasons that are currently unknown (but probably related to fusb301), USB takes about
- * 6 minutes to wake up (nothing interesting in kernel logs), but then it works as it should.
- */
 &usb3 {
-	status = "okay";
 	qcom,select-utmi-as-pipe-clk;
+	status = "okay";
 };
 
 &usb3_dwc3 {
 	extcon = <&usb3_id>;
 	dr_mode = "peripheral";
+	maximum-speed = "high-speed";
 	phys = <&hsusb_phy1>;
 	phy-names = "usb2-phy";
 	snps,hird-threshold = /bits/ 8 <0>;

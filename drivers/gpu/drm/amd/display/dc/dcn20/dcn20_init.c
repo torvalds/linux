@@ -96,9 +96,13 @@ static const struct hw_sequencer_funcs dcn20_funcs = {
 #ifndef TRIM_FSFT
 	.optimize_timing_for_fsft = dcn20_optimize_timing_for_fsft,
 #endif
+	.enable_lvds_link_output = dce110_enable_lvds_link_output,
+	.enable_tmds_link_output = dce110_enable_tmds_link_output,
+	.enable_dp_link_output = dce110_enable_dp_link_output,
+	.disable_link_output = dce110_disable_link_output,
 	.set_disp_pattern_generator = dcn20_set_disp_pattern_generator,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
-	.update_visual_confirm_color = dcn20_update_visual_confirm_color
+	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 };
 
 static const struct hwseq_private_funcs dcn20_private_funcs = {
@@ -141,8 +145,4 @@ void dcn20_hw_sequencer_construct(struct dc *dc)
 	dc->hwss = dcn20_funcs;
 	dc->hwseq->funcs = dcn20_private_funcs;
 
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwseq->funcs.init_pipes = NULL;
-	}
 }

@@ -279,6 +279,7 @@ GPIO
   devm_gpio_request_one()
 
 I2C
+  devm_i2c_add_adapter()
   devm_i2c_new_dummy_device()
 
 IIO
@@ -286,12 +287,16 @@ IIO
   devm_iio_device_register()
   devm_iio_dmaengine_buffer_setup()
   devm_iio_kfifo_buffer_setup()
+  devm_iio_kfifo_buffer_setup_ext()
   devm_iio_map_array_register()
   devm_iio_triggered_buffer_setup()
+  devm_iio_triggered_buffer_setup_ext()
   devm_iio_trigger_alloc()
   devm_iio_trigger_register()
   devm_iio_channel_get()
   devm_iio_channel_get_all()
+  devm_iio_hw_consumer_alloc()
+  devm_fwnode_iio_channel_get_by_name()
 
 INPUT
   devm_input_allocate_device()
@@ -311,7 +316,6 @@ IOMAP
   devm_ioremap()
   devm_ioremap_uc()
   devm_ioremap_wc()
-  devm_ioremap_np()
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps
   devm_ioremap_resource_wc()
   devm_platform_ioremap_resource() : calls devm_ioremap_resource() for platform device
@@ -339,7 +343,10 @@ IRQ
 
 LED
   devm_led_classdev_register()
+  devm_led_classdev_register_ext()
   devm_led_classdev_unregister()
+  devm_led_trigger_register()
+  devm_of_led_get()
 
 MDIO
   devm_mdiobus_alloc()
@@ -357,7 +364,9 @@ MEM
   devm_kmalloc_array()
   devm_kmemdup()
   devm_krealloc()
+  devm_krealloc_array()
   devm_kstrdup()
+  devm_kstrdup_const()
   devm_kvasprintf()
   devm_kzalloc()
 
@@ -388,6 +397,8 @@ PCI
 
 PHY
   devm_usb_get_phy()
+  devm_usb_get_phy_by_node()
+  devm_usb_get_phy_by_phandle()
   devm_usb_put_phy()
 
 PINCTRL
@@ -403,12 +414,14 @@ POWER
   devm_reboot_mode_unregister()
 
 PWM
+  devm_pwmchip_add()
   devm_pwm_get()
   devm_fwnode_pwm_get()
 
 REGULATOR
   devm_regulator_bulk_register_supply_alias()
   devm_regulator_bulk_get()
+  devm_regulator_bulk_get_const()
   devm_regulator_bulk_get_enable()
   devm_regulator_bulk_put()
   devm_regulator_get()
@@ -438,6 +451,7 @@ SERDEV
 
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
+  devm_acpi_dma_controller_free()
 
 SPI
   devm_spi_alloc_master()

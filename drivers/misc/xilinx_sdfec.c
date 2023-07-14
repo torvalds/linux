@@ -636,7 +636,7 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 	}
 
 	for (i = 0; i < nr_pages; i++) {
-		addr = kmap(pages[i]);
+		addr = kmap_local_page(pages[i]);
 		do {
 			xsdfec_regwrite(xsdfec,
 					base_addr + ((offset + reg) *
@@ -645,6 +645,7 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 			reg++;
 		} while ((reg < len) &&
 			 ((reg * XSDFEC_REG_WIDTH_JUMP) % PAGE_SIZE));
+		kunmap_local(addr);
 		unpin_user_page(pages[i]);
 	}
 	return 0;
@@ -854,16 +855,6 @@ static int xsdfec_cfg_axi_streams(struct xsdfec_dev *xsdfec)
 	return 0;
 }
 
-static int xsdfec_dev_open(struct inode *iptr, struct file *fptr)
-{
-	return 0;
-}
-
-static int xsdfec_dev_release(struct inode *iptr, struct file *fptr)
-{
-	return 0;
-}
-
 static int xsdfec_start(struct xsdfec_dev *xsdfec)
 {
 	u32 regread;
@@ -1029,8 +1020,6 @@ static __poll_t xsdfec_poll(struct file *file, poll_table *wait)
 
 static const struct file_operations xsdfec_fops = {
 	.owner = THIS_MODULE,
-	.open = xsdfec_dev_open,
-	.release = xsdfec_dev_release,
 	.unlocked_ioctl = xsdfec_dev_ioctl,
 	.poll = xsdfec_poll,
 	.compat_ioctl = compat_ptr_ioctl,

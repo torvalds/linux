@@ -250,7 +250,4 @@ extern int dmasound_catchRadius;
 #define SW_INPUT_VOLUME_SCALE	4
 #define SW_INPUT_VOLUME_DEFAULT	(128 / SW_INPUT_VOLUME_SCALE)
 
-extern int expand_read_bal;	/* Balance factor for reading */
-extern uint software_input_volume; /* software implemented recording volume! */
-
 #endif /* _dmasound_h_ */

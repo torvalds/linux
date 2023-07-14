@@ -92,17 +92,6 @@ config ZCRYPT_DEBUG
 
 	  If unsure, say N.
 
-config ZCRYPT_MULTIDEVNODES
-	bool "Support for multiple zcrypt device nodes"
-	default y
-	depends on S390
-	depends on ZCRYPT
-	help
-	  With this option enabled the zcrypt device driver can
-	  provide multiple devices nodes in /dev. Each device
-	  node can get customized to limit access and narrow
-	  down the use of the available crypto hardware.
-
 config PKEY
 	tristate "Kernel API for protected key handling"
 	depends on S390
@@ -240,21 +229,6 @@ config CRYPTO_DEV_TALITOS2
 	  Say 'Y' here to use the Freescale Security Engine (SEC)
 	  version 2 and following as found on MPC83xx, MPC85xx, etc ...
 
-config CRYPTO_DEV_IXP4XX
-	tristate "Driver for IXP4xx crypto hardware acceleration"
-	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
-	select CRYPTO_AES
-	select CRYPTO_DES
-	select CRYPTO_ECB
-	select CRYPTO_CBC
-	select CRYPTO_CTR
-	select CRYPTO_LIB_DES
-	select CRYPTO_AEAD
-	select CRYPTO_AUTHENC
-	select CRYPTO_SKCIPHER
-	help
-	  Driver for the IXP4xx NPE crypto engine.
-
 config CRYPTO_DEV_PPC4XX
 	tristate "Driver AMCC PPC4xx crypto accelerator"
 	depends on PPC && 4xx
@@ -390,16 +364,6 @@ if CRYPTO_DEV_NX
 	source "drivers/crypto/nx/Kconfig"
 endif
 
-config CRYPTO_DEV_UX500
-	tristate "Driver for ST-Ericsson UX500 crypto hardware acceleration"
-	depends on ARCH_U8500
-	help
-	  Driver for ST-Ericsson UX500 crypto engine.
-
-if CRYPTO_DEV_UX500
-	source "drivers/crypto/ux500/Kconfig"
-endif # if CRYPTO_DEV_UX500
-
 config CRYPTO_DEV_ATMEL_AUTHENC
 	bool "Support for Atmel IPSEC/SSL hw accelerator"
 	depends on ARCH_AT91 || COMPILE_TEST
@@ -512,10 +476,10 @@ config CRYPTO_DEV_MXS_DCP
 	  To compile this driver as a module, choose M here: the module
 	  will be called mxs-dcp.
 
-source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
 source "drivers/crypto/cavium/nitrox/Kconfig"
 source "drivers/crypto/marvell/Kconfig"
+source "drivers/crypto/intel/Kconfig"
 
 config CRYPTO_DEV_CAVIUM_ZIP
 	tristate "Cavium ZIP driver"
@@ -669,7 +633,12 @@ config CRYPTO_DEV_IMGTEC_HASH
 config CRYPTO_DEV_ROCKCHIP
 	tristate "Rockchip's Cryptographic Engine driver"
 	depends on OF && ARCH_ROCKCHIP
+	depends on PM
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_DES
 	select CRYPTO_AES
+	select CRYPTO_ENGINE
 	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
@@ -680,6 +649,16 @@ config CRYPTO_DEV_ROCKCHIP
 	help
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
+
+config CRYPTO_DEV_ROCKCHIP_DEBUG
+	bool "Enable Rockchip crypto stats"
+	depends on CRYPTO_DEV_ROCKCHIP
+	depends on DEBUG_FS
+	help
+	  Say y to enable Rockchip crypto debug stats.
+	  This will create /sys/kernel/debug/rk3288_crypto/stats for displaying
+	  the number of requests per algorithm and other internal stats.
+
 
 config CRYPTO_DEV_ZYNQMP_AES
 	tristate "Support for Xilinx ZynqMP AES hw accelerator"
@@ -769,7 +748,7 @@ config CRYPTO_DEV_ARTPEC6
 config CRYPTO_DEV_CCREE
 	tristate "Support for ARM TrustZone CryptoCell family of security processors"
 	depends on CRYPTO && CRYPTO_HW && OF && HAS_DMA
-	default n
+	depends on HAS_IOMEM
 	select CRYPTO_HASH
 	select CRYPTO_SKCIPHER
 	select CRYPTO_LIB_DES
@@ -785,8 +764,8 @@ config CRYPTO_DEV_CCREE
 	select CRYPTO_ECB
 	select CRYPTO_CTR
 	select CRYPTO_XTS
-	select CRYPTO_SM4
-	select CRYPTO_SM3
+	select CRYPTO_SM4_GENERIC
+	select CRYPTO_SM3_GENERIC
 	help
 	  Say 'Y' to enable a driver for the REE interface of the Arm
 	  TrustZone CryptoCell family of processors. Currently the
@@ -802,11 +781,10 @@ source "drivers/crypto/amlogic/Kconfig"
 config CRYPTO_DEV_SA2UL
 	tristate "Support for TI security accelerator"
 	depends on ARCH_K3 || COMPILE_TEST
-	select ARM64_CRYPTO
 	select CRYPTO_AES
-	select CRYPTO_AES_ARM64
 	select CRYPTO_ALGAPI
 	select CRYPTO_AUTHENC
+	select CRYPTO_DES
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
@@ -817,6 +795,7 @@ config CRYPTO_DEV_SA2UL
 	  used for crypto offload.  Select this if you want to use hardware
 	  acceleration for cryptographic algorithms on these devices.
 
-source "drivers/crypto/keembay/Kconfig"
+source "drivers/crypto/aspeed/Kconfig"
+source "drivers/crypto/starfive/Kconfig"
 
 endif # CRYPTO_HW

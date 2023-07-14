@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dma-map-ops.h>
+#include "init.h"
 
 #define IORT_TYPE_MASK(type)	(1 << (type))
 #define IORT_MSI_TYPE		(1 << ACPI_IORT_NODE_ITS_GROUP)
@@ -402,6 +403,10 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	return NULL;
 }
 
+#ifndef ACPI_IORT_SMMU_V3_DEVICEID_VALID
+#define ACPI_IORT_SMMU_V3_DEVICEID_VALID (1 << 4)
+#endif
+
 static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 {
 	struct acpi_iort_smmu_v3 *smmu;
@@ -418,12 +423,16 @@ static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 
 		smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
 		/*
-		 * ID mapping index is only ignored if all interrupts are
-		 * GSIV based
+		 * Until IORT E.e (node rev. 5), the ID mapping index was
+		 * defined to be valid unless all interrupts are GSIV-based.
 		 */
-		if (smmu->event_gsiv && smmu->pri_gsiv && smmu->gerr_gsiv
-		    && smmu->sync_gsiv)
+		if (node->revision < 5) {
+			if (smmu->event_gsiv && smmu->pri_gsiv &&
+			    smmu->gerr_gsiv && smmu->sync_gsiv)
+				return -EINVAL;
+		} else if (!(smmu->flags & ACPI_IORT_SMMU_V3_DEVICEID_VALID)) {
 			return -EINVAL;
+		}
 
 		if (smmu->id_mapping_index >= node->mapping_count) {
 			pr_err(FW_BUG "[node %p type %d] ID mapping index overflows valid mappings\n",
@@ -1142,7 +1151,8 @@ static void iort_iommu_msi_get_resv_regions(struct device *dev,
 			struct iommu_resv_region *region;
 
 			region = iommu_alloc_resv_region(base + SZ_64K, SZ_64K,
-							 prot, IOMMU_RESV_MSI);
+							 prot, IOMMU_RESV_MSI,
+							 GFP_KERNEL);
 			if (region)
 				list_add_tail(&region->list, head);
 		}

@@ -116,8 +116,9 @@ static int apple_pmgr_ps_power_off(struct generic_pm_domain *genpd)
 static int apple_pmgr_reset_assert(struct reset_controller_dev *rcdev, unsigned long id)
 {
 	struct apple_pmgr_ps *ps = rcdev_to_apple_pmgr_ps(rcdev);
+	unsigned long flags;
 
-	mutex_lock(&ps->genpd.mlock);
+	spin_lock_irqsave(&ps->genpd.slock, flags);
 
 	if (ps->genpd.status == GENPD_STATE_OFF)
 		dev_err(ps->dev, "PS 0x%x: asserting RESET while powered down\n", ps->offset);
@@ -129,7 +130,7 @@ static int apple_pmgr_reset_assert(struct reset_controller_dev *rcdev, unsigned 
 	regmap_update_bits(ps->regmap, ps->offset, APPLE_PMGR_FLAGS | APPLE_PMGR_RESET,
 			   APPLE_PMGR_RESET);
 
-	mutex_unlock(&ps->genpd.mlock);
+	spin_unlock_irqrestore(&ps->genpd.slock, flags);
 
 	return 0;
 }
@@ -137,8 +138,9 @@ static int apple_pmgr_reset_assert(struct reset_controller_dev *rcdev, unsigned 
 static int apple_pmgr_reset_deassert(struct reset_controller_dev *rcdev, unsigned long id)
 {
 	struct apple_pmgr_ps *ps = rcdev_to_apple_pmgr_ps(rcdev);
+	unsigned long flags;
 
-	mutex_lock(&ps->genpd.mlock);
+	spin_lock_irqsave(&ps->genpd.slock, flags);
 
 	dev_dbg(ps->dev, "PS 0x%x: deassert reset\n", ps->offset);
 	regmap_update_bits(ps->regmap, ps->offset, APPLE_PMGR_FLAGS | APPLE_PMGR_RESET, 0);
@@ -147,7 +149,7 @@ static int apple_pmgr_reset_deassert(struct reset_controller_dev *rcdev, unsigne
 	if (ps->genpd.status == GENPD_STATE_OFF)
 		dev_err(ps->dev, "PS 0x%x: RESET was deasserted while powered down\n", ps->offset);
 
-	mutex_unlock(&ps->genpd.mlock);
+	spin_unlock_irqrestore(&ps->genpd.slock, flags);
 
 	return 0;
 }
@@ -222,6 +224,7 @@ static int apple_pmgr_ps_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ps->genpd.flags |= GENPD_FLAG_IRQ_SAFE;
 	ps->genpd.name = name;
 	ps->genpd.power_on = apple_pmgr_ps_power_on;
 	ps->genpd.power_off = apple_pmgr_ps_power_off;
@@ -319,6 +322,5 @@ static struct platform_driver apple_pmgr_ps_driver = {
 
 MODULE_AUTHOR("Hector Martin <marcan@marcan.st>");
 MODULE_DESCRIPTION("PMGR power state driver for Apple SoCs");
-MODULE_LICENSE("GPL v2");
 
 module_platform_driver(apple_pmgr_ps_driver);

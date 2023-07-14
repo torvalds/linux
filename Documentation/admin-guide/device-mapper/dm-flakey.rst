@@ -39,6 +39,10 @@ Optional feature parameters:
   If no feature parameters are present, during the periods of
   unreliability, all I/O returns errors.
 
+  error_reads:
+	All read I/O is failed with an error signalled.
+	Write I/O is handled correctly.
+
   drop_writes:
 	All write I/O is silently ignored.
 	Read I/O is handled correctly.
@@ -62,6 +66,16 @@ Optional feature parameters:
     <flags>:
 	Perform the replacement only if bio->bi_opf has all the
 	selected flags set.
+
+  random_read_corrupt <probability>
+	During <down interval>, replace random byte in a read bio
+	with a random value. probability is an integer between
+	0 and 1000000000 meaning 0% to 100% probability of corruption.
+
+  random_write_corrupt <probability>
+	During <down interval>, replace random byte in a write bio
+	with a random value. probability is an integer between
+	0 and 1000000000 meaning 0% to 100% probability of corruption.
 
 Examples:
 

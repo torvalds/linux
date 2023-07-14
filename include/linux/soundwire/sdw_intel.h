@@ -7,6 +7,10 @@
 #include <linux/irqreturn.h>
 #include <linux/soundwire/sdw.h>
 
+/*********************************************************************
+ * cAVS and ACE1.x definitions
+ *********************************************************************/
+
 #define SDW_SHIM_BASE			0x2C000
 #define SDW_ALH_BASE			0x2C800
 #define SDW_SHIM_BASE_ACE		0x38000
@@ -15,31 +19,20 @@
 #define SDW_LINK_SIZE			0x10000
 
 /* Intel SHIM Registers Definition */
+/* LCAP */
 #define SDW_SHIM_LCAP			0x0
+#define SDW_SHIM_LCAP_LCOUNT_MASK	GENMASK(2, 0)
+
+/* LCTL */
 #define SDW_SHIM_LCTL			0x4
-#define SDW_SHIM_IPPTR			0x8
-#define SDW_SHIM_SYNC			0xC
-
-#define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
-#define SDW_SHIM_CTLS0CM(x)		(0x012 + 0x60 * (x))
-#define SDW_SHIM_CTLS1CM(x)		(0x014 + 0x60 * (x))
-#define SDW_SHIM_CTLS2CM(x)		(0x016 + 0x60 * (x))
-#define SDW_SHIM_CTLS3CM(x)		(0x018 + 0x60 * (x))
-#define SDW_SHIM_PCMSCAP(x)		(0x020 + 0x60 * (x))
-
-#define SDW_SHIM_PCMSYCHM(x, y)		(0x022 + (0x60 * (x)) + (0x2 * (y)))
-#define SDW_SHIM_PCMSYCHC(x, y)		(0x042 + (0x60 * (x)) + (0x2 * (y)))
-#define SDW_SHIM_PDMSCAP(x)		(0x062 + 0x60 * (x))
-#define SDW_SHIM_IOCTL(x)		(0x06C + 0x60 * (x))
-#define SDW_SHIM_CTMCTL(x)		(0x06E + 0x60 * (x))
-
-#define SDW_SHIM_WAKEEN			0x190
-#define SDW_SHIM_WAKESTS		0x192
 
 #define SDW_SHIM_LCTL_SPA		BIT(0)
 #define SDW_SHIM_LCTL_SPA_MASK		GENMASK(3, 0)
 #define SDW_SHIM_LCTL_CPA		BIT(8)
 #define SDW_SHIM_LCTL_CPA_MASK		GENMASK(11, 8)
+
+/* SYNC */
+#define SDW_SHIM_SYNC			0xC
 
 #define SDW_SHIM_SYNC_SYNCPRD_VAL_24	(24000 / SDW_CADENCE_GSYNC_KHZ - 1)
 #define SDW_SHIM_SYNC_SYNCPRD_VAL_38_4	(38400 / SDW_CADENCE_GSYNC_KHZ - 1)
@@ -49,19 +42,33 @@
 #define SDW_SHIM_SYNC_CMDSYNC		BIT(16)
 #define SDW_SHIM_SYNC_SYNCGO		BIT(24)
 
+/* Control stream capabililities and channel mask */
+#define SDW_SHIM_CTLSCAP(x)		(0x010 + 0x60 * (x))
+#define SDW_SHIM_CTLS0CM(x)		(0x012 + 0x60 * (x))
+#define SDW_SHIM_CTLS1CM(x)		(0x014 + 0x60 * (x))
+#define SDW_SHIM_CTLS2CM(x)		(0x016 + 0x60 * (x))
+#define SDW_SHIM_CTLS3CM(x)		(0x018 + 0x60 * (x))
+
+/* PCM Stream capabilities */
+#define SDW_SHIM_PCMSCAP(x)		(0x020 + 0x60 * (x))
+
 #define SDW_SHIM_PCMSCAP_ISS		GENMASK(3, 0)
 #define SDW_SHIM_PCMSCAP_OSS		GENMASK(7, 4)
 #define SDW_SHIM_PCMSCAP_BSS		GENMASK(12, 8)
+
+/* PCM Stream Channel Map */
+#define SDW_SHIM_PCMSYCHM(x, y)		(0x022 + (0x60 * (x)) + (0x2 * (y)))
+
+/* PCM Stream Channel Count */
+#define SDW_SHIM_PCMSYCHC(x, y)		(0x042 + (0x60 * (x)) + (0x2 * (y)))
 
 #define SDW_SHIM_PCMSYCM_LCHN		GENMASK(3, 0)
 #define SDW_SHIM_PCMSYCM_HCHN		GENMASK(7, 4)
 #define SDW_SHIM_PCMSYCM_STREAM		GENMASK(13, 8)
 #define SDW_SHIM_PCMSYCM_DIR		BIT(15)
 
-#define SDW_SHIM_PDMSCAP_ISS		GENMASK(3, 0)
-#define SDW_SHIM_PDMSCAP_OSS		GENMASK(7, 4)
-#define SDW_SHIM_PDMSCAP_BSS		GENMASK(12, 8)
-#define SDW_SHIM_PDMSCAP_CPSS		GENMASK(15, 13)
+/* IO control */
+#define SDW_SHIM_IOCTL(x)		(0x06C + 0x60 * (x))
 
 #define SDW_SHIM_IOCTL_MIF		BIT(0)
 #define SDW_SHIM_IOCTL_CO		BIT(1)
@@ -73,12 +80,22 @@
 #define SDW_SHIM_IOCTL_CIBD		BIT(8)
 #define SDW_SHIM_IOCTL_DIBD		BIT(9)
 
+/* Wake Enable*/
+#define SDW_SHIM_WAKEEN			0x190
+
+#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
+
+/* Wake Status */
+#define SDW_SHIM_WAKESTS		0x192
+
+#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
+
+/* AC Timing control */
+#define SDW_SHIM_CTMCTL(x)		(0x06E + 0x60 * (x))
+
 #define SDW_SHIM_CTMCTL_DACTQE		BIT(0)
 #define SDW_SHIM_CTMCTL_DODS		BIT(1)
 #define SDW_SHIM_CTMCTL_DOAIS		GENMASK(4, 3)
-
-#define SDW_SHIM_WAKEEN_ENABLE		BIT(0)
-#define SDW_SHIM_WAKESTS_STATUS		BIT(0)
 
 /* Intel ALH Register definitions */
 #define SDW_ALH_STRMZCFG(x)		(0x000 + (0x4 * (x)))
@@ -88,13 +105,84 @@
 #define SDW_ALH_STRMZCFG_DMAT		GENMASK(7, 0)
 #define SDW_ALH_STRMZCFG_CHN		GENMASK(19, 16)
 
+/*********************************************************************
+ * ACE2.x definitions for SHIM registers - only accessible when the
+ * HDAudio extended link LCTL.SPA/CPA = 1.
+ *********************************************************************/
+/* x variable is link index */
+#define SDW_SHIM2_GENERIC_BASE(x)	(0x00030000 + 0x8000 * (x))
+#define SDW_IP_BASE(x)			(0x00030100 + 0x8000 * (x))
+#define SDW_SHIM2_VS_BASE(x)		(0x00036000 + 0x8000 * (x))
+
+/* SHIM2 Generic Registers */
+/* Read-only capabilities */
+#define SDW_SHIM2_LECAP			0x00
+#define SDW_SHIM2_LECAP_HDS		BIT(0)		/* unset -> Host mode */
+#define SDW_SHIM2_LECAP_MLC		GENMASK(3, 1)	/* Number of Lanes */
+
+/* PCM Stream capabilities */
+#define SDW_SHIM2_PCMSCAP		0x10
+#define SDW_SHIM2_PCMSCAP_ISS		GENMASK(3, 0)	/* Input-only streams */
+#define SDW_SHIM2_PCMSCAP_OSS		GENMASK(7, 4)	/* Output-only streams */
+#define SDW_SHIM2_PCMSCAP_BSS		GENMASK(12, 8)	/* Bidirectional streams */
+
+/* Read-only PCM Stream Channel Count, y variable is stream */
+#define SDW_SHIM2_PCMSYCHC(y)		(0x14 + (0x4 * (y)))
+#define SDW_SHIM2_PCMSYCHC_CS		GENMASK(3, 0)	/* Channels Supported */
+
+/* PCM Stream Channel Map */
+#define SDW_SHIM2_PCMSYCHM(y)		(0x16 + (0x4 * (y)))
+#define SDW_SHIM2_PCMSYCHM_LCHAN	GENMASK(3, 0)	/* Lowest channel used by the FIFO port */
+#define SDW_SHIM2_PCMSYCHM_HCHAN	GENMASK(7, 4)	/* Lowest channel used by the FIFO port */
+#define SDW_SHIM2_PCMSYCHM_STRM		GENMASK(13, 8)	/* HDaudio stream tag */
+#define SDW_SHIM2_PCMSYCHM_DIR		BIT(15)		/* HDaudio stream direction */
+
+/* SHIM2 vendor-specific registers */
+#define SDW_SHIM2_INTEL_VS_LVSCTL	0x04
+#define SDW_SHIM2_INTEL_VS_LVSCTL_FCG	BIT(26)
+#define SDW_SHIM2_INTEL_VS_LVSCTL_MLCS	GENMASK(29, 27)
+#define SDW_SHIM2_INTEL_VS_LVSCTL_DCGD	BIT(30)
+#define SDW_SHIM2_INTEL_VS_LVSCTL_ICGD	BIT(31)
+
+#define SDW_SHIM2_MLCS_XTAL_CLK		0x0
+#define SDW_SHIM2_MLCS_CARDINAL_CLK	0x1
+#define SDW_SHIM2_MLCS_AUDIO_PLL_CLK	0x2
+#define SDW_SHIM2_MLCS_MCLK_INPUT_CLK	0x3
+#define SDW_SHIM2_MLCS_WOV_RING_OSC_CLK 0x4
+
+#define SDW_SHIM2_INTEL_VS_WAKEEN	0x08
+#define SDW_SHIM2_INTEL_VS_WAKEEN_PWE	BIT(0)
+
+#define SDW_SHIM2_INTEL_VS_WAKESTS	0x0A
+#define SDW_SHIM2_INTEL_VS_WAKEEN_PWS	BIT(0)
+
+#define SDW_SHIM2_INTEL_VS_IOCTL	0x0C
+#define SDW_SHIM2_INTEL_VS_IOCTL_MIF	BIT(0)
+#define SDW_SHIM2_INTEL_VS_IOCTL_CO	BIT(1)
+#define SDW_SHIM2_INTEL_VS_IOCTL_COE	BIT(2)
+#define SDW_SHIM2_INTEL_VS_IOCTL_DO	BIT(3)
+#define SDW_SHIM2_INTEL_VS_IOCTL_DOE	BIT(4)
+#define SDW_SHIM2_INTEL_VS_IOCTL_BKE	BIT(5)
+#define SDW_SHIM2_INTEL_VS_IOCTL_WPDD	BIT(6)
+#define SDW_SHIM2_INTEL_VS_IOCTL_ODC	BIT(7)
+#define SDW_SHIM2_INTEL_VS_IOCTL_CIBD	BIT(8)
+#define SDW_SHIM2_INTEL_VS_IOCTL_DIBD	BIT(9)
+#define SDW_SHIM2_INTEL_VS_IOCTL_HAMIFD	BIT(10)
+
+#define SDW_SHIM2_INTEL_VS_ACTMCTL	0x0E
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DACTQE	BIT(0)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DODS		BIT(1)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DODSE	BIT(2)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DOAIS	GENMASK(4, 3)
+#define SDW_SHIM2_INTEL_VS_ACTMCTL_DOAISE	BIT(5)
+
 /**
  * struct sdw_intel_stream_params_data: configuration passed during
  * the @params_stream callback, e.g. for interaction with DSP
  * firmware.
  */
 struct sdw_intel_stream_params_data {
-	int stream;
+	struct snd_pcm_substream *substream;
 	struct snd_soc_dai *dai;
 	struct snd_pcm_hw_params *hw_params;
 	int link_id;
@@ -107,7 +195,7 @@ struct sdw_intel_stream_params_data {
  * firmware.
  */
 struct sdw_intel_stream_free_data {
-	int stream;
+	struct snd_pcm_substream *substream;
 	struct snd_soc_dai *dai;
 	int link_id;
 };
@@ -121,7 +209,7 @@ struct sdw_intel_ops {
 			     struct sdw_intel_stream_params_data *params_data);
 	int (*free_stream)(struct device *dev,
 			   struct sdw_intel_stream_free_data *free_data);
-	int (*trigger)(struct snd_soc_dai *dai, int cmd, int stream);
+	int (*trigger)(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai);
 };
 
 /**
@@ -181,6 +269,8 @@ struct sdw_intel_slave_id {
 	struct sdw_slave_id id;
 };
 
+struct hdac_bus;
+
 /**
  * struct sdw_intel_ctx - context allocated by the controller
  * driver probe
@@ -220,6 +310,7 @@ struct sdw_intel_ctx {
  * struct sdw_intel_res - Soundwire Intel global resource structure,
  * typically populated by the DSP driver
  *
+ * @hw_ops: abstraction for platform ops
  * @count: link count
  * @mmio_base: mmio base of SoundWire registers
  * @irq: interrupt number
@@ -234,8 +325,13 @@ struct sdw_intel_ctx {
  * DSP driver. The quirks are common for all links for now.
  * @shim_base: sdw shim base.
  * @alh_base: sdw alh base.
+ * @ext: extended HDaudio link support
+ * @hbus: hdac_bus pointer, needed for power management
+ * @eml_lock: mutex protecting shared registers in the HDaudio multi-link
+ * space
  */
 struct sdw_intel_res {
+	const struct sdw_intel_hw_ops *hw_ops;
 	int count;
 	void __iomem *mmio_base;
 	int irq;
@@ -247,6 +343,9 @@ struct sdw_intel_res {
 	u32 clock_stop_quirks;
 	u32 shim_base;
 	u32 alh_base;
+	bool ext;
+	struct hdac_bus *hbus;
+	struct mutex *eml_lock;
 };
 
 /*
@@ -273,10 +372,65 @@ int sdw_intel_startup(struct sdw_intel_ctx *ctx);
 
 void sdw_intel_exit(struct sdw_intel_ctx *ctx);
 
-void sdw_intel_enable_irq(void __iomem *mmio_base, bool enable);
-
 irqreturn_t sdw_intel_thread(int irq, void *dev_id);
 
 #define SDW_INTEL_QUIRK_MASK_BUS_DISABLE      BIT(1)
+
+struct sdw_intel;
+
+/* struct intel_sdw_hw_ops - SoundWire ops for Intel platforms.
+ * @debugfs_init: initialize all debugfs capabilities
+ * @debugfs_exit: close and cleanup debugfs capabilities
+ * @register_dai: read all PDI information and register DAIs
+ * @check_clock_stop: throw error message if clock is not stopped.
+ * @start_bus: normal start
+ * @start_bus_after_reset: start after reset
+ * @start_bus_after_clock_stop: start after mode0 clock stop
+ * @stop_bus: stop all bus
+ * @link_power_up: power-up using chip-specific helpers
+ * @link_power_down: power-down with chip-specific helpers
+ * @shim_check_wake: check if a wake was received
+ * @shim_wake: enable/disable in-band wake management
+ * @pre_bank_switch: helper for bus management
+ * @post_bank_switch: helper for bus management
+ * @sync_arm: helper for multi-link synchronization
+ * @sync_go_unlocked: helper for multi-link synchronization -
+ * shim_lock is assumed to be locked at higher level
+ * @sync_go: helper for multi-link synchronization
+ * @sync_check_cmdsync_unlocked: helper for multi-link synchronization
+ * and bank switch - shim_lock is assumed to be locked at higher level
+ * @program_sdi: helper for codec command/control based on dev_num
+ */
+struct sdw_intel_hw_ops {
+	void (*debugfs_init)(struct sdw_intel *sdw);
+	void (*debugfs_exit)(struct sdw_intel *sdw);
+
+	int (*register_dai)(struct sdw_intel *sdw);
+
+	void (*check_clock_stop)(struct sdw_intel *sdw);
+	int (*start_bus)(struct sdw_intel *sdw);
+	int (*start_bus_after_reset)(struct sdw_intel *sdw);
+	int (*start_bus_after_clock_stop)(struct sdw_intel *sdw);
+	int (*stop_bus)(struct sdw_intel *sdw, bool clock_stop);
+
+	int (*link_power_up)(struct sdw_intel *sdw);
+	int (*link_power_down)(struct sdw_intel *sdw);
+
+	int  (*shim_check_wake)(struct sdw_intel *sdw);
+	void (*shim_wake)(struct sdw_intel *sdw, bool wake_enable);
+
+	int (*pre_bank_switch)(struct sdw_intel *sdw);
+	int (*post_bank_switch)(struct sdw_intel *sdw);
+
+	void (*sync_arm)(struct sdw_intel *sdw);
+	int (*sync_go_unlocked)(struct sdw_intel *sdw);
+	int (*sync_go)(struct sdw_intel *sdw);
+	bool (*sync_check_cmdsync_unlocked)(struct sdw_intel *sdw);
+
+	void (*program_sdi)(struct sdw_intel *sdw, int dev_num);
+};
+
+extern const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops;
+extern const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops;
 
 #endif

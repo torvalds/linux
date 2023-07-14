@@ -22,7 +22,6 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 	struct user_namespace *uns = seq_user_ns(m);
 	struct group_info *gi;
 	kernel_cap_t cap;
-	unsigned __capi;
 	int g;
 
 	seq_printf(m, "%5d\n", id);
@@ -42,8 +41,7 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 	}
 	seq_puts(m, "\n\tCapEff:\t");
 	cap = cred->cap_effective;
-	CAP_FOR_EACH_U32(__capi)
-		seq_put_hex_ll(m, NULL, cap.cap[CAP_LAST_U32 - __capi], 8);
+	seq_put_hex_ll(m, NULL, cap.val, 16);
 	seq_putc(m, '\n');
 	return 0;
 }
@@ -60,13 +58,15 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	unsigned int cq_head = READ_ONCE(r->cq.head);
 	unsigned int cq_tail = READ_ONCE(r->cq.tail);
 	unsigned int cq_shift = 0;
+	unsigned int sq_shift = 0;
 	unsigned int sq_entries, cq_entries;
 	bool has_lock;
-	bool is_cqe32 = (ctx->flags & IORING_SETUP_CQE32);
 	unsigned int i;
 
-	if (is_cqe32)
+	if (ctx->flags & IORING_SETUP_CQE32)
 		cq_shift = 1;
+	if (ctx->flags & IORING_SETUP_SQE128)
+		sq_shift = 1;
 
 	/*
 	 * we may get imprecise sqe and cqe info if uring is actively running
@@ -82,19 +82,36 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 	seq_printf(m, "CqHead:\t%u\n", cq_head);
 	seq_printf(m, "CqTail:\t%u\n", cq_tail);
 	seq_printf(m, "CachedCqTail:\t%u\n", ctx->cached_cq_tail);
-	seq_printf(m, "SQEs:\t%u\n", sq_tail - ctx->cached_sq_head);
+	seq_printf(m, "SQEs:\t%u\n", sq_tail - sq_head);
 	sq_entries = min(sq_tail - sq_head, ctx->sq_entries);
 	for (i = 0; i < sq_entries; i++) {
 		unsigned int entry = i + sq_head;
-		unsigned int sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		struct io_uring_sqe *sqe;
+		unsigned int sq_idx;
 
+		sq_idx = READ_ONCE(ctx->sq_array[entry & sq_mask]);
 		if (sq_idx > sq_mask)
 			continue;
-		sqe = &ctx->sq_sqes[sq_idx];
-		seq_printf(m, "%5u: opcode:%d, fd:%d, flags:%x, user_data:%llu\n",
-			   sq_idx, sqe->opcode, sqe->fd, sqe->flags,
-			   sqe->user_data);
+		sqe = &ctx->sq_sqes[sq_idx << sq_shift];
+		seq_printf(m, "%5u: opcode:%s, fd:%d, flags:%x, off:%llu, "
+			      "addr:0x%llx, rw_flags:0x%x, buf_index:%d "
+			      "user_data:%llu",
+			   sq_idx, io_uring_get_opcode(sqe->opcode), sqe->fd,
+			   sqe->flags, (unsigned long long) sqe->off,
+			   (unsigned long long) sqe->addr, sqe->rw_flags,
+			   sqe->buf_index, sqe->user_data);
+		if (sq_shift) {
+			u64 *sqeb = (void *) (sqe + 1);
+			int size = sizeof(struct io_uring_sqe) / sizeof(u64);
+			int j;
+
+			for (j = 0; j < size; j++) {
+				seq_printf(m, ", e%d:0x%llx", j,
+						(unsigned long long) *sqeb);
+				sqeb++;
+			}
+		}
+		seq_printf(m, "\n");
 	}
 	seq_printf(m, "CQEs:\t%u\n", cq_tail - cq_head);
 	cq_entries = min(cq_tail - cq_head, ctx->cq_entries);
@@ -102,16 +119,13 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 		unsigned int entry = i + cq_head;
 		struct io_uring_cqe *cqe = &r->cqes[(entry & cq_mask) << cq_shift];
 
-		if (!is_cqe32) {
-			seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x\n",
+		seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x",
 			   entry & cq_mask, cqe->user_data, cqe->res,
 			   cqe->flags);
-		} else {
-			seq_printf(m, "%5u: user_data:%llu, res:%d, flag:%x, "
-				"extra1:%llu, extra2:%llu\n",
-				entry & cq_mask, cqe->user_data, cqe->res,
-				cqe->flags, cqe->big_cqe[0], cqe->big_cqe[1]);
-		}
+		if (cq_shift)
+			seq_printf(m, ", extra1:%llu, extra2:%llu\n",
+					cqe->big_cqe[0], cqe->big_cqe[1]);
+		seq_printf(m, "\n");
 	}
 
 	/*
@@ -154,12 +168,11 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 		xa_for_each(&ctx->personalities, index, cred)
 			io_uring_show_cred(m, index, cred);
 	}
-	if (has_lock)
-		mutex_unlock(&ctx->uring_lock);
 
 	seq_puts(m, "PollList:\n");
 	for (i = 0; i < (1U << ctx->cancel_table.hash_bits); i++) {
 		struct io_hash_bucket *hb = &ctx->cancel_table.hbs[i];
+		struct io_hash_bucket *hbl = &ctx->cancel_table_locked.hbs[i];
 		struct io_kiocb *req;
 
 		spin_lock(&hb->lock);
@@ -167,7 +180,16 @@ static __cold void __io_uring_show_fdinfo(struct io_ring_ctx *ctx,
 			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
 					task_work_pending(req->task));
 		spin_unlock(&hb->lock);
+
+		if (!has_lock)
+			continue;
+		hlist_for_each_entry(req, &hbl->list, hash_node)
+			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
+					task_work_pending(req->task));
 	}
+
+	if (has_lock)
+		mutex_unlock(&ctx->uring_lock);
 
 	seq_puts(m, "CqOverflowList:\n");
 	spin_lock(&ctx->completion_lock);

@@ -445,7 +445,7 @@ static umode_t max31790_is_visible(const void *data,
 	}
 }
 
-static const struct hwmon_channel_info *max31790_info[] = {
+static const struct hwmon_channel_info * const max31790_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT | HWMON_F_ENABLE,
 			   HWMON_F_INPUT | HWMON_F_TARGET | HWMON_F_FAULT | HWMON_F_ENABLE,
@@ -544,7 +544,7 @@ MODULE_DEVICE_TABLE(i2c, max31790_id);
 
 static struct i2c_driver max31790_driver = {
 	.class		= I2C_CLASS_HWMON,
-	.probe_new	= max31790_probe,
+	.probe		= max31790_probe,
 	.driver = {
 		.name	= "max31790",
 	},

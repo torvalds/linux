@@ -141,8 +141,7 @@ static const struct iio_chan_spec bh1780_channels[] = {
 	}
 };
 
-static int bh1780_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int bh1780_probe(struct i2c_client *client)
 {
 	int ret;
 	struct bh1780_data *bh1780;

@@ -74,11 +74,10 @@ struct binder_lru_page {
 
 /**
  * struct binder_alloc - per-binder proc state for binder allocator
+ * @mutex:              protects binder_alloc fields
  * @vma:                vm_area_struct passed to mmap_handler
- *                      (invarient after mmap)
- * @tsk:                tid for task that called init for this proc
- *                      (invariant after init)
- * @vma_vm_mm:          copy of vma->vm_mm (invarient after mmap)
+ *                      (invariant after mmap)
+ * @mm:                 copy of task->mm (invariant after open)
  * @buffer:             base of per-proc address space mapped via mmap
  * @buffers:            list of all buffers for this proc
  * @free_buffers:       rb tree of buffers available for allocation
@@ -100,8 +99,8 @@ struct binder_lru_page {
  */
 struct binder_alloc {
 	struct mutex mutex;
-	unsigned long vma_addr;
-	struct mm_struct *vma_vm_mm;
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
 	void __user *buffer;
 	struct list_head buffers;
 	struct rb_root free_buffers;
@@ -109,7 +108,6 @@ struct binder_alloc {
 	size_t free_async_space;
 	struct binder_lru_page *pages;
 	size_t buffer_size;
-	uint32_t buffer_free;
 	int pid;
 	size_t pages_high;
 	bool oneway_spam_detected;

@@ -8,7 +8,6 @@
 #include <linux/device.h>
 #include <linux/gcd.h>
 #include <linux/kernel.h>
-#include <linux/lcm.h>
 #include <linux/module.h>
 
 #include "aptina-pll.h"

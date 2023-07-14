@@ -144,8 +144,7 @@ static int max8925_dt_init(struct device_node *np, struct device *dev,
 	return 0;
 }
 
-static int max8925_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int max8925_probe(struct i2c_client *client)
 {
 	struct max8925_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct max8925_chip *chip;
@@ -173,7 +172,6 @@ static int max8925_probe(struct i2c_client *client,
 	chip->i2c = client;
 	chip->dev = &client->dev;
 	i2c_set_clientdata(client, chip);
-	dev_set_drvdata(chip->dev, chip);
 	mutex_init(&chip->io_lock);
 
 	chip->rtc = i2c_new_dummy_device(chip->i2c->adapter, RTC_I2C_ADDR);
@@ -207,7 +205,6 @@ static void max8925_remove(struct i2c_client *client)
 	i2c_unregister_device(chip->rtc);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int max8925_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -227,9 +224,9 @@ static int max8925_resume(struct device *dev)
 		disable_irq_wake(chip->core_irq);
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(max8925_pm_ops, max8925_suspend, max8925_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(max8925_pm_ops,
+				max8925_suspend, max8925_resume);
 
 static const struct of_device_id max8925_dt_ids[] = {
 	{ .compatible = "maxim,max8925", },
@@ -239,7 +236,7 @@ static const struct of_device_id max8925_dt_ids[] = {
 static struct i2c_driver max8925_driver = {
 	.driver	= {
 		.name	= "max8925",
-		.pm     = &max8925_pm_ops,
+		.pm     = pm_sleep_ptr(&max8925_pm_ops),
 		.of_match_table = max8925_dt_ids,
 	},
 	.probe		= max8925_probe,

@@ -69,6 +69,7 @@ struct t7xx_pci_dev {
 	struct t7xx_modem	*md;
 	struct t7xx_ccmni_ctrl	*ccmni_ctlb;
 	bool			rgu_pci_irq_en;
+	struct completion	init_done;
 
 	/* Low Power Items */
 	struct list_head	md_pm_entities;
@@ -78,6 +79,9 @@ struct t7xx_pci_dev {
 	spinlock_t		md_pm_lock;		/* Protects PCI resource lock */
 	unsigned int		sleep_disable_count;
 	struct completion	sleep_lock_acquire;
+#ifdef CONFIG_WWAN_DEBUGFS
+	struct dentry		*debugfs_dir;
+#endif
 };
 
 enum t7xx_pm_id {

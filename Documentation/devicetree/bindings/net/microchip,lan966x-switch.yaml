@@ -73,7 +73,7 @@ properties:
       "^port@[0-9a-f]+$":
         type: object
 
-        $ref: "/schemas/net/ethernet-controller.yaml#"
+        $ref: /schemas/net/ethernet-controller.yaml#
         unevaluatedProperties: false
 
         properties:

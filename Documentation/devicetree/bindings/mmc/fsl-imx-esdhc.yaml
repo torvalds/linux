@@ -10,7 +10,7 @@ maintainers:
   - Shawn Guo <shawnguo@kernel.org>
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: sdhci-common.yaml#
 
 description: |
   The Enhanced Secure Digital Host Controller on Freescale i.MX family
@@ -29,14 +29,24 @@ properties:
           - fsl,imx53-esdhc
           - fsl,imx6q-usdhc
           - fsl,imx6sl-usdhc
-          - fsl,imx6sll-usdhc
           - fsl,imx6sx-usdhc
-          - fsl,imx6ull-usdhc
           - fsl,imx7d-usdhc
           - fsl,imx7ulp-usdhc
           - fsl,imx8mm-usdhc
           - fsl,imxrt1050-usdhc
           - nxp,s32g2-usdhc
+      - items:
+          - const: fsl,imx50-esdhc
+          - const: fsl,imx53-esdhc
+      - items:
+          - enum:
+              - fsl,imx6sll-usdhc
+              - fsl,imx6ull-usdhc
+              - fsl,imx6ul-usdhc
+          - const: fsl,imx6sx-usdhc
+      - items:
+          - const: fsl,imx7d-usdhc
+          - const: fsl,imx6sl-usdhc
       - items:
           - enum:
               - fsl,imx8mq-usdhc
@@ -50,11 +60,11 @@ properties:
           - const: fsl,imx8mm-usdhc
       - items:
           - enum:
+              - fsl,imx8dxl-usdhc
               - fsl,imx8qm-usdhc
           - const: fsl,imx8qxp-usdhc
       - items:
           - enum:
-              - fsl,imx8dxl-usdhc
               - fsl,imx8mm-usdhc
               - fsl,imx8mn-usdhc
               - fsl,imx8mp-usdhc
@@ -71,10 +81,15 @@ properties:
         deprecated: true
       - items:
           - enum:
+              - fsl,imx8dxl-usdhc
               - fsl,imx8qm-usdhc
           - const: fsl,imx8qxp-usdhc
           - const: fsl,imx7d-usdhc
         deprecated: true
+      - items:
+          - enum:
+              - fsl,imxrt1170-usdhc
+          - const: fsl,imxrt1050-usdhc
 
   reg:
     maxItems: 1
@@ -93,12 +108,12 @@ properties:
       Specify the number of delay cells for override mode.
       This is used to set the clock delay for DLL(Delay Line) on override mode
       to select a proper data sampling window in case the clock quality is not good
-      due to signal path is too long on the board. Please refer to eSDHC/uSDHC
+      because the signal path is too long on the board. Please refer to eSDHC/uSDHC
       chapter, DLL (Delay Line) section in RM for details.
     default: 0
 
   voltage-ranges:
-    $ref: '/schemas/types.yaml#/definitions/uint32-matrix'
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
     description: |
       Specify the voltage range in case there are software transparent level
       shifters on the outputs of the controller. Two cells are required, first
@@ -122,7 +137,7 @@ properties:
       Specify the increasing delay cell steps in tuning procedure.
       The uSDHC use one delay cell as default increasing step to do tuning process.
       This property allows user to change the tuning step to more than one delay
-      cells which is useful for some special boards or cards when the default
+      cell which is useful for some special boards or cards when the default
       tuning step can't find the proper delay window within limited tuning retries.
     default: 0
 

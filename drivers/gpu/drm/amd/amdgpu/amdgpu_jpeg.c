@@ -45,13 +45,14 @@ int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
 
 int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;
 
-		amdgpu_ring_fini(&adev->jpeg.inst[i].ring_dec);
+		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j)
+			amdgpu_ring_fini(&adev->jpeg.inst[i].ring_dec[j]);
 	}
 
 	mutex_destroy(&adev->jpeg.jpeg_pg_lock);
@@ -76,13 +77,14 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work)
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, jpeg.idle_work.work);
 	unsigned int fences = 0;
-	unsigned int i;
+	unsigned int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;
 
-		fences += amdgpu_fence_count_emitted(&adev->jpeg.inst[i].ring_dec);
+		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j)
+			fences += amdgpu_fence_count_emitted(&adev->jpeg.inst[i].ring_dec[j]);
 	}
 
 	if (!fences && !atomic_read(&adev->jpeg.total_submission_cnt))
@@ -118,18 +120,25 @@ int amdgpu_jpeg_dec_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch, 0xCAFEDEAD);
+	/* JPEG in SRIOV does not support direct register read/write */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	r = amdgpu_ring_alloc(ring, 3);
 	if (r)
 		return r;
 
-	amdgpu_ring_write(ring, PACKET0(adev->jpeg.internal.jpeg_pitch, 0));
-	amdgpu_ring_write(ring, 0xDEADBEEF);
+	WREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe], 0xCAFEDEAD);
+	/* Add a read register to make sure the write register is executed. */
+	RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
+
+	amdgpu_ring_write(ring, PACKET0(adev->jpeg.internal.jpeg_pitch[ring->pipe], 0));
+	amdgpu_ring_write(ring, 0xABADCAFE);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch);
-		if (tmp == 0xDEADBEEF)
+		tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
+		if (tmp == 0xABADCAFE)
 			break;
 		udelay(1);
 	}
@@ -150,14 +159,14 @@ static int amdgpu_jpeg_dec_set_reg(struct amdgpu_ring *ring, uint32_t handle,
 	const unsigned ib_size_dw = 16;
 	int i, r;
 
-	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4,
-					AMDGPU_IB_POOL_DIRECT, &job);
+	r = amdgpu_job_alloc_with_ib(ring->adev, NULL, NULL, ib_size_dw * 4,
+				     AMDGPU_IB_POOL_DIRECT, &job);
 	if (r)
 		return r;
 
 	ib = &job->ibs[0];
 
-	ib->ptr[0] = PACKETJ(adev->jpeg.internal.jpeg_pitch, 0, 0, PACKETJ_TYPE0);
+	ib->ptr[0] = PACKETJ(adev->jpeg.internal.jpeg_pitch[ring->pipe], 0, 0, PACKETJ_TYPE0);
 	ib->ptr[1] = 0xDEADBEEF;
 	for (i = 2; i < 16; i += 2) {
 		ib->ptr[i] = PACKETJ(0, 0, 0, PACKETJ_TYPE6);
@@ -201,16 +210,17 @@ int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	} else {
 		r = 0;
 	}
+	if (!amdgpu_sriov_vf(adev)) {
+		for (i = 0; i < adev->usec_timeout; i++) {
+			tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
+			if (tmp == 0xDEADBEEF)
+				break;
+			udelay(1);
+		}
 
-	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch);
-		if (tmp == 0xDEADBEEF)
-			break;
-		udelay(1);
+		if (i >= adev->usec_timeout)
+			r = -ETIMEDOUT;
 	}
-
-	if (i >= adev->usec_timeout)
-		r = -ETIMEDOUT;
 
 	dma_fence_put(fence);
 error:
@@ -231,6 +241,58 @@ int amdgpu_jpeg_process_poison_irq(struct amdgpu_device *adev,
 
 	ih_data.head = *ras_if;
 	amdgpu_ras_interrupt_dispatch(adev, &ih_data);
+
+	return 0;
+}
+
+int amdgpu_jpeg_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+{
+	int r, i;
+
+	r = amdgpu_ras_block_late_init(adev, ras_block);
+	if (r)
+		return r;
+
+	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
+		for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+			if (adev->jpeg.harvest_config & (1 << i) ||
+			    !adev->jpeg.inst[i].ras_poison_irq.funcs)
+				continue;
+
+			r = amdgpu_irq_get(adev, &adev->jpeg.inst[i].ras_poison_irq, 0);
+			if (r)
+				goto late_fini;
+		}
+	}
+	return 0;
+
+late_fini:
+	amdgpu_ras_block_late_fini(adev, ras_block);
+	return r;
+}
+
+int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev)
+{
+	int err;
+	struct amdgpu_jpeg_ras *ras;
+
+	if (!adev->jpeg.ras)
+		return 0;
+
+	ras = adev->jpeg.ras;
+	err = amdgpu_ras_register_ras_block(adev, &ras->ras_block);
+	if (err) {
+		dev_err(adev->dev, "Failed to register jpeg ras block!\n");
+		return err;
+	}
+
+	strcpy(ras->ras_block.ras_comm.name, "jpeg");
+	ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__JPEG;
+	ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__POISON;
+	adev->jpeg.ras_if = &ras->ras_block.ras_comm;
+
+	if (!ras->ras_block.ras_late_init)
+		ras->ras_block.ras_late_init = amdgpu_jpeg_ras_late_init;
 
 	return 0;
 }

@@ -7,7 +7,7 @@ Landlock LSM: kernel documentation
 ==================================
 
 :Author: Mickaël Salaün
-:Date: September 2022
+:Date: December 2022
 
 Landlock's goal is to create scoped access-control (i.e. sandboxing).  To
 harden a whole system, this feature should be available to any process,
@@ -41,12 +41,16 @@ Guiding principles for safe access controls
   processes.
 * Computation related to Landlock operations (e.g. enforcing a ruleset) shall
   only impact the processes requesting them.
+* Resources (e.g. file descriptors) directly obtained from the kernel by a
+  sandboxed process shall retain their scoped accesses (at the time of resource
+  acquisition) whatever process use them.
+  Cf. `File descriptor access rights`_.
 
 Design choices
 ==============
 
-Filesystem access rights
-------------------------
+Inode access rights
+-------------------
 
 All access rights are tied to an inode and what can be accessed through it.
 Reading the content of a directory does not imply to be allowed to read the
@@ -56,6 +60,30 @@ directory, and an inode can be referenced by multiple file names thanks to
 directory, not the unlinked inode.  This is the reason why
 ``LANDLOCK_ACCESS_FS_REMOVE_FILE`` or ``LANDLOCK_ACCESS_FS_REFER`` are not
 allowed to be tied to files but only to directories.
+
+File descriptor access rights
+-----------------------------
+
+Access rights are checked and tied to file descriptors at open time.  The
+underlying principle is that equivalent sequences of operations should lead to
+the same results, when they are executed under the same Landlock domain.
+
+Taking the ``LANDLOCK_ACCESS_FS_TRUNCATE`` right as an example, it may be
+allowed to open a file for writing without being allowed to
+:manpage:`ftruncate` the resulting file descriptor if the related file
+hierarchy doesn't grant such access right.  The following sequences of
+operations have the same semantic and should then have the same result:
+
+* ``truncate(path);``
+* ``int fd = open(path, O_WRONLY); ftruncate(fd); close(fd);``
+
+Similarly to file access modes (e.g. ``O_RDWR``), Landlock access rights
+attached to file descriptors are retained even if they are passed between
+processes (e.g. through a Unix domain socket).  Such access rights will then be
+enforced even if the receiving process is not sandboxed by Landlock.  Indeed,
+this is required to keep a consistent access control over the whole system, and
+this avoids unattended bypasses through file descriptor passing (i.e. confused
+deputy attack).
 
 Tests
 =====

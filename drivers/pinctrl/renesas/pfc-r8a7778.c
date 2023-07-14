@@ -2832,7 +2832,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SEL_I2C1_A,		FN_SEL_I2C1_B,
 		))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_bias_reg pinmux_bias_regs[] = {
@@ -3040,7 +3040,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = SH_PFC_PIN_NONE,
 		[31] = SH_PFC_PIN_NONE,
 	} },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static const struct sh_pfc_soc_operations r8a7778_pfc_ops = {

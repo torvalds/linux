@@ -389,15 +389,6 @@ static inline void user_single_step_report(struct pt_regs *regs)
 #define current_pt_regs() task_pt_regs(current)
 #endif
 
-/*
- * unlike current_pt_regs(), this one is equal to task_pt_regs(current)
- * on *all* architectures; the only reason to have a per-arch definition
- * is optimisation.
- */
-#ifndef signal_pt_regs
-#define signal_pt_regs() task_pt_regs(current)
-#endif
-
 #ifndef current_user_stack_pointer
 #define current_user_stack_pointer() user_stack_pointer(current_pt_regs())
 #endif

@@ -97,11 +97,11 @@ VCPU requests are simply bit indices of the ``vcpu->requests`` bitmap.
 This means general bitops, like those documented in [atomic-ops]_ could
 also be used, e.g. ::
 
-  clear_bit(KVM_REQ_UNHALT & KVM_REQUEST_MASK, &vcpu->requests);
+  clear_bit(KVM_REQ_UNBLOCK & KVM_REQUEST_MASK, &vcpu->requests);
 
 However, VCPU request users should refrain from doing so, as it would
 break the abstraction.  The first 8 bits are reserved for architecture
-independent requests, all additional bits are available for architecture
+independent requests; all additional bits are available for architecture
 dependent requests.
 
 Architecture Independent Requests
@@ -125,17 +125,6 @@ KVM_REQ_UNBLOCK
   example from timer handlers that run on the host on behalf of a vCPU,
   or in order to update the interrupt routing and ensure that assigned
   devices will wake up the vCPU.
-
-KVM_REQ_UNHALT
-
-  This request may be made from the KVM common function kvm_vcpu_block(),
-  which is used to emulate an instruction that causes a CPU to halt until
-  one of an architectural specific set of events and/or interrupts is
-  received (determined by checking kvm_arch_vcpu_runnable()).  When that
-  event or interrupt arrives kvm_vcpu_block() makes the request.  This is
-  in contrast to when kvm_vcpu_block() returns due to any other reason,
-  such as a pending signal, which does not indicate the VCPU's halt
-  emulation should stop, and therefore does not make the request.
 
 KVM_REQ_OUTSIDE_GUEST_MODE
 
@@ -162,8 +151,8 @@ KVM_REQUEST_NO_WAKEUP
 
   This flag is applied to requests that only need immediate attention
   from VCPUs running in guest mode.  That is, sleeping VCPUs do not need
-  to be awaken for these requests.  Sleeping VCPUs will handle the
-  requests when they are awaken later for some other reason.
+  to be awakened for these requests.  Sleeping VCPUs will handle the
+  requests when they are awakened later for some other reason.
 
 KVM_REQUEST_WAIT
 
@@ -296,21 +285,6 @@ do or not, and, if they do, which requests need consideration, is
 architecture dependent.  kvm_vcpu_block() calls kvm_arch_vcpu_runnable()
 to check if it should awaken.  One reason to do so is to provide
 architectures a function where requests may be checked if necessary.
-
-Clearing Requests
------------------
-
-Generally it only makes sense for the receiving VCPU thread to clear a
-request.  However, in some circumstances, such as when the requesting
-thread and the receiving VCPU thread are executed serially, such as when
-they are the same thread, or when they are using some form of concurrency
-control to temporarily execute synchronously, then it's possible to know
-that the request may be cleared immediately, rather than waiting for the
-receiving VCPU thread to handle the request in VCPU RUN.  The only current
-examples of this are kvm_vcpu_block() calls made by VCPUs to block
-themselves.  A possible side-effect of that call is to make the
-KVM_REQ_UNHALT request, which may then be cleared immediately when the
-VCPU returns from the call.
 
 References
 ==========

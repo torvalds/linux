@@ -166,6 +166,16 @@ config INPUT_EVBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called evbug.
 
+config INPUT_KUNIT_TEST
+	tristate "KUnit tests for Input" if !KUNIT_ALL_TESTS
+	depends on INPUT && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Say Y here if you want to build the KUnit tests for the input
+	  subsystem.
+
+	  If in doubt, say "N".
+
 config INPUT_APMPOWER
 	tristate "Input Power Event -> APM Bridge" if EXPERT
 	depends on INPUT && APM_EMULATION

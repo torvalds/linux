@@ -20,7 +20,7 @@ __igt_reset_stolen(struct intel_gt *gt,
 		   const char *msg)
 {
 	struct i915_ggtt *ggtt = gt->ggtt;
-	const struct resource *dsm = &gt->i915->dsm;
+	const struct resource *dsm = &gt->i915->dsm.stolen;
 	resource_size_t num_pages, page;
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
@@ -86,7 +86,9 @@ __igt_reset_stolen(struct intel_gt *gt,
 
 		ggtt->vm.insert_page(&ggtt->vm, dma,
 				     ggtt->error_capture.start,
-				     I915_CACHE_NONE, 0);
+				     i915_gem_get_pat_index(gt->i915,
+							    I915_CACHE_NONE),
+				     0);
 		mb();
 
 		s = io_mapping_map_wc(&ggtt->iomap,
@@ -127,7 +129,9 @@ __igt_reset_stolen(struct intel_gt *gt,
 
 		ggtt->vm.insert_page(&ggtt->vm, dma,
 				     ggtt->error_capture.start,
-				     I915_CACHE_NONE, 0);
+				     i915_gem_get_pat_index(gt->i915,
+							    I915_CACHE_NONE),
+				     0);
 		mb();
 
 		s = io_mapping_map_wc(&ggtt->iomap,

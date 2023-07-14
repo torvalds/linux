@@ -7,6 +7,7 @@
  */
 
 #include <kunit/test.h>
+#include <kunit/static_stub.h>
 
 /*
  * This is the most fundamental element of KUnit, the test case. A test case
@@ -41,6 +42,16 @@ static int example_test_init(struct kunit *test)
 }
 
 /*
+ * This is run once after each test case, see the comment on
+ * example_test_suite for more information.
+ */
+static void example_test_exit(struct kunit *test)
+{
+	kunit_info(test, "cleaning up\n");
+}
+
+
+/*
  * This is run once before all test cases in the suite.
  * See the comment on example_test_suite for more information.
  */
@@ -50,6 +61,16 @@ static int example_test_init_suite(struct kunit_suite *suite)
 
 	return 0;
 }
+
+/*
+ * This is run once after all test cases in the suite.
+ * See the comment on example_test_suite for more information.
+ */
+static void example_test_exit_suite(struct kunit_suite *suite)
+{
+	kunit_info(suite, "exiting suite\n");
+}
+
 
 /*
  * This test should always be skipped.
@@ -86,6 +107,9 @@ static void example_mark_skipped_test(struct kunit *test)
  */
 static void example_all_expect_macros_test(struct kunit *test)
 {
+	const u32 array1[] = { 0x0F, 0xFF };
+	const u32 array2[] = { 0x1F, 0xFF };
+
 	/* Boolean assertions */
 	KUNIT_EXPECT_TRUE(test, true);
 	KUNIT_EXPECT_FALSE(test, false);
@@ -109,6 +133,10 @@ static void example_all_expect_macros_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, "hi", "hi");
 	KUNIT_EXPECT_STRNEQ(test, "hi", "bye");
 
+	/* Memory block assertions */
+	KUNIT_EXPECT_MEMEQ(test, array1, array1, sizeof(array1));
+	KUNIT_EXPECT_MEMNEQ(test, array1, array2, sizeof(array1));
+
 	/*
 	 * There are also ASSERT variants of all of the above that abort test
 	 * execution if they fail. Useful for memory allocations, etc.
@@ -121,6 +149,75 @@ static void example_all_expect_macros_test(struct kunit *test)
 	 */
 	KUNIT_EXPECT_GT_MSG(test, sizeof(int), 0, "Your ints are 0-bit?!");
 	KUNIT_ASSERT_GT_MSG(test, sizeof(int), 0, "Your ints are 0-bit?!");
+}
+
+/* This is a function we'll replace with static stubs. */
+static int add_one(int i)
+{
+	/* This will trigger the stub if active. */
+	KUNIT_STATIC_STUB_REDIRECT(add_one, i);
+
+	return i + 1;
+}
+
+/* This is used as a replacement for the above function. */
+static int subtract_one(int i)
+{
+	/* We don't need to trigger the stub from the replacement. */
+
+	return i - 1;
+}
+
+/*
+ * This test shows the use of static stubs.
+ */
+static void example_static_stub_test(struct kunit *test)
+{
+	/* By default, function is not stubbed. */
+	KUNIT_EXPECT_EQ(test, add_one(1), 2);
+
+	/* Replace add_one() with subtract_one(). */
+	kunit_activate_static_stub(test, add_one, subtract_one);
+
+	/* add_one() is now replaced. */
+	KUNIT_EXPECT_EQ(test, add_one(1), 0);
+
+	/* Return add_one() to normal. */
+	kunit_deactivate_static_stub(test, add_one);
+	KUNIT_EXPECT_EQ(test, add_one(1), 2);
+}
+
+static const struct example_param {
+	int value;
+} example_params_array[] = {
+	{ .value = 2, },
+	{ .value = 1, },
+	{ .value = 0, },
+};
+
+static void example_param_get_desc(const struct example_param *p, char *desc)
+{
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "example value %d", p->value);
+}
+
+KUNIT_ARRAY_PARAM(example, example_params_array, example_param_get_desc);
+
+/*
+ * This test shows the use of params.
+ */
+static void example_params_test(struct kunit *test)
+{
+	const struct example_param *param = test->param_value;
+
+	/* By design, param pointer will not be NULL */
+	KUNIT_ASSERT_NOT_NULL(test, param);
+
+	/* Test can be skipped on unsupported param values */
+	if (!param->value)
+		kunit_skip(test, "unsupported param value");
+
+	/* You can use param values for parameterized testing */
+	KUNIT_EXPECT_EQ(test, param->value % param->value, 0);
 }
 
 /*
@@ -138,6 +235,8 @@ static struct kunit_case example_test_cases[] = {
 	KUNIT_CASE(example_skip_test),
 	KUNIT_CASE(example_mark_skipped_test),
 	KUNIT_CASE(example_all_expect_macros_test),
+	KUNIT_CASE(example_static_stub_test),
+	KUNIT_CASE_PARAM(example_params_test, example_gen_params),
 	{}
 };
 
@@ -166,7 +265,9 @@ static struct kunit_case example_test_cases[] = {
 static struct kunit_suite example_test_suite = {
 	.name = "example",
 	.init = example_test_init,
+	.exit = example_test_exit,
 	.suite_init = example_test_init_suite,
+	.suite_exit = example_test_exit_suite,
 	.test_cases = example_test_cases,
 };
 

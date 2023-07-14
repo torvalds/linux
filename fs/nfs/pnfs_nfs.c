@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(pnfs_generic_recover_commit_reqs);
 
 static struct nfs_page *
 pnfs_bucket_search_commit_reqs(struct pnfs_commit_bucket *buckets,
-		unsigned int nbuckets, struct page *page)
+			       unsigned int nbuckets, struct folio *folio)
 {
 	struct nfs_page *req;
 	struct pnfs_commit_bucket *b;
@@ -363,26 +363,26 @@ pnfs_bucket_search_commit_reqs(struct pnfs_commit_bucket *buckets,
 	 * request is found */
 	for (i = 0, b = buckets; i < nbuckets; i++, b++) {
 		list_for_each_entry(req, &b->written, wb_list) {
-			if (req->wb_page == page)
+			if (nfs_page_to_folio(req) == folio)
 				return req->wb_head;
 		}
 		list_for_each_entry(req, &b->committing, wb_list) {
-			if (req->wb_page == page)
+			if (nfs_page_to_folio(req) == folio)
 				return req->wb_head;
 		}
 	}
 	return NULL;
 }
 
-/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head reqest
- *				   for @page
+/* pnfs_generic_search_commit_reqs - Search lists in @cinfo for the head request
+ *				   for @folio
  * @cinfo - commit info for current inode
- * @page - page to search for matching head request
+ * @folio - page to search for matching head request
  *
- * Returns a the head request if one is found, otherwise returns NULL.
+ * Return: the head request if one is found, otherwise %NULL.
  */
-struct nfs_page *
-pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page)
+struct nfs_page *pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo,
+						 struct folio *folio)
 {
 	struct pnfs_ds_commit_info *fl_cinfo = cinfo->ds;
 	struct pnfs_commit_array *array;
@@ -390,7 +390,7 @@ pnfs_generic_search_commit_reqs(struct nfs_commit_info *cinfo, struct page *page
 
 	list_for_each_entry(array, &fl_cinfo->commits, cinfo_list) {
 		req = pnfs_bucket_search_commit_reqs(array->buckets,
-				array->nbuckets, page);
+						     array->nbuckets, folio);
 		if (req)
 			return req;
 	}
@@ -821,7 +821,7 @@ static void nfs4_clear_ds_conn_bit(struct nfs4_pnfs_ds *ds)
 
 static struct nfs_client *(*get_v3_ds_connect)(
 			struct nfs_server *mds_srv,
-			const struct sockaddr *ds_addr,
+			const struct sockaddr_storage *ds_addr,
 			int ds_addrlen,
 			int ds_proto,
 			unsigned int ds_timeo,
@@ -882,7 +882,7 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 			continue;
 		}
 		clp = get_v3_ds_connect(mds_srv,
-				(struct sockaddr *)&da->da_addr,
+				&da->da_addr,
 				da->da_addrlen, da->da_transport,
 				timeo, retrans);
 		if (IS_ERR(clp))
@@ -951,7 +951,7 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 				put_cred(xprtdata.cred);
 		} else {
 			clp = nfs4_set_ds_client(mds_srv,
-						(struct sockaddr *)&da->da_addr,
+						&da->da_addr,
 						da->da_addrlen,
 						da->da_transport, timeo,
 						retrans, minor_version);
@@ -1180,7 +1180,7 @@ pnfs_layout_mark_request_commit(struct nfs_page *req,
 
 	nfs_request_add_commit_list_locked(req, list, cinfo);
 	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
-	nfs_mark_page_unstable(req->wb_page, cinfo);
+	nfs_folio_mark_unstable(nfs_page_to_folio(req), cinfo);
 	return;
 out_resched:
 	mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);

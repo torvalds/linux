@@ -8,26 +8,27 @@ title: Cadence SD/SDIO/eMMC Host Controller (SD4HC)
 
 maintainers:
   - Masahiro Yamada <yamada.masahiro@socionext.com>
-  - Piotr Sroka <piotrs@cadence.com>
-
-allOf:
-  - $ref: mmc-controller.yaml
 
 properties:
   compatible:
     items:
       - enum:
+          - amd,pensando-elba-sd4hc
           - microchip,mpfs-sd4hc
           - socionext,uniphier-sd4hc
       - const: cdns,sd4hc
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   interrupts:
     maxItems: 1
 
   clocks:
+    maxItems: 1
+
+  resets:
     maxItems: 1
 
   # PHY DLL input delays:
@@ -37,43 +38,43 @@ properties:
 
   cdns,phy-input-delay-sd-highspeed:
     description: Value of the delay in the input path for SD high-speed timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-legacy:
     description: Value of the delay in the input path for legacy timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr12:
     description: Value of the delay in the input path for SD UHS SDR12 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr25:
     description: Value of the delay in the input path for SD UHS SDR25 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-sdr50:
     description: Value of the delay in the input path for SD UHS SDR50 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-sd-uhs-ddr50:
     description: Value of the delay in the input path for SD UHS DDR50 timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
   cdns,phy-input-delay-mmc-highspeed:
     description: Value of the delay in the input path for MMC high-speed timing
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
@@ -84,7 +85,7 @@ properties:
   # Each delay property represents the fraction of the clock period.
   # The approximate delay value will be
   # (<delay property value>/128)*sdmclk_clock_period.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x1f
 
@@ -92,7 +93,7 @@ properties:
     description: |
       Value of the delay introduced on the sdclk output for all modes except
       HS200, HS400 and HS400_ES.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x7f
 
@@ -100,7 +101,7 @@ properties:
     description: |
       Value of the delay introduced on the sdclk output for HS200, HS400 and
       HS400_ES speed modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x7f
 
@@ -108,7 +109,7 @@ properties:
     description: |
       Value of the delay introduced on the dat_strobe input used in
       HS400 / HS400_ES speed modes.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 0x7f
 
@@ -117,6 +118,26 @@ required:
   - reg
   - interrupts
   - clocks
+
+allOf:
+  - $ref: mmc-controller.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: amd,pensando-elba-sd4hc
+    then:
+      properties:
+        reg:
+          items:
+            - description: Host controller registers
+            - description: Elba byte-lane enable register for writes
+      required:
+        - resets
+    else:
+      properties:
+        reg:
+          maxItems: 1
 
 unevaluatedProperties: false
 

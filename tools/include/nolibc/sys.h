@@ -12,12 +12,17 @@
 
 /* system includes */
 #include <asm/unistd.h>
-#include <asm/signal.h>  // for SIGCHLD
+#include <asm/signal.h>  /* for SIGCHLD */
 #include <asm/ioctls.h>
 #include <asm/mman.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
+#include <linux/auxvec.h>
+#include <linux/fcntl.h> /* for O_* and AT_* */
+#include <linux/stat.h>  /* for statx() */
+#include <linux/reboot.h> /* for LINUX_REBOOT_* */
+#include <linux/prctl.h>
 
 #include "arch.h"
 #include "errno.h"
@@ -319,7 +324,7 @@ static __attribute__((noreturn,unused))
 void sys_exit(int status)
 {
 	my_syscall1(__NR_exit, status & 255);
-	while(1); // shut the "noreturn" warnings.
+	while(1); /* shut the "noreturn" warnings. */
 }
 
 static __attribute__((noreturn,unused))
@@ -333,6 +338,7 @@ void exit(int status)
  * pid_t fork(void);
  */
 
+#ifndef sys_fork
 static __attribute__((unused))
 pid_t sys_fork(void)
 {
@@ -348,6 +354,7 @@ pid_t sys_fork(void)
 #error Neither __NR_clone nor __NR_fork defined, cannot implement sys_fork()
 #endif
 }
+#endif
 
 static __attribute__((unused))
 pid_t fork(void)
@@ -405,6 +412,27 @@ int getdents64(int fd, struct linux_dirent64 *dirp, int count)
 		ret = -1;
 	}
 	return ret;
+}
+
+
+/*
+ * uid_t geteuid(void);
+ */
+
+static __attribute__((unused))
+uid_t sys_geteuid(void)
+{
+#ifdef __NR_geteuid32
+	return my_syscall0(__NR_geteuid32);
+#else
+	return my_syscall0(__NR_geteuid);
+#endif
+}
+
+static __attribute__((unused))
+uid_t geteuid(void)
+{
+	return sys_geteuid();
 }
 
 
@@ -498,6 +526,26 @@ pid_t gettid(void)
 	return sys_gettid();
 }
 
+static unsigned long getauxval(unsigned long key);
+
+/*
+ * long getpagesize(void);
+ */
+
+static __attribute__((unused))
+long getpagesize(void)
+{
+	long ret;
+
+	ret = getauxval(AT_PAGESZ);
+	if (!ret) {
+		SET_ERRNO(ENOENT);
+		return -1;
+	}
+
+	return ret;
+}
+
 
 /*
  * int gettimeofday(struct timeval *tv, struct timezone *tz);
@@ -519,6 +567,27 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
 		ret = -1;
 	}
 	return ret;
+}
+
+
+/*
+ * uid_t getuid(void);
+ */
+
+static __attribute__((unused))
+uid_t sys_getuid(void)
+{
+#ifdef __NR_getuid32
+	return my_syscall0(__NR_getuid32);
+#else
+	return my_syscall0(__NR_getuid);
+#endif
+}
+
+static __attribute__((unused))
+uid_t getuid(void)
+{
+	return sys_getuid();
 }
 
 
@@ -686,6 +755,7 @@ int mknod(const char *path, mode_t mode, dev_t dev)
 #define MAP_FAILED ((void *)-1)
 #endif
 
+#ifndef sys_mmap
 static __attribute__((unused))
 void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	       off_t offset)
@@ -707,6 +777,7 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 	return (void *)my_syscall6(n, addr, length, prot, flags, fd, offset);
 #endif
 }
+#endif
 
 static __attribute__((unused))
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
@@ -791,11 +862,37 @@ int open(const char *path, int flags, ...)
 		va_list args;
 
 		va_start(args, flags);
-		mode = va_arg(args, mode_t);
+		mode = va_arg(args, int);
 		va_end(args);
 	}
 
 	ret = sys_open(path, flags, mode);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+
+/*
+ * int prctl(int option, unsigned long arg2, unsigned long arg3,
+ *                       unsigned long arg4, unsigned long arg5);
+ */
+
+static __attribute__((unused))
+int sys_prctl(int option, unsigned long arg2, unsigned long arg3,
+		          unsigned long arg4, unsigned long arg5)
+{
+	return my_syscall5(__NR_prctl, option, arg2, arg3, arg4, arg5);
+}
+
+static __attribute__((unused))
+int prctl(int option, unsigned long arg2, unsigned long arg3,
+		      unsigned long arg4, unsigned long arg5)
+{
+	int ret = sys_prctl(option, arg2, arg3, arg4, arg5);
 
 	if (ret < 0) {
 		SET_ERRNO(-ret);
@@ -842,7 +939,7 @@ int sys_poll(struct pollfd *fds, int nfds, int timeout)
 		t.tv_sec  = timeout / 1000;
 		t.tv_nsec = (timeout % 1000) * 1000000;
 	}
-	return my_syscall4(__NR_ppoll, fds, nfds, (timeout >= 0) ? &t : NULL, NULL);
+	return my_syscall5(__NR_ppoll, fds, nfds, (timeout >= 0) ? &t : NULL, NULL, 0);
 #elif defined(__NR_poll)
 	return my_syscall3(__NR_poll, fds, nfds, timeout);
 #else
@@ -1024,12 +1121,69 @@ pid_t setsid(void)
 	return ret;
 }
 
+#if defined(__NR_statx)
+/*
+ * int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf);
+ */
+
+static __attribute__((unused))
+int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
+{
+	return my_syscall5(__NR_statx, fd, path, flags, mask, buf);
+}
+
+static __attribute__((unused))
+int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
+{
+	int ret = sys_statx(fd, path, flags, mask, buf);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+#endif
 
 /*
  * int stat(const char *path, struct stat *buf);
  * Warning: the struct stat's layout is arch-dependent.
  */
 
+#if defined(__NR_statx) && !defined(__NR_newfstatat) && !defined(__NR_stat)
+/*
+ * Maybe we can just use statx() when available for all architectures?
+ */
+static __attribute__((unused))
+int sys_stat(const char *path, struct stat *buf)
+{
+	struct statx statx;
+	long ret;
+
+	ret = sys_statx(AT_FDCWD, path, AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx);
+	buf->st_dev          = ((statx.stx_dev_minor & 0xff)
+			       | (statx.stx_dev_major << 8)
+			       | ((statx.stx_dev_minor & ~0xff) << 12));
+	buf->st_ino          = statx.stx_ino;
+	buf->st_mode         = statx.stx_mode;
+	buf->st_nlink        = statx.stx_nlink;
+	buf->st_uid          = statx.stx_uid;
+	buf->st_gid          = statx.stx_gid;
+	buf->st_rdev         = ((statx.stx_rdev_minor & 0xff)
+			       | (statx.stx_rdev_major << 8)
+			       | ((statx.stx_rdev_minor & ~0xff) << 12));
+	buf->st_size         = statx.stx_size;
+	buf->st_blksize      = statx.stx_blksize;
+	buf->st_blocks       = statx.stx_blocks;
+	buf->st_atim.tv_sec  = statx.stx_atime.tv_sec;
+	buf->st_atim.tv_nsec = statx.stx_atime.tv_nsec;
+	buf->st_mtim.tv_sec  = statx.stx_mtime.tv_sec;
+	buf->st_mtim.tv_nsec = statx.stx_mtime.tv_nsec;
+	buf->st_ctim.tv_sec  = statx.stx_ctime.tv_sec;
+	buf->st_ctim.tv_nsec = statx.stx_ctime.tv_nsec;
+	return ret;
+}
+#else
 static __attribute__((unused))
 int sys_stat(const char *path, struct stat *buf)
 {
@@ -1044,21 +1198,25 @@ int sys_stat(const char *path, struct stat *buf)
 #else
 #error Neither __NR_newfstatat nor __NR_stat defined, cannot implement sys_stat()
 #endif
-	buf->st_dev     = stat.st_dev;
-	buf->st_ino     = stat.st_ino;
-	buf->st_mode    = stat.st_mode;
-	buf->st_nlink   = stat.st_nlink;
-	buf->st_uid     = stat.st_uid;
-	buf->st_gid     = stat.st_gid;
-	buf->st_rdev    = stat.st_rdev;
-	buf->st_size    = stat.st_size;
-	buf->st_blksize = stat.st_blksize;
-	buf->st_blocks  = stat.st_blocks;
-	buf->st_atime   = stat.st_atime;
-	buf->st_mtime   = stat.st_mtime;
-	buf->st_ctime   = stat.st_ctime;
+	buf->st_dev          = stat.st_dev;
+	buf->st_ino          = stat.st_ino;
+	buf->st_mode         = stat.st_mode;
+	buf->st_nlink        = stat.st_nlink;
+	buf->st_uid          = stat.st_uid;
+	buf->st_gid          = stat.st_gid;
+	buf->st_rdev         = stat.st_rdev;
+	buf->st_size         = stat.st_size;
+	buf->st_blksize      = stat.st_blksize;
+	buf->st_blocks       = stat.st_blocks;
+	buf->st_atim.tv_sec  = stat.st_atime;
+	buf->st_atim.tv_nsec = stat.st_atime_nsec;
+	buf->st_mtim.tv_sec  = stat.st_mtime;
+	buf->st_mtim.tv_nsec = stat.st_mtime_nsec;
+	buf->st_ctim.tv_sec  = stat.st_ctime;
+	buf->st_ctim.tv_nsec = stat.st_ctime_nsec;
 	return ret;
 }
+#endif
 
 static __attribute__((unused))
 int stat(const char *path, struct stat *buf)
@@ -1243,5 +1401,30 @@ ssize_t write(int fd, const void *buf, size_t count)
 	return ret;
 }
 
+
+/*
+ * int memfd_create(const char *name, unsigned int flags);
+ */
+
+static __attribute__((unused))
+int sys_memfd_create(const char *name, unsigned int flags)
+{
+	return my_syscall2(__NR_memfd_create, name, flags);
+}
+
+static __attribute__((unused))
+int memfd_create(const char *name, unsigned int flags)
+{
+	ssize_t ret = sys_memfd_create(name, flags);
+
+	if (ret < 0) {
+		SET_ERRNO(-ret);
+		ret = -1;
+	}
+	return ret;
+}
+
+/* make sure to include all global symbols */
+#include "nolibc.h"
 
 #endif /* _NOLIBC_SYS_H */

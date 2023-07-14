@@ -32,3 +32,47 @@
 &bq27441_fg {
 	monitored-battery = <&battery>;
 };
+
+&i2c4 {
+	status = "okay";
+
+	max98927_codec: max98927@3a {
+		compatible = "maxim,max98927";
+		reg = <0x3a>;
+		#sound-dai-cells = <1>;
+
+		pinctrl-0 = <&speaker_default>;
+		pinctrl-names = "default";
+
+		reset-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;
+
+		vmon-slot-no = <1>;
+		imon-slot-no = <0>;
+	};
+};
+
+&pmi8998_charger {
+	monitored-battery = <&battery>;
+};
+
+&sound {
+	model = "OnePlus 6";
+	audio-routing =	"RX_BIAS", "MCLK",
+			"AMIC2", "MIC BIAS2",
+			"AMIC3", "MIC BIAS4",
+			"AMIC4", "MIC BIAS1",
+			"AMIC5", "MIC BIAS4";
+};
+
+&speaker_playback_dai {
+	codec {
+		sound-dai = <&max98927_codec 0>;
+	};
+};
+
+&wcd9340 {
+	qcom,micbias1-microvolt = <1800000>;
+	qcom,micbias2-microvolt = <2700000>;
+	qcom,micbias3-microvolt = <1800000>;
+	qcom,micbias4-microvolt = <1800000>;
+};

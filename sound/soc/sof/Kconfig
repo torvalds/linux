@@ -39,7 +39,7 @@ config SND_SOC_SOF_ACPI_DEV
 
 config SND_SOC_SOF_OF
 	tristate "SOF OF enumeration support"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  This adds support for Device Tree enumeration. This option is
 	  required to enable i.MX8 or Mediatek devices.
@@ -97,13 +97,13 @@ config SND_SOC_SOF_NOCODEC
 	tristate
 
 config SND_SOC_SOF_NOCODEC_SUPPORT
-	bool "SOF nocodec mode support"
+	bool "SOF nocodec static mode support"
 	help
 	  This adds support for a dummy/nocodec machine driver fallback
 	  option if no known codec is detected. This is typically only
 	  enabled for developers or devices where the sound card is
 	  controlled externally.
-	  This option is mutually exclusive with the Intel HDAudio support.
+	  This option is mutually exclusive at build time with the Intel HDAudio support.
 	  Selecting it may have negative impacts and prevent e.g. microphone
 	  functionality from being enabled on Intel CoffeeLake and later
 	  platforms.
@@ -135,6 +135,19 @@ config SND_SOC_SOF_DEBUG
 	  If unsure select "N".
 
 if SND_SOC_SOF_DEBUG
+
+config SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT
+	bool "SOF nocodec debug mode support"
+	depends on !SND_SOC_SOF_NOCODEC_SUPPORT
+	help
+	  This adds support for a dummy/nocodec machine driver fallback
+	  option.
+	  Unlike the SND_SOC_SOF_NOCODEC_SUPPORT, this option is NOT
+	  mutually exclusive at build with the Intel HDAudio support. The
+	  selection will be done depending on command line or modprobe.d settings
+	  Distributions should not select this option!
+	  Say Y if you need this nocodec debug fallback option.
+	  If unsure select "N".
 
 config SND_SOC_SOF_FORCE_NOCODEC_MODE
 	bool "SOF force nocodec Mode"
@@ -223,6 +236,17 @@ config SND_SOC_SOF_DEBUG_IPC_MSG_INJECTOR
 	  Say Y if you want to enable the IPC message injector.
 	  If unsure, select "N".
 
+config SND_SOC_SOF_DEBUG_IPC_KERNEL_INJECTOR
+	tristate "SOF enable IPC kernel injector"
+	depends on SND_SOC_SOF
+	select SND_SOC_SOF_CLIENT
+	help
+	  This option enables the IPC kernel injector which can be used to send
+	  crafted IPC messages to the kernel to test its robustness against
+	  DSP messages.
+	  Say Y if you want to enable the IPC kernel injector.
+	  If unsure, select "N".
+
 config SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT
 	bool "SOF retain DSP context on any FW exceptions"
 	help
@@ -239,6 +263,7 @@ config SND_SOC_SOF
 	tristate
 	select SND_SOC_TOPOLOGY
 	select SND_SOC_SOF_NOCODEC if SND_SOC_SOF_NOCODEC_SUPPORT
+	select SND_SOC_SOF_NOCODEC if SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.

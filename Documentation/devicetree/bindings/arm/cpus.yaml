@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/cpus.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: ARM CPUs bindings
+title: ARM CPUs
 
 maintainers:
   - Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
@@ -85,6 +85,8 @@ properties:
 
   compatible:
     enum:
+      - apple,avalanche
+      - apple,blizzard
       - apple,icestorm
       - apple,firestorm
       - arm,arm710t
@@ -139,8 +141,10 @@ properties:
       - arm,cortex-a77
       - arm,cortex-a78
       - arm,cortex-a78ae
+      - arm,cortex-a78c
       - arm,cortex-a510
       - arm,cortex-a710
+      - arm,cortex-a715
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1
@@ -149,8 +153,11 @@ properties:
       - arm,cortex-r4
       - arm,cortex-r5
       - arm,cortex-r7
+      - arm,cortex-r52
       - arm,cortex-x1
+      - arm,cortex-x1c
       - arm,cortex-x2
+      - arm,cortex-x3
       - arm,neoverse-e1
       - arm,neoverse-n1
       - arm,neoverse-n2
@@ -174,20 +181,23 @@ properties:
       - nvidia,tegra194-carmel
       - qcom,krait
       - qcom,kryo
+      - qcom,kryo240
       - qcom,kryo250
       - qcom,kryo260
       - qcom,kryo280
+      - qcom,kryo360
       - qcom,kryo385
       - qcom,kryo468
       - qcom,kryo485
       - qcom,kryo560
       - qcom,kryo570
+      - qcom,kryo660
       - qcom,kryo685
       - qcom,kryo780
       - qcom,scorpion
 
   enable-method:
-    $ref: '/schemas/types.yaml#/definitions/string'
+    $ref: /schemas/types.yaml#/definitions/string
     oneOf:
       # On ARM v8 64-bit this property is required
       - enum:
@@ -236,8 +246,8 @@ properties:
 
   cpu-release-addr:
     oneOf:
-      - $ref: '/schemas/types.yaml#/definitions/uint32'
-      - $ref: '/schemas/types.yaml#/definitions/uint64'
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - $ref: /schemas/types.yaml#/definitions/uint64
     description:
       The DT specification defines this as 64-bit always, but some 32-bit Arm
       systems have used a 32-bit value which must be supported.
@@ -245,7 +255,7 @@ properties:
         property value of "spin-table".
 
   cpu-idle-states:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
     description: |
@@ -254,14 +264,14 @@ properties:
 
   capacity-dmips-mhz:
     description:
-      u32 value representing CPU capacity (see ./cpu-capacity.txt) in
+      u32 value representing CPU capacity (see ../cpu/cpu-capacity.txt) in
       DMIPS/MHz, relative to highest capacity-dmips-mhz
       in the system.
 
   cci-control-port: true
 
   dynamic-power-coefficient:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       A u32 value that represents the running time dynamic
       power coefficient in units of uW/MHz/V^2. The
@@ -298,7 +308,7 @@ properties:
       PM domain provider, must be "psci".
 
   qcom,saw:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Specifies the SAW* node associated with this CPU.
 
@@ -308,7 +318,7 @@ properties:
       * arm/msm/qcom,saw2.txt
 
   qcom,acc:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Specifies the ACC* node associated with this CPU.
 
@@ -319,7 +329,7 @@ properties:
       * arm/msm/qcom,kpss-acc.txt
 
   rockchip,pmu:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Specifies the syscon node controlling the cpu core power domains.
 
@@ -329,7 +339,7 @@ properties:
       the cpu-core power-domains.
 
   secondary-boot-reg:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Required for systems that have an "enable-method" property value of
       "brcm,bcm11351-cpu-method", "brcm,bcm23550" or "brcm,bcm-nsp-smp".

@@ -201,10 +201,18 @@ static void byt_i2c_setup(struct lpss_private_data *pdata)
 	writel(0, pdata->mmio_base + LPSS_I2C_ENABLE);
 }
 
-/* BSW PWM used for backlight control by the i915 driver */
+/*
+ * BSW PWM1 is used for backlight control by the i915 driver
+ * BSW PWM2 is used for backlight control for fixed (etched into the glass)
+ * touch controls on some models. These touch-controls have specialized
+ * drivers which know they need the "pwm_soc_lpss_2" con-id.
+ */
 static struct pwm_lookup bsw_pwm_lookup[] = {
 	PWM_LOOKUP_WITH_MODULE("80862288:00", 0, "0000:00:02.0",
 			       "pwm_soc_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-lpss-platform"),
+	PWM_LOOKUP_WITH_MODULE("80862289:00", 0, NULL,
+			       "pwm_soc_lpss_2", 0, PWM_POLARITY_NORMAL,
 			       "pwm-lpss-platform"),
 };
 
@@ -268,6 +276,12 @@ static const struct lpss_device_desc bsw_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX_ONCE | LPSS_NO_D3_DELAY,
 	.prv_offset = 0x800,
 	.setup = bsw_pwm_setup,
+	.resume_from_noirq = true,
+};
+
+static const struct lpss_device_desc bsw_pwm2_dev_desc = {
+	.flags = LPSS_SAVE_CTX_ONCE | LPSS_NO_D3_DELAY,
+	.prv_offset = 0x800,
 	.resume_from_noirq = true,
 };
 
@@ -368,6 +382,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	/* Braswell LPSS devices */
 	{ "80862286", LPSS_ADDR(lpss_dma_desc) },
 	{ "80862288", LPSS_ADDR(bsw_pwm_dev_desc) },
+	{ "80862289", LPSS_ADDR(bsw_pwm2_dev_desc) },
 	{ "8086228A", LPSS_ADDR(bsw_uart_dev_desc) },
 	{ "8086228E", LPSS_ADDR(bsw_spi_dev_desc) },
 	{ "808622C0", LPSS_ADDR(lpss_dma_desc) },

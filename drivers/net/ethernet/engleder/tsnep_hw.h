@@ -48,6 +48,13 @@
 #define ECM_COUNTER_LOW 0x0028
 #define ECM_COUNTER_HIGH 0x002C
 
+/* interrupt delay */
+#define ECM_INT_DELAY 0x0030
+#define ECM_INT_DELAY_MASK 0xF0
+#define ECM_INT_DELAY_SHIFT 4
+#define ECM_INT_DELAY_BASE_US 16
+#define ECM_INT_DELAY_OFFSET 1
+
 /* control and status */
 #define ECM_STATUS 0x0080
 #define ECM_LINK_MODE_OFF 0x01000000

@@ -9,7 +9,7 @@
 #define mcfgpio_h
 
 #ifdef CONFIG_GPIOLIB
-#include <asm-generic/gpio.h>
+#include <linux/gpio.h>
 #else
 
 int __mcfgpio_get_value(unsigned gpio);
@@ -32,14 +32,6 @@ static inline void __gpio_set_value(unsigned gpio, int value)
 {
 	if (gpio < MCFGPIO_PIN_MAX)
 		__mcfgpio_set_value(gpio, value);
-}
-
-static inline int __gpio_cansleep(unsigned gpio)
-{
-	if (gpio < MCFGPIO_PIN_MAX)
-		return 0;
-	else
-		return -EINVAL;
 }
 
 static inline int __gpio_to_irq(unsigned gpio)

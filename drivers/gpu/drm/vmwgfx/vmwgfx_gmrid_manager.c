@@ -29,7 +29,6 @@
  */
 
 #include "vmwgfx_drv.h"
-#include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
 #include <linux/idr.h>
 #include <linux/spinlock.h>
@@ -71,7 +70,7 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 	spin_lock(&gman->lock);
 
 	if (gman->max_gmr_pages > 0) {
-		gman->used_gmr_pages += (*res)->num_pages;
+		gman->used_gmr_pages += PFN_UP((*res)->size);
 		/*
 		 * Because the graphics memory is a soft limit we can try to
 		 * expand it instead of letting the userspace apps crash.
@@ -114,7 +113,7 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 	return 0;
 
 nospace:
-	gman->used_gmr_pages -= (*res)->num_pages;
+	gman->used_gmr_pages -= PFN_UP((*res)->size);
 	spin_unlock(&gman->lock);
 	ida_free(&gman->gmr_ida, id);
 	ttm_resource_fini(man, *res);
@@ -129,7 +128,7 @@ static void vmw_gmrid_man_put_node(struct ttm_resource_manager *man,
 
 	ida_free(&gman->gmr_ida, res->start);
 	spin_lock(&gman->lock);
-	gman->used_gmr_pages -= res->num_pages;
+	gman->used_gmr_pages -= PFN_UP(res->size);
 	spin_unlock(&gman->lock);
 	ttm_resource_fini(man, res);
 	kfree(res);

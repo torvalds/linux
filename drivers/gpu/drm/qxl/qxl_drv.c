@@ -37,6 +37,7 @@
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fbdev_generic.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_module.h>
@@ -194,7 +195,6 @@ static int qxl_drm_resume(struct drm_device *dev, bool thaw)
 	qdev->ram_header->int_mask = QXL_INTERRUPT_MASK;
 	if (!thaw) {
 		qxl_reinit_memslots(qdev);
-		qxl_ring_init_hdr(qdev->release_ring);
 	}
 
 	qxl_create_monitors_object(qdev);
@@ -220,6 +220,7 @@ static int qxl_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	struct qxl_device *qdev = to_qxl(drm_dev);
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -227,6 +228,7 @@ static int qxl_pm_resume(struct device *dev)
 		return -EIO;
 	}
 
+	qxl_io_reset(qdev);
 	return qxl_drm_resume(drm_dev, false);
 }
 

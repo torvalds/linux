@@ -10,7 +10,7 @@ config LINKSTATION
 	select FSL_SOC
 	select PPC_UDBG_16550 if SERIAL_8250
 	select DEFAULT_UIMAGE
-	select MPC10X_BRIDGE
+	imply MPC10X_BRIDGE if PCI
 	help
 	  Select LINKSTATION if configuring for one of PPC- (MPC8241)
 	  based NAS systems from Buffalo Technology. So far only
@@ -24,20 +24,10 @@ config STORCENTER
 	select MPIC
 	select FSL_SOC
 	select PPC_UDBG_16550 if SERIAL_8250
-	select MPC10X_BRIDGE
+	imply MPC10X_BRIDGE if PCI
 	help
 	  Select STORCENTER if configuring for the iomega StorCenter
 	  with an 8241 CPU in it.
-
-config MPC7448HPC2
-	bool "Freescale MPC7448HPC2(Taiga)"
-	depends on EMBEDDED6xx
-	select TSI108_BRIDGE
-	select DEFAULT_UIMAGE
-	select PPC_UDBG_16550
-	help
-	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
-	  platform
 
 config PPC_HOLLY
 	bool "PPC750GX/CL with TSI10x bridge (Hickory/Holly)"

@@ -438,10 +438,16 @@ int of_irq_get(struct device_node *dev, int index)
 		return rc;
 
 	domain = irq_find_host(oirq.np);
-	if (!domain)
-		return -EPROBE_DEFER;
+	if (!domain) {
+		rc = -EPROBE_DEFER;
+		goto out;
+	}
 
-	return irq_create_of_mapping(&oirq);
+	rc = irq_create_of_mapping(&oirq);
+out:
+	of_node_put(oirq.np);
+
+	return rc;
 }
 EXPORT_SYMBOL_GPL(of_irq_get);
 
@@ -592,6 +598,9 @@ void __init of_irq_init(const struct of_device_id *matches)
 			ret = desc->irq_init_cb(desc->dev,
 						desc->interrupt_parent);
 			if (ret) {
+				pr_err("%s: Failed to init %pOF (%p), parent %p\n",
+				       __func__, desc->dev, desc->dev,
+				       desc->interrupt_parent);
 				of_node_clear_flag(desc->dev, OF_POPULATED);
 				kfree(desc);
 				continue;
@@ -727,6 +736,7 @@ struct irq_domain *of_msi_get_domain(struct device *dev,
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(of_msi_get_domain);
 
 /**
  * of_msi_configure - Set the msi_domain field of a device

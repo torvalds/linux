@@ -76,7 +76,9 @@ struct sock_args {
 		     has_grp:1,
 		     has_expected_laddr:1,
 		     has_expected_raddr:1,
-		     bind_test_only:1;
+		     bind_test_only:1,
+		     client_dontroute:1,
+		     server_dontroute:1;
 
 	unsigned short port;
 
@@ -87,6 +89,7 @@ struct sock_args {
 	int use_setsockopt;
 	int use_freebind;
 	int use_cmsg;
+	uint8_t dsfield;
 	const char *dev;
 	const char *server_dev;
 	int ifindex;
@@ -578,6 +581,48 @@ static int set_reuseaddr(int sd)
 	}
 
 	return rc;
+}
+
+static int set_dsfield(int sd, int version, int dsfield)
+{
+	if (!dsfield)
+		return 0;
+
+	switch (version) {
+	case AF_INET:
+		if (setsockopt(sd, SOL_IP, IP_TOS, &dsfield,
+			       sizeof(dsfield)) < 0) {
+			log_err_errno("setsockopt(IP_TOS)");
+			return -1;
+		}
+		break;
+
+	case AF_INET6:
+		if (setsockopt(sd, SOL_IPV6, IPV6_TCLASS, &dsfield,
+			       sizeof(dsfield)) < 0) {
+			log_err_errno("setsockopt(IPV6_TCLASS)");
+			return -1;
+		}
+		break;
+
+	default:
+		log_error("Invalid address family\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int set_dontroute(int sd)
+{
+	unsigned int one = 1;
+
+	if (setsockopt(sd, SOL_SOCKET, SO_DONTROUTE, &one, sizeof(one)) < 0) {
+		log_err_errno("setsockopt(SO_DONTROUTE)");
+		return -1;
+	}
+
+	return 0;
 }
 
 static int str_to_uint(const char *str, int min, int max, unsigned int *value)
@@ -1317,6 +1362,17 @@ static int msock_init(struct sock_args *args, int server)
 		       (char *)&one, sizeof(one)) < 0)
 		log_err_errno("Setting SO_BROADCAST error");
 
+	if (set_dsfield(sd, AF_INET, args->dsfield) != 0)
+		goto out_err;
+
+	if (server) {
+		if (args->server_dontroute && set_dontroute(sd) != 0)
+			goto out_err;
+	} else {
+		if (args->client_dontroute && set_dontroute(sd) != 0)
+			goto out_err;
+	}
+
 	if (args->dev && bind_to_device(sd, args->dev) != 0)
 		goto out_err;
 	else if (args->use_setsockopt &&
@@ -1443,6 +1499,12 @@ static int lsock_init(struct sock_args *args)
 		goto err;
 
 	if (set_reuseport(sd) != 0)
+		goto err;
+
+	if (set_dsfield(sd, args->version, args->dsfield) != 0)
+		goto err;
+
+	if (args->server_dontroute && set_dontroute(sd) != 0)
 		goto err;
 
 	if (args->dev && bind_to_device(sd, args->dev) != 0)
@@ -1658,6 +1720,12 @@ static int connectsock(void *addr, socklen_t alen, struct sock_args *args)
 	if (set_reuseport(sd) != 0)
 		goto err;
 
+	if (set_dsfield(sd, args->version, args->dsfield) != 0)
+		goto err;
+
+	if (args->client_dontroute && set_dontroute(sd) != 0)
+		goto err;
+
 	if (args->dev && bind_to_device(sd, args->dev) != 0)
 		goto err;
 	else if (args->use_setsockopt &&
@@ -1862,13 +1930,17 @@ static int ipc_parent(int cpid, int fd, struct sock_args *args)
 	return client_status;
 }
 
-#define GETOPT_STR  "sr:l:c:p:t:g:P:DRn:M:X:m:d:I:BN:O:SUCi6xL:0:1:2:3:Fbqf"
+#define GETOPT_STR  "sr:l:c:Q:p:t:g:P:DRn:M:X:m:d:I:BN:O:SUCi6xL:0:1:2:3:Fbqf"
 #define OPT_FORCE_BIND_KEY_IFINDEX 1001
 #define OPT_NO_BIND_KEY_IFINDEX 1002
+#define OPT_CLIENT_DONTROUTE 1003
+#define OPT_SERVER_DONTROUTE 1004
 
 static struct option long_opts[] = {
 	{"force-bind-key-ifindex", 0, 0, OPT_FORCE_BIND_KEY_IFINDEX},
 	{"no-bind-key-ifindex", 0, 0, OPT_NO_BIND_KEY_IFINDEX},
+	{"client-dontroute", 0, 0, OPT_CLIENT_DONTROUTE},
+	{"server-dontroute", 0, 0, OPT_SERVER_DONTROUTE},
 	{0, 0, 0, 0}
 };
 
@@ -1893,6 +1965,8 @@ static void print_usage(char *prog)
 	"    -D|R          datagram (D) / raw (R) socket (default stream)\n"
 	"    -l addr       local address to bind to in server mode\n"
 	"    -c addr       local address to bind to in client mode\n"
+	"    -Q dsfield    DS Field value of the socket (the IP_TOS or\n"
+	"                  IPV6_TCLASS socket option)\n"
 	"    -x            configure XFRM policy on socket\n"
 	"\n"
 	"    -d dev        bind socket to given device name\n"
@@ -1912,6 +1986,12 @@ static void print_usage(char *prog)
 	"    --no-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX off\n"
 	"    --force-bind-key-ifindex: Force TCP_MD5SIG_FLAG_IFINDEX on\n"
 	"        (default: only if -I is passed)\n"
+	"    --client-dontroute: don't use gateways for client socket: send\n"
+	"                        packets only if destination is on link (see\n"
+	"                        SO_DONTROUTE in socket(7))\n"
+	"    --server-dontroute: don't use gateways for server socket: send\n"
+	"                        packets only if destination is on link (see\n"
+	"                        SO_DONTROUTE in socket(7))\n"
 	"\n"
 	"    -g grp        multicast group (e.g., 239.1.1.1)\n"
 	"    -i            interactive mode (default is echo and terminate)\n"
@@ -1971,6 +2051,13 @@ int main(int argc, char *argv[])
 			args.has_local_ip = 1;
 			args.client_local_addr_str = optarg;
 			break;
+		case 'Q':
+			if (str_to_uint(optarg, 0, 255, &tmp) != 0) {
+				fprintf(stderr, "Invalid DS Field\n");
+				return 1;
+			}
+			args.dsfield = tmp;
+			break;
 		case 'p':
 			if (str_to_uint(optarg, 1, 65535, &tmp) != 0) {
 				fprintf(stderr, "Invalid port\n");
@@ -2026,6 +2113,12 @@ int main(int argc, char *argv[])
 			break;
 		case OPT_NO_BIND_KEY_IFINDEX:
 			args.bind_key_ifindex = -1;
+			break;
+		case OPT_CLIENT_DONTROUTE:
+			args.client_dontroute = 1;
+			break;
+		case OPT_SERVER_DONTROUTE:
+			args.server_dontroute = 1;
 			break;
 		case 'X':
 			args.client_pw = optarg;

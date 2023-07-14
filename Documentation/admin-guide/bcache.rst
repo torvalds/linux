@@ -204,7 +204,7 @@ For example::
 This should present your unmodified backing device data in /dev/loop0
 
 If your cache is in writethrough mode, then you can safely discard the
-cache device without loosing data.
+cache device without losing data.
 
 
 E) Wiping a cache device
@@ -507,9 +507,6 @@ cache_miss_collisions
   Counts instances where data was going to be inserted into the cache from a
   cache miss, but raced with a write and data was already present (usually 0
   since the synchronization for cache misses was rewritten)
-
-cache_readaheads
-  Count of times readahead occurred.
 
 Sysfs - cache set
 ~~~~~~~~~~~~~~~~~

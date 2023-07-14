@@ -16,16 +16,11 @@ static const struct mtk_gate_regs hif_cg_regs = {
 	.sta_ofs = 0x0030,
 };
 
-#define GATE_HIF(_id, _name, _parent, _shift) {		\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &hif_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_HIF(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &hif_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate hif_clks[] = {
+	GATE_DUMMY(CLK_DUMMY, "hif_dummy"),
 	GATE_HIF(CLK_HIFSYS_USB0PHY, "usb0_phy_clk", "ethpll_500m_ck", 21),
 	GATE_HIF(CLK_HIFSYS_USB1PHY, "usb1_phy_clk", "ethpll_500m_ck", 22),
 	GATE_HIF(CLK_HIFSYS_PCIE0, "pcie0_clk", "ethpll_500m_ck", 24),
@@ -41,41 +36,25 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 	.rst_bank_nr = ARRAY_SIZE(rst_ofs),
 };
 
-static const struct of_device_id of_match_clk_mt2701_hif[] = {
-	{ .compatible = "mediatek,mt2701-hifsys", },
-	{}
+static const struct mtk_clk_desc hif_desc = {
+	.clks = hif_clks,
+	.num_clks = ARRAY_SIZE(hif_clks),
+	.rst_desc = &clk_rst_desc,
 };
 
-static int clk_mt2701_hif_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_HIFSYS_NR);
-
-	mtk_clk_register_gates(node, hif_clks, ARRAY_SIZE(hif_clks),
-						clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r) {
-		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
-			pdev->name, r);
-		return r;
-	}
-
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
-
-	return 0;
-}
+static const struct of_device_id of_match_clk_mt2701_hif[] = {
+	{ .compatible = "mediatek,mt2701-hifsys", .data = &hif_desc },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, of_match_clk_mt2701_hif);
 
 static struct platform_driver clk_mt2701_hif_drv = {
-	.probe = clk_mt2701_hif_probe,
+	.probe = mtk_clk_simple_probe,
+	.remove_new = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt2701-hif",
 		.of_match_table = of_match_clk_mt2701_hif,
 	},
 };
-
-builtin_platform_driver(clk_mt2701_hif_drv);
+module_platform_driver(clk_mt2701_hif_drv);
+MODULE_LICENSE("GPL");

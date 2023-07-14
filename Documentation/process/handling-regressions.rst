@@ -129,88 +129,132 @@ tools and scripts used by other kernel developers or Linux distributions; one of
 these tools is regzbot, which heavily relies on the "Link:" tags to associate
 reports for regression with changes resolving them.
 
-Prioritize work on fixing regressions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Expectations and best practices for fixing regressions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-You should fix any reported regression as quickly as possible, to provide
-affected users with a solution in a timely manner and prevent more users from
-running into the issue; nevertheless developers need to take enough time and
-care to ensure regression fixes do not cause additional damage.
+As a Linux kernel developer, you are expected to give your best to prevent
+situations where a regression caused by a recent change of yours leaves users
+only these options:
 
-In the end though, developers should give their best to prevent users from
-running into situations where a regression leaves them only three options: "run
-a kernel with a regression that seriously impacts usage", "continue running an
-outdated and thus potentially insecure kernel version for more than two weeks
-after a regression's culprit was identified", and "downgrade to a still
-supported kernel series that lack required features".
+ * Run a kernel with a regression that impacts usage.
 
-How to realize this depends a lot on the situation. Here are a few rules of
-thumb for you, in order or importance:
+ * Switch to an older or newer kernel series.
 
- * Prioritize work on handling regression reports and fixing regression over all
-   other Linux kernel work, unless the latter concerns acute security issues or
-   bugs causing data loss or damage.
+ * Continue running an outdated and thus potentially insecure kernel for more
+   than three weeks after the regression's culprit was identified. Ideally it
+   should be less than two. And it ought to be just a few days, if the issue is
+   severe or affects many users -- either in general or in prevalent
+   environments.
 
- * Always consider reverting the culprit commits and reapplying them later
-   together with necessary fixes, as this might be the least dangerous and
-   quickest way to fix a regression.
+How to realize that in practice depends on various factors. Use the following
+rules of thumb as a guide.
 
- * Developers should handle regressions in all supported kernel series, but are
-   free to delegate the work to the stable team, if the issue probably at no
-   point in time occurred with mainline.
+In general:
 
- * Try to resolve any regressions introduced in the current development before
-   its end. If you fear a fix might be too risky to apply only days before a new
-   mainline release, let Linus decide: submit the fix separately to him as soon
-   as possible with the explanation of the situation. He then can make a call
-   and postpone the release if necessary, for example if multiple such changes
-   show up in his inbox.
+ * Prioritize work on regressions over all other Linux kernel work, unless the
+   latter concerns a severe issue (e.g. acute security vulnerability, data loss,
+   bricked hardware, ...).
 
- * Address regressions in stable, longterm, or proper mainline releases with
-   more urgency than regressions in mainline pre-releases. That changes after
-   the release of the fifth pre-release, aka "-rc5": mainline then becomes as
-   important, to ensure all the improvements and fixes are ideally tested
-   together for at least one week before Linus releases a new mainline version.
+ * Expedite fixing mainline regressions that recently made it into a proper
+   mainline, stable, or longterm release (either directly or via backport).
 
- * Fix regressions within two or three days, if they are critical for some
-   reason -- for example, if the issue is likely to affect many users of the
-   kernel series in question on all or certain architectures. Note, this
-   includes mainline, as issues like compile errors otherwise might prevent many
-   testers or continuous integration systems from testing the series.
+ * Do not consider regressions from the current cycle as something that can wait
+   till the end of the cycle, as the issue might discourage or prevent users and
+   CI systems from testing mainline now or generally.
 
- * Aim to fix regressions within one week after the culprit was identified, if
-   the issue was introduced in either:
+ * Work with the required care to avoid additional or bigger damage, even if
+   resolving an issue then might take longer than outlined below.
 
-    * a recent stable/longterm release
+On timing once the culprit of a regression is known:
 
-    * the development cycle of the latest proper mainline release
+ * Aim to mainline a fix within two or three days, if the issue is severe or
+   bothering many users -- either in general or in prevalent conditions like a
+   particular hardware environment, distribution, or stable/longterm series.
 
-   In the latter case (say Linux v5.14), try to address regressions even
-   quicker, if the stable series for the predecessor (v5.13) will be abandoned
-   soon or already was stamped "End-of-Life" (EOL) -- this usually happens about
-   three to four weeks after a new mainline release.
+ * Aim to mainline a fix by Sunday after the next, if the culprit made it
+   into a recent mainline, stable, or longterm release (either directly or via
+   backport); if the culprit became known early during a week and is simple to
+   resolve, try to mainline the fix within the same week.
 
- * Try to fix all other regressions within two weeks after the culprit was
-   found. Two or three additional weeks are acceptable for performance
-   regressions and other issues which are annoying, but don't prevent anyone
-   from running Linux (unless it's an issue in the current development cycle,
-   as those should ideally be addressed before the release). A few weeks in
-   total are acceptable if a regression can only be fixed with a risky change
-   and at the same time is affecting only a few users; as much time is
-   also okay if the regression is already present in the second newest longterm
-   kernel series.
+ * For other regressions, aim to mainline fixes before the hindmost Sunday
+   within the next three weeks. One or two Sundays later are acceptable, if the
+   regression is something people can live with easily for a while -- like a
+   mild performance regression.
 
-Note: The aforementioned time frames for resolving regressions are meant to
-include getting the fix tested, reviewed, and merged into mainline, ideally with
-the fix being in linux-next at least briefly. This leads to delays you need to
-account for.
+ * It's strongly discouraged to delay mainlining regression fixes till the next
+   merge window, except when the fix is extraordinarily risky or when the
+   culprit was mainlined more than a year ago.
 
-Subsystem maintainers are expected to assist in reaching those periods by doing
-timely reviews and quick handling of accepted patches. They thus might have to
-send git-pull requests earlier or more often than usual; depending on the fix,
-it might even be acceptable to skip testing in linux-next. Especially fixes for
-regressions in stable and longterm kernels need to be handled quickly, as fixes
-need to be merged in mainline before they can be backported to older series.
+On procedure:
+
+ * Always consider reverting the culprit, as it's often the quickest and least
+   dangerous way to fix a regression. Don't worry about mainlining a fixed
+   variant later: that should be straight-forward, as most of the code went
+   through review once already.
+
+ * Try to resolve any regressions introduced in mainline during the past
+   twelve months before the current development cycle ends: Linus wants such
+   regressions to be handled like those from the current cycle, unless fixing
+   bears unusual risks.
+
+ * Consider CCing Linus on discussions or patch review, if a regression seems
+   tangly. Do the same in precarious or urgent cases -- especially if the
+   subsystem maintainer might be unavailable. Also CC the stable team, when you
+   know such a regression made it into a mainline, stable, or longterm release.
+
+ * For urgent regressions, consider asking Linus to pick up the fix straight
+   from the mailing list: he is totally fine with that for uncontroversial
+   fixes. Ideally though such requests should happen in accordance with the
+   subsystem maintainers or come directly from them.
+
+ * In case you are unsure if a fix is worth the risk applying just days before
+   a new mainline release, send Linus a mail with the usual lists and people in
+   CC; in it, summarize the situation while asking him to consider picking up
+   the fix straight from the list. He then himself can make the call and when
+   needed even postpone the release. Such requests again should ideally happen
+   in accordance with the subsystem maintainers or come directly from them.
+
+Regarding stable and longterm kernels:
+
+ * You are free to leave regressions to the stable team, if they at no point in
+   time occurred with mainline or were fixed there already.
+
+ * If a regression made it into a proper mainline release during the past
+   twelve months, ensure to tag the fix with "Cc: stable@vger.kernel.org", as a
+   "Fixes:" tag alone does not guarantee a backport. Please add the same tag,
+   in case you know the culprit was backported to stable or longterm kernels.
+
+ * When receiving reports about regressions in recent stable or longterm kernel
+   series, please evaluate at least briefly if the issue might happen in current
+   mainline as well -- and if that seems likely, take hold of the report. If in
+   doubt, ask the reporter to check mainline.
+
+ * Whenever you want to swiftly resolve a regression that recently also made it
+   into a proper mainline, stable, or longterm release, fix it quickly in
+   mainline; when appropriate thus involve Linus to fast-track the fix (see
+   above). That's because the stable team normally does neither revert nor fix
+   any changes that cause the same problems in mainline.
+
+ * In case of urgent regression fixes you might want to ensure prompt
+   backporting by dropping the stable team a note once the fix was mainlined;
+   this is especially advisable during merge windows and shortly thereafter, as
+   the fix otherwise might land at the end of a huge patch queue.
+
+On patch flow:
+
+ * Developers, when trying to reach the time periods mentioned above, remember
+   to account for the time it takes to get fixes tested, reviewed, and merged by
+   Linus, ideally with them being in linux-next at least briefly. Hence, if a
+   fix is urgent, make it obvious to ensure others handle it appropriately.
+
+ * Reviewers, you are kindly asked to assist developers in reaching the time
+   periods mentioned above by reviewing regression fixes in a timely manner.
+
+ * Subsystem maintainers, you likewise are encouraged to expedite the handling
+   of regression fixes. Thus evaluate if skipping linux-next is an option for
+   the particular fix. Also consider sending git pull requests more often than
+   usual when needed. And try to avoid holding onto regression fixes over
+   weekends -- especially when the fix is marked for backporting.
 
 
 More aspects regarding regressions developers should be aware of

@@ -77,42 +77,45 @@ static const struct mtk_gate aud_clks[] = {
 	GATE_AUD2(CLK_AUD_I2S9_B, "aud_i2s9_b", "audio_sel", 4),
 };
 
+static const struct mtk_clk_desc aud_desc = {
+	.clks = aud_clks,
+	.num_clks = ARRAY_SIZE(aud_clks),
+};
+
 static int clk_mt8192_aud_probe(struct platform_device *pdev)
 {
-	struct clk_hw_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
 	int r;
 
-	clk_data = mtk_alloc_clk_data(CLK_AUD_NR_CLK);
-	if (!clk_data)
-		return -ENOMEM;
-
-	r = mtk_clk_register_gates(node, aud_clks, ARRAY_SIZE(aud_clks), clk_data);
-	if (r)
-		return r;
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	r = mtk_clk_simple_probe(pdev);
 	if (r)
 		return r;
 
 	r = devm_of_platform_populate(&pdev->dev);
 	if (r)
-		of_clk_del_provider(node);
+		mtk_clk_simple_remove(pdev);
 
 	return r;
 }
 
+static void clk_mt8192_aud_remove(struct platform_device *pdev)
+{
+	of_platform_depopulate(&pdev->dev);
+	mtk_clk_simple_remove(pdev);
+}
+
 static const struct of_device_id of_match_clk_mt8192_aud[] = {
-	{ .compatible = "mediatek,mt8192-audsys", },
-	{}
+	{ .compatible = "mediatek,mt8192-audsys", .data = &aud_desc },
+	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8192_aud);
 
 static struct platform_driver clk_mt8192_aud_drv = {
 	.probe = clk_mt8192_aud_probe,
+	.remove_new = clk_mt8192_aud_remove,
 	.driver = {
 		.name = "clk-mt8192-aud",
 		.of_match_table = of_match_clk_mt8192_aud,
 	},
 };
-
-builtin_platform_driver(clk_mt8192_aud_drv);
+module_platform_driver(clk_mt8192_aud_drv);
+MODULE_LICENSE("GPL");

@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/libata.h>
 #include <linux/irq.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <scsi/scsi_host.h>
@@ -173,7 +174,7 @@ static unsigned int ixp4xx_mmio_data_xfer(struct ata_queued_cmd *qc,
 	return words << 1;
 }
 
-static struct scsi_host_template ixp4xx_sht = {
+static const struct scsi_host_template ixp4xx_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 
@@ -302,7 +303,7 @@ static struct platform_driver ixp4xx_pata_platform_driver = {
 		.of_match_table = ixp4xx_pata_of_match,
 	},
 	.probe		= ixp4xx_pata_probe,
-	.remove		= ata_platform_remove_one,
+	.remove_new	= ata_platform_remove_one,
 };
 
 module_platform_driver(ixp4xx_pata_platform_driver);

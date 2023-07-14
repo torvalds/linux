@@ -112,8 +112,8 @@ int wcn36xx_dxe_alloc_ctl_blks(struct wcn36xx *wcn)
 	wcn->dxe_rx_l_ch.desc_num = WCN36XX_DXE_CH_DESC_NUMB_RX_L;
 	wcn->dxe_rx_h_ch.desc_num = WCN36XX_DXE_CH_DESC_NUMB_RX_H;
 
-	wcn->dxe_tx_l_ch.dxe_wq =  WCN36XX_DXE_WQ_TX_L;
-	wcn->dxe_tx_h_ch.dxe_wq =  WCN36XX_DXE_WQ_TX_H;
+	wcn->dxe_tx_l_ch.dxe_wq =  WCN36XX_DXE_WQ_TX_L(wcn);
+	wcn->dxe_tx_h_ch.dxe_wq =  WCN36XX_DXE_WQ_TX_H(wcn);
 
 	wcn->dxe_tx_l_ch.ctrl_bd = WCN36XX_DXE_CTRL_TX_L_BD;
 	wcn->dxe_tx_h_ch.ctrl_bd = WCN36XX_DXE_CTRL_TX_H_BD;
@@ -165,8 +165,9 @@ void wcn36xx_dxe_free_ctl_blks(struct wcn36xx *wcn)
 	wcn36xx_dxe_free_ctl_block(&wcn->dxe_rx_h_ch);
 }
 
-static int wcn36xx_dxe_init_descs(struct device *dev, struct wcn36xx_dxe_ch *wcn_ch)
+static int wcn36xx_dxe_init_descs(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *wcn_ch)
 {
+	struct device *dev = wcn->dev;
 	struct wcn36xx_dxe_desc *cur_dxe = NULL;
 	struct wcn36xx_dxe_desc *prev_dxe = NULL;
 	struct wcn36xx_dxe_ctl *cur_ctl = NULL;
@@ -190,11 +191,11 @@ static int wcn36xx_dxe_init_descs(struct device *dev, struct wcn36xx_dxe_ch *wcn
 		switch (wcn_ch->ch_type) {
 		case WCN36XX_DXE_CH_TX_L:
 			cur_dxe->ctrl = WCN36XX_DXE_CTRL_TX_L;
-			cur_dxe->dst_addr_l = WCN36XX_DXE_WQ_TX_L;
+			cur_dxe->dst_addr_l = WCN36XX_DXE_WQ_TX_L(wcn);
 			break;
 		case WCN36XX_DXE_CH_TX_H:
 			cur_dxe->ctrl = WCN36XX_DXE_CTRL_TX_H;
-			cur_dxe->dst_addr_l = WCN36XX_DXE_WQ_TX_H;
+			cur_dxe->dst_addr_l = WCN36XX_DXE_WQ_TX_H(wcn);
 			break;
 		case WCN36XX_DXE_CH_RX_L:
 			cur_dxe->ctrl = WCN36XX_DXE_CTRL_RX_L;
@@ -914,7 +915,7 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/***************************************/
 	/* Init descriptors for TX LOW channel */
 	/***************************************/
-	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_tx_l_ch);
+	ret = wcn36xx_dxe_init_descs(wcn, &wcn->dxe_tx_l_ch);
 	if (ret) {
 		dev_err(wcn->dev, "Error allocating descriptor\n");
 		return ret;
@@ -928,14 +929,14 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/* Program DMA destination addr for TX LOW */
 	wcn36xx_dxe_write_register(wcn,
 		WCN36XX_DXE_CH_DEST_ADDR_TX_L,
-		WCN36XX_DXE_WQ_TX_L);
+		WCN36XX_DXE_WQ_TX_L(wcn));
 
 	wcn36xx_dxe_read_register(wcn, WCN36XX_DXE_REG_CH_EN, &reg_data);
 
 	/***************************************/
 	/* Init descriptors for TX HIGH channel */
 	/***************************************/
-	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_tx_h_ch);
+	ret = wcn36xx_dxe_init_descs(wcn, &wcn->dxe_tx_h_ch);
 	if (ret) {
 		dev_err(wcn->dev, "Error allocating descriptor\n");
 		goto out_err_txh_ch;
@@ -950,14 +951,14 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/* Program DMA destination addr for TX HIGH */
 	wcn36xx_dxe_write_register(wcn,
 		WCN36XX_DXE_CH_DEST_ADDR_TX_H,
-		WCN36XX_DXE_WQ_TX_H);
+		WCN36XX_DXE_WQ_TX_H(wcn));
 
 	wcn36xx_dxe_read_register(wcn, WCN36XX_DXE_REG_CH_EN, &reg_data);
 
 	/***************************************/
 	/* Init descriptors for RX LOW channel */
 	/***************************************/
-	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_rx_l_ch);
+	ret = wcn36xx_dxe_init_descs(wcn, &wcn->dxe_rx_l_ch);
 	if (ret) {
 		dev_err(wcn->dev, "Error allocating descriptor\n");
 		goto out_err_rxl_ch;
@@ -988,7 +989,7 @@ int wcn36xx_dxe_init(struct wcn36xx *wcn)
 	/***************************************/
 	/* Init descriptors for RX HIGH channel */
 	/***************************************/
-	ret = wcn36xx_dxe_init_descs(wcn->dev, &wcn->dxe_rx_h_ch);
+	ret = wcn36xx_dxe_init_descs(wcn, &wcn->dxe_rx_h_ch);
 	if (ret) {
 		dev_err(wcn->dev, "Error allocating descriptor\n");
 		goto out_err_rxh_ch;

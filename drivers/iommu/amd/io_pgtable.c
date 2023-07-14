@@ -156,7 +156,7 @@ static bool increase_address_space(struct protection_domain *domain,
 	bool ret = true;
 	u64 *pte;
 
-	pte = (void *)get_zeroed_page(gfp);
+	pte = alloc_pgtable_page(domain->nid, gfp);
 	if (!pte)
 		return false;
 
@@ -250,7 +250,7 @@ static u64 *alloc_pte(struct protection_domain *domain,
 
 		if (!IOMMU_PTE_PRESENT(__pte) ||
 		    pte_level == PAGE_MODE_NONE) {
-			page = (u64 *)get_zeroed_page(gfp);
+			page = alloc_pgtable_page(domain->nid, gfp);
 
 			if (!page)
 				return NULL;
@@ -310,8 +310,8 @@ static u64 *fetch_pte(struct amd_io_pgtable *pgtable,
 			return NULL;
 
 		/* Large PTE */
-		if (PM_PTE_LEVEL(*pte) == 7 ||
-		    PM_PTE_LEVEL(*pte) == 0)
+		if (PM_PTE_LEVEL(*pte) == PAGE_MODE_7_LEVEL ||
+		    PM_PTE_LEVEL(*pte) == PAGE_MODE_NONE)
 			break;
 
 		/* No level skipping support yet */
@@ -360,8 +360,9 @@ static void free_clear_pte(u64 *pte, u64 pteval, struct list_head *freelist)
  * supporting all features of AMD IOMMU page tables like level skipping
  * and full 64 bit address spaces.
  */
-static int iommu_v1_map_page(struct io_pgtable_ops *ops, unsigned long iova,
-			  phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+static int iommu_v1_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
+			      phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			      int prot, gfp_t gfp, size_t *mapped)
 {
 	struct protection_domain *dom = io_pgtable_ops_to_domain(ops);
 	LIST_HEAD(freelist);
@@ -369,39 +370,47 @@ static int iommu_v1_map_page(struct io_pgtable_ops *ops, unsigned long iova,
 	u64 __pte, *pte;
 	int ret, i, count;
 
-	BUG_ON(!IS_ALIGNED(iova, size));
-	BUG_ON(!IS_ALIGNED(paddr, size));
+	BUG_ON(!IS_ALIGNED(iova, pgsize));
+	BUG_ON(!IS_ALIGNED(paddr, pgsize));
 
 	ret = -EINVAL;
 	if (!(prot & IOMMU_PROT_MASK))
 		goto out;
 
-	count = PAGE_SIZE_PTE_COUNT(size);
-	pte   = alloc_pte(dom, iova, size, NULL, gfp, &updated);
+	while (pgcount > 0) {
+		count = PAGE_SIZE_PTE_COUNT(pgsize);
+		pte   = alloc_pte(dom, iova, pgsize, NULL, gfp, &updated);
 
-	ret = -ENOMEM;
-	if (!pte)
-		goto out;
+		ret = -ENOMEM;
+		if (!pte)
+			goto out;
 
-	for (i = 0; i < count; ++i)
-		free_clear_pte(&pte[i], pte[i], &freelist);
+		for (i = 0; i < count; ++i)
+			free_clear_pte(&pte[i], pte[i], &freelist);
 
-	if (!list_empty(&freelist))
-		updated = true;
+		if (!list_empty(&freelist))
+			updated = true;
 
-	if (count > 1) {
-		__pte = PAGE_SIZE_PTE(__sme_set(paddr), size);
-		__pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_PR | IOMMU_PTE_FC;
-	} else
-		__pte = __sme_set(paddr) | IOMMU_PTE_PR | IOMMU_PTE_FC;
+		if (count > 1) {
+			__pte = PAGE_SIZE_PTE(__sme_set(paddr), pgsize);
+			__pte |= PM_LEVEL_ENC(7) | IOMMU_PTE_PR | IOMMU_PTE_FC;
+		} else
+			__pte = __sme_set(paddr) | IOMMU_PTE_PR | IOMMU_PTE_FC;
 
-	if (prot & IOMMU_PROT_IR)
-		__pte |= IOMMU_PTE_IR;
-	if (prot & IOMMU_PROT_IW)
-		__pte |= IOMMU_PTE_IW;
+		if (prot & IOMMU_PROT_IR)
+			__pte |= IOMMU_PTE_IR;
+		if (prot & IOMMU_PROT_IW)
+			__pte |= IOMMU_PTE_IW;
 
-	for (i = 0; i < count; ++i)
-		pte[i] = __pte;
+		for (i = 0; i < count; ++i)
+			pte[i] = __pte;
+
+		iova  += pgsize;
+		paddr += pgsize;
+		pgcount--;
+		if (mapped)
+			*mapped += pgsize;
+	}
 
 	ret = 0;
 
@@ -426,17 +435,18 @@ out:
 	return ret;
 }
 
-static unsigned long iommu_v1_unmap_page(struct io_pgtable_ops *ops,
-				      unsigned long iova,
-				      size_t size,
-				      struct iommu_iotlb_gather *gather)
+static unsigned long iommu_v1_unmap_pages(struct io_pgtable_ops *ops,
+					  unsigned long iova,
+					  size_t pgsize, size_t pgcount,
+					  struct iommu_iotlb_gather *gather)
 {
 	struct amd_io_pgtable *pgtable = io_pgtable_ops_to_data(ops);
 	unsigned long long unmapped;
 	unsigned long unmap_size;
 	u64 *pte;
+	size_t size = pgcount << __ffs(pgsize);
 
-	BUG_ON(!is_power_of_2(size));
+	BUG_ON(!is_power_of_2(pgsize));
 
 	unmapped = 0;
 
@@ -448,13 +458,13 @@ static unsigned long iommu_v1_unmap_page(struct io_pgtable_ops *ops,
 			count = PAGE_SIZE_PTE_COUNT(unmap_size);
 			for (i = 0; i < count; i++)
 				pte[i] = 0ULL;
+		} else {
+			return unmapped;
 		}
 
 		iova = (iova & ~(unmap_size - 1)) + unmap_size;
 		unmapped += unmap_size;
 	}
-
-	BUG_ON(unmapped && !is_power_of_2(unmapped));
 
 	return unmapped;
 }
@@ -514,8 +524,8 @@ static struct io_pgtable *v1_alloc_pgtable(struct io_pgtable_cfg *cfg, void *coo
 	cfg->oas            = IOMMU_OUT_ADDR_BIT_SIZE,
 	cfg->tlb            = &v1_flush_ops;
 
-	pgtable->iop.ops.map          = iommu_v1_map_page;
-	pgtable->iop.ops.unmap        = iommu_v1_unmap_page;
+	pgtable->iop.ops.map_pages    = iommu_v1_map_pages;
+	pgtable->iop.ops.unmap_pages  = iommu_v1_unmap_pages;
 	pgtable->iop.ops.iova_to_phys = iommu_v1_iova_to_phys;
 
 	return &pgtable->iop;

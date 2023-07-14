@@ -250,7 +250,13 @@ annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
 
-	annotate.disassembler_style:
+	annotate.addr2line::
+		addr2line binary to use for file names and line numbers.
+
+	annotate.objdump::
+		objdump binary to use for disassembly and annotations.
+
+	annotate.disassembler_style::
 		Use this to change the default disassembler style to some other value
 		supported by binutils, such as "intel", see the '-M' option help in the
 		'objdump' man page.
@@ -663,7 +669,7 @@ llvm.*::
 		"$CLANG_OPTIONS $PERF_BPF_INC_OPTIONS $KERNEL_INC_OPTIONS " \
 		"-Wno-unused-value -Wno-pointer-sign "		\
 		"-working-directory $WORKING_DIR "		\
-		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
+		"-c \"$CLANG_SOURCE\" --target=bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
 
 	llvm.clang-opt::
 		Options passed to clang.
@@ -728,6 +734,13 @@ auxtrace.*::
 		can be changed using this option. Ex, auxtrace.dumpdir=/tmp.
 		If the directory does not exist or has the wrong file type,
 		the current directory is used.
+
+itrace.*::
+
+	debug-log-buffer-size::
+		Log size in bytes to output when using the option --itrace=d+e
+		Refer 'itrace' option of linkperf:perf-script[1] or
+		linkperf:perf-report[1]. The default is 16384.
 
 daemon.*::
 

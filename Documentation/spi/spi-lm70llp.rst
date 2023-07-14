@@ -57,7 +57,7 @@ devices might share the same SI/SO pin.
 The bitbanger routine in this driver (lm70_txrx) is called back from
 the bound "hwmon/lm70" protocol driver through its sysfs hook, using a
 spi_write_then_read() call.  It performs Mode 0 (SPI/Microwire) bitbanging.
-The lm70 driver then inteprets the resulting digital temperature value
+The lm70 driver then interprets the resulting digital temperature value
 and exports it through sysfs.
 
 A "gotcha": National Semiconductor's LM70 LLP eval board circuit schematic

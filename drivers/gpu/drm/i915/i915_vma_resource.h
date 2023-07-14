@@ -34,6 +34,27 @@ struct i915_page_sizes {
 };
 
 /**
+ * struct i915_vma_bindinfo - Information needed for async bind
+ * only but that can be dropped after the bind has taken place.
+ * Consider making this a separate argument to the bind_vma
+ * op, coalescing with other arguments like vm, stash, cache_level
+ * and flags
+ * @pages: The pages sg-table.
+ * @page_sizes: Page sizes of the pages.
+ * @pages_rsgt: Refcounted sg-table when delayed object destruction
+ * is supported. May be NULL.
+ * @readonly: Whether the vma should be bound read-only.
+ * @lmem: Whether the vma points to lmem.
+ */
+struct i915_vma_bindinfo {
+	struct sg_table *pages;
+	struct i915_page_sizes page_sizes;
+	struct i915_refct_sgt *pages_rsgt;
+	bool readonly:1;
+	bool lmem:1;
+};
+
+/**
  * struct i915_vma_resource - Snapshotted unbind information.
  * @unbind_fence: Fence to mark unbinding complete. Note that this fence
  * is not considered published until unbind is scheduled, and as such it
@@ -47,14 +68,18 @@ struct i915_page_sizes {
  * @chain: Pointer to struct i915_sw_fence used to await dependencies.
  * @rb: Rb node for the vm's pending unbind interval tree.
  * @__subtree_last: Interval tree private member.
+ * @wakeref: wakeref.
  * @vm: non-refcounted pointer to the vm. This is for internal use only and
  * this member is cleared after vm_resource unbind.
  * @mr: The memory region of the object pointed to by the vma.
  * @ops: Pointer to the backend i915_vma_ops.
  * @private: Bind backend private info.
- * @start: Offset into the address space of bind range start.
- * @node_size: Size of the allocated range manager node.
+ * @start: Offset into the address space of bind range start. Note that
+ * this is after any padding that might have been allocated.
+ * @node_size: Size of the allocated range manager node with padding
+ * subtracted.
  * @vma_size: Bind size.
+ * @guard: The size of guard area preceding and trailing the bind.
  * @page_sizes_gtt: Resulting page sizes from the bind operation.
  * @bound_flags: Flags indicating binding status.
  * @allocated: Backend private data. TODO: Should move into @private.
@@ -85,25 +110,13 @@ struct i915_vma_resource {
 	intel_wakeref_t wakeref;
 
 	/**
-	 * struct i915_vma_bindinfo - Information needed for async bind
-	 * only but that can be dropped after the bind has taken place.
-	 * Consider making this a separate argument to the bind_vma
-	 * op, coalescing with other arguments like vm, stash, cache_level
-	 * and flags
-	 * @pages: The pages sg-table.
-	 * @page_sizes: Page sizes of the pages.
-	 * @pages_rsgt: Refcounted sg-table when delayed object destruction
-	 * is supported. May be NULL.
-	 * @readonly: Whether the vma should be bound read-only.
-	 * @lmem: Whether the vma points to lmem.
+	 * @bi: Information needed for async bind only but that can be dropped
+	 * after the bind has taken place.
+	 *
+	 * Consider making this a separate argument to the bind_vma op,
+	 * coalescing with other arguments like vm, stash, cache_level and flags
 	 */
-	struct i915_vma_bindinfo {
-		struct sg_table *pages;
-		struct i915_page_sizes page_sizes;
-		struct i915_refct_sgt *pages_rsgt;
-		bool readonly:1;
-		bool lmem:1;
-	} bi;
+	struct i915_vma_bindinfo bi;
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	struct intel_memory_region *mr;
@@ -113,6 +126,7 @@ struct i915_vma_resource {
 	u64 start;
 	u64 node_size;
 	u64 vma_size;
+	u32 guard;
 	u32 page_sizes_gtt;
 
 	u32 bound_flags;
@@ -174,9 +188,10 @@ static inline void i915_vma_resource_put(struct i915_vma_resource *vma_res)
  * @mr: The memory region of the object the vma points to.
  * @ops: The backend ops.
  * @private: Bind backend private info.
- * @start: Offset into the address space of bind range start.
- * @node_size: Size of the allocated range manager node.
+ * @start: Offset into the address space of bind range start after padding.
+ * @node_size: Size of the allocated range manager node minus padding.
  * @size: Bind size.
+ * @guard: The size of the guard area preceding and trailing the bind.
  *
  * Initializes a vma resource allocated using i915_vma_resource_alloc().
  * The reason for having separate allocate and initialize function is that
@@ -195,7 +210,8 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 					  void *private,
 					  u64 start,
 					  u64 node_size,
-					  u64 size)
+					  u64 size,
+					  u32 guard)
 {
 	__i915_vma_resource_init(vma_res);
 	vma_res->vm = vm;
@@ -213,6 +229,7 @@ static inline void i915_vma_resource_init(struct i915_vma_resource *vma_res,
 	vma_res->start = start;
 	vma_res->node_size = node_size;
 	vma_res->vma_size = size;
+	vma_res->guard = guard;
 }
 
 static inline void i915_vma_resource_fini(struct i915_vma_resource *vma_res)

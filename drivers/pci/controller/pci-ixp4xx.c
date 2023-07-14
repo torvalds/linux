@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/bits.h>
+#include "../pci.h"
 
 /* Register offsets */
 #define IXP4XX_PCI_NP_AD		0x00
@@ -188,12 +189,13 @@ static u32 ixp4xx_config_addr(u8 bus_num, u16 devfn, int where)
 	/* Root bus is always 0 in this hardware */
 	if (bus_num == 0) {
 		/* type 0 */
-		return BIT(32-PCI_SLOT(devfn)) | ((PCI_FUNC(devfn)) << 8) |
-			(where & ~3);
+		return (PCI_CONF1_ADDRESS(0, 0, PCI_FUNC(devfn), where) &
+			~PCI_CONF1_ENABLE) | BIT(32-PCI_SLOT(devfn));
 	} else {
 		/* type 1 */
-		return (bus_num << 16) | ((PCI_SLOT(devfn)) << 11) |
-			((PCI_FUNC(devfn)) << 8) | (where & ~3) | 1;
+		return (PCI_CONF1_ADDRESS(bus_num, PCI_SLOT(devfn),
+					  PCI_FUNC(devfn), where) &
+			~PCI_CONF1_ENABLE) | 1;
 	}
 }
 

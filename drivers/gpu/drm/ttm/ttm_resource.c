@@ -26,8 +26,9 @@
 #include <linux/io-mapping.h>
 #include <linux/scatterlist.h>
 
+#include <drm/ttm/ttm_bo.h>
+#include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_resource.h>
-#include <drm/ttm/ttm_bo_driver.h>
 
 /**
  * ttm_lru_bulk_move_init - initialize a bulk move structure
@@ -85,6 +86,8 @@ static void ttm_lru_bulk_move_pos_tail(struct ttm_lru_bulk_move_pos *pos,
 				       struct ttm_resource *res)
 {
 	if (pos->last != res) {
+		if (pos->first == res)
+			pos->first = list_next_entry(res, lru);
 		list_move(&res->lru, &pos->last->lru);
 		pos->last = res;
 	}
@@ -110,7 +113,8 @@ static void ttm_lru_bulk_move_del(struct ttm_lru_bulk_move *bulk,
 {
 	struct ttm_lru_bulk_move_pos *pos = ttm_lru_bulk_move_pos(bulk, res);
 
-	if (unlikely(pos->first == res && pos->last == res)) {
+	if (unlikely(WARN_ON(!pos->first || !pos->last) ||
+		     (pos->first == res && pos->last == res))) {
 		pos->first = NULL;
 		pos->last = NULL;
 	} else if (pos->first == res) {
@@ -177,7 +181,7 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 	struct ttm_resource_manager *man;
 
 	res->start = 0;
-	res->num_pages = PFN_UP(bo->base.size);
+	res->size = bo->base.size;
 	res->mem_type = place->mem_type;
 	res->placement = place->flags;
 	res->bus.addr = NULL;
@@ -192,7 +196,7 @@ void ttm_resource_init(struct ttm_buffer_object *bo,
 		list_add_tail(&res->lru, &bo->bdev->pinned);
 	else
 		list_add_tail(&res->lru, &man->lru[bo->priority]);
-	man->usage += res->num_pages << PAGE_SHIFT;
+	man->usage += res->size;
 	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_init);
@@ -214,7 +218,7 @@ void ttm_resource_fini(struct ttm_resource_manager *man,
 
 	spin_lock(&bdev->lru_lock);
 	list_del_init(&res->lru);
-	man->usage -= res->num_pages << PAGE_SHIFT;
+	man->usage -= res->size;
 	spin_unlock(&bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_resource_fini);
@@ -253,10 +257,71 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 }
 EXPORT_SYMBOL(ttm_resource_free);
 
+/**
+ * ttm_resource_intersects - test for intersection
+ *
+ * @bdev: TTM device structure
+ * @res: The resource to test
+ * @place: The placement to test
+ * @size: How many bytes the new allocation needs.
+ *
+ * Test if @res intersects with @place and @size. Used for testing if evictions
+ * are valueable or not.
+ *
+ * Returns true if the res placement intersects with @place and @size.
+ */
+bool ttm_resource_intersects(struct ttm_device *bdev,
+			     struct ttm_resource *res,
+			     const struct ttm_place *place,
+			     size_t size)
+{
+	struct ttm_resource_manager *man;
+
+	if (!res)
+		return false;
+
+	man = ttm_manager_type(bdev, res->mem_type);
+	if (!place || !man->func->intersects)
+		return true;
+
+	return man->func->intersects(man, res, place, size);
+}
+
+/**
+ * ttm_resource_compatible - test for compatibility
+ *
+ * @bdev: TTM device structure
+ * @res: The resource to test
+ * @place: The placement to test
+ * @size: How many bytes the new allocation needs.
+ *
+ * Test if @res compatible with @place and @size.
+ *
+ * Returns true if the res placement compatible with @place and @size.
+ */
+bool ttm_resource_compatible(struct ttm_device *bdev,
+			     struct ttm_resource *res,
+			     const struct ttm_place *place,
+			     size_t size)
+{
+	struct ttm_resource_manager *man;
+
+	if (!res || !place)
+		return false;
+
+	man = ttm_manager_type(bdev, res->mem_type);
+	if (!man->func->compatible)
+		return true;
+
+	return man->func->compatible(man, res, place, size);
+}
+
 static bool ttm_resource_places_compat(struct ttm_resource *res,
 				       const struct ttm_place *places,
 				       unsigned num_placement)
 {
+	struct ttm_buffer_object *bo = res->bo;
+	struct ttm_device *bdev = bo->bdev;
 	unsigned i;
 
 	if (res->placement & TTM_PL_FLAG_TEMPORARY)
@@ -265,8 +330,7 @@ static bool ttm_resource_places_compat(struct ttm_resource *res,
 	for (i = 0; i < num_placement; i++) {
 		const struct ttm_place *heap = &places[i];
 
-		if (res->start < heap->fpfn || (heap->lpfn &&
-		    (res->start + res->num_pages) > heap->lpfn))
+		if (!ttm_resource_compatible(bdev, res, heap, bo->base.size))
 			continue;
 
 		if ((res->mem_type == heap->mem_type) &&
@@ -300,7 +364,6 @@ bool ttm_resource_compat(struct ttm_resource *res,
 
 	return false;
 }
-EXPORT_SYMBOL(ttm_resource_compat);
 
 void ttm_resource_set_bo(struct ttm_resource *res,
 			 struct ttm_buffer_object *bo)
@@ -605,17 +668,15 @@ ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
 		iosys_map_set_vaddr(&iter_io->dmap, mem->bus.addr);
 		iter_io->needs_unmap = false;
 	} else {
-		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
-
 		iter_io->needs_unmap = true;
 		memset(&iter_io->dmap, 0, sizeof(iter_io->dmap));
 		if (mem->bus.caching == ttm_write_combined)
 			iosys_map_set_vaddr_iomem(&iter_io->dmap,
 						  ioremap_wc(mem->bus.offset,
-							     bus_size));
+							     mem->size));
 		else if (mem->bus.caching == ttm_cached)
 			iosys_map_set_vaddr(&iter_io->dmap,
-					    memremap(mem->bus.offset, bus_size,
+					    memremap(mem->bus.offset, mem->size,
 						     MEMREMAP_WB |
 						     MEMREMAP_WT |
 						     MEMREMAP_WC));
@@ -624,7 +685,7 @@ ttm_kmap_iter_linear_io_init(struct ttm_kmap_iter_linear_io *iter_io,
 		if (iosys_map_is_null(&iter_io->dmap))
 			iosys_map_set_vaddr_iomem(&iter_io->dmap,
 						  ioremap(mem->bus.offset,
-							  bus_size));
+							  mem->size));
 
 		if (iosys_map_is_null(&iter_io->dmap)) {
 			ret = -ENOMEM;

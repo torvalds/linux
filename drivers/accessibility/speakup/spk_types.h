@@ -49,7 +49,7 @@ enum var_id_t {
 	RATE, PITCH, VOL, TONE, PUNCT, VOICE, FREQUENCY, LANG,
 	DIRECT, PAUSE,
 	CAPS_START, CAPS_STOP, CHARTAB, INFLECTION, FLUSH,
-	MAXVARS
+	CUR_PHONETIC, MAXVARS
 };
 
 typedef int (*special_func)(struct vc_data *vc, u_char type, u_char ch,
@@ -195,7 +195,7 @@ struct spk_synth {
 	void (*catch_up)(struct spk_synth *synth);
 	void (*flush)(struct spk_synth *synth);
 	int (*is_alive)(struct spk_synth *synth);
-	int (*synth_adjust)(struct st_var_header *var);
+	int (*synth_adjust)(struct spk_synth *synth, struct st_var_header *var);
 	void (*read_buff_add)(u_char c);
 	unsigned char (*get_index)(struct spk_synth *synth);
 	struct synth_indexing indexing;

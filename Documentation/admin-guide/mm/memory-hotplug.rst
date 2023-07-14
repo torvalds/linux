@@ -1,5 +1,3 @@
-.. _admin_guide_memory_hotplug:
-
 ==================
 Memory Hot(Un)Plug
 ==================

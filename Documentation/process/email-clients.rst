@@ -350,3 +350,23 @@ although tab2space problem can be solved with external editor.
 
 Another problem is that Gmail will base64-encode any message that has a
 non-ASCII character. That includes things like European names.
+
+Proton Mail
+***********
+
+Proton Mail has a "feature" where it looks up keys using Web Key Directory
+(WKD) and encrypts mail to any recipients for which it finds a key.
+Kernel.org publishes the WKD for all developers who have kernel.org accounts.
+As a result, emails sent using Proton Mail to kernel.org addresses will be
+encrypted.
+Unfortunately, Proton Mail does not provide a mechanism to disable the
+automatic encryption, viewing it as a privacy feature.
+The automatic encryption feature is also enabled for mail sent via the Proton
+Mail Bridge, so this affects all outgoing messages, including patches sent with
+``git send-email``.
+Encrypted mail adds unnecessary friction, as other developers may not have mail
+clients, or tooling, configured for use with encrypted mail and some mail
+clients may encrypt responses to encrypted mail for all recipients, including
+the mailing lists.
+Unless a way to disable this "feature" is introduced, Proton Mail is unsuited
+to kernel development.

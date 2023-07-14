@@ -632,11 +632,6 @@ static int sh_tmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sh_tmu_remove(struct platform_device *pdev)
-{
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
-}
-
 static const struct platform_device_id sh_tmu_id_table[] = {
 	{ "sh-tmu", SH_TMU },
 	{ "sh-tmu-sh3", SH_TMU_SH3 },
@@ -652,10 +647,10 @@ MODULE_DEVICE_TABLE(of, sh_tmu_of_table);
 
 static struct platform_driver sh_tmu_device_driver = {
 	.probe		= sh_tmu_probe,
-	.remove		= sh_tmu_remove,
 	.driver		= {
 		.name	= "sh_tmu",
 		.of_match_table = of_match_ptr(sh_tmu_of_table),
+		.suppress_bind_attrs = true,
 	},
 	.id_table	= sh_tmu_id_table,
 };
@@ -679,4 +674,3 @@ module_exit(sh_tmu_exit);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("SuperH TMU Timer Driver");
-MODULE_LICENSE("GPL v2");

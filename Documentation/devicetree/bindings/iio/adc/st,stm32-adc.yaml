@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/iio/adc/st,stm32-adc.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/iio/adc/st,stm32-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: STMicroelectronics STM32 ADC bindings
+title: STMicroelectronics STM32 ADC
 
 description: |
   STM32 ADC is a successive approximation analog-to-digital converter.
@@ -27,6 +27,7 @@ properties:
       - st,stm32f4-adc-core
       - st,stm32h7-adc-core
       - st,stm32mp1-adc-core
+      - st,stm32mp13-adc-core
 
   reg:
     maxItems: 1
@@ -37,6 +38,7 @@ properties:
         - stm32f4 and stm32h7 share a common ADC interrupt line.
         - stm32mp1 has two separate interrupt lines, one for each ADC within
           ADC block.
+        - stm32mp13 has an interrupt line per ADC block.
     minItems: 1
     maxItems: 2
 
@@ -78,7 +80,7 @@ properties:
     description:
       Phandle to system configuration controller. It can be used to control the
       analog circuitry on stm32mp1.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
 
   interrupt-controller: true
 
@@ -180,6 +182,33 @@ allOf:
           maximum: 36000000
           default: 36000000
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mp13-adc-core
+
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 2
+
+        clock-names:
+          items:
+            - const: bus
+            - const: adc
+          minItems: 1
+
+        interrupts:
+          items:
+            - description: ADC interrupt line
+
+        st,max-clk-rate-hz:
+          minimum: 150000
+          maximum: 75000000
+          default: 75000000
+
 additionalProperties: false
 
 required:
@@ -208,6 +237,7 @@ patternProperties:
           - st,stm32f4-adc
           - st,stm32h7-adc
           - st,stm32mp1-adc
+          - st,stm32mp13-adc
 
       reg:
         description: |
@@ -229,7 +259,7 @@ patternProperties:
       interrupts:
         description: |
           IRQ Line for the ADC instance. Valid values are:
-            - 0 for adc@0
+            - 0 for adc@0 (single adc for stm32mp13)
             - 1 for adc@100
             - 2 for adc@200 (stm32f4 only)
         maxItems: 1
@@ -250,13 +280,14 @@ patternProperties:
       assigned-resolution-bits:
         description: |
           Resolution (bits) to use for conversions:
-            - can be 6, 8, 10 or 12 on stm32f4
+            - can be 6, 8, 10 or 12 on stm32f4 and stm32mp13
             - can be 8, 10, 12, 14 or 16 on stm32h7 and stm32mp1
 
       st,adc-channels:
         description: |
           List of single-ended channels muxed for this ADC. It can have up to:
             - 16 channels, numbered from 0 to 15 (for in0..in15) on stm32f4
+            - 19 channels, numbered from 0 to 18 (for in0..in18) on stm32mp13.
             - 20 channels, numbered from 0 to 19 (for in0..in19) on stm32h7 and
               stm32mp1.
         $ref: /schemas/types.yaml#/definitions/uint32-array
@@ -310,7 +341,7 @@ patternProperties:
     patternProperties:
       "^channel@([0-9]|1[0-9])$":
         type: object
-        $ref: "adc.yaml"
+        $ref: adc.yaml
         description: Represents the external channels which are connected to the ADC.
 
         properties:
@@ -322,7 +353,7 @@ patternProperties:
           label:
             description: |
               Unique name to identify which channel this is.
-              Reserved label names "vddcore", "vrefint" and "vbat"
+              Reserved label names "vddcore", "vddcpu", "vddq_ddr", "vrefint" and "vbat"
               are used to identify internal channels with matching names.
 
           diff-channels:
@@ -419,6 +450,37 @@ patternProperties:
               items:
                 minimum: 40
 
+
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: st,stm32mp13-adc
+
+        then:
+          properties:
+            reg:
+              const: 0x0
+
+            interrupts:
+              const: 0
+
+            assigned-resolution-bits:
+              enum: [6, 8, 10, 12]
+              default: 12
+
+            st,adc-channels:
+              minItems: 1
+              maxItems: 19
+              items:
+                minimum: 0
+                maximum: 18
+
+            st,min-sample-time-nsecs:
+              minItems: 1
+              maxItems: 19
+              items:
+                minimum: 40
     additionalProperties: false
 
     required:

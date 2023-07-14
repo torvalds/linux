@@ -1,0 +1,203 @@
+/*
+ * Device Tree include for Compulab CM-A510 System-on-Module
+ *
+ * Copyright (C) 2015, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; version 2 of the
+ *     License.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+ * The CM-A510 comes with several optional components:
+ *
+ * Memory options:
+ *  D512: 512M
+ *  D1024: 1G
+ *
+ * NAND options:
+ *  N512: 512M NAND
+ *
+ * Ethernet options:
+ *  E1: PHY RTL8211D on internal GbE (SMI address 0x03)
+ *  E2: Additional ethernet NIC RTL8111D on PCIe1
+ *
+ * Audio options:
+ *  A: TI TLV320AIC23b audio codec (I2C address 0x1a)
+ *
+ * Touchscreen options:
+ *  I: TI TSC2046 touchscreen controller (on SPI1)
+ *
+ * USB options:
+ *  U2: 2 dual-role USB2.0 ports
+ *  U4: 2 additional USB2.0 host ports (via USB1)
+ *
+ * WiFi options:
+ *  W: Broadcom BCM4319 802.11b/g/n (USI WM-N-BM-01 on SDIO1)
+ *
+ * GPIOs used on CM-A510:
+ *   1 GbE PHY reset (active low)
+ *   3 WakeUp
+ *   8 PowerOff (active low)
+ *  13 Touchscreen pen irq (active low)
+ *  65 System LED (active high)
+ *  69 USB Hub reset (active low)
+ *  70 WLAN reset (active low)
+ *  71 WLAN regulator (active high)
+ */
+
+#include "dove.dtsi"
+
+/ {
+	model = "Compulab CM-A510";
+	compatible = "compulab,cm-a510", "marvell,dove";
+
+	/*
+	 * Set the minimum memory size here and let the
+	 * bootloader set the real size.
+	 */
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		/* Set upper NAND data bit to GPO */
+		pinctrl-0 = <&pmx_nand_gpo>;
+		pinctrl-names = "default";
+
+		led-system {
+			label = "cm-a510:system:green";
+			gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wifi_power: regulator@1 {
+			compatible = "regulator-fixed";
+			regulator-name = "WiFi Power";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio2 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+/* Optional RTL8211D GbE PHY on SMI address 0x03 */
+&mdio {
+	ethphy: ethernet-phy@3 {
+		reg = <3>;
+		status = "disabled";
+	};
+};
+
+&eth {
+	ethernet-port@0 {
+		phy-handle = <&ethphy>;
+	};
+};
+
+&i2c0 {
+	/* Optional TI TLV320AIC23b audio codec */
+	opt_audio: audio@1a {
+		compatible = "ti,tlv320aic23";
+		reg = <0x1a>;
+		status = "disabled";
+	};
+};
+
+/* Optional RTL8111D GbE NIC on PCIe1 */
+&pcie { status = "disabled"; };
+
+&pcie1 {
+	pinctrl-0 = <&pmx_pcie1_clkreq>;
+	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&pinctrl {
+	pmx_uart2: pmx-uart2 {
+		marvell,pins = "mpp14", "mpp15";
+		marvell,function = "uart2";
+	};
+};
+
+/* Optional Broadcom BCM4319 802.11b/g/n WiFi module */
+&sdio1 {
+	non-removable;
+	vmmc-supply = <&wifi_power>;
+	reset-gpio = <&gpio2 6 GPIO_ACTIVE_LOW>;
+	status = "disabled";
+};
+
+&spi0 {
+	status = "okay";
+
+	/* 1M Flash Winbond W25Q80BL */
+	flash@0 {
+		compatible = "winbond,w25q80";
+		spi-max-frequency = <80000000>;
+		reg = <0>;
+	};
+};
+
+&spi1 {
+	pinctrl-0 = <&pmx_spi1_20_23>;
+	pinctrl-names = "default";
+	status = "disabled";
+
+	/* Optional TI TSC2046 touchscreen controller */
+	opt_touch: touchscreen@0 {
+		compatible = "ti,tsc2046";
+		spi-max-frequency = <2500000>;
+		reg = <0>;
+		pinctrl-0 = <&pmx_gpio_13>;
+		pinctrl-names = "default";
+		interrupts-extended = <&gpio0 13 IRQ_TYPE_EDGE_FALLING>;
+	};
+};
+
+&uart2 {
+	pinctrl-0 = <&pmx_uart2>;
+	pinctrl-names = "default";
+};

@@ -473,18 +473,19 @@ static struct clk_hw * __init
 at91_clk_register_master_internal(struct regmap *regmap,
 		const char *name, int num_parents,
 		const char **parent_names,
+		struct clk_hw **parent_hws,
 		const struct clk_master_layout *layout,
 		const struct clk_master_characteristics *characteristics,
 		const struct clk_ops *ops, spinlock_t *lock, u32 flags)
 {
 	struct clk_master *master;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk_hw *hw;
 	unsigned int mckr;
 	unsigned long irqflags;
 	int ret;
 
-	if (!name || !num_parents || !parent_names || !lock)
+	if (!name || !num_parents || !(parent_names || parent_hws) || !lock)
 		return ERR_PTR(-EINVAL);
 
 	master = kzalloc(sizeof(*master), GFP_KERNEL);
@@ -493,7 +494,10 @@ at91_clk_register_master_internal(struct regmap *regmap,
 
 	init.name = name;
 	init.ops = ops;
-	init.parent_names = parent_names;
+	if (parent_hws)
+		init.parent_hws = (const struct clk_hw **)parent_hws;
+	else
+		init.parent_names = parent_names;
 	init.num_parents = num_parents;
 	init.flags = flags;
 
@@ -527,12 +531,13 @@ struct clk_hw * __init
 at91_clk_register_master_pres(struct regmap *regmap,
 		const char *name, int num_parents,
 		const char **parent_names,
+		struct clk_hw **parent_hws,
 		const struct clk_master_layout *layout,
 		const struct clk_master_characteristics *characteristics,
 		spinlock_t *lock)
 {
 	return at91_clk_register_master_internal(regmap, name, num_parents,
-						 parent_names, layout,
+						 parent_names, parent_hws, layout,
 						 characteristics,
 						 &master_pres_ops,
 						 lock, CLK_SET_RATE_GATE);
@@ -541,7 +546,7 @@ at91_clk_register_master_pres(struct regmap *regmap,
 struct clk_hw * __init
 at91_clk_register_master_div(struct regmap *regmap,
 		const char *name, const char *parent_name,
-		const struct clk_master_layout *layout,
+		struct clk_hw *parent_hw, const struct clk_master_layout *layout,
 		const struct clk_master_characteristics *characteristics,
 		spinlock_t *lock, u32 flags, u32 safe_div)
 {
@@ -554,7 +559,8 @@ at91_clk_register_master_div(struct regmap *regmap,
 		ops = &master_div_ops_chg;
 
 	hw = at91_clk_register_master_internal(regmap, name, 1,
-					       &parent_name, layout,
+					       parent_name ? &parent_name : NULL,
+					       parent_hw ? &parent_hw : NULL, layout,
 					       characteristics, ops,
 					       lock, flags);
 
@@ -581,7 +587,6 @@ static int clk_sama7g5_master_determine_rate(struct clk_hw *hw,
 					     struct clk_rate_request *req)
 {
 	struct clk_master *master = to_clk_master(hw);
-	struct clk_rate_request req_parent = *req;
 	struct clk_hw *parent;
 	long best_rate = LONG_MIN, best_diff = LONG_MIN;
 	unsigned long parent_rate;
@@ -618,11 +623,15 @@ static int clk_sama7g5_master_determine_rate(struct clk_hw *hw,
 		goto end;
 
 	for (div = 0; div < MASTER_PRES_MAX + 1; div++) {
-		if (div == MASTER_PRES_MAX)
-			req_parent.rate = req->rate * 3;
-		else
-			req_parent.rate = req->rate << div;
+		struct clk_rate_request req_parent;
+		unsigned long req_rate;
 
+		if (div == MASTER_PRES_MAX)
+			req_rate = req->rate * 3;
+		else
+			req_rate = req->rate << div;
+
+		clk_hw_forward_rate_request(hw, req, parent, &req_parent, req_rate);
 		if (__clk_determine_rate(parent, &req_parent))
 			continue;
 
@@ -803,18 +812,19 @@ struct clk_hw * __init
 at91_clk_sama7g5_register_master(struct regmap *regmap,
 				 const char *name, int num_parents,
 				 const char **parent_names,
+				 struct clk_hw **parent_hws,
 				 u32 *mux_table,
 				 spinlock_t *lock, u8 id,
 				 bool critical, int chg_pid)
 {
 	struct clk_master *master;
 	struct clk_hw *hw;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned long flags;
 	unsigned int val;
 	int ret;
 
-	if (!name || !num_parents || !parent_names || !mux_table ||
+	if (!name || !num_parents || !(parent_names || parent_hws) || !mux_table ||
 	    !lock || id > MASTER_MAX_ID)
 		return ERR_PTR(-EINVAL);
 
@@ -824,7 +834,10 @@ at91_clk_sama7g5_register_master(struct regmap *regmap,
 
 	init.name = name;
 	init.ops = &sama7g5_master_ops;
-	init.parent_names = parent_names;
+	if (parent_hws)
+		init.parent_hws = (const struct clk_hw **)parent_hws;
+	else
+		init.parent_names = parent_names;
 	init.num_parents = num_parents;
 	init.flags = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE;
 	if (chg_pid >= 0)

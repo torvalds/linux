@@ -63,29 +63,6 @@ void __init s3c_init_cpu(unsigned long idcode,
 	pr_err("The platform is deprecated and scheduled for removal. Please reach to the maintainers of the platform and linux-samsung-soc@vger.kernel.org if you still use it.  Without such feedback, the platform will be removed after 2022.\n");
 }
 
-/* s3c24xx_init_clocks
- *
- * Initialise the clock subsystem and associated information from the
- * given master crystal value.
- *
- * xtal  = 0 -> use default PLL crystal value (normally 12MHz)
- *      != 0 -> PLL crystal value in Hz
-*/
-
-void __init s3c24xx_init_clocks(int xtal)
-{
-	if (xtal == 0)
-		xtal = 12*1000*1000;
-
-	if (cpu == NULL)
-		panic("s3c24xx_init_clocks: no cpu setup?\n");
-
-	if (cpu->init_clocks == NULL)
-		panic("s3c24xx_init_clocks: cpu has no clock init\n");
-	else
-		(cpu->init_clocks)(xtal);
-}
-
 /* uart management */
 #if IS_ENABLED(CONFIG_SAMSUNG_ATAGS)
 static int nr_uarts __initdata = 0;
@@ -150,8 +127,7 @@ static int __init s3c_arch_init(void)
 	int ret;
 
 	/* init is only needed for ATAGS based platforms */
-	if (!IS_ENABLED(CONFIG_ATAGS) ||
-	    (!soc_is_s3c24xx() && !soc_is_s3c64xx()))
+	if (!IS_ENABLED(CONFIG_ATAGS))
 		return 0;
 
 	// do the correct init for cpu

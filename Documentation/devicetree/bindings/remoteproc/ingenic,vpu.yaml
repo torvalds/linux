@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/remoteproc/ingenic,vpu.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/remoteproc/ingenic,vpu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic Video Processing Unit bindings
+title: Ingenic Video Processing Unit
 
 description:
   Inside the Video Processing Unit (VPU) of the recent JZ47xx SoCs from

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/media/i2c/ovti,ov8865.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: OmniVision OV8865 Image Sensor Device Tree Bindings
+title: OmniVision OV8865 Image Sensor
 
 maintainers:
   - Paul Kocialkowski <paul.kocialkowski@bootlin.com>
@@ -82,7 +82,7 @@ examples:
     #include <dt-bindings/clock/sun8i-a83t-ccu.h>
     #include <dt-bindings/gpio/gpio.h>
 
-    i2c2 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 

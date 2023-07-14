@@ -313,7 +313,7 @@ static void dasd_eer_write_standard_trigger(struct dasd_device *device,
 	ktime_get_real_ts64(&ts);
 	header.tv_sec = ts.tv_sec;
 	header.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-	strlcpy(header.busid, dev_name(&device->cdev->dev),
+	strscpy(header.busid, dev_name(&device->cdev->dev),
 		DASD_EER_BUSID_SIZE);
 
 	spin_lock_irqsave(&bufferlock, flags);
@@ -356,7 +356,7 @@ static void dasd_eer_write_snss_trigger(struct dasd_device *device,
 	ktime_get_real_ts64(&ts);
 	header.tv_sec = ts.tv_sec;
 	header.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
-	strlcpy(header.busid, dev_name(&device->cdev->dev),
+	strscpy(header.busid, dev_name(&device->cdev->dev),
 		DASD_EER_BUSID_SIZE);
 
 	spin_lock_irqsave(&bufferlock, flags);
@@ -387,6 +387,7 @@ void dasd_eer_write(struct dasd_device *device, struct dasd_ccw_req *cqr,
 		break;
 	case DASD_EER_NOPATH:
 	case DASD_EER_NOSPC:
+	case DASD_EER_AUTOQUIESCE:
 		dasd_eer_write_standard_trigger(device, NULL, id);
 		break;
 	case DASD_EER_STATECHANGE:
@@ -491,7 +492,7 @@ int dasd_eer_enable(struct dasd_device *device)
 	ccw->cmd_code = DASD_ECKD_CCW_SNSS;
 	ccw->count = SNSS_DATA_SIZE;
 	ccw->flags = 0;
-	ccw->cda = (__u32)(addr_t) cqr->data;
+	ccw->cda = (__u32)virt_to_phys(cqr->data);
 
 	cqr->buildclk = get_tod_clock();
 	cqr->status = DASD_CQR_FILLED;

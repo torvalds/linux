@@ -20,6 +20,8 @@ properties:
     items:
       - enum:
           - apm,potenza-pmu
+          - apple,avalanche-pmu
+          - apple,blizzard-pmu
           - apple,firestorm-pmu
           - apple,icestorm-pmu
           - arm,armv8-pmuv3 # Only for s/w models

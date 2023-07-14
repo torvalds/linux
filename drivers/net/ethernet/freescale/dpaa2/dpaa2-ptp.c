@@ -8,7 +8,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/msi.h>
 #include <linux/fsl/mc.h>
 
 #include "dpaa2-ptp.h"
@@ -220,7 +219,7 @@ err_exit:
 	return err;
 }
 
-static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
+static void dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 {
 	struct device *dev = &mc_dev->dev;
 	struct ptp_qoriq *ptp_qoriq;
@@ -233,8 +232,6 @@ static int dpaa2_ptp_remove(struct fsl_mc_device *mc_dev)
 	fsl_mc_free_irqs(mc_dev);
 	dprtc_close(mc_dev->mc_io, 0, mc_dev->mc_handle);
 	fsl_mc_portal_free(mc_dev->mc_io);
-
-	return 0;
 }
 
 static const struct fsl_mc_device_id dpaa2_ptp_match_id_table[] = {

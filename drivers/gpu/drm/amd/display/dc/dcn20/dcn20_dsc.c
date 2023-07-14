@@ -28,28 +28,20 @@
 #include "reg_helper.h"
 #include "dcn20_dsc.h"
 #include "dsc/dscc_types.h"
+#include "dsc/rc_calc.h"
 
-static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps);
-static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
-			struct dsc_optc_config *dsc_optc_cfg);
-static void dsc_init_reg_values(struct dsc_reg_values *reg_vals);
-static void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params);
 static void dsc_write_to_registers(struct display_stream_compressor *dsc, const struct dsc_reg_values *reg_vals);
-static enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_encoding dc_pix_enc, bool is_ycbcr422_simple);
-static enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_depth);
 
 /* Object I/F functions */
-static void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz);
 static void dsc2_read_state(struct display_stream_compressor *dsc, struct dcn_dsc_state *s);
 static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg);
 static void dsc2_set_config(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg,
 		struct dsc_optc_config *dsc_optc_cfg);
-static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps);
 static void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
 static void dsc2_disable(struct display_stream_compressor *dsc);
 static void dsc2_disconnect(struct display_stream_compressor *dsc);
 
-const struct dsc_funcs dcn20_dsc_funcs = {
+static const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_get_enc_caps = dsc2_get_enc_caps,
 	.dsc_read_state = dsc2_read_state,
 	.dsc_validate_stream = dsc2_validate_stream,
@@ -107,7 +99,7 @@ void dsc2_construct(struct dcn20_dsc *dsc,
 /* This returns the capabilities for a single DSC encoder engine. Number of slices and total throughput
  * can be doubled, tripled etc. by using additional DSC engines.
  */
-static void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
+void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
 {
 	dsc_enc_caps->dsc_version = 0x21; /* v1.2 - DP spec defined it in reverse order and we kept it */
 
@@ -183,7 +175,7 @@ static bool dsc2_validate_stream(struct display_stream_compressor *dsc, const st
 }
 
 
-static void dsc_config_log(struct display_stream_compressor *dsc, const struct dsc_config *config)
+void dsc_config_log(struct display_stream_compressor *dsc, const struct dsc_config *config)
 {
 	DC_LOG_DSC("\tnum_slices_h %d", config->dc_dsc_cfg.num_slices_h);
 	DC_LOG_DSC("\tnum_slices_v %d", config->dc_dsc_cfg.num_slices_v);
@@ -200,7 +192,6 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 	bool is_config_ok;
 	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
 
-	DC_LOG_DSC(" ");
 	DC_LOG_DSC("Setting DSC Config at DSC inst %d", dsc->inst);
 	dsc_config_log(dsc, dsc_cfg);
 	is_config_ok = dsc_prepare_config(dsc_cfg, &dsc20->reg_vals, dsc_optc_cfg);
@@ -211,7 +202,7 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 }
 
 
-static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps)
+bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps)
 {
 	bool is_config_ok;
 	struct dsc_reg_values dsc_reg_vals;
@@ -291,7 +282,7 @@ static void dsc2_disconnect(struct display_stream_compressor *dsc)
 }
 
 /* This module's internal functions */
-static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps)
+void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps)
 {
 	int i;
 	int bits_per_pixel = pps->bits_per_pixel;
@@ -345,10 +336,38 @@ static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_co
 	}
 }
 
-static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
+void dsc_override_rc_params(struct rc_params *rc, const struct dc_dsc_rc_params_override *override)
+{
+	uint8_t i;
+
+	rc->rc_model_size = override->rc_model_size;
+	for (i = 0; i < DC_DSC_RC_BUF_THRESH_SIZE; i++)
+		rc->rc_buf_thresh[i] = override->rc_buf_thresh[i];
+	for (i = 0; i < DC_DSC_QP_SET_SIZE; i++) {
+		rc->qp_min[i] = override->rc_minqp[i];
+		rc->qp_max[i] = override->rc_maxqp[i];
+		rc->ofs[i] = override->rc_offset[i];
+	}
+
+	rc->rc_tgt_offset_hi = override->rc_tgt_offset_hi;
+	rc->rc_tgt_offset_lo = override->rc_tgt_offset_lo;
+	rc->rc_edge_factor = override->rc_edge_factor;
+	rc->rc_quant_incr_limit0 = override->rc_quant_incr_limit0;
+	rc->rc_quant_incr_limit1 = override->rc_quant_incr_limit1;
+
+	rc->initial_fullness_offset = override->initial_fullness_offset;
+	rc->initial_xmit_delay = override->initial_delay;
+
+	rc->flatness_min_qp = override->flatness_min_qp;
+	rc->flatness_max_qp = override->flatness_max_qp;
+	rc->flatness_det_thresh = override->flatness_det_thresh;
+}
+
+bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_values *dsc_reg_vals,
 			struct dsc_optc_config *dsc_optc_cfg)
 {
 	struct dsc_parameters dsc_params;
+	struct rc_params rc;
 
 	/* Validate input parameters */
 	ASSERT(dsc_cfg->dc_dsc_cfg.num_slices_h);
@@ -413,7 +432,12 @@ static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_
 	dsc_reg_vals->pps.native_420 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_NATIVE_YCBCR420);
 	dsc_reg_vals->pps.simple_422 = (dsc_reg_vals->pixel_format == DSC_PIXFMT_SIMPLE_YCBCR422);
 
-	if (dscc_compute_dsc_parameters(&dsc_reg_vals->pps, &dsc_params)) {
+	calc_rc_params(&rc, &dsc_reg_vals->pps);
+
+	if (dsc_cfg->dc_dsc_cfg.rc_params_ovrd)
+		dsc_override_rc_params(&rc, dsc_cfg->dc_dsc_cfg.rc_params_ovrd);
+
+	if (dscc_compute_dsc_parameters(&dsc_reg_vals->pps, &rc, &dsc_params)) {
 		dm_output_to_console("%s: DSC config failed\n", __func__);
 		return false;
 	}
@@ -430,7 +454,7 @@ static bool dsc_prepare_config(const struct dsc_config *dsc_cfg, struct dsc_reg_
 }
 
 
-static enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_encoding dc_pix_enc, bool is_ycbcr422_simple)
+enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_pixel_encoding dc_pix_enc, bool is_ycbcr422_simple)
 {
 	enum dsc_pixel_format dsc_pix_fmt = DSC_PIXFMT_UNKNOWN;
 
@@ -462,7 +486,7 @@ static enum dsc_pixel_format dsc_dc_pixel_encoding_to_dsc_pixel_format(enum dc_p
 }
 
 
-static enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_depth dc_color_depth)
+enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_color_depth dc_color_depth)
 {
 	enum dsc_bits_per_comp bpc = DSC_BPC_UNKNOWN;
 
@@ -485,7 +509,7 @@ static enum dsc_bits_per_comp dsc_dc_color_depth_to_dsc_bits_per_comp(enum dc_co
 }
 
 
-static void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
+void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
 {
 	int i;
 
@@ -541,7 +565,7 @@ static void dsc_init_reg_values(struct dsc_reg_values *reg_vals)
  * This is required because dscc_compute_dsc_parameters returns a modified PPS, which in turn
  * affects non-PPS register values.
  */
-static void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params)
+void dsc_update_from_dsc_parameters(struct dsc_reg_values *reg_vals, const struct dsc_parameters *dsc_params)
 {
 	int i;
 

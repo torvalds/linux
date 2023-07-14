@@ -24,8 +24,10 @@ struct env {
 	bool verbose;
 	bool list;
 	bool affinity;
+	bool quiet;
 	int consumer_cnt;
 	int producer_cnt;
+	int nr_cpus;
 	struct cpu_set prod_cpus;
 	struct cpu_set cons_cpus;
 };
@@ -47,6 +49,7 @@ struct bench_res {
 
 struct bench {
 	const char *name;
+	const struct argp *argp;
 	void (*validate)(void);
 	void (*setup)(void);
 	void *(*producer_thread)(void *ctx);

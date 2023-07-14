@@ -17,14 +17,14 @@ config ABP060MG
 	  will be called abp060mg.
 
 config BMP280
-	tristate "Bosch Sensortec BMP180/BMP280 pressure sensor I2C driver"
+	tristate "Bosch Sensortec BMP180/BMP280/BMP380/BMP580 pressure sensor driver"
 	depends on (I2C || SPI_MASTER)
 	select REGMAP
 	select BMP280_I2C if (I2C)
 	select BMP280_SPI if (SPI_MASTER)
 	help
-	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
-	  pressure and temperature sensors. Also supports the BME280 with
+	  Say yes here to build support for Bosch Sensortec BMP180, BMP280, BMP380
+	  and BMP580 pressure and temperature sensors. Also supports the BME280 with
 	  an additional humidity sensor channel.
 
 	  To compile this driver as a module, choose M here: the core module
@@ -147,6 +147,19 @@ config MPL3115
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mpl3115.
+
+config MPRLS0025PA
+	tristate "Honeywell MPRLS0025PA (MicroPressure sensors series)"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build support for the Honeywell MicroPressure pressure
+	  sensor series. There are many different types with different pressure
+	  range. These ranges can be set up in the device tree.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called mprls0025pa.
 
 config MS5611
 	tristate "Measurement Specialties MS5611 pressure sensor driver"

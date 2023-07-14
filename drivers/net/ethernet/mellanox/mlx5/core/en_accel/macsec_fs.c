@@ -4,6 +4,7 @@
 #include <net/macsec.h>
 #include <linux/netdevice.h>
 #include <linux/mlx5/qp.h>
+#include <linux/if_vlan.h>
 #include "fs_core.h"
 #include "en/fs.h"
 #include "en_accel/macsec_fs.h"
@@ -250,7 +251,7 @@ static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	u32 *flow_group_in;
-	int err = 0;
+	int err;
 
 	ns = mlx5_get_flow_namespace(macsec_fs->mdev, MLX5_FLOW_NAMESPACE_EGRESS_MACSEC);
 	if (!ns)
@@ -261,8 +262,10 @@ static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
 		return -ENOMEM;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	if (!flow_group_in)
+	if (!flow_group_in) {
+		err = -ENOMEM;
 		goto out_spec;
+	}
 
 	tx_tables = &tx_fs->tables;
 	ft_crypto = &tx_tables->ft_crypto;
@@ -290,8 +293,6 @@ static int macsec_fs_tx_create(struct mlx5e_macsec_fs *macsec_fs)
 	}
 
 	/* Tx crypto table MKE rule - MKE packets shouldn't be offloaded */
-	memset(&flow_act, 0, sizeof(flow_act));
-	memset(spec, 0, sizeof(*spec));
 	spec->match_criteria_enable = MLX5_MATCH_OUTER_HEADERS;
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria, outer_headers.ethertype);
@@ -508,6 +509,8 @@ static void macsec_fs_tx_del_rule(struct mlx5e_macsec_fs *macsec_fs,
 	macsec_fs_tx_ft_put(macsec_fs);
 }
 
+#define MLX5_REFORMAT_PARAM_ADD_MACSEC_OFFSET_4_BYTES 1
+
 static union mlx5e_macsec_rule *
 macsec_fs_tx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 		      const struct macsec_context *macsec_ctx,
@@ -553,6 +556,10 @@ macsec_fs_tx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	reformat_params.type = MLX5_REFORMAT_TYPE_ADD_MACSEC;
 	reformat_params.size = reformat_size;
 	reformat_params.data = reformatbf;
+
+	if (is_vlan_dev(macsec_ctx->netdev))
+		reformat_params.param_0 = MLX5_REFORMAT_PARAM_ADD_MACSEC_OFFSET_4_BYTES;
+
 	flow_act.pkt_reformat = mlx5_packet_reformat_alloc(macsec_fs->mdev,
 							   &reformat_params,
 							   MLX5_FLOW_NAMESPACE_EGRESS_MACSEC);
@@ -898,7 +905,7 @@ static int macsec_fs_rx_create(struct mlx5e_macsec_fs *macsec_fs)
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
 	u32 *flow_group_in;
-	int err = 0;
+	int err;
 
 	ns = mlx5_get_flow_namespace(macsec_fs->mdev, MLX5_FLOW_NAMESPACE_KERNEL_RX_MACSEC);
 	if (!ns)
@@ -909,8 +916,10 @@ static int macsec_fs_rx_create(struct mlx5e_macsec_fs *macsec_fs)
 		return -ENOMEM;
 
 	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
-	if (!flow_group_in)
+	if (!flow_group_in) {
+		err = -ENOMEM;
 		goto free_spec;
+	}
 
 	rx_tables = &rx_fs->tables;
 	ft_crypto = &rx_tables->ft_crypto;
@@ -1105,7 +1114,6 @@ static void macsec_fs_rx_setup_fte(struct mlx5_flow_spec *spec,
 
 static union mlx5e_macsec_rule *
 macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
-		      const struct macsec_context *macsec_ctx,
 		      struct mlx5_macsec_rule_attrs *attrs,
 		      u32 fs_id)
 {
@@ -1142,10 +1150,10 @@ macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	ft_crypto = &rx_tables->ft_crypto;
 
 	/* Set bit[31 - 30] macsec marker - 0x01 */
-	/* Set bit[3-0] fs id */
+	/* Set bit[15-0] fs id */
 	MLX5_SET(set_action_in, action, action_type, MLX5_ACTION_TYPE_SET);
 	MLX5_SET(set_action_in, action, field, MLX5_ACTION_IN_FIELD_METADATA_REG_B);
-	MLX5_SET(set_action_in, action, data, fs_id | BIT(30));
+	MLX5_SET(set_action_in, action, data, MLX5_MACSEC_RX_METADAT_HANDLE(fs_id) | BIT(30));
 	MLX5_SET(set_action_in, action, offset, 0);
 	MLX5_SET(set_action_in, action, length, 32);
 
@@ -1180,7 +1188,7 @@ macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 	rx_rule->rule[0] = rule;
 
 	/* Rx crypto table without SCI rule */
-	if (cpu_to_be64((__force u64)attrs->sci) & ntohs(MACSEC_PORT_ES)) {
+	if ((cpu_to_be64((__force u64)attrs->sci) & 0xFFFF) == ntohs(MACSEC_PORT_ES)) {
 		memset(spec, 0, sizeof(struct mlx5_flow_spec));
 		memset(&dest, 0, sizeof(struct mlx5_flow_destination));
 		memset(&flow_act, 0, sizeof(flow_act));
@@ -1205,6 +1213,7 @@ macsec_fs_rx_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 		rx_rule->rule[1] = rule;
 	}
 
+	kvfree(spec);
 	return macsec_rule;
 
 err:
@@ -1329,7 +1338,7 @@ mlx5e_macsec_fs_add_rule(struct mlx5e_macsec_fs *macsec_fs,
 {
 	return (attrs->action == MLX5_ACCEL_MACSEC_ACTION_ENCRYPT) ?
 		macsec_fs_tx_add_rule(macsec_fs, macsec_ctx, attrs, sa_fs_id) :
-		macsec_fs_rx_add_rule(macsec_fs, macsec_ctx, attrs, *sa_fs_id);
+		macsec_fs_rx_add_rule(macsec_fs, attrs, *sa_fs_id);
 }
 
 void mlx5e_macsec_fs_del_rule(struct mlx5e_macsec_fs *macsec_fs,

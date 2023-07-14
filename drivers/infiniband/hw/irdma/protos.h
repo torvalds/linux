@@ -28,9 +28,7 @@ int irdma_cqp_gather_stats_cmd(struct irdma_sc_dev *dev,
 void irdma_cqp_gather_stats_gen1(struct irdma_sc_dev *dev,
 				 struct irdma_vsi_pestat *pestat);
 void irdma_hw_stats_read_all(struct irdma_vsi_pestat *stats,
-			     struct irdma_dev_hw_stats *stats_values,
-			     u64 *hw_stats_regs_32, u64 *hw_stats_regs_64,
-			     u8 hw_rev);
+			     const u64 *hw_stats_regs);
 int irdma_cqp_ws_node_cmd(struct irdma_sc_dev *dev, u8 cmd,
 			  struct irdma_ws_node_info *node_info);
 int irdma_cqp_ceq_cmd(struct irdma_sc_dev *dev, struct irdma_sc_ceq *sc_ceq,
@@ -43,7 +41,9 @@ u16 irdma_alloc_ws_node_id(struct irdma_sc_dev *dev);
 void irdma_free_ws_node_id(struct irdma_sc_dev *dev, u16 node_id);
 void irdma_update_stats(struct irdma_dev_hw_stats *hw_stats,
 			struct irdma_gather_stats *gather_stats,
-			struct irdma_gather_stats *last_gather_stats);
+			struct irdma_gather_stats *last_gather_stats,
+			const struct irdma_hw_stat_map *map, u16 max_stat_idx);
+
 /* vsi functions */
 int irdma_vsi_stats_init(struct irdma_sc_vsi *vsi,
 			 struct irdma_vsi_stats_info *info);

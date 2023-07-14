@@ -192,7 +192,7 @@ EXPORT_SYMBOL(sbc_get_write_same_sectors);
 static sense_reason_t
 sbc_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	sector_t nolb = sbc_get_write_same_sectors(cmd);
 	sense_reason_t ret;
 
@@ -270,16 +270,9 @@ static inline unsigned long long transport_lba_64(unsigned char *cdb)
 	return get_unaligned_be64(&cdb[2]);
 }
 
-/*
- * For VARIABLE_LENGTH_CDB w/ 32 byte extended CDBs
- */
-static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
-{
-	return get_unaligned_be64(&cdb[12]);
-}
-
 static sense_reason_t
-sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags, struct sbc_ops *ops)
+sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags,
+		     struct exec_cmd_ops *ops)
 {
 	struct se_device *dev = cmd->se_dev;
 	sector_t end_lba = dev->transport->get_blocks(dev) + 1;
@@ -348,7 +341,7 @@ sbc_setup_write_same(struct se_cmd *cmd, unsigned char flags, struct sbc_ops *op
 static sense_reason_t
 sbc_execute_rw(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 
 	return ops->execute_rw(cmd, cmd->t_data_sg, cmd->t_data_nents,
 			       cmd->data_direction);
@@ -454,12 +447,22 @@ static sense_reason_t compare_and_write_callback(struct se_cmd *cmd, bool succes
 	sense_reason_t ret = TCM_NO_SENSE;
 	int i;
 
-	/*
-	 * Handle early failure in transport_generic_request_failure(),
-	 * which will not have taken ->caw_sem yet..
-	 */
-	if (!success && (!cmd->t_data_sg || !cmd->t_bidi_data_sg))
-		return TCM_NO_SENSE;
+	if (!success) {
+		/*
+		 * Handle early failure in transport_generic_request_failure(),
+		 * which will not have taken ->caw_sem yet..
+		 */
+		if (!cmd->t_data_sg || !cmd->t_bidi_data_sg)
+			return TCM_NO_SENSE;
+
+		/*
+		 * The command has been stopped or aborted so
+		 * we don't have to perform the write operation.
+		 */
+		WARN_ON(!(cmd->transport_state &
+			(CMD_T_ABORTED | CMD_T_STOP)));
+		goto out;
+	}
 	/*
 	 * Handle special case for zero-length COMPARE_AND_WRITE
 	 */
@@ -564,7 +567,7 @@ out:
 static sense_reason_t
 sbc_compare_and_write(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 	sense_reason_t ret;
 	int rc;
@@ -762,7 +765,7 @@ sbc_check_dpofua(struct se_device *dev, struct se_cmd *cmd, unsigned char *cdb)
 }
 
 sense_reason_t
-sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
+sbc_parse_cdb(struct se_cmd *cmd, struct exec_cmd_ops *ops)
 {
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -1074,7 +1077,7 @@ EXPORT_SYMBOL(sbc_get_device_type);
 static sense_reason_t
 sbc_execute_unmap(struct se_cmd *cmd)
 {
-	struct sbc_ops *ops = cmd->protocol_data;
+	struct exec_cmd_ops *ops = cmd->protocol_data;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf, *ptr = NULL;
 	sector_t lba;

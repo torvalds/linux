@@ -4,11 +4,14 @@
 $id: http://devicetree.org/schemas/sound/allwinner,sun8i-a33-codec.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A33 Codec Device Tree Bindings
+title: Allwinner A33 Codec
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Maxime Ripard <mripard@kernel.org>
+
+allOf:
+  - $ref: dai-common.yaml#
 
 properties:
   "#sound-dai-cells":
@@ -49,7 +52,7 @@ required:
   - clocks
   - clock-names
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

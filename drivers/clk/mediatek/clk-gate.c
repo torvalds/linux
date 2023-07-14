@@ -152,12 +152,12 @@ const struct clk_ops mtk_clk_gate_ops_no_setclr_inv = {
 };
 EXPORT_SYMBOL_GPL(mtk_clk_gate_ops_no_setclr_inv);
 
-static struct clk_hw *mtk_clk_register_gate(const char *name,
+static struct clk_hw *mtk_clk_register_gate(struct device *dev, const char *name,
 					 const char *parent_name,
 					 struct regmap *regmap, int set_ofs,
 					 int clr_ofs, int sta_ofs, u8 bit,
 					 const struct clk_ops *ops,
-					 unsigned long flags, struct device *dev)
+					 unsigned long flags)
 {
 	struct mtk_clk_gate *cg;
 	int ret;
@@ -202,10 +202,9 @@ static void mtk_clk_unregister_gate(struct clk_hw *hw)
 	kfree(cg);
 }
 
-int mtk_clk_register_gates_with_dev(struct device_node *node,
-				    const struct mtk_gate *clks, int num,
-				    struct clk_hw_onecell_data *clk_data,
-				    struct device *dev)
+int mtk_clk_register_gates(struct device *dev, struct device_node *node,
+			   const struct mtk_gate *clks, int num,
+			   struct clk_hw_onecell_data *clk_data)
 {
 	int i;
 	struct clk_hw *hw;
@@ -229,13 +228,13 @@ int mtk_clk_register_gates_with_dev(struct device_node *node,
 			continue;
 		}
 
-		hw = mtk_clk_register_gate(gate->name, gate->parent_name,
+		hw = mtk_clk_register_gate(dev, gate->name, gate->parent_name,
 					    regmap,
 					    gate->regs->set_ofs,
 					    gate->regs->clr_ofs,
 					    gate->regs->sta_ofs,
 					    gate->shift, gate->ops,
-					    gate->flags, dev);
+					    gate->flags);
 
 		if (IS_ERR(hw)) {
 			pr_err("Failed to register clk %s: %pe\n", gate->name,
@@ -260,13 +259,6 @@ err:
 	}
 
 	return PTR_ERR(hw);
-}
-
-int mtk_clk_register_gates(struct device_node *node,
-			   const struct mtk_gate *clks, int num,
-			   struct clk_hw_onecell_data *clk_data)
-{
-	return mtk_clk_register_gates_with_dev(node, clks, num, clk_data, NULL);
 }
 EXPORT_SYMBOL_GPL(mtk_clk_register_gates);
 

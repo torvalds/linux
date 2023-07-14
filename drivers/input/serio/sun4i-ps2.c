@@ -256,8 +256,8 @@ static int sun4i_ps2_probe(struct platform_device *pdev)
 	serio->close = sun4i_ps2_close;
 	serio->port_data = drvdata;
 	serio->dev.parent = dev;
-	strlcpy(serio->name, dev_name(dev), sizeof(serio->name));
-	strlcpy(serio->phys, dev_name(dev), sizeof(serio->phys));
+	strscpy(serio->name, dev_name(dev), sizeof(serio->name));
+	strscpy(serio->phys, dev_name(dev), sizeof(serio->phys));
 
 	/* shutoff interrupt */
 	writel(0, drvdata->reg_base + PS2_REG_GCTL);

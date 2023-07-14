@@ -10,7 +10,7 @@ maintainers:
   - Alexandre Belloni <alexandre.belloni@bootlin.com>
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio.yaml#
 
 properties:
   compatible:

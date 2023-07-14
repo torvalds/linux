@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
@@ -134,7 +133,7 @@ void *squashfs_decompressor_setup(struct super_block *sb, unsigned short flags)
 	if (IS_ERR(comp_opts))
 		return comp_opts;
 
-	stream = squashfs_decompressor_create(msblk, comp_opts);
+	stream = msblk->thread_ops->create(msblk, comp_opts);
 	if (IS_ERR(stream))
 		kfree(comp_opts);
 

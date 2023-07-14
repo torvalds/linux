@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/spmi/mtk,spmi-mtk-pmif.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Mediatek SPMI Controller Device Tree Bindings
+title: Mediatek SPMI Controller
 
 maintainers:
   - Hsin-Hsiung Wang <hsin-hsiung.wang@mediatek.com>
@@ -14,13 +14,18 @@ description: |+
   for multiple SoCs to control a single SPMI master.
 
 allOf:
-  - $ref: "spmi.yaml"
+  - $ref: spmi.yaml
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt6873-spmi
-      - mediatek,mt8195-spmi
+    oneOf:
+      - enum:
+          - mediatek,mt6873-spmi
+          - mediatek,mt8195-spmi
+      - items:
+          - enum:
+              - mediatek,mt8186-spmi
+          - const: mediatek,mt8195-spmi
 
   reg:
     maxItems: 2

@@ -61,8 +61,8 @@ extern int xfs_dir2_sf_to_block(struct xfs_da_args *args);
 /*
  * Interface routines used by userspace utilities
  */
-extern int xfs_dir2_isblock(struct xfs_da_args *args, int *r);
-extern int xfs_dir2_isleaf(struct xfs_da_args *args, int *r);
+extern int xfs_dir2_isblock(struct xfs_da_args *args, bool *isblock);
+extern int xfs_dir2_isleaf(struct xfs_da_args *args, bool *isleaf);
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_buf *bp);
 
@@ -247,5 +247,36 @@ unsigned char xfs_dir3_get_dtype(struct xfs_mount *mp, uint8_t filetype);
 unsigned int xfs_dir3_data_end_offset(struct xfs_da_geometry *geo,
 		struct xfs_dir2_data_hdr *hdr);
 bool xfs_dir2_namecheck(const void *name, size_t length);
+
+/*
+ * The "ascii-ci" feature was created to speed up case-insensitive lookups for
+ * a Samba product.  Because of the inherent problems with CI and UTF-8
+ * encoding, etc, it was decided that Samba would be configured to export
+ * latin1/iso 8859-1 encodings as that covered >90% of the target markets for
+ * the product.  Hence the "ascii-ci" casefolding code could be encoded into
+ * the XFS directory operations and remove all the overhead of casefolding from
+ * Samba.
+ *
+ * To provide consistent hashing behavior between the userspace and kernel,
+ * these functions prepare names for hashing by transforming specific bytes
+ * to other bytes.  Robustness with other encodings is not guaranteed.
+ */
+static inline bool xfs_ascii_ci_need_xfrm(unsigned char c)
+{
+	if (c >= 0x41 && c <= 0x5a)	/* A-Z */
+		return true;
+	if (c >= 0xc0 && c <= 0xd6)	/* latin A-O with accents */
+		return true;
+	if (c >= 0xd8 && c <= 0xde)	/* latin O-Y with accents */
+		return true;
+	return false;
+}
+
+static inline unsigned char xfs_ascii_ci_xfrm(unsigned char c)
+{
+	if (xfs_ascii_ci_need_xfrm(c))
+		c -= 'A' - 'a';
+	return c;
+}
 
 #endif	/* __XFS_DIR2_H__ */

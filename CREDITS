@@ -229,6 +229,10 @@ S: University of Notre Dame
 S: Notre Dame, Indiana
 S: USA
 
+N: Kai Bankett
+E: chaosman@ontika.net
+D: QNX6 filesystem
+
 N: Greg Banks
 E: gnb@alphalink.com.au
 D: IDT77105 ATM network driver
@@ -378,6 +382,12 @@ N: Tomas Berndtsson
 E: tomas@nocrew.org
 W: http://tomas.nocrew.org/
 D: dsp56k device driver
+
+N: Srivatsa S. Bhat
+E: srivatsa@csail.mit.edu
+D: Maintainer of Generic Paravirt-Ops subsystem
+D: Maintainer of VMware hypervisor interface
+D: Maintainer of VMware virtual PTP clock driver (ptp_vmw)
 
 N: Ross Biro
 E: ross.biro@gmail.com
@@ -886,6 +896,10 @@ W: http://jdelvare.nerim.net/
 D: Several hardware monitoring drivers
 S: France
 
+N: Frank "Jedi/Sector One" Denis
+E: j@pureftpd.org
+D: QNX4 filesystem
+
 N: Peter Denison
 E: peterd@pnd-pc.demon.co.uk
 W: http://www.pnd-pc.demon.co.uk/promise/
@@ -917,6 +931,11 @@ S: 41.5 William Street
 S: Ottawa, Ontario
 S: K1N 6Z9
 S: CANADA
+
+N: Vivien Didelot
+E: vivien.didelot@gmail.com
+D: DSA framework and MV88E6XXX driver
+S: Montreal, Quebec, Canada
 
 N: Jeff Dike
 E: jdike@karaya.com
@@ -1168,6 +1187,10 @@ D: Future Domain TMC-16x0 SCSI driver (author)
 D: APM driver (early port)
 D: DRM drivers (author of several)
 
+N: Veaceslav Falico
+E: vfalico@gmail.com
+D: Co-maintainer and co-author of the network bonding driver.
+
 N: János Farkas
 E: chexum@shadow.banki.hu
 D: romfs, various (mostly networking) fixes
@@ -1249,6 +1272,10 @@ S: USA
 
 N: Adam Fritzler
 E: mid@zigamorph.net
+
+N: Richard "Scuba" A. Frowijn
+E: scuba@wxs.nl
+D: QNX4 filesystem
 
 N: Fernando Fuganti
 E: fuganti@conectiva.com.br
@@ -1433,6 +1460,10 @@ S: Germany
 N: Justin Guyett
 E: jguyett@andrew.cmu.edu
 D: via-rhine net driver hacking
+
+N: Nitin Gupta
+E: ngupta@vflare.org
+D: zsmalloc memory allocator and zram block device driver
 
 N: Danny ter Haar
 E: dth@cistron.nl
@@ -1681,6 +1712,10 @@ S: Panoramastrasse 18
 S: D-69126 Heidelberg
 S: Germany
 
+N: Neil Horman
+M: nhorman@tuxdriver.com
+D: SCTP protocol maintainer.
+
 N: Simon Horman
 M: horms@verge.net.au
 D: Renesas ARM/ARM64 SoC maintainer
@@ -1839,11 +1874,11 @@ E: ajoshi@shell.unixbox.com
 D: fbdev hacking
 
 N: Jesper Juhl
-E: jj@chaosbits.net
+E: jesperjuhl76@gmail.com
 D: Various fixes, cleanups and minor features all over the tree.
 D: Wrote initial version of the hdaps driver (since passed on to others).
-S: Lemnosvej 1, 3.tv
-S: 2300 Copenhagen S.
+S: Titangade 5G, 2.tv
+S: 2200 Copenhagen N.
 S: Denmark
 
 N: Jozsef Kadlecsik
@@ -2205,6 +2240,10 @@ D: Digiboard PC/Xe and PC/Xi, Digiboard EPCA
 D: NUMA support, Slab allocators, Page migration
 D: Scalability, Time subsystem
 
+N: Anders Larsen
+E: al@alarsen.net
+D: QNX4 filesystem
+
 N: Paul Laufer
 E: paul@laufernet.com
 D: Soundblaster driver fixes, ISAPnP quirk
@@ -2447,6 +2486,10 @@ S: 482 Shadowgraph Dr.
 S: San Jose, CA  95110
 S: USA
 
+N: Michal Marek
+E: michal.lkml@markovi.net
+D: Kbuild Maintainer 2009-2017
+
 N: Martin Mares
 E: mj@ucw.cz
 W: http://www.ucw.cz/~mj/
@@ -2475,6 +2518,13 @@ D: XF86_Mach32
 D: XF86_Mach8
 D: XF86_8514
 D: cfdisk (curses based disk partitioning program)
+
+N: Mat Martineau
+E: martineau@kernel.org
+D: MPTCP subsystem co-maintainer
+D: Keyctl restricted keyring and Diffie-Hellman UAPI
+D: Bluetooth L2CAP ERTM mode and AMP
+S: USA
 
 N: John S. Marvin
 E: jsm@fc.hp.com
@@ -3435,6 +3485,11 @@ D: several improvements to system programs
 S: Oldenburg
 S: Germany
 
+N: Mathieu Poirier
+E: mathieu.poirier@linaro.org
+D: CoreSight kernel subsystem, Maintainer 2014-2022
+D: Perf tool support for CoreSight
+
 N: Robert Schwebel
 E: robert@schwebel.de
 W: https://www.schwebel.de
@@ -4158,6 +4213,10 @@ D: Freescale QE SoC support and Ethernet driver
 S: B-1206 Jingmao Guojigongyu
 S: 16 Baliqiao Nanjie, Beijing 101100
 S: People's Repulic of China
+
+N: Vlad Yasevich
+E: vyasevich@gmail.com
+D: SCTP protocol maintainer.
 
 N: Aviad Yehezkel
 E: aviadye@nvidia.com

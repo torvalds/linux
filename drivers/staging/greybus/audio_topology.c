@@ -24,9 +24,8 @@ struct gbaudio_ctl_pvt {
 	struct gb_audio_ctl_elem_info *info;
 };
 
-static struct gbaudio_module_info *find_gb_module(
-					struct gbaudio_codec_info *codec,
-					char const *name)
+static struct gbaudio_module_info *find_gb_module(struct gbaudio_codec_info *codec,
+						  char const *name)
 {
 	int dev_id;
 	char begin[NAME_SIZE];

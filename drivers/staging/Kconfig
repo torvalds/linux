@@ -36,8 +36,6 @@ source "drivers/staging/rtl8723bs/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
-source "drivers/staging/r8188eu/Kconfig"
-
 source "drivers/staging/rts5208/Kconfig"
 
 source "drivers/staging/octeon/Kconfig"
@@ -59,10 +57,6 @@ source "drivers/staging/media/Kconfig"
 source "drivers/staging/board/Kconfig"
 
 source "drivers/staging/gdm724x/Kconfig"
-
-source "drivers/staging/fwserial/Kconfig"
-
-source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
 

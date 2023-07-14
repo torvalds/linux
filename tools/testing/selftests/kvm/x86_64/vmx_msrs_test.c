@@ -67,6 +67,52 @@ static void vmx_save_restore_msrs_test(struct kvm_vcpu *vcpu)
 	vmx_fixed1_msr_test(vcpu, MSR_IA32_VMX_VMFUNC, -1ull);
 }
 
+static void __ia32_feature_control_msr_test(struct kvm_vcpu *vcpu,
+					    uint64_t msr_bit,
+					    struct kvm_x86_cpu_feature feature)
+{
+	uint64_t val;
+
+	vcpu_clear_cpuid_feature(vcpu, feature);
+
+	val = vcpu_get_msr(vcpu, MSR_IA32_FEAT_CTL);
+	vcpu_set_msr(vcpu, MSR_IA32_FEAT_CTL, val | msr_bit | FEAT_CTL_LOCKED);
+	vcpu_set_msr(vcpu, MSR_IA32_FEAT_CTL, (val & ~msr_bit) | FEAT_CTL_LOCKED);
+	vcpu_set_msr(vcpu, MSR_IA32_FEAT_CTL, val | msr_bit | FEAT_CTL_LOCKED);
+	vcpu_set_msr(vcpu, MSR_IA32_FEAT_CTL, (val & ~msr_bit) | FEAT_CTL_LOCKED);
+	vcpu_set_msr(vcpu, MSR_IA32_FEAT_CTL, val);
+
+	if (!kvm_cpu_has(feature))
+		return;
+
+	vcpu_set_cpuid_feature(vcpu, feature);
+}
+
+static void ia32_feature_control_msr_test(struct kvm_vcpu *vcpu)
+{
+	uint64_t supported_bits = FEAT_CTL_LOCKED |
+				  FEAT_CTL_VMX_ENABLED_INSIDE_SMX |
+				  FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX |
+				  FEAT_CTL_SGX_LC_ENABLED |
+				  FEAT_CTL_SGX_ENABLED |
+				  FEAT_CTL_LMCE_ENABLED;
+	int bit, r;
+
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_VMX_ENABLED_INSIDE_SMX, X86_FEATURE_SMX);
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_VMX_ENABLED_INSIDE_SMX, X86_FEATURE_VMX);
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_VMX_ENABLED_OUTSIDE_SMX, X86_FEATURE_VMX);
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_SGX_LC_ENABLED, X86_FEATURE_SGX_LC);
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_SGX_LC_ENABLED, X86_FEATURE_SGX);
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_SGX_ENABLED, X86_FEATURE_SGX);
+	__ia32_feature_control_msr_test(vcpu, FEAT_CTL_LMCE_ENABLED, X86_FEATURE_MCE);
+
+	for_each_clear_bit(bit, &supported_bits, 64) {
+		r = _vcpu_set_msr(vcpu, MSR_IA32_FEAT_CTL, BIT(bit));
+		TEST_ASSERT(r == 0,
+			    "Setting reserved bit %d in IA32_FEATURE_CONTROL should fail", bit);
+	}
+}
+
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
@@ -79,6 +125,7 @@ int main(void)
 	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 
 	vmx_save_restore_msrs_test(vcpu);
+	ia32_feature_control_msr_test(vcpu);
 
 	kvm_vm_free(vm);
 }

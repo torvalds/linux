@@ -35,6 +35,17 @@ config TYPEC_MT6360
 	  USB Type-C. It works with Type-C Port Controller Manager
 	  to provide USB PD and USB Type-C functionalities.
 
+config TYPEC_TCPCI_MT6370
+	tristate "MediaTek MT6370 Type-C driver"
+	depends on MFD_MT6370
+	help
+	  MediaTek MT6370 is a multi-functional IC that includes
+	  USB Type-C. It works with Type-C Port Controller Manager
+	  to provide USB PD and USB Type-C functionalities.
+
+	  This driver can also be built as a module. The module
+	  will be called "tcpci_mt6370".
+
 config TYPEC_TCPCI_MAXIM
 	tristate "Maxim TCPCI based Type-C chip driver"
 	help
@@ -64,5 +75,16 @@ config TYPEC_WCOVE
 
 	  To compile this driver as module, choose M here: the module will be
 	  called typec_wcove.ko
+
+config TYPEC_QCOM_PMIC
+	tristate "Qualcomm PMIC USB Type-C Port Controller Manager driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  A Type-C port and Power Delivery driver which aggregates two
+	  discrete pieces of silicon in the PM8150b PMIC block: the
+	  Type-C port controller and the Power Delivery PHY.
+
+	  This driver enables Type-C role switching, orientation, Alternate
+	  mode and Power Delivery support both for VBUS and VCONN.
 
 endif # TYPEC_TCPM

@@ -264,26 +264,28 @@ static int cc770_isa_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev,
 			"couldn't register device (err=%d)\n", err);
-		goto exit_unmap;
+		goto exit_free;
 	}
 
 	dev_info(&pdev->dev, "device registered (reg_base=0x%p, irq=%d)\n",
 		 priv->reg_base, dev->irq);
 	return 0;
 
- exit_unmap:
+exit_free:
+	free_cc770dev(dev);
+exit_unmap:
 	if (mem[idx])
 		iounmap(base);
- exit_release:
+exit_release:
 	if (mem[idx])
 		release_mem_region(mem[idx], iosize);
 	else
 		release_region(port[idx], iosize);
- exit:
+exit:
 	return err;
 }
 
-static int cc770_isa_remove(struct platform_device *pdev)
+static void cc770_isa_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct cc770_priv *priv = netdev_priv(dev);
@@ -301,13 +303,11 @@ static int cc770_isa_remove(struct platform_device *pdev)
 			release_region(port[idx], CC770_IOSIZE);
 	}
 	free_cc770dev(dev);
-
-	return 0;
 }
 
 static struct platform_driver cc770_isa_driver = {
 	.probe = cc770_isa_probe,
-	.remove = cc770_isa_remove,
+	.remove_new = cc770_isa_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

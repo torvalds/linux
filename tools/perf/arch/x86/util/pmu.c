@@ -14,8 +14,8 @@
 #include "../../../util/intel-bts.h"
 #include "../../../util/pmu.h"
 #include "../../../util/fncache.h"
-
-#define TEMPLATE_ALIAS	"%s/bus/event_source/devices/%s/alias"
+#include "../../../util/pmus.h"
+#include "env.h"
 
 struct pmu_alias {
 	char *name;
@@ -29,10 +29,14 @@ static bool cached_list;
 struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 {
 #ifdef HAVE_AUXTRACE_SUPPORT
-	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME))
+	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
+		pmu->auxtrace = true;
 		return intel_pt_pmu_default_config(pmu);
-	if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME))
+	}
+	if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME)) {
+		pmu->auxtrace = true;
 		pmu->selectable = true;
+	}
 #endif
 	return NULL;
 }
@@ -69,22 +73,19 @@ out_delete:
 
 static int setup_pmu_alias_list(void)
 {
-	char path[PATH_MAX];
+	int fd, dirfd;
 	DIR *dir;
 	struct dirent *dent;
-	const char *sysfs = sysfs__mountpoint();
 	struct pmu_alias *pmu_alias;
 	char buf[MAX_PMU_NAME_LEN];
 	FILE *file;
 	int ret = -ENOMEM;
 
-	if (!sysfs)
+	dirfd = perf_pmu__event_source_devices_fd();
+	if (dirfd < 0)
 		return -1;
 
-	snprintf(path, PATH_MAX,
-		 "%s" EVENT_SOURCE_DEVICE_PATH, sysfs);
-
-	dir = opendir(path);
+	dir = fdopendir(dirfd);
 	if (!dir)
 		return -errno;
 
@@ -93,13 +94,11 @@ static int setup_pmu_alias_list(void)
 		    !strcmp(dent->d_name, ".."))
 			continue;
 
-		snprintf(path, PATH_MAX,
-			 TEMPLATE_ALIAS, sysfs, dent->d_name);
-
-		if (!file_available(path))
+		fd = perf_pmu__pathname_fd(dirfd, dent->d_name, "alias", O_RDONLY);
+		if (fd < 0)
 			continue;
 
-		file = fopen(path, "r");
+		file = fdopen(fd, "r");
 		if (!file)
 			continue;
 
@@ -170,4 +169,14 @@ char *pmu_find_alias_name(const char *name)
 	cached_list = true;
 
 	return __pmu_find_alias_name(name);
+}
+
+int perf_pmus__num_mem_pmus(void)
+{
+	/* AMD uses IBS OP pmu and not a core PMU for perf mem/c2c */
+	if (x86__is_amd_cpu())
+		return 1;
+
+	/* Intel uses core pmus for perf mem/c2c */
+	return perf_pmus__num_core_pmus();
 }

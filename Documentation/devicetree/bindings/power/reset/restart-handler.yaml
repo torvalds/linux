@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/reset/restart-handler.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Restart and shutdown handler Common Properties
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+description:
+  Restart and shutdown handler device is responsible for powering off the
+  system, e.g. my cutting off the power.  System might have several restart
+  handlers, which usually are tried from most precise to last resort.
+
+properties:
+  priority:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      A priority ranging from 0 to 255 according to the following guidelines::
+        0::   Restart handler of last resort, with limited restart capabilities.
+        128:: Typical, default restart handler; use if no other restart handler
+              is expected to be available, and/or if restart functionality is
+              sufficient to restart the entire system.
+        255:: Highest priority restart handler, will preempt all other restart handlers.
+    minimum: 0
+    maximum: 255
+
+additionalProperties: true

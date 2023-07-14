@@ -136,13 +136,12 @@ static int eeprom_detect(struct i2c_client *client, struct i2c_board_info *info)
 	 && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
 		return -ENODEV;
 
-	strlcpy(info->type, "eeprom", I2C_NAME_SIZE);
+	strscpy(info->type, "eeprom", I2C_NAME_SIZE);
 
 	return 0;
 }
 
-static int eeprom_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int eeprom_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	struct eeprom_data *data;

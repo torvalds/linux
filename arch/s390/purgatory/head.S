@@ -76,9 +76,9 @@
 	diag	%r0,%r1,0x308
 .endm
 
-.text
-.align PAGE_SIZE
-ENTRY(purgatory_start)
+	.text
+	.balign PAGE_SIZE
+SYM_CODE_START(purgatory_start)
 	/* The purgatory might be called after a diag308 so better set
 	 * architecture and addressing mode.
 	 */
@@ -100,7 +100,7 @@ ENTRY(purgatory_start)
 	 * checksum verification only (%r2 = 0 -> verification only).
 	 *
 	 * Check now and preserve over C function call by storing in
-	 * %r10 whith
+	 * %r10 with
 	 *	1 -> checksum verification only
 	 *	0 -> load new kernel
 	 */
@@ -245,45 +245,21 @@ ENTRY(purgatory_start)
 
 	/* start crash kernel */
 	START_NEXT_KERNEL .base_dst 1
+SYM_CODE_END(purgatory_start)
 
-
-load_psw_mask:
-	.long	0x00080000,0x80000000
-
-	.align	8
-disabled_wait_psw:
-	.quad	0x0002000180000000
-	.quad	0x0000000000000000 + .do_checksum_verification
-
-gprregs:
-	.rept	10
-	.quad	0
-	.endr
-
-/* Macro to define a global variable with name and size (in bytes) to be
- * shared with C code.
- *
- * Add the .size and .type attribute to satisfy checks on the Elf_Sym during
- * purgatory load.
- */
-.macro GLOBAL_VARIABLE name,size
-\name:
-	.global \name
-	.size	\name,\size
-	.type	\name,object
-	.skip	\size,0
-.endm
-
-GLOBAL_VARIABLE purgatory_sha256_digest,32
-GLOBAL_VARIABLE purgatory_sha_regions,16*__KEXEC_SHA_REGION_SIZE
-GLOBAL_VARIABLE kernel_entry,8
-GLOBAL_VARIABLE kernel_type,8
-GLOBAL_VARIABLE crash_start,8
-GLOBAL_VARIABLE crash_size,8
-
-	.align	PAGE_SIZE
-stack:
+SYM_DATA_LOCAL(load_psw_mask,		.long 0x00080000,0x80000000)
+	.balign	8
+SYM_DATA_LOCAL(disabled_wait_psw,	.quad 0x0002000180000000,.do_checksum_verification)
+SYM_DATA_LOCAL(gprregs,			.fill 10,8,0)
+SYM_DATA(purgatory_sha256_digest,	.skip 32)
+SYM_DATA(purgatory_sha_regions,		.skip 16*__KEXEC_SHA_REGION_SIZE)
+SYM_DATA(kernel_entry,			.skip 8)
+SYM_DATA(kernel_type,			.skip 8)
+SYM_DATA(crash_start,			.skip 8)
+SYM_DATA(crash_size,			.skip 8)
+	.balign	PAGE_SIZE
+SYM_DATA_START_LOCAL(stack)
 	/* The buffer to move this code must be as big as the code. */
 	.skip	stack-purgatory_start
-	.align	PAGE_SIZE
-purgatory_end:
+	.balign	PAGE_SIZE
+SYM_DATA_END_LABEL(stack, SYM_L_LOCAL, purgatory_end)

@@ -4,15 +4,24 @@
 # subsystems should select the appropriate symbols.
 
 config REGMAP
-	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ || REGMAP_SOUNDWIRE || REGMAP_SOUNDWIRE_MBQ || REGMAP_SCCB || REGMAP_I3C || REGMAP_SPI_AVMM || REGMAP_MDIO)
+	bool "Register Map support" if KUNIT_ALL_TESTS
+	default y if (REGMAP_I2C || REGMAP_SPI || REGMAP_SPMI || REGMAP_W1 || REGMAP_AC97 || REGMAP_MMIO || REGMAP_IRQ || REGMAP_SOUNDWIRE || REGMAP_SOUNDWIRE_MBQ || REGMAP_SCCB || REGMAP_I3C || REGMAP_SPI_AVMM || REGMAP_MDIO || REGMAP_FSI)
 	select IRQ_DOMAIN if REGMAP_IRQ
 	select MDIO_BUS if REGMAP_MDIO
-	bool
+	help
+	  Enable support for the Register Map (regmap) access API.
 
-config REGCACHE_COMPRESSED
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
-	bool
+	  Usually, this option is automatically selected when needed.
+	  However, you may want to enable it manually for running the regmap
+	  KUnit tests.
+
+	  If unsure, say N.
+
+config REGMAP_KUNIT
+	tristate "KUnit tests for regmap"
+	depends on KUNIT && REGMAP
+	default KUNIT_ALL_TESTS
+	select REGMAP_RAM
 
 config REGMAP_AC97
 	tristate
@@ -46,6 +55,9 @@ config REGMAP_MMIO
 config REGMAP_IRQ
 	bool
 
+config REGMAP_RAM
+	tristate
+
 config REGMAP_SOUNDWIRE
 	tristate
 	depends on SOUNDWIRE
@@ -65,3 +77,7 @@ config REGMAP_I3C
 config REGMAP_SPI_AVMM
 	tristate
 	depends on SPI
+
+config REGMAP_FSI
+	tristate
+	depends on FSI

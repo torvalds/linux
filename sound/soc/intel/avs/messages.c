@@ -685,37 +685,6 @@ int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
 	return 0;
 }
 
-int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size)
-{
-	int ret;
-
-	ret = avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
-				       AVS_BASEFW_ENABLE_LOGS, log_info, size);
-	if (ret)
-		dev_err(adev->dev, "enable logs failed: %d\n", ret);
-
-	return ret;
-}
-
-int avs_ipc_set_system_time(struct avs_dev *adev)
-{
-	struct avs_sys_time sys_time;
-	int ret;
-	u64 us;
-
-	/* firmware expects UTC time in micro seconds */
-	us = ktime_to_us(ktime_get());
-	sys_time.val_l = us & UINT_MAX;
-	sys_time.val_u = us >> 32;
-
-	ret = avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
-				       AVS_BASEFW_SYSTEM_TIME, (u8 *)&sys_time, sizeof(sys_time));
-	if (ret)
-		dev_err(adev->dev, "set system time failed: %d\n", ret);
-
-	return ret;
-}
-
 int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 				   u8 instance_id, u32 sink_id,
 				   const struct avs_audio_format *src_fmt,
@@ -732,3 +701,132 @@ int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,
 					AVS_COPIER_SET_SINK_FORMAT,
 					(u8 *)&cpr_fmt, sizeof(cpr_fmt));
 }
+
+int avs_ipc_peakvol_set_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg *vol)
+{
+	return avs_ipc_set_large_config(adev, module_id, instance_id, AVS_PEAKVOL_VOLUME, (u8 *)vol,
+					sizeof(*vol));
+}
+
+int avs_ipc_peakvol_get_volume(struct avs_dev *adev, u16 module_id, u8 instance_id,
+			       struct avs_volume_cfg **vols, size_t *num_vols)
+{
+	size_t payload_size;
+	u8 *payload;
+	int ret;
+
+	ret = avs_ipc_get_large_config(adev, module_id, instance_id, AVS_PEAKVOL_VOLUME, NULL, 0,
+				       &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	/* Non-zero payload expected for PEAKVOL_VOLUME. */
+	if (!payload_size)
+		return -EREMOTEIO;
+
+	*vols = (struct avs_volume_cfg *)payload;
+	*num_vols = payload_size / sizeof(**vols);
+
+	return 0;
+}
+
+#ifdef CONFIG_DEBUG_FS
+int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size)
+{
+	return avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+					AVS_BASEFW_ENABLE_LOGS, log_info, size);
+}
+
+int avs_ipc_set_system_time(struct avs_dev *adev)
+{
+	struct avs_sys_time sys_time;
+	u64 us;
+
+	/* firmware expects UTC time in micro seconds */
+	us = ktime_to_us(ktime_get());
+	sys_time.val_l = us & UINT_MAX;
+	sys_time.val_u = us >> 32;
+
+	return avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+					AVS_BASEFW_SYSTEM_TIME, (u8 *)&sys_time, sizeof(sys_time));
+}
+
+int avs_ipc_probe_get_dma(struct avs_dev *adev, struct avs_probe_dma **dmas, size_t *num_dmas)
+{
+	size_t payload_size;
+	u32 module_id;
+	u8 *payload;
+	int ret;
+
+	module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
+
+	ret = avs_ipc_get_large_config(adev, module_id, AVS_PROBE_INST_ID, AVS_PROBE_INJECTION_DMA,
+				       NULL, 0, &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	*dmas = (struct avs_probe_dma *)payload;
+	*num_dmas = payload_size / sizeof(**dmas);
+
+	return 0;
+}
+
+int avs_ipc_probe_attach_dma(struct avs_dev *adev, struct avs_probe_dma *dmas, size_t num_dmas)
+{
+	u32 module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
+
+	return avs_ipc_set_large_config(adev, module_id, AVS_PROBE_INST_ID, AVS_PROBE_INJECTION_DMA,
+					(u8 *)dmas, array_size(sizeof(*dmas), num_dmas));
+}
+
+int avs_ipc_probe_detach_dma(struct avs_dev *adev, union avs_connector_node_id *node_ids,
+			     size_t num_node_ids)
+{
+	u32 module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
+
+	return avs_ipc_set_large_config(adev, module_id, AVS_PROBE_INST_ID,
+					AVS_PROBE_INJECTION_DMA_DETACH, (u8 *)node_ids,
+					array_size(sizeof(*node_ids), num_node_ids));
+}
+
+int avs_ipc_probe_get_points(struct avs_dev *adev, struct avs_probe_point_desc **descs,
+			     size_t *num_descs)
+{
+	size_t payload_size;
+	u32 module_id;
+	u8 *payload;
+	int ret;
+
+	module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
+
+	ret = avs_ipc_get_large_config(adev, module_id, AVS_PROBE_INST_ID, AVS_PROBE_POINTS, NULL,
+				       0, &payload, &payload_size);
+	if (ret)
+		return ret;
+
+	*descs = (struct avs_probe_point_desc *)payload;
+	*num_descs = payload_size / sizeof(**descs);
+
+	return 0;
+}
+
+int avs_ipc_probe_connect_points(struct avs_dev *adev, struct avs_probe_point_desc *descs,
+				 size_t num_descs)
+{
+	u32 module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
+
+	return avs_ipc_set_large_config(adev, module_id, AVS_PROBE_INST_ID, AVS_PROBE_POINTS,
+					(u8 *)descs, array_size(sizeof(*descs), num_descs));
+}
+
+int avs_ipc_probe_disconnect_points(struct avs_dev *adev, union avs_probe_point_id *ids,
+				    size_t num_ids)
+{
+	u32 module_id = avs_get_module_id(adev, &AVS_PROBE_MOD_UUID);
+
+	return avs_ipc_set_large_config(adev, module_id, AVS_PROBE_INST_ID,
+					AVS_PROBE_POINTS_DISCONNECT, (u8 *)ids,
+					array_size(sizeof(*ids), num_ids));
+}
+#endif

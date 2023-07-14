@@ -37,6 +37,7 @@ Library functionality that is used throughout the kernel.
    kref
    assoc_array
    xarray
+   maple_tree
    idr
    circular-buffers
    rbtree
@@ -126,6 +127,7 @@ Documents that don't fit elsewhere or which have yet to be categorized.
    :maxdepth: 1
 
    librs
+   netlink
 
 .. only:: subproject and html
 

@@ -13,22 +13,23 @@
 
 struct pt_regs;
 
-struct undef_hook {
-	struct list_head node;
-	u32 instr_mask;
-	u32 instr_val;
-	u64 pstate_mask;
-	u64 pstate_val;
-	int (*fn)(struct pt_regs *regs, u32 instr);
-};
+#ifdef CONFIG_ARMV8_DEPRECATED
+bool try_emulate_armv8_deprecated(struct pt_regs *regs, u32 insn);
+#else
+static inline bool
+try_emulate_armv8_deprecated(struct pt_regs *regs, u32 insn)
+{
+	return false;
+}
+#endif /* CONFIG_ARMV8_DEPRECATED */
 
-void register_undef_hook(struct undef_hook *hook);
-void unregister_undef_hook(struct undef_hook *hook);
 void force_signal_inject(int signal, int code, unsigned long address, unsigned long err);
 void arm64_notify_segfault(unsigned long addr);
 void arm64_force_sig_fault(int signo, int code, unsigned long far, const char *str);
 void arm64_force_sig_mceerr(int code, unsigned long far, short lsb, const char *str);
 void arm64_force_sig_ptrace_errno_trap(int errno, unsigned long far, const char *str);
+
+int early_brk64(unsigned long addr, unsigned long esr, struct pt_regs *regs);
 
 /*
  * Move regs->pc to next instruction and do necessary setup before it

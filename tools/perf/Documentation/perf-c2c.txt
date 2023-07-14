@@ -19,9 +19,14 @@ C2C stands for Cache To Cache.
 The perf c2c tool provides means for Shared Data C2C/HITM analysis. It allows
 you to track down the cacheline contentions.
 
-On x86, the tool is based on load latency and precise store facility events
+On Intel, the tool is based on load latency and precise store facility events
 provided by Intel CPUs. On PowerPC, the tool uses random instruction sampling
-with thresholding feature.
+with thresholding feature. On AMD, the tool uses IBS op pmu (due to hardware
+limitations, perf c2c is not supported on Zen3 cpus). On Arm64 it uses SPE to
+sample load and store operations, therefore hardware and kernel support is
+required. See linkperf:perf-arm-spe[1] for a setup guide. Due to the
+statistical nature of Arm SPE sampling, not every memory operation will be
+sampled.
 
 These events provide:
   - memory address of the access
@@ -49,7 +54,8 @@ RECORD OPTIONS
 
 -l::
 --ldlat::
-	Configure mem-loads latency. (x86 only)
+	Configure mem-loads latency. Supported on Intel and Arm64 processors
+	only. Ignored on other archs.
 
 -k::
 --all-kernel::
@@ -119,10 +125,16 @@ REPORT OPTIONS
 	perf c2c record --call-graph lbr.
 	Disabled by default. In common cases with call stack overflows,
 	it can recreate better call stacks than the default lbr call stack
-	output. But this approach is not full proof. There can be cases
+	output. But this approach is not foolproof. There can be cases
 	where it creates incorrect call stacks from incorrect matches.
 	The known limitations include exception handing such as
 	setjmp/longjmp will have calls/returns not match.
+
+--double-cl::
+	Group the detection of shared cacheline events into double cacheline
+	granularity. Some architectures have an Adjacent Cacheline Prefetch
+	feature, which causes cacheline sharing to behave like the cacheline
+	size is doubled.
 
 C2C RECORD
 ----------
@@ -135,10 +147,14 @@ Following perf record options are configured by default:
   -W,-d,--phys-data,--sample-cpu
 
 Unless specified otherwise with '-e' option, following events are monitored by
-default on x86:
+default on Intel:
 
   cpu/mem-loads,ldlat=30/P
   cpu/mem-stores/P
+
+following on AMD:
+
+  ibs_op//
 
 and following on PowerPC:
 
@@ -327,4 +343,4 @@ Check Joe's blog on c2c tool for detailed use case explanation:
 
 SEE ALSO
 --------
-linkperf:perf-record[1], linkperf:perf-mem[1]
+linkperf:perf-record[1], linkperf:perf-mem[1], linkperf:perf-arm-spe[1]

@@ -32,8 +32,6 @@
 
 #include "gem/i915_gem_object_types.h"
 
-enum i915_cache_level;
-
 /**
  * DOC: Global GTT views
  *
@@ -67,30 +65,30 @@ enum i915_cache_level;
  * Implementation and usage
  *
  * GGTT views are implemented using VMAs and are distinguished via enum
- * i915_ggtt_view_type and struct i915_ggtt_view.
+ * i915_gtt_view_type and struct i915_gtt_view.
  *
  * A new flavour of core GEM functions which work with GGTT bound objects were
  * added with the _ggtt_ infix, and sometimes with _view postfix to avoid
- * renaming  in large amounts of code. They take the struct i915_ggtt_view
+ * renaming  in large amounts of code. They take the struct i915_gtt_view
  * parameter encapsulating all metadata required to implement a view.
  *
  * As a helper for callers which are only interested in the normal view,
- * globally const i915_ggtt_view_normal singleton instance exists. All old core
+ * globally const i915_gtt_view_normal singleton instance exists. All old core
  * GEM API functions, the ones not taking the view parameter, are operating on,
  * or with the normal GGTT view.
  *
  * Code wanting to add or use a new GGTT view needs to:
  *
  * 1. Add a new enum with a suitable name.
- * 2. Extend the metadata in the i915_ggtt_view structure if required.
+ * 2. Extend the metadata in the i915_gtt_view structure if required.
  * 3. Add support to i915_get_vma_pages().
  *
  * New views are required to build a scatter-gather table from within the
- * i915_get_vma_pages function. This table is stored in the vma.ggtt_view and
+ * i915_get_vma_pages function. This table is stored in the vma.gtt_view and
  * exists for the lifetime of an VMA.
  *
  * Core API is designed to have copy semantics which means that passed in
- * struct i915_ggtt_view does not need to be persistent (left around after
+ * struct i915_gtt_view does not need to be persistent (left around after
  * calling the core API functions).
  *
  */
@@ -130,11 +128,11 @@ struct intel_partial_info {
 	unsigned int size;
 } __packed;
 
-enum i915_ggtt_view_type {
-	I915_GGTT_VIEW_NORMAL = 0,
-	I915_GGTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
-	I915_GGTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
-	I915_GGTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
+enum i915_gtt_view_type {
+	I915_GTT_VIEW_NORMAL = 0,
+	I915_GTT_VIEW_ROTATED = sizeof(struct intel_rotation_info),
+	I915_GTT_VIEW_PARTIAL = sizeof(struct intel_partial_info),
+	I915_GTT_VIEW_REMAPPED = sizeof(struct intel_remapped_info),
 };
 
 static inline void assert_i915_gem_gtt_types(void)
@@ -152,18 +150,18 @@ static inline void assert_i915_gem_gtt_types(void)
 	/* As we encode the size of each branch inside the union into its type,
 	 * we have to be careful that each branch has a unique size.
 	 */
-	switch ((enum i915_ggtt_view_type)0) {
-	case I915_GGTT_VIEW_NORMAL:
-	case I915_GGTT_VIEW_PARTIAL:
-	case I915_GGTT_VIEW_ROTATED:
-	case I915_GGTT_VIEW_REMAPPED:
+	switch ((enum i915_gtt_view_type)0) {
+	case I915_GTT_VIEW_NORMAL:
+	case I915_GTT_VIEW_PARTIAL:
+	case I915_GTT_VIEW_ROTATED:
+	case I915_GTT_VIEW_REMAPPED:
 		/* gcc complains if these are identical cases */
 		break;
 	}
 }
 
-struct i915_ggtt_view {
-	enum i915_ggtt_view_type type;
+struct i915_gtt_view {
+	enum i915_gtt_view_type type;
 	union {
 		/* Members need to contain no holes/padding */
 		struct intel_partial_info partial;
@@ -197,14 +195,15 @@ struct i915_vma {
 	struct i915_fence_reg *fence;
 
 	u64 size;
-	u64 display_alignment;
 	struct i915_page_sizes page_sizes;
 
 	/* mmap-offset associated with fencing for this vma */
 	struct i915_mmap_offset	*mmo;
 
+	u32 guard; /* padding allocated around vma->pages within the node */
 	u32 fence_size;
 	u32 fence_alignment;
+	u32 display_alignment;
 
 	/**
 	 * Count of the number of times this vma has been opened by different
@@ -280,11 +279,11 @@ struct i915_vma {
 	/**
 	 * Support different GGTT views into the same object.
 	 * This means there can be multiple VMA mappings per object and per VM.
-	 * i915_ggtt_view_type is used to distinguish between those entries.
-	 * The default one of zero (I915_GGTT_VIEW_NORMAL) is default and also
+	 * i915_gtt_view_type is used to distinguish between those entries.
+	 * The default one of zero (I915_GTT_VIEW_NORMAL) is default and also
 	 * assumed in GEM functions which take no ggtt view parameter.
 	 */
-	struct i915_ggtt_view ggtt_view;
+	struct i915_gtt_view gtt_view;
 
 	/** This object's place on the active/inactive lists */
 	struct list_head vm_link;

@@ -39,6 +39,12 @@
 #include "omap_device.h"
 #include "omap_hwmod.h"
 
+static struct omap_device *omap_device_alloc(struct platform_device *pdev,
+				struct omap_hwmod **ohs, int oh_cnt);
+static void omap_device_delete(struct omap_device *od);
+static struct dev_pm_domain omap_device_fail_pm_domain;
+static struct dev_pm_domain omap_device_pm_domain;
+
 /* Private functions */
 
 static void _add_clkdev(struct omap_device *od, const char *clk_alias,
@@ -238,7 +244,6 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (pdev->dev.of_node)
 			omap_device_build_from_dt(pdev);
-		omap_auxdata_legacy_init(dev);
 		fallthrough;
 	default:
 		od = to_omap_device(pdev);
@@ -286,34 +291,6 @@ static int _omap_device_idle_hwmods(struct omap_device *od)
 /* Public functions for use by core code */
 
 /**
- * omap_device_get_context_loss_count - get lost context count
- * @pdev: The platform device to update.
- *
- * Using the primary hwmod, query the context loss count for this
- * device.
- *
- * Callers should consider context for this device lost any time this
- * function returns a value different than the value the caller got
- * the last time it called this function.
- *
- * If any hwmods exist for the omap_device associated with @pdev,
- * return the context loss counter for that hwmod, otherwise return
- * zero.
- */
-int omap_device_get_context_loss_count(struct platform_device *pdev)
-{
-	struct omap_device *od;
-	u32 ret = 0;
-
-	od = to_omap_device(pdev);
-
-	if (od->hwmods_cnt)
-		ret = omap_hwmod_get_context_loss_count(od->hwmods[0]);
-
-	return ret;
-}
-
-/**
  * omap_device_alloc - allocate an omap_device
  * @pdev: platform_device that will be included in this omap_device
  * @ohs: ptr to the omap_hwmod for this omap_device
@@ -324,7 +301,7 @@ int omap_device_get_context_loss_count(struct platform_device *pdev)
  *
  * Returns an struct omap_device pointer or ERR_PTR() on error;
  */
-struct omap_device *omap_device_alloc(struct platform_device *pdev,
+static struct omap_device *omap_device_alloc(struct platform_device *pdev,
 					struct omap_hwmod **ohs, int oh_cnt)
 {
 	int ret = -ENOMEM;
@@ -361,7 +338,7 @@ oda_exit1:
 	return ERR_PTR(ret);
 }
 
-void omap_device_delete(struct omap_device *od)
+static void omap_device_delete(struct omap_device *od)
 {
 	if (!od)
 		return;
@@ -453,14 +430,14 @@ static int _od_resume_noirq(struct device *dev)
 #define _od_resume_noirq NULL
 #endif
 
-struct dev_pm_domain omap_device_fail_pm_domain = {
+static struct dev_pm_domain omap_device_fail_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_fail_runtime_suspend,
 				   _od_fail_runtime_resume, NULL)
 	}
 };
 
-struct dev_pm_domain omap_device_pm_domain = {
+static struct dev_pm_domain omap_device_pm_domain = {
 	.ops = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   NULL)
@@ -590,38 +567,6 @@ int omap_device_deassert_hardreset(struct platform_device *pdev,
 	}
 
 	return ret;
-}
-
-/**
- * omap_device_get_by_hwmod_name() - convert a hwmod name to
- * device pointer.
- * @oh_name: name of the hwmod device
- *
- * Returns back a struct device * pointer associated with a hwmod
- * device represented by a hwmod_name
- */
-struct device *omap_device_get_by_hwmod_name(const char *oh_name)
-{
-	struct omap_hwmod *oh;
-
-	if (!oh_name) {
-		WARN(1, "%s: no hwmod name!\n", __func__);
-		return ERR_PTR(-EINVAL);
-	}
-
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-		WARN(1, "%s: no hwmod for %s\n", __func__,
-			oh_name);
-		return ERR_PTR(-ENODEV);
-	}
-	if (!oh->od) {
-		WARN(1, "%s: no omap_device for %s\n", __func__,
-			oh_name);
-		return ERR_PTR(-ENODEV);
-	}
-
-	return &oh->od->pdev->dev;
 }
 
 static struct notifier_block platform_nb = {

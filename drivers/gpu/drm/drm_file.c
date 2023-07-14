@@ -42,16 +42,12 @@
 #include <drm/drm_client.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
 #include "drm_legacy.h"
-
-#if defined(CONFIG_MMU) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
-#include <uapi/asm/mman.h>
-#include <drm/drm_vma_manager.h>
-#endif
 
 /* from BKL pushdown */
 DEFINE_MUTEX(drm_global_mutex);
@@ -131,7 +127,7 @@ bool drm_dev_needs_global_mutex(struct drm_device *dev)
  *     };
  *
  * For plain GEM based drivers there is the DEFINE_DRM_GEM_FOPS() macro, and for
- * CMA based drivers there is the DEFINE_DRM_GEM_CMA_FOPS() macro to make this
+ * DMA based drivers there is the DEFINE_DRM_GEM_DMA_FOPS() macro to make this
  * simpler.
  *
  * The driver's &file_operations must be stored in &drm_driver.fops.
@@ -153,6 +149,7 @@ bool drm_dev_needs_global_mutex(struct drm_device *dev)
  */
 struct drm_file *drm_file_alloc(struct drm_minor *minor)
 {
+	static atomic64_t ident = ATOMIC_INIT(0);
 	struct drm_device *dev = minor->dev;
 	struct drm_file *file;
 	int ret;
@@ -161,7 +158,9 @@ struct drm_file *drm_file_alloc(struct drm_minor *minor)
 	if (!file)
 		return ERR_PTR(-ENOMEM);
 
-	file->pid = get_pid(task_pid(current));
+	/* Get a unique identifier for fdinfo: */
+	file->client_id = atomic64_inc_return(&ident);
+	file->pid = get_pid(task_tgid(current));
 	file->minor = minor;
 
 	/* for compatibility root is always authenticated */
@@ -250,10 +249,10 @@ void drm_file_free(struct drm_file *file)
 
 	dev = file->minor->dev;
 
-	DRM_DEBUG("comm=\"%s\", pid=%d, dev=0x%lx, open_count=%d\n",
-		  current->comm, task_pid_nr(current),
-		  (long)old_encode_dev(file->minor->kdev->devt),
-		  atomic_read(&dev->open_count));
+	drm_dbg_core(dev, "comm=\"%s\", pid=%d, dev=0x%lx, open_count=%d\n",
+		     current->comm, task_pid_nr(current),
+		     (long)old_encode_dev(file->minor->kdev->devt),
+		     atomic_read(&dev->open_count));
 
 #ifdef CONFIG_DRM_LEGACY
 	if (drm_core_check_feature(dev, DRIVER_LEGACY) &&
@@ -331,7 +330,7 @@ static int drm_cpu_valid(void)
  * Creates and initializes a drm_file structure for the file private data in \p
  * filp and add it into the double linked list in \p dev.
  */
-static int drm_open_helper(struct file *filp, struct drm_minor *minor)
+int drm_open_helper(struct file *filp, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
 	struct drm_file *priv;
@@ -345,8 +344,8 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 	    dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
 
-	DRM_DEBUG("comm=\"%s\", pid=%d, minor=%d\n", current->comm,
-		  task_pid_nr(current), minor->index);
+	drm_dbg_core(dev, "comm=\"%s\", pid=%d, minor=%d\n",
+		     current->comm, task_pid_nr(current), minor->index);
 
 	priv = drm_file_alloc(minor);
 	if (IS_ERR(priv))
@@ -455,11 +454,11 @@ EXPORT_SYMBOL(drm_open);
 
 void drm_lastclose(struct drm_device * dev)
 {
-	DRM_DEBUG("\n");
+	drm_dbg_core(dev, "\n");
 
 	if (dev->driver->lastclose)
 		dev->driver->lastclose(dev);
-	DRM_DEBUG("driver lastclose completed\n");
+	drm_dbg_core(dev, "driver lastclose completed\n");
 
 	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		drm_legacy_dev_reinit(dev);
@@ -490,7 +489,7 @@ int drm_release(struct inode *inode, struct file *filp)
 	if (drm_dev_needs_global_mutex(dev))
 		mutex_lock(&drm_global_mutex);
 
-	DRM_DEBUG("open_count = %d\n", atomic_read(&dev->open_count));
+	drm_dbg_core(dev, "open_count = %d\n", atomic_read(&dev->open_count));
 
 	drm_close_helper(filp);
 
@@ -873,6 +872,134 @@ void drm_send_event(struct drm_device *dev, struct drm_pending_event *e)
 }
 EXPORT_SYMBOL(drm_send_event);
 
+static void print_size(struct drm_printer *p, const char *stat,
+		       const char *region, u64 sz)
+{
+	const char *units[] = {"", " KiB", " MiB"};
+	unsigned u;
+
+	for (u = 0; u < ARRAY_SIZE(units) - 1; u++) {
+		if (sz < SZ_1K)
+			break;
+		sz = div_u64(sz, SZ_1K);
+	}
+
+	drm_printf(p, "drm-%s-%s:\t%llu%s\n", stat, region, sz, units[u]);
+}
+
+/**
+ * drm_print_memory_stats - A helper to print memory stats
+ * @p: The printer to print output to
+ * @stats: The collected memory stats
+ * @supported_status: Bitmask of optional stats which are available
+ * @region: The memory region
+ *
+ */
+void drm_print_memory_stats(struct drm_printer *p,
+			    const struct drm_memory_stats *stats,
+			    enum drm_gem_object_status supported_status,
+			    const char *region)
+{
+	print_size(p, "total", region, stats->private + stats->shared);
+	print_size(p, "shared", region, stats->shared);
+	print_size(p, "active", region, stats->active);
+
+	if (supported_status & DRM_GEM_OBJECT_RESIDENT)
+		print_size(p, "resident", region, stats->resident);
+
+	if (supported_status & DRM_GEM_OBJECT_PURGEABLE)
+		print_size(p, "purgeable", region, stats->purgeable);
+}
+EXPORT_SYMBOL(drm_print_memory_stats);
+
+/**
+ * drm_show_memory_stats - Helper to collect and show standard fdinfo memory stats
+ * @p: the printer to print output to
+ * @file: the DRM file
+ *
+ * Helper to iterate over GEM objects with a handle allocated in the specified
+ * file.
+ */
+void drm_show_memory_stats(struct drm_printer *p, struct drm_file *file)
+{
+	struct drm_gem_object *obj;
+	struct drm_memory_stats status = {};
+	enum drm_gem_object_status supported_status;
+	int id;
+
+	spin_lock(&file->table_lock);
+	idr_for_each_entry (&file->object_idr, obj, id) {
+		enum drm_gem_object_status s = 0;
+
+		if (obj->funcs && obj->funcs->status) {
+			s = obj->funcs->status(obj);
+			supported_status = DRM_GEM_OBJECT_RESIDENT |
+					DRM_GEM_OBJECT_PURGEABLE;
+		}
+
+		if (obj->handle_count > 1) {
+			status.shared += obj->size;
+		} else {
+			status.private += obj->size;
+		}
+
+		if (s & DRM_GEM_OBJECT_RESIDENT) {
+			status.resident += obj->size;
+		} else {
+			/* If already purged or not yet backed by pages, don't
+			 * count it as purgeable:
+			 */
+			s &= ~DRM_GEM_OBJECT_PURGEABLE;
+		}
+
+		if (!dma_resv_test_signaled(obj->resv, dma_resv_usage_rw(true))) {
+			status.active += obj->size;
+
+			/* If still active, don't count as purgeable: */
+			s &= ~DRM_GEM_OBJECT_PURGEABLE;
+		}
+
+		if (s & DRM_GEM_OBJECT_PURGEABLE)
+			status.purgeable += obj->size;
+	}
+	spin_unlock(&file->table_lock);
+
+	drm_print_memory_stats(p, &status, supported_status, "memory");
+}
+EXPORT_SYMBOL(drm_show_memory_stats);
+
+/**
+ * drm_show_fdinfo - helper for drm file fops
+ * @m: output stream
+ * @f: the device file instance
+ *
+ * Helper to implement fdinfo, for userspace to query usage stats, etc, of a
+ * process using the GPU.  See also &drm_driver.show_fdinfo.
+ *
+ * For text output format description please see Documentation/gpu/drm-usage-stats.rst
+ */
+void drm_show_fdinfo(struct seq_file *m, struct file *f)
+{
+	struct drm_file *file = f->private_data;
+	struct drm_device *dev = file->minor->dev;
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	drm_printf(&p, "drm-driver:\t%s\n", dev->driver->name);
+	drm_printf(&p, "drm-client-id:\t%llu\n", file->client_id);
+
+	if (dev_is_pci(dev->dev)) {
+		struct pci_dev *pdev = to_pci_dev(dev->dev);
+
+		drm_printf(&p, "drm-pdev:\t%04x:%02x:%02x.%d\n",
+			   pci_domain_nr(pdev->bus), pdev->bus->number,
+			   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+	}
+
+	if (dev->driver->show_fdinfo)
+		dev->driver->show_fdinfo(&p, file);
+}
+EXPORT_SYMBOL(drm_show_fdinfo);
+
 /**
  * mock_drm_getfile - Create a new struct file for the drm device
  * @minor: drm minor to wrap (e.g. #drm_device.primary)
@@ -912,139 +1039,3 @@ struct file *mock_drm_getfile(struct drm_minor *minor, unsigned int flags)
 	return file;
 }
 EXPORT_SYMBOL_FOR_TESTS_ONLY(mock_drm_getfile);
-
-#ifdef CONFIG_MMU
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-/*
- * drm_addr_inflate() attempts to construct an aligned area by inflating
- * the area size and skipping the unaligned start of the area.
- * adapted from shmem_get_unmapped_area()
- */
-static unsigned long drm_addr_inflate(unsigned long addr,
-				      unsigned long len,
-				      unsigned long pgoff,
-				      unsigned long flags,
-				      unsigned long huge_size)
-{
-	unsigned long offset, inflated_len;
-	unsigned long inflated_addr;
-	unsigned long inflated_offset;
-
-	offset = (pgoff << PAGE_SHIFT) & (huge_size - 1);
-	if (offset && offset + len < 2 * huge_size)
-		return addr;
-	if ((addr & (huge_size - 1)) == offset)
-		return addr;
-
-	inflated_len = len + huge_size - PAGE_SIZE;
-	if (inflated_len > TASK_SIZE)
-		return addr;
-	if (inflated_len < len)
-		return addr;
-
-	inflated_addr = current->mm->get_unmapped_area(NULL, 0, inflated_len,
-						       0, flags);
-	if (IS_ERR_VALUE(inflated_addr))
-		return addr;
-	if (inflated_addr & ~PAGE_MASK)
-		return addr;
-
-	inflated_offset = inflated_addr & (huge_size - 1);
-	inflated_addr += offset - inflated_offset;
-	if (inflated_offset > offset)
-		inflated_addr += huge_size;
-
-	if (inflated_addr > TASK_SIZE - len)
-		return addr;
-
-	return inflated_addr;
-}
-
-/**
- * drm_get_unmapped_area() - Get an unused user-space virtual memory area
- * suitable for huge page table entries.
- * @file: The struct file representing the address space being mmap()'d.
- * @uaddr: Start address suggested by user-space.
- * @len: Length of the area.
- * @pgoff: The page offset into the address space.
- * @flags: mmap flags
- * @mgr: The address space manager used by the drm driver. This argument can
- * probably be removed at some point when all drivers use the same
- * address space manager.
- *
- * This function attempts to find an unused user-space virtual memory area
- * that can accommodate the size we want to map, and that is properly
- * aligned to facilitate huge page table entries matching actual
- * huge pages or huge page aligned memory in buffer objects. Buffer objects
- * are assumed to start at huge page boundary pfns (io memory) or be
- * populated by huge pages aligned to the start of the buffer object
- * (system- or coherent memory). Adapted from shmem_get_unmapped_area.
- *
- * Return: aligned user-space address.
- */
-unsigned long drm_get_unmapped_area(struct file *file,
-				    unsigned long uaddr, unsigned long len,
-				    unsigned long pgoff, unsigned long flags,
-				    struct drm_vma_offset_manager *mgr)
-{
-	unsigned long addr;
-	unsigned long inflated_addr;
-	struct drm_vma_offset_node *node;
-
-	if (len > TASK_SIZE)
-		return -ENOMEM;
-
-	/*
-	 * @pgoff is the file page-offset the huge page boundaries of
-	 * which typically aligns to physical address huge page boundaries.
-	 * That's not true for DRM, however, where physical address huge
-	 * page boundaries instead are aligned with the offset from
-	 * buffer object start. So adjust @pgoff to be the offset from
-	 * buffer object start.
-	 */
-	drm_vma_offset_lock_lookup(mgr);
-	node = drm_vma_offset_lookup_locked(mgr, pgoff, 1);
-	if (node)
-		pgoff -= node->vm_node.start;
-	drm_vma_offset_unlock_lookup(mgr);
-
-	addr = current->mm->get_unmapped_area(file, uaddr, len, pgoff, flags);
-	if (IS_ERR_VALUE(addr))
-		return addr;
-	if (addr & ~PAGE_MASK)
-		return addr;
-	if (addr > TASK_SIZE - len)
-		return addr;
-
-	if (len < HPAGE_PMD_SIZE)
-		return addr;
-	if (flags & MAP_FIXED)
-		return addr;
-	/*
-	 * Our priority is to support MAP_SHARED mapped hugely;
-	 * and support MAP_PRIVATE mapped hugely too, until it is COWed.
-	 * But if caller specified an address hint, respect that as before.
-	 */
-	if (uaddr)
-		return addr;
-
-	inflated_addr = drm_addr_inflate(addr, len, pgoff, flags,
-					 HPAGE_PMD_SIZE);
-
-	if (IS_ENABLED(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD) &&
-	    len >= HPAGE_PUD_SIZE)
-		inflated_addr = drm_addr_inflate(inflated_addr, len, pgoff,
-						 flags, HPAGE_PUD_SIZE);
-	return inflated_addr;
-}
-#else /* CONFIG_TRANSPARENT_HUGEPAGE */
-unsigned long drm_get_unmapped_area(struct file *file,
-				    unsigned long uaddr, unsigned long len,
-				    unsigned long pgoff, unsigned long flags,
-				    struct drm_vma_offset_manager *mgr)
-{
-	return current->mm->get_unmapped_area(file, uaddr, len, pgoff, flags);
-}
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-EXPORT_SYMBOL_GPL(drm_get_unmapped_area);
-#endif /* CONFIG_MMU */

@@ -466,7 +466,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 {
 	int id;
 	bool __always_unused hover;
-	bool __always_unused palm;
+	bool palm;
 	bool state;
 	u16 x, y;
 	u8 __always_unused pressure_stage = 0;
@@ -522,21 +522,21 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 
 	if (unlikely(id < 0 || id >= MIP4_MAX_FINGERS)) {
 		dev_err(&ts->client->dev, "Screen - invalid slot ID: %d\n", id);
-	} else if (state) {
-		/* Press or Move event */
-		input_mt_slot(ts->input, id);
-		input_mt_report_slot_state(ts->input, MT_TOOL_FINGER, true);
+		goto out;
+	}
+
+	input_mt_slot(ts->input, id);
+	if (input_mt_report_slot_state(ts->input,
+				       palm ? MT_TOOL_PALM : MT_TOOL_FINGER,
+				       state)) {
 		input_report_abs(ts->input, ABS_MT_POSITION_X, x);
 		input_report_abs(ts->input, ABS_MT_POSITION_Y, y);
 		input_report_abs(ts->input, ABS_MT_PRESSURE, pressure);
 		input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, touch_major);
 		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR, touch_minor);
-	} else {
-		/* Release event */
-		input_mt_slot(ts->input, id);
-		input_mt_report_slot_inactive(ts->input);
 	}
 
+out:
 	input_mt_sync_frame(ts->input);
 }
 
@@ -1424,7 +1424,7 @@ static const struct attribute_group mip4_attr_group = {
 	.attrs = mip4_attrs,
 };
 
-static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int mip4_probe(struct i2c_client *client)
 {
 	struct mip4_ts *ts;
 	struct input_dev *input;
@@ -1483,6 +1483,7 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	input->keycodesize = sizeof(*ts->key_code);
 	input->keycodemax = ts->key_num;
 
+	input_set_abs_params(input, ABS_MT_TOOL_TYPE, 0, MT_TOOL_PALM, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_X, 0, ts->max_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y, 0, ts->max_y, 0, 0);
 	input_set_abs_params(input, ABS_MT_PRESSURE,
@@ -1528,7 +1529,7 @@ static int mip4_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int __maybe_unused mip4_suspend(struct device *dev)
+static int mip4_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts *ts = i2c_get_clientdata(client);
@@ -1546,7 +1547,7 @@ static int __maybe_unused mip4_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mip4_resume(struct device *dev)
+static int mip4_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mip4_ts *ts = i2c_get_clientdata(client);
@@ -1564,7 +1565,7 @@ static int __maybe_unused mip4_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mip4_pm_ops, mip4_suspend, mip4_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id mip4_of_match[] = {
@@ -1595,7 +1596,7 @@ static struct i2c_driver mip4_driver = {
 		.name = MIP4_DEVICE_NAME,
 		.of_match_table = of_match_ptr(mip4_of_match),
 		.acpi_match_table = ACPI_PTR(mip4_acpi_match),
-		.pm = &mip4_pm_ops,
+		.pm = pm_sleep_ptr(&mip4_pm_ops),
 	},
 };
 module_i2c_driver(mip4_driver);

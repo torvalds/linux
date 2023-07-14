@@ -271,7 +271,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		/* +18 is for " symlink.target=\"%s\"" */
 		len += 18 + strlen(symlink);
 	}
-	len = tomoyo_round2(len);
+	len = kmalloc_size_roundup(len);
 	buf = kzalloc(len, GFP_NOFS);
 	if (!buf)
 		goto out;
@@ -382,12 +382,12 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 		goto out;
 	}
 	entry->log = buf;
-	len = tomoyo_round2(strlen(buf) + 1);
+	len = kmalloc_size_roundup(strlen(buf) + 1);
 	/*
 	 * The entry->size is used for memory quota checks.
 	 * Don't go beyond strlen(entry->log).
 	 */
-	entry->size = len + tomoyo_round2(sizeof(*entry));
+	entry->size = len + kmalloc_size_roundup(sizeof(*entry));
 	spin_lock(&tomoyo_log_lock);
 	if (tomoyo_memory_quota[TOMOYO_MEMORY_AUDIT] &&
 	    tomoyo_memory_used[TOMOYO_MEMORY_AUDIT] + entry->size >=
@@ -423,7 +423,7 @@ void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 	int len;
 
 	va_start(args, fmt);
-	len = vsnprintf((char *) &len, 1, fmt, args) + 1;
+	len = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 	va_start(args, fmt);
 	tomoyo_write_log2(r, len, fmt, args);

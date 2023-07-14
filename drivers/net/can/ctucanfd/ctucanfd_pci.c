@@ -206,10 +206,8 @@ err_pci_iounmap_bar0:
 err_pci_iounmap_bar1:
 	pci_iounmap(pdev, addr);
 err_release_regions:
-	if (msi_ok) {
+	if (msi_ok)
 		pci_disable_msi(pdev);
-		pci_clear_master(pdev);
-	}
 	pci_release_regions(pdev);
 err_disable_device:
 	pci_disable_device(pdev);
@@ -257,10 +255,8 @@ static void ctucan_pci_remove(struct pci_dev *pdev)
 
 	pci_iounmap(pdev, bdata->bar1_base);
 
-	if (bdata->use_msi) {
+	if (bdata->use_msi)
 		pci_disable_msi(pdev);
-		pci_clear_master(pdev);
-	}
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

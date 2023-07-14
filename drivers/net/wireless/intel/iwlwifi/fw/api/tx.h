@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_tx_h__
@@ -176,17 +176,6 @@ enum iwl_tx_offload_assist_flags_pos {
 
 #define IWL_TX_CMD_OFFLD_MH_MASK	0x1f
 #define IWL_TX_CMD_OFFLD_IP_HDR_MASK	0x3f
-
-enum iwl_tx_offload_assist_bz {
-	IWL_TX_CMD_OFFLD_BZ_RESULT_OFFS		= 0x000003ff,
-	IWL_TX_CMD_OFFLD_BZ_START_OFFS		= 0x001ff800,
-	IWL_TX_CMD_OFFLD_BZ_MH_LEN		= 0x07c00000,
-	IWL_TX_CMD_OFFLD_BZ_MH_PAD		= 0x08000000,
-	IWL_TX_CMD_OFFLD_BZ_AMSDU		= 0x10000000,
-	IWL_TX_CMD_OFFLD_BZ_ZERO2ONES		= 0x20000000,
-	IWL_TX_CMD_OFFLD_BZ_ENABLE_CSUM		= 0x40000000,
-	IWL_TX_CMD_OFFLD_BZ_PARTIAL_CSUM	= 0x80000000,
-};
 
 /* TODO: complete documentation for try_cnt and btkill_cnt */
 /**
@@ -800,7 +789,7 @@ enum iwl_mac_beacon_flags {
  *	is &enum iwl_mac_beacon_flags.
  * @short_ssid: Short SSID
  * @reserved: reserved
- * @template_id: currently equal to the mac context id of the coresponding mac.
+ * @link_id: the firmware id of the link that will use this beacon
  * @tim_idx: the offset of the tim IE in the beacon
  * @tim_size: the length of the tim IE
  * @ecsa_offset: offset to the ECSA IE if present
@@ -812,15 +801,17 @@ struct iwl_mac_beacon_cmd {
 	__le16 flags;
 	__le32 short_ssid;
 	__le32 reserved;
-	__le32 template_id;
+	__le32 link_id;
 	__le32 tim_idx;
 	__le32 tim_size;
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10,
-	       BEACON_TEMPLATE_CMD_API_S_VER_11,
-	       BEACON_TEMPLATE_CMD_API_S_VER_12 */
+	     * BEACON_TEMPLATE_CMD_API_S_VER_11,
+	     * BEACON_TEMPLATE_CMD_API_S_VER_12,
+	     * BEACON_TEMPLATE_CMD_API_S_VER_13
+	     */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;

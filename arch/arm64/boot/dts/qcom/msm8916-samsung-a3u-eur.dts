@@ -15,7 +15,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 
-		gpio = <&msmgpio 9 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 9 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -28,7 +28,7 @@
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 
-		gpio = <&msmgpio 86 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 86 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -41,7 +41,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 60 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 60 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-names = "default";
@@ -67,21 +67,25 @@
 		compatible = "zinitix,bt541";
 
 		reg = <0x20>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 
 		touchscreen-size-x = <540>;
 		touchscreen-size-y = <960>;
 
-		vdd-supply = <&reg_vdd_tsp>;
-		vddo-supply = <&pm8916_l6>;
+		vcca-supply = <&reg_vdd_tsp_a>;
+		vdd-supply = <&pm8916_l6>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_default>;
 	};
 };
 
-&dsi0 {
+&clk_pwm {
+	status = "okay";
+};
+
+&mdss_dsi0 {
 	panel@0 {
 		reg = <0>;
 
@@ -89,23 +93,35 @@
 
 		vdd3-supply = <&reg_panel_vdd3>;
 		vci-supply = <&pm8916_l17>;
-		reset-gpios = <&msmgpio 25 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 25 GPIO_ACTIVE_HIGH>;
 
 		port {
 			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
 };
 
-&dsi0_out {
+&mdss_dsi0_out {
 	data-lanes = <0 1>;
 	remote-endpoint = <&panel_in>;
 };
 
-&msmgpio {
-	panel_vdd3_default: panel-vdd3-default {
+&vibrator {
+	status = "okay";
+};
+
+&wcnss {
+	status = "okay";
+};
+
+&wcnss_iris {
+	compatible = "qcom,wcn3620";
+};
+
+&tlmm {
+	panel_vdd3_default: panel-vdd3-default-state {
 		pins = "gpio9";
 		function = "gpio";
 
@@ -113,7 +129,7 @@
 		bias-disable;
 	};
 
-	tkey_en_default: tkey-en-default {
+	tkey_en_default: tkey-en-default-state {
 		pins = "gpio86";
 		function = "gpio";
 
@@ -121,7 +137,7 @@
 		bias-disable;
 	};
 
-	tkey_led_en_default: tkey-led-en-default {
+	tkey_led_en_default: tkey-led-en-default-state {
 		pins = "gpio60";
 		function = "gpio";
 

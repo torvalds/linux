@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2015-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,12 +25,13 @@
  *
  **************************************************************************/
 
+#include "vmwgfx_bo.h"
+#include "vmwgfx_drv.h"
+
+#include <drm/ttm/ttm_bo.h>
+
 #include <linux/dmapool.h>
 #include <linux/pci.h>
-
-#include <drm/ttm/ttm_bo_api.h>
-
-#include "vmwgfx_drv.h"
 
 /*
  * Size of inline command buffers. Try to make sure that a page size is a
@@ -79,7 +80,6 @@ struct vmw_cmdbuf_context {
  * frees are protected by @lock.
  * @cmd_space: Buffer object for the command buffer space, unless we were
  * able to make a contigous coherent DMA memory allocation, @handle. Immutable.
- * @map_obj: Mapping state for @cmd_space. Immutable.
  * @map: Pointer to command buffer space. May be a mapped buffer object or
  * a contigous coherent DMA memory allocation. Immutable.
  * @cur: Command buffer for small kernel command submissions. Protected by
@@ -116,8 +116,7 @@ struct vmw_cmdbuf_man {
 	struct vmw_cmdbuf_context ctx[SVGA_CB_CONTEXT_MAX];
 	struct list_head error;
 	struct drm_mm mm;
-	struct ttm_buffer_object *cmd_space;
-	struct ttm_bo_kmap_obj map_obj;
+	struct vmw_bo *cmd_space;
 	u8 *map;
 	struct vmw_cmdbuf_header *cur;
 	size_t cur_pos;
@@ -888,7 +887,7 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 	header->cmd = man->map + offset;
 	if (man->using_mob) {
 		cb_hdr->flags = SVGA_CB_FLAG_MOB;
-		cb_hdr->ptr.mob.mobid = man->cmd_space->resource->start;
+		cb_hdr->ptr.mob.mobid = man->cmd_space->tbo.resource->start;
 		cb_hdr->ptr.mob.mobOffset = offset;
 	} else {
 		cb_hdr->ptr.pa = (u64)man->handle + (u64)offset;
@@ -1221,7 +1220,6 @@ static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
 int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 {
 	struct vmw_private *dev_priv = man->dev_priv;
-	bool dummy;
 	int ret;
 
 	if (man->has_pool)
@@ -1234,6 +1232,13 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 	if (man->map) {
 		man->using_mob = false;
 	} else {
+		struct vmw_bo_params bo_params = {
+			.domain = VMW_BO_DOMAIN_MOB,
+			.busy_domain = VMW_BO_DOMAIN_MOB,
+			.bo_type = ttm_bo_type_kernel,
+			.size = size,
+			.pin = true
+		};
 		/*
 		 * DMA memory failed. If we can have command buffers in a
 		 * MOB, try to use that instead. Note that this will
@@ -1244,19 +1249,12 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 		    !dev_priv->has_mob)
 			return -ENOMEM;
 
-		ret = vmw_bo_create_kernel(dev_priv, size,
-					   &vmw_mob_placement,
-					   &man->cmd_space);
+		ret = vmw_bo_create(dev_priv, &bo_params, &man->cmd_space);
 		if (ret)
 			return ret;
 
-		man->using_mob = true;
-		ret = ttm_bo_kmap(man->cmd_space, 0, size >> PAGE_SHIFT,
-				  &man->map_obj);
-		if (ret)
-			goto out_no_map;
-
-		man->map = ttm_kmap_obj_virtual(&man->map_obj, &dummy);
+		man->map = vmw_bo_map_and_cache(man->cmd_space);
+		man->using_mob = man->map;
 	}
 
 	man->size = size;
@@ -1276,14 +1274,6 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 		 (man->using_mob) ? "MOB" : "DMA");
 
 	return 0;
-
-out_no_map:
-	if (man->using_mob) {
-		ttm_bo_put(man->cmd_space);
-		man->cmd_space = NULL;
-	}
-
-	return ret;
 }
 
 /**
@@ -1382,14 +1372,11 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
 	man->has_pool = false;
 	man->default_size = VMW_CMDBUF_INLINE_SIZE;
 	(void) vmw_cmdbuf_idle(man, false, 10*HZ);
-	if (man->using_mob) {
-		(void) ttm_bo_kunmap(&man->map_obj);
-		ttm_bo_put(man->cmd_space);
-		man->cmd_space = NULL;
-	} else {
+	if (man->using_mob)
+		vmw_bo_unreference(&man->cmd_space);
+	else
 		dma_free_coherent(man->dev_priv->drm.dev,
 				  man->size, man->map, man->handle);
-	}
 }
 
 /**

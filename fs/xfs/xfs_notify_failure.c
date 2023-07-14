@@ -23,17 +23,18 @@
 #include <linux/mm.h>
 #include <linux/dax.h>
 
-struct failure_info {
+struct xfs_failure_info {
 	xfs_agblock_t		startblock;
 	xfs_extlen_t		blockcount;
 	int			mf_flags;
+	bool			want_shutdown;
 };
 
 static pgoff_t
 xfs_failure_pgoff(
 	struct xfs_mount		*mp,
 	const struct xfs_rmap_irec	*rec,
-	const struct failure_info	*notify)
+	const struct xfs_failure_info	*notify)
 {
 	loff_t				pos = XFS_FSB_TO_B(mp, rec->rm_offset);
 
@@ -47,7 +48,7 @@ static unsigned long
 xfs_failure_pgcnt(
 	struct xfs_mount		*mp,
 	const struct xfs_rmap_irec	*rec,
-	const struct failure_info	*notify)
+	const struct xfs_failure_info	*notify)
 {
 	xfs_agblock_t			end_rec;
 	xfs_agblock_t			end_notify;
@@ -71,13 +72,13 @@ xfs_dax_failure_fn(
 {
 	struct xfs_mount		*mp = cur->bc_mp;
 	struct xfs_inode		*ip;
-	struct failure_info		*notify = data;
+	struct xfs_failure_info		*notify = data;
 	int				error = 0;
 
 	if (XFS_RMAP_NON_INODE_OWNER(rec->rm_owner) ||
 	    (rec->rm_flags & (XFS_RMAP_ATTR_FORK | XFS_RMAP_BMBT_BLOCK))) {
-		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_ONDISK);
-		return -EFSCORRUPTED;
+		notify->want_shutdown = true;
+		return 0;
 	}
 
 	/* Get files that incore, filter out others that are not in use. */
@@ -86,8 +87,10 @@ xfs_dax_failure_fn(
 	/* Continue the rmap query if the inode isn't incore */
 	if (error == -ENODATA)
 		return 0;
-	if (error)
-		return error;
+	if (error) {
+		notify->want_shutdown = true;
+		return 0;
+	}
 
 	error = mf_dax_kill_procs(VFS_I(ip)->i_mapping,
 				  xfs_failure_pgoff(mp, rec, notify),
@@ -104,13 +107,15 @@ xfs_dax_notify_ddev_failure(
 	xfs_daddr_t		bblen,
 	int			mf_flags)
 {
+	struct xfs_failure_info	notify = { .mf_flags = mf_flags };
 	struct xfs_trans	*tp = NULL;
 	struct xfs_btree_cur	*cur = NULL;
 	struct xfs_buf		*agf_bp = NULL;
 	int			error = 0;
 	xfs_fsblock_t		fsbno = XFS_DADDR_TO_FSB(mp, daddr);
 	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, fsbno);
-	xfs_fsblock_t		end_fsbno = XFS_DADDR_TO_FSB(mp, daddr + bblen);
+	xfs_fsblock_t		end_fsbno = XFS_DADDR_TO_FSB(mp,
+							     daddr + bblen - 1);
 	xfs_agnumber_t		end_agno = XFS_FSB_TO_AGNO(mp, end_fsbno);
 
 	error = xfs_trans_alloc_empty(mp, &tp);
@@ -120,7 +125,6 @@ xfs_dax_notify_ddev_failure(
 	for (; agno <= end_agno; agno++) {
 		struct xfs_rmap_irec	ri_low = { };
 		struct xfs_rmap_irec	ri_high;
-		struct failure_info	notify;
 		struct xfs_agf		*agf;
 		xfs_agblock_t		agend;
 		struct xfs_perag	*pag;
@@ -161,6 +165,11 @@ xfs_dax_notify_ddev_failure(
 	}
 
 	xfs_trans_cancel(tp);
+	if (error || notify.want_shutdown) {
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_ONDISK);
+		if (!error)
+			error = -EFSCORRUPTED;
+	}
 	return error;
 }
 
@@ -202,7 +211,7 @@ xfs_dax_notify_failure(
 	ddev_end = ddev_start + bdev_nr_bytes(mp->m_ddev_targp->bt_bdev) - 1;
 
 	/* Ignore the range out of filesystem area */
-	if (offset + len < ddev_start)
+	if (offset + len - 1 < ddev_start)
 		return -ENXIO;
 	if (offset > ddev_end)
 		return -ENXIO;
@@ -214,8 +223,8 @@ xfs_dax_notify_failure(
 		len -= ddev_start - offset;
 		offset = 0;
 	}
-	if (offset + len > ddev_end)
-		len -= ddev_end - offset;
+	if (offset + len - 1 > ddev_end)
+		len = ddev_end - offset + 1;
 
 	return xfs_dax_notify_ddev_failure(mp, BTOBB(offset), BTOBB(len),
 			mf_flags);

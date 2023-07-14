@@ -6,8 +6,119 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <asm/div64.h>
 #include "cxlpci.h"
 #include "cxl.h"
+
+#define CXL_RCRB_SIZE	SZ_8K
+
+struct cxl_cxims_data {
+	int nr_maps;
+	u64 xormaps[];
+};
+
+/*
+ * Find a targets entry (n) in the host bridge interleave list.
+ * CXL Specification 3.0 Table 9-22
+ */
+static int cxl_xor_calc_n(u64 hpa, struct cxl_cxims_data *cximsd, int iw,
+			  int ig)
+{
+	int i = 0, n = 0;
+	u8 eiw;
+
+	/* IW: 2,4,6,8,12,16 begin building 'n' using xormaps */
+	if (iw != 3) {
+		for (i = 0; i < cximsd->nr_maps; i++)
+			n |= (hweight64(hpa & cximsd->xormaps[i]) & 1) << i;
+	}
+	/* IW: 3,6,12 add a modulo calculation to 'n' */
+	if (!is_power_of_2(iw)) {
+		if (ways_to_eiw(iw, &eiw))
+			return -1;
+		hpa &= GENMASK_ULL(51, eiw + ig);
+		n |= do_div(hpa, 3) << i;
+	}
+	return n;
+}
+
+static struct cxl_dport *cxl_hb_xor(struct cxl_root_decoder *cxlrd, int pos)
+{
+	struct cxl_cxims_data *cximsd = cxlrd->platform_data;
+	struct cxl_switch_decoder *cxlsd = &cxlrd->cxlsd;
+	struct cxl_decoder *cxld = &cxlsd->cxld;
+	int ig = cxld->interleave_granularity;
+	int iw = cxld->interleave_ways;
+	int n = 0;
+	u64 hpa;
+
+	if (dev_WARN_ONCE(&cxld->dev,
+			  cxld->interleave_ways != cxlsd->nr_targets,
+			  "misconfigured root decoder\n"))
+		return NULL;
+
+	hpa = cxlrd->res->start + pos * ig;
+
+	/* Entry (n) is 0 for no interleave (iw == 1) */
+	if (iw != 1)
+		n = cxl_xor_calc_n(hpa, cximsd, iw, ig);
+
+	if (n < 0)
+		return NULL;
+
+	return cxlrd->cxlsd.target[n];
+}
+
+struct cxl_cxims_context {
+	struct device *dev;
+	struct cxl_root_decoder *cxlrd;
+};
+
+static int cxl_parse_cxims(union acpi_subtable_headers *header, void *arg,
+			   const unsigned long end)
+{
+	struct acpi_cedt_cxims *cxims = (struct acpi_cedt_cxims *)header;
+	struct cxl_cxims_context *ctx = arg;
+	struct cxl_root_decoder *cxlrd = ctx->cxlrd;
+	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
+	struct device *dev = ctx->dev;
+	struct cxl_cxims_data *cximsd;
+	unsigned int hbig, nr_maps;
+	int rc;
+
+	rc = eig_to_granularity(cxims->hbig, &hbig);
+	if (rc)
+		return rc;
+
+	/* Does this CXIMS entry apply to the given CXL Window? */
+	if (hbig != cxld->interleave_granularity)
+		return 0;
+
+	/* IW 1,3 do not use xormaps and skip this parsing entirely */
+	if (is_power_of_2(cxld->interleave_ways))
+		/* 2, 4, 8, 16 way */
+		nr_maps = ilog2(cxld->interleave_ways);
+	else
+		/* 6, 12 way */
+		nr_maps = ilog2(cxld->interleave_ways / 3);
+
+	if (cxims->nr_xormaps < nr_maps) {
+		dev_dbg(dev, "CXIMS nr_xormaps[%d] expected[%d]\n",
+			cxims->nr_xormaps, nr_maps);
+		return -ENXIO;
+	}
+
+	cximsd = devm_kzalloc(dev, struct_size(cximsd, xormaps, nr_maps),
+			      GFP_KERNEL);
+	if (!cximsd)
+		return -ENOMEM;
+	memcpy(cximsd->xormaps, cxims->xormap_list,
+	       nr_maps * sizeof(*cximsd->xormaps));
+	cximsd->nr_maps = nr_maps;
+	cxlrd->platform_data = cximsd;
+
+	return 0;
+}
 
 static unsigned long cfmws_to_decoder_flags(int restrictions)
 {
@@ -33,8 +144,10 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 	int rc, expected_len;
 	unsigned int ways;
 
-	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO) {
-		dev_err(dev, "CFMWS Unsupported Interleave Arithmetic\n");
+	if (cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_MODULO &&
+	    cfmws->interleave_arithmetic != ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
+		dev_err(dev, "CFMWS Unknown Interleave Arithmetic: %d\n",
+			cfmws->interleave_arithmetic);
 		return -EINVAL;
 	}
 
@@ -48,7 +161,7 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 		return -EINVAL;
 	}
 
-	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
+	rc = eiw_to_ways(cfmws->interleave_ways, &ways);
 	if (rc) {
 		dev_err(dev, "CFMWS Interleave Ways (%d) invalid\n",
 			cfmws->interleave_ways);
@@ -70,6 +183,10 @@ static int cxl_acpi_cfmws_verify(struct device *dev,
 	return 0;
 }
 
+/*
+ * Note, @dev must be the first member, see 'struct cxl_chbs_context'
+ * and mock_acpi_table_parse_cedt()
+ */
 struct cxl_cfmws_context {
 	struct device *dev;
 	struct cxl_port *root_port;
@@ -84,9 +201,11 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	struct cxl_cfmws_context *ctx = arg;
 	struct cxl_port *root_port = ctx->root_port;
 	struct resource *cxl_res = ctx->cxl_res;
+	struct cxl_cxims_context cxims_ctx;
 	struct cxl_root_decoder *cxlrd;
 	struct device *dev = ctx->dev;
 	struct acpi_cedt_cfmws *cfmws;
+	cxl_calc_hb_fn cxl_calc_hb;
 	struct cxl_decoder *cxld;
 	unsigned int ways, i, ig;
 	struct resource *res;
@@ -102,10 +221,10 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		return 0;
 	}
 
-	rc = cxl_to_ways(cfmws->interleave_ways, &ways);
+	rc = eiw_to_ways(cfmws->interleave_ways, &ways);
 	if (rc)
 		return rc;
-	rc = cxl_to_granularity(cfmws->granularity, &ig);
+	rc = eig_to_granularity(cfmws->granularity, &ig);
 	if (rc)
 		return rc;
 	for (i = 0; i < ways; i++)
@@ -128,13 +247,18 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 	if (rc)
 		goto err_insert;
 
-	cxlrd = cxl_root_decoder_alloc(root_port, ways);
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_MODULO)
+		cxl_calc_hb = cxl_hb_modulo;
+	else
+		cxl_calc_hb = cxl_hb_xor;
+
+	cxlrd = cxl_root_decoder_alloc(root_port, ways, cxl_calc_hb);
 	if (IS_ERR(cxlrd))
 		return 0;
 
 	cxld = &cxlrd->cxlsd.cxld;
 	cxld->flags = cfmws_to_decoder_flags(cfmws->restrictions);
-	cxld->target_type = CXL_DECODER_EXPANDER;
+	cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 	cxld->hpa_range = (struct range) {
 		.start = res->start,
 		.end = res->end,
@@ -148,7 +272,25 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		ig = CXL_DECODER_MIN_GRANULARITY;
 	cxld->interleave_granularity = ig;
 
+	if (cfmws->interleave_arithmetic == ACPI_CEDT_CFMWS_ARITHMETIC_XOR) {
+		if (ways != 1 && ways != 3) {
+			cxims_ctx = (struct cxl_cxims_context) {
+				.dev = dev,
+				.cxlrd = cxlrd,
+			};
+			rc = acpi_table_parse_cedt(ACPI_CEDT_TYPE_CXIMS,
+						   cxl_parse_cxims, &cxims_ctx);
+			if (rc < 0)
+				goto err_xormap;
+			if (!cxlrd->platform_data) {
+				dev_err(dev, "No CXIMS for HBIG %u\n", ig);
+				rc = -EINVAL;
+				goto err_xormap;
+			}
+		}
+	}
 	rc = cxl_decoder_add(cxld, target_map);
+err_xormap:
 	if (rc)
 		put_device(&cxld->dev);
 	else
@@ -185,6 +327,120 @@ __mock struct acpi_device *to_cxl_host_bridge(struct device *host,
 	return NULL;
 }
 
+/* Note, @dev is used by mock_acpi_table_parse_cedt() */
+struct cxl_chbs_context {
+	struct device *dev;
+	unsigned long long uid;
+	resource_size_t base;
+	u32 cxl_version;
+};
+
+static int cxl_get_chbs_iter(union acpi_subtable_headers *header, void *arg,
+			     const unsigned long end)
+{
+	struct cxl_chbs_context *ctx = arg;
+	struct acpi_cedt_chbs *chbs;
+
+	if (ctx->base != CXL_RESOURCE_NONE)
+		return 0;
+
+	chbs = (struct acpi_cedt_chbs *) header;
+
+	if (ctx->uid != chbs->uid)
+		return 0;
+
+	ctx->cxl_version = chbs->cxl_version;
+	if (!chbs->base)
+		return 0;
+
+	if (chbs->cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11 &&
+	    chbs->length != CXL_RCRB_SIZE)
+		return 0;
+
+	ctx->base = chbs->base;
+
+	return 0;
+}
+
+static int cxl_get_chbs(struct device *dev, struct acpi_device *hb,
+			struct cxl_chbs_context *ctx)
+{
+	unsigned long long uid;
+	int rc;
+
+	rc = acpi_evaluate_integer(hb->handle, METHOD_NAME__UID, NULL, &uid);
+	if (rc != AE_OK) {
+		dev_err(dev, "unable to retrieve _UID\n");
+		return -ENOENT;
+	}
+
+	dev_dbg(dev, "UID found: %lld\n", uid);
+	*ctx = (struct cxl_chbs_context) {
+		.dev = dev,
+		.uid = uid,
+		.base = CXL_RESOURCE_NONE,
+		.cxl_version = UINT_MAX,
+	};
+
+	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbs_iter, ctx);
+
+	return 0;
+}
+
+static int add_host_bridge_dport(struct device *match, void *arg)
+{
+	acpi_status rc;
+	struct device *bridge;
+	struct cxl_dport *dport;
+	struct cxl_chbs_context ctx;
+	struct acpi_pci_root *pci_root;
+	struct cxl_port *root_port = arg;
+	struct device *host = root_port->dev.parent;
+	struct acpi_device *hb = to_cxl_host_bridge(host, match);
+
+	if (!hb)
+		return 0;
+
+	rc = cxl_get_chbs(match, hb, &ctx);
+	if (rc)
+		return rc;
+
+	if (ctx.cxl_version == UINT_MAX) {
+		dev_warn(match, "No CHBS found for Host Bridge (UID %lld)\n",
+			 ctx.uid);
+		return 0;
+	}
+
+	if (ctx.base == CXL_RESOURCE_NONE) {
+		dev_warn(match, "CHBS invalid for Host Bridge (UID %lld)\n",
+			 ctx.uid);
+		return 0;
+	}
+
+	pci_root = acpi_pci_find_root(hb->handle);
+	bridge = pci_root->bus->bridge;
+
+	/*
+	 * In RCH mode, bind the component regs base to the dport. In
+	 * VH mode it will be bound to the CXL host bridge's port
+	 * object later in add_host_bridge_uport().
+	 */
+	if (ctx.cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11) {
+		dev_dbg(match, "RCRB found for UID %lld: %pa\n", ctx.uid,
+			&ctx.base);
+		dport = devm_cxl_add_rch_dport(root_port, bridge, ctx.uid,
+					       ctx.base);
+	} else {
+		dport = devm_cxl_add_dport(root_port, bridge, ctx.uid,
+					   CXL_RESOURCE_NONE);
+	}
+
+	if (IS_ERR(dport))
+		return PTR_ERR(dport);
+
+	return 0;
+}
+
 /*
  * A host bridge is a dport to a CFMWS decode and it is a uport to the
  * dport (PCIe Root Ports) in the host bridge.
@@ -193,102 +449,56 @@ static int add_host_bridge_uport(struct device *match, void *arg)
 {
 	struct cxl_port *root_port = arg;
 	struct device *host = root_port->dev.parent;
-	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
+	struct acpi_device *hb = to_cxl_host_bridge(host, match);
 	struct acpi_pci_root *pci_root;
 	struct cxl_dport *dport;
 	struct cxl_port *port;
+	struct device *bridge;
+	struct cxl_chbs_context ctx;
+	resource_size_t component_reg_phys;
 	int rc;
 
-	if (!bridge)
+	if (!hb)
 		return 0;
 
-	dport = cxl_find_dport_by_dev(root_port, match);
+	pci_root = acpi_pci_find_root(hb->handle);
+	bridge = pci_root->bus->bridge;
+	dport = cxl_find_dport_by_dev(root_port, bridge);
 	if (!dport) {
 		dev_dbg(host, "host bridge expected and not found\n");
 		return 0;
 	}
 
-	/*
-	 * Note that this lookup already succeeded in
-	 * to_cxl_host_bridge(), so no need to check for failure here
-	 */
-	pci_root = acpi_pci_find_root(bridge->handle);
-	rc = devm_cxl_register_pci_bus(host, match, pci_root->bus);
+	if (dport->rch) {
+		dev_info(bridge, "host supports CXL (restricted)\n");
+		return 0;
+	}
+
+	rc = cxl_get_chbs(match, hb, &ctx);
 	if (rc)
 		return rc;
 
-	port = devm_cxl_add_port(host, match, dport->component_reg_phys, dport);
+	if (ctx.cxl_version == ACPI_CEDT_CHBS_VERSION_CXL11) {
+		dev_warn(bridge,
+			 "CXL CHBS version mismatch, skip port registration\n");
+		return 0;
+	}
+
+	component_reg_phys = ctx.base;
+	if (component_reg_phys != CXL_RESOURCE_NONE)
+		dev_dbg(match, "CHBCR found for UID %lld: %pa\n",
+			ctx.uid, &component_reg_phys);
+
+	rc = devm_cxl_register_pci_bus(host, bridge, pci_root->bus);
+	if (rc)
+		return rc;
+
+	port = devm_cxl_add_port(host, bridge, component_reg_phys, dport);
 	if (IS_ERR(port))
 		return PTR_ERR(port);
-	dev_dbg(host, "%s: add: %s\n", dev_name(match), dev_name(&port->dev));
 
-	return 0;
-}
+	dev_info(bridge, "host supports CXL\n");
 
-struct cxl_chbs_context {
-	struct device *dev;
-	unsigned long long uid;
-	resource_size_t chbcr;
-};
-
-static int cxl_get_chbcr(union acpi_subtable_headers *header, void *arg,
-			 const unsigned long end)
-{
-	struct cxl_chbs_context *ctx = arg;
-	struct acpi_cedt_chbs *chbs;
-
-	if (ctx->chbcr)
-		return 0;
-
-	chbs = (struct acpi_cedt_chbs *) header;
-
-	if (ctx->uid != chbs->uid)
-		return 0;
-	ctx->chbcr = chbs->base;
-
-	return 0;
-}
-
-static int add_host_bridge_dport(struct device *match, void *arg)
-{
-	acpi_status status;
-	unsigned long long uid;
-	struct cxl_dport *dport;
-	struct cxl_chbs_context ctx;
-	struct cxl_port *root_port = arg;
-	struct device *host = root_port->dev.parent;
-	struct acpi_device *bridge = to_cxl_host_bridge(host, match);
-
-	if (!bridge)
-		return 0;
-
-	status = acpi_evaluate_integer(bridge->handle, METHOD_NAME__UID, NULL,
-				       &uid);
-	if (status != AE_OK) {
-		dev_err(host, "unable to retrieve _UID of %s\n",
-			dev_name(match));
-		return -ENODEV;
-	}
-
-	ctx = (struct cxl_chbs_context) {
-		.dev = host,
-		.uid = uid,
-	};
-	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CHBS, cxl_get_chbcr, &ctx);
-
-	if (ctx.chbcr == 0) {
-		dev_warn(host, "No CHBS found for Host Bridge: %s\n",
-			 dev_name(match));
-		return 0;
-	}
-
-	dport = devm_cxl_add_dport(root_port, match, uid, ctx.chbcr);
-	if (IS_ERR(dport)) {
-		dev_err(host, "failed to add downstream port: %s\n",
-			dev_name(match));
-		return PTR_ERR(dport);
-	}
-	dev_dbg(host, "add dport%llu: %s\n", uid, dev_name(match));
 	return 0;
 }
 
@@ -466,7 +676,6 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	root_port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
 	if (IS_ERR(root_port))
 		return PTR_ERR(root_port);
-	dev_dbg(host, "add: %s\n", dev_name(&root_port->dev));
 
 	rc = bus_for_each_dev(adev->dev.bus, NULL, root_port,
 			      add_host_bridge_dport);
@@ -512,7 +721,8 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 		return rc;
 
 	/* In case PCI is scanned before ACPI re-trigger memdev attach */
-	return cxl_bus_rescan();
+	cxl_bus_rescan();
+	return 0;
 }
 
 static const struct acpi_device_id cxl_acpi_ids[] = {
@@ -536,7 +746,20 @@ static struct platform_driver cxl_acpi_driver = {
 	.id_table = cxl_test_ids,
 };
 
-module_platform_driver(cxl_acpi_driver);
+static int __init cxl_acpi_init(void)
+{
+	return platform_driver_register(&cxl_acpi_driver);
+}
+
+static void __exit cxl_acpi_exit(void)
+{
+	platform_driver_unregister(&cxl_acpi_driver);
+	cxl_bus_drain();
+}
+
+/* load before dax_hmem sees 'Soft Reserved' CXL ranges */
+subsys_initcall(cxl_acpi_init);
+module_exit(cxl_acpi_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CXL);
 MODULE_IMPORT_NS(ACPI);

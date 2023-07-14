@@ -24,31 +24,25 @@ properties:
   clocks:
     maxItems: 1
 
-  timeout-sec: true
-
 required:
   - compatible
   - reg
   - clocks
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/toshiba,tmpv770x.h>
+
     soc {
         #address-cells = <2>;
         #size-cells = <2>;
 
-        wdt_clk: wdt-clk {
-            compatible = "fixed-clock";
-            clock-frequency = <150000000>;
-            #clock-cells = <0>;
-        };
-
-        watchdog@28330000 {
+        wdt: watchdog@28330000 {
             compatible = "toshiba,visconti-wdt";
             reg = <0 0x28330000 0 0x1000>;
-            clocks = <&wdt_clk>;
             timeout-sec = <20>;
+            clocks = <&pismu TMPV770X_CLK_WDTCLK>;
         };
     };

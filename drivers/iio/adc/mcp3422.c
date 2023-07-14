@@ -330,9 +330,9 @@ static const struct iio_info mcp3422_info = {
 	.attrs = &mcp3422_attribute_group,
 };
 
-static int mcp3422_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mcp3422_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *indio_dev;
 	struct mcp3422 *adc;
 	int err;

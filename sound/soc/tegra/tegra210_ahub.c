@@ -712,11 +712,6 @@ MUX_ENUM_CTRL_DECL_234(t234_asrc15_tx, 0x68);
 MUX_ENUM_CTRL_DECL_234(t234_asrc16_tx, 0x69);
 MUX_ENUM_CTRL_DECL_234(t234_asrc17_tx, 0x6a);
 
-/*
- * The number of entries in, and order of, this array is closely tied to the
- * calculation of tegra210_ahub_codec.num_dapm_widgets near the end of
- * tegra210_ahub_probe()
- */
 static const struct snd_soc_dapm_widget tegra210_ahub_widgets[] = {
 	WIDGETS("ADMAIF1", t210_admaif1_tx),
 	WIDGETS("ADMAIF2", t210_admaif2_tx),
@@ -1092,11 +1087,6 @@ static const struct snd_soc_dapm_widget tegra234_ahub_widgets[] = {
 	{ name " XBAR-Capture",		NULL,	name " XBAR-TX" },      \
 	{ name " Capture",		NULL,	name " XBAR-Capture" },
 
-/*
- * The number of entries in, and order of, this array is closely tied to the
- * calculation of tegra210_ahub_codec.num_dapm_routes near the end of
- * tegra210_ahub_probe()
- */
 static const struct snd_soc_dapm_route tegra210_ahub_routes[] = {
 	TEGRA_FE_ROUTES("ADMAIF1")
 	TEGRA_FE_ROUTES("ADMAIF2")
@@ -1410,11 +1400,9 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_ahub_remove(struct platform_device *pdev)
+static void tegra_ahub_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra_ahub_pm_ops = {
@@ -1426,7 +1414,7 @@ static const struct dev_pm_ops tegra_ahub_pm_ops = {
 
 static struct platform_driver tegra_ahub_driver = {
 	.probe = tegra_ahub_probe,
-	.remove = tegra_ahub_remove,
+	.remove_new = tegra_ahub_remove,
 	.driver = {
 		.name = "tegra210-ahub",
 		.of_match_table = tegra_ahub_of_match,

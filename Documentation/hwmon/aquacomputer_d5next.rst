@@ -5,12 +5,17 @@ Kernel driver aquacomputer-d5next
 
 Supported devices:
 
+* Aquacomputer Aquaero 5/6 fan controllers
 * Aquacomputer D5 Next watercooling pump
 * Aquacomputer Farbwerk RGB controller
 * Aquacomputer Farbwerk 360 RGB controller
 * Aquacomputer Octo fan controller
 * Aquacomputer Quadro fan controller
 * Aquacomputer High Flow Next sensor
+* Aquacomputer Leakshield leak prevention system
+* Aquacomputer Aquastream XT watercooling pump
+* Aquacomputer Aquastream Ultimate watercooling pump
+* Aquacomputer Poweradjust 3 fan controller
 
 Author: Aleksa Savic
 
@@ -19,6 +24,11 @@ Description
 
 This driver exposes hardware sensors of listed Aquacomputer devices, which
 communicate through proprietary USB HID protocols.
+
+The Aquaero devices expose eight physical, eight virtual and four calculated
+virtual temperature sensors, as well as two flow sensors. The fans expose their
+speed (in RPM), power, voltage and current. Temperature offsets and fan speeds
+can be controlled.
 
 For the D5 Next pump, available sensors are pump and fan speed, power, voltage
 and current, as well as coolant temperature and eight virtual temp sensors. Also
@@ -39,7 +49,7 @@ current.
 
 The Quadro exposes four physical and sixteen virtual temperature sensors, a flow
 sensor and four PWM controllable fans, along with their speed (in RPM), power,
-voltage and current.
+voltage and current. Flow sensor pulses are also available.
 
 The Farbwerk and Farbwerk 360 expose four temperature sensors. Additionally,
 sixteen virtual temperature sensors of the Farbwerk 360 are exposed.
@@ -47,6 +57,21 @@ sixteen virtual temperature sensors of the Farbwerk 360 are exposed.
 The High Flow Next exposes +5V voltages, water quality, conductivity and flow readings.
 A temperature sensor can be connected to it, in which case it provides its reading
 and an estimation of the dissipated/absorbed power in the liquid cooling loop.
+
+The Leakshield exposes two temperature sensors and coolant pressure (current, min, max and
+target readings). It also exposes the estimated reservoir volume and how much of it is
+filled with coolant. Pump RPM and flow can be set to enhance on-device calculations,
+but this is not yet implemented here.
+
+The Aquastream XT pump exposes temperature readings for the coolant, external sensor
+and fan IC. It also exposes pump and fan speeds (in RPM), voltages, as well as pump
+current.
+
+The Aquastream Ultimate pump exposes coolant temp and an external temp sensor, along
+with speed, power, voltage and current of both the pump and optionally connected fan.
+It also exposes pressure and flow speed readings.
+
+The Poweradjust 3 controller exposes a single external temperature sensor.
 
 Depending on the device, not all sysfs and debugfs entries will be available.
 Writing to virtual temperature sensors is not currently supported.
@@ -62,7 +87,12 @@ Sysfs entries
 
 ================ ==============================================================
 temp[1-20]_input Physical/virtual temperature sensors (in millidegrees Celsius)
+temp[1-8]_offset Temperature sensor correction offset (in millidegrees Celsius)
 fan[1-8]_input   Pump/fan speed (in RPM) / Flow speed (in dL/h)
+fan1_min         Minimal fan speed (in RPM)
+fan1_max         Maximal fan speed (in RPM)
+fan1_target      Target fan speed (in RPM)
+fan5_pulses      Quadro flow sensor pulses
 power[1-8]_input Pump/fan power (in micro Watts)
 in[0-7]_input    Pump/fan voltage (in milli Volts)
 curr[1-8]_input  Pump/fan current (in milli Amperes)

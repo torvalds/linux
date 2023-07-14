@@ -3,15 +3,15 @@ MOXA ART real-time clock
 Required properties:
 
 - compatible : Should be "moxa,moxart-rtc"
-- gpio-rtc-sclk : RTC sclk gpio, with zero flags
-- gpio-rtc-data : RTC data gpio, with zero flags
-- gpio-rtc-reset : RTC reset gpio, with zero flags
+- rtc-sclk-gpios : RTC sclk gpio, with zero flags
+- rtc-data-gpios : RTC data gpio, with zero flags
+- rtc-reset-gpios : RTC reset gpio, with zero flags
 
 Example:
 
 	rtc: rtc {
 		compatible = "moxa,moxart-rtc";
-		gpio-rtc-sclk = <&gpio 5 0>;
-		gpio-rtc-data = <&gpio 6 0>;
-		gpio-rtc-reset = <&gpio 7 0>;
+		rtc-sclk-gpios = <&gpio 5 0>;
+		rtc-data-gpios = <&gpio 6 0>;
+		rtc-reset-gpios = <&gpio 7 0>;
 	};

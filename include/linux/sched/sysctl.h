@@ -4,8 +4,6 @@
 
 #include <linux/types.h>
 
-struct ctl_table;
-
 #ifdef CONFIG_DETECT_HUNG_TASK
 /* used for hung_task and block/ */
 extern unsigned long sysctl_hung_task_timeout_secs;
@@ -30,8 +28,5 @@ extern int sysctl_numa_balancing_mode;
 #else
 #define sysctl_numa_balancing_mode	0
 #endif
-
-int sysctl_numa_balancing(struct ctl_table *table, int write, void *buffer,
-		size_t *lenp, loff_t *ppos);
 
 #endif /* _LINUX_SCHED_SYSCTL_H */

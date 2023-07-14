@@ -221,7 +221,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	blr
 #endif /* CONFIG_PPC_47x */
 
-#elif defined(CONFIG_FSL_BOOKE)
+#elif defined(CONFIG_PPC_85xx)
 /*
  * FSL BookE implementations.
  *
@@ -294,7 +294,7 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_TLBILX)
 	isync
 1:	wrtee	r10
 	blr
-#elif defined(CONFIG_PPC_BOOK3E)
+#elif defined(CONFIG_PPC_BOOK3E_64)
 /*
  * New Book3E (>= 2.06) implementation
  *
@@ -364,7 +364,7 @@ _GLOBAL(_tlbivax_bcast)
 #error Unsupported processor type !
 #endif
 
-#if defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_E500)
 /*
  * extern void loadcam_entry(unsigned int index)
  *

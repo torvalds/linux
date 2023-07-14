@@ -43,6 +43,7 @@ additionalProperties: false
 patternProperties:
   "^channel@[0-7]+$":
     type: object
+    additionalProperties: false
     description:
       Child nodes needed for each channel that the platform uses.
 
@@ -103,12 +104,12 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
             channel@0 {
-              reg = <0>;
+                reg = <0>;
             };
             channel@4 {
-              reg = <4>;
-              ti,gain = <3>;
-              ti,datarate = <5>;
+                reg = <4>;
+                ti,gain = <3>;
+                ti,datarate = <5>;
             };
         };
     };

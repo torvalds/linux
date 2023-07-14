@@ -401,17 +401,22 @@ int tpm_pm_suspend(struct device *dev)
 	    !pm_suspend_via_firmware())
 		goto suspended;
 
-	if (!tpm_chip_start(chip)) {
+	rc = tpm_try_get_ops(chip);
+	if (!rc) {
 		if (chip->flags & TPM_CHIP_FLAG_TPM2)
 			tpm2_shutdown(chip, TPM2_SU_STATE);
 		else
 			rc = tpm1_pm_suspend(chip, tpm_suspend_pcr);
 
-		tpm_chip_stop(chip);
+		tpm_put_ops(chip);
 	}
 
 suspended:
-	return rc;
+	chip->flags |= TPM_CHIP_FLAG_SUSPENDED;
+
+	if (rc)
+		dev_err(dev, "Ignoring error %d while suspending\n", rc);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_pm_suspend);
 
@@ -425,6 +430,14 @@ int tpm_pm_resume(struct device *dev)
 
 	if (chip == NULL)
 		return -ENODEV;
+
+	chip->flags &= ~TPM_CHIP_FLAG_SUSPENDED;
+
+	/*
+	 * Guarantee that SUSPENDED is written last, so that hwrng does not
+	 * activate before the chip has been fully resumed.
+	 */
+	wmb();
 
 	return 0;
 }
@@ -463,13 +476,15 @@ static int __init tpm_init(void)
 {
 	int rc;
 
-	tpm_class = class_create(THIS_MODULE, "tpm");
+	tpm_class = class_create("tpm");
 	if (IS_ERR(tpm_class)) {
 		pr_err("couldn't create tpm class\n");
 		return PTR_ERR(tpm_class);
 	}
 
-	tpmrm_class = class_create(THIS_MODULE, "tpmrm");
+	tpm_class->shutdown_pre = tpm_class_shutdown;
+
+	tpmrm_class = class_create("tpmrm");
 	if (IS_ERR(tpmrm_class)) {
 		pr_err("couldn't create tpmrm class\n");
 		rc = PTR_ERR(tpmrm_class);

@@ -110,10 +110,12 @@ retry:
          * register backing store that needs to expand upwards, in
          * this case vma will be null, but prev_vma will ne non-null
          */
-        if (( !vma && prev_vma ) || (address < vma->vm_start) )
-		goto check_expansion;
+        if (( !vma && prev_vma ) || (address < vma->vm_start) ) {
+		vma = expand_stack(mm, address);
+		if (!vma)
+			goto bad_area_nosemaphore;
+	}
 
-  good_area:
 	code = SEGV_ACCERR;
 
 	/* OK, we've got a good vm_area for this memory area.  Check the access permissions: */
@@ -136,8 +138,11 @@ retry:
 	 */
 	fault = handle_mm_fault(vma, address, flags, regs);
 
-	if (fault_signal_pending(fault, regs))
+	if (fault_signal_pending(fault, regs)) {
+		if (!user_mode(regs))
+			goto no_context;
 		return;
+	}
 
 	/* The fault is fully completed (including releasing mmap lock) */
 	if (fault & VM_FAULT_COMPLETED)
@@ -174,35 +179,9 @@ retry:
 	mmap_read_unlock(mm);
 	return;
 
-  check_expansion:
-	if (!(prev_vma && (prev_vma->vm_flags & VM_GROWSUP) && (address == prev_vma->vm_end))) {
-		if (!vma)
-			goto bad_area;
-		if (!(vma->vm_flags & VM_GROWSDOWN))
-			goto bad_area;
-		if (REGION_NUMBER(address) != REGION_NUMBER(vma->vm_start)
-		    || REGION_OFFSET(address) >= RGN_MAP_LIMIT)
-			goto bad_area;
-		if (expand_stack(vma, address))
-			goto bad_area;
-	} else {
-		vma = prev_vma;
-		if (REGION_NUMBER(address) != REGION_NUMBER(vma->vm_start)
-		    || REGION_OFFSET(address) >= RGN_MAP_LIMIT)
-			goto bad_area;
-		/*
-		 * Since the register backing store is accessed sequentially,
-		 * we disallow growing it by more than a page at a time.
-		 */
-		if (address > vma->vm_end + PAGE_SIZE - sizeof(long))
-			goto bad_area;
-		if (expand_upwards(vma, address))
-			goto bad_area;
-	}
-	goto good_area;
-
   bad_area:
 	mmap_read_unlock(mm);
+  bad_area_nosemaphore:
 	if ((isr & IA64_ISR_SP)
 	    || ((isr & IA64_ISR_NA) && (isr & IA64_ISR_CODE_MASK) == IA64_ISR_CODE_LFETCH))
 	{

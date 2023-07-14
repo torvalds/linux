@@ -321,34 +321,12 @@ receive_chars(struct uart_port *up, unsigned int *status)
 
 static inline void transmit_chars(struct uart_port *up)
 {
-	struct circ_buf *xmit = &up->state->xmit;
-	int count;
+	u8 ch;
 
-	if (up->x_char) {
-		sio_out(up, TXX9_SITFIFO, up->x_char);
-		up->icount.tx++;
-		up->x_char = 0;
-		return;
-	}
-	if (uart_circ_empty(xmit) || uart_tx_stopped(up)) {
-		serial_txx9_stop_tx(up);
-		return;
-	}
-
-	count = TXX9_SIO_TX_FIFO;
-	do {
-		sio_out(up, TXX9_SITFIFO, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		up->icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
-	} while (--count > 0);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(up);
-
-	if (uart_circ_empty(xmit))
-		serial_txx9_stop_tx(up);
+	uart_port_tx_limited(up, ch, TXX9_SIO_TX_FIFO,
+		true,
+		sio_out(up, TXX9_SITFIFO, ch),
+		({}));
 }
 
 static irqreturn_t serial_txx9_interrupt(int irq, void *dev_id)
@@ -594,7 +572,7 @@ static void serial_txx9_shutdown(struct uart_port *up)
 
 static void
 serial_txx9_set_termios(struct uart_port *up, struct ktermios *termios,
-		       struct ktermios *old)
+			const struct ktermios *old)
 {
 	unsigned int cval, fcr = 0;
 	unsigned long flags;

@@ -481,7 +481,7 @@ static int thunderx_create_debugfs_nodes(struct dentry *parent,
 		ent = edac_debugfs_create_file(attrs[i]->name, attrs[i]->mode,
 					       parent, data, &attrs[i]->fops);
 
-		if (!ent)
+		if (IS_ERR(ent))
 			break;
 	}
 
@@ -2113,6 +2113,9 @@ static struct pci_driver thunderx_l2c_driver = {
 static int __init thunderx_edac_init(void)
 {
 	int rc = 0;
+
+	if (ghes_get_devices())
+		return -EBUSY;
 
 	rc = pci_register_driver(&thunderx_lmc_driver);
 	if (rc)

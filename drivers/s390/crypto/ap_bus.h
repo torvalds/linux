@@ -39,22 +39,32 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 	return (*ptr & (0x80000000u >> nr)) != 0;
 }
 
-#define AP_RESPONSE_NORMAL		0x00
-#define AP_RESPONSE_Q_NOT_AVAIL		0x01
-#define AP_RESPONSE_RESET_IN_PROGRESS	0x02
-#define AP_RESPONSE_DECONFIGURED	0x03
-#define AP_RESPONSE_CHECKSTOPPED	0x04
-#define AP_RESPONSE_BUSY		0x05
-#define AP_RESPONSE_INVALID_ADDRESS	0x06
-#define AP_RESPONSE_OTHERWISE_CHANGED	0x07
-#define AP_RESPONSE_INVALID_GISA	0x08
-#define AP_RESPONSE_Q_FULL		0x10
-#define AP_RESPONSE_NO_PENDING_REPLY	0x10
-#define AP_RESPONSE_INDEX_TOO_BIG	0x11
-#define AP_RESPONSE_NO_FIRST_PART	0x13
-#define AP_RESPONSE_MESSAGE_TOO_BIG	0x15
-#define AP_RESPONSE_REQ_FAC_NOT_INST	0x16
-#define AP_RESPONSE_INVALID_DOMAIN	0x42
+#define AP_RESPONSE_NORMAL		     0x00
+#define AP_RESPONSE_Q_NOT_AVAIL		     0x01
+#define AP_RESPONSE_RESET_IN_PROGRESS	     0x02
+#define AP_RESPONSE_DECONFIGURED	     0x03
+#define AP_RESPONSE_CHECKSTOPPED	     0x04
+#define AP_RESPONSE_BUSY		     0x05
+#define AP_RESPONSE_INVALID_ADDRESS	     0x06
+#define AP_RESPONSE_OTHERWISE_CHANGED	     0x07
+#define AP_RESPONSE_INVALID_GISA	     0x08
+#define AP_RESPONSE_Q_BOUND_TO_ANOTHER	     0x09
+#define AP_RESPONSE_STATE_CHANGE_IN_PROGRESS 0x0A
+#define AP_RESPONSE_Q_NOT_BOUND		     0x0B
+#define AP_RESPONSE_Q_FULL		     0x10
+#define AP_RESPONSE_NO_PENDING_REPLY	     0x10
+#define AP_RESPONSE_INDEX_TOO_BIG	     0x11
+#define AP_RESPONSE_NO_FIRST_PART	     0x13
+#define AP_RESPONSE_MESSAGE_TOO_BIG	     0x15
+#define AP_RESPONSE_REQ_FAC_NOT_INST	     0x16
+#define AP_RESPONSE_Q_BIND_ERROR	     0x30
+#define AP_RESPONSE_Q_NOT_AVAIL_FOR_ASSOC    0x31
+#define AP_RESPONSE_Q_NOT_EMPTY		     0x32
+#define AP_RESPONSE_BIND_LIMIT_EXCEEDED	     0x33
+#define AP_RESPONSE_INVALID_ASSOC_SECRET     0x34
+#define AP_RESPONSE_ASSOC_SECRET_NOT_UNIQUE  0x35
+#define AP_RESPONSE_ASSOC_FAILED	     0x36
+#define AP_RESPONSE_INVALID_DOMAIN	     0x42
 
 /*
  * Known device types
@@ -92,6 +102,7 @@ enum ap_sm_state {
 	AP_SM_STATE_IDLE,
 	AP_SM_STATE_WORKING,
 	AP_SM_STATE_QUEUE_FULL,
+	AP_SM_STATE_ASSOC_WAIT,
 	NR_AP_SM_STATES
 };
 
@@ -108,10 +119,11 @@ enum ap_sm_event {
  * AP queue state wait behaviour
  */
 enum ap_sm_wait {
-	AP_SM_WAIT_AGAIN = 0,	/* retry immediately */
-	AP_SM_WAIT_TIMEOUT,	/* wait for timeout */
-	AP_SM_WAIT_INTERRUPT,	/* wait for thin interrupt (if available) */
-	AP_SM_WAIT_NONE,	/* no wait */
+	AP_SM_WAIT_AGAIN = 0,	 /* retry immediately */
+	AP_SM_WAIT_HIGH_TIMEOUT, /* poll high freq, wait for timeout */
+	AP_SM_WAIT_LOW_TIMEOUT,	 /* poll low freq, wait for timeout */
+	AP_SM_WAIT_INTERRUPT,	 /* wait for thin interrupt (if available) */
+	AP_SM_WAIT_NONE,	 /* no wait */
 	NR_AP_SM_WAIT
 };
 
@@ -178,7 +190,7 @@ struct ap_device {
 struct ap_card {
 	struct ap_device ap_dev;
 	int raw_hwtype;			/* AP raw hardware type. */
-	unsigned int functions;		/* AP device function bitfield. */
+	unsigned int functions;		/* TAPQ GR2 upper 32 facility bits */
 	int queue_depth;		/* AP queue depth.*/
 	int id;				/* AP card number. */
 	unsigned int maxmsgsize;	/* AP msg limit for this card */
@@ -186,6 +198,9 @@ struct ap_card {
 	bool chkstop;			/* checkstop state */
 	atomic64_t total_request_count;	/* # requests ever for this AP device.*/
 };
+
+#define TAPQ_CARD_FUNC_CMP_MASK 0xFFFF0000
+#define ASSOC_IDX_INVALID 0x10000
 
 #define to_ap_card(x) container_of((x), struct ap_card, ap_dev.device)
 
@@ -199,6 +214,7 @@ struct ap_queue {
 	bool chkstop;			/* checkstop state */
 	ap_qid_t qid;			/* AP queue id. */
 	bool interrupt;			/* indicate if interrupts are enabled */
+	unsigned int assoc_idx;		/* SE association index */
 	int queue_count;		/* # messages currently on AP queue. */
 	int pendingq_count;		/* # requests on pendingq list. */
 	int requestq_count;		/* # requests on requestq list. */
@@ -209,6 +225,7 @@ struct ap_queue {
 	struct list_head requestq;	/* List of message yet to be sent. */
 	struct ap_message *reply;	/* Per device reply message. */
 	enum ap_sm_state sm_state;	/* ap queue state machine state */
+	int rapq_fbit;			/* fbit arg for next rapq invocation */
 	int last_err_rc;		/* last error state response code */
 };
 
@@ -216,38 +233,13 @@ struct ap_queue {
 
 typedef enum ap_sm_wait (ap_func_t)(struct ap_queue *queue);
 
-/* failure injection cmd struct */
-struct ap_fi {
-	union {
-		u16 cmd;		/* fi flags + action */
-		struct {
-			u8 flags;	/* fi flags only */
-			u8 action;	/* fi action only */
-		};
-	};
-};
-
-/* all currently known fi actions */
-enum ap_fi_actions {
-	AP_FI_ACTION_CCA_AGENT_FF   = 0x01,
-	AP_FI_ACTION_CCA_DOM_INVAL  = 0x02,
-	AP_FI_ACTION_NQAP_QID_INVAL = 0x03,
-};
-
-/* all currently known fi flags */
-enum ap_fi_flags {
-	AP_FI_FLAG_NO_RETRY	  = 0x01,
-	AP_FI_FLAG_TOGGLE_SPECIAL = 0x02,
-};
-
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
-	unsigned long long psmid;	/* Message id. */
+	unsigned long psmid;		/* Message id. */
 	void *msg;			/* Pointer to message buffer. */
-	unsigned int len;		/* actual msg len in msg buffer */
-	unsigned int bufsize;		/* allocated msg buffer size */
+	size_t len;			/* actual msg len in msg buffer */
+	size_t bufsize;			/* allocated msg buffer size */
 	u16 flags;			/* Flags, see AP_MSG_FLAG_xxx */
-	struct ap_fi fi;		/* Failure Injection cmd */
 	int rc;				/* Return code for this message */
 	void *private;			/* ap driver private pointer. */
 	/* receive is called from tasklet context */
@@ -285,8 +277,8 @@ static inline void ap_release_message(struct ap_message *ap_msg)
  * for the first time. Otherwise the ap message queue will get
  * confused.
  */
-int ap_send(ap_qid_t, unsigned long long, void *, size_t);
-int ap_recv(ap_qid_t, unsigned long long *, void *, size_t);
+int ap_send(ap_qid_t qid, unsigned long psmid, void *msg, size_t msglen);
+int ap_recv(ap_qid_t qid, unsigned long *psmid, void *msg, size_t msglen);
 
 enum ap_sm_wait ap_sm_event(struct ap_queue *aq, enum ap_sm_event event);
 enum ap_sm_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_sm_event event);
@@ -296,6 +288,7 @@ void ap_cancel_message(struct ap_queue *aq, struct ap_message *ap_msg);
 void ap_flush_queue(struct ap_queue *aq);
 
 void *ap_airq_ptr(void);
+int ap_sb_available(void);
 void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
 void ap_bus_force_rescan(void);
@@ -366,7 +359,7 @@ int ap_apqn_in_matrix_owned_by_def_drv(unsigned long *apm,
  * like "+1-16,-32,-0x40,+128" where only single bits or ranges of
  * bits are cleared or set. Distinction is done based on the very
  * first character which may be '+' or '-' for the relative string
- * and othewise assume to be an absolute value string. If parsing fails
+ * and otherwise assume to be an absolute value string. If parsing fails
  * a negative errno value is returned. All arguments and bitmaps are
  * big endian order.
  */

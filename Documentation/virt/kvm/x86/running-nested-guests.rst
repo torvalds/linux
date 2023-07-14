@@ -150,7 +150,7 @@ able to start an L1 guest with::
     $ qemu-kvm -cpu host [...]
 
 The above will pass through the host CPU's capabilities as-is to the
-gues); or for better live migration compatibility, use a named CPU
+guest, or for better live migration compatibility, use a named CPU
 model supported by QEMU. e.g.::
 
     $ qemu-kvm -cpu Haswell-noTSX-IBRS,vmx=on

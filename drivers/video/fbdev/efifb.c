@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/kernel.h>
 #include <linux/efi.h>
 #include <linux/efi-bgrt.h>
@@ -48,6 +49,12 @@ static bool request_mem_succeeded = false;
 static u64 mem_flags = EFI_MEMORY_WC | EFI_MEMORY_UC;
 
 static struct pci_dev *efifb_pci_dev;	/* dev with BAR covering the efifb */
+
+struct efifb_par {
+	u32 pseudo_palette[16];
+	resource_size_t base;
+	resource_size_t size;
+};
 
 static struct fb_var_screeninfo efifb_defined = {
 	.activate		= FB_ACTIVATE_NOW,
@@ -249,6 +256,8 @@ static inline void efifb_show_boot_graphics(struct fb_info *info) {}
  */
 static void efifb_destroy(struct fb_info *info)
 {
+	struct efifb_par *par = info->par;
+
 	if (efifb_pci_dev)
 		pm_runtime_put(&efifb_pci_dev->dev);
 
@@ -260,8 +269,7 @@ static void efifb_destroy(struct fb_info *info)
 	}
 
 	if (request_mem_succeeded)
-		release_mem_region(info->apertures->ranges[0].base,
-				   info->apertures->ranges[0].size);
+		release_mem_region(par->base, par->size);
 	fb_dealloc_cmap(&info->cmap);
 
 	framebuffer_release(info);
@@ -351,6 +359,7 @@ static u64 bar_offset;
 static int efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
+	struct efifb_par *par;
 	int err, orientation;
 	unsigned int size_vmode;
 	unsigned int size_remap;
@@ -447,22 +456,17 @@ static int efifb_probe(struct platform_device *dev)
 			efifb_fix.smem_start);
 	}
 
-	info = framebuffer_alloc(sizeof(u32) * 16, &dev->dev);
+	info = framebuffer_alloc(sizeof(*par), &dev->dev);
 	if (!info) {
 		err = -ENOMEM;
 		goto err_release_mem;
 	}
 	platform_set_drvdata(dev, info);
-	info->pseudo_palette = info->par;
-	info->par = NULL;
+	par = info->par;
+	info->pseudo_palette = par->pseudo_palette;
 
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		err = -ENOMEM;
-		goto err_release_fb;
-	}
-	info->apertures->ranges[0].base = efifb_fix.smem_start;
-	info->apertures->ranges[0].size = size_remap;
+	par->base = efifb_fix.smem_start;
+	par->size = size_remap;
 
 	if (efi_enabled(EFI_MEMMAP) &&
 	    !efi_mem_desc_lookup(efifb_fix.smem_start, &md)) {
@@ -551,7 +555,7 @@ static int efifb_probe(struct platform_device *dev)
 	info->fbops = &efifb_ops;
 	info->var = efifb_defined;
 	info->fix = efifb_fix;
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_MISC_FIRMWARE;
+	info->flags = FBINFO_FLAG_DEFAULT;
 
 	orientation = drm_get_panel_orientation_quirk(efifb_defined.xres,
 						      efifb_defined.yres);
@@ -584,6 +588,11 @@ static int efifb_probe(struct platform_device *dev)
 	if (efifb_pci_dev)
 		WARN_ON(pm_runtime_get_sync(&efifb_pci_dev->dev) < 0);
 
+	err = devm_aperture_acquire_for_platform_device(dev, par->base, par->size);
+	if (err) {
+		pr_err("efifb: cannot acquire aperture\n");
+		goto err_put_rpm_ref;
+	}
 	err = register_framebuffer(info);
 	if (err < 0) {
 		pr_err("efifb: cannot register framebuffer\n");
@@ -612,15 +621,13 @@ err_release_mem:
 	return err;
 }
 
-static int efifb_remove(struct platform_device *pdev)
+static void efifb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 
 	/* efifb_destroy takes care of info cleanup */
 	unregister_framebuffer(info);
 	sysfs_remove_groups(&pdev->dev.kobj, efifb_groups);
-
-	return 0;
 }
 
 static struct platform_driver efifb_driver = {
@@ -628,7 +635,7 @@ static struct platform_driver efifb_driver = {
 		.name = "efi-framebuffer",
 	},
 	.probe = efifb_probe,
-	.remove = efifb_remove,
+	.remove_new = efifb_remove,
 };
 
 builtin_platform_driver(efifb_driver);

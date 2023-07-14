@@ -112,7 +112,7 @@ static void dma_buf_sysfs_release(struct kobject *kobj)
 	kfree(sysfs_entry);
 }
 
-static struct kobj_type dma_buf_ktype = {
+static const struct kobj_type dma_buf_ktype = {
 	.sysfs_ops = &dma_buf_stats_sysfs_ops,
 	.release = dma_buf_sysfs_release,
 	.default_groups = dma_buf_stats_default_groups,
@@ -132,7 +132,7 @@ void dma_buf_stats_teardown(struct dma_buf *dmabuf)
 
 
 /* Statistics files do not need to send uevents. */
-static int dmabuf_sysfs_uevent_filter(struct kobject *kobj)
+static int dmabuf_sysfs_uevent_filter(const struct kobject *kobj)
 {
 	return 0;
 }
@@ -168,13 +168,10 @@ void dma_buf_uninit_sysfs_statistics(void)
 	kset_unregister(dma_buf_stats_kset);
 }
 
-int dma_buf_stats_setup(struct dma_buf *dmabuf)
+int dma_buf_stats_setup(struct dma_buf *dmabuf, struct file *file)
 {
 	struct dma_buf_sysfs_entry *sysfs_entry;
 	int ret;
-
-	if (!dmabuf || !dmabuf->file)
-		return -EINVAL;
 
 	if (!dmabuf->exp_name) {
 		pr_err("exporter name must not be empty if stats needed\n");
@@ -192,7 +189,7 @@ int dma_buf_stats_setup(struct dma_buf *dmabuf)
 
 	/* create the directory for buffer stats */
 	ret = kobject_init_and_add(&sysfs_entry->kobj, &dma_buf_ktype, NULL,
-				   "%lu", file_inode(dmabuf->file)->i_ino);
+				   "%lu", file_inode(file)->i_ino);
 	if (ret)
 		goto err_sysfs_dmabuf;
 

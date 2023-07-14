@@ -1166,7 +1166,7 @@ static void tulip_scsi(struct initio_host * host)
 			return;
 		}
 		if (host->jsint & (TSS_FUNC_COMP | TSS_BUS_SERV)) {	/* func complete or Bus service */
-			if ((scb = host->active) != NULL)
+			if (host->active)
 				initio_next_state(host);
 			return;
 		}
@@ -2788,7 +2788,7 @@ static void i91uSCBPost(u8 * host_mem, u8 * cblk_mem)
 	initio_release_scb(host, cblk);	/* Release SCB for current channel */
 }
 
-static struct scsi_host_template initio_template = {
+static const struct scsi_host_template initio_template = {
 	.proc_name		= "INI9100U",
 	.name			= "Initio INI-9X00U/UW SCSI device driver",
 	.queuecommand		= i91u_queuecommand,

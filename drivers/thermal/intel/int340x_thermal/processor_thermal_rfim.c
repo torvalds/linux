@@ -39,6 +39,29 @@ static const struct mmio_reg tgl_fivr_mmio_regs[] = {
 	{ 1, 0x5A14, 2, 0x3, 1}, /* fivr_fffc_rev */
 };
 
+static const char * const dlvr_strings[] = {
+	"dlvr_spread_spectrum_pct",
+	"dlvr_control_mode",
+	"dlvr_control_lock",
+	"dlvr_rfim_enable",
+	"dlvr_freq_select",
+	"dlvr_hardware_rev",
+	"dlvr_freq_mhz",
+	"dlvr_pll_busy",
+	NULL
+};
+
+static const struct mmio_reg dlvr_mmio_regs[] = {
+	{ 0, 0x15A08, 5, 0x1F, 0}, /* dlvr_spread_spectrum_pct */
+	{ 0, 0x15A08, 1, 0x1, 5}, /* dlvr_control_mode */
+	{ 0, 0x15A08, 1, 0x1, 6}, /* dlvr_control_lock */
+	{ 0, 0x15A08, 1, 0x1, 7}, /* dlvr_rfim_enable */
+	{ 0, 0x15A08, 12, 0xFFF, 8}, /* dlvr_freq_select */
+	{ 1, 0x15A10, 2, 0x3, 30}, /* dlvr_hardware_rev */
+	{ 1, 0x15A10, 16, 0xFFFF, 0}, /* dlvr_freq_mhz */
+	{ 1, 0x15A10, 1, 0x1, 16}, /* dlvr_pll_busy */
+};
+
 /* These will represent sysfs attribute names */
 static const char * const dvfs_strings[] = {
 	"rfi_restriction_run_busy",
@@ -78,14 +101,16 @@ static ssize_t suffix##_show(struct device *dev,\
 	int ret;\
 \
 	proc_priv = pci_get_drvdata(pdev);\
-	if (table) {\
+	if (table == 1) {\
 		match_strs = (const char **)dvfs_strings;\
 		mmio_regs = adl_dvfs_mmio_regs;\
-	} else { \
+	} else if (table == 2) { \
+		match_strs = (const char **)dlvr_strings;\
+		mmio_regs = dlvr_mmio_regs;\
+	} else {\
 		match_strs = (const char **)fivr_strings;\
 		mmio_regs = tgl_fivr_mmio_regs;\
 	} \
-	\
 	ret = match_string(match_strs, -1, attr->attr.name);\
 	if (ret < 0)\
 		return ret;\
@@ -109,10 +134,13 @@ static ssize_t suffix##_store(struct device *dev,\
 	u32 mask;\
 \
 	proc_priv = pci_get_drvdata(pdev);\
-	if (table) {\
+	if (table == 1) {\
 		match_strs = (const char **)dvfs_strings;\
 		mmio_regs = adl_dvfs_mmio_regs;\
-	} else { \
+	} else if (table == 2) { \
+		match_strs = (const char **)dlvr_strings;\
+		mmio_regs = dlvr_mmio_regs;\
+	} else {\
 		match_strs = (const char **)fivr_strings;\
 		mmio_regs = tgl_fivr_mmio_regs;\
 	} \
@@ -147,6 +175,47 @@ RFIM_STORE(spread_spectrum_clk_enable, 0)
 RFIM_STORE(rfi_vco_ref_code, 0)
 RFIM_STORE(fivr_fffc_rev, 0)
 
+RFIM_SHOW(dlvr_spread_spectrum_pct, 2)
+RFIM_SHOW(dlvr_control_mode, 2)
+RFIM_SHOW(dlvr_control_lock, 2)
+RFIM_SHOW(dlvr_hardware_rev, 2)
+RFIM_SHOW(dlvr_freq_mhz, 2)
+RFIM_SHOW(dlvr_pll_busy, 2)
+RFIM_SHOW(dlvr_freq_select, 2)
+RFIM_SHOW(dlvr_rfim_enable, 2)
+
+RFIM_STORE(dlvr_spread_spectrum_pct, 2)
+RFIM_STORE(dlvr_rfim_enable, 2)
+RFIM_STORE(dlvr_freq_select, 2)
+RFIM_STORE(dlvr_control_mode, 2)
+RFIM_STORE(dlvr_control_lock, 2)
+
+static DEVICE_ATTR_RW(dlvr_spread_spectrum_pct);
+static DEVICE_ATTR_RW(dlvr_control_mode);
+static DEVICE_ATTR_RW(dlvr_control_lock);
+static DEVICE_ATTR_RW(dlvr_freq_select);
+static DEVICE_ATTR_RO(dlvr_hardware_rev);
+static DEVICE_ATTR_RO(dlvr_freq_mhz);
+static DEVICE_ATTR_RO(dlvr_pll_busy);
+static DEVICE_ATTR_RW(dlvr_rfim_enable);
+
+static struct attribute *dlvr_attrs[] = {
+	&dev_attr_dlvr_spread_spectrum_pct.attr,
+	&dev_attr_dlvr_control_mode.attr,
+	&dev_attr_dlvr_control_lock.attr,
+	&dev_attr_dlvr_freq_select.attr,
+	&dev_attr_dlvr_hardware_rev.attr,
+	&dev_attr_dlvr_freq_mhz.attr,
+	&dev_attr_dlvr_pll_busy.attr,
+	&dev_attr_dlvr_rfim_enable.attr,
+	NULL
+};
+
+static const struct attribute_group dlvr_attribute_group = {
+	.attrs = dlvr_attrs,
+	.name = "dlvr"
+};
+
 static DEVICE_ATTR_RW(vco_ref_code_lo);
 static DEVICE_ATTR_RW(vco_ref_code_hi);
 static DEVICE_ATTR_RW(spread_spectrum_pct);
@@ -172,6 +241,7 @@ static const struct attribute_group fivr_attribute_group = {
 RFIM_SHOW(rfi_restriction_run_busy, 1)
 RFIM_SHOW(rfi_restriction_err_code, 1)
 RFIM_SHOW(rfi_restriction_data_rate, 1)
+RFIM_SHOW(rfi_restriction_data_rate_base, 1)
 RFIM_SHOW(ddr_data_rate_point_0, 1)
 RFIM_SHOW(ddr_data_rate_point_1, 1)
 RFIM_SHOW(ddr_data_rate_point_2, 1)
@@ -181,11 +251,13 @@ RFIM_SHOW(rfi_disable, 1)
 RFIM_STORE(rfi_restriction_run_busy, 1)
 RFIM_STORE(rfi_restriction_err_code, 1)
 RFIM_STORE(rfi_restriction_data_rate, 1)
+RFIM_STORE(rfi_restriction_data_rate_base, 1)
 RFIM_STORE(rfi_disable, 1)
 
 static DEVICE_ATTR_RW(rfi_restriction_run_busy);
 static DEVICE_ATTR_RW(rfi_restriction_err_code);
 static DEVICE_ATTR_RW(rfi_restriction_data_rate);
+static DEVICE_ATTR_RW(rfi_restriction_data_rate_base);
 static DEVICE_ATTR_RO(ddr_data_rate_point_0);
 static DEVICE_ATTR_RO(ddr_data_rate_point_1);
 static DEVICE_ATTR_RO(ddr_data_rate_point_2);
@@ -248,6 +320,7 @@ static struct attribute *dvfs_attrs[] = {
 	&dev_attr_rfi_restriction_run_busy.attr,
 	&dev_attr_rfi_restriction_err_code.attr,
 	&dev_attr_rfi_restriction_data_rate.attr,
+	&dev_attr_rfi_restriction_data_rate_base.attr,
 	&dev_attr_ddr_data_rate_point_0.attr,
 	&dev_attr_ddr_data_rate_point_1.attr,
 	&dev_attr_ddr_data_rate_point_2.attr,
@@ -273,10 +346,20 @@ int proc_thermal_rfim_add(struct pci_dev *pdev, struct proc_thermal_device *proc
 			return ret;
 	}
 
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DLVR) {
+		ret = sysfs_create_group(&pdev->dev.kobj, &dlvr_attribute_group);
+		if (ret)
+			return ret;
+	}
+
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS) {
 		ret = sysfs_create_group(&pdev->dev.kobj, &dvfs_attribute_group);
 		if (ret && proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR) {
 			sysfs_remove_group(&pdev->dev.kobj, &fivr_attribute_group);
+			return ret;
+		}
+		if (ret && proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DLVR) {
+			sysfs_remove_group(&pdev->dev.kobj, &dlvr_attribute_group);
 			return ret;
 		}
 	}
@@ -291,6 +374,9 @@ void proc_thermal_rfim_remove(struct pci_dev *pdev)
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR)
 		sysfs_remove_group(&pdev->dev.kobj, &fivr_attribute_group);
+
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DLVR)
+		sysfs_remove_group(&pdev->dev.kobj, &dlvr_attribute_group);
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
 		sysfs_remove_group(&pdev->dev.kobj, &dvfs_attribute_group);

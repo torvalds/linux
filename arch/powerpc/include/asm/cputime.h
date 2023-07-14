@@ -21,23 +21,8 @@
 #include <asm/param.h>
 #include <asm/firmware.h>
 
-typedef u64 __nocast cputime_t;
-typedef u64 __nocast cputime64_t;
-
-#define cmpxchg_cputime(ptr, old, new) cmpxchg(ptr, old, new)
-
 #ifdef __KERNEL__
-/*
- * Convert cputime <-> microseconds
- */
-extern u64 __cputime_usec_factor;
-
-static inline unsigned long cputime_to_usecs(const cputime_t ct)
-{
-	return mulhdu((__force u64) ct, __cputime_usec_factor);
-}
-
-#define cputime_to_nsecs(cputime) tb_to_ns((__force u64)cputime)
+#define cputime_to_nsecs(cputime) tb_to_ns(cputime)
 
 /*
  * PPC64 uses PACA which is task independent for storing accounting data while
@@ -95,7 +80,7 @@ static notrace inline void account_stolen_time(void)
 		struct lppaca *lp = local_paca->lppaca_ptr;
 
 		if (unlikely(local_paca->dtl_ridx != be64_to_cpu(lp->dtl_idx)))
-			accumulate_stolen_time();
+			pseries_accumulate_stolen_time();
 	}
 #endif
 }

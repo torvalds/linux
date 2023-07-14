@@ -125,10 +125,10 @@ static inline void vm_events_fold_cpu(int cpu)
 #define count_vm_tlb_events(x, y) do { (void)(y); } while (0)
 #endif
 
-#ifdef CONFIG_DEBUG_VM_VMACACHE
-#define count_vm_vmacache_event(x) count_vm_event(x)
+#ifdef CONFIG_PER_VMA_LOCK_STATS
+#define count_vm_vma_lock_event(x) count_vm_event(x)
 #else
-#define count_vm_vmacache_event(x) do {} while (0)
+#define count_vm_vma_lock_event(x) do {} while (0)
 #endif
 
 #define __count_zid_vm_events(item, zid, delta) \

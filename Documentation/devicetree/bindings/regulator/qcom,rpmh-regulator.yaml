@@ -47,6 +47,7 @@ description: |
       For PM8350, smps1 - smps12, ldo1 - ldo10
       For PM8350C, smps1 - smps10, ldo1 - ldo13, bob
       For PM8450, smps1 - smps6, ldo1 - ldo4
+      For PM8550, smps1 - smps6, ldo1 - ldo17, bob1 - bob2
       For PM8998, smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
       For PMI8998, bob
       For PMR735A, smps1 - smps3, ldo1 - ldo7
@@ -70,10 +71,16 @@ properties:
       - qcom,pm8350-rpmh-regulators
       - qcom,pm8350c-rpmh-regulators
       - qcom,pm8450-rpmh-regulators
+      - qcom,pm8550-rpmh-regulators
+      - qcom,pm8550ve-rpmh-regulators
+      - qcom,pm8550vs-rpmh-regulators
       - qcom,pm8998-rpmh-regulators
+      - qcom,pmc8180-rpmh-regulators
+      - qcom,pmc8180c-rpmh-regulators
       - qcom,pmg1110-rpmh-regulators
       - qcom,pmi8998-rpmh-regulators
       - qcom,pmm8155au-rpmh-regulators
+      - qcom,pmm8654au-rpmh-regulators
       - qcom,pmr735a-rpmh-regulators
       - qcom,pmx55-rpmh-regulators
       - qcom,pmx65-rpmh-regulators
@@ -83,7 +90,7 @@ properties:
         RPMh resource name suffix used for the regulators found
         on this PMIC.
     $ref: /schemas/types.yaml#/definitions/string
-    enum: [a, b, c, d, e, f, h, k]
+    enum: [a, b, c, d, e, f, g, h, k]
 
   qcom,always-wait-for-ack:
     description: |
@@ -101,18 +108,18 @@ properties:
 
   bob:
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
     description: BOB regulator node.
     dependencies:
-      regulator-allow-set-load: ["regulator-allowed-modes"]
+      regulator-allow-set-load: [ regulator-allowed-modes ]
 
 patternProperties:
-  "^(smps|ldo|lvs)[0-9]+$":
+  "^(smps|ldo|lvs|bob)[0-9]+$":
     type: object
-    $ref: "regulator.yaml#"
+    $ref: regulator.yaml#
     description: smps/ldo regulator nodes(s).
     dependencies:
-      regulator-allow-set-load: ["regulator-allowed-modes"]
+      regulator-allow-set-load: [ regulator-allowed-modes ]
 
 required:
   - compatible
@@ -140,6 +147,8 @@ allOf:
         compatible:
           enum:
             - qcom,pm6150l-rpmh-regulators
+            - qcom,pm8150l-rpmh-regulators
+            - qcom,pmc8180c-rpmh-regulators
     then:
       properties:
         vdd-bob-supply:
@@ -228,6 +237,7 @@ allOf:
         compatible:
           enum:
             - qcom,pm8150-rpmh-regulators
+            - qcom,pmc8180-rpmh-regulators
             - qcom,pmm8155au-rpmh-regulators
     then:
       properties:
@@ -244,18 +254,17 @@ allOf:
       properties:
         compatible:
           enum:
-            - qcom,pm8150l-rpmh-regulators
+            - qcom,pmm8654au-rpmh-regulators
     then:
       properties:
-        vdd-bob-supply:
-          description: BOB regulator parent supply phandle.
-        vdd-l1-l8-supply: true
+        vdd-l1-supply: true
         vdd-l2-l3-supply: true
-        vdd-l4-l5-l6-supply: true
-        vdd-l7-l11-supply: true
-        vdd-l9-l10-supply: true
+        vdd-l4-supply: true
+        vdd-l5-supply: true
+        vdd-l6-l7-supply: true
+        vdd-l8-l9-supply: true
       patternProperties:
-        "^vdd-s[1-8]-supply$": true
+        "^vdd-s[1-9]-supply$": true
 
   - if:
       properties:
@@ -297,6 +306,34 @@ allOf:
     then:
       patternProperties:
         "^vdd-l[1-4]-supply$": true
+        "^vdd-s[1-6]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8550-rpmh-regulators
+    then:
+      properties:
+        vdd-l1-l4-l10-supply: true
+        vdd-l2-l13-l14-supply: true
+        vdd-l5-l16-supply: true
+        vdd-l6-l7-supply: true
+        vdd-l8-l9-supply: true
+      patternProperties:
+        "^vdd-l(3|1[1-7])-supply$": true
+        "^vdd-s[1-6]-supply$": true
+        "^vdd-bob[1-2]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pm8550ve-rpmh-regulators
+            - qcom,pm8550vs-rpmh-regulators
+    then:
+      patternProperties:
+        "^vdd-l[1-3]-supply$": true
         "^vdd-s[1-6]-supply$": true
 
   - if:
@@ -412,9 +449,8 @@ examples:
             regulator-min-microvolt = <1800000>;
             regulator-max-microvolt = <1800000>;
             regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
-            regulator-allowed-modes =
-                <RPMH_REGULATOR_MODE_LPM
-                 RPMH_REGULATOR_MODE_HPM>;
+            regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+                                       RPMH_REGULATOR_MODE_HPM>;
             regulator-allow-set-load;
         };
 
@@ -431,9 +467,8 @@ examples:
         bob {
             regulator-min-microvolt = <3312000>;
             regulator-max-microvolt = <3600000>;
-            regulator-allowed-modes =
-                <RPMH_REGULATOR_MODE_AUTO
-                 RPMH_REGULATOR_MODE_HPM>;
+            regulator-allowed-modes = <RPMH_REGULATOR_MODE_AUTO
+                                       RPMH_REGULATOR_MODE_HPM>;
             regulator-initial-mode = <RPMH_REGULATOR_MODE_AUTO>;
         };
     };

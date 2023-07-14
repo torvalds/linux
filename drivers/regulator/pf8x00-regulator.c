@@ -607,9 +607,10 @@ static struct i2c_driver pf8x00_regulator_driver = {
 	.id_table = pf8x00_i2c_id,
 	.driver = {
 		.name = "pf8x00",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = pf8x00_dt_ids,
 	},
-	.probe_new = pf8x00_i2c_probe,
+	.probe = pf8x00_i2c_probe,
 };
 module_i2c_driver(pf8x00_regulator_driver);
 

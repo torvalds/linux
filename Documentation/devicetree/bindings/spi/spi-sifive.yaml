@@ -12,7 +12,7 @@ maintainers:
   - Palmer Dabbelt <palmer@sifive.com>
 
 allOf:
-  - $ref: "spi-controller.yaml#"
+  - $ref: spi-controller.yaml#
 
 properties:
   compatible:
@@ -51,14 +51,14 @@ properties:
   sifive,fifo-depth:
     description:
       Depth of hardware queues; defaults to 8
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [8]
     default: 8
 
   sifive,max-bits-per-word:
     description:
       Maximum bits per word; defaults to 8
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3, 4, 5, 6, 7, 8]
     default: 8
 

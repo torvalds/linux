@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/mediatek,mt8188-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Functional Clock Controller for MT8188
+
+maintainers:
+  - Garmin Chang <garmin.chang@mediatek.com>
+
+description: |
+  The clock architecture in MediaTek like below
+  PLLs -->
+          dividers -->
+                      muxes
+                           -->
+                              clock gate
+
+  The devices provide clock gate control in different IP blocks.
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt8188-adsp-audio26m
+      - mediatek,mt8188-camsys
+      - mediatek,mt8188-camsys-rawa
+      - mediatek,mt8188-camsys-rawb
+      - mediatek,mt8188-camsys-yuva
+      - mediatek,mt8188-camsys-yuvb
+      - mediatek,mt8188-ccusys
+      - mediatek,mt8188-imgsys
+      - mediatek,mt8188-imgsys-wpe1
+      - mediatek,mt8188-imgsys-wpe2
+      - mediatek,mt8188-imgsys-wpe3
+      - mediatek,mt8188-imgsys1-dip-nr
+      - mediatek,mt8188-imgsys1-dip-top
+      - mediatek,mt8188-imp-iic-wrap-c
+      - mediatek,mt8188-imp-iic-wrap-en
+      - mediatek,mt8188-imp-iic-wrap-w
+      - mediatek,mt8188-ipesys
+      - mediatek,mt8188-mfgcfg
+      - mediatek,mt8188-vdecsys
+      - mediatek,mt8188-vdecsys-soc
+      - mediatek,mt8188-vencsys
+      - mediatek,mt8188-vppsys0
+      - mediatek,mt8188-vppsys1
+      - mediatek,mt8188-wpesys
+      - mediatek,mt8188-wpesys-vpp0
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@11283000 {
+        compatible = "mediatek,mt8188-imp-iic-wrap-c";
+        reg = <0x11283000 0x1000>;
+        #clock-cells = <1>;
+    };
+

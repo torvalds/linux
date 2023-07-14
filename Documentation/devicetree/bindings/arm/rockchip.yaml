@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/rockchip.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip platforms device tree bindings
+title: Rockchip platforms
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>
@@ -29,6 +29,36 @@ properties:
         items:
           - const: amarula,vyasa-rk3288
           - const: rockchip,rk3288
+
+      - description: Anbernic RG351M
+        items:
+          - const: anbernic,rg351m
+          - const: rockchip,rk3326
+
+      - description: Anbernic RG353P
+        items:
+          - const: anbernic,rg353p
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353PS
+        items:
+          - const: anbernic,rg353ps
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353V
+        items:
+          - const: anbernic,rg353v
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG353VS
+        items:
+          - const: anbernic,rg353vs
+          - const: rockchip,rk3566
+
+      - description: Anbernic RG503
+        items:
+          - const: anbernic,rg503
+          - const: rockchip,rk3566
 
       - description: Asus Tinker board
         items:
@@ -65,10 +95,38 @@ properties:
           - const: chipspark,rayeager-px2
           - const: rockchip,rk3066a
 
+      - description: Edgeble Neural Compute Module 2(Neu2) SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-2-io   # Edgeble Neural Compute Module 2 IO Board
+          - const: edgeble,neural-compute-module-2      # Edgeble Neural Compute Module 2 SoM
+          - const: rockchip,rv1126
+
+      - description: Edgeble Neural Compute Module 6(Neu6) Model A SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-6a-io  # Edgeble Neural Compute Module 6A IO Board
+          - const: edgeble,neural-compute-module-6a     # Edgeble Neural Compute Module 6A SoM
+          - const: rockchip,rk3588
+
+      - description: Edgeble Neural Compute Module 6(Neu6) Model B SoM based boards
+        items:
+          - const: edgeble,neural-compute-module-6b-io  # Edgeble Neural Compute Module 6B IO Board
+          - const: edgeble,neural-compute-module-6b     # Edgeble Neural Compute Module 6B SoM
+          - const: rockchip,rk3588
+
       - description: Elgin RV1108 R1
         items:
           - const: elgin,rv1108-r1
           - const: rockchip,rv1108
+
+      - description: EmbedFire LubanCat 1
+        items:
+          - const: embedfire,lubancat-1
+          - const: rockchip,rk3566
+
+      - description: EmbedFire LubanCat 2
+        items:
+          - const: embedfire,lubancat-2
+          - const: rockchip,rk3568
 
       - description: Engicam PX30.Core C.TOUCH 2.0
         items:
@@ -138,9 +196,12 @@ properties:
           - const: firefly,rk3566-roc-pc
           - const: rockchip,rk3566
 
-      - description: FriendlyElec NanoPi R2S
+      - description: FriendlyElec NanoPi R2 series boards
         items:
-          - const: friendlyarm,nanopi-r2s
+          - enum:
+              - friendlyarm,nanopi-r2c
+              - friendlyarm,nanopi-r2c-plus
+              - friendlyarm,nanopi-r2s
           - const: rockchip,rk3328
 
       - description: FriendlyElec NanoPi4 series boards
@@ -151,7 +212,15 @@ properties:
               - friendlyarm,nanopi-m4b
               - friendlyarm,nanopi-neo4
               - friendlyarm,nanopi-r4s
+              - friendlyarm,nanopi-r4s-enterprise
           - const: rockchip,rk3399
+
+      - description: FriendlyElec NanoPi R5 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopi-r5c
+              - friendlyarm,nanopi-r5s
+          - const: rockchip,rk3568
 
       - description: GeekBuying GeekBox
         items:
@@ -363,30 +432,55 @@ properties:
           - const: google,gru
           - const: rockchip,rk3399
 
-      - description: Google Scarlet - Innolux display (Acer Chromebook Tab 10)
+      - description: |
+          Google Scarlet - Innolux display (Acer Chromebook Tab 10 and more)
         items:
+          - const: google,scarlet-rev15-sku2
+          - const: google,scarlet-rev15-sku4
           - const: google,scarlet-rev15-sku6
           - const: google,scarlet-rev15
+          - const: google,scarlet-rev14-sku2
+          - const: google,scarlet-rev14-sku4
           - const: google,scarlet-rev14-sku6
           - const: google,scarlet-rev14
+          - const: google,scarlet-rev13-sku2
+          - const: google,scarlet-rev13-sku4
           - const: google,scarlet-rev13-sku6
           - const: google,scarlet-rev13
+          - const: google,scarlet-rev12-sku2
+          - const: google,scarlet-rev12-sku4
           - const: google,scarlet-rev12-sku6
           - const: google,scarlet-rev12
+          - const: google,scarlet-rev11-sku2
+          - const: google,scarlet-rev11-sku4
           - const: google,scarlet-rev11-sku6
           - const: google,scarlet-rev11
+          - const: google,scarlet-rev10-sku2
+          - const: google,scarlet-rev10-sku4
           - const: google,scarlet-rev10-sku6
           - const: google,scarlet-rev10
+          - const: google,scarlet-rev9-sku2
+          - const: google,scarlet-rev9-sku4
           - const: google,scarlet-rev9-sku6
           - const: google,scarlet-rev9
+          - const: google,scarlet-rev8-sku2
+          - const: google,scarlet-rev8-sku4
           - const: google,scarlet-rev8-sku6
           - const: google,scarlet-rev8
+          - const: google,scarlet-rev7-sku2
+          - const: google,scarlet-rev7-sku4
           - const: google,scarlet-rev7-sku6
           - const: google,scarlet-rev7
+          - const: google,scarlet-rev6-sku2
+          - const: google,scarlet-rev6-sku4
           - const: google,scarlet-rev6-sku6
           - const: google,scarlet-rev6
+          - const: google,scarlet-rev5-sku2
+          - const: google,scarlet-rev5-sku4
           - const: google,scarlet-rev5-sku6
           - const: google,scarlet-rev5
+          - const: google,scarlet-rev4-sku2
+          - const: google,scarlet-rev4-sku4
           - const: google,scarlet-rev4-sku6
           - const: google,scarlet-rev4
           - const: google,scarlet
@@ -432,10 +526,30 @@ properties:
           - const: hardkernel,rk3326-odroid-go2
           - const: rockchip,rk3326
 
+      - description: Hardkernel Odroid Go Advance Black Edition
+        items:
+          - const: hardkernel,rk3326-odroid-go2-v11
+          - const: rockchip,rk3326
+
+      - description: Hardkernel Odroid Go Super
+        items:
+          - const: hardkernel,rk3326-odroid-go3
+          - const: rockchip,rk3326
+
+      - description: Hardkernel Odroid M1
+        items:
+          - const: rockchip,rk3568-odroid-m1
+          - const: rockchip,rk3568
+
       - description: Hugsun X99 TV Box
         items:
           - const: hugsun,x99
           - const: rockchip,rk3399
+
+      - description: Indiedroid Nova SBC
+        items:
+          - const: indiedroid,nova
+          - const: rockchip,rk3588s
 
       - description: Khadas Edge series boards
         items:
@@ -444,6 +558,11 @@ properties:
               - khadas,edge-captain
               - khadas,edge-v
           - const: rockchip,rk3399
+
+      - description: Khadas Edge2 series boards
+        items:
+          - const: khadas,edge2
+          - const: rockchip,rk3588s
 
       - description: Kobol Helios64
         items:
@@ -460,6 +579,13 @@ properties:
           - const: leez,p710
           - const: rockchip,rk3399
 
+      - description: Lunzn FastRhino R66S / R68S
+        items:
+          - enum:
+              - lunzn,fastrhino-r66s
+              - lunzn,fastrhino-r68s
+          - const: rockchip,rk3568
+
       - description: mqmaker MiQi
         items:
           - const: mqmaker,miqi
@@ -469,6 +595,11 @@ properties:
         items:
           - const: netxeon,r89
           - const: rockchip,rk3288
+
+      - description: OPEN AI LAB EAIDK-610
+        items:
+          - const: openailab,eaidk-610
+          - const: rockchip,rk3399
 
       - description: Orange Pi RK3399 board
         items:
@@ -494,6 +625,11 @@ properties:
           - const: pine64,pinenote
           - const: rockchip,rk3566
 
+      - description: Pine64 PinePhonePro
+        items:
+          - const: pine64,pinephone-pro
+          - const: rockchip,rk3399
+
       - description: Pine64 Rock64
         items:
           - const: pine64,rock64
@@ -517,9 +653,25 @@ properties:
       - description: Pine64 SoQuartz SoM
         items:
           - enum:
+              - pine64,soquartz-blade
               - pine64,soquartz-cm4io
+              - pine64,soquartz-model-a
           - const: pine64,soquartz
           - const: rockchip,rk3566
+
+      - description: Radxa Compute Module 3(CM3)
+        items:
+          - enum:
+              - radxa,cm3-io
+          - const: radxa,cm3
+          - const: rockchip,rk3566
+
+      - description: Radxa CM3 Industrial
+        items:
+          - enum:
+              - radxa,e25
+          - const: radxa,cm3i
+          - const: rockchip,rk3568
 
       - description: Radxa Rock
         items:
@@ -535,6 +687,11 @@ properties:
               - radxa,rockpi4b-plus
               - radxa,rockpi4c
           - const: radxa,rockpi4
+          - const: rockchip,rk3399
+
+      - description: Radxa ROCK 4C+
+        items:
+          - const: radxa,rock-4c-plus
           - const: rockchip,rk3399
 
       - description: Radxa ROCK Pi E
@@ -568,6 +725,16 @@ properties:
         items:
           - const: radxa,rock3a
           - const: rockchip,rk3568
+
+      - description: Radxa ROCK 5 Model A
+        items:
+          - const: radxa,rock-5a
+          - const: rockchip,rk3588s
+
+      - description: Radxa ROCK 5 Model B
+        items:
+          - const: radxa,rock-5b
+          - const: rockchip,rk3588
 
       - description: Rikomagic MK808 v1
         items:
@@ -605,6 +772,11 @@ properties:
         items:
           - const: rockchip,rk3036-evb
           - const: rockchip,rk3036
+
+      - description: Rockchip RK3128 Evaluation board
+        items:
+          - const: rockchip,rk3128-evb
+          - const: rockchip,rk3128
 
       - description: Rockchip RK3228 Evaluation board
         items:
@@ -653,10 +825,20 @@ properties:
           - const: rockchip,rk3399-sapphire-excavator
           - const: rockchip,rk3399
 
+      - description: Rockchip RK3588 Evaluation board
+        items:
+          - const: rockchip,rk3588-evb1-v10
+          - const: rockchip,rk3588
+
       - description: Rockchip RV1108 Evaluation board
         items:
           - const: rockchip,rv1108-evb
           - const: rockchip,rv1108
+
+      - description: Theobroma Systems PX30-uQ7 with Haikou baseboard
+        items:
+          - const: tsd,px30-ringneck-haikou
+          - const: rockchip,px30
 
       - description: Theobroma Systems RK3368-uQ7 with Haikou baseboard
         items:
@@ -673,10 +855,22 @@ properties:
           - const: tronsmart,orion-r68-meta
           - const: rockchip,rk3368
 
+      - description: Xunlong Orange Pi R1 Plus / LTS
+        items:
+          - enum:
+              - xunlong,orangepi-r1-plus
+              - xunlong,orangepi-r1-plus-lts
+          - const: rockchip,rk3328
+
       - description: Zkmagic A95X Z2
         items:
           - const: zkmagic,a95x-z2
           - const: rockchip,rk3318
+
+      - description: Rockchip RK3566 BOX Evaluation Demo board
+        items:
+          - const: rockchip,rk3566-box-demo
+          - const: rockchip,rk3566
 
       - description: Rockchip RK3568 Evaluation board
         items:

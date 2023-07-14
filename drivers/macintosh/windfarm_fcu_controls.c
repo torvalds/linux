@@ -514,8 +514,7 @@ static int wf_fcu_init_chip(struct wf_fcu_priv *pv)
 	return 0;
 }
 
-static int wf_fcu_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int wf_fcu_probe(struct i2c_client *client)
 {
 	struct wf_fcu_priv *pv;
 

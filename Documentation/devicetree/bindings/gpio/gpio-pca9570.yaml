@@ -12,6 +12,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - dlg,slg7xl45106
       - nxp,pca9570
       - nxp,pca9571
 
@@ -23,6 +24,10 @@ properties:
   '#gpio-cells':
     const: 2
 
+  gpio-line-names:
+    minItems: 4
+    maxItems: 8
+
 required:
   - compatible
   - reg
@@ -33,7 +38,7 @@ additionalProperties: false
 
 examples:
   - |
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 

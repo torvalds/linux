@@ -4,6 +4,7 @@
 #include <linux/module.h>
 #include <net/ip.h>
 #include <linux/ipv6.h>
+#include <linux/icmp.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
 #include <net/udp.h>
@@ -20,6 +21,8 @@ MODULE_ALIAS("ipt_udp");
 MODULE_ALIAS("ipt_tcp");
 MODULE_ALIAS("ip6t_udp");
 MODULE_ALIAS("ip6t_tcp");
+MODULE_ALIAS("ipt_icmp");
+MODULE_ALIAS("ip6t_icmp6");
 
 /* Returns 1 if the port is matched by the range, 0 otherwise */
 static inline bool
@@ -161,6 +164,95 @@ static int udp_mt_check(const struct xt_mtchk_param *par)
 	return (udpinfo->invflags & ~XT_UDP_INV_MASK) ? -EINVAL : 0;
 }
 
+/* Returns 1 if the type and code is matched by the range, 0 otherwise */
+static bool type_code_in_range(u8 test_type, u8 min_code, u8 max_code,
+			       u8 type, u8 code)
+{
+	return type == test_type && code >= min_code && code <= max_code;
+}
+
+static bool icmp_type_code_match(u8 test_type, u8 min_code, u8 max_code,
+				 u8 type, u8 code, bool invert)
+{
+	return (test_type == 0xFF ||
+		type_code_in_range(test_type, min_code, max_code, type, code))
+		^ invert;
+}
+
+static bool icmp6_type_code_match(u8 test_type, u8 min_code, u8 max_code,
+				  u8 type, u8 code, bool invert)
+{
+	return type_code_in_range(test_type, min_code, max_code, type, code) ^ invert;
+}
+
+static bool
+icmp_match(const struct sk_buff *skb, struct xt_action_param *par)
+{
+	const struct icmphdr *ic;
+	struct icmphdr _icmph;
+	const struct ipt_icmp *icmpinfo = par->matchinfo;
+
+	/* Must not be a fragment. */
+	if (par->fragoff != 0)
+		return false;
+
+	ic = skb_header_pointer(skb, par->thoff, sizeof(_icmph), &_icmph);
+	if (!ic) {
+		/* We've been asked to examine this packet, and we
+		 * can't.  Hence, no choice but to drop.
+		 */
+		par->hotdrop = true;
+		return false;
+	}
+
+	return icmp_type_code_match(icmpinfo->type,
+				    icmpinfo->code[0],
+				    icmpinfo->code[1],
+				    ic->type, ic->code,
+				    !!(icmpinfo->invflags & IPT_ICMP_INV));
+}
+
+static bool
+icmp6_match(const struct sk_buff *skb, struct xt_action_param *par)
+{
+	const struct icmp6hdr *ic;
+	struct icmp6hdr _icmph;
+	const struct ip6t_icmp *icmpinfo = par->matchinfo;
+
+	/* Must not be a fragment. */
+	if (par->fragoff != 0)
+		return false;
+
+	ic = skb_header_pointer(skb, par->thoff, sizeof(_icmph), &_icmph);
+	if (!ic) {
+		/* We've been asked to examine this packet, and we
+		 * can't.  Hence, no choice but to drop.
+		 */
+		par->hotdrop = true;
+		return false;
+	}
+
+	return icmp6_type_code_match(icmpinfo->type,
+				     icmpinfo->code[0],
+				     icmpinfo->code[1],
+				     ic->icmp6_type, ic->icmp6_code,
+				     !!(icmpinfo->invflags & IP6T_ICMP_INV));
+}
+
+static int icmp_checkentry(const struct xt_mtchk_param *par)
+{
+	const struct ipt_icmp *icmpinfo = par->matchinfo;
+
+	return (icmpinfo->invflags & ~IPT_ICMP_INV) ? -EINVAL : 0;
+}
+
+static int icmp6_checkentry(const struct xt_mtchk_param *par)
+{
+	const struct ip6t_icmp *icmpinfo = par->matchinfo;
+
+	return (icmpinfo->invflags & ~IP6T_ICMP_INV) ? -EINVAL : 0;
+}
+
 static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcp",
@@ -215,6 +307,24 @@ static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 		.matchsize	= sizeof(struct xt_udp),
 		.proto		= IPPROTO_UDPLITE,
 		.me		= THIS_MODULE,
+	},
+	{
+		.name       = "icmp",
+		.match      = icmp_match,
+		.matchsize  = sizeof(struct ipt_icmp),
+		.checkentry = icmp_checkentry,
+		.proto      = IPPROTO_ICMP,
+		.family     = NFPROTO_IPV4,
+		.me         = THIS_MODULE,
+	},
+	{
+		.name       = "icmp6",
+		.match      = icmp6_match,
+		.matchsize  = sizeof(struct ip6t_icmp),
+		.checkentry = icmp6_checkentry,
+		.proto      = IPPROTO_ICMPV6,
+		.family     = NFPROTO_IPV6,
+		.me	    = THIS_MODULE,
 	},
 };
 

@@ -238,7 +238,7 @@ arxescsi_show_info(struct seq_file *m, struct Scsi_Host *host)
 	return 0;
 }
 
-static struct scsi_host_template arxescsi_template = {
+static const struct scsi_host_template arxescsi_template = {
 	.show_info			= arxescsi_show_info,
 	.name				= "ARXE SCSI card",
 	.info				= arxescsi_info,

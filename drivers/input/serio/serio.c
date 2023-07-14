@@ -7,9 +7,6 @@
  *  Copyright (c) 2003 Daniele Bellucci
  */
 
-/*
- */
-
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/stddef.h>
@@ -898,9 +895,9 @@ static int serio_bus_match(struct device *dev, struct device_driver *drv)
 			return err;					\
 	} while (0)
 
-static int serio_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int serio_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct serio *serio;
+	const struct serio *serio;
 
 	if (!dev)
 		return -ENODEV;

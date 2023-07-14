@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2016-2023 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -616,7 +616,8 @@ static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 }
 
 static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
-		struct dc_info_packet *infopacket)
+		struct dc_info_packet *infopacket,
+		bool freesync_on_desktop)
 {
 	unsigned int min_refresh;
 	unsigned int max_refresh;
@@ -649,9 +650,15 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 		infopacket->sb[6] |= 0x02;
 
 	/* PB6 = [Bit 2 = FreeSync Active] */
-	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
+	if (freesync_on_desktop) {
+		if (vrr->state != VRR_STATE_DISABLED &&
+			vrr->state != VRR_STATE_UNSUPPORTED)
+			infopacket->sb[6] |= 0x04;
+	} else {
+		if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
 			vrr->state == VRR_STATE_ACTIVE_FIXED)
-		infopacket->sb[6] |= 0x04;
+			infopacket->sb[6] |= 0x04;
+	}
 
 	min_refresh = (vrr->min_refresh_in_uhz + 500000) / 1000000;
 	max_refresh = (vrr->max_refresh_in_uhz + 500000) / 1000000;
@@ -688,10 +695,10 @@ static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
-		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
-
-		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
-			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+		if (app_tf != TRANSFER_FUNC_PQ2084) {
+			infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
+			if (app_tf == TRANSFER_FUNC_GAMMA_22)
+				infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
 }
@@ -898,51 +905,19 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 
 	infopacket->valid = true;
 }
-#ifndef TRIM_FSFT
-static void build_vrr_infopacket_fast_transport_data(
-	bool ftActive,
-	unsigned int ftOutputRate,
-	struct dc_info_packet *infopacket)
-{
-	/* PB9 : bit7 - fast transport Active*/
-	unsigned char activeBit = (ftActive) ? 1 << 7 : 0;
-
-	infopacket->sb[1] &= ~activeBit;  //clear bit
-	infopacket->sb[1] |=  activeBit;  //set bit
-
-	/* PB13 : Target Output Pixel Rate [kHz] - bits 7:0  */
-	infopacket->sb[13] = ftOutputRate & 0xFF;
-
-	/* PB14 : Target Output Pixel Rate [kHz] - bits 15:8  */
-	infopacket->sb[14] = (ftOutputRate >> 8) & 0xFF;
-
-	/* PB15 : Target Output Pixel Rate [kHz] - bits 23:16  */
-	infopacket->sb[15] = (ftOutputRate >> 16) & 0xFF;
-
-}
-#endif
 
 static void build_vrr_infopacket_v3(enum signal_type signal,
 		const struct mod_vrr_params *vrr,
-#ifndef TRIM_FSFT
-		bool ftActive, unsigned int ftOutputRate,
-#endif
 		enum color_transfer_func app_tf,
-		struct dc_info_packet *infopacket)
+		struct dc_info_packet *infopacket,
+		bool freesync_on_desktop)
 {
 	unsigned int payload_size = 0;
 
 	build_vrr_infopacket_header_v3(signal, infopacket, &payload_size);
-	build_vrr_infopacket_data_v3(vrr, infopacket);
+	build_vrr_infopacket_data_v3(vrr, infopacket, freesync_on_desktop);
 
 	build_vrr_infopacket_fs2_data(app_tf, infopacket);
-
-#ifndef TRIM_FSFT
-	build_vrr_infopacket_fast_transport_data(
-			ftActive,
-			ftOutputRate,
-			infopacket);
-#endif
 
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
 
@@ -985,18 +960,7 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 
 	switch (packet_type) {
 	case PACKET_TYPE_FS_V3:
-#ifndef TRIM_FSFT
-		// always populate with pixel rate.
-		build_vrr_infopacket_v3(
-				stream->signal, vrr,
-				stream->timing.flags.FAST_TRANSPORT,
-				(stream->timing.flags.FAST_TRANSPORT) ?
-						stream->timing.fast_transport_output_rate_100hz :
-						stream->timing.pix_clk_100hz,
-				app_tf, infopacket);
-#else
-		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket);
-#endif
+		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
 		break;
 	case PACKET_TYPE_FS_V2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket, stream->freesync_on_desktop);
@@ -1025,6 +989,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	unsigned int refresh_range = 0;
 	unsigned long long min_refresh_in_uhz = 0;
 	unsigned long long max_refresh_in_uhz = 0;
+	unsigned long long min_hardware_refresh_in_uhz = 0;
 
 	if (mod_freesync == NULL)
 		return;
@@ -1035,7 +1000,13 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 	nominal_field_rate_in_uhz =
 			mod_freesync_calc_nominal_field_rate(stream);
 
-	min_refresh_in_uhz = in_config->min_refresh_in_uhz;
+	if (stream->ctx->dc->caps.max_v_total != 0 && stream->timing.h_total != 0) {
+		min_hardware_refresh_in_uhz = div64_u64((stream->timing.pix_clk_100hz * 100000000ULL),
+			(stream->timing.h_total * stream->ctx->dc->caps.max_v_total));
+	}
+	/* Limit minimum refresh rate to what can be supported by hardware */
+	min_refresh_in_uhz = min_hardware_refresh_in_uhz > in_config->min_refresh_in_uhz ?
+		min_hardware_refresh_in_uhz : in_config->min_refresh_in_uhz;
 	max_refresh_in_uhz = in_config->max_refresh_in_uhz;
 
 	/* Full range may be larger than current video timing, so cap at nominal */
@@ -1165,7 +1136,6 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 {
 	struct core_freesync *core_freesync = NULL;
 	unsigned int last_render_time_in_us = 0;
-	unsigned int average_render_time_in_us = 0;
 
 	if (mod_freesync == NULL)
 		return;
@@ -1174,26 +1144,9 @@ void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
 
 	if (in_out_vrr->supported &&
 			in_out_vrr->state == VRR_STATE_ACTIVE_VARIABLE) {
-		unsigned int i = 0;
-		unsigned int oldest_index = plane->time.index + 1;
-
-		if (oldest_index >= DC_PLANE_UPDATE_TIMES_MAX)
-			oldest_index = 0;
 
 		last_render_time_in_us = curr_time_stamp_in_us -
 				plane->time.prev_update_time_in_us;
-
-		/* Sum off all entries except oldest one */
-		for (i = 0; i < DC_PLANE_UPDATE_TIMES_MAX; i++) {
-			average_render_time_in_us +=
-					plane->time.time_elapsed_in_us[i];
-		}
-		average_render_time_in_us -=
-				plane->time.time_elapsed_in_us[oldest_index];
-
-		/* Add render time for current flip */
-		average_render_time_in_us += last_render_time_in_us;
-		average_render_time_in_us /= DC_PLANE_UPDATE_TIMES_MAX;
 
 		if (in_out_vrr->btr.btr_enabled) {
 			apply_below_the_range(core_freesync,

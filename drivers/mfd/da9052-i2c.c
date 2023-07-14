@@ -126,9 +126,9 @@ static const struct of_device_id dialog_dt_ids[] = {
 };
 #endif
 
-static int da9052_i2c_probe(struct i2c_client *client,
-				       const struct i2c_device_id *id)
+static int da9052_i2c_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct da9052 *da9052;
 	int ret;
 
@@ -209,4 +209,3 @@ module_exit(da9052_i2c_exit);
 
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
 MODULE_DESCRIPTION("I2C driver for Dialog DA9052 PMIC");
-MODULE_LICENSE("GPL");

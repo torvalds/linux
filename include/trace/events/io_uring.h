@@ -360,19 +360,18 @@ TRACE_EVENT(io_uring_complete,
 );
 
 /**
- * io_uring_submit_sqe - called before submitting one SQE
+ * io_uring_submit_req - called before submitting a request
  *
  * @req:		pointer to a submitted request
- * @force_nonblock:	whether a context blocking or not
  *
  * Allows to track SQE submitting, to understand what was the source of it, SQ
  * thread or io_uring_enter call.
  */
-TRACE_EVENT(io_uring_submit_sqe,
+TRACE_EVENT(io_uring_submit_req,
 
-	TP_PROTO(struct io_kiocb *req, bool force_nonblock),
+	TP_PROTO(struct io_kiocb *req),
 
-	TP_ARGS(req, force_nonblock),
+	TP_ARGS(req),
 
 	TP_STRUCT__entry (
 		__field(  void *,		ctx		)
@@ -380,7 +379,6 @@ TRACE_EVENT(io_uring_submit_sqe,
 		__field(  unsigned long long,	user_data	)
 		__field(  u8,			opcode		)
 		__field(  u32,			flags		)
-		__field(  bool,			force_nonblock	)
 		__field(  bool,			sq_thread	)
 
 		__string( op_str, io_uring_get_opcode(req->opcode) )
@@ -392,16 +390,15 @@ TRACE_EVENT(io_uring_submit_sqe,
 		__entry->user_data	= req->cqe.user_data;
 		__entry->opcode		= req->opcode;
 		__entry->flags		= req->flags;
-		__entry->force_nonblock	= force_nonblock;
 		__entry->sq_thread	= req->ctx->flags & IORING_SETUP_SQPOLL;
 
 		__assign_str(op_str, io_uring_get_opcode(req->opcode));
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, flags 0x%x, "
-		  "non block %d, sq_thread %d", __entry->ctx, __entry->req,
+		  "sq_thread %d", __entry->ctx, __entry->req,
 		  __entry->user_data, __get_str(op_str),
-		  __entry->flags, __entry->force_nonblock, __entry->sq_thread)
+		  __entry->flags, __entry->sq_thread)
 );
 
 /*
@@ -653,6 +650,35 @@ TRACE_EVENT(io_uring_short_write,
 	TP_printk("ring %p, fpos %lld, wanted %lld, got %lld",
 			  __entry->ctx, __entry->fpos,
 			  __entry->wanted, __entry->got)
+);
+
+/*
+ * io_uring_local_work_run - ran ring local task work
+ *
+ * @tctx:		pointer to a io_uring_ctx
+ * @count:		how many functions it ran
+ * @loops:		how many loops it ran
+ *
+ */
+TRACE_EVENT(io_uring_local_work_run,
+
+	TP_PROTO(void *ctx, int count, unsigned int loops),
+
+	TP_ARGS(ctx, count, loops),
+
+	TP_STRUCT__entry (
+		__field(void *,		ctx	)
+		__field(int,		count	)
+		__field(unsigned int,	loops	)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->count		= count;
+		__entry->loops		= loops;
+	),
+
+	TP_printk("ring %p, count %d, loops %u", __entry->ctx, __entry->count, __entry->loops)
 );
 
 #endif /* _TRACE_IO_URING_H */

@@ -1163,13 +1163,11 @@ static int pl35x_nand_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pl35x_nand_remove(struct platform_device *pdev)
+static void pl35x_nand_remove(struct platform_device *pdev)
 {
 	struct pl35x_nandc *nfc = platform_get_drvdata(pdev);
 
 	pl35x_nand_chips_cleanup(nfc);
-
-	return 0;
 }
 
 static const struct of_device_id pl35x_nand_of_match[] = {
@@ -1180,7 +1178,7 @@ MODULE_DEVICE_TABLE(of, pl35x_nand_of_match);
 
 static struct platform_driver pl35x_nandc_driver = {
 	.probe = pl35x_nand_probe,
-	.remove	= pl35x_nand_remove,
+	.remove_new = pl35x_nand_remove,
 	.driver = {
 		.name = PL35X_NANDC_DRIVER_NAME,
 		.of_match_table = pl35x_nand_of_match,

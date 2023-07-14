@@ -18,10 +18,12 @@ if POWERCAP
 # Client driver configurations go here.
 config INTEL_RAPL_CORE
 	tristate
+	depends on PCI
+	select IOSF_MBI
 
 config INTEL_RAPL
 	tristate "Intel RAPL Support via MSR Interface"
-	depends on X86 && IOSF_MBI
+	depends on X86 && PCI
 	select INTEL_RAPL_CORE
 	help
 	  This enables support for the Intel Running Average Power Limit (RAPL)
@@ -33,6 +35,20 @@ config INTEL_RAPL
 	  controller, CPU core (Power Plane 0), graphics uncore (Power Plane
 	  1), etc.
 
+config INTEL_RAPL_TPMI
+	tristate "Intel RAPL Support via TPMI Interface"
+	depends on X86
+	depends on INTEL_TPMI
+	select INTEL_RAPL_CORE
+	help
+	  This enables support for the Intel Running Average Power Limit (RAPL)
+	  technology via TPMI interface, which allows power limits to be enforced
+	  and monitored.
+
+	  In RAPL, the platform level settings are divided into domains for
+	  fine grained control. These domains include processor package, DRAM
+	  controller, platform, etc.
+
 config IDLE_INJECT
 	bool "Idle injection framework"
 	depends on CPU_IDLE
@@ -43,6 +59,19 @@ config IDLE_INJECT
 	  CPUs for power capping. Idle period can be injected
 	  synchronously on a set of specified CPUs or alternatively
 	  on a per CPU basis.
+
+config ARM_SCMI_POWERCAP
+	tristate "ARM SCMI Powercap driver"
+	depends on ARM_SCMI_PROTOCOL
+	help
+	  This enables support for the ARM Powercap based on ARM SCMI
+	  Powercap protocol.
+
+	  ARM SCMI Powercap protocol allows power limits to be enforced
+	  and monitored against the SCMI Powercap domains advertised as
+	  available by the SCMI platform firmware.
+
+	  When compiled as module it will be called arm_scmi_powercap.ko.
 
 config DTPM
 	bool "Power capping for Dynamic Thermal Power Management (EXPERIMENTAL)"

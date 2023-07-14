@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -21,6 +21,7 @@
 #include "iwl-phy-db.h"
 #include "iwl-modparams.h"
 #include "iwl-nvm-parse.h"
+#include "time-sync.h"
 
 #define MVM_UCODE_ALIVE_TIMEOUT	(HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
@@ -122,6 +123,7 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	u32 version = iwl_fw_lookup_notif_ver(mvm->fw, LEGACY_GROUP,
 					      UCODE_ALIVE_NTFY, 0);
 	u32 i;
+
 
 	if (version == 6) {
 		struct iwl_alive_ntf_v6 *palive;
@@ -319,6 +321,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	static const u16 alive_cmd[] = { UCODE_ALIVE_NTFY };
 	bool run_in_rfkill =
 		ucode_type == IWL_UCODE_INIT || iwl_mvm_has_unified_ucode(mvm);
+	u8 count;
+	struct iwl_pc_data *pc_data;
 
 	if (ucode_type == IWL_UCODE_REGULAR &&
 	    iwl_fw_dbg_conf_usniffer(mvm->fw, FW_DBG_START_FROM_ALIVE) &&
@@ -354,6 +358,20 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	 */
 	ret = iwl_wait_notification(&mvm->notif_wait, &alive_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
+
+	if (mvm->trans->trans_cfg->device_family ==
+	    IWL_DEVICE_FAMILY_AX210) {
+		/* print these registers regardless of alive fail/success */
+		IWL_INFO(mvm, "WFPM_UMAC_PD_NOTIFICATION: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, WFPM_ARC1_PD_NOTIFICATION));
+		IWL_INFO(mvm, "WFPM_LMAC2_PD_NOTIFICATION: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, WFPM_LMAC2_PD_NOTIFICATION));
+		IWL_INFO(mvm, "WFPM_AUTH_KEY_0: 0x%x\n",
+			 iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG));
+		IWL_INFO(mvm, "CNVI_SCU_SEQ_DATA_DW9: 0x%x\n",
+			 iwl_read_prph(mvm->trans, CNVI_SCU_SEQ_DATA_DW9));
+	}
+
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
@@ -377,6 +395,14 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 
 		/* LMAC/UMAC PC info */
 		if (trans->trans_cfg->device_family >=
+					IWL_DEVICE_FAMILY_22000) {
+			pc_data = trans->dbg.pc_data;
+			for (count = 0; count < trans->dbg.num_pc;
+			     count++, pc_data++)
+				IWL_ERR(mvm, "%s: 0x%x\n",
+					pc_data->pc_name,
+					pc_data->pc_address);
+		} else if (trans->trans_cfg->device_family >=
 					IWL_DEVICE_FAMILY_9000) {
 			IWL_ERR(mvm, "UMAC PC: 0x%x\n",
 				iwl_read_umac_prph(trans,
@@ -390,7 +416,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 						UREG_LMAC2_CURRENT_PC));
 		}
 
-		if (ret == -ETIMEDOUT)
+		if (ret == -ETIMEDOUT && !mvm->pldr_sync)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_ALIVE_TIMEOUT);
 
@@ -404,7 +430,11 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		return -EIO;
 	}
 
-	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait);
+	/* if reached this point, Alive notification was received */
+	iwl_mei_alive_notif(true);
+
+	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait,
+			    &mvm->fw->ucode_capa);
 	if (ret) {
 		IWL_ERR(mvm, "Timeout waiting for PNVM load!\n");
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
@@ -446,6 +476,101 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	cfg80211_bss_flush(mvm->hw->wiphy);
 
 	return 0;
+}
+
+static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
+				    struct iwl_phy_specific_cfg *phy_filters)
+{
+#ifdef CONFIG_ACPI
+	*phy_filters = mvm->phy_filters;
+#endif /* CONFIG_ACPI */
+}
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_EFI)
+static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
+{
+	u8 cmd_ver;
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
+			      SAR_OFFSET_MAPPING_TABLE_CMD),
+		.flags = 0,
+		.data[0] = &mvm->fwrt.sgom_table,
+		.len[0] =  sizeof(mvm->fwrt.sgom_table),
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+
+	if (!mvm->fwrt.sgom_enabled) {
+		IWL_DEBUG_RADIO(mvm, "SGOM table is disabled\n");
+		return 0;
+	}
+
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
+					IWL_FW_CMD_VER_UNKNOWN);
+
+	if (cmd_ver != 2) {
+		IWL_DEBUG_RADIO(mvm, "command version is unsupported. version = %d\n",
+				cmd_ver);
+		return 0;
+	}
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret < 0)
+		IWL_ERR(mvm, "failed to send SAR_OFFSET_MAPPING_CMD (%d)\n", ret);
+
+	return ret;
+}
+#else
+
+static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
+{
+	return 0;
+}
+#endif
+
+static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
+{
+	u32 cmd_id = PHY_CONFIGURATION_CMD;
+	struct iwl_phy_cfg_cmd_v3 phy_cfg_cmd;
+	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
+	u8 cmd_ver;
+	size_t cmd_size;
+
+	if (iwl_mvm_has_unified_ucode(mvm) &&
+	    !mvm->trans->cfg->tx_with_siso_diversity)
+		return 0;
+
+	if (mvm->trans->cfg->tx_with_siso_diversity) {
+		/*
+		 * TODO: currently we don't set the antenna but letting the NIC
+		 * to decide which antenna to use. This should come from BIOS.
+		 */
+		phy_cfg_cmd.phy_cfg =
+			cpu_to_le32(FW_PHY_CFG_CHAIN_SAD_ENABLED);
+	}
+
+	/* Set parameters */
+	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
+
+	/* set flags extra PHY configuration flags from the device's cfg */
+	phy_cfg_cmd.phy_cfg |=
+		cpu_to_le32(mvm->trans->trans_cfg->extra_phy_cfg_flags);
+
+	phy_cfg_cmd.calib_control.event_trigger =
+		mvm->fw->default_calib[ucode_type].event_trigger;
+	phy_cfg_cmd.calib_control.flow_trigger =
+		mvm->fw->default_calib[ucode_type].flow_trigger;
+
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
+					IWL_FW_CMD_VER_UNKNOWN);
+	if (cmd_ver >= 3)
+		iwl_mvm_phy_filter_init(mvm, &phy_cfg_cmd.phy_specific_cfg);
+
+	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
+		       phy_cfg_cmd.phy_cfg);
+	cmd_size = (cmd_ver == 3) ? sizeof(struct iwl_phy_cfg_cmd_v3) :
+				    sizeof(struct iwl_phy_cfg_cmd_v1);
+	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, &phy_cfg_cmd);
 }
 
 static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
@@ -527,6 +652,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 		goto error;
 	}
 
+	ret = iwl_send_phy_cfg_cmd(mvm);
+	if (ret) {
+		IWL_ERR(mvm, "Failed to run PHY configuration: %d\n",
+			ret);
+		goto error;
+	}
+
 	/* We wait for the INIT complete notification */
 	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
 				    MVM_UCODE_ALIVE_TIMEOUT);
@@ -551,132 +683,6 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 error:
 	iwl_remove_notification(&mvm->notif_wait, &init_wait);
 	return ret;
-}
-
-#ifdef CONFIG_ACPI
-static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
-				    struct iwl_phy_specific_cfg *phy_filters)
-{
-	/*
-	 * TODO: read specific phy config from BIOS
-	 * ACPI table for this feature has not been defined yet,
-	 * so for now we use hardcoded values.
-	 */
-
-	if (IWL_MVM_PHY_FILTER_CHAIN_A) {
-		phy_filters->filter_cfg_chain_a =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_A);
-	}
-	if (IWL_MVM_PHY_FILTER_CHAIN_B) {
-		phy_filters->filter_cfg_chain_b =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_B);
-	}
-	if (IWL_MVM_PHY_FILTER_CHAIN_C) {
-		phy_filters->filter_cfg_chain_c =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_C);
-	}
-	if (IWL_MVM_PHY_FILTER_CHAIN_D) {
-		phy_filters->filter_cfg_chain_d =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_D);
-	}
-}
-#else /* CONFIG_ACPI */
-
-static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
-				    struct iwl_phy_specific_cfg *phy_filters)
-{
-}
-#endif /* CONFIG_ACPI */
-
-#if defined(CONFIG_ACPI) && defined(CONFIG_EFI)
-static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
-{
-	u8 cmd_ver;
-	int ret;
-	struct iwl_host_cmd cmd = {
-		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
-			      SAR_OFFSET_MAPPING_TABLE_CMD),
-		.flags = 0,
-		.data[0] = &mvm->fwrt.sgom_table,
-		.len[0] =  sizeof(mvm->fwrt.sgom_table),
-		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-	};
-
-	if (!mvm->fwrt.sgom_enabled) {
-		IWL_DEBUG_RADIO(mvm, "SGOM table is disabled\n");
-		return 0;
-	}
-
-	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
-					IWL_FW_CMD_VER_UNKNOWN);
-
-	if (cmd_ver != 2) {
-		IWL_DEBUG_RADIO(mvm, "command version is unsupported. version = %d\n",
-				cmd_ver);
-		return 0;
-	}
-
-	ret = iwl_mvm_send_cmd(mvm, &cmd);
-	if (ret < 0)
-		IWL_ERR(mvm, "failed to send SAR_OFFSET_MAPPING_CMD (%d)\n", ret);
-
-	return ret;
-}
-#else
-
-static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
-{
-	return 0;
-}
-#endif
-
-static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
-{
-	u32 cmd_id = PHY_CONFIGURATION_CMD;
-	struct iwl_phy_cfg_cmd_v3 phy_cfg_cmd;
-	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
-	struct iwl_phy_specific_cfg phy_filters = {};
-	u8 cmd_ver;
-	size_t cmd_size;
-
-	if (iwl_mvm_has_unified_ucode(mvm) &&
-	    !mvm->trans->cfg->tx_with_siso_diversity)
-		return 0;
-
-	if (mvm->trans->cfg->tx_with_siso_diversity) {
-		/*
-		 * TODO: currently we don't set the antenna but letting the NIC
-		 * to decide which antenna to use. This should come from BIOS.
-		 */
-		phy_cfg_cmd.phy_cfg =
-			cpu_to_le32(FW_PHY_CFG_CHAIN_SAD_ENABLED);
-	}
-
-	/* Set parameters */
-	phy_cfg_cmd.phy_cfg = cpu_to_le32(iwl_mvm_get_phy_config(mvm));
-
-	/* set flags extra PHY configuration flags from the device's cfg */
-	phy_cfg_cmd.phy_cfg |=
-		cpu_to_le32(mvm->trans->trans_cfg->extra_phy_cfg_flags);
-
-	phy_cfg_cmd.calib_control.event_trigger =
-		mvm->fw->default_calib[ucode_type].event_trigger;
-	phy_cfg_cmd.calib_control.flow_trigger =
-		mvm->fw->default_calib[ucode_type].flow_trigger;
-
-	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
-					IWL_FW_CMD_VER_UNKNOWN);
-	if (cmd_ver == 3) {
-		iwl_mvm_phy_filter_init(mvm, &phy_filters);
-		memcpy(&phy_cfg_cmd.phy_specific_cfg, &phy_filters,
-		       sizeof(struct iwl_phy_specific_cfg));
-	}
-
-	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
-		       phy_cfg_cmd.phy_cfg);
-	cmd_size = (cmd_ver == 3) ? sizeof(struct iwl_phy_cfg_cmd_v3) :
-				    sizeof(struct iwl_phy_cfg_cmd_v1);
-	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, &phy_cfg_cmd);
 }
 
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm)
@@ -1019,7 +1025,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 
 	ret = iwl_read_ppag_table(&mvm->fwrt, &cmd, &cmd_size);
 	/* Not supporting PPAG table is a valid scenario */
-	if(ret < 0)
+	if (ret < 0)
 		return 0;
 
 	IWL_DEBUG_RADIO(mvm, "Sending PER_PLATFORM_ANT_GAIN_CMD\n");
@@ -1055,7 +1061,7 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 	},
 		{ .ident = "LENOVO",
 	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Lenovo"),
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 		},
 	},
 	{ .ident = "DELL",
@@ -1063,10 +1069,39 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 		},
 	},
-
+	{ .ident = "MSFT",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+		},
+	},
+	{ .ident = "Acer",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		},
+	},
+	{ .ident = "ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		},
+	},
+	{ .ident = "MSI",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
+		},
+	},
+	{ .ident = "Honor",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
+		},
+	},
 	/* keep last */
 	{}
 };
+
+bool iwl_mvm_is_vendor_in_approved_list(void)
+{
+	return dmi_check_system(dmi_tas_approved_list);
+}
 
 static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
 {
@@ -1116,7 +1151,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (ret == 0)
 		return;
 
-	if (!dmi_check_system(dmi_tas_approved_list)) {
+	if (!iwl_mvm_is_vendor_in_approved_list()) {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR));
@@ -1130,6 +1165,10 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 					"Unable to add US/Canada to TAS block list, disabling TAS\n");
 			return;
 		}
+	} else {
+		IWL_DEBUG_RADIO(mvm,
+				"System vendor '%s' is in the approved list.\n",
+				dmi_get_system_info(DMI_SYS_VENDOR));
 	}
 
 	/* v4 is the same size as v3, so no need to differentiate here */
@@ -1310,6 +1349,8 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 				/* we don't fail if the table is not available */
 		}
 	}
+
+	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
 }
 #else /* CONFIG_ACPI */
 
@@ -1345,6 +1386,11 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
+}
+
+bool iwl_mvm_is_vendor_in_approved_list(void)
+{
+	return false;
 }
 
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
@@ -1456,6 +1502,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	struct ieee80211_channel *chan;
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband = NULL;
+	u32 sb_cfg;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1463,14 +1510,22 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		return ret;
 
+	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
+	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
+	if (mvm->pldr_sync && iwl_mei_pldr_req())
+		return -EBUSY;
+
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
-		if (ret != -ERFKILL)
+		if (ret != -ERFKILL && !mvm->pldr_sync)
 			iwl_fw_dbg_error_collect(&mvm->fwrt,
 						 FW_DBG_TRIGGER_DRIVER);
 		goto error;
 	}
+
+	/* FW loaded successfully */
+	mvm->pldr_sync = false;
 
 	iwl_get_shared_mem_conf(&mvm->fwrt);
 
@@ -1495,11 +1550,10 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_send_phy_db_data(mvm->phy_db);
 		if (ret)
 			goto error;
+		ret = iwl_send_phy_cfg_cmd(mvm);
+		if (ret)
+			goto error;
 	}
-
-	ret = iwl_send_phy_cfg_cmd(mvm);
-	if (ret)
-		goto error;
 
 	ret = iwl_mvm_send_bt_init_conf(mvm);
 	if (ret)
@@ -1511,6 +1565,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		if (ret)
 			goto error;
 	}
+
+	iwl_mvm_lari_cfg(mvm);
 
 	/* Init RSS configuration */
 	ret = iwl_configure_rxq(&mvm->fwrt);
@@ -1527,8 +1583,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	}
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
+	}
+
+	for (i = 0; i < IWL_MVM_FW_MAX_LINK_ID + 1; i++)
+		RCU_INIT_POINTER(mvm->link_id_to_link_conf[i], NULL);
+
+	memset(&mvm->fw_link_ids_map, 0, sizeof(mvm->fw_link_ids_map));
 
 	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
 
@@ -1547,7 +1610,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	 * internal aux station for all aux activities that don't
 	 * requires a dedicated data queue.
 	 */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
+	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		 /*
 		  * In old version the aux station uses mac id like other
 		  * station and not lmac id
@@ -1615,7 +1678,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	iwl_mvm_lari_cfg(mvm);
 	/*
 	 * RTNL is not taken during Ct-kill, but we don't need to scan/Tx
 	 * anyway, so don't init MCC.
@@ -1634,8 +1696,17 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
+
+		if (mvm->time_sync.active)
+			iwl_mvm_time_sync_config(mvm, mvm->time_sync.peer_addr,
+						 IWL_TIME_SYNC_PROTOCOL_TM |
+						 IWL_TIME_SYNC_PROTOCOL_FTM);
+	}
+
+	if (!mvm->ptp_data.ptp_clock)
+		iwl_mvm_ptp_init(mvm);
 
 	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
 		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
@@ -1657,13 +1728,12 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_tas_init(mvm);
 	iwl_mvm_leds_sync(mvm);
 
-	iwl_mvm_ftm_initiator_smooth_config(mvm);
-
-	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_RFIM_SUPPORT)) {
+	if (iwl_rfi_supported(mvm)) {
 		if (iwl_mvm_eval_dsm_rfi(mvm) == DSM_VALUE_RFI_ENABLE)
 			iwl_rfi_send_config_cmd(mvm, NULL);
 	}
+
+	iwl_mvm_mei_device_state(mvm, true);
 
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");
 	return 0;
@@ -1703,10 +1773,12 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 
 	/* init the fw <-> mac80211 STA mapping */
-	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++)
+	for (i = 0; i < mvm->fw->ucode_capa.num_stations; i++) {
 		RCU_INIT_POINTER(mvm->fw_id_to_mac_id[i], NULL);
+		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
+	}
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
+	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		/*
 		 * Add auxiliary station for scanning.
 		 * Newer versions of this command implies that the fw uses

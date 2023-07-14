@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/pinctrl/allwinner,sun4i-a10-pinctrl.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Pin Controller Device Tree Bindings
+title: Allwinner A10 Pin Controller
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
@@ -142,7 +142,7 @@ allOf:
   # boards are defining it at the moment so it would generate a lot of
   # warnings.
 
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
   - if:
       not:
         properties:

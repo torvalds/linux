@@ -145,36 +145,37 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 	}
 }
 
-static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
-	struct cx18_mdl *mdl)
+static void cx18_mdl_send_to_vb2(struct cx18_stream *s, struct cx18_mdl *mdl)
 {
-	struct cx18_videobuf_buffer *vb_buf;
+	struct cx18_vb2_buffer *vb_buf;
 	struct cx18_buffer *buf;
 	u8 *p;
 	u32 offset = 0;
 	int dispatch = 0;
+	unsigned long bsize;
 
 	if (mdl->bytesused == 0)
 		return;
 
-	/* Acquire a videobuf buffer, clone to and and release it */
+	/* Acquire a vb2 buffer, clone to and release it */
 	spin_lock(&s->vb_lock);
 	if (list_empty(&s->vb_capture))
 		goto out;
 
-	vb_buf = list_first_entry(&s->vb_capture, struct cx18_videobuf_buffer,
-		vb.queue);
+	vb_buf = list_first_entry(&s->vb_capture, struct cx18_vb2_buffer,
+				  list);
 
-	p = videobuf_to_vmalloc(&vb_buf->vb);
+	p = vb2_plane_vaddr(&vb_buf->vb.vb2_buf, 0);
 	if (!p)
 		goto out;
 
+	bsize = vb2_get_plane_payload(&vb_buf->vb.vb2_buf, 0);
 	offset = vb_buf->bytes_used;
 	list_for_each_entry(buf, &mdl->buf_list, list) {
 		if (buf->bytesused == 0)
 			break;
 
-		if ((offset + buf->bytesused) <= vb_buf->vb.bsize) {
+		if ((offset + buf->bytesused) <= bsize) {
 			memcpy(p + offset, buf->buf, buf->bytesused);
 			offset += buf->bytesused;
 			vb_buf->bytes_used += buf->bytesused;
@@ -188,10 +189,10 @@ static void cx18_mdl_send_to_videobuf(struct cx18_stream *s,
 	}
 
 	if (dispatch) {
-		vb_buf->vb.ts = ktime_get_ns();
-		list_del(&vb_buf->vb.queue);
-		vb_buf->vb.state = VIDEOBUF_DONE;
-		wake_up(&vb_buf->vb.done);
+		vb_buf->vb.vb2_buf.timestamp = ktime_get_ns();
+		vb_buf->vb.sequence = s->sequence++;
+		list_del(&vb_buf->list);
+		vb2_buffer_done(&vb_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	mod_timer(&s->vb_timeout, msecs_to_jiffies(2000) + jiffies);
@@ -304,7 +305,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 				cx18_enqueue(s, mdl, &s->q_full);
 			}
 		} else if (s->type == CX18_ENC_STREAM_TYPE_YUV) {
-			cx18_mdl_send_to_videobuf(s, mdl);
+			cx18_mdl_send_to_vb2(s, mdl);
 			cx18_enqueue(s, mdl, &s->q_free);
 		} else {
 			cx18_enqueue(s, mdl, &s->q_full);

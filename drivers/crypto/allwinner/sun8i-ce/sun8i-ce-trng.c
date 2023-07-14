@@ -7,7 +7,7 @@
  *
  * This file handle the TRNG
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi.rst
+ * You could find a link for the datasheet in Documentation/arch/arm/sunxi.rst
  */
 #include "sun8i-ce.h"
 #include <linux/dma-mapping.h>
@@ -54,11 +54,9 @@ static int sun8i_ce_trng_read(struct hwrng *rng, void *data, size_t max, bool wa
 		goto err_dst;
 	}
 
-	err = pm_runtime_get_sync(ce->dev);
-	if (err < 0) {
-		pm_runtime_put_noidle(ce->dev);
+	err = pm_runtime_resume_and_get(ce->dev);
+	if (err < 0)
 		goto err_pm;
-	}
 
 	mutex_lock(&ce->rnglock);
 	chan = &ce->chanlist[flow];
@@ -110,7 +108,6 @@ int sun8i_ce_hwrng_register(struct sun8i_ce_dev *ce)
 	}
 	ce->trng.name = "sun8i Crypto Engine TRNG";
 	ce->trng.read = sun8i_ce_trng_read;
-	ce->trng.quality = 1000;
 
 	ret = hwrng_register(&ce->trng);
 	if (ret)

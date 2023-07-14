@@ -150,7 +150,7 @@ static int rs5c_get_regs(struct rs5c372 *rs5c)
 	 * least 80219 chips; this works around that bug.
 	 *
 	 * The third method on the other hand doesn't work for the SMBus-only
-	 * configurations, so we use the the first method there, stripping off
+	 * configurations, so we use the first method there, stripping off
 	 * the extra register in the process.
 	 */
 	if (rs5c->smbus) {
@@ -791,8 +791,7 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 	return 0;
 }
 
-static int rs5c372_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int rs5c372_probe(struct i2c_client *client)
 {
 	int err = 0;
 	int smbus_mode = 0;
@@ -826,11 +825,13 @@ static int rs5c372_probe(struct i2c_client *client,
 
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
-	if (client->dev.of_node)
+	if (client->dev.of_node) {
 		rs5c372->type = (enum rtc_type)
 			of_device_get_match_data(&client->dev);
-	else
+	} else {
+		const struct i2c_device_id *id = i2c_match_id(rs5c372_id, client);
 		rs5c372->type = id->driver_data;
+	}
 
 	/* we read registers 0x0f then 0x00-0x0f; skip the first one */
 	rs5c372->regs = &rs5c372->buf[1];

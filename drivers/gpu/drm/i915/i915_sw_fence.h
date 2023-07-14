@@ -48,11 +48,15 @@ void __i915_sw_fence_init(struct i915_sw_fence *fence,
 do {								\
 	static struct lock_class_key __key;			\
 								\
+	BUILD_BUG_ON((fn) == NULL);				\
 	__i915_sw_fence_init((fence), (fn), #fence, &__key);	\
 } while (0)
 #else
 #define i915_sw_fence_init(fence, fn)				\
-	__i915_sw_fence_init((fence), (fn), NULL, NULL)
+do {								\
+	BUILD_BUG_ON((fn) == NULL);				\
+	__i915_sw_fence_init((fence), (fn), NULL, NULL);	\
+} while (0)
 #endif
 
 void i915_sw_fence_reinit(struct i915_sw_fence *fence);
@@ -87,7 +91,6 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 
 int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 				    struct dma_resv *resv,
-				    const struct dma_fence_ops *exclude,
 				    bool write,
 				    unsigned long timeout,
 				    gfp_t gfp);

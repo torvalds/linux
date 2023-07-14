@@ -1060,8 +1060,7 @@ done:
 	return ret;
 }
 
-static int mt9t112_probe(struct i2c_client *client,
-			 const struct i2c_device_id *did)
+static int mt9t112_probe(struct i2c_client *client)
 {
 	struct mt9t112_priv *priv;
 	int ret;

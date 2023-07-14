@@ -53,10 +53,10 @@ MODULE_DEVICE_TABLE(of, fxas21002c_i2c_of_match);
 static struct i2c_driver fxas21002c_i2c_driver = {
 	.driver = {
 		.name = "fxas21002c_i2c",
-		.pm = &fxas21002c_pm_ops,
+		.pm = pm_ptr(&fxas21002c_pm_ops),
 		.of_match_table = fxas21002c_i2c_of_match,
 	},
-	.probe_new	= fxas21002c_i2c_probe,
+	.probe		= fxas21002c_i2c_probe,
 	.remove		= fxas21002c_i2c_remove,
 	.id_table	= fxas21002c_i2c_id,
 };
@@ -65,3 +65,4 @@ module_i2c_driver(fxas21002c_i2c_driver);
 MODULE_AUTHOR("Rui Miguel Silva <rui.silva@linaro.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("FXAS21002C I2C Gyro driver");
+MODULE_IMPORT_NS(IIO_FXAS21002C);

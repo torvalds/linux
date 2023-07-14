@@ -119,7 +119,7 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 	hcd->rsrc_len = resource_size(&res);
 
 	irq = irq_of_parse_and_map(dn, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		dev_err(&op->dev, "%s: irq_of_parse_and_map failed\n",
 			__FILE__);
 		rv = -EBUSY;
@@ -151,13 +151,13 @@ static int ehci_hcd_ppc_of_probe(struct platform_device *op)
 		of_node_put(np);
 	}
 
-	if (of_get_property(dn, "big-endian", NULL)) {
+	if (of_property_read_bool(dn, "big-endian")) {
 		ehci->big_endian_mmio = 1;
 		ehci->big_endian_desc = 1;
 	}
-	if (of_get_property(dn, "big-endian-regs", NULL))
+	if (of_property_read_bool(dn, "big-endian-regs"))
 		ehci->big_endian_mmio = 1;
-	if (of_get_property(dn, "big-endian-desc", NULL))
+	if (of_property_read_bool(dn, "big-endian-desc"))
 		ehci->big_endian_desc = 1;
 
 	ehci->caps = hcd->regs;
@@ -184,7 +184,7 @@ err_irq:
 }
 
 
-static int ehci_hcd_ppc_of_remove(struct platform_device *op)
+static void ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(op);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
@@ -216,8 +216,6 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 		}
 	}
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 
@@ -232,7 +230,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 static struct platform_driver ehci_hcd_ppc_of_driver = {
 	.probe		= ehci_hcd_ppc_of_probe,
-	.remove		= ehci_hcd_ppc_of_remove,
+	.remove_new	= ehci_hcd_ppc_of_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ehci",

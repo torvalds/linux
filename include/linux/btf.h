@@ -6,6 +6,8 @@
 
 #include <linux/types.h>
 #include <linux/bpfptr.h>
+#include <linux/bsearch.h>
+#include <linux/btf_ids.h>
 #include <uapi/linux/btf.h>
 #include <uapi/linux/bpf.h>
 
@@ -16,41 +18,70 @@
 #define KF_ACQUIRE	(1 << 0) /* kfunc is an acquire function */
 #define KF_RELEASE	(1 << 1) /* kfunc is a release function */
 #define KF_RET_NULL	(1 << 2) /* kfunc returns a pointer that may be NULL */
-#define KF_KPTR_GET	(1 << 3) /* kfunc returns reference to a kptr */
-/* Trusted arguments are those which are meant to be referenced arguments with
- * unchanged offset. It is used to enforce that pointers obtained from acquire
- * kfuncs remain unmodified when being passed to helpers taking trusted args.
+/* Trusted arguments are those which are guaranteed to be valid when passed to
+ * the kfunc. It is used to enforce that pointers obtained from either acquire
+ * kfuncs, or from the main kernel on a tracepoint or struct_ops callback
+ * invocation, remain unmodified when being passed to helpers taking trusted
+ * args.
  *
- * Consider
- *	struct foo {
- *		int data;
- *		struct foo *next;
- *	};
+ * Consider, for example, the following new task tracepoint:
  *
- *	struct bar {
- *		int data;
- *		struct foo f;
- *	};
+ *	SEC("tp_btf/task_newtask")
+ *	int BPF_PROG(new_task_tp, struct task_struct *task, u64 clone_flags)
+ *	{
+ *		...
+ *	}
  *
- *	struct foo *f = alloc_foo(); // Acquire kfunc
- *	struct bar *b = alloc_bar(); // Acquire kfunc
+ * And the following kfunc:
  *
- * If a kfunc set_foo_data() wants to operate only on the allocated object, it
- * will set the KF_TRUSTED_ARGS flag, which will prevent unsafe usage like:
+ *	BTF_ID_FLAGS(func, bpf_task_acquire, KF_ACQUIRE | KF_TRUSTED_ARGS)
  *
- *	set_foo_data(f, 42);	   // Allowed
- *	set_foo_data(f->next, 42); // Rejected, non-referenced pointer
- *	set_foo_data(&f->next, 42);// Rejected, referenced, but wrong type
- *	set_foo_data(&b->f, 42);   // Rejected, referenced, but bad offset
+ * All invocations to the kfunc must pass the unmodified, unwalked task:
  *
- * In the final case, usually for the purposes of type matching, it is deduced
- * by looking at the type of the member at the offset, but due to the
- * requirement of trusted argument, this deduction will be strict and not done
- * for this case.
+ *	bpf_task_acquire(task);		    // Allowed
+ *	bpf_task_acquire(task->last_wakee); // Rejected, walked task
+ *
+ * Programs may also pass referenced tasks directly to the kfunc:
+ *
+ *	struct task_struct *acquired;
+ *
+ *	acquired = bpf_task_acquire(task);	// Allowed, same as above
+ *	bpf_task_acquire(acquired);		// Allowed
+ *	bpf_task_acquire(task);			// Allowed
+ *	bpf_task_acquire(acquired->last_wakee); // Rejected, walked task
+ *
+ * Programs may _not_, however, pass a task from an arbitrary fentry/fexit, or
+ * kprobe/kretprobe to the kfunc, as BPF cannot guarantee that all of these
+ * pointers are guaranteed to be safe. For example, the following BPF program
+ * would be rejected:
+ *
+ * SEC("kretprobe/free_task")
+ * int BPF_PROG(free_task_probe, struct task_struct *tsk)
+ * {
+ *	struct task_struct *acquired;
+ *
+ *	acquired = bpf_task_acquire(acquired); // Rejected, not a trusted pointer
+ *	bpf_task_release(acquired);
+ *
+ *	return 0;
+ * }
  */
 #define KF_TRUSTED_ARGS (1 << 4) /* kfunc only takes trusted pointer arguments */
 #define KF_SLEEPABLE    (1 << 5) /* kfunc may sleep */
 #define KF_DESTRUCTIVE  (1 << 6) /* kfunc performs destructive actions */
+#define KF_RCU          (1 << 7) /* kfunc takes either rcu or trusted pointer arguments */
+/* only one of KF_ITER_{NEW,NEXT,DESTROY} could be specified per kfunc */
+#define KF_ITER_NEW     (1 << 8) /* kfunc implements BPF iter constructor */
+#define KF_ITER_NEXT    (1 << 9) /* kfunc implements BPF iter next method */
+#define KF_ITER_DESTROY (1 << 10) /* kfunc implements BPF iter destructor */
+
+/*
+ * Tag marking a kernel function as a kfunc. This is meant to minimize the
+ * amount of copy-paste that kfunc authors have to include for correctness so
+ * as to avoid issues such as the compiler inlining or eliding either a static
+ * kfunc, or a global kfunc in an LTO build.
+ */
+#define __bpf_kfunc __used noinline
 
 /*
  * Return the name of the passed struct, if exists, or halt the build if for
@@ -67,10 +98,14 @@ struct btf_type;
 union bpf_attr;
 struct btf_show;
 struct btf_id_set;
+struct bpf_prog;
+
+typedef int (*btf_kfunc_filter_t)(const struct bpf_prog *prog, u32 kfunc_id);
 
 struct btf_kfunc_id_set {
 	struct module *owner;
 	struct btf_id_set8 *set;
+	btf_kfunc_filter_t filter;
 };
 
 struct btf_id_dtor_kfunc {
@@ -78,13 +113,21 @@ struct btf_id_dtor_kfunc {
 	u32 kfunc_btf_id;
 };
 
-typedef void (*btf_dtor_kfunc_t)(void *);
+struct btf_struct_meta {
+	u32 btf_id;
+	struct btf_record *record;
+};
+
+struct btf_struct_metas {
+	u32 cnt;
+	struct btf_struct_meta types[];
+};
 
 extern const struct file_operations btf_fops;
 
 void btf_get(struct btf *btf);
 void btf_put(struct btf *btf);
-int btf_new_fd(const union bpf_attr *attr, bpfptr_t uattr);
+int btf_new_fd(const union bpf_attr *attr, bpfptr_t uattr, u32 uattr_sz);
 struct btf *btf_get_by_fd(int fd);
 int btf_get_info_by_fd(const struct btf *btf,
 		       const union bpf_attr *attr,
@@ -163,8 +206,9 @@ bool btf_member_is_reg_int(const struct btf *btf, const struct btf_type *s,
 			   u32 expected_offset, u32 expected_size);
 int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t);
 int btf_find_timer(const struct btf *btf, const struct btf_type *t);
-struct bpf_map_value_off *btf_parse_kptrs(const struct btf *btf,
-					  const struct btf_type *t);
+struct btf_record *btf_parse_fields(const struct btf *btf, const struct btf_type *t,
+				    u32 field_mask, u32 value_size);
+int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec);
 bool btf_type_is_void(const struct btf_type *t);
 s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind);
 const struct btf_type *btf_type_skip_modifiers(const struct btf *btf,
@@ -201,6 +245,16 @@ static inline bool btf_type_is_int(const struct btf_type *t)
 static inline bool btf_type_is_small_int(const struct btf_type *t)
 {
 	return btf_type_is_int(t) && t->size <= sizeof(u64);
+}
+
+static inline u8 btf_int_encoding(const struct btf_type *t)
+{
+	return BTF_INT_ENCODING(*(u32 *)(t + 1));
+}
+
+static inline bool btf_type_is_signed_int(const struct btf_type *t)
+{
+	return btf_type_is_int(t) && (btf_int_encoding(t) & BTF_INT_SIGNED);
 }
 
 static inline bool btf_type_is_enum(const struct btf_type *t)
@@ -273,11 +327,6 @@ static inline u8 btf_int_offset(const struct btf_type *t)
 	return BTF_INT_OFFSET(*(u32 *)(t + 1));
 }
 
-static inline u8 btf_int_encoding(const struct btf_type *t)
-{
-	return BTF_INT_ENCODING(*(u32 *)(t + 1));
-}
-
 static inline bool btf_type_is_scalar(const struct btf_type *t)
 {
 	return btf_type_is_int(t) || btf_type_is_enum(t);
@@ -286,6 +335,11 @@ static inline bool btf_type_is_scalar(const struct btf_type *t)
 static inline bool btf_type_is_typedef(const struct btf_type *t)
 {
 	return BTF_INFO_KIND(t->info) == BTF_KIND_TYPEDEF;
+}
+
+static inline bool btf_type_is_volatile(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_VOLATILE;
 }
 
 static inline bool btf_type_is_func(const struct btf_type *t)
@@ -316,6 +370,16 @@ static inline bool btf_type_is_struct(const struct btf_type *t)
 	u8 kind = BTF_INFO_KIND(t->info);
 
 	return kind == BTF_KIND_STRUCT || kind == BTF_KIND_UNION;
+}
+
+static inline bool __btf_type_is_struct(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_STRUCT;
+}
+
+static inline bool btf_type_is_array(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_ARRAY;
 }
 
 static inline u16 btf_type_vlen(const struct btf_type *t)
@@ -402,21 +466,48 @@ static inline struct btf_param *btf_params(const struct btf_type *t)
 	return (struct btf_param *)(t + 1);
 }
 
-#ifdef CONFIG_BPF_SYSCALL
-struct bpf_prog;
+static inline int btf_id_cmp_func(const void *a, const void *b)
+{
+	const int *pa = a, *pb = b;
 
+	return *pa - *pb;
+}
+
+static inline bool btf_id_set_contains(const struct btf_id_set *set, u32 id)
+{
+	return bsearch(&id, set->ids, set->cnt, sizeof(u32), btf_id_cmp_func) != NULL;
+}
+
+static inline void *btf_id_set8_contains(const struct btf_id_set8 *set, u32 id)
+{
+	return bsearch(&id, set->pairs, set->cnt, sizeof(set->pairs[0]), btf_id_cmp_func);
+}
+
+struct bpf_verifier_log;
+
+#ifdef CONFIG_BPF_SYSCALL
 const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
 const char *btf_name_by_offset(const struct btf *btf, u32 offset);
 struct btf *btf_parse_vmlinux(void);
 struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog);
-u32 *btf_kfunc_id_set_contains(const struct btf *btf,
-			       enum bpf_prog_type prog_type,
-			       u32 kfunc_btf_id);
+u32 *btf_kfunc_id_set_contains(const struct btf *btf, u32 kfunc_btf_id,
+			       const struct bpf_prog *prog);
+u32 *btf_kfunc_is_modify_return(const struct btf *btf, u32 kfunc_btf_id,
+				const struct bpf_prog *prog);
 int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 			      const struct btf_kfunc_id_set *s);
+int register_btf_fmodret_id_set(const struct btf_kfunc_id_set *kset);
 s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id);
 int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors, u32 add_cnt,
 				struct module *owner);
+struct btf_struct_meta *btf_find_struct_meta(const struct btf *btf, u32 btf_id);
+const struct btf_member *
+btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+		      const struct btf_type *t, enum bpf_prog_type prog_type,
+		      int arg);
+int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type);
+bool btf_types_are_same(const struct btf *btf1, u32 id1,
+			const struct btf *btf2, u32 id2);
 #else
 static inline const struct btf_type *btf_type_by_id(const struct btf *btf,
 						    u32 type_id)
@@ -429,8 +520,9 @@ static inline const char *btf_name_by_offset(const struct btf *btf,
 	return NULL;
 }
 static inline u32 *btf_kfunc_id_set_contains(const struct btf *btf,
-					     enum bpf_prog_type prog_type,
-					     u32 kfunc_btf_id)
+					     u32 kfunc_btf_id,
+					     struct bpf_prog *prog)
+
 {
 	return NULL;
 }
@@ -447,6 +539,26 @@ static inline int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dt
 					      u32 add_cnt, struct module *owner)
 {
 	return 0;
+}
+static inline struct btf_struct_meta *btf_find_struct_meta(const struct btf *btf, u32 btf_id)
+{
+	return NULL;
+}
+static inline const struct btf_member *
+btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+		      const struct btf_type *t, enum bpf_prog_type prog_type,
+		      int arg)
+{
+	return NULL;
+}
+static inline int get_kern_ctx_btf_id(struct bpf_verifier_log *log,
+				      enum bpf_prog_type prog_type) {
+	return -EINVAL;
+}
+static inline bool btf_types_are_same(const struct btf *btf1, u32 id1,
+				      const struct btf *btf2, u32 id2)
+{
+	return false;
 }
 #endif
 

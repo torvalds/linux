@@ -23,7 +23,7 @@ description: |
   https://static.dev.sifive.com/FU540-C000-v1.0.pdf
 
 allOf:
-  - $ref: "dma-controller.yaml#"
+  - $ref: dma-controller.yaml#
 
 properties:
   compatible:

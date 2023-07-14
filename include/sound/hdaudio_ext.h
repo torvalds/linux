@@ -11,9 +11,6 @@ int snd_hdac_ext_bus_init(struct hdac_bus *bus, struct device *dev,
 		      const struct hdac_ext_bus_ops *ext_ops);
 
 void snd_hdac_ext_bus_exit(struct hdac_bus *bus);
-int snd_hdac_ext_bus_device_init(struct hdac_bus *bus, int addr,
-				struct hdac_device *hdev, int type);
-void snd_hdac_ext_bus_device_exit(struct hdac_device *hdev);
 void snd_hdac_ext_bus_device_remove(struct hdac_bus *bus);
 
 #define HDA_CODEC_REV_EXT_ENTRY(_vid, _rev, _name, drv_data) \
@@ -26,13 +23,10 @@ void snd_hdac_ext_bus_device_remove(struct hdac_bus *bus);
 void snd_hdac_ext_bus_ppcap_enable(struct hdac_bus *chip, bool enable);
 void snd_hdac_ext_bus_ppcap_int_enable(struct hdac_bus *chip, bool enable);
 
-void snd_hdac_ext_stream_spbcap_enable(struct hdac_bus *chip,
-				 bool enable, int index);
-
 int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_bus *bus);
-struct hdac_ext_link *snd_hdac_ext_bus_link_at(struct hdac_bus *bus, int addr);
-struct hdac_ext_link *snd_hdac_ext_bus_get_link(struct hdac_bus *bus,
-						const char *codec_name);
+struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_addr(struct hdac_bus *bus, int addr);
+struct hdac_ext_link *snd_hdac_ext_bus_get_hlink_by_name(struct hdac_bus *bus,
+							 const char *codec_name);
 
 enum hdac_ext_stream_type {
 	HDAC_EXT_STREAM_TYPE_COUPLED = 0,
@@ -46,11 +40,6 @@ enum hdac_ext_stream_type {
  * @hstream: hdac_stream
  * @pphc_addr: processing pipe host stream pointer
  * @pplc_addr: processing pipe link stream pointer
- * @spib_addr: software position in buffers stream pointer
- * @fifo_addr: software position Max fifos stream pointer
- * @dpibr_addr: DMA position in buffer resume pointer
- * @dpib: DMA position in buffer
- * @lpib: Linear position in buffer
  * @decoupled: stream host and link is decoupled
  * @link_locked: link is locked
  * @link_prepared: link is prepared
@@ -62,13 +51,11 @@ struct hdac_ext_stream {
 	void __iomem *pphc_addr;
 	void __iomem *pplc_addr;
 
-	void __iomem *spib_addr;
-	void __iomem *fifo_addr;
+	u32 pphcllpl;
+	u32 pphcllpu;
+	u32 pphcldpl;
+	u32 pphcldpu;
 
-	void __iomem *dpibr_addr;
-
-	u32 dpib;
-	u32 lpib;
 	bool decoupled:1;
 	bool link_locked:1;
 	bool link_prepared;
@@ -80,36 +67,25 @@ struct hdac_ext_stream {
 #define stream_to_hdac_ext_stream(s) \
 	container_of(s, struct hdac_ext_stream, hstream)
 
-void snd_hdac_ext_stream_init(struct hdac_bus *bus,
-			      struct hdac_ext_stream *hext_stream, int idx,
-			      int direction, int tag);
 int snd_hdac_ext_stream_init_all(struct hdac_bus *bus, int start_idx,
 				 int num_stream, int dir);
-void snd_hdac_stream_free_all(struct hdac_bus *bus);
-void snd_hdac_link_free_all(struct hdac_bus *bus);
+void snd_hdac_ext_stream_free_all(struct hdac_bus *bus);
+void snd_hdac_ext_link_free_all(struct hdac_bus *bus);
 struct hdac_ext_stream *snd_hdac_ext_stream_assign(struct hdac_bus *bus,
 					   struct snd_pcm_substream *substream,
 					   int type);
 void snd_hdac_ext_stream_release(struct hdac_ext_stream *hext_stream, int type);
+struct hdac_ext_stream *snd_hdac_ext_cstream_assign(struct hdac_bus *bus,
+						    struct snd_compr_stream *cstream);
 void snd_hdac_ext_stream_decouple_locked(struct hdac_bus *bus,
 					 struct hdac_ext_stream *hext_stream, bool decouple);
 void snd_hdac_ext_stream_decouple(struct hdac_bus *bus,
 				struct hdac_ext_stream *azx_dev, bool decouple);
 
-int snd_hdac_ext_stream_set_spib(struct hdac_bus *bus,
-				 struct hdac_ext_stream *hext_stream, u32 value);
-int snd_hdac_ext_stream_get_spbmaxfifo(struct hdac_bus *bus,
-				       struct hdac_ext_stream *hext_stream);
-void snd_hdac_ext_stream_drsm_enable(struct hdac_bus *bus,
-				bool enable, int index);
-int snd_hdac_ext_stream_set_dpibr(struct hdac_bus *bus,
-				struct hdac_ext_stream *hext_stream, u32 value);
-int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *hext_stream, u32 value);
-
-void snd_hdac_ext_link_stream_start(struct hdac_ext_stream *hext_stream);
-void snd_hdac_ext_link_stream_clear(struct hdac_ext_stream *hext_stream);
-void snd_hdac_ext_link_stream_reset(struct hdac_ext_stream *hext_stream);
-int snd_hdac_ext_link_stream_setup(struct hdac_ext_stream *hext_stream, int fmt);
+void snd_hdac_ext_stream_start(struct hdac_ext_stream *hext_stream);
+void snd_hdac_ext_stream_clear(struct hdac_ext_stream *hext_stream);
+void snd_hdac_ext_stream_reset(struct hdac_ext_stream *hext_stream);
+int snd_hdac_ext_stream_setup(struct hdac_ext_stream *hext_stream, int fmt);
 
 struct hdac_ext_link {
 	struct hdac_bus *bus;
@@ -123,28 +99,19 @@ struct hdac_ext_link {
 	struct list_head list;
 };
 
-int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *link);
-int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_power_up(struct hdac_ext_link *hlink);
+int snd_hdac_ext_bus_link_power_down(struct hdac_ext_link *hlink);
 int snd_hdac_ext_bus_link_power_up_all(struct hdac_bus *bus);
 int snd_hdac_ext_bus_link_power_down_all(struct hdac_bus *bus);
-void snd_hdac_ext_link_set_stream_id(struct hdac_ext_link *link,
-				 int stream);
-void snd_hdac_ext_link_clear_stream_id(struct hdac_ext_link *link,
-				 int stream);
+void snd_hdac_ext_bus_link_set_stream_id(struct hdac_ext_link *hlink,
+					 int stream);
+void snd_hdac_ext_bus_link_clear_stream_id(struct hdac_ext_link *hlink,
+					   int stream);
 
-int snd_hdac_ext_bus_link_get(struct hdac_bus *bus, struct hdac_ext_link *link);
-int snd_hdac_ext_bus_link_put(struct hdac_bus *bus, struct hdac_ext_link *link);
+int snd_hdac_ext_bus_link_get(struct hdac_bus *bus, struct hdac_ext_link *hlink);
+int snd_hdac_ext_bus_link_put(struct hdac_bus *bus, struct hdac_ext_link *hlink);
 
 void snd_hdac_ext_bus_link_power(struct hdac_device *codec, bool enable);
-
-/* update register macro */
-#define snd_hdac_updatel(addr, reg, mask, val)		\
-	writel(((readl(addr + reg) & ~(mask)) | (val)), \
-		addr + reg)
-
-#define snd_hdac_updatew(addr, reg, mask, val)		\
-	writew(((readw(addr + reg) & ~(mask)) | (val)), \
-		addr + reg)
 
 #define snd_hdac_adsp_writeb(chip, reg, value) \
 	snd_hdac_reg_writeb(chip, (chip)->dsp_ba + (reg), value)
@@ -187,12 +154,6 @@ void snd_hdac_ext_bus_link_power(struct hdac_device *codec, bool enable);
 			   delay_us, timeout_us)
 #define snd_hdac_adsp_readq_poll(chip, reg, val, cond, delay_us, timeout_us) \
 	readq_poll_timeout((chip)->dsp_ba + (reg), val, cond, \
-			   delay_us, timeout_us)
-#define snd_hdac_stream_readb_poll(strm, reg, val, cond, delay_us, timeout_us) \
-	readb_poll_timeout((strm)->sd_addr + AZX_REG_ ## reg, val, cond, \
-			   delay_us, timeout_us)
-#define snd_hdac_stream_readl_poll(strm, reg, val, cond, delay_us, timeout_us) \
-	readl_poll_timeout((strm)->sd_addr + AZX_REG_ ## reg, val, cond, \
 			   delay_us, timeout_us)
 
 struct hdac_ext_device;

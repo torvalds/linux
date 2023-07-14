@@ -417,7 +417,7 @@ static int NCR5380_init(struct Scsi_Host *instance, int flags)
 	INIT_WORK(&hostdata->main_task, NCR5380_main);
 	hostdata->work_q = alloc_workqueue("ncr5380_%d",
 	                        WQ_UNBOUND | WQ_MEM_RECLAIM,
-	                        1, instance->host_no);
+				0, instance->host_no);
 	if (!hostdata->work_q)
 		return -ENOMEM;
 
@@ -858,7 +858,7 @@ static void NCR5380_dma_complete(struct Scsi_Host *instance)
  * latency, but a bus reset will reset chip logic. Checking for parity error
  * is unnecessary because that interrupt is never enabled. A Loss of BSY
  * condition will clear DMA Mode. We can tell when this occurs because the
- * the Busy Monitor interrupt is enabled together with DMA Mode.
+ * Busy Monitor interrupt is enabled together with DMA Mode.
  */
 
 static irqreturn_t __maybe_unused NCR5380_intr(int irq, void *dev_id)

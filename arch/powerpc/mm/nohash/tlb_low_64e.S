@@ -61,7 +61,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	ld	r14,PACAPGD(r13)
 	std	r15,EX_TLB_R15(r12)
 	std	r10,EX_TLB_CR(r12)
-#ifdef CONFIG_PPC_FSL_BOOK3E
 START_BTB_FLUSH_SECTION
 	mfspr r11, SPRN_SRR1
 	andi. r10,r11,MSR_PR
@@ -70,14 +69,11 @@ START_BTB_FLUSH_SECTION
 1:
 END_BTB_FLUSH_SECTION
 	std	r7,EX_TLB_R7(r12)
-#endif
 .endm
 
 .macro tlb_epilog_bolted
 	ld	r14,EX_TLB_CR(r12)
-#ifdef CONFIG_PPC_FSL_BOOK3E
 	ld	r7,EX_TLB_R7(r12)
-#endif
 	ld	r10,EX_TLB_R10(r12)
 	ld	r11,EX_TLB_R11(r12)
 	ld	r13,EX_TLB_R13(r12)
@@ -248,7 +244,6 @@ itlb_miss_fault_bolted:
 	beq	tlb_miss_user_bolted
 	b	itlb_miss_kernel_bolted
 
-#ifdef CONFIG_PPC_FSL_BOOK3E
 /*
  * TLB miss handling for e6500 and derivatives, using hardware tablewalk.
  *
@@ -356,7 +351,7 @@ END_FTR_SECTION_NESTED(CPU_FTR_EMB_HV,CPU_FTR_EMB_HV,532)
 
 	mfspr	r15,SPRN_MAS2
 	isync
-	tlbilxva 0,r15
+	PPC_TLBILX_VA(0,R15)
 	isync
 
 	mtspr	SPRN_MAS6,r10
@@ -515,7 +510,6 @@ dtlb_miss_fault_e6500:
 itlb_miss_fault_e6500:
 	tlb_epilog_bolted
 	b	exc_instruction_storage_book3e
-#endif /* CONFIG_PPC_FSL_BOOK3E */
 
 /**********************************************************************
  *                                                                    *
@@ -1124,8 +1118,8 @@ tlb_load_linear:
 	 * we only use 1G pages for now. That might have to be changed in a
 	 * final implementation, especially when dealing with hypervisors
 	 */
-	ld	r11,PACATOC(r13)
-	ld	r11,linear_map_top@got(r11)
+	__LOAD_PACA_TOC(r11)
+	LOAD_REG_ADDR_ALTTOC(r11, r11, linear_map_top)
 	ld	r10,0(r11)
 	tovirt(10,10)
 	cmpld	cr0,r16,r10

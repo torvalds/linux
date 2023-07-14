@@ -8,19 +8,26 @@
 #include "builtin.h"
 
 #include "util/data.h"
+#include "util/evlist.h"
+#include "util/evsel.h"
+#include "util/header.h"
 #include "util/kwork.h"
 #include "util/debug.h"
+#include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/string2.h"
 #include "util/callchain.h"
 #include "util/evsel_fprintf.h"
+#include "util/util.h"
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
+#include <traceevent/event-parse.h>
 
 #include <errno.h>
 #include <inttypes.h>
+#include <signal.h>
 #include <linux/err.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
@@ -216,7 +223,7 @@ static struct kwork_atom *atom_new(struct perf_kwork *kwork,
 	list_add_tail(&page->list, &kwork->atom_page_list);
 
 found_atom:
-	set_bit(i, page->bitmap);
+	__set_bit(i, page->bitmap);
 	atom->time = sample->time;
 	atom->prev = NULL;
 	atom->page_addr = page;
@@ -229,8 +236,8 @@ static void atom_free(struct kwork_atom *atom)
 	if (atom->prev != NULL)
 		atom_free(atom->prev);
 
-	clear_bit(atom->bit_inpage,
-		  ((struct kwork_atom_page *)atom->page_addr)->bitmap);
+	__clear_bit(atom->bit_inpage,
+		    ((struct kwork_atom_page *)atom->page_addr)->bitmap);
 }
 
 static void atom_del(struct kwork_atom *atom)
@@ -582,7 +589,7 @@ static void timehist_save_callchain(struct perf_kwork *kwork,
 	struct symbol *sym;
 	struct thread *thread;
 	struct callchain_cursor_node *node;
-	struct callchain_cursor *cursor = &callchain_cursor;
+	struct callchain_cursor *cursor;
 
 	if (!kwork->show_callchain || sample->callchain == NULL)
 		return;
@@ -593,6 +600,8 @@ static void timehist_save_callchain(struct perf_kwork *kwork,
 		pr_debug("Failed to get thread for pid %d\n", sample->pid);
 		return;
 	}
+
+	cursor = get_tls_callchain_cursor();
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
 				      NULL, NULL, kwork->max_stack + 2) != 0) {
@@ -679,12 +688,18 @@ static void timehist_print_event(struct perf_kwork *kwork,
 	 * callchain
 	 */
 	if (kwork->show_callchain) {
+		struct callchain_cursor *cursor = get_tls_callchain_cursor();
+
+		if (cursor == NULL)
+			return;
+
 		printf(" ");
+
 		sample__fprintf_sym(sample, al, 0,
 				    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
 				    EVSEL__PRINT_CALLCHAIN_ARROW |
 				    EVSEL__PRINT_SKIP_IGNORED,
-				    &callchain_cursor, symbol_conf.bt_stop_list,
+				    cursor, symbol_conf.bt_stop_list,
 				    stdout);
 	}
 
@@ -732,17 +747,22 @@ static int timehist_exit_event(struct perf_kwork *kwork,
 	struct kwork_atom *atom = NULL;
 	struct kwork_work *work = NULL;
 	struct addr_location al;
+	int ret = 0;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_debug("Problem processing event, skipping it\n");
-		return -1;
+		ret = -1;
+		goto out;
 	}
 
 	atom = work_pop_atom(kwork, class, KWORK_TRACE_EXIT,
 			     KWORK_TRACE_ENTRY, evsel, sample,
 			     machine, &work);
-	if (work == NULL)
-		return -1;
+	if (work == NULL) {
+		ret = -1;
+		goto out;
+	}
 
 	if (atom != NULL) {
 		work->nr_atoms++;
@@ -750,7 +770,9 @@ static int timehist_exit_event(struct perf_kwork *kwork,
 		atom_del(atom);
 	}
 
-	return 0;
+out:
+	addr_location__exit(&al);
+	return ret;
 }
 
 static struct kwork_class kwork_irq;

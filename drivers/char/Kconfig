@@ -34,6 +34,7 @@ config TTY_PRINTK_LEVEL
 config PRINTER
 	tristate "Parallel printer support"
 	depends on PARPORT
+	depends on HAS_IOPORT || PARPORT_NOT_PC
 	help
 	  If you intend to attach a printer to the parallel port of your Linux
 	  box (as opposed to using a serial printer; if the connector at the
@@ -247,8 +248,6 @@ config SONYPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.
 
-source "drivers/char/pcmcia/Kconfig"
-
 config MWAVE
 	tristate "ACP Modem (Mwave) support"
 	depends on X86 && TTY
@@ -342,7 +341,7 @@ config NVRAM
 
 config DEVPORT
 	bool "/dev/port character device"
-	depends on ISA || PCI
+	depends on HAS_IOPORT
 	default y
 	help
 	  Say Y here if you want to support the /dev/port device. The /dev/port
@@ -422,41 +421,5 @@ config ADI
 	  This feature is also known as MCD (Memory Corruption Detection)
 	  and SSM (Silicon Secured Memory).  Intended consumers of this
 	  driver include crash and makedumpfile.
-
-config RANDOM_TRUST_CPU
-	bool "Initialize RNG using CPU RNG instructions"
-	default y
-	help
-	  Initialize the RNG using random numbers supplied by the CPU's
-	  RNG instructions (e.g. RDRAND), if supported and available. These
-	  random numbers are never used directly, but are rather hashed into
-	  the main input pool, and this happens regardless of whether or not
-	  this option is enabled. Instead, this option controls whether the
-	  they are credited and hence can initialize the RNG. Additionally,
-	  other sources of randomness are always used, regardless of this
-	  setting.  Enabling this implies trusting that the CPU can supply high
-	  quality and non-backdoored random numbers.
-
-	  Say Y here unless you have reason to mistrust your CPU or believe
-	  its RNG facilities may be faulty. This may also be configured at
-	  boot time with "random.trust_cpu=on/off".
-
-config RANDOM_TRUST_BOOTLOADER
-	bool "Initialize RNG using bootloader-supplied seed"
-	default y
-	help
-	  Initialize the RNG using a seed supplied by the bootloader or boot
-	  environment (e.g. EFI or a bootloader-generated device tree). This
-	  seed is not used directly, but is rather hashed into the main input
-	  pool, and this happens regardless of whether or not this option is
-	  enabled. Instead, this option controls whether the seed is credited
-	  and hence can initialize the RNG. Additionally, other sources of
-	  randomness are always used, regardless of this setting. Enabling
-	  this implies trusting that the bootloader can supply high quality and
-	  non-backdoored seeds.
-
-	  Say Y here unless you have reason to mistrust your bootloader or
-	  believe its RNG facilities may be faulty. This may also be configured
-	  at boot time with "random.trust_bootloader=on/off".
 
 endmenu

@@ -52,6 +52,12 @@
 #define USB2_SUSPEND_N				BIT(2)
 #define USB2_SUSPEND_N_SEL			BIT(3)
 
+#define USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X0		(0x6c)
+#define USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X1		(0x70)
+#define USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X2		(0x74)
+#define USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X3		(0x78)
+#define PARAM_OVRD_MASK				0xFF
+
 #define USB2_PHY_USB_PHY_CFG0			(0x94)
 #define UTMI_PHY_DATAPATH_CTRL_OVERRIDE_EN	BIT(0)
 #define UTMI_PHY_CMN_CTRL_OVERRIDE_EN		BIT(1)
@@ -60,11 +66,46 @@
 #define REFCLK_SEL_MASK				GENMASK(1, 0)
 #define REFCLK_SEL_DEFAULT			(0x2 << 0)
 
+#define HS_DISCONNECT_MASK			GENMASK(2, 0)
+#define SQUELCH_DETECTOR_MASK			GENMASK(7, 5)
+
+#define HS_AMPLITUDE_MASK			GENMASK(3, 0)
+#define PREEMPHASIS_DURATION_MASK		BIT(5)
+#define PREEMPHASIS_AMPLITUDE_MASK		GENMASK(7, 6)
+
+#define HS_RISE_FALL_MASK			GENMASK(1, 0)
+#define HS_CROSSOVER_VOLTAGE_MASK		GENMASK(3, 2)
+#define HS_OUTPUT_IMPEDANCE_MASK		GENMASK(5, 4)
+
+#define LS_FS_OUTPUT_IMPEDANCE_MASK		GENMASK(3, 0)
+
 static const char * const qcom_snps_hsphy_vreg_names[] = {
 	"vdda-pll", "vdda33", "vdda18",
 };
 
 #define SNPS_HS_NUM_VREGS		ARRAY_SIZE(qcom_snps_hsphy_vreg_names)
+
+struct override_param {
+	s32	value;
+	u8	reg_val;
+};
+
+struct override_param_map {
+	const char *prop_name;
+	const struct override_param *param_table;
+	u8 table_size;
+	u8 reg_offset;
+	u8 param_mask;
+};
+
+struct phy_override_seq {
+	bool	need_update;
+	u8	offset;
+	u8	value;
+	u8	mask;
+};
+
+#define NUM_HSPHY_TUNING_PARAMS	(9)
 
 /**
  * struct qcom_snps_hsphy - snps hs phy attributes
@@ -74,11 +115,11 @@ static const char * const qcom_snps_hsphy_vreg_names[] = {
  *
  * @cfg_ahb_clk: AHB2PHY interface clock
  * @ref_clk: phy reference clock
- * @iface_clk: phy interface clock
  * @phy_reset: phy reset control
  * @vregs: regulator supplies bulk data
  * @phy_initialized: if PHY has been initialized correctly
  * @mode: contains the current mode the PHY is in
+ * @update_seq_cfg: tuning parameters for phy init
  */
 struct qcom_snps_hsphy {
 	struct phy *phy;
@@ -91,6 +132,7 @@ struct qcom_snps_hsphy {
 
 	bool phy_initialized;
 	enum phy_mode mode;
+	struct phy_override_seq update_seq_cfg[NUM_HSPHY_TUNING_PARAMS];
 };
 
 static inline void qcom_snps_hsphy_write_mask(void __iomem *base, u32 offset,
@@ -173,10 +215,158 @@ static int qcom_snps_hsphy_set_mode(struct phy *phy, enum phy_mode mode,
 	return 0;
 }
 
+static const struct override_param hs_disconnect_sc7280[] = {
+	{ -272, 0 },
+	{ 0, 1 },
+	{ 317, 2 },
+	{ 630, 3 },
+	{ 973, 4 },
+	{ 1332, 5 },
+	{ 1743, 6 },
+	{ 2156, 7 },
+};
+
+static const struct override_param squelch_det_threshold_sc7280[] = {
+	{ -2090, 7 },
+	{ -1560, 6 },
+	{ -1030, 5 },
+	{ -530, 4 },
+	{ 0, 3 },
+	{ 530, 2 },
+	{ 1060, 1 },
+	{ 1590, 0 },
+};
+
+static const struct override_param hs_amplitude_sc7280[] = {
+	{ -660, 0 },
+	{ -440, 1 },
+	{ -220, 2 },
+	{ 0, 3 },
+	{ 230, 4 },
+	{ 440, 5 },
+	{ 650, 6 },
+	{ 890, 7 },
+	{ 1110, 8 },
+	{ 1330, 9 },
+	{ 1560, 10 },
+	{ 1780, 11 },
+	{ 2000, 12 },
+	{ 2220, 13 },
+	{ 2430, 14 },
+	{ 2670, 15 },
+};
+
+static const struct override_param preemphasis_duration_sc7280[] = {
+	{ 10000, 1 },
+	{ 20000, 0 },
+};
+
+static const struct override_param preemphasis_amplitude_sc7280[] = {
+	{ 10000, 1 },
+	{ 20000, 2 },
+	{ 30000, 3 },
+	{ 40000, 0 },
+};
+
+static const struct override_param hs_rise_fall_time_sc7280[] = {
+	{ -4100, 3 },
+	{ 0, 2 },
+	{ 2810, 1 },
+	{ 5430, 0 },
+};
+
+static const struct override_param hs_crossover_voltage_sc7280[] = {
+	{ -31000, 1 },
+	{ 0, 3 },
+	{ 28000, 2 },
+};
+
+static const struct override_param hs_output_impedance_sc7280[] = {
+	{ -2300000, 3 },
+	{ 0, 2 },
+	{ 2600000, 1 },
+	{ 6100000, 0 },
+};
+
+static const struct override_param ls_fs_output_impedance_sc7280[] = {
+	{ -1053, 15 },
+	{ -557, 7 },
+	{ 0, 3 },
+	{ 612, 1 },
+	{ 1310, 0 },
+};
+
+static const struct override_param_map sc7280_snps_7nm_phy[] = {
+	{
+		"qcom,hs-disconnect-bp",
+		hs_disconnect_sc7280,
+		ARRAY_SIZE(hs_disconnect_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X0,
+		HS_DISCONNECT_MASK
+	},
+	{
+		"qcom,squelch-detector-bp",
+		squelch_det_threshold_sc7280,
+		ARRAY_SIZE(squelch_det_threshold_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X0,
+		SQUELCH_DETECTOR_MASK
+	},
+	{
+		"qcom,hs-amplitude-bp",
+		hs_amplitude_sc7280,
+		ARRAY_SIZE(hs_amplitude_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X1,
+		HS_AMPLITUDE_MASK
+	},
+	{
+		"qcom,pre-emphasis-duration-bp",
+		preemphasis_duration_sc7280,
+		ARRAY_SIZE(preemphasis_duration_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X1,
+		PREEMPHASIS_DURATION_MASK,
+	},
+	{
+		"qcom,pre-emphasis-amplitude-bp",
+		preemphasis_amplitude_sc7280,
+		ARRAY_SIZE(preemphasis_amplitude_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X1,
+		PREEMPHASIS_AMPLITUDE_MASK,
+	},
+	{
+		"qcom,hs-rise-fall-time-bp",
+		hs_rise_fall_time_sc7280,
+		ARRAY_SIZE(hs_rise_fall_time_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X2,
+		HS_RISE_FALL_MASK
+	},
+	{
+		"qcom,hs-crossover-voltage-microvolt",
+		hs_crossover_voltage_sc7280,
+		ARRAY_SIZE(hs_crossover_voltage_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X2,
+		HS_CROSSOVER_VOLTAGE_MASK
+	},
+	{
+		"qcom,hs-output-impedance-micro-ohms",
+		hs_output_impedance_sc7280,
+		ARRAY_SIZE(hs_output_impedance_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X2,
+		HS_OUTPUT_IMPEDANCE_MASK,
+	},
+	{
+		"qcom,ls-fs-output-impedance-bp",
+		ls_fs_output_impedance_sc7280,
+		ARRAY_SIZE(ls_fs_output_impedance_sc7280),
+		USB2_PHY_USB_PHY_HS_PHY_OVERRIDE_X3,
+		LS_FS_OUTPUT_IMPEDANCE_MASK,
+	},
+	{},
+};
+
 static int qcom_snps_hsphy_init(struct phy *phy)
 {
 	struct qcom_snps_hsphy *hsphy = phy_get_drvdata(phy);
-	int ret;
+	int ret, i;
 
 	dev_vdbg(&phy->dev, "%s(): Initializing SNPS HS phy\n", __func__);
 
@@ -222,6 +412,14 @@ static int qcom_snps_hsphy_init(struct phy *phy)
 					VBUSVLDEXTSEL0, VBUSVLDEXTSEL0);
 	qcom_snps_hsphy_write_mask(hsphy->base, USB2_PHY_USB_PHY_HS_PHY_CTRL1,
 					VBUSVLDEXT0, VBUSVLDEXT0);
+
+	for (i = 0; i < ARRAY_SIZE(hsphy->update_seq_cfg); i++) {
+		if (hsphy->update_seq_cfg[i].need_update)
+			qcom_snps_hsphy_write_mask(hsphy->base,
+					hsphy->update_seq_cfg[i].offset,
+					hsphy->update_seq_cfg[i].mask,
+					hsphy->update_seq_cfg[i].value);
+	}
 
 	qcom_snps_hsphy_write_mask(hsphy->base,
 					USB2_PHY_USB_PHY_HS_PHY_CTRL_COMMON2,
@@ -280,7 +478,10 @@ static const struct phy_ops qcom_snps_hsphy_gen_ops = {
 static const struct of_device_id qcom_snps_hsphy_of_match_table[] = {
 	{ .compatible	= "qcom,sm8150-usb-hs-phy", },
 	{ .compatible	= "qcom,usb-snps-hs-5nm-phy", },
-	{ .compatible	= "qcom,usb-snps-hs-7nm-phy", },
+	{
+		.compatible	= "qcom,usb-snps-hs-7nm-phy",
+		.data		= &sc7280_snps_7nm_phy,
+	},
 	{ .compatible	= "qcom,usb-snps-femto-v2-phy",	},
 	{ }
 };
@@ -290,6 +491,55 @@ static const struct dev_pm_ops qcom_snps_hsphy_pm_ops = {
 	SET_RUNTIME_PM_OPS(qcom_snps_hsphy_runtime_suspend,
 			   qcom_snps_hsphy_runtime_resume, NULL)
 };
+
+static void qcom_snps_hsphy_override_param_update_val(
+			const struct override_param_map map,
+			s32 dt_val, struct phy_override_seq *seq_entry)
+{
+	int i;
+
+	/*
+	 * Param table for each param is in increasing order
+	 * of dt values. We need to iterate over the list to
+	 * select the entry that matches the dt value and pick
+	 * up the corresponding register value.
+	 */
+	for (i = 0; i < map.table_size - 1; i++) {
+		if (map.param_table[i].value == dt_val)
+			break;
+	}
+
+	seq_entry->need_update = true;
+	seq_entry->offset = map.reg_offset;
+	seq_entry->mask = map.param_mask;
+	seq_entry->value = map.param_table[i].reg_val << __ffs(map.param_mask);
+}
+
+static void qcom_snps_hsphy_read_override_param_seq(struct device *dev)
+{
+	struct device_node *node = dev->of_node;
+	s32 val;
+	int ret, i;
+	struct qcom_snps_hsphy *hsphy;
+	const struct override_param_map *cfg = of_device_get_match_data(dev);
+
+	if (!cfg)
+		return;
+
+	hsphy = dev_get_drvdata(dev);
+
+	for (i = 0; cfg[i].prop_name != NULL; i++) {
+		ret = of_property_read_s32(node, cfg[i].prop_name, &val);
+		if (ret)
+			continue;
+
+		qcom_snps_hsphy_override_param_update_val(cfg[i], val,
+					&hsphy->update_seq_cfg[i]);
+		dev_dbg(&hsphy->phy->dev, "Read param: %s dt_val: %d reg_val: 0x%x\n",
+			cfg[i].prop_name, val, hsphy->update_seq_cfg[i].value);
+
+	}
+}
 
 static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 {
@@ -309,12 +559,9 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 		return PTR_ERR(hsphy->base);
 
 	hsphy->ref_clk = devm_clk_get(dev, "ref");
-	if (IS_ERR(hsphy->ref_clk)) {
-		ret = PTR_ERR(hsphy->ref_clk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get ref clk, %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(hsphy->ref_clk))
+		return dev_err_probe(dev, PTR_ERR(hsphy->ref_clk),
+				     "failed to get ref clk\n");
 
 	hsphy->phy_reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(hsphy->phy_reset)) {
@@ -327,12 +574,9 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 		hsphy->vregs[i].supply = qcom_snps_hsphy_vreg_names[i];
 
 	ret = devm_regulator_bulk_get(dev, num, hsphy->vregs);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get regulator supplies: %d\n",
-				ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to get regulator supplies\n");
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
@@ -352,6 +596,7 @@ static int qcom_snps_hsphy_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, hsphy);
 	phy_set_drvdata(generic_phy, hsphy);
+	qcom_snps_hsphy_read_override_param_seq(dev);
 
 	phy_provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
 	if (!IS_ERR(phy_provider))

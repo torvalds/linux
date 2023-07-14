@@ -12,6 +12,7 @@
 #include "maps.h"
 #include "symbol.h"
 #include "symsrc.h"
+#include "demangle-cxx.h"
 #include "demangle-ocaml.h"
 #include "demangle-java.h"
 #include "demangle-rust.h"
@@ -25,8 +26,24 @@
 #include <symbol/kallsyms.h>
 #include <internal/lib.h>
 
+#ifdef HAVE_LIBBFD_SUPPORT
+#define PACKAGE 'perf'
+#include <bfd.h>
+#endif
+
+#if defined(HAVE_LIBBFD_SUPPORT) || defined(HAVE_CPLUS_DEMANGLE_SUPPORT)
+#ifndef DMGL_PARAMS
+#define DMGL_PARAMS     (1 << 0)  /* Include function args */
+#define DMGL_ANSI       (1 << 1)  /* Include const, volatile, etc */
+#endif
+#endif
+
 #ifndef EM_AARCH64
 #define EM_AARCH64	183  /* ARM 64 bit */
+#endif
+
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH	258
 #endif
 
 #ifndef ELF32_ST_VISIBILITY
@@ -45,34 +62,6 @@
 
 typedef Elf64_Nhdr GElf_Nhdr;
 
-#ifndef DMGL_PARAMS
-#define DMGL_NO_OPTS     0              /* For readability... */
-#define DMGL_PARAMS      (1 << 0)       /* Include function args */
-#define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
-#endif
-
-#ifdef HAVE_LIBBFD_SUPPORT
-#define PACKAGE 'perf'
-#include <bfd.h>
-#else
-#ifdef HAVE_CPLUS_DEMANGLE_SUPPORT
-extern char *cplus_demangle(const char *, int);
-
-static inline char *bfd_demangle(void __maybe_unused *v, const char *c, int i)
-{
-	return cplus_demangle(c, i);
-}
-#else
-#ifdef NO_DEMANGLE
-static inline char *bfd_demangle(void __maybe_unused *v,
-				 const char __maybe_unused *c,
-				 int __maybe_unused i)
-{
-	return NULL;
-}
-#endif
-#endif
-#endif
 
 #ifndef HAVE_ELF_GETPHDRNUM_SUPPORT
 static int elf_getphdrnum(Elf *elf, size_t *dst)
@@ -213,7 +202,7 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	Elf_Scn *sec = NULL;
 	size_t cnt = 1;
 
-	/* Elf is corrupted/truncated, avoid calling elf_strptr. */
+	/* ELF is corrupted/truncated, avoid calling elf_strptr. */
 	if (!elf_rawdata(elf_getscn(elf, ep->e_shstrndx), NULL))
 		return NULL;
 
@@ -231,6 +220,34 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 	}
 
 	return NULL;
+}
+
+bool filename__has_section(const char *filename, const char *sec)
+{
+	int fd;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Shdr shdr;
+	bool found = false;
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return false;
+
+	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
+	if (elf == NULL)
+		goto out;
+
+	if (gelf_getehdr(elf, &ehdr) == NULL)
+		goto elf_out;
+
+	found = !!elf_section_by_name(elf, &ehdr, &shdr, sec, NULL);
+
+elf_out:
+	elf_end(elf);
+out:
+	close(fd);
+	return found;
 }
 
 static int elf_read_program_header(Elf *elf, u64 vaddr, GElf_Phdr *phdr)
@@ -265,9 +282,28 @@ static bool want_demangle(bool is_kernel_sym)
 	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
 }
 
+/*
+ * Demangle C++ function signature, typically replaced by demangle-cxx.cpp
+ * version.
+ */
+__weak char *cxx_demangle_sym(const char *str __maybe_unused, bool params __maybe_unused,
+			      bool modifiers __maybe_unused)
+{
+#ifdef HAVE_LIBBFD_SUPPORT
+	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
+
+	return bfd_demangle(NULL, str, flags);
+#elif defined(HAVE_CPLUS_DEMANGLE_SUPPORT)
+	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
+
+	return cplus_demangle(str, flags);
+#else
+	return NULL;
+#endif
+}
+
 static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
-	int demangle_flags = verbose > 0 ? (DMGL_PARAMS | DMGL_ANSI) : DMGL_NO_OPTS;
 	char *demangled = NULL;
 
 	/*
@@ -278,7 +314,7 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	if (!want_demangle(dso->kernel || kmodule))
 	    return demangled;
 
-	demangled = bfd_demangle(NULL, elf_name, demangle_flags);
+	demangled = cxx_demangle_sym(elf_name, verbose > 0, verbose > 0);
 	if (demangled == NULL) {
 		demangled = ocaml_demangle_sym(elf_name);
 		if (demangled == NULL) {
@@ -295,15 +331,335 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 	return demangled;
 }
 
-#define elf_section__for_each_rel(reldata, pos, pos_mem, idx, nr_entries) \
-	for (idx = 0, pos = gelf_getrel(reldata, 0, &pos_mem); \
-	     idx < nr_entries; \
-	     ++idx, pos = gelf_getrel(reldata, idx, &pos_mem))
+struct rel_info {
+	u32		nr_entries;
+	u32		*sorted;
+	bool		is_rela;
+	Elf_Data	*reldata;
+	GElf_Rela	rela;
+	GElf_Rel	rel;
+};
 
-#define elf_section__for_each_rela(reldata, pos, pos_mem, idx, nr_entries) \
-	for (idx = 0, pos = gelf_getrela(reldata, 0, &pos_mem); \
-	     idx < nr_entries; \
-	     ++idx, pos = gelf_getrela(reldata, idx, &pos_mem))
+static u32 get_rel_symidx(struct rel_info *ri, u32 idx)
+{
+	idx = ri->sorted ? ri->sorted[idx] : idx;
+	if (ri->is_rela) {
+		gelf_getrela(ri->reldata, idx, &ri->rela);
+		return GELF_R_SYM(ri->rela.r_info);
+	}
+	gelf_getrel(ri->reldata, idx, &ri->rel);
+	return GELF_R_SYM(ri->rel.r_info);
+}
+
+static u64 get_rel_offset(struct rel_info *ri, u32 x)
+{
+	if (ri->is_rela) {
+		GElf_Rela rela;
+
+		gelf_getrela(ri->reldata, x, &rela);
+		return rela.r_offset;
+	} else {
+		GElf_Rel rel;
+
+		gelf_getrel(ri->reldata, x, &rel);
+		return rel.r_offset;
+	}
+}
+
+static int rel_cmp(const void *a, const void *b, void *r)
+{
+	struct rel_info *ri = r;
+	u64 a_offset = get_rel_offset(ri, *(const u32 *)a);
+	u64 b_offset = get_rel_offset(ri, *(const u32 *)b);
+
+	return a_offset < b_offset ? -1 : (a_offset > b_offset ? 1 : 0);
+}
+
+static int sort_rel(struct rel_info *ri)
+{
+	size_t sz = sizeof(ri->sorted[0]);
+	u32 i;
+
+	ri->sorted = calloc(ri->nr_entries, sz);
+	if (!ri->sorted)
+		return -1;
+	for (i = 0; i < ri->nr_entries; i++)
+		ri->sorted[i] = i;
+	qsort_r(ri->sorted, ri->nr_entries, sz, rel_cmp, ri);
+	return 0;
+}
+
+/*
+ * For x86_64, the GNU linker is putting IFUNC information in the relocation
+ * addend.
+ */
+static bool addend_may_be_ifunc(GElf_Ehdr *ehdr, struct rel_info *ri)
+{
+	return ehdr->e_machine == EM_X86_64 && ri->is_rela &&
+	       GELF_R_TYPE(ri->rela.r_info) == R_X86_64_IRELATIVE;
+}
+
+static bool get_ifunc_name(Elf *elf, struct dso *dso, GElf_Ehdr *ehdr,
+			   struct rel_info *ri, char *buf, size_t buf_sz)
+{
+	u64 addr = ri->rela.r_addend;
+	struct symbol *sym;
+	GElf_Phdr phdr;
+
+	if (!addend_may_be_ifunc(ehdr, ri))
+		return false;
+
+	if (elf_read_program_header(elf, addr, &phdr))
+		return false;
+
+	addr -= phdr.p_vaddr - phdr.p_offset;
+
+	sym = dso__find_symbol_nocache(dso, addr);
+
+	/* Expecting the address to be an IFUNC or IFUNC alias */
+	if (!sym || sym->start != addr || (sym->type != STT_GNU_IFUNC && !sym->ifunc_alias))
+		return false;
+
+	snprintf(buf, buf_sz, "%s@plt", sym->name);
+
+	return true;
+}
+
+static void exit_rel(struct rel_info *ri)
+{
+	zfree(&ri->sorted);
+}
+
+static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
+			  u64 *plt_header_size, u64 *plt_entry_size)
+{
+	switch (ehdr->e_machine) {
+	case EM_ARM:
+		*plt_header_size = 20;
+		*plt_entry_size = 12;
+		return true;
+	case EM_AARCH64:
+		*plt_header_size = 32;
+		*plt_entry_size = 16;
+		return true;
+	case EM_LOONGARCH:
+		*plt_header_size = 32;
+		*plt_entry_size = 16;
+		return true;
+	case EM_SPARC:
+		*plt_header_size = 48;
+		*plt_entry_size = 12;
+		return true;
+	case EM_SPARCV9:
+		*plt_header_size = 128;
+		*plt_entry_size = 32;
+		return true;
+	case EM_386:
+	case EM_X86_64:
+		*plt_entry_size = shdr_plt->sh_entsize;
+		/* Size is 8 or 16, if not, assume alignment indicates size */
+		if (*plt_entry_size != 8 && *plt_entry_size != 16)
+			*plt_entry_size = shdr_plt->sh_addralign == 8 ? 8 : 16;
+		*plt_header_size = *plt_entry_size;
+		break;
+	default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/xtensa need to be checked */
+		*plt_header_size = shdr_plt->sh_entsize;
+		*plt_entry_size = shdr_plt->sh_entsize;
+		break;
+	}
+	if (*plt_entry_size)
+		return true;
+	pr_debug("Missing PLT entry size for %s\n", dso->long_name);
+	return false;
+}
+
+static bool machine_is_x86(GElf_Half e_machine)
+{
+	return e_machine == EM_386 || e_machine == EM_X86_64;
+}
+
+struct rela_dyn {
+	GElf_Addr	offset;
+	u32		sym_idx;
+};
+
+struct rela_dyn_info {
+	struct dso	*dso;
+	Elf_Data	*plt_got_data;
+	u32		nr_entries;
+	struct rela_dyn	*sorted;
+	Elf_Data	*dynsym_data;
+	Elf_Data	*dynstr_data;
+	Elf_Data	*rela_dyn_data;
+};
+
+static void exit_rela_dyn(struct rela_dyn_info *di)
+{
+	zfree(&di->sorted);
+}
+
+static int cmp_offset(const void *a, const void *b)
+{
+	const struct rela_dyn *va = a;
+	const struct rela_dyn *vb = b;
+
+	return va->offset < vb->offset ? -1 : (va->offset > vb->offset ? 1 : 0);
+}
+
+static int sort_rela_dyn(struct rela_dyn_info *di)
+{
+	u32 i, n;
+
+	di->sorted = calloc(di->nr_entries, sizeof(di->sorted[0]));
+	if (!di->sorted)
+		return -1;
+
+	/* Get data for sorting: the offset and symbol index */
+	for (i = 0, n = 0; i < di->nr_entries; i++) {
+		GElf_Rela rela;
+		u32 sym_idx;
+
+		gelf_getrela(di->rela_dyn_data, i, &rela);
+		sym_idx = GELF_R_SYM(rela.r_info);
+		if (sym_idx) {
+			di->sorted[n].sym_idx = sym_idx;
+			di->sorted[n].offset = rela.r_offset;
+			n += 1;
+		}
+	}
+
+	/* Sort by offset */
+	di->nr_entries = n;
+	qsort(di->sorted, n, sizeof(di->sorted[0]), cmp_offset);
+
+	return 0;
+}
+
+static void get_rela_dyn_info(Elf *elf, GElf_Ehdr *ehdr, struct rela_dyn_info *di, Elf_Scn *scn)
+{
+	GElf_Shdr rela_dyn_shdr;
+	GElf_Shdr shdr;
+
+	di->plt_got_data = elf_getdata(scn, NULL);
+
+	scn = elf_section_by_name(elf, ehdr, &rela_dyn_shdr, ".rela.dyn", NULL);
+	if (!scn || !rela_dyn_shdr.sh_link || !rela_dyn_shdr.sh_entsize)
+		return;
+
+	di->nr_entries = rela_dyn_shdr.sh_size / rela_dyn_shdr.sh_entsize;
+	di->rela_dyn_data = elf_getdata(scn, NULL);
+
+	scn = elf_getscn(elf, rela_dyn_shdr.sh_link);
+	if (!scn || !gelf_getshdr(scn, &shdr) || !shdr.sh_link)
+		return;
+
+	di->dynsym_data = elf_getdata(scn, NULL);
+	di->dynstr_data = elf_getdata(elf_getscn(elf, shdr.sh_link), NULL);
+
+	if (!di->plt_got_data || !di->dynstr_data || !di->dynsym_data || !di->rela_dyn_data)
+		return;
+
+	/* Sort into offset order */
+	sort_rela_dyn(di);
+}
+
+/* Get instruction displacement from a plt entry for x86_64 */
+static u32 get_x86_64_plt_disp(const u8 *p)
+{
+	u8 endbr64[] = {0xf3, 0x0f, 0x1e, 0xfa};
+	int n = 0;
+
+	/* Skip endbr64 */
+	if (!memcmp(p, endbr64, sizeof(endbr64)))
+		n += sizeof(endbr64);
+	/* Skip bnd prefix */
+	if (p[n] == 0xf2)
+		n += 1;
+	/* jmp with 4-byte displacement */
+	if (p[n] == 0xff && p[n + 1] == 0x25) {
+		u32 disp;
+
+		n += 2;
+		/* Also add offset from start of entry to end of instruction */
+		memcpy(&disp, p + n, sizeof(disp));
+		return n + 4 + le32toh(disp);
+	}
+	return 0;
+}
+
+static bool get_plt_got_name(GElf_Shdr *shdr, size_t i,
+			     struct rela_dyn_info *di,
+			     char *buf, size_t buf_sz)
+{
+	struct rela_dyn vi, *vr;
+	const char *sym_name;
+	char *demangled;
+	GElf_Sym sym;
+	bool result;
+	u32 disp;
+
+	if (!di->sorted)
+		return false;
+
+	disp = get_x86_64_plt_disp(di->plt_got_data->d_buf + i);
+	if (!disp)
+		return false;
+
+	/* Compute target offset of the .plt.got entry */
+	vi.offset = shdr->sh_offset + di->plt_got_data->d_off + i + disp;
+
+	/* Find that offset in .rela.dyn (sorted by offset) */
+	vr = bsearch(&vi, di->sorted, di->nr_entries, sizeof(di->sorted[0]), cmp_offset);
+	if (!vr)
+		return false;
+
+	/* Get the associated symbol */
+	gelf_getsym(di->dynsym_data, vr->sym_idx, &sym);
+	sym_name = elf_sym__name(&sym, di->dynstr_data);
+	demangled = demangle_sym(di->dso, 0, sym_name);
+	if (demangled != NULL)
+		sym_name = demangled;
+
+	snprintf(buf, buf_sz, "%s@plt", sym_name);
+
+	result = *sym_name;
+
+	free(demangled);
+
+	return result;
+}
+
+static int dso__synthesize_plt_got_symbols(struct dso *dso, Elf *elf,
+					   GElf_Ehdr *ehdr,
+					   char *buf, size_t buf_sz)
+{
+	struct rela_dyn_info di = { .dso = dso };
+	struct symbol *sym;
+	GElf_Shdr shdr;
+	Elf_Scn *scn;
+	int err = -1;
+	size_t i;
+
+	scn = elf_section_by_name(elf, ehdr, &shdr, ".plt.got", NULL);
+	if (!scn || !shdr.sh_entsize)
+		return 0;
+
+	if (ehdr->e_machine == EM_X86_64)
+		get_rela_dyn_info(elf, ehdr, &di, scn);
+
+	for (i = 0; i < shdr.sh_size; i += shdr.sh_entsize) {
+		if (!get_plt_got_name(&shdr, i, &di, buf, buf_sz))
+			snprintf(buf, buf_sz, "offset_%#" PRIx64 "@plt", (u64)shdr.sh_offset + i);
+		sym = symbol__new(shdr.sh_offset + i, shdr.sh_entsize, STB_GLOBAL, STT_FUNC, buf);
+		if (!sym)
+			goto out;
+		symbols__insert(&dso->symbols, sym);
+	}
+	err = 0;
+out:
+	exit_rela_dyn(&di);
+	return err;
+}
 
 /*
  * We need to check if we have a .dynsym, so that we can handle the
@@ -314,32 +670,64 @@ static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
  */
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 {
-	uint32_t nr_rel_entries, idx;
+	uint32_t idx;
 	GElf_Sym sym;
 	u64 plt_offset, plt_header_size, plt_entry_size;
-	GElf_Shdr shdr_plt;
-	struct symbol *f;
+	GElf_Shdr shdr_plt, plt_sec_shdr;
+	struct symbol *f, *plt_sym;
 	GElf_Shdr shdr_rel_plt, shdr_dynsym;
-	Elf_Data *reldata, *syms, *symstrs;
+	Elf_Data *syms, *symstrs;
 	Elf_Scn *scn_plt_rel, *scn_symstrs, *scn_dynsym;
-	size_t dynsym_idx;
 	GElf_Ehdr ehdr;
 	char sympltname[1024];
 	Elf *elf;
-	int nr = 0, symidx, err = 0;
-
-	if (!ss->dynsym)
-		return 0;
+	int nr = 0, err = -1;
+	struct rel_info ri = { .is_rela = false };
+	bool lazy_plt;
 
 	elf = ss->elf;
 	ehdr = ss->ehdr;
 
-	scn_dynsym = ss->dynsym;
-	shdr_dynsym = ss->dynshdr;
-	dynsym_idx = ss->dynsym_idx;
+	if (!elf_section_by_name(elf, &ehdr, &shdr_plt, ".plt", NULL))
+		return 0;
 
-	if (scn_dynsym == NULL)
+	/*
+	 * A symbol from a previous section (e.g. .init) can have been expanded
+	 * by symbols__fixup_end() to overlap .plt. Truncate it before adding
+	 * a symbol for .plt header.
+	 */
+	f = dso__find_symbol_nocache(dso, shdr_plt.sh_offset);
+	if (f && f->start < shdr_plt.sh_offset && f->end > shdr_plt.sh_offset)
+		f->end = shdr_plt.sh_offset;
+
+	if (!get_plt_sizes(dso, &ehdr, &shdr_plt, &plt_header_size, &plt_entry_size))
+		return 0;
+
+	/* Add a symbol for .plt header */
+	plt_sym = symbol__new(shdr_plt.sh_offset, plt_header_size, STB_GLOBAL, STT_FUNC, ".plt");
+	if (!plt_sym)
 		goto out_elf_end;
+	symbols__insert(&dso->symbols, plt_sym);
+
+	/* Only x86 has .plt.got */
+	if (machine_is_x86(ehdr.e_machine) &&
+	    dso__synthesize_plt_got_symbols(dso, elf, &ehdr, sympltname, sizeof(sympltname)))
+		goto out_elf_end;
+
+	/* Only x86 has .plt.sec */
+	if (machine_is_x86(ehdr.e_machine) &&
+	    elf_section_by_name(elf, &ehdr, &plt_sec_shdr, ".plt.sec", NULL)) {
+		if (!get_plt_sizes(dso, &ehdr, &plt_sec_shdr, &plt_header_size, &plt_entry_size))
+			return 0;
+		/* Extend .plt symbol to entire .plt */
+		plt_sym->end = plt_sym->start + shdr_plt.sh_size;
+		/* Use .plt.sec offset */
+		plt_offset = plt_sec_shdr.sh_offset;
+		lazy_plt = false;
+	} else {
+		plt_offset = shdr_plt.sh_offset;
+		lazy_plt = true;
+	}
 
 	scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 					  ".rela.plt", NULL);
@@ -347,23 +735,39 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 		scn_plt_rel = elf_section_by_name(elf, &ehdr, &shdr_rel_plt,
 						  ".rel.plt", NULL);
 		if (scn_plt_rel == NULL)
-			goto out_elf_end;
+			return 0;
 	}
 
-	err = -1;
+	if (shdr_rel_plt.sh_type != SHT_RELA &&
+	    shdr_rel_plt.sh_type != SHT_REL)
+		return 0;
 
-	if (shdr_rel_plt.sh_link != dynsym_idx)
-		goto out_elf_end;
+	if (!shdr_rel_plt.sh_link)
+		return 0;
 
-	if (elf_section_by_name(elf, &ehdr, &shdr_plt, ".plt", NULL) == NULL)
+	if (shdr_rel_plt.sh_link == ss->dynsym_idx) {
+		scn_dynsym = ss->dynsym;
+		shdr_dynsym = ss->dynshdr;
+	} else if (shdr_rel_plt.sh_link == ss->symtab_idx) {
+		/*
+		 * A static executable can have a .plt due to IFUNCs, in which
+		 * case .symtab is used not .dynsym.
+		 */
+		scn_dynsym = ss->symtab;
+		shdr_dynsym = ss->symshdr;
+	} else {
 		goto out_elf_end;
+	}
+
+	if (!scn_dynsym)
+		return 0;
 
 	/*
 	 * Fetch the relocation section to find the idxes to the GOT
 	 * and the symbols in the .dynsym they refer to.
 	 */
-	reldata = elf_getdata(scn_plt_rel, NULL);
-	if (reldata == NULL)
+	ri.reldata = elf_getdata(scn_plt_rel, NULL);
+	if (!ri.reldata)
 		goto out_elf_end;
 
 	syms = elf_getdata(scn_dynsym, NULL);
@@ -381,93 +785,57 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss)
 	if (symstrs->d_size == 0)
 		goto out_elf_end;
 
-	nr_rel_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
-	plt_offset = shdr_plt.sh_offset;
-	switch (ehdr.e_machine) {
-		case EM_ARM:
-			plt_header_size = 20;
-			plt_entry_size = 12;
-			break;
+	ri.nr_entries = shdr_rel_plt.sh_size / shdr_rel_plt.sh_entsize;
 
-		case EM_AARCH64:
-			plt_header_size = 32;
-			plt_entry_size = 16;
-			break;
+	ri.is_rela = shdr_rel_plt.sh_type == SHT_RELA;
 
-		case EM_SPARC:
-			plt_header_size = 48;
-			plt_entry_size = 12;
-			break;
-
-		case EM_SPARCV9:
-			plt_header_size = 128;
-			plt_entry_size = 32;
-			break;
-
-		default: /* FIXME: s390/alpha/mips/parisc/poperpc/sh/xtensa need to be checked */
-			plt_header_size = shdr_plt.sh_entsize;
-			plt_entry_size = shdr_plt.sh_entsize;
-			break;
+	if (lazy_plt) {
+		/*
+		 * Assume a .plt with the same number of entries as the number
+		 * of relocation entries is not lazy and does not have a header.
+		 */
+		if (ri.nr_entries * plt_entry_size == shdr_plt.sh_size)
+			dso__delete_symbol(dso, plt_sym);
+		else
+			plt_offset += plt_header_size;
 	}
-	plt_offset += plt_header_size;
 
-	if (shdr_rel_plt.sh_type == SHT_RELA) {
-		GElf_Rela pos_mem, *pos;
+	/*
+	 * x86 doesn't insert IFUNC relocations in .plt order, so sort to get
+	 * back in order.
+	 */
+	if (machine_is_x86(ehdr.e_machine) && sort_rel(&ri))
+		goto out_elf_end;
 
-		elf_section__for_each_rela(reldata, pos, pos_mem, idx,
-					   nr_rel_entries) {
-			const char *elf_name = NULL;
-			char *demangled = NULL;
-			symidx = GELF_R_SYM(pos->r_info);
-			gelf_getsym(syms, symidx, &sym);
+	for (idx = 0; idx < ri.nr_entries; idx++) {
+		const char *elf_name = NULL;
+		char *demangled = NULL;
 
-			elf_name = elf_sym__name(&sym, symstrs);
-			demangled = demangle_sym(dso, 0, elf_name);
-			if (demangled != NULL)
-				elf_name = demangled;
+		gelf_getsym(syms, get_rel_symidx(&ri, idx), &sym);
+
+		elf_name = elf_sym__name(&sym, symstrs);
+		demangled = demangle_sym(dso, 0, elf_name);
+		if (demangled)
+			elf_name = demangled;
+		if (*elf_name)
+			snprintf(sympltname, sizeof(sympltname), "%s@plt", elf_name);
+		else if (!get_ifunc_name(elf, dso, &ehdr, &ri, sympltname, sizeof(sympltname)))
 			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_name);
-			free(demangled);
+				 "offset_%#" PRIx64 "@plt", plt_offset);
+		free(demangled);
 
-			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, STT_FUNC, sympltname);
-			if (!f)
-				goto out_elf_end;
+		f = symbol__new(plt_offset, plt_entry_size, STB_GLOBAL, STT_FUNC, sympltname);
+		if (!f)
+			goto out_elf_end;
 
-			plt_offset += plt_entry_size;
-			symbols__insert(&dso->symbols, f);
-			++nr;
-		}
-	} else if (shdr_rel_plt.sh_type == SHT_REL) {
-		GElf_Rel pos_mem, *pos;
-		elf_section__for_each_rel(reldata, pos, pos_mem, idx,
-					  nr_rel_entries) {
-			const char *elf_name = NULL;
-			char *demangled = NULL;
-			symidx = GELF_R_SYM(pos->r_info);
-			gelf_getsym(syms, symidx, &sym);
-
-			elf_name = elf_sym__name(&sym, symstrs);
-			demangled = demangle_sym(dso, 0, elf_name);
-			if (demangled != NULL)
-				elf_name = demangled;
-			snprintf(sympltname, sizeof(sympltname),
-				 "%s@plt", elf_name);
-			free(demangled);
-
-			f = symbol__new(plt_offset, plt_entry_size,
-					STB_GLOBAL, STT_FUNC, sympltname);
-			if (!f)
-				goto out_elf_end;
-
-			plt_offset += plt_entry_size;
-			symbols__insert(&dso->symbols, f);
-			++nr;
-		}
+		plt_offset += plt_entry_size;
+		symbols__insert(&dso->symbols, f);
+		++nr;
 	}
 
 	err = 0;
 out_elf_end:
+	exit_rel(&ri);
 	if (err == 0)
 		return nr;
 	pr_debug("%s: problems reading %s PLT info.\n",
@@ -553,7 +921,7 @@ static int elf_read_build_id(Elf *elf, void *bf, size_t size)
 				size_t sz = min(size, descsz);
 				memcpy(bf, ptr, sz);
 				memset(bf + sz, 0, size - sz);
-				err = descsz;
+				err = sz;
 				break;
 			}
 		}
@@ -918,8 +1286,9 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 
 	ss->is_64_bit = (gelf_getclass(elf) == ELFCLASS64);
 
+	ss->symtab_idx = 0;
 	ss->symtab = elf_section_by_name(elf, &ehdr, &ss->symshdr, ".symtab",
-			NULL);
+			&ss->symtab_idx);
 	if (ss->symshdr.sh_type != SHT_SYMTAB)
 		ss->symtab = NULL;
 
@@ -1020,17 +1389,21 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		 */
 		if (*remap_kernel && dso->kernel && !kmodule) {
 			*remap_kernel = false;
-			map->start = shdr->sh_addr + ref_reloc(kmap);
-			map->end = map->start + shdr->sh_size;
-			map->pgoff = shdr->sh_offset;
-			map->map_ip = map__map_ip;
-			map->unmap_ip = map__unmap_ip;
+			map__set_start(map, shdr->sh_addr + ref_reloc(kmap));
+			map__set_end(map, map__start(map) + shdr->sh_size);
+			map__set_pgoff(map, shdr->sh_offset);
+			map__set_map_ip(map, map__dso_map_ip);
+			map__set_unmap_ip(map, map__dso_unmap_ip);
 			/* Ensure maps are correctly ordered */
 			if (kmaps) {
-				map__get(map);
+				int err;
+				struct map *tmp = map__get(map);
+
 				maps__remove(kmaps, map);
-				maps__insert(kmaps, map);
-				map__put(map);
+				err = maps__insert(kmaps, map);
+				map__put(tmp);
+				if (err)
+					return err;
 			}
 		}
 
@@ -1041,7 +1414,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		 */
 		if (*remap_kernel && kmodule) {
 			*remap_kernel = false;
-			map->pgoff = shdr->sh_offset;
+			map__set_pgoff(map, shdr->sh_offset);
 		}
 
 		*curr_mapp = map;
@@ -1059,7 +1432,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		u64 start = sym->st_value;
 
 		if (kmodule)
-			start += map->start + shdr->sh_offset;
+			start += map__start(map) + shdr->sh_offset;
 
 		curr_dso = dso__new(dso_name);
 		if (curr_dso == NULL)
@@ -1076,27 +1449,29 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__kmap(curr_map)->kmaps = kmaps;
 
 		if (adjust_kernel_syms) {
-			curr_map->start  = shdr->sh_addr + ref_reloc(kmap);
-			curr_map->end	 = curr_map->start + shdr->sh_size;
-			curr_map->pgoff	 = shdr->sh_offset;
+			map__set_start(curr_map, shdr->sh_addr + ref_reloc(kmap));
+			map__set_end(curr_map, map__start(curr_map) + shdr->sh_size);
+			map__set_pgoff(curr_map, shdr->sh_offset);
 		} else {
-			curr_map->map_ip = curr_map->unmap_ip = identity__map_ip;
+			map__set_map_ip(curr_map, identity__map_ip);
+			map__set_unmap_ip(curr_map, identity__map_ip);
 		}
 		curr_dso->symtab_type = dso->symtab_type;
-		maps__insert(kmaps, curr_map);
+		if (maps__insert(kmaps, curr_map))
+			return -1;
 		/*
 		 * Add it before we drop the reference to curr_map, i.e. while
 		 * we still are sure to have a reference to this DSO via
 		 * *curr_map->dso.
 		 */
-		dsos__add(&kmaps->machine->dsos, curr_dso);
+		dsos__add(&maps__machine(kmaps)->dsos, curr_dso);
 		/* kmaps already got it */
 		map__put(curr_map);
 		dso__set_loaded(curr_dso);
 		*curr_mapp = curr_map;
 		*curr_dsop = curr_dso;
 	} else
-		*curr_dsop = curr_map->dso;
+		*curr_dsop = map__dso(curr_map);
 
 	return 0;
 }
@@ -1186,8 +1561,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			if (strcmp(elf_name, kmap->ref_reloc_sym->name))
 				continue;
 			kmap->ref_reloc_sym->unrelocated_addr = sym.st_value;
-			map->reloc = kmap->ref_reloc_sym->addr -
-				     kmap->ref_reloc_sym->unrelocated_addr;
+			map__set_reloc(map, kmap->ref_reloc_sym->addr - kmap->ref_reloc_sym->unrelocated_addr);
 			break;
 		}
 	}
@@ -1197,7 +1571,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	 * attempted to prelink vdso to its virtual address.
 	 */
 	if (dso__is_vdso(dso))
-		map->reloc = map->start - dso->text_offset;
+		map__set_reloc(map, map__start(map) - dso->text_offset);
 
 	dso->adjust_symbols = runtime_ss->adjust_symbols || ref_reloc(kmap);
 	/*
@@ -1303,7 +1677,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 			   (!used_opd && syms_ss->adjust_symbols)) {
 			GElf_Phdr phdr;
 
-			if (elf_read_program_header(syms_ss->elf,
+			if (elf_read_program_header(runtime_ss->elf,
 						    (u64)sym.st_value, &phdr)) {
 				pr_debug4("%s: failed to find program header for "
 					   "symbol: %s st_value: %#" PRIx64 "\n",

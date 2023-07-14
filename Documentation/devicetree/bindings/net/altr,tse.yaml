@@ -66,14 +66,14 @@ required:
   - tx-fifo-depth
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
   - if:
       properties:
         compatible:
           contains:
             enum:
-              - const: altr,tse-1.0
-              - const: ALTR,tse-1.0
+              - altr,tse-1.0
+              - ALTR,tse-1.0
     then:
       properties:
         reg:

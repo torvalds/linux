@@ -198,8 +198,7 @@ static void rmi_i2c_unregister_transport(void *data)
 	rmi_unregister_transport_device(&rmi_i2c->xport);
 }
 
-static int rmi_i2c_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int rmi_i2c_probe(struct i2c_client *client)
 {
 	struct rmi_device_platform_data *pdata;
 	struct rmi_device_platform_data *client_pdata =
@@ -288,7 +287,6 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int rmi_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -324,9 +322,7 @@ static int rmi_i2c_resume(struct device *dev)
 
 	return ret;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int rmi_i2c_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -362,12 +358,10 @@ static int rmi_i2c_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops rmi_i2c_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rmi_i2c_suspend, rmi_i2c_resume)
-	SET_RUNTIME_PM_OPS(rmi_i2c_runtime_suspend, rmi_i2c_runtime_resume,
-			   NULL)
+	SYSTEM_SLEEP_PM_OPS(rmi_i2c_suspend, rmi_i2c_resume)
+	RUNTIME_PM_OPS(rmi_i2c_runtime_suspend, rmi_i2c_runtime_resume, NULL)
 };
 
 static const struct i2c_device_id rmi_id[] = {
@@ -379,7 +373,7 @@ MODULE_DEVICE_TABLE(i2c, rmi_id);
 static struct i2c_driver rmi_i2c_driver = {
 	.driver = {
 		.name	= "rmi4_i2c",
-		.pm	= &rmi_i2c_pm,
+		.pm	= pm_ptr(&rmi_i2c_pm),
 		.of_match_table = of_match_ptr(rmi_i2c_of_match),
 	},
 	.id_table	= rmi_id,

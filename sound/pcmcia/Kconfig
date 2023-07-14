@@ -4,6 +4,7 @@
 menuconfig SND_PCMCIA
 	bool "PCMCIA sound devices"
 	depends on PCMCIA
+	depends on HAS_IOPORT
 	default y
 	help
 	  Support for sound devices connected via the PCMCIA bus.

@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2014-2022 Toradex
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "imx6q.dtsi"
+#include "imx6qdl-apalis.dtsi"
+
+/ {
+	model = "Toradex Apalis iMX6Q/D Module on Apalis Evaluation Board";
+	compatible = "toradex,apalis_imx6q-eval", "toradex,apalis_imx6q",
+		     "fsl,imx6q";
+
+	aliases {
+		i2c0 = &i2c1;
+		i2c1 = &i2c3;
+		i2c2 = &i2c2;
+		rtc0 = &rtc_i2c;
+		rtc1 = &snvs_rtc;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	reg_pcie_switch: regulator-pcie-switch {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <1800000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-name = "pcie_switch";
+		startup-delay-us = <100000>;
+		status = "okay";
+	};
+
+	reg_3v3_sw: regulator-3v3-sw {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3.3V_SW";
+	};
+};
+
+&can1 {
+	xceiver-supply = <&reg_3v3_sw>;
+	status = "okay";
+};
+
+&can2 {
+	xceiver-supply = <&reg_3v3_sw>;
+	status = "okay";
+};
+
+/* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
+&i2c1 {
+	status = "okay";
+
+	pcie-switch@58 {
+		compatible = "plx,pex8605";
+		reg = <0x58>;
+	};
+
+	/* M41T0M6 real time clock on carrier board */
+	rtc_i2c: rtc@68 {
+		compatible = "st,m41t0";
+		reg = <0x68>;
+	};
+};
+
+/*
+ * I2C3_SDA/SCL (CAM) on MXM3 pin 201/203 (e.g. camera sensor on carrier
+ * board)
+ */
+&i2c3 {
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_reset_moci>;
+	/* active-high meaning opposite of regular PERST# active-low polarity */
+	reset-gpio = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+	reset-gpio-active-high;
+	vpcie-supply = <&reg_pcie_switch>;
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&reg_usb_host_vbus {
+	status = "okay";
+};
+
+&reg_usb_otg_vbus {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&sound_spdif {
+	status = "okay";
+};
+
+&spdif {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&usbh1 {
+	disable-over-current;
+	vbus-supply = <&reg_usb_host_vbus>;
+	status = "okay";
+};
+
+&usbotg {
+	disable-over-current;
+	vbus-supply = <&reg_usb_otg_vbus>;
+	status = "okay";
+};
+
+/* MMC1 */
+&usdhc1 {
+	status = "okay";
+};
+
+/* SD1 */
+&usdhc2 {
+	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_sd_cd>;
+	status = "okay";
+};

@@ -57,8 +57,7 @@ static inline void ep93xx_decomp_setup(void)
 	if (machine_is_ts72xx())
 		ts72xx_watchdog_disable();
 
-	if (machine_is_adssphere() ||
-	    machine_is_edb9301() ||
+	if (machine_is_edb9301() ||
 	    machine_is_edb9302() ||
 	    machine_is_edb9302a() ||
 	    machine_is_edb9302a() ||
@@ -69,16 +68,6 @@ static inline void ep93xx_decomp_setup(void)
 	    machine_is_edb9315() ||
 	    machine_is_edb9315a() ||
 	    machine_is_edb9315a() ||
-	    machine_is_gesbc9312() ||
-	    machine_is_micro9() ||
-	    machine_is_micro9l() ||
-	    machine_is_micro9m() ||
-	    machine_is_micro9s() ||
-	    machine_is_micro9m() ||
-	    machine_is_micro9l() ||
-	    machine_is_micro9s() ||
-	    machine_is_sim_one() ||
-	    machine_is_snapper_cl15() ||
 	    machine_is_ts72xx() ||
 	    machine_is_bk3() ||
 	    machine_is_vision_ep9307())

@@ -16,16 +16,11 @@ static const struct mtk_gate_regs eth_cg_regs = {
 	.sta_ofs = 0x0030,
 };
 
-#define GATE_ETH(_id, _name, _parent, _shift) {		\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &eth_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_ETH(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &eth_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate eth_clks[] = {
+	GATE_DUMMY(CLK_DUMMY, "eth_dummy"),
 	GATE_ETH(CLK_ETHSYS_HSDMA, "hsdma_clk", "ethif_sel", 5),
 	GATE_ETH(CLK_ETHSYS_ESW, "esw_clk", "ethpll_500m_ck", 6),
 	GATE_ETH(CLK_ETHSYS_GP2, "gp2_clk", "trgpll", 7),
@@ -44,39 +39,25 @@ static const struct mtk_clk_rst_desc clk_rst_desc = {
 	.rst_bank_nr = ARRAY_SIZE(rst_ofs),
 };
 
-static const struct of_device_id of_match_clk_mt2701_eth[] = {
-	{ .compatible = "mediatek,mt2701-ethsys", },
-	{}
+static const struct mtk_clk_desc eth_desc = {
+	.clks = eth_clks,
+	.num_clks = ARRAY_SIZE(eth_clks),
+	.rst_desc = &clk_rst_desc,
 };
 
-static int clk_mt2701_eth_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_ETHSYS_NR);
-
-	mtk_clk_register_gates(node, eth_clks, ARRAY_SIZE(eth_clks),
-						clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
-			pdev->name, r);
-
-	mtk_register_reset_controller_with_dev(&pdev->dev, &clk_rst_desc);
-
-	return r;
-}
+static const struct of_device_id of_match_clk_mt2701_eth[] = {
+	{ .compatible = "mediatek,mt2701-ethsys", .data = &eth_desc },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, of_match_clk_mt2701_eth);
 
 static struct platform_driver clk_mt2701_eth_drv = {
-	.probe = clk_mt2701_eth_probe,
+	.probe = mtk_clk_simple_probe,
+	.remove_new = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt2701-eth",
 		.of_match_table = of_match_clk_mt2701_eth,
 	},
 };
-
-builtin_platform_driver(clk_mt2701_eth_drv);
+module_platform_driver(clk_mt2701_eth_drv);
+MODULE_LICENSE("GPL");

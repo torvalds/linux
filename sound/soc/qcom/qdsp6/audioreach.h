@@ -15,11 +15,20 @@ struct q6apm_graph;
 #define MODULE_ID_PCM_CNV		0x07001003
 #define MODULE_ID_PCM_ENC		0x07001004
 #define MODULE_ID_PCM_DEC		0x07001005
+#define MODULE_ID_PLACEHOLDER_ENCODER	0x07001008
+#define MODULE_ID_PLACEHOLDER_DECODER	0x07001009
+#define MODULE_ID_SAL			0x07001010
+#define MODULE_ID_MFC			0x07001015
 #define MODULE_ID_CODEC_DMA_SINK	0x07001023
 #define MODULE_ID_CODEC_DMA_SOURCE	0x07001024
 #define MODULE_ID_I2S_SINK		0x0700100A
 #define MODULE_ID_I2S_SOURCE		0x0700100B
 #define MODULE_ID_DATA_LOGGING		0x0700101A
+#define MODULE_ID_AAC_DEC		0x0700101F
+#define MODULE_ID_FLAC_DEC		0x0700102F
+#define MODULE_ID_MP3_DECODE		0x0700103B
+#define MODULE_ID_GAPLESS		0x0700104D
+#define MODULE_ID_DISPLAY_PORT_SINK	0x07001069
 
 #define APM_CMD_GET_SPF_STATE		0x01001021
 #define APM_CMD_RSP_GET_SPF_STATE	0x02001007
@@ -140,12 +149,15 @@ struct param_id_enc_bitrate_param {
 } __packed;
 
 #define DATA_FORMAT_FIXED_POINT		1
+#define DATA_FORMAT_GENERIC_COMPRESSED	5
+#define DATA_FORMAT_RAW_COMPRESSED	6
 #define PCM_LSB_ALIGNED			1
 #define PCM_MSB_ALIGNED			2
 #define PCM_LITTLE_ENDIAN		1
 #define PCM_BIT_ENDIAN			2
 
 #define MEDIA_FMT_ID_PCM	0x09001000
+#define MEDIA_FMT_ID_MP3	0x09001009
 #define PCM_CHANNEL_L		1
 #define PCM_CHANNEL_R		2
 #define SAMPLE_RATE_48K		48000
@@ -221,6 +233,28 @@ struct apm_media_format {
 	uint32_t data_format;
 	uint32_t fmt_id;
 	uint32_t payload_size;
+} __packed;
+
+#define MEDIA_FMT_ID_FLAC	0x09001004
+
+struct payload_media_fmt_flac_t {
+	uint16_t num_channels;
+	uint16_t sample_size;
+	uint16_t min_blk_size;
+	uint16_t max_blk_size;
+	uint32_t sample_rate;
+	uint32_t min_frame_size;
+	uint32_t max_frame_size;
+} __packed;
+
+#define MEDIA_FMT_ID_AAC	0x09001001
+
+struct payload_media_fmt_aac_t {
+	uint16_t aac_fmt_flag;
+	uint16_t audio_obj_type;
+	uint16_t num_channels;
+	uint16_t total_size_of_PCE_bits;
+	uint32_t sample_rate;
 } __packed;
 
 #define DATA_CMD_WR_SH_MEM_EP_EOS			0x04001002
@@ -442,6 +476,15 @@ struct param_id_i2s_intf_cfg {
 #define PORT_ID_I2S_OUPUT		1
 #define I2S_STACK_SIZE			2048
 
+#define PARAM_ID_DISPLAY_PORT_INTF_CFG		0x08001154
+
+struct param_id_display_port_intf_cfg {
+	uint32_t channel_allocation;
+	/* Multi-Steam Transport index */
+	uint32_t mst_idx;
+	uint32_t dptx_idx;
+} __packed;
+
 #define PARAM_ID_HW_EP_MF_CFG			0x08001017
 struct param_id_hw_ep_mf {
 	uint32_t sample_rate;
@@ -499,13 +542,29 @@ struct data_logging_config {
 	uint32_t mode;
 } __packed;
 
+#define PARAM_ID_SAL_OUTPUT_CFG			0x08001016
+struct param_id_sal_output_config {
+	uint32_t bits_per_sample;
+} __packed;
+
+#define PARAM_ID_SAL_LIMITER_ENABLE		0x0800101E
+struct param_id_sal_limiter_enable {
+	uint32_t enable_lim;
+} __packed;
+
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT	0x08001024
+#define PARAM_ID_EARLY_EOS_DELAY		0x0800114C
+#define EARLY_EOS_DELAY_MS			150
 
 struct param_id_mfc_media_format {
 	uint32_t sample_rate;
 	uint16_t bit_width;
 	uint16_t num_channels;
 	uint16_t channel_mapping[];
+} __packed;
+
+struct param_id_gapless_early_eos_delay_t {
+	uint32_t early_eos_delay_ms;
 } __packed;
 
 struct media_format {
@@ -523,6 +582,11 @@ struct payload_media_fmt_pcm {
 	uint16_t endianness;
 	uint16_t num_channels;
 	uint8_t channel_mapping[];
+} __packed;
+
+#define PARAM_ID_MODULE_ENABLE			0x08001026
+struct param_id_module_enable {
+	uint32_t enable;
 } __packed;
 
 #define PARAM_ID_CODEC_DMA_INTF_CFG		0x08001063
@@ -581,6 +645,15 @@ struct param_id_vol_ctrl_master_gain {
 } __packed;
 
 
+#define PARAM_ID_REMOVE_INITIAL_SILENCE		0x0800114B
+#define PARAM_ID_REMOVE_TRAILING_SILENCE	0x0800115D
+
+#define PARAM_ID_REAL_MODULE_ID	0x0800100B
+
+struct param_id_placeholder_real_module_id {
+	uint32_t real_module_id;
+} __packed;
+
 /* Graph */
 struct audioreach_connection {
 	/* Connections */
@@ -595,7 +668,11 @@ struct audioreach_graph_info {
 	int id;
 	uint32_t num_sub_graphs;
 	struct list_head sg_list;
-	struct list_head connection_list;
+	/* DPCM connection from FE Graph to BE graph */
+	uint32_t src_mod_inst_id;
+	uint32_t src_mod_op_port_id;
+	uint32_t dst_mod_inst_id;
+	uint32_t dst_mod_ip_port_id;
 };
 
 struct audioreach_sub_graph {
@@ -623,6 +700,8 @@ struct audioreach_container {
 	struct audioreach_sub_graph *sub_graph;
 };
 
+#define AR_MAX_MOD_LINKS	8
+
 struct audioreach_module {
 	uint32_t module_id;
 	uint32_t instance_id;
@@ -633,11 +712,12 @@ struct audioreach_module {
 	uint32_t in_port;
 	uint32_t out_port;
 
+	uint32_t num_connections;
 	/* Connections */
 	uint32_t src_mod_inst_id;
-	uint32_t src_mod_op_port_id;
-	uint32_t dst_mod_inst_id;
-	uint32_t dst_mod_ip_port_id;
+	uint32_t src_mod_op_port_id[AR_MAX_MOD_LINKS];
+	uint32_t dst_mod_inst_id[AR_MAX_MOD_LINKS];
+	uint32_t dst_mod_ip_port_id[AR_MAX_MOD_LINKS];
 
 	/* Format specifics */
 	uint32_t ch_fmt;
@@ -678,8 +758,11 @@ struct audioreach_module_config {
 	u16	data_format;
 	u16	num_channels;
 	u16	active_channels_mask;
+	u16	dp_idx;
+	u32	channel_allocation;
 	u32	sd_line_mask;
 	int	fmt;
+	struct snd_codec codec;
 	u8 channel_map[AR_PCM_MAX_NUM_CHANNEL];
 };
 
@@ -694,9 +777,8 @@ void *audioreach_alloc_apm_pkt(int pkt_size, uint32_t opcode, uint32_t token,
 void *audioreach_alloc_pkt(int payload_size, uint32_t opcode,
 			   uint32_t token, uint32_t src_port,
 			   uint32_t dest_port);
-void *audioreach_alloc_graph_pkt(struct q6apm *apm,
-				 struct list_head *sg_list,
-				  int graph_id);
+void *audioreach_alloc_graph_pkt(struct q6apm *apm, struct audioreach_graph_info
+				 *info);
 /* Topology specific */
 int audioreach_tplg_init(struct snd_soc_component *component);
 
@@ -717,14 +799,8 @@ int audioreach_set_media_format(struct q6apm_graph *graph,
 int audioreach_shared_memory_send_eos(struct q6apm_graph *graph);
 int audioreach_gain_set_vol_ctrl(struct q6apm *apm,
 				 struct audioreach_module *module, int vol);
-struct audioreach_module *audioreach_get_container_last_module(
-				struct audioreach_container *container);
-struct audioreach_module *audioreach_get_container_first_module(
-				struct audioreach_container *container);
-struct audioreach_module *audioreach_get_container_next_module(
-				struct audioreach_container *container,
-				struct audioreach_module *module);
-#define list_for_each_container_module(mod, cont) \
-	for (mod = audioreach_get_container_first_module(cont); mod != NULL; \
-	     mod = audioreach_get_container_next_module(cont, mod))
+int audioreach_send_u32_param(struct q6apm_graph *graph, struct audioreach_module *module,
+			      uint32_t param_id, uint32_t param_val);
+int audioreach_compr_set_param(struct q6apm_graph *graph, struct audioreach_module_config *mcfg);
+
 #endif /* __AUDIOREACH_H__ */

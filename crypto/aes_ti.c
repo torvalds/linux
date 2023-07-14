@@ -6,7 +6,7 @@
  */
 
 #include <crypto/aes.h>
-#include <linux/crypto.h>
+#include <crypto/algapi.h>
 #include <linux/module.h>
 
 static int aesti_set_key(struct crypto_tfm *tfm, const u8 *in_key,

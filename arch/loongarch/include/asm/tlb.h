@@ -88,52 +88,47 @@ enum invtlb_ops {
 	INVTLB_GID_ADDR = 0x16,
 };
 
-/*
- * invtlb op info addr
- * (0x1 << 26) | (0x24 << 20) | (0x13 << 15) |
- * (addr << 10) | (info << 5) | op
- */
-static inline void invtlb(u32 op, u32 info, u64 addr)
+static __always_inline void invtlb(u32 op, u32 info, u64 addr)
 {
 	__asm__ __volatile__(
-		"parse_r addr,%0\n\t"
-		"parse_r info,%1\n\t"
-		".word ((0x6498000) | (addr << 10) | (info << 5) | %2)\n\t"
+		"invtlb %0, %1, %2\n\t"
 		:
-		: "r"(addr), "r"(info), "i"(op)
-		:
+		: "i"(op), "r"(info), "r"(addr)
+		: "memory"
 		);
 }
 
-static inline void invtlb_addr(u32 op, u32 info, u64 addr)
+static __always_inline void invtlb_addr(u32 op, u32 info, u64 addr)
 {
+	BUILD_BUG_ON(!__builtin_constant_p(info) || info != 0);
 	__asm__ __volatile__(
-		"parse_r addr,%0\n\t"
-		".word ((0x6498000) | (addr << 10) | (0 << 5) | %1)\n\t"
+		"invtlb %0, $zero, %1\n\t"
 		:
-		: "r"(addr), "i"(op)
-		:
+		: "i"(op), "r"(addr)
+		: "memory"
 		);
 }
 
-static inline void invtlb_info(u32 op, u32 info, u64 addr)
+static __always_inline void invtlb_info(u32 op, u32 info, u64 addr)
 {
+	BUILD_BUG_ON(!__builtin_constant_p(addr) || addr != 0);
 	__asm__ __volatile__(
-		"parse_r info,%0\n\t"
-		".word ((0x6498000) | (0 << 10) | (info << 5) | %1)\n\t"
+		"invtlb %0, %1, $zero\n\t"
 		:
-		: "r"(info), "i"(op)
-		:
+		: "i"(op), "r"(info)
+		: "memory"
 		);
 }
 
-static inline void invtlb_all(u32 op, u32 info, u64 addr)
+static __always_inline void invtlb_all(u32 op, u32 info, u64 addr)
 {
+	BUILD_BUG_ON(!__builtin_constant_p(info) || info != 0);
+	BUILD_BUG_ON(!__builtin_constant_p(addr) || addr != 0);
 	__asm__ __volatile__(
-		".word ((0x6498000) | (0 << 10) | (0 << 5) | %0)\n\t"
+		"invtlb %0, $zero, $zero\n\t"
 		:
 		: "i"(op)
-		:
+		: "memory"
 		);
 }
 
@@ -149,7 +144,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
 	struct vm_area_struct vma;
 
 	vma.vm_mm = tlb->mm;
-	vma.vm_flags = 0;
+	vm_flags_init(&vma, 0);
 	if (tlb->fullmm) {
 		flush_tlb_mm(tlb->mm);
 		return;
@@ -163,6 +158,9 @@ extern void handle_tlb_store(void);
 extern void handle_tlb_modify(void);
 extern void handle_tlb_refill(void);
 extern void handle_tlb_protect(void);
+extern void handle_tlb_load_ptw(void);
+extern void handle_tlb_store_ptw(void);
+extern void handle_tlb_modify_ptw(void);
 
 extern void dump_tlb_all(void);
 extern void dump_tlb_regs(void);

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/qcom.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: QCOM device tree bindings
+title: QCOM
 
 maintainers:
   - Bjorn Andersson <bjorn.andersson@linaro.org>
@@ -29,42 +29,73 @@ description: |
         apq8074
         apq8084
         apq8096
+        ipq4018
+        ipq5332
         ipq6018
         ipq8074
+        ipq9574
         mdm9615
         msm8226
         msm8916
+        msm8939
+        msm8953
+        msm8956
+        msm8960
         msm8974
+        msm8976
         msm8992
         msm8994
         msm8996
         msm8998
         qcs404
+        qcm2290
+        qdu1000
+        qrb2210
+        qrb4210
+        qru1000
         sa8155p
         sa8540p
+        sa8775p
         sc7180
         sc7280
         sc8180x
         sc8280xp
         sda660
+        sdm450
         sdm630
         sdm632
         sdm636
         sdm660
+        sdm670
         sdm845
         sdx55
         sdx65
+        sdx75
+        sm4250
+        sm6115
+        sm6115p
         sm6125
         sm6350
+        sm6375
         sm7225
         sm8150
         sm8250
         sm8350
         sm8450
+        sm8550
 
   The 'board' element must be one of the following strings:
 
         adp
+        ap-al02-c2
+        ap-al02-c6
+        ap-al02-c7
+        ap-al02-c8
+        ap-al02-c9
+        ap-mi01.2
+        ap-mi01.3
+        ap-mi01.6
+        ap-mi01.9
         cdp
         cp01-c1
         dragonboard
@@ -75,7 +106,10 @@ description: |
         liquid
         mtp
         qrd
+        rb2
+        ride
         sbc
+        x100
 
   The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
   where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
@@ -114,7 +148,9 @@ properties:
       - items:
           - enum:
               - asus,sparrow
+              - huawei,sturgeon
               - lg,lenok
+              - samsung,matisse-wifi
           - const: qcom,apq8026
 
       - items:
@@ -150,17 +186,36 @@ properties:
 
       - items:
           - enum:
+              - sony,kanuti-tulip
+              - square,apq8039-t2
+          - const: qcom,msm8939
+
+      - items:
+          - enum:
+              - sony,kugo-row
+              - sony,suzu-row
+          - const: qcom,msm8956
+
+      - items:
+          - enum:
               - qcom,msm8960-cdp
+              - samsung,expressatt
           - const: qcom,msm8960
 
       - items:
           - enum:
-              - fairphone,fp2
               - lge,hammerhead
-              - samsung,klte
               - sony,xperia-amami
-              - sony,xperia-castor
               - sony,xperia-honami
+          - const: qcom,msm8974
+
+      - items:
+          - enum:
+              - fairphone,fp2
+              - oneplus,bacon
+              - samsung,klte
+              - sony,xperia-castor
+          - const: qcom,msm8974pro
           - const: qcom,msm8974
 
       - items:
@@ -170,21 +225,41 @@ properties:
 
       - items:
           - enum:
+              - acer,a1-724
               - alcatel,idol347
               - asus,z00l
+              - gplus,fl8005a
               - huawei,g7
               - longcheer,l8910
               - samsung,a3u-eur
               - samsung,a5u-eur
+              - samsung,e5
+              - samsung,e7
+              - samsung,grandmax
+              - samsung,gt510
+              - samsung,gt58
               - samsung,j5
+              - samsung,j5x
               - samsung,serranove
+              - thwc,uf896
+              - thwc,ufi001c
               - wingtech,wt88047
+              - yiming,uz801-v3
           - const: qcom,msm8916
 
       - items:
           - const: longcheer,l8150
           - const: qcom,msm8916-v1-qrd/9-v1
           - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - motorola,potter
+              - xiaomi,daisy
+              - xiaomi,mido
+              - xiaomi,tissot
+              - xiaomi,vince
+          - const: qcom,msm8953
 
       - items:
           - enum:
@@ -218,13 +293,20 @@ properties:
 
       - items:
           - enum:
+              - oneplus,oneplus3
+              - oneplus,oneplus3t
               - qcom,msm8996-mtp
               - sony,dora-row
               - sony,kagura-row
               - sony,keyaki-row
               - xiaomi,gemini
+          - const: qcom,msm8996
+
+      - items:
+          - enum:
               - xiaomi,natrium
               - xiaomi,scorpio
+          - const: qcom,msm8996pro
           - const: qcom,msm8996
 
       - items:
@@ -239,7 +321,14 @@ properties:
               - sony,xperia-lilac
               - sony,xperia-maple
               - sony,xperia-poplar
+              - xiaomi,sagit
           - const: qcom,msm8998
+
+      - items:
+          - enum:
+              - 8dev,jalapeno
+              - alfa-network,ap120c-ac
+          - const: qcom,ipq4018
 
       - items:
           - enum:
@@ -252,6 +341,15 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq5332-ap-mi01.2
+              - qcom,ipq5332-ap-mi01.3
+              - qcom,ipq5332-ap-mi01.6
+              - qcom,ipq5332-ap-mi01.9
+          - const: qcom,ipq5332
+
+      - items:
+          - enum:
+              - mikrotik,rb3011
               - qcom,ipq8064-ap148
           - const: qcom,ipq8064
 
@@ -262,9 +360,44 @@ properties:
               - qcom,ipq8074-hk10-c2
           - const: qcom,ipq8074
 
-      - description: Qualcomm Technologies, Inc. SC7180 IDP
+      - items:
+          - enum:
+              - qcom,ipq9574-ap-al02-c2
+              - qcom,ipq9574-ap-al02-c6
+              - qcom,ipq9574-ap-al02-c7
+              - qcom,ipq9574-ap-al02-c8
+              - qcom,ipq9574-ap-al02-c9
+          - const: qcom,ipq9574
+
+      - description: Sierra Wireless MangOH Green with WP8548 Module
+        items:
+          - const: swir,mangoh-green-wp8548
+          - const: swir,wp8548
+          - const: qcom,mdm9615
+
+      - description: Qualcomm Technologies, Inc. Robotics RB1
         items:
           - enum:
+              - qcom,qrb2210-rb1
+          - const: qcom,qrb2210
+          - const: qcom,qcm2290
+
+      - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
+        items:
+          - enum:
+              - qcom,qdu1000-idp
+              - qcom,qdu1000-x100
+          - const: qcom,qdu1000
+
+      - description: Qualcomm Technologies, Inc. Radio Unit 1000 platform
+        items:
+          - enum:
+              - qcom,qru1000-idp
+          - const: qcom,qru1000
+
+      - items:
+          - enum:
+              - acer,aspire1
               - qcom,sc7180-idp
           - const: qcom,sc7180
 
@@ -450,6 +583,7 @@ properties:
 
       - description: Google Pazquel with LTE and Parade (newest rev)
         items:
+          - const: google,pazquel-sku6
           - const: google,pazquel-sku4
           - const: qcom,sc7180
 
@@ -457,6 +591,17 @@ properties:
         items:
           - const: google,pazquel-sku0
           - const: google,pazquel-sku2
+          - const: qcom,sc7180
+
+      - description: Google Pazquel360 with LTE (newest rev)
+        items:
+          - const: google,pazquel-sku22
+          - const: google,pazquel-sku20
+          - const: qcom,sc7180
+
+      - description: Google Pazquel360 with WiFi (newest rev)
+        items:
+          - const: google,pazquel-sku21
           - const: qcom,sc7180
 
       - description: Sharp Dynabook Chromebook C1 (rev1)
@@ -550,7 +695,14 @@ properties:
 
       - description: Qualcomm Technologies, Inc. sc7280 CRD platform (newest rev)
         items:
+          - const: google,zoglin
           - const: google,hoglin
+          - const: qcom,sc7280
+
+      - description: Qualcomm Technologies, Inc. sc7280 CRD Pro platform (newest rev)
+        items:
+          - const: google,zoglin-sku1536
+          - const: google,hoglin-sku1536
           - const: qcom,sc7280
 
       - description: Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform
@@ -565,14 +717,56 @@ properties:
           - const: google,piglin
           - const: qcom,sc7280
 
+      - description: Google Evoker (newest rev)
+        items:
+          - const: google,evoker
+          - const: qcom,sc7280
+
+      - description: Google Evoker with LTE (newest rev)
+        items:
+          - const: google,evoker-sku512
+          - const: qcom,sc7280
+
       - description: Google Herobrine (newest rev)
         items:
           - const: google,herobrine
           - const: qcom,sc7280
 
+      - description: Google Villager (rev0)
+        items:
+          - const: google,villager-rev0
+          - const: qcom,sc7280
+
       - description: Google Villager (newest rev)
         items:
           - const: google,villager
+          - const: qcom,sc7280
+
+      - description: Google Villager with LTE (newest rev)
+        items:
+          - const: google,villager-sku512
+          - const: qcom,sc7280
+
+      - description: Google Zombie (newest rev)
+        items:
+          - const: google,zombie
+          - const: qcom,sc7280
+
+      - description: Google Zombie with LTE (newest rev)
+        items:
+          - const: google,zombie-sku512
+          - const: qcom,sc7280
+
+      - description: Google Zombie with NVMe (newest rev)
+        items:
+          - const: google,zombie-sku2
+          - const: google,zombie-sku3
+          - const: google,zombie-sku515
+          - const: qcom,sc7280
+
+      - description: Google Zombie with LTE and NVMe (newest rev)
+        items:
+          - const: google,zombie-sku514
           - const: qcom,sc7280
 
       - items:
@@ -591,6 +785,11 @@ properties:
 
       - items:
           - enum:
+              - motorola,ali
+          - const: qcom,sdm450
+
+      - items:
+          - enum:
               - sony,discovery-row
               - sony,kirin-row
               - sony,pioneer-row
@@ -605,6 +804,7 @@ properties:
       - items:
           - enum:
               - fairphone,fp3
+              - motorola,ocean
           - const: qcom,sdm632
 
       - items:
@@ -619,6 +819,11 @@ properties:
 
       - items:
           - enum:
+              - google,sargo
+          - const: qcom,sdm670
+
+      - items:
+          - enum:
               - qcom,sdx55-mtp
               - qcom,sdx55-telit-fn980-tlb
               - qcom,sdx55-t55
@@ -628,6 +833,11 @@ properties:
           - enum:
               - qcom,sdx65-mtp
           - const: qcom,sdx65
+
+      - items:
+          - enum:
+              - qcom,sdx75-idp
+          - const: qcom,sdx75
 
       - items:
           - enum:
@@ -650,10 +860,19 @@ properties:
       - items:
           - enum:
               - qcom,sa8295p-adp
+              - qcom,sa8540p-ride
           - const: qcom,sa8540p
 
       - items:
           - enum:
+              - qcom,sa8775p-ride
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
+              - google,cheza
+              - google,cheza-rev1
+              - google,cheza-rev2
               - lenovo,yoga-c630
               - lg,judyln
               - lg,judyp
@@ -661,24 +880,54 @@ properties:
               - oneplus,fajita
               - qcom,sdm845-mtp
               - shift,axolotl
+              - samsung,starqltechn
               - samsung,w737
               - sony,akari-row
               - sony,akatsuki-row
               - sony,apollo-row
               - thundercomm,db845c
               - xiaomi,beryllium
+              - xiaomi,beryllium-ebbg
               - xiaomi,polaris
           - const: qcom,sdm845
 
       - items:
           - enum:
+              - oneplus,billie2
+          - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - qcom,qrb4210-rb2
+          - const: qcom,qrb4210
+          - const: qcom,sm4250
+
+      - items:
+          - enum:
+              - fxtec,pro1x
+          - const: qcom,sm6115
+
+      - items:
+          - enum:
+              - lenovo,j606f
+          - const: qcom,sm6115p
+          - const: qcom,sm6115
+
+      - items:
+          - enum:
               - sony,pdx201
+              - xiaomi,laurel-sprout
           - const: qcom,sm6125
 
       - items:
           - enum:
               - sony,pdx213
           - const: qcom,sm6350
+
+      - items:
+          - enum:
+              - sony,pdx225
+          - const: qcom,sm6375
 
       - items:
           - enum:
@@ -701,6 +950,7 @@ properties:
               - qcom,sm8250-mtp
               - sony,pdx203-generic
               - sony,pdx206-generic
+              - xiaomi,elish
           - const: qcom,sm8250
 
       - items:
@@ -716,7 +966,145 @@ properties:
           - enum:
               - qcom,sm8450-hdk
               - qcom,sm8450-qrd
+              - sony,pdx223
+              - sony,pdx224
           - const: qcom,sm8450
+
+      - items:
+          - enum:
+              - qcom,sm8550-mtp
+              - qcom,sm8550-qrd
+          - const: qcom,sm8550
+
+  # Board compatibles go above
+
+  qcom,msm-id:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 1
+    maxItems: 8
+    items:
+      items:
+        - description: |
+            MSM chipset ID - an exact match value consisting of two bitfields::
+             - bits 0-15  - The unique MSM chipset ID
+             - bits 16-31 - Reserved; should be 0
+        - description: |
+            Hardware revision ID - a chipset specific 32-bit ID representing
+            the version of the chipset.  It is best a match value - the
+            bootloader will look for the closest possible match.
+    deprecated: true
+    description:
+      The MSM chipset and hardware revision used Qualcomm bootloaders.  It
+      can optionally be an array of these to indicate multiple hardware that
+      use the same device tree.  It is expected that the bootloader will use
+      this information at boot-up to decide which device tree to use when given
+      multiple device trees, some of which may not be compatible with the
+      actual hardware.  It is the bootloader's responsibility to pass the
+      correct device tree to the kernel.
+      The property is deprecated.
+
+  qcom,board-id:
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 1
+    maxItems: 8
+    oneOf:
+      - items:
+          - items:
+              - description: |
+                  Board ID consisting of three bitfields::
+                    - bits 31-24 - Unused
+                    - bits 23-16 - Platform Version Major
+                    - bits 15-8  - Platform Version Minor
+                    - bits 7-0   - Platform Type
+                  Platform Type field is an exact match value.  The
+                  Platform Major/Minor field is a best match.  The bootloader will
+                  look for the closest possible match.
+              - description: |
+                  Subtype ID unique to a Platform Type/Chipset ID.  For a given
+                  Platform Type, there will typically only be a single board and the
+                  subtype_id will be 0.  However in some cases board variants may
+                  need to be distinguished by different subtype_id values.
+      - items:
+          # OnePlus uses a variant of board-id with four elements:
+          - items:
+              - const: 8
+              - const: 0
+              - description: OnePlus board ID
+              - description: OnePlus subtype ID
+    deprecated: true
+    description:
+      The board type and revision information.  It can optionally be an array
+      of these to indicate multiple boards that use the same device tree.  It
+      is expected that the bootloader will use this information at boot-up to
+      decide which device tree to use when given multiple device trees, some of
+      which may not be compatible with the actual hardware.  It is the
+      bootloader's responsibility to pass the correct device tree to the
+      kernel
+      The property is deprecated.
+
+allOf:
+  # Explicit allow-list for older SoCs. The legacy properties are not allowed
+  # on newer SoCs.
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,apq8026
+              - qcom,apq8094
+              - qcom,apq8096
+              - qcom,msm8939
+              - qcom,msm8953
+              - qcom,msm8956
+              - qcom,msm8992
+              - qcom,msm8994
+              - qcom,msm8996
+              - qcom,msm8998
+              - qcom,sdm450
+              - qcom,sdm630
+              - qcom,sdm632
+              - qcom,sdm636
+              - qcom,sdm845
+              - qcom,sdx55
+              - qcom,sdx65
+              - qcom,sdx75
+              - qcom,sm4250
+              - qcom,sm6115
+              - qcom,sm6125
+              - qcom,sm6350
+              - qcom,sm7225
+              - qcom,sm8150
+              - qcom,sm8250
+    then:
+      properties:
+        qcom,board-id: true
+        qcom,msm-id: true
+    else:
+      properties:
+        qcom,board-id: false
+        qcom,msm-id: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - oneplus,cheeseburger
+              - oneplus,dumpling
+              - oneplus,enchilada
+              - oneplus,fajita
+              - oneplus,oneplus3
+              - oneplus,oneplus3t
+    then:
+      properties:
+        qcom,board-id:
+          items:
+            minItems: 4
+    else:
+      properties:
+        qcom,board-id:
+          items:
+            maxItems: 2
 
 additionalProperties: true
 

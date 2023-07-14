@@ -12,17 +12,14 @@
 static struct {
 	__u32 nr_procs;
 	__u32 kthread_pid;
-	bool quiet;
 } args = {
 	.nr_procs = 1000,
 	.kthread_pid = 0,
-	.quiet = false,
 };
 
 enum {
 	ARG_NR_PROCS = 7000,
 	ARG_KTHREAD_PID = 7001,
-	ARG_QUIET = 7002,
 };
 
 static const struct argp_option opts[] = {
@@ -30,8 +27,6 @@ static const struct argp_option opts[] = {
 		"Set number of user processes to spin up"},
 	{ "kthread_pid", ARG_KTHREAD_PID, "PID", 0,
 		"Pid of rcu_tasks_trace kthread for ticks tracking"},
-	{ "quiet", ARG_QUIET, "{0,1}", 0,
-		"If true, don't report progress"},
 	{},
 };
 
@@ -56,14 +51,6 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		}
 		args.kthread_pid = ret;
 		break;
-	case ARG_QUIET:
-		ret = strtol(arg, NULL, 10);
-		if (ret < 0 || ret > 1) {
-			fprintf(stderr, "invalid quiet %ld\n", ret);
-			argp_usage(state);
-		}
-		args.quiet = ret;
-		break;
 break;
 	default:
 		return ARGP_ERR_UNKNOWN;
@@ -85,8 +72,8 @@ static void validate(void)
 		fprintf(stderr, "benchmark doesn't support multi-producer!\n");
 		exit(1);
 	}
-	if (env.consumer_cnt != 1) {
-		fprintf(stderr, "benchmark doesn't support multi-consumer!\n");
+	if (env.consumer_cnt != 0) {
+		fprintf(stderr, "benchmark doesn't support consumer!\n");
 		exit(1);
 	}
 
@@ -210,11 +197,6 @@ static void measure(struct bench_res *res)
 	ctx.prev_kthread_stime = ticks;
 }
 
-static void *consumer(void *input)
-{
-	return NULL;
-}
-
 static void *producer(void *input)
 {
 	while (true)
@@ -230,7 +212,7 @@ static void report_progress(int iter, struct bench_res *res, long delta_ns)
 		exit(1);
 	}
 
-	if (args.quiet)
+	if (env.quiet)
 		return;
 
 	printf("Iter %d\t avg tasks_trace grace period latency\t%lf ns\n",
@@ -271,10 +253,10 @@ static void report_final(struct bench_res res[], int res_cnt)
  */
 const struct bench bench_local_storage_tasks_trace = {
 	.name = "local-storage-tasks-trace",
+	.argp = &bench_local_storage_rcu_tasks_trace_argp,
 	.validate = validate,
 	.setup = local_storage_tasks_trace_setup,
 	.producer_thread = producer,
-	.consumer_thread = consumer,
 	.measure = measure,
 	.report_progress = report_progress,
 	.report_final = report_final,

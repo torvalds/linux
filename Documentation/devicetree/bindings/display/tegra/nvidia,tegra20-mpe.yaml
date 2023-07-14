@@ -42,15 +42,12 @@ properties:
     maxItems: 1
 
   interconnects:
-    minItems: 6
     maxItems: 6
 
   interconnect-names:
-    minItems: 6
     maxItems: 6
 
-  operating-points-v2:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+  operating-points-v2: true
 
   power-domains:
     items:

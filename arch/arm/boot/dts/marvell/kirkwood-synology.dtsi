@@ -1,0 +1,855 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Nodes for Marvell 628x Synology devices
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ * Ben Peddell <klightspeed@killerwolves.net>
+ *
+ */
+
+/ {
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pmx_alarmled_12: pmx-alarmled-12 {
+				marvell,pins = "mpp12";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanctrl_15: pmx-fanctrl-15 {
+				marvell,pins = "mpp15";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanctrl_16: pmx-fanctrl-16 {
+				marvell,pins = "mpp16";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanctrl_17: pmx-fanctrl-17 {
+				marvell,pins = "mpp17";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanalarm_18: pmx-fanalarm-18 {
+				marvell,pins = "mpp18";
+				marvell,function = "gpo";
+			};
+
+			pmx_hddled_20: pmx-hddled-20 {
+				marvell,pins = "mpp20";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_21: pmx-hddled-21 {
+				marvell,pins = "mpp21";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_22: pmx-hddled-22 {
+				marvell,pins = "mpp22";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_23: pmx-hddled-23 {
+				marvell,pins = "mpp23";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_24: pmx-hddled-24 {
+				marvell,pins = "mpp24";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_25: pmx-hddled-25 {
+				marvell,pins = "mpp25";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_26: pmx-hddled-26 {
+				marvell,pins = "mpp26";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_27: pmx-hddled-27 {
+				marvell,pins = "mpp27";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_28: pmx-hddled-28 {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+
+			pmx_hdd1_pwr_29: pmx-hdd1-pwr-29 {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+
+			pmx_hdd1_pwr_30: pmx-hdd-pwr-30 {
+				marvell,pins = "mpp30";
+				marvell,function = "gpio";
+			};
+
+			pmx_hdd2_pwr_31: pmx-hdd2-pwr-31 {
+				marvell,pins = "mpp31";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanctrl_32: pmx-fanctrl-32 {
+				marvell,pins = "mpp32";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanctrl_33: pmx-fanctrl-33 {
+				marvell,pins = "mpp33";
+				marvell,function = "gpo";
+			};
+
+			pmx_fanctrl_34: pmx-fanctrl-34 {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+
+			pmx_hdd2_pwr_34: pmx-hdd2-pwr-34 {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanalarm_35: pmx-fanalarm-35 {
+				marvell,pins = "mpp35";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_36: pmx-hddled-36 {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_37: pmx-hddled-37 {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_38: pmx-hddled-38 {
+				marvell,pins = "mpp38";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_39: pmx-hddled-39 {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_40: pmx-hddled-40 {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_41: pmx-hddled-41 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_42: pmx-hddled-42 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_43: pmx-hddled-43 {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_44: pmx-hddled-44 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_hddled_45: pmx-hddled-45 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+
+			pmx_hdd3_pwr_44: pmx-hdd3-pwr-44 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_hdd4_pwr_45: pmx-hdd4-pwr-45 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanalarm_44: pmx-fanalarm-44 {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_fanalarm_45: pmx-fanalarm-45 {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+		};
+
+		rtc@10300 {
+			status = "disabled";
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "st,m25p80", "jedec,spi-nor";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x00000000 0x00080000>;
+					label = "RedBoot";
+				};
+
+				partition@80000 {
+					reg = <0x00080000 0x00200000>;
+					label = "zImage";
+				};
+
+				partition@280000 {
+					reg = <0x00280000 0x00140000>;
+					label = "rd.gz";
+				};
+
+				partition@3c0000 {
+					reg = <0x003c0000 0x00010000>;
+					label = "vendor";
+				};
+
+				partition@3d0000 {
+					reg = <0x003d0000 0x00020000>;
+					label = "RedBoot config";
+				};
+
+				partition@3f0000 {
+					reg = <0x003f0000 0x00010000>;
+					label = "FIS directory";
+				};
+			};
+		};
+
+		i2c@11000 {
+			status = "okay";
+			clock-frequency = <400000>;
+
+			rs5c372: rs5c372@32 {
+				status = "disabled";
+				compatible = "ricoh,rs5c372a";
+				reg = <0x32>;
+			};
+
+			s35390a: s35390a@30 {
+				status = "disabled";
+				compatible = "sii,s35390a";
+				reg = <0x30>;
+			};
+		};
+
+		serial@12000 {
+			status = "okay";
+		};
+
+		serial@12100 {
+			status = "okay";
+		};
+
+		poweroff@12100 {
+			compatible = "synology,power-off";
+			reg = <0x12100 0x100>;
+			clocks = <&gate_clk 7>;
+		};
+
+		sata@80000 {
+			pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+			pinctrl-names = "default";
+			status = "okay";
+			nr-ports = <2>;
+		};
+	};
+
+	gpio-fan-150-32-35 {
+		status = "disabled";
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fanctrl_32 &pmx_fanctrl_33 &pmx_fanctrl_34
+		             &pmx_fanalarm_35>;
+		pinctrl-names = "default";
+		gpios = <&gpio1 0 GPIO_ACTIVE_HIGH
+			 &gpio1 1 GPIO_ACTIVE_HIGH
+			 &gpio1 2 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <    0 0
+				       2200 1
+				       2500 2
+				       3000 4
+				       3300 3
+				       3700 5
+				       3800 6
+				       4200 7 >;
+	};
+
+	gpio-fan-150-15-18 {
+		status = "disabled";
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
+		             &pmx_fanalarm_18>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
+			 &gpio0 16 GPIO_ACTIVE_HIGH
+			 &gpio0 17 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <    0 0
+				       2200 1
+				       2500 2
+				       3000 4
+				       3300 3
+				       3700 5
+				       3800 6
+				       4200 7 >;
+	};
+
+	gpio-fan-100-32-35 {
+		status = "disabled";
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fanctrl_32 &pmx_fanctrl_33 &pmx_fanctrl_34
+		             &pmx_fanalarm_35>;
+		pinctrl-names = "default";
+		gpios = <&gpio1 0 GPIO_ACTIVE_HIGH
+			 &gpio1 1 GPIO_ACTIVE_HIGH
+			 &gpio1 2 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <    0 0
+				       2500 1
+				       3100 2
+				       3800 3
+				       4600 4
+				       4800 5
+				       4900 6
+				       5000 7 >;
+	};
+
+	gpio-fan-100-15-18 {
+		status = "disabled";
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
+		             &pmx_fanalarm_18>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
+			 &gpio0 16 GPIO_ACTIVE_HIGH
+			 &gpio0 17 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <    0 0
+				       2500 1
+				       3100 2
+				       3800 3
+				       4600 4
+				       4800 5
+				       4900 6
+				       5000 7 >;
+	};
+
+	gpio-fan-100-15-35-1 {
+		status = "disabled";
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
+		             &pmx_fanalarm_35>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
+			 &gpio0 16 GPIO_ACTIVE_HIGH
+			 &gpio0 17 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <    0 0
+				       2500 1
+				       3100 2
+				       3800 3
+				       4600 4
+				       4800 5
+				       4900 6
+				       5000 7 >;
+	};
+
+	gpio-fan-100-15-35-3 {
+		status = "disabled";
+		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fanctrl_15 &pmx_fanctrl_16 &pmx_fanctrl_17
+		             &pmx_fanalarm_35 &pmx_fanalarm_44 &pmx_fanalarm_45>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 15 GPIO_ACTIVE_HIGH
+			 &gpio0 16 GPIO_ACTIVE_HIGH
+			 &gpio0 17 GPIO_ACTIVE_HIGH>;
+		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH
+			       &gpio1 12 GPIO_ACTIVE_HIGH
+			       &gpio1 13 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <    0 0
+				       2500 1
+				       3100 2
+				       3800 3
+				       4600 4
+				       4800 5
+				       4900 6
+				       5000 7 >;
+	};
+
+	gpio-leds-alarm-12 {
+		status = "disabled";
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_alarmled_12>;
+		pinctrl-names = "default";
+
+		hdd1-green {
+			label = "synology:alarm";
+			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds-hdd-20 {
+		status = "disabled";
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_hddled_20 &pmx_hddled_21 &pmx_hddled_22
+			     &pmx_hddled_23 &pmx_hddled_24 &pmx_hddled_25
+			     &pmx_hddled_26 &pmx_hddled_27>;
+		pinctrl-names = "default";
+
+		hdd1-green {
+			label = "synology:green:hdd1";
+			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd1-amber {
+			label = "synology:amber:hdd1";
+			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-green {
+			label = "synology:green:hdd2";
+			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-amber {
+			label = "synology:amber:hdd2";
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd3-green {
+			label = "synology:green:hdd3";
+			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd3-amber {
+			label = "synology:amber:hdd3";
+			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd4-green {
+			label = "synology:green:hdd4";
+			gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd4-amber {
+			label = "synology:amber:hdd4";
+			gpios = <&gpio0 27 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds-hdd-21-1 {
+		status = "disabled";
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_hddled_21 &pmx_hddled_23>;
+		pinctrl-names = "default";
+
+		hdd1-green {
+			label = "synology:green:hdd1";
+			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd1-amber {
+			label = "synology:amber:hdd1";
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds-hdd-21-2 {
+		status = "disabled";
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_hddled_21 &pmx_hddled_23 &pmx_hddled_20 &pmx_hddled_22>;
+		pinctrl-names = "default";
+
+		hdd1-green {
+			label = "synology:green:hdd1";
+			gpios = <&gpio0 21 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd1-amber {
+			label = "synology:amber:hdd1";
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-green {
+			label = "synology:green:hdd2";
+			gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-amber {
+			label = "synology:amber:hdd2";
+			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds-hdd-36 {
+		status = "disabled";
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_hddled_36 &pmx_hddled_37 &pmx_hddled_38
+			     &pmx_hddled_39 &pmx_hddled_40 &pmx_hddled_41
+			     &pmx_hddled_42 &pmx_hddled_43 &pmx_hddled_44
+			     &pmx_hddled_45>;
+		pinctrl-names = "default";
+
+		hdd1-green {
+			label = "synology:green:hdd1";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd1-amber {
+			label = "synology:amber:hdd1";
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-green {
+			label = "synology:green:hdd2";
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-amber {
+			label = "synology:amber:hdd2";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd3-green {
+			label = "synology:green:hdd3";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd3-amber {
+			label = "synology:amber:hdd3";
+			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd4-green {
+			label = "synology:green:hdd4";
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd4-amber {
+			label = "synology:amber:hdd4";
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd5-green {
+			label = "synology:green:hdd5";
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd5-amber {
+			label = "synology:amber:hdd5";
+			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds-hdd-38 {
+		status = "disabled";
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_hddled_38 &pmx_hddled_39 &pmx_hddled_36 &pmx_hddled_37>;
+		pinctrl-names = "default";
+
+		hdd1-green {
+			label = "synology:green:hdd1";
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd1-amber {
+			label = "synology:amber:hdd1";
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-green {
+			label = "synology:green:hdd2";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		};
+
+		hdd2-amber {
+			label = "synology:amber:hdd2";
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	regulators-hdd-29 {
+		status = "disabled";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_hdd1_pwr_29 &pmx_hdd2_pwr_31>;
+		pinctrl-names = "default";
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "hdd1power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "hdd2power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators-hdd-30-1 {
+		status = "disabled";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_hdd1_pwr_30>;
+		pinctrl-names = "default";
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "hdd1power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators-hdd-30-2 {
+		status = "disabled";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_hdd1_pwr_30 &pmx_hdd2_pwr_34>;
+		pinctrl-names = "default";
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "hdd1power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "hdd2power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators-hdd-30-4 {
+		status = "disabled";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_hdd1_pwr_30 &pmx_hdd2_pwr_34
+			     &pmx_hdd3_pwr_44 &pmx_hdd4_pwr_45>;
+		pinctrl-names = "default";
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "hdd1power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio0 30 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "hdd2power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "hdd3power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "hdd4power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators-hdd-31 {
+		status = "disabled";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_hdd2_pwr_31>;
+		pinctrl-names = "default";
+
+		regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "hdd2power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio0 31 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators-hdd-34 {
+		status = "disabled";
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_hdd2_pwr_34 &pmx_hdd3_pwr_44
+			     &pmx_hdd4_pwr_45>;
+		pinctrl-names = "default";
+
+		regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "hdd2power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "hdd3power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		regulator@4 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "hdd4power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			startup-delay-us = <5000000>;
+			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		device_type = "ethernet-phy";
+		reg = <8>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		device_type = "ethernet-phy";
+		reg = <9>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "disabled";
+
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
+	};
+};
+
+&pciec {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};

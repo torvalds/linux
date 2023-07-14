@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -245,9 +245,7 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 		/* allocate the per cpu variable for holding */
 		/* the last access time stamp only if VMID is enabled */
 		if (!vmp->last_io_time)
-			vmp->last_io_time = __alloc_percpu(sizeof(u64),
-							   __alignof__(struct
-							   lpfc_vmid));
+			vmp->last_io_time = alloc_percpu_gfp(u64, GFP_ATOMIC);
 		if (!vmp->last_io_time) {
 			hash_del(&vmp->hnode);
 			vmp->flag = LPFC_VMID_SLOT_FREE;
@@ -285,4 +283,43 @@ int lpfc_vmid_get_appid(struct lpfc_vport *vport, char *uuid,
 		}
 	}
 	return rc;
+}
+
+/*
+ * lpfc_reinit_vmid - reinitializes the vmid data structure
+ * @vport: pointer to vport data structure
+ *
+ * This routine reinitializes the vmid post flogi completion
+ *
+ * Return codes
+ *	None
+ */
+void
+lpfc_reinit_vmid(struct lpfc_vport *vport)
+{
+	u32 bucket, i, cpu;
+	struct lpfc_vmid *cur;
+	struct lpfc_vmid *vmp = NULL;
+	struct hlist_node *tmp;
+
+	write_lock(&vport->vmid_lock);
+	vport->cur_vmid_cnt = 0;
+
+	for (i = 0; i < vport->max_vmid; i++) {
+		vmp = &vport->vmid[i];
+		vmp->flag = LPFC_VMID_SLOT_FREE;
+		memset(vmp->host_vmid, 0, sizeof(vmp->host_vmid));
+		vmp->io_rd_cnt = 0;
+		vmp->io_wr_cnt = 0;
+
+		if (vmp->last_io_time)
+			for_each_possible_cpu(cpu)
+				*per_cpu_ptr(vmp->last_io_time, cpu) = 0;
+	}
+
+	/* for all elements in the hash table */
+	if (!hash_empty(vport->hash_table))
+		hash_for_each_safe(vport->hash_table, bucket, tmp, cur, hnode)
+			hash_del(&cur->hnode);
+	write_unlock(&vport->vmid_lock);
 }

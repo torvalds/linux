@@ -208,9 +208,9 @@ static const struct iio_info hp03_info = {
 	.read_raw	= &hp03_read_raw,
 };
 
-static int hp03_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id)
+static int hp03_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct hp03_priv *priv;

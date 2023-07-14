@@ -339,7 +339,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 		/*
 		 * For a 13.5 Mpps clock and 15,625 Hz line rate, a line is
-		 * is 864 pixels = 720 active + 144 blanking.  ITU-R BT.601
+		 * 864 pixels = 720 active + 144 blanking.  ITU-R BT.601
 		 * specifies 12 luma clock periods or ~ 0.9 * 13.5 Mpps after
 		 * the end of active video to start a horizontal line, so that
 		 * leaves 132 pixels of hblank to ignore.
@@ -399,7 +399,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 
 		/*
 		 * For a 13.5 Mpps clock and 15,734.26 Hz line rate, a line is
-		 * is 858 pixels = 720 active + 138 blanking.  The Hsync leading
+		 * 858 pixels = 720 active + 138 blanking.  The Hsync leading
 		 * edge should happen 1.2 us * 13.5 Mpps ~= 16 pixels after the
 		 * end of active video, leaving 122 pixels of hblank to ignore
 		 * before active video starts.

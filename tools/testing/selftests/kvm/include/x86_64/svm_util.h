@@ -9,14 +9,11 @@
 #ifndef SELFTEST_KVM_SVM_UTILS_H
 #define SELFTEST_KVM_SVM_UTILS_H
 
+#include <asm/svm.h>
+
 #include <stdint.h>
 #include "svm.h"
 #include "processor.h"
-
-#define SVM_EXIT_EXCP_BASE	0x040
-#define SVM_EXIT_HLT		0x078
-#define SVM_EXIT_MSR		0x07c
-#define SVM_EXIT_VMMCALL	0x081
 
 struct svm_test_data {
 	/* VMCB */
@@ -34,6 +31,20 @@ struct svm_test_data {
 	void *msr_hva;
 	uint64_t msr_gpa;
 };
+
+static inline void vmmcall(void)
+{
+	/*
+	 * Stuff RAX and RCX with "safe" values to make sure L0 doesn't handle
+	 * it as a valid hypercall (e.g. Hyper-V L2 TLB flush) as the intended
+	 * use of this function is to exit to L1 from L2.  Clobber all other
+	 * GPRs as L1 doesn't correctly preserve them during vmexits.
+	 */
+	__asm__ __volatile__("push %%rbp; vmmcall; pop %%rbp"
+			     : : "a"(0xdeadbeef), "c"(0xbeefdead)
+			     : "rbx", "rdx", "rsi", "rdi", "r8", "r9",
+			       "r10", "r11", "r12", "r13", "r14", "r15");
+}
 
 #define stgi()			\
 	__asm__ __volatile__(	\

@@ -29,45 +29,37 @@ static const struct mtk_gate_regs vdec1_cg_regs = {
 	.sta_ofs = 0x8,
 };
 
-#define GATE_VDEC0_I(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &vdec0_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr_inv,	\
-	}
+#define GATE_VDEC0_I(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &vdec0_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
-#define GATE_VDEC1_I(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &vdec1_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr_inv,	\
-	}
+#define GATE_VDEC1_I(_id, _name, _parent, _shift)			\
+	GATE_MTK(_id, _name, _parent, &vdec1_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
-static const struct mtk_gate vdec_clks[] __initconst = {
+static const struct mtk_gate vdec_clks[] = {
 	/* VDEC0 */
 	GATE_VDEC0_I(CLK_VDEC_CKEN, "vdec_cken", "rg_vdec", 0),
 	/* VDEC1 */
 	GATE_VDEC1_I(CLK_VDEC_LARB1_CKEN, "vdec_larb1_cken", "smi_mm", 0),
 };
 
-static void __init mtk_vdecsys_init(struct device_node *node)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
+static const struct mtk_clk_desc vdec_desc = {
+	.clks = vdec_clks,
+	.num_clks = ARRAY_SIZE(vdec_clks),
+};
 
-	clk_data = mtk_alloc_clk_data(CLK_VDEC_NR_CLK);
+static const struct of_device_id of_match_clk_mt8167_vdec[] = {
+	{ .compatible = "mediatek,mt8167-vdecsys", .data = &vdec_desc },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8167_vdec);
 
-	mtk_clk_register_gates(node, vdec_clks, ARRAY_SIZE(vdec_clks), clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-
-	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
-			__func__, r);
-
-}
-CLK_OF_DECLARE(mtk_vdecsys, "mediatek,mt8167-vdecsys", mtk_vdecsys_init);
+static struct platform_driver clk_mt8167_vdec_drv = {
+	.probe = mtk_clk_simple_probe,
+	.remove_new = mtk_clk_simple_remove,
+	.driver = {
+		.name = "clk-mt8167-vdecsys",
+		.of_match_table = of_match_clk_mt8167_vdec,
+	},
+};
+module_platform_driver(clk_mt8167_vdec_drv);
+MODULE_LICENSE("GPL");

@@ -4,7 +4,7 @@
 # subdirectories here. Add them in the ".gitignore" file
 # in that subdirectory instead.
 #
-# NOTE! Please use 'git ls-files -i --exclude-standard'
+# NOTE! Please use 'git ls-files -i -c --exclude-per-directory=.gitignore'
 # command after changing this file, to see if there are
 # any tracked files which get ignored after the change.
 #
@@ -20,6 +20,7 @@
 *.dtb
 *.dtbo
 *.dtb.S
+*.dtbo.S
 *.dwo
 *.elf
 *.gcno
@@ -38,6 +39,7 @@
 *.o.*
 *.patch
 *.rmeta
+*.rpm
 *.rsi
 *.s
 *.so
@@ -47,7 +49,6 @@
 *.symversions
 *.tab.[ch]
 *.tar
-*.usyms
 *.xz
 *.zst
 Module.symvers
@@ -74,6 +75,7 @@ modules.order
 # RPM spec file (make rpm-pkg)
 #
 /*.spec
+/rpmbuild/
 
 #
 # Debian directory (make deb-pkg)
@@ -98,6 +100,7 @@ modules.order
 !.get_maintainer.ignore
 !.gitattributes
 !.gitignore
+!.kunitconfig
 !.mailmap
 !.rustfmt.toml
 
@@ -106,7 +109,6 @@ modules.order
 #
 /include/config/
 /include/generated/
-/include/ksym/
 /arch/*/include/generated/
 
 # stgit generated dirs

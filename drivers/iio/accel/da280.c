@@ -105,9 +105,9 @@ static void da280_disable(void *client)
 	da280_enable(client, false);
 }
 
-static int da280_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int da280_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	struct iio_dev *indio_dev;
 	struct da280_data *data;

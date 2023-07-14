@@ -125,11 +125,12 @@ static int ocelot_spi_initialize(struct device *dev)
 static const struct regmap_config ocelot_spi_regmap_config = {
 	.reg_bits = 24,
 	.reg_stride = 4,
-	.reg_downshift = 2,
+	.reg_shift = REGMAP_DOWNSHIFT(2),
 	.val_bits = 32,
 
 	.write_flag_mask = 0x80,
 
+	.use_single_read = true,
 	.use_single_write = true,
 	.can_multi_write = false,
 
@@ -276,6 +277,7 @@ static const struct spi_device_id ocelot_spi_ids[] = {
 	{ "vsc7512", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(spi, ocelot_spi_ids);
 
 static const struct of_device_id ocelot_spi_of_match[] = {
 	{ .compatible = "mscc,vsc7512" },

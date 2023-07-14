@@ -3,11 +3,20 @@ from subprocess import Popen, PIPE
 from re import sub
 
 cc = getenv("CC")
-cc_is_clang = b"clang version" in Popen([cc.split()[0], "-v"], stderr=PIPE).stderr.readline()
+
+# Check if CC has options, as is the case in yocto, where it uses CC="cc --sysroot..."
+cc_tokens = cc.split()
+if len(cc_tokens) > 1:
+    cc = cc_tokens[0]
+    cc_options = " ".join([str(e) for e in cc_tokens[1:]]) + " "
+else:
+    cc_options = ""
+
+cc_is_clang = b"clang version" in Popen([cc, "-v"], stderr=PIPE).stderr.readline()
 src_feature_tests  = getenv('srctree') + '/tools/build/feature'
 
 def clang_has_option(option):
-    cc_output = Popen([cc, option, path.join(src_feature_tests, "test-hello.c") ], stderr=PIPE).stderr.readlines()
+    cc_output = Popen([cc, cc_options + option, path.join(src_feature_tests, "test-hello.c") ], stderr=PIPE).stderr.readlines()
     return [o for o in cc_output if ((b"unknown argument" in o) or (b"is not supported" in o))] == [ ]
 
 if cc_is_clang:
@@ -27,6 +36,10 @@ if cc_is_clang:
             vars[var] = sub("-fno-semantic-interposition", "", vars[var])
         if not clang_has_option("-ffat-lto-objects"):
             vars[var] = sub("-ffat-lto-objects", "", vars[var])
+        if not clang_has_option("-ftree-loop-distribute-patterns"):
+            vars[var] = sub("-ftree-loop-distribute-patterns", "", vars[var])
+        if not clang_has_option("-gno-variable-location-views"):
+            vars[var] = sub("-gno-variable-location-views", "", vars[var])
 
 from setuptools import setup, Extension
 
@@ -63,12 +76,18 @@ libperf = getenv('LIBPERF')
 ext_sources = [f.strip() for f in open('util/python-ext-sources')
 				if len(f.strip()) > 0 and f[0] != '#']
 
+extra_libraries = []
+
+if '-DHAVE_LIBTRACEEVENT' in cflags:
+    extra_libraries += [ 'traceevent' ]
+else:
+    ext_sources.remove('util/trace-event.c')
+
 # use full paths with source files
 ext_sources = list(map(lambda x: '%s/%s' % (src_perf, x) , ext_sources))
 
-extra_libraries = []
 if '-DHAVE_LIBNUMA_SUPPORT' in cflags:
-    extra_libraries = [ 'numa' ]
+    extra_libraries += [ 'numa' ]
 if '-DHAVE_LIBCAP_SUPPORT' in cflags:
     extra_libraries += [ 'cap' ]
 
@@ -77,7 +96,8 @@ perf = Extension('perf',
 		  include_dirs = ['util/include'],
 		  libraries = extra_libraries,
 		  extra_compile_args = cflags,
-		  extra_objects = [libtraceevent, libapikfs, libperf],
+		  extra_objects = [ x for x in [libtraceevent, libapikfs, libperf]
+                                    if x is not None],
                  )
 
 setup(name='perf',

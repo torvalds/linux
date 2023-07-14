@@ -55,7 +55,8 @@ static int enetc_mdio_wait_complete(struct enetc_mdio_priv *mdio_priv)
 				  is_busy, !is_busy, 10, 10 * 1000);
 }
 
-int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
+int enetc_mdio_write_c22(struct mii_bus *bus, int phy_id, int regnum,
+			 u16 value)
 {
 	struct enetc_mdio_priv *mdio_priv = bus->priv;
 	u32 mdio_ctl, mdio_cfg;
@@ -63,14 +64,39 @@ int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 	int ret;
 
 	mdio_cfg = ENETC_EMDIO_CFG;
-	if (regnum & MII_ADDR_C45) {
-		dev_addr = (regnum >> 16) & 0x1f;
-		mdio_cfg |= MDIO_CFG_ENC45;
-	} else {
-		/* clause 22 (ie 1G) */
-		dev_addr = regnum & 0x1f;
-		mdio_cfg &= ~MDIO_CFG_ENC45;
-	}
+	dev_addr = regnum & 0x1f;
+	mdio_cfg &= ~MDIO_CFG_ENC45;
+
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CFG, mdio_cfg);
+
+	ret = enetc_mdio_wait_complete(mdio_priv);
+	if (ret)
+		return ret;
+
+	/* set port and dev addr */
+	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CTL, mdio_ctl);
+
+	/* write the value */
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_DATA, value);
+
+	ret = enetc_mdio_wait_complete(mdio_priv);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(enetc_mdio_write_c22);
+
+int enetc_mdio_write_c45(struct mii_bus *bus, int phy_id, int dev_addr,
+			 int regnum, u16 value)
+{
+	struct enetc_mdio_priv *mdio_priv = bus->priv;
+	u32 mdio_ctl, mdio_cfg;
+	int ret;
+
+	mdio_cfg = ENETC_EMDIO_CFG;
+	mdio_cfg |= MDIO_CFG_ENC45;
 
 	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CFG, mdio_cfg);
 
@@ -83,13 +109,11 @@ int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CTL, mdio_ctl);
 
 	/* set the register address */
-	if (regnum & MII_ADDR_C45) {
-		enetc_mdio_wr(mdio_priv, ENETC_MDIO_ADDR, regnum & 0xffff);
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_ADDR, regnum & 0xffff);
 
-		ret = enetc_mdio_wait_complete(mdio_priv);
-		if (ret)
-			return ret;
-	}
+	ret = enetc_mdio_wait_complete(mdio_priv);
+	if (ret)
+		return ret;
 
 	/* write the value */
 	enetc_mdio_wr(mdio_priv, ENETC_MDIO_DATA, value);
@@ -100,9 +124,9 @@ int enetc_mdio_write(struct mii_bus *bus, int phy_id, int regnum, u16 value)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(enetc_mdio_write);
+EXPORT_SYMBOL_GPL(enetc_mdio_write_c45);
 
-int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
+int enetc_mdio_read_c22(struct mii_bus *bus, int phy_id, int regnum)
 {
 	struct enetc_mdio_priv *mdio_priv = bus->priv;
 	u32 mdio_ctl, mdio_cfg;
@@ -110,13 +134,8 @@ int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	int ret;
 
 	mdio_cfg = ENETC_EMDIO_CFG;
-	if (regnum & MII_ADDR_C45) {
-		dev_addr = (regnum >> 16) & 0x1f;
-		mdio_cfg |= MDIO_CFG_ENC45;
-	} else {
-		dev_addr = regnum & 0x1f;
-		mdio_cfg &= ~MDIO_CFG_ENC45;
-	}
+	dev_addr = regnum & 0x1f;
+	mdio_cfg &= ~MDIO_CFG_ENC45;
 
 	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CFG, mdio_cfg);
 
@@ -127,15 +146,6 @@ int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	/* set port and device addr */
 	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
 	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CTL, mdio_ctl);
-
-	/* set the register address */
-	if (regnum & MII_ADDR_C45) {
-		enetc_mdio_wr(mdio_priv, ENETC_MDIO_ADDR, regnum & 0xffff);
-
-		ret = enetc_mdio_wait_complete(mdio_priv);
-		if (ret)
-			return ret;
-	}
 
 	/* initiate the read */
 	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CTL, mdio_ctl | MDIO_CTL_READ);
@@ -156,7 +166,56 @@ int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 
 	return value;
 }
-EXPORT_SYMBOL_GPL(enetc_mdio_read);
+EXPORT_SYMBOL_GPL(enetc_mdio_read_c22);
+
+int enetc_mdio_read_c45(struct mii_bus *bus, int phy_id, int dev_addr,
+			int regnum)
+{
+	struct enetc_mdio_priv *mdio_priv = bus->priv;
+	u32 mdio_ctl, mdio_cfg;
+	u16 value;
+	int ret;
+
+	mdio_cfg = ENETC_EMDIO_CFG;
+	mdio_cfg |= MDIO_CFG_ENC45;
+
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CFG, mdio_cfg);
+
+	ret = enetc_mdio_wait_complete(mdio_priv);
+	if (ret)
+		return ret;
+
+	/* set port and device addr */
+	mdio_ctl = MDIO_CTL_PORT_ADDR(phy_id) | MDIO_CTL_DEV_ADDR(dev_addr);
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CTL, mdio_ctl);
+
+	/* set the register address */
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_ADDR, regnum & 0xffff);
+
+	ret = enetc_mdio_wait_complete(mdio_priv);
+	if (ret)
+		return ret;
+
+	/* initiate the read */
+	enetc_mdio_wr(mdio_priv, ENETC_MDIO_CTL, mdio_ctl | MDIO_CTL_READ);
+
+	ret = enetc_mdio_wait_complete(mdio_priv);
+	if (ret)
+		return ret;
+
+	/* return all Fs if nothing was there */
+	if (enetc_mdio_rd(mdio_priv, ENETC_MDIO_CFG) & MDIO_CFG_RD_ER) {
+		dev_dbg(&bus->dev,
+			"Error while reading PHY%d reg at %d.%d\n",
+			phy_id, dev_addr, regnum);
+		return 0xffff;
+	}
+
+	value = enetc_mdio_rd(mdio_priv, ENETC_MDIO_DATA) & 0xffff;
+
+	return value;
+}
+EXPORT_SYMBOL_GPL(enetc_mdio_read_c45);
 
 struct enetc_hw *enetc_hw_alloc(struct device *dev, void __iomem *port_regs)
 {

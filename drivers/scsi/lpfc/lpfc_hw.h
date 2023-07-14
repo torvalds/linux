@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -86,8 +86,8 @@ union CtRevisionId {
 union CtCommandResponse {
 	/* Structure is in Big Endian format */
 	struct {
-		uint32_t CmdRsp:16;
-		uint32_t Size:16;
+		__be16 CmdRsp;
+		__be16 Size;
 	} bits;
 	uint32_t word;
 };
@@ -124,7 +124,7 @@ struct lpfc_sli_ct_request {
 #define LPFC_CT_PREAMBLE	20	/* Size of CTReq + 4 up to here */
 
 	union {
-		uint32_t PortID;
+		__be32 PortID;
 		struct gid {
 			uint8_t PortType;	/* for GID_PT requests */
 #define GID_PT_N_PORT	1
@@ -365,7 +365,7 @@ struct lpfc_name {
 			uint8_t IEEE[6];	/* FC IEEE address */
 		} s;
 		uint8_t wwn[8];
-		uint64_t name;
+		uint64_t name __packed __aligned(4);
 	} u;
 };
 
@@ -703,6 +703,7 @@ struct ls_rjt {	/* Structure is in Big Endian format */
 #define LSEXP_OUT_OF_RESOURCE   0x29
 #define LSEXP_CANT_GIVE_DATA    0x2A
 #define LSEXP_REQ_UNSUPPORTED   0x2C
+#define LSEXP_NO_RSRC_ASSIGN    0x52
 			uint8_t vendorUnique;	/* FC Word 0, bit  0: 7 */
 		} b;
 	} un;
@@ -849,7 +850,7 @@ typedef struct _ADISC {		/* Structure is in Big Endian format */
 	struct lpfc_name portName;
 	struct lpfc_name nodeName;
 	uint32_t DID;
-} __packed ADISC;
+} ADISC;
 
 typedef struct _FARP {		/* Structure is in Big Endian format */
 	uint32_t Mflags:8;
@@ -879,7 +880,7 @@ typedef struct _FAN {		/* Structure is in Big Endian format */
 	uint32_t Fdid;
 	struct lpfc_name FportName;
 	struct lpfc_name FnodeName;
-} __packed FAN;
+} FAN;
 
 typedef struct _SCR {		/* Structure is in Big Endian format */
 	uint8_t resvd1;
@@ -923,7 +924,7 @@ typedef struct _RNID {		/* Structure is in Big Endian format */
 	union {
 		RNID_TOP_DISC topologyDisc;	/* topology disc (0xdf) */
 	} un;
-} __packed RNID;
+} RNID;
 
 struct RLS {			/* Structure is in Big Endian format */
 	uint32_t rls;
@@ -1407,19 +1408,19 @@ struct entity_id_object {
 };
 
 struct app_id_object {
-	uint32_t port_id;
-	uint32_t app_id;
+	__be32 port_id;
+	__be32 app_id;
 	struct entity_id_object obj;
 };
 
 struct lpfc_vmid_rapp_ident_list {
-	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	__be32 no_of_objects;
+	struct entity_id_object obj[];
 };
 
 struct lpfc_vmid_dapp_ident_list {
-	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	__be32 no_of_objects;
+	struct entity_id_object obj[];
 };
 
 #define GALLAPPIA_ID_LAST  0x80
@@ -1441,30 +1442,56 @@ struct lpfc_vmid_gallapp_ident_list {
 
 /* Definitions for HBA / Port attribute entries */
 
-/* Attribute Entry */
-struct lpfc_fdmi_attr_entry {
-	union {
-		uint32_t AttrInt;
-		uint8_t  AttrTypes[32];
-		uint8_t  AttrString[256];
-		struct lpfc_name AttrWWN;
-	} un;
+/* Attribute Entry Structures */
+
+struct lpfc_fdmi_attr_u32 {
+	__be16 type;
+	__be16 len;
+	__be32 value_u32;
 };
 
-struct lpfc_fdmi_attr_def { /* Defined in TLV format */
-	/* Structure is in Big Endian format */
-	uint32_t AttrType:16;
-	uint32_t AttrLen:16;
-	/* Marks start of Value (ATTRIBUTE_ENTRY) */
-	struct lpfc_fdmi_attr_entry AttrValue;
-} __packed;
+struct lpfc_fdmi_attr_wwn {
+	__be16 type;
+	__be16 len;
+
+	/* Keep as u8[8] instead of __be64 to avoid accidental zero padding
+	 * by compiler
+	 */
+	u8 name[8];
+};
+
+struct lpfc_fdmi_attr_fullwwn {
+	__be16 type;
+	__be16 len;
+
+	/* Keep as u8[8] instead of __be64 to avoid accidental zero padding
+	 * by compiler
+	 */
+	u8 nname[8];
+	u8 pname[8];
+};
+
+struct lpfc_fdmi_attr_fc4types {
+	__be16 type;
+	__be16 len;
+	u8 value_types[32];
+};
+
+struct lpfc_fdmi_attr_string {
+	__be16 type;
+	__be16 len;
+	char value_string[256];
+};
+
+/* Maximum FDMI attribute length is Type+Len (4 bytes) + 256 byte string */
+#define FDMI_MAX_ATTRLEN	sizeof(struct lpfc_fdmi_attr_string)
 
 /*
  * HBA Attribute Block
  */
 struct lpfc_fdmi_attr_block {
 	uint32_t EntryCnt;		/* Number of HBA attribute entries */
-	struct lpfc_fdmi_attr_entry Entry;	/* Variable-length array */
+	/* Variable Length Attribute Entry TLV's follow */
 };
 
 /*
@@ -1485,9 +1512,9 @@ struct lpfc_fdmi_hba_ident {
  * Registered Port List Format
  */
 struct lpfc_fdmi_reg_port_list {
-	uint32_t EntryCnt;
+	__be32 EntryCnt;
 	struct lpfc_fdmi_port_entry pe;
-} __packed;
+};
 
 /*
  * Register HBA(RHBA)
@@ -4406,18 +4433,6 @@ lpfc_is_LC_HBA(unsigned short device)
 		return 1;
 	else
 		return 0;
-}
-
-/*
- * Determine if failed because of a link event or firmware reset.
- */
-static inline int
-lpfc_error_lost_link(u32 ulp_status, u32 ulp_word4)
-{
-	return (ulp_status == IOSTAT_LOCAL_REJECT &&
-		(ulp_word4 == IOERR_SLI_ABORTED ||
-		 ulp_word4 == IOERR_LINK_DOWN ||
-		 ulp_word4 == IOERR_SLI_DOWN));
 }
 
 #define BPL_ALIGN_SZ 8 /* 8 byte alignment for bpl and mbufs */

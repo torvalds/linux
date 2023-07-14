@@ -1064,7 +1064,7 @@ static void lcd_da8xx_cpufreq_deregister(struct da8xx_fb_par *par)
 }
 #endif
 
-static int fb_remove(struct platform_device *dev)
+static void fb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 	struct da8xx_fb_par *par = info->par;
@@ -1076,7 +1076,8 @@ static int fb_remove(struct platform_device *dev)
 	if (par->lcd_supply) {
 		ret = regulator_disable(par->lcd_supply);
 		if (ret)
-			return ret;
+			dev_warn(&dev->dev, "Failed to disable regulator (%pe)\n",
+				 ERR_PTR(ret));
 	}
 
 	lcd_disable_raster(DA8XX_FRAME_WAIT);
@@ -1090,8 +1091,6 @@ static int fb_remove(struct platform_device *dev)
 	pm_runtime_put_sync(&dev->dev);
 	pm_runtime_disable(&dev->dev);
 	framebuffer_release(info);
-
-	return 0;
 }
 
 /*
@@ -1430,7 +1429,7 @@ static int fb_probe(struct platform_device *device)
 		dev_err(&device->dev,
 			"GLCD: kmalloc for frame buffer failed\n");
 		ret = -EINVAL;
-		goto err_release_fb;
+		goto err_disable_reg;
 	}
 
 	da8xx_fb_info->screen_base = (char __iomem *) par->vram_virt;
@@ -1474,7 +1473,7 @@ static int fb_probe(struct platform_device *device)
 
 	ret = fb_alloc_cmap(&da8xx_fb_info->cmap, PALETTE_SIZE, 0);
 	if (ret)
-		goto err_release_fb;
+		goto err_disable_reg;
 	da8xx_fb_info->cmap.len = par->palette_sz;
 
 	/* initialize var_screeninfo */
@@ -1528,6 +1527,9 @@ err_cpu_freq:
 err_dealloc_cmap:
 	fb_dealloc_cmap(&da8xx_fb_info->cmap);
 
+err_disable_reg:
+	if (par->lcd_supply)
+		regulator_disable(par->lcd_supply);
 err_release_fb:
 	framebuffer_release(da8xx_fb_info);
 
@@ -1653,7 +1655,7 @@ static SIMPLE_DEV_PM_OPS(fb_pm_ops, fb_suspend, fb_resume);
 
 static struct platform_driver da8xx_fb_driver = {
 	.probe = fb_probe,
-	.remove = fb_remove,
+	.remove_new = fb_remove,
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .pm	= &fb_pm_ops,

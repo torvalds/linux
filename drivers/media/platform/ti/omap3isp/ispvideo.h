@@ -99,8 +99,15 @@ struct isp_pipeline {
 	unsigned int external_width;
 };
 
-#define to_isp_pipeline(__e) \
-	container_of((__e)->pipe, struct isp_pipeline, pipe)
+static inline struct isp_pipeline *to_isp_pipeline(struct media_entity *entity)
+{
+	struct media_pipeline *pipe = media_entity_pipeline(entity);
+
+	if (!pipe)
+		return NULL;
+
+	return container_of(pipe, struct isp_pipeline, pipe);
+}
 
 static inline int isp_pipeline_ready(struct isp_pipeline *pipe)
 {

@@ -438,7 +438,7 @@ static const struct ata_port_info ahci_highbank_port_info = {
 	.port_ops       = &ahci_highbank_ops,
 };
 
-static struct scsi_host_template ahci_highbank_platform_sht = {
+static const struct scsi_host_template ahci_highbank_platform_sht = {
 	AHCI_SHT("sata_highbank"),
 };
 
@@ -614,7 +614,7 @@ static SIMPLE_DEV_PM_OPS(ahci_highbank_pm_ops,
 		  ahci_highbank_suspend, ahci_highbank_resume);
 
 static struct platform_driver ahci_highbank_driver = {
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
         .driver = {
                 .name = "highbank-ahci",
                 .of_match_table = ahci_of_match,

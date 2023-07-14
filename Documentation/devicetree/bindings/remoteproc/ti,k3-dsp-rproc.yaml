@@ -31,10 +31,12 @@ allOf:
 properties:
   compatible:
     enum:
+      - ti,am62a-c7xv-dsp
       - ti,j721e-c66-dsp
       - ti,j721e-c71-dsp
       - ti,j721s2-c71-dsp
     description:
+      Use "ti,am62a-c7xv-dsp" for AM62A Deep learning DSPs on K3 AM62A SoCs
       Use "ti,j721e-c66-dsp" for C66x DSPs on K3 J721E SoCs
       Use "ti,j721e-c71-dsp" for C71x DSPs on K3 J721E SoCs
       Use "ti,j721s2-c71-dsp" for C71x DSPs on K3 J721S2 SoCs
@@ -109,6 +111,7 @@ else:
     properties:
       compatible:
         enum:
+          - ti,am62a-c7xv-dsp
           - ti,j721e-c71-dsp
           - ti,j721s2-c71-dsp
   then:

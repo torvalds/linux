@@ -3,7 +3,7 @@
  * Copyright IBM Corp. 2019
  */
 #include <linux/pgtable.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
 #include <asm/sclp.h>
@@ -91,119 +91,108 @@ static int get_random(unsigned long limit, unsigned long *value)
 	return 0;
 }
 
+static void sort_reserved_ranges(struct reserved_range *res, unsigned long size)
+{
+	struct reserved_range tmp;
+	int i, j;
+
+	for (i = 1; i < size; i++) {
+		tmp = res[i];
+		for (j = i - 1; j >= 0 && res[j].start > tmp.start; j--)
+			res[j + 1] = res[j];
+		res[j + 1] = tmp;
+	}
+}
+
+static unsigned long iterate_valid_positions(unsigned long size, unsigned long align,
+					     unsigned long _min, unsigned long _max,
+					     struct reserved_range *res, size_t res_count,
+					     bool pos_count, unsigned long find_pos)
+{
+	unsigned long start, end, tmp_end, range_pos, pos = 0;
+	struct reserved_range *res_end = res + res_count;
+	struct reserved_range *skip_res;
+	int i;
+
+	align = max(align, 8UL);
+	_min = round_up(_min, align);
+	for_each_physmem_usable_range(i, &start, &end) {
+		if (_min >= end)
+			continue;
+		start = round_up(start, align);
+		if (start >= _max)
+			break;
+		start = max(_min, start);
+		end = min(_max, end);
+
+		while (start + size <= end) {
+			/* skip reserved ranges below the start */
+			while (res && res->end <= start) {
+				res++;
+				if (res >= res_end)
+					res = NULL;
+			}
+			skip_res = NULL;
+			tmp_end = end;
+			/* has intersecting reserved range */
+			if (res && res->start < end) {
+				skip_res = res;
+				tmp_end = res->start;
+			}
+			if (start + size <= tmp_end) {
+				range_pos = (tmp_end - start - size) / align + 1;
+				if (pos_count) {
+					pos += range_pos;
+				} else {
+					if (range_pos >= find_pos)
+						return start + (find_pos - 1) * align;
+					find_pos -= range_pos;
+				}
+			}
+			if (!skip_res)
+				break;
+			start = round_up(skip_res->end, align);
+		}
+	}
+
+	return pos_count ? pos : 0;
+}
+
 /*
- * To randomize kernel base address we have to consider several facts:
- * 1. physical online memory might not be continuous and have holes. mem_detect
- *    info contains list of online memory ranges we should consider.
- * 2. we have several memory regions which are occupied and we should not
- *    overlap and destroy them. Currently safe_addr tells us the border below
- *    which all those occupied regions are. We are safe to use anything above
- *    safe_addr.
- * 3. the upper limit might apply as well, even if memory above that limit is
- *    online. Currently those limitations are:
- *    3.1. Limit set by "mem=" kernel command line option
- *    3.2. memory reserved at the end for kasan initialization.
- * 4. kernel base address must be aligned to THREAD_SIZE (kernel stack size).
- *    Which is required for CONFIG_CHECK_STACK. Currently THREAD_SIZE is 4 pages
- *    (16 pages when the kernel is built with kasan enabled)
- * Assumptions:
- * 1. kernel size (including .bss size) and upper memory limit are page aligned.
- * 2. mem_detect memory region start is THREAD_SIZE aligned / end is PAGE_SIZE
- *    aligned (in practice memory configurations granularity on z/VM and LPAR
- *    is 1mb).
+ * Two types of decompressor memory allocations/reserves are considered
+ * differently.
  *
- * To guarantee uniform distribution of kernel base address among all suitable
- * addresses we generate random value just once. For that we need to build a
- * continuous range in which every value would be suitable. We can build this
- * range by simply counting all suitable addresses (let's call them positions)
- * which would be valid as kernel base address. To count positions we iterate
- * over online memory ranges. For each range which is big enough for the
- * kernel image we count all suitable addresses we can put the kernel image at
- * that is
- * (end - start - kernel_size) / THREAD_SIZE + 1
- * Two functions count_valid_kernel_positions and position_to_address help
- * to count positions in memory range given and then convert position back
- * to address.
+ * "Static" or "single" allocations are done via physmem_alloc_range() and
+ * physmem_reserve(), and they are listed in physmem_info.reserved[]. Each
+ * type of "static" allocation can only have one allocation per type and
+ * cannot have chains.
+ *
+ * On the other hand, "dynamic" or "repetitive" allocations are done via
+ * physmem_alloc_top_down(). These allocations are tightly packed together
+ * top down from the end of online memory. physmem_alloc_pos represents
+ * current position where those allocations start.
+ *
+ * Functions randomize_within_range() and iterate_valid_positions()
+ * only consider "dynamic" allocations by never looking above
+ * physmem_alloc_pos. "Static" allocations, however, are explicitly
+ * considered by checking the "res" (reserves) array. The first
+ * reserved_range of a "dynamic" allocation may also be checked along the
+ * way, but it will always be above the maximum value anyway.
  */
-static unsigned long count_valid_kernel_positions(unsigned long kernel_size,
-						  unsigned long _min,
-						  unsigned long _max)
+unsigned long randomize_within_range(unsigned long size, unsigned long align,
+				     unsigned long min, unsigned long max)
 {
-	unsigned long start, end, pos = 0;
-	int i;
+	struct reserved_range res[RR_MAX];
+	unsigned long max_pos, pos;
 
-	for_each_mem_detect_block(i, &start, &end) {
-		if (_min >= end)
-			continue;
-		if (start >= _max)
-			break;
-		start = max(_min, start);
-		end = min(_max, end);
-		if (end - start < kernel_size)
-			continue;
-		pos += (end - start - kernel_size) / THREAD_SIZE + 1;
-	}
+	memcpy(res, physmem_info.reserved, sizeof(res));
+	sort_reserved_ranges(res, ARRAY_SIZE(res));
+	max = min(max, get_physmem_alloc_pos());
 
-	return pos;
-}
-
-static unsigned long position_to_address(unsigned long pos, unsigned long kernel_size,
-				 unsigned long _min, unsigned long _max)
-{
-	unsigned long start, end;
-	int i;
-
-	for_each_mem_detect_block(i, &start, &end) {
-		if (_min >= end)
-			continue;
-		if (start >= _max)
-			break;
-		start = max(_min, start);
-		end = min(_max, end);
-		if (end - start < kernel_size)
-			continue;
-		if ((end - start - kernel_size) / THREAD_SIZE + 1 >= pos)
-			return start + (pos - 1) * THREAD_SIZE;
-		pos -= (end - start - kernel_size) / THREAD_SIZE + 1;
-	}
-
-	return 0;
-}
-
-unsigned long get_random_base(unsigned long safe_addr)
-{
-	unsigned long memory_limit = get_mem_detect_end();
-	unsigned long base_pos, max_pos, kernel_size;
-	unsigned long kasan_needs;
-	int i;
-
-	memory_limit = min(memory_limit, ident_map_size);
-
-	/*
-	 * Avoid putting kernel in the end of physical memory
-	 * which kasan will use for shadow memory and early pgtable
-	 * mapping allocations.
-	 */
-	memory_limit -= kasan_estimate_memory_needs(memory_limit);
-
-	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && initrd_data.start && initrd_data.size) {
-		if (safe_addr < initrd_data.start + initrd_data.size)
-			safe_addr = initrd_data.start + initrd_data.size;
-	}
-	safe_addr = ALIGN(safe_addr, THREAD_SIZE);
-
-	kernel_size = vmlinux.image_size + vmlinux.bss_size;
-	if (safe_addr + kernel_size > memory_limit)
+	max_pos = iterate_valid_positions(size, align, min, max, res, ARRAY_SIZE(res), true, 0);
+	if (!max_pos)
 		return 0;
-
-	max_pos = count_valid_kernel_positions(kernel_size, safe_addr, memory_limit);
-	if (!max_pos) {
-		sclp_early_printk("KASLR disabled: not enough memory\n");
+	if (get_random(max_pos, &pos))
 		return 0;
-	}
-
-	/* we need a value in the range [1, base_pos] inclusive */
-	if (get_random(max_pos, &base_pos))
-		return 0;
-	return position_to_address(base_pos + 1, kernel_size, safe_addr, memory_limit);
+	return iterate_valid_positions(size, align, min, max, res, ARRAY_SIZE(res), false, pos + 1);
 }

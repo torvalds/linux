@@ -74,8 +74,8 @@ static void validate(void)
 		fprintf(stderr, "benchmark doesn't support multi-producer!\n");
 		exit(1);
 	}
-	if (env.consumer_cnt != 1) {
-		fprintf(stderr, "benchmark doesn't support multi-consumer!\n");
+	if (env.consumer_cnt != 0) {
+		fprintf(stderr, "benchmark doesn't support consumer!\n");
 		exit(1);
 	}
 
@@ -230,11 +230,6 @@ static inline void trigger_bpf_program(void)
 	syscall(__NR_getpgid);
 }
 
-static void *consumer(void *input)
-{
-	return NULL;
-}
-
 static void *producer(void *input)
 {
 	while (true)
@@ -255,10 +250,10 @@ static void *producer(void *input)
  */
 const struct bench bench_local_storage_cache_seq_get = {
 	.name = "local-storage-cache-seq-get",
+	.argp = &bench_local_storage_argp,
 	.validate = validate,
 	.setup = local_storage_cache_get_setup,
 	.producer_thread = producer,
-	.consumer_thread = consumer,
 	.measure = measure,
 	.report_progress = local_storage_report_progress,
 	.report_final = local_storage_report_final,
@@ -266,10 +261,10 @@ const struct bench bench_local_storage_cache_seq_get = {
 
 const struct bench bench_local_storage_cache_interleaved_get = {
 	.name = "local-storage-cache-int-get",
+	.argp = &bench_local_storage_argp,
 	.validate = validate,
 	.setup = local_storage_cache_get_interleaved_setup,
 	.producer_thread = producer,
-	.consumer_thread = consumer,
 	.measure = measure,
 	.report_progress = local_storage_report_progress,
 	.report_final = local_storage_report_final,
@@ -277,10 +272,10 @@ const struct bench bench_local_storage_cache_interleaved_get = {
 
 const struct bench bench_local_storage_cache_hashmap_control = {
 	.name = "local-storage-cache-hashmap-control",
+	.argp = &bench_local_storage_argp,
 	.validate = validate,
 	.setup = hashmap_setup,
 	.producer_thread = producer,
-	.consumer_thread = consumer,
 	.measure = measure,
 	.report_progress = local_storage_report_progress,
 	.report_final = local_storage_report_final,

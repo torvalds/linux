@@ -362,7 +362,7 @@ fail_power_off:
 	return err;
 }
 
-static int tegra_usb_remove(struct platform_device *pdev)
+static void tegra_usb_remove(struct platform_device *pdev)
 {
 	struct tegra_usb *usb = platform_get_drvdata(pdev);
 
@@ -371,8 +371,6 @@ static int tegra_usb_remove(struct platform_device *pdev)
 
 	pm_runtime_put_sync_suspend(&pdev->dev);
 	pm_runtime_force_suspend(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused tegra_usb_runtime_resume(struct device *dev)
@@ -410,7 +408,7 @@ static struct platform_driver tegra_usb_driver = {
 		.pm = &tegra_usb_pm,
 	},
 	.probe = tegra_usb_probe,
-	.remove = tegra_usb_remove,
+	.remove_new = tegra_usb_remove,
 };
 module_platform_driver(tegra_usb_driver);
 

@@ -705,8 +705,9 @@ void rn_clk_mgr_construct(
 	struct dpm_clocks clock_table = { 0 };
 	enum pp_smu_status status = 0;
 	int is_green_sardine = 0;
+	struct clk_log_info log_info = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	is_green_sardine = ASICREV_IS_GREEN_SARDINE(ctx->asic_id.hw_internal_rev);
 #endif
 
@@ -725,48 +726,41 @@ void rn_clk_mgr_construct(
 
 	clk_mgr->smu_ver = rn_vbios_smu_get_smu_version(clk_mgr);
 
-	if (IS_FPGA_MAXIMUS_DC(ctx->dce_environment)) {
-		dcn21_funcs.update_clocks = dcn2_update_clocks_fpga;
+	clk_mgr->periodic_retraining_disabled = rn_vbios_smu_is_periodic_retraining_disabled(clk_mgr);
+
+	/* SMU Version 55.51.0 and up no longer have an issue
+	 * that needs to limit minimum dispclk */
+	if (clk_mgr->smu_ver >= SMU_VER_55_51_0)
+		debug->min_disp_clk_khz = 0;
+
+	/* TODO: Check we get what we expect during bringup */
+	clk_mgr->base.dentist_vco_freq_khz = get_vco_frequency_from_reg(clk_mgr);
+
+	/* in case we don't get a value from the register, use default */
+	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 3600000;
-	} else {
-		struct clk_log_info log_info = {0};
 
-		clk_mgr->periodic_retraining_disabled = rn_vbios_smu_is_periodic_retraining_disabled(clk_mgr);
-
-		/* SMU Version 55.51.0 and up no longer have an issue
-		 * that needs to limit minimum dispclk */
-		if (clk_mgr->smu_ver >= SMU_VER_55_51_0)
-			debug->min_disp_clk_khz = 0;
-
-		/* TODO: Check we get what we expect during bringup */
-		clk_mgr->base.dentist_vco_freq_khz = get_vco_frequency_from_reg(clk_mgr);
-
-		/* in case we don't get a value from the register, use default */
-		if (clk_mgr->base.dentist_vco_freq_khz == 0)
-			clk_mgr->base.dentist_vco_freq_khz = 3600000;
-
-		if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
-			if (clk_mgr->periodic_retraining_disabled) {
-				rn_bw_params.wm_table = lpddr4_wm_table_with_disabled_ppt;
-			} else {
-				if (is_green_sardine)
-					rn_bw_params.wm_table = lpddr4_wm_table_gs;
-				else
-					rn_bw_params.wm_table = lpddr4_wm_table_rn;
-			}
+	if (ctx->dc_bios->integrated_info->memory_type == LpDdr4MemType) {
+		if (clk_mgr->periodic_retraining_disabled) {
+			rn_bw_params.wm_table = lpddr4_wm_table_with_disabled_ppt;
 		} else {
 			if (is_green_sardine)
-				rn_bw_params.wm_table = ddr4_wm_table_gs;
-			else {
-				if (ctx->dc->config.is_single_rank_dimm)
-					rn_bw_params.wm_table = ddr4_1R_wm_table_rn;
-				else
-					rn_bw_params.wm_table = ddr4_wm_table_rn;
-			}
+				rn_bw_params.wm_table = lpddr4_wm_table_gs;
+			else
+				rn_bw_params.wm_table = lpddr4_wm_table_rn;
 		}
-		/* Saved clocks configured at boot for debug purposes */
-		rn_dump_clk_registers(&clk_mgr->base.boot_snapshot, &clk_mgr->base, &log_info);
+	} else {
+		if (is_green_sardine)
+			rn_bw_params.wm_table = ddr4_wm_table_gs;
+		else {
+			if (ctx->dc->config.is_single_rank_dimm)
+				rn_bw_params.wm_table = ddr4_1R_wm_table_rn;
+			else
+				rn_bw_params.wm_table = ddr4_wm_table_rn;
+		}
 	}
+	/* Saved clocks configured at boot for debug purposes */
+	rn_dump_clk_registers(&clk_mgr->base.boot_snapshot, &clk_mgr->base, &log_info);
 
 	clk_mgr->base.dprefclk_khz = 600000;
 	dce_clock_read_ss_info(clk_mgr);
@@ -786,9 +780,8 @@ void rn_clk_mgr_construct(
 		}
 	}
 
-	if (!IS_FPGA_MAXIMUS_DC(ctx->dce_environment) && clk_mgr->smu_ver >= 0x00371500) {
-		/* enable powerfeatures when displaycount goes to 0 */
+	/* enable powerfeatures when displaycount goes to 0 */
+	if (clk_mgr->smu_ver >= 0x00371500)
 		rn_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(clk_mgr, !debug->disable_48mhz_pwrdwn);
-	}
 }
 

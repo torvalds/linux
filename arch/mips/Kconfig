@@ -4,6 +4,7 @@ config MIPS
 	default y
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
+	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_CURRENT_STACK_POINTER if !CC_IS_CLANG || CLANG_VERSION >= 140000
 	select ARCH_HAS_DEBUG_VIRTUAL if !64BIT
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -16,7 +17,6 @@ config MIPS
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_KEEP_MEMBLOCK
-	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
 	select ARCH_USE_MEMTEST
@@ -45,8 +45,10 @@ config MIPS
 	select GENERIC_LIB_UCMPDI2
 	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_TIME_VSYSCALL
-	select GUP_GET_PTE_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
+	select GUP_GET_PXX_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
+	select HAS_IOPORT if !NO_IOPORT_MAP || ISA
 	select HAVE_ARCH_COMPILER_H
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_ARCH_KGDB if MIPS_FP_SUPPORT
@@ -63,10 +65,7 @@ config MIPS
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
-	select HAVE_EBPF_JIT if !CPU_MICROMIPS && \
-				!CPU_DADDI_WORKAROUNDS && \
-				!CPU_R4000_WORKAROUNDS && \
-				!CPU_R4400_WORKAROUNDS
+	select HAVE_EBPF_JIT if !CPU_MICROMIPS
 	select HAVE_EXIT_THREAD
 	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
@@ -93,6 +92,7 @@ config MIPS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
 	select IRQ_FORCED_THREADING
 	select ISA if EISA
+	select LOCK_MM_AND_FIND_VMA
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select PERF_USE_VMALLOC
@@ -115,7 +115,6 @@ config MACH_INGENIC
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
 	select DMA_NONCOHERENT
-	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select IRQ_MIPS_CPU
 	select PINCTRL
 	select GPIOLIB
@@ -134,7 +133,6 @@ choice
 
 config MIPS_GENERIC_KERNEL
 	bool "Generic board-agnostic MIPS kernel"
-	select ARCH_HAS_SETUP_DMA_OPS
 	select MIPS_GENERIC
 	select BOOT_RAW
 	select BUILTIN_DTB
@@ -157,9 +155,11 @@ config MIPS_GENERIC_KERNEL
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_HAS_CPU_MIPS32_R5
 	select SYS_HAS_CPU_MIPS32_R6
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
+	select SYS_HAS_CPU_MIPS64_R5
 	select SYS_HAS_CPU_MIPS64_R6
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
@@ -445,6 +445,7 @@ config LANTIQ
 	select IRQ_MIPS_CPU
 	select CEVT_R4K
 	select CSRC_R4K
+	select NO_EXCEPT_FILL
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -489,7 +490,6 @@ config MACH_LOONGSON64
 	select BOARD_SCACHE
 	select CSRC_R4K
 	select CEVT_R4K
-	select CPU_HAS_WB
 	select FORCE_PCI
 	select ISA
 	select I8259
@@ -566,7 +566,6 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS16
-	select SYS_SUPPORTS_MIPS_CMP
 	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_RELOCATABLE
@@ -609,7 +608,6 @@ config RALINK
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
 	select USE_OF
-	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
@@ -795,24 +793,6 @@ config SGI_IP32
 	help
 	  If you want this kernel to run on SGI O2 workstation, say Y here.
 
-config SIBYTE_CRHINE
-	bool "Sibyte BCM91120C-CRhine"
-	select BOOT_ELF32
-	select SIBYTE_BCM1120
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_SB1
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
-config SIBYTE_CARMEL
-	bool "Sibyte BCM91120x-Carmel"
-	select BOOT_ELF32
-	select SIBYTE_BCM1120
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_SB1
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-
 config SIBYTE_CRHONE
 	bool "Sibyte BCM91125C-CRhone"
 	select BOOT_ELF32
@@ -826,7 +806,7 @@ config SIBYTE_CRHONE
 config SIBYTE_RHONE
 	bool "Sibyte BCM91125E-Rhone"
 	select BOOT_ELF32
-	select SIBYTE_BCM1125H
+	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -1077,12 +1057,7 @@ config FW_CFE
 	bool
 
 config ARCH_SUPPORTS_UPROBES
-	bool
-
-config DMA_PERDEV_COHERENT
-	bool
-	select ARCH_HAS_SETUP_DMA_OPS
-	select DMA_NONCOHERENT
+	def_bool y
 
 config DMA_NONCOHERENT
 	bool
@@ -1093,8 +1068,10 @@ config DMA_NONCOHERENT
 	# by pgprot_writcombine can be mixed, and the latter sometimes provides
 	# significant advantages.
 	#
+	select ARCH_HAS_SETUP_DMA_OPS
 	select ARCH_HAS_DMA_WRITE_COMBINE
 	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_HAS_DMA_SET_UNCACHED
 	select DMA_NONCOHERENT_MMAP
@@ -1187,12 +1164,6 @@ config SYS_SUPPORTS_LITTLE_ENDIAN
 
 config MIPS_HUGE_TLB_SUPPORT
 	def_bool HUGETLB_PAGE || TRANSPARENT_HUGEPAGE
-
-config IRQ_MSP_SLP
-	bool
-
-config IRQ_MSP_CIC
-	bool
 
 config IRQ_TXX9
 	bool
@@ -1371,7 +1342,6 @@ config CPU_LOONGSON2F
 	bool "Loongson 2F"
 	depends on SYS_HAS_CPU_LOONGSON2F
 	select CPU_LOONGSON2EF
-	select GPIOLIB
 	help
 	  The Loongson 2F processor implements the MIPS III instruction set
 	  with many extensions.
@@ -1793,7 +1763,6 @@ config CPU_LOONGSON2EF
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
-	select ARCH_HAS_PHYS_TO_DMA
 
 config CPU_LOONGSON32
 	bool
@@ -1858,11 +1827,9 @@ config SYS_HAS_CPU_MIPS32_R3_5
 
 config SYS_HAS_CPU_MIPS32_R5
 	bool
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_MIPS32_R6
 	bool
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_MIPS64_R1
 	bool
@@ -1872,15 +1839,12 @@ config SYS_HAS_CPU_MIPS64_R2
 
 config SYS_HAS_CPU_MIPS64_R5
 	bool
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_MIPS64_R6
 	bool
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_P5600
 	bool
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_R3000
 	bool
@@ -1905,7 +1869,6 @@ config SYS_HAS_CPU_NEVADA
 
 config SYS_HAS_CPU_R10000
 	bool
-	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
 config SYS_HAS_CPU_RM7000
 	bool
@@ -1934,7 +1897,6 @@ config SYS_HAS_CPU_BMIPS4380
 config SYS_HAS_CPU_BMIPS5000
 	bool
 	select SYS_HAS_CPU_BMIPS
-	select ARCH_HAS_SYNC_DMA_FOR_CPU
 
 #
 # CPU may reorder R->R, R->W, W->R, W->W
@@ -2140,16 +2102,12 @@ config PAGE_SIZE_64KB
 
 endchoice
 
-config FORCE_MAX_ZONEORDER
+config ARCH_FORCE_MAX_ORDER
 	int "Maximum zone order"
-	range 14 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
-	default "14" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
-	range 13 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
-	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
-	range 12 64 if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
-	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
-	range 0 64
-	default "11"
+	default "13" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_64KB
+	default "12" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_32KB
+	default "11" if MIPS_HUGE_TLB_SUPPORT && PAGE_SIZE_16KB
+	default "10"
 	help
 	  The kernel memory allocator divides physically contiguous memory
 	  blocks into "zones", where each zone is a power of two number of
@@ -2157,9 +2115,6 @@ config FORCE_MAX_ZONEORDER
 	  keeps in the memory allocator.  If you need to allocate very large
 	  blocks of physically contiguous memory, then you may need to
 	  increase this value.
-
-	  This config option is actually maximum order plus one. For example,
-	  a value of 11 means that the largest free memory block is 2^10 pages.
 
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
@@ -2305,15 +2260,10 @@ config MIPS_VPE_LOADER
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
 
-config MIPS_VPE_LOADER_CMP
-	bool
-	default "y"
-	depends on MIPS_VPE_LOADER && MIPS_CMP
-
 config MIPS_VPE_LOADER_MT
 	bool
 	default "y"
-	depends on MIPS_VPE_LOADER && !MIPS_CMP
+	depends on MIPS_VPE_LOADER
 
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"
@@ -2329,31 +2279,10 @@ config MIPS_VPE_APSP_API
 	bool "Enable support for AP/SP API (RTLX)"
 	depends on MIPS_VPE_LOADER
 
-config MIPS_VPE_APSP_API_CMP
-	bool
-	default "y"
-	depends on MIPS_VPE_APSP_API && MIPS_CMP
-
 config MIPS_VPE_APSP_API_MT
 	bool
 	default "y"
-	depends on MIPS_VPE_APSP_API && !MIPS_CMP
-
-config MIPS_CMP
-	bool "MIPS CMP framework support (DEPRECATED)"
-	depends on SYS_SUPPORTS_MIPS_CMP && !CPU_MIPSR6
-	select SMP
-	select SYNC_R4K
-	select SYS_SUPPORTS_SMP
-	select WEAK_ORDERING
-	default n
-	help
-	  Select this if you are using a bootloader which implements the "CMP
-	  framework" protocol (ie. YAMON) and want your kernel to make use of
-	  its ability to start secondary CPUs.
-
-	  Unless you have a specific need, you should use CONFIG_MIPS_CPS
-	  instead of this.
+	depends on MIPS_VPE_APSP_API
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
@@ -2361,6 +2290,7 @@ config MIPS_CPS
 	select MIPS_CM
 	select MIPS_CPS_PM if HOTPLUG_CPU
 	select SMP
+	select HOTPLUG_CORE_SYNC_DEAD if HOTPLUG_CPU
 	select SYNC_R4K if (CEVT_R4K || CSRC_R4K)
 	select SYS_SUPPORTS_HOTPLUG_CPU
 	select SYS_SUPPORTS_SCHED_SMT if CPU_MIPSR6
@@ -2809,9 +2739,6 @@ config HOTPLUG_CPU
 config SMP_UP
 	bool
 
-config SYS_SUPPORTS_MIPS_CMP
-	bool
-
 config SYS_SUPPORTS_MIPS_CPS
 	bool
 
@@ -3204,6 +3131,10 @@ config MIPS32_N32
 config CC_HAS_MNO_BRANCH_LIKELY
 	def_bool y
 	depends on $(cc-option,-mno-branch-likely)
+
+# https://github.com/llvm/llvm-project/issues/61045
+config CC_HAS_BROKEN_INLINE_COMPAT_BRANCH
+	def_bool y if CC_IS_CLANG
 
 menu "Power management options"
 

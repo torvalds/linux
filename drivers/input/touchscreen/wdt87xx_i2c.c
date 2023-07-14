@@ -1064,8 +1064,7 @@ static int wdt87xx_ts_create_input_device(struct wdt87xx_data *wdt)
 	return 0;
 }
 
-static int wdt87xx_ts_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int wdt87xx_ts_probe(struct i2c_client *client)
 {
 	struct wdt87xx_data *wdt;
 	int error;
@@ -1114,7 +1113,7 @@ static int wdt87xx_ts_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __maybe_unused wdt87xx_suspend(struct device *dev)
+static int wdt87xx_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int error;
@@ -1133,7 +1132,7 @@ static int __maybe_unused wdt87xx_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wdt87xx_resume(struct device *dev)
+static int wdt87xx_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	int error;
@@ -1155,7 +1154,7 @@ static int __maybe_unused wdt87xx_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(wdt87xx_pm_ops, wdt87xx_suspend, wdt87xx_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(wdt87xx_pm_ops, wdt87xx_suspend, wdt87xx_resume);
 
 static const struct i2c_device_id wdt87xx_dev_id[] = {
 	{ WDT87XX_NAME, 0 },
@@ -1174,7 +1173,7 @@ static struct i2c_driver wdt87xx_driver = {
 	.id_table	= wdt87xx_dev_id,
 	.driver	= {
 		.name	= WDT87XX_NAME,
-		.pm     = &wdt87xx_pm_ops,
+		.pm     = pm_sleep_ptr(&wdt87xx_pm_ops),
 		.acpi_match_table = ACPI_PTR(wdt87xx_acpi_id),
 	},
 };

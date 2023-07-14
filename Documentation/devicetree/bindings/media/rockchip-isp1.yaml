@@ -212,12 +212,19 @@ examples:
                 compatible = "ovti,ov2685";
                 reg = <0x3c>;
 
-                  port {
-                      ucam_out: endpoint {
-                          remote-endpoint = <&mipi_in_ucam>;
-                          data-lanes = <1>;
-                      };
-                  };
+                clocks = <&cru SCLK_TESTCLKOUT1>;
+                clock-names = "xvclk";
+
+                avdd-supply = <&pp2800_cam>;
+                dovdd-supply = <&pp1800>;
+                dvdd-supply = <&pp1800>;
+
+                port {
+                    ucam_out: endpoint {
+                        remote-endpoint = <&mipi_in_ucam>;
+                        data-lanes = <1>;
+                    };
+                };
             };
         };
     };

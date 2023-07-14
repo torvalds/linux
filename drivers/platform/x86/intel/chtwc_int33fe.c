@@ -219,7 +219,7 @@ static int cht_int33fe_add_nodes(struct cht_int33fe_data *data)
 
 	/*
 	 * Update node used in "usb-role-switch" property. Note that we
-	 * rely on software_node_register_nodes() to use the original
+	 * rely on software_node_register_node_group() to use the original
 	 * instance of properties instead of copying them.
 	 */
 	fusb302_mux_refs[0].node = mux_ref_node;
@@ -270,7 +270,7 @@ cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
+	strscpy(board_info.type, "max17047", I2C_NAME_SIZE);
 	board_info.dev_name = "max17047";
 	board_info.fwnode = fwnode;
 	data->battery_fg = i2c_acpi_new_device(dev, 1, &board_info);
@@ -361,7 +361,7 @@ static int cht_int33fe_typec_probe(struct platform_device *pdev)
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
+	strscpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
 	board_info.dev_name = "fusb302";
 	board_info.fwnode = fwnode;
 	board_info.irq = fusb302_irq;
@@ -381,7 +381,7 @@ static int cht_int33fe_typec_probe(struct platform_device *pdev)
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
 	board_info.fwnode = fwnode;
-	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
+	strscpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
 	if (IS_ERR(data->pi3usb30532)) {
@@ -405,7 +405,7 @@ out_remove_nodes:
 	return ret;
 }
 
-static int cht_int33fe_typec_remove(struct platform_device *pdev)
+static void cht_int33fe_typec_remove(struct platform_device *pdev)
 {
 	struct cht_int33fe_data *data = platform_get_drvdata(pdev);
 
@@ -414,8 +414,6 @@ static int cht_int33fe_typec_remove(struct platform_device *pdev)
 	i2c_unregister_device(data->battery_fg);
 
 	cht_int33fe_remove_nodes(data);
-
-	return 0;
 }
 
 static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
@@ -429,7 +427,7 @@ static struct platform_driver cht_int33fe_typec_driver = {
 		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
 	},
 	.probe = cht_int33fe_typec_probe,
-	.remove = cht_int33fe_typec_remove,
+	.remove_new = cht_int33fe_typec_remove,
 };
 
 module_platform_driver(cht_int33fe_typec_driver);

@@ -212,8 +212,7 @@ static int als_set_default_config(struct i2c_client *client)
 	return ret_val;
 }
 
-static int apds9802als_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int apds9802als_probe(struct i2c_client *client)
 {
 	int res;
 	struct als_data *data;

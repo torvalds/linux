@@ -1078,9 +1078,9 @@ static const struct regmap_config bq25155_regmap_config = {
 	.volatile_reg		= bq2515x_volatile_register,
 };
 
-static int bq2515x_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int bq2515x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct bq2515x_device *bq2515x;
 	struct power_supply_config charger_cfg = {};

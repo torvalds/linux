@@ -180,8 +180,6 @@ static int __init gfs_init(void)
 	int i;
 	int ret = 0;
 
-	ENTER();
-
 	if (func_num < 2) {
 		gfs_single_func = true;
 		func_num = 1;
@@ -241,8 +239,6 @@ module_init(gfs_init);
 static void __exit gfs_exit(void)
 {
 	int i;
-
-	ENTER();
 
 	if (gfs_registered)
 		usb_composite_unregister(&gfs_driver);
@@ -315,8 +311,6 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 	struct net_device *net;
 #endif
 	int ret, i;
-
-	ENTER();
 
 	if (missing_funcs)
 		return -ENODEV;
@@ -395,8 +389,10 @@ static int gfs_bind(struct usb_composite_dev *cdev)
 		struct usb_descriptor_header *usb_desc;
 
 		usb_desc = usb_otg_descriptor_alloc(cdev->gadget);
-		if (!usb_desc)
+		if (!usb_desc) {
+			ret = -ENOMEM;
 			goto error_rndis;
+		}
 		usb_otg_descriptor_init(cdev->gadget, usb_desc);
 		gfs_otg_desc[0] = usb_desc;
 		gfs_otg_desc[1] = NULL;
@@ -444,9 +440,6 @@ error:
 static int gfs_unbind(struct usb_composite_dev *cdev)
 {
 	int i;
-
-	ENTER();
-
 
 #ifdef CONFIG_USB_FUNCTIONFS_RNDIS
 	usb_put_function(f_rndis);

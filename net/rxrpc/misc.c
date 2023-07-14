@@ -17,12 +17,6 @@
 unsigned int rxrpc_max_backlog __read_mostly = 10;
 
 /*
- * How long to wait before scheduling ACK generation after seeing a
- * packet with RXRPC_REQUEST_ACK set (in jiffies).
- */
-unsigned long rxrpc_requested_ack_delay = 1;
-
-/*
  * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
  *
  * We use this when we've received new data packets.  If those packets aren't
@@ -46,10 +40,7 @@ unsigned long rxrpc_idle_ack_delay = HZ / 2;
  * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
  * packets.
  */
-unsigned int rxrpc_rx_window_size = RXRPC_INIT_RX_WINDOW_SIZE;
-#if (RXRPC_RXTX_BUFF_SIZE - 1) < RXRPC_INIT_RX_WINDOW_SIZE
-#error Need to reduce RXRPC_INIT_RX_WINDOW_SIZE
-#endif
+unsigned int rxrpc_rx_window_size = 255;
 
 /*
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
@@ -63,14 +54,9 @@ unsigned int rxrpc_rx_mtu = 5692;
  */
 unsigned int rxrpc_rx_jumbo_max = 4;
 
-const s8 rxrpc_ack_priority[] = {
-	[0]				= 0,
-	[RXRPC_ACK_DELAY]		= 1,
-	[RXRPC_ACK_REQUESTED]		= 2,
-	[RXRPC_ACK_IDLE]		= 3,
-	[RXRPC_ACK_DUPLICATE]		= 4,
-	[RXRPC_ACK_OUT_OF_SEQUENCE]	= 5,
-	[RXRPC_ACK_EXCEEDS_WINDOW]	= 6,
-	[RXRPC_ACK_NOSPACE]		= 7,
-	[RXRPC_ACK_PING_RESPONSE]	= 8,
-};
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+/*
+ * The delay to inject into packet reception.
+ */
+unsigned long rxrpc_inject_rx_delay;
+#endif

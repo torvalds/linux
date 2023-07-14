@@ -21,6 +21,8 @@
 		gsc0 = &gsc_0;
 		gsc1 = &gsc_1;
 		gsc2 = &gsc_2;
+		mmc0 = &mshc_0;
+		mmc2 = &mshc_2;
 		pinctrl0 = &pinctrl_alive;
 		pinctrl1 = &pinctrl_aud;
 		pinctrl2 = &pinctrl_cpif;
@@ -40,8 +42,6 @@
 		spi2 = &spi_2;
 		spi3 = &spi_3;
 		spi4 = &spi_4;
-		mshc0 = &mshc_0;
-		mshc2 = &mshc_2;
 	};
 
 	chosen {
@@ -96,14 +96,21 @@
 		max98504: amplifier@31 {
 			compatible = "maxim,max98504";
 			reg = <0x31>;
-			maxim,rx-path = <1>;
-			maxim,tx-path = <1>;
-			maxim,tx-channel-mask = <3>;
-			maxim,tx-channel-source = <2>;
+
+			DIOVDD-supply = <&ldo3_reg>;
+			DVDD-supply = <&ldo3_reg>;
+			PVDD-supply = <&vph_pwr_regulator>;
 		};
 	};
 
-	irda_regulator: irda-regulator {
+	vph_pwr_regulator: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+		regulator-name = "VPH_PWR";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+	};
+
+	irda_regulator: regulator-irda {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpr3 3 GPIO_ACTIVE_HIGH>;
@@ -795,7 +802,7 @@
 		reg = <0x27>;
 		interrupt-parent = <&gpa1>;
 		interrupts = <3 IRQ_TYPE_EDGE_RISING>;
-		en-gpios = <&gpf1 4 GPIO_ACTIVE_HIGH>;
+		en-gpios = <&gpf1 4 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpj0 2 GPIO_ACTIVE_HIGH>;
 	};
 };
@@ -925,7 +932,6 @@
 			compatible = "maxim,max77843-haptic";
 			haptic-supply = <&ldo38_reg>;
 			pwms = <&pwm 0 33670 0>;
-			pwm-names = "haptic";
 		};
 	};
 };
@@ -946,6 +952,7 @@
 
 &mshc_0 {
 	status = "okay";
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
@@ -1279,11 +1286,13 @@
 
 		gpio-controller;
 		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
 
 		wlf,micd-detect-debounce = <300>;
 		wlf,micd-bias-start-time = <0x1>;
 		wlf,micd-rate = <0x7>;
-		wlf,micd-dbtime = <0x1>;
+		wlf,micd-dbtime = <0x2>;
 		wlf,micd-force-micbias;
 		wlf,micd-configs = <0x0 1 0>;
 		wlf,hpdet-channel = <1>;
@@ -1299,6 +1308,8 @@
 		CPVDD-supply = <&ldo18_reg>;
 		DBVDD2-supply = <&ldo18_reg>;
 		DBVDD3-supply = <&ldo18_reg>;
+		SPKVDDL-supply = <&vph_pwr_regulator>;
+		SPKVDDR-supply = <&vph_pwr_regulator>;
 
 		controller-data {
 			samsung,spi-feedback-delay = <0>;
@@ -1315,7 +1326,7 @@
 		reg = <0x0>;
 		spi-max-frequency = <5000000>;
 		power-supply = <&irda_regulator>;
-		duty-cycle = <60>;
+		duty-cycle = /bits/ 8 <60>;
 		led-active-low;
 
 		controller-data {

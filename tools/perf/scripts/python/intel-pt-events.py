@@ -11,12 +11,14 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 
-from __future__ import print_function
+from __future__ import division, print_function
 
+import io
 import os
 import sys
 import struct
 import argparse
+import contextlib
 
 from libxed import LibXED
 from ctypes import create_string_buffer, addressof
@@ -39,6 +41,11 @@ glb_src			= False
 glb_source_file_name	= None
 glb_line_number		= None
 glb_dso			= None
+glb_stash_dict		= {}
+glb_output		= None
+glb_output_pos		= 0
+glb_cpu			= -1
+glb_time		= 0
 
 def get_optional_null(perf_dict, field):
 	if field in perf_dict:
@@ -70,6 +77,7 @@ def trace_begin():
 	ap.add_argument("--insn-trace", action='store_true')
 	ap.add_argument("--src-trace", action='store_true')
 	ap.add_argument("--all-switch-events", action='store_true')
+	ap.add_argument("--interleave", type=int, nargs='?', const=4, default=0)
 	global glb_args
 	global glb_insn
 	global glb_src
@@ -94,10 +102,38 @@ def trace_begin():
 	perf_set_itrace_options(perf_script_context, itrace)
 
 def trace_end():
+	if glb_args.interleave:
+		flush_stashed_output()
 	print("End")
 
 def trace_unhandled(event_name, context, event_fields_dict):
 		print(' '.join(['%s=%s'%(k,str(v))for k,v in sorted(event_fields_dict.items())]))
+
+def stash_output():
+	global glb_stash_dict
+	global glb_output_pos
+	output_str = glb_output.getvalue()[glb_output_pos:]
+	n = len(output_str)
+	if n:
+		glb_output_pos += n
+		if glb_cpu not in glb_stash_dict:
+			glb_stash_dict[glb_cpu] = []
+		glb_stash_dict[glb_cpu].append(output_str)
+
+def flush_stashed_output():
+	global glb_stash_dict
+	while glb_stash_dict:
+		cpus = list(glb_stash_dict.keys())
+		# Output at most glb_args.interleave output strings per cpu
+		for cpu in cpus:
+			items = glb_stash_dict[cpu]
+			countdown = glb_args.interleave
+			while len(items) and countdown:
+				sys.stdout.write(items[0])
+				del items[0]
+				countdown -= 1
+			if not items:
+				del glb_stash_dict[cpu]
 
 def print_ptwrite(raw_buf):
 	data = struct.unpack_from("<IQ", raw_buf)
@@ -304,7 +340,6 @@ def print_srccode(comm, param_dict, sample, symbol, dso, with_insn):
 	print(start_str, src_str)
 
 def do_process_event(param_dict):
-	event_attr = param_dict["attr"]
 	sample	   = param_dict["sample"]
 	raw_buf	   = param_dict["raw_buf"]
 	comm	   = param_dict["comm"]
@@ -313,6 +348,7 @@ def do_process_event(param_dict):
 	# callchain  = param_dict["callchain"]
 	# brstack    = param_dict["brstack"]
 	# brstacksym = param_dict["brstacksym"]
+	# event_attr = param_dict["attr"]
 
 	# Symbol and dso info are not always resolved
 	dso    = get_optional(param_dict, "dso")
@@ -323,13 +359,13 @@ def do_process_event(param_dict):
 		print(glb_switch_str[cpu])
 		del glb_switch_str[cpu]
 
-	if name[0:12] == "instructions":
+	if name.startswith("instructions"):
 		if glb_src:
 			print_srccode(comm, param_dict, sample, symbol, dso, True)
 		else:
 			print_instructions_start(comm, sample)
 			print_common_ip(param_dict, sample, symbol, dso)
-	elif name[0:8] == "branches":
+	elif name.startswith("branches"):
 		if glb_src:
 			print_srccode(comm, param_dict, sample, symbol, dso, False)
 		else:
@@ -375,15 +411,40 @@ def do_process_event(param_dict):
 		print_common_start(comm, sample, name)
 		print_common_ip(param_dict, sample, symbol, dso)
 
+def interleave_events(param_dict):
+	global glb_cpu
+	global glb_time
+	global glb_output
+	global glb_output_pos
+
+	sample  = param_dict["sample"]
+	glb_cpu = sample["cpu"]
+	ts      = sample["time"]
+
+	if glb_time != ts:
+		glb_time = ts
+		flush_stashed_output()
+
+	glb_output_pos = 0
+	with contextlib.redirect_stdout(io.StringIO()) as glb_output:
+		do_process_event(param_dict)
+
+	stash_output()
+
 def process_event(param_dict):
 	try:
-		do_process_event(param_dict)
+		if glb_args.interleave:
+			interleave_events(param_dict)
+		else:
+			do_process_event(param_dict)
 	except broken_pipe_exception:
 		# Stop python printing broken pipe errors and traceback
 		sys.stdout = open(os.devnull, 'w')
 		sys.exit(1)
 
 def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
+	if glb_args.interleave:
+		flush_stashed_output()
 	if len(x) >= 2 and x[0]:
 		machine_pid = x[0]
 		vcpu = x[1]
@@ -403,6 +464,8 @@ def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
 		sys.exit(1)
 
 def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_preempt, *x):
+	if glb_args.interleave:
+		flush_stashed_output()
 	if out:
 		out_str = "Switch out "
 	else:

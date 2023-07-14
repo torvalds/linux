@@ -352,11 +352,8 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 	n = min(n, s);
 
 	memcpy_toio(port->membase + MEN_Z135_TX_RAM, &xmit->buf[xmit->tail], n);
-	xmit->tail = (xmit->tail + n) & (UART_XMIT_SIZE - 1);
-
 	iowrite32(n & 0x3ff, port->membase + MEN_Z135_TX_CTRL);
-
-	port->icount.tx += n;
+	uart_xmit_advance(port, n);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
@@ -646,8 +643,8 @@ static void men_z135_shutdown(struct uart_port *port)
 }
 
 static void men_z135_set_termios(struct uart_port *port,
-				struct ktermios *termios,
-				struct ktermios *old)
+				 struct ktermios *termios,
+				 const struct ktermios *old)
 {
 	struct men_z135_port *uart = to_men_z135(port);
 	unsigned int baud;

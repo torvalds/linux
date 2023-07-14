@@ -319,7 +319,7 @@ So those are the essential steps in writing and running a script.  The
 process can be generalized to any tracepoint or set of tracepoints
 you're interested in - basically find the tracepoint(s) you're
 interested in by looking at the list of available events shown by
-'perf list' and/or look in /sys/kernel/debug/tracing/events/ for
+'perf list' and/or look in /sys/kernel/tracing/events/ for
 detailed event and field info, record the corresponding trace data
 using 'perf record', passing it the list of interesting events,
 generate a skeleton script using 'perf script -g python' and modify the
@@ -449,7 +449,7 @@ Traces meant to be processed using a script should be recorded with
 the above option: -a to enable system-wide collection.
 
 The format file for the sched_wakeup event defines the following fields
-(see /sys/kernel/debug/tracing/events/sched/sched_wakeup/format):
+(see /sys/kernel/tracing/events/sched/sched_wakeup/format):
 
 ----
  format:

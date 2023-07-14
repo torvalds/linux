@@ -493,6 +493,17 @@ static int m1_pmu_map_event(struct perf_event *event)
 	return armpmu_map_event(event, &m1_pmu_perf_map, NULL, M1_PMU_CFG_EVENT);
 }
 
+static int m2_pmu_map_event(struct perf_event *event)
+{
+	/*
+	 * Same deal as the above, except that M2 has 64bit counters.
+	 * Which, as far as we're concerned, actually means 63 bits.
+	 * Yes, this is getting awkward.
+	 */
+	event->hw.flags |= ARMPMU_EVT_63BIT;
+	return armpmu_map_event(event, &m1_pmu_perf_map, NULL, M1_PMU_CFG_EVENT);
+}
+
 static void m1_pmu_reset(void *info)
 {
 	int i;
@@ -525,7 +536,7 @@ static int m1_pmu_set_event_filter(struct hw_perf_event *event,
 	return 0;
 }
 
-static int m1_pmu_init(struct arm_pmu *cpu_pmu)
+static int m1_pmu_init(struct arm_pmu *cpu_pmu, u32 flags)
 {
 	cpu_pmu->handle_irq	  = m1_pmu_handle_irq;
 	cpu_pmu->enable		  = m1_pmu_enable_event;
@@ -536,7 +547,14 @@ static int m1_pmu_init(struct arm_pmu *cpu_pmu)
 	cpu_pmu->clear_event_idx  = m1_pmu_clear_event_idx;
 	cpu_pmu->start		  = m1_pmu_start;
 	cpu_pmu->stop		  = m1_pmu_stop;
-	cpu_pmu->map_event	  = m1_pmu_map_event;
+
+	if (flags & ARMPMU_EVT_47BIT)
+		cpu_pmu->map_event = m1_pmu_map_event;
+	else if (flags & ARMPMU_EVT_63BIT)
+		cpu_pmu->map_event = m2_pmu_map_event;
+	else
+		return WARN_ON(-EINVAL);
+
 	cpu_pmu->reset		  = m1_pmu_reset;
 	cpu_pmu->set_event_filter = m1_pmu_set_event_filter;
 
@@ -550,16 +568,30 @@ static int m1_pmu_init(struct arm_pmu *cpu_pmu)
 static int m1_pmu_ice_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->name = "apple_icestorm_pmu";
-	return m1_pmu_init(cpu_pmu);
+	return m1_pmu_init(cpu_pmu, ARMPMU_EVT_47BIT);
 }
 
 static int m1_pmu_fire_init(struct arm_pmu *cpu_pmu)
 {
 	cpu_pmu->name = "apple_firestorm_pmu";
-	return m1_pmu_init(cpu_pmu);
+	return m1_pmu_init(cpu_pmu, ARMPMU_EVT_47BIT);
+}
+
+static int m2_pmu_avalanche_init(struct arm_pmu *cpu_pmu)
+{
+	cpu_pmu->name = "apple_avalanche_pmu";
+	return m1_pmu_init(cpu_pmu, ARMPMU_EVT_63BIT);
+}
+
+static int m2_pmu_blizzard_init(struct arm_pmu *cpu_pmu)
+{
+	cpu_pmu->name = "apple_blizzard_pmu";
+	return m1_pmu_init(cpu_pmu, ARMPMU_EVT_63BIT);
 }
 
 static const struct of_device_id m1_pmu_of_device_ids[] = {
+	{ .compatible = "apple,avalanche-pmu",	.data = m2_pmu_avalanche_init, },
+	{ .compatible = "apple,blizzard-pmu",	.data = m2_pmu_blizzard_init, },
 	{ .compatible = "apple,icestorm-pmu",	.data = m1_pmu_ice_init, },
 	{ .compatible = "apple,firestorm-pmu",	.data = m1_pmu_fire_init, },
 	{ },
@@ -581,4 +613,3 @@ static struct platform_driver m1_pmu_driver = {
 };
 
 module_platform_driver(m1_pmu_driver);
-MODULE_LICENSE("GPL v2");

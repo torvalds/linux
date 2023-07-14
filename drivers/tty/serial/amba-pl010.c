@@ -164,34 +164,12 @@ static void pl010_rx_chars(struct uart_port *port)
 
 static void pl010_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
-	int count;
+	u8 ch;
 
-	if (port->x_char) {
-		writel(port->x_char, port->membase + UART01x_DR);
-		port->icount.tx++;
-		port->x_char = 0;
-		return;
-	}
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		pl010_stop_tx(port);
-		return;
-	}
-
-	count = port->fifosize >> 1;
-	do {
-		writel(xmit->buf[xmit->tail], port->membase + UART01x_DR);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
-	} while (--count > 0);
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	if (uart_circ_empty(xmit))
-		pl010_stop_tx(port);
+	uart_port_tx_limited(port, ch, port->fifosize >> 1,
+		true,
+		writel(ch, port->membase + UART01x_DR),
+		({}));
 }
 
 static void pl010_modem_status(struct uart_amba_port *uap)
@@ -370,7 +348,7 @@ static void pl010_shutdown(struct uart_port *port)
 
 static void
 pl010_set_termios(struct uart_port *port, struct ktermios *termios,
-		     struct ktermios *old)
+		  const struct ktermios *old)
 {
 	unsigned int lcr_h, old_cr;
 	unsigned long flags;

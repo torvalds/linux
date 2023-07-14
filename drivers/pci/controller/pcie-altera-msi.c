@@ -9,11 +9,11 @@
 
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
+#include <linux/irqdomain.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -197,7 +197,7 @@ static void altera_free_domains(struct altera_msi *msi)
 	irq_domain_remove(msi->inner_domain);
 }
 
-static int altera_msi_remove(struct platform_device *pdev)
+static void altera_msi_remove(struct platform_device *pdev)
 {
 	struct altera_msi *msi = platform_get_drvdata(pdev);
 
@@ -207,7 +207,6 @@ static int altera_msi_remove(struct platform_device *pdev)
 	altera_free_domains(msi);
 
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static int altera_msi_probe(struct platform_device *pdev)
@@ -275,7 +274,7 @@ static struct platform_driver altera_msi_driver = {
 		.of_match_table = altera_msi_of_match,
 	},
 	.probe = altera_msi_probe,
-	.remove = altera_msi_remove,
+	.remove_new = altera_msi_remove,
 };
 
 static int __init altera_msi_init(void)

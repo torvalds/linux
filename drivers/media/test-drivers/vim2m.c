@@ -2,7 +2,7 @@
 /*
  * A virtual v4l2-mem2mem example device.
  *
- * This is a virtual device driver for testing mem-to-mem videobuf framework.
+ * This is a virtual device driver for testing mem-to-mem vb2 framework.
  * It simulates a device that uses memory buffers for both source and
  * destination, processes the data and issues an "irq" (simulated by a delayed
  * workqueue).
@@ -1379,7 +1379,7 @@ error_free:
 	return ret;
 }
 
-static int vim2m_remove(struct platform_device *pdev)
+static void vim2m_remove(struct platform_device *pdev)
 {
 	struct vim2m_dev *dev = platform_get_drvdata(pdev);
 
@@ -1390,13 +1390,11 @@ static int vim2m_remove(struct platform_device *pdev)
 	v4l2_m2m_unregister_media_controller(dev->m2m_dev);
 #endif
 	video_unregister_device(&dev->vfd);
-
-	return 0;
 }
 
 static struct platform_driver vim2m_pdrv = {
 	.probe		= vim2m_probe,
-	.remove		= vim2m_remove,
+	.remove_new	= vim2m_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 	},

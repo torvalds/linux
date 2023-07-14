@@ -59,6 +59,7 @@ struct ionic_rx_stats {
 #define IONIC_QCQ_F_TX_STATS		BIT(3)
 #define IONIC_QCQ_F_RX_STATS		BIT(4)
 #define IONIC_QCQ_F_NOTIFYQ		BIT(5)
+#define IONIC_QCQ_F_CMB_RINGS		BIT(6)
 
 struct ionic_qcq {
 	void *q_base;
@@ -70,12 +71,19 @@ struct ionic_qcq {
 	void *sg_base;
 	dma_addr_t sg_base_pa;
 	u32 sg_size;
+	void __iomem *cmb_q_base;
+	phys_addr_t cmb_q_base_pa;
+	u32 cmb_q_size;
+	u32 cmb_pgid;
+	u32 cmb_order;
 	struct dim dim;
 	struct ionic_queue q;
 	struct ionic_cq cq;
 	struct ionic_intr_info intr;
+	struct timer_list napi_deadline;
 	struct napi_struct napi;
 	unsigned int flags;
+	struct ionic_qcq *napi_qcq;
 	struct dentry *dentry;
 };
 
@@ -140,6 +148,8 @@ enum ionic_lif_state_flags {
 	IONIC_LIF_F_BROKEN,
 	IONIC_LIF_F_TX_DIM_INTR,
 	IONIC_LIF_F_RX_DIM_INTR,
+	IONIC_LIF_F_CMB_TX_RINGS,
+	IONIC_LIF_F_CMB_RX_RINGS,
 
 	/* leave this as last */
 	IONIC_LIF_F_STATE_SIZE
@@ -191,6 +201,7 @@ struct ionic_lif {
 	u64 hw_features;
 	bool registered;
 	u16 lif_type;
+	unsigned int link_down_count;
 	unsigned int nmcast;
 	unsigned int nucast;
 	unsigned int nvlans;
@@ -243,8 +254,10 @@ struct ionic_queue_params {
 	unsigned int nxqs;
 	unsigned int ntxq_descs;
 	unsigned int nrxq_descs;
-	unsigned int intr_split;
 	u64 rxq_features;
+	bool intr_split;
+	bool cmb_tx;
+	bool cmb_rx;
 };
 
 static inline void ionic_init_queue_params(struct ionic_lif *lif,
@@ -253,8 +266,34 @@ static inline void ionic_init_queue_params(struct ionic_lif *lif,
 	qparam->nxqs = lif->nxqs;
 	qparam->ntxq_descs = lif->ntxq_descs;
 	qparam->nrxq_descs = lif->nrxq_descs;
-	qparam->intr_split = test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
 	qparam->rxq_features = lif->rxq_features;
+	qparam->intr_split = test_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+	qparam->cmb_tx = test_bit(IONIC_LIF_F_CMB_TX_RINGS, lif->state);
+	qparam->cmb_rx = test_bit(IONIC_LIF_F_CMB_RX_RINGS, lif->state);
+}
+
+static inline void ionic_set_queue_params(struct ionic_lif *lif,
+					  struct ionic_queue_params *qparam)
+{
+	lif->nxqs = qparam->nxqs;
+	lif->ntxq_descs = qparam->ntxq_descs;
+	lif->nrxq_descs = qparam->nrxq_descs;
+	lif->rxq_features = qparam->rxq_features;
+
+	if (qparam->intr_split)
+		set_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+	else
+		clear_bit(IONIC_LIF_F_SPLIT_INTR, lif->state);
+
+	if (qparam->cmb_tx)
+		set_bit(IONIC_LIF_F_CMB_TX_RINGS, lif->state);
+	else
+		clear_bit(IONIC_LIF_F_CMB_TX_RINGS, lif->state);
+
+	if (qparam->cmb_rx)
+		set_bit(IONIC_LIF_F_CMB_RX_RINGS, lif->state);
+	else
+		clear_bit(IONIC_LIF_F_CMB_RX_RINGS, lif->state);
 }
 
 static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)

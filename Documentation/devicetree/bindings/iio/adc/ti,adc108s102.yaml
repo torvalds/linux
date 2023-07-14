@@ -19,7 +19,6 @@ properties:
 
   reg: true
   vref-supply: true
-  spi-max-frequency: true
   "#io-channel-cells":
     const: 1
 
@@ -28,12 +27,15 @@ required:
   - reg
   - vref-supply
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
     spi {
-        #address-cells= <1>;
+        #address-cells = <1>;
         #size-cells = <0>;
 
         adc@0 {

@@ -44,10 +44,15 @@ config LED_TRIGGER_PHY
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
 		for any speed known to the PHY.
 
+config PHYLIB_LEDS
+	def_bool OF
+	depends on LEDS_CLASS=y || LEDS_CLASS=PHYLIB
+	help
+	  When LED class support is enabled, phylib can automatically
+	  probe LED setting from device tree.
 
 config FIXED_PHY
 	tristate "MDIO Bus/PHY emulation with fixed speed/link PHYs"
-	depends on PHYLIB
 	select SWPHY
 	help
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
@@ -71,6 +76,7 @@ config AMD_PHY
 config MESON_GXL_PHY
 	tristate "Amlogic Meson GXL Internal PHY"
 	depends on ARCH_MESON || COMPILE_TEST
+	select SMSC_PHY
 	help
 	  Currently has a driver for the Amlogic Meson GXL Internal PHY
 
@@ -112,7 +118,6 @@ config BROADCOM_PHY
 
 config BCM54140_PHY
 	tristate "Broadcom BCM54140 PHY"
-	depends on PHYLIB
 	depends on HWMON || HWMON=n
 	select BCM_NET_PHYLIB
 	help
@@ -137,7 +142,6 @@ config BCM7XXX_PHY
 
 config BCM84881_PHY
 	tristate "Broadcom BCM84881 PHY"
-	depends on PHYLIB
 	help
 	  Support the Broadcom BCM84881 PHY.
 
@@ -232,11 +236,29 @@ config MEDIATEK_GE_PHY
 	help
 	  Supports the MediaTek Gigabit Ethernet PHYs.
 
+config MEDIATEK_GE_SOC_PHY
+	tristate "MediaTek SoC Ethernet PHYs"
+	depends on (ARM64 && ARCH_MEDIATEK) || COMPILE_TEST
+	depends on NVMEM_MTK_EFUSE
+	help
+	  Supports MediaTek SoC built-in Gigabit Ethernet PHYs.
+
+	  Include support for built-in Ethernet PHYs which are present in
+	  the MT7981 and MT7988 SoCs. These PHYs need calibration data
+	  present in the SoCs efuse and will dynamically calibrate VCM
+	  (common-mode voltage) during startup.
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	depends on PTP_1588_CLOCK_OPTIONAL
 	help
 	  Supports the KSZ9021, VSC8201, KS8001 PHYs.
+
+config MICROCHIP_T1S_PHY
+	tristate "Microchip 10BASE-T1S Ethernet PHYs"
+	help
+	  Currently supports the LAN8670/1/2 Rev.B1 and LAN8650/1 Rev.B0 Internal
+	  PHYs.
 
 config MICROCHIP_PHY
 	tristate "Microchip PHYs"
@@ -260,12 +282,18 @@ config MOTORCOMM_PHY
 	tristate "Motorcomm PHYs"
 	help
 	  Enables support for Motorcomm network PHYs.
-	  Currently supports the YT8511 gigabit PHY.
+	  Currently supports YT85xx Gigabit Ethernet PHYs.
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"
 	help
 	  Currently supports the DP83865 PHY.
+
+config NXP_CBTX_PHY
+	tristate "NXP 100BASE-TX PHYs"
+	help
+	  Support the 100BASE-TX PHY integrated on the SJA1110 automotive
+	  switch family.
 
 config NXP_C45_TJA11XX_PHY
 	tristate "NXP C45 TJA11XX PHYs"
@@ -279,6 +307,13 @@ config NXP_TJA11XX_PHY
 	depends on HWMON
 	help
 	  Currently supports the NXP TJA1100 and TJA1101 PHY.
+
+config NCN26000_PHY
+	tristate "Onsemi 10BASE-T1S Ethernet PHY"
+	help
+	  Adds support for the onsemi 10BASE-T1S Ethernet PHY.
+	  Currently supports the NCN26000 10BASE-T1S Industrial PHY
+	  with MII interface.
 
 config AT803X_PHY
 	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"

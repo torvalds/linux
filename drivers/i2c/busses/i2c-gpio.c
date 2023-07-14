@@ -13,9 +13,9 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_data/i2c-gpio.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 
 struct i2c_gpio_private_data {
@@ -300,22 +300,29 @@ static inline void i2c_gpio_fault_injector_init(struct platform_device *pdev) {}
 static inline void i2c_gpio_fault_injector_exit(struct platform_device *pdev) {}
 #endif /* CONFIG_I2C_GPIO_FAULT_INJECTOR*/
 
-static void of_i2c_gpio_get_props(struct device_node *np,
-				  struct i2c_gpio_platform_data *pdata)
+/* Get i2c-gpio properties from DT or ACPI table */
+static void i2c_gpio_get_properties(struct device *dev,
+				    struct i2c_gpio_platform_data *pdata)
 {
 	u32 reg;
 
-	of_property_read_u32(np, "i2c-gpio,delay-us", &pdata->udelay);
+	device_property_read_u32(dev, "i2c-gpio,delay-us", &pdata->udelay);
 
-	if (!of_property_read_u32(np, "i2c-gpio,timeout-ms", &reg))
+	if (!device_property_read_u32(dev, "i2c-gpio,timeout-ms", &reg))
 		pdata->timeout = msecs_to_jiffies(reg);
 
 	pdata->sda_is_open_drain =
-		of_property_read_bool(np, "i2c-gpio,sda-open-drain");
+		device_property_read_bool(dev, "i2c-gpio,sda-open-drain");
 	pdata->scl_is_open_drain =
-		of_property_read_bool(np, "i2c-gpio,scl-open-drain");
+		device_property_read_bool(dev, "i2c-gpio,scl-open-drain");
 	pdata->scl_is_output_only =
-		of_property_read_bool(np, "i2c-gpio,scl-output-only");
+		device_property_read_bool(dev, "i2c-gpio,scl-output-only");
+	pdata->sda_is_output_only =
+		device_property_read_bool(dev, "i2c-gpio,sda-output-only");
+	pdata->sda_has_no_pullup =
+		device_property_read_bool(dev, "i2c-gpio,sda-has-no-pullup");
+	pdata->scl_has_no_pullup =
+		device_property_read_bool(dev, "i2c-gpio,scl-has-no-pullup");
 }
 
 static struct gpio_desc *i2c_gpio_get_desc(struct device *dev,
@@ -361,7 +368,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	struct i2c_algo_bit_data *bit_data;
 	struct i2c_adapter *adap;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	enum gpiod_flags gflags;
 	int ret;
 
@@ -373,8 +380,8 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	bit_data = &priv->bit_data;
 	pdata = &priv->pdata;
 
-	if (np) {
-		of_i2c_gpio_get_props(np, pdata);
+	if (fwnode) {
+		i2c_gpio_get_properties(dev, pdata);
 	} else {
 		/*
 		 * If all platform data settings are zero it is OK
@@ -392,7 +399,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	 * handle them as we handle any other output. Else we enforce open
 	 * drain as this is required for an I2C bus.
 	 */
-	if (pdata->sda_is_open_drain)
+	if (pdata->sda_is_open_drain || pdata->sda_has_no_pullup)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
@@ -400,7 +407,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->sda))
 		return PTR_ERR(priv->sda);
 
-	if (pdata->scl_is_open_drain)
+	if (pdata->scl_is_open_drain || pdata->scl_has_no_pullup)
 		gflags = GPIOD_OUT_HIGH;
 	else
 		gflags = GPIOD_OUT_HIGH_OPEN_DRAIN;
@@ -418,7 +425,8 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 
 	if (!pdata->scl_is_output_only)
 		bit_data->getscl = i2c_gpio_getscl;
-	bit_data->getsda = i2c_gpio_getsda;
+	if (!pdata->sda_is_output_only)
+		bit_data->getsda = i2c_gpio_getsda;
 
 	if (pdata->udelay)
 		bit_data->udelay = pdata->udelay;
@@ -435,7 +443,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	bit_data->data = priv;
 
 	adap->owner = THIS_MODULE;
-	if (np)
+	if (fwnode)
 		strscpy(adap->name, dev_name(dev), sizeof(adap->name));
 	else
 		snprintf(adap->name, sizeof(adap->name), "i2c-gpio%d", pdev->id);
@@ -443,7 +451,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	adap->algo_data = bit_data;
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->dev.parent = dev;
-	adap->dev.of_node = np;
+	device_set_node(&adap->dev, fwnode);
 
 	adap->nr = pdev->id;
 	ret = i2c_bit_add_numbered_bus(adap);
@@ -467,7 +475,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int i2c_gpio_remove(struct platform_device *pdev)
+static void i2c_gpio_remove(struct platform_device *pdev)
 {
 	struct i2c_gpio_private_data *priv;
 	struct i2c_adapter *adap;
@@ -478,26 +486,29 @@ static int i2c_gpio_remove(struct platform_device *pdev)
 	adap = &priv->adap;
 
 	i2c_del_adapter(adap);
-
-	return 0;
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id i2c_gpio_dt_ids[] = {
 	{ .compatible = "i2c-gpio", },
 	{ /* sentinel */ }
 };
 
 MODULE_DEVICE_TABLE(of, i2c_gpio_dt_ids);
-#endif
+
+static const struct acpi_device_id i2c_gpio_acpi_match[] = {
+	{ "LOON0005" }, /* LoongArch */
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, i2c_gpio_acpi_match);
 
 static struct platform_driver i2c_gpio_driver = {
 	.driver		= {
 		.name	= "i2c-gpio",
-		.of_match_table	= of_match_ptr(i2c_gpio_dt_ids),
+		.of_match_table	= i2c_gpio_dt_ids,
+		.acpi_match_table = i2c_gpio_acpi_match,
 	},
 	.probe		= i2c_gpio_probe,
-	.remove		= i2c_gpio_remove,
+	.remove_new	= i2c_gpio_remove,
 };
 
 static int __init i2c_gpio_init(void)

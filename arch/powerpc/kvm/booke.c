@@ -283,9 +283,10 @@ void kvmppc_core_queue_dtlb_miss(struct kvm_vcpu *vcpu,
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DTLB_MISS);
 }
 
-void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu,
+void kvmppc_core_queue_data_storage(struct kvm_vcpu *vcpu, ulong srr1_flags,
 				    ulong dear_flags, ulong esr_flags)
 {
+	WARN_ON_ONCE(srr1_flags);
 	vcpu->arch.queued_dear = dear_flags;
 	vcpu->arch.queued_esr = esr_flags;
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_DATA_STORAGE);
@@ -316,14 +317,16 @@ void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong esr_flags)
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_PROGRAM);
 }
 
-void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_fpunavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
+	WARN_ON_ONCE(srr1_flags);
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_FP_UNAVAIL);
 }
 
 #ifdef CONFIG_ALTIVEC
-void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu)
+void kvmppc_core_queue_vec_unavail(struct kvm_vcpu *vcpu, ulong srr1_flags)
 {
+	WARN_ON_ONCE(srr1_flags);
 	kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_ALTIVEC_UNAVAIL);
 }
 #endif
@@ -623,7 +626,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	spin_unlock_irqrestore(&vcpu->arch.wdt_lock, flags);
 }
 
-void kvmppc_watchdog_func(struct timer_list *t)
+static void kvmppc_watchdog_func(struct timer_list *t)
 {
 	struct kvm_vcpu *vcpu = from_timer(vcpu, t, arch.wdt_timer);
 	u32 tsr, new_tsr;
@@ -719,7 +722,6 @@ int kvmppc_core_prepare_to_enter(struct kvm_vcpu *vcpu)
 	if (vcpu->arch.shared->msr & MSR_WE) {
 		local_irq_enable();
 		kvm_vcpu_halt(vcpu);
-		kvm_clear_request(KVM_REQ_UNHALT, vcpu);
 		hard_irq_disable();
 
 		kvmppc_set_exit_type(vcpu, EMULATED_MTMSRWE_EXITS);
@@ -842,7 +844,7 @@ static int emulation_exit(struct kvm_vcpu *vcpu)
 		return RESUME_GUEST;
 
 	case EMULATE_FAIL:
-		printk(KERN_CRIT "%s: emulation at %lx failed (%08x)\n",
+		printk(KERN_CRIT "%s: emulation at %lx failed (%08lx)\n",
 		       __func__, vcpu->arch.regs.nip, vcpu->arch.last_inst);
 		/* For debugging, encode the failing instruction and
 		 * report it to userspace. */
@@ -913,16 +915,15 @@ static int kvmppc_handle_debug(struct kvm_vcpu *vcpu)
 
 static void kvmppc_fill_pt_regs(struct pt_regs *regs)
 {
-	ulong r1, ip, msr, lr;
+	ulong r1, msr, lr;
 
 	asm("mr %0, 1" : "=r"(r1));
 	asm("mflr %0" : "=r"(lr));
 	asm("mfmsr %0" : "=r"(msr));
-	asm("bl 1f; 1: mflr %0" : "=r"(ip));
 
 	memset(regs, 0, sizeof(*regs));
 	regs->gpr[1] = r1;
-	regs->nip = ip;
+	regs->nip = _THIS_IP_;
 	regs->msr = msr;
 	regs->link = lr;
 }
@@ -1002,7 +1003,7 @@ static int kvmppc_resume_inst_load(struct kvm_vcpu *vcpu,
 	}
 }
 
-/**
+/*
  * kvmppc_handle_exit
  *
  * Return value is in the form (errcode<<2 | RESUME_FLAG_HOST | RESUME_FLAG_NV)
@@ -1014,7 +1015,11 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 	int s;
 	int idx;
 	u32 last_inst = KVM_INST_FETCH_FAILED;
+	ppc_inst_t pinst;
 	enum emulation_result emulated = EMULATE_DONE;
+
+	/* Fix irq state (pairs with kvmppc_fix_ee_before_entry()) */
+	kvmppc_fix_ee_after_exit();
 
 	/* update before a new last_exit_type is rewritten */
 	kvmppc_update_timing_stats(vcpu);
@@ -1030,12 +1035,15 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 	case BOOKE_INTERRUPT_DATA_STORAGE:
 	case BOOKE_INTERRUPT_DTLB_MISS:
 	case BOOKE_INTERRUPT_HV_PRIV:
-		emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
+		emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &pinst);
+		last_inst = ppc_inst_val(pinst);
 		break;
 	case BOOKE_INTERRUPT_PROGRAM:
 		/* SW breakpoints arrive as illegal instructions on HV */
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-			emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &last_inst);
+		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP) {
+			emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &pinst);
+			last_inst = ppc_inst_val(pinst);
+		}
 		break;
 	default:
 		break;
@@ -1209,7 +1217,7 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 
 /*
  * On cores with Vector category, KVM is loaded only if CONFIG_ALTIVEC,
- * see kvmppc_core_check_processor_compat().
+ * see kvmppc_e500mc_check_processor_compat().
  */
 #ifdef CONFIG_ALTIVEC
 	case BOOKE_INTERRUPT_ALTIVEC_UNAVAIL:
@@ -1224,7 +1232,7 @@ int kvmppc_handle_exit(struct kvm_vcpu *vcpu, unsigned int exit_nr)
 #endif
 
 	case BOOKE_INTERRUPT_DATA_STORAGE:
-		kvmppc_core_queue_data_storage(vcpu, vcpu->arch.fault_dear,
+		kvmppc_core_queue_data_storage(vcpu, 0, vcpu->arch.fault_dear,
 		                               vcpu->arch.fault_esr);
 		kvmppc_account_exit(vcpu, DSI_EXITS);
 		r = RESUME_GUEST;
@@ -1945,7 +1953,8 @@ static int kvmppc_booke_add_watchpoint(struct debug_reg *dbg_reg, uint64_t addr,
 	dbg_reg->dbcr0 |= DBCR0_IDM;
 	return 0;
 }
-void kvm_guest_protect_msr(struct kvm_vcpu *vcpu, ulong prot_bitmap, bool set)
+static void kvm_guest_protect_msr(struct kvm_vcpu *vcpu, ulong prot_bitmap,
+				  bool set)
 {
 	/* XXX: Add similar MSR protection for BookE-PR */
 #ifdef CONFIG_KVM_BOOKE_HV

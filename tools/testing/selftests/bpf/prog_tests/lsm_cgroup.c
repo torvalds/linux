@@ -47,7 +47,8 @@ static __u32 query_prog_cnt(int cgroup_fd, const char *attach_func)
 
 		fd = bpf_prog_get_fd_by_id(p.prog_ids[i]);
 		ASSERT_GE(fd, 0, "prog_get_fd_by_id");
-		ASSERT_OK(bpf_obj_get_info_by_fd(fd, &info, &info_len), "prog_info_by_fd");
+		ASSERT_OK(bpf_prog_get_info_by_fd(fd, &info, &info_len),
+			  "prog_info_by_fd");
 		close(fd);
 
 		if (info.attach_btf_id ==
@@ -173,10 +174,12 @@ static void test_lsm_cgroup_functional(void)
 	ASSERT_EQ(query_prog_cnt(cgroup_fd, NULL), 4, "total prog count");
 	ASSERT_EQ(query_prog_cnt(cgroup_fd2, NULL), 1, "total prog count");
 
-	/* AF_UNIX is prohibited. */
-
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	ASSERT_LT(fd, 0, "socket(AF_UNIX)");
+	if (!(skel->kconfig->CONFIG_SECURITY_APPARMOR
+	    || skel->kconfig->CONFIG_SECURITY_SELINUX
+	    || skel->kconfig->CONFIG_SECURITY_SMACK))
+		/* AF_UNIX is prohibited. */
+		ASSERT_LT(fd, 0, "socket(AF_UNIX)");
 	close(fd);
 
 	/* AF_INET6 gets default policy (sk_priority). */
@@ -233,11 +236,18 @@ static void test_lsm_cgroup_functional(void)
 
 	/* AF_INET6+SOCK_STREAM
 	 * AF_PACKET+SOCK_RAW
+	 * AF_UNIX+SOCK_RAW if already have non-bpf lsms installed
 	 * listen_fd
 	 * client_fd
 	 * accepted_fd
 	 */
-	ASSERT_EQ(skel->bss->called_socket_post_create2, 5, "called_create2");
+	if (skel->kconfig->CONFIG_SECURITY_APPARMOR
+	    || skel->kconfig->CONFIG_SECURITY_SELINUX
+	    || skel->kconfig->CONFIG_SECURITY_SMACK)
+		/* AF_UNIX+SOCK_RAW if already have non-bpf lsms installed */
+		ASSERT_EQ(skel->bss->called_socket_post_create2, 6, "called_create2");
+	else
+		ASSERT_EQ(skel->bss->called_socket_post_create2, 5, "called_create2");
 
 	/* start_server
 	 * bind(ETH_P_ALL)

@@ -659,8 +659,7 @@ static const struct v4l2_subdev_ops saa6752hs_ops = {
 	.pad = &saa6752hs_pad_ops,
 };
 
-static int saa6752hs_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int saa6752hs_probe(struct i2c_client *client)
 {
 	struct saa6752hs_state *h;
 	struct v4l2_subdev *sd;

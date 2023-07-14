@@ -809,8 +809,7 @@ static const struct iio_info tsl2583_info = {
 	.write_raw = tsl2583_write_raw,
 };
 
-static int tsl2583_probe(struct i2c_client *clientp,
-			 const struct i2c_device_id *idp)
+static int tsl2583_probe(struct i2c_client *clientp)
 {
 	int ret;
 	struct tsl2583_chip *chip;
@@ -858,7 +857,7 @@ static int tsl2583_probe(struct i2c_client *clientp,
 					 TSL2583_POWER_OFF_DELAY_MS);
 	pm_runtime_use_autosuspend(&clientp->dev);
 
-	ret = devm_iio_device_register(indio_dev->dev.parent, indio_dev);
+	ret = iio_device_register(indio_dev);
 	if (ret) {
 		dev_err(&clientp->dev, "%s: iio registration failed\n",
 			__func__);

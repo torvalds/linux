@@ -48,13 +48,13 @@ properties:
     const: 1
 
   fsl,channel:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       u32 value representing the output channel that all input IRQs should be
       steered into.
 
   fsl,num-irqs:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       u32 value representing the number of input interrupts of this channel,
       should be multiple of 32 input interrupts and up to 512 interrupts.

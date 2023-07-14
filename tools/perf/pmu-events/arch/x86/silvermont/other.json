@@ -1,7 +1,6 @@
 [
     {
         "BriefDescription": "Cycles code-fetch stalled due to any reason.",
-        "Counter": "0,1",
         "EventCode": "0x86",
         "EventName": "FETCH_STALL.ALL",
         "PublicDescription": "Counts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
@@ -10,7 +9,6 @@
     },
     {
         "BriefDescription": "Cycles code-fetch stalled due to an outstanding ITLB miss.",
-        "Counter": "0,1",
         "EventCode": "0x86",
         "EventName": "FETCH_STALL.ITLB_FILL_PENDING_CYCLES",
         "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",

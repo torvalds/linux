@@ -18,8 +18,8 @@ NUM_NETIFS=1
 REQUIRE_JQ="no"
 REQUIRE_MZ="no"
 NETIF_CREATE="no"
-lib_dir=$(dirname $0)/../../../net/forwarding
-source $lib_dir/lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/lib.sh
 
 cleanup() {
 	echo "Cleaning up"
@@ -31,7 +31,7 @@ trap 'cleanup' EXIT
 
 eth=${NETIFS[p1]}
 
-ip link del br0 2&>1 >/dev/null || :
+ip link del br0 2>&1 >/dev/null || :
 ip link add br0 type bridge && ip link set $eth master br0
 
 (while :; do

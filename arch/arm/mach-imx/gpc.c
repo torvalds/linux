@@ -275,7 +275,7 @@ void __init imx_gpc_check_dt(void)
 	if (WARN_ON(!np))
 		return;
 
-	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL))) {
+	if (WARN_ON(!of_property_read_bool(np, "interrupt-controller"))) {
 		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
 
 		/* map GPC, so that at least CPUidle and WARs keep working */

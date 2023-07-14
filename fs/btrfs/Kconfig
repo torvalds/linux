@@ -2,6 +2,7 @@
 
 config BTRFS_FS
 	tristate "Btrfs filesystem support"
+	select BLK_CGROUP_PUNT_BIO
 	select CRYPTO
 	select CRYPTO_CRC32C
 	select LIBCRC32C
@@ -17,7 +18,6 @@ config BTRFS_FS
 	select FS_IOMAP
 	select RAID6_PQ
 	select XOR_BLOCKS
-	select SRCU
 	depends on PAGE_SIZE_LESS_THAN_256KB
 
 	help

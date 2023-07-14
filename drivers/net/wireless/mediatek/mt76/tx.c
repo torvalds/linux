@@ -60,18 +60,26 @@ mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
 			.skb = skb,
 			.info = IEEE80211_SKB_CB(skb),
 		};
+		struct ieee80211_rate_status rs = {};
 		struct mt76_tx_cb *cb = mt76_tx_skb_cb(skb);
 		struct mt76_wcid *wcid;
 
 		wcid = rcu_dereference(dev->wcid[cb->wcid]);
 		if (wcid) {
 			status.sta = wcid_to_sta(wcid);
-			status.rates = NULL;
-			status.n_rates = 0;
+			if (status.sta && (wcid->rate.flags || wcid->rate.legacy)) {
+				rs.rate_idx = wcid->rate;
+				status.rates = &rs;
+				status.n_rates = 1;
+			} else {
+				status.n_rates = 0;
+			}
 		}
 
 		hw = mt76_tx_status_get_hw(dev, skb);
+		spin_lock_bh(&dev->rx_lock);
 		ieee80211_tx_status_ext(hw, &status);
+		spin_unlock_bh(&dev->rx_lock);
 	}
 	rcu_read_unlock();
 }
@@ -257,7 +265,9 @@ void __mt76_tx_complete_skb(struct mt76_dev *dev, u16 wcid_idx, struct sk_buff *
 	if (cb->pktid < MT_PACKET_ID_FIRST) {
 		hw = mt76_tx_status_get_hw(dev, skb);
 		status.sta = wcid_to_sta(wcid);
+		spin_lock_bh(&dev->rx_lock);
 		ieee80211_tx_status_ext(hw, &status);
+		spin_unlock_bh(&dev->rx_lock);
 		goto out;
 	}
 
@@ -324,7 +334,7 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 	if ((dev->drv->drv_flags & MT_DRV_HW_MGMT_TXQ) &&
 	    !(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
 	    !ieee80211_is_data(hdr->frame_control) &&
-	    !ieee80211_is_bufferable_mmpdu(hdr->frame_control)) {
+	    !ieee80211_is_bufferable_mmpdu(skb)) {
 		qid = MT_TXQ_PSD;
 	}
 
@@ -750,6 +760,24 @@ int mt76_token_consume(struct mt76_dev *dev, struct mt76_txwi_cache **ptxwi)
 }
 EXPORT_SYMBOL_GPL(mt76_token_consume);
 
+int mt76_rx_token_consume(struct mt76_dev *dev, void *ptr,
+			  struct mt76_txwi_cache *t, dma_addr_t phys)
+{
+	int token;
+
+	spin_lock_bh(&dev->rx_token_lock);
+	token = idr_alloc(&dev->rx_token, t, 0, dev->rx_token_size,
+			  GFP_ATOMIC);
+	if (token >= 0) {
+		t->ptr = ptr;
+		t->dma_addr = phys;
+	}
+	spin_unlock_bh(&dev->rx_token_lock);
+
+	return token;
+}
+EXPORT_SYMBOL_GPL(mt76_rx_token_consume);
+
 struct mt76_txwi_cache *
 mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
 {
@@ -778,3 +806,16 @@ mt76_token_release(struct mt76_dev *dev, int token, bool *wake)
 	return txwi;
 }
 EXPORT_SYMBOL_GPL(mt76_token_release);
+
+struct mt76_txwi_cache *
+mt76_rx_token_release(struct mt76_dev *dev, int token)
+{
+	struct mt76_txwi_cache *t;
+
+	spin_lock_bh(&dev->rx_token_lock);
+	t = idr_remove(&dev->rx_token, token);
+	spin_unlock_bh(&dev->rx_token_lock);
+
+	return t;
+}
+EXPORT_SYMBOL_GPL(mt76_rx_token_release);

@@ -4,16 +4,24 @@
 $id: http://devicetree.org/schemas/display/bridge/toshiba,tc358767.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Toshiba TC358767 eDP bridge bindings
+title: Toshiba TC358767/TC358867/TC9595 DSI/DPI/eDP bridge
 
 maintainers:
   - Andrey Gusakov <andrey.gusakov@cogentembedded.com>
 
-description: The TC358767 is bridge device which converts DSI/DPI to eDP/DP
+description: |
+  The TC358767/TC358867/TC9595 is bridge device which
+  converts DSI/DPI to eDP/DP .
 
 properties:
   compatible:
-    const: toshiba,tc358767
+    oneOf:
+      - items:
+          - enum:
+              - toshiba,tc358867
+              - toshiba,tc9595
+          - const: toshiba,tc358767
+      - const: toshiba,tc358767
 
   reg:
     enum:
@@ -23,7 +31,7 @@ properties:
         i2c address of the bridge, 0x68 or 0x0f, depending on bootstrap pins
 
   clock-names:
-    const: "ref"
+    const: ref
 
   clocks:
     maxItems: 1

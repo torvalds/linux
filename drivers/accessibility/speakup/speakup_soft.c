@@ -26,25 +26,37 @@
 static int softsynth_probe(struct spk_synth *synth);
 static void softsynth_release(struct spk_synth *synth);
 static int softsynth_is_alive(struct spk_synth *synth);
+static int softsynth_adjust(struct spk_synth *synth, struct st_var_header *var);
 static unsigned char get_index(struct spk_synth *synth);
 
 static struct miscdevice synth_device, synthu_device;
 static int init_pos;
 static int misc_registered;
 
-static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"\x01+3p" } },
-	{ CAPS_STOP, .u.s = {"\x01-3p" } },
-	{ PAUSE, .u.n = {"\x01P" } },
-	{ RATE, .u.n = {"\x01%ds", 2, 0, 9, 0, 0, NULL } },
-	{ PITCH, .u.n = {"\x01%dp", 5, 0, 9, 0, 0, NULL } },
-	{ INFLECTION, .u.n = {"\x01%dr", 5, 0, 9, 0, 0, NULL } },
-	{ VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
-	{ TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
-	{ PUNCT, .u.n = {"\x01%db", 0, 0, 2, 0, 0, NULL } },
-	{ VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
-	{ FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
+
+enum default_vars_id {
+	DIRECT_ID = 0, CAPS_START_ID, CAPS_STOP_ID,
+	PAUSE_ID, RATE_ID, PITCH_ID, INFLECTION_ID,
+	VOL_ID, TONE_ID, PUNCT_ID, VOICE_ID,
+	FREQUENCY_ID, V_LAST_VAR_ID,
+	 NB_ID
+};
+
+
+static struct var_t vars[NB_ID] = {
+
+	[DIRECT_ID]  = { DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
+	[CAPS_START_ID] = { CAPS_START, .u.s = {"\x01+3p" } },
+	[CAPS_STOP_ID]  = { CAPS_STOP, .u.s = {"\x01-3p" } },
+	[PAUSE_ID]  = { PAUSE, .u.n = {"\x01P" } },
+	[RATE_ID]  = { RATE, .u.n = {"\x01%ds", 2, 0, 9, 0, 0, NULL } },
+	[PITCH_ID]  = { PITCH, .u.n = {"\x01%dp", 5, 0, 9, 0, 0, NULL } },
+	[INFLECTION_ID]  = { INFLECTION, .u.n = {"\x01%dr", 5, 0, 9, 0, 0, NULL } },
+	[VOL_ID]  = { VOL, .u.n = {"\x01%dv", 5, 0, 9, 0, 0, NULL } },
+	[TONE_ID]  = { TONE, .u.n = {"\x01%dx", 1, 0, 2, 0, 0, NULL } },
+	[PUNCT_ID]  = { PUNCT, .u.n = {"\x01%db", 0, 0, 3, 0, 0, NULL } },
+	[VOICE_ID]  = { VOICE, .u.n = {"\x01%do", 0, 0, 7, 0, 0, NULL } },
+	[FREQUENCY_ID]  = { FREQUENCY, .u.n = {"\x01%df", 5, 0, 9, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -133,7 +145,7 @@ static struct spk_synth synth_soft = {
 	.catch_up = NULL,
 	.flush = NULL,
 	.is_alive = softsynth_is_alive,
-	.synth_adjust = NULL,
+	.synth_adjust = softsynth_adjust,
 	.read_buff_add = NULL,
 	.get_index = get_index,
 	.indexing = {
@@ -426,9 +438,50 @@ static int softsynth_is_alive(struct spk_synth *synth)
 	return 0;
 }
 
+static int softsynth_adjust(struct spk_synth *synth, struct st_var_header *var)
+{
+	struct st_var_header *punc_level_var;
+	struct var_t *var_data;
+
+	if (var->var_id != PUNC_LEVEL)
+		return 0;
+
+	/* We want to set the the speech synthesis punctuation level
+	 * accordingly, so it properly tunes speaking A_PUNC characters */
+	var_data = var->data;
+	if (!var_data)
+		return 0;
+	punc_level_var = spk_get_var_header(PUNCT);
+	if (!punc_level_var)
+		return 0;
+	spk_set_num_var(var_data->u.n.value, punc_level_var, E_SET);
+
+	return 1;
+}
+
 module_param_named(start, synth_soft.startup, short, 0444);
+module_param_named(direct, vars[DIRECT_ID].u.n.default_val, int, 0444);
+module_param_named(rate, vars[RATE_ID].u.n.default_val, int, 0444);
+module_param_named(pitch, vars[PITCH_ID].u.n.default_val, int, 0444);
+module_param_named(inflection, vars[INFLECTION_ID].u.n.default_val, int, 0444);
+module_param_named(vol, vars[VOL_ID].u.n.default_val, int, 0444);
+module_param_named(tone, vars[TONE_ID].u.n.default_val, int, 0444);
+module_param_named(punct, vars[PUNCT_ID].u.n.default_val, int, 0444);
+module_param_named(voice, vars[VOICE_ID].u.n.default_val, int, 0444);
+module_param_named(frequency, vars[FREQUENCY_ID].u.n.default_val, int, 0444);
+
+
 
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
+MODULE_PARM_DESC(direct, "Set the direct variable on load.");
+MODULE_PARM_DESC(rate, "Sets the rate of the synthesizer.");
+MODULE_PARM_DESC(pitch, "Sets the pitch of the synthesizer.");
+MODULE_PARM_DESC(inflection, "Sets the inflection of the synthesizer.");
+MODULE_PARM_DESC(vol, "Sets the volume of the speech synthesizer.");
+MODULE_PARM_DESC(tone, "Sets the tone of the speech synthesizer.");
+MODULE_PARM_DESC(punct, "Sets the amount of punctuation spoken by the synthesizer.");
+MODULE_PARM_DESC(voice, "Sets the voice used by the synthesizer.");
+MODULE_PARM_DESC(frequency, "Sets the frequency of speech synthesizer.");
 
 module_spk_synth(synth_soft);
 

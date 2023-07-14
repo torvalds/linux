@@ -236,13 +236,14 @@ the dates listed above.
 Deprecated Mount Options
 ========================
 
-===========================     ================
+============================    ================
   Name				Removal Schedule
-===========================     ================
+============================    ================
 Mounting with V4 filesystem     September 2030
+Mounting ascii-ci filesystem    September 2030
 ikeep/noikeep			September 2025
 attr2/noattr2			September 2025
-===========================     ================
+============================    ================
 
 
 Removed Mount Options
@@ -296,7 +297,7 @@ The following sysctls are available for the XFS filesystem:
 		XFS_ERRLEVEL_LOW:       1
 		XFS_ERRLEVEL_HIGH:      5
 
-  fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 256)
+  fs.xfs.panic_mask		(Min: 0  Default: 0  Max: 511)
 	Causes certain error conditions to call BUG(). Value is a bitmask;
 	OR together the tags which represent errors which should cause panics:
 

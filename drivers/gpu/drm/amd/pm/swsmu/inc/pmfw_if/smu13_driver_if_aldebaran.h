@@ -24,6 +24,8 @@
 #ifndef SMU13_DRIVER_IF_ALDEBARAN_H
 #define SMU13_DRIVER_IF_ALDEBARAN_H
 
+#define SMU13_DRIVER_IF_VERSION_ALDE 0x08
+
 #define NUM_VCLK_DPM_LEVELS   8
 #define NUM_DCLK_DPM_LEVELS   8
 #define NUM_SOCCLK_DPM_LEVELS 8
@@ -267,6 +269,7 @@ typedef struct {
   QuadraticInt_t SsCurve;             // Slow-slow curve (GHz->V)
 } DpmDescriptor_t;
 
+#pragma pack(push, 1)
 typedef struct {
   uint32_t Version;
 
@@ -448,6 +451,7 @@ typedef struct {
   uint32_t reserved[14];
 
 } PPTable_t;
+#pragma pack(pop)
 
 typedef struct {
   // Time constant parameters for clock averages in ms

@@ -89,8 +89,7 @@ struct ics932s401_data {
 	u8			regs[NUM_REGS];
 };
 
-static int ics932s401_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id);
+static int ics932s401_probe(struct i2c_client *client);
 static int ics932s401_detect(struct i2c_client *client,
 			  struct i2c_board_info *info);
 static void ics932s401_remove(struct i2c_client *client);
@@ -424,13 +423,12 @@ static int ics932s401_detect(struct i2c_client *client,
 	if (revision != ICS932S401_REV)
 		dev_info(&adapter->dev, "Unknown revision %d\n", revision);
 
-	strlcpy(info->type, "ics932s401", I2C_NAME_SIZE);
+	strscpy(info->type, "ics932s401", I2C_NAME_SIZE);
 
 	return 0;
 }
 
-static int ics932s401_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ics932s401_probe(struct i2c_client *client)
 {
 	struct ics932s401_data *data;
 	int err;

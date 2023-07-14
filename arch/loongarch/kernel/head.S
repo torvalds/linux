@@ -8,9 +8,35 @@
 #include <asm/addrspace.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/bug.h>
 #include <asm/regdef.h>
 #include <asm/loongarch.h>
 #include <asm/stackframe.h>
+
+#ifdef CONFIG_EFI_STUB
+
+#include "efi-header.S"
+
+	__HEAD
+
+_head:
+	.word	MZ_MAGIC		/* "MZ", MS-DOS header */
+	.org	0x8
+	.dword	kernel_entry		/* Kernel entry point */
+	.dword	_kernel_asize		/* Kernel image effective size */
+	.quad	PHYS_LINK_KADDR		/* Kernel image load offset from start of RAM */
+	.org	0x38			/* 0x20 ~ 0x37 reserved */
+	.long	LINUX_PE_MAGIC
+	.long	pe_header - _head	/* Offset to the PE header */
+
+pe_header:
+	__EFI_PE_HEADER
+
+SYM_DATA(kernel_asize, .long _kernel_asize);
+SYM_DATA(kernel_fsize, .long _kernel_fsize);
+SYM_DATA(kernel_offset, .long _kernel_offset);
+
+#endif
 
 	__REF
 
@@ -24,11 +50,8 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	li.d		t0, CSR_DMW1_INIT	# CA, PLV0, 0x9000 xxxx xxxx xxxx
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
-	/* We might not get launched at the address the kernel is linked to,
-	   so we jump there.  */
-	la.abs		t0, 0f
-	jr		t0
-0:
+	JUMP_VIRT_ADDR	t0, t1
+
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD
@@ -37,32 +60,51 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	li.w		t0, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
 	csrwr		t0, LOONGARCH_CSR_EUEN
 
-	la		t0, __bss_start		# clear .bss
+	la.pcrel	t0, __bss_start		# clear .bss
 	st.d		zero, t0, 0
-	la		t1, __bss_stop - LONGSIZE
+	la.pcrel	t1, __bss_stop - LONGSIZE
 1:
 	addi.d		t0, t0, LONGSIZE
 	st.d		zero, t0, 0
 	bne		t0, t1, 1b
 
-	la		t0, fw_arg0
+	la.pcrel	t0, fw_arg0
 	st.d		a0, t0, 0		# firmware arguments
-	la		t0, fw_arg1
+	la.pcrel	t0, fw_arg1
 	st.d		a1, t0, 0
+	la.pcrel	t0, fw_arg2
+	st.d		a2, t0, 0
 
 	/* KSave3 used for percpu base, initialized as 0 */
 	csrwr		zero, PERCPU_BASE_KS
 	/* GPR21 used for percpu base (runtime), initialized as 0 */
 	move		u0, zero
 
-	la		tp, init_thread_union
+	la.pcrel	tp, init_thread_union
 	/* Set the SP after an empty pt_regs.  */
-	PTR_LI		sp, (_THREAD_SIZE - 32 - PT_SIZE)
+	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-	PTR_ADDI	sp, sp, -4 * SZREG	# init stack pointer
+
+#ifdef CONFIG_RELOCATABLE
+
+	bl		relocate_kernel
+
+#ifdef CONFIG_RANDOMIZE_BASE
+	/* Repoint the sp into the new kernel */
+	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
+	PTR_ADD		sp, sp, tp
+	set_saved_sp	sp, t0, t1
+#endif
+
+	/* relocate_kernel() returns the new kernel entry point */
+	jr		a0
+	ASM_BUG()
+
+#endif
 
 	bl		start_kernel
+	ASM_BUG()
 
 SYM_CODE_END(kernel_entry)
 
@@ -78,9 +120,8 @@ SYM_CODE_START(smpboot_entry)
 	li.d		t0, CSR_DMW1_INIT	# CA, PLV0
 	csrwr		t0, LOONGARCH_CSR_DMWIN1
 
-	la.abs		t0, 0f
-	jr		t0
-0:
+	JUMP_VIRT_ADDR	t0, t1
+
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD
@@ -89,11 +130,13 @@ SYM_CODE_START(smpboot_entry)
 	li.w		t0, 0x00		# FPE=0, SXE=0, ASXE=0, BTE=0
 	csrwr		t0, LOONGARCH_CSR_EUEN
 
-	la.abs		t0, cpuboot_data
+	la.pcrel	t0, cpuboot_data
 	ld.d		sp, t0, CPU_BOOT_STACK
 	ld.d		tp, t0, CPU_BOOT_TINFO
 
 	bl		start_secondary
+	ASM_BUG()
+
 SYM_CODE_END(smpboot_entry)
 
 #endif /* CONFIG_SMP */

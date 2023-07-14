@@ -1,0 +1,56 @@
+What:		/sys/bus/cdx/rescan
+Date:		March 2023
+Contact:	nipun.gupta@amd.com
+Description:
+		Writing y/1/on to this file will cause rescan of the bus
+		and devices on the CDX bus. Any new devices are scanned and
+		added to the list of Linux devices and any devices removed are
+		also deleted from Linux.
+
+		For example::
+
+		  # echo 1 > /sys/bus/cdx/rescan
+
+What:		/sys/bus/cdx/devices/.../vendor
+Date:		March 2023
+Contact:	nipun.gupta@amd.com
+Description:
+		Vendor ID for this CDX device, in hexadecimal. Vendor ID is
+		16 bit identifier which is specific to the device manufacturer.
+		Combination of Vendor ID and Device ID identifies a device.
+
+What:		/sys/bus/cdx/devices/.../device
+Date:		March 2023
+Contact:	nipun.gupta@amd.com
+Description:
+		Device ID for this CDX device, in hexadecimal. Device ID is
+		16 bit identifier to identify a device type within the range
+		of a device manufacturer.
+		Combination of Vendor ID and Device ID identifies a device.
+
+What:		/sys/bus/cdx/devices/.../reset
+Date:		March 2023
+Contact:	nipun.gupta@amd.com
+Description:
+		Writing y/1/on to this file resets the CDX device.
+		On resetting the device, the corresponding driver is notified
+		twice, once before the device is being reset, and again after
+		the reset has been complete.
+
+		For example::
+
+		  # echo 1 > /sys/bus/cdx/.../reset
+
+What:		/sys/bus/cdx/devices/.../remove
+Date:		March 2023
+Contact:	tarak.reddy@amd.com
+Description:
+		Writing y/1/on to this file removes the corresponding
+		device from the CDX bus. If the device is to be reconfigured
+		reconfigured in the Hardware, the device can be removed, so
+		that the device driver does not access the device while it is
+		being reconfigured.
+
+		For example::
+
+		  # echo 1 > /sys/bus/cdx/devices/.../remove

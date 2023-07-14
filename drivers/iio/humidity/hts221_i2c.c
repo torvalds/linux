@@ -25,8 +25,7 @@ static const struct regmap_config hts221_i2c_regmap_config = {
 	.read_flag_mask = HTS221_I2C_AUTO_INCREMENT,
 };
 
-static int hts221_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int hts221_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 

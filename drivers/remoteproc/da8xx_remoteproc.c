@@ -84,7 +84,7 @@ struct da8xx_rproc {
  */
 static irqreturn_t handle_event(int irq, void *p)
 {
-	struct rproc *rproc = (struct rproc *)p;
+	struct rproc *rproc = p;
 
 	/* Process incoming buffers on all our vrings */
 	rproc_vq_interrupt(rproc, 0);
@@ -104,8 +104,8 @@ static irqreturn_t handle_event(int irq, void *p)
  */
 static irqreturn_t da8xx_rproc_callback(int irq, void *p)
 {
-	struct rproc *rproc = (struct rproc *)p;
-	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
+	struct rproc *rproc = p;
+	struct da8xx_rproc *drproc = rproc->priv;
 	u32 chipsig;
 
 	chipsig = readl(drproc->chipsig);
@@ -133,7 +133,7 @@ static irqreturn_t da8xx_rproc_callback(int irq, void *p)
 static int da8xx_rproc_start(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
-	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
+	struct da8xx_rproc *drproc = rproc->priv;
 	struct clk *dsp_clk = drproc->dsp_clk;
 	struct reset_control *dsp_reset = drproc->dsp_reset;
 	int ret;
@@ -183,7 +183,7 @@ static int da8xx_rproc_stop(struct rproc *rproc)
 /* kick a virtqueue */
 static void da8xx_rproc_kick(struct rproc *rproc, int vqid)
 {
-	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
+	struct da8xx_rproc *drproc = rproc->priv;
 
 	/* Interrupt remote proc */
 	writel(SYSCFG_CHIPSIG2, drproc->chipsig);
@@ -357,10 +357,10 @@ free_mem:
 	return ret;
 }
 
-static int da8xx_rproc_remove(struct platform_device *pdev)
+static void da8xx_rproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
-	struct da8xx_rproc *drproc = (struct da8xx_rproc *)rproc->priv;
+	struct da8xx_rproc *drproc = rproc->priv;
 	struct device *dev = &pdev->dev;
 
 	/*
@@ -374,8 +374,6 @@ static int da8xx_rproc_remove(struct platform_device *pdev)
 	rproc_free(rproc);
 	if (dev->of_node)
 		of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static const struct of_device_id davinci_rproc_of_match[] __maybe_unused = {
@@ -386,7 +384,7 @@ MODULE_DEVICE_TABLE(of, davinci_rproc_of_match);
 
 static struct platform_driver da8xx_rproc_driver = {
 	.probe = da8xx_rproc_probe,
-	.remove = da8xx_rproc_remove,
+	.remove_new = da8xx_rproc_remove,
 	.driver = {
 		.name = "davinci-rproc",
 		.of_match_table = of_match_ptr(davinci_rproc_of_match),

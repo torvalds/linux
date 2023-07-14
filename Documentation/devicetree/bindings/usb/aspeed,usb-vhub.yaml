@@ -67,6 +67,7 @@ properties:
 
   vhub-strings:
     type: object
+    additionalProperties: false
 
     properties:
       '#address-cells':
@@ -78,6 +79,7 @@ properties:
     patternProperties:
       '^string@[0-9a-f]+$':
         type: object
+        additionalProperties: false
         description: string descriptors of the specific language
 
         properties:

@@ -140,15 +140,6 @@ static struct ctl_table xr_tunables_table[] = {
 	{ },
 };
 
-static struct ctl_table sunrpc_table[] = {
-	{
-		.procname	= "sunrpc",
-		.mode		= 0555,
-		.child		= xr_tunables_table
-	},
-	{ },
-};
-
 #endif
 
 static const struct rpc_xprt_ops xprt_rdma_procs;
@@ -494,8 +485,7 @@ xprt_rdma_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		xprt_reconnect_backoff(xprt, RPCRDMA_INIT_REEST_TO);
 	}
 	trace_xprtrdma_op_connect(r_xprt, delay);
-	queue_delayed_work(xprtiod_workqueue, &r_xprt->rx_connect_worker,
-			   delay);
+	queue_delayed_work(system_long_wq, &r_xprt->rx_connect_worker, delay);
 }
 
 /**
@@ -800,7 +790,7 @@ int xprt_rdma_init(void)
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 	if (!sunrpc_table_header)
-		sunrpc_table_header = register_sysctl_table(sunrpc_table);
+		sunrpc_table_header = register_sysctl("sunrpc", xr_tunables_table);
 #endif
 	return 0;
 }

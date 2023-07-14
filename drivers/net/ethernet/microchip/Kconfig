@@ -46,7 +46,7 @@ config LAN743X
 	tristate "LAN743x support"
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
-	select PHYLIB
+	select FIXED_PHY
 	select CRC16
 	select CRC32
 	help
@@ -57,5 +57,6 @@ config LAN743X
 
 source "drivers/net/ethernet/microchip/lan966x/Kconfig"
 source "drivers/net/ethernet/microchip/sparx5/Kconfig"
+source "drivers/net/ethernet/microchip/vcap/Kconfig"
 
 endif # NET_VENDOR_MICROCHIP

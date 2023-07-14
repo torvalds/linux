@@ -12,6 +12,7 @@
  * (http://davesdomain.org.uk/viafb/)
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -672,6 +673,10 @@ static int vt8623_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	}
 
+	rc = aperture_remove_conflicting_pci_devices(dev, "vt8623fb");
+	if (rc)
+		return rc;
+
 	/* Allocate and fill driver data structure */
 	info = framebuffer_alloc(sizeof(struct vt8623fb_info), &(dev->dev));
 	if (!info)
@@ -915,7 +920,12 @@ static int __init vt8623fb_init(void)
 
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("vt8623fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("vt8623fb", &option))
 		return -ENODEV;
 

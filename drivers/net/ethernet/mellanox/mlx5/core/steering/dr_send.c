@@ -7,6 +7,7 @@
 #define QUEUE_SIZE 128
 #define SIGNAL_PER_DIV_QUEUE 16
 #define TH_NUMS_TO_DRAIN 2
+#define DR_SEND_INFO_POOL_SIZE 1000
 
 enum { CQ_OK = 0, CQ_EMPTY = -1, CQ_POLL_ERR = -2 };
 
@@ -17,7 +18,13 @@ struct dr_data_seg {
 	unsigned int send_flags;
 };
 
+enum send_info_type {
+	WRITE_ICM = 0,
+	GTA_ARG   = 1,
+};
+
 struct postsend_info {
+	enum send_info_type type;
 	struct dr_data_seg write;
 	struct dr_data_seg read;
 	u64 remote_addr;
@@ -49,6 +56,136 @@ struct dr_qp_init_attr {
 	u8 isolate_vl_tc:1;
 };
 
+struct mlx5dr_send_info_pool_obj {
+	struct mlx5dr_ste_send_info ste_send_info;
+	struct mlx5dr_send_info_pool *pool;
+	struct list_head list_node;
+};
+
+struct mlx5dr_send_info_pool {
+	struct list_head free_list;
+};
+
+static int dr_send_info_pool_fill(struct mlx5dr_send_info_pool *pool)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj, *tmp_pool_obj;
+	int i;
+
+	for (i = 0; i < DR_SEND_INFO_POOL_SIZE; i++) {
+		pool_obj = kzalloc(sizeof(*pool_obj), GFP_KERNEL);
+		if (!pool_obj)
+			goto clean_pool;
+
+		pool_obj->pool = pool;
+		list_add_tail(&pool_obj->list_node, &pool->free_list);
+	}
+
+	return 0;
+
+clean_pool:
+	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_node) {
+		list_del(&pool_obj->list_node);
+		kfree(pool_obj);
+	}
+
+	return -ENOMEM;
+}
+
+static void dr_send_info_pool_destroy(struct mlx5dr_send_info_pool *pool)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj, *tmp_pool_obj;
+
+	list_for_each_entry_safe(pool_obj, tmp_pool_obj, &pool->free_list, list_node) {
+		list_del(&pool_obj->list_node);
+		kfree(pool_obj);
+	}
+
+	kfree(pool);
+}
+
+void mlx5dr_send_info_pool_destroy(struct mlx5dr_domain *dmn)
+{
+	dr_send_info_pool_destroy(dmn->send_info_pool_tx);
+	dr_send_info_pool_destroy(dmn->send_info_pool_rx);
+}
+
+static struct mlx5dr_send_info_pool *dr_send_info_pool_create(void)
+{
+	struct mlx5dr_send_info_pool *pool;
+	int ret;
+
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return NULL;
+
+	INIT_LIST_HEAD(&pool->free_list);
+
+	ret = dr_send_info_pool_fill(pool);
+	if (ret) {
+		kfree(pool);
+		return NULL;
+	}
+
+	return pool;
+}
+
+int mlx5dr_send_info_pool_create(struct mlx5dr_domain *dmn)
+{
+	dmn->send_info_pool_rx = dr_send_info_pool_create();
+	if (!dmn->send_info_pool_rx)
+		return -ENOMEM;
+
+	dmn->send_info_pool_tx = dr_send_info_pool_create();
+	if (!dmn->send_info_pool_tx) {
+		dr_send_info_pool_destroy(dmn->send_info_pool_rx);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+struct mlx5dr_ste_send_info
+*mlx5dr_send_info_alloc(struct mlx5dr_domain *dmn,
+			enum mlx5dr_domain_nic_type nic_type)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj;
+	struct mlx5dr_send_info_pool *pool;
+	int ret;
+
+	pool = nic_type == DR_DOMAIN_NIC_TYPE_RX ? dmn->send_info_pool_rx :
+						   dmn->send_info_pool_tx;
+
+	if (unlikely(list_empty(&pool->free_list))) {
+		ret = dr_send_info_pool_fill(pool);
+		if (ret)
+			return NULL;
+	}
+
+	pool_obj = list_first_entry_or_null(&pool->free_list,
+					    struct mlx5dr_send_info_pool_obj,
+					    list_node);
+
+	if (likely(pool_obj)) {
+		list_del_init(&pool_obj->list_node);
+	} else {
+		WARN_ONCE(!pool_obj, "Failed getting ste send info obj from pool");
+		return NULL;
+	}
+
+	return &pool_obj->ste_send_info;
+}
+
+void mlx5dr_send_info_free(struct mlx5dr_ste_send_info *ste_send_info)
+{
+	struct mlx5dr_send_info_pool_obj *pool_obj;
+
+	pool_obj = container_of(ste_send_info,
+				struct mlx5dr_send_info_pool_obj,
+				ste_send_info);
+
+	list_add(&pool_obj->list_node, &pool_obj->pool->free_list);
+}
+
 static int dr_parse_cqe(struct mlx5dr_cq *dr_cq, struct mlx5_cqe64 *cqe64)
 {
 	unsigned int idx;
@@ -78,8 +215,15 @@ static int dr_cq_poll_one(struct mlx5dr_cq *dr_cq)
 	int err;
 
 	cqe64 = mlx5_cqwq_get_cqe(&dr_cq->wq);
-	if (!cqe64)
+	if (!cqe64) {
+		if (unlikely(dr_cq->mdev->state ==
+			     MLX5_DEVICE_STATE_INTERNAL_ERROR)) {
+			mlx5_core_dbg_once(dr_cq->mdev,
+					   "Polling CQ while device is shutting down\n");
+			return CQ_POLL_ERR;
+		}
 		return CQ_EMPTY;
+	}
 
 	mlx5_cqwq_pop(&dr_cq->wq);
 	err = dr_parse_cqe(dr_cq, cqe64);
@@ -123,9 +267,10 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 
 	dr_qp->rq.pc = 0;
 	dr_qp->rq.cc = 0;
-	dr_qp->rq.wqe_cnt = 4;
+	dr_qp->rq.wqe_cnt = 256;
 	dr_qp->sq.pc = 0;
 	dr_qp->sq.cc = 0;
+	dr_qp->sq.head = 0;
 	dr_qp->sq.wqe_cnt = roundup_pow_of_two(attr->max_send_wr);
 
 	MLX5_SET(qpc, temp_qpc, log_rq_stride, ilog2(MLX5_SEND_WQE_DS) - 4);
@@ -224,39 +369,113 @@ static void dr_cmd_notify_hw(struct mlx5dr_qp *dr_qp, void *ctrl)
 	mlx5_write64(ctrl, dr_qp->uar->map + MLX5_BF_OFFSET);
 }
 
-static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
-			     u32 rkey, struct dr_data_seg *data_seg,
-			     u32 opcode, bool notify_hw)
+static void
+dr_rdma_handle_flow_access_arg_segments(struct mlx5_wqe_ctrl_seg *wq_ctrl,
+					u32 remote_addr,
+					struct dr_data_seg *data_seg,
+					int *size)
+{
+	struct mlx5_wqe_header_modify_argument_update_seg *wq_arg_seg;
+	struct mlx5_wqe_flow_update_ctrl_seg *wq_flow_seg;
+
+	wq_ctrl->general_id = cpu_to_be32(remote_addr);
+	wq_flow_seg = (void *)(wq_ctrl + 1);
+
+	/* mlx5_wqe_flow_update_ctrl_seg - all reserved */
+	memset(wq_flow_seg, 0, sizeof(*wq_flow_seg));
+	wq_arg_seg = (void *)(wq_flow_seg + 1);
+
+	memcpy(wq_arg_seg->argument_list,
+	       (void *)(uintptr_t)data_seg->addr,
+	       data_seg->length);
+
+	*size = (sizeof(*wq_ctrl) +      /* WQE ctrl segment */
+		 sizeof(*wq_flow_seg) +  /* WQE flow update ctrl seg - reserved */
+		 sizeof(*wq_arg_seg)) /  /* WQE hdr modify arg seg - data */
+		MLX5_SEND_WQE_DS;
+}
+
+static void
+dr_rdma_handle_icm_write_segments(struct mlx5_wqe_ctrl_seg *wq_ctrl,
+				  u64 remote_addr,
+				  u32 rkey,
+				  struct dr_data_seg *data_seg,
+				  unsigned int *size)
 {
 	struct mlx5_wqe_raddr_seg *wq_raddr;
-	struct mlx5_wqe_ctrl_seg *wq_ctrl;
 	struct mlx5_wqe_data_seg *wq_dseg;
-	unsigned int size;
-	unsigned int idx;
 
-	size = sizeof(*wq_ctrl) / 16 + sizeof(*wq_dseg) / 16 +
-		sizeof(*wq_raddr) / 16;
-
-	idx = dr_qp->sq.pc & (dr_qp->sq.wqe_cnt - 1);
-
-	wq_ctrl = mlx5_wq_cyc_get_wqe(&dr_qp->wq.sq, idx);
-	wq_ctrl->imm = 0;
-	wq_ctrl->fm_ce_se = (data_seg->send_flags) ?
-		MLX5_WQE_CTRL_CQ_UPDATE : 0;
-	wq_ctrl->opmod_idx_opcode = cpu_to_be32(((dr_qp->sq.pc & 0xffff) << 8) |
-						opcode);
-	wq_ctrl->qpn_ds = cpu_to_be32(size | dr_qp->qpn << 8);
 	wq_raddr = (void *)(wq_ctrl + 1);
+
 	wq_raddr->raddr = cpu_to_be64(remote_addr);
 	wq_raddr->rkey = cpu_to_be32(rkey);
 	wq_raddr->reserved = 0;
 
 	wq_dseg = (void *)(wq_raddr + 1);
+
 	wq_dseg->byte_count = cpu_to_be32(data_seg->length);
 	wq_dseg->lkey = cpu_to_be32(data_seg->lkey);
 	wq_dseg->addr = cpu_to_be64(data_seg->addr);
 
-	dr_qp->sq.wqe_head[idx] = dr_qp->sq.pc++;
+	*size = (sizeof(*wq_ctrl) +    /* WQE ctrl segment */
+		 sizeof(*wq_dseg) +    /* WQE data segment */
+		 sizeof(*wq_raddr)) /  /* WQE remote addr segment */
+		MLX5_SEND_WQE_DS;
+}
+
+static void dr_set_ctrl_seg(struct mlx5_wqe_ctrl_seg *wq_ctrl,
+			    struct dr_data_seg *data_seg)
+{
+	wq_ctrl->signature = 0;
+	wq_ctrl->rsvd[0] = 0;
+	wq_ctrl->rsvd[1] = 0;
+	wq_ctrl->fm_ce_se = data_seg->send_flags & IB_SEND_SIGNALED ?
+				MLX5_WQE_CTRL_CQ_UPDATE : 0;
+	wq_ctrl->imm = 0;
+}
+
+static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
+			     u32 rkey, struct dr_data_seg *data_seg,
+			     u32 opcode, bool notify_hw)
+{
+	struct mlx5_wqe_ctrl_seg *wq_ctrl;
+	int opcode_mod = 0;
+	unsigned int size;
+	unsigned int idx;
+
+	idx = dr_qp->sq.pc & (dr_qp->sq.wqe_cnt - 1);
+
+	wq_ctrl = mlx5_wq_cyc_get_wqe(&dr_qp->wq.sq, idx);
+	dr_set_ctrl_seg(wq_ctrl, data_seg);
+
+	switch (opcode) {
+	case MLX5_OPCODE_RDMA_READ:
+	case MLX5_OPCODE_RDMA_WRITE:
+		dr_rdma_handle_icm_write_segments(wq_ctrl, remote_addr,
+						  rkey, data_seg, &size);
+		break;
+	case MLX5_OPCODE_FLOW_TBL_ACCESS:
+		opcode_mod = MLX5_CMD_OP_MOD_UPDATE_HEADER_MODIFY_ARGUMENT;
+		dr_rdma_handle_flow_access_arg_segments(wq_ctrl, remote_addr,
+							data_seg, &size);
+		break;
+	default:
+		WARN(true, "illegal opcode %d", opcode);
+		return;
+	}
+
+	/* --------------------------------------------------------
+	 * |opcode_mod (8 bit)|wqe_index (16 bits)| opcod (8 bits)|
+	 * --------------------------------------------------------
+	 */
+	wq_ctrl->opmod_idx_opcode =
+		cpu_to_be32((opcode_mod << 24) |
+			    ((dr_qp->sq.pc & 0xffff) << 8) |
+			    opcode);
+	wq_ctrl->qpn_ds = cpu_to_be32(size | dr_qp->qpn << 8);
+
+	dr_qp->sq.pc += DIV_ROUND_UP(size * 16, MLX5_SEND_WQE_BB);
+	dr_qp->sq.wqe_head[idx] = dr_qp->sq.head++;
 
 	if (notify_hw)
 		dr_cmd_notify_hw(dr_qp, wq_ctrl);
@@ -264,10 +483,16 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 
 static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_info)
 {
-	dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
-			 &send_info->write, MLX5_OPCODE_RDMA_WRITE, false);
-	dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
-			 &send_info->read, MLX5_OPCODE_RDMA_READ, true);
+	if (send_info->type == WRITE_ICM) {
+		dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
+				 &send_info->write, MLX5_OPCODE_RDMA_WRITE, false);
+		dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
+				 &send_info->read, MLX5_OPCODE_RDMA_READ, true);
+	} else { /* GTA_ARG */
+		dr_rdma_segments(dr_qp, send_info->remote_addr, send_info->rkey,
+				 &send_info->write, MLX5_OPCODE_FLOW_TBL_ACCESS, true);
+	}
+
 }
 
 /**
@@ -333,14 +558,43 @@ static int dr_handle_pending_wc(struct mlx5dr_domain *dmn,
 		} else if (ne == 1) {
 			send_ring->pending_wqe -= send_ring->signal_th;
 		}
-	} while (is_drain && send_ring->pending_wqe);
+	} while (ne == 1 ||
+		 (is_drain && send_ring->pending_wqe  >= send_ring->signal_th));
 
 	return 0;
 }
 
-static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
-			      struct postsend_info *send_info)
+static void dr_fill_write_args_segs(struct mlx5dr_send_ring *send_ring,
+				    struct postsend_info *send_info)
 {
+	send_ring->pending_wqe++;
+
+	if (send_ring->pending_wqe % send_ring->signal_th == 0)
+		send_info->write.send_flags |= IB_SEND_SIGNALED;
+	else
+		send_info->write.send_flags = 0;
+}
+
+static void dr_fill_write_icm_segs(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_send_ring *send_ring,
+				   struct postsend_info *send_info)
+{
+	u32 buff_offset;
+
+	if (send_info->write.length > dmn->info.max_inline_size) {
+		buff_offset = (send_ring->tx_head &
+			       (dmn->send_ring->signal_th - 1)) *
+			      send_ring->max_post_send_size;
+		/* Copy to ring mr */
+		memcpy(send_ring->buf + buff_offset,
+		       (void *)(uintptr_t)send_info->write.addr,
+		       send_info->write.length);
+		send_info->write.addr = (uintptr_t)send_ring->mr->dma_addr + buff_offset;
+		send_info->write.lkey = send_ring->mr->mkey;
+
+		send_ring->tx_head++;
+	}
+
 	send_ring->pending_wqe++;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
@@ -348,9 +602,10 @@ static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
 
 	send_ring->pending_wqe++;
 	send_info->read.length = send_info->write.length;
-	/* Read into the same write area */
-	send_info->read.addr = (uintptr_t)send_info->write.addr;
-	send_info->read.lkey = send_ring->mr->mkey;
+
+	/* Read into dedicated sync buffer */
+	send_info->read.addr = (uintptr_t)send_ring->sync_mr->dma_addr;
+	send_info->read.lkey = send_ring->sync_mr->mkey;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
 		send_info->read.send_flags = IB_SEND_SIGNALED;
@@ -358,11 +613,20 @@ static void dr_fill_data_segs(struct mlx5dr_send_ring *send_ring,
 		send_info->read.send_flags = 0;
 }
 
+static void dr_fill_data_segs(struct mlx5dr_domain *dmn,
+			      struct mlx5dr_send_ring *send_ring,
+			      struct postsend_info *send_info)
+{
+	if (send_info->type == WRITE_ICM)
+		dr_fill_write_icm_segs(dmn, send_ring, send_info);
+	else /* args */
+		dr_fill_write_args_segs(send_ring, send_info);
+}
+
 static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 				struct postsend_info *send_info)
 {
 	struct mlx5dr_send_ring *send_ring = dmn->send_ring;
-	u32 buff_offset;
 	int ret;
 
 	if (unlikely(dmn->mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR ||
@@ -379,20 +643,7 @@ static int dr_postsend_icm_data(struct mlx5dr_domain *dmn,
 	if (ret)
 		goto out_unlock;
 
-	if (send_info->write.length > dmn->info.max_inline_size) {
-		buff_offset = (send_ring->tx_head &
-			       (dmn->send_ring->signal_th - 1)) *
-			send_ring->max_post_send_size;
-		/* Copy to ring mr */
-		memcpy(send_ring->buf + buff_offset,
-		       (void *)(uintptr_t)send_info->write.addr,
-		       send_info->write.length);
-		send_info->write.addr = (uintptr_t)send_ring->mr->dma_addr + buff_offset;
-		send_info->write.lkey = send_ring->mr->mkey;
-	}
-
-	send_ring->tx_head++;
-	dr_fill_data_segs(send_ring, send_info);
+	dr_fill_data_segs(dmn, send_ring, send_info);
 	dr_post_send(send_ring->qp, send_info);
 
 out_unlock:
@@ -586,7 +837,6 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 				struct mlx5dr_action *action)
 {
 	struct postsend_info send_info = {};
-	int ret;
 
 	send_info.write.addr = (uintptr_t)action->rewrite->data;
 	send_info.write.length = action->rewrite->num_of_actions *
@@ -596,8 +846,59 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 		mlx5dr_icm_pool_get_chunk_mr_addr(action->rewrite->chunk);
 	send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(action->rewrite->chunk);
 
-	ret = dr_postsend_icm_data(dmn, &send_info);
+	return dr_postsend_icm_data(dmn, &send_info);
+}
 
+int mlx5dr_send_postsend_pattern(struct mlx5dr_domain *dmn,
+				 struct mlx5dr_icm_chunk *chunk,
+				 u16 num_of_actions,
+				 u8 *data)
+{
+	struct postsend_info send_info = {};
+	int ret;
+
+	send_info.write.addr = (uintptr_t)data;
+	send_info.write.length = num_of_actions * DR_MODIFY_ACTION_SIZE;
+	send_info.remote_addr = mlx5dr_icm_pool_get_chunk_mr_addr(chunk);
+	send_info.rkey = mlx5dr_icm_pool_get_chunk_rkey(chunk);
+
+	ret = dr_postsend_icm_data(dmn, &send_info);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int mlx5dr_send_postsend_args(struct mlx5dr_domain *dmn, u64 arg_id,
+			      u16 num_of_actions, u8 *actions_data)
+{
+	int data_len, iter = 0, cur_sent;
+	u64 addr;
+	int ret;
+
+	addr = (uintptr_t)actions_data;
+	data_len = num_of_actions * DR_MODIFY_ACTION_SIZE;
+
+	do {
+		struct postsend_info send_info = {};
+
+		send_info.type = GTA_ARG;
+		send_info.write.addr = addr;
+		cur_sent = min_t(u32, data_len, DR_ACTION_CACHE_LINE_SIZE);
+		send_info.write.length = cur_sent;
+		send_info.write.lkey = 0;
+		send_info.remote_addr = arg_id + iter;
+
+		ret = dr_postsend_icm_data(dmn, &send_info);
+		if (ret)
+			goto out;
+
+		iter++;
+		addr += cur_sent;
+		data_len -= cur_sent;
+	} while (data_len > 0);
+
+out:
 	return ret;
 }
 
@@ -833,6 +1134,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 
 	cq->mcq.vector = 0;
 	cq->mcq.uar = uar;
+	cq->mdev = mdev;
 
 	return cq;
 
@@ -987,16 +1289,25 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 		goto free_mem;
 	}
 
-	dmn->send_ring->sync_mr = dr_reg_mr(dmn->mdev,
-					    dmn->pdn, dmn->send_ring->sync_buff,
-					    MIN_READ_SYNC);
-	if (!dmn->send_ring->sync_mr) {
+	dmn->send_ring->sync_buff = kzalloc(dmn->send_ring->max_post_send_size,
+					    GFP_KERNEL);
+	if (!dmn->send_ring->sync_buff) {
 		ret = -ENOMEM;
 		goto clean_mr;
 	}
 
+	dmn->send_ring->sync_mr = dr_reg_mr(dmn->mdev,
+					    dmn->pdn, dmn->send_ring->sync_buff,
+					    dmn->send_ring->max_post_send_size);
+	if (!dmn->send_ring->sync_mr) {
+		ret = -ENOMEM;
+		goto free_sync_mem;
+	}
+
 	return 0;
 
+free_sync_mem:
+	kfree(dmn->send_ring->sync_buff);
 clean_mr:
 	dr_dereg_mr(dmn->mdev, dmn->send_ring->mr);
 free_mem:
@@ -1019,6 +1330,7 @@ void mlx5dr_send_ring_free(struct mlx5dr_domain *dmn,
 	dr_dereg_mr(dmn->mdev, send_ring->sync_mr);
 	dr_dereg_mr(dmn->mdev, send_ring->mr);
 	kfree(send_ring->buf);
+	kfree(send_ring->sync_buff);
 	kfree(send_ring);
 }
 

@@ -325,3 +325,4 @@ module_platform_driver(ftm_quaddec_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kjeld Flarup <kfa@deif.com>");
 MODULE_AUTHOR("Patrick Havelange <patrick.havelange@essensium.com>");
+MODULE_IMPORT_NS(COUNTER);

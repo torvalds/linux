@@ -2893,14 +2893,10 @@ static int da7218_probe(struct snd_soc_component *component)
 	da7218_handle_pdata(component);
 
 	/* Check if MCLK provided, if not the clock is NULL */
-	da7218->mclk = devm_clk_get(component->dev, "mclk");
+	da7218->mclk = devm_clk_get_optional(component->dev, "mclk");
 	if (IS_ERR(da7218->mclk)) {
-		if (PTR_ERR(da7218->mclk) != -ENOENT) {
-			ret = PTR_ERR(da7218->mclk);
-			goto err_disable_reg;
-		} else {
-			da7218->mclk = NULL;
-		}
+		ret = PTR_ERR(da7218->mclk);
+		goto err_disable_reg;
 	}
 
 	/* Default PC to free-running */
@@ -3321,7 +3317,7 @@ static struct i2c_driver da7218_i2c_driver = {
 		.name = "da7218",
 		.of_match_table = da7218_of_match,
 	},
-	.probe_new	= da7218_i2c_probe,
+	.probe		= da7218_i2c_probe,
 	.id_table	= da7218_i2c_id,
 };
 

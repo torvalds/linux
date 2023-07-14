@@ -29,6 +29,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -545,6 +546,10 @@ static int asiliantfb_pci_init(struct pci_dev *dp,
 	struct fb_info *p;
 	int err;
 
+	err = aperture_remove_conflicting_pci_devices(dp, "asiliantfb");
+	if (err)
+		return err;
+
 	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0)
 		return -ENODEV;
 	addr = pci_resource_start(dp, 0);
@@ -611,6 +616,9 @@ static struct pci_driver asiliantfb_driver = {
 
 static int __init asiliantfb_init(void)
 {
+	if (fb_modesetting_disabled("asiliantfb"))
+		return -ENODEV;
+
 	if (fb_get_options("asiliantfb", NULL))
 		return -ENODEV;
 

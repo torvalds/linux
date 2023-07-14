@@ -41,7 +41,7 @@ static struct dentry *sysv_lookup(struct inode * dir, struct dentry * dentry, un
 	return d_splice_alias(inode, dentry);
 }
 
-static int sysv_mknod(struct user_namespace *mnt_userns, struct inode *dir,
+static int sysv_mknod(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode, dev_t rdev)
 {
 	struct inode * inode;
@@ -61,13 +61,13 @@ static int sysv_mknod(struct user_namespace *mnt_userns, struct inode *dir,
 	return err;
 }
 
-static int sysv_create(struct user_namespace *mnt_userns, struct inode *dir,
+static int sysv_create(struct mnt_idmap *idmap, struct inode *dir,
 		       struct dentry *dentry, umode_t mode, bool excl)
 {
-	return sysv_mknod(&init_user_ns, dir, dentry, mode, 0);
+	return sysv_mknod(&nop_mnt_idmap, dir, dentry, mode, 0);
 }
 
-static int sysv_symlink(struct user_namespace *mnt_userns, struct inode *dir,
+static int sysv_symlink(struct mnt_idmap *idmap, struct inode *dir,
 			struct dentry *dentry, const char *symname)
 {
 	int err = -ENAMETOOLONG;
@@ -110,7 +110,7 @@ static int sysv_link(struct dentry * old_dentry, struct inode * dir,
 	return add_nondir(dentry, inode);
 }
 
-static int sysv_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
+static int sysv_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      struct dentry *dentry, umode_t mode)
 {
 	struct inode * inode;
@@ -153,19 +153,18 @@ static int sysv_unlink(struct inode * dir, struct dentry * dentry)
 	struct inode * inode = d_inode(dentry);
 	struct page * page;
 	struct sysv_dir_entry * de;
-	int err = -ENOENT;
+	int err;
 
 	de = sysv_find_entry(dentry, &page);
 	if (!de)
-		goto out;
+		return -ENOENT;
 
-	err = sysv_delete_entry (de, page);
-	if (err)
-		goto out;
-
-	inode->i_ctime = dir->i_ctime;
-	inode_dec_link_count(inode);
-out:
+	err = sysv_delete_entry(de, page);
+	if (!err) {
+		inode->i_ctime = dir->i_ctime;
+		inode_dec_link_count(inode);
+	}
+	unmap_and_put_page(page, de);
 	return err;
 }
 
@@ -189,7 +188,7 @@ static int sysv_rmdir(struct inode * dir, struct dentry * dentry)
  * Anybody can rename anything with this: the permission checks are left to the
  * higher-level routines.
  */
-static int sysv_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
+static int sysv_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		       struct dentry *old_dentry, struct inode *new_dir,
 		       struct dentry *new_dentry, unsigned int flags)
 {
@@ -227,7 +226,10 @@ static int sysv_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		new_de = sysv_find_entry(new_dentry, &new_page);
 		if (!new_de)
 			goto out_dir;
-		sysv_set_link(new_de, new_page, old_inode);
+		err = sysv_set_link(new_de, new_page, old_inode);
+		unmap_and_put_page(new_page, new_de);
+		if (err)
+			goto out_dir;
 		new_inode->i_ctime = current_time(new_inode);
 		if (dir_de)
 			drop_nlink(new_inode);
@@ -240,23 +242,23 @@ static int sysv_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 			inode_inc_link_count(new_dir);
 	}
 
-	sysv_delete_entry(old_de, old_page);
+	err = sysv_delete_entry(old_de, old_page);
+	if (err)
+		goto out_dir;
+
 	mark_inode_dirty(old_inode);
 
 	if (dir_de) {
-		sysv_set_link(dir_de, dir_page, new_dir);
-		inode_dec_link_count(old_dir);
+		err = sysv_set_link(dir_de, dir_page, new_dir);
+		if (!err)
+			inode_dec_link_count(old_dir);
 	}
-	return 0;
 
 out_dir:
-	if (dir_de) {
-		kunmap(dir_page);
-		put_page(dir_page);
-	}
+	if (dir_de)
+		unmap_and_put_page(dir_page, dir_de);
 out_old:
-	kunmap(old_page);
-	put_page(old_page);
+	unmap_and_put_page(old_page, old_de);
 out:
 	return err;
 }

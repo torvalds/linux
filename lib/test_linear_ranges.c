@@ -107,17 +107,8 @@ static const unsigned int range2_vals[] = { RANGE2_MIN, RANGE2_MIN +
 #define SMALLEST_VAL RANGE1_MIN
 
 static struct linear_range testr[] = {
-	{
-		.min = RANGE1_MIN,
-		.min_sel = RANGE1_MIN_SEL,
-		.max_sel = RANGE1_MAX_SEL,
-		.step = RANGE1_STEP,
-	}, {
-		.min = RANGE2_MIN,
-		.min_sel = RANGE2_MIN_SEL,
-		.max_sel = RANGE2_MAX_SEL,
-		.step = RANGE2_STEP
-	},
+	LINEAR_RANGE(RANGE1_MIN, RANGE1_MIN_SEL, RANGE1_MAX_SEL, RANGE1_STEP),
+	LINEAR_RANGE(RANGE2_MIN, RANGE2_MIN_SEL, RANGE2_MAX_SEL, RANGE2_STEP),
 };
 
 static void range_test_get_value(struct kunit *test)

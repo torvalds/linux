@@ -526,7 +526,7 @@ static void hpt37x_bmdma_stop(struct ata_queued_cmd *qc)
 }
 
 
-static struct scsi_host_template hpt37x_sht = {
+static const struct scsi_host_template hpt37x_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

@@ -4,9 +4,7 @@
 $id: http://devicetree.org/schemas/net/can/microchip,mcp251xfd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title:
-  Microchip MCP2517FD, MCP2518FD and MCP251863 stand-alone CAN
-  controller device tree bindings
+title: Microchip MCP2517FD, MCP2518FD and MCP251863 stand-alone CAN controller
 
 maintainers:
   - Marc Kleine-Budde <mkl@pengutronix.de>
@@ -64,7 +62,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 

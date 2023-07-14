@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2021-2022  Intel Corporation
+ * Copyright 2021-2023  Intel Corporation
  */
 
 #include <linux/export.h>
@@ -747,8 +747,8 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 					if (qskb) {
 						skb_queue_tail(&sdata->status_queue,
 							       qskb);
-						ieee80211_queue_work(&local->hw,
-								     &sdata->work);
+						wiphy_work_queue(local->hw.wiphy,
+								 &sdata->work);
 					}
 				}
 			} else {
@@ -1243,30 +1243,6 @@ void ieee80211_tx_rate_update(struct ieee80211_hw *hw,
 		sta->deflink.tx_stats.last_rate = info->status.rates[0];
 }
 EXPORT_SYMBOL(ieee80211_tx_rate_update);
-
-void ieee80211_tx_status_8023(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif,
-			      struct sk_buff *skb)
-{
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_tx_status status = {
-		.skb = skb,
-		.info = IEEE80211_SKB_CB(skb),
-	};
-	struct sta_info *sta;
-
-	sdata = vif_to_sdata(vif);
-
-	rcu_read_lock();
-
-	if (!ieee80211_lookup_ra_sta(sdata, skb, &sta) && !IS_ERR(sta))
-		status.sta = &sta->sta;
-
-	ieee80211_tx_status_ext(hw, &status);
-
-	rcu_read_unlock();
-}
-EXPORT_SYMBOL(ieee80211_tx_status_8023);
 
 void ieee80211_report_low_ack(struct ieee80211_sta *pubsta, u32 num_packets)
 {

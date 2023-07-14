@@ -31,6 +31,7 @@ gf108_fb = {
 	.init = gf100_fb_init,
 	.init_page = gf100_fb_init_page,
 	.intr = gf100_fb_intr,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = gf108_ram_new,
 	.default_bigpage = 17,
 };

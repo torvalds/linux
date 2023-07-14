@@ -7,7 +7,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/wireless.h>
 #include <linux/if_bridge.h>
-#include <net/dsa.h>
+#include <net/dsa_stubs.h>
 #include <net/wext.h>
 
 #include "dev.h"
@@ -183,22 +183,18 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 	return err;
 }
 
-static int net_hwtstamp_validate(struct ifreq *ifr)
+static int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
 {
-	struct hwtstamp_config cfg;
 	enum hwtstamp_tx_types tx_type;
 	enum hwtstamp_rx_filters rx_filter;
 	int tx_type_valid = 0;
 	int rx_filter_valid = 0;
 
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
-
-	if (cfg.flags & ~HWTSTAMP_FLAG_MASK)
+	if (cfg->flags & ~HWTSTAMP_FLAG_MASK)
 		return -EINVAL;
 
-	tx_type = cfg.tx_type;
-	rx_filter = cfg.rx_filter;
+	tx_type = cfg->tx_type;
+	rx_filter = cfg->rx_filter;
 
 	switch (tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -246,20 +242,45 @@ static int dev_eth_ioctl(struct net_device *dev,
 			 struct ifreq *ifr, unsigned int cmd)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+
+	if (!ops->ndo_eth_ioctl)
+		return -EOPNOTSUPP;
+
+	if (!netif_device_present(dev))
+		return -ENODEV;
+
+	return ops->ndo_eth_ioctl(dev, ifr, cmd);
+}
+
+static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
+{
+	return dev_eth_ioctl(dev, ifr, SIOCGHWTSTAMP);
+}
+
+static int dev_set_hwtstamp(struct net_device *dev, struct ifreq *ifr)
+{
+	struct kernel_hwtstamp_config kernel_cfg;
+	struct netlink_ext_ack extack = {};
+	struct hwtstamp_config cfg;
 	int err;
 
-	err = dsa_ndo_eth_ioctl(dev, ifr, cmd);
-	if (err == 0 || err != -EOPNOTSUPP)
+	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+		return -EFAULT;
+
+	hwtstamp_config_to_kernel(&kernel_cfg, &cfg);
+
+	err = net_hwtstamp_validate(&kernel_cfg);
+	if (err)
 		return err;
 
-	if (ops->ndo_eth_ioctl) {
-		if (netif_device_present(dev))
-			err = ops->ndo_eth_ioctl(dev, ifr, cmd);
-		else
-			err = -ENODEV;
+	err = dsa_master_hwtstamp_validate(dev, &kernel_cfg, &extack);
+	if (err) {
+		if (extack._msg)
+			netdev_err(dev, "%s\n", extack._msg);
+		return err;
 	}
 
-	return err;
+	return dev_eth_ioctl(dev, ifr, SIOCSHWTSTAMP);
 }
 
 static int dev_siocbond(struct net_device *dev,
@@ -342,7 +363,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		if (ifr->ifr_hwaddr.sa_family != dev->type)
 			return -EINVAL;
 		memcpy(dev->broadcast, ifr->ifr_hwaddr.sa_data,
-		       min(sizeof(ifr->ifr_hwaddr.sa_data),
+		       min(sizeof(ifr->ifr_hwaddr.sa_data_min),
 			   (size_t)dev->addr_len));
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
 		return 0;
@@ -391,36 +412,31 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		rtnl_lock();
 		return err;
 
+	case SIOCDEVPRIVATE ... SIOCDEVPRIVATE + 15:
+		return dev_siocdevprivate(dev, ifr, data, cmd);
+
 	case SIOCSHWTSTAMP:
-		err = net_hwtstamp_validate(ifr);
-		if (err)
-			return err;
-		fallthrough;
+		return dev_set_hwtstamp(dev, ifr);
 
-	/*
-	 *	Unknown or private ioctl
-	 */
+	case SIOCGHWTSTAMP:
+		return dev_get_hwtstamp(dev, ifr);
+
+	case SIOCGMIIPHY:
+	case SIOCGMIIREG:
+	case SIOCSMIIREG:
+		return dev_eth_ioctl(dev, ifr, cmd);
+
+	case SIOCBONDENSLAVE:
+	case SIOCBONDRELEASE:
+	case SIOCBONDSETHWADDR:
+	case SIOCBONDSLAVEINFOQUERY:
+	case SIOCBONDINFOQUERY:
+	case SIOCBONDCHANGEACTIVE:
+		return dev_siocbond(dev, ifr, cmd);
+
+	/* Unknown ioctl */
 	default:
-		if (cmd >= SIOCDEVPRIVATE &&
-		    cmd <= SIOCDEVPRIVATE + 15)
-			return dev_siocdevprivate(dev, ifr, data, cmd);
-
-		if (cmd == SIOCGMIIPHY ||
-		    cmd == SIOCGMIIREG ||
-		    cmd == SIOCSMIIREG ||
-		    cmd == SIOCSHWTSTAMP ||
-		    cmd == SIOCGHWTSTAMP) {
-			err = dev_eth_ioctl(dev, ifr, cmd);
-		} else if (cmd == SIOCBONDENSLAVE ||
-		    cmd == SIOCBONDRELEASE ||
-		    cmd == SIOCBONDSETHWADDR ||
-		    cmd == SIOCBONDSLAVEINFOQUERY ||
-		    cmd == SIOCBONDINFOQUERY ||
-		    cmd == SIOCBONDCHANGEACTIVE) {
-			err = dev_siocbond(dev, ifr, cmd);
-		} else
-			err = -EINVAL;
-
+		err = -EINVAL;
 	}
 	return err;
 }
@@ -462,6 +478,7 @@ EXPORT_SYMBOL(dev_load);
  *	@net: the applicable net namespace
  *	@cmd: command to issue
  *	@ifr: pointer to a struct ifreq in user space
+ *	@data: data exchanged with userspace
  *	@need_copyout: whether or not copy_to_user() should be called
  *
  *	Issue ioctl functions to devices. This is normally called by the

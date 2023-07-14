@@ -189,6 +189,19 @@ config DELL_WMI_DESCRIPTOR
 	default n
 	depends on ACPI_WMI
 
+config DELL_WMI_DDV
+	tristate "Dell WMI sensors Support"
+	default m
+	depends on ACPI_WMI
+	depends on ACPI_BATTERY || HWMON
+	help
+	  This option adds support for WMI-based fan and thermal sensors
+	  found on some Dell notebooks. It also supports various WMI-based battery
+	  extras like reading of the battery temperature and ePPID.
+
+	  To compile this drivers as a module, choose M here: the module will
+	  be called dell-wmi-ddv.
+
 config DELL_WMI_LED
 	tristate "External LED on Dell Business Netbooks"
 	default m

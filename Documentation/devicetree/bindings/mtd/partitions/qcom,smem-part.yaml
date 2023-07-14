@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mtd/partitions/qcom,smem-part.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm SMEM NAND flash partition parser binding
+title: Qualcomm SMEM NAND flash partition parser
 
 maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
@@ -15,13 +15,15 @@ description: |
   varies between partition table revisions. V3 supports maximum 16 partitions
   and V4 supports 48 partitions.
 
+select: false
+
 properties:
   compatible:
     const: qcom,smem-part
 
 patternProperties:
   "^partition-[0-9a-z]+$":
-    $ref: partition.yaml#
+    $ref: nvmem-cells.yaml
 
 required:
   - compatible
@@ -39,22 +41,22 @@ examples:
   - |
     /* Example declaring dynamic partition */
     flash {
-      partitions {
-        compatible = "qcom,smem-part";
+        partitions {
+            compatible = "qcom,smem-part";
 
-        partition-art {
-          compatible = "nvmem-cells";
-          #address-cells = <1>;
-          #size-cells = <1>;
-          label = "0:art";
+            partition-art {
+                compatible = "nvmem-cells";
+                #address-cells = <1>;
+                #size-cells = <1>;
+                label = "0:art";
 
-          macaddr_art_0: macaddr@0 {
-            reg = <0x0 0x6>;
-          };
+                macaddr_art_0: macaddr@0 {
+                    reg = <0x0 0x6>;
+                };
 
-          macaddr_art_6: macaddr@6 {
-            reg = <0x6 0x6>;
-          };
+                macaddr_art_6: macaddr@6 {
+                    reg = <0x6 0x6>;
+                };
+            };
         };
-      };
     };

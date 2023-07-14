@@ -242,6 +242,11 @@ void dmub_dcn31_setup_mailbox(struct dmub_srv *dmub,
 	REG_WRITE(DMCUB_INBOX1_SIZE, inbox1->top - inbox1->base);
 }
 
+uint32_t dmub_dcn31_get_inbox1_wptr(struct dmub_srv *dmub)
+{
+	return REG_READ(DMCUB_INBOX1_WPTR);
+}
+
 uint32_t dmub_dcn31_get_inbox1_rptr(struct dmub_srv *dmub)
 {
 	return REG_READ(DMCUB_INBOX1_RPTR);
@@ -297,6 +302,11 @@ bool dmub_dcn31_is_supported(struct dmub_srv *dmub)
 	return supported;
 }
 
+bool dmub_dcn31_is_psrsu_supported(struct dmub_srv *dmub)
+{
+	return dmub->fw_version >= DMUB_FW_VERSION(4, 0, 59);
+}
+
 void dmub_dcn31_set_gpint(struct dmub_srv *dmub,
 			  union dmub_gpint_data_register reg)
 {
@@ -350,6 +360,7 @@ void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.dpia_supported = params->dpia_supported;
 	boot_options.bits.enable_dpia = params->disable_dpia ? 0 : 1;
 	boot_options.bits.usb4_cm_version = params->usb4_cm_version;
+	boot_options.bits.dpia_hpd_int_enable_supported = params->dpia_hpd_int_enable_supported;
 	boot_options.bits.power_optimization = params->power_optimization;
 
 	boot_options.bits.sel_mux_phy_c_d_phy_f_g = (dmub->asic == DMUB_ASIC_DCN31B) ? 1 : 0;

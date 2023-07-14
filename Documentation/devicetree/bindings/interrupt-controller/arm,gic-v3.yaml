@@ -108,7 +108,7 @@ properties:
 
   msi-controller:
     description:
-      Only present if the Message Based Interrupt functionnality is
+      Only present if the Message Based Interrupt functionality is
       being exposed by the HW, and the mbi-ranges property present.
 
   mbi-ranges:
@@ -133,12 +133,14 @@ properties:
 
   ppi-partitions:
     type: object
+    additionalProperties: false
     description:
       PPI affinity can be expressed as a single "ppi-partitions" node,
       containing a set of sub-nodes.
     patternProperties:
       "^interrupt-partition-[0-9]+$":
         type: object
+        additionalProperties: false
         properties:
           affinity:
             $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -164,13 +166,18 @@ properties:
   resets:
     maxItems: 1
 
+  mediatek,broken-save-restore-fw:
+    type: boolean
+    description:
+      Asserts that the firmware on this device has issues saving and restoring
+      GICR registers when the GIC redistributors are powered off.
+
 dependencies:
   mbi-ranges: [ msi-controller ]
   msi-controller: [ mbi-ranges ]
 
 required:
   - compatible
-  - interrupts
   - reg
 
 patternProperties:

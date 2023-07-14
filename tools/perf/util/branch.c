@@ -21,7 +21,10 @@ void branch_type_count(struct branch_type_stat *st, struct branch_flags *flags,
 	if (flags->type == PERF_BR_UNKNOWN || from == 0)
 		return;
 
-	st->counts[flags->type]++;
+	if (flags->type == PERF_BR_EXTEND_ABI)
+		st->new_counts[flags->new_type]++;
+	else
+		st->counts[flags->type]++;
 
 	if (flags->type == PERF_BR_COND) {
 		if (to > from)
@@ -34,6 +37,38 @@ void branch_type_count(struct branch_type_stat *st, struct branch_flags *flags,
 		st->cross_2m++;
 	else if (cross_area(from, to, AREA_4K))
 		st->cross_4k++;
+}
+
+const char *branch_new_type_name(int new_type)
+{
+	const char *branch_new_names[PERF_BR_NEW_MAX] = {
+		"FAULT_ALGN",
+		"FAULT_DATA",
+		"FAULT_INST",
+/*
+ * TODO: This switch should happen on 'session->header.env.arch'
+ * instead, because an arm64 platform perf recording could be
+ * opened for analysis on other platforms as well.
+ */
+#ifdef __aarch64__
+		"ARM64_FIQ",
+		"ARM64_DEBUG_HALT",
+		"ARM64_DEBUG_EXIT",
+		"ARM64_DEBUG_INST",
+		"ARM64_DEBUG_DATA"
+#else
+		"ARCH_1",
+		"ARCH_2",
+		"ARCH_3",
+		"ARCH_4",
+		"ARCH_5"
+#endif
+	};
+
+	if (new_type >= 0 && new_type < PERF_BR_NEW_MAX)
+		return branch_new_names[new_type];
+
+	return NULL;
 }
 
 const char *branch_type_name(int type)
@@ -51,13 +86,27 @@ const char *branch_type_name(int type)
 		"COND_CALL",
 		"COND_RET",
 		"ERET",
-		"IRQ"
+		"IRQ",
+		"SERROR",
+		"NO_TX",
+		"", // Needed for PERF_BR_EXTEND_ABI that ends up triggering some compiler warnings about NULL deref
 	};
 
 	if (type >= 0 && type < PERF_BR_MAX)
 		return branch_names[type];
 
 	return NULL;
+}
+
+const char *get_branch_type(struct branch_entry *e)
+{
+	if (e->flags.type == PERF_BR_UNKNOWN)
+		return "";
+
+	if (e->flags.type == PERF_BR_EXTEND_ABI)
+		return branch_new_type_name(e->flags.new_type);
+
+	return branch_type_name(e->flags.type);
 }
 
 void branch_type_stat_display(FILE *fp, struct branch_type_stat *st)
@@ -106,6 +155,15 @@ void branch_type_stat_display(FILE *fp, struct branch_type_stat *st)
 				100.0 *
 				(double)st->counts[i] / (double)total);
 	}
+
+	for (i = 0; i < PERF_BR_NEW_MAX; i++) {
+		if (st->new_counts[i] > 0)
+			fprintf(fp, "\n%8s: %5.1f%%",
+				branch_new_type_name(i),
+				100.0 *
+				(double)st->new_counts[i] / (double)total);
+	}
+
 }
 
 static int count_str_scnprintf(int idx, const char *str, char *bf, int size)
@@ -120,6 +178,9 @@ int branch_type_str(struct branch_type_stat *st, char *bf, int size)
 
 	for (i = 0; i < PERF_BR_MAX; i++)
 		total += st->counts[i];
+
+	for (i = 0; i < PERF_BR_NEW_MAX; i++)
+		total += st->new_counts[i];
 
 	if (total == 0)
 		return 0;
@@ -138,6 +199,11 @@ int branch_type_str(struct branch_type_stat *st, char *bf, int size)
 			printed += count_str_scnprintf(j++, branch_type_name(i), bf + printed, size - printed);
 	}
 
+	for (i = 0; i < PERF_BR_NEW_MAX; i++) {
+		if (st->new_counts[i] > 0)
+			printed += count_str_scnprintf(j++, branch_new_type_name(i), bf + printed, size - printed);
+	}
+
 	if (st->cross_4k > 0)
 		printed += count_str_scnprintf(j++, "CROSS_4K", bf + printed, size - printed);
 
@@ -145,4 +211,19 @@ int branch_type_str(struct branch_type_stat *st, char *bf, int size)
 		printed += count_str_scnprintf(j++, "CROSS_2M", bf + printed, size - printed);
 
 	return printed;
+}
+
+const char *branch_spec_desc(int spec)
+{
+	const char *branch_spec_outcomes[PERF_BR_SPEC_MAX] = {
+		"N/A",
+		"SPEC_WRONG_PATH",
+		"NON_SPEC_CORRECT_PATH",
+		"SPEC_CORRECT_PATH",
+	};
+
+	if (spec >= 0 && spec < PERF_BR_SPEC_MAX)
+		return branch_spec_outcomes[spec];
+
+	return NULL;
 }

@@ -387,15 +387,6 @@ static int skl_resume(struct device *dev)
 			snd_hdac_bus_init_cmd_io(bus);
 	} else {
 		ret = _skl_resume(bus);
-
-		/* turn off the links which are off before suspend */
-		list_for_each_entry(hlink, &bus->hlink_list, list) {
-			if (!hlink->ref_count)
-				snd_hdac_ext_bus_link_power_down(hlink);
-		}
-
-		if (!bus->cmd_dma_state)
-			snd_hdac_bus_stop_cmd_io(bus);
 	}
 
 	return ret;
@@ -444,8 +435,8 @@ static int skl_free(struct hdac_bus *bus)
 	if (bus->irq >= 0)
 		free_irq(bus->irq, (void *)bus);
 	snd_hdac_bus_free_stream_pages(bus);
-	snd_hdac_stream_free_all(bus);
-	snd_hdac_link_free_all(bus);
+	snd_hdac_ext_stream_free_all(bus);
+	snd_hdac_ext_link_free_all(bus);
 
 	if (bus->remap_addr)
 		iounmap(bus->remap_addr);
@@ -689,6 +680,29 @@ static void load_codec_module(struct hda_codec *codec)
 
 #endif /* CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC */
 
+static struct hda_codec *skl_codec_device_init(struct hdac_bus *bus, int addr)
+{
+	struct hda_codec *codec;
+	int ret;
+
+	codec = snd_hda_codec_device_init(to_hda_bus(bus), addr, "ehdaudio%dD%d", bus->idx, addr);
+	if (IS_ERR(codec)) {
+		dev_err(bus->dev, "device init failed for hdac device\n");
+		return codec;
+	}
+
+	codec->core.type = HDA_DEV_ASOC;
+
+	ret = snd_hdac_device_register(&codec->core);
+	if (ret) {
+		dev_err(bus->dev, "failed to register hdac device\n");
+		put_device(&codec->core.dev);
+		return ERR_PTR(ret);
+	}
+
+	return codec;
+}
+
 /*
  * Probe the given codec address
  */
@@ -697,12 +711,11 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	unsigned int cmd = (addr << 28) | (AC_NODE_ROOT << 20) |
 		(AC_VERB_PARAMETERS << 8) | AC_PAR_VENDOR_ID;
 	unsigned int res = -1;
-	struct skl_dev *skl = bus_to_skl(bus);
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
+	struct skl_dev *skl = bus_to_skl(bus);
 	struct hdac_hda_priv *hda_codec;
-	int err;
 #endif
-	struct hdac_device *hdev;
+	struct hda_codec *codec;
 
 	mutex_lock(&bus->cmd_mutex);
 	snd_hdac_bus_send_cmd(bus, cmd);
@@ -718,25 +731,22 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	if (!hda_codec)
 		return -ENOMEM;
 
-	hda_codec->codec.bus = skl_to_hbus(skl);
-	hdev = &hda_codec->codec.core;
+	codec = skl_codec_device_init(bus, addr);
+	if (IS_ERR(codec))
+		return PTR_ERR(codec);
 
-	err = snd_hdac_ext_bus_device_init(bus, addr, hdev, HDA_DEV_ASOC);
-	if (err < 0)
-		return err;
+	hda_codec->codec = codec;
+	dev_set_drvdata(&codec->core.dev, hda_codec);
 
 	/* use legacy bus only for HDA codecs, idisp uses ext bus */
 	if ((res & 0xFFFF0000) != IDISP_INTEL_VENDOR_ID) {
-		hdev->type = HDA_DEV_LEGACY;
-		load_codec_module(&hda_codec->codec);
+		codec->core.type = HDA_DEV_LEGACY;
+		load_codec_module(hda_codec->codec);
 	}
 	return 0;
 #else
-	hdev = devm_kzalloc(&skl->pci->dev, sizeof(*hdev), GFP_KERNEL);
-	if (!hdev)
-		return -ENOMEM;
-
-	return snd_hdac_ext_bus_device_init(bus, addr, hdev, HDA_DEV_ASOC);
+	codec = skl_codec_device_init(bus, addr);
+	return PTR_ERR_OR_ZERO(codec);
 #endif /* CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC */
 }
 
@@ -1097,7 +1107,10 @@ static void skl_shutdown(struct pci_dev *pci)
 	if (!skl->init_done)
 		return;
 
-	snd_hdac_stop_streams_and_chip(bus);
+	snd_hdac_stop_streams(bus);
+	snd_hdac_ext_bus_link_power_down_all(bus);
+	skl_dsp_sleep(skl->dsp);
+
 	list_for_each_entry(s, &bus->stream_list, list) {
 		stream = stream_to_hdac_ext_stream(s);
 		snd_hdac_ext_stream_decouple(bus, stream, false);
@@ -1127,7 +1140,6 @@ static void skl_remove(struct pci_dev *pci)
 	if (skl->nhlt)
 		intel_nhlt_free(skl->nhlt);
 	skl_free(bus);
-	dev_set_drvdata(&pci->dev, NULL);
 }
 
 /* PCI IDs */

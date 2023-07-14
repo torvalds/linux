@@ -358,6 +358,7 @@ static int __einj_error_trigger(u64 trigger_paddr, u32 type,
 	 */
 	if ((param_extension || acpi5) && (type & MEM_ERROR_MASK) && param2) {
 		struct apei_resources addr_resources;
+
 		apei_resources_init(&addr_resources);
 		trigger_param_region = einj_get_trigger_parameter_region(
 			trigger_tab, param1, param2);
@@ -432,11 +433,11 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 			}
 			v5param->flags = vendor_flags;
 		} else if (flags) {
-				v5param->flags = flags;
-				v5param->memory_address = param1;
-				v5param->memory_address_range = param2;
-				v5param->apicid = param3;
-				v5param->pcie_sbdf = param4;
+			v5param->flags = flags;
+			v5param->memory_address = param1;
+			v5param->memory_address_range = param2;
+			v5param->apicid = param3;
+			v5param->pcie_sbdf = param4;
 		} else {
 			switch (type) {
 			case ACPI_EINJ_PROCESSOR_CORRECTABLE:
@@ -466,6 +467,7 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 			return rc;
 		if (einj_param) {
 			struct einj_parameter *v4param = einj_param;
+
 			v4param->param1 = param1;
 			v4param->param2 = param2;
 		}
@@ -487,9 +489,15 @@ static int __einj_error_inject(u32 type, u32 flags, u64 param1, u64 param2,
 	if (rc)
 		return rc;
 	val = apei_exec_ctx_get_output(&ctx);
-	if (val != EINJ_STATUS_SUCCESS)
+	if (val == EINJ_STATUS_FAIL)
 		return -EBUSY;
+	else if (val == EINJ_STATUS_INVAL)
+		return -EINVAL;
 
+	/*
+	 * The error is injected into the platform successfully, then it needs
+	 * to trigger the error.
+	 */
 	rc = apei_exec_run(&ctx, ACPI_EINJ_GET_TRIGGER_TABLE);
 	if (rc)
 		return rc;
@@ -569,6 +577,26 @@ static u64 error_param2;
 static u64 error_param3;
 static u64 error_param4;
 static struct dentry *einj_debug_dir;
+static const char * const einj_error_type_string[] = {
+	"0x00000001\tProcessor Correctable\n",
+	"0x00000002\tProcessor Uncorrectable non-fatal\n",
+	"0x00000004\tProcessor Uncorrectable fatal\n",
+	"0x00000008\tMemory Correctable\n",
+	"0x00000010\tMemory Uncorrectable non-fatal\n",
+	"0x00000020\tMemory Uncorrectable fatal\n",
+	"0x00000040\tPCI Express Correctable\n",
+	"0x00000080\tPCI Express Uncorrectable non-fatal\n",
+	"0x00000100\tPCI Express Uncorrectable fatal\n",
+	"0x00000200\tPlatform Correctable\n",
+	"0x00000400\tPlatform Uncorrectable non-fatal\n",
+	"0x00000800\tPlatform Uncorrectable fatal\n",
+	"0x00001000\tCXL.cache Protocol Correctable\n",
+	"0x00002000\tCXL.cache Protocol Uncorrectable non-fatal\n",
+	"0x00004000\tCXL.cache Protocol Uncorrectable fatal\n",
+	"0x00008000\tCXL.mem Protocol Correctable\n",
+	"0x00010000\tCXL.mem Protocol Uncorrectable non-fatal\n",
+	"0x00020000\tCXL.mem Protocol Uncorrectable fatal\n",
+};
 
 static int available_error_type_show(struct seq_file *m, void *v)
 {
@@ -578,30 +606,9 @@ static int available_error_type_show(struct seq_file *m, void *v)
 	rc = einj_get_available_error_type(&available_error_type);
 	if (rc)
 		return rc;
-	if (available_error_type & 0x0001)
-		seq_printf(m, "0x00000001\tProcessor Correctable\n");
-	if (available_error_type & 0x0002)
-		seq_printf(m, "0x00000002\tProcessor Uncorrectable non-fatal\n");
-	if (available_error_type & 0x0004)
-		seq_printf(m, "0x00000004\tProcessor Uncorrectable fatal\n");
-	if (available_error_type & 0x0008)
-		seq_printf(m, "0x00000008\tMemory Correctable\n");
-	if (available_error_type & 0x0010)
-		seq_printf(m, "0x00000010\tMemory Uncorrectable non-fatal\n");
-	if (available_error_type & 0x0020)
-		seq_printf(m, "0x00000020\tMemory Uncorrectable fatal\n");
-	if (available_error_type & 0x0040)
-		seq_printf(m, "0x00000040\tPCI Express Correctable\n");
-	if (available_error_type & 0x0080)
-		seq_printf(m, "0x00000080\tPCI Express Uncorrectable non-fatal\n");
-	if (available_error_type & 0x0100)
-		seq_printf(m, "0x00000100\tPCI Express Uncorrectable fatal\n");
-	if (available_error_type & 0x0200)
-		seq_printf(m, "0x00000200\tPlatform Correctable\n");
-	if (available_error_type & 0x0400)
-		seq_printf(m, "0x00000400\tPlatform Uncorrectable non-fatal\n");
-	if (available_error_type & 0x0800)
-		seq_printf(m, "0x00000800\tPlatform Uncorrectable fatal\n");
+	for (int pos = 0; pos < ARRAY_SIZE(einj_error_type_string); pos++)
+		if (available_error_type & BIT(pos))
+			seq_puts(m, einj_error_type_string[pos]);
 
 	return 0;
 }
@@ -620,6 +627,10 @@ static int error_type_set(void *data, u64 val)
 	int rc;
 	u32 available_error_type = 0;
 	u32 tval, vendor;
+
+	/* Only low 32 bits for error type are valid */
+	if (val & GENMASK_ULL(63, 32))
+		return -EINVAL;
 
 	/*
 	 * Vendor defined types have 0x80000000 bit set, and
@@ -689,8 +700,7 @@ static int __init einj_init(void)
 	if (status == AE_NOT_FOUND) {
 		pr_warn("EINJ table not found.\n");
 		return -ENODEV;
-	}
-	else if (ACPI_FAILURE(status)) {
+	} else if (ACPI_FAILURE(status)) {
 		pr_err("Failed to get EINJ table: %s\n",
 				acpi_format_exception(status));
 		return -EINVAL;

@@ -11,6 +11,7 @@
 
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/hw_breakpoint.h>
 #include <asm/loongarch.h>
 #include <asm/vdso/processor.h>
 #include <uapi/asm/ptrace.h>
@@ -124,13 +125,18 @@ struct thread_struct {
 	/* Other stuff associated with the thread. */
 	unsigned long trap_nr;
 	unsigned long error_code;
+	unsigned long single_step; /* Used by PTRACE_SINGLESTEP */
 	struct loongarch_vdso_info *vdso;
 
 	/*
-	 * FPU & vector registers, must be at last because
-	 * they are conditionally copied at fork().
+	 * FPU & vector registers, must be at the last of inherited
+	 * context because they are conditionally copied at fork().
 	 */
 	struct loongarch_fpu fpu FPU_ALIGN;
+
+	/* Hardware breakpoints pinned to this task. */
+	struct perf_event *hbp_break[LOONGARCH_MAX_BRP];
+	struct perf_event *hbp_watch[LOONGARCH_MAX_WRP];
 };
 
 #define thread_saved_ra(tsk)	(tsk->thread.sched_ra)
@@ -172,12 +178,11 @@ struct thread_struct {
 		.fcc		= 0,				\
 		.fpr		= {{{0,},},},			\
 	},							\
+	.hbp_break		= {0},				\
+	.hbp_watch		= {0},				\
 }
 
 struct task_struct;
-
-/* Free all resources held by a thread. */
-#define release_thread(thread) do { } while (0)
 
 enum idle_boot_override {IDLE_NO_OVERRIDE = 0, IDLE_HALT, IDLE_NOMWAIT, IDLE_POLL};
 
@@ -187,14 +192,10 @@ extern unsigned long		boot_option_idle_override;
  */
 extern void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp);
 
-static inline void flush_thread(void)
-{
-}
-
 unsigned long __get_wchan(struct task_struct *p);
 
 #define __KSTK_TOS(tsk) ((unsigned long)task_stack_page(tsk) + \
-			 THREAD_SIZE - 32 - sizeof(struct pt_regs))
+			 THREAD_SIZE - sizeof(struct pt_regs))
 #define task_pt_regs(tsk) ((struct pt_regs *)__KSTK_TOS(tsk))
 #define KSTK_EIP(tsk) (task_pt_regs(tsk)->csr_era)
 #define KSTK_ESP(tsk) (task_pt_regs(tsk)->regs[3])

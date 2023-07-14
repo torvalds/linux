@@ -43,15 +43,6 @@ static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
 
 }
 
-static void test_cpuid_40000000(struct kvm_cpuid2 *guest_cpuid)
-{
-	u32 eax, ebx, ecx, edx;
-
-	cpuid(0x40000000, &eax, &ebx, &ecx, &edx);
-
-	GUEST_ASSERT(eax == 0x40000001);
-}
-
 static void guest_main(struct kvm_cpuid2 *guest_cpuid)
 {
 	GUEST_SYNC(1);
@@ -60,7 +51,7 @@ static void guest_main(struct kvm_cpuid2 *guest_cpuid)
 
 	GUEST_SYNC(2);
 
-	test_cpuid_40000000(guest_cpuid);
+	GUEST_ASSERT(this_cpu_property(X86_PROPERTY_MAX_KVM_LEAF) == 0x40000001);
 
 	GUEST_DONE();
 }
@@ -172,6 +163,25 @@ static void set_cpuid_after_run(struct kvm_vcpu *vcpu)
 	ent->eax = eax;
 }
 
+static void test_get_cpuid2(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid2 *cpuid = allocate_kvm_cpuid2(vcpu->cpuid->nent + 1);
+	int i, r;
+
+	vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
+	TEST_ASSERT(cpuid->nent == vcpu->cpuid->nent,
+		    "KVM didn't update nent on success, wanted %u, got %u\n",
+		    vcpu->cpuid->nent, cpuid->nent);
+
+	for (i = 0; i < vcpu->cpuid->nent; i++) {
+		cpuid->nent = i;
+		r = __vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
+		TEST_ASSERT(r && errno == E2BIG, KVM_IOCTL_ERROR(KVM_GET_CPUID2, r));
+		TEST_ASSERT(cpuid->nent == i, "KVM modified nent on failure");
+	}
+	free(cpuid);
+}
+
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
@@ -191,6 +201,8 @@ int main(void)
 		run_vcpu(vcpu, stage);
 
 	set_cpuid_after_run(vcpu);
+
+	test_get_cpuid2(vcpu);
 
 	kvm_vm_free(vm);
 }

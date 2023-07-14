@@ -55,6 +55,15 @@ irqfd_inject(struct work_struct *work)
 			    irqfd->gsi, 1, false);
 }
 
+static void irqfd_resampler_notify(struct kvm_kernel_irqfd_resampler *resampler)
+{
+	struct kvm_kernel_irqfd *irqfd;
+
+	list_for_each_entry_srcu(irqfd, &resampler->list, resampler_link,
+				 srcu_read_lock_held(&resampler->kvm->irq_srcu))
+		eventfd_signal(irqfd->resamplefd, 1);
+}
+
 /*
  * Since resampler irqfds share an IRQ source ID, we de-assert once
  * then notify all of the resampler irqfds using this GSI.  We can't
@@ -65,7 +74,6 @@ irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 {
 	struct kvm_kernel_irqfd_resampler *resampler;
 	struct kvm *kvm;
-	struct kvm_kernel_irqfd *irqfd;
 	int idx;
 
 	resampler = container_of(kian,
@@ -76,11 +84,7 @@ irqfd_resampler_ack(struct kvm_irq_ack_notifier *kian)
 		    resampler->notifier.gsi, 0, false);
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
-
-	list_for_each_entry_srcu(irqfd, &resampler->list, resampler_link,
-	    srcu_read_lock_held(&kvm->irq_srcu))
-		eventfd_signal(irqfd->resamplefd, 1);
-
+	irqfd_resampler_notify(resampler);
 	srcu_read_unlock(&kvm->irq_srcu, idx);
 }
 
@@ -96,8 +100,12 @@ irqfd_resampler_shutdown(struct kvm_kernel_irqfd *irqfd)
 	synchronize_srcu(&kvm->irq_srcu);
 
 	if (list_empty(&resampler->list)) {
-		list_del(&resampler->link);
+		list_del_rcu(&resampler->link);
 		kvm_unregister_irq_ack_notifier(kvm, &resampler->notifier);
+		/*
+		 * synchronize_srcu(&kvm->irq_srcu) already called
+		 * in kvm_unregister_irq_ack_notifier().
+		 */
 		kvm_set_irq(kvm, KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID,
 			    resampler->notifier.gsi, 0, false);
 		kfree(resampler);
@@ -369,7 +377,7 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 			resampler->notifier.irq_acked = irqfd_resampler_ack;
 			INIT_LIST_HEAD(&resampler->link);
 
-			list_add(&resampler->link, &kvm->irqfds.resampler_list);
+			list_add_rcu(&resampler->link, &kvm->irqfds.resampler_list);
 			kvm_register_irq_ack_notifier(kvm,
 						      &resampler->notifier);
 			irqfd->resampler = resampler;
@@ -644,6 +652,31 @@ void kvm_irq_routing_update(struct kvm *kvm)
 	spin_unlock_irq(&kvm->irqfds.lock);
 }
 
+bool kvm_notify_irqfd_resampler(struct kvm *kvm,
+				unsigned int irqchip,
+				unsigned int pin)
+{
+	struct kvm_kernel_irqfd_resampler *resampler;
+	int gsi, idx;
+
+	idx = srcu_read_lock(&kvm->irq_srcu);
+	gsi = kvm_irq_map_chip_pin(kvm, irqchip, pin);
+	if (gsi != -1) {
+		list_for_each_entry_srcu(resampler,
+					 &kvm->irqfds.resampler_list, link,
+					 srcu_read_lock_held(&kvm->irq_srcu)) {
+			if (resampler->notifier.gsi == gsi) {
+				irqfd_resampler_notify(resampler);
+				srcu_read_unlock(&kvm->irq_srcu, idx);
+				return true;
+			}
+		}
+	}
+	srcu_read_unlock(&kvm->irq_srcu, idx);
+
+	return false;
+}
+
 /*
  * create a host-wide workqueue for issuing deferred shutdown requests
  * aggregated from all vm* instances. We need our own isolated
@@ -856,9 +889,9 @@ static int kvm_assign_ioeventfd_idx(struct kvm *kvm,
 
 unlock_fail:
 	mutex_unlock(&kvm->slots_lock);
+	kfree(p);
 
 fail:
-	kfree(p);
 	eventfd_ctx_put(eventfd);
 
 	return ret;
@@ -868,7 +901,7 @@ static int
 kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 			   struct kvm_ioeventfd *args)
 {
-	struct _ioeventfd        *p, *tmp;
+	struct _ioeventfd        *p;
 	struct eventfd_ctx       *eventfd;
 	struct kvm_io_bus	 *bus;
 	int                       ret = -ENOENT;
@@ -882,8 +915,7 @@ kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 
 	mutex_lock(&kvm->slots_lock);
 
-	list_for_each_entry_safe(p, tmp, &kvm->ioeventfds, list) {
-
+	list_for_each_entry(p, &kvm->ioeventfds, list) {
 		if (p->bus_idx != bus_idx ||
 		    p->eventfd != eventfd  ||
 		    p->addr != args->addr  ||
@@ -898,7 +930,6 @@ kvm_deassign_ioeventfd_idx(struct kvm *kvm, enum kvm_bus bus_idx,
 		bus = kvm_get_bus(kvm, bus_idx);
 		if (bus)
 			bus->ioeventfd_count--;
-		ioeventfd_release(p);
 		ret = 0;
 		break;
 	}

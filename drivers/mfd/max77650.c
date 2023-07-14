@@ -138,7 +138,6 @@ static const struct regmap_irq_chip max77650_irq_chip = {
 	.status_base		= MAX77650_REG_INT_GLBL,
 	.mask_base		= MAX77650_REG_INTM_GLBL,
 	.type_in_mask		= true,
-	.type_invert		= true,
 	.init_ack_masked	= true,
 	.clear_on_unmask	= true,
 };
@@ -223,7 +222,7 @@ static struct i2c_driver max77650_i2c_driver = {
 		.name = "max77650",
 		.of_match_table = max77650_of_match,
 	},
-	.probe_new = max77650_i2c_probe,
+	.probe = max77650_i2c_probe,
 };
 module_i2c_driver(max77650_i2c_driver);
 

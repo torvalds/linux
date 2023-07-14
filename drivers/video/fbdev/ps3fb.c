@@ -650,7 +650,7 @@ static int ps3fb_set_par(struct fb_info *info)
 	}
 
 	/* Clear XDR frame buffer memory */
-	memset((void __force *)info->screen_base, 0, info->fix.smem_len);
+	memset(info->screen_buffer, 0, info->fix.smem_len);
 
 	/* Clear DDR frame buffer memory */
 	lines = vmode->yres * par->num_frames;
@@ -936,6 +936,7 @@ static irqreturn_t ps3fb_vsync_interrupt(int irq, void *ptr)
 
 
 static const struct fb_ops ps3fb_ops = {
+	.owner		= THIS_MODULE,
 	.fb_open	= ps3fb_open,
 	.fb_release	= ps3fb_release,
 	.fb_read        = fb_sys_read,
@@ -1139,7 +1140,7 @@ static int ps3fb_probe(struct ps3_system_bus_device *dev)
 	 * memory
 	 */
 	fb_start = ps3fb_videomemory.address + GPU_FB_START;
-	info->screen_base = (char __force __iomem *)fb_start;
+	info->screen_buffer = fb_start;
 	info->fix.smem_start = __pa(fb_start);
 	info->fix.smem_len = ps3fb_videomemory.size - GPU_FB_START;
 

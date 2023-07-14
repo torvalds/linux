@@ -205,7 +205,7 @@ static struct wwan_hwsim_port *wwan_hwsim_port_new(struct wwan_hwsim_dev *dev)
 
 	port->wwan = wwan_create_port(&dev->dev, WWAN_PORT_AT,
 				      &wwan_hwsim_port_ops,
-				      port);
+				      NULL, port);
 	if (IS_ERR(port->wwan)) {
 		err = PTR_ERR(port->wwan);
 		goto err_free_port;
@@ -311,7 +311,7 @@ err_unreg_dev:
 	return ERR_PTR(err);
 
 err_free_dev:
-	kfree(dev);
+	put_device(&dev->dev);
 
 	return ERR_PTR(err);
 }
@@ -511,7 +511,7 @@ static int __init wwan_hwsim_init(void)
 	if (!wwan_wq)
 		return -ENOMEM;
 
-	wwan_hwsim_class = class_create(THIS_MODULE, "wwan_hwsim");
+	wwan_hwsim_class = class_create("wwan_hwsim");
 	if (IS_ERR(wwan_hwsim_class)) {
 		err = PTR_ERR(wwan_hwsim_class);
 		goto err_wq_destroy;

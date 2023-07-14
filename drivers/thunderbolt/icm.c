@@ -644,13 +644,14 @@ static int add_switch(struct tb_switch *parent_sw, struct tb_switch *sw)
 	return ret;
 }
 
-static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
-			  u64 route, u8 connection_id, u8 connection_key,
-			  u8 link, u8 depth, bool boot)
+static void update_switch(struct tb_switch *sw, u64 route, u8 connection_id,
+			  u8 connection_key, u8 link, u8 depth, bool boot)
 {
+	struct tb_switch *parent_sw = tb_switch_parent(sw);
+
 	/* Disconnect from parent */
-	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
-	/* Re-connect via updated port*/
+	tb_switch_downstream_port(sw)->remote = NULL;
+	/* Re-connect via updated port */
 	tb_port_at(route, parent_sw)->remote = tb_upstream_port(sw);
 
 	/* Update with the new addressing information */
@@ -671,10 +672,7 @@ static void update_switch(struct tb_switch *parent_sw, struct tb_switch *sw,
 
 static void remove_switch(struct tb_switch *sw)
 {
-	struct tb_switch *parent_sw;
-
-	parent_sw = tb_to_switch(sw->dev.parent);
-	tb_port_at(tb_route(sw), parent_sw)->remote = NULL;
+	tb_switch_downstream_port(sw)->remote = NULL;
 	tb_switch_remove(sw);
 }
 
@@ -755,7 +753,6 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 	if (sw) {
 		u8 phy_port, sw_phy_port;
 
-		parent_sw = tb_to_switch(sw->dev.parent);
 		sw_phy_port = tb_phy_port_from_link(sw->link);
 		phy_port = tb_phy_port_from_link(link);
 
@@ -785,7 +782,7 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 				route = tb_route(sw);
 			}
 
-			update_switch(parent_sw, sw, route, pkg->connection_id,
+			update_switch(sw, route, pkg->connection_id,
 				      pkg->connection_key, link, depth, boot);
 			tb_switch_put(sw);
 			return;
@@ -853,7 +850,8 @@ icm_fr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr)
 		sw->security_level = security_level;
 		sw->boot = boot;
 		sw->link_speed = speed_gen3 ? 20 : 10;
-		sw->link_width = dual_lane ? 2 : 1;
+		sw->link_width = dual_lane ? TB_LINK_WIDTH_DUAL :
+					     TB_LINK_WIDTH_SINGLE;
 		sw->rpm = intel_vss_is_rtd3(pkg->ep_name, sizeof(pkg->ep_name));
 
 		if (add_switch(parent_sw, sw))
@@ -1236,9 +1234,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 	if (sw) {
 		/* Update the switch if it is still in the same place */
 		if (tb_route(sw) == route && !!sw->authorized == authorized) {
-			parent_sw = tb_to_switch(sw->dev.parent);
-			update_switch(parent_sw, sw, route, pkg->connection_id,
-				      0, 0, 0, boot);
+			update_switch(sw, route, pkg->connection_id, 0, 0, 0,
+				      boot);
 			tb_switch_put(sw);
 			return;
 		}
@@ -1276,7 +1273,8 @@ __icm_tr_device_connected(struct tb *tb, const struct icm_pkg_header *hdr,
 		sw->security_level = security_level;
 		sw->boot = boot;
 		sw->link_speed = speed_gen3 ? 20 : 10;
-		sw->link_width = dual_lane ? 2 : 1;
+		sw->link_width = dual_lane ? TB_LINK_WIDTH_DUAL :
+					     TB_LINK_WIDTH_SINGLE;
 		sw->rpm = force_rtd3;
 		if (!sw->rpm)
 			sw->rpm = intel_vss_is_rtd3(pkg->ep_name,
@@ -2518,6 +2516,9 @@ struct tb *icm_probe(struct tb_nhi *nhi)
 	case PCI_DEVICE_ID_INTEL_ADL_NHI1:
 	case PCI_DEVICE_ID_INTEL_RPL_NHI0:
 	case PCI_DEVICE_ID_INTEL_RPL_NHI1:
+	case PCI_DEVICE_ID_INTEL_MTL_M_NHI0:
+	case PCI_DEVICE_ID_INTEL_MTL_P_NHI0:
+	case PCI_DEVICE_ID_INTEL_MTL_P_NHI1:
 		icm->is_supported = icm_tgl_is_supported;
 		icm->driver_ready = icm_icl_driver_ready;
 		icm->set_uuid = icm_icl_set_uuid;

@@ -85,7 +85,6 @@ enum rtl819x_loopback {
 #define HAL_PRIME_CHNL_OFFSET_LOWER		1
 #define HAL_PRIME_CHNL_OFFSET_UPPER		2
 
-
 enum version_8190_loopback {
 	VERSION_8190_BD = 0x3,
 	VERSION_8190_BE
@@ -103,21 +102,10 @@ enum rf_optype {
 
 struct bb_reg_definition {
 	u32 rfintfs;
-	u32 rfintfi;
 	u32 rfintfo;
 	u32 rfintfe;
 	u32 rf3wireOffset;
-	u32 rfLSSI_Select;
-	u32 rfTxGainStage;
-	u32 rfHSSIPara1;
 	u32 rfHSSIPara2;
-	u32 rfSwitchControl;
-	u32 rfAGCControl1;
-	u32 rfAGCControl2;
-	u32 rfRxIQImbalance;
-	u32 rfRxAFE;
-	u32 rfTxIQImbalance;
-	u32 rfTxAFE;
 	u32 rfLSSIReadBack;
 	u32 rfLSSIReadBackPi;
 };
@@ -150,23 +138,6 @@ struct tx_fwinfo_8190pci {
 	u32			Retry_Limit:4;
 	u32			Reserved2:1;
 	u32			PacketID:13;
-
-
-};
-
-struct log_int_8190 {
-	u32	nIMR_COMDOK;
-	u32	nIMR_MGNTDOK;
-	u32	nIMR_HIGH;
-	u32	nIMR_VODOK;
-	u32	nIMR_VIDOK;
-	u32	nIMR_BEDOK;
-	u32	nIMR_BKDOK;
-	u32	nIMR_ROK;
-	u32	nIMR_RCOK;
-	u32	nIMR_TBDOK;
-	u32	nIMR_BDOK;
-	u32	nIMR_RXFOVW;
 };
 
 struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
@@ -197,7 +168,6 @@ struct phy_sts_cck_819xpci {
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
 };
-
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
 #define		PHY_Beacon_RSSI_SLID_WIN_MAX		10
@@ -240,7 +210,6 @@ struct tx_desc {
 	u32	Reserved7;
 };
 
-
 struct tx_desc_cmd {
 	u16	PktSize;
 	u8	Reserved1;
@@ -282,9 +251,7 @@ struct rx_desc {
 	u32			Reserved3;
 
 	u32	BufferAddress;
-
 };
-
 
 struct rx_fwinfo {
 	u16			Reserved1:12;
@@ -304,7 +271,6 @@ struct rx_fwinfo {
 	u8			Reserved4:1;
 
 	u32			TSFL;
-
 };
 
 #endif

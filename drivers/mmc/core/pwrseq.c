@@ -29,7 +29,7 @@ int mmc_pwrseq_alloc(struct mmc_host *host)
 
 	mutex_lock(&pwrseq_list_mutex);
 	list_for_each_entry(p, &pwrseq_list, pwrseq_node) {
-		if (p->dev->of_node == np) {
+		if (device_match_of_node(p->dev, np)) {
 			if (!try_module_get(p->owner))
 				dev_err(host->parent,
 					"increasing module refcount failed\n");

@@ -208,7 +208,7 @@
 };
 
 &i2c0 {
-	pca9545@70 {
+	i2c-mux@70 {
 		compatible = "nxp,pca9545";
 		reg = <0x70>;
 		#address-cells = <1>;
@@ -236,7 +236,7 @@
 			reg = <3>;
 		};
 	};
-	pca9545@71 {
+	i2c-mux@71 {
 		compatible = "nxp,pca9545";
 		reg = <0x71>;
 		#address-cells = <1>;

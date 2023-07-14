@@ -15,6 +15,7 @@
 #include <linux/mount.h>
 #include <linux/fs.h>
 #include <linux/dax.h>
+#include <linux/overflow.h>
 #include "internal.h"
 
 #include <linux/uaccess.h>
@@ -101,10 +102,12 @@ static int generic_remap_checks(struct file *file_in, loff_t pos_in,
 static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
 			     bool write)
 {
+	loff_t tmp;
+
 	if (unlikely(pos < 0 || len < 0))
 		return -EINVAL;
 
-	if (unlikely((loff_t) (pos + len) < 0))
+	if (unlikely(check_add_overflow(pos, len, &tmp)))
 		return -EINVAL;
 
 	return security_file_permission(file, write ? MAY_WRITE : MAY_READ);
@@ -304,7 +307,7 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	/* Check that we don't violate system file offset limits. */
 	ret = generic_remap_checks(file_in, pos_in, file_out, pos_out, len,
 			remap_flags);
-	if (ret)
+	if (ret || *len == 0)
 		return ret;
 
 	/* Wait for the completion of any pending IOs on both files */
@@ -328,9 +331,6 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (remap_flags & REMAP_FILE_DEDUP) {
 		bool		is_same = false;
 
-		if (*len == 0)
-			return 0;
-
 		if (!IS_DAX(inode_in))
 			ret = vfs_dedupe_file_range_compare(file_in, pos_in,
 					file_out, pos_out, *len, &is_same);
@@ -348,7 +348,7 @@ __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 
 	ret = generic_remap_check_len(inode_in, inode_out, pos_out, len,
 			remap_flags);
-	if (ret)
+	if (ret || *len == 0)
 		return ret;
 
 	/* If can't alter the file contents, we're done. */
@@ -422,16 +422,16 @@ EXPORT_SYMBOL(vfs_clone_file_range);
 /* Check whether we are allowed to dedupe the destination file */
 static bool allow_file_dedupe(struct file *file)
 {
-	struct user_namespace *mnt_userns = file_mnt_user_ns(file);
+	struct mnt_idmap *idmap = file_mnt_idmap(file);
 	struct inode *inode = file_inode(file);
 
 	if (capable(CAP_SYS_ADMIN))
 		return true;
 	if (file->f_mode & FMODE_WRITE)
 		return true;
-	if (uid_eq(current_fsuid(), i_uid_into_mnt(mnt_userns, inode)))
+	if (vfsuid_eq_kuid(i_uid_into_vfsuid(idmap, inode), current_fsuid()))
 		return true;
-	if (!inode_permission(mnt_userns, inode, MAY_WRITE))
+	if (!inode_permission(idmap, inode, MAY_WRITE))
 		return true;
 	return false;
 }

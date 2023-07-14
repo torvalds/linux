@@ -61,7 +61,7 @@ and
       id=channel0,name=agent-ctl-path\
  ##data path##
      -chardev pipe,id=charchannel1,path=/tmp/virtio-trace/trace-path-cpu0\
-     -device virtserialport,bus=virtio-serial0.0,nr=2,chardev=charchannel0,\
+     -device virtserialport,bus=virtio-serial0.0,nr=2,chardev=charchannel1,\
       id=channel1,name=trace-path-cpu0\
       ...
 
@@ -95,7 +95,7 @@ Run
 
 1) Enable ftrace in the guest
  <Example>
-	# echo 1 > /sys/kernel/debug/tracing/events/sched/enable
+	# echo 1 > /sys/kernel/tracing/events/sched/enable
 
 2) Run trace agent in the guest
  This agent must be operated as root.

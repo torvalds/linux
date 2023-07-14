@@ -10,7 +10,7 @@ maintainers:
   - Markus Pargmann <mpa@pengutronix.de>
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
 
 properties:
   compatible:

@@ -6,7 +6,6 @@
 #include "intel_ggtt_gmch.h"
 
 #include <drm/intel-gtt.h>
-#include <drm/i915_drm.h>
 
 #include <linux/agp_backend.h>
 
@@ -19,10 +18,10 @@
 static void gmch_ggtt_insert_page(struct i915_address_space *vm,
 				  dma_addr_t addr,
 				  u64 offset,
-				  enum i915_cache_level cache_level,
+				  unsigned int pat_index,
 				  u32 unused)
 {
-	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
+	unsigned int flags = (pat_index == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	intel_gmch_gtt_insert_page(addr, offset >> PAGE_SHIFT, flags);
@@ -30,10 +29,10 @@ static void gmch_ggtt_insert_page(struct i915_address_space *vm,
 
 static void gmch_ggtt_insert_entries(struct i915_address_space *vm,
 				     struct i915_vma_resource *vma_res,
-				     enum i915_cache_level cache_level,
+				     unsigned int pat_index,
 				     u32 unused)
 {
-	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
+	unsigned int flags = (pat_index == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
 	intel_gmch_gtt_insert_sg_entries(vma_res->bi.pages, vma_res->start >> PAGE_SHIFT,
@@ -81,7 +80,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 	phys_addr_t gmadr_base;
 	int ret;
 
-	ret = intel_gmch_probe(i915->bridge_dev, to_pci_dev(i915->drm.dev), NULL);
+	ret = intel_gmch_probe(i915->gmch.pdev, to_pci_dev(i915->drm.dev), NULL);
 	if (!ret) {
 		drm_err(&i915->drm, "failed to set up gmch\n");
 		return -EIO;
@@ -89,8 +88,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 
 	intel_gmch_gtt_get(&ggtt->vm.total, &gmadr_base, &ggtt->mappable_end);
 
-	ggtt->gmadr =
-		(struct resource)DEFINE_RES_MEM(gmadr_base, ggtt->mappable_end);
+	ggtt->gmadr = DEFINE_RES_MEM(gmadr_base, ggtt->mappable_end);
 
 	ggtt->vm.alloc_pt_dma = alloc_pt_dma;
 	ggtt->vm.alloc_scratch_dma = alloc_pt_dma;
@@ -104,6 +102,7 @@ int intel_ggtt_gmch_probe(struct i915_ggtt *ggtt)
 	ggtt->vm.insert_page = gmch_ggtt_insert_page;
 	ggtt->vm.insert_entries = gmch_ggtt_insert_entries;
 	ggtt->vm.clear_range = gmch_ggtt_clear_range;
+	ggtt->vm.scratch_range = gmch_ggtt_clear_range;
 	ggtt->vm.cleanup = gmch_ggtt_remove;
 
 	ggtt->invalidate = gmch_ggtt_invalidate;

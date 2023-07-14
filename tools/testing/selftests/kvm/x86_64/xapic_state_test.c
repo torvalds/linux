@@ -114,7 +114,9 @@ static void test_icr(struct xapic_vcpu *x)
 	 * vCPUs, not vcpu.id + 1.  Arbitrarily use vector 0xff.
 	 */
 	icr = APIC_INT_ASSERT | 0xff;
-	for (i = vcpu->id + 1; i < 0xff; i++) {
+	for (i = 0; i < 0xff; i++) {
+		if (i == vcpu->id)
+			continue;
 		for (j = 0; j < 8; j++)
 			__test_icr(x, i << (32 + 24) | icr | (j << 8));
 	}
@@ -128,6 +130,59 @@ static void test_icr(struct xapic_vcpu *x)
 	__test_icr(x, 0xa5a5a5a5a5a5a5a5 & ~APIC_DM_FIXED_MASK);
 	__test_icr(x, 0x5a5a5a5a5a5a5a5a & ~APIC_DM_FIXED_MASK);
 	__test_icr(x, -1ull & ~APIC_DM_FIXED_MASK);
+}
+
+static void __test_apic_id(struct kvm_vcpu *vcpu, uint64_t apic_base)
+{
+	uint32_t apic_id, expected;
+	struct kvm_lapic_state xapic;
+
+	vcpu_set_msr(vcpu, MSR_IA32_APICBASE, apic_base);
+
+	vcpu_ioctl(vcpu, KVM_GET_LAPIC, &xapic);
+
+	expected = apic_base & X2APIC_ENABLE ? vcpu->id : vcpu->id << 24;
+	apic_id = *((u32 *)&xapic.regs[APIC_ID]);
+
+	TEST_ASSERT(apic_id == expected,
+		    "APIC_ID not set back to %s format; wanted = %x, got = %x",
+		    (apic_base & X2APIC_ENABLE) ? "x2APIC" : "xAPIC",
+		    expected, apic_id);
+}
+
+/*
+ * Verify that KVM switches the APIC_ID between xAPIC and x2APIC when userspace
+ * stuffs MSR_IA32_APICBASE.  Setting the APIC_ID when x2APIC is enabled and
+ * when the APIC transitions for DISABLED to ENABLED is architectural behavior
+ * (on Intel), whereas the x2APIC => xAPIC transition behavior is KVM ABI since
+ * attempted to transition from x2APIC to xAPIC without disabling the APIC is
+ * architecturally disallowed.
+ */
+static void test_apic_id(void)
+{
+	const uint32_t NR_VCPUS = 3;
+	struct kvm_vcpu *vcpus[NR_VCPUS];
+	uint64_t apic_base;
+	struct kvm_vm *vm;
+	int i;
+
+	vm = vm_create_with_vcpus(NR_VCPUS, NULL, vcpus);
+	vm_enable_cap(vm, KVM_CAP_X2APIC_API, KVM_X2APIC_API_USE_32BIT_IDS);
+
+	for (i = 0; i < NR_VCPUS; i++) {
+		apic_base = vcpu_get_msr(vcpus[i], MSR_IA32_APICBASE);
+
+		TEST_ASSERT(apic_base & MSR_IA32_APICBASE_ENABLE,
+			    "APIC not in ENABLED state at vCPU RESET");
+		TEST_ASSERT(!(apic_base & X2APIC_ENABLE),
+			    "APIC not in xAPIC mode at vCPU RESET");
+
+		__test_apic_id(vcpus[i], apic_base);
+		__test_apic_id(vcpus[i], apic_base | X2APIC_ENABLE);
+		__test_apic_id(vcpus[i], apic_base);
+	}
+
+	kvm_vm_free(vm);
 }
 
 int main(int argc, char *argv[])
@@ -155,4 +210,6 @@ int main(int argc, char *argv[])
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 	test_icr(&x);
 	kvm_vm_free(vm);
+
+	test_apic_id();
 }

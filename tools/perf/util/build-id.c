@@ -58,9 +58,11 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
+	addr_location__init(&al);
 	if (thread__find_map(thread, sample->cpumode, sample->ip, &al))
-		al.map->dso->hit = 1;
+		map__dso(al.map)->hit = 1;
 
+	addr_location__exit(&al);
 	thread__put(thread);
 	return 0;
 }
@@ -715,9 +717,13 @@ build_id_cache__add(const char *sbuild_id, const char *name, const char *realnam
 		} else if (nsi && nsinfo__need_setns(nsi)) {
 			if (copyfile_ns(name, filename, nsi))
 				goto out_free;
-		} else if (link(realname, filename) && errno != EEXIST &&
-				copyfile(name, filename))
-			goto out_free;
+		} else if (link(realname, filename) && errno != EEXIST) {
+			struct stat f_stat;
+
+			if (!(stat(name, &f_stat) < 0) &&
+					copyfile_mode(name, filename, f_stat.st_mode))
+				goto out_free;
+		}
 	}
 
 	/* Some binaries are stripped, but have .debug files with their symbol
@@ -898,11 +904,15 @@ static int filename__read_build_id_ns(const char *filename,
 static bool dso__build_id_mismatch(struct dso *dso, const char *name)
 {
 	struct build_id bid;
+	bool ret = false;
 
-	if (filename__read_build_id_ns(name, &bid, dso->nsinfo) < 0)
-		return false;
+	mutex_lock(&dso->lock);
+	if (filename__read_build_id_ns(name, &bid, dso->nsinfo) >= 0)
+		ret = !dso__build_id_equal(dso, &bid);
 
-	return !dso__build_id_equal(dso, &bid);
+	mutex_unlock(&dso->lock);
+
+	return ret;
 }
 
 static int dso__cache_build_id(struct dso *dso, struct machine *machine,
@@ -941,8 +951,10 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 	if (!is_kallsyms && dso__build_id_mismatch(dso, name))
 		goto out_free;
 
+	mutex_lock(&dso->lock);
 	ret = build_id_cache__add_b(&dso->bid, name, dso->nsinfo,
 				    is_kallsyms, is_vdso, proper_name, root_dir);
+	mutex_unlock(&dso->lock);
 out_free:
 	free(allocated_name);
 	return ret;

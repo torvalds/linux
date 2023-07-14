@@ -511,8 +511,7 @@ static struct lp55xx_device_config lp5562_cfg = {
 	.dev_attr_group     = &lp5562_group,
 };
 
-static int lp5562_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lp5562_probe(struct i2c_client *client)
 {
 	int ret;
 	struct lp55xx_chip *chip;

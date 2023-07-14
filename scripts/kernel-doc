@@ -23,7 +23,7 @@ kernel-doc - Print formatted kernel documentation to stdout
 
 =head1 SYNOPSIS
 
- kernel-doc [-h] [-v] [-Werror]
+ kernel-doc [-h] [-v] [-Werror] [-Wall] [-Wreturn] [-Wshort-description] [-Wcontents-before-sections]
    [ -man |
      -rst [-sphinx-version VERSION] [-enable-lineno] |
      -none
@@ -64,7 +64,7 @@ my $type_constant = '\b``([^\`]+)``\b';
 my $type_constant2 = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)';
-my $type_param_ref = '([\!]?)\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)';
+my $type_param_ref = '([\!~]?)\@(\w*((\.\w+)|(->\w+))*(\.\.\.)?)';
 my $type_fp_param = '\@(\w+)\(\)';  # Special RST handling for func ptr params
 my $type_fp_param2 = '\@(\w+->\S+)\(\)';  # Special RST handling for structs with func ptr params
 my $type_env = '(\$\w+)';
@@ -133,6 +133,9 @@ my $dohighlight = "";
 
 my $verbose = 0;
 my $Werror = 0;
+my $Wreturn = 0;
+my $Wshort_desc = 0;
+my $Wcontents_before_sections = 0;
 my $output_mode = "rst";
 my $output_preformatted = 0;
 my $no_doc_sections = 0;
@@ -175,8 +178,8 @@ my $declaration_start_line;
 my ($type, $declaration_name, $return_type);
 my ($newsection, $newcontents, $prototype, $brcount, %source_map);
 
-if (defined($ENV{'KBUILD_VERBOSE'})) {
-	$verbose = "$ENV{'KBUILD_VERBOSE'}";
+if (defined($ENV{'KBUILD_VERBOSE'}) && $ENV{'KBUILD_VERBOSE'} =~ '1') {
+	$verbose = 1;
 }
 
 if (defined($ENV{'KCFLAGS'})) {
@@ -187,9 +190,14 @@ if (defined($ENV{'KCFLAGS'})) {
 	}
 }
 
+# reading this variable is for backwards compat just in case
+# someone was calling it with the variable from outside the
+# kernel's build system
 if (defined($ENV{'KDOC_WERROR'})) {
 	$Werror = "$ENV{'KDOC_WERROR'}";
 }
+# other environment variables are converted to command-line
+# arguments in cmd_checkdoc in the build system
 
 # Generated docbook code is inserted in a template at a point where
 # docbook v3.1 requires a non-zero sequence of RefEntry's; see:
@@ -256,6 +264,7 @@ my $doc_inline_sect = '\s*\*\s*(@\s*[\w][\w\.]*\s*):(.*)';
 my $doc_inline_end = '^\s*\*/\s*$';
 my $doc_inline_oneline = '^\s*/\*\*\s*(@[\w\s]+):\s*(.*)\s*\*/\s*$';
 my $export_symbol = '^\s*EXPORT_SYMBOL(_GPL)?\s*\(\s*(\w+)\s*\)\s*;';
+my $export_symbol_ns = '^\s*EXPORT_SYMBOL_NS(_GPL)?\s*\(\s*(\w+)\s*,\s*\w+\)\s*;';
 my $function_pointer = qr{([^\(]*\(\*)\s*\)\s*\(([^\)]*)\)};
 my $attribute = qr{__attribute__\s*\(\([a-z0-9,_\*\s\(\)]*\)\)}i;
 
@@ -317,6 +326,16 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	$verbose = 1;
     } elsif ($cmd eq "Werror") {
 	$Werror = 1;
+    } elsif ($cmd eq "Wreturn") {
+	$Wreturn = 1;
+    } elsif ($cmd eq "Wshort-desc") {
+	$Wshort_desc = 1;
+    } elsif ($cmd eq "Wcontents-before-sections") {
+	$Wcontents_before_sections = 1;
+    } elsif ($cmd eq "Wall") {
+        $Wreturn = 1;
+        $Wshort_desc = 1;
+        $Wcontents_before_sections = 1;
     } elsif (($cmd eq "h") || ($cmd eq "help")) {
 		pod2usage(-exitval => 0, -verbose => 2);
     } elsif ($cmd eq 'no-doc-sections') {
@@ -866,48 +885,53 @@ sub output_function_rst(%) {
 	print "\n";
     }
 
-    print "**Parameters**\n\n";
+    #
+    # Put our descriptive text into a container (thus an HTML <div>) to help
+    # set the function prototypes apart.
+    #
+    print ".. container:: kernelindent\n\n";
     $lineprefix = "  ";
+    print $lineprefix . "**Parameters**\n\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	my $parameter_name = $parameter;
 	$parameter_name =~ s/\[.*//;
 	$type = $args{'parametertypes'}{$parameter};
 
 	if ($type ne "") {
-	    print "``$type``\n";
+	    print $lineprefix . "``$type``\n";
 	} else {
-	    print "``$parameter``\n";
+	    print $lineprefix . "``$parameter``\n";
 	}
 
         print_lineno($parameterdesc_start_lines{$parameter_name});
 
+	$lineprefix = "    ";
 	if (defined($args{'parameterdescs'}{$parameter_name}) &&
 	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	} else {
-	    print "  *undescribed*\n";
+	    print $lineprefix . "*undescribed*\n";
 	}
+	$lineprefix = "  ";
 	print "\n";
     }
 
-    $lineprefix = $oldprefix;
     output_section_rst(@_);
+    $lineprefix = $oldprefix;
 }
 
 sub output_section_rst(%) {
     my %args = %{$_[0]};
     my $section;
     my $oldprefix = $lineprefix;
-    $lineprefix = "";
 
     foreach $section (@{$args{'sectionlist'}}) {
-	print "**$section**\n\n";
+	print $lineprefix . "**$section**\n\n";
         print_lineno($section_start_lines{$section});
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
     print "\n";
-    $lineprefix = $oldprefix;
 }
 
 sub output_enum_rst(%) {
@@ -915,6 +939,7 @@ sub output_enum_rst(%) {
     my ($parameter);
     my $oldprefix = $lineprefix;
     my $count;
+    my $outer;
 
     if ($sphinx_major < 3) {
 	my $name = "enum " . $args{'enum'};
@@ -924,22 +949,25 @@ sub output_enum_rst(%) {
 	print "\n\n.. c:enum:: " . $name . "\n\n";
     }
     print_lineno($declaration_start_line);
-    $lineprefix = "   ";
+    $lineprefix = "  ";
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print "**Constants**\n\n";
-    $lineprefix = "  ";
+    print ".. container:: kernelindent\n\n";
+    $outer = $lineprefix . "  ";
+    $lineprefix = $outer . "  ";
+    print $outer . "**Constants**\n\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
-	print "``$parameter``\n";
+	print $outer . "``$parameter``\n";
+
 	if ($args{'parameterdescs'}{$parameter} ne $undescribed) {
 	    output_highlight_rst($args{'parameterdescs'}{$parameter});
 	} else {
-	    print "  *undescribed*\n";
+	    print $lineprefix . "*undescribed*\n";
 	}
 	print "\n";
     }
-
+    print "\n";
     $lineprefix = $oldprefix;
     output_section_rst(@_);
 }
@@ -982,18 +1010,19 @@ sub output_struct_rst(%) {
 	}
     }
     print_lineno($declaration_start_line);
-    $lineprefix = "   ";
+    $lineprefix = "  ";
     output_highlight_rst($args{'purpose'});
     print "\n";
 
-    print "**Definition**\n\n";
-    print "::\n\n";
+    print ".. container:: kernelindent\n\n";
+    print $lineprefix . "**Definition**::\n\n";
     my $declaration = $args{'definition'};
-    $declaration =~ s/\t/  /g;
-    print "  " . $args{'type'} . " " . $args{'struct'} . " {\n$declaration  };\n\n";
+    $lineprefix = $lineprefix . "  ";
+    $declaration =~ s/\t/$lineprefix/g;
+    print $lineprefix . $args{'type'} . " " . $args{'struct'} . " {\n$declaration" . $lineprefix . "};\n\n";
 
-    print "**Members**\n\n";
     $lineprefix = "  ";
+    print $lineprefix . "**Members**\n\n";
     foreach $parameter (@{$args{'parameterlist'}}) {
 	($parameter =~ /^#/) && next;
 
@@ -1003,8 +1032,10 @@ sub output_struct_rst(%) {
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
         print_lineno($parameterdesc_start_lines{$parameter_name});
-	print "``" . $parameter . "``\n";
+	print $lineprefix . "``" . $parameter . "``\n";
+	$lineprefix = "    ";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
+	$lineprefix = "  ";
 	print "\n";
     }
     print "\n";
@@ -1288,6 +1319,9 @@ sub dump_enum($$) {
     my $file = shift;
     my $members;
 
+    # ignore members marked private:
+    $x =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gosi;
+    $x =~ s/\/\*\s*private:.*}/}/gosi;
 
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
     # strip #define macros inside enums
@@ -1448,6 +1482,8 @@ sub create_parameterlist($$$$) {
     foreach my $arg (split($splitter, $args)) {
 	# strip comments
 	$arg =~ s/\/\*.*\*\///;
+	# ignore argument attributes
+	$arg =~ s/\sPOS0?\s/ /;
 	# strip leading/trailing spaces
 	$arg =~ s/^\s*//;
 	$arg =~ s/\s*$//;
@@ -1657,6 +1693,7 @@ sub dump_function($$) {
     $prototype =~ s/^__inline +//;
     $prototype =~ s/^__always_inline +//;
     $prototype =~ s/^noinline +//;
+    $prototype =~ s/^__FORTIFY_INLINE +//;
     $prototype =~ s/__init +//;
     $prototype =~ s/__init_or_module +//;
     $prototype =~ s/__deprecated +//;
@@ -1666,7 +1703,8 @@ sub dump_function($$) {
     $prototype =~ s/__weak +//;
     $prototype =~ s/__sched +//;
     $prototype =~ s/__printf\s*\(\s*\d*\s*,\s*\d*\s*\) +//;
-    $prototype =~ s/__alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +//;
+    $prototype =~ s/__(?:re)?alloc_size\s*\(\s*\d+\s*(?:,\s*\d+\s*)?\) +//;
+    $prototype =~ s/__diagnose_as\s*\(\s*\S+\s*(?:,\s*\d+\s*)*\) +//;
     my $define = $prototype =~ s/^#\s*define\s+//; #ak added
     $prototype =~ s/__attribute_const__ +//;
     $prototype =~ s/__attribute__\s*\(\(
@@ -1731,9 +1769,9 @@ sub dump_function($$) {
     # This check emits a lot of warnings at the moment, because many
     # functions don't have a 'Return' doc section. So until the number
     # of warnings goes sufficiently down, the check is only performed in
-    # verbose mode.
+    # -Wreturn mode.
     # TODO: always perform the check.
-    if ($verbose && !$noret) {
+    if ($Wreturn && !$noret) {
 	    check_return_section($file, $declaration_name, $return_type);
     }
 
@@ -1948,6 +1986,10 @@ sub process_export_file($) {
 	    next if (defined($nosymbol_table{$2}));
 	    $function_table{$2} = 1;
 	}
+	if (/$export_symbol_ns/) {
+	    next if (defined($nosymbol_table{$2}));
+	    $function_table{$2} = 1;
+	}
     }
 
     close(IN);
@@ -2033,7 +2075,7 @@ sub process_name($$) {
 	    $state = STATE_NORMAL;
 	}
 
-	if (($declaration_purpose eq "") && $verbose) {
+	if (($declaration_purpose eq "") && $Wshort_desc) {
 	    emit_warning("${file}:$.", "missing initial short description on line:\n$_");
 	}
 
@@ -2057,17 +2099,6 @@ sub process_name($$) {
 #
 sub process_body($$) {
     my $file = shift;
-
-    # Until all named variable macro parameters are
-    # documented using the bare name (`x`) rather than with
-    # dots (`x...`), strip the dots:
-    if ($section =~ /\w\.\.\.$/) {
-	$section =~ s/\.\.\.$//;
-
-	if ($verbose) {
-	    emit_warning("${file}:$.", "Variable macro arguments should be documented without dots\n");
-	}
-    }
 
     if ($state == STATE_BODY_WITH_BLANK_LINE && /^\s*\*\s?\S/) {
 	dump_section($file, $section, $contents);
@@ -2093,7 +2124,7 @@ sub process_body($$) {
 	}
 
 	if (($contents ne "") && ($contents ne "\n")) {
-	    if (!$in_doc_sect && $verbose) {
+	    if (!$in_doc_sect && $Wcontents_before_sections) {
 		emit_warning("${file}:$.", "contents before sections\n");
 	    }
 	    dump_section($file, $section, $contents);
@@ -2419,12 +2450,12 @@ found on PATH.
 =item -export
 
 Only output documentation for the symbols that have been exported using
-EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL() in any input FILE or -export-file FILE.
+EXPORT_SYMBOL() and related macros in any input FILE or -export-file FILE.
 
 =item -internal
 
 Only output documentation for the symbols that have NOT been exported using
-EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL() in any input FILE or -export-file FILE.
+EXPORT_SYMBOL() and related macros in any input FILE or -export-file FILE.
 
 =item -function NAME
 
@@ -2451,8 +2482,7 @@ Do not output DOC: sections.
 
 =item -export-file FILE
 
-Specify an additional FILE in which to look for EXPORT_SYMBOL() and
-EXPORT_SYMBOL_GPL().
+Specify an additional FILE in which to look for EXPORT_SYMBOL information.
 
 To be used with -export or -internal.
 

@@ -143,6 +143,7 @@ static const struct platform_suspend_ops pseries_suspend_ops = {
  **/
 static int pseries_suspend_sysfs_register(struct device *dev)
 {
+	struct device *dev_root;
 	int rc;
 
 	if ((rc = subsys_system_register(&suspend_subsys, NULL)))
@@ -151,8 +152,13 @@ static int pseries_suspend_sysfs_register(struct device *dev)
 	dev->id = 0;
 	dev->bus = &suspend_subsys;
 
-	if ((rc = device_create_file(suspend_subsys.dev_root, &dev_attr_hibernate)))
-		goto subsys_unregister;
+	dev_root = bus_get_dev_root(&suspend_subsys);
+	if (dev_root) {
+		rc = device_create_file(dev_root, &dev_attr_hibernate);
+		put_device(dev_root);
+		if (rc)
+			goto subsys_unregister;
+	}
 
 	return 0;
 

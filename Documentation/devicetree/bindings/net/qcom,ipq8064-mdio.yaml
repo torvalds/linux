@@ -14,7 +14,7 @@ description:
   used to communicate with the gmac phy connected.
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio.yaml#
 
 properties:
   compatible:
@@ -53,7 +53,9 @@ examples:
             reg = <0x10>;
 
             ports {
-              /* ... */
+                #address-cells = <1>;
+                #size-cells = <0>;
+                /* ... */
             };
         };
     };

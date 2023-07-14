@@ -104,7 +104,8 @@ static void parse_options(int argc, char *argv[], unsigned int *ifindex, __u32 *
 		{ "tc", no_argument, NULL, 'c' },
 		{ NULL, 0, NULL, 0 },
 	};
-	unsigned long mss4, mss6, wscale, ttl;
+	unsigned long mss4, wscale, ttl;
+	unsigned long long mss6;
 	unsigned int tcpipopts_mask = 0;
 
 	if (argc < 2)
@@ -115,6 +116,7 @@ static void parse_options(int argc, char *argv[], unsigned int *ifindex, __u32 *
 	*tcpipopts = 0;
 	*ports = NULL;
 	*single = false;
+	*tc = false;
 
 	while (true) {
 		int opt;
@@ -215,9 +217,10 @@ static int syncookie_attach(const char *argv0, unsigned int ifindex, bool tc)
 
 	prog_fd = bpf_program__fd(prog);
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err < 0) {
-		fprintf(stderr, "Error: bpf_obj_get_info_by_fd: %s\n", strerror(-err));
+		fprintf(stderr, "Error: bpf_prog_get_info_by_fd: %s\n",
+			strerror(-err));
 		goto out;
 	}
 	attached_tc = tc;
@@ -286,13 +289,14 @@ static int syncookie_open_bpf_maps(__u32 prog_id, int *values_map_fd, int *ports
 
 	prog_info = (struct bpf_prog_info) {
 		.nr_map_ids = 8,
-		.map_ids = (__u64)map_ids,
+		.map_ids = (__u64)(unsigned long)map_ids,
 	};
 	info_len = sizeof(prog_info);
 
-	err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+	err = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &info_len);
 	if (err != 0) {
-		fprintf(stderr, "Error: bpf_obj_get_info_by_fd: %s\n", strerror(-err));
+		fprintf(stderr, "Error: bpf_prog_get_info_by_fd: %s\n",
+			strerror(-err));
 		goto out;
 	}
 
@@ -315,9 +319,10 @@ static int syncookie_open_bpf_maps(__u32 prog_id, int *values_map_fd, int *ports
 		map_fd = err;
 
 		info_len = sizeof(map_info);
-		err = bpf_obj_get_info_by_fd(map_fd, &map_info, &info_len);
+		err = bpf_map_get_info_by_fd(map_fd, &map_info, &info_len);
 		if (err != 0) {
-			fprintf(stderr, "Error: bpf_obj_get_info_by_fd: %s\n", strerror(-err));
+			fprintf(stderr, "Error: bpf_map_get_info_by_fd: %s\n",
+				strerror(-err));
 			close(map_fd);
 			goto err_close_map_fds;
 		}

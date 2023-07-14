@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_CORE_H
@@ -52,6 +52,7 @@
 #define ATH11K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 extern unsigned int ath11k_frame_mode;
+extern bool ath11k_ftm_mode;
 
 #define ATH11K_SCAN_TIMEOUT_HZ (20 * HZ)
 
@@ -142,6 +143,7 @@ enum ath11k_hw_rev {
 	ATH11K_HW_WCN6855_HW20,
 	ATH11K_HW_WCN6855_HW21,
 	ATH11K_HW_WCN6750_HW10,
+	ATH11K_HW_IPQ5018_HW10,
 };
 
 enum ath11k_firmware_mode {
@@ -230,6 +232,13 @@ struct ath11k_he {
 
 #define MAX_RADIOS 3
 
+/* ipq5018 hw param macros */
+#define MAX_RADIOS_5018	1
+#define CE_CNT_5018	6
+#define TARGET_CE_CNT_5018	9
+#define SVC_CE_MAP_LEN_5018	17
+#define RXDMA_PER_PDEV_5018	1
+
 enum {
 	WMI_HOST_TP_SCALE_MAX   = 0,
 	WMI_HOST_TP_SCALE_50    = 1,
@@ -269,6 +278,7 @@ enum ath11k_dev_flags {
 	ATH11K_FLAG_FIXED_MEM_RGN,
 	ATH11K_FLAG_DEVICE_INIT_DONE,
 	ATH11K_FLAG_MULTI_MSI_VECTORS,
+	ATH11K_FLAG_FTM_SEGMENTED,
 };
 
 enum ath11k_monitor_flags {
@@ -338,6 +348,7 @@ struct ath11k_vif {
 
 	bool is_started;
 	bool is_up;
+	bool ftm_responder;
 	bool spectral_enabled;
 	bool ps;
 	u32 aid;
@@ -505,13 +516,15 @@ struct ath11k_sta {
 	u64 ps_start_jiffies;
 	u64 ps_total_duration;
 	bool peer_current_ps_valid;
+
+	u32 bw_prev;
 };
 
 #define ATH11K_MIN_5G_FREQ 4150
 #define ATH11K_MIN_6G_FREQ 5925
 #define ATH11K_MAX_6G_FREQ 7115
-#define ATH11K_NUM_CHANS 101
-#define ATH11K_MAX_5G_CHAN 173
+#define ATH11K_NUM_CHANS 102
+#define ATH11K_MAX_5G_CHAN 177
 
 enum ath11k_state {
 	ATH11K_STATE_OFF,
@@ -519,6 +532,7 @@ enum ath11k_state {
 	ATH11K_STATE_RESTARTING,
 	ATH11K_STATE_RESTARTED,
 	ATH11K_STATE_WEDGED,
+	ATH11K_STATE_FTM,
 	/* Add other states as required */
 };
 
@@ -698,6 +712,8 @@ struct ath11k {
 	u32 last_ppdu_id;
 	u32 cached_ppdu_id;
 	int monitor_vdev_id;
+	struct completion fw_mode_reset;
+	u8 ftm_msgref;
 #ifdef CONFIG_ATH11K_DEBUGFS
 	struct ath11k_debug debug;
 #endif
@@ -827,6 +843,7 @@ struct ath11k_msi_config {
 /* Master structure to hold the hw data which may be used in core module */
 struct ath11k_base {
 	enum ath11k_hw_rev hw_rev;
+	enum ath11k_firmware_mode fw_mode;
 	struct platform_device *pdev;
 	struct device *dev;
 	struct ath11k_qmi qmi;
@@ -841,6 +858,7 @@ struct ath11k_base {
 	struct ath11k_dp dp;
 
 	void __iomem *mem;
+	void __iomem *mem_ce;
 	unsigned long mem_len;
 
 	struct {
@@ -910,7 +928,6 @@ struct ath11k_base {
 	enum ath11k_dfs_region dfs_region;
 #ifdef CONFIG_ATH11K_DEBUGFS
 	struct dentry *debugfs_soc;
-	struct dentry *debugfs_ath11k;
 #endif
 	struct ath11k_soc_dp_stats soc_stats;
 
@@ -966,6 +983,14 @@ struct ath11k_base {
 
 		const struct ath11k_pci_ops *ops;
 	} pci;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 data_pos;
+		u32 expected_seq;
+		u8 *eventdata;
+	} testmode;
+#endif
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -1136,6 +1161,9 @@ extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq6018
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qca6390[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qca6390[];
 
+extern const struct ce_pipe_config ath11k_target_ce_config_wlan_ipq5018[];
+extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_ipq5018[];
+
 extern const struct ce_pipe_config ath11k_target_ce_config_wlan_qcn9074[];
 extern const struct service_to_pipe ath11k_target_service_to_ce_map_wlan_qcn9074[];
 int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab);
@@ -1157,6 +1185,7 @@ int ath11k_core_check_smbios(struct ath11k_base *ab);
 void ath11k_core_halt(struct ath11k *ar);
 int ath11k_core_resume(struct ath11k_base *ab);
 int ath11k_core_suspend(struct ath11k_base *ab);
+void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab);
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
 						    const char *filename);

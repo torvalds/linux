@@ -238,12 +238,13 @@ static int upd78f0730_tiocmset(struct tty_struct *tty,
 	return res;
 }
 
-static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
+static int upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct upd78f0730_port_private *private;
 	struct usb_serial_port *port = tty->driver_data;
 	struct upd78f0730_set_dtr_rts request;
 	struct device *dev = &port->dev;
+	int res;
 
 	private = usb_get_serial_port_data(port);
 
@@ -258,8 +259,10 @@ static void upd78f0730_break_ctl(struct tty_struct *tty, int break_state)
 	request.opcode = UPD78F0730_CMD_SET_DTR_RTS;
 	request.params = private->line_signals;
 
-	upd78f0730_send_ctl(port, &request, sizeof(request));
+	res = upd78f0730_send_ctl(port, &request, sizeof(request));
 	mutex_unlock(&private->lock);
+
+	return res;
 }
 
 static void upd78f0730_dtr_rts(struct usb_serial_port *port, int on)
@@ -296,8 +299,8 @@ static speed_t upd78f0730_get_baud_rate(struct tty_struct *tty)
 }
 
 static void upd78f0730_set_termios(struct tty_struct *tty,
-				struct usb_serial_port *port,
-				struct ktermios *old_termios)
+				   struct usb_serial_port *port,
+				   const struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
 	struct upd78f0730_line_control request;

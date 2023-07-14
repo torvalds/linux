@@ -45,7 +45,6 @@ description:
   from S-mode. So add thead,c900-plic to distinguish them.
 
 maintainers:
-  - Sagar Kadam <sagar.kadam@sifive.com>
   - Paul Walmsley  <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@dabbelt.com>
 
@@ -58,14 +57,21 @@ properties:
           - const: andestech,nceplic100
       - items:
           - enum:
+              - canaan,k210-plic
               - sifive,fu540-c000-plic
               - starfive,jh7100-plic
-              - canaan,k210-plic
+              - starfive,jh7110-plic
           - const: sifive,plic-1.0.0
       - items:
           - enum:
               - allwinner,sun20i-d1-plic
+              - thead,th1520-plic
           - const: thead,c900-plic
+      - items:
+          - const: sifive,plic-1.0.0
+          - const: riscv,plic0
+        deprecated: true
+        description: For the QEMU virt machine only
 
   reg:
     maxItems: 1
@@ -86,7 +92,7 @@ properties:
       riscv,cpu-intc node, which has a riscv node as parent.
 
   riscv,ndev:
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Specifies how many external interrupts are supported by this controller.
 

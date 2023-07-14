@@ -25,6 +25,13 @@ enum vpu_compatible {
 	VPU_COMPATIBLE_G12A = 3,
 };
 
+enum {
+	MESON_ENC_CVBS = 0,
+	MESON_ENC_HDMI,
+	MESON_ENC_DSI,
+	MESON_ENC_LAST,
+};
+
 struct meson_drm_match_data {
 	enum vpu_compatible compat;
 	struct meson_afbcd_ops *afbcd_ops;
@@ -51,6 +58,7 @@ struct meson_drm {
 	struct drm_crtc *crtc;
 	struct drm_plane *primary_plane;
 	struct drm_plane *overlay_plane;
+	void *encoders[MESON_ENC_LAST];
 
 	const struct meson_drm_soc_limits *limits;
 

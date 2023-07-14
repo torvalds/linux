@@ -9,6 +9,9 @@ title: UniPhier AIO audio system
 maintainers:
   - <alsa-devel@alsa-project.org>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     enum:
@@ -39,7 +42,7 @@ properties:
       Specifies a phandle to soc-glue, which is used for changing mode of S/PDIF
       signal pin to output from Hi-Z. This property is optional if you use I2S
       signal pins only.
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   "#sound-dai-cells":
     const: 1
@@ -70,7 +73,7 @@ patternProperties:
     $ref: audio-graph-port.yaml#
     unevaluatedProperties: false
 
-additionalProperties: false
+unevaluatedProperties: false
 
 required:
   - compatible

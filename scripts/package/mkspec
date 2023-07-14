@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #	Output a simple RPM spec file.
-#	This version assumes a minimum of RPM 4.0.3.
+#	This version assumes a minimum of RPM 4.13
 #
 #	The only gothic bit here is redefining install_post to avoid
 #	stripping the symbols from files in the kernel which we want
@@ -15,19 +15,19 @@ if [ "$1" = prebuilt ]; then
 	MAKE="$MAKE -f $srctree/Makefile"
 else
 	S=
+
+	mkdir -p rpmbuild/SOURCES
+	cp linux.tar.gz rpmbuild/SOURCES
+	cp "${KCONFIG_CONFIG}" rpmbuild/SOURCES/config
+	"${srctree}/scripts/package/gen-diff-patch" rpmbuild/SOURCES/diff.patch
 fi
 
-if grep -q CONFIG_MODULES=y .config; then
+if grep -q CONFIG_MODULES=y include/config/auto.conf; then
 	M=
 else
 	M=DEL
 fi
 
-if grep -q CONFIG_DRM=y .config; then
-	PROVIDES=kernel-drm
-fi
-
-PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
 __KERNELRELEASE=$(echo $KERNELRELEASE | sed -e "s/-/_/g")
 EXCLUDES="$RCS_TAR_IGNORE --exclude=*vmlinux* --exclude=*.mod \
 --exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation \
@@ -47,8 +47,14 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 	Group: System Environment/Kernel
 	Vendor: The Linux Community
 	URL: https://www.kernel.org
-$S	Source: kernel-$__KERNELRELEASE.tar.gz
-	Provides: $PROVIDES
+$S	Source0: linux.tar.gz
+$S	Source1: config
+$S	Source2: diff.patch
+	Provides: kernel-$KERNELRELEASE
+$S	BuildRequires: bc binutils bison dwarves
+$S	BuildRequires: (elfutils-libelf-devel or libelf-devel) flex
+$S	BuildRequires: gcc make openssl openssl-devel perl python3 rsync
+
 	# $UTS_MACHINE as a fallback of _arch in case
 	# /usr/lib/rpm/platform/*/macros was not included.
 	%define _arch %{?_arch:$UTS_MACHINE}
@@ -79,26 +85,26 @@ $S$M	This package provides kernel headers and makefiles sufficient to build modu
 $S$M	against the $__KERNELRELEASE kernel package.
 $S$M
 $S	%prep
-$S	%setup -q
+$S	%setup -q -n linux
+$S	cp %{SOURCE1} .config
+$S	patch -p1 < %{SOURCE2}
 $S
 $S	%build
-$S	$MAKE %{?_smp_mflags} KBUILD_BUILD_VERSION=%{release}
+$S	$MAKE %{?_smp_mflags} KERNELRELEASE=$KERNELRELEASE KBUILD_BUILD_VERSION=%{release}
 $S
 	%install
 	mkdir -p %{buildroot}/boot
 	%ifarch ia64
 	mkdir -p %{buildroot}/boot/efi
-	cp \$($MAKE image_name) %{buildroot}/boot/efi/vmlinuz-$KERNELRELEASE
+	cp \$($MAKE -s image_name) %{buildroot}/boot/efi/vmlinuz-$KERNELRELEASE
 	ln -s efi/vmlinuz-$KERNELRELEASE %{buildroot}/boot/
 	%else
-	cp \$($MAKE image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
+	cp \$($MAKE -s image_name) %{buildroot}/boot/vmlinuz-$KERNELRELEASE
 	%endif
 $M	$MAKE %{?_smp_mflags} INSTALL_MOD_PATH=%{buildroot} modules_install
 	$MAKE %{?_smp_mflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
 	cp System.map %{buildroot}/boot/System.map-$KERNELRELEASE
 	cp .config %{buildroot}/boot/config-$KERNELRELEASE
-	bzip2 -9 --keep vmlinux
-	mv vmlinux.bz2 %{buildroot}/boot/vmlinux-$KERNELRELEASE.bz2
 $S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/build
 $S$M	rm -f %{buildroot}/lib/modules/$KERNELRELEASE/source
 $S$M	mkdir -p %{buildroot}/usr/src/kernels/$KERNELRELEASE

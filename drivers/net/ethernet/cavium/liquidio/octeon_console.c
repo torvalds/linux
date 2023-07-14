@@ -247,8 +247,7 @@ static const struct cvmx_bootmem_named_block_desc
 					struct cvmx_bootmem_named_block_desc,
 					size));
 
-		strncpy(desc->name, name, sizeof(desc->name));
-		desc->name[sizeof(desc->name) - 1] = 0;
+		strscpy(desc->name, name, sizeof(desc->name));
 		return &oct->bootmem_named_block_desc;
 	} else {
 		return NULL;
@@ -471,8 +470,8 @@ static void output_console_line(struct octeon_device *oct,
 	if (line != &console_buffer[bytes_read]) {
 		console_buffer[bytes_read] = '\0';
 		len = strlen(console->leftover);
-		strncpy(&console->leftover[len], line,
-			sizeof(console->leftover) - len);
+		strscpy(&console->leftover[len], line,
+			sizeof(console->leftover) - len + 1);
 	}
 }
 

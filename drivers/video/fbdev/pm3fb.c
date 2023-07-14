@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1315,6 +1316,10 @@ static int pm3fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	int err;
 	int retval = -ENXIO;
 
+	err = aperture_remove_conflicting_pci_devices(dev, "pm3fb");
+	if (err)
+		return err;
+
 	err = pci_enable_device(dev);
 	if (err) {
 		printk(KERN_WARNING "pm3fb: Can't enable PCI dev: %d\n", err);
@@ -1535,7 +1540,12 @@ static int __init pm3fb_init(void)
 	 */
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("pm3fb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("pm3fb", &option))
 		return -ENODEV;
 	pm3fb_setup(option);

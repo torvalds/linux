@@ -501,7 +501,7 @@ static umode_t ina238_is_visible(const void *drvdata,
 				HWMON_I_MAX | HWMON_I_MAX_ALARM | \
 				HWMON_I_MIN | HWMON_I_MIN_ALARM)
 
-static const struct hwmon_channel_info *ina238_info[] = {
+static const struct hwmon_channel_info * const ina238_info[] = {
 	HWMON_CHANNEL_INFO(in,
 			   /* 0: shunt voltage */
 			   INA238_HWMON_IN_CONFIG,
@@ -633,7 +633,7 @@ static struct i2c_driver ina238_driver = {
 		.name	= "ina238",
 		.of_match_table = of_match_ptr(ina238_of_match),
 	},
-	.probe_new	= ina238_probe,
+	.probe		= ina238_probe,
 	.id_table	= ina238_id,
 };
 

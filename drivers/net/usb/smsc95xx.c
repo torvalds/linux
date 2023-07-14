@@ -66,6 +66,7 @@ struct smsc95xx_priv {
 	spinlock_t mac_cr_lock;
 	u8 features;
 	u8 suspend_flags;
+	bool is_internal_phy;
 	struct irq_chip irqchip;
 	struct irq_domain *irqdomain;
 	struct fwnode_handle *irqfwnode;
@@ -250,6 +251,43 @@ static void smsc95xx_mdio_write(struct usbnet *dev, int phy_id, int idx,
 
 done:
 	mutex_unlock(&dev->phy_mutex);
+}
+
+static int smsc95xx_mdiobus_reset(struct mii_bus *bus)
+{
+	struct smsc95xx_priv *pdata;
+	struct usbnet *dev;
+	u32 val;
+	int ret;
+
+	dev = bus->priv;
+	pdata = dev->driver_priv;
+
+	if (pdata->is_internal_phy)
+		return 0;
+
+	mutex_lock(&dev->phy_mutex);
+
+	ret = smsc95xx_read_reg(dev, PM_CTRL, &val);
+	if (ret < 0)
+		goto reset_out;
+
+	val |= PM_CTL_PHY_RST_;
+
+	ret = smsc95xx_write_reg(dev, PM_CTRL, val);
+	if (ret < 0)
+		goto reset_out;
+
+	/* Driver has no knowledge at this point about the external PHY.
+	 * The 802.3 specifies that the reset process shall
+	 * be completed within 0.5 s.
+	 */
+	fsleep(500000);
+
+reset_out:
+	mutex_unlock(&dev->phy_mutex);
+
+	return 0;
 }
 
 static int smsc95xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
@@ -1052,7 +1090,6 @@ static void smsc95xx_handle_link_change(struct net_device *net)
 static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct smsc95xx_priv *pdata;
-	bool is_internal_phy;
 	char usb_path[64];
 	int ret, phy_irq;
 	u32 val;
@@ -1133,13 +1170,14 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ret < 0)
 		goto free_mdio;
 
-	is_internal_phy = !(val & HW_CFG_PSEL_);
-	if (is_internal_phy)
+	pdata->is_internal_phy = !(val & HW_CFG_PSEL_);
+	if (pdata->is_internal_phy)
 		pdata->mdiobus->phy_mask = ~(1u << SMSC95XX_INTERNAL_PHY_ID);
 
 	pdata->mdiobus->priv = dev;
 	pdata->mdiobus->read = smsc95xx_mdiobus_read;
 	pdata->mdiobus->write = smsc95xx_mdiobus_write;
+	pdata->mdiobus->reset = smsc95xx_mdiobus_reset;
 	pdata->mdiobus->name = "smsc95xx-mdiobus";
 	pdata->mdiobus->parent = &dev->udev->dev;
 
@@ -1160,7 +1198,7 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 
 	pdata->phydev->irq = phy_irq;
-	pdata->phydev->is_internal = is_internal_phy;
+	pdata->phydev->is_internal = pdata->is_internal_phy;
 
 	/* detect device revision as different features may be available */
 	ret = smsc95xx_read_reg(dev, ID_REV, &val);
@@ -1794,6 +1832,12 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		/* get the packet length */
 		size = (u16)((header & RX_STS_FL_) >> 16);
 		align_count = (4 - ((size + NET_IP_ALIGN) % 4)) % 4;
+
+		if (unlikely(size > skb->len)) {
+			netif_dbg(dev, rx_err, dev->net,
+				  "size err header=0x%08x\n", header);
+			return 0;
+		}
 
 		if (unlikely(header & RX_STS_ES_)) {
 			netif_dbg(dev, rx_err, dev->net,

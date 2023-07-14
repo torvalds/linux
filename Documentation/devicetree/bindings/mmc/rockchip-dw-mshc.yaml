@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mmc/rockchip-dw-mshc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Rockchip designware mobile storage host controller device tree bindings
+title: Rockchip designware mobile storage host controller
 
 description:
   Rockchip uses the Synopsys designware mobile storage host controller
@@ -14,7 +14,7 @@ description:
   file and the Rockchip specific extensions.
 
 allOf:
-  - $ref: "synopsys-dw-mshc-common.yaml#"
+  - $ref: synopsys-dw-mshc-common.yaml#
 
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>
@@ -32,12 +32,14 @@ properties:
               - rockchip,px30-dw-mshc
               - rockchip,rk1808-dw-mshc
               - rockchip,rk3036-dw-mshc
+              - rockchip,rk3128-dw-mshc
               - rockchip,rk3228-dw-mshc
               - rockchip,rk3308-dw-mshc
               - rockchip,rk3328-dw-mshc
               - rockchip,rk3368-dw-mshc
               - rockchip,rk3399-dw-mshc
               - rockchip,rk3568-dw-mshc
+              - rockchip,rk3588-dw-mshc
               - rockchip,rv1108-dw-mshc
               - rockchip,rv1126-dw-mshc
           - const: rockchip,rk3288-dw-mshc
@@ -69,6 +71,9 @@ properties:
       "ciu-drive" and "ciu-sample" are supported. They are used
       to control the clock phases, "ciu-sample" is required for tuning
       high speed modes.
+
+  power-domains:
+    maxItems: 1
 
   rockchip,default-sample-phase:
     $ref: /schemas/types.yaml#/definitions/uint32

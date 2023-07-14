@@ -124,9 +124,9 @@ void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
 		 info->virt, (long)info->order, kvm->arch.lpid);
 }
 
-long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
+int kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 {
-	long err = -EBUSY;
+	int err = -EBUSY;
 	struct kvm_hpt_info info;
 
 	mutex_lock(&kvm->arch.mmu_setup_lock);
@@ -415,20 +415,25 @@ static int kvmppc_mmu_book3s_64_hv_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
  * embodied here.)  If the instruction isn't a load or store, then
  * this doesn't return anything useful.
  */
-static int instruction_is_store(unsigned int instr)
+static int instruction_is_store(ppc_inst_t instr)
 {
 	unsigned int mask;
+	unsigned int suffix;
 
 	mask = 0x10000000;
-	if ((instr & 0xfc000000) == 0x7c000000)
+	suffix = ppc_inst_val(instr);
+	if (ppc_inst_prefixed(instr))
+		suffix = ppc_inst_suffix(instr);
+	else if ((suffix & 0xfc000000) == 0x7c000000)
 		mask = 0x100;		/* major opcode 31 */
-	return (instr & mask) != 0;
+	return (suffix & mask) != 0;
 }
 
 int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 			   unsigned long gpa, gva_t ea, int is_store)
 {
-	u32 last_inst;
+	ppc_inst_t last_inst;
+	bool is_prefixed = !!(kvmppc_get_msr(vcpu) & SRR1_PREFIXED);
 
 	/*
 	 * Fast path - check if the guest physical address corresponds to a
@@ -443,7 +448,7 @@ int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 				       NULL);
 		srcu_read_unlock(&vcpu->kvm->srcu, idx);
 		if (!ret) {
-			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
+			kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + (is_prefixed ? 8 : 4));
 			return RESUME_GUEST;
 		}
 	}
@@ -458,7 +463,16 @@ int kvmppc_hv_emulate_mmio(struct kvm_vcpu *vcpu,
 	/*
 	 * WARNING: We do not know for sure whether the instruction we just
 	 * read from memory is the same that caused the fault in the first
-	 * place.  If the instruction we read is neither an load or a store,
+	 * place.
+	 *
+	 * If the fault is prefixed but the instruction is not or vice
+	 * versa, try again so that we don't advance pc the wrong amount.
+	 */
+	if (ppc_inst_prefixed(last_inst) != is_prefixed)
+		return RESUME_GUEST;
+
+	/*
+	 * If the instruction we read is neither an load or a store,
 	 * then it can't access memory, so we don't need to worry about
 	 * enforcing access permissions.  So, assuming it is a load or
 	 * store, we just check that its direction (load or store) is
@@ -598,7 +612,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_vcpu *vcpu,
 		write_ok = true;
 	} else {
 		/* Call KVM generic code to do the slow-path check */
-		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, NULL,
+		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, false, NULL,
 					   writing, &write_ok, NULL);
 		if (is_error_noslot_pfn(pfn))
 			return -EFAULT;
@@ -1202,7 +1216,7 @@ static int resize_hpt_allocate(struct kvm_resize_hpt *resize)
 	if (rc < 0)
 		return rc;
 
-	resize_hpt_debug(resize, "resize_hpt_allocate(): HPT @ 0x%lx\n",
+	resize_hpt_debug(resize, "%s(): HPT @ 0x%lx\n", __func__,
 			 resize->hpt.virt);
 
 	return 0;
@@ -1443,7 +1457,7 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 		 */
 		mutex_unlock(&kvm->arch.mmu_setup_lock);
 
-		resize_hpt_debug(resize, "resize_hpt_prepare_work(): order = %d\n",
+		resize_hpt_debug(resize, "%s(): order = %d\n", __func__,
 				 resize->order);
 
 		err = resize_hpt_allocate(resize);
@@ -1468,8 +1482,8 @@ static void resize_hpt_prepare_work(struct work_struct *work)
 	mutex_unlock(&kvm->arch.mmu_setup_lock);
 }
 
-long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
-				     struct kvm_ppc_resize_hpt *rhpt)
+int kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
+				    struct kvm_ppc_resize_hpt *rhpt)
 {
 	unsigned long flags = rhpt->flags;
 	unsigned long shift = rhpt->shift;
@@ -1534,13 +1548,13 @@ static void resize_hpt_boot_vcpu(void *opaque)
 	/* Nothing to do, just force a KVM exit */
 }
 
-long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
-				    struct kvm_ppc_resize_hpt *rhpt)
+int kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
+				   struct kvm_ppc_resize_hpt *rhpt)
 {
 	unsigned long flags = rhpt->flags;
 	unsigned long shift = rhpt->shift;
 	struct kvm_resize_hpt *resize;
-	long ret;
+	int ret;
 
 	if (flags != 0 || kvm_is_radix(kvm))
 		return -EINVAL;
@@ -1887,8 +1901,7 @@ static ssize_t kvm_htab_write(struct file *file, const char __user *buf,
 			ret = kvmppc_virtmode_do_h_enter(kvm, H_EXACT, i, v, r,
 							 tmp);
 			if (ret != H_SUCCESS) {
-				pr_err("kvm_htab_write ret %ld i=%ld v=%lx "
-				       "r=%lx\n", ret, i, v, r);
+				pr_err("%s ret %ld i=%ld v=%lx r=%lx\n", __func__, ret, i, v, r);
 				goto out;
 			}
 			if (!mmu_ready && is_vrma_hpte(v)) {

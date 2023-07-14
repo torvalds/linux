@@ -39,7 +39,6 @@
 
 #define virt_addr_valid(kaddr)  ((void *)(kaddr) >= (void *)PAGE_OFFSET && \
 			(void *)(kaddr) < high_memory)
-#define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET && ((pfn) - ARCH_PFN_OFFSET) < max_mapnr)
 
 extern void *memset(void *dest, int c, size_t l);
 extern void *memcpy(void *to, const void *from, size_t l);

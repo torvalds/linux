@@ -14,7 +14,9 @@
 #include <linux/regmap.h>
 #include <linux/interrupt.h>
 #include <linux/usb/typec.h>
+#include <linux/usb/typec_altmode.h>
 #include <linux/usb/role.h>
+#include <linux/workqueue.h>
 
 #include "tps6598x.h"
 #include "trace.h"
@@ -94,7 +96,10 @@ struct tps6598x {
 	struct power_supply_desc psy_desc;
 	enum power_supply_usb_type usb_type;
 
+	int wakeup;
 	u16 pwr_status;
+	struct delayed_work	wq_poll;
+	irq_handler_t irq_handler;
 };
 
 static enum power_supply_property tps6598x_psy_props[] = {
@@ -175,16 +180,6 @@ static inline int tps6598x_read64(struct tps6598x *tps, u8 reg, u64 *val)
 	return tps6598x_block_read(tps, reg, val, sizeof(u64));
 }
 
-static inline int tps6598x_write16(struct tps6598x *tps, u8 reg, u16 val)
-{
-	return tps6598x_block_write(tps, reg, &val, sizeof(u16));
-}
-
-static inline int tps6598x_write32(struct tps6598x *tps, u8 reg, u32 val)
-{
-	return tps6598x_block_write(tps, reg, &val, sizeof(u32));
-}
-
 static inline int tps6598x_write64(struct tps6598x *tps, u8 reg, u64 val)
 {
 	return tps6598x_block_write(tps, reg, &val, sizeof(u64));
@@ -257,6 +252,7 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 		typec_set_orientation(tps->port, TYPEC_ORIENTATION_REVERSE);
 	else
 		typec_set_orientation(tps->port, TYPEC_ORIENTATION_NORMAL);
+	typec_set_mode(tps->port, TYPEC_STATE_USB);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), true);
 
 	tps->partner = typec_register_partner(tps->port, &desc);
@@ -280,6 +276,7 @@ static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 	typec_set_pwr_role(tps->port, TPS_STATUS_TO_TYPEC_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_TO_TYPEC_VCONN(status));
 	typec_set_orientation(tps->port, TYPEC_ORIENTATION_NONE);
+	typec_set_mode(tps->port, TYPEC_STATE_SAFE);
 	tps6598x_set_data_role(tps, TPS_STATUS_TO_TYPEC_DATAROLE(status), false);
 
 	power_supply_changed(tps->psy);
@@ -474,7 +471,7 @@ static void tps6598x_handle_plug_event(struct tps6598x *tps, u32 status)
 static irqreturn_t cd321x_interrupt(int irq, void *data)
 {
 	struct tps6598x *tps = data;
-	u64 event;
+	u64 event = 0;
 	u32 status;
 	int ret;
 
@@ -519,8 +516,8 @@ err_unlock:
 static irqreturn_t tps6598x_interrupt(int irq, void *data)
 {
 	struct tps6598x *tps = data;
-	u64 event1;
-	u64 event2;
+	u64 event1 = 0;
+	u64 event2 = 0;
 	u32 status;
 	int ret;
 
@@ -562,6 +559,18 @@ err_unlock:
 	if (event1 | event2)
 		return IRQ_HANDLED;
 	return IRQ_NONE;
+}
+
+/* Time interval for Polling */
+#define POLL_INTERVAL	500 /* msecs */
+static void tps6598x_poll_work(struct work_struct *work)
+{
+	struct tps6598x *tps = container_of(to_delayed_work(work),
+					    struct tps6598x, wq_poll);
+
+	tps->irq_handler(0, tps);
+	queue_delayed_work(system_power_efficient_wq,
+			   &tps->wq_poll, msecs_to_jiffies(POLL_INTERVAL));
 }
 
 static int tps6598x_check_mode(struct tps6598x *tps)
@@ -742,6 +751,7 @@ static int tps6598x_probe(struct i2c_client *client)
 			TPS_REG_INT_PLUG_EVENT;
 	}
 
+	tps->irq_handler = irq_handler;
 	/* Make sure the controller has application firmware running */
 	ret = tps6598x_check_mode(tps);
 	if (ret)
@@ -814,40 +824,55 @@ static int tps6598x_probe(struct i2c_client *client)
 
 	ret = devm_tps6598_psy_register(tps);
 	if (ret)
-		return ret;
+		goto err_role_put;
 
 	tps->port = typec_register_port(&client->dev, &typec_cap);
 	if (IS_ERR(tps->port)) {
 		ret = PTR_ERR(tps->port);
 		goto err_role_put;
 	}
-	fwnode_handle_put(fwnode);
 
 	if (status & TPS_STATUS_PLUG_PRESENT) {
 		ret = tps6598x_read16(tps, TPS_REG_POWER_STATUS, &tps->pwr_status);
 		if (ret < 0) {
 			dev_err(tps->dev, "failed to read power status: %d\n", ret);
-			goto err_role_put;
+			goto err_unregister_port;
 		}
 		ret = tps6598x_connect(tps, status);
 		if (ret)
 			dev_err(&client->dev, "failed to register partner\n");
 	}
 
-	ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
-					irq_handler,
-					IRQF_SHARED | IRQF_ONESHOT,
-					dev_name(&client->dev), tps);
-	if (ret) {
-		tps6598x_disconnect(tps, 0);
-		typec_unregister_port(tps->port);
-		goto err_role_put;
+	if (client->irq) {
+		ret = devm_request_threaded_irq(&client->dev, client->irq, NULL,
+						irq_handler,
+						IRQF_SHARED | IRQF_ONESHOT,
+						dev_name(&client->dev), tps);
+	} else {
+		dev_warn(tps->dev, "Unable to find the interrupt, switching to polling\n");
+		INIT_DELAYED_WORK(&tps->wq_poll, tps6598x_poll_work);
+		queue_delayed_work(system_power_efficient_wq, &tps->wq_poll,
+				   msecs_to_jiffies(POLL_INTERVAL));
 	}
 
+	if (ret)
+		goto err_disconnect;
+
 	i2c_set_clientdata(client, tps);
+	fwnode_handle_put(fwnode);
+
+	tps->wakeup = device_property_read_bool(tps->dev, "wakeup-source");
+	if (tps->wakeup && client->irq) {
+		device_init_wakeup(&client->dev, true);
+		enable_irq_wake(client->irq);
+	}
 
 	return 0;
 
+err_disconnect:
+	tps6598x_disconnect(tps, 0);
+err_unregister_port:
+	typec_unregister_port(tps->port);
 err_role_put:
 	usb_role_switch_put(tps->role_sw);
 err_fwnode_put:
@@ -861,10 +886,50 @@ static void tps6598x_remove(struct i2c_client *client)
 {
 	struct tps6598x *tps = i2c_get_clientdata(client);
 
+	if (!client->irq)
+		cancel_delayed_work_sync(&tps->wq_poll);
+
 	tps6598x_disconnect(tps, 0);
 	typec_unregister_port(tps->port);
 	usb_role_switch_put(tps->role_sw);
 }
+
+static int __maybe_unused tps6598x_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tps6598x *tps = i2c_get_clientdata(client);
+
+	if (tps->wakeup) {
+		disable_irq(client->irq);
+		enable_irq_wake(client->irq);
+	}
+
+	if (!client->irq)
+		cancel_delayed_work_sync(&tps->wq_poll);
+
+	return 0;
+}
+
+static int __maybe_unused tps6598x_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct tps6598x *tps = i2c_get_clientdata(client);
+
+	if (tps->wakeup) {
+		disable_irq_wake(client->irq);
+		enable_irq(client->irq);
+	}
+
+	if (!client->irq)
+		queue_delayed_work(system_power_efficient_wq, &tps->wq_poll,
+				   msecs_to_jiffies(POLL_INTERVAL));
+
+	return 0;
+}
+
+static const struct dev_pm_ops tps6598x_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(tps6598x_suspend, tps6598x_resume)
+};
 
 static const struct of_device_id tps6598x_of_match[] = {
 	{ .compatible = "ti,tps6598x", },
@@ -882,9 +947,10 @@ MODULE_DEVICE_TABLE(i2c, tps6598x_id);
 static struct i2c_driver tps6598x_i2c_driver = {
 	.driver = {
 		.name = "tps6598x",
+		.pm = &tps6598x_pm_ops,
 		.of_match_table = tps6598x_of_match,
 	},
-	.probe_new = tps6598x_probe,
+	.probe = tps6598x_probe,
 	.remove = tps6598x_remove,
 	.id_table = tps6598x_id,
 };

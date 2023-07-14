@@ -151,8 +151,7 @@ static int als_set_default_config(struct i2c_client *client)
 	return 0;
 }
 
-static int  isl29020_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int  isl29020_probe(struct i2c_client *client)
 {
 	int res;
 

@@ -558,7 +558,6 @@ err_unmap:
 err_release_regions:
 	pci_release_regions(dev);
 err_disable_dev:
-	pci_clear_master(dev);
 	pci_disable_device(dev);
 
 	return err;
@@ -577,7 +576,6 @@ static void ec_bhf_remove(struct pci_dev *dev)
 	free_netdev(net_dev);
 
 	pci_release_regions(dev);
-	pci_clear_master(dev);
 	pci_disable_device(dev);
 }
 

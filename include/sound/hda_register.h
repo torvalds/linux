@@ -258,24 +258,62 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_ML_BASE			0x40
 #define AZX_ML_INTERVAL			0x40
 
+/* HDaudio registers valid for HDaudio and HDaudio extended links */
 #define AZX_REG_ML_LCAP			0x00
+
+#define AZX_ML_HDA_LCAP_ALT		BIT(28)
+#define AZX_ML_HDA_LCAP_ALT_HDA		0x0
+#define AZX_ML_HDA_LCAP_ALT_HDA_EXT	0x1
+
+#define AZX_ML_HDA_LCAP_INTC		BIT(27)		/* only used if ALT == 1 */
+#define AZX_ML_HDA_LCAP_OFLS		BIT(26)		/* only used if ALT == 1 */
+#define AZX_ML_HDA_LCAP_LSS		BIT(23)		/* only used if ALT == 1 */
+#define AZX_ML_HDA_LCAP_SLCOUNT		GENMASK(22, 20)	/* only used if ALT == 1 */
+
 #define AZX_REG_ML_LCTL			0x04
+#define AZX_ML_LCTL_INTSTS		BIT(31)		/* only used if ALT == 1 */
+#define AZX_ML_LCTL_CPA			BIT(23)
+#define AZX_ML_LCTL_CPA_SHIFT		23
+#define AZX_ML_LCTL_SPA			BIT(16)
+#define AZX_ML_LCTL_SPA_SHIFT		16
+#define AZX_ML_LCTL_INTEN		BIT(5)		/* only used if ALT == 1 */
+#define AZX_ML_LCTL_OFLEN		BIT(4)		/* only used if ALT == 1 */
+#define AZX_ML_LCTL_SCF			GENMASK(3, 0)	/* only used if ALT == 0 */
+
 #define AZX_REG_ML_LOSIDV		0x08
+
+/* bit0 is reserved, with BIT(1) mapping to stream1 */
+#define AZX_ML_LOSIDV_STREAM_MASK	0xFFFE
+
 #define AZX_REG_ML_LSDIID		0x0C
+#define AZX_REG_ML_LSDIID_OFFSET(x)	(0x0C + (x) * 0x02)	/* only used if ALT == 1 */
+
+/* HDaudio registers only valid if LCAP.ALT == 0 */
 #define AZX_REG_ML_LPSOO		0x10
 #define AZX_REG_ML_LPSIO		0x12
 #define AZX_REG_ML_LWALFC		0x18
 #define AZX_REG_ML_LOUTPAY		0x20
 #define AZX_REG_ML_LINPAY		0x30
 
-/* bit0 is reserved, with BIT(1) mapping to stream1 */
-#define ML_LOSIDV_STREAM_MASK		0xFFFE
+/* HDaudio Extended link registers only valid if LCAP.ALT == 1 */
+#define AZX_REG_ML_LSYNC		0x1C
 
-#define ML_LCTL_SCF_MASK			0xF
-#define AZX_MLCTL_SPA				(0x1 << 16)
-#define AZX_MLCTL_CPA				(0x1 << 23)
-#define AZX_MLCTL_SPA_SHIFT			16
-#define AZX_MLCTL_CPA_SHIFT			23
+#define AZX_REG_ML_LSYNC_CMDSYNC	BIT(24)
+#define AZX_REG_ML_LSYNC_CMDSYNC_SHIFT	24
+#define AZX_REG_ML_LSYNC_SYNCGO		BIT(23)
+#define AZX_REG_ML_LSYNC_SYNCPU		BIT(20)
+#define AZX_REG_ML_LSYNC_SYNCPRD	GENMASK(19, 0)
+
+#define AZX_REG_ML_LEPTR		0x20
+
+#define AZX_REG_ML_LEPTR_ID		GENMASK(31, 24)
+#define AZX_REG_ML_LEPTR_ID_SHIFT	24
+#define AZX_REG_ML_LEPTR_ID_SDW		0x00
+#define AZX_REG_ML_LEPTR_ID_INTEL_SSP	0xC0
+#define AZX_REG_ML_LEPTR_ID_INTEL_DMIC  0xC1
+#define AZX_REG_ML_LEPTR_ID_INTEL_UAOL  0xC2
+#define AZX_REG_ML_LEPTR_VER		GENMASK(23, 20)
+#define AZX_REG_ML_LEPTR_PTR		GENMASK(19, 0)
 
 /* registers for DMA Resume Capability Structure */
 #define AZX_DRSM_CAP_ID			0x5

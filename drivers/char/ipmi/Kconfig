@@ -119,13 +119,13 @@ config ASPEED_KCS_IPMI_BMC
 	  provides the access of KCS IO space for BMC side.
 
 config NPCM7XX_KCS_IPMI_BMC
-	depends on ARCH_NPCM7XX || COMPILE_TEST
+	depends on ARCH_NPCM || COMPILE_TEST
 	select IPMI_KCS_BMC
 	select REGMAP_MMIO
-	tristate "NPCM7xx KCS IPMI BMC driver"
+	tristate "NPCM KCS IPMI BMC driver"
 	help
 	  Provides a driver for the KCS (Keyboard Controller Style) IPMI
-	  interface found on Nuvoton NPCM7xx SOCs.
+	  interface found on Nuvoton NPCM SOCs.
 
 	  The driver implements the BMC side of the KCS contorller, it
 	  provides the access of KCS IO space for BMC side.
@@ -162,12 +162,23 @@ config IPMI_KCS_BMC_SERIO
 
 config ASPEED_BT_IPMI_BMC
 	depends on ARCH_ASPEED || COMPILE_TEST
-	depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
+	depends on MFD_SYSCON
+	select REGMAP_MMIO
 	tristate "BT IPMI bmc driver"
 	help
 	  Provides a driver for the BT (Block Transfer) IPMI interface
 	  found on Aspeed SOCs (AST2400 and AST2500). The driver
 	  implements the BMC side of the BT interface.
+
+config SSIF_IPMI_BMC
+	tristate "SSIF IPMI BMC driver"
+	depends on I2C && I2C_SLAVE
+	help
+	  This enables the IPMI SMBus system interface (SSIF) at the
+	  management (BMC) side.
+
+	  The driver implements the BMC side of the SMBus system
+	  interface (SSIF).
 
 config IPMB_DEVICE_INTERFACE
 	tristate 'IPMB Interface handler'

@@ -333,7 +333,7 @@ temp[N]_input		Measured temperature.
 			- On LTC3883, temp1 reports an external temperature,
 			  and temp2 reports the chip temperature.
 
-temp[N]_min		Mimimum temperature.
+temp[N]_min		Minimum temperature.
 
 			LTC2972, LTC2974, LCT2977, LTM2980, LTC2978,
 			LTC2979, and LTM2987 only.

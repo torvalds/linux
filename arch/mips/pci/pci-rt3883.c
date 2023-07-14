@@ -404,7 +404,6 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	struct rt3883_pci_controller *rpc;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct resource *res;
 	struct device_node *child;
 	u32 val;
 	int err;
@@ -414,14 +413,13 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	if (!rpc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rpc->base = devm_ioremap_resource(dev, res);
+	rpc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rpc->base))
 		return PTR_ERR(rpc->base);
 
 	/* find the interrupt controller child node */
 	for_each_child_of_node(np, child) {
-		if (of_get_property(child, "interrupt-controller", NULL)) {
+		if (of_property_read_bool(child, "interrupt-controller")) {
 			rpc->intc_of_node = child;
 			break;
 		}

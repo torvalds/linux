@@ -136,9 +136,9 @@ V4L2 functions
 
    operates like the :c:func:`read()` function.
 
-.. c:function:: void v4l2_mmap(void *start, size_t length, int prot, int flags, int fd, int64_t offset);
+.. c:function:: void *v4l2_mmap(void *start, size_t length, int prot, int flags, int fd, int64_t offset);
 
-   operates like the :c:func:`munmap()` function.
+   operates like the :c:func:`mmap()` function.
 
 .. c:function:: int v4l2_munmap(void *_start, size_t length);
 

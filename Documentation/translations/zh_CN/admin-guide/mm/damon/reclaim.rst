@@ -45,11 +45,7 @@ DAMON_RECLAIM找到在特定时间内没有被访问的内存区域并分页。�
 
 为了让系统管理员启用或禁用它，并为给定的系统进行调整，DAMON_RECLAIM利用了模块参数。也就
 是说，你可以把 ``damon_reclaim.<parameter>=<value>`` 放在内核启动命令行上，或者把
-适当的值写入 ``/sys/modules/damon_reclaim/parameters/<parameter>`` 文件。
-
-注意，除 ``启用`` 外的参数值只在DAMON_RECLAIM启动时应用。因此，如果你想在运行时应用新
-的参数值，而DAMON_RECLAIM已经被启用，你应该通过 ``启用`` 的参数文件禁用和重新启用它。
-在重新启用之前，应将新的参数值写入适当的参数值中。
+适当的值写入 ``/sys/module/damon_reclaim/parameters/<parameter>`` 文件。
 
 下面是每个参数的描述。
 
@@ -218,7 +214,7 @@ nr_quota_exceeds
 就开始真正的工作。如果DAMON_RECLAIM没有取得进展，因此空闲内存率低于20%，它会要求
 DAMON_RECLAIM再次什么都不做，这样我们就可以退回到基于LRU列表的页面粒度回收了::
 
-    # cd /sys/modules/damon_reclaim/parameters
+    # cd /sys/module/damon_reclaim/parameters
     # echo 30000000 > min_age
     # echo $((1 * 1024 * 1024 * 1024)) > quota_sz
     # echo 1000 > quota_reset_interval_ms

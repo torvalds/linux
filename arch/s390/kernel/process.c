@@ -30,8 +30,8 @@
 #include <linux/export.h>
 #include <linux/init_task.h>
 #include <linux/entry-common.h>
+#include <linux/io.h>
 #include <asm/cpu_mf.h>
-#include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
 #include <asm/exec.h>
@@ -136,21 +136,19 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	p->thread.last_break = 1;
 
 	frame->sf.back_chain = 0;
-	frame->sf.gprs[5] = (unsigned long)frame + sizeof(struct stack_frame);
-	frame->sf.gprs[6] = (unsigned long)p;
+	frame->sf.gprs[11 - 6] = (unsigned long)&frame->childregs;
+	frame->sf.gprs[12 - 6] = (unsigned long)p;
 	/* new return point is ret_from_fork */
-	frame->sf.gprs[8] = (unsigned long)ret_from_fork;
+	frame->sf.gprs[14 - 6] = (unsigned long)ret_from_fork;
 	/* fake return stack for resume(), don't go back to schedule */
-	frame->sf.gprs[9] = (unsigned long)frame;
+	frame->sf.gprs[15 - 6] = (unsigned long)frame;
 
 	/* Store access registers to kernel stack of new process. */
 	if (unlikely(args->fn)) {
 		/* kernel thread */
 		memset(&frame->childregs, 0, sizeof(struct pt_regs));
-		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_DAT |
-				PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-		frame->childregs.psw.addr =
-				(unsigned long)__ret_from_fork;
+		frame->childregs.psw.mask = PSW_KERNEL_BITS | PSW_MASK_IO |
+					    PSW_MASK_EXT | PSW_MASK_MCHECK;
 		frame->childregs.gprs[9] = (unsigned long)args->fn;
 		frame->childregs.gprs[10] = (unsigned long)args->fn_arg;
 		frame->childregs.orig_gpr2 = -1;
@@ -224,13 +222,13 @@ unsigned long __get_wchan(struct task_struct *p)
 unsigned long arch_align_stack(unsigned long sp)
 {
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
-		sp -= get_random_int() & ~PAGE_MASK;
+		sp -= get_random_u32_below(PAGE_SIZE);
 	return sp & ~0xf;
 }
 
 static inline unsigned long brk_rnd(void)
 {
-	return (get_random_int() & BRK_RND_MASK) << PAGE_SHIFT;
+	return (get_random_u16() & BRK_RND_MASK) << PAGE_SHIFT;
 }
 
 unsigned long arch_randomize_brk(struct mm_struct *mm)

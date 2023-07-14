@@ -5,7 +5,7 @@
  * Created by:  Nicolas Pitre, March 2012
  * Copyright:   (C) 2012-2013  Linaro Limited
  *
- * Refer to Documentation/arm/cluster-pm-race-avoidance.rst
+ * Refer to Documentation/arch/arm/cluster-pm-race-avoidance.rst
  * for details of the synchronisation algorithms used here.
  */
 
@@ -14,6 +14,8 @@
 #include <asm/assembler.h>
 
 #include "vlock.h"
+
+.arch armv7-a
 
 .if MCPM_SYNC_CLUSTER_CPUS
 .error "cpus must be the first member of struct mcpm_sync_struct"

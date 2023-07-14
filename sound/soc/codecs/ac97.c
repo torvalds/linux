@@ -127,18 +127,12 @@ static int ac97_probe(struct platform_device *pdev)
 			&soc_component_dev_ac97, &ac97_dai, 1);
 }
 
-static int ac97_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ac97_codec_driver = {
 	.driver = {
 		.name = "ac97-codec",
 	},
 
 	.probe = ac97_probe,
-	.remove = ac97_remove,
 };
 
 module_platform_driver(ac97_codec_driver);

@@ -86,7 +86,7 @@ def ascii(text):
 #	 store system values and test parameters
 class SystemValues:
 	title = 'SleepGraph'
-	version = '5.9'
+	version = '5.11'
 	ansi = False
 	rs = 0
 	display = ''
@@ -100,6 +100,7 @@ class SystemValues:
 	ftracelog = False
 	acpidebug = True
 	tstat = True
+	wifitrace = False
 	mindevlen = 0.0001
 	mincglen = 0.0
 	cgphase = ''
@@ -119,11 +120,12 @@ class SystemValues:
 	cgexp = False
 	testdir = ''
 	outdir = ''
-	tpath = '/sys/kernel/debug/tracing/'
+	tpath = '/sys/kernel/tracing/'
 	fpdtpath = '/sys/firmware/acpi/tables/FPDT'
-	epath = '/sys/kernel/debug/tracing/events/power/'
+	epath = '/sys/kernel/tracing/events/power/'
 	pmdpath = '/sys/power/pm_debug_messages'
 	s0ixpath = '/sys/module/intel_pmc_core/parameters/warn_on_s0ix_failures'
+	s0ixres = '/sys/devices/system/cpu/cpuidle/low_power_idle_system_residency_us'
 	acpipath='/sys/module/acpi/parameters/debug_level'
 	traceevents = [
 		'suspend_resume',
@@ -180,6 +182,7 @@ class SystemValues:
 	tmstart = 'SUSPEND START %Y%m%d-%H:%M:%S.%f'
 	tmend = 'RESUME COMPLETE %Y%m%d-%H:%M:%S.%f'
 	tracefuncs = {
+		'async_synchronize_full': {},
 		'sys_sync': {},
 		'ksys_sync': {},
 		'__pm_notifier_call_chain': {},
@@ -297,6 +300,7 @@ class SystemValues:
 		[0, 'acpidevices', 'sh', '-c', 'ls -l /sys/bus/acpi/devices/*/physical_node'],
 		[0, 's0ix_require', 'cat', '/sys/kernel/debug/pmc_core/substate_requirements'],
 		[0, 's0ix_debug', 'cat', '/sys/kernel/debug/pmc_core/slp_s0_debug_status'],
+		[0, 'ethtool', 'ethtool', '{ethdev}'],
 		[1, 's0ix_residency', 'cat', '/sys/kernel/debug/pmc_core/slp_s0_residency_usec'],
 		[1, 'interrupts', 'cat', '/proc/interrupts'],
 		[1, 'wakeups', 'cat', '/sys/kernel/debug/wakeup_sources'],
@@ -304,6 +308,7 @@ class SystemValues:
 		[2, 'suspendstats', 'sh', '-c', 'grep -v invalid /sys/power/suspend_stats/*'],
 		[2, 'cpuidle', 'sh', '-c', 'grep -v invalid /sys/devices/system/cpu/cpu*/cpuidle/state*/s2idle/*'],
 		[2, 'battery', 'sh', '-c', 'grep -v invalid /sys/class/power_supply/*/*'],
+		[2, 'thermal', 'sh', '-c', 'grep . /sys/class/thermal/thermal_zone*/temp'],
 	]
 	cgblacklist = []
 	kprobes = dict()
@@ -777,7 +782,7 @@ class SystemValues:
 			return
 		if not quiet:
 			sysvals.printSystemInfo(False)
-			pprint('INITIALIZING FTRACE...')
+			pprint('INITIALIZING FTRACE')
 		# turn trace off
 		self.fsetVal('0', 'tracing_on')
 		self.cleanupFtrace()
@@ -841,7 +846,7 @@ class SystemValues:
 				for name in self.dev_tracefuncs:
 					self.defaultKprobe(name, self.dev_tracefuncs[name])
 			if not quiet:
-				pprint('INITIALIZING KPROBES...')
+				pprint('INITIALIZING KPROBES')
 			self.addKprobes(self.verbose)
 		if(self.usetraceevents):
 			# turn trace events on
@@ -1074,18 +1079,35 @@ class SystemValues:
 				else:
 					out[data[0].strip()] = data[1]
 		return out
+	def cmdinfovar(self, arg):
+		if arg == 'ethdev':
+			try:
+				cmd = [self.getExec('ip'), '-4', '-o', '-br', 'addr']
+				fp = Popen(cmd, stdout=PIPE, stderr=PIPE).stdout
+				info = ascii(fp.read()).strip()
+				fp.close()
+			except:
+				return 'iptoolcrash'
+			for line in info.split('\n'):
+				if line[0] == 'e' and 'UP' in line:
+					return line.split()[0]
+			return 'nodevicefound'
+		return 'unknown'
 	def cmdinfo(self, begin, debug=False):
 		out = []
 		if begin:
 			self.cmd1 = dict()
 		for cargs in self.infocmds:
-			delta, name = cargs[0], cargs[1]
-			cmdline, cmdpath = ' '.join(cargs[2:]), self.getExec(cargs[2])
+			delta, name, args = cargs[0], cargs[1], cargs[2:]
+			for i in range(len(args)):
+				if args[i][0] == '{' and args[i][-1] == '}':
+					args[i] = self.cmdinfovar(args[i][1:-1])
+			cmdline, cmdpath = ' '.join(args[0:]), self.getExec(args[0])
 			if not cmdpath or (begin and not delta):
 				continue
 			self.dlog('[%s]' % cmdline)
 			try:
-				fp = Popen([cmdpath]+cargs[3:], stdout=PIPE, stderr=PIPE).stdout
+				fp = Popen([cmdpath]+args[1:], stdout=PIPE, stderr=PIPE).stdout
 				info = ascii(fp.read()).strip()
 				fp.close()
 			except:
@@ -1133,6 +1155,15 @@ class SystemValues:
 				self.cfgdef[file] = fp.read().strip()
 			fp.write(value)
 			fp.close()
+	def s0ixSupport(self):
+		if not os.path.exists(self.s0ixres) or not os.path.exists(self.mempowerfile):
+			return False
+		fp = open(sysvals.mempowerfile, 'r')
+		data = fp.read().strip()
+		fp.close()
+		if '[s2idle]' in data:
+			return True
+		return False
 	def haveTurbostat(self):
 		if not self.tstat:
 			return False
@@ -1146,7 +1177,7 @@ class SystemValues:
 			self.vprint(out)
 			return True
 		return False
-	def turbostat(self):
+	def turbostat(self, s0ixready):
 		cmd = self.getExec('turbostat')
 		rawout = keyline = valline = ''
 		fullcmd = '%s -q -S echo freeze > %s' % (cmd, self.powerfile)
@@ -1173,6 +1204,8 @@ class SystemValues:
 		for key in keyline:
 			idx = keyline.index(key)
 			val = valline[idx]
+			if key == 'SYS%LPI' and not s0ixready and re.match('^[0\.]*$', val):
+				continue
 			out.append('%s=%s' % (key, val))
 		return '|'.join(out)
 	def netfixon(self, net='both'):
@@ -1183,14 +1216,6 @@ class SystemValues:
 		out = ascii(fp.read()).strip()
 		fp.close()
 		return out
-	def wifiRepair(self):
-		out = self.netfixon('wifi')
-		if not out or 'error' in out.lower():
-			return ''
-		m = re.match('WIFI \S* ONLINE (?P<action>\S*)', out)
-		if not m:
-			return 'dead'
-		return m.group('action')
 	def wifiDetails(self, dev):
 		try:
 			info = open('/sys/class/net/%s/device/uevent' % dev, 'r').read().strip()
@@ -1220,11 +1245,6 @@ class SystemValues:
 				return '%s reconnected %.2f' % \
 					(self.wifiDetails(dev), max(0, time.time() - start))
 			time.sleep(0.01)
-		if self.netfix:
-			res = self.wifiRepair()
-			if res:
-				timeout = max(0, time.time() - start)
-				return '%s %s %d' % (self.wifiDetails(dev), res, timeout)
 		return '%s timeout %d' % (self.wifiDetails(dev), timeout)
 	def errorSummary(self, errinfo, msg):
 		found = False
@@ -1346,6 +1366,20 @@ class SystemValues:
 			for i in self.rslist:
 				self.setVal(self.rstgt, i)
 			pprint('runtime suspend settings restored on %d devices' % len(self.rslist))
+	def start(self, pm):
+		if self.useftrace:
+			self.dlog('start ftrace tracing')
+			self.fsetVal('1', 'tracing_on')
+			if self.useprocmon:
+				self.dlog('start the process monitor')
+				pm.start()
+	def stop(self, pm):
+		if self.useftrace:
+			if self.useprocmon:
+				self.dlog('stop the process monitor')
+				pm.stop()
+			self.dlog('stop ftrace tracing')
+			self.fsetVal('0', 'tracing_on')
 
 sysvals = SystemValues()
 switchvalues = ['enable', 'disable', 'on', 'off', 'true', 'false', '1', '0']
@@ -1436,6 +1470,7 @@ class Data:
 	errlist = {
 		'HWERROR' : r'.*\[ *Hardware Error *\].*',
 		'FWBUG'   : r'.*\[ *Firmware Bug *\].*',
+		'TASKFAIL': r'.*Freezing .*after *.*',
 		'BUG'     : r'(?i).*\bBUG\b.*',
 		'ERROR'   : r'(?i).*\bERROR\b.*',
 		'WARNING' : r'(?i).*\bWARNING\b.*',
@@ -1446,7 +1481,6 @@ class Data:
 		'TIMEOUT' : r'(?i).*\bTIMEOUT\b.*',
 		'ABORT'   : r'(?i).*\bABORT\b.*',
 		'IRQ'     : r'.*\bgenirq: .*',
-		'TASKFAIL': r'.*Freezing of tasks *.*',
 		'ACPI'    : r'.*\bACPI *(?P<b>[A-Za-z]*) *Error[: ].*',
 		'DISKFULL': r'.*\bNo space left on device.*',
 		'USBERR'  : r'.*usb .*device .*, error [0-9-]*',
@@ -1586,7 +1620,7 @@ class Data:
 			pend = self.dmesg[phase]['end']
 			if start <= pend:
 				return phase
-		return 'resume_complete'
+		return 'resume_complete' if 'resume_complete' in self.dmesg else ''
 	def sourceDevice(self, phaselist, start, end, pid, type):
 		tgtdev = ''
 		for phase in phaselist:
@@ -1629,6 +1663,8 @@ class Data:
 			else:
 				threadname = '%s-%d' % (proc, pid)
 			tgtphase = self.sourcePhase(start)
+			if not tgtphase:
+				return False
 			self.newAction(tgtphase, threadname, pid, '', start, end, '', ' kth', '')
 			return self.addDeviceFunctionCall(displayname, kprobename, proc, pid, start, end, cdata, rdata)
 		# this should not happen
@@ -1643,19 +1679,20 @@ class Data:
 		ubiquitous = False
 		if kprobename in dtf and 'ub' in dtf[kprobename]:
 			ubiquitous = True
-		title = cdata+' '+rdata
-		mstr = '\(.*\) *(?P<args>.*) *\((?P<caller>.*)\+.* arg1=(?P<ret>.*)'
-		m = re.match(mstr, title)
-		if m:
-			c = m.group('caller')
-			a = m.group('args').strip()
-			r = m.group('ret')
+		mc = re.match('\(.*\) *(?P<args>.*)', cdata)
+		mr = re.match('\((?P<caller>\S*).* arg1=(?P<ret>.*)', rdata)
+		if mc and mr:
+			c = mr.group('caller').split('+')[0]
+			a = mc.group('args').strip()
+			r = mr.group('ret')
 			if len(r) > 6:
 				r = ''
 			else:
 				r = 'ret=%s ' % r
 			if ubiquitous and c in dtf and 'ub' in dtf[c]:
 				return False
+		else:
+			return False
 		color = sysvals.kprobeColor(kprobename)
 		e = DevFunction(displayname, a, c, r, start, end, ubiquitous, proc, pid, color)
 		tgtdev['src'].append(e)
@@ -1772,6 +1809,14 @@ class Data:
 						e.time = self.trimTimeVal(e.time, t0, dT, left)
 						e.end = self.trimTimeVal(e.end, t0, dT, left)
 						e.length = e.end - e.time
+				if('cpuexec' in d):
+					cpuexec = dict()
+					for e in d['cpuexec']:
+						c0, cN = e
+						c0 = self.trimTimeVal(c0, t0, dT, left)
+						cN = self.trimTimeVal(cN, t0, dT, left)
+						cpuexec[(c0, cN)] = d['cpuexec'][e]
+					d['cpuexec'] = cpuexec
 		for dir in ['suspend', 'resume']:
 			list = []
 			for e in self.errorinfo[dir]:
@@ -1810,9 +1855,9 @@ class Data:
 		hwr = self.hwend - timedelta(microseconds=rtime)
 		self.tLow.append('%.0f'%((hwr - hws).total_seconds() * 1000))
 	def getTimeValues(self):
-		sktime = (self.tSuspended - self.tKernSus) * 1000
-		rktime = (self.tKernRes - self.tResumed) * 1000
-		return (sktime, rktime)
+		s = (self.tSuspended - self.tKernSus) * 1000
+		r = (self.tKernRes - self.tResumed) * 1000
+		return (max(s, 0), max(r, 0))
 	def setPhase(self, phase, ktime, isbegin, order=-1):
 		if(isbegin):
 			# phase start over current phase
@@ -2086,75 +2131,43 @@ class Data:
 		return d
 	def addProcessUsageEvent(self, name, times):
 		# get the start and end times for this process
-		maxC = 0
-		tlast = 0
-		start = -1
-		end = -1
+		cpuexec = dict()
+		tlast = start = end = -1
 		for t in sorted(times):
-			if tlast == 0:
+			if tlast < 0:
 				tlast = t
 				continue
-			if name in self.pstl[t]:
-				if start == -1 or tlast < start:
+			if name in self.pstl[t] and self.pstl[t][name] > 0:
+				if start < 0:
 					start = tlast
-				if end == -1 or t > end:
-					end = t
+				end, key = t, (tlast, t)
+				maxj = (t - tlast) * 1024.0
+				cpuexec[key] = min(1.0, float(self.pstl[t][name]) / maxj)
 			tlast = t
-		if start == -1 or end == -1:
-			return 0
+		if start < 0 or end < 0:
+			return
 		# add a new action for this process and get the object
 		out = self.newActionGlobal(name, start, end, -3)
-		if not out:
-			return 0
-		phase, devname = out
-		dev = self.dmesg[phase]['list'][devname]
-		# get the cpu exec data
-		tlast = 0
-		clast = 0
-		cpuexec = dict()
-		for t in sorted(times):
-			if tlast == 0 or t <= start or t > end:
-				tlast = t
-				continue
-			list = self.pstl[t]
-			c = 0
-			if name in list:
-				c = list[name]
-			if c > maxC:
-				maxC = c
-			if c != clast:
-				key = (tlast, t)
-				cpuexec[key] = c
-				tlast = t
-				clast = c
-		dev['cpuexec'] = cpuexec
-		return maxC
+		if out:
+			phase, devname = out
+			dev = self.dmesg[phase]['list'][devname]
+			dev['cpuexec'] = cpuexec
 	def createProcessUsageEvents(self):
-		# get an array of process names
-		proclist = []
+		# get an array of process names and times
+		proclist = {'sus': dict(), 'res': dict()}
+		tdata = {'sus': [], 'res': []}
 		for t in sorted(self.pstl):
-			pslist = self.pstl[t]
-			for ps in sorted(pslist):
-				if ps not in proclist:
-					proclist.append(ps)
-		# get a list of data points for suspend and resume
-		tsus = []
-		tres = []
-		for t in sorted(self.pstl):
-			if t < self.tSuspended:
-				tsus.append(t)
-			else:
-				tres.append(t)
+			dir = 'sus' if t < self.tSuspended else 'res'
+			for ps in sorted(self.pstl[t]):
+				if ps not in proclist[dir]:
+					proclist[dir][ps] = 0
+			tdata[dir].append(t)
 		# process the events for suspend and resume
-		if len(proclist) > 0:
+		if len(proclist['sus']) > 0 or len(proclist['res']) > 0:
 			sysvals.vprint('Process Execution:')
-		for ps in proclist:
-			c = self.addProcessUsageEvent(ps, tsus)
-			if c > 0:
-				sysvals.vprint('%25s (sus): %d' % (ps, c))
-			c = self.addProcessUsageEvent(ps, tres)
-			if c > 0:
-				sysvals.vprint('%25s (res): %d' % (ps, c))
+		for dir in ['sus', 'res']:
+			for ps in sorted(proclist[dir]):
+				self.addProcessUsageEvent(ps, tdata[dir])
 	def handleEndMarker(self, time, msg=''):
 		dm = self.dmesg
 		self.setEnd(time, msg)
@@ -3218,7 +3231,7 @@ class ProcessMonitor:
 #	 markers, and/or kprobes required for primary parsing.
 def doesTraceLogHaveTraceEvents():
 	kpcheck = ['_cal: (', '_ret: (']
-	techeck = ['suspend_resume', 'device_pm_callback']
+	techeck = ['suspend_resume', 'device_pm_callback', 'tracing_mark_write']
 	tmcheck = ['SUSPEND START', 'RESUME COMPLETE']
 	sysvals.usekprobes = False
 	fp = sysvals.openlog(sysvals.ftracefile, 'r')
@@ -3241,7 +3254,7 @@ def doesTraceLogHaveTraceEvents():
 				check.remove(i)
 		tmcheck = check
 	fp.close()
-	sysvals.usetraceevents = True if len(techeck) < 2 else False
+	sysvals.usetraceevents = True if len(techeck) < 3 else False
 	sysvals.usetracemarkers = True if len(tmcheck) == 0 else False
 
 # Function: appendIncompleteTraceLog
@@ -3456,6 +3469,8 @@ def parseTraceLog(live=False):
 			continue
 		# process cpu exec line
 		if t.type == 'tracing_mark_write':
+			if t.name == 'CMD COMPLETE' and data.tKernRes == 0:
+				data.tKernRes = t.time
 			m = re.match(tp.procexecfmt, t.name)
 			if(m):
 				parts, msg = 1, m.group('ps')
@@ -3673,6 +3688,9 @@ def parseTraceLog(live=False):
 					continue
 				e = next((x for x in reversed(tp.ktemp[key]) if x['end'] < 0), 0)
 				if not e:
+					continue
+				if (t.time - e['begin']) * 1000 < sysvals.mindevlen:
+					tp.ktemp[key].pop()
 					continue
 				e['end'] = t.time
 				e['rdata'] = kprobedata
@@ -3963,7 +3981,7 @@ def parseKernelLog(data):
 		'suspend_machine': ['PM: suspend-to-idle',
 							'PM: noirq suspend of devices complete after.*',
 							'PM: noirq freeze of devices complete after.*'],
-		 'resume_machine': ['PM: Timekeeping suspended for.*',
+		 'resume_machine': ['[PM: ]*Timekeeping suspended for.*',
 							'ACPI: Low-level resume complete.*',
 							'ACPI: resume from mwait',
 							'Suspended for [0-9\.]* seconds'],
@@ -3981,14 +3999,14 @@ def parseKernelLog(data):
 	# action table (expected events that occur and show up in dmesg)
 	at = {
 		'sync_filesystems': {
-			'smsg': 'PM: Syncing filesystems.*',
-			'emsg': 'PM: Preparing system for mem sleep.*' },
+			'smsg': '.*[Ff]+ilesystems.*',
+			'emsg': 'PM: Preparing system for[a-z]* sleep.*' },
 		'freeze_user_processes': {
-			'smsg': 'Freezing user space processes .*',
+			'smsg': 'Freezing user space processes.*',
 			'emsg': 'Freezing remaining freezable tasks.*' },
 		'freeze_tasks': {
 			'smsg': 'Freezing remaining freezable tasks.*',
-			'emsg': 'PM: Entering (?P<mode>[a-z,A-Z]*) sleep.*' },
+			'emsg': 'PM: Suspending system.*' },
 		'ACPI prepare': {
 			'smsg': 'ACPI: Preparing to enter system sleep state.*',
 			'emsg': 'PM: Saving platform NVS memory.*' },
@@ -4122,10 +4140,9 @@ def parseKernelLog(data):
 			for a in sorted(at):
 				if(re.match(at[a]['smsg'], msg)):
 					if(a not in actions):
-						actions[a] = []
-					actions[a].append({'begin': ktime, 'end': ktime})
+						actions[a] = [{'begin': ktime, 'end': ktime}]
 				if(re.match(at[a]['emsg'], msg)):
-					if(a in actions):
+					if(a in actions and actions[a][-1]['begin'] == actions[a][-1]['end']):
 						actions[a][-1]['end'] = ktime
 			# now look for CPU on/off events
 			if(re.match('Disabling non-boot CPUs .*', msg)):
@@ -4134,9 +4151,12 @@ def parseKernelLog(data):
 			elif(re.match('Enabling non-boot CPUs .*', msg)):
 				# start of first cpu resume
 				cpu_start = ktime
-			elif(re.match('smpboot: CPU (?P<cpu>[0-9]*) is now offline', msg)):
+			elif(re.match('smpboot: CPU (?P<cpu>[0-9]*) is now offline', msg)) \
+				or re.match('psci: CPU(?P<cpu>[0-9]*) killed.*', msg)):
 				# end of a cpu suspend, start of the next
 				m = re.match('smpboot: CPU (?P<cpu>[0-9]*) is now offline', msg)
+				if(not m):
+					m = re.match('psci: CPU(?P<cpu>[0-9]*) killed.*', msg)
 				cpu = 'CPU'+m.group('cpu')
 				if(cpu not in actions):
 					actions[cpu] = []
@@ -4213,6 +4233,8 @@ def callgraphHTML(sv, hf, num, cg, title, color, devid):
 			fmt = '<n>(%.3f ms @ '+sv.timeformat+')</n>'
 			flen = fmt % (line.length*1000, line.time)
 		if line.isLeaf():
+			if line.length * 1000 < sv.mincglen:
+				continue
 			hf.write(html_func_leaf.format(line.name, flen))
 		elif line.freturn:
 			hf.write(html_func_end)
@@ -4827,14 +4849,11 @@ def createHTML(testruns, testfail):
 					if('cpuexec' in dev):
 						for t in sorted(dev['cpuexec']):
 							start, end = t
-							j = float(dev['cpuexec'][t]) / 5
-							if j > 1.0:
-								j = 1.0
 							height = '%.3f' % (rowheight/3)
 							top = '%.3f' % (rowtop + devtl.scaleH + 2*rowheight/3)
 							left = '%f' % (((start-m0)*100)/mTotal)
 							width = '%f' % ((end-start)*100/mTotal)
-							color = 'rgba(255, 0, 0, %f)' % j
+							color = 'rgba(255, 0, 0, %f)' % dev['cpuexec'][t]
 							devtl.html += \
 								html_cpuexec.format(left, top, height, width, color)
 					if('src' not in dev):
@@ -5453,17 +5472,9 @@ def executeSuspend(quiet=False):
 		call('sync', shell=True)
 	sv.dlog('read dmesg')
 	sv.initdmesg()
-	# start ftrace
-	if sv.useftrace:
-		if not quiet:
-			pprint('START TRACING')
-		sv.dlog('start ftrace tracing')
-		sv.fsetVal('1', 'tracing_on')
-		if sv.useprocmon:
-			sv.dlog('start the process monitor')
-			pm.start()
-	sv.dlog('run the cmdinfo list before')
+	sv.dlog('cmdinfo before')
 	sv.cmdinfo(True)
+	sv.start(pm)
 	# execute however many s/r runs requested
 	for count in range(1,sv.execcount+1):
 		# x2delay in between test runs
@@ -5500,6 +5511,7 @@ def executeSuspend(quiet=False):
 			if res != 0:
 				tdata['error'] = 'cmd returned %d' % res
 		else:
+			s0ixready = sv.s0ixSupport()
 			mode = sv.suspendmode
 			if sv.memmode and os.path.exists(sv.mempowerfile):
 				mode = 'mem'
@@ -5509,9 +5521,10 @@ def executeSuspend(quiet=False):
 				sv.testVal(sv.diskpowerfile, 'radio', sv.diskmode)
 			if sv.acpidebug:
 				sv.testVal(sv.acpipath, 'acpi', '0xe')
-			if mode == 'freeze' and sv.haveTurbostat():
+			if ((mode == 'freeze') or (sv.memmode == 's2idle')) \
+				and sv.haveTurbostat():
 				# execution will pause here
-				turbo = sv.turbostat()
+				turbo = sv.turbostat(s0ixready)
 				if turbo:
 					tdata['turbo'] = turbo
 			else:
@@ -5522,7 +5535,8 @@ def executeSuspend(quiet=False):
 					pf.close()
 				except Exception as e:
 					tdata['error'] = str(e)
-		sv.dlog('system returned from resume')
+		sv.fsetVal('CMD COMPLETE', 'trace_marker')
+		sv.dlog('system returned')
 		# reset everything
 		sv.testVal('restoreall')
 		if(sv.rtcwake):
@@ -5535,42 +5549,37 @@ def executeSuspend(quiet=False):
 			sv.fsetVal('WAIT END', 'trace_marker')
 		# return from suspend
 		pprint('RESUME COMPLETE')
-		sv.fsetVal(datetime.now().strftime(sv.tmend), 'trace_marker')
+		if(count < sv.execcount):
+			sv.fsetVal(datetime.now().strftime(sv.tmend), 'trace_marker')
+		elif(not sv.wifitrace):
+			sv.fsetVal(datetime.now().strftime(sv.tmend), 'trace_marker')
+			sv.stop(pm)
 		if sv.wifi and wifi:
 			tdata['wifi'] = sv.pollWifi(wifi)
 			sv.dlog('wifi check, %s' % tdata['wifi'])
-			if sv.netfix:
-				netfixout = sv.netfixon('wired')
-		elif sv.netfix:
-			netfixout = sv.netfixon()
-		if sv.netfix and netfixout:
-			tdata['netfix'] = netfixout
+		if(count == sv.execcount and sv.wifitrace):
+			sv.fsetVal(datetime.now().strftime(sv.tmend), 'trace_marker')
+			sv.stop(pm)
+		if sv.netfix:
+			tdata['netfix'] = sv.netfixon()
 			sv.dlog('netfix, %s' % tdata['netfix'])
 		if(sv.suspendmode == 'mem' or sv.suspendmode == 'command'):
 			sv.dlog('read the ACPI FPDT')
 			tdata['fw'] = getFPDT(False)
 		testdata.append(tdata)
-	sv.dlog('run the cmdinfo list after')
+	sv.dlog('cmdinfo after')
 	cmdafter = sv.cmdinfo(False)
-	# stop ftrace
-	if sv.useftrace:
-		if sv.useprocmon:
-			sv.dlog('stop the process monitor')
-			pm.stop()
-		sv.fsetVal('0', 'tracing_on')
 	# grab a copy of the dmesg output
 	if not quiet:
 		pprint('CAPTURING DMESG')
-	sysvals.dlog('EXECUTION TRACE END')
 	sv.getdmesg(testdata)
 	# grab a copy of the ftrace output
 	if sv.useftrace:
 		if not quiet:
 			pprint('CAPTURING TRACE')
 		op = sv.writeDatafileHeader(sv.ftracefile, testdata)
-		fp = open(tp+'trace', 'r')
-		for line in fp:
-			op.write(line)
+		fp = open(tp+'trace', 'rb')
+		op.write(ascii(fp.read()))
 		op.close()
 		sv.fsetVal('', 'trace')
 		sv.platforminfo(cmdafter)
@@ -6350,6 +6359,8 @@ def data_from_html(file, outpath, issues, fulldetail=False):
 		if not m:
 			continue
 		name, time, phase = m.group('n'), m.group('t'), m.group('p')
+		if name == 'async_synchronize_full':
+			continue
 		if ' async' in name or ' sync' in name:
 			name = ' '.join(name.split(' ')[:-1])
 		if phase.startswith('suspend'):
@@ -6701,6 +6712,7 @@ def printHelp():
 	'   -skiphtml    Run the test and capture the trace logs, but skip the timeline (default: disabled)\n'\
 	'   -result fn   Export a results table to a text file for parsing.\n'\
 	'   -wifi        If a wifi connection is available, check that it reconnects after resume.\n'\
+	'   -wifitrace   Trace kernel execution through wifi reconnect.\n'\
 	'   -netfix      Use netfix to reset the network in the event it fails to resume.\n'\
 	'  [testprep]\n'\
 	'   -sync        Sync the filesystems before starting the test\n'\
@@ -6828,6 +6840,8 @@ if __name__ == '__main__':
 			sysvals.sync = True
 		elif(arg == '-wifi'):
 			sysvals.wifi = True
+		elif(arg == '-wifitrace'):
+			sysvals.wifitrace = True
 		elif(arg == '-netfix'):
 			sysvals.netfix = True
 		elif(arg == '-gzip'):

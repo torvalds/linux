@@ -1,77 +1,29 @@
 # TEMPORARY
-atomics                                  # attach(add): actual -524 <= expected 0                                      (trampoline)
-bpf_iter_setsockopt                      # JIT does not support calling kernel function                                (kfunc)
+# Alphabetical order
 bloom_filter_map                         # failed to find kernel BTF type ID of '__x64_sys_getpgid': -3                (?)
-bpf_tcp_ca                               # JIT does not support calling kernel function                                (kfunc)
+bpf_cookie                               # failed to open_and_load program: -524 (trampoline)
 bpf_loop                                 # attaches to __x64_sys_nanosleep
-bpf_mod_race                             # BPF trampoline
-bpf_nf                                   # JIT does not support calling kernel function
-core_read_macros                         # unknown func bpf_probe_read#4                                               (overlapping)
-d_path                                   # failed to auto-attach program 'prog_stat': -524                             (trampoline)
-dummy_st_ops                             # test_run unexpected error: -524 (errno 524)                                 (trampoline)
-fentry_fexit                             # fentry attach failed: -524                                                  (trampoline)
-fentry_test                              # fentry_first_attach unexpected error: -524                                  (trampoline)
-fexit_bpf2bpf                            # freplace_attach_trace unexpected error: -524                                (trampoline)
+cgrp_local_storage                       # prog_attach unexpected error: -524                                          (trampoline)
+dynptr/test_dynptr_skb_data
+dynptr/test_skb_readonly
 fexit_sleep                              # fexit_skel_load fexit skeleton failed                                       (trampoline)
-fexit_stress                             # fexit attach failed prog 0 failed: -524                                     (trampoline)
-fexit_test                               # fexit_first_attach unexpected error: -524                                   (trampoline)
-get_func_args_test	                 # trampoline
-get_func_ip_test                         # get_func_ip_test__attach unexpected error: -524                             (trampoline)
 get_stack_raw_tp                         # user_stack corrupted user stack                                             (no backchain userspace)
-kfree_skb                                # attach fentry unexpected error: -524                                        (trampoline)
-kfunc_call                               # 'bpf_prog_active': not found in kernel BTF                                  (?)
+iters/testmod_seq*                       # s390x doesn't support kfuncs in modules yet
+kprobe_multi_bench_attach                # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+kprobe_multi_test                        # relies on fentry
+ksyms_btf/weak_ksyms*                    # test_ksyms_weak__open_and_load unexpected error: -22                        (kfunc)
 ksyms_module                             # test_ksyms_module__open_and_load unexpected error: -9                       (?)
 ksyms_module_libbpf                      # JIT does not support calling kernel function                                (kfunc)
 ksyms_module_lskel                       # test_ksyms_module_lskel__open_and_load unexpected error: -9                 (?)
-modify_return                            # modify_return attach failed: -524                                           (trampoline)
 module_attach                            # skel_attach skeleton attach failed: -524                                    (trampoline)
-mptcp
-kprobe_multi_test                        # relies on fentry
-netcnt                                   # failed to load BPF skeleton 'netcnt_prog': -7                               (?)
-probe_user                               # check_kprobe_res wrong kprobe res from probe read                           (?)
-recursion                                # skel_attach unexpected error: -524                                          (trampoline)
 ringbuf                                  # skel_load skeleton load failed                                              (?)
-sk_assign                                # Can't read on server: Invalid argument                                      (?)
-sk_lookup                                # endianness problem
-sk_storage_tracing                       # test_sk_storage_tracing__attach unexpected error: -524                      (trampoline)
-skc_to_unix_sock                         # could not attach BPF object unexpected error: -524                          (trampoline)
-socket_cookie                            # prog_attach unexpected error: -524                                          (trampoline)
 stacktrace_build_id                      # compare_map_keys stackid_hmap vs. stackmap err -2 errno 2                   (?)
-tailcalls                                # tail_calls are not allowed in non-JITed programs with bpf-to-bpf calls      (?)
-task_local_storage                       # failed to auto-attach program 'trace_exit_creds': -524                      (trampoline)
-test_bpffs                               # bpffs test  failed 255                                                      (iterator)
-test_bprm_opts                           # failed to auto-attach program 'secure_exec': -524                           (trampoline)
-test_ima                                 # failed to auto-attach program 'ima': -524                                   (trampoline)
-test_local_storage                       # failed to auto-attach program 'unlink_hook': -524                           (trampoline)
 test_lsm                                 # attach unexpected error: -524                                               (trampoline)
-test_overhead                            # attach_fentry unexpected error: -524                                        (trampoline)
-test_profiler                            # unknown func bpf_probe_read_str#45                                          (overlapping)
-timer                                    # failed to auto-attach program 'test1': -524                                 (trampoline)
-timer_crash                              # trampoline
-timer_mim                                # failed to auto-attach program 'test1': -524                                 (trampoline)
-trace_ext                                # failed to auto-attach program 'test_pkt_md_access_new': -524                (trampoline)
 trace_printk                             # trace_printk__load unexpected error: -2 (errno 2)                           (?)
 trace_vprintk                            # trace_vprintk__open_and_load unexpected error: -9                           (?)
-trampoline_count                         # prog 'prog1': failed to attach: ERROR: strerror_r(-524)=22                  (trampoline)
-verif_stats                              # trace_vprintk__open_and_load unexpected error: -9                           (?)
-vmlinux                                  # failed to auto-attach program 'handle__fentry': -524                        (trampoline)
-xdp_adjust_tail                          # case-128 err 0 errno 28 retval 1 size 128 expect-size 3520                  (?)
-xdp_bonding                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
-xdp_bpf2bpf                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
-map_kptr                                 # failed to open_and_load program: -524 (trampoline)
-bpf_cookie                               # failed to open_and_load program: -524 (trampoline)
-xdp_do_redirect                          # prog_run_max_size unexpected error: -22 (errno 22)
-send_signal                              # intermittently fails to receive signal
-select_reuseport                         # intermittently fails on new s390x setup
-xdp_synproxy                             # JIT does not support calling kernel function                                (kfunc)
 unpriv_bpf_disabled                      # fentry
-lru_bug                                  # prog 'printk': failed to auto-attach: -524
-setget_sockopt                           # attach unexpected error: -524                                               (trampoline)
-cb_refs                                  # expected error message unexpected error: -524                               (trampoline)
-cgroup_hierarchical_stats                # JIT does not support calling kernel function                                (kfunc)
-htab_update                              # failed to attach: ERROR: strerror_r(-524)=22                                (trampoline)
-tracing_struct                           # failed to auto-attach: -524                                                 (trampoline)
 user_ringbuf                             # failed to find kernel BTF type ID of '__s390x_sys_prctl': -3                (?)
-lookup_key                               # JIT does not support calling kernel function                                (kfunc)
-verify_pkcs7_sig                         # JIT does not support calling kernel function                                (kfunc)
-kfunc_dynptr_param                       # JIT does not support calling kernel function                                (kfunc)
+verif_stats                              # trace_vprintk__open_and_load unexpected error: -9                           (?)
+xdp_bonding                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
+xdp_metadata                             # JIT does not support calling kernel function                                (kfunc)
+test_task_under_cgroup                   # JIT does not support calling kernel function                                (kfunc)

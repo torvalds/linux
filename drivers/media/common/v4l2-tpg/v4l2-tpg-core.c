@@ -870,9 +870,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 		g = tpg_colors[col].g;
 		b = tpg_colors[col].b;
 	} else if (tpg->pattern == TPG_PAT_NOISE) {
-		r = g = b = prandom_u32_max(256);
+		r = g = b = get_random_u8();
 	} else if (k == TPG_COLOR_RANDOM) {
-		r = g = b = tpg->qual_offset + prandom_u32_max(196);
+		r = g = b = tpg->qual_offset + get_random_u32_below(196);
 	} else if (k >= TPG_COLOR_RAMP) {
 		r = g = b = k - TPG_COLOR_RAMP;
 	}
@@ -2286,7 +2286,7 @@ static void tpg_fill_params_extras(const struct tpg_data *tpg,
 		params->wss_width = tpg->crop.width;
 	params->wss_width = tpg_hscale_div(tpg, p, params->wss_width);
 	params->wss_random_offset =
-		params->twopixsize * prandom_u32_max(tpg->src_width / 2);
+		params->twopixsize * get_random_u32_below(tpg->src_width / 2);
 
 	if (tpg->crop.left < tpg->border.left) {
 		left_pillar_width = tpg->border.left - tpg->crop.left;
@@ -2495,9 +2495,9 @@ static void tpg_fill_plane_pattern(const struct tpg_data *tpg,
 		linestart_newer = tpg->black_line[p];
 	} else if (tpg->pattern == TPG_PAT_NOISE || tpg->qual == TPG_QUAL_NOISE) {
 		linestart_older = tpg->random_line[p] +
-				  twopixsize * prandom_u32_max(tpg->src_width / 2);
+				  twopixsize * get_random_u32_below(tpg->src_width / 2);
 		linestart_newer = tpg->random_line[p] +
-				  twopixsize * prandom_u32_max(tpg->src_width / 2);
+				  twopixsize * get_random_u32_below(tpg->src_width / 2);
 	} else {
 		unsigned frame_line_old =
 			(frame_line + mv_vert_old) % tpg->src_height;

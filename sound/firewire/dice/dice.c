@@ -9,7 +9,7 @@
 
 MODULE_DESCRIPTION("DICE driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 
 #define OUI_WEISS		0x001c6a
 #define OUI_LOUD		0x000ff2
@@ -381,6 +381,16 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.vendor_id	= OUI_HARMAN,
 		.model_id	= 0x000001,
 		.driver_data	= (kernel_ulong_t)snd_dice_detect_harman_formats,
+	},
+	// Focusrite Saffire Pro 40 with TCD3070-CH.
+	// The model has quirk in its GUID, in which model field is 0x000013 and different from
+	// model ID (0x0000de) in its root/unit directory.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_FOCUSRITE,
+		.model_id	= 0x0000de,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_focusrite_pro40_tcd3070_formats,
 	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,

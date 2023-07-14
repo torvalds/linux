@@ -81,20 +81,9 @@ static int mlxsw_m_port_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct devlink_port *
-mlxsw_m_port_get_devlink_port(struct net_device *dev)
-{
-	struct mlxsw_m_port *mlxsw_m_port = netdev_priv(dev);
-	struct mlxsw_m *mlxsw_m = mlxsw_m_port->mlxsw_m;
-
-	return mlxsw_core_port_devlink_port_get(mlxsw_m->core,
-						mlxsw_m_port->local_port);
-}
-
 static const struct net_device_ops mlxsw_m_port_netdev_ops = {
 	.ndo_open		= mlxsw_m_port_open,
 	.ndo_stop		= mlxsw_m_port_stop,
-	.ndo_get_devlink_port	= mlxsw_m_port_get_devlink_port,
 };
 
 static void mlxsw_m_module_get_drvinfo(struct net_device *dev,
@@ -265,6 +254,8 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 slot_index,
 	SET_NETDEV_DEV(dev, mlxsw_m->bus_info->dev);
 	dev_net_set(dev, mlxsw_core_net(mlxsw_m->core));
 	mlxsw_m_port = netdev_priv(dev);
+	mlxsw_core_port_netdev_link(mlxsw_m->core, local_port,
+				    mlxsw_m_port, dev);
 	mlxsw_m_port->dev = dev;
 	mlxsw_m_port->mlxsw_m = mlxsw_m;
 	mlxsw_m_port->local_port = local_port;
@@ -298,9 +289,6 @@ mlxsw_m_port_create(struct mlxsw_m *mlxsw_m, u16 local_port, u8 slot_index,
 		goto err_register_netdev;
 	}
 
-	mlxsw_core_port_eth_set(mlxsw_m->core, mlxsw_m_port->local_port,
-				mlxsw_m_port, dev);
-
 	return 0;
 
 err_register_netdev:
@@ -316,7 +304,6 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u16 local_port)
 {
 	struct mlxsw_m_port *mlxsw_m_port = mlxsw_m->ports[local_port];
 
-	mlxsw_core_port_clear(mlxsw_m->core, local_port, mlxsw_m);
 	unregister_netdev(mlxsw_m_port->dev); /* This calls ndo_stop */
 	mlxsw_m->ports[local_port] = NULL;
 	free_netdev(mlxsw_m_port->dev);
@@ -430,6 +417,7 @@ static int mlxsw_m_linecards_init(struct mlxsw_m *mlxsw_m)
 err_kmalloc_array:
 	for (i--; i >= 0; i--)
 		kfree(mlxsw_m->line_cards[i]);
+	kfree(mlxsw_m->line_cards);
 err_kcalloc:
 	kfree(mlxsw_m->ports);
 	return err;

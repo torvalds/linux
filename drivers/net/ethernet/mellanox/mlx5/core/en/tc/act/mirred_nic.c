@@ -48,4 +48,5 @@ tc_act_parse_mirred_nic(struct mlx5e_tc_act_parse_state *parse_state,
 struct mlx5e_tc_act mlx5e_tc_act_mirred_nic = {
 	.can_offload = tc_act_can_offload_mirred_nic,
 	.parse_action = tc_act_parse_mirred_nic,
+	.is_terminating_action = true,
 };

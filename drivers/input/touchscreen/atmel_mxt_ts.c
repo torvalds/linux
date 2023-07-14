@@ -55,6 +55,7 @@
 #define MXT_TOUCH_KEYARRAY_T15		15
 #define MXT_TOUCH_PROXIMITY_T23		23
 #define MXT_TOUCH_PROXKEY_T52		52
+#define MXT_TOUCH_PTC_KEYS_T97		97
 #define MXT_PROCI_GRIPFACE_T20		20
 #define MXT_PROCG_NOISE_T22		22
 #define MXT_PROCI_ONETOUCH_T24		24
@@ -326,9 +327,13 @@ struct mxt_data {
 	u16 T71_address;
 	u8 T9_reportid_min;
 	u8 T9_reportid_max;
+	u8 T15_reportid_min;
+	u8 T15_reportid_max;
 	u16 T18_address;
 	u8 T19_reportid;
 	u16 T44_address;
+	u8 T97_reportid_min;
+	u8 T97_reportid_max;
 	u8 T100_reportid_min;
 	u8 T100_reportid_max;
 
@@ -343,6 +348,9 @@ struct mxt_data {
 
 	u32 *t19_keymap;
 	unsigned int t19_num_keys;
+
+	u32 *t15_keymap;
+	unsigned int t15_num_keys;
 
 	enum mxt_suspend_mode suspend_mode;
 
@@ -375,6 +383,7 @@ static bool mxt_object_readable(unsigned int type)
 	case MXT_TOUCH_KEYARRAY_T15:
 	case MXT_TOUCH_PROXIMITY_T23:
 	case MXT_TOUCH_PROXKEY_T52:
+	case MXT_TOUCH_PTC_KEYS_T97:
 	case MXT_TOUCH_MULTITOUCHSCREEN_T100:
 	case MXT_PROCI_GRIPFACE_T20:
 	case MXT_PROCG_NOISE_T22:
@@ -891,6 +900,24 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 	data->update_input = true;
 }
 
+static void mxt_proc_t15_messages(struct mxt_data *data, u8 *message)
+{
+	struct input_dev *input_dev = data->input_dev;
+	unsigned long keystates = get_unaligned_le32(&message[2]);
+	int key;
+
+	for (key = 0; key < data->t15_num_keys; key++)
+		input_report_key(input_dev, data->t15_keymap[key],
+				 keystates & BIT(key));
+
+	data->update_input = true;
+}
+
+static void mxt_proc_t97_messages(struct mxt_data *data, u8 *message)
+{
+	mxt_proc_t15_messages(data, message);
+}
+
 static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 {
 	struct device *dev = &data->client->dev;
@@ -1017,6 +1044,12 @@ static int mxt_proc_message(struct mxt_data *data, u8 *message)
 	} else if (report_id >= data->T9_reportid_min &&
 		   report_id <= data->T9_reportid_max) {
 		mxt_proc_t9_message(data, message);
+	} else if (report_id >= data->T15_reportid_min &&
+		   report_id <= data->T15_reportid_max) {
+		mxt_proc_t15_messages(data, message);
+	} else if (report_id >= data->T97_reportid_min &&
+		   report_id <= data->T97_reportid_max) {
+		mxt_proc_t97_messages(data, message);
 	} else if (report_id >= data->T100_reportid_min &&
 		   report_id <= data->T100_reportid_max) {
 		mxt_proc_t100_message(data, message);
@@ -1689,9 +1722,13 @@ static void mxt_free_object_table(struct mxt_data *data)
 	data->T71_address = 0;
 	data->T9_reportid_min = 0;
 	data->T9_reportid_max = 0;
+	data->T15_reportid_min = 0;
+	data->T15_reportid_max = 0;
 	data->T18_address = 0;
 	data->T19_reportid = 0;
 	data->T44_address = 0;
+	data->T97_reportid_min = 0;
+	data->T97_reportid_max = 0;
 	data->T100_reportid_min = 0;
 	data->T100_reportid_max = 0;
 	data->max_reportid = 0;
@@ -1764,6 +1801,10 @@ static int mxt_parse_object_table(struct mxt_data *data,
 						object->num_report_ids - 1;
 			data->num_touchids = object->num_report_ids;
 			break;
+		case MXT_TOUCH_KEYARRAY_T15:
+			data->T15_reportid_min = min_id;
+			data->T15_reportid_max = max_id;
+			break;
 		case MXT_SPT_COMMSCONFIG_T18:
 			data->T18_address = object->start_address;
 			break;
@@ -1772,6 +1813,10 @@ static int mxt_parse_object_table(struct mxt_data *data,
 			break;
 		case MXT_SPT_GPIOPWM_T19:
 			data->T19_reportid = min_id;
+			break;
+		case MXT_TOUCH_PTC_KEYS_T97:
+			data->T97_reportid_min = min_id;
+			data->T97_reportid_max = max_id;
 			break;
 		case MXT_TOUCH_MULTITOUCHSCREEN_T100:
 			data->multitouch = MXT_TOUCH_MULTITOUCHSCREEN_T100;
@@ -2050,6 +2095,7 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	int error;
 	unsigned int num_mt_slots;
 	unsigned int mt_flags = 0;
+	int i;
 
 	switch (data->multitouch) {
 	case MXT_TOUCH_MULTI_T9:
@@ -2094,6 +2140,10 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	input_dev->dev.parent = dev;
 	input_dev->open = mxt_input_open;
 	input_dev->close = mxt_input_close;
+
+	input_dev->keycode = data->t15_keymap;
+	input_dev->keycodemax = data->t15_num_keys;
+	input_dev->keycodesize = sizeof(data->t15_keymap[0]);
 
 	input_set_capability(input_dev, EV_KEY, BTN_TOUCH);
 
@@ -2160,6 +2210,13 @@ static int mxt_initialize_input_device(struct mxt_data *data)
 	    data->t100_aux_vect) {
 		input_set_abs_params(input_dev, ABS_MT_ORIENTATION,
 				     0, 255, 0, 0);
+	}
+
+	/* For T15 and T97 Key Array */
+	if (data->T15_reportid_min || data->T97_reportid_min) {
+		for (i = 0; i < data->t15_num_keys; i++)
+			input_set_capability(input_dev,
+					     EV_KEY, data->t15_keymap[i]);
 	}
 
 	input_set_drvdata(input_dev, data);
@@ -2497,8 +2554,8 @@ static int mxt_vidioc_querycap(struct file *file, void *priv,
 {
 	struct mxt_data *data = video_drvdata(file);
 
-	strlcpy(cap->driver, "atmel_mxt_ts", sizeof(cap->driver));
-	strlcpy(cap->card, "atmel_mxt_ts touch", sizeof(cap->card));
+	strscpy(cap->driver, "atmel_mxt_ts", sizeof(cap->driver));
+	strscpy(cap->card, "atmel_mxt_ts touch", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "I2C:%s", dev_name(&data->client->dev));
 	return 0;
@@ -2514,11 +2571,11 @@ static int mxt_vidioc_enum_input(struct file *file, void *priv,
 
 	switch (i->index) {
 	case MXT_V4L_INPUT_REFS:
-		strlcpy(i->name, "Mutual Capacitance References",
+		strscpy(i->name, "Mutual Capacitance References",
 			sizeof(i->name));
 		break;
 	case MXT_V4L_INPUT_DELTAS:
-		strlcpy(i->name, "Mutual Capacitance Deltas", sizeof(i->name));
+		strscpy(i->name, "Mutual Capacitance Deltas", sizeof(i->name));
 		break;
 	}
 
@@ -3080,8 +3137,10 @@ static void mxt_input_close(struct input_dev *dev)
 static int mxt_parse_device_properties(struct mxt_data *data)
 {
 	static const char keymap_property[] = "linux,gpio-keymap";
+	static const char buttons_property[] = "linux,keycodes";
 	struct device *dev = &data->client->dev;
 	u32 *keymap;
+	u32 *buttonmap;
 	int n_keys;
 	int error;
 
@@ -3111,6 +3170,32 @@ static int mxt_parse_device_properties(struct mxt_data *data)
 		data->t19_num_keys = n_keys;
 	}
 
+	if (device_property_present(dev, buttons_property)) {
+		n_keys = device_property_count_u32(dev, buttons_property);
+		if (n_keys <= 0) {
+			error = n_keys < 0 ? n_keys : -EINVAL;
+			dev_err(dev, "invalid/malformed '%s' property: %d\n",
+				buttons_property, error);
+			return error;
+		}
+
+		buttonmap = devm_kmalloc_array(dev, n_keys, sizeof(*buttonmap),
+					       GFP_KERNEL);
+		if (!buttonmap)
+			return -ENOMEM;
+
+		error = device_property_read_u32_array(dev, buttons_property,
+						       buttonmap, n_keys);
+		if (error) {
+			dev_err(dev, "failed to parse '%s' property: %d\n",
+				buttons_property, error);
+			return error;
+		}
+
+		data->t15_keymap = buttonmap;
+		data->t15_num_keys = n_keys;
+	}
+
 	return 0;
 }
 
@@ -3129,7 +3214,7 @@ static const struct dmi_system_id chromebook_T9_suspend_dmi[] = {
 	{ }
 };
 
-static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int mxt_probe(struct i2c_client *client)
 {
 	struct mxt_data *data;
 	int error;
@@ -3296,7 +3381,7 @@ static void mxt_remove(struct i2c_client *client)
 			       data->regulators);
 }
 
-static int __maybe_unused mxt_suspend(struct device *dev)
+static int mxt_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
@@ -3317,7 +3402,7 @@ static int __maybe_unused mxt_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mxt_resume(struct device *dev)
+static int mxt_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mxt_data *data = i2c_get_clientdata(client);
@@ -3338,7 +3423,7 @@ static int __maybe_unused mxt_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mxt_pm_ops, mxt_suspend, mxt_resume);
 
 static const struct of_device_id mxt_of_match[] = {
 	{ .compatible = "atmel,maxtouch", },
@@ -3375,7 +3460,7 @@ static struct i2c_driver mxt_driver = {
 		.name	= "atmel_mxt_ts",
 		.of_match_table = mxt_of_match,
 		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
-		.pm	= &mxt_pm_ops,
+		.pm	= pm_sleep_ptr(&mxt_pm_ops),
 	},
 	.probe		= mxt_probe,
 	.remove		= mxt_remove,

@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+/*
+ * Copyright (C) 2022 Marek Vasut <marex@denx.de>
+ */
+
+/dts-v1/;
+
+#include "stm32mp151.dtsi"
+#include "stm32mp15xx-dhcor-som.dtsi"
+#include "stm32mp15xx-dhcor-testbench.dtsi"
+
+/ {
+	model = "DH electronics STM32MP151A DHCOR Testbench";
+	compatible = "dh,stm32mp151a-dhcor-testbench",
+		     "dh,stm32mp151a-dhcor-som",
+		     "st,stm32mp151";
+};

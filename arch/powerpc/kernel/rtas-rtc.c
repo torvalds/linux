@@ -21,7 +21,7 @@ time64_t __init rtas_get_boot_time(void)
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
-		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
+		error = rtas_call(rtas_function_token(RTAS_FN_GET_TIME_OF_DAY), 0, 8, ret);
 
 		wait_time = rtas_busy_delay_time(error);
 		if (wait_time) {
@@ -53,7 +53,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
-		error = rtas_call(rtas_token("get-time-of-day"), 0, 8, ret);
+		error = rtas_call(rtas_function_token(RTAS_FN_GET_TIME_OF_DAY), 0, 8, ret);
 
 		wait_time = rtas_busy_delay_time(error);
 		if (wait_time) {
@@ -90,7 +90,7 @@ int rtas_set_rtc_time(struct rtc_time *tm)
 
 	max_wait_tb = get_tb() + tb_ticks_per_usec * 1000 * MAX_RTC_WAIT;
 	do {
-	        error = rtas_call(rtas_token("set-time-of-day"), 7, 1, NULL,
+		error = rtas_call(rtas_function_token(RTAS_FN_SET_TIME_OF_DAY), 7, 1, NULL,
 				  tm->tm_year + 1900, tm->tm_mon + 1,
 				  tm->tm_mday, tm->tm_hour, tm->tm_min,
 				  tm->tm_sec, 0);

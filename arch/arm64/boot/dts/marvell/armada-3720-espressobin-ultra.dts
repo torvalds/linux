@@ -12,8 +12,8 @@
 
 / {
 	model = "Globalscale Marvell ESPRESSOBin Ultra Board";
-	compatible = "globalscale,espressobin-ultra", "marvell,armada3720",
-		     "marvell,armada3710";
+	compatible = "globalscale,espressobin-ultra", "globalscale,espressobin",
+		     "marvell,armada3720", "marvell,armada3700";
 
 	aliases {
 		/* ethernet1 is WAN port */
@@ -23,6 +23,8 @@
 		ethernet4 = &switch0port3;
 		ethernet5 = &switch0port4;
 	};
+
+	/delete-node/ regulator;
 
 	reg_usb3_vbus: usb3-vbus {
 		compatible = "regulator-fixed";
@@ -66,6 +68,7 @@
 };
 
 &sdhci1 {
+	/delete-property/ vqmmc-supply;
 	status = "disabled";
 };
 

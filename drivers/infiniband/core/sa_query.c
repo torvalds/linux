@@ -50,6 +50,7 @@
 #include <rdma/ib_marshall.h>
 #include <rdma/ib_addr.h>
 #include <rdma/opa_addr.h>
+#include <rdma/rdma_cm.h>
 #include "sa.h"
 #include "core_priv.h"
 
@@ -104,7 +105,8 @@ struct ib_sa_device {
 };
 
 struct ib_sa_query {
-	void (*callback)(struct ib_sa_query *, int, struct ib_sa_mad *);
+	void (*callback)(struct ib_sa_query *sa_query, int status,
+			 struct ib_sa_mad *mad);
 	void (*release)(struct ib_sa_query *);
 	struct ib_sa_client    *client;
 	struct ib_sa_port      *port;
@@ -123,7 +125,8 @@ struct ib_sa_query {
 #define IB_SA_QUERY_OPA			0x00000004
 
 struct ib_sa_path_query {
-	void (*callback)(int, struct sa_path_rec *, void *);
+	void (*callback)(int status, struct sa_path_rec *rec,
+			 unsigned int num_paths, void *context);
 	void *context;
 	struct ib_sa_query sa_query;
 	struct sa_path_rec *conv_pr;
@@ -681,6 +684,8 @@ static const struct ib_field guidinfo_rec_table[] = {
 	  .size_bits    = 512 },
 };
 
+#define RDMA_PRIMARY_PATH_MAX_REC_NUM 3
+
 static inline void ib_sa_disable_local_svc(struct ib_sa_query *query)
 {
 	query->flags &= ~IB_SA_ENABLE_LOCAL_SERVICE;
@@ -712,7 +717,7 @@ static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 
 	if ((comp_mask & IB_SA_PATH_REC_REVERSIBLE) &&
 	    sa_rec->reversible != 0)
-		query->path_use = LS_RESOLVE_PATH_USE_GMP;
+		query->path_use = LS_RESOLVE_PATH_USE_ALL;
 	else
 		query->path_use = LS_RESOLVE_PATH_USE_UNIDIRECTIONAL;
 	header->path_use = query->path_use;
@@ -865,50 +870,77 @@ static void send_handler(struct ib_mad_agent *agent,
 static void ib_nl_process_good_resolve_rsp(struct ib_sa_query *query,
 					   const struct nlmsghdr *nlh)
 {
+	struct sa_path_rec recs[RDMA_PRIMARY_PATH_MAX_REC_NUM];
+	struct ib_sa_path_query *path_query;
+	struct ib_path_rec_data *rec_data;
 	struct ib_mad_send_wc mad_send_wc;
-	struct ib_sa_mad *mad = NULL;
 	const struct nlattr *head, *curr;
-	struct ib_path_rec_data  *rec;
-	int len, rem;
+	struct ib_sa_mad *mad = NULL;
+	int len, rem, status = -EIO;
+	unsigned int num_prs = 0;
 	u32 mask = 0;
-	int status = -EIO;
 
-	if (query->callback) {
-		head = (const struct nlattr *) nlmsg_data(nlh);
-		len = nlmsg_len(nlh);
-		switch (query->path_use) {
-		case LS_RESOLVE_PATH_USE_UNIDIRECTIONAL:
-			mask = IB_PATH_PRIMARY | IB_PATH_OUTBOUND;
-			break;
+	if (!query->callback)
+		goto out;
 
-		case LS_RESOLVE_PATH_USE_ALL:
-		case LS_RESOLVE_PATH_USE_GMP:
-		default:
-			mask = IB_PATH_PRIMARY | IB_PATH_GMP |
-				IB_PATH_BIDIRECTIONAL;
-			break;
-		}
-		nla_for_each_attr(curr, head, len, rem) {
-			if (curr->nla_type == LS_NLA_TYPE_PATH_RECORD) {
-				rec = nla_data(curr);
-				/*
-				 * Get the first one. In the future, we may
-				 * need to get up to 6 pathrecords.
-				 */
-				if ((rec->flags & mask) == mask) {
-					mad = query->mad_buf->mad;
-					mad->mad_hdr.method |=
-						IB_MGMT_METHOD_RESP;
-					memcpy(mad->data, rec->path_rec,
-					       sizeof(rec->path_rec));
-					status = 0;
-					break;
-				}
-			}
-		}
-		query->callback(query, status, mad);
+	path_query = container_of(query, struct ib_sa_path_query, sa_query);
+	mad = query->mad_buf->mad;
+
+	head = (const struct nlattr *) nlmsg_data(nlh);
+	len = nlmsg_len(nlh);
+	switch (query->path_use) {
+	case LS_RESOLVE_PATH_USE_UNIDIRECTIONAL:
+		mask = IB_PATH_PRIMARY | IB_PATH_OUTBOUND;
+		break;
+
+	case LS_RESOLVE_PATH_USE_ALL:
+		mask = IB_PATH_PRIMARY;
+		break;
+
+	case LS_RESOLVE_PATH_USE_GMP:
+	default:
+		mask = IB_PATH_PRIMARY | IB_PATH_GMP |
+			IB_PATH_BIDIRECTIONAL;
+		break;
 	}
 
+	nla_for_each_attr(curr, head, len, rem) {
+		if (curr->nla_type != LS_NLA_TYPE_PATH_RECORD)
+			continue;
+
+		rec_data = nla_data(curr);
+		if ((rec_data->flags & mask) != mask)
+			continue;
+
+		if ((query->flags & IB_SA_QUERY_OPA) ||
+		    path_query->conv_pr) {
+			mad->mad_hdr.method |= IB_MGMT_METHOD_RESP;
+			memcpy(mad->data, rec_data->path_rec,
+			       sizeof(rec_data->path_rec));
+			query->callback(query, 0, mad);
+			goto out;
+		}
+
+		status = 0;
+		ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
+			  rec_data->path_rec, &recs[num_prs]);
+		recs[num_prs].flags = rec_data->flags;
+		recs[num_prs].rec_type = SA_PATH_REC_TYPE_IB;
+		sa_path_set_dmac_zero(&recs[num_prs]);
+
+		num_prs++;
+		if (num_prs >= RDMA_PRIMARY_PATH_MAX_REC_NUM)
+			break;
+	}
+
+	if (!status) {
+		mad->mad_hdr.method |= IB_MGMT_METHOD_RESP;
+		path_query->callback(status, recs, num_prs,
+				     path_query->context);
+	} else
+		query->callback(query, status, mad);
+
+out:
 	mad_send_wc.send_buf = query->mad_buf;
 	mad_send_wc.status = IB_WC_SUCCESS;
 	send_handler(query->mad_buf->mad_agent, &mad_send_wc);
@@ -1412,40 +1444,39 @@ static int opa_pr_query_possible(struct ib_sa_client *client,
 }
 
 static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
-				    int status,
-				    struct ib_sa_mad *mad)
+				    int status, struct ib_sa_mad *mad)
 {
 	struct ib_sa_path_query *query =
 		container_of(sa_query, struct ib_sa_path_query, sa_query);
+	struct sa_path_rec rec = {};
 
-	if (mad) {
-		struct sa_path_rec rec;
+	if (!mad) {
+		query->callback(status, NULL, 0, query->context);
+		return;
+	}
 
-		if (sa_query->flags & IB_SA_QUERY_OPA) {
-			ib_unpack(opa_path_rec_table,
-				  ARRAY_SIZE(opa_path_rec_table),
-				  mad->data, &rec);
-			rec.rec_type = SA_PATH_REC_TYPE_OPA;
-			query->callback(status, &rec, query->context);
-		} else {
-			ib_unpack(path_rec_table,
-				  ARRAY_SIZE(path_rec_table),
-				  mad->data, &rec);
-			rec.rec_type = SA_PATH_REC_TYPE_IB;
-			sa_path_set_dmac_zero(&rec);
+	if (sa_query->flags & IB_SA_QUERY_OPA) {
+		ib_unpack(opa_path_rec_table, ARRAY_SIZE(opa_path_rec_table),
+			  mad->data, &rec);
+		rec.rec_type = SA_PATH_REC_TYPE_OPA;
+		query->callback(status, &rec, 1, query->context);
+		return;
+	}
 
-			if (query->conv_pr) {
-				struct sa_path_rec opa;
+	ib_unpack(path_rec_table, ARRAY_SIZE(path_rec_table),
+		  mad->data, &rec);
+	rec.rec_type = SA_PATH_REC_TYPE_IB;
+	sa_path_set_dmac_zero(&rec);
 
-				memset(&opa, 0, sizeof(struct sa_path_rec));
-				sa_convert_path_ib_to_opa(&opa, &rec);
-				query->callback(status, &opa, query->context);
-			} else {
-				query->callback(status, &rec, query->context);
-			}
-		}
-	} else
-		query->callback(status, NULL, query->context);
+	if (query->conv_pr) {
+		struct sa_path_rec opa;
+
+		memset(&opa, 0, sizeof(struct sa_path_rec));
+		sa_convert_path_ib_to_opa(&opa, &rec);
+		query->callback(status, &opa, 1, query->context);
+	} else {
+		query->callback(status, &rec, 1, query->context);
+	}
 }
 
 static void ib_sa_path_rec_release(struct ib_sa_query *sa_query)
@@ -1489,7 +1520,7 @@ int ib_sa_path_rec_get(struct ib_sa_client *client,
 		       unsigned long timeout_ms, gfp_t gfp_mask,
 		       void (*callback)(int status,
 					struct sa_path_rec *resp,
-					void *context),
+					unsigned int num_paths, void *context),
 		       void *context,
 		       struct ib_sa_query **sa_query)
 {
@@ -1588,8 +1619,7 @@ err1:
 EXPORT_SYMBOL(ib_sa_path_rec_get);
 
 static void ib_sa_mcmember_rec_callback(struct ib_sa_query *sa_query,
-					int status,
-					struct ib_sa_mad *mad)
+					int status, struct ib_sa_mad *mad)
 {
 	struct ib_sa_mcmember_query *query =
 		container_of(sa_query, struct ib_sa_mcmember_query, sa_query);
@@ -1680,8 +1710,7 @@ err1:
 
 /* Support GuidInfoRecord */
 static void ib_sa_guidinfo_rec_callback(struct ib_sa_query *sa_query,
-					int status,
-					struct ib_sa_mad *mad)
+					int status, struct ib_sa_mad *mad)
 {
 	struct ib_sa_guidinfo_query *query =
 		container_of(sa_query, struct ib_sa_guidinfo_query, sa_query);
@@ -1790,8 +1819,7 @@ static void ib_classportinfo_cb(void *context)
 }
 
 static void ib_sa_classport_info_rec_callback(struct ib_sa_query *sa_query,
-					      int status,
-					      struct ib_sa_mad *mad)
+					      int status, struct ib_sa_mad *mad)
 {
 	unsigned long flags;
 	struct ib_sa_classport_info_query *query =

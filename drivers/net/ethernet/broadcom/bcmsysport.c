@@ -295,6 +295,8 @@ static const struct bcm_sysport_stats bcm_sysport_gstrings_stats[] = {
 	/* RBUF misc statistics */
 	STAT_RBUF("rbuf_ovflow_cnt", mib.rbuf_ovflow_cnt, RBUF_OVFL_DISC_CNTR),
 	STAT_RBUF("rbuf_err_cnt", mib.rbuf_err_cnt, RBUF_ERR_PKT_CNTR),
+	/* RDMA misc statistics */
+	STAT_RDMA("rdma_ovflow_cnt", mib.rdma_ovflow_cnt, RDMA_OVFL_DISC_CNTR),
 	STAT_MIB_SOFT("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
 	STAT_MIB_SOFT("rx_dma_failed", mib.rx_dma_failed),
 	STAT_MIB_SOFT("tx_dma_failed", mib.tx_dma_failed),
@@ -333,6 +335,7 @@ static inline bool bcm_sysport_lite_stat_valid(enum bcm_sysport_stat_type type)
 	case BCM_SYSPORT_STAT_NETDEV64:
 	case BCM_SYSPORT_STAT_RXCHK:
 	case BCM_SYSPORT_STAT_RBUF:
+	case BCM_SYSPORT_STAT_RDMA:
 	case BCM_SYSPORT_STAT_SOFT:
 		return true;
 	default:
@@ -436,6 +439,14 @@ static void bcm_sysport_update_mib_counters(struct bcm_sysport_priv *priv)
 			if (val == ~0)
 				rbuf_writel(priv, 0, s->reg_offset);
 			break;
+		case BCM_SYSPORT_STAT_RDMA:
+			if (!priv->is_lite)
+				continue;
+
+			val = rdma_readl(priv, s->reg_offset);
+			if (val == ~0)
+				rdma_writel(priv, 0, s->reg_offset);
+			break;
 		}
 
 		j += s->stat_sizeof;
@@ -457,10 +468,10 @@ static void bcm_sysport_update_tx_stats(struct bcm_sysport_priv *priv,
 	for (q = 0; q < priv->netdev->num_tx_queues; q++) {
 		ring = &priv->tx_rings[q];
 		do {
-			start = u64_stats_fetch_begin_irq(&priv->syncp);
+			start = u64_stats_fetch_begin(&priv->syncp);
 			bytes = ring->bytes;
 			packets = ring->packets;
-		} while (u64_stats_fetch_retry_irq(&priv->syncp, start));
+		} while (u64_stats_fetch_retry(&priv->syncp, start));
 
 		*tx_bytes += bytes;
 		*tx_packets += packets;
@@ -504,9 +515,9 @@ static void bcm_sysport_get_stats(struct net_device *dev,
 		if (s->stat_sizeof == sizeof(u64) &&
 		    s->type == BCM_SYSPORT_STAT_NETDEV64) {
 			do {
-				start = u64_stats_fetch_begin_irq(syncp);
+				start = u64_stats_fetch_begin(syncp);
 				data[i] = *(u64 *)p;
-			} while (u64_stats_fetch_retry_irq(syncp, start));
+			} while (u64_stats_fetch_retry(syncp, start));
 		} else
 			data[i] = *(u32 *)p;
 		j++;
@@ -1878,10 +1889,10 @@ static void bcm_sysport_get_stats64(struct net_device *dev,
 				    &stats->tx_packets);
 
 	do {
-		start = u64_stats_fetch_begin_irq(&priv->syncp);
+		start = u64_stats_fetch_begin(&priv->syncp);
 		stats->rx_packets = stats64->rx_packets;
 		stats->rx_bytes = stats64->rx_bytes;
-	} while (u64_stats_fetch_retry_irq(&priv->syncp, start));
+	} while (u64_stats_fetch_retry(&priv->syncp, start));
 }
 
 static void bcm_sysport_netif_start(struct net_device *dev)
@@ -1990,6 +2001,9 @@ static int bcm_sysport_open(struct net_device *dev)
 		ret = -ENODEV;
 		goto out_clk_disable;
 	}
+
+	/* Indicate that the MAC is responsible for PHY PM */
+	phydev->mac_managed_pm = true;
 
 	/* Reset house keeping link status */
 	priv->old_duplex = -1;
@@ -2517,9 +2531,9 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	priv->irq0 = platform_get_irq(pdev, 0);
 	if (!priv->is_lite) {
 		priv->irq1 = platform_get_irq(pdev, 1);
-		priv->wol_irq = platform_get_irq(pdev, 2);
+		priv->wol_irq = platform_get_irq_optional(pdev, 2);
 	} else {
-		priv->wol_irq = platform_get_irq(pdev, 1);
+		priv->wol_irq = platform_get_irq_optional(pdev, 1);
 	}
 	if (priv->irq0 <= 0 || (priv->irq1 <= 0 && !priv->is_lite)) {
 		ret = -EINVAL;

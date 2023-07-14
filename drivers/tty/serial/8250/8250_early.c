@@ -36,7 +36,6 @@
 
 static unsigned int serial8250_early_in(struct uart_port *port, int offset)
 {
-	int reg_offset = offset;
 	offset <<= port->regshift;
 
 	switch (port->iotype) {
@@ -50,8 +49,6 @@ static unsigned int serial8250_early_in(struct uart_port *port, int offset)
 		return ioread32be(port->membase + offset);
 	case UPIO_PORT:
 		return inb(port->iobase + offset);
-	case UPIO_AU:
-		return port->serial_in(port, reg_offset);
 	default:
 		return 0;
 	}
@@ -59,7 +56,6 @@ static unsigned int serial8250_early_in(struct uart_port *port, int offset)
 
 static void serial8250_early_out(struct uart_port *port, int offset, int value)
 {
-	int reg_offset = offset;
 	offset <<= port->regshift;
 
 	switch (port->iotype) {
@@ -77,9 +73,6 @@ static void serial8250_early_out(struct uart_port *port, int offset, int value)
 		break;
 	case UPIO_PORT:
 		outb(value, port->iobase + offset);
-		break;
-	case UPIO_AU:
-		port->serial_out(port, reg_offset, value);
 		break;
 	}
 }
@@ -136,11 +129,11 @@ static void __init init_port(struct earlycon_device *device)
 	unsigned char c;
 	unsigned int ier;
 
-	serial8250_early_out(port, UART_LCR, 0x3);	/* 8n1 */
+	serial8250_early_out(port, UART_LCR, UART_LCR_WLEN8);		/* 8n1 */
 	ier = serial8250_early_in(port, UART_IER);
 	serial8250_early_out(port, UART_IER, ier & UART_IER_UUE); /* no interrupt */
 	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
-	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
+	serial8250_early_out(port, UART_MCR, UART_MCR_DTR | UART_MCR_RTS);
 
 	if (port->uartclk) {
 		divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
@@ -197,19 +190,5 @@ static int __init early_omap8250_setup(struct earlycon_device *device,
 OF_EARLYCON_DECLARE(omap8250, "ti,omap2-uart", early_omap8250_setup);
 OF_EARLYCON_DECLARE(omap8250, "ti,omap3-uart", early_omap8250_setup);
 OF_EARLYCON_DECLARE(omap8250, "ti,omap4-uart", early_omap8250_setup);
-
-#endif
-
-#ifdef CONFIG_SERIAL_8250_RT288X
-
-static int __init early_au_setup(struct earlycon_device *dev, const char *opt)
-{
-	dev->port.serial_in = au_serial_in;
-	dev->port.serial_out = au_serial_out;
-	dev->port.iotype = UPIO_AU;
-	dev->con->write = early_serial8250_write;
-	return 0;
-}
-OF_EARLYCON_DECLARE(palmchip, "ralink,rt2880-uart", early_au_setup);
 
 #endif

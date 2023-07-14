@@ -1,5 +1,6 @@
 obj-y += kernel/
 obj-y += mm/
+obj-y += net/
 obj-y += vdso/
 
 # for cleaning

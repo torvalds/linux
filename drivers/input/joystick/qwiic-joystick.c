@@ -137,7 +137,7 @@ static struct i2c_driver qwiic_driver = {
 		.of_match_table	= of_match_ptr(of_qwiic_match),
 	},
 	.id_table	= qwiic_id_table,
-	.probe_new	= qwiic_probe,
+	.probe		= qwiic_probe,
 };
 module_i2c_driver(qwiic_driver);
 

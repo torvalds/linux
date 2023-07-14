@@ -123,7 +123,7 @@ struct iio_buffer {
 	struct attribute_group buffer_group;
 
 	/* @attrs: Standard attributes of the buffer. */
-	const struct attribute **attrs;
+	const struct iio_dev_attr **attrs;
 
 	/* @demux_bounce: Buffer for doing gather from incoming scan. */
 	void *demux_bounce;

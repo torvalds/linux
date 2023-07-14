@@ -230,7 +230,6 @@ static int check_config_address(struct tb_cfg_address addr,
 static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 {
 	struct cfg_error_pkg *pkg = response->buffer;
-	struct tb_ctl *ctl = response->ctl;
 	struct tb_cfg_result res = { 0 };
 	res.response_route = tb_cfg_get_route(&pkg->header);
 	res.response_port = 0;
@@ -238,13 +237,6 @@ static struct tb_cfg_result decode_error(const struct ctl_pkg *response)
 			       tb_cfg_get_route(&pkg->header));
 	if (res.err)
 		return res;
-
-	if (pkg->zero1)
-		tb_ctl_warn(ctl, "pkg->zero1 is %#x\n", pkg->zero1);
-	if (pkg->zero2)
-		tb_ctl_warn(ctl, "pkg->zero2 is %#x\n", pkg->zero2);
-	if (pkg->zero3)
-		tb_ctl_warn(ctl, "pkg->zero3 is %#x\n", pkg->zero3);
 
 	res.err = 1;
 	res.tb_error = pkg->error;
@@ -416,6 +408,14 @@ static int tb_async_error(const struct ctl_pkg *pkg)
 	case TB_CFG_ERROR_LINK_ERROR:
 	case TB_CFG_ERROR_HEC_ERROR_DETECTED:
 	case TB_CFG_ERROR_FLOW_CONTROL_ERROR:
+	case TB_CFG_ERROR_DP_BW:
+	case TB_CFG_ERROR_ROP_CMPLT:
+	case TB_CFG_ERROR_POP_CMPLT:
+	case TB_CFG_ERROR_PCIE_WAKE:
+	case TB_CFG_ERROR_DP_CON_CHANGE:
+	case TB_CFG_ERROR_DPTX_DISCOVERY:
+	case TB_CFG_ERROR_LINK_RECOVERY:
+	case TB_CFG_ERROR_ASYM_LINK:
 		return true;
 
 	default:
@@ -736,6 +736,68 @@ void tb_ctl_stop(struct tb_ctl *ctl)
 /* public interface, commands */
 
 /**
+ * tb_cfg_ack_notification() - Ack notification
+ * @ctl: Control channel to use
+ * @route: Router that originated the event
+ * @error: Pointer to the notification package
+ *
+ * Call this as response for non-plug notification to ack it. Returns
+ * %0 on success or an error code on failure.
+ */
+int tb_cfg_ack_notification(struct tb_ctl *ctl, u64 route,
+			    const struct cfg_error_pkg *error)
+{
+	struct cfg_ack_pkg pkg = {
+		.header = tb_cfg_make_header(route),
+	};
+	const char *name;
+
+	switch (error->error) {
+	case TB_CFG_ERROR_LINK_ERROR:
+		name = "link error";
+		break;
+	case TB_CFG_ERROR_HEC_ERROR_DETECTED:
+		name = "HEC error";
+		break;
+	case TB_CFG_ERROR_FLOW_CONTROL_ERROR:
+		name = "flow control error";
+		break;
+	case TB_CFG_ERROR_DP_BW:
+		name = "DP_BW";
+		break;
+	case TB_CFG_ERROR_ROP_CMPLT:
+		name = "router operation completion";
+		break;
+	case TB_CFG_ERROR_POP_CMPLT:
+		name = "port operation completion";
+		break;
+	case TB_CFG_ERROR_PCIE_WAKE:
+		name = "PCIe wake";
+		break;
+	case TB_CFG_ERROR_DP_CON_CHANGE:
+		name = "DP connector change";
+		break;
+	case TB_CFG_ERROR_DPTX_DISCOVERY:
+		name = "DPTX discovery";
+		break;
+	case TB_CFG_ERROR_LINK_RECOVERY:
+		name = "link recovery";
+		break;
+	case TB_CFG_ERROR_ASYM_LINK:
+		name = "asymmetric link";
+		break;
+	default:
+		name = "unknown";
+		break;
+	}
+
+	tb_ctl_dbg(ctl, "acking %s (%#x) notification on %llx\n", name,
+		   error->error, route);
+
+	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_NOTIFY_ACK);
+}
+
+/**
  * tb_cfg_ack_plug() - Ack hot plug/unplug event
  * @ctl: Control channel to use
  * @route: Router that originated the event
@@ -754,7 +816,7 @@ int tb_cfg_ack_plug(struct tb_ctl *ctl, u64 route, u32 port, bool unplug)
 		.pg = unplug ? TB_CFG_ERROR_PG_HOT_UNPLUG
 			     : TB_CFG_ERROR_PG_HOT_PLUG,
 	};
-	tb_ctl_dbg(ctl, "acking hot %splug event on %llx:%x\n",
+	tb_ctl_dbg(ctl, "acking hot %splug event on %llx:%u\n",
 		   unplug ? "un" : "", route, port);
 	return tb_ctl_tx(ctl, &pkg, sizeof(pkg), TB_CFG_PKG_ERROR);
 }
@@ -999,7 +1061,7 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 
 	if (res->tb_error == TB_CFG_ERROR_LOCK)
 		return -EACCES;
-	else if (res->tb_error == TB_CFG_ERROR_PORT_NOT_CONNECTED)
+	if (res->tb_error == TB_CFG_ERROR_PORT_NOT_CONNECTED)
 		return -ENOTCONN;
 
 	return -EIO;

@@ -109,14 +109,14 @@
 	};
 
 	pinmux@700008d4 {
-		dvfs_pwm_active_state: dvfs_pwm_active {
+		dvfs_pwm_active_state: pinmux-dvfs-pwm-active {
 			dvfs_pwm_pbb1 {
 				nvidia,pins = "dvfs_pwm_pbb1";
 				nvidia,tristate = <TEGRA_PIN_DISABLE>;
 			};
 		};
 
-		dvfs_pwm_inactive_state: dvfs_pwm_inactive {
+		dvfs_pwm_inactive_state: pinmux-dvfs-pwm-inactive {
 			dvfs_pwm_pbb1 {
 				nvidia,pins = "dvfs_pwm_pbb1";
 				nvidia,tristate = <TEGRA_PIN_ENABLE>;
@@ -186,6 +186,22 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&max77620_default>;
 
+			fps {
+				fps0 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+					maxim,suspend-fps-time-period-us = <5120>;
+				};
+
+				fps1 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+					maxim,suspend-fps-time-period-us = <5120>;
+				};
+
+				fps2 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
 			max77620_default: pinmux {
 				gpio0 {
 					pins = "gpio0";
@@ -228,22 +244,6 @@
 					pins = "gpio5", "gpio6", "gpio7";
 					function = "gpio";
 					drive-push-pull = <1>;
-				};
-			};
-
-			fps {
-				fps0 {
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
-					maxim,suspend-fps-time-period-us = <5120>;
-				};
-
-				fps1 {
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
-					maxim,suspend-fps-time-period-us = <5120>;
-				};
-
-				fps2 {
-					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
 				};
 			};
 
@@ -611,14 +611,6 @@
 	aconnect@702c0000 {
 		status = "okay";
 
-		dma-controller@702e2000 {
-			status = "okay";
-		};
-
-		interrupt-controller@702f9000 {
-			status = "okay";
-		};
-
 		ahub@702d0800 {
 			status = "okay";
 
@@ -672,56 +664,6 @@
 
 						i2s4_dap_ep: endpoint {
 							dai-format = "i2s";
-							/* Placeholder for external Codec */
-						};
-					};
-				};
-			};
-
-			dmic@702d4000 {
-				status = "okay";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						dmic1_cif_ep: endpoint {
-							remote-endpoint = <&xbar_dmic1_ep>;
-						};
-					};
-
-					dmic1_port: port@1 {
-						reg = <1>;
-
-						dmic1_dap_ep: endpoint {
-							/* Placeholder for external Codec */
-						};
-					};
-				};
-			};
-
-			dmic@702d4100 {
-				status = "okay";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						dmic2_cif_ep: endpoint {
-							remote-endpoint = <&xbar_dmic2_ep>;
-						};
-					};
-
-					dmic2_port: port@1 {
-						reg = <1>;
-
-						dmic2_dap_ep: endpoint {
 							/* Placeholder for external Codec */
 						};
 					};
@@ -823,56 +765,6 @@
 
 						sfc4_cif_out_ep: endpoint {
 							remote-endpoint = <&xbar_sfc4_out_ep>;
-						};
-					};
-				};
-			};
-
-			mvc@702da000 {
-				status = "okay";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						mvc1_cif_in_ep: endpoint {
-							remote-endpoint = <&xbar_mvc1_in_ep>;
-						};
-					};
-
-					mvc1_out_port: port@1 {
-						reg = <1>;
-
-						mvc1_cif_out_ep: endpoint {
-							remote-endpoint = <&xbar_mvc1_out_ep>;
-						};
-					};
-				};
-			};
-
-			mvc@702da200 {
-				status = "okay";
-
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
-
-					port@0 {
-						reg = <0>;
-
-						mvc2_cif_in_ep: endpoint {
-							remote-endpoint = <&xbar_mvc2_in_ep>;
-						};
-					};
-
-					mvc2_out_port: port@1 {
-						reg = <1>;
-
-						mvc2_cif_out_ep: endpoint {
-							remote-endpoint = <&xbar_mvc2_out_ep>;
 						};
 					};
 				};
@@ -1074,6 +966,56 @@
 				};
 			};
 
+			dmic@702d4000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						dmic1_cif_ep: endpoint {
+							remote-endpoint = <&xbar_dmic1_ep>;
+						};
+					};
+
+					dmic1_port: port@1 {
+						reg = <1>;
+
+						dmic1_dap_ep: endpoint {
+							/* Placeholder for external Codec */
+						};
+					};
+				};
+			};
+
+			dmic@702d4100 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						dmic2_cif_ep: endpoint {
+							remote-endpoint = <&xbar_dmic2_ep>;
+						};
+					};
+
+					dmic2_port: port@1 {
+						reg = <1>;
+
+						dmic2_dap_ep: endpoint {
+							/* Placeholder for external Codec */
+						};
+					};
+				};
+			};
+
 			processing-engine@702d8000 {
 				status = "okay";
 
@@ -1119,6 +1061,56 @@
 
 						ope2_cif_out_ep: endpoint {
 							remote-endpoint = <&xbar_ope2_out_ep>;
+						};
+					};
+				};
+			};
+
+			mvc@702da000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						mvc1_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_mvc1_in_ep>;
+						};
+					};
+
+					mvc1_out_port: port@1 {
+						reg = <1>;
+
+						mvc1_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_mvc1_out_ep>;
+						};
+					};
+				};
+			};
+
+			mvc@702da200 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						mvc2_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_mvc2_in_ep>;
+						};
+					};
+
+					mvc2_out_port: port@1 {
+						reg = <1>;
+
+						mvc2_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_mvc2_out_ep>;
 						};
 					};
 				};
@@ -1695,6 +1687,14 @@
 				};
 			};
 		};
+
+		dma-controller@702e2000 {
+			status = "okay";
+		};
+
+		interrupt-controller@702f9000 {
+			status = "okay";
+		};
 	};
 
 	spi@70410000 {
@@ -1739,68 +1739,16 @@
 		};
 	};
 
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		pwms = <&pwm 3 45334>;
-
-		cooling-levels = <0 64 128 255>;
-		#cooling-cells = <2>;
-	};
-
-	thermal-zones {
-		cpu-thermal {
-			trips {
-				cpu_trip_critical: critical {
-					temperature = <96500>;
-					hysteresis = <0>;
-					type = "critical";
-				};
-
-				cpu_trip_hot: hot {
-					temperature = <70000>;
-					hysteresis = <2000>;
-					type = "hot";
-				};
-
-				cpu_trip_active: active {
-					temperature = <50000>;
-					hysteresis = <2000>;
-					type = "active";
-				};
-
-				cpu_trip_passive: passive {
-					temperature = <30000>;
-					hysteresis = <2000>;
-					type = "passive";
-				};
-			};
-
-			cooling-maps {
-				cpu-critical {
-					cooling-device = <&fan 3 3>;
-					trip = <&cpu_trip_critical>;
-				};
-
-				cpu-hot {
-					cooling-device = <&fan 2 2>;
-					trip = <&cpu_trip_hot>;
-				};
-
-				cpu-active {
-					cooling-device = <&fan 1 1>;
-					trip = <&cpu_trip_active>;
-				};
-
-				cpu-passive {
-					cooling-device = <&fan 0 0>;
-					trip = <&cpu_trip_passive>;
-				};
-			};
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
+
+		key-force-recovery {
+			label = "Force Recovery";
+			gpios = <&gpio TEGRA_GPIO(X, 6) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <BTN_1>;
+			debounce-interval = <30>;
+		};
 
 		key-power {
 			label = "Power";
@@ -1811,19 +1759,19 @@
 			wakeup-event-action = <EV_ACT_ASSERTED>;
 			wakeup-source;
 		};
-
-		key-force-recovery {
-			label = "Force Recovery";
-			gpios = <&gpio TEGRA_GPIO(X, 6) GPIO_ACTIVE_LOW>;
-			linux,input-type = <EV_KEY>;
-			linux,code = <BTN_1>;
-			debounce-interval = <30>;
-		};
 	};
 
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm 3 45334>;
+
+		cooling-levels = <0 64 128 255>;
+		#cooling-cells = <2>;
 	};
 
 	vdd_5v0_sys: regulator-vdd-5v0-sys {
@@ -1985,5 +1933,57 @@
 		       <&dmic1_port>, <&dmic2_port>;
 
 		label = "NVIDIA Jetson Nano APE";
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			trips {
+				cpu_trip_critical: critical {
+					temperature = <96500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				cpu_trip_hot: hot {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				cpu_trip_active: active {
+					temperature = <50000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+
+				cpu_trip_passive: passive {
+					temperature = <30000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				cpu-critical {
+					cooling-device = <&fan 3 3>;
+					trip = <&cpu_trip_critical>;
+				};
+
+				cpu-hot {
+					cooling-device = <&fan 2 2>;
+					trip = <&cpu_trip_hot>;
+				};
+
+				cpu-active {
+					cooling-device = <&fan 1 1>;
+					trip = <&cpu_trip_active>;
+				};
+
+				cpu-passive {
+					cooling-device = <&fan 0 0>;
+					trip = <&cpu_trip_passive>;
+				};
+			};
+		};
 	};
 };

@@ -1805,6 +1805,9 @@ static void select_input(struct v4l2_subdev *sd)
 		v4l2_dbg(2, debug, sd, "%s: Unknown port %d selected\n",
 				__func__, state->selected_input);
 	}
+
+	/* Enable video adjustment (contrast, saturation, brightness and hue) */
+	cp_write_clr_set(sd, 0x3e, 0x80, 0x80);
 }
 
 static int adv76xx_s_routing(struct v4l2_subdev *sd,
@@ -2047,8 +2050,8 @@ static void adv76xx_cec_isr(struct v4l2_subdev *sd, bool *handled)
 		struct cec_msg msg;
 
 		msg.len = cec_read(sd, 0x25) & 0x1f;
-		if (msg.len > 16)
-			msg.len = 16;
+		if (msg.len > CEC_MAX_MSG_SIZE)
+			msg.len = CEC_MAX_MSG_SIZE;
 
 		if (msg.len) {
 			u8 i;
@@ -3401,9 +3404,9 @@ static void adv76xx_reset(struct adv76xx_state *state)
 	}
 }
 
-static int adv76xx_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adv76xx_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	static const struct v4l2_dv_timings cea640x480 =
 		V4L2_DV_BT_CEA_640X480P59_94;
 	struct adv76xx_state *state;
@@ -3545,7 +3548,7 @@ static int adv76xx_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(hdl, &adv76xx_ctrl_ops,
 			V4L2_CID_SATURATION, 0, 255, 1, 128);
 	v4l2_ctrl_new_std(hdl, &adv76xx_ctrl_ops,
-			V4L2_CID_HUE, 0, 128, 1, 0);
+			V4L2_CID_HUE, 0, 255, 1, 0);
 	ctrl = v4l2_ctrl_new_std_menu(hdl, &adv76xx_ctrl_ops,
 			V4L2_CID_DV_RX_IT_CONTENT_TYPE, V4L2_DV_IT_CONTENT_TYPE_NO_ITC,
 			0, V4L2_DV_IT_CONTENT_TYPE_NO_ITC);

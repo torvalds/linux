@@ -174,6 +174,8 @@ static void __init media5200_init_irq(void)
 		goto out;
 	pr_debug("%s: allocated irqhost\n", __func__);
 
+	of_node_put(fpga_np);
+
 	irq_set_handler_data(cascade_virq, &media5200_irq);
 	irq_set_chained_handler(cascade_virq, media5200_irq_cascade);
 
@@ -181,6 +183,7 @@ static void __init media5200_init_irq(void)
 
  out:
 	pr_err("Could not find Media5200 FPGA; PCI interrupts will not work\n");
+	of_node_put(fpga_np);
 }
 
 /*
@@ -224,28 +227,13 @@ static void __init media5200_setup_arch(void)
 
 }
 
-/* list of the supported boards */
-static const char * const board[] __initconst = {
-	"fsl,media5200",
-	NULL
-};
-
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init media5200_probe(void)
-{
-	return of_device_compatible_match(of_root, board);
-}
-
 define_machine(media5200_platform) {
 	.name		= "media5200-platform",
-	.probe		= media5200_probe,
+	.compatible	= "fsl,media5200",
 	.setup_arch	= media5200_setup_arch,
 	.discover_phbs	= mpc52xx_setup_pci,
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ	= media5200_init_irq,
 	.get_irq	= mpc52xx_get_irq,
 	.restart	= mpc52xx_restart,
-	.calibrate_decr	= generic_calibrate_decr,
 };

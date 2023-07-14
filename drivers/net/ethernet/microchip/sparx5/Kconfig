@@ -9,5 +9,17 @@ config SPARX5_SWITCH
 	select PHYLINK
 	select PHY_SPARX5_SERDES
 	select RESET_CONTROLLER
+	select VCAP
 	help
 	  This driver supports the Sparx5 network switch device.
+
+config SPARX5_DCB
+	bool "Data Center Bridging (DCB) support"
+	depends on SPARX5_SWITCH && DCB
+	default y
+	help
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver. This can be used to assign priority to traffic, based on
+	  DSCP and PCP.
+
+	  If unsure, set to Y.

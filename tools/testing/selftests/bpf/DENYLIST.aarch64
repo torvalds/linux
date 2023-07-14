@@ -1,0 +1,12 @@
+bpf_cookie/multi_kprobe_attach_api               # kprobe_multi_link_api_subtest:FAIL:fentry_raw_skel_load unexpected error: -3
+bpf_cookie/multi_kprobe_link_api                 # kprobe_multi_link_api_subtest:FAIL:fentry_raw_skel_load unexpected error: -3
+fexit_sleep                                      # The test never returns. The remaining tests cannot start.
+kprobe_multi_bench_attach                        # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+kprobe_multi_test/attach_api_addrs               # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+kprobe_multi_test/attach_api_pattern             # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+kprobe_multi_test/attach_api_syms                # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+kprobe_multi_test/bench_attach                   # bpf_program__attach_kprobe_multi_opts unexpected error: -95
+kprobe_multi_test/link_api_addrs                 # link_fd unexpected link_fd: actual -95 < expected 0
+kprobe_multi_test/link_api_syms                  # link_fd unexpected link_fd: actual -95 < expected 0
+kprobe_multi_test/skel_api                       # libbpf: failed to load BPF skeleton 'kprobe_multi': -3
+module_attach                                    # prog 'kprobe_multi': failed to auto-attach: -95

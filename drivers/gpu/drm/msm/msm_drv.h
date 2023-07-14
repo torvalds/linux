@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
+#include <linux/devfreq.h>
 #include <linux/module.h>
 #include <linux/component.h>
 #include <linux/platform_device.h>
@@ -27,12 +28,17 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/display/drm_dsc.h>
 #include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
+
+#ifdef CONFIG_FAULT_INJECTION
+extern struct fault_attr fail_gem_alloc;
+extern struct fault_attr fail_gem_iova;
+#else
+#  define should_fail(attr, size) 0
+#endif
 
 struct msm_kms;
 struct msm_gpu;
@@ -55,6 +61,7 @@ enum msm_dp_controller {
 	MSM_DP_CONTROLLER_0,
 	MSM_DP_CONTROLLER_1,
 	MSM_DP_CONTROLLER_2,
+	MSM_DP_CONTROLLER_3,
 	MSM_DP_CONTROLLER_COUNT,
 };
 
@@ -76,14 +83,12 @@ enum msm_event_wait {
 /**
  * struct msm_display_topology - defines a display topology pipeline
  * @num_lm:       number of layer mixers used
- * @num_enc:      number of compression encoder blocks used
  * @num_intf:     number of interfaces the panel is mounted on
  * @num_dspp:     number of dspp blocks used
  * @num_dsc:      number of Display Stream Compression (DSC) blocks used
  */
 struct msm_display_topology {
 	u32 num_lm;
-	u32 num_enc;
 	u32 num_intf;
 	u32 num_dspp;
 	u32 num_dsc;
@@ -94,11 +99,6 @@ struct msm_drm_thread {
 	struct drm_device *dev;
 	unsigned int crtc_id;
 	struct kthread_worker *worker;
-};
-
-/* DSC config */
-struct msm_display_dsc_config {
-	struct drm_dsc_config *drm;
 };
 
 struct msm_drm_private {
@@ -128,8 +128,6 @@ struct msm_drm_private {
 	bool is_a2xx;
 	bool has_cached_coherent;
 
-	struct drm_fb_helper *fbdev;
-
 	struct msm_rd_state *rd;       /* debugfs to dump all submits */
 	struct msm_rd_state *hangrd;   /* debugfs to dump hanging submits */
 	struct msm_perf_state *perf;
@@ -142,28 +140,60 @@ struct msm_drm_private {
 	struct mutex obj_lock;
 
 	/**
-	 * LRUs of inactive GEM objects.  Every bo is either in one of the
-	 * inactive lists (depending on whether or not it is shrinkable) or
-	 * gpu->active_list (for the gpu it is active on[1]), or transiently
-	 * on a temporary list as the shrinker is running.
+	 * lru:
 	 *
-	 * Note that inactive_willneed also contains pinned and vmap'd bos,
-	 * but the number of pinned-but-not-active objects is small (scanout
-	 * buffers, ringbuffer, etc).
+	 * The various LRU's that a GEM object is in at various stages of
+	 * it's lifetime.  Objects start out in the unbacked LRU.  When
+	 * pinned (for scannout or permanently mapped GPU buffers, like
+	 * ringbuffer, memptr, fw, etc) it moves to the pinned LRU.  When
+	 * unpinned, it moves into willneed or dontneed LRU depending on
+	 * madvise state.  When backing pages are evicted (willneed) or
+	 * purged (dontneed) it moves back into the unbacked LRU.
 	 *
-	 * These lists are protected by mm_lock (which should be acquired
-	 * before per GEM object lock).  One should *not* hold mm_lock in
-	 * get_pages()/vmap()/etc paths, as they can trigger the shrinker.
-	 *
-	 * [1] if someone ever added support for the old 2d cores, there could be
-	 *     more than one gpu object
+	 * The dontneed LRU is considered by the shrinker for objects
+	 * that are candidate for purging, and the willneed LRU is
+	 * considered for objects that could be evicted.
 	 */
-	struct list_head inactive_willneed;  /* inactive + potentially unpin/evictable */
-	struct list_head inactive_dontneed;  /* inactive + shrinkable */
-	struct list_head inactive_unpinned;  /* inactive + purged or unpinned */
-	long shrinkable_count;               /* write access under mm_lock */
-	long evictable_count;                /* write access under mm_lock */
-	struct mutex mm_lock;
+	struct {
+		/**
+		 * unbacked:
+		 *
+		 * The LRU for GEM objects without backing pages allocated.
+		 * This mostly exists so that objects are always is one
+		 * LRU.
+		 */
+		struct drm_gem_lru unbacked;
+
+		/**
+		 * pinned:
+		 *
+		 * The LRU for pinned GEM objects
+		 */
+		struct drm_gem_lru pinned;
+
+		/**
+		 * willneed:
+		 *
+		 * The LRU for unpinned GEM objects which are in madvise
+		 * WILLNEED state (ie. can be evicted)
+		 */
+		struct drm_gem_lru willneed;
+
+		/**
+		 * dontneed:
+		 *
+		 * The LRU for unpinned GEM objects which are in madvise
+		 * DONTNEED state (ie. can be purged)
+		 */
+		struct drm_gem_lru dontneed;
+
+		/**
+		 * lock:
+		 *
+		 * Protects manipulation of all of the LRUs.
+		 */
+		struct mutex lock;
+	} lru;
 
 	struct workqueue_struct *wq;
 
@@ -191,8 +221,22 @@ struct msm_drm_private {
 
 	struct drm_atomic_state *pm_state;
 
-	/* For hang detection, in ms */
+	/**
+	 * hangcheck_period: For hang detection, in ms
+	 *
+	 * Note that in practice, a submit/job will get at least two hangcheck
+	 * periods, due to checking for progress being implemented as simply
+	 * "have the CP position registers changed since last time?"
+	 */
 	unsigned int hangcheck_period;
+
+	/** gpu_devfreq_config: Devfreq tuning config for the GPU. */
+	struct devfreq_simple_ondemand_data gpu_devfreq_config;
+
+	/**
+	 * gpu_clamp_to_idle: Enable clamping to idle freq when inactive
+	 */
+	bool gpu_clamp_to_idle;
 
 	/**
 	 * disable_err_irq:
@@ -214,6 +258,7 @@ int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 		struct msm_kms *kms, int crtc_idx);
 void msm_atomic_destroy_pending_timer(struct msm_pending_timer *timer);
 void msm_atomic_commit_tail(struct drm_atomic_state *state);
+int msm_atomic_check(struct drm_device *dev, struct drm_atomic_state *state);
 struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev);
 void msm_atomic_state_clear(struct drm_atomic_state *state);
 void msm_atomic_state_free(struct drm_atomic_state *state);
@@ -259,8 +304,13 @@ struct drm_framebuffer *msm_framebuffer_create(struct drm_device *dev,
 struct drm_framebuffer * msm_alloc_stolen_fb(struct drm_device *dev,
 		int w, int h, int p, uint32_t format);
 
-struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev);
-void msm_fbdev_free(struct drm_device *dev);
+#ifdef CONFIG_DRM_FBDEV_EMULATION
+void msm_fbdev_setup(struct drm_device *dev);
+#else
+static inline void msm_fbdev_setup(struct drm_device *dev)
+{
+}
+#endif
 
 struct hdmi;
 #ifdef CONFIG_DRM_MSM_HDMI
@@ -290,7 +340,7 @@ void msm_dsi_snapshot(struct msm_disp_state *disp_state, struct msm_dsi *msm_dsi
 bool msm_dsi_is_cmd_mode(struct msm_dsi *msm_dsi);
 bool msm_dsi_is_bonded_dsi(struct msm_dsi *msm_dsi);
 bool msm_dsi_is_master_dsi(struct msm_dsi *msm_dsi);
-struct msm_display_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi);
+struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi);
 #else
 static inline void __init msm_dsi_register(void)
 {
@@ -320,7 +370,7 @@ static inline bool msm_dsi_is_master_dsi(struct msm_dsi *msm_dsi)
 	return false;
 }
 
-static inline struct msm_display_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
+static inline struct drm_dsc_config *msm_dsi_get_dsc_config(struct msm_dsi *msm_dsi)
 {
 	return NULL;
 }
@@ -433,6 +483,8 @@ void __iomem *msm_ioremap_size(struct platform_device *pdev, const char *name,
 		phys_addr_t *size);
 void __iomem *msm_ioremap_quiet(struct platform_device *pdev, const char *name);
 
+struct icc_path *msm_icc_get(struct device *dev, const char *name);
+
 #define msm_writel(data, addr) writel((data), (addr))
 #define msm_readl(addr) readl((addr))
 
@@ -499,7 +551,7 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 		remaining_jiffies = ktime_divns(rem, NSEC_PER_SEC / HZ);
 	}
 
-	return clamp(remaining_jiffies, 0LL, (s64)INT_MAX);
+	return clamp(remaining_jiffies, 1LL, (s64)INT_MAX);
 }
 
 /* Driver helpers */

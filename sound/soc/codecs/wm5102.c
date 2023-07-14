@@ -2142,12 +2142,13 @@ err_dsp_irq:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_DSP_IRQ1, 0);
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
 err_jack_codec_dev:
+	pm_runtime_disable(&pdev->dev);
 	arizona_jack_codec_dev_remove(&wm5102->core);
 
 	return ret;
 }
 
-static int wm5102_remove(struct platform_device *pdev)
+static void wm5102_remove(struct platform_device *pdev)
 {
 	struct wm5102_priv *wm5102 = platform_get_drvdata(pdev);
 	struct arizona *arizona = wm5102->core.arizona;
@@ -2162,8 +2163,6 @@ static int wm5102_remove(struct platform_device *pdev)
 	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5102);
 
 	arizona_jack_codec_dev_remove(&wm5102->core);
-
-	return 0;
 }
 
 static struct platform_driver wm5102_codec_driver = {
@@ -2171,7 +2170,7 @@ static struct platform_driver wm5102_codec_driver = {
 		.name = "wm5102-codec",
 	},
 	.probe = wm5102_probe,
-	.remove = wm5102_remove,
+	.remove_new = wm5102_remove,
 };
 
 module_platform_driver(wm5102_codec_driver);

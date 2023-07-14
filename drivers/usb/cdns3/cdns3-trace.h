@@ -100,13 +100,12 @@ DECLARE_EVENT_CLASS(cdns3_log_usb_irq,
 	TP_STRUCT__entry(
 		__field(enum usb_device_speed, speed)
 		__field(u32, usb_ists)
-		__dynamic_array(char, str, CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->speed = cdns3_get_speed(priv_dev);
 		__entry->usb_ists = usb_ists;
 	),
-	TP_printk("%s", cdns3_decode_usb_irq(__get_str(str), __entry->speed,
+	TP_printk("%s", cdns3_decode_usb_irq(__get_buf(CDNS3_MSG_MAX), __entry->speed,
 					     __entry->usb_ists))
 );
 
@@ -124,7 +123,6 @@ DECLARE_EVENT_CLASS(cdns3_log_epx_irq,
 		__field(u32, ep_traddr)
 		__field(u32, ep_last_sid)
 		__field(u32, use_streams)
-		__dynamic_array(char, str, CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__assign_str(ep_name, priv_ep->name);
@@ -134,7 +132,7 @@ DECLARE_EVENT_CLASS(cdns3_log_epx_irq,
 		__entry->use_streams = priv_ep->use_streams;
 	),
 	TP_printk("%s, ep_traddr: %08x ep_last_sid: %08x use_streams: %d",
-		  cdns3_decode_epx_irq(__get_str(str),
+		  cdns3_decode_epx_irq(__get_buf(CDNS3_MSG_MAX),
 				       __get_str(ep_name),
 				       __entry->ep_sts),
 		  __entry->ep_traddr,
@@ -153,13 +151,12 @@ DECLARE_EVENT_CLASS(cdns3_log_ep0_irq,
 	TP_STRUCT__entry(
 		__field(int, ep_dir)
 		__field(u32, ep_sts)
-		__dynamic_array(char, str, CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->ep_dir = priv_dev->selected_ep;
 		__entry->ep_sts = ep_sts;
 	),
-	TP_printk("%s", cdns3_decode_ep0_irq(__get_str(str),
+	TP_printk("%s", cdns3_decode_ep0_irq(__get_buf(CDNS3_MSG_MAX),
 					     __entry->ep_dir,
 					     __entry->ep_sts))
 );
@@ -178,7 +175,6 @@ DECLARE_EVENT_CLASS(cdns3_log_ctrl,
 		__field(u16, wValue)
 		__field(u16, wIndex)
 		__field(u16, wLength)
-		__dynamic_array(char, str, CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
 		__entry->bRequestType = ctrl->bRequestType;
@@ -187,7 +183,7 @@ DECLARE_EVENT_CLASS(cdns3_log_ctrl,
 		__entry->wIndex = le16_to_cpu(ctrl->wIndex);
 		__entry->wLength = le16_to_cpu(ctrl->wLength);
 	),
-	TP_printk("%s", usb_decode_ctrl(__get_str(str), CDNS3_MSG_MAX,
+	TP_printk("%s", usb_decode_ctrl(__get_buf(CDNS3_MSG_MAX), CDNS3_MSG_MAX,
 					__entry->bRequestType,
 					__entry->bRequest, __entry->wValue,
 					__entry->wIndex, __entry->wLength)
@@ -438,22 +434,16 @@ DECLARE_EVENT_CLASS(cdns3_log_ring,
 	TP_PROTO(struct cdns3_endpoint *priv_ep),
 	TP_ARGS(priv_ep),
 	TP_STRUCT__entry(
-		__dynamic_array(u8, ring, TRB_RING_SIZE)
-		__dynamic_array(u8, priv_ep, sizeof(struct cdns3_endpoint))
 		__dynamic_array(char, buffer,
-				(TRBS_PER_SEGMENT * 65) + CDNS3_MSG_MAX)
+				GET_TRBS_PER_SEGMENT(priv_ep->type) > TRBS_PER_SEGMENT ?
+				CDNS3_MSG_MAX :
+				(GET_TRBS_PER_SEGMENT(priv_ep->type) * 65) + CDNS3_MSG_MAX)
 	),
 	TP_fast_assign(
-		memcpy(__get_dynamic_array(priv_ep), priv_ep,
-		       sizeof(struct cdns3_endpoint));
-		memcpy(__get_dynamic_array(ring), priv_ep->trb_pool,
-		       TRB_RING_SIZE);
+		cdns3_dbg_ring(priv_ep, __get_str(buffer));
 	),
 
-	TP_printk("%s",
-		  cdns3_dbg_ring((struct cdns3_endpoint *)__get_str(priv_ep),
-				 (struct cdns3_trb *)__get_str(ring),
-				 __get_str(buffer)))
+	TP_printk("%s", __get_str(buffer))
 );
 
 DEFINE_EVENT(cdns3_log_ring, cdns3_ring,

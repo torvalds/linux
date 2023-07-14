@@ -23,6 +23,10 @@ static int lan966x_tc_matchall_add(struct lan966x_port *port,
 	case FLOW_ACTION_MIRRED:
 		return lan966x_mirror_port_add(port, act, f->cookie,
 					       ingress, f->common.extack);
+	case FLOW_ACTION_GOTO:
+		return lan966x_goto_port_add(port, f->common.chain_index,
+					     act->chain_index, f->cookie,
+					     f->common.extack);
 	default:
 		NL_SET_ERR_MSG_MOD(f->common.extack,
 				   "Unsupported action");
@@ -44,9 +48,7 @@ static int lan966x_tc_matchall_del(struct lan966x_port *port,
 		return lan966x_mirror_port_del(port, ingress,
 					       f->common.extack);
 	} else {
-		NL_SET_ERR_MSG_MOD(f->common.extack,
-				   "Unsupported action");
-		return -EOPNOTSUPP;
+		return lan966x_goto_port_del(port, f->cookie, f->common.extack);
 	}
 
 	return 0;
@@ -74,12 +76,6 @@ int lan966x_tc_matchall(struct lan966x_port *port,
 			struct tc_cls_matchall_offload *f,
 			bool ingress)
 {
-	if (!tc_cls_can_offload_and_chain0(port->dev, &f->common)) {
-		NL_SET_ERR_MSG_MOD(f->common.extack,
-				   "Only chain zero is supported");
-		return -EOPNOTSUPP;
-	}
-
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
 		return lan966x_tc_matchall_add(port, f, ingress);

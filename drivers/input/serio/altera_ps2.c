@@ -78,7 +78,6 @@ static void altera_ps2_close(struct serio *io)
 static int altera_ps2_probe(struct platform_device *pdev)
 {
 	struct ps2if *ps2if;
-	struct resource *res;
 	struct serio *serio;
 	int error, irq;
 
@@ -86,8 +85,7 @@ static int altera_ps2_probe(struct platform_device *pdev)
 	if (!ps2if)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ps2if->base = devm_ioremap_resource(&pdev->dev, res);
+	ps2if->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(ps2if->base))
 		return PTR_ERR(ps2if->base);
 
@@ -110,8 +108,8 @@ static int altera_ps2_probe(struct platform_device *pdev)
 	serio->write		= altera_ps2_write;
 	serio->open		= altera_ps2_open;
 	serio->close		= altera_ps2_close;
-	strlcpy(serio->name, dev_name(&pdev->dev), sizeof(serio->name));
-	strlcpy(serio->phys, dev_name(&pdev->dev), sizeof(serio->phys));
+	strscpy(serio->name, dev_name(&pdev->dev), sizeof(serio->name));
+	strscpy(serio->phys, dev_name(&pdev->dev), sizeof(serio->phys));
 	serio->port_data	= ps2if;
 	serio->dev.parent	= &pdev->dev;
 	ps2if->io		= serio;

@@ -97,7 +97,7 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u32 port,
 
 	netdev = hr_dev->iboe.netdevs[port];
 	if (!netdev) {
-		dev_err(dev, "Can't find netdev on port(%u)!\n", port);
+		dev_err(dev, "can't find netdev on port(%u)!\n", port);
 		return -ENODEV;
 	}
 
@@ -239,7 +239,7 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u32 port_num,
 	net_dev = hr_dev->iboe.netdevs[port];
 	if (!net_dev) {
 		spin_unlock_irqrestore(&hr_dev->iboe.lock, flags);
-		dev_err(dev, "Find netdev %u failed!\n", port);
+		dev_err(dev, "find netdev %u failed!\n", port);
 		return -EINVAL;
 	}
 
@@ -354,16 +354,42 @@ static int hns_roce_alloc_uar_entry(struct ib_ucontext *uctx)
 static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 				   struct ib_udata *udata)
 {
-	int ret;
 	struct hns_roce_ucontext *context = to_hr_ucontext(uctx);
-	struct hns_roce_ib_alloc_ucontext_resp resp = {};
 	struct hns_roce_dev *hr_dev = to_hr_dev(uctx->device);
+	struct hns_roce_ib_alloc_ucontext_resp resp = {};
+	struct hns_roce_ib_alloc_ucontext ucmd = {};
+	int ret;
 
 	if (!hr_dev->active)
 		return -EAGAIN;
 
 	resp.qp_tab_size = hr_dev->caps.num_qps;
 	resp.srq_tab_size = hr_dev->caps.num_srqs;
+
+	ret = ib_copy_from_udata(&ucmd, udata,
+				 min(udata->inlen, sizeof(ucmd)));
+	if (ret)
+		return ret;
+
+	if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
+		context->config = ucmd.config & HNS_ROCE_EXSGE_FLAGS;
+
+	if (context->config & HNS_ROCE_EXSGE_FLAGS) {
+		resp.config |= HNS_ROCE_RSP_EXSGE_FLAGS;
+		resp.max_inline_data = hr_dev->caps.max_sq_inline;
+	}
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) {
+		context->config |= ucmd.config & HNS_ROCE_RQ_INLINE_FLAGS;
+		if (context->config & HNS_ROCE_RQ_INLINE_FLAGS)
+			resp.config |= HNS_ROCE_RSP_RQ_INLINE_FLAGS;
+	}
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQE_INLINE) {
+		context->config |= ucmd.config & HNS_ROCE_CQE_INLINE_FLAGS;
+		if (context->config & HNS_ROCE_CQE_INLINE_FLAGS)
+			resp.config |= HNS_ROCE_RSP_CQE_INLINE_FLAGS;
+	}
 
 	ret = hns_roce_uar_alloc(hr_dev, &context->uar);
 	if (ret)
@@ -429,14 +455,15 @@ static int hns_roce_mmap(struct ib_ucontext *uctx, struct vm_area_struct *vma)
 		prot = pgprot_device(vma->vm_page_prot);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ret = rdma_user_mmap_io(uctx, vma, pfn, rdma_entry->npages * PAGE_SIZE,
 				prot, rdma_entry);
 
+out:
 	rdma_user_mmap_entry_put(rdma_entry);
-
 	return ret;
 }
 
@@ -515,7 +542,6 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.destroy_ah = hns_roce_destroy_ah,
 	.destroy_cq = hns_roce_destroy_cq,
 	.disassociate_ucontext = hns_roce_disassociate_ucontext,
-	.fill_res_cq_entry = hns_roce_fill_res_cq_entry,
 	.get_dma_mr = hns_roce_get_dma_mr,
 	.get_link_layer = hns_roce_get_link_layer,
 	.get_port_immutable = hns_roce_port_immutable,
@@ -566,6 +592,15 @@ static const struct ib_device_ops hns_roce_dev_xrcd_ops = {
 	INIT_RDMA_OBJ_SIZE(ib_xrcd, hns_roce_xrcd, ibxrcd),
 };
 
+static const struct ib_device_ops hns_roce_dev_restrack_ops = {
+	.fill_res_cq_entry = hns_roce_fill_res_cq_entry,
+	.fill_res_cq_entry_raw = hns_roce_fill_res_cq_entry_raw,
+	.fill_res_qp_entry = hns_roce_fill_res_qp_entry,
+	.fill_res_qp_entry_raw = hns_roce_fill_res_qp_entry_raw,
+	.fill_res_mr_entry = hns_roce_fill_res_mr_entry,
+	.fill_res_mr_entry_raw = hns_roce_fill_res_mr_entry_raw,
+};
+
 static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 {
 	int ret;
@@ -605,6 +640,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
+	ib_set_device_ops(ib_dev, &hns_roce_dev_restrack_ops);
 	for (i = 0; i < hr_dev->caps.num_ports; i++) {
 		if (!hr_dev->iboe.netdevs[i])
 			continue;
@@ -650,17 +686,17 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table,
 				      HEM_TYPE_MTPT, hr_dev->caps.mtpt_entry_sz,
-				      hr_dev->caps.num_mtpts, 1);
+				      hr_dev->caps.num_mtpts);
 	if (ret) {
-		dev_err(dev, "Failed to init MTPT context memory, aborting.\n");
+		dev_err(dev, "failed to init MTPT context memory, aborting.\n");
 		return ret;
 	}
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qp_table.qp_table,
 				      HEM_TYPE_QPC, hr_dev->caps.qpc_sz,
-				      hr_dev->caps.num_qps, 1);
+				      hr_dev->caps.num_qps);
 	if (ret) {
-		dev_err(dev, "Failed to init QP context memory, aborting.\n");
+		dev_err(dev, "failed to init QP context memory, aborting.\n");
 		goto err_unmap_dmpt;
 	}
 
@@ -668,9 +704,9 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 				      HEM_TYPE_IRRL,
 				      hr_dev->caps.irrl_entry_sz *
 				      hr_dev->caps.max_qp_init_rdma,
-				      hr_dev->caps.num_qps, 1);
+				      hr_dev->caps.num_qps);
 	if (ret) {
-		dev_err(dev, "Failed to init irrl_table memory, aborting.\n");
+		dev_err(dev, "failed to init irrl_table memory, aborting.\n");
 		goto err_unmap_qp;
 	}
 
@@ -680,19 +716,19 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      HEM_TYPE_TRRL,
 					      hr_dev->caps.trrl_entry_sz *
 					      hr_dev->caps.max_qp_dest_rdma,
-					      hr_dev->caps.num_qps, 1);
+					      hr_dev->caps.num_qps);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init trrl_table memory, aborting.\n");
+				"failed to init trrl_table memory, aborting.\n");
 			goto err_unmap_irrl;
 		}
 	}
 
 	ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cq_table.table,
 				      HEM_TYPE_CQC, hr_dev->caps.cqc_entry_sz,
-				      hr_dev->caps.num_cqs, 1);
+				      hr_dev->caps.num_cqs);
 	if (ret) {
-		dev_err(dev, "Failed to init CQ context memory, aborting.\n");
+		dev_err(dev, "failed to init CQ context memory, aborting.\n");
 		goto err_unmap_trrl;
 	}
 
@@ -700,10 +736,10 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->srq_table.table,
 					      HEM_TYPE_SRQC,
 					      hr_dev->caps.srqc_entry_sz,
-					      hr_dev->caps.num_srqs, 1);
+					      hr_dev->caps.num_srqs);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init SRQ context memory, aborting.\n");
+				"failed to init SRQ context memory, aborting.\n");
 			goto err_unmap_cq;
 		}
 	}
@@ -713,10 +749,10 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 					      &hr_dev->qp_table.sccc_table,
 					      HEM_TYPE_SCCC,
 					      hr_dev->caps.sccc_sz,
-					      hr_dev->caps.num_qps, 1);
+					      hr_dev->caps.num_qps);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init SCC context memory, aborting.\n");
+				"failed to init SCC context memory, aborting.\n");
 			goto err_unmap_srq;
 		}
 	}
@@ -725,10 +761,10 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->qpc_timer_table,
 					      HEM_TYPE_QPC_TIMER,
 					      hr_dev->caps.qpc_timer_entry_sz,
-					      hr_dev->caps.qpc_timer_bt_num, 1);
+					      hr_dev->caps.qpc_timer_bt_num);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init QPC timer memory, aborting.\n");
+				"failed to init QPC timer memory, aborting.\n");
 			goto err_unmap_ctx;
 		}
 	}
@@ -737,10 +773,10 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->cqc_timer_table,
 					      HEM_TYPE_CQC_TIMER,
 					      hr_dev->caps.cqc_timer_entry_sz,
-					      hr_dev->caps.cqc_timer_bt_num, 1);
+					      hr_dev->caps.cqc_timer_bt_num);
 		if (ret) {
 			dev_err(dev,
-				"Failed to init CQC timer memory, aborting.\n");
+				"failed to init CQC timer memory, aborting.\n");
 			goto err_unmap_qpc_timer;
 		}
 	}
@@ -749,7 +785,7 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->gmv_table,
 					      HEM_TYPE_GMV,
 					      hr_dev->caps.gmv_entry_sz,
-					      hr_dev->caps.gmv_entry_num, 1);
+					      hr_dev->caps.gmv_entry_num);
 		if (ret) {
 			dev_err(dev,
 				"failed to init gmv table memory, ret = %d\n",
@@ -818,13 +854,13 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	ret = hns_roce_uar_alloc(hr_dev, &hr_dev->priv_uar);
 	if (ret) {
-		dev_err(dev, "Failed to allocate priv_uar.\n");
+		dev_err(dev, "failed to allocate priv_uar.\n");
 		goto err_uar_table_free;
 	}
 
 	ret = hns_roce_init_qp_table(hr_dev);
 	if (ret) {
-		dev_err(dev, "Failed to init qp_table.\n");
+		dev_err(dev, "failed to init qp_table.\n");
 		goto err_uar_table_free;
 	}
 
@@ -837,9 +873,8 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 	hns_roce_init_cq_table(hr_dev);
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
 		hns_roce_init_srq_table(hr_dev);
-	}
 
 	return 0;
 
@@ -902,14 +937,14 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 	if (hr_dev->hw->cmq_init) {
 		ret = hr_dev->hw->cmq_init(hr_dev);
 		if (ret) {
-			dev_err(dev, "Init RoCE Command Queue failed!\n");
+			dev_err(dev, "init RoCE Command Queue failed!\n");
 			return ret;
 		}
 	}
 
 	ret = hr_dev->hw->hw_profile(hr_dev);
 	if (ret) {
-		dev_err(dev, "Get RoCE engine profile failed!\n");
+		dev_err(dev, "get RoCE engine profile failed!\n");
 		goto error_failed_cmd_init;
 	}
 

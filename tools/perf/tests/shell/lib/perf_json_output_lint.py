@@ -14,12 +14,14 @@ ap.add_argument('--system-wide', action='store_true')
 ap.add_argument('--event', action='store_true')
 ap.add_argument('--per-core', action='store_true')
 ap.add_argument('--per-thread', action='store_true')
+ap.add_argument('--per-cache', action='store_true')
 ap.add_argument('--per-die', action='store_true')
 ap.add_argument('--per-node', action='store_true')
 ap.add_argument('--per-socket', action='store_true')
+ap.add_argument('--file', type=argparse.FileType('r'), default=sys.stdin)
 args = ap.parse_args()
 
-Lines = sys.stdin.readlines()
+Lines = args.file.readlines()
 
 def isfloat(num):
   try:
@@ -40,31 +42,20 @@ def is_counter_value(num):
   return isfloat(num) or num == '<not counted>' or num == '<not supported>'
 
 def check_json_output(expected_items):
-  if expected_items != -1:
-    for line in Lines:
-      if 'failed' not in line:
-        count = 0
-        count = line.count(',')
-        if count != expected_items and count >= 1 and count <= 3 and 'metric-value' in line:
-          # Events that generate >1 metric may have isolated metric
-          # values and possibly other prefixes like interval, core and
-          # aggregate-number.
-          continue
-        if count != expected_items:
-          raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
-                             f' in \'{line}\'')
   checks = {
       'aggregate-number': lambda x: isfloat(x),
       'core': lambda x: True,
       'counter-value': lambda x: is_counter_value(x),
       'cgroup': lambda x: True,
       'cpu': lambda x: isint(x),
+      'cache': lambda x: True,
       'die': lambda x: True,
       'event': lambda x: True,
       'event-runtime': lambda x: isfloat(x),
       'interval': lambda x: isfloat(x),
       'metric-unit': lambda x: True,
       'metric-value': lambda x: isfloat(x),
+      'metricgroup': lambda x: True,
       'node': lambda x: True,
       'pcnt-running': lambda x: isfloat(x),
       'socket': lambda x: True,
@@ -73,6 +64,18 @@ def check_json_output(expected_items):
   }
   input = '[\n' + ','.join(Lines) + '\n]'
   for item in json.loads(input):
+    if expected_items != -1:
+      count = len(item)
+      if count != expected_items and count >= 1 and count <= 6 and 'metric-value' in item:
+        # Events that generate >1 metric may have isolated metric
+        # values and possibly other prefixes like interval, core,
+        # aggregate-number, or event-runtime/pcnt-running from multiplexing.
+        pass
+      elif count != expected_items and count >= 1 and count <= 5 and 'metricgroup' in item:
+        pass
+      elif count != expected_items:
+        raise RuntimeError(f'wrong number of fields. counted {count} expected {expected_items}'
+                           f' in \'{item}\'')
     for key, value in item.items():
       if key not in checks:
         raise RuntimeError(f'Unexpected key: key={key} value={value}')
@@ -82,11 +85,11 @@ def check_json_output(expected_items):
 
 try:
   if args.no_args or args.system_wide or args.event:
-    expected_items = 6
-  elif args.interval or args.per_thread or args.system_wide_no_aggr:
     expected_items = 7
-  elif args.per_core or args.per_socket or args.per_node or args.per_die:
+  elif args.interval or args.per_thread or args.system_wide_no_aggr:
     expected_items = 8
+  elif args.per_core or args.per_socket or args.per_node or args.per_die or args.per_cache:
+    expected_items = 9
   else:
     # If no option is specified, don't check the number of items.
     expected_items = -1

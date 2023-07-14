@@ -76,6 +76,10 @@ config THERMAL_OF
 	  Say 'Y' here if you need to build thermal infrastructure
 	  based on device tree.
 
+config THERMAL_ACPI
+       depends on ACPI
+       bool
+
 config THERMAL_WRITABLE_TRIPS
 	bool "Enable writable trip points"
 	help
@@ -125,6 +129,14 @@ config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
 	  Select this if you want to control temperature based on
 	  system and device power allocation. This governor can only
 	  operate on cooling devices that implement the power API.
+
+config THERMAL_DEFAULT_GOV_BANG_BANG
+	bool "bang_bang"
+	depends on THERMAL_GOV_BANG_BANG
+	help
+	  Use the bang_bang governor as default. This throttles the
+	  devices one step at the time, taking into account the trip
+	  point hysteresis.
 
 endchoice
 
@@ -412,16 +424,10 @@ config DA9062_THERMAL
 	  zone.
 	  Compatible with the DA9062 and DA9061 PMICs.
 
-config MTK_THERMAL
-	tristate "Temperature sensor driver for mediatek SoCs"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
-	depends on HAS_IOMEM
-	depends on NVMEM || NVMEM=n
-	depends on RESET_CONTROLLER
-	default y
-	help
-	  Enable this option if you want to have support for thermal management
-	  controller present in Mediatek SoCs
+menu "Mediatek thermal drivers"
+depends on ARCH_MEDIATEK || COMPILE_TEST
+source "drivers/thermal/mediatek/Kconfig"
+endmenu
 
 config AMLOGIC_THERMAL
 	tristate "Amlogic Thermal Support"

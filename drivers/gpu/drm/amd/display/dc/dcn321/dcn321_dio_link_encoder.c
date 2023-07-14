@@ -31,7 +31,6 @@
 #include "dcn321_dio_link_encoder.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
 #include "stream_encoder.h"
-#include "i2caux_interface.h"
 #include "dc_bios_types.h"
 
 #include "gpio_service_interface.h"
@@ -91,7 +90,6 @@ static const struct link_encoder_funcs dcn321_link_enc_funcs = {
 	.is_in_alt_mode = dcn20_link_encoder_is_in_alt_mode,
 	.get_max_link_cap = dcn20_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
-	.set_dig_output_mode = enc32_set_dig_output_mode,
 };
 
 void dcn321_link_encoder_construct(

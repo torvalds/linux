@@ -31,19 +31,25 @@
 #include <linux/kernel.h>
 #include <linux/pwm.h>
 
+#include <drm/drm_edid.h>
+
+#include "i915_reg.h"
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
+#include "intel_lvds_regs.h"
 #include "intel_panel.h"
+#include "intel_quirks.h"
+#include "intel_vrr.h"
 
 bool intel_panel_use_ssc(struct drm_i915_private *i915)
 {
 	if (i915->params.panel_use_ssc >= 0)
 		return i915->params.panel_use_ssc != 0;
-	return i915->vbt.lvds_use_ssc
-		&& !(i915->quirks & QUIRK_LVDS_SSC_DISABLE);
+	return i915->display.vbt.lvds_use_ssc &&
+		!intel_has_quirk(i915, QUIRK_LVDS_SSC_DISABLE);
 }
 
 const struct drm_display_mode *
@@ -53,6 +59,38 @@ intel_panel_preferred_fixed_mode(struct intel_connector *connector)
 					struct drm_display_mode, head);
 }
 
+static bool is_in_vrr_range(struct intel_connector *connector, int vrefresh)
+{
+	const struct drm_display_info *info = &connector->base.display_info;
+
+	return intel_vrr_is_capable(connector) &&
+		vrefresh >= info->monitor_range.min_vfreq &&
+		vrefresh <= info->monitor_range.max_vfreq;
+}
+
+static bool is_best_fixed_mode(struct intel_connector *connector,
+			       int vrefresh, int fixed_mode_vrefresh,
+			       const struct drm_display_mode *best_mode)
+{
+	/* we want to always return something */
+	if (!best_mode)
+		return true;
+
+	/*
+	 * With VRR always pick a mode with equal/higher than requested
+	 * vrefresh, which we can then reduce to match the requested
+	 * vrefresh by extending the vblank length.
+	 */
+	if (is_in_vrr_range(connector, vrefresh) &&
+	    is_in_vrr_range(connector, fixed_mode_vrefresh) &&
+	    fixed_mode_vrefresh < vrefresh)
+		return false;
+
+	/* pick the fixed_mode that is closest in terms of vrefresh */
+	return abs(fixed_mode_vrefresh - vrefresh) <
+		abs(drm_mode_vrefresh(best_mode) - vrefresh);
+}
+
 const struct drm_display_mode *
 intel_panel_fixed_mode(struct intel_connector *connector,
 		       const struct drm_display_mode *mode)
@@ -60,11 +98,11 @@ intel_panel_fixed_mode(struct intel_connector *connector,
 	const struct drm_display_mode *fixed_mode, *best_mode = NULL;
 	int vrefresh = drm_mode_vrefresh(mode);
 
-	/* pick the fixed_mode that is closest in terms of vrefresh */
 	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head) {
-		if (!best_mode ||
-		    abs(drm_mode_vrefresh(fixed_mode) - vrefresh) <
-		    abs(drm_mode_vrefresh(best_mode) - vrefresh))
+		int fixed_mode_vrefresh = drm_mode_vrefresh(fixed_mode);
+
+		if (is_best_fixed_mode(connector, vrefresh,
+				       fixed_mode_vrefresh, best_mode))
 			best_mode = fixed_mode;
 	}
 
@@ -81,15 +119,15 @@ static bool is_alt_drrs_mode(const struct drm_display_mode *mode,
 		mode->clock != preferred_mode->clock;
 }
 
-static bool is_alt_vrr_mode(const struct drm_display_mode *mode,
-			    const struct drm_display_mode *preferred_mode)
+static bool is_alt_fixed_mode(const struct drm_display_mode *mode,
+			      const struct drm_display_mode *preferred_mode)
 {
-	return drm_mode_match(mode, preferred_mode,
-			      DRM_MODE_MATCH_FLAGS |
-			      DRM_MODE_MATCH_3D_FLAGS) &&
+	u32 sync_flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NHSYNC |
+		DRM_MODE_FLAG_PVSYNC | DRM_MODE_FLAG_NVSYNC;
+
+	return (mode->flags & ~sync_flags) == (preferred_mode->flags & ~sync_flags) &&
 		mode->hdisplay == preferred_mode->hdisplay &&
-		mode->vdisplay == preferred_mode->vdisplay &&
-		mode->clock != preferred_mode->clock;
+		mode->vdisplay == preferred_mode->vdisplay;
 }
 
 const struct drm_display_mode *
@@ -114,6 +152,21 @@ intel_panel_downclock_mode(struct intel_connector *connector,
 	return best_mode;
 }
 
+const struct drm_display_mode *
+intel_panel_highest_mode(struct intel_connector *connector,
+			 const struct drm_display_mode *adjusted_mode)
+{
+	const struct drm_display_mode *fixed_mode, *best_mode = adjusted_mode;
+
+	/* pick the fixed_mode that has the highest clock */
+	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head) {
+		if (fixed_mode->clock > best_mode->clock)
+			best_mode = fixed_mode;
+	}
+
+	return best_mode;
+}
+
 int intel_panel_get_modes(struct intel_connector *connector)
 {
 	const struct drm_display_mode *fixed_mode;
@@ -132,12 +185,24 @@ int intel_panel_get_modes(struct intel_connector *connector)
 	return num_modes;
 }
 
+static bool has_drrs_modes(struct intel_connector *connector)
+{
+	const struct drm_display_mode *mode1;
+
+	list_for_each_entry(mode1, &connector->panel.fixed_modes, head) {
+		const struct drm_display_mode *mode2 = mode1;
+
+		list_for_each_entry_continue(mode2, &connector->panel.fixed_modes, head) {
+			if (is_alt_drrs_mode(mode1, mode2))
+				return true;
+		}
+	}
+
+	return false;
+}
+
 enum drrs_type intel_panel_drrs_type(struct intel_connector *connector)
 {
-	if (list_empty(&connector->panel.fixed_modes) ||
-	    list_is_singular(&connector->panel.fixed_modes))
-		return DRRS_TYPE_NONE;
-
 	return connector->panel.vbt.drrs_type;
 }
 
@@ -146,45 +211,52 @@ int intel_panel_compute_config(struct intel_connector *connector,
 {
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(connector, adjusted_mode);
+	int vrefresh, fixed_mode_vrefresh;
+	bool is_vrr;
 
 	if (!fixed_mode)
 		return 0;
 
-	/*
-	 * We don't want to lie too much to the user about the refresh
-	 * rate they're going to get. But we have to allow a bit of latitude
-	 * for Xorg since it likes to automagically cook up modes with slightly
-	 * off refresh rates.
-	 */
-	if (abs(drm_mode_vrefresh(adjusted_mode) - drm_mode_vrefresh(fixed_mode)) > 1) {
-		drm_dbg_kms(connector->base.dev,
-			    "[CONNECTOR:%d:%s] Requested mode vrefresh (%d Hz) does not match fixed mode vrefresh (%d Hz)\n",
-			    connector->base.base.id, connector->base.name,
-			    drm_mode_vrefresh(adjusted_mode), drm_mode_vrefresh(fixed_mode));
+	vrefresh = drm_mode_vrefresh(adjusted_mode);
+	fixed_mode_vrefresh = drm_mode_vrefresh(fixed_mode);
 
-		return -EINVAL;
+	/*
+	 * Assume that we shouldn't muck about with the
+	 * timings if they don't land in the VRR range.
+	 */
+	is_vrr = is_in_vrr_range(connector, vrefresh) &&
+		is_in_vrr_range(connector, fixed_mode_vrefresh);
+
+	if (!is_vrr) {
+		/*
+		 * We don't want to lie too much to the user about the refresh
+		 * rate they're going to get. But we have to allow a bit of latitude
+		 * for Xorg since it likes to automagically cook up modes with slightly
+		 * off refresh rates.
+		 */
+		if (abs(vrefresh - fixed_mode_vrefresh) > 1) {
+			drm_dbg_kms(connector->base.dev,
+				    "[CONNECTOR:%d:%s] Requested mode vrefresh (%d Hz) does not match fixed mode vrefresh (%d Hz)\n",
+				    connector->base.base.id, connector->base.name,
+				    vrefresh, fixed_mode_vrefresh);
+
+			return -EINVAL;
+		}
 	}
 
 	drm_mode_copy(adjusted_mode, fixed_mode);
+
+	if (is_vrr && fixed_mode_vrefresh != vrefresh)
+		adjusted_mode->vtotal =
+			DIV_ROUND_CLOSEST(adjusted_mode->clock * 1000,
+					  adjusted_mode->htotal * vrefresh);
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return 0;
 }
 
-static bool is_alt_fixed_mode(const struct drm_display_mode *mode,
-			      const struct drm_display_mode *preferred_mode,
-			      bool has_vrr)
-{
-	/* is_alt_drrs_mode() is a subset of is_alt_vrr_mode() */
-	if (has_vrr)
-		return is_alt_vrr_mode(mode, preferred_mode);
-	else
-		return is_alt_drrs_mode(mode, preferred_mode);
-}
-
-static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connector,
-						 bool has_vrr)
+static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *preferred_mode =
@@ -192,7 +264,7 @@ static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connect
 	struct drm_display_mode *mode, *next;
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
-		if (!is_alt_fixed_mode(mode, preferred_mode, has_vrr))
+		if (!is_alt_fixed_mode(mode, preferred_mode))
 			continue;
 
 		drm_dbg_kms(&dev_priv->drm,
@@ -251,11 +323,11 @@ static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 }
 
 void intel_panel_add_edid_fixed_modes(struct intel_connector *connector,
-				      bool has_drrs, bool has_vrr)
+				      bool use_alt_fixed_modes)
 {
 	intel_panel_add_edid_preferred_mode(connector);
-	if (intel_panel_preferred_fixed_mode(connector) && (has_drrs || has_vrr))
-		intel_panel_add_edid_alt_fixed_modes(connector, has_vrr);
+	if (intel_panel_preferred_fixed_mode(connector) && use_alt_fixed_modes)
+		intel_panel_add_edid_alt_fixed_modes(connector);
 	intel_panel_destroy_probed_modes(connector);
 }
 
@@ -492,11 +564,11 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 			bits = panel_fitter_scaling(pipe_src_h,
 						    adjusted_mode->crtc_vdisplay);
 
-			*pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
-					     bits << PFIT_VERT_SCALE_SHIFT);
+			*pfit_pgm_ratios |= (PFIT_HORIZ_SCALE(bits) |
+					     PFIT_VERT_SCALE(bits));
 			*pfit_control |= (PFIT_ENABLE |
-					  VERT_INTERP_BILINEAR |
-					  HORIZ_INTERP_BILINEAR);
+					  PFIT_VERT_INTERP_BILINEAR |
+					  PFIT_HORIZ_INTERP_BILINEAR);
 		}
 	} else if (scaled_width < scaled_height) { /* letter */
 		centre_vertically(adjusted_mode,
@@ -507,18 +579,19 @@ static void i9xx_scale_aspect(struct intel_crtc_state *crtc_state,
 			bits = panel_fitter_scaling(pipe_src_w,
 						    adjusted_mode->crtc_hdisplay);
 
-			*pfit_pgm_ratios |= (bits << PFIT_HORIZ_SCALE_SHIFT |
-					     bits << PFIT_VERT_SCALE_SHIFT);
+			*pfit_pgm_ratios |= (PFIT_HORIZ_SCALE(bits) |
+					     PFIT_VERT_SCALE(bits));
 			*pfit_control |= (PFIT_ENABLE |
-					  VERT_INTERP_BILINEAR |
-					  HORIZ_INTERP_BILINEAR);
+					  PFIT_VERT_INTERP_BILINEAR |
+					  PFIT_HORIZ_INTERP_BILINEAR);
 		}
 	} else {
 		/* Aspects match, Let hw scale both directions */
 		*pfit_control |= (PFIT_ENABLE |
-				  VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-				  VERT_INTERP_BILINEAR |
-				  HORIZ_INTERP_BILINEAR);
+				  PFIT_VERT_AUTO_SCALE |
+				  PFIT_HORIZ_AUTO_SCALE |
+				  PFIT_VERT_INTERP_BILINEAR |
+				  PFIT_HORIZ_INTERP_BILINEAR);
 	}
 }
 
@@ -566,10 +639,10 @@ static int gmch_panel_fitting(struct intel_crtc_state *crtc_state,
 			if (DISPLAY_VER(dev_priv) >= 4)
 				pfit_control |= PFIT_SCALING_AUTO;
 			else
-				pfit_control |= (VERT_AUTO_SCALE |
-						 VERT_INTERP_BILINEAR |
-						 HORIZ_AUTO_SCALE |
-						 HORIZ_INTERP_BILINEAR);
+				pfit_control |= (PFIT_VERT_AUTO_SCALE |
+						 PFIT_VERT_INTERP_BILINEAR |
+						 PFIT_HORIZ_AUTO_SCALE |
+						 PFIT_HORIZ_INTERP_BILINEAR);
 		}
 		break;
 	default:
@@ -590,7 +663,7 @@ out:
 
 	/* Make sure pre-965 set dither correctly for 18bpp panels. */
 	if (DISPLAY_VER(dev_priv) < 4 && crtc_state->pipe_bpp == 18)
-		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
+		pfit_control |= PFIT_PANEL_8TO6_DITHER_ENABLE;
 
 	crtc_state->gmch_pfit.control = pfit_control;
 	crtc_state->gmch_pfit.pgm_ratios = pfit_pgm_ratios;
@@ -644,11 +717,26 @@ intel_panel_mode_valid(struct intel_connector *connector,
 	return MODE_OK;
 }
 
-int intel_panel_init(struct intel_connector *connector)
+void intel_panel_init_alloc(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 
+	connector->panel.vbt.panel_type = -1;
+	connector->panel.vbt.backlight.controller = -1;
+	INIT_LIST_HEAD(&panel->fixed_modes);
+}
+
+int intel_panel_init(struct intel_connector *connector,
+		     const struct drm_edid *fixed_edid)
+{
+	struct intel_panel *panel = &connector->panel;
+
+	panel->fixed_edid = fixed_edid;
+
 	intel_backlight_init_funcs(panel);
+
+	if (!has_drrs_modes(connector))
+		connector->panel.vbt.drrs_type = DRRS_TYPE_NONE;
 
 	drm_dbg_kms(connector->base.dev,
 		    "[CONNECTOR:%d:%s] DRRS type: %s\n",
@@ -662,6 +750,9 @@ void intel_panel_fini(struct intel_connector *connector)
 {
 	struct intel_panel *panel = &connector->panel;
 	struct drm_display_mode *fixed_mode, *next;
+
+	if (!IS_ERR_OR_NULL(panel->fixed_edid))
+		drm_edid_free(panel->fixed_edid);
 
 	intel_backlight_destroy(panel);
 

@@ -182,7 +182,7 @@ static umode_t sbtsi_is_visible(const void *data,
 	return 0;
 }
 
-static const struct hwmon_channel_info *sbtsi_info[] = {
+static const struct hwmon_channel_info * const sbtsi_info[] = {
 	HWMON_CHANNEL_INFO(chip, HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX),
 	NULL
@@ -199,8 +199,7 @@ static const struct hwmon_chip_info sbtsi_chip_info = {
 	.info = sbtsi_info,
 };
 
-static int sbtsi_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int sbtsi_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;

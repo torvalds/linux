@@ -829,7 +829,7 @@ static irqreturn_t zpa2326_handle_threaded_irq(int irq, void *data)
 	}
 
 	/* New sample available: dispatch internal trigger consumers. */
-	iio_trigger_poll_chained(priv->trigger);
+	iio_trigger_poll_nested(priv->trigger);
 
 	if (cont)
 		/*

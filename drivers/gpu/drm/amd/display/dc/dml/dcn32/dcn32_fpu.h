@@ -29,11 +29,6 @@
 
 #include "clk_mgr_internal.h"
 
-#define DCN3_2_DEFAULT_DET_SIZE 256
-#define DCN3_2_MAX_DET_SIZE 1152
-#define DCN3_2_MIN_DET_SIZE 128
-#define DCN3_2_MIN_COMPBUF_SIZE_KB 128
-
 void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr);
 
 void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
@@ -41,13 +36,8 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 					      display_e2e_pipe_params_st *pipes,
 					      int pipe_cnt);
 
-bool dcn32_predict_pipe_split(struct dc_state *context,
-			      display_pipe_params_st pipe,
-			      int index);
-
-void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
-				    unsigned int *num_entries,
-				    struct _vcs_dpi_voltage_scaling_st *entry);
+uint8_t dcn32_predict_pipe_split(struct dc_state *context,
+				  display_e2e_pipe_params_st *pipe_e2e);
 
 void dcn32_set_phantom_stream_timing(struct dc *dc,
 				     struct dc_state *context,
@@ -78,5 +68,16 @@ int dcn32_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 							    int vlevel);
 
 void dcn32_patch_dpm_table(struct clk_bw_params *bw_params);
+
+void dcn32_zero_pipe_dcc_fraction(display_e2e_pipe_params_st *pipes,
+				  int pipe_cnt);
+
+void dcn32_assign_fpo_vactive_candidate(struct dc *dc, const struct dc_state *context, struct dc_stream_state **fpo_candidate_stream);
+
+bool dcn32_find_vactive_pipe(struct dc *dc, const struct dc_state *context, uint32_t vactive_margin_req);
+
+void dcn32_override_min_req_memclk(struct dc *dc, struct dc_state *context);
+
+void dcn32_set_clock_limits(const struct _vcs_dpi_soc_bounding_box_st *soc_bb);
 
 #endif

@@ -62,7 +62,8 @@ static int  kobil_tiocmset(struct tty_struct *tty,
 static void kobil_read_int_callback(struct urb *urb);
 static void kobil_write_int_callback(struct urb *urb);
 static void kobil_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old);
+			      struct usb_serial_port *port,
+			      const struct ktermios *old);
 static void kobil_init_termios(struct tty_struct *tty);
 
 static const struct usb_device_id id_table[] = {
@@ -474,7 +475,8 @@ static int kobil_tiocmset(struct tty_struct *tty,
 }
 
 static void kobil_set_termios(struct tty_struct *tty,
-			struct usb_serial_port *port, struct ktermios *old)
+			      struct usb_serial_port *port,
+			      const struct ktermios *old)
 {
 	struct kobil_private *priv;
 	int result;

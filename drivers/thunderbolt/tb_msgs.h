@@ -29,6 +29,14 @@ enum tb_cfg_error {
 	TB_CFG_ERROR_HEC_ERROR_DETECTED = 12,
 	TB_CFG_ERROR_FLOW_CONTROL_ERROR = 13,
 	TB_CFG_ERROR_LOCK = 15,
+	TB_CFG_ERROR_DP_BW = 32,
+	TB_CFG_ERROR_ROP_CMPLT = 33,
+	TB_CFG_ERROR_POP_CMPLT = 34,
+	TB_CFG_ERROR_PCIE_WAKE = 35,
+	TB_CFG_ERROR_DP_CON_CHANGE = 36,
+	TB_CFG_ERROR_DPTX_DISCOVERY = 37,
+	TB_CFG_ERROR_LINK_RECOVERY = 38,
+	TB_CFG_ERROR_ASYM_LINK = 39,
 };
 
 /* common header */
@@ -64,13 +72,15 @@ struct cfg_write_pkg {
 /* TB_CFG_PKG_ERROR */
 struct cfg_error_pkg {
 	struct tb_cfg_header header;
-	enum tb_cfg_error error:4;
-	u32 zero1:4;
+	enum tb_cfg_error error:8;
 	u32 port:6;
-	u32 zero2:2; /* Both should be zero, still they are different fields. */
-	u32 zero3:14;
+	u32 reserved:16;
 	u32 pg:2;
 } __packed;
+
+struct cfg_ack_pkg {
+	struct tb_cfg_header header;
+};
 
 #define TB_CFG_ERROR_PG_HOT_PLUG	0x2
 #define TB_CFG_ERROR_PG_HOT_UNPLUG	0x3

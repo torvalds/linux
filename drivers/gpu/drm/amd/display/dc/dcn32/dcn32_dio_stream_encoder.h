@@ -31,69 +31,7 @@
 #include "stream_encoder.h"
 #include "dcn20/dcn20_stream_encoder.h"
 
-#define SE_DCN32_REG_LIST(id)\
-	SRI(AFMT_CNTL, DIG, id), \
-	SRI(DIG_FE_CNTL, DIG, id), \
-	SRI(HDMI_CONTROL, DIG, id), \
-	SRI(HDMI_DB_CONTROL, DIG, id), \
-	SRI(HDMI_GC, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL0, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL1, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL2, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL3, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL4, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL5, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL6, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL7, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL8, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL9, DIG, id), \
-	SRI(HDMI_GENERIC_PACKET_CONTROL10, DIG, id), \
-	SRI(HDMI_INFOFRAME_CONTROL0, DIG, id), \
-	SRI(HDMI_INFOFRAME_CONTROL1, DIG, id), \
-	SRI(HDMI_VBI_PACKET_CONTROL, DIG, id), \
-	SRI(HDMI_AUDIO_PACKET_CONTROL, DIG, id),\
-	SRI(HDMI_ACR_PACKET_CONTROL, DIG, id),\
-	SRI(HDMI_ACR_32_0, DIG, id),\
-	SRI(HDMI_ACR_32_1, DIG, id),\
-	SRI(HDMI_ACR_44_0, DIG, id),\
-	SRI(HDMI_ACR_44_1, DIG, id),\
-	SRI(HDMI_ACR_48_0, DIG, id),\
-	SRI(HDMI_ACR_48_1, DIG, id),\
-	SRI(DP_DB_CNTL, DP, id), \
-	SRI(DP_MSA_MISC, DP, id), \
-	SRI(DP_MSA_VBID_MISC, DP, id), \
-	SRI(DP_MSA_COLORIMETRY, DP, id), \
-	SRI(DP_MSA_TIMING_PARAM1, DP, id), \
-	SRI(DP_MSA_TIMING_PARAM2, DP, id), \
-	SRI(DP_MSA_TIMING_PARAM3, DP, id), \
-	SRI(DP_MSA_TIMING_PARAM4, DP, id), \
-	SRI(DP_MSE_RATE_CNTL, DP, id), \
-	SRI(DP_MSE_RATE_UPDATE, DP, id), \
-	SRI(DP_PIXEL_FORMAT, DP, id), \
-	SRI(DP_SEC_CNTL, DP, id), \
-	SRI(DP_SEC_CNTL2, DP, id), \
-	SRI(DP_SEC_CNTL6, DP, id), \
-	SRI(DP_STEER_FIFO, DP, id), \
-	SRI(DP_VID_M, DP, id), \
-	SRI(DP_VID_N, DP, id), \
-	SRI(DP_VID_STREAM_CNTL, DP, id), \
-	SRI(DP_VID_TIMING, DP, id), \
-	SRI(DP_SEC_AUD_N, DP, id), \
-	SRI(DP_SEC_TIMESTAMP, DP, id), \
-	SRI(DP_DSC_CNTL, DP, id), \
-	SRI(DP_SEC_METADATA_TRANSMISSION, DP, id), \
-	SRI(HDMI_METADATA_PACKET_CONTROL, DIG, id), \
-	SRI(DP_SEC_FRAMING4, DP, id), \
-	SRI(DP_GSP11_CNTL, DP, id), \
-	SRI(DME_CONTROL, DME, id),\
-	SRI(DP_SEC_METADATA_TRANSMISSION, DP, id), \
-	SRI(HDMI_METADATA_PACKET_CONTROL, DIG, id), \
-	SRI(DIG_FE_CNTL, DIG, id), \
-	SRI(DIG_CLOCK_PATTERN, DIG, id), \
-	SRI(DIG_FIFO_CTRL0, DIG, id)
-
-
-#define SE_COMMON_MASK_SH_LIST_DCN32_BASE(mask_sh)\
+#define SE_COMMON_MASK_SH_LIST_DCN32(mask_sh)\
 	SE_SF(DP0_DP_PIXEL_FORMAT, DP_PIXEL_ENCODING, mask_sh),\
 	SE_SF(DP0_DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH, mask_sh),\
 	SE_SF(DP0_DP_PIXEL_FORMAT, DP_PIXEL_PER_CYCLE_PROCESSING_MODE, mask_sh),\
@@ -106,6 +44,7 @@
 	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_GC_CONT, mask_sh),\
 	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_GC_SEND, mask_sh),\
 	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_NULL_SEND, mask_sh),\
+	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, mask_sh),\
 	SE_SF(DIG0_HDMI_INFOFRAME_CONTROL0, HDMI_AUDIO_INFO_SEND, mask_sh),\
 	SE_SF(DIG0_HDMI_INFOFRAME_CONTROL1, HDMI_AUDIO_INFO_LINE, mask_sh),\
 	SE_SF(DIG0_HDMI_GC, HDMI_GC_AVMUTE, mask_sh),\
@@ -244,15 +183,6 @@
 	SE_SF(DIG0_DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, mask_sh),\
 	SE_SF(DIG0_DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
-#define SE_COMMON_MASK_SH_LIST_DCN32(mask_sh)\
-	SE_COMMON_MASK_SH_LIST_DCN32_BASE(mask_sh),\
-	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, mask_sh)
-#else
-#define SE_COMMON_MASK_SH_LIST_DCN32(mask_sh)\
-	SE_COMMON_MASK_SH_LIST_DCN32_BASE(mask_sh)
-#endif
-
 void dcn32_dio_stream_encoder_construct(
 	struct dcn10_stream_encoder *enc1,
 	struct dc_context *ctx,
@@ -263,5 +193,13 @@ void dcn32_dio_stream_encoder_construct(
 	const struct dcn10_stream_enc_registers *regs,
 	const struct dcn10_stream_encoder_shift *se_shift,
 	const struct dcn10_stream_encoder_mask *se_mask);
+
+
+void enc32_enable_fifo(struct stream_encoder *enc);
+
+void enc32_stream_encoder_dp_unblank(
+		struct dc_link *link,
+		struct stream_encoder *enc,
+		const struct encoder_unblank_param *param);
 
 #endif /* __DC_DIO_STREAM_ENCODER_DCN32_H__ */

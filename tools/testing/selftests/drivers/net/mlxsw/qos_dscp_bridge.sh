@@ -20,7 +20,7 @@
 # | SW |                                                                |     |
 # |  +-|----------------------------------------------------------------|-+   |
 # |  | + $swp1                       BR                           $swp2 + |   |
-# |  |   APP=0,5,10 .. 7,5,17                      APP=0,5,20 .. 7,5,27   |   |
+# |  |   dcb dscp-prio 10:0...17:7            dcb dscp-prio 20:0...27:7   |   |
 # |  +--------------------------------------------------------------------+   |
 # +---------------------------------------------------------------------------+
 
@@ -62,36 +62,24 @@ h2_destroy()
 	simple_if_fini $h2 192.0.2.2/28
 }
 
-dscp_map()
-{
-	local base=$1; shift
-	local prio
-
-	for prio in {0..7}; do
-		echo app=$prio,5,$((base + prio))
-	done
-}
-
 switch_create()
 {
 	ip link add name br1 type bridge vlan_filtering 1
+	ip link set dev br1 addrgenmode none
 	ip link set dev br1 up
 	ip link set dev $swp1 master br1
 	ip link set dev $swp1 up
 	ip link set dev $swp2 master br1
 	ip link set dev $swp2 up
 
-	lldptool -T -i $swp1 -V APP $(dscp_map 10) >/dev/null
-	lldptool -T -i $swp2 -V APP $(dscp_map 20) >/dev/null
-	lldpad_app_wait_set $swp1
-	lldpad_app_wait_set $swp2
+	dcb app add dev $swp1 dscp-prio 10:0 11:1 12:2 13:3 14:4 15:5 16:6 17:7
+	dcb app add dev $swp2 dscp-prio 20:0 21:1 22:2 23:3 24:4 25:5 26:6 27:7
 }
 
 switch_destroy()
 {
-	lldptool -T -i $swp2 -V APP -d $(dscp_map 20) >/dev/null
-	lldptool -T -i $swp1 -V APP -d $(dscp_map 10) >/dev/null
-	lldpad_app_wait_del
+	dcb app del dev $swp2 dscp-prio 20:0 21:1 22:2 23:3 24:4 25:5 26:6 27:7
+	dcb app del dev $swp1 dscp-prio 10:0 11:1 12:2 13:3 14:4 15:5 16:6 17:7
 
 	ip link set dev $swp2 down
 	ip link set dev $swp2 nomaster

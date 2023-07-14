@@ -171,15 +171,15 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree.
 	 */
-	if (of_get_property(np, "clock-frequency", NULL) == NULL)
+	if (!of_property_present(np, "clock-frequency"))
 		return -1;
 
 	/* if reg-offset don't try to use it */
-	if ((of_get_property(np, "reg-offset", NULL) != NULL))
+	if (of_property_present(np, "reg-offset"))
 		return -1;
 
 	/* if rtas uses this device, don't try to use it as well */
-	if (of_get_property(np, "used-by-rtas", NULL) != NULL)
+	if (of_property_read_bool(np, "used-by-rtas"))
 		return -1;
 
 	/* Get the address */
@@ -237,7 +237,7 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	 * Note: Don't even try on P8 lpc, we know it's not directly mapped
 	 */
 	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc") ||
-	    of_get_property(isa_brg, "ranges", NULL)) {
+	    of_property_present(isa_brg, "ranges")) {
 		taddr = of_translate_address(np, reg);
 		if (taddr == OF_BAD_ADDR)
 			taddr = 0;
@@ -268,7 +268,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	 * compatible UARTs on PCI need all sort of quirks (port offsets
 	 * etc...) that this code doesn't know about
 	 */
-	if (of_get_property(np, "clock-frequency", NULL) == NULL)
+	if (!of_property_present(np, "clock-frequency"))
 		return -1;
 
 	/* Get the PCI address. Assume BAR 0 */
@@ -471,6 +471,8 @@ void __init find_legacy_serial_ports(void)
 	}
 #endif
 
+	of_node_put(stdout);
+
 	DBG("legacy_serial_console = %d\n", legacy_serial_console);
 	if (legacy_serial_console >= 0)
 		setup_legacy_serial_console(legacy_serial_console);
@@ -506,12 +508,16 @@ static void __init fixup_port_irq(int index,
 
 	port->irq = virq;
 
-#ifdef CONFIG_SERIAL_8250_FSL
-	if (of_device_is_compatible(np, "fsl,ns16550")) {
-		port->handle_irq = fsl8250_handle_irq;
-		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+	if (IS_ENABLED(CONFIG_SERIAL_8250) &&
+	    of_device_is_compatible(np, "fsl,ns16550")) {
+		if (IS_REACHABLE(CONFIG_SERIAL_8250_FSL)) {
+			port->handle_irq = fsl8250_handle_irq;
+			port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
+		} else {
+			pr_warn_once("Not activating Freescale specific workaround for device %pOFP\n",
+				     np);
+		}
 	}
-#endif
 }
 
 static void __init fixup_port_pio(int index,

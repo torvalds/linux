@@ -6,15 +6,20 @@
 #ifndef __INTEL_DISPLAY_POWER_H__
 #define __INTEL_DISPLAY_POWER_H__
 
-#include "intel_runtime_pm.h"
+#include <linux/mutex.h>
+#include <linux/workqueue.h>
+
+#include "intel_wakeref.h"
 
 enum aux_ch;
 enum dpio_channel;
 enum dpio_phy;
+enum i915_drm_suspend_mode;
 enum port;
 struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
+struct seq_file;
 
 /*
  * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
@@ -76,6 +81,14 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_VGA,
 	POWER_DOMAIN_AUDIO_MMIO,
 	POWER_DOMAIN_AUDIO_PLAYBACK,
+
+	POWER_DOMAIN_AUX_IO_A,
+	POWER_DOMAIN_AUX_IO_B,
+	POWER_DOMAIN_AUX_IO_C,
+	POWER_DOMAIN_AUX_IO_D,
+	POWER_DOMAIN_AUX_IO_E,
+	POWER_DOMAIN_AUX_IO_F,
+
 	POWER_DOMAIN_AUX_A,
 	POWER_DOMAIN_AUX_B,
 	POWER_DOMAIN_AUX_C,
@@ -89,8 +102,6 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_USBC4,
 	POWER_DOMAIN_AUX_USBC5,
 	POWER_DOMAIN_AUX_USBC6,
-
-	POWER_DOMAIN_AUX_IO_A,
 
 	POWER_DOMAIN_AUX_TBT1,
 	POWER_DOMAIN_AUX_TBT2,
@@ -130,6 +141,10 @@ struct i915_power_domains {
 	bool display_core_suspended;
 	int power_well_count;
 
+	u32 dc_state;
+	u32 target_dc_state;
+	u32 allowed_dc_mask;
+
 	intel_wakeref_t init_wakeref;
 	intel_wakeref_t disable_wakeref;
 
@@ -160,8 +175,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *dev_priv, bool resume)
 void intel_power_domains_driver_remove(struct drm_i915_private *dev_priv);
 void intel_power_domains_enable(struct drm_i915_private *dev_priv);
 void intel_power_domains_disable(struct drm_i915_private *dev_priv);
-void intel_power_domains_suspend(struct drm_i915_private *dev_priv,
-				 enum i915_drm_suspend_mode);
+void intel_power_domains_suspend(struct drm_i915_private *dev_priv, bool s2idle);
 void intel_power_domains_resume(struct drm_i915_private *dev_priv);
 void intel_power_domains_sanitize_state(struct drm_i915_private *dev_priv);
 
@@ -248,6 +262,8 @@ enum intel_display_power_domain
 intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port);
 enum intel_display_power_domain
 intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port);
+enum intel_display_power_domain
+intel_display_power_aux_io_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
 enum intel_display_power_domain
 intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
 enum intel_display_power_domain

@@ -18,7 +18,7 @@
 #include <linux/icmpv6.h>
 
 const struct nla_policy nft_reject_policy[NFTA_REJECT_MAX + 1] = {
-	[NFTA_REJECT_TYPE]		= { .type = NLA_U32 },
+	[NFTA_REJECT_TYPE]		= NLA_POLICY_MAX(NLA_BE32, 255),
 	[NFTA_REJECT_ICMP_CODE]		= { .type = NLA_U8 },
 };
 EXPORT_SYMBOL_GPL(nft_reject_policy);
@@ -69,7 +69,8 @@ int nft_reject_init(const struct nft_ctx *ctx,
 }
 EXPORT_SYMBOL_GPL(nft_reject_init);
 
-int nft_reject_dump(struct sk_buff *skb, const struct nft_expr *expr)
+int nft_reject_dump(struct sk_buff *skb,
+		    const struct nft_expr *expr, bool reset)
 {
 	const struct nft_reject *priv = nft_expr_priv(expr);
 

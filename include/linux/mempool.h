@@ -30,6 +30,11 @@ static inline bool mempool_initialized(mempool_t *pool)
 	return pool->elements != NULL;
 }
 
+static inline bool mempool_is_saturated(mempool_t *pool)
+{
+	return READ_ONCE(pool->curr_nr) >= pool->min_nr;
+}
+
 void mempool_exit(mempool_t *pool);
 int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		      mempool_free_t *free_fn, void *pool_data,

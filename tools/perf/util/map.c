@@ -104,16 +104,15 @@ static inline bool replace_android_lib(const char *filename, char *newfilename)
 
 void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
-	map->start    = start;
-	map->end      = end;
-	map->pgoff    = pgoff;
-	map->reloc    = 0;
-	map->dso      = dso__get(dso);
-	map->map_ip   = map__map_ip;
-	map->unmap_ip = map__unmap_ip;
-	RB_CLEAR_NODE(&map->rb_node);
-	map->erange_warned = false;
-	refcount_set(&map->refcnt, 1);
+	map__set_start(map, start);
+	map__set_end(map, end);
+	map__set_pgoff(map, pgoff);
+	map__set_reloc(map, 0);
+	map__set_dso(map, dso__get(dso));
+	map__set_map_ip(map, map__dso_map_ip);
+	map__set_unmap_ip(map, map__dso_unmap_ip);
+	map__set_erange_warned(map, false);
+	refcount_set(map__refcnt(map), 1);
 }
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
@@ -121,11 +120,13 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		     u32 prot, u32 flags, struct build_id *bid,
 		     char *filename, struct thread *thread)
 {
-	struct map *map = malloc(sizeof(*map));
+	struct map *result;
+	RC_STRUCT(map) *map;
 	struct nsinfo *nsi = NULL;
 	struct nsinfo *nnsi;
 
-	if (map != NULL) {
+	map = malloc(sizeof(*map));
+	if (ADD_RC_CHK(result, map)) {
 		char newfilename[PATH_MAX];
 		struct dso *dso, *header_bid_dso;
 		int anon, no_dso, vdso, android;
@@ -136,7 +137,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		no_dso = is_no_dso_memory(filename);
 		map->prot = prot;
 		map->flags = flags;
-		nsi = nsinfo__get(thread->nsinfo);
+		nsi = nsinfo__get(thread__nsinfo(thread));
 
 		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
@@ -168,7 +169,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
-		map__init(map, start, start + len, pgoff, dso);
+		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
 			map->map_ip = map->unmap_ip = identity__map_ip;
@@ -181,7 +182,10 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			if (!(prot & PROT_EXEC))
 				dso__set_loaded(dso);
 		}
+		mutex_lock(&dso->lock);
+		nsinfo__put(dso->nsinfo);
 		dso->nsinfo = nsi;
+		mutex_unlock(&dso->lock);
 
 		if (build_id__is_defined(bid)) {
 			dso__set_build_id(dso, bid);
@@ -202,10 +206,10 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		}
 		dso__put(dso);
 	}
-	return map;
+	return result;
 out_delete:
 	nsinfo__put(nsi);
-	free(map);
+	RC_CHK_FREE(result);
 	return NULL;
 }
 
@@ -216,23 +220,25 @@ out_delete:
  */
 struct map *map__new2(u64 start, struct dso *dso)
 {
-	struct map *map = calloc(1, (sizeof(*map) +
-				     (dso->kernel ? sizeof(struct kmap) : 0)));
-	if (map != NULL) {
+	struct map *result;
+	RC_STRUCT(map) *map;
+
+	map = calloc(1, sizeof(*map) + (dso->kernel ? sizeof(struct kmap) : 0));
+	if (ADD_RC_CHK(result, map)) {
 		/*
 		 * ->end will be filled after we load all the symbols
 		 */
-		map__init(map, start, 0, 0, dso);
+		map__init(result, start, 0, 0, dso);
 	}
 
-	return map;
+	return result;
 }
 
 bool __map__is_kernel(const struct map *map)
 {
-	if (!map->dso->kernel)
+	if (!map__dso(map)->kernel)
 		return false;
-	return machine__kernel_map(map__kmaps((struct map *)map)->machine) == map;
+	return machine__kernel_map(maps__machine(map__kmaps((struct map *)map))) == map;
 }
 
 bool __map__is_extra_kernel_map(const struct map *map)
@@ -245,8 +251,9 @@ bool __map__is_extra_kernel_map(const struct map *map)
 bool __map__is_bpf_prog(const struct map *map)
 {
 	const char *name;
+	struct dso *dso = map__dso(map);
 
-	if (map->dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
+	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return true;
 
 	/*
@@ -254,15 +261,16 @@ bool __map__is_bpf_prog(const struct map *map)
 	 * type of DSO_BINARY_TYPE__BPF_PROG_INFO. In such cases, we can
 	 * guess the type based on name.
 	 */
-	name = map->dso->short_name;
+	name = dso->short_name;
 	return name && (strstr(name, "bpf_prog_") == name);
 }
 
 bool __map__is_bpf_image(const struct map *map)
 {
 	const char *name;
+	struct dso *dso = map__dso(map);
 
-	if (map->dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE)
+	if (dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE)
 		return true;
 
 	/*
@@ -270,55 +278,64 @@ bool __map__is_bpf_image(const struct map *map)
 	 * type of DSO_BINARY_TYPE__BPF_IMAGE. In such cases, we can
 	 * guess the type based on name.
 	 */
-	name = map->dso->short_name;
+	name = dso->short_name;
 	return name && is_bpf_image(name);
 }
 
 bool __map__is_ool(const struct map *map)
 {
-	return map->dso && map->dso->binary_type == DSO_BINARY_TYPE__OOL;
+	const struct dso *dso = map__dso(map);
+
+	return dso && dso->binary_type == DSO_BINARY_TYPE__OOL;
 }
 
 bool map__has_symbols(const struct map *map)
 {
-	return dso__has_symbols(map->dso);
+	return dso__has_symbols(map__dso(map));
 }
 
 static void map__exit(struct map *map)
 {
-	BUG_ON(refcount_read(&map->refcnt) != 0);
-	dso__zput(map->dso);
+	BUG_ON(refcount_read(map__refcnt(map)) != 0);
+	dso__zput(RC_CHK_ACCESS(map)->dso);
 }
 
 void map__delete(struct map *map)
 {
 	map__exit(map);
-	free(map);
+	RC_CHK_FREE(map);
 }
 
 void map__put(struct map *map)
 {
-	if (map && refcount_dec_and_test(&map->refcnt))
+	if (map && refcount_dec_and_test(map__refcnt(map)))
 		map__delete(map);
+	else
+		RC_CHK_PUT(map);
 }
 
 void map__fixup_start(struct map *map)
 {
-	struct rb_root_cached *symbols = &map->dso->symbols;
+	struct dso *dso = map__dso(map);
+	struct rb_root_cached *symbols = &dso->symbols;
 	struct rb_node *nd = rb_first_cached(symbols);
+
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		map->start = sym->start;
+
+		map__set_start(map, sym->start);
 	}
 }
 
 void map__fixup_end(struct map *map)
 {
-	struct rb_root_cached *symbols = &map->dso->symbols;
+	struct dso *dso = map__dso(map);
+	struct rb_root_cached *symbols = &dso->symbols;
 	struct rb_node *nd = rb_last(&symbols->rb_root);
+
 	if (nd != NULL) {
 		struct symbol *sym = rb_entry(nd, struct symbol, rb_node);
-		map->end = sym->end;
+		map__set_end(map, sym->end);
 	}
 }
 
@@ -326,18 +343,19 @@ void map__fixup_end(struct map *map)
 
 int map__load(struct map *map)
 {
-	const char *name = map->dso->long_name;
+	struct dso *dso = map__dso(map);
+	const char *name = dso->long_name;
 	int nr;
 
-	if (dso__loaded(map->dso))
+	if (dso__loaded(dso))
 		return 0;
 
-	nr = dso__load(map->dso, map);
+	nr = dso__load(dso, map);
 	if (nr < 0) {
-		if (map->dso->has_build_id) {
+		if (dso->has_build_id) {
 			char sbuild_id[SBUILD_ID_SIZE];
 
-			build_id__sprintf(&map->dso->bid, sbuild_id);
+			build_id__sprintf(&dso->bid, sbuild_id);
 			pr_debug("%s with build id %s not found", name, sbuild_id);
 		} else
 			pr_debug("Failed to open %s", name);
@@ -369,54 +387,74 @@ struct symbol *map__find_symbol(struct map *map, u64 addr)
 	if (map__load(map) < 0)
 		return NULL;
 
-	return dso__find_symbol(map->dso, addr);
+	return dso__find_symbol(map__dso(map), addr);
+}
+
+struct symbol *map__find_symbol_by_name_idx(struct map *map, const char *name, size_t *idx)
+{
+	struct dso *dso;
+
+	if (map__load(map) < 0)
+		return NULL;
+
+	dso = map__dso(map);
+	dso__sort_by_name(dso);
+
+	return dso__find_symbol_by_name(dso, name, idx);
 }
 
 struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 {
-	if (map__load(map) < 0)
-		return NULL;
+	size_t idx;
 
-	if (!dso__sorted_by_name(map->dso))
-		dso__sort_by_name(map->dso);
-
-	return dso__find_symbol_by_name(map->dso, name);
+	return map__find_symbol_by_name_idx(map, name, &idx);
 }
 
 struct map *map__clone(struct map *from)
 {
-	size_t size = sizeof(struct map);
-	struct map *map;
+	struct map *result;
+	RC_STRUCT(map) *map;
+	size_t size = sizeof(RC_STRUCT(map));
+	struct dso *dso = map__dso(from);
 
-	if (from->dso && from->dso->kernel)
+	if (dso && dso->kernel)
 		size += sizeof(struct kmap);
 
-	map = memdup(from, size);
-	if (map != NULL) {
+	map = memdup(RC_CHK_ACCESS(from), size);
+	if (ADD_RC_CHK(result, map)) {
 		refcount_set(&map->refcnt, 1);
-		RB_CLEAR_NODE(&map->rb_node);
-		dso__get(map->dso);
+		map->dso = dso__get(dso);
 	}
 
-	return map;
+	return result;
 }
 
 size_t map__fprintf(struct map *map, FILE *fp)
 {
+	const struct dso *dso = map__dso(map);
+
 	return fprintf(fp, " %" PRIx64 "-%" PRIx64 " %" PRIx64 " %s\n",
-		       map->start, map->end, map->pgoff, map->dso->name);
+		       map__start(map), map__end(map), map__pgoff(map), dso->name);
 }
 
-size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+static bool prefer_dso_long_name(const struct dso *dso, bool print_off)
+{
+	return dso->long_name &&
+	       (symbol_conf.show_kernel_path ||
+		(print_off && (dso->name[0] == '[' || dso__is_kcore(dso))));
+}
+
+static size_t __map__fprintf_dsoname(struct map *map, bool print_off, FILE *fp)
 {
 	char buf[symbol_conf.pad_output_len_dso + 1];
 	const char *dsoname = "[unknown]";
+	const struct dso *dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso) {
-		if (symbol_conf.show_kernel_path && map->dso->long_name)
-			dsoname = map->dso->long_name;
+	if (dso) {
+		if (prefer_dso_long_name(dso, print_off))
+			dsoname = dso->long_name;
 		else
-			dsoname = map->dso->name;
+			dsoname = dso->name;
 	}
 
 	if (symbol_conf.pad_output_len_dso) {
@@ -427,23 +465,46 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	return fprintf(fp, "%s", dsoname);
 }
 
+size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+{
+	return __map__fprintf_dsoname(map, false, fp);
+}
+
+size_t map__fprintf_dsoname_dsoff(struct map *map, bool print_off, u64 addr, FILE *fp)
+{
+	const struct dso *dso = map ? map__dso(map) : NULL;
+	int printed = 0;
+
+	if (print_off && (!dso || !dso__is_object_file(dso)))
+		print_off = false;
+	printed += fprintf(fp, " (");
+	printed += __map__fprintf_dsoname(map, print_off, fp);
+	if (print_off)
+		printed += fprintf(fp, "+0x%" PRIx64, addr);
+	printed += fprintf(fp, ")");
+
+	return printed;
+}
+
 char *map__srcline(struct map *map, u64 addr, struct symbol *sym)
 {
 	if (map == NULL)
 		return SRCLINE_UNKNOWN;
-	return get_srcline(map->dso, map__rip_2objdump(map, addr), sym, true, true, addr);
+
+	return get_srcline(map__dso(map), map__rip_2objdump(map, addr), sym, true, true, addr);
 }
 
 int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 			 FILE *fp)
 {
+	const struct dso *dso = map ? map__dso(map) : NULL;
 	int ret = 0;
 
-	if (map && map->dso) {
+	if (dso) {
 		char *srcline = map__srcline(map, addr, NULL);
-		if (strncmp(srcline, SRCLINE_UNKNOWN, strlen(SRCLINE_UNKNOWN)) != 0)
+		if (srcline != SRCLINE_UNKNOWN)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
-		free_srcline(srcline);
+		zfree_srcline(&srcline);
 	}
 	return ret;
 }
@@ -468,33 +529,38 @@ void srccode_state_free(struct srccode_state *state)
 u64 map__rip_2objdump(struct map *map, u64 rip)
 {
 	struct kmap *kmap = __map__kmap(map);
+	const struct dso *dso = map__dso(map);
 
 	/*
 	 * vmlinux does not have program headers for PTI entry trampolines and
 	 * kcore may not either. However the trampoline object code is on the
 	 * main kernel map, so just use that instead.
 	 */
-	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps && kmap->kmaps->machine) {
-		struct map *kernel_map = machine__kernel_map(kmap->kmaps->machine);
+	if (kmap && is_entry_trampoline(kmap->name) && kmap->kmaps) {
+		struct machine *machine = maps__machine(kmap->kmaps);
 
-		if (kernel_map)
-			map = kernel_map;
+		if (machine) {
+			struct map *kernel_map = machine__kernel_map(machine);
+
+			if (kernel_map)
+				map = kernel_map;
+		}
 	}
 
-	if (!map->dso->adjust_symbols)
+	if (!dso->adjust_symbols)
 		return rip;
 
-	if (map->dso->rel)
-		return rip - map->pgoff;
+	if (dso->rel)
+		return rip - map__pgoff(map);
 
 	/*
 	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
 	 * but all kernel modules are ET_REL, so won't get here.
 	 */
-	if (map->dso->kernel == DSO_SPACE__USER)
-		return rip + map->dso->text_offset;
+	if (dso->kernel == DSO_SPACE__USER)
+		return rip + dso->text_offset;
 
-	return map->unmap_ip(map, rip) - map->reloc;
+	return map__unmap_ip(map, rip) - map__reloc(map);
 }
 
 /**
@@ -505,54 +571,44 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
  * Closely related to map__rip_2objdump(), this function takes an address from
  * objdump and converts it to a memory address.  Note this assumes that @map
  * contains the address.  To be sure the result is valid, check it forwards
- * e.g. map__rip_2objdump(map->map_ip(map, map__objdump_2mem(map, ip))) == ip
+ * e.g. map__rip_2objdump(map__map_ip(map, map__objdump_2mem(map, ip))) == ip
  *
  * Return: Memory address.
  */
 u64 map__objdump_2mem(struct map *map, u64 ip)
 {
-	if (!map->dso->adjust_symbols)
-		return map->unmap_ip(map, ip);
+	const struct dso *dso = map__dso(map);
 
-	if (map->dso->rel)
-		return map->unmap_ip(map, ip + map->pgoff);
+	if (!dso->adjust_symbols)
+		return map__unmap_ip(map, ip);
+
+	if (dso->rel)
+		return map__unmap_ip(map, ip + map__pgoff(map));
 
 	/*
 	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
 	 * but all kernel modules are ET_REL, so won't get here.
 	 */
-	if (map->dso->kernel == DSO_SPACE__USER)
-		return map->unmap_ip(map, ip - map->dso->text_offset);
+	if (dso->kernel == DSO_SPACE__USER)
+		return map__unmap_ip(map, ip - dso->text_offset);
 
-	return ip + map->reloc;
+	return ip + map__reloc(map);
 }
 
 bool map__contains_symbol(const struct map *map, const struct symbol *sym)
 {
-	u64 ip = map->unmap_ip(map, sym->start);
+	u64 ip = map__unmap_ip(map, sym->start);
 
-	return ip >= map->start && ip < map->end;
-}
-
-static struct map *__map__next(struct map *map)
-{
-	struct rb_node *next = rb_next(&map->rb_node);
-
-	if (next)
-		return rb_entry(next, struct map, rb_node);
-	return NULL;
-}
-
-struct map *map__next(struct map *map)
-{
-	return map ? __map__next(map) : NULL;
+	return ip >= map__start(map) && ip < map__end(map);
 }
 
 struct kmap *__map__kmap(struct map *map)
 {
-	if (!map->dso || !map->dso->kernel)
+	const struct dso *dso = map__dso(map);
+
+	if (!dso || !dso->kernel)
 		return NULL;
-	return (struct kmap *)(map + 1);
+	return (struct kmap *)(&RC_CHK_ACCESS(map)[1]);
 }
 
 struct kmap *map__kmap(struct map *map)
@@ -575,14 +631,14 @@ struct maps *map__kmaps(struct map *map)
 	return kmap->kmaps;
 }
 
-u64 map__map_ip(const struct map *map, u64 ip)
+u64 map__dso_map_ip(const struct map *map, u64 ip)
 {
-	return ip - map->start + map->pgoff;
+	return ip - map__start(map) + map__pgoff(map);
 }
 
-u64 map__unmap_ip(const struct map *map, u64 ip)
+u64 map__dso_unmap_ip(const struct map *map, u64 ip)
 {
-	return ip + map->start - map->pgoff;
+	return ip + map__start(map) - map__pgoff(map);
 }
 
 u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)

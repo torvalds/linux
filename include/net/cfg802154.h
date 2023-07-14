@@ -11,13 +11,15 @@
 
 #include <linux/ieee802154.h>
 #include <linux/netdevice.h>
-#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/bug.h>
 
 #include <net/nl802154.h>
 
 struct wpan_phy;
 struct wpan_phy_cca;
+struct cfg802154_scan_request;
+struct cfg802154_beacon_request;
 
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 struct ieee802154_llsec_device_key;
@@ -67,6 +69,14 @@ struct cfg802154_ops {
 				struct wpan_dev *wpan_dev, bool mode);
 	int	(*set_ackreq_default)(struct wpan_phy *wpan_phy,
 				      struct wpan_dev *wpan_dev, bool ackreq);
+	int	(*trigger_scan)(struct wpan_phy *wpan_phy,
+				struct cfg802154_scan_request *request);
+	int	(*abort_scan)(struct wpan_phy *wpan_phy,
+			      struct wpan_dev *wpan_dev);
+	int	(*send_beacons)(struct wpan_phy *wpan_phy,
+				struct cfg802154_beacon_request *request);
+	int	(*stop_beacons)(struct wpan_phy *wpan_phy,
+				struct wpan_dev *wpan_dev);
 #ifdef CONFIG_IEEE802154_NL802154_EXPERIMENTAL
 	void	(*get_llsec_table)(struct wpan_phy *wpan_phy,
 				   struct wpan_dev *wpan_dev,
@@ -166,11 +176,17 @@ wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
  *	level setting.
  * @WPAN_PHY_FLAG_CCA_MODE: Indicates that transceiver will support cca mode
  *	setting.
+ * @WPAN_PHY_FLAG_STATE_QUEUE_STOPPED: Indicates that the transmit queue was
+ *	temporarily stopped.
+ * @WPAN_PHY_FLAG_DATAGRAMS_ONLY: Indicates that transceiver is only able to
+ *	send/receive datagrams.
  */
 enum wpan_phy_flags {
 	WPAN_PHY_FLAG_TXPOWER		= BIT(1),
 	WPAN_PHY_FLAG_CCA_ED_LEVEL	= BIT(2),
 	WPAN_PHY_FLAG_CCA_MODE		= BIT(3),
+	WPAN_PHY_FLAG_STATE_QUEUE_STOPPED = BIT(4),
+	WPAN_PHY_FLAG_DATAGRAMS_ONLY	= BIT(5),
 };
 
 struct wpan_phy {
@@ -182,7 +198,7 @@ struct wpan_phy {
 	 */
 	const void *privid;
 
-	u32 flags;
+	unsigned long flags;
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.
@@ -214,6 +230,17 @@ struct wpan_phy {
 	/* the network namespace this phy lives in currently */
 	possible_net_t _net;
 
+	/* Transmission monitoring and control */
+	spinlock_t queue_lock;
+	atomic_t ongoing_txs;
+	atomic_t hold_txs;
+	wait_queue_head_t sync_txq;
+
+	/* Current filtering level on reception.
+	 * Only allowed to be changed if phy is not operational.
+	 */
+	enum ieee802154_filtering_level filtering;
+
 	char priv[] __aligned(NETDEV_ALIGN);
 };
 
@@ -225,6 +252,17 @@ static inline struct net *wpan_phy_net(struct wpan_phy *wpan_phy)
 static inline void wpan_phy_net_set(struct wpan_phy *wpan_phy, struct net *net)
 {
 	write_pnet(&wpan_phy->_net, net);
+}
+
+static inline bool ieee802154_chan_is_valid(struct wpan_phy *phy,
+					    u8 page, u8 channel)
+{
+	if (page > IEEE802154_MAX_PAGE ||
+	    channel > IEEE802154_MAX_CHANNEL ||
+	    !(phy->supported.channels[page] & BIT(channel)))
+		return false;
+
+	return true;
 }
 
 /**
@@ -244,6 +282,78 @@ struct ieee802154_addr {
 		__le16 short_addr;
 		__le64 extended_addr;
 	};
+};
+
+/**
+ * struct ieee802154_coord_desc - Coordinator descriptor
+ * @addr: PAN ID and coordinator address
+ * @page: page this coordinator is using
+ * @channel: channel this coordinator is using
+ * @superframe_spec: SuperFrame specification as received
+ * @link_quality: link quality indicator at which the beacon was received
+ * @gts_permit: the coordinator accepts GTS requests
+ */
+struct ieee802154_coord_desc {
+	struct ieee802154_addr addr;
+	u8 page;
+	u8 channel;
+	u16 superframe_spec;
+	u8 link_quality;
+	bool gts_permit;
+};
+
+/**
+ * struct cfg802154_scan_request - Scan request
+ *
+ * @type: type of scan to be performed
+ * @page: page on which to perform the scan
+ * @channels: channels in te %page to be scanned
+ * @duration: time spent on each channel, calculated with:
+ *            aBaseSuperframeDuration * (2 ^ duration + 1)
+ * @wpan_dev: the wpan device on which to perform the scan
+ * @wpan_phy: the wpan phy on which to perform the scan
+ */
+struct cfg802154_scan_request {
+	enum nl802154_scan_types type;
+	u8 page;
+	u32 channels;
+	u8 duration;
+	struct wpan_dev *wpan_dev;
+	struct wpan_phy *wpan_phy;
+};
+
+/**
+ * struct cfg802154_beacon_request - Beacon request descriptor
+ *
+ * @interval: interval n between sendings, in multiple order of the super frame
+ *            duration: aBaseSuperframeDuration * (2^n) unless the interval
+ *            order is greater or equal to 15, in this case beacons won't be
+ *            passively sent out at a fixed rate but instead inform the device
+ *            that it should answer beacon requests as part of active scan
+ *            procedures
+ * @wpan_dev: the concerned wpan device
+ * @wpan_phy: the wpan phy this was for
+ */
+struct cfg802154_beacon_request {
+	u8 interval;
+	struct wpan_dev *wpan_dev;
+	struct wpan_phy *wpan_phy;
+};
+
+/**
+ * struct cfg802154_mac_pkt - MAC packet descriptor (beacon/command)
+ * @node: MAC packets to process list member
+ * @skb: the received sk_buff
+ * @sdata: the interface on which @skb was received
+ * @page: page configuration when @skb was received
+ * @channel: channel configuration when @skb was received
+ */
+struct cfg802154_mac_pkt {
+	struct list_head node;
+	struct sk_buff *skb;
+	struct ieee802154_sub_if_data *sdata;
+	u8 page;
+	u8 channel;
 };
 
 struct ieee802154_llsec_key_id {
@@ -365,8 +475,6 @@ struct wpan_dev {
 
 	bool lbt;
 
-	bool promiscuous_mode;
-
 	/* fallback for acknowledgment bit setting */
 	bool ackreq;
 };
@@ -417,6 +525,7 @@ static inline const char *wpan_phy_name(struct wpan_phy *phy)
 	return dev_name(&phy->dev);
 }
 
-void ieee802154_configure_durations(struct wpan_phy *phy);
+void ieee802154_configure_durations(struct wpan_phy *phy,
+				    unsigned int page, unsigned int channel);
 
 #endif /* __NET_CFG802154_H */

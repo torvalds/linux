@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-1.0+
+
 /*======================================================================
 
     A PCMCIA ethernet driver for Asix AX88190-based cards
@@ -17,9 +19,7 @@
 
     Written 1992,1993 by Donald Becker.
     Copyright 1993 United States Government as represented by the
-    Director, National Security Agency.  This software may be used and
-    distributed according to the terms of the GNU General Public License,
-    incorporated herein by reference.
+    Director, National Security Agency.
     Donald Becker may be reached at becker@scyld.com
 
 ======================================================================*/
@@ -650,7 +650,6 @@ static void block_input(struct net_device *dev, int count,
 {
     unsigned int nic_base = dev->base_addr;
     struct ei_device *ei_local = netdev_priv(dev);
-    int xfer_count = count;
     char *buf = skb->data;
 
     if ((netif_msg_rx_status(ei_local)) && (count != 4))
@@ -662,9 +661,7 @@ static void block_input(struct net_device *dev, int count,
     insw(nic_base + AXNET_DATAPORT,buf,count>>1);
     if (count & 0x01) {
 	buf[count-1] = inb(nic_base + AXNET_DATAPORT);
-	xfer_count++;
     }
-
 }
 
 /*====================================================================*/

@@ -14,6 +14,7 @@
 #include <asm/auxvec.h>
 #include <asm/byteorder.h>
 #include <asm/cacheinfo.h>
+#include <asm/hwcap.h>
 
 /*
  * These are used to set parameters in the core dumps.
@@ -59,12 +60,13 @@ extern bool compat_elf_check_arch(Elf32_Ehdr *hdr);
 #define STACK_RND_MASK		(0x3ffff >> (PAGE_SHIFT - 12))
 #endif
 #endif
+
 /*
- * This yields a mask that user programs can use to figure out what
- * instruction set this CPU supports.  This could be done in user space,
- * but it's not easy, and we've already done it here.
+ * Provides information on the availiable set of ISA extensions to userspace,
+ * via a bitmap that coorespends to each single-letter ISA extension.  This is
+ * essentially defunct, but will remain for compatibility with userspace.
  */
-#define ELF_HWCAP	(elf_hwcap)
+#define ELF_HWCAP	riscv_get_elf_hwcap()
 extern unsigned long elf_hwcap;
 
 /*
@@ -99,6 +101,19 @@ do {								\
 		get_cache_size(2, CACHE_TYPE_UNIFIED));		\
 	NEW_AUX_ENT(AT_L2_CACHEGEOMETRY,			\
 		get_cache_geometry(2, CACHE_TYPE_UNIFIED));	\
+	NEW_AUX_ENT(AT_L3_CACHESIZE,				\
+		get_cache_size(3, CACHE_TYPE_UNIFIED));		\
+	NEW_AUX_ENT(AT_L3_CACHEGEOMETRY,			\
+		get_cache_geometry(3, CACHE_TYPE_UNIFIED));	\
+	/*							 \
+	 * Should always be nonzero unless there's a kernel bug. \
+	 * If we haven't determined a sensible value to give to	 \
+	 * userspace, omit the entry:				 \
+	 */							 \
+	if (likely(signal_minsigstksz))				 \
+		NEW_AUX_ENT(AT_MINSIGSTKSZ, signal_minsigstksz); \
+	else							 \
+		NEW_AUX_ENT(AT_IGNORE, 0);			 \
 } while (0)
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 struct linux_binprm;

@@ -41,7 +41,7 @@
 			};
 		};
 
-		pm8916_usbin: extcon@1300 {
+		pm8916_usbin: usb-detect@1300 {
 			compatible = "qcom,pm8941-misc";
 			reg = <0x1300>;
 			interrupts = <0x0 0x13 1 IRQ_TYPE_EDGE_BOTH>;
@@ -93,7 +93,8 @@
 
 		rtc@6000 {
 			compatible = "qcom,pm8941-rtc";
-			reg = <0x6000>;
+			reg = <0x6000>, <0x6100>;
+			reg-names = "rtc", "alarm";
 			interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
@@ -107,7 +108,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		pm8916_gpios: gpios@c000 {
+		pm8916_gpios: gpio@c000 {
 			compatible = "qcom,pm8916-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
@@ -138,7 +139,7 @@
 			status = "disabled";
 		};
 
-		wcd_codec: audio-codec@f000 {
+		pm8916_codec: audio-codec@f000 {
 			compatible = "qcom,pm8916-wcd-analog-codec";
 			reg = <0xf000>;
 			reg-names = "pmic-codec-core";
@@ -173,10 +174,8 @@
 					  "cdc_ear_cnp_int",
 					  "cdc_hphr_cnp_int",
 					  "cdc_hphl_cnp_int";
-			vdd-cdc-io-supply = <&pm8916_l5>;
-			vdd-cdc-tx-rx-cx-supply = <&pm8916_l5>;
-			vdd-micbias-supply = <&pm8916_l13>;
 			#sound-dai-cells = <1>;
+			status = "disabled";
 		};
 	};
 };

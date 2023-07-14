@@ -30,55 +30,119 @@ static void schedule_detach(void *cxlmd)
 	schedule_cxl_memdev_detach(cxlmd);
 }
 
-static int cxl_port_probe(struct device *dev)
+static int discover_region(struct device *dev, void *root)
 {
-	struct cxl_port *port = to_cxl_port(dev);
+	struct cxl_endpoint_decoder *cxled;
+	int rc;
+
+	if (!is_endpoint_decoder(dev))
+		return 0;
+
+	cxled = to_cxl_endpoint_decoder(dev);
+	if ((cxled->cxld.flags & CXL_DECODER_F_ENABLE) == 0)
+		return 0;
+
+	if (cxled->state != CXL_DECODER_STATE_AUTO)
+		return 0;
+
+	/*
+	 * Region enumeration is opportunistic, if this add-event fails,
+	 * continue to the next endpoint decoder.
+	 */
+	rc = cxl_add_to_region(root, cxled);
+	if (rc)
+		dev_dbg(dev, "failed to add to region: %#llx-%#llx\n",
+			cxled->cxld.hpa_range.start, cxled->cxld.hpa_range.end);
+
+	return 0;
+}
+
+static int cxl_switch_port_probe(struct cxl_port *port)
+{
 	struct cxl_hdm *cxlhdm;
 	int rc;
 
-
-	if (!is_cxl_endpoint(port)) {
-		rc = devm_cxl_port_enumerate_dports(port);
-		if (rc < 0)
-			return rc;
-		if (rc == 1)
-			return devm_cxl_add_passthrough_decoder(port);
-	}
-
-	cxlhdm = devm_cxl_setup_hdm(port);
-	if (IS_ERR(cxlhdm))
-		return PTR_ERR(cxlhdm);
-
-	if (is_cxl_endpoint(port)) {
-		struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport);
-		struct cxl_dev_state *cxlds = cxlmd->cxlds;
-
-		/* Cache the data early to ensure is_visible() works */
-		read_cdat_data(port);
-
-		get_device(&cxlmd->dev);
-		rc = devm_add_action_or_reset(dev, schedule_detach, cxlmd);
-		if (rc)
-			return rc;
-
-		rc = cxl_hdm_decode_init(cxlds, cxlhdm);
-		if (rc)
-			return rc;
-
-		rc = cxl_await_media_ready(cxlds);
-		if (rc) {
-			dev_err(dev, "Media not active (%d)\n", rc);
-			return rc;
-		}
-	}
-
-	rc = devm_cxl_enumerate_decoders(cxlhdm);
-	if (rc) {
-		dev_err(dev, "Couldn't enumerate decoders (%d)\n", rc);
+	rc = devm_cxl_port_enumerate_dports(port);
+	if (rc < 0)
 		return rc;
+
+	cxlhdm = devm_cxl_setup_hdm(port, NULL);
+	if (!IS_ERR(cxlhdm))
+		return devm_cxl_enumerate_decoders(cxlhdm, NULL);
+
+	if (PTR_ERR(cxlhdm) != -ENODEV) {
+		dev_err(&port->dev, "Failed to map HDM decoder capability\n");
+		return PTR_ERR(cxlhdm);
 	}
+
+	if (rc == 1) {
+		dev_dbg(&port->dev, "Fallback to passthrough decoder\n");
+		return devm_cxl_add_passthrough_decoder(port);
+	}
+
+	dev_err(&port->dev, "HDM decoder capability not found\n");
+	return -ENXIO;
+}
+
+static int cxl_endpoint_port_probe(struct cxl_port *port)
+{
+	struct cxl_endpoint_dvsec_info info = { .port = port };
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_hdm *cxlhdm;
+	struct cxl_port *root;
+	int rc;
+
+	rc = cxl_dvsec_rr_decode(cxlds->dev, cxlds->cxl_dvsec, &info);
+	if (rc < 0)
+		return rc;
+
+	cxlhdm = devm_cxl_setup_hdm(port, &info);
+	if (IS_ERR(cxlhdm)) {
+		if (PTR_ERR(cxlhdm) == -ENODEV)
+			dev_err(&port->dev, "HDM decoder registers not found\n");
+		return PTR_ERR(cxlhdm);
+	}
+
+	/* Cache the data early to ensure is_visible() works */
+	read_cdat_data(port);
+
+	get_device(&cxlmd->dev);
+	rc = devm_add_action_or_reset(&port->dev, schedule_detach, cxlmd);
+	if (rc)
+		return rc;
+
+	rc = cxl_hdm_decode_init(cxlds, cxlhdm, &info);
+	if (rc)
+		return rc;
+
+	rc = devm_cxl_enumerate_decoders(cxlhdm, &info);
+	if (rc)
+		return rc;
+
+	/*
+	 * This can't fail in practice as CXL root exit unregisters all
+	 * descendant ports and that in turn synchronizes with cxl_port_probe()
+	 */
+	root = find_cxl_root(port);
+
+	/*
+	 * Now that all endpoint decoders are successfully enumerated, try to
+	 * assemble regions from committed decoders
+	 */
+	device_for_each_child(&port->dev, root, discover_region);
+	put_device(&root->dev);
 
 	return 0;
+}
+
+static int cxl_port_probe(struct device *dev)
+{
+	struct cxl_port *port = to_cxl_port(dev);
+
+	if (is_cxl_endpoint(port))
+		return cxl_endpoint_port_probe(port);
+	return cxl_switch_port_probe(port);
 }
 
 static ssize_t CDAT_read(struct file *filp, struct kobject *kobj,

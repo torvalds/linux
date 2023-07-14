@@ -577,7 +577,7 @@ static struct dmz_mblock *dmz_get_mblock_slow(struct dmz_metadata *zmd,
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
-	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
+	__bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
 	submit_bio(bio);
 
 	return mblk;
@@ -728,7 +728,7 @@ static int dmz_write_mblock(struct dmz_metadata *zmd, struct dmz_mblock *mblk,
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
 	bio->bi_private = mblk;
 	bio->bi_end_io = dmz_mblock_bio_end_io;
-	bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
+	__bio_add_page(bio, mblk->page, DMZ_BLOCK_SIZE, 0);
 	submit_bio(bio);
 
 	return 0;
@@ -752,7 +752,7 @@ static int dmz_rdwr_block(struct dmz_dev *dev, enum req_op op,
 	bio = bio_alloc(dev->bdev, 1, op | REQ_SYNC | REQ_META | REQ_PRIO,
 			GFP_NOIO);
 	bio->bi_iter.bi_sector = dmz_blk2sect(block);
-	bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
+	__bio_add_page(bio, page, DMZ_BLOCK_SIZE, 0);
 	ret = submit_bio_wait(bio);
 	bio_put(bio);
 
@@ -1013,11 +1013,9 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
 	}
 
 	sb_block = le64_to_cpu(sb->sb_block);
-	if (sb_block != (u64)dsb->zone->id << zmd->zone_nr_blocks_shift ) {
-		dmz_dev_err(dev, "Invalid superblock position "
-			    "(is %llu expected %llu)",
-			    sb_block,
-			    (u64)dsb->zone->id << zmd->zone_nr_blocks_shift);
+	if (sb_block != (u64)dsb->zone->id << zmd->zone_nr_blocks_shift) {
+		dmz_dev_err(dev, "Invalid superblock position (is %llu expected %llu)",
+			    sb_block, (u64)dsb->zone->id << zmd->zone_nr_blocks_shift);
 		return -EINVAL;
 	}
 	if (zmd->sb_version > 1) {
@@ -1030,16 +1028,14 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
 		} else if (uuid_is_null(&zmd->uuid)) {
 			uuid_copy(&zmd->uuid, &sb_uuid);
 		} else if (!uuid_equal(&zmd->uuid, &sb_uuid)) {
-			dmz_dev_err(dev, "mismatching DM-Zoned uuid, "
-				    "is %pUl expected %pUl",
+			dmz_dev_err(dev, "mismatching DM-Zoned uuid, is %pUl expected %pUl",
 				    &sb_uuid, &zmd->uuid);
 			return -ENXIO;
 		}
 		if (!strlen(zmd->label))
 			memcpy(zmd->label, sb->dmz_label, BDEVNAME_SIZE);
 		else if (memcmp(zmd->label, sb->dmz_label, BDEVNAME_SIZE)) {
-			dmz_dev_err(dev, "mismatching DM-Zoned label, "
-				    "is %s expected %s",
+			dmz_dev_err(dev, "mismatching DM-Zoned label, is %s expected %s",
 				    sb->dmz_label, zmd->label);
 			return -ENXIO;
 		}
@@ -1346,7 +1342,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 			if (ret == -EINVAL)
 				goto out_kfree;
 		}
-	out_kfree:
+out_kfree:
 		kfree(sb);
 	}
 	return ret;
@@ -1430,7 +1426,7 @@ static int dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
 	int idx;
 	sector_t zone_offset = 0;
 
-	for(idx = 0; idx < dev->nr_zones; idx++) {
+	for (idx = 0; idx < dev->nr_zones; idx++) {
 		struct dm_zone *zone;
 
 		zone = dmz_insert(zmd, idx, dev);
@@ -1457,7 +1453,7 @@ static void dmz_drop_zones(struct dmz_metadata *zmd)
 {
 	int idx;
 
-	for(idx = 0; idx < zmd->nr_zones; idx++) {
+	for (idx = 0; idx < zmd->nr_zones; idx++) {
 		struct dm_zone *zone = xa_load(&zmd->zones, idx);
 
 		kfree(zone);
@@ -1705,7 +1701,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 			if (IS_ERR(dmap_mblk))
 				return PTR_ERR(dmap_mblk);
 			zmd->map_mblk[i] = dmap_mblk;
-			dmap = (struct dmz_map *) dmap_mblk->data;
+			dmap = dmap_mblk->data;
 			i++;
 			e = 0;
 		}
@@ -1836,7 +1832,7 @@ static void dmz_set_chunk_mapping(struct dmz_metadata *zmd, unsigned int chunk,
 				  unsigned int dzone_id, unsigned int bzone_id)
 {
 	struct dmz_mblock *dmap_mblk = zmd->map_mblk[chunk >> DMZ_MAP_ENTRIES_SHIFT];
-	struct dmz_map *dmap = (struct dmz_map *) dmap_mblk->data;
+	struct dmz_map *dmap = dmap_mblk->data;
 	int map_idx = chunk & DMZ_MAP_ENTRIES_MASK;
 
 	dmap[map_idx].dzone_id = cpu_to_le32(dzone_id);
@@ -2049,7 +2045,7 @@ struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd,
 				      unsigned int chunk, enum req_op op)
 {
 	struct dmz_mblock *dmap_mblk = zmd->map_mblk[chunk >> DMZ_MAP_ENTRIES_SHIFT];
-	struct dmz_map *dmap = (struct dmz_map *) dmap_mblk->data;
+	struct dmz_map *dmap = dmap_mblk->data;
 	int dmap_idx = chunk & DMZ_MAP_ENTRIES_MASK;
 	unsigned int dzone_id;
 	struct dm_zone *dzone = NULL;
@@ -2945,7 +2941,7 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	zmd->mblk_shrinker.seeks = DEFAULT_SEEKS;
 
 	/* Metadata cache shrinker */
-	ret = register_shrinker(&zmd->mblk_shrinker, "md-meta:(%u:%u)",
+	ret = register_shrinker(&zmd->mblk_shrinker, "dm-zoned-meta:(%u:%u)",
 				MAJOR(dev->bdev->bd_dev),
 				MINOR(dev->bdev->bd_dev));
 	if (ret) {

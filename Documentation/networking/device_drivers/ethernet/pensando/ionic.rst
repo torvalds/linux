@@ -83,7 +83,7 @@ Configuring the Driver
 MTU
 ---
 
-Jumbo frame support is available with a maximim size of 9194 bytes.
+Jumbo frame support is available with a maximum size of 9194 bytes.
 
 Interrupt coalescing
 --------------------

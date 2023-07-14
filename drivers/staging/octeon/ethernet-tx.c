@@ -73,7 +73,6 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
 {
 	int skb_to_free;
 	int qos, queues_per_port;
-	int total_freed = 0;
 	int total_remaining = 0;
 	unsigned long flags;
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -87,7 +86,6 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
 						       MAX_SKB_TO_FREE);
 		skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
 							 priv->fau + qos * 4);
-		total_freed += skb_to_free;
 		if (skb_to_free > 0) {
 			struct sk_buff *to_free_list = NULL;
 
@@ -125,7 +123,7 @@ static void cvm_oct_free_tx_skbs(struct net_device *dev)
  *
  * Returns Always returns NETDEV_TX_OK
  */
-int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	union cvmx_pko_command_word0 pko_command;
 	union cvmx_buf_ptr hw_buffer;
@@ -506,7 +504,7 @@ skip_xmit:
  * @dev:    Device info structure
  * Returns Always returns zero
  */
-int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
 	void *packet_buffer;

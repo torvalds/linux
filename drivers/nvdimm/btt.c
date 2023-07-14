@@ -1482,20 +1482,6 @@ static void btt_submit_bio(struct bio *bio)
 	bio_endio(bio);
 }
 
-static int btt_rw_page(struct block_device *bdev, sector_t sector,
-		struct page *page, enum req_op op)
-{
-	struct btt *btt = bdev->bd_disk->private_data;
-	int rc;
-
-	rc = btt_do_bvec(btt, NULL, page, thp_size(page), 0, op, sector);
-	if (rc == 0)
-		page_endio(page, op_is_write(op), 0);
-
-	return rc;
-}
-
-
 static int btt_getgeo(struct block_device *bd, struct hd_geometry *geo)
 {
 	/* some standard values */
@@ -1508,7 +1494,6 @@ static int btt_getgeo(struct block_device *bd, struct hd_geometry *geo)
 static const struct block_device_operations btt_fops = {
 	.owner =		THIS_MODULE,
 	.submit_bio =		btt_submit_bio,
-	.rw_page =		btt_rw_page,
 	.getgeo =		btt_getgeo,
 };
 
@@ -1530,6 +1515,7 @@ static int btt_blk_init(struct btt *btt)
 	blk_queue_logical_block_size(btt->btt_disk->queue, btt->sector_size);
 	blk_queue_max_hw_sectors(btt->btt_disk->queue, UINT_MAX);
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_disk->queue);
+	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, btt->btt_disk->queue);
 
 	if (btt_meta_size(btt)) {
 		rc = nd_integrity_init(btt->btt_disk, btt_meta_size(btt));

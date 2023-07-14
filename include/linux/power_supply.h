@@ -301,6 +301,7 @@ struct power_supply {
 	bool initialized;
 	bool removing;
 	atomic_t use_cnt;
+	struct power_supply_battery_info *battery_info;
 #ifdef CONFIG_THERMAL
 	struct thermal_zone_device *tzd;
 	struct thermal_cooling_device *tcd;
@@ -374,9 +375,37 @@ struct power_supply_vbat_ri_table {
  *   These timers should be chosen to align with the typical discharge curve
  *   for the battery.
  *
- * When the main CC/CV charging is complete the battery can optionally be
- * maintenance charged at the voltages from this table: a table of settings is
- * traversed using a slightly lower current and voltage than what is used for
+ * Ordinary CC/CV charging will stop charging when the charge current goes
+ * below charge_term_current_ua, and then restart it (if the device is still
+ * plugged into the charger) at charge_restart_voltage_uv. This happens in most
+ * consumer products because the power usage while connected to a charger is
+ * not zero, and devices are not manufactured to draw power directly from the
+ * charger: instead they will at all times dissipate the battery a little, like
+ * the power used in standby mode. This will over time give a charge graph
+ * such as this:
+ *
+ * Energy
+ *  ^      ...        ...      ...      ...      ...      ...      ...
+ *  |    .   .       .  .     .  .     .  .     .  .     .  .     .
+ *  |  ..     .   ..     .  ..    .  ..    .  ..    .  ..    .  ..
+ *  |.          ..        ..       ..       ..       ..       ..
+ *  +-------------------------------------------------------------------> t
+ *
+ * Practically this means that the Li-ions are wandering back and forth in the
+ * battery and this causes degeneration of the battery anode and cathode.
+ * To prolong the life of the battery, maintenance charging is applied after
+ * reaching charge_term_current_ua to hold up the charge in the battery while
+ * consuming power, thus lowering the wear on the battery:
+ *
+ * Energy
+ *  ^      .......................................
+ *  |    .                                        ......................
+ *  |  ..
+ *  |.
+ *  +-------------------------------------------------------------------> t
+ *
+ * Maintenance charging uses the voltages from this table: a table of settings
+ * is traversed using a slightly lower current and voltage than what is used for
  * CC/CV charging. The maintenance charging will for safety reasons not go on
  * indefinately: we lower the current and voltage with successive maintenance
  * settings, then disable charging completely after we reach the last one,
@@ -385,14 +414,22 @@ struct power_supply_vbat_ri_table {
  * ordinary CC/CV charging from there.
  *
  * As an example, a Samsung EB425161LA Lithium-Ion battery is CC/CV charged
- * at 900mA to 4340mV, then maintenance charged at 600mA and 4150mV for
- * 60 hours, then maintenance charged at 600mA and 4100mV for 200 hours.
+ * at 900mA to 4340mV, then maintenance charged at 600mA and 4150mV for up to
+ * 60 hours, then maintenance charged at 600mA and 4100mV for up to 200 hours.
  * After this the charge cycle is restarted waiting for
  * charge_restart_voltage_uv.
  *
  * For most mobile electronics this type of maintenance charging is enough for
  * the user to disconnect the device and make use of it before both maintenance
- * charging cycles are complete.
+ * charging cycles are complete, if the current and voltage has been chosen
+ * appropriately. These need to be determined from battery discharge curves
+ * and expected standby current.
+ *
+ * If the voltage anyway drops to charge_restart_voltage_uv during maintenance
+ * charging, ordinary CC/CV charging is restarted. This can happen if the
+ * device is e.g. actively used during charging, so more current is drawn than
+ * the expected stand-by current. Also overvoltage protection will be applied
+ * as usual.
  */
 struct power_supply_maintenance_charge_table {
 	int charge_current_max_ua;
@@ -755,10 +792,17 @@ devm_power_supply_get_by_phandle(struct device *dev, const char *property)
 { return NULL; }
 #endif /* CONFIG_OF */
 
+extern const enum power_supply_property power_supply_battery_info_properties[];
+extern const size_t power_supply_battery_info_properties_size;
 extern int power_supply_get_battery_info(struct power_supply *psy,
 					 struct power_supply_battery_info **info_out);
 extern void power_supply_put_battery_info(struct power_supply *psy,
 					  struct power_supply_battery_info *info);
+extern bool power_supply_battery_info_has_prop(struct power_supply_battery_info *info,
+					       enum power_supply_property psp);
+extern int power_supply_battery_info_get_prop(struct power_supply_battery_info *info,
+					      enum power_supply_property psp,
+					      union power_supply_propval *val);
 extern int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
 				       int table_len, int ocv);
 extern struct power_supply_battery_ocv_table *

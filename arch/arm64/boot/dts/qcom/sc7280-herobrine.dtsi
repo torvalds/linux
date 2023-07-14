@@ -108,6 +108,24 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&en_pp3300_dx_edp>;
 
+		regulator-enable-ramp-delay = <3000>;
+
+		/*
+		 * eDP panel specs nearly always have a spec that says you
+		 * shouldn't turn them off an on again without waiting 500ms.
+		 * Add this as a board constraint since this rail is shared
+		 * between the panel and touchscreen.
+		 */
+		off-on-delay-us = <500000>;
+
+		/*
+		 * Stat the regulator on. This has the advantage of starting
+		 * the slow process of powering the panel on as soon as we
+		 * probe the regulator. It also avoids tripping the
+		 * off-on-delay immediately on every bootup.
+		 */
+		regulator-boot-on;
+
 		vin-supply = <&pp3300_z1>;
 	};
 
@@ -144,8 +162,8 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
+		/* The BIOS leaves this regulator on */
 		regulator-boot-on;
-		regulator-always-on;
 
 		gpio = <&tlmm 157 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
@@ -296,10 +314,18 @@
 
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
 
+	max98360a: audio-codec-0 {
+		compatible = "maxim,max98360a";
+		pinctrl-names = "default";
+		pinctrl-0 = <&amp_en>;
+		sdmode-gpios = <&tlmm 63 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+
 	pwmleds: pwmleds {
 		compatible = "pwm-leds";
 		status = "disabled";
-		keyboard_backlight: keyboard-backlight {
+		keyboard_backlight: led-0 {
 			label = "cros_ec::kbd_backlight";
 			function = LED_FUNCTION_KBD_BACKLIGHT;
 			pwms = <&cros_ec_pwm 0>;
@@ -434,11 +460,11 @@ ap_i2c_tpm: &i2c14 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hot_plug_det>;
-	data-lanes = <0 1>;
 };
 
-&mdss_mdp {
-	status = "okay";
+&mdss_dp_out {
+	data-lanes = <0 1>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
 /* NVMe drive, enabled on a per-board basis */
@@ -446,7 +472,7 @@ ap_i2c_tpm: &i2c14 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie1_clkreq_n>, <&ssd_rst_l>, <&pe_wake_odl>;
 
-	perst-gpio = <&tlmm 2 GPIO_ACTIVE_LOW>;
+	perst-gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&pp3300_ssd>;
 };
 
@@ -495,13 +521,16 @@ ap_spi_fp: &spi9 {
 	cs-gpios = <&tlmm 39 GPIO_ACTIVE_LOW>;
 
 	cros_ec_fp: ec@0 {
-		compatible = "google,cros-ec-spi";
+		compatible = "google,cros-ec-fp", "google,cros-ec-spi";
 		reg = <0>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <61 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fp_to_ap_irq_l>, <&fp_rst_l>, <&fpmcu_boot0>;
+		boot0-gpios = <&tlmm 68 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 78 GPIO_ACTIVE_LOW>;
 		spi-max-frequency = <3000000>;
+		vdd-supply = <&pp3300_fp_mcu>;
 	};
 };
 
@@ -596,25 +625,39 @@ ap_ec_spi: &spi10 {
 
 &usb_1_dwc3 {
 	dr_mode = "host";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* 2.x hub on port 1 */
+	usb_hub_2_x: hub@1 {
+		compatible = "usbbda,5411";
+		reg = <1>;
+		vdd-supply = <&pp3300_hub>;
+		peer-hub = <&usb_hub_3_x>;
+	};
+
+	/* 3.x hub on port 2 */
+	usb_hub_3_x: hub@2 {
+		compatible = "usbbda,411";
+		reg = <2>;
+		vdd-supply = <&pp3300_hub>;
+		peer-hub = <&usb_hub_2_x>;
+	};
 };
 
 &usb_1_hsphy {
 	status = "okay";
+
+	qcom,hs-rise-fall-time-bp = <0>;
+	qcom,squelch-detector-bp = <(-2090)>;
+	qcom,hs-disconnect-bp = <1743>;
+	qcom,hs-amplitude-bp = <1780>;
+	qcom,hs-crossover-voltage-microvolt = <(-31000)>;
+	qcom,hs-output-impedance-micro-ohms = <2600000>;
 };
 
 &usb_1_qmpphy {
-	status = "okay";
-};
-
-&usb_2 {
-	status = "okay";
-};
-
-&usb_2_dwc3 {
-	dr_mode = "host";
-};
-
-&usb_2_hsphy {
 	status = "okay";
 };
 
@@ -624,24 +667,43 @@ ap_ec_spi: &spi10 {
 	bias-disable;
 };
 
+&mi2s1_data0 {
+	drive-strength = <6>;
+	bias-disable;
+};
+
+&mi2s1_sclk {
+	drive-strength = <6>;
+	bias-disable;
+};
+
+&mi2s1_ws {
+	drive-strength = <6>;
+	bias-disable;
+};
+
 &pcie1_clkreq_n {
 	bias-pull-up;
 	drive-strength = <2>;
 };
 
 &qspi_cs0 {
-	bias-disable;
+	bias-disable;		/* External pullup */
 	drive-strength = <8>;
 };
 
 &qspi_clk {
-	bias-disable;
+	bias-pull-down;		/* No external pulls */
 	drive-strength = <8>;
 };
 
-&qspi_data01 {
-	/* High-Z when no transfers; nice to park the lines */
-	bias-pull-up;
+&qspi_data0 {
+	bias-pull-down;		/* No external pulls */
+	drive-strength = <8>;
+};
+
+&qspi_data1 {
+	bias-disable;		/* External pulldown */
 	drive-strength = <8>;
 };
 
@@ -729,27 +791,27 @@ ap_ec_spi: &spi10 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&bios_flash_wp_od>;
 
-	amp_en: amp-en {
+	amp_en: amp-en-state {
 		pins = "gpio63";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	ap_ec_int_l: ap-ec-int-l {
+	ap_ec_int_l: ap-ec-int-l-state {
 		pins = "gpio18";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	bios_flash_wp_od: bios-flash-wp-od {
+	bios_flash_wp_od: bios-flash-wp-od-state {
 		pins = "gpio16";
 		function = "gpio";
 		/* Has external pull */
 		bias-disable;
 	};
 
-	en_fp_rails: en-fp-rails {
+	en_fp_rails: en-fp-rails-state {
 		pins = "gpio77";
 		function = "gpio";
 		bias-disable;
@@ -757,60 +819,60 @@ ap_ec_spi: &spi10 {
 		output-high;
 	};
 
-	en_pp3300_codec: en-pp3300-codec {
+	en_pp3300_codec: en-pp3300-codec-state {
 		pins = "gpio105";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	en_pp3300_dx_edp: en-pp3300-dx-edp {
+	en_pp3300_dx_edp: en-pp3300-dx-edp-state {
 		pins = "gpio80";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	fp_rst_l: fp-rst-l {
+	fp_rst_l: fp-rst-l-state {
 		pins = "gpio78";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	fp_to_ap_irq_l: fp-to-ap-irq-l {
+	fp_to_ap_irq_l: fp-to-ap-irq-l-state {
 		pins = "gpio61";
 		function = "gpio";
 		/* Has external pullup */
 		bias-disable;
 	};
 
-	fpmcu_boot0: fpmcu-boot0 {
+	fpmcu_boot0: fpmcu-boot0-state {
 		pins = "gpio68";
 		function = "gpio";
 		bias-disable;
 	};
 
-	gsc_ap_int_odl: gsc-ap-int-odl {
+	gsc_ap_int_odl: gsc-ap-int-odl-state {
 		pins = "gpio104";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	hp_irq: hp-irq {
+	hp_irq: hp-irq-state {
 		pins = "gpio101";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	hub_en: hub-en {
+	hub_en: hub-en-state {
 		pins = "gpio157";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	pe_wake_odl: pe-wake-odl {
+	pe_wake_odl: pe-wake-odl-state {
 		pins = "gpio3";
 		function = "gpio";
 		/* Has external pull */
@@ -819,45 +881,45 @@ ap_ec_spi: &spi10 {
 	};
 
 	/* For ap_spi_fp */
-	qup_spi9_cs_gpio_init_high: qup-spi9-cs-gpio-init-high {
+	qup_spi9_cs_gpio_init_high: qup-spi9-cs-gpio-init-high-state {
 		pins = "gpio39";
 		function = "gpio";
 		output-high;
 	};
 
 	/* For ap_ec_spi */
-	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high {
+	qup_spi10_cs_gpio_init_high: qup-spi10-cs-gpio-init-high-state {
 		pins = "gpio43";
 		function = "gpio";
 		output-high;
 	};
 
-	sar0_irq_odl: sar0-irq-odl {
+	sar0_irq_odl: sar0-irq-odl-state {
 		pins = "gpio141";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	sar1_irq_odl: sar1-irq-odl {
+	sar1_irq_odl: sar1-irq-odl-state {
 		pins = "gpio140";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	sd_cd_odl: sd-cd-odl {
+	sd_cd_odl: sd-cd-odl-state {
 		pins = "gpio91";
 		function = "gpio";
 		bias-pull-up;
 	};
 
-	ssd_en: ssd-en {
+	ssd_en: ssd-en-state {
 		pins = "gpio51";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	ssd_rst_l: ssd-rst-l {
+	ssd_rst_l: ssd-rst-l-state {
 		pins = "gpio2";
 		function = "gpio";
 		bias-disable;
@@ -865,14 +927,14 @@ ap_ec_spi: &spi10 {
 		output-low;
 	};
 
-	tp_int_odl: tp-int-odl {
+	tp_int_odl: tp-int-odl-state {
 		pins = "gpio7";
 		function = "gpio";
 		/* Has external pullup */
 		bias-disable;
 	};
 
-	wf_cam_en: wf-cam-en {
+	wf_cam_en: wf-cam-en-state {
 		pins = "gpio119";
 		function = "gpio";
 		/* Has external pulldown */

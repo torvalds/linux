@@ -1,0 +1,206 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: devlink
+
+protocol: genetlink-legacy
+
+doc: Partial family for Devlink.
+
+attribute-sets:
+  -
+    name: devlink
+    name-prefix: devlink-attr-
+    attributes:
+      -
+        name: bus-name
+        type: string
+        value: 1
+      -
+        name: dev-name
+        type: string
+      -
+        name: port-index
+        type: u32
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: info-driver-name
+        type: string
+        value: 98
+      -
+        name: info-serial-number
+        type: string
+      -
+        name: info-version-fixed
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-info-version
+      -
+        name: info-version-running
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-info-version
+      -
+        name: info-version-stored
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-info-version
+      -
+        name: info-version-name
+        type: string
+      -
+        name: info-version-value
+        type: string
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: reload-failed
+        type: u8
+        value: 136
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: reload-action
+        type: u8
+        value: 153
+
+      # TODO: fill in the attributes in between
+
+      -
+        name: dev-stats
+        type: nest
+        value: 156
+        nested-attributes: dl-dev-stats
+      -
+        name: reload-stats
+        type: nest
+        nested-attributes: dl-reload-stats
+      -
+        name: reload-stats-entry
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-reload-stats-entry
+      -
+        name: reload-stats-limit
+        type: u8
+      -
+        name: reload-stats-value
+        type: u32
+      -
+        name: remote-reload-stats
+        type: nest
+        nested-attributes: dl-reload-stats
+      -
+        name: reload-action-info
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-reload-act-info
+      -
+        name: reload-action-stats
+        type: nest
+        multi-attr: true
+        nested-attributes: dl-reload-act-stats
+  -
+    name: dl-dev-stats
+    subset-of: devlink
+    attributes:
+      -
+        name: reload-stats
+        type: nest
+      -
+        name: remote-reload-stats
+        type: nest
+  -
+    name: dl-reload-stats
+    subset-of: devlink
+    attributes:
+      -
+        name: reload-action-info
+        type: nest
+  -
+    name: dl-reload-act-info
+    subset-of: devlink
+    attributes:
+      -
+        name: reload-action
+        type: u8
+      -
+        name: reload-action-stats
+        type: nest
+  -
+    name: dl-reload-act-stats
+    subset-of: devlink
+    attributes:
+      -
+        name: reload-stats-entry
+        type: nest
+  -
+    name: dl-reload-stats-entry
+    subset-of: devlink
+    attributes:
+      -
+        name: reload-stats-limit
+        type: u8
+      -
+        name: reload-stats-value
+        type: u32
+  -
+    name: dl-info-version
+    subset-of: devlink
+    attributes:
+      -
+        name: info-version-name
+        type: string
+      -
+        name: info-version-value
+        type: string
+
+operations:
+  enum-model: directional
+  list:
+    -
+      name: get
+      doc: Get devlink instances.
+      attribute-set: devlink
+
+      do:
+        request:
+          value: 1
+          attributes: &dev-id-attrs
+            - bus-name
+            - dev-name
+        reply:  &get-reply
+          value: 3
+          attributes:
+            - bus-name
+            - dev-name
+            - reload-failed
+            - reload-action
+            - dev-stats
+      dump:
+        reply: *get-reply
+
+      # TODO: fill in the operations in between
+
+    -
+      name: info-get
+      doc: Get device information, like driver name, hardware and firmware versions etc.
+      attribute-set: devlink
+
+      do:
+        request:
+          value: 51
+          attributes: *dev-id-attrs
+        reply:
+          value: 51
+          attributes:
+            - bus-name
+            - dev-name
+            - info-driver-name
+            - info-serial-number
+            - info-version-fixed
+            - info-version-running
+            - info-version-stored

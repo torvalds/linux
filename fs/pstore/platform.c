@@ -89,6 +89,11 @@ static char *compress =
 module_param(compress, charp, 0444);
 MODULE_PARM_DESC(compress, "compression to use");
 
+/* How much of the kernel log to snapshot */
+unsigned long kmsg_bytes = CONFIG_PSTORE_DEFAULT_KMSG_BYTES;
+module_param(kmsg_bytes, ulong, 0444);
+MODULE_PARM_DESC(kmsg_bytes, "amount of kernel log to snapshot (in bytes)");
+
 /* Compression parameters */
 static struct crypto_comp *tfm;
 
@@ -99,9 +104,6 @@ struct pstore_zbackend {
 
 static char *big_oops_buf;
 static size_t big_oops_buf_sz;
-
-/* How much of the console log to snapshot */
-unsigned long kmsg_bytes = CONFIG_PSTORE_DEFAULT_KMSG_BYTES;
 
 void pstore_set_kmsg_bytes(int bytes)
 {
@@ -391,6 +393,7 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	const char	*why;
 	unsigned int	part = 1;
 	unsigned long	flags = 0;
+	int		saved_ret = 0;
 	int		ret;
 
 	why = kmsg_dump_reason_str(reason);
@@ -461,12 +464,21 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		if (ret == 0 && reason == KMSG_DUMP_OOPS) {
 			pstore_new_entry = 1;
 			pstore_timer_kick();
+		} else {
+			/* Preserve only the first non-zero returned value. */
+			if (!saved_ret)
+				saved_ret = ret;
 		}
 
 		total += record.size;
 		part++;
 	}
 	spin_unlock_irqrestore(&psinfo->buf_lock, flags);
+
+	if (saved_ret) {
+		pr_err_once("backend (%s) writing error (%d)\n", psinfo->name,
+			    saved_ret);
+	}
 }
 
 static struct kmsg_dumper pstore_dumper = {
@@ -562,8 +574,9 @@ out:
 int pstore_register(struct pstore_info *psi)
 {
 	if (backend && strcmp(backend, psi->name)) {
-		pr_warn("ignoring unexpected backend '%s'\n", psi->name);
-		return -EPERM;
+		pr_warn("backend '%s' already in use: ignoring '%s'\n",
+			backend, psi->name);
+		return -EBUSY;
 	}
 
 	/* Sanity check flags. */
@@ -662,6 +675,8 @@ void pstore_unregister(struct pstore_info *psi)
 	psinfo = NULL;
 	kfree(backend);
 	backend = NULL;
+
+	pr_info("Unregistered %s as persistent store backend\n", psi->name);
 	mutex_unlock(&psinfo_lock);
 }
 EXPORT_SYMBOL_GPL(pstore_unregister);

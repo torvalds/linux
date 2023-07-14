@@ -25,43 +25,44 @@ properties:
   interrupts:
     maxItems: 1
 
-  spi-max-frequency: true
-
 required:
   - compatible
   - reg
   - interrupts
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
-        #include <dt-bindings/gpio/gpio.h>
-        #include <dt-bindings/interrupt-controller/irq.h>
-        i2c0 {
-                #address-cells = <1>;
-                #size-cells = <0>;
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                /* Example for a I2C device node */
-                accelerometer@53 {
-                        compatible = "adi,adxl372";
-                        reg = <0x53>;
-                        interrupt-parent = <&gpio>;
-                        interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
-                };
+        /* Example for a I2C device node */
+        accelerometer@53 {
+            compatible = "adi,adxl372";
+            reg = <0x53>;
+            interrupt-parent = <&gpio>;
+            interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
         };
+    };
   - |
-        #include <dt-bindings/gpio/gpio.h>
-        #include <dt-bindings/interrupt-controller/irq.h>
-        spi0 {
-                #address-cells = <1>;
-                #size-cells = <0>;
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                accelerometer@0 {
-                        compatible = "adi,adxl372";
-                        reg = <0>;
-                        spi-max-frequency = <1000000>;
-                        interrupt-parent = <&gpio>;
-                        interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
-                };
+        accelerometer@0 {
+            compatible = "adi,adxl372";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            interrupt-parent = <&gpio>;
+            interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
         };
+    };

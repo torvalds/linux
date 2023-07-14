@@ -79,24 +79,60 @@ properties:
       the LED.
     $ref: /schemas/types.yaml#/definitions/string
 
-    enum:
-        # LED will act as a back-light, controlled by the framebuffer system
-      - backlight
-        # LED will turn on (but for leds-gpio see "default-state" property in
-        # Documentation/devicetree/bindings/leds/leds-gpio.yaml)
-      - default-on
-        # LED "double" flashes at a load average based rate
-      - heartbeat
-        # LED indicates disk activity
-      - disk-activity
-        # LED indicates IDE disk activity (deprecated), in new implementations
-        # use "disk-activity"
-      - ide-disk
-        # LED flashes at a fixed, configurable rate
-      - timer
-        # LED alters the brightness for the specified duration with one software
-        # timer (requires "led-pattern" property)
-      - pattern
+    oneOf:
+      - enum:
+            # LED will act as a back-light, controlled by the framebuffer system
+          - backlight
+            # LED will turn on (but for leds-gpio see "default-state" property in
+            # Documentation/devicetree/bindings/leds/leds-gpio.yaml)
+          - default-on
+            # LED "double" flashes at a load average based rate
+          - heartbeat
+            # LED indicates disk activity
+          - disk-activity
+            # LED indicates disk read activity
+          - disk-read
+            # LED indicates disk write activity
+          - disk-write
+            # LED flashes at a fixed, configurable rate
+          - timer
+            # LED alters the brightness for the specified duration with one software
+            # timer (requires "led-pattern" property)
+          - pattern
+            # LED indicates mic mute state
+          - audio-micmute
+            # LED indicates audio mute state
+          - audio-mute
+            # LED indicates bluetooth power state
+          - bluetooth-power
+            # LED indicates camera flash state
+          - flash
+            # LED indicated keyboard capslock
+          - kbd-capslock
+            # LED indicates MTD memory activity
+          - mtd
+            # LED indicates NAND memory activity (deprecated),
+            # in new implementations use "mtd"
+          - nand-disk
+            # No trigger assigned to the LED. This is the default mode
+            # if trigger is absent
+          - none
+            # LED indicates camera torch state
+          - torch
+            # LED indicates USB gadget activity
+          - usb-gadget
+            # LED indicates USB host activity
+          - usb-host
+            # LED indicates USB port state
+          - usbport
+        # LED is triggered by CPU activity
+      - pattern: "^cpu[0-9]*$"
+        # LED is triggered by Bluetooth activity
+      - pattern: "^hci[0-9]+-power$"
+        # LED is triggered by SD/MMC activity
+      - pattern: "^mmc[0-9]+$"
+        # LED is triggered by WLAN activity
+      - pattern: "^phy[0-9]+tx$"
 
   led-pattern:
     description: |

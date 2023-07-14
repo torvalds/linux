@@ -83,23 +83,21 @@ enum ssh_payload_type {
 
 /**
  * struct ssh_command - Payload of a command-type frame.
- * @type:    The type of the payload. See &enum ssh_payload_type. Should be
- *           SSH_PLD_TYPE_CMD for this struct.
- * @tc:      Command target category.
- * @tid_out: Output target ID. Should be zero if this an incoming (EC to host)
- *           message.
- * @tid_in:  Input target ID. Should be zero if this is an outgoing (host to
- *           EC) message.
- * @iid:     Instance ID.
- * @rqid:    Request ID. Used to match requests with responses and differentiate
- *           between responses and events.
- * @cid:     Command ID.
+ * @type: The type of the payload. See &enum ssh_payload_type. Should be
+ *        SSH_PLD_TYPE_CMD for this struct.
+ * @tc:   Command target category.
+ * @tid:  Target ID. Indicates the target of the message.
+ * @sid:  Source ID. Indicates the source of the message.
+ * @iid:  Instance ID.
+ * @rqid: Request ID. Used to match requests with responses and differentiate
+ *        between responses and events.
+ * @cid:  Command ID.
  */
 struct ssh_command {
 	u8 type;
 	u8 tc;
-	u8 tid_out;
-	u8 tid_in;
+	u8 tid;
+	u8 sid;
 	u8 iid;
 	__le16 rqid;
 	u8 cid;
@@ -278,6 +276,22 @@ static inline bool ssh_tid_is_valid(u8 tid)
 struct ssam_span {
 	u8    *ptr;
 	size_t len;
+};
+
+/**
+ * enum ssam_ssh_tid - Target/source IDs for Serial Hub messages.
+ * @SSAM_SSH_TID_HOST:     We as the kernel Serial Hub driver.
+ * @SSAM_SSH_TID_SAM:      The Surface Aggregator EC.
+ * @SSAM_SSH_TID_KIP:      Keyboard and perihperal controller.
+ * @SSAM_SSH_TID_DEBUG:    Debug connector.
+ * @SSAM_SSH_TID_SURFLINK: SurfLink connector.
+ */
+enum ssam_ssh_tid {
+	SSAM_SSH_TID_HOST     = 0x00,
+	SSAM_SSH_TID_SAM      = 0x01,
+	SSAM_SSH_TID_KIP      = 0x02,
+	SSAM_SSH_TID_DEBUG    = 0x03,
+	SSAM_SSH_TID_SURFLINK = 0x04,
 };
 
 /*

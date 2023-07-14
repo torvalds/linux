@@ -184,8 +184,8 @@
 	 7,    0,  EBX,     27, avx512er, AVX512 Exponent Reciproca instr
 	 7,    0,  EBX,     28, avx512cd, AVX512 Conflict Detection instr
 	 7,    0,  EBX,     29, sha, Intel Secure Hash Algorithm Extensions instr
-	 7,    0,  EBX,     26, avx512bw, AVX512 Byte & Word instr
-	 7,    0,  EBX,     28, avx512vl, AVX512 Vector Length Extentions (VL)
+	 7,    0,  EBX,     30, avx512bw, AVX512 Byte & Word instr
+	 7,    0,  EBX,     31, avx512vl, AVX512 Vector Length Extentions (VL)
 	 7,    0,  ECX,      0, prefetchwt1, X
 	 7,    0,  ECX,      1, avx512vbmi, AVX512 Vector Byte Manipulation Instructions
 	 7,    0,  ECX,      2, umip, User-mode Instruction Prevention
@@ -340,19 +340,70 @@
 # According to SDM
 # 40000000H - 4FFFFFFFH is invalid range
 
-
 # Leaf 80000001H
 # Extended Processor Signature and Feature Bits
 
-0x80000001,    0,  ECX,      0, lahf_lm, LAHF/SAHF available in 64-bit mode
-0x80000001,    0,  ECX,      5, lzcnt, LZCNT
-0x80000001,    0,  ECX,      8, prefetchw, PREFETCHW
+0x80000001,    0,  EAX,  27:20, extfamily, Extended family
+0x80000001,    0,  EAX,  19:16, extmodel, Extended model
+0x80000001,    0,  EAX,   11:8, basefamily, Description of Family
+0x80000001,    0,  EAX,   11:8, basemodel, Model numbers vary with product
+0x80000001,    0,  EAX,    3:0, stepping, Processor stepping (revision) for a specific model
 
+0x80000001,    0,  EBX,  31:28, pkgtype, Specifies the package type
+
+0x80000001,    0,  ECX,      0, lahf_lm, LAHF/SAHF available in 64-bit mode
+0x80000001,    0,  ECX,      1, cmplegacy, Core multi-processing legacy mode
+0x80000001,    0,  ECX,      2, svm, Indicates support for: VMRUN, VMLOAD, VMSAVE, CLGI, VMMCALL, and INVLPGA
+0x80000001,    0,  ECX,      3, extapicspace, Extended APIC register space
+0x80000001,    0,  ECX,      4, altmovecr8, Indicates support for LOCK MOV CR0 means MOV CR8
+0x80000001,    0,  ECX,      5, lzcnt, LZCNT
+0x80000001,    0,  ECX,      6, sse4a, EXTRQ, INSERTQ, MOVNTSS, and MOVNTSD instruction support
+0x80000001,    0,  ECX,      7, misalignsse, Misaligned SSE Mode
+0x80000001,    0,  ECX,      8, prefetchw, PREFETCHW
+0x80000001,    0,  ECX,      9, osvw, OS Visible Work-around support
+0x80000001,    0,  ECX,     10, ibs, Instruction Based Sampling
+0x80000001,    0,  ECX,     11, xop, Extended operation support
+0x80000001,    0,  ECX,     12, skinit, SKINIT and STGI support
+0x80000001,    0,  ECX,     13, wdt, Watchdog timer support
+0x80000001,    0,  ECX,     15, lwp, Lightweight profiling support
+0x80000001,    0,  ECX,     16, fma4, Four-operand FMA instruction support
+0x80000001,    0,  ECX,     17, tce, Translation cache extension
+0x80000001,    0,  ECX,     22, TopologyExtensions, Indicates support for Core::X86::Cpuid::CachePropEax0 and Core::X86::Cpuid::ExtApicId
+0x80000001,    0,  ECX,     23, perfctrextcore, Indicates support for Core::X86::Msr::PERF_CTL0 - 5 and Core::X86::Msr::PERF_CTR
+0x80000001,    0,  ECX,     24, perfctrextdf, Indicates support for Core::X86::Msr::DF_PERF_CTL and Core::X86::Msr::DF_PERF_CTR
+0x80000001,    0,  ECX,     26, databreakpointextension, Indicates data breakpoint support for Core::X86::Msr::DR0_ADDR_MASK, Core::X86::Msr::DR1_ADDR_MASK, Core::X86::Msr::DR2_ADDR_MASK and Core::X86::Msr::DR3_ADDR_MASK
+0x80000001,    0,  ECX,     27, perftsc, Performance time-stamp counter supported
+0x80000001,    0,  ECX,     28, perfctrextllc, Indicates support for L3 performance counter extensions
+0x80000001,    0,  ECX,     29, mwaitextended, MWAITX and MONITORX capability is supported
+0x80000001,    0,  ECX,     30, admskextn, Indicates support for address mask extension (to 32 bits and to all 4 DRs) for instruction breakpoints
+
+0x80000001,    0,  EDX,      0, fpu, x87 floating point unit on-chip
+0x80000001,    0,  EDX,      1, vme, Virtual-mode enhancements
+0x80000001,    0,  EDX,      2, de, Debugging extensions, IO breakpoints, CR4.DE
+0x80000001,    0,  EDX,      3, pse, Page-size extensions (4 MB pages)
+0x80000001,    0,  EDX,      4, tsc, Time stamp counter, RDTSC/RDTSCP instructions, CR4.TSD
+0x80000001,    0,  EDX,      5, msr, Model-specific registers (MSRs), with RDMSR and WRMSR instructions
+0x80000001,    0,  EDX,      6, pae, Physical-address extensions (PAE)
+0x80000001,    0,  EDX,      7, mce, Machine Check Exception, CR4.MCE
+0x80000001,    0,  EDX,      8, cmpxchg8b, CMPXCHG8B instruction
+0x80000001,    0,  EDX,      9, apic, advanced programmable interrupt controller (APIC) exists and is enabled
 0x80000001,    0,  EDX,     11, sysret, SYSCALL/SYSRET supported
+0x80000001,    0,  EDX,     12, mtrr, Memory-type range registers
+0x80000001,    0,  EDX,     13, pge, Page global extension, CR4.PGE
+0x80000001,    0,  EDX,     14, mca, Machine check architecture, MCG_CAP
+0x80000001,    0,  EDX,     15, cmov, Conditional move instructions, CMOV, FCOMI, FCMOV
+0x80000001,    0,  EDX,     16, pat, Page attribute table
+0x80000001,    0,  EDX,     17, pse36, Page-size extensions
 0x80000001,    0,  EDX,     20, exec_dis, Execute Disable Bit available
+0x80000001,    0,  EDX,     22, mmxext, AMD extensions to MMX instructions
+0x80000001,    0,  EDX,     23, mmx, MMX instructions
+0x80000001,    0,  EDX,     24, fxsr, FXSAVE and FXRSTOR instructions
+0x80000001,    0,  EDX,     25, ffxsr, FXSAVE and FXRSTOR instruction optimizations
 0x80000001,    0,  EDX,     26, 1gb_page, 1GB page supported
 0x80000001,    0,  EDX,     27, rdtscp, RDTSCP and IA32_TSC_AUX are available
-#0x80000001,    0,  EDX,     29, 64b, 64b Architecture supported
+0x80000001,    0,  EDX,     29, lm, 64b Architecture supported
+0x80000001,    0,  EDX,     30, threednowext, AMD extensions to 3DNow! instructions
+0x80000001,    0,  EDX,     31, threednow, 3DNow! instructions
 
 # Leaf 80000002H/80000003H/80000004H
 # Processor Brand String

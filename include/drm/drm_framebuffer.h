@@ -154,10 +154,10 @@ struct drm_framebuffer {
 	 * drm_mode_fb_cmd2.
 	 *
 	 * Note that this is a linear offset and does not take into account
-	 * tiling or buffer laytou per @modifier. It meant to be used when the
-	 * actual pixel data for this framebuffer plane starts at an offset,
-	 * e.g.  when multiple planes are allocated within the same backing
-	 * storage buffer object. For tiled layouts this generally means it
+	 * tiling or buffer layout per @modifier. It is meant to be used when
+	 * the actual pixel data for this framebuffer plane starts at an offset,
+	 * e.g. when multiple planes are allocated within the same backing
+	 * storage buffer object. For tiled layouts this generally means its
 	 * @offsets must at least be tile-size aligned, but hardware often has
 	 * stricter requirements.
 	 *

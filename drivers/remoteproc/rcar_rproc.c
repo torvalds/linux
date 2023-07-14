@@ -62,13 +62,16 @@ static int rcar_rproc_prepare(struct rproc *rproc)
 
 		rmem = of_reserved_mem_lookup(it.node);
 		if (!rmem) {
+			of_node_put(it.node);
 			dev_err(&rproc->dev,
 				"unable to acquire memory-region\n");
 			return -EINVAL;
 		}
 
-		if (rmem->base > U32_MAX)
+		if (rmem->base > U32_MAX) {
+			of_node_put(it.node);
 			return -EINVAL;
+		}
 
 		/* No need to translate pa to da, R-Car use same map */
 		da = rmem->base;
@@ -79,8 +82,10 @@ static int rcar_rproc_prepare(struct rproc *rproc)
 					   rcar_rproc_mem_release,
 					   it.node->name);
 
-		if (!mem)
+		if (!mem) {
+			of_node_put(it.node);
 			return -ENOMEM;
+		}
 
 		rproc_add_carveout(rproc, mem);
 	}
@@ -192,13 +197,11 @@ pm_disable:
 	return ret;
 }
 
-static int rcar_rproc_remove(struct platform_device *pdev)
+static void rcar_rproc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static const struct of_device_id rcar_rproc_of_match[] = {
@@ -210,7 +213,7 @@ MODULE_DEVICE_TABLE(of, rcar_rproc_of_match);
 
 static struct platform_driver rcar_rproc_driver = {
 	.probe = rcar_rproc_probe,
-	.remove = rcar_rproc_remove,
+	.remove_new = rcar_rproc_remove,
 	.driver = {
 		.name = "rcar-rproc",
 		.of_match_table = rcar_rproc_of_match,

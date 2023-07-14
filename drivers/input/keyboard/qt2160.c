@@ -338,8 +338,7 @@ static bool qt2160_identify(struct i2c_client *client)
 	return true;
 }
 
-static int qt2160_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int qt2160_probe(struct i2c_client *client)
 {
 	struct qt2160_data *qt2160;
 	struct input_dev *input;

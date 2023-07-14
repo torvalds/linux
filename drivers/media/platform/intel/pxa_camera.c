@@ -854,7 +854,7 @@ fail:
 	return -ENOMEM;
 }
 
-static void pxa_videobuf_set_actdma(struct pxa_camera_dev *pcdev,
+static void pxa_video_buf_set_actdma(struct pxa_camera_dev *pcdev,
 				    struct pxa_buffer *buf)
 {
 	buf->active_dma = DMA_Y;
@@ -973,7 +973,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
  * stopped. This means the tailed buffer would never be transferred by DMA.
  * This function restarts the capture for this corner case, where :
  *  - DADR() == DADDR_STOP
- *  - a videobuffer is queued on the pcdev->capture list
+ *  - a video buffer is queued on the pcdev->capture list
  *
  * Please check the "DMA hot chaining timeslice issue" in
  *   Documentation/driver-api/media/drivers/pxa_camera.rst
@@ -1163,7 +1163,7 @@ static void pxa_camera_eof(struct tasklet_struct *t)
 	pcdev->active = list_first_entry(&pcdev->capture,
 					 struct pxa_buffer, queue);
 	buf = pcdev->active;
-	pxa_videobuf_set_actdma(pcdev, buf);
+	pxa_video_buf_set_actdma(pcdev, buf);
 
 	pxa_dma_start_channels(pcdev);
 }
@@ -1416,7 +1416,7 @@ static int pxac_vb2_prepare(struct vb2_buffer *vb)
 	 * the actual buffer is yours
 	 */
 	buf->inwork = 0;
-	pxa_videobuf_set_actdma(pcdev, buf);
+	pxa_video_buf_set_actdma(pcdev, buf);
 
 	return ret;
 }
@@ -1794,8 +1794,8 @@ static int pxac_vidioc_try_fmt_vid_cap(struct file *filp, void *priv,
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -2421,7 +2421,7 @@ exit_free_dma_y:
 	return err;
 }
 
-static int pxa_camera_remove(struct platform_device *pdev)
+static void pxa_camera_remove(struct platform_device *pdev)
 {
 	struct pxa_camera_dev *pcdev = platform_get_drvdata(pdev);
 
@@ -2437,8 +2437,6 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 
 	dev_info(&pdev->dev, "PXA Camera driver unloaded\n");
-
-	return 0;
 }
 
 static const struct dev_pm_ops pxa_camera_pm = {
@@ -2459,7 +2457,7 @@ static struct platform_driver pxa_camera_driver = {
 		.of_match_table = of_match_ptr(pxa_camera_of_match),
 	},
 	.probe		= pxa_camera_probe,
-	.remove		= pxa_camera_remove,
+	.remove_new	= pxa_camera_remove,
 };
 
 module_platform_driver(pxa_camera_driver);

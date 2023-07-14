@@ -14,6 +14,7 @@
 #define SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION	0x64776479
 #define SNDRV_FIREWIRE_EVENT_TASCAM_CONTROL	0x7473636d
 #define SNDRV_FIREWIRE_EVENT_MOTU_REGISTER_DSP_CHANGE	0x4d545244
+#define SNDRV_FIREWIRE_EVENT_FF400_MESSAGE	0x4f6c6761
 
 struct snd_firewire_event_common {
 	unsigned int type; /* SNDRV_FIREWIRE_EVENT_xxx */
@@ -72,6 +73,30 @@ struct snd_firewire_event_motu_register_dsp_change {
 	__u32 changes[];	/* Encoded event for change of register DSP. */
 };
 
+/**
+ * struct snd_firewire_event_ff400_message - the container for message from Fireface 400 when
+ *					     operating hardware knob.
+ *
+ * @type: Fixed to SNDRV_FIREWIRE_EVENT_FF400_MESSAGE.
+ * @message_count: The number of messages.
+ * @messages.message: The messages expressing hardware knob operation.
+ * @messages.tstamp: The isochronous cycle at which the request subaction of asynchronous
+ *		     transaction was sent to deliver the message. It has 16 bit unsigned integer
+ *		     value. The higher 3 bits of value expresses the lower three bits of second
+ *		     field in the format of CYCLE_TIME, up to 7. The rest 13 bits expresses cycle
+ *		     field up to 7999.
+ *
+ * The structure expresses message transmitted by Fireface 400 when operating hardware knob.
+ */
+struct snd_firewire_event_ff400_message {
+	unsigned int type;
+	unsigned int message_count;
+	struct {
+		__u32 message;
+		__u32 tstamp;
+	} messages[];
+};
+
 union snd_firewire_event {
 	struct snd_firewire_event_common            common;
 	struct snd_firewire_event_lock_status       lock_status;
@@ -81,6 +106,7 @@ union snd_firewire_event {
 	struct snd_firewire_event_tascam_control    tascam_control;
 	struct snd_firewire_event_motu_notification motu_notification;
 	struct snd_firewire_event_motu_register_dsp_change motu_register_dsp_change;
+	struct snd_firewire_event_ff400_message	    ff400_message;
 };
 
 

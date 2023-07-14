@@ -139,6 +139,35 @@ enum drm_mode_status {
 	.vscan = (vs), .flags = (f)
 
 /**
+ * DRM_MODE_RES_MM - Calculates the display size from resolution and DPI
+ * @res: The resolution in pixel
+ * @dpi: The number of dots per inch
+ */
+#define DRM_MODE_RES_MM(res, dpi)	\
+	(((res) * 254ul) / ((dpi) * 10ul))
+
+#define __DRM_MODE_INIT(pix, hd, vd, hd_mm, vd_mm) \
+	.type = DRM_MODE_TYPE_DRIVER, .clock = (pix), \
+	.hdisplay = (hd), .hsync_start = (hd), .hsync_end = (hd), \
+	.htotal = (hd), .vdisplay = (vd), .vsync_start = (vd), \
+	.vsync_end = (vd), .vtotal = (vd), .width_mm = (hd_mm), \
+	.height_mm = (vd_mm)
+
+/**
+ * DRM_MODE_INIT - Initialize display mode
+ * @hz: Vertical refresh rate in Hertz
+ * @hd: Horizontal resolution, width
+ * @vd: Vertical resolution, height
+ * @hd_mm: Display width in millimeters
+ * @vd_mm: Display height in millimeters
+ *
+ * This macro initializes a &drm_display_mode that contains information about
+ * refresh rate, resolution and physical size.
+ */
+#define DRM_MODE_INIT(hz, hd, vd, hd_mm, vd_mm) \
+	__DRM_MODE_INIT((hd) * (vd) * (hz) / 1000 /* kHz */, hd, vd, hd_mm, vd_mm)
+
+/**
  * DRM_SIMPLE_MODE - Simple display mode
  * @hd: Horizontal resolution, width
  * @vd: Vertical resolution, height
@@ -149,11 +178,7 @@ enum drm_mode_status {
  * resolution and physical size.
  */
 #define DRM_SIMPLE_MODE(hd, vd, hd_mm, vd_mm) \
-	.type = DRM_MODE_TYPE_DRIVER, .clock = 1 /* pass validation */, \
-	.hdisplay = (hd), .hsync_start = (hd), .hsync_end = (hd), \
-	.htotal = (hd), .vdisplay = (vd), .vsync_start = (vd), \
-	.vsync_end = (vd), .vtotal = (vd), .width_mm = (hd_mm), \
-	.height_mm = (vd_mm)
+	__DRM_MODE_INIT(1 /* pass validation */, hd, vd, hd_mm, vd_mm)
 
 #define CRTC_INTERLACE_HALVE_V	(1 << 0) /* halve V values for interlacing */
 #define CRTC_STEREO_DOUBLE	(1 << 1) /* adjust timings for stereo modes */
@@ -442,6 +467,23 @@ bool drm_mode_is_420_also(const struct drm_display_info *display,
 			  const struct drm_display_mode *mode);
 bool drm_mode_is_420(const struct drm_display_info *display,
 		     const struct drm_display_mode *mode);
+
+struct drm_display_mode *drm_analog_tv_mode(struct drm_device *dev,
+					    enum drm_connector_tv_mode mode,
+					    unsigned long pixel_clock_hz,
+					    unsigned int hdisplay,
+					    unsigned int vdisplay,
+					    bool interlace);
+
+static inline struct drm_display_mode *drm_mode_analog_ntsc_480i(struct drm_device *dev)
+{
+	return drm_analog_tv_mode(dev, DRM_MODE_TV_MODE_NTSC, 13500000, 720, 480, true);
+}
+
+static inline struct drm_display_mode *drm_mode_analog_pal_576i(struct drm_device *dev)
+{
+	return drm_analog_tv_mode(dev, DRM_MODE_TV_MODE_PAL, 13500000, 720, 576, true);
+}
 
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				      int hdisplay, int vdisplay, int vrefresh,

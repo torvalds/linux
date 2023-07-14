@@ -113,6 +113,61 @@ static int dsi_calc_mnp(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static int vlv_dsi_pclk(struct intel_encoder *encoder,
+			struct intel_crtc_state *config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+	u32 dsi_clock;
+	u32 pll_ctl, pll_div;
+	u32 m = 0, p = 0, n;
+	int refclk = IS_CHERRYVIEW(dev_priv) ? 100000 : 25000;
+	int i;
+
+	pll_ctl = config->dsi_pll.ctrl;
+	pll_div = config->dsi_pll.div;
+
+	/* mask out other bits and extract the P1 divisor */
+	pll_ctl &= DSI_PLL_P1_POST_DIV_MASK;
+	pll_ctl = pll_ctl >> (DSI_PLL_P1_POST_DIV_SHIFT - 2);
+
+	/* N1 divisor */
+	n = (pll_div & DSI_PLL_N1_DIV_MASK) >> DSI_PLL_N1_DIV_SHIFT;
+	n = 1 << n; /* register has log2(N1) */
+
+	/* mask out the other bits and extract the M1 divisor */
+	pll_div &= DSI_PLL_M1_DIV_MASK;
+	pll_div = pll_div >> DSI_PLL_M1_DIV_SHIFT;
+
+	while (pll_ctl) {
+		pll_ctl = pll_ctl >> 1;
+		p++;
+	}
+	p--;
+
+	if (!p) {
+		drm_err(&dev_priv->drm, "wrong P1 divisor\n");
+		return 0;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(lfsr_converts); i++) {
+		if (lfsr_converts[i] == pll_div)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(lfsr_converts)) {
+		drm_err(&dev_priv->drm, "wrong m_seed programmed\n");
+		return 0;
+	}
+
+	m = i + 62;
+
+	dsi_clock = (m * refclk) / (p * n);
+
+	return DIV_ROUND_CLOSEST(dsi_clock * intel_dsi->lane_count, bpp);
+}
+
 /*
  * XXX: The muxing and gating is hard coded for now. Need to add support for
  * sharing PLLs with two DSI outputs.
@@ -122,8 +177,7 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	int ret;
-	u32 dsi_clk;
+	int pclk, dsi_clk, ret;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
@@ -144,6 +198,14 @@ int vlv_dsi_pll_compute(struct intel_encoder *encoder,
 
 	drm_dbg_kms(&dev_priv->drm, "dsi pll div %08x, ctrl %08x\n",
 		    config->dsi_pll.div, config->dsi_pll.ctrl);
+
+	pclk = vlv_dsi_pclk(encoder, config);
+	config->port_clock = pclk;
+
+	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	config->hw.adjusted_mode.crtc_clock = pclk;
+	if (intel_dsi->dual_link)
+		config->hw.adjusted_mode.crtc_clock *= 2;
 
 	return 0;
 }
@@ -240,13 +302,10 @@ bool bxt_dsi_pll_is_enabled(struct drm_i915_private *dev_priv)
 void bxt_dsi_pll_disable(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 val;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
-	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
-	val &= ~BXT_DSI_PLL_DO_ENABLE;
-	intel_de_write(dev_priv, BXT_DSI_PLL_ENABLE, val);
+	intel_de_rmw(dev_priv, BXT_DSI_PLL_ENABLE, BXT_DSI_PLL_DO_ENABLE, 0);
 
 	/*
 	 * PLL lock should deassert within 200us.
@@ -262,13 +321,7 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
-	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
-	u32 dsi_clock, pclk;
 	u32 pll_ctl, pll_div;
-	u32 m = 0, p = 0, n;
-	int refclk = IS_CHERRYVIEW(dev_priv) ? 100000 : 25000;
-	int i;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
@@ -280,65 +333,31 @@ u32 vlv_dsi_get_pclk(struct intel_encoder *encoder,
 	config->dsi_pll.ctrl = pll_ctl & ~DSI_PLL_LOCK;
 	config->dsi_pll.div = pll_div;
 
-	/* mask out other bits and extract the P1 divisor */
-	pll_ctl &= DSI_PLL_P1_POST_DIV_MASK;
-	pll_ctl = pll_ctl >> (DSI_PLL_P1_POST_DIV_SHIFT - 2);
+	return vlv_dsi_pclk(encoder, config);
+}
 
-	/* N1 divisor */
-	n = (pll_div & DSI_PLL_N1_DIV_MASK) >> DSI_PLL_N1_DIV_SHIFT;
-	n = 1 << n; /* register has log2(N1) */
+static int bxt_dsi_pclk(struct intel_encoder *encoder,
+			const struct intel_crtc_state *config)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
+	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+	u32 dsi_ratio, dsi_clk;
 
-	/* mask out the other bits and extract the M1 divisor */
-	pll_div &= DSI_PLL_M1_DIV_MASK;
-	pll_div = pll_div >> DSI_PLL_M1_DIV_SHIFT;
+	dsi_ratio = config->dsi_pll.ctrl & BXT_DSI_PLL_RATIO_MASK;
+	dsi_clk = (dsi_ratio * BXT_REF_CLOCK_KHZ) / 2;
 
-	while (pll_ctl) {
-		pll_ctl = pll_ctl >> 1;
-		p++;
-	}
-	p--;
-
-	if (!p) {
-		drm_err(&dev_priv->drm, "wrong P1 divisor\n");
-		return 0;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(lfsr_converts); i++) {
-		if (lfsr_converts[i] == pll_div)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(lfsr_converts)) {
-		drm_err(&dev_priv->drm, "wrong m_seed programmed\n");
-		return 0;
-	}
-
-	m = i + 62;
-
-	dsi_clock = (m * refclk) / (p * n);
-
-	pclk = DIV_ROUND_CLOSEST(dsi_clock * intel_dsi->lane_count, bpp);
-
-	return pclk;
+	return DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, bpp);
 }
 
 u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config)
 {
-	u32 pclk;
-	u32 dsi_clk;
-	u32 dsi_ratio;
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
+	u32 pclk;
 
 	config->dsi_pll.ctrl = intel_de_read(dev_priv, BXT_DSI_PLL_CTL);
 
-	dsi_ratio = config->dsi_pll.ctrl & BXT_DSI_PLL_RATIO_MASK;
-
-	dsi_clk = (dsi_ratio * BXT_REF_CLOCK_KHZ) / 2;
-
-	pclk = DIV_ROUND_CLOSEST(dsi_clk * intel_dsi->lane_count, bpp);
+	pclk = bxt_dsi_pclk(encoder, config);
 
 	drm_dbg(&dev_priv->drm, "Calculated pclk=%u\n", pclk);
 	return pclk;
@@ -463,6 +482,7 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u8 dsi_ratio, dsi_ratio_min, dsi_ratio_max;
 	u32 dsi_clk;
+	int pclk;
 
 	dsi_clk = dsi_clk_from_pclk(intel_dsi->pclk, intel_dsi->pixel_format,
 				    intel_dsi->lane_count);
@@ -502,6 +522,14 @@ int bxt_dsi_pll_compute(struct intel_encoder *encoder,
 	if (IS_BROXTON(dev_priv) && dsi_ratio <= 50)
 		config->dsi_pll.ctrl |= BXT_DSI_PLL_PVD_RATIO_1;
 
+	pclk = bxt_dsi_pclk(encoder, config);
+	config->port_clock = pclk;
+
+	/* FIXME definitely not right for burst/cmd mode/pixel overlap */
+	config->hw.adjusted_mode.crtc_clock = pclk;
+	if (intel_dsi->dual_link)
+		config->hw.adjusted_mode.crtc_clock *= 2;
+
 	return 0;
 }
 
@@ -511,7 +539,6 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
-	u32 val;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
@@ -528,9 +555,7 @@ void bxt_dsi_pll_enable(struct intel_encoder *encoder,
 	}
 
 	/* Enable DSI PLL */
-	val = intel_de_read(dev_priv, BXT_DSI_PLL_ENABLE);
-	val |= BXT_DSI_PLL_DO_ENABLE;
-	intel_de_write(dev_priv, BXT_DSI_PLL_ENABLE, val);
+	intel_de_rmw(dev_priv, BXT_DSI_PLL_ENABLE, 0, BXT_DSI_PLL_DO_ENABLE);
 
 	/* Timeout and fail if PLL not locked */
 	if (intel_de_wait_for_set(dev_priv, BXT_DSI_PLL_ENABLE,
@@ -558,13 +583,9 @@ void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port)
 		tmp &= ~(BXT_MIPI_RX_ESCLK_LOWER_FIXDIV_MASK(port));
 		intel_de_write(dev_priv, BXT_MIPI_CLOCK_CTL, tmp);
 	} else {
-		tmp = intel_de_read(dev_priv, MIPIO_TXESC_CLK_DIV1);
-		tmp &= ~GLK_TX_ESC_CLK_DIV1_MASK;
-		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV1, tmp);
+		intel_de_rmw(dev_priv, MIPIO_TXESC_CLK_DIV1, GLK_TX_ESC_CLK_DIV1_MASK, 0);
 
-		tmp = intel_de_read(dev_priv, MIPIO_TXESC_CLK_DIV2);
-		tmp &= ~GLK_TX_ESC_CLK_DIV2_MASK;
-		intel_de_write(dev_priv, MIPIO_TXESC_CLK_DIV2, tmp);
+		intel_de_rmw(dev_priv, MIPIO_TXESC_CLK_DIV2, GLK_TX_ESC_CLK_DIV2_MASK, 0);
 	}
 	intel_de_write(dev_priv, MIPI_EOT_DISABLE(port), CLOCKSTOP);
 }
@@ -577,7 +598,7 @@ static void assert_dsi_pll(struct drm_i915_private *i915, bool state)
 	cur_state = vlv_cck_read(i915, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
 	vlv_cck_put(i915);
 
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(i915, cur_state != state,
 			"DSI PLL state assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));
 }

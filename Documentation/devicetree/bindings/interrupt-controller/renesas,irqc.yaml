@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/interrupt-controller/renesas,irqc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: DT bindings for the R-Mobile/R-Car/RZ/G interrupt controller
+title: R-Mobile/R-Car/RZ/G interrupt controller
 
 maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
@@ -37,6 +37,7 @@ properties:
           - renesas,intc-ex-r8a77990    # R-Car E3
           - renesas,intc-ex-r8a77995    # R-Car D3
           - renesas,intc-ex-r8a779a0    # R-Car V3U
+          - renesas,intc-ex-r8a779g0    # R-Car V4H
       - const: renesas,irqc
 
   '#interrupt-cells':

@@ -22,10 +22,26 @@
 #include "priv.h"
 
 #include <core/memory.h>
+#include <core/event.h>
 #include <subdev/mmu.h>
 
 #include <nvif/clb069.h>
 #include <nvif/unpack.h>
+
+static int
+nvkm_ufault_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+{
+	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
+	union nvif_clb069_event_args *args = argv;
+
+	if (!uevent)
+		return 0;
+	if (argc != sizeof(args->vn))
+		return -ENOSYS;
+
+	return nvkm_uevent_add(uevent, &buffer->fault->event, buffer->id,
+			       NVKM_FAULT_BUFFER_EVENT_PENDING, NULL);
+}
 
 static int
 nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
@@ -37,18 +53,6 @@ nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
 	*addr = device->func->resource_addr(device, 3) + buffer->addr;
 	*size = nvkm_memory_size(buffer->mem);
 	return 0;
-}
-
-static int
-nvkm_ufault_ntfy(struct nvkm_object *object, u32 type,
-		 struct nvkm_event **pevent)
-{
-	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
-	if (type == NVB069_V0_NTFY_FAULT) {
-		*pevent = &buffer->fault->event;
-		return 0;
-	}
-	return -EINVAL;
 }
 
 static int
@@ -78,8 +82,8 @@ nvkm_ufault = {
 	.dtor = nvkm_ufault_dtor,
 	.init = nvkm_ufault_init,
 	.fini = nvkm_ufault_fini,
-	.ntfy = nvkm_ufault_ntfy,
 	.map = nvkm_ufault_map,
+	.uevent = nvkm_ufault_uevent,
 };
 
 int

@@ -199,7 +199,7 @@ ssize_t __weak elfcorehdr_read(char *buf, size_t count, u64 *ppos)
 	struct kvec kvec = { .iov_base = buf, .iov_len = count };
 	struct iov_iter iter;
 
-	iov_iter_kvec(&iter, READ, &kvec, 1, count);
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, count);
 
 	return read_from_oldmem(&iter, count, ppos, false);
 }
@@ -212,7 +212,7 @@ ssize_t __weak elfcorehdr_read_notes(char *buf, size_t count, u64 *ppos)
 	struct kvec kvec = { .iov_base = buf, .iov_len = count };
 	struct iov_iter iter;
 
-	iov_iter_kvec(&iter, READ, &kvec, 1, count);
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, count);
 
 	return read_from_oldmem(&iter, count, ppos,
 			cc_platform_has(CC_ATTR_MEM_ENCRYPT));
@@ -339,7 +339,7 @@ static ssize_t __read_vmcore(struct iov_iter *iter, loff_t *fpos)
 			return acc;
 	}
 
-	/* Read Elf note segment */
+	/* Read ELF note segment */
 	if (*fpos < elfcorebuf_sz + elfnotes_sz) {
 		void *kaddr;
 
@@ -437,7 +437,7 @@ static vm_fault_t mmap_vmcore_fault(struct vm_fault *vmf)
 		offset = (loff_t) index << PAGE_SHIFT;
 		kvec.iov_base = page_address(page);
 		kvec.iov_len = PAGE_SIZE;
-		iov_iter_kvec(&iter, READ, &kvec, 1, PAGE_SIZE);
+		iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, PAGE_SIZE);
 
 		rc = __read_vmcore(&iter, &offset);
 		if (rc < 0) {
@@ -582,8 +582,7 @@ static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
 		return -EPERM;
 
-	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
-	vma->vm_flags |= VM_MIXEDMAP;
+	vm_flags_mod(vma, VM_MIXEDMAP, VM_MAYWRITE | VM_MAYEXEC);
 	vma->vm_ops = &vmcore_mmap_ops;
 
 	len = 0;
@@ -878,7 +877,7 @@ static int __init merge_note_headers_elf64(char *elfptr, size_t *elfsz,
 	phdr.p_offset  = roundup(note_off, PAGE_SIZE);
 	phdr.p_vaddr   = phdr.p_paddr = 0;
 	phdr.p_filesz  = phdr.p_memsz = phdr_sz;
-	phdr.p_align   = 0;
+	phdr.p_align   = 4;
 
 	/* Add merged PT_NOTE program header*/
 	tmp = elfptr + sizeof(Elf64_Ehdr);
@@ -1069,7 +1068,7 @@ static int __init merge_note_headers_elf32(char *elfptr, size_t *elfsz,
 	phdr.p_offset  = roundup(note_off, PAGE_SIZE);
 	phdr.p_vaddr   = phdr.p_paddr = 0;
 	phdr.p_filesz  = phdr.p_memsz = phdr_sz;
-	phdr.p_align   = 0;
+	phdr.p_align   = 4;
 
 	/* Add merged PT_NOTE program header*/
 	tmp = elfptr + sizeof(Elf32_Ehdr);
@@ -1110,7 +1109,7 @@ static int __init process_ptload_program_headers_elf64(char *elfptr,
 	ehdr_ptr = (Elf64_Ehdr *)elfptr;
 	phdr_ptr = (Elf64_Phdr*)(elfptr + sizeof(Elf64_Ehdr)); /* PT_NOTE hdr */
 
-	/* Skip Elf header, program headers and Elf note segment. */
+	/* Skip ELF header, program headers and ELF note segment. */
 	vmcore_off = elfsz + elfnotes_sz;
 
 	for (i = 0; i < ehdr_ptr->e_phnum; i++, phdr_ptr++) {
@@ -1153,7 +1152,7 @@ static int __init process_ptload_program_headers_elf32(char *elfptr,
 	ehdr_ptr = (Elf32_Ehdr *)elfptr;
 	phdr_ptr = (Elf32_Phdr*)(elfptr + sizeof(Elf32_Ehdr)); /* PT_NOTE hdr */
 
-	/* Skip Elf header, program headers and Elf note segment. */
+	/* Skip ELF header, program headers and ELF note segment. */
 	vmcore_off = elfsz + elfnotes_sz;
 
 	for (i = 0; i < ehdr_ptr->e_phnum; i++, phdr_ptr++) {
@@ -1189,7 +1188,7 @@ static void set_vmcore_list_offsets(size_t elfsz, size_t elfnotes_sz,
 	loff_t vmcore_off;
 	struct vmcore *m;
 
-	/* Skip Elf header, program headers and Elf note segment. */
+	/* Skip ELF header, program headers and ELF note segment. */
 	vmcore_off = elfsz + elfnotes_sz;
 
 	list_for_each_entry(m, vc_list, list) {
@@ -1214,7 +1213,7 @@ static int __init parse_crash_elf64_headers(void)
 
 	addr = elfcorehdr_addr;
 
-	/* Read Elf header */
+	/* Read ELF header */
 	rc = elfcorehdr_read((char *)&ehdr, sizeof(Elf64_Ehdr), &addr);
 	if (rc < 0)
 		return rc;
@@ -1270,7 +1269,7 @@ static int __init parse_crash_elf32_headers(void)
 
 	addr = elfcorehdr_addr;
 
-	/* Read Elf header */
+	/* Read ELF header */
 	rc = elfcorehdr_read((char *)&ehdr, sizeof(Elf32_Ehdr), &addr);
 	if (rc < 0)
 		return rc;
@@ -1377,12 +1376,12 @@ static void vmcoredd_write_header(void *buf, struct vmcoredd_data *data,
 }
 
 /**
- * vmcoredd_update_program_headers - Update all Elf program headers
+ * vmcoredd_update_program_headers - Update all ELF program headers
  * @elfptr: Pointer to elf header
  * @elfnotesz: Size of elf notes aligned to page size
  * @vmcoreddsz: Size of device dumps to be added to elf note header
  *
- * Determine type of Elf header (Elf64 or Elf32) and update the elf note size.
+ * Determine type of ELF header (Elf64 or Elf32) and update the elf note size.
  * Also update the offsets of all the program headers after the elf note header.
  */
 static void vmcoredd_update_program_headers(char *elfptr, size_t elfnotesz,
@@ -1440,10 +1439,10 @@ static void vmcoredd_update_program_headers(char *elfptr, size_t elfnotesz,
 
 /**
  * vmcoredd_update_size - Update the total size of the device dumps and update
- * Elf header
+ * ELF header
  * @dump_size: Size of the current device dump to be added to total size
  *
- * Update the total size of all the device dumps and update the Elf program
+ * Update the total size of all the device dumps and update the ELF program
  * headers. Calculate the new offsets for the vmcore list and update the
  * total vmcore size.
  */
@@ -1467,7 +1466,7 @@ static void vmcoredd_update_size(size_t dump_size)
  * @data: dump info.
  *
  * Allocate a buffer and invoke the calling driver's dump collect routine.
- * Write Elf note at the beginning of the buffer to indicate vmcore device
+ * Write ELF note at the beginning of the buffer to indicate vmcore device
  * dump and add the dump to global list.
  */
 int vmcore_add_device_dump(struct vmcoredd_data *data)
@@ -1567,6 +1566,7 @@ static int __init vmcore_init(void)
 		return rc;
 	rc = parse_crash_elf_headers();
 	if (rc) {
+		elfcorehdr_free(elfcorehdr_addr);
 		pr_warn("Kdump: vmcore not initialized\n");
 		return rc;
 	}

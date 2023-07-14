@@ -46,7 +46,7 @@ static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_DSP1_RX5_SRC,			0x00000020 },
 	{ CS35L41_DSP1_RX6_SRC,			0x00000021 },
 	{ CS35L41_DSP1_RX7_SRC,			0x0000003A },
-	{ CS35L41_DSP1_RX8_SRC,			0x00000001 },
+	{ CS35L41_DSP1_RX8_SRC,			0x0000003B },
 	{ CS35L41_NGATE1_SRC,			0x00000008 },
 	{ CS35L41_NGATE2_SRC,			0x00000009 },
 	{ CS35L41_AMP_DIG_VOL_CTRL,		0x00008000 },
@@ -58,8 +58,8 @@ static const struct reg_default cs35l41_reg[] = {
 	{ CS35L41_IRQ1_MASK2,			0xFFFFFFFF },
 	{ CS35L41_IRQ1_MASK3,			0xFFFF87FF },
 	{ CS35L41_IRQ1_MASK4,			0xFEFFFFFF },
-	{ CS35L41_GPIO1_CTRL1,			0xE1000001 },
-	{ CS35L41_GPIO2_CTRL1,			0xE1000001 },
+	{ CS35L41_GPIO1_CTRL1,			0x81000001 },
+	{ CS35L41_GPIO2_CTRL1,			0x81000001 },
 	{ CS35L41_MIXER_NGATE_CFG,		0x00000000 },
 	{ CS35L41_MIXER_NGATE_CH1_CFG,		0x00000303 },
 	{ CS35L41_MIXER_NGATE_CH2_CFG,		0x00000303 },
@@ -1114,12 +1114,31 @@ static const struct reg_sequence cs35l41_reset_to_safe[] = {
 	{ 0x00000040,			0x00000033 },
 };
 
+static const struct reg_sequence cs35l41_actv_seq[] = {
+	/* SYNC_BST_CTL_RX_EN = 1; SYNC_BST_CTL_TX_EN = 1 */
+	{CS35L41_MDSYNC_EN,        0x00003000},
+	/* BST_CTL_SEL = MDSYNC */
+	{CS35L41_BSTCVRT_VCTRL2,    0x00000002},
+};
+
+static const struct reg_sequence cs35l41_pass_seq[] = {
+	/* SYNC_BST_CTL_RX_EN = 0; SYNC_BST_CTL_TX_EN = 1 */
+	{CS35L41_MDSYNC_EN,        0x00001000},
+	/* BST_EN = 0 */
+	{CS35L41_PWR_CTRL2,        0x00003300},
+	/* BST_CTL_SEL = MDSYNC */
+	{CS35L41_BSTCVRT_VCTRL2,    0x00000002},
+};
+
 int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 		       struct cs35l41_hw_cfg *hw_cfg)
 {
 	int ret;
 
 	switch (hw_cfg->bst_type) {
+	case CS35L41_SHD_BOOST_ACTV:
+		regmap_multi_reg_write(regmap, cs35l41_actv_seq, ARRAY_SIZE(cs35l41_actv_seq));
+		fallthrough;
 	case CS35L41_INT_BOOST:
 		ret = cs35l41_boost_config(dev, regmap, hw_cfg->bst_ind,
 					   hw_cfg->bst_cap, hw_cfg->bst_ipk);
@@ -1137,6 +1156,10 @@ int cs35l41_init_boost(struct device *dev, struct regmap *regmap,
 				       ARRAY_SIZE(cs35l41_reset_to_safe));
 		ret = regmap_update_bits(regmap, CS35L41_PWR_CTRL2, CS35L41_BST_EN_MASK,
 					 CS35L41_BST_DIS_FET_OFF << CS35L41_BST_EN_SHIFT);
+		break;
+	case CS35L41_SHD_BOOST_PASS:
+		ret = regmap_multi_reg_write(regmap, cs35l41_pass_seq,
+					     ARRAY_SIZE(cs35l41_pass_seq));
 		break;
 	default:
 		dev_err(dev, "Boost type %d not supported\n", hw_cfg->bst_type);
@@ -1165,11 +1188,59 @@ bool cs35l41_safe_reset(struct regmap *regmap, enum cs35l41_boost_type b_type)
 }
 EXPORT_SYMBOL_GPL(cs35l41_safe_reset);
 
-int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable)
+int cs35l41_global_enable(struct regmap *regmap, enum cs35l41_boost_type b_type, int enable,
+			  struct completion *pll_lock)
 {
 	int ret;
+	unsigned int gpio1_func, pad_control, pwr_ctrl1, pwr_ctrl3;
+	struct reg_sequence cs35l41_mdsync_down_seq[] = {
+		{CS35L41_PWR_CTRL3,		0},
+		{CS35L41_GPIO_PAD_CONTROL,	0},
+		{CS35L41_PWR_CTRL1,		0, 3000},
+	};
+	struct reg_sequence cs35l41_mdsync_up_seq[] = {
+		{CS35L41_PWR_CTRL3,	0},
+		{CS35L41_PWR_CTRL1,	0x00000000, 3000},
+		{CS35L41_PWR_CTRL1,	0x00000001, 3000},
+	};
 
 	switch (b_type) {
+	case CS35L41_SHD_BOOST_ACTV:
+	case CS35L41_SHD_BOOST_PASS:
+		regmap_read(regmap, CS35L41_PWR_CTRL3, &pwr_ctrl3);
+		regmap_read(regmap, CS35L41_GPIO_PAD_CONTROL, &pad_control);
+
+		pwr_ctrl3 &= ~CS35L41_SYNC_EN_MASK;
+		pwr_ctrl1 = enable << CS35L41_GLOBAL_EN_SHIFT;
+
+		gpio1_func = enable ? CS35L41_GPIO1_MDSYNC : CS35L41_GPIO1_HIZ;
+		gpio1_func <<= CS35L41_GPIO1_CTRL_SHIFT;
+
+		pad_control &= ~CS35L41_GPIO1_CTRL_MASK;
+		pad_control |= gpio1_func & CS35L41_GPIO1_CTRL_MASK;
+
+		cs35l41_mdsync_down_seq[0].def = pwr_ctrl3;
+		cs35l41_mdsync_down_seq[1].def = pad_control;
+		cs35l41_mdsync_down_seq[2].def = pwr_ctrl1;
+		ret = regmap_multi_reg_write(regmap, cs35l41_mdsync_down_seq,
+					     ARRAY_SIZE(cs35l41_mdsync_down_seq));
+		if (!enable)
+			break;
+
+		if (!pll_lock)
+			return -EINVAL;
+
+		ret = wait_for_completion_timeout(pll_lock, msecs_to_jiffies(1000));
+		if (ret == 0) {
+			ret = -ETIMEDOUT;
+		} else {
+			regmap_read(regmap, CS35L41_PWR_CTRL3, &pwr_ctrl3);
+			pwr_ctrl3 |= CS35L41_SYNC_EN_MASK;
+			cs35l41_mdsync_up_seq[0].def = pwr_ctrl3;
+			ret = regmap_multi_reg_write(regmap, cs35l41_mdsync_up_seq,
+						     ARRAY_SIZE(cs35l41_mdsync_up_seq));
+		}
+		break;
 	case CS35L41_INT_BOOST:
 		ret = regmap_update_bits(regmap, CS35L41_PWR_CTRL1, CS35L41_GLOBAL_EN_MASK,
 					 enable << CS35L41_GLOBAL_EN_SHIFT);

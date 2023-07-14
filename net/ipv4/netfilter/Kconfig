@@ -259,20 +259,6 @@ config IP_NF_MANGLE
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_CLUSTERIP
-	tristate "CLUSTERIP target support"
-	depends on IP_NF_MANGLE
-	depends on NF_CONNTRACK
-	depends on NETFILTER_ADVANCED
-	select NF_CONNTRACK_MARK
-	select NETFILTER_FAMILY_ARP
-	help
-	  The CLUSTERIP target allows you to build load-balancing clusters of
-	  network servers without having a dedicated load-balancing
-	  router/server/switch.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config IP_NF_TARGET_ECN
 	tristate "ECN target support"
 	depends on IP_NF_MANGLE

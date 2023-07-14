@@ -9,13 +9,12 @@
 #include <linux/clk.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/cpuhotplug.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/ingenic-tcu.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -370,7 +369,7 @@ static int __init ingenic_tcu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused ingenic_tcu_suspend(struct device *dev)
+static int ingenic_tcu_suspend(struct device *dev)
 {
 	struct ingenic_tcu *tcu = dev_get_drvdata(dev);
 	unsigned int cpu;
@@ -383,7 +382,7 @@ static int __maybe_unused ingenic_tcu_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ingenic_tcu_resume(struct device *dev)
+static int ingenic_tcu_resume(struct device *dev)
 {
 	struct ingenic_tcu *tcu = dev_get_drvdata(dev);
 	unsigned int cpu;
@@ -407,7 +406,7 @@ err_timer_clk_disable:
 	return ret;
 }
 
-static const struct dev_pm_ops __maybe_unused ingenic_tcu_pm_ops = {
+static const struct dev_pm_ops ingenic_tcu_pm_ops = {
 	/* _noirq: We want the TCU clocks to be gated last / ungated first */
 	.suspend_noirq = ingenic_tcu_suspend,
 	.resume_noirq  = ingenic_tcu_resume,
@@ -416,9 +415,7 @@ static const struct dev_pm_ops __maybe_unused ingenic_tcu_pm_ops = {
 static struct platform_driver ingenic_tcu_driver = {
 	.driver = {
 		.name	= "ingenic-tcu-timer",
-#ifdef CONFIG_PM_SLEEP
-		.pm	= &ingenic_tcu_pm_ops,
-#endif
+		.pm	= pm_sleep_ptr(&ingenic_tcu_pm_ops),
 		.of_match_table = ingenic_tcu_of_match,
 	},
 };

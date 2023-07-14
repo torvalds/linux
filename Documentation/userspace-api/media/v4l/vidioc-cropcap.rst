@@ -71,7 +71,7 @@ overlay devices.
       - Default cropping rectangle, it shall cover the "whole picture".
 	Assuming pixel aspect 1/1 this could be for example a 640 × 480
 	rectangle for NTSC, a 768 × 576 rectangle for PAL and SECAM
-	centered over the active picture area. The same co-ordinate system
+	centered over the active picture area. The same coordinate system
 	as for ``bounds`` is used.
     * - struct :c:type:`v4l2_fract`
       - ``pixelaspect``

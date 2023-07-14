@@ -36,7 +36,7 @@ static void on_sample(void *ctx, int cpu, void *data, __u32 size)
 		  "cb32_0 %x != %x\n",
 		  meta->cb32_0, cb.cb32[0]))
 		return;
-	if (CHECK(pkt_v6->eth.h_proto != 0xdd86, "check_eth",
+	if (CHECK(pkt_v6->eth.h_proto != htons(ETH_P_IPV6), "check_eth",
 		  "h_proto %x\n", pkt_v6->eth.h_proto))
 		return;
 	if (CHECK(pkt_v6->iph.nexthdr != 6, "check_ip",

@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
@@ -1283,7 +1284,6 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct sun6i_dma_dev *sdc;
-	struct resource *res;
 	int ret, i;
 
 	sdc = devm_kzalloc(&pdev->dev, sizeof(*sdc), GFP_KERNEL);
@@ -1294,8 +1294,7 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	if (!sdc->cfg)
 		return -ENODEV;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdc->base = devm_ioremap_resource(&pdev->dev, res);
+	sdc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdc->base))
 		return PTR_ERR(sdc->base);
 
@@ -1333,6 +1332,8 @@ static int sun6i_dma_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sdc);
 	INIT_LIST_HEAD(&sdc->pending);
 	spin_lock_init(&sdc->lock);
+
+	dma_set_max_seg_size(&pdev->dev, SZ_32M - 1);
 
 	dma_cap_set(DMA_PRIVATE, sdc->slave.cap_mask);
 	dma_cap_set(DMA_MEMCPY, sdc->slave.cap_mask);

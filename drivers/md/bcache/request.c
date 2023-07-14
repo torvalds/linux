@@ -244,7 +244,7 @@ static void bch_data_insert_start(struct closure *cl)
 		trace_bcache_cache_insert(k);
 		bch_keylist_push(&op->insert_keys);
 
-		bio_set_op_attrs(n, REQ_OP_WRITE, 0);
+		n->bi_opf = REQ_OP_WRITE;
 		bch_submit_bbio(n, op->c, k, 0);
 	} while (n != bio);
 
@@ -401,7 +401,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 	}
 
 	if (bypass_torture_test(dc)) {
-		if ((get_random_int() & 3) == 3)
+		if (get_random_u32_below(4) == 3)
 			goto skip;
 		else
 			goto rescale;
@@ -1228,7 +1228,7 @@ void cached_dev_submit_bio(struct bio *bio)
 		detached_dev_do_request(d, bio, orig_bdev, start_time);
 }
 
-static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
+static int cached_dev_ioctl(struct bcache_device *d, blk_mode_t mode,
 			    unsigned int cmd, unsigned long arg)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
@@ -1318,7 +1318,7 @@ void flash_dev_submit_bio(struct bio *bio)
 	continue_at(cl, search_free, NULL);
 }
 
-static int flash_dev_ioctl(struct bcache_device *d, fmode_t mode,
+static int flash_dev_ioctl(struct bcache_device *d, blk_mode_t mode,
 			   unsigned int cmd, unsigned long arg)
 {
 	return -ENOTTY;

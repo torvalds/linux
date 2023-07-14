@@ -111,6 +111,36 @@ int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry,
 }
 EXPORT_SYMBOL_GPL(__fscrypt_prepare_lookup);
 
+/**
+ * fscrypt_prepare_lookup_partial() - prepare lookup without filename setup
+ * @dir: the encrypted directory being searched
+ * @dentry: the dentry being looked up in @dir
+ *
+ * This function should be used by the ->lookup and ->atomic_open methods of
+ * filesystems that handle filename encryption and no-key name encoding
+ * themselves and thus can't use fscrypt_prepare_lookup().  Like
+ * fscrypt_prepare_lookup(), this will try to set up the directory's encryption
+ * key and will set DCACHE_NOKEY_NAME on the dentry if the key is unavailable.
+ * However, this function doesn't set up a struct fscrypt_name for the filename.
+ *
+ * Return: 0 on success; -errno on error.  Note that the encryption key being
+ *	   unavailable is not considered an error.  It is also not an error if
+ *	   the encryption policy is unsupported by this kernel; that is treated
+ *	   like the key being unavailable, so that files can still be deleted.
+ */
+int fscrypt_prepare_lookup_partial(struct inode *dir, struct dentry *dentry)
+{
+	int err = fscrypt_get_encryption_info(dir, true);
+
+	if (!err && !fscrypt_has_encryption_key(dir)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags |= DCACHE_NOKEY_NAME;
+		spin_unlock(&dentry->d_lock);
+	}
+	return err;
+}
+EXPORT_SYMBOL_GPL(fscrypt_prepare_lookup_partial);
+
 int __fscrypt_prepare_readdir(struct inode *dir)
 {
 	return fscrypt_get_encryption_info(dir, true);
@@ -225,10 +255,10 @@ int fscrypt_prepare_symlink(struct inode *dir, const char *target,
 	 * for now since filesystems will assume it is there and subtract it.
 	 */
 	if (!__fscrypt_fname_encrypted_size(policy, len,
-					    max_len - sizeof(struct fscrypt_symlink_data),
+					    max_len - sizeof(struct fscrypt_symlink_data) - 1,
 					    &disk_link->len))
 		return -ENAMETOOLONG;
-	disk_link->len += sizeof(struct fscrypt_symlink_data);
+	disk_link->len += sizeof(struct fscrypt_symlink_data) + 1;
 
 	disk_link->name = NULL;
 	return 0;
@@ -259,7 +289,7 @@ int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
 		if (!sd)
 			return -ENOMEM;
 	}
-	ciphertext_len = disk_link->len - sizeof(*sd);
+	ciphertext_len = disk_link->len - sizeof(*sd) - 1;
 	sd->len = cpu_to_le16(ciphertext_len);
 
 	err = fscrypt_fname_encrypt(inode, &iname, sd->encrypted_path,
@@ -315,7 +345,7 @@ const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 	int err;
 
 	/* This is for encrypted symlinks only */
-	if (WARN_ON(!IS_ENCRYPTED(inode)))
+	if (WARN_ON_ONCE(!IS_ENCRYPTED(inode)))
 		return ERR_PTR(-EINVAL);
 
 	/* If the decrypted target is already cached, just return it. */
@@ -337,7 +367,7 @@ const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 	 * the ciphertext length, even though this is redundant with i_size.
 	 */
 
-	if (max_size < sizeof(*sd))
+	if (max_size < sizeof(*sd) + 1)
 		return ERR_PTR(-EUCLEAN);
 	sd = caddr;
 	cstr.name = (unsigned char *)sd->encrypted_path;
@@ -346,7 +376,7 @@ const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
 	if (cstr.len == 0)
 		return ERR_PTR(-EUCLEAN);
 
-	if (cstr.len + sizeof(*sd) - 1 > max_size)
+	if (cstr.len + sizeof(*sd) > max_size)
 		return ERR_PTR(-EUCLEAN);
 
 	err = fscrypt_fname_alloc_buffer(cstr.len, &pstr);

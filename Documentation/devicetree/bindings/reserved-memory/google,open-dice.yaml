@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/reserved-memory/google,open-dice.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Open Profile for DICE Device Tree Bindings
+title: Open Profile for DICE
 
 description: |
   This binding represents a reserved memory region containing data
@@ -16,7 +16,7 @@ maintainers:
   - David Brazdil <dbrazdil@google.com>
 
 allOf:
-  - $ref: "reserved-memory.yaml"
+  - $ref: reserved-memory.yaml
 
 properties:
   compatible:

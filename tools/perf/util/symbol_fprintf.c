@@ -30,7 +30,7 @@ size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 			if (al->addr < sym->end)
 				offset = al->addr - sym->start;
 			else
-				offset = al->addr - al->map->start - sym->start;
+				offset = al->addr - map__start(al->map) - sym->start;
 			length += fprintf(fp, "+0x%lx", offset);
 		}
 		return length;
@@ -63,13 +63,11 @@ size_t dso__fprintf_symbols_by_name(struct dso *dso,
 				    FILE *fp)
 {
 	size_t ret = 0;
-	struct rb_node *nd;
-	struct symbol_name_rb_node *pos;
 
-	for (nd = rb_first_cached(&dso->symbol_names); nd; nd = rb_next(nd)) {
-		pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
-		ret += fprintf(fp, "%s\n", pos->sym.name);
+	for (size_t i = 0; i < dso->symbol_names_len; i++) {
+		struct symbol *pos = dso->symbol_names[i];
+
+		ret += fprintf(fp, "%s\n", pos->name);
 	}
-
 	return ret;
 }

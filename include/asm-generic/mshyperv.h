@@ -26,6 +26,8 @@
 #include <asm/ptrace.h>
 #include <asm/hyperv-tlfs.h>
 
+#define VTPM_BASE_ADDRESS 0xfed40000
+
 struct ms_hyperv_info {
 	u32 features;
 	u32 priv_high;
@@ -48,6 +50,7 @@ struct ms_hyperv_info {
 	u64 shared_gpa_boundary;
 };
 extern struct ms_hyperv_info ms_hyperv;
+extern bool hv_nested;
 
 extern void * __percpu *hyperv_pcpu_input_arg;
 extern void * __percpu *hyperv_pcpu_output_arg;
@@ -105,15 +108,12 @@ static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
 }
 
 /* Generate the guest OS identifier as described in the Hyper-V TLFS */
-static inline  __u64 generate_guest_id(__u64 d_info1, __u64 kernel_version,
-				       __u64 d_info2)
+static inline u64 hv_generate_guest_id(u64 kernel_version)
 {
-	__u64 guest_id = 0;
+	u64 guest_id;
 
-	guest_id = (((__u64)HV_LINUX_VENDOR_ID) << 48);
-	guest_id |= (d_info1 << 48);
+	guest_id = (((u64)HV_LINUX_VENDOR_ID) << 48);
 	guest_id |= (kernel_version << 16);
-	guest_id |= d_info2;
 
 	return guest_id;
 }
@@ -210,13 +210,13 @@ static inline int hv_cpu_number_to_vp_number(int cpu_number)
 
 static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
 				    const struct cpumask *cpus,
-				    bool exclude_self)
+				    bool (*func)(int cpu))
 {
 	int cpu, vcpu, vcpu_bank, vcpu_offset, nr_bank = 1;
-	int this_cpu = smp_processor_id();
+	int max_vcpu_bank = hv_max_vp_index / HV_VCPUS_PER_SPARSE_BANK;
 
-	/* valid_bank_mask can represent up to 64 banks */
-	if (hv_max_vp_index / 64 >= 64)
+	/* vpset.valid_bank_mask can represent up to HV_MAX_SPARSE_VCPU_BANKS banks */
+	if (max_vcpu_bank >= HV_MAX_SPARSE_VCPU_BANKS)
 		return 0;
 
 	/*
@@ -224,20 +224,20 @@ static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
 	 * structs are not cleared between calls, we risk flushing unneeded
 	 * vCPUs otherwise.
 	 */
-	for (vcpu_bank = 0; vcpu_bank <= hv_max_vp_index / 64; vcpu_bank++)
+	for (vcpu_bank = 0; vcpu_bank <= max_vcpu_bank; vcpu_bank++)
 		vpset->bank_contents[vcpu_bank] = 0;
 
 	/*
 	 * Some banks may end up being empty but this is acceptable.
 	 */
 	for_each_cpu(cpu, cpus) {
-		if (exclude_self && cpu == this_cpu)
+		if (func && func(cpu))
 			continue;
 		vcpu = hv_cpu_number_to_vp_number(cpu);
 		if (vcpu == VP_INVAL)
 			return -1;
-		vcpu_bank = vcpu / 64;
-		vcpu_offset = vcpu % 64;
+		vcpu_bank = vcpu / HV_VCPUS_PER_SPARSE_BANK;
+		vcpu_offset = vcpu % HV_VCPUS_PER_SPARSE_BANK;
 		__set_bit(vcpu_offset, (unsigned long *)
 			  &vpset->bank_contents[vcpu_bank]);
 		if (vcpu_bank >= nr_bank)
@@ -247,17 +247,24 @@ static inline int __cpumask_to_vpset(struct hv_vpset *vpset,
 	return nr_bank;
 }
 
+/*
+ * Convert a Linux cpumask into a Hyper-V VPset. In the _skip variant,
+ * 'func' is called for each CPU present in cpumask.  If 'func' returns
+ * true, that CPU is skipped -- i.e., that CPU from cpumask is *not*
+ * added to the Hyper-V VPset. If 'func' is NULL, no CPUs are
+ * skipped.
+ */
 static inline int cpumask_to_vpset(struct hv_vpset *vpset,
 				    const struct cpumask *cpus)
 {
-	return __cpumask_to_vpset(vpset, cpus, false);
+	return __cpumask_to_vpset(vpset, cpus, NULL);
 }
 
-static inline int cpumask_to_vpset_noself(struct hv_vpset *vpset,
-				    const struct cpumask *cpus)
+static inline int cpumask_to_vpset_skip(struct hv_vpset *vpset,
+				    const struct cpumask *cpus,
+				    bool (*func)(int cpu))
 {
-	WARN_ON_ONCE(preemptible());
-	return __cpumask_to_vpset(vpset, cpus, true);
+	return __cpumask_to_vpset(vpset, cpus, func);
 }
 
 void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die);
@@ -270,8 +277,6 @@ u64 hv_ghcb_hypercall(u64 control, void *input, void *output, u32 input_size);
 void hyperv_cleanup(void);
 bool hv_query_ext_cap(u64 cap_query);
 void hv_setup_dma_ops(struct device *dev, bool coherent);
-void *hv_map_memory(void *addr, unsigned long size);
-void hv_unmap_memory(void *addr);
 #else /* CONFIG_HYPERV */
 static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline bool hv_is_hibernation_supported(void) { return false; }

@@ -95,6 +95,7 @@ config ARCH_TEGRA_210_SOC
 
 config ARCH_TEGRA_186_SOC
 	bool "NVIDIA Tegra186 SoC"
+	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
 	select TEGRA_BPMP
 	select TEGRA_HSP_MBOX
@@ -110,6 +111,7 @@ config ARCH_TEGRA_186_SOC
 
 config ARCH_TEGRA_194_SOC
 	bool "NVIDIA Tegra194 SoC"
+	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
 	select PINCTRL_TEGRA194
 	select TEGRA_BPMP
@@ -121,7 +123,9 @@ config ARCH_TEGRA_194_SOC
 
 config ARCH_TEGRA_234_SOC
 	bool "NVIDIA Tegra234 SoC"
+	depends on !CPU_BIG_ENDIAN
 	select MAILBOX
+	select PINCTRL_TEGRA234
 	select TEGRA_BPMP
 	select TEGRA_HSP_MBOX
 	select TEGRA_IVC
@@ -136,7 +140,6 @@ config SOC_TEGRA_FUSE
 	def_bool y
 	depends on ARCH_TEGRA
 	select SOC_BUS
-	select TEGRA20_APB_DMA if ARCH_TEGRA_2x_SOC
 
 config SOC_TEGRA_FLOWCTRL
 	bool
@@ -144,6 +147,7 @@ config SOC_TEGRA_FLOWCTRL
 config SOC_TEGRA_PMC
 	bool
 	select GENERIC_PINCONF
+	select IRQ_DOMAIN_HIERARCHY
 	select PM_OPP
 	select PM_GENERIC_DOMAINS
 	select REGMAP
@@ -162,3 +166,12 @@ config SOC_TEGRA30_VOLTAGE_COUPLER
 	bool "Voltage scaling support for Tegra30 SoCs"
 	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
 	depends on REGULATOR
+
+config SOC_TEGRA_CBB
+	tristate "Tegra driver to handle error from CBB"
+	depends on ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC
+	default y
+	help
+	  Support for handling error from Tegra Control Backbone(CBB).
+	  This driver handles the errors from CBB and prints debug
+	  information about the failed transactions.

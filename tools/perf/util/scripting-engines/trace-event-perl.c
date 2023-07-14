@@ -27,6 +27,7 @@
 #include <errno.h>
 #include <linux/bitmap.h>
 #include <linux/time64.h>
+#include <traceevent/event-parse.h>
 
 #include <stdbool.h>
 /* perl needs the following define, right after including stdbool.h */
@@ -65,8 +66,6 @@ INTERP my_perl;
 
 #define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
-
-static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
 extern struct scripting_context *scripting_context;
 
@@ -261,6 +260,7 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 				  struct evsel *evsel,
 				  struct addr_location *al)
 {
+	struct callchain_cursor *cursor;
 	AV *list;
 
 	list = newAV();
@@ -270,18 +270,20 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 	if (!symbol_conf.use_callchain || !sample->callchain)
 		goto exit;
 
-	if (thread__resolve_callchain(al->thread, &callchain_cursor, evsel,
+	cursor = get_tls_callchain_cursor();
+
+	if (thread__resolve_callchain(al->thread, cursor, evsel,
 				      sample, NULL, NULL, scripting_max_stack) != 0) {
 		pr_err("Failed to resolve callchain. Skipping\n");
 		goto exit;
 	}
-	callchain_cursor_commit(&callchain_cursor);
+	callchain_cursor_commit(cursor);
 
 
 	while (1) {
 		HV *elem;
 		struct callchain_cursor_node *node;
-		node = callchain_cursor_current(&callchain_cursor);
+		node = callchain_cursor_current(cursor);
 		if (!node)
 			break;
 
@@ -314,12 +316,14 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 
 		if (node->ms.map) {
 			struct map *map = node->ms.map;
+			struct dso *dso = map ? map__dso(map) : NULL;
 			const char *dsoname = "[unknown]";
-			if (map && map->dso) {
-				if (symbol_conf.show_kernel_path && map->dso->long_name)
-					dsoname = map->dso->long_name;
+
+			if (dso) {
+				if (symbol_conf.show_kernel_path && dso->long_name)
+					dsoname = dso->long_name;
 				else
-					dsoname = map->dso->name;
+					dsoname = dso->name;
 			}
 			if (!hv_stores(elem, "dso", newSVpv(dsoname,0))) {
 				hv_undef(elem);
@@ -327,7 +331,7 @@ static SV *perl_process_callchain(struct perf_sample *sample,
 			}
 		}
 
-		callchain_cursor_advance(&callchain_cursor);
+		callchain_cursor_advance(cursor);
 		av_push(list, newRV_noinc((SV*)elem));
 	}
 
@@ -350,7 +354,9 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 	void *data = sample->raw_data;
 	unsigned long long nsecs = sample->time;
 	const char *comm = thread__comm_str(thread);
+	DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
+	bitmap_zero(events_defined, TRACE_EVENT_TYPE_MAX);
 	dSP;
 
 	if (evsel->core.attr.type != PERF_TYPE_TRACEPOINT)
@@ -365,7 +371,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 
 	sprintf(handler, "%s::%s", event->system, event->name);
 
-	if (!test_and_set_bit(event->id, events_defined))
+	if (!__test_and_set_bit(event->id, events_defined))
 		define_event_symbols(event, handler, event->print_fmt.args);
 
 	s = nsecs / NSEC_PER_SEC;
@@ -392,7 +398,7 @@ static void perl_process_tracepoint(struct perf_sample *sample,
 			if (field->flags & TEP_FIELD_IS_DYNAMIC) {
 				offset = *(int *)(data + field->offset);
 				offset &= 0xffff;
-				if (field->flags & TEP_FIELD_IS_RELATIVE)
+				if (tep_field_is_relative(field->flags))
 					offset += field->offset + field->size;
 			} else
 				offset = field->offset;

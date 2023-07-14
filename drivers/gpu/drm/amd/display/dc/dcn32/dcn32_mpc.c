@@ -42,7 +42,7 @@
 	mpc30->mpc_shift->field_name, mpc30->mpc_mask->field_name
 
 
-static void mpc32_mpc_init(struct mpc *mpc)
+void mpc32_mpc_init(struct mpc *mpc)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
 	int mpcc_id;
@@ -254,7 +254,7 @@ static void mpc32_program_post1dlut_pwl(
 	}
 }
 
-static bool mpc32_program_post1dlut(
+bool mpc32_program_post1dlut(
 		struct mpc *mpc,
 		const struct pwl_params *params,
 		uint32_t mpcc_id)
@@ -726,7 +726,7 @@ bool mpc32_program_shaper(
 	else
 		next_mode = LUT_RAM_A;
 
-	mpc32_configure_shaper_lut(mpc, next_mode == LUT_RAM_A ? true:false, mpcc_id);
+	mpc32_configure_shaper_lut(mpc, next_mode == LUT_RAM_A, mpcc_id);
 
 	if (next_mode == LUT_RAM_A)
 		mpc32_program_shaper_luta_settings(mpc, params, mpcc_id);
@@ -982,7 +982,7 @@ bool mpc32_program_3dlut(
 	return true;
 }
 
-const struct mpc_funcs dcn32_mpc_funcs = {
+static const struct mpc_funcs dcn32_mpc_funcs = {
 	.read_mpcc_state = mpc1_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,

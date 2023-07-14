@@ -112,9 +112,6 @@ int64_t opal_pci_set_pe(uint64_t phb_id, uint64_t pe_number, uint64_t bus_dev_fu
 			uint8_t pe_action);
 int64_t opal_pci_set_peltv(uint64_t phb_id, uint32_t parent_pe, uint32_t child_pe,
 			   uint8_t state);
-int64_t opal_pci_set_mve(uint64_t phb_id, uint32_t mve_number, uint32_t pe_number);
-int64_t opal_pci_set_mve_enable(uint64_t phb_id, uint32_t mve_number,
-				uint32_t state);
 int64_t opal_pci_get_xive_reissue(uint64_t phb_id, uint32_t xive_number,
 				  uint8_t *p_bit, uint8_t *q_bit);
 int64_t opal_pci_set_xive_reissue(uint64_t phb_id, uint32_t xive_number,
@@ -324,16 +321,10 @@ extern int opal_flush_console(uint32_t vtermno);
 
 extern void hvc_opal_init_early(void);
 
-extern int opal_notifier_register(struct notifier_block *nb);
-extern int opal_notifier_unregister(struct notifier_block *nb);
-
 extern int opal_message_notifier_register(enum opal_msg_type msg_type,
 						struct notifier_block *nb);
 extern int opal_message_notifier_unregister(enum opal_msg_type msg_type,
 					    struct notifier_block *nb);
-extern void opal_notifier_enable(void);
-extern void opal_notifier_disable(void);
-extern void opal_notifier_update_evt(uint64_t evt_mask, uint64_t evt_val);
 
 extern int opal_async_get_token_interruptible(void);
 extern int opal_async_release_token(int token);

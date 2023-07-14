@@ -97,7 +97,6 @@ struct dpu_crtc_mixer {
 	struct dpu_hw_ctl *lm_ctl;
 	struct dpu_hw_dspp *hw_dspp;
 	u32 mixer_op_mode;
-	u32 flush_mask;
 };
 
 /**

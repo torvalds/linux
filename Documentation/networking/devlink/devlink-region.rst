@@ -31,6 +31,15 @@ in its ``devlink_region_ops`` structure. If snapshot id is not set in
 the ``DEVLINK_CMD_REGION_NEW`` request kernel will allocate one and send
 the snapshot information to user space.
 
+Regions may optionally allow directly reading from their contents without a
+snapshot. Direct read requests are not atomic. In particular a read request
+of size 256 bytes or larger will be split into multiple chunks. If atomic
+access is required, use a snapshot. A driver wishing to enable this for a
+region should implement the ``.read`` callback in the ``devlink_region_ops``
+structure. User space can request a direct read by using the
+``DEVLINK_ATTR_REGION_DIRECT`` attribute instead of specifying a snapshot
+id.
+
 example usage
 -------------
 
@@ -64,6 +73,10 @@ example usage
     # Read a specific part of a snapshot:
     $ devlink region read pci/0000:00:05.0/fw-health snapshot 1 address 0 length 16
     0000000000000000 0014 95dc 0014 9514 0035 1670 0034 db30
+
+    # Read from the region without a snapshot
+    $ devlink region read pci/0000:00:05.0/fw-health address 16 length 16
+    0000000000000010 0000 0000 ffff ff04 0029 8c00 0028 8cc8
 
 As regions are likely very device or driver specific, no generic regions are
 defined. See the driver-specific documentation files for information on the

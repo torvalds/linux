@@ -30,6 +30,15 @@
 #endif
 #endif
 
+/*
+ * Assume a maximum of 0.1ns elapsed per instruction. This would be the
+ * case with a theoretical 10GHz core executing 1 instruction per cycle.
+ * Used to estimate the sample time for synthesized instructions because
+ * Coresight only emits a timestamp for a range of instructions rather
+ * than per instruction.
+ */
+const u32 INSTR_PER_NS = 10;
+
 struct cs_etm_decoder {
 	void *data;
 	void (*packet_printer)(const char *msg);
@@ -43,15 +52,15 @@ struct cs_etm_decoder {
 static u32
 cs_etm_decoder__mem_access(const void *context,
 			   const ocsd_vaddr_t address,
-			   const ocsd_mem_space_acc_t mem_space __maybe_unused,
+			   const ocsd_mem_space_acc_t mem_space,
 			   const u8 trace_chan_id,
 			   const u32 req_size,
 			   u8 *buffer)
 {
 	struct cs_etm_decoder *decoder = (struct cs_etm_decoder *) context;
 
-	return decoder->mem_access(decoder->data, trace_chan_id,
-				   address, req_size, buffer);
+	return decoder->mem_access(decoder->data, trace_chan_id, address,
+				   req_size, buffer, mem_space);
 }
 
 int cs_etm_decoder__add_mem_access_cb(struct cs_etm_decoder *decoder,
@@ -110,6 +119,20 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 	packet_queue->packet_count--;
 
 	return 1;
+}
+
+/*
+ * Calculate the number of nanoseconds elapsed.
+ *
+ * instr_count is updated in place with the remainder of the instructions
+ * which didn't make up a whole nanosecond.
+ */
+static u32 cs_etm_decoder__dec_instr_count_to_ns(u32 *instr_count)
+{
+	const u32 instr_copy = *instr_count;
+
+	*instr_count %= INSTR_PER_NS;
+	return instr_copy / INSTR_PER_NS;
 }
 
 static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
@@ -260,15 +283,17 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  struct cs_etm_packet_queue *packet_queue,
 				  const uint8_t trace_chan_id)
 {
+	u64 estimated_ts;
+
 	/* No timestamp packet has been received, nothing to do */
-	if (!packet_queue->cs_timestamp)
+	if (!packet_queue->next_cs_timestamp)
 		return OCSD_RESP_CONT;
 
-	packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
+	estimated_ts = packet_queue->cs_timestamp +
+			cs_etm_decoder__dec_instr_count_to_ns(&packet_queue->instr_count);
 
-	/* Estimate the timestamp for the next range packet */
-	packet_queue->next_cs_timestamp += packet_queue->instr_count;
-	packet_queue->instr_count = 0;
+	/* Estimated TS can never be higher than the next real one in the trace */
+	packet_queue->cs_timestamp = min(packet_queue->next_cs_timestamp, estimated_ts);
 
 	/* Tell the front end which traceid_queue needs attention */
 	cs_etm__etmq_set_traceid_queue_timestamp(etmq, trace_chan_id);
@@ -283,6 +308,8 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 				  const ocsd_trc_index_t indx)
 {
 	struct cs_etm_packet_queue *packet_queue;
+	u64 converted_timestamp;
+	u64 estimated_first_ts;
 
 	/* First get the packet queue for this traceID */
 	packet_queue = cs_etm__etmq_get_packet_queue(etmq, trace_chan_id);
@@ -290,17 +317,28 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		return OCSD_RESP_FATAL_SYS_ERR;
 
 	/*
+	 * Coresight timestamps are raw timer values which need to be scaled to ns. Assume
+	 * 0 is a bad value so don't try to convert it.
+	 */
+	converted_timestamp = elem->timestamp ?
+				cs_etm__convert_sample_time(etmq, elem->timestamp) : 0;
+
+	/*
 	 * We've seen a timestamp packet before - simply record the new value.
 	 * Function do_soft_timestamp() will report the value to the front end,
 	 * hence asking the decoder to keep decoding rather than stopping.
 	 */
-	if (packet_queue->cs_timestamp) {
-		packet_queue->next_cs_timestamp = elem->timestamp;
+	if (packet_queue->next_cs_timestamp) {
+		/*
+		 * What was next is now where new ranges start from, overwriting
+		 * any previous estimate in cs_timestamp
+		 */
+		packet_queue->cs_timestamp = packet_queue->next_cs_timestamp;
+		packet_queue->next_cs_timestamp = converted_timestamp;
 		return OCSD_RESP_CONT;
 	}
 
-
-	if (!elem->timestamp) {
+	if (!converted_timestamp) {
 		/*
 		 * Zero timestamps can be seen due to misconfiguration or hardware bugs.
 		 * Warn once, and don't try to subtract instr_count as it would result in an
@@ -312,7 +350,7 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 					". Decoding may be improved by prepending 'Z' to your current --itrace arguments.\n",
 					indx);
 
-	} else if (packet_queue->instr_count > elem->timestamp) {
+	} else if (packet_queue->instr_count / INSTR_PER_NS > converted_timestamp) {
 		/*
 		 * Sanity check that the elem->timestamp - packet_queue->instr_count would not
 		 * result in an underflow. Warn and clamp at 0 if it would.
@@ -325,11 +363,14 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 		 * or a discontinuity.  Since timestamps packets are generated *after*
 		 * range packets have been generated, we need to estimate the time at
 		 * which instructions started by subtracting the number of instructions
-		 * executed to the timestamp.
+		 * executed to the timestamp. Don't estimate earlier than the last used
+		 * timestamp though.
 		 */
-		packet_queue->cs_timestamp = elem->timestamp - packet_queue->instr_count;
+		estimated_first_ts = converted_timestamp -
+					(packet_queue->instr_count / INSTR_PER_NS);
+		packet_queue->cs_timestamp = max(packet_queue->cs_timestamp, estimated_first_ts);
 	}
-	packet_queue->next_cs_timestamp = elem->timestamp;
+	packet_queue->next_cs_timestamp = converted_timestamp;
 	packet_queue->instr_count = 0;
 
 	/* Tell the front end which traceid_queue needs attention */
@@ -342,7 +383,6 @@ cs_etm_decoder__do_hard_timestamp(struct cs_etm_queue *etmq,
 static void
 cs_etm_decoder__reset_timestamp(struct cs_etm_packet_queue *packet_queue)
 {
-	packet_queue->cs_timestamp = 0;
 	packet_queue->next_cs_timestamp = 0;
 	packet_queue->instr_count = 0;
 }
@@ -501,43 +541,32 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 			const uint8_t trace_chan_id)
 {
 	pid_t tid = -1;
-	static u64 pid_fmt;
-	int ret;
-
-	/*
-	 * As all the ETMs run at the same exception level, the system should
-	 * have the same PID format crossing CPUs.  So cache the PID format
-	 * and reuse it for sequential decoding.
-	 */
-	if (!pid_fmt) {
-		ret = cs_etm__get_pid_fmt(trace_chan_id, &pid_fmt);
-		if (ret)
-			return OCSD_RESP_FATAL_SYS_ERR;
-	}
 
 	/*
 	 * Process the PE_CONTEXT packets if we have a valid contextID or VMID.
 	 * If the kernel is running at EL2, the PID is traced in CONTEXTIDR_EL2
 	 * as VMID, Bit ETM_OPT_CTXTID2 is set in this case.
 	 */
-	switch (pid_fmt) {
-	case BIT(ETM_OPT_CTXTID):
+	switch (cs_etm__get_pid_fmt(etmq)) {
+	case CS_ETM_PIDFMT_CTXTID:
 		if (elem->context.ctxt_id_valid)
 			tid = elem->context.context_id;
 		break;
-	case BIT(ETM_OPT_CTXTID2):
+	case CS_ETM_PIDFMT_CTXTID2:
 		if (elem->context.vmid_valid)
 			tid = elem->context.vmid;
 		break;
+	case CS_ETM_PIDFMT_NONE:
 	default:
 		break;
 	}
 
+	if (cs_etm__etmq_set_tid_el(etmq, tid, trace_chan_id,
+				    elem->context.exception_level))
+		return OCSD_RESP_FATAL_SYS_ERR;
+
 	if (tid == -1)
 		return OCSD_RESP_CONT;
-
-	if (cs_etm__etmq_set_tid(etmq, tid, trace_chan_id))
-		return OCSD_RESP_FATAL_SYS_ERR;
 
 	/*
 	 * A timestamp is generated after a PE_CONTEXT element so make sure
@@ -604,6 +633,9 @@ static ocsd_datapath_resp_t cs_etm_decoder__gen_trace_elem_printer(
 	case OCSD_GEN_TRC_ELEM_CUSTOM:
 	case OCSD_GEN_TRC_ELEM_SYNC_MARKER:
 	case OCSD_GEN_TRC_ELEM_MEMTRANS:
+#if (OCSD_VER_NUM >= 0x010400)
+	case OCSD_GEN_TRC_ELEM_INSTRUMENTATION:
+#endif
 	default:
 		break;
 	}
@@ -625,6 +657,7 @@ cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
 	switch (t_params->protocol) {
 	case CS_ETM_PROTO_ETMV3:
 	case CS_ETM_PROTO_PTM:
+		csid = (t_params->etmv3.reg_idr & CORESIGHT_TRACE_ID_VAL_MASK);
 		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
 		decoder->decoder_name = (t_params->protocol == CS_ETM_PROTO_ETMV3) ?
 							OCSD_BUILTIN_DCD_ETMV3 :
@@ -632,11 +665,13 @@ cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
 		trace_config = &config_etmv3;
 		break;
 	case CS_ETM_PROTO_ETMV4i:
+		csid = (t_params->etmv4.reg_traceidr & CORESIGHT_TRACE_ID_VAL_MASK);
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
 		decoder->decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
 		trace_config = &trace_config_etmv4;
 		break;
 	case CS_ETM_PROTO_ETE:
+		csid = (t_params->ete.reg_traceidr & CORESIGHT_TRACE_ID_VAL_MASK);
 		cs_etm_decoder__gen_ete_config(t_params, &trace_config_ete);
 		decoder->decoder_name = OCSD_BUILTIN_DCD_ETE;
 		trace_config = &trace_config_ete;
@@ -644,6 +679,10 @@ cs_etm_decoder__create_etm_decoder(struct cs_etm_decoder_params *d_params,
 	default:
 		return -1;
 	}
+
+	/* if the CPU has no trace ID associated, no decoder needed */
+	if (csid == CORESIGHT_TRACE_ID_UNUSED_VAL)
+		return 0;
 
 	if (d_params->operation == CS_ETM_OPERATION_DECODE) {
 		if (ocsd_dt_create_decoder(decoder->dcd_tree,

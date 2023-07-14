@@ -14,7 +14,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/hwcap.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "proc-macros.S"
 
@@ -23,6 +23,8 @@
 #else
 #include "proc-v7-2level.S"
 #endif
+
+.arch armv7-a
 
 ENTRY(cpu_v7_proc_init)
 	ret	lr

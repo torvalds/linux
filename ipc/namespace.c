@@ -19,6 +19,12 @@
 
 #include "util.h"
 
+/*
+ * The work queue is used to avoid the cost of synchronize_rcu in kern_unmount.
+ */
+static void free_ipc(struct work_struct *unused);
+static DECLARE_WORK(free_ipc_work, free_ipc);
+
 static struct ucounts *inc_ipc_namespaces(struct user_namespace *ns)
 {
 	return inc_ucount(ns, current_euid(), UCOUNT_IPC_NAMESPACES);
@@ -37,9 +43,18 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	int err;
 
 	err = -ENOSPC;
+ again:
 	ucounts = inc_ipc_namespaces(user_ns);
-	if (!ucounts)
+	if (!ucounts) {
+		/*
+		 * IPC namespaces are freed asynchronously, by free_ipc_work.
+		 * If frees were pending, flush_work will wait, and
+		 * return true. Fail the allocation if no frees are pending.
+		 */
+		if (flush_work(&free_ipc_work))
+			goto again;
 		goto fail;
+	}
 
 	err = -ENOMEM;
 	ns = kzalloc(sizeof(struct ipc_namespace), GFP_KERNEL_ACCOUNT);
@@ -66,8 +81,11 @@ static struct ipc_namespace *create_ipc_ns(struct user_namespace *user_ns,
 	if (!setup_ipc_sysctls(ns))
 		goto fail_mq;
 
+	err = msg_init_ns(ns);
+	if (err)
+		goto fail_put;
+
 	sem_init_ns(ns);
-	msg_init_ns(ns);
 	shm_init_ns(ns);
 
 	return ns;
@@ -127,10 +145,11 @@ void free_ipcs(struct ipc_namespace *ns, struct ipc_ids *ids,
 
 static void free_ipc_ns(struct ipc_namespace *ns)
 {
-	/* mq_put_mnt() waits for a grace period as kern_unmount()
-	 * uses synchronize_rcu().
+	/*
+	 * Caller needs to wait for an RCU grace period to have passed
+	 * after making the mount point inaccessible to new accesses.
 	 */
-	mq_put_mnt(ns);
+	mntput(ns->mq_mnt);
 	sem_exit_ns(ns);
 	msg_exit_ns(ns);
 	shm_exit_ns(ns);
@@ -151,13 +170,14 @@ static void free_ipc(struct work_struct *unused)
 	struct ipc_namespace *n, *t;
 
 	llist_for_each_entry_safe(n, t, node, mnt_llist)
+		mnt_make_shortterm(n->mq_mnt);
+
+	/* Wait for any last users to have gone away. */
+	synchronize_rcu();
+
+	llist_for_each_entry_safe(n, t, node, mnt_llist)
 		free_ipc_ns(n);
 }
-
-/*
- * The work queue is used to avoid the cost of synchronize_rcu in kern_unmount.
- */
-static DECLARE_WORK(free_ipc_work, free_ipc);
 
 /*
  * put_ipc_ns - drop a reference to an ipc namespace.

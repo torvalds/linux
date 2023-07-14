@@ -299,13 +299,11 @@ static int hisi_pcie_error_handler_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hisi_pcie_error_handler_remove(struct platform_device *pdev)
+static void hisi_pcie_error_handler_remove(struct platform_device *pdev)
 {
 	struct hisi_pcie_error_private *priv = platform_get_drvdata(pdev);
 
 	ghes_unregister_vendor_record_notifier(&priv->nb);
-
-	return 0;
 }
 
 static const struct acpi_device_id hisi_pcie_acpi_match[] = {
@@ -319,9 +317,8 @@ static struct platform_driver hisi_pcie_error_handler_driver = {
 		.acpi_match_table = hisi_pcie_acpi_match,
 	},
 	.probe		= hisi_pcie_error_handler_probe,
-	.remove		= hisi_pcie_error_handler_remove,
+	.remove_new	= hisi_pcie_error_handler_remove,
 };
 module_platform_driver(hisi_pcie_error_handler_driver);
 
 MODULE_DESCRIPTION("HiSilicon HIP PCIe controller error handling driver");
-MODULE_LICENSE("GPL v2");

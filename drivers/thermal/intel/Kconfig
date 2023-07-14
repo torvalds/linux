@@ -3,6 +3,9 @@ config INTEL_POWERCLAMP
 	tristate "Intel PowerClamp idle injection driver"
 	depends on X86
 	depends on CPU_SUP_INTEL
+	depends on CPU_IDLE
+	select POWERCAP
+	select IDLE_INJECT
 	help
 	  Enable this to enable Intel PowerClamp idle injection driver. This
 	  enforce idle time which results in more package C-state residency. The
@@ -12,11 +15,16 @@ config X86_THERMAL_VECTOR
 	def_bool y
 	depends on X86 && CPU_SUP_INTEL && X86_LOCAL_APIC
 
+config INTEL_TCC
+	bool
+	depends on X86
+
 config X86_PKG_TEMP_THERMAL
 	tristate "X86 package temperature thermal driver"
 	depends on X86_THERMAL_VECTOR
 	select THERMAL_GOV_USER_SPACE
 	select THERMAL_WRITABLE_TRIPS
+	select INTEL_TCC
 	default m
 	help
 	  Enable this to register CPU digital sensor for package temperature as
@@ -28,6 +36,7 @@ config INTEL_SOC_DTS_IOSF_CORE
 	tristate
 	depends on X86 && PCI
 	select IOSF_MBI
+	select INTEL_TCC
 	help
 	  This is becoming a common feature for Intel SoCs to expose the additional
 	  digital temperature sensors (DTSs) using side band interface (IOSF). This
@@ -64,7 +73,8 @@ endmenu
 
 config INTEL_BXT_PMIC_THERMAL
 	tristate "Intel Broxton PMIC thermal driver"
-	depends on X86 && INTEL_SOC_PMIC_BXTWC && REGMAP
+	depends on X86 && INTEL_SOC_PMIC_BXTWC
+	select REGMAP
 	help
 	  Select this driver for Intel Broxton PMIC with ADC channels monitoring
 	  system temperature measurements and alerts.
@@ -75,6 +85,7 @@ config INTEL_BXT_PMIC_THERMAL
 config INTEL_PCH_THERMAL
 	tristate "Intel PCH Thermal Reporting Driver"
 	depends on X86 && PCI
+	select THERMAL_ACPI if ACPI
 	help
 	  Enable this to support thermal reporting on certain intel PCHs.
 	  Thermal reporting device will provide temperature reading,
@@ -83,6 +94,7 @@ config INTEL_PCH_THERMAL
 config INTEL_TCC_COOLING
 	tristate "Intel TCC offset cooling Driver"
 	depends on X86
+	select INTEL_TCC
 	help
 	  Enable this to support system cooling by adjusting the effective TCC
 	  activation temperature via the TCC Offset register, which is widely
@@ -90,15 +102,6 @@ config INTEL_TCC_COOLING
 	  Note that, on different platforms, the behavior might be different
 	  on how fast the setting takes effect, and how much the CPU frequency
 	  is reduced.
-
-config INTEL_MENLOW
-	tristate "Thermal Management driver for Intel menlow platform"
-	depends on ACPI_THERMAL
-	help
-	  ACPI thermal management enhancement driver on
-	  Intel Menlow platform.
-
-	  If unsure, say N.
 
 config INTEL_HFI_THERMAL
 	bool "Intel Hardware Feedback Interface"

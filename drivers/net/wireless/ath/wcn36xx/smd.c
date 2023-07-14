@@ -475,8 +475,8 @@ out:
 
 #define PREPARE_HAL_BUF(send_buf, msg_body) \
 	do {							\
-		memset(send_buf, 0, msg_body.header.len);	\
-		memcpy(send_buf, &msg_body, sizeof(msg_body));	\
+		memcpy_and_pad(send_buf, msg_body.header.len,	\
+			       &msg_body, sizeof(msg_body), 0);	\
 	} while (0)						\
 
 #define PREPARE_HAL_PTT_MSG_BUF(send_buf, p_msg_body) \

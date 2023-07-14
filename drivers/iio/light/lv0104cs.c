@@ -474,8 +474,7 @@ static const struct iio_chan_spec lv0104cs_channels[] = {
 	},
 };
 
-static int lv0104cs_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int lv0104cs_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct lv0104cs_private *lv0104cs;

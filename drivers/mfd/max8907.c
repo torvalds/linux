@@ -181,8 +181,7 @@ static void max8907_power_off(void)
 			MAX8907_MASK_POWER_OFF, MAX8907_MASK_POWER_OFF);
 }
 
-static int max8907_i2c_probe(struct i2c_client *i2c,
-				       const struct i2c_device_id *id)
+static int max8907_i2c_probe(struct i2c_client *i2c)
 {
 	struct max8907 *max8907;
 	int ret;
@@ -202,8 +201,6 @@ static int max8907_i2c_probe(struct i2c_client *i2c,
 	}
 
 	max8907->dev = &i2c->dev;
-	dev_set_drvdata(max8907->dev, max8907);
-
 	max8907->i2c_gen = i2c;
 	i2c_set_clientdata(i2c, max8907);
 	max8907->regmap_gen = devm_regmap_init_i2c(i2c,

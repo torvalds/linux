@@ -64,7 +64,7 @@ static struct attribute *cma_attrs[] = {
 };
 ATTRIBUTE_GROUPS(cma);
 
-static struct kobj_type cma_ktype = {
+static const struct kobj_type cma_ktype = {
 	.release = cma_kobj_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = cma_groups,

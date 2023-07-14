@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2023 Linaro Ltd.
  */
 #ifndef _IPA_REG_H_
 #define _IPA_REG_H_
@@ -10,6 +10,7 @@
 #include <linux/bug.h>
 
 #include "ipa_version.h"
+#include "reg.h"
 
 struct ipa;
 
@@ -35,7 +36,7 @@ struct ipa;
  * by register ID.  Each entry in the array specifies the base offset and
  * (for parameterized registers) a non-zero stride value.  Not all versions
  * of IPA define all registers.  The offset for a register is returned by
- * ipa_reg_offset() when the register's ipa_reg structure is supplied;
+ * reg_offset() when the register's ipa_reg structure is supplied;
  * zero is returned for an undefined register (this should never happen).
  *
  * Some registers encode multiple fields within them.  Each field in
@@ -44,9 +45,9 @@ struct ipa;
  * an array of field masks, indexed by field ID.  Two functions are
  * used to access register fields; both take an ipa_reg structure as
  * argument.  To encode a value to be represented in a register field,
- * the value and field ID are passed to ipa_reg_encode().  To extract
+ * the value and field ID are passed to reg_encode().  To extract
  * a value encoded in a register field, the field ID is passed to
- * ipa_reg_decode().  In addition, for single-bit fields, ipa_reg_bit()
+ * reg_decode().  In addition, for single-bit fields, reg_bit()
  * can be used to either encode the bit value, or to generate a mask
  * used to extract the bit value.
  */
@@ -59,8 +60,9 @@ enum ipa_reg_id {
 	SHARED_MEM_SIZE,
 	QSB_MAX_WRITES,
 	QSB_MAX_READS,
-	FILT_ROUT_HASH_EN,
-	FILT_ROUT_HASH_FLUSH,
+	FILT_ROUT_HASH_EN,				/* IPA v4.2 */
+	FILT_ROUT_HASH_FLUSH,			/* Not IPA v4.2 nor IPA v5.0+ */
+	FILT_ROUT_CACHE_FLUSH,				/* IPA v5.0+ */
 	STATE_AGGR_ACTIVE,
 	IPA_BCR,					/* Not IPA v4.5+ */
 	LOCAL_PKT_PROC_CNTXT,
@@ -74,12 +76,12 @@ enum ipa_reg_id {
 	TIMERS_PULSE_GRAN_CFG,				/* IPA v4.5+ */
 	SRC_RSRC_GRP_01_RSRC_TYPE,
 	SRC_RSRC_GRP_23_RSRC_TYPE,
-	SRC_RSRC_GRP_45_RSRC_TYPE,		/* Not IPA v3.5+, IPA v4.5 */
-	SRC_RSRC_GRP_67_RSRC_TYPE,			/* Not IPA v3.5+ */
+	SRC_RSRC_GRP_45_RSRC_TYPE,	/* Not IPA v3.5+; IPA v4.5, IPA v5.0 */
+	SRC_RSRC_GRP_67_RSRC_TYPE,		/* Not IPA v3.5+; IPA v5.0 */
 	DST_RSRC_GRP_01_RSRC_TYPE,
 	DST_RSRC_GRP_23_RSRC_TYPE,
-	DST_RSRC_GRP_45_RSRC_TYPE,		/* Not IPA v3.5+, IPA v4.5 */
-	DST_RSRC_GRP_67_RSRC_TYPE,			/* Not IPA v3.5+ */
+	DST_RSRC_GRP_45_RSRC_TYPE,	/* Not IPA v3.5+; IPA v4.5, IPA v5.0 */
+	DST_RSRC_GRP_67_RSRC_TYPE,		/* Not IPA v3.5+; IPA v5.0 */
 	ENDP_INIT_CTRL,		/* Not IPA v4.2+ for TX, not IPA v4.0+ for RX */
 	ENDP_INIT_CFG,
 	ENDP_INIT_NAT,			/* TX only */
@@ -95,7 +97,9 @@ enum ipa_reg_id {
 	ENDP_INIT_SEQ,			/* TX only */
 	ENDP_STATUS,
 	ENDP_FILTER_ROUTER_HSH_CFG,			/* Not IPA v4.2 */
-	/* The IRQ registers are only used for GSI_EE_AP */
+	ENDP_FILTER_CACHE_CFG,				/* IPA v5.0+ */
+	ENDP_ROUTER_CACHE_CFG,				/* IPA v5.0+ */
+	/* The IRQ registers that follow are only used for GSI_EE_AP */
 	IPA_IRQ_STTS,
 	IPA_IRQ_EN,
 	IPA_IRQ_CLR,
@@ -104,56 +108,6 @@ enum ipa_reg_id {
 	IRQ_SUSPEND_EN,					/* IPA v3.1+ */
 	IRQ_SUSPEND_CLR,				/* IPA v3.1+ */
 	IPA_REG_ID_COUNT,				/* Last; not an ID */
-};
-
-/**
- * struct ipa_reg - An IPA register descriptor
- * @offset:	Register offset relative to base of the "ipa-reg" memory
- * @stride:	Distance between two instances, if parameterized
- * @fcount:	Number of entries in the @fmask array
- * @fmask:	Array of mask values defining position and width of fields
- * @name:	Upper-case name of the IPA register
- */
-struct ipa_reg {
-	u32 offset;
-	u32 stride;
-	u32 fcount;
-	const u32 *fmask;			/* BIT(nr) or GENMASK(h, l) */
-	const char *name;
-};
-
-/* Helper macro for defining "simple" (non-parameterized) registers */
-#define IPA_REG(__NAME, __reg_id, __offset)				\
-	IPA_REG_STRIDE(__NAME, __reg_id, __offset, 0)
-
-/* Helper macro for defining parameterized registers, specifying stride */
-#define IPA_REG_STRIDE(__NAME, __reg_id, __offset, __stride)		\
-	static const struct ipa_reg ipa_reg_ ## __reg_id = {		\
-		.name	= #__NAME,					\
-		.offset	= __offset,					\
-		.stride	= __stride,					\
-	}
-
-#define IPA_REG_FIELDS(__NAME, __name, __offset)			\
-	IPA_REG_STRIDE_FIELDS(__NAME, __name, __offset, 0)
-
-#define IPA_REG_STRIDE_FIELDS(__NAME, __name, __offset, __stride)	\
-	static const struct ipa_reg ipa_reg_ ## __name = {		\
-		.name   = #__NAME,					\
-		.offset = __offset,					\
-		.stride = __stride,					\
-		.fcount = ARRAY_SIZE(ipa_reg_ ## __name ## _fmask),	\
-		.fmask  = ipa_reg_ ## __name ## _fmask,			\
-	}
-
-/**
- * struct ipa_regs - Description of registers supported by hardware
- * @reg_count:	Number of registers in the @reg[] array
- * @reg:		Array of register descriptors
- */
-struct ipa_regs {
-	u32 reg_count;
-	const struct ipa_reg **reg;
 };
 
 /* COMP_CFG register */
@@ -252,11 +206,17 @@ enum ipa_reg_qsb_max_reads_field_id {
 };
 
 /* FILT_ROUT_HASH_EN and FILT_ROUT_HASH_FLUSH registers */
-enum ipa_reg_rout_hash_field_id {
+enum ipa_reg_filt_rout_hash_field_id {
 	IPV6_ROUTER_HASH,
 	IPV6_FILTER_HASH,
 	IPV4_ROUTER_HASH,
 	IPV4_FILTER_HASH,
+};
+
+/* FILT_ROUT_CACHE_FLUSH register */
+enum ipa_reg_filt_rout_cache_field_id {
+	ROUTER_CACHE,
+	FILTER_CACHE,
 };
 
 /* BCR register */
@@ -298,6 +258,7 @@ enum ipa_reg_ipa_tx_cfg_field_id {
 	DUAL_TX_ENABLE,					/* v4.5+ */
 	SSPND_PA_NO_START_STATE,			/* v4,2+, not v4.5 */
 	SSPND_PA_NO_BQ_STATE,				/* v4.2 only */
+	HOLB_STICKY_DROP_EN,				/* v5.0+ */
 };
 
 /* FLAVOR_0 register */
@@ -333,6 +294,7 @@ enum ipa_reg_timers_pulse_gran_cfg_field_id {
 	PULSE_GRAN_0,
 	PULSE_GRAN_1,
 	PULSE_GRAN_2,
+	PULSE_GRAN_3,
 };
 
 /* Values for IPA_GRAN_x fields of TIMERS_PULSE_GRAN_CFG */
@@ -382,11 +344,11 @@ enum ipa_reg_endp_init_nat_field_id {
 	NAT_EN,
 };
 
-/** enum ipa_nat_en - ENDP_INIT_NAT register NAT_EN field value */
-enum ipa_nat_en {
-	IPA_NAT_BYPASS				= 0x0,
-	IPA_NAT_SRC				= 0x1,
-	IPA_NAT_DST				= 0x2,
+/** enum ipa_nat_type - ENDP_INIT_NAT register NAT_EN field value */
+enum ipa_nat_type {
+	IPA_NAT_TYPE_BYPASS			= 0,
+	IPA_NAT_TYPE_SRC			= 1,
+	IPA_NAT_TYPE_DST			= 2,
 };
 
 /* ENDP_INIT_HDR register */
@@ -415,6 +377,8 @@ enum ipa_reg_endp_init_hdr_ext_field_id {
 	HDR_TOTAL_LEN_OR_PAD_OFFSET_MSB,		/* v4.5+ */
 	HDR_OFST_PKT_SIZE_MSB,				/* v4.5+ */
 	HDR_ADDITIONAL_CONST_LEN_MSB,			/* v4.5+ */
+	HDR_BYTES_TO_REMOVE_VALID,			/* v5.0+ */
+	HDR_BYTES_TO_REMOVE,				/* v5.0+ */
 };
 
 /* ENDP_INIT_MODE register */
@@ -573,6 +537,17 @@ enum ipa_reg_endp_filter_router_hsh_cfg_field_id {
 	ROUTER_HASH_MSK_ALL,		/* Bitwise OR of the above 6 fields */
 };
 
+/* ENDP_FILTER_CACHE_CFG and ENDP_ROUTER_CACHE_CFG registers */
+enum ipa_reg_endp_cache_cfg_field_id {
+	CACHE_MSK_SRC_ID,
+	CACHE_MSK_SRC_IP,
+	CACHE_MSK_DST_IP,
+	CACHE_MSK_SRC_PORT,
+	CACHE_MSK_DST_PORT,
+	CACHE_MSK_PROTOCOL,
+	CACHE_MSK_METADATA,
+};
+
 /* IPA_IRQ_STTS, IPA_IRQ_EN, and IPA_IRQ_CLR registers */
 /**
  * enum ipa_irq_id - Bit positions representing type of IPA IRQ
@@ -654,78 +629,16 @@ enum ipa_reg_ipa_irq_uc_field_id {
 	UC_INTR,
 };
 
-extern const struct ipa_regs ipa_regs_v3_1;
-extern const struct ipa_regs ipa_regs_v3_5_1;
-extern const struct ipa_regs ipa_regs_v4_2;
-extern const struct ipa_regs ipa_regs_v4_5;
-extern const struct ipa_regs ipa_regs_v4_9;
-extern const struct ipa_regs ipa_regs_v4_11;
+extern const struct regs ipa_regs_v3_1;
+extern const struct regs ipa_regs_v3_5_1;
+extern const struct regs ipa_regs_v4_2;
+extern const struct regs ipa_regs_v4_5;
+extern const struct regs ipa_regs_v4_7;
+extern const struct regs ipa_regs_v4_9;
+extern const struct regs ipa_regs_v4_11;
+extern const struct regs ipa_regs_v5_0;
 
-/* Return the field mask for a field in a register */
-static inline u32 ipa_reg_fmask(const struct ipa_reg *reg, u32 field_id)
-{
-	if (!reg || WARN_ON(field_id >= reg->fcount))
-		return 0;
-
-	return reg->fmask[field_id];
-}
-
-/* Return the mask for a single-bit field in a register */
-static inline u32 ipa_reg_bit(const struct ipa_reg *reg, u32 field_id)
-{
-	u32 fmask = ipa_reg_fmask(reg, field_id);
-
-	WARN_ON(!is_power_of_2(fmask));
-
-	return fmask;
-}
-
-/* Encode a value into the given field of a register */
-static inline u32
-ipa_reg_encode(const struct ipa_reg *reg, u32 field_id, u32 val)
-{
-	u32 fmask = ipa_reg_fmask(reg, field_id);
-
-	if (!fmask)
-		return 0;
-
-	val <<= __ffs(fmask);
-	if (WARN_ON(val & ~fmask))
-		return 0;
-
-	return val;
-}
-
-/* Given a register value, decode (extract) the value in the given field */
-static inline u32
-ipa_reg_decode(const struct ipa_reg *reg, u32 field_id, u32 val)
-{
-	u32 fmask = ipa_reg_fmask(reg, field_id);
-
-	return fmask ? (val & fmask) >> __ffs(fmask) : 0;
-}
-
-/* Return the maximum value representable by the given field; always 2^n - 1 */
-static inline u32 ipa_reg_field_max(const struct ipa_reg *reg, u32 field_id)
-{
-	u32 fmask = ipa_reg_fmask(reg, field_id);
-
-	return fmask ? fmask >> __ffs(fmask) : 0;
-}
-
-const struct ipa_reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
-
-/* Returns 0 for NULL reg; warning will have already been issued */
-static inline u32 ipa_reg_offset(const struct ipa_reg *reg)
-{
-	return reg ? reg->offset : 0;
-}
-
-/* Returns 0 for NULL reg; warning will have already been issued */
-static inline u32 ipa_reg_n_offset(const struct ipa_reg *reg, u32 n)
-{
-	return reg ? reg->offset + n * reg->stride : 0;
-}
+const struct reg *ipa_reg(struct ipa *ipa, enum ipa_reg_id reg_id);
 
 int ipa_reg_init(struct ipa *ipa);
 void ipa_reg_exit(struct ipa *ipa);

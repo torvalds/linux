@@ -633,7 +633,7 @@ static int mt9v111_hw_config(struct mt9v111_dev *mt9v111)
 
 	/*
 	 * Set pixel integration time to the whole frame time.
-	 * This value controls the the shutter delay when running with AE
+	 * This value controls the shutter delay when running with AE
 	 * disabled. If longer than frame time, it affects the output
 	 * frame rate.
 	 */
@@ -1265,7 +1265,7 @@ static struct i2c_driver mt9v111_driver = {
 		.name = "mt9v111",
 		.of_match_table = mt9v111_of_match,
 	},
-	.probe_new	= mt9v111_probe,
+	.probe		= mt9v111_probe,
 	.remove		= mt9v111_remove,
 };
 

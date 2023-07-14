@@ -32,10 +32,12 @@ config OCTEONTX2_PF
 	tristate "Marvell OcteonTX2 NIC Physical Function driver"
 	select OCTEONTX2_MBOX
 	select NET_DEVLINK
+	select PAGE_POOL
 	depends on (64BIT && COMPILE_TEST) || ARM64
 	select DIMLIB
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on MACSEC || !MACSEC
 	help
 	  This driver supports Marvell's OcteonTX2 NIC physical function.
 

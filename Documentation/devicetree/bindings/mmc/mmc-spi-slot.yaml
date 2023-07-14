@@ -10,7 +10,7 @@ maintainers:
   - Ulf Hansson <ulf.hansson@linaro.org>
 
 allOf:
-  - $ref: "mmc-controller.yaml"
+  - $ref: mmc-controller.yaml
   - $ref: /schemas/spi/spi-peripheral-props.yaml
 
 description: |
@@ -22,8 +22,6 @@ properties:
 
   reg:
     maxItems: 1
-
-  spi-max-frequency: true
 
   interrupts:
     maxItems: 1

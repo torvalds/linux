@@ -10,7 +10,6 @@
  */
 
 #include <linux/efi.h>
-#include <linux/libfdt.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -36,20 +35,21 @@
  * as well to minimize the code churn.
  */
 #define EFI_RT_VIRTUAL_BASE	SZ_512M
-#define EFI_RT_VIRTUAL_SIZE	SZ_512M
 
-#ifdef CONFIG_ARM64
-# define EFI_RT_VIRTUAL_LIMIT	DEFAULT_MAP_WINDOW_64
-#elif defined(CONFIG_RISCV)
-# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE_MIN
-#else
-# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE
+/*
+ * Some architectures map the EFI regions into the kernel's linear map using a
+ * fixed offset.
+ */
+#ifndef EFI_RT_VIRTUAL_OFFSET
+#define EFI_RT_VIRTUAL_OFFSET	0
 #endif
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
-static bool flat_va_mapping;
+static bool flat_va_mapping = (EFI_RT_VIRTUAL_OFFSET != 0);
 
-const efi_system_table_t *efi_system_table;
+void __weak free_screen_info(struct screen_info *si)
+{
+}
 
 static struct screen_info *setup_graphics(void)
 {
@@ -110,67 +110,21 @@ static u32 get_supported_rt_services(void)
 	return supported;
 }
 
-/*
- * EFI entry point for the arm/arm64 EFI stubs.  This is the entrypoint
- * that is described in the PE/COFF header.  Most of the code is the same
- * for both archictectures, with the arch-specific code provided in the
- * handle_kernel_image() function.
- */
-efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
-				   efi_system_table_t *sys_table_arg)
+efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr)
 {
-	efi_loaded_image_t *image;
-	efi_status_t status;
-	unsigned long image_addr;
-	unsigned long image_size = 0;
-	/* addr/point and size pairs for memory management*/
-	unsigned long initrd_addr = 0;
-	unsigned long initrd_size = 0;
-	unsigned long fdt_addr = 0;  /* Original DTB */
-	unsigned long fdt_size = 0;
-	char *cmdline_ptr = NULL;
 	int cmdline_size = 0;
-	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
-	unsigned long reserve_addr = 0;
-	unsigned long reserve_size = 0;
-	enum efi_secureboot_mode secure_boot;
-	struct screen_info *si;
-	efi_properties_table_t *prop_tbl;
-
-	efi_system_table = sys_table_arg;
-
-	/* Check if we were booted by the EFI firmware */
-	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
-		status = EFI_INVALID_PARAMETER;
-		goto fail;
-	}
-
-	status = check_platform_features();
-	if (status != EFI_SUCCESS)
-		goto fail;
-
-	/*
-	 * Get a handle to the loaded image protocol.  This is used to get
-	 * information about the running image, such as size and the command
-	 * line.
-	 */
-	status = efi_system_table->boottime->handle_protocol(handle,
-					&loaded_image_proto, (void *)&image);
-	if (status != EFI_SUCCESS) {
-		efi_err("Failed to get loaded image protocol\n");
-		goto fail;
-	}
+	efi_status_t status;
+	char *cmdline;
 
 	/*
 	 * Get the command line from EFI, using the LOADED_IMAGE
 	 * protocol. We are going to copy the command line into the
 	 * device tree, so this can be allocated anywhere.
 	 */
-	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
-	if (!cmdline_ptr) {
+	cmdline = efi_convert_cmdline(image, &cmdline_size);
+	if (!cmdline) {
 		efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
-		status = EFI_OUT_OF_RESOURCES;
-		goto fail;
+		return EFI_OUT_OF_RESOURCES;
 	}
 
 	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
@@ -184,133 +138,84 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	}
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0) {
-		status = efi_parse_options(cmdline_ptr);
+		status = efi_parse_options(cmdline);
 		if (status != EFI_SUCCESS) {
 			efi_err("Failed to parse options\n");
 			goto fail_free_cmdline;
 		}
 	}
 
-	efi_info("Booting Linux Kernel...\n");
+	*cmdline_ptr = cmdline;
+	return EFI_SUCCESS;
+
+fail_free_cmdline:
+	efi_bs_call(free_pool, cmdline_ptr);
+	return status;
+}
+
+efi_status_t efi_stub_common(efi_handle_t handle,
+			     efi_loaded_image_t *image,
+			     unsigned long image_addr,
+			     char *cmdline_ptr)
+{
+	struct screen_info *si;
+	efi_status_t status;
+
+	status = check_platform_features();
+	if (status != EFI_SUCCESS)
+		return status;
 
 	si = setup_graphics();
-
-	status = handle_kernel_image(&image_addr, &image_size,
-				     &reserve_addr,
-				     &reserve_size,
-				     image, handle);
-	if (status != EFI_SUCCESS) {
-		efi_err("Failed to relocate kernel\n");
-		goto fail_free_screeninfo;
-	}
 
 	efi_retrieve_tpm2_eventlog();
 
 	/* Ask the firmware to clear memory on unclean shutdown */
 	efi_enable_reset_attack_mitigation();
 
-	secure_boot = efi_get_secureboot();
-
-	/*
-	 * Unauthenticated device tree data is a security hazard, so ignore
-	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
-	 * boot is enabled if we can't determine its state.
-	 */
-	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
-	     secure_boot != efi_secureboot_mode_disabled) {
-		if (strstr(cmdline_ptr, "dtb="))
-			efi_err("Ignoring DTB from command line.\n");
-	} else {
-		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
-
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to load device tree!\n");
-			goto fail_free_image;
-		}
-	}
-
-	if (fdt_addr) {
-		efi_info("Using DTB from command line\n");
-	} else {
-		/* Look for a device tree configuration table entry. */
-		fdt_addr = (uintptr_t)get_fdt(&fdt_size);
-		if (fdt_addr)
-			efi_info("Using DTB from configuration table\n");
-	}
-
-	if (!fdt_addr)
-		efi_info("Generating empty DTB\n");
-
-	efi_load_initrd(image, &initrd_addr, &initrd_size, ULONG_MAX,
-			efi_get_max_initrd_addr(image_addr));
+	efi_load_initrd(image, ULONG_MAX, efi_get_max_initrd_addr(image_addr),
+			NULL);
 
 	efi_random_get_seed();
-
-	/*
-	 * If the NX PE data feature is enabled in the properties table, we
-	 * should take care not to create a virtual mapping that changes the
-	 * relative placement of runtime services code and data regions, as
-	 * they may belong to the same PE/COFF executable image in memory.
-	 * The easiest way to achieve that is to simply use a 1:1 mapping.
-	 */
-	prop_tbl = get_efi_config_table(EFI_PROPERTIES_TABLE_GUID);
-	flat_va_mapping = prop_tbl &&
-			  (prop_tbl->memory_protection_attribute &
-			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
 
 	/* force efi_novamap if SetVirtualAddressMap() is unsupported */
 	efi_novamap |= !(get_supported_rt_services() &
 			 EFI_RT_SUPPORTED_SET_VIRTUAL_ADDRESS_MAP);
 
-	/* hibernation expects the runtime regions to stay in the same place */
-	if (!IS_ENABLED(CONFIG_HIBERNATION) && !efi_nokaslr && !flat_va_mapping) {
-		/*
-		 * Randomize the base of the UEFI runtime services region.
-		 * Preserve the 2 MB alignment of the region by taking a
-		 * shift of 21 bit positions into account when scaling
-		 * the headroom value using a 32-bit random value.
-		 */
-		static const u64 headroom = EFI_RT_VIRTUAL_LIMIT -
-					    EFI_RT_VIRTUAL_BASE -
-					    EFI_RT_VIRTUAL_SIZE;
-		u32 rnd;
-
-		status = efi_get_random_bytes(sizeof(rnd), (u8 *)&rnd);
-		if (status == EFI_SUCCESS) {
-			virtmap_base = EFI_RT_VIRTUAL_BASE +
-				       (((headroom >> 21) * rnd) >> (32 - 21));
-		}
-	}
-
 	install_memreserve_table();
 
-	status = allocate_new_fdt_and_exit_boot(handle, &fdt_addr,
-						initrd_addr, initrd_size,
-						cmdline_ptr, fdt_addr, fdt_size);
-	if (status != EFI_SUCCESS)
-		goto fail_free_initrd;
+	status = efi_boot_kernel(handle, image, image_addr, cmdline_ptr);
 
-	if (IS_ENABLED(CONFIG_ARM))
-		efi_handle_post_ebs_state();
-
-	efi_enter_kernel(image_addr, fdt_addr, fdt_totalsize((void *)fdt_addr));
-	/* not reached */
-
-fail_free_initrd:
-	efi_err("Failed to update FDT and exit boot services\n");
-
-	efi_free(initrd_size, initrd_addr);
-	efi_free(fdt_size, fdt_addr);
-
-fail_free_image:
-	efi_free(image_size, image_addr);
-	efi_free(reserve_size, reserve_addr);
-fail_free_screeninfo:
 	free_screen_info(si);
-fail_free_cmdline:
-	efi_bs_call(free_pool, cmdline_ptr);
-fail:
 	return status;
+}
+
+/*
+ * efi_allocate_virtmap() - create a pool allocation for the virtmap
+ *
+ * Create an allocation that is of sufficient size to hold all the memory
+ * descriptors that will be passed to SetVirtualAddressMap() to inform the
+ * firmware about the virtual mapping that will be used under the OS to call
+ * into the firmware.
+ */
+efi_status_t efi_alloc_virtmap(efi_memory_desc_t **virtmap,
+			       unsigned long *desc_size, u32 *desc_ver)
+{
+	unsigned long size, mmap_key;
+	efi_status_t status;
+
+	/*
+	 * Use the size of the current memory map as an upper bound for the
+	 * size of the buffer we need to pass to SetVirtualAddressMap() to
+	 * cover all EFI_MEMORY_RUNTIME regions.
+	 */
+	size = 0;
+	status = efi_bs_call(get_memory_map, &size, NULL, &mmap_key, desc_size,
+			     desc_ver);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return EFI_LOAD_ERROR;
+
+	return efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
+			   (void **)virtmap);
 }
 
 /*
@@ -328,6 +233,8 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 	efi_memory_desc_t *in, *out = runtime_map;
 	int l;
 
+	*count = 0;
+
 	for (l = 0; l < map_size; l += desc_size) {
 		u64 paddr, size;
 
@@ -338,7 +245,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		paddr = in->phys_addr;
 		size = in->num_pages * EFI_PAGE_SIZE;
 
-		in->virt_addr = in->phys_addr;
+		in->virt_addr = in->phys_addr + EFI_RT_VIRTUAL_OFFSET;
 		if (efi_novamap) {
 			continue;
 		}

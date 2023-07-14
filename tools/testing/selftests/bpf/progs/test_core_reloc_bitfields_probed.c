@@ -42,7 +42,6 @@ int test_core_bitfields(void *ctx)
 {
 	struct core_reloc_bitfields *in = (void *)&data.in;
 	struct core_reloc_bitfields_output *out = (void *)&data.out;
-	uint64_t res;
 
 	out->ub1 = BPF_CORE_READ_BITFIELD_PROBED(in, ub1);
 	out->ub2 = BPF_CORE_READ_BITFIELD_PROBED(in, ub2);

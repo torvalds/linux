@@ -312,8 +312,10 @@ struct bna_attr {
 
 /* IOCEth */
 
+enum bna_ioceth_event;
+
 struct bna_ioceth {
-	bfa_fsm_t		fsm;
+	void (*fsm)(struct bna_ioceth *s, enum bna_ioceth_event e);
 	struct bfa_ioc ioc;
 
 	struct bna_attr attr;
@@ -334,8 +336,10 @@ struct bna_pause_config {
 	enum bna_status rx_pause;
 };
 
+enum bna_enet_event;
+
 struct bna_enet {
-	bfa_fsm_t		fsm;
+	void (*fsm)(struct bna_enet *s, enum bna_enet_event e);
 	enum bna_enet_flags flags;
 
 	enum bna_enet_type type;
@@ -360,8 +364,10 @@ struct bna_enet {
 
 /* Ethport */
 
+enum bna_ethport_event;
+
 struct bna_ethport {
-	bfa_fsm_t		fsm;
+	void (*fsm)(struct bna_ethport *s, enum bna_ethport_event e);
 	enum bna_ethport_flags flags;
 
 	enum bna_link_status link_status;
@@ -454,13 +460,16 @@ struct bna_txq {
 };
 
 /* Tx object */
+
+enum bna_tx_event;
+
 struct bna_tx {
 	/* This should be the first one */
 	struct list_head			qe;
 	int			rid;
 	int			hw_id;
 
-	bfa_fsm_t		fsm;
+	void (*fsm)(struct bna_tx *s, enum bna_tx_event e);
 	enum bna_tx_flags flags;
 
 	enum bna_tx_type type;
@@ -698,8 +707,11 @@ struct bna_rxp {
 };
 
 /* RxF structure (hardware Rx Function) */
+
+enum bna_rxf_event;
+
 struct bna_rxf {
-	bfa_fsm_t		fsm;
+	void (*fsm)(struct bna_rxf *s, enum bna_rxf_event e);
 
 	struct bfa_msgq_cmd_entry msgq_cmd;
 	union {
@@ -769,13 +781,16 @@ struct bna_rxf {
 };
 
 /* Rx object */
+
+enum bna_rx_event;
+
 struct bna_rx {
 	/* This should be the first one */
 	struct list_head			qe;
 	int			rid;
 	int			hw_id;
 
-	bfa_fsm_t		fsm;
+	void (*fsm)(struct bna_rx *s, enum bna_rx_event e);
 
 	enum bna_rx_type type;
 

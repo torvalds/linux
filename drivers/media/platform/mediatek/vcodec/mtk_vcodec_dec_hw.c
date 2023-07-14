@@ -148,20 +148,21 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 	ret = mtk_vcodec_init_dec_clk(pdev, &subdev_dev->pm);
 	if (ret)
 		return ret;
-	pm_runtime_enable(&pdev->dev);
+
+	ret = devm_pm_runtime_enable(&pdev->dev);
+	if (ret)
+		return ret;
 
 	of_id = of_match_device(mtk_vdec_hw_match, dev);
 	if (!of_id) {
 		dev_err(dev, "Can't get vdec subdev id.\n");
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	hw_idx = (enum mtk_vdec_hw_id)(uintptr_t)of_id->data;
 	if (hw_idx >= MTK_VDEC_HW_MAX) {
 		dev_err(dev, "Hardware index %d not correct.\n", hw_idx);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	main_dev->subdev_dev[hw_idx] = subdev_dev;
@@ -173,14 +174,14 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 	if (IS_SUPPORT_VDEC_HW_IRQ(hw_idx)) {
 		ret = mtk_vdec_hw_init_irq(subdev_dev);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	subdev_dev->reg_base[VDEC_HW_MISC] =
 		devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR((__force void *)subdev_dev->reg_base[VDEC_HW_MISC])) {
 		ret = PTR_ERR((__force void *)subdev_dev->reg_base[VDEC_HW_MISC]);
-		goto err;
+		return ret;
 	}
 
 	if (!main_dev->subdev_prob_done)
@@ -188,9 +189,6 @@ static int mtk_vdec_hw_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, subdev_dev);
 	return 0;
-err:
-	pm_runtime_disable(subdev_dev->pm.dev);
-	return ret;
 }
 
 static struct platform_driver mtk_vdec_driver = {

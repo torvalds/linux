@@ -2,3 +2,4 @@
 arch/x86/lib/inat-tables.c
 /objtool
 fixdep
+libsubcmd/

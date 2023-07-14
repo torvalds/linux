@@ -27,6 +27,8 @@ struct cmdq_client {
 	struct mbox_chan *chan;
 };
 
+#if IS_ENABLED(CONFIG_MTK_CMDQ)
+
 /**
  * cmdq_dev_get_client_reg() - parse cmdq client reg from the device
  *			       node of CMDQ client
@@ -276,5 +278,117 @@ int cmdq_pkt_finalize(struct cmdq_pkt *pkt);
  * function returned, it may or may not be finished.
  */
 int cmdq_pkt_flush_async(struct cmdq_pkt *pkt);
+
+#else /* IS_ENABLED(CONFIG_MTK_CMDQ) */
+
+static inline int cmdq_dev_get_client_reg(struct device *dev,
+					  struct cmdq_client_reg *client_reg, int idx)
+{
+	return -ENODEV;
+}
+
+static inline struct cmdq_client *cmdq_mbox_create(struct device *dev, int index)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline void cmdq_mbox_destroy(struct cmdq_client *client) { }
+
+static inline  struct cmdq_pkt *cmdq_pkt_create(struct cmdq_client *client, size_t size)
+{
+	return ERR_PTR(-EINVAL);
+}
+
+static inline void cmdq_pkt_destroy(struct cmdq_pkt *pkt) { }
+
+static inline int cmdq_pkt_write(struct cmdq_pkt *pkt, u8 subsys, u16 offset, u32 value)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_write_mask(struct cmdq_pkt *pkt, u8 subsys,
+				      u16 offset, u32 value, u32 mask)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_read_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
+				  u16 addr_low, u16 reg_idx)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_write_s(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
+				   u16 addr_low, u16 src_reg_idx)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_write_s_mask(struct cmdq_pkt *pkt, u16 high_addr_reg_idx,
+					u16 addr_low, u16 src_reg_idx, u32 mask)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_write_s_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
+					 u16 addr_low, u32 value)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_write_s_mask_value(struct cmdq_pkt *pkt, u8 high_addr_reg_idx,
+					      u16 addr_low, u32 value, u32 mask)
+{
+	return -ENOENT;
+}
+
+static inline int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event, bool clear)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_clear_event(struct cmdq_pkt *pkt, u16 event)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_set_event(struct cmdq_pkt *pkt, u16 event)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_poll(struct cmdq_pkt *pkt, u8 subsys,
+				u16 offset, u32 value)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_poll_mask(struct cmdq_pkt *pkt, u8 subsys,
+				     u16 offset, u32 value, u32 mask)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_assign(struct cmdq_pkt *pkt, u16 reg_idx, u32 value)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_finalize(struct cmdq_pkt *pkt)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_flush_async(struct cmdq_pkt *pkt)
+{
+	return -EINVAL;
+}
+
+#endif /* IS_ENABLED(CONFIG_MTK_CMDQ) */
 
 #endif	/* __MTK_CMDQ_H__ */

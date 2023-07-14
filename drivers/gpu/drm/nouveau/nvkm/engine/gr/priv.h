@@ -17,6 +17,7 @@ struct nvkm_gr_func {
 	int (*oneinit)(struct nvkm_gr *);
 	int (*init)(struct nvkm_gr *);
 	int (*fini)(struct nvkm_gr *, bool);
+	int (*reset)(struct nvkm_gr *);
 	void (*intr)(struct nvkm_gr *);
 	void (*tile)(struct nvkm_gr *, int region, struct nvkm_fb_tile *);
 	int (*tlb_flush)(struct nvkm_gr *);

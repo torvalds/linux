@@ -76,7 +76,7 @@ struct gstr str_new(void);
 void str_free(struct gstr *gs);
 void str_append(struct gstr *gs, const char *s);
 void str_printf(struct gstr *gs, const char *fmt, ...);
-const char *str_get(struct gstr *gs);
+char *str_get(struct gstr *gs);
 
 /* menu.c */
 void _menu_init(void);
@@ -121,11 +121,6 @@ static inline tristate sym_get_tristate_value(struct symbol *sym)
 static inline struct symbol *sym_get_choice_value(struct symbol *sym)
 {
 	return (struct symbol *)sym->curr.val;
-}
-
-static inline bool sym_set_choice_value(struct symbol *ch, struct symbol *chval)
-{
-	return sym_set_tristate_value(chval, yes);
 }
 
 static inline bool sym_is_choice(struct symbol *sym)

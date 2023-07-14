@@ -624,10 +624,8 @@ static int ab8500_btemp_get_ext_psy_data(struct device *dev, void *data)
  */
 static void ab8500_btemp_external_power_changed(struct power_supply *psy)
 {
-	struct ab8500_btemp *di = power_supply_get_drvdata(psy);
-
-	class_for_each_device(power_supply_class, NULL,
-		di->btemp_psy, ab8500_btemp_get_ext_psy_data);
+	class_for_each_device(power_supply_class, NULL, psy,
+			      ab8500_btemp_get_ext_psy_data);
 }
 
 /* ab8500 btemp driver interrupts and their respective isr */
@@ -725,7 +723,14 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	/* Get thermal zone and ADC */
 	di->tz = thermal_zone_get_zone_by_name("battery-thermal");
 	if (IS_ERR(di->tz)) {
-		return dev_err_probe(dev, PTR_ERR(di->tz),
+		ret = PTR_ERR(di->tz);
+		/*
+		 * This usually just means we are probing before the thermal
+		 * zone, so just defer.
+		 */
+		if (ret == -ENODEV)
+			ret = -EPROBE_DEFER;
+		return dev_err_probe(dev, ret,
 				     "failed to get battery thermal zone\n");
 	}
 	di->bat_ctrl = devm_iio_channel_get(dev, "bat_ctrl");

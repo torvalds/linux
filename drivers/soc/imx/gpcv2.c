@@ -755,6 +755,7 @@ static const struct imx_pgc_domain imx8mm_pgc_domains[] = {
 	[IMX8MM_POWER_DOMAIN_OTG1] = {
 		.genpd = {
 			.name = "usb-otg1",
+			.flags = GENPD_FLAG_ACTIVE_WAKEUP,
 		},
 		.bits  = {
 			.pxx = IMX8MM_OTG1_SW_Pxx_REQ,
@@ -766,6 +767,7 @@ static const struct imx_pgc_domain imx8mm_pgc_domains[] = {
 	[IMX8MM_POWER_DOMAIN_OTG2] = {
 		.genpd = {
 			.name = "usb-otg2",
+			.flags = GENPD_FLAG_ACTIVE_WAKEUP,
 		},
 		.bits  = {
 			.pxx = IMX8MM_OTG2_SW_Pxx_REQ,
@@ -1232,6 +1234,7 @@ static const struct imx_pgc_domain imx8mn_pgc_domains[] = {
 	[IMX8MN_POWER_DOMAIN_OTG1] = {
 		.genpd = {
 			.name = "usb-otg1",
+			.flags = GENPD_FLAG_ACTIVE_WAKEUP,
 		},
 		.bits  = {
 			.pxx = IMX8MN_OTG1_SW_Pxx_REQ,
@@ -1515,7 +1518,7 @@ static int imx_gpcv2_probe(struct platform_device *pdev)
 		domain->genpd.power_off = imx_pgc_power_down;
 
 		pd_pdev->dev.parent = dev;
-		pd_pdev->dev.of_node = np;
+		device_set_node(&pd_pdev->dev, of_fwnode_handle(np));
 
 		ret = platform_device_add(pd_pdev);
 		if (ret) {

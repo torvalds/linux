@@ -49,8 +49,6 @@ properties:
       asserted during driver probe.
     maxItems: 1
 
-  spi-max-frequency: true
-
   '#address-cells':
     const: 1
 
@@ -62,6 +60,7 @@ properties:
       connected to the DAC. Channel 0 can act both as a current
       source and sink.
     type: object
+    additionalProperties: false
 
     properties:
       reg:
@@ -85,6 +84,7 @@ properties:
     description: Represents an external channel which are
       connected to the DAC.
     type: object
+    additionalProperties: false
 
     properties:
       reg:
@@ -101,6 +101,7 @@ properties:
     description: Represents an external channel which are
       connected to the DAC.
     type: object
+    additionalProperties: false
 
     properties:
       reg:
@@ -116,6 +117,7 @@ properties:
 patternProperties:
   "^channel@([3-5])$":
     type: object
+    additionalProperties: false
     description: Represents the external channels which are connected to the DAC.
     properties:
       reg:
@@ -138,53 +140,56 @@ required:
   - channel@4
   - channel@5
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
-        spi {
-                #address-cells = <1>;
-                #size-cells = <0>;
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-                ad5770r@0 {
-                        compatible = "adi,ad5770r";
-                        reg = <0>;
-                        spi-max-frequency = <1000000>;
-                        vref-supply = <&vref>;
-                        adi,external-resistor;
-                        reset-gpios = <&gpio 22 0>;
-                        #address-cells = <1>;
-                        #size-cells = <0>;
+        ad5770r@0 {
+            compatible = "adi,ad5770r";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            vref-supply = <&vref>;
+            adi,external-resistor;
+            reset-gpios = <&gpio 22 0>;
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                        channel@0 {
-                                reg = <0>;
-                                adi,range-microamp = <0 300000>;
-                        };
+            channel@0 {
+                reg = <0>;
+                adi,range-microamp = <0 300000>;
+            };
 
-                        channel@1 {
-                                reg = <1>;
-                                adi,range-microamp = <0 140000>;
-                        };
+            channel@1 {
+                reg = <1>;
+                adi,range-microamp = <0 140000>;
+            };
 
-                        channel@2 {
-                                reg = <2>;
-                                adi,range-microamp = <0 55000>;
-                        };
+            channel@2 {
+                reg = <2>;
+                adi,range-microamp = <0 55000>;
+            };
 
-                        channel@3 {
-                                reg = <3>;
-                                adi,range-microamp = <0 45000>;
-                        };
+            channel@3 {
+                reg = <3>;
+                adi,range-microamp = <0 45000>;
+            };
 
-                        channel@4 {
-                                reg = <4>;
-                                adi,range-microamp = <0 45000>;
-                        };
+            channel@4 {
+                reg = <4>;
+                adi,range-microamp = <0 45000>;
+            };
 
-                        channel@5 {
-                                reg = <5>;
-                                adi,range-microamp = <0 45000>;
-                        };
-                };
+            channel@5 {
+                reg = <5>;
+                adi,range-microamp = <0 45000>;
+            };
         };
+    };
 ...

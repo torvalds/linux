@@ -35,12 +35,17 @@
 #include <drm/drm_edid.h>
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
+#include "intel_display_irq.h"
 #include "intel_display_types.h"
+#include "intel_dpll.h"
 #include "intel_hotplug.h"
+#include "intel_load_detect.h"
 #include "intel_tv.h"
+#include "intel_tv_regs.h"
 
 enum tv_margin {
 	TV_MARGIN_LEFT, TV_MARGIN_TOP,
@@ -927,8 +932,7 @@ intel_enable_tv(struct intel_atomic_state *state,
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_crtc_wait_for_next_vblank(to_intel_crtc(pipe_config->uapi.crtc));
 
-	intel_de_write(dev_priv, TV_CTL,
-		       intel_de_read(dev_priv, TV_CTL) | TV_ENC_ENABLE);
+	intel_de_rmw(dev_priv, TV_CTL, 0, TV_ENC_ENABLE);
 }
 
 static void
@@ -940,8 +944,7 @@ intel_disable_tv(struct intel_atomic_state *state,
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	intel_de_write(dev_priv, TV_CTL,
-		       intel_de_read(dev_priv, TV_CTL) & ~TV_ENC_ENABLE);
+	intel_de_rmw(dev_priv, TV_CTL, TV_ENC_ENABLE, 0);
 }
 
 static const struct tv_mode *intel_tv_mode_find(const struct drm_connector_state *conn_state)
@@ -982,10 +985,10 @@ intel_tv_mode_vdisplay(const struct tv_mode *tv_mode)
 
 static void
 intel_tv_mode_to_mode(struct drm_display_mode *mode,
-		      const struct tv_mode *tv_mode)
+		      const struct tv_mode *tv_mode,
+		      int clock)
 {
-	mode->clock = tv_mode->clock /
-		(tv_mode->oversample >> !tv_mode->progressive);
+	mode->clock = clock / (tv_mode->oversample >> !tv_mode->progressive);
 
 	/*
 	 * tv_mode horizontal timings:
@@ -1143,7 +1146,7 @@ intel_tv_get_config(struct intel_encoder *encoder,
 	xsize = tmp >> 16;
 	ysize = tmp & 0xffff;
 
-	intel_tv_mode_to_mode(&mode, &tv_mode);
+	intel_tv_mode_to_mode(&mode, &tv_mode, pipe_config->port_clock);
 
 	drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
 		    DRM_MODE_ARG(&mode));
@@ -1184,6 +1187,9 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 			struct intel_crtc_state *pipe_config,
 			struct drm_connector_state *conn_state)
 {
+	struct intel_atomic_state *state =
+		to_intel_atomic_state(pipe_config->uapi.state);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_tv_connector_state *tv_conn_state =
 		to_intel_tv_connector_state(conn_state);
@@ -1192,6 +1198,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 		&pipe_config->hw.adjusted_mode;
 	int hdisplay = adjusted_mode->crtc_hdisplay;
 	int vdisplay = adjusted_mode->crtc_vdisplay;
+	int ret;
 
 	if (!tv_mode)
 		return -EINVAL;
@@ -1199,6 +1206,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
+	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	drm_dbg_kms(&dev_priv->drm, "forcing bpc to 8 for TV\n");
@@ -1206,7 +1214,13 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 
 	pipe_config->port_clock = tv_mode->clock;
 
-	intel_tv_mode_to_mode(adjusted_mode, tv_mode);
+	ret = intel_dpll_crtc_compute_clock(state, crtc);
+	if (ret)
+		return ret;
+
+	pipe_config->clock_set = true;
+
+	intel_tv_mode_to_mode(adjusted_mode, tv_mode, pipe_config->port_clock);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	if (intel_tv_source_too_wide(dev_priv, hdisplay) ||
@@ -1710,21 +1724,21 @@ intel_tv_detect(struct drm_connector *connector,
 		return connector_status_disconnected;
 
 	if (force) {
-		struct intel_load_detect_pipe tmp;
-		int ret;
+		struct drm_atomic_state *state;
 
-		ret = intel_get_load_detect_pipe(connector, &tmp, ctx);
-		if (ret < 0)
-			return ret;
+		state = intel_load_detect_get_pipe(connector, ctx);
+		if (IS_ERR(state))
+			return PTR_ERR(state);
 
-		if (ret > 0) {
+		if (state) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp, ctx);
+			intel_load_detect_release_pipe(connector, state, ctx);
 			status = type < 0 ?
 				connector_status_disconnected :
 				connector_status_connected;
-		} else
+		} else {
 			status = connector_status_unknown;
+		}
 
 		if (status == connector_status_connected) {
 			intel_tv->type = type;
@@ -1804,7 +1818,7 @@ intel_tv_get_modes(struct drm_connector *connector)
 		 * about the actual timings of the mode. We
 		 * do ignore the margins though.
 		 */
-		intel_tv_mode_to_mode(mode, tv_mode);
+		intel_tv_mode_to_mode(mode, tv_mode, tv_mode->clock);
 		if (count == 0) {
 			drm_dbg_kms(&dev_priv->drm, "TV mode: " DRM_MODE_FMT "\n",
 				    DRM_MODE_ARG(mode));
@@ -1869,18 +1883,56 @@ static const struct drm_encoder_funcs intel_tv_enc_funcs = {
 	.destroy = intel_encoder_destroy,
 };
 
+static void intel_tv_add_properties(struct drm_connector *connector)
+{
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct drm_connector_state *conn_state = connector->state;
+	const char *tv_format_names[ARRAY_SIZE(tv_modes)];
+	int i;
+
+	/* BIOS margin values */
+	conn_state->tv.margins.left = 54;
+	conn_state->tv.margins.top = 36;
+	conn_state->tv.margins.right = 46;
+	conn_state->tv.margins.bottom = 37;
+
+	conn_state->tv.mode = 0;
+
+	/* Create TV properties then attach current values */
+	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
+		/* 1080p50/1080p60 not supported on gen3 */
+		if (DISPLAY_VER(i915) == 3 && tv_modes[i].oversample == 1)
+			break;
+
+		tv_format_names[i] = tv_modes[i].name;
+	}
+	drm_mode_create_tv_properties_legacy(&i915->drm, i, tv_format_names);
+
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.legacy_tv_mode_property,
+				   conn_state->tv.mode);
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.tv_left_margin_property,
+				   conn_state->tv.margins.left);
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.tv_top_margin_property,
+				   conn_state->tv.margins.top);
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.tv_right_margin_property,
+				   conn_state->tv.margins.right);
+	drm_object_attach_property(&connector->base,
+				   i915->drm.mode_config.tv_bottom_margin_property,
+				   conn_state->tv.margins.bottom);
+}
+
 void
 intel_tv_init(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct intel_tv *intel_tv;
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	u32 tv_dac_on, tv_dac_off, save_tv_dac;
-	const char *tv_format_names[ARRAY_SIZE(tv_modes)];
-	int i, initial_mode = 0;
-	struct drm_connector_state *state;
 
 	if ((intel_de_read(dev_priv, TV_CTL) & TV_FUSE_STATE_MASK) == TV_FUSE_STATE_DISABLED)
 		return;
@@ -1926,7 +1978,6 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 
 	intel_encoder = &intel_tv->base;
 	connector = &intel_connector->base;
-	state = connector->state;
 
 	/*
 	 * The documentation, for the older chipsets at least, recommend
@@ -1940,10 +1991,10 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 
-	drm_connector_init(dev, connector, &intel_tv_connector_funcs,
+	drm_connector_init(&dev_priv->drm, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);
 
-	drm_encoder_init(dev, &intel_encoder->base, &intel_tv_enc_funcs,
+	drm_encoder_init(&dev_priv->drm, &intel_encoder->base, &intel_tv_enc_funcs,
 			 DRM_MODE_ENCODER_TVDAC, "TV");
 
 	intel_encoder->compute_config = intel_tv_compute_config;
@@ -1963,41 +2014,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	intel_encoder->cloneable = 0;
 	intel_tv->type = DRM_MODE_CONNECTOR_Unknown;
 
-	/* BIOS margin values */
-	state->tv.margins.left = 54;
-	state->tv.margins.top = 36;
-	state->tv.margins.right = 46;
-	state->tv.margins.bottom = 37;
-
-	state->tv.mode = initial_mode;
-
 	drm_connector_helper_add(connector, &intel_tv_connector_helper_funcs);
-	connector->interlace_allowed = false;
-	connector->doublescan_allowed = false;
 
-	/* Create TV properties then attach current values */
-	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
-		/* 1080p50/1080p60 not supported on gen3 */
-		if (DISPLAY_VER(dev_priv) == 3 &&
-		    tv_modes[i].oversample == 1)
-			break;
-
-		tv_format_names[i] = tv_modes[i].name;
-	}
-	drm_mode_create_tv_properties(dev, i, tv_format_names);
-
-	drm_object_attach_property(&connector->base, dev->mode_config.tv_mode_property,
-				   state->tv.mode);
-	drm_object_attach_property(&connector->base,
-				   dev->mode_config.tv_left_margin_property,
-				   state->tv.margins.left);
-	drm_object_attach_property(&connector->base,
-				   dev->mode_config.tv_top_margin_property,
-				   state->tv.margins.top);
-	drm_object_attach_property(&connector->base,
-				   dev->mode_config.tv_right_margin_property,
-				   state->tv.margins.right);
-	drm_object_attach_property(&connector->base,
-				   dev->mode_config.tv_bottom_margin_property,
-				   state->tv.margins.bottom);
+	intel_tv_add_properties(connector);
 }

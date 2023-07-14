@@ -227,9 +227,31 @@ static const struct attribute_group dmc620_pmu_format_attr_group = {
 	.attrs	= dmc620_pmu_formats_attrs,
 };
 
+static ssize_t dmc620_pmu_cpumask_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct dmc620_pmu *dmc620_pmu = to_dmc620_pmu(dev_get_drvdata(dev));
+
+	return cpumap_print_to_pagebuf(true, buf,
+				       cpumask_of(dmc620_pmu->irq->cpu));
+}
+
+static struct device_attribute dmc620_pmu_cpumask_attr =
+	__ATTR(cpumask, 0444, dmc620_pmu_cpumask_show, NULL);
+
+static struct attribute *dmc620_pmu_cpumask_attrs[] = {
+	&dmc620_pmu_cpumask_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group dmc620_pmu_cpumask_attr_group = {
+	.attrs = dmc620_pmu_cpumask_attrs,
+};
+
 static const struct attribute_group *dmc620_pmu_attr_groups[] = {
 	&dmc620_pmu_events_attr_group,
 	&dmc620_pmu_format_attr_group,
+	&dmc620_pmu_cpumask_attr_group,
 	NULL,
 };
 
@@ -655,8 +677,7 @@ static int dmc620_pmu_device_probe(struct platform_device *pdev)
 		.attr_groups	= dmc620_pmu_attr_groups,
 	};
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmc620_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	dmc620_pmu->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(dmc620_pmu->base))
 		return PTR_ERR(dmc620_pmu->base);
 
@@ -725,6 +746,8 @@ static struct platform_driver dmc620_pmu_driver = {
 
 static int __init dmc620_pmu_init(void)
 {
+	int ret;
+
 	cpuhp_state_num = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
 				      DMC620_DRVNAME,
 				      NULL,
@@ -732,7 +755,11 @@ static int __init dmc620_pmu_init(void)
 	if (cpuhp_state_num < 0)
 		return cpuhp_state_num;
 
-	return platform_driver_register(&dmc620_pmu_driver);
+	ret = platform_driver_register(&dmc620_pmu_driver);
+	if (ret)
+		cpuhp_remove_multi_state(cpuhp_state_num);
+
+	return ret;
 }
 
 static void __exit dmc620_pmu_exit(void)

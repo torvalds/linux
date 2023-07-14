@@ -24,6 +24,8 @@
 #define TTB_FLAGS_SMP	TTB_IRGN_WBWA|TTB_S|TTB_NOS|TTB_RGN_OC_WBWA
 #define PMD_FLAGS_SMP	PMD_SECT_WBWA|PMD_SECT_S
 
+.arch armv7-a
+
 /*
  *	cpu_v7_switch_mm(pgd_phys, tsk)
  *

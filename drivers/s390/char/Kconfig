@@ -5,16 +5,9 @@ comment "S/390 character device drivers"
 config TN3270
 	def_tristate y
 	prompt "Support for locally attached 3270 terminals"
-	depends on CCW
+	depends on CCW && TTY
 	help
 	  Include support for IBM 3270 terminals.
-
-config TN3270_TTY
-	def_tristate y
-	prompt "Support for tty input/output on 3270 terminals"
-	depends on TN3270 && TTY
-	help
-	  Include support for using an IBM 3270 terminal as a Linux tty.
 
 config TN3270_FS
 	def_tristate m
@@ -26,7 +19,7 @@ config TN3270_FS
 config TN3270_CONSOLE
 	def_bool y
 	prompt "Support for console on 3270 terminal"
-	depends on TN3270=y && TN3270_TTY=y
+	depends on TN3270=y
 	help
 	  Include support for using an IBM 3270 terminal as a Linux system
 	  console.  Available only if 3270 support is compiled in statically.
@@ -103,7 +96,7 @@ config SCLP_OFB
 config S390_UV_UAPI
 	def_tristate m
 	prompt "Ultravisor userspace API"
-	depends on S390
+	depends on S390 && (KVM || PROTECTED_VIRTUALIZATION_GUEST)
 	help
 	  Selecting exposes parts of the UV interface to userspace
 	  by providing a misc character device at /dev/uv.

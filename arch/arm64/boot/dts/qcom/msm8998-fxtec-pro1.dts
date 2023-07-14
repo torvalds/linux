@@ -44,7 +44,7 @@
 			label = "Keyboard Hall Sensor";
 			gpios = <&tlmm 124 GPIO_ACTIVE_HIGH>;
 			debounce-interval = <15>;
-			gpio-key,wakeup;
+			wakeup-source;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_KEYPAD_SLIDE>;
 		};
@@ -113,16 +113,16 @@
 			    <&cam_snapshot_pin_a>;
 		button-vol-up {
 			label = "Volume Up";
-			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 6 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_VOLUMEUP>;
-			gpio-key,wakeup;
+			wakeup-source;
 			debounce-interval = <15>;
 		};
 
 		button-camera-snapshot {
 			label = "Camera Snapshot";
-			gpios = <&pm8998_gpio 7 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA>;
 			debounce-interval = <15>;
@@ -130,7 +130,7 @@
 
 		button-camera-focus {
 			label = "Camera Focus";
-			gpios = <&pm8998_gpio 8 GPIO_ACTIVE_LOW>;
+			gpios = <&pm8998_gpios 8 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
 			linux,code = <KEY_CAMERA_FOCUS>;
 			debounce-interval = <15>;
@@ -216,7 +216,7 @@
 };
 
 &blsp1_uart3_on {
-	rx {
+	rx-pins {
 		/delete-property/ bias-disable;
 		/*
 		 * Configure a pull-up on 45 (RX). This is needed to
@@ -227,7 +227,7 @@
 		bias-pull-up;
 	};
 
-	cts {
+	cts-pins {
 		/delete-property/ bias-disable;
 		/*
 		 * Configure a pull-down on 47 (CTS) to match the pull
@@ -249,7 +249,7 @@
 		reg = <0x14>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <125 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpios = <&tlmm 89 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 89 GPIO_ACTIVE_LOW>;
 		AVDD28-supply = <&vreg_l28_3p0>;
 		VDDIO-supply = <&ts_vio_vreg>;
 		pinctrl-names = "active";
@@ -310,15 +310,11 @@
 };
 
 &funnel4 {
-	// FIXME: Figure out why clock late_initcall crashes the board with
-	// this enabled.
-	// status = "okay";
+	/* FIXME: Figure out why clock late_initcall crashes the board with this enabled. */
 };
 
 &funnel5 {
-	// FIXME: Figure out why clock late_initcall crashes the board with
-	// this enabled.
-	// status = "okay";
+	/* FIXME: Figure out why clock late_initcall crashes the board with this enabled. */
 };
 
 &pcie0 {
@@ -342,7 +338,7 @@
 	};
 };
 
-&pm8998_gpio {
+&pm8998_gpios {
 	vol_up_pin_a: vol-up-active-state {
 		pins = "gpio6";
 		function = "normal";
@@ -368,14 +364,9 @@
 	};
 };
 
-&pm8998_pon {
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <GIC_SPI 0x8 1 IRQ_TYPE_EDGE_BOTH>;
-		bias-pull-up;
-		debounce = <15625>;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &qusb2phy {
@@ -390,7 +381,7 @@
 };
 
 &rpm_requests {
-	pm8998-regulators {
+	regulators-0 {
 		compatible = "qcom,rpm-pm8998-regulators";
 
 		vdd_s1-supply = <&vph_pwr>;
@@ -588,7 +579,7 @@
 
 	};
 
-	pmi8998-regulators {
+	regulators-1 {
 		compatible = "qcom,rpm-pmi8998-regulators";
 
 		vdd_bob-supply = <&vph_pwr>;
@@ -615,14 +606,14 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>;
 
-	mdp_vsync_n: mdp-vsync-n {
+	mdp_vsync_n: mdp-vsync-n-state {
 		pins = "gpio10";
 		function = "mdp_vsync_a";
 		bias-pull-down;
 		drive-strength = <2>;
 	};
 
-	gpio_kb_pins_extra: gpio-kb-pins-extra {
+	gpio_kb_pins_extra: gpio-kb-pins-extra-state {
 		pins = "gpio21", "gpio32", "gpio33", "gpio114",
 		       "gpio128", "gpio129";
 		function = "gpio";
@@ -630,29 +621,28 @@
 		bias-pull-up;
 	};
 
-	ts_vio_default: ts-vio-def {
+	ts_vio_default: ts-vio-def-state {
 		pins = "gpio81";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
 	};
 
-	ts_rst_n: ts-rst-n {
+	ts_rst_n: ts-rst-n-state {
 		pins = "gpio89";
 		function = "gpio";
 		bias-pull-up;
 		drive-strength = <8>;
 	};
 
-	hall_sensor1_default: hall-sensor1-def {
+	hall_sensor1_default: hall-sensor1-def-state {
 		pins = "gpio124";
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-		input-enable;
 	};
 
-	ts_int_n: ts-int-n {
+	ts_int_n: ts-int-n-state {
 		pins = "gpio125";
 		function = "gpio";
 		bias-disable;

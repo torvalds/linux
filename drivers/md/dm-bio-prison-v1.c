@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat, Inc.
  *
@@ -17,10 +18,15 @@
 
 #define MIN_CELLS 1024
 
-struct dm_bio_prison {
+struct prison_region {
 	spinlock_t lock;
-	struct rb_root cells;
+	struct rb_root cell;
+} ____cacheline_aligned_in_smp;
+
+struct dm_bio_prison {
 	mempool_t cell_pool;
+	unsigned int num_locks;
+	struct prison_region regions[];
 };
 
 static struct kmem_cache *_cell_cache;
@@ -33,21 +39,26 @@ static struct kmem_cache *_cell_cache;
  */
 struct dm_bio_prison *dm_bio_prison_create(void)
 {
-	struct dm_bio_prison *prison = kzalloc(sizeof(*prison), GFP_KERNEL);
 	int ret;
+	unsigned int i, num_locks;
+	struct dm_bio_prison *prison;
 
+	num_locks = dm_num_hash_locks();
+	prison = kzalloc(struct_size(prison, regions, num_locks), GFP_KERNEL);
 	if (!prison)
 		return NULL;
+	prison->num_locks = num_locks;
 
-	spin_lock_init(&prison->lock);
+	for (i = 0; i < prison->num_locks; i++) {
+		spin_lock_init(&prison->regions[i].lock);
+		prison->regions[i].cell = RB_ROOT;
+	}
 
 	ret = mempool_init_slab_pool(&prison->cell_pool, MIN_CELLS, _cell_cache);
 	if (ret) {
 		kfree(prison);
 		return NULL;
 	}
-
-	prison->cells = RB_ROOT;
 
 	return prison;
 }
@@ -77,9 +88,9 @@ static void __setup_new_cell(struct dm_cell_key *key,
 			     struct bio *holder,
 			     struct dm_bio_prison_cell *cell)
 {
-       memcpy(&cell->key, key, sizeof(cell->key));
-       cell->holder = holder;
-       bio_list_init(&cell->bios);
+	memcpy(&cell->key, key, sizeof(cell->key));
+	cell->holder = holder;
+	bio_list_init(&cell->bios);
 }
 
 static int cmp_keys(struct dm_cell_key *lhs,
@@ -106,14 +117,32 @@ static int cmp_keys(struct dm_cell_key *lhs,
 	return 0;
 }
 
-static int __bio_detain(struct dm_bio_prison *prison,
+static inline unsigned int lock_nr(struct dm_cell_key *key, unsigned int num_locks)
+{
+	return dm_hash_locks_index((key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT),
+				   num_locks);
+}
+
+bool dm_cell_key_has_valid_range(struct dm_cell_key *key)
+{
+	if (WARN_ON_ONCE(key->block_end - key->block_begin > BIO_PRISON_MAX_RANGE))
+		return false;
+	if (WARN_ON_ONCE((key->block_begin >> BIO_PRISON_MAX_RANGE_SHIFT) !=
+			 (key->block_end - 1) >> BIO_PRISON_MAX_RANGE_SHIFT))
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(dm_cell_key_has_valid_range);
+
+static int __bio_detain(struct rb_root *root,
 			struct dm_cell_key *key,
 			struct bio *inmate,
 			struct dm_bio_prison_cell *cell_prealloc,
 			struct dm_bio_prison_cell **cell_result)
 {
 	int r;
-	struct rb_node **new = &prison->cells.rb_node, *parent = NULL;
+	struct rb_node **new = &root->rb_node, *parent = NULL;
 
 	while (*new) {
 		struct dm_bio_prison_cell *cell =
@@ -138,7 +167,7 @@ static int __bio_detain(struct dm_bio_prison *prison,
 	*cell_result = cell_prealloc;
 
 	rb_link_node(&cell_prealloc->node, parent, new);
-	rb_insert_color(&cell_prealloc->node, &prison->cells);
+	rb_insert_color(&cell_prealloc->node, root);
 
 	return 0;
 }
@@ -150,10 +179,11 @@ static int bio_detain(struct dm_bio_prison *prison,
 		      struct dm_bio_prison_cell **cell_result)
 {
 	int r;
+	unsigned l = lock_nr(key, prison->num_locks);
 
-	spin_lock_irq(&prison->lock);
-	r = __bio_detain(prison, key, inmate, cell_prealloc, cell_result);
-	spin_unlock_irq(&prison->lock);
+	spin_lock_irq(&prison->regions[l].lock);
+	r = __bio_detain(&prison->regions[l].cell, key, inmate, cell_prealloc, cell_result);
+	spin_unlock_irq(&prison->regions[l].lock);
 
 	return r;
 }
@@ -180,11 +210,11 @@ EXPORT_SYMBOL_GPL(dm_get_cell);
 /*
  * @inmates must have been initialised prior to this call
  */
-static void __cell_release(struct dm_bio_prison *prison,
+static void __cell_release(struct rb_root *root,
 			   struct dm_bio_prison_cell *cell,
 			   struct bio_list *inmates)
 {
-	rb_erase(&cell->node, &prison->cells);
+	rb_erase(&cell->node, root);
 
 	if (inmates) {
 		if (cell->holder)
@@ -197,20 +227,22 @@ void dm_cell_release(struct dm_bio_prison *prison,
 		     struct dm_bio_prison_cell *cell,
 		     struct bio_list *bios)
 {
-	spin_lock_irq(&prison->lock);
-	__cell_release(prison, cell, bios);
-	spin_unlock_irq(&prison->lock);
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
+
+	spin_lock_irq(&prison->regions[l].lock);
+	__cell_release(&prison->regions[l].cell, cell, bios);
+	spin_unlock_irq(&prison->regions[l].lock);
 }
 EXPORT_SYMBOL_GPL(dm_cell_release);
 
 /*
  * Sometimes we don't want the holder, just the additional bios.
  */
-static void __cell_release_no_holder(struct dm_bio_prison *prison,
+static void __cell_release_no_holder(struct rb_root *root,
 				     struct dm_bio_prison_cell *cell,
 				     struct bio_list *inmates)
 {
-	rb_erase(&cell->node, &prison->cells);
+	rb_erase(&cell->node, root);
 	bio_list_merge(inmates, &cell->bios);
 }
 
@@ -218,11 +250,12 @@ void dm_cell_release_no_holder(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell,
 			       struct bio_list *inmates)
 {
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
 	unsigned long flags;
 
-	spin_lock_irqsave(&prison->lock, flags);
-	__cell_release_no_holder(prison, cell, inmates);
-	spin_unlock_irqrestore(&prison->lock, flags);
+	spin_lock_irqsave(&prison->regions[l].lock, flags);
+	__cell_release_no_holder(&prison->regions[l].cell, cell, inmates);
+	spin_unlock_irqrestore(&prison->regions[l].lock, flags);
 }
 EXPORT_SYMBOL_GPL(dm_cell_release_no_holder);
 
@@ -247,18 +280,19 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 			   void *context,
 			   struct dm_bio_prison_cell *cell)
 {
-	spin_lock_irq(&prison->lock);
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
+	spin_lock_irq(&prison->regions[l].lock);
 	visit_fn(context, cell);
-	rb_erase(&cell->node, &prison->cells);
-	spin_unlock_irq(&prison->lock);
+	rb_erase(&cell->node, &prison->regions[l].cell);
+	spin_unlock_irq(&prison->regions[l].lock);
 }
 EXPORT_SYMBOL_GPL(dm_cell_visit_release);
 
-static int __promote_or_release(struct dm_bio_prison *prison,
+static int __promote_or_release(struct rb_root *root,
 				struct dm_bio_prison_cell *cell)
 {
 	if (bio_list_empty(&cell->bios)) {
-		rb_erase(&cell->node, &prison->cells);
+		rb_erase(&cell->node, root);
 		return 1;
 	}
 
@@ -270,10 +304,11 @@ int dm_cell_promote_or_release(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell)
 {
 	int r;
+	unsigned l = lock_nr(&cell->key, prison->num_locks);
 
-	spin_lock_irq(&prison->lock);
-	r = __promote_or_release(prison, cell);
-	spin_unlock_irq(&prison->lock);
+	spin_lock_irq(&prison->regions[l].lock);
+	r = __promote_or_release(&prison->regions[l].cell, cell);
+	spin_unlock_irq(&prison->regions[l].lock);
 
 	return r;
 }
@@ -285,14 +320,14 @@ EXPORT_SYMBOL_GPL(dm_cell_promote_or_release);
 
 struct dm_deferred_entry {
 	struct dm_deferred_set *ds;
-	unsigned count;
+	unsigned int count;
 	struct list_head work_items;
 };
 
 struct dm_deferred_set {
 	spinlock_t lock;
-	unsigned current_entry;
-	unsigned sweeper;
+	unsigned int current_entry;
+	unsigned int sweeper;
 	struct dm_deferred_entry entries[DEFERRED_SET_SIZE];
 };
 
@@ -338,7 +373,7 @@ struct dm_deferred_entry *dm_deferred_entry_inc(struct dm_deferred_set *ds)
 }
 EXPORT_SYMBOL_GPL(dm_deferred_entry_inc);
 
-static unsigned ds_next(unsigned index)
+static unsigned int ds_next(unsigned int index)
 {
 	return (index + 1) % DEFERRED_SET_SIZE;
 }
@@ -373,7 +408,7 @@ EXPORT_SYMBOL_GPL(dm_deferred_entry_dec);
 int dm_deferred_set_add_work(struct dm_deferred_set *ds, struct list_head *work)
 {
 	int r = 1;
-	unsigned next_entry;
+	unsigned int next_entry;
 
 	spin_lock_irq(&ds->lock);
 	if ((ds->sweeper == ds->current_entry) &&
@@ -432,7 +467,7 @@ static int __init dm_bio_prison_init(void)
 
 	return 0;
 
-      bad:
+bad:
 	while (i--)
 		_exits[i]();
 

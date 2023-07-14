@@ -5,6 +5,7 @@
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
  */
 
+#include <linux/aperture.h>
 #include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/pci.h>
@@ -249,6 +250,10 @@ static int e3d_pci_register(struct pci_dev *pdev,
 	unsigned int line_length;
 	int err;
 
+	err = aperture_remove_conflicting_pci_devices(pdev, "e3dfb");
+	if (err)
+		return err;
+
 	of_node = pci_device_to_OF_node(pdev);
 	if (!of_node) {
 		printk(KERN_ERR "e3d: Cannot find OF node of %s\n",
@@ -425,6 +430,9 @@ static struct pci_driver e3d_driver = {
 
 static int __init e3d_init(void)
 {
+	if (fb_modesetting_disabled("e3d"))
+		return -ENODEV;
+
 	if (fb_get_options("e3d", NULL))
 		return -ENODEV;
 

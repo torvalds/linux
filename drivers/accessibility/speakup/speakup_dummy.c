@@ -18,16 +18,30 @@
 #define DRV_VERSION "2.11"
 #define SYNTH_CLEAR '!'
 
-static struct var_t vars[] = {
-	{ CAPS_START, .u.s = {"CAPS_START\n" } },
-	{ CAPS_STOP, .u.s = {"CAPS_STOP\n" } },
-	{ PAUSE, .u.s = {"PAUSE\n"} },
-	{ RATE, .u.n = {"RATE %d\n", 8, 1, 16, 0, 0, NULL } },
-	{ PITCH, .u.n = {"PITCH %d\n", 8, 0, 16, 0, 0, NULL } },
-	{ INFLECTION, .u.n = {"INFLECTION %d\n", 8, 0, 16, 0, 0, NULL } },
-	{ VOL, .u.n = {"VOL %d\n", 8, 0, 16, 0, 0, NULL } },
-	{ TONE, .u.n = {"TONE %d\n", 8, 0, 16, 0, 0, NULL } },
-	{ DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
+
+enum default_vars_id {
+	CAPS_START_ID = 0, CAPS_STOP_ID,
+	PAUSE_ID,
+	RATE_ID, PITCH_ID, INFLECTION_ID,
+	VOL_ID, TONE_ID, PUNCT_ID,
+	DIRECT_ID, V_LAST_VAR_ID,
+	NB_ID
+};
+
+
+
+
+static struct var_t vars[NB_ID] = {
+	[CAPS_START_ID] = { CAPS_START, .u.s = {"CAPS_START\n" } },
+	[CAPS_STOP_ID] = { CAPS_STOP, .u.s = {"CAPS_STOP\n" } },
+	[PAUSE_ID] = { PAUSE, .u.s = {"PAUSE\n"} },
+	[RATE_ID] = { RATE, .u.n = {"RATE %d\n", 8, 1, 16, 0, 0, NULL } },
+	[PITCH_ID] = { PITCH, .u.n = {"PITCH %d\n", 8, 0, 16, 0, 0, NULL } },
+	[INFLECTION_ID] = { INFLECTION, .u.n = {"INFLECTION %d\n", 8, 0, 16, 0, 0, NULL } },
+	[VOL_ID] = { VOL, .u.n = {"VOL %d\n", 8, 0, 16, 0, 0, NULL } },
+	[TONE_ID] = { TONE, .u.n = {"TONE %d\n", 8, 0, 16, 0, 0, NULL } },
+	[PUNCT_ID] = { PUNCT, .u.n = {"PUNCT %d\n", 0, 0, 3, 0, 0, NULL } },
+	[DIRECT_ID] = { DIRECT, .u.n = {NULL, 0, 0, 1, 0, 0, NULL } },
 	V_LAST_VAR
 };
 
@@ -42,6 +56,8 @@ static struct kobj_attribute pitch_attribute =
 	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute inflection_attribute =
 	__ATTR(inflection, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute punct_attribute =
+	__ATTR(punct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
 	__ATTR(rate, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute tone_attribute =
@@ -69,6 +85,7 @@ static struct attribute *synth_attrs[] = {
 	&caps_stop_attribute.attr,
 	&pitch_attribute.attr,
 	&inflection_attribute.attr,
+	&punct_attribute.attr,
 	&rate_attribute.attr,
 	&tone_attribute.attr,
 	&vol_attribute.attr,
@@ -125,10 +142,28 @@ static struct spk_synth synth_dummy = {
 module_param_named(ser, synth_dummy.ser, int, 0444);
 module_param_named(dev, synth_dummy.dev_name, charp, 0444);
 module_param_named(start, synth_dummy.startup, short, 0444);
+module_param_named(rate, vars[RATE_ID].u.n.default_val, int, 0444);
+module_param_named(pitch, vars[PITCH_ID].u.n.default_val, int, 0444);
+module_param_named(inflection, vars[INFLECTION_ID].u.n.default_val, int, 0444);
+module_param_named(vol, vars[VOL_ID].u.n.default_val, int, 0444);
+module_param_named(tone, vars[TONE_ID].u.n.default_val, int, 0444);
+module_param_named(punct, vars[PUNCT_ID].u.n.default_val, int, 0444);
+module_param_named(direct, vars[DIRECT_ID].u.n.default_val, int, 0444);
+
+
+
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
 MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
+MODULE_PARM_DESC(rate, "Set the rate variable on load.");
+MODULE_PARM_DESC(pitch, "Set the pitch variable on load.");
+MODULE_PARM_DESC(inflection, "Set the inflection variable on load.");
+MODULE_PARM_DESC(vol, "Set the vol variable on load.");
+MODULE_PARM_DESC(tone, "Set the tone variable on load.");
+MODULE_PARM_DESC(punct, "Set the punct variable on load.");
+MODULE_PARM_DESC(direct, "Set the direct variable on load.");
+
 
 module_spk_synth(synth_dummy);
 

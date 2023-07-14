@@ -9,6 +9,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
+#include <linux/pci.h>
 #include <linux/xarray.h>
 #include <rdma/ib_verbs.h>
 
@@ -31,7 +32,7 @@ struct erdma_eq {
 	atomic64_t event_num;
 	atomic64_t notify_num;
 
-	u64 __iomem *db_addr;
+	void __iomem *db;
 	u64 *db_record;
 };
 
@@ -123,15 +124,11 @@ struct erdma_devattr {
 	u32 fw_version;
 
 	unsigned char peer_addr[ETH_ALEN];
+	unsigned long cap_flags;
 
 	int numa_node;
 	enum erdma_cc_alg cc;
-	u32 grp_num;
 	u32 irq_num;
-
-	bool disable_dwqe;
-	u16 dwqe_pages;
-	u16 dwqe_entries;
 
 	u32 max_qp;
 	u32 max_send_wr;
@@ -188,6 +185,7 @@ struct erdma_dev {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
 	struct notifier_block netdev_nb;
+	struct workqueue_struct *reflush_wq;
 
 	resource_size_t func_bar_addr;
 	resource_size_t func_bar_len;
@@ -196,6 +194,7 @@ struct erdma_dev {
 	struct erdma_devattr attrs;
 	/* physical port state (only one port per device) */
 	enum ib_port_state state;
+	u32 mtu;
 
 	/* cmdq and aeq use the same msix vector */
 	struct erdma_irq comm_irq;
@@ -210,15 +209,6 @@ struct erdma_dev {
 
 	u32 next_alloc_qpn;
 	u32 next_alloc_cqn;
-
-	spinlock_t db_bitmap_lock;
-	/* We provide max 64 uContexts that each has one SQ doorbell Page. */
-	DECLARE_BITMAP(sdb_page, ERDMA_DWQE_TYPE0_CNT);
-	/*
-	 * We provide max 496 uContexts that each has one SQ normal Db,
-	 * and one directWQE db。
-	 */
-	DECLARE_BITMAP(sdb_entry, ERDMA_DWQE_TYPE1_CNT);
 
 	atomic_t num_ctx;
 	struct list_head cep_list;
@@ -264,12 +254,14 @@ static inline u32 erdma_reg_read32_filed(struct erdma_dev *dev, u32 reg,
 	return FIELD_GET(filed_mask, val);
 }
 
+#define ERDMA_GET(val, name) FIELD_GET(ERDMA_CMD_##name##_MASK, val)
+
 int erdma_cmdq_init(struct erdma_dev *dev);
 void erdma_finish_cmdq_init(struct erdma_dev *dev);
 void erdma_cmdq_destroy(struct erdma_dev *dev);
 
 void erdma_cmdq_build_reqhdr(u64 *hdr, u32 mod, u32 op);
-int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, u64 *req, u32 req_size,
+int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
 			u64 *resp0, u64 *resp1);
 void erdma_cmdq_completion_handler(struct erdma_cmdq *cmdq);
 

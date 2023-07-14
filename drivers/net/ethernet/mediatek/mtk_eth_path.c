@@ -96,12 +96,20 @@ static int set_mux_gmac2_gmac0_to_gephy(struct mtk_eth *eth, int path)
 
 static int set_mux_u3_gmac2_to_qphy(struct mtk_eth *eth, int path)
 {
-	unsigned int val = 0;
+	unsigned int val = 0, mask = 0, reg = 0;
 	bool updated = true;
 
 	switch (path) {
 	case MTK_ETH_PATH_GMAC2_SGMII:
-		val = CO_QPHY_SEL;
+		if (MTK_HAS_CAPS(eth->soc->caps, MTK_U3_COPHY_V2)) {
+			reg = USB_PHY_SWITCH_REG;
+			val = SGMII_QPHY_SEL;
+			mask = QPHY_SEL_MASK;
+		} else {
+			reg = INFRA_MISC2;
+			val = CO_QPHY_SEL;
+			mask = val;
+		}
 		break;
 	default:
 		updated = false;
@@ -109,7 +117,7 @@ static int set_mux_u3_gmac2_to_qphy(struct mtk_eth *eth, int path)
 	}
 
 	if (updated)
-		regmap_update_bits(eth->infra, INFRA_MISC2, CO_QPHY_SEL, val);
+		regmap_update_bits(eth->infra, reg, mask, val);
 
 	dev_dbg(eth->dev, "path %s in %s updated = %d\n",
 		mtk_eth_path_name(path), __func__, updated);

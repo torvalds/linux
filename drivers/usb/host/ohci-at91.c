@@ -62,8 +62,6 @@ struct ohci_at91_priv {
 
 #define DRIVER_DESC "OHCI Atmel driver"
 
-static const char hcd_name[] = "ohci-atmel";
-
 static struct hc_driver __read_mostly ohci_at91_hc_driver;
 
 static const struct ohci_driver_overrides ohci_at91_drv_overrides __initconst = {
@@ -601,7 +599,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	return usb_hcd_at91_probe(&ohci_at91_hc_driver, pdev);
 }
 
-static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
+static void ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 {
 	struct at91_usbh_data	*pdata = dev_get_platdata(&pdev->dev);
 	int			i;
@@ -613,7 +611,6 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 	usb_hcd_at91_remove(platform_get_drvdata(pdev), pdev);
-	return 0;
 }
 
 static int __maybe_unused
@@ -685,7 +682,7 @@ static SIMPLE_DEV_PM_OPS(ohci_hcd_at91_pm_ops, ohci_hcd_at91_drv_suspend,
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,
-	.remove		= ohci_hcd_at91_drv_remove,
+	.remove_new	= ohci_hcd_at91_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "at91_ohci",
@@ -699,7 +696,6 @@ static int __init ohci_at91_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 	ohci_init_driver(&ohci_at91_hc_driver, &ohci_at91_drv_overrides);
 
 	/*

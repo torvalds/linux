@@ -46,6 +46,10 @@ properties:
   interrupts:
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+    description: GPIO connected to active low reset
+
 required:
   - compatible
   - reg

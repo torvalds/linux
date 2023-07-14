@@ -706,11 +706,12 @@ static void __init smp_core99_setup(int ncpus)
 		struct device_node *cpus =
 			of_find_node_by_path("/cpus");
 		if (cpus &&
-		    of_get_property(cpus, "platform-cpu-timebase", NULL)) {
+		    of_property_read_bool(cpus, "platform-cpu-timebase")) {
 			pmac_tb_freeze = smp_core99_pfunc_tb_freeze;
 			printk(KERN_INFO "Processor timebase sync using"
 			       " platform function\n");
 		}
+		of_node_put(cpus);
 	}
 
 #else /* CONFIG_PPC64 */

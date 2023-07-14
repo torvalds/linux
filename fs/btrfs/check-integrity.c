@@ -82,6 +82,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <crypto/hash.h>
+#include "messages.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -92,6 +93,7 @@
 #include "check-integrity.h"
 #include "rcu-string.h"
 #include "compression.h"
+#include "accessors.h"
 
 #define BTRFSIC_BLOCK_HASHTABLE_SIZE 0x10000
 #define BTRFSIC_BLOCK_LINK_HASHTABLE_SIZE 0x10000
@@ -755,7 +757,7 @@ static int btrfsic_process_superblock_dev_mirror(
 			btrfs_info_in_rcu(fs_info,
 			"new initial S-block (bdev %p, %s) @%llu (%pg/%llu/%d)",
 				     superblock_bdev,
-				     rcu_str_deref(device->name), dev_bytenr,
+				     btrfs_dev_name(device), dev_bytenr,
 				     dev_state->bdev, dev_bytenr,
 				     superblock_mirror_num);
 		list_add(&superblock_tmp->all_blocks_node,
@@ -1457,13 +1459,13 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	struct btrfs_fs_info *fs_info = state->fs_info;
 	int ret;
 	u64 length;
-	struct btrfs_io_context *multi = NULL;
+	struct btrfs_io_context *bioc = NULL;
+	struct btrfs_io_stripe smap, *map;
 	struct btrfs_device *device;
 
 	length = len;
-	ret = btrfs_map_block(fs_info, BTRFS_MAP_READ,
-			      bytenr, &length, &multi, mirror_num);
-
+	ret = btrfs_map_block(fs_info, BTRFS_MAP_READ, bytenr, &length, &bioc,
+			      NULL, &mirror_num, 0);
 	if (ret) {
 		block_ctx_out->start = 0;
 		block_ctx_out->dev_bytenr = 0;
@@ -1476,21 +1478,26 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 		return ret;
 	}
 
-	device = multi->stripes[0].dev;
+	if (bioc)
+		map = &bioc->stripes[0];
+	else
+		map = &smap;
+
+	device = map->dev;
 	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state) ||
 	    !device->bdev || !device->name)
 		block_ctx_out->dev = NULL;
 	else
 		block_ctx_out->dev = btrfsic_dev_state_lookup(
 							device->bdev->bd_dev);
-	block_ctx_out->dev_bytenr = multi->stripes[0].physical;
+	block_ctx_out->dev_bytenr = map->physical;
 	block_ctx_out->start = bytenr;
 	block_ctx_out->len = len;
 	block_ctx_out->datav = NULL;
 	block_ctx_out->pagev = NULL;
 	block_ctx_out->mem_to_free = NULL;
 
-	kfree(multi);
+	kfree(bioc);
 	if (NULL == block_ctx_out->dev) {
 		ret = -ENXIO;
 		pr_info("btrfsic: error, cannot lookup dev (#1)!\n");
@@ -1563,7 +1570,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 
 		bio = bio_alloc(block_ctx->dev->bdev, num_pages - i,
 				REQ_OP_READ, GFP_NOFS);
-		bio->bi_iter.bi_sector = dev_bytenr >> 9;
+		bio->bi_iter.bi_sector = dev_bytenr >> SECTOR_SHIFT;
 
 		for (j = i; j < num_pages; j++) {
 			ret = bio_add_page(bio, block_ctx->pagev[j],

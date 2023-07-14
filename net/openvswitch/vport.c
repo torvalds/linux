@@ -124,6 +124,7 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 {
 	struct vport *vport;
 	size_t alloc_size;
+	int err;
 
 	alloc_size = sizeof(struct vport);
 	if (priv_size) {
@@ -135,17 +136,29 @@ struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *ops,
 	if (!vport)
 		return ERR_PTR(-ENOMEM);
 
+	vport->upcall_stats = netdev_alloc_pcpu_stats(struct vport_upcall_stats_percpu);
+	if (!vport->upcall_stats) {
+		err = -ENOMEM;
+		goto err_kfree_vport;
+	}
+
 	vport->dp = parms->dp;
 	vport->port_no = parms->port_no;
 	vport->ops = ops;
 	INIT_HLIST_NODE(&vport->dp_hash_node);
 
 	if (ovs_vport_set_upcall_portids(vport, parms->upcall_portids)) {
-		kfree(vport);
-		return ERR_PTR(-EINVAL);
+		err = -EINVAL;
+		goto err_free_percpu;
 	}
 
 	return vport;
+
+err_free_percpu:
+	free_percpu(vport->upcall_stats);
+err_kfree_vport:
+	kfree(vport);
+	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(ovs_vport_alloc);
 
@@ -165,6 +178,7 @@ void ovs_vport_free(struct vport *vport)
 	 * it is safe to use raw dereference.
 	 */
 	kfree(rcu_dereference_raw(vport->upcall_portids));
+	free_percpu(vport->upcall_stats);
 	kfree(vport);
 }
 EXPORT_SYMBOL_GPL(ovs_vport_free);
@@ -282,6 +296,56 @@ void ovs_vport_get_stats(struct vport *vport, struct ovs_vport_stats *stats)
 	stats->rx_packets = dev_stats->rx_packets;
 	stats->tx_bytes	  = dev_stats->tx_bytes;
 	stats->tx_packets = dev_stats->tx_packets;
+}
+
+/**
+ *	ovs_vport_get_upcall_stats - retrieve upcall stats
+ *
+ * @vport: vport from which to retrieve the stats.
+ * @skb: sk_buff where upcall stats should be appended.
+ *
+ * Retrieves upcall stats for the given device.
+ *
+ * Must be called with ovs_mutex or rcu_read_lock.
+ */
+int ovs_vport_get_upcall_stats(struct vport *vport, struct sk_buff *skb)
+{
+	struct nlattr *nla;
+	int i;
+
+	__u64 tx_success = 0;
+	__u64 tx_fail = 0;
+
+	for_each_possible_cpu(i) {
+		const struct vport_upcall_stats_percpu *stats;
+		unsigned int start;
+
+		stats = per_cpu_ptr(vport->upcall_stats, i);
+		do {
+			start = u64_stats_fetch_begin(&stats->syncp);
+			tx_success += u64_stats_read(&stats->n_success);
+			tx_fail += u64_stats_read(&stats->n_fail);
+		} while (u64_stats_fetch_retry(&stats->syncp, start));
+	}
+
+	nla = nla_nest_start_noflag(skb, OVS_VPORT_ATTR_UPCALL_STATS);
+	if (!nla)
+		return -EMSGSIZE;
+
+	if (nla_put_u64_64bit(skb, OVS_VPORT_UPCALL_ATTR_SUCCESS, tx_success,
+			      OVS_VPORT_ATTR_PAD)) {
+		nla_nest_cancel(skb, nla);
+		return -EMSGSIZE;
+	}
+
+	if (nla_put_u64_64bit(skb, OVS_VPORT_UPCALL_ATTR_FAIL, tx_fail,
+			      OVS_VPORT_ATTR_PAD)) {
+		nla_nest_cancel(skb, nla);
+		return -EMSGSIZE;
+	}
+	nla_nest_end(skb, nla);
+
+	return 0;
 }
 
 /**

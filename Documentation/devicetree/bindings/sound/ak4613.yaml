@@ -4,10 +4,13 @@
 $id: http://devicetree.org/schemas/sound/ak4613.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: AK4613 I2C transmitter Device Tree Bindings
+title: AK4613 I2C transmitter
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
+allOf:
+  - $ref: dai-common.yaml#
 
 properties:
   compatible:
@@ -22,6 +25,13 @@ properties:
   "#sound-dai-cells":
     const: 0
 
+  ports:
+    $ref: audio-graph-port.yaml#/definitions/ports
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 patternProperties:
   "^asahi-kasei,in[1-2]-single-end$":
     description: Input Pin 1 - 2.
@@ -35,7 +45,7 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

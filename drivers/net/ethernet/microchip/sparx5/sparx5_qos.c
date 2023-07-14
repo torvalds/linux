@@ -9,6 +9,63 @@
 #include "sparx5_main.h"
 #include "sparx5_qos.h"
 
+/* Calculate new base_time based on cycle_time.
+ *
+ * The hardware requires a base_time that is always in the future.
+ * We define threshold_time as current_time + (2 * cycle_time).
+ * If base_time is below threshold_time this function recalculates it to be in
+ * the interval:
+ * threshold_time <= base_time < (threshold_time + cycle_time)
+ *
+ * A very simple algorithm could be like this:
+ * new_base_time = org_base_time + N * cycle_time
+ * using the lowest N so (new_base_time >= threshold_time
+ */
+void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
+			  const ktime_t org_base_time, ktime_t *new_base_time)
+{
+	ktime_t current_time, threshold_time, new_time;
+	struct timespec64 ts;
+	u64 nr_of_cycles_p2;
+	u64 nr_of_cycles;
+	u64 diff_time;
+
+	new_time = org_base_time;
+
+	sparx5_ptp_gettime64(&sparx5->phc[SPARX5_PHC_PORT].info, &ts);
+	current_time = timespec64_to_ktime(ts);
+	threshold_time = current_time + (2 * cycle_time);
+	diff_time = threshold_time - new_time;
+	nr_of_cycles = div_u64(diff_time, cycle_time);
+	nr_of_cycles_p2 = 1; /* Use 2^0 as start value */
+
+	if (new_time >= threshold_time) {
+		*new_base_time = new_time;
+		return;
+	}
+
+	/* Calculate the smallest power of 2 (nr_of_cycles_p2)
+	 * that is larger than nr_of_cycles.
+	 */
+	while (nr_of_cycles_p2 < nr_of_cycles)
+		nr_of_cycles_p2 <<= 1; /* Next (higher) power of 2 */
+
+	/* Add as big chunks (power of 2 * cycle_time)
+	 * as possible for each power of 2
+	 */
+	while (nr_of_cycles_p2) {
+		if (new_time < threshold_time) {
+			new_time += cycle_time * nr_of_cycles_p2;
+			while (new_time < threshold_time)
+				new_time += cycle_time * nr_of_cycles_p2;
+			new_time -= cycle_time * nr_of_cycles_p2;
+		}
+		nr_of_cycles_p2 >>= 1; /* Next (lower) power of 2 */
+	}
+	new_time += cycle_time;
+	*new_base_time = new_time;
+}
+
 /* Max rates for leak groups */
 static const u32 spx5_hsch_max_group_rate[SPX5_HSCH_LEAK_GRP_CNT] = {
 	1048568, /*  1.049 Gbps */
@@ -388,6 +445,12 @@ int sparx5_qos_init(struct sparx5 *sparx5)
 	ret = sparx5_leak_groups_init(sparx5);
 	if (ret < 0)
 		return ret;
+
+	ret = sparx5_dcb_init(sparx5);
+	if (ret < 0)
+		return ret;
+
+	sparx5_psfp_init(sparx5);
 
 	return 0;
 }

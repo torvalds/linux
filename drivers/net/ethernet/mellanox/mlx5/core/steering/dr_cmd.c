@@ -34,6 +34,7 @@ int mlx5dr_cmd_query_esw_vport_context(struct mlx5_core_dev *mdev,
 int mlx5dr_cmd_query_gvmi(struct mlx5_core_dev *mdev, bool other_vport,
 			  u16 vport_number, u16 *gvmi)
 {
+	bool ec_vf_func = other_vport ? mlx5_core_is_ec_vf_vport(mdev, vport_number) : false;
 	u32 in[MLX5_ST_SZ_DW(query_hca_cap_in)] = {};
 	int out_size;
 	void *out;
@@ -46,7 +47,8 @@ int mlx5dr_cmd_query_gvmi(struct mlx5_core_dev *mdev, bool other_vport,
 
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, other_function, other_vport);
-	MLX5_SET(query_hca_cap_in, in, function_id, vport_number);
+	MLX5_SET(query_hca_cap_in, in, function_id, mlx5_vport_to_func_id(mdev, vport_number, ec_vf_func));
+	MLX5_SET(query_hca_cap_in, in, ec_vf_function, ec_vf_func);
 	MLX5_SET(query_hca_cap_in, in, op_mod,
 		 MLX5_SET_HCA_CAP_OP_MOD_GENERAL_DEVICE << 1 |
 		 HCA_CAP_OPMOD_GET_CUR);
@@ -117,6 +119,8 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->gvmi		= MLX5_CAP_GEN(mdev, vhca_id);
 	caps->flex_protocols	= MLX5_CAP_GEN(mdev, flex_parser_protocols);
 	caps->sw_format_ver	= MLX5_CAP_GEN(mdev, steering_format_version);
+	caps->roce_caps.fl_rc_qp_when_roce_disabled =
+		MLX5_CAP_GEN(mdev, fl_rc_qp_when_roce_disabled);
 
 	if (MLX5_CAP_GEN(mdev, roce)) {
 		err = dr_cmd_query_nic_vport_roce_en(mdev, 0, &roce_en);
@@ -124,13 +128,24 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 			return err;
 
 		caps->roce_caps.roce_en = roce_en;
-		caps->roce_caps.fl_rc_qp_when_roce_disabled =
+		caps->roce_caps.fl_rc_qp_when_roce_disabled |=
 			MLX5_CAP_ROCE(mdev, fl_rc_qp_when_roce_disabled);
 		caps->roce_caps.fl_rc_qp_when_roce_enabled =
 			MLX5_CAP_ROCE(mdev, fl_rc_qp_when_roce_enabled);
 	}
 
 	caps->isolate_vl_tc = MLX5_CAP_GEN(mdev, isolate_vl_tc_new);
+
+	caps->support_modify_argument =
+		MLX5_CAP_GEN_64(mdev, general_obj_types) &
+		MLX5_GENERAL_OBJ_TYPES_CAP_HEADER_MODIFY_ARGUMENT;
+
+	if (caps->support_modify_argument) {
+		caps->log_header_modify_argument_granularity =
+			MLX5_CAP_GEN(mdev, log_header_modify_argument_granularity);
+		caps->log_header_modify_argument_max_alloc =
+			MLX5_CAP_GEN(mdev, log_header_modify_argument_max_alloc);
+	}
 
 	/* geneve_tlv_option_0_exist is the indication of
 	 * STE support for lookup type flex_parser_ok
@@ -199,6 +214,12 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->log_icm_size = MLX5_CAP_DEV_MEM(mdev, log_steering_sw_icm_size);
 	caps->hdr_modify_icm_addr =
 		MLX5_CAP64_DEV_MEM(mdev, header_modify_sw_icm_start_address);
+
+	caps->log_modify_pattern_icm_size =
+		MLX5_CAP_DEV_MEM(mdev, log_header_modify_pattern_sw_icm_size);
+
+	caps->hdr_modify_pattern_icm_addr =
+		MLX5_CAP64_DEV_MEM(mdev, header_modify_pattern_sw_icm_start_address);
 
 	caps->roce_min_src_udp = MLX5_CAP_ROCE(mdev, r_roce_min_src_udp_port);
 
@@ -270,6 +291,13 @@ int mlx5dr_cmd_query_flow_sampler(struct mlx5_core_dev *dev,
 int mlx5dr_cmd_sync_steering(struct mlx5_core_dev *mdev)
 {
 	u32 in[MLX5_ST_SZ_DW(sync_steering_in)] = {};
+
+	/* Skip SYNC in case the device is internal error state.
+	 * Besides a device error, this also happens when we're
+	 * in fast teardown
+	 */
+	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
+		return 0;
 
 	MLX5_SET(sync_steering_in, in, opcode, MLX5_CMD_OP_SYNC_STEERING);
 
@@ -557,6 +585,83 @@ void mlx5dr_cmd_destroy_reformat_ctx(struct mlx5_core_dev *mdev,
 	mlx5_cmd_exec_in(mdev, dealloc_packet_reformat_context, in);
 }
 
+static void dr_cmd_set_definer_format(void *ptr, u16 format_id,
+				      u8 *dw_selectors,
+				      u8 *byte_selectors)
+{
+	if (format_id != MLX5_IFC_DEFINER_FORMAT_ID_SELECT)
+		return;
+
+	MLX5_SET(match_definer, ptr, format_select_dw0, dw_selectors[0]);
+	MLX5_SET(match_definer, ptr, format_select_dw1, dw_selectors[1]);
+	MLX5_SET(match_definer, ptr, format_select_dw2, dw_selectors[2]);
+	MLX5_SET(match_definer, ptr, format_select_dw3, dw_selectors[3]);
+	MLX5_SET(match_definer, ptr, format_select_dw4, dw_selectors[4]);
+	MLX5_SET(match_definer, ptr, format_select_dw5, dw_selectors[5]);
+	MLX5_SET(match_definer, ptr, format_select_dw6, dw_selectors[6]);
+	MLX5_SET(match_definer, ptr, format_select_dw7, dw_selectors[7]);
+	MLX5_SET(match_definer, ptr, format_select_dw8, dw_selectors[8]);
+
+	MLX5_SET(match_definer, ptr, format_select_byte0, byte_selectors[0]);
+	MLX5_SET(match_definer, ptr, format_select_byte1, byte_selectors[1]);
+	MLX5_SET(match_definer, ptr, format_select_byte2, byte_selectors[2]);
+	MLX5_SET(match_definer, ptr, format_select_byte3, byte_selectors[3]);
+	MLX5_SET(match_definer, ptr, format_select_byte4, byte_selectors[4]);
+	MLX5_SET(match_definer, ptr, format_select_byte5, byte_selectors[5]);
+	MLX5_SET(match_definer, ptr, format_select_byte6, byte_selectors[6]);
+	MLX5_SET(match_definer, ptr, format_select_byte7, byte_selectors[7]);
+}
+
+int mlx5dr_cmd_create_definer(struct mlx5_core_dev *mdev,
+			      u16 format_id,
+			      u8 *dw_selectors,
+			      u8 *byte_selectors,
+			      u8 *match_mask,
+			      u32 *definer_id)
+{
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	u32 in[MLX5_ST_SZ_DW(create_match_definer_in)] = {};
+	void *ptr;
+	int err;
+
+	ptr = MLX5_ADDR_OF(create_match_definer_in, in,
+			   general_obj_in_cmd_hdr);
+	MLX5_SET(general_obj_in_cmd_hdr, ptr, opcode,
+		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, ptr, obj_type,
+		 MLX5_OBJ_TYPE_MATCH_DEFINER);
+
+	ptr = MLX5_ADDR_OF(create_match_definer_in, in, obj_context);
+	MLX5_SET(match_definer, ptr, format_id, format_id);
+
+	dr_cmd_set_definer_format(ptr, format_id,
+				  dw_selectors, byte_selectors);
+
+	ptr = MLX5_ADDR_OF(match_definer, ptr, match_mask);
+	memcpy(ptr, match_mask, MLX5_FLD_SZ_BYTES(match_definer, match_mask));
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*definer_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
+
+	return 0;
+}
+
+void
+mlx5dr_cmd_destroy_definer(struct mlx5_core_dev *mdev, u32 definer_id)
+{
+	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode, MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type, MLX5_OBJ_TYPE_MATCH_DEFINER);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, definer_id);
+
+	mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+}
+
 int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 			 u16 index, struct mlx5dr_cmd_gid_attr *attr)
 {
@@ -590,6 +695,49 @@ int mlx5dr_cmd_query_gid(struct mlx5_core_dev *mdev, u8 vhca_port_num,
 		attr->roce_ver = MLX5_ROCE_VERSION_1;
 
 	return 0;
+}
+
+int mlx5dr_cmd_create_modify_header_arg(struct mlx5_core_dev *dev,
+					u16 log_obj_range, u32 pd,
+					u32 *obj_id)
+{
+	u32 in[MLX5_ST_SZ_DW(create_modify_header_arg_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	void *attr;
+	int ret;
+
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, hdr);
+	MLX5_SET(general_obj_in_cmd_hdr, attr, opcode,
+		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, attr, obj_type,
+		 MLX5_OBJ_TYPE_HEADER_MODIFY_ARGUMENT);
+	MLX5_SET(general_obj_in_cmd_hdr, attr,
+		 op_param.create.log_obj_range, log_obj_range);
+
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, arg);
+	MLX5_SET(modify_header_arg, attr, access_pd, pd);
+
+	ret = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (ret)
+		return ret;
+
+	*obj_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
+	return 0;
+}
+
+void mlx5dr_cmd_destroy_modify_header_arg(struct mlx5_core_dev *dev,
+					  u32 obj_id)
+{
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
+	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
+		 MLX5_CMD_OP_DESTROY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
+		 MLX5_OBJ_TYPE_HEADER_MODIFY_ARGUMENT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, obj_id);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int mlx5dr_cmd_set_extended_dest(struct mlx5_core_dev *dev,

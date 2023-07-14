@@ -16,6 +16,185 @@
  * Copyright (C) 2001 PPC 64 Team, IBM Corp
  */
 
+enum rtas_function_index {
+	RTAS_FNIDX__CHECK_EXCEPTION,
+	RTAS_FNIDX__DISPLAY_CHARACTER,
+	RTAS_FNIDX__EVENT_SCAN,
+	RTAS_FNIDX__FREEZE_TIME_BASE,
+	RTAS_FNIDX__GET_POWER_LEVEL,
+	RTAS_FNIDX__GET_SENSOR_STATE,
+	RTAS_FNIDX__GET_TERM_CHAR,
+	RTAS_FNIDX__GET_TIME_OF_DAY,
+	RTAS_FNIDX__IBM_ACTIVATE_FIRMWARE,
+	RTAS_FNIDX__IBM_CBE_START_PTCAL,
+	RTAS_FNIDX__IBM_CBE_STOP_PTCAL,
+	RTAS_FNIDX__IBM_CHANGE_MSI,
+	RTAS_FNIDX__IBM_CLOSE_ERRINJCT,
+	RTAS_FNIDX__IBM_CONFIGURE_BRIDGE,
+	RTAS_FNIDX__IBM_CONFIGURE_CONNECTOR,
+	RTAS_FNIDX__IBM_CONFIGURE_KERNEL_DUMP,
+	RTAS_FNIDX__IBM_CONFIGURE_PE,
+	RTAS_FNIDX__IBM_CREATE_PE_DMA_WINDOW,
+	RTAS_FNIDX__IBM_DISPLAY_MESSAGE,
+	RTAS_FNIDX__IBM_ERRINJCT,
+	RTAS_FNIDX__IBM_EXTI2C,
+	RTAS_FNIDX__IBM_GET_CONFIG_ADDR_INFO,
+	RTAS_FNIDX__IBM_GET_CONFIG_ADDR_INFO2,
+	RTAS_FNIDX__IBM_GET_DYNAMIC_SENSOR_STATE,
+	RTAS_FNIDX__IBM_GET_INDICES,
+	RTAS_FNIDX__IBM_GET_RIO_TOPOLOGY,
+	RTAS_FNIDX__IBM_GET_SYSTEM_PARAMETER,
+	RTAS_FNIDX__IBM_GET_VPD,
+	RTAS_FNIDX__IBM_GET_XIVE,
+	RTAS_FNIDX__IBM_INT_OFF,
+	RTAS_FNIDX__IBM_INT_ON,
+	RTAS_FNIDX__IBM_IO_QUIESCE_ACK,
+	RTAS_FNIDX__IBM_LPAR_PERFTOOLS,
+	RTAS_FNIDX__IBM_MANAGE_FLASH_IMAGE,
+	RTAS_FNIDX__IBM_MANAGE_STORAGE_PRESERVATION,
+	RTAS_FNIDX__IBM_NMI_INTERLOCK,
+	RTAS_FNIDX__IBM_NMI_REGISTER,
+	RTAS_FNIDX__IBM_OPEN_ERRINJCT,
+	RTAS_FNIDX__IBM_OPEN_SRIOV_ALLOW_UNFREEZE,
+	RTAS_FNIDX__IBM_OPEN_SRIOV_MAP_PE_NUMBER,
+	RTAS_FNIDX__IBM_OS_TERM,
+	RTAS_FNIDX__IBM_PARTNER_CONTROL,
+	RTAS_FNIDX__IBM_PHYSICAL_ATTESTATION,
+	RTAS_FNIDX__IBM_PLATFORM_DUMP,
+	RTAS_FNIDX__IBM_POWER_OFF_UPS,
+	RTAS_FNIDX__IBM_QUERY_INTERRUPT_SOURCE_NUMBER,
+	RTAS_FNIDX__IBM_QUERY_PE_DMA_WINDOW,
+	RTAS_FNIDX__IBM_READ_PCI_CONFIG,
+	RTAS_FNIDX__IBM_READ_SLOT_RESET_STATE,
+	RTAS_FNIDX__IBM_READ_SLOT_RESET_STATE2,
+	RTAS_FNIDX__IBM_REMOVE_PE_DMA_WINDOW,
+	RTAS_FNIDX__IBM_RESET_PE_DMA_WINDOWS,
+	RTAS_FNIDX__IBM_SCAN_LOG_DUMP,
+	RTAS_FNIDX__IBM_SET_DYNAMIC_INDICATOR,
+	RTAS_FNIDX__IBM_SET_EEH_OPTION,
+	RTAS_FNIDX__IBM_SET_SLOT_RESET,
+	RTAS_FNIDX__IBM_SET_SYSTEM_PARAMETER,
+	RTAS_FNIDX__IBM_SET_XIVE,
+	RTAS_FNIDX__IBM_SLOT_ERROR_DETAIL,
+	RTAS_FNIDX__IBM_SUSPEND_ME,
+	RTAS_FNIDX__IBM_TUNE_DMA_PARMS,
+	RTAS_FNIDX__IBM_UPDATE_FLASH_64_AND_REBOOT,
+	RTAS_FNIDX__IBM_UPDATE_NODES,
+	RTAS_FNIDX__IBM_UPDATE_PROPERTIES,
+	RTAS_FNIDX__IBM_VALIDATE_FLASH_IMAGE,
+	RTAS_FNIDX__IBM_WRITE_PCI_CONFIG,
+	RTAS_FNIDX__NVRAM_FETCH,
+	RTAS_FNIDX__NVRAM_STORE,
+	RTAS_FNIDX__POWER_OFF,
+	RTAS_FNIDX__PUT_TERM_CHAR,
+	RTAS_FNIDX__QUERY_CPU_STOPPED_STATE,
+	RTAS_FNIDX__READ_PCI_CONFIG,
+	RTAS_FNIDX__RTAS_LAST_ERROR,
+	RTAS_FNIDX__SET_INDICATOR,
+	RTAS_FNIDX__SET_POWER_LEVEL,
+	RTAS_FNIDX__SET_TIME_FOR_POWER_ON,
+	RTAS_FNIDX__SET_TIME_OF_DAY,
+	RTAS_FNIDX__START_CPU,
+	RTAS_FNIDX__STOP_SELF,
+	RTAS_FNIDX__SYSTEM_REBOOT,
+	RTAS_FNIDX__THAW_TIME_BASE,
+	RTAS_FNIDX__WRITE_PCI_CONFIG,
+};
+
+/*
+ * Opaque handle for client code to refer to RTAS functions. All valid
+ * function handles are build-time constants prefixed with RTAS_FN_.
+ */
+typedef struct {
+	const enum rtas_function_index index;
+} rtas_fn_handle_t;
+
+
+#define rtas_fn_handle(x_) ((const rtas_fn_handle_t) { .index = x_, })
+
+#define RTAS_FN_CHECK_EXCEPTION                   rtas_fn_handle(RTAS_FNIDX__CHECK_EXCEPTION)
+#define RTAS_FN_DISPLAY_CHARACTER                 rtas_fn_handle(RTAS_FNIDX__DISPLAY_CHARACTER)
+#define RTAS_FN_EVENT_SCAN                        rtas_fn_handle(RTAS_FNIDX__EVENT_SCAN)
+#define RTAS_FN_FREEZE_TIME_BASE                  rtas_fn_handle(RTAS_FNIDX__FREEZE_TIME_BASE)
+#define RTAS_FN_GET_POWER_LEVEL                   rtas_fn_handle(RTAS_FNIDX__GET_POWER_LEVEL)
+#define RTAS_FN_GET_SENSOR_STATE                  rtas_fn_handle(RTAS_FNIDX__GET_SENSOR_STATE)
+#define RTAS_FN_GET_TERM_CHAR                     rtas_fn_handle(RTAS_FNIDX__GET_TERM_CHAR)
+#define RTAS_FN_GET_TIME_OF_DAY                   rtas_fn_handle(RTAS_FNIDX__GET_TIME_OF_DAY)
+#define RTAS_FN_IBM_ACTIVATE_FIRMWARE             rtas_fn_handle(RTAS_FNIDX__IBM_ACTIVATE_FIRMWARE)
+#define RTAS_FN_IBM_CBE_START_PTCAL               rtas_fn_handle(RTAS_FNIDX__IBM_CBE_START_PTCAL)
+#define RTAS_FN_IBM_CBE_STOP_PTCAL                rtas_fn_handle(RTAS_FNIDX__IBM_CBE_STOP_PTCAL)
+#define RTAS_FN_IBM_CHANGE_MSI                    rtas_fn_handle(RTAS_FNIDX__IBM_CHANGE_MSI)
+#define RTAS_FN_IBM_CLOSE_ERRINJCT                rtas_fn_handle(RTAS_FNIDX__IBM_CLOSE_ERRINJCT)
+#define RTAS_FN_IBM_CONFIGURE_BRIDGE              rtas_fn_handle(RTAS_FNIDX__IBM_CONFIGURE_BRIDGE)
+#define RTAS_FN_IBM_CONFIGURE_CONNECTOR           rtas_fn_handle(RTAS_FNIDX__IBM_CONFIGURE_CONNECTOR)
+#define RTAS_FN_IBM_CONFIGURE_KERNEL_DUMP         rtas_fn_handle(RTAS_FNIDX__IBM_CONFIGURE_KERNEL_DUMP)
+#define RTAS_FN_IBM_CONFIGURE_PE                  rtas_fn_handle(RTAS_FNIDX__IBM_CONFIGURE_PE)
+#define RTAS_FN_IBM_CREATE_PE_DMA_WINDOW          rtas_fn_handle(RTAS_FNIDX__IBM_CREATE_PE_DMA_WINDOW)
+#define RTAS_FN_IBM_DISPLAY_MESSAGE               rtas_fn_handle(RTAS_FNIDX__IBM_DISPLAY_MESSAGE)
+#define RTAS_FN_IBM_ERRINJCT                      rtas_fn_handle(RTAS_FNIDX__IBM_ERRINJCT)
+#define RTAS_FN_IBM_EXTI2C                        rtas_fn_handle(RTAS_FNIDX__IBM_EXTI2C)
+#define RTAS_FN_IBM_GET_CONFIG_ADDR_INFO          rtas_fn_handle(RTAS_FNIDX__IBM_GET_CONFIG_ADDR_INFO)
+#define RTAS_FN_IBM_GET_CONFIG_ADDR_INFO2         rtas_fn_handle(RTAS_FNIDX__IBM_GET_CONFIG_ADDR_INFO2)
+#define RTAS_FN_IBM_GET_DYNAMIC_SENSOR_STATE      rtas_fn_handle(RTAS_FNIDX__IBM_GET_DYNAMIC_SENSOR_STATE)
+#define RTAS_FN_IBM_GET_INDICES                   rtas_fn_handle(RTAS_FNIDX__IBM_GET_INDICES)
+#define RTAS_FN_IBM_GET_RIO_TOPOLOGY              rtas_fn_handle(RTAS_FNIDX__IBM_GET_RIO_TOPOLOGY)
+#define RTAS_FN_IBM_GET_SYSTEM_PARAMETER          rtas_fn_handle(RTAS_FNIDX__IBM_GET_SYSTEM_PARAMETER)
+#define RTAS_FN_IBM_GET_VPD                       rtas_fn_handle(RTAS_FNIDX__IBM_GET_VPD)
+#define RTAS_FN_IBM_GET_XIVE                      rtas_fn_handle(RTAS_FNIDX__IBM_GET_XIVE)
+#define RTAS_FN_IBM_INT_OFF                       rtas_fn_handle(RTAS_FNIDX__IBM_INT_OFF)
+#define RTAS_FN_IBM_INT_ON                        rtas_fn_handle(RTAS_FNIDX__IBM_INT_ON)
+#define RTAS_FN_IBM_IO_QUIESCE_ACK                rtas_fn_handle(RTAS_FNIDX__IBM_IO_QUIESCE_ACK)
+#define RTAS_FN_IBM_LPAR_PERFTOOLS                rtas_fn_handle(RTAS_FNIDX__IBM_LPAR_PERFTOOLS)
+#define RTAS_FN_IBM_MANAGE_FLASH_IMAGE            rtas_fn_handle(RTAS_FNIDX__IBM_MANAGE_FLASH_IMAGE)
+#define RTAS_FN_IBM_MANAGE_STORAGE_PRESERVATION   rtas_fn_handle(RTAS_FNIDX__IBM_MANAGE_STORAGE_PRESERVATION)
+#define RTAS_FN_IBM_NMI_INTERLOCK                 rtas_fn_handle(RTAS_FNIDX__IBM_NMI_INTERLOCK)
+#define RTAS_FN_IBM_NMI_REGISTER                  rtas_fn_handle(RTAS_FNIDX__IBM_NMI_REGISTER)
+#define RTAS_FN_IBM_OPEN_ERRINJCT                 rtas_fn_handle(RTAS_FNIDX__IBM_OPEN_ERRINJCT)
+#define RTAS_FN_IBM_OPEN_SRIOV_ALLOW_UNFREEZE     rtas_fn_handle(RTAS_FNIDX__IBM_OPEN_SRIOV_ALLOW_UNFREEZE)
+#define RTAS_FN_IBM_OPEN_SRIOV_MAP_PE_NUMBER      rtas_fn_handle(RTAS_FNIDX__IBM_OPEN_SRIOV_MAP_PE_NUMBER)
+#define RTAS_FN_IBM_OS_TERM                       rtas_fn_handle(RTAS_FNIDX__IBM_OS_TERM)
+#define RTAS_FN_IBM_PARTNER_CONTROL               rtas_fn_handle(RTAS_FNIDX__IBM_PARTNER_CONTROL)
+#define RTAS_FN_IBM_PHYSICAL_ATTESTATION          rtas_fn_handle(RTAS_FNIDX__IBM_PHYSICAL_ATTESTATION)
+#define RTAS_FN_IBM_PLATFORM_DUMP                 rtas_fn_handle(RTAS_FNIDX__IBM_PLATFORM_DUMP)
+#define RTAS_FN_IBM_POWER_OFF_UPS                 rtas_fn_handle(RTAS_FNIDX__IBM_POWER_OFF_UPS)
+#define RTAS_FN_IBM_QUERY_INTERRUPT_SOURCE_NUMBER rtas_fn_handle(RTAS_FNIDX__IBM_QUERY_INTERRUPT_SOURCE_NUMBER)
+#define RTAS_FN_IBM_QUERY_PE_DMA_WINDOW           rtas_fn_handle(RTAS_FNIDX__IBM_QUERY_PE_DMA_WINDOW)
+#define RTAS_FN_IBM_READ_PCI_CONFIG               rtas_fn_handle(RTAS_FNIDX__IBM_READ_PCI_CONFIG)
+#define RTAS_FN_IBM_READ_SLOT_RESET_STATE         rtas_fn_handle(RTAS_FNIDX__IBM_READ_SLOT_RESET_STATE)
+#define RTAS_FN_IBM_READ_SLOT_RESET_STATE2        rtas_fn_handle(RTAS_FNIDX__IBM_READ_SLOT_RESET_STATE2)
+#define RTAS_FN_IBM_REMOVE_PE_DMA_WINDOW          rtas_fn_handle(RTAS_FNIDX__IBM_REMOVE_PE_DMA_WINDOW)
+#define RTAS_FN_IBM_RESET_PE_DMA_WINDOWS          rtas_fn_handle(RTAS_FNIDX__IBM_RESET_PE_DMA_WINDOWS)
+#define RTAS_FN_IBM_SCAN_LOG_DUMP                 rtas_fn_handle(RTAS_FNIDX__IBM_SCAN_LOG_DUMP)
+#define RTAS_FN_IBM_SET_DYNAMIC_INDICATOR         rtas_fn_handle(RTAS_FNIDX__IBM_SET_DYNAMIC_INDICATOR)
+#define RTAS_FN_IBM_SET_EEH_OPTION                rtas_fn_handle(RTAS_FNIDX__IBM_SET_EEH_OPTION)
+#define RTAS_FN_IBM_SET_SLOT_RESET                rtas_fn_handle(RTAS_FNIDX__IBM_SET_SLOT_RESET)
+#define RTAS_FN_IBM_SET_SYSTEM_PARAMETER          rtas_fn_handle(RTAS_FNIDX__IBM_SET_SYSTEM_PARAMETER)
+#define RTAS_FN_IBM_SET_XIVE                      rtas_fn_handle(RTAS_FNIDX__IBM_SET_XIVE)
+#define RTAS_FN_IBM_SLOT_ERROR_DETAIL             rtas_fn_handle(RTAS_FNIDX__IBM_SLOT_ERROR_DETAIL)
+#define RTAS_FN_IBM_SUSPEND_ME                    rtas_fn_handle(RTAS_FNIDX__IBM_SUSPEND_ME)
+#define RTAS_FN_IBM_TUNE_DMA_PARMS                rtas_fn_handle(RTAS_FNIDX__IBM_TUNE_DMA_PARMS)
+#define RTAS_FN_IBM_UPDATE_FLASH_64_AND_REBOOT    rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_FLASH_64_AND_REBOOT)
+#define RTAS_FN_IBM_UPDATE_NODES                  rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_NODES)
+#define RTAS_FN_IBM_UPDATE_PROPERTIES             rtas_fn_handle(RTAS_FNIDX__IBM_UPDATE_PROPERTIES)
+#define RTAS_FN_IBM_VALIDATE_FLASH_IMAGE          rtas_fn_handle(RTAS_FNIDX__IBM_VALIDATE_FLASH_IMAGE)
+#define RTAS_FN_IBM_WRITE_PCI_CONFIG              rtas_fn_handle(RTAS_FNIDX__IBM_WRITE_PCI_CONFIG)
+#define RTAS_FN_NVRAM_FETCH                       rtas_fn_handle(RTAS_FNIDX__NVRAM_FETCH)
+#define RTAS_FN_NVRAM_STORE                       rtas_fn_handle(RTAS_FNIDX__NVRAM_STORE)
+#define RTAS_FN_POWER_OFF                         rtas_fn_handle(RTAS_FNIDX__POWER_OFF)
+#define RTAS_FN_PUT_TERM_CHAR                     rtas_fn_handle(RTAS_FNIDX__PUT_TERM_CHAR)
+#define RTAS_FN_QUERY_CPU_STOPPED_STATE           rtas_fn_handle(RTAS_FNIDX__QUERY_CPU_STOPPED_STATE)
+#define RTAS_FN_READ_PCI_CONFIG                   rtas_fn_handle(RTAS_FNIDX__READ_PCI_CONFIG)
+#define RTAS_FN_RTAS_LAST_ERROR                   rtas_fn_handle(RTAS_FNIDX__RTAS_LAST_ERROR)
+#define RTAS_FN_SET_INDICATOR                     rtas_fn_handle(RTAS_FNIDX__SET_INDICATOR)
+#define RTAS_FN_SET_POWER_LEVEL                   rtas_fn_handle(RTAS_FNIDX__SET_POWER_LEVEL)
+#define RTAS_FN_SET_TIME_FOR_POWER_ON             rtas_fn_handle(RTAS_FNIDX__SET_TIME_FOR_POWER_ON)
+#define RTAS_FN_SET_TIME_OF_DAY                   rtas_fn_handle(RTAS_FNIDX__SET_TIME_OF_DAY)
+#define RTAS_FN_START_CPU                         rtas_fn_handle(RTAS_FNIDX__START_CPU)
+#define RTAS_FN_STOP_SELF                         rtas_fn_handle(RTAS_FNIDX__STOP_SELF)
+#define RTAS_FN_SYSTEM_REBOOT                     rtas_fn_handle(RTAS_FNIDX__SYSTEM_REBOOT)
+#define RTAS_FN_THAW_TIME_BASE                    rtas_fn_handle(RTAS_FNIDX__THAW_TIME_BASE)
+#define RTAS_FN_WRITE_PCI_CONFIG                  rtas_fn_handle(RTAS_FNIDX__WRITE_PCI_CONFIG)
+
 #define RTAS_UNKNOWN_SERVICE (-1)
 #define RTAS_INSTANTIATE_MAX (1ULL<<30) /* Don't instantiate rtas at/above this value */
 
@@ -32,21 +211,6 @@
 #define RTAS_NOT_SUSPENDABLE    -9004 /* Partition not suspendable */
 #define RTAS_THREADS_ACTIVE     -9005 /* Multiple processor threads active */
 #define RTAS_OUTSTANDING_COPROC -9006 /* Outstanding coprocessor operations */
-
-/*
- * In general to call RTAS use rtas_token("string") to lookup
- * an RTAS token for the given string (e.g. "event-scan").
- * To actually perform the call use
- *    ret = rtas_call(token, n_in, n_out, ...)
- * Where n_in is the number of input parameters and
- *       n_out is the number of output parameters
- *
- * If the "string" is invalid on this system, RTAS_UNKNOWN_SERVICE
- * will be returned as a token.  rtas_call() does look for this
- * token and error out gracefully so rtas_call(rtas_token("str"), ...)
- * may be safely used for one-shot calls to RTAS.
- *
- */
 
 /* RTAS event classes */
 #define RTAS_INTERNAL_ERROR		0x80000000 /* set bit 0 */
@@ -237,10 +401,14 @@ extern void (*rtas_flash_term_hook)(int);
 
 extern struct rtas_t rtas;
 
+s32 rtas_function_token(const rtas_fn_handle_t handle);
+static inline bool rtas_function_implemented(const rtas_fn_handle_t handle)
+{
+	return rtas_function_token(handle) != RTAS_UNKNOWN_SERVICE;
+}
 extern int rtas_token(const char *service);
 extern int rtas_service_present(const char *service);
 extern int rtas_call(int token, int, int, int *, ...);
-int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...);
 void rtas_call_unlocked(struct rtas_args *args, int token, int nargs,
 			int nret, ...);
 extern void __noreturn rtas_restart(char *cmd);

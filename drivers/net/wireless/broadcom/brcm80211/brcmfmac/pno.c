@@ -177,7 +177,7 @@ static int brcmf_pno_set_random(struct brcmf_if *ifp, struct brcmf_pno_info *pi)
 	memcpy(pfn_mac.mac, mac_addr, ETH_ALEN);
 	for (i = 0; i < ETH_ALEN; i++) {
 		pfn_mac.mac[i] &= mac_mask[i];
-		pfn_mac.mac[i] |= get_random_int() & ~(mac_mask[i]);
+		pfn_mac.mac[i] |= get_random_u8() & ~(mac_mask[i]);
 	}
 	/* Clear multi bit */
 	pfn_mac.mac[0] &= 0xFE;
@@ -405,7 +405,7 @@ static int brcmf_pno_config_sched_scans(struct brcmf_if *ifp)
 	if (n_buckets < 0)
 		return n_buckets;
 
-	gsz = sizeof(*gscan_cfg) + (n_buckets - 1) * sizeof(*buckets);
+	gsz = struct_size(gscan_cfg, bucket, n_buckets);
 	gscan_cfg = kzalloc(gsz, GFP_KERNEL);
 	if (!gscan_cfg) {
 		err = -ENOMEM;
@@ -434,8 +434,8 @@ static int brcmf_pno_config_sched_scans(struct brcmf_if *ifp)
 	gscan_cfg->flags = BRCMF_GSCAN_CFG_ALL_BUCKETS_IN_1ST_SCAN;
 
 	gscan_cfg->count_of_channel_buckets = n_buckets;
-	memcpy(&gscan_cfg->bucket[0], buckets,
-	       n_buckets * sizeof(*buckets));
+	memcpy(gscan_cfg->bucket, buckets,
+	       array_size(n_buckets, sizeof(*buckets)));
 
 	err = brcmf_fil_iovar_data_set(ifp, "pfn_gscan_cfg", gscan_cfg, gsz);
 

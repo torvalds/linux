@@ -8,6 +8,8 @@
 #ifndef _ADXL313_H_
 #define _ADXL313_H_
 
+#include <linux/iio/iio.h>
+
 /* ADXL313 register definitions */
 #define ADXL313_REG_DEVID0		0x00
 #define ADXL313_REG_DEVID1		0x01
@@ -26,6 +28,7 @@
 #define ADXL313_REG_FIFO_STATUS		0x39
 
 #define ADXL313_DEVID0			0xAD
+#define ADXL313_DEVID0_ADXL312_314	0xE5
 #define ADXL313_DEVID1			0x1D
 #define ADXL313_PARTID			0xCB
 #define ADXL313_SOFT_RESET		0x52
@@ -37,18 +40,46 @@
 #define ADXL313_MEASUREMENT_MODE	BIT(3)
 
 #define ADXL313_RANGE_MSK		GENMASK(1, 0)
-#define ADXL313_RANGE_4G		3
+#define ADXL313_RANGE_MAX		3
 
 #define ADXL313_FULL_RES		BIT(3)
 #define ADXL313_SPI_3WIRE		BIT(6)
 #define ADXL313_I2C_DISABLE		BIT(6)
 
+extern const struct regmap_access_table adxl312_readable_regs_table;
 extern const struct regmap_access_table adxl313_readable_regs_table;
+extern const struct regmap_access_table adxl314_readable_regs_table;
 
+extern const struct regmap_access_table adxl312_writable_regs_table;
 extern const struct regmap_access_table adxl313_writable_regs_table;
+extern const struct regmap_access_table adxl314_writable_regs_table;
+
+enum adxl313_device_type {
+	ADXL312,
+	ADXL313,
+	ADXL314,
+};
+
+struct adxl313_data {
+	struct regmap	*regmap;
+	const struct adxl313_chip_info *chip_info;
+	struct mutex	lock; /* lock to protect transf_buf */
+	__le16		transf_buf __aligned(IIO_DMA_MINALIGN);
+};
+
+struct adxl313_chip_info {
+	const char			*name;
+	enum adxl313_device_type	type;
+	int				scale_factor;
+	bool				variable_range;
+	bool				soft_reset;
+	int (*check_id)(struct device *dev, struct adxl313_data *data);
+};
+
+extern const struct adxl313_chip_info adxl31x_chip_info[];
 
 int adxl313_core_probe(struct device *dev,
 		       struct regmap *regmap,
-		       const char *name,
+		       const struct adxl313_chip_info *chip_info,
 		       int (*setup)(struct device *, struct regmap *));
 #endif /* _ADXL313_H_ */

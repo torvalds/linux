@@ -29,6 +29,8 @@ will feature a character device node on which ioctls can be called to
 
 -  negotiate image formats on individual pads
 
+-  inspect and modify internal data routing between pads of the same entity
+
 Sub-device character device nodes, conventionally named
 ``/dev/v4l-subdev*``, use major number 81.
 
@@ -404,6 +406,8 @@ pixel array is not rectangular but cross-shaped or round. The maximum
 size may also be smaller than the BOUNDS rectangle.
 
 
+.. _format-propagation:
+
 Order of configuration and format propagation
 ---------------------------------------------
 
@@ -501,3 +505,165 @@ source pads.
     :maxdepth: 1
 
     subdev-formats
+
+Streams, multiplexed media pads and internal routing
+----------------------------------------------------
+
+Simple V4L2 sub-devices do not support multiple, unrelated video streams,
+and only a single stream can pass through a media link and a media pad.
+Thus each pad contains a format and selection configuration for that
+single stream. A subdev can do stream processing and split a stream into
+two or compose two streams into one, but the inputs and outputs for the
+subdev are still a single stream per pad.
+
+Some hardware, e.g. MIPI CSI-2, support multiplexed streams, that is, multiple
+data streams are transmitted on the same bus, which is represented by a media
+link connecting a transmitter source pad with a sink pad on the receiver. For
+example, a camera sensor can produce two distinct streams, a pixel stream and a
+metadata stream, which are transmitted on the multiplexed data bus, represented
+by a media link which connects the single sensor's source pad with the receiver
+sink pad. The stream-aware receiver will de-multiplex the streams received on
+the its sink pad and allows to route them individually to one of its source
+pads.
+
+Subdevice drivers that support multiplexed streams are compatible with
+non-multiplexed subdev drivers, but, of course, require a routing configuration
+where the link between those two types of drivers contains only a single
+stream.
+
+Understanding streams
+^^^^^^^^^^^^^^^^^^^^^
+
+A stream is a stream of content (e.g. pixel data or metadata) flowing through
+the media pipeline from a source (e.g. a sensor) towards the final sink (e.g. a
+receiver and demultiplexer in a SoC). Each media link carries all the enabled
+streams from one end of the link to the other, and sub-devices have routing
+tables which describe how the incoming streams from sink pads are routed to the
+source pads.
+
+A stream ID is a media pad-local identifier for a stream. Streams IDs of
+the same stream must be equal on both ends of a link. In other words,
+a particular stream ID must exist on both sides of a media
+link, but another stream ID can be used for the same stream at the other side
+of the sub-device.
+
+A stream at a specific point in the media pipeline is identified by the
+sub-device and a (pad, stream) pair. For sub-devices that do not support
+multiplexed streams the 'stream' field is always 0.
+
+Interaction between routes, streams, formats and selections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The addition of streams to the V4L2 sub-device interface moves the sub-device
+formats and selections from pads to (pad, stream) pairs. Besides the
+usual pad, also the stream ID needs to be provided for setting formats and
+selections. The order of configuring formats and selections along a stream is
+the same as without streams (see :ref:`format-propagation`).
+
+Instead of the sub-device wide merging of streams from all sink pads
+towards all source pads, data flows for each route are separate from each
+other. Any number of routes from streams on sink pads towards streams on
+source pads is allowed, to the extent supported by drivers. For every
+stream on a source pad, however, only a single route is allowed.
+
+Any configurations of a stream within a pad, such as format or selections,
+are independent of similar configurations on other streams. This is
+subject to change in the future.
+
+Configuring streams
+^^^^^^^^^^^^^^^^^^^
+
+The configuration of the streams is done individually for each sub-device and
+the validity of the streams between sub-devices is validated when the pipeline
+is started.
+
+There are three steps in configuring the streams:
+
+1) Set up links. Connect the pads between sub-devices using the :ref:`Media
+Controller API <media_controller>`
+
+2) Streams. Streams are declared and their routing is configured by
+setting the routing table for the sub-device using
+:ref:`VIDIOC_SUBDEV_S_ROUTING <VIDIOC_SUBDEV_G_ROUTING>` ioctl. Note that
+setting the routing table will reset formats and selections in the
+sub-device to default values.
+
+3) Configure formats and selections. Formats and selections of each stream
+are configured separately as documented for plain sub-devices in
+:ref:`format-propagation`. The stream ID is set to the same stream ID
+associated with either sink or source pads of routes configured using the
+:ref:`VIDIOC_SUBDEV_S_ROUTING <VIDIOC_SUBDEV_G_ROUTING>` ioctl.
+
+Multiplexed streams setup example
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A simple example of a multiplexed stream setup might be as follows:
+
+- Two identical sensors (Sensor A and Sensor B). Each sensor has a single source
+  pad (pad 0) which carries a pixel data stream.
+
+- Multiplexer bridge (Bridge). The bridge has two sink pads, connected to the
+  sensors (pads 0, 1), and one source pad (pad 2), which outputs two streams.
+
+- Receiver in the SoC (Receiver). The receiver has a single sink pad (pad 0),
+  connected to the bridge, and two source pads (pads 1-2), going to the DMA
+  engine. The receiver demultiplexes the incoming streams to the source pads.
+
+- DMA Engines in the SoC (DMA Engine), one for each stream. Each DMA engine is
+  connected to a single source pad in the receiver.
+
+The sensors, the bridge and the receiver are modeled as V4L2 sub-devices,
+exposed to userspace via /dev/v4l-subdevX device nodes. The DMA engines are
+modeled as V4L2 devices, exposed to userspace via /dev/videoX nodes.
+
+To configure this pipeline, the userspace must take the following steps:
+
+1) Set up media links between entities: connect the sensors to the bridge,
+bridge to the receiver, and the receiver to the DMA engines. This step does
+not differ from normal non-multiplexed media controller setup.
+
+2) Configure routing
+
+.. flat-table:: Bridge routing table
+    :header-rows:  1
+
+    * - Sink Pad/Stream
+      - Source Pad/Stream
+      - Routing Flags
+      - Comments
+    * - 0/0
+      - 2/0
+      - V4L2_SUBDEV_ROUTE_FL_ACTIVE
+      - Pixel data stream from Sensor A
+    * - 1/0
+      - 2/1
+      - V4L2_SUBDEV_ROUTE_FL_ACTIVE
+      - Pixel data stream from Sensor B
+
+.. flat-table:: Receiver routing table
+    :header-rows:  1
+
+    * - Sink Pad/Stream
+      - Source Pad/Stream
+      - Routing Flags
+      - Comments
+    * - 0/0
+      - 1/0
+      - V4L2_SUBDEV_ROUTE_FL_ACTIVE
+      - Pixel data stream from Sensor A
+    * - 0/1
+      - 2/0
+      - V4L2_SUBDEV_ROUTE_FL_ACTIVE
+      - Pixel data stream from Sensor B
+
+3) Configure formats and selections
+
+After configuring routing, the next step is configuring the formats and
+selections for the streams. This is similar to performing this step without
+streams, with just one exception: the ``stream`` field needs to be assigned
+to the value of the stream ID.
+
+A common way to accomplish this is to start from the sensors and propagate the
+configurations along the stream towards the receiver,
+using :ref:`VIDIOC_SUBDEV_S_FMT <VIDIOC_SUBDEV_G_FMT>` ioctls to configure each
+stream endpoint in each sub-device.

@@ -18,17 +18,12 @@ struct rt715_priv {
 	int dbg_nid;
 	int dbg_vid;
 	int dbg_payload;
-	enum sdw_slave_status status;
 	struct sdw_bus_params params;
 	bool hw_init;
 	bool first_hw_init;
 	unsigned int kctl_2ch_vol_ori[2];
 	unsigned int kctl_8ch_switch_ori[8];
 	unsigned int kctl_8ch_vol_ori[8];
-};
-
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
 };
 
 /* NID */

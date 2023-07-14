@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: netdev
+
+doc:
+  netdev configuration over generic netlink.
+
+definitions:
+  -
+    type: flags
+    name: xdp-act
+    render-max: true
+    entries:
+      -
+        name: basic
+        doc:
+          XDP feautues set supported by all drivers
+          (XDP_ABORTED, XDP_DROP, XDP_PASS, XDP_TX)
+      -
+        name: redirect
+        doc:
+          The netdev supports XDP_REDIRECT
+      -
+        name: ndo-xmit
+        doc:
+          This feature informs if netdev implements ndo_xdp_xmit callback.
+      -
+        name: xsk-zerocopy
+        doc:
+          This feature informs if netdev supports AF_XDP in zero copy mode.
+      -
+        name: hw-offload
+        doc:
+         This feature informs if netdev supports XDP hw offloading.
+      -
+        name: rx-sg
+        doc:
+          This feature informs if netdev implements non-linear XDP buffer
+          support in the driver napi callback.
+      -
+        name: ndo-xmit-sg
+        doc:
+          This feature informs if netdev implements non-linear XDP buffer
+          support in ndo_xdp_xmit callback.
+
+attribute-sets:
+  -
+    name: dev
+    attributes:
+      -
+        name: ifindex
+        doc: netdev ifindex
+        type: u32
+        checks:
+          min: 1
+      -
+        name: pad
+        type: pad
+      -
+        name: xdp-features
+        doc: Bitmask of enabled xdp-features.
+        type: u64
+        enum: xdp-act
+        enum-as-flags: true
+
+operations:
+  list:
+    -
+      name: dev-get
+      doc: Get / dump information about a netdev.
+      attribute-set: dev
+      do:
+        request:
+          attributes:
+            - ifindex
+        reply: &dev-all
+          attributes:
+            - ifindex
+            - xdp-features
+      dump:
+        reply: *dev-all
+    -
+      name: dev-add-ntf
+      doc: Notification about device appearing.
+      notify: dev-get
+      mcgrp: mgmt
+    -
+      name: dev-del-ntf
+      doc: Notification about device disappearing.
+      notify: dev-get
+      mcgrp: mgmt
+    -
+      name: dev-change-ntf
+      doc: Notification about device configuration being changed.
+      notify: dev-get
+      mcgrp: mgmt
+
+mcast-groups:
+  list:
+    -
+      name: mgmt

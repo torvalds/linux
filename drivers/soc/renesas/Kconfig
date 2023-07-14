@@ -2,6 +2,8 @@
 menuconfig SOC_RENESAS
 	bool "Renesas SoC driver support" if COMPILE_TEST && !ARCH_RENESAS
 	default y if ARCH_RENESAS
+	select GPIOLIB
+	select PINCTRL
 	select SOC_BUS
 
 if SOC_RENESAS
@@ -44,6 +46,7 @@ config ARCH_RZG2L
 	bool
 	select PM
 	select PM_GENERIC_DOMAINS
+	select RENESAS_RZG2L_IRQC
 
 config ARCH_RZN1
 	bool
@@ -203,13 +206,6 @@ config ARCH_R8A77990
 	  This enables support for the Renesas R-Car E3 SoC.
 	  This includes different gradings like R-Car E3e.
 
-config ARCH_R8A77950
-	bool "ARM64 Platform support for R-Car H3 ES1.x"
-	select ARCH_RCAR_GEN3
-	select SYSC_R8A7795
-	help
-	  This enables support for the Renesas R-Car H3 SoC (revision 1.x).
-
 config ARCH_R8A77951
 	bool "ARM64 Platform support for R-Car H3 ES2.0+"
 	select ARCH_RCAR_GEN3
@@ -327,10 +323,24 @@ config ARCH_R9A09G011
 	bool "ARM64 Platform support for RZ/V2M"
 	select PM
 	select PM_GENERIC_DOMAINS
+	select PWC_RZV2M
 	help
 	  This enables support for the Renesas RZ/V2M SoC.
 
 endif # ARM64
+
+if RISCV
+
+config ARCH_R9A07G043
+	bool "RISC-V Platform support for RZ/Five"
+	select ARCH_RZG2L
+	help
+	  This enables support for the Renesas RZ/Five SoC.
+
+endif # RISCV
+
+config PWC_RZV2M
+	bool "Renesas RZ/V2M PWC support" if COMPILE_TEST
 
 config RST_RCAR
 	bool "Reset Controller support for R-Car" if COMPILE_TEST

@@ -169,17 +169,6 @@ static int acp3x_power_on(void __iomem *base)
 	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP_TIMEOUT);
 }
 
-static int acp3x_power_off(void __iomem *base)
-{
-	u32 val;
-
-	writel(ACP_PWR_OFF_MASK, base + ACP_PGFSM_CONTROL);
-
-	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val,
-				  (val & ACP_PGFSM_STAT_MASK) == ACP_POWERED_OFF,
-				  DELAY_US, ACP_TIMEOUT);
-}
-
 static int acp3x_reset(void __iomem *base)
 {
 	u32 val;
@@ -246,12 +235,6 @@ static int rn_acp_deinit(void __iomem *base)
 		return ret;
 
 	writel(0x00, base + ACP_CONTROL);
-
-	/* power off */
-	ret = acp3x_power_off(base);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 static int renoir_audio_probe(struct platform_device *pdev)
@@ -313,7 +296,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int renoir_audio_remove(struct platform_device *pdev)
+static void renoir_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
@@ -329,12 +312,11 @@ static int renoir_audio_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ACP de-init Failed (%pe)\n", ERR_PTR(ret));
 
 	acp_platform_unregister(dev);
-	return 0;
 }
 
 static struct platform_driver renoir_driver = {
 	.probe = renoir_audio_probe,
-	.remove = renoir_audio_remove,
+	.remove_new = renoir_audio_remove,
 	.driver = {
 		.name = "acp_asoc_renoir",
 	},

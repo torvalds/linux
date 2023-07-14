@@ -108,12 +108,13 @@ function pgset() {
     fi
 }
 
-if [[ -z "$APPEND" ]]; then
-	if [[ $EUID -eq 0 ]]; then
-		# Cleanup pktgen setup on exit if thats not "append mode"
-		trap 'pg_ctrl "reset"' EXIT
-	fi
-fi
+function trap_exit()
+{
+    # Cleanup pktgen setup on exit if thats not "append mode"
+    if [[ -z "$APPEND" ]] && [[ $EUID -eq 0 ]]; then
+        trap 'pg_ctrl "reset"' EXIT
+    fi
+}
 
 ## -- General shell tricks --
 
@@ -191,7 +192,7 @@ function extend_addr6()
     fi
 
     # if shrink '::' occurs multiple, it's malformed.
-    shrink=( $(egrep -o "$sep{2,}" <<< $addr) )
+    shrink=( $(grep -E -o "$sep{2,}" <<< $addr) )
     if [[ ${#shrink[@]} -ne 0 ]]; then
         if [[ ${#shrink[@]} -gt 1 || ( ${shrink[0]} != $sep2 ) ]]; then
             err 5 "Invalid IP6 address: $1"

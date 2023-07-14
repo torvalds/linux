@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2017 Oracle.  All Rights Reserved.
- * Author: Darrick J. Wong <darrick.wong@oracle.com>
+ * Copyright (C) 2017-2023 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #ifndef __XFS_SCRUB_COMMON_H__
 #define __XFS_SCRUB_COMMON_H__
@@ -25,13 +25,15 @@ xchk_should_terminate(
 
 	if (fatal_signal_pending(current)) {
 		if (*error == 0)
-			*error = -EAGAIN;
+			*error = -EINTR;
 		return true;
 	}
 	return false;
 }
 
 int xchk_trans_alloc(struct xfs_scrub *sc, uint resblks);
+void xchk_trans_cancel(struct xfs_scrub *sc);
+
 bool xchk_process_error(struct xfs_scrub *sc, xfs_agnumber_t agno,
 		xfs_agblock_t bno, int *error);
 bool xchk_fblock_process_error(struct xfs_scrub *sc, int whichfork,
@@ -72,6 +74,7 @@ bool xchk_should_check_xref(struct xfs_scrub *sc, int *error,
 			   struct xfs_btree_cur **curpp);
 
 /* Setup functions */
+int xchk_setup_agheader(struct xfs_scrub *sc);
 int xchk_setup_fs(struct xfs_scrub *sc);
 int xchk_setup_ag_allocbt(struct xfs_scrub *sc);
 int xchk_setup_ag_iallocbt(struct xfs_scrub *sc);
@@ -132,9 +135,15 @@ int xchk_count_rmap_ownedby_ag(struct xfs_scrub *sc, struct xfs_btree_cur *cur,
 		const struct xfs_owner_info *oinfo, xfs_filblks_t *blocks);
 
 int xchk_setup_ag_btree(struct xfs_scrub *sc, bool force_log);
-int xchk_get_inode(struct xfs_scrub *sc);
+int xchk_iget_for_scrubbing(struct xfs_scrub *sc);
 int xchk_setup_inode_contents(struct xfs_scrub *sc, unsigned int resblks);
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
+
+int xchk_iget(struct xfs_scrub *sc, xfs_ino_t inum, struct xfs_inode **ipp);
+int xchk_iget_agi(struct xfs_scrub *sc, xfs_ino_t inum,
+		struct xfs_buf **agi_bpp, struct xfs_inode **ipp);
+void xchk_irele(struct xfs_scrub *sc, struct xfs_inode *ip);
+int xchk_install_handle_inode(struct xfs_scrub *sc, struct xfs_inode *ip);
 
 /*
  * Don't bother cross-referencing if we already found corruption or cross
@@ -147,8 +156,19 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 }
 
 int xchk_metadata_inode_forks(struct xfs_scrub *sc);
-int xchk_ilock_inverted(struct xfs_inode *ip, uint lock_mode);
-void xchk_stop_reaping(struct xfs_scrub *sc);
-void xchk_start_reaping(struct xfs_scrub *sc);
+
+/*
+ * Setting up a hook to wait for intents to drain is costly -- we have to take
+ * the CPU hotplug lock and force an i-cache flush on all CPUs once to set it
+ * up, and again to tear it down.  These costs add up quickly, so we only want
+ * to enable the drain waiter if the drain actually detected a conflict with
+ * running intent chains.
+ */
+static inline bool xchk_need_intent_drain(struct xfs_scrub *sc)
+{
+	return sc->flags & XCHK_NEED_DRAIN;
+}
+
+void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
 
 #endif	/* __XFS_SCRUB_COMMON_H__ */

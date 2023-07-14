@@ -104,7 +104,7 @@ err:
 
 static const struct nla_policy nft_rt_policy[NFTA_RT_MAX + 1] = {
 	[NFTA_RT_DREG]		= { .type = NLA_U32 },
-	[NFTA_RT_KEY]		= { .type = NLA_U32 },
+	[NFTA_RT_KEY]		= NLA_POLICY_MAX(NLA_BE32, 255),
 };
 
 static int nft_rt_get_init(const struct nft_ctx *ctx,
@@ -146,7 +146,7 @@ static int nft_rt_get_init(const struct nft_ctx *ctx,
 }
 
 static int nft_rt_get_dump(struct sk_buff *skb,
-			   const struct nft_expr *expr)
+			   const struct nft_expr *expr, bool reset)
 {
 	const struct nft_rt *priv = nft_expr_priv(expr);
 

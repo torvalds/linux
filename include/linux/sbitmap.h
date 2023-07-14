@@ -87,11 +87,6 @@ struct sbitmap {
  */
 struct sbq_wait_state {
 	/**
-	 * @wait_cnt: Number of frees remaining before we wake up.
-	 */
-	atomic_t wait_cnt;
-
-	/**
 	 * @wait: Wait queue.
 	 */
 	wait_queue_head_t wait;
@@ -138,6 +133,17 @@ struct sbitmap_queue {
 	 * sbitmap_queue_get_shallow()
 	 */
 	unsigned int min_shallow_depth;
+
+	/**
+	 * @completion_cnt: Number of bits cleared passed to the
+	 * wakeup function.
+	 */
+	atomic_t completion_cnt;
+
+	/**
+	 * @wakeup_cnt: Number of thread wake ups issued.
+	 */
+	atomic_t wakeup_cnt;
 };
 
 /**
@@ -575,8 +581,9 @@ void sbitmap_queue_wake_all(struct sbitmap_queue *sbq);
  * sbitmap_queue_wake_up() - Wake up some of waiters in one waitqueue
  * on a &struct sbitmap_queue.
  * @sbq: Bitmap queue to wake up.
+ * @nr: Number of bits cleared.
  */
-void sbitmap_queue_wake_up(struct sbitmap_queue *sbq);
+void sbitmap_queue_wake_up(struct sbitmap_queue *sbq, int nr);
 
 /**
  * sbitmap_queue_show() - Dump &struct sbitmap_queue information to a &struct

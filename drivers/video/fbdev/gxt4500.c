@@ -6,6 +6,7 @@
  * Copyright (C) 2006 Paul Mackerras, IBM Corp. <paulus@samba.org>
  */
 
+#include <linux/aperture.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fb.h>
@@ -621,6 +622,10 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct fb_var_screeninfo var;
 	enum gxt_cards cardtype;
 
+	err = aperture_remove_conflicting_pci_devices(pdev, "gxt4500fb");
+	if (err)
+		return err;
+
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "gxt4500: cannot enable PCI device: %d\n",
@@ -774,6 +779,9 @@ static struct pci_driver gxt4500_driver = {
 
 static int gxt4500_init(void)
 {
+	if (fb_modesetting_disabled("gxt4500"))
+		return -ENODEV;
+
 #ifndef MODULE
 	if (fb_get_options("gxt4500", &mode_option))
 		return -ENODEV;

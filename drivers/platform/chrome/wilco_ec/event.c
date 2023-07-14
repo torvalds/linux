@@ -58,7 +58,6 @@
 #define DRV_NAME		EVENT_DEV_NAME
 #define EVENT_DEV_NAME_FMT	(EVENT_DEV_NAME "%d")
 static struct class event_class = {
-	.owner	= THIS_MODULE,
 	.name	= EVENT_CLASS_NAME,
 };
 
@@ -500,15 +499,13 @@ free_minor:
 	return error;
 }
 
-static int event_device_remove(struct acpi_device *adev)
+static void event_device_remove(struct acpi_device *adev)
 {
 	struct event_device_data *dev_data = adev->driver_data;
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
 	ida_simple_remove(&event_ida, MINOR(dev_data->dev.devt));
 	hangup_device(dev_data);
-
-	return 0;
 }
 
 static const struct acpi_device_id event_acpi_ids[] = {

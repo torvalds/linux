@@ -75,13 +75,10 @@ static void jsonw_puts(json_writer_t *self, const char *str)
 			fputs("\\b", self->out);
 			break;
 		case '\\':
-			fputs("\\n", self->out);
+			fputs("\\\\", self->out);
 			break;
 		case '"':
 			fputs("\\\"", self->out);
-			break;
-		case '\'':
-			fputs("\\\'", self->out);
 			break;
 		default:
 			putc(*str, self->out);

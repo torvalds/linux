@@ -545,7 +545,7 @@ static const u8 blake2s_testvecs[][BLAKE2S_HASH_SIZE] __initconst = {
     0xd6, 0x98, 0x6b, 0x07, 0x10, 0x65, 0x52, 0x65, },
 };
 
-bool __init blake2s_selftest(void)
+static bool __init noinline_for_stack blake2s_digest_test(void)
 {
 	u8 key[BLAKE2S_KEY_SIZE];
 	u8 buf[ARRAY_SIZE(blake2s_testvecs)];
@@ -589,11 +589,20 @@ bool __init blake2s_selftest(void)
 		}
 	}
 
+	return success;
+}
+
+static bool __init noinline_for_stack blake2s_random_test(void)
+{
+	struct blake2s_state state;
+	bool success = true;
+	int i, l;
+
 	for (i = 0; i < 32; ++i) {
 		enum { TEST_ALIGNMENT = 16 };
-		u8 unaligned_block[BLAKE2S_BLOCK_SIZE + TEST_ALIGNMENT - 1]
+		u8 blocks[BLAKE2S_BLOCK_SIZE * 2 + TEST_ALIGNMENT - 1]
 					__aligned(TEST_ALIGNMENT);
-		u8 blocks[BLAKE2S_BLOCK_SIZE * 2];
+		u8 *unaligned_block = blocks + BLAKE2S_BLOCK_SIZE;
 		struct blake2s_state state1, state2;
 
 		get_random_bytes(blocks, sizeof(blocks));
@@ -627,6 +636,16 @@ bool __init blake2s_selftest(void)
 			}
 		}
 	}
+
+	return success;
+}
+
+bool __init blake2s_selftest(void)
+{
+	bool success;
+
+	success = blake2s_digest_test();
+	success &= blake2s_random_test();
 
 	return success;
 }

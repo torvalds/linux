@@ -102,7 +102,7 @@ static umode_t mcp3021_is_visible(const void *_data,
 	return 0444;
 }
 
-static const struct hwmon_channel_info *mcp3021_info[] = {
+static const struct hwmon_channel_info * const mcp3021_info[] = {
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT),
 	NULL
 };
@@ -198,7 +198,7 @@ static struct i2c_driver mcp3021_driver = {
 		.name = "mcp3021",
 		.of_match_table = of_match_ptr(of_mcp3021_match),
 	},
-	.probe_new = mcp3021_probe,
+	.probe = mcp3021_probe,
 	.id_table = mcp3021_id,
 };
 

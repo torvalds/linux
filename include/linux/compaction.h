@@ -81,13 +81,6 @@ static inline unsigned long compact_gap(unsigned int order)
 }
 
 #ifdef CONFIG_COMPACTION
-extern unsigned int sysctl_compaction_proactiveness;
-extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-			void *buffer, size_t *length, loff_t *ppos);
-extern int compaction_proactiveness_sysctl_handler(struct ctl_table *table,
-		int write, void *buffer, size_t *length, loff_t *ppos);
-extern int sysctl_extfrag_threshold;
-extern int sysctl_compact_unevictable_allowed;
 
 extern unsigned int extfrag_for_order(struct zone *zone, unsigned int order);
 extern int fragmentation_index(struct zone *zone, unsigned int order);
@@ -96,89 +89,17 @@ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
 		const struct alloc_context *ac, enum compact_priority prio,
 		struct page **page);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
-extern enum compact_result compaction_suitable(struct zone *zone, int order,
-		unsigned int alloc_flags, int highest_zoneidx);
+extern bool compaction_suitable(struct zone *zone, int order,
+					       int highest_zoneidx);
 
 extern void compaction_defer_reset(struct zone *zone, int order,
 				bool alloc_success);
 
-/* Compaction has made some progress and retrying makes sense */
-static inline bool compaction_made_progress(enum compact_result result)
-{
-	/*
-	 * Even though this might sound confusing this in fact tells us
-	 * that the compaction successfully isolated and migrated some
-	 * pageblocks.
-	 */
-	if (result == COMPACT_SUCCESS)
-		return true;
-
-	return false;
-}
-
-/* Compaction has failed and it doesn't make much sense to keep retrying. */
-static inline bool compaction_failed(enum compact_result result)
-{
-	/* All zones were scanned completely and still not result. */
-	if (result == COMPACT_COMPLETE)
-		return true;
-
-	return false;
-}
-
-/* Compaction needs reclaim to be performed first, so it can continue. */
-static inline bool compaction_needs_reclaim(enum compact_result result)
-{
-	/*
-	 * Compaction backed off due to watermark checks for order-0
-	 * so the regular reclaim has to try harder and reclaim something.
-	 */
-	if (result == COMPACT_SKIPPED)
-		return true;
-
-	return false;
-}
-
-/*
- * Compaction has backed off for some reason after doing some work or none
- * at all. It might be throttling or lock contention. Retrying might be still
- * worthwhile, but with a higher priority if allowed.
- */
-static inline bool compaction_withdrawn(enum compact_result result)
-{
-	/*
-	 * If compaction is deferred for high-order allocations, it is
-	 * because sync compaction recently failed. If this is the case
-	 * and the caller requested a THP allocation, we do not want
-	 * to heavily disrupt the system, so we fail the allocation
-	 * instead of entering direct reclaim.
-	 */
-	if (result == COMPACT_DEFERRED)
-		return true;
-
-	/*
-	 * If compaction in async mode encounters contention or blocks higher
-	 * priority task we back off early rather than cause stalls.
-	 */
-	if (result == COMPACT_CONTENDED)
-		return true;
-
-	/*
-	 * Page scanners have met but we haven't scanned full zones so this
-	 * is a back off in fact.
-	 */
-	if (result == COMPACT_PARTIAL_SKIPPED)
-		return true;
-
-	return false;
-}
-
-
 bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 					int alloc_flags);
 
-extern void kcompactd_run(int nid);
-extern void kcompactd_stop(int nid);
+extern void __meminit kcompactd_run(int nid);
+extern void __meminit kcompactd_stop(int nid);
 extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int highest_zoneidx);
 
 #else
@@ -186,30 +107,10 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
 {
 }
 
-static inline enum compact_result compaction_suitable(struct zone *zone, int order,
-					int alloc_flags, int highest_zoneidx)
-{
-	return COMPACT_SKIPPED;
-}
-
-static inline bool compaction_made_progress(enum compact_result result)
+static inline bool compaction_suitable(struct zone *zone, int order,
+						      int highest_zoneidx)
 {
 	return false;
-}
-
-static inline bool compaction_failed(enum compact_result result)
-{
-	return false;
-}
-
-static inline bool compaction_needs_reclaim(enum compact_result result)
-{
-	return false;
-}
-
-static inline bool compaction_withdrawn(enum compact_result result)
-{
-	return true;
 }
 
 static inline void kcompactd_run(int nid)

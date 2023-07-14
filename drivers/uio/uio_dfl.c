@@ -46,10 +46,14 @@ static int uio_dfl_probe(struct dfl_device *ddev)
 
 #define FME_FEATURE_ID_ETH_GROUP	0x10
 #define FME_FEATURE_ID_HSSI_SUBSYS	0x15
+#define FME_FEATURE_ID_VENDOR_SPECIFIC	0x23
+#define PORT_FEATURE_ID_IOPLL_USRCLK	0x14
 
 static const struct dfl_device_id uio_dfl_ids[] = {
 	{ FME_ID, FME_FEATURE_ID_ETH_GROUP },
 	{ FME_ID, FME_FEATURE_ID_HSSI_SUBSYS },
+	{ FME_ID, FME_FEATURE_ID_VENDOR_SPECIFIC },
+	{ PORT_ID, PORT_FEATURE_ID_IOPLL_USRCLK },
 	{ }
 };
 MODULE_DEVICE_TABLE(dfl, uio_dfl_ids);

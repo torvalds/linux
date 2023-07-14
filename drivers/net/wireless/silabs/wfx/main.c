@@ -128,6 +128,7 @@ static const struct ieee80211_ops wfx_ops = {
 	.remove_interface        = wfx_remove_interface,
 	.config                  = wfx_config,
 	.tx                      = wfx_tx,
+	.wake_tx_queue           = ieee80211_handle_wake_tx_queue,
 	.join_ibss               = wfx_join_ibss,
 	.leave_ibss              = wfx_leave_ibss,
 	.conf_tx                 = wfx_conf_tx,
@@ -357,13 +358,9 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	wfx_bh_poll_irq(wdev);
 	err = wait_for_completion_timeout(&wdev->firmware_ready, 1 * HZ);
-	if (err <= 0) {
-		if (err == 0) {
-			dev_err(wdev->dev, "timeout while waiting for startup indication\n");
-			err = -ETIMEDOUT;
-		} else if (err == -ERESTARTSYS) {
-			dev_info(wdev->dev, "probe interrupted by user\n");
-		}
+	if (err == 0) {
+		dev_err(wdev->dev, "timeout while waiting for startup indication\n");
+		err = -ETIMEDOUT;
 		goto bh_unregister;
 	}
 

@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/sound/simple-card.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Simple Audio Card Driver Device Tree Bindings
+title: Simple Audio Card Driver
 
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
@@ -78,7 +78,7 @@ definitions:
     $ref: /schemas/types.yaml#/definitions/uint32
 
   prefix:
-    description: "device name prefix"
+    description: device name prefix
     $ref: /schemas/types.yaml#/definitions/string
 
   label:
@@ -205,6 +205,8 @@ patternProperties:
     $ref: "#/definitions/dai"
   "^simple-audio-card,codec(@[0-9a-f]+)?$":
     $ref: "#/definitions/dai"
+  "^simple-audio-card,plat(@[0-9a-f]+)?$":
+    $ref: "#/definitions/dai"
 
   "^simple-audio-card,dai-link(@[0-9a-f]+)?$":
     description: |
@@ -215,6 +217,10 @@ patternProperties:
       reg:
         maxItems: 1
 
+      "#address-cells":
+        const: 1
+      "#size-cells":
+        const: 0
       # common properties
       frame-master:
         $ref: "#/definitions/frame-master"
@@ -244,9 +250,9 @@ patternProperties:
         maxItems: 1
 
     patternProperties:
-      "^cpu(@[0-9a-f]+)?":
+      "^cpu(-[0-9]+)?$":
         $ref: "#/definitions/dai"
-      "^codec(@[0-9a-f]+)?":
+      "^codec(-[0-9]+)?$":
         $ref: "#/definitions/dai"
     additionalProperties: false
 
@@ -256,9 +262,9 @@ required:
 additionalProperties: false
 
 examples:
-#--------------------
+# --------------------
 # single DAI link
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -285,9 +291,9 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # Multi DAI links
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -328,10 +334,10 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # route audio from IMX6 SSI2 through TLV320DAC3100 codec
 # through TPA6130A2 amplifier to headphones:
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -353,9 +359,9 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # Sampling Rate Conversion
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -381,9 +387,9 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # 2 CPU 1 Codec (Mixing)
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -418,7 +424,7 @@ examples:
         };
     };
 
-#--------------------
+# --------------------
 # Multi DAI links with DPCM:
 #
 # CPU0 ------ ak4613
@@ -427,7 +433,7 @@ examples:
 # CPU3 --/                /* DPCM 5ch/6ch */
 # CPU4 --/                /* DPCM 7ch/8ch */
 # CPU5 ------ PCM3168A-c
-#--------------------
+# --------------------
   - |
     sound {
         compatible = "simple-audio-card";
@@ -462,16 +468,16 @@ examples:
 
             convert-channels = <8>; /* TDM Split */
 
-            sndcpu1: cpu0 {
+            sndcpu1: cpu-0 {
                 sound-dai = <&rcar_sound 1>;
             };
-            cpu1 {
+            cpu-1 {
                 sound-dai = <&rcar_sound 2>;
             };
-            cpu2 {
+            cpu-2 {
                 sound-dai = <&rcar_sound 3>;
             };
-            cpu3 {
+            cpu-3 {
                 sound-dai = <&rcar_sound 4>;
             };
             codec {

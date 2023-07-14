@@ -2,8 +2,8 @@
 
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/media/qcom,sdm845-camss.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/media/qcom,sdm845-camss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Qualcomm CAMSS ISP
 
@@ -219,7 +219,7 @@ examples:
       #address-cells = <2>;
       #size-cells = <2>;
 
-      camss: camss@a00000 {
+      camss: camss@acb3000 {
         compatible = "qcom,sdm845-camss";
 
         clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,

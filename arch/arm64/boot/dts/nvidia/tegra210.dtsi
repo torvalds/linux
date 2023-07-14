@@ -554,42 +554,48 @@
 		compatible = "nvidia,tegra210-pinmux";
 		reg = <0x0 0x700008d4 0x0 0x29c>, /* Pad control registers */
 		      <0x0 0x70003000 0x0 0x294>; /* Mux registers */
-		sdmmc1_3v3_drv: sdmmc1-3v3-drv {
-			sdmmc1 {
-				nvidia,pins = "drive_sdmmc1";
-				nvidia,pull-down-strength = <0x8>;
-				nvidia,pull-up-strength = <0x8>;
-			};
-		};
-		sdmmc1_1v8_drv: sdmmc1-1v8-drv {
+
+		sdmmc1_1v8_drv: pinmux-sdmmc1-1v8-drv {
 			sdmmc1 {
 				nvidia,pins = "drive_sdmmc1";
 				nvidia,pull-down-strength = <0x4>;
 				nvidia,pull-up-strength = <0x3>;
 			};
 		};
-		sdmmc2_1v8_drv: sdmmc2-1v8-drv {
+
+		sdmmc1_3v3_drv: pinmux-sdmmc1-3v3-drv {
+			sdmmc1 {
+				nvidia,pins = "drive_sdmmc1";
+				nvidia,pull-down-strength = <0x8>;
+				nvidia,pull-up-strength = <0x8>;
+			};
+		};
+
+		sdmmc2_1v8_drv: pinmux-sdmmc2-1v8-drv {
 			sdmmc2 {
 				nvidia,pins = "drive_sdmmc2";
 				nvidia,pull-down-strength = <0x10>;
 				nvidia,pull-up-strength = <0x10>;
 			};
 		};
-		sdmmc3_3v3_drv: sdmmc3-3v3-drv {
-			sdmmc3 {
-				nvidia,pins = "drive_sdmmc3";
-				nvidia,pull-down-strength = <0x8>;
-				nvidia,pull-up-strength = <0x8>;
-			};
-		};
-		sdmmc3_1v8_drv: sdmmc3-1v8-drv {
+
+		sdmmc3_1v8_drv: pinmux-sdmmc3-1v8-drv {
 			sdmmc3 {
 				nvidia,pins = "drive_sdmmc3";
 				nvidia,pull-down-strength = <0x4>;
 				nvidia,pull-up-strength = <0x3>;
 			};
 		};
-		sdmmc4_1v8_drv: sdmmc4-1v8-drv {
+
+		sdmmc3_3v3_drv: pinmux-sdmmc3-3v3-drv {
+			sdmmc3 {
+				nvidia,pins = "drive_sdmmc3";
+				nvidia,pull-down-strength = <0x8>;
+				nvidia,pull-up-strength = <0x8>;
+			};
+		};
+
+		sdmmc4_1v8_drv: pinmux-sdmmc4-1v8-drv {
 			sdmmc4 {
 				nvidia,pins = "drive_sdmmc4";
 				nvidia,pull-down-strength = <0x10>;
@@ -612,9 +618,7 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA210_CLK_UARTA>;
-		clock-names = "serial";
 		resets = <&tegra_car 6>;
-		reset-names = "serial";
 		dmas = <&apbdma 8>, <&apbdma 8>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -626,9 +630,7 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA210_CLK_UARTB>;
-		clock-names = "serial";
 		resets = <&tegra_car 7>;
-		reset-names = "serial";
 		dmas = <&apbdma 9>, <&apbdma 9>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -640,9 +642,7 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA210_CLK_UARTC>;
-		clock-names = "serial";
 		resets = <&tegra_car 55>;
-		reset-names = "serial";
 		dmas = <&apbdma 10>, <&apbdma 10>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -654,9 +654,7 @@
 		reg-shift = <2>;
 		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&tegra_car TEGRA210_CLK_UARTD>;
-		clock-names = "serial";
 		resets = <&tegra_car 65>;
-		reset-names = "serial";
 		dmas = <&apbdma 19>, <&apbdma 19>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -667,7 +665,6 @@
 		reg = <0x0 0x7000a000 0x0 0x100>;
 		#pwm-cells = <2>;
 		clocks = <&tegra_car TEGRA210_CLK_PWM>;
-		clock-names = "pwm";
 		resets = <&tegra_car 17>;
 		reset-names = "pwm";
 		status = "disabled";
@@ -847,6 +844,38 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 
+		pinmux {
+			pex_dpd_disable: pex-dpd-disable {
+				pins = "pex-bias", "pex-clk1", "pex-clk2";
+				low-power-disable;
+			};
+
+			pex_dpd_enable: pex-dpd-enable {
+				pins = "pex-bias", "pex-clk1", "pex-clk2";
+				low-power-enable;
+			};
+
+			sdmmc1_1v8: sdmmc1-1v8 {
+				pins = "sdmmc1";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+			sdmmc1_3v3: sdmmc1-3v3 {
+				pins = "sdmmc1";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
+
+			sdmmc3_1v8: sdmmc3-1v8 {
+				pins = "sdmmc3";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
+			};
+
+			sdmmc3_3v3: sdmmc3-3v3 {
+				pins = "sdmmc3";
+				power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
+			};
+		};
+
 		powergates {
 			pd_audio: aud {
 				clocks = <&tegra_car TEGRA210_CLK_APE>,
@@ -876,6 +905,23 @@
 				#power-domain-cells = <0>;
 			};
 
+			pd_venc: venc {
+				clocks = <&tegra_car TEGRA210_CLK_VI>,
+					 <&tegra_car TEGRA210_CLK_CSI>;
+				resets = <&mc TEGRA210_MC_RESET_VI>,
+					 <&tegra_car 20>,
+					 <&tegra_car 52>;
+				#power-domain-cells = <0>;
+			};
+
+			pd_vic: vic {
+				clocks = <&tegra_car TEGRA210_CLK_VIC03>;
+				clock-names = "vic";
+				resets = <&tegra_car 178>;
+				reset-names = "vic";
+				#power-domain-cells = <0>;
+			};
+
 			pd_xusbss: xusba {
 				clocks = <&tegra_car TEGRA210_CLK_XUSB_SS>;
 				resets = <&tegra_car TEGRA210_CLK_XUSB_SS>;
@@ -892,57 +938,6 @@
 				clocks = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
 				resets = <&tegra_car TEGRA210_CLK_XUSB_HOST>;
 				#power-domain-cells = <0>;
-			};
-
-			pd_vic: vic {
-				clocks = <&tegra_car TEGRA210_CLK_VIC03>;
-				clock-names = "vic";
-				resets = <&tegra_car 178>;
-				reset-names = "vic";
-				#power-domain-cells = <0>;
-			};
-
-			pd_venc: venc {
-				clocks = <&tegra_car TEGRA210_CLK_VI>,
-					 <&tegra_car TEGRA210_CLK_CSI>;
-				resets = <&mc TEGRA210_MC_RESET_VI>,
-					 <&tegra_car 20>,
-					 <&tegra_car 52>;
-				#power-domain-cells = <0>;
-			};
-		};
-
-		sdmmc1_3v3: sdmmc1-3v3 {
-			pins = "sdmmc1";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
-
-		sdmmc1_1v8: sdmmc1-1v8 {
-			pins = "sdmmc1";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
-		};
-
-		sdmmc3_3v3: sdmmc3-3v3 {
-			pins = "sdmmc3";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_3V3>;
-		};
-
-		sdmmc3_1v8: sdmmc3-1v8 {
-			pins = "sdmmc3";
-			power-source = <TEGRA_IO_PAD_VOLTAGE_1V8>;
-		};
-
-		pex_dpd_disable: pex_en {
-			pex-dpd-disable {
-				pins = "pex-bias", "pex-clk1", "pex-clk2";
-				low-power-disable;
-			};
-		};
-
-		pex_dpd_enable: pex_dis {
-			pex-dpd-enable {
-				pins = "pex-bias", "pex-clk1", "pex-clk2";
-				low-power-enable;
 			};
 		};
 	};
@@ -1385,50 +1380,6 @@
 		ranges = <0x702c0000 0x0 0x702c0000 0x00040000>;
 		status = "disabled";
 
-		adma: dma-controller@702e2000 {
-			compatible = "nvidia,tegra210-adma";
-			reg = <0x702e2000 0x2000>;
-			interrupt-parent = <&agic>;
-			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-			#dma-cells = <1>;
-			clocks = <&tegra_car TEGRA210_CLK_D_AUDIO>;
-			clock-names = "d_audio";
-			status = "disabled";
-		};
-
-		agic: interrupt-controller@702f9000 {
-			compatible = "nvidia,tegra210-agic";
-			#interrupt-cells = <3>;
-			interrupt-controller;
-			reg = <0x702f9000 0x1000>,
-			      <0x702fa000 0x2000>;
-			interrupts = <GIC_SPI 102 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
-			clocks = <&tegra_car TEGRA210_CLK_APE>;
-			clock-names = "clk";
-			status = "disabled";
-		};
-
 		tegra_ahub: ahub@702d0800 {
 			compatible = "nvidia,tegra210-ahub";
 			reg = <0x702d0800 0x800>;
@@ -1617,6 +1568,62 @@
 				status = "disabled";
 			};
 
+			tegra_sfc1: sfc@702d2000 {
+				compatible = "nvidia,tegra210-sfc";
+				reg = <0x702d2000 0x200>;
+				sound-name-prefix = "SFC1";
+				status = "disabled";
+			};
+
+			tegra_sfc2: sfc@702d2200 {
+				compatible = "nvidia,tegra210-sfc";
+				reg = <0x702d2200 0x200>;
+				sound-name-prefix = "SFC2";
+				status = "disabled";
+			};
+
+			tegra_sfc3: sfc@702d2400 {
+				compatible = "nvidia,tegra210-sfc";
+				reg = <0x702d2400 0x200>;
+				sound-name-prefix = "SFC3";
+				status = "disabled";
+			};
+
+			tegra_sfc4: sfc@702d2600 {
+				compatible = "nvidia,tegra210-sfc";
+				reg = <0x702d2600 0x200>;
+				sound-name-prefix = "SFC4";
+				status = "disabled";
+			};
+
+			tegra_amx1: amx@702d3000 {
+				compatible = "nvidia,tegra210-amx";
+				reg = <0x702d3000 0x100>;
+				sound-name-prefix = "AMX1";
+				status = "disabled";
+			};
+
+			tegra_amx2: amx@702d3100 {
+				compatible = "nvidia,tegra210-amx";
+				reg = <0x702d3100 0x100>;
+				sound-name-prefix = "AMX2";
+				status = "disabled";
+			};
+
+			tegra_adx1: adx@702d3800 {
+				compatible = "nvidia,tegra210-adx";
+				reg = <0x702d3800 0x100>;
+				sound-name-prefix = "ADX1";
+				status = "disabled";
+			};
+
+			tegra_adx2: adx@702d3900 {
+				compatible = "nvidia,tegra210-adx";
+				reg = <0x702d3900 0x100>;
+				sound-name-prefix = "ADX2";
+				status = "disabled";
+			};
+
 			tegra_dmic1: dmic@702d4000 {
 				compatible = "nvidia,tegra210-dmic";
 				reg = <0x702d4000 0x100>;
@@ -1650,76 +1657,6 @@
 				assigned-clock-parents = <&tegra_car TEGRA210_CLK_PLL_A_OUT0>;
 				assigned-clock-rates = <3072000>;
 				sound-name-prefix = "DMIC3";
-				status = "disabled";
-			};
-
-			tegra_sfc1: sfc@702d2000 {
-				compatible = "nvidia,tegra210-sfc";
-				reg = <0x702d2000 0x200>;
-				sound-name-prefix = "SFC1";
-				status = "disabled";
-			};
-
-			tegra_sfc2: sfc@702d2200 {
-				compatible = "nvidia,tegra210-sfc";
-				reg = <0x702d2200 0x200>;
-				sound-name-prefix = "SFC2";
-				status = "disabled";
-			};
-
-			tegra_sfc3: sfc@702d2400 {
-				compatible = "nvidia,tegra210-sfc";
-				reg = <0x702d2400 0x200>;
-				sound-name-prefix = "SFC3";
-				status = "disabled";
-			};
-
-			tegra_sfc4: sfc@702d2600 {
-				compatible = "nvidia,tegra210-sfc";
-				reg = <0x702d2600 0x200>;
-				sound-name-prefix = "SFC4";
-				status = "disabled";
-			};
-
-			tegra_mvc1: mvc@702da000 {
-				compatible = "nvidia,tegra210-mvc";
-				reg = <0x702da000 0x200>;
-				sound-name-prefix = "MVC1";
-				status = "disabled";
-			};
-
-			tegra_mvc2: mvc@702da200 {
-				compatible = "nvidia,tegra210-mvc";
-				reg = <0x702da200 0x200>;
-				sound-name-prefix = "MVC2";
-				status = "disabled";
-			};
-
-			tegra_amx1: amx@702d3000 {
-				compatible = "nvidia,tegra210-amx";
-				reg = <0x702d3000 0x100>;
-				sound-name-prefix = "AMX1";
-				status = "disabled";
-			};
-
-			tegra_amx2: amx@702d3100 {
-				compatible = "nvidia,tegra210-amx";
-				reg = <0x702d3100 0x100>;
-				sound-name-prefix = "AMX2";
-				status = "disabled";
-			};
-
-			tegra_adx1: adx@702d3800 {
-				compatible = "nvidia,tegra210-adx";
-				reg = <0x702d3800 0x100>;
-				sound-name-prefix = "ADX1";
-				status = "disabled";
-			};
-
-			tegra_adx2: adx@702d3900 {
-				compatible = "nvidia,tegra210-adx";
-				reg = <0x702d3900 0x100>;
-				sound-name-prefix = "ADX2";
 				status = "disabled";
 			};
 
@@ -1761,6 +1698,20 @@
 					compatible = "nvidia,tegra210-mbdrc";
 					reg = <0x702d8600 0x200>;
 				};
+			};
+
+			tegra_mvc1: mvc@702da000 {
+				compatible = "nvidia,tegra210-mvc";
+				reg = <0x702da000 0x200>;
+				sound-name-prefix = "MVC1";
+				status = "disabled";
+			};
+
+			tegra_mvc2: mvc@702da200 {
+				compatible = "nvidia,tegra210-mvc";
+				reg = <0x702da200 0x200>;
+				sound-name-prefix = "MVC2";
+				status = "disabled";
 			};
 
 			tegra_amixer: amixer@702dbb00 {
@@ -1853,6 +1804,50 @@
 				};
 			};
 		};
+
+		adma: dma-controller@702e2000 {
+			compatible = "nvidia,tegra210-adma";
+			reg = <0x702e2000 0x2000>;
+			interrupt-parent = <&agic>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			clocks = <&tegra_car TEGRA210_CLK_D_AUDIO>;
+			clock-names = "d_audio";
+			status = "disabled";
+		};
+
+		agic: interrupt-controller@702f9000 {
+			compatible = "nvidia,tegra210-agic";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0x702f9000 0x1000>,
+			      <0x702fa000 0x2000>;
+			interrupts = <GIC_SPI 102 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+			clocks = <&tegra_car TEGRA210_CLK_APE>;
+			clock-names = "clk";
+			status = "disabled";
+		};
 	};
 
 	spi@70410000 {
@@ -1865,7 +1860,6 @@
 			 <&tegra_car TEGRA210_CLK_QSPI_PM>;
 		clock-names = "qspi", "qspi_out";
 		resets = <&tegra_car 211>;
-		reset-names = "qspi";
 		dmas = <&apbdma 5>, <&apbdma 5>;
 		dma-names = "rx", "tx";
 		status = "disabled";
@@ -2005,6 +1999,8 @@
 
 		L2: l2-cache {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 

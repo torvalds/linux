@@ -15,6 +15,9 @@
 #include "sof-priv.h"
 #include "ops.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/sof.h>
+
 /* see SOF_DBG_ flags */
 static int sof_core_debug =  IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_ENABLE_FIRMWARE_TRACE);
 module_param_named(sof_debug, sof_core_debug, int, 0444);
@@ -205,6 +208,11 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	/* set up platform component driver */
 	snd_sof_new_platform_drv(sdev);
 
+	if (sdev->dspless_mode_selected) {
+		sof_set_fw_state(sdev, SOF_DSPLESS_MODE);
+		goto skip_dsp_init;
+	}
+
 	/* register any debug/trace capabilities */
 	ret = snd_sof_dbg_init(sdev);
 	if (ret < 0) {
@@ -263,6 +271,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		dev_dbg(sdev->dev, "SOF firmware trace disabled\n");
 	}
 
+skip_dsp_init:
 	/* hereafter all FW boot flows are for PM reasons */
 	sdev->first_boot = false;
 
@@ -359,6 +368,18 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev->first_boot = true;
 	dev_set_drvdata(dev, sdev);
 
+	if (sof_core_debug)
+		dev_info(dev, "sof_debug value: %#x\n", sof_core_debug);
+
+	if (sof_debug_check_flag(SOF_DBG_DSPLESS_MODE)) {
+		if (plat_data->desc->dspless_mode_supported) {
+			dev_info(dev, "Switching to DSPless mode\n");
+			sdev->dspless_mode_selected = true;
+		} else {
+			dev_info(dev, "DSPless mode is not supported by the platform\n");
+		}
+	}
+
 	/* check IPC support */
 	if (!(BIT(plat_data->ipc_type) & plat_data->desc->ipc_supported_mask)) {
 		dev_err(dev, "ipc_type %d is not supported on this platform, mask is %#x\n",
@@ -372,18 +393,25 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		return ret;
 
 	/* check all mandatory ops */
-	if (!sof_ops(sdev) || !sof_ops(sdev)->probe || !sof_ops(sdev)->run ||
-	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
-	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
-	    !sof_ops(sdev)->ipc_msg_data) {
+	if (!sof_ops(sdev) || !sof_ops(sdev)->probe) {
 		sof_ops_free(sdev);
-		dev_err(dev, "error: missing mandatory ops\n");
+		dev_err(dev, "missing mandatory ops\n");
+		return -EINVAL;
+	}
+
+	if (!sdev->dspless_mode_selected &&
+	    (!sof_ops(sdev)->run || !sof_ops(sdev)->block_read ||
+	     !sof_ops(sdev)->block_write || !sof_ops(sdev)->send_msg ||
+	     !sof_ops(sdev)->load_firmware || !sof_ops(sdev)->ipc_msg_data)) {
+		sof_ops_free(sdev);
+		dev_err(dev, "missing mandatory DSP ops\n");
 		return -EINVAL;
 	}
 
 	INIT_LIST_HEAD(&sdev->pcm_list);
 	INIT_LIST_HEAD(&sdev->kcontrol_list);
 	INIT_LIST_HEAD(&sdev->widget_list);
+	INIT_LIST_HEAD(&sdev->pipeline_list);
 	INIT_LIST_HEAD(&sdev->dai_list);
 	INIT_LIST_HEAD(&sdev->dai_link_list);
 	INIT_LIST_HEAD(&sdev->route_list);
@@ -472,21 +500,14 @@ EXPORT_SYMBOL(snd_sof_device_remove);
 int snd_sof_device_shutdown(struct device *dev)
 {
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
-	struct snd_sof_pdata *pdata = sdev->pdata;
 
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
 		cancel_work_sync(&sdev->probe_work);
 
-	/*
-	 * make sure clients and machine driver(s) are unregistered to force
-	 * all userspace devices to be closed prior to the DSP shutdown sequence
-	 */
-	sof_unregister_clients(sdev);
-
-	snd_sof_machine_unregister(sdev, pdata);
-
-	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE)
+	if (sdev->fw_state == SOF_FW_BOOT_COMPLETE) {
+		sof_fw_trace_free(sdev);
 		return snd_sof_shutdown(sdev);
+	}
 
 	return 0;
 }

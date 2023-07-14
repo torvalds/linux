@@ -30,11 +30,34 @@ we have a dedicated glossary for Display Core at
     EOP
       End Of Pipe/Pipeline
 
+    GART
+      Graphics Address Remapping Table.  This is the name we use for the GPUVM
+      page table used by the GPU kernel driver.  It remaps system resources
+      (memory or MMIO space) into the GPU's address space so the GPU can access
+      them.  The name GART harkens back to the days of AGP when the platform
+      provided an MMU that the GPU could use to get a contiguous view of
+      scattered pages for DMA.  The MMU has since moved on to the GPU, but the
+      name stuck.
+
     GC
       Graphics and Compute
 
     GMC
       Graphic Memory Controller
+
+    GPUVM
+      GPU Virtual Memory.  This is the GPU's MMU.  The GPU supports multiple
+      virtual address spaces that can be in flight at any given time.  These
+      allow the GPU to remap VRAM and system resources into GPU virtual address
+      spaces for use by the GPU kernel driver and applications using the GPU.
+      These provide memory protection for different applications using the GPU.
+
+    GTT
+      Graphics Translation Tables.  This is a memory pool managed through TTM
+      which provides access to system resources (memory or MMIO space) for
+      use by the GPU. These addresses can be mapped into the "GART" GPUVM page
+      table for use by the kernel driver or into per process GPUVM page tables
+      for application usage.
 
     IH
       Interrupt Handler

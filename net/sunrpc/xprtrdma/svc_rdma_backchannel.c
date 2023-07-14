@@ -93,13 +93,7 @@ static int svc_rdma_bc_sendto(struct svcxprt_rdma *rdma,
 	 */
 	get_page(virt_to_page(rqst->rq_buffer));
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
-	ret = svc_rdma_send(rdma, sctxt);
-	if (ret < 0)
-		return ret;
-
-	ret = wait_for_completion_killable(&sctxt->sc_done);
-	svc_rdma_send_ctxt_put(rdma, sctxt);
-	return ret;
+	return svc_rdma_send(rdma, sctxt);
 }
 
 /* Server-side transport endpoint wants a whole page for its send
@@ -119,12 +113,12 @@ xprt_rdma_bc_allocate(struct rpc_task *task)
 		return -EINVAL;
 	}
 
-	page = alloc_page(RPCRDMA_DEF_GFP);
+	page = alloc_page(GFP_NOIO | __GFP_NOWARN);
 	if (!page)
 		return -ENOMEM;
 	rqst->rq_buffer = page_address(page);
 
-	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, RPCRDMA_DEF_GFP);
+	rqst->rq_rbuffer = kmalloc(rqst->rq_rcvsize, GFP_NOIO | __GFP_NOWARN);
 	if (!rqst->rq_rbuffer) {
 		put_page(page);
 		return -ENOMEM;

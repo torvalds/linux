@@ -43,8 +43,8 @@ config WMI_BMOF
 	default ACPI_WMI
 	help
 	  Say Y here if you want to be able to read a firmware-embedded
-	  WMI Binary MOF data. Using this requires userspace tools and may be
-	  rather tedious.
+	  WMI Binary MOF (Managed Object Format) data. Using this requires
+	  userspace tools and may be rather tedious.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called wmi-bmof.
@@ -84,15 +84,9 @@ config MXM_WMI
           MXM is a standard for laptop graphics cards, the WMI interface
 	  is required for switchable nvidia graphics machines
 
-config PEAQ_WMI
-	tristate "PEAQ 2-in-1 WMI hotkey driver"
-	depends on ACPI_WMI
-	depends on INPUT
-	help
-	 Say Y here if you want to support WMI-based hotkeys on PEAQ 2-in-1s.
-
 config NVIDIA_WMI_EC_BACKLIGHT
 	tristate "EC Backlight Driver for Hybrid Graphics Notebook Systems"
+	depends on ACPI_VIDEO
 	depends on ACPI_WMI
 	depends on BACKLIGHT_CLASS_DEVICE
 	help
@@ -127,10 +121,11 @@ config GIGABYTE_WMI
 	  To compile this driver as a module, choose M here: the module will
 	  be called gigabyte-wmi.
 
-config YOGABOOK_WMI
-	tristate "Lenovo Yoga Book tablet WMI key driver"
+config YOGABOOK
+	tristate "Lenovo Yoga Book tablet key driver"
 	depends on ACPI_WMI
 	depends on INPUT
+	depends on I2C
 	select LEDS_CLASS
 	select NEW_LEDS
 	help
@@ -138,7 +133,7 @@ config YOGABOOK_WMI
 	  control on the Lenovo Yoga Book tablets.
 
 	  To compile this driver as a module, choose M here: the module will
-	  be called lenovo-yogabook-wmi.
+	  be called lenovo-yogabook.
 
 config ACERHDF
 	tristate "Acer Aspire One temperature and fan driver"
@@ -212,8 +207,6 @@ config APPLE_GMUX
 	depends on ACPI && PCI
 	depends on PNP
 	depends on BACKLIGHT_CLASS_DEVICE
-	depends on BACKLIGHT_APPLE=n || BACKLIGHT_APPLE
-	depends on ACPI_VIDEO=n || ACPI_VIDEO
 	help
 	  This driver provides support for the gmux device found on many
 	  Apple laptops, which controls the display mux for the hybrid
@@ -423,24 +416,7 @@ config GPD_POCKET_FAN
 	  of the CPU temperature. Say Y or M if the kernel may be used on a
 	  GPD pocket.
 
-config HP_ACCEL
-	tristate "HP laptop accelerometer"
-	depends on INPUT && ACPI
-	depends on SERIO_I8042
-	select SENSORS_LIS3LV02D
-	select NEW_LEDS
-	select LEDS_CLASS
-	help
-	  This driver provides support for the "Mobile Data Protection System 3D"
-	  or "3D DriveGuard" feature of HP laptops. On such systems the driver
-	  should load automatically (via ACPI alias).
-
-	  Support for a led indicating disk protection will be provided as
-	  hp::hddprotect. For more information on the feature, refer to
-	  Documentation/misc-devices/lis3lv02d.rst.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called hp_accel.
+source "drivers/platform/x86/hp/Kconfig"
 
 config WIRELESS_HOTKEY
 	tristate "Wireless hotkey button"
@@ -453,30 +429,6 @@ config WIRELESS_HOTKEY
 
 	 To compile this driver as a module, choose M here: the module will
 	 be called wireless-hotkey.
-
-config HP_WMI
-	tristate "HP WMI extras"
-	depends on ACPI_WMI
-	depends on INPUT
-	depends on RFKILL || RFKILL = n
-	select INPUT_SPARSEKMAP
-	select ACPI_PLATFORM_PROFILE
-	select HWMON
-	help
-	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
-	 to read data from WMI such as docking or ambient light sensor state.
-
-	 To compile this driver as a module, choose M here: the module will
-	 be called hp-wmi.
-
-config TC1100_WMI
-	tristate "HP Compaq TC1100 Tablet WMI Extras"
-	depends on !X86_64
-	depends on ACPI
-	depends on ACPI_WMI
-	help
-	  This is a driver for the WMI extensions (wireless and bluetooth power
-	  control) of the HP Compaq TC1100 tablet.
 
 config IBM_RTL
 	tristate "Device driver to enable PRTL support"
@@ -509,6 +461,15 @@ config IDEAPAD_LAPTOP
 	help
 	  This is a driver for Lenovo IdeaPad netbooks contains drivers for
 	  rfkill switch, hotkey, fan control and backlight control.
+
+config LENOVO_YMC
+	tristate "Lenovo Yoga Tablet Mode Control"
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  This driver maps the Tablet Mode Control switch to SW_TABLET_MODE input
+	  events for Lenovo Yoga notebooks.
 
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
@@ -684,6 +645,14 @@ config THINKPAD_LMI
 
 source "drivers/platform/x86/intel/Kconfig"
 
+config MSI_EC
+	tristate "MSI EC Extras"
+	depends on ACPI
+	depends on ACPI_BATTERY
+	help
+	  This driver allows various MSI laptops' functionalities to be
+	  controlled from userspace, including battery charge threshold.
+
 config MSI_LAPTOP
 	tristate "MSI Laptop Extras"
 	depends on ACPI
@@ -790,6 +759,7 @@ config SAMSUNG_Q10
 config ACPI_TOSHIBA
 	tristate "Toshiba Laptop Extras"
 	depends on ACPI
+	depends on ACPI_BATTERY
 	depends on ACPI_WMI
 	select LEDS_CLASS
 	select NEW_LEDS
@@ -797,6 +767,7 @@ config ACPI_TOSHIBA
 	depends on INPUT
 	depends on SERIO_I8042 || SERIO_I8042 = n
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on HWMON || HWMON = n
 	depends on RFKILL || RFKILL = n
 	depends on IIO
 	select INPUT_SPARSEKMAP
@@ -994,7 +965,8 @@ config SERIAL_MULTI_INSTANTIATE
 
 config MLX_PLATFORM
 	tristate "Mellanox Technologies platform support"
-	depends on I2C && REGMAP
+	depends on I2C
+	select REGMAP
 	help
 	  This option enables system support for the Mellanox Technologies
 	  platform. The Mellanox systems provide data center networking
@@ -1016,22 +988,7 @@ config TOUCHSCREEN_DMI
 	  the OS-image for the device. This option supplies the missing info.
 	  Enable this for x86 tablets with Silead or Chipone touchscreens.
 
-config X86_ANDROID_TABLETS
-	tristate "X86 Android tablet support"
-	depends on I2C && SPI && SERIAL_DEV_BUS && ACPI && EFI && GPIOLIB
-	help
-	  X86 tablets which ship with Android as (part of) the factory image
-	  typically have various problems with their DSDTs. The factory kernels
-	  shipped on these devices typically have device addresses and GPIOs
-	  hardcoded in the kernel, rather than specified in their DSDT.
-
-	  With the DSDT containing a random collection of devices which may or
-	  may not actually be present. This driver contains various fixes for
-	  such tablets, including instantiating kernel devices for devices which
-	  are missing from the DSDT.
-
-	  If you have a x86 Android tablet say Y or M here, for a generic x86
-	  distro config say M here.
+source "drivers/platform/x86/x86-android-tablets/Kconfig"
 
 config FW_ATTR_CLASS
 	tristate

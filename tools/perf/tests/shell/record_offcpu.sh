@@ -51,7 +51,7 @@ test_offcpu_basic() {
     err=1
     return
   fi
-  if ! perf report -i ${perfdata} -q --percent-limit=90 | egrep -q sleep
+  if ! perf report -i ${perfdata} -q --percent-limit=90 | grep -E -q sleep
   then
     echo "Basic off-cpu test [Failed missing output]"
     err=1
@@ -65,7 +65,7 @@ test_offcpu_child() {
 
   # perf bench sched messaging creates 400 processes
   if ! perf record --off-cpu -e dummy -o ${perfdata} -- \
-    perf bench sched messaging -g 10 > /dev/null 2&>1
+    perf bench sched messaging -g 10 > /dev/null 2>&1
   then
     echo "Child task off-cpu test [Failed record]"
     err=1

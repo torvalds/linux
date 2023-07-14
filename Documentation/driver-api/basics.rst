@@ -84,7 +84,13 @@ Reference counting
 Atomics
 -------
 
-.. kernel-doc:: arch/x86/include/asm/atomic.h
+.. kernel-doc:: include/linux/atomic/atomic-instrumented.h
+   :internal:
+
+.. kernel-doc:: include/linux/atomic/atomic-arch-fallback.h
+   :internal:
+
+.. kernel-doc:: include/linux/atomic/atomic-long.h
    :internal:
 
 Kernel objects manipulation
@@ -106,9 +112,6 @@ Kernel utility functions
 
 .. kernel-doc:: kernel/panic.c
    :export:
-
-.. kernel-doc:: include/linux/overflow.h
-   :internal:
 
 Device Resource Management
 --------------------------

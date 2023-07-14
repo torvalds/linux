@@ -16,7 +16,6 @@ properties:
   reg:
     maxItems: 1
 
-  spi-max-frequency: true
   spi-cpha: true
 
   adi,dc-dc-mode:
@@ -99,11 +98,11 @@ required:
   - adi,dc-dc-mode
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
   - if:
       properties:
         adi,dc-dc-mode:
-          contains:
-            enum: [1, 3]
+          enum: [1, 3]
     then:
       properties:
         adi,range-microvolt: false
@@ -115,7 +114,7 @@ allOf:
       required:
         - adi,range-microvolt
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

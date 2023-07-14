@@ -15,6 +15,7 @@
 struct a2xx_gpu {
 	struct adreno_gpu base;
 	bool pm_enabled;
+	bool protection_disabled;
 };
 #define to_a2xx_gpu(x) container_of(x, struct a2xx_gpu, base)
 

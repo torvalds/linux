@@ -11,7 +11,7 @@ $id: http://devicetree.org/schemas/example-schema.yaml#
 # $schema is the meta-schema this schema should be validated with.
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: An example schema annotated with jsonschema details
+title: An Example Device
 
 maintainers:
   - Rob Herring <robh@kernel.org>
@@ -52,8 +52,7 @@ properties:
               - vendor,soc4-ip
               - vendor,soc3-ip
               - vendor,soc2-ip
-          - enum:
-              - vendor,soc1-ip
+          - const: vendor,soc1-ip
         # additionalItems being false is implied
         # minItems/maxItems equal to 2 is implied
       - items:
@@ -85,6 +84,9 @@ properties:
       discouraged.
 
   clock-names:
+    # For single-entry lists in clocks, resets etc., the xxx-names often do not
+    # bring any value, especially if they copy the IP block name.  In such case
+    # just skip the xxx-names.
     items:
       - const: bus
 
@@ -176,6 +178,8 @@ properties:
     description: Child nodes are just another property from a json-schema
       perspective.
     type: object  # DT nodes are json objects
+    # Child nodes also need additionalProperties or unevaluatedProperties
+    additionalProperties: false
     properties:
       vendor,a-child-node-property:
         description: Child node properties have all the same schema

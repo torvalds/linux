@@ -26,6 +26,7 @@
 #define TIMER_IRQ_EN_REG	0x00
 #define TIMER_IRQ_EN(val)		BIT(val)
 #define TIMER_IRQ_ST_REG	0x04
+#define TIMER_IRQ_CLEAR(val)		BIT(val)
 #define TIMER_CTL_REG(val)	(0x10 * val + 0x10)
 #define TIMER_CTL_ENABLE		BIT(0)
 #define TIMER_CTL_RELOAD		BIT(1)
@@ -123,7 +124,7 @@ static int sun4i_clkevt_next_event(unsigned long evt,
 
 static void sun4i_timer_clear_interrupt(void __iomem *base)
 {
-	writel(TIMER_IRQ_EN(0), base + TIMER_IRQ_ST_REG);
+	writel(TIMER_IRQ_CLEAR(0), base + TIMER_IRQ_ST_REG);
 }
 
 static irqreturn_t sun4i_timer_interrupt(int irq, void *dev_id)
@@ -143,7 +144,8 @@ static struct timer_of to = {
 	.clkevt = {
 		.name = "sun4i_tick",
 		.rating = 350,
-		.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+		.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
+				CLOCK_EVT_FEAT_DYNIRQ,
 		.set_state_shutdown = sun4i_clkevt_shutdown,
 		.set_state_periodic = sun4i_clkevt_set_periodic,
 		.set_state_oneshot = sun4i_clkevt_set_oneshot,

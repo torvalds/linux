@@ -175,8 +175,7 @@ static void dmard10_shutdown_cleanup(void *client)
 	dmard10_shutdown(client);
 }
 
-static int dmard10_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int dmard10_probe(struct i2c_client *client)
 {
 	int ret;
 	struct iio_dev *indio_dev;

@@ -14,6 +14,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -122,7 +123,7 @@ static int chipsfb_set_par(struct fb_info *info)
 		info->var.blue.offset = 0;
 		info->var.red.length = info->var.green.length =
 			info->var.blue.length = 5;
-		
+
 	} else {
 		/* p->var.bits_per_pixel == 8 */
 		write_cr(0x13, 100);		// Set line length (doublewords)
@@ -131,13 +132,13 @@ static int chipsfb_set_par(struct fb_info *info)
 		write_xr(0x20, 0x00);		// 8 bit blitter mode
 
 		info->fix.line_length = 800;
-		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;		
+		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
 
  		info->var.red.offset = info->var.green.offset =
 			info->var.blue.offset = 0;
 		info->var.red.length = info->var.green.length =
 			info->var.blue.length = 8;
-		
+
 	}
 	return 0;
 }
@@ -331,7 +332,7 @@ static const struct fb_var_screeninfo chipsfb_var = {
 
 static void init_chips(struct fb_info *p, unsigned long addr)
 {
-	fb_memset(p->screen_base, 0, 0x100000);
+	fb_memset_io(p->screen_base, 0, 0x100000);
 
 	p->fix = chipsfb_fix;
 	p->fix.smem_start = addr;
@@ -351,18 +352,27 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	struct fb_info *p;
 	unsigned long addr;
 	unsigned short cmd;
-	int rc = -ENODEV;
+	int rc;
 
-	if (pci_enable_device(dp) < 0) {
+	rc = aperture_remove_conflicting_pci_devices(dp, "chipsfb");
+	if (rc)
+		return rc;
+
+	rc = pci_enable_device(dp);
+	if (rc < 0) {
 		dev_err(&dp->dev, "Cannot enable PCI device\n");
 		goto err_out;
 	}
 
-	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0)
+	if ((dp->resource[0].flags & IORESOURCE_MEM) == 0) {
+		rc = -ENODEV;
 		goto err_disable;
+	}
 	addr = pci_resource_start(dp, 0);
-	if (addr == 0)
+	if (addr == 0) {
+		rc = -ENODEV;
 		goto err_disable;
+	}
 
 	p = framebuffer_alloc(0, &dp->dev);
 	if (p == NULL) {
@@ -412,7 +422,8 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 
 	init_chips(p, addr);
 
-	if (register_framebuffer(p) < 0) {
+	rc = register_framebuffer(p);
+	if (rc < 0) {
 		dev_err(&dp->dev,"C&T 65550 framebuffer failed to register\n");
 		goto err_unmap;
 	}
@@ -501,6 +512,9 @@ static struct pci_driver chipsfb_driver = {
 
 int __init chips_init(void)
 {
+	if (fb_modesetting_disabled("chipsfb"))
+		return -ENODEV;
+
 	if (fb_get_options("chipsfb", NULL))
 		return -ENODEV;
 

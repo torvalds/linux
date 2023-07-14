@@ -18,6 +18,7 @@
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
+#include <dt-bindings/leds/leds-lp55xx.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -88,7 +89,7 @@ static ssize_t led_current_show(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", led->led_current);
+	return sysfs_emit(buf, "%d\n", led->led_current);
 }
 
 static ssize_t led_current_store(struct device *dev,
@@ -121,7 +122,7 @@ static ssize_t max_current_show(struct device *dev,
 {
 	struct lp55xx_led *led = dev_to_lp55xx_led(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", led->max_current);
+	return sysfs_emit(buf, "%d\n", led->max_current);
 }
 
 static DEVICE_ATTR_RW(led_current);
@@ -166,7 +167,7 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 	struct mc_subled *mc_led_info;
 	struct led_classdev *led_cdev;
 	char name[32];
-	int i, j = 0;
+	int i;
 	int ret;
 
 	if (chan >= max_channel) {
@@ -201,7 +202,6 @@ static int lp55xx_init_led(struct lp55xx_led *led,
 				pdata->led_config[chan].color_id[i];
 			mc_led_info[i].channel =
 					pdata->led_config[chan].output_num[i];
-			j++;
 		}
 
 		led->mc_cdev.subled_info = mc_led_info;
@@ -690,6 +690,14 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 			return ERR_PTR(-EINVAL);
 		}
 		i++;
+	}
+
+	if (of_property_read_u32(np, "ti,charge-pump-mode", &pdata->charge_pump_mode))
+		pdata->charge_pump_mode = LP55XX_CP_AUTO;
+
+	if (pdata->charge_pump_mode > LP55XX_CP_AUTO) {
+		dev_err(dev, "invalid charge pump mode %d\n", pdata->charge_pump_mode);
+		return ERR_PTR(-EINVAL);
 	}
 
 	of_property_read_string(np, "label", &pdata->label);

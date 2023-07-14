@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/arm/xilinx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx Zynq Platforms Device Tree Bindings
+title: Xilinx Zynq Platforms
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 description: |
   Xilinx boards with Zynq-7000 SOC or Zynq UltraScale+ MPSoC
@@ -61,10 +61,10 @@ properties:
           - const: xlnx,zynqmp-zc1254
           - const: xlnx,zynqmp
 
-      - description: Xilinx internal board zc1275
+      - description: Xilinx evaluation board zcu1275
         items:
-          - const: xlnx,zynqmp-zc1275-revA
-          - const: xlnx,zynqmp-zc1275
+          - const: xlnx,zynqmp-zcu1275-revA
+          - const: xlnx,zynqmp-zcu1275
           - const: xlnx,zynqmp
 
       - description: Xilinx 96boards compatible board zcu100

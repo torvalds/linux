@@ -53,10 +53,11 @@ properties:
         items:
           - const: arm,pl18x
           - const: arm,primecell
-      - description: Entry for STMicroelectronics variant of PL18x.
-          This dedicated compatible is used by bootloaders.
+      - description: Entries for STMicroelectronics variant of PL18x.
         items:
-          - const: st,stm32-sdmmc2
+          - enum:
+              - st,stm32-sdmmc2
+              - st,stm32mp25-sdmmc2
           - const: arm,pl18x
           - const: arm,primecell
 
@@ -95,7 +96,9 @@ properties:
       PIO (polled I/O) interrupt and occurs when the FIFO needs to be
       emptied as part of a bulk read from the card. Some variants have these
       two interrupts wired into the same line (logic OR) and in that case
-      only one interrupt may be provided.
+      only one interrupt may be provided. The interrupt-names property is
+      not used due to inconsistency of existing DTs regarding its content.
+    deprecated: false
     minItems: 1
     maxItems: 2
 

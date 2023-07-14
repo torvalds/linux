@@ -26,7 +26,7 @@ description:
 
 properties:
   $nodename:
-    const: "aux-bus"
+    const: aux-bus
 
   panel:
     $ref: panel/panel-common.yaml#

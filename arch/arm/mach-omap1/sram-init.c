@@ -10,11 +10,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/set_memory.h>
 
 #include <asm/fncpy.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
-#include <asm/set_memory.h>
 
 #include <asm/mach/map.h>
 
@@ -23,7 +23,7 @@
 
 #define OMAP1_SRAM_PA		0x20000000
 #define SRAM_BOOTLOADER_SZ	0x80
-#define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
+#define ROUND_DOWN(value, boundary)	((value) & (~((boundary) - 1)))
 
 static void __iomem *omap_sram_base;
 static unsigned long omap_sram_start;
@@ -74,8 +74,7 @@ void *omap_sram_push(void *funcp, unsigned long size)
 
 	dst = fncpy(sram, funcp, size);
 
-	set_memory_ro(base, pages);
-	set_memory_x(base, pages);
+	set_memory_rox(base, pages);
 
 	return dst;
 }
@@ -95,9 +94,7 @@ static void __init omap_detect_and_map_sram(void)
 	omap_sram_skip = SRAM_BOOTLOADER_SZ;
 	omap_sram_start = OMAP1_SRAM_PA;
 
-	if (cpu_is_omap7xx())
-		omap_sram_size = 0x32000;	/* 200K */
-	else if (cpu_is_omap15xx())
+	if (cpu_is_omap15xx())
 		omap_sram_size = 0x30000;	/* 192K */
 	else if (cpu_is_omap1610() || cpu_is_omap1611() ||
 			cpu_is_omap1621() || cpu_is_omap1710())
@@ -126,8 +123,7 @@ static void __init omap_detect_and_map_sram(void)
 	base = (unsigned long)omap_sram_base;
 	pages = PAGE_ALIGN(omap_sram_size) / PAGE_SIZE;
 
-	set_memory_ro(base, pages);
-	set_memory_x(base, pages);
+	set_memory_rox(base, pages);
 }
 
 static void (*_omap_sram_reprogram_clock)(u32 dpllctl, u32 ckctl);
@@ -135,9 +131,6 @@ static void (*_omap_sram_reprogram_clock)(u32 dpllctl, u32 ckctl);
 void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 {
 	BUG_ON(!_omap_sram_reprogram_clock);
-	/* On 730, bit 13 must always be 1 */
-	if (cpu_is_omap7xx())
-		ckctl |= 0x2000;
 	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 

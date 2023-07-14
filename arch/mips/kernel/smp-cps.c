@@ -20,28 +20,18 @@
 #include <asm/mipsregs.h>
 #include <asm/pm-cps.h>
 #include <asm/r4kcache.h>
+#include <asm/smp.h>
 #include <asm/smp-cps.h>
 #include <asm/time.h>
 #include <asm/uasm.h>
 
-static bool threads_disabled;
 static DECLARE_BITMAP(core_power, NR_CPUS);
 
 struct core_boot_config *mips_cps_core_bootcfg;
 
-static int __init setup_nothreads(char *s)
+static unsigned __init core_vpe_count(unsigned int cluster, unsigned core)
 {
-	threads_disabled = true;
-	return 0;
-}
-early_param("nothreads", setup_nothreads);
-
-static unsigned core_vpe_count(unsigned int cluster, unsigned core)
-{
-	if (threads_disabled)
-		return 1;
-
-	return mips_cps_numvps(cluster, core);
+	return min(smp_max_threads, mips_cps_numvps(cluster, core));
 }
 
 static void __init cps_smp_setup(void)
@@ -162,6 +152,8 @@ static void __init cps_prepare_cpus(unsigned int max_cpus)
 	 */
 	entry_code = (u32 *)&mips_cps_core_entry;
 	uasm_i_addiu(&entry_code, 16, 0, cca);
+	UASM_i_LA(&entry_code, 17, (long)mips_gcr_base);
+	BUG_ON((void *)entry_code > (void *)&mips_cps_core_entry_patch_end);
 	blast_dcache_range((unsigned long)&mips_cps_core_entry,
 			   (unsigned long)entry_code);
 	bc_wback_inv((unsigned long)&mips_cps_core_entry,
@@ -359,6 +351,8 @@ out:
 
 static void cps_init_secondary(void)
 {
+	int core = cpu_core(&current_cpu_data);
+
 	/* Disable MT - we only want to run 1 TC per VPE */
 	if (cpu_has_mipsmt)
 		dmt();
@@ -373,6 +367,9 @@ static void cps_init_secondary(void)
 		 */
 		BUG_ON(ident != mips_cm_vp_id(smp_processor_id()));
 	}
+
+	if (core > 0 && !read_gcr_cl_coherence())
+		pr_warn("Core %u is not in coherent domain\n", core);
 
 	if (cpu_has_veic)
 		clear_c0_status(ST0_IM);
@@ -424,9 +421,11 @@ static void cps_shutdown_this_cpu(enum cpu_death death)
 			wmb();
 		}
 	} else {
-		pr_debug("Gating power to core %d\n", core);
-		/* Power down the core */
-		cps_pm_enter_state(CPS_PM_POWER_GATED);
+		if (IS_ENABLED(CONFIG_HOTPLUG_CPU)) {
+			pr_debug("Gating power to core %d\n", core);
+			/* Power down the core */
+			cps_pm_enter_state(CPS_PM_POWER_GATED);
+		}
 	}
 }
 
@@ -493,8 +492,7 @@ void play_dead(void)
 		}
 	}
 
-	/* This CPU has chosen its way out */
-	(void)cpu_report_death();
+	cpuhp_ap_report_dead();
 
 	cps_shutdown_this_cpu(cpu_death);
 
@@ -517,19 +515,15 @@ static void wait_for_sibling_halt(void *ptr_cpu)
 	} while (!(halted & TCHALT_H));
 }
 
-static void cps_cpu_die(unsigned int cpu)
+static void cps_cpu_die(unsigned int cpu) { }
+
+static void cps_cleanup_dead_cpu(unsigned cpu)
 {
 	unsigned core = cpu_core(&cpu_data[cpu]);
 	unsigned int vpe_id = cpu_vpe_id(&cpu_data[cpu]);
 	ktime_t fail_time;
 	unsigned stat;
 	int err;
-
-	/* Wait for the cpu to choose its way out */
-	if (!cpu_wait_death(cpu, 5)) {
-		pr_err("CPU%u: didn't offline\n", cpu);
-		return;
-	}
 
 	/*
 	 * Now wait for the CPU to actually offline. Without doing this that
@@ -614,6 +608,7 @@ static const struct plat_smp_ops cps_smp_ops = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= cps_cpu_disable,
 	.cpu_die		= cps_cpu_die,
+	.cleanup_dead_cpu	= cps_cleanup_dead_cpu,
 #endif
 #ifdef CONFIG_KEXEC
 	.kexec_nonboot_cpu	= cps_kexec_nonboot_cpu,

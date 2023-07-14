@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <drm/drm_edid.h>
+
 #include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
 #include "intel_display_types.h"
@@ -12,14 +14,16 @@
 static void intel_dump_crtc_timings(struct drm_i915_private *i915,
 				    const struct drm_display_mode *mode)
 {
-	drm_dbg_kms(&i915->drm, "crtc timings: %d %d %d %d %d %d %d %d %d, "
-		    "type: 0x%x flags: 0x%x\n",
+	drm_dbg_kms(&i915->drm, "crtc timings: clock=%d, "
+		    "hd=%d hb=%d-%d hs=%d-%d ht=%d, "
+		    "vd=%d vb=%d-%d vs=%d-%d vt=%d, "
+		    "flags=0x%x\n",
 		    mode->crtc_clock,
-		    mode->crtc_hdisplay, mode->crtc_hsync_start,
-		    mode->crtc_hsync_end, mode->crtc_htotal,
-		    mode->crtc_vdisplay, mode->crtc_vsync_start,
-		    mode->crtc_vsync_end, mode->crtc_vtotal,
-		    mode->type, mode->flags);
+		    mode->crtc_hdisplay, mode->crtc_hblank_start, mode->crtc_hblank_end,
+		    mode->crtc_hsync_start, mode->crtc_hsync_end, mode->crtc_htotal,
+		    mode->crtc_vdisplay, mode->crtc_vblank_start, mode->crtc_vblank_end,
+		    mode->crtc_vsync_start, mode->crtc_vsync_end, mode->crtc_vtotal,
+		    mode->flags);
 }
 
 static void
@@ -54,6 +58,17 @@ intel_dump_dp_vsc_sdp(struct drm_i915_private *i915,
 		return;
 
 	drm_dp_vsc_sdp_log(KERN_DEBUG, i915->drm.dev, vsc);
+}
+
+static void
+intel_dump_buffer(struct drm_i915_private *i915,
+		  const char *prefix, const u8 *buf, size_t len)
+{
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
+	print_hex_dump(KERN_DEBUG, prefix, DUMP_PREFIX_NONE,
+		       16, 0, buf, len, false);
 }
 
 #define OUTPUT_TYPE(x) [INTEL_OUTPUT_ ## x] = #x
@@ -108,7 +123,7 @@ static const char * const output_format_str[] = {
 	[INTEL_OUTPUT_FORMAT_YCBCR444] = "YCBCR4:4:4",
 };
 
-static const char *output_formats(enum intel_output_format format)
+const char *intel_output_format_name(enum intel_output_format format)
 {
 	if (format >= ARRAY_SIZE(output_format_str))
 		return "invalid";
@@ -134,13 +149,52 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 		    plane->base.base.id, plane->base.name,
 		    fb->base.id, fb->width, fb->height, &fb->format->format,
 		    fb->modifier, str_yes_no(plane_state->uapi.visible));
-	drm_dbg_kms(&i915->drm, "\trotation: 0x%x, scaler: %d\n",
-		    plane_state->hw.rotation, plane_state->scaler_id);
+	drm_dbg_kms(&i915->drm, "\trotation: 0x%x, scaler: %d, scaling_filter: %d\n",
+		    plane_state->hw.rotation, plane_state->scaler_id, plane_state->hw.scaling_filter);
 	if (plane_state->uapi.visible)
 		drm_dbg_kms(&i915->drm,
 			    "\tsrc: " DRM_RECT_FP_FMT " dst: " DRM_RECT_FMT "\n",
 			    DRM_RECT_FP_ARG(&plane_state->uapi.src),
 			    DRM_RECT_ARG(&plane_state->uapi.dst));
+}
+
+static void
+ilk_dump_csc(struct drm_i915_private *i915, const char *name,
+	     const struct intel_csc_matrix *csc)
+{
+	int i;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s: pre offsets: 0x%04x 0x%04x 0x%04x\n", name,
+		    csc->preoff[0], csc->preoff[1], csc->preoff[2]);
+
+	for (i = 0; i < 3; i++)
+		drm_dbg_kms(&i915->drm,
+			    "%s: coefficients: 0x%04x 0x%04x 0x%04x\n", name,
+			    csc->coeff[3 * i + 0],
+			    csc->coeff[3 * i + 1],
+			    csc->coeff[3 * i + 2]);
+
+	if (DISPLAY_VER(i915) < 7)
+		return;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s: post offsets: 0x%04x 0x%04x 0x%04x\n", name,
+		    csc->postoff[0], csc->postoff[1], csc->postoff[2]);
+}
+
+static void
+vlv_dump_csc(struct drm_i915_private *i915, const char *name,
+	     const struct intel_csc_matrix *csc)
+{
+	int i;
+
+	for (i = 0; i < 3; i++)
+		drm_dbg_kms(&i915->drm,
+			    "%s: coefficients: 0x%04x 0x%04x 0x%04x\n", name,
+			    csc->coeff[3 * i + 0],
+			    csc->coeff[3 * i + 1],
+			    csc->coeff[3 * i + 2]);
 }
 
 void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
@@ -163,10 +217,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
 	drm_dbg_kms(&i915->drm,
-		    "active: %s, output_types: %s (0x%x), output format: %s\n",
+		    "active: %s, output_types: %s (0x%x), output format: %s, sink format: %s\n",
 		    str_yes_no(pipe_config->hw.active),
 		    buf, pipe_config->output_types,
-		    output_formats(pipe_config->output_format));
+		    intel_output_format_name(pipe_config->output_format),
+		    intel_output_format_name(pipe_config->sink_format));
 
 	drm_dbg_kms(&i915->drm,
 		    "cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
@@ -236,6 +291,10 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	    intel_hdmi_infoframe_enable(DP_SDP_VSC))
 		intel_dump_dp_vsc_sdp(i915, &pipe_config->infoframes.vsc);
 
+	if (pipe_config->has_audio)
+		intel_dump_buffer(i915, "ELD: ", pipe_config->eld,
+				  drm_eld_size(pipe_config->eld));
+
 	drm_dbg_kms(&i915->drm, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
 		    str_yes_no(pipe_config->vrr.enable),
 		    pipe_config->vrr.vmin, pipe_config->vrr.vmax,
@@ -262,10 +321,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	if (DISPLAY_VER(i915) >= 9)
 		drm_dbg_kms(&i915->drm,
-			    "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d\n",
+			    "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d\n",
 			    crtc->num_scalers,
 			    pipe_config->scaler_state.scaler_users,
-			    pipe_config->scaler_state.scaler_id);
+			    pipe_config->scaler_state.scaler_id,
+			    pipe_config->hw.scaling_filter);
 
 	if (HAS_GMCH(i915))
 		drm_dbg_kms(&i915->drm,
@@ -297,11 +357,23 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			    pipe_config->csc_mode, pipe_config->gamma_mode,
 			    pipe_config->gamma_enable, pipe_config->csc_enable);
 
-	drm_dbg_kms(&i915->drm, "degamma lut: %d entries, gamma lut: %d entries\n",
-		    pipe_config->hw.degamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.degamma_lut) : 0,
-		    pipe_config->hw.gamma_lut ?
-		    drm_color_lut_size(pipe_config->hw.gamma_lut) : 0);
+	drm_dbg_kms(&i915->drm, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
+		    pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
+		    i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
+		    pipe_config->pre_csc_lut ?
+		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
+		    pipe_config->post_csc_lut ?
+		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
+
+	if (DISPLAY_VER(i915) >= 11)
+		ilk_dump_csc(i915, "output csc", &pipe_config->output_csc);
+
+	if (!HAS_GMCH(i915))
+		ilk_dump_csc(i915, "pipe csc", &pipe_config->csc);
+	else if (IS_CHERRYVIEW(i915))
+		vlv_dump_csc(i915, "cgm csc", &pipe_config->csc);
+	else if (IS_VALLEYVIEW(i915))
+		vlv_dump_csc(i915, "wgc csc", &pipe_config->csc);
 
 dump_planes:
 	if (!state)

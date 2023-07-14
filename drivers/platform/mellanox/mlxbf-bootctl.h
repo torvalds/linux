@@ -75,6 +75,12 @@
 
 #define MLXBF_BOOTCTL_GET_DIMM_INFO		0x82000008
 
+/*
+ * Initiate Firmware Reset via TYU. This might be invoked during the reset
+ * flow in isolation mode.
+ */
+#define MLXBF_BOOTCTL_FW_RESET  0x8200000D
+
 /* SMC function IDs for SiP Service queries */
 #define MLXBF_BOOTCTL_SIP_SVC_CALL_COUNT	0x8200ff00
 #define MLXBF_BOOTCTL_SIP_SVC_UID		0x8200ff01

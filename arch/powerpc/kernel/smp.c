@@ -61,6 +61,8 @@
 #include <asm/kup.h>
 #include <asm/fadump.h>
 
+#include <trace/events/ipi.h>
+
 #ifdef DEBUG
 #include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
@@ -289,7 +291,7 @@ void smp_muxed_ipi_set_message(int cpu, int msg)
 	 * Order previous accesses before accesses in the IPI handler.
 	 */
 	smp_mb();
-	message[msg] = 1;
+	WRITE_ONCE(message[msg], 1);
 }
 
 void smp_muxed_ipi_message_pass(int cpu, int msg)
@@ -348,7 +350,7 @@ irqreturn_t smp_ipi_demux_relaxed(void)
 		if (all & IPI_MESSAGE(PPC_MSG_NMI_IPI))
 			nmi_ipi_action(0, NULL);
 #endif
-	} while (info->messages);
+	} while (READ_ONCE(info->messages));
 
 	return IRQ_HANDLED;
 }
@@ -364,12 +366,12 @@ static inline void do_message_pass(int cpu, int msg)
 #endif
 }
 
-void smp_send_reschedule(int cpu)
+void arch_smp_send_reschedule(int cpu)
 {
 	if (likely(smp_ops))
 		do_message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
-EXPORT_SYMBOL_GPL(smp_send_reschedule);
+EXPORT_SYMBOL_GPL(arch_smp_send_reschedule);
 
 void arch_send_call_function_single_ipi(int cpu)
 {
@@ -415,9 +417,9 @@ noinstr static void nmi_ipi_lock_start(unsigned long *flags)
 {
 	raw_local_irq_save(*flags);
 	hard_irq_disable();
-	while (arch_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
+	while (raw_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1) {
 		raw_local_irq_restore(*flags);
-		spin_until_cond(arch_atomic_read(&__nmi_ipi_lock) == 0);
+		spin_until_cond(raw_atomic_read(&__nmi_ipi_lock) == 0);
 		raw_local_irq_save(*flags);
 		hard_irq_disable();
 	}
@@ -425,15 +427,15 @@ noinstr static void nmi_ipi_lock_start(unsigned long *flags)
 
 noinstr static void nmi_ipi_lock(void)
 {
-	while (arch_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
-		spin_until_cond(arch_atomic_read(&__nmi_ipi_lock) == 0);
+	while (raw_atomic_cmpxchg(&__nmi_ipi_lock, 0, 1) == 1)
+		spin_until_cond(raw_atomic_read(&__nmi_ipi_lock) == 0);
 }
 
 noinstr static void nmi_ipi_unlock(void)
 {
 	smp_mb();
-	WARN_ON(arch_atomic_read(&__nmi_ipi_lock) != 1);
-	arch_atomic_set(&__nmi_ipi_lock, 0);
+	WARN_ON(raw_atomic_read(&__nmi_ipi_lock) != 1);
+	raw_atomic_set(&__nmi_ipi_lock, 0);
 }
 
 noinstr static void nmi_ipi_unlock_end(unsigned long *flags)
@@ -708,7 +710,7 @@ static struct task_struct *current_set[NR_CPUS];
 static void smp_store_cpu_info(int id)
 {
 	per_cpu(cpu_pvr, id) = mfspr(SPRN_PVR);
-#ifdef CONFIG_PPC_FSL_BOOK3E
+#ifdef CONFIG_PPC_E500
 	per_cpu(next_tlbcam_idx, id)
 		= (mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
 #endif
@@ -1249,7 +1251,7 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 #ifdef CONFIG_PPC64
 	paca_ptrs[cpu]->__current = idle;
 	paca_ptrs[cpu]->kstack = (unsigned long)task_stack_page(idle) +
-				 THREAD_SIZE - STACK_FRAME_OVERHEAD;
+				 THREAD_SIZE - STACK_FRAME_MIN_SIZE;
 #endif
 	task_thread_info(idle)->cpu = cpu;
 	secondary_current = current_set[cpu] = idle;
@@ -1257,7 +1259,12 @@ static void cpu_idle_thread_init(unsigned int cpu, struct task_struct *idle)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	int rc, c;
+	const unsigned long boot_spin_ms = 5 * MSEC_PER_SEC;
+	const bool booting = system_state < SYSTEM_RUNNING;
+	const unsigned long hp_spin_ms = 1;
+	unsigned long deadline;
+	int rc;
+	const unsigned long spin_wait_ms = booting ? boot_spin_ms : hp_spin_ms;
 
 	/*
 	 * Don't allow secondary threads to come online if inhibited
@@ -1302,22 +1309,23 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	}
 
 	/*
-	 * wait to see if the cpu made a callin (is actually up).
-	 * use this value that I found through experimentation.
-	 * -- Cort
+	 * At boot time, simply spin on the callin word until the
+	 * deadline passes.
+	 *
+	 * At run time, spin for an optimistic amount of time to avoid
+	 * sleeping in the common case.
 	 */
-	if (system_state < SYSTEM_RUNNING)
-		for (c = 50000; c && !cpu_callin_map[cpu]; c--)
-			udelay(100);
-#ifdef CONFIG_HOTPLUG_CPU
-	else
-		/*
-		 * CPUs can take much longer to come up in the
-		 * hotplug case.  Wait five seconds.
-		 */
-		for (c = 5000; c && !cpu_callin_map[cpu]; c--)
-			msleep(1);
-#endif
+	deadline = jiffies + msecs_to_jiffies(spin_wait_ms);
+	spin_until_cond(cpu_callin_map[cpu] || time_is_before_jiffies(deadline));
+
+	if (!cpu_callin_map[cpu] && system_state >= SYSTEM_RUNNING) {
+		const unsigned long sleep_interval_us = 10 * USEC_PER_MSEC;
+		const unsigned long sleep_wait_ms = 100 * MSEC_PER_SEC;
+
+		deadline = jiffies + msecs_to_jiffies(sleep_wait_ms);
+		while (!cpu_callin_map[cpu] && time_is_after_jiffies(deadline))
+			fsleep(sleep_interval_us);
+	}
 
 	if (!cpu_callin_map[cpu]) {
 		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
@@ -1597,6 +1605,7 @@ static void add_cpu_to_masks(int cpu)
 }
 
 /* Activate a secondary processor. */
+__no_stack_protector
 void start_secondary(void *unused)
 {
 	unsigned int cpu = raw_smp_processor_id();
@@ -1605,7 +1614,7 @@ void start_secondary(void *unused)
 	if (IS_ENABLED(CONFIG_PPC32))
 		setup_kup();
 
-	mmgrab(&init_mm);
+	mmgrab_lazy_tlb(&init_mm);
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
@@ -1746,7 +1755,7 @@ void __cpu_die(unsigned int cpu)
 		smp_ops->cpu_die(cpu);
 }
 
-void arch_cpu_idle_dead(void)
+void __noreturn arch_cpu_idle_dead(void)
 {
 	/*
 	 * Disable on the down path. This will be re-enabled by

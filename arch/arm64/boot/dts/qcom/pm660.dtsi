@@ -11,7 +11,7 @@
 
 / {
 	thermal-zones {
-		pm660 {
+		pm660-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -163,14 +163,14 @@
 				qcom,pre-scaling = <1 3>;
 			};
 
-			vcoin: vcoin@83 {
+			vcoin: vcoin@85 {
 				reg = <ADC5_VCOIN>;
 				qcom,decimation = <1024>;
 				qcom,pre-scaling = <1 3>;
 			};
 		};
 
-		pm660_gpios: gpios@c000 {
+		pm660_gpios: gpio@c000 {
 			compatible = "qcom,pm660-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
@@ -187,7 +187,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		pm660_spmi_regulators: pm660-regulators {
+		pm660_spmi_regulators: regulators {
 			compatible = "qcom,pm660-regulators";
 		};
 	};

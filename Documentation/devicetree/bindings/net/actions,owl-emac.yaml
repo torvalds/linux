@@ -16,7 +16,7 @@ description: |
   operation modes at 10/100 Mb/s data transfer rates.
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
 
 properties:
   compatible:

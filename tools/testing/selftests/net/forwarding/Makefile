@@ -3,6 +3,8 @@
 TEST_PROGS = bridge_igmp.sh \
 	bridge_locked_port.sh \
 	bridge_mdb.sh \
+	bridge_mdb_host.sh \
+	bridge_mdb_max.sh \
 	bridge_mdb_port_down.sh \
 	bridge_mld.sh \
 	bridge_port_isolation.sh \
@@ -13,6 +15,7 @@ TEST_PROGS = bridge_igmp.sh \
 	custom_multipath_hash.sh \
 	dual_vxlan_bridge.sh \
 	ethtool_extended_state.sh \
+	ethtool_mm.sh \
 	ethtool.sh \
 	gre_custom_multipath_hash.sh \
 	gre_inner_v4_multipath.sh \
@@ -80,9 +83,12 @@ TEST_PROGS = bridge_igmp.sh \
 	tc_chains.sh \
 	tc_flower_router.sh \
 	tc_flower.sh \
+	tc_flower_l2_miss.sh \
+	tc_flower_cfm.sh \
 	tc_mpls_l2vpn.sh \
 	tc_police.sh \
 	tc_shblocks.sh \
+	tc_tunnel_key.sh \
 	tc_vlan_modify.sh \
 	vxlan_asymmetric_ipv6.sh \
 	vxlan_asymmetric.sh \

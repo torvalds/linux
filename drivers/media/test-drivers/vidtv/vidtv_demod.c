@@ -188,11 +188,11 @@ static void vidtv_demod_update_stats(struct dvb_frontend *fe)
 	 * Also, usually, signal strength is a negative number in dBm.
 	 */
 	c->strength.stat[0].svalue = state->tuner_cnr;
-	c->strength.stat[0].svalue -= prandom_u32_max(state->tuner_cnr / 50);
+	c->strength.stat[0].svalue -= get_random_u32_below(state->tuner_cnr / 50);
 	c->strength.stat[0].svalue -= 68000; /* Adjust to a better range */
 
 	c->cnr.stat[0].svalue = state->tuner_cnr;
-	c->cnr.stat[0].svalue -= prandom_u32_max(state->tuner_cnr / 50);
+	c->cnr.stat[0].svalue -= get_random_u32_below(state->tuner_cnr / 50);
 }
 
 static int vidtv_demod_read_status(struct dvb_frontend *fe,
@@ -213,11 +213,11 @@ static int vidtv_demod_read_status(struct dvb_frontend *fe,
 
 		if (snr < cnr2qual->cnr_ok) {
 			/* eventually lose the TS lock */
-			if (prandom_u32_max(100) < config->drop_tslock_prob_on_low_snr)
+			if (get_random_u32_below(100) < config->drop_tslock_prob_on_low_snr)
 				state->status = 0;
 		} else {
 			/* recover if the signal improves */
-			if (prandom_u32_max(100) <
+			if (get_random_u32_below(100) <
 			    config->recover_tslock_prob_on_good_snr)
 				state->status = FE_HAS_SIGNAL  |
 						FE_HAS_CARRIER |
@@ -412,8 +412,7 @@ static const struct i2c_device_id vidtv_demod_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, vidtv_demod_i2c_id_table);
 
-static int vidtv_demod_i2c_probe(struct i2c_client *client,
-				 const struct i2c_device_id *id)
+static int vidtv_demod_i2c_probe(struct i2c_client *client)
 {
 	struct vidtv_tuner_config *config = client->dev.platform_data;
 	struct vidtv_demod_state *state;

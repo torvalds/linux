@@ -4,13 +4,13 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <internal/cpumap.h>
 #include <perf/cpumap.h>
+#include <linux/refcount.h>
 
 /** Identify where counts are aggregated, -1 implies not to aggregate. */
 struct aggr_cpu_id {
 	/** A value in the range 0 to number of threads. */
-	int thread;
+	int thread_idx;
 	/** The numa node X as read from /sys/devices/system/node/nodeX. */
 	int node;
 	/**
@@ -20,6 +20,13 @@ struct aggr_cpu_id {
 	int socket;
 	/** The die id as read from /sys/devices/system/cpu/cpuX/topology/die_id. */
 	int die;
+	/** The cache level as read from /sys/devices/system/cpu/cpuX/cache/indexY/level */
+	int cache_lvl;
+	/**
+	 * The cache instance ID, which is the first CPU in the
+	 * /sys/devices/system/cpu/cpuX/cache/indexY/shared_cpu_list
+	 */
+	int cache;
 	/** The core id as read from /sys/devices/system/cpu/cpuX/topology/core_id. */
 	int core;
 	/** CPU aggregation, note there is one CPU for each SMT thread. */
@@ -35,6 +42,9 @@ struct cpu_aggr_map {
 	struct aggr_cpu_id map[];
 };
 
+#define cpu_aggr_map__for_each_idx(idx, aggr_map)				\
+	for ((idx) = 0; (idx) < aggr_map->nr; (idx)++)
+
 struct perf_record_cpu_map_data;
 
 bool perf_record_cpu_map_data__test_bit(int i, const struct perf_record_cpu_map_data *data);
@@ -45,7 +55,7 @@ struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *da
 size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp);
-const struct perf_cpu_map *cpu_map__online(void); /* thread unsafe */
+struct perf_cpu_map *cpu_map__online(void); /* thread unsafe */
 
 int cpu__setup_cpunode_map(void);
 
@@ -56,7 +66,7 @@ struct perf_cpu cpu__max_present_cpu(void);
 /**
  * cpu_map__is_dummy - Events associated with a pid, rather than a CPU, use a single dummy map with an entry of -1.
  */
-static inline bool cpu_map__is_dummy(struct perf_cpu_map *cpus)
+static inline bool cpu_map__is_dummy(const struct perf_cpu_map *cpus)
 {
 	return perf_cpu_map__nr(cpus) == 1 && perf_cpu_map__cpu(cpus, 0).cpu == -1;
 }
@@ -97,7 +107,7 @@ typedef struct aggr_cpu_id (*aggr_cpu_id_get_t)(struct perf_cpu cpu, void *data)
  */
 struct cpu_aggr_map *cpu_aggr_map__new(const struct perf_cpu_map *cpus,
 				       aggr_cpu_id_get_t get_id,
-				       void *data);
+				       void *data, bool needs_sort);
 
 bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b);
 bool aggr_cpu_id__is_empty(const struct aggr_cpu_id *a);
@@ -133,5 +143,9 @@ struct aggr_cpu_id aggr_cpu_id__cpu(struct perf_cpu cpu, void *data);
  * cpu. The function signature is compatible with aggr_cpu_id_get_t.
  */
 struct aggr_cpu_id aggr_cpu_id__node(struct perf_cpu cpu, void *data);
-
+/**
+ * aggr_cpu_id__global - Create an aggr_cpu_id for global aggregation.
+ * The function signature is compatible with aggr_cpu_id_get_t.
+ */
+struct aggr_cpu_id aggr_cpu_id__global(struct perf_cpu cpu, void *data);
 #endif /* __PERF_CPUMAP_H */

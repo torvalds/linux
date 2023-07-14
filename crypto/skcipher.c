@@ -15,11 +15,14 @@
 #include <crypto/scatterwalk.h>
 #include <linux/bug.h>
 #include <linux/cryptouser.h>
-#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/rtnetlink.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <net/netlink.h>
 
 #include "internal.h"
@@ -42,38 +45,24 @@ struct skcipher_walk_buffer {
 
 static int skcipher_walk_next(struct skcipher_walk *walk);
 
-static inline void skcipher_unmap(struct scatter_walk *walk, void *vaddr)
-{
-	if (PageHighMem(scatterwalk_page(walk)))
-		kunmap_atomic(vaddr);
-}
-
-static inline void *skcipher_map(struct scatter_walk *walk)
-{
-	struct page *page = scatterwalk_page(walk);
-
-	return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +
-	       offset_in_page(walk->offset);
-}
-
 static inline void skcipher_map_src(struct skcipher_walk *walk)
 {
-	walk->src.virt.addr = skcipher_map(&walk->in);
+	walk->src.virt.addr = scatterwalk_map(&walk->in);
 }
 
 static inline void skcipher_map_dst(struct skcipher_walk *walk)
 {
-	walk->dst.virt.addr = skcipher_map(&walk->out);
+	walk->dst.virt.addr = scatterwalk_map(&walk->out);
 }
 
 static inline void skcipher_unmap_src(struct skcipher_walk *walk)
 {
-	skcipher_unmap(&walk->in, walk->src.virt.addr);
+	scatterwalk_unmap(walk->src.virt.addr);
 }
 
 static inline void skcipher_unmap_dst(struct skcipher_walk *walk)
 {
-	skcipher_unmap(&walk->out, walk->dst.virt.addr);
+	scatterwalk_unmap(walk->dst.virt.addr);
 }
 
 static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
@@ -89,6 +78,35 @@ static inline u8 *skcipher_get_spot(u8 *start, unsigned int len)
 	u8 *end_page = (u8 *)(((unsigned long)(start + len - 1)) & PAGE_MASK);
 
 	return max(start, end_page);
+}
+
+static inline struct skcipher_alg *__crypto_skcipher_alg(
+	struct crypto_alg *alg)
+{
+	return container_of(alg, struct skcipher_alg, base);
+}
+
+static inline struct crypto_istat_cipher *skcipher_get_stat(
+	struct skcipher_alg *alg)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	return &alg->stat;
+#else
+	return NULL;
+#endif
+}
+
+static inline int crypto_skcipher_errstat(struct skcipher_alg *alg, int err)
+{
+	struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
+
+	if (!IS_ENABLED(CONFIG_CRYPTO_STATS))
+		return err;
+
+	if (err && err != -EINPROGRESS && err != -EBUSY)
+		atomic64_inc(&istat->err_cnt);
+
+	return err;
 }
 
 static int skcipher_done_slow(struct skcipher_walk *walk, unsigned int bsize)
@@ -619,34 +637,44 @@ EXPORT_SYMBOL_GPL(crypto_skcipher_setkey);
 int crypto_skcipher_encrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int cryptlen = req->cryptlen;
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 	int ret;
 
-	crypto_stats_get(alg);
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
+		struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
+
+		atomic64_inc(&istat->encrypt_cnt);
+		atomic64_add(req->cryptlen, &istat->encrypt_tlen);
+	}
+
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
-		ret = crypto_skcipher_alg(tfm)->encrypt(req);
-	crypto_stats_skcipher_encrypt(cryptlen, ret, alg);
-	return ret;
+		ret = alg->encrypt(req);
+
+	return crypto_skcipher_errstat(alg, ret);
 }
 EXPORT_SYMBOL_GPL(crypto_skcipher_encrypt);
 
 int crypto_skcipher_decrypt(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct crypto_alg *alg = tfm->base.__crt_alg;
-	unsigned int cryptlen = req->cryptlen;
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
 	int ret;
 
-	crypto_stats_get(alg);
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS)) {
+		struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
+
+		atomic64_inc(&istat->decrypt_cnt);
+		atomic64_add(req->cryptlen, &istat->decrypt_tlen);
+	}
+
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
-		ret = crypto_skcipher_alg(tfm)->decrypt(req);
-	crypto_stats_skcipher_decrypt(cryptlen, ret, alg);
-	return ret;
+		ret = alg->decrypt(req);
+
+	return crypto_skcipher_errstat(alg, ret);
 }
 EXPORT_SYMBOL_GPL(crypto_skcipher_decrypt);
 
@@ -686,8 +714,7 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	__maybe_unused;
 static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 {
-	struct skcipher_alg *skcipher = container_of(alg, struct skcipher_alg,
-						     base);
+	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
 
 	seq_printf(m, "type         : skcipher\n");
 	seq_printf(m, "async        : %s\n",
@@ -700,12 +727,11 @@ static void crypto_skcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "walksize     : %u\n", skcipher->walksize);
 }
 
-#ifdef CONFIG_NET
-static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int __maybe_unused crypto_skcipher_report(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
+	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
 	struct crypto_report_blkcipher rblkcipher;
-	struct skcipher_alg *skcipher = container_of(alg, struct skcipher_alg,
-						     base);
 
 	memset(&rblkcipher, 0, sizeof(rblkcipher));
 
@@ -720,12 +746,28 @@ static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
 	return nla_put(skb, CRYPTOCFGA_REPORT_BLKCIPHER,
 		       sizeof(rblkcipher), &rblkcipher);
 }
-#else
-static int crypto_skcipher_report(struct sk_buff *skb, struct crypto_alg *alg)
+
+static int __maybe_unused crypto_skcipher_report_stat(
+	struct sk_buff *skb, struct crypto_alg *alg)
 {
-	return -ENOSYS;
+	struct skcipher_alg *skcipher = __crypto_skcipher_alg(alg);
+	struct crypto_istat_cipher *istat;
+	struct crypto_stat_cipher rcipher;
+
+	istat = skcipher_get_stat(skcipher);
+
+	memset(&rcipher, 0, sizeof(rcipher));
+
+	strscpy(rcipher.type, "cipher", sizeof(rcipher.type));
+
+	rcipher.stat_encrypt_cnt = atomic64_read(&istat->encrypt_cnt);
+	rcipher.stat_encrypt_tlen = atomic64_read(&istat->encrypt_tlen);
+	rcipher.stat_decrypt_cnt =  atomic64_read(&istat->decrypt_cnt);
+	rcipher.stat_decrypt_tlen = atomic64_read(&istat->decrypt_tlen);
+	rcipher.stat_err_cnt =  atomic64_read(&istat->err_cnt);
+
+	return nla_put(skb, CRYPTOCFGA_STAT_CIPHER, sizeof(rcipher), &rcipher);
 }
-#endif
 
 static const struct crypto_type crypto_skcipher_type = {
 	.extsize = crypto_alg_extsize,
@@ -734,7 +776,12 @@ static const struct crypto_type crypto_skcipher_type = {
 #ifdef CONFIG_PROC_FS
 	.show = crypto_skcipher_show,
 #endif
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_skcipher_report,
+#endif
+#ifdef CONFIG_CRYPTO_STATS
+	.report_stat = crypto_skcipher_report_stat,
+#endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
@@ -763,7 +810,7 @@ struct crypto_sync_skcipher *crypto_alloc_sync_skcipher(
 	struct crypto_skcipher *tfm;
 
 	/* Only sync algorithms allowed. */
-	mask |= CRYPTO_ALG_ASYNC;
+	mask |= CRYPTO_ALG_ASYNC | CRYPTO_ALG_SKCIPHER_REQSIZE_LARGE;
 
 	tfm = crypto_alloc_tfm(alg_name, &crypto_skcipher_type, type, mask);
 
@@ -789,6 +836,7 @@ EXPORT_SYMBOL_GPL(crypto_has_skcipher);
 
 static int skcipher_prepare_alg(struct skcipher_alg *alg)
 {
+	struct crypto_istat_cipher *istat = skcipher_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	if (alg->ivsize > PAGE_SIZE / 8 || alg->chunksize > PAGE_SIZE / 8 ||
@@ -803,6 +851,9 @@ static int skcipher_prepare_alg(struct skcipher_alg *alg)
 	base->cra_type = &crypto_skcipher_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SKCIPHER;
+
+	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
+		memset(istat, 0, sizeof(*istat));
 
 	return 0;
 }

@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018 - 2019, 2021 Intel Corporation
+* Copyright (C) 2018 - 2019, 2021 - 2023 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -13,9 +13,11 @@
 #include "trace.h"
 
 #define check_sdata_in_driver(sdata)	({					\
-	!WARN_ONCE(!(sdata->flags & IEEE80211_SDATA_IN_DRIVER),			\
-		   "%s: Failed check-sdata-in-driver check, flags: 0x%x\n",	\
-		   sdata->dev ? sdata->dev->name : sdata->name, sdata->flags);	\
+	WARN_ONCE(!sdata->local->reconfig_failure &&				\
+		  !(sdata->flags & IEEE80211_SDATA_IN_DRIVER),			\
+		  "%s: Failed check-sdata-in-driver check, flags: 0x%x\n",	\
+		  sdata->dev ? sdata->dev->name : sdata->name, sdata->flags);	\
+	!!(sdata->flags & IEEE80211_SDATA_IN_DRIVER);				\
 })
 
 static inline struct ieee80211_sub_if_data *
@@ -465,6 +467,22 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
+static inline void drv_link_add_debugfs(struct ieee80211_local *local,
+					struct ieee80211_sub_if_data *sdata,
+					struct ieee80211_bss_conf *link_conf,
+					struct dentry *dir)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (local->ops->link_add_debugfs)
+		local->ops->link_add_debugfs(&local->hw, &sdata->vif,
+					     link_conf, dir);
+}
+
 static inline void drv_sta_add_debugfs(struct ieee80211_local *local,
 				       struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_sta *sta,
@@ -479,6 +497,22 @@ static inline void drv_sta_add_debugfs(struct ieee80211_local *local,
 	if (local->ops->sta_add_debugfs)
 		local->ops->sta_add_debugfs(&local->hw, &sdata->vif,
 					    sta, dir);
+}
+
+static inline void drv_link_sta_add_debugfs(struct ieee80211_local *local,
+					    struct ieee80211_sub_if_data *sdata,
+					    struct ieee80211_link_sta *link_sta,
+					    struct dentry *dir)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	if (local->ops->link_sta_add_debugfs)
+		local->ops->link_sta_add_debugfs(&local->hw, &sdata->vif,
+						 link_sta, dir);
 }
 #endif
 
@@ -614,6 +648,21 @@ static inline void drv_flush(struct ieee80211_local *local,
 	trace_drv_flush(local, queues, drop);
 	if (local->ops->flush)
 		local->ops->flush(&local->hw, vif, queues, drop);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_flush_sta(struct ieee80211_local *local,
+				 struct ieee80211_sub_if_data *sdata,
+				 struct sta_info *sta)
+{
+	might_sleep();
+
+	if (sdata && !check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_flush_sta(local, sdata, &sta->sta);
+	if (local->ops->flush_sta)
+		local->ops->flush_sta(&local->hw, &sdata->vif, &sta->sta);
 	trace_drv_return_void(local);
 }
 
@@ -1183,7 +1232,7 @@ static inline void drv_wake_tx_queue(struct ieee80211_local *local,
 
 	/* In reconfig don't transmit now, but mark for waking later */
 	if (local->in_reconfig) {
-		set_bit(IEEE80211_TXQ_STOP_NETIF_TX, &txq->flags);
+		set_bit(IEEE80211_TXQ_DIRTY, &txq->flags);
 		return;
 	}
 
@@ -1465,6 +1514,23 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
 		ret = local->ops->net_fill_forward_path(&local->hw,
 							&sdata->vif, sta,
 							ctx, path);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_net_setup_tc(struct ieee80211_local *local,
+				   struct ieee80211_sub_if_data *sdata,
+				   struct net_device *dev,
+				   enum tc_setup_type type, void *type_data)
+{
+	int ret = -EOPNOTSUPP;
+
+	sdata = get_bss_sdata(sdata);
+	trace_drv_net_setup_tc(local, sdata, type);
+	if (local->ops->net_setup_tc)
+		ret = local->ops->net_setup_tc(&local->hw, &sdata->vif, dev,
+					       type, type_data);
 	trace_drv_return_int(local, ret);
 
 	return ret;

@@ -663,9 +663,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD_MODE(force_tx_status, 0600);
 	DEBUGFS_ADD_MODE(aql_enable, 0600);
 	DEBUGFS_ADD(aql_pending);
-
-	if (local->ops->wake_tx_queue)
-		DEBUGFS_ADD_MODE(aqm, 0600);
+	DEBUGFS_ADD_MODE(aqm, 0600);
 
 	DEBUGFS_ADD_MODE(airtime_flags, 0600);
 
@@ -674,10 +672,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 			   phyd, &local->aql_threshold);
 
 	statsd = debugfs_create_dir("statistics", phyd);
-
-	/* if the dir failed, don't put all the other things into the root! */
-	if (!statsd)
-		return;
 
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	DEBUGFS_STATS_ADD(dot11TransmittedFragmentCount);

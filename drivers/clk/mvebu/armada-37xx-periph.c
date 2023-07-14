@@ -781,7 +781,7 @@ static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int armada_3700_periph_clock_remove(struct platform_device *pdev)
+static void armada_3700_periph_clock_remove(struct platform_device *pdev)
 {
 	struct clk_periph_driver_data *data = platform_get_drvdata(pdev);
 	struct clk_hw_onecell_data *hw_data = data->hw_data;
@@ -791,13 +791,11 @@ static int armada_3700_periph_clock_remove(struct platform_device *pdev)
 
 	for (i = 0; i < hw_data->num; i++)
 		clk_hw_unregister(hw_data->hws[i]);
-
-	return 0;
 }
 
 static struct platform_driver armada_3700_periph_clock_driver = {
 	.probe = armada_3700_periph_clock_probe,
-	.remove = armada_3700_periph_clock_remove,
+	.remove_new = armada_3700_periph_clock_remove,
 	.driver		= {
 		.name	= "marvell-armada-3700-periph-clock",
 		.of_match_table = armada_3700_periph_clock_of_match,

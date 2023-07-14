@@ -443,9 +443,9 @@ fail:
 	return ret;
 }
 
-static void msm_iommu_detach_dev(struct iommu_domain *domain,
-				 struct device *dev)
+static void msm_iommu_set_platform_dma(struct device *dev)
 {
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct msm_priv *priv = to_msm_priv(domain);
 	unsigned long flags;
 	struct msm_iommu_dev *iommu;
@@ -471,14 +471,16 @@ fail:
 }
 
 static int msm_iommu_map(struct iommu_domain *domain, unsigned long iova,
-			 phys_addr_t pa, size_t len, int prot, gfp_t gfp)
+			 phys_addr_t pa, size_t pgsize, size_t pgcount,
+			 int prot, gfp_t gfp, size_t *mapped)
 {
 	struct msm_priv *priv = to_msm_priv(domain);
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&priv->pgtlock, flags);
-	ret = priv->iop->map(priv->iop, iova, pa, len, prot, GFP_ATOMIC);
+	ret = priv->iop->map_pages(priv->iop, iova, pa, pgsize, pgcount, prot,
+				   GFP_ATOMIC, mapped);
 	spin_unlock_irqrestore(&priv->pgtlock, flags);
 
 	return ret;
@@ -493,16 +495,18 @@ static void msm_iommu_sync_map(struct iommu_domain *domain, unsigned long iova,
 }
 
 static size_t msm_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			      size_t len, struct iommu_iotlb_gather *gather)
+			      size_t pgsize, size_t pgcount,
+			      struct iommu_iotlb_gather *gather)
 {
 	struct msm_priv *priv = to_msm_priv(domain);
 	unsigned long flags;
+	size_t ret;
 
 	spin_lock_irqsave(&priv->pgtlock, flags);
-	len = priv->iop->unmap(priv->iop, iova, len, gather);
+	ret = priv->iop->unmap_pages(priv->iop, iova, pgsize, pgcount, gather);
 	spin_unlock_irqrestore(&priv->pgtlock, flags);
 
-	return len;
+	return ret;
 }
 
 static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
@@ -674,13 +678,13 @@ static struct iommu_ops msm_iommu_ops = {
 	.domain_alloc = msm_iommu_domain_alloc,
 	.probe_device = msm_iommu_probe_device,
 	.device_group = generic_device_group,
+	.set_platform_dma_ops = msm_iommu_set_platform_dma,
 	.pgsize_bitmap = MSM_IOMMU_PGSIZES,
 	.of_xlate = qcom_iommu_of_xlate,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev	= msm_iommu_attach_dev,
-		.detach_dev	= msm_iommu_detach_dev,
-		.map		= msm_iommu_map,
-		.unmap		= msm_iommu_unmap,
+		.map_pages	= msm_iommu_map,
+		.unmap_pages	= msm_iommu_unmap,
 		/*
 		 * Nothing is needed here, the barrier to guarantee
 		 * completion of the tlb sync operation is implicitly
@@ -792,8 +796,6 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	bus_set_iommu(&platform_bus_type, &msm_iommu_ops);
-
 	pr_info("device mapped at %p, irq %d with %d ctx banks\n",
 		iommu->base, iommu->irq, iommu->ncb);
 
@@ -809,13 +811,12 @@ static const struct of_device_id msm_iommu_dt_match[] = {
 	{}
 };
 
-static int msm_iommu_remove(struct platform_device *pdev)
+static void msm_iommu_remove(struct platform_device *pdev)
 {
 	struct msm_iommu_dev *iommu = platform_get_drvdata(pdev);
 
 	clk_unprepare(iommu->clk);
 	clk_unprepare(iommu->pclk);
-	return 0;
 }
 
 static struct platform_driver msm_iommu_driver = {
@@ -824,6 +825,6 @@ static struct platform_driver msm_iommu_driver = {
 		.of_match_table = msm_iommu_dt_match,
 	},
 	.probe		= msm_iommu_probe,
-	.remove		= msm_iommu_remove,
+	.remove_new	= msm_iommu_remove,
 };
 builtin_platform_driver(msm_iommu_driver);

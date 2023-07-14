@@ -174,6 +174,7 @@ enum mlx5_ib_devx_umem_reg_attrs {
 	MLX5_IB_ATTR_DEVX_UMEM_REG_ACCESS,
 	MLX5_IB_ATTR_DEVX_UMEM_REG_OUT_ID,
 	MLX5_IB_ATTR_DEVX_UMEM_REG_PGSZ_BITMAP,
+	MLX5_IB_ATTR_DEVX_UMEM_REG_DMABUF_FD,
 };
 
 enum mlx5_ib_devx_umem_dereg_attrs {

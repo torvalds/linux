@@ -32,8 +32,6 @@ properties:
 
   spi-cpol: true
 
-  spi-max-frequency: true
-
   avcc-supply: true
 
   interrupts:
@@ -105,36 +103,39 @@ required:
   - interrupts
   - adi,conversion-start-gpios
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
         adc@0 {
-                compatible = "adi,ad7606-8";
-                reg = <0>;
-                spi-max-frequency = <1000000>;
-                spi-cpol;
-                spi-cpha;
+            compatible = "adi,ad7606-8";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            spi-cpol;
+            spi-cpha;
 
-                avcc-supply = <&adc_vref>;
+            avcc-supply = <&adc_vref>;
 
-                interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
-                interrupt-parent = <&gpio>;
+            interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+            interrupt-parent = <&gpio>;
 
-                adi,conversion-start-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
-                reset-gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
-                adi,first-data-gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
-                adi,oversampling-ratio-gpios = <&gpio 18 GPIO_ACTIVE_HIGH>,
-                                               <&gpio 23 GPIO_ACTIVE_HIGH>,
-                                               <&gpio 26 GPIO_ACTIVE_HIGH>;
-                standby-gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
-                adi,sw-mode;
+            adi,conversion-start-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;
+            reset-gpios = <&gpio 27 GPIO_ACTIVE_HIGH>;
+            adi,first-data-gpios = <&gpio 22 GPIO_ACTIVE_HIGH>;
+            adi,oversampling-ratio-gpios = <&gpio 18 GPIO_ACTIVE_HIGH>,
+                                           <&gpio 23 GPIO_ACTIVE_HIGH>,
+                                           <&gpio 26 GPIO_ACTIVE_HIGH>;
+            standby-gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
+            adi,sw-mode;
         };
     };
 ...

@@ -4,7 +4,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "builtin.h"
-#include "perf.h"
 
 #include <subcmd/parse-options.h>
 #include "util/auxtrace.h"
@@ -18,9 +17,10 @@
 #include "util/dso.h"
 #include "util/map.h"
 #include "util/symbol.h"
-#include "util/pmu.h"
-#include "util/pmu-hybrid.h"
+#include "util/pmus.h"
+#include "util/sample.h"
 #include "util/string2.h"
+#include "util/util.h"
 #include <linux/err.h>
 
 #define MEM_OPERATION_LOAD	0x1
@@ -92,10 +92,11 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	argc = parse_options(argc, argv, options, record_mem_usage,
 			     PARSE_OPT_KEEP_UNKNOWN);
 
-	if (!perf_pmu__has_hybrid())
-		rec_argc = argc + 9; /* max number of arguments */
-	else
-		rec_argc = argc + 9 * perf_pmu__hybrid_pmu_num();
+	/* Max number of arguments multiplied by number of PMUs that can support them. */
+	rec_argc = argc + 9 * perf_pmus__num_mem_pmus();
+
+	if (mem->cpu_list)
+		rec_argc += 2;
 
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)
@@ -122,6 +123,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	    (mem->operation & MEM_OPERATION_LOAD) &&
 	    (mem->operation & MEM_OPERATION_STORE)) {
 		e->record = true;
+		rec_argv[i++] = "-W";
 	} else {
 		if (mem->operation & MEM_OPERATION_LOAD) {
 			e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
@@ -158,6 +160,11 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	if (all_kernel)
 		rec_argv[i++] = "--all-kernel";
 
+	if (mem->cpu_list) {
+		rec_argv[i++] = "-C";
+		rec_argv[i++] = mem->cpu_list;
+	}
+
 	for (j = 0; j < argc; j++, i++)
 		rec_argv[i] = argv[j];
 
@@ -190,18 +197,24 @@ dump_raw_samples(struct perf_tool *tool,
 	struct addr_location al;
 	const char *fmt, *field_sep;
 	char str[PAGE_SIZE_NAME_LEN];
+	struct dso *dso = NULL;
 
+	addr_location__init(&al);
 	if (machine__resolve(machine, &al, sample) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 				event->header.type);
+		addr_location__exit(&al);
 		return -1;
 	}
 
 	if (al.filtered || (mem->hide_unresolved && al.sym == NULL))
 		goto out_put;
 
-	if (al.map != NULL)
-		al.map->dso->hit = 1;
+	if (al.map != NULL) {
+		dso = map__dso(al.map);
+		if (dso)
+			dso->hit = 1;
+	}
 
 	field_sep = symbol_conf.field_sep;
 	if (field_sep) {
@@ -242,10 +255,10 @@ dump_raw_samples(struct perf_tool *tool,
 		symbol_conf.field_sep,
 		sample->data_src,
 		symbol_conf.field_sep,
-		al.map ? (al.map->dso ? al.map->dso->long_name : "???") : "???",
+		dso ? dso->long_name : "???",
 		al.sym ? al.sym->name : "???");
 out_put:
-	addr_location__put(&al);
+	addr_location__exit(&al);
 	return 0;
 }
 

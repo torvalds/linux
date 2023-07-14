@@ -162,6 +162,19 @@ config VIDEO_IMX290
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx290.
 
+config VIDEO_IMX296
+	tristate "Sony IMX296 sensor support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX296 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx296.
+
 config VIDEO_IMX319
 	tristate "Sony IMX319 sensor support"
 	depends on I2C && VIDEO_DEV
@@ -228,6 +241,20 @@ config VIDEO_IMX412
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx412.
 
+config VIDEO_IMX415
+	tristate "Sony IMX415 sensor support"
+	depends on OF_GPIO
+	depends on I2C && VIDEO_DEV
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX415 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx415.
+
 config VIDEO_MAX9271_LIB
 	tristate
 
@@ -239,16 +266,6 @@ config VIDEO_MT9M001
 	help
 	  This driver supports MT9M001 cameras from Micron, monochrome
 	  and colour models.
-
-config VIDEO_MT9M032
-	tristate "MT9M032 camera sensor support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select VIDEO_APTINA_PLL
-	help
-	  This driver supports MT9M032 camera sensors from Aptina, monochrome
-	  models only.
 
 config VIDEO_MT9M111
 	tristate "mt9m111, mt9m112 and mt9m131 support"
@@ -268,15 +285,6 @@ config VIDEO_MT9P031
 	help
 	  This is a Video4Linux2 sensor driver for the Aptina
 	  (Micron) mt9p031 5 Mpixel camera.
-
-config VIDEO_MT9T001
-	tristate "Aptina MT9T001 support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  This is a Video4Linux2 sensor driver for the Aptina
-	  (Micron) mt0t001 3 Mpixel camera.
 
 config VIDEO_MT9T112
 	tristate "Aptina MT9T111/MT9T112 support"
@@ -317,14 +325,6 @@ config VIDEO_MT9V111
 	  To compile this driver as a module, choose M here: the
 	  module will be called mt9v111.
 
-config VIDEO_NOON010PC30
-	tristate "Siliconfile NOON010PC30 sensor support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	help
-	  This driver supports NOON010PC30 CIF camera from Siliconfile
-
 config VIDEO_OG01A1B
 	tristate "OmniVision OG01A1B sensor support"
 	depends on I2C && VIDEO_DEV
@@ -337,6 +337,19 @@ config VIDEO_OG01A1B
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called og01a1b.
+
+config VIDEO_OV01A10
+	tristate "OmniVision OV01A10 sensor support"
+	depends on VIDEO_DEV && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV01A10 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov01a10.
 
 config VIDEO_OV02A10
 	tristate "OmniVision OV02A10 sensor support"
@@ -363,6 +376,19 @@ config VIDEO_OV08D10
 
           To compile this driver as a module, choose M here: the
           module will be called ov08d10.
+
+config VIDEO_OV08X40
+	tristate "OmniVision OV08X40 sensor support"
+	depends on VIDEO_DEV && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the OmniVision
+	  OV08X40 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov08x40.
 
 config VIDEO_OV13858
 	tristate "OmniVision OV13858 sensor support"
@@ -422,6 +448,7 @@ config VIDEO_OV2685
 	tristate "OmniVision OV2685 sensor support"
 	depends on VIDEO_DEV && I2C
 	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	help
 	  This is a Video4Linux2 sensor driver for the OmniVision
@@ -444,6 +471,19 @@ config VIDEO_OV2740
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2740.
+
+config VIDEO_OV4689
+	tristate "OmniVision OV4689 sensor support"
+	depends on GPIOLIB && VIDEO_DEV && I2C
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV4689 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov4689.
 
 config VIDEO_OV5640
 	tristate "OmniVision OV5640 sensor support"
@@ -619,6 +659,19 @@ config VIDEO_OV8856
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov8856.
 
+config VIDEO_OV8858
+	tristate "OmniVision OV8858 sensor support"
+	depends on I2C && PM && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for OmniVision
+	  OV8858 camera sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ov8858.
+
 config VIDEO_OV8865
 	tristate "OmniVision OV8865 sensor support"
 	depends on I2C && PM && VIDEO_DEV
@@ -725,16 +778,6 @@ config VIDEO_S5C73M3
 	  This is a V4L2 sensor driver for Samsung S5C73M3
 	  8 Mpixel camera.
 
-config VIDEO_S5K4ECGX
-	tristate "Samsung S5K4ECGX sensor support"
-	depends on I2C && VIDEO_DEV
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-	select CRC32
-	help
-	  This is a V4L2 sensor driver for Samsung S5K4ECGX 5M
-	  camera sensor with an embedded SoC image signal processor.
-
 config VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
 	depends on I2C && VIDEO_DEV
@@ -754,34 +797,18 @@ config VIDEO_S5K6A3
 	  This is a V4L2 sensor driver for Samsung S5K6A3 raw
 	  camera sensor.
 
-config VIDEO_S5K6AA
-	tristate "Samsung S5K6AAFX sensor support"
-	depends on I2C && VIDEO_DEV
+config VIDEO_ST_VGXY61
+	tristate "ST VGXY61 sensor support"
+	depends on OF && GPIOLIB && VIDEO_DEV && I2C
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
 	help
-	  This is a V4L2 sensor driver for Samsung S5K6AA(FX) 1.3M
-	  camera sensor with an embedded SoC image signal processor.
-
-config VIDEO_SR030PC30
-	tristate "Siliconfile SR030PC30 sensor support"
-	depends on I2C && VIDEO_DEV
-	help
-	  This driver supports SR030PC30 VGA camera from Siliconfile
-
-config VIDEO_VS6624
-	tristate "ST VS6624 sensor support"
-	depends on VIDEO_DEV && I2C
-	help
-	  This is a Video4Linux2 sensor driver for the ST VS6624
-	  camera.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vs6624.
+	  This is a Video4Linux2 sensor driver for the ST VGXY61
+	  camera sensor.
 
 source "drivers/media/i2c/ccs/Kconfig"
 source "drivers/media/i2c/et8ek8/Kconfig"
-source "drivers/media/i2c/m5mols/Kconfig"
 
 endmenu
 
@@ -1272,6 +1299,23 @@ config VIDEO_TC358743_CEC
 	  When selected the tc358743 will support the optional
 	  HDMI CEC feature.
 
+config VIDEO_TC358746
+	tristate "Toshiba TC358746 parallel-CSI2 bridge"
+	depends on VIDEO_DEV && PM && I2C
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select V4L2_FWNODE
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
+	select REGMAP_I2C
+	help
+	  Support for the Toshiba TC358746 parallel to MIPI CSI-2 bridge.
+	  The bridge can work in both directions but currently only the
+	  parallel-in / csi-out path is supported.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tc358746.
+
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_DEV && I2C
@@ -1370,20 +1414,6 @@ endmenu
 
 menu "Video encoders"
 	visible if !MEDIA_HIDE_ANCILLARY_SUBDRV
-
-config VIDEO_AD9389B
-	tristate "Analog Devices AD9389B encoder"
-	depends on VIDEO_DEV && I2C
-	select MEDIA_CONTROLLER
-	select VIDEO_V4L2_SUBDEV_API
-
-	help
-	  Support for the Analog Devices AD9389B video encoder.
-
-	  This is a Analog Devices HDMI transmitter.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad9389b.
 
 config VIDEO_ADV7170
 	tristate "Analog Devices ADV7170 video encoder"

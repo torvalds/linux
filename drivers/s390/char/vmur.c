@@ -15,12 +15,14 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/kobject.h>
 
 #include <linux/uaccess.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/debug.h>
 #include <asm/diag.h>
+#include <asm/scsw.h>
 
 #include "vmur.h"
 
@@ -78,6 +80,8 @@ static struct ccw_driver ur_driver = {
 
 static DEFINE_MUTEX(vmur_mutex);
 
+static void ur_uevent(struct work_struct *ws);
+
 /*
  * Allocation, freeing, getting and putting of urdev structures
  *
@@ -108,6 +112,7 @@ static struct urdev *urdev_alloc(struct ccw_device *cdev)
 	ccw_device_get_id(cdev, &urd->dev_id);
 	mutex_init(&urd->io_mutex);
 	init_waitqueue_head(&urd->wait);
+	INIT_WORK(&urd->uevent_work, ur_uevent);
 	spin_lock_init(&urd->open_lock);
 	refcount_set(&urd->ref_count,  1);
 	urd->cdev = cdev;
@@ -275,6 +280,18 @@ out:
 	return rc;
 }
 
+static void ur_uevent(struct work_struct *ws)
+{
+	struct urdev *urd = container_of(ws, struct urdev, uevent_work);
+	char *envp[] = {
+		"EVENT=unsol_de",	/* Unsolicited device-end interrupt */
+		NULL
+	};
+
+	kobject_uevent_env(&urd->cdev->dev.kobj, KOBJ_CHANGE, envp);
+	urdev_put(urd);
+}
+
 /*
  * ur interrupt handler, called from the ccw_device layer
  */
@@ -288,12 +305,21 @@ static void ur_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		      intparm, irb->scsw.cmd.cstat, irb->scsw.cmd.dstat,
 		      irb->scsw.cmd.count);
 	}
+	urd = dev_get_drvdata(&cdev->dev);
 	if (!intparm) {
 		TRACE("ur_int_handler: unsolicited interrupt\n");
+
+		if (scsw_dstat(&irb->scsw) & DEV_STAT_DEV_END) {
+			/*
+			 * Userspace might be interested in a transition to
+			 * device-ready state.
+			 */
+			urdev_get(urd);
+			schedule_work(&urd->uevent_work);
+		}
+
 		return;
 	}
-	urd = dev_get_drvdata(&cdev->dev);
-	BUG_ON(!urd);
 	/* On special conditions irb is an error pointer */
 	if (IS_ERR(irb))
 		urd->io_request_rc = PTR_ERR(irb);
@@ -809,7 +835,6 @@ static int ur_probe(struct ccw_device *cdev)
 		rc = -ENOMEM;
 		goto fail_urdev_put;
 	}
-	cdev->handler = ur_int_handler;
 
 	/* validate virtual unit record device */
 	urd->class = get_urd_class(urd);
@@ -823,6 +848,7 @@ static int ur_probe(struct ccw_device *cdev)
 	}
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	dev_set_drvdata(&cdev->dev, urd);
+	cdev->handler = ur_int_handler;
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	mutex_unlock(&vmur_mutex);
@@ -928,6 +954,10 @@ static int ur_set_offline_force(struct ccw_device *cdev, int force)
 		rc = -EBUSY;
 		goto fail_urdev_put;
 	}
+	if (cancel_work_sync(&urd->uevent_work)) {
+		/* Work not run yet - need to release reference here */
+		urdev_put(urd);
+	}
 	device_destroy(vmur_class, urd->char_device->dev);
 	cdev_del(urd->char_device);
 	urd->char_device = NULL;
@@ -963,6 +993,7 @@ static void ur_remove(struct ccw_device *cdev)
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	urdev_put(dev_get_drvdata(&cdev->dev));
 	dev_set_drvdata(&cdev->dev, NULL);
+	cdev->handler = NULL;
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 
 	mutex_unlock(&vmur_mutex);
@@ -991,7 +1022,7 @@ static int __init ur_init(void)
 
 	debug_set_level(vmur_dbf, 6);
 
-	vmur_class = class_create(THIS_MODULE, "vmur");
+	vmur_class = class_create("vmur");
 	if (IS_ERR(vmur_class)) {
 		rc = PTR_ERR(vmur_class);
 		goto fail_free_dbf;

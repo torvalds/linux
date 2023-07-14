@@ -25,7 +25,14 @@
 
 #include "dasd_int.h"
 
-static struct lock_class_key dasd_bio_compl_lkclass;
+static unsigned int queue_depth = 32;
+static unsigned int nr_hw_queues = 4;
+
+module_param(queue_depth, uint, 0444);
+MODULE_PARM_DESC(queue_depth, "Default queue depth for new DASD devices");
+
+module_param(nr_hw_queues, uint, 0444);
+MODULE_PARM_DESC(nr_hw_queues, "Default number of hardware queues for new DASD devices");
 
 /*
  * Allocate and register gendisk structure for device.
@@ -41,10 +48,21 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	if (base->devindex >= DASD_PER_MAJOR)
 		return -EBUSY;
 
-	gdp = blk_mq_alloc_disk_for_queue(block->request_queue,
-					  &dasd_bio_compl_lkclass);
-	if (!gdp)
-		return -ENOMEM;
+	block->tag_set.ops = &dasd_mq_ops;
+	block->tag_set.cmd_size = sizeof(struct dasd_ccw_req);
+	block->tag_set.nr_hw_queues = nr_hw_queues;
+	block->tag_set.queue_depth = queue_depth;
+	block->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	block->tag_set.numa_node = NUMA_NO_NODE;
+	rc = blk_mq_alloc_tag_set(&block->tag_set);
+	if (rc)
+		return rc;
+
+	gdp = blk_mq_alloc_disk(&block->tag_set, block);
+	if (IS_ERR(gdp)) {
+		blk_mq_free_tag_set(&block->tag_set);
+		return PTR_ERR(gdp);
+	}
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
@@ -100,6 +118,7 @@ void dasd_gendisk_free(struct dasd_block *block)
 		block->gdp->private_data = NULL;
 		put_disk(block->gdp);
 		block->gdp = NULL;
+		blk_mq_free_tag_set(&block->tag_set);
 	}
 }
 
@@ -111,7 +130,8 @@ int dasd_scan_partitions(struct dasd_block *block)
 	struct block_device *bdev;
 	int rc;
 
-	bdev = blkdev_get_by_dev(disk_devt(block->gdp), FMODE_READ, NULL);
+	bdev = blkdev_get_by_dev(disk_devt(block->gdp), BLK_OPEN_READ, NULL,
+				 NULL);
 	if (IS_ERR(bdev)) {
 		DBF_DEV_EVENT(DBF_ERR, block->base,
 			      "scan partitions error, blkdev_get returned %ld",
@@ -160,7 +180,7 @@ void dasd_destroy_partitions(struct dasd_block *block)
 	mutex_unlock(&bdev->bd_disk->open_mutex);
 
 	/* Matching blkdev_put to the blkdev_get in dasd_scan_partitions. */
-	blkdev_put(bdev, FMODE_READ);
+	blkdev_put(bdev, NULL);
 }
 
 int dasd_gendisk_init(void)

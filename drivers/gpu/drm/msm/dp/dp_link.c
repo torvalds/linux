@@ -49,23 +49,26 @@ static int dp_aux_link_power_up(struct drm_dp_aux *aux,
 					struct dp_link_info *link)
 {
 	u8 value;
-	int err;
+	ssize_t len;
+	int i;
 
 	if (link->revision < 0x11)
 		return 0;
 
-	err = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
-	if (err < 0)
-		return err;
+	len = drm_dp_dpcd_readb(aux, DP_SET_POWER, &value);
+	if (len < 0)
+		return len;
 
 	value &= ~DP_SET_POWER_MASK;
 	value |= DP_SET_POWER_D0;
 
-	err = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
-	if (err < 0)
-		return err;
-
-	usleep_range(1000, 2000);
+	/* retry for 1ms to give the sink time to wake up */
+	for (i = 0; i < 3; i++) {
+		len = drm_dp_dpcd_writeb(aux, DP_SET_POWER, value);
+		usleep_range(1000, 2000);
+		if (len == 1)
+			break;
+	}
 
 	return 0;
 }
@@ -786,7 +789,7 @@ static int dp_link_process_link_training_request(struct dp_link_private *link)
 			link->request.test_lane_count);
 
 	link->dp_link.link_params.num_lanes = link->request.test_lane_count;
-	link->dp_link.link_params.rate = 
+	link->dp_link.link_params.rate =
 		drm_dp_bw_code_to_link_rate(link->request.test_link_rate);
 
 	return 0;
@@ -934,6 +937,38 @@ static int dp_link_process_phy_test_pattern_request(
 	return 0;
 }
 
+static bool dp_link_read_psr_error_status(struct dp_link_private *link)
+{
+	u8 status;
+
+	drm_dp_dpcd_read(link->aux, DP_PSR_ERROR_STATUS, &status, 1);
+
+	if (status & DP_PSR_LINK_CRC_ERROR)
+		DRM_ERROR("PSR LINK CRC ERROR\n");
+	else if (status & DP_PSR_RFB_STORAGE_ERROR)
+		DRM_ERROR("PSR RFB STORAGE ERROR\n");
+	else if (status & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+		DRM_ERROR("PSR VSC SDP UNCORRECTABLE ERROR\n");
+	else
+		return false;
+
+	return true;
+}
+
+static bool dp_link_psr_capability_changed(struct dp_link_private *link)
+{
+	u8 status;
+
+	drm_dp_dpcd_read(link->aux, DP_PSR_ESI, &status, 1);
+
+	if (status & DP_PSR_CAPS_CHANGE) {
+		drm_dbg_dp(link->drm_dev, "PSR Capability Change\n");
+		return true;
+	}
+
+	return false;
+}
+
 static u8 get_link_status(const u8 link_status[DP_LINK_STATUS_SIZE], int r)
 {
 	return link_status[r - DP_LANE0_1_STATUS];
@@ -965,8 +1000,7 @@ static int dp_link_process_link_status_update(struct dp_link_private *link)
 	if (channel_eq_done && clock_recovery_done)
 		return -EINVAL;
 
-
-       return 0;
+	return 0;
 }
 
 /**
@@ -1053,6 +1087,10 @@ int dp_link_process_request(struct dp_link *dp_link)
 		dp_link->sink_request |= DP_TEST_LINK_TRAINING;
 	} else if (!dp_link_process_phy_test_pattern_request(link)) {
 		dp_link->sink_request |= DP_TEST_LINK_PHY_TEST_PATTERN;
+	} else if (dp_link_read_psr_error_status(link)) {
+		DRM_ERROR("PSR IRQ_HPD received\n");
+	} else if (dp_link_psr_capability_changed(link)) {
+		drm_dbg_dp(link->drm_dev, "PSR Capability changed");
 	} else {
 		ret = dp_link_process_link_status_update(link);
 		if (!ret) {

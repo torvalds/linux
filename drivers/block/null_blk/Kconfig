@@ -9,4 +9,4 @@ config BLK_DEV_NULL_BLK
 
 config BLK_DEV_NULL_BLK_FAULT_INJECTION
 	bool "Support fault injection for Null test block driver"
-	depends on BLK_DEV_NULL_BLK && FAULT_INJECTION
+	depends on BLK_DEV_NULL_BLK && FAULT_INJECTION_CONFIGFS

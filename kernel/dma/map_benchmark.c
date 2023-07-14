@@ -356,4 +356,3 @@ module_exit(map_benchmark_cleanup);
 
 MODULE_AUTHOR("Barry Song <song.bao.hua@hisilicon.com>");
 MODULE_DESCRIPTION("dma_map benchmark driver");
-MODULE_LICENSE("GPL");

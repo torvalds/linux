@@ -318,7 +318,7 @@ static int max31760_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *max31760_info[] = {
+static const struct hwmon_channel_info * const max31760_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(fan,
@@ -584,7 +584,7 @@ static struct i2c_driver max31760_driver = {
 		.of_match_table = max31760_of_match,
 		.pm = pm_ptr(&max31760_pm_ops)
 	},
-	.probe_new	= max31760_probe,
+	.probe		= max31760_probe,
 	.id_table	= max31760_id
 };
 module_i2c_driver(max31760_driver);

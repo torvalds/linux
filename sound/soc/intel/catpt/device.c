@@ -22,7 +22,6 @@
 #include <sound/intel-dsp-config.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
-#include <sound/soc-acpi-intel-match.h>
 #include "core.h"
 #include "registers.h"
 
@@ -294,7 +293,7 @@ static int catpt_acpi_probe(struct platform_device *pdev)
 	return catpt_probe_components(cdev);
 }
 
-static int catpt_acpi_remove(struct platform_device *pdev)
+static void catpt_acpi_remove(struct platform_device *pdev)
 {
 	struct catpt_dev *cdev = platform_get_drvdata(pdev);
 
@@ -306,12 +305,38 @@ static int catpt_acpi_remove(struct platform_device *pdev)
 
 	catpt_sram_free(&cdev->iram);
 	catpt_sram_free(&cdev->dram);
-
-	return 0;
 }
 
+static struct snd_soc_acpi_mach lpt_machines[] = {
+	{
+		.id = "INT33CA",
+		.drv_name = "hsw_rt5640",
+	},
+	{}
+};
+
+static struct snd_soc_acpi_mach wpt_machines[] = {
+	{
+		.id = "INT33CA",
+		.drv_name = "hsw_rt5640",
+	},
+	{
+		.id = "INT343A",
+		.drv_name = "bdw_rt286",
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "bdw-rt5650",
+	},
+	{
+		.id = "RT5677CE",
+		.drv_name = "bdw-rt5677",
+	},
+	{}
+};
+
 static struct catpt_spec lpt_desc = {
-	.machines = snd_soc_acpi_intel_haswell_machines,
+	.machines = lpt_machines,
 	.core_id = 0x01,
 	.host_dram_offset = 0x000000,
 	.host_iram_offset = 0x080000,
@@ -326,7 +351,7 @@ static struct catpt_spec lpt_desc = {
 };
 
 static struct catpt_spec wpt_desc = {
-	.machines = snd_soc_acpi_intel_broadwell_machines,
+	.machines = wpt_machines,
 	.core_id = 0x02,
 	.host_dram_offset = 0x000000,
 	.host_iram_offset = 0x0A0000,
@@ -349,7 +374,7 @@ MODULE_DEVICE_TABLE(acpi, catpt_ids);
 
 static struct platform_driver catpt_acpi_driver = {
 	.probe = catpt_acpi_probe,
-	.remove = catpt_acpi_remove,
+	.remove_new = catpt_acpi_remove,
 	.driver = {
 		.name = "intel_catpt",
 		.acpi_match_table = catpt_ids,

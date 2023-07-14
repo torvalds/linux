@@ -123,8 +123,8 @@ rkisp1_rsz_get_pad_fmt(struct rkisp1_resizer *rsz,
 		       unsigned int pad, u32 which)
 {
 	struct v4l2_subdev_state state = {
-		.pads = rsz->pad_cfg
-		};
+		.pads = rsz->pad_cfg,
+	};
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_format(&rsz->sd, sd_state, pad);
 	else
@@ -137,8 +137,8 @@ rkisp1_rsz_get_pad_crop(struct rkisp1_resizer *rsz,
 			unsigned int pad, u32 which)
 {
 	struct v4l2_subdev_state state = {
-		.pads = rsz->pad_cfg
-		};
+		.pads = rsz->pad_cfg,
+	};
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
 		return v4l2_subdev_get_try_crop(&rsz->sd, sd_state, pad);
 	else
@@ -366,7 +366,7 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config dummy_cfg;
 	struct v4l2_subdev_state pad_state = {
 		.pads = &dummy_cfg
-		};
+	};
 	u32 pad = code->pad;
 	int ret;
 
@@ -411,6 +411,10 @@ static int rkisp1_rsz_init_config(struct v4l2_subdev *sd,
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
 	sink_fmt->field = V4L2_FIELD_NONE;
 	sink_fmt->code = RKISP1_DEF_FMT;
+	sink_fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	sink_fmt->xfer_func = V4L2_XFER_FUNC_SRGB;
+	sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+	sink_fmt->quantization = V4L2_QUANTIZATION_LIM_RANGE;
 
 	sink_crop = v4l2_subdev_get_try_crop(sd, sd_state,
 					     RKISP1_RSZ_PAD_SINK);
@@ -503,6 +507,7 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	const struct rkisp1_mbus_info *mbus_info;
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 	struct v4l2_rect *sink_crop;
+	bool is_yuv;
 
 	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SINK,
 					  which);
@@ -524,9 +529,6 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		rsz->pixel_enc = mbus_info->pixel_enc;
 
-	/* Propagete to source pad */
-	src_fmt->code = sink_fmt->code;
-
 	sink_fmt->width = clamp_t(u32, format->width,
 				  RKISP1_ISP_MIN_WIDTH,
 				  RKISP1_ISP_MAX_WIDTH);
@@ -534,7 +536,44 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 				   RKISP1_ISP_MIN_HEIGHT,
 				   RKISP1_ISP_MAX_HEIGHT);
 
+	/*
+	 * Adjust the color space fields. Accept any color primaries and
+	 * transfer function for both YUV and Bayer. For YUV any YCbCr encoding
+	 * and quantization range is also accepted. For Bayer formats, the YCbCr
+	 * encoding isn't applicable, and the quantization range can only be
+	 * full.
+	 */
+	is_yuv = mbus_info->pixel_enc == V4L2_PIXEL_ENC_YUV;
+
+	sink_fmt->colorspace = format->colorspace ? :
+			       (is_yuv ? V4L2_COLORSPACE_SRGB :
+				V4L2_COLORSPACE_RAW);
+	sink_fmt->xfer_func = format->xfer_func ? :
+			      V4L2_MAP_XFER_FUNC_DEFAULT(sink_fmt->colorspace);
+	if (is_yuv) {
+		sink_fmt->ycbcr_enc = format->ycbcr_enc ? :
+			V4L2_MAP_YCBCR_ENC_DEFAULT(sink_fmt->colorspace);
+		sink_fmt->quantization = format->quantization ? :
+			V4L2_MAP_QUANTIZATION_DEFAULT(false, sink_fmt->colorspace,
+						      sink_fmt->ycbcr_enc);
+	} else {
+		/*
+		 * The YCbCr encoding isn't applicable for non-YUV formats, but
+		 * V4L2 has no "no encoding" value. Hardcode it to Rec. 601, it
+		 * should be ignored by userspace.
+		 */
+		sink_fmt->ycbcr_enc = V4L2_YCBCR_ENC_601;
+		sink_fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	}
+
 	*format = *sink_fmt;
+
+	/* Propagate the media bus code and color space to the source pad. */
+	src_fmt->code = sink_fmt->code;
+	src_fmt->colorspace = sink_fmt->colorspace;
+	src_fmt->xfer_func = sink_fmt->xfer_func;
+	src_fmt->ycbcr_enc = sink_fmt->ycbcr_enc;
+	src_fmt->quantization = sink_fmt->quantization;
 
 	/* Update sink crop */
 	rkisp1_rsz_set_sink_crop(rsz, sd_state, sink_crop, which);
@@ -694,8 +733,8 @@ static void rkisp1_rsz_unregister(struct rkisp1_resizer *rsz)
 static int rkisp1_rsz_register(struct rkisp1_resizer *rsz)
 {
 	struct v4l2_subdev_state state = {
-		.pads = rsz->pad_cfg
-		};
+		.pads = rsz->pad_cfg,
+	};
 	static const char * const dev_names[] = {
 		RKISP1_RSZ_MP_DEV_NAME,
 		RKISP1_RSZ_SP_DEV_NAME

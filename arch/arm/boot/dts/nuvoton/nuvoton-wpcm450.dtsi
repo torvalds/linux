@@ -1,0 +1,493 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+// Copyright 2021 Jonathan Neuschäfer
+
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "nuvoton,wpcm450";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+		gpio5 = &gpio5;
+		gpio6 = &gpio6;
+		gpio7 = &gpio7;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm926ej-s";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	clk24m: clock-24mhz {
+		/* 24 MHz dummy clock */
+		compatible = "fixed-clock";
+		clock-frequency = <24000000>;
+		#clock-cells = <0>;
+	};
+
+	refclk: clock-48mhz {
+		/* 48 MHz reference oscillator */
+		compatible = "fixed-clock";
+		clock-output-names = "ref";
+		clock-frequency = <48000000>;
+		#clock-cells = <0>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&aic>;
+		ranges;
+
+		gcr: syscon@b0000000 {
+			compatible = "nuvoton,wpcm450-gcr", "syscon", "simple-mfd";
+			reg = <0xb0000000 0x200>;
+		};
+
+		clk: clock-controller@b0000200 {
+			compatible = "nuvoton,wpcm450-clk";
+			reg = <0xb0000200 0x100>;
+			clocks = <&refclk>;
+			clock-names = "ref";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		serial0: serial@b8000000 {
+			compatible = "nuvoton,wpcm450-uart";
+			reg = <0xb8000000 0x20>;
+			reg-shift = <2>;
+			interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk24m>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&bsp_pins>;
+			status = "disabled";
+		};
+
+		serial1: serial@b8000100 {
+			compatible = "nuvoton,wpcm450-uart";
+			reg = <0xb8000100 0x20>;
+			reg-shift = <2>;
+			interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk24m>;
+			status = "disabled";
+		};
+
+		timer0: timer@b8001000 {
+			compatible = "nuvoton,wpcm450-timer";
+			interrupts = <12 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0xb8001000 0x1c>;
+			clocks = <&clk24m>;
+		};
+
+		watchdog0: watchdog@b800101c {
+			compatible = "nuvoton,wpcm450-wdt";
+			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0xb800101c 0x4>;
+			clocks = <&clk24m>;
+		};
+
+		aic: interrupt-controller@b8002000 {
+			compatible = "nuvoton,wpcm450-aic";
+			reg = <0xb8002000 0x1000>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		pinctrl: pinctrl@b8003000 {
+			compatible = "nuvoton,wpcm450-pinctrl";
+			reg = <0xb8003000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			gpio0: gpio@0 {
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+					     <3 IRQ_TYPE_LEVEL_HIGH>,
+					     <4 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+
+			gpio1: gpio@1 {
+				reg = <1>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-controller;
+			};
+
+			gpio2: gpio@2 {
+				reg = <2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio3: gpio@3 {
+				reg = <3>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio4: gpio@4 {
+				reg = <4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio5: gpio@5 {
+				reg = <5>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio6: gpio@6 {
+				reg = <6>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			gpio7: gpio@7 {
+				reg = <7>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			smb3_pins: mux-smb3 {
+				groups = "smb3";
+				function = "smb3";
+			};
+
+			smb4_pins: mux-smb4 {
+				groups = "smb4";
+				function = "smb4";
+			};
+
+			smb5_pins: mux-smb5 {
+				groups = "smb5";
+				function = "smb5";
+			};
+
+			scs1_pins: mux-scs1 {
+				groups = "scs1";
+				function = "scs1";
+			};
+
+			scs2_pins: mux-scs2 {
+				groups = "scs2";
+				function = "scs2";
+			};
+
+			scs3_pins: mux-scs3 {
+				groups = "scs3";
+				function = "scs3";
+			};
+
+			smb0_pins: mux-smb0 {
+				groups = "smb0";
+				function = "smb0";
+			};
+
+			smb1_pins: mux-smb1 {
+				groups = "smb1";
+				function = "smb1";
+			};
+
+			smb2_pins: mux-smb2 {
+				groups = "smb2";
+				function = "smb2";
+			};
+
+			bsp_pins: mux-bsp {
+				groups = "bsp";
+				function = "bsp";
+			};
+
+			hsp1_pins: mux-hsp1 {
+				groups = "hsp1";
+				function = "hsp1";
+			};
+
+			hsp2_pins: mux-hsp2 {
+				groups = "hsp2";
+				function = "hsp2";
+			};
+
+			r1err_pins: mux-r1err {
+				groups = "r1err";
+				function = "r1err";
+			};
+
+			r1md_pins: mux-r1md {
+				groups = "r1md";
+				function = "r1md";
+			};
+
+			rmii2_pins: mux-rmii2 {
+				groups = "rmii2";
+				function = "rmii2";
+			};
+
+			r2err_pins: mux-r2err {
+				groups = "r2err";
+				function = "r2err";
+			};
+
+			r2md_pins: mux-r2md {
+				groups = "r2md";
+				function = "r2md";
+			};
+
+			kbcc_pins: mux-kbcc {
+				groups = "kbcc";
+				function = "kbcc";
+			};
+
+			dvo0_pins: mux-dvo0 {
+				groups = "dvo";
+				function = "dvo0";
+			};
+
+			dvo3_pins: mux-dvo3 {
+				groups = "dvo";
+				function = "dvo3";
+			};
+
+			clko_pins: mux-clko {
+				groups = "clko";
+				function = "clko";
+			};
+
+			smi_pins: mux-smi {
+				groups = "smi";
+				function = "smi";
+			};
+
+			uinc_pins: mux-uinc {
+				groups = "uinc";
+				function = "uinc";
+			};
+
+			gspi_pins: mux-gspi {
+				groups = "gspi";
+				function = "gspi";
+			};
+
+			mben_pins: mux-mben {
+				groups = "mben";
+				function = "mben";
+			};
+
+			xcs2_pins: mux-xcs2 {
+				groups = "xcs2";
+				function = "xcs2";
+			};
+
+			xcs1_pins: mux-xcs1 {
+				groups = "xcs1";
+				function = "xcs1";
+			};
+
+			sdio_pins: mux-sdio {
+				groups = "sdio";
+				function = "sdio";
+			};
+
+			sspi_pins: mux-sspi {
+				groups = "sspi";
+				function = "sspi";
+			};
+
+			fi0_pins: mux-fi0 {
+				groups = "fi0";
+				function = "fi0";
+			};
+
+			fi1_pins: mux-fi1 {
+				groups = "fi1";
+				function = "fi1";
+			};
+
+			fi2_pins: mux-fi2 {
+				groups = "fi2";
+				function = "fi2";
+			};
+
+			fi3_pins: mux-fi3 {
+				groups = "fi3";
+				function = "fi3";
+			};
+
+			fi4_pins: mux-fi4 {
+				groups = "fi4";
+				function = "fi4";
+			};
+
+			fi5_pins: mux-fi5 {
+				groups = "fi5";
+				function = "fi5";
+			};
+
+			fi6_pins: mux-fi6 {
+				groups = "fi6";
+				function = "fi6";
+			};
+
+			fi7_pins: mux-fi7 {
+				groups = "fi7";
+				function = "fi7";
+			};
+
+			fi8_pins: mux-fi8 {
+				groups = "fi8";
+				function = "fi8";
+			};
+
+			fi9_pins: mux-fi9 {
+				groups = "fi9";
+				function = "fi9";
+			};
+
+			fi10_pins: mux-fi10 {
+				groups = "fi10";
+				function = "fi10";
+			};
+
+			fi11_pins: mux-fi11 {
+				groups = "fi11";
+				function = "fi11";
+			};
+
+			fi12_pins: mux-fi12 {
+				groups = "fi12";
+				function = "fi12";
+			};
+
+			fi13_pins: mux-fi13 {
+				groups = "fi13";
+				function = "fi13";
+			};
+
+			fi14_pins: mux-fi14 {
+				groups = "fi14";
+				function = "fi14";
+			};
+
+			fi15_pins: mux-fi15 {
+				groups = "fi15";
+				function = "fi15";
+			};
+
+			pwm0_pins: mux-pwm0 {
+				groups = "pwm0";
+				function = "pwm0";
+			};
+
+			pwm1_pins: mux-pwm1 {
+				groups = "pwm1";
+				function = "pwm1";
+			};
+
+			pwm2_pins: mux-pwm2 {
+				groups = "pwm2";
+				function = "pwm2";
+			};
+
+			pwm3_pins: mux-pwm3 {
+				groups = "pwm3";
+				function = "pwm3";
+			};
+
+			pwm4_pins: mux-pwm4 {
+				groups = "pwm4";
+				function = "pwm4";
+			};
+
+			pwm5_pins: mux-pwm5 {
+				groups = "pwm5";
+				function = "pwm5";
+			};
+
+			pwm6_pins: mux-pwm6 {
+				groups = "pwm6";
+				function = "pwm6";
+			};
+
+			pwm7_pins: mux-pwm7 {
+				groups = "pwm7";
+				function = "pwm7";
+			};
+
+			hg0_pins: mux-hg0 {
+				groups = "hg0";
+				function = "hg0";
+			};
+
+			hg1_pins: mux-hg1 {
+				groups = "hg1";
+				function = "hg1";
+			};
+
+			hg2_pins: mux-hg2 {
+				groups = "hg2";
+				function = "hg2";
+			};
+
+			hg3_pins: mux-hg3 {
+				groups = "hg3";
+				function = "hg3";
+			};
+
+			hg4_pins: mux-hg4 {
+				groups = "hg4";
+				function = "hg4";
+			};
+
+			hg5_pins: mux-hg5 {
+				groups = "hg5";
+				function = "hg5";
+			};
+
+			hg6_pins: mux-hg6 {
+				groups = "hg6";
+				function = "hg6";
+			};
+
+			hg7_pins: mux-hg7 {
+				groups = "hg7";
+				function = "hg7";
+			};
+		};
+
+		fiu: spi-controller@c8000000 {
+			compatible = "nuvoton,wpcm450-fiu";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc8000000 0x1000>, <0xc0000000 0x4000000>;
+			reg-names = "control", "memory";
+			clocks = <&clk 0>;
+			nuvoton,shm = <&shm>;
+			status = "disabled";
+		};
+
+		shm: syscon@c8001000 {
+			compatible = "nuvoton,wpcm450-shm", "syscon";
+			reg = <0xc8001000 0x1000>;
+			reg-io-width = <1>;
+		};
+	};
+};

@@ -5,10 +5,60 @@
  */
 
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 
 #include "sparx5_tc.h"
 #include "sparx5_main.h"
 #include "sparx5_qos.h"
+
+/* tc block handling */
+static LIST_HEAD(sparx5_block_cb_list);
+
+static int sparx5_tc_block_cb(enum tc_setup_type type,
+			      void *type_data,
+			      void *cb_priv, bool ingress)
+{
+	struct net_device *ndev = cb_priv;
+
+	switch (type) {
+	case TC_SETUP_CLSMATCHALL:
+		return sparx5_tc_matchall(ndev, type_data, ingress);
+	case TC_SETUP_CLSFLOWER:
+		return sparx5_tc_flower(ndev, type_data, ingress);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int sparx5_tc_block_cb_ingress(enum tc_setup_type type,
+				      void *type_data,
+				      void *cb_priv)
+{
+	return sparx5_tc_block_cb(type, type_data, cb_priv, true);
+}
+
+static int sparx5_tc_block_cb_egress(enum tc_setup_type type,
+				     void *type_data,
+				     void *cb_priv)
+{
+	return sparx5_tc_block_cb(type, type_data, cb_priv, false);
+}
+
+static int sparx5_tc_setup_block(struct net_device *ndev,
+				 struct flow_block_offload *fbo)
+{
+	flow_setup_cb_t *cb;
+
+	if (fbo->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+		cb = sparx5_tc_block_cb_ingress;
+	else if (fbo->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS)
+		cb = sparx5_tc_block_cb_egress;
+	else
+		return -EOPNOTSUPP;
+
+	return flow_block_cb_setup_simple(fbo, &sparx5_block_cb_list,
+					  cb, ndev, ndev, false);
+}
 
 static void sparx5_tc_get_layer_and_idx(u32 parent, u32 portno, u32 *layer,
 					u32 *idx)
@@ -90,13 +140,10 @@ static int sparx5_tc_setup_qdisc_ets(struct net_device *ndev,
 			}
 		}
 
-		sparx5_tc_ets_add(port, params);
-		break;
+		return sparx5_tc_ets_add(port, params);
 	case TC_ETS_DESTROY:
 
-		sparx5_tc_ets_del(port);
-
-		break;
+		return sparx5_tc_ets_del(port);
 	case TC_ETS_GRAFT:
 		return -EOPNOTSUPP;
 
@@ -111,6 +158,8 @@ int sparx5_port_setup_tc(struct net_device *ndev, enum tc_setup_type type,
 			 void *type_data)
 {
 	switch (type) {
+	case TC_SETUP_BLOCK:
+		return sparx5_tc_setup_block(ndev, type_data);
 	case TC_SETUP_QDISC_MQPRIO:
 		return sparx5_tc_setup_qdisc_mqprio(ndev, type_data);
 	case TC_SETUP_QDISC_TBF:

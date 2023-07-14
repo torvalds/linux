@@ -69,7 +69,7 @@ int amdgpu_ib_get(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	if (size) {
 		r = amdgpu_sa_bo_new(&adev->ib_pools[pool_type],
-				      &ib->sa_bo, size, 256);
+				     &ib->sa_bo, size);
 		if (r) {
 			dev_err(adev->dev, "failed to get a new IB (%d)\n", r);
 			return r;
@@ -136,7 +136,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	uint64_t fence_ctx;
 	uint32_t status = 0, alloc_size;
 	unsigned fence_flags = 0;
-	bool secure;
+	bool secure, init_shadow;
+	u64 shadow_va, csa_va, gds_va;
+	int vmid = AMDGPU_JOB_GET_VMID(job);
 
 	unsigned i;
 	int r = 0;
@@ -150,9 +152,17 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		vm = job->vm;
 		fence_ctx = job->base.s_fence ?
 			job->base.s_fence->scheduled.context : 0;
+		shadow_va = job->shadow_va;
+		csa_va = job->csa_va;
+		gds_va = job->gds_va;
+		init_shadow = job->init_shadow;
 	} else {
 		vm = NULL;
 		fence_ctx = 0;
+		shadow_va = 0;
+		csa_va = 0;
+		gds_va = 0;
+		init_shadow = false;
 	}
 
 	if (!ring->sched.ready && !ring->is_mes_queue) {
@@ -182,7 +192,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 
 	need_ctx_switch = ring->current_ctx != fence_ctx;
 	if (ring->funcs->emit_pipeline_sync && job &&
-	    ((tmp = amdgpu_sync_get_fence(&job->sched_sync)) ||
+	    ((tmp = amdgpu_sync_get_fence(&job->explicit_sync)) ||
 	     (amdgpu_sriov_vf(adev) && need_ctx_switch) ||
 	     amdgpu_vm_need_pipeline_sync(ring, job))) {
 		need_pipe_sync = true;
@@ -211,7 +221,13 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		}
 	}
 
-	if (job && ring->funcs->init_cond_exec)
+	amdgpu_ring_ib_begin(ring);
+
+	if (ring->funcs->emit_gfx_shadow)
+		amdgpu_ring_emit_gfx_shadow(ring, shadow_va, csa_va, gds_va,
+					    init_shadow, vmid);
+
+	if (ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
 	amdgpu_device_flush_hdp(adev, ring);
@@ -262,11 +278,23 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 				       fence_flags | AMDGPU_FENCE_FLAG_64BIT);
 	}
 
+	if (ring->funcs->emit_gfx_shadow) {
+		amdgpu_ring_emit_gfx_shadow(ring, 0, 0, 0, false, 0);
+
+		if (ring->funcs->init_cond_exec) {
+			unsigned ce_offset = ~0;
+
+			ce_offset = amdgpu_ring_init_cond_exec(ring);
+			if (ce_offset != ~0 && ring->funcs->patch_cond_exec)
+				amdgpu_ring_patch_cond_exec(ring, ce_offset);
+		}
+	}
+
 	r = amdgpu_fence_emit(ring, f, job, fence_flags);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
 		if (job && job->vmid)
-			amdgpu_vmid_reset(adev, ring->funcs->vmhub, job->vmid);
+			amdgpu_vmid_reset(adev, ring->vm_hub, job->vmid);
 		amdgpu_ring_undo(ring);
 		return r;
 	}
@@ -285,6 +313,7 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	    ring->hw_prio == AMDGPU_GFX_PIPE_PRIO_HIGH)
 		ring->funcs->emit_wave_limit(ring, false);
 
+	amdgpu_ring_ib_end(ring);
 	amdgpu_ring_commit(ring);
 	return 0;
 }
@@ -307,8 +336,7 @@ int amdgpu_ib_pool_init(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_IB_POOL_MAX; i++) {
 		r = amdgpu_sa_bo_manager_init(adev, &adev->ib_pools[i],
-					      AMDGPU_IB_POOL_SIZE,
-					      AMDGPU_GPU_PAGE_SIZE,
+					      AMDGPU_IB_POOL_SIZE, 256,
 					      AMDGPU_GEM_DOMAIN_GTT);
 		if (r)
 			goto error;
@@ -435,7 +463,7 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 
 static int amdgpu_debugfs_sa_info_show(struct seq_file *m, void *unused)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
+	struct amdgpu_device *adev = m->private;
 
 	seq_printf(m, "--------------------- DELAYED --------------------- \n");
 	amdgpu_sa_bo_dump_debug_info(&adev->ib_pools[AMDGPU_IB_POOL_DELAYED],

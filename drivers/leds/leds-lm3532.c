@@ -663,8 +663,7 @@ child_out:
 	return ret;
 }
 
-static int lm3532_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int lm3532_probe(struct i2c_client *client)
 {
 	struct lm3532_data *drvdata;
 	int ret = 0;

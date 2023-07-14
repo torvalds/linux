@@ -16,7 +16,7 @@
 #ifdef CONFIG_TRACEPOINTS
 
 #ifndef CONFIG_JUMP_LABEL
-	.section	".toc","aw"
+	.data
 
 	.globl hcall_tracepoint_refcount
 hcall_tracepoint_refcount:
@@ -27,7 +27,9 @@ hcall_tracepoint_refcount:
 
 /*
  * precall must preserve all registers.  use unused STK_PARAM()
- * areas to save snapshots and opcode.
+ * areas to save snapshots and opcode. STK_PARAM() in the caller's
+ * frame will be available even on ELFv2 because these are all
+ * variadic functions.
  */
 #define HCALL_INST_PRECALL(FIRST_REG)				\
 	mflr	r0;						\
@@ -41,29 +43,29 @@ hcall_tracepoint_refcount:
 	std	r10,STK_PARAM(R10)(r1);				\
 	std	r0,16(r1);					\
 	addi	r4,r1,STK_PARAM(FIRST_REG);			\
-	stdu	r1,-STACK_FRAME_OVERHEAD(r1);			\
-	bl	__trace_hcall_entry;				\
-	ld	r3,STACK_FRAME_OVERHEAD+STK_PARAM(R3)(r1);	\
-	ld	r4,STACK_FRAME_OVERHEAD+STK_PARAM(R4)(r1);	\
-	ld	r5,STACK_FRAME_OVERHEAD+STK_PARAM(R5)(r1);	\
-	ld	r6,STACK_FRAME_OVERHEAD+STK_PARAM(R6)(r1);	\
-	ld	r7,STACK_FRAME_OVERHEAD+STK_PARAM(R7)(r1);	\
-	ld	r8,STACK_FRAME_OVERHEAD+STK_PARAM(R8)(r1);	\
-	ld	r9,STACK_FRAME_OVERHEAD+STK_PARAM(R9)(r1);	\
-	ld	r10,STACK_FRAME_OVERHEAD+STK_PARAM(R10)(r1)
+	stdu	r1,-STACK_FRAME_MIN_SIZE(r1);			\
+	bl	CFUNC(__trace_hcall_entry);			\
+	ld	r3,STACK_FRAME_MIN_SIZE+STK_PARAM(R3)(r1);	\
+	ld	r4,STACK_FRAME_MIN_SIZE+STK_PARAM(R4)(r1);	\
+	ld	r5,STACK_FRAME_MIN_SIZE+STK_PARAM(R5)(r1);	\
+	ld	r6,STACK_FRAME_MIN_SIZE+STK_PARAM(R6)(r1);	\
+	ld	r7,STACK_FRAME_MIN_SIZE+STK_PARAM(R7)(r1);	\
+	ld	r8,STACK_FRAME_MIN_SIZE+STK_PARAM(R8)(r1);	\
+	ld	r9,STACK_FRAME_MIN_SIZE+STK_PARAM(R9)(r1);	\
+	ld	r10,STACK_FRAME_MIN_SIZE+STK_PARAM(R10)(r1)
 
 /*
  * postcall is performed immediately before function return which
  * allows liberal use of volatile registers.
  */
 #define __HCALL_INST_POSTCALL					\
-	ld	r0,STACK_FRAME_OVERHEAD+STK_PARAM(R3)(r1);	\
-	std	r3,STACK_FRAME_OVERHEAD+STK_PARAM(R3)(r1);	\
+	ld	r0,STACK_FRAME_MIN_SIZE+STK_PARAM(R3)(r1);	\
+	std	r3,STACK_FRAME_MIN_SIZE+STK_PARAM(R3)(r1);	\
 	mr	r4,r3;						\
 	mr	r3,r0;						\
-	bl	__trace_hcall_exit;				\
-	ld	r0,STACK_FRAME_OVERHEAD+16(r1);			\
-	addi	r1,r1,STACK_FRAME_OVERHEAD;			\
+	bl	CFUNC(__trace_hcall_exit);			\
+	ld	r0,STACK_FRAME_MIN_SIZE+16(r1);			\
+	addi	r1,r1,STACK_FRAME_MIN_SIZE;			\
 	ld	r3,STK_PARAM(R3)(r1);				\
 	mtlr	r0
 
@@ -88,7 +90,7 @@ hcall_tracepoint_refcount:
 BEGIN_FTR_SECTION;						\
 	b	1f;						\
 END_FTR_SECTION(0, 1);						\
-	ld	r12,hcall_tracepoint_refcount@toc(r2);		\
+	LOAD_REG_ADDR(r12, hcall_tracepoint_refcount) ;		\
 	std	r12,32(r1);					\
 	cmpdi	r12,0;						\
 	bne-	LABEL;						\
@@ -303,14 +305,14 @@ plpar_hcall9_trace:
 	mr	r7,r8
 	mr	r8,r9
 	mr	r9,r10
-	ld	r10,STACK_FRAME_OVERHEAD+STK_PARAM(R11)(r1)
-	ld	r11,STACK_FRAME_OVERHEAD+STK_PARAM(R12)(r1)
-	ld	r12,STACK_FRAME_OVERHEAD+STK_PARAM(R13)(r1)
+	ld	r10,STACK_FRAME_MIN_SIZE+STK_PARAM(R11)(r1)
+	ld	r11,STACK_FRAME_MIN_SIZE+STK_PARAM(R12)(r1)
+	ld	r12,STACK_FRAME_MIN_SIZE+STK_PARAM(R13)(r1)
 
 	HVSC
 
 	mr	r0,r12
-	ld	r12,STACK_FRAME_OVERHEAD+STK_PARAM(R4)(r1)
+	ld	r12,STACK_FRAME_MIN_SIZE+STK_PARAM(R4)(r1)
 	std	r4,0(r12)
 	std	r5,8(r12)
 	std	r6,16(r12)

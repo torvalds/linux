@@ -17,14 +17,14 @@
 #include <linux/sched.h>
 
 #include "debugfs.h"
+#include "hooks-impl.h"
 #include "string-stream.h"
 #include "try-catch-impl.h"
 
-#if IS_BUILTIN(CONFIG_KUNIT)
 /*
- * Fail the current test and print an error message to the log.
+ * Hook to fail the current test and print an error message to the log.
  */
-void __kunit_fail_current_test(const char *file, int line, const char *fmt, ...)
+void __printf(3, 4) __kunit_fail_current_test_impl(const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	int len;
@@ -51,8 +51,17 @@ void __kunit_fail_current_test(const char *file, int line, const char *fmt, ...)
 	kunit_err(current->kunit_test, "%s:%d: %s", file, line, buffer);
 	kunit_kfree(current->kunit_test, buffer);
 }
-EXPORT_SYMBOL_GPL(__kunit_fail_current_test);
+
+/*
+ * Enable KUnit tests to run.
+ */
+#ifdef CONFIG_KUNIT_DEFAULT_ENABLED
+static bool enable_param = true;
+#else
+static bool enable_param;
 #endif
+module_param_named(enable, enable_param, bool, 0);
+MODULE_PARM_DESC(enable, "Enable KUnit tests");
 
 /*
  * KUnit statistic mode:
@@ -99,28 +108,51 @@ static void kunit_print_test_stats(struct kunit *test,
 		  stats.total);
 }
 
+/**
+ * kunit_log_newline() - Add newline to the end of log if one is not
+ * already present.
+ * @log: The log to add the newline to.
+ */
+static void kunit_log_newline(char *log)
+{
+	int log_len, len_left;
+
+	log_len = strlen(log);
+	len_left = KUNIT_LOG_SIZE - log_len - 1;
+
+	if (log_len > 0 && log[log_len - 1] != '\n')
+		strncat(log, "\n", len_left);
+}
+
 /*
  * Append formatted message to log, size of which is limited to
  * KUNIT_LOG_SIZE bytes (including null terminating byte).
  */
 void kunit_log_append(char *log, const char *fmt, ...)
 {
-	char line[KUNIT_LOG_SIZE];
 	va_list args;
-	int len_left;
+	int len, log_len, len_left;
 
 	if (!log)
 		return;
 
-	len_left = KUNIT_LOG_SIZE - strlen(log) - 1;
+	log_len = strlen(log);
+	len_left = KUNIT_LOG_SIZE - log_len - 1;
 	if (len_left <= 0)
 		return;
 
+	/* Evaluate length of line to add to log */
 	va_start(args, fmt);
-	vsnprintf(line, sizeof(line), fmt, args);
+	len = vsnprintf(NULL, 0, fmt, args) + 1;
 	va_end(args);
 
-	strncat(log, line, len_left);
+	/* Print formatted line to the log */
+	va_start(args, fmt);
+	vsnprintf(log + log_len, min(len, len_left), fmt, args);
+	va_end(args);
+
+	/* Add newline to end of log if not already present. */
+	kunit_log_newline(log);
 }
 EXPORT_SYMBOL_GPL(kunit_log_append);
 
@@ -138,42 +170,63 @@ EXPORT_SYMBOL_GPL(kunit_suite_num_test_cases);
 
 static void kunit_print_suite_start(struct kunit_suite *suite)
 {
-	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "# Subtest: %s",
+	/*
+	 * We do not log the test suite header as doing so would
+	 * mean debugfs display would consist of the test suite
+	 * header prior to individual test results.
+	 * Hence directly printk the suite status, and we will
+	 * separately seq_printf() the suite header for the debugfs
+	 * representation.
+	 */
+	pr_info(KUNIT_SUBTEST_INDENT "KTAP version 1\n");
+	pr_info(KUNIT_SUBTEST_INDENT "# Subtest: %s\n",
 		  suite->name);
-	kunit_log(KERN_INFO, suite, KUNIT_SUBTEST_INDENT "1..%zd",
+	pr_info(KUNIT_SUBTEST_INDENT "1..%zd\n",
 		  kunit_suite_num_test_cases(suite));
 }
 
-static void kunit_print_ok_not_ok(void *test_or_suite,
-				  bool is_test,
+/* Currently supported test levels */
+enum {
+	KUNIT_LEVEL_SUITE = 0,
+	KUNIT_LEVEL_CASE,
+	KUNIT_LEVEL_CASE_PARAM,
+};
+
+static void kunit_print_ok_not_ok(struct kunit *test,
+				  unsigned int test_level,
 				  enum kunit_status status,
 				  size_t test_number,
 				  const char *description,
 				  const char *directive)
 {
-	struct kunit_suite *suite = is_test ? NULL : test_or_suite;
-	struct kunit *test = is_test ? test_or_suite : NULL;
 	const char *directive_header = (status == KUNIT_SKIPPED) ? " # SKIP " : "";
+	const char *directive_body = (status == KUNIT_SKIPPED) ? directive : "";
+
+	/*
+	 * When test is NULL assume that results are from the suite
+	 * and today suite results are expected at level 0 only.
+	 */
+	WARN(!test && test_level, "suite test level can't be %u!\n", test_level);
 
 	/*
 	 * We do not log the test suite results as doing so would
-	 * mean debugfs display would consist of the test suite
-	 * description and status prior to individual test results.
-	 * Hence directly printk the suite status, and we will
-	 * separately seq_printf() the suite status for the debugfs
+	 * mean debugfs display would consist of an incorrect test
+	 * number. Hence directly printk the suite result, and we will
+	 * separately seq_printf() the suite results for the debugfs
 	 * representation.
 	 */
-	if (suite)
-		pr_info("%s %zd - %s%s%s\n",
+	if (!test)
+		pr_info("%s %zd %s%s%s\n",
 			kunit_status_to_ok_not_ok(status),
 			test_number, description, directive_header,
-			(status == KUNIT_SKIPPED) ? directive : "");
+			directive_body);
 	else
 		kunit_log(KERN_INFO, test,
-			  KUNIT_SUBTEST_INDENT "%s %zd - %s%s%s",
+			  "%*s%s %zd %s%s%s",
+			  KUNIT_INDENT_LEN * test_level, "",
 			  kunit_status_to_ok_not_ok(status),
 			  test_number, description, directive_header,
-			  (status == KUNIT_SKIPPED) ? directive : "");
+			  directive_body);
 }
 
 enum kunit_status kunit_suite_has_succeeded(struct kunit_suite *suite)
@@ -199,7 +252,7 @@ static size_t kunit_suite_counter = 1;
 
 static void kunit_print_suite_end(struct kunit_suite *suite)
 {
-	kunit_print_ok_not_ok((void *)suite, false,
+	kunit_print_ok_not_ok(NULL, KUNIT_LEVEL_SUITE,
 			      kunit_suite_has_succeeded(suite),
 			      kunit_suite_counter++,
 			      suite->name,
@@ -247,14 +300,14 @@ static void kunit_print_string_stream(struct kunit *test,
 
 static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 		       enum kunit_assert_type type, const struct kunit_assert *assert,
-		       const struct va_format *message)
+		       assert_format_t assert_format, const struct va_format *message)
 {
 	struct string_stream *stream;
 
 	kunit_set_failure(test);
 
 	stream = alloc_string_stream(test, GFP_KERNEL);
-	if (!stream) {
+	if (IS_ERR(stream)) {
 		WARN(true,
 		     "Could not allocate stream to print failed assertion in %s:%d\n",
 		     loc->file,
@@ -263,14 +316,14 @@ static void kunit_fail(struct kunit *test, const struct kunit_loc *loc,
 	}
 
 	kunit_assert_prologue(loc, type, stream);
-	assert->format(assert, message, stream);
+	assert_format(assert, message, stream);
 
 	kunit_print_string_stream(test, stream);
 
-	WARN_ON(string_stream_destroy(stream));
+	string_stream_destroy(stream);
 }
 
-static void __noreturn kunit_abort(struct kunit *test)
+void __noreturn __kunit_abort(struct kunit *test)
 {
 	kunit_try_catch_throw(&test->try_catch); /* Does not return. */
 
@@ -282,11 +335,13 @@ static void __noreturn kunit_abort(struct kunit *test)
 	 */
 	WARN_ONCE(true, "Throw could not abort from test!\n");
 }
+EXPORT_SYMBOL_GPL(__kunit_abort);
 
-void kunit_do_failed_assertion(struct kunit *test,
+void __kunit_do_failed_assertion(struct kunit *test,
 			       const struct kunit_loc *loc,
 			       enum kunit_assert_type type,
 			       const struct kunit_assert *assert,
+			       assert_format_t assert_format,
 			       const char *fmt, ...)
 {
 	va_list args;
@@ -296,14 +351,11 @@ void kunit_do_failed_assertion(struct kunit *test,
 	message.fmt = fmt;
 	message.va = &args;
 
-	kunit_fail(test, loc, type, assert, &message);
+	kunit_fail(test, loc, type, assert, assert_format, &message);
 
 	va_end(args);
-
-	if (type == KUNIT_ASSERTION)
-		kunit_abort(test);
 }
-EXPORT_SYMBOL_GPL(kunit_do_failed_assertion);
+EXPORT_SYMBOL_GPL(__kunit_do_failed_assertion);
 
 void kunit_init_test(struct kunit *test, const char *name, char *log)
 {
@@ -378,15 +430,54 @@ static void kunit_try_run_case(void *data)
 	 * thread will resume control and handle any necessary clean up.
 	 */
 	kunit_run_case_internal(test, suite, test_case);
-	/* This line may never be reached. */
+}
+
+static void kunit_try_run_case_cleanup(void *data)
+{
+	struct kunit_try_catch_context *ctx = data;
+	struct kunit *test = ctx->test;
+	struct kunit_suite *suite = ctx->suite;
+
+	current->kunit_test = test;
+
 	kunit_run_case_cleanup(test, suite);
 }
+
+static void kunit_catch_run_case_cleanup(void *data)
+{
+	struct kunit_try_catch_context *ctx = data;
+	struct kunit *test = ctx->test;
+	int try_exit_code = kunit_try_catch_get_result(&test->try_catch);
+
+	/* It is always a failure if cleanup aborts. */
+	kunit_set_failure(test);
+
+	if (try_exit_code) {
+		/*
+		 * Test case could not finish, we have no idea what state it is
+		 * in, so don't do clean up.
+		 */
+		if (try_exit_code == -ETIMEDOUT) {
+			kunit_err(test, "test case cleanup timed out\n");
+		/*
+		 * Unknown internal error occurred preventing test case from
+		 * running, so there is nothing to clean up.
+		 */
+		} else {
+			kunit_err(test, "internal error occurred during test case cleanup: %d\n",
+				  try_exit_code);
+		}
+		return;
+	}
+
+	kunit_err(test, "test aborted during cleanup. continuing without cleaning up\n");
+}
+
 
 static void kunit_catch_run_case(void *data)
 {
 	struct kunit_try_catch_context *ctx = data;
 	struct kunit *test = ctx->test;
-	struct kunit_suite *suite = ctx->suite;
 	int try_exit_code = kunit_try_catch_get_result(&test->try_catch);
 
 	if (try_exit_code) {
@@ -407,12 +498,6 @@ static void kunit_catch_run_case(void *data)
 		}
 		return;
 	}
-
-	/*
-	 * Test case was run, but aborted. It is the test case's business as to
-	 * whether it failed or not, we just need to clean up.
-	 */
-	kunit_run_case_cleanup(test, suite);
 }
 
 /*
@@ -426,7 +511,6 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	struct kunit_try_catch_context context;
 	struct kunit_try_catch *try_catch;
 
-	kunit_init_test(test, test_case->name, test_case->log);
 	try_catch = &test->try_catch;
 
 	kunit_try_catch_init(try_catch,
@@ -436,6 +520,13 @@ static void kunit_run_case_catch_errors(struct kunit_suite *suite,
 	context.test = test;
 	context.suite = suite;
 	context.test_case = test_case;
+	kunit_try_catch_run(try_catch, &context);
+
+	/* Now run the cleanup */
+	kunit_try_catch_init(try_catch,
+			     test,
+			     kunit_try_run_case_cleanup,
+			     kunit_catch_run_case_cleanup);
 	kunit_try_catch_run(try_catch, &context);
 
 	/* Propagate the parameter result to the test case. */
@@ -522,6 +613,8 @@ int kunit_run_tests(struct kunit_suite *suite)
 		struct kunit_result_stats param_stats = { 0 };
 		test_case->status = KUNIT_SKIPPED;
 
+		kunit_init_test(&test, test_case->name, test_case->log);
+
 		if (!test_case->generate_params) {
 			/* Non-parameterised test. */
 			kunit_run_case_catch_errors(suite, test_case, &test);
@@ -530,6 +623,8 @@ int kunit_run_tests(struct kunit_suite *suite)
 			/* Get initial param. */
 			param_desc[0] = '\0';
 			test.param_value = test_case->generate_params(NULL, param_desc);
+			kunit_log(KERN_INFO, &test, KUNIT_SUBTEST_INDENT KUNIT_SUBTEST_INDENT
+				  "KTAP version 1\n");
 			kunit_log(KERN_INFO, &test, KUNIT_SUBTEST_INDENT KUNIT_SUBTEST_INDENT
 				  "# Subtest: %s", test_case->name);
 
@@ -541,11 +636,11 @@ int kunit_run_tests(struct kunit_suite *suite)
 						 "param-%d", test.param_index);
 				}
 
-				kunit_log(KERN_INFO, &test,
-					  KUNIT_SUBTEST_INDENT KUNIT_SUBTEST_INDENT
-					  "%s %d - %s",
-					  kunit_status_to_ok_not_ok(test.status),
-					  test.param_index + 1, param_desc);
+				kunit_print_ok_not_ok(&test, KUNIT_LEVEL_CASE_PARAM,
+						      test.status,
+						      test.param_index + 1,
+						      param_desc,
+						      test.status_comment);
 
 				/* Get next param. */
 				param_desc[0] = '\0';
@@ -559,7 +654,7 @@ int kunit_run_tests(struct kunit_suite *suite)
 
 		kunit_print_test_stats(&test, param_stats);
 
-		kunit_print_ok_not_ok(&test, true, test_case->status,
+		kunit_print_ok_not_ok(&test, KUNIT_LEVEL_CASE, test_case->status,
 				      kunit_test_case_num(suite, test_case),
 				      test_case->name,
 				      test.status_comment);
@@ -586,14 +681,28 @@ static void kunit_init_suite(struct kunit_suite *suite)
 	suite->suite_init_err = 0;
 }
 
+bool kunit_enabled(void)
+{
+	return enable_param;
+}
+
 int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites)
 {
 	unsigned int i;
+
+	if (!kunit_enabled() && num_suites > 0) {
+		pr_info("kunit: disabled\n");
+		return 0;
+	}
+
+	static_branch_inc(&kunit_running);
 
 	for (i = 0; i < num_suites; i++) {
 		kunit_init_suite(suites[i]);
 		kunit_run_tests(suites[i]);
 	}
+
+	static_branch_dec(&kunit_running);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__kunit_test_suites_init);
@@ -606,6 +715,9 @@ static void kunit_exit_suite(struct kunit_suite *suite)
 void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites)
 {
 	unsigned int i;
+
+	if (!kunit_enabled())
+		return;
 
 	for (i = 0; i < num_suites; i++)
 		kunit_exit_suite(suites[i]);
@@ -651,59 +763,28 @@ static struct notifier_block kunit_mod_nb = {
 };
 #endif
 
-struct kunit_kmalloc_array_params {
-	size_t n;
-	size_t size;
-	gfp_t gfp;
-};
-
-static int kunit_kmalloc_array_init(struct kunit_resource *res, void *context)
-{
-	struct kunit_kmalloc_array_params *params = context;
-
-	res->data = kmalloc_array(params->n, params->size, params->gfp);
-	if (!res->data)
-		return -ENOMEM;
-
-	return 0;
-}
-
-static void kunit_kmalloc_array_free(struct kunit_resource *res)
-{
-	kfree(res->data);
-}
-
 void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp)
 {
-	struct kunit_kmalloc_array_params params = {
-		.size = size,
-		.n = n,
-		.gfp = gfp
-	};
+	void *data;
 
-	return kunit_alloc_resource(test,
-				    kunit_kmalloc_array_init,
-				    kunit_kmalloc_array_free,
-				    gfp,
-				    &params);
+	data = kmalloc_array(n, size, gfp);
+
+	if (!data)
+		return NULL;
+
+	if (kunit_add_action_or_reset(test, (kunit_action_t *)kfree, data) != 0)
+		return NULL;
+
+	return data;
 }
 EXPORT_SYMBOL_GPL(kunit_kmalloc_array);
 
 void kunit_kfree(struct kunit *test, const void *ptr)
 {
-	struct kunit_resource *res;
+	if (!ptr)
+		return;
 
-	res = kunit_find_resource(test, kunit_resource_instance_match,
-				  (void *)ptr);
-
-	/*
-	 * Removing the resource from the list of resources drops the
-	 * reference count to 1; the final put will trigger the free.
-	 */
-	kunit_remove_resource(test, res);
-
-	kunit_put_resource(res);
-
+	kunit_release_action(test, (kunit_action_t *)kfree, (void *)ptr);
 }
 EXPORT_SYMBOL_GPL(kunit_kfree);
 
@@ -744,6 +825,9 @@ EXPORT_SYMBOL_GPL(kunit_cleanup);
 
 static int __init kunit_init(void)
 {
+	/* Install the KUnit hook functions. */
+	kunit_install_hooks();
+
 	kunit_debugfs_init();
 #ifdef CONFIG_MODULES
 	return register_module_notifier(&kunit_mod_nb);
@@ -755,6 +839,7 @@ late_initcall(kunit_init);
 
 static void __exit kunit_exit(void)
 {
+	memset(&kunit_hooks, 0, sizeof(kunit_hooks));
 #ifdef CONFIG_MODULES
 	unregister_module_notifier(&kunit_mod_nb);
 #endif

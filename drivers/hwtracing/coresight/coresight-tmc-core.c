@@ -31,7 +31,7 @@ DEFINE_CORESIGHT_DEVLIST(etb_devs, "tmc_etb");
 DEFINE_CORESIGHT_DEVLIST(etf_devs, "tmc_etf");
 DEFINE_CORESIGHT_DEVLIST(etr_devs, "tmc_etr");
 
-void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
+int tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 {
 	struct coresight_device *csdev = drvdata->csdev;
 	struct csdev_access *csa = &csdev->access;
@@ -40,7 +40,9 @@ void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 	if (coresight_timeout(csa, TMC_STS, TMC_STS_TMCREADY_BIT, 1)) {
 		dev_err(&csdev->dev,
 			"timeout while waiting for TMC to be Ready\n");
+		return -EBUSY;
 	}
+	return 0;
 }
 
 void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
@@ -251,41 +253,21 @@ static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
 	return memwidth;
 }
 
-#define coresight_tmc_reg(name, offset)			\
-	coresight_simple_reg32(struct tmc_drvdata, name, offset)
-#define coresight_tmc_reg64(name, lo_off, hi_off)	\
-	coresight_simple_reg64(struct tmc_drvdata, name, lo_off, hi_off)
-
-coresight_tmc_reg(rsz, TMC_RSZ);
-coresight_tmc_reg(sts, TMC_STS);
-coresight_tmc_reg(trg, TMC_TRG);
-coresight_tmc_reg(ctl, TMC_CTL);
-coresight_tmc_reg(ffsr, TMC_FFSR);
-coresight_tmc_reg(ffcr, TMC_FFCR);
-coresight_tmc_reg(mode, TMC_MODE);
-coresight_tmc_reg(pscr, TMC_PSCR);
-coresight_tmc_reg(axictl, TMC_AXICTL);
-coresight_tmc_reg(authstatus, TMC_AUTHSTATUS);
-coresight_tmc_reg(devid, CORESIGHT_DEVID);
-coresight_tmc_reg64(rrp, TMC_RRP, TMC_RRPHI);
-coresight_tmc_reg64(rwp, TMC_RWP, TMC_RWPHI);
-coresight_tmc_reg64(dba, TMC_DBALO, TMC_DBAHI);
-
 static struct attribute *coresight_tmc_mgmt_attrs[] = {
-	&dev_attr_rsz.attr,
-	&dev_attr_sts.attr,
-	&dev_attr_rrp.attr,
-	&dev_attr_rwp.attr,
-	&dev_attr_trg.attr,
-	&dev_attr_ctl.attr,
-	&dev_attr_ffsr.attr,
-	&dev_attr_ffcr.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_pscr.attr,
-	&dev_attr_devid.attr,
-	&dev_attr_dba.attr,
-	&dev_attr_axictl.attr,
-	&dev_attr_authstatus.attr,
+	coresight_simple_reg32(rsz, TMC_RSZ),
+	coresight_simple_reg32(sts, TMC_STS),
+	coresight_simple_reg64(rrp, TMC_RRP, TMC_RRPHI),
+	coresight_simple_reg64(rwp, TMC_RWP, TMC_RWPHI),
+	coresight_simple_reg32(trg, TMC_TRG),
+	coresight_simple_reg32(ctl, TMC_CTL),
+	coresight_simple_reg32(ffsr, TMC_FFSR),
+	coresight_simple_reg32(ffcr, TMC_FFCR),
+	coresight_simple_reg32(mode, TMC_MODE),
+	coresight_simple_reg32(pscr, TMC_PSCR),
+	coresight_simple_reg32(devid, CORESIGHT_DEVID),
+	coresight_simple_reg64(dba, TMC_DBALO, TMC_DBAHI),
+	coresight_simple_reg32(axictl, TMC_AXICTL),
+	coresight_simple_reg32(authstatus, TMC_AUTHSTATUS),
 	NULL,
 };
 

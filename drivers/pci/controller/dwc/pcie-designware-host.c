@@ -16,7 +16,6 @@
 #include <linux/pci_regs.h>
 #include <linux/platform_device.h>
 
-#include "../../pci.h"
 #include "pcie-designware.h"
 
 static struct pci_ops dw_pcie_ops;
@@ -267,15 +266,6 @@ static void dw_pcie_free_msi(struct dw_pcie_rp *pp)
 
 	irq_domain_remove(pp->msi_domain);
 	irq_domain_remove(pp->irq_domain);
-
-	if (pp->msi_data) {
-		struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-		struct device *dev = pci->dev;
-
-		dma_unmap_page(dev, pp->msi_data, PAGE_SIZE, DMA_FROM_DEVICE);
-		if (pp->msi_page)
-			__free_page(pp->msi_page);
-	}
 }
 
 static void dw_pcie_msi_init(struct dw_pcie_rp *pp)
@@ -336,6 +326,7 @@ static int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
 	struct platform_device *pdev = to_platform_device(dev);
+	u64 *msi_vaddr;
 	int ret;
 	u32 ctrl, num_ctrls;
 
@@ -375,22 +366,26 @@ static int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
 						    dw_chained_msi_isr, pp);
 	}
 
-	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
+	/*
+	 * Even though the iMSI-RX Module supports 64-bit addresses some
+	 * peripheral PCIe devices may lack 64-bit message support. In
+	 * order not to miss MSI TLPs from those devices the MSI target
+	 * address has to be within the lowest 4GB.
+	 *
+	 * Note until there is a better alternative found the reservation is
+	 * done by allocating from the artificially limited DMA-coherent
+	 * memory.
+	 */
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret)
 		dev_warn(dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may not work properly\n");
 
-	pp->msi_page = alloc_page(GFP_DMA32);
-	pp->msi_data = dma_map_page(dev, pp->msi_page, 0,
-				    PAGE_SIZE, DMA_FROM_DEVICE);
-	ret = dma_mapping_error(dev, pp->msi_data);
-	if (ret) {
-		dev_err(pci->dev, "Failed to map MSI data\n");
-		__free_page(pp->msi_page);
-		pp->msi_page = NULL;
-		pp->msi_data = 0;
+	msi_vaddr = dmam_alloc_coherent(dev, sizeof(u64), &pp->msi_data,
+					GFP_KERNEL);
+	if (!msi_vaddr) {
+		dev_err(dev, "Failed to alloc and map MSI data\n");
 		dw_pcie_free_msi(pp);
-
-		return ret;
+		return -ENOMEM;
 	}
 
 	return 0;
@@ -409,6 +404,10 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 	raw_spin_lock_init(&pp->lock);
 
+	ret = dw_pcie_get_resources(pci);
+	if (ret)
+		return ret;
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (res) {
 		pp->cfg0_size = resource_size(res);
@@ -420,13 +419,6 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 	} else {
 		dev_err(dev, "Missing *config* reg space\n");
 		return -ENODEV;
-	}
-
-	if (!pci->dbi_base) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-		pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
-		if (IS_ERR(pci->dbi_base))
-			return PTR_ERR(pci->dbi_base);
 	}
 
 	bridge = devm_pci_alloc_host_bridge(dev, 0);
@@ -442,9 +434,6 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 		pp->io_bus_addr = win->res->start - win->offset;
 		pp->io_base = pci_pio_to_address(win->res->start);
 	}
-
-	if (pci->link_gen < 1)
-		pci->link_gen = of_pci_get_max_link_speed(np);
 
 	/* Set default bus ops */
 	bridge->ops = &dw_pcie_ops;
@@ -488,18 +477,27 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 	dw_pcie_iatu_detect(pci);
 
-	ret = dw_pcie_setup_rc(pp);
+	ret = dw_pcie_edma_detect(pci);
 	if (ret)
 		goto err_free_msi;
 
-	if (!dw_pcie_link_up(pci)) {
+	ret = dw_pcie_setup_rc(pp);
+	if (ret)
+		goto err_remove_edma;
+
+	if (dw_pcie_link_up(pci)) {
+		dw_pcie_print_link_status(pci);
+	} else {
 		ret = dw_pcie_start_link(pci);
 		if (ret)
-			goto err_free_msi;
-	}
+			goto err_remove_edma;
 
-	/* Ignore errors, the link may come up later */
-	dw_pcie_wait_for_link(pci);
+		if (pci->ops && pci->ops->start_link) {
+			ret = dw_pcie_wait_for_link(pci);
+			if (ret)
+				goto err_stop_link;
+		}
+	}
 
 	bridge->sysdata = pp;
 
@@ -511,6 +509,9 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 err_stop_link:
 	dw_pcie_stop_link(pci);
+
+err_remove_edma:
+	dw_pcie_edma_remove(pci);
 
 err_free_msi:
 	if (pp->has_msi_ctrl)
@@ -532,6 +533,8 @@ void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 	pci_remove_root_bus(pp->bridge->bus);
 
 	dw_pcie_stop_link(pci);
+
+	dw_pcie_edma_remove(pci);
 
 	if (pp->has_msi_ctrl)
 		dw_pcie_free_msi(pp);
@@ -657,11 +660,14 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	}
 
 	/*
-	 * Ensure all outbound windows are disabled before proceeding with
-	 * the MEM/IO ranges setups.
+	 * Ensure all out/inbound windows are disabled before proceeding with
+	 * the MEM/IO (dma-)ranges setups.
 	 */
 	for (i = 0; i < pci->num_ob_windows; i++)
 		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_OB, i);
+
+	for (i = 0; i < pci->num_ib_windows; i++)
+		dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_IB, i);
 
 	i = 0;
 	resource_list_for_each_entry(entry, &pp->bridge->windows) {
@@ -699,8 +705,31 @@ static int dw_pcie_iatu_setup(struct dw_pcie_rp *pp)
 	}
 
 	if (pci->num_ob_windows <= i)
-		dev_warn(pci->dev, "Resources exceed number of ATU entries (%d)\n",
+		dev_warn(pci->dev, "Ranges exceed outbound iATU size (%d)\n",
 			 pci->num_ob_windows);
+
+	i = 0;
+	resource_list_for_each_entry(entry, &pp->bridge->dma_ranges) {
+		if (resource_type(entry->res) != IORESOURCE_MEM)
+			continue;
+
+		if (pci->num_ib_windows <= i)
+			break;
+
+		ret = dw_pcie_prog_inbound_atu(pci, i++, PCIE_ATU_TYPE_MEM,
+					       entry->res->start,
+					       entry->res->start - entry->offset,
+					       resource_size(entry->res));
+		if (ret) {
+			dev_err(pci->dev, "Failed to set DMA range %pr\n",
+				entry->res);
+			return ret;
+		}
+	}
+
+	if (pci->num_ib_windows <= i)
+		dev_warn(pci->dev, "Dma-ranges exceed inbound iATU size (%u)\n",
+			 pci->num_ib_windows);
 
 	return 0;
 }

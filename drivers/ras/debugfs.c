@@ -15,7 +15,7 @@ EXPORT_SYMBOL_GPL(ras_userspace_consumers);
 
 static int trace_show(struct seq_file *m, void *v)
 {
-	return atomic_read(&trace_count);
+	return 0;
 }
 
 static int trace_open(struct inode *inode, struct file *file)
@@ -46,7 +46,7 @@ int __init ras_add_daemon_trace(void)
 
 	fentry = debugfs_create_file("daemon_active", S_IRUSR, ras_debugfs_dir,
 				     NULL, &trace_fops);
-	if (!fentry)
+	if (IS_ERR(fentry))
 		return -ENODEV;
 
 	return 0;

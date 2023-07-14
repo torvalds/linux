@@ -92,7 +92,8 @@ union amd_sriov_msg_feature_flags {
 		uint32_t mm_bw_management  : 1;
 		uint32_t pp_one_vf_mode	   : 1;
 		uint32_t reg_indirect_acc  : 1;
-		uint32_t reserved	   : 26;
+		uint32_t av1_support       : 1;
+		uint32_t reserved	   : 25;
 	} flags;
 	uint32_t all;
 };

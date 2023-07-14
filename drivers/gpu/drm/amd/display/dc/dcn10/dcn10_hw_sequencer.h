@@ -175,8 +175,7 @@ void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx);
 void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx);
 void dcn10_setup_periodic_interrupt(
 		struct dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		enum vline_select vline);
+		struct pipe_ctx *pipe_ctx);
 enum dc_status dcn10_set_clock(struct dc *dc,
 		enum dc_clock_type clock_type,
 		uint32_t clk_khz,
@@ -203,7 +202,6 @@ void dcn10_get_dcc_en_bits(struct dc *dc, int *dcc_en_bits);
 void dcn10_update_visual_confirm_color(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
-		struct tg_color *color,
 		int mpcc_id);
 
 #endif /* __DC_HWSS_DCN10_H__ */

@@ -48,7 +48,7 @@ static int __init early_page_owner_param(char *buf)
 	int ret = kstrtobool(buf, &page_owner_enabled);
 
 	if (page_owner_enabled)
-		stack_depot_want_early_init();
+		stack_depot_request_early_init();
 
 	return ret;
 }
@@ -99,6 +99,7 @@ struct page_ext_operations page_owner_ops = {
 	.size = sizeof(struct page_owner),
 	.need = need_page_owner,
 	.init = init_page_owner,
+	.need_shared_flags = true,
 };
 
 static inline struct page_owner *get_page_owner(struct page_ext *page_ext)
@@ -141,7 +142,7 @@ void __reset_page_owner(struct page *page, unsigned short order)
 	struct page_owner *page_owner;
 	u64 free_ts_nsec = local_clock();
 
-	page_ext = lookup_page_ext(page);
+	page_ext = page_ext_get(page);
 	if (unlikely(!page_ext))
 		return;
 
@@ -153,6 +154,7 @@ void __reset_page_owner(struct page *page, unsigned short order)
 		page_owner->free_ts_nsec = free_ts_nsec;
 		page_ext = page_ext_next(page_ext);
 	}
+	page_ext_put(page_ext);
 }
 
 static inline void __set_page_owner_handle(struct page_ext *page_ext,
@@ -161,6 +163,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 {
 	struct page_owner *page_owner;
 	int i;
+	u64 ts_nsec = local_clock();
 
 	for (i = 0; i < (1 << order); i++) {
 		page_owner = get_page_owner(page_ext);
@@ -170,7 +173,7 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 		page_owner->last_migrate_reason = -1;
 		page_owner->pid = current->pid;
 		page_owner->tgid = current->tgid;
-		page_owner->ts_nsec = local_clock();
+		page_owner->ts_nsec = ts_nsec;
 		strscpy(page_owner->comm, current->comm,
 			sizeof(page_owner->comm));
 		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
@@ -183,19 +186,21 @@ static inline void __set_page_owner_handle(struct page_ext *page_ext,
 noinline void __set_page_owner(struct page *page, unsigned short order,
 					gfp_t gfp_mask)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext;
 	depot_stack_handle_t handle;
 
+	handle = save_stack(gfp_mask);
+
+	page_ext = page_ext_get(page);
 	if (unlikely(!page_ext))
 		return;
-
-	handle = save_stack(gfp_mask);
 	__set_page_owner_handle(page_ext, handle, order, gfp_mask);
+	page_ext_put(page_ext);
 }
 
 void __set_page_owner_migrate_reason(struct page *page, int reason)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 	struct page_owner *page_owner;
 
 	if (unlikely(!page_ext))
@@ -203,12 +208,13 @@ void __set_page_owner_migrate_reason(struct page *page, int reason)
 
 	page_owner = get_page_owner(page_ext);
 	page_owner->last_migrate_reason = reason;
+	page_ext_put(page_ext);
 }
 
 void __split_page_owner(struct page *page, unsigned int nr)
 {
 	int i;
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get(page);
 	struct page_owner *page_owner;
 
 	if (unlikely(!page_ext))
@@ -219,16 +225,24 @@ void __split_page_owner(struct page *page, unsigned int nr)
 		page_owner->order = 0;
 		page_ext = page_ext_next(page_ext);
 	}
+	page_ext_put(page_ext);
 }
 
 void __folio_copy_owner(struct folio *newfolio, struct folio *old)
 {
-	struct page_ext *old_ext = lookup_page_ext(&old->page);
-	struct page_ext *new_ext = lookup_page_ext(&newfolio->page);
+	struct page_ext *old_ext;
+	struct page_ext *new_ext;
 	struct page_owner *old_page_owner, *new_page_owner;
 
-	if (unlikely(!old_ext || !new_ext))
+	old_ext = page_ext_get(&old->page);
+	if (unlikely(!old_ext))
 		return;
+
+	new_ext = page_ext_get(&newfolio->page);
+	if (unlikely(!new_ext)) {
+		page_ext_put(old_ext);
+		return;
+	}
 
 	old_page_owner = get_page_owner(old_ext);
 	new_page_owner = get_page_owner(new_ext);
@@ -254,6 +268,8 @@ void __folio_copy_owner(struct folio *newfolio, struct folio *old)
 	 */
 	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
 	__set_bit(PAGE_EXT_OWNER_ALLOCATED, &new_ext->flags);
+	page_ext_put(new_ext);
+	page_ext_put(old_ext);
 }
 
 void pagetypeinfo_showmixedcount_print(struct seq_file *m,
@@ -283,7 +299,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 			continue;
 		}
 
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+		block_end_pfn = pageblock_end_pfn(pfn);
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		pageblock_mt = get_pageblock_migratetype(page);
@@ -299,7 +315,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 				unsigned long freepage_order;
 
 				freepage_order = buddy_order_unsafe(page);
-				if (freepage_order < MAX_ORDER)
+				if (freepage_order <= MAX_ORDER)
 					pfn += (1UL << freepage_order) - 1;
 				continue;
 			}
@@ -307,12 +323,12 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 			if (PageReserved(page))
 				continue;
 
-			page_ext = lookup_page_ext(page);
+			page_ext = page_ext_get(page);
 			if (unlikely(!page_ext))
 				continue;
 
 			if (!test_bit(PAGE_EXT_OWNER_ALLOCATED, &page_ext->flags))
-				continue;
+				goto ext_put_continue;
 
 			page_owner = get_page_owner(page_ext);
 			page_mt = gfp_migratetype(page_owner->gfp_mask);
@@ -323,9 +339,12 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 					count[pageblock_mt]++;
 
 				pfn = block_end_pfn;
+				page_ext_put(page_ext);
 				break;
 			}
 			pfn += (1UL << page_owner->order) - 1;
+ext_put_continue:
+			page_ext_put(page_ext);
 		}
 	}
 
@@ -399,7 +418,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
 	pageblock_mt = get_pageblock_migratetype(page);
 	page_mt  = gfp_migratetype(page_owner->gfp_mask);
 	ret += scnprintf(kbuf + ret, count - ret,
-			"PFN %lu type %s Block %lu type %s Flags %pGp\n",
+			"PFN 0x%lx type %s Block %lu type %s Flags %pGp\n",
 			pfn,
 			migratetype_names[page_mt],
 			pfn >> pageblock_order,
@@ -435,7 +454,7 @@ err:
 
 void __dump_page_owner(const struct page *page)
 {
-	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_ext *page_ext = page_ext_get((void *)page);
 	struct page_owner *page_owner;
 	depot_stack_handle_t handle;
 	gfp_t gfp_mask;
@@ -452,6 +471,7 @@ void __dump_page_owner(const struct page *page)
 
 	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
 		pr_alert("page_owner info is not present (never set?)\n");
+		page_ext_put(page_ext);
 		return;
 	}
 
@@ -482,6 +502,7 @@ void __dump_page_owner(const struct page *page)
 	if (page_owner->last_migrate_reason != -1)
 		pr_alert("page has been migrated, last migrate reason: %s\n",
 			migrate_reason_names[page_owner->last_migrate_reason]);
+	page_ext_put(page_ext);
 }
 
 static ssize_t
@@ -497,16 +518,24 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		return -EINVAL;
 
 	page = NULL;
-	pfn = min_low_pfn + *ppos;
-
+	if (*ppos == 0)
+		pfn = min_low_pfn;
+	else
+		pfn = *ppos;
 	/* Find a valid PFN or the start of a MAX_ORDER_NR_PAGES area */
 	while (!pfn_valid(pfn) && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0)
 		pfn++;
 
-	drain_all_pages(NULL);
-
 	/* Find an allocated page */
 	for (; pfn < max_pfn; pfn++) {
+		/*
+		 * This temporary page_owner is required so
+		 * that we can avoid the context switches while holding
+		 * the rcu lock and copying the page owner information to
+		 * user through copy_to_user() or GFP_KERNEL allocations.
+		 */
+		struct page_owner page_owner_tmp;
+
 		/*
 		 * If the new page is in a new MAX_ORDER_NR_PAGES area,
 		 * validate the area as existing, skip it if not
@@ -520,12 +549,12 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		if (PageBuddy(page)) {
 			unsigned long freepage_order = buddy_order_unsafe(page);
 
-			if (freepage_order < MAX_ORDER)
+			if (freepage_order <= MAX_ORDER)
 				pfn += (1UL << freepage_order) - 1;
 			continue;
 		}
 
-		page_ext = lookup_page_ext(page);
+		page_ext = page_ext_get(page);
 		if (unlikely(!page_ext))
 			continue;
 
@@ -534,14 +563,14 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		 * because we don't hold the zone lock.
 		 */
 		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-			continue;
+			goto ext_put_continue;
 
 		/*
 		 * Although we do have the info about past allocation of free
 		 * pages, it's not relevant for current memory usage.
 		 */
 		if (!test_bit(PAGE_EXT_OWNER_ALLOCATED, &page_ext->flags))
-			continue;
+			goto ext_put_continue;
 
 		page_owner = get_page_owner(page_ext);
 
@@ -550,7 +579,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		 * would inflate the stats.
 		 */
 		if (!IS_ALIGNED(pfn, 1 << page_owner->order))
-			continue;
+			goto ext_put_continue;
 
 		/*
 		 * Access to page_ext->handle isn't synchronous so we should
@@ -558,16 +587,35 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		 */
 		handle = READ_ONCE(page_owner->handle);
 		if (!handle)
-			continue;
+			goto ext_put_continue;
 
 		/* Record the next PFN to read in the file offset */
-		*ppos = (pfn - min_low_pfn) + 1;
+		*ppos = pfn + 1;
 
+		page_owner_tmp = *page_owner;
+		page_ext_put(page_ext);
 		return print_page_owner(buf, count, pfn, page,
-				page_owner, handle);
+				&page_owner_tmp, handle);
+ext_put_continue:
+		page_ext_put(page_ext);
 	}
 
 	return 0;
+}
+
+static loff_t lseek_page_owner(struct file *file, loff_t offset, int orig)
+{
+	switch (orig) {
+	case SEEK_SET:
+		file->f_pos = offset;
+		break;
+	case SEEK_CUR:
+		file->f_pos += offset;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return file->f_pos;
 }
 
 static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
@@ -589,7 +637,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			continue;
 		}
 
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+		block_end_pfn = pageblock_end_pfn(pfn);
 		block_end_pfn = min(block_end_pfn, end_pfn);
 
 		for (; pfn < block_end_pfn; pfn++) {
@@ -609,7 +657,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			if (PageBuddy(page)) {
 				unsigned long order = buddy_order_unsafe(page);
 
-				if (order > 0 && order < MAX_ORDER)
+				if (order > 0 && order <= MAX_ORDER)
 					pfn += (1UL << order) - 1;
 				continue;
 			}
@@ -617,18 +665,20 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			if (PageReserved(page))
 				continue;
 
-			page_ext = lookup_page_ext(page);
+			page_ext = page_ext_get(page);
 			if (unlikely(!page_ext))
 				continue;
 
 			/* Maybe overlapping zone */
 			if (test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-				continue;
+				goto ext_put_continue;
 
 			/* Found early allocated page */
 			__set_page_owner_handle(page_ext, early_handle,
 						0, 0);
 			count++;
+ext_put_continue:
+			page_ext_put(page_ext);
 		}
 		cond_resched();
 	}
@@ -660,6 +710,7 @@ static void init_early_allocated_pages(void)
 
 static const struct file_operations proc_page_owner_operations = {
 	.read		= read_page_owner,
+	.llseek		= lseek_page_owner,
 };
 
 static int __init pageowner_init(void)

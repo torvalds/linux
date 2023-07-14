@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/adc-battery.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ADC battery
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+description:
+  Basic battery capacity meter, which only reports basic battery data
+  via ADC channels and optionally indicate that the battery is full by
+  polling a GPIO line.
+
+  The voltage is expected to be measured between the battery terminals
+  and mandatory. The optional current/power channel is expected to
+  monitor the current/power flowing out of the battery. Last but not
+  least the temperature channel is supposed to measure the battery
+  temperature.
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: adc-battery
+
+  charged-gpios:
+    description:
+      GPIO which signals that the battery is fully charged. The GPIO is
+      often provided by charger ICs, that are not software controllable.
+    maxItems: 1
+
+  io-channels:
+    minItems: 1
+    maxItems: 4
+
+  io-channel-names:
+    minItems: 1
+    items:
+      - const: voltage
+      - enum: [ current, power, temperature ]
+      - enum: [ power, temperature ]
+      - const: temperature
+
+  monitored-battery: true
+
+required:
+  - compatible
+  - io-channels
+  - io-channel-names
+  - monitored-battery
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    fuel-gauge {
+        compatible = "adc-battery";
+        charged-gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
+        io-channels = <&adc 13>, <&adc 37>;
+        io-channel-names = "voltage", "current";
+
+        power-supplies = <&charger>;
+        monitored-battery = <&battery>;
+    };

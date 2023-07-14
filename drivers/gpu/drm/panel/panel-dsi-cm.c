@@ -579,7 +579,7 @@ err_bl:
 	return r;
 }
 
-static int dsicm_remove(struct mipi_dsi_device *dsi)
+static void dsicm_remove(struct mipi_dsi_device *dsi)
 {
 	struct panel_drv_data *ddata = mipi_dsi_get_drvdata(dsi);
 
@@ -593,8 +593,6 @@ static int dsicm_remove(struct mipi_dsi_device *dsi)
 
 	if (ddata->extbldev)
 		put_device(&ddata->extbldev->dev);
-
-	return 0;
 }
 
 static const struct dsic_panel_data taal_data = {

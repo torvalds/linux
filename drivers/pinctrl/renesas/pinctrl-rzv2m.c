@@ -15,11 +15,13 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/spinlock.h>
+
+#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/spinlock.h>
 
 #include <dt-bindings/pinctrl/rzv2m-pinctrl.h>
 
@@ -397,8 +399,7 @@ static int rzv2m_dt_node_to_map(struct pinctrl_dev *pctldev,
 	ret = -EINVAL;
 
 done:
-	if (ret < 0)
-		rzv2m_dt_free_map(pctldev, *map, *num_maps);
+	rzv2m_dt_free_map(pctldev, *map, *num_maps);
 
 	return ret;
 }
@@ -1116,4 +1117,3 @@ core_initcall(rzv2m_pinctrl_init);
 
 MODULE_AUTHOR("Phil Edworthy <phil.edworthy@renesas.com>");
 MODULE_DESCRIPTION("Pin and gpio controller driver for RZ/V2M");
-MODULE_LICENSE("GPL");

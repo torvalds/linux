@@ -783,11 +783,9 @@ __init void prefill_possible_map(void)
 
 static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
 {
-	cpumask_t tmp_map;
 	int cpu;
 
-	cpumask_complement(&tmp_map, cpu_present_mask);
-	cpu = cpumask_first(&tmp_map);
+	cpu = cpumask_first_zero(cpu_present_mask);
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 

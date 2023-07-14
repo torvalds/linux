@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/phy/fsl,imx8-pcie-phy.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Freescale i.MX8 SoC series PCIe PHY Device Tree Bindings
+title: Freescale i.MX8 SoC series PCIe PHY
 
 maintainers:
   - Richard Zhu <hongxing.zhu@nxp.com>
@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - fsl,imx8mm-pcie-phy
+      - fsl,imx8mp-pcie-phy
 
   reg:
     maxItems: 1
@@ -28,11 +29,16 @@ properties:
       - const: ref
 
   resets:
-    maxItems: 1
+    minItems: 1
+    maxItems: 2
 
   reset-names:
-    items:
-      - const: pciephy
+    oneOf:
+      - items:          # for iMX8MM
+          - const: pciephy
+      - items:          # for IMX8MP
+          - const: pciephy
+          - const: perst
 
   fsl,refclk-pad-mode:
     description: |
@@ -59,6 +65,10 @@ properties:
     type: boolean
     description: A boolean property indicating the CLKREQ# signal is
       not supported in the board design (optional)
+
+  power-domains:
+    description: PCIe PHY  power domain (optional).
+    maxItems: 1
 
 required:
   - "#phy-cells"

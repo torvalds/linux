@@ -477,7 +477,8 @@ static int sbefifo_wait(struct sbefifo *sbefifo, bool up,
 	if (!ready) {
 		sysfs_notify(&sbefifo->dev.kobj, NULL, dev_attr_timeout.attr.name);
 		sbefifo->timed_out = true;
-		dev_err(dev, "%s FIFO Timeout ! status=%08x\n", up ? "UP" : "DOWN", sts);
+		dev_err(dev, "%s FIFO Timeout (%u ms)! status=%08x\n",
+			up ? "UP" : "DOWN", jiffies_to_msecs(timeout), sts);
 		return -ETIMEDOUT;
 	}
 	dev_vdbg(dev, "End of wait status: %08x\n", sts);
@@ -497,8 +498,8 @@ static int sbefifo_send_command(struct sbefifo *sbefifo,
 	u32 status;
 	int rc;
 
-	dev_vdbg(dev, "sending command (%zd words, cmd=%04x)\n",
-		 cmd_len, be32_to_cpu(command[1]));
+	dev_dbg(dev, "sending command (%zd words, cmd=%04x)\n",
+		cmd_len, be32_to_cpu(command[1]));
 
 	/* As long as there's something to send */
 	timeout = msecs_to_jiffies(SBEFIFO_TIMEOUT_START_CMD);
@@ -551,21 +552,23 @@ static int sbefifo_read_response(struct sbefifo *sbefifo, struct iov_iter *respo
 	size_t len;
 	int rc;
 
-	dev_vdbg(dev, "reading response, buflen = %zd\n", iov_iter_count(response));
+	dev_dbg(dev, "reading response, buflen = %zd\n", iov_iter_count(response));
 
 	timeout = msecs_to_jiffies(sbefifo->timeout_start_rsp_ms);
 	for (;;) {
 		/* Grab FIFO status (this will handle parity errors) */
 		rc = sbefifo_wait(sbefifo, false, &status, timeout);
-		if (rc < 0)
+		if (rc < 0) {
+			dev_dbg(dev, "timeout waiting (%u ms)\n", jiffies_to_msecs(timeout));
 			return rc;
+		}
 		timeout = msecs_to_jiffies(SBEFIFO_TIMEOUT_IN_RSP);
 
 		/* Decode status */
 		len = sbefifo_populated(status);
 		eot_set = sbefifo_eot_set(status);
 
-		dev_vdbg(dev, "  chunk size %zd eot_set=0x%x\n", len, eot_set);
+		dev_dbg(dev, "  chunk size %zd eot_set=0x%x\n", len, eot_set);
 
 		/* Go through the chunk */
 		while(len--) {
@@ -656,7 +659,7 @@ static void sbefifo_collect_async_ffdc(struct sbefifo *sbefifo)
 	}
         ffdc_iov.iov_base = ffdc;
 	ffdc_iov.iov_len = SBEFIFO_MAX_FFDC_SIZE;
-        iov_iter_kvec(&ffdc_iter, WRITE, &ffdc_iov, 1, SBEFIFO_MAX_FFDC_SIZE);
+        iov_iter_kvec(&ffdc_iter, ITER_DEST, &ffdc_iov, 1, SBEFIFO_MAX_FFDC_SIZE);
 	cmd[0] = cpu_to_be32(2);
 	cmd[1] = cpu_to_be32(SBEFIFO_CMD_GET_SBE_FFDC);
 	rc = sbefifo_do_command(sbefifo, cmd, 2, &ffdc_iter);
@@ -753,7 +756,7 @@ int sbefifo_submit(struct device *dev, const __be32 *command, size_t cmd_len,
 	rbytes = (*resp_len) * sizeof(__be32);
 	resp_iov.iov_base = response;
 	resp_iov.iov_len = rbytes;
-        iov_iter_kvec(&resp_iter, WRITE, &resp_iov, 1, rbytes);
+        iov_iter_kvec(&resp_iter, ITER_DEST, &resp_iov, 1, rbytes);
 
 	/* Perform the command */
 	rc = mutex_lock_interruptible(&sbefifo->lock);
@@ -836,7 +839,7 @@ static ssize_t sbefifo_user_read(struct file *file, char __user *buf,
 	/* Prepare iov iterator */
 	resp_iov.iov_base = buf;
 	resp_iov.iov_len = len;
-	iov_iter_init(&resp_iter, WRITE, &resp_iov, 1, len);
+	iov_iter_init(&resp_iter, ITER_DEST, &resp_iov, 1, len);
 
 	/* Perform the command */
 	rc = mutex_lock_interruptible(&sbefifo->lock);

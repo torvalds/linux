@@ -3,6 +3,9 @@
 
 #include <linux/io_uring_types.h>
 
+#define __wq_list_for_each(pos, head)				\
+	for (pos = (head)->first; pos; pos = (pos)->next)
+
 #define wq_list_for_each(pos, prv, head)			\
 	for (pos = (head)->first, prv = NULL; pos; prv = pos, pos = (pos)->next)
 
@@ -25,28 +28,6 @@ static inline void wq_list_add_after(struct io_wq_work_node *node,
 	node->next = next;
 	if (!next)
 		list->last = node;
-}
-
-/**
- * wq_list_merge - merge the second list to the first one.
- * @list0: the first list
- * @list1: the second list
- * Return the first node after mergence.
- */
-static inline struct io_wq_work_node *wq_list_merge(struct io_wq_work_list *list0,
-						    struct io_wq_work_list *list1)
-{
-	struct io_wq_work_node *ret;
-
-	if (!list0->first) {
-		ret = list1->first;
-	} else {
-		ret = list0->first;
-		list0->last->next = list1->first;
-	}
-	INIT_WQ_LIST(list0);
-	INIT_WQ_LIST(list1);
-	return ret;
 }
 
 static inline void wq_list_add_tail(struct io_wq_work_node *node,

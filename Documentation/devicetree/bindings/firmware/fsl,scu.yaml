@@ -30,6 +30,11 @@ properties:
       Clock controller node that provides the clocks controlled by the SCU
     $ref: /schemas/clock/fsl,scu-clk.yaml
 
+  gpio:
+    description:
+      Control the GPIO PINs on SCU domain over the firmware APIs
+    $ref: /schemas/gpio/fsl,imx8qxp-sc-gpio.yaml
+
   ocotp:
     description:
       OCOTP controller node provided by the SCU

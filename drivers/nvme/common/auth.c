@@ -23,7 +23,7 @@ u32 nvme_auth_get_seqnum(void)
 
 	mutex_lock(&nvme_dhchap_mutex);
 	if (!nvme_dhchap_seqnum)
-		nvme_dhchap_seqnum = prandom_u32();
+		nvme_dhchap_seqnum = get_random_u32();
 	else {
 		nvme_dhchap_seqnum++;
 		if (!nvme_dhchap_seqnum)

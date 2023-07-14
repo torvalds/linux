@@ -114,7 +114,7 @@ out:
 	return ret;
 }
 
-void erofs_pcpubuf_init(void)
+void __init erofs_pcpubuf_init(void)
 {
 	int cpu;
 

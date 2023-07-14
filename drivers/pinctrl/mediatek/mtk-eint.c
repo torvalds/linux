@@ -24,6 +24,7 @@
 #define MTK_EINT_EDGE_SENSITIVE           0
 #define MTK_EINT_LEVEL_SENSITIVE          1
 #define MTK_EINT_DBNC_SET_DBNC_BITS	  4
+#define MTK_EINT_DBNC_MAX		  16
 #define MTK_EINT_DBNC_RST_BIT		  (0x1 << 1)
 #define MTK_EINT_DBNC_SET_EN		  (0x1 << 0)
 
@@ -47,6 +48,21 @@ static const struct mtk_eint_regs mtk_generic_eint_regs = {
 	.dbnc_set  = 0x600,
 	.dbnc_clr  = 0x700,
 };
+
+const unsigned int debounce_time_mt2701[] = {
+	500, 1000, 16000, 32000, 64000, 128000, 256000, 0
+};
+EXPORT_SYMBOL_GPL(debounce_time_mt2701);
+
+const unsigned int debounce_time_mt6765[] = {
+	125, 250, 500, 1000, 16000, 32000, 64000, 128000, 256000, 512000, 0
+};
+EXPORT_SYMBOL_GPL(debounce_time_mt6765);
+
+const unsigned int debounce_time_mt6795[] = {
+	500, 1000, 16000, 32000, 64000, 128000, 256000, 512000, 0
+};
+EXPORT_SYMBOL_GPL(debounce_time_mt6795);
 
 static void __iomem *mtk_eint_get_offset(struct mtk_eint *eint,
 					 unsigned int eint_num,
@@ -287,12 +303,15 @@ static struct irq_chip mtk_eint_irq_chip = {
 
 static unsigned int mtk_eint_hw_init(struct mtk_eint *eint)
 {
-	void __iomem *reg = eint->base + eint->regs->dom_en;
+	void __iomem *dom_en = eint->base + eint->regs->dom_en;
+	void __iomem *mask_set = eint->base + eint->regs->mask_set;
 	unsigned int i;
 
 	for (i = 0; i < eint->hw->ap_num; i += 32) {
-		writel(0xffffffff, reg);
-		reg += 4;
+		writel(0xffffffff, dom_en);
+		writel(0xffffffff, mask_set);
+		dom_en += 4;
+		mask_set += 4;
 	}
 
 	return 0;
@@ -404,9 +423,10 @@ int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 	int virq, eint_offset;
 	unsigned int set_offset, bit, clr_bit, clr_offset, rst, i, unmask,
 		     dbnc;
-	static const unsigned int debounce_time[] = {500, 1000, 16000, 32000,
-						     64000, 128000, 256000};
 	struct irq_data *d;
+
+	if (!eint->hw->db_time)
+		return -EOPNOTSUPP;
 
 	virq = irq_find_mapping(eint->domain, eint_num);
 	eint_offset = (eint_num % 4) * 8;
@@ -418,9 +438,9 @@ int mtk_eint_set_debounce(struct mtk_eint *eint, unsigned long eint_num,
 	if (!mtk_eint_can_en_debounce(eint, eint_num))
 		return -EINVAL;
 
-	dbnc = ARRAY_SIZE(debounce_time);
-	for (i = 0; i < ARRAY_SIZE(debounce_time); i++) {
-		if (debounce <= debounce_time[i]) {
+	dbnc = eint->num_db_time;
+	for (i = 0; i < eint->num_db_time; i++) {
+		if (debounce <= eint->hw->db_time[i]) {
 			dbnc = i;
 			break;
 		}
@@ -493,6 +513,13 @@ int mtk_eint_do_init(struct mtk_eint *eint)
 					     &irq_domain_simple_ops, NULL);
 	if (!eint->domain)
 		return -ENOMEM;
+
+	if (eint->hw->db_time) {
+		for (i = 0; i < MTK_EINT_DBNC_MAX; i++)
+			if (eint->hw->db_time[i] == 0)
+				break;
+		eint->num_db_time = i;
+	}
 
 	mtk_eint_hw_init(eint);
 	for (i = 0; i < eint->hw->ap_num; i++) {

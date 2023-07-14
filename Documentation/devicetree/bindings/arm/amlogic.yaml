@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/arm/amlogic.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Amlogic MesonX device tree bindings
+title: Amlogic SoC based Platforms
 
 maintainers:
   - Kevin Hilman <khilman@baylibre.com>
@@ -120,6 +120,7 @@ properties:
           - enum:
               - amlogic,q200
               - amlogic,q201
+              - azw,gt1-ultimate
               - khadas,vim2
               - kingnovel,r-box-pro
               - libretech,aml-s912-pc
@@ -136,6 +137,7 @@ properties:
           - enum:
               - amlogic,s400
               - jethome,jethub-j100
+              - jethome,jethub-j110
           - const: amlogic,a113d
           - const: amlogic,meson-axg
 
@@ -151,7 +153,17 @@ properties:
       - description: Boards with the Amlogic Meson G12B A311D SoC
         items:
           - enum:
+              - bananapi,bpi-m2s
               - khadas,vim3
+              - radxa,zero2
+          - const: amlogic,a311d
+          - const: amlogic,g12b
+
+      - description: Boards using the BPI-CM4 module with Amlogic Meson G12B A311D SoC
+        items:
+          - enum:
+              - bananapi,bpi-cm4io
+          - const: bananapi,bpi-cm4
           - const: amlogic,a311d
           - const: amlogic,g12b
 
@@ -161,7 +173,10 @@ properties:
               - azw,gsking-x
               - azw,gtking
               - azw,gtking-pro
+              - bananapi,bpi-m2s
+              - hardkernel,odroid-go-ultra
               - hardkernel,odroid-n2
+              - hardkernel,odroid-n2l
               - hardkernel,odroid-n2-plus
               - khadas,vim3
               - ugoos,am6
@@ -173,6 +188,7 @@ properties:
           - enum:
               - amediatech,x96-air
               - amediatech,x96-air-gbit
+              - bananapi,bpi-m2-pro
               - bananapi,bpi-m5
               - cyx,a95xf3-air
               - cyx,a95xf3-air-gbit
@@ -188,6 +204,13 @@ properties:
           - enum:
               - amlogic,ad401
           - const: amlogic,a1
+
+      - description: Boards with the Amlogic C3 C302X/C308L SoC
+        items:
+          - enum:
+              - amlogic,aw409
+              - amlogic,aw419
+          - const: amlogic,c3
 
       - description: Boards with the Amlogic Meson S4 S805X2 SoC
         items:

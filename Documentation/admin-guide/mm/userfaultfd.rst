@@ -1,5 +1,3 @@
-.. _userfaultfd:
-
 ===========
 Userfaultfd
 ===========
@@ -17,7 +15,10 @@ of the ``PROT_NONE+SIGSEGV`` trick.
 Design
 ======
 
-Userfaults are delivered and resolved through the ``userfaultfd`` syscall.
+Userspace creates a new userfaultfd, initializes it, and registers one or more
+regions of virtual memory with it. Then, any page faults which occur within the
+region(s) result in a message being delivered to the userfaultfd, notifying
+userspace of the fault.
 
 The ``userfaultfd`` (aside from registering and unregistering virtual
 memory ranges) provides two primary functionalities:
@@ -34,12 +35,11 @@ The real advantage of userfaults if compared to regular virtual memory
 management of mremap/mprotect is that the userfaults in all their
 operations never involve heavyweight structures like vmas (in fact the
 ``userfaultfd`` runtime load never takes the mmap_lock for writing).
-
 Vmas are not suitable for page- (or hugepage) granular fault tracking
 when dealing with virtual address spaces that could span
 Terabytes. Too many vmas would be needed for that.
 
-The ``userfaultfd`` once opened by invoking the syscall, can also be
+The ``userfaultfd``, once created, can also be
 passed using unix domain sockets to a manager process, so the same
 manager process could handle the userfaults of a multitude of
 different processes without them being aware about what is going on
@@ -49,6 +49,39 @@ is a corner case that would currently return ``-EBUSY``).
 
 API
 ===
+
+Creating a userfaultfd
+----------------------
+
+There are two ways to create a new userfaultfd, each of which provide ways to
+restrict access to this functionality (since historically userfaultfds which
+handle kernel page faults have been a useful tool for exploiting the kernel).
+
+The first way, supported since userfaultfd was introduced, is the
+userfaultfd(2) syscall. Access to this is controlled in several ways:
+
+- Any user can always create a userfaultfd which traps userspace page faults
+  only. Such a userfaultfd can be created using the userfaultfd(2) syscall
+  with the flag UFFD_USER_MODE_ONLY.
+
+- In order to also trap kernel page faults for the address space, either the
+  process needs the CAP_SYS_PTRACE capability, or the system must have
+  vm.unprivileged_userfaultfd set to 1. By default, vm.unprivileged_userfaultfd
+  is set to 0.
+
+The second way, added to the kernel more recently, is by opening
+/dev/userfaultfd and issuing a USERFAULTFD_IOC_NEW ioctl to it. This method
+yields equivalent userfaultfds to the userfaultfd(2) syscall.
+
+Unlike userfaultfd(2), access to /dev/userfaultfd is controlled via normal
+filesystem permissions (user/group/mode), which gives fine grained access to
+userfaultfd specifically, without also granting other unrelated privileges at
+the same time (as e.g. granting CAP_SYS_PTRACE would do). Users who have access
+to /dev/userfaultfd can always create userfaultfds that trap kernel page faults;
+vm.unprivileged_userfaultfd is not considered.
+
+Initializing a userfaultfd
+--------------------------
 
 When first opened the ``userfaultfd`` must be enabled invoking the
 ``UFFDIO_API`` ioctl specifying a ``uffdio_api.api`` value set to ``UFFD_API`` (or
@@ -185,6 +218,31 @@ former will have ``UFFD_PAGEFAULT_FLAG_WP`` set, the latter
 ``UFFD_PAGEFAULT_FLAG_WRITE``.  The latter did not fail on protection but
 you still need to supply a page when ``UFFDIO_REGISTER_MODE_MISSING`` was
 used.
+
+Userfaultfd write-protect mode currently behave differently on none ptes
+(when e.g. page is missing) over different types of memories.
+
+For anonymous memory, ``ioctl(UFFDIO_WRITEPROTECT)`` will ignore none ptes
+(e.g. when pages are missing and not populated).  For file-backed memories
+like shmem and hugetlbfs, none ptes will be write protected just like a
+present pte.  In other words, there will be a userfaultfd write fault
+message generated when writing to a missing page on file typed memories,
+as long as the page range was write-protected before.  Such a message will
+not be generated on anonymous memories by default.
+
+If the application wants to be able to write protect none ptes on anonymous
+memory, one can pre-populate the memory with e.g. MADV_POPULATE_READ.  On
+newer kernels, one can also detect the feature UFFD_FEATURE_WP_UNPOPULATED
+and set the feature bit in advance to make sure none ptes will also be
+write protected even upon anonymous memory.
+
+When using ``UFFDIO_REGISTER_MODE_WP`` in combination with either
+``UFFDIO_REGISTER_MODE_MISSING`` or ``UFFDIO_REGISTER_MODE_MINOR``, when
+resolving missing / minor faults with ``UFFDIO_COPY`` or ``UFFDIO_CONTINUE``
+respectively, it may be desirable for the new page / mapping to be
+write-protected (so future writes will also result in a WP fault). These ioctls
+support a mode flag (``UFFDIO_COPY_MODE_WP`` or ``UFFDIO_CONTINUE_MODE_WP``
+respectively) to configure the mapping this way.
 
 QEMU/KVM
 ========

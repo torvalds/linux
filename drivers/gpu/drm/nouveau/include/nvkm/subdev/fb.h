@@ -2,6 +2,7 @@
 #ifndef __NVKM_FB_H__
 #define __NVKM_FB_H__
 #include <core/subdev.h>
+#include <core/falcon.h>
 #include <core/mm.h>
 
 /* memory type/access flags, do not match hardware values */
@@ -33,7 +34,12 @@ struct nvkm_fb {
 	const struct nvkm_fb_func *func;
 	struct nvkm_subdev subdev;
 
-	struct nvkm_blob vpr_scrubber;
+	struct nvkm_falcon_fw vpr_scrubber;
+
+	struct {
+		struct page *flush_page;
+		dma_addr_t flush_page_addr;
+	} sysmem;
 
 	struct nvkm_ram *ram;
 
@@ -52,6 +58,8 @@ struct nvkm_fb {
 	struct nvkm_memory *mmu_rd;
 	struct nvkm_memory *mmu_wr;
 };
+
+int nvkm_fb_mem_unlock(struct nvkm_fb *);
 
 void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
@@ -90,6 +98,7 @@ int gp100_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct n
 int gp102_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
 int gp10b_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
 int gv100_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
+int tu102_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
 int ga100_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
 int ga102_fb_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fb **);
 

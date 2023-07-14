@@ -15,7 +15,6 @@
 #include "mmci.h"
 
 #define SDMMC_LLI_BUF_LEN	PAGE_SIZE
-#define SDMMC_IDMA_BURST	BIT(MMCI_STM32_IDMABNDT_SHIFT)
 
 #define DLYB_CR			0x0
 #define DLYB_CR_DEN		BIT(0)
@@ -34,6 +33,20 @@
 #define DLYB_LNG_TIMEOUT_US	1000
 #define SDMMC_VSWEND_TIMEOUT_US 10000
 
+#define SYSCFG_DLYBSD_CR	0x0
+#define DLYBSD_CR_EN		BIT(0)
+#define DLYBSD_CR_RXTAPSEL_MASK	GENMASK(6, 1)
+#define DLYBSD_TAPSEL_NB	32
+#define DLYBSD_BYP_EN		BIT(16)
+#define DLYBSD_BYP_CMD		GENMASK(21, 17)
+#define DLYBSD_ANTIGLITCH_EN	BIT(22)
+
+#define SYSCFG_DLYBSD_SR	0x4
+#define DLYBSD_SR_LOCK		BIT(0)
+#define DLYBSD_SR_RXTAPSEL_ACK	BIT(1)
+
+#define DLYBSD_TIMEOUT_1S_IN_US	1000000
+
 struct sdmmc_lli_desc {
 	u32 idmalar;
 	u32 idmabase;
@@ -48,10 +61,21 @@ struct sdmmc_idma {
 	bool use_bounce_buffer;
 };
 
+struct sdmmc_dlyb;
+
+struct sdmmc_tuning_ops {
+	int (*dlyb_enable)(struct sdmmc_dlyb *dlyb);
+	void (*set_input_ck)(struct sdmmc_dlyb *dlyb);
+	int (*tuning_prepare)(struct mmci_host *host);
+	int (*set_cfg)(struct sdmmc_dlyb *dlyb, int unit __maybe_unused,
+		       int phase, bool sampler __maybe_unused);
+};
+
 struct sdmmc_dlyb {
 	void __iomem *base;
 	u32 unit;
 	u32 max;
+	struct sdmmc_tuning_ops *ops;
 };
 
 static int sdmmc_idma_validate_data(struct mmci_host *host,
@@ -69,7 +93,8 @@ static int sdmmc_idma_validate_data(struct mmci_host *host,
 	idma->use_bounce_buffer = false;
 	for_each_sg(data->sg, sg, data->sg_len - 1, i) {
 		if (!IS_ALIGNED(sg->offset, sizeof(u32)) ||
-		    !IS_ALIGNED(sg->length, SDMMC_IDMA_BURST)) {
+		    !IS_ALIGNED(sg->length,
+				host->variant->stm32_idmabsize_align)) {
 			dev_dbg(mmc_dev(host->mmc),
 				"unaligned scatterlist: ofst:%x length:%d\n",
 				data->sg->offset, data->sg->length);
@@ -293,23 +318,13 @@ static void mmci_sdmmc_set_clkreg(struct mmci_host *host, unsigned int desired)
 	clk |= host->clk_reg_add;
 	clk |= ddr;
 
-	/*
-	 * SDMMC_FBCK is selected when an external Delay Block is needed
-	 * with SDR104 or HS200.
-	 */
-	if (host->mmc->ios.timing >= MMC_TIMING_UHS_SDR50) {
+	if (host->mmc->ios.timing >= MMC_TIMING_UHS_SDR50)
 		clk |= MCI_STM32_CLK_BUSSPEED;
-		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
-		    host->mmc->ios.timing == MMC_TIMING_MMC_HS200) {
-			clk &= ~MCI_STM32_CLK_SEL_MSK;
-			clk |= MCI_STM32_CLK_SELFBCK;
-		}
-	}
 
 	mmci_write_clkreg(host, clk);
 }
 
-static void sdmmc_dlyb_input_ck(struct sdmmc_dlyb *dlyb)
+static void sdmmc_dlyb_mp15_input_ck(struct sdmmc_dlyb *dlyb)
 {
 	if (!dlyb || !dlyb->base)
 		return;
@@ -326,7 +341,8 @@ static void mmci_sdmmc_set_pwrreg(struct mmci_host *host, unsigned int pwr)
 	/* adds OF options */
 	pwr = host->pwr_reg_add;
 
-	sdmmc_dlyb_input_ck(dlyb);
+	if (dlyb && dlyb->ops->set_input_ck)
+		dlyb->ops->set_input_ck(dlyb);
 
 	if (ios.power_mode == MMC_POWER_OFF) {
 		/* Only a reset could power-off sdmmc */
@@ -371,6 +387,19 @@ static u32 sdmmc_get_dctrl_cfg(struct mmci_host *host)
 
 	datactrl = mmci_dctrl_blksz(host);
 
+	if (host->hw_revision >= 3) {
+		u32 thr = 0;
+
+		if (host->mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
+		    host->mmc->ios.timing == MMC_TIMING_MMC_HS200) {
+			thr = ffs(min_t(unsigned int, host->data->blksz,
+					host->variant->fifosize));
+			thr = min_t(u32, thr, MMCI_STM32_THR_MASK);
+		}
+
+		writel_relaxed(thr, host->base + MMCI_STM32_FIFOTHRR);
+	}
+
 	if (host->mmc->card && mmc_card_sdio(host->mmc->card) &&
 	    host->data->blocks == 1)
 		datactrl |= MCI_DPSM_STM32_MODE_SDIO;
@@ -382,7 +411,8 @@ static u32 sdmmc_get_dctrl_cfg(struct mmci_host *host)
 	return datactrl;
 }
 
-static bool sdmmc_busy_complete(struct mmci_host *host, u32 status, u32 err_msk)
+static bool sdmmc_busy_complete(struct mmci_host *host, struct mmc_command *cmd,
+				u32 status, u32 err_msk)
 {
 	void __iomem *base = host->base;
 	u32 busy_d0, busy_d0end, mask, sdmmc_status;
@@ -423,8 +453,15 @@ complete:
 	return true;
 }
 
-static void sdmmc_dlyb_set_cfgr(struct sdmmc_dlyb *dlyb,
-				int unit, int phase, bool sampler)
+static int sdmmc_dlyb_mp15_enable(struct sdmmc_dlyb *dlyb)
+{
+	writel_relaxed(DLYB_CR_DEN, dlyb->base + DLYB_CR);
+
+	return 0;
+}
+
+static int sdmmc_dlyb_mp15_set_cfg(struct sdmmc_dlyb *dlyb,
+				   int unit, int phase, bool sampler)
 {
 	u32 cfgr;
 
@@ -436,16 +473,18 @@ static void sdmmc_dlyb_set_cfgr(struct sdmmc_dlyb *dlyb,
 
 	if (!sampler)
 		writel_relaxed(DLYB_CR_DEN, dlyb->base + DLYB_CR);
+
+	return 0;
 }
 
-static int sdmmc_dlyb_lng_tuning(struct mmci_host *host)
+static int sdmmc_dlyb_mp15_prepare(struct mmci_host *host)
 {
 	struct sdmmc_dlyb *dlyb = host->variant_priv;
 	u32 cfgr;
 	int i, lng, ret;
 
 	for (i = 0; i <= DLYB_CFGR_UNIT_MAX; i++) {
-		sdmmc_dlyb_set_cfgr(dlyb, i, DLYB_CFGR_SEL_MAX, true);
+		dlyb->ops->set_cfg(dlyb, i, DLYB_CFGR_SEL_MAX, true);
 
 		ret = readl_relaxed_poll_timeout(dlyb->base + DLYB_CFGR, cfgr,
 						 (cfgr & DLYB_CFGR_LNGF),
@@ -471,14 +510,58 @@ static int sdmmc_dlyb_lng_tuning(struct mmci_host *host)
 	return 0;
 }
 
+static int sdmmc_dlyb_mp25_enable(struct sdmmc_dlyb *dlyb)
+{
+	u32 cr, sr;
+
+	cr = readl_relaxed(dlyb->base + SYSCFG_DLYBSD_CR);
+	cr |= DLYBSD_CR_EN;
+
+	writel_relaxed(cr, dlyb->base + SYSCFG_DLYBSD_CR);
+
+	return readl_relaxed_poll_timeout(dlyb->base + SYSCFG_DLYBSD_SR,
+					   sr, sr & DLYBSD_SR_LOCK, 1,
+					   DLYBSD_TIMEOUT_1S_IN_US);
+}
+
+static int sdmmc_dlyb_mp25_set_cfg(struct sdmmc_dlyb *dlyb,
+				   int unit __maybe_unused, int phase,
+				   bool sampler __maybe_unused)
+{
+	u32 cr, sr;
+
+	cr = readl_relaxed(dlyb->base + SYSCFG_DLYBSD_CR);
+	cr &= ~DLYBSD_CR_RXTAPSEL_MASK;
+	cr |= FIELD_PREP(DLYBSD_CR_RXTAPSEL_MASK, phase);
+
+	writel_relaxed(cr, dlyb->base + SYSCFG_DLYBSD_CR);
+
+	return readl_relaxed_poll_timeout(dlyb->base + SYSCFG_DLYBSD_SR,
+					  sr, sr & DLYBSD_SR_RXTAPSEL_ACK, 1,
+					  DLYBSD_TIMEOUT_1S_IN_US);
+}
+
+static int sdmmc_dlyb_mp25_prepare(struct mmci_host *host)
+{
+	struct sdmmc_dlyb *dlyb = host->variant_priv;
+
+	dlyb->max = DLYBSD_TAPSEL_NB;
+
+	return 0;
+}
+
 static int sdmmc_dlyb_phase_tuning(struct mmci_host *host, u32 opcode)
 {
 	struct sdmmc_dlyb *dlyb = host->variant_priv;
 	int cur_len = 0, max_len = 0, end_of_len = 0;
-	int phase;
+	int phase, ret;
 
 	for (phase = 0; phase <= dlyb->max; phase++) {
-		sdmmc_dlyb_set_cfgr(dlyb, dlyb->unit, phase, false);
+		ret = dlyb->ops->set_cfg(dlyb, dlyb->unit, phase, false);
+		if (ret) {
+			dev_err(mmc_dev(host->mmc), "tuning config failed\n");
+			return ret;
+		}
 
 		if (mmc_send_tuning(host->mmc, opcode, NULL)) {
 			cur_len = 0;
@@ -496,10 +579,15 @@ static int sdmmc_dlyb_phase_tuning(struct mmci_host *host, u32 opcode)
 		return -EINVAL;
 	}
 
-	writel_relaxed(0, dlyb->base + DLYB_CR);
+	if (dlyb->ops->set_input_ck)
+		dlyb->ops->set_input_ck(dlyb);
 
 	phase = end_of_len - max_len / 2;
-	sdmmc_dlyb_set_cfgr(dlyb, dlyb->unit, phase, false);
+	ret = dlyb->ops->set_cfg(dlyb, dlyb->unit, phase, false);
+	if (ret) {
+		dev_err(mmc_dev(host->mmc), "tuning reconfig failed\n");
+		return ret;
+	}
 
 	dev_dbg(mmc_dev(host->mmc), "unit:%d max_dly:%d phase:%d\n",
 		dlyb->unit, dlyb->max, phase);
@@ -511,12 +599,33 @@ static int sdmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct mmci_host *host = mmc_priv(mmc);
 	struct sdmmc_dlyb *dlyb = host->variant_priv;
+	u32 clk;
+	int ret;
+
+	if ((host->mmc->ios.timing != MMC_TIMING_UHS_SDR104 &&
+	     host->mmc->ios.timing != MMC_TIMING_MMC_HS200) ||
+	    host->mmc->actual_clock <= 50000000)
+		return 0;
 
 	if (!dlyb || !dlyb->base)
 		return -EINVAL;
 
-	if (sdmmc_dlyb_lng_tuning(host))
-		return -EINVAL;
+	ret = dlyb->ops->dlyb_enable(dlyb);
+	if (ret)
+		return ret;
+
+	/*
+	 * SDMMC_FBCK is selected when an external Delay Block is needed
+	 * with SDR104 or HS200.
+	 */
+	clk = host->clk_reg;
+	clk &= ~MCI_STM32_CLK_SEL_MSK;
+	clk |= MCI_STM32_CLK_SELFBCK;
+	mmci_write_clkreg(host, clk);
+
+	ret = dlyb->ops->tuning_prepare(host);
+	if (ret)
+		return ret;
 
 	return sdmmc_dlyb_phase_tuning(host, opcode);
 }
@@ -574,6 +683,19 @@ static struct mmci_host_ops sdmmc_variant_ops = {
 	.post_sig_volt_switch = sdmmc_post_sig_volt_switch,
 };
 
+static struct sdmmc_tuning_ops dlyb_tuning_mp15_ops = {
+	.dlyb_enable = sdmmc_dlyb_mp15_enable,
+	.set_input_ck = sdmmc_dlyb_mp15_input_ck,
+	.tuning_prepare = sdmmc_dlyb_mp15_prepare,
+	.set_cfg = sdmmc_dlyb_mp15_set_cfg,
+};
+
+static struct sdmmc_tuning_ops dlyb_tuning_mp25_ops = {
+	.dlyb_enable = sdmmc_dlyb_mp25_enable,
+	.tuning_prepare = sdmmc_dlyb_mp25_prepare,
+	.set_cfg = sdmmc_dlyb_mp25_set_cfg,
+};
+
 void sdmmc_variant_init(struct mmci_host *host)
 {
 	struct device_node *np = host->mmc->parent->of_node;
@@ -592,6 +714,11 @@ void sdmmc_variant_init(struct mmci_host *host)
 		return;
 
 	dlyb->base = base_dlyb;
+	if (of_device_is_compatible(np, "st,stm32mp25-sdmmc2"))
+		dlyb->ops = &dlyb_tuning_mp25_ops;
+	else
+		dlyb->ops = &dlyb_tuning_mp15_ops;
+
 	host->variant_priv = dlyb;
 	host->mmc_ops->execute_tuning = sdmmc_execute_tuning;
 }

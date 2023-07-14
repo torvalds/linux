@@ -13,6 +13,8 @@ struct sof_ipc_cmd_hdr;
 struct snd_sof_dev;
 struct dentry;
 
+struct sof_ipc4_fw_module;
+
 /**
  * struct sof_client_dev - SOF client device
  * @auxdev:	auxiliary device
@@ -37,6 +39,14 @@ struct sof_client_dev {
 
 int sof_client_ipc_tx_message(struct sof_client_dev *cdev, void *ipc_msg,
 			      void *reply_data, size_t reply_bytes);
+static inline int sof_client_ipc_tx_message_no_reply(struct sof_client_dev *cdev, void *ipc_msg)
+{
+	return sof_client_ipc_tx_message(cdev, ipc_msg, NULL, 0);
+}
+int sof_client_ipc_set_get_data(struct sof_client_dev *cdev, void *ipc_msg,
+				bool set);
+
+struct sof_ipc4_fw_module *sof_client_ipc4_find_module(struct sof_client_dev *c, const guid_t *u);
 
 struct dentry *sof_client_get_debugfs_root(struct sof_client_dev *cdev);
 struct device *sof_client_get_dma_dev(struct sof_client_dev *cdev);
@@ -65,5 +75,6 @@ int sof_client_register_fw_state_handler(struct sof_client_dev *cdev,
 					 sof_client_fw_state_callback callback);
 void sof_client_unregister_fw_state_handler(struct sof_client_dev *cdev);
 enum sof_fw_state sof_client_get_fw_state(struct sof_client_dev *cdev);
+int sof_client_ipc_rx_message(struct sof_client_dev *cdev, void *ipc_msg, void *msg_buf);
 
 #endif /* __SOC_SOF_CLIENT_H */

@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/Devicetree/changesets.rst
+:Original: Documentation/devicetree/changesets.rst
 
 :翻译:
 

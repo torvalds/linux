@@ -291,6 +291,7 @@ int armada_370_xp_pmsu_idle_enter(unsigned long deepidle)
 
 	/* Test the CR_C bit and set it if it was cleared */
 	asm volatile(
+	".arch	armv7-a\n\t"
 	"mrc	p15, 0, r0, c1, c0, 0 \n\t"
 	"tst	r0, %0 \n\t"
 	"orreq	r0, r0, #(1 << 2) \n\t"

@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - qcom,dsi-phy-14nm
+      - qcom,dsi-phy-14nm-2290
       - qcom,dsi-phy-14nm-660
       - qcom,dsi-phy-14nm-8953
 
@@ -38,7 +39,6 @@ required:
   - compatible
   - reg
   - reg-names
-  - vcca-supply
 
 unevaluatedProperties: false
 

@@ -120,10 +120,17 @@
  * 16-bit immediate helper macros: HA() is for use with sign-extending instrs
  * (e.g. LD, ADDI).  If the bottom 16 bits is "-ve", add another bit into the
  * top half to negate the effect (i.e. 0xffff + 1 = 0x(1)0000).
+ *
+ * XXX: should these mask out possible sign bits?
  */
 #define IMM_H(i)                ((uintptr_t)(i)>>16)
 #define IMM_HA(i)               (((uintptr_t)(i)>>16) +                       \
 					(((uintptr_t)(i) & 0x8000) >> 15))
+
+/*
+ * 18-bit immediate helper for prefix 18-bit upper immediate si0 field.
+ */
+#define IMM_H18(i)              (((uintptr_t)(i)>>16) & 0x3ffff)
 
 
 /* opcode and xopcode for instructions */
@@ -215,6 +222,7 @@
 #define OP_31_XOP_STFSX	    663
 #define OP_31_XOP_STFSUX    695
 #define OP_31_XOP_STFDX     727
+#define OP_31_XOP_HASHCHK   754
 #define OP_31_XOP_STFDUX    759
 #define OP_31_XOP_LHBRX     790
 #define OP_31_XOP_LFIWAX    855
@@ -306,6 +314,7 @@
 #define PPC_PREFIX_8LS			0x04000000
 
 /* Prefixed instructions */
+#define PPC_INST_PADDI			0x38000000
 #define PPC_INST_PLD			0xe4000000
 #define PPC_INST_PSTD			0xf4000000
 
@@ -330,6 +339,7 @@
 #define __PPC_XSP(s)	((((s) & 0x1e) | (((s) >> 5) & 0x1)) << 21)
 #define __PPC_XTP(s)	__PPC_XSP(s)
 #define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
+#define __PPC_PL(p)	(((p) & 0x3) << 16)
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
@@ -388,7 +398,8 @@
 #define PPC_RAW_RFDI			(0x4c00004e)
 #define PPC_RAW_RFMCI			(0x4c00004c)
 #define PPC_RAW_TLBILX(t, a, b)		(0x7c000024 | __PPC_T_TLB(t) | 	__PPC_RA0(a) | __PPC_RB(b))
-#define PPC_RAW_WAIT(w)			(0x7c00007c | __PPC_WC(w))
+#define PPC_RAW_WAIT_v203		(0x7c00007c)
+#define PPC_RAW_WAIT(w, p)		(0x7c00003c | __PPC_WC(w) | __PPC_PL(p))
 #define PPC_RAW_TLBIE(lp, a)		(0x7c000264 | ___PPC_RB(a) | ___PPC_RS(lp))
 #define PPC_RAW_TLBIE_5(rb, rs, ric, prs, r) \
 	(0x7c000264 | ___PPC_RB(rb) | ___PPC_RS(rs) | ___PPC_RIC(ric) | ___PPC_PRS(prs) | ___PPC_R(r))
@@ -606,7 +617,8 @@
 #define PPC_TLBILX_ALL(a, b)	PPC_TLBILX(0, a, b)
 #define PPC_TLBILX_PID(a, b)	PPC_TLBILX(1, a, b)
 #define PPC_TLBILX_VA(a, b)	PPC_TLBILX(3, a, b)
-#define PPC_WAIT(w)		stringify_in_c(.long PPC_RAW_WAIT(w))
+#define PPC_WAIT_v203		stringify_in_c(.long PPC_RAW_WAIT_v203)
+#define PPC_WAIT(w, p)		stringify_in_c(.long PPC_RAW_WAIT(w, p))
 #define PPC_TLBIE(lp, a) 	stringify_in_c(.long PPC_RAW_TLBIE(lp, a))
 #define	PPC_TLBIE_5(rb, rs, ric, prs, r) \
 				stringify_in_c(.long PPC_RAW_TLBIE_5(rb, rs, ric, prs, r))

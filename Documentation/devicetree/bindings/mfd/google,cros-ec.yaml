@@ -20,19 +20,24 @@ properties:
   compatible:
     oneOf:
       - description:
-          For implementations of the EC is connected through I2C.
+          For implementations of the EC connected through I2C.
         const: google,cros-ec-i2c
       - description:
-          For implementations of the EC is connected through SPI.
+          For implementations of the EC connected through SPI.
         const: google,cros-ec-spi
       - description:
-          For implementations of the EC is connected through RPMSG.
+          For implementations of the FPMCU connected through SPI.
+        items:
+          - const: google,cros-ec-fp
+          - const: google,cros-ec-spi
+      - description:
+          For implementations of the EC connected through RPMSG.
         const: google,cros-ec-rpmsg
+      - description:
+          For implementations of the EC connected through UART.
+        const: google,cros-ec-uart
 
-  controller-data:
-    description:
-      SPI controller data, see bindings/spi/samsung,spi-peripheral-props.yaml
-    type: object
+  controller-data: true
 
   google,cros-ec-spi-pre-delay:
     description:
@@ -60,16 +65,24 @@ properties:
       ARM Cortex M4 Co-processor. Contains the name of the rpmsg
       device. Used to match the subnode to the rpmsg device announced by
       the SCP.
-    $ref: "/schemas/types.yaml#/definitions/string"
+    $ref: /schemas/types.yaml#/definitions/string
 
-  spi-max-frequency:
-    description: Maximum SPI frequency of the device in Hz.
+  spi-max-frequency: true
 
   reg:
     maxItems: 1
 
   interrupts:
     maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  boot0-gpios:
+    maxItems: 1
+    description: Assert for bootloader mode.
+
+  vdd-supply: true
 
   wakeup-source:
     description: Button can wake-up the system.
@@ -81,23 +94,23 @@ properties:
     const: 0
 
   typec:
-    $ref: "/schemas/chrome/google,cros-ec-typec.yaml#"
+    $ref: /schemas/chrome/google,cros-ec-typec.yaml#
 
   ec-pwm:
-    $ref: "/schemas/pwm/google,cros-ec-pwm.yaml#"
+    $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
     deprecated: true
 
   pwm:
-    $ref: "/schemas/pwm/google,cros-ec-pwm.yaml#"
+    $ref: /schemas/pwm/google,cros-ec-pwm.yaml#
 
   kbd-led-backlight:
-    $ref: "/schemas/chrome/google,cros-kbd-led-backlight.yaml#"
+    $ref: /schemas/chrome/google,cros-kbd-led-backlight.yaml#
 
   keyboard-controller:
-    $ref: "/schemas/input/google,cros-ec-keyb.yaml#"
+    $ref: /schemas/input/google,cros-ec-keyb.yaml#
 
   proximity:
-    $ref: "/schemas/iio/proximity/google,cros-ec-mkbp-proximity.yaml#"
+    $ref: /schemas/iio/proximity/google,cros-ec-mkbp-proximity.yaml#
 
   codecs:
     type: object
@@ -113,7 +126,7 @@ properties:
     patternProperties:
       "^ec-codec@[a-f0-9]+$":
         type: object
-        $ref: "/schemas/sound/google,cros-ec-codec.yaml#"
+        $ref: /schemas/sound/google,cros-ec-codec.yaml#
 
     required:
       - "#address-cells"
@@ -138,15 +151,15 @@ properties:
 patternProperties:
   "^i2c-tunnel[0-9]*$":
     type: object
-    $ref: "/schemas/i2c/google,cros-ec-i2c-tunnel.yaml#"
+    $ref: /schemas/i2c/google,cros-ec-i2c-tunnel.yaml#
 
   "^regulator@[0-9]+$":
     type: object
-    $ref: "/schemas/regulator/google,cros-ec-regulator.yaml#"
+    $ref: /schemas/regulator/google,cros-ec-regulator.yaml#
 
   "^extcon[0-9]*$":
     type: object
-    $ref: "/schemas/extcon/extcon-usbc-cros-ec.yaml#"
+    $ref: /schemas/extcon/extcon-usbc-cros-ec.yaml#
 
 required:
   - compatible
@@ -155,17 +168,75 @@ allOf:
   - if:
       properties:
         compatible:
-          contains:
-            enum:
-              - google,cros-ec-i2c
-              - google,cros-ec-rpmsg
+          not:
+            contains:
+              const: google,cros-ec-spi
     then:
       properties:
+        controller-data: false
         google,cros-ec-spi-pre-delay: false
         google,cros-ec-spi-msg-delay: false
         spi-max-frequency: false
     else:
       $ref: /schemas/spi/spi-peripheral-props.yaml
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              const: google,cros-ec-rpmsg
+    then:
+      properties:
+        mediatek,rpmsg-name: false
+
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - google,cros-ec-rpmsg
+                - google,cros-ec-uart
+    then:
+      required:
+        - reg
+        - interrupts
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: google,cros-ec-fp
+    then:
+      properties:
+        '#address-cells': false
+        '#size-cells': false
+        typec: false
+        ec-pwm: false
+        kbd-led-backlight: false
+        keyboard-controller: false
+        proximity: false
+        codecs: false
+        cbas: false
+
+      patternProperties:
+        "^i2c-tunnel[0-9]*$": false
+        "^regulator@[0-9]+$": false
+        "^extcon[0-9]*$": false
+
+      # Using additionalProperties: false here and
+      # listing true properties doesn't work
+
+      required:
+        - reset-gpios
+        - boot0-gpios
+        - vdd-supply
+    else:
+      properties:
+        reset-gpios: false
+        boot0-gpios: false
+        vdd-supply: false
 
 additionalProperties: false
 
@@ -175,7 +246,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -192,7 +263,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -220,6 +291,32 @@ examples:
     scp0 {
         cros-ec {
             compatible = "google,cros-ec-rpmsg";
+        };
+    };
+
+  # Example for FPMCU
+  - |
+    spi {
+      #address-cells = <0x1>;
+      #size-cells = <0x0>;
+
+      ec@0 {
+        compatible = "google,cros-ec-fp", "google,cros-ec-spi";
+        reg = <0x0>;
+        interrupt-parent = <&gpio_controller>;
+        interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+        spi-max-frequency = <3000000>;
+        reset-gpios = <&gpio_controller 5 GPIO_ACTIVE_LOW>;
+        boot0-gpios = <&gpio_controller 10 GPIO_ACTIVE_HIGH>;
+        vdd-supply = <&pp3300_fp_mcu>;
+      };
+    };
+
+  # Example for UART
+  - |
+    serial {
+        cros-ec {
+            compatible = "google,cros-ec-uart";
         };
     };
 ...

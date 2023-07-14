@@ -179,12 +179,15 @@ int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->compact_delay_total = (tmp < d->compact_delay_total) ? 0 : tmp;
 	tmp = d->wpcopy_delay_total + tsk->delays->wpcopy_delay;
 	d->wpcopy_delay_total = (tmp < d->wpcopy_delay_total) ? 0 : tmp;
+	tmp = d->irq_delay_total + tsk->delays->irq_delay;
+	d->irq_delay_total = (tmp < d->irq_delay_total) ? 0 : tmp;
 	d->blkio_count += tsk->delays->blkio_count;
 	d->swapin_count += tsk->delays->swapin_count;
 	d->freepages_count += tsk->delays->freepages_count;
 	d->thrashing_count += tsk->delays->thrashing_count;
 	d->compact_count += tsk->delays->compact_count;
 	d->wpcopy_count += tsk->delays->wpcopy_count;
+	d->irq_count += tsk->delays->irq_count;
 	raw_spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
 	return 0;
@@ -214,13 +217,22 @@ void __delayacct_freepages_end(void)
 		      &current->delays->freepages_count);
 }
 
-void __delayacct_thrashing_start(void)
+void __delayacct_thrashing_start(bool *in_thrashing)
 {
+	*in_thrashing = !!current->in_thrashing;
+	if (*in_thrashing)
+		return;
+
+	current->in_thrashing = 1;
 	current->delays->thrashing_start = local_clock();
 }
 
-void __delayacct_thrashing_end(void)
+void __delayacct_thrashing_end(bool *in_thrashing)
 {
+	if (*in_thrashing)
+		return;
+
+	current->in_thrashing = 0;
 	delayacct_end(&current->delays->lock,
 		      &current->delays->thrashing_start,
 		      &current->delays->thrashing_delay,
@@ -265,3 +277,14 @@ void __delayacct_wpcopy_end(void)
 		      &current->delays->wpcopy_delay,
 		      &current->delays->wpcopy_count);
 }
+
+void __delayacct_irq(struct task_struct *task, u32 delta)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&task->delays->lock, flags);
+	task->delays->irq_delay += delta;
+	task->delays->irq_count++;
+	raw_spin_unlock_irqrestore(&task->delays->lock, flags);
+}
+

@@ -157,7 +157,7 @@ static int gpio_vibrator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused gpio_vibrator_suspend(struct device *dev)
+static int gpio_vibrator_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_vibrator *vibrator = platform_get_drvdata(pdev);
@@ -169,7 +169,7 @@ static int __maybe_unused gpio_vibrator_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused gpio_vibrator_resume(struct device *dev)
+static int gpio_vibrator_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_vibrator *vibrator = platform_get_drvdata(pdev);
@@ -180,8 +180,8 @@ static int __maybe_unused gpio_vibrator_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(gpio_vibrator_pm_ops,
-			 gpio_vibrator_suspend, gpio_vibrator_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(gpio_vibrator_pm_ops,
+				gpio_vibrator_suspend, gpio_vibrator_resume);
 
 #ifdef CONFIG_OF
 static const struct of_device_id gpio_vibra_dt_match_table[] = {
@@ -195,7 +195,7 @@ static struct platform_driver gpio_vibrator_driver = {
 	.probe	= gpio_vibrator_probe,
 	.driver	= {
 		.name	= "gpio-vibrator",
-		.pm	= &gpio_vibrator_pm_ops,
+		.pm	= pm_sleep_ptr(&gpio_vibrator_pm_ops),
 		.of_match_table = of_match_ptr(gpio_vibra_dt_match_table),
 	},
 };

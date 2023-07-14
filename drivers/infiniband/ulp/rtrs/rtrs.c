@@ -37,8 +37,10 @@ struct rtrs_iu *rtrs_iu_alloc(u32 iu_num, size_t size, gfp_t gfp_mask,
 			goto err;
 
 		iu->dma_addr = ib_dma_map_single(dma_dev, iu->buf, size, dir);
-		if (ib_dma_mapping_error(dma_dev, iu->dma_addr))
+		if (ib_dma_mapping_error(dma_dev, iu->dma_addr)) {
+			kfree(iu->buf);
 			goto err;
+		}
 
 		iu->cqe.done  = done;
 		iu->size      = size;
@@ -175,7 +177,7 @@ int rtrs_iu_post_rdma_write_imm(struct rtrs_con *con, struct rtrs_iu *iu,
 	 * length error
 	 */
 	for (i = 0; i < num_sge; i++)
-		if (WARN_ON(sge[i].length == 0))
+		if (WARN_ONCE(sge[i].length == 0, "sg %d is zero length\n", i))
 			return -EINVAL;
 
 	return rtrs_post_send(con->qp, head, &wr.wr, tail);
@@ -557,7 +559,6 @@ EXPORT_SYMBOL(rtrs_addr_to_sockaddr);
 void rtrs_rdma_dev_pd_init(enum ib_pd_flags pd_flags,
 			    struct rtrs_rdma_dev_pd *pool)
 {
-	WARN_ON(pool->ops && (!pool->ops->alloc ^ !pool->ops->free));
 	INIT_LIST_HEAD(&pool->list);
 	mutex_init(&pool->mutex);
 	pool->pd_flags = pd_flags;
@@ -583,15 +584,8 @@ static void dev_free(struct kref *ref)
 	list_del(&dev->entry);
 	mutex_unlock(&pool->mutex);
 
-	if (pool->ops && pool->ops->deinit)
-		pool->ops->deinit(dev);
-
 	ib_dealloc_pd(dev->ib_pd);
-
-	if (pool->ops && pool->ops->free)
-		pool->ops->free(dev);
-	else
-		kfree(dev);
+	kfree(dev);
 }
 
 int rtrs_ib_dev_put(struct rtrs_ib_dev *dev)
@@ -618,11 +612,8 @@ rtrs_ib_dev_find_or_add(struct ib_device *ib_dev,
 			goto out_unlock;
 	}
 	mutex_unlock(&pool->mutex);
-	if (pool->ops && pool->ops->alloc)
-		dev = pool->ops->alloc();
-	else
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(dev))
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
 		goto out_err;
 
 	kref_init(&dev->ref);
@@ -644,10 +635,7 @@ out_unlock:
 out_free_pd:
 	ib_dealloc_pd(dev->ib_pd);
 out_free_dev:
-	if (pool->ops && pool->ops->free)
-		pool->ops->free(dev);
-	else
-		kfree(dev);
+	kfree(dev);
 out_err:
 	return NULL;
 }

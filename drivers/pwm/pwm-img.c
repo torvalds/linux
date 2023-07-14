@@ -161,9 +161,9 @@ static int img_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	val |= BIT(pwm->hwpwm);
 	img_pwm_writel(imgchip, PWM_CTRL_CFG, val);
 
-	regmap_update_bits(imgchip->periph_regs, PERIP_PWM_PDM_CONTROL,
-			   PERIP_PWM_PDM_CONTROL_CH_MASK <<
-			   PERIP_PWM_PDM_CONTROL_CH_SHIFT(pwm->hwpwm), 0);
+	regmap_clear_bits(imgchip->periph_regs, PERIP_PWM_PDM_CONTROL,
+			  PERIP_PWM_PDM_CONTROL_CH_MASK <<
+			  PERIP_PWM_PDM_CONTROL_CH_SHIFT(pwm->hwpwm));
 
 	return 0;
 }
@@ -343,7 +343,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int img_pwm_remove(struct platform_device *pdev)
+static void img_pwm_remove(struct platform_device *pdev)
 {
 	struct img_pwm_chip *imgchip = platform_get_drvdata(pdev);
 
@@ -352,8 +352,6 @@ static int img_pwm_remove(struct platform_device *pdev)
 		img_pwm_runtime_suspend(&pdev->dev);
 
 	pwmchip_remove(&imgchip->chip);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -397,11 +395,10 @@ static int img_pwm_resume(struct device *dev)
 
 	for (i = 0; i < imgchip->chip.npwm; i++)
 		if (imgchip->suspend_ctrl_cfg & BIT(i))
-			regmap_update_bits(imgchip->periph_regs,
-					   PERIP_PWM_PDM_CONTROL,
-					   PERIP_PWM_PDM_CONTROL_CH_MASK <<
-					   PERIP_PWM_PDM_CONTROL_CH_SHIFT(i),
-					   0);
+			regmap_clear_bits(imgchip->periph_regs,
+					  PERIP_PWM_PDM_CONTROL,
+					  PERIP_PWM_PDM_CONTROL_CH_MASK <<
+					  PERIP_PWM_PDM_CONTROL_CH_SHIFT(i));
 
 	if (pm_runtime_status_suspended(dev))
 		img_pwm_runtime_suspend(dev);
@@ -424,7 +421,7 @@ static struct platform_driver img_pwm_driver = {
 		.of_match_table = img_pwm_of_match,
 	},
 	.probe = img_pwm_probe,
-	.remove = img_pwm_remove,
+	.remove_new = img_pwm_remove,
 };
 module_platform_driver(img_pwm_driver);
 

@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -28,15 +29,8 @@ struct sdw_group {
 	unsigned int *rates;
 };
 
-struct sdw_transport_data {
-	int hstart;
-	int hstop;
-	int block_offset;
-	int sub_block_offset;
-};
-
-static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
-				    struct sdw_transport_data *t_data)
+void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
+			     struct sdw_transport_data *t_data)
 {
 	struct sdw_slave_runtime *s_rt = NULL;
 	struct sdw_port_runtime *p_rt;
@@ -54,7 +48,7 @@ static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 		slave_total_ch = 0;
 
 		list_for_each_entry(p_rt, &s_rt->port_list, port_node) {
-			ch = sdw_ch_mask_to_ch(p_rt->ch_mask);
+			ch = hweight32(p_rt->ch_mask);
 
 			sdw_fill_xport_params(&p_rt->transport_params,
 					      p_rt->num, false,
@@ -85,6 +79,7 @@ static void sdw_compute_slave_ports(struct sdw_master_runtime *m_rt,
 		}
 	}
 }
+EXPORT_SYMBOL(sdw_compute_slave_ports);
 
 static void sdw_compute_master_ports(struct sdw_master_runtime *m_rt,
 				     struct sdw_group_params *params,
@@ -144,20 +139,16 @@ static void _sdw_compute_port_params(struct sdw_bus *bus,
 {
 	struct sdw_master_runtime *m_rt;
 	int hstop = bus->params.col - 1;
-	int block_offset, port_bo, i;
+	int port_bo, i;
 
 	/* Run loop for all groups to compute transport parameters */
 	for (i = 0; i < count; i++) {
 		port_bo = 1;
-		block_offset = 1;
 
 		list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
-			sdw_compute_master_ports(m_rt, &params[i],
-						 port_bo, hstop);
+			sdw_compute_master_ports(m_rt, &params[i], port_bo, hstop);
 
-			block_offset += m_rt->ch_count *
-					m_rt->stream->params.bps;
-			port_bo = block_offset;
+			port_bo += m_rt->ch_count * m_rt->stream->params.bps;
 		}
 
 		hstop = hstop - params[i].hwidth;

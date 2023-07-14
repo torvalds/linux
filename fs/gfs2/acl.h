@@ -13,7 +13,7 @@
 
 extern struct posix_acl *gfs2_get_acl(struct inode *inode, int type, bool rcu);
 extern int __gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type);
-extern int gfs2_set_acl(struct user_namespace *mnt_userns, struct inode *inode,
+extern int gfs2_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 			struct posix_acl *acl, int type);
 
 #endif /* __ACL_DOT_H__ */

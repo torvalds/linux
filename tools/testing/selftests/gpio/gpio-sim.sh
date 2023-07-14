@@ -27,7 +27,7 @@ remove_chip() {
 			continue
 		fi
 
-		LINES=`ls $CONFIGFS_DIR/$CHIP/$BANK/ | egrep ^line`
+		LINES=`ls $CONFIGFS_DIR/$CHIP/$BANK/ | grep -E ^line`
 		if [ "$?" = 0 ]; then
 			for LINE in $LINES; do
 				if [ -e $CONFIGFS_DIR/$CHIP/$BANK/$LINE/hog ]; then
@@ -152,9 +152,9 @@ sysfs_set_pull() {
 	local PULL=$4
 	local DEVNAME=`configfs_dev_name $DEV`
 	local CHIPNAME=`configfs_chip_name $DEV $BANK`
-	local SYSFSPATH="/sys/devices/platform/$DEVNAME/$CHIPNAME/sim_gpio$OFFSET/pull"
+	local SYSFS_PATH="/sys/devices/platform/$DEVNAME/$CHIPNAME/sim_gpio$OFFSET/pull"
 
-	echo $PULL > $SYSFSPATH || fail "Unable to set line pull in sysfs"
+	echo $PULL > $SYSFS_PATH || fail "Unable to set line pull in sysfs"
 }
 
 # Load the gpio-sim module. This will pull in configfs if needed too.
@@ -389,6 +389,9 @@ create_chip chip
 create_bank chip bank
 set_num_lines chip bank 8
 enable_chip chip
+DEVNAME=`configfs_dev_name chip`
+CHIPNAME=`configfs_chip_name chip bank`
+SYSFS_PATH="/sys/devices/platform/$DEVNAME/$CHIPNAME/sim_gpio0/value"
 $BASE_DIR/gpio-mockup-cdev -b pull-up /dev/`configfs_chip_name chip bank` 0
 test `cat $SYSFS_PATH` = "1" || fail "bias setting does not work"
 remove_chip chip

@@ -77,15 +77,17 @@ Frequently Asked Questions
   search for the string "Patent" in Documentation/RCU/RTFP.txt to find them.
   Of these, one was allowed to lapse by the assignee, and the
   others have been contributed to the Linux kernel under GPL.
+  Many (but not all) have long since expired.
   There are now also LGPL implementations of user-level RCU
   available (https://liburcu.org/).
 
 - I hear that RCU needs work in order to support realtime kernels?
 
-  Realtime-friendly RCU can be enabled via the CONFIG_PREEMPT_RCU
+  Realtime-friendly RCU are enabled via the CONFIG_PREEMPTION
   kernel configuration parameter.
 
 - Where can I find more information on RCU?
 
   See the Documentation/RCU/RTFP.txt file.
-  Or point your browser at (http://www.rdrop.com/users/paulmck/RCU/).
+  Or point your browser at (https://docs.google.com/document/d/1X0lThx8OK0ZgLMqVoXiR4ZrGURHrXK6NyLRbeXe3Xac/edit)
+  or (https://docs.google.com/document/d/1GCdQC8SDbb54W1shjEXqGZ0Rq8a6kIeYutdSIajfpLA/edit?usp=sharing).

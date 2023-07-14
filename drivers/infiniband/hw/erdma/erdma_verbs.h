@@ -7,19 +7,11 @@
 #ifndef __ERDMA_VERBS_H__
 #define __ERDMA_VERBS_H__
 
-#include <linux/errno.h>
-
-#include <rdma/ib_verbs.h>
-#include <rdma/ib_user_verbs.h>
-#include <rdma/iw_cm.h>
-
 #include "erdma.h"
-#include "erdma_cm.h"
-#include "erdma_hw.h"
 
 /* RDMA Capability. */
 #define ERDMA_MAX_PD (128 * 1024)
-#define ERDMA_MAX_SEND_WR 4096
+#define ERDMA_MAX_SEND_WR 8192
 #define ERDMA_MAX_ORD 128
 #define ERDMA_MAX_IRD 128
 #define ERDMA_MAX_SGE_RD 1
@@ -39,13 +31,18 @@ struct erdma_user_mmap_entry {
 	u8 mmap_flag;
 };
 
+struct erdma_ext_db_info {
+	bool enable;
+	u16 sdb_off;
+	u16 rdb_off;
+	u16 cdb_off;
+};
+
 struct erdma_ucontext {
 	struct ib_ucontext ibucontext;
 
-	u32 sdb_type;
-	u32 sdb_idx;
-	u32 sdb_page_idx;
-	u32 sdb_page_off;
+	struct erdma_ext_db_info ext_db;
+
 	u64 sdb;
 	u64 rdb;
 	u64 cdb;
@@ -79,16 +76,18 @@ struct erdma_pd {
 #define ERDMA_MR_INLINE_MTT 0
 #define ERDMA_MR_INDIRECT_MTT 1
 
-#define ERDMA_MR_ACC_LR BIT(0)
-#define ERDMA_MR_ACC_LW BIT(1)
-#define ERDMA_MR_ACC_RR BIT(2)
-#define ERDMA_MR_ACC_RW BIT(3)
+#define ERDMA_MR_ACC_RA BIT(0)
+#define ERDMA_MR_ACC_LR BIT(1)
+#define ERDMA_MR_ACC_LW BIT(2)
+#define ERDMA_MR_ACC_RR BIT(3)
+#define ERDMA_MR_ACC_RW BIT(4)
 
 static inline u8 to_erdma_access_flags(int access)
 {
 	return (access & IB_ACCESS_REMOTE_READ ? ERDMA_MR_ACC_RR : 0) |
 	       (access & IB_ACCESS_LOCAL_WRITE ? ERDMA_MR_ACC_LW : 0) |
-	       (access & IB_ACCESS_REMOTE_WRITE ? ERDMA_MR_ACC_RW : 0);
+	       (access & IB_ACCESS_REMOTE_WRITE ? ERDMA_MR_ACC_RW : 0) |
+	       (access & IB_ACCESS_REMOTE_ATOMIC ? ERDMA_MR_ACC_RA : 0);
 }
 
 struct erdma_mem {
@@ -179,6 +178,10 @@ enum erdma_qp_attr_mask {
 	ERDMA_QP_ATTR_MPA = (1 << 7)
 };
 
+enum erdma_qp_flags {
+	ERDMA_QP_IN_FLUSHING = (1 << 0),
+};
+
 struct erdma_qp_attrs {
 	enum erdma_qp_state state;
 	enum erdma_cc_alg cc; /* Congestion control algorithm */
@@ -202,6 +205,9 @@ struct erdma_qp {
 	struct erdma_dev *dev;
 	struct erdma_cep *cep;
 	struct rw_semaphore state_lock;
+
+	unsigned long flags;
+	struct delayed_work reflush_dwork;
 
 	union {
 		struct erdma_kqp kern_qp;
@@ -338,5 +344,6 @@ struct ib_mr *erdma_ib_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		    unsigned int *sg_offset);
 void erdma_port_event(struct erdma_dev *dev, enum ib_event_type reason);
+void erdma_set_mtu(struct erdma_dev *dev, u32 mtu);
 
 #endif

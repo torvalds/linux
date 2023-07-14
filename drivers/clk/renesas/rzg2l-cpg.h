@@ -32,9 +32,6 @@
 #define CPG_SIPLL5_STBY_RESETB_WEN	BIT(16)
 #define CPG_SIPLL5_STBY_SSCG_EN_WEN	BIT(18)
 #define CPG_SIPLL5_STBY_DOWNSPREAD_WEN	BIT(20)
-#define CPG_SIPLL5_CLK1_POSTDIV1_WEN	BIT(16)
-#define CPG_SIPLL5_CLK1_POSTDIV2_WEN	BIT(20)
-#define CPG_SIPLL5_CLK1_REFDIV_WEN	BIT(24)
 #define CPG_SIPLL5_CLK4_RESV_LSB	(0xFF)
 #define CPG_SIPLL5_MON_PLL5_LOCK	BIT(4)
 
@@ -255,6 +252,10 @@ struct rzg2l_cpg_info {
 	const struct rzg2l_mod_clk *mod_clks;
 	unsigned int num_mod_clks;
 	unsigned int num_hw_mod_clks;
+
+	/* No PM Module Clocks */
+	const unsigned int *no_pm_mod_clks;
+	unsigned int num_no_pm_mod_clks;
 
 	/* Resets */
 	const struct rzg2l_reset *resets;

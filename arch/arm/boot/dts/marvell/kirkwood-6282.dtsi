@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: GPL-2.0
+/ {
+	mbus@f1000000 {
+		pciec: pcie@82000000 {
+			compatible = "marvell,kirkwood-pcie";
+			status = "disabled";
+			device_type = "pci";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			bus-range = <0x00 0xff>;
+
+			ranges =
+			       <0x82000000 0 0x40000 MBUS_ID(0xf0, 0x01) 0x40000 0 0x00002000
+			        0x82000000 0 0x44000 MBUS_ID(0xf0, 0x01) 0x44000 0 0x00002000
+				0x82000000 0 0x80000 MBUS_ID(0xf0, 0x01) 0x80000 0 0x00002000
+				0x82000000 0x1 0     MBUS_ID(0x04, 0xe8) 0       1 0 /* Port 0.0 MEM */
+				0x81000000 0x1 0     MBUS_ID(0x04, 0xe0) 0       1 0 /* Port 0.0 IO  */
+				0x82000000 0x2 0     MBUS_ID(0x04, 0xd8) 0       1 0 /* Port 1.0 MEM */
+				0x81000000 0x2 0     MBUS_ID(0x04, 0xd0) 0       1 0 /* Port 1.0 IO  */>;
+
+			pcie0: pcie@1,0 {
+				device_type = "pci";
+				assigned-addresses = <0x82000800 0 0x00040000 0 0x2000>;
+				reg = <0x0800 0 0 0 0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <1>;
+				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
+					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
+				interrupt-names = "intx", "error";
+				interrupts = <9>, <44>;
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0 0 0 1 &pcie0_intc 0>,
+						<0 0 0 2 &pcie0_intc 1>,
+						<0 0 0 3 &pcie0_intc 2>,
+						<0 0 0 4 &pcie0_intc 3>;
+				marvell,pcie-port = <0>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gate_clk 2>;
+				status = "disabled";
+
+				pcie0_intc: interrupt-controller {
+					interrupt-controller;
+					#interrupt-cells = <1>;
+				};
+			};
+
+			pcie1: pcie@2,0 {
+				device_type = "pci";
+				assigned-addresses = <0x82001000 0 0x00044000 0 0x2000>;
+				reg = <0x1000 0 0 0 0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <1>;
+				ranges = <0x82000000 0 0 0x82000000 0x2 0 1 0
+					  0x81000000 0 0 0x81000000 0x2 0 1 0>;
+				bus-range = <0x00 0xff>;
+				interrupt-names = "intx", "error";
+				interrupts = <10>, <45>;
+				interrupt-map-mask = <0 0 0 7>;
+				interrupt-map = <0 0 0 1 &pcie1_intc 0>,
+						<0 0 0 2 &pcie1_intc 1>,
+						<0 0 0 3 &pcie1_intc 2>,
+						<0 0 0 4 &pcie1_intc 3>;
+				marvell,pcie-port = <1>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gate_clk 18>;
+				status = "disabled";
+
+				pcie1_intc: interrupt-controller {
+					interrupt-controller;
+					#interrupt-cells = <1>;
+				};
+			};
+		};
+	};
+	ocp@f1000000 {
+
+		pinctrl: pin-controller@10000 {
+			compatible = "marvell,88f6282-pinctrl";
+
+			pmx_sata0: pmx-sata0 {
+				marvell,pins = "mpp5", "mpp21", "mpp23";
+				marvell,function = "sata0";
+			};
+			pmx_sata1: pmx-sata1 {
+				marvell,pins = "mpp4", "mpp20", "mpp22";
+				marvell,function = "sata1";
+			};
+
+			/*
+			 * Default I2C1 pinctrl setting on mpp36/mpp37,
+			 * overwrite marvell,pins on board level if required.
+			 */
+			pmx_twsi1: pmx-twsi1 {
+				marvell,pins = "mpp36", "mpp37";
+				marvell,function = "twsi1";
+			};
+
+			pmx_sdio: pmx-sdio {
+				marvell,pins = "mpp12", "mpp13", "mpp14",
+					       "mpp15", "mpp16", "mpp17";
+				marvell,function = "sdio";
+			};
+		};
+
+		thermal: thermal@10078 {
+			compatible = "marvell,kirkwood-thermal";
+			reg = <0x10078 0x4>;
+			status = "okay";
+		};
+
+		rtc: rtc@10300 {
+			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
+			reg = <0x10300 0x20>;
+			interrupts = <53>;
+			clocks = <&gate_clk 7>;
+		};
+
+		i2c1: i2c@11100 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11100 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <32>;
+			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
+			pinctrl-0 = <&pmx_twsi1>;
+			pinctrl-names = "default";
+			status = "disabled";
+		};
+
+		sata: sata@80000 {
+			compatible = "marvell,orion-sata";
+			reg = <0x80000 0x5000>;
+			interrupts = <21>;
+			clocks = <&gate_clk 14>, <&gate_clk 15>;
+			clock-names = "0", "1";
+			phys = <&sata_phy0>, <&sata_phy1>;
+			phy-names = "port0", "port1";
+			status = "disabled";
+		};
+
+		sdio: mvsdio@90000 {
+			compatible = "marvell,orion-sdio";
+			reg = <0x90000 0x200>;
+			interrupts = <28>;
+			clocks = <&gate_clk 4>;
+			pinctrl-0 = <&pmx_sdio>;
+			pinctrl-names = "default";
+			bus-width = <4>;
+			cap-sdio-irq;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			status = "disabled";
+		};
+	};
+};

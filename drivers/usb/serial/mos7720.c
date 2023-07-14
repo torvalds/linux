@@ -996,7 +996,7 @@ static void mos7720_close(struct usb_serial_port *port)
 	mos7720_port->open = 0;
 }
 
-static void mos7720_break(struct tty_struct *tty, int break_state)
+static int mos7720_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	unsigned char data;
@@ -1007,7 +1007,7 @@ static void mos7720_break(struct tty_struct *tty, int break_state)
 
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
-		return;
+		return -ENODEV;
 
 	if (break_state == -1)
 		data = mos7720_port->shadowLCR | UART_LCR_SBC;
@@ -1015,8 +1015,9 @@ static void mos7720_break(struct tty_struct *tty, int break_state)
 		data = mos7720_port->shadowLCR & ~UART_LCR_SBC;
 
 	mos7720_port->shadowLCR  = data;
-	write_mos_reg(serial, port->port_number, MOS7720_LCR,
-		      mos7720_port->shadowLCR);
+
+	return write_mos_reg(serial, port->port_number, MOS7720_LCR,
+			     mos7720_port->shadowLCR);
 }
 
 /*
@@ -1356,7 +1357,7 @@ static int send_cmd_write_baud_rate(struct moschip_port *mos7720_port,
  */
 static void change_port_settings(struct tty_struct *tty,
 				 struct moschip_port *mos7720_port,
-				 struct ktermios *old_termios)
+				 const struct ktermios *old_termios)
 {
 	struct usb_serial_port *port;
 	struct usb_serial *serial;
@@ -1494,7 +1495,8 @@ static void change_port_settings(struct tty_struct *tty,
  *	termios structure.
  */
 static void mos7720_set_termios(struct tty_struct *tty,
-		struct usb_serial_port *port, struct ktermios *old_termios)
+				struct usb_serial_port *port,
+				const struct ktermios *old_termios)
 {
 	int status;
 	struct moschip_port *mos7720_port;

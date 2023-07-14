@@ -202,6 +202,15 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(100, FX, Half),
 	__DEFINE_LINK_MODE_NAME(100, FX, Full),
 	__DEFINE_LINK_MODE_NAME(10, T1L, Full),
+	__DEFINE_LINK_MODE_NAME(800000, CR8, Full),
+	__DEFINE_LINK_MODE_NAME(800000, KR8, Full),
+	__DEFINE_LINK_MODE_NAME(800000, DR8, Full),
+	__DEFINE_LINK_MODE_NAME(800000, DR8_2, Full),
+	__DEFINE_LINK_MODE_NAME(800000, SR8, Full),
+	__DEFINE_LINK_MODE_NAME(800000, VR8, Full),
+	__DEFINE_LINK_MODE_NAME(10, T1S, Full),
+	__DEFINE_LINK_MODE_NAME(10, T1S, Half),
+	__DEFINE_LINK_MODE_NAME(10, T1S_P2MP, Half),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -238,6 +247,10 @@ static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 #define __LINK_MODE_LANES_X		1
 #define __LINK_MODE_LANES_FX		1
 #define __LINK_MODE_LANES_T1L		1
+#define __LINK_MODE_LANES_T1S		1
+#define __LINK_MODE_LANES_T1S_P2MP	1
+#define __LINK_MODE_LANES_VR8		8
+#define __LINK_MODE_LANES_DR8_2		8
 
 #define __DEFINE_LINK_MODE_PARAMS(_speed, _type, _duplex)	\
 	[ETHTOOL_LINK_MODE(_speed, _type, _duplex)] = {		\
@@ -352,6 +365,15 @@ const struct link_mode_info link_mode_params[] = {
 	__DEFINE_LINK_MODE_PARAMS(100, FX, Half),
 	__DEFINE_LINK_MODE_PARAMS(100, FX, Full),
 	__DEFINE_LINK_MODE_PARAMS(10, T1L, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, CR8, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, KR8, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, DR8, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, DR8_2, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, SR8, Full),
+	__DEFINE_LINK_MODE_PARAMS(800000, VR8, Full),
+	__DEFINE_LINK_MODE_PARAMS(10, T1S, Full),
+	__DEFINE_LINK_MODE_PARAMS(10, T1S, Half),
+	__DEFINE_LINK_MODE_PARAMS(10, T1S_P2MP, Half),
 };
 static_assert(ARRAY_SIZE(link_mode_params) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -403,6 +425,7 @@ const char sof_timestamping_names[][ETH_GSTRING_LEN] = {
 	[const_ilog2(SOF_TIMESTAMPING_OPT_PKTINFO)]  = "option-pktinfo",
 	[const_ilog2(SOF_TIMESTAMPING_OPT_TX_SWHW)]  = "option-tx-swhw",
 	[const_ilog2(SOF_TIMESTAMPING_BIND_PHC)]     = "bind-phc",
+	[const_ilog2(SOF_TIMESTAMPING_OPT_ID_TCP)]   = "option-id-tcp",
 };
 static_assert(ARRAY_SIZE(sof_timestamping_names) == __SOF_TIMESTAMPING_CNT);
 
@@ -496,6 +519,72 @@ int __ethtool_get_link(struct net_device *dev)
 		return -EOPNOTSUPP;
 
 	return netif_running(dev) && dev->ethtool_ops->get_link(dev);
+}
+
+static int ethtool_get_rxnfc_rule_count(struct net_device *dev)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxnfc info = {
+		.cmd = ETHTOOL_GRXCLSRLCNT,
+	};
+	int err;
+
+	err = ops->get_rxnfc(dev, &info, NULL);
+	if (err)
+		return err;
+
+	return info.rule_cnt;
+}
+
+int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxnfc *info;
+	int err, i, rule_cnt;
+	u64 max_ring = 0;
+
+	if (!ops->get_rxnfc)
+		return -EOPNOTSUPP;
+
+	rule_cnt = ethtool_get_rxnfc_rule_count(dev);
+	if (rule_cnt <= 0)
+		return -EINVAL;
+
+	info = kvzalloc(struct_size(info, rule_locs, rule_cnt), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	info->cmd = ETHTOOL_GRXCLSRLALL;
+	info->rule_cnt = rule_cnt;
+	err = ops->get_rxnfc(dev, info, info->rule_locs);
+	if (err)
+		goto err_free_info;
+
+	for (i = 0; i < rule_cnt; i++) {
+		struct ethtool_rxnfc rule_info = {
+			.cmd = ETHTOOL_GRXCLSRULE,
+			.fs.location = info->rule_locs[i],
+		};
+
+		err = ops->get_rxnfc(dev, &rule_info, NULL);
+		if (err)
+			goto err_free_info;
+
+		if (rule_info.fs.ring_cookie != RX_CLS_FLOW_DISC &&
+		    rule_info.fs.ring_cookie != RX_CLS_FLOW_WAKE &&
+		    !(rule_info.flow_type & FLOW_RSS) &&
+		    !ethtool_get_flow_spec_ring_vf(rule_info.fs.ring_cookie))
+			max_ring =
+				max_t(u64, max_ring, rule_info.fs.ring_cookie);
+	}
+
+	kvfree(info);
+	*max = max_ring;
+	return 0;
+
+err_free_info:
+	kvfree(info);
+	return err;
 }
 
 int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)

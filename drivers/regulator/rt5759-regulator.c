@@ -243,6 +243,7 @@ static int rt5759_regulator_register(struct rt5759_priv *priv)
 	if (priv->chip_type == CHIP_TYPE_RT5759A)
 		reg_desc->uV_step = RT5759A_STEP_UV;
 
+	memset(&reg_cfg, 0, sizeof(reg_cfg));
 	reg_cfg.dev = priv->dev;
 	reg_cfg.of_node = np;
 	reg_cfg.init_data = of_get_regulator_init_data(priv->dev, np, reg_desc);
@@ -358,9 +359,10 @@ MODULE_DEVICE_TABLE(of, rt5759_device_table);
 static struct i2c_driver rt5759_driver = {
 	.driver = {
 		.name = "rt5759",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(rt5759_device_table),
 	},
-	.probe_new = rt5759_probe,
+	.probe = rt5759_probe,
 };
 module_i2c_driver(rt5759_driver);
 

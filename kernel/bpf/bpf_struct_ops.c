@@ -11,11 +11,13 @@
 #include <linux/refcount.h>
 #include <linux/mutex.h>
 #include <linux/btf_ids.h>
+#include <linux/rcupdate_wait.h>
 
 enum bpf_struct_ops_state {
 	BPF_STRUCT_OPS_STATE_INIT,
 	BPF_STRUCT_OPS_STATE_INUSE,
 	BPF_STRUCT_OPS_STATE_TOBEFREE,
+	BPF_STRUCT_OPS_STATE_READY,
 };
 
 #define BPF_STRUCT_OPS_COMMON_VALUE			\
@@ -57,6 +59,13 @@ struct bpf_struct_ops_map {
 	 */
 	struct bpf_struct_ops_value kvalue;
 };
+
+struct bpf_struct_ops_link {
+	struct bpf_link link;
+	struct bpf_map __rcu *map;
+};
+
+static DEFINE_MUTEX(update_mutex);
 
 #define VALUE_PREFIX "bpf_struct_ops_"
 #define VALUE_PREFIX_LEN (sizeof(VALUE_PREFIX) - 1)
@@ -249,6 +258,7 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
 	struct bpf_struct_ops_value *uvalue, *kvalue;
 	enum bpf_struct_ops_state state;
+	s64 refcnt;
 
 	if (unlikely(*(u32 *)key != 0))
 		return -ENOENT;
@@ -267,7 +277,14 @@ int bpf_struct_ops_map_sys_lookup_elem(struct bpf_map *map, void *key,
 	uvalue = value;
 	memcpy(uvalue, st_map->uvalue, map->value_size);
 	uvalue->state = state;
-	refcount_set(&uvalue->refcnt, refcount_read(&kvalue->refcnt));
+
+	/* This value offers the user space a general estimate of how
+	 * many sockets are still utilizing this struct_ops for TCP
+	 * congestion control. The number might not be exact, but it
+	 * should sufficiently meet our present goals.
+	 */
+	refcnt = atomic64_read(&map->refcnt) - atomic64_read(&map->usercnt);
+	refcount_set(&uvalue->refcnt, max_t(s64, refcnt, 0));
 
 	return 0;
 }
@@ -349,8 +366,8 @@ int bpf_struct_ops_prepare_trampoline(struct bpf_tramp_links *tlinks,
 					   model, flags, tlinks, NULL);
 }
 
-static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
-					  void *value, u64 flags)
+static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
+					   void *value, u64 flags)
 {
 	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
 	const struct bpf_struct_ops *st_ops = st_map->st_ops;
@@ -491,13 +508,29 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		*(unsigned long *)(udata + moff) = prog->aux->id;
 	}
 
-	refcount_set(&kvalue->refcnt, 1);
-	bpf_map_inc(map);
+	if (st_map->map.map_flags & BPF_F_LINK) {
+		err = st_ops->validate(kdata);
+		if (err)
+			goto reset_unlock;
+		set_memory_rox((long)st_map->image, 1);
+		/* Let bpf_link handle registration & unregistration.
+		 *
+		 * Pair with smp_load_acquire() during lookup_elem().
+		 */
+		smp_store_release(&kvalue->state, BPF_STRUCT_OPS_STATE_READY);
+		goto unlock;
+	}
 
-	set_memory_ro((long)st_map->image, 1);
-	set_memory_x((long)st_map->image, 1);
+	set_memory_rox((long)st_map->image, 1);
 	err = st_ops->reg(kdata);
 	if (likely(!err)) {
+		/* This refcnt increment on the map here after
+		 * 'st_ops->reg()' is secure since the state of the
+		 * map must be set to INIT at this moment, and thus
+		 * bpf_struct_ops_map_delete_elem() can't unregister
+		 * or transition it to TOBEFREE concurrently.
+		 */
+		bpf_map_inc(map);
 		/* Pair with smp_load_acquire() during lookup_elem().
 		 * It ensures the above udata updates (e.g. prog->aux->id)
 		 * can be seen once BPF_STRUCT_OPS_STATE_INUSE is set.
@@ -513,7 +546,6 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	 */
 	set_memory_nx((long)st_map->image, 1);
 	set_memory_rw((long)st_map->image, 1);
-	bpf_map_put(map);
 
 reset_unlock:
 	bpf_struct_ops_map_put_progs(st_map);
@@ -525,20 +557,22 @@ unlock:
 	return err;
 }
 
-static int bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
+static long bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
 {
 	enum bpf_struct_ops_state prev_state;
 	struct bpf_struct_ops_map *st_map;
 
 	st_map = (struct bpf_struct_ops_map *)map;
+	if (st_map->map.map_flags & BPF_F_LINK)
+		return -EOPNOTSUPP;
+
 	prev_state = cmpxchg(&st_map->kvalue.state,
 			     BPF_STRUCT_OPS_STATE_INUSE,
 			     BPF_STRUCT_OPS_STATE_TOBEFREE);
 	switch (prev_state) {
 	case BPF_STRUCT_OPS_STATE_INUSE:
 		st_map->st_ops->unreg(&st_map->kvalue.data);
-		if (refcount_dec_and_test(&st_map->kvalue.refcnt))
-			bpf_map_put(map);
+		bpf_map_put(map);
 		return 0;
 	case BPF_STRUCT_OPS_STATE_TOBEFREE:
 		return -EINPROGRESS;
@@ -571,7 +605,7 @@ static void bpf_struct_ops_map_seq_show_elem(struct bpf_map *map, void *key,
 	kfree(value);
 }
 
-static void bpf_struct_ops_map_free(struct bpf_map *map)
+static void __bpf_struct_ops_map_free(struct bpf_map *map)
 {
 	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
 
@@ -583,10 +617,32 @@ static void bpf_struct_ops_map_free(struct bpf_map *map)
 	bpf_map_area_free(st_map);
 }
 
+static void bpf_struct_ops_map_free(struct bpf_map *map)
+{
+	/* The struct_ops's function may switch to another struct_ops.
+	 *
+	 * For example, bpf_tcp_cc_x->init() may switch to
+	 * another tcp_cc_y by calling
+	 * setsockopt(TCP_CONGESTION, "tcp_cc_y").
+	 * During the switch,  bpf_struct_ops_put(tcp_cc_x) is called
+	 * and its refcount may reach 0 which then free its
+	 * trampoline image while tcp_cc_x is still running.
+	 *
+	 * A vanilla rcu gp is to wait for all bpf-tcp-cc prog
+	 * to finish. bpf-tcp-cc prog is non sleepable.
+	 * A rcu_tasks gp is to wait for the last few insn
+	 * in the tramopline image to finish before releasing
+	 * the trampoline image.
+	 */
+	synchronize_rcu_mult(call_rcu, call_rcu_tasks);
+
+	__bpf_struct_ops_map_free(map);
+}
+
 static int bpf_struct_ops_map_alloc_check(union bpf_attr *attr)
 {
 	if (attr->key_size != sizeof(unsigned int) || attr->max_entries != 1 ||
-	    attr->map_flags || !attr->btf_vmlinux_value_type_id)
+	    (attr->map_flags & ~BPF_F_LINK) || !attr->btf_vmlinux_value_type_id)
 		return -EINVAL;
 	return 0;
 }
@@ -599,9 +655,6 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	const struct btf_type *t, *vt;
 	struct bpf_map *map;
 
-	if (!bpf_capable())
-		return ERR_PTR(-EPERM);
-
 	st_ops = bpf_struct_ops_find_value(attr->btf_vmlinux_value_type_id);
 	if (!st_ops)
 		return ERR_PTR(-ENOTSUPP);
@@ -609,6 +662,9 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	vt = st_ops->value_type;
 	if (attr->value_size != vt->size)
 		return ERR_PTR(-EINVAL);
+
+	if (attr->map_flags & BPF_F_LINK && (!st_ops->validate || !st_ops->update))
+		return ERR_PTR(-EOPNOTSUPP);
 
 	t = st_ops->type;
 
@@ -631,7 +687,7 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 				   NUMA_NO_NODE);
 	st_map->image = bpf_jit_alloc_exec(PAGE_SIZE);
 	if (!st_map->uvalue || !st_map->links || !st_map->image) {
-		bpf_struct_ops_map_free(map);
+		__bpf_struct_ops_map_free(map);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -640,6 +696,21 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	bpf_map_init_from_attr(map, attr);
 
 	return map;
+}
+
+static u64 bpf_struct_ops_map_mem_usage(const struct bpf_map *map)
+{
+	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
+	const struct bpf_struct_ops *st_ops = st_map->st_ops;
+	const struct btf_type *vt = st_ops->value_type;
+	u64 usage;
+
+	usage = sizeof(*st_map) +
+			vt->size - sizeof(struct bpf_struct_ops_value);
+	usage += vt->size;
+	usage += btf_type_vlen(vt) * sizeof(struct bpf_links *);
+	usage += PAGE_SIZE;
+	return usage;
 }
 
 BTF_ID_LIST_SINGLE(bpf_struct_ops_map_btf_ids, struct, bpf_struct_ops_map)
@@ -652,6 +723,7 @@ const struct bpf_map_ops bpf_struct_ops_map_ops = {
 	.map_delete_elem = bpf_struct_ops_map_delete_elem,
 	.map_update_elem = bpf_struct_ops_map_update_elem,
 	.map_seq_show_elem = bpf_struct_ops_map_seq_show_elem,
+	.map_mem_usage = bpf_struct_ops_map_mem_usage,
 	.map_btf_id = &bpf_struct_ops_map_btf_ids[0],
 };
 
@@ -661,41 +733,175 @@ const struct bpf_map_ops bpf_struct_ops_map_ops = {
 bool bpf_struct_ops_get(const void *kdata)
 {
 	struct bpf_struct_ops_value *kvalue;
+	struct bpf_struct_ops_map *st_map;
+	struct bpf_map *map;
 
 	kvalue = container_of(kdata, struct bpf_struct_ops_value, data);
+	st_map = container_of(kvalue, struct bpf_struct_ops_map, kvalue);
 
-	return refcount_inc_not_zero(&kvalue->refcnt);
-}
-
-static void bpf_struct_ops_put_rcu(struct rcu_head *head)
-{
-	struct bpf_struct_ops_map *st_map;
-
-	st_map = container_of(head, struct bpf_struct_ops_map, rcu);
-	bpf_map_put(&st_map->map);
+	map = __bpf_map_inc_not_zero(&st_map->map, false);
+	return !IS_ERR(map);
 }
 
 void bpf_struct_ops_put(const void *kdata)
 {
 	struct bpf_struct_ops_value *kvalue;
+	struct bpf_struct_ops_map *st_map;
 
 	kvalue = container_of(kdata, struct bpf_struct_ops_value, data);
-	if (refcount_dec_and_test(&kvalue->refcnt)) {
-		struct bpf_struct_ops_map *st_map;
+	st_map = container_of(kvalue, struct bpf_struct_ops_map, kvalue);
 
-		st_map = container_of(kvalue, struct bpf_struct_ops_map,
-				      kvalue);
-		/* The struct_ops's function may switch to another struct_ops.
-		 *
-		 * For example, bpf_tcp_cc_x->init() may switch to
-		 * another tcp_cc_y by calling
-		 * setsockopt(TCP_CONGESTION, "tcp_cc_y").
-		 * During the switch,  bpf_struct_ops_put(tcp_cc_x) is called
-		 * and its map->refcnt may reach 0 which then free its
-		 * trampoline image while tcp_cc_x is still running.
-		 *
-		 * Thus, a rcu grace period is needed here.
-		 */
-		call_rcu(&st_map->rcu, bpf_struct_ops_put_rcu);
-	}
+	bpf_map_put(&st_map->map);
 }
+
+static bool bpf_struct_ops_valid_to_reg(struct bpf_map *map)
+{
+	struct bpf_struct_ops_map *st_map = (struct bpf_struct_ops_map *)map;
+
+	return map->map_type == BPF_MAP_TYPE_STRUCT_OPS &&
+		map->map_flags & BPF_F_LINK &&
+		/* Pair with smp_store_release() during map_update */
+		smp_load_acquire(&st_map->kvalue.state) == BPF_STRUCT_OPS_STATE_READY;
+}
+
+static void bpf_struct_ops_map_link_dealloc(struct bpf_link *link)
+{
+	struct bpf_struct_ops_link *st_link;
+	struct bpf_struct_ops_map *st_map;
+
+	st_link = container_of(link, struct bpf_struct_ops_link, link);
+	st_map = (struct bpf_struct_ops_map *)
+		rcu_dereference_protected(st_link->map, true);
+	if (st_map) {
+		/* st_link->map can be NULL if
+		 * bpf_struct_ops_link_create() fails to register.
+		 */
+		st_map->st_ops->unreg(&st_map->kvalue.data);
+		bpf_map_put(&st_map->map);
+	}
+	kfree(st_link);
+}
+
+static void bpf_struct_ops_map_link_show_fdinfo(const struct bpf_link *link,
+					    struct seq_file *seq)
+{
+	struct bpf_struct_ops_link *st_link;
+	struct bpf_map *map;
+
+	st_link = container_of(link, struct bpf_struct_ops_link, link);
+	rcu_read_lock();
+	map = rcu_dereference(st_link->map);
+	seq_printf(seq, "map_id:\t%d\n", map->id);
+	rcu_read_unlock();
+}
+
+static int bpf_struct_ops_map_link_fill_link_info(const struct bpf_link *link,
+					       struct bpf_link_info *info)
+{
+	struct bpf_struct_ops_link *st_link;
+	struct bpf_map *map;
+
+	st_link = container_of(link, struct bpf_struct_ops_link, link);
+	rcu_read_lock();
+	map = rcu_dereference(st_link->map);
+	info->struct_ops.map_id = map->id;
+	rcu_read_unlock();
+	return 0;
+}
+
+static int bpf_struct_ops_map_link_update(struct bpf_link *link, struct bpf_map *new_map,
+					  struct bpf_map *expected_old_map)
+{
+	struct bpf_struct_ops_map *st_map, *old_st_map;
+	struct bpf_map *old_map;
+	struct bpf_struct_ops_link *st_link;
+	int err = 0;
+
+	st_link = container_of(link, struct bpf_struct_ops_link, link);
+	st_map = container_of(new_map, struct bpf_struct_ops_map, map);
+
+	if (!bpf_struct_ops_valid_to_reg(new_map))
+		return -EINVAL;
+
+	mutex_lock(&update_mutex);
+
+	old_map = rcu_dereference_protected(st_link->map, lockdep_is_held(&update_mutex));
+	if (expected_old_map && old_map != expected_old_map) {
+		err = -EPERM;
+		goto err_out;
+	}
+
+	old_st_map = container_of(old_map, struct bpf_struct_ops_map, map);
+	/* The new and old struct_ops must be the same type. */
+	if (st_map->st_ops != old_st_map->st_ops) {
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	err = st_map->st_ops->update(st_map->kvalue.data, old_st_map->kvalue.data);
+	if (err)
+		goto err_out;
+
+	bpf_map_inc(new_map);
+	rcu_assign_pointer(st_link->map, new_map);
+	bpf_map_put(old_map);
+
+err_out:
+	mutex_unlock(&update_mutex);
+
+	return err;
+}
+
+static const struct bpf_link_ops bpf_struct_ops_map_lops = {
+	.dealloc = bpf_struct_ops_map_link_dealloc,
+	.show_fdinfo = bpf_struct_ops_map_link_show_fdinfo,
+	.fill_link_info = bpf_struct_ops_map_link_fill_link_info,
+	.update_map = bpf_struct_ops_map_link_update,
+};
+
+int bpf_struct_ops_link_create(union bpf_attr *attr)
+{
+	struct bpf_struct_ops_link *link = NULL;
+	struct bpf_link_primer link_primer;
+	struct bpf_struct_ops_map *st_map;
+	struct bpf_map *map;
+	int err;
+
+	map = bpf_map_get(attr->link_create.map_fd);
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	st_map = (struct bpf_struct_ops_map *)map;
+
+	if (!bpf_struct_ops_valid_to_reg(map)) {
+		err = -EINVAL;
+		goto err_out;
+	}
+
+	link = kzalloc(sizeof(*link), GFP_USER);
+	if (!link) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+	bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS, &bpf_struct_ops_map_lops, NULL);
+
+	err = bpf_link_prime(&link->link, &link_primer);
+	if (err)
+		goto err_out;
+
+	err = st_map->st_ops->reg(st_map->kvalue.data);
+	if (err) {
+		bpf_link_cleanup(&link_primer);
+		link = NULL;
+		goto err_out;
+	}
+	RCU_INIT_POINTER(link->map, map);
+
+	return bpf_link_settle(&link_primer);
+
+err_out:
+	bpf_map_put(map);
+	kfree(link);
+	return err;
+}
+

@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/fpga/xilinx-zynq-fpga-mgr.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx Zynq FPGA Manager Device Tree Bindings
+title: Xilinx Zynq FPGA Manager
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 properties:
   compatible:

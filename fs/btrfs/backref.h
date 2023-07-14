@@ -7,9 +7,133 @@
 #define BTRFS_BACKREF_H
 
 #include <linux/btrfs.h>
+#include "messages.h"
 #include "ulist.h"
 #include "disk-io.h"
 #include "extent_io.h"
+
+/*
+ * Used by implementations of iterate_extent_inodes_t (see definition below) to
+ * signal that backref iteration can stop immediately and no error happened.
+ * The value must be non-negative and must not be 0, 1 (which is a common return
+ * value from things like btrfs_search_slot() and used internally in the backref
+ * walking code) and different from BACKREF_FOUND_SHARED and
+ * BACKREF_FOUND_NOT_SHARED
+ */
+#define BTRFS_ITERATE_EXTENT_INODES_STOP 5
+
+/*
+ * Should return 0 if no errors happened and iteration of backrefs should
+ * continue. Can return BTRFS_ITERATE_EXTENT_INODES_STOP or any other non-zero
+ * value to immediately stop iteration and possibly signal an error back to
+ * the caller.
+ */
+typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 num_bytes,
+				      u64 root, void *ctx);
+
+/*
+ * Context and arguments for backref walking functions. Some of the fields are
+ * to be filled by the caller of such functions while other are filled by the
+ * functions themselves, as described below.
+ */
+struct btrfs_backref_walk_ctx {
+	/*
+	 * The address of the extent for which we are doing backref walking.
+	 * Can be either a data extent or a metadata extent.
+	 *
+	 * Must always be set by the top level caller.
+	 */
+	u64 bytenr;
+	/*
+	 * Offset relative to the target extent. This is only used for data
+	 * extents, and it's meaningful because we can have file extent items
+	 * that point only to a section of a data extent ("bookend" extents),
+	 * and we want to filter out any that don't point to a section of the
+	 * data extent containing the given offset.
+	 *
+	 * Must always be set by the top level caller.
+	 */
+	u64 extent_item_pos;
+	/*
+	 * If true and bytenr corresponds to a data extent, then references from
+	 * all file extent items that point to the data extent are considered,
+	 * @extent_item_pos is ignored.
+	 */
+	bool ignore_extent_item_pos;
+	/*
+	 * If true and bytenr corresponds to a data extent, then the inode list
+	 * (each member describing inode number, file offset and root) is not
+	 * added to each reference added to the @refs ulist.
+	 */
+	bool skip_inode_ref_list;
+	/* A valid transaction handle or NULL. */
+	struct btrfs_trans_handle *trans;
+	/*
+	 * The file system's info object, can not be NULL.
+	 *
+	 * Must always be set by the top level caller.
+	 */
+	struct btrfs_fs_info *fs_info;
+	/*
+	 * Time sequence acquired from btrfs_get_tree_mod_seq(), in case the
+	 * caller joined the tree mod log to get a consistent view of b+trees
+	 * while we do backref walking, or BTRFS_SEQ_LAST.
+	 * When using BTRFS_SEQ_LAST, delayed refs are not checked and it uses
+	 * commit roots when searching b+trees - this is a special case for
+	 * qgroups used during a transaction commit.
+	 */
+	u64 time_seq;
+	/*
+	 * Used to collect the bytenr of metadata extents that point to the
+	 * target extent.
+	 */
+	struct ulist *refs;
+	/*
+	 * List used to collect the IDs of the roots from which the target
+	 * extent is accessible. Can be NULL in case the caller does not care
+	 * about collecting root IDs.
+	 */
+	struct ulist *roots;
+	/*
+	 * Used by iterate_extent_inodes() and the main backref walk code
+	 * (find_parent_nodes()). Lookup and store functions for an optional
+	 * cache which maps the logical address (bytenr) of leaves to an array
+	 * of root IDs.
+	 */
+	bool (*cache_lookup)(u64 leaf_bytenr, void *user_ctx,
+			     const u64 **root_ids_ret, int *root_count_ret);
+	void (*cache_store)(u64 leaf_bytenr, const struct ulist *root_ids,
+			    void *user_ctx);
+	/*
+	 * If this is not NULL, then the backref walking code will call this
+	 * for each indirect data extent reference as soon as it finds one,
+	 * before collecting all the remaining backrefs and before resolving
+	 * indirect backrefs. This allows for the caller to terminate backref
+	 * walking as soon as it finds one backref that matches some specific
+	 * criteria. The @cache_lookup and @cache_store callbacks should not
+	 * be NULL in order to use this callback.
+	 */
+	iterate_extent_inodes_t *indirect_ref_iterator;
+	/*
+	 * If this is not NULL, then the backref walking code will call this for
+	 * each extent item it's meant to process before it actually starts
+	 * processing it. If this returns anything other than 0, then it stops
+	 * the backref walking code immediately.
+	 */
+	int (*check_extent_item)(u64 bytenr, const struct btrfs_extent_item *ei,
+				 const struct extent_buffer *leaf, void *user_ctx);
+	/*
+	 * If this is not NULL, then the backref walking code will call this for
+	 * each extent data ref it finds (BTRFS_EXTENT_DATA_REF_KEY keys) before
+	 * processing that data ref. If this callback return false, then it will
+	 * ignore this data ref and it will never resolve the indirect data ref,
+	 * saving time searching for leaves in a fs tree with file extent items
+	 * matching the data ref.
+	 */
+	bool (*skip_data_ref)(u64 root, u64 ino, u64 offset, void *user_ctx);
+	/* Context object to pass to the callbacks defined above. */
+	void *user_ctx;
+};
 
 struct inode_fs_paths {
 	struct btrfs_path		*btrfs_path;
@@ -17,8 +141,65 @@ struct inode_fs_paths {
 	struct btrfs_data_container	*fspath;
 };
 
-typedef int (iterate_extent_inodes_t)(u64 inum, u64 offset, u64 root,
-		void *ctx);
+struct btrfs_backref_shared_cache_entry {
+	u64 bytenr;
+	u64 gen;
+	bool is_shared;
+};
+
+#define BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE 8
+
+struct btrfs_backref_share_check_ctx {
+	/* Ulists used during backref walking. */
+	struct ulist refs;
+	/*
+	 * The current leaf the caller of btrfs_is_data_extent_shared() is at.
+	 * Typically the caller (at the moment only fiemap) tries to determine
+	 * the sharedness of data extents point by file extent items from entire
+	 * leaves.
+	 */
+	u64 curr_leaf_bytenr;
+	/*
+	 * The previous leaf the caller was at in the previous call to
+	 * btrfs_is_data_extent_shared(). This may be the same as the current
+	 * leaf. On the first call it must be 0.
+	 */
+	u64 prev_leaf_bytenr;
+	/*
+	 * A path from a root to a leaf that has a file extent item pointing to
+	 * a given data extent should never exceed the maximum b+tree height.
+	 */
+	struct btrfs_backref_shared_cache_entry path_cache_entries[BTRFS_MAX_LEVEL];
+	bool use_path_cache;
+	/*
+	 * Cache the sharedness result for the last few extents we have found,
+	 * but only for extents for which we have multiple file extent items
+	 * that point to them.
+	 * It's very common to have several file extent items that point to the
+	 * same extent (bytenr) but with different offsets and lengths. This
+	 * typically happens for COW writes, partial writes into prealloc
+	 * extents, NOCOW writes after snapshoting a root, hole punching or
+	 * reflinking within the same file (less common perhaps).
+	 * So keep a small cache with the lookup results for the extent pointed
+	 * by the last few file extent items. This cache is checked, with a
+	 * linear scan, whenever btrfs_is_data_extent_shared() is called, so
+	 * it must be small so that it does not negatively affect performance in
+	 * case we don't have multiple file extent items that point to the same
+	 * data extent.
+	 */
+	struct {
+		u64 bytenr;
+		bool is_shared;
+	} prev_extents_cache[BTRFS_BACKREF_CTX_PREV_EXTENTS_SIZE];
+	/*
+	 * The slot in the prev_extents_cache array that will be used for
+	 * storing the sharedness result of a new data extent.
+	 */
+	int prev_extents_cache_slot;
+};
+
+struct btrfs_backref_share_check_ctx *btrfs_alloc_backref_share_check_ctx(void);
+void btrfs_free_backref_share_ctx(struct btrfs_backref_share_check_ctx *ctx);
 
 int extent_from_logical(struct btrfs_fs_info *fs_info, u64 logical,
 			struct btrfs_path *path, struct btrfs_key *found_key,
@@ -28,11 +209,9 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 			    struct btrfs_key *key, struct btrfs_extent_item *ei,
 			    u32 item_size, u64 *out_root, u8 *out_level);
 
-int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
-				u64 extent_item_objectid,
-				u64 extent_offset, int search_commit_root,
-				iterate_extent_inodes_t *iterate, void *ctx,
-				bool ignore_offset);
+int iterate_extent_inodes(struct btrfs_backref_walk_ctx *ctx,
+			  bool search_commit_root,
+			  iterate_extent_inodes_t *iterate, void *user_ctx);
 
 int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 				struct btrfs_path *path, void *ctx,
@@ -40,13 +219,8 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
 
-int btrfs_find_all_leafs(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 time_seq, struct ulist **leafs,
-			 const u64 *extent_item_pos, bool ignore_offset);
-int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 bytenr,
-			 u64 time_seq, struct ulist **roots,
+int btrfs_find_all_leafs(struct btrfs_backref_walk_ctx *ctx);
+int btrfs_find_all_roots(struct btrfs_backref_walk_ctx *ctx,
 			 bool skip_commit_root_sem);
 char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			u32 name_len, unsigned long name_off,
@@ -62,8 +236,9 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 			  u64 start_off, struct btrfs_path *path,
 			  struct btrfs_inode_extref **ret_extref,
 			  u64 *found_off);
-int btrfs_check_shared(struct btrfs_root *root, u64 inum, u64 bytenr,
-		struct ulist *roots, struct ulist *tmp_ulist);
+int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
+				u64 extent_gen,
+				struct btrfs_backref_share_check_ctx *ctx);
 
 int __init btrfs_prelim_ref_init(void);
 void __cold btrfs_prelim_ref_exit(void);
@@ -94,8 +269,7 @@ struct btrfs_backref_iter {
 	u32 end_ptr;
 };
 
-struct btrfs_backref_iter *btrfs_backref_iter_alloc(
-		struct btrfs_fs_info *fs_info, gfp_t gfp_flag);
+struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_info);
 
 static inline void btrfs_backref_iter_free(struct btrfs_backref_iter *iter)
 {

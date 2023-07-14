@@ -15,8 +15,7 @@
 
 #include <linux/mfd/da9055/core.h>
 
-static int da9055_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int da9055_i2c_probe(struct i2c_client *i2c)
 {
 	struct da9055 *da9055;
 	int ret;
@@ -98,4 +97,3 @@ module_exit(da9055_i2c_exit);
 
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
 MODULE_DESCRIPTION("I2C driver for Dialog DA9055 PMIC");
-MODULE_LICENSE("GPL");

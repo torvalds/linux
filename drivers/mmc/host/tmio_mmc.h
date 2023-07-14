@@ -128,6 +128,7 @@ struct tmio_mmc_dma_ops {
 
 	/* optional */
 	void (*end)(struct tmio_mmc_host *host);	/* held host->lock */
+	bool (*dma_irq)(struct tmio_mmc_host *host);
 };
 
 struct tmio_mmc_host {
@@ -203,20 +204,6 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 irqreturn_t tmio_mmc_irq(int irq, void *devid);
-
-static inline char *tmio_mmc_kmap_atomic(struct scatterlist *sg,
-					 unsigned long *flags)
-{
-	local_irq_save(*flags);
-	return kmap_atomic(sg_page(sg)) + sg->offset;
-}
-
-static inline void tmio_mmc_kunmap_atomic(struct scatterlist *sg,
-					  unsigned long *flags, void *virt)
-{
-	kunmap_atomic(virt - sg->offset);
-	local_irq_restore(*flags);
-}
 
 #ifdef CONFIG_PM
 int tmio_mmc_host_runtime_suspend(struct device *dev);

@@ -368,9 +368,9 @@ static const struct ds278x_battery_ops ds278x_ops[] = {
 	}
 };
 
-static int ds278x_battery_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int ds278x_battery_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct ds278x_platform_data *pdata = client->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
 	struct ds278x_info *info;

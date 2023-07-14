@@ -78,6 +78,7 @@ patternProperties:
 
       custom-output-range-config:
         type: object
+        additionalProperties: false
         description: Configuration of custom range when
           adi,output-range-microvolt is not present.
           The formulas for calculation the output voltages are
@@ -191,26 +192,26 @@ additionalProperties: false
 examples:
   - |
     spi {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      ad3552r@0 {
-              compatible = "adi,ad3552r";
-              reg = <0>;
-              spi-max-frequency = <20000000>;
-              #address-cells = <1>;
-              #size-cells = <0>;
-              channel@0 {
-                      reg = <0>;
-                      adi,output-range-microvolt = <0 10000000>;
-              };
-              channel@1 {
-                      reg = <1>;
-                      custom-output-range-config {
-                              adi,gain-offset = <5>;
-                              adi,gain-scaling-p-inv-log2 = <1>;
-                              adi,gain-scaling-n-inv-log2 = <2>;
-                              adi,rfb-ohms = <1>;
-                      };
+        #address-cells = <1>;
+        #size-cells = <0>;
+        ad3552r@0 {
+            compatible = "adi,ad3552r";
+            reg = <0>;
+            spi-max-frequency = <20000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            channel@0 {
+                reg = <0>;
+                adi,output-range-microvolt = <0 10000000>;
+            };
+            channel@1 {
+                reg = <1>;
+                custom-output-range-config {
+                    adi,gain-offset = <5>;
+                    adi,gain-scaling-p-inv-log2 = <1>;
+                    adi,gain-scaling-n-inv-log2 = <2>;
+                    adi,rfb-ohms = <1>;
+                };
             };
         };
     };

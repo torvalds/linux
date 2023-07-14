@@ -370,6 +370,45 @@ out:
 	return ret;
 }
 
+static void amdgpu_dummy_vram_mgr_debug(struct ttm_resource_manager *man,
+				  struct drm_printer *printer)
+{
+	DRM_DEBUG_DRIVER("Dummy vram mgr debug\n");
+}
+
+static bool amdgpu_dummy_vram_mgr_compatible(struct ttm_resource_manager *man,
+				       struct ttm_resource *res,
+				       const struct ttm_place *place,
+				       size_t size)
+{
+	DRM_DEBUG_DRIVER("Dummy vram mgr compatible\n");
+	return false;
+}
+
+static bool amdgpu_dummy_vram_mgr_intersects(struct ttm_resource_manager *man,
+				       struct ttm_resource *res,
+				       const struct ttm_place *place,
+				       size_t size)
+{
+	DRM_DEBUG_DRIVER("Dummy vram mgr intersects\n");
+	return true;
+}
+
+static void amdgpu_dummy_vram_mgr_del(struct ttm_resource_manager *man,
+				struct ttm_resource *res)
+{
+	DRM_DEBUG_DRIVER("Dummy vram mgr deleted\n");
+}
+
+static int amdgpu_dummy_vram_mgr_new(struct ttm_resource_manager *man,
+			       struct ttm_buffer_object *tbo,
+			       const struct ttm_place *place,
+			       struct ttm_resource **res)
+{
+	DRM_DEBUG_DRIVER("Dummy vram mgr new\n");
+	return -ENOSPC;
+}
+
 /**
  * amdgpu_vram_mgr_new - allocate new ranges
  *
@@ -435,11 +474,11 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 	if (place->flags & TTM_PL_FLAG_TOPDOWN)
 		vres->flags |= DRM_BUDDY_TOPDOWN_ALLOCATION;
 
-	if (fpfn || lpfn != man->size)
+	if (fpfn || lpfn != mgr->mm.size)
 		/* Allocate blocks in desired range */
 		vres->flags |= DRM_BUDDY_RANGE_ALLOCATION;
 
-	remaining_size = (u64)vres->base.num_pages << PAGE_SHIFT;
+	remaining_size = (u64)vres->base.size;
 
 	mutex_lock(&mgr->lock);
 	while (remaining_size) {
@@ -453,7 +492,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		/* Limit maximum size to 2GiB due to SG table limitations */
 		size = min(remaining_size, 2ULL << 30);
 
-		if (size >= (u64)pages_per_block << PAGE_SHIFT)
+		if ((size >= (u64)pages_per_block << PAGE_SHIFT) &&
+				!(size & (((u64)pages_per_block << PAGE_SHIFT) - 1)))
 			min_block_size = (u64)pages_per_block << PAGE_SHIFT;
 
 		cur_size = size;
@@ -498,7 +538,7 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 		LIST_HEAD(temp);
 
 		trim_list = &vres->blocks;
-		original_size = (u64)vres->base.num_pages << PAGE_SHIFT;
+		original_size = (u64)vres->base.size;
 
 		/*
 		 * If size value is rounded up to min_block_size, trim the last
@@ -533,8 +573,8 @@ static int amdgpu_vram_mgr_new(struct ttm_resource_manager *man,
 			amdgpu_vram_mgr_block_size(block);
 		start >>= PAGE_SHIFT;
 
-		if (start > vres->base.num_pages)
-			start -= vres->base.num_pages;
+		if (start > PFN_UP(vres->base.size))
+			start -= PFN_UP(vres->base.size);
 		else
 			start = 0;
 		vres->base.start = max(vres->base.start, start);
@@ -721,6 +761,72 @@ uint64_t amdgpu_vram_mgr_vis_usage(struct amdgpu_vram_mgr *mgr)
 }
 
 /**
+ * amdgpu_vram_mgr_intersects - test each drm buddy block for intersection
+ *
+ * @man: TTM memory type manager
+ * @res: The resource to test
+ * @place: The place to test against
+ * @size: Size of the new allocation
+ *
+ * Test each drm buddy block for intersection for eviction decision.
+ */
+static bool amdgpu_vram_mgr_intersects(struct ttm_resource_manager *man,
+				       struct ttm_resource *res,
+				       const struct ttm_place *place,
+				       size_t size)
+{
+	struct amdgpu_vram_mgr_resource *mgr = to_amdgpu_vram_mgr_resource(res);
+	struct drm_buddy_block *block;
+
+	/* Check each drm buddy block individually */
+	list_for_each_entry(block, &mgr->blocks, link) {
+		unsigned long fpfn =
+			amdgpu_vram_mgr_block_start(block) >> PAGE_SHIFT;
+		unsigned long lpfn = fpfn +
+			(amdgpu_vram_mgr_block_size(block) >> PAGE_SHIFT);
+
+		if (place->fpfn < lpfn &&
+		    (!place->lpfn || place->lpfn > fpfn))
+			return true;
+	}
+
+	return false;
+}
+
+/**
+ * amdgpu_vram_mgr_compatible - test each drm buddy block for compatibility
+ *
+ * @man: TTM memory type manager
+ * @res: The resource to test
+ * @place: The place to test against
+ * @size: Size of the new allocation
+ *
+ * Test each drm buddy block for placement compatibility.
+ */
+static bool amdgpu_vram_mgr_compatible(struct ttm_resource_manager *man,
+				       struct ttm_resource *res,
+				       const struct ttm_place *place,
+				       size_t size)
+{
+	struct amdgpu_vram_mgr_resource *mgr = to_amdgpu_vram_mgr_resource(res);
+	struct drm_buddy_block *block;
+
+	/* Check each drm buddy block individually */
+	list_for_each_entry(block, &mgr->blocks, link) {
+		unsigned long fpfn =
+			amdgpu_vram_mgr_block_start(block) >> PAGE_SHIFT;
+		unsigned long lpfn = fpfn +
+			(amdgpu_vram_mgr_block_size(block) >> PAGE_SHIFT);
+
+		if (fpfn < place->fpfn ||
+		    (place->lpfn && lpfn > place->lpfn))
+			return false;
+	}
+
+	return true;
+}
+
+/**
  * amdgpu_vram_mgr_debug - dump VRAM table
  *
  * @man: TTM memory type manager
@@ -733,7 +839,7 @@ static void amdgpu_vram_mgr_debug(struct ttm_resource_manager *man,
 {
 	struct amdgpu_vram_mgr *mgr = to_vram_mgr(man);
 	struct drm_buddy *mm = &mgr->mm;
-	struct drm_buddy_block *block;
+	struct amdgpu_vram_reservation *rsv;
 
 	drm_printf(printer, "  vis usage:%llu\n",
 		   amdgpu_vram_mgr_vis_usage(mgr));
@@ -745,14 +851,25 @@ static void amdgpu_vram_mgr_debug(struct ttm_resource_manager *man,
 	drm_buddy_print(mm, printer);
 
 	drm_printf(printer, "reserved:\n");
-	list_for_each_entry(block, &mgr->reserved_pages, link)
-		drm_buddy_block_print(mm, block, printer);
+	list_for_each_entry(rsv, &mgr->reserved_pages, blocks)
+		drm_printf(printer, "%#018llx-%#018llx: %llu\n",
+			rsv->start, rsv->start + rsv->size, rsv->size);
 	mutex_unlock(&mgr->lock);
 }
+
+static const struct ttm_resource_manager_func amdgpu_dummy_vram_mgr_func = {
+	.alloc	= amdgpu_dummy_vram_mgr_new,
+	.free	= amdgpu_dummy_vram_mgr_del,
+	.intersects = amdgpu_dummy_vram_mgr_intersects,
+	.compatible = amdgpu_dummy_vram_mgr_compatible,
+	.debug	= amdgpu_dummy_vram_mgr_debug
+};
 
 static const struct ttm_resource_manager_func amdgpu_vram_mgr_func = {
 	.alloc	= amdgpu_vram_mgr_new,
 	.free	= amdgpu_vram_mgr_del,
+	.intersects = amdgpu_vram_mgr_intersects,
+	.compatible = amdgpu_vram_mgr_compatible,
 	.debug	= amdgpu_vram_mgr_debug
 };
 
@@ -772,16 +889,21 @@ int amdgpu_vram_mgr_init(struct amdgpu_device *adev)
 	ttm_resource_manager_init(man, &adev->mman.bdev,
 				  adev->gmc.real_vram_size);
 
-	man->func = &amdgpu_vram_mgr_func;
-
-	err = drm_buddy_init(&mgr->mm, man->size, PAGE_SIZE);
-	if (err)
-		return err;
-
 	mutex_init(&mgr->lock);
 	INIT_LIST_HEAD(&mgr->reservations_pending);
 	INIT_LIST_HEAD(&mgr->reserved_pages);
 	mgr->default_page_size = PAGE_SIZE;
+
+	if (!adev->gmc.is_app_apu) {
+		man->func = &amdgpu_vram_mgr_func;
+
+		err = drm_buddy_init(&mgr->mm, man->size, PAGE_SIZE);
+		if (err)
+			return err;
+	} else {
+		man->func = &amdgpu_dummy_vram_mgr_func;
+		DRM_INFO("Setup dummy vram mgr\n");
+	}
 
 	ttm_set_driver_manager(&adev->mman.bdev, TTM_PL_VRAM, &mgr->manager);
 	ttm_resource_manager_set_used(man, true);
@@ -814,10 +936,11 @@ void amdgpu_vram_mgr_fini(struct amdgpu_device *adev)
 		kfree(rsv);
 
 	list_for_each_entry_safe(rsv, temp, &mgr->reserved_pages, blocks) {
-		drm_buddy_free_list(&mgr->mm, &rsv->blocks);
+		drm_buddy_free_list(&mgr->mm, &rsv->allocated);
 		kfree(rsv);
 	}
-	drm_buddy_fini(&mgr->mm);
+	if (!adev->gmc.is_app_apu)
+		drm_buddy_fini(&mgr->mm);
 	mutex_unlock(&mgr->lock);
 
 	ttm_resource_manager_cleanup(man);

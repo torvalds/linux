@@ -96,7 +96,7 @@ config OVERLAY_FS_XINO_AUTO
 	depends on 64BIT
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  unused high bits in undelying filesystem inode numbers to map all
+	  unused high bits in underlying filesystem inode numbers to map all
 	  inodes to a unified address space.  The mapped 64bit inode numbers
 	  might not be compatible with applications that expect 32bit inodes.
 

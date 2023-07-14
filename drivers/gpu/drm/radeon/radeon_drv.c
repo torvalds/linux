@@ -38,9 +38,7 @@
 #include <linux/pci.h>
 
 #include <drm/drm_aperture.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
@@ -172,7 +170,6 @@ int radeon_use_pflipirq = 2;
 int radeon_bapm = -1;
 int radeon_backlight = -1;
 int radeon_auxch = -1;
-int radeon_mst = 0;
 int radeon_uvd = 1;
 int radeon_vce = 1;
 
@@ -263,9 +260,6 @@ module_param_named(backlight, radeon_backlight, int, 0444);
 MODULE_PARM_DESC(auxch, "Use native auxch experimental support (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(auxch, radeon_auxch, int, 0444);
 
-MODULE_PARM_DESC(mst, "DisplayPort MST experimental support (1 = enable, 0 = disable)");
-module_param_named(mst, radeon_mst, int, 0444);
-
 MODULE_PARM_DESC(uvd, "uvd enable/disable uvd support (1 = enable, 0 = disable)");
 module_param_named(uvd, radeon_uvd, int, 0444);
 
@@ -346,6 +340,8 @@ static int radeon_pci_probe(struct pci_dev *pdev,
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
 		goto err_agp;
+
+	radeon_fbdev_setup(dev->dev_private);
 
 	return 0;
 
@@ -516,14 +512,11 @@ long radeon_drm_ioctl(struct file *filp,
 static long radeon_kms_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
-	int ret;
 
 	if (nr < DRM_COMMAND_BASE)
 		return drm_compat_ioctl(filp, cmd, arg);
 
-	ret = radeon_drm_ioctl(filp, cmd, arg);
-
-	return ret;
+	return radeon_drm_ioctl(filp, cmd, arg);
 }
 #endif
 
@@ -604,7 +597,6 @@ static const struct drm_driver kms_driver = {
 	.load = radeon_driver_load_kms,
 	.open = radeon_driver_open_kms,
 	.postclose = radeon_driver_postclose_kms,
-	.lastclose = radeon_driver_lastclose_kms,
 	.unload = radeon_driver_unload_kms,
 	.ioctls = radeon_ioctls_kms,
 	.num_ioctls = ARRAY_SIZE(radeon_ioctls_kms),

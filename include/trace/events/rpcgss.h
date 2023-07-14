@@ -13,7 +13,7 @@
 
 #include <linux/tracepoint.h>
 
-#include <trace/events/sunrpc_base.h>
+#include <trace/misc/sunrpc.h>
 
 /**
  ** GSS-API related trace events
@@ -206,8 +206,30 @@ DECLARE_EVENT_CLASS(rpcgss_svc_gssapi_class,
 			),						\
 			TP_ARGS(rqstp, maj_stat))
 
+DEFINE_SVC_GSSAPI_EVENT(wrap);
 DEFINE_SVC_GSSAPI_EVENT(unwrap);
 DEFINE_SVC_GSSAPI_EVENT(mic);
+DEFINE_SVC_GSSAPI_EVENT(get_mic);
+
+TRACE_EVENT(rpcgss_svc_wrap_failed,
+	TP_PROTO(
+		const struct svc_rqst *rqstp
+	),
+
+	TP_ARGS(rqstp),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__string(addr, rqstp->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__assign_str(addr, rqstp->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
+);
 
 TRACE_EVENT(rpcgss_svc_unwrap_failed,
 	TP_PROTO(

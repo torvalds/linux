@@ -237,7 +237,7 @@ err_phy:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int ehci_hcd_omap_remove(struct platform_device *pdev)
+static void ehci_hcd_omap_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -254,8 +254,6 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static const struct of_device_id omap_ehci_dt_ids[] = {
@@ -267,7 +265,7 @@ MODULE_DEVICE_TABLE(of, omap_ehci_dt_ids);
 
 static struct platform_driver ehci_hcd_omap_driver = {
 	.probe			= ehci_hcd_omap_probe,
-	.remove			= ehci_hcd_omap_remove,
+	.remove_new		= ehci_hcd_omap_remove,
 	.shutdown		= usb_hcd_platform_shutdown,
 	/*.suspend		= ehci_hcd_omap_suspend, */
 	/*.resume		= ehci_hcd_omap_resume, */
@@ -283,8 +281,6 @@ static int __init ehci_omap_init(void)
 {
 	if (usb_disabled())
 		return -ENODEV;
-
-	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
 	ehci_init_driver(&ehci_omap_hc_driver, &ehci_omap_overrides);
 	return platform_driver_register(&ehci_hcd_omap_driver);

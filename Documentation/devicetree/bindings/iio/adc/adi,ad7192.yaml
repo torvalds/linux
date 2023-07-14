@@ -30,8 +30,6 @@ properties:
 
   spi-cpha: true
 
-  spi-max-frequency: true
-
   clocks:
     maxItems: 1
     description: phandle to the master clock (mclk)
@@ -48,6 +46,9 @@ properties:
 
   avdd-supply:
     description: AVdd voltage supply
+
+  vref-supply:
+    description: VRef voltage supply
 
   adi,rejection-60-Hz-enable:
     description: |
@@ -91,33 +92,38 @@ required:
   - interrupts
   - dvdd-supply
   - avdd-supply
+  - vref-supply
   - spi-cpol
   - spi-cpha
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
-    spi0 {
-      #address-cells = <1>;
-      #size-cells = <0>;
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-      adc@0 {
-        compatible = "adi,ad7192";
-        reg = <0>;
-        spi-max-frequency = <1000000>;
-        spi-cpol;
-        spi-cpha;
-        clocks = <&ad7192_mclk>;
-        clock-names = "mclk";
-        interrupts = <25 0x2>;
-        interrupt-parent = <&gpio>;
-        dvdd-supply = <&dvdd>;
-        avdd-supply = <&avdd>;
+        adc@0 {
+            compatible = "adi,ad7192";
+            reg = <0>;
+            spi-max-frequency = <1000000>;
+            spi-cpol;
+            spi-cpha;
+            clocks = <&ad7192_mclk>;
+            clock-names = "mclk";
+            interrupts = <25 0x2>;
+            interrupt-parent = <&gpio>;
+            dvdd-supply = <&dvdd>;
+            avdd-supply = <&avdd>;
+            vref-supply = <&vref>;
 
-        adi,refin2-pins-enable;
-        adi,rejection-60-Hz-enable;
-        adi,buffer-enable;
-        adi,burnout-currents-enable;
+            adi,refin2-pins-enable;
+            adi,rejection-60-Hz-enable;
+            adi,buffer-enable;
+            adi,burnout-currents-enable;
         };
     };

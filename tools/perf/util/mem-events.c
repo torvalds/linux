@@ -13,7 +13,7 @@
 #include "debug.h"
 #include "symbol.h"
 #include "pmu.h"
-#include "pmu-hybrid.h"
+#include "pmus.h"
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
@@ -120,8 +120,8 @@ int perf_mem_events__init(void)
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
-		struct perf_pmu *pmu;
 		char sysfs_name[100];
+		struct perf_pmu *pmu = NULL;
 
 		/*
 		 * If the event entry isn't valid, skip initialization
@@ -130,16 +130,14 @@ int perf_mem_events__init(void)
 		if (!e->tag)
 			continue;
 
-		if (!perf_pmu__has_hybrid()) {
-			scnprintf(sysfs_name, sizeof(sysfs_name),
-				  e->sysfs_name, "cpu");
-			e->supported = perf_mem_event__supported(mnt, sysfs_name);
-		} else {
-			perf_pmu__for_each_hybrid_pmu(pmu) {
-				scnprintf(sysfs_name, sizeof(sysfs_name),
-					  e->sysfs_name, pmu->name);
-				e->supported |= perf_mem_event__supported(mnt, sysfs_name);
-			}
+		/*
+		 * Scan all PMUs not just core ones, since perf mem/c2c on
+		 * platforms like AMD uses IBS OP PMU which is independent
+		 * of core PMU.
+		 */
+		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+			scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name, pmu->name);
+			e->supported |= perf_mem_event__supported(mnt, sysfs_name);
 		}
 
 		if (e->supported)
@@ -156,11 +154,12 @@ void perf_mem_events__list(void)
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
 
-		fprintf(stderr, "%-13s%-*s%s\n",
-			e->tag ?: "",
-			verbose > 0 ? 25 : 0,
-			verbose > 0 ? perf_mem_events__name(j, NULL) : "",
-			e->supported ? ": available" : "");
+		fprintf(stderr, "%-*s%-*s%s",
+			e->tag ? 13 : 0,
+			e->tag ? : "",
+			e->tag && verbose > 0 ? 25 : 0,
+			e->tag && verbose > 0 ? perf_mem_events__name(j, NULL) : "",
+			e->supported ? ": available\n" : "");
 	}
 }
 
@@ -169,9 +168,9 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 {
 	const char *mnt = sysfs__mount();
 	char sysfs_name[100];
-	struct perf_pmu *pmu;
+	struct perf_pmu *pmu = NULL;
 
-	perf_pmu__for_each_hybrid_pmu(pmu) {
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name,
 			  pmu->name);
 		if (!perf_mem_event__supported(mnt, sysfs_name)) {
@@ -194,7 +193,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 		if (!e->record)
 			continue;
 
-		if (!perf_pmu__has_hybrid()) {
+		if (perf_pmus__num_mem_pmus() == 1) {
 			if (!e->supported) {
 				pr_err("failed: event '%s' not supported\n",
 				       perf_mem_events__name(j, NULL));
@@ -209,7 +208,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				return -1;
 			}
 
-			perf_pmu__for_each_hybrid_pmu(pmu) {
+			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 				rec_argv[i++] = "-e";
 				s = perf_mem_events__name(j, pmu->name);
 				if (s) {
@@ -281,7 +280,7 @@ static const char * const mem_lvl[] = {
 	"HIT",
 	"MISS",
 	"L1",
-	"LFB",
+	"LFB/MAB",
 	"L2",
 	"L3",
 	"Local RAM",
@@ -294,8 +293,11 @@ static const char * const mem_lvl[] = {
 };
 
 static const char * const mem_lvlnum[] = {
+	[PERF_MEM_LVLNUM_UNC] = "Uncached",
+	[PERF_MEM_LVLNUM_CXL] = "CXL",
+	[PERF_MEM_LVLNUM_IO] = "I/O",
 	[PERF_MEM_LVLNUM_ANY_CACHE] = "Any cache",
-	[PERF_MEM_LVLNUM_LFB] = "LFB",
+	[PERF_MEM_LVLNUM_LFB] = "LFB/MAB",
 	[PERF_MEM_LVLNUM_RAM] = "RAM",
 	[PERF_MEM_LVLNUM_PMEM] = "PMEM",
 	[PERF_MEM_LVLNUM_NA] = "N/A",
@@ -340,66 +342,71 @@ static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_inf
 
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
-	size_t i, l = 0;
-	u64 m =  PERF_MEM_LVL_NA;
-	u64 hit, miss;
+	union perf_mem_data_src data_src;
 	int printed = 0;
-
-	if (mem_info)
-		m  = mem_info->data_src.mem_lvl;
+	size_t l = 0;
+	size_t i;
+	int lvl;
+	char hit_miss[5] = {0};
 
 	sz -= 1; /* -1 for null termination */
 	out[0] = '\0';
 
-	hit = m & PERF_MEM_LVL_HIT;
-	miss = m & PERF_MEM_LVL_MISS;
+	if (!mem_info)
+		goto na;
 
-	/* already taken care of */
-	m &= ~(PERF_MEM_LVL_HIT|PERF_MEM_LVL_MISS);
+	data_src = mem_info->data_src;
 
-	if (mem_info && mem_info->data_src.mem_remote) {
-		strcat(out, "Remote ");
-		l += 7;
-	}
+	if (data_src.mem_lvl & PERF_MEM_LVL_HIT)
+		memcpy(hit_miss, "hit", 3);
+	else if (data_src.mem_lvl & PERF_MEM_LVL_MISS)
+		memcpy(hit_miss, "miss", 4);
 
-	/*
-	 * Incase mem_hops field is set, we can skip printing data source via
-	 * PERF_MEM_LVL namespace.
-	 */
-	if (mem_info && mem_info->data_src.mem_hops) {
-		l += scnprintf(out + l, sz - l, "%s ", mem_hops[mem_info->data_src.mem_hops]);
-	} else {
-		for (i = 0; m && i < ARRAY_SIZE(mem_lvl); i++, m >>= 1) {
-			if (!(m & 0x1))
-				continue;
-			if (printed++) {
-				strcat(out, " or ");
-				l += 4;
-			}
-			l += scnprintf(out + l, sz - l, mem_lvl[i]);
+	lvl = data_src.mem_lvl_num;
+	if (lvl && lvl != PERF_MEM_LVLNUM_NA) {
+		if (data_src.mem_remote) {
+			strcat(out, "Remote ");
+			l += 7;
 		}
-	}
 
-	if (mem_info && mem_info->data_src.mem_lvl_num) {
-		int lvl = mem_info->data_src.mem_lvl_num;
-		if (printed++) {
-			strcat(out, " or ");
-			l += 4;
-		}
+		if (data_src.mem_hops)
+			l += scnprintf(out + l, sz - l, "%s ", mem_hops[data_src.mem_hops]);
+
 		if (mem_lvlnum[lvl])
 			l += scnprintf(out + l, sz - l, mem_lvlnum[lvl]);
 		else
 			l += scnprintf(out + l, sz - l, "L%d", lvl);
+
+		l += scnprintf(out + l, sz - l, " %s", hit_miss);
+		return l;
 	}
 
-	if (l == 0)
-		l += scnprintf(out + l, sz - l, "N/A");
-	if (hit)
-		l += scnprintf(out + l, sz - l, " hit");
-	if (miss)
-		l += scnprintf(out + l, sz - l, " miss");
+	lvl = data_src.mem_lvl;
+	if (!lvl)
+		goto na;
 
-	return l;
+	lvl &= ~(PERF_MEM_LVL_NA | PERF_MEM_LVL_HIT | PERF_MEM_LVL_MISS);
+	if (!lvl)
+		goto na;
+
+	for (i = 0; lvl && i < ARRAY_SIZE(mem_lvl); i++, lvl >>= 1) {
+		if (!(lvl & 0x1))
+			continue;
+		if (printed++) {
+			strcat(out, " or ");
+			l += 4;
+		}
+		l += scnprintf(out + l, sz - l, mem_lvl[i]);
+	}
+
+	if (printed) {
+		l += scnprintf(out + l, sz - l, " %s", hit_miss);
+		return l;
+	}
+
+na:
+	strcat(out, "N/A");
+	return 3;
 }
 
 static const char * const snoop_access[] = {

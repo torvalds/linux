@@ -34,10 +34,8 @@ properties:
     maxItems: 1
 
   cpus:
-    $ref: /schemas/types.yaml#/definitions/phandle-array
-    items:
-      minItems: 1
-      maxItems: 4
+    minItems: 1
+    maxItems: 4
     description: |
       Array of phandles pointing to CPU cores, which should match the order of
       CPU cores used by the WUPCR and PSTR registers in the Advanced Power

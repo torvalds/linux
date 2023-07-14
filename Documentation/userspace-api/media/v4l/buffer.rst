@@ -187,10 +187,8 @@ struct v4l2_buffer
 	on the negotiated data format and may change with each buffer for
 	compressed variable size data like JPEG images. Drivers must set
 	this field when ``type`` refers to a capture stream, applications
-	when it refers to an output stream. If the application sets this
-	to 0 for an output stream, then ``bytesused`` will be set to the
-	size of the buffer (see the ``length`` field of this struct) by
-	the driver. For multiplanar formats this field is ignored and the
+	when it refers to an output stream. For multiplanar formats this field
+        is ignored and the
 	``planes`` pointer is used instead.
     * - __u32
       - ``flags``
@@ -327,10 +325,7 @@ struct v4l2_plane
       - ``bytesused``
       - The number of bytes occupied by data in the plane (its payload).
 	Drivers must set this field when ``type`` refers to a capture
-	stream, applications when it refers to an output stream. If the
-	application sets this to 0 for an output stream, then
-	``bytesused`` will be set to the size of the plane (see the
-	``length`` field of this struct) by the driver.
+	stream, applications when it refers to an output stream.
 
 	.. note::
 

@@ -15,6 +15,7 @@
 #include <linux/tcp.h>
 #include <linux/socket.h>
 
+#include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 #include <sys/socket.h>
@@ -24,6 +25,8 @@
 
 #define TLS_PAYLOAD_MAX_LEN 16384
 #define SOL_TLS 282
+
+static int fips_enabled;
 
 struct tls_crypto_info_keys {
 	union {
@@ -235,7 +238,7 @@ FIXTURE_VARIANT(tls)
 {
 	uint16_t tls_version;
 	uint16_t cipher_type;
-	bool nopad;
+	bool nopad, fips_non_compliant;
 };
 
 FIXTURE_VARIANT_ADD(tls, 12_aes_gcm)
@@ -254,24 +257,28 @@ FIXTURE_VARIANT_ADD(tls, 12_chacha)
 {
 	.tls_version = TLS_1_2_VERSION,
 	.cipher_type = TLS_CIPHER_CHACHA20_POLY1305,
+	.fips_non_compliant = true,
 };
 
 FIXTURE_VARIANT_ADD(tls, 13_chacha)
 {
 	.tls_version = TLS_1_3_VERSION,
 	.cipher_type = TLS_CIPHER_CHACHA20_POLY1305,
+	.fips_non_compliant = true,
 };
 
 FIXTURE_VARIANT_ADD(tls, 13_sm4_gcm)
 {
 	.tls_version = TLS_1_3_VERSION,
 	.cipher_type = TLS_CIPHER_SM4_GCM,
+	.fips_non_compliant = true,
 };
 
 FIXTURE_VARIANT_ADD(tls, 13_sm4_ccm)
 {
 	.tls_version = TLS_1_3_VERSION,
 	.cipher_type = TLS_CIPHER_SM4_CCM,
+	.fips_non_compliant = true,
 };
 
 FIXTURE_VARIANT_ADD(tls, 12_aes_ccm)
@@ -310,6 +317,9 @@ FIXTURE_SETUP(tls)
 	struct tls_crypto_info_keys tls12;
 	int one = 1;
 	int ret;
+
+	if (fips_enabled && variant->fips_non_compliant)
+		SKIP(return, "Unsupported cipher in FIPS mode");
 
 	tls_crypto_info_init(variant->tls_version, variant->cipher_type,
 			     &tls12);
@@ -1637,6 +1647,136 @@ TEST_F(tls_err, timeo)
 	}
 }
 
+TEST_F(tls_err, poll_partial_rec)
+{
+	struct pollfd pfd = { };
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	/* Write 100B, not the full record ... */
+	EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+	/* ... no full record should mean no POLLIN */
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 0);
+	/* Now write the rest, and it should all pop out of the other end. */
+	EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0), rec_len - 100);
+	pfd.fd = self->cfd2;
+	pfd.events = POLLIN;
+	EXPECT_EQ(poll(&pfd, 1, 1), 1);
+	EXPECT_EQ(recv(self->cfd2, rec, sizeof(rec), 0), sizeof(buf));
+	EXPECT_EQ(memcmp(buf, rec, sizeof(buf)), 0);
+}
+
+TEST_F(tls_err, epoll_partial_rec)
+{
+	struct epoll_event ev, events[10];
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+	int epollfd;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	epollfd = epoll_create1(0);
+	ASSERT_GE(epollfd, 0);
+
+	memset(&ev, 0, sizeof(ev));
+	ev.events = EPOLLIN;
+	ev.data.fd = self->cfd2;
+	ASSERT_GE(epoll_ctl(epollfd, EPOLL_CTL_ADD, self->cfd2, &ev), 0);
+
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	/* Write 100B, not the full record ... */
+	EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+	/* ... no full record should mean no POLLIN */
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 0);
+	/* Now write the rest, and it should all pop out of the other end. */
+	EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0), rec_len - 100);
+	EXPECT_EQ(epoll_wait(epollfd, events, 10, 0), 1);
+	EXPECT_EQ(recv(self->cfd2, rec, sizeof(rec), 0), sizeof(buf));
+	EXPECT_EQ(memcmp(buf, rec, sizeof(buf)), 0);
+
+	close(epollfd);
+}
+
+TEST_F(tls_err, poll_partial_rec_async)
+{
+	struct pollfd pfd = { };
+	ssize_t rec_len;
+	char rec[256];
+	char buf[128];
+	char token;
+	int p[2];
+	int ret;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	ASSERT_GE(pipe(p), 0);
+
+	memrnd(buf, sizeof(buf));
+	EXPECT_EQ(send(self->fd, buf, sizeof(buf), 0), sizeof(buf));
+	rec_len = recv(self->cfd, rec, sizeof(rec), 0);
+	EXPECT_GT(rec_len, sizeof(buf));
+
+	ret = fork();
+	ASSERT_GE(ret, 0);
+
+	if (ret) {
+		int status, pid2;
+
+		close(p[1]);
+		usleep(1000); /* Give child a head start */
+
+		EXPECT_EQ(send(self->fd2, rec, 100, 0), 100);
+
+		EXPECT_EQ(read(p[0], &token, 1), 1); /* Barrier #1 */
+
+		EXPECT_EQ(send(self->fd2, rec + 100, rec_len - 100, 0),
+			  rec_len - 100);
+
+		pid2 = wait(&status);
+		EXPECT_EQ(pid2, ret);
+		EXPECT_EQ(status, 0);
+	} else {
+		close(p[0]);
+
+		/* Child should sleep in poll(), never get a wake */
+		pfd.fd = self->cfd2;
+		pfd.events = POLLIN;
+		EXPECT_EQ(poll(&pfd, 1, 5), 0);
+
+		EXPECT_EQ(write(p[1], &token, 1), 1); /* Barrier #1 */
+
+		pfd.fd = self->cfd2;
+		pfd.events = POLLIN;
+		EXPECT_EQ(poll(&pfd, 1, 5), 1);
+
+		exit(!_metadata->passed);
+	}
+}
+
 TEST(non_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
@@ -1818,6 +1958,64 @@ TEST(tls_v6ops) {
 
 	close(fd);
 	close(sfd);
+}
+
+TEST(prequeue) {
+	struct tls_crypto_info_keys tls12;
+	char buf[20000], buf2[20000];
+	struct sockaddr_in addr;
+	int sfd, cfd, ret, fd;
+	socklen_t len;
+
+	len = sizeof(addr);
+	memrnd(buf, sizeof(buf));
+
+	tls_crypto_info_init(TLS_1_2_VERSION, TLS_CIPHER_AES_GCM_256, &tls12);
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_port = 0;
+
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+	sfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	ASSERT_EQ(bind(sfd, &addr, sizeof(addr)), 0);
+	ASSERT_EQ(listen(sfd, 10), 0);
+	ASSERT_EQ(getsockname(sfd, &addr, &len), 0);
+	ASSERT_EQ(connect(fd, &addr, sizeof(addr)), 0);
+	ASSERT_GE(cfd = accept(sfd, &addr, &len), 0);
+	close(sfd);
+
+	ret = setsockopt(fd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls"));
+	if (ret) {
+		ASSERT_EQ(errno, ENOENT);
+		SKIP(return, "no TLS support");
+	}
+
+	ASSERT_EQ(setsockopt(fd, SOL_TLS, TLS_TX, &tls12, tls12.len), 0);
+	EXPECT_EQ(send(fd, buf, sizeof(buf), MSG_DONTWAIT), sizeof(buf));
+
+	ASSERT_EQ(setsockopt(cfd, IPPROTO_TCP, TCP_ULP, "tls", sizeof("tls")), 0);
+	ASSERT_EQ(setsockopt(cfd, SOL_TLS, TLS_RX, &tls12, tls12.len), 0);
+	EXPECT_EQ(recv(cfd, buf2, sizeof(buf2), MSG_WAITALL), sizeof(buf2));
+
+	EXPECT_EQ(memcmp(buf, buf2, sizeof(buf)), 0);
+
+	close(fd);
+	close(cfd);
+}
+
+static void __attribute__((constructor)) fips_check(void) {
+	int res;
+	FILE *f;
+
+	f = fopen("/proc/sys/crypto/fips_enabled", "r");
+	if (f) {
+		res = fscanf(f, "%d", &fips_enabled);
+		if (res != 1)
+			ksft_print_msg("ERROR: Couldn't read /proc/sys/crypto/fips_enabled\n");
+		fclose(f);
+	}
 }
 
 TEST_HARNESS_MAIN

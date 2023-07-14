@@ -778,10 +778,9 @@ static int siu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int siu_remove(struct platform_device *pdev)
+static void siu_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static struct platform_driver siu_driver = {
@@ -789,7 +788,7 @@ static struct platform_driver siu_driver = {
 		.name	= "siu-pcm-audio",
 	},
 	.probe		= siu_probe,
-	.remove		= siu_remove,
+	.remove_new	= siu_remove,
 };
 
 module_platform_driver(siu_driver);
@@ -797,3 +796,5 @@ module_platform_driver(siu_driver);
 MODULE_AUTHOR("Carlos Munoz <carlos@kenati.com>");
 MODULE_DESCRIPTION("ALSA SoC SH7722 SIU driver");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("siu_spb.bin");

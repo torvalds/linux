@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <net/mac80211.h>
 #include <linux/bcma/bcma_driver_chipcommon.h>
+#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/machine.h>
 #include <linux/gpio/consumer.h>
@@ -62,9 +63,6 @@ int brcms_led_register(struct brcms_info *wl)
 		&sprom->gpio3 };
 	int hwnum = -1;
 	enum gpio_lookup_flags lflags = GPIO_ACTIVE_HIGH;
-
-	if (!bcma_gpio || !gpio_is_valid(bcma_gpio->base))
-		return -ENODEV;
 
 	/* find radio enabled LED */
 	for (i = 0; i < BRCMS_LED_NO; i++) {

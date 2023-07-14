@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -272,13 +272,15 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
  * @vif: Pointer to the ieee80211_vif structure
  * @req_type: The part of the driver who call for a change.
  * @smps_request: The request to change the SMPS mode.
+ * @link_id: for MLO link_id, otherwise 0 (deflink)
  *
  * Get a requst to change the SMPS mode,
  * and change it according to all other requests in the driver.
  */
 void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 enum iwl_mvm_smps_type_request req_type,
-			 enum ieee80211_smps_mode smps_request)
+			 enum ieee80211_smps_mode smps_request,
+			 unsigned int link_id)
 {
 	struct iwl_mvm_vif *mvmvif;
 	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_AUTOMATIC;
@@ -294,17 +296,42 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	mvmvif->smps_requests[req_type] = smps_request;
+
+	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
+		return;
+
+	mvmvif->link[link_id]->smps_requests[req_type] = smps_request;
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC) {
+		if (mvmvif->link[link_id]->smps_requests[i] ==
+		    IEEE80211_SMPS_STATIC) {
 			smps_mode = IEEE80211_SMPS_STATIC;
 			break;
 		}
-		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC)
+		if (mvmvif->link[link_id]->smps_requests[i] ==
+		    IEEE80211_SMPS_DYNAMIC)
 			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
-	ieee80211_request_smps(vif, 0, smps_mode);
+	/* SMPS is disabled in eSR */
+	if (mvmvif->esr_active)
+		smps_mode = IEEE80211_SMPS_OFF;
+
+	ieee80211_request_smps(vif, link_id, smps_mode);
+}
+
+void iwl_mvm_update_smps_on_active_links(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 enum iwl_mvm_smps_type_request req_type,
+					 enum ieee80211_smps_mode smps_request)
+{
+	struct ieee80211_bss_conf *link_conf;
+	unsigned int link_id;
+
+	rcu_read_lock();
+	for_each_vif_active_link(vif, link_conf, link_id)
+		iwl_mvm_update_smps(mvm, vif, req_type, smps_request,
+				    link_id);
+	rcu_read_unlock();
 }
 
 static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
@@ -390,16 +417,20 @@ static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_diversity_iter_data *data = _data;
-	int i;
+	int i, link_id;
 
-	if (mvmvif->phy_ctxt != data->ctxt)
-		return;
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 
-	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->smps_requests[i] == IEEE80211_SMPS_STATIC ||
-		    mvmvif->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
-			data->result = false;
-			break;
+		if (link_info->phy_ctxt != data->ctxt)
+			continue;
+
+		for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+			if (link_info->smps_requests[i] == IEEE80211_SMPS_STATIC ||
+			    link_info->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
+				data->result = false;
+				break;
+			}
 		}
 	}
 }
@@ -495,10 +526,10 @@ static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 	if (iwl_mvm_vif_low_latency(mvmvif)) {
 		result->result = true;
 
-		if (!mvmvif->phy_ctxt)
+		if (!mvmvif->deflink.phy_ctxt)
 			return;
 
-		band = mvmvif->phy_ctxt->channel->band;
+		band = mvmvif->deflink.phy_ctxt->channel->band;
 		result->result_per_band[band] = true;
 	}
 }
@@ -819,10 +850,10 @@ static void iwl_mvm_uapsd_agg_disconnect(struct iwl_mvm *mvm,
 	if (!vif->cfg.assoc)
 		return;
 
-	if (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
-	    !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
-	    !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
-	    !mvmvif->queue_params[IEEE80211_AC_BK].uapsd)
+	if (!mvmvif->deflink.queue_params[IEEE80211_AC_VO].uapsd &&
+	    !mvmvif->deflink.queue_params[IEEE80211_AC_VI].uapsd &&
+	    !mvmvif->deflink.queue_params[IEEE80211_AC_BE].uapsd &&
+	    !mvmvif->deflink.queue_params[IEEE80211_AC_BK].uapsd)
 		return;
 
 	if (mvm->tcm.data[mvmvif->id].uapsd_nonagg_detect.detected)
@@ -831,7 +862,8 @@ static void iwl_mvm_uapsd_agg_disconnect(struct iwl_mvm *mvm,
 	mvm->tcm.data[mvmvif->id].uapsd_nonagg_detect.detected = true;
 	IWL_INFO(mvm,
 		 "detected AP should do aggregation but isn't, likely due to U-APSD\n");
-	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk, 15 * HZ);
+	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk,
+			      15 * HZ);
 }
 
 static void iwl_mvm_check_uapsd_agg_expected_tpt(struct iwl_mvm *mvm,
@@ -883,10 +915,10 @@ static void iwl_mvm_tcm_iterator(void *_data, u8 *mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 *band = _data;
 
-	if (!mvmvif->phy_ctxt)
+	if (!mvmvif->deflink.phy_ctxt)
 		return;
 
-	band[mvmvif->id] = mvmvif->phy_ctxt->channel->band;
+	band[mvmvif->id] = mvmvif->deflink.phy_ctxt->channel->band;
 }
 
 static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
@@ -1136,4 +1168,37 @@ void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type,
 		mvm->ps_disabled = ps_disabled;
 		iwl_mvm_power_update_device(mvm);
 	}
+}
+
+/* Find if at least two links from different vifs use same channel
+ * FIXME: consider having a refcount array in struct iwl_mvm_vif for
+ * used phy_ctxt ids.
+ */
+bool iwl_mvm_have_links_same_channel(struct iwl_mvm_vif *vif1,
+				     struct iwl_mvm_vif *vif2)
+{
+	unsigned int i, j;
+
+	for_each_mvm_vif_valid_link(vif1, i) {
+		for_each_mvm_vif_valid_link(vif2, j) {
+			if (vif1->link[i]->phy_ctxt == vif2->link[j]->phy_ctxt)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+bool iwl_mvm_vif_is_active(struct iwl_mvm_vif *mvmvif)
+{
+	unsigned int i;
+
+	/* FIXME: can it fail when phy_ctxt is assigned? */
+	for_each_mvm_vif_valid_link(mvmvif, i) {
+		if (mvmvif->link[i]->phy_ctxt &&
+		    mvmvif->link[i]->phy_ctxt->id < NUM_PHY_CTX)
+			return true;
+	}
+
+	return false;
 }

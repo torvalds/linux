@@ -324,7 +324,7 @@ atomic operations.
 
 Specifically 'simple' cmpxchg() loops are expected to not starve one another
 indefinitely. However, this is not evident on LL/SC architectures, because
-while an LL/SC architecure 'can/should/must' provide forward progress
+while an LL/SC architecture 'can/should/must' provide forward progress
 guarantees between competing LL/SC sections, such a guarantee does not
 transfer to cmpxchg() implemented using LL/SC. Consider:
 

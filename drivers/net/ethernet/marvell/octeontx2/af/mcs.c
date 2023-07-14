@@ -473,6 +473,8 @@ void mcs_flowid_entry_write(struct mcs *mcs, u64 *data, u64 *mask, int flow_id, 
 		for (reg_id = 0; reg_id < 4; reg_id++) {
 			reg = MCSX_CPM_RX_SLAVE_FLOWID_TCAM_DATAX(reg_id, flow_id);
 			mcs_reg_write(mcs, reg, data[reg_id]);
+		}
+		for (reg_id = 0; reg_id < 4; reg_id++) {
 			reg = MCSX_CPM_RX_SLAVE_FLOWID_TCAM_MASKX(reg_id, flow_id);
 			mcs_reg_write(mcs, reg, mask[reg_id]);
 		}
@@ -480,6 +482,8 @@ void mcs_flowid_entry_write(struct mcs *mcs, u64 *data, u64 *mask, int flow_id, 
 		for (reg_id = 0; reg_id < 4; reg_id++) {
 			reg = MCSX_CPM_TX_SLAVE_FLOWID_TCAM_DATAX(reg_id, flow_id);
 			mcs_reg_write(mcs, reg, data[reg_id]);
+		}
+		for (reg_id = 0; reg_id < 4; reg_id++) {
 			reg = MCSX_CPM_TX_SLAVE_FLOWID_TCAM_MASKX(reg_id, flow_id);
 			mcs_reg_write(mcs, reg, mask[reg_id]);
 		}
@@ -494,6 +498,9 @@ int mcs_install_flowid_bypass_entry(struct mcs *mcs)
 
 	/* Flow entry */
 	flow_id = mcs->hw->tcam_entries - MCS_RSRC_RSVD_CNT;
+	__set_bit(flow_id, mcs->rx.flow_ids.bmap);
+	__set_bit(flow_id, mcs->tx.flow_ids.bmap);
+
 	for (reg_id = 0; reg_id < 4; reg_id++) {
 		reg = MCSX_CPM_RX_SLAVE_FLOWID_TCAM_MASKX(reg_id, flow_id);
 		mcs_reg_write(mcs, reg, GENMASK_ULL(63, 0));
@@ -504,6 +511,8 @@ int mcs_install_flowid_bypass_entry(struct mcs *mcs)
 	}
 	/* secy */
 	secy_id = mcs->hw->secy_entries - MCS_RSRC_RSVD_CNT;
+	__set_bit(secy_id, mcs->rx.secy.bmap);
+	__set_bit(secy_id, mcs->tx.secy.bmap);
 
 	/* Set validate frames to NULL and enable control port */
 	plcy = 0x7ull;
@@ -528,6 +537,7 @@ int mcs_install_flowid_bypass_entry(struct mcs *mcs)
 	/* Enable Flowid entry */
 	mcs_ena_dis_flowid_entry(mcs, flow_id, MCS_RX, true);
 	mcs_ena_dis_flowid_entry(mcs, flow_id, MCS_TX, true);
+
 	return 0;
 }
 
@@ -926,60 +936,42 @@ static void mcs_tx_misc_intr_handler(struct mcs *mcs, u64 intr)
 	mcs_add_intr_wq_entry(mcs, &event);
 }
 
-static void mcs_bbe_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir)
+void cn10kb_mcs_bbe_intr_handler(struct mcs *mcs, u64 intr,
+				 enum mcs_direction dir)
 {
-	struct mcs_intr_event event = { 0 };
-	int i;
+	u64 val, reg;
+	int lmac;
 
-	if (!(intr & MCS_BBE_INT_MASK))
+	if (!(intr & 0x6ULL))
 		return;
 
-	event.mcs_id = mcs->mcs_id;
-	event.pcifunc = mcs->pf_map[0];
+	if (intr & BIT_ULL(1))
+		reg = (dir == MCS_RX) ? MCSX_BBE_RX_SLAVE_DFIFO_OVERFLOW_0 :
+					MCSX_BBE_TX_SLAVE_DFIFO_OVERFLOW_0;
+	else
+		reg = (dir == MCS_RX) ? MCSX_BBE_RX_SLAVE_PLFIFO_OVERFLOW_0 :
+					MCSX_BBE_TX_SLAVE_PLFIFO_OVERFLOW_0;
+	val = mcs_reg_read(mcs, reg);
 
-	for (i = 0; i < MCS_MAX_BBE_INT; i++) {
-		if (!(intr & BIT_ULL(i)))
+	/* policy/data over flow occurred */
+	for (lmac = 0; lmac < mcs->hw->lmac_cnt; lmac++) {
+		if (!(val & BIT_ULL(lmac)))
 			continue;
-
-		/* Lower nibble denotes data fifo overflow interrupts and
-		 * upper nibble indicates policy fifo overflow interrupts.
-		 */
-		if (intr & 0xFULL)
-			event.intr_mask = (dir == MCS_RX) ?
-					  MCS_BBE_RX_DFIFO_OVERFLOW_INT :
-					  MCS_BBE_TX_DFIFO_OVERFLOW_INT;
-		else
-			event.intr_mask = (dir == MCS_RX) ?
-					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT :
-					  MCS_BBE_RX_PLFIFO_OVERFLOW_INT;
-
-		/* Notify the lmac_id info which ran into BBE fatal error */
-		event.lmac_id = i & 0x3ULL;
-		mcs_add_intr_wq_entry(mcs, &event);
+		dev_warn(mcs->dev, "BEE:Policy or data overflow occurred on lmac:%d\n", lmac);
 	}
 }
 
-static void mcs_pab_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir)
+void cn10kb_mcs_pab_intr_handler(struct mcs *mcs, u64 intr,
+				 enum mcs_direction dir)
 {
-	struct mcs_intr_event event = { 0 };
-	int i;
+	int lmac;
 
-	if (!(intr & MCS_PAB_INT_MASK))
+	if (!(intr & 0xFFFFFULL))
 		return;
 
-	event.mcs_id = mcs->mcs_id;
-	event.pcifunc = mcs->pf_map[0];
-
-	for (i = 0; i < MCS_MAX_PAB_INT; i++) {
-		if (!(intr & BIT_ULL(i)))
-			continue;
-
-		event.intr_mask = (dir == MCS_RX) ? MCS_PAB_RX_CHAN_OVERFLOW_INT :
-				  MCS_PAB_TX_CHAN_OVERFLOW_INT;
-
-		/* Notify the lmac_id info which ran into PAB fatal error */
-		event.lmac_id = i;
-		mcs_add_intr_wq_entry(mcs, &event);
+	for (lmac = 0; lmac < mcs->hw->lmac_cnt; lmac++) {
+		if (intr & BIT_ULL(lmac))
+			dev_warn(mcs->dev, "PAB: overflow occurred on lmac:%d\n", lmac);
 	}
 }
 
@@ -988,9 +980,8 @@ static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
 	struct mcs *mcs = (struct mcs *)mcs_irq;
 	u64 intr, cpm_intr, bbe_intr, pab_intr;
 
-	/* Disable and clear the interrupt */
+	/* Disable  the interrupt */
 	mcs_reg_write(mcs, MCSX_IP_INT_ENA_W1C, BIT_ULL(0));
-	mcs_reg_write(mcs, MCSX_IP_INT, BIT_ULL(0));
 
 	/* Check which block has interrupt*/
 	intr = mcs_reg_read(mcs, MCSX_TOP_SLAVE_INT_SUM);
@@ -1037,7 +1028,7 @@ static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
 	/* BBE RX */
 	if (intr & MCS_BBE_RX_INT_ENA) {
 		bbe_intr = mcs_reg_read(mcs, MCSX_BBE_RX_SLAVE_BBE_INT);
-		mcs_bbe_intr_handler(mcs, bbe_intr, MCS_RX);
+		mcs->mcs_ops->mcs_bbe_intr_handler(mcs, bbe_intr, MCS_RX);
 
 		/* Clear the interrupt */
 		mcs_reg_write(mcs, MCSX_BBE_RX_SLAVE_BBE_INT_INTR_RW, 0);
@@ -1047,7 +1038,7 @@ static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
 	/* BBE TX */
 	if (intr & MCS_BBE_TX_INT_ENA) {
 		bbe_intr = mcs_reg_read(mcs, MCSX_BBE_TX_SLAVE_BBE_INT);
-		mcs_bbe_intr_handler(mcs, bbe_intr, MCS_TX);
+		mcs->mcs_ops->mcs_bbe_intr_handler(mcs, bbe_intr, MCS_TX);
 
 		/* Clear the interrupt */
 		mcs_reg_write(mcs, MCSX_BBE_TX_SLAVE_BBE_INT_INTR_RW, 0);
@@ -1057,7 +1048,7 @@ static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
 	/* PAB RX */
 	if (intr & MCS_PAB_RX_INT_ENA) {
 		pab_intr = mcs_reg_read(mcs, MCSX_PAB_RX_SLAVE_PAB_INT);
-		mcs_pab_intr_handler(mcs, pab_intr, MCS_RX);
+		mcs->mcs_ops->mcs_pab_intr_handler(mcs, pab_intr, MCS_RX);
 
 		/* Clear the interrupt */
 		mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PAB_INT_INTR_RW, 0);
@@ -1067,14 +1058,15 @@ static irqreturn_t mcs_ip_intr_handler(int irq, void *mcs_irq)
 	/* PAB TX */
 	if (intr & MCS_PAB_TX_INT_ENA) {
 		pab_intr = mcs_reg_read(mcs, MCSX_PAB_TX_SLAVE_PAB_INT);
-		mcs_pab_intr_handler(mcs, pab_intr, MCS_TX);
+		mcs->mcs_ops->mcs_pab_intr_handler(mcs, pab_intr, MCS_TX);
 
 		/* Clear the interrupt */
 		mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT_INTR_RW, 0);
 		mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT, pab_intr);
 	}
 
-	/* Enable the interrupt */
+	/* Clear and enable the interrupt */
+	mcs_reg_write(mcs, MCSX_IP_INT, BIT_ULL(0));
 	mcs_reg_write(mcs, MCSX_IP_INT_ENA_W1S, BIT_ULL(0));
 
 	return IRQ_HANDLED;
@@ -1156,7 +1148,7 @@ static int mcs_register_interrupts(struct mcs *mcs)
 		return ret;
 	}
 
-	ret = request_irq(pci_irq_vector(mcs->pdev, MCS_INT_VEC_IP),
+	ret = request_irq(pci_irq_vector(mcs->pdev, mcs->hw->ip_vec),
 			  mcs_ip_intr_handler, 0, "MCS_IP", mcs);
 	if (ret) {
 		dev_err(mcs->dev, "MCS IP irq registration failed\n");
@@ -1175,17 +1167,22 @@ static int mcs_register_interrupts(struct mcs *mcs)
 	mcs_reg_write(mcs, MCSX_CPM_TX_SLAVE_TX_INT_ENB, 0x7ULL);
 	mcs_reg_write(mcs, MCSX_CPM_RX_SLAVE_RX_INT_ENB, 0x7FULL);
 
-	mcs_reg_write(mcs, MCSX_BBE_RX_SLAVE_BBE_INT_ENB, 0xff);
-	mcs_reg_write(mcs, MCSX_BBE_TX_SLAVE_BBE_INT_ENB, 0xff);
+	mcs_reg_write(mcs, MCSX_BBE_RX_SLAVE_BBE_INT_ENB, 0xFFULL);
+	mcs_reg_write(mcs, MCSX_BBE_TX_SLAVE_BBE_INT_ENB, 0xFFULL);
 
-	mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PAB_INT_ENB, 0xff);
-	mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT_ENB, 0xff);
+	mcs_reg_write(mcs, MCSX_PAB_RX_SLAVE_PAB_INT_ENB, 0xFFFFFULL);
+	mcs_reg_write(mcs, MCSX_PAB_TX_SLAVE_PAB_INT_ENB, 0xFFFFFULL);
 
 	mcs->tx_sa_active = alloc_mem(mcs, mcs->hw->sc_entries);
-	if (!mcs->tx_sa_active)
-		goto exit;
+	if (!mcs->tx_sa_active) {
+		ret = -ENOMEM;
+		goto free_irq;
+	}
 
 	return ret;
+
+free_irq:
+	free_irq(pci_irq_vector(mcs->pdev, mcs->hw->ip_vec), mcs);
 exit:
 	pci_free_irq_vectors(mcs->pdev);
 	mcs->num_vec = 0;
@@ -1320,8 +1317,11 @@ void mcs_reset_port(struct mcs *mcs, u8 port_id, u8 reset)
 void mcs_set_lmac_mode(struct mcs *mcs, int lmac_id, u8 mode)
 {
 	u64 reg;
+	int id = lmac_id * 2;
 
-	reg = MCSX_MCS_TOP_SLAVE_CHANNEL_CFG(lmac_id * 2);
+	reg = MCSX_MCS_TOP_SLAVE_CHANNEL_CFG(id);
+	mcs_reg_write(mcs, reg, (u64)mode);
+	reg = MCSX_MCS_TOP_SLAVE_CHANNEL_CFG((id + 1));
 	mcs_reg_write(mcs, reg, (u64)mode);
 }
 
@@ -1479,6 +1479,7 @@ void cn10kb_mcs_set_hw_capabilities(struct mcs *mcs)
 	hw->lmac_cnt = 20;		/* lmacs/ports per mcs block */
 	hw->mcs_x2p_intf = 5;		/* x2p clabration intf */
 	hw->mcs_blks = 1;		/* MCS blocks */
+	hw->ip_vec = MCS_CN10KB_INT_VEC_IP; /* IP vector */
 }
 
 static struct mcs_ops cn10kb_mcs_ops = {
@@ -1487,6 +1488,8 @@ static struct mcs_ops cn10kb_mcs_ops = {
 	.mcs_tx_sa_mem_map_write	= cn10kb_mcs_tx_sa_mem_map_write,
 	.mcs_rx_sa_mem_map_write	= cn10kb_mcs_rx_sa_mem_map_write,
 	.mcs_flowid_secy_map		= cn10kb_mcs_flowid_secy_map,
+	.mcs_bbe_intr_handler		= cn10kb_mcs_bbe_intr_handler,
+	.mcs_pab_intr_handler		= cn10kb_mcs_pab_intr_handler,
 };
 
 static int mcs_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1587,6 +1590,7 @@ static void mcs_remove(struct pci_dev *pdev)
 
 	/* Set MCS to external bypass */
 	mcs_set_external_bypass(mcs, true);
+	free_irq(pci_irq_vector(pdev, mcs->hw->ip_vec), mcs);
 	pci_free_irq_vectors(pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

@@ -15,6 +15,9 @@ maintainers:
   - Jaroslav Kysela <perex@perex.cz>
   - Takashi Iwai <tiwai@suse.com>
 
+allOf:
+  - $ref: dai-common.yaml#
+
 properties:
   compatible:
     const: mscc,zl38060
@@ -48,12 +51,12 @@ required:
   - gpio-controller
   - '#sound-dai-cells'
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 

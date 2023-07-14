@@ -13,7 +13,7 @@ description: |
   This RTC appears in the AM62x family of SoCs.
 
 allOf:
-  - $ref: "rtc.yaml#"
+  - $ref: rtc.yaml#
 
 properties:
   compatible:

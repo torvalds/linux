@@ -84,24 +84,6 @@ Once the VM shuts down, or otherwise releases the VF, the command will
 complete.
 
 
-Important notes for SR-IOV and Link Aggregation
------------------------------------------------
-Link Aggregation is mutually exclusive with SR-IOV.
-
-- If Link Aggregation is active, SR-IOV VFs cannot be created on the PF.
-- If SR-IOV is active, you cannot set up Link Aggregation on the interface.
-
-Bridging and MACVLAN are also affected by this. If you wish to use bridging or
-MACVLAN with SR-IOV, you must set up bridging or MACVLAN before enabling
-SR-IOV. If you are using bridging or MACVLAN in conjunction with SR-IOV, and
-you want to remove the interface from the bridge or MACVLAN, you must follow
-these steps:
-
-1. Destroy SR-IOV VFs if they exist
-2. Remove the interface from the bridge or MACVLAN
-3. Recreate SRIOV VFs as needed
-
-
 Additional Features and Configurations
 ======================================
 
@@ -817,10 +799,10 @@ NOTE:
 
 NAPI
 ----
-This driver supports NAPI (Rx polling mode).
-For more information on NAPI, see
-https://www.linuxfoundation.org/collaborate/workgroups/networking/napi
 
+This driver supports NAPI (Rx polling mode).
+
+See :ref:`Documentation/networking/napi.rst <napi>` for more information.
 
 MACVLAN
 -------
@@ -901,15 +883,17 @@ To enable/disable UDP Segmentation Offload, issue the following command::
 
   # ethtool -K <ethX> tx-udp-segmentation [off|on]
 
+
 GNSS module
 -----------
-Allows user to read messages from the GNSS module and write supported commands.
-If the module is physically present, driver creates 2 TTYs for each supported
-device in /dev, ttyGNSS_<device>:<function>_0 and _1. First one (_0) is RW and
-the second one is RO.
-The protocol of write commands is dependent on the GNSS module as the driver
-writes raw bytes from the TTY to the GNSS i2c. Please refer to the module
-documentation for details.
+Requires kernel compiled with CONFIG_GNSS=y or CONFIG_GNSS=m.
+Allows user to read messages from the GNSS hardware module and write supported
+commands. If the module is physically present, a GNSS device is spawned:
+``/dev/gnss<id>``.
+The protocol of write command is dependent on the GNSS hardware module as the
+driver writes raw bytes by the GNSS object to the receiver through i2c. Please
+refer to the hardware GNSS module documentation for configuration details.
+
 
 Performance Optimization
 ========================
@@ -1024,12 +1008,9 @@ Support
 For general information, go to the Intel support website at:
 https://www.intel.com/support/
 
-or the Intel Wired Networking project hosted by Sourceforge at:
-https://sourceforge.net/projects/e1000
-
 If an issue is identified with the released source code on a supported kernel
 with a supported adapter, email the specific information related to the issue
-to e1000-devel@lists.sf.net.
+to intel-wired-lan@lists.osuosl.org.
 
 
 Trademarks

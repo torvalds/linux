@@ -38,7 +38,7 @@ static int __iopagetest(struct intel_memory_region *mem,
 			u8 value, resource_size_t offset,
 			const void *caller)
 {
-	int byte = prandom_u32_max(pagesize);
+	int byte = get_random_u32_below(pagesize);
 	u8 result[3];
 
 	memset_io(va, value, pagesize); /* or GPF! */
@@ -92,7 +92,7 @@ static int iopagetest(struct intel_memory_region *mem,
 static resource_size_t random_page(resource_size_t last)
 {
 	/* Limited to low 44b (16TiB), but should suffice for a spot check */
-	return prandom_u32_max(last >> PAGE_SHIFT) << PAGE_SHIFT;
+	return get_random_u32_below(last >> PAGE_SHIFT) << PAGE_SHIFT;
 }
 
 static int iomemtest(struct intel_memory_region *mem,
@@ -235,7 +235,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 		return ERR_PTR(-ENOMEM);
 
 	mem->i915 = i915;
-	mem->region = (struct resource)DEFINE_RES_MEM(start, size);
+	mem->region = DEFINE_RES_MEM(start, size);
 	mem->io_start = io_start;
 	mem->io_size = io_size;
 	mem->min_page_size = min_page_size;

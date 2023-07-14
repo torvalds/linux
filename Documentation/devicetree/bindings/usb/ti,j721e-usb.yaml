@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/usb/ti,j721e-usb.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/usb/ti,j721e-usb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Bindings for the TI wrapper module for the Cadence USBSS-DRD controller
+title: TI wrapper module for the Cadence USBSS-DRD controller
 
 maintainers:
   - Roger Quadros <rogerq@kernel.org>
@@ -52,12 +52,6 @@ properties:
       Should be present if USB VBUS line is connected to the
       VBUS pin of the SoC via a 1/3 voltage divider.
     type: boolean
-
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clock-parents:
-    maxItems: 1
 
   '#address-cells':
     const: 2

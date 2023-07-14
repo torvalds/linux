@@ -612,96 +612,6 @@ static int mt9m114_res2size(struct v4l2_subdev *sd, int *h_size, int *v_size)
 	return 0;
 }
 
-static int mt9m114_get_intg_factor(struct i2c_client *client,
-				   struct camera_mipi_info *info,
-				   const struct mt9m114_res_struct *res)
-{
-	struct atomisp_sensor_mode_data *buf;
-	u32 reg_val;
-	int ret;
-
-	if (!info)
-		return -EINVAL;
-
-	buf = &info->data;
-
-	ret =  mt9m114_read_reg(client, MISENSOR_32BIT,
-				REG_PIXEL_CLK, &reg_val);
-	if (ret)
-		return ret;
-	buf->vt_pix_clk_freq_mhz = reg_val;
-
-	/* get integration time */
-	buf->coarse_integration_time_min = MT9M114_COARSE_INTG_TIME_MIN;
-	buf->coarse_integration_time_max_margin =
-	    MT9M114_COARSE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_min = MT9M114_FINE_INTG_TIME_MIN;
-	buf->fine_integration_time_max_margin =
-	    MT9M114_FINE_INTG_TIME_MAX_MARGIN;
-
-	buf->fine_integration_time_def = MT9M114_FINE_INTG_TIME_MIN;
-
-	buf->frame_length_lines = res->lines_per_frame;
-	buf->line_length_pck = res->pixels_per_line;
-	buf->read_mode = res->bin_mode;
-
-	/* get the cropping and output resolution to ISP for this mode. */
-	ret =  mt9m114_read_reg(client, MISENSOR_16BIT,
-				REG_H_START, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_start = reg_val;
-
-	ret =  mt9m114_read_reg(client, MISENSOR_16BIT,
-				REG_V_START, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_start = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_H_END, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_horizontal_end = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_V_END, &reg_val);
-	if (ret)
-		return ret;
-	buf->crop_vertical_end = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_WIDTH, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_width = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_HEIGHT, &reg_val);
-	if (ret)
-		return ret;
-	buf->output_height = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_TIMING_HTS, &reg_val);
-	if (ret)
-		return ret;
-	buf->line_length_pck = reg_val;
-
-	ret = mt9m114_read_reg(client, MISENSOR_16BIT,
-			       REG_TIMING_VTS, &reg_val);
-	if (ret)
-		return ret;
-	buf->frame_length_lines = reg_val;
-
-	buf->binning_factor_x = res->bin_factor_x ?
-				res->bin_factor_x : 1;
-	buf->binning_factor_y = res->bin_factor_y ?
-				res->bin_factor_y : 1;
-	return 0;
-}
-
 static int mt9m114_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
@@ -823,12 +733,6 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 			mt9m114_res[index].used = false;
 		}
 	}
-	ret = mt9m114_get_intg_factor(c, mt9m114_info,
-				      &mt9m114_res[res->res]);
-	if (ret) {
-		dev_err(&c->dev, "failed to get integration_factor\n");
-		return -EINVAL;
-	}
 	/*
 	 * mt9m114 - we don't poll for context switch
 	 * because it does not happen with streaming disabled.
@@ -838,28 +742,6 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 	fmt->width = width;
 	fmt->height = height;
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
-	return 0;
-}
-
-/* TODO: Update to SOC functions, remove exposure and gain */
-static int mt9m114_g_focal(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (MT9M114_FOCAL_LENGTH_NUM << 16) | MT9M114_FOCAL_LENGTH_DEM;
-	return 0;
-}
-
-static int mt9m114_g_fnumber(struct v4l2_subdev *sd, s32 *val)
-{
-	/* const f number for mt9m114 */
-	*val = (MT9M114_F_NUMBER_DEFAULT_NUM << 16) | MT9M114_F_NUMBER_DEM;
-	return 0;
-}
-
-static int mt9m114_g_fnumber_range(struct v4l2_subdev *sd, s32 *val)
-{
-	*val = (MT9M114_F_NUMBER_DEFAULT_NUM << 24) |
-	       (MT9M114_F_NUMBER_DEM << 16) |
-	       (MT9M114_F_NUMBER_DEFAULT_NUM << 8) | MT9M114_F_NUMBER_DEM;
 	return 0;
 }
 
@@ -1134,24 +1016,6 @@ static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9m114_g_bin_factor_x(struct v4l2_subdev *sd, s32 *val)
-{
-	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
-
-	*val = mt9m114_res[dev->res].bin_factor_x;
-
-	return 0;
-}
-
-static int mt9m114_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
-{
-	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
-
-	*val = mt9m114_res[dev->res].bin_factor_y;
-
-	return 0;
-}
-
 static int mt9m114_s_ev(struct v4l2_subdev *sd, s32 val)
 {
 	struct i2c_client *c = v4l2_get_subdevdata(sd);
@@ -1271,26 +1135,11 @@ static int mt9m114_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HFLIP:
 		ret = mt9m114_g_hflip(&dev->sd, &ctrl->val);
 		break;
-	case V4L2_CID_FOCAL_ABSOLUTE:
-		ret = mt9m114_g_focal(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_ABSOLUTE:
-		ret = mt9m114_g_fnumber(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_FNUMBER_RANGE:
-		ret = mt9m114_g_fnumber_range(&dev->sd, &ctrl->val);
-		break;
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
 		ret = mt9m114_g_exposure(&dev->sd, &ctrl->val);
 		break;
 	case V4L2_CID_EXPOSURE_ZONE_NUM:
 		ret = mt9m114_g_exposure_zone_num(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_BIN_FACTOR_HORZ:
-		ret = mt9m114_g_bin_factor_x(&dev->sd, &ctrl->val);
-		break;
-	case V4L2_CID_BIN_FACTOR_VERT:
-		ret = mt9m114_g_bin_factor_y(&dev->sd, &ctrl->val);
 		break;
 	case V4L2_CID_EXPOSURE:
 		ret = mt9m114_g_ev(&dev->sd, &ctrl->val);
@@ -1333,39 +1182,6 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 	},
 	{
 		.ops = &ctrl_ops,
-		.id = V4L2_CID_FOCAL_ABSOLUTE,
-		.name = "focal length",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = MT9M114_FOCAL_LENGTH_DEFAULT,
-		.max = MT9M114_FOCAL_LENGTH_DEFAULT,
-		.step = 1,
-		.def = MT9M114_FOCAL_LENGTH_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_ABSOLUTE,
-		.name = "f-number",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = MT9M114_F_NUMBER_DEFAULT,
-		.max = MT9M114_F_NUMBER_DEFAULT,
-		.step = 1,
-		.def = MT9M114_F_NUMBER_DEFAULT,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_FNUMBER_RANGE,
-		.name = "f-number range",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = MT9M114_F_NUMBER_RANGE,
-		.max = MT9M114_F_NUMBER_RANGE,
-		.step = 1,
-		.def = MT9M114_F_NUMBER_RANGE,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
 		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
 		.name = "exposure",
 		.type = V4L2_CTRL_TYPE_INTEGER,
@@ -1395,28 +1211,6 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.max = 3,
 		.step = 0,
 		.def = 1,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_HORZ,
-		.name = "horizontal binning factor",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = 0,
-		.max = MT9M114_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
-		.flags = 0,
-	},
-	{
-		.ops = &ctrl_ops,
-		.id = V4L2_CID_BIN_FACTOR_VERT,
-		.name = "vertical binning factor",
-		.type = V4L2_CTRL_TYPE_INTEGER,
-		.min = 0,
-		.max = MT9M114_BIN_FACTOR_MAX,
-		.step = 1,
-		.def = 0,
 		.flags = 0,
 	},
 	{
@@ -1806,7 +1600,7 @@ static struct i2c_driver mt9m114_driver = {
 		.name = "mt9m114",
 		.acpi_match_table = mt9m114_acpi_match,
 	},
-	.probe_new = mt9m114_probe,
+	.probe = mt9m114_probe,
 	.remove = mt9m114_remove,
 };
 module_i2c_driver(mt9m114_driver);

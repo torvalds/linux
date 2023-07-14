@@ -313,8 +313,8 @@ And with cmwq with ``@max_active`` >= 3, ::
 
 第一个可以用追踪的方式进行跟踪: ::
 
-	$ echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
-	$ cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+	$ echo workqueue:workqueue_queue_work > /sys/kernel/tracing/set_event
+	$ cat /sys/kernel/tracing/trace_pipe > out.txt
 	(wait a few secs)
 
 如果有什么东西在工作队列上忙着做循环，它就会主导输出，可以用工作项函数确定违规者。

@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) "caam blob_gen: " fmt
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <soc/fsl/caam-blob.h>
 
@@ -61,12 +62,14 @@ static void caam_blob_job_done(struct device *dev, u32 *desc, u32 err, void *con
 int caam_process_blob(struct caam_blob_priv *priv,
 		      struct caam_blob_info *info, bool encap)
 {
+	const struct caam_drv_private *ctrlpriv;
 	struct caam_blob_job_result testres;
 	struct device *jrdev = &priv->jrdev;
 	dma_addr_t dma_in, dma_out;
 	int op = OP_PCLID_BLOB;
 	size_t output_len;
 	u32 *desc;
+	u32 moo;
 	int ret;
 
 	if (info->key_mod_len > CAAM_BLOB_KEYMOD_LENGTH)
@@ -80,7 +83,7 @@ int caam_process_blob(struct caam_blob_priv *priv,
 		output_len = info->input_len - CAAM_BLOB_OVERHEAD;
 	}
 
-	desc = kzalloc(CAAM_BLOB_DESC_BYTES_MAX, GFP_KERNEL | GFP_DMA);
+	desc = kzalloc(CAAM_BLOB_DESC_BYTES_MAX, GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
@@ -99,6 +102,12 @@ int caam_process_blob(struct caam_blob_priv *priv,
 		ret = -ENOMEM;
 		goto out_unmap_in;
 	}
+
+	ctrlpriv = dev_get_drvdata(jrdev->parent);
+	moo = FIELD_GET(CSTA_MOO, rd_reg32(&ctrlpriv->ctrl->perfmon.status));
+	if (moo != CSTA_MOO_SECURE && moo != CSTA_MOO_TRUSTED)
+		dev_warn(jrdev,
+			 "using insecure test key, enable HAB to use unique device key!\n");
 
 	/*
 	 * A data blob is encrypted using a blob key (BK); a random number.

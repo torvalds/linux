@@ -94,8 +94,8 @@ retry:
 
 		if (data_blk == 0 && dev->radio_rds_loop)
 			vivid_radio_rds_init(dev);
-		if (perc && prandom_u32_max(100) < perc) {
-			switch (prandom_u32_max(4)) {
+		if (perc && get_random_u32_below(100) < perc) {
+			switch (get_random_u32_below(4)) {
 			case 0:
 				rds.block |= V4L2_RDS_BLOCK_CORRECTED;
 				break;
@@ -104,8 +104,8 @@ retry:
 				break;
 			case 2:
 				rds.block |= V4L2_RDS_BLOCK_ERROR;
-				rds.lsb = prandom_u32_max(256);
-				rds.msb = prandom_u32_max(256);
+				rds.lsb = get_random_u8();
+				rds.msb = get_random_u8();
 				break;
 			case 3: /* Skip block altogether */
 				if (i)

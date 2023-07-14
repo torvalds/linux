@@ -113,8 +113,7 @@ static const struct backlight_ops bd6107_backlight_ops = {
 	.check_fb	= bd6107_backlight_check_fb,
 };
 
-static int bd6107_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int bd6107_probe(struct i2c_client *client)
 {
 	struct bd6107_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct backlight_device *backlight;

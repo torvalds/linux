@@ -234,8 +234,6 @@
 
 /*-------- Public API functions ----------------------------------------------*/
 
-extern struct drx_access_func drx_dap_fasi_funct_g;
-
 #define DRXDAP_FASI_RMW           0x10000000
 #define DRXDAP_FASI_BROADCAST     0x20000000
 #define DRXDAP_FASI_CLEARCRC      0x80000000

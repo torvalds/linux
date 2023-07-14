@@ -8,42 +8,31 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
 
-/*
- * DIP-Switch SW1 setting on SoM
- * 1 : High; 0: Low
- * SW1-2 : SW_SD0_DEV_SEL	(1: eMMC; 0: uSD)
- * SW1-3 : SW_SCIF_CAN		(1: CAN1; 0: SCIF1)
- * SW1-4 : SW_RSPI_CAN		(1: CAN1; 0: RSPI1)
- * SW1-5 : SW_I2S0_I2S1		(1: I2S2 (HDMI audio); 0: I2S0)
- * Please change below macros according to SW1 setting
- */
-
-#define SW_SD0_DEV_SEL	1
-
-#define SW_SCIF_CAN	0
-#if (SW_SCIF_CAN)
-/* Due to HW routing, SW_RSPI_CAN is always 0 when SW_SCIF_CAN is set to 1 */
-#define SW_RSPI_CAN	0
-#else
-/* Please set SW_RSPI_CAN. Default value is 1 */
-#define SW_RSPI_CAN	1
-#endif
-
-#if (SW_SCIF_CAN && SW_RSPI_CAN)
-#error "Can not set 1 to both SW_SCIF_CAN and SW_RSPI_CAN due to HW routing"
-#endif
-
-#include "rzg2lc-smarc-som.dtsi"
 #include "rzg2lc-smarc-pinfunction.dtsi"
 #include "rz-smarc-common.dtsi"
 
-/* comment the #define statement to disable SCIF1 (SER0) on PMOD1 (CN7) */
-#define PMOD1_SER0	1
 
 / {
 	aliases {
 		serial1 = &scif1;
 		i2c2 = &i2c2;
+	};
+
+	osc1: cec-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+	};
+
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "d";
+
+		port {
+			hdmi_con_out: endpoint {
+				remote-endpoint = <&adv7535_out>;
+			};
+		};
 	};
 };
 
@@ -62,6 +51,68 @@
 
 &cpu_dai {
 	sound-dai = <&ssi0>;
+};
+
+&dsi {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			dsi0_in: endpoint {
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			dsi0_out: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&adv7535_in>;
+			};
+		};
+	};
+};
+
+&i2c1 {
+	adv7535: hdmi@3d {
+		compatible = "adi,adv7535";
+		reg = <0x3d>;
+
+		interrupt-parent = <&pinctrl>;
+		interrupts = <RZG2L_GPIO(43, 1) IRQ_TYPE_EDGE_FALLING>;
+		clocks = <&osc1>;
+		clock-names = "cec";
+		avdd-supply = <&reg_1p8v>;
+		dvdd-supply = <&reg_1p8v>;
+		pvdd-supply = <&reg_1p8v>;
+		a2vdd-supply = <&reg_1p8v>;
+		v3p3-supply = <&reg_3p3v>;
+		v1p2-supply = <&reg_1p8v>;
+
+		adi,dsi-lanes = <4>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				adv7535_in: endpoint {
+					remote-endpoint = <&dsi0_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				adv7535_out: endpoint {
+					remote-endpoint = <&hdmi_con_out>;
+				};
+			};
+		};
+	};
 };
 
 &i2c2 {

@@ -14,7 +14,7 @@ tracing_map.c.
 Note: All the ftrace histogram command examples assume the working
       directory is the ftrace /tracing directory. For example::
 
-	# cd /sys/kernel/debug/tracing
+	# cd /sys/kernel/tracing
 
 Also, the histogram output displayed for those commands will be
 generally be truncated - only enough to make the point is displayed.
@@ -905,7 +905,7 @@ means it will be automatically converted into a field variable::
 
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0: \
           onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid)' >>
-	  /sys/kernel/debug/tracing/events/sched/sched_switch/trigger
+	  /sys/kernel/tracing/events/sched/sched_switch/trigger
 
 The diagram for the sched_switch event is similar to previous examples
 but shows the additional field_vars[] array for hist_data and shows
@@ -1112,7 +1112,7 @@ sched_switch event fields, next_pid and next_comm, to generate a
 wakeup_latency trace event.  The next_pid and next_comm event fields
 are automatically converted into field variables for this purpose::
 
-  # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid,next_comm)' >> /sys/kernel/debug/tracing/events/sched/sched_switch/trigger
+  # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid,next_comm)' >> /sys/kernel/tracing/events/sched/sched_switch/trigger
 
 The sched_waking hist_debug output shows the same data as in the
 previous test example::
@@ -1305,7 +1305,7 @@ and event name for the onmatch() handler::
 
 The commands below can be used to clean things up for the next test::
 
-  # echo '!hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid,next_comm)' >> /sys/kernel/debug/tracing/events/sched/sched_switch/trigger
+  # echo '!hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0:onmatch(sched.sched_waking).wakeup_latency($wakeup_lat,next_pid,next_comm)' >> /sys/kernel/tracing/events/sched/sched_switch/trigger
 
   # echo '!hist:keys=pid:ts0=common_timestamp.usecs' >> events/sched/sched_waking/trigger
 
@@ -1363,13 +1363,13 @@ with the save() and snapshot() actions.  For example::
 
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0: \
           onmax($wakeup_lat).save(next_comm,prev_pid,prev_prio,prev_comm)' >>
-          /sys/kernel/debug/tracing/events/sched/sched_switch/trigger
+          /sys/kernel/tracing/events/sched/sched_switch/trigger
 
 or::
 
   # echo 'hist:keys=next_pid:wakeup_lat=common_timestamp.usecs-$ts0: \
           onmax($wakeup_lat).snapshot()' >>
-          /sys/kernel/debug/tracing/events/sched/sched_switch/trigger
+          /sys/kernel/tracing/events/sched/sched_switch/trigger
 
 save() action field variable test
 ---------------------------------

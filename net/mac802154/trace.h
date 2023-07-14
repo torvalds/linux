@@ -14,7 +14,7 @@
 
 #define MAXNAME		32
 #define LOCAL_ENTRY	__array(char, wpan_phy_name, MAXNAME)
-#define LOCAL_ASSIGN	strlcpy(__entry->wpan_phy_name, \
+#define LOCAL_ASSIGN	strscpy(__entry->wpan_phy_name, \
 				wpan_phy_name(local->hw.phy), MAXNAME)
 #define LOCAL_PR_FMT	"%s"
 #define LOCAL_PR_ARG	__entry->wpan_phy_name
@@ -262,6 +262,31 @@ TRACE_EVENT(802154_drv_set_promiscuous_mode,
 	),
 	TP_printk(LOCAL_PR_FMT ", promiscuous mode: %s", LOCAL_PR_ARG,
 		  BOOL_TO_STR(__entry->on))
+);
+
+TRACE_EVENT(802154_new_scan_event,
+	TP_PROTO(struct ieee802154_coord_desc *desc),
+	TP_ARGS(desc),
+	TP_STRUCT__entry(
+		__field(__le16, pan_id)
+		__field(__le64, addr)
+		__field(u8, channel)
+		__field(u8, page)
+	),
+	TP_fast_assign(
+		__entry->page = desc->page;
+		__entry->channel = desc->channel;
+		__entry->pan_id = desc->addr.pan_id;
+		__entry->addr = desc->addr.extended_addr;
+	),
+	TP_printk("panid: %u, coord_addr: 0x%llx, page: %u, channel: %u",
+		  __le16_to_cpu(__entry->pan_id), __le64_to_cpu(__entry->addr),
+		  __entry->page, __entry->channel)
+);
+
+DEFINE_EVENT(802154_new_scan_event, 802154_scan_event,
+	TP_PROTO(struct ieee802154_coord_desc *desc),
+	TP_ARGS(desc)
 );
 
 #endif /* !__MAC802154_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */

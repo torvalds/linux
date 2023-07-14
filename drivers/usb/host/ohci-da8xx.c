@@ -469,14 +469,12 @@ err:
 	return error;
 }
 
-static int ohci_da8xx_remove(struct platform_device *pdev)
+static void ohci_da8xx_remove(struct platform_device *pdev)
 {
 	struct usb_hcd	*hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -533,7 +531,7 @@ static const struct ohci_driver_overrides da8xx_overrides __initconst = {
  */
 static struct platform_driver ohci_hcd_da8xx_driver = {
 	.probe		= ohci_da8xx_probe,
-	.remove		= ohci_da8xx_remove,
+	.remove_new	= ohci_da8xx_remove,
 	.shutdown 	= usb_hcd_platform_shutdown,
 #ifdef	CONFIG_PM
 	.suspend	= ohci_da8xx_suspend,
@@ -551,7 +549,6 @@ static int __init ohci_da8xx_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	pr_info("%s: " DRIVER_DESC "\n", DRV_NAME);
 	ohci_init_driver(&ohci_da8xx_hc_driver, &da8xx_overrides);
 
 	/*

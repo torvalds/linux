@@ -89,6 +89,8 @@ struct amdgpu_dpm_thermal {
 	int                max_mem_crit_temp;
 	/* memory max emergency(shutdown) temp */
 	int                max_mem_emergency_temp;
+	/* SWCTF threshold */
+	int                sw_ctf_threshold;
 	/* was last interrupt low to high or high to low */
 	bool               high_to_low;
 	/* interrupt source */
@@ -369,6 +371,9 @@ struct amdgpu_pm {
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 
+int amdgpu_dpm_get_apu_thermal_limit(struct amdgpu_device *adev, uint32_t *limit);
+int amdgpu_dpm_set_apu_thermal_limit(struct amdgpu_device *adev, uint32_t limit);
+
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 				      uint32_t block_type, bool gate);
 
@@ -386,6 +391,7 @@ int amdgpu_dpm_switch_power_profile(struct amdgpu_device *adev,
 int amdgpu_dpm_baco_reset(struct amdgpu_device *adev);
 
 int amdgpu_dpm_mode2_reset(struct amdgpu_device *adev);
+int amdgpu_dpm_enable_gfx_features(struct amdgpu_device *adev);
 
 bool amdgpu_dpm_is_baco_supported(struct amdgpu_device *adev);
 
@@ -435,6 +441,9 @@ int amdgpu_dpm_set_soft_freq_range(struct amdgpu_device *adev,
 int amdgpu_dpm_write_watermarks_table(struct amdgpu_device *adev);
 int amdgpu_dpm_wait_for_event(struct amdgpu_device *adev, enum smu_event_type event,
 		       uint64_t event_arg);
+int amdgpu_dpm_get_residency_gfxoff(struct amdgpu_device *adev, u32 *value);
+int amdgpu_dpm_set_residency_gfxoff(struct amdgpu_device *adev, bool value);
+int amdgpu_dpm_get_entrycount_gfxoff(struct amdgpu_device *adev, u64 *value);
 int amdgpu_dpm_get_status_gfxoff(struct amdgpu_device *adev, uint32_t *value);
 uint64_t amdgpu_dpm_get_thermal_throttling_counter(struct amdgpu_device *adev);
 void amdgpu_dpm_gfx_state_change(struct amdgpu_device *adev,

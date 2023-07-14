@@ -4,13 +4,13 @@
 $id: http://devicetree.org/schemas/nvmem/qcom,qfprom.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies Inc, QFPROM Efuse bindings
+title: Qualcomm Technologies Inc, QFPROM Efuse
 
 maintainers:
   - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:
@@ -18,14 +18,27 @@ properties:
       - enum:
           - qcom,apq8064-qfprom
           - qcom,apq8084-qfprom
-          - qcom,msm8974-qfprom
+          - qcom,ipq5332-qfprom
+          - qcom,ipq6018-qfprom
+          - qcom,ipq8064-qfprom
+          - qcom,ipq8074-qfprom
+          - qcom,ipq9574-qfprom
           - qcom,msm8916-qfprom
+          - qcom,msm8974-qfprom
+          - qcom,msm8976-qfprom
           - qcom,msm8996-qfprom
           - qcom,msm8998-qfprom
           - qcom,qcs404-qfprom
           - qcom,sc7180-qfprom
           - qcom,sc7280-qfprom
+          - qcom,sdm630-qfprom
+          - qcom,sdm670-qfprom
           - qcom,sdm845-qfprom
+          - qcom,sm6115-qfprom
+          - qcom,sm6350-qfprom
+          - qcom,sm6375-qfprom
+          - qcom,sm8150-qfprom
+          - qcom,sm8250-qfprom
       - const: qcom,qfprom
 
   reg:
@@ -53,12 +66,6 @@ properties:
 
   power-domains:
     maxItems: 1
-
-  # Needed if any child nodes are present.
-  "#address-cells":
-    const: 1
-  "#size-cells":
-    const: 1
 
 required:
   - compatible

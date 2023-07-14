@@ -751,7 +751,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err_unlocked;
 	}
 
-	ret = media_pipeline_start(&dcmi->vdev->entity, &dcmi->pipeline);
+	ret = video_device_pipeline_start(dcmi->vdev, &dcmi->pipeline);
 	if (ret < 0) {
 		dev_err(dcmi->dev, "%s: Failed to start streaming, media pipeline start error (%d)\n",
 			__func__, ret);
@@ -865,7 +865,7 @@ err_pipeline_stop:
 	dcmi_pipeline_stop(dcmi);
 
 err_media_pipeline_stop:
-	media_pipeline_stop(&dcmi->vdev->entity);
+	video_device_pipeline_stop(dcmi->vdev);
 
 err_pm_put:
 	pm_runtime_put(dcmi->dev);
@@ -892,7 +892,7 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 
 	dcmi_pipeline_stop(dcmi);
 
-	media_pipeline_stop(&dcmi->vdev->entity);
+	video_device_pipeline_stop(dcmi->vdev);
 
 	spin_lock_irq(&dcmi->irqlock);
 
@@ -1946,12 +1946,9 @@ static int dcmi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dcmi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(dcmi->rstc)) {
-		if (PTR_ERR(dcmi->rstc) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get reset control\n");
-
-		return PTR_ERR(dcmi->rstc);
-	}
+	if (IS_ERR(dcmi->rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dcmi->rstc),
+				     "Could not get reset control\n");
 
 	/* Get bus characteristics from devicetree */
 	np = of_graph_get_next_endpoint(np, NULL);
@@ -1997,26 +1994,18 @@ static int dcmi_probe(struct platform_device *pdev)
 	}
 
 	dcmi->regs = devm_ioremap_resource(&pdev->dev, dcmi->res);
-	if (IS_ERR(dcmi->regs)) {
-		dev_err(&pdev->dev, "Could not map registers\n");
+	if (IS_ERR(dcmi->regs))
 		return PTR_ERR(dcmi->regs);
-	}
 
 	mclk = devm_clk_get(&pdev->dev, "mclk");
-	if (IS_ERR(mclk)) {
-		if (PTR_ERR(mclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Unable to get mclk\n");
-		return PTR_ERR(mclk);
-	}
+	if (IS_ERR(mclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(mclk),
+				     "Unable to get mclk\n");
 
 	chan = dma_request_chan(&pdev->dev, "tx");
-	if (IS_ERR(chan)) {
-		ret = PTR_ERR(chan);
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"Failed to request DMA channel: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(chan))
+		return dev_err_probe(&pdev->dev, PTR_ERR(chan),
+				     "Failed to request DMA channel\n");
 
 	dcmi->dma_max_burst = UINT_MAX;
 	ret = dma_get_slave_caps(chan, &caps);
@@ -2095,6 +2084,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->min_buffers_needed = 2;
+	q->allow_cache_hints = 1;
 	q->dev = &pdev->dev;
 
 	ret = vb2_queue_init(q);
@@ -2145,7 +2135,7 @@ err_media_device_cleanup:
 	return ret;
 }
 
-static int dcmi_remove(struct platform_device *pdev)
+static void dcmi_remove(struct platform_device *pdev)
 {
 	struct stm32_dcmi *dcmi = platform_get_drvdata(pdev);
 
@@ -2158,8 +2148,6 @@ static int dcmi_remove(struct platform_device *pdev)
 	media_device_cleanup(&dcmi->mdev);
 
 	dma_release_channel(dcmi->dma_chan);
-
-	return 0;
 }
 
 static __maybe_unused int dcmi_runtime_suspend(struct device *dev)
@@ -2213,7 +2201,7 @@ static const struct dev_pm_ops dcmi_pm_ops = {
 
 static struct platform_driver stm32_dcmi_driver = {
 	.probe		= dcmi_probe,
-	.remove		= dcmi_remove,
+	.remove_new	= dcmi_remove,
 	.driver		= {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(stm32_dcmi_of_match),

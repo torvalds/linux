@@ -18,8 +18,6 @@ int usdt_100_sum;
 SEC("usdt//proc/self/exe:test:usdt_100")
 int BPF_USDT(usdt_100, int x)
 {
-	long tmp;
-
 	if (my_pid != (bpf_get_current_pid_tgid() >> 32))
 		return 0;
 

@@ -1212,7 +1212,7 @@ static inline void *cvmx_phys_to_ptr(uint64_t physical_address)
 	return (void *)(uintptr_t)(physical_address);
 }
 
-static inline uint64_t cvmx_ptr_to_phys(void *ptr)
+static inline phys_addr_t cvmx_ptr_to_phys(void *ptr)
 {
 	return (unsigned long)ptr;
 }
@@ -1372,9 +1372,7 @@ static inline void cvmx_fau_async_fetch_and_add32(uint64_t scraddr,
 						  int32_t value)
 { }
 
-static inline union cvmx_gmxx_rxx_rx_inbnd cvmx_spi4000_check_speed(
-	int interface,
-	int port)
+static inline union cvmx_gmxx_rxx_rx_inbnd cvmx_spi4000_check_speed(int interface, int port)
 {
 	union cvmx_gmxx_rxx_rx_inbnd r;
 

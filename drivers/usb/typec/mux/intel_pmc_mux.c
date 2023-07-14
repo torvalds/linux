@@ -15,6 +15,8 @@
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_tbt.h>
+#include <linux/debugfs.h>
+#include <linux/usb.h>
 
 #include <asm/intel_scu_ipc.h>
 
@@ -143,7 +145,11 @@ struct pmc_usb {
 	struct acpi_device *iom_adev;
 	void __iomem *iom_base;
 	u32 iom_port_status_offset;
+
+	struct dentry *dentry;
 };
+
+static struct dentry *pmc_mux_debugfs_root;
 
 static void update_port_status(struct pmc_usb_port *port)
 {
@@ -369,11 +375,22 @@ pmc_usb_mux_usb4(struct pmc_usb_port *port, struct typec_mux_state *state)
 	return pmc_usb_command(port, (void *)&req, sizeof(req));
 }
 
-static int pmc_usb_mux_safe_state(struct pmc_usb_port *port)
+static int pmc_usb_mux_safe_state(struct pmc_usb_port *port,
+				  struct typec_mux_state *state)
 {
 	u8 msg;
 
 	if (IOM_PORT_ACTIVITY_IS(port->iom_status, SAFE_MODE))
+		return 0;
+
+	if ((IOM_PORT_ACTIVITY_IS(port->iom_status, DP) ||
+	     IOM_PORT_ACTIVITY_IS(port->iom_status, DP_MFD)) &&
+	     state->alt && state->alt->svid == USB_TYPEC_DP_SID)
+		return 0;
+
+	if ((IOM_PORT_ACTIVITY_IS(port->iom_status, TBT) ||
+	     IOM_PORT_ACTIVITY_IS(port->iom_status, ALT_MODE_TBT_USB)) &&
+	     state->alt && state->alt->svid == USB_TYPEC_TBT_SID)
 		return 0;
 
 	msg = PMC_USB_SAFE_MODE;
@@ -443,7 +460,7 @@ pmc_usb_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *state)
 		return 0;
 
 	if (state->mode == TYPEC_STATE_SAFE)
-		return pmc_usb_mux_safe_state(port);
+		return pmc_usb_mux_safe_state(port, state);
 	if (state->mode == TYPEC_STATE_USB)
 		return pmc_usb_connect(port, port->role);
 
@@ -591,20 +608,21 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 	int ret;
 
 	for (dev_id = &iom_acpi_ids[0]; dev_id->id[0]; dev_id++) {
-		if (acpi_dev_present(dev_id->id, NULL, -1)) {
-			pmc->iom_port_status_offset = (u32)dev_id->driver_data;
-			adev = acpi_dev_get_first_match_dev(dev_id->id, NULL, -1);
+		adev = acpi_dev_get_first_match_dev(dev_id->id, NULL, -1);
+		if (adev)
 			break;
-		}
 	}
-
 	if (!adev)
 		return -ENODEV;
 
+	pmc->iom_port_status_offset = (u32)dev_id->driver_data;
+
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_memory_resources(adev, &resource_list);
-	if (ret < 0)
+	if (ret < 0) {
+		acpi_dev_put(adev);
 		return ret;
+	}
 
 	rentry = list_first_entry_or_null(&resource_list, struct resource_entry, node);
 	if (rentry)
@@ -625,6 +643,29 @@ static int pmc_usb_probe_iom(struct pmc_usb *pmc)
 	pmc->iom_adev = adev;
 
 	return 0;
+}
+
+static int port_iom_status_show(struct seq_file *s, void *unused)
+{
+	struct pmc_usb_port *port = s->private;
+
+	update_port_status(port);
+	seq_printf(s, "0x%08x\n", port->iom_status);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(port_iom_status);
+
+static void pmc_mux_port_debugfs_init(struct pmc_usb_port *port)
+{
+	struct dentry *debugfs_dir;
+	char name[6];
+
+	snprintf(name, sizeof(name), "port%d", port->usb3_port - 1);
+
+	debugfs_dir = debugfs_create_dir(name, port->pmc->dentry);
+	debugfs_create_file("iom_status", 0400, debugfs_dir, port,
+			    &port_iom_status_fops);
 }
 
 static int pmc_usb_probe(struct platform_device *pdev)
@@ -662,6 +703,8 @@ static int pmc_usb_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	pmc->dentry = debugfs_create_dir(dev_name(pmc->dev), pmc_mux_debugfs_root);
+
 	/*
 	 * For every physical USB connector (USB2 and USB3 combo) there is a
 	 * child ACPI device node under the PMC mux ACPI device object.
@@ -676,6 +719,8 @@ static int pmc_usb_probe(struct platform_device *pdev)
 			fwnode_handle_put(fwnode);
 			goto err_remove_ports;
 		}
+
+		pmc_mux_port_debugfs_init(&pmc->port[i]);
 	}
 
 	platform_set_drvdata(pdev, pmc);
@@ -691,10 +736,12 @@ err_remove_ports:
 
 	acpi_dev_put(pmc->iom_adev);
 
+	debugfs_remove(pmc->dentry);
+
 	return ret;
 }
 
-static int pmc_usb_remove(struct platform_device *pdev)
+static void pmc_usb_remove(struct platform_device *pdev)
 {
 	struct pmc_usb *pmc = platform_get_drvdata(pdev);
 	int i;
@@ -707,7 +754,7 @@ static int pmc_usb_remove(struct platform_device *pdev)
 
 	acpi_dev_put(pmc->iom_adev);
 
-	return 0;
+	debugfs_remove(pmc->dentry);
 }
 
 static const struct acpi_device_id pmc_usb_acpi_ids[] = {
@@ -722,10 +769,23 @@ static struct platform_driver pmc_usb_driver = {
 		.acpi_match_table = ACPI_PTR(pmc_usb_acpi_ids),
 	},
 	.probe = pmc_usb_probe,
-	.remove = pmc_usb_remove,
+	.remove_new = pmc_usb_remove,
 };
 
-module_platform_driver(pmc_usb_driver);
+static int __init pmc_usb_init(void)
+{
+	pmc_mux_debugfs_root = debugfs_create_dir("intel_pmc_mux", usb_debug_root);
+
+	return platform_driver_register(&pmc_usb_driver);
+}
+module_init(pmc_usb_init);
+
+static void __exit pmc_usb_exit(void)
+{
+	platform_driver_unregister(&pmc_usb_driver);
+	debugfs_remove(pmc_mux_debugfs_root);
+}
+module_exit(pmc_usb_exit);
 
 MODULE_AUTHOR("Heikki Krogerus <heikki.krogerus@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

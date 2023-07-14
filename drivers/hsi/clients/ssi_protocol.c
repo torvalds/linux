@@ -32,8 +32,6 @@
 #include <linux/hsi/hsi.h>
 #include <linux/hsi/ssi_protocol.h>
 
-void ssi_waketest(struct hsi_client *cl, unsigned int enable);
-
 #define SSIP_TXQUEUE_LEN	100
 #define SSIP_MAX_MTU		65535
 #define SSIP_DEFAULT_MTU	4000
@@ -796,7 +794,6 @@ static void ssip_rx_strans(struct hsi_client *cl, u32 cmd)
 		dev_err(&cl->device, "No memory for rx skb\n");
 		goto out1;
 	}
-	skb->dev = ssi->netdev;
 	skb_put(skb, len * 4);
 	msg = ssip_alloc_data(ssi, skb, GFP_ATOMIC);
 	if (unlikely(!msg)) {
@@ -931,6 +928,7 @@ static int ssip_pn_open(struct net_device *dev)
 	if (err < 0) {
 		dev_err(&cl->device, "Register HSI port event failed (%d)\n",
 			err);
+		hsi_release_port(cl);
 		return err;
 	}
 	dev_dbg(&cl->device, "Configuring SSI port\n");
@@ -968,7 +966,7 @@ static void ssip_xmit_work(struct work_struct *work)
 	ssip_xmit(cl);
 }
 
-static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hsi_client *cl = to_hsi_client(dev->dev.parent);
 	struct ssi_protocol *ssi = hsi_client_drvdata(cl);
@@ -1027,7 +1025,7 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	return 0;
+	return NETDEV_TX_OK;
 drop2:
 	hsi_free_msg(msg);
 drop:
@@ -1035,7 +1033,7 @@ drop:
 inc_dropped:
 	dev->stats.tx_dropped++;
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 /* CMT reset event handler */

@@ -101,7 +101,7 @@ struct psc_ops {
 	void		(*cw_restore_ints)(struct uart_port *port);
 	unsigned int	(*set_baudrate)(struct uart_port *port,
 					struct ktermios *new,
-					struct ktermios *old);
+					const struct ktermios *old);
 	int		(*clock_alloc)(struct uart_port *port);
 	void		(*clock_relse)(struct uart_port *port);
 	int		(*clock)(struct uart_port *port, int enable);
@@ -287,7 +287,7 @@ static void mpc52xx_psc_cw_restore_ints(struct uart_port *port)
 
 static unsigned int mpc5200_psc_set_baudrate(struct uart_port *port,
 					     struct ktermios *new,
-					     struct ktermios *old)
+					     const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -305,7 +305,7 @@ static unsigned int mpc5200_psc_set_baudrate(struct uart_port *port,
 
 static unsigned int mpc5200b_psc_set_baudrate(struct uart_port *port,
 					      struct ktermios *new,
-					      struct ktermios *old)
+					      const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -533,7 +533,7 @@ static void mpc512x_psc_cw_restore_ints(struct uart_port *port)
 
 static unsigned int mpc512x_psc_set_baudrate(struct uart_port *port,
 					     struct ktermios *new,
-					     struct ktermios *old)
+					     const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -880,7 +880,7 @@ static inline void mpc5125_set_divisor(struct mpc5125_psc __iomem *psc,
 
 static unsigned int mpc5125_psc_set_baudrate(struct uart_port *port,
 					     struct ktermios *new,
-					     struct ktermios *old)
+					     const struct ktermios *old)
 {
 	unsigned int baud;
 	unsigned int divisor;
@@ -1167,7 +1167,7 @@ mpc52xx_uart_shutdown(struct uart_port *port)
 
 static void
 mpc52xx_uart_set_termios(struct uart_port *port, struct ktermios *new,
-			 struct ktermios *old)
+			 const struct ktermios *old)
 {
 	unsigned long flags;
 	unsigned char mr1, mr2;
@@ -1364,7 +1364,7 @@ static const struct uart_ops mpc52xx_uart_ops = {
 /* Interrupt handling                                                       */
 /* ======================================================================== */
 
-static inline unsigned int
+static inline bool
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;
@@ -1425,58 +1425,27 @@ mpc52xx_uart_int_rx_chars(struct uart_port *port)
 	return psc_ops->raw_rx_rdy(port);
 }
 
-static inline int
+static inline bool
 mpc52xx_uart_int_tx_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	u8 ch;
 
-	/* Process out of band chars */
-	if (port->x_char) {
-		psc_ops->write_char(port, port->x_char);
-		port->icount.tx++;
-		port->x_char = 0;
-		return 1;
-	}
-
-	/* Nothing to do ? */
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		mpc52xx_uart_stop_tx(port);
-		return 0;
-	}
-
-	/* Send chars */
-	while (psc_ops->raw_tx_rdy(port)) {
-		psc_ops->write_char(port, xmit->buf[xmit->tail]);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
-	}
-
-	/* Wake up */
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	/* Maybe we're done after all */
-	if (uart_circ_empty(xmit)) {
-		mpc52xx_uart_stop_tx(port);
-		return 0;
-	}
-
-	return 1;
+	return uart_port_tx(port, ch,
+		psc_ops->raw_tx_rdy(port),
+		psc_ops->write_char(port, ch));
 }
 
 static irqreturn_t
 mpc5xxx_uart_process_int(struct uart_port *port)
 {
 	unsigned long pass = ISR_PASS_LIMIT;
-	unsigned int keepgoing;
+	bool keepgoing;
 	u8 status;
 
 	/* While we have stuff to do, we continue */
 	do {
 		/* If we don't find anything to do, we stop */
-		keepgoing = 0;
+		keepgoing = false;
 
 		psc_ops->rx_clr_irq(port);
 		if (psc_ops->rx_rdy(port))
@@ -1495,7 +1464,7 @@ mpc5xxx_uart_process_int(struct uart_port *port)
 
 		/* Limit number of iteration */
 		if (!(--pass))
-			keepgoing = 0;
+			keepgoing = false;
 
 	} while (keepgoing);
 

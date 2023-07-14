@@ -42,7 +42,7 @@ properties:
     maxItems: 8
 
   devfreq-events:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     minItems: 1
     maxItems: 16
     items:
@@ -50,7 +50,7 @@ properties:
     description: phandles of the PPMU events used by the controller.
 
   device-handle:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       phandle of the connected DRAM memory device. For more information please
       refer to jedec,lpddr3.yaml.
@@ -73,7 +73,7 @@ properties:
       - description: registers of DREX1
 
   samsung,syscon-clk:
-    $ref: '/schemas/types.yaml#/definitions/phandle'
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: |
       Phandle of the clock register set used by the controller, these registers
       are used for enabling a 'pause' feature and are not exposed by clock

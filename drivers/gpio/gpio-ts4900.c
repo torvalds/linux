@@ -136,8 +136,7 @@ static const struct of_device_id ts4900_gpio_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ts4900_gpio_of_match_table);
 
-static int ts4900_gpio_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ts4900_gpio_probe(struct i2c_client *client)
 {
 	struct ts4900_gpio_priv *priv;
 	u32 ngpio;

@@ -183,7 +183,7 @@ trampoline or return trampoline. For example, considering the x86_64
 .. code-block:: none
 
    SYM_CODE_START(return_to_handler)
-           UNWIND_HINT_EMPTY
+           UNWIND_HINT_UNDEFINED
            subq  $24, %rsp
 
            /* Save the return values */

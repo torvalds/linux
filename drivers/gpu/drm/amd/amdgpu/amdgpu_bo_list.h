@@ -26,6 +26,10 @@
 #include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/amdgpu_drm.h>
 
+struct hmm_range;
+
+struct drm_file;
+
 struct amdgpu_device;
 struct amdgpu_bo;
 struct amdgpu_bo_va;
@@ -36,6 +40,7 @@ struct amdgpu_bo_list_entry {
 	struct amdgpu_bo_va		*bo_va;
 	uint32_t			priority;
 	struct page			**user_pages;
+	struct hmm_range		*range;
 	bool				user_invalidated;
 };
 

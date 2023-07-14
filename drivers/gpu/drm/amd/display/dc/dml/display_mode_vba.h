@@ -143,6 +143,7 @@ dml_get_pipe_attr_decl(vready_at_or_after_vsync);
 dml_get_pipe_attr_decl(min_dst_y_next_start);
 dml_get_pipe_attr_decl(vstartup_calculated);
 dml_get_pipe_attr_decl(subviewport_lines_needed_in_mall);
+dml_get_pipe_attr_decl(surface_size_in_mall);
 
 double get_total_immediate_flip_bytes(
 		struct display_mode_lib *mode_lib,
@@ -262,6 +263,7 @@ struct vba_vars_st {
 	int maxMpcComb;
 	bool UseMaximumVStartup;
 
+	double MaxVRatioPre;
 	double WritebackDISPCLK;
 	double DPPCLKUsingSingleDPPLuma;
 	double DPPCLKUsingSingleDPPChroma;
@@ -312,6 +314,7 @@ struct vba_vars_st {
 	unsigned int ActiveDPPs;
 	unsigned int LBLatencyHidingSourceLinesY;
 	unsigned int LBLatencyHidingSourceLinesC;
+	double ActiveDRAMClockChangeLatencyMarginPerState[DC__VOLTAGE_STATES][2][DC__NUM_DPP__MAX];// DML doesn't save active margin per state
 	double ActiveDRAMClockChangeLatencyMargin[DC__NUM_DPP__MAX];
 	double CachedActiveDRAMClockChangeLatencyMargin[DC__NUM_DPP__MAX]; // Cache in dml_get_voltage_level for debug purposes only
 	double MinActiveDRAMClockChangeMargin;
@@ -418,6 +421,15 @@ struct vba_vars_st {
 	double MinPixelChunkSizeBytes;
 	unsigned int DCCMetaBufferSizeBytes;
 	// Pipe/Plane Parameters
+
+	/** @VoltageLevel:
+	 * Every ASIC has a fixed number of DPM states, and some devices might
+	 * have some particular voltage configuration that does not map
+	 * directly to the DPM states. This field tells how many states the
+	 * target device supports; even though this field combines the DPM and
+	 * special SOC voltages, it mostly matches the total number of DPM
+	 * states.
+	 */
 	int VoltageLevel;
 	double FabricClock;
 	double DRAMSpeed;
@@ -1040,6 +1052,7 @@ struct vba_vars_st {
 	double MinFullDETBufferingTime;
 	double AverageReadBandwidthGBytePerSecond;
 	bool   FirstMainPlane;
+	bool NotEnoughDETSwathFillLatencyHiding;
 
 	unsigned int ViewportWidthChroma[DC__NUM_DPP__MAX];
 	unsigned int ViewportHeightChroma[DC__NUM_DPP__MAX];
@@ -1152,7 +1165,7 @@ struct vba_vars_st {
 	double UrgBurstFactorLumaPre[DC__NUM_DPP__MAX];
 	double UrgBurstFactorChromaPre[DC__NUM_DPP__MAX];
 	bool NotUrgentLatencyHidingPre[DC__NUM_DPP__MAX];
-	bool LinkCapacitySupport[DC__NUM_DPP__MAX];
+	bool LinkCapacitySupport[DC__VOLTAGE_STATES];
 	bool VREADY_AT_OR_AFTER_VSYNC[DC__NUM_DPP__MAX];
 	unsigned int MIN_DST_Y_NEXT_START[DC__NUM_DPP__MAX];
 	unsigned int VFrontPorch[DC__NUM_DPP__MAX];
@@ -1223,6 +1236,7 @@ struct vba_vars_st {
 	unsigned int BlockWidthC[DC__NUM_DPP__MAX];
 	unsigned int SubViewportLinesNeededInMALL[DC__NUM_DPP__MAX];
 	bool VActiveBandwithSupport[DC__VOLTAGE_STATES][2];
+	bool NotEnoughDETSwathFillLatencyHidingPerState[DC__VOLTAGE_STATES][2];
 	struct dummy_vars dummy_vars;
 };
 

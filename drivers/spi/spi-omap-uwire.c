@@ -99,7 +99,7 @@ struct uwire_state {
  * Or, put it in a structure which is used throughout the driver;
  * that avoids having to issue two loads for each bit of static data.
  */
-static unsigned int uwire_idx_shift;
+static unsigned int uwire_idx_shift = 2;
 static void __iomem *uwire_base;
 
 static inline void uwire_write_reg(int idx, u16 val)
@@ -179,7 +179,7 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 
 	w = uwire_read_reg(UWIRE_CSR);
 	old_cs = (w >> 10) & 0x03;
-	if (value == BITBANG_CS_INACTIVE || old_cs != spi->chip_select) {
+	if (value == BITBANG_CS_INACTIVE || old_cs != spi_get_chipselect(spi, 0)) {
 		/* Deselect this CS, or the previous CS */
 		w &= ~CS_CMD;
 		uwire_write_reg(UWIRE_CSR, w);
@@ -193,7 +193,7 @@ static void uwire_chipselect(struct spi_device *spi, int value)
 		else
 			uwire_write_reg(UWIRE_SR4, 0);
 
-		w = spi->chip_select << 10;
+		w = spi_get_chipselect(spi, 0) << 10;
 		w |= CS_CMD;
 		uwire_write_reg(UWIRE_CSR, w);
 	}
@@ -210,7 +210,7 @@ static int uwire_txrx(struct spi_device *spi, struct spi_transfer *t)
 	if (!t->tx_buf && !t->rx_buf)
 		return 0;
 
-	w = spi->chip_select << 10;
+	w = spi_get_chipselect(spi, 0) << 10;
 	w |= CS_CMD;
 
 	if (t->tx_buf) {
@@ -408,7 +408,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		rate /= 8;
 		break;
 	}
-	omap_uwire_configure_mode(spi->chip_select, flags);
+	omap_uwire_configure_mode(spi_get_chipselect(spi, 0), flags);
 	pr_debug("%s: uwire flags %02x, armxor %lu KHz, SCK %lu KHz\n",
 			__func__, flags,
 			clk_get_rate(uwire->ck) / 1000,
@@ -481,11 +481,6 @@ static int uwire_probe(struct platform_device *pdev)
 	}
 	clk_prepare_enable(uwire->ck);
 
-	if (cpu_is_omap7xx())
-		uwire_idx_shift = 1;
-	else
-		uwire_idx_shift = 2;
-
 	uwire_write_reg(UWIRE_SR3, 1);
 
 	/* the spi->mode bits understood by this driver: */
@@ -510,7 +505,7 @@ static int uwire_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int uwire_remove(struct platform_device *pdev)
+static void uwire_remove(struct platform_device *pdev)
 {
 	struct uwire_spi	*uwire = platform_get_drvdata(pdev);
 
@@ -518,7 +513,6 @@ static int uwire_remove(struct platform_device *pdev)
 
 	spi_bitbang_stop(&uwire->bitbang);
 	uwire_off(uwire);
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -529,22 +523,13 @@ static struct platform_driver uwire_driver = {
 		.name		= "omap_uwire",
 	},
 	.probe = uwire_probe,
-	.remove = uwire_remove,
+	.remove_new = uwire_remove,
 	// suspend ... unuse ck
 	// resume ... use ck
 };
 
 static int __init omap_uwire_init(void)
 {
-	/* FIXME move these into the relevant board init code. also, include
-	 * H3 support; it uses tsc2101 like H2 (on a different chipselect).
-	 */
-
-	if (machine_is_omap_h2()) {
-		/* defaults: W21 SDO, U18 SDI, V19 SCL */
-		omap_cfg_reg(N14_1610_UWIRE_CS0);
-		omap_cfg_reg(N15_1610_UWIRE_CS1);
-	}
 	return platform_driver_register(&uwire_driver);
 }
 

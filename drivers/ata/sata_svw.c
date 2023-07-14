@@ -32,6 +32,7 @@
 #include <scsi/scsi.h>
 #include <linux/libata.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #define DRV_NAME	"sata_svw"
 #define DRV_VERSION	"2.3"
@@ -319,10 +320,11 @@ static int k2_sata_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	/* Match it to a port node */
 	index = (ap == ap->host->ports[0]) ? 0 : 1;
 	for (np = np->child; np != NULL; np = np->sibling) {
-		const u32 *reg = of_get_property(np, "reg", NULL);
-		if (!reg)
+		u64 reg;
+
+		if (of_property_read_reg(np, 0, &reg, NULL))
 			continue;
-		if (index == *reg) {
+		if (index == reg) {
 			seq_printf(m, "devspec: %pOF\n", np);
 			break;
 		}
@@ -330,7 +332,7 @@ static int k2_sata_show_info(struct seq_file *m, struct Scsi_Host *shost)
 	return 0;
 }
 
-static struct scsi_host_template k2_sata_sht = {
+static const struct scsi_host_template k2_sata_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 	.show_info		= k2_sata_show_info,
 };

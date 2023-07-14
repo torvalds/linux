@@ -169,8 +169,7 @@ static const struct iio_info mma7660_info = {
 	.attrs			= &mma7660_attribute_group,
 };
 
-static int mma7660_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int mma7660_probe(struct i2c_client *client)
 {
 	int ret;
 	struct iio_dev *indio_dev;

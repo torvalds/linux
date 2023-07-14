@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/dma/xilinx/xlnx,zynqmp-dpdma.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Xilinx ZynqMP DisplayPort DMA Controller Device Tree Bindings
+title: Xilinx ZynqMP DisplayPort DMA Controller
 
 description: |
   These bindings describe the DMA engine included in the Xilinx ZynqMP
@@ -16,7 +16,7 @@ maintainers:
   - Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
 allOf:
-  - $ref: "../dma-controller.yaml#"
+  - $ref: ../dma-controller.yaml#
 
 properties:
   "#dma-cells":
@@ -41,6 +41,9 @@ properties:
   clock-names:
     const: axi_clk
 
+  power-domains:
+    maxItems: 1
+
 required:
   - "#dma-cells"
   - compatible
@@ -48,12 +51,14 @@ required:
   - interrupts
   - clocks
   - clock-names
+  - power-domains
 
 additionalProperties: false
 
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/xlnx-zynqmp-power.h>
 
     dma: dma-controller@fd4c0000 {
       compatible = "xlnx,zynqmp-dpdma";
@@ -63,6 +68,7 @@ examples:
       clocks = <&dpdma_clk>;
       clock-names = "axi_clk";
       #dma-cells = <1>;
+      power-domains = <&zynqmp_firmware PD_DP>;
     };
 
 ...

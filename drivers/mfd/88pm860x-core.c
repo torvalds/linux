@@ -1117,8 +1117,7 @@ static int pm860x_dt_init(struct device_node *np,
 {
 	int ret;
 
-	if (of_get_property(np, "marvell,88pm860x-irq-read-clr", NULL))
-		pdata->irq_mode = 1;
+	pdata->irq_mode = of_property_read_bool(np, "marvell,88pm860x-irq-read-clr");
 	ret = of_property_read_u32(np, "marvell,88pm860x-slave-addr",
 				   &pdata->companion_addr);
 	if (ret) {
@@ -1167,7 +1166,6 @@ static int pm860x_probe(struct i2c_client *client)
 	chip->client = client;
 	i2c_set_clientdata(client, chip);
 	chip->dev = &client->dev;
-	dev_set_drvdata(chip->dev, chip);
 
 	/*
 	 * Both client and companion client shares same platform driver.
@@ -1212,7 +1210,6 @@ static void pm860x_remove(struct i2c_client *client)
 	}
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pm860x_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1232,9 +1229,8 @@ static int pm860x_resume(struct device *dev)
 		disable_irq_wake(chip->core_irq);
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
 
 static const struct i2c_device_id pm860x_id_table[] = {
 	{ "88PM860x", 0 },
@@ -1251,10 +1247,10 @@ MODULE_DEVICE_TABLE(of, pm860x_dt_ids);
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
-		.pm     = &pm860x_pm_ops,
+		.pm     = pm_sleep_ptr(&pm860x_pm_ops),
 		.of_match_table	= pm860x_dt_ids,
 	},
-	.probe_new	= pm860x_probe,
+	.probe		= pm860x_probe,
 	.remove		= pm860x_remove,
 	.id_table	= pm860x_id_table,
 };
@@ -1278,4 +1274,3 @@ module_exit(pm860x_i2c_exit);
 
 MODULE_DESCRIPTION("PMIC Driver for Marvell 88PM860x");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");
-MODULE_LICENSE("GPL");

@@ -34,9 +34,6 @@ static int mvusb_mdio_read(struct mii_bus *mdio, int dev, int reg)
 	struct mvusb_mdio *mvusb = mdio->priv;
 	int err, alen;
 
-	if (dev & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	mvusb->buf[MVUSB_CMD_ADDR] = cpu_to_le16(0xa400 | (dev << 5) | reg);
 
 	err = usb_bulk_msg(mvusb->udev, usb_sndbulkpipe(mvusb->udev, 2),
@@ -57,9 +54,6 @@ static int mvusb_mdio_write(struct mii_bus *mdio, int dev, int reg, u16 val)
 	struct mvusb_mdio *mvusb = mdio->priv;
 	int alen;
 
-	if (dev & MII_ADDR_C45)
-		return -EOPNOTSUPP;
-
 	mvusb->buf[MVUSB_CMD_ADDR] = cpu_to_le16(0x8000 | (dev << 5) | reg);
 	mvusb->buf[MVUSB_CMD_VAL]  = cpu_to_le16(val);
 
@@ -73,6 +67,7 @@ static int mvusb_mdio_probe(struct usb_interface *interface,
 	struct device *dev = &interface->dev;
 	struct mvusb_mdio *mvusb;
 	struct mii_bus *mdio;
+	int ret;
 
 	mdio = devm_mdiobus_alloc_size(dev, sizeof(*mvusb));
 	if (!mdio)
@@ -93,7 +88,15 @@ static int mvusb_mdio_probe(struct usb_interface *interface,
 	mdio->write = mvusb_mdio_write;
 
 	usb_set_intfdata(interface, mvusb);
-	return of_mdiobus_register(mdio, dev->of_node);
+	ret = of_mdiobus_register(mdio, dev->of_node);
+	if (ret)
+		goto put_dev;
+
+	return 0;
+
+put_dev:
+	usb_put_dev(mvusb->udev);
+	return ret;
 }
 
 static void mvusb_mdio_disconnect(struct usb_interface *interface)

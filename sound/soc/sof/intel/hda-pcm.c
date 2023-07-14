@@ -18,6 +18,7 @@
 #include <linux/moduleparam.h>
 #include <sound/hda_register.h>
 #include <sound/pcm_params.h>
+#include <trace/events/sof_intel.h>
 #include "../sof-audio.h"
 #include "../ops.h"
 #include "hda.h"
@@ -32,7 +33,7 @@ static bool hda_always_enable_dmi_l1;
 module_param_named(always_enable_dmi_l1, hda_always_enable_dmi_l1, bool, 0444);
 MODULE_PARM_DESC(always_enable_dmi_l1, "SOF HDA always enable DMI l1");
 
-static bool hda_disable_rewinds = IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_DISABLE_REWINDS);
+static bool hda_disable_rewinds;
 module_param_named(disable_rewinds, hda_disable_rewinds, bool, 0444);
 MODULE_PARM_DESC(disable_rewinds, "SOF HDA disable rewinds");
 
@@ -100,18 +101,23 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
 	int ret;
-	u32 size, rate, bits;
-
-	size = params_buffer_bytes(params);
-	rate = hda_dsp_get_mult_div(sdev, params_rate(params));
-	bits = hda_dsp_get_bits(sdev, params_width(params));
 
 	hstream->substream = substream;
 
 	dmab = substream->runtime->dma_buffer_p;
 
-	hstream->format_val = rate | bits | (params_channels(params) - 1);
-	hstream->bufsize = size;
+	/*
+	 * Use the codec required format val (which is link_bps adjusted) when
+	 * the DSP is not in use
+	 */
+	if (!sdev->dspless_mode_selected) {
+		u32 rate = hda_dsp_get_mult_div(sdev, params_rate(params));
+		u32 bits = hda_dsp_get_bits(sdev, params_width(params));
+
+		hstream->format_val = rate | bits | (params_channels(params) - 1);
+	}
+
+	hstream->bufsize = params_buffer_bytes(params);
 	hstream->period_bytes = params_period_bytes(params);
 	hstream->no_period_wakeup  =
 			(params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
@@ -141,7 +147,6 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_ext_stream *hext_stream = stream_to_hdac_ext_stream(hstream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	ssize_t appl_pos, buf_size;
 	u32 spib;
@@ -155,7 +160,7 @@ int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substrea
 	if (!spib)
 		spib = buf_size;
 
-	sof_io_write(sdev, hext_stream->spib_addr, spib);
+	sof_io_write(sdev, hstream->spib_addr, spib);
 
 	return 0;
 }
@@ -196,8 +201,7 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 found:
 	pos = bytes_to_frames(substream->runtime, pos);
 
-	dev_vdbg(sdev->dev, "PCM: stream %d dir %d position %lu\n",
-		 hstream->index, substream->stream, pos);
+	trace_sof_intel_hda_dsp_pcm(sdev, hstream, substream, pos);
 	return pos;
 }
 
@@ -249,6 +253,11 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	/* avoid circular buffer wrap in middle of period */
 	snd_pcm_hw_constraint_integer(substream->runtime,
 				      SNDRV_PCM_HW_PARAM_PERIODS);
+
+	/* Only S16 and S32 supported by HDA hardware when used without DSP */
+	if (sdev->dspless_mode_selected)
+		snd_pcm_hw_constraint_mask64(substream->runtime, SNDRV_PCM_HW_PARAM_FORMAT,
+					     SNDRV_PCM_FMTBIT_S16 | SNDRV_PCM_FMTBIT_S32);
 
 	/* binding pcm substream to hda stream */
 	substream->runtime->private_data = &dsp_stream->hstream;

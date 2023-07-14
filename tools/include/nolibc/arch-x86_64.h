@@ -7,17 +7,7 @@
 #ifndef _NOLIBC_ARCH_X86_64_H
 #define _NOLIBC_ARCH_X86_64_H
 
-/* O_* macros for fcntl/open are architecture-specific */
-#define O_RDONLY            0
-#define O_WRONLY            1
-#define O_RDWR              2
-#define O_CREAT          0x40
-#define O_EXCL           0x80
-#define O_NOCTTY        0x100
-#define O_TRUNC         0x200
-#define O_APPEND        0x400
-#define O_NONBLOCK      0x800
-#define O_DIRECTORY   0x10000
+#include "compiler.h"
 
 /* The struct returned by the stat() syscall, equivalent to stat64(). The
  * syscall returns 116 bytes and stops in the middle of __unused.
@@ -190,6 +180,9 @@ struct sys_stat_struct {
 	_ret;                                                                 \
 })
 
+char **environ __attribute__((weak));
+const unsigned long *_auxv __attribute__((weak));
+
 /* startup code */
 /*
  * x86-64 System V ABI mandates:
@@ -197,19 +190,31 @@ struct sys_stat_struct {
  * 2) The deepest stack frame should be zero (the %rbp).
  *
  */
-__asm__ (".section .text\n"
-    ".weak _start\n"
-    "_start:\n"
-    "pop %rdi\n"                // argc   (first arg, %rdi)
-    "mov %rsp, %rsi\n"          // argv[] (second arg, %rsi)
-    "lea 8(%rsi,%rdi,8),%rdx\n" // then a NULL then envp (third arg, %rdx)
-    "xor %ebp, %ebp\n"          // zero the stack frame
-    "and $-16, %rsp\n"          // x86 ABI : esp must be 16-byte aligned before call
-    "call main\n"               // main() returns the status code, we'll exit with it.
-    "mov %eax, %edi\n"          // retrieve exit code (32 bit)
-    "mov $60, %eax\n"           // NR_exit == 60
-    "syscall\n"                 // really exit
-    "hlt\n"                     // ensure it does not return
-    "");
+void __attribute__((weak,noreturn,optimize("omit-frame-pointer"))) __no_stack_protector _start(void)
+{
+	__asm__ volatile (
+#ifdef _NOLIBC_STACKPROTECTOR
+		"call __stack_chk_init\n"   /* initialize stack protector                          */
+#endif
+		"pop %rdi\n"                /* argc   (first arg, %rdi)                            */
+		"mov %rsp, %rsi\n"          /* argv[] (second arg, %rsi)                           */
+		"lea 8(%rsi,%rdi,8),%rdx\n" /* then a NULL then envp (third arg, %rdx)             */
+		"mov %rdx, environ\n"       /* save environ                                        */
+		"xor %ebp, %ebp\n"          /* zero the stack frame                                */
+		"mov %rdx, %rax\n"          /* search for auxv (follows NULL after last env)       */
+		"0:\n"
+		"add $8, %rax\n"            /* search for auxv using rax, it follows the           */
+		"cmp -8(%rax), %rbp\n"      /* ... NULL after last env (rbp is zero here)          */
+		"jnz 0b\n"
+		"mov %rax, _auxv\n"         /* save it into _auxv                                  */
+		"and $-16, %rsp\n"          /* x86 ABI : esp must be 16-byte aligned before call   */
+		"call main\n"               /* main() returns the status code, we'll exit with it. */
+		"mov %eax, %edi\n"          /* retrieve exit code (32 bit)                         */
+		"mov $60, %eax\n"           /* NR_exit == 60                                       */
+		"syscall\n"                 /* really exit                                         */
+		"hlt\n"                     /* ensure it does not return                           */
+	);
+	__builtin_unreachable();
+}
 
-#endif // _NOLIBC_ARCH_X86_64_H
+#endif /* _NOLIBC_ARCH_X86_64_H */

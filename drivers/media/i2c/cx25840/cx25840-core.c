@@ -5825,8 +5825,7 @@ static u32 get_cx2388x_ident(struct i2c_client *client)
 	return ret;
 }
 
-static int cx25840_probe(struct i2c_client *client,
-			 const struct i2c_device_id *did)
+static int cx25840_probe(struct i2c_client *client)
 {
 	struct cx25840_state *state;
 	struct v4l2_subdev *sd;

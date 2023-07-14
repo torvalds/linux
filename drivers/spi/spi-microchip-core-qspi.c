@@ -566,7 +566,7 @@ out:
 	return ret;
 }
 
-static int mchp_coreqspi_remove(struct platform_device *pdev)
+static void mchp_coreqspi_remove(struct platform_device *pdev)
 {
 	struct mchp_coreqspi *qspi = platform_get_drvdata(pdev);
 	u32 control = readl_relaxed(qspi->regs + REG_CONTROL);
@@ -575,8 +575,6 @@ static int mchp_coreqspi_remove(struct platform_device *pdev)
 	control &= ~CONTROL_ENABLE;
 	writel_relaxed(control, qspi->regs + REG_CONTROL);
 	clk_disable_unprepare(qspi->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mchp_coreqspi_of_match[] = {
@@ -591,7 +589,7 @@ static struct platform_driver mchp_coreqspi_driver = {
 		.name = "microchip,coreqspi",
 		.of_match_table = mchp_coreqspi_of_match,
 	},
-	.remove = mchp_coreqspi_remove,
+	.remove_new = mchp_coreqspi_remove,
 };
 module_platform_driver(mchp_coreqspi_driver);
 

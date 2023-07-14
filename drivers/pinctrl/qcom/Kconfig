@@ -4,6 +4,8 @@ if (ARCH_QCOM || COMPILE_TEST)
 config PINCTRL_MSM
 	tristate "Qualcomm core pin controller driver"
 	depends on GPIOLIB
+	# OF for pinconf_generic_dt_node_to_map_group() from GENERIC_PINCONF
+	depends on OF
 	select QCOM_SCM
 	select PINMUX
 	select PINCONF
@@ -12,191 +14,7 @@ config PINCTRL_MSM
 	select IRQ_DOMAIN_HIERARCHY
 	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 
-config PINCTRL_APQ8064
-	tristate "Qualcomm APQ8064 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm APQ8064 platform.
-
-config PINCTRL_APQ8084
-	tristate "Qualcomm APQ8084 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm APQ8084 platform.
-
-config PINCTRL_IPQ4019
-	tristate "Qualcomm IPQ4019 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm IPQ4019 platform.
-
-config PINCTRL_IPQ8064
-	tristate "Qualcomm IPQ8064 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm IPQ8064 platform.
-
-config PINCTRL_IPQ8074
-	tristate "Qualcomm Technologies, Inc. IPQ8074 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for
-	  the Qualcomm Technologies Inc. TLMM block found on the
-	  Qualcomm Technologies Inc. IPQ8074 platform. Select this for
-	  IPQ8074.
-
-config PINCTRL_IPQ6018
-	tristate "Qualcomm Technologies, Inc. IPQ6018 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for
-	  the Qualcomm Technologies Inc. TLMM block found on the
-	  Qualcomm Technologies Inc. IPQ6018 platform. Select this for
-	  IPQ6018.
-
-config PINCTRL_MSM8226
-	tristate "Qualcomm 8226 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc MSM8226 platform.
-
-config PINCTRL_MSM8660
-	tristate "Qualcomm 8660 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 8660 platform.
-
-config PINCTRL_MSM8960
-	tristate "Qualcomm 8960 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 8960 platform.
-
-config PINCTRL_MDM9607
-	tristate "Qualcomm 9607 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 9607 platform.
-
-config PINCTRL_MDM9615
-	tristate "Qualcomm 9615 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 9615 platform.
-
-config PINCTRL_MSM8X74
-	tristate "Qualcomm 8x74 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 8974 platform.
-
-config PINCTRL_MSM8909
-	tristate "Qualcomm 8909 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found on the Qualcomm MSM8909 platform.
-
-config PINCTRL_MSM8916
-	tristate "Qualcomm 8916 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found on the Qualcomm 8916 platform.
-
-config PINCTRL_MSM8953
-	tristate "Qualcomm 8953 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found on the Qualcomm MSM8953 platform.
-	  The Qualcomm APQ8053, SDM450, SDM632 platforms are also
-	  supported by this driver.
-
-config PINCTRL_MSM8976
-	tristate "Qualcomm 8976 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found on the Qualcomm MSM8976 platform.
-	  The Qualcomm MSM8956, APQ8056, APQ8076 platforms are also
-	  supported by this driver.
-
-config PINCTRL_MSM8994
-	tristate "Qualcomm 8994 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm 8994 platform. The
-	  Qualcomm 8992 platform is also supported by this driver.
-
-config PINCTRL_MSM8996
-	tristate "Qualcomm MSM8996 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm MSM8996 platform.
-
-config PINCTRL_MSM8998
-	tristate "Qualcomm MSM8998 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm TLMM block found in the Qualcomm MSM8998 platform.
-
-config PINCTRL_QCM2290
-	tristate "Qualcomm QCM2290 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  TLMM block found in the Qualcomm QCM2290 platform.
-
-config PINCTRL_QCS404
-	tristate "Qualcomm QCS404 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  TLMM block found in the Qualcomm QCS404 platform.
-
-config PINCTRL_QDF2XXX
-	tristate "Qualcomm Technologies QDF2xxx pin controller driver"
-	depends on ACPI
-	depends on PINCTRL_MSM
-	help
-	  This is the GPIO driver for the TLMM block found on the
-	  Qualcomm Technologies QDF2xxx SOCs.
+source "drivers/pinctrl/qcom/Kconfig.msm"
 
 config PINCTRL_QCOM_SPMI_PMIC
 	tristate "Qualcomm SPMI PMIC pin controller driver"
@@ -205,7 +23,7 @@ config PINCTRL_QCOM_SPMI_PMIC
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
-  select GPIOLIB
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
@@ -220,7 +38,7 @@ config PINCTRL_QCOM_SSBI_PMIC
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
-  select GPIOLIB
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
@@ -228,167 +46,6 @@ config PINCTRL_QCOM_SSBI_PMIC
 	 Qualcomm GPIO and MPP blocks found in the Qualcomm PMIC's chips,
 	 which are using SSBI for communication with SoC. Example PMIC's
 	 devices are pm8058 and pm8921.
-
-config PINCTRL_SC7180
-	tristate "Qualcomm Technologies Inc SC7180 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SC7180 platform.
-
-config PINCTRL_SC7280
-	tristate "Qualcomm Technologies Inc SC7280 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SC7280 platform.
-
-config PINCTRL_SC7280_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SC7280 LPASS LPI pin controller driver"
-	depends on GPIOLIB
-	depends on PINCTRL_LPASS_LPI
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SC7280 platform.
-
-config PINCTRL_SC8180X
-	tristate "Qualcomm Technologies Inc SC8180x pin controller driver"
-	depends on (OF || ACPI)
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SC8180x platform.
-
-config PINCTRL_SC8280XP
-	tristate "Qualcomm Technologies Inc SC8280xp pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SC8280xp platform.
-
-config PINCTRL_SDM660
-	tristate "Qualcomm Technologies Inc SDM660 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SDM660 platform.
-
-config PINCTRL_SDM845
-	tristate "Qualcomm Technologies Inc SDM845 pin controller driver"
-	depends on (OF || ACPI)
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SDM845 platform.
-
-config PINCTRL_SDX55
-	tristate "Qualcomm Technologies Inc SDX55 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SDX55 platform.
-
-config PINCTRL_SM6115
-	tristate "Qualcomm Technologies Inc SM6115,SM4250 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SM6115 and SM4250 platforms.
-
-config PINCTRL_SM6125
-	tristate "Qualcomm Technologies Inc SM6125 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SM6125 platform.
-
-config PINCTRL_SM6350
-	tristate "Qualcomm Technologies Inc SM6350 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SM6350 platform.
-
-config PINCTRL_SM6375
-	tristate "Qualcomm Technologies Inc SM6375 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SM6375 platform.
-
-config PINCTRL_SDX65
-	tristate "Qualcomm Technologies Inc SDX65 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SDX65 platform.
-
-config PINCTRL_SM8150
-	tristate "Qualcomm Technologies Inc SM8150 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	 This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	 Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	 Technologies Inc SM8150 platform.
-
-config PINCTRL_SM8250
-	tristate "Qualcomm Technologies Inc SM8250 pin controller driver"
-	depends on OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SM8250 platform.
-
-config PINCTRL_SM8250_LPASS_LPI
-	tristate "Qualcomm Technologies Inc SM8250 LPASS LPI pin controller driver"
-	depends on GPIOLIB
-	depends on PINCTRL_LPASS_LPI
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
-	  (Low Power Island) found on the Qualcomm Technologies Inc SM8250 platform.
-
-config PINCTRL_SM8350
-	tristate "Qualcomm Technologies Inc SM8350 pin controller driver"
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SM8350 platform.
-
-config PINCTRL_SM8450
-	tristate "Qualcomm Technologies Inc SM8450 pin controller driver"
-	depends on GPIOLIB && OF
-	depends on PINCTRL_MSM
-	help
-	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
-	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
-	  Technologies Inc SM8450 platform.
 
 config PINCTRL_LPASS_LPI
 	tristate "Qualcomm Technologies Inc LPASS LPI pin controller driver"
@@ -401,5 +58,51 @@ config PINCTRL_LPASS_LPI
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
 	  (Low Power Island) found on the Qualcomm Technologies Inc SoCs.
+
+config PINCTRL_SC7280_LPASS_LPI
+	tristate "Qualcomm Technologies Inc SC7280 LPASS LPI pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_LPASS_LPI
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Technologies Inc SC7280 platform.
+
+config PINCTRL_SM8250_LPASS_LPI
+	tristate "Qualcomm Technologies Inc SM8250 LPASS LPI pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_LPASS_LPI
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Technologies Inc SM8250 platform.
+
+config PINCTRL_SM8450_LPASS_LPI
+	tristate "Qualcomm Technologies Inc SM8450 LPASS LPI pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_LPASS_LPI
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Technologies Inc SM8450 platform.
+
+config PINCTRL_SC8280XP_LPASS_LPI
+	tristate "Qualcomm Technologies Inc SC8280XP LPASS LPI pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_LPASS_LPI
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Technologies Inc SC8280XP platform.
+
+config PINCTRL_SM8550_LPASS_LPI
+	tristate "Qualcomm Technologies Inc SM8550 LPASS LPI pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on PINCTRL_LPASS_LPI
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc LPASS (Low Power Audio SubSystem) LPI
+	  (Low Power Island) found on the Qualcomm Technologies Inc SM8550
+	  platform.
 
 endif

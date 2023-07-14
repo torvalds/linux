@@ -1073,9 +1073,9 @@ static const char *mma9553_match_acpi_device(struct device *dev)
 	return dev_name(dev);
 }
 
-static int mma9553_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int mma9553_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct mma9553_data *data;
 	struct iio_dev *indio_dev;
 	const char *name = NULL;

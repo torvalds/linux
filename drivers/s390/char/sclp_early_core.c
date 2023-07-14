@@ -10,14 +10,14 @@
 #include <asm/ebcdic.h>
 #include <asm/irq.h>
 #include <asm/sections.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/facility.h>
 #include "sclp.h"
 #include "sclp_rw.h"
 
 static struct read_info_sccb __bootdata(sclp_info_sccb);
 static int __bootdata(sclp_info_sccb_valid);
-char *__bootdata(sclp_early_sccb);
+char *__bootdata_preserved(sclp_early_sccb);
 int sclp_init_state = sclp_init_state_uninitialized;
 /*
  * Used to keep track of the size of the event masks. Qemu until version 2.11
@@ -241,6 +241,30 @@ void sclp_early_printk(const char *str)
 }
 
 /*
+ * Use sclp_emergency_printk() to print a string when the system is in a
+ * state where regular console drivers cannot be assumed to work anymore.
+ *
+ * Callers must make sure that no concurrent SCLP requests are outstanding
+ * and all other CPUs are stopped, or at least disabled for external
+ * interrupts.
+ */
+void sclp_emergency_printk(const char *str)
+{
+	int have_linemode, have_vt220;
+	unsigned int len;
+
+	len = strlen(str);
+	/*
+	 * Don't care about return values; if requests fail, just ignore and
+	 * continue to have a rather high chance that anything is printed.
+	 */
+	sclp_early_setup(0, &have_linemode, &have_vt220);
+	sclp_early_print_lm(str, len);
+	sclp_early_print_vt220(str, len);
+	sclp_early_setup(1, &have_linemode, &have_vt220);
+}
+
+/*
  * We can't pass sclp_info_sccb to sclp_early_cmd() here directly,
  * because it might not fulfil the requiremets for a SCLP communication buffer:
  *   - lie below 2G in memory
@@ -312,7 +336,7 @@ int __init sclp_early_get_hsa_size(unsigned long *hsa_size)
 
 #define SCLP_STORAGE_INFO_FACILITY     0x0000400000000000UL
 
-void __weak __init add_mem_detect_block(u64 start, u64 end) {}
+void __weak __init add_physmem_online_range(u64 start, u64 end) {}
 int __init sclp_early_read_storage_info(void)
 {
 	struct read_storage_sccb *sccb = (struct read_storage_sccb *)sclp_early_sccb;
@@ -345,7 +369,7 @@ int __init sclp_early_read_storage_info(void)
 				if (!sccb->entries[sn])
 					continue;
 				rn = sccb->entries[sn] >> 16;
-				add_mem_detect_block((rn - 1) * rzm, rn * rzm);
+				add_physmem_online_range((rn - 1) * rzm, rn * rzm);
 			}
 			break;
 		case 0x0310:
@@ -358,6 +382,6 @@ int __init sclp_early_read_storage_info(void)
 
 	return 0;
 fail:
-	mem_detect.count = 0;
+	physmem_info.range_count = 0;
 	return -EIO;
 }

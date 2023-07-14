@@ -879,7 +879,7 @@ static int hifn_enable_crypto(struct hifn_device *dev)
 
 static void hifn_init_dma(struct hifn_device *dev)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	u32 dptr = dev->desc_dma;
 	int i;
 
@@ -1072,7 +1072,7 @@ static int hifn_setup_crypto_command(struct hifn_device *dev,
 		u8 *buf, unsigned dlen, unsigned slen,
 		u8 *key, int keylen, u8 *iv, int ivsize, u16 mode)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	struct hifn_crypt_command *cry_cmd;
 	u8 *buf_pos = buf;
 	u16 cmd_len;
@@ -1113,7 +1113,7 @@ static int hifn_setup_cmd_desc(struct hifn_device *dev,
 		struct hifn_context *ctx, struct hifn_request_context *rctx,
 		void *priv, unsigned int nbytes)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	int cmd_len, sa_idx;
 	u8 *buf, *buf_pos;
 	u16 mask;
@@ -1231,7 +1231,7 @@ err_out:
 static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
 		unsigned int offset, unsigned int size, int last)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	int idx;
 	dma_addr_t addr;
 
@@ -1264,7 +1264,7 @@ static int hifn_setup_src_desc(struct hifn_device *dev, struct page *page,
 
 static void hifn_setup_res_desc(struct hifn_device *dev)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 
 	dma->resr[dma->resi].l = __cpu_to_le32(HIFN_USED_RESULT |
 			HIFN_D_VALID | HIFN_D_LAST);
@@ -1290,7 +1290,7 @@ static void hifn_setup_res_desc(struct hifn_device *dev)
 static void hifn_setup_dst_desc(struct hifn_device *dev, struct page *page,
 		unsigned offset, unsigned size, int last)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	int idx;
 	dma_addr_t addr;
 
@@ -1705,12 +1705,12 @@ static void hifn_process_ready(struct skcipher_request *req, int error)
 		hifn_cipher_walk_exit(&rctx->walk);
 	}
 
-	req->base.complete(&req->base, error);
+	skcipher_request_complete(req, error);
 }
 
 static void hifn_clear_rings(struct hifn_device *dev, int error)
 {
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	int i, u;
 
 	dev_dbg(&dev->pdev->dev, "ring cleanup 1: i: %d.%d.%d.%d, u: %d.%d.%d.%d, "
@@ -1784,7 +1784,7 @@ static void hifn_work(struct work_struct *work)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (dev->active == 0) {
-		struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+		struct hifn_dma *dma = dev->desc_virt;
 
 		if (dma->cmdu == 0 && (dev->flags & HIFN_FLAG_CMD_BUSY)) {
 			dev->flags &= ~HIFN_FLAG_CMD_BUSY;
@@ -1815,7 +1815,7 @@ static void hifn_work(struct work_struct *work)
 	if (reset) {
 		if (++dev->reset >= 5) {
 			int i;
-			struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+			struct hifn_dma *dma = dev->desc_virt;
 
 			dev_info(&dev->pdev->dev,
 				 "r: %08x, active: %d, started: %d, "
@@ -1848,8 +1848,8 @@ static void hifn_work(struct work_struct *work)
 
 static irqreturn_t hifn_interrupt(int irq, void *data)
 {
-	struct hifn_device *dev = (struct hifn_device *)data;
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_device *dev = data;
+	struct hifn_dma *dma = dev->desc_virt;
 	u32 dmacsr, restart;
 
 	dmacsr = hifn_read_1(dev, HIFN_1_DMA_CSR);
@@ -1914,7 +1914,7 @@ static void hifn_flush(struct hifn_device *dev)
 	unsigned long flags;
 	struct crypto_async_request *async_req;
 	struct skcipher_request *req;
-	struct hifn_dma *dma = (struct hifn_dma *)dev->desc_virt;
+	struct hifn_dma *dma = dev->desc_virt;
 	int i;
 
 	for (i = 0; i < HIFN_D_RES_RSIZE; ++i) {
@@ -2054,7 +2054,7 @@ static int hifn_process_queue(struct hifn_device *dev)
 			break;
 
 		if (backlog)
-			backlog->complete(backlog, -EINPROGRESS);
+			crypto_request_complete(backlog, -EINPROGRESS);
 
 		req = skcipher_request_cast(async_req);
 

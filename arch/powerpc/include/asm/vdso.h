@@ -2,9 +2,6 @@
 #ifndef _ASM_POWERPC_VDSO_H
 #define _ASM_POWERPC_VDSO_H
 
-/* Default map addresses for 32bit vDSO */
-#define VDSO32_MBASE	0x100000
-
 #define VDSO_VERSION_STRING	LINUX_2.6.15
 
 #ifndef __ASSEMBLY__

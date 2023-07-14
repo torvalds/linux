@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/mips/ralink.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ralink SoC based Platforms Device Tree Bindings
+title: Ralink SoC based Platforms
 
 maintainers:
   - Sergio Paracuellos <sergio.paracuellos@gmail.com>
@@ -80,6 +80,7 @@ properties:
           - enum:
               - gnubee,gb-pc1
               - gnubee,gb-pc2
+              - tplink,hc220-g5-v1
           - const: mediatek,mt7621-soc
 
 additionalProperties: true

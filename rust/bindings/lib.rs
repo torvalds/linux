@@ -9,7 +9,6 @@
 //! using this crate.
 
 #![no_std]
-#![feature(core_ffi_c)]
 // See <https://github.com/rust-lang/rust-bindgen/issues/1651>.
 #![cfg_attr(test, allow(deref_nullptr))]
 #![cfg_attr(test, allow(unaligned_references))]
@@ -41,6 +40,7 @@ mod bindings_raw {
 #[allow(dead_code)]
 mod bindings_helper {
     // Import the generated bindings for types.
+    use super::bindings_raw::*;
     include!(concat!(
         env!("OBJTREE"),
         "/rust/bindings/bindings_helpers_generated.rs"

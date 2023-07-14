@@ -18,7 +18,7 @@ description:
   to directly reset the SoC.
 
 allOf:
-  - $ref: "watchdog.yaml#"
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:

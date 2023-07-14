@@ -986,7 +986,7 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 		if (has_bspi(qspi))
 			mspi_cdram &= ~1;
 		else
-			mspi_cdram |= (~(1 << spi->chip_select) &
+			mspi_cdram |= (~(1 << spi_get_chipselect(spi, 0)) &
 				       MSPI_CDRAM_PCS);
 
 		write_cdram_slot(qspi, slot, mspi_cdram);
@@ -1046,8 +1046,8 @@ static int bcm_qspi_bspi_exec_mem_op(struct spi_device *spi,
 			return -EIO;
 
 	from = op->addr.val;
-	if (!spi->cs_gpiod)
-		bcm_qspi_chip_select(qspi, spi->chip_select);
+	if (!spi_get_csgpiod(spi, 0))
+		bcm_qspi_chip_select(qspi, spi_get_chipselect(spi, 0));
 	bcm_qspi_write(qspi, MSPI, MSPI_WRITE_LOCK, 0);
 
 	/*
@@ -1126,8 +1126,8 @@ static int bcm_qspi_transfer_one(struct spi_master *master,
 	int slots;
 	unsigned long timeo = msecs_to_jiffies(100);
 
-	if (!spi->cs_gpiod)
-		bcm_qspi_chip_select(qspi, spi->chip_select);
+	if (!spi_get_csgpiod(spi, 0))
+		bcm_qspi_chip_select(qspi, spi_get_chipselect(spi, 0));
 	qspi->trans_pos.trans = trans;
 	qspi->trans_pos.byte = 0;
 
@@ -1457,7 +1457,7 @@ static const struct bcm_qspi_data bcm_qspi_spcr3_data = {
 	.has_spcr3_sysclk = true,
 };
 
-static const struct of_device_id bcm_qspi_of_match[] = {
+static const struct of_device_id bcm_qspi_of_match[] __maybe_unused = {
 	{
 		.compatible = "brcm,spi-bcm7445-qspi",
 		.data = &bcm_qspi_rev_data,
@@ -1543,13 +1543,9 @@ int bcm_qspi_probe(struct platform_device *pdev,
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "mspi");
 
-	if (res) {
-		qspi->base[MSPI]  = devm_ioremap_resource(dev, res);
-		if (IS_ERR(qspi->base[MSPI]))
-			return PTR_ERR(qspi->base[MSPI]);
-	} else {
-		return 0;
-	}
+	qspi->base[MSPI]  = devm_ioremap_resource(dev, res);
+	if (IS_ERR(qspi->base[MSPI]))
+		return PTR_ERR(qspi->base[MSPI]);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "bspi");
 	if (res) {
@@ -1682,7 +1678,7 @@ qspi_probe_err:
 /* probe function to be called by SoC specific platform driver probe */
 EXPORT_SYMBOL_GPL(bcm_qspi_probe);
 
-int bcm_qspi_remove(struct platform_device *pdev)
+void bcm_qspi_remove(struct platform_device *pdev)
 {
 	struct bcm_qspi *qspi = platform_get_drvdata(pdev);
 
@@ -1690,9 +1686,8 @@ int bcm_qspi_remove(struct platform_device *pdev)
 	bcm_qspi_hw_uninit(qspi);
 	clk_disable_unprepare(qspi->clk);
 	kfree(qspi->dev_ids);
-
-	return 0;
 }
+
 /* function to be called by SoC specific platform driver remove() */
 EXPORT_SYMBOL_GPL(bcm_qspi_remove);
 

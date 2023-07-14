@@ -131,9 +131,9 @@ static int essiv_aead_setauthsize(struct crypto_aead *tfm,
 	return crypto_aead_setauthsize(tctx->u.aead, authsize);
 }
 
-static void essiv_skcipher_done(struct crypto_async_request *areq, int err)
+static void essiv_skcipher_done(void *data, int err)
 {
-	struct skcipher_request *req = areq->data;
+	struct skcipher_request *req = data;
 
 	skcipher_request_complete(req, err);
 }
@@ -166,12 +166,17 @@ static int essiv_skcipher_decrypt(struct skcipher_request *req)
 	return essiv_skcipher_crypt(req, false);
 }
 
-static void essiv_aead_done(struct crypto_async_request *areq, int err)
+static void essiv_aead_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 	struct essiv_aead_request_ctx *rctx = aead_request_ctx(req);
 
+	if (err == -EINPROGRESS)
+		goto out;
+
 	kfree(rctx->assoc);
+
+out:
 	aead_request_complete(req, err);
 }
 
@@ -247,7 +252,7 @@ static int essiv_aead_crypt(struct aead_request *req, bool enc)
 	err = enc ? crypto_aead_encrypt(subreq) :
 		    crypto_aead_decrypt(subreq);
 
-	if (rctx->assoc && err != -EINPROGRESS)
+	if (rctx->assoc && err != -EINPROGRESS && err != -EBUSY)
 		kfree(rctx->assoc);
 	return err;
 }
@@ -543,7 +548,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	}
 
 	/* record the driver name so we can instantiate this exact algo later */
-	strlcpy(ictx->shash_driver_name, hash_alg->base.cra_driver_name,
+	strscpy(ictx->shash_driver_name, hash_alg->base.cra_driver_name,
 		CRYPTO_MAX_ALG_NAME);
 
 	/* Instance fields */

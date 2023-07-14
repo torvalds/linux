@@ -300,9 +300,9 @@ static void max5821_regulator_disable(void *reg)
 	regulator_disable(reg);
 }
 
-static int max5821_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int max5821_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct max5821_data *data;
 	struct iio_dev *indio_dev;
 	u32 tmp;

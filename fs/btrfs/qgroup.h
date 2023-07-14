@@ -11,6 +11,7 @@
 #include <linux/kobject.h>
 #include "ulist.h"
 #include "delayed-ref.h"
+#include "misc.h"
 
 /*
  * Btrfs qgroup overview
@@ -99,6 +100,9 @@
  *     modification to the swapped subtrees, no need to trigger heavy qgroup
  *     subtree rescan for them.
  */
+
+#define BTRFS_QGROUP_RUNTIME_FLAG_CANCEL_RESCAN		(1UL << 3)
+#define BTRFS_QGROUP_RUNTIME_FLAG_NO_ACCOUNTING		(1UL << 4)
 
 /*
  * Record a dirty extent, and info qgroup to update quota on it
@@ -239,9 +243,11 @@ static inline u64 btrfs_qgroup_subvolid(u64 qgroupid)
 /*
  * For qgroup event trace points only
  */
-#define QGROUP_RESERVE		(1<<0)
-#define QGROUP_RELEASE		(1<<1)
-#define QGROUP_FREE		(1<<2)
+enum {
+	ENUM_BIT(QGROUP_RESERVE),
+	ENUM_BIT(QGROUP_RELEASE),
+	ENUM_BIT(QGROUP_FREE),
+};
 
 int btrfs_quota_enable(struct btrfs_fs_info *fs_info);
 int btrfs_quota_disable(struct btrfs_fs_info *fs_info);
@@ -315,7 +321,7 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_trans_handle *trans,
  * (NULL trans)
  */
 int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
-			      u64 num_bytes, gfp_t gfp_flag);
+			      u64 num_bytes);
 
 /*
  * Inform qgroup to trace all leaf items of data

@@ -5,11 +5,22 @@
  * Copyright (C) 2021 Renesas Electronics Corp.
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "r8a779f0.dtsi"
 
 / {
 	model = "Renesas Spider CPU board";
 	compatible = "renesas,spider-cpu", "renesas,r8a779f0";
+
+	aliases {
+		serial0 = &hscif0;
+		serial1 = &scif0;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		stdout-path = "serial0:1843200n8";
+	};
 
 	memory@48000000 {
 		device_type = "memory";
@@ -21,6 +32,30 @@
 		device_type = "memory";
 		reg = <0x4 0x80000000 0x0 0x80000000>;
 	};
+
+	rc21012_ufs: clk-rc21012-ufs {
+		compatible = "fixed-clock";
+		clock-frequency = <38400000>;
+		#clock-cells = <0>;
+	};
+
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 };
 
 &extal_clk {
@@ -29,6 +64,29 @@
 
 &extalr_clk {
 	clock-frequency = <32768>;
+};
+
+&hscif0 {
+	pinctrl-0 = <&hscif0_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	gpio_exp_20: gpio@20 {
+		compatible = "ti,tca9554";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
 
 &i2c4 {
@@ -46,23 +104,55 @@
 	};
 };
 
+/*
+ * This board also has a microSD slot which we will not support upstream
+ * because we cannot directly switch voltages in software.
+ */
+&mmc0 {
+	pinctrl-0 = <&mmc_pins>;
+	pinctrl-1 = <&mmc_pins>;
+	pinctrl-names = "default", "state_uhs";
+
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	bus-width = <8>;
+	no-sd;
+	no-sdio;
+	non-removable;
+	full-pwr-cycle-in-suspend;
+	status = "okay";
+};
+
 &pfc {
 	pinctrl-0 = <&scif_clk_pins>;
 	pinctrl-names = "default";
+
+	hscif0_pins: hscif0 {
+		groups = "hscif0_data", "hscif0_ctrl";
+		function = "hscif0";
+	};
+
+	i2c0_pins: i2c0 {
+		groups = "i2c0";
+		function = "i2c0";
+	};
 
 	i2c4_pins: i2c4 {
 		groups = "i2c4";
 		function = "i2c4";
 	};
 
+	mmc_pins: mmc {
+		groups = "mmc_data8", "mmc_ctrl", "mmc_ds";
+		function = "mmc";
+		power-source = <1800>;
+	};
+
 	scif0_pins: scif0 {
 		groups = "scif0_data", "scif0_ctrl";
 		function = "scif0";
-	};
-
-	scif3_pins: scif3 {
-		groups = "scif3_data", "scif3_ctrl";
-		function = "scif3";
 	};
 
 	scif_clk_pins: scif_clk {
@@ -84,14 +174,17 @@
 	status = "okay";
 };
 
-&scif3 {
-	pinctrl-0 = <&scif3_pins>;
-	pinctrl-names = "default";
+&scif_clk {
+	clock-frequency = <24000000>;
+};
 
-	uart-has-rtscts;
+&ufs {
 	status = "okay";
 };
 
-&scif_clk {
-	clock-frequency = <24000000>;
+&ufs30_clk {
+	compatible = "gpio-gate-clock";
+	clocks = <&rc21012_ufs>;
+	enable-gpios = <&gpio_exp_20 4 GPIO_ACTIVE_LOW>;
+	/delete-property/ clock-frequency;
 };

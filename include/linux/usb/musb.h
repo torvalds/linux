@@ -99,9 +99,6 @@ struct musb_hdrc_platform_data {
 	/* (HOST or OTG) program PHY for external Vbus */
 	unsigned	extvbus:1;
 
-	/* Power the device on or off */
-	int		(*set_power)(int state);
-
 	/* MUSB configuration-specific details */
 	const struct musb_hdrc_config *config;
 
@@ -134,17 +131,5 @@ static inline int musb_mailbox(enum musb_vbus_id_status status)
 #define	TUSB6010_OSCCLK_60	16667	/* psec/clk @ 60.0 MHz */
 #define	TUSB6010_REFCLK_24	41667	/* psec/clk @ 24.0 MHz XI */
 #define	TUSB6010_REFCLK_19	52083	/* psec/clk @ 19.2 MHz CLKIN */
-
-#ifdef	CONFIG_ARCH_OMAP2
-
-extern int __init tusb6010_setup_interface(
-		struct musb_hdrc_platform_data *data,
-		unsigned ps_refclk, unsigned waitpin,
-		unsigned async_cs, unsigned sync_cs,
-		unsigned irq, unsigned dmachan);
-
-extern int tusb6010_platform_retime(unsigned is_refclk);
-
-#endif	/* OMAP2 */
 
 #endif /* __LINUX_USB_MUSB_H */

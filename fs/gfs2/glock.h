@@ -91,6 +91,7 @@ enum {
 #define GL_ASYNC		0x0040
 #define GL_EXACT		0x0080
 #define GL_SKIP			0x0100
+#define GL_NOPID		0x0200
 #define GL_NOCACHE		0x0400
   
 /*
@@ -143,7 +144,6 @@ struct gfs2_glock_aspace {
 	struct address_space mapping;
 };
 
-extern struct workqueue_struct *gfs2_delete_workqueue;
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
 {
 	struct gfs2_holder *gh;
@@ -155,8 +155,6 @@ static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *
 	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
 		if (!test_bit(HIF_HOLDER, &gh->gh_iflags))
 			break;
-		if (test_bit(HIF_MAY_DEMOTE, &gh->gh_iflags))
-			continue;
 		if (gh->gh_owner_pid == pid)
 			goto out;
 	}
@@ -195,7 +193,7 @@ static inline struct address_space *gfs2_glock2aspace(struct gfs2_glock *gl)
 extern int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 			  const struct gfs2_glock_operations *glops,
 			  int create, struct gfs2_glock **glp);
-extern void gfs2_glock_hold(struct gfs2_glock *gl);
+extern struct gfs2_glock *gfs2_glock_hold(struct gfs2_glock *gl);
 extern void gfs2_glock_put(struct gfs2_glock *gl);
 extern void gfs2_glock_queue_put(struct gfs2_glock *gl);
 
@@ -269,11 +267,11 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 
 extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
 extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
-extern bool gfs2_queue_delete_work(struct gfs2_glock *gl, unsigned long delay);
+extern bool gfs2_queue_try_to_evict(struct gfs2_glock *gl);
 extern void gfs2_cancel_delete_work(struct gfs2_glock *gl);
-extern bool gfs2_delete_work_queued(const struct gfs2_glock *gl);
 extern void gfs2_flush_delete_work(struct gfs2_sbd *sdp);
 extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
+extern void gfs2_gl_dq_holders(struct gfs2_sbd *sdp);
 extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
 extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
 extern void gfs2_glock_free(struct gfs2_glock *gl);
@@ -285,6 +283,9 @@ extern void gfs2_create_debugfs_file(struct gfs2_sbd *sdp);
 extern void gfs2_delete_debugfs_file(struct gfs2_sbd *sdp);
 extern void gfs2_register_debugfs(void);
 extern void gfs2_unregister_debugfs(void);
+
+extern void glock_set_object(struct gfs2_glock *gl, void *object);
+extern void glock_clear_object(struct gfs2_glock *gl, void *object);
 
 extern const struct lm_lockops gfs2_dlm_ops;
 
@@ -301,64 +302,6 @@ static inline bool gfs2_holder_initialized(struct gfs2_holder *gh)
 static inline bool gfs2_holder_queued(struct gfs2_holder *gh)
 {
 	return !list_empty(&gh->gh_list);
-}
-
-/**
- * glock_set_object - set the gl_object field of a glock
- * @gl: the glock
- * @object: the object
- */
-static inline void glock_set_object(struct gfs2_glock *gl, void *object)
-{
-	spin_lock(&gl->gl_lockref.lock);
-	if (gfs2_assert_warn(gl->gl_name.ln_sbd, gl->gl_object == NULL))
-		gfs2_dump_glock(NULL, gl, true);
-	gl->gl_object = object;
-	spin_unlock(&gl->gl_lockref.lock);
-}
-
-/**
- * glock_clear_object - clear the gl_object field of a glock
- * @gl: the glock
- * @object: the object
- *
- * I'd love to similarly add this:
- *	else if (gfs2_assert_warn(gl->gl_sbd, gl->gl_object == object))
- *		gfs2_dump_glock(NULL, gl, true);
- * Unfortunately, that's not possible because as soon as gfs2_delete_inode
- * frees the block in the rgrp, another process can reassign it for an I_NEW
- * inode in gfs2_create_inode because that calls new_inode, not gfs2_iget.
- * That means gfs2_delete_inode may subsequently try to call this function
- * for a glock that's already pointing to a brand new inode. If we clear the
- * new inode's gl_object, we'll introduce metadata corruption. Function
- * gfs2_delete_inode calls clear_inode which calls gfs2_clear_inode which also
- * tries to clear gl_object, so it's more than just gfs2_delete_inode.
- *
- */
-static inline void glock_clear_object(struct gfs2_glock *gl, void *object)
-{
-	spin_lock(&gl->gl_lockref.lock);
-	if (gl->gl_object == object)
-		gl->gl_object = NULL;
-	spin_unlock(&gl->gl_lockref.lock);
-}
-
-static inline void gfs2_holder_allow_demote(struct gfs2_holder *gh)
-{
-	struct gfs2_glock *gl = gh->gh_gl;
-
-	spin_lock(&gl->gl_lockref.lock);
-	set_bit(HIF_MAY_DEMOTE, &gh->gh_iflags);
-	spin_unlock(&gl->gl_lockref.lock);
-}
-
-static inline void gfs2_holder_disallow_demote(struct gfs2_holder *gh)
-{
-	struct gfs2_glock *gl = gh->gh_gl;
-
-	spin_lock(&gl->gl_lockref.lock);
-	clear_bit(HIF_MAY_DEMOTE, &gh->gh_iflags);
-	spin_unlock(&gl->gl_lockref.lock);
 }
 
 extern void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation);

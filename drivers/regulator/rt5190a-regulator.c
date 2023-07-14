@@ -505,9 +505,10 @@ MODULE_DEVICE_TABLE(of, rt5190a_device_table);
 static struct i2c_driver rt5190a_driver = {
 	.driver = {
 		.name = "rt5190a",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = rt5190a_device_table,
 	},
-	.probe_new = rt5190a_probe,
+	.probe = rt5190a_probe,
 };
 module_i2c_driver(rt5190a_driver);
 

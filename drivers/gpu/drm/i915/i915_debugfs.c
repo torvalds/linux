@@ -50,9 +50,9 @@
 #include "i915_debugfs_params.h"
 #include "i915_driver.h"
 #include "i915_irq.h"
+#include "i915_reg.h"
 #include "i915_scheduler.h"
 #include "intel_mchbar_regs.h"
-#include "intel_pm.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -66,8 +66,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	seq_printf(m, "pch: %d\n", INTEL_PCH_TYPE(i915));
 
-	intel_device_info_print_static(INTEL_INFO(i915), &p);
-	intel_device_info_print_runtime(RUNTIME_INFO(i915), &p);
+	intel_device_info_print(INTEL_INFO(i915), RUNTIME_INFO(i915), &p);
 	i915_print_iommu_status(i915, &p);
 	intel_gt_info_print(&to_gt(i915)->info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
@@ -140,21 +139,54 @@ static const char *stringify_vma_type(const struct i915_vma *vma)
 	return "ppgtt";
 }
 
-static const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
+static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 {
-	switch (type) {
-	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
-	case I915_CACHE_L3_LLC: return " L3+LLC";
-	case I915_CACHE_WT: return " WT";
-	default: return "";
+	struct drm_i915_private *i915 = obj_to_i915(obj);
+
+	if (IS_METEORLAKE(i915)) {
+		switch (obj->pat_index) {
+		case 0: return " WB";
+		case 1: return " WT";
+		case 2: return " UC";
+		case 3: return " WB (1-Way Coh)";
+		case 4: return " WB (2-Way Coh)";
+		default: return " not defined";
+		}
+	} else if (IS_PONTEVECCHIO(i915)) {
+		switch (obj->pat_index) {
+		case 0: return " UC";
+		case 1: return " WC";
+		case 2: return " WT";
+		case 3: return " WB";
+		case 4: return " WT (CLOS1)";
+		case 5: return " WB (CLOS1)";
+		case 6: return " WT (CLOS2)";
+		case 7: return " WT (CLOS2)";
+		default: return " not defined";
+		}
+	} else if (GRAPHICS_VER(i915) >= 12) {
+		switch (obj->pat_index) {
+		case 0: return " WB";
+		case 1: return " WC";
+		case 2: return " WT";
+		case 3: return " UC";
+		default: return " not defined";
+		}
+	} else {
+		switch (obj->pat_index) {
+		case 0: return " UC";
+		case 1: return HAS_LLC(i915) ?
+			       " LLC" : " snooped";
+		case 2: return " L3+LLC";
+		case 3: return " WT";
+		default: return " not defined";
+		}
 	}
 }
 
 void
 i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int pin_count = 0;
 
@@ -166,7 +198,7 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   obj->base.size / 1024,
 		   obj->read_domains,
 		   obj->write_domain,
-		   i915_cache_level_str(dev_priv, obj->cache_level),
+		   i915_cache_level_str(obj),
 		   obj->mm.dirty ? " dirty" : "",
 		   obj->mm.madv == I915_MADV_DONTNEED ? " purgeable" : "");
 	if (obj->base.name)
@@ -184,51 +216,51 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 
 		seq_printf(m, " (%s offset: %08llx, size: %08llx, pages: %s",
 			   stringify_vma_type(vma),
-			   vma->node.start, vma->node.size,
+			   i915_vma_offset(vma), i915_vma_size(vma),
 			   stringify_page_sizes(vma->resource->page_sizes_gtt,
 						NULL, 0));
 		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
-			switch (vma->ggtt_view.type) {
-			case I915_GGTT_VIEW_NORMAL:
+			switch (vma->gtt_view.type) {
+			case I915_GTT_VIEW_NORMAL:
 				seq_puts(m, ", normal");
 				break;
 
-			case I915_GGTT_VIEW_PARTIAL:
+			case I915_GTT_VIEW_PARTIAL:
 				seq_printf(m, ", partial [%08llx+%x]",
-					   vma->ggtt_view.partial.offset << PAGE_SHIFT,
-					   vma->ggtt_view.partial.size << PAGE_SHIFT);
+					   vma->gtt_view.partial.offset << PAGE_SHIFT,
+					   vma->gtt_view.partial.size << PAGE_SHIFT);
 				break;
 
-			case I915_GGTT_VIEW_ROTATED:
+			case I915_GTT_VIEW_ROTATED:
 				seq_printf(m, ", rotated [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
-					   vma->ggtt_view.rotated.plane[0].width,
-					   vma->ggtt_view.rotated.plane[0].height,
-					   vma->ggtt_view.rotated.plane[0].src_stride,
-					   vma->ggtt_view.rotated.plane[0].dst_stride,
-					   vma->ggtt_view.rotated.plane[0].offset,
-					   vma->ggtt_view.rotated.plane[1].width,
-					   vma->ggtt_view.rotated.plane[1].height,
-					   vma->ggtt_view.rotated.plane[1].src_stride,
-					   vma->ggtt_view.rotated.plane[1].dst_stride,
-					   vma->ggtt_view.rotated.plane[1].offset);
+					   vma->gtt_view.rotated.plane[0].width,
+					   vma->gtt_view.rotated.plane[0].height,
+					   vma->gtt_view.rotated.plane[0].src_stride,
+					   vma->gtt_view.rotated.plane[0].dst_stride,
+					   vma->gtt_view.rotated.plane[0].offset,
+					   vma->gtt_view.rotated.plane[1].width,
+					   vma->gtt_view.rotated.plane[1].height,
+					   vma->gtt_view.rotated.plane[1].src_stride,
+					   vma->gtt_view.rotated.plane[1].dst_stride,
+					   vma->gtt_view.rotated.plane[1].offset);
 				break;
 
-			case I915_GGTT_VIEW_REMAPPED:
+			case I915_GTT_VIEW_REMAPPED:
 				seq_printf(m, ", remapped [(%ux%u, src_stride=%u, dst_stride=%u, offset=%u), (%ux%u, src_stride=%u, dst_stride=%u, offset=%u)]",
-					   vma->ggtt_view.remapped.plane[0].width,
-					   vma->ggtt_view.remapped.plane[0].height,
-					   vma->ggtt_view.remapped.plane[0].src_stride,
-					   vma->ggtt_view.remapped.plane[0].dst_stride,
-					   vma->ggtt_view.remapped.plane[0].offset,
-					   vma->ggtt_view.remapped.plane[1].width,
-					   vma->ggtt_view.remapped.plane[1].height,
-					   vma->ggtt_view.remapped.plane[1].src_stride,
-					   vma->ggtt_view.remapped.plane[1].dst_stride,
-					   vma->ggtt_view.remapped.plane[1].offset);
+					   vma->gtt_view.remapped.plane[0].width,
+					   vma->gtt_view.remapped.plane[0].height,
+					   vma->gtt_view.remapped.plane[0].src_stride,
+					   vma->gtt_view.remapped.plane[0].dst_stride,
+					   vma->gtt_view.remapped.plane[0].offset,
+					   vma->gtt_view.remapped.plane[1].width,
+					   vma->gtt_view.remapped.plane[1].height,
+					   vma->gtt_view.remapped.plane[1].src_stride,
+					   vma->gtt_view.remapped.plane[1].dst_stride,
+					   vma->gtt_view.remapped.plane[1].offset);
 				break;
 
 			default:
-				MISSING_CASE(vma->ggtt_view.type);
+				MISSING_CASE(vma->gtt_view.type);
 				break;
 			}
 		}
@@ -411,7 +443,7 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
 		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_y));
 
-	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
+	if (dev_priv->gem_quirks & GEM_QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
 
 	/* On BDW+, swizzling is not used. See detect_bit_6_swizzle() */
@@ -493,7 +525,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 		seq_puts(m, "Runtime power management not supported\n");
 
 	seq_printf(m, "Runtime power status: %s\n",
-		   str_enabled_disabled(!dev_priv->power_domains.init_wakeref));
+		   str_enabled_disabled(!dev_priv->display.power.domains.init_wakeref));
 
 	seq_printf(m, "GPU idle: %s\n", str_yes_no(!to_gt(dev_priv)->awake));
 	seq_printf(m, "IRQs disabled: %s\n",
@@ -576,14 +608,34 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 static int i915_wedged_get(void *data, u64 *val)
 {
 	struct drm_i915_private *i915 = data;
+	struct intel_gt *gt;
+	unsigned int i;
 
-	return intel_gt_debugfs_reset_show(to_gt(i915), val);
+	*val = 0;
+
+	for_each_gt(gt, i915, i) {
+		int ret;
+
+		ret = intel_gt_debugfs_reset_show(gt, val);
+		if (ret)
+			return ret;
+
+		/* at least one tile should be wedged */
+		if (*val)
+			break;
+	}
+
+	return 0;
 }
 
 static int i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	intel_gt_debugfs_reset_store(to_gt(i915), val);
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i)
+		intel_gt_debugfs_reset_store(gt, val);
 
 	return 0;
 }
@@ -649,13 +701,14 @@ i915_drop_caches_get(void *data, u64 *val)
 
 	return 0;
 }
+
 static int
 gt_drop_caches(struct intel_gt *gt, u64 val)
 {
 	int ret;
 
 	if (val & DROP_RESET_ACTIVE &&
-	    wait_for(intel_engines_are_idle(gt), I915_IDLE_ENGINES_TIMEOUT))
+	    wait_for(intel_engines_are_idle(gt), 200))
 		intel_gt_set_wedged(gt);
 
 	if (val & DROP_RETIRE)
@@ -689,8 +742,8 @@ i915_drop_caches_set(void *data, u64 val)
 	unsigned int flags;
 	int ret;
 
-	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
-		  val, val & DROP_ALL);
+	drm_dbg(&i915->drm, "Dropping caches: 0x%08llx [0x%08llx]\n",
+		val, val & DROP_ALL);
 
 	ret = gt_drop_caches(to_gt(i915), val);
 	if (ret)
@@ -733,7 +786,11 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	intel_gt_pm_debugfs_forcewake_user_open(to_gt(i915));
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i)
+		intel_gt_pm_debugfs_forcewake_user_open(gt);
 
 	return 0;
 }
@@ -741,7 +798,11 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	intel_gt_pm_debugfs_forcewake_user_release(to_gt(i915));
+	struct intel_gt *gt;
+	unsigned int i;
+
+	for_each_gt(gt, i915, i)
+		intel_gt_pm_debugfs_forcewake_user_release(gt);
 
 	return 0;
 }
@@ -763,7 +824,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_sseu_status", i915_sseu_status, 0},
 	{"i915_rps_boost_info", i915_rps_boost_info, 0},
 };
-#define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
 static const struct i915_debugfs_files {
 	const char *name;
@@ -796,6 +856,6 @@ void i915_debugfs_register(struct drm_i915_private *dev_priv)
 	}
 
 	drm_debugfs_create_files(i915_debugfs_list,
-				 I915_DEBUGFS_ENTRIES,
+				 ARRAY_SIZE(i915_debugfs_list),
 				 minor->debugfs_root, minor);
 }

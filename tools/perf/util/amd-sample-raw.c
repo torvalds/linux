@@ -16,6 +16,7 @@
 #include "evlist.h"
 #include "sample-raw.h"
 #include "pmu-events/pmu-events.h"
+#include "util/sample.h"
 
 static u32 cpu_family, cpu_model, ibs_fetch_type, ibs_op_type;
 static bool zen4_ibs_extensions;
@@ -104,17 +105,17 @@ static void pr_ibs_op_data2_extended(union ibs_op_data2 reg)
 	static const char * const data_src_str[] = {
 		"",
 		" DataSrc 1=Local L3 or other L1/L2 in CCX",
-		" DataSrc 2=A peer cache in a near CCX",
-		" DataSrc 3=Data returned from DRAM",
+		" DataSrc 2=Another CCX cache in the same NUMA node",
+		" DataSrc 3=DRAM",
 		" DataSrc 4=(reserved)",
-		" DataSrc 5=A peer cache in a far CCX",
-		" DataSrc 6=DRAM address map with \"long latency\" bit set",
-		" DataSrc 7=Data returned from MMIO/Config/PCI/APIC",
-		" DataSrc 8=Extension Memory (S-Link, GenZ, etc)",
+		" DataSrc 5=Another CCX cache in a different NUMA node",
+		" DataSrc 6=Long-latency DIMM",
+		" DataSrc 7=MMIO/Config/PCI/APIC",
+		" DataSrc 8=Extension Memory",
 		" DataSrc 9=(reserved)",
 		" DataSrc 10=(reserved)",
 		" DataSrc 11=(reserved)",
-		" DataSrc 12=Peer Agent Memory",
+		" DataSrc 12=Coherent Memory of a different processor type",
 		/* 13 to 31 are reserved. Avoid printing them. */
 	};
 	int data_src = (reg.data_src_hi << 3) | reg.data_src_lo;

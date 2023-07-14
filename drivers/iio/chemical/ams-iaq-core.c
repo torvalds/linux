@@ -135,8 +135,7 @@ static const struct iio_info ams_iaqcore_info = {
 	.read_raw	= ams_iaqcore_read_raw,
 };
 
-static int ams_iaqcore_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int ams_iaqcore_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct ams_iaqcore_data *data;

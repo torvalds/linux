@@ -24,21 +24,8 @@
 #include <linux/mfd/samsung/s2mps14.h>
 #include <linux/mfd/samsung/s2mps15.h>
 #include <linux/mfd/samsung/s2mpu02.h>
-#include <linux/mfd/samsung/s5m8763.h>
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/regmap.h>
-
-static const struct mfd_cell s5m8751_devs[] = {
-	{ .name = "s5m8751-pmic", },
-	{ .name = "s5m-charger", },
-	{ .name = "s5m8751-codec", },
-};
-
-static const struct mfd_cell s5m8763_devs[] = {
-	{ .name = "s5m8763-pmic", },
-	{ .name = "s5m-rtc", },
-	{ .name = "s5m-charger", },
-};
 
 static const struct mfd_cell s5m8767_devs[] = {
 	{ .name = "s5m8767-pmic", },
@@ -158,19 +145,6 @@ static bool s2mpu02_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static bool s5m8763_volatile(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case S5M8763_REG_IRQM1:
-	case S5M8763_REG_IRQM2:
-	case S5M8763_REG_IRQM3:
-	case S5M8763_REG_IRQM4:
-		return false;
-	default:
-		return true;
-	}
-}
-
 static const struct regmap_config sec_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -227,15 +201,6 @@ static const struct regmap_config s2mpu02_regmap_config = {
 
 	.max_register = S2MPU02_REG_DVSDATA,
 	.volatile_reg = s2mpu02_volatile,
-	.cache_type = REGCACHE_FLAT,
-};
-
-static const struct regmap_config s5m8763_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
-
-	.max_register = S5M8763_REG_LBCNFG2,
-	.volatile_reg = s5m8763_volatile,
 	.cache_type = REGCACHE_FLAT,
 };
 
@@ -305,8 +270,7 @@ sec_pmic_i2c_parse_dt_pdata(struct device *dev)
 	return pd;
 }
 
-static int sec_pmic_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int sec_pmic_probe(struct i2c_client *i2c)
 {
 	const struct regmap_config *regmap;
 	struct sec_platform_data *pdata;
@@ -349,9 +313,6 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	case S2MPS15X:
 		regmap = &s2mps15_regmap_config;
 		break;
-	case S5M8763X:
-		regmap = &s5m8763_regmap_config;
-		break;
 	case S5M8767X:
 		regmap = &s5m8767_regmap_config;
 		break;
@@ -376,14 +337,6 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	pm_runtime_set_active(sec_pmic->dev);
 
 	switch (sec_pmic->device_type) {
-	case S5M8751X:
-		sec_devs = s5m8751_devs;
-		num_sec_devs = ARRAY_SIZE(s5m8751_devs);
-		break;
-	case S5M8763X:
-		sec_devs = s5m8763_devs;
-		num_sec_devs = ARRAY_SIZE(s5m8763_devs);
-		break;
 	case S5M8767X:
 		sec_devs = s5m8767_devs;
 		num_sec_devs = ARRAY_SIZE(s5m8767_devs);
@@ -455,7 +408,6 @@ static void sec_pmic_shutdown(struct i2c_client *i2c)
 	regmap_update_bits(sec_pmic->regmap_pmic, reg, mask, 0);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sec_pmic_suspend(struct device *dev)
 {
 	struct i2c_client *i2c = to_i2c_client(dev);
@@ -488,14 +440,14 @@ static int sec_pmic_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(sec_pmic_pm_ops, sec_pmic_suspend, sec_pmic_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(sec_pmic_pm_ops,
+				sec_pmic_suspend, sec_pmic_resume);
 
 static struct i2c_driver sec_pmic_driver = {
 	.driver = {
 		   .name = "sec_pmic",
-		   .pm = &sec_pmic_pm_ops,
+		   .pm = pm_sleep_ptr(&sec_pmic_pm_ops),
 		   .of_match_table = sec_dt_match,
 	},
 	.probe = sec_pmic_probe,

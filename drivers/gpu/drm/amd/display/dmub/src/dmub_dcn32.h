@@ -107,6 +107,7 @@ struct dmub_srv;
 	DMUB_SR(DMCUB_SCRATCH15) \
 	DMUB_SR(DMCUB_SCRATCH16) \
 	DMUB_SR(DMCUB_SCRATCH17) \
+	DMUB_SR(DMCUB_GPINT_DATAIN0) \
 	DMUB_SR(DMCUB_GPINT_DATAIN1) \
 	DMUB_SR(DMCUB_GPINT_DATAOUT) \
 	DMUB_SR(CC_DC_PIPE_DIS) \
@@ -205,6 +206,8 @@ void dmub_dcn32_setup_windows(struct dmub_srv *dmub,
 
 void dmub_dcn32_setup_mailbox(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
+
+uint32_t dmub_dcn32_get_inbox1_wptr(struct dmub_srv *dmub);
 
 uint32_t dmub_dcn32_get_inbox1_rptr(struct dmub_srv *dmub);
 

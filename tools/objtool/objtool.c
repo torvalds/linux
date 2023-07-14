@@ -99,13 +99,13 @@ struct objtool_file *objtool_open_read(const char *_objname)
 		return NULL;
 	}
 
-	INIT_LIST_HEAD(&file.insn_list);
 	hash_init(file.insn_hash);
 	INIT_LIST_HEAD(&file.retpoline_call_list);
 	INIT_LIST_HEAD(&file.return_thunk_list);
 	INIT_LIST_HEAD(&file.static_call_list);
 	INIT_LIST_HEAD(&file.mcount_loc_list);
 	INIT_LIST_HEAD(&file.endbr_list);
+	INIT_LIST_HEAD(&file.call_list);
 	file.ignore_unreachables = opts.no_unreachable;
 	file.hints = false;
 

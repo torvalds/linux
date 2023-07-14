@@ -56,20 +56,10 @@
  * above bits.  Note that the bit values are CPU specific, not architecture
  * specific.
  *
- * The kernel PTE entry holds an arch-dependent swp_entry structure under
- * certain situations. In other words, in such situations some portion of
- * the PTE bits are used as a swp_entry. In the PPC implementation, the
- * 3-24th LSB are shared with swp_entry, however the 0-2nd three LSB still
- * hold protection values. That means the three protection bits are
- * reserved for both PTE and SWAP entry at the most significant three
- * LSBs.
- *
- * There are three protection bits available for SWAP entry:
- *	_PAGE_PRESENT
- *	_PAGE_HASHPTE (if HW has)
- *
- * So those three bits have to be inside of 0-2nd LSB of PTE.
- *
+ * The kernel PTE entry can be an ordinary PTE mapping a page or a special swap
+ * PTE. In case of a swap PTE, LSB 2-24 are used to store information regarding
+ * the swap entry. However LSB 0-1 still hold protection values, for example,
+ * to distinguish swap PTEs from ordinary PTEs, and must be used with care.
  */
 
 #define _PAGE_PRESENT	0x00000001		/* S: PTE valid */

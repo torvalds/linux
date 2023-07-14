@@ -117,8 +117,7 @@ static struct tps6105x_platform_data *tps6105x_parse_dt(struct device *dev)
 	return pdata;
 }
 
-static int tps6105x_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int tps6105x_probe(struct i2c_client *client)
 {
 	struct tps6105x			*tps6105x;
 	struct tps6105x_platform_data	*pdata;

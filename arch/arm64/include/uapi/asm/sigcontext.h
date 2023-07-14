@@ -62,6 +62,10 @@ struct sigcontext {
  * context. Such structures must be placed after the rt_sigframe on the stack
  * and be 16-byte aligned. The last structure must be a dummy one with the
  * magic and size set to 0.
+ *
+ * Note that the values allocated for use as magic should be chosen to
+ * be meaningful in ASCII to aid manual parsing, ZA doesn't follow this
+ * convention due to oversight but it should be observed for future additions.
  */
 struct _aarch64_ctx {
 	__u32 magic;
@@ -140,11 +144,27 @@ struct sve_context {
 
 #define SVE_SIG_FLAG_SM	0x1	/* Context describes streaming mode */
 
+/* TPIDR2_EL0 context */
+#define TPIDR2_MAGIC	0x54504902
+
+struct tpidr2_context {
+	struct _aarch64_ctx head;
+	__u64 tpidr2;
+};
+
 #define ZA_MAGIC	0x54366345
 
 struct za_context {
 	struct _aarch64_ctx head;
 	__u16 vl;
+	__u16 __reserved[3];
+};
+
+#define ZT_MAGIC	0x5a544e01
+
+struct zt_context {
+	struct _aarch64_ctx head;
+	__u16 nregs;
 	__u16 __reserved[3];
 };
 
@@ -157,7 +177,7 @@ struct za_context {
  * vector length beyond its initial architectural limit of 2048 bits
  * (16 quadwords).
  *
- * See linux/Documentation/arm64/sve.rst for a description of the VL/VQ
+ * See linux/Documentation/arch/arm64/sve.rst for a description of the VL/VQ
  * terminology.
  */
 #define SVE_VQ_BYTES		__SVE_VQ_BYTES	/* bytes per quadword */
@@ -299,5 +319,16 @@ struct za_context {
 
 #define ZA_SIG_CONTEXT_SIZE(vq) \
 		(ZA_SIG_REGS_OFFSET + ZA_SIG_REGS_SIZE(vq))
+
+#define ZT_SIG_REG_SIZE 512
+
+#define ZT_SIG_REG_BYTES (ZT_SIG_REG_SIZE / 8)
+
+#define ZT_SIG_REGS_OFFSET sizeof(struct zt_context)
+
+#define ZT_SIG_REGS_SIZE(n) (ZT_SIG_REG_BYTES * n)
+
+#define ZT_SIG_CONTEXT_SIZE(n) \
+	(sizeof(struct zt_context) + ZT_SIG_REGS_SIZE(n))
 
 #endif /* _UAPI__ASM_SIGCONTEXT_H */

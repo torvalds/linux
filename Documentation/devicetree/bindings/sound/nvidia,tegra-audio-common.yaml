@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/sound/nvidia,tegra-audio-common.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-common.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Common properties for NVIDIA Tegra audio complexes
 
@@ -79,5 +79,9 @@ properties:
   nvidia,headset:
     type: boolean
     description: The Mic Jack represents state of the headset microphone pin
+
+  nvidia,coupled-mic-hp-det:
+    type: boolean
+    description: The Mic detect GPIO is viable only if HP detect GPIO is active
 
 additionalProperties: true

@@ -10,6 +10,8 @@
  *  Copyright:	MontaVista Software, Inc.
  */
 
+#include <asm/syscalls.h>
+
 /*
  * The legacy ABI and the new ARM EABI have different rules making some
  * syscalls incompatible especially with structure arguments.
@@ -73,6 +75,7 @@
 #include <linux/syscalls.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/filelock.h>
 #include <linux/cred.h>
 #include <linux/fcntl.h>
 #include <linux/eventpoll.h>

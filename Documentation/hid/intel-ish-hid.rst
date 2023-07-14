@@ -199,7 +199,7 @@ the sender that the memory region for that message may be reused.
 DMA initialization is started with host sending DMA_ALLOC_NOTIFY bus message
 (that includes RX buffer) and FW responds with DMA_ALLOC_NOTIFY_ACK.
 Additionally to DMA address communication, this sequence checks capabilities:
-if thw host doesn't support DMA, then it won't send DMA allocation, so FW can't
+if the host doesn't support DMA, then it won't send DMA allocation, so FW can't
 send DMA; if FW doesn't support DMA then it won't respond with
 DMA_ALLOC_NOTIFY_ACK, in which case host will not use DMA transfers.
 Here ISH acts as busmaster DMA controller. Hence when host sends DMA_XFER,
@@ -344,8 +344,8 @@ Documentation/ABI/testing/sysfs-bus-iio for IIO ABIs to user space.
 
 To debug ISH, event tracing mechanism is used. To enable debug logs::
 
-  echo 1 > /sys/kernel/debug/tracing/events/intel_ish/enable
-  cat /sys/kernel/debug/tracing/trace
+  echo 1 > /sys/kernel/tracing/events/intel_ish/enable
+  cat /sys/kernel/tracing/trace
 
 3.8 ISH IIO sysfs Example on Lenovo thinkpad Yoga 260
 -----------------------------------------------------

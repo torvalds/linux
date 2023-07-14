@@ -48,13 +48,39 @@ static void __exit drm_sched_fence_slab_fini(void)
 	kmem_cache_destroy(sched_fence_slab);
 }
 
-void drm_sched_fence_scheduled(struct drm_sched_fence *fence)
+static void drm_sched_fence_set_parent(struct drm_sched_fence *s_fence,
+				       struct dma_fence *fence)
 {
+	/*
+	 * smp_store_release() to ensure another thread racing us
+	 * in drm_sched_fence_set_deadline_finished() sees the
+	 * fence's parent set before test_bit()
+	 */
+	smp_store_release(&s_fence->parent, dma_fence_get(fence));
+	if (test_bit(DRM_SCHED_FENCE_FLAG_HAS_DEADLINE_BIT,
+		     &s_fence->finished.flags))
+		dma_fence_set_deadline(fence, s_fence->deadline);
+}
+
+void drm_sched_fence_scheduled(struct drm_sched_fence *fence,
+			       struct dma_fence *parent)
+{
+	/* Set the parent before signaling the scheduled fence, such that,
+	 * any waiter expecting the parent to be filled after the job has
+	 * been scheduled (which is the case for drivers delegating waits
+	 * to some firmware) doesn't have to busy wait for parent to show
+	 * up.
+	 */
+	if (!IS_ERR_OR_NULL(parent))
+		drm_sched_fence_set_parent(fence, parent);
+
 	dma_fence_signal(&fence->scheduled);
 }
 
-void drm_sched_fence_finished(struct drm_sched_fence *fence)
+void drm_sched_fence_finished(struct drm_sched_fence *fence, int result)
 {
+	if (result)
+		dma_fence_set_error(&fence->finished, result);
 	dma_fence_signal(&fence->finished);
 }
 
@@ -123,6 +149,37 @@ static void drm_sched_fence_release_finished(struct dma_fence *f)
 	dma_fence_put(&fence->scheduled);
 }
 
+static void drm_sched_fence_set_deadline_finished(struct dma_fence *f,
+						  ktime_t deadline)
+{
+	struct drm_sched_fence *fence = to_drm_sched_fence(f);
+	struct dma_fence *parent;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fence->lock, flags);
+
+	/* If we already have an earlier deadline, keep it: */
+	if (test_bit(DRM_SCHED_FENCE_FLAG_HAS_DEADLINE_BIT, &f->flags) &&
+	    ktime_before(fence->deadline, deadline)) {
+		spin_unlock_irqrestore(&fence->lock, flags);
+		return;
+	}
+
+	fence->deadline = deadline;
+	set_bit(DRM_SCHED_FENCE_FLAG_HAS_DEADLINE_BIT, &f->flags);
+
+	spin_unlock_irqrestore(&fence->lock, flags);
+
+	/*
+	 * smp_load_aquire() to ensure that if we are racing another
+	 * thread calling drm_sched_fence_set_parent(), that we see
+	 * the parent set before it calls test_bit(HAS_DEADLINE_BIT)
+	 */
+	parent = smp_load_acquire(&fence->parent);
+	if (parent)
+		dma_fence_set_deadline(parent, deadline);
+}
+
 static const struct dma_fence_ops drm_sched_fence_ops_scheduled = {
 	.get_driver_name = drm_sched_fence_get_driver_name,
 	.get_timeline_name = drm_sched_fence_get_timeline_name,
@@ -133,6 +190,7 @@ static const struct dma_fence_ops drm_sched_fence_ops_finished = {
 	.get_driver_name = drm_sched_fence_get_driver_name,
 	.get_timeline_name = drm_sched_fence_get_timeline_name,
 	.release = drm_sched_fence_release_finished,
+	.set_deadline = drm_sched_fence_set_deadline_finished,
 };
 
 struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f)

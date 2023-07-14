@@ -32,7 +32,7 @@
 #define AMDGPU_VCN_FIRMWARE_OFFSET	256
 #define AMDGPU_VCN_MAX_ENC_RINGS	3
 
-#define AMDGPU_MAX_VCN_INSTANCES	2
+#define AMDGPU_MAX_VCN_INSTANCES	4
 #define AMDGPU_MAX_VCN_ENC_RINGS  AMDGPU_VCN_MAX_ENC_RINGS * AMDGPU_MAX_VCN_INSTANCES
 
 #define AMDGPU_VCN_HARVEST_VCN0 (1 << 0)
@@ -141,18 +141,23 @@
 		RREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
-#define WREG32_SOC15_DPG_MODE(inst_idx, offset, value, mask_en, indirect)			\
-	do {											\
-		if (!indirect) {								\
-			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA, value);			\
-			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 				\
-				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |			\
-				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |			\
-				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));		\
-		} else {									\
-			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = offset;		\
-			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ = value;			\
-		}										\
+#define WREG32_SOC15_DPG_MODE(inst_idx, offset, value, mask_en, indirect)             \
+	do {                                                                          \
+		if (!indirect) {                                                      \
+			WREG32_SOC15(VCN, GET_INST(VCN, inst_idx),                    \
+				     mmUVD_DPG_LMA_DATA, value);                      \
+			WREG32_SOC15(                                                 \
+				VCN, GET_INST(VCN, inst_idx),                         \
+				mmUVD_DPG_LMA_CTL,                                    \
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |          \
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |         \
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT)); \
+		} else {                                                              \
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =              \
+				offset;                                               \
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =              \
+				value;                                                \
+		}                                                                     \
 	} while (0)
 
 #define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
@@ -161,6 +166,8 @@
 #define AMDGPU_VCN_SW_RING_FLAG		(1 << 9)
 #define AMDGPU_VCN_FW_LOGGING_FLAG	(1 << 10)
 #define AMDGPU_VCN_SMU_VERSION_INFO_FLAG (1 << 11)
+#define AMDGPU_VCN_SMU_DPM_INTERFACE_FLAG (1 << 11)
+#define AMDGPU_VCN_VF_RB_SETUP_FLAG (1 << 14)
 
 #define AMDGPU_VCN_IB_FLAG_DECODE_BUFFER	0x00000001
 #define AMDGPU_VCN_CMD_FLAG_MSG_BUFFER		0x00000001
@@ -169,6 +176,9 @@
 #define VCN_CODEC_DISABLE_MASK_VP9  (1 << 1)
 #define VCN_CODEC_DISABLE_MASK_HEVC (1 << 2)
 #define VCN_CODEC_DISABLE_MASK_H264 (1 << 3)
+
+#define AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU (0)
+#define AMDGPU_VCN_SMU_DPM_INTERFACE_APU (1)
 
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
@@ -229,6 +239,7 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_ring	ring_enc[AMDGPU_VCN_MAX_ENC_RINGS];
 	atomic_t		sched_score;
 	struct amdgpu_irq_src	irq;
+	struct amdgpu_irq_src	ras_poison_irq;
 	struct amdgpu_vcn_reg	external;
 	struct amdgpu_bo	*dpg_sram_bo;
 	struct dpg_pause_state	pause_state;
@@ -237,6 +248,7 @@ struct amdgpu_vcn_inst {
 	uint32_t		*dpg_sram_curr_addr;
 	atomic_t		dpg_enc_submission_cnt;
 	struct amdgpu_vcn_fw_shared fw_shared;
+	uint8_t			aid_id;
 };
 
 struct amdgpu_vcn_ras {
@@ -266,6 +278,9 @@ struct amdgpu_vcn {
 
 	struct ras_common_if    *ras_if;
 	struct amdgpu_vcn_ras   *ras;
+
+	uint16_t inst_mask;
+	uint8_t	num_inst_per_aid;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
@@ -317,12 +332,26 @@ struct amdgpu_fw_shared {
 	struct amdgpu_fw_shared_smu_interface_info smu_interface_info;
 };
 
+struct amdgpu_fw_shared_rb_setup {
+	uint32_t is_rb_enabled_flags;
+	uint32_t rb_addr_lo;
+	uint32_t rb_addr_hi;
+	uint32_t  rb_size;
+	uint32_t  rb4_addr_lo;
+	uint32_t  rb4_addr_hi;
+	uint32_t  rb4_size;
+	uint32_t  reserved[6];
+};
+
 struct amdgpu_vcn4_fw_shared {
 	uint32_t present_flag_0;
 	uint8_t pad[12];
 	struct amdgpu_fw_shared_unified_queue_struct sq;
 	uint8_t pad1[8];
 	struct amdgpu_fw_shared_fw_logging fw_log;
+	uint8_t pad2[20];
+	struct amdgpu_fw_shared_rb_setup rb_setup;
+	struct amdgpu_fw_shared_smu_interface_info smu_dpm_interface;
 };
 
 struct amdgpu_vcn_fwlog {
@@ -350,6 +379,7 @@ enum vcn_ring_type {
 	VCN_UNIFIED_RING,
 };
 
+int amdgpu_vcn_early_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);
 int amdgpu_vcn_suspend(struct amdgpu_device *adev);
@@ -380,5 +410,8 @@ void amdgpu_debugfs_vcn_fwlog_init(struct amdgpu_device *adev,
 int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 			struct amdgpu_irq_src *source,
 			struct amdgpu_iv_entry *entry);
+int amdgpu_vcn_ras_late_init(struct amdgpu_device *adev,
+			struct ras_common_if *ras_block);
+int amdgpu_vcn_ras_sw_init(struct amdgpu_device *adev);
 
 #endif

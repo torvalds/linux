@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/mfd/ti,j721e-system-controller.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: TI J721e System Controller Registers R/W Device Tree Bindings
+title: TI J721e System Controller Registers R/W
 
 description: |
   This represents the Control Module registers (CTRL_MMR0) on the SoC.
@@ -26,7 +26,9 @@ properties:
   compatible:
     items:
       - enum:
+          - ti,j7200-system-controller
           - ti,j721e-system-controller
+          - ti,j721s2-system-controller
       - const: syscon
       - const: simple-mfd
 
@@ -53,6 +55,18 @@ patternProperties:
     $ref: /schemas/clock/ti,am654-ehrpwm-tbclk.yaml#
     description:
       Clock provider for TI EHRPWM nodes.
+
+  "phy@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/phy/ti,phy-gmii-sel.yaml#
+    description:
+      The phy node corresponding to the ethernet MAC.
+
+  "^chipid@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/hwinfo/ti,k3-socinfo.yaml#
+    description:
+      The node corresponding to SoC chip identification.
 
 required:
   - compatible
@@ -87,9 +101,14 @@ examples:
         };
 
         clock-controller@4140 {
-            compatible = "ti,am654-ehrpwm-tbclk", "syscon";
+            compatible = "ti,am654-ehrpwm-tbclk";
             reg = <0x4140 0x18>;
             #clock-cells = <1>;
+        };
+
+        chipid@14 {
+            compatible = "ti,am654-chipid";
+            reg = <0x14 0x4>;
         };
     };
 ...

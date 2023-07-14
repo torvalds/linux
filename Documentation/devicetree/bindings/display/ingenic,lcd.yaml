@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/display/ingenic,lcd.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Ingenic SoCs LCD controller devicetree bindings
+title: Ingenic SoCs LCD controller
 
 maintainers:
   - Paul Cercueil <paul@crapouillou.net>
@@ -17,6 +17,8 @@ properties:
     enum:
       - ingenic,jz4740-lcd
       - ingenic,jz4725b-lcd
+      - ingenic,jz4760-lcd
+      - ingenic,jz4760b-lcd
       - ingenic,jz4770-lcd
       - ingenic,jz4780-lcd
 

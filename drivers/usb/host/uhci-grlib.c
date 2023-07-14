@@ -116,7 +116,7 @@ static int uhci_hcd_grlib_probe(struct platform_device *op)
 	hcd->rsrc_len = resource_size(&res);
 
 	irq = irq_of_parse_and_map(dn, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		printk(KERN_ERR "%s: irq_of_parse_and_map failed\n", __FILE__);
 		rv = -EBUSY;
 		goto err_usb;
@@ -147,7 +147,7 @@ err_usb:
 	return rv;
 }
 
-static int uhci_hcd_grlib_remove(struct platform_device *op)
+static void uhci_hcd_grlib_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(op);
 
@@ -157,8 +157,6 @@ static int uhci_hcd_grlib_remove(struct platform_device *op)
 
 	irq_dispose_mapping(hcd->irq);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 /* Make sure the controller is quiescent and that we're not using it
@@ -185,7 +183,7 @@ MODULE_DEVICE_TABLE(of, uhci_hcd_grlib_of_match);
 
 static struct platform_driver uhci_grlib_driver = {
 	.probe		= uhci_hcd_grlib_probe,
-	.remove		= uhci_hcd_grlib_remove,
+	.remove_new	= uhci_hcd_grlib_remove,
 	.shutdown	= uhci_hcd_grlib_shutdown,
 	.driver = {
 		.name = "grlib-uhci",

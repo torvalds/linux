@@ -17,6 +17,7 @@
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/seq_buf.h>
 #include <linux/seq_file.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -207,8 +208,29 @@ static void __init pnv_setup_arch(void)
 	pnv_rng_init();
 }
 
+static void __init pnv_add_hw_description(void)
+{
+	struct device_node *dn;
+	const char *s;
+
+	dn = of_find_node_by_path("/ibm,opal/firmware");
+	if (!dn)
+		return;
+
+	if (of_property_read_string(dn, "version", &s) == 0 ||
+	    of_property_read_string(dn, "git-id", &s) == 0)
+		seq_buf_printf(&ppc_hw_desc, "opal:%s ", s);
+
+	if (of_property_read_string(dn, "mi-version", &s) == 0)
+		seq_buf_printf(&ppc_hw_desc, "mi:%s ", s);
+
+	of_node_put(dn);
+}
+
 static void __init pnv_init(void)
 {
+	pnv_add_hw_description();
+
 	/*
 	 * Initialize the LPC bus now so that legacy serial
 	 * ports can be found on it
@@ -490,9 +512,6 @@ static void __init pnv_setup_machdep_opal(void)
 
 static int __init pnv_probe(void)
 {
-	if (!of_machine_is_compatible("ibm,powernv"))
-		return 0;
-
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
 
@@ -556,6 +575,7 @@ static long pnv_machine_check_early(struct pt_regs *regs)
 
 define_machine(powernv) {
 	.name			= "PowerNV",
+	.compatible		= "ibm,powernv",
 	.probe			= pnv_probe,
 	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
@@ -565,7 +585,6 @@ define_machine(powernv) {
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
 	.power_save             = NULL,
-	.calibrate_decr		= generic_calibrate_decr,
 	.machine_check_early	= pnv_machine_check_early,
 #ifdef CONFIG_KEXEC_CORE
 	.kexec_cpu_down		= pnv_kexec_cpu_down,

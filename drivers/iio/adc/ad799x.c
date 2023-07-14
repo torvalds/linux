@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/bitops.h>
 
 #include <linux/iio/iio.h>
@@ -125,6 +126,8 @@ struct ad799x_state {
 	const struct ad799x_chip_config	*chip_config;
 	struct regulator		*reg;
 	struct regulator		*vref;
+	/* lock to protect against multiple access to the device */
+	struct mutex			lock;
 	unsigned			id;
 	u16				config;
 
@@ -290,7 +293,9 @@ static int ad799x_read_raw(struct iio_dev *indio_dev,
 		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
+		mutex_lock(&st->lock);
 		ret = ad799x_scan_direct(st, chan->scan_index);
+		mutex_unlock(&st->lock);
 		iio_device_release_direct_mode(indio_dev);
 
 		if (ret < 0)
@@ -351,7 +356,8 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
+
 	ret = i2c_smbus_read_byte_data(st->client, AD7998_CYCLE_TMR_REG);
 	if (ret < 0)
 		goto error_ret_mutex;
@@ -373,7 +379,7 @@ static ssize_t ad799x_write_frequency(struct device *dev,
 	ret = len;
 
 error_ret_mutex:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -407,6 +413,8 @@ static int ad799x_write_event_config(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	mutex_lock(&st->lock);
+
 	if (state)
 		st->config |= BIT(chan->scan_index) << AD799X_CHANNEL_SHIFT;
 	else
@@ -418,6 +426,7 @@ static int ad799x_write_event_config(struct iio_dev *indio_dev,
 		st->config &= ~AD7998_ALERT_EN;
 
 	ret = ad799x_write_config(st, st->config);
+	mutex_unlock(&st->lock);
 	iio_device_release_direct_mode(indio_dev);
 	return ret;
 }
@@ -454,11 +463,9 @@ static int ad799x_write_event_value(struct iio_dev *indio_dev,
 	if (val < 0 || val > GENMASK(chan->scan_type.realbits - 1, 0))
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
 	ret = i2c_smbus_write_word_swapped(st->client,
 		ad799x_threshold_reg(chan, dir, info),
 		val << chan->scan_type.shift);
-	mutex_unlock(&indio_dev->mlock);
 
 	return ret;
 }
@@ -473,10 +480,8 @@ static int ad799x_read_event_value(struct iio_dev *indio_dev,
 	int ret;
 	struct ad799x_state *st = iio_priv(indio_dev);
 
-	mutex_lock(&indio_dev->mlock);
 	ret = i2c_smbus_read_word_swapped(st->client,
 		ad799x_threshold_reg(chan, dir, info));
-	mutex_unlock(&indio_dev->mlock);
 	if (ret < 0)
 		return ret;
 	*val = (ret >> chan->scan_type.shift) &
@@ -770,9 +775,9 @@ static const struct ad799x_chip_info ad799x_chip_info_tbl[] = {
 	},
 };
 
-static int ad799x_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int ad799x_probe(struct i2c_client *client)
 {
+	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	int ret;
 	int extra_config = 0;
 	struct ad799x_state *st;
@@ -863,6 +868,9 @@ static int ad799x_probe(struct i2c_client *client,
 		if (ret)
 			goto error_cleanup_ring;
 	}
+
+	mutex_init(&st->lock);
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto error_cleanup_ring;

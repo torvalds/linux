@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/qcom/qcom,apr-services.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm APR/GPR services shared parts
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+
+description:
+  Common parts of a static service in Qualcomm APR/GPR (Asynchronous/Generic
+  Packet Router).
+
+properties:
+  reg:
+    minimum: 1
+    maximum: 13
+    description: |
+      APR Service ID
+        3 = DSP Core Service
+        4 = Audio  Front End Service.
+        5 = Voice Stream Manager Service.
+        6 = Voice processing manager.
+        7 = Audio Stream Manager Service.
+        8 = Audio Device Manager Service.
+        9 = Multimode voice manager.
+        10 = Core voice stream.
+        11 = Core voice processor.
+        12 = Ultrasound stream manager.
+        13 = Listen stream manager.
+      GPR Service ID
+        1 = Audio Process Manager Service
+        2 = Proxy Resource Manager Service.
+        3 = AMDB Service.
+        4 = Voice processing manager.
+
+  qcom,protection-domain:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description: |
+      Protection domain service name and path for APR service (if supported).
+      Possible values are::
+      "avs/audio", "msm/adsp/audio_pd".
+      "kernel/elf_loader", "msm/modem/wlan_pd".
+      "tms/servreg", "msm/adsp/audio_pd".
+      "tms/servreg", "msm/modem/wlan_pd".
+      "tms/servreg", "msm/slpi/sensor_pd".
+
+required:
+  - reg
+
+additionalProperties: true

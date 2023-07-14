@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/mailbox/qcom,apcs-kpss-global.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/mailbox/qcom,apcs-kpss-global.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm APCS global block bindings
+title: Qualcomm APCS global block
 
 description:
   This binding describes the APCS "global" block found in various Qualcomm
@@ -18,50 +18,56 @@ properties:
     oneOf:
       - items:
           - enum:
-              - qcom,ipq6018-apcs-apps-global
+              - qcom,ipq5018-apcs-apps-global
+              - qcom,ipq5332-apcs-apps-global
               - qcom,ipq8074-apcs-apps-global
-              - qcom,msm8976-apcs-kpss-global
-              - qcom,msm8996-apcs-hmss-global
-              - qcom,msm8998-apcs-hmss-global
-              - qcom,qcm2290-apcs-hmss-global
+              - qcom,ipq9574-apcs-apps-global
+          - const: qcom,ipq6018-apcs-apps-global
+      - items:
+          - enum:
               - qcom,sc7180-apss-shared
               - qcom,sc8180x-apss-shared
-              - qcom,sdm660-apcs-hmss-global
-              - qcom,sdm845-apss-shared
-              - qcom,sm6125-apcs-hmss-global
-              - qcom,sm6115-apcs-hmss-global
               - qcom,sm8150-apss-shared
+          - const: qcom,sdm845-apss-shared
       - items:
           - enum:
               - qcom,msm8916-apcs-kpss-global
               - qcom,msm8939-apcs-kpss-global
               - qcom,msm8953-apcs-kpss-global
+              - qcom,msm8976-apcs-kpss-global
               - qcom,msm8994-apcs-kpss-global
               - qcom,qcs404-apcs-apps-global
+              - qcom,sdx55-apcs-gcc
           - const: syscon
+      - enum:
+          - qcom,ipq6018-apcs-apps-global
+          - qcom,ipq8074-apcs-apps-global
+          - qcom,msm8996-apcs-hmss-global
+          - qcom,msm8998-apcs-hmss-global
+          - qcom,qcm2290-apcs-hmss-global
+          - qcom,sdm660-apcs-hmss-global
+          - qcom,sdm845-apss-shared
+          - qcom,sm4250-apcs-hmss-global
+          - qcom,sm6115-apcs-hmss-global
+          - qcom,sm6125-apcs-hmss-global
+
   reg:
     maxItems: 1
 
   clocks:
     description: phandles to the parent clocks of the clock driver
     minItems: 2
-    items:
-      - description: primary pll parent of the clock driver
-      - description: auxiliary parent
-      - description: reference clock
+    maxItems: 3
 
   '#mbox-cells':
     const: 1
 
   '#clock-cells':
-    const: 0
+    enum: [0, 1]
 
   clock-names:
     minItems: 2
-    items:
-      - const: pll
-      - const: aux
-      - const: ref
+    maxItems: 3
 
 required:
   - compatible
@@ -75,31 +81,90 @@ allOf:
       properties:
         compatible:
           enum:
-            - qcom,ipq6018-apcs-apps-global
-            - qcom,ipq8074-apcs-apps-global
             - qcom,msm8916-apcs-kpss-global
-            - qcom,msm8994-apcs-kpss-global
-            - qcom,msm8996-apcs-hmss-global
-            - qcom,msm8998-apcs-hmss-global
+            - qcom,msm8939-apcs-kpss-global
             - qcom,qcs404-apcs-apps-global
-            - qcom,sc7180-apss-shared
-            - qcom,sdm660-apcs-hmss-global
-            - qcom,sdm845-apss-shared
-            - qcom,sm6125-apcs-hmss-global
-            - qcom,sm8150-apss-shared
     then:
       properties:
         clocks:
-          maxItems: 2
+          items:
+            - description: primary pll parent of the clock driver
+            - description: auxiliary parent
+        clock-names:
+          items:
+            - const: pll
+            - const: aux
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdx55-apcs-gcc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: reference clock
+            - description: primary pll parent of the clock driver
+            - description: auxiliary parent
+        clock-names:
+          items:
+            - const: ref
+            - const: pll
+            - const: aux
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq6018-apcs-apps-global
+    then:
+      properties:
+        clocks:
+          items:
+            - description: primary pll parent of the clock driver
+            - description: XO clock
+        clock-names:
+          items:
+            - const: pll
+            - const: xo
+
   - if:
       properties:
         compatible:
           enum:
-            - qcom,sdx55-apcs-gcc
+            - qcom,msm8953-apcs-kpss-global
+            - qcom,msm8976-apcs-kpss-global
+            - qcom,msm8994-apcs-kpss-global
+            - qcom,msm8996-apcs-hmss-global
+            - qcom,msm8998-apcs-hmss-global
+            - qcom,qcm2290-apcs-hmss-global
+            - qcom,sdm660-apcs-hmss-global
+            - qcom,sdm845-apss-shared
+            - qcom,sm4250-apcs-hmss-global
+            - qcom,sm6115-apcs-hmss-global
+            - qcom,sm6125-apcs-hmss-global
     then:
       properties:
-        clocks:
-          maxItems: 3
+        clocks: false
+        clock-names: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,ipq6018-apcs-apps-global
+    then:
+      properties:
+        '#clock-cells':
+          const: 1
+    else:
+      properties:
+        '#clock-cells':
+          const: 0
+
 examples:
 
   # Example apcs with msm8996
@@ -110,6 +175,7 @@ examples:
         reg = <0x9820000 0x1000>;
 
         #mbox-cells = <1>;
+        #clock-cells = <0>;
     };
 
     rpm-glink {
@@ -117,7 +183,6 @@ examples:
         interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
         qcom,rpm-msg-ram = <&rpm_msg_ram>;
         mboxes = <&apcs_glb 0>;
-        mbox-names = "rpm_hlos";
     };
 
   # Example apcs with qcs404

@@ -79,7 +79,7 @@ config MTD_NAND_NDFC
 
 config MTD_NAND_S3C2410
 	tristate "Samsung S3C NAND controller"
-	depends on ARCH_S3C24XX || ARCH_S3C64XX
+	depends on ARCH_S3C64XX
 	help
 	  This enables the NAND flash controller on the S3C24xx and S3C64xx
 	  SoCs
@@ -193,34 +193,7 @@ config MTD_NAND_PASEMI
 	  Enables support for NAND Flash interface on PA Semi PWRficient
 	  based boards
 
-config MTD_NAND_TMIO
-	tristate "Toshiba Mobile IO NAND controller"
-	depends on MFD_TMIO
-	help
-	  Support for NAND flash connected to a Toshiba Mobile IO
-	  Controller in some PDAs, including the Sharp SL6000x.
-
-config MTD_NAND_BRCMNAND
-	tristate "Broadcom STB NAND controller"
-	depends on ARM || ARM64 || MIPS || COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  Enables the Broadcom NAND controller driver. The controller was
-	  originally designed for Set-Top Box but is used on various BCM7xxx,
-	  BCM3xxx, BCM63xxx, iProc/Cygnus and more.
-
-if MTD_NAND_BRCMNAND
-
-config MTD_NAND_BRCMNAND_BCMA
-	tristate "Broadcom BCMA NAND controller"
-	depends on BCMA_NFLASH
-	depends on BCMA
-	help
-	  Enables the BRCMNAND controller over BCMA on BCM47186/BCM5358 SoCs.
-	  The glue driver will take care of performing the low-level I/O
-	  operations to interface the BRCMNAND controller over the BCMA bus.
-
-endif # MTD_NAND_BRCMNAND
+source "drivers/mtd/nand/raw/brcmnand/Kconfig"
 
 config MTD_NAND_BCM47XXNFLASH
 	tristate "BCM4706 BCMA NAND controller"
@@ -400,7 +373,7 @@ config MTD_NAND_TEGRA
 
 config MTD_NAND_STM32_FMC2
 	tristate "Support for NAND controller on STM32MP SoCs"
-	depends on MACH_STM32MP157 || COMPILE_TEST
+	depends on ARCH_STM32 || COMPILE_TEST
 	select MFD_SYSCON
 	help
 	  Enables support for NAND Flash chips on SoCs containing the FMC2
@@ -410,7 +383,7 @@ config MTD_NAND_STM32_FMC2
 
 config MTD_NAND_MESON
 	tristate "Support for NAND controller on Amlogic's Meson SoCs"
-	depends on ARCH_MESON || COMPILE_TEST
+	depends on COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	select MFD_SYSCON
 	help
 	  Enables support for NAND controller on Amlogic's Meson SoCs.
@@ -435,7 +408,7 @@ config MTD_NAND_PLATFORM
 
 config MTD_NAND_CADENCE
 	tristate "Support Cadence NAND (HPNFC) controller"
-	depends on (OF || COMPILE_TEST) && HAS_IOMEM
+	depends on OF && HAS_IOMEM
 	help
 	  Enable the driver for NAND flash on platforms using a Cadence NAND
 	  controller.
@@ -450,7 +423,7 @@ config MTD_NAND_ARASAN
 
 config MTD_NAND_INTEL_LGM
 	tristate "Support for NAND controller on Intel LGM SoC"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on HAS_IOMEM
 	help
 	  Enables support for NAND Flash chips on Intel's LGM SoC.
@@ -470,7 +443,7 @@ config MTD_NAND_ROCKCHIP
 
 config MTD_NAND_PL35X
 	tristate "ARM PL35X NAND controller"
-	depends on OF || COMPILE_TEST
+	depends on OF
 	depends on PL353_SMC
 	help
 	  Enables support for PrimeCell SMC PL351 and PL353 NAND

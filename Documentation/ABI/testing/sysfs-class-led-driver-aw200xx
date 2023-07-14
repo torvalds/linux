@@ -1,0 +1,5 @@
+What:		/sys/class/leds/<led>/dim
+Date:		May 2023
+Description:	64-level DIM current. If you write a negative value or
+		"auto", the dim will be calculated according to the
+		brightness.

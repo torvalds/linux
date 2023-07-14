@@ -1,15 +1,16 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/iio/temperature/ti,tmp117.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/iio/temperature/ti,tmp117.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: "TI TMP117 - Digital temperature sensor with integrated NV memory"
+title: TI TMP117 - Digital temperature sensor with integrated NV memory
 
 description: |
-    TI TMP117 - Digital temperature sensor with integrated NV memory that supports
-    I2C interface.
-      https://www.ti.com/lit/gpn/tmp1
+    TI TMP116/117 - Digital temperature sensor with integrated NV memory that
+    supports I2C interface.
+      https://www.ti.com/lit/gpn/tmp116
+      https://www.ti.com/lit/gpn/tmp117
 
 maintainers:
   - Puranjay Mohan <puranjay12@gmail.com>
@@ -17,6 +18,7 @@ maintainers:
 properties:
   compatible:
     enum:
+      - ti,tmp116
       - ti,tmp117
 
   reg:

@@ -105,7 +105,7 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gpio_restart_remove(struct platform_device *pdev)
+static void gpio_restart_remove(struct platform_device *pdev)
 {
 	struct gpio_restart *gpio_restart = platform_get_drvdata(pdev);
 	int ret;
@@ -115,10 +115,7 @@ static int gpio_restart_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 				"%s: cannot unregister restart handler, %d\n",
 				__func__, ret);
-		return -ENODEV;
 	}
-
-	return 0;
 }
 
 static const struct of_device_id of_gpio_restart_match[] = {
@@ -128,7 +125,7 @@ static const struct of_device_id of_gpio_restart_match[] = {
 
 static struct platform_driver gpio_restart_driver = {
 	.probe = gpio_restart_probe,
-	.remove = gpio_restart_remove,
+	.remove_new = gpio_restart_remove,
 	.driver = {
 		.name = "restart-gpio",
 		.of_match_table = of_gpio_restart_match,
@@ -139,4 +136,3 @@ module_platform_driver(gpio_restart_driver);
 
 MODULE_AUTHOR("David Riley <davidriley@chromium.org>");
 MODULE_DESCRIPTION("GPIO restart driver");
-MODULE_LICENSE("GPL");

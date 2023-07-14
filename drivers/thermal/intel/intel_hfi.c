@@ -40,11 +40,10 @@
 
 #include <asm/msr.h>
 
-#include "../thermal_core.h"
 #include "intel_hfi.h"
+#include "thermal_interrupt.h"
 
-#define THERM_STATUS_CLEAR_PKG_MASK (BIT(1) | BIT(3) | BIT(5) | BIT(7) | \
-				     BIT(9) | BIT(11) | BIT(26))
+#include "../thermal_netlink.h"
 
 /* Hardware Feedback Interface MSR configuration bits */
 #define HW_FEEDBACK_PTR_VALID_BIT		BIT(0)
@@ -137,7 +136,7 @@ struct hfi_instance {
  * Parameters and supported features that are common to all HFI instances
  */
 struct hfi_features {
-	unsigned int	nr_table_pages;
+	size_t		nr_table_pages;
 	unsigned int	cpu_stride;
 	unsigned int	hdr_size;
 };
@@ -252,7 +251,7 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	struct hfi_instance *hfi_instance;
 	int cpu = smp_processor_id();
 	struct hfi_cpu_info *info;
-	u64 new_timestamp;
+	u64 new_timestamp, msr, hfi;
 
 	if (!pkg_therm_status_msr_val)
 		return;
@@ -281,9 +280,21 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	if (!raw_spin_trylock(&hfi_instance->event_lock))
 		return;
 
-	/* Skip duplicated updates. */
+	rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr);
+	hfi = msr & PACKAGE_THERM_STATUS_HFI_UPDATED;
+	if (!hfi) {
+		raw_spin_unlock(&hfi_instance->event_lock);
+		return;
+	}
+
+	/*
+	 * Ack duplicate update. Since there is an active HFI
+	 * status from HW, it must be a new event, not a case
+	 * where a lagging CPU entered the locked region.
+	 */
 	new_timestamp = *(u64 *)hfi_instance->hw_table;
 	if (*hfi_instance->timestamp == new_timestamp) {
+		thermal_clear_package_intr_status(PACKAGE_LEVEL, PACKAGE_THERM_STATUS_HFI_UPDATED);
 		raw_spin_unlock(&hfi_instance->event_lock);
 		return;
 	}
@@ -297,16 +308,14 @@ void intel_hfi_process_event(__u64 pkg_therm_status_msr_val)
 	memcpy(hfi_instance->local_table, hfi_instance->hw_table,
 	       hfi_features.nr_table_pages << PAGE_SHIFT);
 
-	raw_spin_unlock(&hfi_instance->table_lock);
-	raw_spin_unlock(&hfi_instance->event_lock);
-
 	/*
 	 * Let hardware know that we are done reading the HFI table and it is
 	 * free to update it again.
 	 */
-	pkg_therm_status_msr_val &= THERM_STATUS_CLEAR_PKG_MASK &
-				    ~PACKAGE_THERM_STATUS_HFI_UPDATED;
-	wrmsrl(MSR_IA32_PACKAGE_THERM_STATUS, pkg_therm_status_msr_val);
+	thermal_clear_package_intr_status(PACKAGE_LEVEL, PACKAGE_THERM_STATUS_HFI_UPDATED);
+
+	raw_spin_unlock(&hfi_instance->table_lock);
+	raw_spin_unlock(&hfi_instance->event_lock);
 
 	queue_delayed_work(hfi_updates_wq, &hfi_instance->update_work,
 			   HFI_UPDATE_INTERVAL);
@@ -371,7 +380,7 @@ void intel_hfi_online(unsigned int cpu)
 	die_id = topology_logical_die_id(cpu);
 	hfi_instance = info->hfi_instance;
 	if (!hfi_instance) {
-		if (die_id < 0 || die_id >= max_hfi_instances)
+		if (die_id >= max_hfi_instances)
 			return;
 
 		hfi_instance = &hfi_instances[die_id];

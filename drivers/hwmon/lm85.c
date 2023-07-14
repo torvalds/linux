@@ -1698,7 +1698,7 @@ static struct i2c_driver lm85_driver = {
 		.name   = "lm85",
 		.of_match_table = of_match_ptr(lm85_of_match),
 	},
-	.probe_new	= lm85_probe,
+	.probe		= lm85_probe,
 	.id_table	= lm85_id,
 	.detect		= lm85_detect,
 	.address_list	= normal_i2c,

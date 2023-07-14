@@ -5,13 +5,17 @@
 $id: http://devicetree.org/schemas/sound/intel,keembay-i2s.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Intel KeemBay I2S Device Tree Bindings
+title: Intel KeemBay I2S
 
 maintainers:
-  - Sia, Jee Heng <jee.heng.sia@intel.com>
+  - Daniele Alessandrelli <daniele.alessandrelli@intel.com>
+  - Paul J. Murphy <paul.j.murphy@intel.com>
 
 description: |
  Intel KeemBay I2S
+
+allOf:
+  - $ref: dai-common.yaml#
 
 properties:
   compatible:
@@ -64,7 +68,7 @@ required:
   - clock-names
   - interrupts
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -16,7 +16,7 @@ static int duration;
 static int prog_holds_map(int prog_fd, int map_fd)
 {
 	struct bpf_prog_info prog_info = {};
-	struct bpf_prog_info map_info = {};
+	struct bpf_map_info map_info = {};
 	__u32 prog_info_len;
 	__u32 map_info_len;
 	__u32 *map_ids;
@@ -25,12 +25,12 @@ static int prog_holds_map(int prog_fd, int map_fd)
 	int i;
 
 	map_info_len = sizeof(map_info);
-	ret = bpf_obj_get_info_by_fd(map_fd, &map_info, &map_info_len);
+	ret = bpf_map_get_info_by_fd(map_fd, &map_info, &map_info_len);
 	if (ret)
 		return -errno;
 
 	prog_info_len = sizeof(prog_info);
-	ret = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret)
 		return -errno;
 
@@ -44,7 +44,7 @@ static int prog_holds_map(int prog_fd, int map_fd)
 	prog_info.map_ids = ptr_to_u64(map_ids);
 	prog_info_len = sizeof(prog_info);
 
-	ret = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
+	ret = bpf_prog_get_info_by_fd(prog_fd, &prog_info, &prog_info_len);
 	if (ret) {
 		ret = -errno;
 		goto free_map_ids;

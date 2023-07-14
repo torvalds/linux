@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -31,6 +31,9 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
 	},
 	{ .compatible = "qcom,wcn6750-wifi",
 	  .data = (void *)ATH11K_HW_WCN6750_HW10,
+	},
+	{ .compatible = "qcom,ipq5018-wifi",
+	  .data = (void *)ATH11K_HW_IPQ5018_HW10,
 	},
 	{ }
 };
@@ -267,30 +270,42 @@ static void ath11k_ahb_clearbit32(struct ath11k_base *ab, u8 bit, u32 offset)
 static void ath11k_ahb_ce_irq_enable(struct ath11k_base *ab, u16 ce_id)
 {
 	const struct ce_attr *ce_attr;
+	const struct ce_ie_addr *ce_ie_addr = ab->hw_params.ce_ie_addr;
+	u32 ie1_reg_addr, ie2_reg_addr, ie3_reg_addr;
+
+	ie1_reg_addr = ce_ie_addr->ie1_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie2_reg_addr = ce_ie_addr->ie2_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie3_reg_addr = ce_ie_addr->ie3_reg_addr + ATH11K_CE_OFFSET(ab);
 
 	ce_attr = &ab->hw_params.host_ce_config[ce_id];
 	if (ce_attr->src_nentries)
-		ath11k_ahb_setbit32(ab, ce_id, CE_HOST_IE_ADDRESS);
+		ath11k_ahb_setbit32(ab, ce_id, ie1_reg_addr);
 
 	if (ce_attr->dest_nentries) {
-		ath11k_ahb_setbit32(ab, ce_id, CE_HOST_IE_2_ADDRESS);
+		ath11k_ahb_setbit32(ab, ce_id, ie2_reg_addr);
 		ath11k_ahb_setbit32(ab, ce_id + CE_HOST_IE_3_SHIFT,
-				    CE_HOST_IE_3_ADDRESS);
+				    ie3_reg_addr);
 	}
 }
 
 static void ath11k_ahb_ce_irq_disable(struct ath11k_base *ab, u16 ce_id)
 {
 	const struct ce_attr *ce_attr;
+	const struct ce_ie_addr *ce_ie_addr = ab->hw_params.ce_ie_addr;
+	u32 ie1_reg_addr, ie2_reg_addr, ie3_reg_addr;
+
+	ie1_reg_addr = ce_ie_addr->ie1_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie2_reg_addr = ce_ie_addr->ie2_reg_addr + ATH11K_CE_OFFSET(ab);
+	ie3_reg_addr = ce_ie_addr->ie3_reg_addr + ATH11K_CE_OFFSET(ab);
 
 	ce_attr = &ab->hw_params.host_ce_config[ce_id];
 	if (ce_attr->src_nentries)
-		ath11k_ahb_clearbit32(ab, ce_id, CE_HOST_IE_ADDRESS);
+		ath11k_ahb_clearbit32(ab, ce_id, ie1_reg_addr);
 
 	if (ce_attr->dest_nentries) {
-		ath11k_ahb_clearbit32(ab, ce_id, CE_HOST_IE_2_ADDRESS);
+		ath11k_ahb_clearbit32(ab, ce_id, ie2_reg_addr);
 		ath11k_ahb_clearbit32(ab, ce_id + CE_HOST_IE_3_SHIFT,
-				      CE_HOST_IE_3_ADDRESS);
+				      ie3_reg_addr);
 	}
 }
 
@@ -719,7 +734,7 @@ static int ath11k_ahb_hif_suspend(struct ath11k_base *ab)
 		return ret;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_AHB, "ahb device suspended\n");
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "device suspended\n");
 
 	return ret;
 }
@@ -762,7 +777,7 @@ static int ath11k_ahb_hif_resume(struct ath11k_base *ab)
 		return -ETIMEDOUT;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_AHB, "ahb device resumed\n");
+	ath11k_dbg(ab, ATH11K_DBG_AHB, "device resumed\n");
 
 	return 0;
 }
@@ -859,11 +874,11 @@ static int ath11k_ahb_setup_msi_resources(struct ath11k_base *ab)
 	ab->pci.msi.ep_base_data = int_prop + 32;
 
 	for (i = 0; i < ab->pci.msi.config->total_vectors; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
-		if (!res)
-			return -ENODEV;
+		ret = platform_get_irq(pdev, i);
+		if (ret < 0)
+			return ret;
 
-		ab->pci.msi.irqs[i] = res->start;
+		ab->pci.msi.irqs[i] = ret;
 	}
 
 	set_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags);
@@ -1021,7 +1036,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 
 	ret = iommu_map(iommu_dom, ab_ahb->fw.msa_paddr,
 			ab_ahb->fw.msa_paddr, ab_ahb->fw.msa_size,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		ath11k_err(ab, "failed to map firmware region: %d\n", ret);
 		goto err_iommu_detach;
@@ -1029,7 +1044,7 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 
 	ret = iommu_map(iommu_dom, ab_ahb->fw.ce_paddr,
 			ab_ahb->fw.ce_paddr, ab_ahb->fw.ce_size,
-			IOMMU_READ | IOMMU_WRITE);
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 	if (ret) {
 		ath11k_err(ab, "failed to map firmware CE region: %d\n", ret);
 		goto err_iommu_unmap;
@@ -1062,6 +1077,12 @@ static int ath11k_ahb_fw_resource_deinit(struct ath11k_base *ab)
 	struct ath11k_ahb *ab_ahb = ath11k_ahb_priv(ab);
 	struct iommu_domain *iommu;
 	size_t unmapped_size;
+
+	/* Chipsets not requiring MSA would have not initialized
+	 * MSA resources, return success in such cases.
+	 */
+	if (!ab->hw_params.fixed_fw_mem)
+		return 0;
 
 	if (ab_ahb->fw.use_tz)
 		return 0;
@@ -1106,6 +1127,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	switch (hw_rev) {
 	case ATH11K_HW_IPQ8074:
 	case ATH11K_HW_IPQ6018_HW10:
+	case ATH11K_HW_IPQ5018_HW10:
 		hif_ops = &ath11k_ahb_hif_ops_ipq8074;
 		pci_ops = NULL;
 		break;
@@ -1134,6 +1156,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	ab->hif.ops = hif_ops;
 	ab->pdev = pdev;
 	ab->hw_rev = hw_rev;
+	ab->fw_mode = ATH11K_FIRMWARE_MODE_NORMAL;
 	platform_set_drvdata(pdev, ab);
 
 	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
@@ -1149,6 +1172,22 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	ret = ath11k_ahb_setup_resources(ab);
 	if (ret)
 		goto err_core_free;
+
+	ab->mem_ce = ab->mem;
+
+	if (ab->hw_params.ce_remap) {
+		const struct ce_remap *ce_remap = ab->hw_params.ce_remap;
+		/* ce register space is moved out of wcss unlike ipq8074 or ipq6018
+		 * and the space is not contiguous, hence remapping the CE registers
+		 * to a new space for accessing them.
+		 */
+		ab->mem_ce = ioremap(ce_remap->base, ce_remap->size);
+		if (!ab->mem_ce) {
+			dev_err(&pdev->dev, "ce ioremap error\n");
+			ret = -ENOMEM;
+			goto err_core_free;
+		}
+	}
 
 	ret = ath11k_ahb_fw_resources_init(ab);
 	if (ret)
@@ -1236,6 +1275,10 @@ static void ath11k_ahb_free_resources(struct ath11k_base *ab)
 	ath11k_ahb_release_smp2p_handle(ab);
 	ath11k_ahb_fw_resource_deinit(ab);
 	ath11k_ce_free_pipes(ab);
+
+	if (ab->hw_params.ce_remap)
+		iounmap(ab->mem_ce);
+
 	ath11k_core_free(ab);
 	platform_set_drvdata(pdev, NULL);
 }

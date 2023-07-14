@@ -24,7 +24,7 @@ struct p4_event_bind {
 	unsigned int escr_msr[2];		/* ESCR MSR for this event */
 	unsigned int escr_emask;		/* valid ESCR EventMask bits */
 	unsigned int shared;			/* event is shared across threads */
-	char cntr[2][P4_CNTR_LIMIT];		/* counter index (offset), -1 on absence */
+	signed char cntr[2][P4_CNTR_LIMIT];	/* counter index (offset), -1 on absence */
 };
 
 struct p4_pebs_bind {
@@ -1006,6 +1006,29 @@ static void p4_pmu_enable_all(int added)
 	}
 }
 
+static int p4_pmu_set_period(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	s64 left = this_cpu_read(pmc_prev_left[hwc->idx]);
+	int ret;
+
+	ret = x86_perf_event_set_period(event);
+
+	if (hwc->event_base) {
+		/*
+		 * This handles erratum N15 in intel doc 249199-029,
+		 * the counter may not be updated correctly on write
+		 * so we need a second write operation to do the trick
+		 * (the official workaround didn't work)
+		 *
+		 * the former idea is taken from OProfile code
+		 */
+		wrmsrl(hwc->event_base, (u64)(-left) & x86_pmu.cntval_mask);
+	}
+
+	return ret;
+}
+
 static int p4_pmu_handle_irq(struct pt_regs *regs)
 {
 	struct perf_sample_data data;
@@ -1044,7 +1067,7 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 		/* event overflow for sure */
 		perf_sample_data_init(&data, 0, hwc->last_period);
 
-		if (!x86_perf_event_set_period(event))
+		if (!static_call(x86_pmu_set_period)(event))
 			continue;
 
 
@@ -1316,6 +1339,9 @@ static __initconst const struct x86_pmu p4_pmu = {
 	.enable_all		= p4_pmu_enable_all,
 	.enable			= p4_pmu_enable_event,
 	.disable		= p4_pmu_disable_event,
+
+	.set_period		= p4_pmu_set_period,
+
 	.eventsel		= MSR_P4_BPU_CCCR0,
 	.perfctr		= MSR_P4_BPU_PERFCTR0,
 	.event_map		= p4_pmu_event_map,
@@ -1334,15 +1360,6 @@ static __initconst const struct x86_pmu p4_pmu = {
 	.max_period		= (1ULL << (ARCH_P4_CNTRVAL_BITS - 1)) - 1,
 	.hw_config		= p4_hw_config,
 	.schedule_events	= p4_pmu_schedule_events,
-	/*
-	 * This handles erratum N15 in intel doc 249199-029,
-	 * the counter may not be updated correctly on write
-	 * so we need a second write operation to do the trick
-	 * (the official workaround didn't work)
-	 *
-	 * the former idea is taken from OProfile code
-	 */
-	.perfctr_second_write	= 1,
 
 	.format_attrs		= intel_p4_formats_attr,
 };

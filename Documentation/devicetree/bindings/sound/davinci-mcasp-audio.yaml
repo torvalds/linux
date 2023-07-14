@@ -167,6 +167,7 @@ required:
   - interrupt-names
 
 allOf:
+  - $ref: dai-common.yaml#
   - if:
       properties:
         opmode:
@@ -177,7 +178,7 @@ allOf:
       required:
         - tdm-slots
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

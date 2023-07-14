@@ -193,12 +193,58 @@ config CORESIGHT_TRBE
 	depends on ARM64 && CORESIGHT_SOURCE_ETM4X
 	help
 	  This driver provides support for percpu Trace Buffer Extension (TRBE).
-	  TRBE always needs to be used along with it's corresponding percpu ETE
+	  TRBE always needs to be used along with its corresponding percpu ETE
 	  component. ETE generates trace data which is then captured with TRBE.
 	  Unlike traditional sink devices, TRBE is a CPU feature accessible via
-	  system registers. But it's explicit dependency with trace unit (ETE)
+	  system registers. But its explicit dependency with trace unit (ETE)
 	  requires it to be plugged in as a coresight sink device.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called coresight-trbe.
+
+config ULTRASOC_SMB
+	tristate "Ultrasoc system memory buffer drivers"
+	depends on ACPI || COMPILE_TEST
+	depends on ARM64 && CORESIGHT_LINKS_AND_SINKS
+	help
+	  This driver provides support for the Ultrasoc system memory buffer (SMB).
+	  SMB is responsible for receiving the trace data from Coresight ETM devices
+	  and storing them to a system buffer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ultrasoc-smb.
+
+config CORESIGHT_TPDM
+	tristate "CoreSight Trace, Profiling & Diagnostics Monitor driver"
+	select CORESIGHT_LINKS_AND_SINKS
+	select CORESIGHT_TPDA
+	help
+	  This driver provides support for configuring monitor. Monitors are
+	  primarily responsible for data set collection and support the
+	  ability to collect any permutation of data set types.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called coresight-tpdm.
+
+config CORESIGHT_TPDA
+	tristate "CoreSight Trace, Profiling & Diagnostics Aggregator driver"
+	help
+	  This driver provides support for configuring aggregator. This is
+	  primarily useful for pulling the data sets from one or more
+	  attached monitors and pushing the resultant data out. Multiple
+	  monitors are connected on different input ports of TPDA.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called coresight-tpda.
+
+config CORESIGHT_DUMMY
+	tristate "Dummy driver support"
+	help
+	  Enables support for dummy driver. Dummy driver can be used for
+	  CoreSight sources/sinks that are owned and configured by some
+	  other subsystem and use Linux drivers to configure rest of trace
+	  path.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called coresight-dummy.
 endif

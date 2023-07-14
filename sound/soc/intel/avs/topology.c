@@ -13,6 +13,7 @@
 #include <sound/soc-topology.h>
 #include <uapi/sound/intel/avs/tokens.h>
 #include "avs.h"
+#include "control.h"
 #include "topology.h"
 
 /* Get pointer to vendor array at the specified offset. */
@@ -1070,6 +1071,12 @@ static const struct avs_tplg_token_parser module_parsers[] = {
 		.offset = offsetof(struct avs_tplg_module, cfg_ext),
 		.parse = avs_parse_modcfg_ext_ptr,
 	},
+	{
+		.token = AVS_TKN_MOD_KCONTROL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_module, ctl_id),
+		.parse = avs_parse_byte_token,
+	},
 };
 
 static struct avs_tplg_module *
@@ -1405,6 +1412,11 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 	if (!le32_to_cpu(dw->priv.size))
 		return 0;
 
+	if (w->ignore_suspend && !AVS_S0IX_SUPPORTED) {
+		dev_info_once(comp->dev, "Device does not support S0IX, check BIOS settings\n");
+		w->ignore_suspend = false;
+	}
+
 	tplg = acomp->tplg;
 	mach = dev_get_platdata(comp->card->dev);
 
@@ -1430,6 +1442,16 @@ static int avs_widget_load(struct snd_soc_component *comp, int index,
 	return 0;
 }
 
+static int avs_widget_ready(struct snd_soc_component *comp, int index,
+			    struct snd_soc_dapm_widget *w,
+			    struct snd_soc_tplg_dapm_widget *dw)
+{
+	struct avs_tplg_path_template *template = w->priv;
+
+	template->w = w;
+	return 0;
+}
+
 static int avs_dai_load(struct snd_soc_component *comp, int index,
 			struct snd_soc_dai_driver *dai_drv, struct snd_soc_tplg_pcm *pcm,
 			struct snd_soc_dai *dai)
@@ -1442,6 +1464,11 @@ static int avs_dai_load(struct snd_soc_component *comp, int index,
 static int avs_link_load(struct snd_soc_component *comp, int index, struct snd_soc_dai_link *link,
 			 struct snd_soc_tplg_link_config *cfg)
 {
+	if (link->ignore_suspend && !AVS_S0IX_SUPPORTED) {
+		dev_info_once(comp->dev, "Device does not support S0IX, check BIOS settings\n");
+		link->ignore_suspend = false;
+	}
+
 	if (!link->no_pcm) {
 		/* Stream control handled by IPCs. */
 		link->nonatomic = true;
@@ -1576,9 +1603,68 @@ static int avs_manifest(struct snd_soc_component *comp, int index,
 	return avs_tplg_parse_bindings(comp, tuples, remaining);
 }
 
+#define AVS_CONTROL_OPS_VOLUME	257
+
+static const struct snd_soc_tplg_kcontrol_ops avs_control_ops[] = {
+	{
+		.id = AVS_CONTROL_OPS_VOLUME,
+		.get = avs_control_volume_get,
+		.put = avs_control_volume_put,
+	},
+};
+
+static const struct avs_tplg_token_parser control_parsers[] = {
+	{
+		.token = AVS_TKN_KCONTROL_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_control_data, id),
+		.parse = avs_parse_word_token,
+	},
+};
+
+static int
+avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_new *ctmpl,
+		 struct snd_soc_tplg_ctl_hdr *hdr)
+{
+	struct snd_soc_tplg_vendor_array *tuples;
+	struct snd_soc_tplg_mixer_control *tmc;
+	struct avs_control_data *ctl_data;
+	struct soc_mixer_control *mc;
+	size_t block_size;
+	int ret;
+
+	switch (le32_to_cpu(hdr->type)) {
+	case SND_SOC_TPLG_TYPE_MIXER:
+		tmc = container_of(hdr, typeof(*tmc), hdr);
+		tuples = tmc->priv.array;
+		block_size = le32_to_cpu(tmc->priv.size);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ctl_data = devm_kzalloc(comp->card->dev, sizeof(*ctl_data), GFP_KERNEL);
+	if (!ctl_data)
+		return -ENOMEM;
+
+	ret = parse_dictionary_entries(comp, tuples, block_size, ctl_data, 1, sizeof(*ctl_data),
+				       AVS_TKN_KCONTROL_ID_U32, control_parsers,
+				       ARRAY_SIZE(control_parsers));
+	if (ret)
+		return ret;
+
+	mc = (struct soc_mixer_control *)ctmpl->private_value;
+	mc->dobj.private = ctl_data;
+	return 0;
+}
+
 static struct snd_soc_tplg_ops avs_tplg_ops = {
+	.io_ops			= avs_control_ops,
+	.io_ops_count		= ARRAY_SIZE(avs_control_ops),
+	.control_load		= avs_control_load,
 	.dapm_route_load	= avs_route_load,
 	.widget_load		= avs_widget_load,
+	.widget_ready		= avs_widget_ready,
 	.dai_load		= avs_dai_load,
 	.link_load		= avs_link_load,
 	.manifest		= avs_manifest,

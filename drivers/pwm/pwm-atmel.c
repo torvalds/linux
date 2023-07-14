@@ -6,7 +6,7 @@
  *		 Bo Shen <voice.shen@atmel.com>
  *
  * Links to reference manuals for the supported PWM chips can be found in
- * Documentation/arm/microchip.rst.
+ * Documentation/arch/arm/microchip.rst.
  *
  * Limitations:
  * - Periods start with the inactive level.
@@ -356,8 +356,8 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
-static void atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-				struct pwm_state *state)
+static int atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
+			       struct pwm_state *state)
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
 	u32 sr, cmr;
@@ -396,6 +396,8 @@ static void atmel_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->polarity = PWM_POLARITY_INVERSED;
 	else
 		state->polarity = PWM_POLARITY_NORMAL;
+
+	return 0;
 }
 
 static const struct pwm_ops atmel_pwm_ops = {
@@ -509,15 +511,13 @@ unprepare_clk:
 	return ret;
 }
 
-static int atmel_pwm_remove(struct platform_device *pdev)
+static void atmel_pwm_remove(struct platform_device *pdev)
 {
 	struct atmel_pwm_chip *atmel_pwm = platform_get_drvdata(pdev);
 
 	pwmchip_remove(&atmel_pwm->chip);
 
 	clk_unprepare(atmel_pwm->clk);
-
-	return 0;
 }
 
 static struct platform_driver atmel_pwm_driver = {
@@ -526,7 +526,7 @@ static struct platform_driver atmel_pwm_driver = {
 		.of_match_table = of_match_ptr(atmel_pwm_dt_ids),
 	},
 	.probe = atmel_pwm_probe,
-	.remove = atmel_pwm_remove,
+	.remove_new = atmel_pwm_remove,
 };
 module_platform_driver(atmel_pwm_driver);
 

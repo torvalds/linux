@@ -43,6 +43,7 @@
 enum {
 	MCTP_I2C_FLOW_STATE_NEW = 0,
 	MCTP_I2C_FLOW_STATE_ACTIVE,
+	MCTP_I2C_FLOW_STATE_INVALID,
 };
 
 /* List of all struct mctp_i2c_client
@@ -374,12 +375,18 @@ mctp_i2c_get_tx_flow_state(struct mctp_i2c_dev *midev, struct sk_buff *skb)
 	 */
 	if (!key->valid) {
 		state = MCTP_I2C_TX_FLOW_INVALID;
-
-	} else if (key->dev_flow_state == MCTP_I2C_FLOW_STATE_NEW) {
-		key->dev_flow_state = MCTP_I2C_FLOW_STATE_ACTIVE;
-		state = MCTP_I2C_TX_FLOW_NEW;
 	} else {
-		state = MCTP_I2C_TX_FLOW_EXISTING;
+		switch (key->dev_flow_state) {
+		case MCTP_I2C_FLOW_STATE_NEW:
+			key->dev_flow_state = MCTP_I2C_FLOW_STATE_ACTIVE;
+			state = MCTP_I2C_TX_FLOW_NEW;
+			break;
+		case MCTP_I2C_FLOW_STATE_ACTIVE:
+			state = MCTP_I2C_TX_FLOW_EXISTING;
+			break;
+		default:
+			state = MCTP_I2C_TX_FLOW_INVALID;
+		}
 	}
 
 	spin_unlock_irqrestore(&key->lock, flags);
@@ -617,21 +624,31 @@ static void mctp_i2c_release_flow(struct mctp_dev *mdev,
 
 {
 	struct mctp_i2c_dev *midev = netdev_priv(mdev->dev);
+	bool queue_release = false;
 	unsigned long flags;
 
 	spin_lock_irqsave(&midev->lock, flags);
-	midev->release_count++;
+	/* if we have seen the flow/key previously, we need to pair the
+	 * original lock with a release
+	 */
+	if (key->dev_flow_state == MCTP_I2C_FLOW_STATE_ACTIVE) {
+		midev->release_count++;
+		queue_release = true;
+	}
+	key->dev_flow_state = MCTP_I2C_FLOW_STATE_INVALID;
 	spin_unlock_irqrestore(&midev->lock, flags);
 
-	/* Ensure we have a release operation queued, through the fake
-	 * marker skb
-	 */
-	spin_lock(&midev->tx_queue.lock);
-	if (!midev->unlock_marker.next)
-		__skb_queue_tail(&midev->tx_queue, &midev->unlock_marker);
-	spin_unlock(&midev->tx_queue.lock);
-
-	wake_up(&midev->tx_wq);
+	if (queue_release) {
+		/* Ensure we have a release operation queued, through the fake
+		 * marker skb
+		 */
+		spin_lock(&midev->tx_queue.lock);
+		if (!midev->unlock_marker.next)
+			__skb_queue_tail(&midev->tx_queue,
+					 &midev->unlock_marker);
+		spin_unlock(&midev->tx_queue.lock);
+		wake_up(&midev->tx_wq);
+	}
 }
 
 static const struct net_device_ops mctp_i2c_ops = {
@@ -1041,7 +1058,7 @@ static struct i2c_driver mctp_i2c_driver = {
 		.name = "mctp-i2c-interface",
 		.of_match_table = mctp_i2c_of_match,
 	},
-	.probe_new = mctp_i2c_probe,
+	.probe = mctp_i2c_probe,
 	.remove = mctp_i2c_remove,
 	.id_table = mctp_i2c_id,
 };

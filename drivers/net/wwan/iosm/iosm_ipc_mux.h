@@ -10,6 +10,7 @@
 
 #define IPC_MEM_MAX_UL_DG_ENTRIES	100
 #define IPC_MEM_MAX_TDS_MUX_AGGR_UL	60
+#define IPC_MEM_MAX_TDS_MUX_AGGR_DL	60
 
 #define IPC_MEM_MAX_ADB_BUF_SIZE (16 * 1024)
 #define IPC_MEM_MAX_UL_ADB_BUF_SIZE IPC_MEM_MAX_ADB_BUF_SIZE
@@ -332,9 +333,7 @@ struct mux_acb {
  * @wwan_q_offset:	This will hold the offset of the given instance
  *			Useful while passing or receiving packets from
  *			wwan/imem layer.
- * @adb_finish_timer:	Timer for forcefully finishing the ADB
  * @acb_tx_sequence_nr: Sequence number for the ACB header.
- * @params:		user configurable parameters
  * @adb_tx_sequence_nr: Sequence number for ADB header
  * @acc_adb_size:       Statistic data for logging
  * @acc_payload_size:   Statistic data for logging
@@ -366,9 +365,7 @@ struct iosm_mux {
 	long long ul_data_pend_bytes;
 	struct mux_acb acb;
 	int wwan_q_offset;
-	struct hrtimer adb_finish_timer;
 	u16 acb_tx_sequence_nr;
-	struct ipc_params *params;
 	u16 adb_tx_sequence_nr;
 	unsigned long long acc_adb_size;
 	unsigned long long acc_payload_size;

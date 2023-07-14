@@ -47,8 +47,8 @@ static struct regmap_bus bmp280_regmap_bus = {
 static int bmp280_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
+	const struct bmp280_chip_info *chip_info;
 	struct regmap *regmap;
-	const struct regmap_config *regmap_config;
 	int ret;
 
 	spi->bits_per_word = 8;
@@ -58,22 +58,14 @@ static int bmp280_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	switch (id->driver_data) {
-	case BMP180_CHIP_ID:
-		regmap_config = &bmp180_regmap_config;
-		break;
-	case BMP280_CHIP_ID:
-	case BME280_CHIP_ID:
-		regmap_config = &bmp280_regmap_config;
-		break;
-	default:
-		return -EINVAL;
-	}
+	chip_info = device_get_match_data(&spi->dev);
+	if (!chip_info)
+		chip_info = (const struct bmp280_chip_info *) id->driver_data;
 
 	regmap = devm_regmap_init(&spi->dev,
 				  &bmp280_regmap_bus,
 				  &spi->dev,
-				  regmap_config);
+				  chip_info->regmap_config);
 	if (IS_ERR(regmap)) {
 		dev_err(&spi->dev, "failed to allocate register map\n");
 		return PTR_ERR(regmap);
@@ -81,26 +73,30 @@ static int bmp280_spi_probe(struct spi_device *spi)
 
 	return bmp280_common_probe(&spi->dev,
 				   regmap,
-				   id->driver_data,
+				   chip_info,
 				   id->name,
 				   spi->irq);
 }
 
 static const struct of_device_id bmp280_of_spi_match[] = {
-	{ .compatible = "bosch,bmp085", },
-	{ .compatible = "bosch,bmp180", },
-	{ .compatible = "bosch,bmp181", },
-	{ .compatible = "bosch,bmp280", },
-	{ .compatible = "bosch,bme280", },
+	{ .compatible = "bosch,bmp085", .data = &bmp180_chip_info },
+	{ .compatible = "bosch,bmp180", .data = &bmp180_chip_info },
+	{ .compatible = "bosch,bmp181", .data = &bmp180_chip_info },
+	{ .compatible = "bosch,bmp280", .data = &bmp280_chip_info },
+	{ .compatible = "bosch,bme280", .data = &bmp280_chip_info },
+	{ .compatible = "bosch,bmp380", .data = &bmp380_chip_info },
+	{ .compatible = "bosch,bmp580", .data = &bmp580_chip_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bmp280_of_spi_match);
 
 static const struct spi_device_id bmp280_spi_id[] = {
-	{ "bmp180", BMP180_CHIP_ID },
-	{ "bmp181", BMP180_CHIP_ID },
-	{ "bmp280", BMP280_CHIP_ID },
-	{ "bme280", BME280_CHIP_ID },
+	{ "bmp180", (kernel_ulong_t)&bmp180_chip_info },
+	{ "bmp181", (kernel_ulong_t)&bmp180_chip_info },
+	{ "bmp280", (kernel_ulong_t)&bmp280_chip_info },
+	{ "bme280", (kernel_ulong_t)&bmp280_chip_info },
+	{ "bmp380", (kernel_ulong_t)&bmp380_chip_info },
+	{ "bmp580", (kernel_ulong_t)&bmp580_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, bmp280_spi_id);

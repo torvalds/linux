@@ -48,9 +48,6 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
-	/* is this node still in the rbtree? */
-	unsigned int is_head:1;
-	unsigned int in_tree:1;
 };
 
 struct btrfs_delayed_extent_op {
@@ -70,19 +67,25 @@ struct btrfs_delayed_extent_op {
 struct btrfs_delayed_ref_head {
 	u64 bytenr;
 	u64 num_bytes;
-	refcount_t refs;
+	/*
+	 * For insertion into struct btrfs_delayed_ref_root::href_root.
+	 * Keep it in the same cache line as 'bytenr' for more efficient
+	 * searches in the rbtree.
+	 */
+	struct rb_node href_node;
 	/*
 	 * the mutex is held while running the refs, and it is also
 	 * held when checking the sum of reference modifications.
 	 */
 	struct mutex mutex;
 
+	refcount_t refs;
+
+	/* Protects 'ref_tree' and 'ref_add_list'. */
 	spinlock_t lock;
 	struct rb_root_cached ref_tree;
 	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
 	struct list_head ref_add_list;
-
-	struct rb_node href_node;
 
 	struct btrfs_delayed_extent_op *extent_op;
 
@@ -113,10 +116,10 @@ struct btrfs_delayed_ref_head {
 	 * we need to update the in ram accounting to properly reflect
 	 * the free has happened.
 	 */
-	unsigned int must_insert_reserved:1;
-	unsigned int is_data:1;
-	unsigned int is_system:1;
-	unsigned int processing:1;
+	bool must_insert_reserved;
+	bool is_data;
+	bool is_system;
+	bool processing;
 };
 
 struct btrfs_delayed_tree_ref {
@@ -253,6 +256,27 @@ extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
 int __init btrfs_delayed_ref_init(void);
 void __cold btrfs_delayed_ref_exit(void);
 
+static inline u64 btrfs_calc_delayed_ref_bytes(const struct btrfs_fs_info *fs_info,
+					       int num_delayed_refs)
+{
+	u64 num_bytes;
+
+	num_bytes = btrfs_calc_insert_metadata_size(fs_info, num_delayed_refs);
+
+	/*
+	 * We have to check the mount option here because we could be enabling
+	 * the free space tree for the first time and don't have the compat_ro
+	 * option set yet.
+	 *
+	 * We need extra reservations if we have the free space tree because
+	 * we'll have to modify that tree as well.
+	 */
+	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
+		num_bytes *= 2;
+
+	return num_bytes;
+}
+
 static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 				int action, u64 bytenr, u64 len, u64 parent)
 {
@@ -316,7 +340,7 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 {
 	WARN_ON(refcount_read(&ref->refs) == 0);
 	if (refcount_dec_and_test(&ref->refs)) {
-		WARN_ON(ref->in_tree);
+		WARN_ON(!RB_EMPTY_NODE(&ref->ref_node));
 		switch (ref->type) {
 		case BTRFS_TREE_BLOCK_REF_KEY:
 		case BTRFS_SHARED_BLOCK_REF_KEY:
@@ -357,7 +381,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,
 				struct btrfs_delayed_extent_op *extent_op);
-void btrfs_merge_delayed_refs(struct btrfs_trans_handle *trans,
+void btrfs_merge_delayed_refs(struct btrfs_fs_info *fs_info,
 			      struct btrfs_delayed_ref_root *delayed_refs,
 			      struct btrfs_delayed_ref_head *head);
 
@@ -385,7 +409,6 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 void btrfs_migrate_to_delayed_refs_rsv(struct btrfs_fs_info *fs_info,
 				       struct btrfs_block_rsv *src,
 				       u64 num_bytes);
-int btrfs_should_throttle_delayed_refs(struct btrfs_trans_handle *trans);
 bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info);
 
 /*

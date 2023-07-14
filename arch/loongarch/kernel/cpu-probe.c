@@ -60,7 +60,7 @@ static inline void set_elf_platform(int cpu, const char *plat)
 
 /* MAP BASE */
 unsigned long vm_map_base;
-EXPORT_SYMBOL_GPL(vm_map_base);
+EXPORT_SYMBOL(vm_map_base);
 
 static void cpu_probe_addrbits(struct cpuinfo_loongarch *c)
 {
@@ -94,13 +94,18 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	c->options = LOONGARCH_CPU_CPUCFG | LOONGARCH_CPU_CSR |
 		     LOONGARCH_CPU_TLB | LOONGARCH_CPU_VINT | LOONGARCH_CPU_WATCH;
 
-	elf_hwcap |= HWCAP_LOONGARCH_CRC32;
+	elf_hwcap = HWCAP_LOONGARCH_CPUCFG;
 
 	config = read_cpucfg(LOONGARCH_CPUCFG1);
 	if (config & CPUCFG1_UAL) {
 		c->options |= LOONGARCH_CPU_UAL;
 		elf_hwcap |= HWCAP_LOONGARCH_UAL;
 	}
+	if (config & CPUCFG1_CRC32) {
+		c->options |= LOONGARCH_CPU_CRC32;
+		elf_hwcap |= HWCAP_LOONGARCH_CRC32;
+	}
+
 
 	config = read_cpucfg(LOONGARCH_CPUCFG2);
 	if (config & CPUCFG2_LAM) {
@@ -111,6 +116,18 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 		c->options |= LOONGARCH_CPU_FPU;
 		elf_hwcap |= HWCAP_LOONGARCH_FPU;
 	}
+#ifdef CONFIG_CPU_HAS_LSX
+	if (config & CPUCFG2_LSX) {
+		c->options |= LOONGARCH_CPU_LSX;
+		elf_hwcap |= HWCAP_LOONGARCH_LSX;
+	}
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
+	if (config & CPUCFG2_LASX) {
+		c->options |= LOONGARCH_CPU_LASX;
+		elf_hwcap |= HWCAP_LOONGARCH_LASX;
+	}
+#endif
 	if (config & CPUCFG2_COMPLEX) {
 		c->options |= LOONGARCH_CPU_COMPLEX;
 		elf_hwcap |= HWCAP_LOONGARCH_COMPLEX;
@@ -118,6 +135,10 @@ static void cpu_probe_common(struct cpuinfo_loongarch *c)
 	if (config & CPUCFG2_CRYPTO) {
 		c->options |= LOONGARCH_CPU_CRYPTO;
 		elf_hwcap |= HWCAP_LOONGARCH_CRYPTO;
+	}
+	if (config & CPUCFG2_PTW) {
+		c->options |= LOONGARCH_CPU_PTW;
+		elf_hwcap |= HWCAP_LOONGARCH_PTW;
 	}
 	if (config & CPUCFG2_LVZP) {
 		c->options |= LOONGARCH_CPU_LVZ;
@@ -187,7 +208,9 @@ static inline void cpu_probe_loongson(struct cpuinfo_loongarch *c, unsigned int 
 	uint64_t *vendor = (void *)(&cpu_full_name[VENDOR_OFFSET]);
 	uint64_t *cpuname = (void *)(&cpu_full_name[CPUNAME_OFFSET]);
 
-	__cpu_full_name[cpu] = cpu_full_name;
+	if (!__cpu_full_name[cpu])
+		__cpu_full_name[cpu] = cpu_full_name;
+
 	*vendor = iocsr_read64(LOONGARCH_IOCSR_VENDOR);
 	*cpuname = iocsr_read64(LOONGARCH_IOCSR_CPUNAME);
 

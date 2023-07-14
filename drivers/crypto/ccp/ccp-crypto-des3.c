@@ -21,8 +21,9 @@
 static int ccp_des3_complete(struct crypto_async_request *async_req, int ret)
 {
 	struct skcipher_request *req = skcipher_request_cast(async_req);
-	struct ccp_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	struct ccp_des3_req_ctx *rctx = skcipher_request_ctx(req);
+	struct ccp_ctx *ctx = crypto_skcipher_ctx_dma(
+		crypto_skcipher_reqtfm(req));
+	struct ccp_des3_req_ctx *rctx = skcipher_request_ctx_dma(req);
 
 	if (ret)
 		return ret;
@@ -37,7 +38,7 @@ static int ccp_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		unsigned int key_len)
 {
 	struct ccp_crypto_skcipher_alg *alg = ccp_crypto_skcipher_alg(tfm);
-	struct ccp_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct ccp_ctx *ctx = crypto_skcipher_ctx_dma(tfm);
 	int err;
 
 	err = verify_skcipher_des3_key(tfm, key);
@@ -60,11 +61,10 @@ static int ccp_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 static int ccp_des3_crypt(struct skcipher_request *req, bool encrypt)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	struct ccp_ctx *ctx = crypto_skcipher_ctx(tfm);
-	struct ccp_des3_req_ctx *rctx = skcipher_request_ctx(req);
+	struct ccp_ctx *ctx = crypto_skcipher_ctx_dma(tfm);
+	struct ccp_des3_req_ctx *rctx = skcipher_request_ctx_dma(req);
 	struct scatterlist *iv_sg = NULL;
 	unsigned int iv_len = 0;
-	int ret;
 
 	if (!ctx->u.des3.key_len)
 		return -EINVAL;
@@ -100,9 +100,7 @@ static int ccp_des3_crypt(struct skcipher_request *req, bool encrypt)
 	rctx->cmd.u.des3.src_len = req->cryptlen;
 	rctx->cmd.u.des3.dst = req->dst;
 
-	ret = ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
-
-	return ret;
+	return ccp_crypto_enqueue_request(&req->base, &rctx->cmd);
 }
 
 static int ccp_des3_encrypt(struct skcipher_request *req)
@@ -117,12 +115,12 @@ static int ccp_des3_decrypt(struct skcipher_request *req)
 
 static int ccp_des3_init_tfm(struct crypto_skcipher *tfm)
 {
-	struct ccp_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct ccp_ctx *ctx = crypto_skcipher_ctx_dma(tfm);
 
 	ctx->complete = ccp_des3_complete;
 	ctx->u.des3.key_len = 0;
 
-	crypto_skcipher_set_reqsize(tfm, sizeof(struct ccp_des3_req_ctx));
+	crypto_skcipher_set_reqsize_dma(tfm, sizeof(struct ccp_des3_req_ctx));
 
 	return 0;
 }
@@ -140,7 +138,7 @@ static const struct skcipher_alg ccp_des3_defaults = {
 				  CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_NEED_FALLBACK,
 	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct ccp_ctx),
+	.base.cra_ctxsize	= sizeof(struct ccp_ctx) + CRYPTO_DMA_PADDING,
 	.base.cra_priority	= CCP_CRA_PRIORITY,
 	.base.cra_module	= THIS_MODULE,
 };

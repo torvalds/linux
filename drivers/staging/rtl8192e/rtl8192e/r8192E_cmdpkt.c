@@ -21,8 +21,6 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 
 	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
 
-	RT_TRACE(COMP_CMDPKT, "%s(),buffer_len is %d\n", __func__, len);
-
 	do {
 		if ((len - frag_offset) > CMDPACKET_FRAG_SIZE) {
 			frag_length = CMDPACKET_FRAG_SIZE;
@@ -61,8 +59,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 			tcb_desc->txbuf_size = frag_length;
 		}
 
-		seg_ptr = skb_put(skb, frag_length);
-		memcpy(seg_ptr, data, (u32)frag_length);
+		skb_put_data(skb, data, frag_length);
 
 		if (type == DESC_PACKET_TYPE_INIT &&
 		    (!priv->rtllib->check_nic_enough_desc(dev, TXCMD_QUEUE) ||
@@ -79,7 +76,7 @@ bool rtl92e_send_cmd_pkt(struct net_device *dev, u32 type, const void *data,
 
 	} while (frag_offset < len);
 
-	rtl92e_writeb(dev, TPPoll, TPPoll_CQ);
+	rtl92e_writeb(dev, TP_POLL, TP_POLL_CQ);
 Failed:
 	return rt_status;
 }

@@ -4,10 +4,10 @@
 $id: http://devicetree.org/schemas/soc/qcom/qcom-stats.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Technologies, Inc. (QTI) Stats bindings
+title: Qualcomm Technologies, Inc. (QTI) Stats
 
 maintainers:
-  - Maulik Shah <mkshah@codeaurora.org>
+  - Maulik Shah <quic_mkshah@quicinc.com>
 
 description:
   Always On Processor/Resource Power Manager maintains statistics of the SoC
@@ -20,6 +20,7 @@ properties:
   compatible:
     enum:
       - qcom,rpmh-stats
+      - qcom,sdm845-rpmh-stats
       - qcom,rpm-stats
       # For older RPM firmware versions with fixed offset for the sleep stats
       - qcom,apq8084-rpm-stats

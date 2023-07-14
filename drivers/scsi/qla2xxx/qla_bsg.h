@@ -314,7 +314,8 @@ struct qla_active_regions {
 	uint8_t vpd_nvram;
 	uint8_t npiv_config_0_1;
 	uint8_t npiv_config_2_3;
-	uint8_t reserved[32];
+	uint8_t nvme_params;
+	uint8_t reserved[31];
 } __packed;
 
 #include "qla_edif_bsg.h"

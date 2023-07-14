@@ -3,13 +3,21 @@
  * Copyright(c) 2020 Intel Corporation.
  */
 #include <linux/workqueue.h>
+
+#include "gem/i915_gem_context.h"
+
+#include "gt/intel_context.h"
+#include "gt/intel_gt.h"
+
+#include "i915_drv.h"
+
 #include "intel_pxp.h"
+#include "intel_pxp_gsccs.h"
 #include "intel_pxp_irq.h"
+#include "intel_pxp_regs.h"
 #include "intel_pxp_session.h"
 #include "intel_pxp_tee.h"
-#include "gem/i915_gem_context.h"
-#include "gt/intel_context.h"
-#include "i915_drv.h"
+#include "intel_pxp_types.h"
 
 /**
  * DOC: PXP
@@ -39,42 +47,43 @@
  * performed via the mei_pxp component module.
  */
 
-struct intel_gt *pxp_to_gt(const struct intel_pxp *pxp)
+bool intel_pxp_is_supported(const struct intel_pxp *pxp)
 {
-	return container_of(pxp, struct intel_gt, pxp);
+	return IS_ENABLED(CONFIG_DRM_I915_PXP) && pxp;
 }
 
 bool intel_pxp_is_enabled(const struct intel_pxp *pxp)
 {
-	return pxp->ce;
+	return IS_ENABLED(CONFIG_DRM_I915_PXP) && pxp && pxp->ce;
 }
 
 bool intel_pxp_is_active(const struct intel_pxp *pxp)
 {
-	return pxp->arb_is_valid;
+	return IS_ENABLED(CONFIG_DRM_I915_PXP) && pxp && pxp->arb_is_valid;
 }
 
-/* KCR register definitions */
-#define KCR_INIT _MMIO(0x320f0)
-/* Setting KCR Init bit is required after system boot */
-#define KCR_INIT_ALLOW_DISPLAY_ME_WRITES REG_BIT(14)
-
-static void kcr_pxp_enable(struct intel_gt *gt)
+static void kcr_pxp_set_status(const struct intel_pxp *pxp, bool enable)
 {
-	intel_uncore_write(gt->uncore, KCR_INIT,
-			   _MASKED_BIT_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES));
+	u32 val = enable ? _MASKED_BIT_ENABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES) :
+		  _MASKED_BIT_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES);
+
+	intel_uncore_write(pxp->ctrl_gt->uncore, KCR_INIT(pxp->kcr_base), val);
 }
 
-static void kcr_pxp_disable(struct intel_gt *gt)
+static void kcr_pxp_enable(const struct intel_pxp *pxp)
 {
-	intel_uncore_write(gt->uncore, KCR_INIT,
-			   _MASKED_BIT_DISABLE(KCR_INIT_ALLOW_DISPLAY_ME_WRITES));
+	kcr_pxp_set_status(pxp, true);
+}
+
+static void kcr_pxp_disable(const struct intel_pxp *pxp)
+{
+	kcr_pxp_set_status(pxp, false);
 }
 
 static int create_vcs_context(struct intel_pxp *pxp)
 {
 	static struct lock_class_key pxp_lock;
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 	struct intel_engine_cs *engine;
 	struct intel_context *ce;
 	int i;
@@ -103,18 +112,14 @@ static int create_vcs_context(struct intel_pxp *pxp)
 
 static void destroy_vcs_context(struct intel_pxp *pxp)
 {
-	intel_engine_destroy_pinned_context(fetch_and_zero(&pxp->ce));
+	if (pxp->ce)
+		intel_engine_destroy_pinned_context(fetch_and_zero(&pxp->ce));
 }
 
-void intel_pxp_init(struct intel_pxp *pxp)
+static void pxp_init_full(struct intel_pxp *pxp)
 {
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 	int ret;
-
-	if (!HAS_PXP(gt->i915))
-		return;
-
-	mutex_init(&pxp->tee_mutex);
 
 	/*
 	 * we'll use the completion to check if there is a termination pending,
@@ -124,14 +129,21 @@ void intel_pxp_init(struct intel_pxp *pxp)
 	init_completion(&pxp->termination);
 	complete_all(&pxp->termination);
 
-	mutex_init(&pxp->arb_mutex);
-	INIT_WORK(&pxp->session_work, intel_pxp_session_work);
+	if (pxp->ctrl_gt->type == GT_MEDIA)
+		pxp->kcr_base = MTL_KCR_BASE;
+	else
+		pxp->kcr_base = GEN12_KCR_BASE;
+
+	intel_pxp_session_management_init(pxp);
 
 	ret = create_vcs_context(pxp);
 	if (ret)
 		return;
 
-	ret = intel_pxp_tee_component_init(pxp);
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0))
+		ret = intel_pxp_gsccs_init(pxp);
+	else
+		ret = intel_pxp_tee_component_init(pxp);
 	if (ret)
 		goto out_context;
 
@@ -143,16 +155,105 @@ out_context:
 	destroy_vcs_context(pxp);
 }
 
-void intel_pxp_fini(struct intel_pxp *pxp)
+static struct intel_gt *find_gt_for_required_teelink(struct drm_i915_private *i915)
 {
-	if (!intel_pxp_is_enabled(pxp))
+	/*
+	 * NOTE: Only certain platforms require PXP-tee-backend dependencies
+	 * for HuC authentication. For now, its limited to DG2.
+	 */
+	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && IS_ENABLED(CONFIG_INTEL_MEI_GSC) &&
+	    intel_huc_is_loaded_by_gsc(&i915->gt0.uc.huc) && intel_uc_uses_huc(&i915->gt0.uc))
+		return &i915->gt0;
+
+	return NULL;
+}
+
+static struct intel_gt *find_gt_for_required_protected_content(struct drm_i915_private *i915)
+{
+	if (!IS_ENABLED(CONFIG_DRM_I915_PXP) || !INTEL_INFO(i915)->has_pxp)
+		return NULL;
+
+	/*
+	 * For MTL onwards, PXP-controller-GT needs to have a valid GSC engine
+	 * on the media GT. NOTE: if we have a media-tile with a GSC-engine,
+	 * the VDBOX is already present so skip that check. We also have to
+	 * ensure the GSC and HUC firmware are coming online
+	 */
+	if (i915->media_gt && HAS_ENGINE(i915->media_gt, GSC0) &&
+	    intel_uc_fw_is_loadable(&i915->media_gt->uc.gsc.fw) &&
+	    intel_uc_fw_is_loadable(&i915->media_gt->uc.huc.fw))
+		return i915->media_gt;
+
+	/*
+	 * Else we rely on mei-pxp module but only on legacy platforms
+	 * prior to having separate media GTs and has a valid VDBOX.
+	 */
+	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && !i915->media_gt && VDBOX_MASK(&i915->gt0))
+		return &i915->gt0;
+
+	return NULL;
+}
+
+int intel_pxp_init(struct drm_i915_private *i915)
+{
+	struct intel_gt *gt;
+	bool is_full_feature = false;
+
+	/*
+	 * NOTE: Get the ctrl_gt before checking intel_pxp_is_supported since
+	 * we still need it if PXP's backend tee transport is needed.
+	 */
+	gt = find_gt_for_required_protected_content(i915);
+	if (gt)
+		is_full_feature = true;
+	else
+		gt = find_gt_for_required_teelink(i915);
+
+	if (!gt)
+		return -ENODEV;
+
+	/*
+	 * At this point, we will either enable full featured PXP capabilities
+	 * including session and object management, or we will init the backend tee
+	 * channel for internal users such as HuC loading by GSC
+	 */
+	i915->pxp = kzalloc(sizeof(*i915->pxp), GFP_KERNEL);
+	if (!i915->pxp)
+		return -ENOMEM;
+
+	/* init common info used by all feature-mode usages*/
+	i915->pxp->ctrl_gt = gt;
+	mutex_init(&i915->pxp->tee_mutex);
+
+	/*
+	 * If full PXP feature is not available but HuC is loaded by GSC on pre-MTL
+	 * such as DG2, we can skip the init of the full PXP session/object management
+	 * and just init the tee channel.
+	 */
+	if (is_full_feature)
+		pxp_init_full(i915->pxp);
+	else
+		intel_pxp_tee_component_init(i915->pxp);
+
+	return 0;
+}
+
+void intel_pxp_fini(struct drm_i915_private *i915)
+{
+	if (!i915->pxp)
 		return;
 
-	pxp->arb_is_valid = false;
+	i915->pxp->arb_is_valid = false;
 
-	intel_pxp_tee_component_fini(pxp);
+	if (HAS_ENGINE(i915->pxp->ctrl_gt, GSC0))
+		intel_pxp_gsccs_fini(i915->pxp);
+	else
+		intel_pxp_tee_component_fini(i915->pxp);
 
-	destroy_vcs_context(pxp);
+	destroy_vcs_context(i915->pxp);
+
+	kfree(i915->pxp);
+	i915->pxp = NULL;
 }
 
 void intel_pxp_mark_termination_in_progress(struct intel_pxp *pxp)
@@ -163,17 +264,119 @@ void intel_pxp_mark_termination_in_progress(struct intel_pxp *pxp)
 
 static void pxp_queue_termination(struct intel_pxp *pxp)
 {
-	struct intel_gt *gt = pxp_to_gt(pxp);
+	struct intel_gt *gt = pxp->ctrl_gt;
 
 	/*
 	 * We want to get the same effect as if we received a termination
 	 * interrupt, so just pretend that we did.
 	 */
-	spin_lock_irq(&gt->irq_lock);
+	spin_lock_irq(gt->irq_lock);
 	intel_pxp_mark_termination_in_progress(pxp);
 	pxp->session_events |= PXP_TERMINATION_REQUEST;
 	queue_work(system_unbound_wq, &pxp->session_work);
-	spin_unlock_irq(&gt->irq_lock);
+	spin_unlock_irq(gt->irq_lock);
+}
+
+static bool pxp_component_bound(struct intel_pxp *pxp)
+{
+	bool bound = false;
+
+	mutex_lock(&pxp->tee_mutex);
+	if (pxp->pxp_component)
+		bound = true;
+	mutex_unlock(&pxp->tee_mutex);
+
+	return bound;
+}
+
+int intel_pxp_get_backend_timeout_ms(struct intel_pxp *pxp)
+{
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0))
+		return GSCFW_MAX_ROUND_TRIP_LATENCY_MS;
+	else
+		return 250;
+}
+
+static int __pxp_global_teardown_final(struct intel_pxp *pxp)
+{
+	int timeout;
+
+	if (!pxp->arb_is_valid)
+		return 0;
+	/*
+	 * To ensure synchronous and coherent session teardown completion
+	 * in response to suspend or shutdown triggers, don't use a worker.
+	 */
+	intel_pxp_mark_termination_in_progress(pxp);
+	intel_pxp_terminate(pxp, false);
+
+	timeout = intel_pxp_get_backend_timeout_ms(pxp);
+
+	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(timeout)))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int __pxp_global_teardown_restart(struct intel_pxp *pxp)
+{
+	int timeout;
+
+	if (pxp->arb_is_valid)
+		return 0;
+	/*
+	 * The arb-session is currently inactive and we are doing a reset and restart
+	 * due to a runtime event. Use the worker that was designed for this.
+	 */
+	pxp_queue_termination(pxp);
+
+	timeout = intel_pxp_get_backend_timeout_ms(pxp);
+
+	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(timeout)))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+void intel_pxp_end(struct intel_pxp *pxp)
+{
+	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
+	intel_wakeref_t wakeref;
+
+	if (!intel_pxp_is_enabled(pxp))
+		return;
+
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+
+	mutex_lock(&pxp->arb_mutex);
+
+	if (__pxp_global_teardown_final(pxp))
+		drm_dbg(&i915->drm, "PXP end timed out\n");
+
+	mutex_unlock(&pxp->arb_mutex);
+
+	intel_pxp_fini_hw(pxp);
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+}
+
+/*
+ * this helper is used by both intel_pxp_start and by
+ * the GET_PARAM IOCTL that user space calls. Thus, the
+ * return values here should match the UAPI spec.
+ */
+int intel_pxp_get_readiness_status(struct intel_pxp *pxp)
+{
+	if (!intel_pxp_is_enabled(pxp))
+		return -ENODEV;
+
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0)) {
+		if (wait_for(intel_pxp_gsccs_is_ready_for_sessions(pxp), 250))
+			return 2;
+	} else {
+		if (wait_for(pxp_component_bound(pxp), 250))
+			return 2;
+	}
+	return 1;
 }
 
 /*
@@ -184,21 +387,17 @@ int intel_pxp_start(struct intel_pxp *pxp)
 {
 	int ret = 0;
 
-	if (!intel_pxp_is_enabled(pxp))
-		return -ENODEV;
+	ret = intel_pxp_get_readiness_status(pxp);
+	if (ret < 0)
+		return ret;
+	else if (ret > 1)
+		return -EIO; /* per UAPI spec, user may retry later */
 
 	mutex_lock(&pxp->arb_mutex);
 
-	if (pxp->arb_is_valid)
+	ret = __pxp_global_teardown_restart(pxp);
+	if (ret)
 		goto unlock;
-
-	pxp_queue_termination(pxp);
-
-	if (!wait_for_completion_timeout(&pxp->termination,
-					msecs_to_jiffies(250))) {
-		ret = -ETIMEDOUT;
-		goto unlock;
-	}
 
 	/* make sure the compiler doesn't optimize the double access */
 	barrier();
@@ -213,14 +412,13 @@ unlock:
 
 void intel_pxp_init_hw(struct intel_pxp *pxp)
 {
-	kcr_pxp_enable(pxp_to_gt(pxp));
+	kcr_pxp_enable(pxp);
 	intel_pxp_irq_enable(pxp);
 }
 
 void intel_pxp_fini_hw(struct intel_pxp *pxp)
 {
-	kcr_pxp_disable(pxp_to_gt(pxp));
-
+	kcr_pxp_disable(pxp);
 	intel_pxp_irq_disable(pxp);
 }
 
@@ -253,7 +451,7 @@ int intel_pxp_key_check(struct intel_pxp *pxp,
 
 void intel_pxp_invalidate(struct intel_pxp *pxp)
 {
-	struct drm_i915_private *i915 = pxp_to_gt(pxp)->i915;
+	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
 	struct i915_gem_context *ctx, *cn;
 
 	/* ban all contexts marked as protected */

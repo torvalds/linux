@@ -59,6 +59,9 @@ properties:
 
   interrupt-controller: true
 
+  '#interrupt-cells':
+    const: 0
+
   msi-controller: true
 
   ti,interrupt-ranges:
@@ -81,6 +84,9 @@ properties:
       maxItems: 1
     description:
       Array of phandles to DMA controllers where the unmapped events originate.
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

@@ -1,5 +1,3 @@
-.. _split_page_table_lock:
-
 =====================
 Split page table lock
 =====================
@@ -16,15 +14,20 @@ tables. Access to higher level tables protected by mm->page_table_lock.
 There are helpers to lock/unlock a table and other accessor functions:
 
  - pte_offset_map_lock()
-	maps pte and takes PTE table lock, returns pointer to the taken
-	lock;
+	maps PTE and takes PTE table lock, returns pointer to PTE with
+	pointer to its PTE table lock, or returns NULL if no PTE table;
+ - pte_offset_map_nolock()
+	maps PTE, returns pointer to PTE with pointer to its PTE table
+	lock (not taken), or returns NULL if no PTE table;
+ - pte_offset_map()
+	maps PTE, returns pointer to PTE, or returns NULL if no PTE table;
+ - pte_unmap()
+	unmaps PTE table;
  - pte_unmap_unlock()
 	unlocks and unmaps PTE table;
  - pte_alloc_map_lock()
-	allocates PTE table if needed and take the lock, returns pointer
-	to taken lock or NULL if allocation failed;
- - pte_lockptr()
-	returns pointer to PTE table lock;
+	allocates PTE table if needed and takes its lock, returns pointer to
+	PTE with pointer to its lock, or returns NULL if allocation failed;
  - pmd_lock()
 	takes PMD table lock, returns pointer to taken lock;
  - pmd_lockptr()

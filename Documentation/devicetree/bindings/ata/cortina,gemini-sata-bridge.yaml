@@ -22,7 +22,6 @@ properties:
     maxItems: 1
 
   resets:
-    minItems: 2
     maxItems: 2
     description: phandles to the reset lines for both SATA bridges
 
@@ -32,7 +31,6 @@ properties:
       - const: sata1
 
   clocks:
-    minItems: 2
     maxItems: 2
     description: phandles to the compulsory peripheral clocks
 

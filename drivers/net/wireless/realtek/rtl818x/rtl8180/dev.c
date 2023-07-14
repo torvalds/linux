@@ -1608,6 +1608,7 @@ static void rtl8180_configure_filter(struct ieee80211_hw *dev,
 
 static const struct ieee80211_ops rtl8180_ops = {
 	.tx			= rtl8180_tx,
+	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= rtl8180_start,
 	.stop			= rtl8180_stop,
 	.add_interface		= rtl8180_add_interface,

@@ -47,6 +47,10 @@ static const struct of_device_id st_press_of_match[] = {
 		.compatible = "st,lps22hh",
 		.data = LPS22HH_PRESS_DEV_NAME,
 	},
+	{
+		.compatible = "st,lps22df",
+		.data = LPS22DF_PRESS_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_press_of_match);
@@ -67,12 +71,12 @@ static const struct i2c_device_id st_press_id_table[] = {
 	{ LPS33HW_PRESS_DEV_NAME, LPS33HW },
 	{ LPS35HW_PRESS_DEV_NAME, LPS35HW },
 	{ LPS22HH_PRESS_DEV_NAME, LPS22HH },
+	{ LPS22DF_PRESS_DEV_NAME, LPS22DF },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_press_id_table);
 
-static int st_press_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int st_press_i2c_probe(struct i2c_client *client)
 {
 	const struct st_sensor_settings *settings;
 	struct st_sensor_data *press_data;

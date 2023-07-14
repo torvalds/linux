@@ -132,9 +132,9 @@ static int pwm_imx_tpm_round_state(struct pwm_chip *chip,
 	return 0;
 }
 
-static void pwm_imx_tpm_get_state(struct pwm_chip *chip,
-				  struct pwm_device *pwm,
-				  struct pwm_state *state)
+static int pwm_imx_tpm_get_state(struct pwm_chip *chip,
+				 struct pwm_device *pwm,
+				 struct pwm_state *state)
 {
 	struct imx_tpm_pwm_chip *tpm = to_imx_tpm_pwm_chip(chip);
 	u32 rate, val, prescale;
@@ -164,6 +164,8 @@ static void pwm_imx_tpm_get_state(struct pwm_chip *chip,
 
 	/* get channel status */
 	state->enabled = FIELD_GET(PWM_IMX_TPM_CnSC_ELS, val) ? true : false;
+
+	return 0;
 }
 
 /* this function is supposed to be called with mutex hold */
@@ -379,15 +381,13 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int pwm_imx_tpm_remove(struct platform_device *pdev)
+static void pwm_imx_tpm_remove(struct platform_device *pdev)
 {
 	struct imx_tpm_pwm_chip *tpm = platform_get_drvdata(pdev);
 
 	pwmchip_remove(&tpm->chip);
 
 	clk_disable_unprepare(tpm->clk);
-
-	return 0;
 }
 
 static int __maybe_unused pwm_imx_tpm_suspend(struct device *dev)
@@ -396,6 +396,13 @@ static int __maybe_unused pwm_imx_tpm_suspend(struct device *dev)
 
 	if (tpm->enable_count > 0)
 		return -EBUSY;
+
+	/*
+	 * Force 'real_period' to be zero to force period update code
+	 * can be executed after system resume back, since suspend causes
+	 * the period related registers to become their reset values.
+	 */
+	tpm->real_period = 0;
 
 	clk_disable_unprepare(tpm->clk);
 
@@ -430,7 +437,7 @@ static struct platform_driver imx_tpm_pwm_driver = {
 		.pm = &imx_tpm_pwm_pm,
 	},
 	.probe	= pwm_imx_tpm_probe,
-	.remove = pwm_imx_tpm_remove,
+	.remove_new = pwm_imx_tpm_remove,
 };
 module_platform_driver(imx_tpm_pwm_driver);
 

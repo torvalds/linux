@@ -12,6 +12,7 @@
 #include <linux/time64.h>
 #include <linux/list.h>
 #include <linux/err.h>
+#include <linux/zalloc.h>
 #include <internal/lib.h>
 #include <subcmd/parse-options.h>
 
@@ -19,10 +20,10 @@
 #include "util/data.h"
 #include "util/stat.h"
 #include "util/debug.h"
-#include "util/event.h"
 #include "util/symbol.h"
 #include "util/session.h"
 #include "util/build-id.h"
+#include "util/sample.h"
 #include "util/synthetic-events.h"
 
 #define MMAP_DEV_MAJOR  8
@@ -122,7 +123,7 @@ static void release_dso(void)
 	for (i = 0; i < nr_dsos; i++) {
 		struct bench_dso *dso = &dsos[i];
 
-		free(dso->name);
+		zfree(&dso->name);
 	}
 	free(dsos);
 }

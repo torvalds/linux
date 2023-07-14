@@ -106,8 +106,7 @@ static const struct iio_info mc3230_info = {
 	.read_raw	= mc3230_read_raw,
 };
 
-static int mc3230_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int mc3230_probe(struct i2c_client *client)
 {
 	int ret;
 	struct iio_dev *indio_dev;

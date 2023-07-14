@@ -58,7 +58,7 @@ static void *cgroup_iter_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct cgroup_iter_priv *p = seq->private;
 
-	mutex_lock(&cgroup_mutex);
+	cgroup_lock();
 
 	/* cgroup_iter doesn't support read across multiple sessions. */
 	if (*pos > 0) {
@@ -89,7 +89,7 @@ static void cgroup_iter_seq_stop(struct seq_file *seq, void *v)
 {
 	struct cgroup_iter_priv *p = seq->private;
 
-	mutex_unlock(&cgroup_mutex);
+	cgroup_unlock();
 
 	/* pass NULL to the prog for post-processing */
 	if (!v) {
@@ -157,23 +157,37 @@ static const struct seq_operations cgroup_iter_seq_ops = {
 	.show   = cgroup_iter_seq_show,
 };
 
-BTF_ID_LIST_SINGLE(bpf_cgroup_btf_id, struct, cgroup)
+BTF_ID_LIST_GLOBAL_SINGLE(bpf_cgroup_btf_id, struct, cgroup)
 
 static int cgroup_iter_seq_init(void *priv, struct bpf_iter_aux_info *aux)
 {
 	struct cgroup_iter_priv *p = (struct cgroup_iter_priv *)priv;
 	struct cgroup *cgrp = aux->cgroup.start;
 
+	/* bpf_iter_attach_cgroup() has already acquired an extra reference
+	 * for the start cgroup, but the reference may be released after
+	 * cgroup_iter_seq_init(), so acquire another reference for the
+	 * start cgroup.
+	 */
 	p->start_css = &cgrp->self;
+	css_get(p->start_css);
 	p->terminate = false;
 	p->visited_all = false;
 	p->order = aux->cgroup.order;
 	return 0;
 }
 
+static void cgroup_iter_seq_fini(void *priv)
+{
+	struct cgroup_iter_priv *p = (struct cgroup_iter_priv *)priv;
+
+	css_put(p->start_css);
+}
+
 static const struct bpf_iter_seq_info cgroup_iter_seq_info = {
 	.seq_ops		= &cgroup_iter_seq_ops,
 	.init_seq_private	= cgroup_iter_seq_init,
+	.fini_seq_private	= cgroup_iter_seq_fini,
 	.seq_priv_size		= sizeof(struct cgroup_iter_priv),
 };
 
@@ -196,7 +210,7 @@ static int bpf_iter_attach_cgroup(struct bpf_prog *prog,
 		return -EINVAL;
 
 	if (fd)
-		cgrp = cgroup_get_from_fd(fd);
+		cgrp = cgroup_v1v2_get_from_fd(fd);
 	else if (id)
 		cgrp = cgroup_get_from_id(id);
 	else /* walk the entire hierarchy by default. */

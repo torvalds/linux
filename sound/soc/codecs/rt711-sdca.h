@@ -19,7 +19,6 @@ struct  rt711_sdca_priv {
 	struct regmap *regmap, *mbq_regmap;
 	struct snd_soc_component *component;
 	struct sdw_slave *slave;
-	enum sdw_slave_status status;
 	struct sdw_bus_params params;
 	bool hw_init;
 	bool first_hw_init;
@@ -34,10 +33,6 @@ struct  rt711_sdca_priv {
 	int hw_ver;
 	bool fu0f_dapm_mute, fu0f_mixer_l_mute, fu0f_mixer_r_mute;
 	bool fu1e_dapm_mute, fu1e_mixer_l_mute, fu1e_mixer_r_mute;
-};
-
-struct sdw_stream_data {
-	struct sdw_stream_runtime *sdw_stream;
 };
 
 /* NID */
@@ -127,12 +122,17 @@ struct sdw_stream_data {
 
 /* jack detect control 2 (0x09)(NID:20h) */
 #define RT711_JD2_2PORT_200K_DECODE_HP (0x1 << 13)
+#define RT711_JD2_2PORT_100K_DECODE_MASK (0x1 << 12)
+#define RT711_JD2_2PORT_100K_DECODE_HP (0x0 << 12)
 #define RT711_HP_JD_SEL_JD1 (0x0 << 1)
 #define RT711_HP_JD_SEL_JD2 (0x1 << 1)
 
 /* CC DET1 (0x11)(NID:20h) */
 #define RT711_HP_JD_FINAL_RESULT_CTL_JD12 (0x1 << 10)
 #define RT711_HP_JD_FINAL_RESULT_CTL_CCDET (0x0 << 10)
+#define RT711_POW_CC1_AGPI (0x1 << 5)
+#define RT711_POW_CC1_AGPI_ON (0x1 << 5)
+#define RT711_POW_CC1_AGPI_OFF (0x0 << 5)
 
 /* Parameter & Verb control (0x1a)(NID:20h) */
 #define RT711_HIDDEN_REG_SW_RESET (0x1 << 14)
@@ -226,7 +226,8 @@ enum {
 enum rt711_sdca_jd_src {
 	RT711_JD_NULL,
 	RT711_JD1,
-	RT711_JD2
+	RT711_JD2,
+	RT711_JD2_100K
 };
 
 enum rt711_sdca_ver {

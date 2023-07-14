@@ -7,13 +7,11 @@
 #ifndef _CRYPTO_ALGAPI_H
 #define _CRYPTO_ALGAPI_H
 
+#include <crypto/utils.h>
 #include <linux/align.h>
+#include <linux/cache.h>
 #include <linux/crypto.h>
-#include <linux/kconfig.h>
-#include <linux/list.h>
 #include <linux/types.h>
-
-#include <asm/unaligned.h>
 
 /*
  * Maximum values for blocksize and alignmask, used to allocate
@@ -21,26 +19,50 @@
  * algs and architectures. Ciphers have a lower maximum size.
  */
 #define MAX_ALGAPI_BLOCKSIZE		160
-#define MAX_ALGAPI_ALIGNMASK		63
+#define MAX_ALGAPI_ALIGNMASK		127
 #define MAX_CIPHER_BLOCKSIZE		16
 #define MAX_CIPHER_ALIGNMASK		15
+
+#ifdef ARCH_DMA_MINALIGN
+#define CRYPTO_DMA_ALIGN ARCH_DMA_MINALIGN
+#else
+#define CRYPTO_DMA_ALIGN CRYPTO_MINALIGN
+#endif
+
+#define CRYPTO_DMA_PADDING ((CRYPTO_DMA_ALIGN - 1) & ~(CRYPTO_MINALIGN - 1))
+
+/*
+ * Autoloaded crypto modules should only use a prefixed name to avoid allowing
+ * arbitrary modules to be loaded. Loading from userspace may still need the
+ * unprefixed names, so retains those aliases as well.
+ * This uses __MODULE_INFO directly instead of MODULE_ALIAS because pre-4.3
+ * gcc (e.g. avr32 toolchain) uses __LINE__ for uniqueness, and this macro
+ * expands twice on the same line. Instead, use a separate base name for the
+ * alias.
+ */
+#define MODULE_ALIAS_CRYPTO(name)	\
+		__MODULE_INFO(alias, alias_userspace, name);	\
+		__MODULE_INFO(alias, alias_crypto, "crypto-" name)
 
 struct crypto_aead;
 struct crypto_instance;
 struct module;
 struct notifier_block;
 struct rtattr;
+struct scatterlist;
 struct seq_file;
 struct sk_buff;
 
 struct crypto_type {
 	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
 	unsigned int (*extsize)(struct crypto_alg *alg);
-	int (*init)(struct crypto_tfm *tfm, u32 type, u32 mask);
 	int (*init_tfm)(struct crypto_tfm *tfm);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
 	void (*free)(struct crypto_instance *inst);
+#ifdef CONFIG_CRYPTO_STATS
+	int (*report_stat)(struct sk_buff *skb, struct crypto_alg *alg);
+#endif
 
 	unsigned int type;
 	unsigned int maskclear;
@@ -110,6 +132,14 @@ struct crypto_attr_type {
 	u32 mask;
 };
 
+/*
+ * Algorithm registration interface.
+ */
+int crypto_register_alg(struct crypto_alg *alg);
+void crypto_unregister_alg(struct crypto_alg *alg);
+int crypto_register_algs(struct crypto_alg *algs, int count);
+void crypto_unregister_algs(struct crypto_alg *algs, int count);
+
 void crypto_mod_put(struct crypto_alg *alg);
 
 int crypto_register_template(struct crypto_template *tmpl);
@@ -147,52 +177,39 @@ static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 }
 
 void crypto_inc(u8 *a, unsigned int size);
-void __crypto_xor(u8 *dst, const u8 *src1, const u8 *src2, unsigned int size);
 
-static inline void crypto_xor(u8 *dst, const u8 *src, unsigned int size)
+static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
 {
-	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
-	    __builtin_constant_p(size) &&
-	    (size % sizeof(unsigned long)) == 0) {
-		unsigned long *d = (unsigned long *)dst;
-		unsigned long *s = (unsigned long *)src;
-		unsigned long l;
-
-		while (size > 0) {
-			l = get_unaligned(d) ^ get_unaligned(s++);
-			put_unaligned(l, d++);
-			size -= sizeof(unsigned long);
-		}
-	} else {
-		__crypto_xor(dst, dst, src, size);
-	}
+	return tfm->__crt_ctx;
 }
 
-static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
-				  unsigned int size)
+static inline void *crypto_tfm_ctx_align(struct crypto_tfm *tfm,
+					 unsigned int align)
 {
-	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
-	    __builtin_constant_p(size) &&
-	    (size % sizeof(unsigned long)) == 0) {
-		unsigned long *d = (unsigned long *)dst;
-		unsigned long *s1 = (unsigned long *)src1;
-		unsigned long *s2 = (unsigned long *)src2;
-		unsigned long l;
+	if (align <= crypto_tfm_ctx_alignment())
+		align = 1;
 
-		while (size > 0) {
-			l = get_unaligned(s1++) ^ get_unaligned(s2++);
-			put_unaligned(l, d++);
-			size -= sizeof(unsigned long);
-		}
-	} else {
-		__crypto_xor(dst, src1, src2, size);
-	}
+	return PTR_ALIGN(crypto_tfm_ctx(tfm), align);
 }
 
 static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
 {
-	return PTR_ALIGN(crypto_tfm_ctx(tfm),
-			 crypto_tfm_alg_alignmask(tfm) + 1);
+	return crypto_tfm_ctx_align(tfm, crypto_tfm_alg_alignmask(tfm) + 1);
+}
+
+static inline unsigned int crypto_dma_align(void)
+{
+	return CRYPTO_DMA_ALIGN;
+}
+
+static inline unsigned int crypto_dma_padding(void)
+{
+	return (crypto_dma_align() - 1) & ~(crypto_tfm_ctx_alignment() - 1);
+}
+
+static inline void *crypto_tfm_ctx_dma(struct crypto_tfm *tfm)
+{
+	return crypto_tfm_ctx_align(tfm, crypto_dma_align());
 }
 
 static inline struct crypto_instance *crypto_tfm_alg_instance(
@@ -238,23 +255,6 @@ static inline u32 crypto_algt_inherited_mask(struct crypto_attr_type *algt)
 	return crypto_requires_off(algt, CRYPTO_ALG_INHERITED_FLAGS);
 }
 
-noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
-
-/**
- * crypto_memneq - Compare two areas of memory without leaking
- *		   timing information.
- *
- * @a: One area of memory
- * @b: Another area of memory
- * @size: The size of the area.
- *
- * Returns 0 when data is equal, 1 otherwise.
- */
-static inline int crypto_memneq(const void *a, const void *b, size_t size)
-{
-	return __crypto_memneq(a, b, size) != 0UL ? 1 : 0;
-}
-
 int crypto_register_notifier(struct notifier_block *nb);
 int crypto_unregister_notifier(struct notifier_block *nb);
 
@@ -264,5 +264,16 @@ enum {
 	CRYPTO_MSG_ALG_REGISTER,
 	CRYPTO_MSG_ALG_LOADED,
 };
+
+static inline void crypto_request_complete(struct crypto_async_request *req,
+					   int err)
+{
+	req->complete(req->data, err);
+}
+
+static inline u32 crypto_tfm_alg_type(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK;
+}
 
 #endif	/* _CRYPTO_ALGAPI_H */

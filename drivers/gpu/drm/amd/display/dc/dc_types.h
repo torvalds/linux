@@ -32,14 +32,15 @@
 #include "os_types.h"
 #include "fixed31_32.h"
 #include "irq_types.h"
+#include "dc_ddc_types.h"
 #include "dc_dp_types.h"
+#include "dc_hdmi_types.h"
 #include "dc_hw_types.h"
 #include "dal_types.h"
 #include "grph_object_defs.h"
+#include "grph_object_ctrl_defs.h"
 
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 #include "dm_cp_psp.h"
-#endif
 
 /* forward declarations */
 struct dc_plane_state;
@@ -68,13 +69,6 @@ enum dce_environment {
 	DCE_ENV_VIRTUAL_HW
 };
 
-/* Note: use these macro definitions instead of direct comparison! */
-#define IS_FPGA_MAXIMUS_DC(dce_environment) \
-	(dce_environment == DCE_ENV_FPGA_MAXIMUS)
-
-#define IS_DIAG_DC(dce_environment) \
-	(IS_FPGA_MAXIMUS_DC(dce_environment) || (dce_environment == DCE_ENV_DIAG))
-
 struct dc_perf_trace {
 	unsigned long read_count;
 	unsigned long write_count;
@@ -82,13 +76,8 @@ struct dc_perf_trace {
 	unsigned long last_entry_write;
 };
 
-#define DC_MAX_EDID_BUFFER_SIZE 2048
-#define DC_EDID_BLOCK_SIZE 128
-#define MAX_SURFACE_NUM 4
+#define MAX_SURFACE_NUM 6
 #define NUM_PIXEL_FORMATS 10
-#define MAX_REPEATER_CNT 8
-
-#include "dc_ddc_types.h"
 
 enum tiling_mode {
 	TILING_MODE_INVALID,
@@ -200,6 +189,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
+	unsigned int delay_disable_aux_intercept_ms;
 };
 
 struct dc_edid_caps {
@@ -374,66 +364,6 @@ struct dc_csc_adjustments {
 	struct fixed31_32 hue;
 };
 
-enum dpcd_downstream_port_max_bpc {
-	DOWN_STREAM_MAX_8BPC = 0,
-	DOWN_STREAM_MAX_10BPC,
-	DOWN_STREAM_MAX_12BPC,
-	DOWN_STREAM_MAX_16BPC
-};
-
-
-enum link_training_offset {
-	DPRX                = 0,
-	LTTPR_PHY_REPEATER1 = 1,
-	LTTPR_PHY_REPEATER2 = 2,
-	LTTPR_PHY_REPEATER3 = 3,
-	LTTPR_PHY_REPEATER4 = 4,
-	LTTPR_PHY_REPEATER5 = 5,
-	LTTPR_PHY_REPEATER6 = 6,
-	LTTPR_PHY_REPEATER7 = 7,
-	LTTPR_PHY_REPEATER8 = 8
-};
-
-struct dc_lttpr_caps {
-	union dpcd_rev revision;
-	uint8_t mode;
-	uint8_t max_lane_count;
-	uint8_t max_link_rate;
-	uint8_t phy_repeater_cnt;
-	uint8_t max_ext_timeout;
-	union dp_main_link_channel_coding_lttpr_cap main_link_channel_coding;
-	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
-	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
-};
-
-struct dc_dongle_dfp_cap_ext {
-	bool supported;
-	uint16_t max_pixel_rate_in_mps;
-	uint16_t max_video_h_active_width;
-	uint16_t max_video_v_active_height;
-	struct dp_encoding_format_caps encoding_format_caps;
-	struct dp_color_depth_caps rgb_color_depth_caps;
-	struct dp_color_depth_caps ycbcr444_color_depth_caps;
-	struct dp_color_depth_caps ycbcr422_color_depth_caps;
-	struct dp_color_depth_caps ycbcr420_color_depth_caps;
-};
-
-struct dc_dongle_caps {
-	/* dongle type (DP converter, CV smart dongle) */
-	enum display_dongle_type dongle_type;
-	bool extendedCapValid;
-	/* If dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER,
-	indicates 'Frame Sequential-to-lllFrame Pack' conversion capability.*/
-	bool is_dp_hdmi_s3d_converter;
-	bool is_dp_hdmi_ycbcr422_pass_through;
-	bool is_dp_hdmi_ycbcr420_pass_through;
-	bool is_dp_hdmi_ycbcr422_converter;
-	bool is_dp_hdmi_ycbcr420_converter;
-	uint32_t dp_hdmi_max_bpc;
-	uint32_t dp_hdmi_max_pixel_clk_in_khz;
-	uint32_t dp_hdmi_frl_max_link_bw_in_kbps;
-	struct dc_dongle_dfp_cap_ext dfp_cap_ext;
-};
 /* Scaling format */
 enum scaling_transformation {
 	SCALING_TRANSFORMATION_UNINITIALIZED,
@@ -667,6 +597,7 @@ enum dc_psr_state {
 	PSR_STATE4b_FULL_FRAME,
 	PSR_STATE4c_FULL_FRAME,
 	PSR_STATE4_FULL_FRAME_POWERUP,
+	PSR_STATE4_FULL_FRAME_HW_LOCK,
 	PSR_STATE5,
 	PSR_STATE5a,
 	PSR_STATE5b,
@@ -690,6 +621,7 @@ struct psr_config {
 	uint8_t su_y_granularity;
 	unsigned int line_time_in_us;
 	uint8_t rate_control_caps;
+	uint16_t dsc_slice_height;
 };
 
 union dmcu_psr_level {
@@ -801,6 +733,7 @@ struct psr_context {
 	uint8_t su_y_granularity;
 	unsigned int line_time_in_us;
 	uint8_t rate_control_caps;
+	uint16_t dsc_slice_height;
 };
 
 struct colorspace_transform {
@@ -873,9 +806,7 @@ struct dc_context {
 	uint32_t dc_edp_id_count;
 	uint64_t fbc_gpu_addr;
 	struct dc_dmub_srv *dmub_srv;
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct cp_psp cp_psp;
-#endif
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
 };
@@ -991,6 +922,164 @@ enum display_endpoint_type {
 struct display_endpoint_id {
 	struct graphics_object_id link_id;
 	enum display_endpoint_type ep_type;
+};
+
+#if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+struct otg_phy_mux {
+	uint8_t phy_output_num;
+	uint8_t otg_output_num;
+};
+#endif
+
+enum dc_detect_reason {
+	DETECT_REASON_BOOT,
+	DETECT_REASON_RESUMEFROMS3S4,
+	DETECT_REASON_HPD,
+	DETECT_REASON_HPDRX,
+	DETECT_REASON_FALLBACK,
+	DETECT_REASON_RETRAIN,
+	DETECT_REASON_TDR,
+};
+
+struct dc_link_status {
+	bool link_active;
+	struct dpcd_caps *dpcd_caps;
+};
+
+union hdcp_rx_caps {
+	struct {
+		uint8_t version;
+		uint8_t reserved;
+		struct {
+			uint8_t repeater	: 1;
+			uint8_t hdcp_capable	: 1;
+			uint8_t reserved	: 6;
+		} byte0;
+	} fields;
+	uint8_t raw[3];
+};
+
+union hdcp_bcaps {
+	struct {
+		uint8_t HDCP_CAPABLE:1;
+		uint8_t REPEATER:1;
+		uint8_t RESERVED:6;
+	} bits;
+	uint8_t raw;
+};
+
+struct hdcp_caps {
+	union hdcp_rx_caps rx_caps;
+	union hdcp_bcaps bcaps;
+};
+
+/* DP MST stream allocation (payload bandwidth number) */
+struct link_mst_stream_allocation {
+	/* DIG front */
+	const struct stream_encoder *stream_enc;
+	/* HPO DP Stream Encoder */
+	const struct hpo_dp_stream_encoder *hpo_dp_stream_enc;
+	/* associate DRM payload table with DC stream encoder */
+	uint8_t vcp_id;
+	/* number of slots required for the DP stream in transport packet */
+	uint8_t slot_count;
+};
+
+#define MAX_CONTROLLER_NUM 6
+
+/* DP MST stream allocation table */
+struct link_mst_stream_allocation_table {
+	/* number of DP video streams */
+	int stream_count;
+	/* array of stream allocations */
+	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
+};
+
+/* PSR feature flags */
+struct psr_settings {
+	bool psr_feature_enabled;		// PSR is supported by sink
+	bool psr_allow_active;			// PSR is currently active
+	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
+	bool psr_vtotal_control_support;	// Vtotal control is supported by sink
+	unsigned long long psr_dirty_rects_change_timestamp_ns;	// for delay of enabling PSR-SU
+
+	/* These parameters are calculated in Driver,
+	 * based on display timing and Sink capabilities.
+	 * If VBLANK region is too small and Sink takes a long time
+	 * to set up RFB, it may take an extra frame to enter PSR state.
+	 */
+	bool psr_frame_capture_indication_req;
+	unsigned int psr_sdp_transmit_line_num_deadline;
+	uint8_t force_ffu_mode;
+	unsigned int psr_power_opt;
+};
+
+/* To split out "global" and "per-panel" config settings.
+ * Add a struct dc_panel_config under dc_link
+ */
+struct dc_panel_config {
+	/* extra panel power sequence parameters */
+	struct pps {
+		unsigned int extra_t3_ms;
+		unsigned int extra_t7_ms;
+		unsigned int extra_delay_backlight_off;
+		unsigned int extra_post_t7_ms;
+		unsigned int extra_pre_t11_ms;
+		unsigned int extra_t12_ms;
+		unsigned int extra_post_OUI_ms;
+	} pps;
+	/* nit brightness */
+	struct nits_brightness {
+		unsigned int peak; /* nits */
+		unsigned int max_avg; /* nits */
+		unsigned int min; /* 1/10000 nits */
+		unsigned int max_nonboost_brightness_millinits;
+		unsigned int min_brightness_millinits;
+	} nits_brightness;
+	/* PSR */
+	struct psr {
+		bool disable_psr;
+		bool disallow_psrsu;
+		bool rc_disable;
+		bool rc_allow_static_screen;
+		bool rc_allow_fullscreen_VPB;
+	} psr;
+	/* ABM */
+	struct varib {
+		unsigned int varibright_feature_enable;
+		unsigned int def_varibright_level;
+		unsigned int abm_config_setting;
+	} varib;
+	/* edp DSC */
+	struct dsc {
+		bool disable_dsc_edp;
+		unsigned int force_dsc_edp_policy;
+	} dsc;
+	/* eDP ILR */
+	struct ilr {
+		bool optimize_edp_link_rate; /* eDP ILR */
+	} ilr;
+};
+
+/*
+ *  USB4 DPIA BW ALLOCATION STRUCTS
+ */
+struct dc_dpia_bw_alloc {
+	int sink_verified_bw;  // The Verified BW that sink can allocated and use that has been verified already
+	int sink_allocated_bw; // The Actual Allocated BW that sink currently allocated
+	int sink_max_bw;       // The Max BW that sink can require/support
+	int estimated_bw;      // The estimated available BW for this DPIA
+	int bw_granularity;    // BW Granularity
+	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
+	bool response_ready;   // Response ready from the CM side
+};
+
+#define MAX_SINKS_PER_LINK 4
+
+enum dc_hpd_enable_select {
+	HPD_EN_FOR_ALL_EDP = 0,
+	HPD_EN_FOR_PRIMARY_EDP_ONLY,
+	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
 #endif /* DC_TYPES_H_ */

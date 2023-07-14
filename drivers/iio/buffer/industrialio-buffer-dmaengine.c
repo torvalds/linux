@@ -142,8 +142,8 @@ static ssize_t iio_dmaengine_buffer_get_length_align(struct device *dev,
 static IIO_DEVICE_ATTR(length_align_bytes, 0444,
 		       iio_dmaengine_buffer_get_length_align, NULL, 0);
 
-static const struct attribute *iio_dmaengine_buffer_attrs[] = {
-	&iio_dev_attr_length_align_bytes.dev_attr.attr,
+static const struct iio_dev_attr *iio_dmaengine_buffer_attrs[] = {
+	&iio_dev_attr_length_align_bytes,
 	NULL,
 };
 

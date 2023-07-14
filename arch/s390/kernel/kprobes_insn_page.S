@@ -13,10 +13,10 @@
  * would be in the data section instead.
  */
 	.section .kprobes.text, "ax"
-	.align 4096
-ENTRY(kprobes_insn_page)
+	.balign 4096
+SYM_CODE_START(kprobes_insn_page)
 	.rept 2048
 	.word 0x07fe
 	.endr
-ENDPROC(kprobes_insn_page)
+SYM_CODE_END(kprobes_insn_page)
 	.previous

@@ -54,7 +54,8 @@
 #define HCLGE_COMM_NIC_SW_RST_RDY		BIT(HCLGE_COMM_NIC_SW_RST_RDY_B)
 #define HCLGE_COMM_NIC_CMQ_DESC_NUM_S		3
 #define HCLGE_COMM_NIC_CMQ_DESC_NUM		1024
-#define HCLGE_COMM_CMDQ_TX_TIMEOUT		30000
+#define HCLGE_COMM_CMDQ_TX_TIMEOUT_DEFAULT	30000
+#define HCLGE_COMM_CMDQ_TX_TIMEOUT_500MS	500000
 
 enum hclge_opcode_type {
 	/* Generic commands */
@@ -294,6 +295,8 @@ enum hclge_opcode_type {
 	HCLGE_PPP_CMD0_INT_CMD		= 0x2100,
 	HCLGE_PPP_CMD1_INT_CMD		= 0x2101,
 	HCLGE_MAC_ETHERTYPE_IDX_RD      = 0x2105,
+	HCLGE_OPC_WOL_GET_SUPPORTED_MODE	= 0x2201,
+	HCLGE_OPC_WOL_CFG		= 0x2202,
 	HCLGE_NCSI_INT_EN		= 0x2401,
 
 	/* ROH MAC commands */
@@ -345,6 +348,7 @@ enum HCLGE_COMM_CAP_BITS {
 	HCLGE_COMM_CAP_FD_B = 21,
 	HCLGE_COMM_CAP_FEC_STATS_B = 25,
 	HCLGE_COMM_CAP_LANE_NUM_B = 27,
+	HCLGE_COMM_CAP_WOL_B = 28,
 };
 
 enum HCLGE_COMM_API_CAP_BITS {
@@ -355,6 +359,11 @@ enum HCLGE_COMM_API_CAP_BITS {
 struct hclge_comm_caps_bit_map {
 	u16 imp_bit;
 	u16 local_bit;
+};
+
+struct hclge_cmdq_tx_timeout_map {
+	u32 opcode;
+	u32 tx_timeout;
 };
 
 struct hclge_comm_firmware_compat_cmd {

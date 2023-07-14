@@ -303,53 +303,24 @@ static void bcm_uart_do_rx(struct uart_port *port)
  */
 static void bcm_uart_do_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit;
-	unsigned int val, max_count;
-
-	if (port->x_char) {
-		bcm_uart_writel(port, port->x_char, UART_FIFO_REG);
-		port->icount.tx++;
-		port->x_char = 0;
-		return;
-	}
-
-	if (uart_tx_stopped(port)) {
-		bcm_uart_stop_tx(port);
-		return;
-	}
-
-	xmit = &port->state->xmit;
-	if (uart_circ_empty(xmit))
-		goto txq_empty;
+	unsigned int val;
+	bool pending;
+	u8 ch;
 
 	val = bcm_uart_readl(port, UART_MCTL_REG);
 	val = (val & UART_MCTL_TXFIFOFILL_MASK) >> UART_MCTL_TXFIFOFILL_SHIFT;
-	max_count = port->fifosize - val;
 
-	while (max_count--) {
-		unsigned int c;
+	pending = uart_port_tx_limited(port, ch, port->fifosize - val,
+		true,
+		bcm_uart_writel(port, ch, UART_FIFO_REG),
+		({}));
+	if (pending)
+		return;
 
-		c = xmit->buf[xmit->tail];
-		bcm_uart_writel(port, c, UART_FIFO_REG);
-		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		port->icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(port);
-
-	if (uart_circ_empty(xmit))
-		goto txq_empty;
-	return;
-
-txq_empty:
 	/* nothing to send, disable transmit interrupt */
 	val = bcm_uart_readl(port, UART_IR_REG);
 	val &= ~UART_TX_INT_MASK;
 	bcm_uart_writel(port, val, UART_IR_REG);
-	return;
 }
 
 /*
@@ -492,9 +463,8 @@ static void bcm_uart_shutdown(struct uart_port *port)
 /*
  * serial core request to change current uart setting
  */
-static void bcm_uart_set_termios(struct uart_port *port,
-				 struct ktermios *new,
-				 struct ktermios *old)
+static void bcm_uart_set_termios(struct uart_port *port, struct ktermios *new,
+				 const struct ktermios *old)
 {
 	unsigned int ctl, baud, quot, ier;
 	unsigned long flags;
@@ -626,6 +596,40 @@ static int bcm_uart_verify_port(struct uart_port *port,
 	return 0;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+/*
+ * return true when outstanding tx equals fifo size
+ */
+static bool bcm_uart_tx_full(struct uart_port *port)
+{
+	unsigned int val;
+
+	val = bcm_uart_readl(port, UART_MCTL_REG);
+	val = (val & UART_MCTL_TXFIFOFILL_MASK) >> UART_MCTL_TXFIFOFILL_SHIFT;
+	return !(port->fifosize - val);
+}
+
+static int bcm_uart_poll_get_char(struct uart_port *port)
+{
+	unsigned int iestat;
+
+	iestat = bcm_uart_readl(port, UART_IR_REG);
+	if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
+		return NO_POLL_CHAR;
+
+	return bcm_uart_readl(port, UART_FIFO_REG);
+}
+
+static void bcm_uart_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	while (bcm_uart_tx_full(port)) {
+		cpu_relax();
+	}
+
+	bcm_uart_writel(port, c, UART_FIFO_REG);
+}
+#endif
+
 /* serial core callbacks */
 static const struct uart_ops bcm_uart_ops = {
 	.tx_empty	= bcm_uart_tx_empty,
@@ -644,6 +648,10 @@ static const struct uart_ops bcm_uart_ops = {
 	.request_port	= bcm_uart_request_port,
 	.config_port	= bcm_uart_config_port,
 	.verify_port	= bcm_uart_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char  = bcm_uart_poll_get_char,
+	.poll_put_char  = bcm_uart_poll_put_char,
+#endif
 };
 
 

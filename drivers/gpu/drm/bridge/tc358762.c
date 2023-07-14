@@ -11,6 +11,8 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
@@ -19,7 +21,6 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -63,6 +64,7 @@ struct tc358762 {
 	struct drm_bridge bridge;
 	struct regulator *regulator;
 	struct drm_bridge *panel_bridge;
+	struct gpio_desc *reset_gpio;
 	bool pre_enabled;
 	int error;
 };
@@ -138,6 +140,9 @@ static void tc358762_post_disable(struct drm_bridge *bridge)
 
 	ctx->pre_enabled = false;
 
+	if (ctx->reset_gpio)
+		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+
 	ret = regulator_disable(ctx->regulator);
 	if (ret < 0)
 		dev_err(ctx->dev, "error disabling regulators (%d)\n", ret);
@@ -151,6 +156,11 @@ static void tc358762_pre_enable(struct drm_bridge *bridge)
 	ret = regulator_enable(ctx->regulator);
 	if (ret < 0)
 		dev_err(ctx->dev, "error enabling regulators (%d)\n", ret);
+
+	if (ctx->reset_gpio) {
+		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+		usleep_range(5000, 10000);
+	}
 
 	ret = tc358762_init(ctx);
 	if (ret < 0)
@@ -184,6 +194,11 @@ static int tc358762_parse_dt(struct tc358762 *ctx)
 		return PTR_ERR(panel_bridge);
 
 	ctx->panel_bridge = panel_bridge;
+
+	/* Reset GPIO is optional */
+	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(ctx->reset_gpio))
+		return PTR_ERR(ctx->reset_gpio);
 
 	return 0;
 }
@@ -229,6 +244,7 @@ static int tc358762_probe(struct mipi_dsi_device *dsi)
 	ctx->bridge.funcs = &tc358762_bridge_funcs;
 	ctx->bridge.type = DRM_MODE_CONNECTOR_DPI;
 	ctx->bridge.of_node = dev->of_node;
+	ctx->bridge.pre_enable_prev_first = true;
 
 	drm_bridge_add(&ctx->bridge);
 
@@ -241,14 +257,12 @@ static int tc358762_probe(struct mipi_dsi_device *dsi)
 	return ret;
 }
 
-static int tc358762_remove(struct mipi_dsi_device *dsi)
+static void tc358762_remove(struct mipi_dsi_device *dsi)
 {
 	struct tc358762 *ctx = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_bridge_remove(&ctx->bridge);
-
-	return 0;
 }
 
 static const struct of_device_id tc358762_of_match[] = {

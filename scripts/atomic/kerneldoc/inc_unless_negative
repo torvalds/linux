@@ -1,0 +1,12 @@
+cat <<EOF
+/**
+ * ${class}${atomicname}() - atomic increment unless negative with ${desc_order} ordering
+ * @v: pointer to ${atomic}_t
+ *
+ * If (@v >= 0), atomically updates @v to (@v + 1) with ${desc_order} ordering.
+ *
+ * ${desc_noinstr}
+ *
+ * Return: @true if @v was updated, @false otherwise.
+ */
+EOF

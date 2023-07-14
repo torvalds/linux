@@ -446,7 +446,8 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 
 	dsi->lanes = 1;
 	dsi->format = MIPI_DSI_FMT_RGB888;
-	dsi->mode_flags = MIPI_DSI_MODE_NO_EOT_PACKET;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO_NO_HFP |
+		MIPI_DSI_MODE_VIDEO_NO_HBP | MIPI_DSI_MODE_VIDEO_NO_HSA;
 
 	ctx->supplies[0].supply = "vdd3";
 	ctx->supplies[1].supply = "vci";
@@ -462,6 +463,7 @@ static int s6e63j0x03_probe(struct mipi_dsi_device *dsi)
 
 	drm_panel_init(&ctx->panel, dev, &s6e63j0x03_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
+	ctx->panel.prepare_prev_first = true;
 
 	ctx->bl_dev = backlight_device_register("s6e63j0x03", dev, ctx,
 						&s6e63j0x03_bl_ops, NULL);
@@ -488,7 +490,7 @@ remove_panel:
 	return ret;
 }
 
-static int s6e63j0x03_remove(struct mipi_dsi_device *dsi)
+static void s6e63j0x03_remove(struct mipi_dsi_device *dsi)
 {
 	struct s6e63j0x03 *ctx = mipi_dsi_get_drvdata(dsi);
 
@@ -496,8 +498,6 @@ static int s6e63j0x03_remove(struct mipi_dsi_device *dsi)
 	drm_panel_remove(&ctx->panel);
 
 	backlight_device_unregister(ctx->bl_dev);
-
-	return 0;
 }
 
 static const struct of_device_id s6e63j0x03_of_match[] = {

@@ -227,7 +227,7 @@ static const struct regmap_config retu_config = {
 	.val_bits = 16,
 };
 
-static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static int retu_probe(struct i2c_client *i2c)
 {
 	struct retu_data const *rdat;
 	struct retu_dev *rdev;

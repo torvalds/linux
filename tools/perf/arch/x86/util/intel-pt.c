@@ -11,6 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/log2.h>
 #include <linux/zalloc.h>
+#include <linux/err.h>
 #include <cpuid.h>
 
 #include "../../../util/session.h"
@@ -22,7 +23,7 @@
 #include "../../../util/mmap.h"
 #include <subcmd/parse-options.h>
 #include "../../../util/parse-events.h"
-#include "../../../util/pmu.h"
+#include "../../../util/pmus.h"
 #include "../../../util/debug.h"
 #include "../../../util/auxtrace.h"
 #include "../../../util/perf_api_probe.h"
@@ -193,16 +194,19 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	int pos = 0;
 	u64 config;
 	char c;
+	int dirfd;
+
+	dirfd = perf_pmu__event_source_devices_fd();
 
 	pos += scnprintf(buf + pos, sizeof(buf) - pos, "tsc");
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "caps/mtc", "%d",
-				&mtc) != 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/mtc", "%d",
+				   &mtc) != 1)
 		mtc = 1;
 
 	if (mtc) {
-		if (perf_pmu__scan_file(intel_pt_pmu, "caps/mtc_periods", "%x",
-					&mtc_periods) != 1)
+		if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/mtc_periods", "%x",
+					   &mtc_periods) != 1)
 			mtc_periods = 0;
 		if (mtc_periods) {
 			mtc_period = intel_pt_pick_bit(mtc_periods, 3);
@@ -211,13 +215,13 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 		}
 	}
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "caps/psb_cyc", "%d",
-				&psb_cyc) != 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/psb_cyc", "%d",
+				   &psb_cyc) != 1)
 		psb_cyc = 1;
 
 	if (psb_cyc && mtc_periods) {
-		if (perf_pmu__scan_file(intel_pt_pmu, "caps/psb_periods", "%x",
-					&psb_periods) != 1)
+		if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "caps/psb_periods", "%x",
+					   &psb_periods) != 1)
 			psb_periods = 0;
 		if (psb_periods) {
 			psb_period = intel_pt_pick_bit(psb_periods, 3);
@@ -226,8 +230,8 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 		}
 	}
 
-	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
-	    perf_pmu__scan_file(intel_pt_pmu, "format/branch", "%c", &c) == 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "format/pt", "%c", &c) == 1 &&
+	    perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "format/branch", "%c", &c) == 1)
 		pos += scnprintf(buf + pos, sizeof(buf) - pos, ",pt,branch");
 
 	pr_debug2("%s default config: %s\n", intel_pt_pmu->name, buf);
@@ -235,6 +239,7 @@ static u64 intel_pt_default_config(struct perf_pmu *intel_pt_pmu)
 	intel_pt_parse_terms(intel_pt_pmu->name, &intel_pt_pmu->format, buf,
 			     &config);
 
+	close(dirfd);
 	return config;
 }
 
@@ -417,6 +422,7 @@ static int intel_pt_info_fill(struct auxtrace_record *itr,
 	return 0;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int intel_pt_track_switches(struct evlist *evlist)
 {
 	const char *sched_switch = "sched:sched_switch";
@@ -426,24 +432,19 @@ static int intel_pt_track_switches(struct evlist *evlist)
 	if (!evlist__can_select_event(evlist, sched_switch))
 		return -EPERM;
 
-	err = parse_event(evlist, sched_switch);
-	if (err) {
-		pr_debug2("%s: failed to parse %s, error %d\n",
+	evsel = evlist__add_sched_switch(evlist, true);
+	if (IS_ERR(evsel)) {
+		err = PTR_ERR(evsel);
+		pr_debug2("%s: failed to create %s, error = %d\n",
 			  __func__, sched_switch, err);
 		return err;
 	}
 
-	evsel = evlist__last(evlist);
-
-	evsel__set_sample_bit(evsel, CPU);
-	evsel__set_sample_bit(evsel, TIME);
-
-	evsel->core.system_wide = true;
-	evsel->no_aux_samples = true;
 	evsel->immediate = true;
 
 	return 0;
 }
+#endif
 
 static void intel_pt_valid_str(char *str, size_t len, u64 valid)
 {
@@ -491,7 +492,7 @@ static void intel_pt_valid_str(char *str, size_t len, u64 valid)
 	}
 }
 
-static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu,
+static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu, int dirfd,
 				    const char *caps, const char *name,
 				    const char *supported, u64 config)
 {
@@ -501,11 +502,11 @@ static int intel_pt_val_config_term(struct perf_pmu *intel_pt_pmu,
 	u64 bits;
 	int ok;
 
-	if (perf_pmu__scan_file(intel_pt_pmu, caps, "%llx", &valid) != 1)
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, caps, "%llx", &valid) != 1)
 		valid = 0;
 
 	if (supported &&
-	    perf_pmu__scan_file(intel_pt_pmu, supported, "%d", &ok) == 1 && !ok)
+	    perf_pmu__scan_file_at(intel_pt_pmu, dirfd, supported, "%d", &ok) == 1 && !ok)
 		valid = 0;
 
 	valid |= 1;
@@ -534,56 +535,45 @@ out_err:
 static int intel_pt_validate_config(struct perf_pmu *intel_pt_pmu,
 				    struct evsel *evsel)
 {
-	int err;
+	int err, dirfd;
 	char c;
 
 	if (!evsel)
 		return 0;
 
+	dirfd = perf_pmu__event_source_devices_fd();
+	if (dirfd < 0)
+		return dirfd;
+
 	/*
 	 * If supported, force pass-through config term (pt=1) even if user
 	 * sets pt=0, which avoids senseless kernel errors.
 	 */
-	if (perf_pmu__scan_file(intel_pt_pmu, "format/pt", "%c", &c) == 1 &&
+	if (perf_pmu__scan_file_at(intel_pt_pmu, dirfd, "format/pt", "%c", &c) == 1 &&
 	    !(evsel->core.attr.config & 1)) {
 		pr_warning("pt=0 doesn't make sense, forcing pt=1\n");
 		evsel->core.attr.config |= 1;
 	}
 
-	err = intel_pt_val_config_term(intel_pt_pmu, "caps/cycle_thresholds",
+	err = intel_pt_val_config_term(intel_pt_pmu, dirfd, "caps/cycle_thresholds",
 				       "cyc_thresh", "caps/psb_cyc",
 				       evsel->core.attr.config);
 	if (err)
-		return err;
+		goto out;
 
-	err = intel_pt_val_config_term(intel_pt_pmu, "caps/mtc_periods",
+	err = intel_pt_val_config_term(intel_pt_pmu, dirfd, "caps/mtc_periods",
 				       "mtc_period", "caps/mtc",
 				       evsel->core.attr.config);
 	if (err)
-		return err;
+		goto out;
 
-	return intel_pt_val_config_term(intel_pt_pmu, "caps/psb_periods",
+	err = intel_pt_val_config_term(intel_pt_pmu, dirfd, "caps/psb_periods",
 					"psb_period", "caps/psb_cyc",
 					evsel->core.attr.config);
-}
 
-static void intel_pt_config_sample_mode(struct perf_pmu *intel_pt_pmu,
-					struct evsel *evsel)
-{
-	u64 user_bits = 0, bits;
-	struct evsel_config_term *term = evsel__get_config_term(evsel, CFG_CHG);
-
-	if (term)
-		user_bits = term->val.cfg_chg;
-
-	bits = perf_pmu__format_bits(&intel_pt_pmu->format, "psb_period");
-
-	/* Did user change psb_period */
-	if (bits & user_bits)
-		return;
-
-	/* Set psb_period to 0 */
-	evsel->core.attr.config &= ~bits;
+out:
+	close(dirfd);
+	return err;
 }
 
 static void intel_pt_min_max_sample_sz(struct evlist *evlist,
@@ -677,7 +667,8 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		return 0;
 
 	if (opts->auxtrace_sample_mode)
-		intel_pt_config_sample_mode(intel_pt_pmu, intel_pt_evsel);
+		evsel__set_config_if_unset(intel_pt_pmu, intel_pt_evsel,
+					   "psb_period", 0);
 
 	err = intel_pt_validate_config(intel_pt_pmu, intel_pt_evsel);
 	if (err)
@@ -834,6 +825,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 					ptr->have_sched_switch = 2;
 			}
 		} else {
+#ifdef HAVE_LIBTRACEEVENT
 			err = intel_pt_track_switches(evlist);
 			if (err == -EPERM)
 				pr_debug2("Unable to select sched:sched_switch\n");
@@ -841,6 +833,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				return err;
 			else
 				ptr->have_sched_switch = 1;
+#endif
 		}
 	}
 
@@ -871,7 +864,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		 * User space tasks can migrate between CPUs, so when tracing
 		 * selected CPUs, sideband for all CPUs is still needed.
 		 */
-		need_system_wide_tracking = evlist->core.has_user_cpus &&
+		need_system_wide_tracking = opts->target.cpu_list &&
 					    !intel_pt_evsel->core.attr.exclude_user;
 
 		tracking_evsel = evlist__add_aux_dummy(evlist, need_system_wide_tracking);
@@ -1192,7 +1185,7 @@ static u64 intel_pt_reference(struct auxtrace_record *itr __maybe_unused)
 
 struct auxtrace_record *intel_pt_recording_init(int *err)
 {
-	struct perf_pmu *intel_pt_pmu = perf_pmu__find(INTEL_PT_PMU_NAME);
+	struct perf_pmu *intel_pt_pmu = perf_pmus__find(INTEL_PT_PMU_NAME);
 	struct intel_pt_recording *ptr;
 
 	if (!intel_pt_pmu)

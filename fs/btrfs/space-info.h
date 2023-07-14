@@ -5,6 +5,84 @@
 
 #include "volumes.h"
 
+/*
+ * Different levels for to flush space when doing space reservations.
+ *
+ * The higher the level, the more methods we try to reclaim space.
+ */
+enum btrfs_reserve_flush_enum {
+	/* If we are in the transaction, we can't flush anything.*/
+	BTRFS_RESERVE_NO_FLUSH,
+
+	/*
+	 * Flush space by:
+	 * - Running delayed inode items
+	 * - Allocating a new chunk
+	 */
+	BTRFS_RESERVE_FLUSH_LIMIT,
+
+	/*
+	 * Flush space by:
+	 * - Running delayed inode items
+	 * - Running delayed refs
+	 * - Running delalloc and waiting for ordered extents
+	 * - Allocating a new chunk
+	 * - Committing transaction
+	 */
+	BTRFS_RESERVE_FLUSH_EVICT,
+
+	/*
+	 * Flush space by above mentioned methods and by:
+	 * - Running delayed iputs
+	 * - Committing transaction
+	 *
+	 * Can be interrupted by a fatal signal.
+	 */
+	BTRFS_RESERVE_FLUSH_DATA,
+	BTRFS_RESERVE_FLUSH_FREE_SPACE_INODE,
+	BTRFS_RESERVE_FLUSH_ALL,
+
+	/*
+	 * Pretty much the same as FLUSH_ALL, but can also steal space from
+	 * global rsv.
+	 *
+	 * Can be interrupted by a fatal signal.
+	 */
+	BTRFS_RESERVE_FLUSH_ALL_STEAL,
+
+	/*
+	 * This is for btrfs_use_block_rsv only.  We have exhausted our block
+	 * rsv and our global block rsv.  This can happen for things like
+	 * delalloc where we are overwriting a lot of extents with a single
+	 * extent and didn't reserve enough space.  Alternatively it can happen
+	 * with delalloc where we reserve 1 extents worth for a large extent but
+	 * fragmentation leads to multiple extents being created.  This will
+	 * give us the reservation in the case of
+	 *
+	 * if (num_bytes < (space_info->total_bytes -
+	 *		    btrfs_space_info_used(space_info, false))
+	 *
+	 * Which ignores bytes_may_use.  This is potentially dangerous, but our
+	 * reservation system is generally pessimistic so is able to absorb this
+	 * style of mistake.
+	 */
+	BTRFS_RESERVE_FLUSH_EMERGENCY,
+};
+
+enum btrfs_flush_state {
+	FLUSH_DELAYED_ITEMS_NR	= 1,
+	FLUSH_DELAYED_ITEMS	= 2,
+	FLUSH_DELAYED_REFS_NR	= 3,
+	FLUSH_DELAYED_REFS	= 4,
+	FLUSH_DELALLOC		= 5,
+	FLUSH_DELALLOC_WAIT	= 6,
+	FLUSH_DELALLOC_FULL	= 7,
+	ALLOC_CHUNK		= 8,
+	ALLOC_CHUNK_FORCE	= 9,
+	RUN_DELAYED_IPUTS	= 10,
+	COMMIT_TRANS		= 11,
+};
+
 struct btrfs_space_info {
 	spinlock_t lock;
 
@@ -19,8 +97,6 @@ struct btrfs_space_info {
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
-	/* Total bytes in the space, but only accounts active block groups. */
-	u64 active_total_bytes;
 	u64 bytes_zone_unusable;	/* total bytes that are unusable until
 					   resetting the device zone */
 
@@ -123,10 +199,8 @@ DECLARE_SPACE_INFO_UPDATE(bytes_may_use, "space_info");
 DECLARE_SPACE_INFO_UPDATE(bytes_pinned, "pinned");
 
 int btrfs_init_space_info(struct btrfs_fs_info *fs_info);
-void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
-			     u64 total_bytes, u64 bytes_used,
-			     u64 bytes_readonly, u64 bytes_zone_unusable,
-			     bool active, struct btrfs_space_info **space_info);
+void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
+				struct btrfs_block_group *block_group);
 void btrfs_update_space_info_chunk_size(struct btrfs_space_info *space_info,
 					u64 chunk_size);
 struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
@@ -159,4 +233,8 @@ static inline void btrfs_space_info_free_bytes_may_use(
 }
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,
 			     enum btrfs_reserve_flush_enum flush);
+void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info);
+void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info);
+u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo);
+
 #endif /* BTRFS_SPACE_INFO_H */

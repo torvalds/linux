@@ -64,6 +64,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1115,7 +1116,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		u8 *mask = (u8 *)cursor->mask;
 		int i;
 
-		fb_memset(cursorbase, 0, 1024);
+		fb_memset_io(cursorbase, 0, 1024);
 
 		for (i = 0; i < cursor->image.height; i++) {
 			int h = 0;
@@ -1376,6 +1377,10 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct fb_monspecs *specs;
 	bool found;
 
+	err = aperture_remove_conflicting_pci_devices(pdev, "tdfxfb");
+	if (err)
+		return err;
+
 	err = pci_enable_device(pdev);
 	if (err) {
 		printk(KERN_ERR "tdfxfb: Can't enable pdev: %d\n", err);
@@ -1627,7 +1632,12 @@ static int __init tdfxfb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;
+#endif
 
+	if (fb_modesetting_disabled("tdfxfb"))
+		return -ENODEV;
+
+#ifndef MODULE
 	if (fb_get_options("tdfxfb", &option))
 		return -ENODEV;
 

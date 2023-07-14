@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/soc/qcom/qcom,spm.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/soc/qcom/qcom,spm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Subsystem Power Manager binding
+title: Qualcomm Subsystem Power Manager
 
 maintainers:
   - Andy Gross <agross@kernel.org>
@@ -24,8 +24,11 @@ properties:
           - qcom,msm8998-silver-saw2-v4.1-l2
           - qcom,msm8909-saw2-v3.0-cpu
           - qcom,msm8916-saw2-v3.0-cpu
+          - qcom,msm8939-saw2-v3.0-cpu
           - qcom,msm8226-saw2-v2.1-cpu
           - qcom,msm8974-saw2-v2.1-cpu
+          - qcom,msm8976-gold-saw2-v2.3-l2
+          - qcom,msm8976-silver-saw2-v2.3-l2
           - qcom,apq8084-saw2-v2.1-cpu
           - qcom,apq8064-saw2-v1.1-cpu
       - const: qcom,saw2

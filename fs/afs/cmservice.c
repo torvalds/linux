@@ -13,6 +13,8 @@
 #include "internal.h"
 #include "afs_cm.h"
 #include "protocol_yfs.h"
+#define RXRPC_TRACE_ONLY_DEFINE_ENUMS
+#include <trace/events/rxrpc.h>
 
 static int afs_deliver_cb_init_call_back_state(struct afs_call *);
 static int afs_deliver_cb_init_call_back_state3(struct afs_call *);
@@ -191,7 +193,7 @@ static void afs_cm_destructor(struct afs_call *call)
  * Abort a service call from within an action function.
  */
 static void afs_abort_service_call(struct afs_call *call, u32 abort_code, int error,
-				   const char *why)
+				   enum rxrpc_abort_reason why)
 {
 	rxrpc_kernel_abort_call(call->net->socket, call->rxcall,
 				abort_code, error, why);
@@ -298,7 +300,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		if (call->count2 != call->count && call->count2 != 0)
 			return afs_protocol_error(call, afs_eproto_cb_count);
 		call->iter = &call->def_iter;
-		iov_iter_discard(&call->def_iter, READ, call->count2 * 3 * 4);
+		iov_iter_discard(&call->def_iter, ITER_DEST, call->count2 * 3 * 4);
 		call->unmarshall++;
 
 		fallthrough;
@@ -469,7 +471,7 @@ static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 	if (memcmp(r, &call->net->uuid, sizeof(call->net->uuid)) == 0)
 		afs_send_empty_reply(call);
 	else
-		afs_abort_service_call(call, 1, 1, "K-1");
+		afs_abort_service_call(call, 1, 1, afs_abort_probeuuid_negative);
 
 	afs_put_call(call);
 	_leave("");

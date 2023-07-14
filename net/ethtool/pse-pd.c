@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// ethtool interface for for Ethernet PSE (Power Sourcing Equipment)
+// ethtool interface for Ethernet PSE (Power Sourcing Equipment)
 // and PD (Powered Device)
 //
 // Copyright (c) 2022 Pengutronix, Oleksij Rempel <kernel@pengutronix.de>
@@ -64,7 +64,7 @@ static int pse_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 
-	ret = pse_get_pse_attributes(dev, info->extack, data);
+	ret = pse_get_pse_attributes(dev, info ? info->extack : NULL, data);
 
 	ethnl_ops_complete(dev);
 
@@ -106,6 +106,47 @@ static int pse_fill_reply(struct sk_buff *skb,
 	return 0;
 }
 
+/* PSE_SET */
+
+const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1] = {
+	[ETHTOOL_A_PSE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL] =
+		NLA_POLICY_RANGE(NLA_U32, ETHTOOL_PODL_PSE_ADMIN_STATE_DISABLED,
+				 ETHTOOL_PODL_PSE_ADMIN_STATE_ENABLED),
+};
+
+static int
+ethnl_set_pse_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	return !!info->attrs[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL];
+}
+
+static int
+ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
+{
+	struct net_device *dev = req_info->dev;
+	struct pse_control_config config = {};
+	struct nlattr **tb = info->attrs;
+	struct phy_device *phydev;
+
+	/* this values are already validated by the ethnl_pse_set_policy */
+	config.admin_cotrol = nla_get_u32(tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL]);
+
+	phydev = dev->phydev;
+	if (!phydev) {
+		NL_SET_ERR_MSG(info->extack, "No PHY is attached");
+		return -EOPNOTSUPP;
+	}
+
+	if (!phydev->psec) {
+		NL_SET_ERR_MSG(info->extack, "No PSE is attached");
+		return -EOPNOTSUPP;
+	}
+
+	/* Return errno directly - PSE has no notification */
+	return pse_ethtool_set_config(phydev->psec, info->extack, &config);
+}
+
 const struct ethnl_request_ops ethnl_pse_request_ops = {
 	.request_cmd		= ETHTOOL_MSG_PSE_GET,
 	.reply_cmd		= ETHTOOL_MSG_PSE_GET_REPLY,
@@ -116,70 +157,8 @@ const struct ethnl_request_ops ethnl_pse_request_ops = {
 	.prepare_data		= pse_prepare_data,
 	.reply_size		= pse_reply_size,
 	.fill_reply		= pse_fill_reply,
+
+	.set_validate		= ethnl_set_pse_validate,
+	.set			= ethnl_set_pse,
+	/* PSE has no notification */
 };
-
-/* PSE_SET */
-
-const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1] = {
-	[ETHTOOL_A_PSE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
-	[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL] =
-		NLA_POLICY_RANGE(NLA_U32, ETHTOOL_PODL_PSE_ADMIN_STATE_DISABLED,
-				 ETHTOOL_PODL_PSE_ADMIN_STATE_ENABLED),
-};
-
-static int pse_set_pse_config(struct net_device *dev,
-			      struct netlink_ext_ack *extack,
-			      struct nlattr **tb)
-{
-	struct phy_device *phydev = dev->phydev;
-	struct pse_control_config config = {};
-
-	/* Optional attribute. Do not return error if not set. */
-	if (!tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL])
-		return 0;
-
-	/* this values are already validated by the ethnl_pse_set_policy */
-	config.admin_cotrol = nla_get_u32(tb[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL]);
-
-	if (!phydev) {
-		NL_SET_ERR_MSG(extack, "No PHY is attached");
-		return -EOPNOTSUPP;
-	}
-
-	if (!phydev->psec) {
-		NL_SET_ERR_MSG(extack, "No PSE is attached");
-		return -EOPNOTSUPP;
-	}
-
-	return pse_ethtool_set_config(phydev->psec, extack, &config);
-}
-
-int ethnl_set_pse(struct sk_buff *skb, struct genl_info *info)
-{
-	struct ethnl_req_info req_info = {};
-	struct nlattr **tb = info->attrs;
-	struct net_device *dev;
-	int ret;
-
-	ret = ethnl_parse_header_dev_get(&req_info, tb[ETHTOOL_A_PSE_HEADER],
-					 genl_info_net(info), info->extack,
-					 true);
-	if (ret < 0)
-		return ret;
-
-	dev = req_info.dev;
-
-	rtnl_lock();
-	ret = ethnl_ops_begin(dev);
-	if (ret < 0)
-		goto out_rtnl;
-
-	ret = pse_set_pse_config(dev, info->extack, tb);
-	ethnl_ops_complete(dev);
-out_rtnl:
-	rtnl_unlock();
-
-	ethnl_parse_header_dev_put(&req_info);
-
-	return ret;
-}

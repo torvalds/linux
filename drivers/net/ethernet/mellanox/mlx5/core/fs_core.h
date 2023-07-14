@@ -54,8 +54,14 @@ struct mlx5_flow_definer {
 	u32 id;
 };
 
+enum mlx5_flow_resource_owner {
+	MLX5_FLOW_RESOURCE_OWNER_FW,
+	MLX5_FLOW_RESOURCE_OWNER_SW,
+};
+
 struct mlx5_modify_hdr {
 	enum mlx5_flow_namespace_type ns_type;
+	enum mlx5_flow_resource_owner owner;
 	union {
 		struct mlx5_fs_dr_action action;
 		u32 id;
@@ -65,6 +71,7 @@ struct mlx5_modify_hdr {
 struct mlx5_pkt_reformat {
 	enum mlx5_flow_namespace_type ns_type;
 	int reformat_type; /* from mlx5_ifc */
+	enum mlx5_flow_resource_owner owner;
 	union {
 		struct mlx5_fs_dr_action action;
 		u32 id;
@@ -123,6 +130,7 @@ enum mlx5_flow_steering_mode {
 enum mlx5_flow_steering_capabilty {
 	MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX = 1UL << 0,
 	MLX5_FLOW_STEERING_CAP_VLAN_POP_ON_TX = 1UL << 1,
+	MLX5_FLOW_STEERING_CAP_MATCH_RANGES = 1UL << 2,
 };
 
 struct mlx5_flow_steering {
@@ -294,7 +302,8 @@ void mlx5_fc_update_sampling_interval(struct mlx5_core_dev *dev,
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
 
 int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
-				 struct mlx5_flow_root_namespace *peer_ns);
+				 struct mlx5_flow_root_namespace *peer_ns,
+				 u8 peer_idx);
 
 int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
 				 enum mlx5_flow_steering_mode mode);

@@ -191,7 +191,6 @@ int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 	return 0;
 }
 
-
 void rtllib_txb_free(struct rtllib_txb *txb)
 {
 	if (unlikely(!txb))
@@ -267,14 +266,14 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 				    struct sk_buff *skb,
 				    struct cb_desc *tcb_desc)
 {
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	struct tx_ts_record *pTxTs = NULL;
 	struct rtllib_hdr_1addr *hdr = (struct rtllib_hdr_1addr *)skb->data;
 
 	if (rtllib_act_scanning(ieee, false))
 		return;
 
-	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
+	if (!ht_info->bCurrentHTSupport || !ht_info->enable_ht)
 		return;
 	if (!IsQoSDataFrame(skb->data))
 		return;
@@ -284,14 +283,14 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 	if (tcb_desc->bdhcp || ieee->CntAfterLink < 2)
 		return;
 
-	if (pHTInfo->IOTAction & HT_IOT_ACT_TX_NO_AGGREGATION)
+	if (ht_info->iot_action & HT_IOT_ACT_TX_NO_AGGREGATION)
 		return;
 
 	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 		return;
-	if (pHTInfo->bCurrentAMPDUEnable) {
+	if (ht_info->bCurrentAMPDUEnable) {
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1,
-		    skb->priority, TX_DIR, true)) {
+			   skb->priority, TX_DIR, true)) {
 			netdev_info(ieee->dev, "%s: can't get TS\n", __func__);
 			return;
 		}
@@ -307,26 +306,26 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 			goto FORCED_AGG_SETTING;
 		} else if (!pTxTs->bUsingBa) {
 			if (SN_LESS(pTxTs->TxAdmittedBARecord.ba_start_seq_ctrl.field.seq_num,
-			   (pTxTs->TxCurSeq+1)%4096))
+				    (pTxTs->TxCurSeq + 1) % 4096))
 				pTxTs->bUsingBa = true;
 			else
 				goto FORCED_AGG_SETTING;
 		}
 		if (ieee->iw_mode == IW_MODE_INFRA) {
 			tcb_desc->bAMPDUEnable = true;
-			tcb_desc->ampdu_factor = pHTInfo->CurrentAMPDUFactor;
-			tcb_desc->ampdu_density = pHTInfo->CurrentMPDUDensity;
+			tcb_desc->ampdu_factor = ht_info->CurrentAMPDUFactor;
+			tcb_desc->ampdu_density = ht_info->current_mpdu_density;
 		}
 	}
 FORCED_AGG_SETTING:
-	switch (pHTInfo->ForcedAMPDUMode) {
+	switch (ht_info->ForcedAMPDUMode) {
 	case HT_AGG_AUTO:
 		break;
 
 	case HT_AGG_FORCE_ENABLE:
 		tcb_desc->bAMPDUEnable = true;
-		tcb_desc->ampdu_density = pHTInfo->ForcedMPDUDensity;
-		tcb_desc->ampdu_factor = pHTInfo->ForcedAMPDUFactor;
+		tcb_desc->ampdu_density = ht_info->forced_mpdu_density;
+		tcb_desc->ampdu_factor = ht_info->forced_ampdu_factor;
 		break;
 
 	case HT_AGG_FORCE_DISABLE:
@@ -351,32 +350,32 @@ static void rtllib_query_ShortPreambleMode(struct rtllib_device *ieee,
 static void rtllib_query_HTCapShortGI(struct rtllib_device *ieee,
 				      struct cb_desc *tcb_desc)
 {
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
 	tcb_desc->bUseShortGI		= false;
 
-	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
+	if (!ht_info->bCurrentHTSupport || !ht_info->enable_ht)
 		return;
 
-	if (pHTInfo->bForcedShortGI) {
+	if (ht_info->forced_short_gi) {
 		tcb_desc->bUseShortGI = true;
 		return;
 	}
 
-	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurShortGI40MHz)
+	if (ht_info->bCurBW40MHz && ht_info->bCurShortGI40MHz)
 		tcb_desc->bUseShortGI = true;
-	else if (!pHTInfo->bCurBW40MHz && pHTInfo->bCurShortGI20MHz)
+	else if (!ht_info->bCurBW40MHz && ht_info->bCurShortGI20MHz)
 		tcb_desc->bUseShortGI = true;
 }
 
 static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 				       struct cb_desc *tcb_desc)
 {
-	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
 	tcb_desc->bPacketBW = false;
 
-	if (!pHTInfo->bCurrentHTSupport || !pHTInfo->bEnableHT)
+	if (!ht_info->bCurrentHTSupport || !ht_info->enable_ht)
 		return;
 
 	if (tcb_desc->bMulticast || tcb_desc->bBroadcast)
@@ -384,7 +383,7 @@ static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 
 	if ((tcb_desc->data_rate & 0x80) == 0)
 		return;
-	if (pHTInfo->bCurBW40MHz && pHTInfo->bCurTxBW40MHz &&
+	if (ht_info->bCurBW40MHz && ht_info->cur_tx_bw40mhz &&
 	    !ieee->bandwidth_auto_switch.bforced_tx20Mhz)
 		tcb_desc->bPacketBW = true;
 }
@@ -393,7 +392,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 					struct cb_desc *tcb_desc,
 					struct sk_buff *skb)
 {
-	struct rt_hi_throughput *pHTInfo;
+	struct rt_hi_throughput *ht_info;
 
 	tcb_desc->bRTSSTBC			= false;
 	tcb_desc->bRTSUseShortGI		= false;
@@ -404,10 +403,10 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	if (tcb_desc->bBroadcast || tcb_desc->bMulticast)
 		return;
 
-	if (is_broadcast_ether_addr(skb->data+16))
+	if (is_broadcast_ether_addr(skb->data + 16))
 		return;
 
-	if (ieee->mode < IEEE_N_24G) {
+	if (ieee->mode < WIRELESS_MODE_N_24G) {
 		if (skb->len > ieee->rts) {
 			tcb_desc->bRTSEnable = true;
 			tcb_desc->rts_rate = MGN_24M;
@@ -419,15 +418,15 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 		return;
 	}
 
-	pHTInfo = ieee->pHTInfo;
+	ht_info = ieee->ht_info;
 
 	while (true) {
-		if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF) {
+		if (ht_info->iot_action & HT_IOT_ACT_FORCED_CTS2SELF) {
 			tcb_desc->bCTSEnable	= true;
 			tcb_desc->rts_rate  =	MGN_24M;
 			tcb_desc->bRTSEnable = true;
 			break;
-		} else if (pHTInfo->IOTAction & (HT_IOT_ACT_FORCED_RTS |
+		} else if (ht_info->iot_action & (HT_IOT_ACT_FORCED_RTS |
 			   HT_IOT_ACT_PURE_N_MODE)) {
 			tcb_desc->bRTSEnable = true;
 			tcb_desc->rts_rate  =	MGN_24M;
@@ -439,12 +438,12 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 			tcb_desc->rts_rate = MGN_24M;
 			break;
 		}
-		if (pHTInfo->bCurrentHTSupport  && pHTInfo->bEnableHT) {
-			u8 HTOpMode = pHTInfo->CurrentOpMode;
+		if (ht_info->bCurrentHTSupport  && ht_info->enable_ht) {
+			u8 HTOpMode = ht_info->current_op_mode;
 
-			if ((pHTInfo->bCurBW40MHz && (HTOpMode == 2 ||
-			     HTOpMode == 3)) ||
-			     (!pHTInfo->bCurBW40MHz && HTOpMode == 3)) {
+			if ((ht_info->bCurBW40MHz && (HTOpMode == 2 ||
+						      HTOpMode == 3)) ||
+			     (!ht_info->bCurBW40MHz && HTOpMode == 3)) {
 				tcb_desc->rts_rate = MGN_24M;
 				tcb_desc->bRTSEnable = true;
 				break;
@@ -475,20 +474,19 @@ NO_PROTECTION:
 	tcb_desc->bRTSBW	= false;
 }
 
-
 static void rtllib_txrate_selectmode(struct rtllib_device *ieee,
 				     struct cb_desc *tcb_desc)
 {
-	if (ieee->bTxDisableRateFallBack)
-		tcb_desc->bTxDisableRateFallBack = true;
+	if (ieee->tx_dis_rate_fallback)
+		tcb_desc->tx_dis_rate_fallback = true;
 
-	if (ieee->bTxUseDriverAssingedRate)
-		tcb_desc->bTxUseDriverAssingedRate = true;
-	if (!tcb_desc->bTxDisableRateFallBack ||
-	    !tcb_desc->bTxUseDriverAssingedRate) {
+	if (ieee->tx_use_drv_assinged_rate)
+		tcb_desc->tx_use_drv_assinged_rate = true;
+	if (!tcb_desc->tx_dis_rate_fallback ||
+	    !tcb_desc->tx_use_drv_assinged_rate) {
 		if (ieee->iw_mode == IW_MODE_INFRA ||
 		    ieee->iw_mode == IW_MODE_ADHOC)
-			tcb_desc->RATRIndex = 0;
+			tcb_desc->ratr_index = 0;
 	}
 }
 
@@ -503,10 +501,10 @@ static u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 		struct tx_ts_record *pTS = NULL;
 
 		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst,
-		    skb->priority, TX_DIR, true))
+			   skb->priority, TX_DIR, true))
 			return 0;
 		seqnum = pTS->TxCurSeq;
-		pTS->TxCurSeq = (pTS->TxCurSeq+1)%4096;
+		pTS->TxCurSeq = (pTS->TxCurSeq + 1) % 4096;
 		return seqnum;
 	}
 	return 0;
@@ -574,14 +572,12 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	/* If there is no driver handler to take the TXB, don't bother
 	 * creating it...
 	 */
-	if ((!ieee->hard_start_xmit && !(ieee->softmac_features &
-	   IEEE_SOFTMAC_TX_QUEUE)) ||
+	if (!(ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE) ||
 	   ((!ieee->softmac_data_hard_start_xmit &&
 	   (ieee->softmac_features & IEEE_SOFTMAC_TX_QUEUE)))) {
 		netdev_warn(ieee->dev, "No xmit handler.\n");
 		goto success;
 	}
-
 
 	if (likely(ieee->raw_tx == 0)) {
 		if (unlikely(skb->len < SNAP_SIZE + sizeof(u16))) {
@@ -614,14 +610,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		if (skb->len > 282) {
 			if (ether_type == ETH_P_IP) {
 				const struct iphdr *ip = (struct iphdr *)
-					((u8 *)skb->data+14);
+					((u8 *)skb->data + 14);
 				if (ip->protocol == IPPROTO_UDP) {
 					struct udphdr *udp;
 
 					udp = (struct udphdr *)((u8 *)ip +
 					      (ip->ihl << 2));
 					if (((((u8 *)udp)[1] == 68) &&
-					   (((u8 *)udp)[3] == 67)) ||
+					     (((u8 *)udp)[3] == 67)) ||
 					   ((((u8 *)udp)[1] == 67) &&
 					   (((u8 *)udp)[3] == 68))) {
 						bdhcp = true;
@@ -715,11 +711,11 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			/* in case we are a client verify acm is not set for this ac */
 			while (unlikely(ieee->wmm_acm & (0x01 << skb->priority))) {
 				netdev_info(ieee->dev, "skb->priority = %x\n",
-						skb->priority);
+					    skb->priority);
 				if (wme_downgrade_ac(skb))
 					break;
 				netdev_info(ieee->dev, "converted skb->priority = %x\n",
-					   skb->priority);
+					    skb->priority);
 			}
 
 			qos_ctl |= skb->priority;
@@ -805,8 +801,8 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			 * MOREFRAGS bit to the frame control
 			 */
 			if (i != nr_frags - 1) {
-				frag_hdr->frame_ctl = cpu_to_le16(
-					fc | RTLLIB_FCTL_MOREFRAGS);
+				frag_hdr->frame_ctl = cpu_to_le16(fc |
+								  RTLLIB_FCTL_MOREFRAGS);
 				bytes = bytes_per_frag;
 
 			} else {
@@ -816,18 +812,18 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			if ((qos_activated) && (!bIsMulticast)) {
 				frag_hdr->seq_ctl =
 					 cpu_to_le16(rtllib_query_seqnum(ieee, skb_frag,
-							     header.addr1));
+									 header.addr1));
 				frag_hdr->seq_ctl =
-					 cpu_to_le16(le16_to_cpu(frag_hdr->seq_ctl)<<4 | i);
+					 cpu_to_le16(le16_to_cpu(frag_hdr->seq_ctl) << 4 | i);
 			} else {
 				frag_hdr->seq_ctl =
-					 cpu_to_le16(ieee->seq_ctrl[0]<<4 | i);
+					 cpu_to_le16(ieee->seq_ctrl[0] << 4 | i);
 			}
 			/* Put a SNAP header on the first fragment */
 			if (i == 0) {
-				rtllib_put_snap(
-					skb_put(skb_frag, SNAP_SIZE +
-					sizeof(u16)), ether_type);
+				rtllib_put_snap(skb_put(skb_frag,
+							SNAP_SIZE +
+							sizeof(u16)), ether_type);
 				bytes -= SNAP_SIZE + sizeof(u16);
 			}
 
@@ -885,19 +881,18 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		tcb_desc->priority = skb->priority;
 
 		if (ether_type == ETH_P_PAE) {
-			if (ieee->pHTInfo->IOTAction &
+			if (ieee->ht_info->iot_action &
 			    HT_IOT_ACT_WA_IOT_Broadcom) {
 				tcb_desc->data_rate =
 					 MgntQuery_TxRateExcludeCCKRates(ieee);
-				tcb_desc->bTxDisableRateFallBack = false;
+				tcb_desc->tx_dis_rate_fallback = false;
 			} else {
 				tcb_desc->data_rate = ieee->basic_rate;
-				tcb_desc->bTxDisableRateFallBack = 1;
+				tcb_desc->tx_dis_rate_fallback = 1;
 			}
 
-
-			tcb_desc->RATRIndex = 7;
-			tcb_desc->bTxUseDriverAssingedRate = 1;
+			tcb_desc->ratr_index = 7;
+			tcb_desc->tx_use_drv_assinged_rate = 1;
 		} else {
 			if (is_multicast_ether_addr(header.addr1))
 				tcb_desc->bMulticast = 1;
@@ -910,19 +905,18 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				tcb_desc->data_rate = rtllib_current_rate(ieee);
 
 			if (bdhcp) {
-				if (ieee->pHTInfo->IOTAction &
+				if (ieee->ht_info->iot_action &
 				    HT_IOT_ACT_WA_IOT_Broadcom) {
 					tcb_desc->data_rate =
 					   MgntQuery_TxRateExcludeCCKRates(ieee);
-					tcb_desc->bTxDisableRateFallBack = false;
+					tcb_desc->tx_dis_rate_fallback = false;
 				} else {
 					tcb_desc->data_rate = MGN_1M;
-					tcb_desc->bTxDisableRateFallBack = 1;
+					tcb_desc->tx_dis_rate_fallback = 1;
 				}
 
-
-				tcb_desc->RATRIndex = 7;
-				tcb_desc->bTxUseDriverAssingedRate = 1;
+				tcb_desc->ratr_index = 7;
+				tcb_desc->tx_use_drv_assinged_rate = 1;
 				tcb_desc->bdhcp = 1;
 			}
 
@@ -943,11 +937,6 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			dev->stats.tx_bytes += le16_to_cpu(txb->payload_size);
 			rtllib_softmac_xmit(txb, ieee);
 		} else {
-			if ((*ieee->hard_start_xmit)(txb, dev) == 0) {
-				stats->tx_packets++;
-				stats->tx_bytes += le16_to_cpu(txb->payload_size);
-				return 0;
-			}
 			rtllib_txb_free(txb);
 		}
 	}
@@ -959,12 +948,11 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 	stats->tx_errors++;
 	return 1;
-
 }
 
-int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
+netdev_tx_t rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	memset(skb->cb, 0, sizeof(skb->cb));
-	return rtllib_xmit_inter(skb, dev);
+	return rtllib_xmit_inter(skb, dev) ? NETDEV_TX_BUSY : NETDEV_TX_OK;
 }
 EXPORT_SYMBOL(rtllib_xmit);

@@ -2113,7 +2113,6 @@ static int arcturus_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	mutex_lock(&adev->pm.mutex);
 	r = smu_cmn_update_table(smu, SMU_TABLE_I2C_COMMANDS, 0, req, true);
-	mutex_unlock(&adev->pm.mutex);
 	if (r)
 		goto fail;
 
@@ -2130,6 +2129,7 @@ static int arcturus_i2c_xfer(struct i2c_adapter *i2c_adap,
 	}
 	r = num_msgs;
 fail:
+	mutex_unlock(&adev->pm.mutex);
 	kfree(req);
 	return r;
 }
@@ -2242,8 +2242,16 @@ static void arcturus_get_unique_id(struct smu_context *smu)
 static int arcturus_set_df_cstate(struct smu_context *smu,
 				  enum pp_df_cstate state)
 {
+	struct amdgpu_device *adev = smu->adev;
 	uint32_t smu_version;
 	int ret;
+
+	/*
+	 * Arcturus does not need the cstate disablement
+	 * prerequisite for gpu reset.
+	 */
+	if (amdgpu_in_reset(adev) || adev->in_suspend)
+		return 0;
 
 	ret = smu_cmn_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {

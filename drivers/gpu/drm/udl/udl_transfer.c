@@ -10,6 +10,7 @@
 #include <asm/unaligned.h>
 
 #include "udl_drv.h"
+#include "udl_proto.h"
 
 #define MAX_CMD_PIXELS		255
 
@@ -24,46 +25,6 @@
 #define RAW_HEADER_BYTES	6
 #define MIN_RAW_PIX_BYTES	2
 #define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
-
-/*
- * Trims identical data from front and back of line
- * Sets new front buffer address and width
- * And returns byte count of identical pixels
- * Assumes CPU natural alignment (unsigned long)
- * for back and front buffer ptrs and width
- */
-#if 0
-static int udl_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
-{
-	int j, k;
-	const unsigned long *back = (const unsigned long *) bback;
-	const unsigned long *front = (const unsigned long *) *bfront;
-	const int width = *width_bytes / sizeof(unsigned long);
-	int identical = width;
-	int start = width;
-	int end = width;
-
-	for (j = 0; j < width; j++) {
-		if (back[j] != front[j]) {
-			start = j;
-			break;
-		}
-	}
-
-	for (k = width - 1; k > j; k--) {
-		if (back[k] != front[k]) {
-			end = k+1;
-			break;
-		}
-	}
-
-	identical = start + (width - end);
-	*bfront = (u8 *) &front[start];
-	*width_bytes = (end - start) * sizeof(unsigned long);
-
-	return identical * sizeof(unsigned long);
-}
-#endif
 
 static inline u16 pixel32_to_be16(const uint32_t pixel)
 {
@@ -129,8 +90,8 @@ static void udl_compress_hline16(
 		const u8 *cmd_pixel_start, *cmd_pixel_end = NULL;
 		uint16_t pixel_val16;
 
-		*cmd++ = 0xaf;
-		*cmd++ = 0x6b;
+		*cmd++ = UDL_MSG_BULK;
+		*cmd++ = UDL_CMD_WRITERLX16;
 		*cmd++ = (uint8_t) ((dev_addr >> 16) & 0xFF);
 		*cmd++ = (uint8_t) ((dev_addr >> 8) & 0xFF);
 		*cmd++ = (uint8_t) ((dev_addr) & 0xFF);
@@ -192,7 +153,7 @@ static void udl_compress_hline16(
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
 		/* Fill leftover bytes with no-ops */
 		if (cmd_buffer_end > cmd)
-			memset(cmd, 0xAF, cmd_buffer_end - cmd);
+			memset(cmd, UDL_MSG_BULK, cmd_buffer_end - cmd);
 		cmd = (uint8_t *) cmd_buffer_end;
 	}
 
@@ -220,7 +181,11 @@ int udl_render_hline(struct drm_device *dev, int log_bpp, struct urb **urb_ptr,
 	u8 *cmd = *urb_buf_ptr;
 	u8 *cmd_end = (u8 *) urb->transfer_buffer + urb->transfer_buffer_length;
 
-	BUG_ON(!(log_bpp == 1 || log_bpp == 2));
+	if (WARN_ON(!(log_bpp == 1 || log_bpp == 2))) {
+		/* need to finish URB at error from this function */
+		udl_urb_completion(urb);
+		return -EINVAL;
+	}
 
 	line_start = (u8 *) (front + byte_offset);
 	next_pixel = line_start;

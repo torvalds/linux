@@ -32,6 +32,11 @@
 struct amdgpu_iv_entry;
 
 #define AMDGPU_RAS_FLAG_INIT_BY_VBIOS		(0x1 << 0)
+/* position of instance value in sub_block_index of
+ * ta_ras_trigger_error_input, the sub block uses lower 12 bits
+ */
+#define AMDGPU_RAS_INST_MASK 0xfffff000
+#define AMDGPU_RAS_INST_SHIFT 0xc
 
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
@@ -314,6 +319,46 @@ enum amdgpu_ras_ret {
 	AMDGPU_RAS_PT,
 };
 
+/* ras error status reisger fields */
+#define ERR_STATUS_LO__ERR_STATUS_VALID_FLAG__SHIFT	0x0
+#define ERR_STATUS_LO__ERR_STATUS_VALID_FLAG_MASK	0x00000001L
+#define ERR_STATUS_LO__MEMORY_ID__SHIFT			0x18
+#define ERR_STATUS_LO__MEMORY_ID_MASK			0xFF000000L
+#define ERR_STATUS_HI__ERR_INFO_VALID_FLAG__SHIFT	0x2
+#define ERR_STATUS_HI__ERR_INFO_VALID_FLAG_MASK		0x00000004L
+#define ERR_STATUS__ERR_CNT__SHIFT			0x17
+#define ERR_STATUS__ERR_CNT_MASK			0x03800000L
+
+#define AMDGPU_RAS_REG_ENTRY(ip, inst, reg_lo, reg_hi) \
+	ip##_HWIP, inst, reg_lo##_BASE_IDX, reg_lo, reg_hi##_BASE_IDX, reg_hi
+
+#define AMDGPU_RAS_REG_ENTRY_OFFSET(hwip, ip_inst, segment, reg) \
+	(adev->reg_offset[hwip][ip_inst][segment] + (reg))
+
+#define AMDGPU_RAS_ERR_INFO_VALID	(1 << 0)
+#define AMDGPU_RAS_ERR_STATUS_VALID	(1 << 1)
+#define AMDGPU_RAS_ERR_ADDRESS_VALID	(1 << 2)
+
+#define AMDGPU_RAS_GPU_RESET_MODE2_RESET  (0x1 << 0)
+#define AMDGPU_RAS_GPU_RESET_MODE1_RESET  (0x1 << 1)
+
+struct amdgpu_ras_err_status_reg_entry {
+	uint32_t hwip;
+	uint32_t ip_inst;
+	uint32_t seg_lo;
+	uint32_t reg_lo;
+	uint32_t seg_hi;
+	uint32_t reg_hi;
+	uint32_t reg_inst;
+	uint32_t flags;
+	const char *block_name;
+};
+
+struct amdgpu_ras_memory_id_entry {
+	uint32_t memory_id;
+	const char *name;
+};
+
 struct ras_common_if {
 	enum amdgpu_ras_block block;
 	enum amdgpu_ras_error_type type;
@@ -385,6 +430,9 @@ struct amdgpu_ras {
 
 	/* Indicates smu whether need update bad channel info */
 	bool update_channel_flag;
+
+	/* Record special requirements of gpu reset caller */
+	uint32_t  gpu_reset_flags;
 };
 
 struct ras_fs_data {
@@ -471,6 +519,7 @@ struct ras_inject_if {
 	struct ras_common_if head;
 	uint64_t address;
 	uint64_t value;
+	uint32_t instance_mask;
 };
 
 struct ras_cure_if {
@@ -508,7 +557,8 @@ struct amdgpu_ras_block_object {
 };
 
 struct amdgpu_ras_block_hw_ops {
-	int  (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
+	int  (*ras_error_inject)(struct amdgpu_device *adev,
+			void *inject_if, uint32_t instance_mask);
 	void (*query_ras_error_count)(struct amdgpu_device *adev, void *ras_error_status);
 	void (*query_ras_error_status)(struct amdgpu_device *adev);
 	void (*query_ras_error_address)(struct amdgpu_device *adev, void *ras_error_status);
@@ -540,13 +590,15 @@ void amdgpu_ras_suspend(struct amdgpu_device *adev);
 
 int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 				 unsigned long *ce_count,
-				 unsigned long *ue_count);
+				 unsigned long *ue_count,
+				 struct ras_query_if *query_info);
 
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		struct eeprom_table_record *bps, int pages);
 
-int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev);
+int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
+		unsigned long *new_cnt);
 
 static inline enum ta_ras_block
 amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
@@ -581,6 +633,10 @@ amdgpu_ras_block_to_ta(enum amdgpu_ras_block block) {
 		return TA_RAS_BLOCK__FUSE;
 	case AMDGPU_RAS_BLOCK__MCA:
 		return TA_RAS_BLOCK__MCA;
+	case AMDGPU_RAS_BLOCK__VCN:
+		return TA_RAS_BLOCK__VCN;
+	case AMDGPU_RAS_BLOCK__JPEG:
+		return TA_RAS_BLOCK__JPEG;
 	default:
 		WARN_ONCE(1, "RAS ERROR: unexpected block id %d\n", block);
 		return TA_RAS_BLOCK__UMC;
@@ -690,4 +746,25 @@ int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_co
 int amdgpu_ras_register_ras_block(struct amdgpu_device *adev,
 				struct amdgpu_ras_block_object *ras_block_obj);
 void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev);
+void amdgpu_ras_get_error_type_name(uint32_t err_type, char *err_type_name);
+bool amdgpu_ras_inst_get_memory_id_field(struct amdgpu_device *adev,
+					 const struct amdgpu_ras_err_status_reg_entry *reg_entry,
+					 uint32_t instance,
+					 uint32_t *memory_id);
+bool amdgpu_ras_inst_get_err_cnt_field(struct amdgpu_device *adev,
+				       const struct amdgpu_ras_err_status_reg_entry *reg_entry,
+				       uint32_t instance,
+				       unsigned long *err_cnt);
+void amdgpu_ras_inst_query_ras_error_count(struct amdgpu_device *adev,
+					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
+					   uint32_t reg_list_size,
+					   const struct amdgpu_ras_memory_id_entry *mem_list,
+					   uint32_t mem_list_size,
+					   uint32_t instance,
+					   uint32_t err_type,
+					   unsigned long *err_count);
+void amdgpu_ras_inst_reset_ras_error_count(struct amdgpu_device *adev,
+					   const struct amdgpu_ras_err_status_reg_entry *reg_list,
+					   uint32_t reg_list_size,
+					   uint32_t instance);
 #endif

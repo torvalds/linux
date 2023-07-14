@@ -16,7 +16,7 @@ opal_kentry:
 	li	r5, 0
 	li	r6, 0
 	li	r7, 0
-	ld	r11,opal@got(r2)
+	LOAD_REG_ADDR(r11, opal)
 	ld	r8,0(r11)
 	ld	r9,8(r11)
 	bctr
@@ -35,7 +35,7 @@ opal_call:
 	mr	r13,r2
 
 	/* Set opal return address */
-	ld	r11,opal_return@got(r2)
+	LOAD_REG_ADDR(r11, opal_return)
 	mtlr	r11
 	mfmsr	r12
 
@@ -45,7 +45,7 @@ opal_call:
 	mtspr	SPRN_HSRR1,r12
 
 	/* load the opal call entry point and base */
-	ld	r11,opal@got(r2)
+	LOAD_REG_ADDR(r11, opal)
 	ld	r12,8(r11)
 	ld	r2,0(r11)
 	mtspr	SPRN_HSRR0,r12

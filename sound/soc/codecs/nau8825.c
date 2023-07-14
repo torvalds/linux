@@ -53,6 +53,7 @@ struct nau8825_fll {
 	int mclk_src;
 	int ratio;
 	int fll_frac;
+	int fll_frac_num;
 	int fll_int;
 	int clk_ref_div;
 };
@@ -178,6 +179,8 @@ static const struct reg_default nau8825_reg_defaults[] = {
 	{ NAU8825_REG_CLASSG_CTRL, 0x0 },
 	{ NAU8825_REG_OPT_EFUSE_CTRL, 0x0 },
 	{ NAU8825_REG_MISC_CTRL, 0x0 },
+	{ NAU8825_REG_FLL2_LOWER, 0x0 },
+	{ NAU8825_REG_FLL2_UPPER, 0x0 },
 	{ NAU8825_REG_BIAS_ADJ, 0x0 },
 	{ NAU8825_REG_TRIM_SETTINGS, 0x0 },
 	{ NAU8825_REG_ANALOG_CONTROL_1, 0x0 },
@@ -199,6 +202,23 @@ static struct reg_default nau8825_xtalk_baktab[] = {
 	{ NAU8825_REG_DACL_CTRL, 0x00cf },
 	{ NAU8825_REG_DACR_CTRL, 0x02cf },
 };
+
+/* The regmap patch for Rev C */
+static const struct reg_sequence nau8825_regmap_patch[] = {
+	{ NAU8825_REG_FLL2, 0x0000 },
+	{ NAU8825_REG_FLL4, 0x8010 },
+	{ NAU8825_REG_FLL_VCO_RSV, 0x0bc0 },
+	{ NAU8825_REG_INTERRUPT_MASK, 0x0800 },
+	{ NAU8825_REG_DACL_CTRL, 0x00cf },
+	{ NAU8825_REG_DACR_CTRL, 0x02cf },
+	{ NAU8825_REG_OPT_EFUSE_CTRL, 0x0400 },
+	{ NAU8825_REG_FLL2_LOWER, 0x26e9 },
+	{ NAU8825_REG_FLL2_UPPER, 0x0031 },
+	{ NAU8825_REG_ANALOG_CONTROL_2, 0x0020 },
+	{ NAU8825_REG_ANALOG_ADC_2, 0x0220 },
+	{ NAU8825_REG_MIC_BIAS, 0x0046 },
+};
+
 
 static const unsigned short logtable[256] = {
 	0x0000, 0x0171, 0x02e0, 0x044e, 0x05ba, 0x0725, 0x088e, 0x09f7,
@@ -608,8 +628,13 @@ static void nau8825_xtalk_prepare(struct nau8825 *nau8825)
 	regmap_update_bits(nau8825->regmap,
 		NAU8825_REG_INTERRUPT_MASK, NAU8825_IRQ_RMS_EN, 0);
 	/* Power up left and right DAC */
-	regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+	else
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
 }
 
 static void nau8825_xtalk_clean_dac(struct nau8825 *nau8825)
@@ -622,9 +647,14 @@ static void nau8825_xtalk_clean_dac(struct nau8825 *nau8825)
 		NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L,
 		NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L);
 	/* Power down left and right DAC */
-	regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+	else
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+
 	/* Enable the TESTDAC and  disable L/R HP impedance */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 		NAU8825_BIAS_HPR_IMP | NAU8825_BIAS_HPL_IMP |
@@ -855,7 +885,7 @@ static bool nau8825_readable_reg(struct device *dev, unsigned int reg)
 	case NAU8825_REG_IMM_MODE_CTRL ... NAU8825_REG_IMM_RMS_R:
 	case NAU8825_REG_CLASSG_CTRL ... NAU8825_REG_OPT_EFUSE_CTRL:
 	case NAU8825_REG_MISC_CTRL:
-	case NAU8825_REG_I2C_DEVICE_ID ... NAU8825_REG_SARDOUT_RAM_STATUS:
+	case NAU8825_REG_I2C_DEVICE_ID ... NAU8825_REG_FLL2_UPPER:
 	case NAU8825_REG_BIAS_ADJ:
 	case NAU8825_REG_TRIM_SETTINGS ... NAU8825_REG_ANALOG_CONTROL_2:
 	case NAU8825_REG_ANALOG_ADC_1 ... NAU8825_REG_MIC_BIAS:
@@ -881,6 +911,7 @@ static bool nau8825_writeable_reg(struct device *dev, unsigned int reg)
 	case NAU8825_REG_IMM_MODE_CTRL:
 	case NAU8825_REG_CLASSG_CTRL ... NAU8825_REG_OPT_EFUSE_CTRL:
 	case NAU8825_REG_MISC_CTRL:
+	case NAU8825_REG_FLL2_LOWER ... NAU8825_REG_FLL2_UPPER:
 	case NAU8825_REG_BIAS_ADJ:
 	case NAU8825_REG_TRIM_SETTINGS ... NAU8825_REG_ANALOG_CONTROL_2:
 	case NAU8825_REG_ANALOG_ADC_1 ... NAU8825_REG_MIC_BIAS:
@@ -911,6 +942,32 @@ static bool nau8825_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
+static int nau8825_fepga_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FEPGA,
+				   NAU8825_ACDC_CTRL_MASK,
+				   NAU8825_ACDC_VREF_MICP | NAU8825_ACDC_VREF_MICN);
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_BOOST,
+				   NAU8825_DISCHRG_EN, NAU8825_DISCHRG_EN);
+		msleep(40);
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_BOOST,
+				   NAU8825_DISCHRG_EN, 0);
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_FEPGA,
+				   NAU8825_ACDC_CTRL_MASK, 0);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int nau8825_adc_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -919,7 +976,7 @@ static int nau8825_adc_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		msleep(125);
+		msleep(nau8825->adc_delay);
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_ENA_CTRL,
 			NAU8825_ENABLE_ADC, NAU8825_ENABLE_ADC);
 		break;
@@ -970,10 +1027,25 @@ static int nau8825_output_dac_event(struct snd_soc_dapm_widget *w,
 		/* Disables the TESTDAC to let DAC signal pass through. */
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 			NAU8825_BIAS_TESTDAC_EN, 0);
+		if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+		else
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		regmap_update_bits(nau8825->regmap, NAU8825_REG_BIAS_ADJ,
 			NAU8825_BIAS_TESTDAC_EN, NAU8825_BIAS_TESTDAC_EN);
+		if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+		else
+			regmap_update_bits(nau8825->regmap, NAU8825_REG_CHARGE_PUMP,
+					   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL, 0);
+
 		break;
 	default:
 		return -EINVAL;
@@ -1127,8 +1199,8 @@ static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC"),
 	SND_SOC_DAPM_MICBIAS("MICBIAS", NAU8825_REG_MIC_BIAS, 8, 0),
 
-	SND_SOC_DAPM_PGA("Frontend PGA", NAU8825_REG_POWER_UP_CONTROL, 14, 0,
-		NULL, 0),
+	SND_SOC_DAPM_PGA_E("Frontend PGA", NAU8825_REG_POWER_UP_CONTROL, 14, 0,
+			   NULL, 0, nau8825_fepga_event, SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_ADC_E("ADC", NULL, SND_SOC_NOPM, 0, 0,
 		nau8825_adc_event, SND_SOC_DAPM_POST_PMU |
@@ -1181,11 +1253,12 @@ static const struct snd_soc_dapm_widget nau8825_dapm_widgets[] = {
 		NAU8825_REG_POWER_UP_CONTROL, 0, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA_S("Output DACL", 7,
-		NAU8825_REG_CHARGE_PUMP, 8, 1, nau8825_output_dac_event,
+		SND_SOC_NOPM, 0, 0, nau8825_output_dac_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA_S("Output DACR", 7,
-		NAU8825_REG_CHARGE_PUMP, 9, 1, nau8825_output_dac_event,
+		SND_SOC_NOPM, 0, 0, nau8825_output_dac_event,
 		SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
 
 	/* HPOL/R are ungrounded by disabling 16 Ohm pull-downs on playback */
 	SND_SOC_DAPM_PGA_S("HPOL Pulldown", 8,
@@ -1425,10 +1498,107 @@ static int nau8825_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
+/**
+ * nau8825_set_tdm_slot - configure DAI TDM.
+ * @dai: DAI
+ * @tx_mask: bitmask representing active TX slots.
+ * @rx_mask: bitmask representing active RX slots.
+ * @slots: Number of slots in use.
+ * @slot_width: Width in bits for each slot.
+ *
+ * Configures a DAI for TDM operation. Support TDM 4/8 slots.
+ * The limitation is DAC and ADC need shift 4 slots at 8 slots mode.
+ */
+static int nau8825_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+				unsigned int rx_mask, int slots, int slot_width)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
+	unsigned int ctrl_val = 0, ctrl_offset = 0, value = 0, dac_s, adc_s;
+
+	if (slots != 4 && slots != 8) {
+		dev_err(nau8825->dev, "Only support 4 or 8 slots!\n");
+		return -EINVAL;
+	}
+
+	/* The driver is limited to 1-channel for ADC, and 2-channel for DAC on TDM mode */
+	if (hweight_long((unsigned long) tx_mask) != 1 ||
+	    hweight_long((unsigned long) rx_mask) != 2) {
+		dev_err(nau8825->dev,
+			"The limitation is 1-channel for ADC, and 2-channel for DAC on TDM mode.\n");
+		return -EINVAL;
+	}
+
+	if (((tx_mask & 0xf) && (tx_mask & 0xf0)) ||
+	    ((rx_mask & 0xf) && (rx_mask & 0xf0)) ||
+	    ((tx_mask & 0xf) && (rx_mask & 0xf0)) ||
+	    ((rx_mask & 0xf) && (tx_mask & 0xf0))) {
+		dev_err(nau8825->dev,
+			"Slot assignment of DAC and ADC need to set same interval.\n");
+		return -EINVAL;
+	}
+
+	/* The offset of fixed 4 slots for 8 slots support */
+	if (rx_mask & 0xf0) {
+		regmap_update_bits(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL2,
+				   NAU8825_I2S_PCM_TS_EN_MASK, NAU8825_I2S_PCM_TS_EN);
+		regmap_read(nau8825->regmap, NAU8825_REG_I2S_PCM_CTRL1, &value);
+		ctrl_val |= NAU8825_TDM_OFFSET_EN;
+		ctrl_offset = 4 * slot_width;
+		if (!(value & NAU8825_I2S_PCMB_MASK))
+			ctrl_offset += 1;
+		dac_s = (rx_mask & 0xf0) >> 4;
+		adc_s = fls((tx_mask & 0xf0) >> 4);
+	} else {
+		dac_s = rx_mask & 0xf;
+		adc_s = fls(tx_mask & 0xf);
+	}
+
+	ctrl_val |= NAU8825_TDM_MODE;
+
+	switch (dac_s) {
+	case 0x3:
+		ctrl_val |= 1 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0x5:
+		ctrl_val |= 2 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0x6:
+		ctrl_val |= 1 << NAU8825_TDM_DACL_RX_SFT;
+		ctrl_val |= 2 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0x9:
+		ctrl_val |= 3 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0xa:
+		ctrl_val |= 1 << NAU8825_TDM_DACL_RX_SFT;
+		ctrl_val |= 3 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	case 0xc:
+		ctrl_val |= 2 << NAU8825_TDM_DACL_RX_SFT;
+		ctrl_val |= 3 << NAU8825_TDM_DACR_RX_SFT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ctrl_val |= adc_s - 1;
+
+	regmap_update_bits(nau8825->regmap, NAU8825_REG_TDM_CTRL,
+			   NAU8825_TDM_MODE | NAU8825_TDM_OFFSET_EN |
+			   NAU8825_TDM_DACL_RX_MASK | NAU8825_TDM_DACR_RX_MASK |
+			   NAU8825_TDM_TX_MASK, ctrl_val);
+	regmap_update_bits(nau8825->regmap, NAU8825_REG_LEFT_TIME_SLOT,
+			   NAU8825_TSLOT_L0_MASK, ctrl_offset);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops nau8825_dai_ops = {
 	.startup	= nau8825_dai_startup,
 	.hw_params	= nau8825_hw_params,
 	.set_fmt	= nau8825_set_dai_fmt,
+	.set_tdm_slot	= nau8825_set_tdm_slot,
 };
 
 #define NAU8825_RATES	SNDRV_PCM_RATE_8000_192000
@@ -1581,6 +1751,10 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 {
 	struct regmap *regmap = nau8825->regmap;
 
+	/* Enable HSD function */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_HSD_AUTO_MODE, NAU8825_HSD_AUTO_MODE);
+
 	/* Enable headset jack type detection complete interruption and
 	 * jack ejection interruption.
 	 */
@@ -1589,6 +1763,9 @@ static void nau8825_setup_auto_irq(struct nau8825 *nau8825)
 
 	/* Enable internal VCO needed for interruptions */
 	nau8825_configure_sysclk(nau8825, NAU8825_CLK_INTERNAL, 0);
+	/* Raise up the internal clock for jack detection */
+	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
+			   NAU8825_CLK_MCLK_SRC_MASK, 0);
 
 	/* Enable ADC needed for interruptions */
 	regmap_update_bits(regmap, NAU8825_REG_ENA_CTRL,
@@ -1634,6 +1811,121 @@ static int nau8825_button_decode(int value)
 		buttons |= SND_JACK_BTN_5;
 
 	return buttons;
+}
+
+static int nau8825_high_imped_detection(struct nau8825 *nau8825)
+{
+	struct regmap *regmap = nau8825->regmap;
+	struct snd_soc_dapm_context *dapm = nau8825->dapm;
+	unsigned int adc_mg1, adc_mg2;
+
+	/* Initial phase */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2);
+	regmap_update_bits(regmap, NAU8825_REG_ANALOG_CONTROL_1,
+			   NAU8825_TESTDACIN_MASK, NAU8825_TESTDACIN_GND);
+	regmap_write(regmap, NAU8825_REG_TRIM_SETTINGS, 0x6);
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_LOWNOISE_MASK | NAU8825_MICBIAS_VOLTAGE_MASK,
+			   NAU8825_MICBIAS_LOWNOISE_EN);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_INPUT_MASK | NAU8825_SAR_TRACKING_GAIN_MASK |
+			   NAU8825_SAR_HV_SEL_MASK | NAU8825_SAR_RES_SEL_MASK |
+			   NAU8825_SAR_COMPARE_TIME_MASK | NAU8825_SAR_SAMPLING_TIME_MASK,
+			   NAU8825_SAR_HV_SEL_VDDMIC | NAU8825_SAR_RES_SEL_70K);
+
+	snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
+	snd_soc_dapm_force_enable_pin(dapm, "SAR");
+	snd_soc_dapm_sync(dapm);
+
+	/* Configure settings for first reading of SARADC */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND2);
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+			   NAU8825_MICBIAS_JKR2);
+	regmap_read(regmap, NAU8825_REG_SARDOUT_RAM_STATUS, &adc_mg1);
+
+	/* Configure settings for second reading of SARADC */
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2, 0);
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 |
+			   NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L);
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1);
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+			   NAU8825_MICBIAS_JKSLV);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_INPUT_MASK, NAU8825_SAR_INPUT_JKSLV);
+	regmap_read(regmap, NAU8825_REG_SARDOUT_RAM_STATUS, &adc_mg2);
+
+	/* Disable phase */
+	snd_soc_dapm_disable_pin(dapm, "SAR");
+	snd_soc_dapm_disable_pin(dapm, "MICBIAS");
+	snd_soc_dapm_sync(dapm);
+
+	regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+			   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_LOWNOISE_MASK |
+			   NAU8825_MICBIAS_VOLTAGE_MASK, nau8825->micbias_voltage);
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+			   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 | NAU8825_SPKR_DWN1R |
+			   NAU8825_SPKR_DWN1L, NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2 |
+			   NAU8825_SPKR_DWN1R | NAU8825_SPKR_DWN1L);
+	regmap_update_bits(regmap, NAU8825_REG_ANALOG_CONTROL_1,
+			   NAU8825_TESTDACIN_MASK, NAU8825_TESTDACIN_GND);
+	regmap_write(regmap, NAU8825_REG_TRIM_SETTINGS, 0);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_TRACKING_GAIN_MASK | NAU8825_SAR_HV_SEL_MASK,
+			   nau8825->sar_voltage << NAU8825_SAR_TRACKING_GAIN_SFT);
+	regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+			   NAU8825_SAR_COMPARE_TIME_MASK | NAU8825_SAR_SAMPLING_TIME_MASK,
+			   (nau8825->sar_compare_time << NAU8825_SAR_COMPARE_TIME_SFT) |
+			   (nau8825->sar_sampling_time << NAU8825_SAR_SAMPLING_TIME_SFT));
+	dev_dbg(nau8825->dev, "adc_mg1:%x, adc_mg2:%x\n", adc_mg1, adc_mg2);
+
+	/* Confirmation phase */
+	if (adc_mg1 > adc_mg2) {
+		dev_dbg(nau8825->dev, "OMTP (micgnd1) mic connected\n");
+
+		/* Unground MICGND1 */
+		regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+				   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2,
+				   NAU8825_SPKR_ENGND2);
+		/* Attach 2kOhm Resistor from MICBIAS to MICGND1 */
+		regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+				   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+				   NAU8825_MICBIAS_JKR2);
+		/* Attach SARADC to MICGND1 */
+		regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+				   NAU8825_SAR_INPUT_MASK,
+				   NAU8825_SAR_INPUT_JKR2);
+	} else if (adc_mg1 < adc_mg2) {
+		dev_dbg(nau8825->dev, "CTIA (micgnd2) mic connected\n");
+
+		/* Unground MICGND2 */
+		regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL,
+				   NAU8825_SPKR_ENGND1 | NAU8825_SPKR_ENGND2,
+				   NAU8825_SPKR_ENGND1);
+		/* Attach 2kOhm Resistor from MICBIAS to MICGND2 */
+		regmap_update_bits(regmap, NAU8825_REG_MIC_BIAS,
+				   NAU8825_MICBIAS_JKSLV | NAU8825_MICBIAS_JKR2,
+				   NAU8825_MICBIAS_JKSLV);
+		/* Attach SARADC to MICGND2 */
+		regmap_update_bits(regmap, NAU8825_REG_SAR_CTRL,
+				   NAU8825_SAR_INPUT_MASK,
+				   NAU8825_SAR_INPUT_JKSLV);
+	} else {
+		dev_err(nau8825->dev, "Jack broken.\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int nau8825_jack_insert(struct nau8825 *nau8825)
@@ -1697,11 +1989,25 @@ static int nau8825_jack_insert(struct nau8825 *nau8825)
 		snd_soc_dapm_sync(dapm);
 		break;
 	case 3:
-		/* detect error case */
-		dev_err(nau8825->dev, "detection error; disable mic function\n");
-		type = SND_JACK_HEADPHONE;
+		/* Detection failure case */
+		dev_warn(nau8825->dev,
+			 "Detection failure. Try the manually mechanism for jack type checking.\n");
+		if (!nau8825_high_imped_detection(nau8825)) {
+			type = SND_JACK_HEADSET;
+			snd_soc_dapm_force_enable_pin(dapm, "MICBIAS");
+			snd_soc_dapm_force_enable_pin(dapm, "SAR");
+			snd_soc_dapm_sync(dapm);
+		} else
+			type = SND_JACK_HEADPHONE;
 		break;
 	}
+
+	/* Update to the default divider of internal clock for power saving */
+	regmap_update_bits(regmap, NAU8825_REG_CLK_DIVIDER,
+			   NAU8825_CLK_MCLK_SRC_MASK, 0xf);
+
+	/* Disable HSD function */
+	regmap_update_bits(regmap, NAU8825_REG_HSD_CTRL, NAU8825_HSD_AUTO_MODE, 0);
 
 	/* Leaving HPOL/R grounded after jack insert by default. They will be
 	 * ungrounded as part of the widget power up sequence at the beginning
@@ -1947,9 +2253,10 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	regmap_update_bits(regmap, NAU8825_REG_DAC_CTRL1,
 		NAU8825_DAC_OVERSAMPLE_MASK, NAU8825_DAC_OVERSAMPLE_64);
 	/* Disable DACR/L power */
-	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
-		NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL,
+				   NAU8825_POWER_DOWN_DACR | NAU8825_POWER_DOWN_DACL);
 	/* Enable TESTDAC. This sets the analog DAC inputs to a '0' input
 	 * signal to avoid any glitches due to power up transients in both
 	 * the analog and digital DAC circuit.
@@ -1983,6 +2290,10 @@ static void nau8825_init_regs(struct nau8825 *nau8825)
 	/* Disable short Frame Sync detection logic */
 	regmap_update_bits(regmap, NAU8825_REG_LEFT_TIME_SLOT,
 		NAU8825_DIS_FS_SHORT_DET, NAU8825_DIS_FS_SHORT_DET);
+	/* ADCDAT IO drive strength control */
+	regmap_update_bits(regmap, NAU8825_REG_CHARGE_PUMP,
+			   NAU8825_ADCOUT_DS_MASK,
+			   nau8825->adcout_ds << NAU8825_ADCOUT_DS_SFT);
 }
 
 static const struct regmap_config nau8825_regmap_config = {
@@ -2077,9 +2388,12 @@ static int nau8825_calc_fll_param(unsigned int fll_in, unsigned int fs,
 	/* Calculate the FLL 10-bit integer input and the FLL 16-bit fractional
 	 * input based on FDCO, FREF and FLL ratio.
 	 */
-	fvco = div_u64(fvco_max << 16, fref * fll_param->ratio);
-	fll_param->fll_int = (fvco >> 16) & 0x3FF;
-	fll_param->fll_frac = fvco & 0xFFFF;
+	fvco = div_u64(fvco_max << fll_param->fll_frac_num, fref * fll_param->ratio);
+	fll_param->fll_int = (fvco >> fll_param->fll_frac_num) & 0x3FF;
+	if (fll_param->fll_frac_num == 16)
+		fll_param->fll_frac = fvco & 0xFFFF;
+	else
+		fll_param->fll_frac = fvco & 0xFFFFFF;
 	return 0;
 }
 
@@ -2093,8 +2407,16 @@ static void nau8825_fll_apply(struct nau8825 *nau8825,
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL1,
 		NAU8825_FLL_RATIO_MASK | NAU8825_ICTRL_LATCH_MASK,
 		fll_param->ratio | (0x6 << NAU8825_ICTRL_LATCH_SFT));
-	/* FLL 16-bit fractional input */
-	regmap_write(nau8825->regmap, NAU8825_REG_FLL2, fll_param->fll_frac);
+	/* FLL 16/24 bit fractional input */
+	if (fll_param->fll_frac_num == 16)
+		regmap_write(nau8825->regmap, NAU8825_REG_FLL2,
+			     fll_param->fll_frac);
+	else {
+		regmap_write(nau8825->regmap, NAU8825_REG_FLL2_LOWER,
+			     fll_param->fll_frac & 0xffff);
+		regmap_write(nau8825->regmap, NAU8825_REG_FLL2_UPPER,
+			     (fll_param->fll_frac >> 16) & 0xff);
+	}
 	/* FLL 10-bit integer input */
 	regmap_update_bits(nau8825->regmap, NAU8825_REG_FLL3,
 			NAU8825_FLL_INTEGER_MASK, fll_param->fll_int);
@@ -2135,6 +2457,11 @@ static int nau8825_set_pll(struct snd_soc_component *component, int pll_id, int 
 	struct nau8825 *nau8825 = snd_soc_component_get_drvdata(component);
 	struct nau8825_fll fll_param;
 	int ret, fs;
+
+	if (nau8825->sw_id == NAU8825_SOFTWARE_ID_NAU8825)
+		fll_param.fll_frac_num = 16;
+	else
+		fll_param.fll_frac_num = 24;
 
 	fs = freq_out / 256;
 	ret = nau8825_calc_fll_param(freq_in, fs, &fll_param);
@@ -2521,6 +2848,8 @@ static void nau8825_print_device_properties(struct nau8825 *nau8825)
 			nau8825->jack_eject_debounce);
 	dev_dbg(dev, "crosstalk-enable:     %d\n",
 			nau8825->xtalk_enable);
+	dev_dbg(dev, "adcout-drive-strong:  %d\n", nau8825->adcout_ds);
+	dev_dbg(dev, "adc-delay-ms:         %d\n", nau8825->adc_delay);
 }
 
 static int nau8825_read_device_properties(struct device *dev,
@@ -2587,6 +2916,12 @@ static int nau8825_read_device_properties(struct device *dev,
 		nau8825->jack_eject_debounce = 0;
 	nau8825->xtalk_enable = device_property_read_bool(dev,
 		"nuvoton,crosstalk-enable");
+	nau8825->adcout_ds = device_property_read_bool(dev, "nuvoton,adcout-drive-strong");
+	ret = device_property_read_u32(dev, "nuvoton,adc-delay-ms", &nau8825->adc_delay);
+	if (ret)
+		nau8825->adc_delay = 125;
+	if (nau8825->adc_delay < 125 || nau8825->adc_delay > 500)
+		dev_warn(dev, "Please set the suitable delay time!\n");
 
 	nau8825->mclk = devm_clk_get(dev, "mclk");
 	if (PTR_ERR(nau8825->mclk) == -EPROBE_DEFER) {
@@ -2659,8 +2994,19 @@ static int nau8825_i2c_probe(struct i2c_client *i2c)
 			ret);
 		return ret;
 	}
-	if ((value & NAU8825_SOFTWARE_ID_MASK) !=
-			NAU8825_SOFTWARE_ID_NAU8825) {
+	nau8825->sw_id = value & NAU8825_SOFTWARE_ID_MASK;
+	switch (nau8825->sw_id) {
+	case NAU8825_SOFTWARE_ID_NAU8825:
+		break;
+	case NAU8825_SOFTWARE_ID_NAU8825C:
+		ret = regmap_register_patch(nau8825->regmap, nau8825_regmap_patch,
+					    ARRAY_SIZE(nau8825_regmap_patch));
+		if (ret) {
+			dev_err(dev, "Failed to register Rev C patch: %d\n", ret);
+			return ret;
+		}
+		break;
+	default:
 		dev_err(dev, "Not a NAU8825 chip\n");
 		return -ENODEV;
 	}
@@ -2706,7 +3052,7 @@ static struct i2c_driver nau8825_driver = {
 		.of_match_table = of_match_ptr(nau8825_of_ids),
 		.acpi_match_table = ACPI_PTR(nau8825_acpi_match),
 	},
-	.probe_new = nau8825_i2c_probe,
+	.probe = nau8825_i2c_probe,
 	.remove = nau8825_i2c_remove,
 	.id_table = nau8825_i2c_ids,
 };

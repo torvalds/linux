@@ -50,9 +50,10 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 		container_of(bo->bdev, typeof(*i915), bdev);
 	struct drm_i915_gem_object *backup;
 	struct ttm_operation_ctx ctx = {};
+	unsigned int flags;
 	int err = 0;
 
-	if (bo->resource->mem_type == I915_PL_SYSTEM || obj->ttm.backup)
+	if (!i915_ttm_cpu_maps_iomem(bo->resource) || obj->ttm.backup)
 		return 0;
 
 	if (pm_apply->allow_gpu && i915_gem_object_evictable(obj))
@@ -65,7 +66,22 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 	if (obj->flags & I915_BO_ALLOC_PM_VOLATILE)
 		return 0;
 
-	backup = i915_gem_object_create_shmem(i915, obj->base.size);
+	/*
+	 * It seems that we might have some framebuffers still pinned at this
+	 * stage, but for such objects we might also need to deal with the CCS
+	 * aux state. Make sure we force the save/restore of the CCS state,
+	 * otherwise we might observe display corruption, when returning from
+	 * suspend.
+	 */
+	flags = 0;
+	if (i915_gem_object_needs_ccs_pages(obj)) {
+		WARN_ON_ONCE(!i915_gem_object_is_framebuffer(obj));
+		WARN_ON_ONCE(!pm_apply->allow_gpu);
+
+		flags = I915_BO_ALLOC_CCS_AUX;
+	}
+	backup = i915_gem_object_create_region(i915->mm.regions[INTEL_REGION_SMEM],
+					       obj->base.size, 0, flags);
 	if (IS_ERR(backup))
 		return PTR_ERR(backup);
 
@@ -79,7 +95,12 @@ static int i915_ttm_backup(struct i915_gem_apply_to_region *apply,
 		goto out_no_populate;
 
 	err = i915_gem_obj_copy_ttm(backup, obj, pm_apply->allow_gpu, false);
-	GEM_WARN_ON(err);
+	if (err) {
+		drm_err(&i915->drm,
+			"Unable to copy from device to system memory, err:%pe\n",
+			ERR_PTR(err));
+		goto out_no_populate;
+	}
 	ttm_bo_wait_ctx(backup_bo, &ctx);
 
 	obj->ttm.backup = backup;
@@ -123,8 +144,7 @@ void i915_ttm_recover_region(struct intel_memory_region *mr)
 /**
  * i915_ttm_backup_region - Back up all objects of a region to smem.
  * @mr: The memory region
- * @allow_gpu: Whether to allow the gpu blitter for this backup.
- * @backup_pinned: Backup also pinned objects.
+ * @flags: TTM backup flags
  *
  * Loops over all objects of a region and either evicts them if they are
  * evictable or backs them up using a backup object if they are pinned.
@@ -166,7 +186,10 @@ static int i915_ttm_restore(struct i915_gem_apply_to_region *apply,
 		return err;
 
 	/* Content may have been swapped. */
-	err = ttm_tt_populate(backup_bo->bdev, backup_bo->ttm, &ctx);
+	if (!backup_bo->resource)
+		err = ttm_bo_validate(backup_bo, i915_ttm_sys_placement(), &ctx);
+	if (!err)
+		err = ttm_tt_populate(backup_bo->bdev, backup_bo->ttm, &ctx);
 	if (!err) {
 		err = i915_gem_obj_copy_ttm(obj, backup, pm_apply->allow_gpu,
 					    false);
@@ -188,7 +211,7 @@ static int i915_ttm_restore(struct i915_gem_apply_to_region *apply,
 /**
  * i915_ttm_restore_region - Restore backed-up objects of a region from smem.
  * @mr: The memory region
- * @allow_gpu: Whether to allow the gpu blitter to recover.
+ * @flags: TTM backup flags
  *
  * Loops over all objects of a region and if they are backed-up, restores
  * them from smem.

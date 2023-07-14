@@ -107,7 +107,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	spin_lock_init(&ieee->lock);
 	spin_lock_init(&ieee->wpax_suitlist_lock);
 	spin_lock_init(&ieee->reorder_spinlock);
-	atomic_set(&(ieee->atm_swbw), 0);
+	atomic_set(&ieee->atm_swbw, 0);
 
 	/* SAM FIXME */
 	lib80211_crypt_info_init(&ieee->crypt_info, "RTLLIB", &ieee->lock);
@@ -125,8 +125,8 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	if (err)
 		goto free_crypt_info;
 
-	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (!ieee->pHTInfo)
+	ieee->ht_info = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
+	if (!ieee->ht_info)
 		goto free_softmac;
 
 	HTUpdateDefaultSetting(ieee);
@@ -160,7 +160,7 @@ void free_rtllib(struct net_device *dev)
 	struct rtllib_device *ieee = (struct rtllib_device *)
 				      netdev_priv_rsl(dev);
 
-	kfree(ieee->pHTInfo);
+	kfree(ieee->ht_info);
 	rtllib_softmac_free(ieee);
 
 	lib80211_crypt_info_free(&ieee->crypt_info);

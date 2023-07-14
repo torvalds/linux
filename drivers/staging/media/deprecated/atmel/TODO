@@ -1,0 +1,34 @@
+The Atmel ISC driver is not compliant with media controller specification.
+In order to evolve this driver, it has to move to media controller, to
+support enhanced features and future products which embed it.
+The move to media controller involves several changes which are
+not backwards compatible with the current usability of the driver.
+
+The best example is the way the format is propagated from the top video
+driver /dev/videoX down to the sensor.
+
+In a simple configuration sensor ==> isc , the isc just calls subdev s_fmt
+and controls the sensor directly. This is achieved by having a lot of code
+inside the driver that will query the subdev at probe time and make a list
+of formats which are usable.
+Basically the user has nothing to configure, as the isc will handle
+everything at the top level. This is an easy way to capture, but also comes
+with the drawback of lack of flexibility.
+In a more complicated pipeline
+sensor ==> controller 1 ==> controller 2 ==> isc
+this will not be achievable, as controller 1 and controller 2 might be
+media-controller configurable, and will not propagate the formats down to
+the sensor.
+
+After discussions with the media maintainers, the decision is to move
+Atmel ISC to staging as-is, to keep the Kconfig symbols and the users
+to the driver in staging. Thus, all the existing users of the non
+media-controller paradigm will continue to be happy and use the old config
+way.
+
+The new driver was added in the media subsystem with a different
+symbol, with the conversion to media controller done, and new users
+of the driver will be able to use all the new features.
+
+The replacement driver is named VIDEO_MICROCHIP_ISC or
+VIDEO_MICROCHIP_XISC depending on the product flavor.

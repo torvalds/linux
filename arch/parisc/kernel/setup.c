@@ -45,20 +45,20 @@ struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
 struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
 struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 
-void __init setup_cmdline(char **cmdline_p)
+static void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
 	char *p;
 
-	/* Collect stuff passed in from the boot loader */
+	*cmdline_p = command_line;
 
 	/* boot_args[0] is free-mem start, boot_args[1] is ptr to command line */
-	if (boot_args[0] < 64) {
-		/* called from hpux boot loader */
-		boot_command_line[0] = '\0';
-	} else {
-		strscpy(boot_command_line, (char *)__va(boot_args[1]),
-			COMMAND_LINE_SIZE);
+	if (boot_args[0] < 64)
+		return;	/* return if called from hpux boot loader */
+
+	/* Collect stuff passed in from the boot loader */
+	strscpy(boot_command_line, (char *)__va(boot_args[1]),
+		COMMAND_LINE_SIZE);
 
 	/* autodetect console type (if not done by palo yet) */
 	p = boot_command_line;
@@ -70,21 +70,23 @@ void __init setup_cmdline(char **cmdline_p)
 			strlcat(p, "tty0", COMMAND_LINE_SIZE);
 	}
 
+	/* default to use early console */
+	if (!strstr(p, "earlycon"))
+		strlcat(p, " earlycon=pdc", COMMAND_LINE_SIZE);
+
 #ifdef CONFIG_BLK_DEV_INITRD
-		if (boot_args[2] != 0) /* did palo pass us a ramdisk? */
-		{
-		    initrd_start = (unsigned long)__va(boot_args[2]);
-		    initrd_end = (unsigned long)__va(boot_args[3]);
-		}
-#endif
+	/* did palo pass us a ramdisk? */
+	if (boot_args[2] != 0) {
+		initrd_start = (unsigned long)__va(boot_args[2]);
+		initrd_end = (unsigned long)__va(boot_args[3]);
 	}
+#endif
 
 	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
-	*cmdline_p = command_line;
 }
 
 #ifdef CONFIG_PA11
-void __init dma_ops_init(void)
+static void __init dma_ops_init(void)
 {
 	switch (boot_cpu_data.cpu_type) {
 	case pcx:
@@ -103,8 +105,6 @@ void __init dma_ops_init(void)
 	}
 }
 #endif
-
-extern void collect_boot_cpu_data(void);
 
 void __init setup_arch(char **cmdline_p)
 {
@@ -139,8 +139,6 @@ void __init setup_arch(char **cmdline_p)
 	if (__pa((unsigned long) &_end) >= KERNEL_INITIAL_SIZE)
 		panic("KERNEL_INITIAL_ORDER too small!");
 
-	pdc_console_init();
-
 #ifdef CONFIG_64BIT
 	if(parisc_narrow_firmware) {
 		printk(KERN_INFO "Kernel is using PDC in 32-bit mode.\n");
@@ -167,10 +165,7 @@ void __init setup_arch(char **cmdline_p)
 
 /*
  * Display CPU info for all CPUs.
- * for parisc this is in processor.c
  */
-extern int show_cpuinfo (struct seq_file *m, void *v);
-
 static void *
 c_start (struct seq_file *m, loff_t *pos)
 {
@@ -295,16 +290,6 @@ static int __init parisc_init_resources(void)
 	return 0;
 }
 
-extern void gsc_init(void);
-extern void processor_init(void);
-extern void ccio_init(void);
-extern void hppb_init(void);
-extern void dino_init(void);
-extern void iosapic_init(void);
-extern void lba_init(void);
-extern void sba_init(void);
-extern void eisa_init(void);
-
 static int __init parisc_init(void)
 {
 	u32 osid = (OS_ID_LINUX << 16);
@@ -370,7 +355,7 @@ static int __init parisc_init(void)
 	gsc_init();
 #endif
 #ifdef CONFIG_EISA
-	eisa_init();
+	parisc_eisa_init();
 #endif
 
 #if defined(CONFIG_HPPB)
@@ -391,8 +376,6 @@ arch_initcall(parisc_init);
 
 void __init start_parisc(void)
 {
-	extern void early_trap_init(void);
-
 	int ret, cpunum;
 	struct pdc_coproc_cfg coproc_cfg;
 

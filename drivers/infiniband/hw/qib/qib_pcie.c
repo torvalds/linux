@@ -35,7 +35,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
-#include <linux/aer.h>
 #include <linux/module.h>
 
 #include "qib.h"
@@ -105,13 +104,6 @@ int qib_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	pci_set_master(pdev);
-	ret = pci_enable_pcie_error_reporting(pdev);
-	if (ret) {
-		qib_early_err(&pdev->dev,
-			      "Unable to enable pcie error reporting: %d\n",
-			      ret);
-		ret = 0;
-	}
 	goto done;
 
 bail:
@@ -295,7 +287,7 @@ void qib_free_irq(struct qib_devdata *dd)
  * Setup pcie interrupt stuff again after a reset.  I'd like to just call
  * pci_enable_msi() again for msi, but when I do that,
  * the MSI enable bit doesn't get set in the command word, and
- * we switch to to a different interrupt vector, which is confusing,
+ * we switch to a different interrupt vector, which is confusing,
  * so I instead just do it all inline.  Perhaps somehow can tie this
  * into the PCIe hotplug support at some point
  */

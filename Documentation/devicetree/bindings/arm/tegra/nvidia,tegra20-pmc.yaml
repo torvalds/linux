@@ -123,6 +123,33 @@ properties:
       some PLLs, clocks and then brings up CPU0 for resuming the
       system.
 
+  core-supply:
+    description:
+      Phandle to voltage regulator connected to the SoC Core power rail.
+
+  core-domain:
+    type: object
+    description: |
+      The vast majority of hardware blocks of Tegra SoC belong to a
+      Core power domain, which has a dedicated voltage rail that powers
+      the blocks.
+
+    properties:
+      operating-points-v2:
+        description:
+          Should contain level, voltages and opp-supported-hw property.
+          The supported-hw is a bitfield indicating SoC speedo or process
+          ID mask.
+
+      "#power-domain-cells":
+        const: 0
+
+    required:
+      - operating-points-v2
+      - "#power-domain-cells"
+
+    additionalProperties: false
+
   i2c-thermtrip:
     type: object
     description:
@@ -207,6 +234,7 @@ properties:
     patternProperties:
       "^[a-z0-9]+$":
         type: object
+        additionalProperties: false
 
         properties:
           clocks:
@@ -224,6 +252,9 @@ properties:
               Must contain an entry for each reset required by the PMC
               for controlling a power-gate.
               See ../reset/reset.txt for more details.
+
+          power-domains:
+            maxItems: 1
 
           '#power-domain-cells':
             const: 0
@@ -299,33 +330,6 @@ patternProperties:
       - pins
 
     additionalProperties: false
-
-  core-domain:
-    type: object
-    description: |
-      The vast majority of hardware blocks of Tegra SoC belong to a
-      Core power domain, which has a dedicated voltage rail that powers
-      the blocks.
-
-    properties:
-      operating-points-v2:
-        description:
-          Should contain level, voltages and opp-supported-hw property.
-          The supported-hw is a bitfield indicating SoC speedo or process
-          ID mask.
-
-      "#power-domain-cells":
-        const: 0
-
-    required:
-      - operating-points-v2
-      - "#power-domain-cells"
-
-    additionalProperties: false
-
-  core-supply:
-    description:
-      Phandle to voltage regulator connected to the SoC Core power rail.
 
 required:
   - compatible

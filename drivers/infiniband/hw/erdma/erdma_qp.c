@@ -6,15 +6,6 @@
 /* Authors: Bernard Metzler <bmt@zurich.ibm.com> */
 /* Copyright (c) 2008-2019, IBM Corporation */
 
-#include <linux/errno.h>
-#include <linux/pci.h>
-#include <linux/scatterlist.h>
-#include <linux/types.h>
-
-#include <rdma/ib_user_verbs.h>
-#include <rdma/ib_verbs.h>
-
-#include "erdma.h"
 #include "erdma_cm.h"
 #include "erdma_verbs.h"
 
@@ -105,8 +96,7 @@ static int erdma_modify_qp_state_to_rts(struct erdma_qp *qp,
 		req.send_nxt += MPA_DEFAULT_HDR_LEN + qp->attrs.pd_len;
 	req.recv_nxt = tp->rcv_nxt;
 
-	return erdma_post_cmd_wait(&dev->cmdq, (u64 *)&req, sizeof(req), NULL,
-				   NULL);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
 
 static int erdma_modify_qp_state_to_stop(struct erdma_qp *qp,
@@ -124,13 +114,13 @@ static int erdma_modify_qp_state_to_stop(struct erdma_qp *qp,
 	req.cfg = FIELD_PREP(ERDMA_CMD_MODIFY_QP_STATE_MASK, attrs->state) |
 		  FIELD_PREP(ERDMA_CMD_MODIFY_QP_QPN_MASK, QP_ID(qp));
 
-	return erdma_post_cmd_wait(&dev->cmdq, (u64 *)&req, sizeof(req), NULL,
-				   NULL);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
 }
 
 int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 			     enum erdma_qp_attr_mask mask)
 {
+	bool need_reflush = false;
 	int drop_conn, ret = 0;
 
 	if (!mask)
@@ -146,6 +136,7 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 			ret = erdma_modify_qp_state_to_rts(qp, attrs, mask);
 		} else if (attrs->state == ERDMA_QP_STATE_ERROR) {
 			qp->attrs.state = ERDMA_QP_STATE_ERROR;
+			need_reflush = true;
 			if (qp->cep) {
 				erdma_cep_put(qp->cep);
 				qp->cep = NULL;
@@ -156,17 +147,12 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 	case ERDMA_QP_STATE_RTS:
 		drop_conn = 0;
 
-		if (attrs->state == ERDMA_QP_STATE_CLOSING) {
+		if (attrs->state == ERDMA_QP_STATE_CLOSING ||
+		    attrs->state == ERDMA_QP_STATE_TERMINATE ||
+		    attrs->state == ERDMA_QP_STATE_ERROR) {
 			ret = erdma_modify_qp_state_to_stop(qp, attrs, mask);
 			drop_conn = 1;
-		} else if (attrs->state == ERDMA_QP_STATE_TERMINATE) {
-			qp->attrs.state = ERDMA_QP_STATE_TERMINATE;
-			ret = erdma_modify_qp_state_to_stop(qp, attrs, mask);
-			drop_conn = 1;
-		} else if (attrs->state == ERDMA_QP_STATE_ERROR) {
-			ret = erdma_modify_qp_state_to_stop(qp, attrs, mask);
-			qp->attrs.state = ERDMA_QP_STATE_ERROR;
-			drop_conn = 1;
+			need_reflush = true;
 		}
 
 		if (drop_conn)
@@ -189,6 +175,12 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 		break;
 	default:
 		break;
+	}
+
+	if (need_reflush && !ret && rdma_is_kernel_res(&qp->ibqp.res)) {
+		qp->flags |= ERDMA_QP_IN_FLUSHING;
+		mod_delayed_work(qp->dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
 	}
 
 	return ret;
@@ -296,15 +288,16 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 	u32 wqe_size, wqebb_cnt, hw_op, flags, sgl_offset;
 	u32 idx = *pi & (qp->attrs.sq_size - 1);
 	enum ib_wr_opcode op = send_wr->opcode;
+	struct erdma_atomic_sqe *atomic_sqe;
 	struct erdma_readreq_sqe *read_sqe;
 	struct erdma_reg_mr_sqe *regmr_sge;
 	struct erdma_write_sqe *write_sqe;
 	struct erdma_send_sqe *send_sqe;
 	struct ib_rdma_wr *rdma_wr;
-	struct erdma_mr *mr;
+	struct erdma_sge *sge;
 	__le32 *length_field;
+	struct erdma_mr *mr;
 	u64 wqe_hdr, *entry;
-	struct ib_sge *sge;
 	u32 attrs;
 	int ret;
 
@@ -371,9 +364,9 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 
 		sge = get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
 				      qp->attrs.sq_size, SQEBB_SHIFT);
-		sge->addr = rdma_wr->remote_addr;
-		sge->lkey = rdma_wr->rkey;
-		sge->length = send_wr->sg_list[0].length;
+		sge->addr = cpu_to_le64(rdma_wr->remote_addr);
+		sge->key = cpu_to_le32(rdma_wr->rkey);
+		sge->length = cpu_to_le32(send_wr->sg_list[0].length);
 		wqe_size = sizeof(struct erdma_readreq_sqe) +
 			   send_wr->num_sge * sizeof(struct ib_sge);
 
@@ -408,12 +401,11 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		regmr_sge->addr = cpu_to_le64(mr->ibmr.iova);
 		regmr_sge->length = cpu_to_le32(mr->ibmr.length);
 		regmr_sge->stag = cpu_to_le32(reg_wr(send_wr)->key);
-		attrs = FIELD_PREP(ERDMA_SQE_MR_MODE_MASK, 0) |
-			FIELD_PREP(ERDMA_SQE_MR_ACCESS_MASK, mr->access) |
+		attrs = FIELD_PREP(ERDMA_SQE_MR_ACCESS_MASK, mr->access) |
 			FIELD_PREP(ERDMA_SQE_MR_MTT_CNT_MASK,
 				   mr->mem.mtt_nents);
 
-		if (mr->mem.mtt_nents < ERDMA_MAX_INLINE_MTT_ENTRIES) {
+		if (mr->mem.mtt_nents <= ERDMA_MAX_INLINE_MTT_ENTRIES) {
 			attrs |= FIELD_PREP(ERDMA_SQE_MR_MTT_TYPE_MASK, 0);
 			/* Copy SGLs to SQE content to accelerate */
 			memcpy(get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
@@ -434,6 +426,35 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 		regmr_sge = (struct erdma_reg_mr_sqe *)entry;
 		regmr_sge->stag = cpu_to_le32(send_wr->ex.invalidate_rkey);
 		wqe_size = sizeof(struct erdma_reg_mr_sqe);
+		goto out;
+	case IB_WR_ATOMIC_CMP_AND_SWP:
+	case IB_WR_ATOMIC_FETCH_AND_ADD:
+		atomic_sqe = (struct erdma_atomic_sqe *)entry;
+		if (op == IB_WR_ATOMIC_CMP_AND_SWP) {
+			wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK,
+					      ERDMA_OP_ATOMIC_CAS);
+			atomic_sqe->fetchadd_swap_data =
+				cpu_to_le64(atomic_wr(send_wr)->swap);
+			atomic_sqe->cmp_data =
+				cpu_to_le64(atomic_wr(send_wr)->compare_add);
+		} else {
+			wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK,
+					      ERDMA_OP_ATOMIC_FAA);
+			atomic_sqe->fetchadd_swap_data =
+				cpu_to_le64(atomic_wr(send_wr)->compare_add);
+		}
+
+		sge = get_queue_entry(qp->kern_qp.sq_buf, idx + 1,
+				      qp->attrs.sq_size, SQEBB_SHIFT);
+		sge->addr = cpu_to_le64(atomic_wr(send_wr)->remote_addr);
+		sge->key = cpu_to_le32(atomic_wr(send_wr)->rkey);
+		sge++;
+
+		sge->addr = cpu_to_le64(send_wr->sg_list[0].addr);
+		sge->key = cpu_to_le32(send_wr->sg_list[0].lkey);
+		sge->length = cpu_to_le32(send_wr->sg_list[0].length);
+
+		wqe_size = sizeof(*atomic_sqe);
 		goto out;
 	default:
 		return -EOPNOTSUPP;
@@ -509,6 +530,10 @@ int erdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *send_wr,
 	}
 	spin_unlock_irqrestore(&qp->lock, flags);
 
+	if (unlikely(qp->flags & ERDMA_QP_IN_FLUSHING))
+		mod_delayed_work(qp->dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
+
 	return ret;
 }
 
@@ -562,5 +587,10 @@ int erdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *recv_wr,
 	}
 
 	spin_unlock_irqrestore(&qp->lock, flags);
+
+	if (unlikely(qp->flags & ERDMA_QP_IN_FLUSHING))
+		mod_delayed_work(qp->dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
+
 	return ret;
 }

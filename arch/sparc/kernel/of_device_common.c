@@ -162,7 +162,7 @@ int of_bus_sbus_match(struct device_node *np)
 		 * don't have some intervening real bus that provides
 		 * ranges based translations.
 		 */
-		if (of_find_property(dp, "ranges", NULL) != NULL)
+		if (of_property_present(dp, "ranges"))
 			break;
 
 		dp = dp->parent;

@@ -144,8 +144,8 @@
 #define MXS_PHY_NEED_IP_FIX			BIT(3)
 
 /* Minimum and maximum values for device tree entries */
-#define MXS_PHY_TX_CAL45_MIN			30
-#define MXS_PHY_TX_CAL45_MAX			55
+#define MXS_PHY_TX_CAL45_MIN			35
+#define MXS_PHY_TX_CAL45_MAX			54
 #define MXS_PHY_TX_D_CAL_MIN			79
 #define MXS_PHY_TX_D_CAL_MAX			119
 
@@ -733,7 +733,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Some SoCs don't have anatop registers */
-	if (of_get_property(np, "fsl,anatop", NULL)) {
+	if (of_property_present(np, "fsl,anatop")) {
 		mxs_phy->regmap_anatop = syscon_regmap_lookup_by_phandle
 			(np, "fsl,anatop");
 		if (IS_ERR(mxs_phy->regmap_anatop)) {
@@ -801,13 +801,11 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	return usb_add_phy_dev(&mxs_phy->phy);
 }
 
-static int mxs_phy_remove(struct platform_device *pdev)
+static void mxs_phy_remove(struct platform_device *pdev)
 {
 	struct mxs_phy *mxs_phy = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&mxs_phy->phy);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -853,7 +851,7 @@ static SIMPLE_DEV_PM_OPS(mxs_phy_pm, mxs_phy_system_suspend,
 
 static struct platform_driver mxs_phy_driver = {
 	.probe = mxs_phy_probe,
-	.remove = mxs_phy_remove,
+	.remove_new = mxs_phy_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = mxs_phy_dt_ids,

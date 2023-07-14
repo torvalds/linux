@@ -158,12 +158,27 @@ config DWMAC_SOCFPGA
 	default ARCH_INTEL_SOCFPGA
 	depends on OF && (ARCH_INTEL_SOCFPGA || COMPILE_TEST)
 	select MFD_SYSCON
+	select MDIO_REGMAP
+	select REGMAP_MMIO
+	select PCS_LYNX
 	help
 	  Support for ethernet controller on Altera SOCFPGA
 
 	  This selects the Altera SOCFPGA SoC glue layer support
 	  for the stmmac device driver. This driver is used for
 	  arria5 and cyclone5 FPGA SoCs.
+
+config DWMAC_STARFIVE
+	tristate "StarFive dwmac support"
+	depends on OF && (ARCH_STARFIVE || COMPILE_TEST)
+	select MFD_SYSCON
+	default m if ARCH_STARFIVE
+	help
+	  Support for ethernet controllers on StarFive RISC-V SoCs
+
+	  This selects the StarFive platform specific glue layer support for
+	  the stmmac device driver. This driver is used for StarFive JH7110
+	  ethernet controller.
 
 config DWMAC_STI
 	tristate "STi GMAC support"
@@ -234,6 +249,15 @@ config DWMAC_INTEL_PLAT
 	  This selects the Intel platform specific glue layer support for
 	  the stmmac device driver. This driver is used for the Intel Keem Bay
 	  SoC.
+
+config DWMAC_TEGRA
+	tristate "NVIDIA Tegra MGBE support"
+	depends on ARCH_TEGRA || COMPILE_TEST
+	help
+	  This selects the Multi-GigaBit Ethernet (MGBE) Controller that is
+	  found on the NVIDIA Tegra SoC devices. This driver provides the glue
+	  layer on top of the stmmac driver required for these NVIDIA Tegra SoC
+	  devices.
 
 config DWMAC_VISCONTI
 	tristate "Toshiba Visconti DWMAC support"

@@ -31,8 +31,10 @@ EXPORT_SYMBOL_GPL(crypto_alg_sem);
 BLOCKING_NOTIFIER_HEAD(crypto_chain);
 EXPORT_SYMBOL_GPL(crypto_chain);
 
-DEFINE_STATIC_KEY_FALSE(crypto_boot_test_finished);
-EXPORT_SYMBOL_GPL(crypto_boot_test_finished);
+#ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
+DEFINE_STATIC_KEY_FALSE(__crypto_boot_test_finished);
+EXPORT_SYMBOL_GPL(__crypto_boot_test_finished);
+#endif
 
 static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg);
 
@@ -114,7 +116,7 @@ struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask)
 	larval->alg.cra_priority = -1;
 	larval->alg.cra_destroy = crypto_larval_destroy;
 
-	strlcpy(larval->alg.cra_name, name, CRYPTO_MAX_ALG_NAME);
+	strscpy(larval->alg.cra_name, name, CRYPTO_MAX_ALG_NAME);
 	init_completion(&larval->completion);
 
 	return larval;
@@ -172,9 +174,6 @@ void crypto_wait_for_test(struct crypto_larval *larval)
 
 	err = wait_for_completion_killable(&larval->completion);
 	WARN_ON(err);
-	if (!err)
-		crypto_notify(CRYPTO_MSG_ALG_LOADED, larval);
-
 out:
 	crypto_larval_kill(&larval->alg);
 }
@@ -205,7 +204,7 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	struct crypto_larval *larval = (void *)alg;
 	long timeout;
 
-	if (!static_branch_likely(&crypto_boot_test_finished))
+	if (!crypto_boot_test_finished())
 		crypto_start_test(larval);
 
 	timeout = wait_for_completion_killable_timeout(
@@ -321,7 +320,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 
 	/*
 	 * If the internal flag is set for a cipher, require a caller to
-	 * to invoke the cipher with the internal flag to use that cipher.
+	 * invoke the cipher with the internal flag to use that cipher.
 	 * Also, if a caller wants to allocate a cipher that may or may
 	 * not be an internal cipher, use type | CRYPTO_ALG_INTERNAL and
 	 * !(mask & CRYPTO_ALG_INTERNAL).
@@ -345,15 +344,6 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	return alg;
 }
 EXPORT_SYMBOL_GPL(crypto_alg_mod_lookup);
-
-static int crypto_init_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
-{
-	const struct crypto_type *type_obj = tfm->__crt_alg->cra_type;
-
-	if (type_obj)
-		return type_obj->init(tfm, type, mask);
-	return 0;
-}
 
 static void crypto_exit_ops(struct crypto_tfm *tfm)
 {
@@ -396,23 +386,20 @@ void crypto_shoot_alg(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_shoot_alg);
 
-struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
-				      u32 mask)
+struct crypto_tfm *__crypto_alloc_tfmgfp(struct crypto_alg *alg, u32 type,
+					 u32 mask, gfp_t gfp)
 {
 	struct crypto_tfm *tfm = NULL;
 	unsigned int tfm_size;
 	int err = -ENOMEM;
 
 	tfm_size = sizeof(*tfm) + crypto_ctxsize(alg, type, mask);
-	tfm = kzalloc(tfm_size, GFP_KERNEL);
+	tfm = kzalloc(tfm_size, gfp);
 	if (tfm == NULL)
 		goto out_err;
 
 	tfm->__crt_alg = alg;
-
-	err = crypto_init_ops(tfm, type, mask);
-	if (err)
-		goto out_free_tfm;
+	refcount_set(&tfm->refcnt, 1);
 
 	if (!tfm->exit && alg->cra_init && (err = alg->cra_init(tfm)))
 		goto cra_init_failed;
@@ -421,7 +408,6 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 
 cra_init_failed:
 	crypto_exit_ops(tfm);
-out_free_tfm:
 	if (err == -EAGAIN)
 		crypto_shoot_alg(alg);
 	kfree(tfm);
@@ -429,6 +415,13 @@ out_err:
 	tfm = ERR_PTR(err);
 out:
 	return tfm;
+}
+EXPORT_SYMBOL_GPL(__crypto_alloc_tfmgfp);
+
+struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
+				      u32 mask)
+{
+	return __crypto_alloc_tfmgfp(alg, type, mask, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(__crypto_alloc_tfm);
 
@@ -488,26 +481,43 @@ err:
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_base);
 
-void *crypto_create_tfm_node(struct crypto_alg *alg,
-			const struct crypto_type *frontend,
-			int node)
+static void *crypto_alloc_tfmmem(struct crypto_alg *alg,
+				 const struct crypto_type *frontend, int node,
+				 gfp_t gfp)
 {
-	char *mem;
-	struct crypto_tfm *tfm = NULL;
+	struct crypto_tfm *tfm;
 	unsigned int tfmsize;
 	unsigned int total;
-	int err = -ENOMEM;
+	char *mem;
 
 	tfmsize = frontend->tfmsize;
 	total = tfmsize + sizeof(*tfm) + frontend->extsize(alg);
 
-	mem = kzalloc_node(total, GFP_KERNEL, node);
+	mem = kzalloc_node(total, gfp, node);
 	if (mem == NULL)
-		goto out_err;
+		return ERR_PTR(-ENOMEM);
 
 	tfm = (struct crypto_tfm *)(mem + tfmsize);
 	tfm->__crt_alg = alg;
 	tfm->node = node;
+	refcount_set(&tfm->refcnt, 1);
+
+	return mem;
+}
+
+void *crypto_create_tfm_node(struct crypto_alg *alg,
+			     const struct crypto_type *frontend,
+			     int node)
+{
+	struct crypto_tfm *tfm;
+	char *mem;
+	int err;
+
+	mem = crypto_alloc_tfmmem(alg, frontend, node, GFP_KERNEL);
+	if (IS_ERR(mem))
+		goto out;
+
+	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
 
 	err = frontend->init_tfm(tfm);
 	if (err)
@@ -524,12 +534,37 @@ out_free_tfm:
 	if (err == -EAGAIN)
 		crypto_shoot_alg(alg);
 	kfree(mem);
-out_err:
 	mem = ERR_PTR(err);
 out:
 	return mem;
 }
 EXPORT_SYMBOL_GPL(crypto_create_tfm_node);
+
+void *crypto_clone_tfm(const struct crypto_type *frontend,
+		       struct crypto_tfm *otfm)
+{
+	struct crypto_alg *alg = otfm->__crt_alg;
+	struct crypto_tfm *tfm;
+	char *mem;
+
+	mem = ERR_PTR(-ESTALE);
+	if (unlikely(!crypto_mod_get(alg)))
+		goto out;
+
+	mem = crypto_alloc_tfmmem(alg, frontend, otfm->node, GFP_ATOMIC);
+	if (IS_ERR(mem)) {
+		crypto_mod_put(alg);
+		goto out;
+	}
+
+	tfm = (struct crypto_tfm *)(mem + frontend->tfmsize);
+	tfm->crt_flags = otfm->crt_flags;
+	tfm->exit = otfm->exit;
+
+out:
+	return mem;
+}
+EXPORT_SYMBOL_GPL(crypto_clone_tfm);
 
 struct crypto_alg *crypto_find_alg(const char *alg_name,
 				   const struct crypto_type *frontend,
@@ -620,6 +655,8 @@ void crypto_destroy_tfm(void *mem, struct crypto_tfm *tfm)
 	if (IS_ERR_OR_NULL(mem))
 		return;
 
+	if (!refcount_dec_and_test(&tfm->refcnt))
+		return;
 	alg = tfm->__crt_alg;
 
 	if (!tfm->exit && alg->cra_exit)
@@ -644,9 +681,9 @@ int crypto_has_alg(const char *name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_has_alg);
 
-void crypto_req_done(struct crypto_async_request *req, int err)
+void crypto_req_done(void *data, int err)
 {
-	struct crypto_wait *wait = req->data;
+	struct crypto_wait *wait = data;
 
 	if (err == -EINPROGRESS)
 		return;

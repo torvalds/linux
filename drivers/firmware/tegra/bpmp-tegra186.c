@@ -4,7 +4,9 @@
  */
 
 #include <linux/genalloc.h>
+#include <linux/io.h>
 #include <linux/mailbox_client.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 
 #include <soc/tegra/bpmp.h>
@@ -18,8 +20,11 @@ struct tegra186_bpmp {
 
 	struct {
 		struct gen_pool *pool;
+		union {
+			void __iomem *sram;
+			void *dram;
+		};
 		dma_addr_t phys;
-		void *virt;
 	} tx, rx;
 
 	struct {
@@ -40,30 +45,26 @@ mbox_client_to_bpmp(struct mbox_client *client)
 
 static bool tegra186_bpmp_is_message_ready(struct tegra_bpmp_channel *channel)
 {
-	void *frame;
+	int err;
 
-	frame = tegra_ivc_read_get_next_frame(channel->ivc);
-	if (IS_ERR(frame)) {
-		channel->ib = NULL;
+	err = tegra_ivc_read_get_next_frame(channel->ivc, &channel->ib);
+	if (err) {
+		iosys_map_clear(&channel->ib);
 		return false;
 	}
-
-	channel->ib = frame;
 
 	return true;
 }
 
 static bool tegra186_bpmp_is_channel_free(struct tegra_bpmp_channel *channel)
 {
-	void *frame;
+	int err;
 
-	frame = tegra_ivc_write_get_next_frame(channel->ivc);
-	if (IS_ERR(frame)) {
-		channel->ob = NULL;
+	err = tegra_ivc_write_get_next_frame(channel->ivc, &channel->ob);
+	if (err) {
+		iosys_map_clear(&channel->ob);
 		return false;
 	}
-
-	channel->ob = frame;
 
 	return true;
 }
@@ -109,6 +110,7 @@ static int tegra186_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 {
 	struct tegra186_bpmp *priv = bpmp->priv;
 	size_t message_size, queue_size;
+	struct iosys_map rx, tx;
 	unsigned int offset;
 	int err;
 
@@ -121,10 +123,16 @@ static int tegra186_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 	queue_size = tegra_ivc_total_queue_size(message_size);
 	offset = queue_size * index;
 
-	err = tegra_ivc_init(channel->ivc, NULL,
-			     priv->rx.virt + offset, priv->rx.phys + offset,
-			     priv->tx.virt + offset, priv->tx.phys + offset,
-			     1, message_size, tegra186_bpmp_ivc_notify,
+	if (priv->rx.pool) {
+		iosys_map_set_vaddr_iomem(&rx, priv->rx.sram + offset);
+		iosys_map_set_vaddr_iomem(&tx, priv->tx.sram + offset);
+	} else {
+		iosys_map_set_vaddr(&rx, priv->rx.dram + offset);
+		iosys_map_set_vaddr(&tx, priv->tx.dram + offset);
+	}
+
+	err = tegra_ivc_init(channel->ivc, NULL, &rx, priv->rx.phys + offset, &tx,
+			     priv->tx.phys + offset, 1, message_size, tegra186_bpmp_ivc_notify,
 			     bpmp);
 	if (err < 0) {
 		dev_err(bpmp->dev, "failed to setup IVC for channel %u: %d\n",
@@ -160,18 +168,72 @@ static void mbox_handle_rx(struct mbox_client *client, void *data)
 	tegra_bpmp_handle_rx(bpmp);
 }
 
-static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
+static void tegra186_bpmp_teardown_channels(struct tegra_bpmp *bpmp)
 {
-	struct tegra186_bpmp *priv;
+	struct tegra186_bpmp *priv = bpmp->priv;
 	unsigned int i;
+
+	for (i = 0; i < bpmp->threaded.count; i++) {
+		if (!bpmp->threaded_channels[i].bpmp)
+			continue;
+
+		tegra186_bpmp_channel_cleanup(&bpmp->threaded_channels[i]);
+	}
+
+	tegra186_bpmp_channel_cleanup(bpmp->rx_channel);
+	tegra186_bpmp_channel_cleanup(bpmp->tx_channel);
+
+	if (priv->tx.pool) {
+		gen_pool_free(priv->tx.pool, (unsigned long)priv->tx.sram, 4096);
+		gen_pool_free(priv->rx.pool, (unsigned long)priv->rx.sram, 4096);
+	}
+}
+
+static int tegra186_bpmp_dram_init(struct tegra_bpmp *bpmp)
+{
+	struct tegra186_bpmp *priv = bpmp->priv;
+	struct device_node *np;
+	struct resource res;
+	size_t size;
 	int err;
 
-	priv = devm_kzalloc(bpmp->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	np = of_parse_phandle(bpmp->dev->of_node, "memory-region", 0);
+	if (!np)
+		return -ENODEV;
 
-	bpmp->priv = priv;
-	priv->parent = bpmp;
+	err = of_address_to_resource(np, 0, &res);
+	if (err < 0) {
+		dev_warn(bpmp->dev, "failed to parse memory region: %d\n", err);
+		return err;
+	}
+
+	size = resource_size(&res);
+
+	if (size < SZ_8K) {
+		dev_warn(bpmp->dev, "DRAM region must be larger than 8 KiB\n");
+		return -EINVAL;
+	}
+
+	priv->tx.phys = res.start;
+	priv->rx.phys = res.start + SZ_4K;
+
+	priv->tx.dram = devm_memremap(bpmp->dev, priv->tx.phys, size,
+				      MEMREMAP_WC);
+	if (IS_ERR(priv->tx.dram)) {
+		err = PTR_ERR(priv->tx.dram);
+		dev_warn(bpmp->dev, "failed to map DRAM region: %d\n", err);
+		return err;
+	}
+
+	priv->rx.dram = priv->tx.dram + SZ_4K;
+
+	return 0;
+}
+
+static int tegra186_bpmp_sram_init(struct tegra_bpmp *bpmp)
+{
+	struct tegra186_bpmp *priv = bpmp->priv;
+	int err;
 
 	priv->tx.pool = of_gen_pool_get(bpmp->dev->of_node, "shmem", 0);
 	if (!priv->tx.pool) {
@@ -179,8 +241,9 @@ static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
 		return -EPROBE_DEFER;
 	}
 
-	priv->tx.virt = gen_pool_dma_alloc(priv->tx.pool, 4096, &priv->tx.phys);
-	if (!priv->tx.virt) {
+	priv->tx.sram = (void __iomem *)gen_pool_dma_alloc(priv->tx.pool, 4096,
+							   &priv->tx.phys);
+	if (!priv->tx.sram) {
 		dev_err(bpmp->dev, "failed to allocate from TX pool\n");
 		return -ENOMEM;
 	}
@@ -192,22 +255,45 @@ static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
 		goto free_tx;
 	}
 
-	priv->rx.virt = gen_pool_dma_alloc(priv->rx.pool, 4096, &priv->rx.phys);
-	if (!priv->rx.virt) {
+	priv->rx.sram = (void __iomem *)gen_pool_dma_alloc(priv->rx.pool, 4096,
+							   &priv->rx.phys);
+	if (!priv->rx.sram) {
 		dev_err(bpmp->dev, "failed to allocate from RX pool\n");
 		err = -ENOMEM;
 		goto free_tx;
 	}
 
+	return 0;
+
+free_tx:
+	gen_pool_free(priv->tx.pool, (unsigned long)priv->tx.sram, 4096);
+
+	return err;
+}
+
+static int tegra186_bpmp_setup_channels(struct tegra_bpmp *bpmp)
+{
+	unsigned int i;
+	int err;
+
+	err = tegra186_bpmp_dram_init(bpmp);
+	if (err == -ENODEV) {
+		err = tegra186_bpmp_sram_init(bpmp);
+		if (err < 0)
+			return err;
+	}
+
 	err = tegra186_bpmp_channel_init(bpmp->tx_channel, bpmp,
 					 bpmp->soc->channels.cpu_tx.offset);
 	if (err < 0)
-		goto free_rx;
+		return err;
 
 	err = tegra186_bpmp_channel_init(bpmp->rx_channel, bpmp,
 					 bpmp->soc->channels.cpu_rx.offset);
-	if (err < 0)
-		goto cleanup_tx_channel;
+	if (err < 0) {
+		tegra186_bpmp_channel_cleanup(bpmp->tx_channel);
+		return err;
+	}
 
 	for (i = 0; i < bpmp->threaded.count; i++) {
 		unsigned int index = bpmp->soc->channels.thread.offset + i;
@@ -215,8 +301,42 @@ static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
 		err = tegra186_bpmp_channel_init(&bpmp->threaded_channels[i],
 						 bpmp, index);
 		if (err < 0)
-			goto cleanup_channels;
+			break;
 	}
+
+	if (err < 0)
+		tegra186_bpmp_teardown_channels(bpmp);
+
+	return err;
+}
+
+static void tegra186_bpmp_reset_channels(struct tegra_bpmp *bpmp)
+{
+	unsigned int i;
+
+	/* reset message channels */
+	tegra186_bpmp_channel_reset(bpmp->tx_channel);
+	tegra186_bpmp_channel_reset(bpmp->rx_channel);
+
+	for (i = 0; i < bpmp->threaded.count; i++)
+		tegra186_bpmp_channel_reset(&bpmp->threaded_channels[i]);
+}
+
+static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
+{
+	struct tegra186_bpmp *priv;
+	int err;
+
+	priv = devm_kzalloc(bpmp->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->parent = bpmp;
+	bpmp->priv = priv;
+
+	err = tegra186_bpmp_setup_channels(bpmp);
+	if (err < 0)
+		return err;
 
 	/* mbox registration */
 	priv->mbox.client.dev = bpmp->dev;
@@ -228,63 +348,27 @@ static int tegra186_bpmp_init(struct tegra_bpmp *bpmp)
 	if (IS_ERR(priv->mbox.channel)) {
 		err = PTR_ERR(priv->mbox.channel);
 		dev_err(bpmp->dev, "failed to get HSP mailbox: %d\n", err);
-		goto cleanup_channels;
+		tegra186_bpmp_teardown_channels(bpmp);
+		return err;
 	}
 
-	tegra186_bpmp_channel_reset(bpmp->tx_channel);
-	tegra186_bpmp_channel_reset(bpmp->rx_channel);
-
-	for (i = 0; i < bpmp->threaded.count; i++)
-		tegra186_bpmp_channel_reset(&bpmp->threaded_channels[i]);
+	tegra186_bpmp_reset_channels(bpmp);
 
 	return 0;
-
-cleanup_channels:
-	for (i = 0; i < bpmp->threaded.count; i++) {
-		if (!bpmp->threaded_channels[i].bpmp)
-			continue;
-
-		tegra186_bpmp_channel_cleanup(&bpmp->threaded_channels[i]);
-	}
-
-	tegra186_bpmp_channel_cleanup(bpmp->rx_channel);
-cleanup_tx_channel:
-	tegra186_bpmp_channel_cleanup(bpmp->tx_channel);
-free_rx:
-	gen_pool_free(priv->rx.pool, (unsigned long)priv->rx.virt, 4096);
-free_tx:
-	gen_pool_free(priv->tx.pool, (unsigned long)priv->tx.virt, 4096);
-
-	return err;
 }
 
 static void tegra186_bpmp_deinit(struct tegra_bpmp *bpmp)
 {
 	struct tegra186_bpmp *priv = bpmp->priv;
-	unsigned int i;
 
 	mbox_free_channel(priv->mbox.channel);
 
-	for (i = 0; i < bpmp->threaded.count; i++)
-		tegra186_bpmp_channel_cleanup(&bpmp->threaded_channels[i]);
-
-	tegra186_bpmp_channel_cleanup(bpmp->rx_channel);
-	tegra186_bpmp_channel_cleanup(bpmp->tx_channel);
-
-	gen_pool_free(priv->rx.pool, (unsigned long)priv->rx.virt, 4096);
-	gen_pool_free(priv->tx.pool, (unsigned long)priv->tx.virt, 4096);
+	tegra186_bpmp_teardown_channels(bpmp);
 }
 
 static int tegra186_bpmp_resume(struct tegra_bpmp *bpmp)
 {
-	unsigned int i;
-
-	/* reset message channels */
-	tegra186_bpmp_channel_reset(bpmp->tx_channel);
-	tegra186_bpmp_channel_reset(bpmp->rx_channel);
-
-	for (i = 0; i < bpmp->threaded.count; i++)
-		tegra186_bpmp_channel_reset(&bpmp->threaded_channels[i]);
+	tegra186_bpmp_reset_channels(bpmp);
 
 	return 0;
 }

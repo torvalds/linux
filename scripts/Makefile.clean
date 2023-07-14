@@ -9,10 +9,7 @@ PHONY := __clean
 __clean:
 
 include $(srctree)/scripts/Kbuild.include
-
-# The filename Kbuild has precedence over Makefile
-kbuild-dir := $(if $(filter /%,$(src)),$(src),$(srctree)/$(src))
-include $(or $(wildcard $(kbuild-dir)/Kbuild),$(kbuild-dir)/Makefile)
+include $(kbuild-file)
 
 # Figure out what we need to build from the various variables
 # ==========================================================================
@@ -40,8 +37,10 @@ __clean-files   := $(wildcard $(addprefix $(obj)/, $(__clean-files)))
 
 # ==========================================================================
 
+# To make this rule robust against "Argument list too long" error,
+# remove $(obj)/ prefix, and restore it by a shell command.
 quiet_cmd_clean = CLEAN   $(obj)
-      cmd_clean = rm -rf $(__clean-files)
+      cmd_clean = printf '$(obj)/%s ' $(patsubst $(obj)/%,%,$(__clean-files)) | xargs rm -rf
 
 __clean: $(subdir-ymn)
 ifneq ($(strip $(__clean-files)),)

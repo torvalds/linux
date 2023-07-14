@@ -17,8 +17,10 @@ void v3d_perfmon_get(struct v3d_perfmon *perfmon)
 
 void v3d_perfmon_put(struct v3d_perfmon *perfmon)
 {
-	if (perfmon && refcount_dec_and_test(&perfmon->refcnt))
+	if (perfmon && refcount_dec_and_test(&perfmon->refcnt)) {
+		mutex_destroy(&perfmon->lock);
 		kfree(perfmon);
+	}
 }
 
 void v3d_perfmon_start(struct v3d_dev *v3d, struct v3d_perfmon *perfmon)
@@ -95,7 +97,7 @@ struct v3d_perfmon *v3d_perfmon_find(struct v3d_file_priv *v3d_priv, int id)
 void v3d_perfmon_open_file(struct v3d_file_priv *v3d_priv)
 {
 	mutex_init(&v3d_priv->perfmon.lock);
-	idr_init(&v3d_priv->perfmon.idr);
+	idr_init_base(&v3d_priv->perfmon.idr, 1);
 }
 
 static int v3d_perfmon_idr_del(int id, void *elem, void *data)
@@ -113,6 +115,7 @@ void v3d_perfmon_close_file(struct v3d_file_priv *v3d_priv)
 	idr_for_each(&v3d_priv->perfmon.idr, v3d_perfmon_idr_del, NULL);
 	idr_destroy(&v3d_priv->perfmon.idr);
 	mutex_unlock(&v3d_priv->perfmon.lock);
+	mutex_destroy(&v3d_priv->perfmon.lock);
 }
 
 int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
@@ -154,6 +157,7 @@ int v3d_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&v3d_priv->perfmon.lock);
 
 	if (ret < 0) {
+		mutex_destroy(&perfmon->lock);
 		kfree(perfmon);
 		return ret;
 	}

@@ -1144,8 +1144,7 @@ static const struct dvb_frontend_ops si2165_ops = {
 	.read_ber          = si2165_read_ber,
 };
 
-static int si2165_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int si2165_probe(struct i2c_client *client)
 {
 	struct si2165_state *state = NULL;
 	struct si2165_platform_data *pdata = client->dev.platform_data;

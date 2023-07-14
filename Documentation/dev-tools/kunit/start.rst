@@ -4,6 +4,10 @@
 Getting Started
 ===============
 
+This page contains an overview of the kunit_tool and KUnit framework,
+teaching how to run existing tests and then how to write a simple test case,
+and covers common problems users face when using KUnit for the first time.
+
 Installing Dependencies
 =======================
 KUnit has the same dependencies as the Linux kernel. As long as you can
@@ -19,30 +23,53 @@ can run kunit_tool:
 
 	./tools/testing/kunit/kunit.py run
 
-For more information on this wrapper, see:
+.. note ::
+	You may see the following error:
+	"The source tree is not clean, please run 'make ARCH=um mrproper'"
+
+	This happens because internally kunit.py specifies ``.kunit``
+	(default option) as the build directory in the command ``make O=output/dir``
+	through the argument ``--build_dir``.  Hence, before starting an
+	out-of-tree build, the source tree must be clean.
+
+	There is also the same caveat mentioned in the "Build directory for
+	the kernel" section of the :doc:`admin-guide </admin-guide/README>`,
+	that is, its use, it must be used for all invocations of ``make``.
+	The good news is that it can indeed be solved by running
+	``make ARCH=um mrproper``, just be aware that this will delete the
+	current configuration and all generated files.
+
+If everything worked correctly, you should see the following:
+
+.. code-block::
+
+	Configuring KUnit Kernel ...
+	Building KUnit Kernel ...
+	Starting KUnit Kernel ...
+
+The tests will pass or fail.
+
+.. note ::
+   Because it is building a lot of sources for the first time,
+   the ``Building KUnit Kernel`` step may take a while.
+
+For detailed information on this wrapper, see:
 Documentation/dev-tools/kunit/run_wrapper.rst.
 
-Creating a ``.kunitconfig``
----------------------------
+Selecting which tests to run
+----------------------------
 
-By default, kunit_tool runs a selection of tests. However, you can specify which
-unit tests to run by creating a ``.kunitconfig`` file with kernel config options
-that enable only a specific set of tests and their dependencies.
-The ``.kunitconfig`` file contains a list of kconfig options which are required
-to run the desired targets. The ``.kunitconfig`` also contains any other test
-specific config options, such as test dependencies. For example: the
-``FAT_FS`` tests - ``FAT_KUNIT_TEST``, depends on
-``FAT_FS``. ``FAT_FS`` can be enabled by selecting either ``MSDOS_FS``
-or ``VFAT_FS``. To run ``FAT_KUNIT_TEST``, the ``.kunitconfig`` has:
+By default, kunit_tool runs all tests reachable with minimal configuration,
+that is, using default values for most of the kconfig options.  However,
+you can select which tests to run by:
 
-.. code-block:: none
+- `Customizing Kconfig`_ used to compile the kernel, or
+- `Filtering tests by name`_ to select specifically which compiled tests to run.
 
-	CONFIG_KUNIT=y
-	CONFIG_MSDOS_FS=y
-	CONFIG_FAT_KUNIT_TEST=y
-
-1. A good starting point for the ``.kunitconfig`` is the KUnit default config.
-   You can generate it by running:
+Customizing Kconfig
+~~~~~~~~~~~~~~~~~~~
+A good starting point for the ``.kunitconfig`` is the KUnit default config.
+If you didn't run ``kunit.py run`` yet, you can generate it by running:
 
 .. code-block:: bash
 
@@ -54,48 +81,69 @@ or ``VFAT_FS``. To run ``FAT_KUNIT_TEST``, the ``.kunitconfig`` has:
    ``.kunitconfig`` lives in the ``--build_dir`` used by kunit.py, which is
    ``.kunit`` by default.
 
-.. note ::
-   You may want to remove CONFIG_KUNIT_ALL_TESTS from the ``.kunitconfig`` as
-   it will enable a number of additional tests that you may not want.
-
-2. You can then add any other Kconfig options, for example:
-
-.. code-block:: none
-
-	CONFIG_LIST_KUNIT_TEST=y
-
 Before running the tests, kunit_tool ensures that all config options
 set in ``.kunitconfig`` are set in the kernel ``.config``. It will warn
 you if you have not included dependencies for the options used.
 
-.. note ::
-   If you change the ``.kunitconfig``, kunit.py will trigger a rebuild of the
+There are many ways to customize the configurations:
+
+a. Edit ``.kunit/.kunitconfig``. The file should contain the list of kconfig
+   options required to run the desired tests, including their dependencies.
+   You may want to remove CONFIG_KUNIT_ALL_TESTS from the ``.kunitconfig`` as
+   it will enable a number of additional tests that you may not want.
+   If you need to run on an architecture other than UML see :ref:`kunit-on-qemu`.
+
+b. Enable additional kconfig options on top of ``.kunit/.kunitconfig``.
+   For example, to include the kernel's linked-list test you can run::
+
+	./tools/testing/kunit/kunit.py run \
+		--kconfig_add CONFIG_LIST_KUNIT_TEST=y
+
+c. Provide the path of one or more .kunitconfig files from the tree.
+   For example, to run only ``FAT_FS`` and ``EXT4`` tests you can run::
+
+	./tools/testing/kunit/kunit.py run \
+		--kunitconfig ./fs/fat/.kunitconfig \
+		--kunitconfig ./fs/ext4/.kunitconfig
+
+d. If you change the ``.kunitconfig``, kunit.py will trigger a rebuild of the
    ``.config`` file. But you can edit the ``.config`` file directly or with
    tools like ``make menuconfig O=.kunit``. As long as its a superset of
    ``.kunitconfig``, kunit.py won't overwrite your changes.
 
-Running Tests (KUnit Wrapper)
------------------------------
-1. To make sure that everything is set up correctly, invoke the Python
-   wrapper from your kernel repository:
-
-.. code-block:: bash
-
-	./tools/testing/kunit/kunit.py run
-
-If everything worked correctly, you should see the following:
-
-.. code-block::
-
-	Generating .config ...
-	Building KUnit Kernel ...
-	Starting KUnit Kernel ...
-
-The tests will pass or fail.
 
 .. note ::
-   Because it is building a lot of sources for the first time, the
-   ``Building KUnit kernel`` may take a while.
+
+	To save a .kunitconfig after finding a satisfactory configuration::
+
+		make savedefconfig O=.kunit
+		cp .kunit/defconfig .kunit/.kunitconfig
+
+Filtering tests by name
+~~~~~~~~~~~~~~~~~~~~~~~
+If you want to be more specific than Kconfig can provide, it is also possible
+to select which tests to execute at boot-time by passing a glob filter
+(read instructions regarding the pattern in the manpage :manpage:`glob(7)`).
+If there is a ``"."`` (period) in the filter, it will be interpreted as a
+separator between the name of the test suite and the test case,
+otherwise, it will be interpreted as the name of the test suite.
+For example, let's assume we are using the default config:
+
+a. inform the name of a test suite, like ``"kunit_executor_test"``,
+   to run every test case it contains::
+
+	./tools/testing/kunit/kunit.py run "kunit_executor_test"
+
+b. inform the name of a test case prefixed by its test suite,
+   like ``"example.example_simple_test"``, to run specifically that test case::
+
+	./tools/testing/kunit/kunit.py run "example.example_simple_test"
+
+c. use wildcard characters (``*?[``) to run any test case that matches the pattern,
+   like ``"*.*64*"`` to run test cases containing ``"64"`` in the name inside
+   any test suite::
+
+	./tools/testing/kunit/kunit.py run "*.*64*"
 
 Running Tests without the KUnit Wrapper
 =======================================
@@ -202,14 +250,19 @@ Now we are ready to write the test cases.
 	};
 	kunit_test_suite(misc_example_test_suite);
 
+	MODULE_LICENSE("GPL");
+
 2. Add the following lines to ``drivers/misc/Kconfig``:
 
 .. code-block:: kconfig
 
 	config MISC_EXAMPLE_TEST
 		tristate "Test for my example" if !KUNIT_ALL_TESTS
-		depends on MISC_EXAMPLE && KUNIT=y
+		depends on MISC_EXAMPLE && KUNIT
 		default KUNIT_ALL_TESTS
+
+Note: If your test does not support being built as a loadable module (which is
+discouraged), replace tristate by bool, and depend on KUNIT=y instead of KUNIT.
 
 3. Add the following lines to ``drivers/misc/Makefile``:
 
@@ -217,7 +270,7 @@ Now we are ready to write the test cases.
 
 	obj-$(CONFIG_MISC_EXAMPLE_TEST) += example_test.o
 
-4. Add the following lines to ``.kunitconfig``:
+4. Add the following lines to ``.kunit/.kunitconfig``:
 
 .. code-block:: none
 
@@ -246,15 +299,11 @@ Congrats! You just wrote your first KUnit test.
 Next Steps
 ==========
 
-*   Documentation/dev-tools/kunit/architecture.rst - KUnit architecture.
-*   Documentation/dev-tools/kunit/run_wrapper.rst - run kunit_tool.
-*   Documentation/dev-tools/kunit/run_manual.rst - run tests without kunit_tool.
-*   Documentation/dev-tools/kunit/usage.rst - write tests.
-*   Documentation/dev-tools/kunit/tips.rst - best practices with
-    examples.
-*   Documentation/dev-tools/kunit/api/index.rst - KUnit APIs
-    used for testing.
-*   Documentation/dev-tools/kunit/kunit-tool.rst - kunit_tool helper
-    script.
-*   Documentation/dev-tools/kunit/faq.rst - KUnit common questions and
-    answers.
+If you're interested in using some of the more advanced features of kunit.py,
+take a look at Documentation/dev-tools/kunit/run_wrapper.rst
+
+If you'd like to run tests without using kunit.py, check out
+Documentation/dev-tools/kunit/run_manual.rst
+
+For more information on writing KUnit tests (including some common techniques
+for testing different things), see Documentation/dev-tools/kunit/usage.rst

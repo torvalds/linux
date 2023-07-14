@@ -21,8 +21,7 @@ static const struct regmap_config sky81452_config = {
 	.val_bits = 8,
 };
 
-static int sky81452_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int sky81452_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	const struct sky81452_platform_data *pdata = dev_get_platdata(dev);

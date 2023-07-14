@@ -236,19 +236,11 @@ THUMB(	fpreg	.req	r7	)
 	sub	\tmp, \tmp, #1			@ decrement it
 	str	\tmp, [\ti, #TI_PREEMPT]
 	.endm
-
-	.macro	dec_preempt_count_ti, ti, tmp
-	get_thread_info \ti
-	dec_preempt_count \ti, \tmp
-	.endm
 #else
 	.macro	inc_preempt_count, ti, tmp
 	.endm
 
 	.macro	dec_preempt_count, ti, tmp
-	.endm
-
-	.macro	dec_preempt_count_ti, ti, tmp
 	.endm
 #endif
 
@@ -399,6 +391,23 @@ ALT_UP_B(.L0_\@)
 	.else
 	ALT_UP(W(nop))
 	.endif
+#endif
+	.endm
+
+/*
+ * Raw SMP data memory barrier
+ */
+	.macro	__smp_dmb mode
+#if __LINUX_ARM_ARCH__ >= 7
+	.ifeqs "\mode","arm"
+	dmb	ish
+	.else
+	W(dmb)	ish
+	.endif
+#elif __LINUX_ARM_ARCH__ == 6
+	mcr	p15, 0, r0, c7, c10, 5	@ dmb
+#else
+	.error "Incompatible SMP platform"
 #endif
 	.endm
 
@@ -760,6 +769,12 @@ THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
 	rev		\val, \val
 	.endif
 	.endm
+
+	.if		__LINUX_ARM_ARCH__ < 6
+	.set		.Lrev_l_uses_tmp, 1
+	.else
+	.set		.Lrev_l_uses_tmp, 0
+	.endif
 
 	/*
 	 * bl_r - branch and link to register

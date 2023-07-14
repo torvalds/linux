@@ -23,14 +23,17 @@
 		KUNIT_EXPECT_EQ_MSG((test), mask_weight, iter, MASK_MSG(mask));	\
 	} while (0)
 
-#define EXPECT_FOR_EACH_CPU_NOT_EQ(test, mask)					\
+#define EXPECT_FOR_EACH_CPU_OP_EQ(test, op, mask1, mask2)			\
 	do {									\
-		const cpumask_t *m = (mask);					\
-		int mask_weight = cpumask_weight(m);				\
+		const cpumask_t *m1 = (mask1);					\
+		const cpumask_t *m2 = (mask2);					\
+		int weight;                                                     \
 		int cpu, iter = 0;						\
-		for_each_cpu_not(cpu, m)					\
+		cpumask_##op(&mask_tmp, m1, m2);                                \
+		weight = cpumask_weight(&mask_tmp);				\
+		for_each_cpu_##op(cpu, mask1, mask2)				\
 			iter++;							\
-		KUNIT_EXPECT_EQ_MSG((test), nr_cpu_ids - mask_weight, iter, MASK_MSG(mask));	\
+		KUNIT_EXPECT_EQ((test), weight, iter);				\
 	} while (0)
 
 #define EXPECT_FOR_EACH_CPU_WRAP_EQ(test, mask)			\
@@ -54,6 +57,7 @@
 
 static cpumask_t mask_empty;
 static cpumask_t mask_all;
+static cpumask_t mask_tmp;
 
 static void test_cpumask_weight(struct kunit *test)
 {
@@ -63,7 +67,7 @@ static void test_cpumask_weight(struct kunit *test)
 	KUNIT_EXPECT_EQ_MSG(test, 0, cpumask_weight(&mask_empty), MASK_MSG(&mask_empty));
 	KUNIT_EXPECT_EQ_MSG(test, nr_cpu_ids, cpumask_weight(cpu_possible_mask),
 			    MASK_MSG(cpu_possible_mask));
-	KUNIT_EXPECT_EQ_MSG(test, nr_cpumask_bits, cpumask_weight(&mask_all), MASK_MSG(&mask_all));
+	KUNIT_EXPECT_EQ_MSG(test, nr_cpu_ids, cpumask_weight(&mask_all), MASK_MSG(&mask_all));
 }
 
 static void test_cpumask_first(struct kunit *test)
@@ -99,12 +103,15 @@ static void test_cpumask_next(struct kunit *test)
 static void test_cpumask_iterators(struct kunit *test)
 {
 	EXPECT_FOR_EACH_CPU_EQ(test, &mask_empty);
-	EXPECT_FOR_EACH_CPU_NOT_EQ(test, &mask_empty);
 	EXPECT_FOR_EACH_CPU_WRAP_EQ(test, &mask_empty);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, and, &mask_empty, &mask_empty);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, and, cpu_possible_mask, &mask_empty);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, andnot, &mask_empty, &mask_empty);
 
 	EXPECT_FOR_EACH_CPU_EQ(test, cpu_possible_mask);
-	EXPECT_FOR_EACH_CPU_NOT_EQ(test, cpu_possible_mask);
 	EXPECT_FOR_EACH_CPU_WRAP_EQ(test, cpu_possible_mask);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, and, cpu_possible_mask, cpu_possible_mask);
+	EXPECT_FOR_EACH_CPU_OP_EQ(test, andnot, cpu_possible_mask, &mask_empty);
 }
 
 static void test_cpumask_iterators_builtin(struct kunit *test)

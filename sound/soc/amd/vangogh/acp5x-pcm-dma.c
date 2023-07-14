@@ -409,16 +409,15 @@ static int acp5x_audio_probe(struct platform_device *pdev)
 	}
 	pm_runtime_set_autosuspend_delay(&pdev->dev, 2000);
 	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_allow(&pdev->dev);
-
 	return 0;
 }
 
-static int acp5x_audio_remove(struct platform_device *pdev)
+static void acp5x_audio_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int __maybe_unused acp5x_pcm_resume(struct device *dev)
@@ -500,7 +499,7 @@ static const struct dev_pm_ops acp5x_pm_ops = {
 
 static struct platform_driver acp5x_dma_driver = {
 	.probe = acp5x_audio_probe,
-	.remove = acp5x_audio_remove,
+	.remove_new = acp5x_audio_remove,
 	.driver = {
 		.name = "acp5x_i2s_dma",
 		.pm = &acp5x_pm_ops,

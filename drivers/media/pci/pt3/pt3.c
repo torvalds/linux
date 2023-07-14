@@ -445,8 +445,8 @@ static int pt3_fetch_thread(void *data)
 		pt3_proc_dma(adap);
 
 		delay = ktime_set(0, PT3_FETCH_DELAY * NSEC_PER_MSEC);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		freezable_schedule_hrtimeout_range(&delay,
+		set_current_state(TASK_UNINTERRUPTIBLE|TASK_FREEZABLE);
+		schedule_hrtimeout_range(&delay,
 					PT3_FETCH_DELAY_DELTA * NSEC_PER_MSEC,
 					HRTIMER_MODE_REL);
 	}
@@ -707,18 +707,10 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		return ret;
 
-	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
-	if (ret == 0)
-		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-	else {
-		ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (ret == 0)
-			dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-		else {
-			dev_err(&pdev->dev, "Failed to set DMA mask\n");
-			return ret;
-		}
-		dev_info(&pdev->dev, "Use 32bit DMA\n");
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set DMA mask\n");
+		return ret;
 	}
 
 	pt3 = devm_kzalloc(&pdev->dev, sizeof(*pt3), GFP_KERNEL);

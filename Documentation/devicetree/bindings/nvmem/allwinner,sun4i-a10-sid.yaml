@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/nvmem/allwinner,sun4i-a10-sid.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Allwinner A10 Security ID Device Tree Bindings
+title: Allwinner A10 Security ID
 
 maintainers:
   - Chen-Yu Tsai <wens@csie.org>
   - Maxime Ripard <mripard@kernel.org>
 
 allOf:
-  - $ref: "nvmem.yaml#"
+  - $ref: nvmem.yaml#
 
 properties:
   compatible:

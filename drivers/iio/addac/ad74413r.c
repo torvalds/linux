@@ -39,6 +39,7 @@ struct ad74413r_chip_info {
 
 struct ad74413r_channel_config {
 	u32		func;
+	u32		drive_strength;
 	bool		gpo_comparator;
 	bool		initialized;
 };
@@ -71,6 +72,7 @@ struct ad74413r_state {
 	struct regmap			*regmap;
 	struct device			*dev;
 	struct iio_trigger		*trig;
+	struct gpio_desc		*reset_gpio;
 
 	size_t			adc_active_channels;
 	struct spi_message	adc_samples_msg;
@@ -98,6 +100,7 @@ struct ad74413r_state {
 #define AD74413R_REG_ADC_CONFIG_X(x)		(0x05 + (x))
 #define AD74413R_ADC_CONFIG_RANGE_MASK		GENMASK(7, 5)
 #define AD74413R_ADC_CONFIG_REJECTION_MASK	GENMASK(4, 3)
+#define AD74413R_ADC_CONFIG_CH_200K_TO_GND	BIT(2)
 #define AD74413R_ADC_RANGE_10V			0b000
 #define AD74413R_ADC_RANGE_2P5V_EXT_POW		0b001
 #define AD74413R_ADC_RANGE_2P5V_INT_POW		0b010
@@ -110,6 +113,7 @@ struct ad74413r_state {
 #define AD74413R_REG_DIN_CONFIG_X(x)	(0x09 + (x))
 #define AD74413R_DIN_DEBOUNCE_MASK	GENMASK(4, 0)
 #define AD74413R_DIN_DEBOUNCE_LEN	BIT(5)
+#define AD74413R_DIN_SINK_MASK		GENMASK(9, 6)
 
 #define AD74413R_REG_DAC_CODE_X(x)	(0x16 + (x))
 #define AD74413R_DAC_CODE_MAX		GENMASK(12, 0)
@@ -260,6 +264,18 @@ static int ad74413r_set_comp_debounce(struct ad74413r_state *st,
 				  val);
 }
 
+static int ad74413r_set_comp_drive_strength(struct ad74413r_state *st,
+					    unsigned int offset,
+					    unsigned int strength)
+{
+	strength = min(strength, 1800U);
+
+	return regmap_update_bits(st->regmap, AD74413R_REG_DIN_CONFIG_X(offset),
+				  AD74413R_DIN_SINK_MASK,
+				  FIELD_PREP(AD74413R_DIN_SINK_MASK, strength / 120));
+}
+
+
 static void ad74413r_gpio_set(struct gpio_chip *chip,
 			      unsigned int offset, int val)
 {
@@ -393,6 +409,13 @@ static int ad74413r_reset(struct ad74413r_state *st)
 {
 	int ret;
 
+	if (st->reset_gpio) {
+		gpiod_set_value_cansleep(st->reset_gpio, 1);
+		fsleep(50);
+		gpiod_set_value_cansleep(st->reset_gpio, 0);
+		return 0;
+	}
+
 	ret = regmap_write(st->regmap, AD74413R_REG_CMD_KEY,
 			   AD74413R_CMD_KEY_RESET1);
 	if (ret)
@@ -416,9 +439,20 @@ static int ad74413r_set_channel_dac_code(struct ad74413r_state *st,
 static int ad74413r_set_channel_function(struct ad74413r_state *st,
 					 unsigned int channel, u8 func)
 {
-	return regmap_update_bits(st->regmap,
+	int ret;
+
+	ret = regmap_update_bits(st->regmap,
 				  AD74413R_REG_CH_FUNC_SETUP_X(channel),
 				  AD74413R_CH_FUNC_SETUP_MASK, func);
+	if (ret)
+		return ret;
+
+	if (func == CH_FUNC_CURRENT_INPUT_LOOP_POWER)
+		ret = regmap_set_bits(st->regmap,
+				      AD74413R_REG_ADC_CONFIG_X(channel),
+				      AD74413R_ADC_CONFIG_CH_200K_TO_GND);
+
+	return ret;
 }
 
 static int ad74413r_set_adc_conv_seq(struct ad74413r_state *st,
@@ -691,7 +725,7 @@ static int ad74413_get_input_current_offset(struct ad74413r_state *st,
 	if (ret)
 		return ret;
 
-	*val = voltage_offset * AD74413R_ADC_RESULT_MAX / voltage_range;
+	*val = voltage_offset * (int)AD74413R_ADC_RESULT_MAX / voltage_range;
 
 	return IIO_VAL_INT;
 }
@@ -973,7 +1007,7 @@ static int ad74413r_read_raw(struct iio_dev *indio_dev,
 
 		ret = ad74413r_get_single_adc_result(indio_dev, chan->channel,
 						     val);
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		ad74413r_adc_to_resistance_result(*val, val);
@@ -1104,6 +1138,11 @@ static struct iio_chan_spec ad74413r_current_input_channels[] = {
 	AD74413R_ADC_CURRENT_CHANNEL,
 };
 
+static struct iio_chan_spec ad74413r_current_input_loop_channels[] = {
+	AD74413R_DAC_CHANNEL(IIO_CURRENT, BIT(IIO_CHAN_INFO_SCALE)),
+	AD74413R_ADC_CURRENT_CHANNEL,
+};
+
 static struct iio_chan_spec ad74413r_resistance_input_channels[] = {
 	AD74413R_ADC_CHANNEL(IIO_RESISTANCE, BIT(IIO_CHAN_INFO_PROCESSED)),
 };
@@ -1127,7 +1166,7 @@ static const struct ad74413r_channels ad74413r_channels_map[] = {
 	[CH_FUNC_CURRENT_OUTPUT] = AD74413R_CHANNELS(current_output),
 	[CH_FUNC_VOLTAGE_INPUT] = AD74413R_CHANNELS(voltage_input),
 	[CH_FUNC_CURRENT_INPUT_EXT_POWER] = AD74413R_CHANNELS(current_input),
-	[CH_FUNC_CURRENT_INPUT_LOOP_POWER] = AD74413R_CHANNELS(current_input),
+	[CH_FUNC_CURRENT_INPUT_LOOP_POWER] = AD74413R_CHANNELS(current_input_loop),
 	[CH_FUNC_RESISTANCE_INPUT] = AD74413R_CHANNELS(resistance_input),
 	[CH_FUNC_DIGITAL_INPUT_LOGIC] = AD74413R_CHANNELS(digital_input),
 	[CH_FUNC_DIGITAL_INPUT_LOOP_POWER] = AD74413R_CHANNELS(digital_input),
@@ -1181,6 +1220,9 @@ static int ad74413r_parse_channel_config(struct iio_dev *indio_dev,
 
 	config->gpo_comparator = fwnode_property_read_bool(channel_node,
 		"adi,gpo-comparator");
+
+	fwnode_property_read_u32(channel_node, "drive-strength-microamp",
+				 &config->drive_strength);
 
 	if (!config->gpo_comparator)
 		st->num_gpo_gpios++;
@@ -1261,6 +1303,7 @@ static int ad74413r_setup_gpios(struct ad74413r_state *st)
 	unsigned int gpo_gpio_i = 0;
 	unsigned int i;
 	u8 gpo_config;
+	u32 strength;
 	int ret;
 
 	for (i = 0; i < AD74413R_CHANNEL_MAX; i++) {
@@ -1274,8 +1317,14 @@ static int ad74413r_setup_gpios(struct ad74413r_state *st)
 		}
 
 		if (config->func == CH_FUNC_DIGITAL_INPUT_LOGIC ||
-		    config->func == CH_FUNC_DIGITAL_INPUT_LOOP_POWER)
+		    config->func == CH_FUNC_DIGITAL_INPUT_LOOP_POWER) {
 			st->comp_gpio_offsets[comp_gpio_i++] = i;
+
+			strength = config->drive_strength;
+			ret = ad74413r_set_comp_drive_strength(st, i, strength);
+			if (ret)
+				return ret;
+		}
 
 		ret = ad74413r_set_gpo_config(st, i, gpo_config);
 		if (ret)
@@ -1305,6 +1354,16 @@ static int ad74413r_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->dev = &spi->dev;
 	st->chip_info = device_get_match_data(&spi->dev);
+	if (!st->chip_info) {
+		const struct spi_device_id *id = spi_get_device_id(spi);
+
+		if (id)
+			st->chip_info =
+				(struct ad74413r_chip_info *)id->driver_data;
+		if (!st->chip_info)
+			return -EINVAL;
+	}
+
 	mutex_init(&st->lock);
 	init_completion(&st->adc_data_completion);
 
@@ -1312,6 +1371,10 @@ static int ad74413r_probe(struct spi_device *spi)
 				      &ad74413r_regmap_config);
 	if (IS_ERR(st->regmap))
 		return PTR_ERR(st->regmap);
+
+	st->reset_gpio = devm_gpiod_get_optional(st->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(st->reset_gpio))
+		return PTR_ERR(st->reset_gpio);
 
 	st->refin_reg = devm_regulator_get(st->dev, "refin");
 	if (IS_ERR(st->refin_reg))
@@ -1457,12 +1520,20 @@ static const struct of_device_id ad74413r_dt_id[] = {
 };
 MODULE_DEVICE_TABLE(of, ad74413r_dt_id);
 
+static const struct spi_device_id ad74413r_spi_id[] = {
+	{ .name = "ad74412r", .driver_data = (kernel_ulong_t)&ad74412r_chip_info_data },
+	{ .name = "ad74413r", .driver_data = (kernel_ulong_t)&ad74413r_chip_info_data },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, ad74413r_spi_id);
+
 static struct spi_driver ad74413r_driver = {
 	.driver = {
 		   .name = "ad74413r",
 		   .of_match_table = ad74413r_dt_id,
 	},
 	.probe = ad74413r_probe,
+	.id_table = ad74413r_spi_id,
 };
 
 module_driver(ad74413r_driver,

@@ -15,6 +15,7 @@
 
 / {
 	model = "MediaTek MT7622 RFB1 board";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt7622-rfb1", "mediatek,mt7622";
 
 	aliases {
@@ -208,7 +209,6 @@
 	bus-width = <4>;
 	max-frequency = <50000000>;
 	cap-sd-highspeed;
-	r_smpl = <1>;
 	cd-gpios = <&pio 81 GPIO_ACTIVE_LOW>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;

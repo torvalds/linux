@@ -37,6 +37,7 @@
  *  |   |       |   - _`GUC_CTB_STATUS_OVERFLOW` = 1 (head/tail too large)     |
  *  |   |       |   - _`GUC_CTB_STATUS_UNDERFLOW` = 2 (truncated message)      |
  *  |   |       |   - _`GUC_CTB_STATUS_MISMATCH` = 4 (head/tail modified)      |
+ *  |   |       |   - _`GUC_CTB_STATUS_UNUSED` = 8 (CTB is not in use)         |
  *  +---+-------+--------------------------------------------------------------+
  *  |...|       | RESERVED = MBZ                                               |
  *  +---+-------+--------------------------------------------------------------+
@@ -49,9 +50,10 @@ struct guc_ct_buffer_desc {
 	u32 tail;
 	u32 status;
 #define GUC_CTB_STATUS_NO_ERROR				0
-#define GUC_CTB_STATUS_OVERFLOW				(1 << 0)
-#define GUC_CTB_STATUS_UNDERFLOW			(1 << 1)
-#define GUC_CTB_STATUS_MISMATCH				(1 << 2)
+#define GUC_CTB_STATUS_OVERFLOW				BIT(0)
+#define GUC_CTB_STATUS_UNDERFLOW			BIT(1)
+#define GUC_CTB_STATUS_MISMATCH				BIT(2)
+#define GUC_CTB_STATUS_UNUSED				BIT(3)
 	u32 reserved[13];
 } __packed;
 static_assert(sizeof(struct guc_ct_buffer_desc) == 64);
@@ -164,26 +166,5 @@ static_assert(sizeof(struct guc_ct_buffer_desc) == 64);
  * - **code**, indicates message code
  * - **flags**, holds various bits to control message handling
  */
-
-/*
- * Definition of the command transport message header (DW0)
- *
- * bit[4..0]	message len (in dwords)
- * bit[7..5]	reserved
- * bit[8]	response (G2H only)
- * bit[8]	write fence to desc (H2G only)
- * bit[9]	write status to H2G buff (H2G only)
- * bit[10]	send status back via G2H (H2G only)
- * bit[15..11]	reserved
- * bit[31..16]	action code
- */
-#define GUC_CT_MSG_LEN_SHIFT			0
-#define GUC_CT_MSG_LEN_MASK			0x1F
-#define GUC_CT_MSG_IS_RESPONSE			(1 << 8)
-#define GUC_CT_MSG_WRITE_FENCE_TO_DESC		(1 << 8)
-#define GUC_CT_MSG_WRITE_STATUS_TO_BUFF		(1 << 9)
-#define GUC_CT_MSG_SEND_STATUS			(1 << 10)
-#define GUC_CT_MSG_ACTION_SHIFT			16
-#define GUC_CT_MSG_ACTION_MASK			0xFFFF
 
 #endif /* _ABI_GUC_COMMUNICATION_CTB_ABI_H */

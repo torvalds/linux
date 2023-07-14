@@ -18,14 +18,8 @@ static const struct mtk_gate_regs venc_cg_regs = {
 	.sta_ofs = 0x0000,
 };
 
-#define GATE_VENC(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &venc_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_setclr_inv,	\
-	}
+#define GATE_VENC(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &venc_cg_regs, _shift, &mtk_clk_gate_ops_setclr_inv)
 
 static const struct mtk_gate venc_clks[] = {
 	GATE_VENC(CLK_VENC_0, "venc_0", "mm_sel", 0),
@@ -34,37 +28,28 @@ static const struct mtk_gate venc_clks[] = {
 	GATE_VENC(CLK_VENC_3, "venc_3", "venc_sel", 12),
 };
 
-static const struct of_device_id of_match_clk_mt6797_venc[] = {
-	{ .compatible = "mediatek,mt6797-vencsys", },
-	{}
+static const struct mtk_clk_desc venc_desc = {
+	.clks = venc_clks,
+	.num_clks = ARRAY_SIZE(venc_clks),
 };
 
-static int clk_mt6797_venc_probe(struct platform_device *pdev)
-{
-	struct clk_hw_onecell_data *clk_data;
-	int r;
-	struct device_node *node = pdev->dev.of_node;
-
-	clk_data = mtk_alloc_clk_data(CLK_VENC_NR);
-
-	mtk_clk_register_gates(node, venc_clks, ARRAY_SIZE(venc_clks),
-			       clk_data);
-
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
-			pdev->name, r);
-
-	return r;
-}
+static const struct of_device_id of_match_clk_mt6797_venc[] = {
+	{
+		.compatible = "mediatek,mt6797-vencsys",
+		.data = &venc_desc,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, of_match_clk_mt6797_venc);
 
 static struct platform_driver clk_mt6797_venc_drv = {
-	.probe = clk_mt6797_venc_probe,
+	.probe = mtk_clk_simple_probe,
+	.remove_new = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt6797-venc",
 		.of_match_table = of_match_clk_mt6797_venc,
 	},
 };
-
-builtin_platform_driver(clk_mt6797_venc_drv);
+module_platform_driver(clk_mt6797_venc_drv);
+MODULE_LICENSE("GPL");

@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "messages.h"
 #include "tree-mod-log.h"
 #include "disk-io.h"
+#include "fs.h"
+#include "accessors.h"
+#include "tree-checker.h"
 
 struct tree_mod_root {
 	u64 logical;
@@ -197,12 +201,11 @@ static inline bool tree_mod_need_log(const struct btrfs_fs_info *fs_info,
 
 static struct tree_mod_elem *alloc_tree_mod_elem(struct extent_buffer *eb,
 						 int slot,
-						 enum btrfs_mod_log_op op,
-						 gfp_t flags)
+						 enum btrfs_mod_log_op op)
 {
 	struct tree_mod_elem *tm;
 
-	tm = kzalloc(sizeof(*tm), flags);
+	tm = kzalloc(sizeof(*tm), GFP_NOFS);
 	if (!tm)
 		return NULL;
 
@@ -220,29 +223,60 @@ static struct tree_mod_elem *alloc_tree_mod_elem(struct extent_buffer *eb,
 }
 
 int btrfs_tree_mod_log_insert_key(struct extent_buffer *eb, int slot,
-				  enum btrfs_mod_log_op op, gfp_t flags)
+				  enum btrfs_mod_log_op op)
 {
 	struct tree_mod_elem *tm;
-	int ret;
+	int ret = 0;
 
 	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
 
-	tm = alloc_tree_mod_elem(eb, slot, op, flags);
+	tm = alloc_tree_mod_elem(eb, slot, op);
 	if (!tm)
-		return -ENOMEM;
+		ret = -ENOMEM;
 
 	if (tree_mod_dont_log(eb->fs_info, eb)) {
 		kfree(tm);
+		/*
+		 * Don't error if we failed to allocate memory because we don't
+		 * need to log.
+		 */
 		return 0;
+	} else if (ret != 0) {
+		/*
+		 * We previously failed to allocate memory and we need to log,
+		 * so we have to fail.
+		 */
+		goto out_unlock;
 	}
 
 	ret = tree_mod_log_insert(eb->fs_info, tm);
+out_unlock:
 	write_unlock(&eb->fs_info->tree_mod_log_lock);
 	if (ret)
 		kfree(tm);
 
 	return ret;
+}
+
+static struct tree_mod_elem *tree_mod_log_alloc_move(struct extent_buffer *eb,
+						     int dst_slot, int src_slot,
+						     int nr_items)
+{
+	struct tree_mod_elem *tm;
+
+	tm = kzalloc(sizeof(*tm), GFP_NOFS);
+	if (!tm)
+		return ERR_PTR(-ENOMEM);
+
+	tm->logical = eb->start;
+	tm->slot = src_slot;
+	tm->move.dst_slot = dst_slot;
+	tm->move.nr_items = nr_items;
+	tm->op = BTRFS_MOD_LOG_MOVE_KEYS;
+	RB_CLEAR_NODE(&tm->node);
+
+	return tm;
 }
 
 int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
@@ -259,33 +293,44 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 		return 0;
 
 	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), GFP_NOFS);
-	if (!tm_list)
-		return -ENOMEM;
-
-	tm = kzalloc(sizeof(*tm), GFP_NOFS);
-	if (!tm) {
+	if (!tm_list) {
 		ret = -ENOMEM;
-		goto free_tms;
+		goto lock;
 	}
 
-	tm->logical = eb->start;
-	tm->slot = src_slot;
-	tm->move.dst_slot = dst_slot;
-	tm->move.nr_items = nr_items;
-	tm->op = BTRFS_MOD_LOG_MOVE_KEYS;
+	tm = tree_mod_log_alloc_move(eb, dst_slot, src_slot, nr_items);
+	if (IS_ERR(tm)) {
+		ret = PTR_ERR(tm);
+		tm = NULL;
+		goto lock;
+	}
 
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		tm_list[i] = alloc_tree_mod_elem(eb, i + dst_slot,
-				BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING, GFP_NOFS);
+				BTRFS_MOD_LOG_KEY_REMOVE_WHILE_MOVING);
 		if (!tm_list[i]) {
 			ret = -ENOMEM;
-			goto free_tms;
+			goto lock;
 		}
 	}
 
-	if (tree_mod_dont_log(eb->fs_info, eb))
+lock:
+	if (tree_mod_dont_log(eb->fs_info, eb)) {
+		/*
+		 * Don't error if we failed to allocate memory because we don't
+		 * need to log.
+		 */
+		ret = 0;
 		goto free_tms;
+	}
 	locked = true;
+
+	/*
+	 * We previously failed to allocate memory and we need to log, so we
+	 * have to fail.
+	 */
+	if (ret != 0)
+		goto free_tms;
 
 	/*
 	 * When we override something during the move, we log these removals.
@@ -307,10 +352,12 @@ int btrfs_tree_mod_log_insert_move(struct extent_buffer *eb,
 	return 0;
 
 free_tms:
-	for (i = 0; i < nr_items; i++) {
-		if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
-			rb_erase(&tm_list[i]->node, &eb->fs_info->tree_mod_log);
-		kfree(tm_list[i]);
+	if (tm_list) {
+		for (i = 0; i < nr_items; i++) {
+			if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
+				rb_erase(&tm_list[i]->node, &eb->fs_info->tree_mod_log);
+			kfree(tm_list[i]);
+		}
 	}
 	if (locked)
 		write_unlock(&eb->fs_info->tree_mod_log_lock);
@@ -360,14 +407,14 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 				  GFP_NOFS);
 		if (!tm_list) {
 			ret = -ENOMEM;
-			goto free_tms;
+			goto lock;
 		}
 		for (i = 0; i < nritems; i++) {
 			tm_list[i] = alloc_tree_mod_elem(old_root, i,
-			    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING, GFP_NOFS);
+			    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING);
 			if (!tm_list[i]) {
 				ret = -ENOMEM;
-				goto free_tms;
+				goto lock;
 			}
 		}
 	}
@@ -375,7 +422,7 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 	tm = kzalloc(sizeof(*tm), GFP_NOFS);
 	if (!tm) {
 		ret = -ENOMEM;
-		goto free_tms;
+		goto lock;
 	}
 
 	tm->logical = new_root->start;
@@ -384,14 +431,28 @@ int btrfs_tree_mod_log_insert_root(struct extent_buffer *old_root,
 	tm->generation = btrfs_header_generation(old_root);
 	tm->op = BTRFS_MOD_LOG_ROOT_REPLACE;
 
-	if (tree_mod_dont_log(fs_info, NULL))
+lock:
+	if (tree_mod_dont_log(fs_info, NULL)) {
+		/*
+		 * Don't error if we failed to allocate memory because we don't
+		 * need to log.
+		 */
+		ret = 0;
 		goto free_tms;
+	} else if (ret != 0) {
+		/*
+		 * We previously failed to allocate memory and we need to log,
+		 * so we have to fail.
+		 */
+		goto out_unlock;
+	}
 
 	if (tm_list)
 		ret = tree_mod_log_free_eb(fs_info, tm_list, nritems);
 	if (!ret)
 		ret = tree_mod_log_insert(fs_info, tm);
 
+out_unlock:
 	write_unlock(&fs_info->tree_mod_log_lock);
 	if (ret)
 		goto free_tms;
@@ -483,9 +544,14 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	struct btrfs_fs_info *fs_info = dst->fs_info;
 	int ret = 0;
 	struct tree_mod_elem **tm_list = NULL;
-	struct tree_mod_elem **tm_list_add, **tm_list_rem;
+	struct tree_mod_elem **tm_list_add = NULL;
+	struct tree_mod_elem **tm_list_rem = NULL;
 	int i;
 	bool locked = false;
+	struct tree_mod_elem *dst_move_tm = NULL;
+	struct tree_mod_elem *src_move_tm = NULL;
+	u32 dst_move_nr_items = btrfs_header_nritems(dst) - dst_offset;
+	u32 src_move_nr_items = btrfs_header_nritems(src) - (src_offset + nr_items);
 
 	if (!tree_mod_need_log(fs_info, NULL))
 		return 0;
@@ -495,36 +561,82 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 
 	tm_list = kcalloc(nr_items * 2, sizeof(struct tree_mod_elem *),
 			  GFP_NOFS);
-	if (!tm_list)
-		return -ENOMEM;
+	if (!tm_list) {
+		ret = -ENOMEM;
+		goto lock;
+	}
+
+	if (dst_move_nr_items) {
+		dst_move_tm = tree_mod_log_alloc_move(dst, dst_offset + nr_items,
+						      dst_offset, dst_move_nr_items);
+		if (IS_ERR(dst_move_tm)) {
+			ret = PTR_ERR(dst_move_tm);
+			dst_move_tm = NULL;
+			goto lock;
+		}
+	}
+	if (src_move_nr_items) {
+		src_move_tm = tree_mod_log_alloc_move(src, src_offset,
+						      src_offset + nr_items,
+						      src_move_nr_items);
+		if (IS_ERR(src_move_tm)) {
+			ret = PTR_ERR(src_move_tm);
+			src_move_tm = NULL;
+			goto lock;
+		}
+	}
 
 	tm_list_add = tm_list;
 	tm_list_rem = tm_list + nr_items;
 	for (i = 0; i < nr_items; i++) {
 		tm_list_rem[i] = alloc_tree_mod_elem(src, i + src_offset,
-		    BTRFS_MOD_LOG_KEY_REMOVE, GFP_NOFS);
+						     BTRFS_MOD_LOG_KEY_REMOVE);
 		if (!tm_list_rem[i]) {
 			ret = -ENOMEM;
-			goto free_tms;
+			goto lock;
 		}
 
 		tm_list_add[i] = alloc_tree_mod_elem(dst, i + dst_offset,
-						BTRFS_MOD_LOG_KEY_ADD, GFP_NOFS);
+						     BTRFS_MOD_LOG_KEY_ADD);
 		if (!tm_list_add[i]) {
 			ret = -ENOMEM;
-			goto free_tms;
+			goto lock;
 		}
 	}
 
-	if (tree_mod_dont_log(fs_info, NULL))
+lock:
+	if (tree_mod_dont_log(fs_info, NULL)) {
+		/*
+		 * Don't error if we failed to allocate memory because we don't
+		 * need to log.
+		 */
+		ret = 0;
 		goto free_tms;
+	}
 	locked = true;
 
+	/*
+	 * We previously failed to allocate memory and we need to log, so we
+	 * have to fail.
+	 */
+	if (ret != 0)
+		goto free_tms;
+
+	if (dst_move_tm) {
+		ret = tree_mod_log_insert(fs_info, dst_move_tm);
+		if (ret)
+			goto free_tms;
+	}
 	for (i = 0; i < nr_items; i++) {
 		ret = tree_mod_log_insert(fs_info, tm_list_rem[i]);
 		if (ret)
 			goto free_tms;
 		ret = tree_mod_log_insert(fs_info, tm_list_add[i]);
+		if (ret)
+			goto free_tms;
+	}
+	if (src_move_tm) {
+		ret = tree_mod_log_insert(fs_info, src_move_tm);
 		if (ret)
 			goto free_tms;
 	}
@@ -535,10 +647,18 @@ int btrfs_tree_mod_log_eb_copy(struct extent_buffer *dst,
 	return 0;
 
 free_tms:
-	for (i = 0; i < nr_items * 2; i++) {
-		if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
-			rb_erase(&tm_list[i]->node, &fs_info->tree_mod_log);
-		kfree(tm_list[i]);
+	if (dst_move_tm && !RB_EMPTY_NODE(&dst_move_tm->node))
+		rb_erase(&dst_move_tm->node, &fs_info->tree_mod_log);
+	kfree(dst_move_tm);
+	if (src_move_tm && !RB_EMPTY_NODE(&src_move_tm->node))
+		rb_erase(&src_move_tm->node, &fs_info->tree_mod_log);
+	kfree(src_move_tm);
+	if (tm_list) {
+		for (i = 0; i < nr_items * 2; i++) {
+			if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
+				rb_erase(&tm_list[i]->node, &fs_info->tree_mod_log);
+			kfree(tm_list[i]);
+		}
 	}
 	if (locked)
 		write_unlock(&fs_info->tree_mod_log_lock);
@@ -559,22 +679,38 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 
 	nritems = btrfs_header_nritems(eb);
 	tm_list = kcalloc(nritems, sizeof(struct tree_mod_elem *), GFP_NOFS);
-	if (!tm_list)
-		return -ENOMEM;
+	if (!tm_list) {
+		ret = -ENOMEM;
+		goto lock;
+	}
 
 	for (i = 0; i < nritems; i++) {
 		tm_list[i] = alloc_tree_mod_elem(eb, i,
-		    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING, GFP_NOFS);
+				    BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING);
 		if (!tm_list[i]) {
 			ret = -ENOMEM;
-			goto free_tms;
+			goto lock;
 		}
 	}
 
-	if (tree_mod_dont_log(eb->fs_info, eb))
+lock:
+	if (tree_mod_dont_log(eb->fs_info, eb)) {
+		/*
+		 * Don't error if we failed to allocate memory because we don't
+		 * need to log.
+		 */
+		ret = 0;
 		goto free_tms;
+	} else if (ret != 0) {
+		/*
+		 * We previously failed to allocate memory and we need to log,
+		 * so we have to fail.
+		 */
+		goto out_unlock;
+	}
 
 	ret = tree_mod_log_free_eb(eb->fs_info, tm_list, nritems);
+out_unlock:
 	write_unlock(&eb->fs_info->tree_mod_log_lock);
 	if (ret)
 		goto free_tms;
@@ -583,9 +719,11 @@ int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb)
 	return 0;
 
 free_tms:
-	for (i = 0; i < nritems; i++)
-		kfree(tm_list[i]);
-	kfree(tm_list);
+	if (tm_list) {
+		for (i = 0; i < nritems; i++)
+			kfree(tm_list[i]);
+		kfree(tm_list);
+	}
 
 	return ret;
 }
@@ -661,10 +799,27 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 	unsigned long o_dst;
 	unsigned long o_src;
 	unsigned long p_size = sizeof(struct btrfs_key_ptr);
+	/*
+	 * max_slot tracks the maximum valid slot of the rewind eb at every
+	 * step of the rewind. This is in contrast with 'n' which eventually
+	 * matches the number of items, but can be wrong during moves or if
+	 * removes overlap on already valid slots (which is probably separately
+	 * a bug). We do this to validate the offsets of memmoves for rewinding
+	 * moves and detect invalid memmoves.
+	 *
+	 * Since a rewind eb can start empty, max_slot is a signed integer with
+	 * a special meaning for -1, which is that no slot is valid to move out
+	 * of. Any other negative value is invalid.
+	 */
+	int max_slot;
+	int move_src_end_slot;
+	int move_dst_end_slot;
 
 	n = btrfs_header_nritems(eb);
+	max_slot = n - 1;
 	read_lock(&fs_info->tree_mod_log_lock);
 	while (tm && tm->seq >= time_seq) {
+		ASSERT(max_slot >= -1);
 		/*
 		 * All the operations are recorded with the operator used for
 		 * the modification. As we're going backwards, we do the
@@ -681,6 +836,8 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 			btrfs_set_node_ptr_generation(eb, tm->slot,
 						      tm->generation);
 			n++;
+			if (tm->slot > max_slot)
+				max_slot = tm->slot;
 			break;
 		case BTRFS_MOD_LOG_KEY_REPLACE:
 			BUG_ON(tm->slot >= n);
@@ -690,14 +847,37 @@ static void tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
 						      tm->generation);
 			break;
 		case BTRFS_MOD_LOG_KEY_ADD:
+			/*
+			 * It is possible we could have already removed keys
+			 * behind the known max slot, so this will be an
+			 * overestimate. In practice, the copy operation
+			 * inserts them in increasing order, and overestimating
+			 * just means we miss some warnings, so it's OK. It
+			 * isn't worth carefully tracking the full array of
+			 * valid slots to check against when moving.
+			 */
+			if (tm->slot == max_slot)
+				max_slot--;
 			/* if a move operation is needed it's in the log */
 			n--;
 			break;
 		case BTRFS_MOD_LOG_MOVE_KEYS:
-			o_dst = btrfs_node_key_ptr_offset(tm->slot);
-			o_src = btrfs_node_key_ptr_offset(tm->move.dst_slot);
+			ASSERT(tm->move.nr_items > 0);
+			move_src_end_slot = tm->move.dst_slot + tm->move.nr_items - 1;
+			move_dst_end_slot = tm->slot + tm->move.nr_items - 1;
+			o_dst = btrfs_node_key_ptr_offset(eb, tm->slot);
+			o_src = btrfs_node_key_ptr_offset(eb, tm->move.dst_slot);
+			if (WARN_ON(move_src_end_slot > max_slot ||
+				    tm->move.nr_items <= 0)) {
+				btrfs_warn(fs_info,
+"move from invalid tree mod log slot eb %llu slot %d dst_slot %d nr_items %d seq %llu n %u max_slot %d",
+					   eb->start, tm->slot,
+					   tm->move.dst_slot, tm->move.nr_items,
+					   tm->seq, n, max_slot);
+			}
 			memmove_extent_buffer(eb, o_dst, o_src,
 					      tm->move.nr_items * p_size);
+			max_slot = move_dst_end_slot;
 			break;
 		case BTRFS_MOD_LOG_ROOT_REPLACE:
 			/*
@@ -819,10 +999,15 @@ struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq)
 
 	tm = tree_mod_log_search(fs_info, logical, time_seq);
 	if (old_root && tm && tm->op != BTRFS_MOD_LOG_KEY_REMOVE_WHILE_FREEING) {
+		struct btrfs_tree_parent_check check = { 0 };
+
 		btrfs_tree_read_unlock(eb_root);
 		free_extent_buffer(eb_root);
-		old = read_tree_block(fs_info, logical, root->root_key.objectid,
-				      0, level, NULL);
+
+		check.level = level;
+		check.owner_root = root->root_key.objectid;
+
+		old = read_tree_block(fs_info, logical, &check);
 		if (WARN_ON(IS_ERR(old) || !extent_buffer_uptodate(old))) {
 			if (!IS_ERR(old))
 				free_extent_buffer(old);

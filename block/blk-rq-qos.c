@@ -288,9 +288,68 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 
 void rq_qos_exit(struct request_queue *q)
 {
+	mutex_lock(&q->rq_qos_mutex);
 	while (q->rq_qos) {
 		struct rq_qos *rqos = q->rq_qos;
 		q->rq_qos = rqos->next;
 		rqos->ops->exit(rqos);
 	}
+	mutex_unlock(&q->rq_qos_mutex);
+}
+
+int rq_qos_add(struct rq_qos *rqos, struct gendisk *disk, enum rq_qos_id id,
+		const struct rq_qos_ops *ops)
+{
+	struct request_queue *q = disk->queue;
+
+	lockdep_assert_held(&q->rq_qos_mutex);
+
+	rqos->disk = disk;
+	rqos->id = id;
+	rqos->ops = ops;
+
+	/*
+	 * No IO can be in-flight when adding rqos, so freeze queue, which
+	 * is fine since we only support rq_qos for blk-mq queue.
+	 */
+	blk_mq_freeze_queue(q);
+
+	if (rq_qos_id(q, rqos->id))
+		goto ebusy;
+	rqos->next = q->rq_qos;
+	q->rq_qos = rqos;
+
+	blk_mq_unfreeze_queue(q);
+
+	if (rqos->ops->debugfs_attrs) {
+		mutex_lock(&q->debugfs_mutex);
+		blk_mq_debugfs_register_rqos(rqos);
+		mutex_unlock(&q->debugfs_mutex);
+	}
+
+	return 0;
+ebusy:
+	blk_mq_unfreeze_queue(q);
+	return -EBUSY;
+}
+
+void rq_qos_del(struct rq_qos *rqos)
+{
+	struct request_queue *q = rqos->disk->queue;
+	struct rq_qos **cur;
+
+	lockdep_assert_held(&q->rq_qos_mutex);
+
+	blk_mq_freeze_queue(q);
+	for (cur = &q->rq_qos; *cur; cur = &(*cur)->next) {
+		if (*cur == rqos) {
+			*cur = rqos->next;
+			break;
+		}
+	}
+	blk_mq_unfreeze_queue(q);
+
+	mutex_lock(&q->debugfs_mutex);
+	blk_mq_debugfs_unregister_rqos(rqos);
+	mutex_unlock(&q->debugfs_mutex);
 }

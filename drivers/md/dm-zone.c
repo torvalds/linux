@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2021 Western Digital Corporation or its affiliates.
  */
@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
+#include <linux/bitmap.h>
 
 #include "dm-core.h"
 
@@ -140,9 +141,9 @@ bool dm_is_zone_write(struct mapped_device *md, struct bio *bio)
 void dm_cleanup_zoned_dev(struct mapped_device *md)
 {
 	if (md->disk) {
-		kfree(md->disk->conv_zones_bitmap);
+		bitmap_free(md->disk->conv_zones_bitmap);
 		md->disk->conv_zones_bitmap = NULL;
-		kfree(md->disk->seq_zones_wlock);
+		bitmap_free(md->disk->seq_zones_wlock);
 		md->disk->seq_zones_wlock = NULL;
 	}
 
@@ -182,9 +183,8 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 	switch (zone->type) {
 	case BLK_ZONE_TYPE_CONVENTIONAL:
 		if (!disk->conv_zones_bitmap) {
-			disk->conv_zones_bitmap =
-				kcalloc(BITS_TO_LONGS(disk->nr_zones),
-					sizeof(unsigned long), GFP_NOIO);
+			disk->conv_zones_bitmap = bitmap_zalloc(disk->nr_zones,
+								GFP_NOIO);
 			if (!disk->conv_zones_bitmap)
 				return -ENOMEM;
 		}
@@ -193,9 +193,8 @@ static int dm_zone_revalidate_cb(struct blk_zone *zone, unsigned int idx,
 	case BLK_ZONE_TYPE_SEQWRITE_REQ:
 	case BLK_ZONE_TYPE_SEQWRITE_PREF:
 		if (!disk->seq_zones_wlock) {
-			disk->seq_zones_wlock =
-				kcalloc(BITS_TO_LONGS(disk->nr_zones),
-					sizeof(unsigned long), GFP_NOIO);
+			disk->seq_zones_wlock = bitmap_zalloc(disk->nr_zones,
+							      GFP_NOIO);
 			if (!disk->seq_zones_wlock)
 				return -ENOMEM;
 		}
