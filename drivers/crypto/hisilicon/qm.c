@@ -1002,7 +1002,7 @@ static void qm_reset_function(struct hisi_qm *qm)
 		return;
 	}
 
-	ret = hisi_qm_stop(qm, QM_FLR);
+	ret = hisi_qm_stop(qm, QM_DOWN);
 	if (ret) {
 		dev_err(dev, "failed to stop qm when reset function\n");
 		goto clear_bit;
@@ -3251,7 +3251,7 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 	}
 
 	if (qm->status.stop_reason == QM_SOFT_RESET ||
-	    qm->status.stop_reason == QM_FLR) {
+	    qm->status.stop_reason == QM_DOWN) {
 		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_TX_OFFSET);
 		ret = qm_stop_started_qp(qm);
 		if (ret < 0) {
@@ -4547,11 +4547,11 @@ void hisi_qm_reset_prepare(struct pci_dev *pdev)
 	if (qm->fun_type == QM_HW_PF)
 		qm_cmd_uninit(qm);
 
-	ret = qm_try_stop_vfs(qm, QM_PF_FLR_PREPARE, QM_FLR);
+	ret = qm_try_stop_vfs(qm, QM_PF_FLR_PREPARE, QM_DOWN);
 	if (ret)
 		pci_err(pdev, "failed to stop vfs by pf in FLR.\n");
 
-	ret = hisi_qm_stop(qm, QM_FLR);
+	ret = hisi_qm_stop(qm, QM_DOWN);
 	if (ret) {
 		pci_err(pdev, "Failed to stop QM, ret = %d.\n", ret);
 		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_TX_OFFSET);
@@ -4649,9 +4649,11 @@ void hisi_qm_dev_shutdown(struct pci_dev *pdev)
 	struct hisi_qm *qm = pci_get_drvdata(pdev);
 	int ret;
 
-	ret = hisi_qm_stop(qm, QM_NORMAL);
+	ret = hisi_qm_stop(qm, QM_DOWN);
 	if (ret)
 		dev_err(&pdev->dev, "Fail to stop qm in shutdown!\n");
+
+	hisi_qm_cache_wb(qm);
 }
 EXPORT_SYMBOL_GPL(hisi_qm_dev_shutdown);
 
@@ -4815,7 +4817,7 @@ static void qm_handle_cmd_msg(struct hisi_qm *qm, u32 fun_num)
 	cmd = msg & QM_MB_CMD_DATA_MASK;
 	switch (cmd) {
 	case QM_PF_FLR_PREPARE:
-		qm_pf_reset_vf_process(qm, QM_FLR);
+		qm_pf_reset_vf_process(qm, QM_DOWN);
 		break;
 	case QM_PF_SRST_PREPARE:
 		qm_pf_reset_vf_process(qm, QM_SOFT_RESET);
