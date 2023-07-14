@@ -36,6 +36,7 @@
 #include <linux/inet.h>
 #include <linux/configfs.h>
 #include <linux/etherdevice.h>
+#include <linux/utsname.h>
 
 MODULE_AUTHOR("Maintainer: Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
@@ -84,6 +85,8 @@ static struct console netconsole_ext;
  *		Also, other parameters of a target may be modified at
  *		runtime only when it is disabled (enabled == 0).
  * @extended:	Denotes whether console is extended or not.
+ * @release:	Denotes whether kernel release version should be prepended
+ *		to the message. Depends on extended console.
  * @np:		The netpoll structure for this target.
  *		Contains the other userspace visible parameters:
  *		dev_name	(read-write)
@@ -101,6 +104,7 @@ struct netconsole_target {
 #endif
 	bool			enabled;
 	bool			extended;
+	bool			release;
 	struct netpoll		np;
 };
 
@@ -188,6 +192,15 @@ static struct netconsole_target *alloc_param_target(char *target_config)
 		target_config++;
 	}
 
+	if (*target_config == 'r') {
+		if (!nt->extended) {
+			pr_err("Netconsole configuration error. Release feature requires extended log message");
+			goto fail;
+		}
+		nt->release = true;
+		target_config++;
+	}
+
 	/* Parse parameters and setup netpoll */
 	err = netpoll_parse_options(&nt->np, target_config);
 	if (err)
@@ -222,6 +235,7 @@ static void free_param_target(struct netconsole_target *nt)
  *				|
  *				<target>/
  *				|	enabled
+ *				|	release
  *				|	dev_name
  *				|	local_port
  *				|	remote_port
@@ -252,6 +266,11 @@ static ssize_t enabled_show(struct config_item *item, char *buf)
 static ssize_t extended_show(struct config_item *item, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->extended);
+}
+
+static ssize_t release_show(struct config_item *item, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", to_target(item)->release);
 }
 
 static ssize_t dev_name_show(struct config_item *item, char *buf)
@@ -332,6 +351,11 @@ static ssize_t enabled_store(struct config_item *item,
 	}
 
 	if (enabled) {	/* true */
+		if (nt->release && !nt->extended) {
+			pr_err("Not enabling netconsole. Release feature requires extended log message");
+			goto out_unlock;
+		}
+
 		if (nt->extended && !console_is_registered(&netconsole_ext))
 			register_console(&netconsole_ext);
 
@@ -358,6 +382,38 @@ static ssize_t enabled_store(struct config_item *item,
 	}
 
 	nt->enabled = enabled;
+
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return strnlen(buf, count);
+out_unlock:
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return err;
+}
+
+static ssize_t release_store(struct config_item *item, const char *buf,
+			     size_t count)
+{
+	struct netconsole_target *nt = to_target(item);
+	int release;
+	int err;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	if (nt->enabled) {
+		pr_err("target (%s) is enabled, disable to update parameters\n",
+		       config_item_name(&nt->item));
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	err = kstrtoint(buf, 10, &release);
+	if (err < 0)
+		goto out_unlock;
+	if (release < 0 || release > 1) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	nt->release = release;
 
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return strnlen(buf, count);
@@ -576,10 +632,12 @@ CONFIGFS_ATTR(, local_ip);
 CONFIGFS_ATTR(, remote_ip);
 CONFIGFS_ATTR_RO(, local_mac);
 CONFIGFS_ATTR(, remote_mac);
+CONFIGFS_ATTR(, release);
 
 static struct configfs_attribute *netconsole_target_attrs[] = {
 	&attr_enabled,
 	&attr_extended,
+	&attr_release,
 	&attr_dev_name,
 	&attr_local_port,
 	&attr_remote_port,
@@ -772,9 +830,23 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	const char *header, *body;
 	int offset = 0;
 	int header_len, body_len;
+	const char *msg_ready = msg;
+	const char *release;
+	int release_len = 0;
 
-	if (msg_len <= MAX_PRINT_CHUNK) {
-		netpoll_send_udp(&nt->np, msg, msg_len);
+	if (nt->release) {
+		release = init_utsname()->release;
+		release_len = strlen(release) + 1;
+	}
+
+	if (msg_len + release_len <= MAX_PRINT_CHUNK) {
+		/* No fragmentation needed */
+		if (nt->release) {
+			scnprintf(buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
+			msg_len += release_len;
+			msg_ready = buf;
+		}
+		netpoll_send_udp(&nt->np, msg_ready, msg_len);
 		return;
 	}
 
@@ -792,7 +864,10 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	 * Transfer multiple chunks with the following extra header.
 	 * "ncfrag=<byte-offset>/<total-bytes>"
 	 */
-	memcpy(buf, header, header_len);
+	if (nt->release)
+		scnprintf(buf, MAX_PRINT_CHUNK, "%s,", release);
+	memcpy(buf + release_len, header, header_len);
+	header_len += release_len;
 
 	while (offset < body_len) {
 		int this_header = header_len;
