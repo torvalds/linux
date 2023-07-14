@@ -28,6 +28,7 @@
 #define ST7789V_RGBCTRL_VSYNC_HIGH		BIT(3)
 #define ST7789V_RGBCTRL_HSYNC_HIGH		BIT(2)
 #define ST7789V_RGBCTRL_PCLK_HIGH		BIT(1)
+#define ST7789V_RGBCTRL_DE_LOW			BIT(0)
 #define ST7789V_RGBCTRL_VBP(n)			((n) & 0x7f)
 #define ST7789V_RGBCTRL_HBP(n)			((n) & 0x1f)
 
@@ -112,6 +113,7 @@
 struct st7789_panel_info {
 	const struct drm_display_mode *mode;
 	u32 bus_format;
+	u32 bus_flags;
 	bool invert_mode;
 };
 
@@ -168,12 +170,15 @@ static const struct drm_display_mode default_mode = {
 	.vtotal = 320 + 8 + 4 + 4,
 	.width_mm = 61,
 	.height_mm = 103,
+	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
 static const struct st7789_panel_info default_panel = {
 	.mode = &default_mode,
 	.invert_mode = true,
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		     DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
 static int st7789v_get_modes(struct drm_panel *panel,
@@ -198,6 +203,7 @@ static int st7789v_get_modes(struct drm_panel *panel,
 	connector->display_info.bpc = 6;
 	connector->display_info.width_mm = ctx->info->mode->width_mm;
 	connector->display_info.height_mm = ctx->info->mode->height_mm;
+	connector->display_info.bus_flags = ctx->info->bus_flags;
 	drm_display_info_set_bus_formats(&connector->display_info,
 					 &ctx->info->bus_format, 1);
 
@@ -207,7 +213,7 @@ static int st7789v_get_modes(struct drm_panel *panel,
 static int st7789v_prepare(struct drm_panel *panel)
 {
 	struct st7789v *ctx = panel_to_st7789v(panel);
-	u8 pixel_fmt;
+	u8 pixel_fmt, polarity;
 	int ret;
 
 	switch (ctx->info->bus_format) {
@@ -224,6 +230,16 @@ static int st7789v_prepare(struct drm_panel *panel)
 	}
 
 	pixel_fmt = (pixel_fmt << 4) | pixel_fmt;
+
+	polarity = 0;
+	if (ctx->info->mode->flags & DRM_MODE_FLAG_PVSYNC)
+		polarity |= ST7789V_RGBCTRL_VSYNC_HIGH;
+	if (ctx->info->mode->flags & DRM_MODE_FLAG_PHSYNC)
+		polarity |= ST7789V_RGBCTRL_HSYNC_HIGH;
+	if (ctx->info->bus_flags & DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE)
+		polarity |= ST7789V_RGBCTRL_PCLK_HIGH;
+	if (ctx->info->bus_flags & DRM_BUS_FLAG_DE_LOW)
+		polarity |= ST7789V_RGBCTRL_DE_LOW;
 
 	ret = regulator_enable(ctx->power);
 	if (ret)
@@ -340,9 +356,7 @@ static int st7789v_prepare(struct drm_panel *panel)
 	ST7789V_TEST(ret, st7789v_write_command(ctx, ST7789V_RGBCTRL_CMD));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_WO |
 					     ST7789V_RGBCTRL_RCM(2) |
-					     ST7789V_RGBCTRL_VSYNC_HIGH |
-					     ST7789V_RGBCTRL_HSYNC_HIGH |
-					     ST7789V_RGBCTRL_PCLK_HIGH));
+					     polarity));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_VBP(8)));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, ST7789V_RGBCTRL_HBP(20)));
 
