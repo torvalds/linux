@@ -12,7 +12,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
