@@ -34,6 +34,10 @@ enum {
 	PHYLINK_DISABLE_STOPPED,
 	PHYLINK_DISABLE_LINK,
 	PHYLINK_DISABLE_MAC_WOL,
+
+	PCS_STATE_DOWN = 0,
+	PCS_STATE_STARTING,
+	PCS_STATE_STARTED,
 };
 
 /**
@@ -72,6 +76,7 @@ struct phylink {
 	struct phylink_link_state phy_state;
 	struct work_struct resolve;
 	unsigned int pcs_neg_mode;
+	unsigned int pcs_state;
 
 	bool mac_link_dropped;
 	bool using_mac_select_pcs;
@@ -993,6 +998,40 @@ static void phylink_resolve_an_pause(struct phylink_link_state *state)
 	}
 }
 
+static void phylink_pcs_pre_config(struct phylink_pcs *pcs,
+				   phy_interface_t interface)
+{
+	if (pcs && pcs->ops->pcs_pre_config)
+		pcs->ops->pcs_pre_config(pcs, interface);
+}
+
+static int phylink_pcs_post_config(struct phylink_pcs *pcs,
+				   phy_interface_t interface)
+{
+	int err = 0;
+
+	if (pcs && pcs->ops->pcs_post_config)
+		err = pcs->ops->pcs_post_config(pcs, interface);
+
+	return err;
+}
+
+static void phylink_pcs_disable(struct phylink_pcs *pcs)
+{
+	if (pcs && pcs->ops->pcs_disable)
+		pcs->ops->pcs_disable(pcs);
+}
+
+static int phylink_pcs_enable(struct phylink_pcs *pcs)
+{
+	int err = 0;
+
+	if (pcs && pcs->ops->pcs_enable)
+		err = pcs->ops->pcs_enable(pcs);
+
+	return err;
+}
+
 static int phylink_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 			      const struct phylink_link_state *state,
 			      bool permit_pause_to_mac)
@@ -1095,10 +1134,27 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	/* If we have a new PCS, switch to the new PCS after preparing the MAC
 	 * for the change.
 	 */
-	if (pcs_changed)
+	if (pcs_changed) {
+		phylink_pcs_disable(pl->pcs);
+
+		if (pl->pcs)
+			pl->pcs->phylink = NULL;
+
+		pcs->phylink = pl;
+
 		pl->pcs = pcs;
+	}
+
+	if (pl->pcs)
+		phylink_pcs_pre_config(pl->pcs, state->interface);
 
 	phylink_mac_config(pl, state);
+
+	if (pl->pcs)
+		phylink_pcs_post_config(pl->pcs, state->interface);
+
+	if (pl->pcs_state == PCS_STATE_STARTING || pcs_changed)
+		phylink_pcs_enable(pl->pcs);
 
 	neg_mode = pl->cur_link_an_mode;
 	if (pl->pcs && pl->pcs->neg_mode)
@@ -1586,6 +1642,7 @@ struct phylink *phylink_create(struct phylink_config *config,
 	pl->link_config.pause = MLO_PAUSE_AN;
 	pl->link_config.speed = SPEED_UNKNOWN;
 	pl->link_config.duplex = DUPLEX_UNKNOWN;
+	pl->pcs_state = PCS_STATE_DOWN;
 	pl->mac_ops = mac_ops;
 	__set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	timer_setup(&pl->link_poll, phylink_fixed_poll, 0);
@@ -1939,6 +1996,14 @@ void phylink_disconnect_phy(struct phylink *pl)
 }
 EXPORT_SYMBOL_GPL(phylink_disconnect_phy);
 
+static void phylink_link_changed(struct phylink *pl, bool up, const char *what)
+{
+	if (!up)
+		pl->mac_link_dropped = true;
+	phylink_run_resolve(pl);
+	phylink_dbg(pl, "%s link %s\n", what, up ? "up" : "down");
+}
+
 /**
  * phylink_mac_change() - notify phylink of a change in MAC state
  * @pl: a pointer to a &struct phylink returned from phylink_create()
@@ -1949,12 +2014,29 @@ EXPORT_SYMBOL_GPL(phylink_disconnect_phy);
  */
 void phylink_mac_change(struct phylink *pl, bool up)
 {
-	if (!up)
-		pl->mac_link_dropped = true;
-	phylink_run_resolve(pl);
-	phylink_dbg(pl, "mac link %s\n", up ? "up" : "down");
+	phylink_link_changed(pl, up, "mac");
 }
 EXPORT_SYMBOL_GPL(phylink_mac_change);
+
+/**
+ * phylink_pcs_change() - notify phylink of a change to PCS link state
+ * @pcs: pointer to &struct phylink_pcs
+ * @up: indicates whether the link is currently up.
+ *
+ * The PCS driver should call this when the state of its link changes
+ * (e.g. link failure, new negotiation results, etc.) Note: it should
+ * not determine "up" by reading the BMSR. If in doubt about the link
+ * state at interrupt time, then pass true if pcs_get_state() returns
+ * the latched link-down state, otherwise pass false.
+ */
+void phylink_pcs_change(struct phylink_pcs *pcs, bool up)
+{
+	struct phylink *pl = pcs->phylink;
+
+	if (pl)
+		phylink_link_changed(pl, up, "pcs");
+}
+EXPORT_SYMBOL_GPL(phylink_pcs_change);
 
 static irqreturn_t phylink_link_handler(int irq, void *data)
 {
@@ -1987,6 +2069,8 @@ void phylink_start(struct phylink *pl)
 	if (pl->netdev)
 		netif_carrier_off(pl->netdev);
 
+	pl->pcs_state = PCS_STATE_STARTING;
+
 	/* Apply the link configuration to the MAC when starting. This allows
 	 * a fixed-link to start with the correct parameters, and also
 	 * ensures that we set the appropriate advertisement for Serdes links.
@@ -1996,6 +2080,8 @@ void phylink_start(struct phylink *pl)
 	 * switches using 802.3z negotiation to ensure they see our modes.
 	 */
 	phylink_mac_initial_config(pl, true);
+
+	pl->pcs_state = PCS_STATE_STARTED;
 
 	phylink_enable_and_run_resolve(pl, PHYLINK_DISABLE_STOPPED);
 
@@ -2015,15 +2101,9 @@ void phylink_start(struct phylink *pl)
 			poll = true;
 	}
 
-	switch (pl->cfg_link_an_mode) {
-	case MLO_AN_FIXED:
+	if (pl->cfg_link_an_mode == MLO_AN_FIXED)
 		poll |= pl->config->poll_fixed_state;
-		break;
-	case MLO_AN_INBAND:
-		if (pl->pcs)
-			poll |= pl->pcs->poll;
-		break;
-	}
+
 	if (poll)
 		mod_timer(&pl->link_poll, jiffies + HZ);
 	if (pl->phydev)
@@ -2060,6 +2140,10 @@ void phylink_stop(struct phylink *pl)
 	}
 
 	phylink_run_resolve_and_disable(pl, PHYLINK_DISABLE_STOPPED);
+
+	pl->pcs_state = PCS_STATE_DOWN;
+
+	phylink_pcs_disable(pl->pcs);
 }
 EXPORT_SYMBOL_GPL(phylink_stop);
 

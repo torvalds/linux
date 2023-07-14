@@ -9,6 +9,7 @@ struct device_node;
 struct ethtool_cmd;
 struct fwnode_handle;
 struct net_device;
+struct phylink;
 
 enum {
 	MLO_PAUSE_NONE,
@@ -520,14 +521,19 @@ struct phylink_pcs_ops;
 /**
  * struct phylink_pcs - PHYLINK PCS instance
  * @ops: a pointer to the &struct phylink_pcs_ops structure
+ * @phylink: pointer to &struct phylink_config
  * @neg_mode: provide PCS neg mode via "mode" argument
  * @poll: poll the PCS for link changes
  *
  * This structure is designed to be embedded within the PCS private data,
  * and will be passed between phylink and the PCS.
+ *
+ * The @phylink member is private to phylink and must not be touched by
+ * the PCS driver.
  */
 struct phylink_pcs {
 	const struct phylink_pcs_ops *ops;
+	struct phylink *phylink;
 	bool neg_mode;
 	bool poll;
 };
@@ -535,6 +541,10 @@ struct phylink_pcs {
 /**
  * struct phylink_pcs_ops - MAC PCS operations structure.
  * @pcs_validate: validate the link configuration.
+ * @pcs_enable: enable the PCS.
+ * @pcs_disable: disable the PCS.
+ * @pcs_pre_config: pre-mac_config method (for errata)
+ * @pcs_post_config: post-mac_config method (for arrata)
  * @pcs_get_state: read the current MAC PCS link state from the hardware.
  * @pcs_config: configure the MAC PCS for the selected mode and state.
  * @pcs_an_restart: restart 802.3z BaseX autonegotiation.
@@ -544,6 +554,12 @@ struct phylink_pcs {
 struct phylink_pcs_ops {
 	int (*pcs_validate)(struct phylink_pcs *pcs, unsigned long *supported,
 			    const struct phylink_link_state *state);
+	int (*pcs_enable)(struct phylink_pcs *pcs);
+	void (*pcs_disable)(struct phylink_pcs *pcs);
+	void (*pcs_pre_config)(struct phylink_pcs *pcs,
+			       phy_interface_t interface);
+	int (*pcs_post_config)(struct phylink_pcs *pcs,
+			       phy_interface_t interface);
 	void (*pcs_get_state)(struct phylink_pcs *pcs,
 			      struct phylink_link_state *state);
 	int (*pcs_config)(struct phylink_pcs *pcs, unsigned int neg_mode,
@@ -572,6 +588,18 @@ struct phylink_pcs_ops {
  */
 int pcs_validate(struct phylink_pcs *pcs, unsigned long *supported,
 		 const struct phylink_link_state *state);
+
+/**
+ * pcs_enable() - enable the PCS.
+ * @pcs: a pointer to a &struct phylink_pcs.
+ */
+int pcs_enable(struct phylink_pcs *pcs);
+
+/**
+ * pcs_disable() - disable the PCS.
+ * @pcs: a pointer to a &struct phylink_pcs.
+ */
+void pcs_disable(struct phylink_pcs *pcs);
 
 /**
  * pcs_get_state() - Read the current inband link state from the hardware
@@ -677,6 +705,7 @@ int phylink_fwnode_phy_connect(struct phylink *pl,
 void phylink_disconnect_phy(struct phylink *);
 
 void phylink_mac_change(struct phylink *, bool up);
+void phylink_pcs_change(struct phylink_pcs *, bool up);
 
 void phylink_start(struct phylink *);
 void phylink_stop(struct phylink *);
