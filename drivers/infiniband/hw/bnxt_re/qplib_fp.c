@@ -420,19 +420,19 @@ void bnxt_qplib_nq_stop_irq(struct bnxt_qplib_nq *nq, bool kill)
 	if (!nq->requested)
 		return;
 
-	tasklet_disable(&nq->nq_tasklet);
+	nq->requested = false;
 	/* Mask h/w interrupt */
 	bnxt_qplib_ring_nq_db(&nq->nq_db.dbinfo, nq->res->cctx, false);
 	/* Sync with last running IRQ handler */
 	synchronize_irq(nq->msix_vec);
-	if (kill)
-		tasklet_kill(&nq->nq_tasklet);
-
 	irq_set_affinity_hint(nq->msix_vec, NULL);
 	free_irq(nq->msix_vec, nq);
 	kfree(nq->name);
 	nq->name = NULL;
-	nq->requested = false;
+
+	if (kill)
+		tasklet_kill(&nq->nq_tasklet);
+	tasklet_disable(&nq->nq_tasklet);
 }
 
 void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq)
