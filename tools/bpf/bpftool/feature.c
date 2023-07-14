@@ -757,7 +757,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type,
 		case BPF_FUNC_probe_write_user:
 			if (!full_mode)
 				continue;
-			/* fallthrough */
+			fallthrough;
 		default:
 			probe_res |= probe_helper_for_progtype(prog_type, supported_type,
 						  define_prefix, id, prog_type_str,

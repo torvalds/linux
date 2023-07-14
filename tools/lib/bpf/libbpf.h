@@ -718,6 +718,21 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_freplace(const struct bpf_program *prog,
 			     int target_fd, const char *attach_func_name);
 
+struct bpf_netfilter_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+
+	__u32 pf;
+	__u32 hooknum;
+	__s32 priority;
+	__u32 flags;
+};
+#define bpf_netfilter_opts__last_field flags
+
+LIBBPF_API struct bpf_link *
+bpf_program__attach_netfilter(const struct bpf_program *prog,
+			      const struct bpf_netfilter_opts *opts);
+
 struct bpf_map;
 
 LIBBPF_API struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map);

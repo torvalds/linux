@@ -24,7 +24,7 @@ CLANG_FLAGS = -I. -I$(APIDIR) \
 
 $(OUTPUT)/%.o: %.c
 	$(CLANG) $(CLANG_FLAGS) \
-		 -O2 -target bpf -emit-llvm -c $< -o - |      \
+		 -O2 --target=bpf -emit-llvm -c $< -o - |      \
 	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
 
 TEST_PROGS += ./tdc.sh

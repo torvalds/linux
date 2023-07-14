@@ -290,6 +290,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jgt32: BPF_K",
@@ -360,6 +361,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jle32: BPF_K",
@@ -430,6 +432,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jlt32: BPF_K",
@@ -500,6 +503,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsge32: BPF_K",
@@ -570,6 +574,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsgt32: BPF_K",
@@ -640,6 +645,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jsle32: BPF_K",
@@ -710,6 +716,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jslt32: BPF_K",
@@ -780,6 +787,7 @@
 	.result_unpriv = REJECT,
 	.result = ACCEPT,
 	.retval = 2,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"jgt32: range bound deduction, reg op imm",

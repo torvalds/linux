@@ -3694,7 +3694,7 @@ R:	David Vernet <void@manifault.com>
 L:	bpf@vger.kernel.org
 L:	bpf@ietf.org
 S:	Maintained
-F:	Documentation/bpf/instruction-set.rst
+F:	Documentation/bpf/standardization/
 
 BPF [GENERAL] (Safe Dynamic Programs and Tools)
 M:	Alexei Starovoitov <ast@kernel.org>
