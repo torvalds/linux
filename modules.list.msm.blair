@@ -24,6 +24,7 @@ qcom_glink.ko
 qcom_glink_rpm.ko
 qcom_glink_smem.ko
 qcom_hwspinlock.ko
+msm-poweroff.ko
 icc-debug.ko
 icc-rpm.ko
 qnoc-blair.ko
