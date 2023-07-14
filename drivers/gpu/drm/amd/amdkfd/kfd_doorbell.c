@@ -232,48 +232,96 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd)
 
 }
 
+static int init_doorbell_bitmap(struct qcm_process_device *qpd,
+				struct kfd_dev *dev)
+{
+	unsigned int i;
+	int range_start = dev->shared_resources.non_cp_doorbells_start;
+	int range_end = dev->shared_resources.non_cp_doorbells_end;
+
+	if (!KFD_IS_SOC15(dev))
+		return 0;
+
+	/* Mask out doorbells reserved for SDMA, IH, and VCN on SOC15. */
+	pr_debug("reserved doorbell 0x%03x - 0x%03x\n", range_start, range_end);
+	pr_debug("reserved doorbell 0x%03x - 0x%03x\n",
+			range_start + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
+			range_end + KFD_QUEUE_DOORBELL_MIRROR_OFFSET);
+
+	for (i = 0; i < KFD_MAX_NUM_OF_QUEUES_PER_PROCESS / 2; i++) {
+		if (i >= range_start && i <= range_end) {
+			__set_bit(i, qpd->doorbell_bitmap);
+			__set_bit(i + KFD_QUEUE_DOORBELL_MIRROR_OFFSET,
+				  qpd->doorbell_bitmap);
+		}
+	}
+
+	return 0;
+}
+
 phys_addr_t kfd_get_process_doorbells(struct kfd_process_device *pdd)
 {
-	if (!pdd->doorbell_index) {
-		int r = kfd_alloc_process_doorbells(pdd->dev->kfd,
-						    &pdd->doorbell_index);
-		if (r < 0)
+	struct amdgpu_device *adev = pdd->dev->adev;
+	uint32_t first_db_index;
+
+	if (!pdd->qpd.proc_doorbells) {
+		if (kfd_alloc_process_doorbells(pdd->dev->kfd, pdd))
+			/* phys_addr_t 0 is error */
 			return 0;
 	}
 
-	return pdd->dev->kfd->doorbell_base +
-		pdd->doorbell_index * kfd_doorbell_process_slice(pdd->dev->kfd);
+	first_db_index = amdgpu_doorbell_index_on_bar(adev, pdd->qpd.proc_doorbells, 0);
+	return adev->doorbell.base + first_db_index * sizeof(uint32_t);
 }
 
-int kfd_alloc_process_doorbells(struct kfd_dev *kfd, unsigned int *doorbell_index)
+int kfd_alloc_process_doorbells(struct kfd_dev *kfd, struct kfd_process_device *pdd)
 {
-	int r = 0;
+	int r;
+	struct qcm_process_device *qpd = &pdd->qpd;
 
-	if (!kfd->shared_resources.enable_mes)
-		r = ida_simple_get(&kfd->doorbell_ida, 1,
-				   kfd->max_doorbell_slices, GFP_KERNEL);
-	else
-		r = amdgpu_mes_alloc_process_doorbells(
-				(struct amdgpu_device *)kfd->adev,
-				doorbell_index);
+	/* Allocate bitmap for dynamic doorbell allocation */
+	qpd->doorbell_bitmap = bitmap_zalloc(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
+					     GFP_KERNEL);
+	if (!qpd->doorbell_bitmap) {
+		DRM_ERROR("Failed to allocate process doorbell bitmap\n");
+		return -ENOMEM;
+	}
 
-	if (r > 0)
-		*doorbell_index = r;
+	r = init_doorbell_bitmap(&pdd->qpd, kfd);
+	if (r) {
+		DRM_ERROR("Failed to initialize process doorbells\n");
+		r = -ENOMEM;
+		goto err;
+	}
 
-	if (r < 0)
-		pr_err("Failed to allocate process doorbells\n");
+	/* Allocate doorbells for this process */
+	r = amdgpu_bo_create_kernel(kfd->adev,
+				    kfd_doorbell_process_slice(kfd),
+				    PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_DOORBELL,
+				    &qpd->proc_doorbells,
+				    NULL,
+				    NULL);
+	if (r) {
+		DRM_ERROR("Failed to allocate process doorbells\n");
+		goto err;
+	}
+	return 0;
 
+err:
+	bitmap_free(qpd->doorbell_bitmap);
+	qpd->doorbell_bitmap = NULL;
 	return r;
 }
 
-void kfd_free_process_doorbells(struct kfd_dev *kfd, unsigned int doorbell_index)
+void kfd_free_process_doorbells(struct kfd_dev *kfd, struct kfd_process_device *pdd)
 {
-	if (doorbell_index) {
-		if (!kfd->shared_resources.enable_mes)
-			ida_simple_remove(&kfd->doorbell_ida, doorbell_index);
-		else
-			amdgpu_mes_free_process_doorbells(
-					(struct amdgpu_device *)kfd->adev,
-					doorbell_index);
+	struct qcm_process_device *qpd = &pdd->qpd;
+
+	if (qpd->doorbell_bitmap) {
+		bitmap_free(qpd->doorbell_bitmap);
+		qpd->doorbell_bitmap = NULL;
 	}
+
+	amdgpu_bo_free_kernel(&qpd->proc_doorbells, NULL, NULL);
 }
