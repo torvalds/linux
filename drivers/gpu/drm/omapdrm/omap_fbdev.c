@@ -318,10 +318,6 @@ void omap_fbdev_setup(struct drm_device *dev)
 
 	INIT_WORK(&fbdev->work, pan_worker);
 
-	ret = omap_fbdev_client_hotplug(&helper->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&helper->client);
 
 	return;

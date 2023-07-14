@@ -209,10 +209,6 @@ void armada_fbdev_setup(struct drm_device *dev)
 		goto err_drm_client_init;
 	}
 
-	ret = armada_fbdev_client_hotplug(&fbh->client);
-	if (ret)
-		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
-
 	drm_client_register(&fbh->client);
 
 	return;
