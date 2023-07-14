@@ -14,7 +14,6 @@
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/of_device.h>
 
 #define BITS_PER_REG	32
 
