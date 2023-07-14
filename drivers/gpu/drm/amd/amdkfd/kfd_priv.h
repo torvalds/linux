@@ -385,6 +385,12 @@ struct kfd_dev {
 	/* Track per device allocated watch points */
 	uint32_t alloc_watch_ids;
 	spinlock_t watch_points_lock;
+
+	/* Kernel doorbells for KFD device */
+	struct amdgpu_bo *doorbells;
+
+	/* bitmap for dynamic doorbell allocation from doorbell object */
+	unsigned long *doorbell_bitmap;
 };
 
 enum kfd_mempool {

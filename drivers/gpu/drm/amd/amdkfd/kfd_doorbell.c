@@ -61,81 +61,46 @@ size_t kfd_doorbell_process_slice(struct kfd_dev *kfd)
 /* Doorbell calculations for device init. */
 int kfd_doorbell_init(struct kfd_dev *kfd)
 {
-	size_t doorbell_start_offset;
-	size_t doorbell_aperture_size;
-	size_t doorbell_process_limit;
+	int size = PAGE_SIZE;
+	int r;
 
 	/*
-	 * With MES enabled, just set the doorbell base as it is needed
-	 * to calculate doorbell physical address.
+	 * Todo: KFD kernel level operations need only one doorbell for
+	 * ring test/HWS. So instead of reserving a whole page here for
+	 * kernel, reserve and consume a doorbell from existing KGD kernel
+	 * doorbell page.
 	 */
-	if (kfd->shared_resources.enable_mes) {
-		kfd->doorbell_base =
-			kfd->shared_resources.doorbell_physical_address;
-		return 0;
+
+	/* Bitmap to dynamically allocate doorbells from kernel page */
+	kfd->doorbell_bitmap = bitmap_zalloc(size / sizeof(u32), GFP_KERNEL);
+	if (!kfd->doorbell_bitmap) {
+		DRM_ERROR("Failed to allocate kernel doorbell bitmap\n");
+		return -ENOMEM;
 	}
 
-	/*
-	 * We start with calculations in bytes because the input data might
-	 * only be byte-aligned.
-	 * Only after we have done the rounding can we assume any alignment.
-	 */
+	/* Alloc a doorbell page for KFD kernel usages */
+	r = amdgpu_bo_create_kernel(kfd->adev,
+				    size,
+				    PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_DOORBELL,
+				    &kfd->doorbells,
+				    NULL,
+				    (void **)&kfd->doorbell_kernel_ptr);
+	if (r) {
+		pr_err("failed to allocate kernel doorbells\n");
+		bitmap_free(kfd->doorbell_bitmap);
+		return r;
+	}
 
-	doorbell_start_offset =
-			roundup(kfd->shared_resources.doorbell_start_offset,
-					kfd_doorbell_process_slice(kfd));
-
-	doorbell_aperture_size =
-			rounddown(kfd->shared_resources.doorbell_aperture_size,
-					kfd_doorbell_process_slice(kfd));
-
-	if (doorbell_aperture_size > doorbell_start_offset)
-		doorbell_process_limit =
-			(doorbell_aperture_size - doorbell_start_offset) /
-						kfd_doorbell_process_slice(kfd);
-	else
-		return -ENOSPC;
-
-	if (!kfd->max_doorbell_slices ||
-	    doorbell_process_limit < kfd->max_doorbell_slices)
-		kfd->max_doorbell_slices = doorbell_process_limit;
-
-	kfd->doorbell_base = kfd->shared_resources.doorbell_physical_address +
-				doorbell_start_offset;
-
-	kfd->doorbell_base_dw_offset = doorbell_start_offset / sizeof(u32);
-
-	kfd->doorbell_kernel_ptr = ioremap(kfd->doorbell_base,
-					   kfd_doorbell_process_slice(kfd));
-
-	if (!kfd->doorbell_kernel_ptr)
-		return -ENOMEM;
-
-	pr_debug("Doorbell initialization:\n");
-	pr_debug("doorbell base           == 0x%08lX\n",
-			(uintptr_t)kfd->doorbell_base);
-
-	pr_debug("doorbell_base_dw_offset      == 0x%08lX\n",
-			kfd->doorbell_base_dw_offset);
-
-	pr_debug("doorbell_process_limit  == 0x%08lX\n",
-			doorbell_process_limit);
-
-	pr_debug("doorbell_kernel_offset  == 0x%08lX\n",
-			(uintptr_t)kfd->doorbell_base);
-
-	pr_debug("doorbell aperture size  == 0x%08lX\n",
-			kfd->shared_resources.doorbell_aperture_size);
-
-	pr_debug("doorbell kernel address == %p\n", kfd->doorbell_kernel_ptr);
-
+	pr_debug("Doorbell kernel address == %p\n", kfd->doorbell_kernel_ptr);
 	return 0;
 }
 
 void kfd_doorbell_fini(struct kfd_dev *kfd)
 {
-	if (kfd->doorbell_kernel_ptr)
-		iounmap(kfd->doorbell_kernel_ptr);
+	bitmap_free(kfd->doorbell_bitmap);
+	amdgpu_bo_free_kernel(&kfd->doorbells, NULL,
+			     (void **)&kfd->doorbell_kernel_ptr);
 }
 
 int kfd_doorbell_mmap(struct kfd_node *dev, struct kfd_process *process,
@@ -188,22 +153,15 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 	u32 inx;
 
 	mutex_lock(&kfd->doorbell_mutex);
-	inx = find_first_zero_bit(kfd->doorbell_available_index,
-					KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
+	inx = find_first_zero_bit(kfd->doorbell_bitmap, PAGE_SIZE / sizeof(u32));
 
-	__set_bit(inx, kfd->doorbell_available_index);
+	__set_bit(inx, kfd->doorbell_bitmap);
 	mutex_unlock(&kfd->doorbell_mutex);
 
 	if (inx >= KFD_MAX_NUM_OF_QUEUES_PER_PROCESS)
 		return NULL;
 
-	inx *= kfd->device_info.doorbell_size / sizeof(u32);
-
-	/*
-	 * Calculating the kernel doorbell offset using the first
-	 * doorbell page.
-	 */
-	*doorbell_off = kfd->doorbell_base_dw_offset + inx;
+	*doorbell_off = amdgpu_doorbell_index_on_bar(kfd->adev, kfd->doorbells, inx);
 
 	pr_debug("Get kernel queue doorbell\n"
 			"     doorbell offset   == 0x%08X\n"
@@ -217,11 +175,10 @@ void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr)
 {
 	unsigned int inx;
 
-	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr)
-		* sizeof(u32) / kfd->device_info.doorbell_size;
+	inx = (unsigned int)(db_addr - kfd->doorbell_kernel_ptr);
 
 	mutex_lock(&kfd->doorbell_mutex);
-	__clear_bit(inx, kfd->doorbell_available_index);
+	__clear_bit(inx, kfd->doorbell_bitmap);
 	mutex_unlock(&kfd->doorbell_mutex);
 }
 
