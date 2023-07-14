@@ -23,6 +23,7 @@
 #include <net/devlink.h>
 #include <net/udp_tunnel.h>
 #include <net/xdp.h>
+#include <net/macsec.h>
 
 #define DRV_NAME	"netdevsim"
 
@@ -50,6 +51,25 @@ struct nsim_ipsec {
 	u32 count;
 	u32 tx;
 	u32 ok;
+};
+
+#define NSIM_MACSEC_MAX_SECY_COUNT 3
+#define NSIM_MACSEC_MAX_RXSC_COUNT 1
+struct nsim_rxsc {
+	sci_t sci;
+	bool used;
+};
+
+struct nsim_secy {
+	sci_t sci;
+	struct nsim_rxsc nsim_rxsc[NSIM_MACSEC_MAX_RXSC_COUNT];
+	u8 nsim_rxsc_count;
+	bool used;
+};
+
+struct nsim_macsec {
+	struct nsim_secy nsim_secy[NSIM_MACSEC_MAX_SECY_COUNT];
+	u8 nsim_secy_count;
 };
 
 struct nsim_ethtool_pauseparam {
@@ -93,6 +113,7 @@ struct netdevsim {
 
 	bool bpf_map_accept;
 	struct nsim_ipsec ipsec;
+	struct nsim_macsec macsec;
 	struct {
 		u32 inject_error;
 		u32 sleep;
@@ -363,6 +384,19 @@ static inline void nsim_ipsec_teardown(struct netdevsim *ns)
 static inline bool nsim_ipsec_tx(struct netdevsim *ns, struct sk_buff *skb)
 {
 	return true;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_MACSEC)
+void nsim_macsec_init(struct netdevsim *ns);
+void nsim_macsec_teardown(struct netdevsim *ns);
+#else
+static inline void nsim_macsec_init(struct netdevsim *ns)
+{
+}
+
+static inline void nsim_macsec_teardown(struct netdevsim *ns)
+{
 }
 #endif
 
