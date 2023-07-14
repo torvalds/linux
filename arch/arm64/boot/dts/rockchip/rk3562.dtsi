@@ -384,42 +384,42 @@
 	/* dphy0 full mode */
 	csi2_dphy0: csi2-dphy0 {
 		compatible = "rockchip,rk3562-csi2-dphy";
-		rockchip,hw = <&csi2_dphy0_hw>;
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
 	};
 
 	/* dphy0 split mode 01 */
 	csi2_dphy1: csi2-dphy1 {
 		compatible = "rockchip,rk3562-csi2-dphy";
-		rockchip,hw = <&csi2_dphy0_hw>;
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
 	};
 
 	/* dphy0 split mode 23 */
 	csi2_dphy2: csi2-dphy2 {
 		compatible = "rockchip,rk3562-csi2-dphy";
-		rockchip,hw = <&csi2_dphy0_hw>;
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
 	};
 
 	/* dphy1 full mode */
 	csi2_dphy3: csi2-dphy3 {
 		compatible = "rockchip,rk3562-csi2-dphy";
-		rockchip,hw = <&csi2_dphy1_hw>;
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
 	};
 
 	/* dphy1 split mode 01 */
 	csi2_dphy4: csi2-dphy4 {
 		compatible = "rockchip,rk3562-csi2-dphy";
-		rockchip,hw = <&csi2_dphy1_hw>;
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
 	};
 
 	/* dphy1 split mode 23 */
 	csi2_dphy5: csi2-dphy5 {
 		compatible = "rockchip,rk3562-csi2-dphy";
-		rockchip,hw = <&csi2_dphy1_hw>;
+		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
 	};
 
@@ -533,6 +533,34 @@
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <3>;
 		rockchip,resetgroup-count = <3>;
+		status = "disabled";
+	};
+
+	mipi0_csi2: mipi0-csi2 {
+		compatible = "rockchip,rk3562-mipi-csi2";
+		rockchip,hw = <&mipi0_csi2_hw>, <&mipi1_csi2_hw>,
+			      <&mipi2_csi2_hw>, <&mipi3_csi2_hw>;
+		status = "disabled";
+	};
+
+	mipi1_csi2: mipi1-csi2 {
+		compatible = "rockchip,rk3562-mipi-csi2";
+		rockchip,hw = <&mipi0_csi2_hw>, <&mipi1_csi2_hw>,
+			      <&mipi2_csi2_hw>, <&mipi3_csi2_hw>;
+		status = "disabled";
+	};
+
+	mipi2_csi2: mipi2-csi2 {
+		compatible = "rockchip,rk3562-mipi-csi2";
+		rockchip,hw = <&mipi0_csi2_hw>, <&mipi1_csi2_hw>,
+			      <&mipi2_csi2_hw>, <&mipi3_csi2_hw>;
+		status = "disabled";
+	};
+
+	mipi3_csi2: mipi3-csi2 {
+		compatible = "rockchip,rk3562-mipi-csi2";
+		rockchip,hw = <&mipi0_csi2_hw>, <&mipi1_csi2_hw>,
+			      <&mipi2_csi2_hw>, <&mipi3_csi2_hw>;
 		status = "disabled";
 	};
 
@@ -1554,8 +1582,8 @@
 		status = "disabled";
 	};
 
-	mipi0_csi2: mipi0-csi2@ff380000 {
-		compatible = "rockchip,rk3562-mipi-csi2";
+	mipi0_csi2_hw: mipi0-csi2-hw@ff380000 {
+		compatible = "rockchip,rk3562-mipi-csi2-hw";
 		reg = <0x0 0xff380000 0x0 0x10000>;
 		reg-names = "csihost_regs";
 		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
@@ -1565,11 +1593,11 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSIHOST0>;
 		reset-names = "srst_csihost_p";
-		status = "disabled";
+		status = "okay";
 	};
 
-	mipi1_csi2: mipi1-csi2@ff390000 {
-		compatible = "rockchip,rk3562-mipi-csi2";
+	mipi1_csi2_hw: mipi1-csi2-hw@ff390000 {
+		compatible = "rockchip,rk3562-mipi-csi2-hw";
 		reg = <0x0 0xff390000 0x0 0x10000>;
 		reg-names = "csihost_regs";
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
@@ -1579,11 +1607,11 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSIHOST1>;
 		reset-names = "srst_csihost_p";
-		status = "disabled";
+		status = "okay";
 	};
 
-	mipi2_csi2: mipi2-csi2@ff3a0000 {
-		compatible = "rockchip,rk3562-mipi-csi2";
+	mipi2_csi2_hw: mipi2-csi2-hw@ff3a0000 {
+		compatible = "rockchip,rk3562-mipi-csi2-hw";
 		reg = <0x0 0xff3a0000 0x0 0x10000>;
 		reg-names = "csihost_regs";
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
@@ -1593,11 +1621,11 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSIHOST2>;
 		reset-names = "srst_csihost_p";
-		status = "disabled";
+		status = "okay";
 	};
 
-	mipi3_csi2: mipi3-csi2@ff3b0000 {
-		compatible = "rockchip,rk3562-mipi-csi2";
+	mipi3_csi2_hw: mipi3-csi2-hw@ff3b0000 {
+		compatible = "rockchip,rk3562-mipi-csi2-hw";
 		reg = <0x0 0xff3b0000 0x0 0x10000>;
 		reg-names = "csihost_regs";
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
@@ -1607,7 +1635,7 @@
 		clock-names = "pclk_csi2host";
 		resets = <&cru SRST_P_CSIHOST3>;
 		reset-names = "srst_csihost_p";
-		status = "disabled";
+		status = "okay";
 	};
 
 	csi2_dphy0_hw: csi2-dphy0-hw@ff3c0000 {
@@ -1618,7 +1646,7 @@
 		resets = <&cru SRST_P_CSIPHY0>;
 		reset-names = "srst_p_csiphy0";
 		rockchip,grf = <&sys_grf>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	csi2_dphy1_hw: csi2-dphy1-hw@ff3d0000 {
@@ -1629,7 +1657,7 @@
 		resets = <&cru SRST_P_CSIPHY1>;
 		reset-names = "srst_p_csiphy1";
 		rockchip,grf = <&sys_grf>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	rkcif: rkcif@ff3e0000 {
