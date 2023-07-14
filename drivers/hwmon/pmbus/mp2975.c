@@ -65,6 +65,10 @@
 #define MP2973_VID_STEP_SEL_R2		BIT(3)
 #define MP2973_IMVP9_EN_R2		BIT(13)
 
+#define MP2973_MFR_OCP_TOTAL_SET	0x5f
+#define MP2973_OCP_TOTAL_CUR_MASK	GENMASK(6, 0)
+#define MP2973_MFR_OCP_LEVEL_RES	BIT(15)
+
 #define MP2973_MFR_READ_IOUT_PK		0x90
 #define MP2973_MFR_READ_POUT_PK		0x91
 
@@ -151,6 +155,41 @@ mp2975_vid2direct(int vrf, int val)
 		return -EINVAL;
 	}
 	return 0;
+}
+
+#define MAX_LIN_MANTISSA	(1023 * 1000)
+#define MIN_LIN_MANTISSA	(511 * 1000)
+
+/* Converts a milli-unit DIRECT value to LINEAR11 format */
+static u16 mp2975_data2reg_linear11(s64 val)
+{
+	s16 exponent = 0, mantissa;
+	bool negative = false;
+
+	/* simple case */
+	if (val == 0)
+		return 0;
+
+	/* Reduce large mantissa until it fits into 10 bit */
+	while (val >= MAX_LIN_MANTISSA && exponent < 15) {
+		exponent++;
+		val >>= 1;
+	}
+	/* Increase small mantissa to improve precision */
+	while (val < MIN_LIN_MANTISSA && exponent > -15) {
+		exponent--;
+		val <<= 1;
+	}
+
+	/* Convert mantissa from milli-units to units */
+	mantissa = clamp_val(DIV_ROUND_CLOSEST_ULL(val, 1000), 0, 0x3ff);
+
+	/* restore sign */
+	if (negative)
+		mantissa = -mantissa;
+
+	/* Convert to 5 bit exponent, 11 bit mantissa */
+	return (mantissa & 0x7ff) | ((exponent << 11) & 0xf800);
 }
 
 static int
@@ -297,6 +336,20 @@ static int mp2973_read_word_data(struct i2c_client *client, int page,
 		ret = pmbus_read_word_data(client, page, phase,
 					   MP2973_MFR_READ_IOUT_PK);
 		break;
+	case PMBUS_IOUT_OC_FAULT_LIMIT:
+		ret = mp2975_read_word_helper(client, page, phase,
+					      MP2973_MFR_OCP_TOTAL_SET,
+					      GENMASK(15, 0));
+		if (ret < 0)
+			return ret;
+
+		if (ret & MP2973_MFR_OCP_LEVEL_RES)
+			ret = 2 * (ret & MP2973_OCP_TOTAL_CUR_MASK);
+		else
+			ret = ret & MP2973_OCP_TOTAL_CUR_MASK;
+
+		ret = mp2975_data2reg_linear11(ret * info->phases[page] * 1000);
+		break;
 	case PMBUS_UT_WARN_LIMIT:
 	case PMBUS_UT_FAULT_LIMIT:
 	case PMBUS_VIN_UV_WARN_LIMIT:
@@ -307,7 +360,6 @@ static int mp2973_read_word_data(struct i2c_client *client, int page,
 	case PMBUS_IIN_OC_FAULT_LIMIT:
 	case PMBUS_IOUT_OC_LV_FAULT_LIMIT:
 	case PMBUS_IOUT_OC_WARN_LIMIT:
-	case PMBUS_IOUT_OC_FAULT_LIMIT:
 	case PMBUS_IOUT_UC_FAULT_LIMIT:
 	case PMBUS_POUT_OP_FAULT_LIMIT:
 	case PMBUS_POUT_OP_WARN_LIMIT:
@@ -481,11 +533,13 @@ mp2975_identify_multiphase(struct i2c_client *client, struct mp2975_data *data,
 	if (info->phases[0] > data->max_phases[0])
 		return -EINVAL;
 
-	mp2975_set_phase_rail1(info);
-	num_phases2 = min(data->max_phases[0] - info->phases[0],
-			  data->max_phases[1]);
-	if (info->phases[1] && info->phases[1] <= num_phases2)
-		mp2975_set_phase_rail2(info, num_phases2);
+	if (data->chip_id == mp2975) {
+		mp2975_set_phase_rail1(info);
+		num_phases2 = min(data->max_phases[0] - info->phases[0],
+				  data->max_phases[1]);
+		if (info->phases[1] && info->phases[1] <= num_phases2)
+			mp2975_set_phase_rail2(info, num_phases2);
+	}
 
 	return 0;
 }
@@ -878,12 +932,12 @@ static int mp2975_probe(struct i2c_client *client)
 			data->info.num_regulators = MP2975_PAGE_NUM;
 	}
 
-	if (data->chip_id == mp2975) {
-		/* Identify multiphase configuration. */
-		ret = mp2975_identify_multiphase(client, data, info);
-		if (ret)
-			return ret;
+	/* Identify multiphase configuration. */
+	ret = mp2975_identify_multiphase(client, data, info);
+	if (ret)
+		return ret;
 
+	if (data->chip_id == mp2975) {
 		/* Identify VID setting per rail. */
 		ret = mp2975_identify_rails_vid(client, data, info);
 		if (ret < 0)
