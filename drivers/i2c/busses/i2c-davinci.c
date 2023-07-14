@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_data/i2c-davinci.h>
 #include <linux/pm_runtime.h>
 
