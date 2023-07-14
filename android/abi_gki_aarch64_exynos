@@ -662,6 +662,8 @@
   __pm_runtime_disable
   pm_runtime_enable
   pm_runtime_forbid
+  pm_runtime_force_resume
+  pm_runtime_force_suspend
   __pm_runtime_idle
   pm_runtime_no_callbacks
   __pm_runtime_resume
@@ -1158,6 +1160,28 @@
   __tracepoint_workqueue_execute_end
   __tracepoint_workqueue_execute_start
 
+# required by dw_mmc-exynos.ko
+  mmc_wait_for_req
+
+# required by dw_mmc.ko
+  debugfs_create_x64
+  device_property_read_string_array
+  dma_map_sg_attrs
+  mmc_add_host
+  mmc_alloc_host
+  mmc_can_gpio_cd
+  mmc_detect_change
+  mmc_free_host
+  mmc_gpio_get_cd
+  mmc_gpio_get_ro
+  mmc_of_parse
+  mmc_regulator_get_supply
+  mmc_regulator_set_ocr
+  mmc_regulator_set_vqmmc
+  mmc_remove_host
+  mmc_request_done
+  sdio_signal_irq
+
 # required by dwc3-exynos-usb.ko
   device_create_managed_software_node
   platform_device_add
@@ -1535,6 +1559,9 @@
   __traceiter_clock_set_rate
   __tracepoint_clock_set_rate
   update_devfreq
+
+# required by exynos_esca.ko
+  debugfs_lookup
 
 # required by exynos_mct_v3.ko
   clockevents_config_and_register
