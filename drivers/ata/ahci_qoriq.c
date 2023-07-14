@@ -12,9 +12,7 @@
 #include <linux/pm.h>
 #include <linux/ahci_platform.h>
 #include <linux/device.h>
-#include <linux/of_address.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/libata.h>
 #include "ahci.h"
