@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/vmalloc.h>
 #include <linux/regmap.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/spi/spi-mem.h>
 #include <linux/mfd/syscon.h>
 

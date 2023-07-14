@@ -20,7 +20,6 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 
 #include <linux/dma/imx-dma.h>

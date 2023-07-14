@@ -16,7 +16,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/sizes.h>
 #include <asm/unaligned.h>

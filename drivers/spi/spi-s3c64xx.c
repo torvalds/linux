@@ -14,7 +14,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/platform_data/spi-s3c64xx.h>
 
