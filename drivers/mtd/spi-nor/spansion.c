@@ -607,7 +607,7 @@ static struct spi_nor_fixups s25hx_t_fixups = {
 };
 
 /**
- * cypress_nor_octal_dtr_enable() - Enable octal DTR on Cypress flashes.
+ * cypress_nor_set_octal_dtr() - Enable or disable octal DTR on Cypress flashes.
  * @nor:		pointer to a 'struct spi_nor'
  * @enable:              whether to enable or disable Octal DTR
  *
@@ -616,7 +616,7 @@ static struct spi_nor_fixups s25hx_t_fixups = {
  *
  * Return: 0 on success, -errno otherwise.
  */
-static int cypress_nor_octal_dtr_enable(struct spi_nor *nor, bool enable)
+static int cypress_nor_set_octal_dtr(struct spi_nor *nor, bool enable)
 {
 	return enable ? cypress_nor_octal_dtr_en(nor) :
 			cypress_nor_octal_dtr_dis(nor);
@@ -667,7 +667,7 @@ static int s28hx_t_post_bfpt_fixup(struct spi_nor *nor,
 
 static void s28hx_t_late_init(struct spi_nor *nor)
 {
-	nor->params->octal_dtr_enable = cypress_nor_octal_dtr_enable;
+	nor->params->set_octal_dtr = cypress_nor_set_octal_dtr;
 	cypress_nor_ecc_init(nor);
 }
 
