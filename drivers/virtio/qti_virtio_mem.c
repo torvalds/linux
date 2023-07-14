@@ -41,10 +41,6 @@ static DEFINE_MUTEX(qvm_kernel_plugged_lock);
 /* Sum of all hints */
 static s64 qvm_hint_total;
 
-void qvm_update_plugged_size(uint64_t size)
-{
-	qvm_hint_total = (s64)size;
-}
 static uint64_t device_block_size, max_plugin_threshold;
 static uint16_t kernel_plugged;
 
