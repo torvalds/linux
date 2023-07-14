@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/ebcdic.h>
 #include <linux/uaccess.h>
 #include <asm/delay.h>

@@ -1320,7 +1320,9 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 			dso->id = *id;
 		dso__set_long_name_id(dso, dso->name, id, false);
 		dso__set_short_name(dso, dso->name, false);
-		dso->symbols = dso->symbol_names = RB_ROOT_CACHED;
+		dso->symbols = RB_ROOT_CACHED;
+		dso->symbol_names = NULL;
+		dso->symbol_names_len = 0;
 		dso->data.cache = RB_ROOT;
 		dso->inlined_nodes = RB_ROOT_CACHED;
 		dso->srclines = RB_ROOT_CACHED;
@@ -1364,7 +1366,8 @@ void dso__delete(struct dso *dso)
 	inlines__tree_delete(&dso->inlined_nodes);
 	srcline__tree_delete(&dso->srclines);
 	symbols__delete(&dso->symbols);
-
+	dso->symbol_names_len = 0;
+	zfree(&dso->symbol_names);
 	if (dso->short_name_allocated) {
 		zfree((char **)&dso->short_name);
 		dso->short_name_allocated = false;

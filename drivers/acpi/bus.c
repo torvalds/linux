@@ -682,7 +682,7 @@ bool acpi_device_is_first_physical_node(struct acpi_device *adev,
  * resources available from it but they will be matched normally using functions
  * provided by their bus types (and analogously for their modalias).
  */
-struct acpi_device *acpi_companion_match(const struct device *dev)
+const struct acpi_device *acpi_companion_match(const struct device *dev)
 {
 	struct acpi_device *adev;
 
@@ -706,7 +706,7 @@ struct acpi_device *acpi_companion_match(const struct device *dev)
  * identifiers and a _DSD object with the "compatible" property, use that
  * property to match against the given list of identifiers.
  */
-static bool acpi_of_match_device(struct acpi_device *adev,
+static bool acpi_of_match_device(const struct acpi_device *adev,
 				 const struct of_device_id *of_match_table,
 				 const struct of_device_id **of_id)
 {
@@ -808,7 +808,7 @@ static bool __acpi_match_device_cls(const struct acpi_device_id *id,
 	return true;
 }
 
-static bool __acpi_match_device(struct acpi_device *device,
+static bool __acpi_match_device(const struct acpi_device *device,
 				const struct acpi_device_id *acpi_ids,
 				const struct of_device_id *of_ids,
 				const struct acpi_device_id **acpi_id,
@@ -851,6 +851,26 @@ out_acpi_match:
 }
 
 /**
+ * acpi_match_acpi_device - Match an ACPI device against a given list of ACPI IDs
+ * @ids: Array of struct acpi_device_id objects to match against.
+ * @adev: The ACPI device pointer to match.
+ *
+ * Match the ACPI device @adev against a given list of ACPI IDs @ids.
+ *
+ * Return:
+ * a pointer to the first matching ACPI ID on success or %NULL on failure.
+ */
+const struct acpi_device_id *acpi_match_acpi_device(const struct acpi_device_id *ids,
+						    const struct acpi_device *adev)
+{
+	const struct acpi_device_id *id = NULL;
+
+	__acpi_match_device(adev, ids, NULL, &id, NULL);
+	return id;
+}
+EXPORT_SYMBOL_GPL(acpi_match_acpi_device);
+
+/**
  * acpi_match_device - Match a struct device against a given list of ACPI IDs
  * @ids: Array of struct acpi_device_id object to match against.
  * @dev: The device structure to match.
@@ -864,10 +884,7 @@ out_acpi_match:
 const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev)
 {
-	const struct acpi_device_id *id = NULL;
-
-	__acpi_match_device(acpi_companion_match(dev), ids, NULL, &id, NULL);
-	return id;
+	return acpi_match_acpi_device(ids, acpi_companion_match(dev));
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 

@@ -286,6 +286,9 @@ extern int amdgpu_user_partt_mode;
 #define AMDGPU_SMARTSHIFT_MAX_BIAS (100)
 #define AMDGPU_SMARTSHIFT_MIN_BIAS (-100)
 
+/* Extra time delay(in ms) to eliminate the influence of temperature momentary fluctuation */
+#define AMDGPU_SWCTF_EXTRA_DELAY		50
+
 struct amdgpu_xcp_mgr;
 struct amdgpu_device;
 struct amdgpu_irq_src;
@@ -1277,9 +1280,10 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 
 #define amdgpu_inc_vram_lost(adev) atomic_inc(&((adev)->vram_lost_counter));
 
-#define for_each_inst(i, inst_mask)                                            \
-	for (i = ffs(inst_mask) - 1; inst_mask;                                \
-	     inst_mask &= ~(1U << i), i = ffs(inst_mask) - 1)
+#define BIT_MASK_UPPER(i) ((i) >= BITS_PER_LONG ? 0 : ~0UL << (i))
+#define for_each_inst(i, inst_mask)        \
+	for (i = ffs(inst_mask); i-- != 0; \
+	     i = ffs(inst_mask & BIT_MASK_UPPER(i + 1)))
 
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 

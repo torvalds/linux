@@ -254,6 +254,10 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	TEST_ASSERT_VAL("source count", hashmap__size(ctx->ids) == 1);
 	TEST_ASSERT_VAL("source count", hashmap__find(ctx->ids, "EVENT1", &val_ptr));
 
+	/* has_event returns 1 when an event exists. */
+	expr__add_id_val(ctx, strdup("cycles"), 2);
+	ret = test(ctx, "has_event(cycles)", 1);
+
 	expr__ctx_free(ctx);
 
 	return 0;

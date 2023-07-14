@@ -481,6 +481,7 @@ static int remove_pagetable(unsigned long start, unsigned long end, bool direct)
  */
 static int vmem_add_range(unsigned long start, unsigned long size)
 {
+	start = (unsigned long)__va(start);
 	return add_pagetable(start, start + size, true);
 }
 
@@ -489,6 +490,7 @@ static int vmem_add_range(unsigned long start, unsigned long size)
  */
 static void vmem_remove_range(unsigned long start, unsigned long size)
 {
+	start = (unsigned long)__va(start);
 	remove_pagetable(start, start + size, true);
 }
 
@@ -556,7 +558,7 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
  * to any physical address. If missing, allocate segment- and region-
  * table entries along. Meeting a large segment- or region-table entry
  * while traversing is an error, since the function is expected to be
- * called against virtual regions reserverd for 4KB mappings only.
+ * called against virtual regions reserved for 4KB mappings only.
  */
 pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 {

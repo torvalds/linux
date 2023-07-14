@@ -5,7 +5,8 @@
 # same person appearing not to be so or badly displayed. Also allows for
 # old email addresses to map to new email addresses.
 #
-# For format details, see "MAPPING AUTHORS" in "man git-shortlog".
+# For format details, see "man gitmailmap" or "MAPPING AUTHORS" in
+# "man git-shortlog" on older systems.
 #
 # Please keep this list dictionary sorted.
 #
@@ -177,6 +178,9 @@ Gustavo Padovan <padovan@profusion.mobi>
 Hanjun Guo <guohanjun@huawei.com> <hanjun.guo@linaro.org>
 Heiko Carstens <hca@linux.ibm.com> <h.carstens@de.ibm.com>
 Heiko Carstens <hca@linux.ibm.com> <heiko.carstens@de.ibm.com>
+Heiko Stuebner <heiko@sntech.de> <heiko.stuebner@bqreaders.com>
+Heiko Stuebner <heiko@sntech.de> <heiko.stuebner@theobroma-systems.com>
+Heiko Stuebner <heiko@sntech.de> <heiko.stuebner@vrull.eu>
 Henk Vergonet <Henk.Vergonet@gmail.com>
 Henrik Kretzschmar <henne@nachtwindheim.de>
 Henrik Rydberg <rydberg@bitmath.org>
@@ -305,6 +309,7 @@ Marek Behún <kabel@kernel.org> <marek.behun@nic.cz>
 Marek Behún <kabel@kernel.org> Marek Behun <marek.behun@nic.cz>
 Mark Brown <broonie@sirena.org.uk>
 Mark Starovoytov <mstarovo@pm.me> <mstarovoitov@marvell.com>
+Markus Schneider-Pargmann <msp@baylibre.com> <mpa@pengutronix.de>
 Mark Yao <markyao0591@gmail.com> <mark.yao@rock-chips.com>
 Martin Kepplinger <martink@posteo.de> <martin.kepplinger@ginzinger.com>
 Martin Kepplinger <martink@posteo.de> <martin.kepplinger@puri.sm>

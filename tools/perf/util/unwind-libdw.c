@@ -66,9 +66,13 @@ static int __report_module(struct addr_location *al, u64 ip,
 			mod = 0;
 	}
 
-	if (!mod)
-		mod = dwfl_report_elf(ui->dwfl, dso->short_name, dso->long_name, -1,
+	if (!mod) {
+		char filename[PATH_MAX];
+
+		__symbol__join_symfs(filename, sizeof(filename), dso->long_name);
+		mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
 				      map__start(al->map) - map__pgoff(al->map), false);
+	}
 	if (!mod) {
 		char filename[PATH_MAX];
 

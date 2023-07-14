@@ -573,7 +573,7 @@ add_alloc_in_same_attr_seg:
 				sbi, run, vcn, lcn, to_allocate, &pre_alloc,
 				is_mft ? ALLOCATE_MFT : ALLOCATE_DEF, &alen,
 				is_mft ? 0 :
-					       (sbi->record_size -
+					 (sbi->record_size -
 					  le32_to_cpu(rec->used) + 8) /
 							 3 +
 						 1,

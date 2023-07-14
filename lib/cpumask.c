@@ -157,7 +157,7 @@ EXPORT_SYMBOL(cpumask_local_spread);
 static DEFINE_PER_CPU(int, distribute_cpu_mask_prev);
 
 /**
- * Returns an arbitrary cpu within srcp1 & srcp2.
+ * cpumask_any_and_distribute - Return an arbitrary cpu within srcp1 & srcp2.
  *
  * Iterated calls using the same srcp1 and srcp2 will be distributed within
  * their intersection.

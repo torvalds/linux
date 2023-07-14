@@ -69,7 +69,8 @@ void __init paging_init(void)
 
 		/* now change pg_table to kernel virtual addresses */
 		for (i = 0; i < PTRS_PER_PTE; ++i, ++pg_table) {
-			pte_t pte = pfn_pte(virt_to_pfn(address), PAGE_INIT);
+			pte_t pte = pfn_pte(virt_to_pfn((void *)address),
+					    PAGE_INIT);
 			if (address >= (unsigned long) high_memory)
 				pte_val(pte) = 0;
 

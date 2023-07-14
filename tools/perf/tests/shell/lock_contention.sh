@@ -233,6 +233,41 @@ test_aggr_task_stack_filter()
 	fi
 }
 
+test_csv_output()
+{
+	echo "Testing perf lock contention CSV output"
+	perf lock contention -i ${perfdata} -E 1 -x , --output ${result}
+	# count the number of commas in the header
+	# it should have 5: contended, total-wait, max-wait, avg-wait, type, caller
+	header=$(grep "# output:" ${result} | tr -d -c , | wc -c)
+	if [ "${header}" != "5" ]; then
+		echo "[Fail] Recorded result does not have enough output columns: ${header} != 5"
+		err=1
+		exit
+	fi
+	# count the number of commas in the output
+	output=$(grep -v "^#" ${result} | tr -d -c , | wc -c)
+	if [ "${header}" != "${output}" ]; then
+		echo "[Fail] Recorded result does not match the number of commas: ${header} != ${output}"
+		err=1
+		exit
+	fi
+
+	if ! perf lock con -b true > /dev/null 2>&1 ; then
+		echo "[Skip] No BPF support"
+		return
+	fi
+
+	# the perf lock contention output goes to the stderr
+	perf lock con -a -b -E 1 -x , --output ${result} -- perf bench sched messaging > /dev/null 2>&1
+	output=$(grep -v "^#" ${result} | tr -d -c , | wc -c)
+	if [ "${header}" != "${output}" ]; then
+		echo "[Fail] BPF result does not match the number of commas: ${header} != ${output}"
+		err=1
+		exit
+	fi
+}
+
 check
 
 test_record
@@ -244,5 +279,6 @@ test_type_filter
 test_lock_filter
 test_stack_filter
 test_aggr_task_stack_filter
+test_csv_output
 
 exit ${err}

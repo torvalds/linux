@@ -1659,7 +1659,7 @@
 			drive-push-pull;
 			bias-pull-up;
 		};
-		pins2{
+		pins2 {
 			pinmux = <STM32_PINMUX('E', 4, AF8)>; /* SDMMC1_CKIN */
 			bias-pull-up;
 		};
@@ -1694,7 +1694,7 @@
 			drive-push-pull;
 			bias-pull-up;
 		};
-		pins2{
+		pins2 {
 			pinmux = <STM32_PINMUX('E', 4, AF8)>; /* SDMMC1_CKIN */
 			bias-pull-up;
 		};

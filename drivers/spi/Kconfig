@@ -826,7 +826,7 @@ config SPI_RSPI
 	  SPI driver for Renesas RSPI and QSPI blocks.
 
 config SPI_RZV2M_CSI
-	tristate "Renesas RZV2M CSI controller"
+	tristate "Renesas RZ/V2M CSI controller"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	help
 	  SPI driver for Renesas RZ/V2M Clocked Serial Interface (CSI)

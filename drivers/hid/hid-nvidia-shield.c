@@ -63,12 +63,12 @@ static_assert(sizeof(enum thunderstrike_led_state) == 1);
 struct thunderstrike_hostcmd_board_info {
 	__le16 revision;
 	__le16 serial[7];
-};
+} __packed;
 
 struct thunderstrike_hostcmd_haptics {
 	u8 motor_left;
 	u8 motor_right;
-};
+} __packed;
 
 struct thunderstrike_hostcmd_resp_report {
 	u8 report_id; /* THUNDERSTRIKE_HOSTCMD_RESP_REPORT_ID */
@@ -81,7 +81,7 @@ struct thunderstrike_hostcmd_resp_report {
 		__le16 fw_version;
 		enum thunderstrike_led_state led_state;
 		u8 payload[30];
-	};
+	} __packed;
 } __packed;
 static_assert(sizeof(struct thunderstrike_hostcmd_resp_report) ==
 	      THUNDERSTRIKE_HOSTCMD_REPORT_SIZE);
@@ -92,15 +92,15 @@ struct thunderstrike_hostcmd_req_report {
 	u8 reserved_at_10;
 
 	union {
-		struct {
+		struct __packed {
 			u8 update;
 			enum thunderstrike_led_state state;
 		} led;
-		struct {
+		struct __packed {
 			u8 update;
 			struct thunderstrike_hostcmd_haptics motors;
 		} haptics;
-	};
+	} __packed;
 	u8 reserved_at_30[27];
 } __packed;
 static_assert(sizeof(struct thunderstrike_hostcmd_req_report) ==

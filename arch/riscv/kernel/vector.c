@@ -167,6 +167,7 @@ bool riscv_v_first_use_handler(struct pt_regs *regs)
 		return true;
 	}
 	riscv_v_vstate_on(regs);
+	riscv_v_vstate_restore(current, regs);
 	return true;
 }
 

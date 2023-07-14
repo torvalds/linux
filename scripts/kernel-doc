@@ -1319,6 +1319,9 @@ sub dump_enum($$) {
     my $file = shift;
     my $members;
 
+    # ignore members marked private:
+    $x =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gosi;
+    $x =~ s/\/\*\s*private:.*}/}/gosi;
 
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
     # strip #define macros inside enums

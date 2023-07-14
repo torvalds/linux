@@ -1190,6 +1190,7 @@ static bool dcn303_resource_construct(
 
 	dc->caps.dp_hdmi21_pcon_support = true;
 
+	dc->config.dc_mode_clk_limit_support = true;
 	/* read VBIOS LTTPR caps */
 	if (ctx->dc_bios->funcs->get_lttpr_caps) {
 		enum bp_result bp_query_result;

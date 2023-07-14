@@ -84,7 +84,7 @@ static int paiext_root_alloc(void)
 		/* The memory is already zeroed. */
 		paiext_root.mapptr = alloc_percpu(struct paiext_mapptr);
 		if (!paiext_root.mapptr) {
-			/* Returing without refcnt adjustment is ok. The
+			/* Returning without refcnt adjustment is ok. The
 			 * error code is handled by paiext_alloc() which
 			 * decrements refcnt when an event can not be
 			 * created.
@@ -190,7 +190,7 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 		cpump->mode = a->sample_period ? PAI_MODE_SAMPLING
 					       : PAI_MODE_COUNTING;
 	} else {
-		/* Multiple invocation, check whats active.
+		/* Multiple invocation, check what is active.
 		 * Supported are multiple counter events or only one sampling
 		 * event concurrently at any one time.
 		 */

@@ -27,7 +27,7 @@
 #include <asm/system_info.h>
 #include <asm/traps.h>
 #include <asm/procinfo.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/kasan_def.h>
 

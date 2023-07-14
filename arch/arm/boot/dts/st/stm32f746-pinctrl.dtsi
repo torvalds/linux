@@ -6,6 +6,6 @@
 
 #include "stm32f7-pinctrl.dtsi"
 
-&pinctrl{
+&pinctrl {
 	compatible = "st,stm32f746-pinctrl";
 };

@@ -4064,7 +4064,7 @@
 			extra details on the taint flags that users can pick
 			to compose the bitmask to assign to panic_on_taint.
 
-	panic_on_warn	panic() instead of WARN().  Useful to cause kdump
+	panic_on_warn=1	panic() instead of WARN().  Useful to cause kdump
 			on a WARN().
 
 	parkbd.port=	[HW] Parallel port number the keyboard adapter is

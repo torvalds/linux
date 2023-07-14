@@ -645,7 +645,7 @@
 			st,lpc-mode = <ST_LPC_MODE_CLKSRC>;
 		};
 
-		spifsm: spifsm@9022000{
+		spifsm: spifsm@9022000 {
 			compatible = "st,spi-fsm";
 			reg = <0x9022000 0x1000>;
 			reg-names = "spi-fsm";

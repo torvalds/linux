@@ -51,6 +51,13 @@ mind:
    working toward the creation of the best kernel they can; they are not
    trying to create discomfort for their employers' competitors.
 
+ - Be prepared for seemingly silly requests for coding style changes
+   and requests to factor out some of your code to shared parts of
+   the kernel. One job the maintainers do is to keep things looking
+   the same. Sometimes this means that the clever hack in your driver
+   to get around a problem actually needs to become a generalized
+   kernel feature ready for next time.
+
 What all of this comes down to is that, when reviewers send you comments,
 you need to pay attention to the technical observations that they are
 making.  Do not let their form of expression or your own pride keep that

@@ -4161,7 +4161,7 @@ static void kvm_arch_vcpu_ioctl_initial_reset(struct kvm_vcpu *vcpu)
 	vcpu->run->s.regs.fpc = 0;
 	/*
 	 * Do not reset these registers in the protected case, as some of
-	 * them are overlayed and they are not accessible in this case
+	 * them are overlaid and they are not accessible in this case
 	 * anyway.
 	 */
 	if (!kvm_s390_pv_cpu_is_protected(vcpu)) {

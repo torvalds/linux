@@ -100,7 +100,7 @@ SYM_CODE_START(purgatory_start)
 	 * checksum verification only (%r2 = 0 -> verification only).
 	 *
 	 * Check now and preserve over C function call by storing in
-	 * %r10 whith
+	 * %r10 with
 	 *	1 -> checksum verification only
 	 *	0 -> load new kernel
 	 */

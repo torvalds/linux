@@ -478,7 +478,7 @@ struct trans_exc_code_bits {
 };
 
 enum {
-	FSI_UNKNOWN = 0, /* Unknown wether fetch or store */
+	FSI_UNKNOWN = 0, /* Unknown whether fetch or store */
 	FSI_STORE   = 1, /* Exception was due to store operation */
 	FSI_FETCH   = 2  /* Exception was due to fetch operation */
 };
@@ -625,7 +625,7 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  * Returns: - zero on success; @gpa contains the resulting absolute address
  *	    - a negative value if guest access failed due to e.g. broken
  *	      guest mapping
- *	    - a positve value if an access exception happened. In this case
+ *	    - a positive value if an access exception happened. In this case
  *	      the returned value is the program interruption code as defined
  *	      by the architecture
  */

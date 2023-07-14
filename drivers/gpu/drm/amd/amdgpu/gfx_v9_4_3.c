@@ -623,12 +623,28 @@ static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						int num_xccs_per_xcp)
 {
-	int ret;
+	int ret, i, num_xcc;
+	u32 tmp = 0;
 
-	ret = psp_spatial_partition(&adev->psp, NUM_XCC(adev->gfx.xcc_mask) /
-							num_xccs_per_xcp);
-	if (ret)
-		return ret;
+	if (adev->psp.funcs) {
+		ret = psp_spatial_partition(&adev->psp,
+					    NUM_XCC(adev->gfx.xcc_mask) /
+						    num_xccs_per_xcp);
+		if (ret)
+			return ret;
+	} else {
+		num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+
+		for (i = 0; i < num_xcc; i++) {
+			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
+					    num_xccs_per_xcp);
+			tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
+					    i % num_xccs_per_xcp);
+			WREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL,
+				     tmp);
+		}
+		ret = 0;
+	}
 
 	adev->gfx.num_xcc_per_xcp = num_xccs_per_xcp;
 
@@ -1762,6 +1778,8 @@ static int gfx_v9_4_3_xcc_kiq_init_queue(struct amdgpu_ring *ring, int xcc_id)
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
+		if (amdgpu_sriov_vf(adev) && adev->in_suspend)
+			amdgpu_ring_clear_ring(ring);
 		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, GET_INST(GC, xcc_id));
 		gfx_v9_4_3_xcc_mqd_init(ring, xcc_id);
 		gfx_v9_4_3_xcc_kiq_init_register(ring, xcc_id);
@@ -1960,6 +1978,16 @@ static void gfx_v9_4_3_xcc_fini(struct amdgpu_device *adev, int xcc_id)
 	if (amdgpu_gfx_disable_kcq(adev, xcc_id))
 		DRM_ERROR("XCD %d KCQ disable failed\n", xcc_id);
 
+	if (amdgpu_sriov_vf(adev)) {
+		/* must disable polling for SRIOV when hw finished, otherwise
+		 * CPC engine may still keep fetching WB address which is already
+		 * invalid after sw finished and trigger DMAR reading error in
+		 * hypervisor side.
+		 */
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id), CP_PQ_WPTR_POLL_CNTL, EN, 0);
+		return;
+	}
+
 	/* Use deinitialize sequence from CAIL when unbinding device
 	 * from driver, otherwise KIQ is hanging when binding back
 	 */
@@ -1984,7 +2012,8 @@ static int gfx_v9_4_3_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gfx_v9_4_3_init_golden_registers(adev);
+	if (!amdgpu_sriov_vf(adev))
+		gfx_v9_4_3_init_golden_registers(adev);
 
 	gfx_v9_4_3_constants_init(adev);
 

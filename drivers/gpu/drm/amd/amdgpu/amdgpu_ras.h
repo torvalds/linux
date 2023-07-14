@@ -340,6 +340,7 @@ enum amdgpu_ras_ret {
 #define AMDGPU_RAS_ERR_ADDRESS_VALID	(1 << 2)
 
 #define AMDGPU_RAS_GPU_RESET_MODE2_RESET  (0x1 << 0)
+#define AMDGPU_RAS_GPU_RESET_MODE1_RESET  (0x1 << 1)
 
 struct amdgpu_ras_err_status_reg_entry {
 	uint32_t hwip;

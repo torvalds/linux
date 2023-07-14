@@ -5063,11 +5063,7 @@ static inline void fill_dc_dirty_rect(struct drm_plane *plane,
 				      s32 y, s32 width, s32 height,
 				      int *i, bool ffu)
 {
-	if (*i > DC_MAX_DIRTY_RECTS)
-		return;
-
-	if (*i == DC_MAX_DIRTY_RECTS)
-		goto out;
+	WARN_ON(*i >= DC_MAX_DIRTY_RECTS);
 
 	dirty_rect->x = x;
 	dirty_rect->y = y;
@@ -5083,7 +5079,6 @@ static inline void fill_dc_dirty_rect(struct drm_plane *plane,
 			"[PLANE:%d] PSR SU dirty rect at (%d, %d) size (%d, %d)",
 			plane->base.id, x, y, width, height);
 
-out:
 	(*i)++;
 }
 
@@ -5170,6 +5165,9 @@ static void fill_dc_dirty_rects(struct drm_plane *plane,
 
 	*dirty_regions_changed = bb_changed;
 
+	if ((num_clips + (bb_changed ? 2 : 0)) > DC_MAX_DIRTY_RECTS)
+		goto ffu;
+
 	if (bb_changed) {
 		fill_dc_dirty_rect(new_plane_state->plane, &dirty_rects[i],
 				   new_plane_state->crtc_x,
@@ -5198,9 +5196,6 @@ static void fill_dc_dirty_rects(struct drm_plane *plane,
 				   new_plane_state->crtc_w,
 				   new_plane_state->crtc_h, &i, false);
 	}
-
-	if (i > DC_MAX_DIRTY_RECTS)
-		goto ffu;
 
 	flip_addrs->dirty_rect_count = i;
 	return;
@@ -7258,13 +7253,7 @@ static int amdgpu_dm_connector_get_modes(struct drm_connector *connector)
 				drm_add_modes_noedid(connector, 1920, 1080);
 	} else {
 		amdgpu_dm_connector_ddc_get_modes(connector, edid);
-		/* most eDP supports only timings from its edid,
-		 * usually only detailed timings are available
-		 * from eDP edid. timings which are not from edid
-		 * may damage eDP
-		 */
-		if (connector->connector_type != DRM_MODE_CONNECTOR_eDP)
-			amdgpu_dm_connector_add_common_modes(encoder, connector);
+		amdgpu_dm_connector_add_common_modes(encoder, connector);
 		amdgpu_dm_connector_add_freesync_modes(connector, edid);
 	}
 	amdgpu_dm_fbc_init(connector);

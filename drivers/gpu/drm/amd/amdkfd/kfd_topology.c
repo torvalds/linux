@@ -2107,6 +2107,10 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 	if (KFD_IS_SVM_API_SUPPORTED(dev->gpu->adev))
 		dev->node_props.capability |= HSA_CAP_SVMAPI_SUPPORTED;
 
+	if (dev->gpu->adev->gmc.is_app_apu ||
+		dev->gpu->adev->gmc.xgmi.connected_to_cpu)
+		dev->node_props.capability |= HSA_CAP_FLAGS_COHERENTHOSTACCESS;
+
 	kfd_debug_print_topology();
 
 	kfd_notify_gpu_change(gpu_id, 1);

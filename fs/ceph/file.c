@@ -791,7 +791,8 @@ retry:
 	if (flags & O_CREAT) {
 		struct ceph_file_layout lo;
 
-		req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL;
+		req->r_dentry_drop = CEPH_CAP_FILE_SHARED | CEPH_CAP_AUTH_EXCL |
+				     CEPH_CAP_XATTR_EXCL;
 		req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 		if (as_ctx.pagelist) {
 			req->r_pagelist = as_ctx.pagelist;
