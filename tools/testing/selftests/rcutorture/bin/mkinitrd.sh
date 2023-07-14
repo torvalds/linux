@@ -33,12 +33,16 @@ cat > init.c << '___EOF___'
 
 volatile unsigned long delaycount;
 
-int main(int argc, int argv[])
+int main(int argc, char *argv[])
 {
 	int i;
 	struct timeval tv;
 	struct timeval tvb;
 
+	printf("Torture-test rudimentary init program started, command line:\n");
+	for (i = 0; i < argc; i++)
+		printf(" %s", argv[i]);
+	printf("\n");
 	for (;;) {
 		sleep(1);
 		/* Need some userspace time. */
