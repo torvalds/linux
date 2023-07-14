@@ -10,8 +10,7 @@
 
 #include <linux/err.h>
 #include <linux/export.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
 #include <linux/types.h>
