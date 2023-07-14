@@ -9,7 +9,8 @@
  */
 #include <linux/fpga/altera-pr-ip-core.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 
 static int alt_pr_platform_probe(struct platform_device *pdev)
 {

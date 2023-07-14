@@ -27,7 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 
 #define ALT_SDR_CTL_FPGAPORTRST_OFST		0x80
