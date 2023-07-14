@@ -129,17 +129,13 @@ static int st7789v_spi_write(struct st7789v *ctx, enum st7789v_prefix prefix,
 			     u8 data)
 {
 	struct spi_transfer xfer = { };
-	struct spi_message msg;
 	u16 txbuf = ((prefix & 1) << 8) | data;
-
-	spi_message_init(&msg);
 
 	xfer.tx_buf = &txbuf;
 	xfer.bits_per_word = 9;
 	xfer.len = sizeof(txbuf);
 
-	spi_message_add_tail(&xfer, &msg);
-	return spi_sync(ctx->spi, &msg);
+	return spi_sync_transfer(ctx->spi, &xfer, 1);
 }
 
 static int st7789v_write_command(struct st7789v *ctx, u8 cmd)
