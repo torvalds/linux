@@ -67,7 +67,7 @@ void *diag204_get_buffer(enum diag204_format fmt, int *pages)
 		*pages = diag204((unsigned long)DIAG204_SUBC_RSI |
 				 (unsigned long)DIAG204_INFO_EXT, 0, NULL);
 		if (*pages <= 0)
-			return ERR_PTR(-ENOSYS);
+			return ERR_PTR(-EOPNOTSUPP);
 	}
 	diag204_buf = __vmalloc_node(array_size(*pages, PAGE_SIZE),
 				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
@@ -127,7 +127,7 @@ static int diag204_probe(void)
 		diag204_set_info_type(DIAG204_INFO_SIMPLE);
 		goto out;
 	} else {
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 		goto fail_store;
 	}
 out:
@@ -144,7 +144,7 @@ int diag204_store(void *buf, int pages)
 
 	rc = diag204((unsigned long)diag204_store_sc |
 		     (unsigned long)diag204_get_info_type(), pages, buf);
-	return rc < 0 ? -ENOSYS : 0;
+	return rc < 0 ? -EOPNOTSUPP : 0;
 }
 
 struct dbfs_d204_hdr {
