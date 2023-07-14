@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos4212 based Galaxy Tab 3 8.0 3G board device tree
+ * source
+ *
+ * Copyright (c) 2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include "exynos4212-tab3.dtsi"
+
+/ {
+	model = "Samsung Galaxy Tab 3 8.0 3G (SM-T311) based on Exynos4212";
+	compatible = "samsung,t311", "samsung,tab3", "samsung,exynos4212", "samsung,exynos4";
+	chassis-type = "tablet";
+};
+
+/* Pin control sleep state overrides */
+&sleep0 {
+	PIN_SLP(gpb-5, INPUT, UP);
+};
+
+&sleep1 {
+	PIN_SLP(gpl0-0, OUT0, NONE);
+	PIN_SLP(gpl1-0, OUT0, NONE);
+	PIN_SLP(gpl2-4, OUT0, NONE);
+	PIN_SLP(gpm3-3, OUT1, NONE);
+};
