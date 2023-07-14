@@ -3877,10 +3877,8 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 	 */
 	if ((spi->mode & SPI_CS_WORD) && (!(ctlr->mode_bits & SPI_CS_WORD) ||
 					  spi_get_csgpiod(spi, 0))) {
-		size_t maxsize;
+		size_t maxsize = BITS_TO_BYTES(spi->bits_per_word);
 		int ret;
-
-		maxsize = (spi->bits_per_word + 7) / 8;
 
 		/* spi_split_transfers_maxsize() requires message->spi */
 		message->spi = spi;
