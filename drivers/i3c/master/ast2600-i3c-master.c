@@ -23,7 +23,11 @@
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+#include <linux/crc8.h>
 
+/* CRC8 table for PEC support */
+#define I3C_CRC8_POLYNOMIAL	0x07
+DECLARE_CRC8_TABLE(i3c_crc8_table);
 #define I3C_CHANNEL_MAX 5
 
 #define DEVICE_CTRL			0x0
@@ -416,6 +420,7 @@ struct aspeed_i3c_master {
 	u8 addrs[MAX_DEVS];
 	u32 channel;
 	bool secondary;
+	bool ibi_append_pec;
 	struct {
 		u32 *buf;
 		void (*callback)(struct i3c_master_controller *m,
@@ -2464,6 +2469,23 @@ static void aspeed_i3c_master_recycle_ibi_slot(struct i3c_dev_desc *dev,
 	i3c_generic_ibi_recycle_slot(data->ibi_pool, slot);
 }
 
+static uint8_t *pec_append(struct i3c_device_info *dev, uint8_t *ptr, uint8_t len)
+{
+	uint8_t *xfer_buf;
+	uint8_t pec_v;
+	uint8_t addr_rnw;
+
+	addr_rnw = dev->dyn_addr << 1 | 0x1;
+	xfer_buf = kmalloc(len + 1, GFP_KERNEL);
+	memcpy(xfer_buf, ptr, len);
+
+	pec_v = crc8(i3c_crc8_table, &addr_rnw, 1, 0);
+	pec_v = crc8(i3c_crc8_table, xfer_buf, len, pec_v);
+	xfer_buf[len] = pec_v;
+
+	return xfer_buf;
+}
+
 static int aspeed_i3c_master_register_slave(struct i3c_master_controller *m,
 			      const struct i3c_slave_setup *req)
 {
@@ -2494,7 +2516,8 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 				      struct i3c_slave_payload *payload)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
-	uint32_t slv_event, intr_req, reg, thld_ctrl;
+	uint32_t slv_event, intr_req, reg, thld_ctrl,
+		payload_len = payload->len;
 	uint8_t *data = (uint8_t *)payload->data;
 
 	slv_event = readl(master->regs + SLV_EVENT_CTRL);
@@ -2504,10 +2527,10 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	if (!payload)
 		return -ENXIO;
 
-	if (payload->len > (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD + 1)) {
+	if (payload_len > (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD + 1)) {
 		dev_err(master->dev,
 			"input length %d exceeds max ibi payload size %d\n",
-			payload->len, CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD + 1);
+			payload_len, CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD + 1);
 		return -E2BIG;
 	}
 
@@ -2518,9 +2541,14 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, data[0]);
 	writel(reg, master->regs + DEVICE_CTRL);
 
-	aspeed_i3c_master_wr_tx_fifo(master, data, payload->len);
+	if (master->ibi_append_pec) {
+		data = pec_append(&m->this->info, data, payload_len);
+		payload_len += 1;
+	}
 
-	reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, payload->len);
+	aspeed_i3c_master_wr_tx_fifo(master, data, payload_len);
+
+	reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, payload_len);
 	writel(reg, master->regs + COMMAND_QUEUE_PORT);
 
 	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
@@ -2566,7 +2594,7 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 					   struct i3c_slave_payload *ibi_notify)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
-	u32 reg, thld_ctrl;
+	u32 reg, thld_ctrl, ibi_len = ibi_notify->len;
 	u8 *buf;
 	int ret;
 
@@ -2582,9 +2610,14 @@ static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
 		reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, buf[0]);
 		writel(reg, master->regs + DEVICE_CTRL);
 
-		aspeed_i3c_master_wr_tx_fifo(master, buf, ibi_notify->len);
-
-		reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, ibi_notify->len) |
+		if (master->ibi_append_pec) {
+			buf = pec_append(&m->this->info, buf, ibi_len);
+			ibi_len += 1;
+		}
+		aspeed_i3c_master_wr_tx_fifo(master, buf, ibi_len);
+		if (master->ibi_append_pec)
+			kfree(buf);
+		reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, ibi_len) |
 		      COMMAND_PORT_SLAVE_TID(TID_SLAVE_IBI_DONE);
 		writel(reg, master->regs + COMMAND_QUEUE_PORT);
 
@@ -2785,6 +2818,13 @@ static int aspeed_i3c_probe(struct platform_device *pdev)
 		master->secondary = true;
 	else
 		master->secondary = false;
+
+	if (master->secondary && of_get_property(np, "aspeed,ibi-append-pec", NULL)) {
+		master->ibi_append_pec = true;
+		crc8_populate_msb(i3c_crc8_table, I3C_CRC8_POLYNOMIAL);
+	} else {
+		master->ibi_append_pec = false;
+	}
 
 	ret = of_property_read_u32(np, "i3c_chan", &master->channel);
 	if ((ret != 0) || (master->channel > I3C_CHANNEL_MAX)) {
