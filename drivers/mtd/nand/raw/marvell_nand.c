@@ -77,9 +77,10 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>

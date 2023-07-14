@@ -26,7 +26,6 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>

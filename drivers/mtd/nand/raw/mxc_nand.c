@@ -20,7 +20,6 @@
 #include <linux/irq.h>
 #include <linux/completion.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #define DRIVER_NAME "mxc_nand"
 

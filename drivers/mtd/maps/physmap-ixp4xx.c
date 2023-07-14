@@ -11,7 +11,7 @@
  */
 #include <linux/export.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/xip.h>
 #include "physmap-ixp4xx.h"

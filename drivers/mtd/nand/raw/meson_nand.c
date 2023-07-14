@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/iopoll.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/sched/task_stack.h>
 
 #define NFC_REG_CMD		0x00
