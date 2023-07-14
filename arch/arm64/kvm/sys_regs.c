@@ -1114,18 +1114,19 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	{ SYS_DESC(SYS_DBGWCRn_EL1(n)),					\
 	  trap_wcr, reset_wcr, 0, 0,  get_wcr, set_wcr }
 
-#define PMU_SYS_REG(r)						\
-	SYS_DESC(r), .reset = reset_pmu_reg, .visibility = pmu_visibility
+#define PMU_SYS_REG(name)						\
+	SYS_DESC(SYS_##name), .reset = reset_pmu_reg,			\
+	.visibility = pmu_visibility
 
 /* Macro to expand the PMEVCNTRn_EL0 register */
 #define PMU_PMEVCNTR_EL0(n)						\
-	{ PMU_SYS_REG(SYS_PMEVCNTRn_EL0(n)),				\
+	{ PMU_SYS_REG(PMEVCNTRn_EL0(n)),				\
 	  .reset = reset_pmevcntr, .get_user = get_pmu_evcntr,		\
 	  .access = access_pmu_evcntr, .reg = (PMEVCNTR0_EL0 + n), }
 
 /* Macro to expand the PMEVTYPERn_EL0 register */
 #define PMU_PMEVTYPER_EL0(n)						\
-	{ PMU_SYS_REG(SYS_PMEVTYPERn_EL0(n)),				\
+	{ PMU_SYS_REG(PMEVTYPERn_EL0(n)),				\
 	  .reset = reset_pmevtyper,					\
 	  .access = access_pmu_evtyper, .reg = (PMEVTYPER0_EL0 + n), }
 
@@ -2114,9 +2115,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_PMBSR_EL1), undef_access },
 	/* PMBIDR_EL1 is not trapped */
 
-	{ PMU_SYS_REG(SYS_PMINTENSET_EL1),
+	{ PMU_SYS_REG(PMINTENSET_EL1),
 	  .access = access_pminten, .reg = PMINTENSET_EL1 },
-	{ PMU_SYS_REG(SYS_PMINTENCLR_EL1),
+	{ PMU_SYS_REG(PMINTENCLR_EL1),
 	  .access = access_pminten, .reg = PMINTENSET_EL1 },
 	{ SYS_DESC(SYS_PMMIR_EL1), trap_raz_wi },
 
@@ -2163,41 +2164,41 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_CTR_EL0), access_ctr },
 	{ SYS_DESC(SYS_SVCR), undef_access },
 
-	{ PMU_SYS_REG(SYS_PMCR_EL0), .access = access_pmcr,
+	{ PMU_SYS_REG(PMCR_EL0), .access = access_pmcr,
 	  .reset = reset_pmcr, .reg = PMCR_EL0 },
-	{ PMU_SYS_REG(SYS_PMCNTENSET_EL0),
+	{ PMU_SYS_REG(PMCNTENSET_EL0),
 	  .access = access_pmcnten, .reg = PMCNTENSET_EL0 },
-	{ PMU_SYS_REG(SYS_PMCNTENCLR_EL0),
+	{ PMU_SYS_REG(PMCNTENCLR_EL0),
 	  .access = access_pmcnten, .reg = PMCNTENSET_EL0 },
-	{ PMU_SYS_REG(SYS_PMOVSCLR_EL0),
+	{ PMU_SYS_REG(PMOVSCLR_EL0),
 	  .access = access_pmovs, .reg = PMOVSSET_EL0 },
 	/*
 	 * PM_SWINC_EL0 is exposed to userspace as RAZ/WI, as it was
 	 * previously (and pointlessly) advertised in the past...
 	 */
-	{ PMU_SYS_REG(SYS_PMSWINC_EL0),
+	{ PMU_SYS_REG(PMSWINC_EL0),
 	  .get_user = get_raz_reg, .set_user = set_wi_reg,
 	  .access = access_pmswinc, .reset = NULL },
-	{ PMU_SYS_REG(SYS_PMSELR_EL0),
+	{ PMU_SYS_REG(PMSELR_EL0),
 	  .access = access_pmselr, .reset = reset_pmselr, .reg = PMSELR_EL0 },
-	{ PMU_SYS_REG(SYS_PMCEID0_EL0),
+	{ PMU_SYS_REG(PMCEID0_EL0),
 	  .access = access_pmceid, .reset = NULL },
-	{ PMU_SYS_REG(SYS_PMCEID1_EL0),
+	{ PMU_SYS_REG(PMCEID1_EL0),
 	  .access = access_pmceid, .reset = NULL },
-	{ PMU_SYS_REG(SYS_PMCCNTR_EL0),
+	{ PMU_SYS_REG(PMCCNTR_EL0),
 	  .access = access_pmu_evcntr, .reset = reset_unknown,
 	  .reg = PMCCNTR_EL0, .get_user = get_pmu_evcntr},
-	{ PMU_SYS_REG(SYS_PMXEVTYPER_EL0),
+	{ PMU_SYS_REG(PMXEVTYPER_EL0),
 	  .access = access_pmu_evtyper, .reset = NULL },
-	{ PMU_SYS_REG(SYS_PMXEVCNTR_EL0),
+	{ PMU_SYS_REG(PMXEVCNTR_EL0),
 	  .access = access_pmu_evcntr, .reset = NULL },
 	/*
 	 * PMUSERENR_EL0 resets as unknown in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
-	{ PMU_SYS_REG(SYS_PMUSERENR_EL0), .access = access_pmuserenr,
+	{ PMU_SYS_REG(PMUSERENR_EL0), .access = access_pmuserenr,
 	  .reset = reset_val, .reg = PMUSERENR_EL0, .val = 0 },
-	{ PMU_SYS_REG(SYS_PMOVSSET_EL0),
+	{ PMU_SYS_REG(PMOVSSET_EL0),
 	  .access = access_pmovs, .reg = PMOVSSET_EL0 },
 
 	{ SYS_DESC(SYS_TPIDR_EL0), NULL, reset_unknown, TPIDR_EL0 },
@@ -2353,7 +2354,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	 * PMCCFILTR_EL0 resets as unknown in 64bit mode while it resets as zero
 	 * in 32bit mode. Here we choose to reset it as zero for consistency.
 	 */
-	{ PMU_SYS_REG(SYS_PMCCFILTR_EL0), .access = access_pmu_evtyper,
+	{ PMU_SYS_REG(PMCCFILTR_EL0), .access = access_pmu_evtyper,
 	  .reset = reset_val, .reg = PMCCFILTR_EL0, .val = 0 },
 
 	EL2_REG(VPIDR_EL2, access_rw, reset_unknown, 0),
