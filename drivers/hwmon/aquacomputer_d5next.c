@@ -1027,7 +1027,7 @@ static int aqc_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			if (ret < 0)
 				return ret;
 
-			*val = aqc_percent_to_pwm(ret);
+			*val = aqc_percent_to_pwm(*val);
 			break;
 		}
 		break;
