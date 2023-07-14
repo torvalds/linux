@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include <video/mipi_display.h>
 #include <drm/drm_mipi_dsi.h>

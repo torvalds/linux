@@ -11,9 +11,9 @@
  *	Xinwei Kong <kong.kongxinwei@hisilicon.com>
  */
 
-#include <linux/of_platform.h>
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 

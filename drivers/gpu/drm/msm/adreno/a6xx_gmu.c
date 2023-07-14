@@ -3,6 +3,8 @@
 
 #include <linux/clk.h>
 #include <linux/interconnect.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
 #include <soc/qcom/cmd-db.h>

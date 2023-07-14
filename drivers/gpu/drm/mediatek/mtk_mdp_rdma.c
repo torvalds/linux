@@ -6,8 +6,7 @@
 #include <drm/drm_fourcc.h>
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
