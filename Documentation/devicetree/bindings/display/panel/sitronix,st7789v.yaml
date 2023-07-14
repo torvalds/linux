@@ -29,6 +29,10 @@ properties:
   spi-cpha: true
   spi-cpol: true
 
+  spi-rx-bus-width:
+    minimum: 0
+    maximum: 1
+
   dc-gpios:
     maxItems: 1
     description: DCX pin, Display data/command selection pin in parallel interface
