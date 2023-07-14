@@ -1217,7 +1217,6 @@ static int submit_one_async_extent(struct btrfs_inode *inode,
 				   async_extent->compressed_size,
 				   0, *alloc_hint, &ins, 1, 1);
 	if (ret) {
-		free_async_extent_pages(async_extent);
 		/*
 		 * Here we used to try again by going back to non-compressed
 		 * path for ENOSPC.  But we can't reserve space even for
