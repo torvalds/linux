@@ -200,38 +200,6 @@ void write_kernel_doorbell64(void __iomem *db, u64 value)
 	}
 }
 
-unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
-					struct kfd_process_device *pdd,
-					unsigned int doorbell_id)
-{
-	/*
-	 * doorbell_base_dw_offset accounts for doorbells taken by KGD.
-	 * index * kfd_doorbell_process_slice/sizeof(u32) adjusts to
-	 * the process's doorbells. The offset returned is in dword
-	 * units regardless of the ASIC-dependent doorbell size.
-	 */
-	if (!kfd->shared_resources.enable_mes)
-		return kfd->doorbell_base_dw_offset +
-			pdd->doorbell_index
-			* kfd_doorbell_process_slice(kfd) / sizeof(u32) +
-			doorbell_id *
-			kfd->device_info.doorbell_size / sizeof(u32);
-	else
-		return amdgpu_mes_get_doorbell_dw_offset_in_bar(
-				(struct amdgpu_device *)kfd->adev,
-				pdd->doorbell_index, doorbell_id);
-}
-
-uint64_t kfd_get_number_elems(struct kfd_dev *kfd)
-{
-	uint64_t num_of_elems = (kfd->shared_resources.doorbell_aperture_size -
-				kfd->shared_resources.doorbell_start_offset) /
-					kfd_doorbell_process_slice(kfd) + 1;
-
-	return num_of_elems;
-
-}
-
 static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 				struct kfd_dev *dev)
 {

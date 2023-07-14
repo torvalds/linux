@@ -323,15 +323,6 @@ struct kfd_dev {
 
 	struct kfd_device_info device_info;
 
-	phys_addr_t doorbell_base;	/* Start of actual doorbells used by
-					 * KFD. It is aligned for mapping
-					 * into user mode
-					 */
-	size_t doorbell_base_dw_offset;	/* Offset from the start of the PCI
-					 * doorbell BAR to the first KFD
-					 * doorbell in dwords. GFX reserves
-					 * the segment before this offset.
-					 */
 	u32 __iomem *doorbell_kernel_ptr; /* This is a pointer for a doorbells
 					   * page used by kernel queue
 					   */
@@ -340,8 +331,6 @@ struct kfd_dev {
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
-	DECLARE_BITMAP(doorbell_available_index,
-			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
 	void *gtt_mem;
 	uint64_t gtt_start_gpu_addr;
@@ -801,7 +790,6 @@ struct kfd_process_device {
 	struct attribute attr_evict;
 
 	struct kobject *kobj_stats;
-	unsigned int doorbell_index;
 
 	/*
 	 * @cu_occupancy: Reports occupancy of Compute Units (CU) of a process
