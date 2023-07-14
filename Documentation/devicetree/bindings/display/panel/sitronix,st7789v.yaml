@@ -15,7 +15,9 @@ allOf:
 
 properties:
   compatible:
-    const: sitronix,st7789v
+    enum:
+      - inanbo,t28cp45tn89-v17
+      - sitronix,st7789v
 
   reg: true
   reset-gpios: true
@@ -33,7 +35,6 @@ properties:
 required:
   - compatible
   - reg
-  - reset-gpios
   - power-supply
 
 unevaluatedProperties: false
