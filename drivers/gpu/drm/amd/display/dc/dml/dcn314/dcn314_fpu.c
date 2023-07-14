@@ -31,6 +31,7 @@
 #include "dml/dcn20/dcn20_fpu.h"
 #include "dml/dcn31/dcn31_fpu.h"
 #include "dml/display_mode_vba.h"
+#include "dml/dml_inline_defs.h"
 
 struct _vcs_dpi_ip_params_st dcn3_14_ip = {
 	.VBlankNomDefaultUS = 668,
@@ -273,6 +274,25 @@ static bool is_dual_plane(enum surface_pixel_format format)
 	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
 }
 
+/*
+ * micro_sec_to_vert_lines () - converts time to number of vertical lines for a given timing
+ *
+ * @param: num_us: number of microseconds
+ * @return: number of vertical lines. If exact number of vertical lines is not found then
+ *          it will round up to next number of lines to guarantee num_us
+ */
+static unsigned int micro_sec_to_vert_lines(unsigned int num_us, struct dc_crtc_timing *timing)
+{
+	unsigned int num_lines = 0;
+	unsigned int lines_time_in_ns = 1000.0 *
+			(((float)timing->h_total * 1000.0) /
+			 ((float)timing->pix_clk_100hz / 10.0));
+
+	num_lines = dml_ceil(1000.0 * num_us / lines_time_in_ns, 1.0);
+
+	return num_lines;
+}
+
 int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *context,
 					       display_e2e_pipe_params_st *pipes,
 					       bool fast_validate)
@@ -289,11 +309,14 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
 		struct dc_crtc_timing *timing;
+		unsigned int num_lines = 0;
 
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
 		pipe = &res_ctx->pipe_ctx[i];
 		timing = &pipe->stream->timing;
+
+		num_lines = micro_sec_to_vert_lines(dcn3_14_ip.VBlankNomDefaultUS, timing);
 
 		if (pipe->stream->adjust.v_total_min != 0)
 			pipes[pipe_cnt].pipe.dest.vtotal = pipe->stream->adjust.v_total_min;
@@ -301,7 +324,7 @@ int dcn314_populate_dml_pipes_from_context_fpu(struct dc *dc, struct dc_state *c
 			pipes[pipe_cnt].pipe.dest.vtotal = timing->v_total;
 
 		pipes[pipe_cnt].pipe.dest.vblank_nom = timing->v_total - pipes[pipe_cnt].pipe.dest.vactive;
-		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, dcn3_14_ip.VBlankNomDefaultUS);
+		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, num_lines);
 		pipes[pipe_cnt].pipe.dest.vblank_nom = max(pipes[pipe_cnt].pipe.dest.vblank_nom, timing->v_sync_width);
 		pipes[pipe_cnt].pipe.dest.vblank_nom = min(pipes[pipe_cnt].pipe.dest.vblank_nom, max_allowed_vblank_nom);
 
