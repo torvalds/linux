@@ -23,7 +23,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/gpio/driver.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/bug.h>
 
 #define IMX_SCU_WAKEUP_OFF		0

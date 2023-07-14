@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/mfd/palmas.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 struct palmas_gpio {

@@ -9,12 +9,10 @@
 #include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/property.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
