@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: GPL-2.0+
  */
 
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/bitfield.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/module.h>
