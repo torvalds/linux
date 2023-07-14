@@ -14,7 +14,6 @@
 #include <linux/io.h>
 #include <linux/iio/iio.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
 #include <linux/iopoll.h>

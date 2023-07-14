@@ -18,7 +18,6 @@
 #include <linux/mfd/palmas.h>
 #include <linux/completion.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
