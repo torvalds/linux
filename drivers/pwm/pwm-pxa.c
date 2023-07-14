@@ -15,6 +15,7 @@
  *   input clock (PWMCR_SD is set) and the output is driven to inactive.
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>

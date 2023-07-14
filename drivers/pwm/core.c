@@ -8,6 +8,7 @@
 
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pwm.h>
 #include <linux/radix-tree.h>
 #include <linux/list.h>
