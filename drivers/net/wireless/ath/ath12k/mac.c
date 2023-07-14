@@ -6391,6 +6391,7 @@ ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 {
 	struct ath12k *ar = hw->priv;
 	struct ath12k_base *ab = ar->ab;
+	struct ath12k_vif *arvif;
 	int recovery_count;
 
 	if (reconfig_type != IEEE80211_RECONFIG_TYPE_RESTART)
@@ -6417,6 +6418,26 @@ ath12k_mac_op_reconfig_complete(struct ieee80211_hw *hw,
 				ab->is_reset = false;
 				atomic_set(&ab->fail_cont_count, 0);
 				ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset success\n");
+			}
+		}
+
+		list_for_each_entry(arvif, &ar->arvifs, list) {
+			ath12k_dbg(ab, ATH12K_DBG_BOOT,
+				   "reconfig cipher %d up %d vdev type %d\n",
+				   arvif->key_cipher,
+				   arvif->is_up,
+				   arvif->vdev_type);
+			/* After trigger disconnect, then upper layer will
+			 * trigger connect again, then the PN number of
+			 * upper layer will be reset to keep up with AP
+			 * side, hence PN number mis-match will not happened.
+			 */
+			if (arvif->is_up &&
+			    arvif->vdev_type == WMI_VDEV_TYPE_STA &&
+			    arvif->vdev_subtype == WMI_VDEV_SUBTYPE_NONE) {
+				ieee80211_hw_restart_disconnect(arvif->vif);
+				ath12k_dbg(ab, ATH12K_DBG_BOOT,
+					   "restart disconnect\n");
 			}
 		}
 	}
