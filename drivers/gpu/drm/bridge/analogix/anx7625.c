@@ -2183,12 +2183,22 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 		return err;
 	}
 
+	if (!ctx->pdata.is_dpi) {
+		err  = anx7625_attach_dsi(ctx);
+		if (err) {
+			DRM_DEV_ERROR(dev, "Fail to attach to dsi : %d\n", err);
+			return err;
+		}
+	}
+
 	if (ctx->pdata.panel_bridge) {
 		err = drm_bridge_attach(bridge->encoder,
 					ctx->pdata.panel_bridge,
 					&ctx->bridge, flags);
-		if (err)
+		if (err) {
+			DRM_DEV_ERROR(dev, "Fail to attach to bridge : %d\n", err);
 			return err;
+		}
 	}
 
 	ctx->bridge_attached = 1;
@@ -2686,27 +2696,12 @@ static int anx7625_i2c_probe(struct i2c_client *client,
 
 	drm_bridge_add(&platform->bridge);
 
-	if (!platform->pdata.is_dpi) {
-		ret = anx7625_attach_dsi(platform);
-		if (ret) {
-			DRM_DEV_ERROR(dev, "Fail to attach to dsi : %d\n", ret);
-			goto unregister_bridge;
-		}
-	}
-
 	if (platform->pdata.audio_en)
 		anx7625_register_audio(dev, platform);
 
 	DRM_DEV_DEBUG_DRIVER(dev, "probe done\n");
 
 	return 0;
-
-unregister_bridge:
-	drm_bridge_remove(&platform->bridge);
-
-	if (!platform->pdata.low_power_mode)
-		pm_runtime_put_sync_suspend(&client->dev);
-
 free_wq:
 	if (platform->workqueue)
 		destroy_workqueue(platform->workqueue);
