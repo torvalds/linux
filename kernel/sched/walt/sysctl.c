@@ -232,57 +232,6 @@ static int sched_task_read_pid_handler(struct ctl_table *table, int write,
 	return ret;
 }
 
-/*
- * walt_task_rq_lock - lock p->pi_lock and lock the rq @p resides on.
- */
-static struct rq *walt_task_rq_lock(struct task_struct *p, struct rq_flags *rf)
-	__acquires(p->pi_lock)
-	__acquires(rq->lock)
-{
-	struct rq *rq;
-
-	for (;;) {
-		raw_spin_lock_irqsave(&p->pi_lock, rf->flags);
-		rq = task_rq(p);
-		raw_spin_rq_lock(rq);
-		/*
-		 *	move_queued_task()		task_rq_lock()
-		 *
-		 *	ACQUIRE (rq->lock)
-		 *	[S] ->on_rq = MIGRATING		[L] rq = task_rq()
-		 *	WMB (__set_task_cpu())		ACQUIRE (rq->lock);
-		 *	[S] ->cpu = new_cpu		[L] task_rq()
-		 *					[L] ->on_rq
-		 *	RELEASE (rq->lock)
-		 *
-		 * If we observe the old CPU in task_rq_lock(), the acquire of
-		 * the old rq->lock will fully serialize against the stores.
-		 *
-		 * If we observe the new CPU in task_rq_lock(), the address
-		 * dependency headed by '[L] rq = task_rq()' and the acquire
-		 * will pair with the WMB to ensure we then also see migrating.
-		 */
-		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
-			rq_pin_lock(rq, rf);
-			return rq;
-		}
-		raw_spin_rq_unlock(rq);
-		raw_spin_unlock_irqrestore(&p->pi_lock, rf->flags);
-
-		while (unlikely(task_on_rq_migrating(p)))
-			cpu_relax();
-	}
-}
-
-/* included for consistency */
-static inline void
-walt_task_rq_unlock(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
-	__releases(rq->lock)
-	__releases(p->pi_lock)
-{
-	task_rq_unlock(rq, p, rf);
-}
-
 enum {
 	TASK_BEGIN = 0,
 	WAKE_UP_IDLE,
@@ -423,16 +372,16 @@ static int sched_task_handler(struct ctl_table *table, int write,
 			wts->low_latency &= ~WALT_LOW_LATENCY_PROCFS;
 		break;
 	case PIPELINE:
-		rq = walt_task_rq_lock(task, &rf);
+		rq = task_rq_lock(task, &rf);
 		if (READ_ONCE(task->__state) == TASK_DEAD) {
 			ret = -EINVAL;
-			walt_task_rq_unlock(rq, task, &rf);
+			task_rq_unlock(rq, task, &rf);
 			goto put_task;
 		}
 		if (val) {
 			ret = add_pipeline(wts);
 			if (ret < 0) {
-				walt_task_rq_unlock(rq, task, &rf);
+				task_rq_unlock(rq, task, &rf);
 				goto put_task;
 			}
 			wts->low_latency |= WALT_LOW_LATENCY_PIPELINE;
@@ -440,7 +389,7 @@ static int sched_task_handler(struct ctl_table *table, int write,
 			wts->low_latency &= ~WALT_LOW_LATENCY_PIPELINE;
 			remove_pipeline(wts);
 		}
-		walt_task_rq_unlock(rq, task, &rf);
+		task_rq_unlock(rq, task, &rf);
 		break;
 	case LOAD_BOOST:
 		if (pid_and_val[1] < -90 || pid_and_val[1] > 90) {
