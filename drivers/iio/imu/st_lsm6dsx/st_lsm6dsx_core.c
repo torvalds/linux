@@ -2687,7 +2687,7 @@ unknown_format:
 static int lsm6dsx_get_acpi_mount_matrix(struct device *dev,
 					  struct iio_mount_matrix *orientation)
 {
-	return false;
+	return -EOPNOTSUPP;
 }
 
 #endif
