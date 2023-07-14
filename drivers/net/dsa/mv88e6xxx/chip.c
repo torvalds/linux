@@ -769,10 +769,6 @@ static void mv88e6xxx_get_caps(struct dsa_switch *ds, int port,
 		__set_bit(PHY_INTERFACE_MODE_GMII,
 			  config->supported_interfaces);
 	}
-
-	/* If we have a .pcs_init, we are not legacy. */
-	if (chip->info->ops->pcs_ops)
-		config->legacy_pre_march2020 = false;
 }
 
 static struct phylink_pcs *mv88e6xxx_mac_select_pcs(struct dsa_switch *ds,
