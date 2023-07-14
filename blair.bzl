@@ -88,7 +88,6 @@ def define_blair():
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
-        "drivers/power/reset/qcom-reboot-reason.ko",
         "drivers/power/supply/qcom/qcom-qpnp-qg.ko",
         "drivers/power/supply/qcom/qcom-smb1355-charger.ko",
         "drivers/power/supply/qcom/qcom-smb1398-charger.ko",
