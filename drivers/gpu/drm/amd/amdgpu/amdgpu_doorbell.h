@@ -346,6 +346,12 @@ void amdgpu_mm_wdoorbell(struct amdgpu_device *adev, u32 index, u32 v);
 u64 amdgpu_mm_rdoorbell64(struct amdgpu_device *adev, u32 index);
 void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v);
 
+/*
+ * GPU doorbell aperture helpers function.
+ */
+int amdgpu_doorbell_init(struct amdgpu_device *adev);
+void amdgpu_doorbell_fini(struct amdgpu_device *adev);
+
 #define RDOORBELL32(index) amdgpu_mm_rdoorbell(adev, (index))
 #define WDOORBELL32(index, v) amdgpu_mm_wdoorbell(adev, (index), (v))
 #define RDOORBELL64(index) amdgpu_mm_rdoorbell64(adev, (index))
