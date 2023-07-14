@@ -10,6 +10,7 @@
 #include <linux/spi/spi.h>
 
 #include <video/mipi_display.h>
+#include <linux/media-bus-format.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_modes.h>
@@ -110,6 +111,7 @@
 
 struct st7789_panel_info {
 	const struct drm_display_mode *mode;
+	u32 bus_format;
 };
 
 struct st7789v {
@@ -169,6 +171,7 @@ static const struct drm_display_mode default_mode = {
 
 static const struct st7789_panel_info default_panel = {
 	.mode = &default_mode,
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
 static int st7789v_get_modes(struct drm_panel *panel,
@@ -190,8 +193,11 @@ static int st7789v_get_modes(struct drm_panel *panel,
 	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 	drm_mode_probed_add(connector, mode);
 
+	connector->display_info.bpc = 6;
 	connector->display_info.width_mm = ctx->info->mode->width_mm;
 	connector->display_info.height_mm = ctx->info->mode->height_mm;
+	drm_display_info_set_bus_formats(&connector->display_info,
+					 &ctx->info->bus_format, 1);
 
 	return 1;
 }
@@ -199,7 +205,23 @@ static int st7789v_get_modes(struct drm_panel *panel,
 static int st7789v_prepare(struct drm_panel *panel)
 {
 	struct st7789v *ctx = panel_to_st7789v(panel);
+	u8 pixel_fmt;
 	int ret;
+
+	switch (ctx->info->bus_format) {
+	case MEDIA_BUS_FMT_RGB666_1X18:
+		pixel_fmt = MIPI_DCS_PIXEL_FMT_18BIT;
+		break;
+	case MEDIA_BUS_FMT_RGB565_1X16:
+		pixel_fmt = MIPI_DCS_PIXEL_FMT_16BIT;
+		break;
+	default:
+		dev_err(panel->dev, "unsupported bus format: %d\n",
+			ctx->info->bus_format);
+		return -EINVAL;
+	}
+
+	pixel_fmt = (pixel_fmt << 4) | pixel_fmt;
 
 	ret = regulator_enable(ctx->power);
 	if (ret)
@@ -221,9 +243,7 @@ static int st7789v_prepare(struct drm_panel *panel)
 
 	ST7789V_TEST(ret, st7789v_write_command(ctx,
 						MIPI_DCS_SET_PIXEL_FORMAT));
-	ST7789V_TEST(ret, st7789v_write_data(ctx,
-					     (MIPI_DCS_PIXEL_FMT_18BIT << 4) |
-					     (MIPI_DCS_PIXEL_FMT_18BIT)));
+	ST7789V_TEST(ret, st7789v_write_data(ctx, pixel_fmt));
 
 	ST7789V_TEST(ret, st7789v_write_command(ctx, ST7789V_PORCTRL_CMD));
 	ST7789V_TEST(ret, st7789v_write_data(ctx, 0xc));
