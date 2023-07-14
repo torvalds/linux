@@ -424,6 +424,7 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 		return 0;
 
 	/* rollback */
+	end = pfn - PAGES_PER_SECTION;
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION)
 		__free_page_ext(pfn);
 
