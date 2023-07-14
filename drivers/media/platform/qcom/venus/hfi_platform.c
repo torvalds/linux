@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  */
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "hfi_platform.h"
 #include "core.h"
 

@@ -5,8 +5,7 @@
 */
 
 #include <linux/clk.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 
 #include "mtk_vcodec_enc_pm.h"

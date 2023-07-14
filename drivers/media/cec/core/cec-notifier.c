@@ -7,6 +7,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>

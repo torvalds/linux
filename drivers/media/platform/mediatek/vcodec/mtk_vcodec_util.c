@@ -7,7 +7,6 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 #include "mtk_vcodec_dec_hw.h"
 #include "mtk_vcodec_drv.h"
