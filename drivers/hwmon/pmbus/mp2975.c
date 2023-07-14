@@ -70,7 +70,6 @@ struct mp2975_data {
 	int vref_off[MP2975_PAGE_NUM];
 	int vout_max[MP2975_PAGE_NUM];
 	int vout_ov_fixed[MP2975_PAGE_NUM];
-	int vout_format[MP2975_PAGE_NUM];
 	int curr_sense_gain[MP2975_PAGE_NUM];
 };
 
@@ -82,22 +81,6 @@ static const struct i2c_device_id mp2975_id[] = {
 MODULE_DEVICE_TABLE(i2c, mp2975_id);
 
 #define to_mp2975_data(x)  container_of(x, struct mp2975_data, info)
-
-static int mp2975_read_byte_data(struct i2c_client *client, int page, int reg)
-{
-	switch (reg) {
-	case PMBUS_VOUT_MODE:
-		/*
-		 * Enforce VOUT direct format, since device allows to set the
-		 * different formats for the different rails. Conversion from
-		 * VID to direct provided by driver internally, in case it is
-		 * necessary.
-		 */
-		return PB_VOUT_MODE_DIRECT;
-	default:
-		return -ENODATA;
-	}
-}
 
 static int
 mp2975_read_word_helper(struct i2c_client *client, int page, int phase, u8 reg,
@@ -272,24 +255,6 @@ static int mp2975_read_word_data(struct i2c_client *client, int page,
 
 		ret = DIV_ROUND_CLOSEST(data->vref[page] * 10 - 50 *
 					(ret + 1) * data->vout_scale, 10);
-		break;
-	case PMBUS_READ_VOUT:
-		ret = mp2975_read_word_helper(client, page, phase, reg,
-					      GENMASK(11, 0));
-		if (ret < 0)
-			return ret;
-
-		/*
-		 * READ_VOUT can be provided in VID or direct format. The
-		 * format type is specified by bit 15 of the register
-		 * MP2975_MFR_DC_LOOP_CTRL. The driver enforces VOUT direct
-		 * format, since device allows to set the different formats for
-		 * the different rails and also all VOUT limits registers are
-		 * provided in a direct format. In case format is VID - convert
-		 * to direct.
-		 */
-		if (data->vout_format[page] == vid)
-			ret = mp2975_vid2direct(info->vrm_version[page], ret);
 		break;
 	case PMBUS_VIRT_READ_POUT_MAX:
 		ret = mp2975_read_word_helper(client, page, phase,
@@ -578,20 +543,20 @@ mp2975_vout_max_get(struct i2c_client *client, struct mp2975_data *data,
 }
 
 static int
-mp2975_identify_vout_format(struct i2c_client *client,
-			    struct mp2975_data *data, int page)
+mp2975_set_vout_format(struct i2c_client *client,
+		       struct mp2975_data *data, int page)
 {
 	int ret;
 
 	ret = i2c_smbus_read_word_data(client, MP2975_MFR_DC_LOOP_CTRL);
 	if (ret < 0)
 		return ret;
-
-	if (ret & MP2975_VOUT_FORMAT)
-		data->vout_format[page] = vid;
-	else
-		data->vout_format[page] = direct;
-	return 0;
+	/* Enable DIRECT VOUT format 1mV/LSB */
+	if (ret & MP2975_VOUT_FORMAT) {
+		ret &= ~MP2975_VOUT_FORMAT;
+		ret = i2c_smbus_write_word_data(client, MP2975_MFR_DC_LOOP_CTRL, ret);
+	}
+	return ret;
 }
 
 static int
@@ -649,12 +614,8 @@ mp2975_vout_per_rail_config_get(struct i2c_client *client,
 		if (ret < 0)
 			return ret;
 
-		/*
-		 * Get VOUT format for READ_VOUT command : VID or direct.
-		 * Pages on same device can be configured with different
-		 * formats.
-		 */
-		ret = mp2975_identify_vout_format(client, data, i);
+		/* Set VOUT format for READ_VOUT command : direct. */
+		ret = mp2975_set_vout_format(client, data, i);
 		if (ret < 0)
 			return ret;
 
@@ -689,7 +650,6 @@ static struct pmbus_driver_info mp2975_info = {
 		PMBUS_HAVE_IIN | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP | PMBUS_HAVE_POUT |
 		PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT | PMBUS_PHASE_VIRTUAL,
-	.read_byte_data = mp2975_read_byte_data,
 	.read_word_data = mp2975_read_word_data,
 };
 
