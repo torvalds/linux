@@ -430,7 +430,7 @@ static int __meminit online_page_ext(unsigned long start_pfn,
 	return -ENOMEM;
 }
 
-static int __meminit offline_page_ext(unsigned long start_pfn,
+static void __meminit offline_page_ext(unsigned long start_pfn,
 				unsigned long nr_pages)
 {
 	unsigned long start, end, pfn;
@@ -454,8 +454,6 @@ static int __meminit offline_page_ext(unsigned long start_pfn,
 
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION)
 		__free_page_ext(pfn);
-	return 0;
-
 }
 
 static int __meminit page_ext_callback(struct notifier_block *self,
