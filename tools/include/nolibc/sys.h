@@ -943,15 +943,19 @@ pid_t setsid(void)
 	return __sysret(sys_setsid());
 }
 
-#if defined(__NR_statx)
 /*
  * int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf);
+ * int stat(const char *path, struct stat *buf);
  */
 
 static __attribute__((unused))
 int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct statx *buf)
 {
+#ifdef __NR_statx
 	return my_syscall5(__NR_statx, fd, path, flags, mask, buf);
+#else
+	return -ENOSYS;
+#endif
 }
 
 static __attribute__((unused))
@@ -959,24 +963,18 @@ int statx(int fd, const char *path, int flags, unsigned int mask, struct statx *
 {
 	return __sysret(sys_statx(fd, path, flags, mask, buf));
 }
-#endif
 
-/*
- * int stat(const char *path, struct stat *buf);
- * Warning: the struct stat's layout is arch-dependent.
- */
 
-#if defined(__NR_statx) && !defined(__NR_newfstatat) && !defined(__NR_stat)
-/*
- * Maybe we can just use statx() when available for all architectures?
- */
 static __attribute__((unused))
-int sys_stat(const char *path, struct stat *buf)
+int stat(const char *path, struct stat *buf)
 {
 	struct statx statx;
 	long ret;
 
-	ret = sys_statx(AT_FDCWD, path, AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx);
+	ret = __sysret(sys_statx(AT_FDCWD, path, AT_NO_AUTOMOUNT, STATX_BASIC_STATS, &statx));
+	if (ret == -1)
+		return ret;
+
 	buf->st_dev          = ((statx.stx_dev_minor & 0xff)
 			       | (statx.stx_dev_major << 8)
 			       | ((statx.stx_dev_minor & ~0xff) << 12));
@@ -997,47 +995,8 @@ int sys_stat(const char *path, struct stat *buf)
 	buf->st_mtim.tv_nsec = statx.stx_mtime.tv_nsec;
 	buf->st_ctim.tv_sec  = statx.stx_ctime.tv_sec;
 	buf->st_ctim.tv_nsec = statx.stx_ctime.tv_nsec;
-	return ret;
-}
-#else
-static __attribute__((unused))
-int sys_stat(const char *path, struct stat *buf)
-{
-	struct sys_stat_struct stat;
-	long ret;
 
-#ifdef __NR_newfstatat
-	/* only solution for arm64 */
-	ret = my_syscall4(__NR_newfstatat, AT_FDCWD, path, &stat, 0);
-#elif defined(__NR_stat)
-	ret = my_syscall2(__NR_stat, path, &stat);
-#else
-	return -ENOSYS;
-#endif
-	buf->st_dev          = stat.st_dev;
-	buf->st_ino          = stat.st_ino;
-	buf->st_mode         = stat.st_mode;
-	buf->st_nlink        = stat.st_nlink;
-	buf->st_uid          = stat.st_uid;
-	buf->st_gid          = stat.st_gid;
-	buf->st_rdev         = stat.st_rdev;
-	buf->st_size         = stat.st_size;
-	buf->st_blksize      = stat.st_blksize;
-	buf->st_blocks       = stat.st_blocks;
-	buf->st_atim.tv_sec  = stat.st_atime;
-	buf->st_atim.tv_nsec = stat.st_atime_nsec;
-	buf->st_mtim.tv_sec  = stat.st_mtime;
-	buf->st_mtim.tv_nsec = stat.st_mtime_nsec;
-	buf->st_ctim.tv_sec  = stat.st_ctime;
-	buf->st_ctim.tv_nsec = stat.st_ctime_nsec;
-	return ret;
-}
-#endif
-
-static __attribute__((unused))
-int stat(const char *path, struct stat *buf)
-{
-	return __sysret(sys_stat(path, buf));
+	return 0;
 }
 
 

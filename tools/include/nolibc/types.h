@@ -15,8 +15,8 @@
 
 
 /* Only the generic macros and types may be defined here. The arch-specific
- * ones such as the O_RDONLY and related macros used by fcntl() and open(), or
- * the layout of sys_stat_struct must not be defined here.
+ * ones such as the O_RDONLY and related macros used by fcntl() and open()
+ * must not be defined here.
  */
 
 /* stat flags (WARNING, octal here). We need to check for an existing
