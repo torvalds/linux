@@ -383,7 +383,6 @@ struct fb_tile_ops {
 #endif /* CONFIG_FB_TILEBLITTING */
 
 /* FBINFO_* = fb_info.flags bit flags */
-#define FBINFO_DEFAULT		0
 #define FBINFO_HWACCEL_DISABLED	0x0002
 	/* When FBINFO_HWACCEL_DISABLED is set:
 	 *  Hardware acceleration is turned off.  Software implementations
@@ -503,8 +502,6 @@ struct fb_info {
 
 	bool skip_vt_switch; /* no VT switch on suspend/resume required */
 };
-
-#define FBINFO_FLAG_DEFAULT	FBINFO_DEFAULT
 
 /* This will go away
  * fbset currently hacks in FB_ACCELF_TEXT into var.accel_flags
