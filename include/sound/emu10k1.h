@@ -992,6 +992,9 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define EMU_HANA_WCLOCK_4X		0x10
 #define EMU_HANA_WCLOCK_MULT_RESERVED	0x18
 
+// If the selected external clock source is/becomes invalid or incompatible
+// with the clock multiplier, the clock source is reset to this value, and
+// a WCLK_CHANGED interrupt is raised.
 #define EMU_HANA_DEFCLOCK	0x06	/* 000000x  1 bits Default Word Clock  */
 #define EMU_HANA_DEFCLOCK_48K		0x00
 #define EMU_HANA_DEFCLOCK_44_1K		0x01
@@ -1679,6 +1682,7 @@ struct snd_emu1010 {
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
 	struct work_struct firmware_work;
+	struct work_struct clock_work;
 };
 
 struct snd_emu10k1 {
@@ -1753,6 +1757,7 @@ struct snd_emu10k1 {
 	struct snd_kcontrol *ctl_efx_send_routing;
 	struct snd_kcontrol *ctl_efx_send_volume;
 	struct snd_kcontrol *ctl_efx_attn;
+	struct snd_kcontrol *ctl_clock_source;
 
 	void (*hwvol_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*capture_interrupt)(struct snd_emu10k1 *emu, unsigned int status);

@@ -986,17 +986,21 @@ static int snd_emu1010_clock_source_put(struct snd_kcontrol *kcontrol,
 	val = ucontrol->value.enumerated.item[0] ;
 	if (val >= emu_ci->num)
 		return -EINVAL;
+	spin_lock_irq(&emu->reg_lock);
 	change = (emu->emu1010.clock_source != val);
 	if (change) {
 		emu->emu1010.clock_source = val;
 		emu->emu1010.wclock = emu_ci->vals[val];
+		snd_emu1010_update_clock(emu);
 
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_MUTE);
 		snd_emu1010_fpga_write(emu, EMU_HANA_WCLOCK, emu->emu1010.wclock);
+		spin_unlock_irq(&emu->reg_lock);
+
 		msleep(10);  // Allow DLL to settle
 		snd_emu1010_fpga_write(emu, EMU_HANA_UNMUTE, EMU_UNMUTE);
-
-		snd_emu1010_update_clock(emu);
+	} else {
+		spin_unlock_irq(&emu->reg_lock);
 	}
 	return change;
 }
@@ -2336,8 +2340,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 				emu1010_map_source(emu_ri, emu_ri->out_dflts[i]);
 		snd_emu1010_apply_sources(emu);
 
-		err = snd_ctl_add(card,
-			snd_ctl_new1(&snd_emu1010_clock_source, emu));
+		kctl = emu->ctl_clock_source = snd_ctl_new1(&snd_emu1010_clock_source, emu);
+		err = snd_ctl_add(card, kctl);
 		if (err < 0)
 			return err;
 		err = snd_ctl_add(card,

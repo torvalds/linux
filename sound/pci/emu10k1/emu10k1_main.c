@@ -789,6 +789,30 @@ static void emu1010_firmware_work(struct work_struct *work)
 	}
 }
 
+static void emu1010_clock_work(struct work_struct *work)
+{
+	struct snd_emu10k1 *emu;
+	struct snd_ctl_elem_id id;
+
+	emu = container_of(work, struct snd_emu10k1,
+			   emu1010.clock_work);
+	if (emu->card->shutdown)
+		return;
+#ifdef CONFIG_PM_SLEEP
+	if (emu->suspend)
+		return;
+#endif
+
+	spin_lock_irq(&emu->reg_lock);
+	// This is the only thing that can actually happen.
+	emu->emu1010.clock_source = emu->emu1010.clock_fallback;
+	emu->emu1010.wclock = 1 - emu->emu1010.clock_source;
+	snd_emu1010_update_clock(emu);
+	spin_unlock_irq(&emu->reg_lock);
+	snd_ctl_build_ioff(&id, emu->ctl_clock_source, 0);
+	snd_ctl_notify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE, &id);
+}
+
 static void emu1010_interrupt(struct snd_emu10k1 *emu)
 {
 	u32 sts;
@@ -802,6 +826,8 @@ static void emu1010_interrupt(struct snd_emu10k1 *emu)
 	} else if (sts & EMU_HANA_IRQ_DOCK) {
 		schedule_work(&emu->emu1010.firmware_work);
 	}
+	if (sts & EMU_HANA_IRQ_WCLK_CHANGED)
+		schedule_work(&emu->emu1010.clock_work);
 }
 
 /*
@@ -901,7 +927,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
 	emu->gpio_interrupt = emu1010_interrupt;
 	// Note: The Audigy INTE is set later
 	snd_emu1010_fpga_write(emu, EMU_HANA_IRQ_ENABLE,
-			       EMU_HANA_IRQ_DOCK | EMU_HANA_IRQ_DOCK_LOST);
+			       EMU_HANA_IRQ_DOCK | EMU_HANA_IRQ_DOCK_LOST | EMU_HANA_IRQ_WCLK_CHANGED);
 	snd_emu1010_fpga_read(emu, EMU_HANA_IRQ_STATUS, &reg);  // Clear pending IRQs
 
 	emu->emu1010.clock_source = 1;  /* 48000 */
@@ -943,6 +969,7 @@ static void snd_emu10k1_free(struct snd_card *card)
 		snd_emu1010_fpga_write(emu, EMU_HANA_DOCK_PWR, 0);
 	}
 	cancel_work_sync(&emu->emu1010.firmware_work);
+	cancel_work_sync(&emu->emu1010.clock_work);
 	release_firmware(emu->firmware);
 	release_firmware(emu->dock_fw);
 	snd_util_memhdr_free(emu->memhdr);
@@ -1522,6 +1549,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	emu->synth = NULL;
 	emu->get_synth_voice = NULL;
 	INIT_WORK(&emu->emu1010.firmware_work, emu1010_firmware_work);
+	INIT_WORK(&emu->emu1010.clock_work, emu1010_clock_work);
 	/* read revision & serial */
 	emu->revision = pci->revision;
 	pci_read_config_dword(pci, PCI_SUBSYSTEM_VENDOR_ID, &emu->serial);
