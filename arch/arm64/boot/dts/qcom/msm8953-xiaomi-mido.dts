@@ -108,6 +108,41 @@
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
 };
 
+&sound_card {
+
+	model = "xiaomi-mido";
+
+	aux-devs = <&speaker_amp>;
+	audio-routing =
+		"AMIC1", "MIC BIAS External1",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External1";
+
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&cdc_pdm_lines_act &cdc_pdm_lines_2_act &cdc_pdm_comp_lines_act>;
+	pinctrl-1 = <&cdc_pdm_lines_sus &cdc_pdm_lines_2_sus &cdc_pdm_comp_lines_sus>;
+
+	status = "okay";
+};
+
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <135 4>;
+};
+
+&wcd_codec {
+	/delete-property/ qcom,gnd-jack-type-normally-open;
+	/delete-property/ qcom,hphl-jack-type-normally-open;
+};
+
+&wcnss {
+	status = "okay";
+
+	vddpx-supply = <&pm8953_l5>;
+};
+
+&wcnss_iris {
+	vddxo-supply = <&pm8953_l7>;
+	vddrfa-supply = <&pm8953_l19>;
+	vddpa-supply = <&pm8953_l9>;
+	vdddig-supply = <&pm8953_l5>;
 };
