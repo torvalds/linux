@@ -58,6 +58,7 @@ static uint32_t radeon_encoder_clones(struct drm_encoder *encoder)
 	count = -1;
 	list_for_each_entry(clone_encoder, &dev->mode_config.encoder_list, head) {
 		struct radeon_encoder *radeon_clone = to_radeon_encoder(clone_encoder);
+
 		count++;
 
 		if (clone_encoder == encoder)
@@ -108,9 +109,10 @@ radeon_get_encoder_enum(struct drm_device *dev, uint32_t supported_device, uint8
 			if (ASIC_IS_AVIVO(rdev))
 				ret = ENCODER_INTERNAL_KLDSCP_DAC2_ENUM_ID1;
 			else {
-				/*if (rdev->family == CHIP_R200)
-				  ret = ENCODER_INTERNAL_DVO1_ENUM_ID1;
-				  else*/
+				/* if (rdev->family == CHIP_R200)
+				 * ret = ENCODER_INTERNAL_DVO1_ENUM_ID1;
+				 * else
+				 */
 				ret = ENCODER_INTERNAL_DAC2_ENUM_ID1;
 			}
 			break;
@@ -234,6 +236,7 @@ void radeon_encoder_set_active_device(struct drm_encoder *encoder)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
 			struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+
 			radeon_encoder->active_device = radeon_encoder->devices & radeon_connector->devices;
 			DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",
 				  radeon_encoder->active_device, radeon_encoder->devices,
@@ -320,12 +323,12 @@ void radeon_panel_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
-	unsigned hblank = native_mode->htotal - native_mode->hdisplay;
-	unsigned vblank = native_mode->vtotal - native_mode->vdisplay;
-	unsigned hover = native_mode->hsync_start - native_mode->hdisplay;
-	unsigned vover = native_mode->vsync_start - native_mode->vdisplay;
-	unsigned hsync_width = native_mode->hsync_end - native_mode->hsync_start;
-	unsigned vsync_width = native_mode->vsync_end - native_mode->vsync_start;
+	unsigned int hblank = native_mode->htotal - native_mode->hdisplay;
+	unsigned int vblank = native_mode->vtotal - native_mode->vdisplay;
+	unsigned int hover = native_mode->hsync_start - native_mode->hdisplay;
+	unsigned int vover = native_mode->vsync_start - native_mode->vdisplay;
+	unsigned int hsync_width = native_mode->hsync_end - native_mode->hsync_start;
+	unsigned int vsync_width = native_mode->vsync_end - native_mode->vsync_start;
 
 	adjusted_mode->clock = native_mode->clock;
 	adjusted_mode->flags = native_mode->flags;
@@ -424,6 +427,7 @@ bool radeon_dig_monitor_is_duallink(struct drm_encoder *encoder,
 bool radeon_encoder_is_digital(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+
 	switch (radeon_encoder->encoder_id) {
 	case ENCODER_OBJECT_ID_INTERNAL_LVDS:
 	case ENCODER_OBJECT_ID_INTERNAL_TMDS1:
