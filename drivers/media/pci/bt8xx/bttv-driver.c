@@ -1111,8 +1111,8 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 	const struct bttv_tvnorm *tvnorm;
 	v4l2_std_id id;
 
-	BUG_ON(norm >= BTTV_TVNORMS);
-	BUG_ON(btv->tvnorm >= BTTV_TVNORMS);
+	WARN_ON(norm >= BTTV_TVNORMS);
+	WARN_ON(btv->tvnorm >= BTTV_TVNORMS);
 
 	tvnorm = &bttv_tvnorms[norm];
 
@@ -1910,8 +1910,8 @@ limit_scaled_size_lock       (struct bttv_fh *               fh,
 	__s32 max_height;
 	int rc;
 
-	BUG_ON((int) width_mask >= 0 ||
-	       width_bias >= (unsigned int) -width_mask);
+	WARN_ON((int)width_mask >= 0 ||
+		width_bias >= (unsigned int)(-width_mask));
 
 	/* Make sure tvnorm, vbi_end and the current cropping parameters
 	   remain consistent until we're done. */
@@ -2026,7 +2026,7 @@ static int bttv_resource(struct bttv_fh *fh)
 		res = RESOURCE_VBI;
 		break;
 	default:
-		BUG();
+		WARN_ON(1);
 	}
 	return res;
 }
