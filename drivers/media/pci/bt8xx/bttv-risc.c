@@ -620,7 +620,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 
 		bttv_calc_geo(btv,&buf->geo,buf->vb.width,buf->vb.height,
 			      V4L2_FIELD_HAS_BOTH(buf->vb.field),
-			      tvnorm,&buf->crop);
+			      tvnorm, &btv->crop[!!btv->do_crop].rect);
 
 		switch (buf->vb.field) {
 		case V4L2_FIELD_TOP:
@@ -674,7 +674,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_TOP:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,/* both_fields */ 0,
-				      tvnorm,&buf->crop);
+				      tvnorm, &btv->crop[!!btv->do_crop].rect);
 			bttv_risc_planar(btv, &buf->top, dma->sglist,
 					 0,buf->vb.width,0,buf->vb.height,
 					 uoffset, voffset, btv->fmt->hshift,
@@ -683,7 +683,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_BOTTOM:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,0,
-				      tvnorm,&buf->crop);
+				      tvnorm, &btv->crop[!!btv->do_crop].rect);
 			bttv_risc_planar(btv, &buf->bottom, dma->sglist,
 					 0,buf->vb.width,0,buf->vb.height,
 					 uoffset, voffset, btv->fmt->hshift,
@@ -692,7 +692,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_INTERLACED:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,1,
-				      tvnorm,&buf->crop);
+				      tvnorm, &btv->crop[!!btv->do_crop].rect);
 			lines    = buf->vb.height >> 1;
 			ypadding = buf->vb.width;
 			cpadding = buf->vb.width >> btv->fmt->hshift;
@@ -715,7 +715,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_SEQ_TB:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,1,
-				      tvnorm,&buf->crop);
+				      tvnorm, &btv->crop[!!btv->do_crop].rect);
 			lines    = buf->vb.height >> 1;
 			ypadding = buf->vb.width;
 			cpadding = buf->vb.width >> btv->fmt->hshift;
@@ -746,7 +746,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		/* build risc code */
 		buf->vb.field = V4L2_FIELD_SEQ_TB;
 		bttv_calc_geo(btv,&buf->geo,tvnorm->swidth,tvnorm->sheight,
-			      1,tvnorm,&buf->crop);
+			      1, tvnorm, &btv->crop[!!btv->do_crop].rect);
 		bttv_risc_packed(btv, &buf->top,  dma->sglist,
 				 /* offset */ 0, RAW_BPL, /* padding */ 0,
 				 /* skip_lines */ 0, RAW_LINES);

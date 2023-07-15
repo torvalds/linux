@@ -1554,15 +1554,15 @@ static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
 	if (buf->vb.width != width || buf->vb.height != height ||
 	    buf->vb.field != field ||
 	    btv->tvnorm != norm || btv->fmt != fmt ||
-	    buf->crop.top != c.rect.top ||
-	    buf->crop.left != c.rect.left ||
-	    buf->crop.width != c.rect.width ||
-	    buf->crop.height != c.rect.height) {
+	    btv->crop[!!btv->do_crop].rect.top != c.rect.top ||
+	    btv->crop[!!btv->do_crop].rect.left != c.rect.left ||
+	    btv->crop[!!btv->do_crop].rect.width != c.rect.width ||
+	    btv->crop[!!btv->do_crop].rect.height != c.rect.height) {
 		buf->vb.width  = width;
 		buf->vb.height = height;
 		buf->vb.field  = field;
 		btv->tvnorm    = norm;
-		buf->crop      = c.rect;
+		btv->crop[!!btv->do_crop].rect = c.rect;
 		redo_dma_risc = 1;
 	}
 

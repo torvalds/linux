@@ -150,7 +150,6 @@ struct bttv_buffer {
 	struct bttv_geometry       geo;
 	struct btcx_riscmem        top;
 	struct btcx_riscmem        bottom;
-	struct v4l2_rect           crop;
 	unsigned int               vbi_skip[2];
 	unsigned int               vbi_count[2];
 };
