@@ -33,7 +33,8 @@
  *                                           (0xd451)
  * nct6798d    14      7       7       2+6    0xd428 0xc1    0x5ca3
  *                                           (0xd429)
- * nct6799d    14      7       7       2+6    0xd802 0xc1    0x5ca3
+ * nct6796d-s  18      7       7       6+2    0xd801 0xc1    0x5ca3
+ * nct6799d-r  18      7       7       6+2    0xd802 0xc1    0x5ca3
  *
  * #temp lists the number of monitored temperature sources (first value) plus
  * the number of directly connectable temperature sensors (second value).
