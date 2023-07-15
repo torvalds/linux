@@ -65,7 +65,12 @@
 #define CSI_FIFO_SIZE_BYTES	32
 #define CSI_FIFO_HALF_SIZE	16
 #define CSI_EN_DIS_TIMEOUT_US	100
-#define CSI_CKS_MAX		0x3FFF
+/*
+ * Clock "csiclk" gets divided by 2 * CSI_CLKSEL_CKS in order to generate the
+ * serial clock (output from master), with CSI_CLKSEL_CKS ranging from 0x1 (that
+ * means "csiclk" is divided by 2) to 0x3FFF ("csiclk" is divided by 32766).
+ */
+#define CSI_CKS_MAX		GENMASK(13, 0)
 
 #define UNDERRUN_ERROR		BIT(0)
 #define OVERFLOW_ERROR		BIT(1)
