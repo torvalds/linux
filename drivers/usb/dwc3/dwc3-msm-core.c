@@ -6568,11 +6568,17 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm,
 						perf_vote_work.work);
 	struct irq_desc *irq_desc = irq_to_desc(mdwc->core_irq);
-	unsigned int new = irq_desc->tot_count;
-	unsigned int count = new - mdwc->irq_cnt;
 	unsigned int threshold = PM_QOS_DEFAULT_SAMPLE_THRESHOLD;
 	unsigned long delay = PM_QOS_DEFAULT_SAMPLE_MS;
+	unsigned int new;
+	unsigned int count;
 	bool in_perf_mode = false;
+
+	if (!irq_desc)
+		return;
+
+	new = irq_desc->tot_count;
+	count = new - mdwc->irq_cnt;
 
 	if (mdwc->qos_rec_start && mdwc->qos_rec_index < PM_QOS_REC_MAX_RECORD)
 		mdwc->qos_rec_irq[mdwc->qos_rec_index++] = count;
@@ -6603,6 +6609,9 @@ static void msm_dwc3_perf_vote_work(struct work_struct *w)
 static void msm_dwc3_perf_vote_enable(struct dwc3_msm *mdwc, bool enable)
 {
 	struct irq_desc *irq_desc = irq_to_desc(mdwc->core_irq);
+
+	if (!irq_desc)
+		return;
 
 	if (enable) {
 		/* make sure when enable work, save a valid start irq count */
