@@ -1223,11 +1223,12 @@ static void zswap_fill_page(void *ptr, unsigned long value)
 	memset_l(page, value, PAGE_SIZE / sizeof(unsigned long));
 }
 
-bool zswap_store(struct page *page)
+bool zswap_store(struct folio *folio)
 {
-	swp_entry_t swp = { .val = page_private(page), };
+	swp_entry_t swp = folio_swap_entry(folio);
 	int type = swp_type(swp);
 	pgoff_t offset = swp_offset(swp);
+	struct page *page = &folio->page;
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry, *dupentry;
 	struct scatterlist input, output;
@@ -1242,11 +1243,11 @@ bool zswap_store(struct page *page)
 	gfp_t gfp;
 	int ret;
 
-	VM_WARN_ON_ONCE(!PageLocked(page));
-	VM_WARN_ON_ONCE(!PageSwapCache(page));
+	VM_WARN_ON_ONCE(!folio_test_locked(folio));
+	VM_WARN_ON_ONCE(!folio_test_swapcache(folio));
 
-	/* THP isn't supported */
-	if (PageTransHuge(page))
+	/* Large folios aren't supported */
+	if (folio_test_large(folio))
 		return false;
 
 	if (!zswap_enabled || !tree)

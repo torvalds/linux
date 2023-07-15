@@ -10,7 +10,7 @@ extern atomic_t zswap_stored_pages;
 
 #ifdef CONFIG_ZSWAP
 
-bool zswap_store(struct page *page);
+bool zswap_store(struct folio *folio);
 bool zswap_load(struct page *page);
 void zswap_invalidate(int type, pgoff_t offset);
 void zswap_swapon(int type);
@@ -18,7 +18,7 @@ void zswap_swapoff(int type);
 
 #else
 
-static inline bool zswap_store(struct page *page)
+static inline bool zswap_store(struct folio *folio)
 {
 	return false;
 }
