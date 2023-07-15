@@ -8,12 +8,6 @@
  *
  *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
  *  	Added EMU 1010 support.
- *
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/time.h>

@@ -6,12 +6,6 @@
  *  Routines for control of EMU10K1 chips - voice manager
  *
  *  Rewrote voice allocator for multichannel support - rlrevell 12/2004
- * 
- *  BUGS:
- *    --
- *
- *  TODO:
- *    --
  */
 
 #include <linux/time.h>
