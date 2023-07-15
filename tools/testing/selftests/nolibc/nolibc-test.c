@@ -15,6 +15,7 @@
 #include <string.h>
 #ifndef _NOLIBC_STDIO_H
 /* standard libcs need more includes */
+#include <sys/auxv.h>
 #include <sys/io.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -46,6 +47,12 @@
 
 /* will be used to test initialization of environ */
 static char **test_envp;
+
+/* will be used to test initialization of argv */
+static char **test_argv;
+
+/* will be used to test initialization of argc */
+static int test_argc;
 
 /* will be used by some test cases as readable file, please don't write it */
 static const char *argv0;
@@ -561,6 +568,51 @@ static int expect_strne(const char *expr, int llen, const char *cmp)
 #define CASE_TEST(name) \
 	case __LINE__: llen += printf("%d %s", test, #name);
 
+int run_startup(int min, int max)
+{
+	int test;
+	int ret = 0;
+	/* kernel at least passes HOME and TERM, shell passes more */
+	int env_total = 2;
+	/* checking NULL for argv/argv0, environ and _auxv is not enough, let's compare with sbrk(0) or &end */
+	extern char end;
+	char *brk = sbrk(0) != (void *)-1 ? sbrk(0) : &end;
+	/* differ from nolibc, both glibc and musl have no global _auxv */
+	const unsigned long *test_auxv = (void *)-1;
+#ifdef NOLIBC
+	test_auxv = _auxv;
+#endif
+
+	for (test = min; test >= 0 && test <= max; test++) {
+		int llen = 0; /* line length */
+
+		/* avoid leaving empty lines below, this will insert holes into
+		 * test numbers.
+		 */
+		switch (test + __LINE__ + 1) {
+		CASE_TEST(argc);             EXPECT_GE(1, test_argc, 1); break;
+		CASE_TEST(argv_addr);        EXPECT_PTRGT(1, test_argv, brk); break;
+		CASE_TEST(argv_environ);     EXPECT_PTRLT(1, test_argv, environ); break;
+		CASE_TEST(argv_total);       EXPECT_EQ(1, environ - test_argv - 1, test_argc ?: 1); break;
+		CASE_TEST(argv0_addr);       EXPECT_PTRGT(1, argv0, brk); break;
+		CASE_TEST(argv0_str);        EXPECT_STRNZ(1, argv0 > brk ? argv0 : NULL); break;
+		CASE_TEST(argv0_len);        EXPECT_GE(1,  argv0 > brk ? strlen(argv0) : 0, 1); break;
+		CASE_TEST(environ_addr);     EXPECT_PTRGT(1, environ, brk); break;
+		CASE_TEST(environ_envp);     EXPECT_PTREQ(1, environ, test_envp); break;
+		CASE_TEST(environ_auxv);     EXPECT_PTRLT(test_auxv != (void *)-1, environ, test_auxv); break;
+		CASE_TEST(environ_total);    EXPECT_GE(test_auxv != (void *)-1, (void *)test_auxv - (void *)environ - 1, env_total); break;
+		CASE_TEST(environ_HOME);     EXPECT_PTRNZ(1, getenv("HOME")); break;
+		CASE_TEST(auxv_addr);        EXPECT_PTRGT(test_auxv != (void *)-1, test_auxv, brk); break;
+		CASE_TEST(auxv_AT_UID);      EXPECT_EQ(1, getauxval(AT_UID), getuid()); break;
+		CASE_TEST(auxv_AT_PAGESZ);   EXPECT_GE(1, getauxval(AT_PAGESZ), 4096); break;
+		case __LINE__:
+			return ret; /* must be last */
+		/* note: do not set any defaults so as to permit holes above */
+		}
+	}
+	return ret;
+}
+
 
 /* used by some syscall tests below */
 int test_getdents64(const char *dir)
@@ -845,7 +897,6 @@ int run_stdlib(int min, int max)
 		 * test numbers.
 		 */
 		switch (test + __LINE__ + 1) {
-		CASE_TEST(environ);            EXPECT_PTREQ(1, environ, test_envp); break;
 		CASE_TEST(getenv_TERM);        EXPECT_STRNZ(1, getenv("TERM")); break;
 		CASE_TEST(getenv_blah);        EXPECT_STRZR(1, getenv("blah")); break;
 		CASE_TEST(setcmp_blah_blah);   EXPECT_EQ(1, strcmp("blah", "blah"), 0); break;
@@ -1129,6 +1180,7 @@ int prepare(void)
 /* This is the definition of known test names, with their functions */
 static const struct test test_names[] = {
 	/* add new tests here */
+	{ .name = "startup",    .func = run_startup    },
 	{ .name = "syscall",    .func = run_syscall    },
 	{ .name = "stdlib",     .func = run_stdlib     },
 	{ .name = "vfprintf",   .func = run_vfprintf   },
@@ -1175,6 +1227,8 @@ int main(int argc, char **argv, char **envp)
 	char *test;
 
 	argv0 = argv[0];
+	test_argc = argc;
+	test_argv = argv;
 	test_envp = envp;
 
 	/* when called as init, it's possible that no console was opened, for
