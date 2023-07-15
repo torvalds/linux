@@ -21,7 +21,7 @@
 #include "isys_dma_public.h"	/* isys2401_dma_set_max_burst_size() */
 #include "isys_irq.h"
 
-input_system_err_t ia_css_isys_2400_init(void)
+static input_system_err_t ia_css_isys_2400_init(void)
 {
 	backend_channel_cfg_t backend_ch0;
 	backend_channel_cfg_t backend_ch1;
@@ -84,7 +84,7 @@ input_system_err_t ia_css_isys_2400_init(void)
 	return error;
 }
 
-input_system_err_t ia_css_isys_2401_init(void)
+static input_system_err_t ia_css_isys_2401_init(void)
 {
 	ia_css_isys_csi_rx_lut_rmgr_init();
 	ia_css_isys_ibuf_rmgr_init();
