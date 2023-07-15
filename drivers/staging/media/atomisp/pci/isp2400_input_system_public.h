@@ -17,7 +17,6 @@
 #define __INPUT_SYSTEM_2400_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#include "isys_public.h"
 
 typedef struct receiver_state_s			receiver_state_t;
 
