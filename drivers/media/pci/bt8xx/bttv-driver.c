@@ -2740,38 +2740,24 @@ static int radio_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct bttv *btv = video_drvdata(file);
-	struct bttv_fh *fh;
+	int ret = v4l2_fh_open(file);
+
+	if (ret)
+		return ret;
 
 	dprintk("open dev=%s\n", video_device_node_name(vdev));
-
 	dprintk("%d: open called (radio)\n", btv->c.nr);
-
-	/* allocate per filehandle data */
-	fh = kmalloc(sizeof(*fh), GFP_KERNEL);
-	if (unlikely(!fh))
-		return -ENOMEM;
-	file->private_data = fh;
-	*fh = btv->init;
-	v4l2_fh_init(&fh->fh, vdev);
 
 	btv->radio_user++;
 	audio_mute(btv, btv->mute);
-
-	v4l2_fh_add(&fh->fh);
 
 	return 0;
 }
 
 static int radio_release(struct file *file)
 {
-	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = video_drvdata(file);
 	struct saa6588_command cmd;
-
-	file->private_data = NULL;
-	v4l2_fh_del(&fh->fh);
-	v4l2_fh_exit(&fh->fh);
-	kfree(fh);
 
 	btv->radio_user--;
 
@@ -2779,6 +2765,9 @@ static int radio_release(struct file *file)
 
 	if (btv->radio_user == 0)
 		btv->has_radio_tuner = 0;
+
+	v4l2_fh_release(file);
+
 	return 0;
 }
 
@@ -2858,23 +2847,17 @@ static ssize_t radio_read(struct file *file, char __user *data,
 
 static __poll_t radio_poll(struct file *file, poll_table *wait)
 {
-	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = video_drvdata(file);
-	__poll_t req_events = poll_requested_events(wait);
 	struct saa6588_command cmd;
-	__poll_t res = 0;
+	__poll_t rc = v4l2_ctrl_poll(file, wait);
 
-	if (v4l2_event_pending(&fh->fh))
-		res = EPOLLPRI;
-	else if (req_events & EPOLLPRI)
-		poll_wait(file, &fh->fh.wait, wait);
 	radio_enable(btv);
 	cmd.instance = file;
 	cmd.event_list = wait;
-	cmd.poll_mask = res;
+	cmd.poll_mask = 0;
 	bttv_call_all(btv, core, command, SAA6588_CMD_POLL, &cmd);
 
-	return cmd.poll_mask;
+	return rc | cmd.poll_mask;
 }
 
 static const struct v4l2_file_operations radio_fops =
