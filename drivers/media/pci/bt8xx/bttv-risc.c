@@ -606,7 +606,7 @@ bttv_buffer_activate_video(struct bttv *btv,
 int
 bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 {
-	const struct bttv_tvnorm *tvnorm = bttv_tvnorms + buf->tvnorm;
+	const struct bttv_tvnorm *tvnorm = bttv_tvnorms + btv->tvnorm;
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 	dprintk("%d: buffer field: %s  format: 0x%08x  size: %dx%d\n",
