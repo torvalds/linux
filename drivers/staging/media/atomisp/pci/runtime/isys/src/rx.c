@@ -271,7 +271,7 @@ static int ia_css_isys_2400_set_fmt_type(enum atomisp_input_format input_format,
 		*fmt_type = MIPI_FORMAT_2400_RAW16;
 		break;
 	case ATOMISP_INPUT_FORMAT_BINARY_8:
-		*fmt_type = MIPI_FORMAT_BINARY_8;
+		*fmt_type = MIPI_FORMAT_2400_CUSTOM0;
 		break;
 	case ATOMISP_INPUT_FORMAT_YUV420_16:
 	case ATOMISP_INPUT_FORMAT_YUV422_16:

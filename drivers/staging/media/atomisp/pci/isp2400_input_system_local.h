@@ -200,8 +200,6 @@ typedef enum {
 	N_MIPI_FORMAT_2400,
 } mipi_format_2400_t;
 
-#define MIPI_FORMAT_JPEG	MIPI_FORMAT_2400_CUSTOM0
-#define MIPI_FORMAT_BINARY_8	MIPI_FORMAT_2400_CUSTOM0
 #define N_MIPI_FORMAT_CUSTOM	8
 
 /* The number of stores for compressed format types */
