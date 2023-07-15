@@ -679,6 +679,14 @@ static inline int ghd_rm_mem_lend(u8 mem_type, u8 flags, gh_label_t label,
 	return -EINVAL;
 }
 
+static inline int gh_rm_mem_donate(u8 mem_type, u8 flags, gh_label_t label,
+		   struct gh_acl_desc *acl_desc, struct gh_sgl_desc *sgl_desc,
+		   struct gh_mem_attr_desc *mem_attr_desc,
+		   gh_memparcel_handle_t *handle)
+{
+	return -EINVAL;
+}
+
 static inline int gh_rm_mem_notify(gh_memparcel_handle_t handle, u8 flags,
 				   gh_label_t mem_info_tag,
 				   struct gh_notify_vmid_desc *vmid_desc)
