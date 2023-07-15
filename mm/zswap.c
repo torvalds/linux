@@ -1258,7 +1258,7 @@ bool zswap_store(struct folio *folio)
 	 * cgroup-aware entry LRU, we will push out entries system-wide based on
 	 * local cgroup limits.
 	 */
-	objcg = get_obj_cgroup_from_page(page);
+	objcg = get_obj_cgroup_from_folio(folio);
 	if (objcg && !obj_cgroup_may_zswap(objcg))
 		goto reject;
 
