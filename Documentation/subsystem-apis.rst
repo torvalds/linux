@@ -36,6 +36,18 @@ Human interfaces
    gpu/index
    fb/index
 
+Networking interfaces
+---------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   networking/index
+   netlabel/index
+   infiniband/index
+   isdn/index
+   mhi/index
+
 Storage interfaces
 ------------------
 
@@ -58,11 +70,7 @@ Storage interfaces
    fpga/index
    i2c/index
    iio/index
-   isdn/index
-   infiniband/index
    leds/index
-   netlabel/index
-   networking/index
    pcmcia/index
    spi/index
    w1/index
@@ -76,6 +84,5 @@ Storage interfaces
    usb/index
    PCI/index
    misc-devices/index
-   mhi/index
    peci/index
    wmi/index
