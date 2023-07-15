@@ -10,6 +10,7 @@
 char **environ __attribute__((weak));
 const unsigned long *_auxv __attribute__((weak));
 
+void __stack_chk_init(void);
 static void exit(int);
 
 void _start_c(long *sp)
@@ -20,6 +21,9 @@ void _start_c(long *sp)
 	const unsigned long *auxv;
 	/* silence potential warning: conflicting types for 'main' */
 	int _nolibc_main(int, char **, char **) __asm__ ("main");
+
+	/* initialize stack protector */
+	__stack_chk_init();
 
 	/*
 	 * sp  :    argc          <-- argument count, required by main()
