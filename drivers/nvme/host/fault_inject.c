@@ -27,7 +27,7 @@ void nvme_fault_inject_init(struct nvme_fault_inject *fault_inj,
 
 	/* create debugfs directory and attribute */
 	parent = debugfs_create_dir(dev_name, NULL);
-	if (!parent) {
+	if (IS_ERR(parent)) {
 		pr_warn("%s: failed to create debugfs directory\n", dev_name);
 		return;
 	}
