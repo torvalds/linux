@@ -648,6 +648,146 @@ out:
 	return ret;
 }
 
+static void dump_eb_and_memory_contents(struct extent_buffer *eb, void *memory,
+					const char *test_name)
+{
+	for (int i = 0; i < eb->len; i++) {
+		struct page *page = eb->pages[i >> PAGE_SHIFT];
+		void *addr = page_address(page) + offset_in_page(i);
+
+		if (memcmp(addr, memory + i, 1) != 0) {
+			test_err("%s failed", test_name);
+			test_err("eb and memory diffs at byte %u, eb has 0x%02x memory has 0x%02x",
+				 i, *(u8 *)addr, *(u8 *)(memory + i));
+			return;
+		}
+	}
+}
+
+static int verify_eb_and_memory(struct extent_buffer *eb, void *memory,
+				const char *test_name)
+{
+	for (int i = 0; i < (eb->len >> PAGE_SHIFT); i++) {
+		void *eb_addr = page_address(eb->pages[i]);
+
+		if (memcmp(memory + (i << PAGE_SHIFT), eb_addr, PAGE_SIZE) != 0) {
+			dump_eb_and_memory_contents(eb, memory, test_name);
+			return -EUCLEAN;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Init both memory and extent buffer contents to the same randomly generated
+ * contents.
+ */
+static void init_eb_and_memory(struct extent_buffer *eb, void *memory)
+{
+	get_random_bytes(memory, eb->len);
+	write_extent_buffer(eb, memory, 0, eb->len);
+}
+
+static int test_eb_mem_ops(u32 sectorsize, u32 nodesize)
+{
+	struct btrfs_fs_info *fs_info;
+	struct extent_buffer *eb = NULL;
+	void *memory = NULL;
+	int ret;
+
+	test_msg("running extent buffer memory operation tests");
+
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
+	if (!fs_info) {
+		test_std_err(TEST_ALLOC_FS_INFO);
+		return -ENOMEM;
+	}
+
+	memory = kvzalloc(nodesize, GFP_KERNEL);
+	if (!memory) {
+		test_err("failed to allocate memory");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	eb = __alloc_dummy_extent_buffer(fs_info, SZ_1M, nodesize);
+	if (!eb) {
+		test_std_err(TEST_ALLOC_EXTENT_BUFFER);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	init_eb_and_memory(eb, memory);
+	ret = verify_eb_and_memory(eb, memory, "full eb write");
+	if (ret < 0)
+		goto out;
+
+	memcpy(memory, memory + 16, 16);
+	memcpy_extent_buffer(eb, 0, 16, 16);
+	ret = verify_eb_and_memory(eb, memory, "same page non-overlapping memcpy 1");
+	if (ret < 0)
+		goto out;
+
+	memcpy(memory, memory + 2048, 16);
+	memcpy_extent_buffer(eb, 0, 2048, 16);
+	ret = verify_eb_and_memory(eb, memory, "same page non-overlapping memcpy 2");
+	if (ret < 0)
+		goto out;
+	memcpy(memory, memory + 2048, 2048);
+	memcpy_extent_buffer(eb, 0, 2048, 2048);
+	ret = verify_eb_and_memory(eb, memory, "same page non-overlapping memcpy 3");
+	if (ret < 0)
+		goto out;
+
+	memmove(memory + 512, memory + 256, 512);
+	memmove_extent_buffer(eb, 512, 256, 512);
+	ret = verify_eb_and_memory(eb, memory, "same page overlapping memcpy 1");
+	if (ret < 0)
+		goto out;
+
+	memmove(memory + 2048, memory + 512, 2048);
+	memmove_extent_buffer(eb, 2048, 512, 2048);
+	ret = verify_eb_and_memory(eb, memory, "same page overlapping memcpy 2");
+	if (ret < 0)
+		goto out;
+	memmove(memory + 512, memory + 2048, 2048);
+	memmove_extent_buffer(eb, 512, 2048, 2048);
+	ret = verify_eb_and_memory(eb, memory, "same page overlapping memcpy 3");
+	if (ret < 0)
+		goto out;
+
+	if (nodesize > PAGE_SIZE) {
+		memcpy(memory, memory + 4096 - 128, 256);
+		memcpy_extent_buffer(eb, 0, 4096 - 128, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page non-overlapping memcpy 1");
+		if (ret < 0)
+			goto out;
+
+		memcpy(memory + 4096 - 128, memory + 4096 + 128, 256);
+		memcpy_extent_buffer(eb, 4096 - 128, 4096 + 128, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page non-overlapping memcpy 2");
+		if (ret < 0)
+			goto out;
+
+		memmove(memory + 4096 - 128, memory + 4096 - 64, 256);
+		memmove_extent_buffer(eb, 4096 - 128, 4096 - 64, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page overlapping memcpy 1");
+		if (ret < 0)
+			goto out;
+
+		memmove(memory + 4096 - 64, memory + 4096 - 128, 256);
+		memmove_extent_buffer(eb, 4096 - 64, 4096 - 128, 256);
+		ret = verify_eb_and_memory(eb, memory, "cross page overlapping memcpy 2");
+		if (ret < 0)
+			goto out;
+	}
+out:
+	free_extent_buffer(eb);
+	kvfree(memory);
+	btrfs_free_dummy_fs_info(fs_info);
+	return ret;
+}
+
 int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 {
 	int ret;
@@ -663,6 +803,10 @@ int btrfs_test_extent_io(u32 sectorsize, u32 nodesize)
 		goto out;
 
 	ret = test_eb_bitmaps(sectorsize, nodesize);
+	if (ret)
+		goto out;
+
+	ret = test_eb_mem_ops(sectorsize, nodesize);
 out:
 	return ret;
 }
