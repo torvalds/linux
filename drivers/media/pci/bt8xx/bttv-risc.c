@@ -611,11 +611,11 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 
 	dprintk("%d: buffer field: %s  format: 0x%08x  size: %dx%d\n",
 		btv->c.nr, v4l2_field_names[buf->vb.field],
-		buf->fmt->fourcc, buf->vb.width, buf->vb.height);
+		btv->fmt->fourcc, buf->vb.width, buf->vb.height);
 
 	/* packed pixel modes */
-	if (buf->fmt->flags & FORMAT_FLAGS_PACKED) {
-		int bpl = (buf->fmt->depth >> 3) * buf->vb.width;
+	if (btv->fmt->flags & FORMAT_FLAGS_PACKED) {
+		int bpl = (btv->fmt->depth >> 3) * buf->vb.width;
 		int bpf = bpl * (buf->vb.height >> 1);
 
 		bttv_calc_geo(btv,&buf->geo,buf->vb.width,buf->vb.height,
@@ -651,22 +651,22 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 	}
 
 	/* planar modes */
-	if (buf->fmt->flags & FORMAT_FLAGS_PLANAR) {
+	if (btv->fmt->flags & FORMAT_FLAGS_PLANAR) {
 		int uoffset, voffset;
 		int ypadding, cpadding, lines;
 
 		/* calculate chroma offsets */
 		uoffset = buf->vb.width * buf->vb.height;
 		voffset = buf->vb.width * buf->vb.height;
-		if (buf->fmt->flags & FORMAT_FLAGS_CrCb) {
+		if (btv->fmt->flags & FORMAT_FLAGS_CrCb) {
 			/* Y-Cr-Cb plane order */
-			uoffset >>= buf->fmt->hshift;
-			uoffset >>= buf->fmt->vshift;
+			uoffset >>= btv->fmt->hshift;
+			uoffset >>= btv->fmt->vshift;
 			uoffset  += voffset;
 		} else {
 			/* Y-Cb-Cr plane order */
-			voffset >>= buf->fmt->hshift;
-			voffset >>= buf->fmt->vshift;
+			voffset >>= btv->fmt->hshift;
+			voffset >>= btv->fmt->vshift;
 			voffset  += uoffset;
 		}
 
@@ -677,8 +677,8 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 				      tvnorm,&buf->crop);
 			bttv_risc_planar(btv, &buf->top, dma->sglist,
 					 0,buf->vb.width,0,buf->vb.height,
-					 uoffset,voffset,buf->fmt->hshift,
-					 buf->fmt->vshift,0);
+					 uoffset, voffset, btv->fmt->hshift,
+					 btv->fmt->vshift, 0);
 			break;
 		case V4L2_FIELD_BOTTOM:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
@@ -686,8 +686,8 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 				      tvnorm,&buf->crop);
 			bttv_risc_planar(btv, &buf->bottom, dma->sglist,
 					 0,buf->vb.width,0,buf->vb.height,
-					 uoffset,voffset,buf->fmt->hshift,
-					 buf->fmt->vshift,0);
+					 uoffset, voffset, btv->fmt->hshift,
+					 btv->fmt->vshift, 0);
 			break;
 		case V4L2_FIELD_INTERLACED:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
@@ -695,21 +695,21 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 				      tvnorm,&buf->crop);
 			lines    = buf->vb.height >> 1;
 			ypadding = buf->vb.width;
-			cpadding = buf->vb.width >> buf->fmt->hshift;
+			cpadding = buf->vb.width >> btv->fmt->hshift;
 			bttv_risc_planar(btv,&buf->top,
 					 dma->sglist,
 					 0,buf->vb.width,ypadding,lines,
 					 uoffset,voffset,
-					 buf->fmt->hshift,
-					 buf->fmt->vshift,
+					 btv->fmt->hshift,
+					 btv->fmt->vshift,
 					 cpadding);
 			bttv_risc_planar(btv,&buf->bottom,
 					 dma->sglist,
 					 ypadding,buf->vb.width,ypadding,lines,
 					 uoffset+cpadding,
 					 voffset+cpadding,
-					 buf->fmt->hshift,
-					 buf->fmt->vshift,
+					 btv->fmt->hshift,
+					 btv->fmt->vshift,
 					 cpadding);
 			break;
 		case V4L2_FIELD_SEQ_TB:
@@ -718,22 +718,22 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 				      tvnorm,&buf->crop);
 			lines    = buf->vb.height >> 1;
 			ypadding = buf->vb.width;
-			cpadding = buf->vb.width >> buf->fmt->hshift;
+			cpadding = buf->vb.width >> btv->fmt->hshift;
 			bttv_risc_planar(btv,&buf->top,
 					 dma->sglist,
 					 0,buf->vb.width,0,lines,
 					 uoffset >> 1,
 					 voffset >> 1,
-					 buf->fmt->hshift,
-					 buf->fmt->vshift,
+					 btv->fmt->hshift,
+					 btv->fmt->vshift,
 					 0);
 			bttv_risc_planar(btv,&buf->bottom,
 					 dma->sglist,
 					 lines * ypadding,buf->vb.width,0,lines,
 					 lines * ypadding + (uoffset >> 1),
 					 lines * ypadding + (voffset >> 1),
-					 buf->fmt->hshift,
-					 buf->fmt->vshift,
+					 btv->fmt->hshift,
+					 btv->fmt->vshift,
 					 0);
 			break;
 		default:
@@ -742,7 +742,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 	}
 
 	/* raw data */
-	if (buf->fmt->flags & FORMAT_FLAGS_RAW) {
+	if (btv->fmt->flags & FORMAT_FLAGS_RAW) {
 		/* build risc code */
 		buf->vb.field = V4L2_FIELD_SEQ_TB;
 		bttv_calc_geo(btv,&buf->geo,tvnorm->swidth,tvnorm->sheight,
@@ -755,7 +755,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 	}
 
 	/* copy format info */
-	buf->btformat = buf->fmt->btformat;
-	buf->btswap   = buf->fmt->btswap;
+	buf->btformat = btv->fmt->btformat;
+	buf->btswap   = btv->fmt->btswap;
 	return 0;
 }

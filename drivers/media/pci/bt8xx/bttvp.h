@@ -145,7 +145,6 @@ struct bttv_buffer {
 	struct videobuf_buffer     vb;
 
 	/* bttv specific */
-	const struct bttv_format   *fmt;
 	unsigned int               tvnorm;
 	int                        btformat;
 	int                        btswap;
