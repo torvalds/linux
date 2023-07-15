@@ -902,6 +902,11 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_TTDA			0x7a		/* Tank Table DMA Address			*/
 #define A_TTDD			0x7b		/* Tank Table DMA Data				*/
 
+// In A_FXRT1 & A_FXRT2, the 0x80 bit of each byte completely disables the
+// filter (CVCF_CURRENTFILTER) for the corresponding channel. There is no
+// effect on the volume (CVCF_CURRENTVOLUME) or the interpolator's filter
+// (CCCA_INTERPROM_MASK).
+
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
 #define A_FXRT_CHANNELF		0x00003f00	/* Effects send bus number for channel's effects send F	*/
@@ -914,8 +919,6 @@ SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM 
 #define A_FXSENDAMOUNT_G_MASK	0x0000FF00
 #define A_FXSENDAMOUNT_H_MASK	0x000000FF
 
-/* 0x7c, 0x7e "high bit is used for filtering" */
- 
 /* The send amounts for this one are the same as used with the emu10k1 */
 #define A_FXRT1			0x7e
 #define A_FXRT_CHANNELA		0x0000003f
@@ -1526,10 +1529,10 @@ struct snd_emu10k1_pcm_mixer {
 ((route[0] | (route[1] << 4) | (route[2] << 8) | (route[3] << 12)) << 16)
 
 #define snd_emu10k1_compose_audigy_fxrt1(route) \
-((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24))
+((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
-((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
+((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_sendamounts(vol) \
 (((unsigned int)vol[4] << 24) | ((unsigned int)vol[5] << 16) | ((unsigned int)vol[6] << 8) | (unsigned int)vol[7])
