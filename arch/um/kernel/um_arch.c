@@ -437,7 +437,7 @@ void __init arch_cpu_finalize_init(void)
 	os_check_bugs();
 }
 
-void apply_ibt_endbr(s32 *start, s32 *end)
+void apply_seal_endbr(s32 *start, s32 *end)
 {
 }
 
