@@ -439,8 +439,8 @@ static int rzv2m_csi_setup(struct spi_device *spi)
 
 static int rzv2m_csi_pio_transfer(struct rzv2m_csi_priv *csi)
 {
-	bool tx_completed = csi->txbuf ? false : true;
-	bool rx_completed = csi->rxbuf ? false : true;
+	bool tx_completed = !csi->txbuf;
+	bool rx_completed = !csi->rxbuf;
 	int ret = 0;
 
 	/* Make sure the TX FIFO is empty */
