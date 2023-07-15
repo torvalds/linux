@@ -30,6 +30,7 @@
 #include <linux/mfd/tps6586x.h>
 
 #define TPS6586X_SUPPLYENE	0x14
+#define SOFT_RST_BIT		BIT(0)
 #define EXITSLREQ_BIT		BIT(1)
 #define SLEEP_MODE_BIT		BIT(3)
 
@@ -475,6 +476,19 @@ static int tps6586x_power_off_handler(struct sys_off_data *data)
 	return notifier_from_errno(-ETIME);
 }
 
+static int tps6586x_restart_handler(struct sys_off_data *data)
+{
+	int ret;
+
+	/* Put the PMIC into hard reboot state. This takes at least 20ms. */
+	ret = tps6586x_set_bits(data->dev, TPS6586X_SUPPLYENE, SOFT_RST_BIT);
+	if (ret)
+		return notifier_from_errno(ret);
+
+	mdelay(50);
+	return notifier_from_errno(-ETIME);
+}
+
 static void tps6586x_print_version(struct i2c_client *client, int version)
 {
 	const char *name;
@@ -573,6 +587,13 @@ static int tps6586x_i2c_probe(struct i2c_client *client)
 						      NULL);
 		if (ret) {
 			dev_err(&client->dev, "register power off handler failed: %d\n", ret);
+			goto err_add_devs;
+		}
+
+		ret = devm_register_restart_handler(&client->dev, &tps6586x_restart_handler,
+						    NULL);
+		if (ret) {
+			dev_err(&client->dev, "register restart handler failed: %d\n", ret);
 			goto err_add_devs;
 		}
 	}
