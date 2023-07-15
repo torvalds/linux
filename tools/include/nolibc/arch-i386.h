@@ -8,6 +8,7 @@
 #define _NOLIBC_ARCH_I386_H
 
 #include "compiler.h"
+#include "crt.h"
 
 /* Syscalls for i386 :
  *   - mostly similar to x86_64
@@ -154,9 +155,6 @@
 	_eax;							\
 })
 
-char **environ __attribute__((weak));
-const unsigned long *_auxv __attribute__((weak));
-
 /* startup code */
 /*
  * i386 System V ABI mandates:
@@ -167,30 +165,12 @@ const unsigned long *_auxv __attribute__((weak));
 void __attribute__((weak, noreturn, optimize("Os", "omit-frame-pointer"))) __no_stack_protector _start(void)
 {
 	__asm__ volatile (
-#ifdef _NOLIBC_STACKPROTECTOR
-		"call __stack_chk_init\n"   /* initialize stack protector                    */
-#endif
-		"pop %eax\n"                /* argc   (first arg, %eax)                      */
-		"mov %esp, %ebx\n"          /* argv[] (second arg, %ebx)                     */
-		"lea 4(%ebx,%eax,4),%ecx\n" /* then a NULL then envp (third arg, %ecx)       */
-		"mov %ecx, environ\n"       /* save environ                                  */
-		"xor %ebp, %ebp\n"          /* zero the stack frame                          */
-		"mov %ecx, %edx\n"          /* search for auxv (follows NULL after last env) */
-		"0:\n"
-		"add $4, %edx\n"            /* search for auxv using edx, it follows the     */
-		"cmp -4(%edx), %ebp\n"      /* ... NULL after last env (ebp is zero here)    */
-		"jnz 0b\n"
-		"mov %edx, _auxv\n"         /* save it into _auxv                            */
-		"and $-16, %esp\n"          /* x86 ABI : esp must be 16-byte aligned before  */
-		"sub $4, %esp\n"            /* the call instruction (args are aligned)       */
-		"push %ecx\n"               /* push all registers on the stack so that we    */
-		"push %ebx\n"               /* support both regparm and plain stack modes    */
-		"push %eax\n"
-		"call main\n"               /* main() returns the status code in %eax        */
-		"mov %eax, %ebx\n"          /* retrieve exit code (32-bit int)               */
-		"movl $1, %eax\n"           /* NR_exit == 1                                  */
-		"int $0x80\n"               /* exit now                                      */
-		"hlt\n"                     /* ensure it does not                            */
+		"xor  %ebp, %ebp\n"       /* zero the stack frame                                */
+		"mov  %esp, %eax\n"       /* save stack pointer to %eax, as arg1 of _start_c     */
+		"and  $-16, %esp\n"       /* last pushed argument must be 16-byte aligned        */
+		"push %eax\n"             /* push arg1 on stack to support plain stack modes too */
+		"call _start_c\n"         /* transfer to c runtime                               */
+		"hlt\n"                   /* ensure it does not return                           */
 	);
 	__builtin_unreachable();
 }
