@@ -525,12 +525,12 @@ bttv_buffer_activate_vbi(struct bttv *btv,
 			btwrite(crop,	BT848_O_CROP);
 		}
 
-		if (vbi->vbi_count[0] > 0) {
+		if (btv->vbi_count[0] > 0) {
 			top = &vbi->top;
 			top_irq_flags = 4;
 		}
 
-		if (vbi->vbi_count[1] > 0) {
+		if (btv->vbi_count[1] > 0) {
 			top_irq_flags = 0;
 			bottom = &vbi->bottom;
 			bottom_irq_flags = 4;

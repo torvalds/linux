@@ -125,14 +125,14 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 
 	redo_dma_risc = 0;
 
-	if (buf->vbi_skip[0] != skip_lines0 ||
-	    buf->vbi_skip[1] != skip_lines1 ||
-	    buf->vbi_count[0] != fh->vbi_fmt.fmt.count[0] ||
-	    buf->vbi_count[1] != fh->vbi_fmt.fmt.count[1]) {
-		buf->vbi_skip[0] = skip_lines0;
-		buf->vbi_skip[1] = skip_lines1;
-		buf->vbi_count[0] = fh->vbi_fmt.fmt.count[0];
-		buf->vbi_count[1] = fh->vbi_fmt.fmt.count[1];
+	if (btv->vbi_skip[0] != skip_lines0 ||
+	    btv->vbi_skip[1] != skip_lines1 ||
+	    btv->vbi_count[0] != fh->vbi_fmt.fmt.count[0] ||
+	    btv->vbi_count[1] != fh->vbi_fmt.fmt.count[1]) {
+		btv->vbi_skip[0] = skip_lines0;
+		btv->vbi_skip[1] = skip_lines1;
+		btv->vbi_count[0] = fh->vbi_fmt.fmt.count[0];
+		btv->vbi_count[1] = fh->vbi_fmt.fmt.count[1];
 		redo_dma_risc = 1;
 	}
 

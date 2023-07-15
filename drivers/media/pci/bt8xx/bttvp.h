@@ -150,8 +150,6 @@ struct bttv_buffer {
 	struct bttv_geometry       geo;
 	struct btcx_riscmem        top;
 	struct btcx_riscmem        bottom;
-	unsigned int               vbi_skip[2];
-	unsigned int               vbi_count[2];
 };
 
 struct bttv_buffer_set {
@@ -238,6 +236,8 @@ void bttv_dma_free(struct videobuf_queue *q, struct bttv *btv,
 
 /* ---------------------------------------------------------- */
 /* bttv-vbi.c                                                 */
+
+#define VBI_DEFLINES 16
 
 int bttv_try_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 int bttv_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
@@ -447,6 +447,9 @@ struct bttv {
 	int width;
 	int height;
 	struct bttv_vbi_fmt vbi_fmt;
+	unsigned int vbi_skip[2];
+	unsigned int vbi_count[2];
+
 	/* Application called VIDIOC_S_SELECTION. */
 	int do_crop;
 
