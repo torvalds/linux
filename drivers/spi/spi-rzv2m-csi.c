@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
 
 /* Registers */
 #define CSI_MODE		0x00	/* CSI mode control */
@@ -71,7 +72,7 @@
 #define TX_TIMEOUT_ERROR	BIT(2)
 #define RX_TIMEOUT_ERROR	BIT(3)
 
-#define CSI_MAX_SPI_SCKO	8000000
+#define CSI_MAX_SPI_SCKO	(8 * HZ_PER_MHZ)
 
 struct rzv2m_csi_priv {
 	void __iomem *base;
