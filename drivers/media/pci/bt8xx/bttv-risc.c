@@ -360,21 +360,80 @@ bttv_apply_geo(struct bttv *btv, struct bttv_geometry *geo, int odd)
 /* ---------------------------------------------------------- */
 /* risc group / risc main loop / dma management               */
 
-void
-bttv_set_dma(struct bttv *btv, int override)
+static void bttv_set_risc_status(struct bttv *btv)
 {
-	unsigned long cmd;
-	int capctl;
+	unsigned long cmd = BT848_RISC_JUMP;
+	/*
+	 * The value of btv->loop_irq sets or resets the RISC_STATUS for video
+	 * and/or vbi by setting the value of bits [23:16] in the first dword
+	 * of the JUMP instruction:
+	 * video risc: set (1) and reset (~1)
+	 * vbi risc: set(4) and reset (~4)
+	 */
+	if (btv->loop_irq) {
+		cmd |= BT848_RISC_IRQ;
+		cmd |= (btv->loop_irq  & 0x0f) << 16;
+		cmd |= (~btv->loop_irq & 0x0f) << 20;
+	}
+	btv->main.cpu[RISC_SLOT_LOOP] = cpu_to_le32(cmd);
+}
 
-	btv->cap_ctl = 0;
-	if (NULL != btv->curr.top)      btv->cap_ctl |= 0x02;
-	if (NULL != btv->curr.bottom)   btv->cap_ctl |= 0x01;
-	if (NULL != btv->cvbi)          btv->cap_ctl |= 0x0c;
+static void bttv_set_irq_timer(struct bttv *btv)
+{
+	if (btv->curr.frame_irq || btv->loop_irq || btv->cvbi)
+		mod_timer(&btv->timeout, jiffies + BTTV_TIMEOUT);
+	else
+		del_timer(&btv->timeout);
+}
 
-	capctl  = 0;
-	capctl |= (btv->cap_ctl & 0x03) ? 0x03 : 0x00;  /* capture  */
-	capctl |= (btv->cap_ctl & 0x0c) ? 0x0c : 0x00;  /* vbi data */
-	capctl |= override;
+static int bttv_set_capture_control(struct bttv *btv, int start_capture)
+{
+	int capctl = 0;
+
+	if (btv->curr.top || btv->curr.bottom)
+		capctl = BT848_CAP_CTL_CAPTURE_ODD |
+			 BT848_CAP_CTL_CAPTURE_EVEN;
+
+	if (btv->cvbi)
+		capctl |= BT848_CAP_CTL_CAPTURE_VBI_ODD |
+			  BT848_CAP_CTL_CAPTURE_VBI_EVEN;
+
+	capctl |= start_capture;
+
+	btaor(capctl, ~0x0f, BT848_CAP_CTL);
+
+	return capctl;
+}
+
+static void bttv_start_dma(struct bttv *btv)
+{
+	if (btv->dma_on)
+		return;
+	btwrite(btv->main.dma, BT848_RISC_STRT_ADD);
+	btor(0x3, BT848_GPIO_DMA_CTL);
+	btv->dma_on = 1;
+}
+
+static void bttv_stop_dma(struct bttv *btv)
+{
+	if (!btv->dma_on)
+		return;
+	btand(~0x3, BT848_GPIO_DMA_CTL);
+	btv->dma_on = 0;
+}
+
+void bttv_set_dma(struct bttv *btv, int start_capture)
+{
+	int capctl = 0;
+
+	bttv_set_risc_status(btv);
+	bttv_set_irq_timer(btv);
+	capctl = bttv_set_capture_control(btv, start_capture);
+
+	if (capctl)
+		bttv_start_dma(btv);
+	else
+		bttv_stop_dma(btv);
 
 	d2printk("%d: capctl=%x lirq=%d top=%08llx/%08llx even=%08llx/%08llx\n",
 		 btv->c.nr,capctl,btv->loop_irq,
@@ -382,34 +441,6 @@ bttv_set_dma(struct bttv *btv, int override)
 		 btv->curr.top     ? (unsigned long long)btv->curr.top->top.dma        : 0,
 		 btv->cvbi         ? (unsigned long long)btv->cvbi->bottom.dma         : 0,
 		 btv->curr.bottom  ? (unsigned long long)btv->curr.bottom->bottom.dma  : 0);
-
-	cmd = BT848_RISC_JUMP;
-	if (btv->loop_irq) {
-		cmd |= BT848_RISC_IRQ;
-		cmd |= (btv->loop_irq  & 0x0f) << 16;
-		cmd |= (~btv->loop_irq & 0x0f) << 20;
-	}
-	if (btv->curr.frame_irq || btv->loop_irq || btv->cvbi) {
-		mod_timer(&btv->timeout, jiffies+BTTV_TIMEOUT);
-	} else {
-		del_timer(&btv->timeout);
-	}
-	btv->main.cpu[RISC_SLOT_LOOP] = cpu_to_le32(cmd);
-
-	btaor(capctl, ~0x0f, BT848_CAP_CTL);
-	if (capctl) {
-		if (btv->dma_on)
-			return;
-		btwrite(btv->main.dma, BT848_RISC_STRT_ADD);
-		btor(3, BT848_GPIO_DMA_CTL);
-		btv->dma_on = 1;
-	} else {
-		if (!btv->dma_on)
-			return;
-		btand(~3, BT848_GPIO_DMA_CTL);
-		btv->dma_on = 0;
-	}
-	return;
 }
 
 int

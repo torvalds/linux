@@ -430,7 +430,6 @@ struct bttv {
 	int                     loop_irq;
 	int                     new_input;
 
-	unsigned long cap_ctl;
 	unsigned long dma_on;
 	struct timer_list timeout;
 	struct bttv_suspend_state state;
