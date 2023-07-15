@@ -13,7 +13,8 @@
  *
  * Creates a new frame buffer info structure. Also reserves @size bytes
  * for driver private data (info->par). info->par (if any) will be
- * aligned to sizeof(long).
+ * aligned to sizeof(long). The new instances of struct fb_info and
+ * the driver private data are both cleared to zero.
  *
  * Returns the new structure, or NULL if an error occurred.
  *
