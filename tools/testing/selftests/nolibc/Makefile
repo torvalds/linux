@@ -133,8 +133,14 @@ nolibc-test: nolibc-test.c sysroot/$(ARCH)/include
 libc-test: nolibc-test.c
 	$(QUIET_CC)$(CC) -o $@ $<
 
+# local libc-test
 run-libc-test: libc-test
 	$(Q)./libc-test > "$(CURDIR)/run.out" || :
+	$(Q)$(REPORT) $(CURDIR)/run.out
+
+# local nolibc-test
+run-nolibc-test: nolibc-test
+	$(Q)./nolibc-test > "$(CURDIR)/run.out" || :
 	$(Q)$(REPORT) $(CURDIR)/run.out
 
 # qemu user-land test
