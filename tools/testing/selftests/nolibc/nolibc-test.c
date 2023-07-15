@@ -410,6 +410,56 @@ static int expect_ptrne(const void *expr, int llen, const void *cmp)
 	return ret;
 }
 
+#define EXPECT_PTRGE(cond, expr, cmp)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_ptrge(expr, llen, cmp); } while (0)
+
+static int expect_ptrge(const void *expr, int llen, const void *cmp)
+{
+	int ret = !(expr >= cmp);
+
+	llen += printf(" = <%p> ", expr);
+	result(llen, ret ? FAIL : OK);
+	return ret;
+}
+
+#define EXPECT_PTRGT(cond, expr, cmp)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_ptrgt(expr, llen, cmp); } while (0)
+
+static int expect_ptrgt(const void *expr, int llen, const void *cmp)
+{
+	int ret = !(expr > cmp);
+
+	llen += printf(" = <%p> ", expr);
+	result(llen, ret ? FAIL : OK);
+	return ret;
+}
+
+
+#define EXPECT_PTRLE(cond, expr, cmp)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_ptrle(expr, llen, cmp); } while (0)
+
+static int expect_ptrle(const void *expr, int llen, const void *cmp)
+{
+	int ret = !(expr <= cmp);
+
+	llen += printf(" = <%p> ", expr);
+	result(llen, ret ? FAIL : OK);
+	return ret;
+}
+
+
+#define EXPECT_PTRLT(cond, expr, cmp)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_ptrlt(expr, llen, cmp); } while (0)
+
+static int expect_ptrlt(const void *expr, int llen, const void *cmp)
+{
+	int ret = !(expr < cmp);
+
+	llen += printf(" = <%p> ", expr);
+	result(llen, ret ? FAIL : OK);
+	return ret;
+}
+
 #define EXPECT_PTRER2(cond, expr, expret, experr1, experr2)		\
 	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_ptrerr2(expr, expret, experr1, experr2, llen); } while (0)
 
