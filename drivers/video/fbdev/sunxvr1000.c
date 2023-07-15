@@ -72,7 +72,6 @@ static int gfb_set_fbinfo(struct gfb_info *gp)
 	struct fb_info *info = gp->info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &gfb_ops;
 	info->screen_base = gp->fb_base;
 	info->screen_size = gp->fb_size;

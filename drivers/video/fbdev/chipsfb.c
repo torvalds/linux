@@ -340,7 +340,6 @@ static void init_chips(struct fb_info *p, unsigned long addr)
 	p->var = chipsfb_var;
 
 	p->fbops = &chipsfb_ops;
-	p->flags = FBINFO_DEFAULT;
 
 	fb_alloc_cmap(&p->cmap, 256, 0);
 

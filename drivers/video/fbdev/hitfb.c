@@ -405,7 +405,7 @@ static int hitfb_probe(struct platform_device *dev)
 	info->var = hitfb_var;
 	info->fix = hitfb_fix;
 	info->pseudo_palette = info->par;
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_YPAN |
+	info->flags = FBINFO_HWACCEL_YPAN |
 		FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_COPYAREA;
 
 	info->screen_base = (char __iomem *)(uintptr_t)hitfb_fix.smem_start;

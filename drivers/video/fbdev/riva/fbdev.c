@@ -1688,8 +1688,7 @@ static int riva_set_fbinfo(struct fb_info *info)
 	struct riva_par *par = info->par;
 
 	NVTRACE_ENTER();
-	info->flags = FBINFO_DEFAULT
-		    | FBINFO_HWACCEL_XPAN
+	info->flags = FBINFO_HWACCEL_XPAN
 		    | FBINFO_HWACCEL_YPAN
 		    | FBINFO_HWACCEL_COPYAREA
 		    | FBINFO_HWACCEL_FILLRECT

@@ -1972,8 +1972,7 @@ static int radeon_set_fbinfo(struct radeonfb_info *rinfo)
 
 	info->par = rinfo;
 	info->pseudo_palette = rinfo->pseudo_palette;
-	info->flags = FBINFO_DEFAULT
-		    | FBINFO_HWACCEL_COPYAREA
+	info->flags = FBINFO_HWACCEL_COPYAREA
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_XPAN
 		    | FBINFO_HWACCEL_YPAN;

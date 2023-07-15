@@ -1111,8 +1111,8 @@ static int nvidia_set_fbinfo(struct fb_info *info)
 	int lpitch;
 
 	NVTRACE_ENTER();
-	info->flags = FBINFO_DEFAULT
-	    | FBINFO_HWACCEL_IMAGEBLIT
+	info->flags =
+	      FBINFO_HWACCEL_IMAGEBLIT
 	    | FBINFO_HWACCEL_FILLRECT
 	    | FBINFO_HWACCEL_COPYAREA
 	    | FBINFO_HWACCEL_YPAN;

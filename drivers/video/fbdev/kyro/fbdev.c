@@ -716,7 +716,6 @@ static int kyrofb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	info->fbops		= &kyrofb_ops;
 	info->fix		= kyro_fix;
 	info->pseudo_palette	= currentpar->palette;
-	info->flags		= FBINFO_DEFAULT;
 
 	SetCoreClockPLL(deviceInfo.pSTGReg, pdev);
 
