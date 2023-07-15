@@ -156,6 +156,10 @@
  */
 #define MESON_SAR_ADC_REG11					0x2c
 	#define MESON_SAR_ADC_REG11_BANDGAP_EN			BIT(13)
+	#define MESON_SAR_ADC_REG11_CMV_SEL                     BIT(6)
+	#define MESON_SAR_ADC_REG11_VREF_VOLTAGE                BIT(5)
+	#define MESON_SAR_ADC_REG11_EOC                         BIT(1)
+	#define MESON_SAR_ADC_REG11_VREF_SEL                    BIT(0)
 
 #define MESON_SAR_ADC_REG13					0x34
 	#define MESON_SAR_ADC_REG13_12BIT_CALIBRATION_MASK	GENMASK(13, 8)
@@ -215,6 +219,11 @@
 				BIT(IIO_CHAN_INFO_CALIBSCALE),		\
 	.datasheet_name = "SAR_ADC_MUX_"#_sel,				\
 }
+
+enum meson_sar_adc_vref_sel {
+	VREF_CALIBATION_VOLTAGE = 0,
+	VREF_VDDA = 1,
+};
 
 enum meson_sar_adc_avg_mode {
 	NO_AVERAGING = 0x0,
@@ -314,6 +323,12 @@ struct meson_sar_adc_param {
 	unsigned int				temperature_multiplier;
 	unsigned int				temperature_divider;
 	u8					disable_ring_counter;
+	bool					has_reg11;
+	bool					has_vref_select;
+	u8					vref_select;
+	u8					cmv_select;
+	u8					adc_eoc;
+	enum meson_sar_adc_vref_sel		vref_volatge;
 };
 
 struct meson_sar_adc_data {
@@ -974,6 +989,29 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 			   MESON_SAR_ADC_REG3_CTRL_CONT_RING_COUNTER_EN,
 			   regval);
 
+	if (priv->param->has_reg11) {
+		regval = FIELD_PREP(MESON_SAR_ADC_REG11_EOC, priv->param->adc_eoc);
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_EOC, regval);
+
+		if (priv->param->has_vref_select) {
+			regval = FIELD_PREP(MESON_SAR_ADC_REG11_VREF_SEL,
+					    priv->param->vref_select);
+			regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+					   MESON_SAR_ADC_REG11_VREF_SEL, regval);
+		}
+
+		regval = FIELD_PREP(MESON_SAR_ADC_REG11_VREF_VOLTAGE,
+				    priv->param->vref_volatge);
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_VREF_VOLTAGE, regval);
+
+		regval = FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SEL,
+				    priv->param->cmv_select);
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_CMV_SEL, regval);
+	}
+
 	ret = clk_set_parent(priv->adc_sel_clk, priv->clkin);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to set adc parent to clkin\n");
@@ -1195,6 +1233,9 @@ static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
 	.bandgap_reg = MESON_SAR_ADC_REG11,
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 10,
+	.has_reg11 = true,
+	.vref_volatge = 1,
+	.cmv_select = 1,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
@@ -1204,6 +1245,9 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
 	.disable_ring_counter = 1,
+	.has_reg11 = true,
+	.vref_volatge = 1,
+	.cmv_select = 1,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_g12a_param = {
@@ -1213,6 +1257,10 @@ static const struct meson_sar_adc_param meson_sar_adc_g12a_param = {
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 12,
 	.disable_ring_counter = 1,
+	.has_reg11 = true,
+	.adc_eoc = 1,
+	.has_vref_select = true,
+	.vref_select = VREF_VDDA,
 };
 
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data = {
