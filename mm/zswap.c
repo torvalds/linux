@@ -1405,11 +1405,12 @@ shrink:
 	goto reject;
 }
 
-bool zswap_load(struct page *page)
+bool zswap_load(struct folio *folio)
 {
-	swp_entry_t swp = { .val = page_private(page), };
+	swp_entry_t swp = folio_swap_entry(folio);
 	int type = swp_type(swp);
 	pgoff_t offset = swp_offset(swp);
+	struct page *page = &folio->page;
 	struct zswap_tree *tree = zswap_trees[type];
 	struct zswap_entry *entry;
 	struct scatterlist input, output;
@@ -1419,7 +1420,7 @@ bool zswap_load(struct page *page)
 	unsigned int dlen;
 	bool ret;
 
-	VM_WARN_ON_ONCE(!PageLocked(page));
+	VM_WARN_ON_ONCE(!folio_test_locked(folio));
 
 	/* find */
 	spin_lock(&tree->lock);
@@ -1481,7 +1482,7 @@ freeentry:
 	spin_lock(&tree->lock);
 	if (ret && zswap_exclusive_loads_enabled) {
 		zswap_invalidate_entry(tree, entry);
-		SetPageDirty(page);
+		folio_mark_dirty(folio);
 	} else if (entry->length) {
 		spin_lock(&entry->pool->lru_lock);
 		list_move(&entry->lru, &entry->pool->lru);
