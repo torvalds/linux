@@ -641,14 +641,9 @@ static const unsigned int FORMATS = ARRAY_SIZE(formats);
 #define VIDEO_RESOURCES (RESOURCE_VIDEO_READ | \
 			 RESOURCE_VIDEO_STREAM)
 
-static
-int check_alloc_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bit)
+int check_alloc_btres_lock(struct bttv *btv, int bit)
 {
 	int xbits; /* mutual exclusive resources */
-
-	if (fh->resources & bit)
-		/* have it already allocated */
-		return 1;
 
 	xbits = bit;
 	if (bit & (RESOURCE_VIDEO_READ | RESOURCE_VIDEO_STREAM))
@@ -682,7 +677,6 @@ int check_alloc_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bit)
 	}
 
 	/* it's free, grab it */
-	fh->resources  |= bit;
 	btv->resources |= bit;
 	return 1;
 
@@ -691,9 +685,9 @@ int check_alloc_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bit)
 }
 
 static
-int check_btres(struct bttv_fh *fh, int bit)
+int check_btres(struct bttv *btv, int bit)
 {
-	return (fh->resources & bit);
+	return (btv->resources & bit);
 }
 
 static
@@ -731,14 +725,12 @@ disclaim_video_lines(struct bttv *btv)
 	btwrite(0xfe, BT848_O_VDELAY_LO);
 }
 
-static
-void free_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bits)
+void free_btres_lock(struct bttv *btv, int bits)
 {
-	if ((fh->resources & bits) != bits) {
+	if ((btv->resources & bits) != bits) {
 		/* trying to free resources not allocated by us ... */
 		pr_err("BUG! (btres)\n");
 	}
-	fh->resources  &= ~bits;
 	btv->resources &= ~bits;
 
 	bits = btv->resources;
@@ -1174,7 +1166,7 @@ set_input(struct bttv *btv, unsigned int input, unsigned int norm)
 	set_tvnorm(btv, norm);
 }
 
-static void init_irqreg(struct bttv *btv)
+void init_irqreg(struct bttv *btv)
 {
 	/* clear status */
 	btwrite(0xfffffUL, BT848_INT_STAT);
@@ -1453,23 +1445,6 @@ void bttv_gpio_tracking(struct bttv *btv, char *comment)
 		 btv->c.nr, outbits, data & outbits, data & ~outbits, comment);
 }
 
-static void bttv_field_count(struct bttv *btv)
-{
-	int need_count = 0;
-
-	if (btv->users)
-		need_count++;
-
-	if (need_count) {
-		/* start field counter */
-		btor(BT848_INT_VSYNC,BT848_INT_MASK);
-	} else {
-		/* stop field counter */
-		btand(~BT848_INT_VSYNC,BT848_INT_MASK);
-		btv->field_count = 0;
-	}
-}
-
 static const struct bttv_format*
 format_by_fourcc(int fourcc)
 {
@@ -1487,156 +1462,132 @@ format_by_fourcc(int fourcc)
 /* ----------------------------------------------------------------------- */
 /* video4linux (1) interface                                               */
 
-static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
-			       struct bttv_buffer *buf,
-			       const struct bttv_format *fmt,
-			       unsigned int width, unsigned int height,
-			       enum v4l2_field field)
+static int queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
+		       unsigned int *num_planes, unsigned int sizes[],
+		       struct device *alloc_devs[])
 {
-	int redo_dma_risc = 0;
-	struct bttv_crop c;
-	int norm;
-	int rc;
+	struct bttv *btv = vb2_get_drv_priv(q);
+	unsigned int size = btv->fmt->depth * btv->width * btv->height >> 3;
 
-	/* check settings */
-	if (NULL == fmt)
+	if (*num_planes)
+		return sizes[0] < size ? -EINVAL : 0;
+	*num_planes = 1;
+	sizes[0] = size;
+
+	return 0;
+}
+
+static void buf_queue(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct bttv *btv = vb2_get_drv_priv(vq);
+	struct bttv_buffer *buf = container_of(vbuf, struct bttv_buffer, vbuf);
+	unsigned long flags;
+
+	spin_lock_irqsave(&btv->s_lock, flags);
+	if (list_empty(&btv->capture)) {
+		btv->loop_irq = BT848_RISC_VIDEO;
+		if (vb2_is_streaming(&btv->vbiq))
+			btv->loop_irq |= BT848_RISC_VBI;
+		bttv_set_dma(btv, BT848_CAP_CTL_CAPTURE_ODD |
+			     BT848_CAP_CTL_CAPTURE_EVEN);
+	}
+	list_add_tail(&buf->list, &btv->capture);
+	spin_unlock_irqrestore(&btv->s_lock, flags);
+}
+
+static int buf_prepare(struct vb2_buffer *vb)
+{
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct bttv *btv = vb2_get_drv_priv(vq);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct bttv_buffer *buf = container_of(vbuf, struct bttv_buffer, vbuf);
+	unsigned int size = (btv->fmt->depth * btv->width * btv->height) >> 3;
+
+	if (vb2_plane_size(vb, 0) < size)
 		return -EINVAL;
-	if (fmt->btformat == BT848_COLOR_FMT_RAW) {
-		width  = RAW_BPL;
-		height = RAW_LINES*2;
-		if (width*height > buf->vb.bsize)
-			return -EINVAL;
-		buf->vb.size = buf->vb.bsize;
+	vb2_set_plane_payload(vb, 0, size);
 
-		/* Make sure tvnorm and vbi_end remain consistent
-		   until we're done. */
-
-		norm = btv->tvnorm;
-
-		/* In this mode capturing always starts at defrect.top
-		   (default VDELAY), ignoring cropping parameters. */
-		if (btv->vbi_end > bttv_tvnorms[norm].cropcap.defrect.top) {
-			return -EINVAL;
-		}
-
-		c.rect = bttv_tvnorms[norm].cropcap.defrect;
+	if (btv->field != V4L2_FIELD_ALTERNATE) {
+		buf->vbuf.field = btv->field;
+	} else if (btv->field_last == V4L2_FIELD_TOP) {
+		buf->vbuf.field = V4L2_FIELD_BOTTOM;
+		btv->field_last = V4L2_FIELD_BOTTOM;
 	} else {
-		norm = btv->tvnorm;
-		c = btv->crop[!!btv->do_crop];
+		buf->vbuf.field = V4L2_FIELD_TOP;
+		btv->field_last = V4L2_FIELD_TOP;
+	}
 
-		if (width < c.min_scaled_width ||
-		    width > c.max_scaled_width ||
-		    height < c.min_scaled_height)
-			return -EINVAL;
+	/* Allocate memory for risc struct and create the risc program. */
+	return bttv_buffer_risc(btv, buf);
+}
 
-		switch (field) {
-		case V4L2_FIELD_TOP:
-		case V4L2_FIELD_BOTTOM:
-		case V4L2_FIELD_ALTERNATE:
-			/* btv->crop counts frame lines. Max. scale
-			   factor is 16:1 for frames, 8:1 for fields. */
-			if (height * 2 > c.max_scaled_height)
-				return -EINVAL;
-			break;
+static void buf_cleanup(struct vb2_buffer *vb)
+{
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct bttv *btv = vb2_get_drv_priv(vq);
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct bttv_buffer *buf = container_of(vbuf, struct bttv_buffer, vbuf);
 
-		default:
-			if (height > c.max_scaled_height)
-				return -EINVAL;
-			break;
+	btcx_riscmem_free(btv->c.pci, &buf->top);
+	btcx_riscmem_free(btv->c.pci, &buf->bottom);
+}
+
+static int start_streaming(struct vb2_queue *q, unsigned int count)
+{
+	int ret = 1;
+	int seqnr = 0;
+	struct bttv_buffer *buf;
+	struct bttv *btv = vb2_get_drv_priv(q);
+
+	ret = check_alloc_btres_lock(btv, RESOURCE_VIDEO_STREAM);
+	if (ret == 0) {
+		if (btv->field_count)
+			seqnr++;
+		while (!list_empty(&btv->capture)) {
+			buf = list_entry(btv->capture.next,
+					 struct bttv_buffer, list);
+			list_del(&buf->list);
+			buf->vbuf.sequence = (btv->field_count >> 1) + seqnr++;
+			vb2_buffer_done(&buf->vbuf.vb2_buf,
+					VB2_BUF_STATE_QUEUED);
 		}
-
-		buf->vb.size = (width * height * fmt->depth) >> 3;
-		if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
-			return -EINVAL;
+		return !ret;
 	}
-
-	/* alloc + fill struct bttv_buffer (if changed) */
-	if (buf->vb.width != width || buf->vb.height != height ||
-	    buf->vb.field != field ||
-	    btv->tvnorm != norm || btv->fmt != fmt ||
-	    btv->crop[!!btv->do_crop].rect.top != c.rect.top ||
-	    btv->crop[!!btv->do_crop].rect.left != c.rect.left ||
-	    btv->crop[!!btv->do_crop].rect.width != c.rect.width ||
-	    btv->crop[!!btv->do_crop].rect.height != c.rect.height) {
-		buf->vb.width  = width;
-		buf->vb.height = height;
-		buf->vb.field  = field;
-		btv->tvnorm    = norm;
-		btv->crop[!!btv->do_crop].rect = c.rect;
-		redo_dma_risc = 1;
+	if (!vb2_is_streaming(&btv->vbiq)) {
+		init_irqreg(btv);
+		btv->field_count = 0;
 	}
+	btv->framedrop = 0;
 
-	/* alloc risc memory */
-	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		redo_dma_risc = 1;
-		if (0 != (rc = videobuf_iolock(q,&buf->vb,&btv->fbuf)))
-			goto fail;
-	}
-
-	if (redo_dma_risc)
-		if (0 != (rc = bttv_buffer_risc(btv,buf)))
-			goto fail;
-
-	buf->vb.state = VIDEOBUF_PREPARED;
-	return 0;
-
- fail:
-	bttv_dma_free(q,btv,buf);
-	return rc;
-}
-
-static int
-buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
-{
-	struct bttv_fh *fh = q->priv_data;
-
-	*size = fh->fmt->depth*fh->width*fh->height >> 3;
-	if (0 == *count)
-		*count = gbuffers;
-	if (*size * *count > gbuffers * gbufsize)
-		*count = (gbuffers * gbufsize) / *size;
 	return 0;
 }
 
-static int
-buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
-	       enum v4l2_field field)
+static void stop_streaming(struct vb2_queue *q)
 {
-	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
-	struct bttv_fh *fh = q->priv_data;
+	unsigned long flags;
+	struct bttv *btv = vb2_get_drv_priv(q);
 
-	return bttv_prepare_buffer(q,fh->btv, buf, fh->fmt,
-				   fh->width, fh->height, field);
-}
-
-static void
-buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
-	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
-	struct bttv_fh *fh = q->priv_data;
-	struct bttv    *btv = fh->btv;
-
-	buf->vb.state = VIDEOBUF_QUEUED;
-	list_add_tail(&buf->vb.queue,&btv->capture);
-	if (!btv->curr.frame_irq) {
-		btv->loop_irq |= 1;
-		bttv_set_dma(btv, 0x03);
+	vb2_wait_for_all_buffers(q);
+	spin_lock_irqsave(&btv->s_lock, flags);
+	free_btres_lock(btv, RESOURCE_VIDEO_STREAM);
+	if (!vb2_is_streaming(&btv->vbiq)) {
+		/* stop field counter */
+		btand(~BT848_INT_VSYNC, BT848_INT_MASK);
 	}
+	spin_unlock_irqrestore(&btv->s_lock, flags);
 }
 
-static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
-	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
-	struct bttv_fh *fh = q->priv_data;
-
-	bttv_dma_free(q,fh->btv,buf);
-}
-
-static const struct videobuf_queue_ops bttv_video_qops = {
-	.buf_setup    = buffer_setup,
-	.buf_prepare  = buffer_prepare,
-	.buf_queue    = buffer_queue,
-	.buf_release  = buffer_release,
+static const struct vb2_ops bttv_video_qops = {
+	.queue_setup    = queue_setup,
+	.buf_queue      = buf_queue,
+	.buf_prepare    = buf_prepare,
+	.buf_cleanup    = buf_cleanup,
+	.start_streaming = start_streaming,
+	.stop_streaming = stop_streaming,
+	.wait_prepare   = vb2_ops_wait_prepare,
+	.wait_finish    = vb2_ops_wait_finish,
 };
 
 static void radio_enable(struct bttv *btv)
@@ -1890,16 +1841,11 @@ bttv_crop_adjust	(struct bttv_crop *             c,
    also adjust the current cropping parameters to get closer to the
    desired image size. */
 static int
-limit_scaled_size_lock       (struct bttv_fh *               fh,
-			 __s32 *                        width,
-			 __s32 *                        height,
-			 enum v4l2_field                field,
-			 unsigned int			width_mask,
-			 unsigned int			width_bias,
-			 int                            adjust_size,
-			 int                            adjust_crop)
+limit_scaled_size_lock(struct bttv *btv, __s32 *width, __s32 *height,
+		       enum v4l2_field field, unsigned int width_mask,
+		       unsigned int width_bias, int adjust_size,
+		       int adjust_crop)
 {
-	struct bttv *btv = fh->btv;
 	const struct v4l2_rect *b;
 	struct bttv_crop *c;
 	__s32 min_width;
@@ -1993,52 +1939,31 @@ limit_scaled_size_lock       (struct bttv_fh *               fh,
 	return rc;
 }
 
-/* ----------------------------------------------------------------------- */
-
-static struct videobuf_queue* bttv_queue(struct bttv_fh *fh)
+static int bttv_switch_type(struct bttv *btv, enum v4l2_buf_type type)
 {
-	struct videobuf_queue* q = NULL;
+	int res;
+	struct vb2_queue *q;
 
-	switch (fh->type) {
+	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		q = &fh->cap;
-		break;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		q = &fh->vbi;
-		break;
-	default:
-		BUG();
-	}
-	return q;
-}
-
-static int bttv_resource(struct bttv_fh *fh)
-{
-	int res = 0;
-
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+		q = &btv->capq;
 		res = RESOURCE_VIDEO_STREAM;
 		break;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
+		q = &btv->vbiq;
 		res = RESOURCE_VBI;
 		break;
 	default:
 		WARN_ON(1);
+		return -EINVAL;
 	}
-	return res;
-}
 
-static int bttv_switch_type(struct bttv_fh *fh, enum v4l2_buf_type type)
-{
-	struct videobuf_queue *q = bttv_queue(fh);
-	int res = bttv_resource(fh);
+	if (check_btres(btv, res))
+		return -EBUSY;
+	if (vb2_is_busy(q))
+		return -EBUSY;
+	btv->type = type;
 
-	if (check_btres(fh,res))
-		return -EBUSY;
-	if (videobuf_queue_is_busy(q))
-		return -EBUSY;
-	fh->type = type;
 	return 0;
 }
 
@@ -2063,11 +1988,10 @@ pix_format_set_size     (struct v4l2_pix_format *       f,
 static int bttv_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
-	struct bttv_fh *fh  = priv;
 	struct bttv *btv = video_drvdata(file);
 
 	pix_format_set_size(&f->fmt.pix, btv->fmt, btv->width, btv->height);
-	f->fmt.pix.field        = fh->cap.field;
+	f->fmt.pix.field = btv->field;
 	f->fmt.pix.pixelformat  = btv->fmt->fourcc;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 
@@ -2091,7 +2015,6 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	const struct bttv_format *fmt;
-	struct bttv_fh *fh = priv;
 	struct bttv *btv = video_drvdata(file);
 	enum v4l2_field field;
 	__s32 width, height;
@@ -2130,10 +2053,8 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 	height = f->fmt.pix.height;
 
 	bttv_get_width_mask_vid_cap(fmt, &width_mask, &width_bias);
-	rc = limit_scaled_size_lock(fh, &width, &height, field,
-			       width_mask, width_bias,
-			       /* adjust_size */ 1,
-			       /* adjust_crop */ 0);
+	rc = limit_scaled_size_lock(btv, &width, &height, field, width_mask,
+				    width_bias, 1, 0);
 	if (0 != rc)
 		return rc;
 
@@ -2146,17 +2067,16 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
+			      struct v4l2_format *f)
 {
 	int retval;
 	const struct bttv_format *fmt;
-	struct bttv_fh *fh = priv;
 	struct bttv *btv = video_drvdata(file);
 	__s32 width, height;
 	unsigned int width_mask, width_bias;
 	enum v4l2_field field;
 
-	retval = bttv_switch_type(fh, f->type);
+	retval = bttv_switch_type(btv, f->type);
 	if (0 != retval)
 		return retval;
 
@@ -2170,27 +2090,25 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 	bttv_get_width_mask_vid_cap(fmt, &width_mask, &width_bias);
-	retval = limit_scaled_size_lock(fh, &width, &height, f->fmt.pix.field,
-			       width_mask, width_bias,
-			       /* adjust_size */ 1,
-			       /* adjust_crop */ 1);
+	retval = limit_scaled_size_lock(btv, &width, &height, f->fmt.pix.field,
+					width_mask, width_bias, 1, 1);
 	if (0 != retval)
 		return retval;
 
 	f->fmt.pix.field = field;
 
 	/* update our state information */
-	fh->fmt              = fmt;
-	fh->cap.field        = f->fmt.pix.field;
-	fh->cap.last         = V4L2_FIELD_NONE;
-	fh->width            = f->fmt.pix.width;
-	fh->height           = f->fmt.pix.height;
-	btv->init.fmt        = fmt;
-	btv->init.width      = f->fmt.pix.width;
-	btv->init.height     = f->fmt.pix.height;
 	btv->fmt = fmt;
 	btv->width = f->fmt.pix.width;
 	btv->height = f->fmt.pix.height;
+	btv->field = f->fmt.pix.field;
+	/*
+	 * When field is V4L2_FIELD_ALTERNATE, buffers will be either
+	 * V4L2_FIELD_TOP or V4L2_FIELD_BOTTOM depending on the value of
+	 * field_last. Initialize field_last to V4L2_FIELD_BOTTOM so that
+	 * streaming starts with a V4L2_FIELD_TOP buffer.
+	 */
+	btv->field_last = V4L2_FIELD_BOTTOM;
 
 	return 0;
 }
@@ -2242,68 +2160,6 @@ static int bttv_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	f->pixelformat = formats[i].fourcc;
 
-	return 0;
-}
-
-static int bttv_reqbufs(struct file *file, void *priv,
-				struct v4l2_requestbuffers *p)
-{
-	struct bttv_fh *fh = priv;
-	return videobuf_reqbufs(bttv_queue(fh), p);
-}
-
-static int bttv_querybuf(struct file *file, void *priv,
-				struct v4l2_buffer *b)
-{
-	struct bttv_fh *fh = priv;
-	return videobuf_querybuf(bttv_queue(fh), b);
-}
-
-static int bttv_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct bttv_fh *fh = priv;
-	struct bttv *btv = video_drvdata(file);
-	int res = bttv_resource(fh);
-
-	if (!check_alloc_btres_lock(btv, fh, res))
-		return -EBUSY;
-
-	return videobuf_qbuf(bttv_queue(fh), b);
-}
-
-static int bttv_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct bttv_fh *fh = priv;
-	return videobuf_dqbuf(bttv_queue(fh), b,
-			file->f_flags & O_NONBLOCK);
-}
-
-static int bttv_streamon(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct bttv_fh *fh = priv;
-	struct bttv *btv = fh->btv;
-	int res = bttv_resource(fh);
-
-	if (!check_alloc_btres_lock(btv, fh, res))
-		return -EBUSY;
-	return videobuf_streamon(bttv_queue(fh));
-}
-
-
-static int bttv_streamoff(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct bttv_fh *fh = priv;
-	struct bttv *btv = fh->btv;
-	int retval;
-	int res = bttv_resource(fh);
-
-
-	retval = videobuf_streamoff(bttv_queue(fh));
-	if (retval < 0)
-		return retval;
-	free_btres_lock(btv, fh, res);
 	return 0;
 }
 
@@ -2382,7 +2238,6 @@ static int bttv_g_selection(struct file *file, void *f, struct v4l2_selection *s
 
 static int bttv_s_selection(struct file *file, void *f, struct v4l2_selection *sel)
 {
-	struct bttv_fh *fh = f;
 	struct bttv *btv = video_drvdata(file);
 	const struct v4l2_rect *b;
 	int retval;
@@ -2403,9 +2258,8 @@ static int bttv_s_selection(struct file *file, void *f, struct v4l2_selection *s
 	   read() may change vbi_end in check_alloc_btres_lock(). */
 	retval = -EBUSY;
 
-	if (locked_btres(fh->btv, VIDEO_RESOURCES)) {
+	if (locked_btres(btv, VIDEO_RESOURCES))
 		return retval;
-	}
 
 	b = &bttv_tvnorms[btv->tvnorm].cropcap.bounds;
 
@@ -2454,228 +2308,15 @@ static int bttv_s_selection(struct file *file, void *f, struct v4l2_selection *s
 	return 0;
 }
 
-static ssize_t bttv_read(struct file *file, char __user *data,
-			 size_t count, loff_t *ppos)
-{
-	struct bttv_fh *fh = file->private_data;
-	int retval = 0;
-
-	if (fh->btv->errors)
-		bttv_reinit_bt848(fh->btv);
-	dprintk("%d: read count=%d type=%s\n",
-		fh->btv->c.nr, (int)count, v4l2_type_names[fh->type]);
-
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (!check_alloc_btres_lock(fh->btv, fh, RESOURCE_VIDEO_READ)) {
-			/* VIDEO_READ in use by another fh,
-			   or VIDEO_STREAM by any fh. */
-			return -EBUSY;
-		}
-		retval = videobuf_read_one(&fh->cap, data, count, ppos,
-					   file->f_flags & O_NONBLOCK);
-		free_btres_lock(fh->btv, fh, RESOURCE_VIDEO_READ);
-		break;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		if (!check_alloc_btres_lock(fh->btv,fh,RESOURCE_VBI))
-			return -EBUSY;
-		retval = videobuf_read_stream(&fh->vbi, data, count, ppos, 1,
-					      file->f_flags & O_NONBLOCK);
-		break;
-	default:
-		BUG();
-	}
-	return retval;
-}
-
-static __poll_t bttv_poll(struct file *file, poll_table *wait)
-{
-	struct bttv_fh *fh = file->private_data;
-	struct bttv_buffer *buf;
-	enum v4l2_field field;
-	__poll_t rc = 0;
-	__poll_t req_events = poll_requested_events(wait);
-
-	if (v4l2_event_pending(&fh->fh))
-		rc = EPOLLPRI;
-	else if (req_events & EPOLLPRI)
-		poll_wait(file, &fh->fh.wait, wait);
-
-	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
-		return rc;
-
-	if (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type) {
-		if (!check_alloc_btres_lock(fh->btv,fh,RESOURCE_VBI))
-			return rc | EPOLLERR;
-		return rc | videobuf_poll_stream(file, &fh->vbi, wait);
-	}
-
-	if (check_btres(fh,RESOURCE_VIDEO_STREAM)) {
-		/* streaming capture */
-		if (list_empty(&fh->cap.stream))
-			return rc | EPOLLERR;
-		buf = list_entry(fh->cap.stream.next,struct bttv_buffer,vb.stream);
-	} else {
-		/* read() capture */
-		if (NULL == fh->cap.read_buf) {
-			/* need to capture a new frame */
-			if (locked_btres(fh->btv,RESOURCE_VIDEO_STREAM))
-				return rc | EPOLLERR;
-			fh->cap.read_buf = videobuf_sg_alloc(fh->cap.msize);
-			if (NULL == fh->cap.read_buf)
-				return rc | EPOLLERR;
-			fh->cap.read_buf->memory = V4L2_MEMORY_USERPTR;
-			field = videobuf_next_field(&fh->cap);
-			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,field)) {
-				kfree (fh->cap.read_buf);
-				fh->cap.read_buf = NULL;
-				return rc | EPOLLERR;
-			}
-			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
-			fh->cap.read_off = 0;
-		}
-		buf = (struct bttv_buffer*)fh->cap.read_buf;
-	}
-
-	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == VIDEOBUF_DONE ||
-	    buf->vb.state == VIDEOBUF_ERROR)
-		rc = rc | EPOLLIN|EPOLLRDNORM;
-	return rc;
-}
-
-static int bttv_open(struct file *file)
-{
-	struct video_device *vdev = video_devdata(file);
-	struct bttv *btv = video_drvdata(file);
-	struct bttv_fh *fh;
-	enum v4l2_buf_type type = 0;
-
-	dprintk("open dev=%s\n", video_device_node_name(vdev));
-
-	if (vdev->vfl_type == VFL_TYPE_VIDEO) {
-		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	} else if (vdev->vfl_type == VFL_TYPE_VBI) {
-		type = V4L2_BUF_TYPE_VBI_CAPTURE;
-	} else {
-		WARN_ON(1);
-		return -ENODEV;
-	}
-
-	dprintk("%d: open called (type=%s)\n",
-		btv->c.nr, v4l2_type_names[type]);
-
-	/* allocate per filehandle data */
-	fh = kmalloc(sizeof(*fh), GFP_KERNEL);
-	if (unlikely(!fh))
-		return -ENOMEM;
-	btv->users++;
-	file->private_data = fh;
-
-	*fh = btv->init;
-	v4l2_fh_init(&fh->fh, vdev);
-
-	fh->type = type;
-
-	videobuf_queue_sg_init(&fh->cap, &bttv_video_qops,
-			    &btv->c.pci->dev, &btv->s_lock,
-			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
-			    V4L2_FIELD_INTERLACED,
-			    sizeof(struct bttv_buffer),
-			    fh, &btv->lock);
-	videobuf_queue_sg_init(&fh->vbi, &bttv_vbi_qops,
-			    &btv->c.pci->dev, &btv->s_lock,
-			    V4L2_BUF_TYPE_VBI_CAPTURE,
-			    V4L2_FIELD_SEQ_TB,
-			    sizeof(struct bttv_buffer),
-			    fh, &btv->lock);
-	set_tvnorm(btv,btv->tvnorm);
-	set_input(btv, btv->input, btv->tvnorm);
-	audio_mute(btv, btv->mute);
-
-	/* The V4L2 spec requires one global set of cropping parameters
-	   which only change on request. These are stored in btv->crop[1].
-	   However for compatibility with V4L apps and cropping unaware
-	   V4L2 apps we now reset the cropping parameters as seen through
-	   this fh, which is to say VIDIOC_G_SELECTION and scaling limit checks
-	   will use btv->crop[0], the default cropping parameters for the
-	   current video standard, and VIDIOC_S_FMT will not implicitly
-	   change the cropping parameters until VIDIOC_S_SELECTION has been
-	   called. */
-	btv->do_crop = !reset_crop; /* module parameter */
-
-	/* Likewise there should be one global set of VBI capture
-	   parameters, but for compatibility with V4L apps and earlier
-	   driver versions each fh has its own parameters. */
-	bttv_vbi_fmt_reset(&fh->vbi_fmt, btv->tvnorm);
-
-	bttv_field_count(btv);
-	v4l2_fh_add(&fh->fh);
-	return 0;
-}
-
-static int bttv_release(struct file *file)
-{
-	struct bttv_fh *fh = file->private_data;
-	struct bttv *btv = fh->btv;
-
-	/* stop video capture */
-	if (check_btres(fh, RESOURCE_VIDEO_STREAM)) {
-		videobuf_streamoff(&fh->cap);
-		free_btres_lock(btv,fh,RESOURCE_VIDEO_STREAM);
-	}
-	if (fh->cap.read_buf) {
-		buffer_release(&fh->cap,fh->cap.read_buf);
-		kfree(fh->cap.read_buf);
-	}
-	if (check_btres(fh, RESOURCE_VIDEO_READ)) {
-		free_btres_lock(btv, fh, RESOURCE_VIDEO_READ);
-	}
-
-	/* stop vbi capture */
-	if (check_btres(fh, RESOURCE_VBI)) {
-		videobuf_stop(&fh->vbi);
-		free_btres_lock(btv,fh,RESOURCE_VBI);
-	}
-
-	/* free stuff */
-
-	videobuf_mmap_free(&fh->cap);
-	videobuf_mmap_free(&fh->vbi);
-	file->private_data = NULL;
-
-	btv->users--;
-	bttv_field_count(btv);
-
-	if (!btv->users)
-		audio_mute(btv, btv->mute);
-
-	v4l2_fh_del(&fh->fh);
-	v4l2_fh_exit(&fh->fh);
-	kfree(fh);
-	return 0;
-}
-
-static int
-bttv_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct bttv_fh *fh = file->private_data;
-
-	dprintk("%d: mmap type=%s 0x%lx+%ld\n",
-		fh->btv->c.nr, v4l2_type_names[fh->type],
-		vma->vm_start, vma->vm_end - vma->vm_start);
-	return videobuf_mmap_mapper(bttv_queue(fh),vma);
-}
-
 static const struct v4l2_file_operations bttv_fops =
 {
 	.owner		  = THIS_MODULE,
-	.open		  = bttv_open,
-	.release	  = bttv_release,
+	.open		  = v4l2_fh_open,
+	.release	  = vb2_fop_release,
 	.unlocked_ioctl	  = video_ioctl2,
-	.read		  = bttv_read,
-	.mmap		  = bttv_mmap,
-	.poll		  = bttv_poll,
+	.read		  = vb2_fop_read,
+	.mmap		  = vb2_fop_mmap,
+	.poll		  = vb2_fop_poll,
 };
 
 static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
@@ -2688,17 +2329,18 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_try_fmt_vbi_cap         = bttv_try_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap           = bttv_s_fmt_vbi_cap,
 	.vidioc_g_pixelaspect           = bttv_g_pixelaspect,
-	.vidioc_reqbufs                 = bttv_reqbufs,
-	.vidioc_querybuf                = bttv_querybuf,
-	.vidioc_qbuf                    = bttv_qbuf,
-	.vidioc_dqbuf                   = bttv_dqbuf,
+	.vidioc_reqbufs                 = vb2_ioctl_reqbufs,
+	.vidioc_create_bufs             = vb2_ioctl_create_bufs,
+	.vidioc_querybuf                = vb2_ioctl_querybuf,
+	.vidioc_qbuf                    = vb2_ioctl_qbuf,
+	.vidioc_dqbuf                   = vb2_ioctl_dqbuf,
+	.vidioc_streamon                = vb2_ioctl_streamon,
+	.vidioc_streamoff               = vb2_ioctl_streamoff,
 	.vidioc_s_std                   = bttv_s_std,
 	.vidioc_g_std                   = bttv_g_std,
 	.vidioc_enum_input              = bttv_enum_input,
 	.vidioc_g_input                 = bttv_g_input,
 	.vidioc_s_input                 = bttv_s_input,
-	.vidioc_streamon                = bttv_streamon,
-	.vidioc_streamoff               = bttv_streamoff,
 	.vidioc_g_tuner                 = bttv_g_tuner,
 	.vidioc_s_tuner                 = bttv_s_tuner,
 	.vidioc_g_selection             = bttv_g_selection,
@@ -3021,17 +2663,19 @@ bttv_irq_next_video(struct bttv *btv, struct bttv_buffer_set *set)
 
 	/* capture request ? */
 	if (!list_empty(&btv->capture)) {
-		set->frame_irq = 1;
-		item = list_entry(btv->capture.next, struct bttv_buffer, vb.queue);
-		if (V4L2_FIELD_HAS_TOP(item->vb.field))
+		set->frame_irq = BT848_RISC_VIDEO;
+		item = list_entry(btv->capture.next, struct bttv_buffer, list);
+
+		if (V4L2_FIELD_HAS_TOP(item->vbuf.field))
 			set->top    = item;
-		if (V4L2_FIELD_HAS_BOTTOM(item->vb.field))
+		if (V4L2_FIELD_HAS_BOTTOM(item->vbuf.field))
 			set->bottom = item;
 
 		/* capture request for other field ? */
-		if (!V4L2_FIELD_HAS_BOTH(item->vb.field) &&
-		    (item->vb.queue.next != &btv->capture)) {
-			item = list_entry(item->vb.queue.next, struct bttv_buffer, vb.queue);
+		if (!V4L2_FIELD_HAS_BOTH(item->vbuf.field) &&
+		    item->list.next != &btv->capture) {
+			item = list_entry(item->list.next,
+					  struct bttv_buffer, list);
 			/* Mike Isely <isely@pobox.com> - Only check
 			 * and set up the bottom field in the logic
 			 * below.  Don't ever do the top field.  This
@@ -3059,13 +2703,18 @@ bttv_irq_next_video(struct bttv *btv, struct bttv_buffer_set *set)
 			 * sync within a single frame time.  (Out of
 			 * order fields can screw up deinterlacing
 			 * algorithms.) */
-			if (!V4L2_FIELD_HAS_BOTH(item->vb.field)) {
-				if (NULL == set->bottom &&
-				    V4L2_FIELD_BOTTOM == item->vb.field) {
+			if (!V4L2_FIELD_HAS_BOTH(item->vbuf.field)) {
+				if (!set->bottom &&
+				    item->vbuf.field == V4L2_FIELD_BOTTOM)
 					set->bottom = item;
+				if (set->top && set->bottom) {
+					/*
+					 * The buffer set has a top buffer and
+					 * a bottom buffer and they are not
+					 * copies of each other.
+					 */
+					set->top_irq = BT848_RISC_TOP;
 				}
-				if (NULL != set->top  &&  NULL != set->bottom)
-					set->top_irq = 2;
 			}
 		}
 	}
@@ -3087,44 +2736,47 @@ bttv_irq_wakeup_video(struct bttv *btv, struct bttv_buffer_set *wakeup,
 			if (irq_debug > 1)
 				pr_debug("%d: wakeup: both=%p\n",
 					 btv->c.nr, wakeup->top);
-			wakeup->top->vb.ts = ts;
-			wakeup->top->vb.field_count = btv->field_count;
-			wakeup->top->vb.state = state;
-			wake_up(&wakeup->top->vb.done);
+			wakeup->top->vbuf.vb2_buf.timestamp = ts;
+			wakeup->top->vbuf.sequence = btv->field_count >> 1;
+			vb2_buffer_done(&wakeup->top->vbuf.vb2_buf, state);
+			if (btv->field_count == 0)
+				btor(BT848_INT_VSYNC, BT848_INT_MASK);
 		}
 	} else {
 		if (NULL != wakeup->top && curr->top != wakeup->top) {
 			if (irq_debug > 1)
 				pr_debug("%d: wakeup: top=%p\n",
 					 btv->c.nr, wakeup->top);
-			wakeup->top->vb.ts = ts;
-			wakeup->top->vb.field_count = btv->field_count;
-			wakeup->top->vb.state = state;
-			wake_up(&wakeup->top->vb.done);
+			wakeup->top->vbuf.vb2_buf.timestamp = ts;
+			wakeup->top->vbuf.sequence = btv->field_count >> 1;
+			vb2_buffer_done(&wakeup->top->vbuf.vb2_buf, state);
+			if (btv->field_count == 0)
+				btor(BT848_INT_VSYNC, BT848_INT_MASK);
 		}
 		if (NULL != wakeup->bottom && curr->bottom != wakeup->bottom) {
 			if (irq_debug > 1)
 				pr_debug("%d: wakeup: bottom=%p\n",
 					 btv->c.nr, wakeup->bottom);
-			wakeup->bottom->vb.ts = ts;
-			wakeup->bottom->vb.field_count = btv->field_count;
-			wakeup->bottom->vb.state = state;
-			wake_up(&wakeup->bottom->vb.done);
+			wakeup->bottom->vbuf.vb2_buf.timestamp = ts;
+			wakeup->bottom->vbuf.sequence = btv->field_count >> 1;
+			vb2_buffer_done(&wakeup->bottom->vbuf.vb2_buf, state);
+			if (btv->field_count == 0)
+				btor(BT848_INT_VSYNC, BT848_INT_MASK);
 		}
 	}
 }
 
 static void
 bttv_irq_wakeup_vbi(struct bttv *btv, struct bttv_buffer *wakeup,
-		    unsigned int state)
+				unsigned int state)
 {
 	if (NULL == wakeup)
 		return;
-
-	wakeup->vb.ts = ktime_get_ns();
-	wakeup->vb.field_count = btv->field_count;
-	wakeup->vb.state = state;
-	wake_up(&wakeup->vb.done);
+	wakeup->vbuf.vb2_buf.timestamp = ktime_get_ns();
+	wakeup->vbuf.sequence = btv->field_count >> 1;
+	vb2_buffer_done(&wakeup->vbuf.vb2_buf, state);
+	if (btv->field_count == 0)
+		btor(BT848_INT_VSYNC, BT848_INT_MASK);
 }
 
 static void bttv_irq_timeout(struct timer_list *t)
@@ -3134,6 +2786,7 @@ static void bttv_irq_timeout(struct timer_list *t)
 	struct bttv_buffer *ovbi;
 	struct bttv_buffer *item;
 	unsigned long flags;
+	int seqnr = 0;
 
 	if (bttv_verbose) {
 		pr_info("%d: timeout: drop=%d irq=%d/%d, risc=%08x, ",
@@ -3157,21 +2810,25 @@ static void bttv_irq_timeout(struct timer_list *t)
 	bttv_set_dma(btv, 0);
 
 	/* wake up */
-	bttv_irq_wakeup_video(btv, &old, &new, VIDEOBUF_ERROR);
-	bttv_irq_wakeup_vbi(btv, ovbi, VIDEOBUF_ERROR);
+	bttv_irq_wakeup_video(btv, &old, &new, VB2_BUF_STATE_DONE);
+	bttv_irq_wakeup_vbi(btv, ovbi, VB2_BUF_STATE_DONE);
 
 	/* cancel all outstanding capture / vbi requests */
+	if (btv->field_count)
+		seqnr++;
 	while (!list_empty(&btv->capture)) {
-		item = list_entry(btv->capture.next, struct bttv_buffer, vb.queue);
-		list_del(&item->vb.queue);
-		item->vb.state = VIDEOBUF_ERROR;
-		wake_up(&item->vb.done);
+		item = list_entry(btv->capture.next, struct bttv_buffer, list);
+		list_del(&item->list);
+		item->vbuf.vb2_buf.timestamp = ktime_get_ns();
+		item->vbuf.sequence = (btv->field_count >> 1) + seqnr++;
+		vb2_buffer_done(&item->vbuf.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 	while (!list_empty(&btv->vcapture)) {
-		item = list_entry(btv->vcapture.next, struct bttv_buffer, vb.queue);
-		list_del(&item->vb.queue);
-		item->vb.state = VIDEOBUF_ERROR;
-		wake_up(&item->vb.done);
+		item = list_entry(btv->vcapture.next, struct bttv_buffer, list);
+		list_del(&item->list);
+		item->vbuf.vb2_buf.timestamp = ktime_get_ns();
+		item->vbuf.sequence = (btv->field_count >> 1) + seqnr++;
+		vb2_buffer_done(&item->vbuf.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
 	btv->errors++;
@@ -3190,11 +2847,11 @@ bttv_irq_wakeup_top(struct bttv *btv)
 	btv->curr.top_irq = 0;
 	btv->curr.top = NULL;
 	bttv_risc_hook(btv, RISC_SLOT_O_FIELD, NULL, 0);
-
-	wakeup->vb.ts = ktime_get_ns();
-	wakeup->vb.field_count = btv->field_count;
-	wakeup->vb.state = VIDEOBUF_DONE;
-	wake_up(&wakeup->vb.done);
+	wakeup->vbuf.vb2_buf.timestamp = ktime_get_ns();
+	wakeup->vbuf.sequence = btv->field_count >> 1;
+	vb2_buffer_done(&wakeup->vbuf.vb2_buf, VB2_BUF_STATE_DONE);
+	if (btv->field_count == 0)
+		btor(BT848_INT_VSYNC, BT848_INT_MASK);
 	spin_unlock(&btv->s_lock);
 }
 
@@ -3231,7 +2888,7 @@ bttv_irq_switch_video(struct bttv *btv)
 	/* switch over */
 	old = btv->curr;
 	btv->curr = new;
-	btv->loop_irq &= ~1;
+	btv->loop_irq &= ~BT848_RISC_VIDEO;
 	bttv_buffer_activate_video(btv, &new);
 	bttv_set_dma(btv, 0);
 
@@ -3242,7 +2899,7 @@ bttv_irq_switch_video(struct bttv *btv)
 	}
 
 	/* wake up finished buffers */
-	bttv_irq_wakeup_video(btv, &old, &new, VIDEOBUF_DONE);
+	bttv_irq_wakeup_video(btv, &old, &new, VB2_BUF_STATE_DONE);
 	spin_unlock(&btv->s_lock);
 }
 
@@ -3256,7 +2913,7 @@ bttv_irq_switch_vbi(struct bttv *btv)
 	spin_lock(&btv->s_lock);
 
 	if (!list_empty(&btv->vcapture))
-		new = list_entry(btv->vcapture.next, struct bttv_buffer, vb.queue);
+		new = list_entry(btv->vcapture.next, struct bttv_buffer, list);
 	old = btv->cvbi;
 
 	rc = btread(BT848_RISC_COUNT);
@@ -3271,11 +2928,11 @@ bttv_irq_switch_vbi(struct bttv *btv)
 
 	/* switch */
 	btv->cvbi = new;
-	btv->loop_irq &= ~4;
+	btv->loop_irq &= ~BT848_RISC_VBI;
 	bttv_buffer_activate_vbi(btv, new);
 	bttv_set_dma(btv, 0);
 
-	bttv_irq_wakeup_vbi(btv, old, VIDEOBUF_DONE);
+	bttv_irq_wakeup_vbi(btv, old, VB2_BUF_STATE_DONE);
 	spin_unlock(&btv->s_lock);
 }
 
@@ -3334,13 +2991,13 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 			wake_up(&btv->i2c_queue);
 		}
 
-		if ((astat & BT848_INT_RISCI)  &&  (stat & (4<<28)))
+		if ((astat & BT848_INT_RISCI) && (stat & BT848_INT_RISCS_VBI))
 			bttv_irq_switch_vbi(btv);
 
-		if ((astat & BT848_INT_RISCI)  &&  (stat & (2<<28)))
+		if ((astat & BT848_INT_RISCI) && (stat & BT848_INT_RISCS_TOP))
 			bttv_irq_wakeup_top(btv);
 
-		if ((astat & BT848_INT_RISCI)  &&  (stat & (1<<28)))
+		if ((astat & BT848_INT_RISCI) && (stat & BT848_INT_RISCS_VIDEO))
 			bttv_irq_switch_video(btv);
 
 		if ((astat & BT848_INT_HLOCK)  &&  btv->opt_automute)
@@ -3396,11 +3053,12 @@ static irqreturn_t bttv_irq(int irq, void *dev_id)
 /* ----------------------------------------------------------------------- */
 /* initialization                                                          */
 
-static void vdev_init(struct bttv *btv,
-		      struct video_device *vfd,
-		      const struct video_device *template,
-		      const char *type_name)
+static int vdev_init(struct bttv *btv, struct video_device *vfd,
+		     const struct video_device *template,
+		     const char *type_name)
 {
+	int err;
+	struct vb2_queue *q;
 	*vfd = *template;
 	vfd->v4l2_dev = &btv->c.v4l2_dev;
 	vfd->release = video_device_release_empty;
@@ -3414,6 +3072,36 @@ static void vdev_init(struct bttv *btv,
 		v4l2_disable_ioctl(vfd, VIDIOC_G_TUNER);
 		v4l2_disable_ioctl(vfd, VIDIOC_S_TUNER);
 	}
+
+	if (strcmp(type_name, "radio") == 0)
+		return 0;
+
+	if (strcmp(type_name, "video") == 0) {
+		q = &btv->capq;
+		q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		q->ops = &bttv_video_qops;
+	} else if (strcmp(type_name, "vbi") == 0) {
+		q = &btv->vbiq;
+		q->type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		q->ops = &bttv_vbi_qops;
+	} else {
+		return -EINVAL;
+	}
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_READ | VB2_DMABUF;
+	q->mem_ops = &vb2_dma_sg_memops;
+	q->drv_priv = btv;
+	q->gfp_flags = __GFP_DMA32;
+	q->buf_struct_size = sizeof(struct bttv_buffer);
+	q->lock = &btv->lock;
+	q->min_buffers_needed = 2;
+	q->dev = &btv->c.pci->dev;
+	err = vb2_queue_init(q);
+	if (err)
+		return err;
+	vfd->queue = q;
+
+	return 0;
 }
 
 static void bttv_unregister_video(struct bttv *btv)
@@ -3621,13 +3309,10 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	bttv_ctrl_coring.def = coring;
 
 	/* fill struct bttv with some useful defaults */
-	btv->init.btv         = btv;
-	btv->init.fmt         = format_by_fourcc(V4L2_PIX_FMT_BGR24);
-	btv->init.width       = 320;
-	btv->init.height      = 240;
 	btv->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	btv->width = 320;
 	btv->height = 240;
+	btv->field = V4L2_FIELD_INTERLACED;
 	btv->input = 0;
 	btv->tvnorm = 0; /* Index into bttv_tvnorms[] i.e. PAL. */
 	bttv_vbi_fmt_reset(&btv->vbi_fmt, btv->tvnorm);
@@ -3708,7 +3393,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 			result = btv->radio_ctrl_handler.error;
 			goto fail2;
 		}
-		set_input(btv, 0, btv->tvnorm);
+		set_input(btv, btv->input, btv->tvnorm);
 		bttv_crop_reset(&btv->crop[0], btv->tvnorm);
 		btv->crop[1] = btv->crop[0]; /* current = default */
 		disclaim_vbi_lines(btv);
