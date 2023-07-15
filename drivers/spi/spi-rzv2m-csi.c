@@ -5,6 +5,7 @@
  * Copyright (C) 2023 Renesas Electronics Corporation
  */
 
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/count_zeros.h>
 #include <linux/interrupt.h>
