@@ -2066,11 +2066,11 @@ static int bttv_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct bttv_fh *fh  = priv;
+	struct bttv *btv = video_drvdata(file);
 
-	pix_format_set_size(&f->fmt.pix, fh->fmt,
-				fh->width, fh->height);
+	pix_format_set_size(&f->fmt.pix, btv->fmt, btv->width, btv->height);
 	f->fmt.pix.field        = fh->cap.field;
-	f->fmt.pix.pixelformat  = fh->fmt->fourcc;
+	f->fmt.pix.pixelformat  = btv->fmt->fourcc;
 	f->fmt.pix.colorspace   = V4L2_COLORSPACE_SMPTE170M;
 
 	return 0;
@@ -2190,6 +2190,9 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 	btv->init.fmt        = fmt;
 	btv->init.width      = f->fmt.pix.width;
 	btv->init.height     = f->fmt.pix.height;
+	btv->fmt = fmt;
+	btv->width = f->fmt.pix.width;
+	btv->height = f->fmt.pix.height;
 
 	return 0;
 }
@@ -2446,21 +2449,15 @@ static int bttv_s_selection(struct file *file, void *f, struct v4l2_selection *s
 
 	fh->do_crop = 1;
 
-	if (fh->width < c.min_scaled_width) {
-		fh->width = c.min_scaled_width;
-		btv->init.width = c.min_scaled_width;
-	} else if (fh->width > c.max_scaled_width) {
-		fh->width = c.max_scaled_width;
-		btv->init.width = c.max_scaled_width;
-	}
+	if (btv->width < c.min_scaled_width)
+		btv->width = c.min_scaled_width;
+	else if (btv->width > c.max_scaled_width)
+		btv->width = c.max_scaled_width;
 
-	if (fh->height < c.min_scaled_height) {
-		fh->height = c.min_scaled_height;
-		btv->init.height = c.min_scaled_height;
-	} else if (fh->height > c.max_scaled_height) {
-		fh->height = c.max_scaled_height;
-		btv->init.height = c.max_scaled_height;
-	}
+	if (btv->height < c.min_scaled_height)
+		btv->height = c.min_scaled_height;
+	else if (btv->height > c.max_scaled_height)
+		btv->height = c.max_scaled_height;
 
 	return 0;
 }
@@ -3636,6 +3633,9 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	btv->init.fmt         = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	btv->init.width       = 320;
 	btv->init.height      = 240;
+	btv->fmt = format_by_fourcc(V4L2_PIX_FMT_BGR24);
+	btv->width = 320;
+	btv->height = 240;
 	btv->input = 0;
 
 	v4l2_ctrl_new_std(hdl, &bttv_ctrl_ops,

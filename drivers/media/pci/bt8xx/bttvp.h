@@ -449,6 +449,9 @@ struct bttv {
 
 	unsigned int users;
 	struct bttv_fh init;
+	const struct bttv_format *fmt;
+	int width;
+	int height;
 
 	/* used to make dvb-bt8xx autoloadable */
 	struct work_struct request_module_wk;
