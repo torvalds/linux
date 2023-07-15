@@ -20,7 +20,7 @@
 #define C_ALL (CC | C0 | C1 | C2 | C3 | C4 | C5)
 #define TYPE_MASK 0xFFFF
 #define NUM_L1_CTRS 6
-#define NUM_AMU_CTRS 2
+#define NUM_AMU_CTRS 3
 
 #include <linux/sched.h>
 #include <linux/cpumask.h>
@@ -82,6 +82,7 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			__field(unsigned long, ctr5)
 			__field(unsigned long, amu0)
 			__field(unsigned long, amu1)
+			__field(unsigned long, amu2)
 		),
 
 		TP_fast_assign(
@@ -134,6 +135,11 @@ TRACE_EVENT(sched_switch_with_ctrs,
 				delta_amu_cnts[1] = amu_cnt -
 					per_cpu(previous_amu_cnts[1], cpu);
 				per_cpu(previous_amu_cnts[1], cpu) = amu_cnt;
+
+				amu_cnt = read_sysreg_s(SYS_AMEVCNTR0_MEM_STALL);
+				delta_amu_cnts[2] = amu_cnt -
+					per_cpu(previous_amu_cnts[2], cpu);
+				per_cpu(previous_amu_cnts[2], cpu) = amu_cnt;
 			}
 
 			__entry->ctr0 = delta_l1_cnts[0];
@@ -144,9 +150,10 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			__entry->ctr5 = delta_l1_cnts[5];
 			__entry->amu0 = delta_amu_cnts[0];
 			__entry->amu1 = delta_amu_cnts[1];
+			__entry->amu2 = delta_amu_cnts[2];
 		),
 
-		TP_printk("prev_comm=%s prev_pid=%d prev_state=%s%s ==> next_comm=%s next_pid=%d CCNTR=%u CTR0=%u CTR1=%u CTR2=%u CTR3=%u CTR4=%u CTR5=%u, CYC: %lu, INST: %lu",
+		TP_printk("prev_comm=%s prev_pid=%d prev_state=%s%s ==> next_comm=%s next_pid=%d CCNTR=%u CTR0=%u CTR1=%u CTR2=%u CTR3=%u CTR4=%u CTR5=%u, CYC: %lu, INST: %lu, STALL: %lu",
 			__entry->prev_comm, __entry->prev_pid,
 
 			(__entry->prev_state & (TASK_REPORT_MAX - 1)) ?
@@ -168,7 +175,8 @@ TRACE_EVENT(sched_switch_with_ctrs,
 			__entry->ctr0, __entry->ctr1,
 			__entry->ctr2, __entry->ctr3,
 			__entry->ctr4, __entry->ctr5,
-			__entry->amu0, __entry->amu1)
+			__entry->amu0, __entry->amu1,
+			__entry->amu2)
 );
 
 TRACE_EVENT(sched_switch_ctrs_cfg,
