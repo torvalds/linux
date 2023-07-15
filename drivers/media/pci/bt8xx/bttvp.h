@@ -206,9 +206,6 @@ struct bttv_fh {
 	int                      width;
 	int                      height;
 
-	/* Application called VIDIOC_S_SELECTION. */
-	int                      do_crop;
-
 	/* vbi capture */
 	struct videobuf_queue    vbi;
 	/* Current VBI capture window as seen through this fh (cannot
@@ -453,6 +450,8 @@ struct bttv {
 	int width;
 	int height;
 	struct bttv_vbi_fmt vbi_fmt;
+	/* Application called VIDIOC_S_SELECTION. */
+	int do_crop;
 
 	/* used to make dvb-bt8xx autoloadable */
 	struct work_struct request_module_wk;

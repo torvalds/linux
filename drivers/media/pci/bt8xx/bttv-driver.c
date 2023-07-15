@@ -663,7 +663,7 @@ int check_alloc_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bit)
 	if ((bit & VIDEO_RESOURCES)
 	    && 0 == (btv->resources & VIDEO_RESOURCES)) {
 		/* Do crop - use current, don't - use default parameters. */
-		__s32 top = btv->crop[!!fh->do_crop].rect.top;
+		__s32 top = btv->crop[!!btv->do_crop].rect.top;
 
 		if (btv->vbi_end > top)
 			goto fail;
@@ -1493,7 +1493,6 @@ static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
 			       unsigned int width, unsigned int height,
 			       enum v4l2_field field)
 {
-	struct bttv_fh *fh = q->priv_data;
 	int redo_dma_risc = 0;
 	struct bttv_crop c;
 	int norm;
@@ -1523,7 +1522,7 @@ static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
 		c.rect = bttv_tvnorms[norm].cropcap.defrect;
 	} else {
 		norm = btv->tvnorm;
-		c = btv->crop[!!fh->do_crop];
+		c = btv->crop[!!btv->do_crop];
 
 		if (width < c.min_scaled_width ||
 		    width > c.max_scaled_width ||
@@ -1919,9 +1918,9 @@ limit_scaled_size_lock       (struct bttv_fh *               fh,
 	b = &bttv_tvnorms[btv->tvnorm].cropcap.bounds;
 
 	/* Do crop - use current, don't - use default parameters. */
-	c = &btv->crop[!!fh->do_crop];
+	c = &btv->crop[!!btv->do_crop];
 
-	if (fh->do_crop
+	if (btv->do_crop
 	    && adjust_size
 	    && adjust_crop
 	    && !locked_btres(btv, VIDEO_RESOURCES)) {
@@ -2121,7 +2120,7 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 		}
 		fallthrough;
 	default: /* FIELD_ANY case */
-		height2 = btv->crop[!!fh->do_crop].rect.height >> 1;
+		height2 = btv->crop[!!btv->do_crop].rect.height >> 1;
 		field = (f->fmt.pix.height > height2)
 			? V4L2_FIELD_INTERLACED
 			: V4L2_FIELD_BOTTOM;
@@ -2360,7 +2359,6 @@ static int bttv_g_pixelaspect(struct file *file, void *priv,
 
 static int bttv_g_selection(struct file *file, void *f, struct v4l2_selection *sel)
 {
-	struct bttv_fh *fh = f;
 	struct bttv *btv = video_drvdata(file);
 
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -2368,12 +2366,7 @@ static int bttv_g_selection(struct file *file, void *f, struct v4l2_selection *s
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
-		/*
-		 * No fh->do_crop = 1; because btv->crop[1] may be
-		 * inconsistent with fh->width or fh->height and apps
-		 * do not expect a change here.
-		 */
-		sel->r = btv->crop[!!fh->do_crop].rect;
+		sel->r = btv->crop[!!btv->do_crop].rect;
 		break;
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r = bttv_tvnorms[btv->tvnorm].cropcap.defrect;
@@ -2447,7 +2440,7 @@ static int bttv_s_selection(struct file *file, void *f, struct v4l2_selection *s
 
 	btv->crop[1] = c;
 
-	fh->do_crop = 1;
+	btv->do_crop = 1;
 
 	if (btv->width < c.min_scaled_width)
 		btv->width = c.min_scaled_width;
@@ -2610,7 +2603,7 @@ static int bttv_open(struct file *file)
 	   current video standard, and VIDIOC_S_FMT will not implicitly
 	   change the cropping parameters until VIDIOC_S_SELECTION has been
 	   called. */
-	fh->do_crop = !reset_crop; /* module parameter */
+	btv->do_crop = !reset_crop; /* module parameter */
 
 	/* Likewise there should be one global set of VBI capture
 	   parameters, but for compatibility with V4L apps and earlier
@@ -3639,6 +3632,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	btv->input = 0;
 	btv->tvnorm = 0; /* Index into bttv_tvnorms[] i.e. PAL. */
 	bttv_vbi_fmt_reset(&btv->vbi_fmt, btv->tvnorm);
+	btv->do_crop = 0;
 
 	v4l2_ctrl_new_std(hdl, &bttv_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 0xff00, 0x100, 32768);
