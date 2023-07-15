@@ -131,13 +131,12 @@ static int rzv2m_csi_sw_reset(struct rzv2m_csi_priv *csi, int assert)
 
 	rzv2m_csi_reg_write_bit(csi, CSI_CNT, CSI_CNT_CSIRST, assert);
 
-	if (assert) {
-		return readl_poll_timeout(csi->base + CSI_MODE, reg,
-					  !(reg & CSI_MODE_CSOT), 0,
-					  CSI_EN_DIS_TIMEOUT_US);
-	}
+	if (!assert)
+		return 0;
 
-	return 0;
+	return readl_poll_timeout(csi->base + CSI_MODE, reg,
+				  !(reg & CSI_MODE_CSOT), 0,
+				  CSI_EN_DIS_TIMEOUT_US);
 }
 
 static int rzv2m_csi_start_stop_operation(const struct rzv2m_csi_priv *csi,
@@ -147,12 +146,12 @@ static int rzv2m_csi_start_stop_operation(const struct rzv2m_csi_priv *csi,
 
 	rzv2m_csi_reg_write_bit(csi, CSI_MODE, CSI_MODE_CSIE, enable);
 
-	if (!enable && wait)
-		return readl_poll_timeout(csi->base + CSI_MODE, reg,
-					  !(reg & CSI_MODE_CSOT), 0,
-					  CSI_EN_DIS_TIMEOUT_US);
+	if (enable || !wait)
+		return 0;
 
-	return 0;
+	return readl_poll_timeout(csi->base + CSI_MODE, reg,
+				  !(reg & CSI_MODE_CSOT), 0,
+				  CSI_EN_DIS_TIMEOUT_US);
 }
 
 static int rzv2m_csi_fill_txfifo(struct rzv2m_csi_priv *csi)
