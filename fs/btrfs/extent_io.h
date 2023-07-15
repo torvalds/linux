@@ -236,11 +236,24 @@ void read_extent_buffer(const struct extent_buffer *eb, void *dst,
 int read_extent_buffer_to_user_nofault(const struct extent_buffer *eb,
 				       void __user *dst, unsigned long start,
 				       unsigned long len);
-void write_extent_buffer_fsid(const struct extent_buffer *eb, const void *src);
-void write_extent_buffer_chunk_tree_uuid(const struct extent_buffer *eb,
-		const void *src);
 void write_extent_buffer(const struct extent_buffer *eb, const void *src,
 			 unsigned long start, unsigned long len);
+
+static inline void write_extent_buffer_chunk_tree_uuid(
+		const struct extent_buffer *eb, const void *chunk_tree_uuid)
+{
+	write_extent_buffer(eb, chunk_tree_uuid,
+			    offsetof(struct btrfs_header, chunk_tree_uuid),
+			    BTRFS_FSID_SIZE);
+}
+
+static inline void write_extent_buffer_fsid(const struct extent_buffer *eb,
+					    const void *fsid)
+{
+	write_extent_buffer(eb, fsid, offsetof(struct btrfs_header, fsid),
+			    BTRFS_FSID_SIZE);
+}
+
 void copy_extent_buffer_full(const struct extent_buffer *dst,
 			     const struct extent_buffer *src);
 void copy_extent_buffer(const struct extent_buffer *dst,

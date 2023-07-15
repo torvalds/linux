@@ -4129,28 +4129,6 @@ static void assert_eb_page_uptodate(const struct extent_buffer *eb,
 	}
 }
 
-void write_extent_buffer_chunk_tree_uuid(const struct extent_buffer *eb,
-		const void *srcv)
-{
-	char *kaddr;
-
-	assert_eb_page_uptodate(eb, eb->pages[0]);
-	kaddr = page_address(eb->pages[0]) +
-		get_eb_offset_in_page(eb, offsetof(struct btrfs_header,
-						   chunk_tree_uuid));
-	memcpy(kaddr, srcv, BTRFS_FSID_SIZE);
-}
-
-void write_extent_buffer_fsid(const struct extent_buffer *eb, const void *srcv)
-{
-	char *kaddr;
-
-	assert_eb_page_uptodate(eb, eb->pages[0]);
-	kaddr = page_address(eb->pages[0]) +
-		get_eb_offset_in_page(eb, offsetof(struct btrfs_header, fsid));
-	memcpy(kaddr, srcv, BTRFS_FSID_SIZE);
-}
-
 void write_extent_buffer(const struct extent_buffer *eb, const void *srcv,
 			 unsigned long start, unsigned long len)
 {
