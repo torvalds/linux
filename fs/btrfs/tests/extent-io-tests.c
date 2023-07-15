@@ -319,86 +319,139 @@ out:
 	return ret;
 }
 
-static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb,
-			   unsigned long len)
+static int check_eb_bitmap(unsigned long *bitmap, struct extent_buffer *eb)
 {
 	unsigned long i;
 
-	for (i = 0; i < len * BITS_PER_BYTE; i++) {
+	for (i = 0; i < eb->len * BITS_PER_BYTE; i++) {
 		int bit, bit1;
 
 		bit = !!test_bit(i, bitmap);
 		bit1 = !!extent_buffer_test_bit(eb, 0, i);
 		if (bit1 != bit) {
-			test_err("bits do not match");
+			u8 has;
+			u8 expect;
+
+			read_extent_buffer(eb, &has, i / BITS_PER_BYTE, 1);
+			expect = bitmap_get_value8(bitmap, ALIGN(i, BITS_PER_BYTE));
+
+			test_err(
+		"bits do not match, start byte 0 bit %lu, byte %lu has 0x%02x expect 0x%02x",
+				 i, i / BITS_PER_BYTE, has, expect);
 			return -EINVAL;
 		}
 
 		bit1 = !!extent_buffer_test_bit(eb, i / BITS_PER_BYTE,
 						i % BITS_PER_BYTE);
 		if (bit1 != bit) {
-			test_err("offset bits do not match");
+			u8 has;
+			u8 expect;
+
+			read_extent_buffer(eb, &has, i / BITS_PER_BYTE, 1);
+			expect = bitmap_get_value8(bitmap, ALIGN(i, BITS_PER_BYTE));
+
+			test_err(
+		"bits do not match, start byte %lu bit %lu, byte %lu has 0x%02x expect 0x%02x",
+				 i / BITS_PER_BYTE, i % BITS_PER_BYTE,
+				 i / BITS_PER_BYTE, has, expect);
 			return -EINVAL;
 		}
 	}
 	return 0;
 }
 
-static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
-			     unsigned long len)
+static int test_bitmap_set(const char *name, unsigned long *bitmap,
+			   struct extent_buffer *eb,
+			   unsigned long byte_start, unsigned long bit_start,
+			   unsigned long bit_len)
+{
+	int ret;
+
+	bitmap_set(bitmap, byte_start * BITS_PER_BYTE + bit_start, bit_len);
+	extent_buffer_bitmap_set(eb, byte_start, bit_start, bit_len);
+	ret = check_eb_bitmap(bitmap, eb);
+	if (ret < 0)
+		test_err("%s test failed", name);
+	return ret;
+}
+
+static int test_bitmap_clear(const char *name, unsigned long *bitmap,
+			     struct extent_buffer *eb,
+			     unsigned long byte_start, unsigned long bit_start,
+			     unsigned long bit_len)
+{
+	int ret;
+
+	bitmap_clear(bitmap, byte_start * BITS_PER_BYTE + bit_start, bit_len);
+	extent_buffer_bitmap_clear(eb, byte_start, bit_start, bit_len);
+	ret = check_eb_bitmap(bitmap, eb);
+	if (ret < 0)
+		test_err("%s test failed", name);
+	return ret;
+}
+static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb)
 {
 	unsigned long i, j;
+	unsigned long byte_len = eb->len;
 	u32 x;
 	int ret;
 
-	memset(bitmap, 0, len);
-	memzero_extent_buffer(eb, 0, len);
-	if (memcmp_extent_buffer(eb, bitmap, 0, len) != 0) {
-		test_err("bitmap was not zeroed");
-		return -EINVAL;
-	}
-
-	bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-	ret = check_eb_bitmap(bitmap, eb, len);
-	if (ret) {
-		test_err("setting all bits failed");
+	ret = test_bitmap_clear("clear all run 1", bitmap, eb, 0, 0,
+				byte_len * BITS_PER_BYTE);
+	if (ret < 0)
 		return ret;
-	}
 
-	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, 0, 0, len * BITS_PER_BYTE);
-	ret = check_eb_bitmap(bitmap, eb, len);
-	if (ret) {
-		test_err("clearing all bits failed");
+	ret = test_bitmap_set("set all", bitmap, eb, 0, 0, byte_len * BITS_PER_BYTE);
+	if (ret < 0)
 		return ret;
-	}
+
+	ret = test_bitmap_clear("clear all run 2", bitmap, eb, 0, 0,
+				byte_len * BITS_PER_BYTE);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_set("same byte set", bitmap, eb, 0, 2, 4);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_clear("same byte partial clear", bitmap, eb, 0, 4, 1);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_set("cross byte set", bitmap, eb, 2, 4, 8);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_set("cross multi byte set", bitmap, eb, 4, 4, 24);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_clear("cross byte clear", bitmap, eb, 2, 6, 4);
+	if (ret < 0)
+		return ret;
+
+	ret = test_bitmap_clear("cross multi byte clear", bitmap, eb, 4, 6, 20);
+	if (ret < 0)
+		return ret;
 
 	/* Straddling pages test */
-	if (len > PAGE_SIZE) {
-		bitmap_set(bitmap,
-			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-			sizeof(long) * BITS_PER_BYTE);
-		extent_buffer_bitmap_set(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-					sizeof(long) * BITS_PER_BYTE);
-		ret = check_eb_bitmap(bitmap, eb, len);
-		if (ret) {
-			test_err("setting straddling pages failed");
+	if (byte_len > PAGE_SIZE) {
+		ret = test_bitmap_set("cross page set", bitmap, eb,
+				      PAGE_SIZE - sizeof(long) / 2, 0,
+				      sizeof(long) * BITS_PER_BYTE);
+		if (ret < 0)
 			return ret;
-		}
 
-		bitmap_set(bitmap, 0, len * BITS_PER_BYTE);
-		bitmap_clear(bitmap,
-			(PAGE_SIZE - sizeof(long) / 2) * BITS_PER_BYTE,
-			sizeof(long) * BITS_PER_BYTE);
-		extent_buffer_bitmap_set(eb, 0, 0, len * BITS_PER_BYTE);
-		extent_buffer_bitmap_clear(eb, PAGE_SIZE - sizeof(long) / 2, 0,
-					sizeof(long) * BITS_PER_BYTE);
-		ret = check_eb_bitmap(bitmap, eb, len);
-		if (ret) {
-			test_err("clearing straddling pages failed");
+		ret = test_bitmap_set("cross page set all", bitmap, eb, 0, 0,
+				      byte_len * BITS_PER_BYTE);
+		if (ret < 0)
 			return ret;
-		}
+
+		ret = test_bitmap_clear("cross page clear", bitmap, eb,
+					PAGE_SIZE - sizeof(long) / 2, 0,
+					sizeof(long) * BITS_PER_BYTE);
+		if (ret < 0)
+			return ret;
 	}
 
 	/*
@@ -406,9 +459,12 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 	 * something repetitive that could miss some hypothetical off-by-n bug.
 	 */
 	x = 0;
-	bitmap_clear(bitmap, 0, len * BITS_PER_BYTE);
-	extent_buffer_bitmap_clear(eb, 0, 0, len * BITS_PER_BYTE);
-	for (i = 0; i < len * BITS_PER_BYTE / 32; i++) {
+	ret = test_bitmap_clear("clear all run 3", bitmap, eb, 0, 0,
+				byte_len * BITS_PER_BYTE);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < byte_len * BITS_PER_BYTE / 32; i++) {
 		x = (0x19660dULL * (u64)x + 0x3c6ef35fULL) & 0xffffffffU;
 		for (j = 0; j < 32; j++) {
 			if (x & (1U << j)) {
@@ -418,7 +474,7 @@ static int __test_eb_bitmaps(unsigned long *bitmap, struct extent_buffer *eb,
 		}
 	}
 
-	ret = check_eb_bitmap(bitmap, eb, len);
+	ret = check_eb_bitmap(bitmap, eb);
 	if (ret) {
 		test_err("random bit pattern failed");
 		return ret;
@@ -456,7 +512,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	ret = __test_eb_bitmaps(bitmap, eb, nodesize);
+	ret = __test_eb_bitmaps(bitmap, eb);
 	if (ret)
 		goto out;
 
@@ -473,7 +529,7 @@ static int test_eb_bitmaps(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 
-	ret = __test_eb_bitmaps(bitmap, eb, nodesize);
+	ret = __test_eb_bitmaps(bitmap, eb);
 out:
 	free_extent_buffer(eb);
 	kfree(bitmap);
