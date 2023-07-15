@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *                   Creative Labs, Inc.
  *                   Lee Revell <rlrevell@joe-job.com>
- *  Routines for control of EMU10K1 chips - voice manager
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
+ *                   Creative Labs, Inc.
  *
- *  Rewrote voice allocator for multichannel support - rlrevell 12/2004
+ *  Routines for control of EMU10K1 chips - voice manager
  */
 
 #include <linux/time.h>

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
- *  Routines for effect processor FX8010
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
- *  	Added EMU 1010 support.
+ *  Routines for effect processor FX8010
  */
 
 #include <linux/pci.h>

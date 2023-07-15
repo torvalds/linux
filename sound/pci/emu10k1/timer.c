@@ -2,6 +2,8 @@
 /*
  *  Copyright (c) by Lee Revell <rlrevell@joe-job.com>
  *                   Clemens Ladisch <clemens@ladisch.de>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
+ *
  *  Routines for control of EMU10K1 chips
  */
 

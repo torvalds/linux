@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   Lee Revell <rlrevell@joe-job.com>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
+ *
  *  Routines for control of EMU10K1 chips / PCM routines
- *  Multichannel PCM support Copyright (c) Lee Revell <rlrevell@joe-job.com>
  */
 
 #include <linux/pci.h>

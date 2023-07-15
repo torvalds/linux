@@ -2,12 +2,12 @@
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *                   Takashi Iwai <tiwai@suse.de>
+ *                   Lee Revell <rlrevell@joe-job.com>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
- *  Routines for control of EMU10K1 chips / mixer routines
- *  Multichannel PCM support Copyright (c) Lee Revell <rlrevell@joe-job.com>
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
- *  	Added EMU 1010 support.
+ *  Routines for control of EMU10K1 chips / mixer routines
  */
 
 #include <linux/time.h>

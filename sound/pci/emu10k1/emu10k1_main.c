@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
+ *                   James Courtier-Dutton <James@superbug.co.uk>
+ *                   Oswald Buddenhagen <oswald.buddenhagen@gmx.de>
  *                   Creative Labs, Inc.
- *  Routines for control of EMU10K1 chips
  *
- *  Copyright (c) by James Courtier-Dutton <James@superbug.co.uk>
- *      Added support for Audigy 2 Value.
- *  	Added EMU 1010 support.
- *  	General bug fixes and enhancements.
+ *  Routines for control of EMU10K1 chips
  */
 
 #include <linux/sched.h>
