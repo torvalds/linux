@@ -492,14 +492,15 @@ static void swap_readpage_bdev_async(struct page *page,
 
 void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 {
+	struct folio *folio = page_folio(page);
 	struct swap_info_struct *sis = page_swap_info(page);
-	bool workingset = PageWorkingset(page);
+	bool workingset = folio_test_workingset(folio);
 	unsigned long pflags;
 	bool in_thrashing;
 
-	VM_BUG_ON_PAGE(!PageSwapCache(page) && !synchronous, page);
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
-	VM_BUG_ON_PAGE(PageUptodate(page), page);
+	VM_BUG_ON_FOLIO(!folio_test_swapcache(folio) && !synchronous, folio);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+	VM_BUG_ON_FOLIO(folio_test_uptodate(folio), folio);
 
 	/*
 	 * Count submission time as memory stall and delay. When the device
@@ -513,8 +514,8 @@ void swap_readpage(struct page *page, bool synchronous, struct swap_iocb **plug)
 	delayacct_swapin_start();
 
 	if (zswap_load(page)) {
-		SetPageUptodate(page);
-		unlock_page(page);
+		folio_mark_uptodate(folio);
+		folio_unlock(folio);
 	} else if (data_race(sis->flags & SWP_FS_OPS)) {
 		swap_readpage_fs(page, plug);
 	} else if (synchronous || (sis->flags & SWP_SYNCHRONOUS_IO)) {
