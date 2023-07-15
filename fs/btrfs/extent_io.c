@@ -4190,24 +4190,19 @@ void memzero_extent_buffer(const struct extent_buffer *eb, unsigned long start,
 void copy_extent_buffer_full(const struct extent_buffer *dst,
 			     const struct extent_buffer *src)
 {
-	int i;
-	int num_pages;
+	unsigned long cur = 0;
 
 	ASSERT(dst->len == src->len);
 
-	if (dst->fs_info->nodesize >= PAGE_SIZE) {
-		num_pages = num_extent_pages(dst);
-		for (i = 0; i < num_pages; i++)
-			copy_page(page_address(dst->pages[i]),
-				  page_address(src->pages[i]));
-	} else {
-		size_t src_offset = get_eb_offset_in_page(src, 0);
-		size_t dst_offset = get_eb_offset_in_page(dst, 0);
+	while (cur < src->len) {
+		unsigned long index = get_eb_page_index(cur);
+		unsigned long offset = get_eb_offset_in_page(src, cur);
+		unsigned long cur_len = min(src->len, PAGE_SIZE - offset);
+		void *addr = page_address(src->pages[index]) + offset;
 
-		ASSERT(src->fs_info->nodesize < PAGE_SIZE);
-		memcpy(page_address(dst->pages[0]) + dst_offset,
-		       page_address(src->pages[0]) + src_offset,
-		       src->len);
+		write_extent_buffer(dst, addr, cur, cur_len);
+
+		cur += cur_len;
 	}
 }
 
