@@ -672,12 +672,12 @@ int check_alloc_btres_lock(struct bttv *btv, struct bttv_fh *fh, int bit)
 		   Claim scan lines crop[].rect.top to bottom. */
 		btv->crop_start = top;
 	} else if (bit & VBI_RESOURCES) {
-		__s32 end = fh->vbi_fmt.end;
+		__s32 end = btv->vbi_fmt.end;
 
 		if (end > btv->crop_start)
 			goto fail;
 
-		/* Claim scan lines above fh->vbi_fmt.end. */
+		/* Claim scan lines above btv->vbi_fmt.end. */
 		btv->vbi_end = end;
 	}
 
@@ -3637,6 +3637,8 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	btv->width = 320;
 	btv->height = 240;
 	btv->input = 0;
+	btv->tvnorm = 0; /* Index into bttv_tvnorms[] i.e. PAL. */
+	bttv_vbi_fmt_reset(&btv->vbi_fmt, btv->tvnorm);
 
 	v4l2_ctrl_new_std(hdl, &bttv_ctrl_ops,
 			V4L2_CID_BRIGHTNESS, 0, 0xff00, 0x100, 32768);

@@ -350,6 +350,9 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 	fh->vbi_fmt.fmt    = frt->fmt.vbi;
 	fh->vbi_fmt.tvnorm = tvnorm;
 	fh->vbi_fmt.end    = end;
+	btv->vbi_fmt.fmt = frt->fmt.vbi;
+	btv->vbi_fmt.tvnorm = tvnorm;
+	btv->vbi_fmt.end = end;
 
 	mutex_unlock(&fh->vbi.vb_lock);
 
@@ -364,15 +367,14 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 
 int bttv_g_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 {
-	struct bttv_fh *fh = f;
 	const struct bttv_tvnorm *tvnorm;
 	struct bttv *btv = video_drvdata(file);
 
-	frt->fmt.vbi = fh->vbi_fmt.fmt;
+	frt->fmt.vbi = btv->vbi_fmt.fmt;
 
 	tvnorm = &bttv_tvnorms[btv->tvnorm];
 
-	if (tvnorm != fh->vbi_fmt.tvnorm) {
+	if (tvnorm != btv->vbi_fmt.tvnorm) {
 		__s32 max_end;
 		unsigned int i;
 
@@ -388,9 +390,8 @@ int bttv_g_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 		for (i = 0; i < 2; ++i) {
 			__s32 new_start;
 
-			new_start = frt->fmt.vbi.start[i]
-				+ tvnorm->vbistart[i]
-				- fh->vbi_fmt.tvnorm->vbistart[i];
+			new_start = frt->fmt.vbi.start[i] + tvnorm->vbistart[i]
+				- btv->vbi_fmt.tvnorm->vbistart[i];
 
 			frt->fmt.vbi.start[i] = min(new_start, max_end - 1);
 			frt->fmt.vbi.count[i] =

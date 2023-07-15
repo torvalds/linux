@@ -452,6 +452,7 @@ struct bttv {
 	const struct bttv_format *fmt;
 	int width;
 	int height;
+	struct bttv_vbi_fmt vbi_fmt;
 
 	/* used to make dvb-bt8xx autoloadable */
 	struct work_struct request_module_wk;
