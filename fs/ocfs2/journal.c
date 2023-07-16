@@ -114,9 +114,9 @@ int ocfs2_compute_replay_slots(struct ocfs2_super *osb)
 	if (osb->replay_map)
 		return 0;
 
-	replay_map = kzalloc(sizeof(struct ocfs2_replay_map) +
-			     (osb->max_slots * sizeof(char)), GFP_KERNEL);
-
+	replay_map = kzalloc(struct_size(replay_map, rm_replay_slots,
+					 osb->max_slots),
+			     GFP_KERNEL);
 	if (!replay_map) {
 		mlog_errno(-ENOMEM);
 		return -ENOMEM;
