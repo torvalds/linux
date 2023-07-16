@@ -1151,7 +1151,62 @@ struct extent_end {
 	struct snapshots_seen	seen;
 };
 
-typedef DARRAY(struct extent_end) extent_ends;
+struct extent_ends {
+	struct bpos			last_pos;
+	DARRAY(struct extent_end)	e;
+};
+
+static void extent_ends_reset(struct extent_ends *extent_ends)
+{
+	struct extent_end *i;
+
+	darray_for_each(extent_ends->e, i)
+		snapshots_seen_exit(&i->seen);
+
+	extent_ends->e.nr = 0;
+}
+
+static void extent_ends_exit(struct extent_ends *extent_ends)
+{
+	extent_ends_reset(extent_ends);
+	darray_exit(&extent_ends->e);
+}
+
+static void extent_ends_init(struct extent_ends *extent_ends)
+{
+	memset(extent_ends, 0, sizeof(*extent_ends));
+}
+
+static int extent_ends_at(struct bch_fs *c,
+			  struct extent_ends *extent_ends,
+			  struct snapshots_seen *seen,
+			  struct bkey_s_c k)
+{
+	struct extent_end *i, n = (struct extent_end) {
+		.offset		= k.k->p.offset,
+		.snapshot	= k.k->p.snapshot,
+		.seen		= *seen,
+	};
+
+	n.seen.ids.data = kmemdup(seen->ids.data,
+			      sizeof(seen->ids.data[0]) * seen->ids.size,
+			      GFP_KERNEL);
+	if (!n.seen.ids.data)
+		return -BCH_ERR_ENOMEM_fsck_extent_ends_at;
+
+	darray_for_each(extent_ends->e, i) {
+		if (i->snapshot == k.k->p.snapshot) {
+			snapshots_seen_exit(&i->seen);
+			*i = n;
+			return 0;
+		}
+
+		if (i->snapshot >= k.k->p.snapshot)
+			break;
+	}
+
+	return darray_insert_item(&extent_ends->e, i - extent_ends->e.data, n);
+}
 
 static int overlapping_extents_found(struct btree_trans *trans,
 				     enum btree_id btree,
@@ -1229,8 +1284,9 @@ err:
 
 static int check_overlapping_extents(struct btree_trans *trans,
 			      struct snapshots_seen *seen,
-			      extent_ends *extent_ends,
+			      struct extent_ends *extent_ends,
 			      struct bkey_s_c k,
+			      u32 equiv,
 			      struct btree_iter *iter)
 {
 	struct bch_fs *c = trans->c;
@@ -1238,10 +1294,15 @@ static int check_overlapping_extents(struct btree_trans *trans,
 	bool fixed = false;
 	int ret = 0;
 
-	darray_for_each(*extent_ends, i) {
-		/* duplicate, due to transaction restart: */
-		if (i->offset	== k.k->p.offset &&
-		    i->snapshot == k.k->p.snapshot)
+	/* transaction restart, running again */
+	if (bpos_eq(extent_ends->last_pos, k.k->p))
+		return 0;
+
+	if (extent_ends->last_pos.inode != k.k->p.inode)
+		extent_ends_reset(extent_ends);
+
+	darray_for_each(extent_ends->e, i) {
+		if (i->offset <= bkey_start_offset(k.k))
 			continue;
 
 		if (!ref_visible2(c,
@@ -1249,65 +1310,29 @@ static int check_overlapping_extents(struct btree_trans *trans,
 				  i->snapshot, &i->seen))
 			continue;
 
-		if (i->offset > bkey_start_offset(k.k)) {
-			ret = overlapping_extents_found(trans, iter->btree_id,
-							SPOS(iter->pos.inode,
-							     i->offset,
-							     i->snapshot),
-							*k.k, &fixed);
-			if (ret)
-				goto err;
-		}
+		ret = overlapping_extents_found(trans, iter->btree_id,
+						SPOS(iter->pos.inode,
+						     i->offset,
+						     i->snapshot),
+						*k.k, &fixed);
+		if (ret)
+			goto err;
 	}
+
+	ret = extent_ends_at(c, extent_ends, seen, k);
+	if (ret)
+		goto err;
+
+	extent_ends->last_pos = k.k->p;
 err:
 	return ret ?: fixed;
-}
-
-static int extent_ends_at(extent_ends *extent_ends,
-			  struct snapshots_seen *seen,
-			  struct bkey_s_c k)
-{
-	struct extent_end *i, n = (struct extent_end) {
-		.snapshot	= k.k->p.snapshot,
-		.offset		= k.k->p.offset,
-		.seen		= *seen,
-	};
-
-	n.seen.ids.data = kmemdup(seen->ids.data,
-			      sizeof(seen->ids.data[0]) * seen->ids.size,
-			      GFP_KERNEL);
-	if (!n.seen.ids.data)
-		return -BCH_ERR_ENOMEM_fsck_extent_ends_at;
-
-	darray_for_each(*extent_ends, i) {
-		if (i->snapshot == k.k->p.snapshot) {
-			snapshots_seen_exit(&i->seen);
-			*i = n;
-			return 0;
-		}
-
-		if (i->snapshot >= k.k->p.snapshot)
-			break;
-	}
-
-	return darray_insert_item(extent_ends, i - extent_ends->data, n);
-}
-
-static void extent_ends_reset(extent_ends *extent_ends)
-{
-	struct extent_end *i;
-
-	darray_for_each(*extent_ends, i)
-		snapshots_seen_exit(&i->seen);
-
-	extent_ends->nr = 0;
 }
 
 static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			struct bkey_s_c k,
 			struct inode_walker *inode,
 			struct snapshots_seen *s,
-			extent_ends *extent_ends)
+			struct extent_ends *extent_ends)
 {
 	struct bch_fs *c = trans->c;
 	struct inode_walker_entry *i;
@@ -1327,8 +1352,6 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		ret = check_i_sectors(trans, inode);
 		if (ret)
 			goto err;
-
-		extent_ends_reset(extent_ends);
 	}
 
 	i = walk_inode(trans, inode, equiv, k.k->type == KEY_TYPE_whiteout);
@@ -1356,16 +1379,14 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 				 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			goto delete;
 
-		ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
+		ret = check_overlapping_extents(trans, s, extent_ends, k,
+						equiv.snapshot, iter);
 		if (ret < 0)
 			goto err;
 
 		if (ret)
 			inode->recalculate_sums = true;
-
-		ret = extent_ends_at(extent_ends, s, k);
-		if (ret)
-			goto err;
+		ret = 0;
 	}
 
 	/*
@@ -1434,11 +1455,12 @@ int bch2_check_extents(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	extent_ends extent_ends = { 0 };
+	struct extent_ends extent_ends;
 	struct disk_reservation res = { 0 };
 	int ret = 0;
 
 	snapshots_seen_init(&s);
+	extent_ends_init(&extent_ends);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
 	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_extents,
@@ -1452,8 +1474,7 @@ int bch2_check_extents(struct bch_fs *c)
 	check_i_sectors(&trans, &w);
 
 	bch2_disk_reservation_put(c, &res);
-	extent_ends_reset(&extent_ends);
-	darray_exit(&extent_ends);
+	extent_ends_exit(&extent_ends);
 	inode_walker_exit(&w);
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
