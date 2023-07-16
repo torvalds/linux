@@ -35,7 +35,7 @@
 #define PWM_SR			0x0C
 #define PWM_ISR			0x1C
 /* Bit field in SR */
-#define PWM_SR_ALL_CH_ON	0x0F
+#define PWM_SR_ALL_CH_MASK	0x0F
 
 /* The following register is PWM channel related registers */
 #define PWM_CH_REG_OFFSET	0x200
@@ -463,6 +463,42 @@ static const struct of_device_id atmel_pwm_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_pwm_dt_ids);
 
+static int atmel_pwm_enable_clk_if_on(struct atmel_pwm_chip *atmel_pwm, bool on)
+{
+	unsigned int i, cnt = 0;
+	unsigned long sr;
+	int ret = 0;
+
+	sr = atmel_pwm_readl(atmel_pwm, PWM_SR) & PWM_SR_ALL_CH_MASK;
+	if (!sr)
+		return 0;
+
+	cnt = bitmap_weight(&sr, atmel_pwm->chip.npwm);
+
+	if (!on)
+		goto disable_clk;
+
+	for (i = 0; i < cnt; i++) {
+		ret = clk_enable(atmel_pwm->clk);
+		if (ret) {
+			dev_err(atmel_pwm->chip.dev,
+				"failed to enable clock for pwm %pe\n",
+				ERR_PTR(ret));
+
+			cnt = i;
+			goto disable_clk;
+		}
+	}
+
+	return 0;
+
+disable_clk:
+	while (cnt--)
+		clk_disable(atmel_pwm->clk);
+
+	return ret;
+}
+
 static int atmel_pwm_probe(struct platform_device *pdev)
 {
 	struct atmel_pwm_chip *atmel_pwm;
@@ -495,15 +531,22 @@ static int atmel_pwm_probe(struct platform_device *pdev)
 	atmel_pwm->chip.ops = &atmel_pwm_ops;
 	atmel_pwm->chip.npwm = 4;
 
+	ret = atmel_pwm_enable_clk_if_on(atmel_pwm, true);
+	if (ret < 0)
+		goto unprepare_clk;
+
 	ret = pwmchip_add(&atmel_pwm->chip);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add PWM chip %d\n", ret);
-		goto unprepare_clk;
+		goto disable_clk;
 	}
 
 	platform_set_drvdata(pdev, atmel_pwm);
 
 	return ret;
+
+disable_clk:
+	atmel_pwm_enable_clk_if_on(atmel_pwm, false);
 
 unprepare_clk:
 	clk_unprepare(atmel_pwm->clk);
