@@ -675,8 +675,8 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 }
 
 static struct inode_walker_entry *
-lookup_inode_for_snapshot(struct bch_fs *c,
-			  struct inode_walker *w, u32 snapshot)
+lookup_inode_for_snapshot(struct bch_fs *c, struct inode_walker *w,
+			  u32 snapshot, bool is_whiteout)
 {
 	struct inode_walker_entry *i;
 
@@ -690,7 +690,7 @@ lookup_inode_for_snapshot(struct bch_fs *c,
 found:
 	BUG_ON(snapshot > i->snapshot);
 
-	if (snapshot != i->snapshot) {
+	if (snapshot != i->snapshot && !is_whiteout) {
 		struct inode_walker_entry new = *i;
 		int ret;
 
@@ -712,7 +712,8 @@ found:
 }
 
 static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
-					     struct inode_walker *w, struct bpos pos)
+					     struct inode_walker *w, struct bpos pos,
+					     bool is_whiteout)
 {
 	if (w->last_pos.inode != pos.inode) {
 		int ret = get_inodes_all_snapshots(trans, w, pos.inode);
@@ -728,7 +729,7 @@ static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
 
 	w->last_pos = pos;
 
-	return lookup_inode_for_snapshot(trans->c, w, pos.snapshot);
+	return lookup_inode_for_snapshot(trans->c, w, pos.snapshot, is_whiteout);
 }
 
 static int __get_visible_inodes(struct btree_trans *trans,
@@ -1359,6 +1360,11 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		extent_ends_reset(extent_ends);
 	}
 
+	i = walk_inode(trans, inode, equiv, k.k->type == KEY_TYPE_whiteout);
+	ret = PTR_ERR_OR_ZERO(i);
+	if (ret)
+		goto err;
+
 	ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
 	if (ret < 0)
 		goto err;
@@ -1367,11 +1373,6 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		inode->recalculate_sums = true;
 
 	ret = extent_ends_at(extent_ends, s, k);
-	if (ret)
-		goto err;
-
-	i = walk_inode(trans, inode, equiv);
-	ret = PTR_ERR_OR_ZERO(i);
 	if (ret)
 		goto err;
 
@@ -1682,7 +1683,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 
 	BUG_ON(!iter->path->should_be_locked);
 
-	i = walk_inode(trans, dir, equiv);
+	i = walk_inode(trans, dir, equiv, k.k->type == KEY_TYPE_whiteout);
 	ret = PTR_ERR_OR_ZERO(i);
 	if (ret < 0)
 		goto err;
@@ -1859,7 +1860,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		return ret;
 
-	i = walk_inode(trans, inode, k.k->p);
+	i = walk_inode(trans, inode, k.k->p, k.k->type == KEY_TYPE_whiteout);
 	ret = PTR_ERR_OR_ZERO(i);
 	if (ret)
 		return ret;
