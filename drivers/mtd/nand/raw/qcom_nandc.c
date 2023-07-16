@@ -2348,7 +2348,7 @@ static int qcom_nand_ooblayout_ecc(struct mtd_info *mtd, int section,
 }
 
 static int qcom_nand_ooblayout_free(struct mtd_info *mtd, int section,
-				     struct mtd_oob_region *oobregion)
+				    struct mtd_oob_region *oobregion)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
@@ -2593,7 +2593,7 @@ static int qcom_op_cmd_mapping(struct qcom_nand_controller *nandc, u8 cmd,
 /* NAND framework ->exec_op() hooks and related helpers */
 static void qcom_parse_instructions(struct nand_chip *chip,
 				    const struct nand_subop *subop,
-					struct qcom_op *q_op)
+				    struct qcom_op *q_op)
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	const struct nand_op_instr *instr = NULL;
@@ -3089,19 +3089,17 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 	 */
 	nandc->buf_size = 532;
 
-	nandc->data_buffer = devm_kzalloc(nandc->dev, nandc->buf_size,
-					GFP_KERNEL);
+	nandc->data_buffer = devm_kzalloc(nandc->dev, nandc->buf_size, GFP_KERNEL);
 	if (!nandc->data_buffer)
 		return -ENOMEM;
 
-	nandc->regs = devm_kzalloc(nandc->dev, sizeof(*nandc->regs),
-					GFP_KERNEL);
+	nandc->regs = devm_kzalloc(nandc->dev, sizeof(*nandc->regs), GFP_KERNEL);
 	if (!nandc->regs)
 		return -ENOMEM;
 
-	nandc->reg_read_buf = devm_kcalloc(nandc->dev,
-				MAX_REG_RD, sizeof(*nandc->reg_read_buf),
-				GFP_KERNEL);
+	nandc->reg_read_buf = devm_kcalloc(nandc->dev, MAX_REG_RD,
+					   sizeof(*nandc->reg_read_buf),
+					   GFP_KERNEL);
 	if (!nandc->reg_read_buf)
 		return -ENOMEM;
 
