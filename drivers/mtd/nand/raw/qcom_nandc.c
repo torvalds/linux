@@ -2722,12 +2722,12 @@ static int qcom_read_status_exec(struct nand_chip *chip,
 	for (i = 0; i < num_cw; i++) {
 		flash_status = le32_to_cpu(nandc->reg_read_buf[i]);
 
-	if (flash_status & FS_MPU_ERR)
-		host->status &= ~NAND_STATUS_WP;
+		if (flash_status & FS_MPU_ERR)
+			host->status &= ~NAND_STATUS_WP;
 
-	if (flash_status & FS_OP_ERR ||
-	 (i == (num_cw - 1) && (flash_status & FS_DEVICE_STS_ERR)))
-		host->status |= NAND_STATUS_FAIL;
+		if (flash_status & FS_OP_ERR ||
+		    (i == (num_cw - 1) && (flash_status & FS_DEVICE_STS_ERR)))
+			host->status |= NAND_STATUS_FAIL;
 	}
 
 	flash_status = host->status;
