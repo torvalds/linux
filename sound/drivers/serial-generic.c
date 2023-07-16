@@ -16,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/serdev.h>
 #include <linux/serial_reg.h>
 #include <linux/slab.h>
