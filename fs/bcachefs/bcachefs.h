@@ -677,11 +677,11 @@ enum bch_write_ref {
 	x(check_alloc_to_lru_refs,	PASS_FSCK)						\
 	x(fs_freespace_init,		PASS_ALWAYS|PASS_SILENT)				\
 	x(bucket_gens_init,		0)							\
-	x(fs_upgrade_for_subvolumes,	0)							\
 	x(check_snapshot_trees,		PASS_FSCK)						\
 	x(check_snapshots,		PASS_FSCK)						\
 	x(check_subvols,		PASS_FSCK)						\
 	x(delete_dead_snapshots,	PASS_FSCK|PASS_UNCLEAN|PASS_SILENT)			\
+	x(fs_upgrade_for_subvolumes,	0)							\
 	x(check_inodes,			PASS_FSCK|PASS_UNCLEAN)					\
 	x(check_extents,		PASS_FSCK)						\
 	x(check_dirents,		PASS_FSCK)						\

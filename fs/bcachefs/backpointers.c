@@ -477,7 +477,7 @@ missing:
 	prt_printf(&buf, "\nbp pos ");
 	bch2_bpos_to_text(&buf, bp_iter.pos);
 
-	if (c->sb.version < bcachefs_metadata_version_backpointers ||
+	if (c->sb.version_upgrade_complete < bcachefs_metadata_version_backpointers ||
 	    c->opts.reconstruct_alloc ||
 	    fsck_err(c, "%s", buf.buf))
 		ret = bch2_bucket_backpointer_mod(trans, bucket, bp, orig_k, true);

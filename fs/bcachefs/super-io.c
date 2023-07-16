@@ -422,6 +422,9 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 			SET_BCH_SB_JOURNAL_FLUSH_DELAY(sb, 1000);
 		if (!BCH_SB_JOURNAL_RECLAIM_DELAY(sb))
 			SET_BCH_SB_JOURNAL_RECLAIM_DELAY(sb, 1000);
+
+		if (!BCH_SB_VERSION_UPGRADE_COMPLETE(sb))
+			SET_BCH_SB_VERSION_UPGRADE_COMPLETE(sb, le16_to_cpu(sb->version));
 	}
 
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
@@ -496,7 +499,7 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.user_uuid		= src->user_uuid;
 	c->sb.version		= le16_to_cpu(src->version);
 	c->sb.version_min	= le16_to_cpu(src->version_min);
-	c->sb.version_upgrade_complete = BCH_SB_VERSION_UPGRADE_COMPLETE(src) ?: c->sb.version;
+	c->sb.version_upgrade_complete = BCH_SB_VERSION_UPGRADE_COMPLETE(src);
 	c->sb.nr_devices	= src->nr_devices;
 	c->sb.clean		= BCH_SB_CLEAN(src);
 	c->sb.encryption_type	= BCH_SB_ENCRYPTION_TYPE(src);

@@ -1272,7 +1272,7 @@ int bch2_mark_reflink_p(struct btree_trans *trans,
 
 	BUG_ON(!(flags & BTREE_TRIGGER_GC));
 
-	if (c->sb.version >= bcachefs_metadata_version_reflink_p_fix) {
+	if (c->sb.version_upgrade_complete >= bcachefs_metadata_version_reflink_p_fix) {
 		idx -= le32_to_cpu(p.v->front_pad);
 		end += le32_to_cpu(p.v->back_pad);
 	}
