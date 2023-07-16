@@ -178,16 +178,13 @@ int ocfs2_recovery_init(struct ocfs2_super *osb)
 	osb->recovery_thread_task = NULL;
 	init_waitqueue_head(&osb->recovery_event);
 
-	rm = kzalloc(sizeof(struct ocfs2_recovery_map) +
-		     osb->max_slots * sizeof(unsigned int),
+	rm = kzalloc(struct_size(rm, rm_entries, osb->max_slots),
 		     GFP_KERNEL);
 	if (!rm) {
 		mlog_errno(-ENOMEM);
 		return -ENOMEM;
 	}
 
-	rm->rm_entries = (unsigned int *)((char *)rm +
-					  sizeof(struct ocfs2_recovery_map));
 	osb->recovery_map = rm;
 
 	return 0;
