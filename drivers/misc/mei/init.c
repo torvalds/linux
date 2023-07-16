@@ -157,7 +157,10 @@ int mei_reset(struct mei_device *dev)
 
 	ret = mei_hw_start(dev);
 	if (ret) {
-		dev_err(dev->dev, "hw_start failed ret = %d\n", ret);
+		char fw_sts_str[MEI_FW_STATUS_STR_SZ];
+
+		mei_fw_status_str(dev, fw_sts_str, MEI_FW_STATUS_STR_SZ);
+		dev_err(dev->dev, "hw_start failed ret = %d fw status = %s\n", ret, fw_sts_str);
 		return ret;
 	}
 
