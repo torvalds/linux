@@ -142,6 +142,9 @@ int mei_reset(struct mei_device *dev)
 
 	mei_hbm_reset(dev);
 
+	/* clean stale FW version */
+	dev->fw_ver_received = 0;
+
 	memset(dev->rd_msg_hdr, 0, sizeof(dev->rd_msg_hdr));
 
 	if (ret) {
