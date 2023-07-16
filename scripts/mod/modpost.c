@@ -24,6 +24,7 @@
 #include "../../include/linux/license.h"
 #include "../../include/linux/module_symbol.h"
 
+static bool module_enabled;
 /* Are we using CONFIG_MODVERSIONS? */
 static bool modversions;
 /* Is CONFIG_MODULE_SRCVERSION_ALL set? */
@@ -1242,7 +1243,7 @@ static void check_section_mismatch(struct module *mod, struct elf_info *elf,
 	const char *tosec = sec_name(elf, get_secindex(elf, sym));
 	const struct sectioncheck *mismatch;
 
-	if (elf->export_symbol_secndx == fsecndx) {
+	if (module_enabled && elf->export_symbol_secndx == fsecndx) {
 		check_export_symbol(mod, elf, faddr, tosec, sym);
 		return;
 	}
@@ -2272,7 +2273,7 @@ int main(int argc, char **argv)
 	LIST_HEAD(dump_lists);
 	struct dump_list *dl, *dl2;
 
-	while ((opt = getopt(argc, argv, "ei:mnT:to:au:WwENd:")) != -1) {
+	while ((opt = getopt(argc, argv, "ei:MmnT:to:au:WwENd:")) != -1) {
 		switch (opt) {
 		case 'e':
 			external_module = true;
@@ -2281,6 +2282,9 @@ int main(int argc, char **argv)
 			dl = NOFAIL(malloc(sizeof(*dl)));
 			dl->file = optarg;
 			list_add_tail(&dl->list, &dump_lists);
+			break;
+		case 'M':
+			module_enabled = true;
 			break;
 		case 'm':
 			modversions = true;
