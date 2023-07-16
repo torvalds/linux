@@ -606,12 +606,13 @@ static int ref_visible2(struct bch_fs *c,
 struct inode_walker_entry {
 	struct bch_inode_unpacked inode;
 	u32			snapshot;
+	bool			seen_this_pos;
 	u64			count;
 };
 
 struct inode_walker {
 	bool				first_this_inode;
-	u64				cur_inum;
+	struct bpos			last_pos;
 
 	DARRAY(struct inode_walker_entry) inodes;
 };
@@ -648,9 +649,6 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 	u32 restart_count = trans->restart_count;
 	int ret;
 
-	if (w->cur_inum == inum)
-		return 0;
-
 	w->inodes.nr = 0;
 
 	for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, inum),
@@ -666,8 +664,7 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	w->cur_inum		= inum;
-	w->first_this_inode	= true;
+	w->first_this_inode = true;
 
 	if (trans_was_restarted(trans, restart_count))
 		return -BCH_ERR_transaction_restart_nested;
@@ -699,7 +696,7 @@ found:
 		new.count = 0;
 
 		bch_info(c, "have key for inode %llu:%u but have inode in ancestor snapshot %u",
-			 w->cur_inum, snapshot, i->snapshot);
+			 w->last_pos.inode, snapshot, i->snapshot);
 
 		while (i > w->inodes.data && i[-1].snapshot > snapshot)
 			--i;
@@ -715,9 +712,19 @@ found:
 static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
 					     struct inode_walker *w, struct bpos pos)
 {
-	int ret = get_inodes_all_snapshots(trans, w, pos.inode);
-	if (ret)
-		return ERR_PTR(ret);
+	if (w->last_pos.inode != pos.inode) {
+		int ret = get_inodes_all_snapshots(trans, w, pos.inode);
+		if (ret)
+			return ERR_PTR(ret);
+	} else if (bkey_cmp(w->last_pos, pos)) {
+		struct inode_walker_entry *i;
+
+		darray_for_each(w->inodes, i)
+			i->seen_this_pos = false;
+
+	}
+
+	w->last_pos = pos;
 
 	return lookup_inode_for_snapshot(trans->c, w, pos.snapshot);
 }
@@ -1128,7 +1135,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 		if (i->inode.bi_sectors == i->count)
 			continue;
 
-		count2 = bch2_count_inode_sectors(trans, w->cur_inum, i->snapshot);
+		count2 = bch2_count_inode_sectors(trans, w->last_pos.inode, i->snapshot);
 
 		if (i->count != count2) {
 			bch_err(c, "fsck counted i_sectors wrong: got %llu should be %llu",
@@ -1140,7 +1147,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 
 		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY), c,
 			    "inode %llu:%u has incorrect i_sectors: got %llu, should be %llu",
-			    w->cur_inum, i->snapshot,
+			    w->last_pos.inode, i->snapshot,
 			    i->inode.bi_sectors, i->count)) {
 			i->inode.bi_sectors = i->count;
 			ret = write_inode(trans, &i->inode, i->snapshot);
@@ -1302,7 +1309,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	if (k.k->type == KEY_TYPE_whiteout)
 		goto out;
 
-	if (inode->cur_inum != k.k->p.inode) {
+	if (inode->last_pos.inode != k.k->p.inode) {
 		ret = check_i_sectors(trans, inode);
 		if (ret)
 			goto err;
@@ -1453,7 +1460,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 		if (i->inode.bi_nlink == i->count)
 			continue;
 
-		count2 = bch2_count_subdirs(trans, w->cur_inum, i->snapshot);
+		count2 = bch2_count_subdirs(trans, w->last_pos.inode, i->snapshot);
 		if (count2 < 0)
 			return count2;
 
@@ -1467,7 +1474,7 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 
 		if (fsck_err_on(i->inode.bi_nlink != i->count, c,
 				"directory %llu:%u with wrong i_nlink: got %u, should be %llu",
-				w->cur_inum, i->snapshot, i->inode.bi_nlink, i->count)) {
+				w->last_pos.inode, i->snapshot, i->inode.bi_nlink, i->count)) {
 			i->inode.bi_nlink = i->count;
 			ret = write_inode(trans, &i->inode, i->snapshot);
 			if (ret)
@@ -1631,7 +1638,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (k.k->type == KEY_TYPE_whiteout)
 		goto out;
 
-	if (dir->cur_inum != k.k->p.inode) {
+	if (dir->last_pos.inode != k.k->p.inode) {
 		ret = check_subdir_count(trans, dir);
 		if (ret)
 			goto err;
