@@ -2616,12 +2616,13 @@ static void qcom_parse_instructions(struct nand_chip *chip,
 			offset = nand_subop_get_addr_start_off(subop, op_id);
 			naddrs = nand_subop_get_num_addr_cyc(subop, op_id);
 			addrs = &instr->ctx.addr.addrs[offset];
-			for (i = 0; i < MAX_ADDRESS_CYCLE; i++) {
-				if (i < 4)
-					q_op->addr1_reg |= (u32)addrs[i] << i * 8;
-				else
-					q_op->addr2_reg |= addrs[i];
-			}
+
+			for (i = 0; i < min_t(unsigned int, 4, naddrs); i++)
+				q_op->addr1_reg |= addrs[i] << (i * 8);
+
+			if (naddrs > 4)
+				q_op->addr2_reg |= addrs[4];
+
 			q_op->rdy_delay_ns = instr->delay_ns;
 			break;
 
