@@ -1426,7 +1426,8 @@ int bch2_check_extents(struct bch_fs *c)
 			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL, ({
 		bch2_disk_reservation_put(c, &res);
 		check_extent(&trans, &iter, k, &w, &s, &extent_ends);
-	}));
+	})) ?:
+	check_i_sectors(&trans, &w);
 
 	bch2_disk_reservation_put(c, &res);
 	extent_ends_reset(&extent_ends);
