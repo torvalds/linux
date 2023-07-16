@@ -25,7 +25,7 @@ static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ances
 	return s->parent;
 }
 
-bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
+bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 {
 	struct snapshot_table *t;
 	bool ret;
