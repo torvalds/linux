@@ -1750,6 +1750,11 @@ static bool qca808x_is_prefer_master(struct phy_device *phydev)
 		(phydev->master_slave_get == MASTER_SLAVE_CFG_MASTER_PREFERRED);
 }
 
+static bool qca808x_has_fast_retrain_or_slave_seed(struct phy_device *phydev)
+{
+	return linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported);
+}
+
 static int qca808x_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -1766,20 +1771,24 @@ static int qca808x_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	/* Config the fast retrain for the link 2500M */
-	ret = qca808x_phy_fast_retrain_config(phydev);
-	if (ret)
-		return ret;
-
-	ret = genphy_read_master_slave(phydev);
-	if (ret < 0)
-		return ret;
-
-	if (!qca808x_is_prefer_master(phydev)) {
-		/* Enable seed and configure lower ramdom seed to make phy linked as slave mode */
-		ret = qca808x_phy_ms_seed_enable(phydev, true);
+	if (qca808x_has_fast_retrain_or_slave_seed(phydev)) {
+		/* Config the fast retrain for the link 2500M */
+		ret = qca808x_phy_fast_retrain_config(phydev);
 		if (ret)
 			return ret;
+
+		ret = genphy_read_master_slave(phydev);
+		if (ret < 0)
+			return ret;
+
+		if (!qca808x_is_prefer_master(phydev)) {
+			/* Enable seed and configure lower ramdom seed to make phy
+			 * linked as slave mode.
+			 */
+			ret = qca808x_phy_ms_seed_enable(phydev, true);
+			if (ret)
+				return ret;
+		}
 	}
 
 	/* Configure adc threshold as 100mv for the link 10M */
@@ -1821,11 +1830,13 @@ static int qca808x_read_status(struct phy_device *phydev)
 		 * value is configured as the same value, the link can't be up and no link change
 		 * occurs.
 		 */
-		if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR ||
-				qca808x_is_prefer_master(phydev)) {
-			qca808x_phy_ms_seed_enable(phydev, false);
-		} else {
-			qca808x_phy_ms_seed_enable(phydev, true);
+		if (qca808x_has_fast_retrain_or_slave_seed(phydev)) {
+			if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR ||
+					qca808x_is_prefer_master(phydev)) {
+				qca808x_phy_ms_seed_enable(phydev, false);
+			} else {
+				qca808x_phy_ms_seed_enable(phydev, true);
+			}
 		}
 	}
 
@@ -1840,7 +1851,10 @@ static int qca808x_soft_reset(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
-	return qca808x_phy_ms_seed_enable(phydev, true);
+	if (qca808x_has_fast_retrain_or_slave_seed(phydev))
+		ret = qca808x_phy_ms_seed_enable(phydev, true);
+
+	return ret;
 }
 
 static bool qca808x_cdt_fault_length_valid(int cdt_code)
