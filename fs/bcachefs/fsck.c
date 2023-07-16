@@ -1345,13 +1345,6 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 	}
 
-	ret = snapshots_seen_update(c, s, iter->btree_id, k.k->p);
-	if (ret)
-		goto err;
-
-	if (k.k->type == KEY_TYPE_whiteout)
-		goto out;
-
 	if (inode->last_pos.inode != k.k->p.inode) {
 		ret = check_i_sectors(trans, inode);
 		if (ret)
@@ -1365,66 +1358,74 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		goto err;
 
-	ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
-	if (ret < 0)
-		goto err;
-
-	if (ret)
-		inode->recalculate_sums = true;
-
-	ret = extent_ends_at(extent_ends, s, k);
+	ret = snapshots_seen_update(c, s, iter->btree_id, k.k->p);
 	if (ret)
 		goto err;
 
-	if (fsck_err_on(!i, c,
-			"extent in missing inode:\n  %s",
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-		goto delete;
+	if (k.k->type != KEY_TYPE_whiteout) {
+		if (fsck_err_on(!i, c,
+				"extent in missing inode:\n  %s",
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+			goto delete;
 
-	if (!i)
-		goto out;
+		if (fsck_err_on(i &&
+				!S_ISREG(i->inode.bi_mode) &&
+				!S_ISLNK(i->inode.bi_mode), c,
+				"extent in non regular inode mode %o:\n  %s",
+				i->inode.bi_mode,
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+			goto delete;
 
-	if (fsck_err_on(!S_ISREG(i->inode.bi_mode) &&
-			!S_ISLNK(i->inode.bi_mode), c,
-			"extent in non regular inode mode %o:\n  %s",
-			i->inode.bi_mode,
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-		goto delete;
+		ret = check_overlapping_extents(trans, s, extent_ends, k, iter);
+		if (ret < 0)
+			goto err;
+
+		if (ret)
+			inode->recalculate_sums = true;
+
+		ret = extent_ends_at(extent_ends, s, k);
+		if (ret)
+			goto err;
+	}
 
 	/*
 	 * Check inodes in reverse order, from oldest snapshots to newest, so
 	 * that we emit the fewest number of whiteouts necessary:
 	 */
 	for (i = inode->inodes.data + inode->inodes.nr - 1;
-	     i >= inode->inodes.data;
+	     inode->inodes.data && i >= inode->inodes.data;
 	     --i) {
 		if (i->snapshot > equiv.snapshot ||
 		    !key_visible_in_snapshot(c, s, i->snapshot, equiv.snapshot))
 			continue;
 
-		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-				k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
-				!bkey_extent_is_reservation(k), c,
-				"extent type past end of inode %llu:%u, i_size %llu\n  %s",
-				i->inode.bi_inum, i->snapshot, i->inode.bi_size,
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-			struct btree_iter iter2;
+		if (k.k->type != KEY_TYPE_whiteout) {
+			if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+					k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
+					!bkey_extent_is_reservation(k), c,
+					"extent type past end of inode %llu:%u, i_size %llu\n  %s",
+					i->inode.bi_inum, i->snapshot, i->inode.bi_size,
+					(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+				struct btree_iter iter2;
 
-			bch2_trans_copy_iter(&iter2, iter);
-			bch2_btree_iter_set_snapshot(&iter2, i->snapshot);
-			ret =   bch2_btree_iter_traverse(&iter2) ?:
-				bch2_btree_delete_at(trans, &iter2,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
-			bch2_trans_iter_exit(trans, &iter2);
-			if (ret)
-				goto err;
-
-			if (i->snapshot != equiv.snapshot) {
-				ret = snapshots_seen_add(c, s, i->snapshot);
+				bch2_trans_copy_iter(&iter2, iter);
+				bch2_btree_iter_set_snapshot(&iter2, i->snapshot);
+				ret =   bch2_btree_iter_traverse(&iter2) ?:
+					bch2_btree_delete_at(trans, &iter2,
+						BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				bch2_trans_iter_exit(trans, &iter2);
 				if (ret)
 					goto err;
+
+				if (i->snapshot != equiv.snapshot) {
+					ret = snapshots_seen_add(c, s, i->snapshot);
+					if (ret)
+						goto err;
+				}
+
+				iter->k.type = KEY_TYPE_whiteout;
 			}
 		}
 	}
