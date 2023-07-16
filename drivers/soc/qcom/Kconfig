@@ -274,6 +274,16 @@ config QCOM_RMTFS_MEM
 
 	  Say y here if you intend to boot the modem remoteproc.
 
+config QCOM_QFPROM_SYS
+	tristate "Qualcomm Technologies, Inc. QFPROM_SYS driver "
+	depends on NVMEM_QCOM_QFPROM
+	help
+	  Qualcomm Technologies, Inc. QFPROM_SYS driver. The QFPROM SYS driver
+	  provides access to the child nodes of QFPROM to user space. The cell
+	  values are exported as sysfs entries.
+
+	  Say y here to enable QFPROM SYS support.
+
 config MSM_CORE_HANG_DETECT
         tristate "MSM Core Hang Detection Support"
         help
