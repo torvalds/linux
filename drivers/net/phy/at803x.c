@@ -1740,6 +1740,12 @@ static int qca808x_phy_ms_seed_enable(struct phy_device *phydev, bool enable)
 			QCA808X_MASTER_SLAVE_SEED_ENABLE);
 }
 
+static bool qca808x_is_prefer_master(struct phy_device *phydev)
+{
+	return (phydev->master_slave_get == MASTER_SLAVE_CFG_MASTER_FORCE) ||
+		(phydev->master_slave_get == MASTER_SLAVE_CFG_MASTER_PREFERRED);
+}
+
 static int qca808x_config_init(struct phy_device *phydev)
 {
 	int ret;
@@ -1761,10 +1767,16 @@ static int qca808x_config_init(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	/* Enable seed and configure lower ramdom seed to make phy linked as slave mode */
-	ret = qca808x_phy_ms_seed_enable(phydev, true);
-	if (ret)
+	ret = genphy_read_master_slave(phydev);
+	if (ret < 0)
 		return ret;
+
+	if (!qca808x_is_prefer_master(phydev)) {
+		/* Enable seed and configure lower ramdom seed to make phy linked as slave mode */
+		ret = qca808x_phy_ms_seed_enable(phydev, true);
+		if (ret)
+			return ret;
+	}
 
 	/* Configure adc threshold as 100mv for the link 10M */
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_ADC_THRESHOLD,
@@ -1797,13 +1809,16 @@ static int qca808x_read_status(struct phy_device *phydev)
 			phydev->interface = PHY_INTERFACE_MODE_SGMII;
 	} else {
 		/* generate seed as a lower random value to make PHY linked as SLAVE easily,
-		 * except for master/slave configuration fault detected.
+		 * except for master/slave configuration fault detected or the master mode
+		 * preferred.
+		 *
 		 * the reason for not putting this code into the function link_change_notify is
 		 * the corner case where the link partner is also the qca8081 PHY and the seed
 		 * value is configured as the same value, the link can't be up and no link change
 		 * occurs.
 		 */
-		if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR) {
+		if (phydev->master_slave_state == MASTER_SLAVE_STATE_ERR ||
+				qca808x_is_prefer_master(phydev)) {
 			qca808x_phy_ms_seed_enable(phydev, false);
 		} else {
 			qca808x_phy_ms_seed_enable(phydev, true);
