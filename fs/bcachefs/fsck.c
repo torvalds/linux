@@ -471,28 +471,6 @@ static inline void snapshots_seen_init(struct snapshots_seen *s)
 	memset(s, 0, sizeof(*s));
 }
 
-static int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id)
-{
-	struct snapshots_seen_entry *i, n = { id, id };
-	int ret;
-
-	darray_for_each(s->ids, i) {
-		if (n.equiv < i->equiv)
-			break;
-
-		if (i->equiv == n.equiv) {
-			bch_err(c, "%s(): adding duplicate snapshot", __func__);
-			return -EINVAL;
-		}
-	}
-
-	ret = darray_insert_item(&s->ids, i - s->ids.data, n);
-	if (ret)
-		bch_err(c, "error reallocating snapshots_seen table (size %zu)",
-			s->ids.size);
-	return ret;
-}
-
 static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 				 enum btree_id btree_id, struct bpos pos)
 {
@@ -1391,10 +1369,14 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 	}
 
 	/*
-	 * Check inodes in reverse order, from oldest snapshots to newest, so
-	 * that we emit the fewest number of whiteouts necessary:
+	 * Check inodes in reverse order, from oldest snapshots to newest,
+	 * starting from the inode that matches this extent's snapshot. If we
+	 * didn't have one, iterate over all inodes:
 	 */
-	for (i = inode->inodes.data + inode->inodes.nr - 1;
+	if (!i)
+		i = inode->inodes.data + inode->inodes.nr - 1;
+
+	for (;
 	     inode->inodes.data && i >= inode->inodes.data;
 	     --i) {
 		if (i->snapshot > equiv.snapshot ||
@@ -1419,20 +1401,15 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 				if (ret)
 					goto err;
 
-				if (i->snapshot != equiv.snapshot) {
-					ret = snapshots_seen_add(c, s, i->snapshot);
-					if (ret)
-						goto err;
-				}
-
 				iter->k.type = KEY_TYPE_whiteout;
 			}
-		}
-	}
 
-	if (bkey_extent_is_allocation(k.k))
-		for_each_visible_inode(c, s, inode, equiv.snapshot, i)
-			i->count += k.k->size;
+			if (bkey_extent_is_allocation(k.k))
+				i->count += k.k->size;
+		}
+
+		i->seen_this_pos = true;
+	}
 out:
 err:
 fsck_err:
