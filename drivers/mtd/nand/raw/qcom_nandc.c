@@ -3144,7 +3144,7 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 		/*
 		 * Initially allocate BAM transaction to read ONFI param page.
 		 * After detecting all the devices, this BAM transaction will
-		 * be freed and the next BAM tranasction will be allocated with
+		 * be freed and the next BAM transaction will be allocated with
 		 * maximum codeword size
 		 */
 		nandc->max_cwperpage = 1;
