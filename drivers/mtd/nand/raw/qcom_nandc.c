@@ -212,7 +212,7 @@ nandc_set_reg(chip, reg,			\
 /* Returns the dma address for reg read buffer */
 #define reg_buf_dma_addr(chip, vaddr) \
 	((chip)->reg_read_dma + \
-	((uint8_t *)(vaddr) - (uint8_t *)(chip)->reg_read_buf))
+	((u8 *)(vaddr) - (u8 *)(chip)->reg_read_buf))
 
 #define QPIC_PER_CW_CMD_ELEMENTS	32
 #define QPIC_PER_CW_CMD_SGL		32
@@ -1884,7 +1884,7 @@ static void qcom_nandc_codeword_fixup(struct qcom_nand_host *host, int page)
 }
 
 /* implements ecc->read_page() */
-static int qcom_nandc_read_page(struct nand_chip *chip, uint8_t *buf,
+static int qcom_nandc_read_page(struct nand_chip *chip, u8 *buf,
 				int oob_required, int page)
 {
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
@@ -1912,7 +1912,7 @@ static int qcom_nandc_read_page(struct nand_chip *chip, uint8_t *buf,
 }
 
 /* implements ecc->read_page_raw() */
-static int qcom_nandc_read_page_raw(struct nand_chip *chip, uint8_t *buf,
+static int qcom_nandc_read_page_raw(struct nand_chip *chip, u8 *buf,
 				    int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -1958,7 +1958,7 @@ static int qcom_nandc_read_oob(struct nand_chip *chip, int page)
 }
 
 /* implements ecc->write_page() */
-static int qcom_nandc_write_page(struct nand_chip *chip, const uint8_t *buf,
+static int qcom_nandc_write_page(struct nand_chip *chip, const u8 *buf,
 				 int oob_required, int page)
 {
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
@@ -2035,7 +2035,7 @@ static int qcom_nandc_write_page(struct nand_chip *chip, const uint8_t *buf,
 
 /* implements ecc->write_page_raw() */
 static int qcom_nandc_write_page_raw(struct nand_chip *chip,
-				     const uint8_t *buf, int oob_required,
+				     const u8 *buf, int oob_required,
 				     int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
