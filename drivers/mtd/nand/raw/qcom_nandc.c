@@ -1997,7 +1997,6 @@ static int qcom_nandc_write_page(struct nand_chip *chip, const u8 *buf,
 			oob_size = ecc->bytes;
 		}
 
-
 		write_data_dma(nandc, FLASH_BUF_ACC, data_buf, data_size,
 			       i == (ecc->steps - 1) ? NAND_BAM_NO_EOT : 0);
 
@@ -2373,6 +2372,7 @@ qcom_nandc_calc_ecc_bytes(int step_size, int strength)
 {
 	return strength == 4 ? 12 : 16;
 }
+
 NAND_ECC_CAPS_SINGLE(qcom_nandc_ecc_caps, qcom_nandc_calc_ecc_bytes,
 		     NANDC_STEP_SIZE, 4, 8);
 
