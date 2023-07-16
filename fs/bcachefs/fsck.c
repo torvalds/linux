@@ -517,15 +517,14 @@ static bool key_visible_in_snapshot(struct bch_fs *c, struct snapshots_seen *see
 				    u32 id, u32 ancestor)
 {
 	ssize_t i;
-	u32 top = seen->ids.nr ? seen->ids.data[seen->ids.nr - 1].equiv : 0;
 
-	BUG_ON(id > ancestor);
-	BUG_ON(!bch2_snapshot_is_equiv(c, id));
-	BUG_ON(!bch2_snapshot_is_equiv(c, ancestor));
+	EBUG_ON(id > ancestor);
+	EBUG_ON(!bch2_snapshot_is_equiv(c, id));
+	EBUG_ON(!bch2_snapshot_is_equiv(c, ancestor));
 
 	/* @ancestor should be the snapshot most recently added to @seen */
-	BUG_ON(ancestor != seen->pos.snapshot);
-	BUG_ON(ancestor != top);
+	EBUG_ON(ancestor != seen->pos.snapshot);
+	EBUG_ON(ancestor != seen->ids.data[seen->ids.nr - 1].equiv);
 
 	if (id == ancestor)
 		return true;
@@ -533,11 +532,20 @@ static bool key_visible_in_snapshot(struct bch_fs *c, struct snapshots_seen *see
 	if (!bch2_snapshot_is_ancestor(c, id, ancestor))
 		return false;
 
+	/*
+	 * We know that @id is a descendant of @ancestor, we're checking if
+	 * we've seen a key that overwrote @ancestor - i.e. also a descendent of
+	 * @ascestor and with @id as a descendent.
+	 *
+	 * But we already know that we're scanning IDs between @id and @ancestor
+	 * numerically, since snapshot ID lists are kept sorted, so if we find
+	 * an id that's an ancestor of @id we're done:
+	 */
+
 	for (i = seen->ids.nr - 2;
 	     i >= 0 && seen->ids.data[i].equiv >= id;
 	     --i)
-		if (bch2_snapshot_is_ancestor(c, id, seen->ids.data[i].equiv) &&
-		    bch2_snapshot_is_ancestor(c, seen->ids.data[i].equiv, ancestor))
+		if (bch2_snapshot_is_ancestor(c, id, seen->ids.data[i].equiv))
 			return false;
 
 	return true;
