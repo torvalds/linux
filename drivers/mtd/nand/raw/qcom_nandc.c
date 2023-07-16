@@ -2600,8 +2600,6 @@ static void qcom_parse_instructions(struct nand_chip *chip,
 	unsigned int op_id;
 	int i;
 
-	memset(q_op, 0, sizeof(*q_op));
-
 	for (op_id = 0; op_id < subop->ninstrs; op_id++) {
 		unsigned int offset, naddrs;
 		const u8 *addrs;
@@ -2681,7 +2679,7 @@ static int qcom_read_status_exec(struct nand_chip *chip,
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	struct qcom_op q_op;
+	struct qcom_op q_op = {};
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id = 0;
 	unsigned int len = 0;
@@ -2744,7 +2742,7 @@ static int qcom_read_id_type_exec(struct nand_chip *chip, const struct nand_subo
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
-	struct qcom_op q_op;
+	struct qcom_op q_op = {};
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id = 0;
 	unsigned int len = 0;
@@ -2795,7 +2793,7 @@ static int qcom_misc_cmd_type_exec(struct nand_chip *chip, const struct nand_sub
 {
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
-	struct qcom_op q_op;
+	struct qcom_op q_op = {};
 	int ret = 0;
 
 	qcom_parse_instructions(chip, subop, &q_op);
@@ -2838,7 +2836,7 @@ static int qcom_param_page_type_exec(struct nand_chip *chip,  const struct nand_
 {
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
-	struct qcom_op q_op;
+	struct qcom_op q_op = {};
 	const struct nand_op_instr *instr = NULL;
 	unsigned int op_id = 0;
 	unsigned int len = 0;
@@ -2935,7 +2933,7 @@ static int qcom_erase_cmd_type_exec(struct nand_chip *chip, const struct nand_su
 {
 	struct qcom_nand_host *host = to_qcom_nand_host(chip);
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
-	struct qcom_op q_op;
+	struct qcom_op q_op = {};
 	int ret = 0;
 
 	qcom_parse_instructions(chip, subop, &q_op);
