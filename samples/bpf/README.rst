@@ -8,11 +8,14 @@ Build dependencies
 ==================
 
 Compiling requires having installed:
- * clang >= version 3.4.0
- * llvm >= version 3.7.1
+ * clang
+ * llvm
+ * pahole
 
-Note that LLVM's tool 'llc' must support target 'bpf', list version
-and supported targets with command: ``llc --version``
+Consult :ref:`Documentation/process/changes.rst <changes>` for the minimum
+version numbers required and how to update them. Note that LLVM's tool
+'llc' must support target 'bpf', list version and supported targets with
+command: ``llc --version``
 
 Clean and configuration
 -----------------------
@@ -24,7 +27,8 @@ after some changes (on demand)::
  make -C samples/bpf clean
  make clean
 
-Configure kernel, defconfig for instance::
+Configure kernel, defconfig for instance
+(see "tools/testing/selftests/bpf/config" for a reference config)::
 
  make defconfig
 
