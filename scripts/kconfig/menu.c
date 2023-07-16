@@ -735,15 +735,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 	}
 	if (head && location) {
 		jump = xmalloc(sizeof(struct jump_key));
-
 		jump->target = location;
-
-		if (list_empty(head))
-			jump->index = 0;
-		else
-			jump->index = list_entry(head->prev, struct jump_key,
-						 entries)->index + 1;
-
 		list_add_tail(&jump->entries, head);
 	}
 

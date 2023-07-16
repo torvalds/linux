@@ -22,8 +22,6 @@
 #include "lkc.h"
 #include "lxdialog/dialog.h"
 
-#define JUMP_NB			9
-
 static const char mconf_readme[] =
 "Overview\n"
 "--------\n"
@@ -402,18 +400,21 @@ static int handle_search_keys(int key, size_t start, size_t end, void *_data)
 {
 	struct search_data *data = _data;
 	struct jump_key *pos;
+	int index = 0;
 
 	if (key < '1' || key > '9')
 		return 0;
 
 	list_for_each_entry(pos, data->head, entries) {
+		index = next_jump_key(index);
+
 		if (pos->offset < start)
 			continue;
 
 		if (pos->offset >= end)
 			break;
 
-		if (key == '1' + (pos->index % JUMP_NB)) {
+		if (key == index) {
 			data->target = pos->target;
 			return 1;
 		}
