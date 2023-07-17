@@ -1582,6 +1582,53 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 	req = &job->rga_command_base;
 	mm = rga_drvdata->mm;
 
+	switch (req->render_mode) {
+	case BITBLT_MODE:
+	case COLOR_PALETTE_MODE:
+		if (unlikely(req->src.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] src0 channel handle[%ld] must is valid!",
+			       req->render_mode, (unsigned long)req->src.yrgb_addr);
+			return -EINVAL;
+		}
+
+		if (unlikely(req->dst.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] dst channel handle[%ld] must is valid!",
+			       req->render_mode, (unsigned long)req->dst.yrgb_addr);
+			return -EINVAL;
+		}
+
+		if (req->bsfilter_flag) {
+			if (unlikely(req->pat.yrgb_addr <= 0)) {
+				pr_err("render_mode[0x%x] src1/pat channel handle[%ld] must is valid!",
+				       req->render_mode, (unsigned long)req->pat.yrgb_addr);
+				return -EINVAL;
+			}
+		}
+
+		break;
+	case COLOR_FILL_MODE:
+		if (unlikely(req->dst.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] dst channel handle[%ld] must is valid!",
+			       req->render_mode, (unsigned long)req->dst.yrgb_addr);
+			return -EINVAL;
+		}
+
+		break;
+
+	case UPDATE_PALETTE_TABLE_MODE:
+	case UPDATE_PATTEN_BUF_MODE:
+		if (unlikely(req->pat.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] lut/pat channel handle[%ld] must is valid!, req->render_mode",
+			       req->render_mode, (unsigned long)req->pat.yrgb_addr);
+			return -EINVAL;
+		}
+
+		break;
+	default:
+		pr_err("%s, unknown render mode!\n", __func__);
+		break;
+	}
+
 	if (likely(req->src.yrgb_addr > 0)) {
 		ret = rga_mm_get_channel_handle_info(mm, job, &req->src,
 						     &job->src_buffer,
