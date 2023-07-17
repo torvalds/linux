@@ -250,6 +250,9 @@ int main(int argc, char **argv)
 	if (!check_resctrlfs_support())
 		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
 
+	if (umount_resctrlfs())
+		return ksft_exit_skip("resctrl FS unmount failed.\n");
+
 	filter_dmesg();
 
 	ksft_set_plan(tests ? : 4);

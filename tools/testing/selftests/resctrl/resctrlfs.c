@@ -82,10 +82,16 @@ int remount_resctrlfs(bool mum_resctrlfs)
 
 int umount_resctrlfs(void)
 {
-	if (find_resctrl_mount(NULL))
-		return 0;
+	char mountpoint[256];
+	int ret;
 
-	if (umount(RESCTRL_PATH)) {
+	ret = find_resctrl_mount(mountpoint);
+	if (ret == -ENOENT)
+		return 0;
+	if (ret)
+		return ret;
+
+	if (umount(mountpoint)) {
 		perror("# Unable to umount resctrl");
 
 		return errno;
