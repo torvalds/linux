@@ -138,35 +138,17 @@ static int fill_cache_write(unsigned char *start_ptr, unsigned char *end_ptr,
 	return 0;
 }
 
-static int
-fill_cache(size_t buf_size, int malloc_and_init, int memflush,
-	   int op, char *resctrl_val)
+static int fill_cache(size_t buf_size, int memflush, int op, char *resctrl_val)
 {
 	unsigned char *start_ptr, *end_ptr;
-	unsigned long long i;
 	int ret;
 
-	if (malloc_and_init)
-		start_ptr = malloc_and_init_memory(buf_size);
-	else
-		start_ptr = malloc(buf_size);
-
+	start_ptr = malloc_and_init_memory(buf_size);
 	if (!start_ptr)
 		return -1;
 
 	startptr = start_ptr;
 	end_ptr = start_ptr + buf_size;
-
-	/*
-	 * It's better to touch the memory once to avoid any compiler
-	 * optimizations
-	 */
-	if (!malloc_and_init) {
-		for (i = 0; i < buf_size; i++)
-			*start_ptr++ = (unsigned char)rand();
-	}
-
-	start_ptr = startptr;
 
 	/* Flush the memory before using to avoid "cache hot pages" effect */
 	if (memflush)
@@ -188,14 +170,12 @@ fill_cache(size_t buf_size, int malloc_and_init, int memflush,
 	return 0;
 }
 
-int run_fill_buf(size_t span, int malloc_and_init_memory, int memflush, int op,
-		 char *resctrl_val)
+int run_fill_buf(size_t span, int memflush, int op, char *resctrl_val)
 {
 	size_t cache_size = span;
 	int ret;
 
-	ret = fill_cache(cache_size, malloc_and_init_memory, memflush, op,
-			 resctrl_val);
+	ret = fill_cache(cache_size, memflush, op, resctrl_val);
 	if (ret) {
 		printf("\n Error in fill cache\n");
 		return -1;
