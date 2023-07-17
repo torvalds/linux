@@ -896,8 +896,12 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	fsl_lpspi->txfifosize = 1 << (temp & 0x0f);
 	fsl_lpspi->rxfifosize = 1 << ((temp >> 8) & 0x0f);
 	if (of_property_read_u32((&pdev->dev)->of_node, "num-cs",
-				 &num_cs))
-		num_cs = 1;
+				 &num_cs)) {
+		if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx93-spi"))
+			num_cs = ((temp >> 16) & 0xf);
+		else
+			num_cs = 1;
+	}
 
 	controller->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 32);
 	controller->transfer_one = fsl_lpspi_transfer_one;
