@@ -21,3 +21,4 @@
    deprecated
    adding-syscalls
    researcher-guidelines
+   contribution-maturity-model
