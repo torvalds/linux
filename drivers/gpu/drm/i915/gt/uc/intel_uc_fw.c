@@ -787,11 +787,57 @@ static int try_firmware_load(struct intel_uc_fw *uc_fw, const struct firmware **
 	return 0;
 }
 
+static int check_mtl_huc_guc_compatibility(struct intel_gt *gt,
+					   struct intel_uc_fw_file *huc_selected)
+{
+	struct intel_uc_fw_file *guc_selected = &gt->uc.guc.fw.file_selected;
+	struct intel_uc_fw_ver *huc_ver = &huc_selected->ver;
+	struct intel_uc_fw_ver *guc_ver = &guc_selected->ver;
+	bool new_huc, new_guc;
+
+	/* we can only do this check after having fetched both GuC and HuC */
+	GEM_BUG_ON(!huc_selected->path || !guc_selected->path);
+
+	/*
+	 * Due to changes in the authentication flow for MTL, HuC 8.5.1 or newer
+	 * requires GuC 70.7.0 or newer. Older HuC binaries will instead require
+	 * GuC < 70.7.0.
+	 */
+	new_huc = huc_ver->major > 8 ||
+		  (huc_ver->major == 8 && huc_ver->minor > 5) ||
+		  (huc_ver->major == 8 && huc_ver->minor == 5 && huc_ver->patch >= 1);
+
+	new_guc = guc_ver->major > 70 ||
+		  (guc_ver->major == 70 && guc_ver->minor >= 7);
+
+	if (new_huc != new_guc) {
+		UNEXPECTED(gt, "HuC %u.%u.%u is incompatible with GuC %u.%u.%u\n",
+			   huc_ver->major, huc_ver->minor, huc_ver->patch,
+			   guc_ver->major, guc_ver->minor, guc_ver->patch);
+		gt_info(gt, "MTL GuC 70.7.0+ and HuC 8.5.1+ don't work with older releases\n");
+		return -ENOEXEC;
+	}
+
+	return 0;
+}
+
 int intel_uc_check_file_version(struct intel_uc_fw *uc_fw, bool *old_ver)
 {
 	struct intel_gt *gt = __uc_fw_to_gt(uc_fw);
 	struct intel_uc_fw_file *wanted = &uc_fw->file_wanted;
 	struct intel_uc_fw_file *selected = &uc_fw->file_selected;
+	int ret;
+
+	/*
+	 * MTL has some compatibility issues with early GuC/HuC binaries
+	 * not working with newer ones. This is specific to MTL and we
+	 * don't expect it to extend to other platforms.
+	 */
+	if (IS_METEORLAKE(gt->i915) && uc_fw->type == INTEL_UC_FW_TYPE_HUC) {
+		ret = check_mtl_huc_guc_compatibility(gt, selected);
+		if (ret)
+			return ret;
+	}
 
 	if (!wanted->ver.major || !selected->ver.major)
 		return 0;
