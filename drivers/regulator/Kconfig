@@ -584,6 +584,16 @@ config REGULATOR_MAX77650
 	  Semiconductor. This device has a SIMO with three independent
 	  power rails and an LDO.
 
+config REGULATOR_MAX77857
+	tristate "ADI MAX77857/MAX77831 regulator support"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver controls a ADI MAX77857 and MAX77831 regulators.
+	  via I2C bus. MAX77857 and MAX77831 are high efficiency buck-boost
+	  converters with input voltage range (2.5V to 16V). Say Y here to
+	  enable the regulator driver
+
 config REGULATOR_MAX8649
 	tristate "Maxim 8649 voltage regulator"
 	depends on I2C
