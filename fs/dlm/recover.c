@@ -403,7 +403,7 @@ static void set_lock_master(struct list_head *queue, int nodeid)
 	struct dlm_lkb *lkb;
 
 	list_for_each_entry(lkb, queue, lkb_statequeue) {
-		if (!(lkb->lkb_flags & DLM_IFL_MSTCPY)) {
+		if (!test_bit(DLM_IFL_MSTCPY_BIT, &lkb->lkb_iflags)) {
 			lkb->lkb_nodeid = nodeid;
 			lkb->lkb_remid = 0;
 		}

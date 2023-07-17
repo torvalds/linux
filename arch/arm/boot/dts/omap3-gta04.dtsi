@@ -11,8 +11,7 @@
 
 / {
 	model = "OMAP3 GTA04";
-	compatible = "ti,omap3-gta04", "ti,omap3630", "ti,omap36xx", "ti,omap3";
-
+	compatible = "goldelico,gta04", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 	cpus {
 		cpu@0 {
 			cpu0-supply = <&vcc>;
@@ -610,6 +609,22 @@
 
 &i2c3 {
 	clock-frequency = <100000>;
+};
+
+&mcspi1 {
+	status = "disabled";
+};
+
+&mcspi2 {
+	status = "disabled";
+};
+
+&mcspi3 {
+	status = "disabled";
+};
+
+&mcspi4 {
+	status = "disabled";
 };
 
 &usb_otg_hs {

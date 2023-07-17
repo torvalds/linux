@@ -586,7 +586,7 @@ static struct platform_driver gpio_fan_driver = {
 	.driver	= {
 		.name	= "gpio-fan",
 		.pm	= pm_sleep_ptr(&gpio_fan_pm),
-		.of_match_table = of_match_ptr(of_gpio_fan_match),
+		.of_match_table = of_gpio_fan_match,
 	},
 };
 

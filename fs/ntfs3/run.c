@@ -433,9 +433,9 @@ requires_new_range:
 			should_add_tail = Tovcn < r->len;
 
 			if (should_add_tail) {
-				tail_lcn = r->lcn == SPARSE_LCN
-						   ? SPARSE_LCN
-						   : (r->lcn + Tovcn);
+				tail_lcn = r->lcn == SPARSE_LCN ?
+							 SPARSE_LCN :
+							 (r->lcn + Tovcn);
 				tail_vcn = r->vcn + Tovcn;
 				tail_len = r->len - Tovcn;
 			}

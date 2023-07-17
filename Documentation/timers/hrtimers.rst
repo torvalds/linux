@@ -123,17 +123,12 @@ equivalent to timer_delete() and timer_delete_sync()] - so there's no direct
 potential for code sharing either.
 
 Basic data types: every time value, absolute or relative, is in a
-special nanosecond-resolution type: ktime_t. The kernel-internal
-representation of ktime_t values and operations is implemented via
-macros and inline functions, and can be switched between a "hybrid
-union" type and a plain "scalar" 64bit nanoseconds representation (at
-compile time). The hybrid union type optimizes time conversions on 32bit
-CPUs. This build-time-selectable ktime_t storage format was implemented
-to avoid the performance impact of 64-bit multiplications and divisions
-on 32bit CPUs. Such operations are frequently necessary to convert
-between the storage formats provided by kernel and userspace interfaces
-and the internal time format. (See include/linux/ktime.h for further
-details.)
+special nanosecond-resolution 64bit type: ktime_t.
+(Originally, the kernel-internal representation of ktime_t values and
+operations was implemented via macros and inline functions, and could be
+switched between a "hybrid union" type and a plain "scalar" 64bit
+nanoseconds representation (at compile time). This was abandoned in the
+context of the Y2038 work.)
 
 hrtimers - rounding of timer values
 -----------------------------------
@@ -148,7 +143,7 @@ a given clock has - be it low-res, high-res, or artificially-low-res.
 hrtimers - testing and verification
 -----------------------------------
 
-We used the high-resolution clock subsystem ontop of hrtimers to verify
+We used the high-resolution clock subsystem on top of hrtimers to verify
 the hrtimer implementation details in praxis, and we also ran the posix
 timer tests in order to ensure specification compliance. We also ran
 tests on low-resolution clocks.

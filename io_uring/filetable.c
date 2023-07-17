@@ -19,6 +19,9 @@ static int io_file_bitmap_get(struct io_ring_ctx *ctx)
 	unsigned long nr = ctx->file_alloc_end;
 	int ret;
 
+	if (!table->bitmap)
+		return -ENFILE;
+
 	do {
 		ret = find_next_zero_bit(table->bitmap, nr, table->alloc_hint);
 		if (ret != nr)
@@ -61,7 +64,6 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 				 u32 slot_index)
 	__must_hold(&req->ctx->uring_lock)
 {
-	bool needs_switch = false;
 	struct io_fixed_file *file_slot;
 	int ret;
 
@@ -78,18 +80,13 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	if (file_slot->file_ptr) {
 		struct file *old_file;
 
-		ret = io_rsrc_node_switch_start(ctx);
-		if (ret)
-			goto err;
-
 		old_file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-		ret = io_queue_rsrc_removal(ctx->file_data, slot_index,
-					    ctx->rsrc_node, old_file);
+		ret = io_queue_rsrc_removal(ctx->file_data, slot_index, old_file);
 		if (ret)
-			goto err;
+			return ret;
+
 		file_slot->file_ptr = 0;
 		io_file_bitmap_clear(&ctx->file_table, slot_index);
-		needs_switch = true;
 	}
 
 	ret = io_scm_file_account(ctx, file);
@@ -98,9 +95,6 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 		io_fixed_file_set(file_slot, file);
 		io_file_bitmap_set(&ctx->file_table, slot_index);
 	}
-err:
-	if (needs_switch)
-		io_rsrc_node_switch(ctx, ctx->file_data);
 	return ret;
 }
 
@@ -153,9 +147,6 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 		return -ENXIO;
 	if (offset >= ctx->nr_user_files)
 		return -EINVAL;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		return ret;
 
 	offset = array_index_nospec(offset, ctx->nr_user_files);
 	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
@@ -163,13 +154,12 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 		return -EBADF;
 
 	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-	ret = io_queue_rsrc_removal(ctx->file_data, offset, ctx->rsrc_node, file);
+	ret = io_queue_rsrc_removal(ctx->file_data, offset, file);
 	if (ret)
 		return ret;
 
 	file_slot->file_ptr = 0;
 	io_file_bitmap_clear(&ctx->file_table, offset);
-	io_rsrc_node_switch(ctx, ctx->file_data);
 	return 0;
 }
 

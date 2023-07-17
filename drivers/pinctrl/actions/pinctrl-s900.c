@@ -1827,4 +1827,3 @@ module_exit(s900_pinctrl_exit);
 MODULE_AUTHOR("Actions Semi Inc.");
 MODULE_AUTHOR("Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>");
 MODULE_DESCRIPTION("Actions Semi S900 SoC Pinctrl Driver");
-MODULE_LICENSE("GPL");

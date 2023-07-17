@@ -37,42 +37,27 @@ struct mdp_ipi_deinit_msg {
 	u32	work_addr;
 } __packed;
 
-enum mdp_config_id {
-	MDP_DEV_M2M = 0,
-	MDP_CONFIG_POOL_SIZE	/* ALWAYS keep at the end */
-};
-
-struct mdp_config_pool {
-	u64			cfg_count[MDP_CONFIG_POOL_SIZE];
-	struct img_config	configs[MDP_CONFIG_POOL_SIZE];
-};
-
 struct mdp_vpu_dev {
 	/* synchronization protect for accessing vpu working buffer info */
 	struct mutex		*lock;
 	struct mtk_scp		*scp;
 	struct completion	ipi_acked;
+	void			*param;
+	dma_addr_t		param_addr;
+	size_t			param_size;
 	void			*work;
 	dma_addr_t		work_addr;
 	size_t			work_size;
-	struct mdp_config_pool	*pool;
+	void			*config;
+	dma_addr_t		config_addr;
+	size_t			config_size;
 	u32			status;
-};
-
-struct mdp_vpu_ctx {
-	struct mdp_vpu_dev	*vpu_dev;
-	u32			config_id;
-	struct img_config	*config;
-	u32			inst_addr;
 };
 
 void mdp_vpu_shared_mem_free(struct mdp_vpu_dev *vpu);
 int mdp_vpu_dev_init(struct mdp_vpu_dev *vpu, struct mtk_scp *scp,
 		     struct mutex *lock /* for sync */);
 int mdp_vpu_dev_deinit(struct mdp_vpu_dev *vpu);
-int mdp_vpu_ctx_init(struct mdp_vpu_ctx *ctx, struct mdp_vpu_dev *vpu,
-		     enum mdp_config_id id);
-int mdp_vpu_ctx_deinit(struct mdp_vpu_ctx *ctx);
-int mdp_vpu_process(struct mdp_vpu_ctx *vpu, struct img_ipi_frameparam *param);
+int mdp_vpu_process(struct mdp_vpu_dev *vpu, struct img_ipi_frameparam *param);
 
 #endif  /* __MTK_MDP3_VPU_H__ */

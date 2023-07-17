@@ -14,6 +14,10 @@
 #define EM_AARCH64	183  /* ARM 64 bit */
 #endif
 
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH	258 /* LoongArch */
+#endif
+
 /* Define const char * {arch}_register_tbl[] */
 #define DEFINE_DWARF_REGSTR_TABLE
 #include "../arch/x86/include/dwarf-regs-table.h"
@@ -25,6 +29,7 @@
 #include "../arch/sparc/include/dwarf-regs-table.h"
 #include "../arch/xtensa/include/dwarf-regs-table.h"
 #include "../arch/mips/include/dwarf-regs-table.h"
+#include "../arch/loongarch/include/dwarf-regs-table.h"
 
 #define __get_dwarf_regstr(tbl, n) (((n) < ARRAY_SIZE(tbl)) ? (tbl)[(n)] : NULL)
 
@@ -56,6 +61,8 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine)
 		return __get_dwarf_regstr(xtensa_regstr_tbl, n);
 	case EM_MIPS:
 		return __get_dwarf_regstr(mips_regstr_tbl, n);
+	case EM_LOONGARCH:
+		return __get_dwarf_regstr(loongarch_regstr_tbl, n);
 	default:
 		pr_err("ELF MACHINE %x is not supported.\n", machine);
 	}

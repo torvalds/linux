@@ -1119,12 +1119,14 @@ struct v4l2_subdev {
  * @vfh: pointer to &struct v4l2_fh
  * @state: pointer to &struct v4l2_subdev_state
  * @owner: module pointer to the owner of this file handle
+ * @client_caps: bitmask of ``V4L2_SUBDEV_CLIENT_CAP_*``
  */
 struct v4l2_subdev_fh {
 	struct v4l2_fh vfh;
 	struct module *owner;
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	struct v4l2_subdev_state *state;
+	u64 client_caps;
 #endif
 };
 
@@ -1642,24 +1644,46 @@ u64 v4l2_subdev_state_xlate_streams(const struct v4l2_subdev_state *state,
  * enum v4l2_subdev_routing_restriction - Subdevice internal routing restrictions
  *
  * @V4L2_SUBDEV_ROUTING_NO_1_TO_N:
- *	an input stream may not be routed to multiple output streams (stream
+ *	an input stream shall not be routed to multiple output streams (stream
  *	duplication)
  * @V4L2_SUBDEV_ROUTING_NO_N_TO_1:
- *	multiple input streams may not be routed to the same output stream
+ *	multiple input streams shall not be routed to the same output stream
  *	(stream merging)
- * @V4L2_SUBDEV_ROUTING_NO_STREAM_MIX:
- *	streams on the same pad may not be routed to streams on different pads
+ * @V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX:
+ *	all streams from a sink pad must be routed to a single source pad
+ * @V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX:
+ *	all streams on a source pad must originate from a single sink pad
+ * @V4L2_SUBDEV_ROUTING_NO_SOURCE_MULTIPLEXING:
+ *	source pads shall not contain multiplexed streams
+ * @V4L2_SUBDEV_ROUTING_NO_SINK_MULTIPLEXING:
+ *	sink pads shall not contain multiplexed streams
  * @V4L2_SUBDEV_ROUTING_ONLY_1_TO_1:
  *	only non-overlapping 1-to-1 stream routing is allowed (a combination of
  *	@V4L2_SUBDEV_ROUTING_NO_1_TO_N and @V4L2_SUBDEV_ROUTING_NO_N_TO_1)
+ * @V4L2_SUBDEV_ROUTING_NO_STREAM_MIX:
+ *	all streams from a sink pad must be routed to a single source pad, and
+ *	that source pad shall not get routes from any other sink pad
+ *	(a combination of @V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX and
+ *	@V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX)
+ * @V4L2_SUBDEV_ROUTING_NO_MULTIPLEXING:
+ *	no multiplexed streams allowed on either source or sink sides.
  */
 enum v4l2_subdev_routing_restriction {
 	V4L2_SUBDEV_ROUTING_NO_1_TO_N = BIT(0),
 	V4L2_SUBDEV_ROUTING_NO_N_TO_1 = BIT(1),
-	V4L2_SUBDEV_ROUTING_NO_STREAM_MIX = BIT(2),
+	V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX = BIT(2),
+	V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX = BIT(3),
+	V4L2_SUBDEV_ROUTING_NO_SINK_MULTIPLEXING = BIT(4),
+	V4L2_SUBDEV_ROUTING_NO_SOURCE_MULTIPLEXING = BIT(5),
 	V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 =
 		V4L2_SUBDEV_ROUTING_NO_1_TO_N |
 		V4L2_SUBDEV_ROUTING_NO_N_TO_1,
+	V4L2_SUBDEV_ROUTING_NO_STREAM_MIX =
+		V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX |
+		V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX,
+	V4L2_SUBDEV_ROUTING_NO_MULTIPLEXING =
+		V4L2_SUBDEV_ROUTING_NO_SINK_MULTIPLEXING |
+		V4L2_SUBDEV_ROUTING_NO_SOURCE_MULTIPLEXING,
 };
 
 /**

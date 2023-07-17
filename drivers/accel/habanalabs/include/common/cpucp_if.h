@@ -357,6 +357,7 @@ struct hl_eq_addr_dec_intr_data {
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
 	union {
+		__le64 data_placeholder;
 		struct hl_eq_ecc_data ecc_data;
 		struct hl_eq_hbm_ecc_data hbm_ecc_data;	/* Gaudi1 HBM */
 		struct hl_eq_sm_sei_data sm_sei_data;
@@ -661,6 +662,9 @@ enum pq_init_status {
  * CPUCP_PACKET_ACTIVE_STATUS_SET -
  *       LKD sends FW indication whether device is free or in use, this indication is reported
  *       also to the BMC.
+ *
+ * CPUCP_PACKET_REGISTER_INTERRUPTS -
+ *       Packet to register interrupts indicating LKD is ready to receive events from FW.
  */
 
 enum cpucp_packet_id {
@@ -725,6 +729,8 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_RESERVED9,			/* not used */
 	CPUCP_PACKET_RESERVED10,		/* not used */
 	CPUCP_PACKET_RESERVED11,		/* not used */
+	CPUCP_PACKET_RESERVED12,		/* internal */
+	CPUCP_PACKET_REGISTER_INTERRUPTS,	/* internal */
 	CPUCP_PACKET_ID_MAX			/* must be last */
 };
 
@@ -1127,6 +1133,7 @@ struct cpucp_security_info {
  *                     (0 = functional 1 = binned)
  * @interposer_version: Interposer version programmed in eFuse
  * @substrate_version: Substrate version programmed in eFuse
+ * @fw_hbm_region_size: Size in bytes of FW reserved region in HBM.
  * @fw_os_version: Firmware OS Version
  */
 struct cpucp_info {
@@ -1154,7 +1161,7 @@ struct cpucp_info {
 	__u8 substrate_version;
 	__u8 reserved2;
 	struct cpucp_security_info sec_info;
-	__le32 reserved3;
+	__le32 fw_hbm_region_size;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
 	__u8 fw_os_version[VERSION_MAX_LEN];

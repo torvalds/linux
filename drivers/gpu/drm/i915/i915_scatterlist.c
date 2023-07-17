@@ -56,7 +56,7 @@ static const struct i915_refct_sgt_ops rsgt_ops = {
 /**
  * i915_refct_sgt_init - Initialize a struct i915_refct_sgt with default ops
  * @rsgt: The struct i915_refct_sgt to initialize.
- * size: The size of the underlying memory buffer.
+ * @size: The size of the underlying memory buffer.
  */
 void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size)
 {

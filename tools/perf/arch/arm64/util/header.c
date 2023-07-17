@@ -29,8 +29,8 @@ static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 		char path[PATH_MAX];
 		FILE *file;
 
-		scnprintf(path, PATH_MAX, "%s/devices/system/cpu/cpu%d"MIDR,
-				sysfs, cpus->map[cpu]);
+		scnprintf(path, PATH_MAX, "%s/devices/system/cpu/cpu%d" MIDR,
+			  sysfs, RC_CHK_ACCESS(cpus)->map[cpu].cpu);
 
 		file = fopen(path, "r");
 		if (!file) {

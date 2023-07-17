@@ -343,6 +343,12 @@ struct spi_nor_flash_parameter;
  * struct spi_nor - Structure for defining the SPI NOR layer
  * @mtd:		an mtd_info structure
  * @lock:		the lock for the read/write/erase/lock/unlock operations
+ * @rww:		Read-While-Write (RWW) sync lock
+ * @rww.wait:		wait queue for the RWW sync
+ * @rww.ongoing_io:	the bus is busy
+ * @rww.ongoing_rd:	a read is ongoing on the chip
+ * @rww.ongoing_pe:	a program/erase is ongoing on the chip
+ * @rww.used_banks:	bitmap of the banks in use
  * @dev:		pointer to an SPI device or an SPI NOR controller device
  * @spimem:		pointer to the SPI memory device
  * @bouncebuf:		bounce buffer used when the buffer passed by the MTD
@@ -376,6 +382,13 @@ struct spi_nor_flash_parameter;
 struct spi_nor {
 	struct mtd_info		mtd;
 	struct mutex		lock;
+	struct spi_nor_rww {
+		wait_queue_head_t wait;
+		bool		ongoing_io;
+		bool		ongoing_rd;
+		bool		ongoing_pe;
+		unsigned int	used_banks;
+	} rww;
 	struct device		*dev;
 	struct spi_mem		*spimem;
 	u8			*bouncebuf;
@@ -436,11 +449,5 @@ static inline struct device_node *spi_nor_get_flash_node(struct spi_nor *nor)
  */
 int spi_nor_scan(struct spi_nor *nor, const char *name,
 		 const struct spi_nor_hwcaps *hwcaps);
-
-/**
- * spi_nor_restore_addr_mode() - restore the status of SPI NOR
- * @nor:	the spi_nor structure
- */
-void spi_nor_restore(struct spi_nor *nor);
 
 #endif

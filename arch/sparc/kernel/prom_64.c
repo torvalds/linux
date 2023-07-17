@@ -502,7 +502,7 @@ static void *fill_in_one_cpu(struct device_node *dp, int cpuid, int arg)
 	struct device_node *portid_parent = NULL;
 	int portid = -1;
 
-	if (of_find_property(dp, "cpuid", NULL)) {
+	if (of_property_present(dp, "cpuid")) {
 		int limit = 2;
 
 		portid_parent = dp;

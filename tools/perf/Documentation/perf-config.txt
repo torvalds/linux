@@ -250,7 +250,13 @@ annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
 
-	annotate.disassembler_style:
+	annotate.addr2line::
+		addr2line binary to use for file names and line numbers.
+
+	annotate.objdump::
+		objdump binary to use for disassembly and annotations.
+
+	annotate.disassembler_style::
 		Use this to change the default disassembler style to some other value
 		supported by binutils, such as "intel", see the '-M' option help in the
 		'objdump' man page.

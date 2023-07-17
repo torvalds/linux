@@ -171,6 +171,7 @@ static struct i2c_driver max8893_driver = {
 	.probe_new	= max8893_probe_new,
 	.driver		= {
 		.name	= "max8893",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(max8893_dt_match),
 	},
 	.id_table	= max8893_ids,

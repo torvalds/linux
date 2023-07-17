@@ -293,7 +293,7 @@ static void fpga_region_dev_release(struct device *dev)
  */
 static int __init fpga_region_init(void)
 {
-	fpga_region_class = class_create(THIS_MODULE, "fpga_region");
+	fpga_region_class = class_create("fpga_region");
 	if (IS_ERR(fpga_region_class))
 		return PTR_ERR(fpga_region_class);
 

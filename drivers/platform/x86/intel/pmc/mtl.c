@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/pci.h>
 #include "core.h"
 
 const struct pmc_reg_map mtl_reg_map = {
@@ -45,8 +46,38 @@ void mtl_core_configure(struct pmc_dev *pmcdev)
 	pmc_core_send_ltr_ignore(pmcdev, 3);
 }
 
+#define MTL_GNA_PCI_DEV	0x7e4c
+#define MTL_IPU_PCI_DEV	0x7d19
+#define MTL_VPU_PCI_DEV	0x7d1d
+static void mtl_set_device_d3(unsigned int device)
+{
+	struct pci_dev *pcidev;
+
+	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL, device, NULL);
+	if (pcidev) {
+		if (!device_trylock(&pcidev->dev)) {
+			pci_dev_put(pcidev);
+			return;
+		}
+		if (!pcidev->dev.driver) {
+			dev_info(&pcidev->dev, "Setting to D3hot\n");
+			pci_set_power_state(pcidev, PCI_D3hot);
+		}
+		device_unlock(&pcidev->dev);
+		pci_dev_put(pcidev);
+	}
+}
+
 void mtl_core_init(struct pmc_dev *pmcdev)
 {
 	pmcdev->map = &mtl_reg_map;
 	pmcdev->core_configure = mtl_core_configure;
+
+	/*
+	 * Set power state of select devices that do not have drivers to D3
+	 * so that they do not block Package C entry.
+	 */
+	mtl_set_device_d3(MTL_GNA_PCI_DEV);
+	mtl_set_device_d3(MTL_IPU_PCI_DEV);
+	mtl_set_device_d3(MTL_VPU_PCI_DEV);
 }

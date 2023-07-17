@@ -1209,13 +1209,13 @@ static int apparmor_inet_conn_request(const struct sock *sk, struct sk_buff *skb
 /*
  * The cred blob is a pointer to, not an instance of, an aa_label.
  */
-struct lsm_blob_sizes apparmor_blob_sizes __lsm_ro_after_init = {
+struct lsm_blob_sizes apparmor_blob_sizes __ro_after_init = {
 	.lbs_cred = sizeof(struct aa_label *),
 	.lbs_file = sizeof(struct aa_file_ctx),
 	.lbs_task = sizeof(struct aa_task_ctx),
 };
 
-static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
+static struct security_hook_list apparmor_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, apparmor_ptrace_traceme),
 	LSM_HOOK_INIT(capget, apparmor_capget),
@@ -1427,7 +1427,7 @@ static const struct kernel_param_ops param_ops_aaintbool = {
 	.get = param_get_aaintbool
 };
 /* Boot time disable flag */
-static int apparmor_enabled __lsm_ro_after_init = 1;
+static int apparmor_enabled __ro_after_init = 1;
 module_param_named(enabled, apparmor_enabled, aaintbool, 0444);
 
 static int __init apparmor_enabled_setup(char *str)
@@ -1764,11 +1764,6 @@ static int apparmor_dointvec(struct ctl_table *table, int write,
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_path apparmor_sysctl_path[] = {
-	{ .procname = "kernel", },
-	{ }
-};
-
 static struct ctl_table apparmor_sysctl_table[] = {
 	{
 		.procname       = "unprivileged_userns_apparmor_policy",
@@ -1790,8 +1785,7 @@ static struct ctl_table apparmor_sysctl_table[] = {
 
 static int __init apparmor_init_sysctl(void)
 {
-	return register_sysctl_paths(apparmor_sysctl_path,
-				     apparmor_sysctl_table) ? 0 : -ENOMEM;
+	return register_sysctl("kernel", apparmor_sysctl_table) ? 0 : -ENOMEM;
 }
 #else
 static inline int apparmor_init_sysctl(void)

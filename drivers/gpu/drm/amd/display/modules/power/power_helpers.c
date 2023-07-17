@@ -678,13 +678,8 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 	bool result = false;
 	uint32_t i, j = 0;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->abm == NULL && res_pool->multiple_abms[inst] == NULL)
 		return false;
-#else
-	if (res_pool->abm == NULL)
-		return false;
-#endif
 
 	memset(&ram_table, 0, sizeof(ram_table));
 	memset(&config, 0, sizeof(config));
@@ -737,12 +732,10 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (res_pool->multiple_abms[inst]) {
 		result = res_pool->multiple_abms[inst]->funcs->init_abm_config(
 			res_pool->multiple_abms[inst], (char *)(&config), sizeof(struct abm_config_table), inst);
 	} else
-#endif
 		result = res_pool->abm->funcs->init_abm_config(
 			res_pool->abm, (char *)(&config), sizeof(struct abm_config_table), 0);
 
@@ -765,8 +758,8 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 
 	if (dmcu->dmcu_version.abm_version == 0x24) {
 		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params, true);
-			result = dmcu->funcs->load_iram(
-					dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START_V2_2);
+		result = dmcu->funcs->load_iram(dmcu, 0, (char *)(&ram_table),
+						IRAM_RESERVE_AREA_START_V2_2);
 	} else if (dmcu->dmcu_version.abm_version == 0x23) {
 		fill_iram_v_2_3((struct iram_table_v_2_2 *)ram_table, params, true);
 
@@ -934,6 +927,10 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 
 	pic_height = stream->timing.v_addressable +
 		stream->timing.v_border_top + stream->timing.v_border_bottom;
+
+	if (stream->timing.dsc_cfg.num_slices_v == 0)
+		return false;
+
 	slice_height = pic_height / stream->timing.dsc_cfg.num_slices_v;
 	config->dsc_slice_height = slice_height;
 

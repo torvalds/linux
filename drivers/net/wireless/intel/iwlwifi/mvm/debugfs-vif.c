@@ -179,7 +179,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 
 	mutex_lock(&mvm->mutex);
 
-	ap_sta_id = mvmvif->ap_sta_id;
+	ap_sta_id = mvmvif->deflink.ap_sta_id;
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_ADHOC:
@@ -211,14 +211,14 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 	pos += scnprintf(buf+pos, bufsz-pos, "Load: %d\n",
 			 mvm->tcm.result.load[mvmvif->id]);
 	pos += scnprintf(buf+pos, bufsz-pos, "QoS:\n");
-	for (i = 0; i < ARRAY_SIZE(mvmvif->queue_params); i++)
+	for (i = 0; i < ARRAY_SIZE(mvmvif->deflink.queue_params); i++)
 		pos += scnprintf(buf+pos, bufsz-pos,
 				 "\t%d: txop:%d - cw_min:%d - cw_max = %d - aifs = %d upasd = %d\n",
-				 i, mvmvif->queue_params[i].txop,
-				 mvmvif->queue_params[i].cw_min,
-				 mvmvif->queue_params[i].cw_max,
-				 mvmvif->queue_params[i].aifs,
-				 mvmvif->queue_params[i].uapsd);
+				 i, mvmvif->deflink.queue_params[i].txop,
+				 mvmvif->deflink.queue_params[i].cw_min,
+				 mvmvif->deflink.queue_params[i].cw_max,
+				 mvmvif->deflink.queue_params[i].aifs,
+				 mvmvif->deflink.queue_params[i].uapsd);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    ap_sta_id != IWL_MVM_INVALID_STA) {

@@ -555,5 +555,9 @@ void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
 					  enum rtw89_tssi_bandedge_cfg bandedge_cfg);
 void rtw89_phy_ul_tb_assoc(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 void rtw89_phy_ul_tb_ctrl_track(struct rtw89_dev *rtwdev);
+u8 rtw89_encode_chan_idx(struct rtw89_dev *rtwdev, u8 central_ch, u8 band);
+void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
+			   u8 *ch, enum nl80211_band *band);
+void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan);
 
 #endif

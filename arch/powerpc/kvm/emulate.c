@@ -194,6 +194,7 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu)
 {
 	u32 inst;
+	ppc_inst_t pinst;
 	int rs, rt, sprn;
 	enum emulation_result emulated;
 	int advance = 1;
@@ -201,7 +202,8 @@ int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu)
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
 
-	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst);
+	emulated = kvmppc_get_last_inst(vcpu, INST_GENERIC, &pinst);
+	inst = ppc_inst_val(pinst);
 	if (emulated != EMULATE_DONE)
 		return emulated;
 
@@ -299,6 +301,10 @@ int kvmppc_emulate_instruction(struct kvm_vcpu *vcpu)
 	trace_kvm_ppc_instr(inst, kvmppc_get_pc(vcpu), emulated);
 
 	/* Advance past emulated instruction. */
+	/*
+	 * If this ever handles prefixed instructions, the 4
+	 * will need to become ppc_inst_len(pinst) instead.
+	 */
 	if (advance)
 		kvmppc_set_pc(vcpu, kvmppc_get_pc(vcpu) + 4);
 

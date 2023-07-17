@@ -842,20 +842,18 @@ clk_err:
 	return ret;
 }
 
-static int serdes_am654_remove(struct platform_device *pdev)
+static void serdes_am654_remove(struct platform_device *pdev)
 {
 	struct serdes_am654 *am654_phy = platform_get_drvdata(pdev);
 	struct device_node *node = am654_phy->of_node;
 
 	pm_runtime_disable(&pdev->dev);
 	of_clk_del_provider(node);
-
-	return 0;
 }
 
 static struct platform_driver serdes_am654_driver = {
 	.probe		= serdes_am654_probe,
-	.remove		= serdes_am654_remove,
+	.remove_new	= serdes_am654_remove,
 	.driver		= {
 		.name	= "phy-am654",
 		.of_match_table = serdes_am654_id_table,

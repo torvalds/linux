@@ -369,6 +369,9 @@ struct amdgpu_pm {
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
 			   void *data, uint32_t *size);
 
+int amdgpu_dpm_get_apu_thermal_limit(struct amdgpu_device *adev, uint32_t *limit);
+int amdgpu_dpm_set_apu_thermal_limit(struct amdgpu_device *adev, uint32_t limit);
+
 int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 				      uint32_t block_type, bool gate);
 

@@ -263,13 +263,12 @@ static int pxa2xx_ac97_dev_probe(struct platform_device *pdev)
 					  pxa_ac97_dai_driver, ARRAY_SIZE(pxa_ac97_dai_driver));
 }
 
-static int pxa2xx_ac97_dev_remove(struct platform_device *pdev)
+static void pxa2xx_ac97_dev_remove(struct platform_device *pdev)
 {
 	struct ac97_controller *ctrl = platform_get_drvdata(pdev);
 
 	snd_ac97_controller_unregister(ctrl);
 	pxa2xx_ac97_hw_remove(pdev);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -289,7 +288,7 @@ static SIMPLE_DEV_PM_OPS(pxa2xx_ac97_pm_ops,
 
 static struct platform_driver pxa2xx_ac97_driver = {
 	.probe		= pxa2xx_ac97_dev_probe,
-	.remove		= pxa2xx_ac97_dev_remove,
+	.remove_new	= pxa2xx_ac97_dev_remove,
 	.driver		= {
 		.name	= "pxa2xx-ac97",
 #ifdef CONFIG_PM_SLEEP

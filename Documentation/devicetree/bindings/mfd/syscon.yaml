@@ -56,6 +56,7 @@ properties:
               - microchip,lan966x-cpu-syscon
               - microchip,sparx5-cpu-syscon
               - mstar,msc313-pmsleep
+              - nuvoton,ma35d1-sys
               - nuvoton,wpcm450-shm
               - rockchip,px30-qos
               - rockchip,rk3036-qos
@@ -67,6 +68,7 @@ properties:
               - rockchip,rk3568-qos
               - rockchip,rk3588-qos
               - rockchip,rv1126-qos
+              - starfive,jh7100-sysmain
 
           - const: syscon
 

@@ -485,7 +485,7 @@
 			      <0x0 0x28050000 0x0 0x00010000>,
 			      <0x0 0x24200000 0x0 0x00002000>,
 			      <0x0 0x24162000 0x0 0x00001000>;
-			reg-names  = "dbi", "config", "ulreg", "smu", "mpu";
+			reg-names = "dbi", "config", "ulreg", "smu", "mpu";
 			device_type = "pci";
 			bus-range = <0x00 0xff>;
 			num-lanes = <2>;

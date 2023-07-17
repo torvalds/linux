@@ -1,18 +1,201 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/sched/task.h>
 #include <linux/pgtable.h>
+#include <linux/kasan.h>
 #include <asm/pgalloc.h>
 #include <asm/facility.h>
 #include <asm/sections.h>
-#include <asm/mem_detect.h>
+#include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/abs_lowcore.h>
 #include "decompressor.h"
 #include "boot.h"
 
+unsigned long __bootdata_preserved(s390_invalid_asce);
+
+#ifdef CONFIG_PROC_FS
+atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
+#endif
+
 #define init_mm			(*(struct mm_struct *)vmlinux.init_mm_off)
 #define swapper_pg_dir		vmlinux.swapper_pg_dir_off
 #define invalid_pg_dir		vmlinux.invalid_pg_dir_off
+
+enum populate_mode {
+	POPULATE_NONE,
+	POPULATE_DIRECT,
+	POPULATE_ABS_LOWCORE,
+#ifdef CONFIG_KASAN
+	POPULATE_KASAN_MAP_SHADOW,
+	POPULATE_KASAN_ZERO_SHADOW,
+	POPULATE_KASAN_SHALLOW
+#endif
+};
+
+static void pgtable_populate(unsigned long addr, unsigned long end, enum populate_mode mode);
+
+#ifdef CONFIG_KASAN
+
+#define kasan_early_shadow_page	vmlinux.kasan_early_shadow_page_off
+#define kasan_early_shadow_pte	((pte_t *)vmlinux.kasan_early_shadow_pte_off)
+#define kasan_early_shadow_pmd	((pmd_t *)vmlinux.kasan_early_shadow_pmd_off)
+#define kasan_early_shadow_pud	((pud_t *)vmlinux.kasan_early_shadow_pud_off)
+#define kasan_early_shadow_p4d	((p4d_t *)vmlinux.kasan_early_shadow_p4d_off)
+#define __sha(x)		((unsigned long)kasan_mem_to_shadow((void *)x))
+
+static pte_t pte_z;
+
+static void kasan_populate_shadow(void)
+{
+	pmd_t pmd_z = __pmd(__pa(kasan_early_shadow_pte) | _SEGMENT_ENTRY);
+	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
+	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
+	unsigned long untracked_end;
+	unsigned long start, end;
+	int i;
+
+	pte_z = __pte(__pa(kasan_early_shadow_page) | pgprot_val(PAGE_KERNEL_RO));
+	if (!machine.has_nx)
+		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_NOEXEC));
+	crst_table_init((unsigned long *)kasan_early_shadow_p4d, p4d_val(p4d_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
+	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
+	memset64((u64 *)kasan_early_shadow_pte, pte_val(pte_z), PTRS_PER_PTE);
+
+	/*
+	 * Current memory layout:
+	 * +- 0 -------------+	       +- shadow start -+
+	 * |1:1 ident mapping|	      /|1/8 of ident map|
+	 * |		     |	     / |		|
+	 * +-end of ident map+	    /  +----------------+
+	 * | ... gap ...     |	   /   |    kasan	|
+	 * |		     |	  /    |  zero page	|
+	 * +- vmalloc area  -+	 /     |   mapping	|
+	 * | vmalloc_size    |	/      | (untracked)	|
+	 * +- modules vaddr -+ /       +----------------+
+	 * | 2Gb	     |/        |    unmapped	| allocated per module
+	 * +- shadow start  -+	       +----------------+
+	 * | 1/8 addr space  |	       | zero pg mapping| (untracked)
+	 * +- shadow end ----+---------+- shadow end ---+
+	 *
+	 * Current memory layout (KASAN_VMALLOC):
+	 * +- 0 -------------+	       +- shadow start -+
+	 * |1:1 ident mapping|	      /|1/8 of ident map|
+	 * |		     |	     / |		|
+	 * +-end of ident map+	    /  +----------------+
+	 * | ... gap ...     |	   /   | kasan zero page| (untracked)
+	 * |		     |	  /    | mapping	|
+	 * +- vmalloc area  -+	 /     +----------------+
+	 * | vmalloc_size    |	/      |shallow populate|
+	 * +- modules vaddr -+ /       +----------------+
+	 * | 2Gb	     |/        |shallow populate|
+	 * +- shadow start  -+	       +----------------+
+	 * | 1/8 addr space  |	       | zero pg mapping| (untracked)
+	 * +- shadow end ----+---------+- shadow end ---+
+	 */
+
+	for_each_physmem_usable_range(i, &start, &end)
+		pgtable_populate(__sha(start), __sha(end), POPULATE_KASAN_MAP_SHADOW);
+	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
+		untracked_end = VMALLOC_START;
+		/* shallowly populate kasan shadow for vmalloc and modules */
+		pgtable_populate(__sha(VMALLOC_START), __sha(MODULES_END), POPULATE_KASAN_SHALLOW);
+	} else {
+		untracked_end = MODULES_VADDR;
+	}
+	/* populate kasan shadow for untracked memory */
+	pgtable_populate(__sha(ident_map_size), __sha(untracked_end), POPULATE_KASAN_ZERO_SHADOW);
+	pgtable_populate(__sha(MODULES_END), __sha(_REGION1_SIZE), POPULATE_KASAN_ZERO_SHADOW);
+}
+
+static bool kasan_pgd_populate_zero_shadow(pgd_t *pgd, unsigned long addr,
+					   unsigned long end, enum populate_mode mode)
+{
+	if (mode == POPULATE_KASAN_ZERO_SHADOW &&
+	    IS_ALIGNED(addr, PGDIR_SIZE) && end - addr >= PGDIR_SIZE) {
+		pgd_populate(&init_mm, pgd, kasan_early_shadow_p4d);
+		return true;
+	}
+	return false;
+}
+
+static bool kasan_p4d_populate_zero_shadow(p4d_t *p4d, unsigned long addr,
+					   unsigned long end, enum populate_mode mode)
+{
+	if (mode == POPULATE_KASAN_ZERO_SHADOW &&
+	    IS_ALIGNED(addr, P4D_SIZE) && end - addr >= P4D_SIZE) {
+		p4d_populate(&init_mm, p4d, kasan_early_shadow_pud);
+		return true;
+	}
+	return false;
+}
+
+static bool kasan_pud_populate_zero_shadow(pud_t *pud, unsigned long addr,
+					   unsigned long end, enum populate_mode mode)
+{
+	if (mode == POPULATE_KASAN_ZERO_SHADOW &&
+	    IS_ALIGNED(addr, PUD_SIZE) && end - addr >= PUD_SIZE) {
+		pud_populate(&init_mm, pud, kasan_early_shadow_pmd);
+		return true;
+	}
+	return false;
+}
+
+static bool kasan_pmd_populate_zero_shadow(pmd_t *pmd, unsigned long addr,
+					   unsigned long end, enum populate_mode mode)
+{
+	if (mode == POPULATE_KASAN_ZERO_SHADOW &&
+	    IS_ALIGNED(addr, PMD_SIZE) && end - addr >= PMD_SIZE) {
+		pmd_populate(&init_mm, pmd, kasan_early_shadow_pte);
+		return true;
+	}
+	return false;
+}
+
+static bool kasan_pte_populate_zero_shadow(pte_t *pte, enum populate_mode mode)
+{
+	pte_t entry;
+
+	if (mode == POPULATE_KASAN_ZERO_SHADOW) {
+		set_pte(pte, pte_z);
+		return true;
+	}
+	return false;
+}
+#else
+
+static inline void kasan_populate_shadow(void) {}
+
+static inline bool kasan_pgd_populate_zero_shadow(pgd_t *pgd, unsigned long addr,
+						  unsigned long end, enum populate_mode mode)
+{
+	return false;
+}
+
+static inline bool kasan_p4d_populate_zero_shadow(p4d_t *p4d, unsigned long addr,
+						  unsigned long end, enum populate_mode mode)
+{
+	return false;
+}
+
+static inline bool kasan_pud_populate_zero_shadow(pud_t *pud, unsigned long addr,
+						  unsigned long end, enum populate_mode mode)
+{
+	return false;
+}
+
+static inline bool kasan_pmd_populate_zero_shadow(pmd_t *pmd, unsigned long addr,
+						  unsigned long end, enum populate_mode mode)
+{
+	return false;
+}
+
+static bool kasan_pte_populate_zero_shadow(pte_t *pte, enum populate_mode mode)
+{
+	return false;
+}
+
+#endif
 
 /*
  * Mimic virt_to_kpte() in lack of init_mm symbol. Skip pmd NULL check though.
@@ -22,60 +205,13 @@ static inline pte_t *__virt_to_kpte(unsigned long va)
 	return pte_offset_kernel(pmd_offset(pud_offset(p4d_offset(pgd_offset_k(va), va), va), va), va);
 }
 
-unsigned long __bootdata_preserved(s390_invalid_asce);
-unsigned long __bootdata(pgalloc_pos);
-unsigned long __bootdata(pgalloc_end);
-unsigned long __bootdata(pgalloc_low);
-
-enum populate_mode {
-	POPULATE_NONE,
-	POPULATE_ONE2ONE,
-	POPULATE_ABS_LOWCORE,
-};
-
-static void boot_check_oom(void)
-{
-	if (pgalloc_pos < pgalloc_low)
-		error("out of memory on boot\n");
-}
-
-static void pgtable_populate_init(void)
-{
-	unsigned long initrd_end;
-	unsigned long kernel_end;
-
-	kernel_end = vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size;
-	pgalloc_low = round_up(kernel_end, PAGE_SIZE);
-	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD)) {
-		initrd_end =  round_up(initrd_data.start + initrd_data.size, _SEGMENT_SIZE);
-		pgalloc_low = max(pgalloc_low, initrd_end);
-	}
-
-	pgalloc_end = round_down(get_mem_detect_end(), PAGE_SIZE);
-	pgalloc_pos = pgalloc_end;
-
-	boot_check_oom();
-}
-
-static void *boot_alloc_pages(unsigned int order)
-{
-	unsigned long size = PAGE_SIZE << order;
-
-	pgalloc_pos -= size;
-	pgalloc_pos = round_down(pgalloc_pos, size);
-
-	boot_check_oom();
-
-	return (void *)pgalloc_pos;
-}
-
 static void *boot_crst_alloc(unsigned long val)
 {
+	unsigned long size = PAGE_SIZE << CRST_ALLOC_ORDER;
 	unsigned long *table;
 
-	table = boot_alloc_pages(CRST_ALLOC_ORDER);
-	if (table)
-		crst_table_init(table, val);
+	table = (unsigned long *)physmem_alloc_top_down(RR_VMEM, size, size);
+	crst_table_init(table, val);
 	return table;
 }
 
@@ -84,28 +220,37 @@ static pte_t *boot_pte_alloc(void)
 	static void *pte_leftover;
 	pte_t *pte;
 
-	BUILD_BUG_ON(_PAGE_TABLE_SIZE * 2 != PAGE_SIZE);
-
+	/*
+	 * handling pte_leftovers this way helps to avoid memory fragmentation
+	 * during POPULATE_KASAN_MAP_SHADOW when EDAT is off
+	 */
 	if (!pte_leftover) {
-		pte_leftover = boot_alloc_pages(0);
+		pte_leftover = (void *)physmem_alloc_top_down(RR_VMEM, PAGE_SIZE, PAGE_SIZE);
 		pte = pte_leftover + _PAGE_TABLE_SIZE;
 	} else {
 		pte = pte_leftover;
 		pte_leftover = NULL;
 	}
+
 	memset64((u64 *)pte, _PAGE_INVALID, PTRS_PER_PTE);
 	return pte;
 }
 
-static unsigned long _pa(unsigned long addr, enum populate_mode mode)
+static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_mode mode)
 {
 	switch (mode) {
 	case POPULATE_NONE:
 		return -1;
-	case POPULATE_ONE2ONE:
+	case POPULATE_DIRECT:
 		return addr;
 	case POPULATE_ABS_LOWCORE:
 		return __abs_lowcore_pa(addr);
+#ifdef CONFIG_KASAN
+	case POPULATE_KASAN_MAP_SHADOW:
+		addr = physmem_alloc_top_down(RR_VMEM, size, size);
+		memset((void *)addr, 0, size);
+		return addr;
+#endif
 	default:
 		return -1;
 	}
@@ -126,23 +271,28 @@ static bool can_large_pmd(pmd_t *pm_dir, unsigned long addr, unsigned long end)
 static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long end,
 				 enum populate_mode mode)
 {
-	unsigned long next;
+	unsigned long pages = 0;
 	pte_t *pte, entry;
 
 	pte = pte_offset_kernel(pmd, addr);
 	for (; addr < end; addr += PAGE_SIZE, pte++) {
 		if (pte_none(*pte)) {
-			entry = __pte(_pa(addr, mode));
+			if (kasan_pte_populate_zero_shadow(pte, mode))
+				continue;
+			entry = __pte(_pa(addr, PAGE_SIZE, mode));
 			entry = set_pte_bit(entry, PAGE_KERNEL_EXEC);
 			set_pte(pte, entry);
+			pages++;
 		}
 	}
+	if (mode == POPULATE_DIRECT)
+		update_page_count(PG_DIRECT_MAP_4K, pages);
 }
 
 static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long end,
 				 enum populate_mode mode)
 {
-	unsigned long next;
+	unsigned long next, pages = 0;
 	pmd_t *pmd, entry;
 	pte_t *pte;
 
@@ -150,10 +300,13 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 	for (; addr < end; addr = next, pmd++) {
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(*pmd)) {
+			if (kasan_pmd_populate_zero_shadow(pmd, addr, next, mode))
+				continue;
 			if (can_large_pmd(pmd, addr, next)) {
-				entry = __pmd(_pa(addr, mode));
+				entry = __pmd(_pa(addr, _SEGMENT_SIZE, mode));
 				entry = set_pmd_bit(entry, SEGMENT_KERNEL_EXEC);
 				set_pmd(pmd, entry);
+				pages++;
 				continue;
 			}
 			pte = boot_pte_alloc();
@@ -163,12 +316,14 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 		}
 		pgtable_pte_populate(pmd, addr, next, mode);
 	}
+	if (mode == POPULATE_DIRECT)
+		update_page_count(PG_DIRECT_MAP_1M, pages);
 }
 
 static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long end,
 				 enum populate_mode mode)
 {
-	unsigned long next;
+	unsigned long next, pages = 0;
 	pud_t *pud, entry;
 	pmd_t *pmd;
 
@@ -176,10 +331,13 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 	for (; addr < end; addr = next, pud++) {
 		next = pud_addr_end(addr, end);
 		if (pud_none(*pud)) {
+			if (kasan_pud_populate_zero_shadow(pud, addr, next, mode))
+				continue;
 			if (can_large_pud(pud, addr, next)) {
-				entry = __pud(_pa(addr, mode));
+				entry = __pud(_pa(addr, _REGION3_SIZE, mode));
 				entry = set_pud_bit(entry, REGION3_KERNEL_EXEC);
 				set_pud(pud, entry);
+				pages++;
 				continue;
 			}
 			pmd = boot_crst_alloc(_SEGMENT_ENTRY_EMPTY);
@@ -189,6 +347,8 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 		}
 		pgtable_pmd_populate(pud, addr, next, mode);
 	}
+	if (mode == POPULATE_DIRECT)
+		update_page_count(PG_DIRECT_MAP_2G, pages);
 }
 
 static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long end,
@@ -202,6 +362,8 @@ static void pgtable_p4d_populate(pgd_t *pgd, unsigned long addr, unsigned long e
 	for (; addr < end; addr = next, p4d++) {
 		next = p4d_addr_end(addr, end);
 		if (p4d_none(*p4d)) {
+			if (kasan_p4d_populate_zero_shadow(p4d, addr, next, mode))
+				continue;
 			pud = boot_crst_alloc(_REGION3_ENTRY_EMPTY);
 			p4d_populate(&init_mm, p4d, pud);
 		}
@@ -219,9 +381,15 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	for (; addr < end; addr = next, pgd++) {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(*pgd)) {
+			if (kasan_pgd_populate_zero_shadow(pgd, addr, next, mode))
+				continue;
 			p4d = boot_crst_alloc(_REGION2_ENTRY_EMPTY);
 			pgd_populate(&init_mm, pgd, p4d);
 		}
+#ifdef CONFIG_KASAN
+		if (mode == POPULATE_KASAN_SHALLOW)
+			continue;
+#endif
 		pgtable_p4d_populate(pgd, addr, next, mode);
 	}
 }
@@ -250,15 +418,16 @@ void setup_vmem(unsigned long asce_limit)
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
 	 */
-	pgtable_populate_init();
-	pgtable_populate(0, sizeof(struct lowcore), POPULATE_ONE2ONE);
-	for_each_mem_detect_usable_block(i, &start, &end)
-		pgtable_populate(start, end, POPULATE_ONE2ONE);
+	pgtable_populate(0, sizeof(struct lowcore), POPULATE_DIRECT);
+	for_each_physmem_usable_range(i, &start, &end)
+		pgtable_populate(start, end, POPULATE_DIRECT);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
 	pgtable_populate(__memcpy_real_area, __memcpy_real_area + PAGE_SIZE,
 			 POPULATE_NONE);
 	memcpy_real_ptep = __virt_to_kpte(__memcpy_real_area);
+
+	kasan_populate_shadow();
 
 	S390_lowcore.kernel_asce = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
@@ -268,11 +437,4 @@ void setup_vmem(unsigned long asce_limit)
 	__ctl_load(S390_lowcore.kernel_asce, 13, 13);
 
 	init_mm.context.asce = S390_lowcore.kernel_asce;
-}
-
-unsigned long vmem_estimate_memory_needs(unsigned long online_mem_total)
-{
-	unsigned long pages = DIV_ROUND_UP(online_mem_total, PAGE_SIZE);
-
-	return DIV_ROUND_UP(pages, _PAGE_ENTRIES) * _PAGE_TABLE_SIZE * 2;
 }

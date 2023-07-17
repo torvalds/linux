@@ -60,9 +60,9 @@ config SLUB_DEBUG
 	select STACKDEPOT if STACKTRACE_SUPPORT
 	help
 	  SLUB has extensive debug support features. Disabling these can
-	  result in significant savings in code size. This also disables
-	  SLUB sysfs support. /sys/slab will not exist and there will be
-	  no support for cache validation etc.
+	  result in significant savings in code size. While /sys/kernel/slab
+	  will still exist (with SYSFS enabled), it will not provide e.g. cache
+	  validation.
 
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
@@ -98,6 +98,7 @@ config PAGE_OWNER
 config PAGE_TABLE_CHECK
 	bool "Check for invalid mappings in user page tables"
 	depends on ARCH_SUPPORTS_PAGE_TABLE_CHECK
+	depends on EXCLUSIVE_SYSTEM_RAM
 	select PAGE_EXTENSION
 	help
 	  Check that anonymous page is not being mapped twice with read write
@@ -249,14 +250,6 @@ config DEBUG_KMEMLEAK_MEM_POOL_SIZE
 	  fully initialised, this memory pool acts as an emergency one
 	  if slab allocations fail.
 
-config DEBUG_KMEMLEAK_TEST
-	tristate "Simple test for the kernel memory leak detector"
-	depends on DEBUG_KMEMLEAK && m
-	help
-	  This option enables a module that explicitly leaks memory.
-
-	  If unsure, say N.
-
 config DEBUG_KMEMLEAK_DEFAULT_OFF
 	bool "Default kmemleak to off"
 	depends on DEBUG_KMEMLEAK
@@ -279,3 +272,15 @@ config DEBUG_KMEMLEAK_AUTO_SCAN
 
 	  If unsure, say Y.
 
+config PER_VMA_LOCK_STATS
+	bool "Statistics for per-vma locks"
+	depends on PER_VMA_LOCK
+	help
+	  Say Y here to enable success, retry and failure counters of page
+	  faults handled under protection of per-vma locks. When enabled, the
+	  counters are exposed in /proc/vmstat. This information is useful for
+	  kernel developers to evaluate effectiveness of per-vma locks and to
+	  identify pathological cases. Counting these events introduces a small
+	  overhead in the page fault path.
+
+	  If in doubt, say N.

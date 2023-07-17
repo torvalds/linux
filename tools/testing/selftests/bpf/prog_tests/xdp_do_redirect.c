@@ -12,14 +12,6 @@
 #include <uapi/linux/netdev.h>
 #include "test_xdp_do_redirect.skel.h"
 
-#define SYS(fmt, ...)						\
-	({							\
-		char cmd[1024];					\
-		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);	\
-		if (!ASSERT_OK(system(cmd), cmd))		\
-			goto out;				\
-	})
-
 struct udp_packet {
 	struct ethhdr eth;
 	struct ipv6hdr iph;
@@ -95,12 +87,12 @@ static void test_max_pkt_size(int fd)
 void test_xdp_do_redirect(void)
 {
 	int err, xdp_prog_fd, tc_prog_fd, ifindex_src, ifindex_dst;
-	char data[sizeof(pkt_udp) + sizeof(__u32)];
+	char data[sizeof(pkt_udp) + sizeof(__u64)];
 	struct test_xdp_do_redirect *skel = NULL;
 	struct nstoken *nstoken = NULL;
 	struct bpf_link *link;
 	LIBBPF_OPTS(bpf_xdp_query_opts, query_opts);
-	struct xdp_md ctx_in = { .data = sizeof(__u32),
+	struct xdp_md ctx_in = { .data = sizeof(__u64),
 				 .data_end = sizeof(data) };
 	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
 			    .data_in = &data,
@@ -114,8 +106,9 @@ void test_xdp_do_redirect(void)
 	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
 			    .attach_point = BPF_TC_INGRESS);
 
-	memcpy(&data[sizeof(__u32)], &pkt_udp, sizeof(pkt_udp));
+	memcpy(&data[sizeof(__u64)], &pkt_udp, sizeof(pkt_udp));
 	*((__u32 *)data) = 0x42; /* metadata test value */
+	*((__u32 *)data + 4) = 0;
 
 	skel = test_xdp_do_redirect__open();
 	if (!ASSERT_OK_PTR(skel, "skel"))
@@ -127,19 +120,19 @@ void test_xdp_do_redirect(void)
 	 * iface and NUM_PKTS-2 in the TC hook. We match the packets on the UDP
 	 * payload.
 	 */
-	SYS("ip netns add testns");
+	SYS(out, "ip netns add testns");
 	nstoken = open_netns("testns");
 	if (!ASSERT_OK_PTR(nstoken, "setns"))
 		goto out;
 
-	SYS("ip link add veth_src type veth peer name veth_dst");
-	SYS("ip link set dev veth_src address 00:11:22:33:44:55");
-	SYS("ip link set dev veth_dst address 66:77:88:99:aa:bb");
-	SYS("ip link set dev veth_src up");
-	SYS("ip link set dev veth_dst up");
-	SYS("ip addr add dev veth_src fc00::1/64");
-	SYS("ip addr add dev veth_dst fc00::2/64");
-	SYS("ip neigh add fc00::2 dev veth_src lladdr 66:77:88:99:aa:bb");
+	SYS(out, "ip link add veth_src type veth peer name veth_dst");
+	SYS(out, "ip link set dev veth_src address 00:11:22:33:44:55");
+	SYS(out, "ip link set dev veth_dst address 66:77:88:99:aa:bb");
+	SYS(out, "ip link set dev veth_src up");
+	SYS(out, "ip link set dev veth_dst up");
+	SYS(out, "ip addr add dev veth_src fc00::1/64");
+	SYS(out, "ip addr add dev veth_dst fc00::2/64");
+	SYS(out, "ip neigh add fc00::2 dev veth_src lladdr 66:77:88:99:aa:bb");
 
 	/* We enable forwarding in the test namespace because that will cause
 	 * the packets that go through the kernel stack (with XDP_PASS) to be
@@ -152,7 +145,7 @@ void test_xdp_do_redirect(void)
 	 * code didn't have this, so we keep the test behaviour to make sure the
 	 * bug doesn't resurface.
 	 */
-	SYS("sysctl -qw net.ipv6.conf.all.forwarding=1");
+	SYS(out, "sysctl -qw net.ipv6.conf.all.forwarding=1");
 
 	ifindex_src = if_nametoindex("veth_src");
 	ifindex_dst = if_nametoindex("veth_dst");
@@ -167,8 +160,7 @@ void test_xdp_do_redirect(void)
 
 	if (!ASSERT_EQ(query_opts.feature_flags,
 		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-		       NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
-		       NETDEV_XDP_ACT_NDO_XMIT_SG,
+		       NETDEV_XDP_ACT_RX_SG,
 		       "veth_src query_opts.feature_flags"))
 		goto out;
 
@@ -178,9 +170,34 @@ void test_xdp_do_redirect(void)
 
 	if (!ASSERT_EQ(query_opts.feature_flags,
 		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_RX_SG,
+		       "veth_dst query_opts.feature_flags"))
+		goto out;
+
+	/* Enable GRO */
+	SYS(out, "ethtool -K veth_src gro on");
+	SYS(out, "ethtool -K veth_dst gro on");
+
+	err = bpf_xdp_query(ifindex_src, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "veth_src bpf_xdp_query gro on"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
 		       NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
 		       NETDEV_XDP_ACT_NDO_XMIT_SG,
-		       "veth_dst query_opts.feature_flags"))
+		       "veth_src query_opts.feature_flags gro on"))
+		goto out;
+
+	err = bpf_xdp_query(ifindex_dst, XDP_FLAGS_DRV_MODE, &query_opts);
+	if (!ASSERT_OK(err, "veth_dst bpf_xdp_query gro on"))
+		goto out;
+
+	if (!ASSERT_EQ(query_opts.feature_flags,
+		       NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
+		       NETDEV_XDP_ACT_NDO_XMIT | NETDEV_XDP_ACT_RX_SG |
+		       NETDEV_XDP_ACT_NDO_XMIT_SG,
+		       "veth_dst query_opts.feature_flags gro on"))
 		goto out;
 
 	memcpy(skel->rodata->expect_dst, &pkt_udp.eth.h_dest, ETH_ALEN);
@@ -226,6 +243,6 @@ out_tc:
 out:
 	if (nstoken)
 		close_netns(nstoken);
-	system("ip netns del testns");
+	SYS_NOFAIL("ip netns del testns");
 	test_xdp_do_redirect__destroy(skel);
 }

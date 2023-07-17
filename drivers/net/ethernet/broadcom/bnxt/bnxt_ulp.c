@@ -304,7 +304,7 @@ void bnxt_rdma_aux_device_uninit(struct bnxt *bp)
 	struct auxiliary_device *adev;
 
 	/* Skip if no auxiliary device init was done. */
-	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
+	if (!bp->aux_priv)
 		return;
 
 	aux_priv = bp->aux_priv;
@@ -324,6 +324,7 @@ static void bnxt_aux_dev_release(struct device *dev)
 	bp->edev = NULL;
 	kfree(aux_priv->edev);
 	kfree(aux_priv);
+	bp->aux_priv = NULL;
 }
 
 static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
@@ -359,19 +360,18 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 	if (!(bp->flags & BNXT_FLAG_ROCE_CAP))
 		return;
 
-	bp->aux_priv = kzalloc(sizeof(*bp->aux_priv), GFP_KERNEL);
-	if (!bp->aux_priv)
+	aux_priv = kzalloc(sizeof(*bp->aux_priv), GFP_KERNEL);
+	if (!aux_priv)
 		goto exit;
 
-	bp->aux_priv->id = ida_alloc(&bnxt_aux_dev_ids, GFP_KERNEL);
-	if (bp->aux_priv->id < 0) {
+	aux_priv->id = ida_alloc(&bnxt_aux_dev_ids, GFP_KERNEL);
+	if (aux_priv->id < 0) {
 		netdev_warn(bp->dev,
 			    "ida alloc failed for ROCE auxiliary device\n");
-		kfree(bp->aux_priv);
+		kfree(aux_priv);
 		goto exit;
 	}
 
-	aux_priv = bp->aux_priv;
 	aux_dev = &aux_priv->aux_dev;
 	aux_dev->id = aux_priv->id;
 	aux_dev->name = "rdma";
@@ -380,10 +380,11 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 
 	rc = auxiliary_device_init(aux_dev);
 	if (rc) {
-		ida_free(&bnxt_aux_dev_ids, bp->aux_priv->id);
-		kfree(bp->aux_priv);
+		ida_free(&bnxt_aux_dev_ids, aux_priv->id);
+		kfree(aux_priv);
 		goto exit;
 	}
+	bp->aux_priv = aux_priv;
 
 	/* From this point, all cleanup will happen via the .release callback &
 	 * any error unwinding will need to include a call to

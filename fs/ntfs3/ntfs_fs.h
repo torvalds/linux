@@ -100,7 +100,6 @@ struct ntfs_mount_options {
 	unsigned hide_dot_files : 1; /* Set hidden flag on dot files. */
 	unsigned windows_names : 1; /* Disallow names forbidden by Windows. */
 	unsigned force : 1; /* RW mount dirty volume. */
-	unsigned noacsrules : 1; /* Exclude acs rules. */
 	unsigned prealloc : 1; /* Preallocate space when file is growing. */
 	unsigned nocase : 1; /* case insensitive. */
 };
@@ -164,7 +163,6 @@ struct wnd_bitmap {
 	size_t zone_bit;
 	size_t zone_end;
 
-	bool set_tail; // Not necessary in driver.
 	bool inited;
 };
 
@@ -340,7 +338,7 @@ enum ntfs_inode_mutex_lock_class {
 };
 
 /*
- * sturct ntfs_inode
+ * struct ntfs_inode
  *
  * Ntfs inode - extends linux inode. consists of one or more MFT inodes.
  */
@@ -581,6 +579,7 @@ int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
 bool ni_is_dirty(struct inode *inode);
 
 /* Globals from fslog.c */
+bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes);
 int log_replay(struct ntfs_inode *ni, bool *initialized);
 
 /* Globals from fsntfs.c */
@@ -700,9 +699,8 @@ int ntfs_get_block(struct inode *inode, sector_t vbn,
 		   struct buffer_head *bh_result, int create);
 int ntfs_write_begin(struct file *file, struct address_space *mapping,
 		     loff_t pos, u32 len, struct page **pagep, void **fsdata);
-int ntfs_write_end(struct file *file, struct address_space *mapping,
-		   loff_t pos, u32 len, u32 copied, struct page *page,
-		   void *fsdata);
+int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
+		   u32 len, u32 copied, struct page *page, void *fsdata);
 int ntfs3_write_inode(struct inode *inode, struct writeback_control *wbc);
 int ntfs_sync_inode(struct inode *inode);
 int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
@@ -858,23 +856,22 @@ unsigned long ntfs_names_hash(const u16 *name, size_t len, const u16 *upcase,
 
 /* globals from xattr.c */
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
-struct posix_acl *ntfs_get_acl(struct inode *inode, int type, bool rcu);
+struct posix_acl *ntfs_get_acl(struct mnt_idmap *idmap,
+			       struct dentry *dentry, int type);
 int ntfs_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
 		 struct posix_acl *acl, int type);
 int ntfs_init_acl(struct mnt_idmap *idmap, struct inode *inode,
-		  struct inode *dir);
+		 struct inode *dir);
 #else
 #define ntfs_get_acl NULL
 #define ntfs_set_acl NULL
 #endif
 
 int ntfs_acl_chmod(struct mnt_idmap *idmap, struct dentry *dentry);
-int ntfs_permission(struct mnt_idmap *idmap, struct inode *inode,
-		    int mask);
 ssize_t ntfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 extern const struct xattr_handler *ntfs_xattr_handlers[];
 
-int ntfs_save_wsl_perm(struct inode *inode);
+int ntfs_save_wsl_perm(struct inode *inode, __le16 *ea_size);
 void ntfs_get_wsl_perm(struct inode *inode);
 
 /* globals from lznt.c */

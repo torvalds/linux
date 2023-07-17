@@ -843,7 +843,7 @@ long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 		goto out;
 	/* the calculated number of cq entries fits to mlx5 cq allocation */
 	cqe_size_order = cache_line_size() == 128 ? 7 : 6;
-	smc_order = MAX_ORDER - cqe_size_order - 1;
+	smc_order = MAX_ORDER - cqe_size_order;
 	if (SMC_MAX_CQE + 2 > (0x00000001 << smc_order) * PAGE_SIZE)
 		cqattr.cqe = (0x00000001 << smc_order) * PAGE_SIZE - 2;
 	smcibdev->roce_cq_send = ib_create_cq(smcibdev->ibdev,

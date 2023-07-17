@@ -25,8 +25,6 @@ void jpeg_codec_sleep(struct zoran *zr, int sleep);
 int jpeg_codec_reset(struct zoran *zr);
 
 /* zr360x7 access to raw capture */
-void zr36057_overlay(struct zoran *zr, int on);
-void write_overlay_mask(struct zoran_fh *fh, struct v4l2_clip *vp, int count);
 void zr36057_set_memgrab(struct zoran *zr, int mode);
 int wait_grab_pending(struct zoran *zr);
 

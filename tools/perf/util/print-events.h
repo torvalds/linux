@@ -23,6 +23,7 @@ struct print_callbacks {
 			const char *desc,
 			const char *long_desc,
 			const char *expr,
+			const char *threshold,
 			const char *unit);
 };
 

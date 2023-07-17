@@ -572,14 +572,12 @@ static int brcm_usb_phy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static int brcm_usb_phy_remove(struct platform_device *pdev)
+static void brcm_usb_phy_remove(struct platform_device *pdev)
 {
 	struct brcm_usb_phy_data *priv = dev_get_drvdata(&pdev->dev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &brcm_usb_phy_group);
 	unregister_pm_notifier(&priv->pm_notifier);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -670,7 +668,7 @@ MODULE_DEVICE_TABLE(of, brcm_usb_dt_ids);
 
 static struct platform_driver brcm_usb_driver = {
 	.probe		= brcm_usb_phy_probe,
-	.remove		= brcm_usb_phy_remove,
+	.remove_new	= brcm_usb_phy_remove,
 	.driver		= {
 		.name	= "brcmstb-usb-phy",
 		.pm = &brcm_usb_phy_pm_ops,

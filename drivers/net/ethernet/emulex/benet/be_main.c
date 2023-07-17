@@ -16,7 +16,6 @@
 #include "be.h"
 #include "be_cmds.h"
 #include <asm/div64.h>
-#include <linux/aer.h>
 #include <linux/if_bridge.h>
 #include <net/busy_poll.h>
 #include <net/vxlan.h>
@@ -1125,7 +1124,7 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 						  struct be_wrb_params
 						  *wrb_params)
 {
-	struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
+	struct vlan_ethhdr *veh = skb_vlan_eth_hdr(skb);
 	unsigned int eth_hdr_len;
 	struct iphdr *ip;
 
@@ -1136,8 +1135,8 @@ static struct sk_buff *be_lancer_xmit_workarounds(struct be_adapter *adapter,
 	eth_hdr_len = ntohs(skb->protocol) == ETH_P_8021Q ?
 						VLAN_ETH_HLEN : ETH_HLEN;
 	if (skb->len <= 60 &&
-	    (lancer_chip(adapter) || skb_vlan_tag_present(skb)) &&
-	    is_ipv4_pkt(skb)) {
+	    (lancer_chip(adapter) || BE3_chip(adapter) ||
+	     skb_vlan_tag_present(skb)) && is_ipv4_pkt(skb)) {
 		ip = (struct iphdr *)ip_hdr(skb);
 		pskb_trim(skb, eth_hdr_len + ntohs(ip->tot_len));
 	}
@@ -5726,8 +5725,6 @@ static void be_remove(struct pci_dev *pdev)
 	be_unmap_pci_bars(adapter);
 	be_drv_cleanup(adapter);
 
-	pci_disable_pcie_error_reporting(pdev);
-
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 
@@ -5845,10 +5842,6 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 		goto free_netdev;
 	}
 
-	status = pci_enable_pcie_error_reporting(pdev);
-	if (!status)
-		dev_info(&pdev->dev, "PCIe error reporting enabled\n");
-
 	status = be_map_pci_bars(adapter);
 	if (status)
 		goto free_netdev;
@@ -5893,7 +5886,6 @@ drv_cleanup:
 unmap_bars:
 	be_unmap_pci_bars(adapter);
 free_netdev:
-	pci_disable_pcie_error_reporting(pdev);
 	free_netdev(netdev);
 rel_reg:
 	pci_release_regions(pdev);

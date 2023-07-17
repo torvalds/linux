@@ -114,7 +114,8 @@ static int __init ppc47x_device_probe(void)
 
 	return 0;
 }
-machine_device_initcall(ppc47x, ppc47x_device_probe);
+machine_device_initcall(ppc47x_akebono, ppc47x_device_probe);
+machine_device_initcall(ppc47x_currituck, ppc47x_device_probe);
 
 static void __init ppc47x_init_irq(void)
 {
@@ -122,7 +123,7 @@ static void __init ppc47x_init_irq(void)
 
 	/* Find top level interrupt controller */
 	for_each_node_with_property(np, "interrupt-controller") {
-		if (of_get_property(np, "interrupts", NULL) == NULL)
+		if (!of_property_present(np, "interrupts"))
 			break;
 	}
 	if (np == NULL)
@@ -249,7 +250,8 @@ fail:
 	pr_info("%s: Unable to find board revision\n", __func__);
 	return 0;
 }
-machine_arch_initcall(ppc47x, ppc47x_get_board_rev);
+machine_arch_initcall(ppc47x_akebono, ppc47x_get_board_rev);
+machine_arch_initcall(ppc47x_currituck, ppc47x_get_board_rev);
 
 /* Use USB controller should have been hardware swizzled but it wasn't :( */
 static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
@@ -268,28 +270,21 @@ static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
 	}
 }
 
-/*
- * Called very early, MMU is off, device-tree isn't unflattened
- */
-static int __init ppc47x_probe(void)
-{
-	if (of_machine_is_compatible("ibm,akebono"))
-		return 1;
-
-	if (of_machine_is_compatible("ibm,currituck")) {
-		ppc_md.pci_irq_fixup = ppc47x_pci_irq_fixup;
-		return 1;
-	}
-
-	return 0;
-}
-
-define_machine(ppc47x) {
-	.name			= "PowerPC 47x",
-	.probe			= ppc47x_probe,
+define_machine(ppc47x_akebono) {
+	.name			= "PowerPC 47x (akebono)",
+	.compatible		= "ibm,akebono",
 	.progress		= udbg_progress,
 	.init_IRQ		= ppc47x_init_irq,
 	.setup_arch		= ppc47x_setup_arch,
 	.restart		= ppc4xx_reset_system,
-	.calibrate_decr		= generic_calibrate_decr,
+};
+
+define_machine(ppc47x_currituck) {
+	.name			= "PowerPC 47x (currituck)",
+	.compatible		= "ibm,currituck",
+	.progress		= udbg_progress,
+	.init_IRQ		= ppc47x_init_irq,
+	.pci_irq_fixup		= ppc47x_pci_irq_fixup,
+	.setup_arch		= ppc47x_setup_arch,
+	.restart		= ppc4xx_reset_system,
 };

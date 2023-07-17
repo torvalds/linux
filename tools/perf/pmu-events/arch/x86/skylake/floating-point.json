@@ -32,6 +32,14 @@
         "UMask": "0x20"
     },
     {
+        "BriefDescription": "Counts once for most SIMD scalar computational floating-point instructions retired. Counts twice for DPP and FM(N)ADD/SUB instructions retired.",
+        "EventCode": "0xC7",
+        "EventName": "FP_ARITH_INST_RETIRED.SCALAR",
+        "PublicDescription": "Counts once for most SIMD scalar computational single precision and double precision floating-point instructions retired; some instructions will count twice as noted below.  Each count represents 1 computational operation. Applies to SIMD scalar single precision floating-point instructions: ADD SUB MUL DIV MIN MAX SQRT RSQRT RCP FM(N)ADD/SUB.  FM(N)ADD/SUB instructions count twice as they perform 2 calculations per element. The DAZ and FTZ flags in the MXCSR register need to be set when using these events.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x3"
+    },
+    {
         "BriefDescription": "Counts once for most SIMD scalar computational double precision floating-point instructions retired. Counts twice for DPP and FM(N)ADD/SUB instructions retired.",
         "EventCode": "0xC7",
         "EventName": "FP_ARITH_INST_RETIRED.SCALAR_DOUBLE",
@@ -46,6 +54,13 @@
         "PublicDescription": "Counts once for most SIMD scalar computational single precision floating-point instructions retired; some instructions will count twice as noted below.  Each count represents 1 computational operation. Applies to SIMD scalar single precision floating-point instructions: ADD SUB MUL DIV MIN MAX SQRT RSQRT RCP FM(N)ADD/SUB.  FM(N)ADD/SUB instructions count twice as they perform 2 calculations per element. The DAZ and FTZ flags in the MXCSR register need to be set when using these events.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Number of any Vector retired FP arithmetic instructions",
+        "EventCode": "0xC7",
+        "EventName": "FP_ARITH_INST_RETIRED.VECTOR",
+        "SampleAfterValue": "2000003",
+        "UMask": "0xfc"
     },
     {
         "BriefDescription": "Cycles with any input/output SSE or FP assist",

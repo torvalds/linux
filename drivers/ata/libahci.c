@@ -2692,7 +2692,7 @@ void ahci_set_em_messages(struct ahci_host_priv *hpriv,
 EXPORT_SYMBOL_GPL(ahci_set_em_messages);
 
 static int ahci_host_activate_multi_irqs(struct ata_host *host,
-					 struct scsi_host_template *sht)
+					 const struct scsi_host_template *sht)
 {
 	struct ahci_host_priv *hpriv = host->private_data;
 	int i, rc;
@@ -2736,7 +2736,7 @@ static int ahci_host_activate_multi_irqs(struct ata_host *host,
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ahci_host_activate(struct ata_host *host, struct scsi_host_template *sht)
+int ahci_host_activate(struct ata_host *host, const struct scsi_host_template *sht)
 {
 	struct ahci_host_priv *hpriv = host->private_data;
 	int irq = hpriv->irq;

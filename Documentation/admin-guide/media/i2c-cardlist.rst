@@ -72,17 +72,13 @@ imx319        Sony IMX319 sensor
 imx334        Sony IMX334 sensor
 imx355        Sony IMX355 sensor
 imx412        Sony IMX412 sensor
-m5mols        Fujitsu M-5MOLS 8MP sensor
 mt9m001       mt9m001
-mt9m032       MT9M032 camera sensor
 mt9m111       mt9m111, mt9m112 and mt9m131
 mt9p031       Aptina MT9P031
-mt9t001       Aptina MT9T001
 mt9t112       Aptina MT9T111/MT9T112
 mt9v011       Micron mt9v011 sensor
 mt9v032       Micron MT9V032 sensor
 mt9v111       Aptina MT9V111 sensor
-noon010pc30   Siliconfile NOON010PC30 sensor
 ov13858       OmniVision OV13858 sensor
 ov13b10       OmniVision OV13B10 sensor
 ov2640        OmniVision OV2640 sensor
@@ -109,9 +105,6 @@ s5c73m3       Samsung S5C73M3 sensor
 s5k4ecgx      Samsung S5K4ECGX sensor
 s5k5baf       Samsung S5K5BAF sensor
 s5k6a3        Samsung S5K6A3 sensor
-s5k6aa        Samsung S5K6AAFX sensor
-sr030pc30     Siliconfile SR030PC30 sensor
-vs6624        ST VS6624 sensor
 ============  ==========================================================
 
 Flash devices
@@ -222,7 +215,6 @@ Video encoders
 ============  ==========================================================
 Driver        Name
 ============  ==========================================================
-ad9389b       Analog Devices AD9389B encoder
 adv7170       Analog Devices ADV7170 video encoder
 adv7175       Analog Devices ADV7175 video encoder
 adv7343       ADV7343 video encoder

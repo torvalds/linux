@@ -20,7 +20,6 @@ union pipe {
 	int fds[2];
 };
 
-extern int bind_to_cpu(int cpu);
 extern int kill_child_and_wait(pid_t child_pid);
 extern int wait_for_child(pid_t child_pid);
 extern int sync_with_child(union pipe read_pipe, union pipe write_pipe);

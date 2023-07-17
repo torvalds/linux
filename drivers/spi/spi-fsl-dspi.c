@@ -902,19 +902,19 @@ static irqreturn_t dspi_interrupt(int irq, void *dev_id)
 
 static void dspi_assert_cs(struct spi_device *spi, bool *cs)
 {
-	if (!spi->cs_gpiod || *cs)
+	if (!spi_get_csgpiod(spi, 0) || *cs)
 		return;
 
-	gpiod_set_value_cansleep(spi->cs_gpiod, true);
+	gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), true);
 	*cs = true;
 }
 
 static void dspi_deassert_cs(struct spi_device *spi, bool *cs)
 {
-	if (!spi->cs_gpiod || !*cs)
+	if (!spi_get_csgpiod(spi, 0) || !*cs)
 		return;
 
-	gpiod_set_value_cansleep(spi->cs_gpiod, false);
+	gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), false);
 	*cs = false;
 }
 
@@ -938,8 +938,8 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 
 		/* Prepare command word for CMD FIFO */
 		dspi->tx_cmd = SPI_PUSHR_CMD_CTAS(0);
-		if (!spi->cs_gpiod)
-			dspi->tx_cmd |= SPI_PUSHR_CMD_PCS(spi->chip_select);
+		if (!spi_get_csgpiod(spi, 0))
+			dspi->tx_cmd |= SPI_PUSHR_CMD_PCS(spi_get_chipselect(spi, 0));
 
 		if (list_is_last(&dspi->cur_transfer->transfer_list,
 				 &dspi->cur_msg->transfers)) {
@@ -1002,7 +1002,9 @@ static int dspi_transfer_one_message(struct spi_controller *ctlr,
 static int dspi_setup(struct spi_device *spi)
 {
 	struct fsl_dspi *dspi = spi_controller_get_devdata(spi->controller);
+	u32 period_ns = DIV_ROUND_UP(NSEC_PER_SEC, spi->max_speed_hz);
 	unsigned char br = 0, pbr = 0, pcssck = 0, cssck = 0;
+	u32 quarter_period_ns = DIV_ROUND_UP(period_ns, 4);
 	u32 cs_sck_delay = 0, sck_cs_delay = 0;
 	struct fsl_dspi_platform_data *pdata;
 	unsigned char pasc = 0, asc = 0;
@@ -1031,6 +1033,19 @@ static int dspi_setup(struct spi_device *spi)
 		sck_cs_delay = pdata->sck_cs_delay;
 	}
 
+	/* Since tCSC and tASC apply to continuous transfers too, avoid SCK
+	 * glitches of half a cycle by never allowing tCSC + tASC to go below
+	 * half a SCK period.
+	 */
+	if (cs_sck_delay < quarter_period_ns)
+		cs_sck_delay = quarter_period_ns;
+	if (sck_cs_delay < quarter_period_ns)
+		sck_cs_delay = quarter_period_ns;
+
+	dev_dbg(&spi->dev,
+		"DSPI controller timing params: CS-to-SCK delay %u ns, SCK-to-CS delay %u ns\n",
+		cs_sck_delay, sck_cs_delay);
+
 	clkrate = clk_get_rate(dspi->clk);
 	hz_to_spi_baud(&pbr, &br, spi->max_speed_hz, clkrate);
 
@@ -1058,7 +1073,7 @@ static int dspi_setup(struct spi_device *spi)
 			chip->ctar_val |= SPI_CTAR_LSBFE;
 	}
 
-	gpiod_direction_output(spi->cs_gpiod, false);
+	gpiod_direction_output(spi_get_csgpiod(spi, 0), false);
 	dspi_deassert_cs(spi, &cs);
 
 	spi_set_ctldata(spi, chip);
@@ -1068,10 +1083,10 @@ static int dspi_setup(struct spi_device *spi)
 
 static void dspi_cleanup(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata((struct spi_device *)spi);
+	struct chip_data *chip = spi_get_ctldata(spi);
 
 	dev_dbg(&spi->dev, "spi_device %u.%u cleanup\n",
-		spi->controller->bus_num, spi->chip_select);
+		spi->controller->bus_num, spi_get_chipselect(spi, 0));
 
 	kfree(chip);
 }
@@ -1425,7 +1440,7 @@ out_ctlr_put:
 	return ret;
 }
 
-static int dspi_remove(struct platform_device *pdev)
+static void dspi_remove(struct platform_device *pdev)
 {
 	struct fsl_dspi *dspi = platform_get_drvdata(pdev);
 
@@ -1444,8 +1459,6 @@ static int dspi_remove(struct platform_device *pdev)
 	if (dspi->irq)
 		free_irq(dspi->irq, dspi);
 	clk_disable_unprepare(dspi->clk);
-
-	return 0;
 }
 
 static void dspi_shutdown(struct platform_device *pdev)
@@ -1459,7 +1472,7 @@ static struct platform_driver fsl_dspi_driver = {
 	.driver.owner		= THIS_MODULE,
 	.driver.pm		= &dspi_pm,
 	.probe			= dspi_probe,
-	.remove			= dspi_remove,
+	.remove_new		= dspi_remove,
 	.shutdown		= dspi_shutdown,
 };
 module_platform_driver(fsl_dspi_driver);

@@ -136,7 +136,7 @@ static int pxa_check_atapi_dma(struct ata_queued_cmd *qc)
 	return -EOPNOTSUPP;
 }
 
-static struct scsi_host_template pxa_ata_sht = {
+static const struct scsi_host_template pxa_ata_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

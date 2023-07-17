@@ -78,7 +78,7 @@ static unsigned int xs_tcp_fin_timeout __read_mostly = XS_TCP_LINGER_TO;
 
 /*
  * We can register our own files under /proc/sys/sunrpc by
- * calling register_sysctl_table() again.  The files in that
+ * calling register_sysctl() again.  The files in that
  * directory become the union of all files registered there.
  *
  * We simply need to make sure that we don't collide with
@@ -154,15 +154,6 @@ static struct ctl_table xs_tunables_table[] = {
 		.maxlen		= sizeof(xs_tcp_fin_timeout),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ },
-};
-
-static struct ctl_table sunrpc_table[] = {
-	{
-		.procname	= "sunrpc",
-		.mode		= 0555,
-		.child		= xs_tunables_table
 	},
 	{ },
 };
@@ -2158,6 +2149,7 @@ static void xs_tcp_shutdown(struct rpc_xprt *xprt)
 	switch (skst) {
 	case TCP_FIN_WAIT1:
 	case TCP_FIN_WAIT2:
+	case TCP_LAST_ACK:
 		break;
 	case TCP_ESTABLISHED:
 	case TCP_CLOSE_WAIT:
@@ -3177,7 +3169,7 @@ static struct xprt_class	xs_bc_tcp_transport = {
 int init_socket_xprt(void)
 {
 	if (!sunrpc_table_header)
-		sunrpc_table_header = register_sysctl_table(sunrpc_table);
+		sunrpc_table_header = register_sysctl("sunrpc", xs_tunables_table);
 
 	xprt_register_transport(&xs_local_transport);
 	xprt_register_transport(&xs_udp_transport);

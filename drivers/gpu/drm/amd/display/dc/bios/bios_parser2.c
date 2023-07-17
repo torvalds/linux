@@ -515,11 +515,8 @@ static enum bp_result get_gpio_i2c_info(
 	info->i2c_slave_address = record->i2c_slave_addr;
 
 	/* TODO: check how to get register offset for en, Y, etc. */
-	info->gpio_info.clk_a_register_index =
-			le16_to_cpu(
-			header->gpio_pin[table_index].data_a_reg_index);
-	info->gpio_info.clk_a_shift =
-			header->gpio_pin[table_index].gpio_bitshift;
+	info->gpio_info.clk_a_register_index = le16_to_cpu(pin->data_a_reg_index);
+	info->gpio_info.clk_a_shift = pin->gpio_bitshift;
 
 	return BP_RESULT_OK;
 }
@@ -2064,7 +2061,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	if (!info)
 		return BP_RESULT_BADINPUT;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+#if defined(CONFIG_DRM_AMD_DC_FP)
 	/* encoder cap record not available in v1_5 */
 	if (bp->object_info_tbl.revision.minor == 5)
 		return BP_RESULT_NORECORD;

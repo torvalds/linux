@@ -892,20 +892,19 @@ static struct miscdevice sgx_dev_provision = {
 int sgx_set_attribute(unsigned long *allowed_attributes,
 		      unsigned int attribute_fd)
 {
-	struct file *file;
+	struct fd f = fdget(attribute_fd);
 
-	file = fget(attribute_fd);
-	if (!file)
+	if (!f.file)
 		return -EINVAL;
 
-	if (file->f_op != &sgx_provision_fops) {
-		fput(file);
+	if (f.file->f_op != &sgx_provision_fops) {
+		fdput(f);
 		return -EINVAL;
 	}
 
 	*allowed_attributes |= SGX_ATTR_PROVISIONKEY;
 
-	fput(file);
+	fdput(f);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sgx_set_attribute);

@@ -22,6 +22,16 @@
 		serial0 = &uart0;
 	};
 
+	backlight_lcd0: backlight-lcd0 {
+		compatible = "pwm-backlight";
+		brightness-levels = <0 1023>;
+		default-brightness-level = <576>;
+		enable-gpios = <&pio 82 GPIO_ACTIVE_HIGH>;
+		num-interpolated-steps = <1023>;
+		pwms = <&disp_pwm0 0 500000>;
+		power-supply = <&ppvar_sys>;
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
@@ -212,6 +222,13 @@
 	};
 };
 
+&disp_pwm0 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&disp_pwm0_pin_default>;
+};
+
 &dp_tx {
 	status = "okay";
 
@@ -236,6 +253,11 @@
 			};
 		};
 	};
+};
+
+&gpu {
+	status = "okay";
+	mali-supply = <&mt6315_7_vbuck1>;
 };
 
 &i2c0 {
@@ -645,6 +667,13 @@
 		pins-cmd-dat {
 			pinmux = <PINMUX_GPIO7__FUNC_EDP_TX_HPD>;
 			bias-pull-up;
+		};
+	};
+
+	disp_pwm0_pin_default: disp-pwm0-default-pins {
+		pins-disp-pwm {
+			pinmux = <PINMUX_GPIO82__FUNC_GPIO82>,
+				 <PINMUX_GPIO97__FUNC_DISP_PWM0>;
 		};
 	};
 

@@ -1085,7 +1085,7 @@ static long __get_user_pages(struct mm_struct *mm,
 	if (!nr_pages)
 		return 0;
 
-	start = untagged_addr(start);
+	start = untagged_addr_remote(mm, start);
 
 	VM_BUG_ON(!!pages != !!(gup_flags & (FOLL_GET | FOLL_PIN)));
 
@@ -1259,7 +1259,7 @@ int fixup_user_fault(struct mm_struct *mm,
 	struct vm_area_struct *vma;
 	vm_fault_t ret;
 
-	address = untagged_addr(address);
+	address = untagged_addr_remote(mm, address);
 
 	if (unlocked)
 		fault_flags |= FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
@@ -2193,7 +2193,7 @@ static bool is_valid_gup_args(struct page **pages, struct vm_area_struct **vmas,
  * This does not guarantee that the page exists in the user mappings when
  * get_user_pages_remote returns, and there may even be a completely different
  * page there in some cases (eg. if mmapped pagecache has been invalidated
- * and subsequently re faulted). However it does guarantee that the page
+ * and subsequently re-faulted). However it does guarantee that the page
  * won't be freed completely. And mostly callers simply care that the page
  * contains data that was valid *at some point in time*. Typically, an IO
  * or similar operation cannot guarantee anything stronger anyway because
@@ -2970,6 +2970,8 @@ static int internal_get_user_pages_fast(unsigned long start,
 	len = nr_pages << PAGE_SHIFT;
 	if (check_add_overflow(start, len, &end))
 		return 0;
+	if (end > TASK_SIZE_MAX)
+		return -EFAULT;
 	if (unlikely(!access_ok((void __user *)start, len)))
 		return -EFAULT;
 

@@ -745,14 +745,12 @@ fail_release_master:
 	return error;
 }
 
-static int ep93xx_spi_remove(struct platform_device *pdev)
+static void ep93xx_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct ep93xx_spi *espi = spi_master_get_devdata(master);
 
 	ep93xx_spi_release_dma(espi);
-
-	return 0;
 }
 
 static struct platform_driver ep93xx_spi_driver = {
@@ -760,7 +758,7 @@ static struct platform_driver ep93xx_spi_driver = {
 		.name	= "ep93xx-spi",
 	},
 	.probe		= ep93xx_spi_probe,
-	.remove		= ep93xx_spi_remove,
+	.remove_new	= ep93xx_spi_remove,
 };
 module_platform_driver(ep93xx_spi_driver);
 

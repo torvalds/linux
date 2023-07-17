@@ -174,11 +174,6 @@ static int __init meson_gx_socinfo_init(void)
 		return -ENODEV;
 
 	soc_dev_attr->family = "Amlogic Meson";
-
-	np = of_find_node_by_path("/");
-	of_property_read_string(np, "model", &soc_dev_attr->machine);
-	of_node_put(np);
-
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%x:%x - %x:%x",
 					   socinfo_to_major(socinfo),
 					   socinfo_to_minor(socinfo),

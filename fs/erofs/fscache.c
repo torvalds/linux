@@ -209,8 +209,8 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_request *primary)
 		void *src;
 
 		/* For tail packing layout, the offset may be non-zero. */
-		offset = erofs_blkoff(map.m_pa);
-		blknr = erofs_blknr(map.m_pa);
+		offset = erofs_blkoff(sb, map.m_pa);
+		blknr = erofs_blknr(sb, map.m_pa);
 		size = map.m_llen;
 
 		src = erofs_read_metabuf(&buf, sb, blknr, EROFS_KMAP);
@@ -460,6 +460,7 @@ static struct erofs_fscache *erofs_fscache_acquire_cookie(struct super_block *sb
 	inode->i_size = OFFSET_MAX;
 	inode->i_mapping->a_ops = &erofs_fscache_meta_aops;
 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+	inode->i_blkbits = EROFS_SB(sb)->blkszbits;
 	inode->i_private = ctx;
 
 	ctx->cookie = cookie;

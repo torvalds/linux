@@ -3698,16 +3698,6 @@ static int ibmvscsis_check_true(struct se_portal_group *se_tpg)
 	return 1;
 }
 
-static int ibmvscsis_check_false(struct se_portal_group *se_tpg)
-{
-	return 0;
-}
-
-static u32 ibmvscsis_tpg_get_inst_index(struct se_portal_group *se_tpg)
-{
-	return 1;
-}
-
 static int ibmvscsis_check_stop_free(struct se_cmd *se_cmd)
 {
 	return target_put_sess_cmd(se_cmd);
@@ -3724,11 +3714,6 @@ static void ibmvscsis_release_cmd(struct se_cmd *se_cmd)
 	list_move_tail(&cmd->list, &vscsi->waiting_rsp);
 	ibmvscsis_send_messages(vscsi);
 	spin_unlock_bh(&vscsi->intr_lock);
-}
-
-static u32 ibmvscsis_sess_get_index(struct se_session *se_sess)
-{
-	return 0;
 }
 
 static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
@@ -3762,15 +3747,6 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 	 * object execution queue.
 	 */
 	target_execute_cmd(se_cmd);
-	return 0;
-}
-
-static void ibmvscsis_set_default_node_attrs(struct se_node_acl *nacl)
-{
-}
-
-static int ibmvscsis_get_cmd_state(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -3982,15 +3958,9 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.tpg_get_default_depth		= ibmvscsis_get_default_depth,
 	.tpg_check_demo_mode		= ibmvscsis_check_true,
 	.tpg_check_demo_mode_cache	= ibmvscsis_check_true,
-	.tpg_check_demo_mode_write_protect = ibmvscsis_check_false,
-	.tpg_check_prod_mode_write_protect = ibmvscsis_check_false,
-	.tpg_get_inst_index		= ibmvscsis_tpg_get_inst_index,
 	.check_stop_free		= ibmvscsis_check_stop_free,
 	.release_cmd			= ibmvscsis_release_cmd,
-	.sess_get_index			= ibmvscsis_sess_get_index,
 	.write_pending			= ibmvscsis_write_pending,
-	.set_default_node_attributes	= ibmvscsis_set_default_node_attrs,
-	.get_cmd_state			= ibmvscsis_get_cmd_state,
 	.queue_data_in			= ibmvscsis_queue_data_in,
 	.queue_status			= ibmvscsis_queue_status,
 	.queue_tm_rsp			= ibmvscsis_queue_tm_rsp,

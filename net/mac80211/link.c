@@ -2,7 +2,7 @@
 /*
  * MLO link handling
  *
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2023 Intel Corporation
  */
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -10,6 +10,7 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 #include "key.h"
+#include "debugfs_netdev.h"
 
 void ieee80211_link_setup(struct ieee80211_link_data *link)
 {
@@ -34,6 +35,7 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 	link->link_id = link_id;
 	link->conf = link_conf;
 	link_conf->link_id = link_id;
+	link_conf->vif = &sdata->vif;
 
 	INIT_WORK(&link->csa_finalize_work,
 		  ieee80211_csa_finalize_work);
@@ -60,6 +62,8 @@ void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 		default:
 			WARN_ON(1);
 		}
+
+		ieee80211_link_debugfs_add(link);
 	}
 }
 
@@ -93,6 +97,7 @@ static void ieee80211_tear_down_links(struct ieee80211_sub_if_data *sdata,
 		if (WARN_ON(!link))
 			continue;
 		ieee80211_remove_link_keys(link, &keys);
+		ieee80211_link_debugfs_remove(link);
 		ieee80211_link_stop(link);
 	}
 
@@ -404,6 +409,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 						 IEEE80211_CHANCTX_SHARED);
 		WARN_ON_ONCE(ret);
 
+		ieee80211_mgd_set_link_qos_params(link);
 		ieee80211_link_info_change_notify(sdata, link,
 						  BSS_CHANGED_ERP_CTS_PROT |
 						  BSS_CHANGED_ERP_PREAMBLE |
@@ -418,7 +424,6 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 						  BSS_CHANGED_TWT |
 						  BSS_CHANGED_HE_OBSS_PD |
 						  BSS_CHANGED_HE_BSS_COLOR);
-		ieee80211_mgd_set_link_qos_params(link);
 	}
 
 	old_active = sdata->vif.active_links;

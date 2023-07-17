@@ -103,15 +103,6 @@ config INTEL_TCC_COOLING
 	  on how fast the setting takes effect, and how much the CPU frequency
 	  is reduced.
 
-config INTEL_MENLOW
-	tristate "Thermal Management driver for Intel menlow platform"
-	depends on ACPI_THERMAL
-	help
-	  ACPI thermal management enhancement driver on
-	  Intel Menlow platform.
-
-	  If unsure, say N.
-
 config INTEL_HFI_THERMAL
 	bool "Intel Hardware Feedback Interface"
 	depends on NET

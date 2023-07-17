@@ -272,12 +272,17 @@ u8
 acpi_rs_get_address_common(struct acpi_resource *resource,
 			   union aml_resource *aml)
 {
+	struct aml_resource_address address;
+
 	ACPI_FUNCTION_ENTRY();
+
+	/* Avoid undefined behavior: member access within misaligned address */
+
+	memcpy(&address, aml, sizeof(address));
 
 	/* Validate the Resource Type */
 
-	if ((aml->address.resource_type > 2) &&
-	    (aml->address.resource_type < 0xC0)) {
+	if ((address.resource_type > 2) && (address.resource_type < 0xC0)) {
 		return (FALSE);
 	}
 
@@ -298,7 +303,7 @@ acpi_rs_get_address_common(struct acpi_resource *resource,
 		/* Generic resource type, just grab the type_specific byte */
 
 		resource->data.address.info.type_specific =
-		    aml->address.specific_flags;
+		    address.specific_flags;
 	}
 
 	return (TRUE);

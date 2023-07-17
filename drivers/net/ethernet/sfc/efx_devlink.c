@@ -171,9 +171,14 @@ static int efx_devlink_info_nvram_partition(struct efx_nic *efx,
 
 	rc = efx_mcdi_nvram_metadata(efx, partition_type, NULL, version, NULL,
 				     0);
+
+	/* If the partition does not exist, that is not an error. */
+	if (rc == -ENOENT)
+		return 0;
+
 	if (rc) {
-		netif_err(efx, drv, efx->net_dev, "mcdi nvram %s: failed\n",
-			  version_name);
+		netif_err(efx, drv, efx->net_dev, "mcdi nvram %s: failed (rc=%d)\n",
+			  version_name, rc);
 		return rc;
 	}
 
@@ -187,36 +192,33 @@ static int efx_devlink_info_nvram_partition(struct efx_nic *efx,
 static int efx_devlink_info_stored_versions(struct efx_nic *efx,
 					    struct devlink_info_req *req)
 {
-	int rc;
+	int err;
 
-	rc = efx_devlink_info_nvram_partition(efx, req,
-					      NVRAM_PARTITION_TYPE_BUNDLE,
-					      DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID);
-	if (rc)
-		return rc;
+	/* We do not care here about the specific error but just if an error
+	 * happened. The specific error will be reported inside the call
+	 * through system messages, and if any error happened in any call
+	 * below, we report it through extack.
+	 */
+	err = efx_devlink_info_nvram_partition(efx, req,
+					       NVRAM_PARTITION_TYPE_BUNDLE,
+					       DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID);
 
-	rc = efx_devlink_info_nvram_partition(efx, req,
-					      NVRAM_PARTITION_TYPE_MC_FIRMWARE,
-					      DEVLINK_INFO_VERSION_GENERIC_FW_MGMT);
-	if (rc)
-		return rc;
+	err |= efx_devlink_info_nvram_partition(efx, req,
+						NVRAM_PARTITION_TYPE_MC_FIRMWARE,
+						DEVLINK_INFO_VERSION_GENERIC_FW_MGMT);
 
-	rc = efx_devlink_info_nvram_partition(efx, req,
-					      NVRAM_PARTITION_TYPE_SUC_FIRMWARE,
-					      EFX_DEVLINK_INFO_VERSION_FW_MGMT_SUC);
-	if (rc)
-		return rc;
+	err |= efx_devlink_info_nvram_partition(efx, req,
+						NVRAM_PARTITION_TYPE_SUC_FIRMWARE,
+						EFX_DEVLINK_INFO_VERSION_FW_MGMT_SUC);
 
-	rc = efx_devlink_info_nvram_partition(efx, req,
-					      NVRAM_PARTITION_TYPE_EXPANSION_ROM,
-					      EFX_DEVLINK_INFO_VERSION_FW_EXPROM);
-	if (rc)
-		return rc;
+	err |= efx_devlink_info_nvram_partition(efx, req,
+						NVRAM_PARTITION_TYPE_EXPANSION_ROM,
+						EFX_DEVLINK_INFO_VERSION_FW_EXPROM);
 
-	rc = efx_devlink_info_nvram_partition(efx, req,
-					      NVRAM_PARTITION_TYPE_EXPANSION_UEFI,
-					      EFX_DEVLINK_INFO_VERSION_FW_UEFI);
-	return rc;
+	err |= efx_devlink_info_nvram_partition(efx, req,
+						NVRAM_PARTITION_TYPE_EXPANSION_UEFI,
+						EFX_DEVLINK_INFO_VERSION_FW_UEFI);
+	return err;
 }
 
 #define EFX_VER_FLAG(_f)	\
@@ -587,27 +589,20 @@ static int efx_devlink_info_get(struct devlink *devlink,
 {
 	struct efx_devlink *devlink_private = devlink_priv(devlink);
 	struct efx_nic *efx = devlink_private->efx;
-	int rc;
+	int err;
 
-	/* Several different MCDI commands are used. We report first error
-	 * through extack returning at that point. Specific error
-	 * information via system messages.
+	/* Several different MCDI commands are used. We report if errors
+	 * happened through extack. Specific error information via system
+	 * messages inside the calls.
 	 */
-	rc = efx_devlink_info_board_cfg(efx, req);
-	if (rc) {
-		NL_SET_ERR_MSG_MOD(extack, "Getting board info failed");
-		return rc;
-	}
-	rc = efx_devlink_info_stored_versions(efx, req);
-	if (rc) {
-		NL_SET_ERR_MSG_MOD(extack, "Getting stored versions failed");
-		return rc;
-	}
-	rc = efx_devlink_info_running_versions(efx, req);
-	if (rc) {
-		NL_SET_ERR_MSG_MOD(extack, "Getting running versions failed");
-		return rc;
-	}
+	err = efx_devlink_info_board_cfg(efx, req);
+
+	err |= efx_devlink_info_stored_versions(efx, req);
+
+	err |= efx_devlink_info_running_versions(efx, req);
+
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "Errors when getting device info. Check system messages");
 
 	return 0;
 }

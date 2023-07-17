@@ -176,14 +176,6 @@ static inline int qt2_control_msg(struct usb_device *dev,
 			       NULL, 0, QT2_USB_TIMEOUT);
 }
 
-static inline int qt2_setdevice(struct usb_device *dev, u8 *data)
-{
-	u16 x = ((u16) (data[1] << 8) | (u16) (data[0]));
-
-	return qt2_control_msg(dev, QT_SET_GET_DEVICE, x, 0);
-}
-
-
 static inline int qt2_getregister(struct usb_device *dev,
 				  u8 uart,
 				  u8 reg,

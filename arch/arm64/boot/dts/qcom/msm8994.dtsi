@@ -52,6 +52,7 @@
 			L2_0: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -88,6 +89,7 @@
 			L2_1: l2-cache {
 				compatible = "cache";
 				cache-level = <2>;
+				cache-unified;
 			};
 		};
 
@@ -228,6 +230,11 @@
 			reg = <0 0xc9400000 0 0x3f00000>;
 			no-map;
 		};
+
+		reserved@6c00000 {
+			reg = <0 0x06c00000 0 0x400000>;
+			no-map;
+		};
 	};
 
 	smd {
@@ -242,7 +249,7 @@
 				compatible = "qcom,rpm-msm8994";
 				qcom,smd-channels = "rpm_requests";
 
-				rpmcc: rpmcc {
+				rpmcc: clock-controller {
 					compatible = "qcom,rpmcc-msm8994", "qcom,rpmcc";
 					#clock-cells = <1>;
 				};
@@ -840,7 +847,6 @@
 				function = "gpio";
 				drive-strength = <2>;
 				bias-pull-down;
-				input-enable;
 			};
 
 			i2c5_default: i2c5-default-state {

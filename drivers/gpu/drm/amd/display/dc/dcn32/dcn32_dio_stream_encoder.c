@@ -211,10 +211,8 @@ static void enc32_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_GC_SEND, 1,
 		HDMI_NULL_SEND, 1);
 
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	/* Disable Audio Content Protection packet transmission */
 	REG_UPDATE(HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, 0);
-#endif
 
 	/* following belongs to audio */
 	/* Enable Audio InfoFrame packet transmission. */
@@ -276,10 +274,10 @@ static bool is_dp_dig_pixel_rate_div_policy(struct dc *dc, const struct dc_crtc_
 		dc->debug.enable_dp_dig_pixel_rate_div_policy;
 }
 
-static void enc32_stream_encoder_dp_unblank(
-        struct dc_link *link,
-		struct stream_encoder *enc,
-		const struct encoder_unblank_param *param)
+void enc32_stream_encoder_dp_unblank(
+	struct dc_link *link,
+	struct stream_encoder *enc,
+	const struct encoder_unblank_param *param)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 	struct dc *dc = enc->ctx->dc;
@@ -288,6 +286,7 @@ static void enc32_stream_encoder_dp_unblank(
 		uint32_t n_vid = 0x8000;
 		uint32_t m_vid;
 		uint32_t n_multiply = 0;
+		uint32_t pix_per_cycle = 0;
 		uint64_t m_vid_l = n_vid;
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
@@ -295,6 +294,7 @@ static void enc32_stream_encoder_dp_unblank(
 			|| is_dp_dig_pixel_rate_div_policy(dc, &param->timing)) {
 			/*this logic should be the same in get_pixel_clock_parameters() */
 			n_multiply = 1;
+			pix_per_cycle = 1;
 		}
 		/* M / N = Fstream / Flink
 		 * m_vid / n_vid = pixel rate / link rate
@@ -322,6 +322,10 @@ static void enc32_stream_encoder_dp_unblank(
 		REG_UPDATE_2(DP_VID_TIMING,
 				DP_VID_M_N_GEN_EN, 1,
 				DP_VID_N_MUL, n_multiply);
+
+		REG_UPDATE(DP_PIXEL_FORMAT,
+				DP_PIXEL_PER_CYCLE_PROCESSING_MODE,
+				pix_per_cycle);
 	}
 
 	/* make sure stream is disabled before resetting steer fifo */
@@ -373,7 +377,7 @@ static void enc32_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 
-	link_dp_source_sequence_trace(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
+	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
 /* Set DSC-related configuration.
@@ -436,7 +440,7 @@ static void enc32_reset_fifo(struct stream_encoder *enc, bool reset)
 		udelay(10);
 }
 
-static void enc32_enable_fifo(struct stream_encoder *enc)
+void enc32_enable_fifo(struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 

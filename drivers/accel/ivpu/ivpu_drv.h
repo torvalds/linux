@@ -7,6 +7,7 @@
 #define __IVPU_DRV_H__
 
 #include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_print.h>
@@ -24,7 +25,10 @@
 #define PCI_DEVICE_ID_MTL   0x7d1d
 
 #define IVPU_GLOBAL_CONTEXT_MMU_SSID 0
-#define IVPU_CONTEXT_LIMIT	     64
+/* SSID 1 is used by the VPU to represent invalid context */
+#define IVPU_USER_CONTEXT_MIN_SSID   2
+#define IVPU_USER_CONTEXT_MAX_SSID   (IVPU_USER_CONTEXT_MIN_SSID + 63)
+
 #define IVPU_NUM_ENGINES	     2
 
 #define IVPU_PLATFORM_SILICON 0
@@ -70,6 +74,7 @@
 struct ivpu_wa_table {
 	bool punit_disabled;
 	bool clear_runtime_mem;
+	bool d3hot_after_power_off;
 };
 
 struct ivpu_hw_info;

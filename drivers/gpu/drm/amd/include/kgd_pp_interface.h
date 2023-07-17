@@ -104,7 +104,9 @@ enum pp_clock_type {
 	PP_FCLK,
 	PP_DCEFCLK,
 	PP_VCLK,
+	PP_VCLK1,
 	PP_DCLK,
+	PP_DCLK1,
 	OD_SCLK,
 	OD_MCLK,
 	OD_VDDC_CURVE,
@@ -160,6 +162,8 @@ enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_COMPUTE      = 0x5,
 	PP_SMC_POWER_PROFILE_CUSTOM       = 0x6,
 	PP_SMC_POWER_PROFILE_WINDOW3D     = 0x7,
+	PP_SMC_POWER_PROFILE_CAPPED	  = 0x8,
+	PP_SMC_POWER_PROFILE_UNCAPPED	  = 0x9,
 	PP_SMC_POWER_PROFILE_COUNT,
 };
 
@@ -331,6 +335,8 @@ struct amd_pm_funcs {
 	int (*get_mclk_od)(void *handle);
 	int (*set_mclk_od)(void *handle, uint32_t value);
 	int (*read_sensor)(void *handle, int idx, void *value, int *size);
+	int (*get_apu_thermal_limit)(void *handle, uint32_t *limit);
+	int (*set_apu_thermal_limit)(void *handle, uint32_t limit);
 	enum amd_dpm_forced_level (*get_performance_level)(void *handle);
 	enum amd_pm_state_type (*get_current_power_state)(void *handle);
 	int (*get_fan_speed_rpm)(void *handle, uint32_t *rpm);

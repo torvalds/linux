@@ -53,6 +53,7 @@ $defs:
       Pinctrl node's client devices use subnodes for desired pin configuration.
       Client device subnodes use below standard properties.
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
 
     properties:
       pins:
@@ -92,18 +93,8 @@ $defs:
                 qdss_tracedata_b, qpic, rx0, rx1, rx2, sd_card, sd_write,
                 tsens_max, wci2a, wci2b, wci2c, wci2d ]
 
-      bias-pull-down: true
-      bias-pull-up: true
-      bias-disable: true
-      drive-strength: true
-      input-enable: true
-      output-high: true
-      output-low: true
-
     required:
       - pins
-
-    additionalProperties: false
 
 allOf:
   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#

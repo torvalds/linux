@@ -82,8 +82,8 @@ $defs:
   qcom-pmic-mpp-state:
     type: object
     allOf:
-      - $ref: "pinmux-node.yaml"
-      - $ref: "pincfg-node.yaml"
+      - $ref: pinmux-node.yaml
+      - $ref: pincfg-node.yaml
     properties:
       pins:
         description:
@@ -144,8 +144,9 @@ $defs:
         enum: [0, 1, 2, 3, 4, 5, 6, 7]
 
       qcom,paired:
-        - description:
-            Indicates that the pin should be operating in paired mode.
+        type: boolean
+        description:
+          Indicates that the pin should be operating in paired mode.
 
     required:
       - pins

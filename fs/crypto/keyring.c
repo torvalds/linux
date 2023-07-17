@@ -73,7 +73,7 @@ void fscrypt_put_master_key(struct fscrypt_master_key *mk)
 	 * fscrypt_master_key struct itself after an RCU grace period ensures
 	 * that concurrent keyring lookups can no longer find it.
 	 */
-	WARN_ON(refcount_read(&mk->mk_active_refs) != 0);
+	WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 0);
 	key_put(mk->mk_users);
 	mk->mk_users = NULL;
 	call_rcu(&mk->mk_rcu_head, fscrypt_free_master_key);
@@ -92,6 +92,8 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 	 * destroying any subkeys embedded in it.
 	 */
 
+	if (WARN_ON_ONCE(!sb->s_master_keys))
+		return;
 	spin_lock(&sb->s_master_keys->lock);
 	hlist_del_rcu(&mk->mk_node);
 	spin_unlock(&sb->s_master_keys->lock);
@@ -100,8 +102,8 @@ void fscrypt_put_master_key_activeref(struct super_block *sb,
 	 * ->mk_active_refs == 0 implies that ->mk_secret is not present and
 	 * that ->mk_decrypted_inodes is empty.
 	 */
-	WARN_ON(is_master_key_secret_present(&mk->mk_secret));
-	WARN_ON(!list_empty(&mk->mk_decrypted_inodes));
+	WARN_ON_ONCE(is_master_key_secret_present(&mk->mk_secret));
+	WARN_ON_ONCE(!list_empty(&mk->mk_decrypted_inodes));
 
 	for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
 		fscrypt_destroy_prepared_key(
@@ -207,10 +209,11 @@ static int allocate_filesystem_keyring(struct super_block *sb)
  * Release all encryption keys that have been added to the filesystem, along
  * with the keyring that contains them.
  *
- * This is called at unmount time.  The filesystem's underlying block device(s)
- * are still available at this time; this is important because after user file
- * accesses have been allowed, this function may need to evict keys from the
- * keyslots of an inline crypto engine, which requires the block device(s).
+ * This is called at unmount time, after all potentially-encrypted inodes have
+ * been evicted.  The filesystem's underlying block device(s) are still
+ * available at this time; this is important because after user file accesses
+ * have been allowed, this function may need to evict keys from the keyslots of
+ * an inline crypto engine, which requires the block device(s).
  */
 void fscrypt_destroy_keyring(struct super_block *sb)
 {
@@ -227,16 +230,16 @@ void fscrypt_destroy_keyring(struct super_block *sb)
 
 		hlist_for_each_entry_safe(mk, tmp, bucket, mk_node) {
 			/*
-			 * Since all inodes were already evicted, every key
-			 * remaining in the keyring should have an empty inode
-			 * list, and should only still be in the keyring due to
-			 * the single active ref associated with ->mk_secret.
-			 * There should be no structural refs beyond the one
-			 * associated with the active ref.
+			 * Since all potentially-encrypted inodes were already
+			 * evicted, every key remaining in the keyring should
+			 * have an empty inode list, and should only still be in
+			 * the keyring due to the single active ref associated
+			 * with ->mk_secret.  There should be no structural refs
+			 * beyond the one associated with the active ref.
 			 */
-			WARN_ON(refcount_read(&mk->mk_active_refs) != 1);
-			WARN_ON(refcount_read(&mk->mk_struct_refs) != 1);
-			WARN_ON(!is_master_key_secret_present(&mk->mk_secret));
+			WARN_ON_ONCE(refcount_read(&mk->mk_active_refs) != 1);
+			WARN_ON_ONCE(refcount_read(&mk->mk_struct_refs) != 1);
+			WARN_ON_ONCE(!is_master_key_secret_present(&mk->mk_secret));
 			wipe_master_key_secret(&mk->mk_secret);
 			fscrypt_put_master_key_activeref(sb, mk);
 		}

@@ -589,7 +589,7 @@ static const struct hwmon_ops tmp464_ops = {
 	.write = tmp464_write,
 };
 
-static const struct hwmon_channel_info *tmp464_info[] = {
+static const struct hwmon_channel_info * const tmp464_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,

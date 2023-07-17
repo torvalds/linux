@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 
 struct map_value {
-	struct prog_test_ref_kfunc __kptr_ref *ptr;
+	struct prog_test_ref_kfunc __kptr *ptr;
 };
 
 struct {
@@ -52,7 +52,6 @@ int leak_prog(void *ctx)
 {
 	struct prog_test_ref_kfunc *p;
 	struct map_value *v;
-	unsigned long sl;
 
 	v = bpf_map_lookup_elem(&array_map, &(int){0});
 	if (!v)

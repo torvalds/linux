@@ -108,7 +108,7 @@ static void qs_thaw(struct ata_port *ap);
 static int qs_prereset(struct ata_link *link, unsigned long deadline);
 static void qs_error_handler(struct ata_port *ap);
 
-static struct scsi_host_template qs_ata_sht = {
+static const struct scsi_host_template qs_ata_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= QS_MAX_PRD,
 	.dma_boundary		= QS_DMA_BOUNDARY,

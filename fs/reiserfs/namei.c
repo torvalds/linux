@@ -378,13 +378,11 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 
 		/*
 		 * Propagate the private flag so we know we're
-		 * in the priv tree.  Also clear IOP_XATTR
+		 * in the priv tree.  Also clear xattr support
 		 * since we don't have xattrs on xattr files.
 		 */
-		if (IS_PRIVATE(dir)) {
-			inode->i_flags |= S_PRIVATE;
-			inode->i_opflags &= ~IOP_XATTR;
-		}
+		if (IS_PRIVATE(dir))
+			reiserfs_init_priv_inode(inode);
 	}
 	reiserfs_write_unlock(dir->i_sb);
 	if (retval == IO_ERROR) {
@@ -1647,6 +1645,48 @@ static int reiserfs_rename(struct mnt_idmap *idmap,
 	retval = journal_end(&th);
 	reiserfs_write_unlock(old_dir->i_sb);
 	return retval;
+}
+
+static const struct inode_operations reiserfs_priv_dir_inode_operations = {
+	.create = reiserfs_create,
+	.lookup = reiserfs_lookup,
+	.link = reiserfs_link,
+	.unlink = reiserfs_unlink,
+	.symlink = reiserfs_symlink,
+	.mkdir = reiserfs_mkdir,
+	.rmdir = reiserfs_rmdir,
+	.mknod = reiserfs_mknod,
+	.rename = reiserfs_rename,
+	.setattr = reiserfs_setattr,
+	.permission = reiserfs_permission,
+	.fileattr_get = reiserfs_fileattr_get,
+	.fileattr_set = reiserfs_fileattr_set,
+};
+
+static const struct inode_operations reiserfs_priv_symlink_inode_operations = {
+	.get_link	= page_get_link,
+	.setattr = reiserfs_setattr,
+	.permission = reiserfs_permission,
+};
+
+static const struct inode_operations reiserfs_priv_special_inode_operations = {
+	.setattr = reiserfs_setattr,
+	.permission = reiserfs_permission,
+};
+
+void reiserfs_init_priv_inode(struct inode *inode)
+{
+	inode->i_flags |= S_PRIVATE;
+	inode->i_opflags &= ~IOP_XATTR;
+
+	if (S_ISREG(inode->i_mode))
+		inode->i_op = &reiserfs_priv_file_inode_operations;
+	else if (S_ISDIR(inode->i_mode))
+		inode->i_op = &reiserfs_priv_dir_inode_operations;
+	else if (S_ISLNK(inode->i_mode))
+		inode->i_op = &reiserfs_priv_symlink_inode_operations;
+	else
+		inode->i_op = &reiserfs_priv_special_inode_operations;
 }
 
 /* directories can handle most operations...  */

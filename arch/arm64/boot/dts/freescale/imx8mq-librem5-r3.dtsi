@@ -22,9 +22,7 @@
 };
 
 &bq25895 {
-	ti,battery-regulation-voltage = <4200000>; /* uV */
 	ti,charge-current = <1500000>; /* uA */
-	ti,termination-current = <144000>;  /* uA */
 };
 
 &camera_front {
@@ -40,6 +38,12 @@
 	};
 };
 
+&magnetometer {
+	mount-matrix =  "1",  "0",  "0",
+			"0", "-1",  "0",
+			"0",  "0", "-1";
+};
+
 &proximity {
-	proximity-near-level = <25>;
+	proximity-near-level = <10>;
 };

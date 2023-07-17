@@ -606,7 +606,7 @@ mpc52xx_ata_task_irq(int irq, void *vpriv)
 	return IRQ_HANDLED;
 }
 
-static struct scsi_host_template mpc52xx_ata_sht = {
+static const struct scsi_host_template mpc52xx_ata_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

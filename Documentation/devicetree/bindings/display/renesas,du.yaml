@@ -76,7 +76,7 @@ properties:
     unevaluatedProperties: false
 
   renesas,cmms:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       maxItems: 1
     description:
@@ -84,7 +84,7 @@ properties:
       available DU channel.
 
   renesas,vsps:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       items:
         - description: phandle to VSP instance that serves the DU channel

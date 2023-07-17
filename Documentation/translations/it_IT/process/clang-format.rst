@@ -40,7 +40,7 @@ Linux più popolari. Cercate ``clang-format`` nel vostro repositorio.
 Altrimenti, potete scaricare una versione pre-generata dei binari di LLVM/clang
 oppure generarlo dai codici sorgenti:
 
-    http://releases.llvm.org/download.html
+    https://releases.llvm.org/download.html
 
 Troverete più informazioni ai seguenti indirizzi:
 

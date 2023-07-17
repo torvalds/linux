@@ -390,7 +390,7 @@ static int at91_usart_spi_setup(struct spi_device *spi)
 
 	dev_dbg(&spi->dev,
 		"setup: bpw %u mode 0x%x -> mr %d %08x\n",
-		spi->bits_per_word, spi->mode, spi->chip_select, mr);
+		spi->bits_per_word, spi->mode, spi_get_chipselect(spi, 0), mr);
 
 	return 0;
 }
@@ -647,15 +647,13 @@ __maybe_unused static int at91_usart_spi_resume(struct device *dev)
 	return spi_controller_resume(ctrl);
 }
 
-static int at91_usart_spi_remove(struct platform_device *pdev)
+static void at91_usart_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = platform_get_drvdata(pdev);
 	struct at91_usart_spi *aus = spi_controller_get_devdata(ctlr);
 
 	at91_usart_spi_release_dma(ctlr);
 	clk_disable_unprepare(aus->clk);
-
-	return 0;
 }
 
 static const struct dev_pm_ops at91_usart_spi_pm_ops = {
@@ -670,7 +668,7 @@ static struct platform_driver at91_usart_spi_driver = {
 		.pm = &at91_usart_spi_pm_ops,
 	},
 	.probe = at91_usart_spi_probe,
-	.remove = at91_usart_spi_remove,
+	.remove_new = at91_usart_spi_remove,
 };
 
 module_platform_driver(at91_usart_spi_driver);

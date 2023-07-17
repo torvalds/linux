@@ -99,7 +99,6 @@ struct sx150x_pinctrl {
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_desc pinctrl_desc;
 	struct gpio_chip gpio;
-	struct irq_chip irq_chip;
 	struct regmap *regmap;
 	struct {
 		u32 sense;
@@ -487,19 +486,21 @@ static int sx150x_gpio_direction_output(struct gpio_chip *chip,
 
 static void sx150x_irq_mask(struct irq_data *d)
 {
-	struct sx150x_pinctrl *pctl =
-			gpiochip_get_data(irq_data_get_irq_chip_data(d));
-	unsigned int n = d->hwirq;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(gc);
+	unsigned int n = irqd_to_hwirq(d);
 
 	pctl->irq.masked |= BIT(n);
+	gpiochip_disable_irq(gc, n);
 }
 
 static void sx150x_irq_unmask(struct irq_data *d)
 {
-	struct sx150x_pinctrl *pctl =
-			gpiochip_get_data(irq_data_get_irq_chip_data(d));
-	unsigned int n = d->hwirq;
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(gc);
+	unsigned int n = irqd_to_hwirq(d);
 
+	gpiochip_enable_irq(gc, n);
 	pctl->irq.masked &= ~BIT(n);
 }
 
@@ -520,14 +521,14 @@ static void sx150x_irq_set_sense(struct sx150x_pinctrl *pctl,
 
 static int sx150x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct sx150x_pinctrl *pctl =
-			gpiochip_get_data(irq_data_get_irq_chip_data(d));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(gc);
 	unsigned int n, val = 0;
 
 	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
 		return -EINVAL;
 
-	n = d->hwirq;
+	n = irqd_to_hwirq(d);
 
 	if (flow_type & IRQ_TYPE_EDGE_RISING)
 		val |= SX150X_IRQ_TYPE_EDGE_RISING;
@@ -562,21 +563,41 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 static void sx150x_irq_bus_lock(struct irq_data *d)
 {
-	struct sx150x_pinctrl *pctl =
-			gpiochip_get_data(irq_data_get_irq_chip_data(d));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(gc);
 
 	mutex_lock(&pctl->lock);
 }
 
 static void sx150x_irq_bus_sync_unlock(struct irq_data *d)
 {
-	struct sx150x_pinctrl *pctl =
-			gpiochip_get_data(irq_data_get_irq_chip_data(d));
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(gc);
 
 	regmap_write(pctl->regmap, pctl->data->reg_irq_mask, pctl->irq.masked);
 	regmap_write(pctl->regmap, pctl->data->reg_sense, pctl->irq.sense);
 	mutex_unlock(&pctl->lock);
 }
+
+
+static void sx150x_irq_print_chip(struct irq_data *d, struct seq_file *p)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct sx150x_pinctrl *pctl = gpiochip_get_data(gc);
+
+	seq_printf(p, pctl->client->name);
+}
+
+static const struct irq_chip sx150x_irq_chip = {
+	.irq_mask = sx150x_irq_mask,
+	.irq_unmask = sx150x_irq_unmask,
+	.irq_set_type = sx150x_irq_set_type,
+	.irq_bus_lock = sx150x_irq_bus_lock,
+	.irq_bus_sync_unlock = sx150x_irq_bus_sync_unlock,
+	.irq_print_chip = sx150x_irq_print_chip,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
 
 static int sx150x_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			      unsigned long *config)
@@ -1181,19 +1202,8 @@ static int sx150x_probe(struct i2c_client *client)
 	if (client->irq > 0) {
 		struct gpio_irq_chip *girq;
 
-		pctl->irq_chip.irq_mask = sx150x_irq_mask;
-		pctl->irq_chip.irq_unmask = sx150x_irq_unmask;
-		pctl->irq_chip.irq_set_type = sx150x_irq_set_type;
-		pctl->irq_chip.irq_bus_lock = sx150x_irq_bus_lock;
-		pctl->irq_chip.irq_bus_sync_unlock = sx150x_irq_bus_sync_unlock;
-		pctl->irq_chip.name = devm_kstrdup(dev, client->name,
-						   GFP_KERNEL);
-		if (!pctl->irq_chip.name)
-			return -ENOMEM;
-
 		pctl->irq.masked = ~0;
 		pctl->irq.sense = 0;
-
 		/*
 		 * Because sx150x_irq_threaded_fn invokes all of the
 		 * nested interrupt handlers via handle_nested_irq,
@@ -1206,7 +1216,7 @@ static int sx150x_probe(struct i2c_client *client)
 		 * called (should not happen)
 		 */
 		girq = &pctl->gpio.irq;
-		girq->chip = &pctl->irq_chip;
+		gpio_irq_chip_set_chip(girq, &sx150x_irq_chip);
 		/* This will let us handle the parent IRQ in the driver */
 		girq->parent_handler = NULL;
 		girq->num_parents = 0;
@@ -1219,7 +1229,7 @@ static int sx150x_probe(struct i2c_client *client)
 						sx150x_irq_thread_fn,
 						IRQF_ONESHOT | IRQF_SHARED |
 						IRQF_TRIGGER_FALLING,
-						pctl->irq_chip.name, pctl);
+						client->name, pctl);
 		if (ret < 0)
 			return ret;
 	}
@@ -1250,7 +1260,7 @@ static int sx150x_probe(struct i2c_client *client)
 static struct i2c_driver sx150x_driver = {
 	.driver = {
 		.name = "sx150x-pinctrl",
-		.of_match_table = of_match_ptr(sx150x_of_match),
+		.of_match_table = sx150x_of_match,
 	},
 	.probe_new = sx150x_probe,
 	.id_table = sx150x_id,

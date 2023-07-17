@@ -1455,12 +1455,11 @@ static int temac_probe(struct platform_device *pdev)
 	 * endianness mode.  Default for OF devices is big-endian.
 	 */
 	little_endian = false;
-	if (temac_np) {
-		if (of_get_property(temac_np, "little-endian", NULL))
-			little_endian = true;
-	} else if (pdata) {
+	if (temac_np)
+		little_endian = of_property_read_bool(temac_np, "little-endian");
+	else if (pdata)
 		little_endian = pdata->reg_little_endian;
-	}
+
 	if (little_endian) {
 		lp->temac_ior = _temac_ior_le;
 		lp->temac_iow = _temac_iow_le;

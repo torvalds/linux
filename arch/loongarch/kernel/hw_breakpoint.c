@@ -396,6 +396,8 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 
 	if (hw->ctrl.type != LOONGARCH_BREAKPOINT_EXECUTE)
 		alignment_mask = 0x7;
+	else
+		alignment_mask = 0x3;
 	offset = hw->address & alignment_mask;
 
 	hw->address &= ~alignment_mask;

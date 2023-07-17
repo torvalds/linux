@@ -650,6 +650,10 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		goto unlock;
 	}
 
+	ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D0);
+	if (ret < 0)
+		goto unlock;
+
  again:
 	if (subs->sync_endpoint) {
 		ret = snd_usb_endpoint_prepare(chip, subs->sync_endpoint);
@@ -1639,7 +1643,7 @@ static int snd_usb_pcm_playback_ack(struct snd_pcm_substream *substream)
 	 * outputs here
 	 */
 	if (!ep->active_mask)
-		snd_usb_queue_pending_output_urbs(ep, true);
+		return snd_usb_queue_pending_output_urbs(ep, true);
 	return 0;
 }
 

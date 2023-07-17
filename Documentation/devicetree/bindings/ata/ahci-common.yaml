@@ -8,7 +8,7 @@ title: Common Properties for Serial ATA AHCI controllers
 
 maintainers:
   - Hans de Goede <hdegoede@redhat.com>
-  - Damien Le Moal <damien.lemoal@opensource.wdc.com>
+  - Damien Le Moal <dlemoal@kernel.org>
 
 description:
   This document defines device tree properties for a common AHCI SATA
@@ -59,7 +59,7 @@ properties:
     const: sata-phy
 
   hba-cap:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Bitfield of the HBA generic platform capabilities like Staggered
       Spin-up or Mechanical Presence Switch support. It can be used to
@@ -67,7 +67,7 @@ properties:
       in case if the system firmware hasn't done it.
 
   ports-implemented:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       Mask that indicates which ports the HBA supports. Useful if PI is not
       programmed by the BIOS, which is true for some embedded SoC's.
@@ -110,7 +110,7 @@ $defs:
         description: Power regulator for SATA port target device
 
       hba-port-cap:
-        $ref: '/schemas/types.yaml#/definitions/uint32'
+        $ref: /schemas/types.yaml#/definitions/uint32
         description:
           Bitfield of the HBA port-specific platform capabilities like Hot
           plugging, eSATA, FIS-based Switching, etc (see AHCI specification

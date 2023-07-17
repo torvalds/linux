@@ -382,8 +382,6 @@
 #define SPRN_HIOR	0x137	/* 970 Hypervisor interrupt offset */
 #define SPRN_RMOR	0x138	/* Real mode offset register */
 #define SPRN_HRMOR	0x139	/* Real mode offset register */
-#define SPRN_HSRR0	0x13A	/* Hypervisor Save/Restore 0 */
-#define SPRN_HSRR1	0x13B	/* Hypervisor Save/Restore 1 */
 #define SPRN_ASDR	0x330	/* Access segment descriptor register */
 #define SPRN_IC		0x350	/* Virtual Instruction Count */
 #define SPRN_VTB	0x351	/* Virtual Time Base */
@@ -417,6 +415,7 @@
 #define   FSCR_DSCR	__MASK(FSCR_DSCR_LG)
 #define   FSCR_INTR_CAUSE (ASM_CONST(0xFF) << 56)	/* interrupt cause */
 #define SPRN_HFSCR	0xbe	/* HV=1 Facility Status & Control Register */
+#define   HFSCR_PREFIX	__MASK(FSCR_PREFIX_LG)
 #define   HFSCR_MSGP	__MASK(FSCR_MSGP_LG)
 #define   HFSCR_TAR	__MASK(FSCR_TAR_LG)
 #define   HFSCR_EBB	__MASK(FSCR_EBB_LG)
@@ -1310,6 +1309,11 @@
 #define PVR_VER_E500MC	0x8023
 #define PVR_VER_E5500	0x8024
 #define PVR_VER_E6500	0x8040
+#define PVR_VER_7450	0x8000
+#define PVR_VER_7455	0x8001
+#define PVR_VER_7447	0x8002
+#define PVR_VER_7447A	0x8003
+#define PVR_VER_7448	0x8004
 
 /*
  * For the 8xx processors, all of them report the same PVR family for

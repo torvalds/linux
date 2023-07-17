@@ -256,16 +256,12 @@ void __init ehv_pic_init(void)
 {
 	struct device_node *np, *np2;
 	struct ehv_pic *ehv_pic;
-	int coreint_flag = 1;
 
 	np = of_find_compatible_node(NULL, NULL, "epapr,hv-pic");
 	if (!np) {
 		pr_err("ehv_pic_init: could not find epapr,hv-pic node\n");
 		return;
 	}
-
-	if (!of_find_property(np, "has-external-proxy", NULL))
-		coreint_flag = 0;
 
 	ehv_pic = kzalloc(sizeof(struct ehv_pic), GFP_KERNEL);
 	if (!ehv_pic) {
@@ -292,7 +288,7 @@ void __init ehv_pic_init(void)
 
 	ehv_pic->hc_irq = ehv_pic_irq_chip;
 	ehv_pic->hc_irq.irq_set_affinity = ehv_pic_set_affinity;
-	ehv_pic->coreint_flag = coreint_flag;
+	ehv_pic->coreint_flag = of_property_read_bool(np, "has-external-proxy");
 
 	global_ehv_pic = ehv_pic;
 	irq_set_default_host(global_ehv_pic->irqhost);

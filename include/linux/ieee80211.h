@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2022 Intel Corporation
+ * Copyright (c) 2018 - 2023 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -780,20 +780,6 @@ static inline bool ieee80211_is_trigger(__le16 fc)
 static inline bool ieee80211_is_any_nullfunc(__le16 fc)
 {
 	return (ieee80211_is_nullfunc(fc) || ieee80211_is_qos_nullfunc(fc));
-}
-
-/**
- * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
- * @fc: frame control field in little-endian byteorder
- */
-static inline bool ieee80211_is_bufferable_mmpdu(__le16 fc)
-{
-	/* IEEE 802.11-2012, definition of "bufferable management frame";
-	 * note that this ignores the IBSS special case. */
-	return ieee80211_is_mgmt(fc) &&
-	       (ieee80211_is_action(fc) ||
-		ieee80211_is_disassoc(fc) ||
-		ieee80211_is_deauth(fc));
 }
 
 /**
@@ -3557,11 +3543,6 @@ enum ieee80211_unprotected_wnm_actioncode {
 	WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE = 1,
 };
 
-/* Public action codes */
-enum ieee80211_public_actioncode {
-	WLAN_PUBLIC_ACTION_FTM_RESPONSE = 33,
-};
-
 /* Security key length */
 enum ieee80211_key_len {
 	WLAN_KEY_LEN_WEP40 = 5,
@@ -3653,7 +3634,7 @@ enum ieee80211_pub_actioncode {
 	WLAN_PUB_ACTION_NETWORK_CHANNEL_CONTROL = 30,
 	WLAN_PUB_ACTION_WHITE_SPACE_MAP_ANN = 31,
 	WLAN_PUB_ACTION_FTM_REQUEST = 32,
-	WLAN_PUB_ACTION_FTM = 33,
+	WLAN_PUB_ACTION_FTM_RESPONSE = 33,
 	WLAN_PUB_ACTION_FILS_DISCOVERY = 34,
 };
 
@@ -4138,6 +4119,44 @@ static inline u8 *ieee80211_get_DA(struct ieee80211_hdr *hdr)
 }
 
 /**
+ * ieee80211_is_bufferable_mmpdu - check if frame is bufferable MMPDU
+ * @skb: the skb to check, starting with the 802.11 header
+ */
+static inline bool ieee80211_is_bufferable_mmpdu(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+	__le16 fc = mgmt->frame_control;
+
+	/*
+	 * IEEE 802.11 REVme D2.0 definition of bufferable MMPDU;
+	 * note that this ignores the IBSS special case.
+	 */
+	if (!ieee80211_is_mgmt(fc))
+		return false;
+
+	if (ieee80211_is_disassoc(fc) || ieee80211_is_deauth(fc))
+		return true;
+
+	if (!ieee80211_is_action(fc))
+		return false;
+
+	if (skb->len < offsetofend(typeof(*mgmt), u.action.u.ftm.action_code))
+		return true;
+
+	/* action frame - additionally check for non-bufferable FTM */
+
+	if (mgmt->u.action.category != WLAN_CATEGORY_PUBLIC &&
+	    mgmt->u.action.category != WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION)
+		return true;
+
+	if (mgmt->u.action.u.ftm.action_code == WLAN_PUB_ACTION_FTM_REQUEST ||
+	    mgmt->u.action.u.ftm.action_code == WLAN_PUB_ACTION_FTM_RESPONSE)
+		return false;
+
+	return true;
+}
+
+/**
  * _ieee80211_is_robust_mgmt_frame - check if frame is a robust management frame
  * @hdr: the frame (buffer must include at least the first octet of payload)
  */
@@ -4383,7 +4402,7 @@ static inline bool ieee80211_is_ftm(struct sk_buff *skb)
 		return false;
 
 	if (mgmt->u.action.u.ftm.action_code ==
-		WLAN_PUBLIC_ACTION_FTM_RESPONSE &&
+		WLAN_PUB_ACTION_FTM_RESPONSE &&
 	    skb->len >= offsetofend(typeof(*mgmt), u.action.u.ftm))
 		return true;
 

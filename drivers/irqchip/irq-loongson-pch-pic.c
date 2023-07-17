@@ -311,7 +311,8 @@ static int pch_pic_init(phys_addr_t addr, unsigned long size, int vec_base,
 	pch_pic_handle[nr_pics] = domain_handle;
 	pch_pic_priv[nr_pics++] = priv;
 
-	register_syscore_ops(&pch_pic_syscore_ops);
+	if (nr_pics == 1)
+		register_syscore_ops(&pch_pic_syscore_ops);
 
 	return 0;
 
@@ -402,6 +403,9 @@ int __init pch_pic_acpi_init(struct irq_domain *parent,
 {
 	int ret, vec_base;
 	struct fwnode_handle *domain_handle;
+
+	if (find_pch_pic(acpi_pchpic->gsi_base) >= 0)
+		return 0;
 
 	vec_base = acpi_pchpic->gsi_base - GSI_MIN_PCH_IRQ;
 

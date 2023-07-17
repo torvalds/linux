@@ -937,7 +937,7 @@ int usb_stor_probe1(struct us_data **pus,
 		struct usb_interface *intf,
 		const struct usb_device_id *id,
 		const struct us_unusual_dev *unusual_dev,
-		struct scsi_host_template *sht)
+		const struct scsi_host_template *sht)
 {
 	struct Scsi_Host *host;
 	struct us_data *us;

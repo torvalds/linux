@@ -413,18 +413,18 @@ struct pci_ops bcm63xx_cb_ops = {
 static void bcm63xx_fixup(struct pci_dev *dev)
 {
 	static int io_window = -1;
-	int i, found, new_io_window;
+	int found, new_io_window;
+	struct resource *r;
 	u32 val;
 
 	/* look for any io resource */
 	found = 0;
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(dev, i) & IORESOURCE_IO) {
+	pci_dev_for_each_resource(dev, r) {
+		if (resource_type(r) == IORESOURCE_IO) {
 			found = 1;
 			break;
 		}
 	}
-
 	if (!found)
 		return;
 

@@ -72,7 +72,6 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);
 const struct atomisp_format_bridge *get_atomisp_format_bridge_from_mbus(
     u32 mbus_code);
 bool atomisp_is_mbuscode_raw(uint32_t code);
-void atomisp_delayed_init_work(struct work_struct *work);
 
 /* Get internal fmt according to V4L2 fmt */
 bool atomisp_is_viewfinder_support(struct atomisp_device *isp);
@@ -268,9 +267,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f);
 int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 			      struct atomisp_shading_table *shading_table);
 
-int atomisp_offline_capture_configure(struct atomisp_sub_device *asd,
-				      struct atomisp_cont_capture_conf *cvf_config);
-
 void atomisp_free_internal_buffers(struct atomisp_sub_device *asd);
 
 int atomisp_s_ae_window(struct atomisp_sub_device *asd,
@@ -316,11 +312,6 @@ void atomisp_init_raw_buffer_bitmap(struct atomisp_sub_device *asd);
 /* Function to enable/disable zoom for capture pipe */
 int atomisp_enable_dz_capt_pipe(struct atomisp_sub_device *asd,
 				unsigned int *enable);
-
-/* Function to get metadata type bu pipe id */
-enum atomisp_metadata_type
-atomisp_get_metadata_type(struct atomisp_sub_device *asd,
-			  enum ia_css_pipe_id pipe_id);
 
 u32 atomisp_get_pixel_depth(u32 pixelformat);
 

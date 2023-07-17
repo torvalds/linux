@@ -479,7 +479,7 @@ static const struct hwmon_ops emc2305_ops = {
 	.write = emc2305_write,
 };
 
-static const struct hwmon_channel_info *emc2305_info[] = {
+static const struct hwmon_channel_info * const emc2305_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_FAULT,
 			   HWMON_F_INPUT | HWMON_F_FAULT,

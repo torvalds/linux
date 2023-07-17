@@ -12,6 +12,7 @@
 struct iommu_domain;
 struct iommu_group;
 struct iommu_option;
+struct iommufd_device;
 
 struct iommufd_ctx {
 	struct file *file;
@@ -211,10 +212,10 @@ struct iommufd_ioas {
 	struct list_head hwpt_list;
 };
 
-static inline struct iommufd_ioas *iommufd_get_ioas(struct iommufd_ucmd *ucmd,
+static inline struct iommufd_ioas *iommufd_get_ioas(struct iommufd_ctx *ictx,
 						    u32 id)
 {
-	return container_of(iommufd_get_object(ucmd->ictx, id,
+	return container_of(iommufd_get_object(ictx, id,
 					       IOMMUFD_OBJ_IOAS),
 			    struct iommufd_ioas, obj);
 }
@@ -254,8 +255,29 @@ struct iommufd_hw_pagetable {
 
 struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
-			   struct device *dev);
+			   struct iommufd_device *idev, bool immediate_attach);
+int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
+				struct iommufd_device *idev);
+void iommufd_hw_pagetable_detach(struct iommufd_hw_pagetable *hwpt,
+				 struct iommufd_device *idev);
 void iommufd_hw_pagetable_destroy(struct iommufd_object *obj);
+
+/*
+ * A iommufd_device object represents the binding relationship between a
+ * consuming driver and the iommufd. These objects are created/destroyed by
+ * external drivers, not by userspace.
+ */
+struct iommufd_device {
+	struct iommufd_object obj;
+	struct iommufd_ctx *ictx;
+	struct iommufd_hw_pagetable *hwpt;
+	/* Head at iommufd_hw_pagetable::devices */
+	struct list_head devices_item;
+	/* always the physical device */
+	struct device *dev;
+	struct iommu_group *group;
+	bool enforce_cache_coherency;
+};
 
 void iommufd_device_destroy(struct iommufd_object *obj);
 
@@ -275,12 +297,6 @@ void iopt_remove_access(struct io_pagetable *iopt,
 void iommufd_access_destroy_object(struct iommufd_object *obj);
 
 #ifdef CONFIG_IOMMUFD_TEST
-struct iommufd_hw_pagetable *
-iommufd_device_selftest_attach(struct iommufd_ctx *ictx,
-			       struct iommufd_ioas *ioas,
-			       struct device *mock_dev);
-void iommufd_device_selftest_detach(struct iommufd_ctx *ictx,
-				    struct iommufd_hw_pagetable *hwpt);
 int iommufd_test(struct iommufd_ucmd *ucmd);
 void iommufd_selftest_destroy(struct iommufd_object *obj);
 extern size_t iommufd_test_memory_limit;
@@ -289,6 +305,7 @@ void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 bool iommufd_should_fail(void);
 void __init iommufd_test_init(void);
 void iommufd_test_exit(void);
+bool iommufd_selftest_is_mock_dev(struct device *dev);
 #else
 static inline void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 						 unsigned int ioas_id,
@@ -304,6 +321,10 @@ static inline void __init iommufd_test_init(void)
 }
 static inline void iommufd_test_exit(void)
 {
+}
+static inline bool iommufd_selftest_is_mock_dev(struct device *dev)
+{
+	return false;
 }
 #endif
 #endif

@@ -22,9 +22,6 @@ void rtl92e_set_bandwidth(struct net_device *dev,
 	}
 
 	for (eRFPath = 0; eRFPath < priv->num_total_rf_path; eRFPath++) {
-		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-			continue;
-
 		switch (bandwidth) {
 		case HT_CHANNEL_WIDTH_20:
 			rtl92e_set_rf_reg(dev, (enum rf90_radio_path)eRFPath,
@@ -67,19 +64,14 @@ bool rtl92e_config_rf(struct net_device *dev)
 
 	for (eRFPath = (enum rf90_radio_path)RF90_PATH_A;
 	     eRFPath < priv->num_total_rf_path; eRFPath++) {
-		if (!rtl92e_is_legal_rf_path(dev, eRFPath))
-			continue;
-
 		pPhyReg = &priv->phy_reg_def[eRFPath];
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
-		case RF90_PATH_C:
 			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
 						       bRFSI_RFENV);
 			break;
 		case RF90_PATH_B:
-		case RF90_PATH_D:
 			u4RegValue = rtl92e_get_bb_reg(dev, pPhyReg->rfintfs,
 						       bRFSI_RFENV<<16);
 			break;
@@ -120,12 +112,10 @@ bool rtl92e_config_rf(struct net_device *dev)
 
 		switch (eRFPath) {
 		case RF90_PATH_A:
-		case RF90_PATH_C:
 			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs, bRFSI_RFENV,
 					  u4RegValue);
 			break;
 		case RF90_PATH_B:
-		case RF90_PATH_D:
 			rtl92e_set_bb_reg(dev, pPhyReg->rfintfs,
 					  bRFSI_RFENV<<16, u4RegValue);
 			break;

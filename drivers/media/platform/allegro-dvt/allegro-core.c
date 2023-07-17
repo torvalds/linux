@@ -3919,7 +3919,7 @@ static int allegro_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int allegro_remove(struct platform_device *pdev)
+static void allegro_remove(struct platform_device *pdev)
 {
 	struct allegro_dev *dev = platform_get_drvdata(pdev);
 
@@ -3935,8 +3935,6 @@ static int allegro_remove(struct platform_device *pdev)
 	pm_runtime_disable(&dev->plat_dev->dev);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
-
-	return 0;
 }
 
 static int allegro_runtime_resume(struct device *device)
@@ -4006,7 +4004,7 @@ static const struct dev_pm_ops allegro_pm_ops = {
 
 static struct platform_driver allegro_driver = {
 	.probe = allegro_probe,
-	.remove = allegro_remove,
+	.remove_new = allegro_remove,
 	.driver = {
 		.name = "allegro",
 		.of_match_table = of_match_ptr(allegro_dt_ids),

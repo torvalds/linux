@@ -418,7 +418,8 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 	SET_IEEE80211_DEV(hw, dev->dev);
 	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
 
-	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
+	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR |
+			   NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH |
 			WIPHY_FLAG_SUPPORTS_TDLS |
 			WIPHY_FLAG_AP_UAPSD;
@@ -539,6 +540,7 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 	if (ret)
 		return ret;
 
+	set_bit(MT76_STATE_REGISTERED, &phy->state);
 	phy->dev->phys[phy->band_idx] = phy;
 
 	return 0;
@@ -548,6 +550,9 @@ EXPORT_SYMBOL_GPL(mt76_register_phy);
 void mt76_unregister_phy(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
+
+	if (!test_bit(MT76_STATE_REGISTERED, &phy->state))
+		return;
 
 	if (IS_ENABLED(CONFIG_MT76_LEDS))
 		mt76_led_cleanup(phy);
@@ -719,6 +724,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 		return ret;
 
 	WARN_ON(mt76_worker_setup(hw, &dev->tx_worker, NULL, "tx"));
+	set_bit(MT76_STATE_REGISTERED, &phy->state);
 	sched_set_fifo_low(dev->tx_worker.task);
 
 	return 0;
@@ -728,6 +734,9 @@ EXPORT_SYMBOL_GPL(mt76_register_device);
 void mt76_unregister_device(struct mt76_dev *dev)
 {
 	struct ieee80211_hw *hw = dev->hw;
+
+	if (!test_bit(MT76_STATE_REGISTERED, &dev->phy.state))
+		return;
 
 	if (IS_ENABLED(CONFIG_MT76_LEDS))
 		mt76_led_cleanup(&dev->phy);
@@ -1058,9 +1067,14 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	status->enc_flags = mstat.enc_flags;
 	status->encoding = mstat.encoding;
 	status->bw = mstat.bw;
-	status->he_ru = mstat.he_ru;
-	status->he_gi = mstat.he_gi;
-	status->he_dcm = mstat.he_dcm;
+	if (status->encoding == RX_ENC_EHT) {
+		status->eht.ru = mstat.eht.ru;
+		status->eht.gi = mstat.eht.gi;
+	} else {
+		status->he_ru = mstat.he_ru;
+		status->he_gi = mstat.he_gi;
+		status->he_dcm = mstat.he_dcm;
+	}
 	status->rate_idx = mstat.rate_idx;
 	status->nss = mstat.nss;
 	status->band = mstat.band;
@@ -1295,7 +1309,8 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	if (ps)
 		set_bit(MT_WCID_FLAG_PS, &wcid->flags);
 
-	dev->drv->sta_ps(dev, sta, ps);
+	if (dev->drv->sta_ps)
+		dev->drv->sta_ps(dev, sta, ps);
 
 	if (!ps)
 		clear_bit(MT_WCID_FLAG_PS, &wcid->flags);

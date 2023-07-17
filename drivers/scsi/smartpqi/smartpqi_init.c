@@ -7403,7 +7403,7 @@ static struct attribute *pqi_sdev_attrs[] = {
 
 ATTRIBUTE_GROUPS(pqi_sdev);
 
-static struct scsi_host_template pqi_driver_template = {
+static const struct scsi_host_template pqi_driver_template = {
 	.module = THIS_MODULE,
 	.name = DRIVER_NAME_SHORT,
 	.proc_name = DRIVER_NAME_SHORT,

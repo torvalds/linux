@@ -3,7 +3,7 @@
  * caam - Freescale FSL CAAM support for crypto API
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
- * Copyright 2016-2019 NXP
+ * Copyright 2016-2019, 2023 NXP
  *
  * Based on talitos crypto API driver.
  *
@@ -3542,13 +3542,14 @@ int caam_algapi_init(struct device *ctrldev)
 	 * First, detect presence and attributes of DES, AES, and MD blocks.
 	 */
 	if (priv->era < 10) {
+		struct caam_perfmon __iomem *perfmon = &priv->jr[0]->perfmon;
 		u32 cha_vid, cha_inst, aes_rn;
 
-		cha_vid = rd_reg32(&priv->ctrl->perfmon.cha_id_ls);
+		cha_vid = rd_reg32(&perfmon->cha_id_ls);
 		aes_vid = cha_vid & CHA_ID_LS_AES_MASK;
 		md_vid = (cha_vid & CHA_ID_LS_MD_MASK) >> CHA_ID_LS_MD_SHIFT;
 
-		cha_inst = rd_reg32(&priv->ctrl->perfmon.cha_num_ls);
+		cha_inst = rd_reg32(&perfmon->cha_num_ls);
 		des_inst = (cha_inst & CHA_ID_LS_DES_MASK) >>
 			   CHA_ID_LS_DES_SHIFT;
 		aes_inst = cha_inst & CHA_ID_LS_AES_MASK;
@@ -3556,23 +3557,23 @@ int caam_algapi_init(struct device *ctrldev)
 		ccha_inst = 0;
 		ptha_inst = 0;
 
-		aes_rn = rd_reg32(&priv->ctrl->perfmon.cha_rev_ls) &
-			 CHA_ID_LS_AES_MASK;
+		aes_rn = rd_reg32(&perfmon->cha_rev_ls) & CHA_ID_LS_AES_MASK;
 		gcm_support = !(aes_vid == CHA_VER_VID_AES_LP && aes_rn < 8);
 	} else {
+		struct version_regs __iomem *vreg = &priv->jr[0]->vreg;
 		u32 aesa, mdha;
 
-		aesa = rd_reg32(&priv->ctrl->vreg.aesa);
-		mdha = rd_reg32(&priv->ctrl->vreg.mdha);
+		aesa = rd_reg32(&vreg->aesa);
+		mdha = rd_reg32(&vreg->mdha);
 
 		aes_vid = (aesa & CHA_VER_VID_MASK) >> CHA_VER_VID_SHIFT;
 		md_vid = (mdha & CHA_VER_VID_MASK) >> CHA_VER_VID_SHIFT;
 
-		des_inst = rd_reg32(&priv->ctrl->vreg.desa) & CHA_VER_NUM_MASK;
+		des_inst = rd_reg32(&vreg->desa) & CHA_VER_NUM_MASK;
 		aes_inst = aesa & CHA_VER_NUM_MASK;
 		md_inst = mdha & CHA_VER_NUM_MASK;
-		ccha_inst = rd_reg32(&priv->ctrl->vreg.ccha) & CHA_VER_NUM_MASK;
-		ptha_inst = rd_reg32(&priv->ctrl->vreg.ptha) & CHA_VER_NUM_MASK;
+		ccha_inst = rd_reg32(&vreg->ccha) & CHA_VER_NUM_MASK;
+		ptha_inst = rd_reg32(&vreg->ptha) & CHA_VER_NUM_MASK;
 
 		gcm_support = aesa & CHA_VER_MISC_AES_GCM;
 	}

@@ -15,5 +15,8 @@ int dsa_master_lag_setup(struct net_device *lag_dev, struct dsa_port *cpu_dp,
 			 struct netlink_ext_ack *extack);
 void dsa_master_lag_teardown(struct net_device *lag_dev,
 			     struct dsa_port *cpu_dp);
+int __dsa_master_hwtstamp_validate(struct net_device *dev,
+				   const struct kernel_hwtstamp_config *config,
+				   struct netlink_ext_ack *extack);
 
 #endif

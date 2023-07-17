@@ -623,15 +623,13 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	return ret_val;
 }
 
-static int snd_cht_mc_remove(struct platform_device *pdev)
+static void snd_cht_mc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(card);
 
 	if (ctx->quirks & QUIRK_PMC_PLT_CLK_0)
 		clk_disable_unprepare(ctx->mclk);
-
-	return 0;
 }
 
 static struct platform_driver snd_cht_mc_driver = {
@@ -639,7 +637,7 @@ static struct platform_driver snd_cht_mc_driver = {
 		.name = "cht-bsw-max98090",
 	},
 	.probe = snd_cht_mc_probe,
-	.remove = snd_cht_mc_remove,
+	.remove_new = snd_cht_mc_remove,
 };
 
 module_platform_driver(snd_cht_mc_driver)

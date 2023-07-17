@@ -16,7 +16,7 @@ extern void device_driver_detach(struct device *dev);
 
 static ssize_t unbind_store(struct device_driver *drv, const char *buf, size_t count)
 {
-	struct bus_type *bus = drv->bus;
+	const struct bus_type *bus = drv->bus;
 	struct device *dev;
 	int rc = -ENODEV;
 
@@ -32,7 +32,7 @@ static DRIVER_ATTR_IGNORE_LOCKDEP(unbind, 0200, NULL, unbind_store);
 
 static ssize_t bind_store(struct device_driver *drv, const char *buf, size_t count)
 {
-	struct bus_type *bus = drv->bus;
+	const struct bus_type *bus = drv->bus;
 	struct device *dev;
 	struct device_driver *alt_drv = NULL;
 	int rc = -ENODEV;

@@ -735,12 +735,17 @@ static int nicvf_set_channels(struct net_device *dev,
 	if (channel->tx_count > nic->max_queues)
 		return -EINVAL;
 
-	if (nic->xdp_prog &&
-	    ((channel->tx_count + channel->rx_count) > nic->max_queues)) {
-		netdev_err(nic->netdev,
-			   "XDP mode, RXQs + TXQs > Max %d\n",
-			   nic->max_queues);
-		return -EINVAL;
+	if (channel->tx_count + channel->rx_count > nic->max_queues) {
+		if (nic->xdp_prog) {
+			netdev_err(nic->netdev,
+				   "XDP mode, RXQs + TXQs > Max %d\n",
+				   nic->max_queues);
+			return -EINVAL;
+		}
+
+		xdp_clear_features_flag(nic->netdev);
+	} else if (!pass1_silicon(nic->pdev)) {
+		xdp_set_features_flag(dev, NETDEV_XDP_ACT_BASIC);
 	}
 
 	if (if_up)

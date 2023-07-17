@@ -121,6 +121,9 @@
 #define PEBS_DATACFG_LBRS	BIT_ULL(3)
 #define PEBS_DATACFG_LBR_SHIFT	24
 
+/* Steal the highest bit of pebs_data_cfg for SW usage */
+#define PEBS_UPDATE_DS_SW	BIT_ULL(63)
+
 /*
  * Intel "Architectural Performance Monitoring" CPUID
  * detection/enumeration details:

@@ -262,7 +262,7 @@ SYM_INNER_LABEL(vmx_vmexit, SYM_L_GLOBAL)
 	 * eIBRS has its own protection against poisoned RSB, so it doesn't
 	 * need the RSB filling sequence.  But it does need to be enabled, and a
 	 * single call to retire, before the first unbalanced RET.
-         */
+	 */
 
 	FILL_RETURN_BUFFER %_ASM_CX, RSB_CLEAR_LOOPS, X86_FEATURE_RSB_VMEXIT,\
 			   X86_FEATURE_RSB_VMEXIT_LITE
@@ -311,7 +311,7 @@ SYM_FUNC_END(vmx_do_nmi_irqoff)
  * vmread_error_trampoline - Trampoline from inline asm to vmread_error()
  * @field:	VMCS field encoding that failed
  * @fault:	%true if the VMREAD faulted, %false if it failed
-
+ *
  * Save and restore volatile registers across a call to vmread_error().  Note,
  * all parameters are passed on the stack.
  */

@@ -629,7 +629,7 @@ static int synquacer_i2c_remove(struct platform_device *pdev)
 	return 0;
 };
 
-static const struct of_device_id synquacer_i2c_dt_ids[] = {
+static const struct of_device_id synquacer_i2c_dt_ids[] __maybe_unused = {
 	{ .compatible = "socionext,synquacer-i2c" },
 	{ /* sentinel */ }
 };

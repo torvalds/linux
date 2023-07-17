@@ -194,7 +194,8 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_COUNT_SERIAL_VEN:
 
-			item_count = ACPI_GET16(source) - info->value;
+			ACPI_MOVE_16_TO_16(&temp16, source);
+			item_count = temp16 - info->value;
 
 			resource->length = resource->length + item_count;
 			ACPI_SET16(destination, item_count);
@@ -202,9 +203,10 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 		case ACPI_RSC_COUNT_SERIAL_RES:
 
+			ACPI_MOVE_16_TO_16(&temp16, source);
 			item_count = (aml_resource_length +
 				      sizeof(struct aml_resource_large_header))
-			    - ACPI_GET16(source) - info->value;
+			    - temp16 - info->value;
 
 			resource->length = resource->length + item_count;
 			ACPI_SET16(destination, item_count);
@@ -289,9 +291,9 @@ acpi_rs_convert_aml_to_resource(struct acpi_resource *resource,
 
 			/* Copy the resource_source string */
 
+			ACPI_MOVE_16_TO_16(&temp16, source);
 			source =
-			    ACPI_ADD_PTR(void, aml,
-					 (ACPI_GET16(source) + info->value));
+			    ACPI_ADD_PTR(void, aml, (temp16 + info->value));
 			acpi_rs_move_data(target, source, item_count,
 					  info->opcode);
 			break;

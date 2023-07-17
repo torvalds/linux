@@ -24,7 +24,7 @@ struct m10bmc_sdata {
 
 struct m10bmc_hwmon_board_data {
 	const struct m10bmc_sdata *tables[hwmon_max];
-	const struct hwmon_channel_info **hinfo;
+	const struct hwmon_channel_info * const *hinfo;
 };
 
 struct m10bmc_hwmon {
@@ -67,7 +67,7 @@ static const struct m10bmc_sdata n3000bmc_power_tbl[] = {
 	{ 0x160, 0x0, 0x0, 0x0, 0x0, 1000, "Board Power" },
 };
 
-static const struct hwmon_channel_info *n3000bmc_hinfo[] = {
+static const struct hwmon_channel_info * const n3000bmc_hinfo[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 			   HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_LABEL,
@@ -154,7 +154,7 @@ static const struct m10bmc_hwmon_board_data n3000bmc_hwmon_bdata = {
 	.hinfo = n3000bmc_hinfo,
 };
 
-static const struct hwmon_channel_info *d5005bmc_hinfo[] = {
+static const struct hwmon_channel_info * const d5005bmc_hinfo[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
 			   HWMON_T_CRIT | HWMON_T_CRIT_HYST | HWMON_T_LABEL,
@@ -280,7 +280,7 @@ static const struct m10bmc_sdata n5010bmc_curr_tbl[] = {
 	{ 0x1a0, 0x0, 0x0, 0x0, 0x0, 1, "CVL2 0.8V Current" },
 };
 
-static const struct hwmon_channel_info *n5010bmc_hinfo[] = {
+static const struct hwmon_channel_info * const n5010bmc_hinfo[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_LABEL,
 			   HWMON_T_INPUT | HWMON_T_CRIT | HWMON_T_LABEL,
@@ -432,7 +432,7 @@ static const struct m10bmc_sdata n6000bmc_power_tbl[] = {
 	{ 0x724, 0x0, 0x0, 0x0, 0x0, 1, "Board Power" },
 };
 
-static const struct hwmon_channel_info *n6000bmc_hinfo[] = {
+static const struct hwmon_channel_info * const n6000bmc_hinfo[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_CRIT |
 			   HWMON_T_LABEL,

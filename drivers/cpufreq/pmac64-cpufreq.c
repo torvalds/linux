@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <asm/machdep.h>
 #include <asm/irq.h>

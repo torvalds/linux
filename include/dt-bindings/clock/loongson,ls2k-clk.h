@@ -24,6 +24,7 @@
 #define LOONGSON2_SATA_CLK				14
 #define LOONGSON2_PIX0_CLK				15
 #define LOONGSON2_PIX1_CLK				16
-#define LOONGSON2_CLK_END				17
+#define LOONGSON2_BOOT_CLK				17
+#define LOONGSON2_CLK_END				18
 
 #endif

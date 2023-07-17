@@ -82,7 +82,7 @@ static int sunxi_mbus_notifier(struct notifier_block *nb,
 	 * Older DTs or SoCs who are not clearly understood need to set
 	 * that DMA offset though.
 	 */
-	if (of_find_property(dev->of_node, "interconnects", NULL))
+	if (of_property_present(dev->of_node, "interconnects"))
 		return NOTIFY_DONE;
 
 	ret = dma_direct_set_offset(dev, PHYS_OFFSET, 0, SZ_4G);

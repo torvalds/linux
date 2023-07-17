@@ -24,7 +24,7 @@ properties:
     items:
       - description: Bit clock
       - description: Sample clock
-      - description: Master clock #optional
+      - description: Master clock # optional
 
   clock-names:
     minItems: 2

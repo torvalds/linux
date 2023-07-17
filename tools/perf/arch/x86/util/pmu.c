@@ -27,10 +27,14 @@ static bool cached_list;
 struct perf_event_attr *perf_pmu__get_default_config(struct perf_pmu *pmu __maybe_unused)
 {
 #ifdef HAVE_AUXTRACE_SUPPORT
-	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME))
+	if (!strcmp(pmu->name, INTEL_PT_PMU_NAME)) {
+		pmu->auxtrace = true;
 		return intel_pt_pmu_default_config(pmu);
-	if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME))
+	}
+	if (!strcmp(pmu->name, INTEL_BTS_PMU_NAME)) {
+		pmu->auxtrace = true;
 		pmu->selectable = true;
+	}
 #endif
 	return NULL;
 }
@@ -67,7 +71,7 @@ out_delete:
 
 static int setup_pmu_alias_list(void)
 {
-	char path[PATH_MAX];
+	int fd, dirfd;
 	DIR *dir;
 	struct dirent *dent;
 	struct pmu_alias *pmu_alias;
@@ -75,10 +79,11 @@ static int setup_pmu_alias_list(void)
 	FILE *file;
 	int ret = -ENOMEM;
 
-	if (!perf_pmu__event_source_devices_scnprintf(path, sizeof(path)))
+	dirfd = perf_pmu__event_source_devices_fd();
+	if (dirfd < 0)
 		return -1;
 
-	dir = opendir(path);
+	dir = fdopendir(dirfd);
 	if (!dir)
 		return -errno;
 
@@ -87,11 +92,11 @@ static int setup_pmu_alias_list(void)
 		    !strcmp(dent->d_name, ".."))
 			continue;
 
-		perf_pmu__pathname_scnprintf(path, sizeof(path), dent->d_name, "alias");
-		if (!file_available(path))
+		fd = perf_pmu__pathname_fd(dirfd, dent->d_name, "alias", O_RDONLY);
+		if (fd < 0)
 			continue;
 
-		file = fopen(path, "r");
+		file = fdopen(fd, "r");
 		if (!file)
 			continue;
 

@@ -35,7 +35,7 @@
 
 #define GAYLE_CONTROL	0x101a
 
-static struct scsi_host_template pata_gayle_sht = {
+static const struct scsi_host_template pata_gayle_sht = {
 	ATA_PIO_SHT(DRV_NAME),
 };
 

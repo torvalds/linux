@@ -16,6 +16,16 @@ static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 	return (struct tcp_sock *)sk;
 }
 
+static inline unsigned int tcp_left_out(const struct tcp_sock *tp)
+{
+	return tp->sacked_out + tp->lost_out;
+}
+
+static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
+{
+	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
+}
+
 SEC("struct_ops/write_sk_pacing_init")
 void BPF_PROG(write_sk_pacing_init, struct sock *sk)
 {
@@ -31,11 +41,12 @@ SEC("struct_ops/write_sk_pacing_cong_control")
 void BPF_PROG(write_sk_pacing_cong_control, struct sock *sk,
 	      const struct rate_sample *rs)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned long rate =
 		((tp->snd_cwnd * tp->mss_cache * USEC_PER_SEC) << 3) /
 		(tp->srtt_us ?: 1U << 3);
 	sk->sk_pacing_rate = min(rate, sk->sk_max_pacing_rate);
+	tp->app_limited = (tp->delivered + tcp_packets_in_flight(tp)) ?: 1;
 }
 
 SEC("struct_ops/write_sk_pacing_ssthresh")

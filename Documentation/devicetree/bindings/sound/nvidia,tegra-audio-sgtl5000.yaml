@@ -31,9 +31,9 @@ properties:
     items:
       enum:
         # Board Connectors
-        - "Headphone Jack"
-        - "Line In Jack"
-        - "Mic Jack"
+        - Headphone Jack
+        - Line In Jack
+        - Mic Jack
 
         # CODEC Pins
         - HP_OUT

@@ -50,15 +50,6 @@ mlx5e_tc_act_vlan_add_rewrite_action(struct mlx5e_priv *priv, int namespace,
 	return err;
 }
 
-static bool
-tc_act_can_offload_vlan_mangle(struct mlx5e_tc_act_parse_state *parse_state,
-			       const struct flow_action_entry *act,
-			       int act_index,
-			       struct mlx5_flow_attr *attr)
-{
-	return true;
-}
-
 static int
 tc_act_parse_vlan_mangle(struct mlx5e_tc_act_parse_state *parse_state,
 			 const struct flow_action_entry *act,
@@ -81,6 +72,5 @@ tc_act_parse_vlan_mangle(struct mlx5e_tc_act_parse_state *parse_state,
 }
 
 struct mlx5e_tc_act mlx5e_tc_act_vlan_mangle = {
-	.can_offload = tc_act_can_offload_vlan_mangle,
 	.parse_action = tc_act_parse_vlan_mangle,
 };

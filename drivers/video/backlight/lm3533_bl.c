@@ -337,7 +337,7 @@ err_sysfs_remove:
 	return ret;
 }
 
-static int lm3533_bl_remove(struct platform_device *pdev)
+static void lm3533_bl_remove(struct platform_device *pdev)
 {
 	struct lm3533_bl *bl = platform_get_drvdata(pdev);
 	struct backlight_device *bd = bl->bd;
@@ -349,8 +349,6 @@ static int lm3533_bl_remove(struct platform_device *pdev)
 
 	lm3533_ctrlbank_disable(&bl->cb);
 	sysfs_remove_group(&bd->dev.kobj, &lm3533_bl_attribute_group);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -390,7 +388,7 @@ static struct platform_driver lm3533_bl_driver = {
 		.pm	= &lm3533_bl_pm_ops,
 	},
 	.probe		= lm3533_bl_probe,
-	.remove		= lm3533_bl_remove,
+	.remove_new	= lm3533_bl_remove,
 	.shutdown	= lm3533_bl_shutdown,
 };
 module_platform_driver(lm3533_bl_driver);

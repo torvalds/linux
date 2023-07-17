@@ -2069,13 +2069,11 @@ static int cs4231_probe(struct platform_device *op)
 	return -ENODEV;
 }
 
-static int cs4231_remove(struct platform_device *op)
+static void cs4231_remove(struct platform_device *op)
 {
 	struct snd_cs4231 *chip = dev_get_drvdata(&op->dev);
 
 	snd_card_free(chip->card);
-
-	return 0;
 }
 
 static const struct of_device_id cs4231_match[] = {
@@ -2097,7 +2095,7 @@ static struct platform_driver cs4231_driver = {
 		.of_match_table = cs4231_match,
 	},
 	.probe		= cs4231_probe,
-	.remove		= cs4231_remove,
+	.remove_new	= cs4231_remove,
 };
 
 module_platform_driver(cs4231_driver);

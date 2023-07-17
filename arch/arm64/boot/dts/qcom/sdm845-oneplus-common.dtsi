@@ -29,6 +29,23 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	gpio-hall-sensor {
+		compatible = "gpio-keys";
+		label = "Hall effect sensor";
+
+		pinctrl-0 = <&hall_sensor_default>;
+		pinctrl-names = "default";
+
+		event-hall-sensor {
+			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
+			label = "Hall Effect Sensor";
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			linux,can-disable;
+			wakeup-source;
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		label = "Volume keys";
@@ -330,8 +347,6 @@
 	display_panel: panel@0 {
 		status = "disabled";
 
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0>;
 
 		vddio-supply = <&vreg_l14a_1p88>;
@@ -533,6 +548,11 @@
 &qup_uart9_tx {
 	drive-strength = <2>;
 	bias-disable;
+};
+
+&slpi_pas {
+	firmware-name = "qcom/sdm845/oneplus6/slpi.mbn";
+	status = "okay";
 };
 
 &sound {
@@ -753,6 +773,13 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
+	hall_sensor_default: hall-sensor-default-state {
+		pins = "gpio124";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	tri_state_key_default: tri-state-key-default-state {
 		pins = "gpio40", "gpio42", "gpio26";
 		function = "gpio";
@@ -779,7 +806,6 @@
 		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	panel_esd_pin: panel-esd-state {
@@ -787,17 +813,14 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-pull-down;
-		input-enable;
 	};
 
 	speaker_default: speaker-default-state {
-		mux {
-			pins = "gpio69";
-			function = "gpio";
-			drive-strength = <16>;
-			bias-pull-up;
-			output-high;
-		};
+		pins = "gpio69";
+		function = "gpio";
+		drive-strength = <16>;
+		bias-pull-up;
+		output-high;
 	};
 };
 

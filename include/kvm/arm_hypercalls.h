@@ -6,7 +6,7 @@
 
 #include <asm/kvm_emulate.h>
 
-int kvm_hvc_call_handler(struct kvm_vcpu *vcpu);
+int kvm_smccc_call_handler(struct kvm_vcpu *vcpu);
 
 static inline u32 smccc_get_function(struct kvm_vcpu *vcpu)
 {
@@ -43,9 +43,13 @@ static inline void smccc_set_retval(struct kvm_vcpu *vcpu,
 struct kvm_one_reg;
 
 void kvm_arm_init_hypercalls(struct kvm *kvm);
+void kvm_arm_teardown_hypercalls(struct kvm *kvm);
 int kvm_arm_get_fw_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_fw_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices);
 int kvm_arm_get_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 int kvm_arm_set_fw_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
+
+int kvm_vm_smccc_has_attr(struct kvm *kvm, struct kvm_device_attr *attr);
+int kvm_vm_smccc_set_attr(struct kvm *kvm, struct kvm_device_attr *attr);
 
 #endif

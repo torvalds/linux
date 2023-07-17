@@ -216,7 +216,7 @@ Kernel boot arguments can also be supplied, for example, to control
 rcutorture's module parameters.  For example, to test a change to RCU's
 CPU stall-warning code, use "--bootargs 'rcutorture.stall_cpu=30'".
 This will of course result in the scripting reporting a failure, namely
-the resuling RCU CPU stall warning.  As noted above, reducing memory may
+the resulting RCU CPU stall warning.  As noted above, reducing memory may
 require disabling rcutorture's callback-flooding tests::
 
 	kvm.sh --cpus 448 --configs '56*TREE04' --memory 128M \
@@ -370,5 +370,5 @@ You can also re-run a previous remote run in a manner similar to kvm.sh:
 		tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28-remote \
 		--duration 24h
 
-In this case, most of the kvm-again.sh parmeters may be supplied following
+In this case, most of the kvm-again.sh parameters may be supplied following
 the pathname of the old run-results directory.

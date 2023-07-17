@@ -911,11 +911,19 @@
 		};
 
 		pmu_system_controller: system-controller@105c0000 {
-			compatible = "samsung,exynos5433-pmu", "syscon";
+			compatible = "samsung,exynos5433-pmu", "simple-mfd", "syscon";
 			reg = <0x105c0000 0x5008>;
 			#clock-cells = <1>;
 			clock-names = "clkout16";
 			clocks = <&xxti>;
+
+			mipi_phy: mipi-phy {
+				compatible = "samsung,exynos5433-mipi-video-phy";
+				#phy-cells = <1>;
+				samsung,cam0-sysreg = <&syscon_cam0>;
+				samsung,cam1-sysreg = <&syscon_cam1>;
+				samsung,disp-sysreg = <&syscon_disp>;
+			};
 
 			reboot: syscon-reboot {
 				compatible = "syscon-reboot";
@@ -934,15 +942,6 @@
 				<0x11004000 0x2000>,
 				<0x11006000 0x2000>;
 			interrupts = <GIC_PPI 9 0xf04>;
-		};
-
-		mipi_phy: video-phy {
-			compatible = "samsung,exynos5433-mipi-video-phy";
-			#phy-cells = <1>;
-			samsung,pmu-syscon = <&pmu_system_controller>;
-			samsung,cam0-sysreg = <&syscon_cam0>;
-			samsung,cam1-sysreg = <&syscon_cam1>;
-			samsung,disp-sysreg = <&syscon_disp>;
 		};
 
 		decon: decon@13800000 {

@@ -844,7 +844,7 @@ static const struct i2c_device_id ssd1307fb_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, ssd1307fb_i2c_id);
 
 static struct i2c_driver ssd1307fb_driver = {
-	.probe_new = ssd1307fb_probe,
+	.probe = ssd1307fb_probe,
 	.remove = ssd1307fb_remove,
 	.id_table = ssd1307fb_i2c_id,
 	.driver = {

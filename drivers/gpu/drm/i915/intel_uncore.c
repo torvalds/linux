@@ -32,7 +32,6 @@
 #include "i915_reg.h"
 #include "i915_trace.h"
 #include "i915_vgpu.h"
-#include "intel_pm.h"
 
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 #define GT_FIFO_TIMEOUT_MS	 10
@@ -178,12 +177,19 @@ wait_ack_set(const struct intel_uncore_forcewake_domain *d,
 static inline void
 fw_domain_wait_ack_clear(const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_ack_clear(d, FORCEWAKE_KERNEL)) {
+	if (!wait_ack_clear(d, FORCEWAKE_KERNEL))
+		return;
+
+	if (fw_ack(d) == ~0)
+		drm_err(&d->uncore->i915->drm,
+			"%s: MMIO unreliable (forcewake register returns 0xFFFFFFFF)!\n",
+			intel_uncore_forcewake_domain_to_str(d->id));
+	else
 		drm_err(&d->uncore->i915->drm,
 			"%s: timed out waiting for forcewake ack to clear.\n",
 			intel_uncore_forcewake_domain_to_str(d->id));
-		add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
-	}
+
+	add_taint_for_CI(d->uncore->i915, TAINT_WARN); /* CI now unreliable */
 }
 
 enum ack_type {
@@ -2460,7 +2466,7 @@ static int i915_pmic_bus_access_notifier(struct notifier_block *nb,
 
 static void uncore_unmap_mmio(struct drm_device *drm, void *regs)
 {
-	iounmap(regs);
+	iounmap((void __iomem *)regs);
 }
 
 int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
@@ -2491,7 +2497,8 @@ int intel_uncore_setup_mmio(struct intel_uncore *uncore, phys_addr_t phys_addr)
 		return -EIO;
 	}
 
-	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio, uncore->regs);
+	return drmm_add_action_or_reset(&i915->drm, uncore_unmap_mmio,
+					(void __force *)uncore->regs);
 }
 
 void intel_uncore_init_early(struct intel_uncore *uncore,
@@ -2602,10 +2609,44 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 	return 0;
 }
 
+static int sanity_check_mmio_access(struct intel_uncore *uncore)
+{
+	struct drm_i915_private *i915 = uncore->i915;
+
+	if (GRAPHICS_VER(i915) < 8)
+		return 0;
+
+	/*
+	 * Sanitycheck that MMIO access to the device is working properly.  If
+	 * the CPU is unable to communcate with a PCI device, BAR reads will
+	 * return 0xFFFFFFFF.  Let's make sure the device isn't in this state
+	 * before we start trying to access registers.
+	 *
+	 * We use the primary GT's forcewake register as our guinea pig since
+	 * it's been around since HSW and it's a masked register so the upper
+	 * 16 bits can never read back as 1's if device access is operating
+	 * properly.
+	 *
+	 * If MMIO isn't working, we'll wait up to 2 seconds to see if it
+	 * recovers, then give up.
+	 */
+#define COND (__raw_uncore_read32(uncore, FORCEWAKE_MT) != ~0)
+	if (wait_for(COND, 2000) == -ETIMEDOUT) {
+		drm_err(&i915->drm, "Device is non-operational; MMIO access returns 0xFFFFFFFF!\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 int intel_uncore_init_mmio(struct intel_uncore *uncore)
 {
 	struct drm_i915_private *i915 = uncore->i915;
 	int ret;
+
+	ret = sanity_check_mmio_access(uncore);
+	if (ret)
+		return ret;
 
 	/*
 	 * The boot firmware initializes local memory and assesses its health.
@@ -2748,14 +2789,25 @@ static void driver_initiated_flr(struct intel_uncore *uncore)
 	/* Trigger the actual Driver-FLR */
 	intel_uncore_rmw_fw(uncore, GU_CNTL, 0, DRIVERFLR);
 
+	/* Wait for hardware teardown to complete */
+	ret = intel_wait_for_register_fw(uncore, GU_CNTL,
+					 DRIVERFLR, 0,
+					 flr_timeout_ms);
+	if (ret) {
+		drm_err(&i915->drm, "Driver-FLR-teardown wait completion failed! %d\n", ret);
+		return;
+	}
+
+	/* Wait for hardware/firmware re-init to complete */
 	ret = intel_wait_for_register_fw(uncore, GU_DEBUG,
 					 DRIVERFLR_STATUS, DRIVERFLR_STATUS,
 					 flr_timeout_ms);
 	if (ret) {
-		drm_err(&i915->drm, "wait for Driver-FLR completion failed! %d\n", ret);
+		drm_err(&i915->drm, "Driver-FLR-reinit wait completion failed! %d\n", ret);
 		return;
 	}
 
+	/* Clear sticky completion status */
 	intel_uncore_write_fw(uncore, GU_DEBUG, DRIVERFLR_STATUS);
 }
 

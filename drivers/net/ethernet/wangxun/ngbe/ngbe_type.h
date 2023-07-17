@@ -137,7 +137,6 @@ enum NGBE_MSCA_CMD_value {
 #define NGBE_RX_PB_SIZE				42
 #define NGBE_MC_TBL_SIZE			128
 #define NGBE_TDB_PB_SZ				(20 * 1024) /* 160KB Packet Buffer */
-#define NGBE_MAX_JUMBO_FRAME_SIZE		9432 /* max payload 9414 */
 
 /* TX/RX descriptor defines */
 #define NGBE_DEFAULT_TXD			512 /* default ring size */

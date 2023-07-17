@@ -116,6 +116,9 @@ include::itrace.txt[]
 -M::
 --disassembler-style=:: Set disassembler style for objdump.
 
+--addr2line=<path>::
+        Path to addr2line binary.
+
 --objdump=<path>::
         Path to objdump binary.
 

@@ -46,8 +46,7 @@ int dw_mci_pltfm_register(struct platform_device *pdev,
 	host->irq_flags = 0;
 	host->pdata = pdev->dev.platform_data;
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->regs = devm_ioremap_resource(&pdev->dev, regs);
+	host->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
 	if (IS_ERR(host->regs))
 		return PTR_ERR(host->regs);
 

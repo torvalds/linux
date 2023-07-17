@@ -101,6 +101,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		bpf_hdr = jit_data->header;
 		proglen = jit_data->proglen;
 		extra_pass = true;
+		/* During extra pass, ensure index is reset before repopulating extable entries */
+		cgctx.exentry_idx = 0;
 		goto skip_init_ctx;
 	}
 

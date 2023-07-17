@@ -61,7 +61,7 @@
 		};
 
 		pci@c0000000 {
-			status = "ok";
+			status = "okay";
 
 			/*
 			 * Taken from IXDPG425 PCI boardfile.
@@ -95,7 +95,7 @@
 
 		/* EthB */
 		ethernet@c8009000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 3>;
 			queue-txready = <&qmgr 20>;
 			phy-mode = "rgmii";
@@ -117,7 +117,7 @@
 
 		/* EthC */
 		ethernet@c800a000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 4>;
 			queue-txready = <&qmgr 21>;
 			phy-mode = "rgmii";

@@ -36,8 +36,6 @@ static void kvm_handle_guest_serror(struct kvm_vcpu *vcpu, u64 esr)
 
 static int handle_hvc(struct kvm_vcpu *vcpu)
 {
-	int ret;
-
 	trace_kvm_hvc_arm64(*vcpu_pc(vcpu), vcpu_get_reg(vcpu, 0),
 			    kvm_vcpu_hvc_get_imm(vcpu));
 	vcpu->stat.hvc_exit_stat++;
@@ -52,33 +50,29 @@ static int handle_hvc(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	ret = kvm_hvc_call_handler(vcpu);
-	if (ret < 0) {
-		vcpu_set_reg(vcpu, 0, ~0UL);
-		return 1;
-	}
-
-	return ret;
+	return kvm_smccc_call_handler(vcpu);
 }
 
 static int handle_smc(struct kvm_vcpu *vcpu)
 {
-	int ret;
-
 	/*
 	 * "If an SMC instruction executed at Non-secure EL1 is
 	 * trapped to EL2 because HCR_EL2.TSC is 1, the exception is a
 	 * Trap exception, not a Secure Monitor Call exception [...]"
 	 *
 	 * We need to advance the PC after the trap, as it would
-	 * otherwise return to the same address...
-	 *
-	 * Only handle SMCs from the virtual EL2 with an immediate of zero and
-	 * skip it otherwise.
+	 * otherwise return to the same address. Furthermore, pre-incrementing
+	 * the PC before potentially exiting to userspace maintains the same
+	 * abstraction for both SMCs and HVCs.
 	 */
-	if (!vcpu_is_el2(vcpu) || kvm_vcpu_hvc_get_imm(vcpu)) {
+	kvm_incr_pc(vcpu);
+
+	/*
+	 * SMCs with a nonzero immediate are reserved according to DEN0028E 2.9
+	 * "SMC and HVC immediate value".
+	 */
+	if (kvm_vcpu_hvc_get_imm(vcpu)) {
 		vcpu_set_reg(vcpu, 0, ~0UL);
-		kvm_incr_pc(vcpu);
 		return 1;
 	}
 
@@ -89,13 +83,7 @@ static int handle_smc(struct kvm_vcpu *vcpu)
 	 * at Non-secure EL1 is trapped to EL2 if HCR_EL2.TSC==1, rather than
 	 * being treated as UNDEFINED.
 	 */
-	ret = kvm_hvc_call_handler(vcpu);
-	if (ret < 0)
-		vcpu_set_reg(vcpu, 0, ~0UL);
-
-	kvm_incr_pc(vcpu);
-
-	return ret;
+	return kvm_smccc_call_handler(vcpu);
 }
 
 /*

@@ -289,7 +289,7 @@ static int aspeed_acry_rsa_ctx_copy(struct aspeed_acry_dev *acry_dev, void *buf,
 
 			if (mode == ASPEED_RSA_EXP_MODE)
 				idx = acry_dev->exp_dw_mapping[j - 1];
-			else if (mode == ASPEED_RSA_MOD_MODE)
+			else /* mode == ASPEED_RSA_MOD_MODE */
 				idx = acry_dev->mod_dw_mapping[j - 1];
 
 			dw_buf[idx] = cpu_to_le32(data);
@@ -712,7 +712,6 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 {
 	struct aspeed_acry_dev *acry_dev;
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	int rc;
 
 	acry_dev = devm_kzalloc(dev, sizeof(struct aspeed_acry_dev),
@@ -724,13 +723,11 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, acry_dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	acry_dev->regs = devm_ioremap_resource(dev, res);
+	acry_dev->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(acry_dev->regs))
 		return PTR_ERR(acry_dev->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	acry_dev->acry_sram = devm_ioremap_resource(dev, res);
+	acry_dev->acry_sram = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(acry_dev->acry_sram))
 		return PTR_ERR(acry_dev->acry_sram);
 
@@ -782,7 +779,10 @@ static int aspeed_acry_probe(struct platform_device *pdev)
 	acry_dev->buf_addr = dmam_alloc_coherent(dev, ASPEED_ACRY_BUFF_SIZE,
 						 &acry_dev->buf_dma_addr,
 						 GFP_KERNEL);
-	memzero_explicit(acry_dev->buf_addr, ASPEED_ACRY_BUFF_SIZE);
+	if (!acry_dev->buf_addr) {
+		rc = -ENOMEM;
+		goto err_engine_rsa_start;
+	}
 
 	aspeed_acry_register(acry_dev);
 

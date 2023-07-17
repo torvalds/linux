@@ -28590,6 +28590,7 @@ const u8 rtw89_8852c_tx_shape[RTW89_BAND_MAX][RTW89_RS_TX_SHAPE_NUM]
 	[2][1][RTW89_KCC] = 0,
 };
 
+static
 const s8 rtw89_8852c_txpwr_lmt_2g[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
 				 [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				 [RTW89_REGD_NUM][RTW89_2G_CH_NUM] = {
@@ -30107,6 +30108,7 @@ const s8 rtw89_8852c_txpwr_lmt_2g[RTW89_2G_BW_NUM][RTW89_NTX_NUM]
 	[1][1][2][1][RTW89_UK][13] = 127,
 };
 
+static
 const s8 rtw89_8852c_txpwr_lmt_5g[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
 				 [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				 [RTW89_REGD_NUM][RTW89_5G_CH_NUM] = {
@@ -32020,6 +32022,7 @@ const s8 rtw89_8852c_txpwr_lmt_5g[RTW89_5G_BW_NUM][RTW89_NTX_NUM]
 	[3][1][2][1][RTW89_UK][45] = 127,
 };
 
+static
 const s8 rtw89_8852c_txpwr_lmt_6g[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
 				 [RTW89_RS_LMT_NUM][RTW89_BF_NUM]
 				 [RTW89_REGD_NUM][RTW89_6G_CH_NUM] = {
@@ -33977,6 +33980,7 @@ const s8 rtw89_8852c_txpwr_lmt_6g[RTW89_6G_BW_NUM][RTW89_NTX_NUM]
 	[3][1][2][1][RTW89_KCC][112] = 127,
 };
 
+static
 const s8 rtw89_8852c_txpwr_lmt_ru_2g[RTW89_RU_NUM][RTW89_NTX_NUM]
 				    [RTW89_REGD_NUM][RTW89_2G_CH_NUM] = {
 	[0][0][RTW89_WW][0] = 32,
@@ -34737,6 +34741,7 @@ const s8 rtw89_8852c_txpwr_lmt_ru_2g[RTW89_RU_NUM][RTW89_NTX_NUM]
 	[2][1][RTW89_UK][13] = 127,
 };
 
+static
 const s8 rtw89_8852c_txpwr_lmt_ru_5g[RTW89_RU_NUM][RTW89_NTX_NUM]
 				    [RTW89_REGD_NUM][RTW89_5G_CH_NUM] = {
 	[0][0][RTW89_WW][0] = 16,
@@ -36253,6 +36258,7 @@ const s8 rtw89_8852c_txpwr_lmt_ru_5g[RTW89_RU_NUM][RTW89_NTX_NUM]
 	[2][1][RTW89_UK][52] = 127,
 };
 
+static
 const s8 rtw89_8852c_txpwr_lmt_ru_6g[RTW89_RU_NUM][RTW89_NTX_NUM]
 				    [RTW89_REGD_NUM][RTW89_6G_CH_NUM] = {
 	[0][0][RTW89_WW][0] = -16,
@@ -37471,4 +37477,19 @@ const struct rtw89_phy_tssi_dbw_table rtw89_8852c_tssi_dbw_table = {
 	.data[RTW89_TSSI_BANDEDGE_LOW] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	.data[RTW89_TSSI_BANDEDGE_MID] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 	.data[RTW89_TSSI_BANDEDGE_HIGH] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+};
+
+const struct rtw89_rfe_parms rtw89_8852c_dflt_parms = {
+	.rule_2ghz = {
+		.lmt = &rtw89_8852c_txpwr_lmt_2g,
+		.lmt_ru = &rtw89_8852c_txpwr_lmt_ru_2g,
+	},
+	.rule_5ghz = {
+		.lmt = &rtw89_8852c_txpwr_lmt_5g,
+		.lmt_ru = &rtw89_8852c_txpwr_lmt_ru_5g,
+	},
+	.rule_6ghz = {
+		.lmt = &rtw89_8852c_txpwr_lmt_6g,
+		.lmt_ru = &rtw89_8852c_txpwr_lmt_ru_6g,
+	},
 };

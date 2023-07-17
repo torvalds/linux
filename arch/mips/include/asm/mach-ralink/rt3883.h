@@ -10,8 +10,10 @@
 
 #include <linux/bitops.h>
 
+#define IOMEM(x)		((void __iomem *)(KSEG1ADDR(x)))
+
 #define RT3883_SDRAM_BASE	0x00000000
-#define RT3883_SYSC_BASE	0x10000000
+#define RT3883_SYSC_BASE	IOMEM(0x10000000)
 #define RT3883_TIMER_BASE	0x10000100
 #define RT3883_INTC_BASE	0x10000200
 #define RT3883_MEMC_BASE	0x10000300

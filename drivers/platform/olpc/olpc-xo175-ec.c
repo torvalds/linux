@@ -746,6 +746,7 @@ static struct spi_driver olpc_xo175_ec_spi_driver = {
 		.of_match_table = olpc_xo175_ec_of_match,
 		.pm = &olpc_xo175_ec_pm_ops,
 	},
+	.id_table	= olpc_xo175_ec_id_table,
 	.probe		= olpc_xo175_ec_probe,
 	.remove		= olpc_xo175_ec_remove,
 };

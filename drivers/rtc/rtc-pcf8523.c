@@ -21,7 +21,7 @@
 #define PCF8523_CONTROL2_AF BIT(3)
 
 #define PCF8523_REG_CONTROL3 0x02
-#define PCF8523_CONTROL3_PM  GENMASK(7,5)
+#define PCF8523_CONTROL3_PM  GENMASK(7, 5)
 #define PCF8523_PM_STANDBY   0x7
 #define PCF8523_CONTROL3_BLF BIT(2) /* battery low bit, read-only */
 #define PCF8523_CONTROL3_BSF BIT(3)
@@ -65,7 +65,7 @@ static int pcf8523_load_capacitance(struct pcf8523 *pcf8523, struct device_node 
 			 load);
 		fallthrough;
 	case 12500:
-		value |= PCF8523_CONTROL1_CAP_SEL;
+		value = PCF8523_CONTROL1_CAP_SEL;
 		break;
 	case 7000:
 		break;
@@ -234,8 +234,7 @@ static int pcf8523_param_get(struct device *dev, struct rtc_param *param)
 	int ret;
 	u32 value;
 
-	switch(param->param) {
-
+	switch (param->param) {
 	case RTC_PARAM_BACKUP_SWITCH_MODE:
 		ret = regmap_read(pcf8523->regmap, PCF8523_REG_CONTROL3, &value);
 		if (ret < 0)
@@ -243,7 +242,7 @@ static int pcf8523_param_get(struct device *dev, struct rtc_param *param)
 
 		value = FIELD_GET(PCF8523_CONTROL3_PM, value);
 
-		switch(value) {
+		switch (value) {
 		case 0x0:
 		case 0x4:
 			param->uvalue = RTC_BSM_LEVEL;
@@ -273,7 +272,7 @@ static int pcf8523_param_set(struct device *dev, struct rtc_param *param)
 	struct pcf8523 *pcf8523 = dev_get_drvdata(dev);
 	u8 mode;
 
-	switch(param->param) {
+	switch (param->param) {
 	case RTC_PARAM_BACKUP_SWITCH_MODE:
 		switch (param->uvalue) {
 		case RTC_BSM_DISABLED:
@@ -385,9 +384,9 @@ static const struct rtc_class_ops pcf8523_rtc_ops = {
 };
 
 static const struct regmap_config regmap_config = {
-        .reg_bits = 8,
-        .val_bits = 8,
-        .max_register = 0x13,
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x13,
 };
 
 static int pcf8523_probe(struct i2c_client *client)

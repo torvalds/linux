@@ -622,7 +622,7 @@ err_pm_runtime_disable:
 	return ret;
 }
 
-static int rkisp1_remove(struct platform_device *pdev)
+static void rkisp1_remove(struct platform_device *pdev)
 {
 	struct rkisp1_device *rkisp1 = platform_get_drvdata(pdev);
 
@@ -638,8 +638,6 @@ static int rkisp1_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&rkisp1->v4l2_dev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver rkisp1_drv = {
@@ -649,7 +647,7 @@ static struct platform_driver rkisp1_drv = {
 		.pm = &rkisp1_pm_ops,
 	},
 	.probe = rkisp1_probe,
-	.remove = rkisp1_remove,
+	.remove_new = rkisp1_remove,
 };
 
 module_platform_driver(rkisp1_drv);

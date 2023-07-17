@@ -11,7 +11,6 @@
 #ifndef __DRIVERS_PINCTRL_IMX_H
 #define __DRIVERS_PINCTRL_IMX_H
 
-#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
 
 struct platform_device;
@@ -67,14 +66,6 @@ struct imx_pin_reg {
 	s16 conf_reg;
 };
 
-/* decode a generic config into raw register value */
-struct imx_cfg_params_decode {
-	enum pin_config_param param;
-	u32 mask;
-	u8 shift;
-	bool invert;
-};
-
 /**
  * @dev: a pointer back to containing device
  * @base: the offset to the controller in virtual memory
@@ -100,15 +91,6 @@ struct imx_pinctrl_soc_info {
 	unsigned int mux_mask;
 	u8 mux_shift;
 
-	/* generic pinconf */
-	bool generic_pinconf;
-	const struct pinconf_generic_params *custom_params;
-	unsigned int num_custom_params;
-	const struct imx_cfg_params_decode *decodes;
-	unsigned int num_decodes;
-	void (*fixup)(unsigned long *configs, unsigned int num_configs,
-		      u32 *raw_config);
-
 	int (*gpio_set_direction)(struct pinctrl_dev *pctldev,
 				  struct pinctrl_gpio_range *range,
 				  unsigned offset,
@@ -121,12 +103,6 @@ struct imx_pinctrl_soc_info {
 				      unsigned int *pin_id, struct imx_pin *pin,
 				      const __be32 **list_p);
 };
-
-#define IMX_CFG_PARAMS_DECODE(p, m, o) \
-	{ .param = p, .mask = m, .shift = o, .invert = false, }
-
-#define IMX_CFG_PARAMS_DECODE_INVERT(p, m, o) \
-	{ .param = p, .mask = m, .shift = o, .invert = true, }
 
 #define SHARE_MUX_CONF_REG	BIT(0)
 #define ZERO_OFFSET_VALID	BIT(1)

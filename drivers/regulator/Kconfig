@@ -1082,6 +1082,16 @@ config REGULATOR_RT4801
 	  This adds support for voltage regulators in Richtek RT4801 Display Bias IC.
 	  The device supports two regulators (DSVP/DSVN).
 
+config REGULATOR_RT4803
+	tristate "Richtek RT4803 boost regualtor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for RT4803 boost converter that integrates the
+	  bypass switch. If the input voltage is low than the required voltage,
+	  RT4803 will enter boost mode. Otherwise, enable internal bypass
+	  switch to enter bypass mode.
+
 config REGULATOR_RT4831
 	tristate "Richtek RT4831 DSV Regulators"
 	depends on MFD_RT4831
@@ -1119,6 +1129,19 @@ config REGULATOR_RT5190A
 	  It integratas 1 channel buck controller, 3 channels high efficiency
 	  buck converters, 1 LDO, mute AC OFF depop function, with the general
 	  I2C control interface.
+
+config REGULATOR_RT5739
+	tristate "Richtek RT5739 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT5739.
+	  It's a step-down switching voltage regulator. Using a proprietary
+	  architecture with synchronous rectification, it is capable of
+	  delivering 3.5A continuously at over 80% efficiency.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rt5739.
 
 config REGULATOR_RT5759
 	tristate "Richtek RT5759 Regulator"

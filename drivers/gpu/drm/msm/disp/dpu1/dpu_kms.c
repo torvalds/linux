@@ -250,6 +250,24 @@ void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 	debugfs_create_file(name, mode, parent, regset, &dpu_regset32_fops);
 }
 
+static void dpu_debugfs_sspp_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
+{
+	struct dentry *entry = debugfs_create_dir("sspp", debugfs_root);
+	int i;
+
+	if (IS_ERR(entry))
+		return;
+
+	for (i = SSPP_NONE; i < SSPP_MAX; i++) {
+		struct dpu_hw_sspp *hw = dpu_rm_get_sspp(&dpu_kms->rm, i);
+
+		if (!hw)
+			continue;
+
+		_dpu_hw_sspp_init_debugfs(hw, dpu_kms, entry);
+	}
+}
+
 static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
 	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
@@ -411,40 +429,6 @@ static void dpu_kms_disable_commit(struct msm_kms *kms)
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
 
-static ktime_t dpu_kms_vsync_time(struct msm_kms *kms, struct drm_crtc *crtc)
-{
-	struct drm_encoder *encoder;
-
-	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask) {
-		ktime_t vsync_time;
-
-		if (dpu_encoder_vsync_time(encoder, &vsync_time) == 0)
-			return vsync_time;
-	}
-
-	return ktime_get();
-}
-
-static void dpu_kms_prepare_commit(struct msm_kms *kms,
-		struct drm_atomic_state *state)
-{
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-	struct drm_encoder *encoder;
-	int i;
-
-	if (!kms)
-		return;
-
-	/* Call prepare_commit for all affected encoders */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		drm_for_each_encoder_mask(encoder, crtc->dev,
-					  crtc_state->encoder_mask) {
-			dpu_encoder_prepare_commit(encoder);
-		}
-	}
-}
-
 static void dpu_kms_flush_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
 	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
@@ -491,7 +475,7 @@ static void dpu_kms_wait_for_commit_done(struct msm_kms *kms,
 		return;
 	}
 
-	if (!crtc->state->active) {
+	if (!drm_atomic_crtc_effectively_active(crtc->state)) {
 		DPU_DEBUG("[crtc:%d] not active\n", crtc->base.id);
 		return;
 	}
@@ -953,8 +937,6 @@ static const struct msm_kms_funcs kms_funcs = {
 	.irq             = dpu_core_irq,
 	.enable_commit   = dpu_kms_enable_commit,
 	.disable_commit  = dpu_kms_disable_commit,
-	.vsync_time      = dpu_kms_vsync_time,
-	.prepare_commit  = dpu_kms_prepare_commit,
 	.flush_commit    = dpu_kms_flush_commit,
 	.wait_flush      = dpu_kms_wait_flush,
 	.complete_commit = dpu_kms_complete_commit,
@@ -1013,6 +995,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	struct dpu_kms *dpu_kms;
 	struct drm_device *dev;
 	int i, rc = -EINVAL;
+	u32 core_rev;
 
 	if (!kms) {
 		DPU_ERROR("invalid kms\n");
@@ -1062,17 +1045,14 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	if (rc < 0)
 		goto error;
 
-	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
+	core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
 
-	pr_info("dpu hardware revision:0x%x\n", dpu_kms->core_rev);
+	pr_info("dpu hardware revision:0x%x\n", core_rev);
 
-	dpu_kms->catalog = dpu_hw_catalog_init(dpu_kms->core_rev);
-	if (IS_ERR_OR_NULL(dpu_kms->catalog)) {
-		rc = PTR_ERR(dpu_kms->catalog);
-		if (!dpu_kms->catalog)
-			rc = -EINVAL;
-		DPU_ERROR("catalog init failed: %d\n", rc);
-		dpu_kms->catalog = NULL;
+	dpu_kms->catalog = of_device_get_match_data(dev->dev);
+	if (!dpu_kms->catalog) {
+		DPU_ERROR("device config not known!\n");
+		rc = -EINVAL;
 		goto power_error;
 	}
 
@@ -1298,19 +1278,19 @@ static const struct dev_pm_ops dpu_pm_ops = {
 };
 
 static const struct of_device_id dpu_dt_match[] = {
-	{ .compatible = "qcom,msm8998-dpu", },
-	{ .compatible = "qcom,qcm2290-dpu", },
-	{ .compatible = "qcom,sdm845-dpu", },
-	{ .compatible = "qcom,sc7180-dpu", },
-	{ .compatible = "qcom,sc7280-dpu", },
-	{ .compatible = "qcom,sc8180x-dpu", },
-	{ .compatible = "qcom,sc8280xp-dpu", },
-	{ .compatible = "qcom,sm6115-dpu", },
-	{ .compatible = "qcom,sm8150-dpu", },
-	{ .compatible = "qcom,sm8250-dpu", },
-	{ .compatible = "qcom,sm8350-dpu", },
-	{ .compatible = "qcom,sm8450-dpu", },
-	{ .compatible = "qcom,sm8550-dpu", },
+	{ .compatible = "qcom,msm8998-dpu", .data = &dpu_msm8998_cfg, },
+	{ .compatible = "qcom,qcm2290-dpu", .data = &dpu_qcm2290_cfg, },
+	{ .compatible = "qcom,sdm845-dpu", .data = &dpu_sdm845_cfg, },
+	{ .compatible = "qcom,sc7180-dpu", .data = &dpu_sc7180_cfg, },
+	{ .compatible = "qcom,sc7280-dpu", .data = &dpu_sc7280_cfg, },
+	{ .compatible = "qcom,sc8180x-dpu", .data = &dpu_sc8180x_cfg, },
+	{ .compatible = "qcom,sc8280xp-dpu", .data = &dpu_sc8280xp_cfg, },
+	{ .compatible = "qcom,sm6115-dpu", .data = &dpu_sm6115_cfg, },
+	{ .compatible = "qcom,sm8150-dpu", .data = &dpu_sm8150_cfg, },
+	{ .compatible = "qcom,sm8250-dpu", .data = &dpu_sm8250_cfg, },
+	{ .compatible = "qcom,sm8350-dpu", .data = &dpu_sm8350_cfg, },
+	{ .compatible = "qcom,sm8450-dpu", .data = &dpu_sm8450_cfg, },
+	{ .compatible = "qcom,sm8550-dpu", .data = &dpu_sm8550_cfg, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dpu_dt_match);

@@ -9,7 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#ifdef HAVE_LIBTRACEEVENT
 #include <traceevent/event-parse.h>
+#endif
 
 #include "debug.h"
 #include "trace-event.h"
@@ -27,10 +29,11 @@ void scripting_context__update(struct scripting_context *c,
 			       struct addr_location *addr_al)
 {
 	c->event_data = sample->raw_data;
+	c->pevent = NULL;
+#ifdef HAVE_LIBTRACEEVENT
 	if (evsel->tp_format)
 		c->pevent = evsel->tp_format->tep;
-	else
-		c->pevent = NULL;
+#endif
 	c->event = event;
 	c->sample = sample;
 	c->evsel = evsel;
@@ -122,6 +125,7 @@ void setup_python_scripting(void)
 }
 #endif
 
+#ifdef HAVE_LIBTRACEEVENT
 static void print_perl_unsupported_msg(void)
 {
 	fprintf(stderr, "Perl scripting not supported."
@@ -185,4 +189,5 @@ void setup_perl_scripting(void)
 {
 	register_perl_scripting(&perl_scripting_ops);
 }
+#endif
 #endif

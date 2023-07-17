@@ -199,7 +199,7 @@ Architecture (MCA)\ [#f3]_.
   mode).
 
 .. [#f3] For more details about the Machine Check Architecture (MCA),
-  please read Documentation/x86/x86_64/machinecheck.rst at the Kernel tree.
+  please read Documentation/arch/x86/x86_64/machinecheck.rst at the Kernel tree.
 
 EDAC - Error Detection And Correction
 *************************************

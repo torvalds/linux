@@ -15,19 +15,19 @@ if [ "$1" = prebuilt ]; then
 	MAKE="$MAKE -f $srctree/Makefile"
 else
 	S=
+
+	mkdir -p rpmbuild/SOURCES
+	cp linux.tar.gz rpmbuild/SOURCES
+	cp "${KCONFIG_CONFIG}" rpmbuild/SOURCES/config
+	"${srctree}/scripts/package/gen-diff-patch" rpmbuild/SOURCES/diff.patch
 fi
 
-if grep -q CONFIG_MODULES=y .config; then
+if grep -q CONFIG_MODULES=y include/config/auto.conf; then
 	M=
 else
 	M=DEL
 fi
 
-if grep -q CONFIG_DRM=y .config; then
-	PROVIDES=kernel-drm
-fi
-
-PROVIDES="$PROVIDES kernel-$KERNELRELEASE"
 __KERNELRELEASE=$(echo $KERNELRELEASE | sed -e "s/-/_/g")
 EXCLUDES="$RCS_TAR_IGNORE --exclude=*vmlinux* --exclude=*.mod \
 --exclude=*.o --exclude=*.ko --exclude=*.cmd --exclude=Documentation \
@@ -48,8 +48,9 @@ sed -e '/^DEL/d' -e 's/^\t*//' <<EOF
 	Vendor: The Linux Community
 	URL: https://www.kernel.org
 $S	Source0: linux.tar.gz
-$S	Source1: .config
-	Provides: $PROVIDES
+$S	Source1: config
+$S	Source2: diff.patch
+	Provides: kernel-$KERNELRELEASE
 $S	BuildRequires: bc binutils bison dwarves
 $S	BuildRequires: (elfutils-libelf-devel or libelf-devel) flex
 $S	BuildRequires: gcc make openssl openssl-devel perl python3 rsync
@@ -85,7 +86,8 @@ $S$M	against the $__KERNELRELEASE kernel package.
 $S$M
 $S	%prep
 $S	%setup -q -n linux
-$S	cp %{SOURCE1} .
+$S	cp %{SOURCE1} .config
+$S	patch -p1 < %{SOURCE2}
 $S
 $S	%build
 $S	$MAKE %{?_smp_mflags} KERNELRELEASE=$KERNELRELEASE KBUILD_BUILD_VERSION=%{release}

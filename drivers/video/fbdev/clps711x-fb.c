@@ -238,8 +238,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 	info->fix.mmio_start = res->start;
 	info->fix.mmio_len = resource_size(res);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	info->screen_base = devm_ioremap_resource(dev, res);
+	info->screen_base = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
 	if (IS_ERR(info->screen_base)) {
 		ret = PTR_ERR(info->screen_base);
 		goto out_fb_release;
@@ -351,7 +350,7 @@ out_fb_release:
 	return ret;
 }
 
-static int clps711x_fb_remove(struct platform_device *pdev)
+static void clps711x_fb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct clps711x_fb_info *cfb = info->par;
@@ -361,8 +360,6 @@ static int clps711x_fb_remove(struct platform_device *pdev)
 	unregister_framebuffer(info);
 	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
-
-	return 0;
 }
 
 static const struct of_device_id clps711x_fb_dt_ids[] = {
@@ -377,7 +374,7 @@ static struct platform_driver clps711x_fb_driver = {
 		.of_match_table	= clps711x_fb_dt_ids,
 	},
 	.probe	= clps711x_fb_probe,
-	.remove	= clps711x_fb_remove,
+	.remove_new = clps711x_fb_remove,
 };
 module_platform_driver(clps711x_fb_driver);
 

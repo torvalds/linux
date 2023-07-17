@@ -15,7 +15,7 @@ description: |
   possibly an interrupt line.
 
 allOf:
-  - $ref: "rtc.yaml#"
+  - $ref: rtc.yaml#
 
 properties:
   compatible:

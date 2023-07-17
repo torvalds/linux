@@ -76,12 +76,6 @@ properties:
       supports reporting the number of packets in-flight in a switch queue
     type: boolean
 
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 0
-
   ports:
     type: object
 
@@ -99,11 +93,9 @@ properties:
 required:
   - reg
   - interrupts
-  - "#address-cells"
-  - "#size-cells"
 
 allOf:
-  - $ref: "dsa.yaml#"
+  - $ref: dsa.yaml#
   - if:
       properties:
         compatible:
@@ -145,8 +137,6 @@ examples:
   - |
     switch@f0b00000 {
             compatible = "brcm,bcm7445-switch-v4.0";
-            #address-cells = <1>;
-            #size-cells = <0>;
             reg = <0xf0b00000 0x40000>,
                   <0xf0b40000 0x110>,
                   <0xf0b40340 0x30>,

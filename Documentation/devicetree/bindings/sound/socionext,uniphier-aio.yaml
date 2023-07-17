@@ -42,7 +42,7 @@ properties:
       Specifies a phandle to soc-glue, which is used for changing mode of S/PDIF
       signal pin to output from Hi-Z. This property is optional if you use I2S
       signal pins only.
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   "#sound-dai-cells":
     const: 1

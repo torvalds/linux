@@ -754,7 +754,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	telec_pwr_en: telec-pwr-en-state {

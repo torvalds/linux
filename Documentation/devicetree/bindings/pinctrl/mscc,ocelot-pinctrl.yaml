@@ -54,8 +54,8 @@ patternProperties:
   '-pins$':
     type: object
     allOf:
-      - $ref: "pinmux-node.yaml"
-      - $ref: "pincfg-node.yaml"
+      - $ref: pinmux-node.yaml
+      - $ref: pincfg-node.yaml
 
     properties:
       function: true
@@ -78,7 +78,7 @@ required:
   - gpio-ranges
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
   - if:
       properties:
         compatible:

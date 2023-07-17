@@ -138,10 +138,6 @@ static int mt7996_eeprom_parse_band_config(struct mt7996_phy *phy)
 	case MT_EE_BAND_SEL_6GHZ:
 		phy->mt76->cap.has_6ghz = true;
 		break;
-	case MT_EE_BAND_SEL_5GHZ_6GHZ:
-		phy->mt76->cap.has_5ghz = true;
-		phy->mt76->cap.has_6ghz = true;
-		break;
 	default:
 		ret = -EINVAL;
 		break;

@@ -28,7 +28,6 @@ struct ltc2497_driverdata {
 	struct ltc2497core_driverdata common_ddata;
 	struct i2c_client *client;
 	u32 recv_size;
-	u32 sub_lsb;
 	/*
 	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
@@ -65,10 +64,10 @@ static int ltc2497_result_and_measure(struct ltc2497core_driverdata *ddata,
 		 * equivalent to a sign extension.
 		 */
 		if (st->recv_size == 3) {
-			*val = (get_unaligned_be24(st->data.d8) >> st->sub_lsb)
+			*val = (get_unaligned_be24(st->data.d8) >> 6)
 				- BIT(ddata->chip_info->resolution + 1);
 		} else {
-			*val = (be32_to_cpu(st->data.d32) >> st->sub_lsb)
+			*val = (be32_to_cpu(st->data.d32) >> 6)
 				- BIT(ddata->chip_info->resolution + 1);
 		}
 
@@ -122,7 +121,6 @@ static int ltc2497_probe(struct i2c_client *client)
 	st->common_ddata.chip_info = chip_info;
 
 	resolution = chip_info->resolution;
-	st->sub_lsb = 31 - (resolution + 1);
 	st->recv_size = BITS_TO_BYTES(resolution) + 1;
 
 	return ltc2497core_probe(dev, indio_dev);

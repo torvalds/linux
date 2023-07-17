@@ -25,5 +25,6 @@ LEDs
    leds-lp5562
    leds-lp55xx
    leds-mlxcpld
+   leds-mt6370-rgb
    leds-sc27xx
    leds-qcom-lpg

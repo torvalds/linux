@@ -538,7 +538,8 @@ void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val)
 	if (!kvm_pmu_is_3p5(vcpu))
 		val &= ~ARMV8_PMU_PMCR_LP;
 
-	__vcpu_sys_reg(vcpu, PMCR_EL0) = val;
+	/* The reset bits don't indicate any state, and shouldn't be saved. */
+	__vcpu_sys_reg(vcpu, PMCR_EL0) = val & ~(ARMV8_PMU_PMCR_C | ARMV8_PMU_PMCR_P);
 
 	if (val & ARMV8_PMU_PMCR_E) {
 		kvm_pmu_enable_counter_mask(vcpu,
@@ -557,6 +558,7 @@ void kvm_pmu_handle_pmcr(struct kvm_vcpu *vcpu, u64 val)
 		for_each_set_bit(i, &mask, 32)
 			kvm_pmu_set_pmc_value(kvm_vcpu_idx_to_pmc(vcpu, i), 0, true);
 	}
+	kvm_vcpu_pmu_restore_guest(vcpu);
 }
 
 static bool kvm_pmu_counter_is_enabled(struct kvm_pmc *pmc)
@@ -692,45 +694,41 @@ out_unlock:
 
 static struct arm_pmu *kvm_pmu_probe_armpmu(void)
 {
-	struct perf_event_attr attr = { };
-	struct perf_event *event;
-	struct arm_pmu *pmu = NULL;
+	struct arm_pmu *tmp, *pmu = NULL;
+	struct arm_pmu_entry *entry;
+	int cpu;
+
+	mutex_lock(&arm_pmus_lock);
 
 	/*
-	 * Create a dummy event that only counts user cycles. As we'll never
-	 * leave this function with the event being live, it will never
-	 * count anything. But it allows us to probe some of the PMU
-	 * details. Yes, this is terrible.
+	 * It is safe to use a stale cpu to iterate the list of PMUs so long as
+	 * the same value is used for the entirety of the loop. Given this, and
+	 * the fact that no percpu data is used for the lookup there is no need
+	 * to disable preemption.
+	 *
+	 * It is still necessary to get a valid cpu, though, to probe for the
+	 * default PMU instance as userspace is not required to specify a PMU
+	 * type. In order to uphold the preexisting behavior KVM selects the
+	 * PMU instance for the core where the first call to the
+	 * KVM_ARM_VCPU_PMU_V3_CTRL attribute group occurs. A dependent use case
+	 * would be a user with disdain of all things big.LITTLE that affines
+	 * the VMM to a particular cluster of cores.
+	 *
+	 * In any case, userspace should just do the sane thing and use the UAPI
+	 * to select a PMU type directly. But, be wary of the baggage being
+	 * carried here.
 	 */
-	attr.type = PERF_TYPE_RAW;
-	attr.size = sizeof(attr);
-	attr.pinned = 1;
-	attr.disabled = 0;
-	attr.exclude_user = 0;
-	attr.exclude_kernel = 1;
-	attr.exclude_hv = 1;
-	attr.exclude_host = 1;
-	attr.config = ARMV8_PMUV3_PERFCTR_CPU_CYCLES;
-	attr.sample_period = GENMASK(63, 0);
+	cpu = raw_smp_processor_id();
+	list_for_each_entry(entry, &arm_pmus, entry) {
+		tmp = entry->arm_pmu;
 
-	event = perf_event_create_kernel_counter(&attr, -1, current,
-						 kvm_pmu_perf_overflow, &attr);
-
-	if (IS_ERR(event)) {
-		pr_err_once("kvm: pmu event creation failed %ld\n",
-			    PTR_ERR(event));
-		return NULL;
+		if (cpumask_test_cpu(cpu, &tmp->supported_cpus)) {
+			pmu = tmp;
+			break;
+		}
 	}
 
-	if (event->pmu) {
-		pmu = to_arm_pmu(event->pmu);
-		if (pmu->pmuver == ID_AA64DFR0_EL1_PMUVer_NI ||
-		    pmu->pmuver == ID_AA64DFR0_EL1_PMUVer_IMP_DEF)
-			pmu = NULL;
-	}
-
-	perf_event_disable(event);
-	perf_event_release_kernel(event);
+	mutex_unlock(&arm_pmus_lock);
 
 	return pmu;
 }
@@ -874,13 +872,13 @@ static int kvm_arm_pmu_v3_set_pmu(struct kvm_vcpu *vcpu, int pmu_id)
 	struct arm_pmu *arm_pmu;
 	int ret = -ENXIO;
 
-	mutex_lock(&kvm->lock);
+	lockdep_assert_held(&kvm->arch.config_lock);
 	mutex_lock(&arm_pmus_lock);
 
 	list_for_each_entry(entry, &arm_pmus, entry) {
 		arm_pmu = entry->arm_pmu;
 		if (arm_pmu->pmu.type == pmu_id) {
-			if (test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags) ||
+			if (kvm_vm_has_ran_once(kvm) ||
 			    (kvm->arch.pmu_filter && kvm->arch.arm_pmu != arm_pmu)) {
 				ret = -EBUSY;
 				break;
@@ -894,7 +892,6 @@ static int kvm_arm_pmu_v3_set_pmu(struct kvm_vcpu *vcpu, int pmu_id)
 	}
 
 	mutex_unlock(&arm_pmus_lock);
-	mutex_unlock(&kvm->lock);
 	return ret;
 }
 
@@ -902,22 +899,30 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 {
 	struct kvm *kvm = vcpu->kvm;
 
+	lockdep_assert_held(&kvm->arch.config_lock);
+
 	if (!kvm_vcpu_has_pmu(vcpu))
 		return -ENODEV;
 
 	if (vcpu->arch.pmu.created)
 		return -EBUSY;
 
-	mutex_lock(&kvm->lock);
 	if (!kvm->arch.arm_pmu) {
-		/* No PMU set, get the default one */
+		/*
+		 * No PMU set, get the default one.
+		 *
+		 * The observant among you will notice that the supported_cpus
+		 * mask does not get updated for the default PMU even though it
+		 * is quite possible the selected instance supports only a
+		 * subset of cores in the system. This is intentional, and
+		 * upholds the preexisting behavior on heterogeneous systems
+		 * where vCPUs can be scheduled on any core but the guest
+		 * counters could stop working.
+		 */
 		kvm->arch.arm_pmu = kvm_pmu_probe_armpmu();
-		if (!kvm->arch.arm_pmu) {
-			mutex_unlock(&kvm->lock);
+		if (!kvm->arch.arm_pmu)
 			return -ENODEV;
-		}
 	}
-	mutex_unlock(&kvm->lock);
 
 	switch (attr->attr) {
 	case KVM_ARM_VCPU_PMU_V3_IRQ: {
@@ -961,19 +966,13 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 		     filter.action != KVM_PMU_EVENT_DENY))
 			return -EINVAL;
 
-		mutex_lock(&kvm->lock);
-
-		if (test_bit(KVM_ARCH_FLAG_HAS_RAN_ONCE, &kvm->arch.flags)) {
-			mutex_unlock(&kvm->lock);
+		if (kvm_vm_has_ran_once(kvm))
 			return -EBUSY;
-		}
 
 		if (!kvm->arch.pmu_filter) {
 			kvm->arch.pmu_filter = bitmap_alloc(nr_events, GFP_KERNEL_ACCOUNT);
-			if (!kvm->arch.pmu_filter) {
-				mutex_unlock(&kvm->lock);
+			if (!kvm->arch.pmu_filter)
 				return -ENOMEM;
-			}
 
 			/*
 			 * The default depends on the first applied filter.
@@ -991,8 +990,6 @@ int kvm_arm_pmu_v3_set_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr)
 			bitmap_set(kvm->arch.pmu_filter, filter.base_event, filter.nevents);
 		else
 			bitmap_clear(kvm->arch.pmu_filter, filter.base_event, filter.nevents);
-
-		mutex_unlock(&kvm->lock);
 
 		return 0;
 	}

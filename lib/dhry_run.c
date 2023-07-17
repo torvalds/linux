@@ -31,6 +31,7 @@ MODULE_PARM_DESC(iterations,
 
 static void dhry_benchmark(void)
 {
+	unsigned int cpu = get_cpu();
 	int i, n;
 
 	if (iterations > 0) {
@@ -45,9 +46,10 @@ static void dhry_benchmark(void)
 	}
 
 report:
+	put_cpu();
 	if (n >= 0)
-		pr_info("CPU%u: Dhrystones per Second: %d (%d DMIPS)\n",
-			smp_processor_id(), n, n / DHRY_VAX);
+		pr_info("CPU%u: Dhrystones per Second: %d (%d DMIPS)\n", cpu,
+			n, n / DHRY_VAX);
 	else if (n == -EAGAIN)
 		pr_err("Please increase the number of iterations\n");
 	else

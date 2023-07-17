@@ -296,8 +296,8 @@ next:
  */
 struct lznt *get_lznt_ctx(int level)
 {
-	struct lznt *r = kzalloc(level ? offsetof(struct lznt, hash)
-				       : sizeof(struct lznt),
+	struct lznt *r = kzalloc(level ? offsetof(struct lznt, hash) :
+					       sizeof(struct lznt),
 				 GFP_NOFS);
 
 	if (r)
@@ -392,9 +392,9 @@ ssize_t decompress_lznt(const void *cmpr, size_t cmpr_size, void *unc,
 			unc_use = err;
 		} else {
 			/* This chunk does not contain compressed data. */
-			unc_use = unc_chunk + LZNT_CHUNK_SIZE > unc_end
-					  ? unc_end - unc_chunk
-					  : LZNT_CHUNK_SIZE;
+			unc_use = unc_chunk + LZNT_CHUNK_SIZE > unc_end ?
+						unc_end - unc_chunk :
+						LZNT_CHUNK_SIZE;
 
 			if (cmpr_chunk + sizeof(chunk_hdr) + unc_use >
 			    cmpr_end) {

@@ -134,6 +134,7 @@ enum {
 	MLX5_REG_PCAM		 = 0x507f,
 	MLX5_REG_NODE_DESC	 = 0x6001,
 	MLX5_REG_HOST_ENDIANNESS = 0x7004,
+	MLX5_REG_MTMP		 = 0x900A,
 	MLX5_REG_MCIA		 = 0x9014,
 	MLX5_REG_MFRL		 = 0x9028,
 	MLX5_REG_MLCR		 = 0x902b,
@@ -438,6 +439,7 @@ struct mlx5_core_health {
 	struct work_struct		report_work;
 	struct devlink_health_reporter *fw_reporter;
 	struct devlink_health_reporter *fw_fatal_reporter;
+	struct devlink_health_reporter *vnic_reporter;
 	struct delayed_work		update_fw_log_ts_work;
 };
 
@@ -731,6 +733,7 @@ struct mlx5_fw_tracer;
 struct mlx5_vxlan;
 struct mlx5_geneve;
 struct mlx5_hv_vhca;
+struct mlx5_thermal;
 
 #define MLX5_LOG_SW_ICM_BLOCK_SIZE(dev) (MLX5_CAP_DEV_MEM(dev, log_sw_icm_alloc_granularity))
 #define MLX5_SW_ICM_BLOCK_SIZE(dev) (1 << MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
@@ -749,6 +752,7 @@ enum {
 struct mlx5_profile {
 	u64	mask;
 	u8	log_max_qp;
+	u8	num_cmd_caches;
 	struct {
 		int	size;
 		int	limit;
@@ -808,6 +812,7 @@ struct mlx5_core_dev {
 	struct mlx5_rsc_dump    *rsc_dump;
 	u32                      vsc_addr;
 	struct mlx5_hv_vhca	*hv_vhca;
+	struct mlx5_thermal	*thermal;
 };
 
 struct mlx5_db {
@@ -1088,6 +1093,7 @@ void mlx5_cmdif_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index);
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num);
+__be32 mlx5_core_get_terminate_scatter_list_mkey(struct mlx5_core_dev *dev);
 void mlx5_core_put_rsc(struct mlx5_core_rsc_common *common);
 int mlx5_query_odp_caps(struct mlx5_core_dev *dev,
 			struct mlx5_odp_caps *odp_caps);
@@ -1211,11 +1217,6 @@ static inline bool mlx5_core_is_vf(const struct mlx5_core_dev *dev)
 	return dev->coredev_type == MLX5_COREDEV_VF;
 }
 
-static inline bool mlx5_core_is_management_pf(const struct mlx5_core_dev *dev)
-{
-	return MLX5_CAP_GEN(dev, num_ports) == 1 && !MLX5_CAP_GEN(dev, native_port_num);
-}
-
 static inline bool mlx5_core_is_ecpf(const struct mlx5_core_dev *dev)
 {
 	return dev->caps.embedded_cpu;
@@ -1235,6 +1236,18 @@ static inline bool mlx5_ecpf_vport_exists(const struct mlx5_core_dev *dev)
 static inline u16 mlx5_core_max_vfs(const struct mlx5_core_dev *dev)
 {
 	return dev->priv.sriov.max_vfs;
+}
+
+static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
+{
+	/* LACP owner conditions:
+	 * 1) Function is physical.
+	 * 2) LAG is supported by FW.
+	 * 3) LAG is managed by driver (currently the only option).
+	 */
+	return  MLX5_CAP_GEN(dev, vport_group_manager) &&
+		   (MLX5_CAP_GEN(dev, num_lag_ports) > 1) &&
+		    MLX5_CAP_GEN(dev, lag_master);
 }
 
 static inline int mlx5_get_gid_table_len(u16 param)
@@ -1307,5 +1320,11 @@ static inline bool mlx5_get_roce_state(struct mlx5_core_dev *dev)
 enum {
 	MLX5_OCTWORD = 16,
 };
+
+struct msi_map mlx5_msix_alloc(struct mlx5_core_dev *dev,
+			       irqreturn_t (*handler)(int, void *),
+			       const struct irq_affinity_desc *affdesc,
+			       const char *name);
+void mlx5_msix_free(struct mlx5_core_dev *dev, struct msi_map map);
 
 #endif /* MLX5_DRIVER_H */

@@ -966,9 +966,6 @@ static void this_cpu_set_vectors(enum arm64_bp_harden_el1_vectors slot)
 {
 	const char *v = arm64_get_bp_hardening_vector(slot);
 
-	if (slot < 0)
-		return;
-
 	__this_cpu_write(this_cpu_vector, v);
 
 	/*

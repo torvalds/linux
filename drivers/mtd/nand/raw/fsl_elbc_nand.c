@@ -963,7 +963,7 @@ err:
 	return ret;
 }
 
-static int fsl_elbc_nand_remove(struct platform_device *pdev)
+static void fsl_elbc_nand_remove(struct platform_device *pdev)
 {
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = fsl_lbc_ctrl_dev->nand;
 	struct fsl_elbc_mtd *priv = dev_get_drvdata(&pdev->dev);
@@ -984,8 +984,6 @@ static int fsl_elbc_nand_remove(struct platform_device *pdev)
 	}
 	mutex_unlock(&fsl_elbc_nand_mutex);
 
-	return 0;
-
 }
 
 static const struct of_device_id fsl_elbc_nand_match[] = {
@@ -1000,7 +998,7 @@ static struct platform_driver fsl_elbc_nand_driver = {
 		.of_match_table = fsl_elbc_nand_match,
 	},
 	.probe = fsl_elbc_nand_probe,
-	.remove = fsl_elbc_nand_remove,
+	.remove_new = fsl_elbc_nand_remove,
 };
 
 module_platform_driver(fsl_elbc_nand_driver);

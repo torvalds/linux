@@ -45,7 +45,6 @@ struct mux_state {
 
 static struct class mux_class = {
 	.name = "mux",
-	.owner = THIS_MODULE,
 };
 
 static DEFINE_IDA(mux_ida);

@@ -5348,7 +5348,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 
 	mutex_init(&ap->scsi_scan_mutex);
 	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug);
-	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
+	INIT_DELAYED_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 	init_completion(&ap->park_req_pending);
@@ -5775,7 +5775,7 @@ static void async_port_probe(void *data, async_cookie_t cookie)
  *	RETURNS:
  *	0 on success, -errno otherwise.
  */
-int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
+int ata_host_register(struct ata_host *host, const struct scsi_host_template *sht)
 {
 	int i, rc;
 
@@ -5883,7 +5883,7 @@ EXPORT_SYMBOL_GPL(ata_host_register);
  */
 int ata_host_activate(struct ata_host *host, int irq,
 		      irq_handler_t irq_handler, unsigned long irq_flags,
-		      struct scsi_host_template *sht)
+		      const struct scsi_host_template *sht)
 {
 	int i, rc;
 	char *irq_desc;
@@ -5954,6 +5954,7 @@ static void ata_port_detach(struct ata_port *ap)
 	WARN_ON(!(ap->pflags & ATA_PFLAG_UNLOADED));
 
 	cancel_delayed_work_sync(&ap->hotplug_task);
+	cancel_delayed_work_sync(&ap->scsi_rescan_task);
 
  skip_eh:
 	/* clean up zpodd on port removal */

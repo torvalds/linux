@@ -439,7 +439,7 @@ failed_free_res:
 	return ret;
 }
 
-static int vt8500lcd_remove(struct platform_device *pdev)
+static void vt8500lcd_remove(struct platform_device *pdev)
 {
 	struct vt8500lcd_info *fbi = platform_get_drvdata(pdev);
 	struct resource *res;
@@ -462,8 +462,6 @@ static int vt8500lcd_remove(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(res->start, resource_size(res));
-
-	return 0;
 }
 
 static const struct of_device_id via_dt_ids[] = {
@@ -473,7 +471,7 @@ static const struct of_device_id via_dt_ids[] = {
 
 static struct platform_driver vt8500lcd_driver = {
 	.probe		= vt8500lcd_probe,
-	.remove		= vt8500lcd_remove,
+	.remove_new	= vt8500lcd_remove,
 	.driver		= {
 		.name	= "vt8500-lcd",
 		.of_match_table = of_match_ptr(via_dt_ids),

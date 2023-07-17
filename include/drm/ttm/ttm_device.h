@@ -141,7 +141,7 @@ struct ttm_device_funcs {
 	 * the graphics address space
 	 * @ctx: context for this move with parameters
 	 * @new_mem: the new memory region receiving the buffer
-	 @ @hop: placement for driver directed intermediate hop
+	 * @hop: placement for driver directed intermediate hop
 	 *
 	 * Move a buffer between two memory regions.
 	 * Returns errno -EMULTIHOP if driver requests a hop

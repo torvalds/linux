@@ -493,7 +493,7 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	bool found = false;
 	int rc, index;
 
-	if (of_find_property(parent, "ibm,drc-info", NULL))
+	if (of_property_present(parent, "ibm,drc-info"))
 		return drc_info_valid_index(parent, drc_index);
 
 	/* Note that the format of the ibm,drc-indexes array is

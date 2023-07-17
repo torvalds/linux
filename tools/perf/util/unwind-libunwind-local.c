@@ -306,7 +306,7 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 				     u64 *table_data, u64 *segbase,
 				     u64 *fde_count)
 {
-	struct map *map;
+	struct map_rb_node *map_node;
 	u64 base_addr = UINT64_MAX;
 	int ret, fd;
 
@@ -325,9 +325,12 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 			return -EINVAL;
 	}
 
-	maps__for_each_entry(ui->thread->maps, map) {
-		if (map->dso == dso && map->start < base_addr)
-			base_addr = map->start;
+	maps__for_each_entry(ui->thread->maps, map_node) {
+		struct map *map = map_node->map;
+		u64 start = map__start(map);
+
+		if (map__dso(map) == dso && start < base_addr)
+			base_addr = start;
 	}
 	base_addr -= dso->data.elf_base_addr;
 	/* Address of .eh_frame_hdr */
@@ -422,23 +425,27 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 {
 	struct unwind_info *ui = arg;
 	struct map *map;
+	struct dso *dso;
 	unw_dyn_info_t di;
 	u64 table_data, segbase, fde_count;
 	int ret = -EINVAL;
 
 	map = find_map(ip, ui);
-	if (!map || !map->dso)
+	if (!map)
 		return -EINVAL;
 
-	pr_debug("unwind: find_proc_info dso %s\n", map->dso->name);
+	dso = map__dso(map);
+	if (!dso)
+		return -EINVAL;
+
+	pr_debug("unwind: find_proc_info dso %s\n", dso->name);
 
 	/* Check the .eh_frame section for unwinding info */
-	if (!read_unwind_spec_eh_frame(map->dso, ui,
-				       &table_data, &segbase, &fde_count)) {
+	if (!read_unwind_spec_eh_frame(dso, ui, &table_data, &segbase, &fde_count)) {
 		memset(&di, 0, sizeof(di));
 		di.format   = UNW_INFO_FORMAT_REMOTE_TABLE;
-		di.start_ip = map->start;
-		di.end_ip   = map->end;
+		di.start_ip = map__start(map);
+		di.end_ip   = map__end(map);
 		di.u.rti.segbase    = segbase;
 		di.u.rti.table_data = table_data;
 		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
@@ -450,20 +457,20 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 	/* Check the .debug_frame section for unwinding info */
 	if (ret < 0 &&
-	    !read_unwind_spec_debug_frame(map->dso, ui->machine, &segbase)) {
-		int fd = dso__data_get_fd(map->dso, ui->machine);
-		int is_exec = elf_is_exec(fd, map->dso->name);
-		unw_word_t base = is_exec ? 0 : map->start;
+	    !read_unwind_spec_debug_frame(dso, ui->machine, &segbase)) {
+		int fd = dso__data_get_fd(dso, ui->machine);
+		int is_exec = elf_is_exec(fd, dso->name);
+		u64 start = map__start(map);
+		unw_word_t base = is_exec ? 0 : start;
 		const char *symfile;
 
 		if (fd >= 0)
-			dso__data_put_fd(map->dso);
+			dso__data_put_fd(dso);
 
-		symfile = map->dso->symsrc_filename ?: map->dso->name;
+		symfile = dso->symsrc_filename ?: dso->name;
 
 		memset(&di, 0, sizeof(di));
-		if (dwarf_find_debug_frame(0, &di, ip, base, symfile,
-					   map->start, map->end))
+		if (dwarf_find_debug_frame(0, &di, ip, base, symfile, start, map__end(map)))
 			return dwarf_search_unwind_table(as, ip, &di, pi,
 							 need_unwind_info, arg);
 	}
@@ -511,6 +518,7 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 			  unw_word_t *data)
 {
 	struct map *map;
+	struct dso *dso;
 	ssize_t size;
 
 	map = find_map(addr, ui);
@@ -519,10 +527,12 @@ static int access_dso_mem(struct unwind_info *ui, unw_word_t addr,
 		return -1;
 	}
 
-	if (!map->dso)
+	dso = map__dso(map);
+
+	if (!dso)
 		return -1;
 
-	size = dso__data_read_addr(map->dso, map, ui->machine,
+	size = dso__data_read_addr(dso, map, ui->machine,
 				   addr, (u8 *) data, sizeof(*data));
 
 	return !(size == sizeof(*data));
@@ -630,7 +640,7 @@ static int entry(u64 ip, struct thread *thread,
 	pr_debug("unwind: %s:ip = 0x%" PRIx64 " (0x%" PRIx64 ")\n",
 		 al.sym ? al.sym->name : "''",
 		 ip,
-		 al.map ? al.map->map_ip(al.map, ip) : (u64) 0);
+		 al.map ? map__map_ip(al.map, ip) : (u64) 0);
 
 	return cb(&e, arg);
 }
@@ -665,24 +675,26 @@ static unw_accessors_t accessors = {
 
 static int _unwind__prepare_access(struct maps *maps)
 {
-	maps->addr_space = unw_create_addr_space(&accessors, 0);
-	if (!maps->addr_space) {
+	void *addr_space = unw_create_addr_space(&accessors, 0);
+
+	RC_CHK_ACCESS(maps)->addr_space = addr_space;
+	if (!addr_space) {
 		pr_err("unwind: Can't create unwind address space.\n");
 		return -ENOMEM;
 	}
 
-	unw_set_caching_policy(maps->addr_space, UNW_CACHE_GLOBAL);
+	unw_set_caching_policy(addr_space, UNW_CACHE_GLOBAL);
 	return 0;
 }
 
 static void _unwind__flush_access(struct maps *maps)
 {
-	unw_flush_cache(maps->addr_space, 0, 0);
+	unw_flush_cache(maps__addr_space(maps), 0, 0);
 }
 
 static void _unwind__finish_access(struct maps *maps)
 {
-	unw_destroy_addr_space(maps->addr_space);
+	unw_destroy_addr_space(maps__addr_space(maps));
 }
 
 static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
@@ -707,7 +719,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	 */
 	if (max_stack - 1 > 0) {
 		WARN_ONCE(!ui->thread, "WARNING: ui->thread is NULL");
-		addr_space = ui->thread->maps->addr_space;
+		addr_space = maps__addr_space(ui->thread->maps);
 
 		if (addr_space == NULL)
 			return -1;
@@ -757,7 +769,7 @@ static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info ui = {
 		.sample       = data,
 		.thread       = thread,
-		.machine      = thread->maps->machine,
+		.machine      = maps__machine(thread->maps),
 		.best_effort  = best_effort
 	};
 

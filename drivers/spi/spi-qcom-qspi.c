@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_opp.h>
 #include <linux/spi/spi.h>
@@ -311,7 +312,7 @@ static int qcom_qspi_prepare_message(struct spi_master *master,
 
 	mstr_cfg = readl(ctrl->base + MSTR_CONFIG);
 	mstr_cfg &= ~CHIP_SELECT_NUM;
-	if (message->spi->chip_select)
+	if (spi_get_chipselect(message->spi, 0))
 		mstr_cfg |= CHIP_SELECT_NUM;
 
 	mstr_cfg |= FB_CLK_EN | PIN_WPN | PIN_HOLDN | SBL_EN | FULL_CYCLE_MODE;
@@ -552,7 +553,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int qcom_qspi_remove(struct platform_device *pdev)
+static void qcom_qspi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 
@@ -560,8 +561,6 @@ static int qcom_qspi_remove(struct platform_device *pdev)
 	spi_unregister_master(master);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused qcom_qspi_runtime_suspend(struct device *dev)
@@ -581,6 +580,8 @@ static int __maybe_unused qcom_qspi_runtime_suspend(struct device *dev)
 		return ret;
 	}
 
+	pinctrl_pm_select_sleep_state(dev);
+
 	return 0;
 }
 
@@ -589,6 +590,8 @@ static int __maybe_unused qcom_qspi_runtime_resume(struct device *dev)
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct qcom_qspi *ctrl = spi_master_get_devdata(master);
 	int ret;
+
+	pinctrl_pm_select_default_state(dev);
 
 	ret = icc_enable(ctrl->icc_path_cpu_to_qspi);
 	if (ret) {
@@ -655,7 +658,7 @@ static struct platform_driver qcom_qspi_driver = {
 		.of_match_table = qcom_qspi_dt_match,
 	},
 	.probe = qcom_qspi_probe,
-	.remove = qcom_qspi_remove,
+	.remove_new = qcom_qspi_remove,
 };
 module_platform_driver(qcom_qspi_driver);
 

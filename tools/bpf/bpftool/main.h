@@ -229,6 +229,8 @@ void btf_dump_linfo_plain(const struct btf *btf,
 			  const char *prefix, bool linum);
 void btf_dump_linfo_json(const struct btf *btf,
 			 const struct bpf_line_info *linfo, bool linum);
+void btf_dump_linfo_dotlabel(const struct btf *btf,
+			     const struct bpf_line_info *linfo, bool linum);
 
 struct nlattr;
 struct ifinfomsg;
@@ -262,4 +264,10 @@ static inline bool hashmap__empty(struct hashmap *map)
 	return map ? hashmap__size(map) == 0 : true;
 }
 
+int pathname_concat(char *buf, int buf_sz, const char *path,
+		    const char *name);
+
+/* print netfilter bpf_link info */
+void netfilter_dump_plain(const struct bpf_link_info *info);
+void netfilter_dump_json(const struct bpf_link_info *info, json_writer_t *wtr);
 #endif

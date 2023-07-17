@@ -258,7 +258,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int at91wdt_remove(struct platform_device *pdev)
+static void at91wdt_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int res;
@@ -269,8 +269,6 @@ static int at91wdt_remove(struct platform_device *pdev)
 
 	misc_deregister(&at91wdt_miscdev);
 	at91wdt_miscdev.parent = NULL;
-
-	return 0;
 }
 
 static void at91wdt_shutdown(struct platform_device *pdev)
@@ -299,7 +297,7 @@ MODULE_DEVICE_TABLE(of, at91_wdt_dt_ids);
 
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove		= at91wdt_remove,
+	.remove_new	= at91wdt_remove,
 	.shutdown	= at91wdt_shutdown,
 	.suspend	= pm_ptr(at91wdt_suspend),
 	.resume		= pm_ptr(at91wdt_resume),

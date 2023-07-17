@@ -10,13 +10,16 @@
 
 #include "mt7921.h"
 #include "mcu.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 
 static const struct usb_device_id mt7921u_device_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0e8d, 0x7961, 0xff, 0xff, 0xff),
 		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	/* Comfast CF-952AX */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x3574, 0x6211, 0xff, 0xff, 0xff),
+		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
+	/* Netgear, Inc. [A8000,AXE3000] */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x0846, 0x9060, 0xff, 0xff, 0xff),
 		.driver_info = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ },
 };
@@ -183,7 +186,6 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 		.tx_status_data = mt7921_usb_sdio_tx_status_data,
 		.rx_skb = mt7921_queue_rx_skb,
 		.rx_check = mt7921_rx_check,
-		.sta_ps = mt7921_sta_ps,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
@@ -210,27 +212,12 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 	u8 features;
 	int ret;
 
-	features = mt7921_check_offload_capability(&usb_intf->dev, (const char *)
-						   id->driver_info);
-	ops = devm_kmemdup(&usb_intf->dev, &mt7921_ops, sizeof(mt7921_ops),
-			   GFP_KERNEL);
+	ops = mt7921_get_mac80211_ops(&usb_intf->dev, (void *)id->driver_info,
+				      &features);
 	if (!ops)
 		return -ENOMEM;
 
-	if (!(features & MT7921_FW_CAP_CNM)) {
-		ops->remain_on_channel = NULL;
-		ops->cancel_remain_on_channel = NULL;
-		ops->add_chanctx = NULL;
-		ops->remove_chanctx = NULL;
-		ops->change_chanctx = NULL;
-		ops->assign_vif_chanctx = NULL;
-		ops->unassign_vif_chanctx = NULL;
-		ops->mgd_prepare_tx = NULL;
-		ops->mgd_complete_tx = NULL;
-	}
-
 	ops->stop = mt7921u_stop;
-
 	mdev = mt76_alloc_device(&usb_intf->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)
 		return -ENOMEM;
@@ -272,7 +259,7 @@ static int mt7921u_probe(struct usb_interface *usb_intf,
 
 	ret = mt7921u_dma_init(dev, false);
 	if (ret)
-		return ret;
+		goto error;
 
 	hw = mt76_hw(dev);
 	/* check hw sg support in order to enable AMSDU */

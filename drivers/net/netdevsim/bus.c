@@ -132,7 +132,7 @@ static struct nsim_bus_dev *
 nsim_bus_dev_new(unsigned int id, unsigned int port_count, unsigned int num_queues);
 
 static ssize_t
-new_device_store(struct bus_type *bus, const char *buf, size_t count)
+new_device_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	unsigned int id, port_count, num_queues;
 	struct nsim_bus_dev *nsim_bus_dev;
@@ -186,7 +186,7 @@ static BUS_ATTR_WO(new_device);
 static void nsim_bus_dev_del(struct nsim_bus_dev *nsim_bus_dev);
 
 static ssize_t
-del_device_store(struct bus_type *bus, const char *buf, size_t count)
+del_device_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	struct nsim_bus_dev *nsim_bus_dev, *tmp;
 	unsigned int id;

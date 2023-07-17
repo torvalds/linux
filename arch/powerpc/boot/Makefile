@@ -40,6 +40,9 @@ BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 
 ifdef CONFIG_PPC64_BOOT_WRAPPER
 BOOTCFLAGS	+= -m64
+ifdef CONFIG_PPC64_ELF_ABI_V2
+BOOTCFLAGS	+= $(call cc-option,-mabi=elfv2)
+endif
 else
 BOOTCFLAGS	+= -m32
 endif
@@ -61,13 +64,14 @@ BOOTCFLAGS	+= -mbig-endian
 else
 BOOTCFLAGS	+= -mlittle-endian
 endif
-ifdef CONFIG_PPC64_ELF_ABI_V2
-BOOTCFLAGS	+= $(call cc-option,-mabi=elfv2)
-endif
 
 BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -nostdinc
 
 BOOTARFLAGS	:= -crD
+
+BOOTCFLAGS	+= $(call cc-option,-mno-prefixed) \
+		   $(call cc-option,-mno-pcrel) \
+		   $(call cc-option,-mno-mma)
 
 ifdef CONFIG_CC_IS_CLANG
 BOOTCFLAGS += $(CLANG_FLAGS)
@@ -164,7 +168,7 @@ src-plat-$(CONFIG_PPC_MPC52xx) += cuboot-52xx.c
 src-plat-$(CONFIG_PPC_82xx) += cuboot-pq2.c fixed-head.S ep8248e.c cuboot-824x.c
 src-plat-$(CONFIG_PPC_83xx) += cuboot-83xx.c fixed-head.S redboot-83xx.c
 src-plat-$(CONFIG_FSL_SOC_BOOKE) += cuboot-85xx.c cuboot-85xx-cpm2.c
-src-plat-$(CONFIG_EMBEDDED6xx) += cuboot-pq2.c cuboot-mpc7448hpc2.c \
+src-plat-$(CONFIG_EMBEDDED6xx) += cuboot-pq2.c \
 					gamecube-head.S gamecube.c \
 					wii-head.S wii.c holly.c \
 					fixed-head.S mvme5100.c
@@ -327,17 +331,12 @@ image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200b
 image-$(CONFIG_PPC_MEDIA5200)		+= cuImage.media5200
 
 # Board ports in arch/powerpc/platform/82xx/Kconfig
-image-$(CONFIG_MPC8272_ADS)		+= cuImage.mpc8272ads
-image-$(CONFIG_PQ2FADS)			+= cuImage.pq2fads
 image-$(CONFIG_EP8248E)			+= dtbImage.ep8248e
 
 # Board ports in arch/powerpc/platform/83xx/Kconfig
-image-$(CONFIG_MPC832x_MDS)		+= cuImage.mpc832x_mds
 image-$(CONFIG_MPC832x_RDB)		+= cuImage.mpc832x_rdb
 image-$(CONFIG_MPC834x_ITX)		+= cuImage.mpc8349emitx \
 					   cuImage.mpc8349emitxgp
-image-$(CONFIG_MPC834x_MDS)		+= cuImage.mpc834x_mds
-image-$(CONFIG_MPC836x_MDS)		+= cuImage.mpc836x_mds
 image-$(CONFIG_ASP834x)			+= dtbImage.asp834x-redboot
 
 # Board ports in arch/powerpc/platform/85xx/Kconfig
@@ -361,7 +360,6 @@ image-$(CONFIG_MVME7100)                += dtbImage.mvme7100
 
 # Board ports in arch/powerpc/platform/embedded6xx/Kconfig
 image-$(CONFIG_STORCENTER)		+= cuImage.storcenter
-image-$(CONFIG_MPC7448HPC2)		+= cuImage.mpc7448hpc2
 image-$(CONFIG_GAMECUBE)		+= dtbImage.gamecube
 image-$(CONFIG_WII)			+= dtbImage.wii
 image-$(CONFIG_MVME5100)		+= dtbImage.mvme5100

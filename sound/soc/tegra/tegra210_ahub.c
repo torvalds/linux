@@ -1410,11 +1410,9 @@ static int tegra_ahub_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_ahub_remove(struct platform_device *pdev)
+static void tegra_ahub_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops tegra_ahub_pm_ops = {
@@ -1426,7 +1424,7 @@ static const struct dev_pm_ops tegra_ahub_pm_ops = {
 
 static struct platform_driver tegra_ahub_driver = {
 	.probe = tegra_ahub_probe,
-	.remove = tegra_ahub_remove,
+	.remove_new = tegra_ahub_remove,
 	.driver = {
 		.name = "tegra210-ahub",
 		.of_match_table = tegra_ahub_of_match,

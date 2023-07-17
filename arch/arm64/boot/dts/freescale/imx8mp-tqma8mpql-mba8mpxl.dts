@@ -80,12 +80,14 @@
 			label = "S12";
 			linux,code = <BTN_0>;
 			gpios = <&gpio5 27 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 
 		switch-2 {
 			label = "S13";
 			linux,code = <BTN_1>;
 			gpios = <&gpio5 26 GPIO_ACTIVE_LOW>;
+			wakeup-source;
 		};
 	};
 

@@ -16,7 +16,7 @@ unsigned int ext4_count_free(char *bitmap, unsigned int numchars)
 	return numchars * BITS_PER_BYTE - memweight(bitmap, numchars);
 }
 
-int ext4_inode_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
+int ext4_inode_bitmap_csum_verify(struct super_block *sb,
 				  struct ext4_group_desc *gdp,
 				  struct buffer_head *bh, int sz)
 {
@@ -38,7 +38,7 @@ int ext4_inode_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 	return provided == calculated;
 }
 
-void ext4_inode_bitmap_csum_set(struct super_block *sb, ext4_group_t group,
+void ext4_inode_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
 				struct buffer_head *bh, int sz)
 {
@@ -54,7 +54,7 @@ void ext4_inode_bitmap_csum_set(struct super_block *sb, ext4_group_t group,
 		gdp->bg_inode_bitmap_csum_hi = cpu_to_le16(csum >> 16);
 }
 
-int ext4_block_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
+int ext4_block_bitmap_csum_verify(struct super_block *sb,
 				  struct ext4_group_desc *gdp,
 				  struct buffer_head *bh)
 {
@@ -74,13 +74,10 @@ int ext4_block_bitmap_csum_verify(struct super_block *sb, ext4_group_t group,
 	} else
 		calculated &= 0xFFFF;
 
-	if (provided == calculated)
-		return 1;
-
-	return 0;
+	return provided == calculated;
 }
 
-void ext4_block_bitmap_csum_set(struct super_block *sb, ext4_group_t group,
+void ext4_block_bitmap_csum_set(struct super_block *sb,
 				struct ext4_group_desc *gdp,
 				struct buffer_head *bh)
 {

@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: TMP464 and TMP468 temperature sensors
 
 maintainers:
-  - Agathe Porte <agathe.porte@nokia.com>
+  - Guenter Roeck <linux@roeck-us.net>
 
 description: |
   ±0.0625°C Remote and Local temperature sensor

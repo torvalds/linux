@@ -27,6 +27,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0 0x0>;
+			clocks = <&cpufreq_hw 0>;
 			enable-method = "psci";
 			power-domains = <&CPU_PD0>;
 			power-domain-names = "psci";
@@ -34,9 +35,13 @@
 			next-level-cache = <&L2_0>;
 			L2_0: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 				L3_0: l3-cache {
 					compatible = "cache";
+					cache-level = <3>;
+					cache-unified;
 				};
 			};
 		};
@@ -45,6 +50,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0 0x100>;
+			clocks = <&cpufreq_hw 0>;
 			enable-method = "psci";
 			power-domains = <&CPU_PD1>;
 			power-domain-names = "psci";
@@ -52,6 +58,8 @@
 			next-level-cache = <&L2_100>;
 			L2_100: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -60,6 +68,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0 0x200>;
+			clocks = <&cpufreq_hw 0>;
 			enable-method = "psci";
 			power-domains = <&CPU_PD2>;
 			power-domain-names = "psci";
@@ -67,6 +76,8 @@
 			next-level-cache = <&L2_200>;
 			L2_200: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -75,6 +86,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a55";
 			reg = <0x0 0x300>;
+			clocks = <&cpufreq_hw 0>;
 			enable-method = "psci";
 			power-domains = <&CPU_PD3>;
 			power-domain-names = "psci";
@@ -82,6 +94,8 @@
 			next-level-cache = <&L2_300>;
 			L2_300: l2-cache {
 				compatible = "cache";
+				cache-level = <2>;
+				cache-unified;
 				next-level-cache = <&L3_0>;
 			};
 		};
@@ -412,8 +426,6 @@
 				pinctrl-0 = <&qup_uart0_default>;
 				pinctrl-names = "default";
 				interrupts = <GIC_SPI 601 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -581,8 +593,6 @@
 				pinctrl-0 = <&qup_uart7_tx>, <&qup_uart7_rx>;
 				pinctrl-names = "default";
 				interrupts = <GIC_SPI 608 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 				status = "disabled";
 			};
 		};
@@ -1312,6 +1322,7 @@
 			clocks = <&rpmhcc RPMH_CXO_CLK>, <&gcc GCC_GPLL0>;
 			clock-names = "xo", "alternate";
 			#freq-domain-cells = <1>;
+			#clock-cells = <1>;
 		};
 
 		gem_noc: interconnect@19100000 {
@@ -1319,6 +1330,18 @@
 			reg = <0x0 0x19100000 0x0 0xB8080>;
 			qcom,bcm-voters = <&apps_bcm_voter>;
 			#interconnect-cells = <2>;
+		};
+
+		system-cache-controller@19200000 {
+			compatible = "qcom,qdu1000-llcc";
+			reg = <0 0x19200000 0 0xd80000>,
+			      <0 0x1a200000 0 0x80000>,
+			      <0 0x221c8128 0 0x4>;
+			reg-names = "llcc_base",
+				    "llcc_broadcast_base",
+				    "multi_channel_register";
+			interrupts = <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>;
+			multi-ch-bit-off = <24 2>;
 		};
 	};
 

@@ -976,8 +976,10 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * either fall back to use of call_rcu() or rearrange the structure to
  * position the rcu_head structure into the first 4096 bytes.
  *
- * Note that the allowable offset might decrease in the future, for example,
- * to allow something like kmem_cache_free_rcu().
+ * The object to be freed can be allocated either by kmalloc() or
+ * kmem_cache_alloc().
+ *
+ * Note that the allowable offset might decrease in the future.
  *
  * The BUILD_BUG_ON check must not involve any function calls, hence the
  * checks are done in macros here.

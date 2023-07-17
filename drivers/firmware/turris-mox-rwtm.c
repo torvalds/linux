@@ -104,7 +104,7 @@ static void mox_kobj_release(struct kobject *kobj)
 	kfree(to_rwtm(kobj)->kobj);
 }
 
-static struct kobj_type mox_kobj_ktype = {
+static const struct kobj_type mox_kobj_ktype = {
 	.release	= mox_kobj_release,
 	.sysfs_ops	= &kobj_sysfs_ops,
 };

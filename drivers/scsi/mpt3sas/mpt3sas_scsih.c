@@ -52,7 +52,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/aer.h>
 #include <linux/raid_class.h>
 #include <linux/blk-mq-pci.h>
 #include <asm/unaligned.h>
@@ -11926,7 +11925,7 @@ static void scsih_map_queues(struct Scsi_Host *shost)
 }
 
 /* shost template for SAS 2.0 HBA devices */
-static struct scsi_host_template mpt2sas_driver_template = {
+static const struct scsi_host_template mpt2sas_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= "Fusion MPT SAS Host",
 	.proc_name			= MPT2SAS_DRIVER_NAME,
@@ -11964,7 +11963,7 @@ static struct raid_function_template mpt2sas_raid_functions = {
 };
 
 /* shost template for SAS 3.0 HBA devices */
-static struct scsi_host_template mpt3sas_driver_template = {
+static const struct scsi_host_template mpt3sas_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= "Fusion MPT SAS Host",
 	.proc_name			= MPT3SAS_DRIVER_NAME,
@@ -12930,9 +12929,9 @@ _mpt3sas_exit(void)
 	pr_info("mpt3sas version %s unloading\n",
 				MPT3SAS_DRIVER_VERSION);
 
-	mpt3sas_ctl_exit(hbas_to_enumerate);
-
 	pci_unregister_driver(&mpt3sas_driver);
+
+	mpt3sas_ctl_exit(hbas_to_enumerate);
 
 	scsih_exit();
 }

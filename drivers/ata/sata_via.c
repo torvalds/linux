@@ -107,7 +107,7 @@ static struct pci_driver svia_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static struct scsi_host_template svia_sht = {
+static const struct scsi_host_template svia_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

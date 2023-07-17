@@ -1,0 +1,2 @@
+jsonschema==4.*
+PyYAML==6.*

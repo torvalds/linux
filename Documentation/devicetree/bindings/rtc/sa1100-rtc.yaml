@@ -34,8 +34,8 @@ properties:
 
   interrupt-names:
     items:
-      - const: 'rtc 1Hz'
-      - const: 'rtc alarm'
+      - const: rtc 1Hz
+      - const: rtc alarm
 
 required:
   - compatible

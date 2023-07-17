@@ -647,6 +647,108 @@ static int do_detach(int argc, char **argv)
 	return 0;
 }
 
+static int netfilter_link_compar(const void *a, const void *b)
+{
+	const struct bpf_link_info *nfa = a;
+	const struct bpf_link_info *nfb = b;
+	int delta;
+
+	delta = nfa->netfilter.pf - nfb->netfilter.pf;
+	if (delta)
+		return delta;
+
+	delta = nfa->netfilter.hooknum - nfb->netfilter.hooknum;
+	if (delta)
+		return delta;
+
+	if (nfa->netfilter.priority < nfb->netfilter.priority)
+		return -1;
+	if (nfa->netfilter.priority > nfb->netfilter.priority)
+		return 1;
+
+	return nfa->netfilter.flags - nfb->netfilter.flags;
+}
+
+static void show_link_netfilter(void)
+{
+	unsigned int nf_link_len = 0, nf_link_count = 0;
+	struct bpf_link_info *nf_link_info = NULL;
+	__u32 id = 0;
+
+	while (true) {
+		struct bpf_link_info info;
+		int fd, err;
+		__u32 len;
+
+		err = bpf_link_get_next_id(id, &id);
+		if (err) {
+			if (errno == ENOENT)
+				break;
+			p_err("can't get next link: %s (id %d)", strerror(errno), id);
+			break;
+		}
+
+		fd = bpf_link_get_fd_by_id(id);
+		if (fd < 0) {
+			p_err("can't get link by id (%u): %s", id, strerror(errno));
+			continue;
+		}
+
+		memset(&info, 0, sizeof(info));
+		len = sizeof(info);
+
+		err = bpf_link_get_info_by_fd(fd, &info, &len);
+
+		close(fd);
+
+		if (err) {
+			p_err("can't get link info for fd %d: %s", fd, strerror(errno));
+			continue;
+		}
+
+		if (info.type != BPF_LINK_TYPE_NETFILTER)
+			continue;
+
+		if (nf_link_count >= nf_link_len) {
+			static const unsigned int max_link_count = INT_MAX / sizeof(info);
+			struct bpf_link_info *expand;
+
+			if (nf_link_count > max_link_count) {
+				p_err("cannot handle more than %u links\n", max_link_count);
+				break;
+			}
+
+			nf_link_len += 16;
+
+			expand = realloc(nf_link_info, nf_link_len * sizeof(info));
+			if (!expand) {
+				p_err("realloc: %s",  strerror(errno));
+				break;
+			}
+
+			nf_link_info = expand;
+		}
+
+		nf_link_info[nf_link_count] = info;
+		nf_link_count++;
+	}
+
+	qsort(nf_link_info, nf_link_count, sizeof(*nf_link_info), netfilter_link_compar);
+
+	for (id = 0; id < nf_link_count; id++) {
+		NET_START_OBJECT;
+		if (json_output)
+			netfilter_dump_json(&nf_link_info[id], json_wtr);
+		else
+			netfilter_dump_plain(&nf_link_info[id]);
+
+		NET_DUMP_UINT("id", " prog_id %u", nf_link_info[id].prog_id);
+		NET_END_OBJECT;
+	}
+
+	free(nf_link_info);
+}
+
 static int do_show(int argc, char **argv)
 {
 	struct bpf_attach_info attach_info = {};
@@ -699,6 +801,10 @@ static int do_show(int argc, char **argv)
 	NET_START_ARRAY("flow_dissector", "%s:\n");
 	if (attach_info.flow_dissector_id > 0)
 		NET_DUMP_UINT("id", "id %u", attach_info.flow_dissector_id);
+	NET_END_ARRAY("\n");
+
+	NET_START_ARRAY("netfilter", "%s:\n");
+	show_link_netfilter();
 	NET_END_ARRAY("\n");
 
 	NET_END_OBJECT;

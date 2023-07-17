@@ -9,7 +9,7 @@ title: MediaTek MT8188 Pin Controller
 maintainers:
   - Hui Liu <hui.liu@mediatek.com>
 
-description: |
+description:
   The MediaTek's MT8188 Pin controller is used to control SoC pins.
 
 properties:
@@ -19,10 +19,10 @@ properties:
   gpio-controller: true
 
   '#gpio-cells':
-    description: |
-      Number of cells in GPIO specifier, should be two. The first cell
-      is the pin number, the second cell is used to specify optional
-      parameters which are defined in <dt-bindings/gpio/gpio.h>.
+    description:
+      Number of cells in GPIO specifier, should be two. The first cell is the
+      pin number, the second cell is used to specify optional parameters which
+      are defined in <dt-bindings/gpio/gpio.h>.
     const: 2
 
   gpio-ranges:
@@ -59,10 +59,11 @@ properties:
 
   mediatek,rsel-resistance-in-si-unit:
     type: boolean
-    description: |
-      We provide two methods to select the resistance for I2C when pull up or pull down.
-      The first is by RSEL definition value, another one is by resistance value(ohm).
-      This flag is used to identify if the method is resistance(si unit) value.
+    description:
+      We provide two methods to select the resistance for I2C when pull up or
+      pull down. The first is by RSEL definition value, another one is by
+      resistance value(ohm). This flag is used to identify if the method is
+      resistance(si unit) value.
 
 # PIN CONFIGURATION NODES
 patternProperties:
@@ -73,22 +74,22 @@ patternProperties:
     patternProperties:
       '^pins':
         type: object
-        $ref: "/schemas/pinctrl/pincfg-node.yaml"
+        $ref: /schemas/pinctrl/pincfg-node.yaml
         additionalProperties: false
-        description: |
+        description:
           A pinctrl node should contain at least one subnode representing the
           pinctrl groups available on the machine. Each subnode will list the
           pins it needs, and how they should be configured, with regard to muxer
-          configuration, pullups, drive strength, input enable/disable and
-          input schmitt.
+          configuration, pullups, drive strength, input enable/disable and input
+          schmitt.
 
         properties:
           pinmux:
-            description: |
+            description:
               Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
-              defined as macros in dt-bindings/pinctrl/mediatek,<soc>-pinfunc.h
-              directly.
+              defined as macros in dt-bindings/pinctrl/mediatek,mt8188-pinfunc.h
+              directly, for this SoC.
 
           drive-strength:
             enum: [2, 4, 6, 8, 10, 12, 14, 16]
@@ -106,18 +107,21 @@ patternProperties:
               - enum: [75000, 5000]
                 description: mt8188 pull down RSEL type si unit value(ohm).
             description: |
-              For pull down type is normal, it doesn't need add RSEL & R1R0 define
-              and resistance value.
+              For pull down type is normal, it doesn't need add RSEL & R1R0
+              define and resistance value.
               For pull down type is PUPD/R0/R1 type, it can add R1R0 define to
               set different resistance. It can support "MTK_PUPD_SET_R1R0_00" &
-              "MTK_PUPD_SET_R1R0_01" & "MTK_PUPD_SET_R1R0_10" & "MTK_PUPD_SET_R1R0_11"
-              define in mt8188.
-              For pull down type is RSEL, it can add RSEL define & resistance value(ohm)
-              to set different resistance by identifying property "mediatek,rsel-resistance-in-si-unit".
-              It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
-              & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011" & "MTK_PULL_SET_RSEL_100"
-              & "MTK_PULL_SET_RSEL_101" & "MTK_PULL_SET_RSEL_110" & "MTK_PULL_SET_RSEL_111"
-              define in mt8188. It can also support resistance value(ohm) "75000" & "5000" in mt8188.
+              "MTK_PUPD_SET_R1R0_01" & "MTK_PUPD_SET_R1R0_10" &
+              "MTK_PUPD_SET_R1R0_11" define in mt8188.
+              For pull down type is RSEL, it can add RSEL define & resistance
+              value(ohm) to set different resistance by identifying property
+              "mediatek,rsel-resistance-in-si-unit". It can support
+              "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001" &
+              "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011" &
+              "MTK_PULL_SET_RSEL_100" & "MTK_PULL_SET_RSEL_101" &
+              "MTK_PULL_SET_RSEL_110" & "MTK_PULL_SET_RSEL_111" define in
+              mt8188. It can also support resistance value(ohm) "75000" & "5000"
+              in mt8188.
 
           bias-pull-up:
             oneOf:
@@ -131,17 +135,19 @@ patternProperties:
             description: |
               For pull up type is normal, it don't need add RSEL & R1R0 define
               and resistance value.
-              For pull up type is PUPD/R0/R1 type, it can add R1R0 define to
-              set different resistance. It can support "MTK_PUPD_SET_R1R0_00" &
-              "MTK_PUPD_SET_R1R0_01" & "MTK_PUPD_SET_R1R0_10" & "MTK_PUPD_SET_R1R0_11"
-              define in mt8188.
-              For pull up type is RSEL, it can add RSEL define & resistance value(ohm)
-              to set different resistance by identifying property "mediatek,rsel-resistance-in-si-unit".
-              It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
-              & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011" & "MTK_PULL_SET_RSEL_100"
-              & "MTK_PULL_SET_RSEL_101" & "MTK_PULL_SET_RSEL_110" & "MTK_PULL_SET_RSEL_111"
-              define in mt8188. It can also support resistance value(ohm)
-              "1000" & "1500" & "2000" & "3000" & "4000" & "5000" & "10000" & "75000" in mt8188.
+              For pull up type is PUPD/R0/R1 type, it can add R1R0 define to set
+              different resistance. It can support "MTK_PUPD_SET_R1R0_00" &
+              "MTK_PUPD_SET_R1R0_01" & "MTK_PUPD_SET_R1R0_10" &
+              "MTK_PUPD_SET_R1R0_11" define in mt8188.
+              For pull up type is RSEL, it can add RSEL define & resistance
+              value(ohm) to set different resistance by identifying property
+              "mediatek,rsel-resistance-in-si-unit". It can support
+              "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001" &
+              "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011" &
+              "MTK_PULL_SET_RSEL_100" & "MTK_PULL_SET_RSEL_101" &
+              "MTK_PULL_SET_RSEL_110" & "MTK_PULL_SET_RSEL_111" define in
+              mt8188. It can also support resistance value(ohm) "1000" & "1500"
+              & "2000" & "3000" & "4000" & "5000" & "10000" & "75000" in mt8188.
 
           bias-disable: true
 

@@ -506,6 +506,13 @@ test_sample()
 		echo "perf record failed with --aux-sample"
 		return 1
 	fi
+	# Check with event with PMU name
+	if perf_record_no_decode -o "${perfdatafile}" -e br_misp_retired.all_branches:u uname ; then
+		if ! perf_record_no_decode -o "${perfdatafile}" -e '{intel_pt//,br_misp_retired.all_branches/aux-sample-size=8192/}:u' uname ; then
+			echo "perf record failed with --aux-sample-size"
+			return 1
+		fi
+	fi
 	echo OK
 	return 0
 }

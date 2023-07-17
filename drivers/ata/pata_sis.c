@@ -539,7 +539,7 @@ static unsigned int sis_133_mode_filter(struct ata_device *adev, unsigned int ma
 	return mask;
 }
 
-static struct scsi_host_template sis_sht = {
+static const struct scsi_host_template sis_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

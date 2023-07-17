@@ -2224,7 +2224,9 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		} else if (strstr(product_name, "Wacom") ||
 			   strstr(product_name, "wacom") ||
 			   strstr(product_name, "WACOM")) {
-			strscpy(name, product_name, sizeof(name));
+			if (strscpy(name, product_name, sizeof(name)) < 0) {
+				hid_warn(wacom->hdev, "String overflow while assembling device name");
+			}
 		} else {
 			snprintf(name, sizeof(name), "Wacom %s", product_name);
 		}
@@ -2242,7 +2244,9 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 		if (name[strlen(name)-1] == ' ')
 			name[strlen(name)-1] = '\0';
 	} else {
-		strscpy(name, features->name, sizeof(name));
+		if (strscpy(name, features->name, sizeof(name)) < 0) {
+			hid_warn(wacom->hdev, "String overflow while assembling device name");
+		}
 	}
 
 	snprintf(wacom_wac->name, sizeof(wacom_wac->name), "%s%s",
@@ -2372,13 +2376,6 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	if (error)
 		goto fail;
 
-	if (!(features->device_type & WACOM_DEVICETYPE_WL_MONITOR) &&
-	     (features->quirks & WACOM_QUIRK_BATTERY)) {
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
-	}
-
 	error = wacom_register_inputs(wacom);
 	if (error)
 		goto fail;
@@ -2417,8 +2414,13 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 		goto fail_quirks;
 	}
 
-	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR)
+	if (features->device_type & WACOM_DEVICETYPE_WL_MONITOR) {
 		error = hid_hw_open(hdev);
+		if (error) {
+			hid_err(hdev, "hw open failed\n");
+			goto fail_quirks;
+		}
+	}
 
 	wacom_set_shared_values(wacom_wac);
 	devres_close_group(&hdev->dev, wacom);
@@ -2507,11 +2509,10 @@ static void wacom_wireless_work(struct work_struct *work)
 				goto fail;
 		}
 
-		strscpy(wacom_wac->name, wacom_wac1->name,
-			sizeof(wacom_wac->name));
-		error = wacom_initialize_battery(wacom);
-		if (error)
-			goto fail;
+		if (strscpy(wacom_wac->name, wacom_wac1->name,
+			sizeof(wacom_wac->name)) < 0) {
+			hid_warn(wacom->hdev, "String overflow while assembling device name");
+		}
 	}
 
 	return;

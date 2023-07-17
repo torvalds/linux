@@ -120,7 +120,7 @@ struct carl9170_cmd *carl9170_cmd_buf(struct ar9170 *ar,
 {
 	struct carl9170_cmd *tmp;
 
-	tmp = kzalloc(sizeof(struct carl9170_cmd_head) + len, GFP_ATOMIC);
+	tmp = kzalloc(sizeof(*tmp), GFP_ATOMIC);
 	if (tmp) {
 		tmp->hdr.cmd = cmd;
 		tmp->hdr.len = len;

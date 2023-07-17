@@ -1,0 +1,266 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2008-2011 Freescale Semiconductor Inc.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/crypto/fsl,sec-v4.0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale SEC 4
+
+maintainers:
+  - '"Horia Geantă" <horia.geanta@nxp.com>'
+  - Pankaj Gupta <pankaj.gupta@nxp.com>
+  - Gaurav Jain <gaurav.jain@nxp.com>
+
+description: |
+  NOTE: the SEC 4 is also known as Freescale's Cryptographic Accelerator
+  Accelerator and Assurance Module (CAAM).
+
+  SEC 4 h/w can process requests from 2 types of sources.
+  1. DPAA Queue Interface (HW interface between Queue Manager & SEC 4).
+  2. Job Rings (HW interface between cores & SEC 4 registers).
+
+  High Speed Data Path Configuration:
+
+  HW interface between QM & SEC 4 and also BM & SEC 4, on DPAA-enabled parts
+  such as the P4080.  The number of simultaneous dequeues the QI can make is
+  equal to the number of Descriptor Controller (DECO) engines in a particular
+  SEC version.  E.g., the SEC 4.0 in the P4080 has 5 DECOs and can thus
+  dequeue from 5 subportals simultaneously.
+
+  Job Ring Data Path Configuration:
+
+  Each JR is located on a separate 4k page, they may (or may not) be made visible
+  in the memory partition devoted to a particular core.  The P4080 has 4 JRs, so
+  up to 4 JRs can be configured; and all 4 JRs process requests in parallel.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - const: fsl,sec-v5.4
+          - const: fsl,sec-v5.0
+          - const: fsl,sec-v4.0
+      - items:
+          - enum:
+              - fsl,imx6ul-caam
+              - fsl,sec-v5.0
+          - const: fsl,sec-v4.0
+      - const: fsl,sec-v4.0
+
+  reg:
+    maxItems: 1
+
+  ranges:
+    maxItems: 1
+
+  '#address-cells':
+    enum: [1, 2]
+
+  '#size-cells':
+    enum: [1, 2]
+
+  clocks:
+    minItems: 1
+    maxItems: 4
+
+  clock-names:
+    minItems: 1
+    maxItems: 4
+    items:
+      enum: [mem, aclk, ipg, emi_slow]
+
+  dma-coherent: true
+
+  interrupts:
+    maxItems: 1
+
+  fsl,sec-era:
+    description: Defines the 'ERA' of the SEC device.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+patternProperties:
+  '^jr@[0-9a-f]+$':
+    type: object
+    additionalProperties: false
+    description:
+      Job Ring (JR) Node. Defines data processing interface to SEC 4 across the
+      peripheral bus for purposes of processing cryptographic descriptors. The
+      specified address range can be made visible to one (or more) cores. The
+      interrupt defined for this node is controlled within the address range of
+      this node.
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: fsl,sec-v5.4-job-ring
+              - const: fsl,sec-v5.0-job-ring
+              - const: fsl,sec-v4.0-job-ring
+          - items:
+              - const: fsl,sec-v5.0-job-ring
+              - const: fsl,sec-v4.0-job-ring
+          - const: fsl,sec-v4.0-job-ring
+
+      reg:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      fsl,liodn:
+        description:
+          Specifies the LIODN to be used in conjunction with the ppid-to-liodn
+          table that specifies the PPID to LIODN mapping. Needed if the PAMU is
+          used.  Value is a 12 bit value where value is a LIODN ID for this JR.
+          This property is normally set by boot firmware.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        maximum: 0xfff
+
+  '^rtic@[0-9a-f]+$':
+    type: object
+    additionalProperties: false
+    description:
+      Run Time Integrity Check (RTIC) Node. Defines a register space that
+      contains up to 5 sets of addresses and their lengths (sizes) that will be
+      checked at run time.  After an initial hash result is calculated, these
+      addresses are checked by HW to monitor any change.  If any memory is
+      modified, a Security Violation is triggered (see SNVS definition).
+
+    properties:
+      compatible:
+        oneOf:
+          - items:
+              - const: fsl,sec-v5.4-rtic
+              - const: fsl,sec-v5.0-rtic
+              - const: fsl,sec-v4.0-rtic
+          - const: fsl,sec-v4.0-rtic
+
+      reg:
+        maxItems: 1
+
+      ranges:
+        maxItems: 1
+
+      interrupts:
+        maxItems: 1
+
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 1
+
+    patternProperties:
+      '^rtic-[a-z]@[0-9a-f]+$':
+        type: object
+        additionalProperties: false
+        description:
+          Run Time Integrity Check (RTIC) Memory Node defines individual RTIC
+          memory regions that are used to perform run-time integrity check of
+          memory areas that should not modified. The node defines a register
+          that contains the memory address & length (combined) and a second
+          register that contains the hash result in big endian format.
+
+        properties:
+          compatible:
+            oneOf:
+              - items:
+                  - const: fsl,sec-v5.4-rtic-memory
+                  - const: fsl,sec-v5.0-rtic-memory
+                  - const: fsl,sec-v4.0-rtic-memory
+              - const: fsl,sec-v4.0-rtic-memory
+
+          reg:
+            items:
+              - description: RTIC memory address
+              - description: RTIC hash result
+
+          fsl,liodn:
+            description:
+              Specifies the LIODN to be used in conjunction with the
+              ppid-to-liodn table that specifies the PPID to LIODN mapping.
+              Needed if the PAMU is used.  Value is a 12 bit value where value
+              is a LIODN ID for this JR. This property is normally set by boot
+              firmware.
+            $ref: /schemas/types.yaml#/definitions/uint32
+            maximum: 0xfff
+
+          fsl,rtic-region:
+            description:
+              Specifies the HW address (36 bit address) for this region
+              followed by the length of the HW partition to be checked;
+              the address is represented as a 64 bit quantity followed
+              by a 32 bit length.
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+
+required:
+  - compatible
+  - reg
+  - ranges
+
+additionalProperties: false
+
+examples:
+  - |
+    crypto@300000 {
+        compatible = "fsl,sec-v4.0";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        reg = <0x300000 0x10000>;
+        ranges = <0 0x300000 0x10000>;
+        interrupts = <92 2>;
+
+        jr@1000 {
+            compatible = "fsl,sec-v4.0-job-ring";
+            reg = <0x1000 0x1000>;
+            interrupts = <88 2>;
+        };
+
+        jr@2000 {
+            compatible = "fsl,sec-v4.0-job-ring";
+            reg = <0x2000 0x1000>;
+            interrupts = <89 2>;
+        };
+
+        jr@3000 {
+            compatible = "fsl,sec-v4.0-job-ring";
+            reg = <0x3000 0x1000>;
+            interrupts = <90 2>;
+        };
+
+        jr@4000 {
+            compatible = "fsl,sec-v4.0-job-ring";
+            reg = <0x4000 0x1000>;
+            interrupts = <91 2>;
+        };
+
+        rtic@6000 {
+            compatible = "fsl,sec-v4.0-rtic";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            reg = <0x6000 0x100>;
+            ranges = <0x0 0x6100 0xe00>;
+
+            rtic-a@0 {
+                compatible = "fsl,sec-v4.0-rtic-memory";
+                reg = <0x00 0x20>, <0x100 0x80>;
+            };
+
+            rtic-b@20 {
+                compatible = "fsl,sec-v4.0-rtic-memory";
+                reg = <0x20 0x20>, <0x200 0x80>;
+            };
+
+            rtic-c@40 {
+                compatible = "fsl,sec-v4.0-rtic-memory";
+                reg = <0x40 0x20>, <0x300 0x80>;
+            };
+
+            rtic-d@60 {
+                compatible = "fsl,sec-v4.0-rtic-memory";
+                reg = <0x60 0x20>, <0x500 0x80>;
+            };
+        };
+    };
+...

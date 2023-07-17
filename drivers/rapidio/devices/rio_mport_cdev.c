@@ -2536,10 +2536,8 @@ static void mport_cdev_remove(struct mport_dev *md)
 /*
  * mport_add_mport() - Add rio_mport from LDM device struct
  * @dev:		Linux device model struct
- * @class_intf:	Linux class_interface
  */
-static int mport_add_mport(struct device *dev,
-		struct class_interface *class_intf)
+static int mport_add_mport(struct device *dev)
 {
 	struct rio_mport *mport = NULL;
 	struct mport_dev *chdev = NULL;
@@ -2559,8 +2557,7 @@ static int mport_add_mport(struct device *dev,
  * mport_remove_mport() - Remove rio_mport from global list
  * TODO remove device from global mport_dev list
  */
-static void mport_remove_mport(struct device *dev,
-		struct class_interface *class_intf)
+static void mport_remove_mport(struct device *dev)
 {
 	struct rio_mport *mport = NULL;
 	struct mport_dev *chdev;
@@ -2603,7 +2600,7 @@ static int __init mport_init(void)
 	int ret;
 
 	/* Create device class needed by udev */
-	dev_class = class_create(THIS_MODULE, DRV_NAME);
+	dev_class = class_create(DRV_NAME);
 	if (IS_ERR(dev_class)) {
 		rmcd_error("Unable to create " DRV_NAME " class");
 		return PTR_ERR(dev_class);

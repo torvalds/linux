@@ -444,6 +444,7 @@ static int uvd_v7_0_sw_init(void *handle)
 			continue;
 		if (!amdgpu_sriov_vf(adev)) {
 			ring = &adev->uvd.inst[j].ring;
+			ring->vm_hub = AMDGPU_MMHUB_0;
 			sprintf(ring->name, "uvd_%d", ring->me);
 			r = amdgpu_ring_init(adev, ring, 512,
 					     &adev->uvd.inst[j].irq, 0,
@@ -454,6 +455,7 @@ static int uvd_v7_0_sw_init(void *handle)
 
 		for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
 			ring = &adev->uvd.inst[j].ring_enc[i];
+			ring->vm_hub = AMDGPU_MMHUB_0;
 			sprintf(ring->name, "uvd_enc_%d.%d", ring->me, i);
 			if (amdgpu_sriov_vf(adev)) {
 				ring->use_doorbell = true;
@@ -1397,7 +1399,7 @@ static void uvd_v7_0_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 static void uvd_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 	uint32_t data0, data1, mask;
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
@@ -1440,7 +1442,7 @@ static void uvd_v7_0_enc_ring_emit_reg_wait(struct amdgpu_ring *ring,
 static void uvd_v7_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					    unsigned int vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
+	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->vm_hub];
 
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
@@ -1802,7 +1804,6 @@ static const struct amdgpu_ring_funcs uvd_v7_0_ring_vm_funcs = {
 	.align_mask = 0xf,
 	.support_64bit_ptrs = false,
 	.no_user_fence = true,
-	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = uvd_v7_0_ring_get_rptr,
 	.get_wptr = uvd_v7_0_ring_get_wptr,
 	.set_wptr = uvd_v7_0_ring_set_wptr,
@@ -1835,7 +1836,6 @@ static const struct amdgpu_ring_funcs uvd_v7_0_enc_ring_vm_funcs = {
 	.nop = HEVC_ENC_CMD_NO_OP,
 	.support_64bit_ptrs = false,
 	.no_user_fence = true,
-	.vmhub = AMDGPU_MMHUB_0,
 	.get_rptr = uvd_v7_0_enc_ring_get_rptr,
 	.get_wptr = uvd_v7_0_enc_ring_get_wptr,
 	.set_wptr = uvd_v7_0_enc_ring_set_wptr,

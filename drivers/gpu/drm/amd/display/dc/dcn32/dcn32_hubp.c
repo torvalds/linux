@@ -47,6 +47,15 @@ void hubp32_update_force_pstate_disallow(struct hubp *hubp, bool pstate_disallow
 			DATA_UCLK_PSTATE_FORCE_VALUE, 0);
 }
 
+void hubp32_update_force_cursor_pstate_disallow(struct hubp *hubp, bool pstate_disallow)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_UPDATE_2(UCLK_PSTATE_FORCE,
+			CURSOR_UCLK_PSTATE_FORCE_EN, pstate_disallow,
+			CURSOR_UCLK_PSTATE_FORCE_VALUE, 0);
+}
+
 void hubp32_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -188,6 +197,7 @@ static struct hubp_funcs dcn32_hubp_funcs = {
 	.hubp_set_flip_int = hubp1_set_flip_int,
 	.hubp_in_blank = hubp1_in_blank,
 	.hubp_update_force_pstate_disallow = hubp32_update_force_pstate_disallow,
+	.hubp_update_force_cursor_pstate_disallow = hubp32_update_force_cursor_pstate_disallow,
 	.phantom_hubp_post_enable = hubp32_phantom_hubp_post_enable,
 	.hubp_update_mall_sel = hubp32_update_mall_sel,
 	.hubp_prepare_subvp_buffering = hubp32_prepare_subvp_buffering

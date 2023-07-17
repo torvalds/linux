@@ -825,19 +825,9 @@ int f2fs_recover_fsync_data(struct f2fs_sb_info *sbi, bool check_only)
 	unsigned long s_flags = sbi->sb->s_flags;
 	bool need_writecp = false;
 	bool fix_curseg_write_pointer = false;
-#ifdef CONFIG_QUOTA
-	int quota_enabled;
-#endif
 
-	if (s_flags & SB_RDONLY) {
+	if (is_sbi_flag_set(sbi, SBI_IS_WRITABLE))
 		f2fs_info(sbi, "recover fsync data on readonly fs");
-		sbi->sb->s_flags &= ~SB_RDONLY;
-	}
-
-#ifdef CONFIG_QUOTA
-	/* Turn on quotas so that they are updated correctly */
-	quota_enabled = f2fs_enable_quota_files(sbi, s_flags & SB_RDONLY);
-#endif
 
 	INIT_LIST_HEAD(&inode_list);
 	INIT_LIST_HEAD(&tmp_inode_list);
@@ -909,11 +899,6 @@ skip:
 		}
 	}
 
-#ifdef CONFIG_QUOTA
-	/* Turn quotas off */
-	if (quota_enabled)
-		f2fs_quota_off_umount(sbi->sb);
-#endif
 	sbi->sb->s_flags = s_flags; /* Restore SB_RDONLY status */
 
 	return ret ? ret : err;

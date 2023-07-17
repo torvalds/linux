@@ -775,7 +775,7 @@ out_master_put:
 	return ret;
 }
 
-static int uniphier_spi_remove(struct platform_device *pdev)
+static void uniphier_spi_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct uniphier_spi_priv *priv = spi_master_get_devdata(master);
@@ -786,8 +786,6 @@ static int uniphier_spi_remove(struct platform_device *pdev)
 		dma_release_channel(master->dma_rx);
 
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static const struct of_device_id uniphier_spi_match[] = {
@@ -798,7 +796,7 @@ MODULE_DEVICE_TABLE(of, uniphier_spi_match);
 
 static struct platform_driver uniphier_spi_driver = {
 	.probe = uniphier_spi_probe,
-	.remove = uniphier_spi_remove,
+	.remove_new = uniphier_spi_remove,
 	.driver = {
 		.name = "uniphier-spi",
 		.of_match_table = uniphier_spi_match,

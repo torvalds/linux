@@ -20,7 +20,7 @@ content which can be replaced by a single write-protected page (which
 is automatically copied if a process later wants to update its
 content). The amount of pages that KSM daemon scans in a single pass
 and the time between the passes are configured using :ref:`sysfs
-intraface <ksm_sysfs>`
+interface <ksm_sysfs>`
 
 KSM only merges anonymous (private) pages, never pagecache (file) pages.
 KSM's merged pages were originally locked into kernel memory, but can now
@@ -157,6 +157,8 @@ stable_node_chains_prune_millisecs
 
 The effectiveness of KSM and MADV_MERGEABLE is shown in ``/sys/kernel/mm/ksm/``:
 
+general_profit
+        how effective is KSM. The calculation is explained below.
 pages_shared
         how many shared pages are being used
 pages_sharing
@@ -207,7 +209,8 @@ several times, which are unprofitable memory consumed.
 			  ksm_rmap_items * sizeof(rmap_item).
 
    where ksm_merging_pages is shown under the directory ``/proc/<pid>/``,
-   and ksm_rmap_items is shown in ``/proc/<pid>/ksm_stat``.
+   and ksm_rmap_items is shown in ``/proc/<pid>/ksm_stat``. The process profit
+   is also shown in ``/proc/<pid>/ksm_stat`` as ksm_process_profit.
 
 From the perspective of application, a high ratio of ``ksm_rmap_items`` to
 ``ksm_merging_pages`` means a bad madvise-applied policy, so developers or

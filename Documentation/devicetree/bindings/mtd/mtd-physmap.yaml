@@ -14,7 +14,7 @@ description: |
   file systems on embedded devices.
 
 allOf:
-  - $ref: "mtd.yaml#"
+  - $ref: mtd.yaml#
   - $ref: /schemas/memory-controllers/mc-peripheral-props.yaml#
 
 properties:

@@ -3185,10 +3185,6 @@ static int mt8188_afe_pcm_dev_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "init clock error");
 
-	ret = devm_add_action_or_reset(dev, mt8188_afe_deinit_clock, (void *)afe);
-	if (ret)
-		return ret;
-
 	spin_lock_init(&afe_priv->afe_ctrl_lock);
 
 	mutex_init(&afe->irq_alloc_lock);
@@ -3323,11 +3319,9 @@ err_pm_put:
 	return ret;
 }
 
-static int mt8188_afe_pcm_dev_remove(struct platform_device *pdev)
+static void mt8188_afe_pcm_dev_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id mt8188_afe_pcm_dt_match[] = {
@@ -3348,7 +3342,7 @@ static struct platform_driver mt8188_afe_pcm_driver = {
 		   .pm = &mt8188_afe_pm_ops,
 	},
 	.probe = mt8188_afe_pcm_dev_probe,
-	.remove = mt8188_afe_pcm_dev_remove,
+	.remove_new = mt8188_afe_pcm_dev_remove,
 };
 
 module_platform_driver(mt8188_afe_pcm_driver);

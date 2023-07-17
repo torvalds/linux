@@ -5,6 +5,7 @@
 #include <asm/ptrace.h>	/* for STACK_FRAME_REGS_MARKER */
 #include <asm/kvm_asm.h>
 #include <asm/kvm_booke_hv_asm.h>
+#include <asm/thread_info.h>	/* for THREAD_SHIFT */
 
 #ifdef __ASSEMBLY__
 

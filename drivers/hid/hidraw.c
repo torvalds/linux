@@ -618,7 +618,7 @@ int __init hidraw_init(void)
 
 	hidraw_major = MAJOR(dev_id);
 
-	hidraw_class = class_create(THIS_MODULE, "hidraw");
+	hidraw_class = class_create("hidraw");
 	if (IS_ERR(hidraw_class)) {
 		result = PTR_ERR(hidraw_class);
 		goto error_cdev;

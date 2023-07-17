@@ -1618,6 +1618,8 @@ int amdgpu_display_suspend_helper(struct amdgpu_device *adev)
 	struct drm_connector_list_iter iter;
 	int r;
 
+	drm_kms_helper_poll_disable(dev);
+
 	/* turn off display hw */
 	drm_modeset_lock_all(dev);
 	drm_connector_list_iter_begin(dev, &iter);
@@ -1693,6 +1695,8 @@ int amdgpu_display_resume_helper(struct amdgpu_device *adev)
 	drm_connector_list_iter_end(&iter);
 
 	drm_modeset_unlock_all(dev);
+
+	drm_kms_helper_poll_enable(dev);
 
 	return 0;
 }

@@ -126,7 +126,7 @@ static int mhi_ep_process_cmd_ring(struct mhi_ep_ring *ring, struct mhi_ring_ele
 
 	/* Check if the channel is supported by the controller */
 	if ((ch_id >= mhi_cntrl->max_chan) || !mhi_cntrl->mhi_chan[ch_id].name) {
-		dev_err(dev, "Channel (%u) not supported!\n", ch_id);
+		dev_dbg(dev, "Channel (%u) not supported!\n", ch_id);
 		return -ENODEV;
 	}
 
@@ -702,7 +702,7 @@ static void mhi_ep_cmd_ring_worker(struct work_struct *work)
 		el = &ring->ring_cache[ring->rd_offset];
 
 		ret = mhi_ep_process_cmd_ring(ring, el);
-		if (ret)
+		if (ret && ret != -ENODEV)
 			dev_err(dev, "Error processing cmd ring element: %zu\n", ring->rd_offset);
 
 		mhi_ep_ring_inc_index(ring);

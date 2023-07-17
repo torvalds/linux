@@ -27,7 +27,20 @@
  * This file owns the creation/destruction of link structure.
  */
 #include "link_factory.h"
+#include "link_detection.h"
+#include "link_resource.h"
+#include "link_validation.h"
+#include "link_dpms.h"
+#include "accessories/link_dp_cts.h"
+#include "accessories/link_dp_trace.h"
+#include "accessories/link_fpga.h"
 #include "protocols/link_ddc.h"
+#include "protocols/link_dp_capability.h"
+#include "protocols/link_dp_dpia_bw.h"
+#include "protocols/link_dp_dpia.h"
+#include "protocols/link_dp_irq_handler.h"
+#include "protocols/link_dp_phy.h"
+#include "protocols/link_dp_training.h"
 #include "protocols/link_edp_panel_control.h"
 #include "protocols/link_hpd.h"
 #include "gpio_service_interface.h"
@@ -39,7 +52,249 @@
 	DC_LOG_HW_HOTPLUG(  \
 		__VA_ARGS__)
 
-static enum transmitter translate_encoder_to_transmitter(struct graphics_object_id encoder)
+/* link factory owns the creation/destruction of link structures. */
+static void construct_link_service_factory(struct link_service *link_srv)
+{
+
+	link_srv->create_link = link_create;
+	link_srv->destroy_link = link_destroy;
+}
+
+/* link_detection manages link detection states and receiver states by using
+ * various link protocols. It also provides helper functions to interpret
+ * certain capabilities or status based on the states it manages or retrieve
+ * them directly from connected receivers.
+ */
+static void construct_link_service_detection(struct link_service *link_srv)
+{
+	link_srv->detect_link = link_detect;
+	link_srv->detect_connection_type = link_detect_connection_type;
+	link_srv->add_remote_sink = link_add_remote_sink;
+	link_srv->remove_remote_sink = link_remove_remote_sink;
+	link_srv->get_hpd_state = link_get_hpd_state;
+	link_srv->get_hpd_gpio = link_get_hpd_gpio;
+	link_srv->enable_hpd = link_enable_hpd;
+	link_srv->disable_hpd = link_disable_hpd;
+	link_srv->enable_hpd_filter = link_enable_hpd_filter;
+	link_srv->reset_cur_dp_mst_topology = link_reset_cur_dp_mst_topology;
+	link_srv->get_status = link_get_status;
+	link_srv->is_hdcp1x_supported = link_is_hdcp14;
+	link_srv->is_hdcp2x_supported = link_is_hdcp22;
+	link_srv->clear_dprx_states = link_clear_dprx_states;
+}
+
+/* link resource implements accessors to link resource. */
+static void construct_link_service_resource(struct link_service *link_srv)
+{
+	link_srv->get_cur_res_map = link_get_cur_res_map;
+	link_srv->restore_res_map = link_restore_res_map;
+	link_srv->get_cur_link_res = link_get_cur_link_res;
+}
+
+/* link validation owns timing validation against various link limitations. (ex.
+ * link bandwidth, receiver capability or our hardware capability) It also
+ * provides helper functions exposing bandwidth formulas used in validation.
+ */
+static void construct_link_service_validation(struct link_service *link_srv)
+{
+	link_srv->validate_mode_timing = link_validate_mode_timing;
+	link_srv->dp_link_bandwidth_kbps = dp_link_bandwidth_kbps;
+	link_srv->validate_dpia_bandwidth = link_validate_dpia_bandwidth;
+}
+
+/* link dpms owns the programming sequence of stream's dpms state associated
+ * with the link and link's enable/disable sequences as result of the stream's
+ * dpms state change.
+ */
+static void construct_link_service_dpms(struct link_service *link_srv)
+{
+	link_srv->set_dpms_on = link_set_dpms_on;
+	link_srv->set_dpms_off = link_set_dpms_off;
+	link_srv->resume = link_resume;
+	link_srv->blank_all_dp_displays = link_blank_all_dp_displays;
+	link_srv->blank_all_edp_displays = link_blank_all_edp_displays;
+	link_srv->blank_dp_stream = link_blank_dp_stream;
+	link_srv->increase_mst_payload = link_increase_mst_payload;
+	link_srv->reduce_mst_payload = link_reduce_mst_payload;
+	link_srv->set_dsc_on_stream = link_set_dsc_on_stream;
+	link_srv->set_dsc_enable = link_set_dsc_enable;
+	link_srv->update_dsc_config = link_update_dsc_config;
+}
+
+/* link ddc implements generic display communication protocols such as i2c, aux
+ * and scdc. It should not contain any specific applications of these
+ * protocols such as display capability query, detection, or handshaking such as
+ * link training.
+ */
+static void construct_link_service_ddc(struct link_service *link_srv)
+{
+	link_srv->create_ddc_service = link_create_ddc_service;
+	link_srv->destroy_ddc_service = link_destroy_ddc_service;
+	link_srv->query_ddc_data = link_query_ddc_data;
+	link_srv->aux_transfer_raw = link_aux_transfer_raw;
+	link_srv->aux_transfer_with_retries_no_mutex =
+			link_aux_transfer_with_retries_no_mutex;
+	link_srv->is_in_aux_transaction_mode = link_is_in_aux_transaction_mode;
+	link_srv->get_aux_defer_delay = link_get_aux_defer_delay;
+}
+
+/* link dp capability implements dp specific link capability retrieval sequence.
+ * It is responsible for retrieving, parsing, overriding, deciding capability
+ * obtained from dp link. Link capability consists of encoders, DPRXs, cables,
+ * retimers, usb and all other possible backend capabilities.
+ */
+static void construct_link_service_dp_capability(struct link_service *link_srv)
+{
+	link_srv->dp_is_sink_present = dp_is_sink_present;
+	link_srv->dp_is_fec_supported = dp_is_fec_supported;
+	link_srv->dp_is_128b_132b_signal = dp_is_128b_132b_signal;
+	link_srv->dp_get_max_link_enc_cap = dp_get_max_link_enc_cap;
+	link_srv->dp_get_verified_link_cap = dp_get_verified_link_cap;
+	link_srv->dp_get_encoding_format = link_dp_get_encoding_format;
+	link_srv->dp_should_enable_fec = dp_should_enable_fec;
+	link_srv->dp_decide_link_settings = link_decide_link_settings;
+	link_srv->mst_decide_link_encoding_format =
+			mst_decide_link_encoding_format;
+	link_srv->edp_decide_link_settings = edp_decide_link_settings;
+	link_srv->bw_kbps_from_raw_frl_link_rate_data =
+			link_bw_kbps_from_raw_frl_link_rate_data;
+	link_srv->dp_overwrite_extended_receiver_cap =
+			dp_overwrite_extended_receiver_cap;
+	link_srv->dp_decide_lttpr_mode = dp_decide_lttpr_mode;
+}
+
+/* link dp phy/dpia implements basic dp phy/dpia functionality such as
+ * enable/disable output and set lane/drive settings. It is responsible for
+ * maintaining and update software state representing current phy/dpia status
+ * such as current link settings.
+ */
+static void construct_link_service_dp_phy_or_dpia(struct link_service *link_srv)
+{
+	link_srv->dpia_handle_usb4_bandwidth_allocation_for_link =
+			dpia_handle_usb4_bandwidth_allocation_for_link;
+	link_srv->dpia_handle_bw_alloc_response = dpia_handle_bw_alloc_response;
+	link_srv->dp_set_drive_settings = dp_set_drive_settings;
+	link_srv->dpcd_write_rx_power_ctrl = dpcd_write_rx_power_ctrl;
+}
+
+/* link dp irq handler implements DP HPD short pulse handling sequence according
+ * to DP specifications
+ */
+static void construct_link_service_dp_irq_handler(struct link_service *link_srv)
+{
+	link_srv->dp_parse_link_loss_status = dp_parse_link_loss_status;
+	link_srv->dp_should_allow_hpd_rx_irq = dp_should_allow_hpd_rx_irq;
+	link_srv->dp_handle_link_loss = dp_handle_link_loss;
+	link_srv->dp_read_hpd_rx_irq_data = dp_read_hpd_rx_irq_data;
+	link_srv->dp_handle_hpd_rx_irq = dp_handle_hpd_rx_irq;
+}
+
+/* link edp panel control implements retrieval and configuration of eDP panel
+ * features such as PSR and ABM and it also manages specs defined eDP panel
+ * power sequences.
+ */
+static void construct_link_service_edp_panel_control(struct link_service *link_srv)
+{
+	link_srv->edp_panel_backlight_power_on = edp_panel_backlight_power_on;
+	link_srv->edp_get_backlight_level = edp_get_backlight_level;
+	link_srv->edp_get_backlight_level_nits = edp_get_backlight_level_nits;
+	link_srv->edp_set_backlight_level = edp_set_backlight_level;
+	link_srv->edp_set_backlight_level_nits = edp_set_backlight_level_nits;
+	link_srv->edp_get_target_backlight_pwm = edp_get_target_backlight_pwm;
+	link_srv->edp_get_psr_state = edp_get_psr_state;
+	link_srv->edp_set_psr_allow_active = edp_set_psr_allow_active;
+	link_srv->edp_setup_psr = edp_setup_psr;
+	link_srv->edp_set_sink_vtotal_in_psr_active =
+			edp_set_sink_vtotal_in_psr_active;
+	link_srv->edp_get_psr_residency = edp_get_psr_residency;
+	link_srv->edp_wait_for_t12 = edp_wait_for_t12;
+	link_srv->edp_is_ilr_optimization_required =
+			edp_is_ilr_optimization_required;
+	link_srv->edp_backlight_enable_aux = edp_backlight_enable_aux;
+	link_srv->edp_add_delay_for_T9 = edp_add_delay_for_T9;
+	link_srv->edp_receiver_ready_T9 = edp_receiver_ready_T9;
+	link_srv->edp_receiver_ready_T7 = edp_receiver_ready_T7;
+	link_srv->edp_power_alpm_dpcd_enable = edp_power_alpm_dpcd_enable;
+}
+
+/* link dp cts implements dp compliance test automation protocols and manual
+ * testing interfaces for debugging and certification purpose.
+ */
+static void construct_link_service_dp_cts(struct link_service *link_srv)
+{
+	link_srv->dp_handle_automated_test = dp_handle_automated_test;
+	link_srv->dp_set_test_pattern = dp_set_test_pattern;
+	link_srv->dp_set_preferred_link_settings =
+			dp_set_preferred_link_settings;
+	link_srv->dp_set_preferred_training_settings =
+			dp_set_preferred_training_settings;
+}
+
+/* link dp trace implements tracing interfaces for tracking major dp sequences
+ * including execution status and timestamps
+ */
+static void construct_link_service_dp_trace(struct link_service *link_srv)
+{
+	link_srv->dp_trace_is_initialized = dp_trace_is_initialized;
+	link_srv->dp_trace_set_is_logged_flag = dp_trace_set_is_logged_flag;
+	link_srv->dp_trace_is_logged = dp_trace_is_logged;
+	link_srv->dp_trace_get_lt_end_timestamp = dp_trace_get_lt_end_timestamp;
+	link_srv->dp_trace_get_lt_counts = dp_trace_get_lt_counts;
+	link_srv->dp_trace_get_link_loss_count = dp_trace_get_link_loss_count;
+	link_srv->dp_trace_set_edp_power_timestamp =
+			dp_trace_set_edp_power_timestamp;
+	link_srv->dp_trace_get_edp_poweron_timestamp =
+			dp_trace_get_edp_poweron_timestamp;
+	link_srv->dp_trace_get_edp_poweroff_timestamp =
+			dp_trace_get_edp_poweroff_timestamp;
+	link_srv->dp_trace_source_sequence = dp_trace_source_sequence;
+}
+
+static void construct_link_service(struct link_service *link_srv)
+{
+	/* All link service functions should fall under some sub categories.
+	 * If a new function doesn't perfectly fall under an existing sub
+	 * category, it must be that you are either adding a whole new aspect of
+	 * responsibility to link service or something doesn't belong to link
+	 * service. In that case please contact the arch owner to arrange a
+	 * design review meeting.
+	 */
+	construct_link_service_factory(link_srv);
+	construct_link_service_detection(link_srv);
+	construct_link_service_resource(link_srv);
+	construct_link_service_validation(link_srv);
+	construct_link_service_dpms(link_srv);
+	construct_link_service_ddc(link_srv);
+	construct_link_service_dp_capability(link_srv);
+	construct_link_service_dp_phy_or_dpia(link_srv);
+	construct_link_service_dp_irq_handler(link_srv);
+	construct_link_service_edp_panel_control(link_srv);
+	construct_link_service_dp_cts(link_srv);
+	construct_link_service_dp_trace(link_srv);
+}
+
+struct link_service *link_create_link_service(void)
+{
+	struct link_service *link_srv = kzalloc(sizeof(*link_srv), GFP_KERNEL);
+
+	if (link_srv == NULL)
+		goto fail;
+
+	construct_link_service(link_srv);
+
+	return link_srv;
+fail:
+	return NULL;
+}
+
+void link_destroy_link_service(struct link_service **link_srv)
+{
+	kfree(*link_srv);
+	*link_srv = NULL;
+}
+
+static enum transmitter translate_encoder_to_transmitter(
+		struct graphics_object_id encoder)
 {
 	switch (encoder.id) {
 	case ENCODER_ID_INTERNAL_UNIPHY:
@@ -181,7 +436,7 @@ static enum channel_id get_ddc_line(struct dc_link *link)
 	return channel;
 }
 
-static bool dc_link_construct_phy(struct dc_link *link,
+static bool construct_phy(struct dc_link *link,
 			      const struct link_init_data *init_params)
 {
 	uint8_t i;
@@ -274,14 +529,18 @@ static bool dc_link_construct_phy(struct dc_link *link,
 				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 
 			switch (link->dc->config.allow_edp_hotplug_detection) {
-			case 1: // only the 1st eDP handles hotplug
+			case HPD_EN_FOR_ALL_EDP:
+				link->irq_source_hpd_rx =
+						dal_irq_get_rx_source(link->hpd_gpio);
+				break;
+			case HPD_EN_FOR_PRIMARY_EDP_ONLY:
 				if (link->link_index == 0)
 					link->irq_source_hpd_rx =
 						dal_irq_get_rx_source(link->hpd_gpio);
 				else
 					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 				break;
-			case 2: // only the 2nd eDP handles hotplug
+			case HPD_EN_FOR_SECONDARY_EDP_ONLY:
 				if (link->link_index == 1)
 					link->irq_source_hpd_rx =
 						dal_irq_get_rx_source(link->hpd_gpio);
@@ -289,6 +548,7 @@ static bool dc_link_construct_phy(struct dc_link *link,
 					link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 				break;
 			default:
+				link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
 				break;
 			}
 		}
@@ -473,7 +733,7 @@ create_fail:
 	return false;
 }
 
-static bool dc_link_construct_dpia(struct dc_link *link,
+static bool construct_dpia(struct dc_link *link,
 			      const struct link_init_data *init_params)
 {
 	struct ddc_service_init_data ddc_service_init_data = { 0 };
@@ -543,9 +803,9 @@ static bool link_construct(struct dc_link *link,
 {
 	/* Handle dpia case */
 	if (init_params->is_dpia_link == true)
-		return dc_link_construct_dpia(link, init_params);
+		return construct_dpia(link, init_params);
 	else
-		return dc_link_construct_phy(link, init_params);
+		return construct_phy(link, init_params);
 }
 
 struct dc_link *link_create(const struct link_init_data *init_params)
@@ -574,4 +834,3 @@ void link_destroy(struct dc_link **link)
 	kfree(*link);
 	*link = NULL;
 }
-

@@ -14,6 +14,7 @@ Contents:
    3com/vortex
    amazon/ena
    altera/altera_tse
+   amd/pds_core
    aquantia/atlantic
    chelsio/cxgb
    cirrus/cs89x0
@@ -31,7 +32,6 @@ Contents:
    intel/fm10k
    intel/igb
    intel/igbvf
-   intel/ixgb
    intel/ixgbe
    intel/ixgbevf
    intel/i40e

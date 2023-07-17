@@ -1194,7 +1194,7 @@ static void at91_dma_buffer_done(void *data)
 {
 	struct iio_dev *indio_dev = data;
 
-	iio_trigger_poll_chained(indio_dev->trig);
+	iio_trigger_poll_nested(indio_dev->trig);
 }
 
 static int at91_adc_dma_start(struct iio_dev *indio_dev)
@@ -1409,7 +1409,7 @@ static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *indio,
 	trig = devm_iio_trigger_alloc(&indio->dev, "%s-dev%d-%s", indio->name,
 				iio_device_id(indio), trigger_name);
 	if (!trig)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	trig->dev.parent = indio->dev.parent;
 	iio_trigger_set_drvdata(trig, indio);
@@ -2400,12 +2400,8 @@ static int at91_adc_probe(struct platform_device *pdev)
 	st->dma_st.phys_addr = res->start;
 
 	st->irq = platform_get_irq(pdev, 0);
-	if (st->irq <= 0) {
-		if (!st->irq)
-			st->irq = -ENXIO;
-
+	if (st->irq < 0)
 		return st->irq;
-	}
 
 	st->per_clk = devm_clk_get(&pdev->dev, "adc_clk");
 	if (IS_ERR(st->per_clk))

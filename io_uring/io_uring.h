@@ -16,6 +16,20 @@
 #endif
 
 enum {
+	/* don't use deferred task_work */
+	IOU_F_TWQ_FORCE_NORMAL			= 1,
+
+	/*
+	 * A hint to not wake right away but delay until there are enough of
+	 * tw's queued to match the number of CQEs the task is waiting for.
+	 *
+	 * Must not be used wirh requests generating more than one CQE.
+	 * It's also ignored unless IORING_SETUP_DEFER_TASKRUN is set.
+	 */
+	IOU_F_TWQ_LAZY_WAKE			= 2,
+};
+
+enum {
 	IOU_OK			= 0,
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 
@@ -48,20 +62,20 @@ static inline bool io_req_ffs_set(struct io_kiocb *req)
 	return req->flags & REQ_F_FIXED_FILE;
 }
 
-void __io_req_task_work_add(struct io_kiocb *req, bool allow_local);
+void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_queue(struct io_kiocb *req);
-void io_queue_iowq(struct io_kiocb *req, bool *dont_use);
-void io_req_task_complete(struct io_kiocb *req, bool *locked);
+void io_queue_iowq(struct io_kiocb *req, struct io_tw_state *ts_dont_use);
+void io_req_task_complete(struct io_kiocb *req, struct io_tw_state *ts);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
-void io_req_task_submit(struct io_kiocb *req, bool *locked);
+void io_req_task_submit(struct io_kiocb *req, struct io_tw_state *ts);
 void tctx_task_work(struct callback_head *cb);
 __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 int io_uring_alloc_task_context(struct task_struct *task,
 				struct io_ring_ctx *ctx);
 
-int io_poll_issue(struct io_kiocb *req, bool *locked);
+int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
 void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node);
@@ -80,6 +94,8 @@ bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 
 #define io_lockdep_assert_cq_locked(ctx)				\
 	do {								\
+		lockdep_assert(in_task());				\
+									\
 		if (ctx->flags & IORING_SETUP_IOPOLL) {			\
 			lockdep_assert_held(&ctx->uring_lock);		\
 		} else if (!ctx->task_complete) {			\
@@ -93,7 +109,7 @@ bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
-	__io_req_task_work_add(req, true);
+	__io_req_task_work_add(req, 0);
 }
 
 #define io_for_each_link(pos, head) \
@@ -228,8 +244,7 @@ static inline void io_poll_wq_wake(struct io_ring_ctx *ctx)
 				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
 }
 
-/* requires smb_mb() prior, see wq_has_sleeper() */
-static inline void __io_cqring_wake(struct io_ring_ctx *ctx)
+static inline void io_cqring_wake(struct io_ring_ctx *ctx)
 {
 	/*
 	 * Trigger waitqueue handler on all waiters on our waitqueue. This
@@ -241,15 +256,9 @@ static inline void __io_cqring_wake(struct io_ring_ctx *ctx)
 	 * waitqueue handlers, we know we have a dependency between eventfd or
 	 * epoll and should terminate multishot poll at that point.
 	 */
-	if (waitqueue_active(&ctx->cq_wait))
+	if (wq_has_sleeper(&ctx->cq_wait))
 		__wake_up(&ctx->cq_wait, TASK_NORMAL, 0,
 				poll_to_key(EPOLL_URING_WAKE | EPOLLIN));
-}
-
-static inline void io_cqring_wake(struct io_ring_ctx *ctx)
-{
-	smp_mb();
-	__io_cqring_wake(ctx);
 }
 
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)
@@ -262,9 +271,11 @@ static inline bool io_sqring_full(struct io_ring_ctx *ctx)
 static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
+	unsigned int entries;
 
 	/* make sure SQ entry isn't read before tail */
-	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
+	entries = smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
+	return min(entries, ctx->sq_entries);
 }
 
 static inline int io_run_task_work(void)
@@ -299,11 +310,11 @@ static inline bool io_task_work_pending(struct io_ring_ctx *ctx)
 	return task_work_pending(current) || !wq_list_empty(&ctx->work_llist);
 }
 
-static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
+static inline void io_tw_lock(struct io_ring_ctx *ctx, struct io_tw_state *ts)
 {
-	if (!*locked) {
+	if (!ts->locked) {
 		mutex_lock(&ctx->uring_lock);
-		*locked = true;
+		ts->locked = true;
 	}
 }
 
@@ -383,4 +394,14 @@ static inline void io_req_queue_tw_complete(struct io_kiocb *req, s32 res)
 	io_req_task_work_add(req);
 }
 
+/*
+ * IORING_SETUP_SQE128 contexts allocate twice the normal SQE size for each
+ * slot.
+ */
+static inline size_t uring_sqe_size(struct io_ring_ctx *ctx)
+{
+	if (ctx->flags & IORING_SETUP_SQE128)
+		return 2 * sizeof(struct io_uring_sqe);
+	return sizeof(struct io_uring_sqe);
+}
 #endif

@@ -617,14 +617,12 @@ error:
 	return ret;
 }
 
-static int xvip_composite_remove(struct platform_device *pdev)
+static void xvip_composite_remove(struct platform_device *pdev)
 {
 	struct xvip_composite_device *xdev = platform_get_drvdata(pdev);
 
 	xvip_graph_cleanup(xdev);
 	xvip_composite_v4l2_cleanup(xdev);
-
-	return 0;
 }
 
 static const struct of_device_id xvip_composite_of_id_table[] = {
@@ -639,7 +637,7 @@ static struct platform_driver xvip_composite_driver = {
 		.of_match_table = xvip_composite_of_id_table,
 	},
 	.probe = xvip_composite_probe,
-	.remove = xvip_composite_remove,
+	.remove_new = xvip_composite_remove,
 };
 
 module_platform_driver(xvip_composite_driver);

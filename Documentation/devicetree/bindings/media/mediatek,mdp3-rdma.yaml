@@ -27,7 +27,7 @@ properties:
     maxItems: 1
 
   mediatek,gce-client-reg:
-    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       items:
         - description: phandle of GCE

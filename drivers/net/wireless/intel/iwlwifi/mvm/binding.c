@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2012-2014, 2020 Intel Corporation
  * Copyright (C) 2016 Intel Deutschland GmbH
+ * Copyright (C) 2022 Intel Corporation
  */
 #include <net/mac80211.h>
 #include "fw-api.h"
@@ -75,7 +76,7 @@ static void iwl_mvm_iface_iterator(void *_data, u8 *mac,
 	if (vif == data->ignore_vif)
 		return;
 
-	if (mvmvif->phy_ctxt != data->phyctxt)
+	if (mvmvif->deflink.phy_ctxt != data->phyctxt)
 		return;
 
 	if (WARN_ON_ONCE(data->idx >= MAX_MACS_IN_BINDING))
@@ -132,7 +133,7 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (WARN_ON_ONCE(!mvmvif->phy_ctxt))
+	if (WARN_ON_ONCE(!mvmvif->deflink.phy_ctxt))
 		return -EINVAL;
 
 	/*
@@ -142,7 +143,8 @@ int iwl_mvm_binding_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (iwl_mvm_sf_update(mvm, vif, false))
 		return -EINVAL;
 
-	return iwl_mvm_binding_update(mvm, vif, mvmvif->phy_ctxt, true);
+	return iwl_mvm_binding_update(mvm, vif, mvmvif->deflink.phy_ctxt,
+				      true);
 }
 
 int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -150,10 +152,11 @@ int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ret;
 
-	if (WARN_ON_ONCE(!mvmvif->phy_ctxt))
+	if (WARN_ON_ONCE(!mvmvif->deflink.phy_ctxt))
 		return -EINVAL;
 
-	ret = iwl_mvm_binding_update(mvm, vif, mvmvif->phy_ctxt, false);
+	ret = iwl_mvm_binding_update(mvm, vif, mvmvif->deflink.phy_ctxt,
+				     false);
 
 	if (!ret)
 		if (iwl_mvm_sf_update(mvm, vif, true))

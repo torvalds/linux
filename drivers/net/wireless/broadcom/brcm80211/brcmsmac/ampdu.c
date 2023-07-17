@@ -845,7 +845,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	u16 seq, start_seq = 0, bindex, index, mcl;
 	u8 mcs = 0;
 	bool ba_recd = false, ack_recd = false;
-	u8 suc_mpdu = 0, tot_mpdu = 0;
+	u8 tot_mpdu = 0;
 	uint supr_status;
 	bool retry = true;
 	u16 mimoantsel = 0;
@@ -975,7 +975,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);
 				ack_recd = true;
-				suc_mpdu++;
 			}
 		}
 		/* either retransmit or send bar if ack not recd */

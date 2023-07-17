@@ -1640,7 +1640,7 @@ static const struct hwmon_ops w83627ehf_ops = {
 	.write = w83627ehf_write,
 };
 
-static const struct hwmon_channel_info *w83627ehf_info[] = {
+static const struct hwmon_channel_info * const w83627ehf_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 		HWMON_F_ALARM | HWMON_F_DIV | HWMON_F_INPUT | HWMON_F_MIN,
 		HWMON_F_ALARM | HWMON_F_DIV | HWMON_F_INPUT | HWMON_F_MIN,

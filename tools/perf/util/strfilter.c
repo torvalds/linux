@@ -274,7 +274,7 @@ static int strfilter_node__sprint(struct strfilter_node *node, char *buf)
 		len = strfilter_node__sprint_pt(node->l, buf);
 		if (len < 0)
 			return len;
-		__fallthrough;
+		fallthrough;
 	case '!':
 		if (buf) {
 			*(buf + len++) = *node->p;

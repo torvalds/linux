@@ -149,6 +149,7 @@ static void missing_devices(int card, snd_config_t *card_config)
 static void find_pcms(void)
 {
 	char name[32], key[64];
+	char *card_name, *card_longname;
 	int card, dev, subdev, count, direction, err;
 	snd_pcm_stream_t stream;
 	struct pcm_data *pcm_data;
@@ -174,6 +175,15 @@ static void find_pcms(void)
 				       card, snd_strerror(err));
 			goto next_card;
 		}
+
+		err = snd_card_get_name(card, &card_name);
+		if (err != 0)
+			card_name = "Unknown";
+		err = snd_card_get_longname(card, &card_longname);
+		if (err != 0)
+			card_longname = "Unknown";
+		ksft_print_msg("Card %d - %s (%s)\n", card,
+			       card_name, card_longname);
 
 		card_config = conf_by_card(card);
 
@@ -371,7 +381,7 @@ __format:
 		goto __close;
 	}
 	if (rrate != rate) {
-		snprintf(msg, sizeof(msg), "rate mismatch %ld != %ld", rate, rrate);
+		snprintf(msg, sizeof(msg), "rate mismatch %ld != %d", rate, rrate);
 		goto __close;
 	}
 	rperiod_size = period_size;
@@ -437,24 +447,24 @@ __format:
 			frames = snd_pcm_writei(handle, samples, rate);
 			if (frames < 0) {
 				snprintf(msg, sizeof(msg),
-					 "Write failed: expected %d, wrote %li", rate, frames);
+					 "Write failed: expected %ld, wrote %li", rate, frames);
 				goto __close;
 			}
 			if (frames < rate) {
 				snprintf(msg, sizeof(msg),
-					 "expected %d, wrote %li", rate, frames);
+					 "expected %ld, wrote %li", rate, frames);
 				goto __close;
 			}
 		} else {
 			frames = snd_pcm_readi(handle, samples, rate);
 			if (frames < 0) {
 				snprintf(msg, sizeof(msg),
-					 "expected %d, wrote %li", rate, frames);
+					 "expected %ld, wrote %li", rate, frames);
 				goto __close;
 			}
 			if (frames < rate) {
 				snprintf(msg, sizeof(msg),
-					 "expected %d, wrote %li", rate, frames);
+					 "expected %ld, wrote %li", rate, frames);
 				goto __close;
 			}
 		}
@@ -489,17 +499,18 @@ __close:
 	}
 
 	if (!skip)
-		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s%s%s\n",
+		ksft_test_result(pass, "%s.%s.%d.%d.%d.%s\n",
 				 test_class_name, test_name,
 				 data->card, data->device, data->subdevice,
-				 snd_pcm_stream_name(data->stream),
-				 msg[0] ? " " : "", msg);
+				 snd_pcm_stream_name(data->stream));
 	else
-		ksft_test_result_skip("%s.%s.%d.%d.%d.%s%s%s\n",
+		ksft_test_result_skip("%s.%s.%d.%d.%d.%s\n",
 				 test_class_name, test_name,
 				 data->card, data->device, data->subdevice,
-				 snd_pcm_stream_name(data->stream),
-				 msg[0] ? " " : "", msg);
+				 snd_pcm_stream_name(data->stream));
+
+	if (msg[0])
+		ksft_print_msg("%s\n", msg);
 
 	pthread_mutex_unlock(&results_lock);
 

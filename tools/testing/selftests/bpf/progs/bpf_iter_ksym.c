@@ -33,7 +33,6 @@ int dump_ksym(struct bpf_iter__ksym *ctx)
 	__u32 seq_num = ctx->meta->seq_num;
 	unsigned long value;
 	char type;
-	int ret;
 
 	if (!iter)
 		return 0;

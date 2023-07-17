@@ -479,6 +479,24 @@ arch_atomic_long_add_negative(long i, atomic_long_t *v)
 	return arch_atomic64_add_negative(i, v);
 }
 
+static __always_inline bool
+arch_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
+{
+	return arch_atomic64_add_negative_acquire(i, v);
+}
+
+static __always_inline bool
+arch_atomic_long_add_negative_release(long i, atomic_long_t *v)
+{
+	return arch_atomic64_add_negative_release(i, v);
+}
+
+static __always_inline bool
+arch_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
+{
+	return arch_atomic64_add_negative_relaxed(i, v);
+}
+
 static __always_inline long
 arch_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
 {
@@ -973,6 +991,24 @@ arch_atomic_long_add_negative(long i, atomic_long_t *v)
 	return arch_atomic_add_negative(i, v);
 }
 
+static __always_inline bool
+arch_atomic_long_add_negative_acquire(long i, atomic_long_t *v)
+{
+	return arch_atomic_add_negative_acquire(i, v);
+}
+
+static __always_inline bool
+arch_atomic_long_add_negative_release(long i, atomic_long_t *v)
+{
+	return arch_atomic_add_negative_release(i, v);
+}
+
+static __always_inline bool
+arch_atomic_long_add_negative_relaxed(long i, atomic_long_t *v)
+{
+	return arch_atomic_add_negative_relaxed(i, v);
+}
+
 static __always_inline long
 arch_atomic_long_fetch_add_unless(atomic_long_t *v, long a, long u)
 {
@@ -1011,4 +1047,4 @@ arch_atomic_long_dec_if_positive(atomic_long_t *v)
 
 #endif /* CONFIG_64BIT */
 #endif /* _LINUX_ATOMIC_LONG_H */
-// e8f0e08ff072b74d180eabe2ad001282b38c2c88
+// a194c07d7d2f4b0e178d3c118c919775d5d65f50

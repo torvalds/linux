@@ -144,17 +144,11 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	 * is deprecated.
 	 */
 	if (DISPLAY_VER(i915) >= 13) {
-		/*
-		 * FIXME: Subtract Window2 delay from below value.
-		 *
-		 * Window2 specifies time required to program DSB (Window2) in
-		 * number of scan lines. Assuming 0 for no DSB.
-		 */
 		crtc_state->vrr.guardband =
-			crtc_state->vrr.vmin + 1 - adjusted_mode->crtc_vdisplay;
+			crtc_state->vrr.vmin + 1 - adjusted_mode->crtc_vblank_start;
 	} else {
 		crtc_state->vrr.pipeline_full =
-			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vdisplay -
+			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start -
 			    crtc_state->framestart_delay - 1);
 	}
 

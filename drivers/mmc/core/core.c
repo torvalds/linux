@@ -2257,6 +2257,11 @@ void mmc_rescan(struct work_struct *work)
 			break;
 	}
 
+	/* A non-removable card should have been detected by now. */
+	if (!mmc_card_is_removable(host) && !host->bus_ops)
+		pr_info("%s: Failed to initialize a non-removable card",
+			mmc_hostname(host));
+
 	/*
 	 * Ignore the command timeout errors observed during
 	 * the card init as those are excepted.

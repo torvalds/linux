@@ -90,6 +90,15 @@
 #define SM8150_MMCX	9
 #define SM8150_MMCX_AO	10
 
+/* SA8155P is a special case, kept for backwards compatibility */
+#define SA8155P_CX	SM8150_CX
+#define SA8155P_CX_AO	SM8150_CX_AO
+#define SA8155P_EBI	SM8150_EBI
+#define SA8155P_GFX	SM8150_GFX
+#define SA8155P_MSS	SM8150_MSS
+#define SA8155P_MX	SM8150_MX
+#define SA8155P_MX_AO	SM8150_MX_AO
+
 /* SM8250 Power Domain Indexes */
 #define SM8250_CX	0
 #define SM8250_CX_AO	1

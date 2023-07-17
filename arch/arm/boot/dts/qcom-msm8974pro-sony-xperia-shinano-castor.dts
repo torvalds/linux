@@ -631,7 +631,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	bt_host_wake_pin: bt-host-wake-state {

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <linux/objtool.h>
+#include <linux/objtool_types.h>
 #include <asm/orc_types.h>
 
 #include <objtool/check.h>
@@ -21,18 +21,37 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 	memset(orc, 0, sizeof(*orc));
 
 	if (!cfi) {
-		orc->end = 0;
-		orc->sp_reg = ORC_REG_UNDEFINED;
+		/*
+		 * This is usually either unreachable nops/traps (which don't
+		 * trigger unreachable instruction warnings), or
+		 * STACK_FRAME_NON_STANDARD functions.
+		 */
+		orc->type = ORC_TYPE_UNDEFINED;
 		return 0;
 	}
 
-	orc->end = cfi->end;
+	switch (cfi->type) {
+	case UNWIND_HINT_TYPE_UNDEFINED:
+		orc->type = ORC_TYPE_UNDEFINED;
+		return 0;
+	case UNWIND_HINT_TYPE_END_OF_STACK:
+		orc->type = ORC_TYPE_END_OF_STACK;
+		return 0;
+	case UNWIND_HINT_TYPE_CALL:
+		orc->type = ORC_TYPE_CALL;
+		break;
+	case UNWIND_HINT_TYPE_REGS:
+		orc->type = ORC_TYPE_REGS;
+		break;
+	case UNWIND_HINT_TYPE_REGS_PARTIAL:
+		orc->type = ORC_TYPE_REGS_PARTIAL;
+		break;
+	default:
+		WARN_INSN(insn, "unknown unwind hint type %d", cfi->type);
+		return -1;
+	}
+
 	orc->signal = cfi->signal;
-
-	if (cfi->cfa.base == CFI_UNDEFINED) {
-		orc->sp_reg = ORC_REG_UNDEFINED;
-		return 0;
-	}
 
 	switch (cfi->cfa.base) {
 	case CFI_SP:
@@ -60,8 +79,7 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->sp_reg = ORC_REG_DX;
 		break;
 	default:
-		WARN_FUNC("unknown CFA base reg %d",
-			  insn->sec, insn->offset, cfi->cfa.base);
+		WARN_INSN(insn, "unknown CFA base reg %d", cfi->cfa.base);
 		return -1;
 	}
 
@@ -76,14 +94,12 @@ static int init_orc_entry(struct orc_entry *orc, struct cfi_state *cfi,
 		orc->bp_reg = ORC_REG_BP;
 		break;
 	default:
-		WARN_FUNC("unknown BP base reg %d",
-			  insn->sec, insn->offset, bp->base);
+		WARN_INSN(insn, "unknown BP base reg %d", bp->base);
 		return -1;
 	}
 
 	orc->sp_offset = cfi->cfa.offset;
 	orc->bp_offset = bp->offset;
-	orc->type = cfi->type;
 
 	return 0;
 }
@@ -148,11 +164,7 @@ int orc_create(struct objtool_file *file)
 	struct orc_list_entry *entry;
 	struct list_head orc_list;
 
-	struct orc_entry null = {
-		.sp_reg  = ORC_REG_UNDEFINED,
-		.bp_reg  = ORC_REG_UNDEFINED,
-		.type    = UNWIND_HINT_TYPE_CALL,
-	};
+	struct orc_entry null = { .type = ORC_TYPE_UNDEFINED };
 
 	/* Build a deduplicated list of ORC entries: */
 	INIT_LIST_HEAD(&orc_list);

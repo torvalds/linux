@@ -223,7 +223,7 @@ static bool sil680_sff_irq_check(struct ata_port *ap)
 	return val & 0x08;
 }
 
-static struct scsi_host_template sil680_sht = {
+static const struct scsi_host_template sil680_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

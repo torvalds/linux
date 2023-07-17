@@ -63,6 +63,9 @@ properties:
       boot loader. This property should only be used the used operating system
       doesn't support the clocks and clock-names property.
 
+  power-domains:
+    maxItems: 1
+
   xceiver-supply:
     description: Regulator that powers the CAN transceiver.
 

@@ -29,7 +29,7 @@ static const struct attribute_group *mvst_host_groups[];
 
 #define SOC_SAS_NUM 2
 
-static struct scsi_host_template mvs_sht = {
+static const struct scsi_host_template mvs_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.queuecommand		= sas_queuecommand,

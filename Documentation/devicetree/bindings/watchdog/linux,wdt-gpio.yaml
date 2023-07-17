@@ -8,6 +8,7 @@ title: GPIO-controlled Watchdog
 
 maintainers:
   - Guenter Roeck <linux@roeck-us.net>
+  - Robert Marko <robert.marko@sartura.hr>
 
 properties:
   compatible:
@@ -19,11 +20,23 @@ properties:
 
   hw_algo:
     description: The algorithm used by the driver.
-    enum: [ level, toggle ]
+    oneOf:
+      - description:
+          Either a high-to-low or a low-to-high transition clears the WDT counter.
+          The watchdog timer is disabled when GPIO is left floating or connected
+          to a three-state buffer.
+        const: toggle
+      - description:
+          Low or high level starts counting WDT timeout, the opposite level
+          disables the WDT.
+          Active level is determined by the GPIO flags.
+        const: level
 
   hw_margin_ms:
     description: Maximum time to reset watchdog circuit (milliseconds).
     $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 2
+    maximum: 65535
 
   always-running:
     type: boolean
@@ -42,7 +55,7 @@ required:
 allOf:
   - $ref: watchdog.yaml#
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

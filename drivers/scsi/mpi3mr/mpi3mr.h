@@ -2,7 +2,7 @@
 /*
  * Driver for Broadcom MPI3 Storage Controllers
  *
- * Copyright (C) 2017-2022 Broadcom Inc.
+ * Copyright (C) 2017-2023 Broadcom Inc.
  *  (mailto: mpi3mr-linuxdrv.pdl@broadcom.com)
  *
  */
@@ -55,8 +55,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.2.0.3.0"
-#define MPI3MR_DRIVER_RELDATE	"08-September-2022"
+#define MPI3MR_DRIVER_VERSION	"8.4.1.0.0"
+#define MPI3MR_DRIVER_RELDATE	"16-March-2023"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -126,6 +126,7 @@ extern atomic64_t event_counter;
 #define	MPI3MR_RAID_ERRREC_RESET_TIMEOUT	180
 #define MPI3MR_PREPARE_FOR_RESET_TIMEOUT	180
 #define MPI3MR_RESET_ACK_TIMEOUT		30
+#define MPI3MR_MUR_TIMEOUT			120
 
 #define MPI3MR_WATCHDOG_INTERVAL		1000 /* in milli seconds */
 
@@ -652,7 +653,11 @@ union _form_spec_inf {
 	struct tgt_dev_vd vd_inf;
 };
 
-
+enum mpi3mr_dev_state {
+	MPI3MR_DEV_CREATED = 1,
+	MPI3MR_DEV_REMOVE_HS_STARTED = 2,
+	MPI3MR_DEV_DELETED = 3,
+};
 
 /**
  * struct mpi3mr_tgt_dev - target device data structure
@@ -676,6 +681,7 @@ union _form_spec_inf {
  * @enclosure_logical_id: Enclosure logical identifier
  * @dev_spec: Device type specific information
  * @ref_count: Reference count
+ * @state: device state
  */
 struct mpi3mr_tgt_dev {
 	struct list_head list;
@@ -697,6 +703,7 @@ struct mpi3mr_tgt_dev {
 	u64 enclosure_logical_id;
 	union _form_spec_inf dev_spec;
 	struct kref ref_count;
+	enum mpi3mr_dev_state state;
 };
 
 /**
@@ -1393,4 +1400,6 @@ void mpi3mr_flush_drv_cmds(struct mpi3mr_ioc *mrioc);
 void mpi3mr_flush_cmds_for_unrecovered_controller(struct mpi3mr_ioc *mrioc);
 void mpi3mr_free_enclosure_list(struct mpi3mr_ioc *mrioc);
 int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc);
+void mpi3mr_expander_node_remove(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_sas_node *sas_expander);
 #endif /*MPI3MR_H_INCLUDED*/

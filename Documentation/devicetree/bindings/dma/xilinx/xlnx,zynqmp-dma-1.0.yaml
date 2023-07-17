@@ -15,7 +15,7 @@ maintainers:
   - Michael Tretter <m.tretter@pengutronix.de>
 
 allOf:
-  - $ref: "../dma-controller.yaml#"
+  - $ref: ../dma-controller.yaml#
 
 properties:
   "#dma-cells":

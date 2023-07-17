@@ -230,4 +230,16 @@ config GENERIC_ARCH_NUMA
 	  Enable support for generic NUMA implementation. Currently, RISC-V
 	  and ARM64 use it.
 
+config FW_DEVLINK_SYNC_STATE_TIMEOUT
+	bool "sync_state() behavior defaults to timeout instead of strict"
+	help
+	  This is build time equivalent of adding kernel command line parameter
+	  "fw_devlink.sync_state=timeout". Give up waiting on consumers and
+	  call sync_state() on any devices that haven't yet received their
+	  sync_state() calls after deferred_probe_timeout has expired or by
+	  late_initcall() if !CONFIG_MODULES. You should almost always want to
+	  select N here unless you have already successfully tested with the
+	  command line option on every system/board your kernel is expected to
+	  work on.
+
 endmenu

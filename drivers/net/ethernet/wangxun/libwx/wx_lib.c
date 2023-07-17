@@ -1798,10 +1798,13 @@ static int wx_setup_rx_resources(struct wx_ring *rx_ring)
 	ret = wx_alloc_page_pool(rx_ring);
 	if (ret < 0) {
 		dev_err(rx_ring->dev, "Page pool creation failed: %d\n", ret);
-		goto err;
+		goto err_desc;
 	}
 
 	return 0;
+
+err_desc:
+	dma_free_coherent(dev, rx_ring->size, rx_ring->desc, rx_ring->dma);
 err:
 	kvfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;

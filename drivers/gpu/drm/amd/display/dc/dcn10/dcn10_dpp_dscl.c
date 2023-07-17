@@ -655,6 +655,10 @@ void dpp1_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 		AUTOCAL_NUM_PIPE, 0,
 		AUTOCAL_PIPE_ID, 0);
 
+	/*clean scaler boundary mode when Autocal off*/
+	REG_SET(DSCL_CONTROL, 0,
+		SCL_BOUNDARY_MODE, 0);
+
 	/* Recout */
 	dpp1_dscl_set_recout(dpp, &scl_data->recout);
 

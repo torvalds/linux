@@ -259,7 +259,6 @@
 					 <&sysclk K210_CLK_APB0>;
 				clock-names = "ssi_clk", "pclk";
 				resets = <&sysrst K210_RST_SPI2>;
-				spi-max-frequency = <25000000>;
 			};
 
 			i2s0: i2s@50250000 {

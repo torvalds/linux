@@ -765,30 +765,6 @@ config LOG_CPU_MAX_BUF_SHIFT
 		     13 =>   8 KB for each CPU
 		     12 =>   4 KB for each CPU
 
-config PRINTK_SAFE_LOG_BUF_SHIFT
-	int "Temporary per-CPU printk log buffer size (12 => 4KB, 13 => 8KB)"
-	range 10 21
-	default 13
-	depends on PRINTK
-	help
-	  Select the size of an alternate printk per-CPU buffer where messages
-	  printed from unsafe contexts are temporary stored. One example would
-	  be NMI messages, another one - printk recursion. The messages are
-	  copied to the main log buffer in a safe context to avoid a deadlock.
-	  The value defines the size as a power of 2.
-
-	  Those messages are rare and limited. The largest one is when
-	  a backtrace is printed. It usually fits into 4KB. Select
-	  8KB if you want to be on the safe side.
-
-	  Examples:
-		     17 => 128 KB for each CPU
-		     16 =>  64 KB for each CPU
-		     15 =>  32 KB for each CPU
-		     14 =>  16 KB for each CPU
-		     13 =>   8 KB for each CPU
-		     12 =>   4 KB for each CPU
-
 config PRINTK_INDEX
 	bool "Printk indexing debugfs interface"
 	depends on PRINTK && DEBUG_FS
@@ -890,18 +866,14 @@ config CC_IMPLICIT_FALLTHROUGH
 	default "-Wimplicit-fallthrough=5" if CC_IS_GCC && $(cc-option,-Wimplicit-fallthrough=5)
 	default "-Wimplicit-fallthrough" if CC_IS_CLANG && $(cc-option,-Wunreachable-code-fallthrough)
 
-# Currently, disable gcc-11,12 array-bounds globally.
-# We may want to target only particular configurations some day.
+# Currently, disable gcc-11+ array-bounds globally.
+# It's still broken in gcc-13, so no upper bound yet.
 config GCC11_NO_ARRAY_BOUNDS
-	def_bool y
-
-config GCC12_NO_ARRAY_BOUNDS
 	def_bool y
 
 config CC_NO_ARRAY_BOUNDS
 	bool
-	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC_VERSION < 120000 && GCC11_NO_ARRAY_BOUNDS
-	default y if CC_IS_GCC && GCC_VERSION >= 120000 && GCC_VERSION < 130000 && GCC12_NO_ARRAY_BOUNDS
+	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC11_NO_ARRAY_BOUNDS
 
 #
 # For architectures that know their GCC __int128 support is sound
@@ -973,7 +945,7 @@ config MEMCG
 
 config MEMCG_KMEM
 	bool
-	depends on MEMCG && !SLOB
+	depends on MEMCG
 	default y
 
 config BLK_CGROUP
@@ -1296,44 +1268,6 @@ config SCHED_AUTOGROUP
 	  of workloads isolates aggressive CPU burners (like build jobs) from
 	  desktop applications.  Task group autogeneration is currently based
 	  upon task session.
-
-config SYSFS_DEPRECATED
-	bool "Enable deprecated sysfs features to support old userspace tools"
-	depends on SYSFS
-	default n
-	help
-	  This option adds code that switches the layout of the "block" class
-	  devices, to not show up in /sys/class/block/, but only in
-	  /sys/block/.
-
-	  This switch is only active when the sysfs.deprecated=1 boot option is
-	  passed or the SYSFS_DEPRECATED_V2 option is set.
-
-	  This option allows new kernels to run on old distributions and tools,
-	  which might get confused by /sys/class/block/. Since 2007/2008 all
-	  major distributions and tools handle this just fine.
-
-	  Recent distributions and userspace tools after 2009/2010 depend on
-	  the existence of /sys/class/block/, and will not work with this
-	  option enabled.
-
-	  Only if you are using a new kernel on an old distribution, you might
-	  need to say Y here.
-
-config SYSFS_DEPRECATED_V2
-	bool "Enable deprecated sysfs features by default"
-	default n
-	depends on SYSFS
-	depends on SYSFS_DEPRECATED
-	help
-	  Enable deprecated sysfs by default.
-
-	  See the CONFIG_SYSFS_DEPRECATED option for more details about this
-	  option.
-
-	  Only if you are using a new kernel on an old distribution, you might
-	  need to say Y here. Even then, odds are you would not need it
-	  enabled, you can always pass the boot option if absolutely necessary.
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"

@@ -53,7 +53,6 @@ Description:	/sys/kernel/iommu_groups/<grp_id>/type shows the type of default
 
 		The default domain type of a group may be modified only when
 
-		- The group has only one device.
 		- The device in the group is not bound to any device driver.
 		  So, the users must unbind the appropriate driver before
 		  changing the default domain type.

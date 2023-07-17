@@ -15,9 +15,9 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.14";
+static const char *version_str = "v1.15";
 
-static const int supported_api_ver = 1;
+static const int supported_api_ver = 2;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
 static int debug_flag;
@@ -44,9 +44,7 @@ static int cmd_help;
 static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
-
-static int mbox_delay;
-static int mbox_retries = 3;
+static int cgroupv2;
 
 /* clos related */
 static int current_clos = -1;
@@ -61,6 +59,7 @@ struct _cpu_map {
 	unsigned short core_id;
 	unsigned short pkg_id;
 	unsigned short die_id;
+	unsigned short punit_id;
 	unsigned short punit_cpu;
 	unsigned short punit_cpu_core;
 	unsigned short initialized;
@@ -77,6 +76,11 @@ struct cpu_topology {
 FILE *get_output_file(void)
 {
 	return outf;
+}
+
+int is_debug_enabled(void)
+{
+	return debug_flag;
 }
 
 void debug_printf(const char *format, ...)
@@ -110,11 +114,20 @@ int is_skx_based_platform(void)
 
 int is_spr_platform(void)
 {
-	if (cpu_model == 0x8F || cpu_model == 0xCF)
+	if (cpu_model == 0x8F)
 		return 1;
 
 	return 0;
 }
+
+int is_emr_platform(void)
+{
+	if (cpu_model == 0xCF)
+		return 1;
+
+	return 0;
+}
+
 
 int is_icx_platform(void)
 {
@@ -161,6 +174,11 @@ static int update_cpu_model(void)
 		return ret;
 	}
 	return 0;
+}
+
+int api_version(void)
+{
+        return isst_platform_info.api_version;
 }
 
 /* Open a file, and exit on failure */
@@ -378,6 +396,17 @@ static int get_physical_die_id(int cpu)
 	return ret;
 }
 
+static int get_physical_punit_id(int cpu)
+{
+	if (cpu < 0)
+		return -1;
+
+	if (cpu_map && cpu_map[cpu].initialized)
+		return cpu_map[cpu].punit_id;
+
+	return -1;
+}
+
 void set_isst_id(struct isst_id *id, int cpu)
 {
 	id->cpu = cpu;
@@ -389,6 +418,10 @@ void set_isst_id(struct isst_id *id, int cpu)
 	id->die = get_physical_die_id(cpu);
 	if (id->die >= MAX_DIE_PER_PACKAGE)
 		id->die = -1;
+
+	id->punit = get_physical_punit_id(cpu);
+	if (id->punit >= MAX_PUNIT_PER_DIE)
+		id->punit = -1;
 }
 
 int is_cpu_in_power_domain(int cpu, struct isst_id *id)
@@ -397,7 +430,7 @@ int is_cpu_in_power_domain(int cpu, struct isst_id *id)
 
 	set_isst_id(&tid, cpu);
 
-	if (id->pkg == tid.pkg && id->die == tid.die)
+	if (id->pkg == tid.pkg && id->die == tid.die && id->punit == tid.punit)
 		return 1;
 
 	return 0;
@@ -481,51 +514,59 @@ static void force_all_cpus_online(void)
 	unlink("/var/run/isst_cpu_topology.dat");
 }
 
-void for_each_online_package_in_set(void (*callback)(struct isst_id *, void *, void *,
+void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void *, void *,
 						     void *, void *),
 				    void *arg1, void *arg2, void *arg3,
 				    void *arg4)
 {
-	int max_packages[MAX_PACKAGE_COUNT * MAX_PACKAGE_COUNT];
-	int pkg_index = 0, i;
 	struct isst_id id;
+	int cpus[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE][MAX_PUNIT_PER_DIE];
+	int valid_mask[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE] = {0};
+	int i, j, k;
 
-	memset(max_packages, 0xff, sizeof(max_packages));
+	memset(cpus, -1, sizeof(cpus));
+
 	for (i = 0; i < topo_max_cpus; ++i) {
-		int j, online, pkg_id, die_id = 0, skip = 0;
+		int online;
 
 		if (!CPU_ISSET_S(i, present_cpumask_size, present_cpumask))
 			continue;
-		if (i)
-			online = parse_int_file(
-				1, "/sys/devices/system/cpu/cpu%d/online", i);
-		else
-			online =
-				1; /* online entry for CPU 0 needs some special configs */
 
-		die_id = get_physical_die_id(i);
-		if (die_id < 0)
-			die_id = 0;
+		online = parse_int_file(
+			i != 0, "/sys/devices/system/cpu/cpu%d/online", i);
+		if (online < 0)
+			online = 1; /* online entry for CPU 0 needs some special configs */
 
-		pkg_id = parse_int_file(0,
-			"/sys/devices/system/cpu/cpu%d/topology/physical_package_id", i);
-		if (pkg_id < 0)
+		if (!online)
 			continue;
 
-		/* Create an unique id for package, die combination to store */
-		pkg_id = (MAX_PACKAGE_COUNT * pkg_id + die_id);
-
-		for (j = 0; j < pkg_index; ++j) {
-			if (max_packages[j] == pkg_id) {
-				skip = 1;
-				break;
-			}
-		}
-
 		set_isst_id(&id, i);
-		if (!skip && online && callback) {
-			callback(&id, arg1, arg2, arg3, arg4);
-			max_packages[pkg_index++] = pkg_id;
+
+		if (id.pkg < 0 || id.die < 0 || id.punit < 0)
+			continue;
+
+		valid_mask[id.pkg][id.die] = 1;
+
+		if (cpus[id.pkg][id.die][id.punit] == -1)
+			cpus[id.pkg][id.die][id.punit] = i;
+	}
+
+	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
+		for (j = 0; j < MAX_DIE_PER_PACKAGE; j++) {
+			/*
+			 * Fix me:
+			 * How to check a non-cpu die for a package/die with all cpu offlined?
+			 */
+			if (!valid_mask[i][j])
+				continue;
+			for (k = 0; k < MAX_PUNIT_PER_DIE; k++) {
+				id.cpu = cpus[i][j][k];
+				id.pkg = i;
+				id.die = j;
+				id.punit = k;
+				if (isst_is_punit_valid(&id))
+					callback(&id, arg1, arg2, arg3, arg4);
+			}
 		}
 	}
 }
@@ -610,7 +651,7 @@ void free_cpu_set(cpu_set_t *cpu_set)
 	CPU_FREE(cpu_set);
 }
 
-static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE];
+static int cpu_cnt[MAX_PACKAGE_COUNT][MAX_DIE_PER_PACKAGE][MAX_PUNIT_PER_DIE];
 
 int get_max_punit_core_id(struct isst_id *id)
 {
@@ -632,10 +673,50 @@ int get_max_punit_core_id(struct isst_id *id)
 
 int get_cpu_count(struct isst_id *id)
 {
-	if (id->pkg < 0 || id->die < 0)
+	if (id->pkg < 0 || id->die < 0 || id->punit < 0)
 		return 0;
 
-	return cpu_cnt[id->pkg][id->die];
+	return cpu_cnt[id->pkg][id->die][id->punit];
+}
+
+static void update_punit_cpu_info(__u32 physical_cpu, struct _cpu_map *cpu_map)
+{
+	if (api_version() > 1) {
+		/*
+		 * MSR 0x54 format
+		 *	[15:11] PM_DOMAIN_ID
+		 *	[10:3] MODULE_ID (aka IDI_AGENT_ID)
+		 *	[2:0] LP_ID (We don't care about these bits we only
+		 *		care die and core id
+		 *	For Atom:
+		 *	[2] Always 0
+		 *	[1:0] core ID within module
+		 *	For Core
+		 *	[2:1] Always 0
+		 *	[0] thread ID
+		 */
+		cpu_map->punit_id = (physical_cpu >> 11) & 0x1f;
+		cpu_map->punit_cpu_core = (physical_cpu >> 3) & 0xff;
+		cpu_map->punit_cpu = physical_cpu & 0x7ff;
+	} else {
+		int punit_id;
+
+		/*
+		 * MSR 0x53 format
+		 * Format
+		 *      Bit 0 – thread ID
+		 *      Bit 8:1 – core ID
+		 *      Bit 13:9 – punit ID
+		 */
+		cpu_map->punit_cpu = physical_cpu & 0x1ff;
+		cpu_map->punit_cpu_core = (cpu_map->punit_cpu >> 1); // shift to get core id
+		punit_id = (physical_cpu >> 9) & 0x1f;
+
+		if (punit_id >= MAX_PUNIT_PER_DIE)
+			punit_id = 0;
+
+		cpu_map->punit_id = punit_id;
+	}
 }
 
 static void create_cpu_map(void)
@@ -660,7 +741,7 @@ static void create_cpu_map(void)
 
 	for (i = 0; i < topo_max_cpus; ++i) {
 		char buffer[256];
-		int pkg_id, die_id, core_id;
+		int pkg_id, die_id, core_id, punit_id;
 
 		/* check if CPU is online */
 		snprintf(buffer, sizeof(buffer),
@@ -682,31 +763,32 @@ static void create_cpu_map(void)
 		cpu_map[i].pkg_id = pkg_id;
 		cpu_map[i].die_id = die_id;
 		cpu_map[i].core_id = core_id;
+
+
+		punit_id = 0;
+
+		if (fd >= 0) {
+			map.cmd_count = 1;
+			map.cpu_map[0].logical_cpu = i;
+			debug_printf(" map logical_cpu:%d\n",
+				     map.cpu_map[0].logical_cpu);
+			if (ioctl(fd, ISST_IF_GET_PHY_ID, &map) == -1) {
+				perror("ISST_IF_GET_PHY_ID");
+				fprintf(outf, "Error: map logical_cpu:%d\n",
+					map.cpu_map[0].logical_cpu);
+			} else {
+				update_punit_cpu_info(map.cpu_map[0].physical_cpu, &cpu_map[i]);
+			}
+		}
 		cpu_map[i].initialized = 1;
 
-		cpu_cnt[pkg_id][die_id]++;
-
-		if (fd < 0)
-			continue;
-		map.cmd_count = 1;
-		map.cpu_map[0].logical_cpu = i;
-		debug_printf(" map logical_cpu:%d\n",
-			     map.cpu_map[0].logical_cpu);
-		if (ioctl(fd, ISST_IF_GET_PHY_ID, &map) == -1) {
-			perror("ISST_IF_GET_PHY_ID");
-			fprintf(outf, "Error: map logical_cpu:%d\n",
-				map.cpu_map[0].logical_cpu);
-			continue;
-		}
-		cpu_map[i].punit_cpu = map.cpu_map[0].physical_cpu;
-		cpu_map[i].punit_cpu_core = (map.cpu_map[0].physical_cpu >>
-					     1); // shift to get core id
+		cpu_cnt[pkg_id][die_id][punit_id]++;
 
 		debug_printf(
-			"map logical_cpu:%d core: %d die:%d pkg:%d punit_cpu:%d punit_core:%d\n",
+			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",
 			i, cpu_map[i].core_id, cpu_map[i].die_id,
-			cpu_map[i].pkg_id, cpu_map[i].punit_cpu,
-			cpu_map[i].punit_cpu_core);
+			cpu_map[i].pkg_id, cpu_map[i].punit_id,
+			cpu_map[i].punit_cpu, cpu_map[i].punit_cpu_core);
 	}
 	if (fd >= 0)
 		close(fd);
@@ -727,6 +809,9 @@ void set_cpu_mask_from_punit_coremask(struct isst_id *id, unsigned long long cor
 				      cpu_set_t *core_cpumask, int *cpu_cnt)
 {
 	int i, cnt = 0;
+
+	if (id->cpu < 0)
+		return;
 
 	*cpu_cnt = 0;
 
@@ -759,181 +844,134 @@ int find_phy_core_num(int logical_cpu)
 	return -EINVAL;
 }
 
-static int isst_send_mmio_command(unsigned int cpu, unsigned int reg, int write,
-				  unsigned int *value)
+int use_cgroupv2(void)
 {
-	struct isst_if_io_regs io_regs;
-	const char *pathname = "/dev/isst_interface";
-	int cmd;
-	int fd;
-
-	debug_printf("mmio_cmd cpu:%d reg:%d write:%d\n", cpu, reg, write);
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	io_regs.req_count = 1;
-	io_regs.io_reg[0].logical_cpu = cpu;
-	io_regs.io_reg[0].reg = reg;
-	cmd = ISST_IF_IO_CMD;
-	if (write) {
-		io_regs.io_reg[0].read_write = 1;
-		io_regs.io_reg[0].value = *value;
-	} else {
-		io_regs.io_reg[0].read_write = 0;
-	}
-
-	if (ioctl(fd, cmd, &io_regs) == -1) {
-		if (errno == ENOTTY) {
-			perror("ISST_IF_IO_COMMAND\n");
-			fprintf(stderr, "Check presence of kernel modules: isst_if_mmio\n");
-			exit(0);
-		}
-		fprintf(outf, "Error: mmio_cmd cpu:%d reg:%x read_write:%x\n",
-			cpu, reg, write);
-	} else {
-		if (!write)
-			*value = io_regs.io_reg[0].value;
-
-		debug_printf(
-			"mmio_cmd response: cpu:%d reg:%x rd_write:%x resp:%x\n",
-			cpu, reg, write, *value);
-	}
-
-	close(fd);
-
-	return 0;
+	return cgroupv2;
 }
 
-int isst_send_mbox_command(unsigned int cpu, unsigned char command,
-			   unsigned char sub_command, unsigned int parameter,
-			   unsigned int req_data, unsigned int *resp)
+int enable_cpuset_controller(void)
 {
-	const char *pathname = "/dev/isst_interface";
-	int fd, retry;
-	struct isst_if_mbox_cmds mbox_cmds = { 0 };
+	int fd, ret;
 
-	debug_printf(
-		"mbox_send: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x\n",
-		cpu, command, sub_command, parameter, req_data);
+	fd = open("/sys/fs/cgroup/cgroup.subtree_control", O_RDWR, 0);
+	if (fd < 0) {
+		debug_printf("Can't activate cpuset controller\n");
+		debug_printf("Either you are not root user or CGroup v2 is not supported\n");
+		return fd;
+	}
 
-	if (!is_skx_based_platform() && command == CONFIG_CLOS &&
-	    sub_command != CLOS_PM_QOS_CONFIG) {
-		unsigned int value;
-		int write = 0;
-		int clos_id, core_id, ret = 0;
+	ret = write(fd, " +cpuset", strlen(" +cpuset"));
+	close(fd);
 
-		debug_printf("CPU %d\n", cpu);
-
-		if (parameter & BIT(MBOX_CMD_WRITE_BIT)) {
-			value = req_data;
-			write = 1;
-		}
-
-		switch (sub_command) {
-		case CLOS_PQR_ASSOC:
-			core_id = parameter & 0xff;
-			ret = isst_send_mmio_command(
-				cpu, PQR_ASSOC_OFFSET + core_id * 4, write,
-				&value);
-			if (!ret && !write)
-				*resp = value;
-			break;
-		case CLOS_PM_CLOS:
-			clos_id = parameter & 0x03;
-			ret = isst_send_mmio_command(
-				cpu, PM_CLOS_OFFSET + clos_id * 4, write,
-				&value);
-			if (!ret && !write)
-				*resp = value;
-			break;
-		case CLOS_STATUS:
-			break;
-		default:
-			break;
-		}
+	if (ret == -1) {
+		debug_printf("Can't activate cpuset controller: Write failed\n");
 		return ret;
 	}
 
-	mbox_cmds.cmd_count = 1;
-	mbox_cmds.mbox_cmd[0].logical_cpu = cpu;
-	mbox_cmds.mbox_cmd[0].command = command;
-	mbox_cmds.mbox_cmd[0].sub_command = sub_command;
-	mbox_cmds.mbox_cmd[0].parameter = parameter;
-	mbox_cmds.mbox_cmd[0].req_data = req_data;
-
-	if (mbox_delay)
-		usleep(mbox_delay * 1000);
-
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	retry = mbox_retries;
-
-	do {
-		if (ioctl(fd, ISST_IF_MBOX_COMMAND, &mbox_cmds) == -1) {
-			if (errno == ENOTTY) {
-				perror("ISST_IF_MBOX_COMMAND\n");
-				fprintf(stderr, "Check presence of kernel modules: isst_if_mbox_pci or isst_if_mbox_msr\n");
-				exit(0);
-			}
-			debug_printf(
-				"Error: mbox_cmd cpu:%d command:%x sub_command:%x parameter:%x req_data:%x errorno:%d\n",
-				cpu, command, sub_command, parameter, req_data, errno);
-			--retry;
-		} else {
-			*resp = mbox_cmds.mbox_cmd[0].resp_data;
-			debug_printf(
-				"mbox_cmd response: cpu:%d command:%x sub_command:%x parameter:%x req_data:%x resp:%x\n",
-				cpu, command, sub_command, parameter, req_data, *resp);
-			break;
-		}
-	} while (retry);
-
-	close(fd);
-
-	if (!retry) {
-		debug_printf("Failed mbox command even after retries\n");
-		return -1;
-
-	}
 	return 0;
 }
 
-int isst_send_msr_command(unsigned int cpu, unsigned int msr, int write,
-			  unsigned long long *req_resp)
+int isolate_cpus(struct isst_id *id, int mask_size, cpu_set_t *cpu_mask, int level)
 {
-	struct isst_if_msr_cmds msr_cmds;
-	const char *pathname = "/dev/isst_interface";
-	int fd;
+	int i, first, curr_index, index, ret, fd;
+	static char str[512], dir_name[64];
+	static char cpuset_cpus[128];
+	int str_len = sizeof(str);
+	DIR *dir;
 
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
+	snprintf(dir_name, sizeof(dir_name), "/sys/fs/cgroup/%d-%d-%d", id->pkg, id->die, id->punit);
+	dir = opendir(dir_name);
+	if (!dir) {
+		ret = mkdir(dir_name, 0744);
+		if (ret) {
+			debug_printf("Can't create dir:%s errno:%d\n", dir_name, errno);
+			return ret;
+		}
+	}
+	closedir(dir);
 
-	msr_cmds.cmd_count = 1;
-	msr_cmds.msr_cmd[0].logical_cpu = cpu;
-	msr_cmds.msr_cmd[0].msr = msr;
-	msr_cmds.msr_cmd[0].read_write = write;
-	if (write)
-		msr_cmds.msr_cmd[0].data = *req_resp;
+	if (!level) {
+		sprintf(cpuset_cpus, "%s/cpuset.cpus.partition", dir_name);
 
-	if (ioctl(fd, ISST_IF_MSR_COMMAND, &msr_cmds) == -1) {
-		perror("ISST_IF_MSR_COMMAND");
-		fprintf(outf, "Error: msr_cmd cpu:%d msr:%x read_write:%d\n",
-			cpu, msr, write);
-	} else {
-		if (!write)
-			*req_resp = msr_cmds.msr_cmd[0].data;
+		fd = open(cpuset_cpus, O_RDWR, 0);
+		if (fd < 0) {
+			return fd;
+		}
 
-		debug_printf(
-			"msr_cmd response: cpu:%d msr:%x rd_write:%x resp:%llx %llx\n",
-			cpu, msr, write, *req_resp, msr_cmds.msr_cmd[0].data);
+		ret = write(fd, "member", strlen("member"));
+		if (ret == -1) {
+			printf("Can't update to member\n");
+			return ret;
+		}
+
+		return 0;
+	}
+
+	if (!CPU_COUNT_S(mask_size, cpu_mask)) {
+		return -1;
+	}
+
+	curr_index = 0;
+	first = 1;
+	str[0] = '\0';
+	for (i = 0; i < get_topo_max_cpus(); ++i) {
+		if (!is_cpu_in_power_domain(i, id))
+			continue;
+
+		if (CPU_ISSET_S(i, mask_size, cpu_mask))
+			continue;
+
+		if (!first) {
+			index = snprintf(&str[curr_index],
+					 str_len - curr_index, ",");
+			curr_index += index;
+			if (curr_index >= str_len)
+				break;
+		}
+		index = snprintf(&str[curr_index], str_len - curr_index, "%d",
+				 i);
+		curr_index += index;
+		if (curr_index >= str_len)
+			break;
+		first = 0;
+	}
+
+	debug_printf("isolated CPUs list: package:%d curr_index:%d [%s]\n", id->pkg, curr_index ,str);
+
+	snprintf(cpuset_cpus, sizeof(cpuset_cpus), "%s/cpuset.cpus", dir_name);
+
+	fd = open(cpuset_cpus, O_RDWR, 0);
+	if (fd < 0) {
+		return fd;
+	}
+
+	ret = write(fd, str, strlen(str));
+	close(fd);
+
+	if (ret == -1) {
+		debug_printf("Can't activate cpuset controller: Write failed\n");
+		return ret;
+	}
+
+	snprintf(cpuset_cpus, sizeof(cpuset_cpus), "%s/cpuset.cpus.partition", dir_name);
+
+	fd = open(cpuset_cpus, O_RDWR, 0);
+	if (fd < 0) {
+		return fd;
+	}
+
+	ret = write(fd, "isolated", strlen("isolated"));
+	if (ret == -1) {
+		debug_printf("Can't update to isolated\n");
+		ret = write(fd, "root", strlen("root"));
+		if (ret == -1)
+			debug_printf("Can't update to root\n");
 	}
 
 	close(fd);
+
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -942,6 +980,11 @@ static int isst_fill_platform_info(void)
 {
 	const char *pathname = "/dev/isst_interface";
 	int fd;
+
+	if (is_clx_n_platform()) {
+		isst_platform_info.api_version = 1;
+		goto set_platform_ops;
+	}
 
 	fd = open(pathname, O_RDWR);
 	if (fd < 0)
@@ -959,77 +1002,96 @@ static int isst_fill_platform_info(void)
 		printf("Incompatible API versions; Upgrade of tool is required\n");
 		return -1;
 	}
+
+set_platform_ops:
+	if (isst_set_platform_ops(isst_platform_info.api_version)) {
+		fprintf(stderr, "Failed to set platform callbacks\n");
+		exit(0);
+	}
 	return 0;
+}
+
+void get_isst_status(struct isst_id *id, void *arg1, void *arg2, void *arg3, void *arg4)
+{
+	struct isst_pkg_ctdp pkg_dev;
+	struct isst_id *tid = (struct isst_id *)arg2;
+	int *mask = (int *)arg3;
+	int *max_level = (int *)arg4;
+	int j, ret;
+
+	/* Only check the first cpu power domain */
+	if (id->cpu < 0 || tid->cpu >= 0)
+		return;
+
+	ret = isst_get_ctdp_levels(id, &pkg_dev);
+	if (ret)
+		return;
+
+	if (pkg_dev.enabled)
+		*mask |= BIT(0);
+
+	if (pkg_dev.locked)
+		*mask |= BIT(1);
+
+	if (*max_level < pkg_dev.levels)
+		*max_level = pkg_dev.levels;
+
+	for (j = 0; j <= pkg_dev.levels; ++j) {
+		struct isst_pkg_ctdp_level_info ctdp_level;
+
+		ret = isst_get_ctdp_control(id, j, &ctdp_level);
+		if (ret)
+			continue;
+
+		if (ctdp_level.fact_support)
+			*mask |= BIT(2);
+
+		if (ctdp_level.pbf_support)
+			*mask |= BIT(3);
+	}
+
+	tid->cpu = id->cpu;
+	tid->pkg = id->pkg;
+	tid->die = id->die;
+	tid->punit = id->punit;
 }
 
 static void isst_print_extended_platform_info(void)
 {
-	int cp_state, cp_cap, fact_support = 0, pbf_support = 0;
-	struct isst_pkg_ctdp_level_info ctdp_level;
-	struct isst_pkg_ctdp pkg_dev;
-	int ret, i, j;
-	FILE *filep;
+	int cp_state, cp_cap;
 	struct isst_id id;
+	int mask = 0, max_level = 0;
 
-	for (i = 0; i < 256; ++i) {
-		char path[256];
+	id.cpu = -1;
+	for_each_online_power_domain_in_set(get_isst_status, NULL, &id, &mask, &max_level);
 
-		snprintf(path, sizeof(path),
-			 "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", i);
-		filep = fopen(path, "r");
-		if (filep)
-			break;
-	}
-
-	if (!filep)
-		return;
-
-	fclose(filep);
-
-	set_isst_id(&id, i);
-	ret = isst_get_ctdp_levels(&id, &pkg_dev);
-	if (ret)
-		return;
-
-	if (pkg_dev.enabled) {
+	if (mask & BIT(0)) {
 		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is supported\n");
 	} else {
 		fprintf(outf, "Intel(R) SST-PP (feature perf-profile) is not supported\n");
 		fprintf(outf, "Only performance level 0 (base level) is present\n");
 	}
 
-	if (pkg_dev.locked)
+	if (mask & BIT(1))
 		fprintf(outf, "TDP level change control is locked\n");
 	else
-		fprintf(outf, "TDP level change control is unlocked, max level: %d \n", pkg_dev.levels);
+		fprintf(outf, "TDP level change control is unlocked, max level: %d\n", max_level);
 
-	for (j = 0; j <= pkg_dev.levels; ++j) {
-		ret = isst_get_ctdp_control(&id, j, &ctdp_level);
-		if (ret)
-			continue;
-
-		if (!fact_support && ctdp_level.fact_support)
-			fact_support = 1;
-
-		if (!pbf_support && ctdp_level.pbf_support)
-			pbf_support = 1;
-	}
-
-	if (fact_support)
+	if (mask & BIT(2))
 		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is supported\n");
 	else
 		fprintf(outf, "Intel(R) SST-TF (feature turbo-freq) is not supported\n");
 
-	if (pbf_support)
+	if (mask & BIT(3))
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is supported\n");
 	else
 		fprintf(outf, "Intel(R) SST-BF (feature base-freq) is not supported\n");
 
-	ret = isst_read_pm_config(&id, &cp_state, &cp_cap);
-	if (ret) {
+	if (isst_read_pm_config(&id, &cp_state, &cp_cap)) {
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) status is unknown\n");
 		return;
 	}
+
 	if (cp_cap)
 		fprintf(outf, "Intel(R) SST-CP (feature core-power) is supported\n");
 	else
@@ -1038,10 +1100,6 @@ static void isst_print_extended_platform_info(void)
 
 static void isst_print_platform_information(void)
 {
-	struct isst_if_platform_info platform_info;
-	const char *pathname = "/dev/isst_interface";
-	int fd;
-
 	if (is_clx_n_platform()) {
 		fprintf(stderr, "\nThis option in not supported on this platform\n");
 		exit(0);
@@ -1051,25 +1109,15 @@ static void isst_print_platform_information(void)
 	set_max_cpu_num();
 	create_cpu_map();
 
-	fd = open(pathname, O_RDWR);
-	if (fd < 0)
-		err(-1, "%s open failed", pathname);
-
-	if (ioctl(fd, ISST_IF_GET_PLATFORM_INFO, &platform_info) == -1) {
-		perror("ISST_IF_GET_PLATFORM_INFO");
-	} else {
-		fprintf(outf, "Platform: API version : %d\n",
-			platform_info.api_version);
-		fprintf(outf, "Platform: Driver version : %d\n",
-			platform_info.driver_version);
-		fprintf(outf, "Platform: mbox supported : %d\n",
-			platform_info.mbox_supported);
-		fprintf(outf, "Platform: mmio supported : %d\n",
-			platform_info.mmio_supported);
-		isst_print_extended_platform_info();
-	}
-
-	close(fd);
+	fprintf(outf, "Platform: API version : %d\n",
+		isst_platform_info.api_version);
+	fprintf(outf, "Platform: Driver version : %d\n",
+		isst_platform_info.driver_version);
+	fprintf(outf, "Platform: mbox supported : %d\n",
+		isst_platform_info.mbox_supported);
+	fprintf(outf, "Platform: mmio supported : %d\n",
+		isst_platform_info.mmio_supported);
+	isst_print_extended_platform_info();
 
 	exit(0);
 }
@@ -1110,7 +1158,7 @@ static void exec_on_get_ctdp_cpu(struct isst_id *id, void *arg1, void *arg2, voi
 				exec_on_get_ctdp_cpu, isst_get_ctdp_##suffix,     \
 				&ctdp, desc, &ctdp.object);                       \
 		else                                                              \
-			for_each_online_package_in_set(exec_on_get_ctdp_cpu,      \
+			for_each_online_power_domain_in_set(exec_on_get_ctdp_cpu,      \
 						       isst_get_ctdp_##suffix,    \
 						       &ctdp, desc,               \
 						       &ctdp.object);             \
@@ -1314,37 +1362,9 @@ static void dump_isst_config(int arg)
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(fn, NULL, NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(fn, NULL, NULL, NULL, NULL);
+		for_each_online_power_domain_in_set(fn, NULL, NULL, NULL, NULL);
 
 	isst_ctdp_display_information_end(outf);
-}
-
-static int set_uncore_min_max(struct isst_id *id, int max, int freq)
-{
-	char buffer[128], freq_str[16];
-	int fd, ret, len;
-
-	if (max)
-		snprintf(buffer, sizeof(buffer),
-			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/max_freq_khz", id->pkg, id->die);
-	else
-		snprintf(buffer, sizeof(buffer),
-			 "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d/min_freq_khz", id->pkg, id->die);
-
-	fd = open(buffer, O_WRONLY);
-	if (fd < 0)
-		return fd;
-
-	snprintf(freq_str, sizeof(freq_str), "%d", freq);
-	len = strlen(freq_str);
-	ret = write(fd, freq_str, len);
-	if (ret == -1) {
-		close(fd);
-		return ret;
-	}
-	close(fd);
-
-	return 0;
 }
 
 static void adjust_scaling_max_from_base_freq(int cpu);
@@ -1352,54 +1372,81 @@ static void adjust_scaling_max_from_base_freq(int cpu);
 static void set_tdp_level_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *arg3,
 				  void *arg4)
 {
+	struct isst_pkg_ctdp pkg_dev;
 	int ret;
+
+	ret = isst_get_ctdp_levels(id, &pkg_dev);
+	if (ret) {
+		isst_display_error_info_message(1, "Get TDP level failed", 0, 0);
+		isst_ctdp_display_information_end(outf);
+		exit(1);
+	}
+
+	if (pkg_dev.current_level == tdp_level) {
+		debug_printf("TDP level already set. Skipped\n");
+		goto display_result;
+	}
 
 	ret = isst_set_tdp_level(id, tdp_level);
 	if (ret) {
 		isst_display_error_info_message(1, "Set TDP level failed", 0, 0);
 		isst_ctdp_display_information_end(outf);
 		exit(1);
-	} else {
-		isst_display_result(id, outf, "perf-profile", "set_tdp_level",
-				    ret);
-		if (force_online_offline) {
-			struct isst_pkg_ctdp_level_info ctdp_level;
+	}
 
-			/* Wait for updated base frequencies */
-			usleep(2000);
+display_result:
+	isst_display_result(id, outf, "perf-profile", "set_tdp_level", ret);
+	if (force_online_offline && id->cpu >= 0) {
+		struct isst_pkg_ctdp_level_info ctdp_level;
 
-			/* Adjusting uncore freq */
-			isst_get_uncore_p0_p1_info(id, tdp_level, &ctdp_level);
-			if (ctdp_level.uncore_pm)
-				set_uncore_min_max(id, 0, ctdp_level.uncore_pm * 100000);
+		/* Wait for updated base frequencies */
+		usleep(2000);
 
-			if (ctdp_level.uncore_p0)
-				set_uncore_min_max(id, 1, ctdp_level.uncore_p0 * 100000);
+		/* Adjusting uncore freq */
+		isst_adjust_uncore_freq(id, tdp_level, &ctdp_level);
 
-			fprintf(stderr, "Option is set to online/offline\n");
-			ctdp_level.core_cpumask_size =
-				alloc_cpu_set(&ctdp_level.core_cpumask);
-			ret = isst_get_coremask_info(id, tdp_level, &ctdp_level);
-			if (ret) {
-				isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
-				return;
-			}
-			if (ctdp_level.cpu_count) {
-				int i, max_cpus = get_topo_max_cpus();
-				for (i = 0; i < max_cpus; ++i) {
-					if (!is_cpu_in_power_domain(i, id))
-						continue;
-					if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
-						fprintf(stderr, "online cpu %d\n", i);
-						set_cpu_online_offline(i, 1);
-						adjust_scaling_max_from_base_freq(i);
-					} else {
-						fprintf(stderr, "offline cpu %d\n", i);
-						set_cpu_online_offline(i, 0);
-					}
+		fprintf(stderr, "Option is set to online/offline\n");
+		ctdp_level.core_cpumask_size =
+			alloc_cpu_set(&ctdp_level.core_cpumask);
+		ret = isst_get_coremask_info(id, tdp_level, &ctdp_level);
+		if (ret) {
+			isst_display_error_info_message(1, "Can't get coremask, online/offline option is ignored", 0, 0);
+			goto free_mask;
+		}
+
+		if (use_cgroupv2()) {
+			int ret;
+
+			fprintf(stderr, "Using cgroup v2 in lieu of online/offline\n");
+			ret = enable_cpuset_controller();
+			if (ret)
+				goto use_offline;
+
+			ret = isolate_cpus(id, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask, tdp_level);
+			if (ret)
+				goto use_offline;
+
+			goto free_mask;
+		}
+
+use_offline:
+		if (ctdp_level.cpu_count) {
+			int i, max_cpus = get_topo_max_cpus();
+			for (i = 0; i < max_cpus; ++i) {
+				if (!is_cpu_in_power_domain(i, id))
+					continue;
+				if (CPU_ISSET_S(i, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask)) {
+					fprintf(stderr, "online cpu %d\n", i);
+					set_cpu_online_offline(i, 1);
+					adjust_scaling_max_from_base_freq(i);
+				} else {
+					fprintf(stderr, "offline cpu %d\n", i);
+					set_cpu_online_offline(i, 0);
 				}
 			}
 		}
+free_mask:
+		free_cpu_set(ctdp_level.core_cpumask);
 	}
 }
 
@@ -1425,7 +1472,7 @@ static void set_tdp_level(int arg)
 		for_each_online_target_cpu_in_set(set_tdp_level_for_cpu, NULL,
 						  NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(set_tdp_level_for_cpu, NULL,
+		for_each_online_power_domain_in_set(set_tdp_level_for_cpu, NULL,
 					       NULL, NULL, NULL);
 	isst_ctdp_display_information_end(outf);
 }
@@ -1463,7 +1510,7 @@ static void dump_pbf_config_for_cpu(struct isst_id *id, void *arg1, void *arg2, 
 		exit(1);
 	} else {
 		isst_pbf_display_information(id, outf, tdp_level, &pbf_info);
-		isst_get_pbf_info_complete(&pbf_info);
+		free_cpu_set(pbf_info.core_cpumask);
 	}
 }
 
@@ -1494,7 +1541,7 @@ static void dump_pbf_config(int arg)
 	if (max_target_cpus)
 		for_each_online_target_cpu_in_set(fn, NULL, NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(fn, NULL, NULL, NULL, NULL);
+		for_each_online_power_domain_in_set(fn, NULL, NULL, NULL, NULL);
 
 	isst_ctdp_display_information_end(outf);
 }
@@ -1662,6 +1709,9 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 {
 	int i;
 
+	if (id->cpu < 0)
+		return;
+
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
 			continue;
@@ -1678,6 +1728,9 @@ static void set_scaling_min_to_cpuinfo_max(struct isst_id *id)
 static void set_scaling_min_to_cpuinfo_min(struct isst_id *id)
 {
 	int i;
+
+	if (id->cpu < 0)
+		return;
 
 	for (i = 0; i < get_topo_max_cpus(); ++i) {
 		if (!is_cpu_in_power_domain(i, id))
@@ -1757,6 +1810,9 @@ static int set_pbf_core_power(struct isst_id *id)
 	struct isst_pbf_info pbf_info;
 	struct isst_pkg_ctdp pkg_dev;
 	int ret;
+
+	if (id->cpu < 0)
+		return 0;
 
 	ret = isst_get_ctdp_levels(id, &pkg_dev);
 	if (ret) {
@@ -1900,7 +1956,7 @@ static void set_pbf_enable(int arg)
 		for_each_online_target_cpu_in_set(set_pbf_for_cpu, NULL, NULL,
 						  NULL, &enable);
 	else
-		for_each_online_package_in_set(set_pbf_for_cpu, NULL, NULL,
+		for_each_online_power_domain_in_set(set_pbf_for_cpu, NULL, NULL,
 					       NULL, &enable);
 	isst_ctdp_display_information_end(outf);
 }
@@ -1946,7 +2002,7 @@ static void dump_fact_config(int arg)
 		for_each_online_target_cpu_in_set(dump_fact_config_for_cpu,
 						  NULL, NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(dump_fact_config_for_cpu, NULL,
+		for_each_online_power_domain_in_set(dump_fact_config_for_cpu, NULL,
 					       NULL, NULL, NULL);
 	isst_ctdp_display_information_end(outf);
 }
@@ -2003,7 +2059,7 @@ static void set_fact_for_cpu(struct isst_id *id, void *arg1, void *arg2, void *a
 		struct isst_pkg_ctdp pkg_dev;
 
 		ret = isst_get_ctdp_levels(id, &pkg_dev);
-		if (!ret)
+		if (!ret && id->cpu >= 0)
 			ret = isst_set_trl(id, fact_trl);
 		if (ret && auto_mode)
 			isst_pm_qos_config(id, 0, 0);
@@ -2055,7 +2111,7 @@ static void set_fact_enable(int arg)
 		for_each_online_target_cpu_in_set(set_fact_for_cpu, NULL, NULL,
 						  NULL, &enable);
 	else
-		for_each_online_package_in_set(set_fact_for_cpu, NULL, NULL,
+		for_each_online_power_domain_in_set(set_fact_for_cpu, NULL, NULL,
 					       NULL, &enable);
 	isst_ctdp_display_information_end(outf);
 
@@ -2194,7 +2250,7 @@ static void set_clos_enable(int arg)
 		for_each_online_target_cpu_in_set(enable_clos_qos_config, NULL,
 						  NULL, NULL, &enable);
 	else
-		for_each_online_package_in_set(enable_clos_qos_config, NULL,
+		for_each_online_power_domain_in_set(enable_clos_qos_config, NULL,
 					       NULL, NULL, &enable);
 	isst_ctdp_display_information_end(outf);
 }
@@ -2204,6 +2260,9 @@ static void dump_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2,
 {
 	struct isst_clos_config clos_config;
 	int ret;
+
+	if (id->cpu < 0)
+		return;
 
 	ret = isst_pm_get_clos(id, current_clos, &clos_config);
 	if (ret)
@@ -2233,7 +2292,7 @@ static void dump_clos_config(int arg)
 		for_each_online_target_cpu_in_set(dump_clos_config_for_cpu,
 						  NULL, NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(dump_clos_config_for_cpu, NULL,
+		for_each_online_power_domain_in_set(dump_clos_config_for_cpu, NULL,
 					       NULL, NULL, NULL);
 	isst_ctdp_display_information_end(outf);
 }
@@ -2269,7 +2328,7 @@ static void dump_clos_info(int arg)
 		for_each_online_target_cpu_in_set(get_clos_info_for_cpu, NULL,
 						  NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(get_clos_info_for_cpu, NULL,
+		for_each_online_power_domain_in_set(get_clos_info_for_cpu, NULL,
 					       NULL, NULL, NULL);
 	isst_ctdp_display_information_end(outf);
 
@@ -2280,6 +2339,9 @@ static void set_clos_config_for_cpu(struct isst_id *id, void *arg1, void *arg2, 
 {
 	struct isst_clos_config clos_config;
 	int ret;
+
+	if (id->cpu < 0)
+		return;
 
 	clos_config.epp = clos_epp;
 	clos_config.clos_prop_prio = clos_prop_prio;
@@ -2341,7 +2403,7 @@ static void set_clos_config(int arg)
 		for_each_online_target_cpu_in_set(set_clos_config_for_cpu, NULL,
 						  NULL, NULL, NULL);
 	else
-		for_each_online_package_in_set(set_clos_config_for_cpu, NULL,
+		for_each_online_power_domain_in_set(set_clos_config_for_cpu, NULL,
 					       NULL, NULL, NULL);
 	isst_ctdp_display_information_end(outf);
 }
@@ -2508,7 +2570,7 @@ static void process_trl(int arg)
 		for_each_online_target_cpu_in_set(get_set_trl, NULL,
 						  NULL, NULL, &arg);
 	else
-		for_each_online_package_in_set(get_set_trl, NULL,
+		for_each_online_power_domain_in_set(get_set_trl, NULL,
 					       NULL, NULL, &arg);
 	isst_ctdp_display_information_end(outf);
 }
@@ -2683,7 +2745,7 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'd':
 			clos_desired = atoi(optarg);
-			clos_desired /= DISP_FREQ_MULTIPLIER;
+			clos_desired /= isst_get_disp_freq_multiplier();
 			break;
 		case 'e':
 			clos_epp = atoi(optarg);
@@ -2694,11 +2756,11 @@ static void parse_cmd_args(int argc, int start, char **argv)
 			break;
 		case 'n':
 			clos_min = atoi(optarg);
-			clos_min /= DISP_FREQ_MULTIPLIER;
+			clos_min /= isst_get_disp_freq_multiplier();
 			break;
 		case 'm':
 			clos_max = atoi(optarg);
-			clos_max /= DISP_FREQ_MULTIPLIER;
+			clos_max /= isst_get_disp_freq_multiplier();
 			break;
 		case 'p':
 			clos_priority_type = atoi(optarg);
@@ -2882,6 +2944,7 @@ static void usage(void)
 	printf("\t[-b|--oob : Start a daemon to process HFI events for perf profile change from Out of Band agent.\n");
 	printf("\t[-n|--no-daemon : Don't run as daemon. By default --oob will turn on daemon mode\n");
 	printf("\t[-w|--delay : Delay for reading config level state change in OOB poll mode.\n");
+	printf("\t[-g|--cgroupv2 : Try to use cgroup v2 CPU isolation instead of CPU online/offline.\n");
 	printf("\nResult format\n");
 	printf("\tResult display uses a common format for each command:\n");
 	printf("\tResults are formatted in text/JSON with\n");
@@ -2918,6 +2981,7 @@ static void cmdline(int argc, char **argv)
 	int oob_mode = 0;
 	int poll_interval = -1;
 	int no_daemon = 0;
+	int mbox_delay = 0, mbox_retries = 3;
 
 	static struct option long_options[] = {
 		{ "all-cpus-online", no_argument, 0, 'a' },
@@ -2933,6 +2997,7 @@ static void cmdline(int argc, char **argv)
 		{ "oob", no_argument, 0, 'b' },
 		{ "no-daemon", no_argument, 0, 'n' },
 		{ "poll-interval", required_argument, 0, 'w' },
+		{ "cgroupv2", required_argument, 0, 'g' },
 		{ 0, 0, 0, 0 }
 	};
 
@@ -2958,8 +3023,12 @@ static void cmdline(int argc, char **argv)
 		fclose(fp);
 	}
 
+	ret = isst_fill_platform_info();
+	if (ret)
+		goto out;
+
 	progname = argv[0];
-	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:n", long_options,
+	while ((opt = getopt_long_only(argc, argv, "+c:df:hio:vabw:ng", long_options,
 				       &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -3018,6 +3087,9 @@ static void cmdline(int argc, char **argv)
 			}
 			poll_interval = ret;
 			break;
+		case 'g':
+			cgroupv2 = 1;
+			break;
 		default:
 			usage();
 		}
@@ -3027,6 +3099,10 @@ static void cmdline(int argc, char **argv)
 		usage();
 		exit(0);
 	}
+
+	isst_update_platform_param(ISST_PARAM_MBOX_DELAY, mbox_delay);
+	isst_update_platform_param(ISST_PARAM_MBOX_RETRIES, mbox_retries);
+
 	set_max_cpu_num();
 	if (force_cpus_online)
 		force_all_cpus_online();
@@ -3044,9 +3120,6 @@ static void cmdline(int argc, char **argv)
 	}
 
 	if (!is_clx_n_platform()) {
-		ret = isst_fill_platform_info();
-		if (ret)
-			goto out;
 		process_command(argc, argv, isst_help_cmds, isst_cmds);
 	} else {
 		process_command(argc, argv, clx_n_help_cmds, clx_n_cmds);

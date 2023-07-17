@@ -204,13 +204,13 @@ static int sel_netnode_sid_slow(void *addr, u16 family, u32 *sid)
 	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	switch (family) {
 	case PF_INET:
-		ret = security_node_sid(&selinux_state, PF_INET,
+		ret = security_node_sid(PF_INET,
 					addr, sizeof(struct in_addr), sid);
 		if (new)
 			new->nsec.addr.ipv4 = *(__be32 *)addr;
 		break;
 	case PF_INET6:
-		ret = security_node_sid(&selinux_state, PF_INET6,
+		ret = security_node_sid(PF_INET6,
 					addr, sizeof(struct in6_addr), sid);
 		if (new)
 			new->nsec.addr.ipv6 = *(struct in6_addr *)addr;

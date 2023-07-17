@@ -72,6 +72,7 @@
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event L2_LINES_OUT.USELESS_HWPF",
+        "Deprecated": "1",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.USELESS_PREF",
         "SampleAfterValue": "200003",
@@ -232,20 +233,22 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "All retired load instructions.",
+        "BriefDescription": "Retired load instructions.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ALL_LOADS",
         "PEBS": "1",
+        "PublicDescription": "Counts all retired load instructions. This event accounts for SW prefetch instructions of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW.",
         "SampleAfterValue": "2000003",
         "UMask": "0x81"
     },
     {
-        "BriefDescription": "All retired store instructions.",
+        "BriefDescription": "Retired store instructions.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
         "PEBS": "1",
+        "PublicDescription": "Counts all retired store instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x82"
     },
@@ -443,7 +446,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and non-cacheable code read requests",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "PublicDescription": "Counts both cacheable and non-cacheable code read requests.",
@@ -559,7 +562,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand code readshave any response type.",
+        "BriefDescription": "Counts all demand code reads have any response type.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -946,7 +949,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data readshave any response type.",
+        "BriefDescription": "Counts demand data reads have any response type.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1333,7 +1336,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand data writes (RFOs)have any response type.",
+        "BriefDescription": "Counts all demand data writes (RFOs) have any response type.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1720,7 +1723,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any other requestshave any response type.",
+        "BriefDescription": "Counts any other requests have any response type.",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OFFCORE_RESPONSE.OTHER.ANY_RESPONSE",
         "MSRIndex": "0x1a6,0x1a7",

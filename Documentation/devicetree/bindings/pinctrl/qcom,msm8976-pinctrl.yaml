@@ -53,6 +53,7 @@ $defs:
       Desired pin configuration for a device or its specific state (like sleep
       or active).
     $ref: qcom,tlmm-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
 
     properties:
       pins:
@@ -93,18 +94,8 @@ $defs:
                 wsa_irq, blsp_i2c8, pa_indicator, modem_tsync, ssbi_wtr1,
                 gsm1_tx, gsm0_tx, sdcard_det, sec_mi2s, ss_switch ]
 
-      bias-pull-down: true
-      bias-pull-up: true
-      bias-disable: true
-      drive-strength: true
-      input-enable: true
-      output-high: true
-      output-low: true
-
     required:
       - pins
-
-    additionalProperties: false
 
 allOf:
   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#

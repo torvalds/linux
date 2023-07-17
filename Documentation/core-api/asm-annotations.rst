@@ -44,7 +44,7 @@ information. In particular, on properly annotated objects, ``objtool`` can be
 run to check and fix the object if needed. Currently, ``objtool`` can report
 missing frame pointer setup/destruction in functions. It can also
 automatically generate annotations for the ORC unwinder
-(Documentation/x86/orc-unwinder.rst)
+(Documentation/arch/x86/orc-unwinder.rst)
 for most code. Both of these are especially important to support reliable
 stack traces which are in turn necessary for kernel live patching
 (Documentation/livepatch/livepatch.rst).

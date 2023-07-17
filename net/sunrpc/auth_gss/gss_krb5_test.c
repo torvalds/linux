@@ -73,7 +73,6 @@ static void checksum_case(struct kunit *test)
 {
 	const struct gss_krb5_test_param *param = test->param_value;
 	struct xdr_buf buf = {
-		.head[0].iov_base	= param->plaintext->data,
 		.head[0].iov_len	= param->plaintext->len,
 		.len			= param->plaintext->len,
 	};
@@ -98,6 +97,10 @@ static void checksum_case(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, tfm);
 	err = crypto_ahash_setkey(tfm, Kc.data, Kc.len);
 	KUNIT_ASSERT_EQ(test, err, 0);
+
+	buf.head[0].iov_base = kunit_kzalloc(test, buf.head[0].iov_len, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buf.head[0].iov_base);
+	memcpy(buf.head[0].iov_base, param->plaintext->data, buf.head[0].iov_len);
 
 	checksum.len = gk5e->cksumlength;
 	checksum.data = kunit_kzalloc(test, checksum.len, GFP_KERNEL);
@@ -1327,6 +1330,7 @@ static void rfc6803_encrypt_case(struct kunit *test)
 	if (!gk5e)
 		kunit_skip(test, "Encryption type is not available");
 
+	memset(usage_data, 0, sizeof(usage_data));
 	usage.data[3] = param->constant;
 
 	Ke.len = gk5e->Ke_length;

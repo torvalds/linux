@@ -934,7 +934,7 @@ err_probe:
 	return ret;
 }
 
-static int mtk_nor_remove(struct platform_device *pdev)
+static void mtk_nor_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = dev_get_drvdata(&pdev->dev);
 	struct mtk_nor *sp = spi_controller_get_devdata(ctlr);
@@ -944,8 +944,6 @@ static int mtk_nor_remove(struct platform_device *pdev)
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
 
 	mtk_nor_disable_clk(sp);
-
-	return 0;
 }
 
 static int __maybe_unused mtk_nor_runtime_suspend(struct device *dev)
@@ -999,7 +997,7 @@ static struct platform_driver mtk_nor_driver = {
 		.pm = &mtk_nor_pm_ops,
 	},
 	.probe = mtk_nor_probe,
-	.remove = mtk_nor_remove,
+	.remove_new = mtk_nor_remove,
 };
 
 module_platform_driver(mtk_nor_driver);

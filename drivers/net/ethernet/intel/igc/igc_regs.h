@@ -292,7 +292,6 @@
 
 /* LTR registers */
 #define IGC_LTRC	0x01A0 /* Latency Tolerance Reporting Control */
-#define IGC_DMACR	0x02508 /* DMA Coalescing Control Register */
 #define IGC_LTRMINV	0x5BB0 /* LTR Minimum Value */
 #define IGC_LTRMAXV	0x5BB4 /* LTR Maximum Value */
 

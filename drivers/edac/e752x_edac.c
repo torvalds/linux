@@ -1462,7 +1462,7 @@ module_init(e752x_init);
 module_exit(e752x_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Linux Networx (http://lnxi.com) Tom Zimmerman\n");
+MODULE_AUTHOR("Linux Networx (http://lnxi.com) Tom Zimmerman");
 MODULE_DESCRIPTION("MC support for Intel e752x/3100 memory controllers");
 
 module_param(force_function_unhide, int, 0444);

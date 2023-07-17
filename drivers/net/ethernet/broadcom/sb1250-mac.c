@@ -73,7 +73,7 @@ MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
 
 #include <asm/sibyte/board.h>
 #include <asm/sibyte/sb1250.h>
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#if defined(CONFIG_SIBYTE_BCM1x80)
 #include <asm/sibyte/bcm1480_regs.h>
 #include <asm/sibyte/bcm1480_int.h>
 #define R_MAC_DMA_OODPKTLOST_RX	R_MAC_DMA_OODPKTLOST
@@ -87,7 +87,7 @@ MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
 #include <asm/sibyte/sb1250_mac.h>
 #include <asm/sibyte/sb1250_dma.h>
 
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#if defined(CONFIG_SIBYTE_BCM1x80)
 #define UNIT_INT(n)		(K_BCM1480_INT_MAC_0 + ((n) * 2))
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 #define UNIT_INT(n)		(K_INT_MAC_0 + (n))
@@ -1527,7 +1527,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	 * Turn on the rest of the bits in the enable register
 	 */
 
-#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+#if defined(CONFIG_SIBYTE_BCM1x80)
 	__raw_writeq(M_MAC_RXDMA_EN0 |
 		       M_MAC_TXDMA_EN0, s->sbm_macenable);
 #elif defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)

@@ -141,7 +141,11 @@ static void verify_xdp_metadata(void *data)
 	meta = data - sizeof(*meta);
 
 	printf("rx_timestamp: %llu\n", meta->rx_timestamp);
-	printf("rx_hash: %u\n", meta->rx_hash);
+	if (meta->rx_hash_err < 0)
+		printf("No rx_hash err=%d\n", meta->rx_hash_err);
+	else
+		printf("rx_hash: 0x%X with RSS type:0x%X\n",
+		       meta->rx_hash, meta->rx_hash_type);
 }
 
 static void verify_skb_metadata(int fd)
@@ -212,7 +216,9 @@ static int verify_metadata(struct xsk *rx_xsk, int rxq, int server_fd)
 	while (true) {
 		errno = 0;
 		ret = poll(fds, rxq + 1, 1000);
-		printf("poll: %d (%d)\n", ret, errno);
+		printf("poll: %d (%d) skip=%llu fail=%llu redir=%llu\n",
+		       ret, errno, bpf_obj->bss->pkts_skip,
+		       bpf_obj->bss->pkts_fail, bpf_obj->bss->pkts_redir);
 		if (ret < 0)
 			break;
 		if (ret == 0)

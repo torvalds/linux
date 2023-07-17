@@ -628,6 +628,7 @@ static struct spi_driver pmic_driver = {
 	.probe		= pmic_probe,
 	.driver		= {
 		.name	= "tps6524x",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

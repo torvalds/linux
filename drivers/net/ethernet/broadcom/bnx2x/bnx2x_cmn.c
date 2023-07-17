@@ -672,6 +672,18 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	return 0;
 }
 
+static struct sk_buff *
+bnx2x_build_skb(const struct bnx2x_fastpath *fp, void *data)
+{
+	struct sk_buff *skb;
+
+	if (fp->rx_frag_size)
+		skb = build_skb(data, fp->rx_frag_size);
+	else
+		skb = slab_build_skb(data);
+	return skb;
+}
+
 static void bnx2x_frag_free(const struct bnx2x_fastpath *fp, void *data)
 {
 	if (fp->rx_frag_size)
@@ -779,7 +791,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	dma_unmap_single(&bp->pdev->dev, dma_unmap_addr(rx_buf, mapping),
 			 fp->rx_buf_size, DMA_FROM_DEVICE);
 	if (likely(new_data))
-		skb = build_skb(data, fp->rx_frag_size);
+		skb = bnx2x_build_skb(fp, data);
 
 	if (likely(skb)) {
 #ifdef BNX2X_STOP_ON_ERROR
@@ -1046,7 +1058,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 						 dma_unmap_addr(rx_buf, mapping),
 						 fp->rx_buf_size,
 						 DMA_FROM_DEVICE);
-				skb = build_skb(data, fp->rx_frag_size);
+				skb = bnx2x_build_skb(fp, data);
 				if (unlikely(!skb)) {
 					bnx2x_frag_free(fp, data);
 					bnx2x_fp_qstats(bp, fp)->
@@ -1923,8 +1935,7 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 		/* Skip VLAN tag if present */
 		if (ether_type == ETH_P_8021Q) {
-			struct vlan_ethhdr *vhdr =
-				(struct vlan_ethhdr *)skb->data;
+			struct vlan_ethhdr *vhdr = skb_vlan_eth_hdr(skb);
 
 			ether_type = ntohs(vhdr->h_vlan_encapsulated_proto);
 		}

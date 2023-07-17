@@ -202,7 +202,7 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(&wdt->wdd, 64);
 	watchdog_stop_on_reboot(&wdt->wdd);
 
-	ret = watchdog_register_device(&wdt->wdd);
+	ret = devm_watchdog_register_device(&pdev->dev, &wdt->wdd);
 	if (ret)
 		goto err_timer;
 
@@ -218,21 +218,11 @@ err_timer:
 	return ret;
 }
 
-static int bcm47xx_wdt_remove(struct platform_device *pdev)
-{
-	struct bcm47xx_wdt *wdt = dev_get_platdata(&pdev->dev);
-
-	watchdog_unregister_device(&wdt->wdd);
-
-	return 0;
-}
-
 static struct platform_driver bcm47xx_wdt_driver = {
 	.driver		= {
 		.name	= "bcm47xx-wdt",
 	},
 	.probe		= bcm47xx_wdt_probe,
-	.remove		= bcm47xx_wdt_remove,
 };
 
 module_platform_driver(bcm47xx_wdt_driver);

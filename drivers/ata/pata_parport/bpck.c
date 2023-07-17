@@ -7,15 +7,6 @@
 
 */
 
-/* Changes:
-
-	1.01	GRG 1998.05.05 init_proto, release_proto, pi->delay 
-	1.02    GRG 1998.08.15 default pi->delay returned to 4
-
-*/
-
-#define	BPCK_VERSION	"1.02" 
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -23,8 +14,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 #undef r2
 #undef w2
@@ -46,7 +36,7 @@
 
 static int  cont_map[3] = { 0x40, 0x48, 0 };
 
-static int bpck_read_regr( PIA *pi, int cont, int regr )
+static int bpck_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int r, l, h;
 
@@ -77,7 +67,7 @@ static int bpck_read_regr( PIA *pi, int cont, int regr )
 	return -1;
 }	
 
-static void bpck_write_regr( PIA *pi, int cont, int regr, int val )
+static void bpck_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {	int	r;
 
@@ -106,7 +96,7 @@ static void bpck_write_regr( PIA *pi, int cont, int regr, int val )
 #define WR(r,v)		bpck_write_regr(pi,2,r,v)
 #define RR(r)		(bpck_read_regr(pi,2,r))
 
-static void bpck_write_block( PIA *pi, char * buf, int count )
+static void bpck_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int i;
 
@@ -147,7 +137,7 @@ static void bpck_write_block( PIA *pi, char * buf, int count )
  	}
 }
 
-static void bpck_read_block( PIA *pi, char * buf, int count )
+static void bpck_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {	int i, l, h;
 
@@ -194,7 +184,7 @@ static void bpck_read_block( PIA *pi, char * buf, int count )
 	}
 }
 
-static int bpck_probe_unit ( PIA *pi )
+static int bpck_probe_unit(struct pi_adapter *pi)
 
 {	int o1, o0, f7, id;
 	int t, s;
@@ -217,7 +207,7 @@ static int bpck_probe_unit ( PIA *pi )
 	return 1;
 }
 	
-static void bpck_connect ( PIA *pi  )
+static void bpck_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
 	w0(0xff-pi->unit); w2(4); w0(pi->unit);
@@ -241,24 +231,24 @@ static void bpck_connect ( PIA *pi  )
 
 	WR(5,8);
 
-	if (pi->devtype == PI_PCD) {
+/*	if (pi->devtype == PI_PCD) {	possibly wrong, purpose unknown */
 		WR(0x46,0x10);		/* fiddle with ESS logic ??? */
 		WR(0x4c,0x38);
 		WR(0x4d,0x88);
 		WR(0x46,0xa0);
 		WR(0x41,0);
 		WR(0x4e,8);
-		}
+/*	}*/
 }
 
-static void bpck_disconnect ( PIA *pi )
+static void bpck_disconnect(struct pi_adapter *pi)
 
 {	w0(0); 
 	if (pi->mode >= 2) { w2(9); w2(0); } else t2(2);
 	w2(0x4c); w0(pi->saved_r0);
 } 
 
-static void bpck_force_spp ( PIA *pi )
+static void bpck_force_spp(struct pi_adapter *pi)
 
 /* This fakes the EPP protocol to turn off EPP ... */
 
@@ -276,7 +266,7 @@ static void bpck_force_spp ( PIA *pi )
 
 #define TEST_LEN  16
 
-static int bpck_test_proto( PIA *pi, char * scratch, int verbose )
+static int bpck_test_proto(struct pi_adapter *pi)
 
 {	int i, e, l, h, om;
 	char buf[TEST_LEN];
@@ -334,19 +324,16 @@ static int bpck_test_proto( PIA *pi, char * scratch, int verbose )
 
 	}
 
-	if (verbose) {
-	    printk("%s: bpck: 0x%x unit %d mode %d: ",
-		   pi->device,pi->port,pi->unit,pi->mode);
-	    for (i=0;i<TEST_LEN;i++) printk("%3d",buf[i]);
-	    printk("\n");
-	}
+	dev_dbg(&pi->dev, "bpck: 0x%x unit %d mode %d: ",
+		pi->port, pi->unit, pi->mode);
+	print_hex_dump_debug("bpck: ", DUMP_PREFIX_NONE, TEST_LEN, 1, buf, TEST_LEN, false);
 
 	e = 0;
 	for (i=0;i<TEST_LEN;i++) if (buf[i] != (i+1)) e++;
 	return e;
 }
 
-static void bpck_read_eeprom ( PIA *pi, char * buf )
+static void bpck_read_eeprom(struct pi_adapter *pi, char *buf)
 
 {       int i, j, k, p, v, f, om, od;
 
@@ -397,7 +384,7 @@ static void bpck_read_eeprom ( PIA *pi, char * buf )
 	pi->mode = om; pi->delay = od;
 }
 
-static int bpck_test_port ( PIA *pi ) 	/* check for 8-bit port */
+static int bpck_test_port(struct pi_adapter *pi)	/* check for 8-bit port */
 
 {	int	i, r, m;
 
@@ -416,31 +403,17 @@ static int bpck_test_port ( PIA *pi ) 	/* check for 8-bit port */
 	return 5;
 }
 
-static void bpck_log_adapter( PIA *pi, char * scratch, int verbose )
+static void bpck_log_adapter(struct pi_adapter *pi)
 
 {	char	*mode_string[5] = { "4-bit","8-bit","EPP-8",
 				    "EPP-16","EPP-32" };
-
-#ifdef DUMP_EEPROM
-	int i;
-#endif
+	char scratch[128];
 
 	bpck_read_eeprom(pi,scratch);
-
-#ifdef DUMP_EEPROM
-	if (verbose) {
-	   for(i=0;i<128;i++)
-		if ((scratch[i] < ' ') || (scratch[i] > '~'))
-		    scratch[i] = '.';
-	   printk("%s: bpck EEPROM: %64.64s\n",pi->device,scratch);
-	   printk("%s:              %64.64s\n",pi->device,&scratch[64]);
-	}
-#endif
-
-	printk("%s: bpck %s, backpack %8.8s unit %d",
-		pi->device,BPCK_VERSION,&scratch[110],pi->unit);
-	printk(" at 0x%x, mode %d (%s), delay %d\n",pi->port,
-		pi->mode,mode_string[pi->mode],pi->delay);
+	print_hex_dump_bytes("bpck EEPROM: ", DUMP_PREFIX_NONE, scratch, 128);
+	dev_info(&pi->dev, "backpack %8.8s unit %d at 0x%x, mode %d (%s), delay %d\n",
+		 &scratch[110], pi->unit, pi->port, pi->mode,
+		 mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol bpck = {
@@ -462,16 +435,5 @@ static struct pi_protocol bpck = {
 	.log_adapter	= bpck_log_adapter,
 };
 
-static int __init bpck_init(void)
-{
-	return paride_register(&bpck);
-}
-
-static void __exit bpck_exit(void)
-{
-	paride_unregister(&bpck);
-}
-
 MODULE_LICENSE("GPL");
-module_init(bpck_init)
-module_exit(bpck_exit)
+module_pata_parport_driver(bpck);

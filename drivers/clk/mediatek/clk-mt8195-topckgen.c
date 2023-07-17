@@ -1219,6 +1219,7 @@ static const struct of_device_id of_match_clk_mt8195_topck[] = {
 	{ .compatible = "mediatek,mt8195-topckgen", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8195_topck);
 
 /* Register mux notifier for MFG mux */
 static int clk_mt8195_reg_mfg_mux_notifier(struct device *dev, struct clk *clk)
@@ -1340,4 +1341,5 @@ static struct platform_driver clk_mt8195_topck_drv = {
 		.of_match_table = of_match_clk_mt8195_topck,
 	},
 };
-builtin_platform_driver(clk_mt8195_topck_drv);
+module_platform_driver(clk_mt8195_topck_drv);
+MODULE_LICENSE("GPL");

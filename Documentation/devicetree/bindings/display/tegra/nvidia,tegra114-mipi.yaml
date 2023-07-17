@@ -38,7 +38,7 @@ properties:
     description: The number of cells in a MIPI calibration specifier.
       Should be 1. The single cell specifies a bitmask of the pads that
       need to be calibrated for a given device.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     const: 1
 
 additionalProperties: false

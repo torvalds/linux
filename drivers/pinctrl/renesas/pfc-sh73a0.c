@@ -3876,7 +3876,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			/* RESERVED [1] */
 		))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
@@ -3980,7 +3980,7 @@ static const struct pinmux_data_reg pinmux_data_regs[] = {
 			PORT295_DATA, PORT294_DATA, PORT293_DATA, PORT292_DATA,
 			PORT291_DATA, PORT290_DATA, PORT289_DATA, PORT288_DATA ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_irq pinmux_irqs[] = {

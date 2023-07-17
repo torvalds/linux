@@ -159,62 +159,6 @@ static inline u32 readl_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
 #define GET_CH_32(dw, dir, ch, name) \
 	readl_ch(dw, dir, ch, &(__dw_ch_regs(dw, dir, ch)->name))
 
-static inline void writeq_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
-			     u64 value, void __iomem *addr)
-{
-	if (dw->chip->mf == EDMA_MF_EDMA_LEGACY) {
-		u32 viewport_sel;
-		unsigned long flags;
-
-		raw_spin_lock_irqsave(&dw->lock, flags);
-
-		viewport_sel = FIELD_PREP(EDMA_V0_VIEWPORT_MASK, ch);
-		if (dir == EDMA_DIR_READ)
-			viewport_sel |= BIT(31);
-
-		writel(viewport_sel,
-		       &(__dw_regs(dw)->type.legacy.viewport_sel));
-		writeq(value, addr);
-
-		raw_spin_unlock_irqrestore(&dw->lock, flags);
-	} else {
-		writeq(value, addr);
-	}
-}
-
-static inline u64 readq_ch(struct dw_edma *dw, enum dw_edma_dir dir, u16 ch,
-			   const void __iomem *addr)
-{
-	u64 value;
-
-	if (dw->chip->mf == EDMA_MF_EDMA_LEGACY) {
-		u32 viewport_sel;
-		unsigned long flags;
-
-		raw_spin_lock_irqsave(&dw->lock, flags);
-
-		viewport_sel = FIELD_PREP(EDMA_V0_VIEWPORT_MASK, ch);
-		if (dir == EDMA_DIR_READ)
-			viewport_sel |= BIT(31);
-
-		writel(viewport_sel,
-		       &(__dw_regs(dw)->type.legacy.viewport_sel));
-		value = readq(addr);
-
-		raw_spin_unlock_irqrestore(&dw->lock, flags);
-	} else {
-		value = readq(addr);
-	}
-
-	return value;
-}
-
-#define SET_CH_64(dw, dir, ch, name, value) \
-	writeq_ch(dw, dir, ch, value, &(__dw_ch_regs(dw, dir, ch)->name))
-
-#define GET_CH_64(dw, dir, ch, name) \
-	readq_ch(dw, dir, ch, &(__dw_ch_regs(dw, dir, ch)->name))
-
 /* eDMA management callbacks */
 void dw_edma_v0_core_off(struct dw_edma *dw)
 {

@@ -85,7 +85,7 @@ struct s5m_rtc_reg_config {
 	unsigned int write_alarm_udr_mask;
 };
 
-/* Register map for S5M8763 and S5M8767 */
+/* Register map for S5M8767 */
 static const struct s5m_rtc_reg_config s5m_rtc_regs = {
 	.regs_count		= 8,
 	.time			= S5M_RTC_SEC,
@@ -236,7 +236,6 @@ static int s5m_check_peding_alarm_interrupt(struct s5m_rtc_info *info,
 
 	switch (info->device_type) {
 	case S5M8767X:
-	case S5M8763X:
 		ret = regmap_read(info->regmap, S5M_RTC_STATUS, &val);
 		val &= S5M_ALARM0_STATUS;
 		break;
@@ -299,7 +298,6 @@ static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 
 	data |= info->regs->write_alarm_udr_mask;
 	switch (info->device_type) {
-	case S5M8763X:
 	case S5M8767X:
 		data &= ~S5M_RTC_TIME_EN_MASK;
 		break;
@@ -329,38 +327,6 @@ static int s5m8767_rtc_set_alarm_reg(struct s5m_rtc_info *info)
 	return ret;
 }
 
-static void s5m8763_data_to_tm(u8 *data, struct rtc_time *tm)
-{
-	tm->tm_sec = bcd2bin(data[RTC_SEC]);
-	tm->tm_min = bcd2bin(data[RTC_MIN]);
-
-	if (data[RTC_HOUR] & HOUR_12) {
-		tm->tm_hour = bcd2bin(data[RTC_HOUR] & 0x1f);
-		if (data[RTC_HOUR] & HOUR_PM)
-			tm->tm_hour += 12;
-	} else {
-		tm->tm_hour = bcd2bin(data[RTC_HOUR] & 0x3f);
-	}
-
-	tm->tm_wday = data[RTC_WEEKDAY] & 0x07;
-	tm->tm_mday = bcd2bin(data[RTC_DATE]);
-	tm->tm_mon = bcd2bin(data[RTC_MONTH]);
-	tm->tm_year = bcd2bin(data[RTC_YEAR1]) + bcd2bin(data[RTC_YEAR2]) * 100;
-	tm->tm_year -= 1900;
-}
-
-static void s5m8763_tm_to_data(struct rtc_time *tm, u8 *data)
-{
-	data[RTC_SEC] = bin2bcd(tm->tm_sec);
-	data[RTC_MIN] = bin2bcd(tm->tm_min);
-	data[RTC_HOUR] = bin2bcd(tm->tm_hour);
-	data[RTC_WEEKDAY] = tm->tm_wday;
-	data[RTC_DATE] = bin2bcd(tm->tm_mday);
-	data[RTC_MONTH] = bin2bcd(tm->tm_mon);
-	data[RTC_YEAR1] = bin2bcd(tm->tm_year % 100);
-	data[RTC_YEAR2] = bin2bcd((tm->tm_year + 1900) / 100);
-}
-
 static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct s5m_rtc_info *info = dev_get_drvdata(dev);
@@ -385,10 +351,6 @@ static int s5m_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 
 	switch (info->device_type) {
-	case S5M8763X:
-		s5m8763_data_to_tm(data, tm);
-		break;
-
 	case S5M8767X:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -412,9 +374,6 @@ static int s5m_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	int ret = 0;
 
 	switch (info->device_type) {
-	case S5M8763X:
-		s5m8763_tm_to_data(tm, data);
-		break;
 	case S5M8767X:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -444,7 +403,6 @@ static int s5m_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct s5m_rtc_info *info = dev_get_drvdata(dev);
 	u8 data[RTC_MAX_NUM_TIME_REGS];
-	unsigned int val;
 	int ret, i;
 
 	ret = regmap_bulk_read(info->regmap, info->regs->alarm0, data,
@@ -453,15 +411,6 @@ static int s5m_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		return ret;
 
 	switch (info->device_type) {
-	case S5M8763X:
-		s5m8763_data_to_tm(data, &alrm->time);
-		ret = regmap_read(info->regmap, S5M_ALARM0_CONF, &val);
-		if (ret < 0)
-			return ret;
-
-		alrm->enabled = !!val;
-		break;
-
 	case S5M8767X:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -500,10 +449,6 @@ static int s5m_rtc_stop_alarm(struct s5m_rtc_info *info)
 	dev_dbg(info->dev, "%s: %ptR(%d)\n", __func__, &tm, tm.tm_wday);
 
 	switch (info->device_type) {
-	case S5M8763X:
-		ret = regmap_write(info->regmap, S5M_ALARM0_CONF, 0);
-		break;
-
 	case S5M8767X:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -531,7 +476,6 @@ static int s5m_rtc_start_alarm(struct s5m_rtc_info *info)
 {
 	int ret;
 	u8 data[RTC_MAX_NUM_TIME_REGS];
-	u8 alarm0_conf;
 	struct rtc_time tm;
 
 	ret = regmap_bulk_read(info->regmap, info->regs->alarm0, data,
@@ -543,11 +487,6 @@ static int s5m_rtc_start_alarm(struct s5m_rtc_info *info)
 	dev_dbg(info->dev, "%s: %ptR(%d)\n", __func__, &tm, tm.tm_wday);
 
 	switch (info->device_type) {
-	case S5M8763X:
-		alarm0_conf = 0x77;
-		ret = regmap_write(info->regmap, S5M_ALARM0_CONF, alarm0_conf);
-		break;
-
 	case S5M8767X:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -585,10 +524,6 @@ static int s5m_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int ret;
 
 	switch (info->device_type) {
-	case S5M8763X:
-		s5m8763_tm_to_data(&alrm->time, data);
-		break;
-
 	case S5M8767X:
 	case S2MPS15X:
 	case S2MPS14X:
@@ -655,7 +590,6 @@ static int s5m8767_rtc_init_reg(struct s5m_rtc_info *info)
 	int ret;
 
 	switch (info->device_type) {
-	case S5M8763X:
 	case S5M8767X:
 		/* UDR update time. Default of 7.32 ms is too long. */
 		ret = regmap_update_bits(info->regmap, S5M_RTC_UDR_CON,
@@ -729,11 +663,6 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 		info->regs = &s2mps13_rtc_regs;
 		alarm_irq = S2MPS14_IRQ_RTCA0;
 		break;
-	case S5M8763X:
-		regmap_cfg = &s5m_rtc_regmap_config;
-		info->regs = &s5m_rtc_regs;
-		alarm_irq = S5M8763_IRQ_ALARM0;
-		break;
 	case S5M8767X:
 		regmap_cfg = &s5m_rtc_regmap_config;
 		info->regs = &s5m_rtc_regs;
@@ -786,13 +715,8 @@ static int s5m_rtc_probe(struct platform_device *pdev)
 
 	info->rtc_dev->ops = &s5m_rtc_ops;
 
-	if (info->device_type == S5M8763X) {
-		info->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_0000;
-		info->rtc_dev->range_max = RTC_TIMESTAMP_END_9999;
-	} else {
-		info->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
-		info->rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
-	}
+	info->rtc_dev->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	info->rtc_dev->range_max = RTC_TIMESTAMP_END_2099;
 
 	if (!info->irq) {
 		clear_bit(RTC_FEATURE_ALARM, info->rtc_dev->features);

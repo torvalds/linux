@@ -229,6 +229,85 @@ static void ifs_test_core(int cpu, struct device *dev)
 	}
 }
 
+#define SPINUNIT 100 /* 100 nsec */
+static atomic_t array_cpus_out;
+
+/*
+ * Simplified cpu sibling rendezvous loop based on microcode loader __wait_for_cpus()
+ */
+static void wait_for_sibling_cpu(atomic_t *t, long long timeout)
+{
+	int cpu = smp_processor_id();
+	const struct cpumask *smt_mask = cpu_smt_mask(cpu);
+	int all_cpus = cpumask_weight(smt_mask);
+
+	atomic_inc(t);
+	while (atomic_read(t) < all_cpus) {
+		if (timeout < SPINUNIT)
+			return;
+		ndelay(SPINUNIT);
+		timeout -= SPINUNIT;
+		touch_nmi_watchdog();
+	}
+}
+
+static int do_array_test(void *data)
+{
+	union ifs_array *command = data;
+	int cpu = smp_processor_id();
+	int first;
+
+	/*
+	 * Only one logical CPU on a core needs to trigger the Array test via MSR write.
+	 */
+	first = cpumask_first(cpu_smt_mask(cpu));
+
+	if (cpu == first) {
+		wrmsrl(MSR_ARRAY_BIST, command->data);
+		/* Pass back the result of the test */
+		rdmsrl(MSR_ARRAY_BIST, command->data);
+	}
+
+	/* Tests complete faster if the sibling is spinning here */
+	wait_for_sibling_cpu(&array_cpus_out, NSEC_PER_SEC);
+
+	return 0;
+}
+
+static void ifs_array_test_core(int cpu, struct device *dev)
+{
+	union ifs_array command = {};
+	bool timed_out = false;
+	struct ifs_data *ifsd;
+	unsigned long timeout;
+
+	ifsd = ifs_get_data(dev);
+
+	command.array_bitmask = ~0U;
+	timeout = jiffies + HZ / 2;
+
+	do {
+		if (time_after(jiffies, timeout)) {
+			timed_out = true;
+			break;
+		}
+		atomic_set(&array_cpus_out, 0);
+		stop_core_cpuslocked(cpu, do_array_test, &command);
+
+		if (command.ctrl_result)
+			break;
+	} while (command.array_bitmask);
+
+	ifsd->scan_details = command.data;
+
+	if (command.ctrl_result)
+		ifsd->status = SCAN_TEST_FAIL;
+	else if (timed_out || command.array_bitmask)
+		ifsd->status = SCAN_NOT_TESTED;
+	else
+		ifsd->status = SCAN_TEST_PASS;
+}
+
 /*
  * Initiate per core test. It wakes up work queue threads on the target cpu and
  * its sibling cpu. Once all sibling threads wake up, the scan test gets executed and
@@ -236,6 +315,8 @@ static void ifs_test_core(int cpu, struct device *dev)
  */
 int do_core_test(int cpu, struct device *dev)
 {
+	const struct ifs_test_caps *test = ifs_get_test_caps(dev);
+	struct ifs_data *ifsd = ifs_get_data(dev);
 	int ret = 0;
 
 	/* Prevent CPUs from being taken offline during the scan test */
@@ -247,7 +328,18 @@ int do_core_test(int cpu, struct device *dev)
 		goto out;
 	}
 
-	ifs_test_core(cpu, dev);
+	switch (test->test_num) {
+	case IFS_TYPE_SAF:
+		if (!ifsd->loaded)
+			return -EPERM;
+		ifs_test_core(cpu, dev);
+		break;
+	case IFS_TYPE_ARRAY_BIST:
+		ifs_array_test_core(cpu, dev);
+		break;
+	default:
+		return -EINVAL;
+	}
 out:
 	cpus_read_unlock();
 	return ret;

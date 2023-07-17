@@ -546,7 +546,7 @@ static const struct i2c_device_id rt1019_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt1019_i2c_id);
 
-static const struct of_device_id rt1019_of_match[] = {
+static const struct of_device_id rt1019_of_match[] __maybe_unused = {
 	{ .compatible = "realtek,rt1019", },
 	{},
 };

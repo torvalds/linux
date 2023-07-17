@@ -350,8 +350,6 @@ done:
 	zlib_inflateEnd(&workspace->strm);
 	if (data_in)
 		kunmap_local(data_in);
-	if (!ret)
-		zero_fill_bio(cb->orig_bio);
 	return ret;
 }
 

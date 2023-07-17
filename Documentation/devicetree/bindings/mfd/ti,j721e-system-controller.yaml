@@ -62,6 +62,12 @@ patternProperties:
     description:
       The phy node corresponding to the ethernet MAC.
 
+  "^chipid@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/hwinfo/ti,k3-socinfo.yaml#
+    description:
+      The node corresponding to SoC chip identification.
+
 required:
   - compatible
   - reg
@@ -98,6 +104,11 @@ examples:
             compatible = "ti,am654-ehrpwm-tbclk", "syscon";
             reg = <0x4140 0x18>;
             #clock-cells = <1>;
+        };
+
+        chipid@14 {
+            compatible = "ti,am654-chipid";
+            reg = <0x14 0x4>;
         };
     };
 ...

@@ -3,6 +3,8 @@
 
 #include <errno.h>
 #include <linux/err.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter_arp.h>
 #include <net/if.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -135,6 +137,18 @@ static void show_iter_json(struct bpf_link_info *info, json_writer_t *wtr)
 	}
 }
 
+void netfilter_dump_json(const struct bpf_link_info *info, json_writer_t *wtr)
+{
+	jsonw_uint_field(json_wtr, "pf",
+			 info->netfilter.pf);
+	jsonw_uint_field(json_wtr, "hook",
+			 info->netfilter.hooknum);
+	jsonw_int_field(json_wtr, "prio",
+			 info->netfilter.priority);
+	jsonw_uint_field(json_wtr, "flags",
+			 info->netfilter.flags);
+}
+
 static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 {
 	__u32 len = sizeof(*info);
@@ -195,6 +209,10 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 				 info->netns.netns_ino);
 		show_link_attach_type_json(info->netns.attach_type, json_wtr);
 		break;
+	case BPF_LINK_TYPE_NETFILTER:
+		netfilter_dump_json(info, json_wtr);
+		break;
+
 	default:
 		break;
 	}
@@ -263,6 +281,68 @@ static void show_iter_plain(struct bpf_link_info *info)
 	}
 }
 
+static const char * const pf2name[] = {
+	[NFPROTO_INET] = "inet",
+	[NFPROTO_IPV4] = "ip",
+	[NFPROTO_ARP] = "arp",
+	[NFPROTO_NETDEV] = "netdev",
+	[NFPROTO_BRIDGE] = "bridge",
+	[NFPROTO_IPV6] = "ip6",
+};
+
+static const char * const inethook2name[] = {
+	[NF_INET_PRE_ROUTING] = "prerouting",
+	[NF_INET_LOCAL_IN] = "input",
+	[NF_INET_FORWARD] = "forward",
+	[NF_INET_LOCAL_OUT] = "output",
+	[NF_INET_POST_ROUTING] = "postrouting",
+};
+
+static const char * const arphook2name[] = {
+	[NF_ARP_IN] = "input",
+	[NF_ARP_OUT] = "output",
+};
+
+void netfilter_dump_plain(const struct bpf_link_info *info)
+{
+	const char *hookname = NULL, *pfname = NULL;
+	unsigned int hook = info->netfilter.hooknum;
+	unsigned int pf = info->netfilter.pf;
+
+	if (pf < ARRAY_SIZE(pf2name))
+		pfname = pf2name[pf];
+
+	switch (pf) {
+	case NFPROTO_BRIDGE: /* bridge shares numbers with enum nf_inet_hooks */
+	case NFPROTO_IPV4:
+	case NFPROTO_IPV6:
+	case NFPROTO_INET:
+		if (hook < ARRAY_SIZE(inethook2name))
+			hookname = inethook2name[hook];
+		break;
+	case NFPROTO_ARP:
+		if (hook < ARRAY_SIZE(arphook2name))
+			hookname = arphook2name[hook];
+	default:
+		break;
+	}
+
+	if (pfname)
+		printf("\n\t%s", pfname);
+	else
+		printf("\n\tpf: %d", pf);
+
+	if (hookname)
+		printf(" %s", hookname);
+	else
+		printf(", hook %u,", hook);
+
+	printf(" prio %d", info->netfilter.priority);
+
+	if (info->netfilter.flags)
+		printf(" flags 0x%x", info->netfilter.flags);
+}
+
 static int show_link_close_plain(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
@@ -300,6 +380,9 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 	case BPF_LINK_TYPE_NETNS:
 		printf("\n\tnetns_ino %u  ", info->netns.netns_ino);
 		show_link_attach_type_plain(info->netns.attach_type);
+		break;
+	case BPF_LINK_TYPE_NETFILTER:
+		netfilter_dump_plain(info);
 		break;
 	default:
 		break;

@@ -12,15 +12,16 @@
 #include "rsrc.h"
 #include "uring_cmd.h"
 
-static void io_uring_cmd_work(struct io_kiocb *req, bool *locked)
+static void io_uring_cmd_work(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
+	unsigned issue_flags = ts->locked ? 0 : IO_URING_F_UNLOCKED;
 
-	ioucmd->task_work_cb(ioucmd);
+	ioucmd->task_work_cb(ioucmd, issue_flags);
 }
 
 void io_uring_cmd_complete_in_task(struct io_uring_cmd *ioucmd,
-			void (*task_work_cb)(struct io_uring_cmd *))
+			void (*task_work_cb)(struct io_uring_cmd *, unsigned))
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
@@ -42,7 +43,8 @@ static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
  * Called by consumers of io_uring_cmd, if they originally returned
  * -EIOCBQUEUED upon receiving the command.
  */
-void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
+void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2,
+		       unsigned issue_flags)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
@@ -52,25 +54,24 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 	io_req_set_res(req, ret, 0);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
-	if (req->ctx->flags & IORING_SETUP_IOPOLL)
+	if (req->ctx->flags & IORING_SETUP_IOPOLL) {
 		/* order with io_iopoll_req_issued() checking ->iopoll_complete */
 		smp_store_release(&req->iopoll_completed, 1);
-	else
-		io_req_complete_post(req, 0);
+	} else {
+		struct io_tw_state ts = {
+			.locked = !(issue_flags & IO_URING_F_UNLOCKED),
+		};
+		io_req_task_complete(req, &ts);
+	}
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
 int io_uring_cmd_prep_async(struct io_kiocb *req)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	size_t cmd_size;
 
-	BUILD_BUG_ON(uring_cmd_pdu_size(0) != 16);
-	BUILD_BUG_ON(uring_cmd_pdu_size(1) != 80);
-
-	cmd_size = uring_cmd_pdu_size(req->ctx->flags & IORING_SETUP_SQE128);
-
-	memcpy(req->async_data, ioucmd->cmd, cmd_size);
+	memcpy(req->async_data, ioucmd->sqe, uring_sqe_size(req->ctx));
+	ioucmd->sqe = req->async_data;
 	return 0;
 }
 
@@ -96,7 +97,7 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->imu = ctx->user_bufs[index];
 		io_req_set_rsrc_node(req, ctx, 0);
 	}
-	ioucmd->cmd = sqe->cmd;
+	ioucmd->sqe = sqe;
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
 	return 0;
 }
@@ -126,9 +127,6 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 		req->iopoll_completed = 0;
 		WRITE_ONCE(ioucmd->cookie, NULL);
 	}
-
-	if (req_has_async_data(req))
-		ioucmd->cmd = req->async_data;
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
 	if (ret == -EAGAIN) {

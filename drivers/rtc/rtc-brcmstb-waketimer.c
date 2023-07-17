@@ -336,14 +336,12 @@ err_clk:
 	return ret;
 }
 
-static int brcmstb_waketmr_remove(struct platform_device *pdev)
+static void brcmstb_waketmr_remove(struct platform_device *pdev)
 {
 	struct brcmstb_waketmr *timer = dev_get_drvdata(&pdev->dev);
 
 	unregister_reboot_notifier(&timer->reboot_notifier);
 	clk_disable_unprepare(timer->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -382,7 +380,7 @@ static const __maybe_unused struct of_device_id brcmstb_waketmr_of_match[] = {
 
 static struct platform_driver brcmstb_waketmr_driver = {
 	.probe			= brcmstb_waketmr_probe,
-	.remove			= brcmstb_waketmr_remove,
+	.remove_new		= brcmstb_waketmr_remove,
 	.driver = {
 		.name		= "brcmstb-waketimer",
 		.pm		= &brcmstb_waketmr_pm_ops,

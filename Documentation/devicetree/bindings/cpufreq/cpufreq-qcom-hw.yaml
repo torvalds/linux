@@ -20,12 +20,20 @@ properties:
     oneOf:
       - description: v1 of CPUFREQ HW
         items:
+          - enum:
+              - qcom,qcm2290-cpufreq-hw
+              - qcom,sc7180-cpufreq-hw
+              - qcom,sdm845-cpufreq-hw
+              - qcom,sm6115-cpufreq-hw
+              - qcom,sm6350-cpufreq-hw
+              - qcom,sm8150-cpufreq-hw
           - const: qcom,cpufreq-hw
 
       - description: v2 of CPUFREQ HW (EPSS)
         items:
           - enum:
               - qcom,qdu1000-cpufreq-epss
+              - qcom,sa8775p-cpufreq-epss
               - qcom,sc7280-cpufreq-epss
               - qcom,sc8280xp-cpufreq-epss
               - qcom,sm6375-cpufreq-epss
@@ -36,14 +44,14 @@ properties:
           - const: qcom,cpufreq-epss
 
   reg:
-    minItems: 2
+    minItems: 1
     items:
       - description: Frequency domain 0 register region
       - description: Frequency domain 1 register region
       - description: Frequency domain 2 register region
 
   reg-names:
-    minItems: 2
+    minItems: 1
     items:
       - const: freq-domain0
       - const: freq-domain1
@@ -84,6 +92,111 @@ required:
   - '#freq-domain-cells'
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcm2290-cpufreq-hw
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 1
+
+        reg-names:
+          minItems: 1
+          maxItems: 1
+
+        interrupts:
+          minItems: 1
+          maxItems: 1
+
+        interrupt-names:
+          minItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qdu1000-cpufreq-epss
+              - qcom,sc7180-cpufreq-hw
+              - qcom,sc8280xp-cpufreq-epss
+              - qcom,sdm845-cpufreq-hw
+              - qcom,sm6115-cpufreq-hw
+              - qcom,sm6350-cpufreq-hw
+              - qcom,sm6375-cpufreq-epss
+    then:
+      properties:
+        reg:
+          minItems: 2
+          maxItems: 2
+
+        reg-names:
+          minItems: 2
+          maxItems: 2
+
+        interrupts:
+          minItems: 2
+          maxItems: 2
+
+        interrupt-names:
+          minItems: 2
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sc7280-cpufreq-epss
+              - qcom,sm8250-cpufreq-epss
+              - qcom,sm8350-cpufreq-epss
+              - qcom,sm8450-cpufreq-epss
+              - qcom,sm8550-cpufreq-epss
+    then:
+      properties:
+        reg:
+          minItems: 3
+          maxItems: 3
+
+        reg-names:
+          minItems: 3
+          maxItems: 3
+
+        interrupts:
+          minItems: 3
+          maxItems: 3
+
+        interrupt-names:
+          minItems: 3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8150-cpufreq-hw
+    then:
+      properties:
+        reg:
+          minItems: 3
+          maxItems: 3
+
+        reg-names:
+          minItems: 3
+          maxItems: 3
+
+        # On some SoCs the Prime core shares the LMH irq with Big cores
+        interrupts:
+          minItems: 2
+          maxItems: 2
+
+        interrupt-names:
+          minItems: 2
+
 
 examples:
   - |
@@ -235,7 +348,7 @@ examples:
       #size-cells = <1>;
 
       cpufreq@17d43000 {
-        compatible = "qcom,cpufreq-hw";
+        compatible = "qcom,sdm845-cpufreq-hw", "qcom,cpufreq-hw";
         reg = <0x17d43000 0x1400>, <0x17d45800 0x1400>;
         reg-names = "freq-domain0", "freq-domain1";
 

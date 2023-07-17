@@ -76,7 +76,7 @@ as370_hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_channel_info *as370_hwmon_info[] = {
+static const struct hwmon_channel_info * const as370_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };

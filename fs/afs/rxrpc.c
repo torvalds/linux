@@ -179,7 +179,8 @@ void afs_put_call(struct afs_call *call)
 		ASSERT(call->type->name != NULL);
 
 		if (call->rxcall) {
-			rxrpc_kernel_end_call(net->socket, call->rxcall);
+			rxrpc_kernel_shutdown_call(net->socket, call->rxcall);
+			rxrpc_kernel_put_call(net->socket, call->rxcall);
 			call->rxcall = NULL;
 		}
 		if (call->type->destructor)
@@ -334,7 +335,9 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	/* create a call */
 	rxcall = rxrpc_kernel_begin_call(call->net->socket, srx, call->key,
 					 (unsigned long)call,
-					 tx_total_len, gfp,
+					 tx_total_len,
+					 call->max_lifespan,
+					 gfp,
 					 (call->async ?
 					  afs_wake_up_async_call :
 					  afs_wake_up_call_waiter),
@@ -349,10 +352,6 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	}
 
 	call->rxcall = rxcall;
-
-	if (call->max_lifespan)
-		rxrpc_kernel_set_max_life(call->net->socket, rxcall,
-					  call->max_lifespan);
 	call->issue_time = ktime_get_real();
 
 	/* send the request */
@@ -420,10 +419,8 @@ error_kill_call:
 	 * The call, however, might be queued on afs_async_calls and we need to
 	 * make sure we don't get any more notifications that might requeue it.
 	 */
-	if (call->rxcall) {
-		rxrpc_kernel_end_call(call->net->socket, call->rxcall);
-		call->rxcall = NULL;
-	}
+	if (call->rxcall)
+		rxrpc_kernel_shutdown_call(call->net->socket, call->rxcall);
 	if (call->async) {
 		if (cancel_work_sync(&call->async_work))
 			afs_put_call(call);

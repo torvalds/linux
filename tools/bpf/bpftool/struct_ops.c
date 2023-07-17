@@ -475,21 +475,44 @@ static int do_unregister(int argc, char **argv)
 	return cmd_retval(&res, true);
 }
 
+static int pin_link(struct bpf_link *link, const char *pindir,
+		    const char *name)
+{
+	char pinfile[PATH_MAX];
+	int err;
+
+	err = pathname_concat(pinfile, sizeof(pinfile), pindir, name);
+	if (err)
+		return -1;
+
+	return bpf_link__pin(link, pinfile);
+}
+
 static int do_register(int argc, char **argv)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, open_opts);
+	__u32 link_info_len = sizeof(struct bpf_link_info);
+	struct bpf_link_info link_info = {};
 	struct bpf_map_info info = {};
 	__u32 info_len = sizeof(info);
 	int nr_errs = 0, nr_maps = 0;
+	const char *linkdir = NULL;
 	struct bpf_object *obj;
 	struct bpf_link *link;
 	struct bpf_map *map;
 	const char *file;
 
-	if (argc != 1)
+	if (argc != 1 && argc != 2)
 		usage();
 
 	file = GET_ARG();
+	if (argc == 1)
+		linkdir = GET_ARG();
+
+	if (linkdir && mount_bpffs_for_pin(linkdir)) {
+		p_err("can't mount bpffs for pinning");
+		return -1;
+	}
 
 	if (verifier_logs)
 		/* log_level1 + log_level2 + stats, but not stable UAPI */
@@ -519,21 +542,44 @@ static int do_register(int argc, char **argv)
 		}
 		nr_maps++;
 
-		bpf_link__disconnect(link);
-		bpf_link__destroy(link);
-
-		if (!bpf_map_get_info_by_fd(bpf_map__fd(map), &info,
-					    &info_len))
-			p_info("Registered %s %s id %u",
-			       get_kern_struct_ops_name(&info),
-			       bpf_map__name(map),
-			       info.id);
-		else
+		if (bpf_map_get_info_by_fd(bpf_map__fd(map), &info,
+					   &info_len)) {
 			/* Not p_err.  The struct_ops was attached
 			 * successfully.
 			 */
 			p_info("Registered %s but can't find id: %s",
 			       bpf_map__name(map), strerror(errno));
+			goto clean_link;
+		}
+		if (!(bpf_map__map_flags(map) & BPF_F_LINK)) {
+			p_info("Registered %s %s id %u",
+			       get_kern_struct_ops_name(&info),
+			       info.name,
+			       info.id);
+			goto clean_link;
+		}
+		if (bpf_link_get_info_by_fd(bpf_link__fd(link),
+					    &link_info,
+					    &link_info_len)) {
+			p_err("Registered %s but can't find link id: %s",
+			      bpf_map__name(map), strerror(errno));
+			nr_errs++;
+			goto clean_link;
+		}
+		if (linkdir && pin_link(link, linkdir, info.name)) {
+			p_err("can't pin link %u for %s: %s",
+			      link_info.id, info.name,
+			      strerror(errno));
+			nr_errs++;
+			goto clean_link;
+		}
+		p_info("Registered %s %s map id %u link id %u",
+		       get_kern_struct_ops_name(&info),
+		       info.name, info.id, link_info.id);
+
+clean_link:
+		bpf_link__disconnect(link);
+		bpf_link__destroy(link);
 	}
 
 	bpf_object__close(obj);
@@ -562,7 +608,7 @@ static int do_help(int argc, char **argv)
 	fprintf(stderr,
 		"Usage: %1$s %2$s { show | list } [STRUCT_OPS_MAP]\n"
 		"       %1$s %2$s dump [STRUCT_OPS_MAP]\n"
-		"       %1$s %2$s register OBJ\n"
+		"       %1$s %2$s register OBJ [LINK_DIR]\n"
 		"       %1$s %2$s unregister STRUCT_OPS_MAP\n"
 		"       %1$s %2$s help\n"
 		"\n"

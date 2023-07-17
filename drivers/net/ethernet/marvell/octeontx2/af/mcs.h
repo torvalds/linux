@@ -43,24 +43,15 @@
 /* Reserved resources for default bypass entry */
 #define MCS_RSRC_RSVD_CNT		1
 
-/* MCS Interrupt Vector Enumeration */
-enum mcs_int_vec_e {
-	MCS_INT_VEC_MIL_RX_GBL		= 0x0,
-	MCS_INT_VEC_MIL_RX_LMACX	= 0x1,
-	MCS_INT_VEC_MIL_TX_LMACX	= 0x5,
-	MCS_INT_VEC_HIL_RX_GBL		= 0x9,
-	MCS_INT_VEC_HIL_RX_LMACX	= 0xa,
-	MCS_INT_VEC_HIL_TX_GBL		= 0xe,
-	MCS_INT_VEC_HIL_TX_LMACX	= 0xf,
-	MCS_INT_VEC_IP			= 0x13,
-	MCS_INT_VEC_CNT			= 0x14,
-};
+/* MCS Interrupt Vector */
+#define MCS_CNF10KB_INT_VEC_IP	0x13
+#define MCS_CN10KB_INT_VEC_IP	0x53
 
 #define MCS_MAX_BBE_INT			8ULL
 #define MCS_BBE_INT_MASK		0xFFULL
 
-#define MCS_MAX_PAB_INT			4ULL
-#define MCS_PAB_INT_MASK		0xFULL
+#define MCS_MAX_PAB_INT		8ULL
+#define MCS_PAB_INT_MASK	0xFULL
 
 #define MCS_BBE_RX_INT_ENA		BIT_ULL(0)
 #define MCS_BBE_TX_INT_ENA		BIT_ULL(1)
@@ -137,6 +128,7 @@ struct hwinfo {
 	u8 lmac_cnt;
 	u8 mcs_blks;
 	unsigned long	lmac_bmap; /* bitmap of enabled mcs lmac */
+	u16 ip_vec;
 };
 
 struct mcs {
@@ -165,6 +157,8 @@ struct mcs_ops {
 	void	(*mcs_tx_sa_mem_map_write)(struct mcs *mcs, struct mcs_tx_sc_sa_map *map);
 	void	(*mcs_rx_sa_mem_map_write)(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
 	void	(*mcs_flowid_secy_map)(struct mcs *mcs, struct secy_mem_map *map, int dir);
+	void	(*mcs_bbe_intr_handler)(struct mcs *mcs, u64 intr, enum mcs_direction dir);
+	void	(*mcs_pab_intr_handler)(struct mcs *mcs, u64 intr, enum mcs_direction dir);
 };
 
 extern struct pci_driver mcs_driver;
@@ -219,6 +213,8 @@ void cn10kb_mcs_tx_sa_mem_map_write(struct mcs *mcs, struct mcs_tx_sc_sa_map *ma
 void cn10kb_mcs_flowid_secy_map(struct mcs *mcs, struct secy_mem_map *map, int dir);
 void cn10kb_mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *map);
 void cn10kb_mcs_parser_cfg(struct mcs *mcs);
+void cn10kb_mcs_pab_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir);
+void cn10kb_mcs_bbe_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir);
 
 /* CNF10K-B APIs */
 struct mcs_ops *cnf10kb_get_mac_ops(void);
@@ -229,6 +225,8 @@ void cnf10kb_mcs_rx_sa_mem_map_write(struct mcs *mcs, struct mcs_rx_sc_sa_map *m
 void cnf10kb_mcs_parser_cfg(struct mcs *mcs);
 void cnf10kb_mcs_tx_pn_thresh_reached_handler(struct mcs *mcs);
 void cnf10kb_mcs_tx_pn_wrapped_handler(struct mcs *mcs);
+void cnf10kb_mcs_bbe_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir);
+void cnf10kb_mcs_pab_intr_handler(struct mcs *mcs, u64 intr, enum mcs_direction dir);
 
 /* Stats APIs */
 void mcs_get_sc_stats(struct mcs *mcs, struct mcs_sc_stats *stats, int id, int dir);

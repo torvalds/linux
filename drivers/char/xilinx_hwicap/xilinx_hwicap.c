@@ -856,7 +856,7 @@ static int __init hwicap_module_init(void)
 	dev_t devt;
 	int retval;
 
-	icap_class = class_create(THIS_MODULE, "xilinx_config");
+	icap_class = class_create("xilinx_config");
 	mutex_init(&icap_sem);
 
 	devt = MKDEV(XHWICAP_MAJOR, XHWICAP_MINOR);

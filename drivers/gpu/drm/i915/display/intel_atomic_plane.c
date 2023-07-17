@@ -32,18 +32,17 @@
  */
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
-
-#include "gt/intel_rps.h"
 
 #include "i915_config.h"
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
+#include "intel_display_rps.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
-#include "intel_sprite.h"
 #include "skl_scaler.h"
 #include "skl_watermark.h"
 
@@ -363,6 +362,7 @@ void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 	crtc_state->scaled_planes &= ~BIT(plane->id);
 	crtc_state->nv12_planes &= ~BIT(plane->id);
 	crtc_state->c8_planes &= ~BIT(plane->id);
+	crtc_state->async_flip_planes &= ~BIT(plane->id);
 	crtc_state->data_rate[plane->id] = 0;
 	crtc_state->data_rate_y[plane->id] = 0;
 	crtc_state->rel_data_rate[plane->id] = 0;
@@ -582,8 +582,10 @@ static int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_cr
 			 intel_plane_is_scaled(new_plane_state))))
 		new_crtc_state->disable_lp_wm = true;
 
-	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state))
+	if (intel_plane_do_async_flip(plane, old_crtc_state, new_crtc_state)) {
 		new_crtc_state->do_async_flip = true;
+		new_crtc_state->async_flip_planes |= BIT(plane->id);
+	}
 
 	return 0;
 }
@@ -938,62 +940,62 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 	return 0;
 }
 
-struct wait_rps_boost {
-	struct wait_queue_entry wait;
-
-	struct drm_crtc *crtc;
-	struct i915_request *request;
-};
-
-static int do_rps_boost(struct wait_queue_entry *_wait,
-			unsigned mode, int sync, void *key)
+int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 {
-	struct wait_rps_boost *wait = container_of(_wait, typeof(*wait), wait);
-	struct i915_request *rq = wait->request;
+	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	struct drm_rect *src = &plane_state->uapi.src;
+	u32 src_x, src_y, src_w, src_h, hsub, vsub;
+	bool rotated = drm_rotation_90_or_270(plane_state->hw.rotation);
 
 	/*
-	 * If we missed the vblank, but the request is already running it
-	 * is reasonable to assume that it will complete before the next
-	 * vblank without our intervention, so leave RPS alone.
+	 * FIXME hsub/vsub vs. block size is a mess. Pre-tgl CCS
+	 * abuses hsub/vsub so we can't use them here. But as they
+	 * are limited to 32bpp RGB formats we don't actually need
+	 * to check anything.
 	 */
-	if (!i915_request_started(rq))
-		intel_rps_boost(rq);
-	i915_request_put(rq);
+	if (fb->modifier == I915_FORMAT_MOD_Y_TILED_CCS ||
+	    fb->modifier == I915_FORMAT_MOD_Yf_TILED_CCS)
+		return 0;
 
-	drm_crtc_vblank_put(wait->crtc);
+	/*
+	 * Hardware doesn't handle subpixel coordinates.
+	 * Adjust to (macro)pixel boundary, but be careful not to
+	 * increase the source viewport size, because that could
+	 * push the downscaling factor out of bounds.
+	 */
+	src_x = src->x1 >> 16;
+	src_w = drm_rect_width(src) >> 16;
+	src_y = src->y1 >> 16;
+	src_h = drm_rect_height(src) >> 16;
 
-	list_del(&wait->wait.entry);
-	kfree(wait);
-	return 1;
-}
+	drm_rect_init(src, src_x << 16, src_y << 16,
+		      src_w << 16, src_h << 16);
 
-static void add_rps_boost_after_vblank(struct drm_crtc *crtc,
-				       struct dma_fence *fence)
-{
-	struct wait_rps_boost *wait;
-
-	if (!dma_fence_is_i915(fence))
-		return;
-
-	if (DISPLAY_VER(to_i915(crtc->dev)) < 6)
-		return;
-
-	if (drm_crtc_vblank_get(crtc))
-		return;
-
-	wait = kmalloc(sizeof(*wait), GFP_KERNEL);
-	if (!wait) {
-		drm_crtc_vblank_put(crtc);
-		return;
+	if (fb->format->format == DRM_FORMAT_RGB565 && rotated) {
+		hsub = 2;
+		vsub = 2;
+	} else {
+		hsub = fb->format->hsub;
+		vsub = fb->format->vsub;
 	}
 
-	wait->request = to_request(dma_fence_get(fence));
-	wait->crtc = crtc;
+	if (rotated)
+		hsub = vsub = max(hsub, vsub);
 
-	wait->wait.func = do_rps_boost;
-	wait->wait.flags = 0;
+	if (src_x % hsub || src_w % hsub) {
+		drm_dbg_kms(&i915->drm, "src x/w (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			    src_x, src_w, hsub, str_yes_no(rotated));
+		return -EINVAL;
+	}
 
-	add_wait_queue(drm_crtc_vblank_waitqueue(crtc), &wait->wait);
+	if (src_y % vsub || src_h % vsub) {
+		drm_dbg_kms(&i915->drm, "src y/h (%u, %u) must be a multiple of %u (rotated: %s)\n",
+			    src_y, src_h, vsub, str_yes_no(rotated));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**
@@ -1026,7 +1028,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	int ret;
 
 	if (old_obj) {
-		const struct intel_crtc_state *crtc_state =
+		const struct intel_crtc_state *new_crtc_state =
 			intel_atomic_get_new_crtc_state(state,
 							to_intel_crtc(old_plane_state->hw.crtc));
 
@@ -1041,7 +1043,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		 * This should only fail upon a hung GPU, in which case we
 		 * can safely continue.
 		 */
-		if (intel_crtc_needs_modeset(crtc_state)) {
+		if (new_crtc_state && intel_crtc_needs_modeset(new_crtc_state)) {
 			ret = i915_sw_fence_await_reservation(&state->commit_ready,
 							      old_obj->base.resv,
 							      false, 0,
@@ -1086,13 +1088,13 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		dma_resv_iter_begin(&cursor, obj->base.resv,
 				    DMA_RESV_USAGE_WRITE);
 		dma_resv_for_each_fence_unlocked(&cursor, fence) {
-			add_rps_boost_after_vblank(new_plane_state->hw.crtc,
-						   fence);
+			intel_display_rps_boost_after_vblank(new_plane_state->hw.crtc,
+							     fence);
 		}
 		dma_resv_iter_end(&cursor);
 	} else {
-		add_rps_boost_after_vblank(new_plane_state->hw.crtc,
-					   new_plane_state->uapi.fence);
+		intel_display_rps_boost_after_vblank(new_plane_state->hw.crtc,
+						     new_plane_state->uapi.fence);
 	}
 
 	/*
@@ -1103,10 +1105,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	 * that are not quite steady state without resorting to forcing
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
-	if (!state->rps_interactive) {
-		intel_rps_mark_interactive(&to_gt(dev_priv)->rps, true);
-		state->rps_interactive = true;
-	}
+	intel_display_rps_mark_interactive(dev_priv, state, true);
 
 	return 0;
 
@@ -1137,10 +1136,7 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	if (!obj)
 		return;
 
-	if (state->rps_interactive) {
-		intel_rps_mark_interactive(&to_gt(dev_priv)->rps, false);
-		state->rps_interactive = false;
-	}
+	intel_display_rps_mark_interactive(dev_priv, state, false);
 
 	/* Should only be called after a successful intel_prepare_plane_fb()! */
 	intel_plane_unpin_fb(old_plane_state);

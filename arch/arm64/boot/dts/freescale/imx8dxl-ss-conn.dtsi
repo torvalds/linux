@@ -34,7 +34,7 @@
 	};
 
 	usbotg2: usb@5b0e0000 {
-		compatible = "fsl,imx8dxl-usb", "fsl,imx7ulp-usb";
+		compatible = "fsl,imx8dxl-usb", "fsl,imx7ulp-usb", "fsl,imx6ul-usb";
 		reg = <0x5b0e0000 0x200>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
@@ -49,7 +49,6 @@
 		ahb-burst-config = <0x0>;
 		tx-burst-size-dword = <0x10>;
 		rx-burst-size-dword = <0x10>;
-		#stream-id-cells = <1>;
 		power-domains = <&pd IMX_SC_R_USB_1>;
 		status = "disabled";
 
@@ -63,7 +62,7 @@
 
 	usbmisc2: usbmisc@5b0e0200 {
 		#index-cells = <1>;
-		compatible = "fsl,imx7ulp-usbmisc";
+		compatible = "fsl,imx7ulp-usbmisc", "fsl,imx7d-usbmisc", "fsl,imx6q-usbmisc";
 		reg = <0x5b0e0200 0x200>;
 	};
 

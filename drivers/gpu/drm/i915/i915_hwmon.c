@@ -99,20 +99,6 @@ hwm_field_read_and_scale(struct hwm_drvdata *ddat, i915_reg_t rgadr,
 	return mul_u64_u32_shr(reg_value, scale_factor, nshift);
 }
 
-static void
-hwm_field_scale_and_write(struct hwm_drvdata *ddat, i915_reg_t rgadr,
-			  int nshift, unsigned int scale_factor, long lval)
-{
-	u32 nval;
-
-	/* Computation in 64-bits to avoid overflow. Round to nearest. */
-	nval = DIV_ROUND_CLOSEST_ULL((u64)lval << nshift, scale_factor);
-
-	hwm_locked_with_pm_intel_uncore_rmw(ddat, rgadr,
-					    PKG_PWR_LIM_1,
-					    REG_FIELD_PREP(PKG_PWR_LIM_1, nval));
-}
-
 /*
  * hwm_energy - Obtain energy value
  *
@@ -232,11 +218,15 @@ hwm_power1_max_interval_store(struct device *dev,
 	/* val in hw units */
 	val = DIV_ROUND_CLOSEST_ULL((u64)val << hwmon->scl_shift_time, SF_TIME);
 	/* Convert to 1.x * power(2,y) */
-	if (!val)
-		return -EINVAL;
-	y = ilog2(val);
-	/* x = (val - (1 << y)) >> (y - 2); */
-	x = (val - (1ul << y)) << x_w >> y;
+	if (!val) {
+		/* Avoid ilog2(0) */
+		y = 0;
+		x = 0;
+	} else {
+		y = ilog2(val);
+		/* x = (val - (1 << y)) >> (y - 2); */
+		x = (val - (1ul << y)) << x_w >> y;
+	}
 
 	rxy = REG_FIELD_PREP(PKG_PWR_LIM_1_TIME_X, x) | REG_FIELD_PREP(PKG_PWR_LIM_1_TIME_Y, y);
 
@@ -359,6 +349,8 @@ hwm_power_is_visible(const struct hwm_drvdata *ddat, u32 attr, int chan)
 	}
 }
 
+#define PL1_DISABLE 0
+
 /*
  * HW allows arbitrary PL1 limits to be set but silently clamps these values to
  * "typical but not guaranteed" min/max values in rg.pkg_power_sku. Follow the
@@ -371,6 +363,14 @@ hwm_power_max_read(struct hwm_drvdata *ddat, long *val)
 	struct i915_hwmon *hwmon = ddat->hwmon;
 	intel_wakeref_t wakeref;
 	u64 r, min, max;
+
+	/* Check if PL1 limit is disabled */
+	with_intel_runtime_pm(ddat->uncore->rpm, wakeref)
+		r = intel_uncore_read(ddat->uncore, hwmon->rg.pkg_rapl_limit);
+	if (!(r & PKG_PWR_LIM_1_EN)) {
+		*val = PL1_DISABLE;
+		return 0;
+	}
 
 	*val = hwm_field_read_and_scale(ddat,
 					hwmon->rg.pkg_rapl_limit,
@@ -388,6 +388,38 @@ hwm_power_max_read(struct hwm_drvdata *ddat, long *val)
 	if (min && max)
 		*val = clamp_t(u64, *val, min, max);
 
+	return 0;
+}
+
+static int
+hwm_power_max_write(struct hwm_drvdata *ddat, long val)
+{
+	struct i915_hwmon *hwmon = ddat->hwmon;
+	intel_wakeref_t wakeref;
+	u32 nval;
+
+	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
+	if (val == PL1_DISABLE) {
+		mutex_lock(&hwmon->hwmon_lock);
+		with_intel_runtime_pm(ddat->uncore->rpm, wakeref) {
+			intel_uncore_rmw(ddat->uncore, hwmon->rg.pkg_rapl_limit,
+					 PKG_PWR_LIM_1_EN, 0);
+			nval = intel_uncore_read(ddat->uncore, hwmon->rg.pkg_rapl_limit);
+		}
+		mutex_unlock(&hwmon->hwmon_lock);
+
+		if (nval & PKG_PWR_LIM_1_EN)
+			return -ENODEV;
+		return 0;
+	}
+
+	/* Computation in 64-bits to avoid overflow. Round to nearest. */
+	nval = DIV_ROUND_CLOSEST_ULL((u64)val << hwmon->scl_shift_power, SF_POWER);
+	nval = PKG_PWR_LIM_1_EN | REG_FIELD_PREP(PKG_PWR_LIM_1, nval);
+
+	hwm_locked_with_pm_intel_uncore_rmw(ddat, hwmon->rg.pkg_rapl_limit,
+					    PKG_PWR_LIM_1_EN | PKG_PWR_LIM_1,
+					    nval);
 	return 0;
 }
 
@@ -425,16 +457,11 @@ hwm_power_read(struct hwm_drvdata *ddat, u32 attr, int chan, long *val)
 static int
 hwm_power_write(struct hwm_drvdata *ddat, u32 attr, int chan, long val)
 {
-	struct i915_hwmon *hwmon = ddat->hwmon;
 	u32 uval;
 
 	switch (attr) {
 	case hwmon_power_max:
-		hwm_field_scale_and_write(ddat,
-					  hwmon->rg.pkg_rapl_limit,
-					  hwmon->scl_shift_power,
-					  SF_POWER, val);
-		return 0;
+		return hwm_power_max_write(ddat, val);
 	case hwmon_power_crit:
 		uval = DIV_ROUND_CLOSEST_ULL(val << POWER_SETUP_I1_SHIFT, SF_POWER);
 		return hwm_pcode_write_i1(ddat->uncore->i915, uval);

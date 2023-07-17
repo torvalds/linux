@@ -12,6 +12,12 @@
 #include <stdlib.h>
 #include <linux/compiler.h>
 
+const char perf_usage_string[] =
+	"perf [--version] [--help] [OPTIONS] COMMAND [ARGS]";
+
+const char perf_more_info_string[] =
+	"See 'perf help COMMAND' for more information on a specific command.";
+
 static __noreturn void usage_builtin(const char *err)
 {
 	fprintf(stderr, "\n Usage: %s\n", err);

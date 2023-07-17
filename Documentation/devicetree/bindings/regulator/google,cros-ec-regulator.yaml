@@ -14,7 +14,7 @@ description:
   regulator.yaml, can also be used.
 
 allOf:
-  - $ref: "regulator.yaml#"
+  - $ref: regulator.yaml#
 
 properties:
   compatible:
@@ -32,7 +32,7 @@ unevaluatedProperties: false
 
 examples:
   - |
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 

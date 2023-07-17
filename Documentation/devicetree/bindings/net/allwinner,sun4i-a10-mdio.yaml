@@ -11,7 +11,7 @@ maintainers:
   - Maxime Ripard <mripard@kernel.org>
 
 allOf:
-  - $ref: "mdio.yaml#"
+  - $ref: mdio.yaml#
 
 # Select every compatible, including the deprecated ones. This way, we
 # will be able to report a warning when we have that compatible, since

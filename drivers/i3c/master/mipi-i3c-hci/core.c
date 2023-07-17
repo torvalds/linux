@@ -765,11 +765,11 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int i3c_hci_remove(struct platform_device *pdev)
+static void i3c_hci_remove(struct platform_device *pdev)
 {
 	struct i3c_hci *hci = platform_get_drvdata(pdev);
 
-	return i3c_master_unregister(&hci->master);
+	i3c_master_unregister(&hci->master);
 }
 
 static const __maybe_unused struct of_device_id i3c_hci_of_match[] = {
@@ -780,7 +780,7 @@ MODULE_DEVICE_TABLE(of, i3c_hci_of_match);
 
 static struct platform_driver i3c_hci_driver = {
 	.probe = i3c_hci_probe,
-	.remove = i3c_hci_remove,
+	.remove_new = i3c_hci_remove,
 	.driver = {
 		.name = "mipi-i3c-hci",
 		.of_match_table = of_match_ptr(i3c_hci_of_match),

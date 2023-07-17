@@ -107,6 +107,7 @@ struct intel_engine_coredump {
 		int active;
 		int guilty;
 		struct i915_sched_attr sched_attr;
+		u32 hwsp_seqno;
 	} context;
 
 	struct i915_vma_coredump *vma;

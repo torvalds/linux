@@ -49,6 +49,7 @@ static const struct of_device_id of_match_clk_mt8173_vencsys[] = {
 	{ .compatible = "mediatek,mt8173-vencltsys", .data = &venc_lt_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt8173_vencsys);
 
 static struct platform_driver clk_mt8173_vencsys_drv = {
 	.driver = {

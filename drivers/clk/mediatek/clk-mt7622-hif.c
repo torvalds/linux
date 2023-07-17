@@ -16,23 +16,11 @@
 
 #include <dt-bindings/clock/mt7622-clk.h>
 
-#define GATE_PCIE(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &pcie_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_PCIE(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &pcie_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
-#define GATE_SSUSB(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &ssusb_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
+#define GATE_SSUSB(_id, _name, _parent, _shift)				\
+	GATE_MTK(_id, _name, _parent, &ssusb_cg_regs, _shift, &mtk_clk_gate_ops_no_setclr_inv)
 
 static const struct mtk_gate_regs pcie_cg_regs = {
 	.set_ofs = 0x30,
@@ -101,6 +89,7 @@ static const struct of_device_id of_match_clk_mt7622_hif[] = {
 	{ .compatible = "mediatek,mt7622-ssusbsys", .data = &ssusb_desc },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_hif);
 
 static struct platform_driver clk_mt7622_hif_drv = {
 	.probe = mtk_clk_simple_probe,
@@ -110,5 +99,5 @@ static struct platform_driver clk_mt7622_hif_drv = {
 		.of_match_table = of_match_clk_mt7622_hif,
 	},
 };
-
-builtin_platform_driver(clk_mt7622_hif_drv);
+module_platform_driver(clk_mt7622_hif_drv);
+MODULE_LICENSE("GPL");

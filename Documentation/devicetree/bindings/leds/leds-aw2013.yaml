@@ -54,7 +54,7 @@ examples:
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/leds/common.h>
 
-    i2c0 {
+    i2c {
         #address-cells = <1>;
         #size-cells = <0>;
 

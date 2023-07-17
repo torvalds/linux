@@ -719,7 +719,7 @@ There are ways to query or modify cpusets:
    cat, rmdir commands from the shell, or their equivalent from C.
  - via the C library libcpuset.
  - via the C library libcgroup.
-   (http://sourceforge.net/projects/libcg/)
+   (https://github.com/libcgroup/libcgroup/)
  - via the python application cset.
    (http://code.google.com/p/cpuset/)
 

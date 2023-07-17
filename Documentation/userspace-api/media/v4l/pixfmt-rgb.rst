@@ -778,7 +778,7 @@ number of bits for each component.
     \tiny
     \setlength{\tabcolsep}{2pt}
 
-.. tabularcolumns:: |p{2.8cm}|p{2.0cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
+.. tabularcolumns:: |p{3.2cm}|p{0.8cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|p{0.22cm}|
 
 
 .. flat-table:: RGB Formats 10 Bits Per Color Component
@@ -868,7 +868,6 @@ number of bits for each component.
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
-      -
     * .. _V4L2-PIX-FMT-RGBA1010102:
 
       - ``V4L2_PIX_FMT_RGBA1010102``
@@ -909,7 +908,6 @@ number of bits for each component.
       - r\ :sub:`4`
       - r\ :sub:`3`
       - r\ :sub:`2`
-      -
     * .. _V4L2-PIX-FMT-ARGB2101010:
 
       - ``V4L2_PIX_FMT_ARGB2101010``
@@ -950,12 +948,53 @@ number of bits for each component.
       - r\ :sub:`6`
       - r\ :sub:`5`
       - r\ :sub:`4`
-      -
 
 .. raw:: latex
 
     \endgroup
 
+12 Bits Per Component
+==============================
+
+These formats store an RGB triplet in six or eight bytes, with 12 bits per component.
+Expand the bits per component to 16 bits, data in the high bits, zeros in the low bits,
+arranged in little endian order.
+
+.. raw:: latex
+
+    \small
+
+.. flat-table:: RGB Formats With 12 Bits Per Component
+    :header-rows:  1
+
+    * - Identifier
+      - Code
+      - Byte 1-0
+      - Byte 3-2
+      - Byte 5-4
+      - Byte 7-6
+    * .. _V4L2-PIX-FMT-BGR48-12:
+
+      - ``V4L2_PIX_FMT_BGR48_12``
+      - 'B312'
+
+      - B\ :sub:`15-4`
+      - G\ :sub:`15-4`
+      - R\ :sub:`15-4`
+      -
+    * .. _V4L2-PIX-FMT-ABGR64-12:
+
+      - ``V4L2_PIX_FMT_ABGR64_12``
+      - 'B412'
+
+      - B\ :sub:`15-4`
+      - G\ :sub:`15-4`
+      - R\ :sub:`15-4`
+      - A\ :sub:`15-4`
+
+.. raw:: latex
+
+    \normalsize
 
 Deprecated RGB Formats
 ======================

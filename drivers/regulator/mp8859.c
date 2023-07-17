@@ -129,7 +129,7 @@ static int mp8859_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct of_device_id mp8859_dt_id[] = {
+static const struct of_device_id mp8859_dt_id[] __maybe_unused = {
 	{.compatible =  "mps,mp8859"},
 	{},
 };
@@ -144,6 +144,7 @@ MODULE_DEVICE_TABLE(i2c, mp8859_i2c_id);
 static struct i2c_driver mp8859_regulator_driver = {
 	.driver = {
 		.name = "mp8859",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(mp8859_dt_id),
 	},
 	.probe_new = mp8859_i2c_probe,

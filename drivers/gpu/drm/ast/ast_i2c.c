@@ -29,7 +29,7 @@
 static void ast_i2c_setsda(void *i2c_priv, int data)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = to_ast_private(i2c->dev);
+	struct ast_device *ast = to_ast_device(i2c->dev);
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -45,7 +45,7 @@ static void ast_i2c_setsda(void *i2c_priv, int data)
 static void ast_i2c_setscl(void *i2c_priv, int clock)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = to_ast_private(i2c->dev);
+	struct ast_device *ast = to_ast_device(i2c->dev);
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -61,7 +61,7 @@ static void ast_i2c_setscl(void *i2c_priv, int clock)
 static int ast_i2c_getsda(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = to_ast_private(i2c->dev);
+	struct ast_device *ast = to_ast_device(i2c->dev);
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -83,7 +83,7 @@ static int ast_i2c_getsda(void *i2c_priv)
 static int ast_i2c_getscl(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = to_ast_private(i2c->dev);
+	struct ast_device *ast = to_ast_device(i2c->dev);
 	uint32_t val, val2, count, pass;
 
 	count = 0;

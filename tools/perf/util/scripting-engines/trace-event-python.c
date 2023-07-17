@@ -30,7 +30,9 @@
 #include <linux/bitmap.h>
 #include <linux/compiler.h>
 #include <linux/time64.h>
+#ifdef HAVE_LIBTRACEEVENT
 #include <traceevent/event-parse.h>
+#endif
 
 #include "../build-id.h"
 #include "../counts.h"
@@ -87,18 +89,21 @@ PyMODINIT_FUNC initperf_trace_context(void);
 PyMODINIT_FUNC PyInit_perf_trace_context(void);
 #endif
 
+#ifdef HAVE_LIBTRACEEVENT
 #define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
 
 static DECLARE_BITMAP(events_defined, TRACE_EVENT_TYPE_MAX);
 
-#define MAX_FIELDS	64
 #define N_COMMON_FIELDS	7
-
-extern struct scripting_context *scripting_context;
 
 static char *cur_field_name;
 static int zero_flag_atom;
+#endif
+
+#define MAX_FIELDS	64
+
+extern struct scripting_context *scripting_context;
 
 static PyObject *main_module, *main_dict;
 
@@ -153,6 +158,26 @@ static PyObject *get_handler(const char *handler_name)
 	return handler;
 }
 
+static void call_object(PyObject *handler, PyObject *args, const char *die_msg)
+{
+	PyObject *retval;
+
+	retval = PyObject_CallObject(handler, args);
+	if (retval == NULL)
+		handler_call_die(die_msg);
+	Py_DECREF(retval);
+}
+
+static void try_call_object(const char *handler_name, PyObject *args)
+{
+	PyObject *handler;
+
+	handler = get_handler(handler_name);
+	if (handler)
+		call_object(handler, args, handler_name);
+}
+
+#ifdef HAVE_LIBTRACEEVENT
 static int get_argument_count(PyObject *handler)
 {
 	int arg_count = 0;
@@ -179,25 +204,6 @@ static int get_argument_count(PyObject *handler)
 		Py_DECREF(code_obj);
 	}
 	return arg_count;
-}
-
-static void call_object(PyObject *handler, PyObject *args, const char *die_msg)
-{
-	PyObject *retval;
-
-	retval = PyObject_CallObject(handler, args);
-	if (retval == NULL)
-		handler_call_die(die_msg);
-	Py_DECREF(retval);
-}
-
-static void try_call_object(const char *handler_name, PyObject *args)
-{
-	PyObject *handler;
-
-	handler = get_handler(handler_name);
-	if (handler)
-		call_object(handler, args, handler_name);
 }
 
 static void define_value(enum tep_print_arg_type field_type,
@@ -379,16 +385,18 @@ static PyObject *get_field_numeric_entry(struct tep_event *event,
 		obj = list;
 	return obj;
 }
+#endif
 
 static const char *get_dsoname(struct map *map)
 {
 	const char *dsoname = "[unknown]";
+	struct dso *dso = map ? map__dso(map) : NULL;
 
-	if (map && map->dso) {
-		if (symbol_conf.show_kernel_path && map->dso->long_name)
-			dsoname = map->dso->long_name;
+	if (dso) {
+		if (symbol_conf.show_kernel_path && dso->long_name)
+			dsoname = dso->long_name;
 		else
-			dsoname = map->dso->name;
+			dsoname = dso->name;
 	}
 
 	return dsoname;
@@ -401,7 +409,7 @@ static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
 	if (al->addr < sym->end)
 		offset = al->addr - sym->start;
 	else
-		offset = al->addr - al->map->start - sym->start;
+		offset = al->addr - map__start(al->map) - sym->start;
 
 	return offset;
 }
@@ -463,7 +471,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 				struct addr_location node_al;
 				unsigned long offset;
 
-				node_al.addr = map->map_ip(map, node->ip);
+				node_al.addr = map__map_ip(map, node->ip);
 				node_al.map  = map;
 				offset = get_offset(node->ms.sym, &node_al);
 
@@ -773,15 +781,16 @@ static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
 	char sbuild_id[SBUILD_ID_SIZE];
 
 	if (al->map) {
-		pydict_set_item_string_decref(dict, dso_field,
-			_PyUnicode_FromString(al->map->dso->name));
-		build_id__sprintf(&al->map->dso->bid, sbuild_id);
+		struct dso *dso = map__dso(al->map);
+
+		pydict_set_item_string_decref(dict, dso_field, _PyUnicode_FromString(dso->name));
+		build_id__sprintf(&dso->bid, sbuild_id);
 		pydict_set_item_string_decref(dict, dso_bid_field,
 			_PyUnicode_FromString(sbuild_id));
 		pydict_set_item_string_decref(dict, dso_map_start,
-			PyLong_FromUnsignedLong(al->map->start));
+			PyLong_FromUnsignedLong(map__start(al->map)));
 		pydict_set_item_string_decref(dict, dso_map_end,
-			PyLong_FromUnsignedLong(al->map->end));
+			PyLong_FromUnsignedLong(map__end(al->map)));
 	}
 	if (al->sym) {
 		pydict_set_item_string_decref(dict, sym_field,
@@ -906,6 +915,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	return dict;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static void python_process_tracepoint(struct perf_sample *sample,
 				      struct evsel *evsel,
 				      struct addr_location *al,
@@ -1035,6 +1045,16 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	Py_DECREF(t);
 }
+#else
+static void python_process_tracepoint(struct perf_sample *sample __maybe_unused,
+				      struct evsel *evsel __maybe_unused,
+				      struct addr_location *al __maybe_unused,
+				      struct addr_location *addr_al __maybe_unused)
+{
+	fprintf(stderr, "Tracepoint events are not supported because "
+			"perf is not linked with libtraceevent.\n");
+}
+#endif
 
 static PyObject *tuple_new(unsigned int sz)
 {
@@ -1270,7 +1290,7 @@ static void python_export_sample_table(struct db_export *dbe,
 
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
-	tuple_set_d64(t, 2, es->al->maps->machine->db_id);
+	tuple_set_d64(t, 2, maps__machine(es->al->maps)->db_id);
 	tuple_set_d64(t, 3, es->al->thread->db_id);
 	tuple_set_d64(t, 4, es->comm_db_id);
 	tuple_set_d64(t, 5, es->dso_db_id);
@@ -1965,6 +1985,7 @@ static int python_stop_script(void)
 	return 0;
 }
 
+#ifdef HAVE_LIBTRACEEVENT
 static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
 	int i, not_first, count, nr_events;
@@ -2155,6 +2176,18 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 	return 0;
 }
+#else
+static int python_generate_script(struct tep_handle *pevent __maybe_unused,
+				  const char *outfile __maybe_unused)
+{
+	fprintf(stderr, "Generating Python perf-script is not supported."
+		"  Install libtraceevent and rebuild perf to enable it.\n"
+		"For example:\n  # apt install libtraceevent-dev (ubuntu)"
+		"\n  # yum install libtraceevent-devel (Fedora)"
+		"\n  etc.\n");
+	return -1;
+}
+#endif
 
 struct scripting_ops python_scripting_ops = {
 	.name			= "Python",

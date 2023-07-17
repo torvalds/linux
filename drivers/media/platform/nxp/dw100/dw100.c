@@ -1532,7 +1532,6 @@ static int dw100_probe(struct platform_device *pdev)
 {
 	struct dw100_device *dw_dev;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret, irq;
 
 	dw_dev = devm_kzalloc(&pdev->dev, sizeof(*dw_dev), GFP_KERNEL);
@@ -1547,8 +1546,7 @@ static int dw100_probe(struct platform_device *pdev)
 	}
 	dw_dev->num_clks = ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dw_dev->mmio = devm_ioremap_resource(&pdev->dev, res);
+	dw_dev->mmio = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(dw_dev->mmio))
 		return PTR_ERR(dw_dev->mmio);
 
@@ -1633,7 +1631,7 @@ err_pm:
 	return ret;
 }
 
-static int dw100_remove(struct platform_device *pdev)
+static void dw100_remove(struct platform_device *pdev)
 {
 	struct dw100_device *dw_dev = platform_get_drvdata(pdev);
 
@@ -1649,8 +1647,6 @@ static int dw100_remove(struct platform_device *pdev)
 	mutex_destroy(dw_dev->vfd.lock);
 	v4l2_m2m_release(dw_dev->m2m_dev);
 	v4l2_device_unregister(&dw_dev->v4l2_dev);
-
-	return 0;
 }
 
 static int __maybe_unused dw100_runtime_suspend(struct device *dev)
@@ -1692,7 +1688,7 @@ MODULE_DEVICE_TABLE(of, dw100_dt_ids);
 
 static struct platform_driver dw100_driver = {
 	.probe		= dw100_probe,
-	.remove		= dw100_remove,
+	.remove_new	= dw100_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.pm = &dw100_pm,

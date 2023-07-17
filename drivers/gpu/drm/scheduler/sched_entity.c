@@ -507,12 +507,19 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 {
 	struct drm_sched_entity *entity = sched_job->entity;
 	bool first;
+	ktime_t submit_ts;
 
 	trace_drm_sched_job(sched_job, entity);
 	atomic_inc(entity->rq->sched->score);
 	WRITE_ONCE(entity->last_user, current->group_leader);
+
+	/*
+	 * After the sched_job is pushed into the entity queue, it may be
+	 * completed and freed up at any time. We can no longer access it.
+	 * Make sure to set the submit_ts first, to avoid a race.
+	 */
+	sched_job->submit_ts = submit_ts = ktime_get();
 	first = spsc_queue_push(&entity->job_queue, &sched_job->queue_node);
-	sched_job->submit_ts = ktime_get();
 
 	/* first job wakes up scheduler */
 	if (first) {
@@ -529,7 +536,7 @@ void drm_sched_entity_push_job(struct drm_sched_job *sched_job)
 		spin_unlock(&entity->rq_lock);
 
 		if (drm_sched_policy == DRM_SCHED_POLICY_FIFO)
-			drm_sched_rq_update_fifo(entity, sched_job->submit_ts);
+			drm_sched_rq_update_fifo(entity, submit_ts);
 
 		drm_sched_wakeup(entity->rq->sched);
 	}

@@ -285,6 +285,7 @@ config BACKLIGHT_MT6370
 config BACKLIGHT_APPLE
 	tristate "Apple Backlight Driver"
 	depends on X86 && ACPI
+	depends on ACPI_VIDEO=n || ACPI_VIDEO
 	help
 	  If you have an Intel-based Apple say Y to enable a driver for its
 	  backlight.

@@ -478,7 +478,7 @@ static int avs_modext_create(struct avs_dev *adev, struct avs_path_module *mod)
 	int ret, i;
 
 	num_pins = tcfg->generic.num_input_pins + tcfg->generic.num_output_pins;
-	cfg_size = sizeof(*cfg) + sizeof(*cfg->pin_fmts) * num_pins;
+	cfg_size = struct_size(cfg, pin_fmts, num_pins);
 
 	cfg = kzalloc(cfg_size, GFP_KERNEL);
 	if (!cfg)

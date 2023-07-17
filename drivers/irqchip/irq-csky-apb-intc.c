@@ -68,7 +68,7 @@ static void __init ck_set_gc(struct device_node *node, void __iomem *reg_base,
 	gc->chip_types[0].chip.irq_mask = irq_gc_mask_clr_bit;
 	gc->chip_types[0].chip.irq_unmask = irq_gc_mask_set_bit;
 
-	if (of_find_property(node, "csky,support-pulse-signal", NULL))
+	if (of_property_read_bool(node, "csky,support-pulse-signal"))
 		gc->chip_types[0].chip.irq_unmask = irq_ck_mask_set_bit;
 }
 

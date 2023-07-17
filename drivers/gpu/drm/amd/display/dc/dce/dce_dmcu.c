@@ -586,7 +586,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 				if (state == PSR_STATE0)
 					break;
 			}
-			udelay(500);
+			fsleep(500);
 		}
 
 		/* assert if max retry hit */

@@ -420,14 +420,14 @@ static DEFINE_MUTEX(insn_emulation_mutex);
 
 static void enable_insn_hw_mode(void *data)
 {
-	struct insn_emulation *insn = (struct insn_emulation *)data;
+	struct insn_emulation *insn = data;
 	if (insn->set_hw_mode)
 		insn->set_hw_mode(true);
 }
 
 static void disable_insn_hw_mode(void *data)
 {
-	struct insn_emulation *insn = (struct insn_emulation *)data;
+	struct insn_emulation *insn = data;
 	if (insn->set_hw_mode)
 		insn->set_hw_mode(false);
 }

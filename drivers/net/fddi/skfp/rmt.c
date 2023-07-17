@@ -234,9 +234,9 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		if (smc->r.rm_join) {
 			smc->r.sm_ma_avail = TRUE ;
 			if (smc->mib.m[MAC0].fddiMACMA_UnitdataEnable)
-			smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = TRUE ;
-				else
-			smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE ;
+				smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = TRUE;
+			else
+				smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE;
 		}
 		DB_RMTN(1, "RMT : RING UP");
 		RS_CLEAR(smc,RS_NORINGOP) ;

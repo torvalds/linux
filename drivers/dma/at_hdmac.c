@@ -132,7 +132,7 @@
 #define ATC_DST_PIP		BIT(12)		/* Destination Picture-in-Picture enabled */
 #define ATC_SRC_DSCR_DIS	BIT(16)		/* Src Descriptor fetch disable */
 #define ATC_DST_DSCR_DIS	BIT(20)		/* Dst Descriptor fetch disable */
-#define ATC_FC			GENMASK(22, 21)	/* Choose Flow Controller */
+#define ATC_FC			GENMASK(23, 21)	/* Choose Flow Controller */
 #define ATC_FC_MEM2MEM		0x0		/* Mem-to-Mem (DMA) */
 #define ATC_FC_MEM2PER		0x1		/* Mem-to-Periph (DMA) */
 #define ATC_FC_PER2MEM		0x2		/* Periph-to-Mem (DMA) */
@@ -153,8 +153,6 @@
 #define ATC_AUTO		BIT(31)		/* Auto multiple buffer tx enable */
 
 /* Bitfields in CFG */
-#define ATC_PER_MSB(h)	((0x30U & (h)) >> 4)	/* Extract most significant bits of a handshaking identifier */
-
 #define ATC_SRC_PER		GENMASK(3, 0)	/* Channel src rq associated with periph handshaking ifc h */
 #define ATC_DST_PER		GENMASK(7, 4)	/* Channel dst rq associated with periph handshaking ifc h */
 #define ATC_SRC_REP		BIT(8)		/* Source Replay Mod */
@@ -181,10 +179,15 @@
 #define ATC_DPIP_HOLE		GENMASK(15, 0)
 #define ATC_DPIP_BOUNDARY	GENMASK(25, 16)
 
-#define ATC_SRC_PER_ID(id)	(FIELD_PREP(ATC_SRC_PER_MSB, (id)) |	\
-				 FIELD_PREP(ATC_SRC_PER, (id)))
-#define ATC_DST_PER_ID(id)	(FIELD_PREP(ATC_DST_PER_MSB, (id)) |	\
-				 FIELD_PREP(ATC_DST_PER, (id)))
+#define ATC_PER_MSB		GENMASK(5, 4)	/* Extract MSBs of a handshaking identifier */
+#define ATC_SRC_PER_ID(id)					       \
+	({ typeof(id) _id = (id);				       \
+	   FIELD_PREP(ATC_SRC_PER_MSB, FIELD_GET(ATC_PER_MSB, _id)) |  \
+	   FIELD_PREP(ATC_SRC_PER, _id); })
+#define ATC_DST_PER_ID(id)					       \
+	({ typeof(id) _id = (id);				       \
+	   FIELD_PREP(ATC_DST_PER_MSB, FIELD_GET(ATC_PER_MSB, _id)) |  \
+	   FIELD_PREP(ATC_DST_PER, _id); })
 
 
 

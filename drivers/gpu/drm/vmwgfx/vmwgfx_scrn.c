@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2011-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2011-2023 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -25,12 +25,13 @@
  *
  **************************************************************************/
 
+#include "vmwgfx_bo.h"
+#include "vmwgfx_kms.h"
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fourcc.h>
-
-#include "vmwgfx_kms.h"
 
 #define vmw_crtc_to_sou(x) \
 	container_of(x, struct vmw_screen_object_unit, base.crtc)
@@ -89,7 +90,7 @@ struct vmw_screen_object_unit {
 	struct vmw_display_unit base;
 
 	unsigned long buffer_size; /**< Size of allocated buffer */
-	struct vmw_buffer_object *buffer; /**< Backing store buffer */
+	struct vmw_bo *buffer; /**< Backing store buffer */
 
 	bool defined;
 };
@@ -148,7 +149,7 @@ static int vmw_sou_fifo_create(struct vmw_private *dev_priv,
 	sou->base.set_gui_y = cmd->obj.root.y;
 
 	/* Ok to assume that buffer is pinned in vram */
-	vmw_bo_get_guest_ptr(&sou->buffer->base, &cmd->obj.backingStore.ptr);
+	vmw_bo_get_guest_ptr(&sou->buffer->tbo, &cmd->obj.backingStore.ptr);
 	cmd->obj.backingStore.pitch = mode->hdisplay * 4;
 
 	vmw_cmd_commit(dev_priv, fifo_size);
@@ -409,9 +410,13 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_crtc *crtc = plane->state->crtc ?: new_state->crtc;
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(new_state);
 	struct vmw_private *dev_priv;
-	size_t size;
 	int ret;
-
+	struct vmw_bo_params bo_params = {
+		.domain = VMW_BO_DOMAIN_VRAM,
+		.busy_domain = VMW_BO_DOMAIN_VRAM,
+		.bo_type = ttm_bo_type_device,
+		.pin = true
+	};
 
 	if (!new_fb) {
 		vmw_bo_unreference(&vps->bo);
@@ -420,11 +425,11 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 		return 0;
 	}
 
-	size = new_state->crtc_w * new_state->crtc_h * 4;
+	bo_params.size = new_state->crtc_w * new_state->crtc_h * 4;
 	dev_priv = vmw_priv(crtc->dev);
 
 	if (vps->bo) {
-		if (vps->bo_size == size) {
+		if (vps->bo_size == bo_params.size) {
 			/*
 			 * Note that this might temporarily up the pin-count
 			 * to 2, until cleanup_fb() is called.
@@ -443,16 +448,12 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_bo_create(dev_priv, size,
-			    &vmw_vram_placement,
-			    false, true, &vmw_bo_bo_free, &vps->bo);
+	ret = vmw_bo_create(dev_priv, &bo_params, &vps->bo);
 	vmw_overlay_resume_all(dev_priv);
-	if (ret) {
-		vps->bo = NULL; /* vmw_bo_init frees on error */
+	if (ret)
 		return ret;
-	}
 
-	vps->bo_size = size;
+	vps->bo_size = bo_params.size;
 
 	/*
 	 * TTM already thinks the buffer is pinned, but make sure the
@@ -489,7 +490,7 @@ static uint32_t vmw_sou_bo_define_gmrfb(struct vmw_du_update_plane *update,
 	gmr->body.format.colorDepth = depth;
 	gmr->body.format.reserved = 0;
 	gmr->body.bytesPerLine = update->vfb->base.pitches[0];
-	vmw_bo_get_guest_ptr(&vfbbo->buffer->base, &gmr->body.ptr);
+	vmw_bo_get_guest_ptr(&vfbbo->buffer->tbo, &gmr->body.ptr);
 
 	return sizeof(*gmr);
 }
@@ -546,7 +547,6 @@ static int vmw_sou_plane_update_bo(struct vmw_private *dev_priv,
 	bo_update.base.vfb = vfb;
 	bo_update.base.out_fence = out_fence;
 	bo_update.base.mutex = NULL;
-	bo_update.base.cpu_blit = false;
 	bo_update.base.intr = true;
 
 	bo_update.base.calc_fifo_size = vmw_sou_bo_fifo_size;
@@ -707,7 +707,6 @@ static int vmw_sou_plane_update_surface(struct vmw_private *dev_priv,
 	srf_update.base.vfb = vfb;
 	srf_update.base.out_fence = out_fence;
 	srf_update.base.mutex = &dev_priv->cmdbuf_mutex;
-	srf_update.base.cpu_blit = false;
 	srf_update.base.intr = true;
 
 	srf_update.base.calc_fifo_size = vmw_sou_surface_fifo_size;
@@ -947,7 +946,7 @@ int vmw_kms_sou_init_display(struct vmw_private *dev_priv)
 static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 				  struct vmw_framebuffer *framebuffer)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	int depth = framebuffer->base.format->depth;
@@ -973,7 +972,7 @@ static int do_bo_define_gmrfb(struct vmw_private *dev_priv,
 	cmd->body.format.reserved = 0;
 	cmd->body.bytesPerLine = framebuffer->base.pitches[0];
 	/* Buffer is reserved in vram or GMR */
-	vmw_bo_get_guest_ptr(&buf->base, &cmd->body.ptr);
+	vmw_bo_get_guest_ptr(&buf->tbo, &cmd->body.ptr);
 	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
@@ -1216,14 +1215,16 @@ int vmw_kms_sou_do_bo_dirty(struct vmw_private *dev_priv,
 				struct vmw_fence_obj **out_fence,
 				struct drm_crtc *crtc)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(framebuffer, struct vmw_framebuffer_bo,
 			     base)->buffer;
 	struct vmw_kms_dirty dirty;
 	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
-	ret = vmw_validation_add_bo(&val_ctx, buf, false, false);
+	vmw_bo_placement_set(buf, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(&val_ctx, buf);
 	if (ret)
 		return ret;
 
@@ -1323,13 +1324,15 @@ int vmw_kms_sou_readback(struct vmw_private *dev_priv,
 			 uint32_t num_clips,
 			 struct drm_crtc *crtc)
 {
-	struct vmw_buffer_object *buf =
+	struct vmw_bo *buf =
 		container_of(vfb, struct vmw_framebuffer_bo, base)->buffer;
 	struct vmw_kms_dirty dirty;
 	DECLARE_VAL_CONTEXT(val_ctx, NULL, 0);
 	int ret;
 
-	ret = vmw_validation_add_bo(&val_ctx, buf, false, false);
+	vmw_bo_placement_set(buf, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
+			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
+	ret = vmw_validation_add_bo(&val_ctx, buf);
 	if (ret)
 		return ret;
 

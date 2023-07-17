@@ -63,11 +63,7 @@ int main(int argc, char *argv[])
 
 	while (1) {
 		vcpu_run(vcpu);
-
-		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
-			    "Unexpected exit reason: %u (%s),\n",
-			    run->exit_reason,
-			    exit_reason_str(run->exit_reason));
+		TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_IO);
 
 		if (get_ucall(vcpu, &uc))
 			break;

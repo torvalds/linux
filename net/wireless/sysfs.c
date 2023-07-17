@@ -157,7 +157,6 @@ static const void *wiphy_namespace(const struct device *d)
 
 struct class ieee80211_class = {
 	.name = "ieee80211",
-	.owner = THIS_MODULE,
 	.dev_release = wiphy_dev_release,
 	.dev_groups = ieee80211_groups,
 	.pm = WIPHY_PM_OPS,

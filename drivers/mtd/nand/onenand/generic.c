@@ -85,7 +85,7 @@ out_free_info:
 	return err;
 }
 
-static int generic_onenand_remove(struct platform_device *pdev)
+static void generic_onenand_remove(struct platform_device *pdev)
 {
 	struct onenand_info *info = platform_get_drvdata(pdev);
 	struct resource *res = pdev->resource;
@@ -97,8 +97,6 @@ static int generic_onenand_remove(struct platform_device *pdev)
 		iounmap(info->onenand.base);
 		kfree(info);
 	}
-
-	return 0;
 }
 
 static struct platform_driver generic_onenand_driver = {
@@ -106,7 +104,7 @@ static struct platform_driver generic_onenand_driver = {
 		.name		= DRIVER_NAME,
 	},
 	.probe		= generic_onenand_probe,
-	.remove		= generic_onenand_remove,
+	.remove_new	= generic_onenand_remove,
 };
 
 module_platform_driver(generic_onenand_driver);

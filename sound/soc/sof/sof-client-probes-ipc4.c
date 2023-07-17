@@ -129,7 +129,7 @@ static int ipc4_probes_init(struct sof_client_dev *cdev, u32 stream_tag,
 	msg.data_size = sizeof(cfg);
 	msg.data_ptr = &cfg;
 
-	return sof_client_ipc_tx_message(cdev, &msg, NULL, 0);
+	return sof_client_ipc_tx_message_no_reply(cdev, &msg);
 }
 
 /**
@@ -156,7 +156,7 @@ static int ipc4_probes_deinit(struct sof_client_dev *cdev)
 	msg.data_size = 0;
 	msg.data_ptr = NULL;
 
-	return sof_client_ipc_tx_message(cdev, &msg, NULL, 0);
+	return sof_client_ipc_tx_message_no_reply(cdev, &msg);
 }
 
 /**

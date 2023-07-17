@@ -18,7 +18,6 @@ static struct kvm_events_ops exit_events = {
 };
 
 const char *vcpu_id_str = "vcpu_id";
-const int decode_str_len = 20;
 const char *kvm_exit_reason = "exit_reason";
 const char *kvm_entry_trace = "kvm:kvm_entry";
 const char *kvm_exit_trace = "kvm:kvm_exit";
@@ -47,7 +46,7 @@ static bool mmio_event_begin(struct evsel *evsel,
 		return true;
 
 	/* MMIO write begin event in kernel. */
-	if (!strcmp(evsel->name, "kvm:kvm_mmio") &&
+	if (evsel__name_is(evsel, "kvm:kvm_mmio") &&
 	    evsel__intval(evsel, sample, "type") == KVM_TRACE_MMIO_WRITE) {
 		mmio_event_get_key(evsel, sample, key);
 		return true;
@@ -64,7 +63,7 @@ static bool mmio_event_end(struct evsel *evsel, struct perf_sample *sample,
 		return true;
 
 	/* MMIO read end event in kernel.*/
-	if (!strcmp(evsel->name, "kvm:kvm_mmio") &&
+	if (evsel__name_is(evsel, "kvm:kvm_mmio") &&
 	    evsel__intval(evsel, sample, "type") == KVM_TRACE_MMIO_READ) {
 		mmio_event_get_key(evsel, sample, key);
 		return true;
@@ -77,7 +76,7 @@ static void mmio_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				  struct event_key *key,
 				  char *decode)
 {
-	scnprintf(decode, decode_str_len, "%#lx:%s",
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%#lx:%s",
 		  (unsigned long)key->key,
 		  key->info == KVM_TRACE_MMIO_WRITE ? "W" : "R");
 }
@@ -102,7 +101,7 @@ static bool ioport_event_begin(struct evsel *evsel,
 			       struct perf_sample *sample,
 			       struct event_key *key)
 {
-	if (!strcmp(evsel->name, "kvm:kvm_pio")) {
+	if (evsel__name_is(evsel, "kvm:kvm_pio")) {
 		ioport_event_get_key(evsel, sample, key);
 		return true;
 	}
@@ -121,7 +120,7 @@ static void ioport_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				    struct event_key *key,
 				    char *decode)
 {
-	scnprintf(decode, decode_str_len, "%#llx:%s",
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%#llx:%s",
 		  (unsigned long long)key->key,
 		  key->info ? "POUT" : "PIN");
 }
@@ -146,7 +145,7 @@ static bool msr_event_begin(struct evsel *evsel,
 			       struct perf_sample *sample,
 			       struct event_key *key)
 {
-	if (!strcmp(evsel->name, "kvm:kvm_msr")) {
+	if (evsel__name_is(evsel, "kvm:kvm_msr")) {
 		msr_event_get_key(evsel, sample, key);
 		return true;
 	}
@@ -165,7 +164,7 @@ static void msr_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 				    struct event_key *key,
 				    char *decode)
 {
-	scnprintf(decode, decode_str_len, "%#llx:%s",
+	scnprintf(decode, KVM_EVENT_NAME_LEN, "%#llx:%s",
 		  (unsigned long long)key->key,
 		  key->info ? "W" : "R");
 }

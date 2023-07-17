@@ -12,26 +12,22 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/usb/phy.h>
-#include <linux/sys_soc.h>
 
 #include "xhci.h"
 #include "xhci-plat.h"
 #include "xhci-rzv2m.h"
 
 #define XHCI_RCAR_FIRMWARE_NAME_V1	"r8a779x_usb3_v1.dlmem"
-#define XHCI_RCAR_FIRMWARE_NAME_V2	"r8a779x_usb3_v2.dlmem"
 #define XHCI_RCAR_FIRMWARE_NAME_V3	"r8a779x_usb3_v3.dlmem"
 
 /*
-* - The V3 firmware is for almost all R-Car Gen3 (except r8a7795 ES1.x)
-* - The V2 firmware is for r8a7795 ES1.x.
+* - The V3 firmware is for all R-Car Gen3
 * - The V2 firmware is possible to use on R-Car Gen2. However, the V2 causes
 *   performance degradation. So, this driver continues to use the V1 if R-Car
 *   Gen2.
 * - The V1 firmware is impossible to use on R-Car Gen3.
 */
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V1);
-MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V2);
 MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V3);
 
 /*** Register Offset ***/
@@ -78,18 +74,6 @@ MODULE_FIRMWARE(XHCI_RCAR_FIRMWARE_NAME_V3);
 #define RCAR_USB3_RX_POL_VAL	BIT(21)
 #define RCAR_USB3_TX_POL_VAL	BIT(4)
 
-/* For soc_device_attribute */
-#define RCAR_XHCI_FIRMWARE_V2   BIT(0) /* FIRMWARE V2 */
-#define RCAR_XHCI_FIRMWARE_V3   BIT(1) /* FIRMWARE V3 */
-
-static const struct soc_device_attribute rcar_quirks_match[]  = {
-	{
-		.soc_id = "r8a7795", .revision = "ES1.*",
-		.data = (void *)RCAR_XHCI_FIRMWARE_V2,
-	},
-	{ /* sentinel */ }
-};
-
 static void xhci_rcar_start_gen2(struct usb_hcd *hcd)
 {
 	/* LCLK Select */
@@ -135,9 +119,6 @@ static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 	const struct firmware *fw;
 	int retval, index, j;
 	u32 data, val, temp;
-	u32 quirks = 0;
-	const struct soc_device_attribute *attr;
-	const char *firmware_name;
 
 	/*
 	 * According to the datasheet, "Upon the completion of FW Download,
@@ -146,19 +127,8 @@ static int xhci_rcar_download_firmware(struct usb_hcd *hcd)
 	if (readl(regs + RCAR_USB3_DL_CTRL) & RCAR_USB3_DL_CTRL_FW_SUCCESS)
 		return 0;
 
-	attr = soc_device_match(rcar_quirks_match);
-	if (attr)
-		quirks = (uintptr_t)attr->data;
-
-	if (quirks & RCAR_XHCI_FIRMWARE_V2)
-		firmware_name = XHCI_RCAR_FIRMWARE_NAME_V2;
-	else if (quirks & RCAR_XHCI_FIRMWARE_V3)
-		firmware_name = XHCI_RCAR_FIRMWARE_NAME_V3;
-	else
-		firmware_name = priv->firmware_name;
-
 	/* request R-Car USB3.0 firmware */
-	retval = request_firmware(&fw, firmware_name, dev);
+	retval = request_firmware(&fw, priv->firmware_name, dev);
 	if (retval)
 		return retval;
 
@@ -312,7 +282,7 @@ static struct platform_driver usb_xhci_renesas_driver = {
 	.driver	= {
 		.name = "xhci-renesas-hcd",
 		.pm = &xhci_plat_pm_ops,
-		.of_match_table = of_match_ptr(usb_xhci_of_match),
+		.of_match_table = usb_xhci_of_match,
 	},
 };
 module_platform_driver(usb_xhci_renesas_driver);

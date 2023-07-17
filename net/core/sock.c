@@ -1362,12 +1362,6 @@ set_sndbuf:
 		__sock_set_mark(sk, val);
 		break;
 	case SO_RCVMARK:
-		if (!sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_RAW) &&
-		    !sockopt_ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN)) {
-			ret = -EPERM;
-			break;
-		}
-
 		sock_valbool_flag(sk, SOCK_RCVMARK, valbool);
 		break;
 
@@ -1396,15 +1390,10 @@ set_sndbuf:
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	case SO_BUSY_POLL:
-		/* allow unprivileged users to decrease the value */
-		if ((val > sk->sk_ll_usec) && !sockopt_capable(CAP_NET_ADMIN))
-			ret = -EPERM;
-		else {
-			if (val < 0)
-				ret = -EINVAL;
-			else
-				WRITE_ONCE(sk->sk_ll_usec, val);
-		}
+		if (val < 0)
+			ret = -EINVAL;
+		else
+			WRITE_ONCE(sk->sk_ll_usec, val);
 		break;
 	case SO_PREFER_BUSY_POLL:
 		if (valbool && !sockopt_capable(CAP_NET_ADMIN))
@@ -2386,7 +2375,6 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 {
 	u32 max_segs = 1;
 
-	sk_dst_set(sk, dst);
 	sk->sk_route_caps = dst->dev->features;
 	if (sk_is_tcp(sk))
 		sk->sk_route_caps |= NETIF_F_GSO;
@@ -2405,6 +2393,7 @@ void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
 		}
 	}
 	sk->sk_gso_max_segs = max_segs;
+	sk_dst_set(sk, dst);
 }
 EXPORT_SYMBOL_GPL(sk_setup_caps);
 

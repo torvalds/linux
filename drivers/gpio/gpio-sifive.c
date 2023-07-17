@@ -221,8 +221,12 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < ngpio; i++)
-		chip->irq_number[i] = platform_get_irq(pdev, i);
+	for (i = 0; i < ngpio; i++) {
+		ret = platform_get_irq(pdev, i);
+		if (ret < 0)
+			return ret;
+		chip->irq_number[i] = ret;
+	}
 
 	ret = bgpio_init(&chip->gc, dev, 4,
 			 chip->base + SIFIVE_GPIO_INPUT_VAL,
@@ -270,7 +274,7 @@ static struct platform_driver sifive_gpio_driver = {
 	.probe		= sifive_gpio_probe,
 	.driver = {
 		.name	= "sifive_gpio",
-		.of_match_table = of_match_ptr(sifive_gpio_match),
+		.of_match_table = sifive_gpio_match,
 	},
 };
 builtin_platform_driver(sifive_gpio_driver)

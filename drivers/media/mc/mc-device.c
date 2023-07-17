@@ -756,13 +756,12 @@ int __must_check __media_device_register(struct media_device *mdev,
 }
 EXPORT_SYMBOL_GPL(__media_device_register);
 
-int __must_check media_device_register_entity_notify(struct media_device *mdev,
+void media_device_register_entity_notify(struct media_device *mdev,
 					struct media_entity_notify *nptr)
 {
 	mutex_lock(&mdev->graph_mutex);
 	list_add_tail(&nptr->list, &mdev->entity_notify);
 	mutex_unlock(&mdev->graph_mutex);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(media_device_register_entity_notify);
 

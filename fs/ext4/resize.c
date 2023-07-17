@@ -1306,7 +1306,6 @@ static struct buffer_head *ext4_get_bitmap(struct super_block *sb, __u64 block)
 }
 
 static int ext4_set_bitmap_checksums(struct super_block *sb,
-				     ext4_group_t group,
 				     struct ext4_group_desc *gdp,
 				     struct ext4_new_group_data *group_data)
 {
@@ -1318,14 +1317,14 @@ static int ext4_set_bitmap_checksums(struct super_block *sb,
 	bh = ext4_get_bitmap(sb, group_data->inode_bitmap);
 	if (!bh)
 		return -EIO;
-	ext4_inode_bitmap_csum_set(sb, group, gdp, bh,
+	ext4_inode_bitmap_csum_set(sb, gdp, bh,
 				   EXT4_INODES_PER_GROUP(sb) / 8);
 	brelse(bh);
 
 	bh = ext4_get_bitmap(sb, group_data->block_bitmap);
 	if (!bh)
 		return -EIO;
-	ext4_block_bitmap_csum_set(sb, group, gdp, bh);
+	ext4_block_bitmap_csum_set(sb, gdp, bh);
 	brelse(bh);
 
 	return 0;
@@ -1363,7 +1362,7 @@ static int ext4_setup_new_descs(handle_t *handle, struct super_block *sb,
 		memset(gdp, 0, EXT4_DESC_SIZE(sb));
 		ext4_block_bitmap_set(sb, gdp, group_data->block_bitmap);
 		ext4_inode_bitmap_set(sb, gdp, group_data->inode_bitmap);
-		err = ext4_set_bitmap_checksums(sb, group, gdp, group_data);
+		err = ext4_set_bitmap_checksums(sb, gdp, group_data);
 		if (err) {
 			ext4_std_error(sb, err);
 			break;

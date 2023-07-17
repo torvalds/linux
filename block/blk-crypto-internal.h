@@ -65,6 +65,11 @@ static inline bool blk_crypto_rq_is_encrypted(struct request *rq)
 	return rq->crypt_ctx;
 }
 
+static inline bool blk_crypto_rq_has_keyslot(struct request *rq)
+{
+	return rq->crypt_keyslot;
+}
+
 blk_status_t blk_crypto_get_keyslot(struct blk_crypto_profile *profile,
 				    const struct blk_crypto_key *key,
 				    struct blk_crypto_keyslot **slot_ptr);
@@ -119,6 +124,11 @@ static inline bool blk_crypto_rq_is_encrypted(struct request *rq)
 	return false;
 }
 
+static inline bool blk_crypto_rq_has_keyslot(struct request *rq)
+{
+	return false;
+}
+
 #endif /* CONFIG_BLK_INLINE_ENCRYPTION */
 
 void __bio_crypt_advance(struct bio *bio, unsigned int bytes);
@@ -153,12 +163,19 @@ static inline bool blk_crypto_bio_prep(struct bio **bio_ptr)
 	return true;
 }
 
-blk_status_t __blk_crypto_init_request(struct request *rq);
-static inline blk_status_t blk_crypto_init_request(struct request *rq)
+blk_status_t __blk_crypto_rq_get_keyslot(struct request *rq);
+static inline blk_status_t blk_crypto_rq_get_keyslot(struct request *rq)
 {
 	if (blk_crypto_rq_is_encrypted(rq))
-		return __blk_crypto_init_request(rq);
+		return __blk_crypto_rq_get_keyslot(rq);
 	return BLK_STS_OK;
+}
+
+void __blk_crypto_rq_put_keyslot(struct request *rq);
+static inline void blk_crypto_rq_put_keyslot(struct request *rq)
+{
+	if (blk_crypto_rq_has_keyslot(rq))
+		__blk_crypto_rq_put_keyslot(rq);
 }
 
 void __blk_crypto_free_request(struct request *rq);
@@ -186,21 +203,6 @@ static inline int blk_crypto_rq_bio_prep(struct request *rq, struct bio *bio,
 	if (bio_has_crypt_ctx(bio))
 		return __blk_crypto_rq_bio_prep(rq, bio, gfp_mask);
 	return 0;
-}
-
-/**
- * blk_crypto_insert_cloned_request - Prepare a cloned request to be inserted
- *				      into a request queue.
- * @rq: the request being queued
- *
- * Return: BLK_STS_OK on success, nonzero on error.
- */
-static inline blk_status_t blk_crypto_insert_cloned_request(struct request *rq)
-{
-
-	if (blk_crypto_rq_is_encrypted(rq))
-		return blk_crypto_init_request(rq);
-	return BLK_STS_OK;
 }
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION_FALLBACK

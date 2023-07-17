@@ -1066,7 +1066,7 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 				     "Could not get x11k parent clock\n");
 
 	/* Register mclk provider if requested */
-	if (of_find_property(np, "#clock-cells", NULL)) {
+	if (of_property_present(np, "#clock-cells")) {
 		ret = stm32_i2s_add_mclk_provider(i2s);
 		if (ret < 0)
 			return ret;
@@ -1097,13 +1097,11 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
-static int stm32_i2s_remove(struct platform_device *pdev)
+static void stm32_i2s_remove(struct platform_device *pdev)
 {
 	snd_dmaengine_pcm_unregister(&pdev->dev);
 	snd_soc_unregister_component(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int stm32_i2s_probe(struct platform_device *pdev)
@@ -1221,7 +1219,7 @@ static struct platform_driver stm32_i2s_driver = {
 		.pm = &stm32_i2s_pm_ops,
 	},
 	.probe = stm32_i2s_probe,
-	.remove = stm32_i2s_remove,
+	.remove_new = stm32_i2s_remove,
 };
 
 module_platform_driver(stm32_i2s_driver);

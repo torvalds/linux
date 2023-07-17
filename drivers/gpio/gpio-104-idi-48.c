@@ -81,6 +81,7 @@ static const struct regmap_config idi48_regmap_config = {
 	.wr_table = &idi_48_wr_table,
 	.rd_table = &idi_48_rd_table,
 	.precious_table = &idi_48_precious_table,
+	.use_raw_spinlock = true,
 };
 
 #define IDI48_NGPIO 48

@@ -282,7 +282,6 @@ static const struct xpad_device {
 	{ 0x1430, 0xf801, "RedOctane Controller", 0, XTYPE_XBOX360 },
 	{ 0x146b, 0x0601, "BigBen Interactive XBOX 360 Controller", 0, XTYPE_XBOX360 },
 	{ 0x146b, 0x0604, "Bigben Interactive DAIJA Arcade Stick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOX360 },
-	{ 0x1532, 0x0037, "Razer Sabertooth", 0, XTYPE_XBOX360 },
 	{ 0x1532, 0x0a00, "Razer Atrox Arcade Stick", MAP_TRIGGERS_TO_BUTTONS, XTYPE_XBOXONE },
 	{ 0x1532, 0x0a03, "Razer Wildcat", 0, XTYPE_XBOXONE },
 	{ 0x15e4, 0x3f00, "Power A Mini Pro Elite", 0, XTYPE_XBOX360 },
@@ -789,9 +788,6 @@ static void xpad_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char *d
 	input_report_key(dev, BTN_C, data[8]);
 	input_report_key(dev, BTN_Z, data[9]);
 
-	/* Profile button has a value of 0-3, so it is reported as an axis */
-	if (xpad->mapping & MAP_PROFILE_BUTTON)
-		input_report_abs(dev, ABS_PROFILE, data[34]);
 
 	input_sync(dev);
 }
@@ -1068,6 +1064,10 @@ static void xpadone_process_packet(struct usb_xpad *xpad, u16 cmd, unsigned char
 			input_report_abs(dev, ABS_RZ,
 					(__u16) le16_to_cpup((__le16 *)(data + 8)));
 		}
+
+		/* Profile button has a value of 0-3, so it is reported as an axis */
+		if (xpad->mapping & MAP_PROFILE_BUTTON)
+			input_report_abs(dev, ABS_PROFILE, data[34]);
 
 		/* paddle handling */
 		/* based on SDL's SDL_hidapi_xboxone.c */

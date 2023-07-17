@@ -281,4 +281,8 @@
 /* DMB */
 #define A64_DMB_ISH aarch64_insn_gen_dmb(AARCH64_INSN_MB_ISH)
 
+/* ADR */
+#define A64_ADR(Rd, offset) \
+	aarch64_insn_gen_adr(0, offset, Rd, AARCH64_INSN_ADR_TYPE_ADR)
+
 #endif /* _BPF_JIT_H */

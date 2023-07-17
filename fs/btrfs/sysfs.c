@@ -1262,8 +1262,13 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_BTRFS_DEBUG
+	if (thresh != 0 && (thresh > 100))
+		return -EINVAL;
+#else
 	if (thresh != 0 && (thresh <= 50 || thresh > 100))
 		return -EINVAL;
+#endif
 
 	WRITE_ONCE(fs_info->bg_reclaim_threshold, thresh);
 

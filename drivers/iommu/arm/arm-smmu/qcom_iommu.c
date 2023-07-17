@@ -682,7 +682,7 @@ static int qcom_iommu_ctx_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_iommu_ctx_remove(struct platform_device *pdev)
+static void qcom_iommu_ctx_remove(struct platform_device *pdev)
 {
 	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(pdev->dev.parent);
 	struct qcom_iommu_ctx *ctx = platform_get_drvdata(pdev);
@@ -690,8 +690,6 @@ static int qcom_iommu_ctx_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	qcom_iommu->ctxs[ctx->asid - 1] = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id ctx_of_match[] = {
@@ -706,7 +704,7 @@ static struct platform_driver qcom_iommu_ctx_driver = {
 		.of_match_table	= ctx_of_match,
 	},
 	.probe	= qcom_iommu_ctx_probe,
-	.remove = qcom_iommu_ctx_remove,
+	.remove_new = qcom_iommu_ctx_remove,
 };
 
 static bool qcom_iommu_has_secure_context(struct qcom_iommu_dev *qcom_iommu)
@@ -824,7 +822,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int qcom_iommu_device_remove(struct platform_device *pdev)
+static void qcom_iommu_device_remove(struct platform_device *pdev)
 {
 	struct qcom_iommu_dev *qcom_iommu = platform_get_drvdata(pdev);
 
@@ -832,8 +830,6 @@ static int qcom_iommu_device_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	iommu_device_sysfs_remove(&qcom_iommu->iommu);
 	iommu_device_unregister(&qcom_iommu->iommu);
-
-	return 0;
 }
 
 static int __maybe_unused qcom_iommu_resume(struct device *dev)
@@ -870,7 +866,7 @@ static struct platform_driver qcom_iommu_driver = {
 		.pm		= &qcom_iommu_pm_ops,
 	},
 	.probe	= qcom_iommu_device_probe,
-	.remove	= qcom_iommu_device_remove,
+	.remove_new = qcom_iommu_device_remove,
 };
 
 static int __init qcom_iommu_init(void)

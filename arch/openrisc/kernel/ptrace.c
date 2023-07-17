@@ -85,10 +85,39 @@ static int genregs_set(struct task_struct *target,
 }
 
 /*
+ * As OpenRISC shares GPRs and floating point registers we don't need to export
+ * the floating point registers again.  So here we only export the fpcsr special
+ * purpose register.
+ */
+static int fpregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       struct membuf to)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+
+	return membuf_store(&to, regs->fpcsr);
+}
+
+static int fpregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* FPCSR */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &regs->fpcsr, 0, 4);
+	return ret;
+}
+
+/*
  * Define the register sets available on OpenRISC under Linux
  */
 enum or1k_regset {
 	REGSET_GENERAL,
+	REGSET_FPU,
 };
 
 static const struct user_regset or1k_regsets[] = {
@@ -99,6 +128,14 @@ static const struct user_regset or1k_regsets[] = {
 			    .align = sizeof(long),
 			    .regset_get = genregs_get,
 			    .set = genregs_set,
+			    },
+	[REGSET_FPU] = {
+			    .core_note_type = NT_PRFPREG,
+			    .n = sizeof(struct __or1k_fpu_state) / sizeof(long),
+			    .size = sizeof(long),
+			    .align = sizeof(long),
+			    .regset_get = fpregs_get,
+			    .set = fpregs_set,
 			    },
 };
 

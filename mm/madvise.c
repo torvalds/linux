@@ -852,21 +852,9 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
 		*prev = NULL; /* mmap_lock has been dropped, prev is stale */
 
 		mmap_read_lock(mm);
-		vma = find_vma(mm, start);
+		vma = vma_lookup(mm, start);
 		if (!vma)
 			return -ENOMEM;
-		if (start < vma->vm_start) {
-			/*
-			 * This "vma" under revalidation is the one
-			 * with the lowest vma->vm_start where start
-			 * is also < vma->vm_end. If start <
-			 * vma->vm_start it means an hole materialized
-			 * in the user address space within the
-			 * virtual range passed to MADV_DONTNEED
-			 * or MADV_FREE.
-			 */
-			return -ENOMEM;
-		}
 		/*
 		 * Potential end adjustment for hugetlb vma is OK as
 		 * the check below keeps end within vma.
@@ -1402,8 +1390,6 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 	size_t len;
 	struct blk_plug plug;
 
-	start = untagged_addr(start);
-
 	if (!madvise_behavior_valid(behavior))
 		return -EINVAL;
 
@@ -1435,6 +1421,9 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 		mmap_read_lock(mm);
 	}
 
+	start = untagged_addr_remote(mm, start);
+	end = start + len;
+
 	blk_start_plug(&plug);
 	error = madvise_walk_vmas(mm, start, end, behavior,
 			madvise_vma_behavior);
@@ -1456,7 +1445,7 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 		size_t, vlen, int, behavior, unsigned int, flags)
 {
 	ssize_t ret;
-	struct iovec iovstack[UIO_FASTIOV], iovec;
+	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
 	struct task_struct *task;
@@ -1503,12 +1492,11 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 	total_len = iov_iter_count(&iter);
 
 	while (iov_iter_count(&iter)) {
-		iovec = iov_iter_iovec(&iter);
-		ret = do_madvise(mm, (unsigned long)iovec.iov_base,
-					iovec.iov_len, behavior);
+		ret = do_madvise(mm, (unsigned long)iter_iov_addr(&iter),
+					iter_iov_len(&iter), behavior);
 		if (ret < 0)
 			break;
-		iov_iter_advance(&iter, iovec.iov_len);
+		iov_iter_advance(&iter, iter_iov_len(&iter));
 	}
 
 	ret = (total_len - iov_iter_count(&iter)) ? : ret;

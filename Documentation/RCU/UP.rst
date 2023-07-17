@@ -107,7 +107,7 @@ UP systems, including PREEMPT SMP builds running on UP systems.
 
 Quick Quiz #3:
 	Why can't synchronize_rcu() return immediately on UP systems running
-	preemptable RCU?
+	preemptible RCU?
 
 .. _answer_quick_quiz_up:
 
@@ -143,7 +143,7 @@ Answer to Quick Quiz #2:
 
 Answer to Quick Quiz #3:
 	Why can't synchronize_rcu() return immediately on UP systems
-	running preemptable RCU?
+	running preemptible RCU?
 
 	Because some other task might have been preempted in the middle
 	of an RCU read-side critical section.  If synchronize_rcu()

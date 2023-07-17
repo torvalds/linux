@@ -743,9 +743,13 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 	       FF_MODE2_GS_TIMER_224,
 	       0, false);
 
-	if (!IS_DG1(i915))
+	if (!IS_DG1(i915)) {
 		/* Wa_1806527549 */
 		wa_masked_en(wal, HIZ_CHICKEN, HZ_DEPTH_TEST_LE_GE_OPT_DISABLE);
+
+		/* Wa_1606376872 */
+		wa_masked_en(wal, COMMON_SLICE_CHICKEN4, DISABLE_TDC_LOAD_BALANCING_CALC);
+	}
 }
 
 static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
@@ -1470,54 +1474,17 @@ gen12_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
-tgl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
-{
-	struct drm_i915_private *i915 = gt->i915;
-
-	gen12_gt_workarounds_init(gt, wal);
-
-	/* Wa_1409420604:tgl */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_mcr_write_or(wal,
-				SUBSLICE_UNIT_LEVEL_CLKGATE2,
-				CPSSUNIT_CLKGATE_DIS);
-
-	/* Wa_1607087056:tgl also know as BUG:1409180338 */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal,
-			    GEN11_SLICE_UNIT_LEVEL_CLKGATE,
-			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
-
-	/* Wa_1408615072:tgl[a0] */
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			    VSUNIT_CLKGATE_DIS_TGL);
-}
-
-static void
 dg1_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
-	struct drm_i915_private *i915 = gt->i915;
-
 	gen12_gt_workarounds_init(gt, wal);
 
-	/* Wa_1607087056:dg1 */
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
-		wa_write_or(wal,
-			    GEN11_SLICE_UNIT_LEVEL_CLKGATE,
-			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
-
 	/* Wa_1409420604:dg1 */
-	if (IS_DG1(i915))
-		wa_mcr_write_or(wal,
-				SUBSLICE_UNIT_LEVEL_CLKGATE2,
-				CPSSUNIT_CLKGATE_DIS);
+	wa_mcr_write_or(wal, SUBSLICE_UNIT_LEVEL_CLKGATE2,
+			CPSSUNIT_CLKGATE_DIS);
 
 	/* Wa_1408615072:dg1 */
 	/* Empirical testing shows this register is unaffected by engine reset. */
-	if (IS_DG1(i915))
-		wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2,
-			    VSUNIT_CLKGATE_DIS_TGL);
+	wa_write_or(wal, UNSLICE_UNIT_LEVEL_CLKGATE2, VSUNIT_CLKGATE_DIS_TGL);
 }
 
 static void
@@ -1529,6 +1496,12 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 
 	/* Wa_1409757795:xehpsdv */
 	wa_mcr_write_or(wal, SCCGCTL94DC, CG3DDISURB);
+
+	/* Wa_18011725039:xehpsdv */
+	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
+		wa_mcr_masked_dis(wal, MLTICTXCTL, TDONRENDER);
+		wa_mcr_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
+	}
 
 	/* Wa_16011155590:xehpsdv */
 	if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A0, STEP_B0))
@@ -1579,6 +1552,9 @@ xehpsdv_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	/* Wa_14014368820:xehpsdv */
 	wa_mcr_write_or(wal, XEHP_GAMCNTRL_CTRL,
 			INVALIDATION_BROADCAST_MODE_DIS | GLOBAL_INVALIDATION_MODE);
+
+	/* Wa_14010670810:xehpsdv */
+	wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
 }
 
 static void
@@ -1681,13 +1657,6 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	/* Wa_14014830051:dg2 */
 	wa_mcr_write_clr(wal, SARB_CHICKEN1, COMP_CKN_IN);
 
-	/*
-	 * The following are not actually "workarounds" but rather
-	 * recommended tuning settings documented in the bspec's
-	 * performance guide section.
-	 */
-	wa_mcr_write_or(wal, XEHP_SQCM, EN_32B_ACCESS);
-
 	/* Wa_14015795083 */
 	wa_write_clr(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
 
@@ -1700,6 +1669,9 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	/* Wa_1509235366:dg2 */
 	wa_mcr_write_or(wal, XEHP_GAMCNTRL_CTRL,
 			INVALIDATION_BROADCAST_MODE_DIS | GLOBAL_INVALIDATION_MODE);
+
+	/* Wa_14010648519:dg2 */
+	wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
 }
 
 static void
@@ -1715,6 +1687,9 @@ pvc_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	wa_mcr_write_or(wal, COMP_MOD_CTRL, FORCE_MISS_FTLB);
 	wa_mcr_write_or(wal, XEHP_VDBX_MOD_CTRL, FORCE_MISS_FTLB);
 	wa_mcr_write_or(wal, XEHP_VEBX_MOD_CTRL, FORCE_MISS_FTLB);
+
+	/* Wa_16016694945 */
+	wa_mcr_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_OVRLSCCC);
 }
 
 static void
@@ -1755,10 +1730,37 @@ xelpmp_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	debug_dump_steering(gt);
 }
 
+/*
+ * The bspec performance guide has recommended MMIO tuning settings.  These
+ * aren't truly "workarounds" but we want to program them through the
+ * workaround infrastructure to make sure they're (re)applied at the proper
+ * times.
+ *
+ * The programming in this function is for settings that persist through
+ * engine resets and also are not part of any engine's register state context.
+ * I.e., settings that only need to be re-applied in the event of a full GT
+ * reset.
+ */
+static void gt_tuning_settings(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	if (IS_PONTEVECCHIO(gt->i915)) {
+		wa_mcr_write(wal, XEHPC_L3SCRUB,
+			     SCRUB_CL_DWNGRADE_SHARED | SCRUB_RATE_4B_PER_CLK);
+		wa_mcr_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_HOSTCACHEEN);
+	}
+
+	if (IS_DG2(gt->i915)) {
+		wa_mcr_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
+		wa_mcr_write_or(wal, XEHP_SQCM, EN_32B_ACCESS);
+	}
+}
+
 static void
 gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
+
+	gt_tuning_settings(gt, wal);
 
 	if (gt->type == GT_MEDIA) {
 		if (MEDIA_VER(i915) >= 13)
@@ -1779,8 +1781,6 @@ gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 		xehpsdv_gt_workarounds_init(gt, wal);
 	else if (IS_DG1(i915))
 		dg1_gt_workarounds_init(gt, wal);
-	else if (IS_TIGERLAKE(i915))
-		tgl_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 12)
 		gen12_gt_workarounds_init(gt, wal);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2187,36 +2187,19 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 
 		/* Wa_1806527549:tgl */
 		whitelist_reg(w, HIZ_CHICKEN);
+
+		/* Required by recommended tuning setting (not a workaround) */
+		whitelist_reg(w, GEN11_COMMON_SLICE_CHICKEN3);
+
 		break;
 	default:
 		break;
 	}
 }
 
-static void dg1_whitelist_build(struct intel_engine_cs *engine)
-{
-	struct i915_wa_list *w = &engine->whitelist;
-
-	tgl_whitelist_build(engine);
-
-	/* GEN:BUG:1409280441:dg1 */
-	if (IS_DG1_GRAPHICS_STEP(engine->i915, STEP_A0, STEP_B0) &&
-	    (engine->class == RENDER_CLASS ||
-	     engine->class == COPY_ENGINE_CLASS))
-		whitelist_reg_ext(w, RING_ID(engine->mmio_base),
-				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
-}
-
-static void xehpsdv_whitelist_build(struct intel_engine_cs *engine)
-{
-	allow_read_ctx_timestamp(engine);
-}
-
 static void dg2_whitelist_build(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
-
-	allow_read_ctx_timestamp(engine);
 
 	switch (engine->class) {
 	case RENDER_CLASS:
@@ -2233,6 +2216,9 @@ static void dg2_whitelist_build(struct intel_engine_cs *engine)
 			whitelist_reg_ext(w, PS_INVOCATION_COUNT,
 					  RING_FORCE_TO_NONPRIV_ACCESS_RD |
 					  RING_FORCE_TO_NONPRIV_RANGE_4);
+
+		/* Required by recommended tuning setting (not a workaround) */
+		whitelist_mcr_reg(w, XEHP_COMMON_SLICE_CHICKEN3);
 
 		break;
 	case COMPUTE_CLASS:
@@ -2265,10 +2251,23 @@ static void blacklist_trtt(struct intel_engine_cs *engine)
 
 static void pvc_whitelist_build(struct intel_engine_cs *engine)
 {
-	allow_read_ctx_timestamp(engine);
-
 	/* Wa_16014440446:pvc */
 	blacklist_trtt(engine);
+}
+
+static void mtl_whitelist_build(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	switch (engine->class) {
+	case RENDER_CLASS:
+		/* Required by recommended tuning setting (not a workaround) */
+		whitelist_mcr_reg(w, XEHP_COMMON_SLICE_CHICKEN3);
+
+		break;
+	default:
+		break;
+	}
 }
 
 void intel_engine_init_whitelist(struct intel_engine_cs *engine)
@@ -2279,15 +2278,13 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 	wa_init_start(w, engine->gt, "whitelist", engine->name);
 
 	if (IS_METEORLAKE(i915))
-		; /* noop; none at this time */
+		mtl_whitelist_build(engine);
 	else if (IS_PONTEVECCHIO(i915))
 		pvc_whitelist_build(engine);
 	else if (IS_DG2(i915))
 		dg2_whitelist_build(engine);
 	else if (IS_XEHPSDV(i915))
-		xehpsdv_whitelist_build(engine);
-	else if (IS_DG1(i915))
-		dg1_whitelist_build(engine);
+		; /* none needed */
 	else if (GRAPHICS_VER(i915) == 12)
 		tgl_whitelist_build(engine);
 	else if (GRAPHICS_VER(i915) == 11)
@@ -2452,15 +2449,11 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 				 MDQ_ARBITRATION_MODE | UGM_BACKUP_MODE);
 	}
 
-	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_A0, STEP_B0)) {
+	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_A0, STEP_B0))
 		/* Wa_22010430635:dg2 */
 		wa_mcr_masked_en(wal,
 				 GEN9_ROW_CHICKEN4,
 				 GEN12_DISABLE_GRF_CLEAR);
-
-		/* Wa_14010648519:dg2 */
-		wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
-	}
 
 	/* Wa_14013202645:dg2 */
 	if (IS_DG2_GRAPHICS_STEP(i915, G10, STEP_B0, STEP_C0) ||
@@ -2480,27 +2473,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 			   _MASKED_BIT_ENABLE(ENABLE_EU_COUNT_FOR_TDL_FLUSH),
 			   0 /* Wa_14012342262 write-only reg, so skip verification */,
 			   true);
-	}
-
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
-	    IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
-		/*
-		 * Wa_1607138336:tgl[a0],dg1[a0]
-		 * Wa_1607063988:tgl[a0],dg1[a0]
-		 */
-		wa_write_or(wal,
-			    GEN9_CTX_PREEMPT_REG,
-			    GEN12_DISABLE_POSH_BUSY_FF_DOP_CG);
-	}
-
-	if (IS_TGL_UY_GRAPHICS_STEP(i915, STEP_A0, STEP_B0)) {
-		/*
-		 * Wa_1606679103:tgl
-		 * (see also Wa_1606682166:icl)
-		 */
-		wa_write_or(wal,
-			    GEN7_SARCHKMD,
-			    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
 	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) || IS_DG1(i915) ||
@@ -2532,30 +2504,22 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 	}
 
 	if (IS_ALDERLAKE_P(i915) || IS_ALDERLAKE_S(i915) ||
-	    IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
 	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915)) {
-		/* Wa_1409804808:tgl,rkl,dg1[a0],adl-s,adl-p */
+		/* Wa_1409804808 */
 		wa_mcr_masked_en(wal, GEN8_ROW_CHICKEN2,
 				 GEN12_PUSH_CONST_DEREF_HOLD_DIS);
 
-		/*
-		 * Wa_1409085225:tgl
-		 * Wa_14010229206:tgl,rkl,dg1[a0],adl-s,adl-p
-		 */
+		/* Wa_14010229206 */
 		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN4, GEN12_DISABLE_TDL_PUSH);
 	}
 
-	if (IS_DG1_GRAPHICS_STEP(i915, STEP_A0, STEP_B0) ||
-	    IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
+	if (IS_ROCKETLAKE(i915) || IS_TIGERLAKE(i915) || IS_ALDERLAKE_P(i915)) {
 		/*
-		 * Wa_1607030317:tgl
-		 * Wa_1607186500:tgl
-		 * Wa_1607297627:tgl,rkl,dg1[a0],adlp
+		 * Wa_1607297627
 		 *
 		 * On TGL and RKL there are multiple entries for this WA in the
 		 * BSpec; some indicate this is an A0-only WA, others indicate
 		 * it applies to all steppings so we trust the "all steppings."
-		 * For DG1 this only applies to A0.
 		 */
 		wa_masked_en(wal,
 			     RING_PSMI_CTL(RENDER_RING_BASE),
@@ -2975,16 +2939,8 @@ static void
 add_render_compute_tuning_settings(struct drm_i915_private *i915,
 				   struct i915_wa_list *wal)
 {
-	if (IS_PONTEVECCHIO(i915)) {
-		wa_mcr_write(wal, XEHPC_L3SCRUB,
-			     SCRUB_CL_DWNGRADE_SHARED | SCRUB_RATE_4B_PER_CLK);
-		wa_mcr_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_HOSTCACHEEN);
-	}
-
-	if (IS_DG2(i915)) {
-		wa_mcr_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
+	if (IS_DG2(i915))
 		wa_mcr_write_clr_set(wal, RT_CTRL, STACKID_CTRL, STACKID_CTRL_512);
-	}
 
 	/*
 	 * This tuning setting proves beneficial only on ATS-M designs; the
@@ -3014,6 +2970,44 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 	struct drm_i915_private *i915 = engine->i915;
 
 	add_render_compute_tuning_settings(i915, wal);
+
+	if (GRAPHICS_VER(i915) >= 11) {
+		/* This is not a Wa (although referred to as
+		 * WaSetInidrectStateOverride in places), this allows
+		 * applications that reference sampler states through
+		 * the BindlessSamplerStateBaseAddress to have their
+		 * border color relative to DynamicStateBaseAddress
+		 * rather than BindlessSamplerStateBaseAddress.
+		 *
+		 * Otherwise SAMPLER_STATE border colors have to be
+		 * copied in multiple heaps (DynamicStateBaseAddress &
+		 * BindlessSamplerStateBaseAddress)
+		 *
+		 * BSpec: 46052
+		 */
+		wa_mcr_masked_en(wal,
+				 GEN10_SAMPLER_MODE,
+				 GEN11_INDIRECT_STATE_BASE_ADDR_OVERRIDE);
+	}
+
+	if (IS_MTL_GRAPHICS_STEP(i915, M, STEP_B0, STEP_FOREVER) ||
+	    IS_MTL_GRAPHICS_STEP(i915, P, STEP_B0, STEP_FOREVER))
+		/* Wa_14017856879 */
+		wa_mcr_masked_en(wal, GEN9_ROW_CHICKEN3, MTL_DISABLE_FIX_FOR_EOT_FLUSH);
+
+	if (IS_MTL_GRAPHICS_STEP(i915, M, STEP_A0, STEP_B0) ||
+	    IS_MTL_GRAPHICS_STEP(i915, P, STEP_A0, STEP_B0))
+		/*
+		 * Wa_14017066071
+		 * Wa_14017654203
+		 */
+		wa_mcr_masked_en(wal, GEN10_SAMPLER_MODE,
+				 MTL_DISABLE_SAMPLER_SC_OOO);
+
+	if (IS_MTL_GRAPHICS_STEP(i915, P, STEP_A0, STEP_B0))
+		/* Wa_22015279794 */
+		wa_mcr_masked_en(wal, GEN10_CACHE_MODE_SS,
+				 DISABLE_PREFETCH_INTO_IC);
 
 	if (IS_MTL_GRAPHICS_STEP(i915, M, STEP_A0, STEP_B0) ||
 	    IS_MTL_GRAPHICS_STEP(i915, P, STEP_A0, STEP_B0) ||
@@ -3066,11 +3060,6 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 			   0, false);
 	}
 
-	if (IS_PONTEVECCHIO(i915)) {
-		/* Wa_16016694945 */
-		wa_mcr_masked_en(wal, XEHPC_LNCFMISCCFGREG0, XEHPC_OVRLSCCC);
-	}
-
 	if (IS_XEHPSDV(i915)) {
 		/* Wa_1409954639 */
 		wa_mcr_masked_en(wal,
@@ -3082,18 +3071,9 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 				 GEN9_ROW_CHICKEN4,
 				 GEN12_DISABLE_GRF_CLEAR);
 
-		/* Wa_14010670810:xehpsdv */
-		wa_mcr_write_or(wal, XEHP_L3NODEARBCFG, XEHP_LNESPARE);
-
 		/* Wa_14010449647:xehpsdv */
 		wa_mcr_masked_en(wal, GEN8_HALF_SLICE_CHICKEN1,
 				 GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE);
-
-		/* Wa_18011725039:xehpsdv */
-		if (IS_XEHPSDV_GRAPHICS_STEP(i915, STEP_A1, STEP_B0)) {
-			wa_mcr_masked_dis(wal, MLTICTXCTL, TDONRENDER);
-			wa_mcr_write_or(wal, L3SQCREG1_CCS0, FLUSHALLNONCOH);
-		}
 	}
 
 	if (IS_DG2(i915) || IS_PONTEVECCHIO(i915)) {

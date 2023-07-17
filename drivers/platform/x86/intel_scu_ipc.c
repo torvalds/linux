@@ -82,7 +82,6 @@ static DEFINE_MUTEX(ipclock); /* lock used to prevent multiple call to SCU */
 
 static struct class intel_scu_ipc_class = {
 	.name = "intel_scu_ipc",
-	.owner = THIS_MODULE,
 };
 
 /**

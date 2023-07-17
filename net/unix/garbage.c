@@ -305,7 +305,7 @@ void unix_gc(void)
 	 * release.path eventually putting registered files.
 	 */
 	skb_queue_walk_safe(&hitlist, skb, next_skb) {
-		if (skb->scm_io_uring) {
+		if (skb->destructor == io_uring_destruct_scm) {
 			__skb_unlink(skb, &hitlist);
 			skb_queue_tail(&skb->sk->sk_receive_queue, skb);
 		}

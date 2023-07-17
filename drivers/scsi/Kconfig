@@ -971,8 +971,7 @@ config SCSI_SYM53C8XX_MMIO
 
 config SCSI_IPR
 	tristate "IBM Power Linux RAID adapter support"
-	depends on PCI && SCSI && ATA
-	select SATA_HOST
+	depends on PCI && SCSI
 	select FW_LOADER
 	select IRQ_POLL
 	select SGL_ALLOC

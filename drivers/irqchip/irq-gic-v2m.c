@@ -421,7 +421,7 @@ static int __init gicv2m_of_init(struct fwnode_handle *parent_handle,
 		u32 spi_start = 0, nr_spis = 0;
 		struct resource res;
 
-		if (!of_find_property(child, "msi-controller", NULL))
+		if (!of_property_read_bool(child, "msi-controller"))
 			continue;
 
 		ret = of_address_to_resource(child, 0, &res);

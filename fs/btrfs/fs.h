@@ -25,6 +25,18 @@
 static_assert(sizeof(struct btrfs_super_block) == BTRFS_SUPER_INFO_SIZE);
 
 /*
+ * Number of metadata items necessary for an unlink operation:
+ *
+ * 1 for the possible orphan item
+ * 1 for the dir item
+ * 1 for the dir index
+ * 1 for the inode ref
+ * 1 for the inode
+ * 1 for the parent inode
+ */
+#define BTRFS_UNLINK_METADATA_UNITS		6
+
+/*
  * The reserved space at the beginning of each device.  It covers the primary
  * super block and leaves space for potential use by other tools like
  * bootloaders or to lower potential damage of accidental overwrite.
@@ -120,11 +132,8 @@ enum {
 	/* Indicate that we want to commit the transaction. */
 	BTRFS_FS_NEED_TRANS_COMMIT,
 
-	/*
-	 * Indicate metadata over-commit is disabled. This is set when active
-	 * zone tracking is needed.
-	 */
-	BTRFS_FS_NO_OVERCOMMIT,
+	/* This is set when active zone tracking is needed. */
+	BTRFS_FS_ACTIVE_ZONE_TRACKING,
 
 	/*
 	 * Indicate if we have some features changed, this is mostly for
@@ -196,27 +205,7 @@ enum {
 #define BTRFS_FEATURE_COMPAT_RO_SAFE_SET	0ULL
 #define BTRFS_FEATURE_COMPAT_RO_SAFE_CLEAR	0ULL
 
-#ifdef CONFIG_BTRFS_DEBUG
-/*
- * Extent tree v2 supported only with CONFIG_BTRFS_DEBUG
- */
-#define BTRFS_FEATURE_INCOMPAT_SUPP			\
-	(BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF |		\
-	 BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL |	\
-	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
-	 BTRFS_FEATURE_INCOMPAT_BIG_METADATA |		\
-	 BTRFS_FEATURE_INCOMPAT_COMPRESS_LZO |		\
-	 BTRFS_FEATURE_INCOMPAT_COMPRESS_ZSTD |		\
-	 BTRFS_FEATURE_INCOMPAT_RAID56 |		\
-	 BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF |		\
-	 BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA |	\
-	 BTRFS_FEATURE_INCOMPAT_NO_HOLES	|	\
-	 BTRFS_FEATURE_INCOMPAT_METADATA_UUID	|	\
-	 BTRFS_FEATURE_INCOMPAT_RAID1C34	|	\
-	 BTRFS_FEATURE_INCOMPAT_ZONED		|	\
-	 BTRFS_FEATURE_INCOMPAT_EXTENT_TREE_V2)
-#else
-#define BTRFS_FEATURE_INCOMPAT_SUPP			\
+#define BTRFS_FEATURE_INCOMPAT_SUPP_STABLE		\
 	(BTRFS_FEATURE_INCOMPAT_MIXED_BACKREF |		\
 	 BTRFS_FEATURE_INCOMPAT_DEFAULT_SUBVOL |	\
 	 BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS |		\
@@ -230,6 +219,21 @@ enum {
 	 BTRFS_FEATURE_INCOMPAT_METADATA_UUID	|	\
 	 BTRFS_FEATURE_INCOMPAT_RAID1C34	|	\
 	 BTRFS_FEATURE_INCOMPAT_ZONED)
+
+#ifdef CONFIG_BTRFS_DEBUG
+	/*
+	 * Features under developmen like Extent tree v2 support is enabled
+	 * only under CONFIG_BTRFS_DEBUG.
+	 */
+#define BTRFS_FEATURE_INCOMPAT_SUPP		\
+	(BTRFS_FEATURE_INCOMPAT_SUPP_STABLE |	\
+	 BTRFS_FEATURE_INCOMPAT_EXTENT_TREE_V2)
+
+#else
+
+#define BTRFS_FEATURE_INCOMPAT_SUPP		\
+	(BTRFS_FEATURE_INCOMPAT_SUPP_STABLE)
+
 #endif
 
 #define BTRFS_FEATURE_INCOMPAT_SAFE_SET			\
@@ -415,7 +419,6 @@ struct btrfs_fs_info {
 	 * Must be written and read while holding btrfs_fs_info::commit_root_sem.
 	 */
 	u64 last_reloc_trans;
-	u64 avg_delayed_ref_runtime;
 
 	/*
 	 * This is updated to the current trans every time a full commit is
@@ -641,7 +644,6 @@ struct btrfs_fs_info {
 	refcount_t scrub_workers_refcnt;
 	struct workqueue_struct *scrub_workers;
 	struct workqueue_struct *scrub_wr_completion_workers;
-	struct workqueue_struct *scrub_parity_workers;
 	struct btrfs_subpage_info *subpage_info;
 
 	struct btrfs_discard_ctl discard_ctl;
@@ -831,7 +833,7 @@ static inline u64 btrfs_csum_bytes_to_leaves(
  * Use this if we would be adding new items, as we could split nodes as we cow
  * down the tree.
  */
-static inline u64 btrfs_calc_insert_metadata_size(struct btrfs_fs_info *fs_info,
+static inline u64 btrfs_calc_insert_metadata_size(const struct btrfs_fs_info *fs_info,
 						  unsigned num_items)
 {
 	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * 2 * num_items;
@@ -841,7 +843,7 @@ static inline u64 btrfs_calc_insert_metadata_size(struct btrfs_fs_info *fs_info,
  * Doing a truncate or a modification won't result in new nodes or leaves, just
  * what we need for COW.
  */
-static inline u64 btrfs_calc_metadata_size(struct btrfs_fs_info *fs_info,
+static inline u64 btrfs_calc_metadata_size(const struct btrfs_fs_info *fs_info,
 						 unsigned num_items)
 {
 	return (u64)fs_info->nodesize * BTRFS_MAX_LEVEL * num_items;

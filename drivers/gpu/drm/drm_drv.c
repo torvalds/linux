@@ -691,9 +691,11 @@ static int drm_dev_init(struct drm_device *dev,
 		}
 	}
 
-	ret = drm_dev_set_unique(dev, dev_name(parent));
-	if (ret)
+	dev->unique = drmm_kstrdup(dev, dev_name(parent), GFP_KERNEL);
+	if (!dev->unique) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	return 0;
 
@@ -999,26 +1001,6 @@ void drm_dev_unregister(struct drm_device *dev)
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
-
-/**
- * drm_dev_set_unique - Set the unique name of a DRM device
- * @dev: device of which to set the unique name
- * @name: unique name
- *
- * Sets the unique name of a DRM device using the specified string. This is
- * already done by drm_dev_init(), drivers should only override the default
- * unique name for backwards compatibility reasons.
- *
- * Return: 0 on success or a negative error code on failure.
- */
-int drm_dev_set_unique(struct drm_device *dev, const char *name)
-{
-	drmm_kfree(dev, dev->unique);
-	dev->unique = drmm_kstrdup(dev, name, GFP_KERNEL);
-
-	return dev->unique ? 0 : -ENOMEM;
-}
-EXPORT_SYMBOL(drm_dev_set_unique);
 
 /*
  * DRM Core

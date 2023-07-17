@@ -195,6 +195,8 @@ struct mlx5dr_ste_ctx {
 					u8 *hw_action,
 					u32 hw_action_sz,
 					u16 *used_hw_action_num);
+	int (*alloc_modify_hdr_chunk)(struct mlx5dr_action *action);
+	void (*dealloc_modify_hdr_chunk)(struct mlx5dr_action *action);
 
 	/* Send */
 	void (*prepare_for_postsend)(u8 *hw_ste_p, u32 ste_size);

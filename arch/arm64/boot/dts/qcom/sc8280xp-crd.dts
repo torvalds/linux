@@ -413,11 +413,9 @@
 
 			backlight = <&backlight>;
 
-			ports {
-				port {
-					edp_panel_in: endpoint {
-						remote-endpoint = <&mdss0_dp3_out>;
-					};
+			port {
+				edp_panel_in: endpoint {
+					remote-endpoint = <&mdss0_dp3_out>;
 				};
 			};
 		};
@@ -561,6 +559,21 @@
 
 &pmk8280_pon_pwrkey {
 	status = "okay";
+};
+
+&pmk8280_rtc {
+	nvmem-cells = <&rtc_offset>;
+	nvmem-cell-names = "offset";
+
+	status = "okay";
+};
+
+&pmk8280_sdam_6 {
+	status = "okay";
+
+	rtc_offset: rtc-offset@bc {
+		reg = <0xbc 0x4>;
+	};
 };
 
 &qup0 {
@@ -857,7 +870,7 @@
 			pins = "gpio101";
 			function = "gpio";
 			bias-disable;
-			drive-strengh = <16>;
+			drive-strength = <16>;
 			output-high;
 		};
 
@@ -882,7 +895,7 @@
 			pins = "gpio48";
 			function = "gpio";
 			bias-disable;
-			drive-strengh = <16>;
+			drive-strength = <16>;
 			output-high;
 		};
 

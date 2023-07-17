@@ -3,7 +3,7 @@
  *
  * Name: actbl1.h - Additional ACPI table definitions
  *
- * Copyright (C) 2000 - 2022, Intel Corp.
+ * Copyright (C) 2000 - 2023, Intel Corp.
  *
  *****************************************************************************/
 
@@ -26,6 +26,7 @@
  */
 #define ACPI_SIG_AEST           "AEST"	/* Arm Error Source Table */
 #define ACPI_SIG_ASF            "ASF!"	/* Alert Standard Format table */
+#define ACPI_SIG_ASPT           "ASPT"	/* AMD Secure Processor Table */
 #define ACPI_SIG_BERT           "BERT"	/* Boot Error Record Table */
 #define ACPI_SIG_BGRT           "BGRT"	/* Boot Graphics Resource Table */
 #define ACPI_SIG_BOOT           "BOOT"	/* Simple Boot Flag Table */
@@ -107,6 +108,51 @@ struct acpi_whea_header {
 	struct acpi_generic_address register_region;
 	u64 value;		/* Value used with Read/Write register */
 	u64 mask;		/* Bitmask required for this register instruction */
+};
+
+/* https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/acpitabl/ns-acpitabl-aspt_table */
+#define ASPT_REVISION_ID 0x01
+struct acpi_table_aspt {
+	struct acpi_table_header header;
+	u32 num_entries;
+};
+
+struct acpi_aspt_header {
+	u16 type;
+	u16 length;
+};
+
+enum acpi_aspt_type {
+	ACPI_ASPT_TYPE_GLOBAL_REGS = 0,
+	ACPI_ASPT_TYPE_SEV_MBOX_REGS = 1,
+	ACPI_ASPT_TYPE_ACPI_MBOX_REGS = 2,
+};
+
+/* 0: ASPT Global Registers */
+struct acpi_aspt_global_regs {
+	struct acpi_aspt_header header;
+	u32 reserved;
+	u64 feature_reg_addr;
+	u64 irq_en_reg_addr;
+	u64 irq_st_reg_addr;
+};
+
+/* 1: ASPT SEV Mailbox Registers */
+struct acpi_aspt_sev_mbox_regs {
+	struct acpi_aspt_header header;
+	u8 mbox_irq_id;
+	u8 reserved[3];
+	u64 cmd_resp_reg_addr;
+	u64 cmd_buf_lo_reg_addr;
+	u64 cmd_buf_hi_reg_addr;
+};
+
+/* 2: ASPT ACPI Mailbox Registers */
+struct acpi_aspt_acpi_mbox_regs {
+	struct acpi_aspt_header header;
+	u32 reserved1;
+	u64 cmd_resp_reg_addr;
+	u64 reserved2[2];
 };
 
 /*******************************************************************************
@@ -855,7 +901,10 @@ struct acpi_dmar_andd {
 	struct acpi_dmar_header header;
 	u8 reserved[3];
 	u8 device_number;
-	char device_name[1];
+	union {
+		char __pad;
+		 ACPI_FLEX_ARRAY(char, device_name);
+	};
 };
 
 /* 5: SOC Integrated Address Translation Cache Reporting Structure */
@@ -898,7 +947,7 @@ struct acpi_table_drtm {
 
 struct acpi_drtm_vtable_list {
 	u32 validated_table_count;
-	u64 validated_tables[1];
+	u64 validated_tables[];
 };
 
 /* 2) Resources List (of Resource Descriptors) */
@@ -913,7 +962,7 @@ struct acpi_drtm_resource {
 
 struct acpi_drtm_resource_list {
 	u32 resource_count;
-	struct acpi_drtm_resource resources[1];
+	struct acpi_drtm_resource resources[];
 };
 
 /* 3) Platform-specific Identifiers List */
@@ -936,7 +985,7 @@ struct acpi_table_ecdt {
 	struct acpi_generic_address data;	/* Address of EC data register */
 	u32 uid;		/* Unique ID - must be same as the EC _UID method */
 	u8 gpe;			/* The GPE for the EC */
-	u8 id[1];		/* Full namepath of the EC in the ACPI namespace */
+	u8 id[];		/* Full namepath of the EC in the ACPI namespace */
 };
 
 /*******************************************************************************

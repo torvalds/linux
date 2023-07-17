@@ -105,7 +105,7 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
+				phy-mode = "rgmii-id";
 				ethernet = <&eth0port>;
 				fixed-link {
 					speed = <1000>;

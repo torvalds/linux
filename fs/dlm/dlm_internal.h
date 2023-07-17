@@ -99,13 +99,13 @@ do { \
 }
 
 
-#define DLM_RTF_SHRINK		0x00000001
+#define DLM_RTF_SHRINK_BIT	0
 
 struct dlm_rsbtable {
 	struct rb_root		keep;
 	struct rb_root		toss;
 	spinlock_t		lock;
-	uint32_t		flags;
+	unsigned long		flags;
 };
 
 
@@ -145,9 +145,6 @@ struct dlm_args {
 	void			(*bastfn) (void *astparam, int mode);
 	int			mode;
 	struct dlm_lksb		*lksb;
-#ifdef CONFIG_DLM_DEPRECATED_API
-	unsigned long		timeout;
-#endif
 };
 
 
@@ -197,31 +194,25 @@ struct dlm_args {
 #define DLM_LKSTS_GRANTED	2
 #define DLM_LKSTS_CONVERT	3
 
-/* lkb_flags */
+/* lkb_iflags */
 
-#define DLM_IFL_MSTCPY		0x00010000
-#define DLM_IFL_RESEND		0x00020000
-#define DLM_IFL_DEAD		0x00040000
-#define DLM_IFL_OVERLAP_UNLOCK  0x00080000
-#define DLM_IFL_OVERLAP_CANCEL  0x00100000
-#define DLM_IFL_ENDOFLIFE	0x00200000
-#ifdef CONFIG_DLM_DEPRECATED_API
-#define DLM_IFL_WATCH_TIMEWARN	0x00400000
-#define DLM_IFL_TIMEOUT_CANCEL	0x00800000
-#endif
-#define DLM_IFL_DEADLOCK_CANCEL	0x01000000
-#define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
-#define DLM_IFL_CB_PENDING	0x04000000
-/* least significant 2 bytes are message changed, they are full transmitted
- * but at receive side only the 2 bytes LSB will be set.
- *
- * Even wireshark dlm dissector does only evaluate the lower bytes and note
- * that they may not be used on transceiver side, we assume the higher bytes
- * are for internal use or reserved so long they are not parsed on receiver
- * side.
- */
-#define DLM_IFL_USER		0x00000001
-#define DLM_IFL_ORPHAN		0x00000002
+#define DLM_IFL_MSTCPY_BIT	16
+#define __DLM_IFL_MIN_BIT	DLM_IFL_MSTCPY_BIT
+#define DLM_IFL_RESEND_BIT	17
+#define DLM_IFL_DEAD_BIT	18
+#define DLM_IFL_OVERLAP_UNLOCK_BIT 19
+#define DLM_IFL_OVERLAP_CANCEL_BIT 20
+#define DLM_IFL_ENDOFLIFE_BIT	21
+#define DLM_IFL_DEADLOCK_CANCEL_BIT 24
+#define DLM_IFL_CB_PENDING_BIT	25
+#define __DLM_IFL_MAX_BIT	DLM_IFL_CB_PENDING_BIT
+
+/* lkb_dflags */
+
+#define DLM_DFL_USER_BIT	0
+#define __DLM_DFL_MIN_BIT	DLM_DFL_USER_BIT
+#define DLM_DFL_ORPHAN_BIT	1
+#define __DLM_DFL_MAX_BIT	DLM_DFL_ORPHAN_BIT
 
 #define DLM_CB_CAST		0x00000001
 #define DLM_CB_BAST		0x00000002
@@ -244,8 +235,9 @@ struct dlm_lkb {
 	uint32_t		lkb_id;		/* our lock ID */
 	uint32_t		lkb_remid;	/* lock ID on remote partner */
 	uint32_t		lkb_exflags;	/* external flags from caller */
-	uint32_t		lkb_sbflags;	/* lksb flags */
-	uint32_t		lkb_flags;	/* internal flags */
+	unsigned long		lkb_sbflags;	/* lksb flags */
+	unsigned long		lkb_dflags;	/* distributed flags */
+	unsigned long		lkb_iflags;	/* internal flags */
 	uint32_t		lkb_lvbseq;	/* lvb sequence number */
 
 	int8_t			lkb_status;     /* granted, waiting, convert */
@@ -262,11 +254,6 @@ struct dlm_lkb {
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	ktime_t			lkb_timestamp;
-
-#ifdef CONFIG_DLM_DEPRECATED_API
-	struct list_head	lkb_time_list;
-	unsigned long		lkb_timeout_cs;
-#endif
 
 	spinlock_t		lkb_cb_lock;
 	struct work_struct	lkb_cb_work;
@@ -583,11 +570,6 @@ struct dlm_ls {
 	struct mutex		ls_orphans_mutex;
 	struct list_head	ls_orphans;
 
-#ifdef CONFIG_DLM_DEPRECATED_API
-	struct mutex		ls_timeout_mutex;
-	struct list_head	ls_timeout;
-#endif
-
 	spinlock_t		ls_new_rsb_spin;
 	int			ls_new_rsb_count;
 	struct list_head	ls_new_rsb;	/* new rsb structs */
@@ -607,9 +589,9 @@ struct dlm_ls {
 	int			ls_slots_size;
 	struct dlm_slot		*ls_slots;
 
-	struct dlm_rsb		ls_stub_rsb;	/* for returning errors */
-	struct dlm_lkb		ls_stub_lkb;	/* for returning errors */
-	struct dlm_message	ls_stub_ms;	/* for faking a reply */
+	struct dlm_rsb		ls_local_rsb;	/* for returning errors */
+	struct dlm_lkb		ls_local_lkb;	/* for returning errors */
+	struct dlm_message	ls_local_ms;	/* for faking a reply */
 
 	struct dentry		*ls_debug_rsb_dentry; /* debugfs */
 	struct dentry		*ls_debug_waiters_dentry; /* debugfs */
@@ -701,9 +683,6 @@ struct dlm_ls {
 #define LSFL_RCOM_READY		5
 #define LSFL_RCOM_WAIT		6
 #define LSFL_UEVENT_WAIT	7
-#ifdef CONFIG_DLM_DEPRECATED_API
-#define LSFL_TIMEWARN		8
-#endif
 #define LSFL_CB_DELAY		9
 #define LSFL_NODIR		10
 
@@ -756,15 +735,76 @@ static inline int dlm_no_directory(struct dlm_ls *ls)
 	return test_bit(LSFL_NODIR, &ls->ls_flags);
 }
 
-#ifdef CONFIG_DLM_DEPRECATED_API
-int dlm_netlink_init(void);
-void dlm_netlink_exit(void);
-void dlm_timeout_warn(struct dlm_lkb *lkb);
-#else
-static inline int dlm_netlink_init(void) { return 0; }
-static inline void dlm_netlink_exit(void) { };
-static inline void dlm_timeout_warn(struct dlm_lkb *lkb) { };
-#endif
+/* takes a snapshot from dlm atomic flags */
+static inline uint32_t dlm_flags_val(const unsigned long *addr,
+				     uint32_t min, uint32_t max)
+{
+	uint32_t bit = min, val = 0;
+
+	for_each_set_bit_from(bit, addr, max + 1) {
+		val |= BIT(bit);
+	}
+
+	return val;
+}
+
+static inline uint32_t dlm_iflags_val(const struct dlm_lkb *lkb)
+{
+	return dlm_flags_val(&lkb->lkb_iflags, __DLM_IFL_MIN_BIT,
+			     __DLM_IFL_MAX_BIT);
+}
+
+static inline uint32_t dlm_dflags_val(const struct dlm_lkb *lkb)
+{
+	return dlm_flags_val(&lkb->lkb_dflags, __DLM_DFL_MIN_BIT,
+			     __DLM_DFL_MAX_BIT);
+}
+
+/* coming from UAPI header
+ *
+ * TODO:
+ * Move this to UAPI header and let other values point to them and use BIT()
+ */
+#define DLM_SBF_DEMOTED_BIT	0
+#define __DLM_SBF_MIN_BIT	DLM_SBF_DEMOTED_BIT
+#define DLM_SBF_VALNOTVALID_BIT	1
+#define DLM_SBF_ALTMODE_BIT	2
+#define __DLM_SBF_MAX_BIT	DLM_SBF_ALTMODE_BIT
+
+static inline uint32_t dlm_sbflags_val(const struct dlm_lkb *lkb)
+{
+	/* be sure the next person updates this */
+	BUILD_BUG_ON(BIT(__DLM_SBF_MAX_BIT) != DLM_SBF_ALTMODE);
+
+	return dlm_flags_val(&lkb->lkb_sbflags, __DLM_SBF_MIN_BIT,
+			     __DLM_SBF_MAX_BIT);
+}
+
+static inline void dlm_set_flags_val(unsigned long *addr, uint32_t val,
+				     uint32_t min, uint32_t max)
+{
+	uint32_t bit;
+
+	for (bit = min; bit < (max + 1); bit++) {
+		if (val & BIT(bit))
+			set_bit(bit, addr);
+		else
+			clear_bit(bit, addr);
+	}
+}
+
+static inline void dlm_set_dflags_val(struct dlm_lkb *lkb, uint32_t val)
+{
+	dlm_set_flags_val(&lkb->lkb_dflags, val, __DLM_DFL_MIN_BIT,
+			  __DLM_DFL_MAX_BIT);
+}
+
+static inline void dlm_set_sbflags_val(struct dlm_lkb *lkb, uint32_t val)
+{
+	dlm_set_flags_val(&lkb->lkb_sbflags, val, __DLM_SBF_MIN_BIT,
+			  __DLM_SBF_MAX_BIT);
+}
+
 int dlm_plock_init(void);
 void dlm_plock_exit(void);
 

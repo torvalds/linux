@@ -392,7 +392,7 @@ EXPORT_SYMBOL_GPL(usb_role_switch_get_drvdata);
 
 static int __init usb_roles_init(void)
 {
-	role_class = class_create(THIS_MODULE, "usb_role");
+	role_class = class_create("usb_role");
 	return PTR_ERR_OR_ZERO(role_class);
 }
 subsys_initcall(usb_roles_init);

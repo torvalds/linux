@@ -1617,29 +1617,35 @@ static u8 rtw89_channel_to_idx(struct rtw89_dev *rtwdev, u8 band, u8 channel)
 s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
+	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
+	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 lmt = 0, sar;
 
 	switch (band) {
 	case RTW89_BAND_2G:
-		lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf][regd][ch_idx];
-		if (!lmt)
-			lmt = (*chip->txpwr_lmt_2g)[bw][ntx][rs][bf]
-						   [RTW89_WW][ch_idx];
+		lmt = (*rule_2ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		if (lmt)
+			break;
+
+		lmt = (*rule_2ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
-		lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf][regd][ch_idx];
-		if (!lmt)
-			lmt = (*chip->txpwr_lmt_5g)[bw][ntx][rs][bf]
-						   [RTW89_WW][ch_idx];
+		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		if (lmt)
+			break;
+
+		lmt = (*rule_5ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
-		lmt = (*chip->txpwr_lmt_6g)[bw][ntx][rs][bf][regd][ch_idx];
-		if (!lmt)
-			lmt = (*chip->txpwr_lmt_6g)[bw][ntx][rs][bf]
-						   [RTW89_WW][ch_idx];
+		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][regd][ch_idx];
+		if (lmt)
+			break;
+
+		lmt = (*rule_6ghz->lmt)[bw][ntx][rs][bf][RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -1862,29 +1868,35 @@ void rtw89_phy_fill_txpwr_limit(struct rtw89_dev *rtwdev,
 static s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 					u8 ru, u8 ntx, u8 ch)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_rfe_parms *rfe_parms = rtwdev->rfe_parms;
+	const struct rtw89_txpwr_rule_2ghz *rule_2ghz = &rfe_parms->rule_2ghz;
+	const struct rtw89_txpwr_rule_5ghz *rule_5ghz = &rfe_parms->rule_5ghz;
+	const struct rtw89_txpwr_rule_6ghz *rule_6ghz = &rfe_parms->rule_6ghz;
 	u8 ch_idx = rtw89_channel_to_idx(rtwdev, band, ch);
 	u8 regd = rtw89_regd_get(rtwdev, band);
 	s8 lmt_ru = 0, sar;
 
 	switch (band) {
 	case RTW89_BAND_2G:
-		lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx][regd][ch_idx];
-		if (!lmt_ru)
-			lmt_ru = (*chip->txpwr_lmt_ru_2g)[ru][ntx]
-							 [RTW89_WW][ch_idx];
+		lmt_ru = (*rule_2ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		if (lmt_ru)
+			break;
+
+		lmt_ru = (*rule_2ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_5G:
-		lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx][regd][ch_idx];
-		if (!lmt_ru)
-			lmt_ru = (*chip->txpwr_lmt_ru_5g)[ru][ntx]
-							 [RTW89_WW][ch_idx];
+		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		if (lmt_ru)
+			break;
+
+		lmt_ru = (*rule_5ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	case RTW89_BAND_6G:
-		lmt_ru = (*chip->txpwr_lmt_ru_6g)[ru][ntx][regd][ch_idx];
-		if (!lmt_ru)
-			lmt_ru = (*chip->txpwr_lmt_ru_6g)[ru][ntx]
-							 [RTW89_WW][ch_idx];
+		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][regd][ch_idx];
+		if (lmt_ru)
+			break;
+
+		lmt_ru = (*rule_6ghz->lmt_ru)[ru][ntx][RTW89_WW][ch_idx];
 		break;
 	default:
 		rtw89_warn(rtwdev, "unknown band type: %d\n", band);
@@ -2405,7 +2417,6 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 	bool is_linked = rtwdev->total_sta_assoc > 0;
 	s32 cfo_avg_312;
 	s32 dcfo_comp_val;
-	u8 dcfo_comp_sft = rtwdev->chip->dcfo_comp_sft;
 	int sign;
 
 	if (!is_linked) {
@@ -2418,8 +2429,8 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 		return;
 	dcfo_comp_val = rtw89_phy_read32_mask(rtwdev, R_DCFO, B_DCFO);
 	sign = curr_cfo > 0 ? 1 : -1;
-	cfo_avg_312 = (curr_cfo << dcfo_comp_sft) / 5 + sign * dcfo_comp_val;
-	rtw89_debug(rtwdev, RTW89_DBG_CFO, "DCFO: avg_cfo=%d\n", cfo_avg_312);
+	cfo_avg_312 = curr_cfo / 625 + sign * dcfo_comp_val;
+	rtw89_debug(rtwdev, RTW89_DBG_CFO, "avg_cfo_312=%d step\n", cfo_avg_312);
 	if (rtwdev->chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
 		cfo_avg_312 = -cfo_avg_312;
 	rtw89_phy_set_phy_regs(rtwdev, dcfo_comp->addr, dcfo_comp->mask,
@@ -2428,9 +2439,16 @@ static void rtw89_dcfo_comp(struct rtw89_dev *rtwdev, s32 curr_cfo)
 
 static void rtw89_dcfo_comp_init(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
 	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_OPT, B_DCFO_OPT_EN, 1);
 	rtw89_phy_set_phy_regs(rtwdev, R_DCFO_WEIGHT, B_DCFO_WEIGHT_MSK, 8);
-	rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MASK);
+
+	if (chip->cfo_hw_comp)
+		rtw89_write32_mask(rtwdev, R_AX_PWR_UL_CTRL2,
+				   B_AX_PWR_UL_CFO_MASK, 0x6);
+	else
+		rtw89_write32_clr(rtwdev, R_AX_PWR_UL_CTRL2, B_AX_PWR_UL_CFO_MASK);
 }
 
 static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
@@ -2500,6 +2518,7 @@ static void rtw89_phy_cfo_crystal_cap_adjust(struct rtw89_dev *rtwdev,
 
 static s32 rtw89_phy_average_cfo_calc(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	s32 cfo_khz_all = 0;
 	s32 cfo_cnt_all = 0;
@@ -2516,6 +2535,8 @@ static s32 rtw89_phy_average_cfo_calc(struct rtw89_dev *rtwdev)
 		cfo_cnt_all += cfo->cfo_cnt[i];
 		cfo_all_avg = phy_div(cfo_khz_all, cfo_cnt_all);
 		cfo->pre_cfo_avg[i] = cfo->cfo_avg[i];
+		cfo->dcfo_avg = phy_div(cfo_khz_all << chip->dcfo_comp_sft,
+					cfo_cnt_all);
 	}
 	rtw89_debug(rtwdev, RTW89_DBG_CFO,
 		    "CFO track for macid = %d\n", i);
@@ -2642,7 +2663,9 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 	s32 new_cfo = 0;
 	bool x_cap_update = false;
 	u8 pre_x_cap = cfo->crystal_cap;
+	u8 dcfo_comp_sft = rtwdev->chip->dcfo_comp_sft;
 
+	cfo->dcfo_avg = 0;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "CFO:total_sta_assoc=%d\n",
 		    rtwdev->total_sta_assoc);
 	if (rtwdev->total_sta_assoc == 0) {
@@ -2684,18 +2707,19 @@ static void rtw89_phy_cfo_dm(struct rtw89_dev *rtwdev)
 
 	rtw89_phy_cfo_crystal_cap_adjust(rtwdev, new_cfo);
 	cfo->cfo_avg_pre = new_cfo;
+	cfo->dcfo_avg_pre = cfo->dcfo_avg;
 	x_cap_update =  cfo->crystal_cap != pre_x_cap;
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap_up=%d\n", x_cap_update);
 	rtw89_debug(rtwdev, RTW89_DBG_CFO, "Xcap: D:%x C:%x->%x, ofst=%d\n",
 		    cfo->def_x_cap, pre_x_cap, cfo->crystal_cap,
 		    cfo->x_cap_ofst);
 	if (x_cap_update) {
-		if (new_cfo > 0)
-			new_cfo -= CFO_SW_COMP_FINE_TUNE;
+		if (cfo->dcfo_avg > 0)
+			cfo->dcfo_avg -= CFO_SW_COMP_FINE_TUNE << dcfo_comp_sft;
 		else
-			new_cfo += CFO_SW_COMP_FINE_TUNE;
+			cfo->dcfo_avg += CFO_SW_COMP_FINE_TUNE << dcfo_comp_sft;
 	}
-	rtw89_dcfo_comp(rtwdev, new_cfo);
+	rtw89_dcfo_comp(rtwdev, cfo->dcfo_avg);
 	rtw89_phy_cfo_statistics_reset(rtwdev);
 }
 
@@ -4294,3 +4318,94 @@ void rtw89_phy_tssi_ctrl_set_bandedge_cfg(struct rtw89_dev *rtwdev,
 					      data[RTW89_TSSI_SBW20]);
 }
 EXPORT_SYMBOL(rtw89_phy_tssi_ctrl_set_bandedge_cfg);
+
+static
+const u8 rtw89_ch_base_table[16] = {1, 0xff,
+				    36, 100, 132, 149, 0xff,
+				    1, 33, 65, 97, 129, 161, 193, 225, 0xff};
+#define RTW89_CH_BASE_IDX_2G		0
+#define RTW89_CH_BASE_IDX_5G_FIRST	2
+#define RTW89_CH_BASE_IDX_5G_LAST	5
+#define RTW89_CH_BASE_IDX_6G_FIRST	7
+#define RTW89_CH_BASE_IDX_6G_LAST	14
+
+#define RTW89_CH_BASE_IDX_MASK		GENMASK(7, 4)
+#define RTW89_CH_OFFSET_MASK		GENMASK(3, 0)
+
+u8 rtw89_encode_chan_idx(struct rtw89_dev *rtwdev, u8 central_ch, u8 band)
+{
+	u8 chan_idx;
+	u8 last, first;
+	u8 idx;
+
+	switch (band) {
+	case RTW89_BAND_2G:
+		chan_idx = FIELD_PREP(RTW89_CH_BASE_IDX_MASK, RTW89_CH_BASE_IDX_2G) |
+			   FIELD_PREP(RTW89_CH_OFFSET_MASK, central_ch);
+		return chan_idx;
+	case RTW89_BAND_5G:
+		first = RTW89_CH_BASE_IDX_5G_FIRST;
+		last = RTW89_CH_BASE_IDX_5G_LAST;
+		break;
+	case RTW89_BAND_6G:
+		first = RTW89_CH_BASE_IDX_6G_FIRST;
+		last = RTW89_CH_BASE_IDX_6G_LAST;
+		break;
+	default:
+		rtw89_warn(rtwdev, "Unsupported band %d\n", band);
+		return 0;
+	}
+
+	for (idx = last; idx >= first; idx--)
+		if (central_ch >= rtw89_ch_base_table[idx])
+			break;
+
+	if (idx < first) {
+		rtw89_warn(rtwdev, "Unknown band %d channel %d\n", band, central_ch);
+		return 0;
+	}
+
+	chan_idx = FIELD_PREP(RTW89_CH_BASE_IDX_MASK, idx) |
+		   FIELD_PREP(RTW89_CH_OFFSET_MASK,
+			      (central_ch - rtw89_ch_base_table[idx]) >> 1);
+	return chan_idx;
+}
+EXPORT_SYMBOL(rtw89_encode_chan_idx);
+
+void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
+			   u8 *ch, enum nl80211_band *band)
+{
+	u8 idx, offset;
+
+	idx = FIELD_GET(RTW89_CH_BASE_IDX_MASK, chan_idx);
+	offset = FIELD_GET(RTW89_CH_OFFSET_MASK, chan_idx);
+
+	if (idx == RTW89_CH_BASE_IDX_2G) {
+		*band = NL80211_BAND_2GHZ;
+		*ch = offset;
+		return;
+	}
+
+	*band = idx <= RTW89_CH_BASE_IDX_5G_LAST ? NL80211_BAND_5GHZ : NL80211_BAND_6GHZ;
+	*ch = rtw89_ch_base_table[idx] + (offset << 1);
+}
+EXPORT_SYMBOL(rtw89_decode_chan_idx);
+
+#define EDCCA_DEFAULT 249
+void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan)
+{
+	u32 reg = rtwdev->chip->edcca_lvl_reg;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 val;
+
+	if (scan) {
+		hal->edcca_bak = rtw89_phy_read32(rtwdev, reg);
+		val = hal->edcca_bak;
+		u32p_replace_bits(&val, EDCCA_DEFAULT, B_SEG0R_EDCCA_LVL_A_MSK);
+		u32p_replace_bits(&val, EDCCA_DEFAULT, B_SEG0R_EDCCA_LVL_P_MSK);
+		u32p_replace_bits(&val, EDCCA_DEFAULT, B_SEG0R_PPDU_LVL_MSK);
+		rtw89_phy_write32(rtwdev, reg, val);
+	} else {
+		rtw89_phy_write32(rtwdev, reg, hal->edcca_bak);
+	}
+}

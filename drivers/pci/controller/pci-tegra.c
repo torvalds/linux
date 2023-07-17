@@ -1375,7 +1375,7 @@ static int tegra_pcie_phys_get(struct tegra_pcie *pcie)
 	struct tegra_pcie_port *port;
 	int err;
 
-	if (!soc->has_gen2 || of_find_property(np, "phys", NULL) != NULL)
+	if (!soc->has_gen2 || of_property_present(np, "phys"))
 		return tegra_pcie_phys_get_legacy(pcie);
 
 	list_for_each_entry(port, &pcie->ports, list) {
@@ -1944,7 +1944,7 @@ static bool of_regulator_bulk_available(struct device_node *np,
 	for (i = 0; i < num_supplies; i++) {
 		snprintf(property, 32, "%s-supply", supplies[i].supply);
 
-		if (of_find_property(np, property, NULL) == NULL)
+		if (!of_property_present(np, property))
 			return false;
 	}
 

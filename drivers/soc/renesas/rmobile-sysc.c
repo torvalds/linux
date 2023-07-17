@@ -343,7 +343,7 @@ static int __init rmobile_init_pm_domains(void)
 			break;
 		}
 
-		fwnode_dev_initialized(&np->fwnode, true);
+		fwnode_dev_initialized(of_fwnode_handle(np), true);
 	}
 
 	put_special_pds();

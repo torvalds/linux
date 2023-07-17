@@ -819,7 +819,6 @@
 
 &spi2 {
 	/* On Low speed expansion */
-	label = "LS-SPI0";
 	status = "okay";
 };
 
@@ -1134,10 +1133,6 @@
 &qup_uart9_tx {
 	drive-strength = <2>;
 	bias-disable;
-};
-
-&pm8998_gpios {
-
 };
 
 /* PINCTRL - additions to nodes defined in sdm845.dtsi */

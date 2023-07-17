@@ -109,6 +109,8 @@ Finally, the vX.Y gets released, and the whole cycle starts over.
 netdev patch review
 -------------------
 
+.. _patch_status:
+
 Patch status
 ~~~~~~~~~~~~
 
@@ -125,13 +127,32 @@ the value of ``Message-ID`` to the URL above.
 Updating patch status
 ~~~~~~~~~~~~~~~~~~~~~
 
-It may be tempting to help the maintainers and update the state of your
-own patches when you post a new version or spot a bug. Please **do not**
-do that.
-Interfering with the patch status on patchwork will only cause confusion. Leave
-it to the maintainer to figure out what is the most recent and current
-version that should be applied. If there is any doubt, the maintainer
-will reply and ask what should be done.
+Contributors and reviewers do not have the permissions to update patch
+state directly in patchwork. Patchwork doesn't expose much information
+about the history of the state of patches, therefore having multiple
+people update the state leads to confusion.
+
+Instead of delegating patchwork permissions netdev uses a simple mail
+bot which looks for special commands/lines within the emails sent to
+the mailing list. For example to mark a series as Changes Requested
+one needs to send the following line anywhere in the email thread::
+
+  pw-bot: changes-requested
+
+As a result the bot will set the entire series to Changes Requested.
+This may be useful when author discovers a bug in their own series
+and wants to prevent it from getting applied.
+
+The use of the bot is entirely optional, if in doubt ignore its existence
+completely. Maintainers will classify and update the state of the patches
+themselves. No email should ever be sent to the list with the main purpose
+of communicating with the bot, the bot commands should be seen as metadata.
+
+The use of the bot is restricted to authors of the patches (the ``From:``
+header on patch submission and command must match!), maintainers themselves
+and a handful of senior reviewers. Bot records its activity here:
+
+  https://patchwork.hopto.org/pw-bot.html
 
 Review timelines
 ~~~~~~~~~~~~~~~~
@@ -142,6 +163,33 @@ listed on the project's patch list) the chances it was missed are close to zero.
 Asking the maintainer for status updates on your
 patch is a good way to ensure your patch is ignored or pushed to the
 bottom of the priority list.
+
+Changes requested
+~~~~~~~~~~~~~~~~~
+
+Patches :ref:`marked<patch_status>` as ``Changes Requested`` need
+to be revised. The new version should come with a change log,
+preferably including links to previous postings, for example::
+
+  [PATCH net-next v3] net: make cows go moo
+
+  Even users who don't drink milk appreciate hearing the cows go "moo".
+
+  The amount of mooing will depend on packet rate so should match
+  the diurnal cycle quite well.
+
+  Signed-of-by: Joe Defarmer <joe@barn.org>
+  ---
+  v3:
+    - add a note about time-of-day mooing fluctuation to the commit message
+  v2: https://lore.kernel.org/netdev/123themessageid@barn.org/
+    - fix missing argument in kernel doc for netif_is_bovine()
+    - fix memory leak in netdev_register_cow()
+  v1: https://lore.kernel.org/netdev/456getstheclicks@barn.org/
+
+The commit message should be revised to answer any questions reviewers
+had to ask in previous discussions. Occasionally the update of
+the commit message will be the only change in the new version.
 
 Partial resends
 ~~~~~~~~~~~~~~~
@@ -155,10 +203,17 @@ Handling misapplied patches
 
 Occasionally a patch series gets applied before receiving critical feedback,
 or the wrong version of a series gets applied.
-There is no revert possible, once it is pushed out, it stays like that.
+
+Making the patch disappear once it is pushed out is not possible, the commit
+history in netdev trees is immutable.
 Please send incremental versions on top of what has been merged in order to fix
 the patches the way they would look like if your latest patch series was to be
 merged.
+
+In cases where full revert is needed the revert has to be submitted
+as a patch to the list with a commit message explaining the technical
+problems with the reverted commit. Reverts should be used as a last resort,
+when original change is completely wrong; incremental fixes are preferred.
 
 Stable tree
 ~~~~~~~~~~~

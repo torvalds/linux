@@ -131,7 +131,7 @@ EXPORT_SYMBOL(mISDN_dsp_element_unregister);
 
 int dsp_pipeline_module_init(void)
 {
-	elements_class = class_create(THIS_MODULE, "dsp_pipeline");
+	elements_class = class_create("dsp_pipeline");
 	if (IS_ERR(elements_class))
 		return PTR_ERR(elements_class);
 

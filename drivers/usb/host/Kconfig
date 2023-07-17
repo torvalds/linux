@@ -622,33 +622,6 @@ config FHCI_DEBUG
 	  Say "y" to see some FHCI debug information and statistics
 	  through debugfs.
 
-config USB_U132_HCD
-	tristate "Elan U132 Adapter Host Controller"
-	depends on USB_FTDI_ELAN
-	help
-	  The U132 adapter is a USB to CardBus adapter specifically designed
-	  for PC cards that contain an OHCI host controller. Typical PC cards
-	  are the Orange Mobile 3G Option GlobeTrotter Fusion card. The U132
-	  adapter will *NOT* work with PC cards that do not contain an OHCI
-	  controller.
-
-	  For those PC cards that contain multiple OHCI controllers only the
-	  first one is used.
-
-	  The driver consists of two modules, the "ftdi-elan" module is a
-	  USB client driver that interfaces to the FTDI chip within ELAN's
-	  USB-to-PCMCIA adapter, and this "u132-hcd" module is a USB host
-	  controller driver that talks to the OHCI controller within the
-	  CardBus cards that are inserted in the U132 adapter.
-
-	  This driver has been tested with a CardBus OHCI USB adapter, and
-	  worked with a USB PEN Drive inserted into the first USB port of
-	  the PCCARD. A rather pointless thing to do, but useful for testing.
-
-	  It is safe to say M here.
-
-	  See also <http://www.elandigitalsystems.com/support/ufaq/u132linux.php>
-
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"
 	depends on HAS_IOMEM

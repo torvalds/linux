@@ -68,7 +68,7 @@ properties:
   nvidia,ddc-i2c-bus:
     description: phandle of an I2C controller used for DDC EDID
       probing
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   nvidia,hpd-gpio:
     description: specifies a GPIO used for hotplug detection
@@ -76,11 +76,11 @@ properties:
 
   nvidia,edid:
     description: supplies a binary EDID blob
-    $ref: "/schemas/types.yaml#/definitions/uint8-array"
+    $ref: /schemas/types.yaml#/definitions/uint8-array
 
   nvidia,panel:
     description: phandle of a display panel
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   "#sound-dai-cells":
     const: 0

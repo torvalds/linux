@@ -13,7 +13,7 @@
 
 #include "mt7921.h"
 #include "../sdio.h"
-#include "mac.h"
+#include "../mt76_connac2_mac.h"
 #include "mcu.h"
 
 static const struct sdio_device_id mt7921s_table[] = {
@@ -99,7 +99,6 @@ static int mt7921s_probe(struct sdio_func *func,
 		.tx_status_data = mt7921_usb_sdio_tx_status_data,
 		.rx_skb = mt7921_queue_rx_skb,
 		.rx_check = mt7921_rx_check,
-		.sta_ps = mt7921_sta_ps,
 		.sta_add = mt7921_mac_sta_add,
 		.sta_assoc = mt7921_mac_sta_assoc,
 		.sta_remove = mt7921_mac_sta_remove,
@@ -122,32 +121,16 @@ static int mt7921s_probe(struct sdio_func *func,
 		.drv_own = mt7921s_mcu_drv_pmctrl,
 		.fw_own = mt7921s_mcu_fw_pmctrl,
 	};
-
 	struct ieee80211_ops *ops;
 	struct mt7921_dev *dev;
 	struct mt76_dev *mdev;
 	u8 features;
 	int ret;
 
-	features = mt7921_check_offload_capability(&func->dev, (const char *)
-						   id->driver_data);
-
-	ops = devm_kmemdup(&func->dev, &mt7921_ops, sizeof(mt7921_ops),
-			   GFP_KERNEL);
+	ops = mt7921_get_mac80211_ops(&func->dev, (void *)id->driver_data,
+				      &features);
 	if (!ops)
 		return -ENOMEM;
-
-	if (!(features & MT7921_FW_CAP_CNM)) {
-		ops->remain_on_channel = NULL;
-		ops->cancel_remain_on_channel = NULL;
-		ops->add_chanctx = NULL;
-		ops->remove_chanctx = NULL;
-		ops->change_chanctx = NULL;
-		ops->assign_vif_chanctx = NULL;
-		ops->unassign_vif_chanctx = NULL;
-		ops->mgd_prepare_tx = NULL;
-		ops->mgd_complete_tx = NULL;
-	}
 
 	mdev = mt76_alloc_device(&func->dev, sizeof(*dev), ops, &drv_ops);
 	if (!mdev)

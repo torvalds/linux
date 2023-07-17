@@ -768,7 +768,7 @@ TRACE_EVENT_RCU(rcu_torture_read,
 	TP_ARGS(rcutorturename, rhp, secs, c_old, c),
 
 	TP_STRUCT__entry(
-		__field(char, rcutorturename[RCUTORTURENAME_LEN])
+		__array(char, rcutorturename, RCUTORTURENAME_LEN)
 		__field(struct rcu_head *, rhp)
 		__field(unsigned long, secs)
 		__field(unsigned long, c_old)
@@ -776,9 +776,7 @@ TRACE_EVENT_RCU(rcu_torture_read,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->rcutorturename, rcutorturename,
-			RCUTORTURENAME_LEN);
-		__entry->rcutorturename[RCUTORTURENAME_LEN - 1] = 0;
+		strscpy(__entry->rcutorturename, rcutorturename, RCUTORTURENAME_LEN);
 		__entry->rhp = rhp;
 		__entry->secs = secs;
 		__entry->c_old = c_old;

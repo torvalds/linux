@@ -66,7 +66,7 @@ patternProperties:
     description: A timer node has up to 8 frame sub-nodes, each with the following properties.
     properties:
       frame-number:
-        $ref: "/schemas/types.yaml#/definitions/uint32"
+        $ref: /schemas/types.yaml#/definitions/uint32
         minimum: 0
         maximum: 7
 

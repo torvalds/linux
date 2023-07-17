@@ -3055,18 +3055,16 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 	return 0;
 }
 
-static int cadence_nand_dt_remove(struct platform_device *ofdev)
+static void cadence_nand_dt_remove(struct platform_device *ofdev)
 {
 	struct cadence_nand_dt *dt = platform_get_drvdata(ofdev);
 
 	cadence_nand_remove(&dt->cdns_ctrl);
-
-	return 0;
 }
 
 static struct platform_driver cadence_nand_dt_driver = {
 	.probe		= cadence_nand_dt_probe,
-	.remove		= cadence_nand_dt_remove,
+	.remove_new	= cadence_nand_dt_remove,
 	.driver		= {
 		.name	= "cadence-nand-controller",
 		.of_match_table = cadence_nand_dt_ids,

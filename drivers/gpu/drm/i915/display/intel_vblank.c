@@ -8,6 +8,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_vblank.h"
+#include "intel_vrr.h"
 
 /*
  * This timing diagram depicts the video signal in and
@@ -26,7 +27,7 @@
  *           |
  *           |          frame start:
  *           |          generate frame start interrupt (aka. vblank interrupt) (gmch)
- *           |          may be shifted forward 1-3 extra lines via PIPECONF
+ *           |          may be shifted forward 1-3 extra lines via TRANSCONF
  *           |          |
  *           |          |  start of vsync:
  *           |          |  generate vsync interrupt
@@ -54,7 +55,7 @@
  * Summary:
  * - most events happen at the start of horizontal sync
  * - frame start happens at the start of horizontal blank, 1-4 lines
- *   (depending on PIPECONF settings) after the start of vblank
+ *   (depending on TRANSCONF settings) after the start of vblank
  * - gen3/4 pixel and frame counter are synchronized with the start
  *   of horizontal active on the first line of vertical active
  */
@@ -438,4 +439,95 @@ void intel_wait_for_pipe_scanline_stopped(struct intel_crtc *crtc)
 void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
 {
 	wait_for_pipe_scanline_moving(crtc, true);
+}
+
+static int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	/*
+	 * The scanline counter increments at the leading edge of hsync.
+	 *
+	 * On most platforms it starts counting from vtotal-1 on the
+	 * first active line. That means the scanline counter value is
+	 * always one less than what we would expect. Ie. just after
+	 * start of vblank, which also occurs at start of hsync (on the
+	 * last active line), the scanline counter will read vblank_start-1.
+	 *
+	 * On gen2 the scanline counter starts counting from 1 instead
+	 * of vtotal-1, so we have to subtract one (or rather add vtotal-1
+	 * to keep the value positive), instead of adding one.
+	 *
+	 * On HSW+ the behaviour of the scanline counter depends on the output
+	 * type. For DP ports it behaves like most other platforms, but on HDMI
+	 * there's an extra 1 line difference. So we need to add two instead of
+	 * one to the value.
+	 *
+	 * On VLV/CHV DSI the scanline counter would appear to increment
+	 * approx. 1/3 of a scanline before start of vblank. Unfortunately
+	 * that means we can't tell whether we're in vblank or not while
+	 * we're on that particular line. We must still set scanline_offset
+	 * to 1 so that the vblank timestamps come out correct when we query
+	 * the scanline counter from within the vblank interrupt handler.
+	 * However if queried just before the start of vblank we'll get an
+	 * answer that's slightly in the future.
+	 */
+	if (DISPLAY_VER(i915) == 2) {
+		int vtotal;
+
+		vtotal = adjusted_mode->crtc_vtotal;
+		if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
+			vtotal /= 2;
+
+		return vtotal - 1;
+	} else if (HAS_DDI(i915) && intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		return 2;
+	} else {
+		return 1;
+	}
+}
+
+void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_display_mode adjusted_mode;
+	int vmax_vblank_start = 0;
+	unsigned long irqflags;
+
+	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
+
+	if (crtc_state->vrr.enable) {
+		adjusted_mode.crtc_vtotal = crtc_state->vrr.vmax;
+		adjusted_mode.crtc_vblank_end = crtc_state->vrr.vmax;
+		adjusted_mode.crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+		vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+	}
+
+	/*
+	 * Belts and suspenders locking to guarantee everyone sees 100%
+	 * consistent state during fastset seamless refresh rate changes.
+	 *
+	 * vblank_time_lock takes care of all drm_vblank.c stuff, and
+	 * uncore.lock takes care of __intel_get_crtc_scanline() which
+	 * may get called elsewhere as well.
+	 *
+	 * TODO maybe just protect everything (including
+	 * __intel_get_crtc_scanline()) with vblank_time_lock?
+	 * Need to audit everything to make sure it's safe.
+	 */
+	spin_lock_irqsave(&i915->drm.vblank_time_lock, irqflags);
+	spin_lock(&i915->uncore.lock);
+
+	drm_calc_timestamping_constants(&crtc->base, &adjusted_mode);
+
+	crtc->vmax_vblank_start = vmax_vblank_start;
+
+	crtc->mode_flags = crtc_state->mode_flags;
+
+	crtc->scanline_offset = intel_crtc_scanline_offset(crtc_state);
+
+	spin_unlock(&i915->uncore.lock);
+	spin_unlock_irqrestore(&i915->drm.vblank_time_lock, irqflags);
 }

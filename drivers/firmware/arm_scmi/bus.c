@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/device.h>
-#include <linux/of.h>
 
 #include "common.h"
 
@@ -436,7 +435,7 @@ struct scmi_device *scmi_device_create(struct device_node *np,
 	/* Nothing to do. */
 	if (!phead) {
 		mutex_unlock(&scmi_requested_devices_mtx);
-		return scmi_dev;
+		return NULL;
 	}
 
 	/* Walk the list of requested devices for protocol and create them */

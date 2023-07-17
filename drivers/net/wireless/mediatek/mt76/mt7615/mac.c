@@ -655,11 +655,6 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
-void mt7615_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps)
-{
-}
-EXPORT_SYMBOL_GPL(mt7615_sta_ps);
-
 static u16
 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 		       struct mt76_phy *mphy,
@@ -919,7 +914,10 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 
 		msta = list_first_entry(&sta_poll_list, struct mt7615_sta,
 					poll_list);
+
+		spin_lock_bh(&dev->sta_poll_lock);
 		list_del_init(&msta->poll_list);
+		spin_unlock_bh(&dev->sta_poll_lock);
 
 		addr = mt7615_mac_wtbl_addr(dev, msta->wcid.idx) + 19 * 4;
 
@@ -1193,8 +1191,7 @@ EXPORT_SYMBOL_GPL(mt7615_mac_enable_rtscts);
 static int
 mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key,
-			   enum mt76_cipher_type cipher, u16 cipher_mask,
-			   enum set_key_cmd cmd)
+			   enum mt76_cipher_type cipher, u16 cipher_mask)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx) + 30 * 4;
 	u8 data[32] = {};
@@ -1203,27 +1200,18 @@ mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 		return -EINVAL;
 
 	mt76_rr_copy(dev, addr, data, sizeof(data));
-	if (cmd == SET_KEY) {
-		if (cipher == MT_CIPHER_TKIP) {
-			/* Rx/Tx MIC keys are swapped */
-			memcpy(data, key->key, 16);
-			memcpy(data + 16, key->key + 24, 8);
-			memcpy(data + 24, key->key + 16, 8);
-		} else {
-			if (cipher_mask == BIT(cipher))
-				memcpy(data, key->key, key->keylen);
-			else if (cipher != MT_CIPHER_BIP_CMAC_128)
-				memcpy(data, key->key, 16);
-			if (cipher == MT_CIPHER_BIP_CMAC_128)
-				memcpy(data + 16, key->key, 16);
-		}
+	if (cipher == MT_CIPHER_TKIP) {
+		/* Rx/Tx MIC keys are swapped */
+		memcpy(data, key->key, 16);
+		memcpy(data + 16, key->key + 24, 8);
+		memcpy(data + 24, key->key + 16, 8);
 	} else {
+		if (cipher_mask == BIT(cipher))
+			memcpy(data, key->key, key->keylen);
+		else if (cipher != MT_CIPHER_BIP_CMAC_128)
+			memcpy(data, key->key, 16);
 		if (cipher == MT_CIPHER_BIP_CMAC_128)
-			memset(data + 16, 0, 16);
-		else if (cipher_mask)
-			memset(data, 0, 16);
-		if (!cipher_mask)
-			memset(data, 0, sizeof(data));
+			memcpy(data + 16, key->key, 16);
 	}
 
 	mt76_wr_copy(dev, addr, data, sizeof(data));
@@ -1234,7 +1222,7 @@ mt7615_mac_wtbl_update_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 static int
 mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 			  enum mt76_cipher_type cipher, u16 cipher_mask,
-			  int keyidx, enum set_key_cmd cmd)
+			  int keyidx)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx), w0, w1;
 
@@ -1253,9 +1241,7 @@ mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	else
 		w0 &= ~MT_WTBL_W0_RX_IK_VALID;
 
-	if (cmd == SET_KEY &&
-	    (cipher != MT_CIPHER_BIP_CMAC_128 ||
-	     cipher_mask == BIT(cipher))) {
+	if (cipher != MT_CIPHER_BIP_CMAC_128 || cipher_mask == BIT(cipher)) {
 		w0 &= ~MT_WTBL_W0_KEY_IDX;
 		w0 |= FIELD_PREP(MT_WTBL_W0_KEY_IDX, keyidx);
 	}
@@ -1272,18 +1258,9 @@ mt7615_mac_wtbl_update_pk(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 
 static void
 mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev, struct mt76_wcid *wcid,
-			      enum mt76_cipher_type cipher, u16 cipher_mask,
-			      enum set_key_cmd cmd)
+			      enum mt76_cipher_type cipher, u16 cipher_mask)
 {
 	u32 addr = mt7615_mac_wtbl_addr(dev, wcid->idx);
-
-	if (!cipher_mask) {
-		mt76_clear(dev, addr + 2 * 4, MT_WTBL_W2_KEY_TYPE);
-		return;
-	}
-
-	if (cmd != SET_KEY)
-		return;
 
 	if (cipher == MT_CIPHER_BIP_CMAC_128 &&
 	    cipher_mask & ~BIT(MT_CIPHER_BIP_CMAC_128))
@@ -1295,8 +1272,7 @@ mt7615_mac_wtbl_update_cipher(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 
 int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 			      struct mt76_wcid *wcid,
-			      struct ieee80211_key_conf *key,
-			      enum set_key_cmd cmd)
+			      struct ieee80211_key_conf *key)
 {
 	enum mt76_cipher_type cipher;
 	u16 cipher_mask = wcid->cipher;
@@ -1306,19 +1282,14 @@ int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 	if (cipher == MT_CIPHER_NONE)
 		return -EOPNOTSUPP;
 
-	if (cmd == SET_KEY)
-		cipher_mask |= BIT(cipher);
-	else
-		cipher_mask &= ~BIT(cipher);
-
-	mt7615_mac_wtbl_update_cipher(dev, wcid, cipher, cipher_mask, cmd);
-	err = mt7615_mac_wtbl_update_key(dev, wcid, key, cipher, cipher_mask,
-					 cmd);
+	cipher_mask |= BIT(cipher);
+	mt7615_mac_wtbl_update_cipher(dev, wcid, cipher, cipher_mask);
+	err = mt7615_mac_wtbl_update_key(dev, wcid, key, cipher, cipher_mask);
 	if (err < 0)
 		return err;
 
 	err = mt7615_mac_wtbl_update_pk(dev, wcid, cipher, cipher_mask,
-					key->keyidx, cmd);
+					key->keyidx);
 	if (err < 0)
 		return err;
 
@@ -1329,13 +1300,12 @@ int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 
 int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 			    struct mt76_wcid *wcid,
-			    struct ieee80211_key_conf *key,
-			    enum set_key_cmd cmd)
+			    struct ieee80211_key_conf *key)
 {
 	int err;
 
 	spin_lock_bh(&dev->mt76.lock);
-	err = __mt7615_mac_wtbl_set_key(dev, wcid, key, cmd);
+	err = __mt7615_mac_wtbl_set_key(dev, wcid, key);
 	spin_unlock_bh(&dev->mt76.lock);
 
 	return err;
@@ -1558,8 +1528,11 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	if (wcid->phy_idx && dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
 
-	if (mt7615_fill_txs(dev, msta, &info, txs_data))
+	if (mt7615_fill_txs(dev, msta, &info, txs_data)) {
+		spin_lock_bh(&dev->mt76.rx_lock);
 		ieee80211_tx_status_noskb(mphy->hw, sta, &info);
+		spin_unlock_bh(&dev->mt76.rx_lock);
+	}
 
 out:
 	rcu_read_unlock();
@@ -2380,7 +2353,7 @@ void mt7615_coredump_work(struct work_struct *work)
 			break;
 
 		skb_pull(skb, sizeof(struct mt7615_mcu_rxd));
-		if (data + skb->len - dump > MT76_CONNAC_COREDUMP_SZ) {
+		if (!dump || data + skb->len - dump > MT76_CONNAC_COREDUMP_SZ) {
 			dev_kfree_skb(skb);
 			continue;
 		}
@@ -2390,6 +2363,8 @@ void mt7615_coredump_work(struct work_struct *work)
 
 		dev_kfree_skb(skb);
 	}
-	dev_coredumpv(dev->mt76.dev, dump, MT76_CONNAC_COREDUMP_SZ,
-		      GFP_KERNEL);
+
+	if (dump)
+		dev_coredumpv(dev->mt76.dev, dump, MT76_CONNAC_COREDUMP_SZ,
+			      GFP_KERNEL);
 }

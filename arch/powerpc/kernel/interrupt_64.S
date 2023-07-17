@@ -101,12 +101,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * state of kernel code.
 	 */
 	SANITIZE_SYSCALL_GPRS()
-	bl	system_call_exception
+	bl	CFUNC(system_call_exception)
 
 .Lsyscall_vectored_\name\()_exit:
 	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r5,1 /* scv */
-	bl	syscall_exit_prepare
+	bl	CFUNC(syscall_exit_prepare)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 .Lsyscall_vectored_\name\()_rst_start:
 	lbz	r11,PACAIRQHAPPENED(r13)
@@ -185,7 +185,7 @@ _ASM_NOKPROBE_SYMBOL(syscall_vectored_\name\()_restart)
 	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	syscall_exit_restart
+	bl	CFUNC(syscall_exit_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Lsyscall_vectored_\name\()_rst_start
 1:
@@ -286,12 +286,12 @@ END_BTB_FLUSH_SECTION
 	 * state of kernel code.
 	 */
 	SANITIZE_SYSCALL_GPRS()
-	bl	system_call_exception
+	bl	CFUNC(system_call_exception)
 
 .Lsyscall_exit:
 	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r5,0 /* !scv */
-	bl	syscall_exit_prepare
+	bl	CFUNC(syscall_exit_prepare)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 #ifdef CONFIG_PPC_BOOK3S
 .Lsyscall_rst_start:
@@ -372,7 +372,7 @@ _ASM_NOKPROBE_SYMBOL(syscall_restart)
 	addi	r4,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	syscall_exit_restart
+	bl	CFUNC(syscall_exit_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Lsyscall_rst_start
 1:
@@ -401,7 +401,7 @@ _ASM_NOKPROBE_SYMBOL(fast_interrupt_return_srr)
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return_srr
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	unrecoverable_exception
+	bl	CFUNC(unrecoverable_exception)
 	b	. /* should not get here */
 #else
 	bne	.Lfast_user_interrupt_return_srr
@@ -419,7 +419,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\())
 interrupt_return_\srr\()_user: /* make backtraces match the _kernel variant */
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	interrupt_exit_user_prepare
+	bl	CFUNC(interrupt_exit_user_prepare)
 #ifndef CONFIG_INTERRUPT_SANITIZE_REGISTERS
 	cmpdi	r3,0
 	bne-	.Lrestore_nvgprs_\srr
@@ -523,7 +523,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_user_restart)
 	addi	r3,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	interrupt_exit_user_restart
+	bl	CFUNC(interrupt_exit_user_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Linterrupt_return_\srr\()_user_rst_start
 1:
@@ -536,7 +536,7 @@ RESTART_TABLE(.Linterrupt_return_\srr\()_user_rst_start, .Linterrupt_return_\srr
 interrupt_return_\srr\()_kernel:
 _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel)
 	addi	r3,r1,STACK_INT_FRAME_REGS
-	bl	interrupt_exit_kernel_prepare
+	bl	CFUNC(interrupt_exit_kernel_prepare)
 
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 .Linterrupt_return_\srr\()_kernel_rst_start:
@@ -705,7 +705,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return_\srr\()_kernel_restart)
 	addi	r3,r1,STACK_INT_FRAME_REGS
 	li	r11,IRQS_ALL_DISABLED
 	stb	r11,PACAIRQSOFTMASK(r13)
-	bl	interrupt_exit_kernel_restart
+	bl	CFUNC(interrupt_exit_kernel_restart)
 	std	r1,PACA_EXIT_SAVE_R1(r13) /* save r1 for restart */
 	b	.Linterrupt_return_\srr\()_kernel_rst_start
 1:
@@ -727,21 +727,20 @@ DEFINE_FIXED_SYMBOL(__end_soft_masked, text)
 
 #ifdef CONFIG_PPC_BOOK3S
 _GLOBAL(ret_from_fork_scv)
-	bl	schedule_tail
-	REST_NVGPRS(r1)
+	bl	CFUNC(schedule_tail)
+	HANDLER_RESTORE_NVGPRS()
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_vectored_common_exit
 #endif
 
 _GLOBAL(ret_from_fork)
-	bl	schedule_tail
-	REST_NVGPRS(r1)
+	bl	CFUNC(schedule_tail)
+	HANDLER_RESTORE_NVGPRS()
 	li	r3,0	/* fork() return value */
 	b	.Lsyscall_exit
 
-_GLOBAL(ret_from_kernel_thread)
-	bl	schedule_tail
-	REST_NVGPRS(r1)
+_GLOBAL(ret_from_kernel_user_thread)
+	bl	CFUNC(schedule_tail)
 	mtctr	r14
 	mr	r3,r15
 #ifdef CONFIG_PPC64_ELF_ABI_V2
@@ -749,4 +748,25 @@ _GLOBAL(ret_from_kernel_thread)
 #endif
 	bctrl
 	li	r3,0
+	/*
+	 * It does not matter whether this returns via the scv or sc path
+	 * because it returns as execve() and therefore has no calling ABI
+	 * (i.e., it sets registers according to the exec()ed entry point).
+	 */
 	b	.Lsyscall_exit
+
+_GLOBAL(start_kernel_thread)
+	bl	CFUNC(schedule_tail)
+	mtctr	r14
+	mr	r3,r15
+#ifdef CONFIG_PPC64_ELF_ABI_V2
+	mr	r12,r14
+#endif
+	bctrl
+	/*
+	 * This must not return. We actually want to BUG here, not WARN,
+	 * because BUG will exit the process which is what the kernel thread
+	 * should have done, which may give some hope of continuing.
+	 */
+100:	trap
+	EMIT_BUG_ENTRY 100b,__FILE__,__LINE__,0

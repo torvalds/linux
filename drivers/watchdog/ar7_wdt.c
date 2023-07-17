@@ -290,12 +290,11 @@ out:
 	return rc;
 }
 
-static int ar7_wdt_remove(struct platform_device *pdev)
+static void ar7_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ar7_wdt_miscdev);
 	clk_put(vbus_clk);
 	vbus_clk = NULL;
-	return 0;
 }
 
 static void ar7_wdt_shutdown(struct platform_device *pdev)
@@ -306,7 +305,7 @@ static void ar7_wdt_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ar7_wdt_driver = {
 	.probe = ar7_wdt_probe,
-	.remove = ar7_wdt_remove,
+	.remove_new = ar7_wdt_remove,
 	.shutdown = ar7_wdt_shutdown,
 	.driver = {
 		.name = "ar7_wdt",

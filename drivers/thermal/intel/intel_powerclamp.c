@@ -235,6 +235,12 @@ static int max_idle_set(const char *arg, const struct kernel_param *kp)
 		goto skip_limit_set;
 	}
 
+	if (!cpumask_available(idle_injection_cpu_mask)) {
+		ret = allocate_copy_idle_injection_mask(cpu_present_mask);
+		if (ret)
+			goto skip_limit_set;
+	}
+
 	if (check_invalid(idle_injection_cpu_mask, new_max_idle)) {
 		ret = -EINVAL;
 		goto skip_limit_set;
@@ -697,6 +703,10 @@ static int powerclamp_set_cur_state(struct thermal_cooling_device *cdev,
 
 	new_target_ratio = clamp(new_target_ratio, 0UL,
 				(unsigned long) (max_idle - 1));
+
+	if (powerclamp_data.target_ratio == new_target_ratio)
+		goto exit_set;
+
 	if (!powerclamp_data.target_ratio && new_target_ratio > 0) {
 		pr_info("Start idle injection to reduce power\n");
 		powerclamp_data.target_ratio = new_target_ratio;
@@ -791,7 +801,8 @@ static int __init powerclamp_init(void)
 		return retval;
 
 	mutex_lock(&powerclamp_lock);
-	retval = allocate_copy_idle_injection_mask(cpu_present_mask);
+	if (!cpumask_available(idle_injection_cpu_mask))
+		retval = allocate_copy_idle_injection_mask(cpu_present_mask);
 	mutex_unlock(&powerclamp_lock);
 
 	if (retval)

@@ -800,7 +800,7 @@ enum iwl_mac_beacon_flags {
  *	is &enum iwl_mac_beacon_flags.
  * @short_ssid: Short SSID
  * @reserved: reserved
- * @template_id: currently equal to the mac context id of the coresponding mac.
+ * @link_id: the firmware id of the link that will use this beacon
  * @tim_idx: the offset of the tim IE in the beacon
  * @tim_size: the length of the tim IE
  * @ecsa_offset: offset to the ECSA IE if present
@@ -812,15 +812,17 @@ struct iwl_mac_beacon_cmd {
 	__le16 flags;
 	__le32 short_ssid;
 	__le32 reserved;
-	__le32 template_id;
+	__le32 link_id;
 	__le32 tim_idx;
 	__le32 tim_size;
 	__le32 ecsa_offset;
 	__le32 csa_offset;
 	struct ieee80211_hdr frame[];
 } __packed; /* BEACON_TEMPLATE_CMD_API_S_VER_10,
-	       BEACON_TEMPLATE_CMD_API_S_VER_11,
-	       BEACON_TEMPLATE_CMD_API_S_VER_12 */
+	     * BEACON_TEMPLATE_CMD_API_S_VER_11,
+	     * BEACON_TEMPLATE_CMD_API_S_VER_12,
+	     * BEACON_TEMPLATE_CMD_API_S_VER_13
+	     */
 
 struct iwl_beacon_notif {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;

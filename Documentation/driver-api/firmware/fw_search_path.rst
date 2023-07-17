@@ -22,5 +22,10 @@ can use the file:
 
 * /sys/module/firmware_class/parameters/path
 
-You would echo into it your custom path and firmware requested will be
-searched for there first.
+You would echo into it your custom path and firmware requested will be searched
+for there first. Be aware that newline characters will be taken into account
+and may not produce the intended effects. For instance you might want to use:
+
+echo -n /path/to/script > /sys/module/firmware_class/parameters/path
+
+to ensure that your script is being used.

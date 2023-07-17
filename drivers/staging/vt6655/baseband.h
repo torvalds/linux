@@ -63,8 +63,6 @@ void bb_set_vga_gain_offset(struct vnt_private *priv, unsigned char by_data);
 /* VT3253 Baseband */
 bool bb_vt3253_init(struct vnt_private *priv);
 void bb_software_reset(struct vnt_private *priv);
-void bb_power_save_mode_on(struct vnt_private *priv);
-void bb_power_save_mode_off(struct vnt_private *priv);
 void bb_set_tx_antenna_mode(struct vnt_private *priv,
 			    unsigned char by_antenna_mode);
 void bb_set_rx_antenna_mode(struct vnt_private *priv,

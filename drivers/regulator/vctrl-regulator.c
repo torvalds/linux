@@ -543,6 +543,7 @@ static struct platform_driver vctrl_driver = {
 	.probe		= vctrl_probe,
 	.driver		= {
 		.name		= "vctrl-regulator",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(vctrl_of_match),
 	},
 };

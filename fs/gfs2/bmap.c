@@ -2035,14 +2035,6 @@ static int do_shrink(struct inode *inode, u64 newsize)
 	return error;
 }
 
-void gfs2_trim_blocks(struct inode *inode)
-{
-	int ret;
-
-	ret = do_shrink(inode, inode->i_size);
-	WARN_ON(ret != 0);
-}
-
 /**
  * do_grow - Touch and update inode size
  * @inode: The inode

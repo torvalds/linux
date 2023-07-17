@@ -1274,9 +1274,9 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	 * The SPI core has successfully requested the CS GPIO line from the
 	 * device tree, so we are done.
 	 */
-	if (spi->cs_gpiod)
+	if (spi_get_csgpiod(spi, 0))
 		return 0;
-	if (spi->chip_select > 1) {
+	if (spi_get_chipselect(spi, 0) > 1) {
 		/* error in the case of native CS requested with CS > 1
 		 * officially there is a CS2, but it is not documented
 		 * which GPIO is connected with that...
@@ -1301,18 +1301,19 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	if (!chip)
 		return 0;
 
-	spi->cs_gpiod = gpiochip_request_own_desc(chip, 8 - spi->chip_select,
-						  DRV_NAME,
-						  GPIO_LOOKUP_FLAGS_DEFAULT,
-						  GPIOD_OUT_LOW);
-	if (IS_ERR(spi->cs_gpiod)) {
-		ret = PTR_ERR(spi->cs_gpiod);
+	spi_set_csgpiod(spi, 0, gpiochip_request_own_desc(chip,
+							  8 - (spi_get_chipselect(spi, 0)),
+							  DRV_NAME,
+							  GPIO_LOOKUP_FLAGS_DEFAULT,
+							  GPIOD_OUT_LOW));
+	if (IS_ERR(spi_get_csgpiod(spi, 0))) {
+		ret = PTR_ERR(spi_get_csgpiod(spi, 0));
 		goto err_cleanup;
 	}
 
 	/* and set up the "mode" and level */
 	dev_info(&spi->dev, "setting up native-CS%i to use GPIO\n",
-		 spi->chip_select);
+		 spi_get_chipselect(spi, 0));
 
 	return 0;
 
@@ -1398,7 +1399,7 @@ out_clk_disable:
 	return err;
 }
 
-static int bcm2835_spi_remove(struct platform_device *pdev)
+static void bcm2835_spi_remove(struct platform_device *pdev)
 {
 	struct spi_controller *ctlr = platform_get_drvdata(pdev);
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
@@ -1414,17 +1415,6 @@ static int bcm2835_spi_remove(struct platform_device *pdev)
 		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
 
 	clk_disable_unprepare(bs->clk);
-
-	return 0;
-}
-
-static void bcm2835_spi_shutdown(struct platform_device *pdev)
-{
-	int ret;
-
-	ret = bcm2835_spi_remove(pdev);
-	if (ret)
-		dev_err(&pdev->dev, "failed to shutdown\n");
 }
 
 static const struct of_device_id bcm2835_spi_match[] = {
@@ -1439,8 +1429,8 @@ static struct platform_driver bcm2835_spi_driver = {
 		.of_match_table	= bcm2835_spi_match,
 	},
 	.probe		= bcm2835_spi_probe,
-	.remove		= bcm2835_spi_remove,
-	.shutdown	= bcm2835_spi_shutdown,
+	.remove_new	= bcm2835_spi_remove,
+	.shutdown	= bcm2835_spi_remove,
 };
 module_platform_driver(bcm2835_spi_driver);
 

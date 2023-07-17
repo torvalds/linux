@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/reserved-memory/ramoops.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/reserved-memory/ramoops.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Ramoops oops/panic logger
 
@@ -27,7 +27,7 @@ maintainers:
   - Kees Cook <keescook@chromium.org>
 
 allOf:
-  - $ref: "reserved-memory.yaml"
+  - $ref: reserved-memory.yaml
 
 properties:
   compatible:

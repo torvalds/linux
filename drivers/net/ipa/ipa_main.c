@@ -285,7 +285,7 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 	} else if (ipa->version < IPA_VERSION_4_5) {
 		val |= reg_bit(reg, GSI_MULTI_AXI_MASTERS_DIS);
 	} else {
-		/* For IPA v4.5 FULL_FLUSH_WAIT_RS_CLOSURE_EN is 0 */
+		/* For IPA v4.5+ FULL_FLUSH_WAIT_RS_CLOSURE_EN is 0 */
 	}
 
 	val |= reg_bit(reg, GSI_MULTI_INORDER_RD_DIS);
@@ -683,6 +683,10 @@ static const struct of_device_id ipa_match[] = {
 	{
 		.compatible	= "qcom,sc7280-ipa",
 		.data		= &ipa_data_v4_11,
+	},
+	{
+		.compatible	= "qcom,sdx65-ipa",
+		.data		= &ipa_data_v5_0,
 	},
 	{ },
 };

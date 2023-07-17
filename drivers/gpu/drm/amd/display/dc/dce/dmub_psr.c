@@ -33,6 +33,9 @@
 
 #define MAX_PIPES 6
 
+static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3};
+static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5};
+
 /*
  * Convert dmcub psr state to dmcu psr state.
  */
@@ -215,7 +218,7 @@ static void dmub_psr_enable(struct dmub_psr *dmub, bool enable, bool wait, uint8
 					break;
 			}
 
-			udelay(500);
+			fsleep(500);
 		}
 
 		/* assert if max retry hit */
@@ -250,7 +253,7 @@ static void dmub_psr_set_level(struct dmub_psr *dmub, uint16_t psr_level, uint8_
 	dc_dmub_srv_wait_idle(dc->dmub_srv);
 }
 
-/**
+/*
  * Set PSR vtotal requirement for FreeSync PSR.
  */
 static void dmub_psr_set_sink_vtotal_in_psr_active(struct dmub_psr *dmub,

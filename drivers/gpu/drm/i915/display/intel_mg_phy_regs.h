@@ -142,7 +142,9 @@
 #define FIA1_BASE			0x163000
 #define FIA2_BASE			0x16E000
 #define FIA3_BASE			0x16F000
-#define _FIA(fia)			_PICK((fia), FIA1_BASE, FIA2_BASE, FIA3_BASE)
+#define _FIA(fia)			_PICK_EVEN_2RANGES((fia), 1,		\
+							   FIA1_BASE, FIA1_BASE,\
+							   FIA2_BASE, FIA3_BASE)
 #define _MMIO_FIA(fia, off)		_MMIO(_FIA(fia) + (off))
 
 /* ICL PHY DFLEX registers */

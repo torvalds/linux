@@ -31,6 +31,7 @@
     },
     {
         "BriefDescription": "This event counts the cycles the integer divider is busy.",
+        "CounterMask": "1",
         "EventCode": "0xb0",
         "EventName": "ARITH.IDIV_ACTIVE",
         "SampleAfterValue": "1000003",
@@ -360,6 +361,16 @@
         "SampleAfterValue": "200003",
         "UMask": "0xeb",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "Miss-predicted near indirect branch instructions retired (excluding returns)",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.INDIRECT",
+        "PEBS": "1",
+        "PublicDescription": "Counts miss-predicted near indirect branch instructions retired excluding returns. TSX abort is an indirect branch.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x80",
+        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Counts the number of mispredicted near indirect CALL branch instructions retired.",
@@ -793,11 +804,23 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "INST_RETIRED.REP_ITERATION",
+        "BriefDescription": "Iterations of Repeat string retired instructions.",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
+        "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Clears speculative count",
+        "CounterMask": "1",
+        "EdgeDetect": "1",
+        "EventCode": "0xad",
+        "EventName": "INT_MISC.CLEARS_COUNT",
+        "PublicDescription": "Counts the number of speculative clears due to any type of branch misprediction or machine clears",
+        "SampleAfterValue": "500009",
+        "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
@@ -1057,9 +1080,10 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "MISC2_RETIRED.LFENCE",
+        "BriefDescription": "LFENCE instructions retired",
         "EventCode": "0xe0",
         "EventName": "MISC2_RETIRED.LFENCE",
+        "PublicDescription": "number of LFENCE retired instructions",
         "SampleAfterValue": "400009",
         "UMask": "0x20",
         "Unit": "cpu_core"

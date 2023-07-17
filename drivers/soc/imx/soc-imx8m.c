@@ -242,3 +242,4 @@ free_soc:
 	return ret;
 }
 device_initcall(imx8_soc_init);
+MODULE_LICENSE("GPL");

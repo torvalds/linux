@@ -15,7 +15,7 @@ static int rescan_controller(struct device *dev, void *data)
 	return peci_controller_scan_devices(to_peci_controller(dev));
 }
 
-static ssize_t rescan_store(struct bus_type *bus, const char *buf, size_t count)
+static ssize_t rescan_store(const struct bus_type *bus, const char *buf, size_t count)
 {
 	bool res;
 	int ret;

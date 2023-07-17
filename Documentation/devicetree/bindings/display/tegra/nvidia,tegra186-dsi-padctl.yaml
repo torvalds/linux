@@ -29,7 +29,7 @@ properties:
       - const: dsi
 
 allOf:
-  - $ref: "/schemas/reset/reset.yaml"
+  - $ref: /schemas/reset/reset.yaml
 
 additionalProperties: false
 

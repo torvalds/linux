@@ -1675,25 +1675,10 @@ static void vsc7514_phylink_mac_config(struct phylink_config *config,
 {
 	struct net_device *ndev = to_net_dev(config->dev);
 	struct ocelot_port_private *priv = netdev_priv(ndev);
-	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->port.index;
 
-	/* Disable HDX fast control */
-	ocelot_port_writel(ocelot_port, DEV_PORT_MISC_HDX_FAST_DIS,
-			   DEV_PORT_MISC);
-
-	/* SGMII only for now */
-	ocelot_port_writel(ocelot_port, PCS1G_MODE_CFG_SGMII_MODE_ENA,
-			   PCS1G_MODE_CFG);
-	ocelot_port_writel(ocelot_port, PCS1G_SD_CFG_SD_SEL, PCS1G_SD_CFG);
-
-	/* Enable PCS */
-	ocelot_port_writel(ocelot_port, PCS1G_CFG_PCS_ENA, PCS1G_CFG);
-
-	/* No aneg on SGMII */
-	ocelot_port_writel(ocelot_port, 0, PCS1G_ANEG_CFG);
-
-	/* No loopback */
-	ocelot_port_writel(ocelot_port, 0, PCS1G_LB_CFG);
+	ocelot_phylink_mac_config(ocelot, port, link_an_mode, state);
 }
 
 static void vsc7514_phylink_mac_link_down(struct phylink_config *config,
@@ -1757,34 +1742,11 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 		return -EINVAL;
 	}
 
-	/* Ensure clock signals and speed are set on all QSGMII links */
-	if (phy_mode == PHY_INTERFACE_MODE_QSGMII)
-		ocelot_port_rmwl(ocelot_port, 0,
-				 DEV_CLOCK_CFG_MAC_TX_RST |
-				 DEV_CLOCK_CFG_MAC_RX_RST,
-				 DEV_CLOCK_CFG);
-
 	ocelot_port->phy_mode = phy_mode;
 
-	if (phy_mode != PHY_INTERFACE_MODE_INTERNAL) {
-		struct phy *serdes = of_phy_get(portnp, NULL);
-
-		if (IS_ERR(serdes)) {
-			err = PTR_ERR(serdes);
-			dev_err_probe(dev, err,
-				      "missing SerDes phys for port %d\n",
-				      port);
-			return err;
-		}
-
-		err = phy_set_mode_ext(serdes, PHY_MODE_ETHERNET, phy_mode);
-		of_phy_put(serdes);
-		if (err) {
-			dev_err(dev, "Could not SerDes mode on port %d: %pe\n",
-				port, ERR_PTR(err));
-			return err;
-		}
-	}
+	err = ocelot_port_configure_serdes(ocelot, port, portnp);
+	if (err)
+		return err;
 
 	priv = container_of(ocelot_port, struct ocelot_port_private, port);
 

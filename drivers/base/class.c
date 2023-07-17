@@ -20,7 +20,51 @@
 #include <linux/mutex.h>
 #include "base.h"
 
+/* /sys/class */
+static struct kset *class_kset;
+
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
+
+/**
+ * class_to_subsys - Turn a struct class into a struct subsys_private
+ *
+ * @class: pointer to the struct bus_type to look up
+ *
+ * The driver core internals need to work on the subsys_private structure, not
+ * the external struct class pointer.  This function walks the list of
+ * registered classes in the system and finds the matching one and returns the
+ * internal struct subsys_private that relates to that class.
+ *
+ * Note, the reference count of the return value is INCREMENTED if it is not
+ * NULL.  A call to subsys_put() must be done when finished with the pointer in
+ * order for it to be properly freed.
+ */
+struct subsys_private *class_to_subsys(const struct class *class)
+{
+	struct subsys_private *sp = NULL;
+	struct kobject *kobj;
+
+	if (!class || !class_kset)
+		return NULL;
+
+	spin_lock(&class_kset->list_lock);
+
+	if (list_empty(&class_kset->list))
+		goto done;
+
+	list_for_each_entry(kobj, &class_kset->list, entry) {
+		struct kset *kset = container_of(kobj, struct kset, kobj);
+
+		sp = container_of_const(kset, struct subsys_private, subsys);
+		if (sp->class == class)
+			goto done;
+	}
+	sp = NULL;
+done:
+	sp = subsys_get(sp);
+	spin_unlock(&class_kset->list_lock);
+	return sp;
+}
 
 static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 			       char *buf)
@@ -49,11 +93,9 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 static void class_release(struct kobject *kobj)
 {
 	struct subsys_private *cp = to_subsys_private(kobj);
-	struct class *class = cp->class;
+	const struct class *class = cp->class;
 
 	pr_debug("class '%s': release.\n", class->name);
-
-	class->p = NULL;
 
 	if (class->class_release)
 		class->class_release(class);
@@ -61,13 +103,14 @@ static void class_release(struct kobject *kobj)
 		pr_debug("class '%s' does not have a release() function, "
 			 "be careful\n", class->name);
 
+	lockdep_unregister_key(&cp->lock_key);
 	kfree(cp);
 }
 
 static const struct kobj_ns_type_operations *class_child_ns_type(const struct kobject *kobj)
 {
 	const struct subsys_private *cp = to_subsys_private(kobj);
-	struct class *class = cp->class;
+	const struct class *class = cp->class;
 
 	return class->ns_type;
 }
@@ -83,44 +126,34 @@ static const struct kobj_type class_ktype = {
 	.child_ns_type	= class_child_ns_type,
 };
 
-/* Hotplug events for classes go to the class subsys */
-static struct kset *class_kset;
-
-
-int class_create_file_ns(struct class *cls, const struct class_attribute *attr,
+int class_create_file_ns(const struct class *cls, const struct class_attribute *attr,
 			 const void *ns)
 {
+	struct subsys_private *sp = class_to_subsys(cls);
 	int error;
 
-	if (cls)
-		error = sysfs_create_file_ns(&cls->p->subsys.kobj,
-					     &attr->attr, ns);
-	else
-		error = -EINVAL;
+	if (!sp)
+		return -EINVAL;
+
+	error = sysfs_create_file_ns(&sp->subsys.kobj, &attr->attr, ns);
+	subsys_put(sp);
+
 	return error;
 }
 EXPORT_SYMBOL_GPL(class_create_file_ns);
 
-void class_remove_file_ns(struct class *cls, const struct class_attribute *attr,
+void class_remove_file_ns(const struct class *cls, const struct class_attribute *attr,
 			  const void *ns)
 {
-	if (cls)
-		sysfs_remove_file_ns(&cls->p->subsys.kobj, &attr->attr, ns);
+	struct subsys_private *sp = class_to_subsys(cls);
+
+	if (!sp)
+		return;
+
+	sysfs_remove_file_ns(&sp->subsys.kobj, &attr->attr, ns);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(class_remove_file_ns);
-
-static struct class *class_get(struct class *cls)
-{
-	if (cls)
-		kset_get(&cls->p->subsys);
-	return cls;
-}
-
-static void class_put(struct class *cls)
-{
-	if (cls)
-		kset_put(&cls->p->subsys);
-}
 
 static struct device *klist_class_to_dev(struct klist_node *n)
 {
@@ -142,21 +175,10 @@ static void klist_class_dev_put(struct klist_node *n)
 	put_device(dev);
 }
 
-static int class_add_groups(struct class *cls,
-			    const struct attribute_group **groups)
-{
-	return sysfs_create_groups(&cls->p->subsys.kobj, groups);
-}
-
-static void class_remove_groups(struct class *cls,
-				const struct attribute_group **groups)
-{
-	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
-}
-
-int __class_register(struct class *cls, struct lock_class_key *key)
+int class_register(const struct class *cls)
 {
 	struct subsys_private *cp;
+	struct lock_class_key *key;
 	int error;
 
 	pr_debug("device class '%s': registering\n", cls->name);
@@ -167,6 +189,8 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	klist_init(&cp->klist_devices, klist_class_dev_get, klist_class_dev_put);
 	INIT_LIST_HEAD(&cp->interfaces);
 	kset_init(&cp->glue_dirs);
+	key = &cp->lock_key;
+	lockdep_register_key(key);
 	__mutex_init(&cp->mutex, "subsys mutex", key);
 	error = kobject_set_name(&cp->subsys.kobj, "%s", cls->name);
 	if (error) {
@@ -174,27 +198,15 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 		return error;
 	}
 
-	/* set the default /sys/dev directory for devices of this class */
-	if (!cls->dev_kobj)
-		cls->dev_kobj = sysfs_dev_char_kobj;
-
-#if defined(CONFIG_BLOCK)
-	/* let the block class directory show up in the root of sysfs */
-	if (!sysfs_deprecated || cls != &block_class)
-		cp->subsys.kobj.kset = class_kset;
-#else
 	cp->subsys.kobj.kset = class_kset;
-#endif
 	cp->subsys.kobj.ktype = &class_ktype;
 	cp->class = cls;
-	cls->p = cp;
 
 	error = kset_register(&cp->subsys);
 	if (error)
 		goto err_out;
 
-	error = class_add_groups(class_get(cls), cls->class_groups);
-	class_put(cls);
+	error = sysfs_create_groups(&cp->subsys.kobj, cls->class_groups);
 	if (error) {
 		kobject_del(&cp->subsys.kobj);
 		kfree_const(cp->subsys.kobj.name);
@@ -204,30 +216,34 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 
 err_out:
 	kfree(cp);
-	cls->p = NULL;
 	return error;
 }
-EXPORT_SYMBOL_GPL(__class_register);
+EXPORT_SYMBOL_GPL(class_register);
 
-void class_unregister(struct class *cls)
+void class_unregister(const struct class *cls)
 {
+	struct subsys_private *sp = class_to_subsys(cls);
+
+	if (!sp)
+		return;
+
 	pr_debug("device class '%s': unregistering\n", cls->name);
-	class_remove_groups(cls, cls->class_groups);
-	kset_unregister(&cls->p->subsys);
+
+	sysfs_remove_groups(&sp->subsys.kobj, cls->class_groups);
+	kset_unregister(&sp->subsys);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(class_unregister);
 
-static void class_create_release(struct class *cls)
+static void class_create_release(const struct class *cls)
 {
 	pr_debug("%s called for %s\n", __func__, cls->name);
 	kfree(cls);
 }
 
 /**
- * __class_create - create a struct class structure
- * @owner: pointer to the module that is to "own" this struct class
+ * class_create - create a struct class structure
  * @name: pointer to a string for the name of this class.
- * @key: the lock_class_key for this class; used by mutex lock debugging
  *
  * This is used to create a struct class pointer that can then be used
  * in calls to device_create().
@@ -237,8 +253,7 @@ static void class_create_release(struct class *cls)
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
  */
-struct class *__class_create(struct module *owner, const char *name,
-			     struct lock_class_key *key)
+struct class *class_create(const char *name)
 {
 	struct class *cls;
 	int retval;
@@ -250,10 +265,9 @@ struct class *__class_create(struct module *owner, const char *name,
 	}
 
 	cls->name = name;
-	cls->owner = owner;
 	cls->class_release = class_create_release;
 
-	retval = __class_register(cls, key);
+	retval = class_register(cls);
 	if (retval)
 		goto error;
 
@@ -263,7 +277,7 @@ error:
 	kfree(cls);
 	return ERR_PTR(retval);
 }
-EXPORT_SYMBOL_GPL(__class_create);
+EXPORT_SYMBOL_GPL(class_create);
 
 /**
  * class_destroy - destroys a struct class structure
@@ -272,7 +286,7 @@ EXPORT_SYMBOL_GPL(__class_create);
  * Note, the pointer to be destroyed must have been created with a call
  * to class_create().
  */
-void class_destroy(struct class *cls)
+void class_destroy(const struct class *cls)
 {
 	if (IS_ERR_OR_NULL(cls))
 		return;
@@ -293,15 +307,20 @@ EXPORT_SYMBOL_GPL(class_destroy);
  * otherwise if it is NULL, the iteration starts at the beginning of
  * the list.
  */
-void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
-			 struct device *start, const struct device_type *type)
+void class_dev_iter_init(struct class_dev_iter *iter, const struct class *class,
+			 const struct device *start, const struct device_type *type)
 {
+	struct subsys_private *sp = class_to_subsys(class);
 	struct klist_node *start_knode = NULL;
+
+	if (!sp)
+		return;
 
 	if (start)
 		start_knode = &start->p->knode_class;
-	klist_iter_init_node(&class->p->klist_devices, &iter->ki, start_knode);
+	klist_iter_init_node(&sp->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
+	iter->sp = sp;
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_init);
 
@@ -343,6 +362,7 @@ EXPORT_SYMBOL_GPL(class_dev_iter_next);
 void class_dev_iter_exit(struct class_dev_iter *iter)
 {
 	klist_iter_exit(&iter->ki);
+	subsys_put(iter->sp);
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_exit);
 
@@ -364,16 +384,17 @@ EXPORT_SYMBOL_GPL(class_dev_iter_exit);
  * @fn is allowed to do anything including calling back into class
  * code.  There's no locking restriction.
  */
-int class_for_each_device(struct class *class, struct device *start,
+int class_for_each_device(const struct class *class, const struct device *start,
 			  void *data, int (*fn)(struct device *, void *))
 {
+	struct subsys_private *sp = class_to_subsys(class);
 	struct class_dev_iter iter;
 	struct device *dev;
 	int error = 0;
 
 	if (!class)
 		return -EINVAL;
-	if (!class->p) {
+	if (!sp) {
 		WARN(1, "%s called for class '%s' before it was initialized",
 		     __func__, class->name);
 		return -EINVAL;
@@ -386,6 +407,7 @@ int class_for_each_device(struct class *class, struct device *start,
 			break;
 	}
 	class_dev_iter_exit(&iter);
+	subsys_put(sp);
 
 	return error;
 }
@@ -411,16 +433,17 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * @match is allowed to do anything including calling back into class
  * code.  There's no locking restriction.
  */
-struct device *class_find_device(struct class *class, struct device *start,
+struct device *class_find_device(const struct class *class, const struct device *start,
 				 const void *data,
 				 int (*match)(struct device *, const void *))
 {
+	struct subsys_private *sp = class_to_subsys(class);
 	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!class)
 		return NULL;
-	if (!class->p) {
+	if (!sp) {
 		WARN(1, "%s called for class '%s' before it was initialized",
 		     __func__, class->name);
 		return NULL;
@@ -434,6 +457,7 @@ struct device *class_find_device(struct class *class, struct device *start,
 		}
 	}
 	class_dev_iter_exit(&iter);
+	subsys_put(sp);
 
 	return dev;
 }
@@ -441,26 +465,33 @@ EXPORT_SYMBOL_GPL(class_find_device);
 
 int class_interface_register(struct class_interface *class_intf)
 {
-	struct class *parent;
+	struct subsys_private *sp;
+	const struct class *parent;
 	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!class_intf || !class_intf->class)
 		return -ENODEV;
 
-	parent = class_get(class_intf->class);
-	if (!parent)
+	parent = class_intf->class;
+	sp = class_to_subsys(parent);
+	if (!sp)
 		return -EINVAL;
 
-	mutex_lock(&parent->p->mutex);
-	list_add_tail(&class_intf->node, &parent->p->interfaces);
+	/*
+	 * Reference in sp is now incremented and will be dropped when
+	 * the interface is removed in the call to class_interface_unregister()
+	 */
+
+	mutex_lock(&sp->mutex);
+	list_add_tail(&class_intf->node, &sp->interfaces);
 	if (class_intf->add_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
-			class_intf->add_dev(dev, class_intf);
+			class_intf->add_dev(dev);
 		class_dev_iter_exit(&iter);
 	}
-	mutex_unlock(&parent->p->mutex);
+	mutex_unlock(&sp->mutex);
 
 	return 0;
 }
@@ -468,29 +499,40 @@ EXPORT_SYMBOL_GPL(class_interface_register);
 
 void class_interface_unregister(struct class_interface *class_intf)
 {
-	struct class *parent = class_intf->class;
+	struct subsys_private *sp;
+	const struct class *parent = class_intf->class;
 	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!parent)
 		return;
 
-	mutex_lock(&parent->p->mutex);
+	sp = class_to_subsys(parent);
+	if (!sp)
+		return;
+
+	mutex_lock(&sp->mutex);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
 		class_dev_iter_init(&iter, parent, NULL, NULL);
 		while ((dev = class_dev_iter_next(&iter)))
-			class_intf->remove_dev(dev, class_intf);
+			class_intf->remove_dev(dev);
 		class_dev_iter_exit(&iter);
 	}
-	mutex_unlock(&parent->p->mutex);
+	mutex_unlock(&sp->mutex);
 
-	class_put(parent);
+	/*
+	 * Decrement the reference count twice, once for the class_to_subsys()
+	 * call in the start of this function, and the second one from the
+	 * reference increment in class_interface_register()
+	 */
+	subsys_put(sp);
+	subsys_put(sp);
 }
 EXPORT_SYMBOL_GPL(class_interface_unregister);
 
-ssize_t show_class_attr_string(struct class *class,
-			       struct class_attribute *attr, char *buf)
+ssize_t show_class_attr_string(const struct class *class,
+			       const struct class_attribute *attr, char *buf)
 {
 	struct class_attribute_string *cs;
 
@@ -586,6 +628,31 @@ void class_compat_remove_link(struct class_compat *cls, struct device *dev,
 	sysfs_remove_link(cls->kobj, dev_name(dev));
 }
 EXPORT_SYMBOL_GPL(class_compat_remove_link);
+
+/**
+ * class_is_registered - determine if at this moment in time, a class is
+ *			 registered in the driver core or not.
+ * @class: the class to check
+ *
+ * Returns a boolean to state if the class is registered in the driver core
+ * or not.  Note that the value could switch right after this call is made,
+ * so only use this in places where you "know" it is safe to do so (usually
+ * to determine if the specific class has been registered yet or not).
+ *
+ * Be careful in using this.
+ */
+bool class_is_registered(const struct class *class)
+{
+	struct subsys_private *sp = class_to_subsys(class);
+	bool is_initialized = false;
+
+	if (sp) {
+		is_initialized = true;
+		subsys_put(sp);
+	}
+	return is_initialized;
+}
+EXPORT_SYMBOL_GPL(class_is_registered);
 
 int __init classes_init(void)
 {

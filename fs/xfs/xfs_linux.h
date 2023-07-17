@@ -80,6 +80,7 @@ typedef __u32			xfs_nlink_t;
 #include "xfs_cksum.h"
 #include "xfs_buf.h"
 #include "xfs_message.h"
+#include "xfs_drain.h"
 
 #ifdef __BIG_ENDIAN
 #define XFS_NATIVE_HOST 1

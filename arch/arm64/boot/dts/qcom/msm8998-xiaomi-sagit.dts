@@ -528,7 +528,6 @@
 		function = "gpio";
 		drive-strength = <2>;
 		bias-disable;
-		input-enable;
 	};
 
 	mdss_dsi_active_state: mdss-dsi-active-state {
@@ -620,7 +619,6 @@
 		function = "gpio";
 		drive-strength = <16>;
 		bias-pull-up;
-		input-enable;
 	};
 
 	ts_int_suspend_state: ts-int-suspend-state {
@@ -642,7 +640,6 @@
 		function = "gpio";
 		bias-pull-down;
 		drive-strength = <2>;
-		input-enable;
 	};
 
 	wsa_leftspk_pwr_n_state: wsa-leftspk-pwr-n-state {

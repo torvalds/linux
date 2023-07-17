@@ -18,7 +18,7 @@ properties:
       - mediatek,mt8186-mt6366-da7219-max98357-sound
 
   mediatek,platform:
-    $ref: "/schemas/types.yaml#/definitions/phandle"
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of MT8186 ASoC platform.
 
   headset-codec:

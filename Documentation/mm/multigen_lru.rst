@@ -103,7 +103,8 @@ moving across tiers only involves atomic operations on
 ``folio->flags`` and therefore has a negligible cost. A feedback loop
 modeled after the PID controller monitors refaults over all the tiers
 from anon and file types and decides which tiers from which types to
-evict or protect.
+evict or protect. The desired effect is to balance refault percentages
+between anon and file types proportional to the swappiness level.
 
 There are two conceptually independent procedures: the aging and the
 eviction. They form a closed-loop system, i.e., the page reclaim.
@@ -156,6 +157,27 @@ This time-based approach has the following advantages:
    and memory sizes.
 2. It is more reliable because it is directly wired to the OOM killer.
 
+``mm_struct`` list
+------------------
+An ``mm_struct`` list is maintained for each memcg, and an
+``mm_struct`` follows its owner task to the new memcg when this task
+is migrated.
+
+A page table walker iterates ``lruvec_memcg()->mm_list`` and calls
+``walk_page_range()`` with each ``mm_struct`` on this list to scan
+PTEs. When multiple page table walkers iterate the same list, each of
+them gets a unique ``mm_struct``, and therefore they can run in
+parallel.
+
+Page table walkers ignore any misplaced pages, e.g., if an
+``mm_struct`` was migrated, pages left in the previous memcg will be
+ignored when the current memcg is under reclaim. Similarly, page table
+walkers will ignore pages from nodes other than the one under reclaim.
+
+This infrastructure also tracks the usage of ``mm_struct`` between
+context switches so that page table walkers can skip processes that
+have been sleeping since the last iteration.
+
 Rmap/PT walk feedback
 ---------------------
 Searching the rmap for PTEs mapping each page on an LRU list (to test
@@ -170,7 +192,7 @@ promotes hot pages. If the scan was done cacheline efficiently, it
 adds the PMD entry pointing to the PTE table to the Bloom filter. This
 forms a feedback loop between the eviction and the aging.
 
-Bloom Filters
+Bloom filters
 -------------
 Bloom filters are a space and memory efficient data structure for set
 membership test, i.e., test if an element is not in the set or may be
@@ -185,6 +207,18 @@ Note that Bloom filters are probabilistic on set membership. If a test
 is false positive, the cost is an additional scan of a range of PTEs,
 which may yield hot pages anyway. Parameters of the filter itself can
 control the false positive rate in the limit.
+
+PID controller
+--------------
+A feedback loop modeled after the Proportional-Integral-Derivative
+(PID) controller monitors refaults over anon and file types and
+decides which type to evict when both types are available from the
+same generation.
+
+The PID controller uses generations rather than the wall clock as the
+time domain because a CPU can scan pages at different rates under
+varying memory pressure. It calculates a moving average for each new
+generation to avoid being permanently locked in a suboptimal state.
 
 Memcg LRU
 ---------
@@ -223,9 +257,9 @@ parts:
 
 * Generations
 * Rmap walks
-* Page table walks
-* Bloom filters
-* PID controller
+* Page table walks via ``mm_struct`` list
+* Bloom filters for rmap/PT walk feedback
+* PID controller for refault feedback
 
 The aging and the eviction form a producer-consumer model;
 specifically, the latter drives the former by the sliding window over

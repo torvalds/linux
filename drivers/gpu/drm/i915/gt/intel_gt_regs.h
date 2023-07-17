@@ -9,8 +9,6 @@
 #include "i915_reg_defs.h"
 #include "display/intel_display_reg_defs.h"	/* VLV_DISPLAY_BASE */
 
-#define MCR_REG(offset)	((const i915_mcr_reg_t){ .reg = (offset) })
-
 /*
  * The perf control registers are technically multicast registers, but the
  * driver never needs to read/write them directly; we only use them to build
@@ -480,6 +478,9 @@
 #define   HDC_FORCE_NON_COHERENT		(1 << 4)
 #define   HDC_BARRIER_PERFORMANCE_DISABLE	(1 << 10)
 
+#define COMMON_SLICE_CHICKEN4			_MMIO(0x7300)
+#define   DISABLE_TDC_LOAD_BALANCING_CALC	REG_BIT(6)
+
 #define GEN8_HDC_CHICKEN1			_MMIO(0x7304)
 
 #define GEN11_COMMON_SLICE_CHICKEN3		_MMIO(0x7304)
@@ -768,9 +769,6 @@
 
 #define GEN10_DFR_RATIO_EN_AND_CHICKEN		MCR_REG(0x9550)
 #define   DFR_DISABLE				(1 << 9)
-
-#define INF_UNIT_LEVEL_CLKGATE			MCR_REG(0x9560)
-#define   CGPSF_CLKGATE_DIS			(1 << 3)
 
 #define MICRO_BP0_0				_MMIO(0x9800)
 #define MICRO_BP0_2				_MMIO(0x9804)
@@ -1093,6 +1091,7 @@
 #define XEHP_BLT_TLB_INV_CR			MCR_REG(0xcee4)
 #define GEN12_COMPCTX_TLB_INV_CR		_MMIO(0xcf04)
 #define XEHP_COMPCTX_TLB_INV_CR			MCR_REG(0xcf04)
+#define XELPMP_GSC_TLB_INV_CR			_MMIO(0xcf04)   /* media GT only */
 
 #define XEHP_MERT_MOD_CTRL			MCR_REG(0xcf28)
 #define RENDER_MOD_CTRL				MCR_REG(0xcf2c)
@@ -1145,6 +1144,8 @@
 #define   ENABLE_SMALLPL			REG_BIT(15)
 #define   SC_DISABLE_POWER_OPTIMIZATION_EBB	REG_BIT(9)
 #define   GEN11_SAMPLER_ENABLE_HEADLESS_MSG	REG_BIT(5)
+#define   MTL_DISABLE_SAMPLER_SC_OOO		REG_BIT(3)
+#define   GEN11_INDIRECT_STATE_BASE_ADDR_OVERRIDE	REG_BIT(0)
 
 #define GEN9_HALF_SLICE_CHICKEN7		MCR_REG(0xe194)
 #define   DG2_DISABLE_ROUND_ENABLE_ALLOW_FOR_SSLA	REG_BIT(15)
@@ -1156,7 +1157,13 @@
 #define   ENABLE_EU_COUNT_FOR_TDL_FLUSH		REG_BIT(10)
 #define   DISABLE_ECC				REG_BIT(5)
 #define   FLOAT_BLEND_OPTIMIZATION_ENABLE	REG_BIT(4)
+/*
+ * We have both ENABLE and DISABLE defines below using the same bit because the
+ * meaning depends on the target platform. There are no platform prefix for them
+ * because different steppings of DG2 pick one or the other semantics.
+ */
 #define   ENABLE_PREFETCH_INTO_IC		REG_BIT(3)
+#define   DISABLE_PREFETCH_INTO_IC		REG_BIT(3)
 
 #define EU_PERF_CNTL0				PERF_REG(0xe458)
 #define EU_PERF_CNTL4				PERF_REG(0xe45c)
@@ -1171,7 +1178,9 @@
 #define   THREAD_EX_ARB_MODE_RR_AFTER_DEP	REG_FIELD_PREP(THREAD_EX_ARB_MODE, 0x2)
 
 #define HSW_ROW_CHICKEN3			_MMIO(0xe49c)
+#define GEN9_ROW_CHICKEN3			MCR_REG(0xe49c)
 #define   HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE	(1 << 6)
+#define   MTL_DISABLE_FIX_FOR_EOT_FLUSH		REG_BIT(9)
 
 #define GEN8_ROW_CHICKEN			MCR_REG(0xe4f0)
 #define   FLOW_CONTROL_ENABLE			REG_BIT(15)

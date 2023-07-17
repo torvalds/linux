@@ -2657,7 +2657,7 @@ int gaudi2_coresight_init(struct hl_device *hdev)
 	/*
 	 * Mask out all the disabled binned offsets.
 	 * so when user request to configure a binned or masked out component,
-	 * driver will ignore programing it ( happens when offset value is set to 0x0 )
+	 * driver will ignore programming it ( happens when offset value is set to 0x0 )
 	 * this is being set in gaudi2_coresight_set_disabled_components
 	 */
 

@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/analogix,dp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analogix Display Port bridge
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+properties:
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks: true
+
+  clock-names: true
+
+  phys: true
+
+  phy-names:
+    const: dp
+
+  force-hpd:
+    description:
+      Indicate driver need force hpd when hpd detect failed, this
+      is used for some eDP screen which don not have a hpd signal.
+
+  hpd-gpios:
+    description:
+      Hotplug detect GPIO.
+      Indicates which GPIO should be used for hotplug detection
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Input node to receive pixel data.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Port node with one endpoint connected to a dp-connector node.
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - reg
+  - interrupts
+  - clock-names
+  - clocks
+  - ports
+
+additionalProperties: true

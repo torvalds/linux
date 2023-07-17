@@ -195,13 +195,12 @@ static inline void btrfs_tree_unlock_rw(struct extent_buffer *eb, int rw)
 
 struct btrfs_drew_lock {
 	atomic_t readers;
-	struct percpu_counter writers;
+	atomic_t writers;
 	wait_queue_head_t pending_writers;
 	wait_queue_head_t pending_readers;
 };
 
-int btrfs_drew_lock_init(struct btrfs_drew_lock *lock);
-void btrfs_drew_lock_destroy(struct btrfs_drew_lock *lock);
+void btrfs_drew_lock_init(struct btrfs_drew_lock *lock);
 void btrfs_drew_write_lock(struct btrfs_drew_lock *lock);
 bool btrfs_drew_try_write_lock(struct btrfs_drew_lock *lock);
 void btrfs_drew_write_unlock(struct btrfs_drew_lock *lock);

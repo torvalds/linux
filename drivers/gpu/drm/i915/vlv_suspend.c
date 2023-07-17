@@ -12,7 +12,7 @@
 #include "i915_reg.h"
 #include "i915_trace.h"
 #include "i915_utils.h"
-#include "intel_pm.h"
+#include "intel_clock_gating.h"
 #include "vlv_suspend.h"
 
 #include "gt/intel_gt_regs.h"
@@ -451,7 +451,7 @@ int vlv_resume_prepare(struct drm_i915_private *dev_priv, bool rpm_resume)
 	vlv_check_no_gt_access(dev_priv);
 
 	if (rpm_resume)
-		intel_init_clock_gating(dev_priv);
+		intel_clock_gating_init(dev_priv);
 
 	return ret;
 }

@@ -335,6 +335,9 @@ static inline int snd_ac97_update_power(struct snd_ac97 *ac97, int reg,
 #ifdef CONFIG_PM
 void snd_ac97_suspend(struct snd_ac97 *ac97);
 void snd_ac97_resume(struct snd_ac97 *ac97);
+#else
+static inline void snd_ac97_suspend(struct snd_ac97 *ac97) {}
+static inline void snd_ac97_resume(struct snd_ac97 *ac97) {}
 #endif
 int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 	unsigned int id_mask);

@@ -563,6 +563,12 @@ void bpf_map_offload_map_free(struct bpf_map *map)
 	bpf_map_area_free(offmap);
 }
 
+u64 bpf_map_offload_map_mem_usage(const struct bpf_map *map)
+{
+	/* The memory dynamically allocated in netdev dev_ops is not counted */
+	return sizeof(struct bpf_offloaded_map);
+}
+
 int bpf_map_offload_lookup_elem(struct bpf_map *map, void *key, void *value)
 {
 	struct bpf_offloaded_map *offmap = map_to_offmap(map);
@@ -853,4 +859,4 @@ static int __init bpf_offload_init(void)
 	return rhashtable_init(&offdevs, &offdevs_params);
 }
 
-late_initcall(bpf_offload_init);
+core_initcall(bpf_offload_init);

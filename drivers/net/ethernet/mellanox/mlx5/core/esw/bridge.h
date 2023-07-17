@@ -25,11 +25,18 @@ struct mlx5_esw_bridge_offloads {
 	struct delayed_work update_work;
 
 	struct mlx5_flow_table *ingress_ft;
+	struct mlx5_flow_group *ingress_igmp_fg;
+	struct mlx5_flow_group *ingress_mld_fg;
 	struct mlx5_flow_group *ingress_vlan_fg;
 	struct mlx5_flow_group *ingress_vlan_filter_fg;
 	struct mlx5_flow_group *ingress_qinq_fg;
 	struct mlx5_flow_group *ingress_qinq_filter_fg;
 	struct mlx5_flow_group *ingress_mac_fg;
+
+	struct mlx5_flow_handle *igmp_handle;
+	struct mlx5_flow_handle *mld_query_handle;
+	struct mlx5_flow_handle *mld_report_handle;
+	struct mlx5_flow_handle *mld_done_handle;
 
 	struct mlx5_flow_table *skip_ft;
 };
@@ -64,10 +71,20 @@ int mlx5_esw_bridge_vlan_filtering_set(u16 vport_num, u16 esw_owner_vhca_id, boo
 				       struct mlx5_esw_bridge_offloads *br_offloads);
 int mlx5_esw_bridge_vlan_proto_set(u16 vport_num, u16 esw_owner_vhca_id, u16 proto,
 				   struct mlx5_esw_bridge_offloads *br_offloads);
+int mlx5_esw_bridge_mcast_set(u16 vport_num, u16 esw_owner_vhca_id, bool enable,
+			      struct mlx5_esw_bridge_offloads *br_offloads);
 int mlx5_esw_bridge_port_vlan_add(u16 vport_num, u16 esw_owner_vhca_id, u16 vid, u16 flags,
 				  struct mlx5_esw_bridge_offloads *br_offloads,
 				  struct netlink_ext_ack *extack);
 void mlx5_esw_bridge_port_vlan_del(u16 vport_num, u16 esw_owner_vhca_id, u16 vid,
 				   struct mlx5_esw_bridge_offloads *br_offloads);
+
+int mlx5_esw_bridge_port_mdb_add(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
+				 const unsigned char *addr, u16 vid,
+				 struct mlx5_esw_bridge_offloads *br_offloads,
+				 struct netlink_ext_ack *extack);
+void mlx5_esw_bridge_port_mdb_del(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
+				  const unsigned char *addr, u16 vid,
+				  struct mlx5_esw_bridge_offloads *br_offloads);
 
 #endif /* __MLX5_ESW_BRIDGE_H__ */

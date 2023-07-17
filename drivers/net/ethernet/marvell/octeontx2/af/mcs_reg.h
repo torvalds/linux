@@ -97,6 +97,7 @@
 #define MCSX_PEX_TX_SLAVE_VLAN_CFGX(a)          (0x46f8ull + (a) * 0x8ull)
 #define MCSX_PEX_TX_SLAVE_CUSTOM_TAG_REL_MODE_SEL(a)	(0x788ull + (a) * 0x8ull)
 #define MCSX_PEX_TX_SLAVE_PORT_CONFIG(a)		(0x4738ull + (a) * 0x8ull)
+#define MCSX_PEX_RX_SLAVE_PORT_CFGX(a)		(0x3b98ull + (a) * 0x8ull)
 #define MCSX_PEX_RX_SLAVE_RULE_ETYPE_CFGX(a) ({	\
 	u64 offset;					\
 							\
@@ -275,7 +276,10 @@
 #define MCSX_BBE_RX_SLAVE_CAL_ENTRY			0x180ull
 #define MCSX_BBE_RX_SLAVE_CAL_LEN			0x188ull
 #define MCSX_PAB_RX_SLAVE_FIFO_SKID_CFGX(a)		(0x290ull + (a) * 0x40ull)
-
+#define MCSX_BBE_RX_SLAVE_DFIFO_OVERFLOW_0		0xe20
+#define MCSX_BBE_TX_SLAVE_DFIFO_OVERFLOW_0		0x1298
+#define MCSX_BBE_RX_SLAVE_PLFIFO_OVERFLOW_0		0xe40
+#define MCSX_BBE_TX_SLAVE_PLFIFO_OVERFLOW_0		0x12b8
 #define MCSX_BBE_RX_SLAVE_BBE_INT ({	\
 	u64 offset;			\
 					\

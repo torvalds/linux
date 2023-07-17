@@ -12,6 +12,7 @@
 #include <linux/bits.h>
 
 struct perf_session;
+struct perf_pmu;
 
 /*
  * Versioning header in case things need to change in the future.  That way
@@ -29,13 +30,17 @@ enum {
 /*
  * Update the version for new format.
  *
- * New version 1 format adds a param count to the per cpu metadata.
+ * Version 1: format adds a param count to the per cpu metadata.
  * This allows easy adding of new metadata parameters.
  * Requires that new params always added after current ones.
  * Also allows client reader to handle file versions that are different by
  * checking the number of params in the file vs the number expected.
+ *
+ * Version 2: Drivers will use PERF_RECORD_AUX_OUTPUT_HW_ID to output
+ * CoreSight Trace ID. ...TRACEIDR metadata will be set to legacy values
+ * but with addition flags.
  */
-#define CS_HEADER_CURRENT_VERSION 1
+#define CS_HEADER_CURRENT_VERSION	2
 
 /* Beginning of header common to both ETMv3 and V4 */
 enum {
@@ -96,6 +101,12 @@ enum {
 	CS_ETE_TS_SOURCE,
 	CS_ETE_PRIV_MAX
 };
+
+/*
+ * Check for valid CoreSight trace ID. If an invalid value is present in the metadata,
+ * then IDs are present in the hardware ID packet in the data file.
+ */
+#define CS_IS_VALID_TRACE_ID(id) ((id > 0) && (id < 0x70))
 
 /*
  * ETMv3 exception encoding number:
@@ -168,8 +179,8 @@ struct cs_etm_packet {
 	u32 last_instr_subtype;
 	u32 flags;
 	u32 exception_number;
-	u8 last_instr_cond;
-	u8 last_instr_taken_branch;
+	bool last_instr_cond;
+	bool last_instr_taken_branch;
 	u8 last_instr_size;
 	u8 trace_chan_id;
 	int cpu;
@@ -216,8 +227,22 @@ struct cs_etm_packet_queue {
 #define INFO_HEADER_SIZE (sizeof(((struct perf_record_auxtrace_info *)0)->type) + \
 			  sizeof(((struct perf_record_auxtrace_info *)0)->reserved__))
 
+/* CoreSight trace ID is currently the bottom 7 bits of the value */
+#define CORESIGHT_TRACE_ID_VAL_MASK	GENMASK(6, 0)
+
+/*
+ * perf record will set the legacy meta data values as unused initially.
+ * This allows perf report to manage the decoders created when dynamic
+ * allocation in operation.
+ */
+#define CORESIGHT_TRACE_ID_UNUSED_FLAG	BIT(31)
+
+/* Value to set for unused trace ID values */
+#define CORESIGHT_TRACE_ID_UNUSED_VAL	0x7F
+
 int cs_etm__process_auxtrace_info(union perf_event *event,
 				  struct perf_session *session);
+struct perf_event_attr *cs_etm_get_default_config(struct perf_pmu *pmu);
 
 #ifdef HAVE_CSTRACE_SUPPORT
 int cs_etm__get_cpu(u8 trace_chan_id, int *cpu);

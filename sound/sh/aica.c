@@ -539,15 +539,12 @@ static int add_aicamixer_controls(struct snd_card_aica *dreamcastcard)
 	return 0;
 }
 
-static int snd_aica_remove(struct platform_device *devptr)
+static void snd_aica_remove(struct platform_device *devptr)
 {
 	struct snd_card_aica *dreamcastcard;
 	dreamcastcard = platform_get_drvdata(devptr);
-	if (unlikely(!dreamcastcard))
-		return -ENODEV;
 	snd_card_free(dreamcastcard->card);
 	kfree(dreamcastcard);
-	return 0;
 }
 
 static int snd_aica_probe(struct platform_device *devptr)
@@ -594,7 +591,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 
 static struct platform_driver snd_aica_driver = {
 	.probe = snd_aica_probe,
-	.remove = snd_aica_remove,
+	.remove_new = snd_aica_remove,
 	.driver = {
 		.name = SND_AICA_DRIVER,
 	},

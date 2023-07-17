@@ -563,4 +563,3 @@ module_exit(da903x_exit);
 MODULE_DESCRIPTION("PMIC Driver for Dialog Semiconductor DA9034");
 MODULE_AUTHOR("Eric Miao <eric.miao@marvell.com>");
 MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
-MODULE_LICENSE("GPL v2");

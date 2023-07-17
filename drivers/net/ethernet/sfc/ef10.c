@@ -1304,7 +1304,8 @@ static void efx_ef10_fini_nic(struct efx_nic *efx)
 static int efx_ef10_init_nic(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	netdev_features_t hw_enc_features = 0;
+	struct net_device *net_dev = efx->net_dev;
+	netdev_features_t tun_feats, tso_feats;
 	int rc;
 
 	if (nic_data->must_check_datapath_caps) {
@@ -1349,20 +1350,30 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 		nic_data->must_restore_piobufs = false;
 	}
 
-	/* add encapsulated checksum offload features */
+	/* encap features might change during reset if fw variant changed */
 	if (efx_has_cap(efx, VXLAN_NVGRE) && !efx_ef10_is_vf(efx))
-		hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-	/* add encapsulated TSO features */
+		net_dev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	else
+		net_dev->hw_enc_features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+
+	tun_feats = NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
+		    NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM;
+	tso_feats = NETIF_F_TSO | NETIF_F_TSO6;
+
 	if (efx_has_cap(efx, TX_TSO_V2_ENCAP)) {
-		netdev_features_t encap_tso_features;
-
-		encap_tso_features = NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
-			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM;
-
-		hw_enc_features |= encap_tso_features | NETIF_F_TSO;
-		efx->net_dev->features |= encap_tso_features;
+		/* If this is first nic_init, or if it is a reset and a new fw
+		 * variant has added new features, enable them by default.
+		 * If the features are not new, maintain their current value.
+		 */
+		if (!(net_dev->hw_features & tun_feats))
+			net_dev->features |= tun_feats;
+		net_dev->hw_enc_features |= tun_feats | tso_feats;
+		net_dev->hw_features |= tun_feats;
+	} else {
+		net_dev->hw_enc_features &= ~(tun_feats | tso_feats);
+		net_dev->hw_features &= ~tun_feats;
+		net_dev->features &= ~tun_feats;
 	}
-	efx->net_dev->hw_enc_features = hw_enc_features;
 
 	/* don't fail init if RSS setup doesn't work */
 	rc = efx->type->rx_push_rss_config(efx, false,
@@ -2939,7 +2950,7 @@ static u32 efx_ef10_extract_event_ts(efx_qword_t *event)
 	return tstamp;
 }
 
-static void
+static int
 efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
@@ -2947,13 +2958,14 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
 	unsigned int tx_ev_type;
+	int work_done;
 	u64 ts_part;
 
 	if (unlikely(READ_ONCE(efx->reset_pending)))
-		return;
+		return 0;
 
 	if (unlikely(EFX_QWORD_FIELD(*event, ESF_DZ_TX_DROP_EVENT)))
-		return;
+		return 0;
 
 	/* Get the transmit queue */
 	tx_ev_q_label = EFX_QWORD_FIELD(*event, ESF_DZ_TX_QLABEL);
@@ -2962,8 +2974,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	if (!tx_queue->timestamping) {
 		/* Transmit completion */
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, ESF_DZ_TX_DESCR_INDX);
-		efx_xmit_done(tx_queue, tx_ev_desc_ptr & tx_queue->ptr_mask);
-		return;
+		return efx_xmit_done(tx_queue, tx_ev_desc_ptr & tx_queue->ptr_mask);
 	}
 
 	/* Transmit timestamps are only available for 8XXX series. They result
@@ -2989,6 +3000,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	 * fields in the event.
 	 */
 	tx_ev_type = EFX_QWORD_FIELD(*event, ESF_EZ_TX_SOFT1);
+	work_done = 0;
 
 	switch (tx_ev_type) {
 	case TX_TIMESTAMP_EVENT_TX_EV_COMPLETION:
@@ -3005,6 +3017,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_queue->completed_timestamp_major = ts_part;
 
 		efx_xmit_done_single(tx_queue);
+		work_done = 1;
 		break;
 
 	default:
@@ -3015,6 +3028,8 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 			  EFX_QWORD_VAL(*event));
 		break;
 	}
+
+	return work_done;
 }
 
 static void
@@ -3070,13 +3085,16 @@ static void efx_ef10_handle_driver_generated_event(struct efx_channel *channel,
 	}
 }
 
+#define EFX_NAPI_MAX_TX 512
+
 static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 {
 	struct efx_nic *efx = channel->efx;
 	efx_qword_t event, *p_event;
 	unsigned int read_ptr;
-	int ev_code;
+	int spent_tx = 0;
 	int spent = 0;
+	int ev_code;
 
 	if (quota <= 0)
 		return spent;
@@ -3115,7 +3133,11 @@ static int efx_ef10_ev_process(struct efx_channel *channel, int quota)
 			}
 			break;
 		case ESE_DZ_EV_CODE_TX_EV:
-			efx_ef10_handle_tx_event(channel, &event);
+			spent_tx += efx_ef10_handle_tx_event(channel, &event);
+			if (spent_tx >= EFX_NAPI_MAX_TX) {
+				spent = quota;
+				goto out;
+			}
 			break;
 		case ESE_DZ_EV_CODE_DRIVER_EV:
 			efx_ef10_handle_driver_event(channel, &event);
@@ -4021,7 +4043,10 @@ static unsigned int efx_ef10_recycle_ring_size(const struct efx_nic *efx)
 	 NETIF_F_HW_VLAN_CTAG_FILTER |	\
 	 NETIF_F_IPV6_CSUM |		\
 	 NETIF_F_RXHASH |		\
-	 NETIF_F_NTUPLE)
+	 NETIF_F_NTUPLE |		\
+	 NETIF_F_SG |			\
+	 NETIF_F_RXCSUM |		\
+	 NETIF_F_RXALL)
 
 const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.is_vf = true,

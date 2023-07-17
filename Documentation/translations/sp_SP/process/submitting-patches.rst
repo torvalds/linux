@@ -276,7 +276,7 @@ parche a security@kernel.org. Para errores graves, se debe mantener un
 poco de discreción y permitir que los distribuidores entreguen el parche a
 los usuarios; en esos casos, obviamente, el parche no debe enviarse a
 ninguna lista pública. Revise también
-Documentation/admin-guide/security-bugs.rst.
+Documentation/process/security-bugs.rst.
 
 Los parches que corrigen un error grave en un kernel en uso deben dirigirse
 hacia los maintainers estables poniendo una línea como esta::

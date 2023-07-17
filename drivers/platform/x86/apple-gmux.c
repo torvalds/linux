@@ -5,6 +5,7 @@
  *  Copyright (C) Canonical Ltd. <seth.forshee@canonical.com>
  *  Copyright (C) 2010-2012 Andreas Heider <andreas@meetr.de>
  *  Copyright (C) 2015 Lukas Wunner <lukas@wunner.de>
+ *  Copyright (C) 2023 Orlando Chamberlain <orlandoch.dev@gmail.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -15,38 +16,51 @@
 #include <linux/backlight.h>
 #include <linux/acpi.h>
 #include <linux/pnp.h>
-#include <linux/apple_bl.h>
 #include <linux/apple-gmux.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
+#include <linux/debugfs.h>
+#include <acpi/video.h>
 #include <asm/io.h>
 
 /**
  * DOC: Overview
  *
  * gmux is a microcontroller built into the MacBook Pro to support dual GPUs:
- * A `Lattice XP2`_ on pre-retinas, a `Renesas R4F2113`_ on retinas.
+ * A `Lattice XP2`_ on pre-retinas, a `Renesas R4F2113`_ on pre-T2 retinas.
+ *
+ * On T2 Macbooks, the gmux is part of the T2 Coprocessor's SMC. The SMC has
+ * an I2C connection to a `NXP PCAL6524` GPIO expander, which enables/disables
+ * the voltage regulators of the discrete GPU, drives the display panel power,
+ * and has a GPIO to switch the eDP mux. The Intel CPU can interact with
+ * gmux through MMIO, similar to how the main SMC interface is controlled.
  *
  * (The MacPro6,1 2013 also has a gmux, however it is unclear why since it has
  * dual GPUs but no built-in display.)
  *
  * gmux is connected to the LPC bus of the southbridge. Its I/O ports are
  * accessed differently depending on the microcontroller: Driver functions
- * to access a pre-retina gmux are infixed ``_pio_``, those for a retina gmux
- * are infixed ``_index_``.
+ * to access a pre-retina gmux are infixed ``_pio_``, those for a pre-T2
+ * retina gmux are infixed ``_index_``, and those on T2 Macs are infixed
+ * with ``_mmio_``.
  *
  * .. _Lattice XP2:
  *     http://www.latticesemi.com/en/Products/FPGAandCPLD/LatticeXP2.aspx
  * .. _Renesas R4F2113:
  *     http://www.renesas.com/products/mpumcu/h8s/h8s2100/h8s2113/index.jsp
+ * .. _NXP PCAL6524:
+ *     https://www.nxp.com/docs/en/data-sheet/PCAL6524.pdf
  */
 
+struct apple_gmux_config;
+
 struct apple_gmux_data {
+	u8 __iomem *iomem_base;
 	unsigned long iostart;
 	unsigned long iolen;
-	bool indexed;
+	const struct apple_gmux_config *config;
 	struct mutex index_lock;
 
 	struct backlight_device *bdev;
@@ -60,9 +74,25 @@ struct apple_gmux_data {
 	enum vga_switcheroo_client_id switch_state_external;
 	enum vga_switcheroo_state power_state;
 	struct completion powerchange_done;
+
+	/* debugfs data */
+	u8 selected_port;
+	struct dentry *debug_dentry;
 };
 
 static struct apple_gmux_data *apple_gmux_data;
+
+struct apple_gmux_config {
+	u8 (*read8)(struct apple_gmux_data *gmux_data, int port);
+	void (*write8)(struct apple_gmux_data *gmux_data, int port, u8 val);
+	u32 (*read32)(struct apple_gmux_data *gmux_data, int port);
+	void (*write32)(struct apple_gmux_data *gmux_data, int port, u32 val);
+	const struct vga_switcheroo_handler *gmux_handler;
+	enum vga_switcheroo_handler_flags_t handler_flags;
+	unsigned long resource_type;
+	bool read_version_as_u32;
+	char *name;
+};
 
 #define GMUX_INTERRUPT_ENABLE		0xff
 #define GMUX_INTERRUPT_DISABLE		0x00
@@ -193,37 +223,98 @@ static void gmux_index_write32(struct apple_gmux_data *gmux_data, int port,
 	mutex_unlock(&gmux_data->index_lock);
 }
 
+static int gmux_mmio_wait(struct apple_gmux_data *gmux_data)
+{
+	int i = 200;
+	u8 gwr = ioread8(gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
+
+	while (i && gwr) {
+		gwr = ioread8(gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
+		udelay(100);
+		i--;
+	}
+
+	return !!i;
+}
+
+static u8 gmux_mmio_read8(struct apple_gmux_data *gmux_data, int port)
+{
+	u8 val;
+
+	mutex_lock(&gmux_data->index_lock);
+	gmux_mmio_wait(gmux_data);
+	iowrite8((port & 0xff), gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
+	iowrite8(GMUX_MMIO_READ | sizeof(val),
+		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
+	gmux_mmio_wait(gmux_data);
+	val = ioread8(gmux_data->iomem_base);
+	mutex_unlock(&gmux_data->index_lock);
+
+	return val;
+}
+
+static void gmux_mmio_write8(struct apple_gmux_data *gmux_data, int port,
+			      u8 val)
+{
+	mutex_lock(&gmux_data->index_lock);
+	gmux_mmio_wait(gmux_data);
+	iowrite8(val, gmux_data->iomem_base);
+
+	iowrite8(port & 0xff, gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
+	iowrite8(GMUX_MMIO_WRITE | sizeof(val),
+		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
+
+	gmux_mmio_wait(gmux_data);
+	mutex_unlock(&gmux_data->index_lock);
+}
+
+static u32 gmux_mmio_read32(struct apple_gmux_data *gmux_data, int port)
+{
+	u32 val;
+
+	mutex_lock(&gmux_data->index_lock);
+	gmux_mmio_wait(gmux_data);
+	iowrite8((port & 0xff), gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
+	iowrite8(GMUX_MMIO_READ | sizeof(val),
+		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
+	gmux_mmio_wait(gmux_data);
+	val = be32_to_cpu(ioread32(gmux_data->iomem_base));
+	mutex_unlock(&gmux_data->index_lock);
+
+	return val;
+}
+
+static void gmux_mmio_write32(struct apple_gmux_data *gmux_data, int port,
+			       u32 val)
+{
+	mutex_lock(&gmux_data->index_lock);
+	iowrite32(cpu_to_be32(val), gmux_data->iomem_base);
+	iowrite8(port & 0xff, gmux_data->iomem_base + GMUX_MMIO_PORT_SELECT);
+	iowrite8(GMUX_MMIO_WRITE | sizeof(val),
+		gmux_data->iomem_base + GMUX_MMIO_COMMAND_SEND);
+	gmux_mmio_wait(gmux_data);
+	mutex_unlock(&gmux_data->index_lock);
+}
+
 static u8 gmux_read8(struct apple_gmux_data *gmux_data, int port)
 {
-	if (gmux_data->indexed)
-		return gmux_index_read8(gmux_data, port);
-	else
-		return gmux_pio_read8(gmux_data, port);
+	return gmux_data->config->read8(gmux_data, port);
 }
 
 static void gmux_write8(struct apple_gmux_data *gmux_data, int port, u8 val)
 {
-	if (gmux_data->indexed)
-		gmux_index_write8(gmux_data, port, val);
-	else
-		gmux_pio_write8(gmux_data, port, val);
+	return gmux_data->config->write8(gmux_data, port, val);
 }
 
 static u32 gmux_read32(struct apple_gmux_data *gmux_data, int port)
 {
-	if (gmux_data->indexed)
-		return gmux_index_read32(gmux_data, port);
-	else
-		return gmux_pio_read32(gmux_data, port);
+	return gmux_data->config->read32(gmux_data, port);
 }
 
 static void gmux_write32(struct apple_gmux_data *gmux_data, int port,
 			     u32 val)
 {
-	if (gmux_data->indexed)
-		gmux_index_write32(gmux_data, port, val);
-	else
-		gmux_pio_write32(gmux_data, port, val);
+	return gmux_data->config->write32(gmux_data, port, val);
 }
 
 /**
@@ -233,8 +324,8 @@ static void gmux_write32(struct apple_gmux_data *gmux_data, int port,
  * the GPU. On dual GPU MacBook Pros by contrast, either GPU may be suspended
  * to conserve energy. Hence the PWM signal needs to be generated by a separate
  * backlight driver which is controlled by gmux. The earliest generation
- * MBP5 2008/09 uses a `TI LP8543`_ backlight driver. All newer models
- * use a `TI LP8545`_.
+ * MBP5 2008/09 uses a `TI LP8543`_ backlight driver. Newer models
+ * use a `TI LP8545`_ or a TI LP8548.
  *
  * .. _TI LP8543: https://www.ti.com/lit/ds/symlink/lp8543.pdf
  * .. _TI LP8545: https://www.ti.com/lit/ds/symlink/lp8545.pdf
@@ -298,8 +389,8 @@ static const struct backlight_ops gmux_bl_ops = {
  * connecting it either to the discrete GPU or the Thunderbolt controller.
  * Oddly enough, while the full port is no longer switchable, AUX and HPD
  * are still switchable by way of an `NXP CBTL03062`_ (on pre-retinas
- * MBP8 2011 and MBP9 2012) or two `TI TS3DS10224`_ (on retinas) under the
- * control of gmux. Since the integrated GPU is missing the main link,
+ * MBP8 2011 and MBP9 2012) or two `TI TS3DS10224`_ (on pre-t2 retinas) under
+ * the control of gmux. Since the integrated GPU is missing the main link,
  * external displays appear to it as phantoms which fail to link-train.
  *
  * gmux receives the HPD signal of all display connectors and sends an
@@ -346,10 +437,10 @@ static void gmux_read_switch_state(struct apple_gmux_data *gmux_data)
 	else
 		gmux_data->switch_state_ddc = VGA_SWITCHEROO_DIS;
 
-	if (gmux_read8(gmux_data, GMUX_PORT_SWITCH_DISPLAY) == 2)
-		gmux_data->switch_state_display = VGA_SWITCHEROO_IGD;
-	else
+	if (gmux_read8(gmux_data, GMUX_PORT_SWITCH_DISPLAY) & 1)
 		gmux_data->switch_state_display = VGA_SWITCHEROO_DIS;
+	else
+		gmux_data->switch_state_display = VGA_SWITCHEROO_IGD;
 
 	if (gmux_read8(gmux_data, GMUX_PORT_SWITCH_EXTERNAL) == 2)
 		gmux_data->switch_state_external = VGA_SWITCHEROO_IGD;
@@ -463,27 +554,79 @@ static enum vga_switcheroo_client_id gmux_get_client_id(struct pci_dev *pdev)
 		return VGA_SWITCHEROO_DIS;
 }
 
-static const struct vga_switcheroo_handler gmux_handler_indexed = {
+static const struct vga_switcheroo_handler gmux_handler_no_ddc = {
 	.switchto = gmux_switchto,
 	.power_state = gmux_set_power_state,
 	.get_client_id = gmux_get_client_id,
 };
 
-static const struct vga_switcheroo_handler gmux_handler_classic = {
+static const struct vga_switcheroo_handler gmux_handler_ddc = {
 	.switchto = gmux_switchto,
 	.switch_ddc = gmux_switch_ddc,
 	.power_state = gmux_set_power_state,
 	.get_client_id = gmux_get_client_id,
 };
 
+static const struct apple_gmux_config apple_gmux_pio = {
+	.read8 = &gmux_pio_read8,
+	.write8 = &gmux_pio_write8,
+	.read32 = &gmux_pio_read32,
+	.write32 = &gmux_pio_write32,
+	.gmux_handler = &gmux_handler_ddc,
+	.handler_flags = VGA_SWITCHEROO_CAN_SWITCH_DDC,
+	.resource_type = IORESOURCE_IO,
+	.read_version_as_u32 = false,
+	.name = "classic"
+};
+
+static const struct apple_gmux_config apple_gmux_index = {
+	.read8 = &gmux_index_read8,
+	.write8 = &gmux_index_write8,
+	.read32 = &gmux_index_read32,
+	.write32 = &gmux_index_write32,
+	.gmux_handler = &gmux_handler_no_ddc,
+	.handler_flags = VGA_SWITCHEROO_NEEDS_EDP_CONFIG,
+	.resource_type = IORESOURCE_IO,
+	.read_version_as_u32 = true,
+	.name = "indexed"
+};
+
+static const struct apple_gmux_config apple_gmux_mmio = {
+	.read8 = &gmux_mmio_read8,
+	.write8 = &gmux_mmio_write8,
+	.read32 = &gmux_mmio_read32,
+	.write32 = &gmux_mmio_write32,
+	.gmux_handler = &gmux_handler_no_ddc,
+	.handler_flags = VGA_SWITCHEROO_NEEDS_EDP_CONFIG,
+	.resource_type = IORESOURCE_MEM,
+	.read_version_as_u32 = true,
+	.name = "T2"
+};
+
+
 /**
  * DOC: Interrupt
  *
  * gmux is also connected to a GPIO pin of the southbridge and thereby is able
- * to trigger an ACPI GPE. On the MBP5 2008/09 it's GPIO pin 22 of the Nvidia
- * MCP79, on all following generations it's GPIO pin 6 of the Intel PCH.
+ * to trigger an ACPI GPE. ACPI name GMGP holds this GPIO pin's number. On the
+ * MBP5 2008/09 it's GPIO pin 22 of the Nvidia MCP79, on following generations
+ * it's GPIO pin 6 of the Intel PCH, on MMIO gmux's it's pin 21.
+ *
  * The GPE merely signals that an interrupt occurred, the actual type of event
  * is identified by reading a gmux register.
+ *
+ * In addition to the GMGP name, gmux's ACPI device also has two methods GMSP
+ * and GMLV. GMLV likely means "GMUX Level", and reads the value of the GPIO,
+ * while GMSP likely means "GMUX Set Polarity", and seems to write to the GPIO's
+ * value. On newer Macbooks (This was introduced with or sometime before the
+ * MacBookPro14,3), the ACPI GPE method differentiates between the OS type: On
+ * Darwin, only a notification is signaled, whereas on other OSes, the GPIO's
+ * value is read and then inverted.
+ *
+ * Because Linux masquerades as Darwin, it ends up in the notification-only code
+ * path. On MMIO gmux's, this seems to lead to us being unable to clear interrupts,
+ * unless we call GMSP(0). Without this, there is a flood of status=0 interrupts
+ * that can't be cleared. This issue seems to be unique to MMIO gmux's.
  */
 
 static inline void gmux_disable_interrupts(struct apple_gmux_data *gmux_data)
@@ -510,6 +653,9 @@ static void gmux_clear_interrupts(struct apple_gmux_data *gmux_data)
 	/* to clear interrupts write back current status */
 	status = gmux_interrupt_get_status(gmux_data);
 	gmux_write8(gmux_data, GMUX_PORT_INTERRUPT_STATUS, status);
+	/* Prevent flood of status=0 interrupts */
+	if (gmux_data->config == &apple_gmux_mmio)
+		acpi_execute_simple_method(gmux_data->dhandle, "GMSP", 0);
 }
 
 static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
@@ -527,6 +673,80 @@ static void gmux_notify_handler(acpi_handle device, u32 value, void *context)
 
 	if (status & GMUX_INTERRUPT_STATUS_POWER)
 		complete(&gmux_data->powerchange_done);
+}
+
+/**
+ * DOC: Debugfs Interface
+ *
+ * gmux ports can be accessed from userspace as a debugfs interface. For example:
+ *
+ * # echo 4 > /sys/kernel/debug/apple_gmux/selected_port
+ * # cat /sys/kernel/debug/apple_gmux/selected_port_data | xxd -p
+ * 00000005
+ *
+ * Reads 4 bytes from port 4 (GMUX_PORT_VERSION_MAJOR).
+ *
+ * 1 and 4 byte writes are also allowed.
+ */
+
+static ssize_t gmux_selected_port_data_write(struct file *file,
+		const char __user *userbuf, size_t count, loff_t *ppos)
+{
+	struct apple_gmux_data *gmux_data = file->private_data;
+
+	if (*ppos)
+		return -EINVAL;
+
+	if (count == 1) {
+		u8 data;
+
+		if (copy_from_user(&data, userbuf, 1))
+			return -EFAULT;
+
+		gmux_write8(gmux_data, gmux_data->selected_port, data);
+	} else if (count == 4) {
+		u32 data;
+
+		if (copy_from_user(&data, userbuf, 4))
+			return -EFAULT;
+
+		gmux_write32(gmux_data, gmux_data->selected_port, data);
+	} else
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t gmux_selected_port_data_read(struct file *file,
+		char __user *userbuf, size_t count, loff_t *ppos)
+{
+	struct apple_gmux_data *gmux_data = file->private_data;
+	u32 data;
+
+	data = gmux_read32(gmux_data, gmux_data->selected_port);
+
+	return simple_read_from_buffer(userbuf, count, ppos, &data, sizeof(data));
+}
+
+static const struct file_operations gmux_port_data_ops = {
+	.open = simple_open,
+	.write = gmux_selected_port_data_write,
+	.read = gmux_selected_port_data_read
+};
+
+static void gmux_init_debugfs(struct apple_gmux_data *gmux_data)
+{
+	gmux_data->debug_dentry = debugfs_create_dir(KBUILD_MODNAME, NULL);
+
+	debugfs_create_u8("selected_port", 0644, gmux_data->debug_dentry,
+			&gmux_data->selected_port);
+	debugfs_create_file("selected_port_data", 0644, gmux_data->debug_dentry,
+			gmux_data, &gmux_port_data_ops);
+}
+
+static void gmux_fini_debugfs(struct apple_gmux_data *gmux_data)
+{
+	debugfs_remove_recursive(gmux_data->debug_dentry);
 }
 
 static int gmux_suspend(struct device *dev)
@@ -560,18 +780,19 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	struct apple_gmux_data *gmux_data;
 	struct resource *res;
 	struct backlight_properties props;
-	struct backlight_device *bdev;
+	struct backlight_device *bdev = NULL;
 	u8 ver_major, ver_minor, ver_release;
+	bool register_bdev = true;
 	int ret = -ENXIO;
 	acpi_status status;
 	unsigned long long gpe;
-	bool indexed = false;
+	enum apple_gmux_type type;
 	u32 version;
 
 	if (apple_gmux_data)
 		return -EBUSY;
 
-	if (!apple_gmux_detect(pnp, &indexed)) {
+	if (!apple_gmux_detect(pnp, &type)) {
 		pr_info("gmux device not present\n");
 		return -ENODEV;
 	}
@@ -580,6 +801,35 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	if (!gmux_data)
 		return -ENOMEM;
 	pnp_set_drvdata(pnp, gmux_data);
+
+	switch (type) {
+	case APPLE_GMUX_TYPE_MMIO:
+		gmux_data->config = &apple_gmux_mmio;
+		mutex_init(&gmux_data->index_lock);
+
+		res = pnp_get_resource(pnp, IORESOURCE_MEM, 0);
+		gmux_data->iostart = res->start;
+		/* Although the ACPI table only allocates 8 bytes, we need 16. */
+		gmux_data->iolen = 16;
+		if (!request_mem_region(gmux_data->iostart, gmux_data->iolen,
+					"Apple gmux")) {
+			pr_err("gmux I/O already in use\n");
+			goto err_free;
+		}
+		gmux_data->iomem_base = ioremap(gmux_data->iostart, gmux_data->iolen);
+		if (!gmux_data->iomem_base) {
+			pr_err("couldn't remap gmux mmio region");
+			goto err_release;
+		}
+		goto get_version;
+	case APPLE_GMUX_TYPE_INDEXED:
+		gmux_data->config = &apple_gmux_index;
+		mutex_init(&gmux_data->index_lock);
+		break;
+	case APPLE_GMUX_TYPE_PIO:
+		gmux_data->config = &apple_gmux_pio;
+		break;
+	}
 
 	res = pnp_get_resource(pnp, IORESOURCE_IO, 0);
 	gmux_data->iostart = res->start;
@@ -591,9 +841,8 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		goto err_free;
 	}
 
-	if (indexed) {
-		mutex_init(&gmux_data->index_lock);
-		gmux_data->indexed = true;
+get_version:
+	if (gmux_data->config->read_version_as_u32) {
 		version = gmux_read32(gmux_data, GMUX_PORT_VERSION_MAJOR);
 		ver_major = (version >> 24) & 0xff;
 		ver_minor = (version >> 16) & 0xff;
@@ -604,39 +853,36 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
 	}
 	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
-		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
+		ver_release, gmux_data->config->name);
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = gmux_read32(gmux_data, GMUX_PORT_MAX_BRIGHTNESS);
 
-	/*
-	 * Currently it's assumed that the maximum brightness is less than
-	 * 2^24 for compatibility with old gmux versions. Cap the max
-	 * brightness at this value, but print a warning if the hardware
-	 * reports something higher so that it can be fixed.
-	 */
-	if (WARN_ON(props.max_brightness > GMUX_MAX_BRIGHTNESS))
-		props.max_brightness = GMUX_MAX_BRIGHTNESS;
+#if IS_REACHABLE(CONFIG_ACPI_VIDEO)
+	register_bdev = acpi_video_get_backlight_type() == acpi_backlight_apple_gmux;
+#endif
+	if (register_bdev) {
+		/*
+		 * Currently it's assumed that the maximum brightness is less than
+		 * 2^24 for compatibility with old gmux versions. Cap the max
+		 * brightness at this value, but print a warning if the hardware
+		 * reports something higher so that it can be fixed.
+		 */
+		if (WARN_ON(props.max_brightness > GMUX_MAX_BRIGHTNESS))
+			props.max_brightness = GMUX_MAX_BRIGHTNESS;
 
-	bdev = backlight_device_register("gmux_backlight", &pnp->dev,
-					 gmux_data, &gmux_bl_ops, &props);
-	if (IS_ERR(bdev)) {
-		ret = PTR_ERR(bdev);
-		goto err_release;
+		bdev = backlight_device_register("gmux_backlight", &pnp->dev,
+						 gmux_data, &gmux_bl_ops, &props);
+		if (IS_ERR(bdev)) {
+			ret = PTR_ERR(bdev);
+			goto err_unmap;
+		}
+
+		gmux_data->bdev = bdev;
+		bdev->props.brightness = gmux_get_brightness(bdev);
+		backlight_update_status(bdev);
 	}
-
-	gmux_data->bdev = bdev;
-	bdev->props.brightness = gmux_get_brightness(bdev);
-	backlight_update_status(bdev);
-
-	/*
-	 * The backlight situation on Macs is complicated. If the gmux is
-	 * present it's the best choice, because it always works for
-	 * backlight control and supports more levels than other options.
-	 * Disable the other backlight choices.
-	 */
-	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
 
@@ -690,21 +936,18 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	/*
 	 * Retina MacBook Pros cannot switch the panel's AUX separately
 	 * and need eDP pre-calibration. They are distinguishable from
-	 * pre-retinas by having an "indexed" gmux.
+	 * pre-retinas by having an "indexed" or "T2" gmux.
 	 *
 	 * Pre-retina MacBook Pros can switch the panel's DDC separately.
 	 */
-	if (gmux_data->indexed)
-		ret = vga_switcheroo_register_handler(&gmux_handler_indexed,
-					      VGA_SWITCHEROO_NEEDS_EDP_CONFIG);
-	else
-		ret = vga_switcheroo_register_handler(&gmux_handler_classic,
-					      VGA_SWITCHEROO_CAN_SWITCH_DDC);
+	ret = vga_switcheroo_register_handler(gmux_data->config->gmux_handler,
+			gmux_data->config->handler_flags);
 	if (ret) {
 		pr_err("Failed to register vga_switcheroo handler\n");
 		goto err_register_handler;
 	}
 
+	gmux_init_debugfs(gmux_data);
 	return 0;
 
 err_register_handler:
@@ -719,8 +962,14 @@ err_enable_gpe:
 					   &gmux_notify_handler);
 err_notify:
 	backlight_device_unregister(bdev);
+err_unmap:
+	if (gmux_data->iomem_base)
+		iounmap(gmux_data->iomem_base);
 err_release:
-	release_region(gmux_data->iostart, gmux_data->iolen);
+	if (gmux_data->config->resource_type == IORESOURCE_MEM)
+		release_mem_region(gmux_data->iostart, gmux_data->iolen);
+	else
+		release_region(gmux_data->iostart, gmux_data->iolen);
 err_free:
 	kfree(gmux_data);
 	return ret;
@@ -730,6 +979,7 @@ static void gmux_remove(struct pnp_dev *pnp)
 {
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
 
+	gmux_fini_debugfs(gmux_data);
 	vga_switcheroo_unregister_handler();
 	gmux_disable_interrupts(gmux_data);
 	if (gmux_data->gpe >= 0) {
@@ -741,11 +991,13 @@ static void gmux_remove(struct pnp_dev *pnp)
 
 	backlight_device_unregister(gmux_data->bdev);
 
-	release_region(gmux_data->iostart, gmux_data->iolen);
+	if (gmux_data->iomem_base) {
+		iounmap(gmux_data->iomem_base);
+		release_mem_region(gmux_data->iostart, gmux_data->iolen);
+	} else
+		release_region(gmux_data->iostart, gmux_data->iolen);
 	apple_gmux_data = NULL;
 	kfree(gmux_data);
-
-	apple_bl_register();
 }
 
 static const struct pnp_device_id gmux_device_ids[] = {

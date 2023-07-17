@@ -933,13 +933,13 @@ static ssize_t tty_read(struct kiocb *iocb, struct iov_iter *to)
 	return i;
 }
 
-static void tty_write_unlock(struct tty_struct *tty)
+void tty_write_unlock(struct tty_struct *tty)
 {
 	mutex_unlock(&tty->atomic_write_lock);
 	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
-static int tty_write_lock(struct tty_struct *tty, int ndelay)
+int tty_write_lock(struct tty_struct *tty, int ndelay)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
 		if (ndelay)
@@ -3070,7 +3070,7 @@ static struct device *tty_get_device(struct tty_struct *tty)
 {
 	dev_t devt = tty_devnum(tty);
 
-	return class_find_device_by_devt(tty_class, devt);
+	return class_find_device_by_devt(&tty_class, devt);
 }
 
 
@@ -3142,8 +3142,6 @@ int tty_put_char(struct tty_struct *tty, unsigned char ch)
 	return tty->ops->write(tty, &ch, 1);
 }
 EXPORT_SYMBOL_GPL(tty_put_char);
-
-struct class *tty_class;
 
 static int tty_cdev_add(struct tty_driver *driver, dev_t dev,
 		unsigned int index, unsigned int count)
@@ -3239,7 +3237,7 @@ struct device *tty_register_device_attr(struct tty_driver *driver,
 		return ERR_PTR(-ENOMEM);
 
 	dev->devt = devt;
-	dev->class = tty_class;
+	dev->class = &tty_class;
 	dev->parent = device;
 	dev->release = tty_device_create_release;
 	dev_set_name(dev, "%s", name);
@@ -3294,8 +3292,7 @@ EXPORT_SYMBOL_GPL(tty_register_device_attr);
  */
 void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
-	device_destroy(tty_class,
-		MKDEV(driver->major, driver->minor_start) + index);
+	device_destroy(&tty_class, MKDEV(driver->major, driver->minor_start) + index);
 	if (!(driver->flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
 		cdev_del(driver->cdevs[index]);
 		driver->cdevs[index] = NULL;
@@ -3510,13 +3507,14 @@ static char *tty_devnode(const struct device *dev, umode_t *mode)
 	return NULL;
 }
 
+const struct class tty_class = {
+	.name		= "tty",
+	.devnode	= tty_devnode,
+};
+
 static int __init tty_class_init(void)
 {
-	tty_class = class_create(THIS_MODULE, "tty");
-	if (IS_ERR(tty_class))
-		return PTR_ERR(tty_class);
-	tty_class->devnode = tty_devnode;
-	return 0;
+	return class_register(&tty_class);
 }
 
 postcore_initcall(tty_class_init);
@@ -3614,42 +3612,24 @@ static struct ctl_table tty_table[] = {
 	{ }
 };
 
-static struct ctl_table tty_dir_table[] = {
-	{
-		.procname	= "tty",
-		.mode		= 0555,
-		.child		= tty_table,
-	},
-	{ }
-};
-
-static struct ctl_table tty_root_table[] = {
-	{
-		.procname	= "dev",
-		.mode		= 0555,
-		.child		= tty_dir_table,
-	},
-	{ }
-};
-
 /*
  * Ok, now we can initialize the rest of the tty devices and can count
  * on memory allocations, interrupts etc..
  */
 int __init tty_init(void)
 {
-	register_sysctl_table(tty_root_table);
+	register_sysctl_init("dev/tty", tty_table);
 	cdev_init(&tty_cdev, &tty_fops);
 	if (cdev_add(&tty_cdev, MKDEV(TTYAUX_MAJOR, 0), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
-	device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
+	device_create(&tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
-	consdev = device_create_with_groups(tty_class, NULL,
+	consdev = device_create_with_groups(&tty_class, NULL,
 					    MKDEV(TTYAUX_MAJOR, 1), NULL,
 					    cons_dev_groups, "console");
 	if (IS_ERR(consdev))

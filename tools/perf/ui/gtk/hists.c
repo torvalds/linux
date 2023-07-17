@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include "gtk.h"
 #include "../evlist.h"
 #include "../callchain.h"
 #include "../evsel.h"
@@ -6,7 +7,6 @@
 #include "../hist.h"
 #include "../helpline.h"
 #include "../string2.h"
-#include "gtk.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <linux/string.h>

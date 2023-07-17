@@ -66,6 +66,7 @@ properties:
 patternProperties:
   '^interconnect-[a-z0-9]+$':
     type: object
+    additionalProperties: false
     description:
       snoc-mm is a child of snoc, sharing snoc's register address space.
 

@@ -185,9 +185,11 @@ properties:
           - const: firefly,rk3566-roc-pc
           - const: rockchip,rk3566
 
-      - description: FriendlyElec NanoPi R2S
+      - description: FriendlyElec NanoPi R2 series boards
         items:
-          - const: friendlyarm,nanopi-r2s
+          - enum:
+              - friendlyarm,nanopi-r2c
+              - friendlyarm,nanopi-r2s
           - const: rockchip,rk3328
 
       - description: FriendlyElec NanoPi4 series boards
@@ -200,6 +202,13 @@ properties:
               - friendlyarm,nanopi-r4s
               - friendlyarm,nanopi-r4s-enterprise
           - const: rockchip,rk3399
+
+      - description: FriendlyElec NanoPi R5 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopi-r5c
+              - friendlyarm,nanopi-r5s
+          - const: rockchip,rk3568
 
       - description: GeekBuying GeekBox
         items:
@@ -533,6 +542,11 @@ properties:
               - khadas,edge-v
           - const: rockchip,rk3399
 
+      - description: Khadas Edge2 series boards
+        items:
+          - const: khadas,edge2
+          - const: rockchip,rk3588s
+
       - description: Kobol Helios64
         items:
           - const: kobol,helios64
@@ -817,9 +831,11 @@ properties:
           - const: tronsmart,orion-r68-meta
           - const: rockchip,rk3368
 
-      - description: Xunlong Orange Pi R1 Plus
+      - description: Xunlong Orange Pi R1 Plus / LTS
         items:
-          - const: xunlong,orangepi-r1-plus
+          - enum:
+              - xunlong,orangepi-r1-plus
+              - xunlong,orangepi-r1-plus-lts
           - const: rockchip,rk3328
 
       - description: Zkmagic A95X Z2

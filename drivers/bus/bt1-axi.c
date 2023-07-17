@@ -309,4 +309,3 @@ module_platform_driver(bt1_axi_driver);
 
 MODULE_AUTHOR("Serge Semin <Sergey.Semin@baikalelectronics.ru>");
 MODULE_DESCRIPTION("Baikal-T1 AXI-bus driver");
-MODULE_LICENSE("GPL v2");

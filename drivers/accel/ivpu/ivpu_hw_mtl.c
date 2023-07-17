@@ -12,24 +12,23 @@
 #include "ivpu_mmu.h"
 #include "ivpu_pm.h"
 
-#define TILE_FUSE_ENABLE_BOTH	     0x0
-#define TILE_FUSE_ENABLE_UPPER	     0x1
-#define TILE_FUSE_ENABLE_LOWER	     0x2
-
-#define TILE_SKU_BOTH_MTL	     0x3630
-#define TILE_SKU_LOWER_MTL	     0x3631
-#define TILE_SKU_UPPER_MTL	     0x3632
+#define TILE_FUSE_ENABLE_BOTH        0x0
+#define TILE_SKU_BOTH_MTL            0x3630
 
 /* Work point configuration values */
-#define WP_CONFIG_1_TILE_5_3_RATIO   0x0101
-#define WP_CONFIG_1_TILE_4_3_RATIO   0x0102
-#define WP_CONFIG_2_TILE_5_3_RATIO   0x0201
-#define WP_CONFIG_2_TILE_4_3_RATIO   0x0202
-#define WP_CONFIG_0_TILE_PLL_OFF     0x0000
+#define CONFIG_1_TILE                0x01
+#define CONFIG_2_TILE                0x02
+#define PLL_RATIO_5_3                0x01
+#define PLL_RATIO_4_3                0x02
+#define WP_CONFIG(tile, ratio)       (((tile) << 8) | (ratio))
+#define WP_CONFIG_1_TILE_5_3_RATIO   WP_CONFIG(CONFIG_1_TILE, PLL_RATIO_5_3)
+#define WP_CONFIG_1_TILE_4_3_RATIO   WP_CONFIG(CONFIG_1_TILE, PLL_RATIO_4_3)
+#define WP_CONFIG_2_TILE_5_3_RATIO   WP_CONFIG(CONFIG_2_TILE, PLL_RATIO_5_3)
+#define WP_CONFIG_2_TILE_4_3_RATIO   WP_CONFIG(CONFIG_2_TILE, PLL_RATIO_4_3)
+#define WP_CONFIG_0_TILE_PLL_OFF     WP_CONFIG(0, 0)
 
 #define PLL_REF_CLK_FREQ	     (50 * 1000000)
 #define PLL_SIMULATION_FREQ	     (10 * 1000000)
-#define PLL_RATIO_TO_FREQ(x)	     ((x) * PLL_REF_CLK_FREQ)
 #define PLL_DEFAULT_EPP_VALUE	     0x80
 
 #define TIM_SAFE_ENABLE		     0xf1d0dead
@@ -101,6 +100,7 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 {
 	vdev->wa.punit_disabled = ivpu_is_fpga(vdev);
 	vdev->wa.clear_runtime_mem = false;
+	vdev->wa.d3hot_after_power_off = true;
 }
 
 static void ivpu_hw_timeouts_init(struct ivpu_device *vdev)
@@ -197,6 +197,11 @@ static void ivpu_pll_init_frequency_ratios(struct ivpu_device *vdev)
 	hw->pll.pn_ratio = clamp_t(u8, fuse_pn_ratio, hw->pll.min_ratio, hw->pll.max_ratio);
 }
 
+static int ivpu_hw_mtl_wait_for_vpuip_bar(struct ivpu_device *vdev)
+{
+	return REGV_POLL_FLD(MTL_VPU_HOST_SS_CPR_RST_CLR, AON, 0, 100);
+}
+
 static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 {
 	struct ivpu_hw_info *hw = vdev->hw;
@@ -218,7 +223,8 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 		config = 0;
 	}
 
-	ivpu_dbg(vdev, PM, "PLL workpoint request: %d Hz\n", PLL_RATIO_TO_FREQ(target_ratio));
+	ivpu_dbg(vdev, PM, "PLL workpoint request: config 0x%04x pll ratio 0x%x\n",
+		 config, target_ratio);
 
 	ret = ivpu_pll_cmd_send(vdev, hw->pll.min_ratio, hw->pll.max_ratio, target_ratio, config);
 	if (ret) {
@@ -238,6 +244,12 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 			ivpu_err(vdev, "Timed out waiting for PLL ready status\n");
 			return ret;
 		}
+
+		ret = ivpu_hw_mtl_wait_for_vpuip_bar(vdev);
+		if (ret) {
+			ivpu_err(vdev, "Timed out waiting for VPUIP bar\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -255,7 +267,7 @@ static int ivpu_pll_disable(struct ivpu_device *vdev)
 
 static void ivpu_boot_host_ss_rst_clr_assert(struct ivpu_device *vdev)
 {
-	u32 val = REGV_RD32(MTL_VPU_HOST_SS_CPR_RST_CLR);
+	u32 val = 0;
 
 	val = REG_SET_FLD(MTL_VPU_HOST_SS_CPR_RST_CLR, TOP_NOC, val);
 	val = REG_SET_FLD(MTL_VPU_HOST_SS_CPR_RST_CLR, DSS_MAS, val);
@@ -403,11 +415,6 @@ static int ivpu_boot_host_ss_axi_enable(struct ivpu_device *vdev)
 	return ivpu_boot_host_ss_axi_drive(vdev, true);
 }
 
-static int ivpu_boot_host_ss_axi_disable(struct ivpu_device *vdev)
-{
-	return ivpu_boot_host_ss_axi_drive(vdev, false);
-}
-
 static int ivpu_boot_host_ss_top_noc_drive(struct ivpu_device *vdev, bool enable)
 {
 	int ret;
@@ -439,11 +446,6 @@ static int ivpu_boot_host_ss_top_noc_drive(struct ivpu_device *vdev, bool enable
 static int ivpu_boot_host_ss_top_noc_enable(struct ivpu_device *vdev)
 {
 	return ivpu_boot_host_ss_top_noc_drive(vdev, true);
-}
-
-static int ivpu_boot_host_ss_top_noc_disable(struct ivpu_device *vdev)
-{
-	return ivpu_boot_host_ss_top_noc_drive(vdev, false);
 }
 
 static void ivpu_boot_pwr_island_trickle_drive(struct ivpu_device *vdev, bool enable)
@@ -502,16 +504,6 @@ static void ivpu_boot_dpu_active_drive(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(MTL_VPU_HOST_SS_AON_DPU_ACTIVE, DPU_ACTIVE, val);
 
 	REGV_WR32(MTL_VPU_HOST_SS_AON_DPU_ACTIVE, val);
-}
-
-static int ivpu_boot_pwr_domain_disable(struct ivpu_device *vdev)
-{
-	ivpu_boot_dpu_active_drive(vdev, false);
-	ivpu_boot_pwr_island_isolation_drive(vdev, true);
-	ivpu_boot_pwr_island_trickle_drive(vdev, false);
-	ivpu_boot_pwr_island_drive(vdev, false);
-
-	return ivpu_boot_wait_for_pwr_island_status(vdev, 0x0);
 }
 
 static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
@@ -629,34 +621,10 @@ static int ivpu_boot_d0i3_drive(struct ivpu_device *vdev, bool enable)
 static int ivpu_hw_mtl_info_init(struct ivpu_device *vdev)
 {
 	struct ivpu_hw_info *hw = vdev->hw;
-	u32 tile_fuse;
 
-	tile_fuse = REGB_RD32(MTL_BUTTRESS_TILE_FUSE);
-	if (!REG_TEST_FLD(MTL_BUTTRESS_TILE_FUSE, VALID, tile_fuse))
-		ivpu_warn(vdev, "Tile Fuse: Invalid (0x%x)\n", tile_fuse);
-
-	hw->tile_fuse = REG_GET_FLD(MTL_BUTTRESS_TILE_FUSE, SKU, tile_fuse);
-	switch (hw->tile_fuse) {
-	case TILE_FUSE_ENABLE_LOWER:
-		hw->sku = TILE_SKU_LOWER_MTL;
-		hw->config = WP_CONFIG_1_TILE_5_3_RATIO;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Enable Lower\n");
-		break;
-	case TILE_FUSE_ENABLE_UPPER:
-		hw->sku = TILE_SKU_UPPER_MTL;
-		hw->config = WP_CONFIG_1_TILE_4_3_RATIO;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Enable Upper\n");
-		break;
-	case TILE_FUSE_ENABLE_BOTH:
-		hw->sku = TILE_SKU_BOTH_MTL;
-		hw->config = WP_CONFIG_2_TILE_5_3_RATIO;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Enable Both\n");
-		break;
-	default:
-		hw->config = WP_CONFIG_0_TILE_PLL_OFF;
-		ivpu_dbg(vdev, MISC, "Tile Fuse: Disable\n");
-		break;
-	}
+	hw->tile_fuse = TILE_FUSE_ENABLE_BOTH;
+	hw->sku = TILE_SKU_BOTH_MTL;
+	hw->config = WP_CONFIG_2_TILE_4_3_RATIO;
 
 	ivpu_pll_init_frequency_ratios(vdev);
 
@@ -797,22 +765,8 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 {
 	int ret = 0;
 
-	/* FPGA requires manual clearing of IP_Reset bit by enabling quiescent state */
-	if (ivpu_is_fpga(vdev)) {
-		if (ivpu_boot_host_ss_top_noc_disable(vdev)) {
-			ivpu_err(vdev, "Failed to disable TOP NOC\n");
-			ret = -EIO;
-		}
-
-		if (ivpu_boot_host_ss_axi_disable(vdev)) {
-			ivpu_err(vdev, "Failed to disable AXI\n");
-			ret = -EIO;
-		}
-	}
-
-	if (ivpu_boot_pwr_domain_disable(vdev)) {
-		ivpu_err(vdev, "Failed to disable power domain\n");
-		ret = -EIO;
+	if (!ivpu_hw_mtl_is_idle(vdev) && ivpu_hw_mtl_reset(vdev)) {
+		ivpu_err(vdev, "Failed to reset the VPU\n");
 	}
 
 	if (ivpu_pll_disable(vdev)) {
@@ -820,8 +774,10 @@ static int ivpu_hw_mtl_power_down(struct ivpu_device *vdev)
 		ret = -EIO;
 	}
 
-	if (ivpu_hw_mtl_d0i3_enable(vdev))
-		ivpu_warn(vdev, "Failed to enable D0I3\n");
+	if (ivpu_hw_mtl_d0i3_enable(vdev)) {
+		ivpu_err(vdev, "Failed to enter D0I3\n");
+		ret = -EIO;
+	}
 
 	return ret;
 }
@@ -844,6 +800,19 @@ static void ivpu_hw_mtl_wdt_disable(struct ivpu_device *vdev)
 	REGV_WR32(MTL_VPU_CPU_SS_TIM_GEN_CONFIG, val);
 }
 
+static u32 ivpu_hw_mtl_pll_to_freq(u32 ratio, u32 config)
+{
+	u32 pll_clock = PLL_REF_CLK_FREQ * ratio;
+	u32 cpu_clock;
+
+	if ((config & 0xff) == PLL_RATIO_4_3)
+		cpu_clock = pll_clock * 2 / 4;
+	else
+		cpu_clock = pll_clock * 2 / 5;
+
+	return cpu_clock;
+}
+
 /* Register indirect accesses */
 static u32 ivpu_hw_mtl_reg_pll_freq_get(struct ivpu_device *vdev)
 {
@@ -855,7 +824,7 @@ static u32 ivpu_hw_mtl_reg_pll_freq_get(struct ivpu_device *vdev)
 	if (!ivpu_is_silicon(vdev))
 		return PLL_SIMULATION_FREQ;
 
-	return PLL_RATIO_TO_FREQ(pll_curr_ratio);
+	return ivpu_hw_mtl_pll_to_freq(pll_curr_ratio, vdev->hw->config);
 }
 
 static u32 ivpu_hw_mtl_reg_telemetry_offset_get(struct ivpu_device *vdev)

@@ -1305,6 +1305,7 @@ static int cio2_subdev_link_validate_get_format(struct media_pad *pad,
 		struct v4l2_subdev *sd =
 			media_entity_to_v4l2_subdev(pad->entity);
 
+		memset(fmt, 0, sizeof(*fmt));
 		fmt->which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		fmt->pad = pad->index;
 		return v4l2_subdev_call(sd, pad, get_fmt, NULL, fmt);

@@ -27,6 +27,9 @@ properties:
   vcc-supply:
     description: phandle to the regulator that provides power to the PHY.
 
+  power-domains:
+    maxItems: 1
+
   reset-gpios:
     maxItems: 1
 

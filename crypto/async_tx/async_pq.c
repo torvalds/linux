@@ -11,8 +11,8 @@
 #include <linux/async_tx.h>
 #include <linux/gfp.h>
 
-/**
- * pq_scribble_page - space to hold throwaway P or Q buffer for
+/*
+ * struct pq_scribble_page - space to hold throwaway P or Q buffer for
  * synchronous gen_syndrome
  */
 static struct page *pq_scribble_page;
@@ -28,7 +28,7 @@ static struct page *pq_scribble_page;
 
 #define MAX_DISKS 255
 
-/**
+/*
  * do_async_gen_syndrome - asynchronously calculate P and/or Q
  */
 static __async_inline struct dma_async_tx_descriptor *
@@ -100,7 +100,7 @@ do_async_gen_syndrome(struct dma_chan *chan,
 	return tx;
 }
 
-/**
+/*
  * do_sync_gen_syndrome - synchronously calculate a raid6 syndrome
  */
 static void
@@ -281,7 +281,7 @@ pq_val_chan(struct async_submit_ctl *submit, struct page **blocks, int disks, si
 /**
  * async_syndrome_val - asynchronously validate a raid6 syndrome
  * @blocks: source blocks from idx 0..disks-3, P @ disks-2 and Q @ disks-1
- * @offset: common offset into each block (src and dest) to start transaction
+ * @offsets: common offset into each block (src and dest) to start transaction
  * @disks: number of blocks (including missing P or Q, see below)
  * @len: length of operation in bytes
  * @pqres: on val failure SUM_CHECK_P_RESULT and/or SUM_CHECK_Q_RESULT are set

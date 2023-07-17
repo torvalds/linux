@@ -210,11 +210,10 @@ static int psc_i2s_of_probe(struct platform_device *op)
 
 }
 
-static int psc_i2s_of_remove(struct platform_device *op)
+static void psc_i2s_of_remove(struct platform_device *op)
 {
 	mpc5200_audio_dma_destroy(op);
 	snd_soc_unregister_component(&op->dev);
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -227,7 +226,7 @@ MODULE_DEVICE_TABLE(of, psc_i2s_match);
 
 static struct platform_driver psc_i2s_driver = {
 	.probe = psc_i2s_of_probe,
-	.remove = psc_i2s_of_remove,
+	.remove_new = psc_i2s_of_remove,
 	.driver = {
 		.name = "mpc5200-psc-i2s",
 		.of_match_table = psc_i2s_match,

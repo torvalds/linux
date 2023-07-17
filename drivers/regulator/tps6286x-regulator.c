@@ -147,6 +147,7 @@ MODULE_DEVICE_TABLE(i2c, tps6286x_i2c_id);
 static struct i2c_driver tps6286x_regulator_driver = {
 	.driver = {
 		.name = "tps6286x",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps6286x_dt_ids),
 	},
 	.probe_new = tps6286x_i2c_probe,

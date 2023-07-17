@@ -385,7 +385,7 @@ static void s3c6410_rtc_disable(struct s3c_rtc *info)
 	writew(con, info->base + S3C2410_RTCCON);
 }
 
-static int s3c_rtc_remove(struct platform_device *pdev)
+static void s3c_rtc_remove(struct platform_device *pdev)
 {
 	struct s3c_rtc *info = platform_get_drvdata(pdev);
 
@@ -394,8 +394,6 @@ static int s3c_rtc_remove(struct platform_device *pdev)
 	if (info->data->needs_src_clk)
 		clk_unprepare(info->rtc_src_clk);
 	clk_unprepare(info->rtc_clk);
-
-	return 0;
 }
 
 static int s3c_rtc_probe(struct platform_device *pdev)
@@ -600,7 +598,7 @@ MODULE_DEVICE_TABLE(of, s3c_rtc_dt_match);
 
 static struct platform_driver s3c_rtc_driver = {
 	.probe		= s3c_rtc_probe,
-	.remove		= s3c_rtc_remove,
+	.remove_new	= s3c_rtc_remove,
 	.driver		= {
 		.name	= "s3c-rtc",
 		.pm	= &s3c_rtc_pm_ops,

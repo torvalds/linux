@@ -877,17 +877,16 @@ static int hal2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int hal2_remove(struct platform_device *pdev)
+static void hal2_remove(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
 
 	snd_card_free(card);
-	return 0;
 }
 
 static struct platform_driver hal2_driver = {
 	.probe	= hal2_probe,
-	.remove	= hal2_remove,
+	.remove_new = hal2_remove,
 	.driver = {
 		.name	= "sgihal2",
 	}

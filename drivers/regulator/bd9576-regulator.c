@@ -1126,6 +1126,7 @@ MODULE_DEVICE_TABLE(platform, bd957x_pmic_id);
 static struct platform_driver bd957x_regulator = {
 	.driver = {
 		.name = "bd957x-pmic",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = bd957x_probe,
 	.id_table = bd957x_pmic_id,

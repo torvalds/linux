@@ -100,7 +100,7 @@ snic_change_queue_depth(struct scsi_device *sdev, int qdepth)
 	return sdev->queue_depth;
 }
 
-static struct scsi_host_template snic_host_template = {
+static const struct scsi_host_template snic_host_template = {
 	.module = THIS_MODULE,
 	.name = SNIC_DRV_NAME,
 	.queuecommand = snic_queuecommand,

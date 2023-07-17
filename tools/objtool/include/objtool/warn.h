@@ -53,6 +53,11 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	free(_str);					\
 })
 
+#define WARN_INSN(insn, format, ...)					\
+({									\
+	WARN_FUNC(format, insn->sec, insn->offset,  ##__VA_ARGS__);	\
+})
+
 #define BT_FUNC(format, insn, ...)			\
 ({							\
 	struct instruction *_insn = (insn);		\

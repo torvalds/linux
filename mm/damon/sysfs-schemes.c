@@ -384,7 +384,7 @@ static struct attribute *damon_sysfs_scheme_filter_attrs[] = {
 };
 ATTRIBUTE_GROUPS(damon_sysfs_scheme_filter);
 
-static struct kobj_type damon_sysfs_scheme_filter_ktype = {
+static const struct kobj_type damon_sysfs_scheme_filter_ktype = {
 	.release = damon_sysfs_scheme_filter_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = damon_sysfs_scheme_filter_groups,
@@ -503,7 +503,7 @@ static struct attribute *damon_sysfs_scheme_filters_attrs[] = {
 };
 ATTRIBUTE_GROUPS(damon_sysfs_scheme_filters);
 
-static struct kobj_type damon_sysfs_scheme_filters_ktype = {
+static const struct kobj_type damon_sysfs_scheme_filters_ktype = {
 	.release = damon_sysfs_scheme_filters_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.default_groups = damon_sysfs_scheme_filters_groups,

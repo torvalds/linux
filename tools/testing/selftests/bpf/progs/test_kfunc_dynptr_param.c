@@ -48,7 +48,7 @@ SEC("?lsm.s/bpf")
 __failure __msg("arg#0 expected pointer to stack or dynptr_ptr")
 int BPF_PROG(not_ptr_to_stack, int cmd, union bpf_attr *attr, unsigned int size)
 {
-	unsigned long val;
+	unsigned long val = 0;
 
 	return bpf_verify_pkcs7_signature((struct bpf_dynptr *)val,
 					  (struct bpf_dynptr *)val, NULL);

@@ -66,7 +66,6 @@ static inline int is_allowed_peer_cg(struct __sk_buff *skb,
 SEC("cgroup_skb/ingress")
 int ingress_lookup(struct __sk_buff *skb)
 {
-	__u32 serv_port_key = 0;
 	struct ipv6hdr ip6h;
 	struct tcphdr tcph;
 

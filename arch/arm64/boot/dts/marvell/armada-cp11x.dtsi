@@ -25,7 +25,7 @@
 	 * The cooling maps are empty as there are no cooling devices.
 	 */
 	thermal-zones {
-		CP11X_LABEL(thermal_ic): CP11X_NODE_NAME(thermal-ic) {
+		CP11X_LABEL(thermal_ic): CP11X_NODE_NAME(ic-thermal) {
 			polling-delay-passive = <0>; /* Interrupt driven */
 			polling-delay = <0>; /* Interrupt driven */
 

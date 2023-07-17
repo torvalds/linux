@@ -60,6 +60,7 @@
  */
 bool ring_buffer_expanded;
 
+#ifdef CONFIG_FTRACE_STARTUP_TEST
 /*
  * We need to change this state when a selftest is running.
  * A selftest will lurk into the ring-buffer to count the
@@ -75,7 +76,6 @@ static bool __read_mostly tracing_selftest_running;
  */
 bool __read_mostly tracing_selftest_disabled;
 
-#ifdef CONFIG_FTRACE_STARTUP_TEST
 void __init disable_tracing_selftest(const char *reason)
 {
 	if (!tracing_selftest_disabled) {
@@ -83,6 +83,9 @@ void __init disable_tracing_selftest(const char *reason)
 		pr_info("Ftrace startup test is disabled due to %s\n", reason);
 	}
 }
+#else
+#define tracing_selftest_running	0
+#define tracing_selftest_disabled	0
 #endif
 
 /* Pipe tracepoints to printk */
@@ -1051,7 +1054,10 @@ int __trace_array_puts(struct trace_array *tr, unsigned long ip,
 	if (!(tr->trace_flags & TRACE_ITER_PRINTK))
 		return 0;
 
-	if (unlikely(tracing_selftest_running || tracing_disabled))
+	if (unlikely(tracing_selftest_running && tr == &global_trace))
+		return 0;
+
+	if (unlikely(tracing_disabled))
 		return 0;
 
 	alloc = sizeof(*entry) + size + 2; /* possible \n added */
@@ -1149,22 +1155,22 @@ static void tracing_snapshot_instance_cond(struct trace_array *tr,
 	unsigned long flags;
 
 	if (in_nmi()) {
-		internal_trace_puts("*** SNAPSHOT CALLED FROM NMI CONTEXT ***\n");
-		internal_trace_puts("*** snapshot is being ignored        ***\n");
+		trace_array_puts(tr, "*** SNAPSHOT CALLED FROM NMI CONTEXT ***\n");
+		trace_array_puts(tr, "*** snapshot is being ignored        ***\n");
 		return;
 	}
 
 	if (!tr->allocated_snapshot) {
-		internal_trace_puts("*** SNAPSHOT NOT ALLOCATED ***\n");
-		internal_trace_puts("*** stopping trace here!   ***\n");
-		tracing_off();
+		trace_array_puts(tr, "*** SNAPSHOT NOT ALLOCATED ***\n");
+		trace_array_puts(tr, "*** stopping trace here!   ***\n");
+		tracer_tracing_off(tr);
 		return;
 	}
 
 	/* Note, snapshot can not be used when the tracer uses it */
 	if (tracer->use_max_tr) {
-		internal_trace_puts("*** LATENCY TRACER ACTIVE ***\n");
-		internal_trace_puts("*** Can not use snapshot (sorry) ***\n");
+		trace_array_puts(tr, "*** LATENCY TRACER ACTIVE ***\n");
+		trace_array_puts(tr, "*** Can not use snapshot (sorry) ***\n");
 		return;
 	}
 
@@ -2041,6 +2047,24 @@ static int run_tracer_selftest(struct tracer *type)
 	return 0;
 }
 
+static int do_run_tracer_selftest(struct tracer *type)
+{
+	int ret;
+
+	/*
+	 * Tests can take a long time, especially if they are run one after the
+	 * other, as does happen during bootup when all the tracers are
+	 * registered. This could cause the soft lockup watchdog to trigger.
+	 */
+	cond_resched();
+
+	tracing_selftest_running = true;
+	ret = run_tracer_selftest(type);
+	tracing_selftest_running = false;
+
+	return ret;
+}
+
 static __init int init_trace_selftests(void)
 {
 	struct trace_selftests *p, *n;
@@ -2092,6 +2116,10 @@ static inline int run_tracer_selftest(struct tracer *type)
 {
 	return 0;
 }
+static inline int do_run_tracer_selftest(struct tracer *type)
+{
+	return 0;
+}
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 static void add_tracer_options(struct trace_array *tr, struct tracer *t);
@@ -2127,8 +2155,6 @@ int __init register_tracer(struct tracer *type)
 
 	mutex_lock(&trace_types_lock);
 
-	tracing_selftest_running = true;
-
 	for (t = trace_types; t; t = t->next) {
 		if (strcmp(type->name, t->name) == 0) {
 			/* already found */
@@ -2157,7 +2183,7 @@ int __init register_tracer(struct tracer *type)
 	/* store the tracer for __set_tracer_option */
 	type->flags->trace = type;
 
-	ret = run_tracer_selftest(type);
+	ret = do_run_tracer_selftest(type);
 	if (ret < 0)
 		goto out;
 
@@ -2166,7 +2192,6 @@ int __init register_tracer(struct tracer *type)
 	add_tracer_options(&global_trace, type);
 
  out:
-	tracing_selftest_running = false;
 	mutex_unlock(&trace_types_lock);
 
 	if (ret || !default_bootup_tracer)
@@ -3490,7 +3515,7 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 	unsigned int trace_ctx;
 	char *tbuffer;
 
-	if (tracing_disabled || tracing_selftest_running)
+	if (tracing_disabled)
 		return 0;
 
 	/* Don't pollute graph traces with trace_vprintk internals */
@@ -3538,6 +3563,9 @@ __printf(3, 0)
 int trace_array_vprintk(struct trace_array *tr,
 			unsigned long ip, const char *fmt, va_list args)
 {
+	if (tracing_selftest_running && tr == &global_trace)
+		return 0;
+
 	return __trace_array_vprintk(tr->array_buffer.buffer, ip, fmt, args);
 }
 
@@ -3726,7 +3754,7 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu,
 #define STATIC_FMT_BUF_SIZE	128
 static char static_fmt_buf[STATIC_FMT_BUF_SIZE];
 
-static char *trace_iter_expand_format(struct trace_iterator *iter)
+char *trace_iter_expand_format(struct trace_iterator *iter)
 {
 	char *tmp;
 
@@ -4446,8 +4474,11 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	if (trace_seq_has_overflowed(s))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	if (event)
+	if (event) {
+		if (tr->trace_flags & TRACE_ITER_FIELDS)
+			return print_event_fields(iter, event);
 		return event->funcs->trace(iter, sym_flags, event);
+	}
 
 	trace_seq_printf(s, "Unknown type %d\n", entry->type);
 
@@ -5167,6 +5198,8 @@ loff_t tracing_lseek(struct file *file, loff_t offset, int whence)
 static const struct file_operations tracing_fops = {
 	.open		= tracing_open,
 	.read		= seq_read,
+	.read_iter	= seq_read_iter,
+	.splice_read	= generic_file_splice_read,
 	.write		= tracing_write_stub,
 	.llseek		= tracing_lseek,
 	.release	= tracing_release,
@@ -5747,7 +5780,7 @@ static const char readme_msg[] =
 	"\t    table using the key(s) and value(s) named, and the value of a\n"
 	"\t    sum called 'hitcount' is incremented.  Keys and values\n"
 	"\t    correspond to fields in the event's format description.  Keys\n"
-	"\t    can be any field, or the special string 'stacktrace'.\n"
+	"\t    can be any field, or the special string 'common_stacktrace'.\n"
 	"\t    Compound keys consisting of up to two fields can be specified\n"
 	"\t    by the 'keys' keyword.  Values must correspond to numeric\n"
 	"\t    fields.  Sort keys consisting of up to two fields can be\n"
@@ -9514,6 +9547,7 @@ static int __remove_instance(struct trace_array *tr)
 	tracefs_remove(tr->dir);
 	free_percpu(tr->last_func_repeats);
 	free_trace_buffers(tr);
+	clear_tracing_err_log(tr);
 
 	for (i = 0; i < tr->nr_topts; i++) {
 		kfree(tr->topts[i].topts);
@@ -9655,7 +9689,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 
 	tr->buffer_percent = 50;
 
-	trace_create_file("buffer_percent", TRACE_MODE_READ, d_tracer,
+	trace_create_file("buffer_percent", TRACE_MODE_WRITE, d_tracer,
 			tr, &buffer_percent_fops);
 
 	create_trace_options_dir(tr);
@@ -10391,19 +10425,20 @@ out:
 
 void __init ftrace_boot_snapshot(void)
 {
+#ifdef CONFIG_TRACER_MAX_TRACE
 	struct trace_array *tr;
 
-	if (snapshot_at_boot) {
-		tracing_snapshot();
-		internal_trace_puts("** Boot snapshot taken **\n");
-	}
+	if (!snapshot_at_boot)
+		return;
 
 	list_for_each_entry(tr, &ftrace_trace_arrays, list) {
-		if (tr == &global_trace)
+		if (!tr->allocated_snapshot)
 			continue;
-		trace_array_puts(tr, "** Boot snapshot taken **\n");
+
 		tracing_snapshot_instance(tr);
+		trace_array_puts(tr, "** Boot snapshot taken **\n");
 	}
+#endif
 }
 
 void __init early_trace_init(void)

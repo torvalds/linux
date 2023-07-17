@@ -555,6 +555,9 @@ static int tap_open(struct inode *inode, struct file *file)
 		goto err_put;
 	}
 
+	/* tap groks IOCB_NOWAIT just fine, mark it as such */
+	file->f_mode |= FMODE_NOWAIT;
+
 	dev_put(tap->dev);
 
 	rtnl_unlock();
@@ -739,7 +742,7 @@ static ssize_t tap_get_user(struct tap_queue *q, void *msg_control,
 
 	/* Move network header to the right position for VLAN tagged packets */
 	if (eth_type_vlan(skb->protocol) &&
-	    __vlan_get_protocol(skb, skb->protocol, &depth) != 0)
+	    vlan_get_protocol_and_depth(skb, skb->protocol, &depth) != 0)
 		skb_set_network_header(skb, depth);
 
 	/* copy skb_ubuf_info for callback when skb has no error */
@@ -771,8 +774,12 @@ static ssize_t tap_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct tap_queue *q = file->private_data;
+	int noblock = 0;
 
-	return tap_get_user(q, NULL, from, file->f_flags & O_NONBLOCK);
+	if ((file->f_flags & O_NONBLOCK) || (iocb->ki_flags & IOCB_NOWAIT))
+		noblock = 1;
+
+	return tap_get_user(q, NULL, from, noblock);
 }
 
 /* Put packet to the user space buffer */
@@ -888,8 +895,12 @@ static ssize_t tap_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct file *file = iocb->ki_filp;
 	struct tap_queue *q = file->private_data;
 	ssize_t len = iov_iter_count(to), ret;
+	int noblock = 0;
 
-	ret = tap_do_read(q, to, file->f_flags & O_NONBLOCK, NULL);
+	if ((file->f_flags & O_NONBLOCK) || (iocb->ki_flags & IOCB_NOWAIT))
+		noblock = 1;
+
+	ret = tap_do_read(q, to, noblock, NULL);
 	ret = min_t(ssize_t, ret, len);
 	if (ret > 0)
 		iocb->ki_pos = ret;
@@ -1186,7 +1197,7 @@ static int tap_get_user_xdp(struct tap_queue *q, struct xdp_buff *xdp)
 
 	/* Move network header to the right position for VLAN tagged packets */
 	if (eth_type_vlan(skb->protocol) &&
-	    __vlan_get_protocol(skb, skb->protocol, &depth) != 0)
+	    vlan_get_protocol_and_depth(skb, skb->protocol, &depth) != 0)
 		skb_set_network_header(skb, depth);
 
 	rcu_read_lock();

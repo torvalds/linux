@@ -523,7 +523,7 @@ static const struct regmap_config lm95245_regmap_config = {
 	.use_single_write = true,
 };
 
-static const struct hwmon_channel_info *lm95245_info[] = {
+static const struct hwmon_channel_info * const lm95245_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,

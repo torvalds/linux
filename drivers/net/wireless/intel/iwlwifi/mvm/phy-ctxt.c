@@ -382,12 +382,12 @@ static void iwl_mvm_binding_iterator(void *_data, u8 *mac,
 	unsigned long *data = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (!mvmvif->phy_ctxt)
+	if (!mvmvif->deflink.phy_ctxt)
 		return;
 
 	if (vif->type == NL80211_IFTYPE_STATION ||
 	    vif->type == NL80211_IFTYPE_AP)
-		__set_bit(mvmvif->phy_ctxt->id, data);
+		__set_bit(mvmvif->deflink.phy_ctxt->id, data);
 }
 
 int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm)

@@ -334,6 +334,14 @@ struct ena_adapter {
 
 	u32 msg_enable;
 
+	/* large_llq_header_enabled is used for two purposes:
+	 * 1. Indicates that large LLQ has been requested.
+	 * 2. Indicates whether large LLQ is set or not after device
+	 *    initialization / configuration.
+	 */
+	bool large_llq_header_enabled;
+	bool large_llq_header_supported;
+
 	u16 max_tx_sgl_size;
 	u16 max_rx_sgl_size;
 
@@ -388,9 +396,10 @@ void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
 
 int ena_update_hw_stats(struct ena_adapter *adapter);
 
-int ena_update_queue_sizes(struct ena_adapter *adapter,
-			   u32 new_tx_size,
-			   u32 new_rx_size);
+int ena_update_queue_params(struct ena_adapter *adapter,
+			    u32 new_tx_size,
+			    u32 new_rx_size,
+			    u32 new_llq_header_len);
 
 int ena_update_queue_count(struct ena_adapter *adapter, u32 new_channel_count);
 

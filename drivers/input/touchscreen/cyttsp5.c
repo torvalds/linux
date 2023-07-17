@@ -127,6 +127,7 @@ struct cyttsp5_sensing_conf_data_dev {
 	__le16 max_z;
 	u8 origin_x;
 	u8 origin_y;
+	u8 panel_id;
 	u8 btn;
 	u8 scan_mode;
 	u8 max_num_of_tch_per_refresh_cycle;
@@ -609,7 +610,7 @@ static int cyttsp5_power_control(struct cyttsp5 *ts, bool on)
 static int cyttsp5_hid_output_bl_launch_app(struct cyttsp5 *ts)
 {
 	int rc;
-	u8 cmd[HID_OUTPUT_BL_LAUNCH_APP];
+	u8 cmd[HID_OUTPUT_BL_LAUNCH_APP_SIZE];
 	u16 crc;
 
 	put_unaligned_le16(HID_OUTPUT_BL_LAUNCH_APP_SIZE, cmd);

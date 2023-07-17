@@ -845,8 +845,8 @@ static int viacam_do_try_fmt(struct via_camera *cam,
 	int ret;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_state pad_state = {
-		.pads = &pad_cfg
-		};
+		.pads = &pad_cfg,
+	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -1208,7 +1208,9 @@ static int viacam_probe(struct platform_device *pdev)
 	 * Convince the system that we can do DMA.
 	 */
 	pdev->dev.dma_mask = &viadev->pdev->dma_mask;
-	dma_set_mask(&pdev->dev, 0xffffffff);
+	ret = dma_set_mask(&pdev->dev, 0xffffffff);
+	if (ret)
+		goto out_ctrl_hdl_free;
 	/*
 	 * Fire up the capture port.  The write to 0x78 looks purely
 	 * OLPCish; any system will need to tweak 0x1e.
@@ -1294,7 +1296,7 @@ out_free:
 	return ret;
 }
 
-static int viacam_remove(struct platform_device *pdev)
+static void viacam_remove(struct platform_device *pdev)
 {
 	struct via_camera *cam = via_cam_info;
 	struct viafb_dev *viadev = pdev->dev.platform_data;
@@ -1309,7 +1311,6 @@ static int viacam_remove(struct platform_device *pdev)
 	v4l2_ctrl_handler_free(&cam->ctrl_handler);
 	kfree(cam);
 	via_cam_info = NULL;
-	return 0;
 }
 
 static struct platform_driver viacam_driver = {
@@ -1317,7 +1318,7 @@ static struct platform_driver viacam_driver = {
 		.name = "viafb-camera",
 	},
 	.probe = viacam_probe,
-	.remove = viacam_remove,
+	.remove_new = viacam_remove,
 };
 
 module_platform_driver(viacam_driver);

@@ -30,9 +30,9 @@
  */
 #define SOF_WIDGET_MAX_NUM_PINS	8
 
-/* The type of a widget pin is either sink or source */
-#define SOF_PIN_TYPE_SINK	0
-#define SOF_PIN_TYPE_SOURCE	1
+/* Widget pin type */
+#define SOF_PIN_TYPE_INPUT	0
+#define SOF_PIN_TYPE_OUTPUT	1
 
 /* max number of FE PCMs before BEs */
 #define SOF_BE_PCM_BASE		16
@@ -104,6 +104,15 @@ struct snd_sof_dai_config_data {
  * @pcm_free: Function pointer for PCM free that can be used for freeing any
  *	       additional memory in the SOF PCM stream structure
  * @delay: Function pointer for pcm delay calculation
+ * @reset_hw_params_during_stop: Flag indicating whether the hw_params should be reset during the
+ *				 STOP pcm trigger
+ * @ipc_first_on_start: Send IPC before invoking platform trigger during
+ *				START/PAUSE_RELEASE triggers
+ * @platform_stop_during_hw_free: Invoke the platform trigger during hw_free. This is needed for
+ *				  IPC4 where a pipeline is only paused during stop/pause/suspend
+ *				  triggers. The FW keeps the host DMA running in this case and
+ *				  therefore the host must do the same and should stop the DMA during
+ *				  hw_free.
  */
 struct sof_ipc_pcm_ops {
 	int (*hw_params)(struct snd_soc_component *component, struct snd_pcm_substream *substream,
@@ -117,6 +126,9 @@ struct sof_ipc_pcm_ops {
 	void (*pcm_free)(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm);
 	snd_pcm_sframes_t (*delay)(struct snd_soc_component *component,
 				   struct snd_pcm_substream *substream);
+	bool reset_hw_params_during_stop;
+	bool ipc_first_on_start;
+	bool platform_stop_during_hw_free;
 };
 
 /**
@@ -256,8 +268,7 @@ enum sof_tokens {
 	SOF_COMP_EXT_TOKENS,
 	SOF_IN_AUDIO_FORMAT_TOKENS,
 	SOF_OUT_AUDIO_FORMAT_TOKENS,
-	SOF_AUDIO_FORMAT_BUFFER_SIZE_TOKENS,
-	SOF_COPIER_GATEWAY_CFG_TOKENS,
+	SOF_COPIER_DEEP_BUFFER_TOKENS,
 	SOF_COPIER_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
 	SOF_COPIER_FORMAT_TOKENS,
@@ -433,31 +444,31 @@ struct snd_sof_widget {
 	struct snd_sof_tuple *tuples;
 
 	/*
-	 * The allowed range for num_sink/source_pins is [0, SOF_WIDGET_MAX_NUM_PINS].
-	 * Widgets may have zero sink or source pins, for example the tone widget has
-	 * zero sink pins.
+	 * The allowed range for num_input/output_pins is [0, SOF_WIDGET_MAX_NUM_PINS].
+	 * Widgets may have zero input or output pins, for example the tone widget has
+	 * zero input pins.
 	 */
-	u32 num_sink_pins;
-	u32 num_source_pins;
+	u32 num_input_pins;
+	u32 num_output_pins;
 
 	/*
-	 * The sink/source pin binding array, it takes the form of
+	 * The input/output pin binding array, it takes the form of
 	 * [widget_name_connected_to_pin0, widget_name_connected_to_pin1, ...],
 	 * with the index as the queue ID.
 	 *
 	 * The array is used for special pin binding. Note that even if there
-	 * is only one sink/source pin requires special pin binding, pin binding
-	 * should be defined for all sink/source pins in topology, for pin(s) that
+	 * is only one input/output pin requires special pin binding, pin binding
+	 * should be defined for all input/output pins in topology, for pin(s) that
 	 * are not used, give the value "NotConnected".
 	 *
 	 * If pin binding is not defined in topology, nothing to parse in the kernel,
-	 * sink_pin_binding and src_pin_binding shall be NULL.
+	 * input_pin_binding and output_pin_binding shall be NULL.
 	 */
-	char **sink_pin_binding;
-	char **src_pin_binding;
+	char **input_pin_binding;
+	char **output_pin_binding;
 
-	struct ida src_queue_ida;
-	struct ida sink_queue_ida;
+	struct ida output_queue_ida;
+	struct ida input_queue_ida;
 
 	void *private;		/* core does not touch this */
 };
@@ -502,6 +513,8 @@ struct snd_sof_dai {
 	int number_configs;
 	int current_config;
 	struct list_head list;	/* list in sdev dai list */
+	/* core should not touch this */
+	const void *platform_private;
 	void *private;
 };
 

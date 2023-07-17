@@ -19,9 +19,6 @@ description: |
 
   If the panel is more advanced a dedicated binding file is required.
 
-allOf:
-  - $ref: panel-common.yaml#
-
 properties:
 
   compatible:
@@ -67,12 +64,31 @@ properties:
   reset-gpios: true
   port: true
   power-supply: true
+  vddio-supply: true
+
+allOf:
+  - $ref: panel-common.yaml#
+  - if:
+      properties:
+        compatible:
+          enum:
+            - samsung,s6e3fc2x01
+            - samsung,sofef00
+    then:
+      properties:
+        power-supply: false
+      required:
+        - vddio-supply
+    else:
+      properties:
+        vddio-supply: false
+      required:
+        - power-supply
 
 additionalProperties: false
 
 required:
   - compatible
-  - power-supply
   - reg
 
 examples:

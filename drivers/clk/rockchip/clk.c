@@ -244,10 +244,8 @@ static struct clk *rockchip_clk_register_frac_branch(
 	div->reg = base + muxdiv_offset;
 	div->mshift = 16;
 	div->mwidth = 16;
-	div->mmask = GENMASK(div->mwidth - 1, 0) << div->mshift;
 	div->nshift = 0;
 	div->nwidth = 16;
-	div->nmask = GENMASK(div->nwidth - 1, 0) << div->nshift;
 	div->lock = lock;
 	div->approximation = rockchip_fractional_approximation;
 	div_ops = &clk_fractional_divider_ops;

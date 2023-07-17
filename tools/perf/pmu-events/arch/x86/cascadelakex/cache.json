@@ -234,20 +234,22 @@
         "UMask": "0x4f"
     },
     {
-        "BriefDescription": "All retired load instructions.",
+        "BriefDescription": "Retired load instructions.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ALL_LOADS",
         "PEBS": "1",
+        "PublicDescription": "Counts all retired load instructions. This event accounts for SW prefetch instructions of PREFETCHNTA or PREFETCHT0/1/2 or PREFETCHW.",
         "SampleAfterValue": "2000003",
         "UMask": "0x81"
     },
     {
-        "BriefDescription": "All retired store instructions.",
+        "BriefDescription": "Retired store instructions.",
         "Data_LA": "1",
         "EventCode": "0xD0",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
         "PEBS": "1",
+        "PublicDescription": "Counts all retired store instructions.",
         "SampleAfterValue": "2000003",
         "UMask": "0x82"
     },
@@ -388,12 +390,12 @@
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches. Precise event.",
+        "BriefDescription": "Retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches.",
         "Data_LA": "1",
         "EventCode": "0xD3",
         "EventName": "MEM_LOAD_L3_MISS_RETIRED.REMOTE_PMM",
         "PEBS": "1",
-        "PublicDescription": "Counts retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode). Precise event",
+        "PublicDescription": "Counts retired load instructions with remote Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode).",
         "SampleAfterValue": "100007",
         "UMask": "0x10"
     },
@@ -477,12 +479,12 @@
         "UMask": "0x20"
     },
     {
-        "BriefDescription": "Retired load instructions with local Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches. Precise event.",
+        "BriefDescription": "Retired load instructions with local Intel(R) Optane(TM) DC persistent memory as the data source where the data request missed all caches.",
         "Data_LA": "1",
         "EventCode": "0xD1",
         "EventName": "MEM_LOAD_RETIRED.LOCAL_PMM",
         "PEBS": "1",
-        "PublicDescription": "Counts retired load instructions with local Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode). Precise event",
+        "PublicDescription": "Counts retired load instructions with local Intel(R) Optane(TM) DC persistent memory as the data source and the data request missed L3 (AppDirect or Memory Mode) and DRAM cache(Memory Mode).",
         "SampleAfterValue": "100003",
         "UMask": "0x80"
     },
@@ -5039,7 +5041,7 @@
         "UMask": "0x80"
     },
     {
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and non-cacheable code read requests",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "PublicDescription": "Counts both cacheable and non-cacheable code read requests.",
@@ -5145,14 +5147,6 @@
         "PublicDescription": "Counts the number of offcore outstanding RFO (store) transactions in the super queue (SQ) every cycle. A transaction is considered to be in the Offcore outstanding state between L2 miss and transaction completion sent to requestor (SQ de-allocation). See corresponding Umask under OFFCORE_REQUESTS.",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
-    },
-    {
-        "BriefDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction",
-        "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE",
-        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
-        "SampleAfterValue": "100003",
-        "UMask": "0x1"
     },
     {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.ALL_DATA_RD.ANY_RESPONSE",

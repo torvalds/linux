@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -4433,18 +4433,6 @@ lpfc_is_LC_HBA(unsigned short device)
 		return 1;
 	else
 		return 0;
-}
-
-/*
- * Determine if failed because of a link event or firmware reset.
- */
-static inline int
-lpfc_error_lost_link(u32 ulp_status, u32 ulp_word4)
-{
-	return (ulp_status == IOSTAT_LOCAL_REJECT &&
-		(ulp_word4 == IOERR_SLI_ABORTED ||
-		 ulp_word4 == IOERR_LINK_DOWN ||
-		 ulp_word4 == IOERR_SLI_DOWN));
 }
 
 #define BPL_ALIGN_SZ 8 /* 8 byte alignment for bpl and mbufs */

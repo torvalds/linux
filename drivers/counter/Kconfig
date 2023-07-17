@@ -73,6 +73,17 @@ config MICROCHIP_TCB_CAPTURE
 	  To compile this driver as a module, choose M here: the
 	  module will be called microchip-tcb-capture.
 
+config RZ_MTU3_CNT
+	tristate "Renesas RZ/G2L MTU3a counter driver"
+	depends on RZ_MTU3 || COMPILE_TEST
+	help
+	  Enable support for MTU3a counter driver found on Renesas RZ/G2L alike
+	  SoCs. This IP supports both 16-bit and 32-bit phase counting mode
+	  support.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rz-mtu3-cnt.
+
 config STM32_LPTIMER_CNT
 	tristate "STM32 LP Timer encoder counter driver"
 	depends on MFD_STM32_LPTIMER || COMPILE_TEST

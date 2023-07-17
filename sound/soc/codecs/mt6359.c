@@ -358,7 +358,7 @@ static int mt6359_put_volsw(struct snd_kcontrol *kcontrol,
 	struct mt6359_priv *priv = snd_soc_component_get_drvdata(component);
 	struct soc_mixer_control *mc =
 			(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg;
+	unsigned int reg = 0;
 	int index = ucontrol->value.integer.value[0];
 	int ret;
 

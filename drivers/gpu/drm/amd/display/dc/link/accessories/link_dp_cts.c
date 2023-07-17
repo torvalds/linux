@@ -28,6 +28,7 @@
 #include "link/protocols/link_dp_training.h"
 #include "link/protocols/link_dp_phy.h"
 #include "link/protocols/link_dp_training_fixed_vs_pe_retimer.h"
+#include "link/protocols/link_dp_capability.h"
 #include "link/link_dpms.h"
 #include "resource.h"
 #include "dm_helpers.h"
@@ -75,7 +76,7 @@ static bool is_dp_phy_pattern(enum dp_test_pattern test_pattern)
 		return false;
 }
 
-void dp_retrain_link_dp_test(struct dc_link *link,
+static void dp_retrain_link_dp_test(struct dc_link *link,
 			struct dc_link_settings *link_setting,
 			bool skip_video_pattern)
 {
@@ -250,7 +251,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	/* prepare link training settings */
 	link_training_settings.link_settings = link->cur_link_settings;
 
-	link_training_settings.lttpr_mode = dc_link_decide_lttpr_mode(link, &link->cur_link_settings);
+	link_training_settings.lttpr_mode = dp_decide_lttpr_mode(link, &link->cur_link_settings);
 
 	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			link_training_settings.lttpr_mode == LTTPR_MODE_TRANSPARENT)
@@ -408,7 +409,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	 * all the time. Do not touch it.
 	 * forward request to DS
 	 */
-	dc_link_dp_set_test_pattern(
+	dp_set_test_pattern(
 		link,
 		test_pattern,
 		DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED,
@@ -585,7 +586,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 	}
 }
 
-void dc_link_dp_handle_automated_test(struct dc_link *link)
+void dp_handle_automated_test(struct dc_link *link)
 {
 	union test_request test_request;
 	union test_response test_response;
@@ -651,7 +652,7 @@ void dc_link_dp_handle_automated_test(struct dc_link *link)
 			sizeof(test_response));
 }
 
-bool dc_link_dp_set_test_pattern(
+bool dp_set_test_pattern(
 	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
 	enum dp_test_pattern_color_space test_pattern_color_space,
@@ -941,28 +942,9 @@ bool dc_link_dp_set_test_pattern(
 	return true;
 }
 
-void dc_link_set_drive_settings(struct dc *dc,
-				struct link_training_settings *lt_settings,
-				const struct dc_link *link)
-{
-
-	int i;
-	struct link_resource link_res;
-
-	for (i = 0; i < dc->link_count; i++)
-		if (dc->links[i] == link)
-			break;
-
-	if (i >= dc->link_count)
-		ASSERT_CRITICAL(false);
-
-	link_get_cur_link_res(link, &link_res);
-	dp_set_drive_settings(dc->links[i], &link_res, lt_settings);
-}
-
-void dc_link_set_preferred_link_settings(struct dc *dc,
-					 struct dc_link_settings *link_setting,
-					 struct dc_link *link)
+void dp_set_preferred_link_settings(struct dc *dc,
+		struct dc_link_settings *link_setting,
+		struct dc_link *link)
 {
 	int i;
 	struct pipe_ctx *pipe;
@@ -1001,11 +983,11 @@ void dc_link_set_preferred_link_settings(struct dc *dc,
 		dp_retrain_link_dp_test(link, &store_settings, false);
 }
 
-void dc_link_set_preferred_training_settings(struct dc *dc,
-						 struct dc_link_settings *link_setting,
-						 struct dc_link_training_overrides *lt_overrides,
-						 struct dc_link *link,
-						 bool skip_immediate_retrain)
+void dp_set_preferred_training_settings(struct dc *dc,
+		struct dc_link_settings *link_setting,
+		struct dc_link_training_overrides *lt_overrides,
+		struct dc_link *link,
+		bool skip_immediate_retrain)
 {
 	if (lt_overrides != NULL)
 		link->preferred_training_settings = *lt_overrides;
@@ -1025,22 +1007,5 @@ void dc_link_set_preferred_training_settings(struct dc *dc,
 
 	/* Retrain now, or wait until next stream update to apply */
 	if (skip_immediate_retrain == false)
-		dc_link_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
-}
-
-void dc_link_set_test_pattern(struct dc_link *link,
-		enum dp_test_pattern test_pattern,
-		enum dp_test_pattern_color_space test_pattern_color_space,
-		const struct link_training_settings *p_link_settings,
-		const unsigned char *p_custom_pattern,
-		unsigned int cust_pattern_size)
-{
-	if (link != NULL)
-		dc_link_dp_set_test_pattern(
-			link,
-			test_pattern,
-			test_pattern_color_space,
-			p_link_settings,
-			p_custom_pattern,
-			cust_pattern_size);
+		dp_set_preferred_link_settings(dc, &link->preferred_link_setting, link);
 }

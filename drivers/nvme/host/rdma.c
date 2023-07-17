@@ -12,7 +12,6 @@
 #include <linux/string.h>
 #include <linux/atomic.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-mq-rdma.h>
 #include <linux/blk-integrity.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -464,7 +463,6 @@ static int nvme_rdma_create_cq(struct ib_device *ibdev,
 		struct nvme_rdma_queue *queue)
 {
 	int ret, comp_vector, idx = nvme_rdma_queue_idx(queue);
-	enum ib_poll_context poll_ctx;
 
 	/*
 	 * Spread I/O queues completion vectors according their queue index.
@@ -473,15 +471,12 @@ static int nvme_rdma_create_cq(struct ib_device *ibdev,
 	comp_vector = (idx == 0 ? idx : idx - 1) % ibdev->num_comp_vectors;
 
 	/* Polling queues need direct cq polling context */
-	if (nvme_rdma_poll_queue(queue)) {
-		poll_ctx = IB_POLL_DIRECT;
+	if (nvme_rdma_poll_queue(queue))
 		queue->ib_cq = ib_alloc_cq(ibdev, queue, queue->cq_size,
-					   comp_vector, poll_ctx);
-	} else {
-		poll_ctx = IB_POLL_SOFTIRQ;
+					   comp_vector, IB_POLL_DIRECT);
+	else
 		queue->ib_cq = ib_cq_pool_get(ibdev, queue->cq_size,
-					      comp_vector, poll_ctx);
-	}
+					      comp_vector, IB_POLL_SOFTIRQ);
 
 	if (IS_ERR(queue->ib_cq)) {
 		ret = PTR_ERR(queue->ib_cq);
@@ -2163,10 +2158,8 @@ static void nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 			ctrl->io_queues[HCTX_TYPE_DEFAULT];
 		set->map[HCTX_TYPE_READ].queue_offset = 0;
 	}
-	blk_mq_rdma_map_queues(&set->map[HCTX_TYPE_DEFAULT],
-			ctrl->device->dev, 0);
-	blk_mq_rdma_map_queues(&set->map[HCTX_TYPE_READ],
-			ctrl->device->dev, 0);
+	blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
+	blk_mq_map_queues(&set->map[HCTX_TYPE_READ]);
 
 	if (opts->nr_poll_queues && ctrl->io_queues[HCTX_TYPE_POLL]) {
 		/* map dedicated poll queues only if we have queues left */

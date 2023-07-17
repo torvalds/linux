@@ -848,7 +848,7 @@ static u8 lowpan_compress_ctx_addr(u8 **hc_ptr, const struct net_device *dev,
 				   const struct lowpan_iphc_ctx *ctx,
 				   const unsigned char *lladdr, bool sam)
 {
-	struct in6_addr tmp = {};
+	struct in6_addr tmp;
 	u8 dam;
 
 	switch (lowpan_dev(dev)->lltype) {

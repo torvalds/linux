@@ -744,7 +744,7 @@ err:
 	return retval;
 }
 
-static int metronomefb_remove(struct platform_device *dev)
+static void metronomefb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -761,12 +761,11 @@ static int metronomefb_remove(struct platform_device *dev)
 		dev_dbg(&dev->dev, "calling release\n");
 		framebuffer_release(info);
 	}
-	return 0;
 }
 
 static struct platform_driver metronomefb_driver = {
 	.probe	= metronomefb_probe,
-	.remove = metronomefb_remove,
+	.remove_new = metronomefb_remove,
 	.driver	= {
 		.name	= "metronomefb",
 	},

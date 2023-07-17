@@ -47,14 +47,15 @@ enum dc_lane_count {
  */
 enum dc_link_rate {
 	LINK_RATE_UNKNOWN = 0,
-	LINK_RATE_LOW = 0x06,		// Rate_1 (RBR)	- 1.62 Gbps/Lane
-	LINK_RATE_RATE_2 = 0x08,	// Rate_2		- 2.16 Gbps/Lane
-	LINK_RATE_RATE_3 = 0x09,	// Rate_3		- 2.43 Gbps/Lane
-	LINK_RATE_HIGH = 0x0A,		// Rate_4 (HBR)	- 2.70 Gbps/Lane
-	LINK_RATE_RBR2 = 0x0C,		// Rate_5 (RBR2)- 3.24 Gbps/Lane
-	LINK_RATE_RATE_6 = 0x10,	// Rate_6		- 4.32 Gbps/Lane
-	LINK_RATE_HIGH2 = 0x14,		// Rate_7 (HBR2)- 5.40 Gbps/Lane
-	LINK_RATE_HIGH3 = 0x1E,		// Rate_8 (HBR3)- 8.10 Gbps/Lane
+	LINK_RATE_LOW = 0x06,		// Rate_1 (RBR)  - 1.62 Gbps/Lane
+	LINK_RATE_RATE_2 = 0x08,	// Rate_2        - 2.16 Gbps/Lane
+	LINK_RATE_RATE_3 = 0x09,	// Rate_3        - 2.43 Gbps/Lane
+	LINK_RATE_HIGH = 0x0A,		// Rate_4 (HBR)  - 2.70 Gbps/Lane
+	LINK_RATE_RBR2 = 0x0C,		// Rate_5 (RBR2) - 3.24 Gbps/Lane
+	LINK_RATE_RATE_6 = 0x10,	// Rate_6        - 4.32 Gbps/Lane
+	LINK_RATE_HIGH2 = 0x14,		// Rate_7 (HBR2) - 5.40 Gbps/Lane
+	LINK_RATE_RATE_8 = 0x19,	// Rate_8        - 6.75 Gbps/Lane
+	LINK_RATE_HIGH3 = 0x1E,		// Rate_9 (HBR3) - 8.10 Gbps/Lane
 	/* Starting from DP2.0 link rate enum directly represents actual
 	 * link rate value in unit of 10 mbps
 	 */
@@ -921,12 +922,6 @@ struct dpcd_usb4_dp_tunneling_info {
 #ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
 #define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
 #endif
-#ifndef DP_LINK_SQUARE_PATTERN
-#define DP_LINK_SQUARE_PATTERN				0x10F
-#endif
-#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
-#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
-#endif
 #ifndef DP_DSC_CONFIGURATION
 #define DP_DSC_CONFIGURATION				0x161
 #endif
@@ -938,12 +933,6 @@ struct dpcd_usb4_dp_tunneling_info {
 #endif
 #ifndef DP_128b_132b_TRAINING_AUX_RD_INTERVAL
 #define DP_128b_132b_TRAINING_AUX_RD_INTERVAL		0x2216
-#endif
-#ifndef DP_LINK_SQUARE_PATTERN
-#define DP_LINK_SQUARE_PATTERN				0x10F
-#endif
-#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
-#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217
 #endif
 #ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
 #define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
@@ -988,10 +977,6 @@ struct dpcd_usb4_dp_tunneling_info {
 #define DP_INTRA_HOP_AUX_REPLY_INDICATION		(1 << 3)
 /* TODO - Use DRM header to replace above once available */
 #endif // DP_INTRA_HOP_AUX_REPLY_INDICATION
-
-#ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
-#define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50
-#endif
 union dp_main_line_channel_coding_cap {
 	struct {
 		uint8_t DP_8b_10b_SUPPORTED	:1;
@@ -1261,4 +1246,161 @@ union dpcd_sink_ext_caps {
 	} bits;
 	uint8_t raw;
 };
+
+enum dc_link_fec_state {
+	dc_link_fec_not_ready,
+	dc_link_fec_ready,
+	dc_link_fec_enabled
+};
+
+union dpcd_psr_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char TRANSMITTER_ACTIVE_IN_PSR : 1;
+		unsigned char CRC_VERIFICATION          : 1;
+		unsigned char FRAME_CAPTURE_INDICATION  : 1;
+		/* For eDP 1.4, PSR v2*/
+		unsigned char LINE_CAPTURE_INDICATION   : 1;
+		/* For eDP 1.4, PSR v2*/
+		unsigned char IRQ_HPD_WITH_CRC_ERROR    : 1;
+		unsigned char ENABLE_PSR2               : 1;
+		unsigned char EARLY_TRANSPORT_ENABLE    : 1;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_alpm_configuration {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char IRQ_HPD_ENABLE            : 1;
+		unsigned char RESERVED                  : 6;
+	} bits;
+	unsigned char raw;
+};
+
+union dpcd_sink_active_vtotal_control_mode {
+	struct {
+		unsigned char ENABLE                    : 1;
+		unsigned char RESERVED                  : 7;
+	} bits;
+	unsigned char raw;
+};
+
+union psr_error_status {
+	struct {
+		unsigned char LINK_CRC_ERROR        :1;
+		unsigned char RFB_STORAGE_ERROR     :1;
+		unsigned char VSC_SDP_ERROR         :1;
+		unsigned char RESERVED              :5;
+	} bits;
+	unsigned char raw;
+};
+
+union psr_sink_psr_status {
+	struct {
+	unsigned char SINK_SELF_REFRESH_STATUS  :3;
+	unsigned char RESERVED                  :5;
+	} bits;
+	unsigned char raw;
+};
+
+struct edp_trace_power_timestamps {
+	uint64_t poweroff;
+	uint64_t poweron;
+};
+
+struct dp_trace_lt_counts {
+	unsigned int total;
+	unsigned int fail;
+};
+
+enum link_training_result {
+	LINK_TRAINING_SUCCESS,
+	LINK_TRAINING_CR_FAIL_LANE0,
+	LINK_TRAINING_CR_FAIL_LANE1,
+	LINK_TRAINING_CR_FAIL_LANE23,
+	/* CR DONE bit is cleared during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR,
+	/* CR DONE bit is cleared but LANE0_CR_DONE is set during EQ step */
+	LINK_TRAINING_EQ_FAIL_CR_PARTIAL,
+	/* other failure during EQ step */
+	LINK_TRAINING_EQ_FAIL_EQ,
+	LINK_TRAINING_LQA_FAIL,
+	/* one of the CR,EQ or symbol lock is dropped */
+	LINK_TRAINING_LINK_LOSS,
+	/* Abort link training (because sink unplugged) */
+	LINK_TRAINING_ABORT,
+	DP_128b_132b_LT_FAILED,
+	DP_128b_132b_MAX_LOOP_COUNT_REACHED,
+	DP_128b_132b_CHANNEL_EQ_DONE_TIMEOUT,
+	DP_128b_132b_CDS_DONE_TIMEOUT,
+};
+
+struct dp_trace_lt {
+	struct dp_trace_lt_counts counts;
+	struct dp_trace_timestamps {
+		unsigned long long start;
+		unsigned long long end;
+	} timestamps;
+	enum link_training_result result;
+	bool is_logged;
+};
+
+struct dp_trace {
+	struct dp_trace_lt detect_lt_trace;
+	struct dp_trace_lt commit_lt_trace;
+	unsigned int link_loss_count;
+	bool is_initialized;
+	struct edp_trace_power_timestamps edp_trace_power_timestamps;
+};
+
+/* TODO - This is a temporary location for any new DPCD definitions.
+ * We should move these to drm_dp header.
+ */
+#ifndef DP_LINK_SQUARE_PATTERN
+#define DP_LINK_SQUARE_PATTERN				0x10F
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPRX		0x2217
+#endif
+#ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
+#define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
+#endif
+#ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
+#define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50
+#endif
+#ifndef DP_TUNNELING_IRQ
+#define DP_TUNNELING_IRQ				(1 << 5)
+#endif
+/** USB4 DPCD BW Allocation Registers Chapter 10.7 **/
+#ifndef DP_TUNNELING_CAPABILITIES
+#define DP_TUNNELING_CAPABILITIES			0xE000D /* 1.4a */
+#endif
+#ifndef USB4_DRIVER_ID
+#define USB4_DRIVER_ID					0xE000F /* 1.4a */
+#endif
+#ifndef USB4_DRIVER_BW_CAPABILITY
+#define USB4_DRIVER_BW_CAPABILITY			0xE0020 /* 1.4a */
+#endif
+#ifndef DP_IN_ADAPTER_TUNNEL_INFO
+#define DP_IN_ADAPTER_TUNNEL_INFO			0xE0021 /* 1.4a */
+#endif
+#ifndef DP_BW_GRANULALITY
+#define DP_BW_GRANULALITY				0xE0022 /* 1.4a */
+#endif
+#ifndef ESTIMATED_BW
+#define ESTIMATED_BW					0xE0023 /* 1.4a */
+#endif
+#ifndef ALLOCATED_BW
+#define ALLOCATED_BW					0xE0024 /* 1.4a */
+#endif
+#ifndef DP_TUNNELING_STATUS
+#define DP_TUNNELING_STATUS				0xE0025 /* 1.4a */
+#endif
+#ifndef DPTX_BW_ALLOCATION_MODE_CONTROL
+#define DPTX_BW_ALLOCATION_MODE_CONTROL			0xE0030 /* 1.4a */
+#endif
+#ifndef REQUESTED_BW
+#define REQUESTED_BW					0xE0031 /* 1.4a */
+#endif
 #endif /* DC_DP_TYPES_H */

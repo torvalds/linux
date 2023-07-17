@@ -132,8 +132,8 @@ void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
 		return;
 
 	pipe_ctx->stream->dpms_off = false;
-	link_set_dpms_on(context, pipe_ctx);
-	link_set_dpms_off(pipe_ctx);
+	pipe_ctx->stream->ctx->dc->link_srv->set_dpms_on(context, pipe_ctx);
+	pipe_ctx->stream->ctx->dc->link_srv->set_dpms_off(pipe_ctx);
 	pipe_ctx->stream->dpms_off = true;
 }
 

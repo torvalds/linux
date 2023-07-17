@@ -26,6 +26,7 @@ static struct sof_dev_desc skl_desc = {
 	.irqindex_host_ipc	= -1,
 	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
 	.ipc_default		= SOF_INTEL_IPC4,
+	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
 		[SOF_INTEL_IPC4] = "intel/avs/skl",
 	},
@@ -38,6 +39,7 @@ static struct sof_dev_desc skl_desc = {
 	.nocodec_tplg_filename = "sof-skl-nocodec.tplg",
 	.ops = &sof_skl_ops,
 	.ops_init = sof_skl_ops_init,
+	.ops_free = hda_ops_free,
 };
 
 static struct sof_dev_desc kbl_desc = {
@@ -49,6 +51,7 @@ static struct sof_dev_desc kbl_desc = {
 	.irqindex_host_ipc	= -1,
 	.ipc_supported_mask	= BIT(SOF_INTEL_IPC4),
 	.ipc_default		= SOF_INTEL_IPC4,
+	.dspless_mode_supported	= true,		/* Only supported for HDaudio */
 	.default_fw_path = {
 		[SOF_INTEL_IPC4] = "intel/avs/kbl",
 	},
@@ -61,6 +64,7 @@ static struct sof_dev_desc kbl_desc = {
 	.nocodec_tplg_filename = "sof-kbl-nocodec.tplg",
 	.ops = &sof_skl_ops,
 	.ops_init = sof_skl_ops_init,
+	.ops_free = hda_ops_free,
 };
 
 /* PCI IDs */

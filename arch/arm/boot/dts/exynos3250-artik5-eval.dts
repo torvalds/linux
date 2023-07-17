@@ -16,6 +16,10 @@
 	model = "Samsung ARTIK5 evaluation board";
 	compatible = "samsung,artik5-eval", "samsung,artik5",
 			"samsung,exynos3250", "samsung,exynos3";
+
+	aliases {
+		mmc0 = &mshc_2;
+	};
 };
 
 &mshc_2 {

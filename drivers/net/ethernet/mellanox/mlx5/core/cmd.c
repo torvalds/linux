@@ -1802,7 +1802,7 @@ static struct mlx5_cmd_msg *alloc_msg(struct mlx5_core_dev *dev, int in_size,
 	if (in_size <= 16)
 		goto cache_miss;
 
-	for (i = 0; i < MLX5_NUM_COMMAND_CACHES; i++) {
+	for (i = 0; i < dev->profile.num_cmd_caches; i++) {
 		ch = &cmd->cache[i];
 		if (in_size > ch->max_inbox_size)
 			continue;
@@ -1920,9 +1920,10 @@ static void mlx5_cmd_err_trace(struct mlx5_core_dev *dev, u16 opcode, u16 op_mod
 static void cmd_status_log(struct mlx5_core_dev *dev, u16 opcode, u8 status,
 			   u32 syndrome, int err)
 {
+	const char *namep = mlx5_command_str(opcode);
 	struct mlx5_cmd_stats *stats;
 
-	if (!err)
+	if (!err || !(strcmp(namep, "unknown command opcode")))
 		return;
 
 	stats = &dev->cmd.stats[opcode];
@@ -2097,7 +2098,7 @@ static void destroy_msg_cache(struct mlx5_core_dev *dev)
 	struct mlx5_cmd_msg *n;
 	int i;
 
-	for (i = 0; i < MLX5_NUM_COMMAND_CACHES; i++) {
+	for (i = 0; i < dev->profile.num_cmd_caches; i++) {
 		ch = &dev->cmd.cache[i];
 		list_for_each_entry_safe(msg, n, &ch->head, list) {
 			list_del(&msg->list);
@@ -2127,7 +2128,7 @@ static void create_msg_cache(struct mlx5_core_dev *dev)
 	int k;
 
 	/* Initialize and fill the caches with initial entries */
-	for (k = 0; k < MLX5_NUM_COMMAND_CACHES; k++) {
+	for (k = 0; k < dev->profile.num_cmd_caches; k++) {
 		ch = &cmd->cache[k];
 		spin_lock_init(&ch->lock);
 		INIT_LIST_HEAD(&ch->head);

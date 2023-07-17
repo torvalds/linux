@@ -110,6 +110,41 @@ DEFINE_EVENT(mlx5_esw_bridge_port_template,
 	     TP_ARGS(port)
 	);
 
+DECLARE_EVENT_CLASS(mlx5_esw_bridge_mdb_port_change_template,
+		    TP_PROTO(const struct net_device *dev,
+			     const struct mlx5_esw_bridge_mdb_entry *mdb),
+		    TP_ARGS(dev, mdb),
+		    TP_STRUCT__entry(
+			    __array(char, dev_name, IFNAMSIZ)
+			    __array(unsigned char, addr, ETH_ALEN)
+			    __field(u16, vid)
+			    __field(int, num_ports)
+			    __field(bool, offloaded)),
+		    TP_fast_assign(
+			    strscpy(__entry->dev_name, netdev_name(dev), IFNAMSIZ);
+			    memcpy(__entry->addr, mdb->key.addr, ETH_ALEN);
+			    __entry->vid = mdb->key.vid;
+			    __entry->num_ports = mdb->num_ports;
+			    __entry->offloaded = mdb->egress_handle;),
+		    TP_printk("net_device=%s addr=%pM vid=%u num_ports=%d offloaded=%d",
+			      __entry->dev_name,
+			      __entry->addr,
+			      __entry->vid,
+			      __entry->num_ports,
+			      __entry->offloaded));
+
+DEFINE_EVENT(mlx5_esw_bridge_mdb_port_change_template,
+	     mlx5_esw_bridge_port_mdb_attach,
+	     TP_PROTO(const struct net_device *dev,
+		      const struct mlx5_esw_bridge_mdb_entry *mdb),
+	     TP_ARGS(dev, mdb));
+
+DEFINE_EVENT(mlx5_esw_bridge_mdb_port_change_template,
+	     mlx5_esw_bridge_port_mdb_detach,
+	     TP_PROTO(const struct net_device *dev,
+		      const struct mlx5_esw_bridge_mdb_entry *mdb),
+	     TP_ARGS(dev, mdb));
+
 #endif
 
 /* This part must be outside protection */

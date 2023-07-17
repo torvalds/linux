@@ -82,7 +82,15 @@ struct led_init_data {
 	bool devname_mandatory;
 };
 
+#if IS_ENABLED(CONFIG_NEW_LEDS)
 enum led_default_state led_init_default_state_get(struct fwnode_handle *fwnode);
+#else
+static inline enum led_default_state
+led_init_default_state_get(struct fwnode_handle *fwnode)
+{
+	return LEDS_DEFSTATE_OFF;
+}
+#endif
 
 struct led_hw_trigger_type {
 	int dummy;
@@ -217,9 +225,19 @@ static inline int led_classdev_register(struct device *parent,
 	return led_classdev_register_ext(parent, led_cdev, NULL);
 }
 
+#if IS_ENABLED(CONFIG_LEDS_CLASS)
 int devm_led_classdev_register_ext(struct device *parent,
 					  struct led_classdev *led_cdev,
 					  struct led_init_data *init_data);
+#else
+static inline int
+devm_led_classdev_register_ext(struct device *parent,
+			       struct led_classdev *led_cdev,
+			       struct led_init_data *init_data)
+{
+	return 0;
+}
+#endif
 
 static inline int devm_led_classdev_register(struct device *parent,
 					     struct led_classdev *led_cdev)
@@ -256,7 +274,7 @@ struct led_classdev *__must_check devm_of_led_get(struct device *dev,
  *
  * Note that if software blinking is active, simply calling
  * led_cdev->brightness_set() will not stop the blinking,
- * use led_classdev_brightness_set() instead.
+ * use led_set_brightness() instead.
  */
 void led_blink_set(struct led_classdev *led_cdev, unsigned long *delay_on,
 		   unsigned long *delay_off);

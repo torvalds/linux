@@ -5,11 +5,183 @@
  * Copyright (C) 2022 Glider bv
  */
 
+#include <dt-bindings/media/video-interfaces.h>
+
+&csi40 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi40_in: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3>;
+				remote-endpoint = <&max96712_out0>;
+			};
+		};
+	};
+};
+
+&csi41 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			csi41_in: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3>;
+				remote-endpoint = <&max96712_out1>;
+			};
+		};
+	};
+};
+
 &i2c0 {
+	pca9654_a: gpio@21 {
+		compatible = "onnn,pca9654";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	pca9654_b: gpio@22 {
+		compatible = "onnn,pca9654";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
 	eeprom@52 {
 		compatible = "rohm,br24g01", "atmel,24c01";
 		label = "csi-dsi-sub-board-id";
 		reg = <0x52>;
 		pagesize = <8>;
 	};
+};
+
+&i2c1 {
+	gmsl0: gmsl-deserializer@49 {
+		compatible = "maxim,max96712";
+		reg = <0x49>;
+		enable-gpios = <&pca9654_a 0 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@4 {
+				reg = <4>;
+				max96712_out0: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
+					clock-lanes = <0>;
+					data-lanes = <1 2 3>;
+					remote-endpoint = <&csi40_in>;
+				};
+			};
+		};
+	};
+
+	gmsl1: gmsl-deserializer@4b {
+		compatible = "maxim,max96712";
+		reg = <0x4b>;
+		enable-gpios = <&pca9654_b 0 GPIO_ACTIVE_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@4 {
+				reg = <4>;
+				max96712_out1: endpoint {
+					bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
+					clock-lanes = <0>;
+					data-lanes = <1 2 3>;
+					remote-endpoint = <&csi41_in>;
+				};
+			};
+		};
+	};
+};
+
+&isp0 {
+	status = "okay";
+};
+
+&isp1 {
+	status = "okay";
+};
+
+&vin00 {
+	status = "okay";
+};
+
+&vin01 {
+	status = "okay";
+};
+
+&vin02 {
+	status = "okay";
+};
+
+&vin03 {
+	status = "okay";
+};
+
+&vin04 {
+	status = "okay";
+};
+
+&vin05 {
+	status = "okay";
+};
+
+&vin06 {
+	status = "okay";
+};
+
+&vin07 {
+	status = "okay";
+};
+
+&vin08 {
+	status = "okay";
+};
+
+&vin09 {
+	status = "okay";
+};
+
+&vin10 {
+	status = "okay";
+};
+
+&vin11 {
+	status = "okay";
+};
+
+&vin12 {
+	status = "okay";
+};
+
+&vin13 {
+	status = "okay";
+};
+
+&vin14 {
+	status = "okay";
+};
+
+&vin15 {
+	status = "okay";
 };

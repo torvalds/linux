@@ -325,7 +325,7 @@ ATTRIBUTE_GROUPS(megaraid_sdev);
 /*
  * Scsi host template for megaraid unified driver
  */
-static struct scsi_host_template megaraid_template_g = {
+static const struct scsi_host_template megaraid_template_g = {
 	.module				= THIS_MODULE,
 	.name				= "LSI Logic MegaRAID driver",
 	.proc_name			= "megaraid",

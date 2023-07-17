@@ -62,8 +62,8 @@ patternProperties:
       - pins
 
     allOf:
-      - $ref: "pincfg-node.yaml#"
-      - $ref: "pinmux-node.yaml#"
+      - $ref: pincfg-node.yaml#
+      - $ref: pinmux-node.yaml#
       - if:
           properties:
             pins:
@@ -86,7 +86,7 @@ required:
   - gpio-controller
 
 allOf:
-  - $ref: "pinctrl.yaml#"
+  - $ref: pinctrl.yaml#
   - if:
       not:
         properties:

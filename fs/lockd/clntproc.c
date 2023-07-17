@@ -20,6 +20,8 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 
+#include "trace.h"
+
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 #define NLMCLNT_GRACE_WAIT	(5*HZ)
 #define NLMCLNT_POLL_TIMEOUT	(30*HZ)
@@ -451,6 +453,9 @@ nlmclnt_test(struct nlm_rqst *req, struct file_lock *fl)
 			status = nlm_stat_to_errno(req->a_res.status);
 	}
 out:
+	trace_nlmclnt_test(&req->a_args.lock,
+			   (const struct sockaddr *)&req->a_host->h_addr,
+			   req->a_host->h_addrlen, req->a_res.status);
 	nlmclnt_release_call(req);
 	return status;
 }
@@ -516,9 +521,10 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	const struct cred *cred = nfs_file_cred(fl->fl_file);
 	struct nlm_host	*host = req->a_host;
 	struct nlm_res	*resp = &req->a_res;
-	struct nlm_wait *block = NULL;
+	struct nlm_wait block;
 	unsigned char fl_flags = fl->fl_flags;
 	unsigned char fl_type;
+	__be32 b_status;
 	int status = -ENOLCK;
 
 	if (nsm_monitor(host) < 0)
@@ -531,31 +537,41 @@ nlmclnt_lock(struct nlm_rqst *req, struct file_lock *fl)
 	if (status < 0)
 		goto out;
 
-	block = nlmclnt_prepare_block(host, fl);
+	nlmclnt_prepare_block(&block, host, fl);
 again:
 	/*
 	 * Initialise resp->status to a valid non-zero value,
 	 * since 0 == nlm_lck_granted
 	 */
 	resp->status = nlm_lck_blocked;
-	for(;;) {
+
+	/*
+	 * A GRANTED callback can come at any time -- even before the reply
+	 * to the LOCK request arrives, so we queue the wait before
+	 * requesting the lock.
+	 */
+	nlmclnt_queue_block(&block);
+	for (;;) {
 		/* Reboot protection */
 		fl->fl_u.nfs_fl.state = host->h_state;
 		status = nlmclnt_call(cred, req, NLMPROC_LOCK);
 		if (status < 0)
 			break;
 		/* Did a reclaimer thread notify us of a server reboot? */
-		if (resp->status ==  nlm_lck_denied_grace_period)
+		if (resp->status == nlm_lck_denied_grace_period)
 			continue;
 		if (resp->status != nlm_lck_blocked)
 			break;
 		/* Wait on an NLM blocking lock */
-		status = nlmclnt_block(block, req, NLMCLNT_POLL_TIMEOUT);
+		status = nlmclnt_wait(&block, req, NLMCLNT_POLL_TIMEOUT);
 		if (status < 0)
 			break;
-		if (resp->status != nlm_lck_blocked)
+		if (block.b_status != nlm_lck_blocked)
 			break;
 	}
+	b_status = nlmclnt_dequeue_block(&block);
+	if (resp->status == nlm_lck_blocked)
+		resp->status = b_status;
 
 	/* if we were interrupted while blocking, then cancel the lock request
 	 * and exit
@@ -564,7 +580,7 @@ again:
 		if (!req->a_args.block)
 			goto out_unlock;
 		if (nlmclnt_cancel(host, req->a_args.block, fl) == 0)
-			goto out_unblock;
+			goto out;
 	}
 
 	if (resp->status == nlm_granted) {
@@ -593,16 +609,19 @@ again:
 		status = -ENOLCK;
 	else
 		status = nlm_stat_to_errno(resp->status);
-out_unblock:
-	nlmclnt_finish_block(block);
 out:
+	trace_nlmclnt_lock(&req->a_args.lock,
+			   (const struct sockaddr *)&req->a_host->h_addr,
+			   req->a_host->h_addrlen, req->a_res.status);
 	nlmclnt_release_call(req);
 	return status;
 out_unlock:
 	/* Fatal error: ensure that we remove the lock altogether */
+	trace_nlmclnt_lock(&req->a_args.lock,
+			   (const struct sockaddr *)&req->a_host->h_addr,
+			   req->a_host->h_addrlen, req->a_res.status);
 	dprintk("lockd: lock attempt ended in fatal error.\n"
 		"       Attempting to unlock.\n");
-	nlmclnt_finish_block(block);
 	fl_type = fl->fl_type;
 	fl->fl_type = F_UNLCK;
 	down_read(&host->h_rwsem);
@@ -696,6 +715,9 @@ nlmclnt_unlock(struct nlm_rqst *req, struct file_lock *fl)
 	/* What to do now? I'm out of my depth... */
 	status = -ENOLCK;
 out:
+	trace_nlmclnt_unlock(&req->a_args.lock,
+			     (const struct sockaddr *)&req->a_host->h_addr,
+			     req->a_host->h_addrlen, req->a_res.status);
 	nlmclnt_release_call(req);
 	return status;
 }

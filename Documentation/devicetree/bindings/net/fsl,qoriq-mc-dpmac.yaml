@@ -14,7 +14,7 @@ description:
   located under the 'dpmacs' node for the fsl-mc bus DTS node.
 
 allOf:
-  - $ref: "ethernet-controller.yaml#"
+  - $ref: ethernet-controller.yaml#
 
 properties:
   compatible:

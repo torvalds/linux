@@ -773,19 +773,34 @@ static void iommu_pmu_unset_interrupt(struct intel_iommu *iommu)
 	iommu->perf_irq = 0;
 }
 
-static int iommu_pmu_cpu_online(unsigned int cpu)
+static int iommu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 {
+	struct iommu_pmu *iommu_pmu = hlist_entry_safe(node, typeof(*iommu_pmu), cpuhp_node);
+
 	if (cpumask_empty(&iommu_pmu_cpu_mask))
 		cpumask_set_cpu(cpu, &iommu_pmu_cpu_mask);
+
+	if (cpumask_test_cpu(cpu, &iommu_pmu_cpu_mask))
+		iommu_pmu->cpu = cpu;
 
 	return 0;
 }
 
-static int iommu_pmu_cpu_offline(unsigned int cpu)
+static int iommu_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 {
-	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu;
-	int target;
+	struct iommu_pmu *iommu_pmu = hlist_entry_safe(node, typeof(*iommu_pmu), cpuhp_node);
+	int target = cpumask_first(&iommu_pmu_cpu_mask);
+
+	/*
+	 * The iommu_pmu_cpu_mask has been updated when offline the CPU
+	 * for the first iommu_pmu. Migrate the other iommu_pmu to the
+	 * new target.
+	 */
+	if (target < nr_cpu_ids && target != iommu_pmu->cpu) {
+		perf_pmu_migrate_context(&iommu_pmu->pmu, cpu, target);
+		iommu_pmu->cpu = target;
+		return 0;
+	}
 
 	if (!cpumask_test_and_clear_cpu(cpu, &iommu_pmu_cpu_mask))
 		return 0;
@@ -795,45 +810,50 @@ static int iommu_pmu_cpu_offline(unsigned int cpu)
 	if (target < nr_cpu_ids)
 		cpumask_set_cpu(target, &iommu_pmu_cpu_mask);
 	else
-		target = -1;
+		return 0;
 
-	rcu_read_lock();
-
-	for_each_iommu(iommu, drhd) {
-		if (!iommu->pmu)
-			continue;
-		perf_pmu_migrate_context(&iommu->pmu->pmu, cpu, target);
-	}
-	rcu_read_unlock();
+	perf_pmu_migrate_context(&iommu_pmu->pmu, cpu, target);
+	iommu_pmu->cpu = target;
 
 	return 0;
 }
 
 static int nr_iommu_pmu;
+static enum cpuhp_state iommu_cpuhp_slot;
 
 static int iommu_pmu_cpuhp_setup(struct iommu_pmu *iommu_pmu)
 {
 	int ret;
 
-	if (nr_iommu_pmu++)
-		return 0;
+	if (!nr_iommu_pmu) {
+		ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
+					      "driver/iommu/intel/perfmon:online",
+					      iommu_pmu_cpu_online,
+					      iommu_pmu_cpu_offline);
+		if (ret < 0)
+			return ret;
+		iommu_cpuhp_slot = ret;
+	}
 
-	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_IOMMU_PERF_ONLINE,
-				"driver/iommu/intel/perfmon:online",
-				iommu_pmu_cpu_online,
-				iommu_pmu_cpu_offline);
-	if (ret)
-		nr_iommu_pmu = 0;
+	ret = cpuhp_state_add_instance(iommu_cpuhp_slot, &iommu_pmu->cpuhp_node);
+	if (ret) {
+		if (!nr_iommu_pmu)
+			cpuhp_remove_multi_state(iommu_cpuhp_slot);
+		return ret;
+	}
+	nr_iommu_pmu++;
 
-	return ret;
+	return 0;
 }
 
 static void iommu_pmu_cpuhp_free(struct iommu_pmu *iommu_pmu)
 {
+	cpuhp_state_remove_instance(iommu_cpuhp_slot, &iommu_pmu->cpuhp_node);
+
 	if (--nr_iommu_pmu)
 		return;
 
-	cpuhp_remove_state(CPUHP_AP_PERF_X86_IOMMU_PERF_ONLINE);
+	cpuhp_remove_multi_state(iommu_cpuhp_slot);
 }
 
 void iommu_pmu_register(struct intel_iommu *iommu)

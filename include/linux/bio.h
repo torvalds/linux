@@ -500,6 +500,7 @@ void bio_associate_blkg(struct bio *bio);
 void bio_associate_blkg_from_css(struct bio *bio,
 				 struct cgroup_subsys_state *css);
 void bio_clone_blkg_association(struct bio *dst, struct bio *src);
+void blkcg_punt_bio_submit(struct bio *bio);
 #else	/* CONFIG_BLK_CGROUP */
 static inline void bio_associate_blkg(struct bio *bio) { }
 static inline void bio_associate_blkg_from_css(struct bio *bio,
@@ -507,6 +508,10 @@ static inline void bio_associate_blkg_from_css(struct bio *bio,
 { }
 static inline void bio_clone_blkg_association(struct bio *dst,
 					      struct bio *src) { }
+static inline void blkcg_punt_bio_submit(struct bio *bio)
+{
+	submit_bio(bio);
+}
 #endif	/* CONFIG_BLK_CGROUP */
 
 static inline void bio_set_dev(struct bio *bio, struct block_device *bdev)

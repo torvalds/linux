@@ -915,7 +915,7 @@ err:
 	return ret;
 }
 
-static int dsps_remove(struct platform_device *pdev)
+static void dsps_remove(struct platform_device *pdev)
 {
 	struct dsps_glue *glue = platform_get_drvdata(pdev);
 
@@ -923,8 +923,6 @@ static int dsps_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	iounmap(glue->usbss_base);
-
-	return 0;
 }
 
 static const struct dsps_musb_wrapper am33xx_driver_data = {
@@ -1036,7 +1034,7 @@ static SIMPLE_DEV_PM_OPS(dsps_pm_ops, dsps_suspend, dsps_resume);
 
 static struct platform_driver dsps_usbss_driver = {
 	.probe		= dsps_probe,
-	.remove         = dsps_remove,
+	.remove_new     = dsps_remove,
 	.driver         = {
 		.name   = "musb-dsps",
 		.pm	= &dsps_pm_ops,

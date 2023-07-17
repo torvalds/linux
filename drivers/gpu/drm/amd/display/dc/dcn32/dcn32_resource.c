@@ -324,7 +324,6 @@ static const struct dcn10_link_enc_shift le_shift = {
 
 static const struct dcn10_link_enc_mask le_mask = {
 	LINK_ENCODER_MASK_SH_LIST_DCN31(_MASK), \
-
 	//DPCS_DCN31_MASK_SH_LIST(_MASK)
 };
 
@@ -657,8 +656,6 @@ static const struct resource_caps res_cap_dcn32 = {
 
 static const struct dc_plane_cap plane_cap = {
 	.type = DC_PLANE_TYPE_DCN_UNIVERSAL,
-	.blends_with_above = true,
-	.blends_with_below = true,
 	.per_pixel_alpha = true,
 
 	.pixel_format_support = {
@@ -726,6 +723,11 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.alloc_extra_way_for_cursor = true,
 	.min_prefetch_in_strobe_ns = 60000, // 60us
 	.disable_unbounded_requesting = false,
+	.override_dispclk_programming = true,
+	.disable_fpo_optimizations = false,
+	.fpo_vactive_margin_us = 2000, // 2000us
+	.disable_fpo_vactive = true,
+	.disable_boot_optimizations = false,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1506,8 +1508,11 @@ static void dcn32_resource_destruct(struct dcn32_resource_pool *pool)
 	if (pool->base.dccg != NULL)
 		dcn_dccg_destroy(&pool->base.dccg);
 
-	if (pool->base.oem_device != NULL)
-		link_destroy_ddc_service(&pool->base.oem_device);
+	if (pool->base.oem_device != NULL) {
+		struct dc *dc = pool->base.oem_device->ctx->dc;
+
+		dc->link_srv->destroy_ddc_service(&pool->base.oem_device);
+	}
 }
 
 
@@ -1611,7 +1616,6 @@ bool dcn32_acquire_post_bldn_3dlut(
 		struct dc_transfer_func **shaper)
 {
 	bool ret = false;
-	union dc_3dlut_state *state;
 
 	ASSERT(*lut == NULL && *shaper == NULL);
 	*lut = NULL;
@@ -1620,7 +1624,6 @@ bool dcn32_acquire_post_bldn_3dlut(
 	if (!res_ctx->is_mpc_3dlut_acquired[mpcc_id]) {
 		*lut = pool->mpc_lut[mpcc_id];
 		*shaper = pool->mpc_shaper[mpcc_id];
-		state = &pool->mpc_lut[mpcc_id]->state;
 		res_ctx->is_mpc_3dlut_acquired[mpcc_id] = true;
 		ret = true;
 	}
@@ -1913,8 +1916,8 @@ int dcn32_populate_dml_pipes_from_context(
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
 	bool subvp_in_use = false;
-	uint8_t is_pipe_split_expected[MAX_PIPES] = {0};
 	struct dc_crtc_timing *timing;
+	bool vsr_odm_support = false;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
@@ -1932,12 +1935,15 @@ int dcn32_populate_dml_pipes_from_context(
 		timing = &pipe->stream->timing;
 
 		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+		vsr_odm_support = (res_ctx->pipe_ctx[i].stream->src.width >= 5120 &&
+				res_ctx->pipe_ctx[i].stream->src.width > res_ctx->pipe_ctx[i].stream->dst.width);
 		if (context->stream_count == 1 &&
 				context->stream_status[0].plane_count == 1 &&
 				!dc_is_hdmi_signal(res_ctx->pipe_ctx[i].stream->signal) &&
 				is_h_timing_divisible_by_2(res_ctx->pipe_ctx[i].stream) &&
 				pipe->stream->timing.pix_clk_100hz * 100 > DCN3_2_VMIN_DISPCLK_HZ &&
-				dc->debug.enable_single_display_2to1_odm_policy) {
+				dc->debug.enable_single_display_2to1_odm_policy &&
+				!vsr_odm_support) { //excluding 2to1 ODM combine on >= 5k vsr
 			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
 		}
 		pipe_cnt++;
@@ -2002,7 +2008,7 @@ int dcn32_populate_dml_pipes_from_context(
 		}
 
 		DC_FP_START();
-		is_pipe_split_expected[i] = dcn32_predict_pipe_split(context, &pipes[pipe_cnt]);
+		dcn32_predict_pipe_split(context, &pipes[pipe_cnt]);
 		DC_FP_END();
 
 		pipe_cnt++;
@@ -2017,7 +2023,7 @@ int dcn32_populate_dml_pipes_from_context(
 	// In general cases we want to keep the dram clock change requirement
 	// (prefer configs that support MCLK switch). Only override to false
 	// for SubVP
-	if (subvp_in_use)
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching || subvp_in_use)
 		context->bw_ctx.dml.soc.dram_clock_change_requirement_final = false;
 	else
 		context->bw_ctx.dml.soc.dram_clock_change_requirement_final = true;
@@ -2073,6 +2079,14 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.restore_mall_state = dcn32_restore_mall_state,
 };
 
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = REG_READ(CC_DC_PIPE_DIS);
+	/* DCN32 support max 4 pipes */
+	value = value & 0xf;
+	return value;
+}
+
 
 static bool dcn32_resource_construct(
 	uint8_t num_virtual_links,
@@ -2086,27 +2100,28 @@ static bool dcn32_resource_construct(
 	uint32_t pipe_fuses = 0;
 	uint32_t num_pipes  = 4;
 
-	#undef REG_STRUCT
-	#define REG_STRUCT bios_regs
-		bios_regs_init();
+#undef REG_STRUCT
+#define REG_STRUCT bios_regs
+	bios_regs_init();
 
-	#undef REG_STRUCT
-	#define REG_STRUCT clk_src_regs
-		clk_src_regs_init(0, A),
-		clk_src_regs_init(1, B),
-		clk_src_regs_init(2, C),
-		clk_src_regs_init(3, D),
-		clk_src_regs_init(4, E);
-	#undef REG_STRUCT
-	#define REG_STRUCT abm_regs
-		abm_regs_init(0),
-		abm_regs_init(1),
-		abm_regs_init(2),
-		abm_regs_init(3);
+#undef REG_STRUCT
+#define REG_STRUCT clk_src_regs
+	clk_src_regs_init(0, A),
+	clk_src_regs_init(1, B),
+	clk_src_regs_init(2, C),
+	clk_src_regs_init(3, D),
+	clk_src_regs_init(4, E);
 
-	#undef REG_STRUCT
-	#define REG_STRUCT dccg_regs
-		dccg_regs_init();
+#undef REG_STRUCT
+#define REG_STRUCT abm_regs
+	abm_regs_init(0),
+	abm_regs_init(1),
+	abm_regs_init(2),
+	abm_regs_init(3);
+
+#undef REG_STRUCT
+#define REG_STRUCT dccg_regs
+	dccg_regs_init();
 
 	DC_FP_START();
 
@@ -2115,7 +2130,7 @@ static bool dcn32_resource_construct(
 	pool->base.res_cap = &res_cap_dcn32;
 	/* max number of pipes for ASIC before checking for pipe fuses */
 	num_pipes  = pool->base.res_cap->num_timing_generator;
-	pipe_fuses = REG_READ(CC_DC_PIPE_DIS);
+	pipe_fuses = read_pipe_fuses(ctx);
 
 	for (i = 0; i < pool->base.res_cap->num_timing_generator; i++)
 		if (pipe_fuses & 1 << i)
@@ -2182,6 +2197,7 @@ static bool dcn32_resource_construct(
 	dc->caps.edp_dsc_support = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
+	dc->caps.seamless_odm = true;
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;
@@ -2455,7 +2471,7 @@ static bool dcn32_resource_construct(
 		ddc_init_data.id.id = dc->ctx->dc_bios->fw_info.oem_i2c_obj_id;
 		ddc_init_data.id.enum_id = 0;
 		ddc_init_data.id.type = OBJECT_TYPE_GENERIC;
-		pool->base.oem_device = link_create_ddc_service(&ddc_init_data);
+		pool->base.oem_device = dc->link_srv->create_ddc_service(&ddc_init_data);
 	} else {
 		pool->base.oem_device = NULL;
 	}

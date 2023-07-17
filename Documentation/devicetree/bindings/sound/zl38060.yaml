@@ -56,7 +56,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    spi0 {
+    spi {
         #address-cells = <1>;
         #size-cells = <0>;
 

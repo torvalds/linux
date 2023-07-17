@@ -43,6 +43,8 @@ void mv78xx0_uart0_init(void);
 void mv78xx0_uart1_init(void);
 void mv78xx0_uart2_init(void);
 void mv78xx0_uart3_init(void);
+void mv78xx0_xor_init(void);
+void mv78xx0_crypto_init(void);
 void mv78xx0_i2c_init(void);
 void mv78xx0_restart(enum reboot_mode, const char *);
 

@@ -696,16 +696,8 @@ static const u16 pinmux_data[] = {
 	PINMUX_SINGLE(PCIE0_CLKREQ_N),
 
 	PINMUX_SINGLE(AVB0_PHY_INT),
-	PINMUX_SINGLE(AVB0_MAGIC),
-	PINMUX_SINGLE(AVB0_MDC),
-	PINMUX_SINGLE(AVB0_MDIO),
-	PINMUX_SINGLE(AVB0_TXCREFCLK),
 
 	PINMUX_SINGLE(AVB1_PHY_INT),
-	PINMUX_SINGLE(AVB1_MAGIC),
-	PINMUX_SINGLE(AVB1_MDC),
-	PINMUX_SINGLE(AVB1_MDIO),
-	PINMUX_SINGLE(AVB1_TXCREFCLK),
 
 	PINMUX_SINGLE(AVB2_AVTP_PPS),
 	PINMUX_SINGLE(AVB2_AVTP_CAPTURE),
@@ -3638,7 +3630,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		MOD_SEL2_3_2
 		/* RESERVED 1-0 */ ))
 	},
-	{ },
+	{ /* sentinel */ }
 };
 
 static const struct pinmux_drive_reg pinmux_drive_regs[] = {
@@ -3943,7 +3935,7 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 		{ RCAR_GP_PIN(9, 17),  4, 3 },	/* AVB5_LINK */
 		{ RCAR_GP_PIN(9, 16),  0, 3 },	/* AVB5_PHY_INT */
 	} },
-	{ },
+	{ /* sentinel */ }
 };
 
 enum ioctrl_regs {
@@ -3970,7 +3962,7 @@ static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	[POC8] = { 0xe60690a0, },
 	[POC9] = { 0xe60698a0, },
 	[TD1SEL0] = { 0xe6058124, },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static int r8a779a0_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
@@ -4357,7 +4349,7 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 		[30] = SH_PFC_PIN_NONE,
 		[31] = SH_PFC_PIN_NONE,
 	} },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static const struct sh_pfc_soc_operations r8a779a0_pfc_ops = {

@@ -54,7 +54,7 @@
 		};
 
 		pci@c0000000 {
-			status = "ok";
+			status = "okay";
 
 			/*
 			 * Taken from WG302 v2 PCI boardfile (wg302v2-pci.c)
@@ -77,7 +77,7 @@
 		};
 
 		ethernet@c8009000 {
-			status = "ok";
+			status = "okay";
 			queue-rx = <&qmgr 3>;
 			queue-txready = <&qmgr 20>;
 			phy-mode = "rgmii";

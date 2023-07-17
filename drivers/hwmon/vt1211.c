@@ -195,12 +195,6 @@ struct vt1211_data {
 /* VT1211 logical device numbers */
 #define SIO_VT1211_LDN_HWMON	0x0b	/* HW monitor */
 
-static inline void superio_outb(int sio_cip, int reg, int val)
-{
-	outb(reg, sio_cip);
-	outb(val, sio_cip + 1);
-}
-
 static inline int superio_inb(int sio_cip, int reg)
 {
 	outb(reg, sio_cip);

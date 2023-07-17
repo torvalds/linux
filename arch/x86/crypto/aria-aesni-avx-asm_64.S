@@ -80,7 +80,7 @@
 	transpose_4x4(c0, c1, c2, c3, a0, a1);		\
 	transpose_4x4(d0, d1, d2, d3, a0, a1);		\
 							\
-	vmovdqu .Lshufb_16x16b, a0;			\
+	vmovdqu .Lshufb_16x16b(%rip), a0;		\
 	vmovdqu st1, a1;				\
 	vpshufb a0, a2, a2;				\
 	vpshufb a0, a3, a3;				\
@@ -132,7 +132,7 @@
 	transpose_4x4(c0, c1, c2, c3, a0, a1);		\
 	transpose_4x4(d0, d1, d2, d3, a0, a1);		\
 							\
-	vmovdqu .Lshufb_16x16b, a0;			\
+	vmovdqu .Lshufb_16x16b(%rip), a0;		\
 	vmovdqu st1, a1;				\
 	vpshufb a0, a2, a2;				\
 	vpshufb a0, a3, a3;				\
@@ -300,11 +300,11 @@
 			    x4, x5, x6, x7,		\
 			    t0, t1, t2, t3,		\
 			    t4, t5, t6, t7)		\
-	vmovdqa .Ltf_s2_bitmatrix, t0;			\
-	vmovdqa .Ltf_inv_bitmatrix, t1;			\
-	vmovdqa .Ltf_id_bitmatrix, t2;			\
-	vmovdqa .Ltf_aff_bitmatrix, t3;			\
-	vmovdqa .Ltf_x2_bitmatrix, t4;			\
+	vmovdqa .Ltf_s2_bitmatrix(%rip), t0;		\
+	vmovdqa .Ltf_inv_bitmatrix(%rip), t1;		\
+	vmovdqa .Ltf_id_bitmatrix(%rip), t2;		\
+	vmovdqa .Ltf_aff_bitmatrix(%rip), t3;		\
+	vmovdqa .Ltf_x2_bitmatrix(%rip), t4;		\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x1, x1;	\
 	vgf2p8affineinvqb $(tf_s2_const), t0, x5, x5;	\
 	vgf2p8affineqb $(tf_inv_const), t1, x2, x2;	\
@@ -324,13 +324,13 @@
 		       x4, x5, x6, x7,			\
 		       t0, t1, t2, t3,			\
 		       t4, t5, t6, t7)			\
-	vmovdqa .Linv_shift_row, t0;			\
-	vmovdqa .Lshift_row, t1;			\
-	vbroadcastss .L0f0f0f0f, t6;			\
-	vmovdqa .Ltf_lo__inv_aff__and__s2, t2;		\
-	vmovdqa .Ltf_hi__inv_aff__and__s2, t3;		\
-	vmovdqa .Ltf_lo__x2__and__fwd_aff, t4;		\
-	vmovdqa .Ltf_hi__x2__and__fwd_aff, t5;		\
+	vmovdqa .Linv_shift_row(%rip), t0;		\
+	vmovdqa .Lshift_row(%rip), t1;			\
+	vbroadcastss .L0f0f0f0f(%rip), t6;		\
+	vmovdqa .Ltf_lo__inv_aff__and__s2(%rip), t2;	\
+	vmovdqa .Ltf_hi__inv_aff__and__s2(%rip), t3;	\
+	vmovdqa .Ltf_lo__x2__and__fwd_aff(%rip), t4;	\
+	vmovdqa .Ltf_hi__x2__and__fwd_aff(%rip), t5;	\
 							\
 	vaesenclast t7, x0, x0;				\
 	vaesenclast t7, x4, x4;				\
@@ -773,8 +773,6 @@
 	.octa 0x3F893781E95FE1576CDA64D2BA0CB204
 
 #ifdef CONFIG_AS_GFNI
-.section	.rodata.cst8, "aM", @progbits, 8
-.align 8
 /* AES affine: */
 #define tf_aff_const BV8(1, 1, 0, 0, 0, 1, 1, 0)
 .Ltf_aff_bitmatrix:

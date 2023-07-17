@@ -31,6 +31,7 @@
 #define TIM_BDTR	0x44	/* Break and Dead-Time Reg */
 #define TIM_DCR		0x48	/* DMA control register    */
 #define TIM_DMAR	0x4C	/* DMA register for transfer */
+#define TIM_TISEL	0x68	/* Input Selection         */
 
 #define TIM_CR1_CEN	BIT(0)	/* Counter Enable	   */
 #define TIM_CR1_DIR	BIT(4)  /* Counter Direction	   */

@@ -24,6 +24,7 @@ struct mlx5e_rq_param {
 	u32                        rqc[MLX5_ST_SZ_DW(rqc)];
 	struct mlx5_wq_param       wq;
 	struct mlx5e_rq_frags_info frags_info;
+	u32                        xdp_frag_size;
 };
 
 struct mlx5e_sq_param {
@@ -153,6 +154,9 @@ int mlx5e_build_channel_param(struct mlx5_core_dev *mdev,
 
 u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
 int mlx5e_validate_params(struct mlx5_core_dev *mdev, struct mlx5e_params *params);
+bool mlx5e_verify_params_rx_mpwqe_strides(struct mlx5_core_dev *mdev,
+					  struct mlx5e_params *params,
+					  struct mlx5e_xsk_param *xsk);
 
 static inline void mlx5e_params_print_info(struct mlx5_core_dev *mdev,
 					   struct mlx5e_params *params)

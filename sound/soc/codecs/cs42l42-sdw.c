@@ -152,9 +152,6 @@ static int cs42l42_sdw_port_prep(struct sdw_slave *slave,
 static int cs42l42_sdw_dai_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 					  int direction)
 {
-	if (!sdw_stream)
-		return 0;
-
 	snd_soc_dai_dma_data_set(dai, direction, sdw_stream);
 
 	return 0;

@@ -6,8 +6,8 @@
  */
 
 /******************************************************************************/
-/* Audigy2Value Tina (P17V) pointer-offset register set,
- * accessed through the PTR20 and DATA24 registers  */
+/* Audigy2Value Tina (P17V) pointer-offset register set,                      */
+/* accessed through the PTR2 and DATA2 registers                              */
 /******************************************************************************/
 
 /* 00 - 07: Not used */

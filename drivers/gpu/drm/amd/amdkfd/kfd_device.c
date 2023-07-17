@@ -59,6 +59,7 @@ static int kfd_gtt_sa_init(struct kfd_dev *kfd, unsigned int buf_size,
 				unsigned int chunk_size);
 static void kfd_gtt_sa_fini(struct kfd_dev *kfd);
 
+static int kfd_resume_iommu(struct kfd_dev *kfd);
 static int kfd_resume(struct kfd_dev *kfd);
 
 static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
@@ -203,6 +204,14 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			/* Navi1x+ */
 			if (gc_version >= IP_VERSION(10, 1, 1))
 				kfd->device_info.needs_pci_atomics = true;
+		} else if (gc_version < IP_VERSION(12, 0, 0)) {
+			/*
+			 * PCIe atomics support acknowledgment in GFX11 RS64 CPFW requires
+			 * MEC version >= 509. Prior RS64 CPFW versions (and all F32) require
+			 * PCIe atomics support.
+			 */
+			kfd->device_info.needs_pci_atomics = true;
+			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
 		}
 	} else {
 		kfd->device_info.doorbell_size = 4;
@@ -315,6 +324,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 		/* Aldebaran */
 		case IP_VERSION(9, 4, 2):
 			gfx_target_version = 90010;
+			f2g = &aldebaran_kfd2kgd;
+			break;
+		case IP_VERSION(9, 4, 3):
+			gfx_target_version = 90400;
 			f2g = &aldebaran_kfd2kgd;
 			break;
 		/* Navi10 */
@@ -449,6 +462,10 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_aldebaran_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_4_3_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_4_3_hex);
 		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 1, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx9_hex;
@@ -624,7 +641,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	svm_migrate_init(kfd->adev);
 
-	if (kgd2kfd_resume_iommu(kfd))
+	if (kfd_resume_iommu(kfd))
 		goto device_iommu_error;
 
 	if (kfd_resume(kfd))
@@ -772,6 +789,14 @@ int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
 }
 
 int kgd2kfd_resume_iommu(struct kfd_dev *kfd)
+{
+	if (!kfd->init_complete)
+		return 0;
+
+	return kfd_resume_iommu(kfd);
+}
+
+static int kfd_resume_iommu(struct kfd_dev *kfd)
 {
 	int err = 0;
 

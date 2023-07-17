@@ -9,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 #include <linux/soc/mediatek/mtk-mmsys.h>
+#include <linux/soc/mediatek/mtk-mutex.h>
 
 struct device;
 struct device_node;
@@ -30,6 +31,7 @@ enum mtk_ddp_comp_type {
 	MTK_DISP_OD,
 	MTK_DISP_OVL,
 	MTK_DISP_OVL_2L,
+	MTK_DISP_OVL_ADAPTOR,
 	MTK_DISP_POSTMASK,
 	MTK_DISP_PWM,
 	MTK_DISP_RDMA,
@@ -71,12 +73,19 @@ struct mtk_ddp_comp_funcs {
 	void (*bgclr_in_off)(struct device *dev);
 	void (*ctm_set)(struct device *dev,
 			struct drm_crtc_state *state);
+	struct device * (*dma_dev_get)(struct device *dev);
+	const u32 *(*get_formats)(struct device *dev);
+	size_t (*get_num_formats)(struct device *dev);
+	void (*connect)(struct device *dev, struct device *mmsys_dev, unsigned int next);
+	void (*disconnect)(struct device *dev, struct device *mmsys_dev, unsigned int next);
+	void (*add)(struct device *dev, struct mtk_mutex *mutex);
+	void (*remove)(struct device *dev, struct mtk_mutex *mutex);
 };
 
 struct mtk_ddp_comp {
 	struct device *dev;
 	int irq;
-	enum mtk_ddp_comp_id id;
+	unsigned int id;
 	const struct mtk_ddp_comp_funcs *funcs;
 };
 
@@ -203,13 +212,76 @@ static inline void mtk_ddp_ctm_set(struct mtk_ddp_comp *comp,
 		comp->funcs->ctm_set(comp->dev, state);
 }
 
+static inline struct device *mtk_ddp_comp_dma_dev_get(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->dma_dev_get)
+		return comp->funcs->dma_dev_get(comp->dev);
+	return comp->dev;
+}
+
+static inline
+const u32 *mtk_ddp_comp_get_formats(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->get_formats)
+		return comp->funcs->get_formats(comp->dev);
+
+	return NULL;
+}
+
+static inline
+size_t mtk_ddp_comp_get_num_formats(struct mtk_ddp_comp *comp)
+{
+	if (comp->funcs && comp->funcs->get_num_formats)
+		return comp->funcs->get_num_formats(comp->dev);
+
+	return 0;
+}
+
+static inline bool mtk_ddp_comp_add(struct mtk_ddp_comp *comp, struct mtk_mutex *mutex)
+{
+	if (comp->funcs && comp->funcs->add) {
+		comp->funcs->add(comp->dev, mutex);
+		return true;
+	}
+	return false;
+}
+
+static inline bool mtk_ddp_comp_remove(struct mtk_ddp_comp *comp, struct mtk_mutex *mutex)
+{
+	if (comp->funcs && comp->funcs->remove) {
+		comp->funcs->remove(comp->dev, mutex);
+		return true;
+	}
+	return false;
+}
+
+static inline bool mtk_ddp_comp_connect(struct mtk_ddp_comp *comp, struct device *mmsys_dev,
+					unsigned int next)
+{
+	if (comp->funcs && comp->funcs->connect) {
+		comp->funcs->connect(comp->dev, mmsys_dev, next);
+		return true;
+	}
+	return false;
+}
+
+static inline bool mtk_ddp_comp_disconnect(struct mtk_ddp_comp *comp, struct device *mmsys_dev,
+					   unsigned int next)
+{
+	if (comp->funcs && comp->funcs->disconnect) {
+		comp->funcs->disconnect(comp->dev, mmsys_dev, next);
+		return true;
+	}
+	return false;
+}
+
 int mtk_ddp_comp_get_id(struct device_node *node,
 			enum mtk_ddp_comp_type comp_type);
 unsigned int mtk_drm_find_possible_crtc_by_comp(struct drm_device *drm,
 						struct device *dev);
 int mtk_ddp_comp_init(struct device_node *comp_node, struct mtk_ddp_comp *comp,
-		      enum mtk_ddp_comp_id comp_id);
-enum mtk_ddp_comp_type mtk_ddp_comp_get_type(enum mtk_ddp_comp_id comp_id);
+		      unsigned int comp_id);
+enum mtk_ddp_comp_type mtk_ddp_comp_get_type(unsigned int comp_id);
 void mtk_ddp_write(struct cmdq_pkt *cmdq_pkt, unsigned int value,
 		   struct cmdq_client_reg *cmdq_reg, void __iomem *regs,
 		   unsigned int offset);

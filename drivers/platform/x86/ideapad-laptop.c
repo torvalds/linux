@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/module.h>
@@ -31,6 +30,7 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/wmi.h>
+#include "ideapad-laptop.h"
 
 #include <acpi/video.h>
 
@@ -83,33 +83,6 @@ enum {
 	SALS_USB_CHARGING_OFF = 0xb,
 	SALS_FNLOCK_ON        = 0xe,
 	SALS_FNLOCK_OFF       = 0xf,
-};
-
-enum {
-	VPCCMD_R_VPC1 = 0x10,
-	VPCCMD_R_BL_MAX,
-	VPCCMD_R_BL,
-	VPCCMD_W_BL,
-	VPCCMD_R_WIFI,
-	VPCCMD_W_WIFI,
-	VPCCMD_R_BT,
-	VPCCMD_W_BT,
-	VPCCMD_R_BL_POWER,
-	VPCCMD_R_NOVO,
-	VPCCMD_R_VPC2,
-	VPCCMD_R_TOUCHPAD,
-	VPCCMD_W_TOUCHPAD,
-	VPCCMD_R_CAMERA,
-	VPCCMD_W_CAMERA,
-	VPCCMD_R_3G,
-	VPCCMD_W_3G,
-	VPCCMD_R_ODD, /* 0x21 */
-	VPCCMD_W_FAN,
-	VPCCMD_R_RF,
-	VPCCMD_W_RF,
-	VPCCMD_R_FAN = 0x2B,
-	VPCCMD_R_SPECIAL_BUTTONS = 0x31,
-	VPCCMD_W_BL_POWER = 0x33,
 };
 
 struct ideapad_dytc_priv {
@@ -227,7 +200,6 @@ static void ideapad_shared_exit(struct ideapad_private *priv)
 /*
  * ACPI Helpers
  */
-#define IDEAPAD_EC_TIMEOUT 200 /* in ms */
 
 static int eval_int(acpi_handle handle, const char *name, unsigned long *res)
 {
@@ -270,114 +242,9 @@ static int exec_sals(acpi_handle handle, unsigned long arg)
 	return exec_simple_method(handle, "SALS", arg);
 }
 
-static int eval_int_with_arg(acpi_handle handle, const char *name, unsigned long arg, unsigned long *res)
-{
-	struct acpi_object_list params;
-	unsigned long long result;
-	union acpi_object in_obj;
-	acpi_status status;
-
-	params.count = 1;
-	params.pointer = &in_obj;
-	in_obj.type = ACPI_TYPE_INTEGER;
-	in_obj.integer.value = arg;
-
-	status = acpi_evaluate_integer(handle, (char *)name, &params, &result);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	if (res)
-		*res = result;
-
-	return 0;
-}
-
 static int eval_dytc(acpi_handle handle, unsigned long cmd, unsigned long *res)
 {
 	return eval_int_with_arg(handle, "DYTC", cmd, res);
-}
-
-static int eval_vpcr(acpi_handle handle, unsigned long cmd, unsigned long *res)
-{
-	return eval_int_with_arg(handle, "VPCR", cmd, res);
-}
-
-static int eval_vpcw(acpi_handle handle, unsigned long cmd, unsigned long data)
-{
-	struct acpi_object_list params;
-	union acpi_object in_obj[2];
-	acpi_status status;
-
-	params.count = 2;
-	params.pointer = in_obj;
-	in_obj[0].type = ACPI_TYPE_INTEGER;
-	in_obj[0].integer.value = cmd;
-	in_obj[1].type = ACPI_TYPE_INTEGER;
-	in_obj[1].integer.value = data;
-
-	status = acpi_evaluate_object(handle, "VPCW", &params, NULL);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	return 0;
-}
-
-static int read_ec_data(acpi_handle handle, unsigned long cmd, unsigned long *data)
-{
-	unsigned long end_jiffies, val;
-	int err;
-
-	err = eval_vpcw(handle, 1, cmd);
-	if (err)
-		return err;
-
-	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
-
-	while (time_before(jiffies, end_jiffies)) {
-		schedule();
-
-		err = eval_vpcr(handle, 1, &val);
-		if (err)
-			return err;
-
-		if (val == 0)
-			return eval_vpcr(handle, 0, data);
-	}
-
-	acpi_handle_err(handle, "timeout in %s\n", __func__);
-
-	return -ETIMEDOUT;
-}
-
-static int write_ec_cmd(acpi_handle handle, unsigned long cmd, unsigned long data)
-{
-	unsigned long end_jiffies, val;
-	int err;
-
-	err = eval_vpcw(handle, 0, data);
-	if (err)
-		return err;
-
-	err = eval_vpcw(handle, 1, cmd);
-	if (err)
-		return err;
-
-	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
-
-	while (time_before(jiffies, end_jiffies)) {
-		schedule();
-
-		err = eval_vpcr(handle, 1, &val);
-		if (err)
-			return err;
-
-		if (val == 0)
-			return 0;
-	}
-
-	acpi_handle_err(handle, "timeout in %s\n", __func__);
-
-	return -ETIMEDOUT;
 }
 
 /*
@@ -1170,7 +1037,6 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY,  65, { KEY_PROG4 } },
 	{ KE_KEY,  66, { KEY_TOUCHPAD_OFF } },
 	{ KE_KEY,  67, { KEY_TOUCHPAD_ON } },
-	{ KE_KEY,  68, { KEY_TOUCHPAD_TOGGLE } },
 	{ KE_KEY, 128, { KEY_ESC } },
 
 	/*
@@ -1526,18 +1392,16 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv, bool send_
 	if (priv->features.ctrl_ps2_aux_port)
 		i8042_command(&param, value ? I8042_CMD_AUX_ENABLE : I8042_CMD_AUX_DISABLE);
 
-	if (send_events) {
-		/*
-		 * On older models the EC controls the touchpad and toggles it
-		 * on/off itself, in this case we report KEY_TOUCHPAD_ON/_OFF.
-		 * If the EC did not toggle, report KEY_TOUCHPAD_TOGGLE.
-		 */
-		if (value != priv->r_touchpad_val) {
-			ideapad_input_report(priv, value ? 67 : 66);
-			sysfs_notify(&priv->platform_device->dev.kobj, NULL, "touchpad");
-		} else {
-			ideapad_input_report(priv, 68);
-		}
+	/*
+	 * On older models the EC controls the touchpad and toggles it on/off
+	 * itself, in this case we report KEY_TOUCHPAD_ON/_OFF. Some models do
+	 * an acpi-notify with VPC bit 5 set on resume, so this function get
+	 * called with send_events=true on every resume. Therefor if the EC did
+	 * not toggle, do nothing to avoid sending spurious KEY_TOUCHPAD_TOGGLE.
+	 */
+	if (send_events && value != priv->r_touchpad_val) {
+		ideapad_input_report(priv, value ? 67 : 66);
+		sysfs_notify(&priv->platform_device->dev.kobj, NULL, "touchpad");
 	}
 
 	priv->r_touchpad_val = value;
@@ -1921,7 +1785,7 @@ input_failed:
 	return err;
 }
 
-static int ideapad_acpi_remove(struct platform_device *pdev)
+static void ideapad_acpi_remove(struct platform_device *pdev)
 {
 	struct ideapad_private *priv = dev_get_drvdata(&pdev->dev);
 	int i;
@@ -1942,8 +1806,6 @@ static int ideapad_acpi_remove(struct platform_device *pdev)
 	ideapad_input_exit(priv);
 	ideapad_debugfs_exit(priv);
 	ideapad_sysfs_exit(priv);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1970,7 +1832,7 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
 static struct platform_driver ideapad_acpi_driver = {
 	.probe = ideapad_acpi_add,
-	.remove = ideapad_acpi_remove,
+	.remove_new = ideapad_acpi_remove,
 	.driver = {
 		.name   = "ideapad_acpi",
 		.pm     = &ideapad_pm,

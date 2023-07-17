@@ -107,7 +107,7 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 
 /* No PIO or DMA methods needed for this device */
 
-static struct scsi_host_template jmicron_sht = {
+static const struct scsi_host_template jmicron_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 

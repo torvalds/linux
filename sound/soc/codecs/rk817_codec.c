@@ -518,13 +518,11 @@ err_:
 	return ret;
 }
 
-static int rk817_platform_remove(struct platform_device *pdev)
+static void rk817_platform_remove(struct platform_device *pdev)
 {
 	struct rk817_codec_priv *rk817 = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(rk817->mclk);
-
-	return 0;
 }
 
 static struct platform_driver rk817_codec_driver = {
@@ -532,7 +530,7 @@ static struct platform_driver rk817_codec_driver = {
 		   .name = "rk817-codec",
 		   },
 	.probe = rk817_platform_probe,
-	.remove = rk817_platform_remove,
+	.remove_new = rk817_platform_remove,
 };
 
 module_platform_driver(rk817_codec_driver);

@@ -580,6 +580,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_P, INTEL_SUBPLATFORM_N)
 #define IS_ADLP_RPLP(dev_priv) \
 	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_P, INTEL_SUBPLATFORM_RPL)
+#define IS_ADLP_RPLU(dev_priv) \
+	IS_SUBPLATFORM(dev_priv, INTEL_ALDERLAKE_P, INTEL_SUBPLATFORM_RPLU)
 #define IS_HSW_EARLY_SDV(dev_priv) (IS_HASWELL(dev_priv) && \
 				    (INTEL_DEVID(dev_priv) & 0xFF00) == 0x0C00)
 #define IS_BDW_ULT(dev_priv) \
@@ -653,21 +655,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_TIGERLAKE(__i915) && \
 	 IS_DISPLAY_STEP(__i915, since, until))
 
-#define IS_TGL_UY_GRAPHICS_STEP(__i915, since, until) \
-	(IS_TGL_UY(__i915) && \
-	 IS_GRAPHICS_STEP(__i915, since, until))
-
-#define IS_TGL_GRAPHICS_STEP(__i915, since, until) \
-	(IS_TIGERLAKE(__i915) && !IS_TGL_UY(__i915)) && \
-	 IS_GRAPHICS_STEP(__i915, since, until))
-
 #define IS_RKL_DISPLAY_STEP(p, since, until) \
 	(IS_ROCKETLAKE(p) && IS_DISPLAY_STEP(p, since, until))
-
-#define IS_DG1_GRAPHICS_STEP(p, since, until) \
-	(IS_DG1(p) && IS_GRAPHICS_STEP(p, since, until))
-#define IS_DG1_DISPLAY_STEP(p, since, until) \
-	(IS_DG1(p) && IS_DISPLAY_STEP(p, since, until))
 
 #define IS_ADLS_DISPLAY_STEP(__i915, since, until) \
 	(IS_ALDERLAKE_S(__i915) && \
@@ -824,6 +813,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_FBC(dev_priv)	(RUNTIME_INFO(dev_priv)->fbc_mask != 0)
 #define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH(dev_priv) && DISPLAY_VER(dev_priv) >= 7)
 
+#define HAS_DPT(dev_priv)	(DISPLAY_VER(dev_priv) >= 13)
+
 #define HAS_IPS(dev_priv)	(IS_HSW_ULT(dev_priv) || IS_BROADWELL(dev_priv))
 
 #define HAS_DP_MST(dev_priv)	(INTEL_INFO(dev_priv)->display.has_dp_mst)
@@ -869,6 +860,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(INTEL_INFO(dev_priv)->has_oa_bpc_reporting)
 #define HAS_OA_SLICE_CONTRIB_LIMITS(dev_priv) \
 	(INTEL_INFO(dev_priv)->has_oa_slice_contrib_limits)
+#define HAS_OAM(dev_priv) \
+	(INTEL_INFO(dev_priv)->has_oam)
 
 /*
  * Set this flag, when platform requires 64K GTT page sizes or larger for
@@ -876,7 +869,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  */
 #define HAS_64K_PAGES(dev_priv) (INTEL_INFO(dev_priv)->has_64k_pages)
 
-#define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
+#define HAS_IPC(dev_priv)		(INTEL_INFO(dev_priv)->display.has_ipc)
+#define HAS_SAGV(dev_priv)		(DISPLAY_VER(dev_priv) >= 9 && !IS_LP(dev_priv))
 
 #define HAS_REGION(i915, i) (RUNTIME_INFO(i915)->memory_regions & (i))
 #define HAS_LMEM(i915) HAS_REGION(i915, REGION_LMEM)

@@ -325,6 +325,6 @@ Primecell设备。然而，棘手的一点是，AMBA总线上的所有设备并�
 
 当使用DT时，这给of_platform_populate()带来了问题，因为它必须决定是否将
 每个节点注册为platform_device或amba_device。不幸的是，这使设备创建模型
-变得有点复杂，但解决方案原来并不是太具有侵略性。如果一个节点与“arm,amba-primecell”
+变得有点复杂，但解决方案原来并不是太具有侵略性。如果一个节点与“arm,primecell”
 兼容，那么of_platform_populate()将把它注册为amba_device而不是
 platform_device。

@@ -137,7 +137,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 			of_get_property(np, "d-cache-size", NULL);
 		seq_printf(m, "L2 cache\t:");
 		has_l2cache = 1;
-		if (of_get_property(np, "cache-unified", NULL) && dc) {
+		if (of_property_read_bool(np, "cache-unified") && dc) {
 			seq_printf(m, " %dK unified", *dc / 1024);
 		} else {
 			if (ic)

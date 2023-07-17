@@ -653,4 +653,3 @@ void da9052_device_exit(struct da9052 *da9052)
 
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
 MODULE_DESCRIPTION("DA9052 MFD Core");
-MODULE_LICENSE("GPL");

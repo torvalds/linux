@@ -127,7 +127,11 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
 		assert(LHS.ids == NULL);				\
 		assert(RHS.ids == NULL);				\
-		RESULT.val = (long)LHS.val OP (long)RHS.val;		\
+		if (isnan(LHS.val) || isnan(RHS.val)) {			\
+			RESULT.val = NAN;				\
+		} else {						\
+			RESULT.val = (long)LHS.val OP (long)RHS.val;	\
+		}							\
 		RESULT.ids = NULL;					\
 	} else {							\
 	        RESULT = union_expr(LHS, RHS);				\
@@ -137,7 +141,11 @@ static struct ids handle_id(struct expr_parse_ctx *ctx, char *id,
 	if (!compute_ids || (is_const(LHS.val) && is_const(RHS.val))) { \
 		assert(LHS.ids == NULL);				\
 		assert(RHS.ids == NULL);				\
-		RESULT.val = LHS.val OP RHS.val;			\
+		if (isnan(LHS.val) || isnan(RHS.val)) {			\
+			RESULT.val = NAN;				\
+		} else {						\
+			RESULT.val = LHS.val OP RHS.val;		\
+		}							\
 		RESULT.ids = NULL;					\
 	} else {							\
 	        RESULT = union_expr(LHS, RHS);				\
@@ -217,7 +225,11 @@ expr: NUMBER
 {
 	if (fpclassify($3.val) == FP_ZERO) {
 		pr_debug("division by zero\n");
-		YYABORT;
+		assert($3.ids == NULL);
+		if (compute_ids)
+			ids__free($1.ids);
+		$$.val = NAN;
+		$$.ids = NULL;
 	} else if (!compute_ids || (is_const($1.val) && is_const($3.val))) {
 		assert($1.ids == NULL);
 		assert($3.ids == NULL);

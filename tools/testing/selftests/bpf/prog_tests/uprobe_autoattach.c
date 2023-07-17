@@ -3,7 +3,6 @@
 
 #include <test_progs.h>
 #include "test_uprobe_autoattach.skel.h"
-#include "progs/bpf_misc.h"
 
 /* uprobe attach point */
 static noinline int autoattach_trigger_func(int arg1, int arg2, int arg3,

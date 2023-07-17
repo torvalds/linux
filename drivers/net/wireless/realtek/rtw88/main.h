@@ -88,7 +88,7 @@ enum rtw_supported_band {
 	RTW_BAND_60G = BIT(NL80211_BAND_60GHZ),
 };
 
-/* now, support upto 80M bw */
+/* now, support up to 80M bw */
 #define RTW_MAX_CHANNEL_WIDTH RTW_CHANNEL_WIDTH_80
 
 enum rtw_bandwidth {
@@ -393,6 +393,15 @@ enum rtw_snr {
 	RTW_SNR_2SS_D,
 	/* keep it last */
 	RTW_SNR_NUM
+};
+
+enum rtw_port {
+	RTW_PORT_0 = 0,
+	RTW_PORT_1 = 1,
+	RTW_PORT_2 = 2,
+	RTW_PORT_3 = 3,
+	RTW_PORT_4 = 4,
+	RTW_PORT_NUM
 };
 
 enum rtw_wow_flags {
@@ -734,6 +743,7 @@ struct rtw_txq {
 DECLARE_EWMA(rssi, 10, 16);
 
 struct rtw_sta_info {
+	struct rtw_dev *rtwdev;
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 
@@ -758,6 +768,8 @@ struct rtw_sta_info {
 
 	bool use_cfg_mask;
 	struct cfg80211_bitrate_mask *mask;
+
+	struct work_struct rc_work;
 };
 
 enum rtw_bfee_role {
@@ -1168,6 +1180,7 @@ struct rtw_chip_info {
 	u32 txff_size;
 	u32 rxff_size;
 	u32 fw_rxff_size;
+	u16 rsvd_drv_pg_num;
 	u8 band;
 	u8 page_size;
 	u8 csi_buf_pg_num;
@@ -1871,7 +1884,7 @@ enum rtw_sar_bands {
 	RTW_SAR_BAND_NR,
 };
 
-/* the union is reserved for other knids of SAR sources
+/* the union is reserved for other kinds of SAR sources
  * which might not re-use same format with array common.
  */
 union rtw_sar_cfg {
@@ -1890,7 +1903,9 @@ struct rtw_hal {
 	u8 cut_version;
 	u8 mp_chip;
 	u8 oem_id;
+	u8 pkg_type;
 	struct rtw_phy_cond phy_cond;
+	bool rfe_btg;
 
 	u8 ps_mode;
 	u8 current_channel;
@@ -2020,7 +2035,7 @@ struct rtw_dev {
 	struct rtw_tx_report tx_report;
 
 	struct {
-		/* incicate the mail box to use with fw */
+		/* indicate the mail box to use with fw */
 		u8 last_box_num;
 		u32 seq;
 	} h2c;
@@ -2036,6 +2051,7 @@ struct rtw_dev {
 	u8 sta_cnt;
 	u32 rts_threshold;
 
+	DECLARE_BITMAP(hw_port, RTW_PORT_NUM);
 	DECLARE_BITMAP(mac_id_map, RTW_MAX_MAC_ID_NUM);
 	DECLARE_BITMAP(flags, NUM_OF_RTW_FLAGS);
 
@@ -2047,6 +2063,7 @@ struct rtw_dev {
 
 	bool need_rfk;
 	struct completion fw_scan_density;
+	bool ap_active;
 
 	/* hci related data, must be last */
 	u8 priv[] __aligned(sizeof(void *));
@@ -2188,4 +2205,7 @@ void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool config_1ss);
 void rtw_update_channel(struct rtw_dev *rtwdev, u8 center_channel,
 			u8 primary_channel, enum rtw_supported_band band,
 			enum rtw_bandwidth bandwidth);
+void rtw_core_port_switch(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
+bool rtw_core_check_sta_active(struct rtw_dev *rtwdev);
+void rtw_core_enable_beacon(struct rtw_dev *rtwdev, bool enable);
 #endif

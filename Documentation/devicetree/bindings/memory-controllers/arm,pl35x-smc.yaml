@@ -8,7 +8,6 @@ title: Arm PL35x Series Static Memory Controller (SMC)
 
 maintainers:
   - Miquel Raynal <miquel.raynal@bootlin.com>
-  - Naga Sureshkumar Relli <naga.sureshkumar.relli@xilinx.com>
 
 description: |
   The PL35x Static Memory Controller is a bus where you can connect two kinds
@@ -73,6 +72,7 @@ properties:
 patternProperties:
   "@[0-7],[a-f0-9]+$":
     type: object
+    additionalProperties: true
     description: |
       The child device node represents the controller connected to the SMC
       bus. The controller can be a NAND controller or a pair of any memory

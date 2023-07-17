@@ -35,6 +35,16 @@ struct dm_cell_key {
 };
 
 /*
+ * The range of a key (block_end - block_begin) must not
+ * exceed BIO_PRISON_MAX_RANGE.  Also the range must not
+ * cross a similarly sized boundary.
+ *
+ * Must be a power of 2.
+ */
+#define BIO_PRISON_MAX_RANGE 1024
+#define BIO_PRISON_MAX_RANGE_SHIFT 10
+
+/*
  * Treat this as opaque, only in header so callers can manage allocation
  * themselves.
  */
@@ -72,6 +82,11 @@ int dm_get_cell(struct dm_bio_prison *prison,
 		struct dm_cell_key *key,
 		struct dm_bio_prison_cell *cell_prealloc,
 		struct dm_bio_prison_cell **cell_result);
+
+/*
+ * Returns false if key is beyond BIO_PRISON_MAX_RANGE or spans a boundary.
+ */
+bool dm_cell_key_has_valid_range(struct dm_cell_key *key);
 
 /*
  * An atomic op that combines retrieving or creating a cell, and adding a

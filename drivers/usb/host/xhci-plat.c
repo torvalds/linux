@@ -291,6 +291,21 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 			goto dealloc_usb2_hcd;
 		}
 
+		xhci->shared_hcd->usb_phy = devm_usb_get_phy_by_phandle(sysdev,
+			    "usb-phy", 1);
+		if (IS_ERR(xhci->shared_hcd->usb_phy)) {
+			if (PTR_ERR(xhci->shared_hcd->usb_phy) != -ENODEV)
+				dev_err(sysdev, "%s get usb3phy fail (ret=%d)\n",
+					     __func__,
+					    (int)PTR_ERR(xhci->shared_hcd->usb_phy));
+			xhci->shared_hcd->usb_phy = NULL;
+		} else {
+			ret = usb_phy_init(xhci->shared_hcd->usb_phy);
+			if (ret)
+				dev_err(sysdev, "%s init usb3phy fail (ret=%d)\n",
+					    __func__, ret);
+		}
+
 		xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	}
 
@@ -362,10 +377,8 @@ static int xhci_generic_plat_probe(struct platform_device *pdev)
 		if (is_of_node(sysdev->fwnode) ||
 			is_acpi_device_node(sysdev->fwnode))
 			break;
-#ifdef CONFIG_PCI
-		else if (sysdev->bus == &pci_bus_type)
+		else if (dev_is_pci(sysdev))
 			break;
-#endif
 	}
 
 	if (!sysdev)

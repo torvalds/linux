@@ -61,7 +61,7 @@ static int test_expand_events(struct evlist *evlist,
 
 	i = 0;
 	evlist__for_each_entry(evlist, evsel) {
-		if (strcmp(evsel->name, ev_name[i % nr_events])) {
+		if (!evsel__name_is(evsel, ev_name[i % nr_events])) {
 			pr_debug("event name doesn't match:\n");
 			pr_debug("  evsel[%d]: %s\n  expected: %s\n",
 				 i, evsel->name, ev_name[i % nr_events]);
@@ -187,8 +187,7 @@ static int expand_metric_events(void)
 
 	rblist__init(&metric_events);
 	pme_test = find_core_metrics_table("testarch", "testcpu");
-	ret = metricgroup__parse_groups_test(evlist, pme_test, metric_str,
-					     false, false, &metric_events);
+	ret = metricgroup__parse_groups_test(evlist, pme_test, metric_str, &metric_events);
 	if (ret < 0) {
 		pr_debug("failed to parse '%s' metric\n", metric_str);
 		goto out;

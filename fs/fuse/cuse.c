@@ -623,7 +623,7 @@ static int __init cuse_init(void)
 	/* CUSE is not prepared for FUSE_DEV_IOC_CLONE */
 	cuse_channel_fops.unlocked_ioctl	= NULL;
 
-	cuse_class = class_create(THIS_MODULE, "cuse");
+	cuse_class = class_create("cuse");
 	if (IS_ERR(cuse_class))
 		return PTR_ERR(cuse_class);
 

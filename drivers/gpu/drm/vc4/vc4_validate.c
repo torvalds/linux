@@ -117,7 +117,7 @@ vc4_use_bo(struct vc4_exec_info *exec, uint32_t hindex)
 			  hindex, exec->bo_count);
 		return NULL;
 	}
-	obj = exec->bo[hindex];
+	obj = to_drm_gem_dma_obj(exec->bo[hindex]);
 	bo = to_vc4_bo(&obj->base);
 
 	if (bo->validated_shader) {
@@ -810,7 +810,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 			return -EINVAL;
 		}
 
-		bo[i] = exec->bo[src_handles[i]];
+		bo[i] = to_drm_gem_dma_obj(exec->bo[src_handles[i]]);
 		if (!bo[i])
 			return -EINVAL;
 	}

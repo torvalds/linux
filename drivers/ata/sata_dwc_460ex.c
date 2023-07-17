@@ -810,7 +810,7 @@ static int sata_dwc_dma_get_channel(struct sata_dwc_device_port *hsdevp)
 	struct device *dev = hsdev->dev;
 
 #ifdef CONFIG_SATA_DWC_OLD_DMA
-	if (!of_find_property(dev->of_node, "dmas", NULL))
+	if (!of_property_present(dev->of_node, "dmas"))
 		return sata_dwc_dma_get_channel_old(hsdevp);
 #endif
 
@@ -1076,7 +1076,7 @@ static void sata_dwc_dev_select(struct ata_port *ap, unsigned int device)
 /*
  * scsi mid-layer and libata interface structures
  */
-static struct scsi_host_template sata_dwc_sht = {
+static const struct scsi_host_template sata_dwc_sht = {
 	ATA_NCQ_SHT(DRV_NAME),
 	/*
 	 * test-only: Currently this driver doesn't handle NCQ
@@ -1180,7 +1180,7 @@ static int sata_dwc_probe(struct platform_device *ofdev)
 	}
 
 #ifdef CONFIG_SATA_DWC_OLD_DMA
-	if (!of_find_property(np, "dmas", NULL)) {
+	if (!of_property_present(np, "dmas")) {
 		err = sata_dwc_dma_init_old(ofdev, hsdev);
 		if (err)
 			return err;

@@ -66,7 +66,8 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	dst->tclassid = 0;
 #endif
 	dst->lwtstate = NULL;
-	atomic_set(&dst->__refcnt, initial_ref);
+	rcuref_init(&dst->__rcuref, initial_ref);
+	INIT_LIST_HEAD(&dst->rt_uncached);
 	dst->__use = 0;
 	dst->lastuse = jiffies;
 	dst->flags = flags;
@@ -162,31 +163,15 @@ EXPORT_SYMBOL(dst_dev_put);
 
 void dst_release(struct dst_entry *dst)
 {
-	if (dst) {
-		int newrefcnt;
-
-		newrefcnt = atomic_dec_return(&dst->__refcnt);
-		if (WARN_ONCE(newrefcnt < 0, "dst_release underflow"))
-			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
-					     __func__, dst, newrefcnt);
-		if (!newrefcnt)
-			call_rcu_hurry(&dst->rcu_head, dst_destroy_rcu);
-	}
+	if (dst && rcuref_put(&dst->__rcuref))
+		call_rcu_hurry(&dst->rcu_head, dst_destroy_rcu);
 }
 EXPORT_SYMBOL(dst_release);
 
 void dst_release_immediate(struct dst_entry *dst)
 {
-	if (dst) {
-		int newrefcnt;
-
-		newrefcnt = atomic_dec_return(&dst->__refcnt);
-		if (WARN_ONCE(newrefcnt < 0, "dst_release_immediate underflow"))
-			net_warn_ratelimited("%s: dst:%p refcnt:%d\n",
-					     __func__, dst, newrefcnt);
-		if (!newrefcnt)
-			dst_destroy(dst);
-	}
+	if (dst && rcuref_put(&dst->__rcuref))
+		dst_destroy(dst);
 }
 EXPORT_SYMBOL(dst_release_immediate);
 

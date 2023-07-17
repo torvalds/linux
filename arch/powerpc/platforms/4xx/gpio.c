@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/legacy-of-mm-gpiochip.h>
 #include <linux/gpio/driver.h>
 #include <linux/types.h>
 #include <linux/slab.h>

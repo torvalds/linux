@@ -6,6 +6,7 @@
 
 #include <linux/pe.h>
 #include <linux/sizes.h>
+#include <asm/set_memory.h>
 
 	.macro	__EFI_PE_HEADER
 	.long	PE_MAGIC
@@ -33,7 +34,11 @@ optional_header:
 	.byte	0x02					// MajorLinkerVersion
 	.byte	0x14					// MinorLinkerVersion
 	.long	__pecoff_text_end - efi_header_end	// SizeOfCode
-	.long	__pecoff_data_virt_size			// SizeOfInitializedData
+#ifdef __clang__
+	.long   __pecoff_data_virt_size			// SizeOfInitializedData
+#else
+	.long	__pecoff_data_virt_end - __pecoff_text_end	// SizeOfInitializedData
+#endif
 	.long	0					// SizeOfUninitializedData
 	.long	__efistub_efi_pe_entry - _start		// AddressOfEntryPoint
 	.long	efi_header_end - _start			// BaseOfCode
@@ -91,9 +96,17 @@ section_table:
 		IMAGE_SCN_MEM_EXECUTE			// Characteristics
 
 	.ascii	".data\0\0\0"
-	.long	__pecoff_data_virt_size			// VirtualSize
+#ifdef __clang__
+	.long   __pecoff_data_virt_size			// VirtualSize
+#else
+	.long	__pecoff_data_virt_end - __pecoff_text_end	// VirtualSize
+#endif
 	.long	__pecoff_text_end - _start		// VirtualAddress
-	.long	__pecoff_data_raw_size			// SizeOfRawData
+#ifdef __clang__
+	.long   __pecoff_data_raw_size			// SizeOfRawData
+#else
+	.long	__pecoff_data_raw_end - __pecoff_text_end	// SizeOfRawData
+#endif
 	.long	__pecoff_text_end - _start		// PointerToRawData
 
 	.long	0					// PointerToRelocations

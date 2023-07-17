@@ -111,3 +111,5 @@ struct acp63_dev_data {
 	u16 pdev_count;
 	u16 pdm_dev_index;
 };
+
+int snd_amd_acp_find_config(struct pci_dev *pci);

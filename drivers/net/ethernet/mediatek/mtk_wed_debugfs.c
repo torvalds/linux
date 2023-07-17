@@ -252,8 +252,6 @@ void mtk_wed_hw_add_debugfs(struct mtk_wed_hw *hw)
 
 	snprintf(hw->dirname, sizeof(hw->dirname), "wed%d", hw->index);
 	dir = debugfs_create_dir(hw->dirname, NULL);
-	if (!dir)
-		return;
 
 	hw->debugfs_dir = dir;
 	debugfs_create_u32("regidx", 0600, dir, &hw->debugfs_reg);

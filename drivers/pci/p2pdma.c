@@ -746,8 +746,7 @@ EXPORT_SYMBOL_GPL(pci_has_p2pmem);
 
 /**
  * pci_p2pmem_find_many - find a peer-to-peer DMA memory device compatible with
- *	the specified list of clients and shortest distance (as determined
- *	by pci_p2pmem_dma())
+ *	the specified list of clients and shortest distance
  * @clients: array of devices to check (NULL-terminated)
  * @num_clients: number of client devices in the list
  *

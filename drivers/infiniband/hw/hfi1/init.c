@@ -342,7 +342,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		INIT_LIST_HEAD(&rcd->flow_queue.queue_head);
 		INIT_LIST_HEAD(&rcd->rarr_queue.queue_head);
 
-		hfi1_cdbg(PROC, "setting up context %u\n", rcd->ctxt);
+		hfi1_cdbg(PROC, "setting up context %u", rcd->ctxt);
 
 		/*
 		 * Calculate the context's RcvArray entry starting point.
@@ -400,7 +400,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 			rcd->egrbufs.count = MAX_EAGER_ENTRIES;
 		}
 		hfi1_cdbg(PROC,
-			  "ctxt%u: max Eager buffer RcvArray entries: %u\n",
+			  "ctxt%u: max Eager buffer RcvArray entries: %u",
 			  rcd->ctxt, rcd->egrbufs.count);
 
 		/*
@@ -432,7 +432,7 @@ int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 		if (rcd->egrbufs.size < hfi1_max_mtu) {
 			rcd->egrbufs.size = __roundup_pow_of_two(hfi1_max_mtu);
 			hfi1_cdbg(PROC,
-				  "ctxt%u: eager bufs size too small. Adjusting to %u\n",
+				  "ctxt%u: eager bufs size too small. Adjusting to %u",
 				    rcd->ctxt, rcd->egrbufs.size);
 		}
 		rcd->egrbufs.rcvtid_size = HFI1_MAX_EAGER_BUFFER_SIZE;
@@ -1920,7 +1920,7 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	rcd->egrbufs.size = alloced_bytes;
 
 	hfi1_cdbg(PROC,
-		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %uKB\n",
+		  "ctxt%u: Alloced %u rcv tid entries @ %uKB, total %uKB",
 		  rcd->ctxt, rcd->egrbufs.alloced,
 		  rcd->egrbufs.rcvtid_size / 1024, rcd->egrbufs.size / 1024);
 
@@ -1943,13 +1943,13 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 		rcd->expected_count = MAX_TID_PAIR_ENTRIES * 2;
 
 	rcd->expected_base = rcd->eager_base + egrtop;
-	hfi1_cdbg(PROC, "ctxt%u: eager:%u, exp:%u, egrbase:%u, expbase:%u\n",
+	hfi1_cdbg(PROC, "ctxt%u: eager:%u, exp:%u, egrbase:%u, expbase:%u",
 		  rcd->ctxt, rcd->egrbufs.alloced, rcd->expected_count,
 		  rcd->eager_base, rcd->expected_base);
 
 	if (!hfi1_rcvbuf_validate(rcd->egrbufs.rcvtid_size, PT_EAGER, &order)) {
 		hfi1_cdbg(PROC,
-			  "ctxt%u: current Eager buffer size is invalid %u\n",
+			  "ctxt%u: current Eager buffer size is invalid %u",
 			  rcd->ctxt, rcd->egrbufs.rcvtid_size);
 		ret = -EINVAL;
 		goto bail_rcvegrbuf_phys;

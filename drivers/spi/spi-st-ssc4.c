@@ -183,7 +183,7 @@ static int spi_st_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (!spi->cs_gpiod) {
+	if (!spi_get_csgpiod(spi, 0)) {
 		dev_err(&spi->dev, "no valid gpio assigned\n");
 		return -EINVAL;
 	}
@@ -366,7 +366,7 @@ put_master:
 	return ret;
 }
 
-static int spi_st_remove(struct platform_device *pdev)
+static void spi_st_remove(struct platform_device *pdev)
 {
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct spi_st *spi_st = spi_master_get_devdata(master);
@@ -376,8 +376,6 @@ static int spi_st_remove(struct platform_device *pdev)
 	clk_disable_unprepare(spi_st->clk);
 
 	pinctrl_pm_select_sleep_state(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -451,7 +449,7 @@ static struct platform_driver spi_st_driver = {
 		.of_match_table = of_match_ptr(stm_spi_match),
 	},
 	.probe = spi_st_probe,
-	.remove = spi_st_remove,
+	.remove_new = spi_st_remove,
 };
 module_platform_driver(spi_st_driver);
 

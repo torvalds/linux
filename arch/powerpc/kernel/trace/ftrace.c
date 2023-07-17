@@ -194,6 +194,8 @@ __ftrace_make_nop(struct module *mod,
 	 * get corrupted.
 	 *
 	 * Use a b +8 to jump over the load.
+	 * XXX: could make PCREL depend on MPROFILE_KERNEL
+	 * XXX: check PCREL && MPROFILE_KERNEL calling sequence
 	 */
 	if (IS_ENABLED(CONFIG_MPROFILE_KERNEL) || IS_ENABLED(CONFIG_PPC32))
 		pop = ppc_inst(PPC_RAW_NOP());
@@ -725,6 +727,15 @@ int __init ftrace_dyn_arch_init(void)
 {
 	int i;
 	unsigned int *tramp[] = { ftrace_tramp_text, ftrace_tramp_init };
+#ifdef CONFIG_PPC_KERNEL_PCREL
+	u32 stub_insns[] = {
+		/* pla r12,addr */
+		PPC_PREFIX_MLS | __PPC_PRFX_R(1),
+		PPC_INST_PADDI | ___PPC_RT(_R12),
+		PPC_RAW_MTCTR(_R12),
+		PPC_RAW_BCTR()
+	};
+#else
 	u32 stub_insns[] = {
 		PPC_RAW_LD(_R12, _R13, PACATOC),
 		PPC_RAW_ADDIS(_R12, _R12, 0),
@@ -732,6 +743,8 @@ int __init ftrace_dyn_arch_init(void)
 		PPC_RAW_MTCTR(_R12),
 		PPC_RAW_BCTR()
 	};
+#endif
+
 	unsigned long addr;
 	long reladdr;
 
@@ -740,19 +753,36 @@ int __init ftrace_dyn_arch_init(void)
 	else
 		addr = ppc_global_function_entry((void *)ftrace_caller);
 
-	reladdr = addr - kernel_toc_addr();
+	if (IS_ENABLED(CONFIG_PPC_KERNEL_PCREL)) {
+		for (i = 0; i < 2; i++) {
+			reladdr = addr - (unsigned long)tramp[i];
 
-	if (reladdr >= SZ_2G || reladdr < -(long)SZ_2G) {
-		pr_err("Address of %ps out of range of kernel_toc.\n",
+			if (reladdr >= (long)SZ_8G || reladdr < -(long)SZ_8G) {
+				pr_err("Address of %ps out of range of pcrel address.\n",
+					(void *)addr);
+				return -1;
+			}
+
+			memcpy(tramp[i], stub_insns, sizeof(stub_insns));
+			tramp[i][0] |= IMM_H18(reladdr);
+			tramp[i][1] |= IMM_L(reladdr);
+			add_ftrace_tramp((unsigned long)tramp[i]);
+		}
+	} else {
+		reladdr = addr - kernel_toc_addr();
+
+		if (reladdr >= (long)SZ_2G || reladdr < -(long)SZ_2G) {
+			pr_err("Address of %ps out of range of kernel_toc.\n",
 				(void *)addr);
-		return -1;
-	}
+			return -1;
+		}
 
-	for (i = 0; i < 2; i++) {
-		memcpy(tramp[i], stub_insns, sizeof(stub_insns));
-		tramp[i][1] |= PPC_HA(reladdr);
-		tramp[i][2] |= PPC_LO(reladdr);
-		add_ftrace_tramp((unsigned long)tramp[i]);
+		for (i = 0; i < 2; i++) {
+			memcpy(tramp[i], stub_insns, sizeof(stub_insns));
+			tramp[i][1] |= PPC_HA(reladdr);
+			tramp[i][2] |= PPC_LO(reladdr);
+			add_ftrace_tramp((unsigned long)tramp[i]);
+		}
 	}
 
 	return 0;

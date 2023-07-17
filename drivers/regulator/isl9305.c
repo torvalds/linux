@@ -195,6 +195,7 @@ MODULE_DEVICE_TABLE(i2c, isl9305_i2c_id);
 static struct i2c_driver isl9305_regulator_driver = {
 	.driver = {
 		.name = "isl9305",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= of_match_ptr(isl9305_dt_ids),
 	},
 	.probe_new = isl9305_i2c_probe,

@@ -10,15 +10,6 @@
 
 */
 
-/* Changes:
-
-        1.01    GRG 1998.05.06 init_proto, release_proto
-	1.02    GRG 1998.06.17 support older versions of EPIA
-
-*/
-
-#define EPIA_VERSION      "1.02"
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -26,8 +17,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <asm/io.h>
-
-#include <linux/pata_parport.h>
+#include "pata_parport.h"
 
 /* mode codes:  0  nybble reads on port 1, 8-bit writes
                 1  5/3 reads on ports 1 & 2, 8-bit writes
@@ -46,7 +36,7 @@
 
 static int cont_map[2] = { 0, 0x80 };
 
-static int epia_read_regr( PIA *pi, int cont, int regr )
+static int epia_read_regr(struct pi_adapter *pi, int cont, int regr)
 
 {       int     a, b, r;
 
@@ -79,7 +69,7 @@ static int epia_read_regr( PIA *pi, int cont, int regr )
         return -1;
 }       
 
-static void epia_write_regr( PIA *pi, int cont, int regr, int val)
+static void epia_write_regr(struct pi_adapter *pi, int cont, int regr, int val)
 
 {       int  r;
 
@@ -110,7 +100,7 @@ static void epia_write_regr( PIA *pi, int cont, int regr, int val)
    2048 byte reads (the last two being used in the CDrom drivers.
 */
 
-static void epia_connect ( PIA *pi  )
+static void epia_connect(struct pi_adapter *pi)
 
 {       pi->saved_r0 = r0();
         pi->saved_r2 = r2();
@@ -124,7 +114,7 @@ static void epia_connect ( PIA *pi  )
         WR(0x86,8);  
 }
 
-static void epia_disconnect ( PIA *pi )
+static void epia_disconnect(struct pi_adapter *pi)
 
 {       /* WR(0x84,0x10); */
         w0(pi->saved_r0);
@@ -133,7 +123,7 @@ static void epia_disconnect ( PIA *pi )
         w2(pi->saved_r2);
 } 
 
-static void epia_read_block( PIA *pi, char * buf, int count )
+static void epia_read_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     k, ph, a, b;
 
@@ -193,7 +183,7 @@ static void epia_read_block( PIA *pi, char * buf, int count )
         }
 }
 
-static void epia_write_block( PIA *pi, char * buf, int count )
+static void epia_write_block(struct pi_adapter *pi, char *buf, int count)
 
 {       int     ph, k, last, d;
 
@@ -234,10 +224,11 @@ static void epia_write_block( PIA *pi, char * buf, int count )
 
 }
 
-static int epia_test_proto( PIA *pi, char * scratch, int verbose )
+static int epia_test_proto(struct pi_adapter *pi)
 
 {       int     j, k, f;
 	int	e[2] = {0,0};
+	char scratch[512];
 
         epia_connect(pi);
         for (j=0;j<2;j++) {
@@ -262,26 +253,21 @@ static int epia_test_proto( PIA *pi, char * scratch, int verbose )
         WR(0x84,0);
         epia_disconnect(pi);
 
-        if (verbose)  {
-            printk("%s: epia: port 0x%x, mode %d, test=(%d,%d,%d)\n",
-                   pi->device,pi->port,pi->mode,e[0],e[1],f);
-        }
+	dev_dbg(&pi->dev, "epia: port 0x%x, mode %d, test=(%d,%d,%d)\n",
+	       pi->port, pi->mode, e[0], e[1], f);
         
         return (e[0] && e[1]) || f;
 
 }
 
 
-static void epia_log_adapter( PIA *pi, char * scratch, int verbose )
+static void epia_log_adapter(struct pi_adapter *pi)
 
 {       char    *mode_string[6] = {"4-bit","5/3","8-bit",
 				   "EPP-8","EPP-16","EPP-32"};
 
-        printk("%s: epia %s, Shuttle EPIA at 0x%x, ",
-                pi->device,EPIA_VERSION,pi->port);
-        printk("mode %d (%s), delay %d\n",pi->mode,
-		mode_string[pi->mode],pi->delay);
-
+	dev_info(&pi->dev, "Shuttle EPIA at 0x%x, mode %d (%s), delay %d\n",
+		pi->port, pi->mode, mode_string[pi->mode], pi->delay);
 }
 
 static struct pi_protocol epia = {
@@ -301,16 +287,5 @@ static struct pi_protocol epia = {
 	.log_adapter	= epia_log_adapter,
 };
 
-static int __init epia_init(void)
-{
-	return paride_register(&epia);
-}
-
-static void __exit epia_exit(void)
-{
-	paride_unregister(&epia);
-}
-
 MODULE_LICENSE("GPL");
-module_init(epia_init)
-module_exit(epia_exit)
+module_pata_parport_driver(epia);

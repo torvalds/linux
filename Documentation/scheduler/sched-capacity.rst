@@ -258,7 +258,7 @@ Linux cannot currently figure out CPU capacity on its own, this information thus
 needs to be handed to it. Architectures must define arch_scale_cpu_capacity()
 for that purpose.
 
-The arm and arm64 architectures directly map this to the arch_topology driver
+The arm, arm64, and RISC-V architectures directly map this to the arch_topology driver
 CPU scaling data, which is derived from the capacity-dmips-mhz CPU binding; see
 Documentation/devicetree/bindings/cpu/cpu-capacity.txt.
 

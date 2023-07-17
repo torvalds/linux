@@ -124,11 +124,10 @@ fail:
 	return rc;
 }
 
-static int amilo_rfkill_remove(struct platform_device *device)
+static void amilo_rfkill_remove(struct platform_device *device)
 {
 	rfkill_unregister(amilo_rfkill_dev);
 	rfkill_destroy(amilo_rfkill_dev);
-	return 0;
 }
 
 static struct platform_driver amilo_rfkill_driver = {
@@ -136,7 +135,7 @@ static struct platform_driver amilo_rfkill_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe	= amilo_rfkill_probe,
-	.remove	= amilo_rfkill_remove,
+	.remove_new = amilo_rfkill_remove,
 };
 
 static int __init amilo_rfkill_init(void)

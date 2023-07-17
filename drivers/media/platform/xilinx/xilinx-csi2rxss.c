@@ -1059,7 +1059,7 @@ err_clk_put:
 	return ret;
 }
 
-static int xcsi2rxss_remove(struct platform_device *pdev)
+static void xcsi2rxss_remove(struct platform_device *pdev)
 {
 	struct xcsi2rxss_state *xcsi2rxss = platform_get_drvdata(pdev);
 	struct v4l2_subdev *subdev = &xcsi2rxss->subdev;
@@ -1070,8 +1070,6 @@ static int xcsi2rxss_remove(struct platform_device *pdev)
 	mutex_destroy(&xcsi2rxss->lock);
 	clk_bulk_disable_unprepare(num_clks, xcsi2rxss->clks);
 	clk_bulk_put(num_clks, xcsi2rxss->clks);
-
-	return 0;
 }
 
 static const struct of_device_id xcsi2rxss_of_id_table[] = {
@@ -1086,7 +1084,7 @@ static struct platform_driver xcsi2rxss_driver = {
 		.of_match_table	= xcsi2rxss_of_id_table,
 	},
 	.probe			= xcsi2rxss_probe,
-	.remove			= xcsi2rxss_remove,
+	.remove_new		= xcsi2rxss_remove,
 };
 
 module_platform_driver(xcsi2rxss_driver);
