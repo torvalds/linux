@@ -39,7 +39,9 @@ evts_ns1=""
 evts_ns2=""
 evts_ns1_pid=0
 evts_ns2_pid=0
-stats_dumped=0
+last_test_failed=0
+last_test_skipped=0
+last_test_ignored=1
 
 declare -A all_tests
 declare -a only_tests_ids
@@ -101,7 +103,6 @@ init_partial()
 		fi
 	done
 
-	stats_dumped=0
 	check_invert=0
 	validate_checksum=$checksum
 
@@ -216,6 +217,8 @@ mark_as_skipped()
 
 	print_title "[ skip ] ${msg}"
 	printf "\n"
+
+	last_test_skipped=1
 }
 
 # $@: condition
@@ -248,14 +251,32 @@ skip_test()
 	return 0
 }
 
+append_prev_results()
+{
+	if [ ${last_test_failed} -eq 1 ]; then
+		mptcp_lib_result_fail "${TEST_NAME}"
+	elif [ ${last_test_skipped} -eq 1 ]; then
+		mptcp_lib_result_skip "${TEST_NAME}"
+	elif [ ${last_test_ignored} -ne 1 ]; then
+		mptcp_lib_result_pass "${TEST_NAME}"
+	fi
+
+	last_test_failed=0
+	last_test_skipped=0
+	last_test_ignored=0
+}
+
 # $1: test name
 reset()
 {
+	append_prev_results
+
 	TEST_NAME="${1}"
 
 	TEST_COUNT=$((TEST_COUNT+1))
 
 	if skip_test; then
+		last_test_ignored=1
 		return 1
 	fi
 
@@ -442,10 +463,13 @@ reset_with_tcp_filter()
 fail_test()
 {
 	ret=1
-	failed_tests[${TEST_COUNT}]="${TEST_NAME}"
 
-	[ "${stats_dumped}" = 0 ] && dump_stats
-	stats_dumped=1
+	# just in case a test is marked twice as failed
+	if [ ${last_test_failed} -eq 0 ]; then
+		failed_tests[${TEST_COUNT}]="${TEST_NAME}"
+		dump_stats
+		last_test_failed=1
+	fi
 }
 
 get_failed_tests_ids()
@@ -3598,5 +3622,8 @@ if [ ${ret} -ne 0 ]; then
 	done
 	echo
 fi
+
+append_prev_results
+mptcp_lib_result_print_all_tap
 
 exit $ret
