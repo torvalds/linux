@@ -89,14 +89,6 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	/* Tx/Rx IRQ Events */
 	STMMAC_STAT(rx_early_irq),
 	STMMAC_STAT(threshold),
-	STMMAC_STAT(tx_pkt_n),
-	STMMAC_STAT(rx_pkt_n),
-	STMMAC_STAT(normal_irq_n),
-	STMMAC_STAT(rx_normal_irq_n),
-	STMMAC_STAT(napi_poll),
-	STMMAC_STAT(tx_normal_irq_n),
-	STMMAC_STAT(tx_clean),
-	STMMAC_STAT(tx_set_ic_bit),
 	STMMAC_STAT(irq_receive_pmt_irq_n),
 	/* MMC info */
 	STMMAC_STAT(mmc_tx_irq_n),
@@ -163,9 +155,6 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(mtl_rx_fifo_ctrl_active),
 	STMMAC_STAT(mac_rx_frame_ctrl_fifo),
 	STMMAC_STAT(mac_gmii_rx_proto_engine),
-	/* TSO */
-	STMMAC_STAT(tx_tso_frames),
-	STMMAC_STAT(tx_tso_nfrags),
 	/* EST */
 	STMMAC_STAT(mtl_est_cgce),
 	STMMAC_STAT(mtl_est_hlbs),
@@ -174,6 +163,23 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(mtl_est_btrlm),
 };
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
+
+/* statistics collected in queue which will be summed up for all TX or RX
+ * queues, or summed up for both TX and RX queues(napi_poll, normal_irq_n).
+ */
+static const char stmmac_qstats_string[][ETH_GSTRING_LEN] = {
+	"rx_pkt_n",
+	"rx_normal_irq_n",
+	"tx_pkt_n",
+	"tx_normal_irq_n",
+	"tx_clean",
+	"tx_set_ic_bit",
+	"tx_tso_frames",
+	"tx_tso_nfrags",
+	"normal_irq_n",
+	"napi_poll",
+};
+#define STMMAC_QSTATS ARRAY_SIZE(stmmac_qstats_string)
 
 /* HW MAC Management counters (if supported) */
 #define STMMAC_MMC_STAT(m)	\
@@ -535,23 +541,44 @@ static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	unsigned int start;
 	int q, stat;
+	u64 *pos;
 	char *p;
 
+	pos = data;
 	for (q = 0; q < tx_cnt; q++) {
-		p = (char *)priv + offsetof(struct stmmac_priv,
-					    xstats.txq_stats[q].tx_pkt_n);
+		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[q];
+		struct stmmac_txq_stats snapshot;
+
+		data = pos;
+		do {
+			start = u64_stats_fetch_begin(&tx_q->txq_stats.syncp);
+			snapshot = tx_q->txq_stats;
+		} while (u64_stats_fetch_retry(&tx_q->txq_stats.syncp, start));
+
+		p = (char *)&snapshot + offsetof(struct stmmac_txq_stats, tx_pkt_n);
 		for (stat = 0; stat < STMMAC_TXQ_STATS; stat++) {
-			*data++ = (*(unsigned long *)p);
-			p += sizeof(unsigned long);
+			*data++ += (*(u64 *)p);
+			p += sizeof(u64);
 		}
 	}
+
+	pos = data;
 	for (q = 0; q < rx_cnt; q++) {
-		p = (char *)priv + offsetof(struct stmmac_priv,
-					    xstats.rxq_stats[q].rx_pkt_n);
+		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[q];
+		struct stmmac_rxq_stats snapshot;
+
+		data = pos;
+		do {
+			start = u64_stats_fetch_begin(&rx_q->rxq_stats.syncp);
+			snapshot = rx_q->rxq_stats;
+		} while (u64_stats_fetch_retry(&rx_q->rxq_stats.syncp, start));
+
+		p = (char *)&snapshot + offsetof(struct stmmac_rxq_stats, rx_pkt_n);
 		for (stat = 0; stat < STMMAC_RXQ_STATS; stat++) {
-			*data++ = (*(unsigned long *)p);
-			p += sizeof(unsigned long);
+			*data++ += (*(u64 *)p);
+			p += sizeof(u64);
 		}
 	}
 }
@@ -562,8 +589,10 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+	u64 napi_poll = 0, normal_irq_n = 0;
+	int i, j = 0, pos, ret;
 	unsigned long count;
-	int i, j = 0, ret;
+	unsigned int start;
 
 	if (priv->dma_cap.asp) {
 		for (i = 0; i < STMMAC_SAFETY_FEAT_SIZE; i++) {
@@ -574,8 +603,7 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	}
 
 	/* Update the DMA HW counters for dwmac10/100 */
-	ret = stmmac_dma_diagnostic_fr(priv, &dev->stats, (void *) &priv->xstats,
-			priv->ioaddr);
+	ret = stmmac_dma_diagnostic_fr(priv, &priv->xstats, priv->ioaddr);
 	if (ret) {
 		/* If supported, for new GMAC chips expose the MMC counters */
 		if (priv->dma_cap.rmon) {
@@ -606,6 +634,48 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 		data[j++] = (stmmac_gstrings_stats[i].sizeof_stat ==
 			     sizeof(u64)) ? (*(u64 *)p) : (*(u32 *)p);
 	}
+
+	pos = j;
+	for (i = 0; i < rx_queues_count; i++) {
+		struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[i];
+		struct stmmac_rxq_stats snapshot;
+
+		j = pos;
+		do {
+			start = u64_stats_fetch_begin(&rx_q->rxq_stats.syncp);
+			snapshot = rx_q->rxq_stats;
+		} while (u64_stats_fetch_retry(&rx_q->rxq_stats.syncp, start));
+
+		data[j++] += snapshot.rx_pkt_n;
+		data[j++] += snapshot.rx_normal_irq_n;
+		normal_irq_n += snapshot.rx_normal_irq_n;
+		napi_poll += snapshot.napi_poll;
+	}
+
+	pos = j;
+	for (i = 0; i < tx_queues_count; i++) {
+		struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[i];
+		struct stmmac_txq_stats snapshot;
+
+		j = pos;
+		do {
+			start = u64_stats_fetch_begin(&tx_q->txq_stats.syncp);
+			snapshot = tx_q->txq_stats;
+		} while (u64_stats_fetch_retry(&tx_q->txq_stats.syncp, start));
+
+		data[j++] += snapshot.tx_pkt_n;
+		data[j++] += snapshot.tx_normal_irq_n;
+		normal_irq_n += snapshot.tx_normal_irq_n;
+		data[j++] += snapshot.tx_clean;
+		data[j++] += snapshot.tx_set_ic_bit;
+		data[j++] += snapshot.tx_tso_frames;
+		data[j++] += snapshot.tx_tso_nfrags;
+		napi_poll += snapshot.napi_poll;
+	}
+	normal_irq_n += priv->xstats.rx_early_irq;
+	data[j++] = normal_irq_n;
+	data[j++] = napi_poll;
+
 	stmmac_get_per_qstats(priv, &data[j]);
 }
 
@@ -618,7 +688,7 @@ static int stmmac_get_sset_count(struct net_device *netdev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		len = STMMAC_STATS_LEN +
+		len = STMMAC_STATS_LEN + STMMAC_QSTATS +
 		      STMMAC_TXQ_STATS * tx_cnt +
 		      STMMAC_RXQ_STATS * rx_cnt;
 
@@ -691,8 +761,11 @@ static void stmmac_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 				p += ETH_GSTRING_LEN;
 			}
 		for (i = 0; i < STMMAC_STATS_LEN; i++) {
-			memcpy(p, stmmac_gstrings_stats[i].stat_string,
-				ETH_GSTRING_LEN);
+			memcpy(p, stmmac_gstrings_stats[i].stat_string, ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < STMMAC_QSTATS; i++) {
+			memcpy(p, stmmac_qstats_string[i], ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
 		stmmac_get_qstats_string(priv, p);

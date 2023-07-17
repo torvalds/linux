@@ -337,6 +337,8 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 				  struct stmmac_extra_stats *x, u32 chan,
 				  u32 dir)
 {
+	struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[chan];
+	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[chan];
 	u32 intr_status = readl(ioaddr + XGMAC_DMA_CH_STATUS(chan));
 	u32 intr_en = readl(ioaddr + XGMAC_DMA_CH_INT_EN(chan));
 	int ret = 0;
@@ -364,16 +366,16 @@ static int dwxgmac2_dma_interrupt(struct stmmac_priv *priv,
 
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & XGMAC_NIS)) {
-		x->normal_irq_n++;
-
 		if (likely(intr_status & XGMAC_RI)) {
-			x->rx_normal_irq_n++;
-			x->rxq_stats[chan].rx_normal_irq_n++;
+			u64_stats_update_begin(&rx_q->rxq_stats.syncp);
+			rx_q->rxq_stats.rx_normal_irq_n++;
+			u64_stats_update_end(&rx_q->rxq_stats.syncp);
 			ret |= handle_rx;
 		}
 		if (likely(intr_status & (XGMAC_TI | XGMAC_TBU))) {
-			x->tx_normal_irq_n++;
-			x->txq_stats[chan].tx_normal_irq_n++;
+			u64_stats_update_begin(&tx_q->txq_stats.syncp);
+			tx_q->txq_stats.tx_normal_irq_n++;
+			u64_stats_update_end(&tx_q->txq_stats.syncp);
 			ret |= handle_tx;
 		}
 	}
