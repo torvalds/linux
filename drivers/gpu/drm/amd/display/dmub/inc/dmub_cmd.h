@@ -144,6 +144,32 @@
 #define PHYSICAL_ADDRESS_LOC union large_integer
 #endif
 
+/**
+ * OS/FW agnostic memcpy
+ */
+#ifndef dmub_memcpy
+#define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
+#endif
+
+/**
+ * OS/FW agnostic memset
+ */
+#ifndef dmub_memset
+#define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+/**
+ * OS/FW agnostic udelay
+ */
+#ifndef dmub_udelay
+#define dmub_udelay(microseconds) udelay(microseconds)
+#endif
+
+#pragma pack(push, 1)
 #define ABM_NUM_OF_ACE_SEGMENTS         5
 
 union abm_flags {
@@ -233,34 +259,6 @@ struct abm_save_restore {
 
 };
 
-
-
-/**
- * OS/FW agnostic memcpy
- */
-#ifndef dmub_memcpy
-#define dmub_memcpy(dest, source, bytes) memcpy((dest), (source), (bytes))
-#endif
-
-/**
- * OS/FW agnostic memset
- */
-#ifndef dmub_memset
-#define dmub_memset(dest, val, bytes) memset((dest), (val), (bytes))
-#endif
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-/**
- * OS/FW agnostic udelay
- */
-#ifndef dmub_udelay
-#define dmub_udelay(microseconds) udelay(microseconds)
-#endif
-
-#pragma pack(push, 1)
 /**
  * union dmub_addr - DMUB physical/virtual 64-bit address.
  */
