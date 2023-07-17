@@ -637,6 +637,8 @@ struct dwc3_msm {
 	bool qos_rec_start;
 	u8 qos_rec_index;
 	u32 qos_rec_irq[PM_QOS_REC_MAX_RECORD];
+
+	int			repeater_rev;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -3288,21 +3290,6 @@ static void mdwc3_update_u1u2_value(struct dwc3 *dwc)
 		dwc->dis_u2_entry_quirk ? "disabled" : "enabled");
 }
 
-int dwc3_msm_get_repeater_ver(struct dwc3_msm *mdwc)
-{
-	struct usb_repeater *ur = NULL;
-	int ver;
-
-	ur = devm_usb_get_repeater_by_phandle(mdwc->hs_phy->dev, "usb-repeater", 0);
-	if (IS_ERR(ur))
-		return -ENODEV;
-
-	ver = usb_repeater_get_version(ur);
-	usb_put_repeater(ur);
-
-	return ver;
-}
-
 static void handle_gsi_buffer_setup_event(struct dwc3 *dwc)
 {
 	struct dwc3_msm *mdwc = dev_get_drvdata(dwc->dev->parent);
@@ -3469,7 +3456,7 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 			 * silicon.  Limit the controller PHY soft reset to the
 			 * version which requires it.
 			 */
-			if (dwc3_msm_get_repeater_ver(mdwc) == USB_REPEATER_V1) {
+			if (mdwc->repeater_rev == USB_REPEATER_V1) {
 				udelay(20);
 				/*
 				 * Perform usb2 phy soft reset as given
@@ -5848,6 +5835,21 @@ err:
 	return ret;
 }
 
+int dwc3_msm_get_repeater_ver(struct dwc3_msm *mdwc)
+{
+	struct usb_repeater *ur = NULL;
+
+	ur = usb_get_repeater_by_phandle(mdwc->hs_phy->dev, "usb-repeater", 0);
+	if (IS_ERR(ur)) {
+		pr_err("unable to get repeater %ld\n", PTR_ERR(ur));
+		return PTR_ERR(ur);
+	}
+
+	mdwc->repeater_rev = usb_repeater_get_version(ur);
+
+	return 0;
+}
+
 static int dwc3_msm_parse_core_params(struct dwc3_msm *mdwc, struct device_node *dwc3_node)
 {
 	struct device_node *phy_node;
@@ -5882,6 +5884,9 @@ static int dwc3_msm_parse_core_params(struct dwc3_msm *mdwc, struct device_node 
 		ret = PTR_ERR(mdwc->ss_phy);
 		return ret;
 	}
+
+	/* Populate USB repeater version for TD 9.23 WA */
+	dwc3_msm_get_repeater_ver(mdwc);
 
 	return ret;
 }
