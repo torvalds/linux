@@ -1082,7 +1082,8 @@ static enum prep_encoded_ret {
 	     op->incompressible)) {
 		if (!crc_is_compressed(op->crc) &&
 		    op->csum_type != op->crc.csum_type &&
-		    bch2_write_rechecksum(c, op, op->csum_type))
+		    bch2_write_rechecksum(c, op, op->csum_type) &&
+		    !c->opts.no_data_io)
 			return PREP_ENCODED_CHECKSUM_ERR;
 
 		return PREP_ENCODED_DO_WRITE;
@@ -1102,7 +1103,7 @@ static enum prep_encoded_ret {
 		csum = bch2_checksum_bio(c, op->crc.csum_type,
 					 extent_nonce(op->version, op->crc),
 					 bio);
-		if (bch2_crc_cmp(op->crc.csum, csum))
+		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			return PREP_ENCODED_CHECKSUM_ERR;
 
 		if (bch2_bio_uncompress_inplace(c, bio, &op->crc))
@@ -1120,7 +1121,8 @@ static enum prep_encoded_ret {
 	 */
 	if ((op->crc.live_size != op->crc.uncompressed_size ||
 	     op->crc.csum_type != op->csum_type) &&
-	    bch2_write_rechecksum(c, op, op->csum_type))
+	    bch2_write_rechecksum(c, op, op->csum_type) &&
+	    !c->opts.no_data_io)
 		return PREP_ENCODED_CHECKSUM_ERR;
 
 	/*
@@ -2416,7 +2418,8 @@ static void __bch2_read_endio(struct work_struct *work)
 		if (ret)
 			goto decrypt_err;
 
-		if (bch2_bio_uncompress(c, src, dst, dst_iter, crc))
+		if (bch2_bio_uncompress(c, src, dst, dst_iter, crc) &&
+		    !c->opts.no_data_io)
 			goto decompression_err;
 	} else {
 		/* don't need to decrypt the entire bio: */

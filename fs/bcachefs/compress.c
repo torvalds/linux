@@ -240,7 +240,8 @@ int bch2_bio_uncompress_inplace(struct bch_fs *c, struct bio *bio,
 	data = __bounce_alloc(c, dst_len, WRITE);
 
 	if (__bio_uncompress(c, bio, data.b, *crc)) {
-		bch_err(c, "error rewriting existing data: decompression error");
+		if (!c->opts.no_data_io)
+			bch_err(c, "error rewriting existing data: decompression error");
 		bio_unmap_or_unbounce(c, data);
 		return -EIO;
 	}

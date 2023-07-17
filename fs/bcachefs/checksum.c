@@ -426,7 +426,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		merged = bch2_checksum_bio(c, crc_old.csum_type,
 				extent_nonce(version, crc_old), bio);
 
-	if (bch2_crc_cmp(merged, crc_old.csum)) {
+	if (bch2_crc_cmp(merged, crc_old.csum) && !c->opts.no_data_io) {
 		bch_err(c, "checksum error in bch2_rechecksum_bio() (memory corruption or bug?)\n"
 			"expected %0llx:%0llx got %0llx:%0llx (old type %s new type %s)",
 			crc_old.csum.hi,
