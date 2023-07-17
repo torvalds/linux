@@ -3,14 +3,10 @@
  *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
  */
 
-#include <linux/of_platform.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 
 #include "common.h"
 #include "hardware.h"
-
-#define MX1_AVIC_ADDR	0x00223000
 
 static void __init imx1_init_early(void)
 {
