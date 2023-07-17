@@ -566,7 +566,7 @@ config IRQ_LOONGARCH_CPU
 	help
 	  Support for the LoongArch CPU Interrupt Controller. For details of
 	  irq chip hierarchy on LoongArch platforms please read the document
-	  Documentation/loongarch/irq-chip-model.rst.
+	  Documentation/arch/loongarch/irq-chip-model.rst.
 
 config LOONGSON_LIOINTC
 	bool "Loongson Local I/O Interrupt Controller"

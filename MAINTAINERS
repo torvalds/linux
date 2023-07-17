@@ -12232,8 +12232,8 @@ R:	WANG Xuerui <kernel@xen0n.name>
 L:	loongarch@lists.linux.dev
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chenhuacai/linux-loongson.git
-F:	Documentation/loongarch/
-F:	Documentation/translations/zh_CN/loongarch/
+F:	Documentation/arch/loongarch/
+F:	Documentation/translations/zh_CN/arch/loongarch/
 F:	arch/loongarch/
 F:	drivers/*/*loongarch*
 
