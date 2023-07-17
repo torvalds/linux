@@ -180,7 +180,8 @@ struct dccg_funcs {
 
 	void (*disable_symclk_se)(
 			struct dccg *dccg,
-			uint32_t stream_enc_inst);
+			uint32_t stream_enc_inst,
+			uint32_t link_enc_inst);
 };
 
 #endif //__DAL_DCCG_H__
