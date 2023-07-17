@@ -1714,7 +1714,7 @@ static int css_populate_dir(struct cgroup_subsys_state *css)
 	struct cftype *cfts, *failed_cfts;
 	int ret;
 
-	if ((css->flags & CSS_VISIBLE) || !cgrp->kn)
+	if (css->flags & CSS_VISIBLE)
 		return 0;
 
 	if (!css->ss) {
