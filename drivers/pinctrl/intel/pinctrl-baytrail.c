@@ -1659,7 +1659,6 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int byt_gpio_suspend(struct device *dev)
 {
 	struct intel_pinctrl *vg = dev_get_drvdata(dev);
@@ -1743,9 +1742,7 @@ static int byt_gpio_resume(struct device *dev)
 	raw_spin_unlock_irqrestore(&byt_lock, flags);
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM
 static int byt_gpio_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -1755,19 +1752,17 @@ static int byt_gpio_runtime_resume(struct device *dev)
 {
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops byt_gpio_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(byt_gpio_suspend, byt_gpio_resume)
-	SET_RUNTIME_PM_OPS(byt_gpio_runtime_suspend, byt_gpio_runtime_resume,
-			   NULL)
+	LATE_SYSTEM_SLEEP_PM_OPS(byt_gpio_suspend, byt_gpio_resume)
+	RUNTIME_PM_OPS(byt_gpio_runtime_suspend, byt_gpio_runtime_resume, NULL)
 };
 
 static struct platform_driver byt_gpio_driver = {
 	.probe          = byt_pinctrl_probe,
 	.driver         = {
 		.name			= "byt_gpio",
-		.pm			= &byt_gpio_pm_ops,
+		.pm			= pm_ptr(&byt_gpio_pm_ops),
 		.acpi_match_table	= byt_gpio_acpi_match,
 		.suppress_bind_attrs	= true,
 	},
