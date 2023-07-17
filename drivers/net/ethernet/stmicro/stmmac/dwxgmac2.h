@@ -165,7 +165,7 @@
 #define XGMAC_DCS_SHIFT			16
 #define XGMAC_ADDRx_LOW(x)		(0x00000304 + (x) * 0x8)
 #define XGMAC_L3L4_ADDR_CTRL		0x00000c00
-#define XGMAC_IDDR			GENMASK(15, 8)
+#define XGMAC_IDDR			GENMASK(16, 8)
 #define XGMAC_IDDR_SHIFT		8
 #define XGMAC_IDDR_FNUM			4
 #define XGMAC_TT			BIT(1)
